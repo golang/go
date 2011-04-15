@@ -21,7 +21,7 @@ void
 complexmove(Node *f, Node *t)
 {
 	int ft, tt;
-	Node n1, n2, n3, n4, t3, t4;
+	Node n1, n2, n3, n4;
 
 	if(debug['g']) {
 		dump("\ncomplexmove-f", f);
@@ -54,21 +54,8 @@ complexmove(Node *f, Node *t)
 		subnode(&n1, &n2, f);
 		subnode(&n3, &n4, t);
 
-		// Copy fully into registers before doing stores,
-		// in case the source and destination overlap.
-		// Might be picking up a complex128 from one
-		// location on the stack and writing it 8 bytes
-		// (half a complex128) later, in which case the
-		// first write would smash the source for the second read.
-		regalloc(&t3, types[tt+TFLOAT64-TCOMPLEX128], N);
-		regalloc(&t4, types[tt+TFLOAT64-TCOMPLEX128], N);
-		cgen(&n1, &t3);
-		cgen(&n2, &t4);
-
-		cgen(&t3, &n3);
-		cgen(&t4, &n4);
-		regfree(&t3);
-		regfree(&t4);
+		cgen(&n1, &n3);
+		cgen(&n2, &n4);
 		break;
 	}
 }
