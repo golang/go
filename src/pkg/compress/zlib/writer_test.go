@@ -16,13 +16,19 @@ var filenames = []string{
 	"../testdata/pi.txt",
 }
 
-// Tests that compressing and then decompressing the given file at the given compression level
+// Tests that compressing and then decompressing the given file at the given compression level and dictionary
 // yields equivalent bytes to the original file.
-func testFileLevel(t *testing.T, fn string, level int) {
+func testFileLevelDict(t *testing.T, fn string, level int, d string) {
+	// Read dictionary, if given.
+	var dict []byte
+	if d != "" {
+		dict = []byte(d)
+	}
+
 	// Read the file, as golden output.
 	golden, err := os.Open(fn)
 	if err != nil {
-		t.Errorf("%s (level=%d): %v", fn, level, err)
+		t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err)
 		return
 	}
 	defer golden.Close()
@@ -30,7 +36,7 @@ func testFileLevel(t *testing.T, fn string, level int) {
 	// Read the file again, and push it through a pipe that compresses at the write end, and decompresses at the read end.
 	raw, err := os.Open(fn)
 	if err != nil {
-		t.Errorf("%s (level=%d): %v", fn, level, err)
+		t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err)
 		return
 	}
 	piper, pipew := io.Pipe()
@@ -38,9 +44,9 @@ func testFileLevel(t *testing.T, fn string, level int) {
 	go func() {
 		defer raw.Close()
 		defer pipew.Close()
-		zlibw, err := NewWriterLevel(pipew, level)
+		zlibw, err := NewWriterDict(pipew, level, dict)
 		if err != nil {
-			t.Errorf("%s (level=%d): %v", fn, level, err)
+			t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err)
 			return
 		}
 		defer zlibw.Close()
@@ -48,7 +54,7 @@ func testFileLevel(t *testing.T, fn string, level int) {
 		for {
 			n, err0 := raw.Read(b[0:])
 			if err0 != nil && err0 != os.EOF {
-				t.Errorf("%s (level=%d): %v", fn, level, err0)
+				t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err0)
 				return
 			}
 			_, err1 := zlibw.Write(b[0:n])
@@ -57,7 +63,7 @@ func testFileLevel(t *testing.T, fn string, level int) {
 				return
 			}
 			if err1 != nil {
-				t.Errorf("%s (level=%d): %v", fn, level, err1)
+				t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err1)
 				return
 			}
 			if err0 == os.EOF {
@@ -65,9 +71,9 @@ func testFileLevel(t *testing.T, fn string, level int) {
 			}
 		}
 	}()
-	zlibr, err := NewReader(piper)
+	zlibr, err := NewReaderDict(piper, dict)
 	if err != nil {
-		t.Errorf("%s (level=%d): %v", fn, level, err)
+		t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err)
 		return
 	}
 	defer zlibr.Close()
@@ -76,20 +82,20 @@ func testFileLevel(t *testing.T, fn string, level int) {
 	b0, err0 := ioutil.ReadAll(golden)
 	b1, err1 := ioutil.ReadAll(zlibr)
 	if err0 != nil {
-		t.Errorf("%s (level=%d): %v", fn, level, err0)
+		t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err0)
 		return
 	}
 	if err1 != nil {
-		t.Errorf("%s (level=%d): %v", fn, level, err1)
+		t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err1)
 		return
 	}
 	if len(b0) != len(b1) {
-		t.Errorf("%s (level=%d): length mismatch %d versus %d", fn, level, len(b0), len(b1))
+		t.Errorf("%s (level=%d, dict=%q): length mismatch %d versus %d", fn, level, d, len(b0), len(b1))
 		return
 	}
 	for i := 0; i < len(b0); i++ {
 		if b0[i] != b1[i] {
-			t.Errorf("%s (level=%d): mismatch at %d, 0x%02x versus 0x%02x\n", fn, level, i, b0[i], b1[i])
+			t.Errorf("%s (level=%d, dict=%q): mismatch at %d, 0x%02x versus 0x%02x\n", fn, level, d, i, b0[i], b1[i])
 			return
 		}
 	}
@@ -97,10 +103,21 @@ func testFileLevel(t *testing.T, fn string, level int) {
 
 func TestWriter(t *testing.T) {
 	for _, fn := range filenames {
-		testFileLevel(t, fn, DefaultCompression)
-		testFileLevel(t, fn, NoCompression)
+		testFileLevelDict(t, fn, DefaultCompression, "")
+		testFileLevelDict(t, fn, NoCompression, "")
 		for level := BestSpeed; level <= BestCompression; level++ {
-			testFileLevel(t, fn, level)
+			testFileLevelDict(t, fn, level, "")
+		}
+	}
+}
+
+func TestWriterDict(t *testing.T) {
+	const dictionary = "0123456789."
+	for _, fn := range filenames {
+		testFileLevelDict(t, fn, DefaultCompression, dictionary)
+		testFileLevelDict(t, fn, NoCompression, dictionary)
+		for level := BestSpeed; level <= BestCompression; level++ {
+			testFileLevelDict(t, fn, level, dictionary)
 		}
 	}
 }
