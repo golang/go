@@ -56,6 +56,11 @@ var googleaddrs = []string{
 }
 
 func TestLookupCNAME(t *testing.T) {
+	if testing.Short() {
+		// Don't use external network.
+		t.Logf("skipping external network test during -short")
+		return
+	}
 	cname, err := LookupCNAME("www.google.com")
 	if cname != "www.l.google.com." || err != nil {
 		t.Errorf(`LookupCNAME("www.google.com.") = %q, %v, want "www.l.google.com.", nil`, cname, err)
@@ -63,6 +68,11 @@ func TestLookupCNAME(t *testing.T) {
 }
 
 func TestDialGoogle(t *testing.T) {
+	if testing.Short() {
+		// Don't use external network.
+		t.Logf("skipping external network test during -short")
+		return
+	}
 	// If no ipv6 tunnel, don't try the last address.
 	if !*ipv6 {
 		googleaddrs[len(googleaddrs)-1] = ""

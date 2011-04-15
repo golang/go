@@ -202,11 +202,6 @@ NOTEST+=\
 NOBENCH+=\
 	container/vector\
 
-# Disable tests that depend on an external network.
-ifeq ($(DISABLE_NET_TESTS),1)
-NOTEST+=net syslog
-endif
-
 # Disable tests that windows cannot run yet.
 ifeq ($(GOOS),windows)
 NOTEST+=os/signal    # no signals

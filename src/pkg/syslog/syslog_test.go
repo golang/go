@@ -52,6 +52,10 @@ func TestNewLogger(t *testing.T) {
 }
 
 func TestDial(t *testing.T) {
+	if testing.Short() {
+		// Depends on syslog daemon running, and sometimes it's not.
+		t.Logf("skipping syslog test during -short")
+	}
 	l, err := Dial("", "", LOG_ERR, "syslog_test")
 	if err != nil {
 		t.Fatalf("Dial() failed: %s", err)
