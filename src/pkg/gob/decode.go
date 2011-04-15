@@ -406,7 +406,7 @@ func decUint8Array(i *decInstr, state *decoderState, p unsafe.Pointer) {
 func decString(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(new([]byte))
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(string))
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
