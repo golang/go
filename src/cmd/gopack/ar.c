@@ -1676,6 +1676,10 @@ arread_cutprefix(Biobuf *b, Armember *bp)
 					offset = o;
 				}
 			}
+		} else {
+			// didn't find the whole prefix.
+			// give up and let it emit the entire name.
+			inprefix = nil;
 		}
 
 		// copy instructions
