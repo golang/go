@@ -951,32 +951,33 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 // gobDecodeOpFor returns the op for a type that is known to implement
 // GobDecoder.
 func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
-	rt := ut.user
+	rcvrType := ut.user
 	if ut.decIndir == -1 {
-		rt = reflect.PtrTo(rt)
+		rcvrType = reflect.PtrTo(rcvrType)
 	} else if ut.decIndir > 0 {
 		for i := int8(0); i < ut.decIndir; i++ {
-			rt = rt.Elem()
+			rcvrType = rcvrType.Elem()
 		}
 	}
 	var op decOp
 	op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
-		// Allocate the underlying data, but hold on to the address we have,
-		// since we need it to get to the receiver's address.
-		allocate(ut.base, uintptr(p), ut.indir)
+		// Caller has gotten us to within one indirection of our value.
+		if i.indir > 0 {
+			if *(*unsafe.Pointer)(p) == nil {
+				*(*unsafe.Pointer)(p) = unsafe.New(ut.base)
+			}
+		}
+		// Now p is a pointer to the base type.  Do we need to climb out to
+		// get to the receiver type?
 		var v reflect.Value
 		if ut.decIndir == -1 {
-			// Need to climb up one level to turn value into pointer.
-			v = reflect.NewValue(unsafe.Unreflect(rt, unsafe.Pointer(&p)))
+			v = reflect.NewValue(unsafe.Unreflect(rcvrType, unsafe.Pointer(&p)))
 		} else {
-			if ut.decIndir > 0 {
-				p = decIndirect(p, int(ut.decIndir))
-			}
-			v = reflect.NewValue(unsafe.Unreflect(rt, p))
+			v = reflect.NewValue(unsafe.Unreflect(rcvrType, p))
 		}
-		state.dec.decodeGobDecoder(state, v, methodIndex(rt, gobDecodeMethodName))
+		state.dec.decodeGobDecoder(state, v, methodIndex(rcvrType, gobDecodeMethodName))
 	}
-	return &op, int(ut.decIndir)
+	return &op, int(ut.indir)
 
 }
 
@@ -1197,10 +1198,6 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) {
 	// Dereference down to the underlying struct type.
 	ut := userType(val.Type())
 	base := ut.base
-	indir := ut.indir
-	if ut.isGobDecoder {
-		indir = int(ut.decIndir)
-	}
 	var enginePtr **decEngine
 	enginePtr, dec.err = dec.getDecEnginePtr(wireId, ut)
 	if dec.err != nil {
@@ -1212,7 +1209,7 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) {
 			name := base.Name()
 			errorf("gob: type mismatch: no fields matched compiling decoder for %s", name)
 		}
-		dec.decodeStruct(engine, ut, uintptr(val.UnsafeAddr()), indir)
+		dec.decodeStruct(engine, ut, uintptr(val.UnsafeAddr()), ut.indir)
 	} else {
 		dec.decodeSingle(engine, ut, uintptr(val.UnsafeAddr()))
 	}
