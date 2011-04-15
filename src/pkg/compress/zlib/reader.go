@@ -36,7 +36,7 @@ const zlibDeflate = 8
 
 var ChecksumError os.Error = os.ErrorString("zlib checksum error")
 var HeaderError os.Error = os.ErrorString("invalid zlib header")
-var UnsupportedError os.Error = os.ErrorString("unsupported zlib format")
+var DictionaryError os.Error = os.ErrorString("invalid zlib dictionary")
 
 type reader struct {
 	r            flate.Reader
@@ -50,6 +50,12 @@ type reader struct {
 // The implementation buffers input and may read more data than necessary from r.
 // It is the caller's responsibility to call Close on the ReadCloser when done.
 func NewReader(r io.Reader) (io.ReadCloser, os.Error) {
+	return NewReaderDict(r, nil)
+}
+
+// NewReaderDict is like NewReader but uses a preset dictionary.
+// NewReaderDict ignores the dictionary if the compressed data does not refer to it.
+func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, os.Error) {
 	z := new(reader)
 	if fr, ok := r.(flate.Reader); ok {
 		z.r = fr
@@ -65,11 +71,19 @@ func NewReader(r io.Reader) (io.ReadCloser, os.Error) {
 		return nil, HeaderError
 	}
 	if z.scratch[1]&0x20 != 0 {
-		// BUG(nigeltao): The zlib package does not implement the FDICT flag.
-		return nil, UnsupportedError
+		_, err = io.ReadFull(z.r, z.scratch[0:4])
+		if err != nil {
+			return nil, err
+		}
+		checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
+		if checksum != adler32.Checksum(dict) {
+			return nil, DictionaryError
+		}
+		z.decompressor = flate.NewReaderDict(z.r, dict)
+	} else {
+		z.decompressor = flate.NewReader(z.r)
 	}
 	z.digest = adler32.New()
-	z.decompressor = flate.NewReader(z.r)
 	return z, nil
 }
 
