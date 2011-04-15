@@ -242,6 +242,17 @@ exprfmt(Fmt *f, Node *n, int prec)
 		exprfmt(f, n->right, 0);
 		break;
 
+	case OAS2:
+	case OAS2DOTTYPE:
+	case OAS2FUNC:
+	case OAS2MAPR:
+	case OAS2MAPW:
+	case OAS2RECV:
+		exprlistfmt(f, n->list);
+		fmtprint(f, " = ");
+		exprlistfmt(f, n->rlist);
+		break;
+
 	case OADD:
 	case OANDAND:
 	case OANDNOT:
