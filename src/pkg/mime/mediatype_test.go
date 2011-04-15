@@ -5,6 +5,7 @@
 package mime
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -85,23 +86,97 @@ func TestConsumeMediaParam(t *testing.T) {
 	}
 }
 
+type mediaTypeTest struct {
+	in string
+	t  string
+	p  map[string]string
+}
+
 func TestParseMediaType(t *testing.T) {
-	tests := [...]string{
-		`form-data; name="foo"`,
-		` form-data ; name=foo`,
-		`FORM-DATA;name="foo"`,
-		` FORM-DATA ; name="foo"`,
-		` FORM-DATA ; name="foo"`,
-		`form-data; key=value;  blah="value";name="foo" `,
+	// Convenience map initializer
+	m := func(s ...string) map[string]string {
+		sm := make(map[string]string)
+		for i := 0; i < len(s); i += 2 {
+			sm[s[i]] = s[i+1]
+		}
+		return sm
+	}
+
+	nameFoo := map[string]string{"name": "foo"}
+	tests := []mediaTypeTest{
+		{`form-data; name="foo"`, "form-data", nameFoo},
+		{` form-data ; name=foo`, "form-data", nameFoo},
+		{`FORM-DATA;name="foo"`, "form-data", nameFoo},
+		{` FORM-DATA ; name="foo"`, "form-data", nameFoo},
+		{` FORM-DATA ; name="foo"`, "form-data", nameFoo},
+
+		{`form-data; key=value;  blah="value";name="foo" `,
+			"form-data",
+			m("key", "value", "blah", "value", "name", "foo")},
+
+		// Tests from http://greenbytes.de/tech/tc2231/
+		// TODO(bradfitz): add the rest of the tests from that site.
+		{`attachment; filename="f\oo.html"`,
+			"attachment",
+			m("filename", "foo.html")},
+		{`attachment; filename="\"quoting\" tested.html"`,
+			"attachment",
+			m("filename", `"quoting" tested.html`)},
+		{`attachment; filename="Here's a semicolon;.html"`,
+			"attachment",
+			m("filename", "Here's a semicolon;.html")},
+		{`attachment; foo="\"\\";filename="foo.html"`,
+			"attachment",
+			m("foo", "\"\\", "filename", "foo.html")},
+		{`attachment; filename=foo.html`,
+			"attachment",
+			m("filename", "foo.html")},
+		{`attachment; filename=foo.html ;`,
+			"attachment",
+			m("filename", "foo.html")},
+		{`attachment; filename='foo.html'`,
+			"attachment",
+			m("filename", "foo.html")},
+		{`attachment; filename="foo-%41.html"`,
+			"attachment",
+			m("filename", "foo-%41.html")},
+		{`attachment; filename="foo-%\41.html"`,
+			"attachment",
+			m("filename", "foo-%41.html")},
+		{`filename=foo.html`,
+			"", m()},
+		{`x=y; filename=foo.html`,
+			"", m()},
+		{`"foo; filename=bar;baz"; filename=qux`,
+			"", m()},
+		{`inline; attachment; filename=foo.html`,
+			"", m()},
+		{`attachment; filename="foo.html".txt`,
+			"", m()},
+		{`attachment; filename="bar`,
+			"", m()},
+		{`attachment; creation-date="Wed, 12 Feb 1997 16:29:51 -0500"`,
+			"attachment",
+			m("creation-date", "Wed, 12 Feb 1997 16:29:51 -0500")},
+		{`foobar`, "foobar", m()},
+		// TODO(bradfitz): rest of them, including RFC2231 encoded UTF-8 and
+		// other charsets.
 	}
 	for _, test := range tests {
-		mt, params := ParseMediaType(test)
-		if mt != "form-data" {
-			t.Errorf("expected type form-data for %s, got [%s]", test, mt)
+		mt, params := ParseMediaType(test.in)
+		if g, e := mt, test.t; g != e {
+			t.Errorf("for input %q, expected type %q, got %q",
+				test.in, e, g)
 			continue
 		}
-		if params["name"] != "foo" {
-			t.Errorf("expected name=foo for %s", test)
+		if len(params) == 0 && len(test.p) == 0 {
+			continue
+		}
+		if !reflect.DeepEqual(params, test.p) {
+			t.Errorf("for input %q, wrong params.\n"+
+				"expected: %#v\n"+
+				"     got: %#v",
+				test.in, test.p, params)
 		}
 	}
 }

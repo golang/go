@@ -10,6 +10,24 @@ import (
 	"unicode"
 )
 
+func validMediaTypeOrDisposition(s string) bool {
+	typ, rest := consumeToken(s)
+	if typ == "" {
+		return false
+	}
+	if rest == "" {
+		return true
+	}
+	if !strings.HasPrefix(rest, "/") {
+		return false
+	}
+	subtype, rest := consumeToken(rest[1:])
+	if subtype == "" {
+		return false
+	}
+	return rest == ""
+}
+
 // ParseMediaType parses a media type value and any optional
 // parameters, per RFC 1531.  Media types are the values in
 // Content-Type and Content-Disposition headers (RFC 2183).  On
@@ -22,6 +40,10 @@ func ParseMediaType(v string) (mediatype string, params map[string]string) {
 		i = len(v)
 	}
 	mediatype = strings.TrimSpace(strings.ToLower(v[0:i]))
+	if !validMediaTypeOrDisposition(mediatype) {
+		return "", nil
+	}
+
 	params = make(map[string]string)
 
 	v = v[i:]
@@ -32,6 +54,11 @@ func ParseMediaType(v string) (mediatype string, params map[string]string) {
 		}
 		key, value, rest := consumeMediaParam(v)
 		if key == "" {
+			if strings.TrimSpace(rest) == ";" {
+				// Ignore trailing semicolons.
+				// Not an error.
+				return
+			}
 			// Parse error.
 			return "", nil
 		}
@@ -66,9 +93,11 @@ func consumeToken(v string) (token, rest string) {
 // quoted-string) and the rest of the string.  On failure, returns
 // ("", v).
 func consumeValue(v string) (value, rest string) {
-	if !strings.HasPrefix(v, `"`) {
+	if !strings.HasPrefix(v, `"`) && !strings.HasPrefix(v, `'`) {
 		return consumeToken(v)
 	}
+
+	leadQuote := int(v[0])
 
 	// parse a quoted-string
 	rest = v[1:] // consume the leading quote
@@ -83,7 +112,7 @@ func consumeValue(v string) (value, rest string) {
 			}
 			buffer.WriteRune(rune)
 			nextIsLiteral = false
-		case rune == '"':
+		case rune == leadQuote:
 			return buffer.String(), rest[idx+1:]
 		case IsQText(rune):
 			buffer.WriteRune(rune)
@@ -108,10 +137,12 @@ func consumeMediaParam(v string) (param, value, rest string) {
 	if param == "" {
 		return "", "", v
 	}
+	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
 	if !strings.HasPrefix(rest, "=") {
 		return "", "", v
 	}
 	rest = rest[1:] // consume equals sign
+	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
 	value, rest = consumeValue(rest)
 	if value == "" {
 		return "", "", v
