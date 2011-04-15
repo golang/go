@@ -662,3 +662,54 @@ func TestServerConsumesRequestBody(t *testing.T) {
 		}
 	}
 }
+
+func TestTimeoutHandler(t *testing.T) {
+	sendHi := make(chan bool, 1)
+	writeErrors := make(chan os.Error, 1)
+	sayHi := HandlerFunc(func(w ResponseWriter, r *Request) {
+		<-sendHi
+		_, werr := w.Write([]byte("hi"))
+		writeErrors <- werr
+	})
+	timeout := make(chan int64, 1) // write to this to force timeouts
+	ts := httptest.NewServer(NewTestTimeoutHandler(sayHi, timeout))
+	defer ts.Close()
+
+	// Succeed without timing out:
+	sendHi <- true
+	res, _, err := Get(ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+	if g, e := res.StatusCode, StatusOK; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+	}
+	body, _ := ioutil.ReadAll(res.Body)
+	if g, e := string(body), "hi"; g != e {
+		t.Errorf("got body %q; expected %q", g, e)
+	}
+	if g := <-writeErrors; g != nil {
+		t.Errorf("got unexpected Write error on first request: %v", g)
+	}
+
+	// Times out:
+	timeout <- 1
+	res, _, err = Get(ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+	if g, e := res.StatusCode, StatusServiceUnavailable; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+	}
+	body, _ = ioutil.ReadAll(res.Body)
+	if !strings.Contains(string(body), "<title>Timeout</title>") {
+		t.Errorf("expected timeout body; got %q", string(body))
+	}
+
+	// Now make the previously-timed out handler speak again,
+	// which verifies the panic is handled:
+	sendHi <- true
+	if g, e := <-writeErrors, ErrHandlerTimeout; g != e {
+		t.Errorf("expected Write error of %v; got %v", e, g)
+	}
+}

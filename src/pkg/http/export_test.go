@@ -32,3 +32,10 @@ func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
 	}
 	return len(conns)
 }
+
+func NewTestTimeoutHandler(handler Handler, ch <-chan int64) Handler {
+	f := func() <-chan int64 {
+		return ch
+	}
+	return &timeoutHandler{handler, f, ""}
+}
