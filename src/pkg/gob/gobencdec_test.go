@@ -24,6 +24,10 @@ type StringStruct struct {
 	s string // not an exported field
 }
 
+type ArrayStruct struct {
+	a [8192]byte // not an exported field
+}
+
 type Gobber int
 
 type ValueGobber string // encodes with a value, decodes with a pointer.
@@ -71,6 +75,18 @@ func (g *StringStruct) GobDecode(data []byte) os.Error {
 		}
 	}
 	g.s = string(data)
+	return nil
+}
+
+func (a *ArrayStruct) GobEncode() ([]byte, os.Error) {
+	return a.a[:], nil
+}
+
+func (a *ArrayStruct) GobDecode(data []byte) os.Error {
+	if len(data) != len(a.a) {
+		return os.ErrorString("wrong length in array decode")
+	}
+	copy(a.a[:], data)
 	return nil
 }
 
@@ -136,6 +152,16 @@ type GobTestValueEncDec struct {
 type GobTestIndirectEncDec struct {
 	X int             // guarantee we have  something in common with GobTest*
 	G ***StringStruct // indirections to the receiver.
+}
+
+type GobTestArrayEncDec struct {
+	X int         // guarantee we have  something in common with GobTest*
+	A ArrayStruct // not a pointer.
+}
+
+type GobTestIndirectArrayEncDec struct {
+	X int            // guarantee we have  something in common with GobTest*
+	A ***ArrayStruct // indirections to a large receiver.
 }
 
 func TestGobEncoderField(t *testing.T) {
@@ -213,6 +239,64 @@ func TestGobEncoderIndirectField(t *testing.T) {
 	}
 	if (***x.G).s != "HIJKL" {
 		t.Errorf("expected `HIJKL` got %s", (***x.G).s)
+	}
+}
+
+// Test with a large field with methods.
+func TestGobEncoderArrayField(t *testing.T) {
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+	var a GobTestArrayEncDec
+	a.X = 17
+	for i := range a.A.a {
+		a.A.a[i] = byte(i)
+	}
+	err := enc.Encode(a)
+	if err != nil {
+		t.Fatal("encode error:", err)
+	}
+	dec := NewDecoder(b)
+	x := new(GobTestArrayEncDec)
+	err = dec.Decode(x)
+	if err != nil {
+		t.Fatal("decode error:", err)
+	}
+	for i, v := range x.A.a {
+		if v != byte(i) {
+			t.Errorf("expected %x got %x", byte(i), v)
+			break
+		}
+	}
+}
+
+// Test an indirection to a large field with methods.
+func TestGobEncoderIndirectArrayField(t *testing.T) {
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+	var a GobTestIndirectArrayEncDec
+	a.X = 17
+	var array ArrayStruct
+	ap := &array
+	app := &ap
+	a.A = &app
+	for i := range array.a {
+		array.a[i] = byte(i)
+	}
+	err := enc.Encode(a)
+	if err != nil {
+		t.Fatal("encode error:", err)
+	}
+	dec := NewDecoder(b)
+	x := new(GobTestIndirectArrayEncDec)
+	err = dec.Decode(x)
+	if err != nil {
+		t.Fatal("decode error:", err)
+	}
+	for i, v := range (***x.A).a {
+		if v != byte(i) {
+			t.Errorf("expected %x got %x", byte(i), v)
+			break
+		}
 	}
 }
 
