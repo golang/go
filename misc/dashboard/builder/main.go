@@ -34,6 +34,7 @@ var extraEnv = []string{
 	"GOHOSTARCH",
 	"PATH",
 	"DISABLE_NET_TESTS",
+	"MAKEFLAGS",
 	"GOARM",
 }
 
