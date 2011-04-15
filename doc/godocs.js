@@ -34,7 +34,18 @@ function godocs_bindSearchEvents() {
       search.className = "";
     }
   }
+  function restoreInactive() {
+    if (search.value != "") {
+      return;
+    }
+    if (search.type != "search") {
+      search.value = search.getAttribute("placeholder");
+    }
+    search.className = "inactive";
+  }
+  restoreInactive();
   bindEvent(search, 'focus', clearInactive);
+  bindEvent(search, 'blur', restoreInactive);
 }
 
 /* Generates a table of contents: looks for h2 and h3 elements and generates
