@@ -180,23 +180,14 @@ func (v *String) String() string { return strconv.Quote(v.s) }
 
 func (v *String) Set(value string) { v.s = value }
 
-// IntFunc wraps a func() int64 to create a value that satisfies the Var interface.
-// The function will be called each time the Var is evaluated.
-type IntFunc func() int64
+// Func implements Var by calling the function
+// and formatting the returned value using JSON.
+type Func func() interface{}
 
-func (v IntFunc) String() string { return strconv.Itoa64(v()) }
-
-// FloatFunc wraps a func() float64 to create a value that satisfies the Var interface.
-// The function will be called each time the Var is evaluated.
-type FloatFunc func() float64
-
-func (v FloatFunc) String() string { return strconv.Ftoa64(v(), 'g', -1) }
-
-// StringFunc wraps a func() string to create value that satisfies the Var interface.
-// The function will be called each time the Var is evaluated.
-type StringFunc func() string
-
-func (f StringFunc) String() string { return strconv.Quote(f()) }
+func (f Func) String() string {
+	v, _ := json.Marshal(f())
+	return string(v)
+}
 
 
 // All published variables.
@@ -282,18 +273,16 @@ func expvarHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "\n}\n")
 }
 
-func memstats() string {
-	b, _ := json.MarshalIndent(&runtime.MemStats, "", "\t")
-	return string(b)
+func cmdline() interface{} {
+	return os.Args
 }
 
-func cmdline() string {
-	b, _ := json.Marshal(os.Args)
-	return string(b)
+func memstats() interface{} {
+	return runtime.MemStats
 }
 
 func init() {
 	http.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
-	Publish("cmdline", StringFunc(cmdline))
-	Publish("memstats", StringFunc(memstats))
+	Publish("cmdline", Func(cmdline))
+	Publish("memstats", Func(memstats))
 }
