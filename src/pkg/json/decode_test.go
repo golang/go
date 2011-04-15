@@ -71,7 +71,7 @@ var unmarshalTests = []unmarshalTest{
 	{`{"X":"a", "y":"b", "Z":"c"}`, new(badTag), badTag{"a", "b", "c"}, nil},
 
 	// syntax errors
-	{`{"X": "foo", "Y"}`, nil, nil, SyntaxError("invalid character '}' after object key")},
+	{`{"X": "foo", "Y"}`, nil, nil, &SyntaxError{"invalid character '}' after object key", 17}},
 
 	// composite tests
 	{allValueIndent, new(All), allValue, nil},
@@ -125,12 +125,12 @@ func TestMarshalBadUTF8(t *testing.T) {
 }
 
 func TestUnmarshal(t *testing.T) {
-	var scan scanner
 	for i, tt := range unmarshalTests {
+		var scan scanner
 		in := []byte(tt.in)
 		if err := checkValid(in, &scan); err != nil {
 			if !reflect.DeepEqual(err, tt.err) {
-				t.Errorf("#%d: checkValid: %v", i, err)
+				t.Errorf("#%d: checkValid: %#v", i, err)
 				continue
 			}
 		}
