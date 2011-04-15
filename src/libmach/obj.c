@@ -215,7 +215,7 @@ processprog(Prog *p, int doautos)
 {
 	if(p->kind == aNone)
 		return 1;
-	if(p->sym < 0 || p->sym >= NNAMES)
+	if((schar)p->sym < 0 || p->sym >= NNAMES)
 		return 0;
 	switch(p->kind)
 	{
