@@ -1785,7 +1785,7 @@ walkprint(Node *nn, NodeList **init, int defer)
 					on = syslook("printiface", 1);
 				argtype(on, n->type);		// any-1
 			}
-		} else if(isptr[et] || et == TCHAN || et == TMAP || et == TFUNC) {
+		} else if(isptr[et] || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR) {
 			if(defer) {
 				fmtprint(&fmt, "%%p");
 			} else {

@@ -157,6 +157,9 @@ panic: interface conversion: interface is int, not int32
 panic: interface conversion: interface is main.T, not main.T
 
 
+=========== fixedbugs/bug328.go
+0x0
+
 == bugs/
 
 =========== bugs/bug322.go
