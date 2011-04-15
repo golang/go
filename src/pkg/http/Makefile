@@ -16,6 +16,7 @@ GOFILES=\
 	persist.go\
 	request.go\
 	response.go\
+	reverseproxy.go\
 	server.go\
 	status.go\
 	transfer.go\
