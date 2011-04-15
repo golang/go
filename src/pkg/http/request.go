@@ -199,10 +199,14 @@ const defaultUserAgent = "Go http package"
 //	UserAgent (defaults to defaultUserAgent)
 //	Referer
 //	Header
+//	Cookie
+//	ContentLength
+//	TransferEncoding
 //	Body
 //
-// If Body is present, Write forces "Transfer-Encoding: chunked" as a header
-// and then closes Body when finished sending it.
+// If Body is present but Content-Length is <= 0, Write adds
+// "Transfer-Encoding: chunked" to the header. Body is closed after
+// it is sent.
 func (req *Request) Write(w io.Writer) os.Error {
 	return req.write(w, false)
 }
@@ -418,6 +422,29 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
 		}
 	}
 	return n, cr.err
+}
+
+// NewRequest returns a new Request given a method, URL, and optional body.
+func NewRequest(method, url string, body io.Reader) (*Request, os.Error) {
+	u, err := ParseURL(url)
+	if err != nil {
+		return nil, err
+	}
+	rc, ok := body.(io.ReadCloser)
+	if !ok && body != nil {
+		rc = ioutil.NopCloser(body)
+	}
+	req := &Request{
+		Method:     method,
+		URL:        u,
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     make(Header),
+		Body:       rc,
+		Host:       u.Host,
+	}
+	return req, nil
 }
 
 // ReadRequest reads and parses a request from b.
