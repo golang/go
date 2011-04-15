@@ -6,13 +6,13 @@ clean:
 	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
 
 install.clean: install
-	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
+	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES) || true
 
 test.clean: test
-	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
+	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES) || true
 
 testshort.clean: testshort
-	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES)
+	rm -rf *.o *.a *.[$(OS)] [$(OS)].out $(CLEANFILES) || true
 
 %.make:
 	$(MAKE) -C $* install
