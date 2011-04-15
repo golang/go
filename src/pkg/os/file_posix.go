@@ -14,7 +14,7 @@ func epipecheck(file *File, e int) {
 	if e == syscall.EPIPE {
 		file.nepipe++
 		if file.nepipe >= 10 {
-			Exit(syscall.EPIPE)
+			panic("os.File Write: caller keeps writing after too many EPIPE errors")
 		}
 	} else {
 		file.nepipe = 0
