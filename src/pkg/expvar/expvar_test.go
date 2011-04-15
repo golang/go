@@ -114,41 +114,15 @@ func TestMapCounter(t *testing.T) {
 	}
 }
 
-func TestIntFunc(t *testing.T) {
-	x := int64(4)
-	ix := IntFunc(func() int64 { return x })
-	if s := ix.String(); s != "4" {
-		t.Errorf("ix.String() = %v, want 4", s)
+func TestFunc(t *testing.T) {
+	var x interface{} = []string{"a", "b"}
+	f := Func(func() interface{} { return x })
+	if s, exp := f.String(), `["a","b"]`; s != exp {
+		t.Errorf(`f.String() = %q, want %q`, s, exp)
 	}
 
-	x++
-	if s := ix.String(); s != "5" {
-		t.Errorf("ix.String() = %v, want 5", s)
-	}
-}
-
-func TestFloatFunc(t *testing.T) {
-	x := 8.5
-	ix := FloatFunc(func() float64 { return x })
-	if s := ix.String(); s != "8.5" {
-		t.Errorf("ix.String() = %v, want 3.14", s)
-	}
-
-	x -= 1.25
-	if s := ix.String(); s != "7.25" {
-		t.Errorf("ix.String() = %v, want 4.34", s)
-	}
-}
-
-func TestStringFunc(t *testing.T) {
-	x := "hello"
-	sx := StringFunc(func() string { return x })
-	if s, exp := sx.String(), `"hello"`; s != exp {
-		t.Errorf(`sx.String() = %q, want %q`, s, exp)
-	}
-
-	x = "goodbye"
-	if s, exp := sx.String(), `"goodbye"`; s != exp {
-		t.Errorf(`sx.String() = %q, want %q`, s, exp)
+	x = 17
+	if s, exp := f.String(), `17`; s != exp {
+		t.Errorf(`f.String() = %q, want %q`, s, exp)
 	}
 }
