@@ -436,7 +436,7 @@ func parseIPv6(s string) IP {
 		}
 
 		// Otherwise must be followed by colon and more.
-		if s[i] != ':' && i+1 == len(s) {
+		if s[i] != ':' || i+1 == len(s) {
 			return nil
 		}
 		i++
