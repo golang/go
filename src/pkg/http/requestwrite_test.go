@@ -6,7 +6,10 @@ package http
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -133,6 +136,41 @@ var reqWriteTests = []reqWriteTest{
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			"6\r\nabcdef\r\n0\r\n\r\n",
 	},
+
+	// HTTP/1.1 POST with Content-Length, no chunking
+	{
+		Request{
+			Method: "POST",
+			URL: &URL{
+				Scheme: "http",
+				Host:   "www.google.com",
+				Path:   "/search",
+			},
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			Header:        Header{},
+			Close:         true,
+			ContentLength: 6,
+		},
+
+		[]byte("abcdef"),
+
+		"POST /search HTTP/1.1\r\n" +
+			"Host: www.google.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"Connection: close\r\n" +
+			"Content-Length: 6\r\n" +
+			"\r\n" +
+			"abcdef",
+
+		"POST http://www.google.com/search HTTP/1.1\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"Connection: close\r\n" +
+			"Content-Length: 6\r\n" +
+			"\r\n" +
+			"abcdef",
+	},
+
 	// default to HTTP/1.1
 	{
 		Request{
@@ -187,5 +225,28 @@ func TestRequestWrite(t *testing.T) {
 			t.Errorf("Test Proxy %d, expecting:\n%s\nGot:\n%s\n", i, tt.RawProxy, sraw)
 			continue
 		}
+	}
+}
+
+type closeChecker struct {
+	io.Reader
+	closed bool
+}
+
+func (rc *closeChecker) Close() os.Error {
+	rc.closed = true
+	return nil
+}
+
+// TestRequestWriteClosesBody tests that Request.Write does close its request.Body.
+// It also indirectly tests NewRequest and that it doesn't wrap an existing Closer
+// inside a NopCloser.
+func TestRequestWriteClosesBody(t *testing.T) {
+	rc := &closeChecker{Reader: strings.NewReader("my body")}
+	req, _ := NewRequest("GET", "http://foo.com/", rc)
+	buf := new(bytes.Buffer)
+	req.Write(buf)
+	if !rc.closed {
+		t.Error("body not closed after write")
 	}
 }
