@@ -12,6 +12,9 @@ import (
 )
 
 func TestGoogleSRV(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	_, addrs, err := LookupSRV("xmpp-server", "tcp", "google.com")
 	if err != nil {
 		t.Errorf("failed: %s", err)
