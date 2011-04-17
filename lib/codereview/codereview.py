@@ -111,6 +111,7 @@ server_url_base = None
 defaultcc = None
 contributors = {}
 missing_codereview = None
+real_rollback = None
 
 #######################################################################
 # RE: UNICODE STRING HANDLING
@@ -196,12 +197,15 @@ class CL(object):
 		self.web = False
 		self.copied_from = None	# None means current user
 		self.mailed = False
+		self.private = False
 
 	def DiskText(self):
 		cl = self
 		s = ""
 		if cl.copied_from:
 			s += "Author: " + cl.copied_from + "\n\n"
+		if cl.private:
+			s += "Private: " + str(self.private) + "\n"
 		s += "Mailed: " + str(self.mailed) + "\n"
 		s += "Description:\n"
 		s += Indent(cl.desc, "\t")
@@ -219,6 +223,8 @@ class CL(object):
 			s += "Author: " + cl.copied_from + "\n"
 		if cl.url != '':
 			s += 'URL: ' + cl.url + '	# cannot edit\n\n'
+		if cl.private:
+			s += "Private: True\n"
 		s += "Reviewer: " + JoinComma(cl.reviewer) + "\n"
 		s += "CC: " + JoinComma(cl.cc) + "\n"
 		s += "\n"
@@ -264,7 +270,8 @@ class CL(object):
 		os.rename(path+'!', path)
 		if self.web and not self.copied_from:
 			EditDesc(self.name, desc=self.desc,
-				reviewers=JoinComma(self.reviewer), cc=JoinComma(self.cc))
+				reviewers=JoinComma(self.reviewer), cc=JoinComma(self.cc),
+				private=self.private)
 
 	def Delete(self, ui, repo):
 		dir = CodeReviewDir(ui, repo)
@@ -389,6 +396,7 @@ def ParseCL(text, name):
 		'Reviewer': '',
 		'CC': '',
 		'Mailed': '',
+		'Private': '',
 	}
 	for line in text.split('\n'):
 		lineno += 1
@@ -435,6 +443,8 @@ def ParseCL(text, name):
 		# CLs created with this update will always have 
 		# Mailed: False on disk.
 		cl.mailed = True
+	if sections['Private'] in ('True', 'true', 'Yes', 'yes'):
+		cl.private = True
 	if cl.desc == '<enter description here>':
 		cl.desc = ''
 	return cl, 0, ''
@@ -779,7 +789,7 @@ def Incoming(ui, repo, opts):
 	_, incoming, _ = findcommonincoming(repo, getremote(ui, repo, opts))
 	return incoming
 
-desc_re = '^(.+: |(tag )?(release|weekly)\.|fix build)'
+desc_re = '^(.+: |(tag )?(release|weekly)\.|fix build|undo CL)'
 
 desc_msg = '''Your CL description appears not to use the standard form.
 
@@ -827,6 +837,9 @@ def EditCL(ui, repo, cl):
 		if clx.desc == '':
 			if promptyesno(ui, "change list should have a description\nre-edit (y/n)?"):
 				continue
+		elif re.search('<enter reason for undo>', clx.desc):
+			if promptyesno(ui, "change list description omits reason for undo\nre-edit (y/n)?"):
+				continue
 		elif not re.match(desc_re, clx.desc.split('\n')[0]):
 			if promptyesno(ui, desc_msg + "re-edit (y/n)?"):
 				continue
@@ -870,6 +883,7 @@ def EditCL(ui, repo, cl):
 		cl.reviewer = clx.reviewer
 		cl.cc = clx.cc
 		cl.files = clx.files
+		cl.private = clx.private
 		break
 	return ""
 
@@ -1066,7 +1080,7 @@ def change(ui, repo, *pats, **opts):
 			if cl.copied_from:
 				return "original author must delete CL; hg change -D will remove locally"
 			PostMessage(ui, cl.name, "*** Abandoned ***", send_mail=cl.mailed)
-			EditDesc(cl.name, closed="checked")
+			EditDesc(cl.name, closed=True, private=cl.private)
 		cl.Delete(ui, repo)
 		return
 
@@ -1087,6 +1101,9 @@ def change(ui, repo, *pats, **opts):
 		if clx.files is not None:
 			cl.files = clx.files
 			dirty[cl] = True
+		if clx.private != cl.private:
+			cl.private = clx.private
+			dirty[cl] = True
 
 	if not opts["stdin"] and not opts["stdout"]:
 		if name == "new":
@@ -1104,6 +1121,8 @@ def change(ui, repo, *pats, **opts):
 
 	if opts["stdout"]:
 		ui.write(cl.EditorText())
+	elif opts["pending"]:
+		ui.write(cl.PendingText())
 	elif name == "new":
 		if ui.quiet:
 			ui.write(cl.name)
@@ -1132,17 +1151,90 @@ def clpatch(ui, repo, clname, **opts):
 	Submitting an imported patch will keep the original author's
 	name as the Author: line but add your own name to a Committer: line.
 	"""
+	return clpatch_or_undo(ui, repo, clname, opts)
+
+def undo(ui, repo, clname, **opts):
+	"""undo the effect of a CL
+	
+	Creates a new CL that undoes an earlier CL.
+	After creating the CL, opens the CL text for editing so that
+	you can add the reason for the undo to the description.
+	"""
+	return clpatch_or_undo(ui, repo, clname, opts, undo=True)
+
+def rev2clname(rev):
+	# Extract CL name from revision description.
+	# The last line in the description that is a codereview URL is the real one.
+	# Earlier lines might be part of the user-written description.
+	all = re.findall('(?m)^http://codereview.appspot.com/([0-9]+)$', rev.description())
+	if len(all) > 0:
+		return all[-1]
+	return ""
+
+undoHeader = """undo CL %s / %s
+
+<enter reason for undo>
+
+««« original CL description
+"""
+
+undoFooter = """
+»»»
+"""
+
+# Implementation of clpatch/undo.
+def clpatch_or_undo(ui, repo, clname, opts, undo=False):
 	if missing_codereview:
 		return missing_codereview
 
-	cl, vers, patch, err = DownloadCL(ui, repo, clname)
-	if err != "":
-		return err
-	if patch == emptydiff:
-		return "codereview issue %s has no diff" % clname
+	if undo:
+		if hgversion < '1.4':
+			# Don't have cmdutil.match (see implementation of sync command).
+			return "hg is too old to run hg undo - update to 1.4 or newer"
 
-	if not repo[vers]:
-		return "codereview issue %s is newer than the current repository; hg sync" % clname
+		# Find revision in Mercurial repository.
+		# Assume CL number is 7+ decimal digits.
+		# Otherwise is either change log sequence number (fewer decimal digits),
+		# hexadecimal hash, or tag name.
+		# Mercurial will fall over long before the change log
+		# sequence numbers get to be 7 digits long.
+		if re.match('^[0-9]{7,}$', clname):
+			found = False
+			matchfn = cmdutil.match(repo, [], {'rev': None})
+			def prep(ctx, fns):
+				pass
+			for ctx in cmdutil.walkchangerevs(repo, matchfn, {'rev': None}, prep):
+				rev = repo[ctx.rev()]
+				# Last line with a code review URL is the actual review URL.
+				# Earlier ones might be part of the CL description.
+				n = rev2clname(rev)
+				if n == clname:
+					found = True
+					break
+			if not found:
+				return "cannot find CL %s in local repository" % clname
+		else:
+			rev = repo[clname]
+			if not rev:
+				return "unknown revision %s" % clname
+			clname = rev2clname(rev)
+			if clname == "":
+				return "cannot find CL name in revision description"
+		
+		# Create fresh CL and start with patch that would reverse the change.
+		vers = short(rev.node())
+		cl = CL("new")
+		cl.desc = (undoHeader % (clname, vers)) + rev.description() + undoFooter
+		patch = RunShell(["hg", "diff", "--git", "-r", vers + ":" + short(rev.parents()[0].node())])
+
+	else:  # clpatch
+		cl, vers, patch, err = DownloadCL(ui, repo, clname)
+		if err != "":
+			return err
+		if patch == emptydiff:
+			return "codereview issue %s has no diff" % clname
+		if not repo[vers]:
+			return "codereview issue %s is newer than the current repository; hg sync" % clname
 
 	# find current hg version (hg identify)
 	ctx = repo[None]
@@ -1170,13 +1262,19 @@ def clpatch(ui, repo, clname, **opts):
 	cl.local = True
 	cl.files = out.strip().split()
 	if not cl.files:
-		return "codereview issue %s has no diff" % clname
+		return "codereview issue %s has no changed files" % clname
 	files = ChangedFiles(ui, repo, [], opts)
 	extra = Sub(cl.files, files)
 	if extra:
 		ui.warn("warning: these files were listed in the patch but not changed:\n\t" + "\n\t".join(extra) + "\n")
 	cl.Flush(ui, repo)
-	ui.write(cl.PendingText() + "\n")
+	if undo:
+		err = EditCL(ui, repo, cl)
+		if err != "":
+			return "CL created, but error editing: " + err
+		cl.Flush(ui, repo)
+	else:
+		ui.write(cl.PendingText() + "\n")
 
 # portPatch rewrites patch from being a patch against
 # oldver to being a patch against newver.
@@ -1373,10 +1471,6 @@ def mail(ui, repo, *pats, **opts):
 
 	cl.Mail(ui, repo)		
 
-def nocommit(ui, repo, *pats, **opts):
-	"""(disabled when using this extension)"""
-	return "The codereview extension is enabled; do not use commit."
-
 def pending(ui, repo, *pats, **opts):
 	"""show pending changes
 
@@ -1533,7 +1627,7 @@ def submit(ui, repo, *pats, **opts):
 		if r == 0:
 			raise util.Abort("local repository out of date; must sync before submit")
 	except:
-		repo.rollback()
+		real_rollback(repo)
 		raise
 
 	# we're committed. upload final patch, close review, add commit message
@@ -1551,7 +1645,7 @@ def submit(ui, repo, *pats, **opts):
 	PostMessage(ui, cl.name, pmsg, reviewers="", cc=JoinComma(cl.reviewer+cl.cc))
 
 	if not cl.copied_from:
-		EditDesc(cl.name, closed="checked")
+		EditDesc(cl.name, closed=True, private=cl.private)
 	cl.Delete(ui, repo)
 
 def sync(ui, repo, **opts):
@@ -1601,7 +1695,7 @@ def sync_changes(ui, repo):
 					ui.warn("loading CL %s: %s\n" % (clname, err))
 					continue
 				if not cl.copied_from:
-					EditDesc(cl.name, closed="checked")
+					EditDesc(cl.name, closed=True, private=cl.private)
 				cl.Delete(ui, repo)
 
 	if hgversion < '1.4':
@@ -1675,6 +1769,7 @@ cmdtable = {
 			('D', 'deletelocal', None, 'delete locally, but do not change CL on server'),
 			('i', 'stdin', None, 'read change list from standard input'),
 			('o', 'stdout', None, 'print change list to standard output'),
+			('p', 'pending', None, 'print pending summary to standard output'),
 		],
 		"[-d | -D] [-i] [-o] change# or FILE ..."
 	),
@@ -1738,6 +1833,14 @@ cmdtable = {
 			('', 'local', None, 'do not pull changes from remote repository')
 		],
 		"[--local]",
+	),
+	"^undo": (
+		undo,
+		[
+			('', 'ignore_hgpatch_failure', None, 'create CL metadata even if hgpatch fails'),
+			('', 'no_incoming', None, 'disable check for incoming changes'),
+		],
+		"change#"
 	),
 	"^upload": (
 		upload,
@@ -1992,7 +2095,7 @@ def GetSettings(issue):
 		f['description'] = MySend("/"+issue+"/description", force_auth=False)
 	return f
 
-def EditDesc(issue, subject=None, desc=None, reviewers=None, cc=None, closed=None):
+def EditDesc(issue, subject=None, desc=None, reviewers=None, cc=None, closed=False, private=False):
 	set_status("uploading change to description")
 	form_fields = GetForm("/" + issue + "/edit")
 	if subject is not None:
@@ -2003,8 +2106,10 @@ def EditDesc(issue, subject=None, desc=None, reviewers=None, cc=None, closed=Non
 		form_fields['reviewers'] = reviewers
 	if cc is not None:
 		form_fields['cc'] = cc
-	if closed is not None:
-		form_fields['closed'] = closed
+	if closed:
+		form_fields['closed'] = "checked"
+	if private:
+		form_fields['private'] = "checked"
 	ctype, body = EncodeMultipartFormData(form_fields.items(), [])
 	response = MySend("/" + issue + "/edit", body, content_type=ctype)
 	if response != "":
@@ -2039,8 +2144,17 @@ def PostMessage(ui, issue, message, reviewers=None, cc=None, send_mail=True, sub
 class opt(object):
 	pass
 
-def disabled(*opts, **kwopts):
-	raise util.Abort("commit is disabled when codereview is in use")
+def nocommit(*pats, **opts):
+	"""(disabled when using this extension)"""
+	raise util.Abort("codereview extension enabled; use mail, upload, or submit instead of commit")
+
+def nobackout(*pats, **opts):
+	"""(disabled when using this extension)"""
+	raise util.Abort("codereview extension enabled; use undo instead of backout")
+
+def norollback(*pats, **opts):
+	"""(disabled when using this extension)"""
+	raise util.Abort("codereview extension enabled; use undo instead of rollback")
 
 def RietveldSetup(ui, repo):
 	global defaultcc, upload_options, rpc, server, server_url_base, force_google_account, verbosity, contributors
@@ -2068,7 +2182,11 @@ def RietveldSetup(ui, repo):
 	# Should only modify repository with hg submit.
 	# Disable the built-in Mercurial commands that might
 	# trip things up.
-	cmdutil.commit = disabled
+	cmdutil.commit = nocommit
+	global real_rollback
+	real_rollback = repo.rollback
+	repo.rollback = norollback
+	# would install nobackout if we could; oh well
 
 	try:
 		f = open(repo.root + '/CONTRIBUTORS', 'r')
