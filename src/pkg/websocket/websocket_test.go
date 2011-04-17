@@ -186,11 +186,12 @@ func TestTrailingSpaces(t *testing.T) {
 	once.Do(startServer)
 	for i := 0; i < 30; i++ {
 		// body
-		_, err := Dial(fmt.Sprintf("ws://%s/echo", serverAddr), "",
-			"http://localhost/")
+		ws, err := Dial(fmt.Sprintf("ws://%s/echo", serverAddr), "", "http://localhost/")
 		if err != nil {
-			panic("Dial failed: " + err.String())
+			t.Error("Dial failed:", err.String())
+			break
 		}
+		ws.Close()
 	}
 }
 
