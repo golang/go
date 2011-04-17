@@ -91,6 +91,7 @@ static uint32
 stepflt(uint32 *pc, uint32 *regs)
 {
 	uint32 i, regd, regm, regn;
+	int32 delta;
 	uint32 *addr;
 	uint64 uval;
 	int64 sval;
@@ -117,7 +118,7 @@ stepflt(uint32 *pc, uint32 *regs)
 		return 1;
 	}
 	if(i == 0xe08bb00d) {
-		// add sp to 11.
+		// add sp to r11.
 		// might be part of a large stack offset address
 		// (or might not, but again no harm done).
 		regs[11] += regs[13];
@@ -134,6 +135,19 @@ stepflt(uint32 *pc, uint32 *regs)
 			runtime·printf("*** fpsr R[CPSR] = F[CPSR] %x\n", regs[CPSR]);
 		return 1;
 	}
+	if((i&0xff000000) == 0xea000000) {
+		// unconditional branch
+		// can happen in the middle of floating point
+		// if the linker decides it is time to lay down
+		// a sequence of instruction stream constants.
+		delta = i&0xffffff;
+		delta = (delta<<8) >> 8;	// sign extend
+
+		if(trace)
+			runtime·printf("*** cpu PC += %x\n", (delta+2)*4);
+		return delta+2;
+	}
+
 	goto stage1;
 
 stage1:	// load/store regn is cpureg, regm is 8bit offset
@@ -489,8 +503,10 @@ runtime·_sfloat2(uint32 *lr, uint32 r0)
 	uint32 skip;
 
 	skip = stepflt(lr, &r0);
-	if(skip == 0)
+	if(skip == 0) {
+		runtime·printf("sfloat2 %p %x\n", lr, *lr);
 		fabort(); // not ok to fail first instruction
+	}
 
 	lr += skip;
 	while(skip = stepflt(lr, &r0))
