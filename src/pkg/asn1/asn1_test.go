@@ -267,11 +267,6 @@ func TestParseFieldParameters(t *testing.T) {
 	}
 }
 
-type unmarshalTest struct {
-	in  []byte
-	out interface{}
-}
-
 type TestObjectIdentifierStruct struct {
 	OID ObjectIdentifier
 }
@@ -290,7 +285,10 @@ type TestElementsAfterString struct {
 	A, B int
 }
 
-var unmarshalTestData []unmarshalTest = []unmarshalTest{
+var unmarshalTestData = []struct {
+	in  []byte
+	out interface{}
+}{
 	{[]byte{0x02, 0x01, 0x42}, newInt(0x42)},
 	{[]byte{0x30, 0x08, 0x06, 0x06, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d}, &TestObjectIdentifierStruct{[]int{1, 2, 840, 113549}}},
 	{[]byte{0x03, 0x04, 0x06, 0x6e, 0x5d, 0xc0}, &BitString{[]byte{110, 93, 192}, 18}},
@@ -309,9 +307,7 @@ var unmarshalTestData []unmarshalTest = []unmarshalTest{
 
 func TestUnmarshal(t *testing.T) {
 	for i, test := range unmarshalTestData {
-		pv := reflect.Zero(reflect.NewValue(test.out).Type())
-		zv := reflect.Zero(pv.Type().Elem())
-		pv.Set(zv.Addr())
+		pv := reflect.New(reflect.Typeof(test.out).Elem())
 		val := pv.Interface()
 		_, err := Unmarshal(test.in, val)
 		if err != nil {

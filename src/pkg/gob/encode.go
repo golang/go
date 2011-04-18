@@ -402,7 +402,7 @@ func encodeReflectValue(state *encoderState, v reflect.Value, op encOp, indir in
 	if !v.IsValid() {
 		errorf("gob: encodeReflectValue: nil element")
 	}
-	op(nil, state, unsafe.Pointer(v.UnsafeAddr()))
+	op(nil, state, unsafe.Pointer(unsafeAddr(v)))
 }
 
 // encodeMap encodes a map as unsigned count followed by key:value pairs.
@@ -695,8 +695,8 @@ func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInf
 		value = reflect.Indirect(value)
 	}
 	if !ut.isGobEncoder && value.Type().Kind() == reflect.Struct {
-		enc.encodeStruct(b, engine, value.UnsafeAddr())
+		enc.encodeStruct(b, engine, unsafeAddr(value))
 	} else {
-		enc.encodeSingle(b, engine, value.UnsafeAddr())
+		enc.encodeSingle(b, engine, unsafeAddr(value))
 	}
 }
