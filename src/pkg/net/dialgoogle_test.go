@@ -62,8 +62,8 @@ func TestLookupCNAME(t *testing.T) {
 		return
 	}
 	cname, err := LookupCNAME("www.google.com")
-	if cname != "www.l.google.com." || err != nil {
-		t.Errorf(`LookupCNAME("www.google.com.") = %q, %v, want "www.l.google.com.", nil`, cname, err)
+	if !strings.HasSuffix(cname, ".l.google.com.") || err != nil {
+		t.Errorf(`LookupCNAME("www.google.com.") = %q, %v, want "*.l.google.com.", nil`, cname, err)
 	}
 }
 
