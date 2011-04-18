@@ -384,8 +384,8 @@ assigned to a variable.
 An I/O Package
 ----
 
-Next we'll look at a simple package for doing file I/O with the usual
-sort of open/close/read/write interface.  Here's the start of "file.go":
+Next we'll look at a simple package for doing file I/O with an
+open/close/read/write interface.  Here's the start of "file.go":
 
 --PROG progs/file.go /package/ /^}/
 
@@ -437,11 +437,11 @@ We can use the factory to construct some familiar, exported variables of type "*
 --PROG progs/file.go /var/ /^.$/
 
 The "newFile" function was not exported because it's internal. The proper,
-exported factory to use is "Open":
+exported factory to use is "OpenFile" (we'll explain that name in a moment):
 
---PROG progs/file.go /func.Open/ /^}/
+--PROG progs/file.go /func.OpenFile/ /^}/
 
-There are a number of new things in these few lines.  First, "Open" returns
+There are a number of new things in these few lines.  First, "OpenFile" returns
 multiple values, a "File" and an error (more about errors in a moment).
 We declare the
 multi-value return as a parenthesized list of declarations; syntactically
@@ -460,6 +460,20 @@ consistent error handling throughout Go code.   In "Open" we use a
 conversion to translate Unix's integer "errno" value into the integer type
 "os.Errno", which implements "os.Error".
 
+Why "OpenFile" and not "Open"? To mimic Go's "os" package, which
+our exercise is emulating. The "os" package takes the opportunity
+to make the two commonest cases - open for read and create for
+write - the simplest, just "Open" and "Create".  "OpenFile" is the
+general case, analogous to the Unix system call "Open".  Here is
+the implementation of our "Open" and "Create"; they're trivial
+wrappers that eliminate common errors by capturing
+the tricky standard arguments to open and, especially, to create a file:
+
+--PROG progs/file.go /^const/ /^}/
+
+--PROG progs/file.go /func.Create/ /^}/
+
+Back to our main story.
 Now that we can build "Files", we can write methods for them. To declare
 a method of a type, we define a function to have an explicit receiver
 of that type, placed
