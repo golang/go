@@ -6,7 +6,6 @@
 
 package reflect
 
-
 // During deepValueEqual, must keep track of checks that are
 // in progress.  The comparison algorithm assumes that all
 // checks in progress are true when it reencounters them.
@@ -21,7 +20,7 @@ type visit struct {
 // Tests for deep equality using reflected types. The map argument tracks
 // comparisons that have already been seen, which allows short circuiting on
 // recursive types.
-func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
+func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) (b bool) {
 	if !v1.IsValid() || !v2.IsValid() {
 		return v1.IsValid() == v2.IsValid()
 	}
@@ -31,30 +30,32 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 
 	// if depth > 10 { panic("deepValueEqual") }	// for debugging
 
-	addr1 := v1.UnsafeAddr()
-	addr2 := v2.UnsafeAddr()
-	if addr1 > addr2 {
-		// Canonicalize order to reduce number of entries in visited.
-		addr1, addr2 = addr2, addr1
-	}
+	if v1.CanAddr() && v2.CanAddr() {
+		addr1 := v1.UnsafeAddr()
+		addr2 := v2.UnsafeAddr()
+		if addr1 > addr2 {
+			// Canonicalize order to reduce number of entries in visited.
+			addr1, addr2 = addr2, addr1
+		}
 
-	// Short circuit if references are identical ...
-	if addr1 == addr2 {
-		return true
-	}
-
-	// ... or already seen
-	h := 17*addr1 + addr2
-	seen := visited[h]
-	typ := v1.Type()
-	for p := seen; p != nil; p = p.next {
-		if p.a1 == addr1 && p.a2 == addr2 && p.typ == typ {
+		// Short circuit if references are identical ...
+		if addr1 == addr2 {
 			return true
 		}
-	}
 
-	// Remember for later.
-	visited[h] = &visit{addr1, addr2, typ, seen}
+		// ... or already seen
+		h := 17*addr1 + addr2
+		seen := visited[h]
+		typ := v1.Type()
+		for p := seen; p != nil; p = p.next {
+			if p.a1 == addr1 && p.a2 == addr2 && p.typ == typ {
+				return true
+			}
+		}
+
+		// Remember for later.
+		visited[h] = &visit{addr1, addr2, typ, seen}
+	}
 
 	switch v1.Kind() {
 	case Array:

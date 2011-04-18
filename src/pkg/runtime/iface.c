@@ -6,6 +6,14 @@
 #include "type.h"
 #include "malloc.h"
 
+enum 
+{
+	// If an empty interface has these bits set in its type
+	// pointer, it was copied from a reflect.Value and is
+	// not a valid empty interface.
+	reflectFlags = 3,
+};
+
 void
 runtime·printiface(Iface i)
 {
@@ -276,6 +284,8 @@ runtime·assertE2T(Type *t, Eface e, ...)
 {
 	byte *ret;
 
+	if(((uintptr)e.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
 	ret = (byte*)(&e+1);
 	assertE2Tret(t, e, ret);
 }
@@ -285,6 +295,8 @@ assertE2Tret(Type *t, Eface e, byte *ret)
 {
 	Eface err;
 
+	if(((uintptr)e.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
 	if(e.type == nil) {
 		runtime·newTypeAssertionError(nil, nil, t,
 			nil, nil, t->string,
@@ -309,6 +321,8 @@ runtime·assertE2T2(Type *t, Eface e, ...)
 	bool *ok;
 	int32 wid;
 
+	if(((uintptr)e.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
 	ret = (byte*)(&e+1);
 	wid = t->size;
 	ok = (bool*)(ret+runtime·rnd(wid, 1));
@@ -444,6 +458,8 @@ runtime·ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
 	Type *t;
 	Eface err;
 
+	if(((uintptr)e.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
 	t = e.type;
 	if(t == nil) {
 		// explicit conversions require non-nil interface value.
@@ -454,6 +470,14 @@ runtime·ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
 	}
 	ret->data = e.data;
 	ret->tab = itab(inter, t, 0);
+}
+
+// For reflect
+//	func ifaceE2I(t *InterfaceType, e interface{}, dst *Iface)
+void
+reflect·ifaceE2I(InterfaceType *inter, Eface e, Iface *dst)
+{
+	runtime·ifaceE2I(inter, e, dst);
 }
 
 // func ifaceE2I(sigi *byte, iface any) (ret any)
@@ -467,6 +491,8 @@ runtime·assertE2I(InterfaceType* inter, Eface e, Iface ret)
 void
 runtime·assertE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
 {
+	if(((uintptr)e.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
 	if(e.type == nil) {
 		ok = 0;
 		ret.data = nil;
@@ -489,6 +515,8 @@ runtime·assertE2E(InterfaceType* inter, Eface e, Eface ret)
 	Type *t;
 	Eface err;
 
+	if(((uintptr)e.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
 	t = e.type;
 	if(t == nil) {
 		// explicit conversions require non-nil interface value.
@@ -505,6 +533,8 @@ runtime·assertE2E(InterfaceType* inter, Eface e, Eface ret)
 void
 runtime·assertE2E2(InterfaceType* inter, Eface e, Eface ret, bool ok)
 {
+	if(((uintptr)e.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
 	USED(inter);
 	ret = e;
 	ok = e.type != nil;
@@ -582,6 +612,10 @@ runtime·ifaceeq_c(Iface i1, Iface i2)
 bool
 runtime·efaceeq_c(Eface e1, Eface e2)
 {
+	if(((uintptr)e1.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
+	if(((uintptr)e2.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
 	if(e1.type != e2.type)
 		return false;
 	if(e1.type == nil)
@@ -624,6 +658,8 @@ runtime·efacethash(Eface e1, uint32 ret)
 {
 	Type *t;
 
+	if(((uintptr)e1.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
 	ret = 0;
 	t = e1.type;
 	if(t != nil)
@@ -634,11 +670,14 @@ runtime·efacethash(Eface e1, uint32 ret)
 void
 unsafe·Typeof(Eface e, Eface ret)
 {
+	if(((uintptr)e.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
 	if(e.type == nil) {
 		ret.type = nil;
 		ret.data = nil;
-	} else
-		ret = *(Eface*)e.type;
+	} else {
+		ret = *(Eface*)(e.type);
+	}
 	FLUSH(&ret);
 }
 
@@ -648,6 +687,8 @@ unsafe·Reflect(Eface e, Eface rettype, void *retaddr)
 	uintptr *p;
 	uintptr x;
 
+	if(((uintptr)e.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
 	if(e.type == nil) {
 		rettype.type = nil;
 		rettype.data = nil;
@@ -678,6 +719,9 @@ unsafe·Reflect(Eface e, Eface rettype, void *retaddr)
 void
 unsafe·Unreflect(Eface typ, void *addr, Eface e)
 {
+	if(((uintptr)typ.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
+
 	// Reflect library has reinterpreted typ
 	// as its own kind of type structure.
 	// We know that the pointer to the original
@@ -702,6 +746,9 @@ unsafe·New(Eface typ, void *ret)
 {
 	Type *t;
 
+	if(((uintptr)typ.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
+
 	// Reflect library has reinterpreted typ
 	// as its own kind of type structure.
 	// We know that the pointer to the original
@@ -720,6 +767,9 @@ unsafe·NewArray(Eface typ, uint32 n, void *ret)
 {
 	uint64 size;
 	Type *t;
+
+	if(((uintptr)typ.type&reflectFlags) != 0)
+		runtime·throw("invalid interface value");
 
 	// Reflect library has reinterpreted typ
 	// as its own kind of type structure.
