@@ -12,6 +12,19 @@ static	void	minus(Node *nl, Node *res);
 
 #define	CASE(a,b)	(((a)<<16)|((b)<<0))
 
+static int
+overlap(Node *f, Node *t)
+{
+	// check whether f and t could be overlapping stack references.
+	// not exact, because it's hard to check for the stack register
+	// in portable code.  close enough: worst case we will allocate
+	// an extra temporary and the registerizer will clean it up.
+	return f->op == OINDREG &&
+		t->op == OINDREG &&
+		f->xoffset+f->type->width >= t->xoffset &&
+		t->xoffset+t->type->width >= f->xoffset;
+}
+
 /*
  * generate:
  *	res = n;
@@ -43,9 +56,10 @@ complexmove(Node *f, Node *t)
 	case CASE(TCOMPLEX64,TCOMPLEX128):
 	case CASE(TCOMPLEX128,TCOMPLEX64):
 	case CASE(TCOMPLEX128,TCOMPLEX128):
-		// complex to complex move/convert
-		// make from addable
-		if(!f->addable) {
+		// complex to complex move/convert.
+		// make f addable.
+		// also use temporary if possible stack overlap.
+		if(!f->addable || overlap(f, t)) {
 			tempname(&n1, f->type);
 			complexmove(f, &n1);
 			f = &n1;
