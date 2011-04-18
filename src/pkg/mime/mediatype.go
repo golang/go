@@ -6,6 +6,8 @@ package mime
 
 import (
 	"bytes"
+	"fmt"
+	"os"
 	"strings"
 	"unicode"
 )
@@ -46,11 +48,16 @@ func ParseMediaType(v string) (mediatype string, params map[string]string) {
 
 	params = make(map[string]string)
 
+	// Map of base parameter name -> parameter name -> value
+	// for parameters containing a '*' character.
+	// Lazily initialized.
+	var continuation map[string]map[string]string
+
 	v = v[i:]
 	for len(v) > 0 {
 		v = strings.TrimLeftFunc(v, unicode.IsSpace)
 		if len(v) == 0 {
-			return
+			break
 		}
 		key, value, rest := consumeMediaParam(v)
 		if key == "" {
@@ -62,10 +69,81 @@ func ParseMediaType(v string) (mediatype string, params map[string]string) {
 			// Parse error.
 			return "", nil
 		}
-		params[key] = value
+
+		pmap := params
+		if idx := strings.Index(key, "*"); idx != -1 {
+			baseName := key[:idx]
+			if continuation == nil {
+				continuation = make(map[string]map[string]string)
+			}
+			var ok bool
+			if pmap, ok = continuation[baseName]; !ok {
+				continuation[baseName] = make(map[string]string)
+				pmap = continuation[baseName]
+			}
+		}
+		if _, exists := pmap[key]; exists {
+			// Duplicate parameter name is bogus.
+			return "", nil
+		}
+		pmap[key] = value
 		v = rest
 	}
+
+	// Stitch together any continuations or things with stars
+	// (i.e. RFC 2231 things with stars: "foo*0" or "foo*")
+	var buf bytes.Buffer
+	for key, pieceMap := range continuation {
+		singlePartKey := key + "*"
+		if v, ok := pieceMap[singlePartKey]; ok {
+			decv := decode2231Enc(v)
+			params[key] = decv
+			continue
+		}
+
+		buf.Reset()
+		valid := false
+		for n := 0; ; n++ {
+			simplePart := fmt.Sprintf("%s*%d", key, n)
+			if v, ok := pieceMap[simplePart]; ok {
+				valid = true
+				buf.WriteString(v)
+				continue
+			}
+			encodedPart := simplePart + "*"
+			if v, ok := pieceMap[encodedPart]; ok {
+				valid = true
+				if n == 0 {
+					buf.WriteString(decode2231Enc(v))
+				} else {
+					decv, _ := percentHexUnescape(v)
+					buf.WriteString(decv)
+				}
+			} else {
+				break
+			}
+		}
+		if valid {
+			params[key] = buf.String()
+		}
+	}
+
 	return
+}
+
+func decode2231Enc(v string) string {
+	sv := strings.Split(v, "'", 3)
+	if len(sv) != 3 {
+		return ""
+	}
+	// Ignoring lang in sv[1] for now.
+	charset := strings.ToLower(sv[0])
+	if charset != "us-ascii" && charset != "utf-8" {
+		// TODO: unsupported encoding
+		return ""
+	}
+	encv, _ := percentHexUnescape(sv[2])
+	return encv
 }
 
 func isNotTokenChar(rune int) bool {
@@ -107,17 +185,14 @@ func consumeValue(v string) (value, rest string) {
 	for idx, rune = range rest {
 		switch {
 		case nextIsLiteral:
-			if rune >= 0x80 {
-				return "", v
-			}
 			buffer.WriteRune(rune)
 			nextIsLiteral = false
 		case rune == leadQuote:
 			return buffer.String(), rest[idx+1:]
-		case IsQText(rune):
-			buffer.WriteRune(rune)
 		case rune == '\\':
 			nextIsLiteral = true
+		case rune != '\r' && rune != '\n':
+			buffer.WriteRune(rune)
 		default:
 			return "", v
 		}
@@ -137,6 +212,7 @@ func consumeMediaParam(v string) (param, value, rest string) {
 	if param == "" {
 		return "", "", v
 	}
+
 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
 	if !strings.HasPrefix(rest, "=") {
 		return "", "", v
@@ -148,4 +224,67 @@ func consumeMediaParam(v string) (param, value, rest string) {
 		return "", "", v
 	}
 	return param, value, rest
+}
+
+func percentHexUnescape(s string) (string, os.Error) {
+	// Count %, check that they're well-formed.
+	percents := 0
+	for i := 0; i < len(s); {
+		if s[i] != '%' {
+			i++
+			continue
+		}
+		percents++
+		if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
+			s = s[i:]
+			if len(s) > 3 {
+				s = s[0:3]
+			}
+			return "", fmt.Errorf("Bogus characters after %: %q", s)
+		}
+		i += 3
+	}
+	if percents == 0 {
+		return s, nil
+	}
+
+	t := make([]byte, len(s)-2*percents)
+	j := 0
+	for i := 0; i < len(s); {
+		switch s[i] {
+		case '%':
+			t[j] = unhex(s[i+1])<<4 | unhex(s[i+2])
+			j++
+			i += 3
+		default:
+			t[j] = s[i]
+			j++
+			i++
+		}
+	}
+	return string(t), nil
+}
+
+func ishex(c byte) bool {
+	switch {
+	case '0' <= c && c <= '9':
+		return true
+	case 'a' <= c && c <= 'f':
+		return true
+	case 'A' <= c && c <= 'F':
+		return true
+	}
+	return false
+}
+
+func unhex(c byte) byte {
+	switch {
+	case '0' <= c && c <= '9':
+		return c - '0'
+	case 'a' <= c && c <= 'f':
+		return c - 'a' + 10
+	case 'A' <= c && c <= 'F':
+		return c - 'A' + 10
+	}
+	return 0
 }
