@@ -247,7 +247,7 @@ func TestServerTimeouts(t *testing.T) {
 	server := &Server{Handler: handler, ReadTimeout: 0.25 * second, WriteTimeout: 0.25 * second}
 	go server.Serve(l)
 
-	url := fmt.Sprintf("http://localhost:%d/", addr.Port)
+	url := fmt.Sprintf("http://%s/", addr)
 
 	// Hit the HTTP server successfully.
 	tr := &Transport{DisableKeepAlives: true} // they interfere with this test
@@ -265,7 +265,7 @@ func TestServerTimeouts(t *testing.T) {
 
 	// Slow client that should timeout.
 	t1 := time.Nanoseconds()
-	conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", addr.Port))
+	conn, err := net.Dial("tcp", addr.String())
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
