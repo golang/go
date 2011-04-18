@@ -171,12 +171,18 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 	return dec.DecodeValue(value)
 }
 
-// DecodeValue reads the next value from the connection and stores
-// it in the data represented by the reflection value.
-// The value must be the correct type for the next
-// data item received, or it may be nil, which means the
-// value will be discarded.
-func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
+// DecodeValue reads the next value from the connection.
+// If v is the zero reflect.Value (v.Kind() == Invalid), DecodeValue discards the value.
+// Otherwise, it stores the value into v.  In that case, v must represent
+// a non-nil pointer to data or be an assignable reflect.Value (v.CanSet())
+func (dec *Decoder) DecodeValue(v reflect.Value) os.Error {
+	if v.IsValid() {
+		if v.Kind() == reflect.Ptr && !v.IsNil() {
+			// That's okay, we'll store through the pointer.
+		} else if !v.CanSet() {
+			return os.ErrorString("gob: DecodeValue of unassignable value")
+		}
+	}
 	// Make sure we're single-threaded through here.
 	dec.mutex.Lock()
 	defer dec.mutex.Unlock()
@@ -185,7 +191,7 @@ func (dec *Decoder) DecodeValue(value reflect.Value) os.Error {
 	dec.err = nil
 	id := dec.decodeTypeSequence(false)
 	if dec.err == nil {
-		dec.decodeValue(id, value)
+		dec.decodeValue(id, v)
 	}
 	return dec.err
 }

@@ -581,7 +581,7 @@ func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintpt
 // unlike the other items we can't use a pointer directly.
 func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value, ovfl os.ErrorString) reflect.Value {
 	instr := &decInstr{op, 0, indir, 0, ovfl}
-	up := unsafe.Pointer(v.UnsafeAddr())
+	up := unsafe.Pointer(unsafeAddr(v))
 	if indir > 1 {
 		up = decIndirect(up, indir)
 	}
@@ -608,8 +608,8 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr,
 	v := reflect.NewValue(unsafe.Unreflect(mtyp, unsafe.Pointer(p)))
 	n := int(state.decodeUint())
 	for i := 0; i < n; i++ {
-		key := decodeIntoValue(state, keyOp, keyIndir, reflect.Zero(mtyp.Key()), ovfl)
-		elem := decodeIntoValue(state, elemOp, elemIndir, reflect.Zero(mtyp.Elem()), ovfl)
+		key := decodeIntoValue(state, keyOp, keyIndir, allocValue(mtyp.Key()), ovfl)
+		elem := decodeIntoValue(state, elemOp, elemIndir, allocValue(mtyp.Elem()), ovfl)
 		v.SetMapIndex(key, elem)
 	}
 }
@@ -686,8 +686,8 @@ func setInterfaceValue(ivalue reflect.Value, value reflect.Value) {
 // Interfaces are encoded as the name of a concrete type followed by a value.
 // If the name is empty, the value is nil and no value is sent.
 func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p uintptr, indir int) {
-	// Create an interface reflect.Value.  We need one even for the nil case.
-	ivalue := reflect.Zero(ityp)
+	// Create a writable interface reflect.Value.  We need one even for the nil case.
+	ivalue := allocValue(ityp)
 	// Read the name of the concrete type.
 	b := make([]byte, state.decodeUint())
 	state.b.Read(b)
@@ -712,7 +712,7 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p ui
 	// in case we want to ignore the value by skipping it completely).
 	state.decodeUint()
 	// Read the concrete value.
-	value := reflect.Zero(typ)
+	value := allocValue(typ)
 	dec.decodeValue(concreteId, value)
 	if dec.err != nil {
 		error(dec.err)
@@ -1209,9 +1209,9 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) {
 			name := base.Name()
 			errorf("gob: type mismatch: no fields matched compiling decoder for %s", name)
 		}
-		dec.decodeStruct(engine, ut, uintptr(val.UnsafeAddr()), ut.indir)
+		dec.decodeStruct(engine, ut, uintptr(unsafeAddr(val)), ut.indir)
 	} else {
-		dec.decodeSingle(engine, ut, uintptr(val.UnsafeAddr()))
+		dec.decodeSingle(engine, ut, uintptr(unsafeAddr(val)))
 	}
 }
 
@@ -1255,4 +1255,27 @@ func init() {
 		panic("gob: unknown size of uintptr")
 	}
 	decOpTable[reflect.Uintptr] = uop
+}
+
+// Gob assumes it can call UnsafeAddr on any Value
+// in order to get a pointer it can copy data from.
+// Values that have just been created and do not point
+// into existing structs or slices cannot be addressed,
+// so simulate it by returning a pointer to a copy.
+// Each call allocates once.
+func unsafeAddr(v reflect.Value) uintptr {
+	if v.CanAddr() {
+		return v.UnsafeAddr()
+	}
+	x := reflect.New(v.Type()).Elem()
+	x.Set(v)
+	return x.UnsafeAddr()
+}
+
+// Gob depends on being able to take the address
+// of zeroed Values it creates, so use this wrapper instead
+// of the standard reflect.Zero.
+// Each call allocates once.
+func allocValue(t reflect.Type) reflect.Value {
+	return reflect.New(t).Elem()
 }

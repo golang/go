@@ -107,8 +107,8 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 		if !ok {
 			return reflect.Value{}, false
 		}
-		p := reflect.Zero(concrete)
-		p.Set(v.Addr())
+		p := reflect.New(concrete.Elem())
+		p.Elem().Set(v)
 		return p, true
 	case reflect.Slice:
 		numElems := rand.Intn(complexSize)
@@ -129,7 +129,7 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 		}
 		return reflect.NewValue(string(codePoints)), true
 	case reflect.Struct:
-		s := reflect.Zero(t)
+		s := reflect.New(t).Elem()
 		for i := 0; i < s.NumField(); i++ {
 			v, ok := Value(concrete.Field(i).Type, rand)
 			if !ok {

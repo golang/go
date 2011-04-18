@@ -170,7 +170,7 @@ func TestTypeToPtrType(t *testing.T) {
 		A int
 	}
 	t0 := Type0{7}
-	t0p := (*Type0)(nil)
+	t0p := new(Type0)
 	if err := encAndDec(t0, t0p); err != nil {
 		t.Error(err)
 	}

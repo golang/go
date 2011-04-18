@@ -138,8 +138,7 @@ func TestUnmarshal(t *testing.T) {
 			continue
 		}
 		// v = new(right-type)
-		v := reflect.NewValue(tt.ptr)
-		v.Set(reflect.Zero(v.Type().Elem()).Addr())
+		v := reflect.New(reflect.Typeof(tt.ptr).Elem())
 		if err := Unmarshal([]byte(in), v.Interface()); !reflect.DeepEqual(err, tt.err) {
 			t.Errorf("#%d: %v want %v", i, err, tt.err)
 			continue

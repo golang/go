@@ -297,12 +297,6 @@ type InvalidRequest struct{}
 
 var invalidRequest = InvalidRequest{}
 
-func _new(t reflect.Type) reflect.Value {
-	v := reflect.Zero(t)
-	v.Set(reflect.Zero(t.Elem()).Addr())
-	return v
-}
-
 func (server *Server) sendResponse(sending *sync.Mutex, req *Request, reply interface{}, codec ServerCodec, errmsg string) {
 	resp := server.getResponse()
 	// Encode the response header
@@ -411,8 +405,8 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		}
 
 		// Decode the argument value.
-		argv := _new(mtype.ArgType)
-		replyv := _new(mtype.ReplyType)
+		argv := reflect.New(mtype.ArgType.Elem())
+		replyv := reflect.New(mtype.ReplyType.Elem())
 		err = codec.ReadRequestBody(argv.Interface())
 		if err != nil {
 			if err == os.EOF || err == io.ErrUnexpectedEOF {

@@ -124,8 +124,7 @@ func (d *decodeState) unmarshal(v interface{}) (err os.Error) {
 
 	rv := reflect.NewValue(v)
 	pv := rv
-	if pv.Kind() != reflect.Ptr ||
-		pv.IsNil() {
+	if pv.Kind() != reflect.Ptr || pv.IsNil() {
 		return &InvalidUnmarshalError{reflect.Typeof(v)}
 	}
 
@@ -267,17 +266,17 @@ func (d *decodeState) indirect(v reflect.Value, wantptr bool) (Unmarshaler, refl
 			v = iv.Elem()
 			continue
 		}
+
 		pv := v
 		if pv.Kind() != reflect.Ptr {
 			break
 		}
 
-		if pv.Elem().Kind() != reflect.Ptr &&
-			wantptr && !isUnmarshaler {
+		if pv.Elem().Kind() != reflect.Ptr && wantptr && pv.CanSet() && !isUnmarshaler {
 			return nil, pv
 		}
 		if pv.IsNil() {
-			pv.Set(reflect.Zero(pv.Type().Elem()).Addr())
+			pv.Set(reflect.New(pv.Type().Elem()))
 		}
 		if isUnmarshaler {
 			// Using v.Interface().(Unmarshaler)
@@ -443,6 +442,8 @@ func (d *decodeState) object(v reflect.Value) {
 		return
 	}
 
+	var mapElem reflect.Value
+
 	for {
 		// Read opening " of string key or closing }.
 		op := d.scanWhile(scanSkipSpace)
@@ -466,7 +467,13 @@ func (d *decodeState) object(v reflect.Value) {
 		// Figure out field corresponding to key.
 		var subv reflect.Value
 		if mv.IsValid() {
-			subv = reflect.Zero(mv.Type().Elem())
+			elemType := mv.Type().Elem()
+			if !mapElem.IsValid() {
+				mapElem = reflect.New(elemType).Elem()
+			} else {
+				mapElem.Set(reflect.Zero(elemType))
+			}
+			subv = mapElem
 		} else {
 			var f reflect.StructField
 			var ok bool

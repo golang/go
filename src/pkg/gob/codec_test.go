@@ -999,7 +999,6 @@ type Bad0 struct {
 	C  float64
 }
 
-
 func TestInvalidField(t *testing.T) {
 	var bad0 Bad0
 	bad0.CH = make(chan int)

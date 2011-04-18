@@ -276,21 +276,21 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
 		return v
 
 	case reflect.Struct:
-		v := reflect.Zero(p.Type())
+		v := reflect.New(p.Type()).Elem()
 		for i := 0; i < p.NumField(); i++ {
 			v.Field(i).Set(subst(m, p.Field(i), pos))
 		}
 		return v
 
 	case reflect.Ptr:
-		v := reflect.Zero(p.Type())
+		v := reflect.New(p.Type()).Elem()
 		if elem := p.Elem(); elem.IsValid() {
 			v.Set(subst(m, elem, pos).Addr())
 		}
 		return v
 
 	case reflect.Interface:
-		v := reflect.Zero(p.Type())
+		v := reflect.New(p.Type()).Elem()
 		if elem := p.Elem(); elem.IsValid() {
 			v.Set(subst(m, elem, pos))
 		}

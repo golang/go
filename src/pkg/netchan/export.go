@@ -221,7 +221,7 @@ func (client *expClient) serveSend(hdr header) {
 		return
 	}
 	// Create a new value for each received item.
-	val := reflect.Zero(nch.ch.Type().Elem())
+	val := reflect.New(nch.ch.Type().Elem()).Elem()
 	if err := client.decode(val); err != nil {
 		expLog("value decode:", err, "; type ", nch.ch.Type())
 		return
