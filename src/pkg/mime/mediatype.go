@@ -136,7 +136,9 @@ func decode2231Enc(v string) string {
 	if len(sv) != 3 {
 		return ""
 	}
-	// Ignoring lang in sv[1] for now.
+	// TODO: ignoring lang in sv[1] for now. If anybody needs it we'll
+	// need to decide how to expose it in the API. But I'm not sure
+	// anybody uses it in practice.
 	charset := strings.ToLower(sv[0])
 	if charset != "us-ascii" && charset != "utf-8" {
 		// TODO: unsupported encoding
@@ -240,7 +242,7 @@ func percentHexUnescape(s string) (string, os.Error) {
 			if len(s) > 3 {
 				s = s[0:3]
 			}
-			return "", fmt.Errorf("Bogus characters after %: %q", s)
+			return "", fmt.Errorf("mime: bogus characters after %%: %q", s)
 		}
 		i += 3
 	}
