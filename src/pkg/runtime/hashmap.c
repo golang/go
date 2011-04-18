@@ -776,6 +776,15 @@ runtime·makemap(Type *key, Type *val, int64 hint, Hmap *ret)
 	FLUSH(&ret);
 }
 
+// For reflect:
+//	func makemap(Type *mapType) (hmap *map)
+void
+reflect·makemap(MapType *t, Hmap *ret)
+{
+	ret = runtime·makemap_c(t->key, t->elem, 0);
+	FLUSH(&ret);
+}
+
 void
 runtime·mapaccess(Hmap *h, byte *ak, byte *av, bool *pres)
 {
@@ -853,6 +862,34 @@ runtime·mapaccess2(Hmap *h, ...)
 		runtime·printbool(*ap);
 		runtime·prints("\n");
 	}
+}
+
+// For reflect:
+//	func mapaccess(h map, key iword) (val iword, pres bool)
+// where an iword is the same word an interface value would use:
+// the actual data if it fits, or else a pointer to the data.
+void
+reflect·mapaccess(Hmap *h, uintptr key, uintptr val, bool pres)
+{
+	byte *ak, *av;
+
+	if(h == nil)
+		runtime·panicstring("lookup in nil map");
+	if(h->keysize <= sizeof(key))
+		ak = (byte*)&key;
+	else
+		ak = (byte*)key;
+	val = 0;
+	pres = false;
+	if(h->valsize <= sizeof(val))
+		av = (byte*)&val;
+	else {
+		av = runtime·mal(h->valsize);
+		val = (uintptr)av;
+	}
+	runtime·mapaccess(h, ak, av, &pres);
+	FLUSH(&val);
+	FLUSH(&pres);
 }
 
 void
@@ -938,6 +975,30 @@ runtime·mapassign2(Hmap *h, ...)
 	}
 }
 
+// For reflect:
+//	func mapassign(h map, key, val iword, pres bool)
+// where an iword is the same word an interface value would use:
+// the actual data if it fits, or else a pointer to the data.
+void
+reflect·mapassign(Hmap *h, uintptr key, uintptr val, bool pres)
+{
+	byte *ak, *av;
+
+	if(h == nil)
+		runtime·panicstring("lookup in nil map");
+	if(h->keysize <= sizeof(key))
+		ak = (byte*)&key;
+	else
+		ak = (byte*)key;
+	if(h->valsize <= sizeof(val))
+		av = (byte*)&val;
+	else
+		av = (byte*)val;
+	if(!pres)
+		av = nil;
+	runtime·mapassign(h, ak, av);
+}
+
 // mapiterinit(hmap *map[any]any, hiter *any);
 void
 runtime·mapiterinit(Hmap *h, struct hash_iter *it)
@@ -959,14 +1020,14 @@ runtime·mapiterinit(Hmap *h, struct hash_iter *it)
 	}
 }
 
-struct hash_iter*
-runtime·newmapiterinit(Hmap *h)
+// For reflect:
+//	func mapiterinit(h map) (it iter)
+void
+reflect·mapiterinit(Hmap *h, struct hash_iter *it)
 {
-	struct hash_iter *it;
-
 	it = runtime·mal(sizeof *it);
+	FLUSH(&it);
 	runtime·mapiterinit(h, it);
-	return it;
 }
 
 // mapiternext(hiter *any);
@@ -984,6 +1045,14 @@ runtime·mapiternext(struct hash_iter *it)
 		runtime·printpointer(it->data);
 		runtime·prints("\n");
 	}
+}
+
+// For reflect:
+//	func mapiternext(it iter)
+void
+reflect·mapiternext(struct hash_iter *it)
+{
+	runtime·mapiternext(it);
 }
 
 // mapiter1(hiter *any) (key any);
@@ -1024,6 +1093,48 @@ runtime·mapiterkey(struct hash_iter *it, void *ak)
 		return false;
 	h->keyalg->copy(h->keysize, ak, res);
 	return true;
+}
+
+// For reflect:
+//	func mapiterkey(h map) (key iword, ok bool)
+// where an iword is the same word an interface value would use:
+// the actual data if it fits, or else a pointer to the data.
+void
+reflect·mapiterkey(struct hash_iter *it, uintptr key, bool ok)
+{
+	Hmap *h;
+	byte *res;
+
+	key = 0;
+	ok = false;
+	h = it->h;
+	res = it->data;
+	if(res == nil) {
+		key = 0;
+		ok = false;
+	} else {
+		key = 0;
+		if(h->keysize <= sizeof(key))
+			h->keyalg->copy(h->keysize, (byte*)&key, res);
+		else
+			key = (uintptr)res;
+		ok = true;
+	}
+	FLUSH(&key);
+	FLUSH(&ok);
+}
+
+// For reflect:
+//	func maplen(h map) (len int32)
+// Like len(m) in the actual language, we treat the nil map as length 0.
+void
+reflect·maplen(Hmap *h, int32 len)
+{
+	if(h == nil)
+		len = 0;
+	else
+		len = h->count;
+	FLUSH(&len);
 }
 
 // mapiter2(hiter *any) (key any, val any);

@@ -580,7 +580,6 @@ int32	runtime·gomaxprocsfunc(int32 n);
 
 void	runtime·mapassign(Hmap*, byte*, byte*);
 void	runtime·mapaccess(Hmap*, byte*, byte*, bool*);
-struct hash_iter*	runtime·newmapiterinit(Hmap*);
 void	runtime·mapiternext(struct hash_iter*);
 bool	runtime·mapiterkey(struct hash_iter*, void*);
 void	runtime·mapiterkeyvalue(struct hash_iter*, void*, void*);
@@ -589,7 +588,6 @@ Hmap*	runtime·makemap_c(Type*, Type*, int64);
 Hchan*	runtime·makechan_c(Type*, int64);
 void	runtime·chansend(Hchan*, void*, bool*);
 void	runtime·chanrecv(Hchan*, void*, bool*, bool*);
-void	runtime·chanclose(Hchan*);
 int32	runtime·chanlen(Hchan*);
 int32	runtime·chancap(Hchan*);
 

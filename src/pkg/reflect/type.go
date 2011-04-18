@@ -47,7 +47,7 @@ type Type interface {
 	// method signature, without a receiver, and the Func field is nil.
 	Method(int) Method
 
-	// NumMethods returns the number of methods in the type's method set.
+	// NumMethod returns the number of methods in the type's method set.
 	NumMethod() int
 
 	// Name returns the type's name within its package.
@@ -162,6 +162,8 @@ type Type interface {
 	// It panics if i is not in the range [0, NumOut()).
 	Out(i int) Type
 
+	runtimeType() *runtime.Type
+	common() *commonType
 	uncommon() *uncommonType
 }
 
@@ -408,9 +410,12 @@ func (t *commonType) String() string { return *t.string }
 func (t *commonType) Size() uintptr { return t.size }
 
 func (t *commonType) Bits() int {
+	if t == nil {
+		panic("reflect: Bits of nil Type")
+	}
 	k := t.Kind()
 	if k < Int || k > Complex128 {
-		panic("reflect: Bits of non-arithmetic Type")
+		panic("reflect: Bits of non-arithmetic Type " + t.String())
 	}
 	return int(t.size) * 8
 }
@@ -431,12 +436,14 @@ func (t *uncommonType) Method(i int) (m Method) {
 	if p.name != nil {
 		m.Name = *p.name
 	}
+	flag := uint32(0)
 	if p.pkgPath != nil {
 		m.PkgPath = *p.pkgPath
+		flag |= flagRO
 	}
 	m.Type = toType(p.typ)
 	fn := p.tfn
-	m.Func = Value{&funcValue{value: value{m.Type, addr(&fn), canSet}}}
+	m.Func = valueFromIword(flag, m.Type, iword(fn))
 	return
 }
 
@@ -772,30 +779,48 @@ func (t *structType) FieldByNameFunc(match func(string) bool) (f StructField, pr
 }
 
 // Convert runtime type to reflect type.
-func toType(p *runtime.Type) Type {
+func toCommonType(p *runtime.Type) *commonType {
+	if p == nil {
+		return nil
+	}
 	type hdr struct {
 		x interface{}
 		t commonType
 	}
-	t := &(*hdr)(unsafe.Pointer(p)).t
-	return t.toType()
+	x := unsafe.Pointer(p)
+	if uintptr(x)&reflectFlags != 0 {
+		panic("invalid interface value")
+	}
+	return &(*hdr)(x).t
+}
+
+func toType(p *runtime.Type) Type {
+	if p == nil {
+		return nil
+	}
+	return toCommonType(p).toType()
 }
 
 // Typeof returns the reflection Type of the value in the interface{}.
 func Typeof(i interface{}) Type {
-	type hdr struct {
-		typ *byte
-		val *commonType
-	}
-	rt := unsafe.Typeof(i)
-	t := (*(*hdr)(unsafe.Pointer(&rt))).val
-	return t.toType()
+	eface := *(*emptyInterface)(unsafe.Pointer(&i))
+	return toType(eface.typ)
 }
 
 // ptrMap is the cache for PtrTo.
 var ptrMap struct {
 	sync.RWMutex
 	m map[*commonType]*ptrType
+}
+
+func (t *commonType) runtimeType() *runtime.Type {
+	// The runtime.Type always precedes the commonType in memory.
+	// Adjust pointer to find it.
+	var rt struct {
+		i  runtime.Type
+		ct commonType
+	}
+	return (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(t)) - uintptr(unsafe.Offsetof(rt.ct))))
 }
 
 // PtrTo returns the pointer type with element t.
