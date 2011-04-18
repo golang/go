@@ -27,12 +27,27 @@ var (
 	Stderr = newFile(syscall.Stderr, "/dev/stderr")
 )
 
-func Open(name string, mode int, perm uint32) (file *File, err os.Error) {
+func OpenFile(name string, mode int, perm uint32) (file *File, err os.Error) {
 	r, e := syscall.Open(name, mode, perm)
 	if e != 0 {
 		err = os.Errno(e)
 	}
 	return newFile(r, name), err
+}
+
+const (
+	O_RDONLY = syscall.O_RDONLY
+	O_RDWR   = syscall.O_RDWR
+	O_CREATE = syscall.O_CREAT
+	O_TRUNC  = syscall.O_TRUNC
+)
+
+func Open(name string) (file *File, err os.Error) {
+	return OpenFile(name, O_RDONLY, 0)
+}
+
+func Create(name string) (file *File, err os.Error) {
+	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }
 
 func (file *File) Close() os.Error {
