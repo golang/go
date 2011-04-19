@@ -116,6 +116,9 @@ func (enc *Encoder) sendActualType(w io.Writer, state *encoderState, ut *userTyp
 		}
 	case reflect.Array, reflect.Slice:
 		enc.sendType(w, state, st.Elem())
+	case reflect.Map:
+		enc.sendType(w, state, st.Key())
+		enc.sendType(w, state, st.Elem())
 	}
 	return true
 }
