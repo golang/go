@@ -260,6 +260,7 @@ const (
 type arrayType struct {
 	commonType "array"
 	elem       *runtime.Type
+	slice      *runtime.Type
 	len        uintptr
 }
 

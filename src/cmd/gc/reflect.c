@@ -690,7 +690,7 @@ dtypesym(Type *t)
 	int ot, xt, n, isddd, dupok;
 	Sym *s, *s1, *s2;
 	Sig *a, *m;
-	Type *t1, *tbase;
+	Type *t1, *tbase, *t2;
 
 	if(isideal(t))
 		fatal("dtypesym %T", t);
@@ -727,15 +727,25 @@ ok:
 		break;
 
 	case TARRAY:
-		// ../../pkg/runtime/type.go:/ArrayType
-		s1 = dtypesym(t->type);
-		ot = dcommontype(s, ot, t);
-		xt = ot - 2*widthptr;
-		ot = dsymptr(s, ot, s1, 0);
-		if(t->bound < 0)
-			ot = duintptr(s, ot, -1);
-		else
+		if(t->bound >= 0) {
+			// ../../pkg/runtime/type.go:/ArrayType
+			s1 = dtypesym(t->type);
+			t2 = typ(TARRAY);
+			t2->type = t->type;
+			t2->bound = -1;  // slice
+			s2 = dtypesym(t2);
+			ot = dcommontype(s, ot, t);
+			xt = ot - 2*widthptr;
+			ot = dsymptr(s, ot, s1, 0);
+			ot = dsymptr(s, ot, s2, 0);
 			ot = duintptr(s, ot, t->bound);
+		} else {
+			// ../../pkg/runtime/type.go:/SliceType
+			s1 = dtypesym(t->type);
+			ot = dcommontype(s, ot, t);
+			xt = ot - 2*widthptr;
+			ot = dsymptr(s, ot, s1, 0);
+		}
 		break;
 
 	case TCHAN:
