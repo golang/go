@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The websocket package implements a client and server for the Web Socket protocol.
+// Package websocket implements a client and server for the Web Socket protocol.
 // The protocol is defined at http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol
 package websocket
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Ogle is the beginning of a debugger for Go.
+// Package ogle is the beginning of a debugger for Go.
 package ogle
 
 import (

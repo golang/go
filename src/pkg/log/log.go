@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Simple logging package. It defines a type, Logger, with methods
-// for formatting output. It also has a predefined 'standard' Logger
-// accessible through helper functions Print[f|ln], Fatal[f|ln], and
+// Package log implements a simple logging package. It defines a type, Logger,
+// with methods for formatting output. It also has a predefined 'standard'
+// Logger accessible through helper functions Print[f|ln], Fatal[f|ln], and
 // Panic[f|ln], which are easier to use than creating a Logger manually.
 // That logger writes to standard error and prints the date and time
 // of each logged message.

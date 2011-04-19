@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements RSA encryption as specified in PKCS#1.
+// Package rsa implements RSA encryption as specified in PKCS#1.
 package rsa
 
 // TODO(agl): Add support for PSS padding.

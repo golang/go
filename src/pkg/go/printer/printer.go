@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The printer package implements printing of AST nodes.
+// Package printer implements printing of AST nodes.
 package printer
 
 import (

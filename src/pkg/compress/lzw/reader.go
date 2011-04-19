@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The lzw package implements the Lempel-Ziv-Welch compressed data format,
+// Package lzw implements the Lempel-Ziv-Welch compressed data format,
 // described in T. A. Welch, ``A Technique for High-Performance Data
 // Compression'', Computer, 17(6) (June 1984), pp 8-19.
 //

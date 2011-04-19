@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The testing package provides support for automated testing of Go packages.
+// Package testing provides support for automated testing of Go packages.
 // It is intended to be used in concert with the ``gotest'' utility, which automates
 // execution of any function of the form
 //     func TestXxx(*testing.T)

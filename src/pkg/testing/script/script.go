@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package aids in the testing of code that uses channels.
+// Package script aids in the testing of code that uses channels.
 package script
 
 import (

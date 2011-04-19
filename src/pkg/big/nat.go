@@ -2,11 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains operations on unsigned multi-precision integers.
-// These are the building blocks for the operations on signed integers
-// and rationals.
-
-// This package implements multi-precision arithmetic (big numbers).
+// Package big implements multi-precision arithmetic (big numbers).
 // The following numeric types are supported:
 //
 //	- Int	signed integers
@@ -17,6 +13,10 @@
 // To enable chaining of operations, the result is also returned.
 //
 package big
+
+// This file contains operations on unsigned multi-precision integers.
+// These are the building blocks for the operations on signed integers
+// and rationals.
 
 import "rand"
 

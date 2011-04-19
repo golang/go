@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The flate package implements the DEFLATE compressed data
-// format, described in RFC 1951.  The gzip and zlib packages
-// implement access to DEFLATE-based file formats.
+// Package flate implements the DEFLATE compressed data format, described in
+// RFC 1951.  The gzip and zlib packages implement access to DEFLATE-based file
+// formats.
 package flate
 
 import (

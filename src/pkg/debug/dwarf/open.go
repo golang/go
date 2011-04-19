@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package provides access to DWARF debugging information
-// loaded from executable files, as defined in the DWARF 2.0 Standard
-// at http://dwarfstd.org/doc/dwarf-2.0.0.pdf
+// Package dwarf provides access to DWARF debugging information loaded from
+// executable files, as defined in the DWARF 2.0 Standard at
+// http://dwarfstd.org/doc/dwarf-2.0.0.pdf
 package dwarf
 
 import (

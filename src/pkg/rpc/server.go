@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-	The rpc package provides access to the exported methods of an object across a
+	Package rpc provides access to the exported methods of an object across a
 	network or other I/O connection.  A server registers an object, making it visible
 	as a service with the name of the type of the object.  After registration, exported
 	methods of the object will be accessible remotely.  A server may register multiple

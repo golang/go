@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The textproto package implements generic support for
-// text-based request/response protocols in the style of
-// HTTP, NNTP, and SMTP.
+// Package textproto implements generic support for text-based request/response
+// protocols in the style of HTTP, NNTP, and SMTP.
 //
 // The package provides:
 //

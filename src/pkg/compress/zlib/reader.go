@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 /*
-The zlib package implements reading and writing of zlib
-format compressed data, as specified in RFC 1950.
+Package zlib implements reading and writing of zlib format compressed data,
+as specified in RFC 1950.
 
 The implementation provides filters that uncompress during reading
 and compress during writing.  For example, to write compressed data

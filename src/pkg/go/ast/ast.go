@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The AST package declares the types used to represent
-// syntax trees for Go packages.
+// Package ast declares the types used to represent syntax trees for Go
+// packages.
 //
 package ast
 

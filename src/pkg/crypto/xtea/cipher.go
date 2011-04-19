@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements XTEA encryption, as defined in Needham and
-// Wheeler's 1997 technical report, "Tea extensions."
+// Package xtea implements XTEA encryption, as defined in Needham and Wheeler's
+// 1997 technical report, "Tea extensions."
 package xtea
 
 // For details, see http://www.cix.co.uk/~klockstone/xtea.pdf

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A parser for Go source files. Input may be provided in a variety of
-// forms (see the various Parse* functions); the output is an abstract
-// syntax tree (AST) representing the Go source. The parser is invoked
-// through one of the Parse* functions.
+// Package parser implements a parser for Go source files. Input may be
+// provided in a variety of forms (see the various Parse* functions); the
+// output is an abstract syntax tree (AST) representing the Go source. The
+// parser is invoked through one of the Parse* functions.
 //
 package parser
 

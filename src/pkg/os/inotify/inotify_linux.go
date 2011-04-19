@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-This package implements a wrapper for the Linux inotify system.
+Package inotify implements a wrapper for the Linux inotify system.
 
 Example:
     watcher, err := inotify.NewWatcher()

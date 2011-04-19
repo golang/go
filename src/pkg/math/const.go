@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The math package provides basic constants and mathematical functions.
+// Package math provides basic constants and mathematical functions.
 package math
 
 // Mathematical constants.

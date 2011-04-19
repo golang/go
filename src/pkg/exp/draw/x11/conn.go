@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements an X11 backend for the exp/draw package.
+// Package x11 implements an X11 backend for the exp/draw package.
 //
 // The X protocol specification is at ftp://ftp.x.org/pub/X11R7.0/doc/PDF/proto.pdf.
 // A summary of the wire format can be found in XCB's xproto.xml.

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements utility functions to help with black box testing.
+// Package quick implements utility functions to help with black box testing.
 package quick
 
 import (

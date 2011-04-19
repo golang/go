@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-	The netchan package implements type-safe networked channels:
+	Package netchan implements type-safe networked channels:
 	it allows the two ends of a channel to appear on different
 	computers connected by a network.  It does this by transporting
 	data sent to a channel on one machine so it can be recovered

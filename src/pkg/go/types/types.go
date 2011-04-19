@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // PACKAGE UNDER CONSTRUCTION. ANY AND ALL PARTS MAY CHANGE.
-// The types package declares the types used to represent Go types.
+// Package types declares the types used to represent Go types.
 //
 package types
 

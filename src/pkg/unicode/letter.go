@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package provides data and functions to test some properties of Unicode code points.
+// Package unicode provides data and functions to test some properties of
+// Unicode code points.
 package unicode
 
 const (

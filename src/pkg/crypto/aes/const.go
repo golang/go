@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// AES constants - 8720 bytes of initialized data.
-
-// This package implements AES encryption (formerly Rijndael),
-// as defined in U.S. Federal Information Processing Standards Publication 197.
+// Package aes implements AES encryption (formerly Rijndael), as defined in
+// U.S. Federal Information Processing Standards Publication 197.
 package aes
+
+// This file contains AES constants - 8720 bytes of initialized data.
 
 // http://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
 

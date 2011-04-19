@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The png package implements a PNG image decoder and encoder.
+// Package png implements a PNG image decoder and encoder.
 //
 // The PNG specification is at http://www.libpng.org/pub/png/spec/1.2/PNG-Contents.html
 package png

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A package of simple functions to manipulate strings.
+// Package strings implements simple functions to manipulate strings.
 package strings
 
 import (

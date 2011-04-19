@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-	The flag package implements command-line flag parsing.
+	Package flag implements command-line flag parsing.
 
 	Usage:
 
