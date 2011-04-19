@@ -15,7 +15,6 @@ import (
 	"hash"
 	"io"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -440,63 +439,6 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err os.Error) {
 	digest := h.Sum()
 
 	return rsa.VerifyPKCS1v15(pub, hashType, digest, c.Signature)
-}
-
-func matchHostnames(pattern, host string) bool {
-	if len(pattern) == 0 || len(host) == 0 {
-		return false
-	}
-
-	patternParts := strings.Split(pattern, ".", -1)
-	hostParts := strings.Split(host, ".", -1)
-
-	if len(patternParts) != len(hostParts) {
-		return false
-	}
-
-	for i, patternPart := range patternParts {
-		if patternPart == "*" {
-			continue
-		}
-		if patternPart != hostParts[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
-type HostnameError struct {
-	Certificate *Certificate
-	Host        string
-}
-
-func (h *HostnameError) String() string {
-	var valid string
-	c := h.Certificate
-	if len(c.DNSNames) > 0 {
-		valid = strings.Join(c.DNSNames, ", ")
-	} else {
-		valid = c.Subject.CommonName
-	}
-	return "certificate is valid for " + valid + ", not " + h.Host
-}
-
-// VerifyHostname returns nil if c is a valid certificate for the named host.
-// Otherwise it returns an os.Error describing the mismatch.
-func (c *Certificate) VerifyHostname(h string) os.Error {
-	if len(c.DNSNames) > 0 {
-		for _, match := range c.DNSNames {
-			if matchHostnames(match, h) {
-				return nil
-			}
-		}
-		// If Subject Alt Name is given, we ignore the common name.
-	} else if matchHostnames(c.Subject.CommonName, h) {
-		return nil
-	}
-
-	return &HostnameError{c, h}
 }
 
 type UnhandledCriticalExtension struct{}
