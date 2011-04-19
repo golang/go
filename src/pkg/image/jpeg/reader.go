@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The jpeg package implements a decoder for JPEG images, as defined in ITU-T T.81.
+// Package jpeg implements a JPEG image decoder and encoder.
+//
+// JPEG is defined in ITU-T T.81: http://www.w3.org/Graphics/JPEG/itu-t81.pdf.
 package jpeg
-
-// See http://www.w3.org/Graphics/JPEG/itu-t81.pdf
 
 import (
 	"bufio"
@@ -31,6 +31,8 @@ type component struct {
 	v  uint8 // Vertical sampling factor.
 	tq uint8 // Quantization table destination selector.
 }
+
+type block [blockSize]int
 
 const (
 	blockSize = 64 // A DCT block is 8x8.
@@ -88,9 +90,9 @@ type decoder struct {
 	ri            int // Restart Interval.
 	comps         [nComponent]component
 	huff          [maxTc + 1][maxTh + 1]huffman
-	quant         [maxTq + 1][blockSize]int
+	quant         [maxTq + 1]block
 	b             bits
-	blocks        [nComponent][maxH * maxV][blockSize]int
+	blocks        [nComponent][maxH * maxV]block
 	tmp           [1024]byte
 }
 
@@ -269,7 +271,7 @@ func (d *decoder) processSOS(n int) os.Error {
 	myy := (d.height + 8*int(v0) - 1) / (8 * int(v0))
 
 	mcu, expectedRST := 0, uint8(rst0Marker)
-	var allZeroes [blockSize]int
+	var allZeroes block
 	var dc [nComponent]int
 	for my := 0; my < myy; my++ {
 		for mx := 0; mx < mxx; mx++ {
