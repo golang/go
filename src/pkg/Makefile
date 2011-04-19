@@ -183,7 +183,6 @@ NOTEST+=\
 	hash\
 	http/pprof\
 	http/httptest\
-	image/jpeg\
 	net/dict\
 	rand\
 	runtime/cgo\
