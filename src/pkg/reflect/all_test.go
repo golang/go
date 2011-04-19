@@ -1435,3 +1435,17 @@ func TestSmallNegativeInt(t *testing.T) {
 		t.Errorf("int16(-1).Int() returned %v", v.Int())
 	}
 }
+
+func TestSlice(t *testing.T) {
+	xs := []int{1, 2, 3, 4, 5, 6, 7, 8}
+	v := NewValue(xs).Slice(3, 5).Interface().([]int)
+	if len(v) != 2 || v[0] != 4 || v[1] != 5 {
+		t.Errorf("xs.Slice(3, 5) = %v", v)
+	}
+
+	xa := [7]int{10, 20, 30, 40, 50, 60, 70}
+	v = NewValue(&xa).Elem().Slice(2, 5).Interface().([]int)
+	if len(v) != 3 || v[0] != 30 || v[1] != 40 || v[2] != 50 {
+		t.Errorf("xa.Slice(2, 5) = %v", v)
+	}
+}

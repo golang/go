@@ -1244,20 +1244,32 @@ func (v Value) SetString(x string) {
 	*(*string)(iv.addr) = x
 }
 
-// BUG(rsc): Value.Slice should allow slicing arrays.
-
 // Slice returns a slice of v.
-// It panics if v's Kind is not Slice.
+// It panics if v's Kind is not Array or Slice.
 func (v Value) Slice(beg, end int) Value {
 	iv := v.internal()
-	iv.mustBe(Slice)
+	if iv.kind != Array && iv.kind != Slice {
+		panic(&ValueError{"reflect.Value.Slice", iv.kind})
+	}
 	cap := v.Cap()
 	if beg < 0 || end < beg || end > cap {
 		panic("reflect.Value.Slice: slice index out of bounds")
 	}
-	typ := iv.typ.toType()
+	var typ Type
+	var base uintptr
+	switch iv.kind {
+	case Array:
+		if iv.flag&flagAddr == 0 {
+			panic("reflect.Value.Slice: slice of unaddressable array")
+		}
+		typ = toType((*arrayType)(unsafe.Pointer(iv.typ)).slice)
+		base = uintptr(iv.addr)
+	case Slice:
+		typ = iv.typ.toType()
+		base = (*SliceHeader)(iv.addr).Data
+	}
 	s := new(SliceHeader)
-	s.Data = uintptr((*SliceHeader)(iv.addr).Data) + uintptr(beg)*typ.Elem().Size()
+	s.Data = base + uintptr(beg)*typ.Elem().Size()
 	s.Len = end - beg
 	s.Cap = cap - beg
 	return valueFromAddr(iv.flag&flagRO, typ, unsafe.Pointer(s))

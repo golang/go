@@ -117,8 +117,9 @@ type UnsafePointerType commonType
 // ArrayType represents a fixed array type.
 type ArrayType struct {
 	commonType
-	elem *Type // array element type
-	len  uintptr
+	elem  *Type // array element type
+	slice *Type // slice type
+	len   uintptr
 }
 
 // SliceType represents a slice type.
