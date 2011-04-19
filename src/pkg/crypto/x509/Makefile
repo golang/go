@@ -6,6 +6,8 @@ include ../../../Make.inc
 
 TARG=crypto/x509
 GOFILES=\
+	cert_pool.go\
+	verify.go\
 	x509.go\
 
 include ../../../Make.pkg

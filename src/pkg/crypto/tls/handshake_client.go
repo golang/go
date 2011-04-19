@@ -88,7 +88,6 @@ func (c *Conn) clientHandshake() os.Error {
 	finishedHash.Write(certMsg.marshal())
 
 	certs := make([]*x509.Certificate, len(certMsg.certificates))
-	chain := NewCASet()
 	for i, asn1Data := range certMsg.certificates {
 		cert, err := x509.ParseCertificate(asn1Data)
 		if err != nil {
@@ -96,47 +95,29 @@ func (c *Conn) clientHandshake() os.Error {
 			return os.ErrorString("failed to parse certificate from server: " + err.String())
 		}
 		certs[i] = cert
-		chain.AddCert(cert)
 	}
 
 	// If we don't have a root CA set configured then anything is accepted.
 	// TODO(rsc): Find certificates for OS X 10.6.
-	for cur := certs[0]; c.config.RootCAs != nil; {
-		parent := c.config.RootCAs.FindVerifiedParent(cur)
-		if parent != nil {
-			break
+	if c.config.RootCAs != nil {
+		opts := x509.VerifyOptions{
+			Roots:         c.config.RootCAs,
+			CurrentTime:   c.config.Time(),
+			DNSName:       c.config.ServerName,
+			Intermediates: x509.NewCertPool(),
 		}
 
-		parent = chain.FindVerifiedParent(cur)
-		if parent == nil {
+		for i, cert := range certs {
+			if i == 0 {
+				continue
+			}
+			opts.Intermediates.AddCert(cert)
+		}
+		c.verifiedChains, err = certs[0].Verify(opts)
+		if err != nil {
 			c.sendAlert(alertBadCertificate)
-			return os.ErrorString("could not find root certificate for chain")
+			return err
 		}
-
-		if !parent.BasicConstraintsValid || !parent.IsCA {
-			c.sendAlert(alertBadCertificate)
-			return os.ErrorString("intermediate certificate does not have CA bit set")
-		}
-		// KeyUsage status flags are ignored. From Engineering
-		// Security, Peter Gutmann: A European government CA marked its
-		// signing certificates as being valid for encryption only, but
-		// no-one noticed. Another European CA marked its signature
-		// keys as not being valid for signatures. A different CA
-		// marked its own trusted root certificate as being invalid for
-		// certificate signing.  Another national CA distributed a
-		// certificate to be used to encrypt data for the country’s tax
-		// authority that was marked as only being usable for digital
-		// signatures but not for encryption. Yet another CA reversed
-		// the order of the bit flags in the keyUsage due to confusion
-		// over encoding endianness, essentially setting a random
-		// keyUsage in certificates that it issued. Another CA created
-		// a self-invalidating certificate by adding a certificate
-		// policy statement stipulating that the certificate had to be
-		// used strictly as specified in the keyUsage, and a keyUsage
-		// containing a flag indicating that the RSA encryption key
-		// could only be used for Diffie-Hellman key agreement.
-
-		cur = parent
 	}
 
 	if _, ok := certs[0].PublicKey.(*rsa.PublicKey); !ok {

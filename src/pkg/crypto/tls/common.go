@@ -122,7 +122,7 @@ type Config struct {
 	// RootCAs defines the set of root certificate authorities
 	// that clients use when verifying server certificates.
 	// If RootCAs is nil, TLS uses the host's root CA set.
-	RootCAs *CASet
+	RootCAs *x509.CertPool
 
 	// NextProtos is a list of supported, application level protocols.
 	NextProtos []string
@@ -158,7 +158,7 @@ func (c *Config) time() int64 {
 	return t()
 }
 
-func (c *Config) rootCAs() *CASet {
+func (c *Config) rootCAs() *x509.CertPool {
 	s := c.RootCAs
 	if s == nil {
 		s = defaultRoots()
@@ -224,7 +224,7 @@ var certFiles = []string{
 
 var once sync.Once
 
-func defaultRoots() *CASet {
+func defaultRoots() *x509.CertPool {
 	once.Do(initDefaults)
 	return varDefaultRoots
 }
@@ -239,14 +239,14 @@ func initDefaults() {
 	initDefaultCipherSuites()
 }
 
-var varDefaultRoots *CASet
+var varDefaultRoots *x509.CertPool
 
 func initDefaultRoots() {
-	roots := NewCASet()
+	roots := x509.NewCertPool()
 	for _, file := range certFiles {
 		data, err := ioutil.ReadFile(file)
 		if err == nil {
-			roots.SetFromPEM(data)
+			roots.AppendCertsFromPEM(data)
 			break
 		}
 	}
