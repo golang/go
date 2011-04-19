@@ -15,6 +15,7 @@ import (
 	"hash"
 	"io"
 	"os"
+	"strconv"
 )
 
 // PublicKey represents an OpenPGP public key. See RFC 4880, section 5.5.2.
@@ -47,7 +48,7 @@ func (pk *PublicKey) parse(r io.Reader) (err os.Error) {
 	case PubKeyAlgoDSA:
 		err = pk.parseDSA(r)
 	default:
-		err = error.UnsupportedError("public key type")
+		err = error.UnsupportedError("public key type: " + strconv.Itoa(int(pk.PubKeyAlgo)))
 	}
 	if err != nil {
 		return
