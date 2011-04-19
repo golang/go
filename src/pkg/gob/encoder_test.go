@@ -514,3 +514,38 @@ func TestNestedInterfaces(t *testing.T) {
 		t.Fatalf("final value %d; expected %d", inner.A, 7)
 	}
 }
+
+// The bugs keep coming. We forgot to send map subtypes before the map.
+
+type Bug1Elem struct {
+	Name string
+	Id   int
+}
+
+type Bug1StructMap map[string]Bug1Elem
+
+func bug1EncDec(in Bug1StructMap, out *Bug1StructMap) os.Error {
+	return nil
+}
+
+func TestMapBug1(t *testing.T) {
+	in := make(Bug1StructMap)
+	in["val1"] = Bug1Elem{"elem1", 1}
+	in["val2"] = Bug1Elem{"elem2", 2}
+
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+	err := enc.Encode(in)
+	if err != nil {
+		t.Fatal("encode:", err)
+	}
+	dec := NewDecoder(b)
+	out := make(Bug1StructMap)
+	err = dec.Decode(&out)
+	if err != nil {
+		t.Fatal("decode:", err)
+	}
+	if !reflect.DeepEqual(in, out) {
+		t.Errorf("mismatch: %v %v", in, out)
+	}
+}
