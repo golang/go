@@ -5,6 +5,7 @@
 package openpgp
 
 import (
+	"crypto/openpgp/armor"
 	"crypto/openpgp/error"
 	"crypto/openpgp/packet"
 	"io"
@@ -13,6 +14,8 @@ import (
 
 // PublicKeyType is the armor type for a PGP public key.
 var PublicKeyType = "PGP PUBLIC KEY BLOCK"
+// PrivateKeyType is the armor type for a PGP private key.
+var PrivateKeyType = "PGP PRIVATE KEY BLOCK"
 
 // An Entity represents the components of an OpenPGP key: a primary public key
 // (which must be a signing key), one or more identities claimed by that key,
@@ -101,36 +104,49 @@ func (el EntityList) DecryptionKeys() (keys []Key) {
 
 // ReadArmoredKeyRing reads one or more public/private keys from an armor keyring file.
 func ReadArmoredKeyRing(r io.Reader) (EntityList, os.Error) {
-	body, err := readArmored(r, PublicKeyType)
+	block, err := armor.Decode(r)
+	if err == os.EOF {
+		return nil, error.InvalidArgumentError("no armored data found")
+	}
 	if err != nil {
 		return nil, err
 	}
+	if block.Type != PublicKeyType && block.Type != PrivateKeyType {
+		return nil, error.InvalidArgumentError("expected public or private key block, got: " + block.Type)
+	}
 
-	return ReadKeyRing(body)
+	return ReadKeyRing(block.Body)
 }
 
-// ReadKeyRing reads one or more public/private keys, ignoring unsupported keys.
+// ReadKeyRing reads one or more public/private keys. Unsupported keys are
+// ignored as long as at least a single valid key is found.
 func ReadKeyRing(r io.Reader) (el EntityList, err os.Error) {
 	packets := packet.NewReader(r)
+	var lastUnsupportedError os.Error
 
 	for {
 		var e *Entity
 		e, err = readEntity(packets)
 		if err != nil {
 			if _, ok := err.(error.UnsupportedError); ok {
+				lastUnsupportedError = err
 				err = readToNextPublicKey(packets)
 			}
 			if err == os.EOF {
 				err = nil
-				return
+				break
 			}
 			if err != nil {
 				el = nil
-				return
+				break
 			}
 		} else {
 			el = append(el, e)
 		}
+	}
+
+	if len(el) == 0 && err == nil {
+		err = lastUnsupportedError
 	}
 	return
 }
@@ -197,25 +213,28 @@ EachPacket:
 			current.Name = pkt.Id
 			current.UserId = pkt
 			e.Identities[pkt.Id] = current
-			p, err = packets.Next()
-			if err == os.EOF {
-				err = io.ErrUnexpectedEOF
-			}
-			if err != nil {
-				if _, ok := err.(error.UnsupportedError); ok {
+
+			for {
+				p, err = packets.Next()
+				if err == os.EOF {
+					return nil, io.ErrUnexpectedEOF
+				} else if err != nil {
 					return nil, err
 				}
-				return nil, error.StructuralError("identity self-signature invalid: " + err.String())
-			}
-			current.SelfSignature, ok = p.(*packet.Signature)
-			if !ok {
-				return nil, error.StructuralError("user ID packet not followed by self signature")
-			}
-			if current.SelfSignature.SigType != packet.SigTypePositiveCert {
-				return nil, error.StructuralError("user ID self-signature with wrong type")
-			}
-			if err = e.PrimaryKey.VerifyUserIdSignature(pkt.Id, current.SelfSignature); err != nil {
-				return nil, error.StructuralError("user ID self-signature invalid: " + err.String())
+
+				sig, ok := p.(*packet.Signature)
+				if !ok {
+					return nil, error.StructuralError("user ID packet not followed by self-signature")
+				}
+
+				if sig.SigType == packet.SigTypePositiveCert && sig.IssuerKeyId != nil && *sig.IssuerKeyId == e.PrimaryKey.KeyId {
+					if err = e.PrimaryKey.VerifyUserIdSignature(pkt.Id, sig); err != nil {
+						return nil, error.StructuralError("user ID self-signature invalid: " + err.String())
+					}
+					current.SelfSignature = sig
+					break
+				}
+				current.Signatures = append(current.Signatures, sig)
 			}
 		case *packet.Signature:
 			if current == nil {
