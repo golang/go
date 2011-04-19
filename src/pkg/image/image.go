@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The image package implements a basic 2-D image library.
+// Package image implements a basic 2-D image library.
 package image
 
 // A Config consists of an image's color model and dimensions.

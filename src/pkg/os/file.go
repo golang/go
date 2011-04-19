@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The os package provides a platform-independent interface to operating
-// system functionality.  The design is Unix-like.
+// Package os provides a platform-independent interface to operating system
+// functionality.  The design is Unix-like.
 package os
 
 import (

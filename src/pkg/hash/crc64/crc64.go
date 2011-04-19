@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements the 64-bit cyclic redundancy check, or CRC-64, checksum.
-// See http://en.wikipedia.org/wiki/Cyclic_redundancy_check for information.
+// Package crc64 implements the 64-bit cyclic redundancy check, or CRC-64,
+// checksum. See http://en.wikipedia.org/wiki/Cyclic_redundancy_check for
+// information.
 package crc64
 
 import (

@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The time package provides functionality for measuring and
-// displaying time.
+// Package time provides functionality for measuring and displaying time.
 package time
 
 // Days of the week.

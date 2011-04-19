@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The gzip package implements reading and writing of
-// gzip format compressed files, as specified in RFC 1952.
+// Package gzip implements reading and writing of gzip format compressed files,
+// as specified in RFC 1952.
 package gzip
 
 import (

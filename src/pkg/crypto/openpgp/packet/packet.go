@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements parsing and serialisation of OpenPGP packets, as
+// Package packet implements parsing and serialisation of OpenPGP packets, as
 // specified in RFC 4880.
 package packet
 

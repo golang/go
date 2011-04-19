@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A scanner for Go source text. Takes a []byte as source which can
-// then be tokenized through repeated calls to the Scan function.
-// Typical use:
+// Package scanner implements a scanner for Go source text. Takes a []byte as
+// source which can then be tokenized through repeated calls to the Scan
+// function. Typical use:
 //
 //	var s Scanner
 //	fset := token.NewFileSet()  // position information is relative to fset

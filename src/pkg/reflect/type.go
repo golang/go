@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The reflect package implements run-time reflection, allowing a program to
-// manipulate objects with arbitrary types.  The typical use is to take a
-// value with static type interface{} and extract its dynamic type
-// information by calling Typeof, which returns a Type.
+// Package reflect implements run-time reflection, allowing a program to
+// manipulate objects with arbitrary types.  The typical use is to take a value
+// with static type interface{} and extract its dynamic type information by
+// calling Typeof, which returns a Type.
 //
 // A call to NewValue returns a Value representing the run-time data.
 // Zero takes a Type and returns a Value representing a zero value

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The httptest package provides utilities for HTTP testing.
+// Package httptest provides utilities for HTTP testing.
 package httptest
 
 import (

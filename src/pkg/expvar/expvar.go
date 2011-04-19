@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The expvar package provides a standardized interface to public variables,
-// such as operation counters in servers. It exposes these variables via
-// HTTP at /debug/vars in JSON format.
+// Package expvar provides a standardized interface to public variables, such
+// as operation counters in servers. It exposes these variables via HTTP at
+// /debug/vars in JSON format.
 //
 // Operations to set or modify these public variables are atomic.
 //

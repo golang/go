@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-The zip package provides support for reading ZIP archives.
+Package zip provides support for reading ZIP archives.
 
 See: http://www.pkware.com/documents/casestudies/APPNOTE.TXT
 

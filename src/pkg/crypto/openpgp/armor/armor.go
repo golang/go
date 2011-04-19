@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements OpenPGP ASCII Armor, see RFC 4880. OpenPGP Armor is
+// Package armor implements OpenPGP ASCII Armor, see RFC 4880. OpenPGP Armor is
 // very similar to PEM except that it has an additional CRC checksum.
 package armor
 

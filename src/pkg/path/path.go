@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The path package implements utility routines for manipulating
-// slash-separated filename paths.
+// Package path implements utility routines for manipulating slash-separated
+// filename paths.
 package path
 
 import (

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The ycbcr package provides images from the Y'CbCr color model.
+// Package ycbcr provides images from the Y'CbCr color model.
 //
 // JPEG, VP8, the MPEG family and other codecs use this color model. Such
 // codecs often use the terms YUV and Y'CbCr interchangeably, but strictly

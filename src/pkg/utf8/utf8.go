@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Functions and constants to support text encoded in UTF-8.
-// This package calls a Unicode character a rune for brevity.
+// Package utf8 implements functions and constants to support text encoded in
+// UTF-8. This package calls a Unicode character a rune for brevity.
 package utf8
 
 import "unicode" // only needed for a couple of constants

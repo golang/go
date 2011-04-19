@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements the RIPEMD-160 hash algorithm.
+// Package ripemd160 implements the RIPEMD-160 hash algorithm.
 package ripemd160
 
 // RIPEMD-160 is designed by by Hans Dobbertin, Antoon Bosselaers, and Bart

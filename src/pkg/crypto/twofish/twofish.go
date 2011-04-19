@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements Bruce Schneier's Twofish encryption algorithm.
+// Package twofish implements Bruce Schneier's Twofish encryption algorithm.
 package twofish
 
 // Twofish is defined in http://www.schneier.com/paper-twofish-paper.pdf [TWOFISH]

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements the SHA1 hash algorithm as defined in RFC 3174.
+// Package sha1 implements the SHA1 hash algorithm as defined in RFC 3174.
 package sha1
 
 import (

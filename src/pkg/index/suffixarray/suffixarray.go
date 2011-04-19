@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The suffixarray package implements substring search in logarithmic time
-// using an in-memory suffix array.
+// Package suffixarray implements substring search in logarithmic time using
+// an in-memory suffix array.
 //
 // Example use:
 //

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements CAST5, as defined in RFC 2144. CAST5 is a common
+// Package cast5 implements CAST5, as defined in RFC 2144. CAST5 is a common
 // OpenPGP cipher.
 package cast5
 

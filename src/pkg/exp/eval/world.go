@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package is the beginning of an interpreter for Go.
+// Package eval is the beginning of an interpreter for Go.
 // It can run simple Go programs but does not implement
 // interface values or packages.
 package eval

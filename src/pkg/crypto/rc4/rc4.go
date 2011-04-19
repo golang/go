@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package implements RC4 encryption, as defined in Bruce Schneier's
+// Package rc4 implements RC4 encryption, as defined in Bruce Schneier's
 // Applied Cryptography.
 package rc4
 

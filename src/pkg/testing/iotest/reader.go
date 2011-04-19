@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The iotest package implements Readers and Writers
-// useful only for testing.
+// Package iotest implements Readers and Writers useful only for testing.
 package iotest
 
 import (

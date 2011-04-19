@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The sort package provides primitives for sorting arrays
-// and user-defined collections.
+// Package sort provides primitives for sorting arrays and user-defined
+// collections.
 package sort
 
 // A type, typically a collection, that satisfies sort.Interface can be
