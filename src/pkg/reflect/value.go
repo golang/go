@@ -252,7 +252,7 @@ func (v Value) internal() internalValue {
 	iv.word = eface.word
 	if iv.flag&flagAddr != 0 {
 		iv.addr = unsafe.Pointer(iv.word)
-		iv.typ = iv.typ.toType().Elem().common()
+		iv.typ = iv.typ.Elem().common()
 		if iv.typ.size <= ptrSize {
 			iv.word = loadIword(iv.addr, iv.typ.size)
 		}
@@ -356,18 +356,24 @@ func (iv internalValue) mustBe(want Kind) {
 }
 
 func (iv internalValue) mustBeExported() {
+	if iv.kind == 0 {
+		panic(&ValueError{methodName(), iv.kind})
+	}
 	if iv.flag&flagRO != 0 {
-		panic(methodName() + " of value obtained using unexported field")
+		panic(methodName() + " using value obtained using unexported field")
 	}
 }
 
 func (iv internalValue) mustBeAssignable() {
+	if iv.kind == 0 {
+		panic(&ValueError{methodName(), iv.kind})
+	}
 	// Assignable if addressable and not read-only.
 	if iv.flag&flagRO != 0 {
-		panic(methodName() + " of value obtained using unexported field")
+		panic(methodName() + " using value obtained using unexported field")
 	}
 	if iv.flag&flagAddr == 0 {
-		panic(methodName() + " of unaddressable value")
+		panic(methodName() + " using unaddressable value")
 	}
 }
 
@@ -412,14 +418,36 @@ func (v Value) CanSet() bool {
 	return iv.flag&(flagAddr|flagRO) == flagAddr
 }
 
-// Call calls the function v with the input parameters in.
-// It panics if v's Kind is not Func.
-// It returns the output parameters as Values.
+// Call calls the function v with the input arguments in.
+// For example, if len(in) == 3, v.Call(in) represents the Go call v(in[0], in[1], in[2]).
+// Call panics if v's Kind is not Func.
+// It returns the output results as Values.
+// As in Go, each input argument must be assignable to the
+// type of the function's corresponding input parameter.
+// If v is a variadic function, Call creates the variadic slice parameter
+// itself, copying in the corresponding values.
 func (v Value) Call(in []Value) []Value {
 	iv := v.internal()
 	iv.mustBe(Func)
 	iv.mustBeExported()
+	return iv.call("Call", in)
+}
 
+// CallSlice calls the variadic function v with the input arguments in,
+// assigning the slice in[len(in)-1] to v's final variadic argument.  
+// For example, if len(in) == 3, v.Call(in) represents the Go call v(in[0], in[1], in[2]...).
+// Call panics if v's Kind is not Func or if v is not variadic.
+// It returns the output results as Values.
+// As in Go, each input argument must be assignable to the
+// type of the function's corresponding input parameter.
+func (v Value) CallSlice(in []Value) []Value {
+	iv := v.internal()
+	iv.mustBe(Func)
+	iv.mustBeExported()
+	return iv.call("CallSlice", in)
+}
+
+func (iv internalValue) call(method string, in []Value) []Value {
 	if iv.word == 0 {
 		if iv.nilmethod {
 			panic("reflect.Value.Call: call of method on nil interface value")
@@ -427,7 +455,58 @@ func (v Value) Call(in []Value) []Value {
 		panic("reflect.Value.Call: call of nil function")
 	}
 
-	t := iv.typ.toType()
+	isSlice := method == "CallSlice"
+	t := iv.typ
+	n := t.NumIn()
+	if isSlice {
+		if !t.IsVariadic() {
+			panic("reflect: CallSlice of non-variadic function")
+		}
+		if len(in) < n {
+			panic("reflect: CallSlice with too few input arguments")
+		}
+		if len(in) > n {
+			panic("reflect: CallSlice with too many input arguments")
+		}
+	} else {
+		if t.IsVariadic() {
+			n--
+		}
+		if len(in) < n {
+			panic("reflect: Call with too few input arguments")
+		}
+		if !t.IsVariadic() && len(in) > n {
+			panic("reflect: Call with too many input arguments")
+		}
+	}
+	for _, x := range in {
+		if x.Kind() == Invalid {
+			panic("reflect: " + method + " using zero Value argument")
+		}
+	}
+	for i := 0; i < n; i++ {
+		if xt, targ := in[i].Type(), t.In(i); !xt.AssignableTo(targ) {
+			panic("reflect: " + method + " using " + xt.String() + " as type " + targ.String())
+		}
+	}
+	if !isSlice && t.IsVariadic() {
+		// prepare slice for remaining values
+		m := len(in) - n
+		slice := MakeSlice(t.In(n), m, m)
+		elem := t.In(n).Elem()
+		for i := 0; i < m; i++ {
+			x := in[n+i]
+			if xt := x.Type(); !xt.AssignableTo(elem) {
+				panic("reflect: cannot use " + xt.String() + " as type " + elem.String() + " in " + method)
+			}
+			slice.Index(i).Set(x)
+		}
+		origIn := in
+		in = make([]Value, n+1)
+		copy(in[:n], origIn)
+		in[n] = slice
+	}
+
 	nin := len(in)
 	if nin != t.NumIn() {
 		panic("reflect.Value.Call: wrong argument count")
@@ -484,14 +563,17 @@ func (v Value) Call(in []Value) []Value {
 	}
 	for i, v := range in {
 		iv := v.internal()
-		typesMustMatch("reflect.Value.Call", t.In(i), iv.typ.toType())
-		a := uintptr(iv.typ.align)
+		iv.mustBeExported()
+		targ := t.In(i).(*commonType)
+		a := uintptr(targ.align)
 		off = (off + a - 1) &^ (a - 1)
-		n := iv.typ.size
+		n := targ.size
+		addr := unsafe.Pointer(ptr + off)
+		iv = convertForAssignment("reflect.Value.Call", addr, targ, iv)
 		if iv.addr == nil {
-			storeIword(unsafe.Pointer(ptr+off), iv.word, n)
+			storeIword(addr, iv.word, n)
 		} else {
-			memmove(unsafe.Pointer(ptr+off), iv.addr, n)
+			memmove(addr, iv.addr, n)
 		}
 		off += n
 	}
@@ -521,7 +603,7 @@ func (v Value) Cap() int {
 	iv := v.internal()
 	switch iv.kind {
 	case Array:
-		return iv.typ.toType().Len()
+		return iv.typ.Len()
 	case Chan:
 		return int(chancap(iv.word))
 	case Slice:
@@ -562,12 +644,16 @@ func (v Value) Complex() complex128 {
 // It returns the zero Value if v is nil.
 func (v Value) Elem() Value {
 	iv := v.internal()
+	return iv.Elem()
+}
+
+func (iv internalValue) Elem() Value {
 	switch iv.kind {
 	case Interface:
 		// Empty interface and non-empty interface have different layouts.
 		// Convert to empty interface.
 		var eface emptyInterface
-		if iv.typ.toType().NumMethod() == 0 {
+		if iv.typ.NumMethod() == 0 {
 			eface = *(*emptyInterface)(iv.addr)
 		} else {
 			iface := (*nonEmptyInterface)(iv.addr)
@@ -586,7 +672,7 @@ func (v Value) Elem() Value {
 		if iv.word == 0 {
 			return Value{}
 		}
-		return valueFromAddr(iv.flag&flagRO|flagAddr, iv.typ.toType().Elem(), unsafe.Pointer(iv.word))
+		return valueFromAddr(iv.flag&flagRO|flagAddr, iv.typ.Elem(), unsafe.Pointer(iv.word))
 	}
 	panic(&ValueError{"reflect.Value.Elem", iv.kind})
 }
@@ -658,7 +744,7 @@ func (v Value) FieldByIndex(index []int) Value {
 func (v Value) FieldByName(name string) Value {
 	iv := v.internal()
 	iv.mustBe(Struct)
-	if f, ok := iv.typ.toType().FieldByName(name); ok {
+	if f, ok := iv.typ.FieldByName(name); ok {
 		return v.FieldByIndex(f.Index)
 	}
 	return Value{}
@@ -719,7 +805,7 @@ func (v Value) Index(i int) Value {
 		if i < 0 || i >= s.Len {
 			panic("reflect: slice index out of range")
 		}
-		typ := iv.typ.toType().Elem()
+		typ := iv.typ.Elem()
 		addr := unsafe.Pointer(s.Data + uintptr(i)*typ.Size())
 		return valueFromAddr(flag, typ, addr)
 	}
@@ -770,7 +856,11 @@ func (v Value) CanInterface() bool {
 // (as opposed to Type.Method), Interface cannot return an
 // interface value, so it panics.
 func (v Value) Interface() interface{} {
-	if v.InternalMethod != 0 {
+	return v.internal().Interface()
+}
+
+func (iv internalValue) Interface() interface{} {
+	if iv.method {
 		panic("reflect.Value.Interface: cannot create interface value for method with bound receiver")
 	}
 	/*
@@ -779,14 +869,13 @@ func (v Value) Interface() interface{} {
 		}
 	*/
 
-	iv := v.internal()
 	if iv.kind == Interface {
 		// Special case: return the element inside the interface.
 		// Won't recurse further because an interface cannot contain an interface.
-		if v.IsNil() {
+		if iv.IsNil() {
 			return nil
 		}
-		return v.Elem().Interface()
+		return iv.Elem().Interface()
 	}
 
 	// Non-interface value.
@@ -811,10 +900,13 @@ func (v Value) InterfaceData() [2]uintptr {
 // IsNil returns true if v is a nil value.
 // It panics if v's Kind is not Chan, Func, Interface, Map, Ptr, or Slice.
 func (v Value) IsNil() bool {
-	iv := v.internal()
+	return v.internal().IsNil()
+}
+
+func (iv internalValue) IsNil() bool {
 	switch iv.kind {
 	case Chan, Func, Map, Ptr:
-		if iv.kind == Func && v.InternalMethod != 0 {
+		if iv.method {
 			panic("reflect: IsNil of method Value")
 		}
 		return iv.word == 0
@@ -846,7 +938,7 @@ func (v Value) Len() int {
 	iv := v.internal()
 	switch iv.kind {
 	case Array:
-		return iv.typ.toType().Len()
+		return iv.typ.Len()
 	case Chan:
 		return int(chanlen(iv.word))
 	case Map:
@@ -860,13 +952,15 @@ func (v Value) Len() int {
 // MapIndex returns the value associated with key in the map v.
 // It panics if v's Kind is not Map.
 // It returns the zero Value if key is not found in the map or if v represents a nil map.
+// As in Go, the key's value must be assignable to the map's key type.
 func (v Value) MapIndex(key Value) Value {
 	iv := v.internal()
 	iv.mustBe(Map)
 	typ := iv.typ.toType()
+
 	ikey := key.internal()
 	ikey.mustBeExported()
-	typesMustMatch("reflect.Value.MapIndex", typ.Key(), ikey.typ.toType())
+	ikey = convertForAssignment("reflect.Value.MapIndex", nil, typ.Key(), ikey)
 	if iv.word == 0 {
 		return Value{}
 	}
@@ -887,7 +981,7 @@ func (v Value) MapIndex(key Value) Value {
 func (v Value) MapKeys() []Value {
 	iv := v.internal()
 	iv.mustBe(Map)
-	keyType := iv.typ.toType().Key()
+	keyType := iv.typ.Key()
 
 	flag := iv.flag & flagRO
 	m := iv.word
@@ -918,7 +1012,7 @@ func (v Value) Method(i int) Value {
 	if iv.kind == Invalid {
 		panic(&ValueError{"reflect.Value.Method", Invalid})
 	}
-	if i < 0 || i >= iv.typ.toType().NumMethod() {
+	if i < 0 || i >= iv.typ.NumMethod() {
 		panic("reflect: Method index out of range")
 	}
 	return Value{v.Internal, i + 1}
@@ -929,7 +1023,7 @@ func (v Value) Method(i int) Value {
 func (v Value) NumField() int {
 	iv := v.internal()
 	iv.mustBe(Struct)
-	return iv.typ.toType().NumField()
+	return iv.typ.NumField()
 }
 
 // OverflowComplex returns true if the complex128 x cannot be represented by v's type.
@@ -1041,6 +1135,7 @@ func (iv internalValue) recv(nb bool) (val Value, ok bool) {
 
 // Send sends x on the channel v.
 // It panics if v's kind is not Chan or if x's type is not the same type as v's element type.
+// As in Go, x's value must be assignable to the channel's element type.
 func (v Value) Send(x Value) {
 	iv := v.internal()
 	iv.mustBe(Chan)
@@ -1056,7 +1151,7 @@ func (iv internalValue) send(x Value, nb bool) (selected bool) {
 	}
 	ix := x.internal()
 	ix.mustBeExported() // do not let unexported x leak
-	typesMustMatch("reflect.Value.Send", t.Elem(), ix.typ.toType())
+	ix = convertForAssignment("reflect.Value.Send", nil, t.Elem(), ix)
 	ch := iv.word
 	if ch == 0 {
 		panic("send on nil channel")
@@ -1064,8 +1159,9 @@ func (iv internalValue) send(x Value, nb bool) (selected bool) {
 	return chansend(ch, ix.word, nb)
 }
 
-// Set assigns x to the value v; x must have the same type as v.
-// It panics if CanSet() returns false or if x is the zero Value.
+// Set assigns x to the value v.
+// It panics if CanSet returns false.
+// As in Go, x's value must be assignable to v's type.
 func (v Value) Set(x Value) {
 	iv := v.internal()
 	ix := x.internal()
@@ -1073,33 +1169,8 @@ func (v Value) Set(x Value) {
 	iv.mustBeAssignable()
 	ix.mustBeExported() // do not let unexported x leak
 
-	if iv.kind == Interface {
-		// Special case: since v is an interface, the types don't have to match.
-		// x can be any type that implements the interface.
+	ix = convertForAssignment("reflect.Set", iv.addr, iv.typ, ix)
 
-		// In fact, x might itself be an interface.
-		if ix.kind == Interface {
-			if x.IsNil() {
-				// Go would only allow this in an implicit conversion
-				// from one interface type to another that was a subset.
-				// TODO(rsc): Figure out whether reflect should be more picky.
-				*(*interface{})(iv.addr) = nil
-				return
-			}
-		}
-
-		// Empty interface is easy.
-		if iv.typ.toType().NumMethod() == 0 {
-			*(*interface{})(iv.addr) = x.Interface()
-			return
-		}
-
-		// Non-empty interface requires runtime help.
-		ifaceE2I(iv.typ.runtimeType(), x.Interface(), iv.addr)
-		return
-	}
-
-	typesMustMatch("reflect.Set", iv.typ.toType(), ix.typ.toType())
 	n := ix.typ.size
 	if n <= ptrSize {
 		storeIword(iv.addr, ix.word, n)
@@ -1181,13 +1252,11 @@ func (v Value) SetLen(n int) {
 	s.Len = n
 }
 
-// BUG(rsc): For a map keyed on an interface type, MapIndex and SetMapIndex
-// require the key to have the same interface type.  They should allow the use of
-// any key that implements the interface.
-
 // SetMapIndex sets the value associated with key in the map v to val.
 // It panics if v's Kind is not Map.
 // If val is the zero Value, SetMapIndex deletes the key from the map.
+// As in Go, key's value must be assignable to the map's key type,
+// and val's value must be assignable to the map's value type.
 func (v Value) SetMapIndex(key, val Value) {
 	iv := v.internal()
 	ikey := key.internal()
@@ -1195,10 +1264,15 @@ func (v Value) SetMapIndex(key, val Value) {
 
 	iv.mustBe(Map)
 	iv.mustBeExported()
-	ikey.mustBeExported()
-	ival.mustBeExported()
 
-	typesMustMatch("reflect.Value.SetMapIndex", iv.typ.toType().Key(), ikey.typ.toType())
+	ikey.mustBeExported()
+	ikey = convertForAssignment("reflect.Value.SetMapIndex", nil, iv.typ.Key(), ikey)
+
+	if ival.kind != Invalid {
+		ival.mustBeExported()
+		ival = convertForAssignment("reflect.Value.SetMapIndex", nil, iv.typ.Elem(), ival)
+	}
+
 	mapassign(iv.word, ikey.word, ival.word, ival.kind != Invalid)
 }
 
@@ -1304,6 +1378,7 @@ func (v Value) TryRecv() (x Value, ok bool) {
 // TrySend attempts to send x on the channel v but will not block.
 // It panics if v's Kind is not Chan.
 // It returns true if the value was sent, false otherwise.
+// As in Go, x's value must be assignable to the channel's element type.
 func (v Value) TrySend(x Value) bool {
 	iv := v.internal()
 	iv.mustBe(Chan)
@@ -1408,7 +1483,7 @@ func grow(s Value, extra int) (Value, int, int) {
 }
 
 // Append appends the values x to a slice s and returns the resulting slice.
-// Each x must have the same type as s' element type.
+// As in Go, each x's value must be assignable to the slice's element type.
 func Append(s Value, x ...Value) Value {
 	s.internal().mustBe(Slice)
 	s, i0, i1 := grow(s, len(x))
@@ -1450,8 +1525,8 @@ func Copy(dst, src Value) int {
 	}
 	isrc.mustBeExported()
 
-	de := idst.typ.toType().Elem()
-	se := isrc.typ.toType().Elem()
+	de := idst.typ.Elem()
+	se := isrc.typ.Elem()
 	typesMustMatch("reflect.Copy", de, se)
 
 	n := dst.Len()
@@ -1570,6 +1645,39 @@ func New(typ Type) Value {
 	}
 	ptr := unsafe.New(typ)
 	return valueFromIword(0, PtrTo(typ), iword(ptr))
+}
+
+// convertForAssignment 
+func convertForAssignment(what string, addr unsafe.Pointer, dst Type, iv internalValue) internalValue {
+	if iv.method {
+		panic(what + ": cannot assign method value to type " + dst.String())
+	}
+
+	dst1 := dst.(*commonType)
+	if directlyAssignable(dst1, iv.typ) {
+		// Overwrite type so that they match.
+		// Same memory layout, so no harm done.
+		iv.typ = dst1
+		return iv
+	}
+	if implements(dst1, iv.typ) {
+		if addr == nil {
+			addr = unsafe.Pointer(new(interface{}))
+		}
+		x := iv.Interface()
+		if dst.NumMethod() == 0 {
+			*(*interface{})(addr) = x
+		} else {
+			ifaceE2I(dst1.runtimeType(), x, addr)
+		}
+		iv.addr = addr
+		iv.word = iword(addr)
+		iv.typ = dst1
+		return iv
+	}
+
+	// Failed.
+	panic(what + ": value of type " + iv.typ.String() + " is not assignable to type " + dst.String())
 }
 
 // implemented in ../pkg/runtime

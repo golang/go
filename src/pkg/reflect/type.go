@@ -73,6 +73,12 @@ type Type interface {
 	// Kind returns the specific kind of this type.
 	Kind() Kind
 
+	// Implements returns true if the type implements the interface type u.
+	Implements(u Type) bool
+
+	// AssignableTo returns true if a value of the type is assignable to type u.
+	AssignableTo(u Type) bool
+
 	// Methods applicable only to some types, depending on Kind.
 	// The methods allowed for each kind are:
 	//
@@ -887,4 +893,169 @@ func PtrTo(t Type) Type {
 	ptrMap.m[ct] = p
 	ptrMap.Unlock()
 	return p.commonType.toType()
+}
+
+func (t *commonType) Implements(u Type) bool {
+	if u == nil {
+		panic("reflect: nil type passed to Type.Implements")
+	}
+	if u.Kind() != Interface {
+		panic("reflect: non-interface type passed to Type.Implements")
+	}
+	return implements(u.(*commonType), t)
+}
+
+func (t *commonType) AssignableTo(u Type) bool {
+	if u == nil {
+		panic("reflect: nil type passed to Type.AssignableTo")
+	}
+	uu := u.(*commonType)
+	return directlyAssignable(uu, t) || implements(uu, t)
+}
+
+// implements returns true if the type V implements the interface type T.
+func implements(T, V *commonType) bool {
+	if T.Kind() != Interface {
+		return false
+	}
+	t := (*interfaceType)(unsafe.Pointer(T))
+	if len(t.methods) == 0 {
+		return true
+	}
+
+	// The same algorithm applies in both cases, but the
+	// method tables for an interface type and a concrete type
+	// are different, so the code is duplicated.
+	// In both cases the algorithm is a linear scan over the two
+	// lists - T's methods and V's methods - simultaneously.
+	// Since method tables are stored in a unique sorted order
+	// (alphabetical, with no duplicate method names), the scan
+	// through V's methods must hit a match for each of T's
+	// methods along the way, or else V does not implement T.
+	// This lets us run the scan in overall linear time instead of
+	// the quadratic time  a naive search would require.
+	// See also ../runtime/iface.c.
+	if V.Kind() == Interface {
+		v := (*interfaceType)(unsafe.Pointer(V))
+		i := 0
+		for j := 0; j < len(v.methods); j++ {
+			tm := &t.methods[i]
+			vm := &v.methods[j]
+			// TODO(rsc):  && vm.pkgPath == tm.pkgPath should be here
+			// but it breaks the *ast.Ident vs ast.Expr test.
+			if vm.name == tm.name && vm.typ == tm.typ {
+				if i++; i >= len(t.methods) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	v := V.uncommon()
+	if v == nil {
+		return false
+	}
+	i := 0
+	for j := 0; j < len(v.methods); j++ {
+		tm := &t.methods[i]
+		vm := &v.methods[j]
+		// TODO(rsc):  && vm.pkgPath == tm.pkgPath should be here
+		// but it breaks the *ast.Ident vs ast.Expr test.
+		if vm.name == tm.name && vm.mtyp == tm.typ {
+			if i++; i >= len(t.methods) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// directlyAssignable returns true if a value x of type V can be directly
+// assigned (using memmove) to a value of type T.
+// http://golang.org/doc/go_spec.html#Assignability
+// Ignoring the interface rules (implemented elsewhere)
+// and the ideal constant rules (no ideal constants at run time).
+func directlyAssignable(T, V *commonType) bool {
+	// x's type V is identical to T?
+	if T == V {
+		return true
+	}
+
+	// Otherwise at least one of T and V must be unnamed
+	// and they must have the same kind.
+	if T.Name() != "" && V.Name() != "" || T.Kind() != V.Kind() {
+		return false
+	}
+
+	// x's type T and V have identical underlying types.
+	// Since at least one is unnamed, only the composite types
+	// need to be considered.
+	switch T.Kind() {
+	case Array:
+		return T.Elem() == V.Elem() && T.Len() == V.Len()
+
+	case Chan:
+		// Special case:
+		// x is a bidirectional channel value, T is a channel type,
+		// and x's type V and T have identical element types.
+		if V.ChanDir() == BothDir && T.Elem() == V.Elem() {
+			return true
+		}
+
+		// Otherwise continue test for identical underlying type.
+		return V.ChanDir() == T.ChanDir() && T.Elem() == V.Elem()
+
+	case Func:
+		t := (*funcType)(unsafe.Pointer(T))
+		v := (*funcType)(unsafe.Pointer(V))
+		if t.dotdotdot != v.dotdotdot || len(t.in) != len(v.in) || len(t.out) != len(v.out) {
+			return false
+		}
+		for i, typ := range t.in {
+			if typ != v.in[i] {
+				return false
+			}
+		}
+		for i, typ := range t.out {
+			if typ != v.out[i] {
+				return false
+			}
+		}
+		return true
+
+	case Interface:
+		t := (*interfaceType)(unsafe.Pointer(T))
+		v := (*interfaceType)(unsafe.Pointer(V))
+		if len(t.methods) == 0 && len(v.methods) == 0 {
+			return true
+		}
+		// Might have the same methods but still
+		// need a run time conversion.
+		return false
+
+	case Map:
+		return T.Key() == V.Key() && T.Elem() == V.Elem()
+
+	case Ptr, Slice:
+		return T.Elem() == V.Elem()
+
+	case Struct:
+		t := (*structType)(unsafe.Pointer(T))
+		v := (*structType)(unsafe.Pointer(V))
+		if len(t.fields) != len(v.fields) {
+			return false
+		}
+		for i := range t.fields {
+			tf := &t.fields[i]
+			vf := &v.fields[i]
+			if tf.name != vf.name || tf.pkgPath != vf.pkgPath ||
+				tf.typ != vf.typ || tf.tag != vf.tag || tf.offset != vf.offset {
+				return false
+			}
+		}
+		return true
+	}
+
+	return false
 }
