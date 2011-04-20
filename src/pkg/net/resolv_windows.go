@@ -47,7 +47,7 @@ func goLookupIP(name string) (addrs []IP, err os.Error) {
 	return addrs, nil
 }
 
-func LookupCNAME(name string) (cname string, err os.Error) {
+func goLookupCNAME(name string) (cname string, err os.Error) {
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_CNAME, 0, nil, &r, nil)
 	if int(e) != 0 {
