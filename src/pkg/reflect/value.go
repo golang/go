@@ -395,8 +395,7 @@ func (v Value) Bool() bool {
 // CanAddr returns true if the value's address can be obtained with Addr.
 // Such values are called addressable.  A value is addressable if it is
 // an element of a slice, an element of an addressable array,
-// a field of an addressable struct, the result of dereferencing a pointer,
-// or the result of a call to NewValue, MakeChan, MakeMap, or Zero.
+// a field of an addressable struct, or the result of dereferencing a pointer.
 // If CanAddr returns false, calling Addr will panic.
 func (v Value) CanAddr() bool {
 	iv := v.internal()
@@ -404,8 +403,8 @@ func (v Value) CanAddr() bool {
 }
 
 // CanSet returns true if the value of v can be changed.
-// Values obtained by the use of unexported struct fields
-// can be read but not set.
+// A Value can be changed only if it is addressable and was not
+// obtained by the use of unexported struct fields.
 // If CanSet returns false, calling Set or any type-specific
 // setter (e.g., SetBool, SetInt64) will panic.
 func (v Value) CanSet() bool {
