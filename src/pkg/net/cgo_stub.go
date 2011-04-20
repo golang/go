@@ -19,3 +19,7 @@ func cgoLookupPort(network, service string) (port int, err os.Error, completed b
 func cgoLookupIP(name string) (addrs []IP, err os.Error, completed bool) {
 	return nil, nil, false
 }
+
+func cgoLookupCNAME(name string) (cname string, err os.Error, completed bool) {
+	return "", nil, false
+}

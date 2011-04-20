@@ -62,8 +62,8 @@ func (a *UDPAddr) toAddr() sockaddr {
 // host:port and resolves domain names or port names to
 // numeric addresses.  A literal IPv6 host address must be
 // enclosed in square brackets, as in "[::]:80".
-func ResolveUDPAddr(addr string) (*UDPAddr, os.Error) {
-	ip, port, err := hostPortToIP("udp", addr)
+func ResolveUDPAddr(network, addr string) (*UDPAddr, os.Error) {
+	ip, port, err := hostPortToIP(network, addr)
 	if err != nil {
 		return nil, err
 	}

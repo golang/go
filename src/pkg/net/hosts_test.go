@@ -5,6 +5,7 @@
 package net
 
 import (
+	"sort"
 	"testing"
 )
 
@@ -50,4 +51,18 @@ func TestLookupStaticHost(t *testing.T) {
 		}
 	}
 	hostsPath = p
+}
+
+func TestLookupHost(t *testing.T) {
+	// Can't depend on this to return anything in particular,
+	// but if it does return something, make sure it doesn't
+	// duplicate addresses (a common bug due to the way
+	// getaddrinfo works).
+	addrs, _ := LookupHost("localhost")
+	sort.SortStrings(addrs)
+	for i := 0; i+1 < len(addrs); i++ {
+		if addrs[i] == addrs[i+1] {
+			t.Fatalf("LookupHost(\"localhost\") = %v, has duplicate addresses", addrs)
+		}
+	}
 }

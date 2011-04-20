@@ -36,3 +36,15 @@ func LookupPort(network, service string) (port int, err os.Error) {
 	}
 	return
 }
+
+// LookupCNAME returns the canonical DNS host for the given name.
+// Callers that do not care about the canonical name can call
+// LookupHost or LookupIP directly; both take care of resolving
+// the canonical name as part of the lookup.
+func LookupCNAME(name string) (cname string, err os.Error) {
+	cname, err, ok := cgoLookupCNAME(name)
+	if !ok {
+		cname, err = goLookupCNAME(name)
+	}
+	return
+}
