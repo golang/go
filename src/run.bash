@@ -33,8 +33,7 @@ xcd() {
 if $rebuild; then
 	(xcd pkg
 		gomake clean
-		time gomake
-		gomake install
+		time gomake install
 	) || exit $i
 fi
 
@@ -43,18 +42,10 @@ gomake testshort
 ) || exit $?
 
 (xcd pkg/sync;
-if $rebuild; then
-	gomake clean;
-	time gomake
-fi
 GOMAXPROCS=10 gomake testshort
 ) || exit $?
 
 (xcd cmd/ebnflint
-if $rebuild; then
-	gomake clean;
-	time gomake
-fi
 time gomake test
 ) || exit $?
 
