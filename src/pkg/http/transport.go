@@ -6,6 +6,7 @@ package http
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"crypto/tls"
 	"encoding/base64"
@@ -291,10 +292,28 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
 
 // useProxy returns true if requests to addr should use a proxy,
 // according to the NO_PROXY or no_proxy environment variable.
+// addr is always a canonicalAddr with a host and port.
 func (t *Transport) useProxy(addr string) bool {
 	if len(addr) == 0 {
 		return true
 	}
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+	if host == "localhost" {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		if ip4 := ip.To4(); ip4 != nil && ip4[0] == 127 {
+			// 127.0.0.0/8 loopback isn't proxied.
+			return false
+		}
+		if bytes.Equal(ip, net.IPv6loopback) {
+			return false
+		}
+	}
+
 	no_proxy := t.getenvEitherCase("NO_PROXY")
 	if no_proxy == "*" {
 		return false

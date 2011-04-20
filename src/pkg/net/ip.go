@@ -75,7 +75,8 @@ var (
 
 // Well-known IPv6 addresses
 var (
-	IPzero = make(IP, IPv6len) // all zeros
+	IPzero       = make(IP, IPv6len) // all zeros
+	IPv6loopback = IP([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
 )
 
 // Is p all zeros?
