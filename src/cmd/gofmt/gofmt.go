@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"exec"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -28,6 +29,7 @@ var (
 	write       = flag.Bool("w", false, "write result to (source) file instead of stdout")
 	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')")
 	simplifyAST = flag.Bool("s", false, "simplify code")
+	doDiff      = flag.Bool("d", false, "display diffs instead of rewriting files")
 
 	// layout control
 	comments  = flag.Bool("comments", true, "print comments")
@@ -134,9 +136,17 @@ func processFile(filename string, in io.Reader, out io.Writer) os.Error {
 				return err
 			}
 		}
+		if *doDiff {
+			data, err := diff(src, res)
+			if err != nil {
+				return fmt.Errorf("computing diff: %s", err)
+			}
+			fmt.Printf("diff %s fixed/%s\n", filename, filename)
+			out.Write(data)
+		}
 	}
 
-	if !*list && !*write {
+	if !*list && !*write && !*doDiff {
 		_, err = out.Write(res)
 	}
 
@@ -229,4 +239,38 @@ func gofmtMain() {
 			walkDir(path)
 		}
 	}
+}
+
+
+func diff(b1, b2 []byte) (data []byte, err os.Error) {
+	f1, err := ioutil.TempFile("", "gofmt")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(f1.Name())
+	defer f1.Close()
+
+	f2, err := ioutil.TempFile("", "gofmt")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(f2.Name())
+	defer f2.Close()
+
+	f1.Write(b1)
+	f2.Write(b2)
+
+	diffcmd, err := exec.LookPath("diff")
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := exec.Run(diffcmd, []string{"diff", "-u", f1.Name(), f2.Name()},
+		nil, "", exec.DevNull, exec.Pipe, exec.MergeWithStdout)
+	if err != nil {
+		return nil, err
+	}
+	defer c.Close()
+
+	return ioutil.ReadAll(c.Stdout)
 }
