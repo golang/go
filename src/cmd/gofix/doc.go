@@ -18,6 +18,9 @@ If the named path is a directory, gofix rewrites all .go files in that
 directory tree.  When gofix rewrites a file, it prints a line to standard
 error giving the name of the file and the rewrite applied.
 
+If the -diff flag is set, no files are rewritten. Instead gofix prints
+the differences a rewrite would introduce.
+
 The -r flag restricts the set of rewrites considered to those in the
 named list.  By default gofix considers all known rewrites.  Gofix's
 rewrites are idempotent, so that it is safe to apply gofix to updated
@@ -29,6 +32,5 @@ to see them, run gofix -?.
 Gofix does not make backup copies of the files that it edits.
 Instead, use a version control system's ``diff'' functionality to inspect
 the changes that gofix makes before committing them.
-
 */
 package documentation

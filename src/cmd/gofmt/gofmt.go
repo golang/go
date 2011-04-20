@@ -141,7 +141,7 @@ func processFile(filename string, in io.Reader, out io.Writer) os.Error {
 			if err != nil {
 				return fmt.Errorf("computing diff: %s", err)
 			}
-			fmt.Printf("diff %s fixed/%s\n", filename, filename)
+			fmt.Printf("diff %s gofmt/%s\n", filename, filename)
 			out.Write(data)
 		}
 	}

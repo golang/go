@@ -8,29 +8,37 @@ Gofmt formats Go programs.
 Without an explicit path, it processes the standard input.  Given a file,
 it operates on that file; given a directory, it operates on all .go files in
 that directory, recursively.  (Files starting with a period are ignored.)
+By default, gofmt prints the reformatted sources to standard output.
 
 Usage:
 	gofmt [flags] [path ...]
 
 The flags are:
 
+	-d
+		Do not print reformatted sources to standard output.
+		If a file's formatting is different than gofmt's, print diffs
+		to standard output.
 	-l
-		just list files whose formatting differs from gofmt's;
-		generate no other output unless -w is also set.
+		Do not print reformatted sources to standard output.
+		If a file's formatting is different from gofmt's, print its name
+		to standard output.
 	-r rule
-		apply the rewrite rule to the source before reformatting.
+		Apply the rewrite rule to the source before reformatting.
 	-s
-		try to simplify code (after applying the rewrite rule, if any).
+		Try to simplify code (after applying the rewrite rule, if any).
 	-w
-		if set, overwrite each input file with its output.
+		Do not print reformatted sources to standard output.
+		If a file's formatting is different from gofmt's, overwrite it
+		with gofmt's version.
 	-comments=true
-		print comments; if false, all comments are elided from the output.
+		Print comments; if false, all comments are elided from the output.
 	-spaces
-		align with spaces instead of tabs.
+		Align with spaces instead of tabs.
 	-tabindent
-		indent with tabs independent of -spaces.
+		Indent with tabs independent of -spaces.
 	-tabwidth=8
-		tab width in spaces.
+		Tab width in spaces.
 
 The rewrite rule specified with the -r flag must be a string of the form:
 
