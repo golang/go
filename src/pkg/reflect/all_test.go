@@ -5,6 +5,7 @@
 package reflect_test
 
 import (
+	"bytes"
 	"container/vector"
 	"fmt"
 	"io"
@@ -1447,5 +1448,22 @@ func TestSlice(t *testing.T) {
 	v = NewValue(&xa).Elem().Slice(2, 5).Interface().([]int)
 	if len(v) != 3 || v[0] != 30 || v[1] != 40 || v[2] != 50 {
 		t.Errorf("xa.Slice(2, 5) = %v", v)
+	}
+}
+
+func TestVariadic(t *testing.T) {
+	var b bytes.Buffer
+	V := NewValue
+
+	b.Reset()
+	V(fmt.Fprintf).Call([]Value{V(&b), V("%s, %d world"), V("hello"), V(42)})
+	if b.String() != "hello, 42 world" {
+		t.Errorf("after Fprintf Call: %q != %q", b.String(), "hello 42 world")
+	}
+
+	b.Reset()
+	V(fmt.Fprintf).CallSlice([]Value{V(&b), V("%s, %d world"), V([]interface{}{"hello", 42})})
+	if b.String() != "hello, 42 world" {
+		t.Errorf("after Fprintf CallSlice: %q != %q", b.String(), "hello 42 world")
 	}
 }
