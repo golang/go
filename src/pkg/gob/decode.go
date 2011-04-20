@@ -667,18 +667,12 @@ func (dec *Decoder) ignoreSlice(state *decoderState, elemOp decOp) {
 	dec.ignoreArrayHelper(state, elemOp, int(state.decodeUint()))
 }
 
-// setInterfaceValue sets an interface value to a concrete value through
-// reflection.  If the concrete value does not implement the interface, the
-// setting will panic.  This routine turns the panic into an error return.
-// This dance avoids manually checking that the value satisfies the
-// interface.
-// TODO(rsc): avoid panic+recover after fixing issue 327.
+// setInterfaceValue sets an interface value to a concrete value,
+// but first it checks that the assignment will succeed.
 func setInterfaceValue(ivalue reflect.Value, value reflect.Value) {
-	defer func() {
-		if e := recover(); e != nil {
-			error(e.(os.Error))
-		}
-	}()
+	if !value.Type().AssignableTo(ivalue.Type()) {
+		errorf("cannot assign value of type %s to %s", value.Type(), ivalue.Type())
+	}
 	ivalue.Set(value)
 }
 

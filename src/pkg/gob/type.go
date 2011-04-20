@@ -74,8 +74,8 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
 		}
 		ut.indir++
 	}
-	ut.isGobEncoder, ut.encIndir = implementsInterface(ut.user, gobEncoderCheck)
-	ut.isGobDecoder, ut.decIndir = implementsInterface(ut.user, gobDecoderCheck)
+	ut.isGobEncoder, ut.encIndir = implementsInterface(ut.user, gobEncoderInterfaceType)
+	ut.isGobDecoder, ut.decIndir = implementsInterface(ut.user, gobDecoderInterfaceType)
 	userTypeCache[rt] = ut
 	return
 }
@@ -85,32 +85,16 @@ const (
 	gobDecodeMethodName = "GobDecode"
 )
 
-// implements returns whether the type implements the interface, as encoded
-// in the check function.
-func implements(typ reflect.Type, check func(typ reflect.Type) bool) bool {
-	if typ.NumMethod() == 0 { // avoid allocations etc. unless there's some chance
-		return false
-	}
-	return check(typ)
-}
-
-// gobEncoderCheck makes the type assertion a boolean function.
-func gobEncoderCheck(typ reflect.Type) bool {
-	_, ok := reflect.Zero(typ).Interface().(GobEncoder)
-	return ok
-}
-
-// gobDecoderCheck makes the type assertion a boolean function.
-func gobDecoderCheck(typ reflect.Type) bool {
-	_, ok := reflect.Zero(typ).Interface().(GobDecoder)
-	return ok
-}
+var (
+	gobEncoderInterfaceType = reflect.Typeof(new(GobEncoder)).Elem()
+	gobDecoderInterfaceType = reflect.Typeof(new(GobDecoder)).Elem()
+)
 
 // implementsInterface reports whether the type implements the
-// interface. (The actual check is done through the provided function.)
+// gobEncoder/gobDecoder interface.
 // It also returns the number of indirections required to get to the
 // implementation.
-func implementsInterface(typ reflect.Type, check func(typ reflect.Type) bool) (success bool, indir int8) {
+func implementsInterface(typ, gobEncDecType reflect.Type) (success bool, indir int8) {
 	if typ == nil {
 		return
 	}
@@ -118,7 +102,7 @@ func implementsInterface(typ reflect.Type, check func(typ reflect.Type) bool) (s
 	// The type might be a pointer and we need to keep
 	// dereferencing to the base type until we find an implementation.
 	for {
-		if implements(rt, check) {
+		if rt.Implements(gobEncDecType) {
 			return true, indir
 		}
 		if p := rt; p.Kind() == reflect.Ptr {
@@ -134,7 +118,7 @@ func implementsInterface(typ reflect.Type, check func(typ reflect.Type) bool) (s
 	// No luck yet, but if this is a base type (non-pointer), the pointer might satisfy.
 	if typ.Kind() != reflect.Ptr {
 		// Not a pointer, but does the pointer work?
-		if implements(reflect.PtrTo(typ), check) {
+		if reflect.PtrTo(typ).Implements(gobEncDecType) {
 			return true, -1
 		}
 	}
