@@ -6,7 +6,6 @@ include ../../Make.inc
 
 TARG=net
 GOFILES=\
-	cgo_stub.go\
 	dial.go\
 	dnsmsg.go\
 	fd_$(GOOS).go\
@@ -31,6 +30,9 @@ GOFILES_freebsd=\
 	dnsclient.go\
 	port.go\
 
+CGOFILES_freebsd=\
+	cgo_unix.go\
+
 GOFILES_darwin=\
 	newpollserver.go\
 	fd.go\
@@ -38,6 +40,9 @@ GOFILES_darwin=\
 	dnsconfig.go\
 	dnsclient.go\
 	port.go\
+
+CGOFILES_darwin=\
+	cgo_unix.go\
 	
 GOFILES_linux=\
 	newpollserver.go\
@@ -47,10 +52,22 @@ GOFILES_linux=\
 	dnsclient.go\
 	port.go\
 
+ifeq ($(GOARCH),arm)
+# ARM has no cgo, so use the stubs.
+GOFILES_linux+=cgo_stub.go
+else
+CGOFILES_linux=\
+	cgo_unix.go
+endif
+
 GOFILES_windows=\
+	cgo_stub.go\
 	resolv_windows.go\
 	file_windows.go\
 
 GOFILES+=$(GOFILES_$(GOOS))
+ifneq ($(CGOFILES_$(GOOS)),)
+CGOFILES+=$(CGOFILES_$(GOOS))
+endif
 
 include ../../Make.pkg

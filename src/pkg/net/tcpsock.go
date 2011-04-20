@@ -62,8 +62,8 @@ func (a *TCPAddr) toAddr() sockaddr {
 // host:port and resolves domain names or port names to
 // numeric addresses.  A literal IPv6 host address must be
 // enclosed in square brackets, as in "[::]:80".
-func ResolveTCPAddr(addr string) (*TCPAddr, os.Error) {
-	ip, port, err := hostPortToIP("tcp", addr)
+func ResolveTCPAddr(network, addr string) (*TCPAddr, os.Error) {
+	ip, port, err := hostPortToIP(network, addr)
 	if err != nil {
 		return nil, err
 	}

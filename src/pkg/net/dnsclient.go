@@ -307,6 +307,11 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Erro
 }
 
 // goLookupHost is the native Go implementation of LookupHost.
+// Used only if cgoLookupHost refuses to handle the request
+// (that is, only if cgoLookupHost is the stub in cgo_stub.go).
+// Normally we let cgo use the C library resolver instead of
+// depending on our lookup code, so that Go and C get the same
+// answers.
 func goLookupHost(name string) (addrs []string, err os.Error) {
 	onceLoadConfig.Do(loadConfig)
 	if dnserr != nil || cfg == nil {
@@ -330,6 +335,11 @@ func goLookupHost(name string) (addrs []string, err os.Error) {
 }
 
 // goLookupIP is the native Go implementation of LookupIP.
+// Used only if cgoLookupIP refuses to handle the request
+// (that is, only if cgoLookupIP is the stub in cgo_stub.go).
+// Normally we let cgo use the C library resolver instead of
+// depending on our lookup code, so that Go and C get the same
+// answers.
 func goLookupIP(name string) (addrs []IP, err os.Error) {
 	onceLoadConfig.Do(loadConfig)
 	if dnserr != nil || cfg == nil {
@@ -358,11 +368,13 @@ func goLookupIP(name string) (addrs []IP, err os.Error) {
 	return
 }
 
-// LookupCNAME returns the canonical DNS host for the given name.
-// Callers that do not care about the canonical name can call
-// LookupHost or LookupIP directly; both take care of resolving
-// the canonical name as part of the lookup.
-func LookupCNAME(name string) (cname string, err os.Error) {
+// goLookupCNAME is the native Go implementation of LookupCNAME.
+// Used only if cgoLookupCNAME refuses to handle the request
+// (that is, only if cgoLookupCNAME is the stub in cgo_stub.go).
+// Normally we let cgo use the C library resolver instead of
+// depending on our lookup code, so that Go and C get the same
+// answers.
+func goLookupCNAME(name string) (cname string, err os.Error) {
 	onceLoadConfig.Do(loadConfig)
 	if dnserr != nil || cfg == nil {
 		err = dnserr

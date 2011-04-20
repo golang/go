@@ -78,17 +78,22 @@ func TestDialGoogle(t *testing.T) {
 		googleaddrs[len(googleaddrs)-1] = ""
 	}
 
-	// Insert an actual IP address for google.com
+	// Insert an actual IPv4 address for google.com
 	// into the table.
-
 	addrs, err := LookupIP("www.google.com")
 	if err != nil {
 		t.Fatalf("lookup www.google.com: %v", err)
 	}
-	if len(addrs) == 0 {
-		t.Fatalf("no addresses for www.google.com")
+	var ip IP
+	for _, addr := range addrs {
+		if x := addr.To4(); x != nil {
+			ip = x
+			break
+		}
 	}
-	ip := addrs[0].To4()
+	if ip == nil {
+		t.Fatalf("no IPv4 addresses for www.google.com")
+	}
 
 	for i, s := range googleaddrs {
 		if strings.Contains(s, "%") {

@@ -245,7 +245,7 @@ func hostToIP(host string) (ip IP, err os.Error) {
 			err = err1
 			goto Error
 		}
-		addr = firstSupportedAddr(addrs)
+		addr = firstSupportedAddr(anyaddr, addrs)
 		if addr == nil {
 			// should not happen
 			err = &AddrError{"LookupHost returned invalid address", addrs[0]}

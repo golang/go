@@ -30,7 +30,7 @@ func Dial(net, addr string) (c Conn, err os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 		var ra *TCPAddr
-		if ra, err = ResolveTCPAddr(raddr); err != nil {
+		if ra, err = ResolveTCPAddr(net, raddr); err != nil {
 			goto Error
 		}
 		c, err := DialTCP(net, nil, ra)
@@ -40,7 +40,7 @@ func Dial(net, addr string) (c Conn, err os.Error) {
 		return c, nil
 	case "udp", "udp4", "udp6":
 		var ra *UDPAddr
-		if ra, err = ResolveUDPAddr(raddr); err != nil {
+		if ra, err = ResolveUDPAddr(net, raddr); err != nil {
 			goto Error
 		}
 		c, err := DialUDP(net, nil, ra)
@@ -83,7 +83,7 @@ func Listen(net, laddr string) (l Listener, err os.Error) {
 	case "tcp", "tcp4", "tcp6":
 		var la *TCPAddr
 		if laddr != "" {
-			if la, err = ResolveTCPAddr(laddr); err != nil {
+			if la, err = ResolveTCPAddr(net, laddr); err != nil {
 				return nil, err
 			}
 		}
@@ -116,7 +116,7 @@ func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
 	case "udp", "udp4", "udp6":
 		var la *UDPAddr
 		if laddr != "" {
-			if la, err = ResolveUDPAddr(laddr); err != nil {
+			if la, err = ResolveUDPAddr(net, laddr); err != nil {
 				return nil, err
 			}
 		}

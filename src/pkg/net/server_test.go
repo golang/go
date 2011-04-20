@@ -108,12 +108,10 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 }
 
 func TestTCPServer(t *testing.T) {
-	doTest(t, "tcp", "0.0.0.0", "127.0.0.1")
-	doTest(t, "tcp", "", "127.0.0.1")
+	doTest(t, "tcp", "127.0.0.1", "127.0.0.1")
 	if kernelSupportsIPv6() {
-		doTest(t, "tcp", "[::]", "[::ffff:127.0.0.1]")
-		doTest(t, "tcp", "[::]", "127.0.0.1")
-		doTest(t, "tcp", "0.0.0.0", "[::ffff:127.0.0.1]")
+		doTest(t, "tcp", "[::1]", "[::1]")
+		doTest(t, "tcp", "127.0.0.1", "[::ffff:127.0.0.1]")
 	}
 }
 
