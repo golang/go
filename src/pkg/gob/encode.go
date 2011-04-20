@@ -384,7 +384,7 @@ func (enc *Encoder) encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid ui
 		up := unsafe.Pointer(elemp)
 		if elemIndir > 0 {
 			if up = encIndirect(up, elemIndir); up == nil {
-				errorf("gob: encodeArray: nil element")
+				errorf("encodeArray: nil element")
 			}
 			elemp = uintptr(up)
 		}
@@ -400,7 +400,7 @@ func encodeReflectValue(state *encoderState, v reflect.Value, op encOp, indir in
 		v = reflect.Indirect(v)
 	}
 	if !v.IsValid() {
-		errorf("gob: encodeReflectValue: nil element")
+		errorf("encodeReflectValue: nil element")
 	}
 	op(nil, state, unsafe.Pointer(unsafeAddr(v)))
 }
@@ -438,7 +438,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
 	ut := userType(iv.Elem().Type())
 	name, ok := concreteTypeToName[ut.base]
 	if !ok {
-		errorf("gob: type not registered for interface: %s", ut.base)
+		errorf("type not registered for interface: %s", ut.base)
 	}
 	// Send the name.
 	state.encodeUint(uint64(len(name)))
@@ -587,7 +587,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 		}
 	}
 	if op == nil {
-		errorf("gob enc: can't happen: encode type %s", rt.String())
+		errorf("can't happen: encode type %s", rt.String())
 	}
 	return &op, indir
 }
@@ -599,7 +599,7 @@ func methodIndex(rt reflect.Type, method string) int {
 			return i
 		}
 	}
-	errorf("gob: internal error: can't find method %s", method)
+	errorf("internal error: can't find method %s", method)
 	return 0
 }
 
@@ -650,7 +650,7 @@ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
 			wireFieldNum++
 		}
 		if srt.NumField() > 0 && len(engine.instr) == 0 {
-			errorf("gob: type %s has no exported fields", rt)
+			errorf("type %s has no exported fields", rt)
 		}
 		engine.instr = append(engine.instr, encInstr{encStructTerminator, 0, 0, 0})
 	} else {
