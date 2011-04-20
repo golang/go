@@ -192,18 +192,11 @@ func install(pkg, parent string) {
 			install(p, pkg)
 		}
 	}
-	if dirInfo.pkgName == "main" {
-		if !errors {
-			fmt.Fprintf(os.Stderr, "%s: %s's dependencies are installed.\n", argv0, pkg)
-		}
-		errors = true
-		visit[pkg] = done
-		return
-	}
 
 	// Install this package.
 	if !errors {
-		if err := domake(dir, pkg, local); err != nil {
+		isCmd := dirInfo.pkgName == "main"
+		if err := domake(dir, pkg, local, isCmd); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: installing %s: %s\n", argv0, pkg, err)
 			errors = true
 		} else if !local && *logPkgs {
