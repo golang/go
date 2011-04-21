@@ -33,4 +33,5 @@ func main() {
 	print("call addinst\n")
 	var x Inst = AddInst(new(Start)) // ERROR "pointer to interface"
 	print("return from  addinst\n")
+	var x *Inst = new(Start)  // ERROR "pointer to interface"
 }
