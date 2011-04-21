@@ -9,19 +9,14 @@ import (
 	"io/ioutil"
 	"testing"
 	"os"
-	"runtime"
 )
 
 func run(argv []string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
-	if runtime.GOOS == "windows" {
-		argv = append([]string{"cmd", "/c"}, argv...)
-	}
 	exe, err := LookPath(argv[0])
 	if err != nil {
 		return nil, err
 	}
-	p, err = Run(exe, argv, nil, "", stdin, stdout, stderr)
-	return p, err
+	return Run(exe, argv, nil, "", stdin, stdout, stderr)
 }
 
 func TestRunCat(t *testing.T) {

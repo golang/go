@@ -8,6 +8,7 @@ package syscall
 
 import (
 	"sync"
+	"unsafe"
 	"utf16"
 )
 
@@ -279,7 +280,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
 		}
 	}
 	si := new(StartupInfo)
-	GetStartupInfo(si)
+	si.Cb = uint32(unsafe.Sizeof(*si))
 	si.Flags = STARTF_USESTDHANDLES
 	si.StdInput = fd[0]
 	si.StdOutput = fd[1]
