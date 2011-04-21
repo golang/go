@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -96,6 +97,19 @@ var cookedTokens = []Token{
 	Comment([]byte(" missing final newline ")),
 }
 
+const testInputAltEncoding = `
+<?xml version="1.0" encoding="x-testing-uppercase"?>
+<TAG>VALUE</TAG>`
+
+var rawTokensAltEncoding = []Token{
+	CharData([]byte("\n")),
+	ProcInst{"xml", []byte(`version="1.0" encoding="x-testing-uppercase"`)},
+	CharData([]byte("\n")),
+	StartElement{Name{"", "tag"}, nil},
+	CharData([]byte("value")),
+	EndElement{Name{"", "tag"}},
+}
+
 var xmlInput = []string{
 	// unexpected EOF cases
 	"<",
@@ -173,7 +187,64 @@ func StringReader(s string) io.Reader { return &stringReader{s, 0} }
 
 func TestRawToken(t *testing.T) {
 	p := NewParser(StringReader(testInput))
+	testRawToken(t, p, rawTokens)
+}
 
+type downCaser struct {
+	t *testing.T
+	r io.ByteReader
+}
+
+func (d *downCaser) ReadByte() (c byte, err os.Error) {
+	c, err = d.r.ReadByte()
+	if c >= 'A' && c <= 'Z' {
+		c += 'a' - 'A'
+	}
+	return
+}
+
+func (d *downCaser) Read(p []byte) (int, os.Error) {
+	d.t.Fatalf("unexpected Read call on downCaser reader")
+	return 0, os.EINVAL
+}
+
+func TestRawTokenAltEncoding(t *testing.T) {
+	sawEncoding := ""
+	p := NewParser(StringReader(testInputAltEncoding))
+	p.CharsetReader = func(charset string, input io.Reader) (io.Reader, os.Error) {
+		sawEncoding = charset
+		if charset != "x-testing-uppercase" {
+			t.Fatalf("unexpected charset %q", charset)
+		}
+		return &downCaser{t, input.(io.ByteReader)}, nil
+	}
+	testRawToken(t, p, rawTokensAltEncoding)
+}
+
+func TestRawTokenAltEncodingNoConverter(t *testing.T) {
+	p := NewParser(StringReader(testInputAltEncoding))
+	token, err := p.RawToken()
+	if token == nil {
+		t.Fatalf("expected a token on first RawToken call")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err = p.RawToken()
+	if token != nil {
+		t.Errorf("expected a nil token; got %#v", token)
+	}
+	if err == nil {
+		t.Fatalf("expected an error on second RawToken call")
+	}
+	const encoding = "x-testing-uppercase"
+	if !strings.Contains(err.String(), encoding) {
+		t.Errorf("expected error to contain %q; got error: %v",
+			encoding, err)
+	}
+}
+
+func testRawToken(t *testing.T, p *Parser, rawTokens []Token) {
 	for i, want := range rawTokens {
 		have, err := p.RawToken()
 		if err != nil {
@@ -480,6 +551,29 @@ func TestDisallowedCharacters(t *testing.T) {
 		}
 		if synerr.Msg != tt.err {
 			t.Fatalf("input %d synerr.Msg wrong: want '%s', got '%s'", i, tt.err, synerr.Msg)
+		}
+	}
+}
+
+type procInstEncodingTest struct {
+	expect, got string
+}
+
+var procInstTests = []struct {
+	input, expect string
+}{
+	{`version="1.0" encoding="utf-8"`, "utf-8"},
+	{`version="1.0" encoding='utf-8'`, "utf-8"},
+	{`version="1.0" encoding='utf-8' `, "utf-8"},
+	{`version="1.0" encoding=utf-8`, ""},
+	{`encoding="FOO" `, "FOO"},
+}
+
+func TestProcInstEncoding(t *testing.T) {
+	for _, test := range procInstTests {
+		got := procInstEncoding(test.input)
+		if got != test.expect {
+			t.Errorf("procInstEncoding(%q) = %q; want %q", test.input, got, test.expect)
 		}
 	}
 }
