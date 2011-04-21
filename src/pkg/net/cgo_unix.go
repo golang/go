@@ -86,7 +86,7 @@ func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err os.Error, comp
 	// and similarly for IPv6), but in practice setting it causes
 	// getaddrinfo to return the wrong canonical name on Linux.
 	// So definitely leave it out.
-	hints.ai_flags = C.AI_ALL | C.AI_V4MAPPED | C.AI_CANONNAME
+	hints.ai_flags = (C.AI_ALL | C.AI_V4MAPPED | C.AI_CANONNAME) & cgoAddrInfoMask()
 
 	h := C.CString(name)
 	defer C.free(unsafe.Pointer(h))
