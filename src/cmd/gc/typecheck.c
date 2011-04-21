@@ -1006,9 +1006,13 @@ reswitch:
 		defaultlit(&n->right, T);
 		
 		// copy([]byte, string)
-		if(isslice(n->left->type) && n->left->type->type == types[TUINT8] && n->right->type->etype == TSTRING)
-			goto ret;
-
+		if(isslice(n->left->type) && n->right->type->etype == TSTRING) {
+		        if (n->left->type->type ==types[TUINT8])
+			        goto ret;
+		        yyerror("arguments to copy have different element types: %lT and string", n->left->type);
+			goto error;
+		}
+			       
 		if(!isslice(n->left->type) || !isslice(n->right->type)) {
 			if(!isslice(n->left->type) && !isslice(n->right->type))
 				yyerror("arguments to copy must be slices; have %lT, %lT", n->left->type, n->right->type);
