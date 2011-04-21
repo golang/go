@@ -461,7 +461,13 @@ func (p *gcParser) parseFuncType() Type {
 // MethodSpec = identifier Signature .
 //
 func (p *gcParser) parseMethodSpec(scope *ast.Scope) {
-	p.expect(scanner.Ident)
+	if p.tok == scanner.Ident {
+		p.expect(scanner.Ident)
+	} else {
+		p.parsePkgId()
+		p.expect('.')
+		p.parseDotIdent()
+	}
 	isVariadic := false
 	p.parseSignature(scope, &isVariadic)
 }

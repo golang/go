@@ -1264,7 +1264,12 @@ Tpretty(Fmt *fp, Type *t)
 	case TINTER:
 		fmtprint(fp, "interface {");
 		for(t1=t->type; t1!=T; t1=t1->down) {
-			fmtprint(fp, " %hS%hhT", t1->sym, t1->type);
+			fmtprint(fp, " ");
+			if(exportname(t1->sym->name))
+				fmtprint(fp, "%hS", t1->sym);
+			else
+				fmtprint(fp, "%S", t1->sym);
+			fmtprint(fp, "%hhT", t1->type);
 			if(t1->down)
 				fmtprint(fp, ";");
 		}

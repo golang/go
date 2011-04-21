@@ -152,7 +152,7 @@ var typeTests = []pair{
 			b()
 		})
 	}{},
-		"interface { a(func(func(int) int) func(func(int)) int); b() }",
+		"interface { reflect_test.a(func(func(int) int) func(func(int)) int); reflect_test.b() }",
 	},
 }
 
@@ -1300,40 +1300,40 @@ func TestNestedMethods(t *testing.T) {
 	}
 }
 
-type innerInt struct {
-	x int
+type InnerInt struct {
+	X int
 }
 
-type outerInt struct {
-	y int
-	innerInt
+type OuterInt struct {
+	Y int
+	InnerInt
 }
 
-func (i *innerInt) m() int {
-	return i.x
+func (i *InnerInt) M() int {
+	return i.X
 }
 
 func TestEmbeddedMethods(t *testing.T) {
-	typ := Typeof((*outerInt)(nil))
-	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != NewValue((*outerInt).m).Pointer() {
-		t.Errorf("Wrong method table for outerInt: (m=%p)", (*outerInt).m)
+	typ := Typeof((*OuterInt)(nil))
+	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != NewValue((*OuterInt).M).Pointer() {
+		t.Errorf("Wrong method table for OuterInt: (m=%p)", (*OuterInt).M)
 		for i := 0; i < typ.NumMethod(); i++ {
 			m := typ.Method(i)
 			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Pointer())
 		}
 	}
 
-	i := &innerInt{3}
+	i := &InnerInt{3}
 	if v := NewValue(i).Method(0).Call(nil)[0].Int(); v != 3 {
-		t.Errorf("i.m() = %d, want 3", v)
+		t.Errorf("i.M() = %d, want 3", v)
 	}
 
-	o := &outerInt{1, innerInt{2}}
+	o := &OuterInt{1, InnerInt{2}}
 	if v := NewValue(o).Method(0).Call(nil)[0].Int(); v != 2 {
-		t.Errorf("i.m() = %d, want 2", v)
+		t.Errorf("i.M() = %d, want 2", v)
 	}
 
-	f := (*outerInt).m
+	f := (*OuterInt).M
 	if v := f(o); v != 2 {
 		t.Errorf("f(o) = %d, want 2", v)
 	}
