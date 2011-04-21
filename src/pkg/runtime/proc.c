@@ -1196,6 +1196,12 @@ runtime·gomaxprocsfunc(int32 n)
 	if (n <= 0)
 		n = ret;
 	runtime·gomaxprocs = n;
+ 	if (runtime·gcwaiting != 0) {
+ 		if (runtime·sched.mcpumax != 1)
+ 			runtime·throw("invalid runtime·sched.mcpumax during gc");
+		schedunlock();
+		return ret;
+	}
 	runtime·sched.mcpumax = n;
 	// handle fewer procs?
 	if(runtime·sched.mcpu > runtime·sched.mcpumax) {
