@@ -532,12 +532,12 @@ func (pc *persistConn) roundTrip(req *Request) (resp *Response, err os.Error) {
 		re.res.Header.Del("Content-Encoding")
 		re.res.Header.Del("Content-Length")
 		re.res.ContentLength = -1
-		var err os.Error
-		re.res.Body, err = gzip.NewReader(re.res.Body)
+		gzReader, err := gzip.NewReader(re.res.Body)
 		if err != nil {
 			pc.close()
 			return nil, err
 		}
+		re.res.Body = &readFirstCloseBoth{gzReader, re.res.Body}
 	}
 
 	return re.res, re.err
@@ -605,4 +605,19 @@ func (es *bodyEOFSignal) Close() (err os.Error) {
 		es.fn = nil
 	}
 	return
+}
+
+type readFirstCloseBoth struct {
+	io.ReadCloser
+	io.Closer
+}
+
+func (r *readFirstCloseBoth) Close() os.Error {
+	if err := r.ReadCloser.Close(); err != nil {
+		return err
+	}
+	if err := r.Closer.Close(); err != nil {
+		return err
+	}
+	return nil
 }
