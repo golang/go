@@ -97,10 +97,11 @@ func newPart(mr *multiReader) (bp *Part, err os.Error) {
 
 func (bp *Part) populateHeaders() os.Error {
 	for {
-		line, err := bp.mr.bufReader.ReadString('\n')
+		lineBytes, err := bp.mr.bufReader.ReadSlice('\n')
 		if err != nil {
 			return err
 		}
+		line := string(lineBytes)
 		if line == "\n" || line == "\r\n" {
 			return nil
 		}
@@ -179,11 +180,12 @@ func (mr *multiReader) eof() bool {
 }
 
 func (mr *multiReader) readLine() bool {
-	line, err := mr.bufReader.ReadString('\n')
+	lineBytes, err := mr.bufReader.ReadSlice('\n')
 	if err != nil {
 		// TODO: care about err being EOF or not?
 		return false
 	}
+	line := string(lineBytes)
 	mr.bufferedLine = &line
 	return true
 }
