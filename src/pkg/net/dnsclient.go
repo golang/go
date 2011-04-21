@@ -313,14 +313,14 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Erro
 // depending on our lookup code, so that Go and C get the same
 // answers.
 func goLookupHost(name string) (addrs []string, err os.Error) {
-	onceLoadConfig.Do(loadConfig)
-	if dnserr != nil || cfg == nil {
-		err = dnserr
-		return
-	}
 	// Use entries from /etc/hosts if they match.
 	addrs = lookupStaticHost(name)
 	if len(addrs) > 0 {
+		return
+	}
+	onceLoadConfig.Do(loadConfig)
+	if dnserr != nil || cfg == nil {
+		err = dnserr
 		return
 	}
 	ips, err := goLookupIP(name)
