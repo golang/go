@@ -50,7 +50,7 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
 	Method *t, *et;
 	IMethod *i, *ei;
 	uint32 h;
-	String *iname;
+	String *iname, *ipkgPath;
 	Itab *m;
 	UncommonType *x;
 	Type *itype;
@@ -120,6 +120,7 @@ search:
 	for(; i < ei; i++) {
 		itype = i->type;
 		iname = i->name;
+		ipkgPath = i->pkgPath;
 		for(;; t++) {
 			if(t >= et) {
 				if(!canfail) {
@@ -136,7 +137,7 @@ search:
 				m->bad = 1;
 				goto out;
 			}
-			if(t->mtyp == itype && t->name == iname)
+			if(t->mtyp == itype && t->name == iname && t->pkgPath == ipkgPath)
 				break;
 		}
 		if(m)

@@ -182,6 +182,11 @@ methods(Type *t)
 		a = b;
 
 		a->name = method->name;
+		if(!exportname(method->name)) {
+			if(method->pkg == nil)
+				fatal("methods: missing package");
+			a->pkg = method->pkg;
+		}
 		a->isym = methodsym(method, it, 1);
 		a->tsym = methodsym(method, t, 0);
 		a->type = methodfunc(f->type, t);
@@ -253,8 +258,11 @@ imethods(Type *t)
 		method = f->sym;
 		a = mal(sizeof(*a));
 		a->name = method->name;
-		if(!exportname(method->name))
+		if(!exportname(method->name)) {
+			if(method->pkg == nil)
+				fatal("imethods: missing package");
 			a->pkg = method->pkg;
+		}
 		a->mtype = f->type;
 		a->offset = 0;
 		a->type = methodfunc(f->type, nil);
@@ -297,6 +305,33 @@ imethods(Type *t)
 	return all;
 }
 
+static void
+dimportpath(Pkg *p)
+{
+	static Pkg *gopkg;
+	char *nam;
+	Node *n;
+	
+	if(p->pathsym != S)
+		return;
+
+	if(gopkg == nil) {
+		gopkg = mkpkg(strlit("go"));
+		gopkg->name = "go";
+	}
+	nam = smprint("importpath.%s.", p->prefix);
+
+	n = nod(ONAME, N, N);
+	n->sym = pkglookup(nam, gopkg);
+	free(nam);
+	n->class = PEXTERN;
+	n->xoffset = 0;
+	p->pathsym = n->sym;
+	
+	gdatastring(n, p->path);
+	ggloblsym(n->sym, types[TSTRING]->width, 1);
+}
+
 static int
 dgopkgpath(Sym *s, int ot, Pkg *pkg)
 {
@@ -314,30 +349,8 @@ dgopkgpath(Sym *s, int ot, Pkg *pkg)
 		return dsymptr(s, ot, ns, 0);
 	}
 
-	return dgostringptr(s, ot, pkg->name);
-}
-
-static void
-dimportpath(Pkg *p)
-{
-	static Pkg *gopkg;
-	char *nam;
-	Node *n;
-	
-	if(gopkg == nil) {
-		gopkg = mkpkg(strlit("go"));
-		gopkg->name = "go";
-	}
-	nam = smprint("importpath.%s.", p->prefix);
-
-	n = nod(ONAME, N, N);
-	n->sym = pkglookup(nam, gopkg);
-	free(nam);
-	n->class = PEXTERN;
-	n->xoffset = 0;
-	
-	gdatastring(n, p->path);
-	ggloblsym(n->sym, types[TSTRING]->width, 1);
+	dimportpath(pkg);
+	return dsymptr(s, ot, pkg->pathsym, 0);
 }
 
 /*

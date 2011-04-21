@@ -14,7 +14,7 @@ type Exported interface {
 
 type Implementation struct{}
 
-func (p *Implementation) private() { println("main.Implementation.private()") }
+func (p *Implementation) private() {}
 
 
 func main() {
@@ -40,7 +40,12 @@ func main() {
 	// x = px
 
 	// this assignment unexpectedly compiles and then executes
+	defer func() {
+		recover()
+	}()
 	x = px.(Exported)
+	
+	println("should not get this far")
 
 	// this is a legitimate call, but because of the previous assignment,
 	// it invokes the method private in p!

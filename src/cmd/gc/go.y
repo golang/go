@@ -1853,6 +1853,10 @@ hidden_interfacedcl:
 	{
 		$$ = nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
 	}
+|	hidden_importsym '(' ohidden_funarg_list ')' ohidden_funres
+	{
+		$$ = nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
+	}
 
 ohidden_funres:
 	{

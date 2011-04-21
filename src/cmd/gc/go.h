@@ -315,6 +315,7 @@ struct	Pkg
 {
 	char*	name;
 	Strlit*	path;
+	Sym*	pathsym;
 	char*	prefix;
 	Pkg*	link;
 	char	exported;	// import line written in export data

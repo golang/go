@@ -941,9 +941,7 @@ func implements(T, V *commonType) bool {
 		for j := 0; j < len(v.methods); j++ {
 			tm := &t.methods[i]
 			vm := &v.methods[j]
-			// TODO(rsc):  && vm.pkgPath == tm.pkgPath should be here
-			// but it breaks the *ast.Ident vs ast.Expr test.
-			if vm.name == tm.name && vm.typ == tm.typ {
+			if vm.name == tm.name && vm.pkgPath == tm.pkgPath && vm.typ == tm.typ {
 				if i++; i >= len(t.methods) {
 					return true
 				}
@@ -960,9 +958,7 @@ func implements(T, V *commonType) bool {
 	for j := 0; j < len(v.methods); j++ {
 		tm := &t.methods[i]
 		vm := &v.methods[j]
-		// TODO(rsc):  && vm.pkgPath == tm.pkgPath should be here
-		// but it breaks the *ast.Ident vs ast.Expr test.
-		if vm.name == tm.name && vm.mtyp == tm.typ {
+		if vm.name == tm.name && vm.pkgPath == tm.pkgPath && vm.mtyp == tm.typ {
 			if i++; i >= len(t.methods) {
 				return true
 			}
