@@ -77,6 +77,7 @@ const (
 
 	HANDLE_FLAG_INHERIT    = 0x00000001
 	STARTF_USESTDHANDLES   = 0x00000100
+	STARTF_USESHOWWINDOW   = 0x00000001
 	DUPLICATE_CLOSE_SOURCE = 0x00000001
 	DUPLICATE_SAME_ACCESS  = 0x00000002
 
@@ -239,6 +240,25 @@ type ByHandleFileInformation struct {
 	FileIndexHigh      uint32
 	FileIndexLow       uint32
 }
+
+// ShowWindow constants
+const (
+	// winuser.h
+	SW_HIDE            = 0
+	SW_NORMAL          = 1
+	SW_SHOWNORMAL      = 1
+	SW_SHOWMINIMIZED   = 2
+	SW_SHOWMAXIMIZED   = 3
+	SW_MAXIMIZE        = 3
+	SW_SHOWNOACTIVATE  = 4
+	SW_SHOW            = 5
+	SW_MINIMIZE        = 6
+	SW_SHOWMINNOACTIVE = 7
+	SW_SHOWNA          = 8
+	SW_RESTORE         = 9
+	SW_SHOWDEFAULT     = 10
+	SW_FORCEMINIMIZE   = 11
+)
 
 type StartupInfo struct {
 	Cb            uint32
