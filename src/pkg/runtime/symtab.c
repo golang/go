@@ -291,7 +291,9 @@ splitpcln(void)
 		if(f < ef && pc >= (f+1)->entry) {
 			f->pcln.len = p - f->pcln.array;
 			f->pcln.cap = f->pcln.len;
-			f++;
+			do
+				f++;
+			while(f < ef && pc >= (f+1)->entry);
 			f->pcln.array = p;
 			// pc0 and ln0 are the starting values for
 			// the loop over f->pcln, so pc must be 
