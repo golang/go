@@ -31,6 +31,7 @@ GOFILES_freebsd=\
 	port.go\
 
 CGOFILES_freebsd=\
+	cgo_bsd.go\
 	cgo_unix.go\
 
 GOFILES_darwin=\
@@ -42,6 +43,7 @@ GOFILES_darwin=\
 	port.go\
 
 CGOFILES_darwin=\
+	cgo_bsd.go\
 	cgo_unix.go\
 	
 GOFILES_linux=\
@@ -57,6 +59,7 @@ ifeq ($(GOARCH),arm)
 GOFILES_linux+=cgo_stub.go
 else
 CGOFILES_linux=\
+	cgo_linux.go\
 	cgo_unix.go
 endif
 
