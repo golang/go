@@ -312,8 +312,11 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	}
 	fmt.Fprintf(fgcc, "\t%s *a = v;\n", ctype)
 	fmt.Fprintf(fgcc, "\t")
-	if n.FuncType.Result != nil {
+	if t := n.FuncType.Result; t != nil {
 		fmt.Fprintf(fgcc, "a->r = ")
+		if c := t.C.String(); c[len(c)-1] == '*' {
+			fmt.Fprintf(fgcc, "(const %s) ", t.C)
+		}
 	}
 	fmt.Fprintf(fgcc, "%s(", n.C)
 	for i := range n.FuncType.Params {
