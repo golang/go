@@ -47,6 +47,7 @@ includes_Darwin='
 #include <sys/sysctl.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <net/bpf.h>
 #include <net/if.h>
 #include <net/route.h>
 #include <netinet/in.h>
@@ -134,6 +135,7 @@ done
 		$2 ~ /^SIOC/ ||
 		$2 ~ /^(IFF|NET_RT|RTM|RTF|RTV|RTA|RTAX)_/ ||
 		$2 ~ /^BIOC/ ||
+		$2 !~ /^(BPF_TIMEVAL)$/ &&
 		$2 ~ /^(BPF|DLT)_/ ||
 		$2 !~ "WMESGLEN" &&
 		$2 ~ /^W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", $2, $2)}
