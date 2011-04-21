@@ -29,6 +29,7 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_var.h>
@@ -59,6 +60,7 @@ typedef long long $_C_long_long;
 
 typedef struct timespec $Timespec;
 typedef struct timeval $Timeval;
+typedef struct timeval32 $Timeval32;
 
 // Processes
 
@@ -157,3 +159,19 @@ typedef struct if_data $IfData;
 typedef struct ifa_msghdr $IfaMsghdr;
 typedef struct rt_msghdr $RtMsghdr;
 typedef struct rt_metrics $RtMetrics;
+
+// Berkeley packet filter
+
+enum {
+	$SizeofBpfVersion = sizeof(struct bpf_version),
+	$SizeofBpfStat = sizeof(struct bpf_stat),
+	$SizeofBpfProgram = sizeof(struct bpf_program),
+	$SizeofBpfInsn = sizeof(struct bpf_insn),
+	$SizeofBpfHdr = sizeof(struct bpf_hdr),
+};
+
+typedef struct bpf_version $BpfVersion;
+typedef struct bpf_stat $BpfStat;
+typedef struct bpf_program $BpfProgram;
+typedef struct bpf_insn $BpfInsn;
+typedef struct bpf_hdr $BpfHdr;

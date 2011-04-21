@@ -29,6 +29,11 @@ const (
 	SizeofIfaMsghdr        = 0x14
 	SizeofRtMsghdr         = 0x5c
 	SizeofRtMetrics        = 0x38
+	SizeofBpfVersion       = 0x4
+	SizeofBpfStat          = 0x8
+	SizeofBpfProgram       = 0x10
+	SizeofBpfInsn          = 0x8
+	SizeofBpfHdr           = 0x14
 )
 
 // Types
@@ -50,6 +55,11 @@ type Timeval struct {
 	Sec          int64
 	Usec         int32
 	Pad_godefs_0 [4]byte
+}
+
+type Timeval32 struct {
+	Sec  int32
+	Usec int32
 }
 
 type Rusage struct {
@@ -229,7 +239,7 @@ type Msghdr struct {
 	Name         *byte
 	Namelen      uint32
 	Pad_godefs_0 [4]byte
-	Iov          uint64
+	Iov          *Iovec
 	Iovlen       int32
 	Pad_godefs_1 [4]byte
 	Control      *byte
@@ -292,7 +302,7 @@ type IfData struct {
 	Noproto    uint32
 	Recvtiming uint32
 	Xmittiming uint32
-	Lastchange [8]byte /* timeval32 */
+	Lastchange Timeval32
 	Unused2    uint32
 	Hwassist   uint32
 	Reserved1  uint32
@@ -338,4 +348,35 @@ type RtMetrics struct {
 	Rttvar   uint32
 	Pksent   uint32
 	Filler   [4]uint32
+}
+
+type BpfVersion struct {
+	Major uint16
+	Minor uint16
+}
+
+type BpfStat struct {
+	Recv uint32
+	Drop uint32
+}
+
+type BpfProgram struct {
+	Len          uint32
+	Pad_godefs_0 [4]byte
+	Insns        *BpfInsn
+}
+
+type BpfInsn struct {
+	Code uint16
+	Jt   uint8
+	Jf   uint8
+	K    uint32
+}
+
+type BpfHdr struct {
+	Tstamp       Timeval32
+	Caplen       uint32
+	Datalen      uint32
+	Hdrlen       uint16
+	Pad_godefs_0 [2]byte
 }
