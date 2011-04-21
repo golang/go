@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"json"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -203,5 +204,36 @@ func TestVariousTextLineEndings(t *testing.T) {
 			t.Errorf("Unexpected error in test %d: %v", testNum, err)
 		}
 
+	}
+}
+
+type maliciousReader struct {
+	t *testing.T
+	n int
+}
+
+const maxReadThreshold = 1 << 20
+
+func (mr *maliciousReader) Read(b []byte) (n int, err os.Error) {
+	mr.n += len(b)
+	if mr.n >= maxReadThreshold {
+		mr.t.Fatal("too much was read")
+		return 0, os.EOF
+	}
+	return len(b), nil
+}
+
+func TestLineLimit(t *testing.T) {
+	mr := &maliciousReader{t: t}
+	r := NewReader(mr, "fooBoundary")
+	part, err := r.NextPart()
+	if part != nil {
+		t.Errorf("unexpected part read")
+	}
+	if err == nil {
+		t.Errorf("expected an error")
+	}
+	if mr.n >= maxReadThreshold {
+		t.Errorf("expected to read < %d bytes; read %d", maxReadThreshold, mr.n)
 	}
 }
