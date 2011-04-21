@@ -163,6 +163,13 @@ type Parser struct {
 	//	"quot": `"`,
 	Entity map[string]string
 
+	// CharsetReader, if non-nil, defines a function to generate
+	// charset-conversion readers, converting from the provided
+	// non-UTF-8 charset into UTF-8. If CharsetReader is nil or
+	// returns an error, parsing stops with an error. One of the
+	// the CharsetReader's result values must be non-nil.
+	CharsetReader func(charset string, input io.Reader) (io.Reader, os.Error)
+
 	r         io.ByteReader
 	buf       bytes.Buffer
 	saved     *bytes.Buffer
@@ -186,17 +193,7 @@ func NewParser(r io.Reader) *Parser {
 		line:     1,
 		Strict:   true,
 	}
-
-	// Get efficient byte at a time reader.
-	// Assume that if reader has its own
-	// ReadByte, it's efficient enough.
-	// Otherwise, use bufio.
-	if rb, ok := r.(io.ByteReader); ok {
-		p.r = rb
-	} else {
-		p.r = bufio.NewReader(r)
-	}
-
+	p.switchToReader(r)
 	return p
 }
 
@@ -287,6 +284,18 @@ func (p *Parser) translate(n *Name, isElementName bool) {
 	}
 	if v, ok := p.ns[n.Space]; ok {
 		n.Space = v
+	}
+}
+
+func (p *Parser) switchToReader(r io.Reader) {
+	// Get efficient byte at a time reader.
+	// Assume that if reader has its own
+	// ReadByte, it's efficient enough.
+	// Otherwise, use bufio.
+	if rb, ok := r.(io.ByteReader); ok {
+		p.r = rb
+	} else {
+		p.r = bufio.NewReader(r)
 	}
 }
 
@@ -487,6 +496,25 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		}
 		data := p.buf.Bytes()
 		data = data[0 : len(data)-2] // chop ?>
+
+		if target == "xml" {
+			enc := procInstEncoding(string(data))
+			if enc != "" && enc != "utf-8" && enc != "UTF-8" {
+				if p.CharsetReader == nil {
+					p.err = fmt.Errorf("xml: encoding %q declared but Parser.CharsetReader is nil", enc)
+					return nil, p.err
+				}
+				newr, err := p.CharsetReader(enc, p.r.(io.Reader))
+				if err != nil {
+					p.err = fmt.Errorf("xml: opening charset %q: %v", enc, err)
+					return nil, p.err
+				}
+				if newr == nil {
+					panic("CharsetReader returned a nil Reader for charset " + enc)
+				}
+				p.switchToReader(newr)
+			}
+		}
 		return ProcInst{target, data}, nil
 
 	case '!':
@@ -1632,4 +1660,27 @@ func Escape(w io.Writer, s []byte) {
 		last = i + 1
 	}
 	w.Write(s[last:])
+}
+
+// procInstEncoding parses the `encoding="..."` or `encoding='...'`
+// value out of the provided string, returning "" if not found.
+func procInstEncoding(s string) string {
+	// TODO: this parsing is somewhat lame and not exact.
+	// It works for all actual cases, though.
+	idx := strings.Index(s, "encoding=")
+	if idx == -1 {
+		return ""
+	}
+	v := s[idx+len("encoding="):]
+	if v == "" {
+		return ""
+	}
+	if v[0] != '\'' && v[0] != '"' {
+		return ""
+	}
+	idx = strings.IndexRune(v[1:], int(v[0]))
+	if idx == -1 {
+		return ""
+	}
+	return v[1 : idx+1]
 }
