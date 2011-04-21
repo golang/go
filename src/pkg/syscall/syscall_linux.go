@@ -814,6 +814,9 @@ func Munmap(b []byte) (errno int) {
 	return mapper.Munmap(b)
 }
 
+//sys	Madvise(b []byte, advice int) (errno int) 
+//sys	Mprotect(b []byte, prot int) (errno int) 
+
 /*
  * Unimplemented
  */
@@ -868,7 +871,6 @@ func Munmap(b []byte) (errno int) {
 // LookupDcookie
 // Lremovexattr
 // Lsetxattr
-// Madvise
 // Mbind
 // MigratePages
 // Mincore
