@@ -64,9 +64,12 @@ var reqExcludeHeader = map[string]bool{
 
 // A Request represents a parsed HTTP request header.
 type Request struct {
-	Method     string // GET, POST, PUT, etc.
-	RawURL     string // The raw URL given in the request.
-	URL        *URL   // Parsed URL.
+	Method string // GET, POST, PUT, etc.
+	RawURL string // The raw URL given in the request.
+	URL    *URL   // Parsed URL.
+
+	// The protocol version for incoming requests.
+	// Outgoing requests always use HTTP/1.1.
 	Proto      string // "HTTP/1.0"
 	ProtoMajor int    // 1
 	ProtoMinor int    // 0
