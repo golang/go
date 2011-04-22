@@ -886,6 +886,18 @@ func TestAppend(t *testing.T) {
 	if s != "new|append" {
 		t.Fatalf("writeFile: have %q want %q", s, "new|append")
 	}
+	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "|append")
+	if s != "new|append|append" {
+		t.Fatalf("writeFile: have %q want %q", s, "new|append|append")
+	}
+	err := Remove(f)
+	if err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "new&append")
+	if s != "new&append" {
+		t.Fatalf("writeFile: have %q want %q", s, "new&append")
+	}
 }
 
 func TestStatDirWithTrailingSlash(t *testing.T) {
