@@ -810,7 +810,9 @@ func TestScanInts(t *testing.T) {
 	})
 }
 
-const intCount = 1000
+// 800 is small enough to not overflow the stack when using gccgo on a
+// platform that does not support split stack.
+const intCount = 800
 
 func testScanInts(t *testing.T, scan func(*RecursiveInt, *bytes.Buffer) os.Error) {
 	r := new(RecursiveInt)
