@@ -24,7 +24,6 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 }
 
 // Pread and Pwrite are special: they insert padding before the int64.
-// (Ftruncate and truncate are not; go figure.)
 
 func Pread(fd int, p []byte, offset int64) (n int, errno int) {
 	var _p0 unsafe.Pointer
@@ -44,6 +43,20 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
 	}
 	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(_p0), uintptr(len(p)), 0, uintptr(offset), uintptr(offset>>32))
 	n = int(r0)
+	errno = int(e1)
+	return
+}
+
+func Ftruncate(fd int, length int64) (errno int) {
+	// ARM EABI requires 64-bit arguments should be put in a pair
+	// of registers from an even register number.
+	_, _, e1 := Syscall6(SYS_FTRUNCATE64, uintptr(fd), 0, uintptr(length), uintptr(length>>32), 0, 0)
+	errno = int(e1)
+	return
+}
+
+func Truncate(path string, length int64) (errno int) {
+	_, _, e1 := Syscall6(SYS_TRUNCATE64, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, uintptr(length), uintptr(length>>32), 0, 0)
 	errno = int(e1)
 	return
 }
@@ -72,7 +85,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 //sys	Fchown(fd int, uid int, gid int) (errno int)
 //sys	Fstat(fd int, stat *Stat_t) (errno int) = SYS_FSTAT64
 //sys	Fstatfs(fd int, buf *Statfs_t) (errno int) = SYS_FSTATFS64
-//sys	Ftruncate(fd int, length int64) (errno int) = SYS_FTRUNCATE64
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (euid int)
 //sysnb	Getgid() (gid int)
@@ -92,7 +104,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, errno int)
 //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
 //sys	Statfs(path string, buf *Statfs_t) (errno int) = SYS_STATFS64
-//sys	Truncate(path string, length int64) (errno int) = SYS_TRUNCATE64
 
 // Vsyscalls on amd64.
 //sysnb	Gettimeofday(tv *Timeval) (errno int)
