@@ -8,6 +8,7 @@ package x509
 import (
 	"asn1"
 	"big"
+	"bytes"
 	"container/vector"
 	"crypto"
 	"crypto/rsa"
@@ -26,6 +27,20 @@ type pkcs1PrivateKey struct {
 	D       asn1.RawValue
 	P       asn1.RawValue
 	Q       asn1.RawValue
+	// We ignore these values, if present, because rsa will calculate them.
+	Dp   asn1.RawValue "optional"
+	Dq   asn1.RawValue "optional"
+	Qinv asn1.RawValue "optional"
+
+	AdditionalPrimes []pkcs1AddtionalRSAPrime "optional"
+}
+
+type pkcs1AddtionalRSAPrime struct {
+	Prime asn1.RawValue
+
+	// We ignore these values because rsa will calculate them.
+	Exp   asn1.RawValue
+	Coeff asn1.RawValue
 }
 
 // rawValueIsInteger returns true iff the given ASN.1 RawValue is an INTEGER type.
@@ -45,6 +60,10 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 		return
 	}
 
+	if priv.Version > 1 {
+		return nil, os.ErrorString("x509: unsupported private key version")
+	}
+
 	if !rawValueIsInteger(&priv.N) ||
 		!rawValueIsInteger(&priv.D) ||
 		!rawValueIsInteger(&priv.P) ||
@@ -60,26 +79,66 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 	}
 
 	key.D = new(big.Int).SetBytes(priv.D.Bytes)
-	key.P = new(big.Int).SetBytes(priv.P.Bytes)
-	key.Q = new(big.Int).SetBytes(priv.Q.Bytes)
+	key.Primes = make([]*big.Int, 2+len(priv.AdditionalPrimes))
+	key.Primes[0] = new(big.Int).SetBytes(priv.P.Bytes)
+	key.Primes[1] = new(big.Int).SetBytes(priv.Q.Bytes)
+	for i, a := range priv.AdditionalPrimes {
+		if !rawValueIsInteger(&a.Prime) {
+			return nil, asn1.StructuralError{"tags don't match"}
+		}
+		key.Primes[i+2] = new(big.Int).SetBytes(a.Prime.Bytes)
+		// We ignore the other two values because rsa will calculate
+		// them as needed.
+	}
 
 	err = key.Validate()
 	if err != nil {
 		return nil, err
 	}
+	key.Precompute()
 
 	return
 }
 
+// rawValueForBig returns an asn1.RawValue which represents the given integer.
+func rawValueForBig(n *big.Int) asn1.RawValue {
+	b := n.Bytes()
+	if n.Sign() >= 0 && len(b) > 0 && b[0]&0x80 != 0 {
+		// This positive number would be interpreted as a negative
+		// number in ASN.1 because the MSB is set.
+		padded := make([]byte, len(b)+1)
+		copy(padded[1:], b)
+		b = padded
+	}
+	return asn1.RawValue{Tag: 2, Bytes: b}
+}
+
 // MarshalPKCS1PrivateKey converts a private key to ASN.1 DER encoded form.
 func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+	key.Precompute()
+
+	version := 0
+	if len(key.Primes) > 2 {
+		version = 1
+	}
+
 	priv := pkcs1PrivateKey{
-		Version: 1,
-		N:       asn1.RawValue{Tag: 2, Bytes: key.PublicKey.N.Bytes()},
+		Version: version,
+		N:       rawValueForBig(key.N),
 		E:       key.PublicKey.E,
-		D:       asn1.RawValue{Tag: 2, Bytes: key.D.Bytes()},
-		P:       asn1.RawValue{Tag: 2, Bytes: key.P.Bytes()},
-		Q:       asn1.RawValue{Tag: 2, Bytes: key.Q.Bytes()},
+		D:       rawValueForBig(key.D),
+		P:       rawValueForBig(key.Primes[0]),
+		Q:       rawValueForBig(key.Primes[1]),
+		Dp:      rawValueForBig(key.Precomputed.Dp),
+		Dq:      rawValueForBig(key.Precomputed.Dq),
+		Qinv:    rawValueForBig(key.Precomputed.Qinv),
+	}
+
+	priv.AdditionalPrimes = make([]pkcs1AddtionalRSAPrime, len(key.Precomputed.CRTValues))
+	for i, values := range key.Precomputed.CRTValues {
+		priv.AdditionalPrimes[i].Prime = rawValueForBig(key.Primes[2+i])
+		priv.AdditionalPrimes[i].Exp = rawValueForBig(values.Exp)
+		priv.AdditionalPrimes[i].Coeff = rawValueForBig(values.Coeff)
 	}
 
 	b, _ := asn1.Marshal(priv)
@@ -394,6 +453,10 @@ type ConstraintViolationError struct{}
 
 func (ConstraintViolationError) String() string {
 	return "invalid signature: parent certificate cannot sign this kind of certificate"
+}
+
+func (c *Certificate) Equal(other *Certificate) bool {
+	return bytes.Equal(c.Raw, other.Raw)
 }
 
 // CheckSignatureFrom verifies that the signature on c is a valid signature

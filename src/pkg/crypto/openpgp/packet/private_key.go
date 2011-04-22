@@ -164,8 +164,10 @@ func (pk *PrivateKey) parseRSAPrivateKey(data []byte) (err os.Error) {
 	}
 
 	rsaPriv.D = new(big.Int).SetBytes(d)
-	rsaPriv.P = new(big.Int).SetBytes(p)
-	rsaPriv.Q = new(big.Int).SetBytes(q)
+	rsaPriv.Primes = make([]*big.Int, 2)
+	rsaPriv.Primes[0] = new(big.Int).SetBytes(p)
+	rsaPriv.Primes[1] = new(big.Int).SetBytes(q)
+	rsaPriv.Precompute()
 	pk.PrivateKey = rsaPriv
 	pk.Encrypted = false
 	pk.encryptedData = nil
