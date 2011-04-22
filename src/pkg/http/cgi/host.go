@@ -25,11 +25,20 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 )
 
 var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
+
+var osDefaultInheritEnv = map[string][]string{
+	"darwin":  []string{"DYLD_LIBRARY_PATH"},
+	"freebsd": []string{"LD_LIBRARY_PATH"},
+	"hpux":    []string{"LD_LIBRARY_PATH", "SHLIB_PATH"},
+	"linux":   []string{"LD_LIBRARY_PATH"},
+	"windows": []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"},
+}
 
 // Handler runs an executable in a subprocess with a CGI environment.
 type Handler struct {
@@ -111,7 +120,19 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		env = append(env, h.Env...)
 	}
 
+	path := os.Getenv("PATH")
+	if path == "" {
+		path = "/bin:/usr/bin:/usr/ucb:/usr/bsd:/usr/local/bin"
+	}
+	env = append(env, "PATH="+path)
+
 	for _, e := range h.InheritEnv {
+		if v := os.Getenv(e); v != "" {
+			env = append(env, e+"="+v)
+		}
+	}
+
+	for _, e := range osDefaultInheritEnv[runtime.GOOS] {
 		if v := os.Getenv(e); v != "" {
 			env = append(env, e+"="+v)
 		}
