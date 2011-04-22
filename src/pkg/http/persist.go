@@ -20,8 +20,8 @@ var (
 
 // A ServerConn reads requests and sends responses over an underlying
 // connection, until the HTTP keepalive logic commands an end. ServerConn
-// does not close the underlying connection. Instead, the user calls Close
-// and regains control over the connection. ServerConn supports pipe-lining,
+// also allows hijacking the underlying connection by calling Hijack
+// to regain control over the connection. ServerConn supports pipe-lining,
 // i.e. requests can be read out of sync (but in the same order) while the
 // respective responses are sent.
 type ServerConn struct {
@@ -45,11 +45,11 @@ func NewServerConn(c net.Conn, r *bufio.Reader) *ServerConn {
 	return &ServerConn{c: c, r: r, pipereq: make(map[*Request]uint)}
 }
 
-// Close detaches the ServerConn and returns the underlying connection as well
-// as the read-side bufio which may have some left over data. Close may be
+// Hijack detaches the ServerConn and returns the underlying connection as well
+// as the read-side bufio which may have some left over data. Hijack may be
 // called before Read has signaled the end of the keep-alive logic. The user
-// should not call Close while Read or Write is in progress.
-func (sc *ServerConn) Close() (c net.Conn, r *bufio.Reader) {
+// should not call Hijack while Read or Write is in progress.
+func (sc *ServerConn) Hijack() (c net.Conn, r *bufio.Reader) {
 	sc.lk.Lock()
 	defer sc.lk.Unlock()
 	c = sc.c
@@ -57,6 +57,15 @@ func (sc *ServerConn) Close() (c net.Conn, r *bufio.Reader) {
 	sc.c = nil
 	sc.r = nil
 	return
+}
+
+// Close calls Hijack and then also closes the underlying connection
+func (sc *ServerConn) Close() os.Error {
+	c, _ := sc.Hijack()
+	if c != nil {
+		return c.Close()
+	}
+	return nil
 }
 
 // Read returns the next request on the wire. An ErrPersistEOF is returned if
@@ -199,9 +208,9 @@ func (sc *ServerConn) Write(req *Request, resp *Response) os.Error {
 }
 
 // A ClientConn sends request and receives headers over an underlying
-// connection, while respecting the HTTP keepalive logic. ClientConn is not
-// responsible for closing the underlying connection. One must call Close to
-// regain control of that connection and deal with it as desired.
+// connection, while respecting the HTTP keepalive logic. ClientConn
+// supports hijacking the connection calling Hijack to
+// regain control of the underlying net.Conn and deal with it as desired.
 type ClientConn struct {
 	lk              sync.Mutex // read-write protects the following fields
 	c               net.Conn
@@ -239,11 +248,11 @@ func NewProxyClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
 	return cc
 }
 
-// Close detaches the ClientConn and returns the underlying connection as well
-// as the read-side bufio which may have some left over data. Close may be
+// Hijack detaches the ClientConn and returns the underlying connection as well
+// as the read-side bufio which may have some left over data. Hijack may be
 // called before the user or Read have signaled the end of the keep-alive
-// logic. The user should not call Close while Read or Write is in progress.
-func (cc *ClientConn) Close() (c net.Conn, r *bufio.Reader) {
+// logic. The user should not call Hijack while Read or Write is in progress.
+func (cc *ClientConn) Hijack() (c net.Conn, r *bufio.Reader) {
 	cc.lk.Lock()
 	defer cc.lk.Unlock()
 	c = cc.c
@@ -251,6 +260,15 @@ func (cc *ClientConn) Close() (c net.Conn, r *bufio.Reader) {
 	cc.c = nil
 	cc.r = nil
 	return
+}
+
+// Close calls Hijack and then also closes the underlying connection
+func (cc *ClientConn) Close() os.Error {
+	c, _ := cc.Hijack()
+	if c != nil {
+		return c.Close()
+	}
+	return nil
 }
 
 // Write writes a request. An ErrPersistEOF error is returned if the connection
