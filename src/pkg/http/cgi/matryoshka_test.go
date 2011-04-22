@@ -22,14 +22,6 @@ func TestHostingOurselves(t *testing.T) {
 		Path: os.Args[0],
 		Root: "/test.go",
 		Args: []string{"-test.run=TestBeChildCGIProcess"},
-		// When using a shared library with gccgo, make sure
-		// we can still find the library when we exec
-		// ourselves.
-		InheritEnv: []string{
-			"LD_LIBRARY_PATH",
-			"SHLIB_PATH",
-			"DYLD_LIBRARY_PATH",
-		},
 	}
 	expectedMap := map[string]string{
 		"test":                  "Hello CGI-in-CGI",
