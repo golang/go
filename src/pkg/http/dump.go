@@ -31,6 +31,8 @@ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err os.Error) {
 // DumpRequest is semantically a no-op, but in order to
 // dump the body, it reads the body data into memory and
 // changes req.Body to refer to the in-memory copy.
+// The documentation for Request.Write details which fields
+// of req are used.
 func DumpRequest(req *Request, body bool) (dump []byte, err os.Error) {
 	var b bytes.Buffer
 	save := req.Body
