@@ -9,8 +9,14 @@ import (
 	"testing"
 )
 
+var stop = make(chan bool, 1)
+
 func perpetuumMobile() {
-	go perpetuumMobile()
+	select {
+	case <-stop:
+	default:
+		go perpetuumMobile()
+	}
 }
 
 func TestStopTheWorldDeadlock(t *testing.T) {
@@ -29,4 +35,5 @@ func TestStopTheWorldDeadlock(t *testing.T) {
 	}()
 	go perpetuumMobile()
 	<-compl
+	stop <- true
 }
