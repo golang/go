@@ -120,6 +120,7 @@ DIRS=\
 	netchan\
 	os\
 	os/signal\
+	os/user\
 	patch\
 	path\
 	path/filepath\
