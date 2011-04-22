@@ -143,7 +143,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 			n, _ := io.ReadFull(f, buf[:])
 			b := buf[:n]
 			if isText(b) {
-				ctype = "text-plain; charset=utf-8"
+				ctype = "text/plain; charset=utf-8"
 			} else {
 				// generic binary
 				ctype = "application/octet-stream"
