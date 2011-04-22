@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of Apr 19, 2011 -->
+<!-- subtitle Version of Apr 22, 2011 -->
 
 <!--
 TODO
@@ -1155,8 +1155,9 @@ map [string] interface {}
 The number of map elements is called its length.
 For a map <code>m</code>, it can be discovered using the
 built-in function <a href="#Length_and_capacity"><code>len(m)</code></a>
-and may change during execution. Values may be added and removed
-during execution using special forms of <a href="#Assignments">assignment</a>.
+and may change during execution. Elements may be added and removed
+during execution using special forms of <a href="#Assignments">assignment</a>;
+and they may be accessed with <a href="#Indexes">index</a> expressions.
 </p>
 <p>
 A new, empty map value is made using the built-in
