@@ -220,9 +220,12 @@ func Open(path string, mode int, perm uint32) (fd int, errno int) {
 	var createmode uint32
 	switch {
 	case mode&O_CREAT != 0:
-		if mode&O_EXCL != 0 {
+		switch {
+		case mode&O_EXCL != 0:
 			createmode = CREATE_NEW
-		} else {
+		case mode&O_APPEND != 0:
+			createmode = OPEN_ALWAYS
+		default:
 			createmode = CREATE_ALWAYS
 		}
 	case mode&O_TRUNC != 0:
