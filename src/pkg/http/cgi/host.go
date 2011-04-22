@@ -36,9 +36,10 @@ type Handler struct {
 	Path string // path to the CGI executable
 	Root string // root URI prefix of handler or empty for "/"
 
-	Env    []string    // extra environment variables to set, if any
-	Logger *log.Logger // optional log for errors or nil to use log.Print
-	Args   []string    // optional arguments to pass to child process
+	Env        []string    // extra environment variables to set, if any, as "key=value"
+	InheritEnv []string    // environment variables to inherit from host, as "key"
+	Logger     *log.Logger // optional log for errors or nil to use log.Print
+	Args       []string    // optional arguments to pass to child process
 }
 
 func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -108,6 +109,12 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	if h.Env != nil {
 		env = append(env, h.Env...)
+	}
+
+	for _, e := range h.InheritEnv {
+		if v := os.Getenv(e); v != "" {
+			env = append(env, e+"="+v)
+		}
 	}
 
 	cwd, pathBase := filepath.Split(h.Path)
