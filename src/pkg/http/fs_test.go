@@ -104,7 +104,7 @@ func TestServeFileContentType(t *testing.T) {
 			t.Errorf("Content-Type mismatch: got %q, want %q", h, want)
 		}
 	}
-	get("text-plain; charset=utf-8")
+	get("text/plain; charset=utf-8")
 	override = true
 	get(ctype)
 }
