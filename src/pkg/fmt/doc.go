@@ -27,7 +27,7 @@
 		%o	base 8
 		%x	base 16, with lower-case letters for a-f
 		%X	base 16, with upper-case letters for A-F
-		%U	Unicode format: U+1234; same as "U+%x" with 4 digits default
+		%U	Unicode format: U+1234; same as "U+%0.4X"
 	Floating-point and complex constituents:
 		%b	decimalless scientific notation with exponent a power
 			of two, in the manner of strconv.Ftoa32, e.g. -123456p-78
