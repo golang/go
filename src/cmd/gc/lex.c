@@ -1310,7 +1310,7 @@ getc(void)
 			lexlineno++;
 		return c;
 	}
-
+	
 	if(curio.bin == nil) {
 		c = *curio.cp & 0xff;
 		if(c != 0)
@@ -1325,8 +1325,11 @@ getc(void)
 			break;
 		}
 	case EOF:
-		return EOF;
-
+		// insert \n at EOF
+		if(curio.eofnl)
+			return EOF;
+		curio.eofnl = 1;
+		c = '\n';
 	case '\n':
 		if(pushedio.bin == nil)
 			lexlineno++;

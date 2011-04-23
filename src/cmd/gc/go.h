@@ -582,6 +582,7 @@ struct	Io
 	Biobuf*	bin;
 	int32	ilineno;
 	int	nlsemi;
+	int	eofnl;
 	int	peekc;
 	int	peekc1;	// second peekc for ...
 	char*	cp;	// used for content when bin==nil
