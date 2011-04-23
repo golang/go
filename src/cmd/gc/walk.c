@@ -1356,7 +1356,7 @@ walkexpr(Node **np, NodeList **init)
 
 	case OSTRARRAYBYTE:
 		// stringtoslicebyte(string) []byte;
-		n = mkcall("stringtoslicebyte", n->type, init, n->left);
+		n = mkcall("stringtoslicebyte", n->type, init, conv(n->left, types[TSTRING]));
 		goto ret;
 
 	case OSTRARRAYRUNE:
