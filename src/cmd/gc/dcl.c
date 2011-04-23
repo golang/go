@@ -560,6 +560,7 @@ funcargs(Node *nt)
 {
 	Node *n;
 	NodeList *l;
+	int gen;
 
 	if(nt->op != OTFUNC)
 		fatal("funcargs %O", nt->op);
@@ -589,6 +590,7 @@ funcargs(Node *nt)
 	}
 
 	// declare the out arguments.
+	gen = 0;
 	for(l=nt->rlist; l; l=l->next) {
 		n = l->n;
 		if(n->op != ODCLFIELD)
@@ -596,6 +598,11 @@ funcargs(Node *nt)
 		if(n->left != N) {
 			n->left->op = ONAME;
 			n->left->ntype = n->right;
+			if(isblank(n->left)) {
+				// Give it a name so we can assign to it during return.
+				snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
+				n->left->sym = lookup(namebuf);
+			}
 			declare(n->left, PPARAMOUT);
 		}
 	}
