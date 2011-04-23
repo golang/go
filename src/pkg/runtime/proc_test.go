@@ -20,6 +20,10 @@ func perpetuumMobile() {
 }
 
 func TestStopTheWorldDeadlock(t *testing.T) {
+	if testing.Short() {
+		t.Logf("skipping during short test")
+		return
+	}
 	runtime.GOMAXPROCS(3)
 	compl := make(chan int, 1)
 	go func() {
