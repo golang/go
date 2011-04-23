@@ -3,6 +3,16 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+# If set to a Windows-style path convert to an MSYS-Unix 
+# one using the built-in shell commands.   
+if [[ "$GOROOT" == *:* ]]; then
+	GOROOT=$(cd "$GOROOT"; pwd)
+fi
+
+if [[ "$GOBIN" == *:* ]]; then
+	GOBIN=$(cd "$GOBIN"; pwd)
+fi
+
 export GOROOT=${GOROOT:-$(cd ..; pwd)}
 
 if ! test -f "$GOROOT"/include/u.h
