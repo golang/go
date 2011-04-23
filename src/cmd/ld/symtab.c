@@ -140,29 +140,25 @@ void
 putplan9sym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 {
 	int i;
-		
+
 	switch(t) {
 	case 'T':
-	case 't':
 	case 'L':
-	case 'l':
 	case 'D':
-	case 'd':
 	case 'B':
-	case 'b':
+		if(ver)
+			t += 'a' - 'A';
 	case 'a':
 	case 'p':
-	
 	case 'f':
 	case 'z':
 	case 'Z':
-		
 	case 'm':
 		lputb(addr);
 		cput(t+0x80); /* 0x80 is variable length */
-		
+
 		if(t == 'z' || t == 'Z') {
-			cput(0);
+			cput(s[0]);
 			for(i=1; s[i] != 0 || s[i+1] != 0; i += 2) {
 				cput(s[i]);
 				cput(s[i+1]);
@@ -172,19 +168,17 @@ putplan9sym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 			i++;
 		} else {
 			/* skip the '<' in filenames */
-			if(t=='f')
+			if(t == 'f')
 				s++;
-			
 			for(i=0; s[i]; i++)
 				cput(s[i]);
 			cput(0);
 		}
-		
 		symsize += 4 + 1 + i + 1;
 		break;
 	default:
 		return;
-	};	
+	};
 }
 
 void
