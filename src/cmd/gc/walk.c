@@ -142,7 +142,9 @@ walkdeftype(Node *n)
 	}
 
 	// copy new type and clear fields
-	// that don't come along
+	// that don't come along.
+	// anything zeroed here must be zeroed in
+	// typedcl2 too.
 	maplineno = n->type->maplineno;
 	embedlineno = n->type->embedlineno;
 	*n->type = *t;

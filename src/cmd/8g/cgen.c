@@ -78,6 +78,8 @@ cgen(Node *n, Node *res)
 
 	// structs etc get handled specially
 	if(isfat(n->type)) {
+		if(n->type->width < 0)
+			fatal("forgot to compute width for %T", n->type);
 		sgen(n, res, n->type->width);
 		return;
 	}
