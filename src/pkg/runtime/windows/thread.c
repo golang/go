@@ -378,3 +378,9 @@ runtime·compilecallback(Eface fn, bool cleanstack)
 
 	return ret;
 }
+
+void
+os·sigpipe(void)
+{
+	runtime·throw("too many writes on closed pipe");
+}

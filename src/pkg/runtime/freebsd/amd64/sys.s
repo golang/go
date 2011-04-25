@@ -65,6 +65,18 @@ TEXT runtime·write(SB),7,$-8
 	SYSCALL
 	RET
 
+TEXT runtime·raisesigpipe(SB),7,$16
+	// thr_self(&8(SP))
+	LEAQ	8(SP), DI	// arg 1 &8(SP)
+	MOVL	$432, AX
+	SYSCALL
+	// thr_kill(self, SIGPIPE)
+	MOVQ	8(SP), DI	// arg 1 id
+	MOVQ	$13, SI	// arg 2 SIGPIPE
+	MOVL	$433, AX
+	SYSCALL
+	RET
+
 TEXT runtime·setitimer(SB), 7, $-8
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI

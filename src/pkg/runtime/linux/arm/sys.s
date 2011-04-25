@@ -27,6 +27,8 @@
 #define SYS_exit_group (SYS_BASE + 248)
 #define SYS_munmap (SYS_BASE + 91)
 #define SYS_setitimer (SYS_BASE + 104)
+#define SYS_gettid (SYS_BASE + 224)
+#define SYS_tkill (SYS_BASE + 238)
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 #define SYS_ARM_cacheflush (ARM_BASE + 2)
@@ -54,6 +56,15 @@ TEXT runtime·exit1(SB),7,$-4
 	MOVW	$1234, R0
 	MOVW	$1003, R1
 	MOVW	R0, (R1)	// fail hard
+
+TEXT	runtime·raisesigpipe(SB),7,$-4
+	MOVW	$SYS_gettid, R7
+	SWI	$0
+	// arg 1 tid already in R0 from gettid
+	MOVW	$13, R1	// arg 2 SIGPIPE
+	MOVW	$SYS_tkill, R7
+	SWI	$0
+	RET
 
 TEXT runtime·mmap(SB),7,$0
 	MOVW	0(FP), R0

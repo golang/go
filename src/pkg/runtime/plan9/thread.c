@@ -138,3 +138,8 @@ runtime·notewakeup(Note *n)
 	runtime·usemrelease(&n->sema);
 }
 
+void
+os·sigpipe(void)
+{
+	runtime·throw("too many writes on closed pipe");
+}

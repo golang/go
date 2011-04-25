@@ -8,3 +8,5 @@ struct sigaction;
 void runtime·sigaction(int32, struct sigaction*, struct sigaction*);
 void	runtiem·setitimerval(int32, Itimerval*, Itimerval*);
 void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+
+void	runtime·raisesigpipe(void);

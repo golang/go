@@ -30,6 +30,14 @@ TEXT runtime·write(SB),7,$0
 	INT	$0x80
 	RET
 
+TEXT runtime·raisesigpipe(SB),7,$12
+	MOVL	$224, AX	// syscall - gettid
+	INT	$0x80
+	MOVL	AX, 0(SP)	// arg 1 tid
+	MOVL	$13, 4(SP)	// arg 2 SIGPIPE
+	MOVL	$238, AX	// syscall - tkill
+	INT	$0x80
+	RET
 
 TEXT runtime·setitimer(SB),7,$0-24
 	MOVL	$104, AX			// syscall - setitimer
