@@ -102,7 +102,7 @@ func (c *Conn) clientHandshake() os.Error {
 	if c.config.RootCAs != nil {
 		opts := x509.VerifyOptions{
 			Roots:         c.config.RootCAs,
-			CurrentTime:   c.config.Time(),
+			CurrentTime:   c.config.time(),
 			DNSName:       c.config.ServerName,
 			Intermediates: x509.NewCertPool(),
 		}
