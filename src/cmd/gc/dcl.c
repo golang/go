@@ -684,6 +684,10 @@ ok:
 	pt->nod = n;
 	pt->sym = n->sym;
 	pt->sym->lastlineno = parserline();
+	pt->siggen = 0;
+	pt->printed = 0;
+	pt->deferwidth = 0;
+	pt->local = 0;
 	declare(n, PEXTERN);
 
 	checkwidth(pt);
