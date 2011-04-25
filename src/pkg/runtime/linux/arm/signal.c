@@ -180,3 +180,10 @@ runtime·resetcpuprofiler(int32 hz)
 	}
 	m->profilehz = hz;
 }
+
+void
+os·sigpipe(void)
+{
+	sigaction(SIGPIPE, SIG_DFL, false);
+	runtime·raisesigpipe();
+}

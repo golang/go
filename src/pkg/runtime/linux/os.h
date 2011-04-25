@@ -15,3 +15,5 @@ void	runtime·rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);
 void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
 void	runtime·sigpanic(void);
 void runtime·setitimer(int32, Itimerval*, Itimerval*);
+
+void	runtime·raisesigpipe(void);

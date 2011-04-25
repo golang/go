@@ -33,6 +33,16 @@ TEXT runtime·write(SB),7,$0
 	INT	$0x80
 	RET
 
+TEXT runtime·raisesigpipe(SB),7,$8
+	get_tls(CX)
+	MOVL	m(CX), DX
+	MOVL	m_procid(DX), DX
+	MOVL	DX, 0(SP)	// thread_port
+	MOVL	$13, 4(SP)	// signal: SIGPIPE
+	MOVL	$328, AX	// __pthread_kill
+	INT	$0x80
+	RET
+
 TEXT runtime·mmap(SB),7,$0
 	MOVL	$197, AX
 	INT	$0x80

@@ -27,3 +27,5 @@ void	runtime·sigaltstack(struct StackT*, struct StackT*);
 void	runtime·sigtramp(void);
 void	runtime·sigpanic(void);
 void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+
+void	runtime·raisesigpipe(void);
