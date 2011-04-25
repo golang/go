@@ -8,7 +8,7 @@ package main
 
 import "reflect"
 
-func typeof(x interface{}) string { return reflect.Typeof(x).String() }
+func typeof(x interface{}) string { return reflect.TypeOf(x).String() }
 
 func f() int { return 0 }
 

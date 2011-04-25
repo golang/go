@@ -226,7 +226,7 @@ func (p *Process) bootstrap() {
 	p.runtime.G = newManualType(eval.TypeOfNative(rt1G{}), p.Arch)
 
 	// Get addresses of type.*runtime.XType for discrimination.
-	rtv := reflect.Indirect(reflect.NewValue(&p.runtime))
+	rtv := reflect.Indirect(reflect.ValueOf(&p.runtime))
 	rtvt := rtv.Type()
 	for i := 0; i < rtv.NumField(); i++ {
 		n := rtvt.Field(i).Name

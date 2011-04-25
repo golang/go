@@ -161,7 +161,7 @@ type UnknownSocketError struct {
 }
 
 func (e *UnknownSocketError) String() string {
-	return "unknown socket address type " + reflect.Typeof(e.sa).String()
+	return "unknown socket address type " + reflect.TypeOf(e.sa).String()
 }
 
 func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {

@@ -152,7 +152,7 @@ func TestWriteT(t *testing.T) {
 		t.Errorf("WriteT: have nil, want non-nil")
 	}
 
-	tv := reflect.Indirect(reflect.NewValue(ts))
+	tv := reflect.Indirect(reflect.ValueOf(ts))
 	for i, n := 0, tv.NumField(); i < n; i++ {
 		err = Write(buf, BigEndian, tv.Field(i).Interface())
 		if err == nil {

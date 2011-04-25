@@ -122,10 +122,10 @@ func (d *decodeState) unmarshal(v interface{}) (err os.Error) {
 		}
 	}()
 
-	rv := reflect.NewValue(v)
+	rv := reflect.ValueOf(v)
 	pv := rv
 	if pv.Kind() != reflect.Ptr || pv.IsNil() {
-		return &InvalidUnmarshalError{reflect.Typeof(v)}
+		return &InvalidUnmarshalError{reflect.TypeOf(v)}
 	}
 
 	d.scan.reset()
@@ -313,7 +313,7 @@ func (d *decodeState) array(v reflect.Value) {
 	iv := v
 	ok := iv.Kind() == reflect.Interface
 	if ok {
-		iv.Set(reflect.NewValue(d.arrayInterface()))
+		iv.Set(reflect.ValueOf(d.arrayInterface()))
 		return
 	}
 
@@ -409,7 +409,7 @@ func (d *decodeState) object(v reflect.Value) {
 	// Decoding into nil interface?  Switch to non-reflect code.
 	iv := v
 	if iv.Kind() == reflect.Interface {
-		iv.Set(reflect.NewValue(d.objectInterface()))
+		iv.Set(reflect.ValueOf(d.objectInterface()))
 		return
 	}
 
@@ -422,7 +422,7 @@ func (d *decodeState) object(v reflect.Value) {
 	case reflect.Map:
 		// map must have string type
 		t := v.Type()
-		if t.Key() != reflect.Typeof("") {
+		if t.Key() != reflect.TypeOf("") {
 			d.saveError(&UnmarshalTypeError{"object", v.Type()})
 			break
 		}
@@ -521,7 +521,7 @@ func (d *decodeState) object(v reflect.Value) {
 		// Write value back to map;
 		// if using struct, subv points into struct already.
 		if mv.IsValid() {
-			mv.SetMapIndex(reflect.NewValue(key), subv)
+			mv.SetMapIndex(reflect.ValueOf(key), subv)
 		}
 
 		// Next token must be , or }.
@@ -577,7 +577,7 @@ func (d *decodeState) literal(v reflect.Value) {
 		case reflect.Bool:
 			v.SetBool(value)
 		case reflect.Interface:
-			v.Set(reflect.NewValue(value))
+			v.Set(reflect.ValueOf(value))
 		}
 
 	case '"': // string
@@ -599,11 +599,11 @@ func (d *decodeState) literal(v reflect.Value) {
 				d.saveError(err)
 				break
 			}
-			v.Set(reflect.NewValue(b[0:n]))
+			v.Set(reflect.ValueOf(b[0:n]))
 		case reflect.String:
 			v.SetString(string(s))
 		case reflect.Interface:
-			v.Set(reflect.NewValue(string(s)))
+			v.Set(reflect.ValueOf(string(s)))
 		}
 
 	default: // number
@@ -620,7 +620,7 @@ func (d *decodeState) literal(v reflect.Value) {
 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
 				break
 			}
-			v.Set(reflect.NewValue(n))
+			v.Set(reflect.ValueOf(n))
 
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			n, err := strconv.Atoi64(s)
@@ -774,7 +774,7 @@ func (d *decodeState) literalInterface() interface{} {
 		}
 		n, err := strconv.Atof64(string(item))
 		if err != nil {
-			d.saveError(&UnmarshalTypeError{"number " + string(item), reflect.Typeof(0.0)})
+			d.saveError(&UnmarshalTypeError{"number " + string(item), reflect.TypeOf(0.0)})
 		}
 		return n
 	}

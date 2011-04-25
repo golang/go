@@ -60,8 +60,8 @@ func dump(msg string, val reflect.Value) {
 // rewriteFile applies the rewrite rule 'pattern -> replace' to an entire file.
 func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 	m := make(map[string]reflect.Value)
-	pat := reflect.NewValue(pattern)
-	repl := reflect.NewValue(replace)
+	pat := reflect.ValueOf(pattern)
+	repl := reflect.ValueOf(replace)
 	var f func(val reflect.Value) reflect.Value // f is recursive
 	f = func(val reflect.Value) reflect.Value {
 		// don't bother if val is invalid to start with
@@ -73,11 +73,11 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 		}
 		val = apply(f, val)
 		if match(m, pat, val) {
-			val = subst(m, repl, reflect.NewValue(val.Interface().(ast.Node).Pos()))
+			val = subst(m, repl, reflect.ValueOf(val.Interface().(ast.Node).Pos()))
 		}
 		return val
 	}
-	return apply(f, reflect.NewValue(p)).Interface().(*ast.File)
+	return apply(f, reflect.ValueOf(p)).Interface().(*ast.File)
 }
 
 
@@ -103,13 +103,13 @@ func setValue(x, y reflect.Value) {
 
 // Values/types for special cases.
 var (
-	objectPtrNil = reflect.NewValue((*ast.Object)(nil))
-	scopePtrNil  = reflect.NewValue((*ast.Scope)(nil))
+	objectPtrNil = reflect.ValueOf((*ast.Object)(nil))
+	scopePtrNil  = reflect.ValueOf((*ast.Scope)(nil))
 
-	identType     = reflect.Typeof((*ast.Ident)(nil))
-	objectPtrType = reflect.Typeof((*ast.Object)(nil))
-	positionType  = reflect.Typeof(token.NoPos)
-	scopePtrType  = reflect.Typeof((*ast.Scope)(nil))
+	identType     = reflect.TypeOf((*ast.Ident)(nil))
+	objectPtrType = reflect.TypeOf((*ast.Object)(nil))
+	positionType  = reflect.TypeOf(token.NoPos)
+	scopePtrType  = reflect.TypeOf((*ast.Scope)(nil))
 )
 
 

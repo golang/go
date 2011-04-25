@@ -418,13 +418,13 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 }
 
 var (
-	bitStringType        = reflect.Typeof(BitString{})
-	objectIdentifierType = reflect.Typeof(ObjectIdentifier{})
-	enumeratedType       = reflect.Typeof(Enumerated(0))
-	flagType             = reflect.Typeof(Flag(false))
-	timeType             = reflect.Typeof(&time.Time{})
-	rawValueType         = reflect.Typeof(RawValue{})
-	rawContentsType      = reflect.Typeof(RawContent(nil))
+	bitStringType        = reflect.TypeOf(BitString{})
+	objectIdentifierType = reflect.TypeOf(ObjectIdentifier{})
+	enumeratedType       = reflect.TypeOf(Enumerated(0))
+	flagType             = reflect.TypeOf(Flag(false))
+	timeType             = reflect.TypeOf(&time.Time{})
+	rawValueType         = reflect.TypeOf(RawValue{})
+	rawContentsType      = reflect.TypeOf(RawContent(nil))
 )
 
 // invalidLength returns true iff offset + length > sliceLength, or if the
@@ -461,7 +461,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset+t.length], bytes[initOffset : offset+t.length]}
 		offset += t.length
-		v.Set(reflect.NewValue(result))
+		v.Set(reflect.ValueOf(result))
 		return
 	}
 
@@ -505,7 +505,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			return
 		}
 		if result != nil {
-			v.Set(reflect.NewValue(result))
+			v.Set(reflect.ValueOf(result))
 		}
 		return
 	}
@@ -605,14 +605,14 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		newSlice, err1 := parseObjectIdentifier(innerBytes)
 		v.Set(reflect.MakeSlice(v.Type(), len(newSlice), len(newSlice)))
 		if err1 == nil {
-			reflect.Copy(v, reflect.NewValue(newSlice))
+			reflect.Copy(v, reflect.ValueOf(newSlice))
 		}
 		err = err1
 		return
 	case bitStringType:
 		bs, err1 := parseBitString(innerBytes)
 		if err1 == nil {
-			v.Set(reflect.NewValue(bs))
+			v.Set(reflect.ValueOf(bs))
 		}
 		err = err1
 		return
@@ -625,7 +625,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			time, err1 = parseGeneralizedTime(innerBytes)
 		}
 		if err1 == nil {
-			v.Set(reflect.NewValue(time))
+			v.Set(reflect.ValueOf(time))
 		}
 		err = err1
 		return
@@ -671,7 +671,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		if structType.NumField() > 0 &&
 			structType.Field(0).Type == rawContentsType {
 			bytes := bytes[initOffset:offset]
-			val.Field(0).Set(reflect.NewValue(RawContent(bytes)))
+			val.Field(0).Set(reflect.ValueOf(RawContent(bytes)))
 		}
 
 		innerOffset := 0
@@ -693,7 +693,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		sliceType := fieldType
 		if sliceType.Elem().Kind() == reflect.Uint8 {
 			val.Set(reflect.MakeSlice(sliceType, len(innerBytes), len(innerBytes)))
-			reflect.Copy(val, reflect.NewValue(innerBytes))
+			reflect.Copy(val, reflect.ValueOf(innerBytes))
 			return
 		}
 		newSlice, err1 := parseSequenceOf(innerBytes, sliceType, sliceType.Elem())
@@ -798,7 +798,7 @@ func Unmarshal(b []byte, val interface{}) (rest []byte, err os.Error) {
 // UnmarshalWithParams allows field parameters to be specified for the
 // top-level element. The form of the params is the same as the field tags.
 func UnmarshalWithParams(b []byte, val interface{}, params string) (rest []byte, err os.Error) {
-	v := reflect.NewValue(val).Elem()
+	v := reflect.ValueOf(val).Elem()
 	offset, err := parseField(v, b, 0, parseFieldParameters(params))
 	if err != nil {
 		return nil, err

@@ -62,7 +62,7 @@ func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (n i
 		p.printf("nil\n")
 		return
 	}
-	p.print(reflect.NewValue(x))
+	p.print(reflect.ValueOf(x))
 	p.printf("\n")
 
 	return

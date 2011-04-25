@@ -605,7 +605,7 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr,
 	// Maps cannot be accessed by moving addresses around the way
 	// that slices etc. can.  We must recover a full reflection value for
 	// the iteration.
-	v := reflect.NewValue(unsafe.Unreflect(mtyp, unsafe.Pointer(p)))
+	v := reflect.ValueOf(unsafe.Unreflect(mtyp, unsafe.Pointer(p)))
 	n := int(state.decodeUint())
 	for i := 0; i < n; i++ {
 		key := decodeIntoValue(state, keyOp, keyIndir, allocValue(mtyp.Key()), ovfl)
@@ -965,9 +965,9 @@ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
 		// get to the receiver type?
 		var v reflect.Value
 		if ut.decIndir == -1 {
-			v = reflect.NewValue(unsafe.Unreflect(rcvrType, unsafe.Pointer(&p)))
+			v = reflect.ValueOf(unsafe.Unreflect(rcvrType, unsafe.Pointer(&p)))
 		} else {
-			v = reflect.NewValue(unsafe.Unreflect(rcvrType, p))
+			v = reflect.ValueOf(unsafe.Unreflect(rcvrType, p))
 		}
 		state.dec.decodeGobDecoder(state, v, methodIndex(rcvrType, gobDecodeMethodName))
 	}
@@ -1159,7 +1159,7 @@ func (dec *Decoder) getDecEnginePtr(remoteId typeId, ut *userTypeInfo) (enginePt
 // emptyStruct is the type we compile into when ignoring a struct value.
 type emptyStruct struct{}
 
-var emptyStructType = reflect.Typeof(emptyStruct{})
+var emptyStructType = reflect.TypeOf(emptyStruct{})
 
 // getDecEnginePtr returns the engine for the specified type when the value is to be discarded.
 func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err os.Error) {
@@ -1226,7 +1226,7 @@ func (dec *Decoder) decodeIgnoredValue(wireId typeId) {
 
 func init() {
 	var iop, uop decOp
-	switch reflect.Typeof(int(0)).Bits() {
+	switch reflect.TypeOf(int(0)).Bits() {
 	case 32:
 		iop = decInt32
 		uop = decUint32
@@ -1240,7 +1240,7 @@ func init() {
 	decOpTable[reflect.Uint] = uop
 
 	// Finally uintptr
-	switch reflect.Typeof(uintptr(0)).Bits() {
+	switch reflect.TypeOf(uintptr(0)).Bits() {
 	case 32:
 		uop = decUint32
 	case 64:

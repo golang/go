@@ -21,7 +21,7 @@ type tx struct {
 	x int
 }
 
-var txType = reflect.Typeof((*tx)(nil)).Elem()
+var txType = reflect.TypeOf((*tx)(nil)).Elem()
 
 // A type that can unmarshal itself.
 
@@ -64,7 +64,7 @@ var unmarshalTests = []unmarshalTest{
 	{`"g-clef: \uD834\uDD1E"`, new(string), "g-clef: \U0001D11E", nil},
 	{`"invalid: \uD834x\uDD1E"`, new(string), "invalid: \uFFFDx\uFFFD", nil},
 	{"null", new(interface{}), nil, nil},
-	{`{"X": [1,2,3], "Y": 4}`, new(T), T{Y: 4}, &UnmarshalTypeError{"array", reflect.Typeof("")}},
+	{`{"X": [1,2,3], "Y": 4}`, new(T), T{Y: 4}, &UnmarshalTypeError{"array", reflect.TypeOf("")}},
 	{`{"x": 1}`, new(tx), tx{}, &UnmarshalFieldError{"x", txType, txType.Field(0)}},
 
 	// skip invalid tags
@@ -138,7 +138,7 @@ func TestUnmarshal(t *testing.T) {
 			continue
 		}
 		// v = new(right-type)
-		v := reflect.New(reflect.Typeof(tt.ptr).Elem())
+		v := reflect.New(reflect.TypeOf(tt.ptr).Elem())
 		if err := Unmarshal([]byte(in), v.Interface()); !reflect.DeepEqual(err, tt.err) {
 			t.Errorf("#%d: %v want %v", i, err, tt.err)
 			continue

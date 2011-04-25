@@ -73,10 +73,10 @@ func (imp *Importer) shutdown() {
 func (imp *Importer) run() {
 	// Loop on responses; requests are sent by ImportNValues()
 	hdr := new(header)
-	hdrValue := reflect.NewValue(hdr)
+	hdrValue := reflect.ValueOf(hdr)
 	ackHdr := new(header)
 	err := new(error)
-	errValue := reflect.NewValue(err)
+	errValue := reflect.ValueOf(err)
 	for {
 		*hdr = header{}
 		if e := imp.decode(hdrValue); e != nil {

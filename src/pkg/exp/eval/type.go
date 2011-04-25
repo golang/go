@@ -86,7 +86,7 @@ func hashTypeArray(key []Type) uintptr {
 		if t == nil {
 			continue
 		}
-		addr := reflect.NewValue(t).Pointer()
+		addr := reflect.ValueOf(t).Pointer()
 		hash ^= addr
 	}
 	return hash

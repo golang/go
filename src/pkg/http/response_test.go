@@ -251,8 +251,8 @@ func TestReadResponse(t *testing.T) {
 }
 
 func diff(t *testing.T, prefix string, have, want interface{}) {
-	hv := reflect.NewValue(have).Elem()
-	wv := reflect.NewValue(want).Elem()
+	hv := reflect.ValueOf(have).Elem()
+	wv := reflect.ValueOf(want).Elem()
 	if hv.Type() != wv.Type() {
 		t.Errorf("%s: type mismatch %v vs %v", prefix, hv.Type(), wv.Type())
 	}

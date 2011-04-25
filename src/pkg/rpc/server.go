@@ -133,7 +133,7 @@ const (
 // Precompute the reflect type for os.Error.  Can't use os.Error directly
 // because Typeof takes an empty interface value.  This is annoying.
 var unusedError *os.Error
-var typeOfOsError = reflect.Typeof(unusedError).Elem()
+var typeOfOsError = reflect.TypeOf(unusedError).Elem()
 
 type methodType struct {
 	sync.Mutex // protects counters
@@ -219,8 +219,8 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 		server.serviceMap = make(map[string]*service)
 	}
 	s := new(service)
-	s.typ = reflect.Typeof(rcvr)
-	s.rcvr = reflect.NewValue(rcvr)
+	s.typ = reflect.TypeOf(rcvr)
+	s.rcvr = reflect.ValueOf(rcvr)
 	sname := reflect.Indirect(s.rcvr).Type().Name()
 	if useName {
 		sname = name

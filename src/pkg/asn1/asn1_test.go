@@ -307,7 +307,7 @@ var unmarshalTestData = []struct {
 
 func TestUnmarshal(t *testing.T) {
 	for i, test := range unmarshalTestData {
-		pv := reflect.New(reflect.Typeof(test.out).Elem())
+		pv := reflect.New(reflect.TypeOf(test.out).Elem())
 		val := pv.Interface()
 		_, err := Unmarshal(test.in, val)
 		if err != nil {

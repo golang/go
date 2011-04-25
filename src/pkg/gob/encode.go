@@ -555,7 +555,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 				// Maps cannot be accessed by moving addresses around the way
 				// that slices etc. can.  We must recover a full reflection value for
 				// the iteration.
-				v := reflect.NewValue(unsafe.Unreflect(t, unsafe.Pointer(p)))
+				v := reflect.ValueOf(unsafe.Unreflect(t, unsafe.Pointer(p)))
 				mv := reflect.Indirect(v)
 				if !state.sendZero && mv.Len() == 0 {
 					return
@@ -576,7 +576,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				// Interfaces transmit the name and contents of the concrete
 				// value they contain.
-				v := reflect.NewValue(unsafe.Unreflect(t, unsafe.Pointer(p)))
+				v := reflect.ValueOf(unsafe.Unreflect(t, unsafe.Pointer(p)))
 				iv := reflect.Indirect(v)
 				if !state.sendZero && (!iv.IsValid() || iv.IsNil()) {
 					return
@@ -619,9 +619,9 @@ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 		var v reflect.Value
 		if ut.encIndir == -1 {
 			// Need to climb up one level to turn value into pointer.
-			v = reflect.NewValue(unsafe.Unreflect(rt, unsafe.Pointer(&p)))
+			v = reflect.ValueOf(unsafe.Unreflect(rt, unsafe.Pointer(&p)))
 		} else {
-			v = reflect.NewValue(unsafe.Unreflect(rt, p))
+			v = reflect.ValueOf(unsafe.Unreflect(rt, p))
 		}
 		state.update(i)
 		state.enc.encodeGobEncoder(state.b, v, methodIndex(rt, gobEncodeMethodName))

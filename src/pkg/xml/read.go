@@ -139,7 +139,7 @@ import (
 // to a freshly allocated value and then mapping the element to that value.
 //
 func Unmarshal(r io.Reader, val interface{}) os.Error {
-	v := reflect.NewValue(val)
+	v := reflect.ValueOf(val)
 	if v.Kind() != reflect.Ptr {
 		return os.NewError("non-pointer passed to Unmarshal")
 	}
@@ -176,7 +176,7 @@ func (e *TagPathError) String() string {
 // Passing a nil start element indicates that Unmarshal should
 // read the token stream to find the start element.
 func (p *Parser) Unmarshal(val interface{}, start *StartElement) os.Error {
-	v := reflect.NewValue(val)
+	v := reflect.ValueOf(val)
 	if v.Kind() != reflect.Ptr {
 		return os.NewError("non-pointer passed to Unmarshal")
 	}
@@ -280,7 +280,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 
 	case reflect.Struct:
 		if _, ok := v.Interface().(Name); ok {
-			v.Set(reflect.NewValue(start.Name))
+			v.Set(reflect.ValueOf(start.Name))
 			break
 		}
 
@@ -316,7 +316,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 			if _, ok := v.Interface().(Name); !ok {
 				return UnmarshalError(sv.Type().String() + " field XMLName does not have type xml.Name")
 			}
-			v.Set(reflect.NewValue(start.Name))
+			v.Set(reflect.ValueOf(start.Name))
 		}
 
 		// Assign attributes.
@@ -508,21 +508,21 @@ Loop:
 	case reflect.String:
 		t.SetString(string(data))
 	case reflect.Slice:
-		t.Set(reflect.NewValue(data))
+		t.Set(reflect.ValueOf(data))
 	}
 
 	switch t := saveComment; t.Kind() {
 	case reflect.String:
 		t.SetString(string(comment))
 	case reflect.Slice:
-		t.Set(reflect.NewValue(comment))
+		t.Set(reflect.ValueOf(comment))
 	}
 
 	switch t := saveXML; t.Kind() {
 	case reflect.String:
 		t.SetString(string(saveXMLData))
 	case reflect.Slice:
-		t.Set(reflect.NewValue(saveXMLData))
+		t.Set(reflect.ValueOf(saveXMLData))
 	}
 
 	return nil

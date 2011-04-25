@@ -260,7 +260,7 @@ func getField(v reflect.Value, i int) reflect.Value {
 	val := v.Field(i)
 	if i := val; i.Kind() == reflect.Interface {
 		if inter := i.Interface(); inter != nil {
-			return reflect.NewValue(inter)
+			return reflect.ValueOf(inter)
 		}
 	}
 	return val
@@ -284,7 +284,7 @@ func (p *pp) unknownType(v interface{}) {
 		return
 	}
 	p.buf.WriteByte('?')
-	p.buf.WriteString(reflect.Typeof(v).String())
+	p.buf.WriteString(reflect.TypeOf(v).String())
 	p.buf.WriteByte('?')
 }
 
@@ -296,7 +296,7 @@ func (p *pp) badVerb(verb int, val interface{}) {
 	if val == nil {
 		p.buf.Write(nilAngleBytes)
 	} else {
-		p.buf.WriteString(reflect.Typeof(val).String())
+		p.buf.WriteString(reflect.TypeOf(val).String())
 		p.add('=')
 		p.printField(val, 'v', false, false, 0)
 	}
@@ -527,7 +527,7 @@ func (p *pp) fmtPointer(field interface{}, value reflect.Value, verb int, goSynt
 	}
 	if goSyntax {
 		p.add('(')
-		p.buf.WriteString(reflect.Typeof(field).String())
+		p.buf.WriteString(reflect.TypeOf(field).String())
 		p.add(')')
 		p.add('(')
 		if u == 0 {
@@ -542,10 +542,10 @@ func (p *pp) fmtPointer(field interface{}, value reflect.Value, verb int, goSynt
 }
 
 var (
-	intBits     = reflect.Typeof(0).Bits()
-	floatBits   = reflect.Typeof(0.0).Bits()
-	complexBits = reflect.Typeof(1i).Bits()
-	uintptrBits = reflect.Typeof(uintptr(0)).Bits()
+	intBits     = reflect.TypeOf(0).Bits()
+	floatBits   = reflect.TypeOf(0.0).Bits()
+	complexBits = reflect.TypeOf(1i).Bits()
+	uintptrBits = reflect.TypeOf(uintptr(0)).Bits()
 )
 
 func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth int) (wasString bool) {
@@ -562,10 +562,10 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth 
 	// %T (the value's type) and %p (its address) are special; we always do them first.
 	switch verb {
 	case 'T':
-		p.printField(reflect.Typeof(field).String(), 's', false, false, 0)
+		p.printField(reflect.TypeOf(field).String(), 's', false, false, 0)
 		return false
 	case 'p':
-		p.fmtPointer(field, reflect.NewValue(field), verb, goSyntax)
+		p.fmtPointer(field, reflect.ValueOf(field), verb, goSyntax)
 		return false
 	}
 	// Is it a Formatter?
@@ -653,7 +653,7 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth 
 	}
 
 	// Need to use reflection
-	value := reflect.NewValue(field)
+	value := reflect.ValueOf(field)
 
 BigSwitch:
 	switch f := value; f.Kind() {
@@ -704,7 +704,7 @@ BigSwitch:
 		}
 	case reflect.Struct:
 		if goSyntax {
-			p.buf.WriteString(reflect.Typeof(field).String())
+			p.buf.WriteString(reflect.TypeOf(field).String())
 		}
 		p.add('{')
 		v := f
@@ -730,7 +730,7 @@ BigSwitch:
 		value := f.Elem()
 		if !value.IsValid() {
 			if goSyntax {
-				p.buf.WriteString(reflect.Typeof(field).String())
+				p.buf.WriteString(reflect.TypeOf(field).String())
 				p.buf.Write(nilParenBytes)
 			} else {
 				p.buf.Write(nilAngleBytes)
@@ -756,7 +756,7 @@ BigSwitch:
 			return verb == 's'
 		}
 		if goSyntax {
-			p.buf.WriteString(reflect.Typeof(field).String())
+			p.buf.WriteString(reflect.TypeOf(field).String())
 			p.buf.WriteByte('{')
 		} else {
 			p.buf.WriteByte('[')
@@ -794,7 +794,7 @@ BigSwitch:
 		}
 		if goSyntax {
 			p.buf.WriteByte('(')
-			p.buf.WriteString(reflect.Typeof(field).String())
+			p.buf.WriteString(reflect.TypeOf(field).String())
 			p.buf.WriteByte(')')
 			p.buf.WriteByte('(')
 			if v == 0 {
@@ -915,7 +915,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 		for ; fieldnum < len(a); fieldnum++ {
 			field := a[fieldnum]
 			if field != nil {
-				p.buf.WriteString(reflect.Typeof(field).String())
+				p.buf.WriteString(reflect.TypeOf(field).String())
 				p.buf.WriteByte('=')
 			}
 			p.printField(field, 'v', false, false, 0)
@@ -934,7 +934,7 @@ func (p *pp) doPrint(a []interface{}, addspace, addnewline bool) {
 		// always add spaces if we're doing println
 		field := a[fieldnum]
 		if fieldnum > 0 {
-			isString := field != nil && reflect.Typeof(field).Kind() == reflect.String
+			isString := field != nil && reflect.TypeOf(field).Kind() == reflect.String
 			if addspace || !isString && !prevString {
 				p.buf.WriteByte(' ')
 			}
