@@ -997,7 +997,10 @@ def CheckTabfmt(ui, repo, files, just_warn):
 	for f in files:
 		try:
 			for line in open(f, 'r'):
-				if line.startswith('    '):
+				# Four leading spaces is enough to complain about,
+				# except that some Plan 9 code uses four spaces as the label indent,
+				# so allow that.
+				if line.startswith('    ') and not re.match('    [A-Za-z0-9_]+:', line):
 					badfiles.append(f)
 					break
 		except:
@@ -1627,7 +1630,7 @@ def submit(ui, repo, *pats, **opts):
 		if r == 0:
 			raise util.Abort("local repository out of date; must sync before submit")
 	except:
-		real_rollback(repo)
+		real_rollback()
 		raise
 
 	# we're committed. upload final patch, close review, add commit message
@@ -1916,6 +1919,16 @@ def IsRietveldSubmitted(ui, clname, hex):
 			return True
 	return False
 
+def IsRietveldMailed(ui, clname):
+	feed = XMLGet(ui, "/rss/issue/" + clname)
+	if feed is None:
+		return False
+	for sum in feed.findall("{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}summary"):
+		text = sum.text.strip()
+		if re.match("I'd like you to review this change", text):
+			return True
+	return False
+
 def DownloadCL(ui, repo, clname):
 	set_status("downloading CL " + clname)
 	cl, err = LoadCL(ui, repo, clname)
@@ -1978,7 +1991,9 @@ def DownloadCL(ui, repo, clname):
 	# Print warning if email is not in CONTRIBUTORS file.
 	him = FindContributor(ui, repo, email)
 	me = FindContributor(ui, repo, None)
-	if him != me:
+	if him == me:
+		cl.mailed = IsRietveldMailed(ui, clname)
+	else:
 		cl.copied_from = email
 
 	return cl, vers, diffdata, ""
