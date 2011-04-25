@@ -38,11 +38,11 @@ func main() {
 	// meaning that reflect data for v0, v1 didn't get confused.
 
 	// path is full (rooted) path name.  check suffix for gc, prefix for gccgo
-	if s := reflect.Typeof(v0).PkgPath(); !strings.HasSuffix(s, "/bug0") && !strings.HasPrefix(s, "bug0") {
+	if s := reflect.TypeOf(v0).PkgPath(); !strings.HasSuffix(s, "/bug0") && !strings.HasPrefix(s, "bug0") {
 		println("bad v0 path", len(s), s)
 		panic("fail")
 	}
-	if s := reflect.Typeof(v1).PkgPath(); !strings.HasSuffix(s, "/bug1") && !strings.HasPrefix(s, "bug1") {
+	if s := reflect.TypeOf(v1).PkgPath(); !strings.HasSuffix(s, "/bug1") && !strings.HasPrefix(s, "bug1") {
 		println("bad v1 path", s)
 		panic("fail")
 	}

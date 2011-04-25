@@ -288,7 +288,7 @@ var pathTests = []interface{}{
 
 func TestUnmarshalPaths(t *testing.T) {
 	for _, pt := range pathTests {
-		v := reflect.New(reflect.Typeof(pt).Elem()).Interface()
+		v := reflect.New(reflect.TypeOf(pt).Elem()).Interface()
 		if err := Unmarshal(StringReader(pathTestString), v); err != nil {
 			t.Fatalf("Unmarshal: %s", err)
 		}
@@ -313,8 +313,8 @@ type BadPathTestB struct {
 var badPathTests = []struct {
 	v, e interface{}
 }{
-	{&BadPathTestA{}, &TagPathError{reflect.Typeof(BadPathTestA{}), "First", "items>item1", "Second", "items>"}},
-	{&BadPathTestB{}, &TagPathError{reflect.Typeof(BadPathTestB{}), "First", "items>item1", "Second", "items>item1>value"}},
+	{&BadPathTestA{}, &TagPathError{reflect.TypeOf(BadPathTestA{}), "First", "items>item1", "Second", "items>"}},
+	{&BadPathTestB{}, &TagPathError{reflect.TypeOf(BadPathTestB{}), "First", "items>item1", "Second", "items>item1>value"}},
 }
 
 func TestUnmarshalBadPaths(t *testing.T) {

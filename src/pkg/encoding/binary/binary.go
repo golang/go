@@ -126,7 +126,7 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // and written to successive fields of the data.
 func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 	var v reflect.Value
-	switch d := reflect.NewValue(data); d.Kind() {
+	switch d := reflect.ValueOf(data); d.Kind() {
 	case reflect.Ptr:
 		v = d.Elem()
 	case reflect.Slice:
@@ -155,7 +155,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 // Bytes written to w are encoded using the specified byte order
 // and read from successive fields of the data.
 func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
-	v := reflect.Indirect(reflect.NewValue(data))
+	v := reflect.Indirect(reflect.ValueOf(data))
 	size := TotalSize(v)
 	if size < 0 {
 		return os.NewError("binary.Write: invalid type " + v.Type().String())

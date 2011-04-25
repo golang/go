@@ -102,7 +102,7 @@ type myStruct struct {
 }
 
 func (m myStruct) Generate(r *rand.Rand, _ int) reflect.Value {
-	return reflect.NewValue(myStruct{x: 42})
+	return reflect.ValueOf(myStruct{x: 42})
 }
 
 func myStructProperty(in myStruct) bool { return in.x == 42 }

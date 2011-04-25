@@ -646,7 +646,7 @@ func (t *Template) lookup(st *state, v reflect.Value, name string) reflect.Value
 			}
 			return av.FieldByName(name)
 		case reflect.Map:
-			if v := av.MapIndex(reflect.NewValue(name)); v.IsValid() {
+			if v := av.MapIndex(reflect.ValueOf(name)); v.IsValid() {
 				return v
 			}
 			return reflect.Zero(typ.Elem())
@@ -797,7 +797,7 @@ func (t *Template) executeElement(i int, st *state) int {
 		return elem.end
 	}
 	e := t.elems.At(i)
-	t.execError(st, 0, "internal error: bad directive in execute: %v %T\n", reflect.NewValue(e).Interface(), e)
+	t.execError(st, 0, "internal error: bad directive in execute: %v %T\n", reflect.ValueOf(e).Interface(), e)
 	return 0
 }
 
@@ -980,7 +980,7 @@ func (t *Template) ParseFile(filename string) (err os.Error) {
 // generating output to wr.
 func (t *Template) Execute(wr io.Writer, data interface{}) (err os.Error) {
 	// Extract the driver data.
-	val := reflect.NewValue(data)
+	val := reflect.ValueOf(data)
 	defer checkError(&err)
 	t.p = 0
 	t.execute(0, t.elems.Len(), &state{parent: nil, data: val, wr: wr})

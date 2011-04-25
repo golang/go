@@ -32,7 +32,7 @@ type testMessage interface {
 func TestMarshalUnmarshal(t *testing.T) {
 	rand := rand.New(rand.NewSource(0))
 	for i, iface := range tests {
-		ty := reflect.NewValue(iface).Type()
+		ty := reflect.ValueOf(iface).Type()
 
 		n := 100
 		if testing.Short() {
@@ -125,7 +125,7 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		m.supportedCurves[i] = uint16(rand.Intn(30000))
 	}
 
-	return reflect.NewValue(m)
+	return reflect.ValueOf(m)
 }
 
 func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
@@ -146,7 +146,7 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		}
 	}
 
-	return reflect.NewValue(m)
+	return reflect.ValueOf(m)
 }
 
 func (*certificateMsg) Generate(rand *rand.Rand, size int) reflect.Value {
@@ -156,7 +156,7 @@ func (*certificateMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	for i := 0; i < numCerts; i++ {
 		m.certificates[i] = randomBytes(rand.Intn(10)+1, rand)
 	}
-	return reflect.NewValue(m)
+	return reflect.ValueOf(m)
 }
 
 func (*certificateRequestMsg) Generate(rand *rand.Rand, size int) reflect.Value {
@@ -167,13 +167,13 @@ func (*certificateRequestMsg) Generate(rand *rand.Rand, size int) reflect.Value 
 	for i := 0; i < numCAs; i++ {
 		m.certificateAuthorities[i] = randomBytes(rand.Intn(15)+1, rand)
 	}
-	return reflect.NewValue(m)
+	return reflect.ValueOf(m)
 }
 
 func (*certificateVerifyMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &certificateVerifyMsg{}
 	m.signature = randomBytes(rand.Intn(15)+1, rand)
-	return reflect.NewValue(m)
+	return reflect.ValueOf(m)
 }
 
 func (*certificateStatusMsg) Generate(rand *rand.Rand, size int) reflect.Value {
@@ -184,23 +184,23 @@ func (*certificateStatusMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	} else {
 		m.statusType = 42
 	}
-	return reflect.NewValue(m)
+	return reflect.ValueOf(m)
 }
 
 func (*clientKeyExchangeMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &clientKeyExchangeMsg{}
 	m.ciphertext = randomBytes(rand.Intn(1000)+1, rand)
-	return reflect.NewValue(m)
+	return reflect.ValueOf(m)
 }
 
 func (*finishedMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &finishedMsg{}
 	m.verifyData = randomBytes(12, rand)
-	return reflect.NewValue(m)
+	return reflect.ValueOf(m)
 }
 
 func (*nextProtoMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &nextProtoMsg{}
 	m.proto = randomString(rand.Intn(255), rand)
-	return reflect.NewValue(m)
+	return reflect.ValueOf(m)
 }

@@ -52,7 +52,7 @@ func main() {
 	x.z = x.y
 
 	// check mem and string
-	v := reflect.NewValue(x)
+	v := reflect.ValueOf(x)
 	i := v.Field(0)
 	j := v.Field(1)
 	assert(i.Interface() == j.Interface())

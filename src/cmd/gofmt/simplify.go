@@ -26,7 +26,7 @@ func (s *simplifier) Visit(node ast.Node) ast.Visitor {
 		}
 
 		if eltType != nil {
-			typ := reflect.NewValue(eltType)
+			typ := reflect.ValueOf(eltType)
 			for _, x := range outer.Elts {
 				// look at value of indexed/named elements
 				if t, ok := x.(*ast.KeyValueExpr); ok {
@@ -37,7 +37,7 @@ func (s *simplifier) Visit(node ast.Node) ast.Visitor {
 				// matches the outer literal's element type exactly, the inner
 				// literal type may be omitted
 				if inner, ok := x.(*ast.CompositeLit); ok {
-					if match(nil, typ, reflect.NewValue(inner.Type)) {
+					if match(nil, typ, reflect.ValueOf(inner.Type)) {
 						inner.Type = nil
 					}
 				}

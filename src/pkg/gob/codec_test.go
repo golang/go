@@ -1004,7 +1004,7 @@ func TestInvalidField(t *testing.T) {
 	bad0.CH = make(chan int)
 	b := new(bytes.Buffer)
 	dummyEncoder := new(Encoder) // sufficient for this purpose.
-	dummyEncoder.encode(b, reflect.NewValue(&bad0), userType(reflect.Typeof(&bad0)))
+	dummyEncoder.encode(b, reflect.ValueOf(&bad0), userType(reflect.TypeOf(&bad0)))
 	if err := dummyEncoder.err; err == nil {
 		t.Error("expected error; got none")
 	} else if strings.Index(err.String(), "type") < 0 {

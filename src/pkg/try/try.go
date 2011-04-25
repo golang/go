@@ -67,7 +67,7 @@ func printSlice(firstArg string, args []interface{}) {
 func tryMethods(pkg, firstArg string, args []interface{}) {
 	defer func() { recover() }()
 	// Is the first argument something with methods?
-	v := reflect.NewValue(args[0])
+	v := reflect.ValueOf(args[0])
 	typ := v.Type()
 	if typ.NumMethod() == 0 {
 		return
@@ -90,7 +90,7 @@ func tryMethod(pkg, firstArg string, method reflect.Method, args []interface{}) 
 // tryFunction sees if fn satisfies the arguments.
 func tryFunction(pkg, name string, fn interface{}, args []interface{}) {
 	defer func() { recover() }()
-	rfn := reflect.NewValue(fn)
+	rfn := reflect.ValueOf(fn)
 	typ := rfn.Type()
 	tryOneFunction(pkg, "", name, typ, rfn, args)
 }
@@ -120,7 +120,7 @@ func tryOneFunction(pkg, firstArg, name string, typ reflect.Type, rfn reflect.Va
 	// Build the call args.
 	argsVal := make([]reflect.Value, typ.NumIn()+typ.NumOut())
 	for i, a := range args {
-		argsVal[i] = reflect.NewValue(a)
+		argsVal[i] = reflect.ValueOf(a)
 	}
 	// Call the function and see if the results are as expected.
 	resultVal := rfn.Call(argsVal[:typ.NumIn()])
@@ -161,7 +161,7 @@ func tryOneFunction(pkg, firstArg, name string, typ reflect.Type, rfn reflect.Va
 
 // compatible reports whether the argument is compatible with the type.
 func compatible(arg interface{}, typ reflect.Type) bool {
-	if reflect.Typeof(arg) == typ {
+	if reflect.TypeOf(arg) == typ {
 		return true
 	}
 	if arg == nil {

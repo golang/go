@@ -12,7 +12,7 @@ type S1 struct{ i int }
 type S2 struct{ S1 }
 
 func main() {
-	typ := reflect.Typeof(S2{})
+	typ := reflect.TypeOf(S2{})
 	f := typ.Field(0)
 	if f.Name != "S1" || f.Anonymous != true {
 		println("BUG: ", f.Name, f.Anonymous)

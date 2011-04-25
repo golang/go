@@ -86,8 +86,8 @@ const (
 )
 
 var (
-	gobEncoderInterfaceType = reflect.Typeof(new(GobEncoder)).Elem()
-	gobDecoderInterfaceType = reflect.Typeof(new(GobDecoder)).Elem()
+	gobEncoderInterfaceType = reflect.TypeOf(new(GobEncoder)).Elem()
+	gobDecoderInterfaceType = reflect.TypeOf(new(GobDecoder)).Elem()
 )
 
 // implementsInterface reports whether the type implements the
@@ -227,18 +227,18 @@ var (
 )
 
 // Predefined because it's needed by the Decoder
-var tWireType = mustGetTypeInfo(reflect.Typeof(wireType{})).id
+var tWireType = mustGetTypeInfo(reflect.TypeOf(wireType{})).id
 var wireTypeUserInfo *userTypeInfo // userTypeInfo of (*wireType)
 
 func init() {
 	// Some magic numbers to make sure there are no surprises.
 	checkId(16, tWireType)
-	checkId(17, mustGetTypeInfo(reflect.Typeof(arrayType{})).id)
-	checkId(18, mustGetTypeInfo(reflect.Typeof(CommonType{})).id)
-	checkId(19, mustGetTypeInfo(reflect.Typeof(sliceType{})).id)
-	checkId(20, mustGetTypeInfo(reflect.Typeof(structType{})).id)
-	checkId(21, mustGetTypeInfo(reflect.Typeof(fieldType{})).id)
-	checkId(23, mustGetTypeInfo(reflect.Typeof(mapType{})).id)
+	checkId(17, mustGetTypeInfo(reflect.TypeOf(arrayType{})).id)
+	checkId(18, mustGetTypeInfo(reflect.TypeOf(CommonType{})).id)
+	checkId(19, mustGetTypeInfo(reflect.TypeOf(sliceType{})).id)
+	checkId(20, mustGetTypeInfo(reflect.TypeOf(structType{})).id)
+	checkId(21, mustGetTypeInfo(reflect.TypeOf(fieldType{})).id)
+	checkId(23, mustGetTypeInfo(reflect.TypeOf(mapType{})).id)
 
 	builtinIdToType = make(map[typeId]gobType)
 	for k, v := range idToType {
@@ -252,7 +252,7 @@ func init() {
 	}
 	nextId = firstUserId
 	registerBasics()
-	wireTypeUserInfo = userType(reflect.Typeof((*wireType)(nil)))
+	wireTypeUserInfo = userType(reflect.TypeOf((*wireType)(nil)))
 }
 
 // Array type
@@ -553,7 +553,7 @@ func checkId(want, got typeId) {
 // used for building the basic types; called only from init().  the incoming
 // interface always refers to a pointer.
 func bootstrapType(name string, e interface{}, expect typeId) typeId {
-	rt := reflect.Typeof(e).Elem()
+	rt := reflect.TypeOf(e).Elem()
 	_, present := types[rt]
 	if present {
 		panic("bootstrap type already present: " + name + ", " + rt.String())
@@ -707,7 +707,7 @@ func RegisterName(name string, value interface{}) {
 		// reserved for nil
 		panic("attempt to register empty name")
 	}
-	base := userType(reflect.Typeof(value)).base
+	base := userType(reflect.TypeOf(value)).base
 	// Check for incompatible duplicates.
 	if t, ok := nameToConcreteType[name]; ok && t != base {
 		panic("gob: registering duplicate types for " + name)
@@ -716,7 +716,7 @@ func RegisterName(name string, value interface{}) {
 		panic("gob: registering duplicate names for " + base.String())
 	}
 	// Store the name and type provided by the user....
-	nameToConcreteType[name] = reflect.Typeof(value)
+	nameToConcreteType[name] = reflect.TypeOf(value)
 	// but the flattened type in the type table, since that's what decode needs.
 	concreteTypeToName[base] = name
 }
@@ -729,7 +729,7 @@ func RegisterName(name string, value interface{}) {
 // between types and names is not a bijection.
 func Register(value interface{}) {
 	// Default to printed representation for unnamed types
-	rt := reflect.Typeof(value)
+	rt := reflect.TypeOf(value)
 	name := rt.String()
 
 	// But for named types (or pointers to them), qualify with import path.
