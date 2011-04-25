@@ -349,11 +349,13 @@ asmbmacho(void)
 
 	msect = newMachoSect(ms, "__data");
 	msect->addr = va+v;
-	msect->size = symaddr(lookup(".got", 0)) - msect->addr;
 	msect->off = v;
+	msect->size = segdata.filelen;
 
 	s = lookup(".got", 0);
 	if(s->size > 0) {
+		msect->size = symaddr(s) - msect->addr;
+
 		msect = newMachoSect(ms, "__nl_symbol_ptr");
 		msect->addr = symaddr(s);
 		msect->size = s->size;

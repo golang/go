@@ -445,6 +445,12 @@ loaddynimport(char *file, char *pkg, char *p, int n)
 		*strchr(name, ' ') = 0;
 		*strchr(def, ' ') = 0;
 		
+		if(debug['d']) {
+			fprint(2, "%s: %s: cannot use dynamic imports with -d flag\n", argv0, file);
+			nerrors++;
+			return;
+		}
+		
 		if(strcmp(name, "_") == 0 && strcmp(def, "_") == 0) {
 			// allow #pragma dynimport _ _ "foo.so"
 			// to force a link of foo.so.
@@ -463,7 +469,7 @@ loaddynimport(char *file, char *pkg, char *p, int n)
 	return;
 
 err:
-	fprint(2, "%s: invalid dynimport line: %s\n", argv0, p0);
+	fprint(2, "%s: %s: invalid dynimport line: %s\n", argv0, file, p0);
 	nerrors++;
 }
 
