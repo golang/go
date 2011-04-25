@@ -1139,6 +1139,32 @@ addmethod(Sym *sf, Type *t, int local)
 	pa = pa->type;
 	f = methtype(pa);
 	if(f == T) {
+		t = pa;
+		if(t != T) {
+			if(isptr[t->etype]) {
+				if(t->sym != S) {
+					yyerror("invalid receiver type %T (%T is a pointer type)", pa, t);
+					return;
+				}
+				t = t->type;
+			}
+		}
+		if(t != T) {
+			if(t->sym == S) {
+				yyerror("invalid receiver type %T (%T is an unnamed type)", pa, t);
+				return;
+			}
+			if(isptr[t->etype]) {
+				yyerror("invalid receiver type %T (%T is a pointer type)", pa, t);
+				return;
+			}
+			if(t->etype == TINTER) {
+				yyerror("invalid receiver type %T (%T is an interface type)", pa, t);
+				return;
+			}
+		}
+		// Should have picked off all the reasons above,
+		// but just in case, fall back to generic error.
 		yyerror("invalid receiver type %T", pa);
 		return;
 	}
