@@ -423,7 +423,7 @@ func (s *ss) token(skipSpace bool, f func(int) bool) []byte {
 
 // typeError indicates that the type of the operand did not match the format
 func (s *ss) typeError(field interface{}, expected string) {
-	s.errorString("expected field of type pointer to " + expected + "; found " + reflect.Typeof(field).String())
+	s.errorString("expected field of type pointer to " + expected + "; found " + reflect.TypeOf(field).String())
 }
 
 var complexError = os.ErrorString("syntax error scanning complex number")
@@ -908,7 +908,7 @@ func (s *ss) scanOne(verb int, field interface{}) {
 		// If we scanned to bytes, the slice would point at the buffer.
 		*v = []byte(s.convertString(verb))
 	default:
-		val := reflect.NewValue(v)
+		val := reflect.ValueOf(v)
 		ptr := val
 		if ptr.Kind() != reflect.Ptr {
 			s.errorString("Scan: type not a pointer: " + val.Type().String())

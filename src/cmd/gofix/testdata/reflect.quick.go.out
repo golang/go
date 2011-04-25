@@ -59,39 +59,39 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 
 	switch concrete := t; concrete.Kind() {
 	case reflect.Bool:
-		return reflect.NewValue(rand.Int()&1 == 0), true
+		return reflect.ValueOf(rand.Int()&1 == 0), true
 	case reflect.Float32, reflect.Float64, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr, reflect.Complex64, reflect.Complex128:
 		switch t.Kind() {
 		case reflect.Float32:
-			return reflect.NewValue(randFloat32(rand)), true
+			return reflect.ValueOf(randFloat32(rand)), true
 		case reflect.Float64:
-			return reflect.NewValue(randFloat64(rand)), true
+			return reflect.ValueOf(randFloat64(rand)), true
 		case reflect.Complex64:
-			return reflect.NewValue(complex(randFloat32(rand), randFloat32(rand))), true
+			return reflect.ValueOf(complex(randFloat32(rand), randFloat32(rand))), true
 		case reflect.Complex128:
-			return reflect.NewValue(complex(randFloat64(rand), randFloat64(rand))), true
+			return reflect.ValueOf(complex(randFloat64(rand), randFloat64(rand))), true
 		case reflect.Int16:
-			return reflect.NewValue(int16(randInt64(rand))), true
+			return reflect.ValueOf(int16(randInt64(rand))), true
 		case reflect.Int32:
-			return reflect.NewValue(int32(randInt64(rand))), true
+			return reflect.ValueOf(int32(randInt64(rand))), true
 		case reflect.Int64:
-			return reflect.NewValue(randInt64(rand)), true
+			return reflect.ValueOf(randInt64(rand)), true
 		case reflect.Int8:
-			return reflect.NewValue(int8(randInt64(rand))), true
+			return reflect.ValueOf(int8(randInt64(rand))), true
 		case reflect.Int:
-			return reflect.NewValue(int(randInt64(rand))), true
+			return reflect.ValueOf(int(randInt64(rand))), true
 		case reflect.Uint16:
-			return reflect.NewValue(uint16(randInt64(rand))), true
+			return reflect.ValueOf(uint16(randInt64(rand))), true
 		case reflect.Uint32:
-			return reflect.NewValue(uint32(randInt64(rand))), true
+			return reflect.ValueOf(uint32(randInt64(rand))), true
 		case reflect.Uint64:
-			return reflect.NewValue(uint64(randInt64(rand))), true
+			return reflect.ValueOf(uint64(randInt64(rand))), true
 		case reflect.Uint8:
-			return reflect.NewValue(uint8(randInt64(rand))), true
+			return reflect.ValueOf(uint8(randInt64(rand))), true
 		case reflect.Uint:
-			return reflect.NewValue(uint(randInt64(rand))), true
+			return reflect.ValueOf(uint(randInt64(rand))), true
 		case reflect.Uintptr:
-			return reflect.NewValue(uintptr(randInt64(rand))), true
+			return reflect.ValueOf(uintptr(randInt64(rand))), true
 		}
 	case reflect.Map:
 		numElems := rand.Intn(complexSize)
@@ -130,7 +130,7 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 		for i := 0; i < numChars; i++ {
 			codePoints[i] = rand.Intn(0x10ffff)
 		}
-		return reflect.NewValue(string(codePoints)), true
+		return reflect.ValueOf(string(codePoints)), true
 	case reflect.Struct:
 		s := reflect.Zero(t)
 		for i := 0; i < s.NumField(); i++ {
@@ -339,7 +339,7 @@ func arbitraryValues(args []reflect.Value, f reflect.Type, config *Config, rand 
 }
 
 func functionAndType(f interface{}) (v reflect.Value, t reflect.Type, ok bool) {
-	v = reflect.NewValue(f)
+	v = reflect.ValueOf(f)
 	ok = v.Kind() == reflect.Func
 	if !ok {
 		return

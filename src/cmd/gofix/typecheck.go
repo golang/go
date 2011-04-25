@@ -259,7 +259,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string) {
 		if n == nil {
 			return
 		}
-		if false && reflect.Typeof(n).Kind() == reflect.Ptr { // debugging trace
+		if false && reflect.TypeOf(n).Kind() == reflect.Ptr { // debugging trace
 			defer func() {
 				if t := typeof[n]; t != "" {
 					pos := fset.Position(n.(ast.Node).Pos())
@@ -373,6 +373,11 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string) {
 			// make(T) has type T.
 			if isTopName(n.Fun, "make") && len(n.Args) >= 1 {
 				typeof[n] = gofmt(n.Args[0])
+				return
+			}
+			// new(T) has type *T
+			if isTopName(n.Fun, "new") && len(n.Args) == 1 {
+				typeof[n] = "*" + gofmt(n.Args[0])
 				return
 			}
 			// Otherwise, use type of function to determine arguments.

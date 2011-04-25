@@ -172,7 +172,7 @@ func (e *encodeState) marshal(v interface{}) (err os.Error) {
 			err = r.(os.Error)
 		}
 	}()
-	e.reflectValue(reflect.NewValue(v))
+	e.reflectValue(reflect.ValueOf(v))
 	return nil
 }
 
@@ -180,7 +180,7 @@ func (e *encodeState) error(err os.Error) {
 	panic(err)
 }
 
-var byteSliceType = reflect.Typeof([]byte(nil))
+var byteSliceType = reflect.TypeOf([]byte(nil))
 
 func (e *encodeState) reflectValue(v reflect.Value) {
 	if !v.IsValid() {
