@@ -17,8 +17,6 @@ import (
 
 const (
 	headerSize = 4 + 16 + 4*7
-	zoneDir    = "/usr/share/zoneinfo/"
-	zoneDir2   = "/usr/share/lib/zoneinfo/"
 )
 
 // Simple I/O interface to binary blob of data.
@@ -211,16 +209,22 @@ func setupZone() {
 	// no $TZ means use the system default /etc/localtime.
 	// $TZ="" means use UTC.
 	// $TZ="foo" means use /usr/share/zoneinfo/foo.
+	// Many systems use /usr/share/zoneinfo, Solaris 2 has
+	// /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ.
+	zoneDirs := []string{"/usr/share/zoneinfo/",
+		"/usr/share/lib/zoneinfo/",
+		"/usr/lib/locale/TZ/"}
 
 	tz, err := os.Getenverror("TZ")
 	switch {
 	case err == os.ENOENV:
 		zones, _ = readinfofile("/etc/localtime")
 	case len(tz) > 0:
-		var ok bool
-		zones, ok = readinfofile(zoneDir + tz)
-		if !ok {
-			zones, _ = readinfofile(zoneDir2 + tz)
+		for _, zoneDir := range zoneDirs {
+			var ok bool
+			if zones, ok = readinfofile(zoneDir + tz); ok {
+				break
+			}
 		}
 	case len(tz) == 0:
 		// do nothing: use UTC
