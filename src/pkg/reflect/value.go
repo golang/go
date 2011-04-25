@@ -1611,9 +1611,9 @@ func Indirect(v Value) Value {
 	return v.Elem()
 }
 
-// NewValue returns a new Value initialized to the concrete value
-// stored in the interface i.  NewValue(nil) returns the zero Value.
-func NewValue(i interface{}) Value {
+// ValueOf returns a new Value initialized to the concrete value
+// stored in the interface i.  ValueOf(nil) returns the zero Value.
+func ValueOf(i interface{}) Value {
 	if i == nil {
 		return Value{}
 	}
@@ -1626,7 +1626,7 @@ func NewValue(i interface{}) Value {
 // Zero returns a Value representing a zero value for the specified type.
 // The result is different from the zero value of the Value struct,
 // which represents no value at all.
-// For example, Zero(Typeof(42)) returns a Value with Kind Int and value 0.
+// For example, Zero(TypeOf(42)) returns a Value with Kind Int and value 0.
 func Zero(typ Type) Value {
 	if typ == nil {
 		panic("reflect: Zero(nil)")

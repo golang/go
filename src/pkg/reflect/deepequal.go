@@ -117,8 +117,8 @@ func DeepEqual(a1, a2 interface{}) bool {
 	if a1 == nil || a2 == nil {
 		return a1 == a2
 	}
-	v1 := NewValue(a1)
-	v2 := NewValue(a2)
+	v1 := ValueOf(a1)
+	v2 := ValueOf(a2)
 	if v1.Type() != v2.Type() {
 		return false
 	}
