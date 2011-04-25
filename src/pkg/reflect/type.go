@@ -5,9 +5,9 @@
 // Package reflect implements run-time reflection, allowing a program to
 // manipulate objects with arbitrary types.  The typical use is to take a value
 // with static type interface{} and extract its dynamic type information by
-// calling Typeof, which returns a Type.
+// calling TypeOf, which returns a Type.
 //
-// A call to NewValue returns a Value representing the run-time data.
+// A call to ValueOf returns a Value representing the run-time data.
 // Zero takes a Type and returns a Value representing a zero value
 // for that type.
 package reflect
@@ -808,8 +808,8 @@ func toType(p *runtime.Type) Type {
 	return toCommonType(p).toType()
 }
 
-// Typeof returns the reflection Type of the value in the interface{}.
-func Typeof(i interface{}) Type {
+// TypeOf returns the reflection Type of the value in the interface{}.
+func TypeOf(i interface{}) Type {
 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
 	return toType(eface.typ)
 }

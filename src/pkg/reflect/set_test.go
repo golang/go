@@ -20,82 +20,82 @@ func TestImplicitMapConversion(t *testing.T) {
 	{
 		// direct
 		m := make(map[int]int)
-		mv := NewValue(m)
-		mv.SetMapIndex(NewValue(1), NewValue(2))
+		mv := ValueOf(m)
+		mv.SetMapIndex(ValueOf(1), ValueOf(2))
 		x, ok := m[1]
 		if x != 2 {
 			t.Errorf("#1 after SetMapIndex(1,2): %d, %t (map=%v)", x, ok, m)
 		}
-		if n := mv.MapIndex(NewValue(1)).Interface().(int); n != 2 {
+		if n := mv.MapIndex(ValueOf(1)).Interface().(int); n != 2 {
 			t.Errorf("#1 MapIndex(1) = %d", n)
 		}
 	}
 	{
 		// convert interface key
 		m := make(map[interface{}]int)
-		mv := NewValue(m)
-		mv.SetMapIndex(NewValue(1), NewValue(2))
+		mv := ValueOf(m)
+		mv.SetMapIndex(ValueOf(1), ValueOf(2))
 		x, ok := m[1]
 		if x != 2 {
 			t.Errorf("#2 after SetMapIndex(1,2): %d, %t (map=%v)", x, ok, m)
 		}
-		if n := mv.MapIndex(NewValue(1)).Interface().(int); n != 2 {
+		if n := mv.MapIndex(ValueOf(1)).Interface().(int); n != 2 {
 			t.Errorf("#2 MapIndex(1) = %d", n)
 		}
 	}
 	{
 		// convert interface value
 		m := make(map[int]interface{})
-		mv := NewValue(m)
-		mv.SetMapIndex(NewValue(1), NewValue(2))
+		mv := ValueOf(m)
+		mv.SetMapIndex(ValueOf(1), ValueOf(2))
 		x, ok := m[1]
 		if x != 2 {
 			t.Errorf("#3 after SetMapIndex(1,2): %d, %t (map=%v)", x, ok, m)
 		}
-		if n := mv.MapIndex(NewValue(1)).Interface().(int); n != 2 {
+		if n := mv.MapIndex(ValueOf(1)).Interface().(int); n != 2 {
 			t.Errorf("#3 MapIndex(1) = %d", n)
 		}
 	}
 	{
 		// convert both interface key and interface value
 		m := make(map[interface{}]interface{})
-		mv := NewValue(m)
-		mv.SetMapIndex(NewValue(1), NewValue(2))
+		mv := ValueOf(m)
+		mv.SetMapIndex(ValueOf(1), ValueOf(2))
 		x, ok := m[1]
 		if x != 2 {
 			t.Errorf("#4 after SetMapIndex(1,2): %d, %t (map=%v)", x, ok, m)
 		}
-		if n := mv.MapIndex(NewValue(1)).Interface().(int); n != 2 {
+		if n := mv.MapIndex(ValueOf(1)).Interface().(int); n != 2 {
 			t.Errorf("#4 MapIndex(1) = %d", n)
 		}
 	}
 	{
 		// convert both, with non-empty interfaces
 		m := make(map[io.Reader]io.Writer)
-		mv := NewValue(m)
+		mv := ValueOf(m)
 		b1 := new(bytes.Buffer)
 		b2 := new(bytes.Buffer)
-		mv.SetMapIndex(NewValue(b1), NewValue(b2))
+		mv.SetMapIndex(ValueOf(b1), ValueOf(b2))
 		x, ok := m[b1]
 		if x != b2 {
 			t.Errorf("#5 after SetMapIndex(b1, b2): %p (!= %p), %t (map=%v)", x, b2, ok, m)
 		}
-		if p := mv.MapIndex(NewValue(b1)).Elem().Pointer(); p != uintptr(unsafe.Pointer(b2)) {
+		if p := mv.MapIndex(ValueOf(b1)).Elem().Pointer(); p != uintptr(unsafe.Pointer(b2)) {
 			t.Errorf("#5 MapIndex(b1) = %p want %p", p, b2)
 		}
 	}
 	{
 		// convert channel direction	
 		m := make(map[<-chan int]chan int)
-		mv := NewValue(m)
+		mv := ValueOf(m)
 		c1 := make(chan int)
 		c2 := make(chan int)
-		mv.SetMapIndex(NewValue(c1), NewValue(c2))
+		mv.SetMapIndex(ValueOf(c1), ValueOf(c2))
 		x, ok := m[c1]
 		if x != c2 {
 			t.Errorf("#6 after SetMapIndex(c1, c2): %p (!= %p), %t (map=%v)", x, c2, ok, m)
 		}
-		if p := mv.MapIndex(NewValue(c1)).Pointer(); p != NewValue(c2).Pointer() {
+		if p := mv.MapIndex(ValueOf(c1)).Pointer(); p != ValueOf(c2).Pointer() {
 			t.Errorf("#6 MapIndex(c1) = %p want %p", p, c2)
 		}
 	}
@@ -106,15 +106,15 @@ func TestImplicitMapConversion(t *testing.T) {
 		// when we do that though, so MyBuffer is defined
 		// at top level.
 		m := make(map[*MyBuffer]*bytes.Buffer)
-		mv := NewValue(m)
+		mv := ValueOf(m)
 		b1 := new(MyBuffer)
 		b2 := new(bytes.Buffer)
-		mv.SetMapIndex(NewValue(b1), NewValue(b2))
+		mv.SetMapIndex(ValueOf(b1), ValueOf(b2))
 		x, ok := m[b1]
 		if x != b2 {
 			t.Errorf("#7 after SetMapIndex(b1, b2): %p (!= %p), %t (map=%v)", x, b2, ok, m)
 		}
-		if p := mv.MapIndex(NewValue(b1)).Pointer(); p != uintptr(unsafe.Pointer(b2)) {
+		if p := mv.MapIndex(ValueOf(b1)).Pointer(); p != uintptr(unsafe.Pointer(b2)) {
 			t.Errorf("#7 MapIndex(b1) = %p want %p", p, b2)
 		}
 	}
@@ -126,8 +126,8 @@ func TestImplicitSetConversion(t *testing.T) {
 	// Just make sure conversions are being applied at all.
 	var r io.Reader
 	b := new(bytes.Buffer)
-	rv := NewValue(&r).Elem()
-	rv.Set(NewValue(b))
+	rv := ValueOf(&r).Elem()
+	rv.Set(ValueOf(b))
 	if r != b {
 		t.Errorf("after Set: r=%T(%v)", r, r)
 	}
@@ -136,7 +136,7 @@ func TestImplicitSetConversion(t *testing.T) {
 func TestImplicitSendConversion(t *testing.T) {
 	c := make(chan io.Reader, 10)
 	b := new(bytes.Buffer)
-	NewValue(c).Send(NewValue(b))
+	ValueOf(c).Send(ValueOf(b))
 	if bb := <-c; bb != b {
 		t.Errorf("Received %p != %p", bb, b)
 	}
@@ -144,9 +144,9 @@ func TestImplicitSendConversion(t *testing.T) {
 
 func TestImplicitCallConversion(t *testing.T) {
 	// Arguments must be assignable to parameter types.
-	fv := NewValue(io.WriteString)
+	fv := ValueOf(io.WriteString)
 	b := new(bytes.Buffer)
-	fv.Call([]Value{NewValue(b), NewValue("hello world")})
+	fv.Call([]Value{ValueOf(b), ValueOf("hello world")})
 	if b.String() != "hello world" {
 		t.Errorf("After call: string=%q want %q", b.String(), "hello world")
 	}
@@ -155,9 +155,9 @@ func TestImplicitCallConversion(t *testing.T) {
 func TestImplicitAppendConversion(t *testing.T) {
 	// Arguments must be assignable to the slice's element type.
 	s := []io.Reader{}
-	sv := NewValue(&s).Elem()
+	sv := ValueOf(&s).Elem()
 	b := new(bytes.Buffer)
-	sv.Set(Append(sv, NewValue(b)))
+	sv.Set(Append(sv, ValueOf(b)))
 	if len(s) != 1 || s[0] != b {
 		t.Errorf("after append: s=%v want [%p]", s, b)
 	}
@@ -176,8 +176,8 @@ var implementsTests = []struct {
 
 func TestImplements(t *testing.T) {
 	for _, tt := range implementsTests {
-		xv := Typeof(tt.x).Elem()
-		xt := Typeof(tt.t).Elem()
+		xv := TypeOf(tt.x).Elem()
+		xt := TypeOf(tt.t).Elem()
 		if b := xv.Implements(xt); b != tt.b {
 			t.Errorf("(%s).Implements(%s) = %v, want %v", xv.String(), xt.String(), b, tt.b)
 		}
@@ -202,8 +202,8 @@ type IntPtr1 *int
 
 func TestAssignableTo(t *testing.T) {
 	for _, tt := range append(assignableTests, implementsTests...) {
-		xv := Typeof(tt.x).Elem()
-		xt := Typeof(tt.t).Elem()
+		xv := TypeOf(tt.x).Elem()
+		xt := TypeOf(tt.t).Elem()
 		if b := xv.AssignableTo(xt); b != tt.b {
 			t.Errorf("(%s).AssignableTo(%s) = %v, want %v", xv.String(), xt.String(), b, tt.b)
 		}
