@@ -430,7 +430,7 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
 			if off+n > len(msg) {
 				return len(msg), false
 			}
-			reflect.Copy(reflect.NewValue(msg[off:off+n]), fv)
+			reflect.Copy(reflect.ValueOf(msg[off:off+n]), fv)
 			off += n
 		case reflect.String:
 			// There are multiple string encodings.
@@ -460,7 +460,7 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
 }
 
 func structValue(any interface{}) reflect.Value {
-	return reflect.NewValue(any).Elem()
+	return reflect.ValueOf(any).Elem()
 }
 
 func packStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
@@ -508,7 +508,7 @@ func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok boo
 			if off+n > len(msg) {
 				return len(msg), false
 			}
-			reflect.Copy(fv, reflect.NewValue(msg[off:off+n]))
+			reflect.Copy(fv, reflect.ValueOf(msg[off:off+n]))
 			off += n
 		case reflect.String:
 			var s string

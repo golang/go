@@ -671,7 +671,7 @@ func (f Format) Eval(env Environment, args ...interface{}) ([]byte, os.Error) {
 
 	go func() {
 		for _, v := range args {
-			fld := reflect.NewValue(v)
+			fld := reflect.ValueOf(v)
 			if !fld.IsValid() {
 				errors <- os.NewError("nil argument")
 				return

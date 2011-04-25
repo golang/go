@@ -21,6 +21,7 @@ var reflectFix = fix{
 	`Adapt code to new reflect API.
 
 http://codereview.appspot.com/4281055
+http://codereview.appspot.com/4433066
 `,
 }
 
@@ -277,6 +278,23 @@ func reflectFn(f *ast.File) bool {
 		}
 		*ptr = call
 		fixed = true
+	})
+
+	// Rewrite
+	//	reflect.Typeof -> reflect.TypeOf,
+	walk(f, func(n interface{}) {
+		sel, ok := n.(*ast.SelectorExpr)
+		if !ok {
+			return
+		}
+		if isTopName(sel.X, "reflect") && sel.Sel.Name == "Typeof" {
+			sel.Sel.Name = "TypeOf"
+			fixed = true
+		}
+		if isTopName(sel.X, "reflect") && sel.Sel.Name == "NewValue" {
+			sel.Sel.Name = "ValueOf"
+			fixed = true
+		}
 	})
 
 	return fixed

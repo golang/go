@@ -50,7 +50,7 @@ func (dec *Decoder) recvType(id typeId) {
 
 	// Type:
 	wire := new(wireType)
-	dec.decodeValue(tWireType, reflect.NewValue(wire))
+	dec.decodeValue(tWireType, reflect.ValueOf(wire))
 	if dec.err != nil {
 		return
 	}
@@ -161,7 +161,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 	if e == nil {
 		return dec.DecodeValue(reflect.Value{})
 	}
-	value := reflect.NewValue(e)
+	value := reflect.ValueOf(e)
 	// If e represents a value as opposed to a pointer, the answer won't
 	// get back to the caller.  Make sure it's a pointer.
 	if value.Type().Kind() != reflect.Ptr {

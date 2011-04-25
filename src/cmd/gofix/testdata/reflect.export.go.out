@@ -111,9 +111,9 @@ func (client *expClient) getChan(hdr *header, dir Dir) *netChan {
 // data arrives from the client.
 func (client *expClient) run() {
 	hdr := new(header)
-	hdrValue := reflect.NewValue(hdr)
+	hdrValue := reflect.ValueOf(hdr)
 	req := new(request)
-	reqValue := reflect.NewValue(req)
+	reqValue := reflect.ValueOf(req)
 	error := new(error)
 	for {
 		*hdr = header{}
@@ -341,7 +341,7 @@ func (exp *Exporter) Sync(timeout int64) os.Error {
 }
 
 func checkChan(chT interface{}, dir Dir) (reflect.Value, os.Error) {
-	chanType := reflect.Typeof(chT)
+	chanType := reflect.TypeOf(chT)
 	if chanType.Kind() != reflect.Chan {
 		return reflect.Value{}, os.ErrorString("not a channel")
 	}
@@ -359,7 +359,7 @@ func checkChan(chT interface{}, dir Dir) (reflect.Value, os.Error) {
 			return reflect.Value{}, os.ErrorString("to import/export with Recv, must provide chan<-")
 		}
 	}
-	return reflect.NewValue(chT), nil
+	return reflect.ValueOf(chT), nil
 }
 
 // Export exports a channel of a given type and specified direction.  The
