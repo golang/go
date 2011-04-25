@@ -468,7 +468,7 @@ typeinit(void)
 			okforadd[i] = 1;
 			okforarith[i] = 1;
 			okforconst[i] = 1;
-//			issimple[i] = 1;
+			issimple[i] = 1;
 		}
 	}
 

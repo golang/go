@@ -488,7 +488,7 @@ algtype(Type *t)
 {
 	int a;
 
-	if(issimple[t->etype] || isptr[t->etype] || iscomplex[t->etype] ||
+	if(issimple[t->etype] || isptr[t->etype] ||
 		t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP) {
 		if(t->width == widthptr)
 			a = AMEMWORD;
