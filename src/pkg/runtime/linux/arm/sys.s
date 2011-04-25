@@ -22,7 +22,6 @@
 #define SYS_rt_sigaction (SYS_BASE + 174)
 #define SYS_sigaltstack (SYS_BASE + 186)
 #define SYS_mmap2 (SYS_BASE + 192)
-#define SYS_gettid (SYS_BASE + 224)
 #define SYS_futex (SYS_BASE + 240)
 #define SYS_exit_group (SYS_BASE + 248)
 #define SYS_munmap (SYS_BASE + 91)
