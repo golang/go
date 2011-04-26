@@ -8,6 +8,7 @@ package os
 
 import (
 	"runtime"
+	"sync"
 	"syscall"
 )
 
@@ -15,8 +16,9 @@ import (
 type File struct {
 	fd      int
 	name    string
-	dirinfo *dirInfo // nil unless directory being read
-	nepipe  int      // number of consecutive EPIPE in Write
+	dirinfo *dirInfo   // nil unless directory being read
+	nepipe  int        // number of consecutive EPIPE in Write
+	l       sync.Mutex // used to implement windows pread/pwrite
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
@@ -30,7 +32,7 @@ func NewFile(fd int, name string) *File {
 	if fd < 0 {
 		return nil
 	}
-	f := &File{fd, name, nil, 0}
+	f := &File{fd: fd, name: name}
 	runtime.SetFinalizer(f, (*File).Close)
 	return f
 }
@@ -85,7 +87,7 @@ func (file *File) Read(b []byte) (n int, err Error) {
 	if file == nil {
 		return 0, EINVAL
 	}
-	n, e := syscall.Read(file.fd, b)
+	n, e := file.read(b)
 	if n < 0 {
 		n = 0
 	}
@@ -107,7 +109,7 @@ func (file *File) ReadAt(b []byte, off int64) (n int, err Error) {
 		return 0, EINVAL
 	}
 	for len(b) > 0 {
-		m, e := syscall.Pread(file.fd, b, off)
+		m, e := file.pread(b, off)
 		if m == 0 && !iserror(e) {
 			return n, EOF
 		}
@@ -129,7 +131,7 @@ func (file *File) Write(b []byte) (n int, err Error) {
 	if file == nil {
 		return 0, EINVAL
 	}
-	n, e := syscall.Write(file.fd, b)
+	n, e := file.write(b)
 	if n < 0 {
 		n = 0
 	}
@@ -150,7 +152,7 @@ func (file *File) WriteAt(b []byte, off int64) (n int, err Error) {
 		return 0, EINVAL
 	}
 	for len(b) > 0 {
-		m, e := syscall.Pwrite(file.fd, b, off)
+		m, e := file.pwrite(b, off)
 		if iserror(e) {
 			err = &PathError{"write", file.name, Errno(e)}
 			break
@@ -167,7 +169,7 @@ func (file *File) WriteAt(b []byte, off int64) (n int, err Error) {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an Error, if any.
 func (file *File) Seek(offset int64, whence int) (ret int64, err Error) {
-	r, e := syscall.Seek(file.fd, offset, whence)
+	r, e := file.seek(offset, whence)
 	if !iserror(e) && file.dirinfo != nil && r != 0 {
 		e = syscall.EISDIR
 	}

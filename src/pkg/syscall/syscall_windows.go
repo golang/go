@@ -250,47 +250,9 @@ func Read(fd int, p []byte) (n int, errno int) {
 	return int(done), 0
 }
 
-// TODO(brainman): ReadFile/WriteFile change file offset, therefore
-// i use Seek here to preserve semantics of unix pread/pwrite,
-// not sure if I should do that
-
-func Pread(fd int, p []byte, offset int64) (n int, errno int) {
-	curoffset, e := Seek(fd, 0, 1)
-	if e != 0 {
-		return 0, e
-	}
-	defer Seek(fd, curoffset, 0)
-	var o Overlapped
-	o.OffsetHigh = uint32(offset >> 32)
-	o.Offset = uint32(offset)
-	var done uint32
-	e = ReadFile(int32(fd), p, &done, &o)
-	if e != 0 {
-		return 0, e
-	}
-	return int(done), 0
-}
-
 func Write(fd int, p []byte) (n int, errno int) {
 	var done uint32
 	e := WriteFile(int32(fd), p, &done, nil)
-	if e != 0 {
-		return 0, e
-	}
-	return int(done), 0
-}
-
-func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
-	curoffset, e := Seek(fd, 0, 1)
-	if e != 0 {
-		return 0, e
-	}
-	defer Seek(fd, curoffset, 0)
-	var o Overlapped
-	o.OffsetHigh = uint32(offset >> 32)
-	o.Offset = uint32(offset)
-	var done uint32
-	e = WriteFile(int32(fd), p, &done, &o)
 	if e != 0 {
 		return 0, e
 	}
