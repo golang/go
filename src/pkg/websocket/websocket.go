@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"crypto/md5"
 	"encoding/binary"
+	"http"
 	"io"
 	"net"
 	"os"
@@ -43,6 +44,8 @@ type Conn struct {
 	Location string
 	// The subprotocol for the Web Socket.
 	Protocol string
+	// The initial http Request (for the Server side only).
+	Request *http.Request
 
 	buf *bufio.ReadWriter
 	rwc io.ReadWriteCloser
