@@ -6,7 +6,6 @@
 # Run all.bash but exclude tests that depend on functionality
 # missing in QEMU's system call emulation.
 
-export DISABLE_NET_TESTS=1  # no external network
 export NOTEST=""
 
 NOTEST="$NOTEST big" # xxx
