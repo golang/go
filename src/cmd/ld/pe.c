@@ -415,6 +415,9 @@ newPEDWARFSection(char *name, vlong size)
 	IMAGE_SECTION_HEADER *h;
 	char s[8];
 
+	if(size == 0)
+		return nil;
+
 	if(nextsymoff+strlen(name)+1 > sizeof(symnames)) {
 		diag("pe string table is full");
 		errorexit();

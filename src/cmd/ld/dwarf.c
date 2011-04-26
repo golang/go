@@ -2567,12 +2567,8 @@ dwarfaddpeheaders(void)
 	newPEDWARFSection(".debug_line", linesize);
 	newPEDWARFSection(".debug_frame", framesize);
 	newPEDWARFSection(".debug_info", infosize);
-	if (pubnamessize > 0)
-		newPEDWARFSection(".debug_pubnames", pubnamessize);
-	if (pubtypessize > 0)
-		newPEDWARFSection(".debug_pubtypes", pubtypessize);
-	if (arangessize > 0)
-		newPEDWARFSection(".debug_aranges", arangessize);
-	if (gdbscriptsize > 0)
-		newPEDWARFSection(".debug_gdb_scripts", gdbscriptsize);
+	newPEDWARFSection(".debug_pubnames", pubnamessize);
+	newPEDWARFSection(".debug_pubtypes", pubtypessize);
+	newPEDWARFSection(".debug_aranges", arangessize);
+	newPEDWARFSection(".debug_gdb_scripts", gdbscriptsize);
 }
