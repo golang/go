@@ -900,7 +900,7 @@ bgen(Node *n, int true, Prog *to)
 		}
 
 		// make simplest on right
-		if(nl->op == OLITERAL || nl->ullman < nr->ullman) {
+		if(nl->op == OLITERAL || (nl->ullman < nr->ullman && nl->ullman < UINF)) {
 			a = brrev(a);
 			r = nl;
 			nl = nr;
@@ -1025,8 +1025,8 @@ bgen(Node *n, int true, Prog *to)
 		if(nr->ullman >= UINF) {
 			tempname(&n1, nl->type);
 			tempname(&tmp, nr->type);
-			cgen(nr, &tmp);
 			cgen(nl, &n1);
+			cgen(nr, &tmp);
 			regalloc(&n2, nr->type, N);
 			cgen(&tmp, &n2);
 			goto cmp;
