@@ -165,6 +165,77 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 	return fi, nil
 }
 
+// read reads up to len(b) bytes from the File.
+// It returns the number of bytes read and an error, if any.
+func (f *File) read(b []byte) (n int, err int) {
+	f.l.Lock()
+	defer f.l.Unlock()
+	return syscall.Read(f.fd, b)
+}
+
+// pread reads len(b) bytes from the File starting at byte offset off.
+// It returns the number of bytes read and the error, if any.
+// EOF is signaled by a zero count with err set to 0.
+func (f *File) pread(b []byte, off int64) (n int, err int) {
+	f.l.Lock()
+	defer f.l.Unlock()
+	curoffset, e := syscall.Seek(f.fd, 0, 1)
+	if e != 0 {
+		return 0, e
+	}
+	defer syscall.Seek(f.fd, curoffset, 0)
+	o := syscall.Overlapped{
+		OffsetHigh: uint32(off >> 32),
+		Offset:     uint32(off),
+	}
+	var done uint32
+	e = syscall.ReadFile(int32(f.fd), b, &done, &o)
+	if e != 0 {
+		return 0, e
+	}
+	return int(done), 0
+}
+
+// write writes len(b) bytes to the File.
+// It returns the number of bytes written and an error, if any.
+func (f *File) write(b []byte) (n int, err int) {
+	f.l.Lock()
+	defer f.l.Unlock()
+	return syscall.Write(f.fd, b)
+}
+
+// pwrite writes len(b) bytes to the File starting at byte offset off.
+// It returns the number of bytes written and an error, if any.
+func (f *File) pwrite(b []byte, off int64) (n int, err int) {
+	f.l.Lock()
+	defer f.l.Unlock()
+	curoffset, e := syscall.Seek(f.fd, 0, 1)
+	if e != 0 {
+		return 0, e
+	}
+	defer syscall.Seek(f.fd, curoffset, 0)
+	o := syscall.Overlapped{
+		OffsetHigh: uint32(off >> 32),
+		Offset:     uint32(off),
+	}
+	var done uint32
+	e = syscall.WriteFile(int32(f.fd), b, &done, &o)
+	if e != 0 {
+		return 0, e
+	}
+	return int(done), 0
+}
+
+// seek sets the offset for the next Read or Write on file to offset, interpreted
+// according to whence: 0 means relative to the origin of the file, 1 means
+// relative to the current offset, and 2 means relative to the end.
+// It returns the new offset and an error, if any.
+func (f *File) seek(offset int64, whence int) (ret int64, err int) {
+	f.l.Lock()
+	defer f.l.Unlock()
+	return syscall.Seek(f.fd, offset, whence)
+}
+
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
 func Truncate(name string, size int64) Error {
