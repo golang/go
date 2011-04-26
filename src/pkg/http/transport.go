@@ -576,7 +576,7 @@ func responseIsKeepAlive(res *Response) bool {
 func readResponseWithEOFSignal(r *bufio.Reader, requestMethod string) (resp *Response, err os.Error) {
 	resp, err = ReadResponse(r, requestMethod)
 	if err == nil && resp.ContentLength != 0 {
-		resp.Body = &bodyEOFSignal{resp.Body, nil}
+		resp.Body = &bodyEOFSignal{body: resp.Body}
 	}
 	return
 }
@@ -585,12 +585,16 @@ func readResponseWithEOFSignal(r *bufio.Reader, requestMethod string) (resp *Res
 // once, right before the final Read() or Close() call returns, but after
 // EOF has been seen.
 type bodyEOFSignal struct {
-	body io.ReadCloser
-	fn   func()
+	body     io.ReadCloser
+	fn       func()
+	isClosed bool
 }
 
 func (es *bodyEOFSignal) Read(p []byte) (n int, err os.Error) {
 	n, err = es.body.Read(p)
+	if es.isClosed && n > 0 {
+		panic("http: unexpected bodyEOFSignal Read after Close; see issue 1725")
+	}
 	if err == os.EOF && es.fn != nil {
 		es.fn()
 		es.fn = nil
@@ -599,6 +603,7 @@ func (es *bodyEOFSignal) Read(p []byte) (n int, err os.Error) {
 }
 
 func (es *bodyEOFSignal) Close() (err os.Error) {
+	es.isClosed = true
 	err = es.body.Close()
 	if err == nil && es.fn != nil {
 		es.fn()
