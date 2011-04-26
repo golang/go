@@ -814,8 +814,12 @@ func Munmap(b []byte) (errno int) {
 	return mapper.Munmap(b)
 }
 
-//sys	Madvise(b []byte, advice int) (errno int) 
-//sys	Mprotect(b []byte, prot int) (errno int) 
+//sys	Madvise(b []byte, advice int) (errno int)
+//sys	Mprotect(b []byte, prot int) (errno int)
+//sys	Mlock(b []byte) (errno int)
+//sys	Munlock(b []byte) (errno int)
+//sys	Mlockall(flags int) (errno int)
+//sys	Munlockall() (errno int)
 
 /*
  * Unimplemented
@@ -874,8 +878,6 @@ func Munmap(b []byte) (errno int) {
 // Mbind
 // MigratePages
 // Mincore
-// Mlock
-// Mmap
 // ModifyLdt
 // Mount
 // MovePages
@@ -892,9 +894,6 @@ func Munmap(b []byte) (errno int) {
 // Msgrcv
 // Msgsnd
 // Msync
-// Munlock
-// Munlockall
-// Munmap
 // Newfstatat
 // Nfsservctl
 // Personality
