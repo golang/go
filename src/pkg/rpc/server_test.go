@@ -344,18 +344,26 @@ func testSendDeadlock(client *Client) {
 	client.Call("Arith.Add", args, reply)
 }
 
-func TestCountMallocs(t *testing.T) {
+func dialDirect() (*Client, os.Error) {
+	return Dial("tcp", serverAddr)
+}
+
+func dialHTTP() (*Client, os.Error) {
+	return DialHTTP("tcp", httpServerAddr)
+}
+
+func countMallocs(dial func() (*Client, os.Error), t *testing.T) uint64 {
 	once.Do(startServer)
-	client, err := Dial("tcp", serverAddr)
+	client, err := dial()
 	if err != nil {
-		t.Error("error dialing", err)
+		t.Fatal("error dialing", err)
 	}
 	args := &Args{7, 8}
 	reply := new(Reply)
 	mallocs := 0 - runtime.MemStats.Mallocs
 	const count = 100
 	for i := 0; i < count; i++ {
-		err = client.Call("Arith.Add", args, reply)
+		err := client.Call("Arith.Add", args, reply)
 		if err != nil {
 			t.Errorf("Add: expected no error but got string %q", err.String())
 		}
@@ -364,13 +372,21 @@ func TestCountMallocs(t *testing.T) {
 		}
 	}
 	mallocs += runtime.MemStats.Mallocs
-	fmt.Printf("mallocs per rpc round trip: %d\n", mallocs/count)
+	return mallocs / count
 }
 
-func BenchmarkEndToEnd(b *testing.B) {
+func TestCountMallocs(t *testing.T) {
+	fmt.Printf("mallocs per rpc round trip: %d\n", countMallocs(dialDirect, t))
+}
+
+func TestCountMallocsOverHTTP(t *testing.T) {
+	fmt.Printf("mallocs per HTTP rpc round trip: %d\n", countMallocs(dialHTTP, t))
+}
+
+func benchmarkEndToEnd(dial func() (*Client, os.Error), b *testing.B) {
 	b.StopTimer()
 	once.Do(startServer)
-	client, err := Dial("tcp", serverAddr)
+	client, err := dial()
 	if err != nil {
 		fmt.Println("error dialing", err)
 		return
@@ -391,4 +407,12 @@ func BenchmarkEndToEnd(b *testing.B) {
 			break
 		}
 	}
+}
+
+func BenchmarkEndToEnd(b *testing.B) {
+	benchmarkEndToEnd(dialDirect, b)
+}
+
+func BenchmarkEndToEndHTTP(b *testing.B) {
+	benchmarkEndToEnd(dialHTTP, b)
 }
