@@ -12,6 +12,7 @@ import (
 	"http/httptest"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -73,5 +74,53 @@ func TestGetRequestFormat(t *testing.T) {
 	}
 	if tr.req.Header == nil {
 		t.Errorf("expected non-nil request Header")
+	}
+}
+
+func TestRedirects(t *testing.T) {
+	var ts *httptest.Server
+	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		n, _ := strconv.Atoi(r.FormValue("n"))
+		// Test Referer header. (7 is arbitrary position to test at)
+		if n == 7 {
+			if g, e := r.Referer, ts.URL+"/?n=6"; e != g {
+				t.Errorf("on request ?n=7, expected referer of %q; got %q", e, g)
+			}
+		}
+		if n < 15 {
+			Redirect(w, r, fmt.Sprintf("/?n=%d", n+1), StatusFound)
+			return
+		}
+		fmt.Fprintf(w, "n=%d", n)
+	}))
+	defer ts.Close()
+
+	c := &Client{}
+	_, _, err := c.Get(ts.URL)
+	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+		t.Errorf("with default client, expected error %q, got %q", e, g)
+	}
+
+	var checkErr os.Error
+	var lastVia []*Request
+	c = &Client{CheckRedirect: func(_ *Request, via []*Request) os.Error {
+		lastVia = via
+		return checkErr
+	}}
+	_, finalUrl, err := c.Get(ts.URL)
+	if e, g := "<nil>", fmt.Sprintf("%v", err); e != g {
+		t.Errorf("with custom client, expected error %q, got %q", e, g)
+	}
+	if !strings.HasSuffix(finalUrl, "/?n=15") {
+		t.Errorf("expected final url to end in /?n=15; got url %q", finalUrl)
+	}
+	if e, g := 15, len(lastVia); e != g {
+		t.Errorf("expected lastVia to have contained %d elements; got %d", e, g)
+	}
+
+	checkErr = os.NewError("no redirects allowed")
+	_, finalUrl, err = c.Get(ts.URL)
+	if e, g := "Get /?n=1: no redirects allowed", fmt.Sprintf("%v", err); e != g {
+		t.Errorf("with redirects forbidden, expected error %q, got %q", e, g)
 	}
 }
