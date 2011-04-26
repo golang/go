@@ -150,6 +150,7 @@ func (f Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	ws := newConn(origin, location, protocol, buf, rwc)
+	ws.Request = req
 	f(ws)
 }
 
