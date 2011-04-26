@@ -151,7 +151,7 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err o
 			return
 		}
 	}
-	return c.buildChains([]*Certificate{c}, &opts)
+	return c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts)
 }
 
 func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate {
@@ -161,8 +161,9 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate 
 	return n
 }
 
-func (c *Certificate) buildChains(currentChain []*Certificate, opts *VerifyOptions) (chains [][]*Certificate, err os.Error) {
-	for _, root := range opts.Roots.FindVerifiedParents(c) {
+func (c *Certificate) buildChains(cache map[int][][]*Certificate, currentChain []*Certificate, opts *VerifyOptions) (chains [][]*Certificate, err os.Error) {
+	for _, rootNum := range opts.Roots.findVerifiedParents(c) {
+		root := opts.Roots.certs[rootNum]
 		err = root.isValid(rootCertificate, opts)
 		if err != nil {
 			continue
@@ -170,13 +171,18 @@ func (c *Certificate) buildChains(currentChain []*Certificate, opts *VerifyOptio
 		chains = append(chains, appendToFreshChain(currentChain, root))
 	}
 
-	for _, intermediate := range opts.Intermediates.FindVerifiedParents(c) {
+	for _, intermediateNum := range opts.Intermediates.findVerifiedParents(c) {
+		intermediate := opts.Intermediates.certs[intermediateNum]
 		err = intermediate.isValid(intermediateCertificate, opts)
 		if err != nil {
 			continue
 		}
 		var childChains [][]*Certificate
-		childChains, err = intermediate.buildChains(appendToFreshChain(currentChain, intermediate), opts)
+		childChains, ok := cache[intermediateNum]
+		if !ok {
+			childChains, err = intermediate.buildChains(cache, appendToFreshChain(currentChain, intermediate), opts)
+			cache[intermediateNum] = childChains
+		}
 		chains = append(chains, childChains...)
 	}
 

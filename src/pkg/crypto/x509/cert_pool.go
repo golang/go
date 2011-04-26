@@ -11,15 +11,17 @@ import (
 
 // Roots is a set of certificates.
 type CertPool struct {
-	bySubjectKeyId map[string][]*Certificate
-	byName         map[string][]*Certificate
+	bySubjectKeyId map[string][]int
+	byName         map[string][]int
+	certs          []*Certificate
 }
 
 // NewCertPool returns a new, empty CertPool.
 func NewCertPool() *CertPool {
 	return &CertPool{
-		make(map[string][]*Certificate),
-		make(map[string][]*Certificate),
+		make(map[string][]int),
+		make(map[string][]int),
+		nil,
 	}
 }
 
@@ -27,11 +29,11 @@ func nameToKey(name *Name) string {
 	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
 }
 
-// FindVerifiedParents attempts to find certificates in s which have signed the
+// findVerifiedParents attempts to find certificates in s which have signed the
 // given certificate. If no such certificate can be found or the signature
 // doesn't match, it returns nil.
-func (s *CertPool) FindVerifiedParents(cert *Certificate) (parents []*Certificate) {
-	var candidates []*Certificate
+func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int) {
+	var candidates []int
 
 	if len(cert.AuthorityKeyId) > 0 {
 		candidates = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
@@ -41,7 +43,7 @@ func (s *CertPool) FindVerifiedParents(cert *Certificate) (parents []*Certificat
 	}
 
 	for _, c := range candidates {
-		if cert.CheckSignatureFrom(c) == nil {
+		if cert.CheckSignatureFrom(s.certs[c]) == nil {
 			parents = append(parents, c)
 		}
 	}
@@ -51,12 +53,26 @@ func (s *CertPool) FindVerifiedParents(cert *Certificate) (parents []*Certificat
 
 // AddCert adds a certificate to a pool.
 func (s *CertPool) AddCert(cert *Certificate) {
+	if cert == nil {
+		panic("adding nil Certificate to CertPool")
+	}
+
+	// Check that the certificate isn't being added twice.
+	for _, c := range s.certs {
+		if c.Equal(cert) {
+			return
+		}
+	}
+
+	n := len(s.certs)
+	s.certs = append(s.certs, cert)
+
 	if len(cert.SubjectKeyId) > 0 {
 		keyId := string(cert.SubjectKeyId)
-		s.bySubjectKeyId[keyId] = append(s.bySubjectKeyId[keyId], cert)
+		s.bySubjectKeyId[keyId] = append(s.bySubjectKeyId[keyId], n)
 	}
 	name := nameToKey(&cert.Subject)
-	s.byName[name] = append(s.byName[name], cert)
+	s.byName[name] = append(s.byName[name], n)
 }
 
 // AppendCertsFromPEM attempts to parse a series of PEM encoded root
