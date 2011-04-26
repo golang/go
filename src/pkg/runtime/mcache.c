@@ -22,6 +22,8 @@ runtime·MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed)
 		// Replenish using central lists.
 		n = runtime·MCentral_AllocList(&runtime·mheap.central[sizeclass],
 			runtime·class_to_transfercount[sizeclass], &first);
+		if(n == 0)
+			runtime·throw("out of memory");
 		l->list = first;
 		l->nlist = n;
 		c->size += n*size;
