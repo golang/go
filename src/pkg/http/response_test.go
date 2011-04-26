@@ -9,7 +9,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -117,7 +119,9 @@ var respTests = []respTest{
 			"Transfer-Encoding: chunked\r\n" +
 			"\r\n" +
 			"0a\r\n" +
-			"Body here\n" +
+			"Body here\n\r\n" +
+			"09\r\n" +
+			"continued\r\n" +
 			"0\r\n" +
 			"\r\n",
 
@@ -134,7 +138,7 @@ var respTests = []respTest{
 			TransferEncoding: []string{"chunked"},
 		},
 
-		"Body here\n",
+		"Body here\ncontinued",
 	},
 
 	// Chunked response with Content-Length.
@@ -180,6 +184,29 @@ var respTests = []respTest{
 			RequestMethod: "HEAD",
 			Header:        Header{},
 			Close:         true,
+			ContentLength: 0,
+		},
+
+		"",
+	},
+
+	// explicit Content-Length of 0.
+	{
+		"HTTP/1.1 200 OK\r\n" +
+			"Content-Length: 0\r\n" +
+			"\r\n",
+
+		Response{
+			Status:        "200 OK",
+			StatusCode:    200,
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			RequestMethod: "GET",
+			Header: Header{
+				"Content-Length": {"0"},
+			},
+			Close:         false,
 			ContentLength: 0,
 		},
 
@@ -246,6 +273,68 @@ func TestReadResponse(t *testing.T) {
 		body := bout.String()
 		if body != tt.Body {
 			t.Errorf("#%d: Body = %q want %q", i, body, tt.Body)
+		}
+	}
+}
+
+// TestReadResponseCloseInMiddle tests that for both chunked and unchunked responses,
+// if we close the Body while only partway through reading, the underlying reader
+// advanced to the end of the request.
+func TestReadResponseCloseInMiddle(t *testing.T) {
+	for _, chunked := range []bool{false, true} {
+		var buf bytes.Buffer
+		buf.WriteString("HTTP/1.1 200 OK\r\n")
+		if chunked {
+			buf.WriteString("Transfer-Encoding: chunked\r\n\r\n")
+		} else {
+			buf.WriteString("Content-Length: 1000000\r\n\r\n")
+		}
+		chunk := strings.Repeat("x", 1000)
+		for i := 0; i < 1000; i++ {
+			if chunked {
+				buf.WriteString("03E8\r\n")
+				buf.WriteString(chunk)
+				buf.WriteString("\r\n")
+			} else {
+				buf.WriteString(chunk)
+			}
+		}
+		if chunked {
+			buf.WriteString("0\r\n\r\n")
+		}
+		buf.WriteString("Next Request Here")
+		bufr := bufio.NewReader(&buf)
+		resp, err := ReadResponse(bufr, "GET")
+		if err != nil {
+			t.Fatalf("parse error for chunked=%v: %v", chunked, err)
+		}
+
+		expectedLength := int64(-1)
+		if !chunked {
+			expectedLength = 1000000
+		}
+		if resp.ContentLength != expectedLength {
+			t.Fatalf("chunked=%v: expected response length %d, got %d", chunked, expectedLength, resp.ContentLength)
+		}
+		rbuf := make([]byte, 2500)
+		n, err := io.ReadFull(resp.Body, rbuf)
+		if err != nil {
+			t.Fatalf("ReadFull error for chunked=%v: %v", chunked, err)
+		}
+		if n != 2500 {
+			t.Fatalf("ReadFull only read %n bytes for chunked=%v", n, chunked)
+		}
+		if !bytes.Equal(bytes.Repeat([]byte{'x'}, 2500), rbuf) {
+			t.Fatalf("ReadFull didn't read 2500 'x' for chunked=%v; got %q", chunked, string(rbuf))
+		}
+		resp.Body.Close()
+
+		rest, err := ioutil.ReadAll(bufr)
+		if err != nil {
+			t.Fatalf("ReadAll error on remainder for chunked=%v: %v", chunked, err)
+		}
+		if e, g := "Next Request Here", string(rest); e != g {
+			t.Fatalf("for chunked=%v remainder = %q, expected %q", chunked, g, e)
 		}
 	}
 }
