@@ -137,7 +137,7 @@ func TestVerify(t *testing.T) {
 		for j, root := range test.roots {
 			ok := opts.Roots.AppendCertsFromPEM([]byte(root))
 			if !ok {
-				t.Error("#%d: failed to parse root #%d", i, j)
+				t.Errorf("#%d: failed to parse root #%d", i, j)
 				return
 			}
 		}
@@ -145,7 +145,7 @@ func TestVerify(t *testing.T) {
 		for j, intermediate := range test.intermediates {
 			ok := opts.Intermediates.AppendCertsFromPEM([]byte(intermediate))
 			if !ok {
-				t.Error("#%d: failed to parse intermediate #%d", i, j)
+				t.Errorf("#%d: failed to parse intermediate #%d", i, j)
 				return
 			}
 		}
