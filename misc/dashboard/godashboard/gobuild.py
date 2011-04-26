@@ -44,20 +44,11 @@ class Commit(db.Model):
     desc = db.BlobProperty()
 
     # This is the list of builds. Each element is a string of the form <builder
-    # name> "`" <log hash>. If the log hash is empty, then the build was
+    # name> '`' <log hash>. If the log hash is empty, then the build was
     # successful.
     builds = db.StringListProperty()
 
     fail_notification_sent = db.BooleanProperty()
-
-class Benchmark(db.Model):		
-    name = db.StringProperty()		
-    version = db.IntegerProperty()	
-
-class BenchmarkResults(db.Model):
-    builder = db.StringProperty()
-    benchmark = db.StringProperty()
-    data = db.ListProperty(long)	# encoded as [-1, num, iterations, nsperop]*
 
 class Cache(db.Model):
     data = db.BlobProperty()
@@ -68,12 +59,6 @@ class Cache(db.Model):
 # The contents is bz2 compressed.
 class CompressedLog(db.Model):
     log = db.BlobProperty()
-
-# For each builder, we store the last revision that it built. So, if it
-# crashes, it knows where to start up from. The key names for these objects are
-# "hw-" <builder name>
-class Highwater(db.Model):
-    commit = db.StringProperty()
 
 N = 30
 
@@ -165,34 +150,40 @@ class MainPage(webapp.RequestHandler):
 class GetHighwater(webapp.RequestHandler):
     def get(self):
         builder = self.request.get('builder')
-        
-        key = 'hw-%s' % builder
-        node = memcache.get(key)
-        if node is None:
-            hw = Highwater.get_by_key_name('hw-%s' % builder)
-            if hw is None:
-                # If no highwater has been recorded for this builder,
-                # we go back N+1 commits and return that.
-                q = Commit.all()
-                q.order('-__key__')
-                c = q.fetch(N+1)[-1]
-                node = c.node
-            else:
-                # if the proposed hw is too old, bump it forward
-                node = hw.commit
-                found = False
-                q = Commit.all()
-                q.order('-__key__')
-                recent = q.fetch(N+1)
-                for c in recent:
-                    if c.node == node:
-                        found = True
-                        break
-                if not found:
-                    node = recent[-1].node
-            memcache.set(key, node, 3600)
+        key = 'todo-%s' % builder
+        response = memcache.get(key)
+        if response is None:
+            # Fell out of memcache.  Rebuild from datastore results.
+            # We walk the commit list looking for nodes that have not
+            # been built by this builder and record the *parents* of those
+            # nodes, because each builder builds the revision *after* the
+            # one return (because we might not know about the latest
+            # revision).
+            q = Commit.all()
+            q.order('-__key__')
+            todo = []
+            need = False
+            first = None
+            for c in q.fetch(N+1):
+                if first is None:
+                    first = c
+                if need:
+                    todo.append(c.node)
+                need = not built(c, builder)
+            if not todo:
+                todo.append(first.node)
+            response = ' '.join(todo)
+            memcache.set(key, response, 3600)
         self.response.set_status(200)
-        self.response.out.write(node)
+        if self.request.get('all') != 'yes':
+            response = response.split()[0]
+        self.response.out.write(response)
+
+def built(c, builder):
+    for b in c.builds:
+        if b.startswith(builder+'`'):
+            return True
+    return False
 
 def auth(req):
     k = req.get('key')
@@ -204,32 +195,10 @@ class SetHighwater(webapp.RequestHandler):
             self.response.set_status(403)
             return
 
-        builder = self.request.get('builder')
-        newhw = self.request.get('hw')
-        q = Commit.all()
-        q.filter('node =', newhw)
-        c = q.get()
-        if c is None:
-            self.response.set_status(404)
-            return
-        
-        # if the proposed hw is too old, bump it forward
-        found = False
-        q = Commit.all()
-        q.order('-__key__')
-        recent = q.fetch(N+1)
-        for c in recent:
-            if c.node == newhw:
-                found = True
-                break
-        if not found:
-            c = recent[-1]
-
-        key = 'hw-%s' % builder
-        memcache.delete(key)
-        hw = Highwater(key_name = key)
-        hw.commit = c.node
-        hw.put()
+        # Allow for old builders.
+        # This is a no-op now: we figure out what to build based
+        # on the current dashboard status.
+        return
 
 class LogHandler(webapp.RequestHandler):
     def get(self):
@@ -330,14 +299,8 @@ class Build(webapp.RequestHandler):
 
         db.run_in_transaction(add_build)
 
-        key = 'hw-%s' % builder
-        hw = Highwater.get_by_key_name(key)
-        if hw is None:
-            hw = Highwater(key_name = key)
-        hw.commit = node
-        hw.put()
+        key = 'todo-%s' % builder
         memcache.delete(key)
-        memcache.delete('hw')
 
         def mark_sent():
             n = Commit.get_by_key_name(key_name)
@@ -373,279 +336,12 @@ def failed(c, builder):
             return len(p[1]) > 0
     return False
 
-class Benchmarks(webapp.RequestHandler):
-    def json(self):
-        q = Benchmark.all()
-        q.filter('__key__ >', Benchmark.get_or_insert('v002.').key())
-        bs = q.fetch(10000)
-
-        self.response.set_status(200)
-        self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
-        self.response.out.write('{"benchmarks": [')
-
-        sep = "\n\t"
-        for b in bs:
-            self.response.out.write('%s"%s"' % (sep, b.name))
-            sep = ",\n\t"
-        self.response.out.write('\n]}\n')
-
-    def get(self):
-        if self.request.get('fmt') == 'json':
-            return self.json()
-
-        self.response.set_status(200)
-        self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
-        page = memcache.get('bench')
-        if not page:
-            # use datastore as cache to avoid computation even
-            # if memcache starts dropping things on the floor
-            logging.error("memcache dropped bench")
-            page = cache_get('bench')
-            if not page:
-                logging.error("cache dropped bench")
-                num = memcache.get('hw')
-                if num is None:
-                    q = Commit.all()
-                    q.order('-__key__')
-                    n = q.fetch(1)[0]
-                    num = n.num
-                    memcache.set('hw', num)
-                page = self.compute(num)
-                cache_set('bench', page, 600)
-            memcache.set('bench', page, 600)
-        self.response.out.write(page)
-
-    def compute(self, num):
-        benchmarks, builders = benchmark_list()
-
-        rows = []
-        for bm in benchmarks:
-            row = {'name':bm, 'builders': []}
-            for bl in builders:
-                key = "single-%s-%s" % (bm, bl)
-                url = memcache.get(key)
-                row['builders'].append({'name': bl, 'url': url})
-            rows.append(row)
-
-        path = os.path.join(os.path.dirname(__file__), 'benchmarks.html')
-        data = {
-            "builders": [builderInfo(b) for b in builders],
-            "rows": rows,
-        }
-        return template.render(path, data)
-
-    def post(self):
-        if not auth(self.request):
-            self.response.set_status(403)
-            return
-
-        builder = self.request.get('builder')
-        node = self.request.get('node')
-        if not validNode(node):
-            logging.error("Not valid node ('%s')", node)
-            self.response.set_status(500)
-            return
-
-        benchmarkdata = self.request.get('benchmarkdata')
-        benchmarkdata = binascii.a2b_base64(benchmarkdata)
-
-        def get_string(i):
-            l, = struct.unpack('>H', i[:2])
-            s = i[2:2+l]
-            if len(s) != l:
-                return None, None
-            return s, i[2+l:]
-
-        benchmarks = {}
-        while len(benchmarkdata) > 0:
-            name, benchmarkdata = get_string(benchmarkdata)
-            iterations_str, benchmarkdata = get_string(benchmarkdata)
-            time_str, benchmarkdata = get_string(benchmarkdata)
-            iterations = int(iterations_str)
-            time = int(time_str)
-
-            benchmarks[name] = (iterations, time)
-
-        q = Commit.all()
-        q.filter('node =', node)
-        n = q.get()
-        if n is None:
-            logging.error('Client asked for unknown commit while uploading benchmarks')
-            self.response.set_status(404)
-            return
-
-        for (benchmark, (iterations, time)) in benchmarks.items():
-            b = Benchmark.get_or_insert('v002.' + benchmark.encode('base64'), name = benchmark, version = 2)
-            key = '%s;%s' % (builder, benchmark)
-            r1 = BenchmarkResults.get_by_key_name(key)
-            if r1 is not None and (len(r1.data) < 4 or r1.data[-4] != -1 or r1.data[-3] != n.num):
-                r1.data += [-1L, long(n.num), long(iterations), long(time)]
-                r1.put()            
-            key = "bench(%s,%s,%d)" % (benchmark, builder, n.num)
-            memcache.delete(key)
-
-        self.response.set_status(200)
-
-class SingleBenchmark(webapp.RequestHandler):
-    """
-    Fetch data for single benchmark/builder combination 
-    and return sparkline url as HTTP redirect, also set memcache entry.
-    """
-    def get(self):
-        benchmark = self.request.get('benchmark')
-        builder = self.request.get('builder')
-        key = "single-%s-%s" % (benchmark, builder)
-
-        url = memcache.get(key)
-
-        if url is None:
-            minr, maxr, bybuilder = benchmark_data(benchmark)
-            for bb in bybuilder:
-                if bb[0] != builder:
-                    continue
-                url = benchmark_sparkline(bb[2])
-
-        if url is None:
-            self.response.set_status(500, "No data found")
-            return
-
-        memcache.set(key, url, 700) # slightly longer than bench timeout 
-
-        self.response.set_status(302)
-        self.response.headers.add_header("Location", url)
-
 def node(num):
     q = Commit.all()
     q.filter('num =', num)
     n = q.get()
     return n
 
-def benchmark_data(benchmark):
-    q = BenchmarkResults.all()
-    q.order('__key__')
-    q.filter('benchmark =', benchmark)
-    results = q.fetch(100)
-
-    minr = 100000000
-    maxr = 0
-    for r in results:
-        if r.benchmark != benchmark:
-            continue
-        # data is [-1, num, iters, nsperop, -1, num, iters, nsperop, ...]
-        d = r.data
-        if not d:
-            continue
-        if [x for x in d[::4] if x != -1]:
-            # unexpected data framing
-            logging.error("bad framing for data in %s;%s" % (r.builder, r.benchmark))
-            continue
-        revs = d[1::4]
-        minr = min(minr, min(revs))
-        maxr = max(maxr, max(revs))
-    if minr > maxr:
-        return 0, 0, []
-
-    bybuilder = []
-    for r in results:
-        if r.benchmark != benchmark:
-            continue
-        d = r.data
-        if not d:
-            continue
-        nsbyrev = [-1 for x in range(minr, maxr+1)]
-        iterbyrev = [-1 for x in range(minr, maxr+1)]
-        for num, iter, ns in zip(d[1::4], d[2::4], d[3::4]):
-            iterbyrev[num - minr] = iter
-            nsbyrev[num - minr] = ns
-        bybuilder.append((r.builder, iterbyrev, nsbyrev))
-
-    return minr, maxr, bybuilder
-
-def benchmark_graph(builder, minhash, maxhash, ns):
-    valid = [x for x in ns if x >= 0]
-    if not valid:
-        return ""
-    m = max(max(valid), 2*sum(valid)/len(valid))
-    s = ""
-    encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-"
-    for val in ns:
-        if val < 0:
-            s += "__"
-            continue
-        val = int(val*4095.0/m)
-        s += encoding[val/64] + encoding[val%64]
-    return ("http://chart.apis.google.com/chart?cht=lc&chxt=x,y&chxl=0:|%s|%s|1:|0|%g ns|%g ns&chd=e:%s" %
-        (minhash[0:12], maxhash[0:12], m/2, m, s))
-
-def benchmark_sparkline(ns):
-    valid = [x for x in ns if x >= 0]
-    if not valid:
-        return ""
-    m = max(max(valid), 2*sum(valid)/len(valid))
-    # Encoding is 0-61, which is fine enough granularity for our tiny graphs.  _ means missing.
-    encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    s = ''.join([x < 0 and "_" or encoding[int((len(encoding)-1)*x/m)] for x in ns])
-    url = "http://chart.apis.google.com/chart?cht=ls&chd=s:"+s+"&chs=80x20&chf=bg,s,00000000&chco=000000ff&chls=1,1,0"
-    return url
-
-def benchmark_list():
-    q = BenchmarkResults.all()
-    q.order('__key__')
-    q.filter('builder = ', u'darwin-amd64')
-    benchmarks = [r.benchmark for r in q]
-    
-    q = BenchmarkResults.all()
-    q.order('__key__')
-    q.filter('benchmark =', u'math_test.BenchmarkSqrt')
-    builders = [r.builder for r in q.fetch(20)]
-    
-    return benchmarks, builders
-    
-class GetBenchmarks(webapp.RequestHandler):
-    def get(self):
-        benchmark = self.request.path[12:]
-        minr, maxr, bybuilder = benchmark_data(benchmark)
-        minhash = node(minr).node
-        maxhash = node(maxr).node
-
-        if self.request.get('fmt') == 'json':
-            self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
-            self.response.out.write('{ "min": "%s", "max": "%s", "data": {' % (minhash, maxhash))
-            sep = "\n\t"
-            for builder, iter, ns in bybuilder:
-                self.response.out.write('%s{ "builder": "%s", "iterations": %s, "nsperop": %s }' %
-                    (sep, builder, str(iter).replace("L", ""), str(ns).replace("L", "")))
-                sep = ",\n\t"
-            self.response.out.write('\n}\n')
-            return
-        
-        graphs = []
-        for builder, iter, ns in bybuilder:
-            graphs.append({"builder": builder, "url": benchmark_graph(builder, minhash, maxhash, ns)})
-
-        revs = []
-        for i in range(minr, maxr+1):
-            r = nodeInfo(node(i))
-            x = []
-            for _, _, ns in bybuilder:
-                t = ns[i - minr]
-                if t < 0:
-                    t = None
-                x.append(t)
-            r["ns_by_builder"] = x
-            revs.append(r)
-        revs.reverse()  # same order as front page
-        
-        path = os.path.join(os.path.dirname(__file__), 'benchmark1.html')
-        data = {
-            "benchmark": benchmark,
-            "builders": [builderInfo(b) for b,_,_ in bybuilder],
-            "graphs": graphs,
-            "revs": revs,
-        }
-        self.response.out.write(template.render(path, data))
-        
-        
 class FixedOffset(datetime.tzinfo):
     """Fixed offset in minutes east from UTC."""
 
@@ -731,9 +427,6 @@ application = webapp.WSGIApplication(
 
                                       ('/init', Init),
                                       ('/build', Build),
-                                      ('/benchmarks', Benchmarks),
-                                      ('/benchmarks/single', SingleBenchmark),
-                                      ('/benchmarks/.*', GetBenchmarks),
                                      ], debug=True)
 
 def main():
