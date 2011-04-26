@@ -962,7 +962,7 @@ bgen(Node *n, int true, Prog *to)
 		}
 
 		// make simplest on right
-		if(nl->op == OLITERAL || nl->ullman < nr->ullman) {
+		if(nl->op == OLITERAL || (nl->ullman < UINF && nl->ullman < nr->ullman)) {
 			a = brrev(a);
 			r = nl;
 			nl = nr;
@@ -1073,18 +1073,18 @@ bgen(Node *n, int true, Prog *to)
 		a = optoas(a, nr->type);
 
 		if(nr->ullman >= UINF) {
-			regalloc(&n1, nr->type, N);
-			cgen(nr, &n1);
-
-			tempname(&tmp, nr->type);
-			gmove(&n1, &tmp);
-			regfree(&n1);
-
 			regalloc(&n1, nl->type, N);
 			cgen(nl, &n1);
 
+			tempname(&tmp, nl->type);
+			gmove(&n1, &tmp);
+			regfree(&n1);
+
 			regalloc(&n2, nr->type, N);
-			cgen(&tmp, &n2);
+			cgen(nr, &n2);
+
+			regalloc(&n1, nl->type, N);
+			cgen(&tmp, &n1);
 
 			gcmp(optoas(OCMP, nr->type), &n1, &n2);
 			patch(gbranch(a, nr->type), to);
