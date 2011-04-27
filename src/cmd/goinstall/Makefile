@@ -10,6 +10,7 @@ GOFILES=\
 	main.go\
 	make.go\
 	parse.go\
+	path.go\
 	syslist.go\
 
 CLEANFILES+=syslist.go

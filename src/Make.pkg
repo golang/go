@@ -31,7 +31,11 @@ endif
 
 pkgdir=$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
 
-INSTALLFILES+=$(pkgdir)/$(TARG).a
+ifeq ($(TARGDIR),)
+TARGDIR:=$(pkgdir)
+endif
+
+INSTALLFILES+=$(TARGDIR)/$(TARG).a
 
 # The rest of the cgo rules are below, but these variable updates
 # must be done here so they apply to the main rules.
@@ -46,7 +50,7 @@ GOFILES+=$(patsubst %.swig,_obj/%.go,$(patsubst %.swigcxx,%.swig,$(SWIGFILES)))
 OFILES+=$(patsubst %.swig,_obj/%_gc.$O,$(patsubst %.swigcxx,%.swig,$(SWIGFILES)))
 SWIG_PREFIX=$(subst /,-,$(TARG))
 SWIG_SOS+=$(patsubst %.swig,_obj/$(SWIG_PREFIX)-%.so,$(patsubst %.swigcxx,%.swig,$(SWIGFILES)))
-INSTALLFILES+=$(patsubst %.swig,$(pkgdir)/swig/$(SWIG_PREFIX)-%.so,$(patsubst %.swigcxx,%.swig,$(SWIGFILES)))
+INSTALLFILES+=$(patsubst %.swig,$(TARGDIR)/swig/$(SWIG_PREFIX)-%.so,$(patsubst %.swigcxx,%.swig,$(SWIGFILES)))
 endif
 
 PREREQ+=$(patsubst %,%.make,$(DEPS))
@@ -67,22 +71,22 @@ bench:
 	gotest -test.bench=. -test.run="Do not run tests"
 
 nuke: clean
-	rm -f $(pkgdir)/$(TARG).a
+	rm -f $(TARGDIR)/$(TARG).a
 
 testpackage-clean:
 	rm -f _test/$(TARG).a
 
 install: $(INSTALLFILES)
 
-$(pkgdir)/$(TARG).a: _obj/$(TARG).a
-	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+$(TARGDIR)/$(TARG).a: _obj/$(TARG).a
+	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(TARGDIR)/$(dir)
 	cp _obj/$(TARG).a "$@"
 
 _go_.$O: $(GOFILES) $(PREREQ)
-	$(GC) -o $@ $(GOFILES)
+	$(GC) $(GCIMPORTS) -o $@ $(GOFILES)
 
 _gotest_.$O: $(GOFILES) $(GOTESTFILES) $(PREREQ)
-	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
+	$(GC) $(GCIMPORTS) -o $@ $(GOFILES) $(GOTESTFILES)
 
 _obj/$(TARG).a: _go_.$O $(OFILES)
 	@mkdir -p _obj/$(dir)
@@ -222,13 +226,13 @@ _obj/$(SWIG_PREFIX)-%.so: _obj/%_wrap.o
 _obj/$(SWIG_PREFIX)-%.so: _obj/%_wrapcxx.o
 	$(HOST_CXX) $(_CGO_CFLAGS_$(GOARCH)) -o $@ $^ $(SWIG_LDFLAGS) $(_CGO_LDFLAGS_$(GOOS)) $(_SWIG_LDFLAGS_$(GOOS))
 
-$(pkgdir)/swig/$(SWIG_PREFIX)-%.so: _obj/$(SWIG_PREFIX)-%.so
-	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)/swig
+$(TARGDIR)/swig/$(SWIG_PREFIX)-%.so: _obj/$(SWIG_PREFIX)-%.so
+	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(TARGDIR)/swig
 	cp $< "$@"
 
 all: $(SWIG_SOS)
 
-SWIG_RPATH=-r $(pkgdir)/swig
+SWIG_RPATH=-r $(TARGDIR)/swig
 
 endif
 
