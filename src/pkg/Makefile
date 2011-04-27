@@ -100,6 +100,7 @@ DIRS=\
 	html\
 	http\
 	http/cgi\
+	http/fcgi\
 	http/pprof\
 	http/httptest\
 	image\
