@@ -596,12 +596,16 @@ func (r *Request) ParseForm() (err os.Error) {
 		ct := r.Header.Get("Content-Type")
 		switch strings.Split(ct, ";", 2)[0] {
 		case "text/plain", "application/x-www-form-urlencoded", "":
-			b, e := ioutil.ReadAll(r.Body)
+			const maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
+			b, e := ioutil.ReadAll(io.LimitReader(r.Body, maxFormSize+1))
 			if e != nil {
 				if err == nil {
 					err = e
 				}
 				break
+			}
+			if int64(len(b)) > maxFormSize {
+				return os.NewError("http: POST too large")
 			}
 			e = parseQuery(r.Form, string(b))
 			if err == nil {
