@@ -7,6 +7,7 @@ package http
 import (
 	"bufio"
 	"io"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -447,17 +448,10 @@ func (b *body) Close() os.Error {
 		return nil
 	}
 
-	trashBuf := make([]byte, 1024) // local for thread safety
-	for {
-		_, err := b.Read(trashBuf)
-		if err == nil {
-			continue
-		}
-		if err == os.EOF {
-			break
-		}
+	if _, err := io.Copy(ioutil.Discard, b); err != nil {
 		return err
 	}
+
 	if b.hdr == nil { // not reading trailer
 		return nil
 	}

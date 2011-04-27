@@ -16,6 +16,7 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"io/ioutil"
 	"mime"
 	"net/textproto"
 	"os"
@@ -75,14 +76,6 @@ func NewReader(reader io.Reader, boundary string) Reader {
 }
 
 // Implementation ....
-
-type devNullWriter bool
-
-func (*devNullWriter) Write(p []byte) (n int, err os.Error) {
-	return len(p), nil
-}
-
-var devNull = devNullWriter(false)
 
 func newPart(mr *multiReader) (bp *Part, err os.Error) {
 	bp = new(Part)
@@ -158,7 +151,7 @@ func (bp *Part) Read(p []byte) (n int, err os.Error) {
 }
 
 func (bp *Part) Close() os.Error {
-	io.Copy(&devNull, bp)
+	io.Copy(ioutil.Discard, bp)
 	return nil
 }
 
