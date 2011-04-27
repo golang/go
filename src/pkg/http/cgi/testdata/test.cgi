@@ -11,6 +11,11 @@ use CGI;
 my $q = CGI->new;
 my $params = $q->Vars;
 
+if ($params->{"loc"}) {
+    print "Location: $params->{loc}\r\n\r\n";
+    exit(0);
+}
+
 my $NL = "\r\n";
 $NL = "\n" if $params->{mode} eq "NL";
 
