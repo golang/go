@@ -112,12 +112,6 @@ func TestReader(t *testing.T) {
 	}
 }
 
-type devNull struct{}
-
-func (devNull) Write(p []byte) (int, os.Error) {
-	return len(p), nil
-}
-
 func benchmarkDecoder(b *testing.B, n int) {
 	b.StopTimer()
 	b.SetBytes(int64(n))
@@ -134,7 +128,7 @@ func benchmarkDecoder(b *testing.B, n int) {
 	runtime.GC()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		io.Copy(devNull{}, NewReader(bytes.NewBuffer(buf1), LSB, 8))
+		io.Copy(ioutil.Discard, NewReader(bytes.NewBuffer(buf1), LSB, 8))
 	}
 }
 

@@ -15,12 +15,6 @@ import (
 	"testing"
 )
 
-type devNull struct{}
-
-func (devNull) Write(p []byte) (int, os.Error) {
-	return len(p), nil
-}
-
 func pipeErr(err os.Error) io.Reader {
 	pr, pw := io.Pipe()
 	pw.CloseWithError(err)
@@ -141,7 +135,7 @@ func TestParser(t *testing.T) {
 				t.Fatal(err)
 			}
 			// Skip the #error section.
-			if _, err := io.Copy(devNull{}, <-rc); err != nil {
+			if _, err := io.Copy(ioutil.Discard, <-rc); err != nil {
 				t.Fatal(err)
 			}
 			// Compare the parsed tree to the #document section.

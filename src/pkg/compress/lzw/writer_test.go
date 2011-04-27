@@ -113,7 +113,7 @@ func benchmarkEncoder(b *testing.B, n int) {
 	runtime.GC()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		w := NewWriter(devNull{}, LSB, 8)
+		w := NewWriter(ioutil.Discard, LSB, 8)
 		w.Write(buf1)
 		w.Close()
 	}

@@ -101,3 +101,13 @@ func (nopCloser) Close() os.Error { return nil }
 func NopCloser(r io.Reader) io.ReadCloser {
 	return nopCloser{r}
 }
+
+type devNull int
+
+func (devNull) Write(p []byte) (int, os.Error) {
+	return len(p), nil
+}
+
+// Discard is an io.Writer on which all Write calls succeed
+// without doing anything.
+var Discard io.Writer = devNull(0)
