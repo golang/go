@@ -10,6 +10,7 @@ package tar
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"os"
 	"strconv"
 )
@@ -84,12 +85,6 @@ func (tr *Reader) octal(b []byte) int64 {
 	return int64(x)
 }
 
-type ignoreWriter struct{}
-
-func (ignoreWriter) Write(b []byte) (n int, err os.Error) {
-	return len(b), nil
-}
-
 // Skip any unread bytes in the existing file entry, as well as any alignment padding.
 func (tr *Reader) skipUnread() {
 	nr := tr.nb + tr.pad // number of bytes to skip
@@ -99,7 +94,7 @@ func (tr *Reader) skipUnread() {
 			return
 		}
 	}
-	_, tr.err = io.Copyn(ignoreWriter{}, tr.r, nr)
+	_, tr.err = io.Copyn(ioutil.Discard, tr.r, nr)
 }
 
 func (tr *Reader) verifyChecksum(header []byte) bool {
