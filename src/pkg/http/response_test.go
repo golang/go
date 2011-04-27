@@ -7,11 +7,13 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
+	"crypto/rand"
 	"fmt"
+	"os"
 	"io"
 	"io/ioutil"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -277,64 +279,100 @@ func TestReadResponse(t *testing.T) {
 	}
 }
 
-// TestReadResponseCloseInMiddle tests that for both chunked and unchunked responses,
-// if we close the Body while only partway through reading, the underlying reader
-// advanced to the end of the request.
+var readResponseCloseInMiddleTests = []struct {
+	chunked, compressed bool
+}{
+	{false, false},
+	{true, false},
+	{true, true},
+}
+
+// TestReadResponseCloseInMiddle tests that closing a body after
+// reading only part of its contents advances the read to the end of
+// the request, right up until the next request.
 func TestReadResponseCloseInMiddle(t *testing.T) {
-	for _, chunked := range []bool{false, true} {
+	for _, test := range readResponseCloseInMiddleTests {
+		fatalf := func(format string, args ...interface{}) {
+			args = append([]interface{}{test.chunked, test.compressed}, args...)
+			t.Fatalf("on test chunked=%v, compressed=%v: "+format, args...)
+		}
+		checkErr := func(err os.Error, msg string) {
+			if err == nil {
+				return
+			}
+			fatalf(msg+": %v", err)
+		}
 		var buf bytes.Buffer
 		buf.WriteString("HTTP/1.1 200 OK\r\n")
-		if chunked {
-			buf.WriteString("Transfer-Encoding: chunked\r\n\r\n")
+		if test.chunked {
+			buf.WriteString("Transfer-Encoding: chunked\r\n")
 		} else {
-			buf.WriteString("Content-Length: 1000000\r\n\r\n")
+			buf.WriteString("Content-Length: 1000000\r\n")
 		}
-		chunk := strings.Repeat("x", 1000)
+		var wr io.Writer = &buf
+		if test.chunked {
+			wr = &chunkedWriter{wr}
+		}
+		if test.compressed {
+			buf.WriteString("Content-Encoding: gzip\r\n")
+			var err os.Error
+			wr, err = gzip.NewWriter(wr)
+			checkErr(err, "gzip.NewWriter")
+		}
+		buf.WriteString("\r\n")
+
+		chunk := bytes.Repeat([]byte{'x'}, 1000)
 		for i := 0; i < 1000; i++ {
-			if chunked {
-				buf.WriteString("03E8\r\n")
-				buf.WriteString(chunk)
-				buf.WriteString("\r\n")
-			} else {
-				buf.WriteString(chunk)
+			if test.compressed {
+				// Otherwise this compresses too well.
+				_, err := io.ReadFull(rand.Reader, chunk)
+				checkErr(err, "rand.Reader ReadFull")
 			}
+			wr.Write(chunk)
 		}
-		if chunked {
+		if test.compressed {
+			err := wr.(*gzip.Compressor).Close()
+			checkErr(err, "compressor close")
+		}
+		if test.chunked {
 			buf.WriteString("0\r\n\r\n")
 		}
 		buf.WriteString("Next Request Here")
+
 		bufr := bufio.NewReader(&buf)
 		resp, err := ReadResponse(bufr, "GET")
-		if err != nil {
-			t.Fatalf("parse error for chunked=%v: %v", chunked, err)
-		}
-
+		checkErr(err, "ReadResponse")
 		expectedLength := int64(-1)
-		if !chunked {
+		if !test.chunked {
 			expectedLength = 1000000
 		}
 		if resp.ContentLength != expectedLength {
-			t.Fatalf("chunked=%v: expected response length %d, got %d", chunked, expectedLength, resp.ContentLength)
+			fatalf("expected response length %d, got %d", expectedLength, resp.ContentLength)
 		}
+		if resp.Body == nil {
+			fatalf("nil body")
+		}
+		if test.compressed {
+			gzReader, err := gzip.NewReader(resp.Body)
+			checkErr(err, "gzip.NewReader")
+			resp.Body = &readFirstCloseBoth{gzReader, resp.Body}
+		}
+
 		rbuf := make([]byte, 2500)
 		n, err := io.ReadFull(resp.Body, rbuf)
-		if err != nil {
-			t.Fatalf("ReadFull error for chunked=%v: %v", chunked, err)
-		}
+		checkErr(err, "2500 byte ReadFull")
 		if n != 2500 {
-			t.Fatalf("ReadFull only read %n bytes for chunked=%v", n, chunked)
+			fatalf("ReadFull only read %d bytes", n)
 		}
-		if !bytes.Equal(bytes.Repeat([]byte{'x'}, 2500), rbuf) {
-			t.Fatalf("ReadFull didn't read 2500 'x' for chunked=%v; got %q", chunked, string(rbuf))
+		if test.compressed == false && !bytes.Equal(bytes.Repeat([]byte{'x'}, 2500), rbuf) {
+			fatalf("ReadFull didn't read 2500 'x'; got %q", string(rbuf))
 		}
 		resp.Body.Close()
 
 		rest, err := ioutil.ReadAll(bufr)
-		if err != nil {
-			t.Fatalf("ReadAll error on remainder for chunked=%v: %v", chunked, err)
-		}
+		checkErr(err, "ReadAll on remainder")
 		if e, g := "Next Request Here", string(rest); e != g {
-			t.Fatalf("for chunked=%v remainder = %q, expected %q", chunked, g, e)
+			fatalf("for chunked=%v remainder = %q, expected %q", g, e)
 		}
 	}
 }
