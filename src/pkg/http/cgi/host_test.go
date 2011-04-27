@@ -271,3 +271,40 @@ Transfer-Encoding: chunked
 			expected, got)
 	}
 }
+
+func TestRedirect(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
+	h := &Handler{
+		Path: "testdata/test.cgi",
+		Root: "/test.cgi",
+	}
+	rec := runCgiTest(t, h, "GET /test.cgi?loc=http://foo.com/ HTTP/1.0\nHost: example.com\n\n", nil)
+	if e, g := 302, rec.Code; e != g {
+		t.Errorf("expected status code %d; got %d", e, g)
+	}
+	if e, g := "http://foo.com/", rec.Header().Get("Location"); e != g {
+		t.Errorf("expected Location header of %q; got %q", e, g)
+	}
+}
+
+func TestInternalRedirect(t *testing.T) {
+	if skipTest(t) {
+		return
+	}
+	baseHandler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		fmt.Fprintf(rw, "basepath=%s\n", req.URL.Path)
+		fmt.Fprintf(rw, "remoteaddr=%s\n", req.RemoteAddr)
+	})
+	h := &Handler{
+		Path:                "testdata/test.cgi",
+		Root:                "/test.cgi",
+		PathLocationHandler: baseHandler,
+	}
+	expectedMap := map[string]string{
+		"basepath":   "/foo",
+		"remoteaddr": "1.2.3.4",
+	}
+	runCgiTest(t, h, "GET /test.cgi?loc=/foo HTTP/1.0\nHost: example.com\n\n", expectedMap)
+}
