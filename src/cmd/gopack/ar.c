@@ -144,6 +144,7 @@ char	*file;				/* current file or member being worked on */
 Biobuf	bout;
 Biobuf bar;
 char	*prefix;
+int	pkgdefsafe;		/* was __.PKGDEF marked safe? */
 
 void	arcopy(Biobuf*, Arfile*, Armember*);
 int	arcreate(char*);
@@ -177,6 +178,7 @@ void	scanpkg(Biobuf*, long);
 void	select(int*, long);
 void	setcom(void(*)(char*, int, char**));
 void	skip(Biobuf*, vlong);
+void	checksafe(Biobuf*, vlong);
 int	symcomp(void*, void*);
 void	trim(char*, char*, int);
 void	usage(void);
@@ -322,9 +324,9 @@ rcmd(char *arname, int count, char **files)
 			skip(&bar, bp->size);
 			continue;
 		}
-			/* pitch pkgdef file */
+			/* pitch pkgdef file but remember whether it was marked safe */
 		if (gflag && strcmp(file, pkgdef) == 0) {
-			skip(&bar, bp->size);
+			checksafe(&bar, bp->size);
 			continue;
 		}
 		/*
@@ -773,7 +775,8 @@ scanpkg(Biobuf *b, long size)
 		goto foundstart;
 	}
 	// fprint(2, "gopack: warning: no package import section in %s\n", file);
-	safe = 0;	// non-Go file (C or assembly)
+	if(b != &bar || !pkgdefsafe)
+		safe = 0;	// non-Go file (C or assembly)
 	return;
 
 foundstart:
@@ -807,7 +810,7 @@ foundstart:
 			pkgname = armalloc(pkg - data + 1);
 			memmove(pkgname, data, pkg - data);
 			pkgname[pkg-data] = '\0';
-			if(strcmp(pkg, " safe\n") != 0)
+			if(strcmp(pkg, " safe\n") != 0 && (b != &bar || !pkgdefsafe))
 				safe = 0;
 			start = Boffset(b);  // after package statement
 			first = 0;
@@ -1092,6 +1095,36 @@ skip(Biobuf *bp, vlong len)
 	if (len & 01)
 		len++;
 	Bseek(bp, len, 1);
+}
+
+void
+checksafe(Biobuf *bp, vlong len)
+{
+	char *p;
+	vlong end;
+
+	if (len & 01)
+		len++;
+	end = Boffset(bp) + len;
+
+	p = Brdline(bp, '\n');
+	if(p == nil || strncmp(p, "go object ", 10) != 0)
+		goto done;
+	for(;;) {
+		p = Brdline(bp, '\n');
+		if(p == nil || Boffset(bp) >= end)
+			goto done;
+		if(strncmp(p, "$$\n", 3) == 0)
+			break;
+	}
+	p = Brdline(bp, '\n');
+	if(p == nil || Boffset(bp) > end)
+		goto done;
+	if(Blinelen(bp) > 8+6 && strncmp(p, "package ", 8) == 0 && strncmp(p+Blinelen(bp)-6, " safe\n", 6) == 0)
+		pkgdefsafe = 1;
+
+done:
+	Bseek(bp, end, 0);
 }
 
 /*
