@@ -45,7 +45,7 @@ func sieve() chan int {
 
 func main() {
 	primes := sieve()
-	for {
+	for i := 0; i < 100; i++ { // Print the first hundred primes.
 		fmt.Println(<-primes)
 	}
 }

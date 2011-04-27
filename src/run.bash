@@ -74,7 +74,6 @@ gomake clean
 time gomake ogle
 ) || exit $?
 
-[ "$GOHOSTOS" == windows ] ||
 (xcd ../doc/progs
 time ./run
 ) || exit $?
