@@ -60,6 +60,7 @@ var (
 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
 	buildCmd      = flag.String("cmd", "./all.bash", "Build command (specify absolute or relative to go/src/)")
 	external      = flag.Bool("external", false, "Build external packages")
+	parallel      = flag.Bool("parallel", false, "Build multiple targets in parallel")
 	verbose       = flag.Bool("v", false, "verbose")
 )
 
@@ -133,9 +134,19 @@ func main() {
 			continue
 		}
 		built := false
-		for _, b := range builders {
-			if b.build() {
-				built = true
+		if *parallel {
+			done := make(chan bool)
+			for _, b := range builders {
+				go func(b *Builder) {
+					done <- b.build()
+				}(b)
+			}
+			for _ = range builders {
+				built = <-done || built
+			}
+		} else {
+			for _, b := range builders {
+				built = b.build() || built
 			}
 		}
 		// only run benchmarks if we didn't build anything
