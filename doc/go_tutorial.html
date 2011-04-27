@@ -741,26 +741,27 @@ Building on the <code>file</code> package, here's a simple version of the Unix u
 24            case nr &gt; 0:
 25                if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
 26                    fmt.Fprintf(os.Stderr, &quot;cat: error writing from %s: %s\n&quot;, f.String(), ew.String())
-27                }
-28            }
-29        }
-30    }
+27                    os.Exit(1)
+28                }
+29            }
+30        }
+31    }
 <p>
-32    func main() {
-33        flag.Parse() // Scans the arg list and sets up flags
-34        if flag.NArg() == 0 {
-35            cat(file.Stdin)
-36        }
-37        for i := 0; i &lt; flag.NArg(); i++ {
-38            f, err := file.Open(flag.Arg(i))
-39            if f == nil {
-40                fmt.Fprintf(os.Stderr, &quot;cat: can't open %s: error %s\n&quot;, flag.Arg(i), err)
-41                os.Exit(1)
-42            }
-43            cat(f)
-44            f.Close()
-45        }
-46    }
+33    func main() {
+34        flag.Parse() // Scans the arg list and sets up flags
+35        if flag.NArg() == 0 {
+36            cat(file.Stdin)
+37        }
+38        for i := 0; i &lt; flag.NArg(); i++ {
+39            f, err := file.Open(flag.Arg(i))
+40            if f == nil {
+41                fmt.Fprintf(os.Stderr, &quot;cat: can't open %s: error %s\n&quot;, flag.Arg(i), err)
+42                os.Exit(1)
+43            }
+44            cat(f)
+45            f.Close()
+46        }
+47    }
 </pre>
 <p>
 By now this should be easy to follow, but the <code>switch</code> statement introduces some
@@ -858,10 +859,11 @@ and use it from within a mostly unchanged <code>cat()</code> function:
 67                nw, ew := file.Stdout.Write(buf[0:nr])
 68                if nw != nr {
 69                    fmt.Fprintf(os.Stderr, &quot;cat: error writing from %s: %s\n&quot;, r.String(), ew.String())
-70                }
-71            }
-72        }
-73    }
+70                    os.Exit(1)
+71                }
+72            }
+73        }
+74    }
 </pre>
 <p>
 (We could also do the wrapping in <code>main</code> and leave <code>cat()</code> mostly alone, except
@@ -1238,7 +1240,7 @@ together:
 28    func main() {
 29        ch := make(chan int)  // Create a new channel.
 30        go generate(ch)  // Start generate() as a goroutine.
-31        for {
+31        for i := 0; i &lt; 100; i++ { // Print the first hundred primes.
 32            prime := &lt;-ch
 33            fmt.Println(prime)
 34            ch1 := make(chan int)
@@ -1318,7 +1320,7 @@ Now <code>main</code>'s interface to the prime sieve is a channel of primes:
 <pre> <!-- progs/sieve1.go /func.main/ /^}/ -->
 46    func main() {
 47        primes := sieve()
-48        for {
+48        for i := 0; i &lt; 100; i++ { // Print the first hundred primes.
 49            fmt.Println(&lt;-primes)
 50        }
 51    }
