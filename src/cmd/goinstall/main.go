@@ -150,6 +150,7 @@ func install(pkg, parent string) {
 	// Check whether package is local or remote.
 	// If remote, download or update it.
 	var dir string
+	proot := gopath[0] // default to GOROOT
 	local := false
 	if strings.HasPrefix(pkg, "http://") {
 		fmt.Fprintf(os.Stderr, "%s: %s: 'http://' used in remote path, try '%s'\n", argv0, pkg, pkg[7:])
@@ -163,8 +164,9 @@ func install(pkg, parent string) {
 		dir = filepath.Join(root, filepath.FromSlash(pkg))
 		local = true
 	} else {
-		var err os.Error
-		dir, err = download(pkg)
+		proot = findPkgroot(pkg)
+		err := download(pkg, proot.srcDir())
+		dir = filepath.Join(proot.srcDir(), pkg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", argv0, pkg, err)
 			errors = true
@@ -196,7 +198,7 @@ func install(pkg, parent string) {
 	// Install this package.
 	if !errors {
 		isCmd := dirInfo.pkgName == "main"
-		if err := domake(dir, pkg, local, isCmd); err != nil {
+		if err := domake(dir, pkg, proot, local, isCmd); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: installing %s: %s\n", argv0, pkg, err)
 			errors = true
 		} else if !local && *logPkgs {

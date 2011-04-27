@@ -88,6 +88,9 @@ func scanDir(dir string, allowMain bool) (info *dirInfo, err os.Error) {
 		if s == "main" && !allowMain {
 			continue
 		}
+		if s == "documentation" {
+			continue
+		}
 		if pkgName == "" {
 			pkgName = s
 		} else if pkgName != s {

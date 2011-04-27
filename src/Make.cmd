@@ -6,6 +6,10 @@ ifeq ($(GOOS),windows)
 TARG:=$(TARG).exe
 endif
 
+ifeq ($(TARGDIR),)
+TARGDIR:=$(QUOTED_GOBIN)
+endif
+
 all: $(TARG)
 
 include $(QUOTED_GOROOT)/src/Make.common
@@ -13,20 +17,20 @@ include $(QUOTED_GOROOT)/src/Make.common
 PREREQ+=$(patsubst %,%.make,$(DEPS))
 
 $(TARG): _go_.$O
-	$(LD) -o $@ _go_.$O
+	$(LD) $(LDIMPORTS) -o $@ _go_.$O
 
 _go_.$O: $(GOFILES) $(PREREQ)
-	$(GC) -o $@ $(GOFILES)
+	$(GC) $(GCIMPORTS) -o $@ $(GOFILES)
 
-install: $(QUOTED_GOBIN)/$(TARG)
+install: $(TARGDIR)/$(TARG)
 
-$(QUOTED_GOBIN)/$(TARG): $(TARG)
-	cp -f $(TARG) $(QUOTED_GOBIN)
+$(TARGDIR)/$(TARG): $(TARG)
+	cp -f $(TARG) $(TARGDIR)
 
 CLEANFILES+=$(TARG) _test _testmain.go
 
 nuke: clean
-	rm -f $(QUOTED_GOBIN)/$(TARG)
+	rm -f $(TARGDIR)/$(TARG)
 
 # for gotest
 testpackage: _test/main.a
@@ -40,7 +44,7 @@ _test/main.a: _gotest_.$O
 	gopack grc $@ _gotest_.$O
 
 _gotest_.$O: $(GOFILES) $(GOTESTFILES)
-	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
+	$(GC) $(GCIMPORTS) -o $@ $(GOFILES) $(GOTESTFILES)
 
 importpath:
 	echo main
