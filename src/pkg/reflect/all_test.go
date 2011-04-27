@@ -565,6 +565,33 @@ func TestCopy(t *testing.T) {
 	}
 }
 
+func TestCopyArray(t *testing.T) {
+	a := [8]int{1, 2, 3, 4, 10, 9, 8, 7}
+	b := [11]int{11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44}
+	c := b
+	aa := ValueOf(&a).Elem()
+	ab := ValueOf(&b).Elem()
+	Copy(ab, aa)
+	for i := 0; i < len(a); i++ {
+		if a[i] != b[i] {
+			t.Errorf("(i) a[%d]=%d, b[%d]=%d", i, a[i], i, b[i])
+		}
+	}
+	for i := len(a); i < len(b); i++ {
+		if b[i] != c[i] {
+			if i < len(a) {
+				t.Errorf("(ii) a[%d]=%d, b[%d]=%d, c[%d]=%d",
+					i, a[i], i, b[i], i, c[i])
+			} else {
+				t.Errorf("(iii) b[%d]=%d, c[%d]=%d",
+					i, b[i], i, c[i])
+			}
+		} else {
+			t.Logf("elem %d is okay\n", i)
+		}
+	}
+}
+
 func TestBigUnnamedStruct(t *testing.T) {
 	b := struct{ a, b, c, d int64 }{1, 2, 3, 4}
 	v := ValueOf(b)

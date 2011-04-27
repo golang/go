@@ -1546,7 +1546,7 @@ func Copy(dst, src Value) int {
 	// Copy via memmove.
 	var da, sa unsafe.Pointer
 	if idst.kind == Array {
-		da = isrc.addr
+		da = idst.addr
 	} else {
 		da = unsafe.Pointer((*SliceHeader)(idst.addr).Data)
 	}
