@@ -579,13 +579,7 @@ func TestCopyArray(t *testing.T) {
 	}
 	for i := len(a); i < len(b); i++ {
 		if b[i] != c[i] {
-			if i < len(a) {
-				t.Errorf("(ii) a[%d]=%d, b[%d]=%d, c[%d]=%d",
-					i, a[i], i, b[i], i, c[i])
-			} else {
-				t.Errorf("(iii) b[%d]=%d, c[%d]=%d",
-					i, b[i], i, c[i])
-			}
+			t.Errorf("(ii) b[%d]=%d, c[%d]=%d", i, b[i], i, c[i])
 		} else {
 			t.Logf("elem %d is okay\n", i)
 		}
