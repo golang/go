@@ -169,15 +169,7 @@ func (r *response) WriteHeader(code int) {
 	}
 
 	fmt.Fprintf(r.w, "Status: %d %s\r\n", code, http.StatusText(code))
-	// TODO(eds): this is duplicated in http and http/cgi
-	for k, vv := range r.header {
-		for _, v := range vv {
-			v = strings.Replace(v, "\n", "", -1)
-			v = strings.Replace(v, "\r", "", -1)
-			v = strings.TrimSpace(v)
-			fmt.Fprintf(r.w, "%s: %s\r\n", k, v)
-		}
-	}
+	r.header.Write(r.w)
 	r.w.WriteString("\r\n")
 }
 

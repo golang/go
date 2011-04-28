@@ -309,7 +309,7 @@ func (w *response) WriteHeader(code int) {
 		text = "status code " + codestring
 	}
 	io.WriteString(w.conn.buf, proto+" "+codestring+" "+text+"\r\n")
-	writeSortedHeader(w.conn.buf, w.header, nil)
+	w.header.Write(w.conn.buf)
 	io.WriteString(w.conn.buf, "\r\n")
 }
 
