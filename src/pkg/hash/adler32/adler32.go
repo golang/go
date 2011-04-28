@@ -43,8 +43,8 @@ func (d *digest) Size() int { return Size }
 
 // Add p to the running checksum a, b.
 func update(a, b uint32, p []byte) (aa, bb uint32) {
-	for i := 0; i < len(p); i++ {
-		a += uint32(p[i])
+	for _, pi := range p {
+		a += uint32(pi)
 		b += a
 		// invariant: a <= b
 		if b > (0xffffffff-255)/2 {

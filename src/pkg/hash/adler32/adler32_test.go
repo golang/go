@@ -5,6 +5,7 @@
 package adler32
 
 import (
+	"bytes"
 	"io"
 	"testing"
 )
@@ -59,5 +60,18 @@ func TestGolden(t *testing.T) {
 			t.Errorf("adler32(%s) = 0x%x want 0x%x", g.in, s, g.out)
 			t.FailNow()
 		}
+	}
+}
+
+func BenchmarkGolden(b *testing.B) {
+	b.StopTimer()
+	c := New()
+	var buf bytes.Buffer
+	for _, g := range golden {
+		buf.Write([]byte(g.in))
+	}
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		c.Write(buf.Bytes())
 	}
 }
