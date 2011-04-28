@@ -329,46 +329,50 @@ func TestSyntax(t *testing.T) {
 }
 
 type allScalars struct {
-	True1   bool
-	True2   bool
-	False1  bool
-	False2  bool
-	Int     int
-	Int8    int8
-	Int16   int16
-	Int32   int32
-	Int64   int64
-	Uint    int
-	Uint8   uint8
-	Uint16  uint16
-	Uint32  uint32
-	Uint64  uint64
-	Uintptr uintptr
-	Float32 float32
-	Float64 float64
-	String  string
+	True1     bool
+	True2     bool
+	False1    bool
+	False2    bool
+	Int       int
+	Int8      int8
+	Int16     int16
+	Int32     int32
+	Int64     int64
+	Uint      int
+	Uint8     uint8
+	Uint16    uint16
+	Uint32    uint32
+	Uint64    uint64
+	Uintptr   uintptr
+	Float32   float32
+	Float64   float64
+	String    string
+	PtrString *string
 }
 
 var all = allScalars{
-	True1:   true,
-	True2:   true,
-	False1:  false,
-	False2:  false,
-	Int:     1,
-	Int8:    -2,
-	Int16:   3,
-	Int32:   -4,
-	Int64:   5,
-	Uint:    6,
-	Uint8:   7,
-	Uint16:  8,
-	Uint32:  9,
-	Uint64:  10,
-	Uintptr: 11,
-	Float32: 13.0,
-	Float64: 14.0,
-	String:  "15",
+	True1:     true,
+	True2:     true,
+	False1:    false,
+	False2:    false,
+	Int:       1,
+	Int8:      -2,
+	Int16:     3,
+	Int32:     -4,
+	Int64:     5,
+	Uint:      6,
+	Uint8:     7,
+	Uint16:    8,
+	Uint32:    9,
+	Uint64:    10,
+	Uintptr:   11,
+	Float32:   13.0,
+	Float64:   14.0,
+	String:    "15",
+	PtrString: &sixteen,
 }
+
+var sixteen = "16"
 
 const testScalarsInput = `<allscalars>
 	<true1>true</true1>
@@ -390,6 +394,7 @@ const testScalarsInput = `<allscalars>
 	<float32>13.0</float32>
 	<float64>14.0</float64>
 	<string>15</string>
+	<ptrstring>16</ptrstring>
 </allscalars>`
 
 func TestAllScalars(t *testing.T) {
@@ -401,7 +406,7 @@ func TestAllScalars(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(a, all) {
-		t.Errorf("expected %+v got %+v", all, a)
+		t.Errorf("have %+v want %+v", a, all)
 	}
 }
 
