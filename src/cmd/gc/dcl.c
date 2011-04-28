@@ -679,15 +679,11 @@ typedcl2(Type *pt, Type *t)
 
 ok:
 	n = pt->nod;
-	*pt = *t;
-	pt->method = nil;
+	copytype(pt->nod, t);
+	// unzero nod
 	pt->nod = n;
-	pt->sym = n->sym;
+
 	pt->sym->lastlineno = parserline();
-	pt->siggen = 0;
-	pt->printed = 0;
-	pt->deferwidth = 0;
-	pt->local = 0;
 	declare(n, PEXTERN);
 
 	checkwidth(pt);

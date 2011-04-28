@@ -119,6 +119,62 @@ domethod(Node *n)
 	checkwidth(n->type);
 }
 
+typedef struct NodeTypeList NodeTypeList;
+struct NodeTypeList {
+	Node *n;
+	Type *t;
+	NodeTypeList *next;
+};
+
+static	NodeTypeList	*dntq;
+static	NodeTypeList	*dntend;
+
+void
+defertypecopy(Node *n, Type *t)
+{
+	NodeTypeList *ntl;
+
+	if(n == N || t == T)
+		return;
+
+	ntl = mal(sizeof *ntl);
+	ntl->n = n;
+	ntl->t = t;
+	ntl->next = nil;
+
+	if(dntq == nil)
+		dntq = ntl;
+	else
+		dntend->next = ntl;
+
+	dntend = ntl;
+}
+
+void
+resumetypecopy(void)
+{
+	NodeTypeList *l;
+
+	for(l=dntq; l; l=l->next)
+		copytype(l->n, l->t);
+}
+
+void
+copytype(Node *n, Type *t)
+{
+	*n->type = *t;
+
+	t = n->type;
+	t->sym = n->sym;
+	t->local = n->local;
+	t->vargen = n->vargen;
+	t->siggen = 0;
+	t->method = nil;
+	t->nod = N;
+	t->printed = 0;
+	t->deferwidth = 0;
+}
+
 static void
 walkdeftype(Node *n)
 {
@@ -141,22 +197,14 @@ walkdeftype(Node *n)
 		goto ret;
 	}
 
+	maplineno = n->type->maplineno;
+	embedlineno = n->type->embedlineno;
+
 	// copy new type and clear fields
 	// that don't come along.
 	// anything zeroed here must be zeroed in
 	// typedcl2 too.
-	maplineno = n->type->maplineno;
-	embedlineno = n->type->embedlineno;
-	*n->type = *t;
-	t = n->type;
-	t->sym = n->sym;
-	t->local = n->local;
-	t->vargen = n->vargen;
-	t->siggen = 0;
-	t->method = nil;
-	t->nod = N;
-	t->printed = 0;
-	t->deferwidth = 0;
+	copytype(n, t);
 
 	// double-check use of type as map key.
 	if(maplineno) {

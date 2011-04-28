@@ -31,6 +31,7 @@ static void	checkassign(Node*);
 static void	checkassignlist(NodeList*);
 static void stringtoarraylit(Node**);
 static Node* resolve(Node*);
+static Type*	getforwtype(Node*);
 
 /*
  * resolve ONONAME to definition, if any.
@@ -110,7 +111,7 @@ typecheck(Node **np, int top)
 	Node *n, *l, *r;
 	NodeList *args;
 	int lno, ok, ntop;
-	Type *t, *tp, *missing, *have;
+	Type *t, *tp, *ft, *missing, *have;
 	Sym *sym;
 	Val v;
 	char *why;
@@ -153,6 +154,11 @@ typecheck(Node **np, int top)
 			yyerror("use of builtin %S not in function call", n->sym);
 			goto error;
 		}
+
+		// a dance to handle forward-declared recursive pointer types.
+		if(n->op == OTYPE && (ft = getforwtype(n->ntype)) != T)
+			defertypecopy(n, ft);
+
 		walkdef(n);
 		n->realtype = n->type;
 		if(n->op == ONONAME)
@@ -2469,4 +2475,25 @@ stringtoarraylit(Node **np)
 	nn->list = l;
 	typecheck(&nn, Erv);
 	*np = nn;
+}
+
+static Type*
+getforwtype(Node *n)
+{
+	Node *f1, *f2;
+
+	for(f1=f2=n; ; n=n->ntype) {
+		if((n = resolve(n)) == N || n->op != OTYPE)
+			return T;
+
+		if(n->type != T && n->type->etype == TFORW)
+			return n->type;
+
+		// Check for ntype cycle.
+		if((f2 = resolve(f2)) != N && (f1 = resolve(f2->ntype)) != N) {
+			f2 = resolve(f1->ntype);
+			if(f1 == n || f2 == n)
+				return T;
+		}
+	}
 }
