@@ -4,7 +4,14 @@
 
 package http
 
-import "net/textproto"
+import (
+	"fmt"
+	"io"
+	"net/textproto"
+	"os"
+	"sort"
+	"strings"
+)
 
 // A Header represents the key-value pairs in an HTTP header.
 type Header map[string][]string
@@ -33,6 +40,37 @@ func (h Header) Get(key string) string {
 // Del deletes the values associated with key.
 func (h Header) Del(key string) {
 	textproto.MIMEHeader(h).Del(key)
+}
+
+// Write writes a header in wire format.
+func (h Header) Write(w io.Writer) os.Error {
+	return h.WriteSubset(w, nil)
+}
+
+// WriteSubset writes a header in wire format.
+// If exclude is not nil, keys where exclude[key] == true are not written.
+func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) os.Error {
+	keys := make([]string, 0, len(h))
+	for k := range h {
+		if exclude == nil || !exclude[k] {
+			keys = append(keys, k)
+		}
+	}
+	sort.SortStrings(keys)
+	for _, k := range keys {
+		for _, v := range h[k] {
+			v = strings.Replace(v, "\n", " ", -1)
+			v = strings.Replace(v, "\r", " ", -1)
+			v = strings.TrimSpace(v)
+			if v == "" {
+				continue
+			}
+			if _, err := fmt.Fprintf(w, "%s: %s\r\n", k, v); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // CanonicalHeaderKey returns the canonical format of the

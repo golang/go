@@ -168,17 +168,8 @@ func (r *response) WriteHeader(code int) {
 		r.header.Add("Content-Type", "text/html; charset=utf-8")
 	}
 
-	// TODO: add a method on http.Header to write itself to an io.Writer?
-	// This is duplicated code.
-	for k, vv := range r.header {
-		for _, v := range vv {
-			v = strings.Replace(v, "\n", "", -1)
-			v = strings.Replace(v, "\r", "", -1)
-			v = strings.TrimSpace(v)
-			fmt.Fprintf(r.bufw, "%s: %s\r\n", k, v)
-		}
-	}
-	r.bufw.Write([]byte("\r\n"))
+	r.header.Write(r.bufw)
+	r.bufw.WriteString("\r\n")
 	r.bufw.Flush()
 }
 

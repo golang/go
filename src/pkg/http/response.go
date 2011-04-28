@@ -8,11 +8,9 @@ package http
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"net/textproto"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -192,7 +190,7 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	}
 
 	// Rest of header
-	err = writeSortedHeader(w, resp.Header, respExcludeHeader)
+	err = resp.Header.WriteSubset(w, respExcludeHeader)
 	if err != nil {
 		return err
 	}
@@ -211,29 +209,5 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	}
 
 	// Success
-	return nil
-}
-
-func writeSortedHeader(w io.Writer, h Header, exclude map[string]bool) os.Error {
-	keys := make([]string, 0, len(h))
-	for k := range h {
-		if exclude == nil || !exclude[k] {
-			keys = append(keys, k)
-		}
-	}
-	sort.SortStrings(keys)
-	for _, k := range keys {
-		for _, v := range h[k] {
-			v = strings.Replace(v, "\n", " ", -1)
-			v = strings.Replace(v, "\r", " ", -1)
-			v = strings.TrimSpace(v)
-			if v == "" {
-				continue
-			}
-			if _, err := fmt.Fprintf(w, "%s: %s\r\n", k, v); err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
