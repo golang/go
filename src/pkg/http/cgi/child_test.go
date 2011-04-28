@@ -20,6 +20,8 @@ func TestRequest(t *testing.T) {
 		"HTTP_FOO_BAR":    "baz",
 		"REQUEST_URI":     "/path?a=b",
 		"CONTENT_LENGTH":  "123",
+		"HTTPS":           "1",
+		"REMOTE_ADDR":     "5.6.7.8",
 	}
 	req, err := RequestFromMap(env)
 	if err != nil {
@@ -58,6 +60,12 @@ func TestRequest(t *testing.T) {
 	}
 	if req.Trailer == nil {
 		t.Errorf("unexpected nil Trailer")
+	}
+	if req.TLS == nil {
+		t.Errorf("expected non-nil TLS")
+	}
+	if e, g := "5.6.7.8:0", req.RemoteAddr; e != g {
+		t.Errorf("RemoteAddr: got %q; want %q", g, e)
 	}
 }
 
