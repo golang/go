@@ -9,10 +9,12 @@ package cgi
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"http"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -21,6 +23,7 @@ import (
 // Request returns the HTTP request as represented in the current
 // environment. This assumes the current program is being run
 // by a web server in a CGI environment.
+// The returned Request's Body is populated, if applicable.
 func Request() (*http.Request, os.Error) {
 	r, err := RequestFromMap(envMap(os.Environ()))
 	if err != nil {
@@ -50,6 +53,7 @@ var skipHeader = map[string]bool{
 }
 
 // RequestFromMap creates an http.Request from CGI variables.
+// The returned Request's Body field is not populated.
 func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
 	r := new(http.Request)
 	r.Method = params["REQUEST_METHOD"]
@@ -110,6 +114,18 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
 		}
 		r.URL = url
 	}
+
+	// There's apparently a de-facto standard for this.
+	// http://docstore.mik.ua/orelly/linux/cgi/ch03_02.htm#ch03-35636
+	if s := params["HTTPS"]; s == "on" || s == "ON" || s == "1" {
+		r.TLS = &tls.ConnectionState{HandshakeComplete: true}
+	}
+
+	// Request.RemoteAddr has its port set by Go's standard http
+	// server, so we do here too. We don't have one, though, so we
+	// use a dummy one.
+	r.RemoteAddr = net.JoinHostPort(params["REMOTE_ADDR"], "0")
+
 	return r, nil
 }
 
@@ -146,10 +162,6 @@ type response struct {
 
 func (r *response) Flush() {
 	r.bufw.Flush()
-}
-
-func (r *response) RemoteAddr() string {
-	return os.Getenv("REMOTE_ADDR")
 }
 
 func (r *response) Header() http.Header {
