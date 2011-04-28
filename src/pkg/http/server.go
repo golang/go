@@ -423,6 +423,9 @@ func (w *response) finishRequest() {
 	}
 	w.conn.buf.Flush()
 	w.req.Body.Close()
+	if w.req.MultipartForm != nil {
+		w.req.MultipartForm.RemoveAll()
+	}
 
 	if w.contentLength != -1 && w.contentLength != w.written {
 		// Did not write enough. Avoid getting out of sync.
