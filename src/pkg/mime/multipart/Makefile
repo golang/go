@@ -6,6 +6,7 @@ include ../../../Make.inc
 
 TARG=mime/multipart
 GOFILES=\
+	formdata.go\
 	multipart.go\
 
 include ../../../Make.pkg

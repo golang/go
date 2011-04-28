@@ -35,6 +35,12 @@ type Reader interface {
 	// reports errors, or on truncated or otherwise malformed
 	// input.
 	NextPart() (*Part, os.Error)
+
+	// ReadForm parses an entire multipart message whose parts have
+	// a Content-Disposition of "form-data".
+	// It stores up to maxMemory bytes of the file parts in memory
+	// and the remainder on disk in temporary files.
+	ReadForm(maxMemory int64) (*Form, os.Error)
 }
 
 // A Part represents a single part in a multipart body.
@@ -46,6 +52,8 @@ type Part struct {
 
 	buffer *bytes.Buffer
 	mr     *multiReader
+
+	dispositionParams map[string]string
 }
 
 // FormName returns the name parameter if p has a Content-Disposition
@@ -53,15 +61,19 @@ type Part struct {
 func (p *Part) FormName() string {
 	// See http://tools.ietf.org/html/rfc2183 section 2 for EBNF
 	// of Content-Disposition value format.
+	if p.dispositionParams != nil {
+		return p.dispositionParams["name"]
+	}
 	v := p.Header.Get("Content-Disposition")
 	if v == "" {
 		return ""
 	}
-	d, params := mime.ParseMediaType(v)
-	if d != "form-data" {
+	if d, params := mime.ParseMediaType(v); d != "form-data" {
 		return ""
+	} else {
+		p.dispositionParams = params
 	}
-	return params["name"]
+	return p.dispositionParams["name"]
 }
 
 // NewReader creates a new multipart Reader reading from r using the
