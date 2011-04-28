@@ -12,6 +12,7 @@ import (
 
 func TestRequest(t *testing.T) {
 	env := map[string]string{
+		"SERVER_PROTOCOL": "HTTP/1.1",
 		"REQUEST_METHOD":  "GET",
 		"HTTP_HOST":       "example.com",
 		"HTTP_REFERER":    "elsewhere",
@@ -20,9 +21,9 @@ func TestRequest(t *testing.T) {
 		"REQUEST_URI":     "/path?a=b",
 		"CONTENT_LENGTH":  "123",
 	}
-	req, err := requestFromEnvironment(env)
+	req, err := RequestFromMap(env)
 	if err != nil {
-		t.Fatalf("requestFromEnvironment: %v", err)
+		t.Fatalf("RequestFromMap: %v", err)
 	}
 	if g, e := req.UserAgent, "goclient"; e != g {
 		t.Errorf("expected UserAgent %q; got %q", e, g)
@@ -62,14 +63,15 @@ func TestRequest(t *testing.T) {
 
 func TestRequestWithoutHost(t *testing.T) {
 	env := map[string]string{
-		"HTTP_HOST":      "",
-		"REQUEST_METHOD": "GET",
-		"REQUEST_URI":    "/path?a=b",
-		"CONTENT_LENGTH": "123",
+		"SERVER_PROTOCOL": "HTTP/1.1",
+		"HTTP_HOST":       "",
+		"REQUEST_METHOD":  "GET",
+		"REQUEST_URI":     "/path?a=b",
+		"CONTENT_LENGTH":  "123",
 	}
-	req, err := requestFromEnvironment(env)
+	req, err := RequestFromMap(env)
 	if err != nil {
-		t.Fatalf("requestFromEnvironment: %v", err)
+		t.Fatalf("RequestFromMap: %v", err)
 	}
 	if g, e := req.RawURL, "/path?a=b"; e != g {
 		t.Errorf("expected RawURL %q; got %q", e, g)
