@@ -86,6 +86,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	env := []string{
 		"SERVER_SOFTWARE=go",
 		"SERVER_NAME=" + req.Host,
+		"SERVER_PROTOCOL=HTTP/1.1",
 		"HTTP_HOST=" + req.Host,
 		"GATEWAY_INTERFACE=CGI/1.1",
 		"REQUEST_METHOD=" + req.Method,
