@@ -10,6 +10,8 @@ import (
 	. "http"
 	"http/httptest"
 	"io"
+	"io/ioutil"
+	"mime/multipart"
 	"os"
 	"reflect"
 	"regexp"
@@ -82,7 +84,7 @@ func TestPostQuery(t *testing.T) {
 	req.Header = Header{
 		"Content-Type": {"application/x-www-form-urlencoded; boo!"},
 	}
-	req.Body = nopCloser{strings.NewReader("z=post&both=y")}
+	req.Body = ioutil.NopCloser(strings.NewReader("z=post&both=y"))
 	if q := req.FormValue("q"); q != "foo" {
 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
 	}
@@ -115,7 +117,7 @@ func TestPostContentTypeParsing(t *testing.T) {
 		req := &Request{
 			Method: "POST",
 			Header: Header(test.contentType),
-			Body:   nopCloser{bytes.NewBufferString("body")},
+			Body:   ioutil.NopCloser(bytes.NewBufferString("body")),
 		}
 		err := req.ParseForm()
 		if !test.error && err != nil {
@@ -131,7 +133,7 @@ func TestMultipartReader(t *testing.T) {
 	req := &Request{
 		Method: "POST",
 		Header: Header{"Content-Type": {`multipart/form-data; boundary="foo123"`}},
-		Body:   nopCloser{new(bytes.Buffer)},
+		Body:   ioutil.NopCloser(new(bytes.Buffer)),
 	}
 	multipart, err := req.MultipartReader()
 	if multipart == nil {
@@ -170,9 +172,115 @@ func TestRedirect(t *testing.T) {
 	}
 }
 
-// TODO: stop copy/pasting this around.  move to io/ioutil?
-type nopCloser struct {
-	io.Reader
+func TestMultipartRequest(t *testing.T) {
+	// Test that we can read the values and files of a 
+	// multipart request with FormValue and FormFile,
+	// and that ParseMultipartForm can be called multiple times.
+	req := newTestMultipartRequest(t)
+	if err := req.ParseMultipartForm(25); err != nil {
+		t.Fatal("ParseMultipartForm first call:", err)
+	}
+	defer req.MultipartForm.RemoveAll()
+	validateTestMultipartContents(t, req, false)
+	if err := req.ParseMultipartForm(25); err != nil {
+		t.Fatal("ParseMultipartForm second call:", err)
+	}
+	validateTestMultipartContents(t, req, false)
 }
 
-func (nopCloser) Close() os.Error { return nil }
+func TestMultipartRequestAuto(t *testing.T) {
+	// Test that FormValue and FormFile automatically invoke
+	// ParseMultipartForm and return the right values.
+	req := newTestMultipartRequest(t)
+	defer func() {
+		if req.MultipartForm != nil {
+			req.MultipartForm.RemoveAll()
+		}
+	}()
+	validateTestMultipartContents(t, req, true)
+}
+
+func newTestMultipartRequest(t *testing.T) *Request {
+	b := bytes.NewBufferString(strings.Replace(message, "\n", "\r\n", -1))
+	req, err := NewRequest("POST", "/", b)
+	if err != nil {
+		t.Fatalf("NewRequest:", err)
+	}
+	ctype := fmt.Sprintf(`multipart/form-data; boundary="%s"`, boundary)
+	req.Header.Set("Content-type", ctype)
+	return req
+}
+
+func validateTestMultipartContents(t *testing.T, req *Request, allMem bool) {
+	if g, e := req.FormValue("texta"), textaValue; g != e {
+		t.Errorf("texta value = %q, want %q", g, e)
+	}
+	if g, e := req.FormValue("texta"), textaValue; g != e {
+		t.Errorf("texta value = %q, want %q", g, e)
+	}
+
+	assertMem := func(n string, fd multipart.File) {
+		if _, ok := fd.(*os.File); ok {
+			t.Error(n, " is *os.File, should not be")
+		}
+	}
+	fd := testMultipartFile(t, req, "filea", "filea.txt", fileaContents)
+	assertMem("filea", fd)
+	fd = testMultipartFile(t, req, "fileb", "fileb.txt", filebContents)
+	if allMem {
+		assertMem("fileb", fd)
+	} else {
+		if _, ok := fd.(*os.File); !ok {
+			t.Errorf("fileb has unexpected underlying type %T", fd)
+		}
+	}
+}
+
+func testMultipartFile(t *testing.T, req *Request, key, expectFilename, expectContent string) multipart.File {
+	f, fh, err := req.FormFile(key)
+	if err != nil {
+		t.Fatalf("FormFile(%q):", key, err)
+	}
+	if fh.Filename != expectFilename {
+		t.Errorf("filename = %q, want %q", fh.Filename, expectFilename)
+	}
+	var b bytes.Buffer
+	_, err = io.Copy(&b, f)
+	if err != nil {
+		t.Fatal("copying contents:", err)
+	}
+	if g := b.String(); g != expectContent {
+		t.Errorf("contents = %q, want %q", g, expectContent)
+	}
+	return f
+}
+
+const (
+	fileaContents = "This is a test file."
+	filebContents = "Another test file."
+	textaValue    = "foo"
+	textbValue    = "bar"
+	boundary      = `MyBoundary`
+)
+
+const message = `
+--MyBoundary
+Content-Disposition: form-data; name="filea"; filename="filea.txt"
+Content-Type: text/plain
+
+` + fileaContents + `
+--MyBoundary
+Content-Disposition: form-data; name="fileb"; filename="fileb.txt"
+Content-Type: text/plain
+
+` + filebContents + `
+--MyBoundary
+Content-Disposition: form-data; name="texta"
+
+` + textaValue + `
+--MyBoundary
+Content-Disposition: form-data; name="textb"
+
+` + textbValue + `
+--MyBoundary--
+`
