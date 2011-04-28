@@ -346,7 +346,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
 		return nil;
 
 	if(p < h->arena_start || p+n - h->arena_start >= MaxArena32) {
-		runtime·printf("runtime: memory allocated by OS not in usable range");
+		runtime·printf("runtime: memory allocated by OS not in usable range\n");
 		runtime·SysFree(p, n);
 		return nil;
 	}
