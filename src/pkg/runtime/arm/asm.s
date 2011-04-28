@@ -128,7 +128,7 @@ TEXT runtime·gogocall(SB), 7, $-4
 
 // void mcall(void (*fn)(G*))
 // Switch to m->g0's stack, call fn(g).
-// Fn must never return.  It should gogo(&g->gobuf)
+// Fn must never return.  It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall(SB), 7, $-4
 	MOVW	fn+0(FP), R0

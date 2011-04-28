@@ -6,6 +6,7 @@
 
 #include "runtime.h"
 #include "malloc.h"
+#include "stack.h"
 
 enum {
 	Debug = 0,
@@ -91,6 +92,11 @@ scanblock(byte *b, int64 n)
 	PageID k;
 	void **bw, **w, **ew;
 	Workbuf *wbuf;
+
+	if((int64)(uintptr)n != n || n < 0) {
+		runtime·printf("scanblock %p %D\n", b, n);
+		runtime·throw("scanblock");
+	}
 
 	// Memory arena parameters.
 	arena_start = runtime·mheap.arena_start;
@@ -323,20 +329,47 @@ getfull(Workbuf *b)
 static void
 scanstack(G *gp)
 {
+	int32 n;
 	Stktop *stk;
-	byte *sp;
+	byte *sp, *guard;
 
-	if(gp == g)
+	stk = (Stktop*)gp->stackbase;
+	guard = gp->stackguard;
+
+	if(gp == g) {
+		// Scanning our own stack: start at &gp.
 		sp = (byte*)&gp;
-	else
+	} else {
+		// Scanning another goroutine's stack.
+		// The goroutine is usually asleep (the world is stopped).
 		sp = gp->sched.sp;
+
+		// The exception is that if gp->status == Gsyscall, the goroutine
+		// is about to enter or might have just exited a system call, in
+		// which case it may be executing code such as schedlock and
+		// may have needed to start a new stack segment.
+		// Use the stack segment and stack pointer at the time of
+		// the entersyscall.
+		if(g->gcstack != nil) {
+			stk = (Stktop*)gp->gcstack;
+			sp = gp->gcsp;
+			guard = gp->gcguard;
+		}
+	}
+
 	if(Debug > 1)
 		runtime·printf("scanstack %d %p\n", gp->goid, sp);
-	stk = (Stktop*)gp->stackbase;
+	n = 0;
 	while(stk) {
+		if(sp < guard-StackGuard || (byte*)stk < sp) {
+			runtime·printf("scanstack inconsistent: g%d#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
+			runtime·throw("scanstack");
+		}
 		scanblock(sp, (byte*)stk - sp);
 		sp = stk->gobuf.sp;
+		guard = stk->stackguard;
 		stk = (Stktop*)stk->stackbase;
+		n++;
 	}
 }
 

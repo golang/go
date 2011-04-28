@@ -183,6 +183,9 @@ struct	G
 	Defer*	defer;
 	Panic*	panic;
 	Gobuf	sched;
+	byte*	gcstack;		// if status==Gsyscall, gcstack = stackbase to use during gc
+	byte*	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
+	byte*	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
 	byte*	stack0;
 	byte*	entry;		// initial function
 	G*	alllink;	// on allg
@@ -241,6 +244,7 @@ struct	M
 	void*	sehframe;
 #endif
 };
+
 struct	Stktop
 {
 	// The offsets of these fields are known to (hard-coded in) libmach.
