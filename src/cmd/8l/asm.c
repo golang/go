@@ -91,6 +91,8 @@ enum {
 	ElfStrStrtab,
 	ElfStrRelPlt,
 	ElfStrPlt,
+	ElfStrGnuVersion,
+	ElfStrGnuVersionR,
 	NElfStr
 };
 
@@ -420,7 +422,7 @@ adddynsym(Sym *s)
 		s->dynid = nelfsym++;
 		
 		d = lookup(".dynsym", 0);
-		
+
 		/* name */
 		name = s->dynimpname;
 		if(name == nil)
@@ -545,6 +547,8 @@ doelf(void)
 		elfstr[ElfStrRel] = addstring(shstrtab, ".rel");
 		elfstr[ElfStrRelPlt] = addstring(shstrtab, ".rel.plt");
 		elfstr[ElfStrPlt] = addstring(shstrtab, ".plt");
+		elfstr[ElfStrGnuVersion] = addstring(shstrtab, ".gnu.version");
+		elfstr[ElfStrGnuVersionR] = addstring(shstrtab, ".gnu.version_r");
 
 		/* interpreter string */
 		s = lookup(".interp", 0);
@@ -592,6 +596,14 @@ doelf(void)
 		s = lookup(".rel.plt", 0);
 		s->reachable = 1;
 		s->type = SELFDATA;
+		
+		s = lookup(".gnu.version", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
+		
+		s = lookup(".gnu.version_r", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
 
 		elfsetupplt();
 
@@ -617,7 +629,8 @@ doelf(void)
 		elfwritedynent(s, DT_PLTREL, DT_REL);
 		elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rel.plt", 0));
 		elfwritedynentsym(s, DT_JMPREL, lookup(".rel.plt", 0));
-		elfwritedynent(s, DT_NULL, 0);
+
+		// Do not write DT_NULL.  elfdynhash will finish it.
 	}
 }
 
@@ -681,8 +694,11 @@ asmb(void)
 		/* index of elf text section; needed by asmelfsym, double-checked below */
 		/* !debug['d'] causes extra sections before the .text section */
 		elftextsh = 1;
-		if(!debug['d'])
+		if(!debug['d']) {
 			elftextsh += 10;
+			if(elfverneed)
+				elftextsh += 2;
+		}
 	}
 
 	symsize = 0;
@@ -966,6 +982,24 @@ asmb(void)
 			sh->addralign = 1;
 			shsym(sh, lookup(".dynstr", 0));
 			
+			if(elfverneed) {
+				sh = newElfShdr(elfstr[ElfStrGnuVersion]);
+				sh->type = SHT_GNU_VERSYM;
+				sh->flags = SHF_ALLOC;
+				sh->addralign = 2;
+				sh->link = dynsym;
+				sh->entsize = 2;
+				shsym(sh, lookup(".gnu.version", 0));
+
+				sh = newElfShdr(elfstr[ElfStrGnuVersionR]);
+				sh->type = SHT_GNU_VERNEED;
+				sh->flags = SHF_ALLOC;
+				sh->addralign = 4;
+				sh->info = elfverneed;
+				sh->link = dynsym+1;  // dynstr
+				shsym(sh, lookup(".gnu.version_r", 0));
+			}
+
 			sh = newElfShdr(elfstr[ElfStrRelPlt]);
 			sh->type = SHT_REL;
 			sh->flags = SHF_ALLOC;

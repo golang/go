@@ -95,42 +95,63 @@ func (p *Package) writeDefs() {
 	fc.Close()
 }
 
-func dynimport(obj string) (syms, imports []string) {
-	var f interface {
-		ImportedLibraries() ([]string, os.Error)
-		ImportedSymbols() ([]string, os.Error)
-	}
-	var isMacho bool
-	var err1, err2, err3 os.Error
-	if f, err1 = elf.Open(obj); err1 != nil {
-		if f, err2 = pe.Open(obj); err2 != nil {
-			if f, err3 = macho.Open(obj); err3 != nil {
-				fatalf("cannot parse %s as ELF (%v) or PE (%v) or Mach-O (%v)", obj, err1, err2, err3)
-			}
-			isMacho = true
+func dynimport(obj string) {
+	if f, err := elf.Open(obj); err == nil {
+		sym, err := f.ImportedSymbols()
+		if err != nil {
+			fatalf("cannot load imported symbols from ELF file %s: %v", obj, err)
 		}
-	}
-
-	var err os.Error
-	syms, err = f.ImportedSymbols()
-	if err != nil {
-		fatalf("cannot load dynamic symbols: %v", err)
-	}
-	if isMacho {
-		// remove leading _ that OS X insists on
-		for i, s := range syms {
-			if len(s) >= 2 && s[0] == '_' {
-				syms[i] = s[1:]
+		for _, s := range sym {
+			targ := s.Name
+			if s.Version != "" {
+				targ += "@" + s.Version
 			}
+			fmt.Printf("#pragma dynimport %s %s %q\n", s.Name, targ, s.Library)
 		}
+		lib, err := f.ImportedLibraries()
+		if err != nil {
+			fatalf("cannot load imported libraries from ELF file %s: %v", obj, err)
+		}
+		for _, l := range lib {
+			fmt.Printf("#pragma dynimport _ _ %q\n", l)
+		}
+		return
 	}
 
-	imports, err = f.ImportedLibraries()
-	if err != nil {
-		fatalf("cannot load dynamic imports: %v", err)
+	if f, err := macho.Open(obj); err == nil {
+		sym, err := f.ImportedSymbols()
+		if err != nil {
+			fatalf("cannot load imported symbols from Mach-O file %s: %v", obj, err)
+		}
+		for _, s := range sym {
+			if len(s) > 0 && s[0] == '_' {
+				s = s[1:]
+			}
+			fmt.Printf("#pragma dynimport %s %s %q\n", s, s, "")
+		}
+		lib, err := f.ImportedLibraries()
+		if err != nil {
+			fatalf("cannot load imported libraries from Mach-O file %s: %v", obj, err)
+		}
+		for _, l := range lib {
+			fmt.Printf("#pragma dynimport _ _ %q\n", l)
+		}
+		return
 	}
 
-	return
+	if f, err := pe.Open(obj); err == nil {
+		sym, err := f.ImportedSymbols()
+		if err != nil {
+			fatalf("cannot load imported symbols from PE file %s: v", obj, err)
+		}
+		for _, s := range sym {
+			ss := strings.Split(s, ":", -1)
+			fmt.Printf("#pragma dynimport %s %s %q\n", ss[0], ss[0], strings.ToLower(ss[1]))
+		}
+		return
+	}
+
+	fatalf("cannot parse %s as ELF, Mach-O or PE", obj)
 }
 
 // Construct a gcc struct matching the 6c argument frame.

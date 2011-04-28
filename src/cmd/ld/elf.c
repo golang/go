@@ -331,17 +331,62 @@ elfinterp(ElfShdr *sh, uint64 startva, char *p)
 }
 
 extern int nelfsym;
+int elfverneed;
+
+typedef struct Elfaux Elfaux;
+typedef struct Elflib Elflib;
+
+struct Elflib
+{
+	Elflib *next;
+	Elfaux *aux;
+	char *file;
+};
+
+struct Elfaux
+{
+	Elfaux *next;
+	int num;
+	char *vers;
+};
+
+Elfaux*
+addelflib(Elflib **list, char *file, char *vers)
+{
+	Elflib *lib;
+	Elfaux *aux;
+	
+	for(lib=*list; lib; lib=lib->next)
+		if(strcmp(lib->file, file) == 0)
+			goto havelib;
+	lib = mal(sizeof *lib);
+	lib->next = *list;
+	lib->file = file;
+	*list = lib;
+havelib:
+	for(aux=lib->aux; aux; aux=aux->next)
+		if(strcmp(aux->vers, vers) == 0)
+			goto haveaux;
+	aux = mal(sizeof *aux);
+	aux->next = lib->aux;
+	aux->vers = vers;
+	lib->aux = aux;
+haveaux:
+	return aux;
+}
 
 void
 elfdynhash(void)
 {
-	Sym *s, *sy;
-	int i, nbucket, b;
-	uchar *pc;
-	uint32 hc, g;
-	uint32 *chain, *buckets;
+	Sym *s, *sy, *dynstr;
+	int i, j, nbucket, b, nfile;
+	uint32 hc, *chain, *buckets;
 	int nsym;
 	char *name;
+	Elfaux **need;
+	Elflib *needlib;
+	Elflib *l;
+	Elfaux *x;
 	
 	if(!iself)
 		return;
@@ -358,29 +403,29 @@ elfdynhash(void)
 		i >>= 1;
 	}
 
-	chain = malloc(nsym * sizeof(uint32));
-	buckets = malloc(nbucket * sizeof(uint32));
-	if(chain == nil || buckets == nil) {
+	needlib = nil;
+	need = malloc(nsym * sizeof need[0]);
+	chain = malloc(nsym * sizeof chain[0]);
+	buckets = malloc(nbucket * sizeof buckets[0]);
+	if(need == nil || chain == nil || buckets == nil) {
 		cursym = nil;
 		diag("out of memory");
 		errorexit();
 	}
-	memset(chain, 0, nsym * sizeof(uint32));
-	memset(buckets, 0, nbucket * sizeof(uint32));
+	memset(need, 0, nsym * sizeof need[0]);
+	memset(chain, 0, nsym * sizeof chain[0]);
+	memset(buckets, 0, nbucket * sizeof buckets[0]);
 	for(sy=allsym; sy!=S; sy=sy->allsym) {
 		if (sy->dynid <= 0)
 			continue;
 
-		hc = 0;
+		if(sy->dynimpvers)
+			need[sy->dynid] = addelflib(&needlib, sy->dynimplib, sy->dynimpvers);
+
 		name = sy->dynimpname;
 		if(name == nil)
 			name = sy->name;
-		for(pc = (uchar*)name; *pc; pc++) {
-			hc = (hc<<4) + *pc;
-			g = hc & 0xf0000000;
-			hc ^= g >> 24;
-			hc &= ~g;
-		}
+		hc = elfhash((uchar*)name);
 
 		b = hc % nbucket;
 		chain[sy->dynid] = buckets[b];
@@ -396,8 +441,62 @@ elfdynhash(void)
 
 	free(chain);
 	free(buckets);
+	
+	// version symbols
+	dynstr = lookup(".dynstr", 0);
+	s = lookup(".gnu.version_r", 0);
+	i = 2;
+	nfile = 0;
+	for(l=needlib; l; l=l->next) {
+		nfile++;
+		// header
+		adduint16(s, 1);  // table version
+		j = 0;
+		for(x=l->aux; x; x=x->next)
+			j++;
+		adduint16(s, j);	// aux count
+		adduint32(s, addstring(dynstr, l->file));  // file string offset
+		adduint32(s, 16);  // offset from header to first aux
+		if(l->next)
+			adduint32(s, 16+j*16);  // offset from this header to next
+		else
+			adduint32(s, 0);
+		
+		for(x=l->aux; x; x=x->next) {
+			x->num = i++;
+			// aux struct
+			adduint32(s, elfhash((uchar*)x->vers));  // hash
+			adduint16(s, 0);  // flags
+			adduint16(s, x->num);  // other - index we refer to this by
+			adduint32(s, addstring(dynstr, x->vers));  // version string offset
+			if(x->next)
+				adduint32(s, 16);  // offset from this aux to next
+			else
+				adduint32(s, 0);
+		}
+	}
 
-	elfwritedynent(lookup(".dynamic", 0), DT_NULL, 0);
+	// version references
+	s = lookup(".gnu.version", 0);
+	for(i=0; i<nsym; i++) {
+		if(i == 0)
+			adduint16(s, 0); // first entry - no symbol
+		else if(need[i] == nil)
+			adduint16(s, 1); // global
+		else
+			adduint16(s, need[i]->num);
+	}
+
+	free(need);
+
+	s = lookup(".dynamic", 0);
+	elfverneed = nfile;
+	if(elfverneed) {
+		elfwritedynentsym(s, DT_VERNEED, lookup(".gnu.version_r", 0));
+		elfwritedynent(s, DT_VERNEEDNUM, nfile);
+		elfwritedynentsym(s, DT_VERSYM, lookup(".gnu.version", 0));
+	}
+	elfwritedynent(s, DT_NULL, 0);
 }
 
 ElfPhdr*

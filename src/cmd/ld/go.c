@@ -412,7 +412,7 @@ parsemethod(char **pp, char *ep, char **methp)
 static void
 loaddynimport(char *file, char *pkg, char *p, int n)
 {
-	char *pend, *next, *name, *def, *p0, *lib;
+	char *pend, *next, *name, *def, *p0, *lib, *q;
 	Sym *s;
 
 	pend = p + n;
@@ -459,10 +459,14 @@ loaddynimport(char *file, char *pkg, char *p, int n)
 		}
 
 		name = expandpkg(name, pkg);
+		q = strchr(def, '@');
+		if(q)
+			*q++ = '\0';
 		s = lookup(name, 0);
 		if(s->type == 0 || s->type == SXREF) {
 			s->dynimplib = lib;
 			s->dynimpname = def;
+			s->dynimpvers = q;
 			s->type = SDYNIMPORT;
 		}
 	}

@@ -147,6 +147,7 @@ struct	Sym
 	char*	file;
 	char*	dynimpname;
 	char*	dynimplib;
+	char*	dynimpvers;
 	
 	// STEXT
 	Auto*	autom;

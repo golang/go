@@ -216,6 +216,9 @@ typedef struct {
 #define SHT_SYMTAB_SHNDX	18	/* Section indexes (see SHN_XINDEX). */
 #define SHT_LOOS	0x60000000	/* First of OS specific semantics */
 #define SHT_HIOS	0x6fffffff	/* Last of OS specific semantics */
+#define SHT_GNU_VERDEF	0x6ffffffd
+#define SHT_GNU_VERNEED	0x6ffffffe
+#define SHT_GNU_VERSYM	0x6fffffff
 #define SHT_LOPROC	0x70000000	/* reserved range for processor */
 #define SHT_HIPROC	0x7fffffff	/* specific section header types */
 #define SHT_LOUSER	0x80000000	/* reserved range for application */
@@ -310,6 +313,10 @@ typedef struct {
 #define	DT_HIOS		0x6ffff000	/* Last OS-specific */
 #define	DT_LOPROC	0x70000000	/* First processor-specific type. */
 #define	DT_HIPROC	0x7fffffff	/* Last processor-specific type. */
+
+#define	DT_VERNEED	0x6ffffffe
+#define	DT_VERNEEDNUM	0x6fffffff
+#define	DT_VERSYM	0x6ffffff0
 
 /* Values for DT_FLAGS */
 #define	DF_ORIGIN	0x0001	/* Indicates that the object being loaded may
@@ -962,12 +969,14 @@ uint64	endelf(void);
 extern	int	numelfphdr;
 extern	int	numelfshdr;
 extern	int	iself;
+extern	int	elfverneed;
 int	elfwriteinterp(void);
 void	elfinterp(ElfShdr*, uint64, char*);
 void	elfdynhash(void);
 ElfPhdr* elfphload(Segment*);
 ElfShdr* elfshbits(Section*);
 void	elfsetstring(char*, int);
+void	elfaddverneed(Sym*);
 
 /*
  * Total amount of space to reserve at the start of the file

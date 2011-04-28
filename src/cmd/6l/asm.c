@@ -95,6 +95,8 @@ enum {
 	ElfStrStrtab,
 	ElfStrRelaPlt,
 	ElfStrPlt,
+	ElfStrGnuVersion,
+	ElfStrGnuVersionR,
 	NElfStr
 };
 
@@ -436,6 +438,7 @@ adddynsym(Sym *s)
 		s->dynid = nelfsym++;
 
 		d = lookup(".dynsym", 0);
+
 		name = s->dynimpname;
 		if(name == nil)
 			name = s->name;
@@ -586,6 +589,8 @@ doelf(void)
 		elfstr[ElfStrRela] = addstring(shstrtab, ".rela");
 		elfstr[ElfStrRelaPlt] = addstring(shstrtab, ".rela.plt");
 		elfstr[ElfStrPlt] = addstring(shstrtab, ".plt");
+		elfstr[ElfStrGnuVersion] = addstring(shstrtab, ".gnu.version");
+		elfstr[ElfStrGnuVersionR] = addstring(shstrtab, ".gnu.version_r");
 
 		/* dynamic symbol table - first entry all zeros */
 		s = lookup(".dynsym", 0);
@@ -629,6 +634,14 @@ doelf(void)
 		s = lookup(".rela.plt", 0);
 		s->reachable = 1;
 		s->type = SELFDATA;
+		
+		s = lookup(".gnu.version", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
+		
+		s = lookup(".gnu.version_r", 0);
+		s->reachable = 1;
+		s->type = SELFDATA;
 
 		/* define dynamic elf table */
 		s = lookup(".dynamic", 0);
@@ -653,7 +666,8 @@ doelf(void)
 		elfwritedynent(s, DT_PLTREL, DT_RELA);
 		elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rela.plt", 0));
 		elfwritedynentsym(s, DT_JMPREL, lookup(".rela.plt", 0));
-		elfwritedynent(s, DT_NULL, 0);
+		
+		// Do not write DT_NULL.  elfdynhash will finish it.
 	}
 }
 
@@ -735,8 +749,11 @@ asmb(void)
 		/* index of elf text section; needed by asmelfsym, double-checked below */
 		/* !debug['d'] causes extra sections before the .text section */
 		elftextsh = 1;
-		if(!debug['d'])
+		if(!debug['d']) {
 			elftextsh += 10;
+			if(elfverneed)
+				elftextsh += 2;
+		}
 		break;
 	case Hwindows:
 		break;
@@ -919,6 +936,24 @@ asmb(void)
 			sh->flags = SHF_ALLOC;
 			sh->addralign = 1;
 			shsym(sh, lookup(".dynstr", 0));
+
+			if(elfverneed) {
+				sh = newElfShdr(elfstr[ElfStrGnuVersion]);
+				sh->type = SHT_GNU_VERSYM;
+				sh->flags = SHF_ALLOC;
+				sh->addralign = 2;
+				sh->link = dynsym;
+				sh->entsize = 2;
+				shsym(sh, lookup(".gnu.version", 0));
+				
+				sh = newElfShdr(elfstr[ElfStrGnuVersionR]);
+				sh->type = SHT_GNU_VERNEED;
+				sh->flags = SHF_ALLOC;
+				sh->addralign = 8;
+				sh->info = elfverneed;
+				sh->link = dynsym+1;  // dynstr
+				shsym(sh, lookup(".gnu.version_r", 0));
+			}
 
 			sh = newElfShdr(elfstr[ElfStrRelaPlt]);
 			sh->type = SHT_RELA;
