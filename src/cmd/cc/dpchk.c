@@ -534,6 +534,32 @@ out:
 		print("%s incomplete\n", s->name);
 }
 
+Sym*
+getimpsym(void)
+{
+	int c;
+	char *cp;
+
+	c = getnsc();
+	if(isspace(c) || c == '"') {
+		unget(c);
+		return S;
+	}
+	for(cp = symb;;) {
+		if(cp <= symb+NSYMB-4)
+			*cp++ = c;
+		c = getc();
+		if(c > 0 && !isspace(c) && c != '"')
+			continue;
+		unget(c);
+		break;
+	}
+	*cp = 0;
+	if(cp > symb+NSYMB-4)
+		yyerror("symbol too large: %s", symb);
+	return lookup();
+}
+
 void
 pragdynimport(void)
 {
@@ -541,11 +567,11 @@ pragdynimport(void)
 	char *path;
 	Dynimp *f;
 
-	local = getsym();
+	local = getimpsym();
 	if(local == nil)
 		goto err;
 
-	remote = getsym();
+	remote = getimpsym();
 	if(remote == nil)
 		goto err;
 
