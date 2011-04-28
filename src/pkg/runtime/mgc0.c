@@ -344,13 +344,12 @@ scanstack(G *gp)
 		// The goroutine is usually asleep (the world is stopped).
 		sp = gp->sched.sp;
 
-		// The exception is that if gp->status == Gsyscall, the goroutine
-		// is about to enter or might have just exited a system call, in
-		// which case it may be executing code such as schedlock and
-		// may have needed to start a new stack segment.
+		// The exception is that if the goroutine is about to enter or might
+		// have just exited a system call, it may be executing code such
+		// as schedlock and may have needed to start a new stack segment.
 		// Use the stack segment and stack pointer at the time of
-		// the entersyscall.
-		if(g->gcstack != nil) {
+		// the system call instead, since that won't change underfoot.
+		if(gp->gcstack != nil) {
 			stk = (Stktop*)gp->gcstack;
 			sp = gp->gcsp;
 			guard = gp->gcguard;
