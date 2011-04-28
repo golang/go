@@ -5,6 +5,139 @@
 <p>This page summarizes the changes between tagged releases of Go.
 For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
 
+<h3 id="2011-04-27">2011-04-27</h3>
+
+<pre>
+This release includes revisions to the reflect package to make it more
+efficient, after last the weekly’s major API update. If your code uses reflect
+it may require further changes, not all of which can be made automatically by
+gofix. For the full details of the change, see
+	http://codereview.appspot.com/4435042
+Also, the Typeof and NewValue functions have been renamed to TypeOf and ValueOf.
+
+Other changes:
+* 5c: make alignment rules match 5g, just like 6c matches 6g.
+* 8g, 8l: fix "set but not used" gcc error (thanks Fazlul Shahriar).
+* all-qemu.bash: remove DISABLE_NET_TESTS.
+* build: remove DISABLE_NET_TESTS.
+* builder: build multiple targets in parallel.
+* cgo: avoid "incompatible pointer type" warning (thanks Albert Strasheim).
+* codereview: add 'hg undo' command, various other fixes.
+* compress/flate: dictionary support.
+* compress/zlib: add FDICT flag in Reader/Writer (thanks Ross Light).
+* container/heap: fix circular dependency in test.
+* crypto/openpgp: better handling of keyrings.
+* crypto/rsa: support > 3 primes.
+* crypto/tls: add server-side OCSP stapling support.
+* crypto/x509: memorize chain building.
+* crypto: move certificate verification into x509.
+* dashboard: build most recent revision first.
+* doc: mention make version in install.html.
+* expvar: add Func for functions that return values that are JSON marshalable.
+* fmt: decrease recursion depth in tests to permit them to run under gccgo,
+	tweak the doc for %U.
+* gc: allow complex types to be receiver types (thanks Robert Hencke),
+	correct handling of unexported method names in embedded interfaces,
+	explain why invalid receiver types are invalid,
+	fix copy([]int, string) error message (thanks Quan Yong Zhai),
+	fix 'invalid recursive type' error (thanks Lorenzo Stoakes),
+	many bug fixes.
+* go spec: attempt at clarifying language for "append",
+	for map types, mention indexing operations.
+* go/types: update for export data format change.
+* gob: fix handling of indirect receivers for GobDecoders,
+	fix trivial bug in map marshaling,
+	have errorf always prefix the message with "gob: ",
+	test case for indirection to large field,
+	use new Implements and AssignableTo methods in reflect,
+	when decoding a string, allocate a string, not a []byte.
+* gobuilder: permit builders of the form goos-goarch-foo,
+	respect MAKEFLAGS if provided (thanks Dave Cheney).
+* godoc: use "search" input type for search box (thanks Dmitry Chestnykh).
+* gofix: add support for reflect rename.
+* gofmt: add -d (diff) (thanks David Crawshaw),
+	don't crash when rewriting nil interfaces in AST,
+	exclude test case that doesn't compile w/o errors,
+	gofmt test harness bug fix.
+* goinstall: support GOPATH; building and installing outside the Go tree,
+	support building executable commands.
+* gopack: fix prefix bug,
+	preserve safe flag when not adding unsafe objects to archive.
+* gotest: add timing, respect $GOARCH,
+	generate gofmt-compliant code.
+* http/cgi: copy some PATH environment variables to child,
+	improve Location response handling,
+	pass some default environment variables.
+* http/fcgi: new package (thanks Evan Shaw).
+* http: add NewRequest helper,
+	add MultipartForm, ParseMultipartForm, and FormFile to Request,
+	be clear when failing to connect to a proxy,
+	bug fixes and new tests,
+	consume request bodies before replying,
+	don't quote Set-Cookie Domain and Path (thanks Petar Maymounkov),
+	fix IP confusion in TestServerTimeouts,
+	handler timeout support,
+	ServerConn, ClientConn: add real Close (thanks Petar Maymounkov),
+	make Client redirect policy configurable,
+	put a limit on POST size,
+	reverse proxy handler.
+* image/jpeg: add an encoder,
+	decode to a YCbCr image instead of an RGBA image.
+* ioutil: add Discard.
+* json: keep track of error offset in SyntaxError.
+* ld: defend against some broken object files,
+	do not emit empty dwarf pe sections (thanks Alex Brainman),
+	fix 6l -d on Mac, diagnose invalid use of -d,
+	fix Plan 9 symbol table (thanks Anthony Martin),
+	remove MachoLoad limit.
+* make: prevent rm provoking 'text file busy' errors (thanks Lorenzo Stoakes).
+* mime/multipart: add ReadForm for parsing multipart forms,
+	limit line length to prevent abuse.
+* mime: RFC 2231 continuation / non-ASCII support,
+	bunch more tests, few minor parsing fixes.
+* misc/goplay: fix Tab and Shift+Enter in Firefox (thanks Dmitry Chestnykh).
+* net: disable one more external network test,
+	fix EAI_BADFLAGS error on freebsd (thanks Mikio Hara),
+	fix ParseIP (thanks Quan Yong Zhai),
+	fix dialgoogle_test.go (thanks Quan Yong Zhai),
+	try /etc/hosts before loading DNS config (thanks Dmitry Chestnykh),
+	use C library resolver on FreeBSD, Linux, OS X / amd64, 386.
+* os/user: new package to look up users.
+* os: Open with O_APPEND|O_CREATE to append on Windows (thanks Alex Brainman),
+	fix race in ReadAt/WriteAt on Windows (thanks Alex Brainman),
+	turn EPIPE exit into panic.
+* rc/env.bash: fix to build on windows under msys (thanks Joe Poirier).
+* reflect: allow Slice of arrays,
+	fix Copy of arrays (thanks Gustavo Niemeyer),
+	require package qualifiers to match during interface check,
+	add Type.Implements, Type.AssignableTo, Value.CallSlice,
+	make Set match Go.
+* rpc: allow the first argument of a method to be a value rather than a pointer,
+	run benchmarks over HTTP as well as direct network connections.
+* run.bash: remove redundant rebuilds.
+* runtime/plan9: warning remediation for Plan 9 (thanks Lucio De Re),
+* runtime: many bug fixes,
+	fix GOMAXPROCS vs garbage collection bug (thanks Dmitriy Vyukov),
+	fix mkversion to output valid path separators (thanks Peter Mundy),
+	more graceful out-of-memory crash,
+	require package qualifiers to match during interface check,
+	skip functions with no lines when building src line table,
+	turn "too many EPIPE" into real SIGPIPE.
+* src/pkg: make package doc comments consistently start with "Package foo".
+* syscall: Madvise and Mprotect for Linux (thanks Albert Strasheim),
+	Mlock, Munlock, Mlockall, Munlockall on Linux (thanks Albert Strasheim),
+	add BPF support for darwin/386, darwin/amd64 (thanks Mikio Hara),
+	correct Windows CreateProcess input parameters (thanks Alex Brainman),
+	fix Ftruncate under linux/arm5 (thanks Dave Cheney),
+	permit StartProcess to hide the executed program on windows (thanks Vincent Vanackere).
+* test/bench: update timings; moving to new machine.
+* time: support Irix 6 location for zoneinfo files.
+* tutorial: modernize the definition and use of Open,
+	replace the forever loops with finite counts in sieve programs.
+* websocket: include *http.Request in websocket.Conn.
+* xml: Parser hook for non-UTF-8 charset converters.
+</pre>
+
 <h3 id="2011-04-13">2011-04-13</h3>
 
 <pre>
