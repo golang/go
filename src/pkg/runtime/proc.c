@@ -590,6 +590,9 @@ schedule(G *gp)
 // re-queues g and runs everyone else who is waiting
 // before running g again.  If g->status is Gmoribund,
 // kills off g.
+// Cannot split stack because it is called from exitsyscall.
+// See comment below.
+#pragma textflag 7
 void
 runtime·gosched(void)
 {
@@ -604,19 +607,17 @@ runtime·gosched(void)
 // Record that it's not using the cpu anymore.
 // This is called only from the go syscall library and cgocall,
 // not from the low-level system calls used by the runtime.
+//
 // Entersyscall cannot split the stack: the runtime·gosave must
-// make g->sched refer to the caller's stack pointer.
+// make g->sched refer to the caller's stack segment, because
+// entersyscall is going to return immediately after.
 // It's okay to call matchmg and notewakeup even after
 // decrementing mcpu, because we haven't released the
-// sched lock yet.
+// sched lock yet, so the garbage collector cannot be running.
 #pragma textflag 7
 void
 runtime·entersyscall(void)
 {
-	// Leave SP around for gc and traceback.
-	// Do before notewakeup so that gc
-	// never sees Gsyscall with wrong stack.
-	runtime·gosave(&g->sched);
 	if(runtime·sched.predawn)
 		return;
 	schedlock();
@@ -625,9 +626,22 @@ runtime·entersyscall(void)
 	runtime·sched.msyscall++;
 	if(runtime·sched.gwait != 0)
 		matchmg();
+
 	if(runtime·sched.waitstop && runtime·sched.mcpu <= runtime·sched.mcpumax) {
 		runtime·sched.waitstop = 0;
 		runtime·notewakeup(&runtime·sched.stopped);
+	}
+
+	// Leave SP around for gc and traceback.
+	// Do before schedunlock so that gc
+	// never sees Gsyscall with wrong stack.
+	runtime·gosave(&g->sched);
+	g->gcsp = g->sched.sp;
+	g->gcstack = g->stackbase;
+	g->gcguard = g->stackguard;
+	if(g->gcsp < g->gcguard-StackGuard || g->gcstack < g->gcsp) {
+		runtime·printf("entersyscall inconsistent %p [%p,%p]\n", g->gcsp, g->gcguard-StackGuard, g->gcstack);
+		runtime·throw("entersyscall");
 	}
 	schedunlock();
 }
@@ -647,7 +661,11 @@ runtime·exitsyscall(void)
 	runtime·sched.mcpu++;
 	// Fast path - if there's room for this m, we're done.
 	if(m->profilehz == runtime·sched.profilehz && runtime·sched.mcpu <= runtime·sched.mcpumax) {
+		// There's a cpu for us, so we can run.
 		g->status = Grunning;
+		// Garbage collector isn't running (since we are),
+		// so okay to clear gcstack.
+		g->gcstack = nil;
 		schedunlock();
 		return;
 	}
@@ -663,6 +681,14 @@ runtime·exitsyscall(void)
 	// When the scheduler takes g away from m,
 	// it will undo the runtime·sched.mcpu++ above.
 	runtime·gosched();
+	
+	// Gosched returned, so we're allowed to run now.
+	// Delete the gcstack information that we left for
+	// the garbage collector during the system call.
+	// Must wait until now because until gosched returns
+	// we don't know for sure that the garbage collector
+	// is not running.
+	g->gcstack = nil;
 }
 
 void
