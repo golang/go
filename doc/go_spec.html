@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of Apr 29, 2011 -->
+<!-- subtitle Version of Apr 22, 2011 -->
 
 <!--
 TODO
@@ -3035,7 +3035,7 @@ f(&lt;-ch)
 </pre>
 
 <p>
-A receive operation used in an assignment or initialization of the form
+A receive expression used in an assignment or initialization of the form
 </p>
 
 <pre>
@@ -3521,14 +3521,13 @@ Error: log.Panic("error encountered")
 <h3 id="Expression_statements">Expression statements</h3>
 
 <p>
-Function calls, method calls, and
-<a href="#Receive_operator">receive operations</a>
+Function calls, method calls, and receive operations
 can appear in statement context.
 </p>
 
+
 <pre class="ebnf">
-ExpressionStmt = PrimaryExpr Call | RecvExpr .
-RecvExpr       = "&lt;-" UnaryExpr .
+ExpressionStmt = Expression .
 </pre>
 
 <pre>
@@ -4088,9 +4087,11 @@ SelectStmt = "select" "{" { CommClause } "}" .
 CommClause = CommCase ":" { Statement ";" } .
 CommCase   = "case" ( SendStmt | RecvStmt ) | "default" .
 RecvStmt   = [ Expression [ "," Expression ] ( "=" | ":=" ) ] RecvExpr .
+RecvExpr   = Expression .
 </pre>
 
 <p>
+RecvExpr must be a <a href="#Receive_operator">receive operation</a>.
 For all the cases in the "select"
 statement, the channel expressions are evaluated in top-to-bottom order, along with
 any expressions that appear on the right hand side of send statements.
