@@ -5,10 +5,10 @@
 package png
 
 import (
-	"bytes"
 	"fmt"
 	"image"
 	"io"
+	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -81,10 +81,42 @@ func BenchmarkEncodePaletted(b *testing.B) {
 			image.RGBAColor{0, 0, 0, 255},
 			image.RGBAColor{255, 255, 255, 255},
 		})
+	b.SetBytes(640 * 480 * 1)
 	b.StartTimer()
-	buffer := new(bytes.Buffer)
 	for i := 0; i < b.N; i++ {
-		buffer.Reset()
-		Encode(buffer, img)
+		Encode(ioutil.Discard, img)
+	}
+}
+
+func BenchmarkEncodeRGBOpaque(b *testing.B) {
+	b.StopTimer()
+	img := image.NewRGBA(640, 480)
+	// Set all pixels to 0xFF alpha to force opaque mode.
+	bo := img.Bounds()
+	for y := bo.Min.Y; y < bo.Max.Y; y++ {
+		for x := bo.Min.X; x < bo.Max.X; x++ {
+			img.Set(x, y, image.RGBAColor{0, 0, 0, 255})
+		}
+	}
+	if !img.Opaque() {
+		panic("expected image to be opaque")
+	}
+	b.SetBytes(640 * 480 * 4)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		Encode(ioutil.Discard, img)
+	}
+}
+
+func BenchmarkEncodeRGBA(b *testing.B) {
+	b.StopTimer()
+	img := image.NewRGBA(640, 480)
+	if img.Opaque() {
+		panic("expected image to not be opaque")
+	}
+	b.SetBytes(640 * 480 * 4)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		Encode(ioutil.Discard, img)
 	}
 }
