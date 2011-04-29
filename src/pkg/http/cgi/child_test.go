@@ -20,6 +20,7 @@ func TestRequest(t *testing.T) {
 		"HTTP_FOO_BAR":    "baz",
 		"REQUEST_URI":     "/path?a=b",
 		"CONTENT_LENGTH":  "123",
+		"CONTENT_TYPE":    "text/xml",
 		"HTTPS":           "1",
 		"REMOTE_ADDR":     "5.6.7.8",
 	}
@@ -36,6 +37,9 @@ func TestRequest(t *testing.T) {
 	if g, e := req.Header.Get("User-Agent"), ""; e != g {
 		// Tests that we don't put recognized headers in the map
 		t.Errorf("expected User-Agent %q; got %q", e, g)
+	}
+	if g, e := req.Header.Get("Content-Type"), "text/xml"; e != g {
+		t.Errorf("expected Content-Type %q; got %q", e, g)
 	}
 	if g, e := req.ContentLength, int64(123); e != g {
 		t.Errorf("expected ContentLength %d; got %d", e, g)

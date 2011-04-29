@@ -84,6 +84,10 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
 		r.ContentLength = clen
 	}
 
+	if ct := params["CONTENT_TYPE"]; ct != "" {
+		r.Header.Set("Content-Type", ct)
+	}
+
 	// Copy "HTTP_FOO_BAR" variables to "Foo-Bar" Headers
 	for k, v := range params {
 		if !strings.HasPrefix(k, "HTTP_") || skipHeader[k] {
