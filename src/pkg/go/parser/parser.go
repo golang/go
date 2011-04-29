@@ -1780,10 +1780,6 @@ func (p *parser) parseCommClause() *ast.CommClause {
 				rhs = lhs[0]
 				lhs = nil // there is no lhs
 			}
-			if x, isUnary := rhs.(*ast.UnaryExpr); !isUnary || x.Op != token.ARROW {
-				p.errorExpected(rhs.Pos(), "send or receive operation")
-				rhs = &ast.BadExpr{rhs.Pos(), rhs.End()}
-			}
 			if lhs != nil {
 				comm = &ast.AssignStmt{lhs, pos, tok, []ast.Expr{rhs}}
 			} else {
