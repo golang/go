@@ -70,6 +70,12 @@ var (
 	procSetHandleInformation       = getSysProcAddr(modkernel32, "SetHandleInformation")
 	procFlushFileBuffers           = getSysProcAddr(modkernel32, "FlushFileBuffers")
 	procGetFullPathNameW           = getSysProcAddr(modkernel32, "GetFullPathNameW")
+	procCreateFileMappingW         = getSysProcAddr(modkernel32, "CreateFileMappingW")
+	procMapViewOfFile              = getSysProcAddr(modkernel32, "MapViewOfFile")
+	procUnmapViewOfFile            = getSysProcAddr(modkernel32, "UnmapViewOfFile")
+	procFlushViewOfFile            = getSysProcAddr(modkernel32, "FlushViewOfFile")
+	procVirtualLock                = getSysProcAddr(modkernel32, "VirtualLock")
+	procVirtualUnlock              = getSysProcAddr(modkernel32, "VirtualUnlock")
 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
 	procsocket                     = getSysProcAddr(modwsock32, "socket")
@@ -890,6 +896,92 @@ func GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (
 	r0, _, e1 := Syscall6(procGetFullPathNameW, 4, uintptr(unsafe.Pointer(path)), uintptr(buflen), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(fname)), 0, 0)
 	n = uint32(r0)
 	if n == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func CreateFileMapping(fhandle int32, sa *SecurityAttributes, prot uint32, maxSizeHigh uint32, maxSizeLow uint32, name *uint16) (handle int32, errno int) {
+	r0, _, e1 := Syscall6(procCreateFileMappingW, 6, uintptr(fhandle), uintptr(unsafe.Pointer(sa)), uintptr(prot), uintptr(maxSizeHigh), uintptr(maxSizeLow), uintptr(unsafe.Pointer(name)))
+	handle = int32(r0)
+	if handle == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func MapViewOfFile(handle int32, access uint32, offsetHigh uint32, offsetLow uint32, length uintptr) (addr uintptr, errno int) {
+	r0, _, e1 := Syscall6(procMapViewOfFile, 5, uintptr(handle), uintptr(access), uintptr(offsetHigh), uintptr(offsetLow), uintptr(length), 0)
+	addr = uintptr(r0)
+	if addr == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func UnmapViewOfFile(addr uintptr) (errno int) {
+	r1, _, e1 := Syscall(procUnmapViewOfFile, 1, uintptr(addr), 0, 0)
+	if int(r1) == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func FlushViewOfFile(addr uintptr, length uintptr) (errno int) {
+	r1, _, e1 := Syscall(procFlushViewOfFile, 2, uintptr(addr), uintptr(length), 0)
+	if int(r1) == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func VirtualLock(addr uintptr, length uintptr) (errno int) {
+	r1, _, e1 := Syscall(procVirtualLock, 2, uintptr(addr), uintptr(length), 0)
+	if int(r1) == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func VirtualUnlock(addr uintptr, length uintptr) (errno int) {
+	r1, _, e1 := Syscall(procVirtualUnlock, 2, uintptr(addr), uintptr(length), 0)
+	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
 		} else {

@@ -161,6 +161,12 @@ func NewCallback(fn interface{}) uintptr
 //sys	SetHandleInformation(handle int32, mask uint32, flags uint32) (errno int)
 //sys	FlushFileBuffers(handle int32) (errno int)
 //sys	GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (n uint32, errno int) = kernel32.GetFullPathNameW
+//sys	CreateFileMapping(fhandle int32, sa *SecurityAttributes, prot uint32, maxSizeHigh uint32, maxSizeLow uint32, name *uint16) (handle int32, errno int) = kernel32.CreateFileMappingW
+//sys	MapViewOfFile(handle int32, access uint32, offsetHigh uint32, offsetLow uint32, length uintptr) (addr uintptr, errno int)
+//sys	UnmapViewOfFile(addr uintptr) (errno int)
+//sys	FlushViewOfFile(addr uintptr, length uintptr) (errno int)
+//sys	VirtualLock(addr uintptr, length uintptr) (errno int)
+//sys	VirtualUnlock(addr uintptr, length uintptr) (errno int)
 
 // syscall interface implementation for other packages
 
