@@ -442,15 +442,15 @@ type body struct {
 	closed  bool
 }
 
-// ErrBodyReadAferClose is returned when reading a Request Body after
+// ErrBodyReadAfterClose is returned when reading a Request Body after
 // the body has been closed. This typically happens when the body is
 // read after an HTTP Handler calls WriteHeader or Write on its
 // ResponseWriter.
-var ErrBodyReadAferClose = os.NewError("http: invalid Read on closed request Body")
+var ErrBodyReadAfterClose = os.NewError("http: invalid Read on closed request Body")
 
 func (b *body) Read(p []byte) (n int, err os.Error) {
 	if b.closed {
-		return 0, ErrBodyReadAferClose
+		return 0, ErrBodyReadAfterClose
 	}
 	return b.Reader.Read(p)
 }
