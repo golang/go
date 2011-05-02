@@ -47,6 +47,9 @@ The flags are:
 		width of tabs in units of spaces
 	-timestamps=true
 		show timestamps with directory listings
+	-index
+		enable identifier and full text search index
+		(no search box is shown if -index is not set)
 	-maxresults=10000
 		maximum number of full text search results shown
 		(no full text index is built if maxresults <= 0)
