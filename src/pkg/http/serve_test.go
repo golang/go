@@ -618,49 +618,29 @@ func TestServerExpect(t *testing.T) {
 }
 
 func TestServerConsumesRequestBody(t *testing.T) {
-	log := make(chan string, 100)
+	conn := new(testConn)
+	body := strings.Repeat("x", 1<<20)
+	conn.readBuf.Write([]byte(fmt.Sprintf(
+		"POST / HTTP/1.1\r\n"+
+			"Host: test\r\n"+
+			"Content-Length: %d\r\n"+
+			"\r\n",len(body))))
+	conn.readBuf.Write([]byte(body))
 
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		log <- "got_request"
-		w.WriteHeader(StatusOK)
-		log <- "wrote_header"
+	done := make(chan bool)
+
+	ls := &oneConnListener{conn}
+	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		if conn.readBuf.Len() < len(body)/2 {
+			t.Errorf("on request, read buffer length is %d; expected about 1MB", conn.readBuf.Len())
+		}
+		rw.WriteHeader(200)
+		if g, e := conn.readBuf.Len(), 0; g != e {
+			t.Errorf("after WriteHeader, read buffer length is %d; want %d", g, e)
+		}
+		done <- true
 	}))
-	defer ts.Close()
-
-	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
-	if err != nil {
-		t.Fatalf("Dial: %v", err)
-	}
-	defer conn.Close()
-
-	bufr := bufio.NewReader(conn)
-	gotres := make(chan bool)
-	go func() {
-		line, err := bufr.ReadString('\n')
-		if err != nil {
-			t.Fatal(err)
-		}
-		log <- line
-		gotres <- true
-	}()
-
-	size := 1 << 20
-	log <- "writing_request"
-	fmt.Fprintf(conn, "POST / HTTP/1.0\r\nContent-Length: %d\r\n\r\n", size)
-	time.Sleep(25e6) // give server chance to misbehave & speak out of turn
-	log <- "slept_after_req_headers"
-	conn.Write([]byte(strings.Repeat("a", size)))
-
-	<-gotres
-	expected := []string{
-		"writing_request", "got_request",
-		"slept_after_req_headers", "wrote_header",
-		"HTTP/1.0 200 OK\r\n"}
-	for step, e := range expected {
-		if g := <-log; e != g {
-			t.Errorf("on step %d expected %q, got %q", step, e, g)
-		}
-	}
+	<-done
 }
 
 func TestTimeoutHandler(t *testing.T) {
