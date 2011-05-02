@@ -391,6 +391,31 @@ func toYCbCr(m image.Image, p image.Point, yBlock, cbBlock, crBlock *block) {
 	}
 }
 
+// rgbaToYCbCr is a specialized version of toYCbCr for image.RGBA images.
+func rgbaToYCbCr(m *image.RGBA, p image.Point, yBlock, cbBlock, crBlock *block) {
+	b := m.Bounds()
+	xmax := b.Max.X - 1
+	ymax := b.Max.Y - 1
+	for j := 0; j < 8; j++ {
+		sj := p.Y + j
+		if sj > ymax {
+			sj = ymax
+		}
+		yoff := sj * m.Stride
+		for i := 0; i < 8; i++ {
+			sx := p.X + i
+			if sx > xmax {
+				sx = xmax
+			}
+			col := &m.Pix[yoff+sx]
+			yy, cb, cr := ycbcr.RGBToYCbCr(col.R, col.G, col.B)
+			yBlock[8*j+i] = int(yy)
+			cbBlock[8*j+i] = int(cb)
+			crBlock[8*j+i] = int(cr)
+		}
+	}
+}
+
 // scale scales the 16x16 region represented by the 4 src blocks to the 8x8
 // dst block.
 func scale(dst *block, src *[4]block) {
@@ -431,13 +456,18 @@ func (e *encoder) writeSOS(m image.Image) {
 		prevDCY, prevDCCb, prevDCCr int
 	)
 	bounds := m.Bounds()
+	rgba, _ := m.(*image.RGBA)
 	for y := bounds.Min.Y; y < bounds.Max.Y; y += 16 {
 		for x := bounds.Min.X; x < bounds.Max.X; x += 16 {
 			for i := 0; i < 4; i++ {
 				xOff := (i & 1) * 8
 				yOff := (i & 2) * 4
 				p := image.Point{x + xOff, y + yOff}
-				toYCbCr(m, p, &yBlock, &cbBlock[i], &crBlock[i])
+				if rgba != nil {
+					rgbaToYCbCr(rgba, p, &yBlock, &cbBlock[i], &crBlock[i])
+				} else {
+					toYCbCr(m, p, &yBlock, &cbBlock[i], &crBlock[i])
+				}
 				prevDCY = e.writeBlock(&yBlock, 0, prevDCY)
 			}
 			scale(&cBlock, &cbBlock)
