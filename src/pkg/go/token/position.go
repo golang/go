@@ -94,10 +94,14 @@ func searchFiles(a []*File, x int) int {
 
 
 func (s *FileSet) file(p Pos) *File {
+	if f := s.last; f != nil && f.base <= int(p) && int(p) <= f.base+f.size {
+		return f
+	}
 	if i := searchFiles(s.files, int(p)); i >= 0 {
 		f := s.files[i]
 		// f.base <= int(p) by definition of searchFiles
 		if int(p) <= f.base+f.size {
+			s.last = f
 			return f
 		}
 	}
@@ -316,8 +320,26 @@ func (f *File) Position(p Pos) (pos Position) {
 }
 
 
-func searchUints(a []int, x int) int {
-	return sort.Search(len(a), func(i int) bool { return a[i] > x }) - 1
+func searchInts(a []int, x int) int {
+	// This function body is a manually inlined version of:
+	//
+	//   return sort.Search(len(a), func(i int) bool { return a[i] > x }) - 1
+	//
+	// With better compiler optimizations, this may not be needed in the
+	// future, but at the moment this change improves the go/printer
+	// benchmark performance by ~30%. This has a direct impact on the
+	// speed of gofmt and thus seems worthwhile (2011-04-29).
+	i, j := 0, len(a)
+	for i < j {
+		h := i + (j-i)/2 // avoid overflow when computing h
+		// i ≤ h < j
+		if a[h] <= x {
+			i = h + 1
+		} else {
+			j = h
+		}
+	}
+	return i - 1
 }
 
 
@@ -329,14 +351,17 @@ func searchLineInfos(a []lineInfo, x int) int {
 // info returns the file name, line, and column number for a file offset.
 func (f *File) info(offset int) (filename string, line, column int) {
 	filename = f.name
-	if i := searchUints(f.lines, offset); i >= 0 {
+	if i := searchInts(f.lines, offset); i >= 0 {
 		line, column = i+1, offset-f.lines[i]+1
 	}
-	if i := searchLineInfos(f.infos, offset); i >= 0 {
-		alt := &f.infos[i]
-		filename = alt.filename
-		if i := searchUints(f.lines, alt.offset); i >= 0 {
-			line += alt.line - i - 1
+	if len(f.infos) > 0 {
+		// almost no files have extra line infos
+		if i := searchLineInfos(f.infos, offset); i >= 0 {
+			alt := &f.infos[i]
+			filename = alt.filename
+			if i := searchInts(f.lines, alt.offset); i >= 0 {
+				line += alt.line - i - 1
+			}
 		}
 	}
 	return
@@ -348,10 +373,10 @@ func (f *File) info(offset int) (filename string, line, column int) {
 // may invoke them concurrently.
 //
 type FileSet struct {
-	mutex sync.RWMutex  // protects the file set
-	base  int           // base offset for the next file
-	files []*File       // list of files in the order added to the set
-	index map[*File]int // file -> files index for quick lookup
+	mutex sync.RWMutex // protects the file set
+	base  int          // base offset for the next file
+	files []*File      // list of files in the order added to the set
+	last  *File        // cache of last file looked up
 }
 
 
@@ -359,7 +384,6 @@ type FileSet struct {
 func NewFileSet() *FileSet {
 	s := new(FileSet)
 	s.base = 1 // 0 == NoPos
-	s.index = make(map[*File]int)
 	return s
 }
 
@@ -405,8 +429,8 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 	}
 	// add the file to the file set
 	s.base = base
-	s.index[f] = len(s.files)
 	s.files = append(s.files, f)
+	s.last = f
 	return f
 }
 
