@@ -30,10 +30,8 @@ var headerRegexp *regexp.Regexp = regexp.MustCompile("^([a-zA-Z0-9\\-]+): *([^\r
 // Reader's underlying parser consumes its input as needed.  Seeking
 // isn't supported.
 type Reader interface {
-	// NextPart returns the next part in the multipart, or (nil,
-	// nil) on EOF.  An error is returned if the underlying reader
-	// reports errors, or on truncated or otherwise malformed
-	// input.
+	// NextPart returns the next part in the multipart or an error.
+	// When there are no more parts, the error os.EOF is returned.
 	NextPart() (*Part, os.Error)
 
 	// ReadForm parses an entire multipart message whose parts have
@@ -207,9 +205,8 @@ func (mr *multiReader) NextPart() (*Part, os.Error) {
 		}
 
 		if hasPrefixThenNewline(line, mr.dashBoundaryDash) {
-			// Expected EOF (no error)
-			// TODO(bradfitz): should return an os.EOF error here, not using nil for errors
-			return nil, nil
+			// Expected EOF
+			return nil, os.EOF
 		}
 
 		if expectNewPart {
