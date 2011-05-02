@@ -26,6 +26,8 @@ import (
 
 var headerRegexp *regexp.Regexp = regexp.MustCompile("^([a-zA-Z0-9\\-]+): *([^\r\n]+)")
 
+var emptyParams = make(map[string]string)
+
 // Reader is an iterator over parts in a MIME multipart body.
 // Reader's underlying parser consumes its input as needed.  Seeking
 // isn't supported.
@@ -51,6 +53,7 @@ type Part struct {
 	buffer *bytes.Buffer
 	mr     *multiReader
 
+	disposition       string
 	dispositionParams map[string]string
 }
 
@@ -59,19 +62,31 @@ type Part struct {
 func (p *Part) FormName() string {
 	// See http://tools.ietf.org/html/rfc2183 section 2 for EBNF
 	// of Content-Disposition value format.
-	if p.dispositionParams != nil {
-		return p.dispositionParams["name"]
+	if p.dispositionParams == nil {
+		p.parseContentDisposition()
 	}
-	v := p.Header.Get("Content-Disposition")
-	if v == "" {
+	if p.disposition != "form-data" {
 		return ""
-	}
-	if d, params := mime.ParseMediaType(v); d != "form-data" {
-		return ""
-	} else {
-		p.dispositionParams = params
 	}
 	return p.dispositionParams["name"]
+}
+
+
+// FileName returns the filename parameter of the Part's
+// Content-Disposition header.
+func (p *Part) FileName() string {
+	if p.dispositionParams == nil {
+		p.parseContentDisposition()
+	}
+	return p.dispositionParams["filename"]
+}
+
+func (p *Part) parseContentDisposition() {
+	v := p.Header.Get("Content-Disposition")
+	p.disposition, p.dispositionParams = mime.ParseMediaType(v)
+	if p.dispositionParams == nil {
+		p.dispositionParams = emptyParams
+	}
 }
 
 // NewReader creates a new multipart Reader reading from r using the
