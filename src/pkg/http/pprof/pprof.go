@@ -26,6 +26,7 @@ package pprof
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"http"
 	"os"
@@ -88,10 +89,14 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 func Symbol(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
+	// We have to read the whole POST body before
+	// writing any output.  Buffer the output here.
+	var buf bytes.Buffer
+
 	// We don't know how many symbols we have, but we
 	// do have symbol information.  Pprof only cares whether
 	// this number is 0 (no symbols available) or > 0.
-	fmt.Fprintf(w, "num_symbols: 1\n")
+	fmt.Fprintf(&buf, "num_symbols: 1\n")
 
 	var b *bufio.Reader
 	if r.Method == "POST" {
@@ -109,14 +114,19 @@ func Symbol(w http.ResponseWriter, r *http.Request) {
 		if pc != 0 {
 			f := runtime.FuncForPC(uintptr(pc))
 			if f != nil {
-				fmt.Fprintf(w, "%#x %s\n", pc, f.Name())
+				fmt.Fprintf(&buf, "%#x %s\n", pc, f.Name())
 			}
 		}
 
 		// Wait until here to check for err; the last
 		// symbol will have an err because it doesn't end in +.
 		if err != nil {
+			if err != os.EOF {
+				fmt.Fprintf(&buf, "reading request: %v\n", err)
+			}
 			break
 		}
 	}
+
+	w.Write(buf.Bytes())
 }
