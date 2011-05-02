@@ -378,7 +378,7 @@ func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
 			for x := 0; x < d.width; x += 8 {
 				b := cdat[x/8]
 				for x2 := 0; x2 < 8 && x+x2 < d.width; x2++ {
-					gray.Set(x+x2, y, image.GrayColor{(b >> 7) * 0xff})
+					gray.SetGray(x+x2, y, image.GrayColor{(b >> 7) * 0xff})
 					b <<= 1
 				}
 			}
@@ -386,7 +386,7 @@ func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
 			for x := 0; x < d.width; x += 4 {
 				b := cdat[x/4]
 				for x2 := 0; x2 < 4 && x+x2 < d.width; x2++ {
-					gray.Set(x+x2, y, image.GrayColor{(b >> 6) * 0x55})
+					gray.SetGray(x+x2, y, image.GrayColor{(b >> 6) * 0x55})
 					b <<= 2
 				}
 			}
@@ -394,22 +394,22 @@ func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
 			for x := 0; x < d.width; x += 2 {
 				b := cdat[x/2]
 				for x2 := 0; x2 < 2 && x+x2 < d.width; x2++ {
-					gray.Set(x+x2, y, image.GrayColor{(b >> 4) * 0x11})
+					gray.SetGray(x+x2, y, image.GrayColor{(b >> 4) * 0x11})
 					b <<= 4
 				}
 			}
 		case cbG8:
 			for x := 0; x < d.width; x++ {
-				gray.Set(x, y, image.GrayColor{cdat[x]})
+				gray.SetGray(x, y, image.GrayColor{cdat[x]})
 			}
 		case cbGA8:
 			for x := 0; x < d.width; x++ {
 				ycol := cdat[2*x+0]
-				nrgba.Set(x, y, image.NRGBAColor{ycol, ycol, ycol, cdat[2*x+1]})
+				nrgba.SetNRGBA(x, y, image.NRGBAColor{ycol, ycol, ycol, cdat[2*x+1]})
 			}
 		case cbTC8:
 			for x := 0; x < d.width; x++ {
-				rgba.Set(x, y, image.RGBAColor{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
+				rgba.SetRGBA(x, y, image.RGBAColor{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
 			}
 		case cbP1:
 			for x := 0; x < d.width; x += 8 {
@@ -456,25 +456,25 @@ func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
 			}
 		case cbTCA8:
 			for x := 0; x < d.width; x++ {
-				nrgba.Set(x, y, image.NRGBAColor{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
+				nrgba.SetNRGBA(x, y, image.NRGBAColor{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
 			}
 		case cbG16:
 			for x := 0; x < d.width; x++ {
 				ycol := uint16(cdat[2*x+0])<<8 | uint16(cdat[2*x+1])
-				gray16.Set(x, y, image.Gray16Color{ycol})
+				gray16.SetGray16(x, y, image.Gray16Color{ycol})
 			}
 		case cbGA16:
 			for x := 0; x < d.width; x++ {
 				ycol := uint16(cdat[4*x+0])<<8 | uint16(cdat[4*x+1])
 				acol := uint16(cdat[4*x+2])<<8 | uint16(cdat[4*x+3])
-				nrgba64.Set(x, y, image.NRGBA64Color{ycol, ycol, ycol, acol})
+				nrgba64.SetNRGBA64(x, y, image.NRGBA64Color{ycol, ycol, ycol, acol})
 			}
 		case cbTC16:
 			for x := 0; x < d.width; x++ {
 				rcol := uint16(cdat[6*x+0])<<8 | uint16(cdat[6*x+1])
 				gcol := uint16(cdat[6*x+2])<<8 | uint16(cdat[6*x+3])
 				bcol := uint16(cdat[6*x+4])<<8 | uint16(cdat[6*x+5])
-				rgba64.Set(x, y, image.RGBA64Color{rcol, gcol, bcol, 0xffff})
+				rgba64.SetRGBA64(x, y, image.RGBA64Color{rcol, gcol, bcol, 0xffff})
 			}
 		case cbTCA16:
 			for x := 0; x < d.width; x++ {
@@ -482,7 +482,7 @@ func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
 				gcol := uint16(cdat[8*x+2])<<8 | uint16(cdat[8*x+3])
 				bcol := uint16(cdat[8*x+4])<<8 | uint16(cdat[8*x+5])
 				acol := uint16(cdat[8*x+6])<<8 | uint16(cdat[8*x+7])
-				nrgba64.Set(x, y, image.NRGBA64Color{rcol, gcol, bcol, acol})
+				nrgba64.SetNRGBA64(x, y, image.NRGBA64Color{rcol, gcol, bcol, acol})
 			}
 		}
 
