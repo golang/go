@@ -41,10 +41,7 @@ func (r *multiReader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
 		if name == "" {
 			continue
 		}
-		var filename string
-		if p.dispositionParams != nil {
-			filename = p.dispositionParams["filename"]
-		}
+		filename := p.FileName()
 
 		var b bytes.Buffer
 

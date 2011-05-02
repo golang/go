@@ -56,24 +56,25 @@ func expectEq(t *testing.T, expected, actual, what string) {
 		what, escapeString(actual), len(actual), escapeString(expected), len(expected))
 }
 
-func TestFormName(t *testing.T) {
-	p := new(Part)
-	p.Header = make(map[string][]string)
-	tests := [...][2]string{
-		{`form-data; name="foo"`, "foo"},
-		{` form-data ; name=foo`, "foo"},
-		{`FORM-DATA;name="foo"`, "foo"},
-		{` FORM-DATA ; name="foo"`, "foo"},
-		{` FORM-DATA ; name="foo"`, "foo"},
-		{` FORM-DATA ; name=foo`, "foo"},
-		{` FORM-DATA ; filename="foo.txt"; name=foo; baz=quux`, "foo"},
+func TestNameAccessors(t *testing.T) {
+	tests := [...][3]string{
+		{`form-data; name="foo"`, "foo", ""},
+		{` form-data ; name=foo`, "foo", ""},
+		{`FORM-DATA;name="foo"`, "foo", ""},
+		{` FORM-DATA ; name="foo"`, "foo", ""},
+		{` FORM-DATA ; name="foo"`, "foo", ""},
+		{` FORM-DATA ; name=foo`, "foo", ""},
+		{` FORM-DATA ; filename="foo.txt"; name=foo; baz=quux`, "foo", "foo.txt"},
+		{` not-form-data ; filename="bar.txt"; name=foo; baz=quux`, "", "bar.txt"},
 	}
-	for _, test := range tests {
+	for i, test := range tests {
+		p := &Part{Header: make(map[string][]string)}
 		p.Header.Set("Content-Disposition", test[0])
-		expected := test[1]
-		actual := p.FormName()
-		if actual != expected {
-			t.Errorf("expected \"%s\"; got: \"%s\"", expected, actual)
+		if g, e := p.FormName(), test[1]; g != e {
+			t.Errorf("test %d: FormName() = %q; want %q", i, g, e)
+		}
+		if g, e := p.FileName(), test[2]; g != e {
+			t.Errorf("test %d: FileName() = %q; want %q", i, g, e)
 		}
 	}
 }
