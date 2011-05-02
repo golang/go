@@ -201,8 +201,8 @@ func testMultipart(t *testing.T, r io.Reader) {
 	if part != nil {
 		t.Error("Didn't expect a fifth part.")
 	}
-	if err != nil {
-		t.Errorf("Unexpected error getting fifth part: %v", err)
+	if err != os.EOF {
+		t.Errorf("On  fifth part expected os.EOF; got %v", err)
 	}
 }
 
@@ -246,8 +246,8 @@ func TestVariousTextLineEndings(t *testing.T) {
 		if part != nil {
 			t.Errorf("Unexpected part in test %d", testNum)
 		}
-		if err != nil {
-			t.Errorf("Unexpected error in test %d: %v", testNum, err)
+		if err != os.EOF {
+			t.Errorf("On test %d expected os.EOF; got %v", testNum, err)
 		}
 
 	}
