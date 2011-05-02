@@ -27,7 +27,7 @@ func goCallback(p unsafe.Pointer) {
 	(*(*func())(unsafe.Pointer(&p)))()
 }
 
-func TestCallback(t *testing.T) {
+func testCallback(t *testing.T) {
 	var x = false
 	nestedCall(func() { x = true })
 	if !x {
@@ -35,13 +35,13 @@ func TestCallback(t *testing.T) {
 	}
 }
 
-func TestCallbackGC(t *testing.T) {
+func testCallbackGC(t *testing.T) {
 	nestedCall(runtime.GC)
 }
 
 func lockedOSThread() bool // in runtime.c
 
-func TestCallbackPanic(t *testing.T) {
+func testCallbackPanic(t *testing.T) {
 	// Make sure panic during callback unwinds properly.
 	if lockedOSThread() {
 		t.Fatal("locked OS thread on entry to TestCallbackPanic")
@@ -62,14 +62,14 @@ func TestCallbackPanic(t *testing.T) {
 	panic("nestedCall returned")
 }
 
-func TestCallbackPanicLoop(t *testing.T) {
+func testCallbackPanicLoop(t *testing.T) {
 	// Make sure we don't blow out m->g0 stack.
 	for i := 0; i < 100000; i++ {
 		TestCallbackPanic(t)
 	}
 }
 
-func TestCallbackPanicLocked(t *testing.T) {
+func testCallbackPanicLocked(t *testing.T) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -94,7 +94,7 @@ func TestCallbackPanicLocked(t *testing.T) {
 
 // Callback with zero arguments used to make the stack misaligned,
 // which broke the garbage collector and other things.
-func TestZeroArgCallback(t *testing.T) {
+func testZeroArgCallback(t *testing.T) {
 	defer func() {
 		s := recover()
 		if s != nil {
@@ -118,7 +118,7 @@ func goFoo() {
 
 func variadic(x ...interface{}) {}
 
-func TestBlocking(t *testing.T) {
+func testBlocking(t *testing.T) {
 	c := make(chan int)
 	go func() {
 		for i := 0; i < 10; i++ {

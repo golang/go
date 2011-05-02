@@ -58,7 +58,7 @@ import (
 	"testing"
 )
 
-func TestAlign(t *testing.T) {
+func testAlign(t *testing.T) {
 	var evt C.SDL_KeyboardEvent
 	C.makeEvent(&evt)
 	if C.same(&evt, evt.typ, evt.which, evt.state, evt.keysym.scancode, evt.keysym.sym, evt.keysym.mod, evt.keysym.unicode) == 0 {

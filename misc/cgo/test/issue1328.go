@@ -25,6 +25,6 @@ func BackIntoGo() {
 func xvariadic(x ...interface{}) {
 }
 
-func Test1328(t *testing.T) {
+func test1328(t *testing.T) {
 	C.IntoC()
 }
