@@ -88,7 +88,7 @@ void
 main(int argc, char *argv[])
 {
 	char **defs, *p;
-	int nproc, nout, i, c, ndef;
+	int c, ndef;
 
 	ensuresymb(NSYMB);
 	memset(debug, 0, sizeof(debug));
@@ -142,50 +142,9 @@ main(int argc, char *argv[])
 		print("usage: %cc [-options] files\n", thechar);
 		errorexit();
 	}
-	if(argc > 1 && systemtype(Windows)){
-		print("can't compile multiple files on windows\n");
+	if(argc > 1){
+		print("can't compile multiple files\n");
 		errorexit();
-	}
-	if(argc > 1 && !systemtype(Windows)) {
-		nproc = 1;
-		/*
-		 * if we're writing acid to standard output, don't compile
-		 * concurrently, to avoid interleaving output.
-		 */
-		if(((!debug['a'] && !debug['q'] && !debug['Q']) || debug['n']) &&
-		    (p = getenv("NPROC")) != nil)
-			nproc = atol(p);	/* */
-		c = 0;
-		nout = 0;
-		for(;;) {
-			Waitmsg *w;
-
-			while(nout < nproc && argc > 0) {
-				i = fork();
-				if(i < 0) {
-					print("cannot create a process\n");
-					errorexit();
-				}
-				if(i == 0) {
-					fprint(2, "%s:\n", *argv);
-					if (compile(*argv, defs, ndef))
-						errorexit();
-					exits(0);
-				}
-				nout++;
-				argc--;
-				argv++;
-			}
-			w = wait();
-			if(w == nil) {
-				if(c)
-					errorexit();
-				exits(0);
-			}
-			if(w->msg[0])
-				c++;
-			nout--;
-		}
 	}
 
 	if(argc == 0)
@@ -201,7 +160,7 @@ main(int argc, char *argv[])
 int
 compile(char *file, char **defs, int ndef)
 {
-	char *ofile, incfile[20];
+	char *ofile;
 	char *p, **av, opt[256];
 	int i, c, fd[2];
 	static int first = 1;
@@ -236,15 +195,6 @@ compile(char *file, char **defs, int ndef)
 			outfile = "/dev/null";
 	}
 
-	if(p = getenv("INCLUDE")) {
-		setinclude(p);
-	} else {
-		if(systemtype(Plan9)) {
-			sprint(incfile, "/%s/include", thestring);
-			setinclude(strdup(incfile));
-			setinclude("/sys/include");
-		}
-	}
 	if (first)
 		Binit(&diagbuf, 1, OWRITE);
 	/*

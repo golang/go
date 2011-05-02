@@ -56,7 +56,7 @@ void
 main(int argc, char *argv[])
 {
 	char *p;
-	int nout, nproc, i, c;
+	int c;
 
 	thechar = '6';
 	thestring = "amd64";
@@ -96,45 +96,9 @@ main(int argc, char *argv[])
 		print("usage: %ca [-options] file.s\n", thechar);
 		errorexit();
 	}
-	if(argc > 1 && systemtype(Windows)){
-		print("can't assemble multiple files on windows\n");
+	if(argc > 1){
+		print("can't assemble multiple files\n");
 		errorexit();
-	}
-	if(argc > 1 && !systemtype(Windows)) {
-		nproc = 1;
-		if(p = getenv("NPROC"))
-			nproc = atol(p);	/* */
-		c = 0;
-		nout = 0;
-		for(;;) {
-			Waitmsg *w;
-
-			while(nout < nproc && argc > 0) {
-				i = fork();
-				if(i < 0) {
-					fprint(2, "fork: %r\n");
-					errorexit();
-				}
-				if(i == 0) {
-					print("%s:\n", *argv);
-					if(assemble(*argv))
-						errorexit();
-					exits(0);
-				}
-				nout++;
-				argc--;
-				argv++;
-			}
-			w = wait();
-			if(w == nil) {
-				if(c)
-					errorexit();
-				exits(0);
-			}
-			if(w->msg[0])
-				c++;
-			nout--;
-		}
 	}
 	if(assemble(argv[0]))
 		errorexit();
@@ -144,7 +108,7 @@ main(int argc, char *argv[])
 int
 assemble(char *file)
 {
-	char *ofile, incfile[20], *p;
+	char *ofile, *p;
 	int i, of;
 
 	ofile = alloc(strlen(file)+3); // +3 for .x\0 (x=thechar)
@@ -168,15 +132,6 @@ assemble(char *file)
 			p[2] = 0;
 		} else
 			outfile = "/dev/null";
-	}
-	p = getenv("INCLUDE");
-	if(p) {
-		setinclude(p);
-	} else {
-		if(systemtype(Plan9)) {
-			sprint(incfile,"/%s/include", thestring);
-			setinclude(strdup(incfile));
-		}
 	}
 
 	of = create(outfile, OWRITE, 0664);
