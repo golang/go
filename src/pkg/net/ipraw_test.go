@@ -60,7 +60,8 @@ func parsePingReply(p []byte) (id, seq int) {
 }
 
 var srchost = flag.String("srchost", "", "Source of the ICMP ECHO request")
-var dsthost = flag.String("dsthost", "localhost", "Destination for the ICMP ECHO request")
+// 127.0.0.1 because this is an IPv4-specific test.
+var dsthost = flag.String("dsthost", "127.0.0.1", "Destination for the ICMP ECHO request")
 
 // test (raw) IP socket using ICMP
 func TestICMP(t *testing.T) {
