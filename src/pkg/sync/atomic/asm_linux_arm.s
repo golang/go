@@ -13,6 +13,12 @@
 //	LR = return address
 // The function returns with CS true if the swap happened.
 // http://lxr.linux.no/linux+v2.6.37.2/arch/arm/kernel/entry-armv.S#L850
+// On older kernels (before 2.6.24) the function can incorrectly
+// report a conflict, so we have to double-check the compare ourselves
+// and retry if necessary.
+//
+// http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b49c0f24cf6744a3f4fd09289fe7cade349dead5
+//
 TEXT cas<>(SB),7,$0
 	MOVW	$0xffff0fc0, PC
 
@@ -23,12 +29,23 @@ TEXT ·CompareAndSwapInt32(SB),7,$0
 TEXT ·CompareAndSwapUint32(SB),7,$0
 	MOVW	valptr+0(FP), R2
 	MOVW	old+4(FP), R0
+casagain:
 	MOVW	new+8(FP), R1
 	BL cas<>(SB)
-	MOVW	$0, R0
-	MOVW.CS	$1, R0
+	BCC	cascheck
+	MOVW	$1, R0
+casret:
 	MOVW	R0, ret+12(FP)
 	RET
+cascheck:
+	// Kernel lies; double-check.
+	MOVW	valptr+0(FP), R2
+	MOVW	old+4(FP), R0
+	MOVW	0(R2), R3
+	CMP	R0, R3
+	BEQ	casagain
+	MOVW	$0, R0
+	B	casret
 
 TEXT ·CompareAndSwapUintptr(SB),7,$0
 	B	·CompareAndSwapUint32(SB)
