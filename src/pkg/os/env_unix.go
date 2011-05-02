@@ -29,6 +29,8 @@ func copyenv() {
 	}
 }
 
+var envLock sync.RWMutex
+
 // Getenverror retrieves the value of the environment variable named by the key.
 // It returns the value and an error, if any.
 func Getenverror(key string) (value string, err Error) {
@@ -37,6 +39,10 @@ func Getenverror(key string) (value string, err Error) {
 	if len(key) == 0 {
 		return "", EINVAL
 	}
+
+	envLock.RLock()
+	defer envLock.RUnlock()
+
 	v, ok := env[key]
 	if !ok {
 		return "", ENOENV
@@ -55,24 +61,36 @@ func Getenv(key string) string {
 // It returns an Error, if any.
 func Setenv(key, value string) Error {
 	once.Do(copyenv)
-
 	if len(key) == 0 {
 		return EINVAL
 	}
+
+	envLock.Lock()
+	defer envLock.Unlock()
+
 	env[key] = value
+	setenv_c(key, value) // is a no-op if cgo isn't loaded
 	return nil
 }
 
 // Clearenv deletes all environment variables.
 func Clearenv() {
 	once.Do(copyenv) // prevent copyenv in Getenv/Setenv
+
+	envLock.Lock()
+	defer envLock.Unlock()
+
 	env = make(map[string]string)
+
+	// TODO(bradfitz): pass through to C
 }
 
 // Environ returns an array of strings representing the environment,
 // in the form "key=value".
 func Environ() []string {
 	once.Do(copyenv)
+	envLock.RLock()
+	defer envLock.RUnlock()
 	a := make([]string, len(env))
 	i := 0
 	for k, v := range env {
