@@ -64,8 +64,11 @@ var (
 	// layout control
 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
 	showTimestamps = flag.Bool("timestamps", true, "show timestamps with directory listings")
-	maxResults     = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
 	templateDir    = flag.String("templates", "", "directory containing alternate template files")
+
+	// search index
+	indexEnabled = flag.Bool("index", false, "enable search index")
+	maxResults   = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
 
 	// file system mapping
 	fsMap      Mapping // user-defined mapping
@@ -687,17 +690,19 @@ func readTemplates() {
 
 func servePage(w http.ResponseWriter, title, subtitle, query string, content []byte) {
 	d := struct {
-		Title    string
-		Subtitle string
-		PkgRoots []string
-		Query    string
-		Version  string
-		Menu     []byte
-		Content  []byte
+		Title     string
+		Subtitle  string
+		PkgRoots  []string
+		SearchBox bool
+		Query     string
+		Version   string
+		Menu      []byte
+		Content   []byte
 	}{
 		title,
 		subtitle,
 		fsMap.PrefixList(),
+		*indexEnabled,
 		query,
 		runtime.Version(),
 		nil,
@@ -1174,11 +1179,15 @@ func lookup(query string) (result SearchResult) {
 	}
 
 	// is the result accurate?
-	if _, ts := fsModified.get(); timestamp < ts {
-		// The index is older than the latest file system change
-		// under godoc's observation. Indexing may be in progress
-		// or start shortly (see indexer()).
-		result.Alert = "Indexing in progress: result may be inaccurate"
+	if *indexEnabled {
+		if _, ts := fsModified.get(); timestamp < ts {
+			// The index is older than the latest file system change
+			// under godoc's observation. Indexing may be in progress
+			// or start shortly (see indexer()).
+			result.Alert = "Indexing in progress: result may be inaccurate"
+		}
+	} else {
+		result.Alert = "Search index disabled: no results available"
 	}
 
 	return
