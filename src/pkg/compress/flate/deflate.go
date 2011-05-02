@@ -143,10 +143,18 @@ func (d *compressor) fillWindow(index int) (int, os.Error) {
 			d.blockStart = math.MaxInt32
 		}
 		for i, h := range d.hashHead {
-			d.hashHead[i] = max(h-wSize, -1)
+			v := h - wSize
+			if v < -1 {
+				v = -1
+			}
+			d.hashHead[i] = v
 		}
 		for i, h := range d.hashPrev {
-			d.hashPrev[i] = max(h-wSize, -1)
+			v := -h - wSize
+			if v < -1 {
+				v = -1
+			}
+			d.hashPrev[i] = v
 		}
 	}
 	count, err := d.r.Read(d.window[d.windowEnd:])
@@ -177,10 +185,18 @@ func (d *compressor) writeBlock(tokens []token, index int, eof bool) os.Error {
 // Try to find a match starting at index whose length is greater than prevSize.
 // We only look at chainCount possibilities before giving up.
 func (d *compressor) findMatch(pos int, prevHead int, prevLength int, lookahead int) (length, offset int, ok bool) {
-	win := d.window[0 : pos+min(maxMatchLength, lookahead)]
+	minMatchLook := maxMatchLength
+	if lookahead < minMatchLook {
+		minMatchLook = lookahead
+	}
+
+	win := d.window[0 : pos+minMatchLook]
 
 	// We quit when we get a match that's at least nice long
-	nice := min(d.niceMatch, len(win)-pos)
+	nice := len(win) - pos
+	if d.niceMatch < nice {
+		nice = d.niceMatch
+	}
 
 	// If we've got a match that's good enough, only look in 1/4 the chain.
 	tries := d.maxChainLength
@@ -344,9 +360,12 @@ Loop:
 		}
 		prevLength := length
 		prevOffset := offset
-		minIndex := max(index-maxOffset, 0)
 		length = minMatchLength - 1
 		offset = 0
+		minIndex := index - maxOffset
+		if minIndex < 0 {
+			minIndex = 0
+		}
 
 		if chainHead >= minIndex &&
 			(isFastDeflate && lookahead > minMatchLength-1 ||
