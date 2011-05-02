@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of Apr 22, 2011 -->
+<!-- subtitle Version of May 2, 2011 -->
 
 <!--
 TODO
@@ -3522,9 +3522,8 @@ Error: log.Panic("error encountered")
 
 <p>
 Function calls, method calls, and receive operations
-can appear in statement context.
+can appear in statement context. Such statements may be parenthesized.
 </p>
-
 
 <pre class="ebnf">
 ExpressionStmt = Expression .
@@ -3534,6 +3533,7 @@ ExpressionStmt = Expression .
 h(x+y)
 f.Close()
 &lt;-ch
+(&lt;-ch)
 </pre>
 
 
@@ -3604,15 +3604,15 @@ assign_op = [ add_op | mul_op ] "=" .
 
 <p>
 Each left-hand side operand must be <a href="#Address_operators">addressable</a>,
-a map index expression,
-or the <a href="#Blank_identifier">blank identifier</a>.
+a map index expression, or the <a href="#Blank_identifier">blank identifier</a>.
+Operands may be parenthesized.
 </p>
 
 <pre>
 x = 1
 *p = f()
 a[i] = 23
-k = &lt;-ch
+(k) = &lt;-ch  // same as: k = &lt;-ch
 </pre>
 
 <p>
@@ -4131,7 +4131,7 @@ case i1 = &lt;-c1:
 	print("received ", i1, " from c1\n")
 case c2 &lt;- i2:
 	print("sent ", i2, " to c2\n")
-case i3, ok := &lt;-c3:
+case i3, ok := (&lt;-c3):  // same as: i3, ok := &lt;-c3
 	if ok {
 		print("received ", i3, " from c3\n")
 	} else {
