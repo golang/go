@@ -94,30 +94,49 @@ func _() {
 	_ = under_bar-1
 	_ = Open(dpath + "/file", O_WRONLY | O_CREAT, 0666)
 	_ = int(c0&_Mask4)<<18 | int(c1&_Maskx)<<12 | int(c2&_Maskx)<<6 | int(c3&_Maskx)
+
+	// the parser does not restrict expressions that may appear as statements
+	true
+	42
+	"foo"
+	x
+	(x)
+	a+b
+	a+b+c
+	a+(b*c)
+	a+(b/c)
+	1+a
+	a+1
+	s[a]
+	x<<1
+	(s[0]<<1)&0xf
+	"foo"+s
+	x == y
+	x < y || z > 42
 }
 
 
 func _() {
-	a+b
-	a+b+c
-	a+b*c
-	a+(b*c)
-	(a+b)*c
-	a+(b*c*d)
-	a+(b*c+d)
+	_ = a+b
+	_ = a+b+c
+	_ = a+b*c
+	_ = a+(b*c)
+	_ = (a+b)*c
+	_ = a+(b*c*d)
+	_ = a+(b*c+d)
 
-	1<<x
-	-1<<x
-	1<<x-1
-	-1<<x-1
+	_ = 1<<x
+	_ = -1<<x
+	_ = 1<<x-1
+	_ = -1<<x-1
 
-	f(a+b)
-	f(a+b+c)
-	f(a+b*c)
-	f(a+(b*c))
-	f(1<<x-1, 1<<x-2)
+	_ = f(a+b)
+	_ = f(a+b+c)
+	_ = f(a+b*c)
+	_ = f(a+(b*c))
+	_ = f(1<<x-1, 1<<x-2)
 
-	1<<d.logWindowSize-1
+	_ = 1<<d.logWindowSize-1
 
 	buf = make(x, 2*cap(b.buf) + n)
 
@@ -131,7 +150,7 @@ func _() {
 	signed += ' '*8
 	tw.octal(header[148:155], chksum)
 
-	x > 0 && i >= 0
+	_ = x > 0 && i >= 0
 
 	x1, x0 := x>>w2, x&m2
 	z0 = t1<<w2+t0
@@ -141,31 +160,31 @@ func _() {
 	x1 = (x1<<z)|(x0>>(uint(w)-z))
 	x1 = x1<<z | x0>>(uint(w)-z)
 
-	buf[0:len(buf)+1]
-	buf[0:n+1]
+	_ = buf[0:len(buf)+1]
+	_ = buf[0:n+1]
 
 	a,b = b,a
 	a = b+c
 	a = b*c+d
-	a*b+c
-	a-b-c
-	a-(b-c)
-	a-b*c
-	a-(b*c)
-	a*b/c
-	a/ *b
-	x[a|^b]
-	x[a/ *b]
-	a& ^b
-	a+ +b
-	a- -b
-	x[a*-b]
-	x[a+ +b]
-	x^y^z
-	b[a>>24] ^ b[(a>>16)&0xFF] ^ b[(a>>8)&0xFF] ^ b[a&0xFF]
-	len(longVariableName)*2
+	_ = a*b+c
+	_ = a-b-c
+	_ = a-(b-c)
+	_ = a-b*c
+	_ = a-(b*c)
+	_ = a*b/c
+	_ = a/ *b
+	_ = x[a|^b]
+	_ = x[a/ *b]
+	_ = a& ^b
+	_ = a+ +b
+	_ = a- -b
+	_ = x[a*-b]
+	_ = x[a+ +b]
+	_ = x^y^z
+	_ = b[a>>24] ^ b[(a>>16)&0xFF] ^ b[(a>>8)&0xFF] ^ b[a&0xFF]
+	_ = len(longVariableName)*2
 
-	token(matchType + xlength<<lengthShift + xoffset)
+	_ = token(matchType + xlength<<lengthShift + xoffset)
 }
 
 
