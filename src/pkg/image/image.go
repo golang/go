@@ -280,6 +280,13 @@ func (p *Alpha) At(x, y int) Color {
 	return p.Pix[y*p.Stride+x]
 }
 
+func (p *Alpha) Set(x, y int, c AlphaColor) {
+	if !p.Rect.Contains(Point{x, y}) {
+		return
+	}
+	p.Pix[y*p.Stride+x] = toAlphaColor(c).(AlphaColor)
+}
+
 func (p *Alpha) SetAlpha(x, y int, c AlphaColor) {
 	if !p.Rect.Contains(Point{x, y}) {
 		return
