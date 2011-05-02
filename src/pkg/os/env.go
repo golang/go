@@ -6,6 +6,8 @@
 
 package os
 
+func setenv_c(k, v string)
+
 // Expand replaces ${var} or $var in the string based on the mapping function.
 // Invocations of undefined variables are replaced with the empty string.
 func Expand(s string, mapping func(string) string) string {

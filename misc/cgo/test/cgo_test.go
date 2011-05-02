@@ -25,3 +25,4 @@ func TestZeroArgCallback(t *testing.T)     { testZeroArgCallback(t) }
 func TestBlocking(t *testing.T)            { testBlocking(t) }
 func Test1328(t *testing.T)                { test1328(t) }
 func TestParallelSleep(t *testing.T)       { testParallelSleep(t) }
+func TestSetEnv(t *testing.T)              { testSetEnv(t) }

@@ -1343,3 +1343,26 @@ runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
 	if(hz != 0)
 		runtime·resetcpuprofiler(hz);
 }
+
+void (*libcgo_setenv)(byte**);
+
+void
+os·setenv_c(String k, String v)
+{
+	byte *arg[2];
+
+	if(libcgo_setenv == nil)
+		return;
+
+	arg[0] = runtime·malloc(k.len + 1);
+	runtime·mcpy(arg[0], k.str, k.len);
+	arg[0][k.len] = 0;
+
+	arg[1] = runtime·malloc(v.len + 1);
+	runtime·mcpy(arg[1], v.str, v.len);
+	arg[1][v.len] = 0;
+
+	runtime·asmcgocall(libcgo_setenv, arg);
+	runtime·free(arg[0]);
+	runtime·free(arg[1]);
+}

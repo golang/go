@@ -4,6 +4,8 @@
 
 #include "libcgo.h"
 
+#include <stdlib.h>
+
 /* Stub for calling malloc from Go */
 static void
 x_cgo_malloc(void *p)
@@ -49,3 +51,12 @@ xlibcgo_thread_start(ThreadStart *arg)
 }
 
 void (*libcgo_thread_start)(ThreadStart*) = xlibcgo_thread_start;
+
+/* Stub for calling setenv */
+static void
+xlibcgo_setenv(char **arg)
+{
+	setenv(arg[0], arg[1], 1);
+}
+
+void (*libcgo_setenv)(char**) = xlibcgo_setenv;
