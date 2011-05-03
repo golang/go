@@ -258,11 +258,22 @@ TEXT cas<>(SB),7,$0
 TEXT runtime·cas(SB),7,$0
 	MOVW	valptr+0(FP), R2
 	MOVW	old+4(FP), R0
+casagain:
 	MOVW	new+8(FP), R1
 	BL	cas<>(SB)
-	MOVW	$0, R0
-	MOVW.CS	$1, R0
+	BCC	cascheck
+	MOVW $1, R0
 	RET
+cascheck:
+	// Kernel lies; double-check.
+	MOVW	valptr+0(FP), R2
+	MOVW	old+4(FP), R0
+	MOVW	0(R2), R3
+	CMP	R0, R3
+	BEQ	casagain
+	MOVW $0, R0
+	RET
+
 
 TEXT runtime·casp(SB),7,$0
 	B	runtime·cas(SB)
