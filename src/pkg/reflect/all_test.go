@@ -726,6 +726,24 @@ func TestDeepEqualComplexStructInequality(t *testing.T) {
 	}
 }
 
+type UnexpT struct {
+	m map[int]int
+}
+
+func TestDeepEqualUnexportedMap(t *testing.T) {
+	// Check that DeepEqual can look at unexported fields.
+	x1 := UnexpT{map[int]int{1: 2}}
+	x2 := UnexpT{map[int]int{1: 2}}
+	if !DeepEqual(&x1, &x2) {
+		t.Error("DeepEqual(x1, x2) = false, want true")
+	}
+
+	y1 := UnexpT{map[int]int{2: 3}}
+	if DeepEqual(&x1, &y1) {
+		t.Error("DeepEqual(x1, y1) = true, want false")
+	}
+}
+
 
 func check2ndField(x interface{}, offs uintptr, t *testing.T) {
 	s := ValueOf(x)
