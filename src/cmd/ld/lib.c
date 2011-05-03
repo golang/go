@@ -259,6 +259,18 @@ loadlib(void)
 			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i].file, library[i].objref);
 		objfile(library[i].file, library[i].pkg);
 	}
+	
+	// We've loaded all the code now.
+	// If there are no dynamic libraries needed, gcc disables dynamic linking.
+	// Because of this, glibc's dynamic ELF loader occasionally (like in version 2.13)
+	// assumes that a dynamic binary always refers to at least one dynamic library.
+	// Rather than be a source of test cases for glibc, disable dynamic linking
+	// the same way that gcc would.
+	//
+	// Exception: on OS X, programs such as Shark only work with dynamic
+	// binaries, so leave it enabled on OS X (Mach-O) binaries.
+	if(!havedynamic && HEADTYPE != Hdarwin)
+		debug['d'] = 1;
 }
 
 /*

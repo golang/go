@@ -122,6 +122,7 @@ EXTERN	char*	outfile;
 EXTERN	int32	nsymbol;
 EXTERN	char*	thestring;
 EXTERN	int	ndynexp;
+EXTERN	int	havedynamic;
 
 EXTERN	Segment	segtext;
 EXTERN	Segment	segdata;
