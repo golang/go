@@ -2808,15 +2808,18 @@ s += " and good bye"
 String addition creates a new string by concatenating the operands.
 </p>
 <p>
-For integer values, <code>/</code> and <code>%</code> satisfy the following relationship:
+For two integer values <code>x</code> and <code>y</code>, the integer quotient
+<code>q = x / y</code> and remainder <code>r = x % y</code> satisfy the following
+relationships:
 </p>
 
 <pre>
-(a / b) * b + a % b == a
+x = q*y + r  and  |r| &lt; |y|
 </pre>
 
 <p>
-with <code>(a / b)</code> truncated towards zero.
+with <code>x / y</code> truncated towards zero
+(<a href="http://en.wikipedia.org/wiki/Modulo_operation">"truncated division"</a>).
 </p>
 
 <pre>
@@ -2825,6 +2828,20 @@ with <code>(a / b)</code> truncated towards zero.
 -5     3      -1        -2
  5    -3      -1         2
 -5    -3       1        -2
+</pre>
+
+<p>
+As an exception to this rule, if the dividend <code>x</code> is the most
+negative value for the int type of <code>x</code>, the quotient
+<code>q = x / -1</code> is equal to <code>x</code> (and <code>r = 0</code>).
+</p>
+
+<pre>
+			 x, q
+int8                     -128
+int16                  -32768
+int32             -2147483648
+int64    -9223372036854775808
 </pre>
 
 <p>
