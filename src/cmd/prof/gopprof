@@ -2880,17 +2880,18 @@ sub FetchSymbols {
     my @toask = @pcs;
     while (@toask > 0) {
       my $n = @toask;
-      if ($n > 49) { $n = 49; }
+      # NOTE(rsc): Limiting the number of PCs requested per round
+      # used to be necessary, but I think it was a bug in
+      # debug/pprof/symbol's implementation.  Leaving here
+      # in case I am wrong.
+      # 	if ($n > 49) { $n = 49; }
       my @thisround = @toask[0..$n];
-my $t = @toask;
-print STDERR "$n $t\n";
       @toask = @toask[($n+1)..(@toask-1)];
       my $post_data = join("+", sort((map {"0x" . "$_"} @thisround)));
       open(POSTFILE, ">$main::tmpfile_sym");
       print POSTFILE $post_data;
       close(POSTFILE);
 
-print STDERR "SYMBL!\n";
       my $url = SymbolPageURL();
       $url = ResolveRedirectionForCurl($url);
       my $command_line = "$CURL -sd '\@$main::tmpfile_sym' '$url'";
