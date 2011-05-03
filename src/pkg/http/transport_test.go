@@ -256,26 +256,44 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 	tr := &Transport{}
 	c := &Client{Transport: tr}
 
-	fetch := func(n int) string {
-		res, _, err := c.Get(ts.URL)
-		if err != nil {
-			t.Fatalf("error in req #%d, GET: %v", n, err)
+	fetch := func(n, retries int) string {
+		condFatalf := func(format string, arg ...interface{}) {
+			if retries <= 0 {
+				t.Fatalf(format, arg...)
+			}
+			t.Logf("retrying shortly after expected error: "+format, arg...)
+			time.Sleep(1e9 / int64(retries))
 		}
-		body, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			t.Fatalf("error in req #%d, ReadAll: %v", n, err)
+		for retries >= 0 {
+			retries--
+			res, _, err := c.Get(ts.URL)
+			if err != nil {
+				condFatalf("error in req #%d, GET: %v", n, err)
+				continue
+			}
+			body, err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				condFatalf("error in req #%d, ReadAll: %v", n, err)
+				continue
+			}
+			res.Body.Close()
+			return string(body)
 		}
-		res.Body.Close()
-		return string(body)
+		panic("unreachable")
 	}
 
-	body1 := fetch(1)
-	body2 := fetch(2)
+	body1 := fetch(1, 0)
+	body2 := fetch(2, 0)
 
 	ts.CloseClientConnections() // surprise!
-	time.Sleep(25e6)            // idle for a bit (test is inherently racey, but expectedly)
 
-	body3 := fetch(3)
+	// This test has an expected race. Sleeping for 25 ms prevents
+	// it on most fast machines, causing the next fetch() call to
+	// succeed quickly.  But if we do get errors, fetch() will retry 5
+	// times with some delays between.
+	time.Sleep(25e6)
+
+	body3 := fetch(3, 5)
 
 	if body1 != body2 {
 		t.Errorf("expected body1 and body2 to be equal")
