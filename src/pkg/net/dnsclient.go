@@ -121,15 +121,19 @@ func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs
 Cname:
 	for cnameloop := 0; cnameloop < 10; cnameloop++ {
 		addrs = addrs[0:0]
-		for i := 0; i < len(dns.answer); i++ {
-			rr := dns.answer[i]
+		for _, rr := range dns.answer {
+			if _, justHeader := rr.(*dnsRR_Header); justHeader {
+				// Corrupt record: we only have a
+				// header. That header might say it's
+				// of type qtype, but we don't
+				// actually have it. Skip.
+				continue
+			}
 			h := rr.Header()
 			if h.Class == dnsClassINET && h.Name == name {
 				switch h.Rrtype {
 				case qtype:
-					n := len(addrs)
-					addrs = addrs[0 : n+1]
-					addrs[n] = rr
+					addrs = append(addrs, rr)
 				case dnsTypeCNAME:
 					// redirect to cname
 					name = rr.(*dnsRR_CNAME).Cname
@@ -181,8 +185,7 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (cname string, addrs 
 
 func convertRR_A(records []dnsRR) []IP {
 	addrs := make([]IP, len(records))
-	for i := 0; i < len(records); i++ {
-		rr := records[i]
+	for i, rr := range records {
 		a := rr.(*dnsRR_A).A
 		addrs[i] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a))
 	}
@@ -191,8 +194,7 @@ func convertRR_A(records []dnsRR) []IP {
 
 func convertRR_AAAA(records []dnsRR) []IP {
 	addrs := make([]IP, len(records))
-	for i := 0; i < len(records); i++ {
-		rr := records[i]
+	for i, rr := range records {
 		a := make(IP, 16)
 		copy(a, rr.(*dnsRR_AAAA).AAAA[:])
 		addrs[i] = a
@@ -384,9 +386,7 @@ func goLookupCNAME(name string) (cname string, err os.Error) {
 	if err != nil {
 		return
 	}
-	if len(rr) >= 0 {
-		cname = rr[0].(*dnsRR_CNAME).Cname
-	}
+	cname = rr[0].(*dnsRR_CNAME).Cname
 	return
 }
 
@@ -410,8 +410,8 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.
 		return
 	}
 	addrs = make([]*SRV, len(records))
-	for i := 0; i < len(records); i++ {
-		r := records[i].(*dnsRR_SRV)
+	for i, rr := range records {
+		r := rr.(*dnsRR_SRV)
 		addrs[i] = &SRV{r.Target, r.Port, r.Priority, r.Weight}
 	}
 	return
