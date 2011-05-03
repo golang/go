@@ -715,24 +715,35 @@ func (dns *dnsMsg) Unpack(msg []byte) bool {
 
 	// Arrays.
 	dns.question = make([]dnsQuestion, dh.Qdcount)
-	dns.answer = make([]dnsRR, dh.Ancount)
-	dns.ns = make([]dnsRR, dh.Nscount)
-	dns.extra = make([]dnsRR, dh.Arcount)
+	dns.answer = make([]dnsRR, 0, dh.Ancount)
+	dns.ns = make([]dnsRR, 0, dh.Nscount)
+	dns.extra = make([]dnsRR, 0, dh.Arcount)
+
+	var rec dnsRR
 
 	for i := 0; i < len(dns.question); i++ {
 		off, ok = unpackStruct(&dns.question[i], msg, off)
 	}
-	for i := 0; i < len(dns.answer); i++ {
-		dns.answer[i], off, ok = unpackRR(msg, off)
+	for i := 0; i < int(dh.Ancount); i++ {
+		rec, off, ok = unpackRR(msg, off)
+		if !ok {
+			return false
+		}
+		dns.answer = append(dns.answer, rec)
 	}
-	for i := 0; i < len(dns.ns); i++ {
-		dns.ns[i], off, ok = unpackRR(msg, off)
+	for i := 0; i < int(dh.Nscount); i++ {
+		rec, off, ok = unpackRR(msg, off)
+		if !ok {
+			return false
+		}
+		dns.ns = append(dns.ns, rec)
 	}
-	for i := 0; i < len(dns.extra); i++ {
-		dns.extra[i], off, ok = unpackRR(msg, off)
-	}
-	if !ok {
-		return false
+	for i := 0; i < int(dh.Arcount); i++ {
+		rec, off, ok = unpackRR(msg, off)
+		if !ok {
+			return false
+		}
+		dns.extra = append(dns.extra, rec)
 	}
 	//	if off != len(msg) {
 	//		println("extra bytes in dns packet", off, "<", len(msg));
