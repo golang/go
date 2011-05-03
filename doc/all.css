@@ -139,9 +139,8 @@ h1#title {
   padding: 0;
 }
 #content h2 {
-  border-top: 1px solid #ddd;
-  background: #E2E7F0;
-  padding: 5px;
+  border-top: 2px solid #ddd;
+  padding: 8px 5px;
   margin: 1.5em 0 0;
 }
 #content .subtitle {
