@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"image"
 	"image/png"
+	"io/ioutil"
+	"rand"
 	"os"
 	"testing"
 )
@@ -83,5 +85,31 @@ func TestWriter(t *testing.T) {
 			t.Errorf("%s, quality=%d: average delta is too high", tc.filename, tc.quality)
 			continue
 		}
+	}
+}
+
+func BenchmarkEncodeRGBOpaque(b *testing.B) {
+	b.StopTimer()
+	img := image.NewRGBA(640, 480)
+	// Set all pixels to 0xFF alpha to force opaque mode.
+	bo := img.Bounds()
+	rnd := rand.New(rand.NewSource(123))
+	for y := bo.Min.Y; y < bo.Max.Y; y++ {
+		for x := bo.Min.X; x < bo.Max.X; x++ {
+			img.Set(x, y, image.RGBAColor{
+				uint8(rnd.Intn(256)),
+				uint8(rnd.Intn(256)),
+				uint8(rnd.Intn(256)),
+				255})
+		}
+	}
+	if !img.Opaque() {
+		panic("expected image to be opaque")
+	}
+	b.SetBytes(640 * 480 * 4)
+	b.StartTimer()
+	options := &Options{Quality: 90}
+	for i := 0; i < b.N; i++ {
+		Encode(ioutil.Discard, img, options)
 	}
 }
