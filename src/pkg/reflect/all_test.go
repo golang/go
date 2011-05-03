@@ -182,7 +182,9 @@ var valueTests = []pair{
 	}),
 		"struct { c chan *int32; d float32 }{chan *int32, 0}",
 	},
-	{new(struct{ c func(chan *integer, *int8) }),
+	{new(struct {
+		c func(chan *integer, *int8)
+	}),
 		"struct { c func(chan *reflect_test.integer, *int8) }{func(chan *reflect_test.integer, *int8)(0)}",
 	},
 	{new(struct {
@@ -729,6 +731,24 @@ func TestDeepEqualComplexStructInequality(t *testing.T) {
 	*b = _Complex{5, [3]*_Complex{b, a, a}, &strb, m}
 	if DeepEqual(a, b) {
 		t.Error("DeepEqual(complex different) = true, want false")
+	}
+}
+
+type UnexpT struct {
+	m map[int]int
+}
+
+func TestDeepEqualUnexportedMap(t *testing.T) {
+	// Check that DeepEqual can look at unexported fields.
+	x1 := UnexpT{map[int]int{1: 2}}
+	x2 := UnexpT{map[int]int{1: 2}}
+	if !DeepEqual(&x1, &x2) {
+		t.Error("DeepEqual(x1, x2) = false, want true")
+	}
+
+	y1 := UnexpT{map[int]int{2: 3}}
+	if DeepEqual(&x1, &y1) {
+		t.Error("DeepEqual(x1, y1) = true, want false")
 	}
 }
 
