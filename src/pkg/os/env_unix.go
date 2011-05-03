@@ -94,14 +94,10 @@ func Environ() []string {
 	a := make([]string, len(env))
 	i := 0
 	for k, v := range env {
-		// check i < len(a) for safety,
-		// in case env is changing underfoot.
-		if i < len(a) {
-			a[i] = k + "=" + v
-			i++
-		}
+		a[i] = k + "=" + v
+		i++
 	}
-	return a[0:i]
+	return a
 }
 
 // TempDir returns the default directory to use for temporary files.
