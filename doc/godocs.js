@@ -28,6 +28,10 @@ function godocs_onload() {
 
 function godocs_bindSearchEvents() {
   var search = document.getElementById('search');
+  if (!search) {
+    // no search box (index disabled)
+    return;
+  }
   function clearInactive() {
     if (search.className == "inactive") {
       search.value = "";
