@@ -200,6 +200,29 @@ func TestMultipartRequestAuto(t *testing.T) {
 	validateTestMultipartContents(t, req, true)
 }
 
+func TestEmptyMultipartRequest(t *testing.T) {
+	// Test that FormValue and FormFile automatically invoke
+	// ParseMultipartForm and return the right values.
+	req, err := NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Errorf("NewRequest err = %q", err)
+	}
+	testMissingFile(t, req)
+}
+
+func testMissingFile(t *testing.T, req *Request) {
+	f, fh, err := req.FormFile("missing")
+	if f != nil {
+		t.Errorf("FormFile file = %q, want nil", f, nil)
+	}
+	if fh != nil {
+		t.Errorf("FormFile file header = %q, want nil", fh, nil)
+	}
+	if err != ErrMissingFile {
+		t.Errorf("FormFile err = %q, want nil", err, ErrMissingFile)
+	}
+}
+
 func newTestMultipartRequest(t *testing.T) *Request {
 	b := bytes.NewBufferString(strings.Replace(message, "\n", "\r\n", -1))
 	req, err := NewRequest("POST", "/", b)
@@ -218,6 +241,9 @@ func validateTestMultipartContents(t *testing.T, req *Request, allMem bool) {
 	if g, e := req.FormValue("texta"), textaValue; g != e {
 		t.Errorf("texta value = %q, want %q", g, e)
 	}
+	if g := req.FormValue("missing"); g != "" {
+		t.Errorf("missing value = %q, want empty string", g)
+	}
 
 	assertMem := func(n string, fd multipart.File) {
 		if _, ok := fd.(*os.File); ok {
@@ -234,6 +260,8 @@ func validateTestMultipartContents(t *testing.T, req *Request, allMem bool) {
 			t.Errorf("fileb has unexpected underlying type %T", fd)
 		}
 	}
+
+	testMissingFile(t, req)
 }
 
 func testMultipartFile(t *testing.T, req *Request, key, expectFilename, expectContent string) multipart.File {
