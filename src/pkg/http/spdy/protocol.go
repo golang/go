@@ -73,7 +73,7 @@ const (
 
 // SETTINGS frame flags
 const (
-	FlagClearPreviouslyPersistedSettings = 0x01
+	FlagClearPreviouslyPersistedSettings FrameFlags = 0x01
 )
 
 // MaxDataLength is the maximum number of bytes that can be stored in one frame.
