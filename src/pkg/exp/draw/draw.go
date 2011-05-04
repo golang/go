@@ -8,7 +8,10 @@
 // and the X Render extension.
 package draw
 
-import "image"
+import (
+	"image"
+	"image/ycbcr"
+)
 
 // m is the maximum color value returned by image.Color.RGBA.
 const m = 1<<16 - 1
@@ -65,28 +68,41 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 	if dst0, ok := dst.(*image.RGBA); ok {
 		if op == Over {
 			if mask == nil {
-				if src0, ok := src.(*image.ColorImage); ok {
+				switch src0 := src.(type) {
+				case *image.ColorImage:
 					drawFillOver(dst0, r, src0)
 					return
-				}
-				if src0, ok := src.(*image.RGBA); ok {
+				case *image.RGBA:
 					drawCopyOver(dst0, r, src0, sp)
+					return
+				case *image.NRGBA:
+					drawNRGBAOver(dst0, r, src0, sp)
+					return
+				case *ycbcr.YCbCr:
+					drawYCbCr(dst0, r, src0, sp)
 					return
 				}
 			} else if mask0, ok := mask.(*image.Alpha); ok {
-				if src0, ok := src.(*image.ColorImage); ok {
+				switch src0 := src.(type) {
+				case *image.ColorImage:
 					drawGlyphOver(dst0, r, src0, mask0, mp)
 					return
 				}
 			}
 		} else {
 			if mask == nil {
-				if src0, ok := src.(*image.ColorImage); ok {
+				switch src0 := src.(type) {
+				case *image.ColorImage:
 					drawFillSrc(dst0, r, src0)
 					return
-				}
-				if src0, ok := src.(*image.RGBA); ok {
+				case *image.RGBA:
 					drawCopySrc(dst0, r, src0, sp)
+					return
+				case *image.NRGBA:
+					drawNRGBASrc(dst0, r, src0, sp)
+					return
+				case *ycbcr.YCbCr:
+					drawYCbCr(dst0, r, src0, sp)
 					return
 				}
 			}
@@ -224,6 +240,36 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
 	}
 }
 
+func drawNRGBAOver(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image.Point) {
+	for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
+		dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+		spix := src.Pix[sy*src.Stride : (sy+1)*src.Stride]
+		for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
+			// Convert from non-premultiplied color to pre-multiplied color.
+			// The order of operations here is to match the NRGBAColor.RGBA
+			// method in image/color.go.
+			snrgba := spix[sx]
+			sa := uint32(snrgba.A)
+			sr := uint32(snrgba.R) * 0x101 * sa / 0xff
+			sg := uint32(snrgba.G) * 0x101 * sa / 0xff
+			sb := uint32(snrgba.B) * 0x101 * sa / 0xff
+			sa *= 0x101
+
+			rgba := dpix[x]
+			dr := uint32(rgba.R)
+			dg := uint32(rgba.G)
+			db := uint32(rgba.B)
+			da := uint32(rgba.A)
+			a := (m - sa) * 0x101
+			dr = (dr*a + sr*m) / m
+			dg = (dg*a + sg*m) / m
+			db = (db*a + sb*m) / m
+			da = (da*a + sa*m) / m
+			dpix[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
+		}
+	}
+}
+
 func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage, mask *image.Alpha, mp image.Point) {
 	x0, x1 := r.Min.X, r.Max.X
 	y0, y1 := r.Min.Y, r.Max.Y
@@ -308,6 +354,73 @@ func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.P
 		d1 += ddelta
 		s0 += sdelta
 		s1 += sdelta
+	}
+}
+
+func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image.Point) {
+	for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
+		dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+		spix := src.Pix[sy*src.Stride : (sy+1)*src.Stride]
+		for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
+			// Convert from non-premultiplied color to pre-multiplied color.
+			// The order of operations here is to match the NRGBAColor.RGBA
+			// method in image/color.go.
+			snrgba := spix[sx]
+			sa := uint32(snrgba.A)
+			sr := uint32(snrgba.R) * 0x101 * sa / 0xff
+			sg := uint32(snrgba.G) * 0x101 * sa / 0xff
+			sb := uint32(snrgba.B) * 0x101 * sa / 0xff
+			sa *= 0x101
+
+			dpix[x] = image.RGBAColor{uint8(sr >> 8), uint8(sg >> 8), uint8(sb >> 8), uint8(sa >> 8)}
+		}
+	}
+}
+
+func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Point) {
+	// A YCbCr image is always fully opaque, and so if the mask is implicitly nil
+	// (i.e. fully opaque) then the op is effectively always Src.
+	var (
+		yy, cb, cr uint8
+		rr, gg, bb uint8
+	)
+	switch src.SubsampleRatio {
+	case ycbcr.SubsampleRatio422:
+		for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
+			dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+			for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
+				i := sx / 2
+				yy = src.Y[sy*src.YStride+sx]
+				cb = src.Cb[sy*src.CStride+i]
+				cr = src.Cr[sy*src.CStride+i]
+				rr, gg, bb = ycbcr.YCbCrToRGB(yy, cb, cr)
+				dpix[x] = image.RGBAColor{rr, gg, bb, 255}
+			}
+		}
+	case ycbcr.SubsampleRatio420:
+		for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
+			dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+			for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
+				i, j := sx/2, sy/2
+				yy = src.Y[sy*src.YStride+sx]
+				cb = src.Cb[j*src.CStride+i]
+				cr = src.Cr[j*src.CStride+i]
+				rr, gg, bb = ycbcr.YCbCrToRGB(yy, cb, cr)
+				dpix[x] = image.RGBAColor{rr, gg, bb, 255}
+			}
+		}
+	default:
+		// Default to 4:4:4 subsampling.
+		for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
+			dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+			for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
+				yy = src.Y[sy*src.YStride+sx]
+				cb = src.Cb[sy*src.CStride+sx]
+				cr = src.Cr[sy*src.CStride+sx]
+				rr, gg, bb = ycbcr.YCbCrToRGB(yy, cb, cr)
+				dpix[x] = image.RGBAColor{rr, gg, bb, 255}
+			}
+		}
 	}
 }
 
