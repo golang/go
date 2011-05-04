@@ -47,6 +47,9 @@ rm -f "$GOBIN"/gomake
 ) >"$GOBIN"/gomake
 chmod +x "$GOBIN"/gomake
 
+# TODO(brainman): delete this after 01/01/2012.
+rm -f "$GOBIN"/gotest	# remove old bash version of gotest on Windows
+
 if [ -d /selinux -a -f /selinux/booleans/allow_execstack -a -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled; then
 	if ! cat /selinux/booleans/allow_execstack | grep -c '^1 1$' >> /dev/null ; then
 		echo "WARNING: the default SELinux policy on, at least, Fedora 12 breaks "
