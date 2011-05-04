@@ -113,6 +113,10 @@ func reverseaddr(addr string) (arpa string, err os.Error) {
 	panic("unimplemented")
 }
 
+func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs []dnsRR, err os.Error) {
+	panic("unimplemented")
+}
+
 // DNSError represents a DNS lookup error.
 type DNSError struct {
 	Error     string // description of the error
