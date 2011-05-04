@@ -715,9 +715,11 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, o
 			return nil, nil, err
 		}
 	}
-	if fhs := r.MultipartForm.File[key]; len(fhs) > 0 {
-		f, err := fhs[0].Open()
-		return f, fhs[0], err
+	if r.MultipartForm != nil && r.MultipartForm.File != nil {
+		if fhs := r.MultipartForm.File[key]; len(fhs) > 0 {
+			f, err := fhs[0].Open()
+			return f, fhs[0], err
+		}
 	}
 	return nil, nil, ErrMissingFile
 }
