@@ -6,6 +6,7 @@ package draw
 
 import (
 	"image"
+	"image/ycbcr"
 	"testing"
 )
 
@@ -38,6 +39,34 @@ func vgradAlpha(alpha int) image.Image {
 	for y := 0; y < 16; y++ {
 		for x := 0; x < 16; x++ {
 			m.Set(x, y, image.AlphaColor{uint8(y * alpha / 15)})
+		}
+	}
+	return m
+}
+
+func vgradGreenNRGBA(alpha int) image.Image {
+	m := image.NewNRGBA(16, 16)
+	for y := 0; y < 16; y++ {
+		for x := 0; x < 16; x++ {
+			m.Set(x, y, image.RGBAColor{0, uint8(y * 0x11), 0, uint8(alpha)})
+		}
+	}
+	return m
+}
+
+func vgradCr() image.Image {
+	m := &ycbcr.YCbCr{
+		Y:              make([]byte, 16*16),
+		Cb:             make([]byte, 16*16),
+		Cr:             make([]byte, 16*16),
+		YStride:        16,
+		CStride:        16,
+		SubsampleRatio: ycbcr.SubsampleRatio444,
+		Rect:           image.Rect(0, 0, 16, 16),
+	}
+	for y := 0; y < 16; y++ {
+		for x := 0; x < 16; x++ {
+			m.Cr[y*m.CStride+x] = uint8(y * 0x11)
 		}
 	}
 	return m
@@ -95,6 +124,27 @@ var drawTests = []drawTest{
 	{"copyAlphaSrc", vgradGreen(90), fillAlpha(192), Src, image.RGBAColor{0, 36, 0, 68}},
 	{"copyNil", vgradGreen(90), nil, Over, image.RGBAColor{88, 48, 0, 255}},
 	{"copyNilSrc", vgradGreen(90), nil, Src, image.RGBAColor{0, 48, 0, 90}},
+	// Uniform mask (100%, 75%, nil) and variable NRGBA source.
+	// At (x, y) == (8, 8):
+	// The destination pixel is {136, 0, 0, 255}.
+	// The source pixel is {0, 136, 0, 90} in NRGBA-space, which is {0, 48, 0, 90} in RGBA-space.
+	// The result pixel is different than in the "copy*" test cases because of rounding errors.
+	{"nrgba", vgradGreenNRGBA(90), fillAlpha(255), Over, image.RGBAColor{88, 46, 0, 255}},
+	{"nrgbaSrc", vgradGreenNRGBA(90), fillAlpha(255), Src, image.RGBAColor{0, 46, 0, 90}},
+	{"nrgbaAlpha", vgradGreenNRGBA(90), fillAlpha(192), Over, image.RGBAColor{100, 34, 0, 255}},
+	{"nrgbaAlphaSrc", vgradGreenNRGBA(90), fillAlpha(192), Src, image.RGBAColor{0, 34, 0, 68}},
+	{"nrgbaNil", vgradGreenNRGBA(90), nil, Over, image.RGBAColor{88, 46, 0, 255}},
+	{"nrgbaNilSrc", vgradGreenNRGBA(90), nil, Src, image.RGBAColor{0, 46, 0, 90}},
+	// Uniform mask (100%, 75%, nil) and variable YCbCr source.
+	// At (x, y) == (8, 8):
+	// The destination pixel is {136, 0, 0, 255}.
+	// The source pixel is {0, 0, 136} in YCbCr-space, which is {11, 38, 0, 255} in RGB-space.
+	{"ycbcr", vgradCr(), fillAlpha(255), Over, image.RGBAColor{11, 38, 0, 255}},
+	{"ycbcrSrc", vgradCr(), fillAlpha(255), Src, image.RGBAColor{11, 38, 0, 255}},
+	{"ycbcrAlpha", vgradCr(), fillAlpha(192), Over, image.RGBAColor{42, 28, 0, 255}},
+	{"ycbcrAlphaSrc", vgradCr(), fillAlpha(192), Src, image.RGBAColor{8, 28, 0, 192}},
+	{"ycbcrNil", vgradCr(), nil, Over, image.RGBAColor{11, 38, 0, 255}},
+	{"ycbcrNilSrc", vgradCr(), nil, Src, image.RGBAColor{11, 38, 0, 255}},
 	// Variable mask and variable source.
 	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
