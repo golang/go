@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of May 2, 2011 -->
+<!-- subtitle Version of May 4, 2011 -->
 
 <!--
 TODO
@@ -102,7 +102,8 @@ compiler may disallow the NUL character (U+0000) in the source text.
 The following terms are used to denote specific Unicode character classes:
 </p>
 <pre class="ebnf">
-unicode_char   = /* an arbitrary Unicode code point */ .
+newline        = /* the Unicode code point U+000A */ .
+unicode_char   = /* an arbitrary Unicode code point except newline */ .
 unicode_letter = /* a Unicode code point classified as "Letter" */ .
 unicode_digit  = /* a Unicode code point classified as "Decimal Digit" */ .
 </pre>
@@ -471,7 +472,7 @@ U+00FF.
 
 <pre class="ebnf">
 string_lit             = raw_string_lit | interpreted_string_lit .
-raw_string_lit         = "`" { unicode_char } "`" .
+raw_string_lit         = "`" { unicode_char | newline } "`" .
 interpreted_string_lit = `"` { unicode_value | byte_value } `"` .
 </pre>
 
