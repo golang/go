@@ -186,6 +186,7 @@ type validity struct {
 }
 
 type publicKeyInfo struct {
+	Raw       asn1.RawContent
 	Algorithm algorithmIdentifier
 	PublicKey asn1.BitString
 }
@@ -402,8 +403,10 @@ const (
 
 // A Certificate represents an X.509 certificate.
 type Certificate struct {
-	Raw                []byte // Complete ASN.1 DER content (certificate, signature algorithm and signature).
-	RawTBSCertificate  []byte // Certificate part of raw ASN.1 DER content.
+	Raw                     []byte // Complete ASN.1 DER content (certificate, signature algorithm and signature).
+	RawTBSCertificate       []byte // Certificate part of raw ASN.1 DER content.
+	RawSubjectPublicKeyInfo []byte // DER encoded SubjectPublicKeyInfo.
+
 	Signature          []byte
 	SignatureAlgorithm SignatureAlgorithm
 
@@ -567,6 +570,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 	out := new(Certificate)
 	out.Raw = in.Raw
 	out.RawTBSCertificate = in.TBSCertificate.Raw
+	out.RawSubjectPublicKeyInfo = in.TBSCertificate.PublicKey.Raw
 
 	out.Signature = in.SignatureValue.RightAlign()
 	out.SignatureAlgorithm =
@@ -983,7 +987,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
 		Issuer:             parent.Subject.toRDNSequence(),
 		Validity:           validity{template.NotBefore, template.NotAfter},
 		Subject:            template.Subject.toRDNSequence(),
-		PublicKey:          publicKeyInfo{algorithmIdentifier{oidRSA}, encodedPublicKey},
+		PublicKey:          publicKeyInfo{nil, algorithmIdentifier{oidRSA}, encodedPublicKey},
 		Extensions:         extensions,
 	}
 
