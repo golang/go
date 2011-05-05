@@ -10,9 +10,10 @@ import (
 	"os"
 	"testing"
 
-	// TODO(nigeltao): implement bmp, gif and tiff decoders.
+	// TODO(nigeltao): implement bmp and gif decoders.
 	_ "image/jpeg"
 	_ "image/png"
+	_ "image/tiff"
 )
 
 const goldenFile = "testdata/video-001.png"
@@ -30,7 +31,7 @@ var imageTests = []imageTest{
 	// JPEG is a lossy format and hence needs a non-zero tolerance.
 	{"testdata/video-001.jpeg", 8 << 8},
 	{"testdata/video-001.png", 0},
-	//{"testdata/video-001.tiff", 0},
+	{"testdata/video-001.tiff", 0},
 }
 
 func decode(filename string) (image.Image, string, os.Error) {
