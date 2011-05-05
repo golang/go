@@ -100,6 +100,8 @@ type ConnectionState struct {
 
 	// the certificate chain that was presented by the other side
 	PeerCertificates []*x509.Certificate
+	// the verified certificate chains built from PeerCertificates.
+	VerifiedChains [][]*x509.Certificate
 }
 
 // A Config structure is used to configure a TLS client or server. After one
