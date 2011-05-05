@@ -28,6 +28,7 @@ var filenames = []string{
 	"basn3p02",
 	"basn3p04",
 	"basn3p08",
+	"basn3p08-trns",
 	"basn4a08",
 	"basn4a16",
 	"basn6a08",
@@ -98,17 +99,30 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 	// (the PNG spec section 11.3 says "Ancillary chunks may be ignored by a decoder").
 	io.WriteString(w, "gAMA {1.0000}\n")
 
-	// Write the PLTE (if applicable).
+	// Write the PLTE and tRNS (if applicable).
 	if cpm != nil {
+		lastAlpha := -1
 		io.WriteString(w, "PLTE {\n")
-		for i := 0; i < len(cpm); i++ {
-			r, g, b, _ := cpm[i].RGBA()
+		for i, c := range cpm {
+			r, g, b, a := c.RGBA()
+			if a != 0xffff {
+				lastAlpha = i
+			}
 			r >>= 8
 			g >>= 8
 			b >>= 8
 			fmt.Fprintf(w, "    (%3d,%3d,%3d)     # rgb = (0x%02x,0x%02x,0x%02x)\n", r, g, b, r, g, b)
 		}
 		io.WriteString(w, "}\n")
+		if lastAlpha != -1 {
+			io.WriteString(w, "tRNS {\n")
+			for i := 0; i <= lastAlpha; i++ {
+				_, _, _, a := cpm[i].RGBA()
+				a >>= 8
+				fmt.Fprintf(w, " %d", a)
+			}
+			io.WriteString(w, "}\n")
+		}
 	}
 
 	// Write the IMAGE.
