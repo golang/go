@@ -130,17 +130,28 @@ func (e *encoder) writePLTE(p image.PalettedColorModel) {
 		e.err = FormatError("bad palette length: " + strconv.Itoa(len(p)))
 		return
 	}
-	for i := 0; i < len(p); i++ {
-		r, g, b, a := p[i].RGBA()
-		if a != 0xffff {
-			e.err = UnsupportedError("non-opaque palette color")
-			return
-		}
+	for i, c := range p {
+		r, g, b, _ := c.RGBA()
 		e.tmp[3*i+0] = uint8(r >> 8)
 		e.tmp[3*i+1] = uint8(g >> 8)
 		e.tmp[3*i+2] = uint8(b >> 8)
 	}
 	e.writeChunk(e.tmp[0:3*len(p)], "PLTE")
+}
+
+func (e *encoder) maybeWritetRNS(p image.PalettedColorModel) {
+	last := -1
+	for i, c := range p {
+		_, _, _, a := c.RGBA()
+		if a != 0xffff {
+			last = i
+		}
+		e.tmp[i] = uint8(a >> 8)
+	}
+	if last == -1 {
+		return
+	}
+	e.writeChunk(e.tmp[:last+1], "tRNS")
 }
 
 // An encoder is an io.Writer that satisfies writes by writing PNG IDAT chunks,
@@ -447,6 +458,7 @@ func Encode(w io.Writer, m image.Image) os.Error {
 	e.writeIHDR()
 	if pal != nil {
 		e.writePLTE(pal.Palette)
+		e.maybeWritetRNS(pal.Palette)
 	}
 	e.writeIDATs()
 	e.writeIEND()
