@@ -768,6 +768,7 @@ func (c *Conn) ConnectionState() ConnectionState {
 		state.NegotiatedProtocolIsMutual = !c.clientProtocolFallback
 		state.CipherSuite = c.cipherSuite
 		state.PeerCertificates = c.peerCertificates
+		state.VerifiedChains = c.verifiedChains
 	}
 
 	return state
