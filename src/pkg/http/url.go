@@ -449,7 +449,7 @@ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
 //
 // There are redundant fields stored in the URL structure:
 // the String method consults Scheme, Path, Host, RawUserinfo,
-// RawQuery, and Fragment, but not Raw, RawPath or Authority.
+// RawQuery, and Fragment, but not Raw, RawPath or RawAuthority.
 func (url *URL) String() string {
 	result := ""
 	if url.Scheme != "" {
