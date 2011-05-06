@@ -140,7 +140,7 @@ h1#title {
 }
 #content h2 {
   border-top: 2px solid #ddd;
-  padding: 8px 5px;
+  padding: 8px 0;
   margin: 1.5em 0 0;
 }
 #content .subtitle {
