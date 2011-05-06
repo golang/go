@@ -252,10 +252,10 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 			stk, m, g, fn, runtime·clone, m->id, m->tls[0], &m);
 	}
 
-	ret = runtime·clone(flags, stk, m, g, fn);
-
-	if(ret < 0)
-		*(int32*)123 = 123;
+	if((ret = runtime·clone(flags, stk, m, g, fn)) < 0) {
+		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), -ret);
+		runtime·throw("runtime.newosproc");
+	}
 }
 
 void
