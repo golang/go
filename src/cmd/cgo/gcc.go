@@ -604,7 +604,7 @@ const gccTmp = "_obj/_cgo_.o"
 // gccCmd returns the gcc command line to use for compiling
 // the input.
 func (p *Package) gccCmd() []string {
-	return []string{
+	c := []string{
 		p.gccName(),
 		p.gccMachine(),
 		"-Wall",                             // many warnings
@@ -614,15 +614,17 @@ func (p *Package) gccCmd() []string {
 		"-fno-eliminate-unused-debug-types", // gets rid of e.g. untyped enum otherwise
 		"-c",                                // do not link
 		"-xc",                               // input language is C
-		"-",                                 // read input from standard input
 	}
+	c = append(c, p.GccOptions...)
+	c = append(c, "-") //read input from standard input
+	return c
 }
 
 // gccDebug runs gcc -gdwarf-2 over the C program stdin and
 // returns the corresponding DWARF data and any messages
 // printed to standard error.
 func (p *Package) gccDebug(stdin []byte) *dwarf.Data {
-	runGcc(stdin, append(p.gccCmd(), p.GccOptions...))
+	runGcc(stdin, p.gccCmd())
 
 	// Try to parse f as ELF and Mach-O and hope one works.
 	var f interface {
@@ -649,8 +651,8 @@ func (p *Package) gccDebug(stdin []byte) *dwarf.Data {
 // #defines that gcc encountered while processing the input
 // and its included files.
 func (p *Package) gccDefines(stdin []byte) string {
-	base := []string{p.gccName(), p.gccMachine(), "-E", "-dM", "-xc", "-"}
-	stdout, _ := runGcc(stdin, append(base, p.GccOptions...))
+	base := []string{p.gccName(), p.gccMachine(), "-E", "-dM", "-xc"}
+	stdout, _ := runGcc(stdin, append(append(base, p.GccOptions...), "-"))
 	return stdout
 }
 
@@ -659,7 +661,7 @@ func (p *Package) gccDefines(stdin []byte) string {
 // gcc to fail.
 func (p *Package) gccErrors(stdin []byte) string {
 	// TODO(rsc): require failure
-	args := append(p.gccCmd(), p.GccOptions...)
+	args := p.gccCmd()
 	if *debugGcc {
 		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(args, " "))
 		os.Stderr.Write(stdin)
