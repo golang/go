@@ -18,7 +18,7 @@ GOFILES=\
 include ../../../Make.cmd
 
 zwinapi.go: winapi.go
-	$(GOROOT)/src/pkg/syscall/mksyscall_windows.sh $< \
+	$(GOROOT)/src/pkg/syscall/mksyscall_windows.pl $< \
 		| sed 's/^package.*syscall$$/package main/' \
 		| sed '/^import/a \
 			import "syscall"' \
