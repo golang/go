@@ -159,7 +159,7 @@ description, constructed from these types:
 		Elem typeId
 		Len  int
 	}
-	type CommonType {
+	type CommonType struct {
 		Name string // the name of the struct type
 		Id  int    // the id of the type, repeated so it's inside the type
 	}
