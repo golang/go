@@ -165,16 +165,19 @@ func decode1(pw *io.PipeWriter, r io.ByteReader, read func(*decoder) (uint16, os
 			if _, err := w.Write(buf[i:]); err != nil {
 				return err
 			}
-			// Save what the hi code expands to.
-			suffix[hi] = uint8(c)
-			prefix[hi] = last
+			if last != invalidCode {
+				// Save what the hi code expands to.
+				suffix[hi] = uint8(c)
+				prefix[hi] = last
+			}
 		default:
 			return os.NewError("lzw: invalid code")
 		}
 		last, hi = code, hi+1
-		if hi == overflow {
+		if hi >= overflow {
 			if d.width == maxWidth {
-				return os.NewError("lzw: missing clear code")
+				last = invalidCode
+				continue
 			}
 			d.width++
 			overflow <<= 1
