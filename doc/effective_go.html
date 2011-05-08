@@ -504,7 +504,7 @@ the body ends in <code>break</code>, <code>continue</code>,
 </p>
 
 <pre>
-f, err := os.Open(name, os.O_RDONLY, 0)
+f, err := os.Open(name)
 if err != nil {
     return err
 }
@@ -520,7 +520,7 @@ statements, the resulting code needs no <code>else</code> statements.
 </p>
 
 <pre>
-f, err := os.Open(name, os.O_RDONLY, 0)
+f, err := os.Open(name)
 if err != nil {
     return err
 }
@@ -813,7 +813,7 @@ canonical examples are unlocking a mutex or closing a file.
 <pre>
 // Contents returns the file's contents as a string.
 func Contents(filename string) (string, os.Error) {
-    f, err := os.Open(filename, os.O_RDONLY, 0)
+    f, err := os.Open(filename)
     if err != nil {
         return "", err
     }
@@ -2675,7 +2675,7 @@ field for recoverable failures.
 
 <pre>
 for try := 0; try &lt; 2; try++ {
-    file, err = os.Open(filename, os.O_RDONLY, 0)
+    file, err = os.Open(filename)
     if err == nil {
         return
     }
