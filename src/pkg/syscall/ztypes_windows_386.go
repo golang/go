@@ -198,7 +198,7 @@ type Overlapped struct {
 	InternalHigh uint32
 	Offset       uint32
 	OffsetHigh   uint32
-	HEvent       *byte
+	HEvent       int32
 }
 
 type Filetime struct {
