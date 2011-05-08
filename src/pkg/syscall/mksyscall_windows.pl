@@ -156,6 +156,7 @@ while(<>) {
  			$text .= "\tvar _p$n uint32\n";
 			$text .= "\tif $name {\n\t\t_p$n = 1\n\t} else {\n\t\t_p$n = 0\n\t}\n";
 			push @args, "uintptr(_p$n)";
+			$n++;
 		} else {
 			push @args, "uintptr($name)";
 		}
