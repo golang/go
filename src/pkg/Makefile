@@ -105,6 +105,7 @@ DIRS=\
 	http/httptest\
 	http/spdy\
 	image\
+	image/gif\
 	image/jpeg\
 	image/png\
 	image/tiff\
@@ -187,6 +188,7 @@ NOTEST+=\
 	hash\
 	http/pprof\
 	http/httptest\
+	image/gif\
 	net/dict\
 	rand\
 	runtime/cgo\
