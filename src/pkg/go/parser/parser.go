@@ -134,11 +134,12 @@ func (p *parser) closeLabelScope() {
 func (p *parser) declare(decl interface{}, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
 	for _, ident := range idents {
 		assert(ident.Obj == nil, "identifier already declared or resolved")
+		obj := ast.NewObj(kind, ident.Name)
+		// remember the corresponding declaration for redeclaration
+		// errors and global variable resolution/typechecking phase
+		obj.Decl = decl
+		ident.Obj = obj
 		if ident.Name != "_" {
-			obj := ast.NewObj(kind, ident.Name)
-			// remember the corresponding declaration for redeclaration
-			// errors and global variable resolution/typechecking phase
-			obj.Decl = decl
 			if alt := scope.Insert(obj); alt != nil && p.mode&DeclarationErrors != 0 {
 				prevDecl := ""
 				if pos := alt.Pos(); pos.IsValid() {
@@ -146,7 +147,6 @@ func (p *parser) declare(decl interface{}, scope *ast.Scope, kind ast.ObjKind, i
 				}
 				p.error(ident.Pos(), fmt.Sprintf("%s redeclared in this block%s", ident.Name, prevDecl))
 			}
-			ident.Obj = obj
 		}
 	}
 }
@@ -159,17 +159,17 @@ func (p *parser) shortVarDecl(idents []*ast.Ident) {
 	n := 0 // number of new variables
 	for _, ident := range idents {
 		assert(ident.Obj == nil, "identifier already declared or resolved")
+		obj := ast.NewObj(ast.Var, ident.Name)
+		// short var declarations cannot have redeclaration errors
+		// and are not global => no need to remember the respective
+		// declaration
+		ident.Obj = obj
 		if ident.Name != "_" {
-			obj := ast.NewObj(ast.Var, ident.Name)
-			// short var declarations cannot have redeclaration errors
-			// and are not global => no need to remember the respective
-			// declaration
-			alt := p.topScope.Insert(obj)
-			if alt == nil {
+			if alt := p.topScope.Insert(obj); alt != nil {
+				ident.Obj = alt // redeclaration
+			} else {
 				n++ // new declaration
-				alt = obj
 			}
-			ident.Obj = alt
 		}
 	}
 	if n == 0 && p.mode&DeclarationErrors != 0 {
