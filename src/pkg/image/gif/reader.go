@@ -306,7 +306,7 @@ func (d *decoder) readGraphicControl() os.Error {
 	}
 	d.flags = d.tmp[1]
 	d.delayTime = int(d.tmp[2]) | int(d.tmp[3])<<8
-	if d.flags&gcTransparentColorSet == 0 {
+	if d.flags&gcTransparentColorSet != 0 {
 		d.transparentIndex = d.tmp[4]
 		d.setTransparency(d.globalColorMap)
 	}
