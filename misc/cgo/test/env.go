@@ -16,9 +16,9 @@ import (
 
 // This is really an os package test but here for convenience.
 func testSetEnv(t *testing.T) {
-	const key = "CGO_OS_TEST_KEY" 
-	const val = "CGO_OS_TEST_VALUE" 
-	os.Setenv(key, val) 
+	const key = "CGO_OS_TEST_KEY"
+	const val = "CGO_OS_TEST_VALUE"
+	os.Setenv(key, val)
 	keyc := C.CString(key)
 	defer C.free(unsafe.Pointer(keyc))
 	v := C.getenv(keyc)
@@ -30,5 +30,3 @@ func testSetEnv(t *testing.T) {
 		t.Fatalf("getenv() = %q; want %q", vs, val)
 	}
 }
-
-

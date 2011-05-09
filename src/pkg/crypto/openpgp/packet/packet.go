@@ -301,12 +301,12 @@ type SignatureType uint8
 
 const (
 	SigTypeBinary        SignatureType = 0
-	SigTypeText          = 1
-	SigTypeGenericCert   = 0x10
-	SigTypePersonaCert   = 0x11
-	SigTypeCasualCert    = 0x12
-	SigTypePositiveCert  = 0x13
-	SigTypeSubkeyBinding = 0x18
+	SigTypeText                        = 1
+	SigTypeGenericCert                 = 0x10
+	SigTypePersonaCert                 = 0x11
+	SigTypeCasualCert                  = 0x12
+	SigTypePositiveCert                = 0x13
+	SigTypeSubkeyBinding               = 0x18
 )
 
 // PublicKeyAlgorithm represents the different public key system specified for

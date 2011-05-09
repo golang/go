@@ -197,7 +197,7 @@ func initNorm() (testKn []uint32, testWn, testFn []float32) {
 	const m1 = 1 << 31
 	var (
 		dn float64 = rn
-		tn = dn
+		tn         = dn
 		vn float64 = 9.91256303526217e-3
 	)
 
@@ -226,7 +226,7 @@ func initExp() (testKe []uint32, testWe, testFe []float32) {
 	const m2 = 1 << 32
 	var (
 		de float64 = re
-		te = de
+		te         = de
 		ve float64 = 3.9496598225815571993e-3
 	)
 

@@ -29,14 +29,14 @@ type ControlFrameType uint16
 // Control frame type constants
 const (
 	TypeSynStream    ControlFrameType = 0x0001
-	TypeSynReply     = 0x0002
-	TypeRstStream    = 0x0003
-	TypeSettings     = 0x0004
-	TypeNoop         = 0x0005
-	TypePing         = 0x0006
-	TypeGoaway       = 0x0007
-	TypeHeaders      = 0x0008
-	TypeWindowUpdate = 0x0009
+	TypeSynReply                      = 0x0002
+	TypeRstStream                     = 0x0003
+	TypeSettings                      = 0x0004
+	TypeNoop                          = 0x0005
+	TypePing                          = 0x0006
+	TypeGoaway                        = 0x0007
+	TypeHeaders                       = 0x0008
+	TypeWindowUpdate                  = 0x0009
 )
 
 func (t ControlFrameType) String() string {
@@ -68,7 +68,7 @@ type FrameFlags uint8
 // Stream frame flags
 const (
 	FlagFin            FrameFlags = 0x01
-	FlagUnidirectional = 0x02
+	FlagUnidirectional            = 0x02
 )
 
 // SETTINGS frame flags

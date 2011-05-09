@@ -159,7 +159,6 @@ bar`
 
 
 func _() {
-	// the following decls need a semicolon at the end
 	type _ int
 	type _ *int
 	type _ []int
@@ -174,7 +173,6 @@ func _() {
 	var _ chan int
 	var _ func() int
 
-	// the following decls don't need a semicolon at the end
 	type _ struct{}
 	type _ *struct{}
 	type _ []struct{}
@@ -399,6 +397,33 @@ func _() {
 		xxxx chan<- string
 	)
 }
+
+// alignment of "=" in consecutive lines (extended example from issue 1414)
+const (
+	umax uint                  = ^uint(0) // maximum value for a uint
+	bpu  = 1 << (5 + umax>>63)            // bits per uint
+	foo
+	bar  = -1
+)
+
+// typical enum
+const (
+	a MyType = iota
+	abcd
+	b
+	c
+	def
+)
+
+// excerpt from godoc.go
+var (
+	goroot = flag.String("goroot", runtime.GOROOT(), "Go root directory")
+	testDir = flag.String("testdir", "", "Go root subdirectory - for testing only (faster startups)")
+	pkgPath = flag.String("path", "", "additional package directories (colon-separated)")
+	filter = flag.String("filter", "", "filter file containing permitted package directory paths")
+	filterMin = flag.Int("filter_minutes", 0, "filter file update interval in minutes; disabled if <= 0")
+	filterDelay delayTime // actual filter update interval in minutes; usually filterDelay == filterMin, but filterDelay may back off exponentially
+)
 
 
 // formatting of structs
