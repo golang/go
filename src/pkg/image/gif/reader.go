@@ -69,12 +69,12 @@ type decoder struct {
 	// From image descriptor.
 	imageFields byte
 
+	// From graphics control.
+	transparentIndex byte
+
 	// Computed.
 	pixelSize      uint
 	globalColorMap image.PalettedColorModel
-
-	// Computed but unused (TODO).
-	transparentIndex byte
 
 	// Used when decoding.
 	delay []int
@@ -165,6 +165,8 @@ Loop:
 				if err != nil {
 					break
 				}
+				// TODO: do we set transparency in this map too? That would be
+				// d.setTransparency(m.Palette)
 			} else {
 				m.Palette = d.globalColorMap
 			}
@@ -304,11 +306,17 @@ func (d *decoder) readGraphicControl() os.Error {
 	}
 	d.flags = d.tmp[1]
 	d.delayTime = int(d.tmp[2]) | int(d.tmp[3])<<8
-	if d.flags&gcTransparentColorSet != 0 {
+	if d.flags&gcTransparentColorSet == 0 {
 		d.transparentIndex = d.tmp[4]
-		return os.ErrorString("gif: can't handle transparency")
+		d.setTransparency(d.globalColorMap)
 	}
 	return nil
+}
+
+func (d *decoder) setTransparency(colorMap image.PalettedColorModel) {
+	if int(d.transparentIndex) < len(colorMap) {
+		colorMap[d.transparentIndex] = image.RGBAColor{}
+	}
 }
 
 func (d *decoder) newImageFromDescriptor() (*image.Paletted, os.Error) {
@@ -336,8 +344,7 @@ func (d *decoder) readBlock() (int, os.Error) {
 
 // Decode reads a GIF image from r and returns the first embedded
 // image as an image.Image.
-// Limitation: The file must be 8 bits per pixel and have no interlacing
-// or transparency.
+// Limitation: The file must be 8 bits per pixel and have no interlacing.
 func Decode(r io.Reader) (image.Image, os.Error) {
 	var d decoder
 	if err := d.decode(r, false); err != nil {
@@ -355,8 +362,7 @@ type GIF struct {
 
 // DecodeAll reads a GIF image from r and returns the sequential frames
 // and timing information.
-// Limitation: The file must be 8 bits per pixel and have no interlacing
-// or transparency.
+// Limitation: The file must be 8 bits per pixel and have no interlacing.
 func DecodeAll(r io.Reader) (*GIF, os.Error) {
 	var d decoder
 	if err := d.decode(r, false); err != nil {
