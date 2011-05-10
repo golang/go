@@ -569,32 +569,10 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc 
 // ----------------------------------------------------------------------------
 // Filtering by name
 
-type Filter func(string) bool
-
-
-func matchDecl(d *ast.GenDecl, f Filter) bool {
-	for _, d := range d.Specs {
-		switch v := d.(type) {
-		case *ast.ValueSpec:
-			for _, name := range v.Names {
-				if f(name.Name) {
-					return true
-				}
-			}
-		case *ast.TypeSpec:
-			if f(v.Name.Name) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-
-func filterValueDocs(a []*ValueDoc, f Filter) []*ValueDoc {
+func filterValueDocs(a []*ValueDoc, f ast.Filter) []*ValueDoc {
 	w := 0
 	for _, vd := range a {
-		if matchDecl(vd.Decl, f) {
+		if ast.FilterDecl(vd.Decl, f) {
 			a[w] = vd
 			w++
 		}
@@ -603,7 +581,7 @@ func filterValueDocs(a []*ValueDoc, f Filter) []*ValueDoc {
 }
 
 
-func filterFuncDocs(a []*FuncDoc, f Filter) []*FuncDoc {
+func filterFuncDocs(a []*FuncDoc, f ast.Filter) []*FuncDoc {
 	w := 0
 	for _, fd := range a {
 		if f(fd.Name) {
@@ -615,11 +593,11 @@ func filterFuncDocs(a []*FuncDoc, f Filter) []*FuncDoc {
 }
 
 
-func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
+func filterTypeDocs(a []*TypeDoc, f ast.Filter) []*TypeDoc {
 	w := 0
 	for _, td := range a {
 		n := 0 // number of matches
-		if matchDecl(td.Decl, f) {
+		if ast.FilterDecl(td.Decl, f) {
 			n = 1
 		} else {
 			// type name doesn't match, but we may have matching consts, vars, factories or methods
@@ -641,7 +619,7 @@ func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
 // Filter eliminates documentation for names that don't pass through the filter f.
 // TODO: Recognize "Type.Method" as a name.
 //
-func (p *PackageDoc) Filter(f Filter) {
+func (p *PackageDoc) Filter(f ast.Filter) {
 	p.Consts = filterValueDocs(p.Consts, f)
 	p.Vars = filterValueDocs(p.Vars, f)
 	p.Types = filterTypeDocs(p.Types, f)

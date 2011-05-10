@@ -206,13 +206,43 @@ func filterIdentList(list []*Ident, f Filter) []*Ident {
 }
 
 
+func filterFieldList(list []*Field, f Filter) []*Field {
+	j := 0
+	for _, field := range list {
+		field.Names = filterIdentList(field.Names, f)
+		if len(field.Names) > 0 {
+			list[j] = field
+			j++
+		}
+	}
+	return list[0:j]
+}
+
+
+func filterFields(fields *FieldList, f Filter) bool {
+	if fields == nil {
+		return false
+	}
+	fields.List = filterFieldList(fields.List, f)
+	return len(fields.List) > 0
+}
+
+
 func filterSpec(spec Spec, f Filter) bool {
 	switch s := spec.(type) {
 	case *ValueSpec:
 		s.Names = filterIdentList(s.Names, f)
 		return len(s.Names) > 0
 	case *TypeSpec:
-		return f(s.Name.Name)
+		if f(s.Name.Name) {
+			return true
+		}
+		switch t := s.Type.(type) {
+		case *StructType:
+			return filterFields(t.Fields, f)
+		case *InterfaceType:
+			return filterFields(t.Methods, f)
+		}
 	}
 	return false
 }
@@ -230,7 +260,14 @@ func filterSpecList(list []Spec, f Filter) []Spec {
 }
 
 
-func filterDecl(decl Decl, f Filter) bool {
+// FilterDecl trims the AST for a Go declaration in place by removing
+// all names (including struct field and interface method names, but
+// not from parameter lists) that don't pass through the filter f.
+//
+// FilterDecl returns true if there are any declared names left after
+// filtering; it returns false otherwise.
+//
+func FilterDecl(decl Decl, f Filter) bool {
 	switch d := decl.(type) {
 	case *GenDecl:
 		d.Specs = filterSpecList(d.Specs, f)
@@ -243,10 +280,10 @@ func filterDecl(decl Decl, f Filter) bool {
 
 
 // FilterFile trims the AST for a Go file in place by removing all
-// names from top-level declarations (but not from parameter lists
-// or inside types) that don't pass through the filter f. If the
-// declaration is empty afterwards, the declaration is removed from
-// the AST.
+// names from top-level declarations (including struct field and
+// interface method names, but not from parameter lists) that don't
+// pass through the filter f. If the declaration is empty afterwards,
+// the declaration is removed from the AST.
 // The File.comments list is not changed.
 //
 // FilterFile returns true if there are any top-level declarations
@@ -255,7 +292,7 @@ func filterDecl(decl Decl, f Filter) bool {
 func FilterFile(src *File, f Filter) bool {
 	j := 0
 	for _, d := range src.Decls {
-		if filterDecl(d, f) {
+		if FilterDecl(d, f) {
 			src.Decls[j] = d
 			j++
 		}
@@ -266,10 +303,10 @@ func FilterFile(src *File, f Filter) bool {
 
 
 // FilterPackage trims the AST for a Go package in place by removing all
-// names from top-level declarations (but not from parameter lists
-// or inside types) that don't pass through the filter f. If the
-// declaration is empty afterwards, the declaration is removed from
-// the AST.
+// names from top-level declarations (including struct field and
+// interface method names, but not from parameter lists) that don't
+// pass through the filter f. If the declaration is empty afterwards,
+// the declaration is removed from the AST.
 // The pkg.Files list is not changed, so that file names and top-level
 // package comments don't get lost.
 //
