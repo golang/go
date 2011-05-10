@@ -41,6 +41,7 @@ unsafenmagic(Node *nn)
 		tr = r->type;
 		if(tr == T)
 			goto bad;
+		dowidth(tr);
 		v = tr->width;
 		goto yes;
 	}
