@@ -96,7 +96,6 @@ type decoder struct {
 	huff          [maxTc + 1][maxTh + 1]huffman
 	quant         [maxTq + 1]block
 	b             bits
-	blocks        [nComponent][maxH * maxV]block
 	tmp           [1024]byte
 }
 
@@ -182,45 +181,6 @@ func (d *decoder) processDQT(n int) os.Error {
 	return nil
 }
 
-// Clip x to the range [0, 255] inclusive.
-func clip(x int) uint8 {
-	if x < 0 {
-		return 0
-	}
-	if x > 255 {
-		return 255
-	}
-	return uint8(x)
-}
-
-// Store the MCU to the image.
-func (d *decoder) storeMCU(mx, my int) {
-	h0, v0 := d.comps[0].h, d.comps[0].v
-	// Store the luma blocks.
-	for v := 0; v < v0; v++ {
-		for h := 0; h < h0; h++ {
-			p := 8 * ((v0*my+v)*d.img.YStride + (h0*mx + h))
-			for y := 0; y < 8; y++ {
-				for x := 0; x < 8; x++ {
-					d.img.Y[p] = clip(d.blocks[0][h0*v+h][8*y+x])
-					p++
-				}
-				p += d.img.YStride - 8
-			}
-		}
-	}
-	// Store the chroma blocks.
-	p := 8 * (my*d.img.CStride + mx)
-	for y := 0; y < 8; y++ {
-		for x := 0; x < 8; x++ {
-			d.img.Cb[p] = clip(d.blocks[1][0][8*y+x])
-			d.img.Cr[p] = clip(d.blocks[2][0][8*y+x])
-			p++
-		}
-		p += d.img.CStride - 8
-	}
-}
-
 // Specified in section B.2.3.
 func (d *decoder) processSOS(n int) os.Error {
 	if n != 4+2*nComponent {
@@ -275,14 +235,18 @@ func (d *decoder) processSOS(n int) os.Error {
 	}
 
 	mcu, expectedRST := 0, uint8(rst0Marker)
-	var allZeroes block
-	var dc [nComponent]int
+	var (
+		allZeroes, b block
+		dc           [nComponent]int
+	)
 	for my := 0; my < myy; my++ {
 		for mx := 0; mx < mxx; mx++ {
 			for i := 0; i < nComponent; i++ {
 				qt := &d.quant[d.comps[i].tq]
 				for j := 0; j < d.comps[i].h*d.comps[i].v; j++ {
-					d.blocks[i][j] = allZeroes
+					// TODO(nigeltao): make this a "var b block" once the compiler's escape
+					// analysis is good enough to allocate it on the stack, not the heap.
+					b = allZeroes
 
 					// Decode the DC coefficient, as specified in section F.2.2.1.
 					value, err := d.decodeHuffman(&d.huff[dcTableClass][scanComps[i].td])
@@ -297,7 +261,7 @@ func (d *decoder) processSOS(n int) os.Error {
 						return err
 					}
 					dc[i] += dcDelta
-					d.blocks[i][j][0] = dc[i] * qt[0]
+					b[0] = dc[i] * qt[0]
 
 					// Decode the AC coefficients, as specified in section F.2.2.2.
 					for k := 1; k < blockSize; k++ {
@@ -316,7 +280,7 @@ func (d *decoder) processSOS(n int) os.Error {
 							if err != nil {
 								return err
 							}
-							d.blocks[i][j][unzig[k]] = ac * qt[k]
+							b[unzig[k]] = ac * qt[k]
 						} else {
 							if val0 != 0x0f {
 								break
@@ -325,10 +289,19 @@ func (d *decoder) processSOS(n int) os.Error {
 						}
 					}
 
-					idct(&d.blocks[i][j])
+					// Perform the inverse DCT and store the MCU component to the image.
+					switch i {
+					case 0:
+						mx0 := h0*mx + (j % 2)
+						my0 := v0*my + (j / 2)
+						idct(d.img.Y[8*(my0*d.img.YStride+mx0):], d.img.YStride, &b)
+					case 1:
+						idct(d.img.Cb[8*(my*d.img.CStride+mx):], d.img.CStride, &b)
+					case 2:
+						idct(d.img.Cr[8*(my*d.img.CStride+mx):], d.img.CStride, &b)
+					}
 				} // for j
 			} // for i
-			d.storeMCU(mx, my)
 			mcu++
 			if d.ri > 0 && mcu%d.ri == 0 && mcu < mxx*myy {
 				// A more sophisticated decoder could use RST[0-7] markers to resynchronize from corrupt input,
