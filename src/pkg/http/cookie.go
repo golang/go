@@ -218,22 +218,26 @@ func readCookies(h Header) []*Cookie {
 	return cookies
 }
 
-// writeCookies writes the wire representation of the cookies
-// to w. Each cookie is written on a separate "Cookie: " line.
-// This choice is made because HTTP parsers tend to have a limit on
-// line-length, so it seems safer to place cookies on separate lines.
+// writeCookies writes the wire representation of the cookies to
+// w. According to RFC 6265 section 5.4, writeCookies does not
+// attach more than one Cookie header field.  That means all
+// cookies, if any, are written into the same line, separated by
+// semicolon.
 func writeCookies(w io.Writer, kk []*Cookie) os.Error {
-	lines := make([]string, 0, len(kk))
-	for _, c := range kk {
-		lines = append(lines, fmt.Sprintf("Cookie: %s=%s\r\n", sanitizeName(c.Name), sanitizeValue(c.Value)))
+	if len(kk) == 0 {
+		return nil
 	}
-	sort.SortStrings(lines)
-	for _, l := range lines {
-		if _, err := io.WriteString(w, l); err != nil {
-			return err
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "Cookie: ")
+	for i, c := range kk {
+		if i > 0 {
+			fmt.Fprintf(&buf, "; ")
 		}
+		fmt.Fprintf(&buf, "%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
 	}
-	return nil
+	fmt.Fprintf(&buf, "\r\n")
+	_, err := w.Write(buf.Bytes())
+	return err
 }
 
 func sanitizeName(n string) string {
