@@ -141,8 +141,6 @@ func (d *decoder) decode(r io.Reader, configOnly bool) os.Error {
 		}
 	}
 
-	d.image = nil
-
 Loop:
 	for err == nil {
 		var c byte
@@ -383,8 +381,7 @@ func DecodeConfig(r io.Reader) (image.Config, os.Error) {
 	if err := d.decode(r, true); err != nil {
 		return image.Config{}, err
 	}
-	colorMap := d.globalColorMap
-	return image.Config{colorMap, d.width, d.height}, nil
+	return image.Config{d.globalColorMap, d.width, d.height}, nil
 }
 
 func init() {
