@@ -873,14 +873,17 @@ mkvar(Reg *r, Adr *a)
 
 			// if they overlaps, disable both
 			if(overlap(v->offset, v->width, o, w)) {
+//				print("disable overlap %s %d %d %d %d, %E != %E\n", s->name, v->offset, v->width, o, w, v->etype, et);
 				v->addr = 1;
 				flag = 1;
 			}
 		}
 	}
-	if(a->pun)
+	if(a->pun) {
+//		print("disable pun %s\n", s->name);
 		flag = 1;
 
+	}
 	switch(et) {
 	case 0:
 	case TFUNC:

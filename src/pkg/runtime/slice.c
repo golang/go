@@ -9,6 +9,8 @@
 static	int32	debug	= 0;
 
 static	void	makeslice1(SliceType*, int32, int32, Slice*);
+static	void	growslice1(SliceType*, Slice, int32, Slice *);
+static	void	appendslice1(SliceType*, Slice, Slice, Slice*);
 	void	runtime·slicecopy(Slice to, Slice fm, uintptr width, int32 ret);
 
 // see also unsafe·NewArray
@@ -46,8 +48,6 @@ makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
 		ret->array = runtime·mal(size);
 }
 
-static void appendslice1(SliceType*, Slice, Slice, Slice*);
-
 // append(type *Type, n int, old []T, ...,) []T
 #pragma textflag 7
 void
@@ -72,36 +72,69 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 static void
 appendslice1(SliceType *t, Slice x, Slice y, Slice *ret)
 {
-	Slice newx;
 	int32 m;
 	uintptr w;
 
-	if(x.len+y.len < x.len)
+	m = x.len+y.len;
+
+	if(m < x.len)
 		runtime·throw("append: slice overflow");
 
+	if(m > x.cap)
+		growslice1(t, x, m, ret);
+	else
+		*ret = x;
+
 	w = t->elem->size;
-	if(x.len+y.len > x.cap) {
-		m = x.cap;
-		if(m == 0)
-			m = y.len;
-		else {
-			do {
-				if(x.len < 1024)
-					m += m;
-				else
-					m += m/4;
-			} while(m < x.len+y.len);
-		}
-		makeslice1(t, x.len, m, &newx);
-		runtime·memmove(newx.array, x.array, x.len*w);
-		x = newx;
-	}
-	runtime·memmove(x.array+x.len*w, y.array, y.len*w);
-	x.len += y.len;
-	*ret = x;
+	runtime·memmove(ret->array + ret->len*w, y.array, y.len*w);
+	ret->len += y.len;
 }
 
+// growslice(type *Type, x, []T, n int64) []T
+void
+runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
+{
+	int64 cap;
 
+	if(n < 1)
+		runtime·panicstring("growslice: invalid n");
+
+	cap = old.cap + n;
+
+	if((int32)cap != cap || cap > ((uintptr)-1) / t->elem->size)
+		runtime·panicstring("growslice: cap out of range");
+
+	growslice1(t, old, cap, &ret);
+
+	FLUSH(&ret);
+
+	if(debug) {
+		runtime·printf("growslice(%S,", *t->string);
+ 		runtime·printslice(old);
+		runtime·printf(", new cap=%D) =", cap);
+ 		runtime·printslice(ret);
+	}
+}
+
+static void
+growslice1(SliceType *t, Slice x, int32 newcap, Slice *ret)
+{
+	int32 m;
+
+	m = x.cap;
+	if(m == 0)
+		m = newcap;
+	else {
+		do {
+			if(x.len < 1024)
+				m += m;
+			else
+				m += m/4;
+		} while(m < newcap);
+	}
+	makeslice1(t, x.len, m, ret);
+	runtime·memmove(ret->array, x.array, ret->len * t->elem->size);
+}
 
 // sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any);
 void

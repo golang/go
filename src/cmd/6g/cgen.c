@@ -283,11 +283,9 @@ cgen(Node *n, Node *res)
 		if(istype(nl->type, TSTRING) || isslice(nl->type)) {
 			// both slice and string have len one pointer into the struct.
 			// a zero pointer means zero length
-			regalloc(&n1, types[tptr], res);
-			agen(nl, &n1);
-			n1.op = OINDREG;
+			igen(nl, &n1, res);
 			n1.type = types[TUINT32];
-			n1.xoffset = Array_nel;
+			n1.xoffset += Array_nel;
 			gmove(&n1, res);
 			regfree(&n1);
 			break;
@@ -319,11 +317,9 @@ cgen(Node *n, Node *res)
 			break;
 		}
 		if(isslice(nl->type)) {
-			regalloc(&n1, types[tptr], res);
-			agen(nl, &n1);
-			n1.op = OINDREG;
+			igen(nl, &n1, res);
 			n1.type = types[TUINT32];
-			n1.xoffset = Array_cap;
+			n1.xoffset += Array_cap;
 			gmove(&n1, res);
 			regfree(&n1);
 			break;
@@ -542,7 +538,8 @@ agen(Node *n, Node *res)
 				gmove(&n1, &n3);
 			}
 
-			ginscon(optoas(OADD, types[tptr]), v*w, &n3);
+			if (v*w != 0)
+				ginscon(optoas(OADD, types[tptr]), v*w, &n3);
 			gmove(&n3, res);
 			regfree(&n3);
 			break;
@@ -682,6 +679,28 @@ ret:
 void
 igen(Node *n, Node *a, Node *res)
 {
+	Type *fp;
+	Iter flist;
+ 
+	switch(n->op) {
+	case ONAME:
+		if((n->class&PHEAP) || n->class == PPARAMREF)
+			break;
+		*a = *n;
+		return;
+
+	case OCALLFUNC:
+		fp = structfirst(&flist, getoutarg(n->left->type));
+		cgen_call(n, 0);
+		memset(a, 0, sizeof *a);
+		a->op = OINDREG;
+		a->val.u.reg = D_SP;
+		a->addable = 1;
+		a->xoffset = fp->width;
+		a->type = n->type;
+		return;
+	}
+ 
 	regalloc(a, types[tptr], res);
 	agen(n, a);
 	a->op = OINDREG;
@@ -848,6 +867,7 @@ bgen(Node *n, int true, Prog *to)
 			n2 = n1;
 			n2.op = OINDREG;
 			n2.xoffset = Array_array;
+			n2.type = types[tptr];
 			nodconst(&tmp, types[tptr], 0);
 			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
 			patch(gbranch(a, types[tptr]), to);

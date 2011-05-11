@@ -1,5 +1,6 @@
 char *runtimeimport =
 	"package runtime\n"
+	"import runtime \"runtime\"\n"
 	"func \"\".new (? int32) *any\n"
 	"func \"\".panicindex ()\n"
 	"func \"\".panicslice ()\n"
@@ -81,6 +82,7 @@ char *runtimeimport =
 	"func \"\".selectgo (sel *uint8)\n"
 	"func \"\".block ()\n"
 	"func \"\".makeslice (typ *uint8, nel int64, cap int64) []any\n"
+	"func \"\".growslice (typ *uint8, old []any, cap int64) []any\n"
 	"func \"\".sliceslice1 (old []any, lb uint64, width uint64) []any\n"
 	"func \"\".sliceslice (old []any, lb uint64, hb uint64, width uint64) []any\n"
 	"func \"\".slicearray (old *any, nel uint64, lb uint64, hb uint64, width uint64) []any\n"
@@ -98,6 +100,7 @@ char *runtimeimport =
 	"$$\n";
 char *unsafeimport =
 	"package unsafe\n"
+	"import runtime \"runtime\"\n"
 	"type \"\".Pointer uintptr\n"
 	"func \"\".Offsetof (? any) int\n"
 	"func \"\".Sizeof (? any) int\n"
