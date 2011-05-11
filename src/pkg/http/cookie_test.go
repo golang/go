@@ -48,8 +48,20 @@ var writeCookiesTests = []struct {
 	Raw     string
 }{
 	{
+		[]*Cookie{},
+		"",
+	},
+	{
 		[]*Cookie{&Cookie{Name: "cookie-1", Value: "v$1"}},
 		"Cookie: cookie-1=v$1\r\n",
+	},
+	{
+		[]*Cookie{
+			&Cookie{Name: "cookie-1", Value: "v$1"},
+			&Cookie{Name: "cookie-2", Value: "v$2"},
+			&Cookie{Name: "cookie-3", Value: "v$3"},
+		},
+		"Cookie: cookie-1=v$1; cookie-2=v$2; cookie-3=v$3\r\n",
 	},
 }
 
