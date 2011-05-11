@@ -10,7 +10,7 @@ import (
 	"os"
 	"testing"
 
-	// TODO(nigeltao): implement bmp decoder.
+	_ "image/bmp"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
@@ -25,7 +25,7 @@ type imageTest struct {
 }
 
 var imageTests = []imageTest{
-	//{"testdata/video-001.bmp", 0},
+	{"testdata/video-001.bmp", 0},
 	// GIF images are restricted to a 256-color palette and the conversion
 	// to GIF loses significant image quality.
 	{"testdata/video-001.gif", 64 << 8},
