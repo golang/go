@@ -13,7 +13,7 @@ import (
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha1"
-	"hash"
+	"crypto/x509/crl"
 	"io"
 	"os"
 	"time"
@@ -485,26 +485,47 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err os.Error) {
 
 	// TODO(agl): don't ignore the path length constraint.
 
-	var h hash.Hash
+	return parent.CheckSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature)
+}
+
+// CheckSignature verifies that signature is a valid signature over signed from
+// c's public key.
+func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature []byte) (err os.Error) {
 	var hashType crypto.Hash
 
-	switch c.SignatureAlgorithm {
+	switch algo {
 	case SHA1WithRSA:
-		h = sha1.New()
 		hashType = crypto.SHA1
+	case SHA256WithRSA:
+		hashType = crypto.SHA256
+	case SHA384WithRSA:
+		hashType = crypto.SHA384
+	case SHA512WithRSA:
+		hashType = crypto.SHA512
 	default:
 		return UnsupportedAlgorithmError{}
 	}
 
-	pub, ok := parent.PublicKey.(*rsa.PublicKey)
+	h := hashType.New()
+	if h == nil {
+		return UnsupportedAlgorithmError{}
+	}
+
+	pub, ok := c.PublicKey.(*rsa.PublicKey)
 	if !ok {
 		return UnsupportedAlgorithmError{}
 	}
 
-	h.Write(c.RawTBSCertificate)
+	h.Write(signed)
 	digest := h.Sum()
 
-	return rsa.VerifyPKCS1v15(pub, hashType, digest, c.Signature)
+	return rsa.VerifyPKCS1v15(pub, hashType, digest, signature)
+}
+
+// CheckCRLSignature checks that the signature in crl is from c.
+func (c *Certificate) CheckCRLSignature(crl *crl.CertificateList) (err os.Error) {
+	algo := getSignatureAlgorithmFromOID(crl.SignatureAlgorithm.Algo)
+	return c.CheckSignature(algo, crl.TBSCertList.Raw, crl.SignatureValue.RightAlign())
 }
 
 type UnhandledCriticalExtension struct{}

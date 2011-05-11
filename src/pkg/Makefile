@@ -59,6 +59,7 @@ DIRS=\
 	crypto/tls\
 	crypto/twofish\
 	crypto/x509\
+	crypto/x509/crl\
 	crypto/xtea\
 	debug/dwarf\
 	debug/macho\
