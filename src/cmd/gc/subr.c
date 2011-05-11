@@ -1073,6 +1073,9 @@ Jconv(Fmt *fp)
 	if(n->implicit != 0)
 		fmtprint(fp, " implicit(%d)", n->implicit);
 
+	if(n->pun != 0)
+		fmtprint(fp, " pun(%d)", n->pun);
+
 	return 0;
 }
 
@@ -1141,7 +1144,7 @@ Tpretty(Fmt *fp, Type *t)
 	Type *t1;
 	Sym *s;
 	
-	if(debug['r']) {
+	if(0 && debug['r']) {
 		debug['r'] = 0;
 		fmtprint(fp, "%T (orig=%T)", t, t->orig);
 		debug['r'] = 1;
@@ -3109,7 +3112,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 	Type *tpad;
 	int isddd;
 
-	if(debug['r'])
+	if(0 && debug['r'])
 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
 			rcvr, method, newnam);
 
@@ -3163,7 +3166,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 		fn->nbody = list1(n);
 	}
 
-	if(debug['r'])
+	if(0 && debug['r'])
 		dumplist("genwrapper body", fn->nbody);
 
 	funcbody(fn);
@@ -3258,8 +3261,9 @@ implements(Type *t, Type *iface, Type **m, Type **samename, int *ptr)
 		// the method does not exist for value types.
 		rcvr = getthisx(tm->type)->type->type;
 		if(isptr[rcvr->etype] && !isptr[t0->etype] && !followptr && !isifacemethod(tm->type)) {
-			if(debug['r'])
+			if(0 && debug['r'])
 				yyerror("interface pointer mismatch");
+
 			*m = im;
 			*samename = nil;
 			*ptr = 1;
