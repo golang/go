@@ -307,6 +307,29 @@ Oh no, premature EOF!
 	}
 }
 
+func TestZeroLengthBody(t *testing.T) {
+	testBody := strings.Replace(`
+This is a multi-part message.  This line is ignored.
+--MyBoundary
+foo: bar
+
+
+--MyBoundary--
+`,"\n", "\r\n", -1)
+	r := NewReader(strings.NewReader(testBody), "MyBoundary")
+	part, err := r.NextPart()
+	if err != nil {
+		t.Fatalf("didn't get a part")
+	}
+	n, err := io.Copy(ioutil.Discard, part)
+	if err != nil {
+		t.Errorf("error reading part: %v", err)
+	}
+	if n != 0 {
+		t.Errorf("read %d bytes; expected 0", n)
+	}
+}
+
 type slowReader struct {
 	r io.Reader
 }

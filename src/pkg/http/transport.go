@@ -469,6 +469,17 @@ func (pc *persistConn) readLoop() {
 					waitForBodyRead <- true
 				}
 			} else {
+				// When there's no response body, we immediately
+				// reuse the TCP connection (putIdleConn), but
+				// we need to prevent ClientConn.Read from
+				// closing the Response.Body on the next
+				// loop, otherwise it might close the body
+				// before the client code has had a chance to
+				// read it (even though it'll just be 0, EOF).
+				pc.cc.lk.Lock()
+				pc.cc.lastbody = nil
+				pc.cc.lk.Unlock()
+
 				pc.t.putIdleConn(pc)
 			}
 		}
