@@ -581,12 +581,18 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 				url = olddir + url
 			}
 
+			var query string
+			if i := strings.Index(url, "?"); i != -1 {
+				url, query = url[:i], url[i:]
+			}
+
 			// clean up but preserve trailing slash
 			trailing := url[len(url)-1] == '/'
 			url = path.Clean(url)
 			if trailing && url[len(url)-1] != '/' {
 				url += "/"
 			}
+			url += query
 		}
 	}
 

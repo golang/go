@@ -693,3 +693,20 @@ func TestTimeoutHandler(t *testing.T) {
 		t.Errorf("expected Write error of %v; got %v", e, g)
 	}
 }
+
+// Verifies we don't path.Clean() on the wrong parts in redirects.
+func TestRedirectMunging(t *testing.T) {
+	req, _ := NewRequest("GET", "http://example.com/", nil)
+
+	resp := httptest.NewRecorder()
+	Redirect(resp, req, "/foo?next=http://bar.com/", 302)
+	if g, e := resp.Header().Get("Location"), "/foo?next=http://bar.com/"; g != e {
+		t.Errorf("Location header was %q; want %q", g, e)
+	}
+
+	resp = httptest.NewRecorder()
+	Redirect(resp, req, "http://localhost:8080/_ah/login?continue=http://localhost:8080/", 302)
+	if g, e := resp.Header().Get("Location"), "http://localhost:8080/_ah/login?continue=http://localhost:8080/"; g != e {
+		t.Errorf("Location header was %q; want %q", g, e)
+	}
+}
