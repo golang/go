@@ -89,7 +89,7 @@ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, os.Error) {
 		}
 	}
 	z.w = w
-	z.compressor = flate.NewWriter(w, level)
+	z.compressor = flate.NewWriterDict(w, level, dict)
 	z.digest = adler32.New()
 	return z, nil
 }
