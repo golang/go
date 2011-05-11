@@ -1489,6 +1489,12 @@ to print in the format
 7/-2.35/"abc\tdef"
 </pre>
 <p>
+(If you need to print <em>values</em> of type <code>T</code> as well as pointers to <code>T</code>,
+the receiver for <code>String</code> must be of value type; this example used a pointer because
+that's more efficient and idiomatic for struct types.
+See the section below on <a href="#pointers_vs_values">pointers vs. value receivers</a> for more information.)
+</p>
+<p>
 Our <code>String()</code> method is able to call <code>Sprintf</code> because the
 print routines are fully reentrant and can be used recursively.
 We can even go one step further and pass a print routine's arguments directly to another such routine.
