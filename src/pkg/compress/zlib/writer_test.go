@@ -5,6 +5,7 @@
 package zlib
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"os"
@@ -119,5 +120,22 @@ func TestWriterDict(t *testing.T) {
 		for level := BestSpeed; level <= BestCompression; level++ {
 			testFileLevelDict(t, fn, level, dictionary)
 		}
+	}
+}
+
+func TestWriterDictIsUsed(t *testing.T) {
+	var input = []byte("Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
+	buf := bytes.NewBuffer(nil)
+	compressor, err := NewWriterDict(buf, BestCompression, input)
+	if err != nil {
+		t.Errorf("error in NewWriterDict: %s", err)
+		return
+	}
+	compressor.Write(input)
+	compressor.Close()
+	const expectedMaxSize = 25
+	output := buf.Bytes()
+	if len(output) > expectedMaxSize {
+		t.Errorf("result too large (got %d, want <= %d bytes). Is the dictionary being used?", len(output), expectedMaxSize)
 	}
 }
