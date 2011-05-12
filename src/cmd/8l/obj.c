@@ -188,7 +188,7 @@ main(int argc, char *argv[])
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)
-			INITRND = 1;
+			INITRND = 4096;
 		break;
 	case Hmsdoscom:	/* MS-DOS .COM */
 		HEADR = 0;
