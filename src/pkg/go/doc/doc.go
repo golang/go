@@ -569,10 +569,56 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc 
 // ----------------------------------------------------------------------------
 // Filtering by name
 
-func filterValueDocs(a []*ValueDoc, f ast.Filter) []*ValueDoc {
+type Filter func(string) bool
+
+
+func matchFields(fields *ast.FieldList, f Filter) bool {
+	if fields != nil {
+		for _, field := range fields.List {
+			for _, name := range field.Names {
+				if f(name.Name) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+
+func matchDecl(d *ast.GenDecl, f Filter) bool {
+	for _, d := range d.Specs {
+		switch v := d.(type) {
+		case *ast.ValueSpec:
+			for _, name := range v.Names {
+				if f(name.Name) {
+					return true
+				}
+			}
+		case *ast.TypeSpec:
+			if f(v.Name.Name) {
+				return true
+			}
+			switch t := v.Type.(type) {
+			case *ast.StructType:
+				if matchFields(t.Fields, f) {
+					return true
+				}
+			case *ast.InterfaceType:
+				if matchFields(t.Methods, f) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+
+func filterValueDocs(a []*ValueDoc, f Filter) []*ValueDoc {
 	w := 0
 	for _, vd := range a {
-		if ast.FilterDecl(vd.Decl, f) {
+		if matchDecl(vd.Decl, f) {
 			a[w] = vd
 			w++
 		}
@@ -581,7 +627,7 @@ func filterValueDocs(a []*ValueDoc, f ast.Filter) []*ValueDoc {
 }
 
 
-func filterFuncDocs(a []*FuncDoc, f ast.Filter) []*FuncDoc {
+func filterFuncDocs(a []*FuncDoc, f Filter) []*FuncDoc {
 	w := 0
 	for _, fd := range a {
 		if f(fd.Name) {
@@ -593,11 +639,11 @@ func filterFuncDocs(a []*FuncDoc, f ast.Filter) []*FuncDoc {
 }
 
 
-func filterTypeDocs(a []*TypeDoc, f ast.Filter) []*TypeDoc {
+func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
 	w := 0
 	for _, td := range a {
 		n := 0 // number of matches
-		if ast.FilterDecl(td.Decl, f) {
+		if matchDecl(td.Decl, f) {
 			n = 1
 		} else {
 			// type name doesn't match, but we may have matching consts, vars, factories or methods
@@ -619,7 +665,7 @@ func filterTypeDocs(a []*TypeDoc, f ast.Filter) []*TypeDoc {
 // Filter eliminates documentation for names that don't pass through the filter f.
 // TODO: Recognize "Type.Method" as a name.
 //
-func (p *PackageDoc) Filter(f ast.Filter) {
+func (p *PackageDoc) Filter(f Filter) {
 	p.Consts = filterValueDocs(p.Consts, f)
 	p.Vars = filterValueDocs(p.Vars, f)
 	p.Types = filterTypeDocs(p.Types, f)
