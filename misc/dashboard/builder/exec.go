@@ -18,7 +18,7 @@ func run(envv []string, dir string, argv ...string) os.Error {
 	if *verbose {
 		log.Println("run", argv)
 	}
-	bin, err := pathLookup(argv[0])
+	bin, err := lookPath(argv[0])
 	if err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func runLog(envv []string, logfile, dir string, argv ...string) (output string, 
 	if *verbose {
 		log.Println("runLog", argv)
 	}
-	bin, err := pathLookup(argv[0])
+	bin, err := lookPath(argv[0])
 	if err != nil {
 		return
 	}
@@ -67,10 +67,10 @@ func runLog(envv []string, logfile, dir string, argv ...string) (output string, 
 	return b.String(), wait.WaitStatus.ExitStatus(), nil
 }
 
-// Find bin in PATH if a relative or absolute path hasn't been specified
-func pathLookup(s string) (string, os.Error) {
-	if strings.HasPrefix(s, "/") || strings.HasPrefix(s, "./") || strings.HasPrefix(s, "../") {
-		return s, nil
+// lookPath looks for cmd in $PATH if cmd does not begin with / or ./ or ../.
+func lookPath(cmd string) (string, os.Error) {
+	if strings.HasPrefix(cmd, "/") || strings.HasPrefix(cmd, "./") || strings.HasPrefix(cmd, "../") {
+		return cmd, nil
 	}
-	return exec.LookPath(s)
+	return exec.LookPath(cmd)
 }

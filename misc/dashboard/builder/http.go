@@ -6,84 +6,104 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
-	"encoding/binary"
 	"fmt"
 	"http"
 	"json"
 	"log"
 	"os"
-	"regexp"
 	"strconv"
 )
 
-// getHighWater returns the current highwater revision hash for this builder
-func (b *Builder) getHighWater() (rev string, err os.Error) {
-	url := fmt.Sprintf("http://%s/hw-get?builder=%s", *dashboard, b.name)
-	r, _, err := http.Get(url)
+type param map[string]string
+
+// dash runs the given method and command on the dashboard.
+// If args is not nil, it is the query or post parameters.
+// If resp is not nil, dash unmarshals the body as JSON into resp.
+func dash(meth, cmd string, resp interface{}, args param) os.Error {
+	var r *http.Response
+	var err os.Error
+	if *verbose {
+		log.Println("dash", cmd, args)
+	}
+	cmd = "http://" + *dashboard + "/" + cmd
+	switch meth {
+	case "GET":
+		if args != nil {
+			m := make(map[string][]string)
+			for k, v := range args {
+				m[k] = []string{v}
+			}
+			cmd += "?" + http.EncodeQuery(m)
+		}
+		r, _, err = http.Get(cmd)
+	case "POST":
+		r, err = http.PostForm(cmd, args)
+	default:
+		return fmt.Errorf("unknown method %q", meth)
+	}
 	if err != nil {
+		return err
+	}
+	defer r.Body.Close()
+	var buf bytes.Buffer
+	buf.ReadFrom(r.Body)
+	if resp != nil {
+		if err = json.Unmarshal(buf.Bytes(), resp); err != nil {
+			log.Printf("json unmarshal %#q: %s\n", buf.Bytes(), err)
+			return err
+		}
+	}
+	return nil
+}
+
+func dashStatus(meth, cmd string, args param) os.Error {
+	var resp struct {
+		Status string
+		Error string
+	}
+	err := dash(meth, cmd, &resp, args)
+	if err != nil {
+		return err
+	}
+	if resp.Status != "OK" {
+		return os.NewError("/build: " + resp.Error)
+	}
+	return nil	
+}
+	
+// todo returns the next hash to build.
+func (b *Builder) todo() (rev string, err os.Error) {
+	var resp []struct{
+		Hash string
+	}
+	if err = dash("GET", "todo", &resp, param{"builder": b.name}); err != nil {
 		return
 	}
-	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(r.Body)
-	if err != nil {
-		return
+	if len(resp) > 0 {
+		rev = resp[0].Hash
 	}
-	r.Body.Close()
-	return buf.String(), nil
+	return
 }
 
 // recordResult sends build results to the dashboard
-func (b *Builder) recordResult(buildLog string, c Commit) os.Error {
-	return httpCommand("build", map[string]string{
+func (b *Builder) recordResult(buildLog string, hash string) os.Error {
+	return dash("POST", "build", nil, param{
 		"builder": b.name,
 		"key":     b.key,
-		"node":    c.node,
-		"parent":  c.parent,
-		"user":    c.user,
-		"date":    c.date,
-		"desc":    c.desc,
+		"node":    hash,
 		"log":     buildLog,
 	})
 }
 
-// match lines like: "package.BechmarkFunc	100000	    999 ns/op"
-var benchmarkRegexp = regexp.MustCompile("([^\n\t ]+)[\t ]+([0-9]+)[\t ]+([0-9]+) ns/op")
-
-// recordBenchmarks sends benchmark results to the dashboard
-func (b *Builder) recordBenchmarks(benchLog string, c Commit) os.Error {
-	results := benchmarkRegexp.FindAllStringSubmatch(benchLog, -1)
-	var buf bytes.Buffer
-	b64 := base64.NewEncoder(base64.StdEncoding, &buf)
-	for _, r := range results {
-		for _, s := range r[1:] {
-			binary.Write(b64, binary.BigEndian, uint16(len(s)))
-			b64.Write([]byte(s))
-		}
-	}
-	b64.Close()
-	return httpCommand("benchmarks", map[string]string{
-		"builder":       b.name,
-		"key":           b.key,
-		"node":          c.node,
-		"benchmarkdata": buf.String(),
-	})
-}
-
-// getPackages fetches a list of package paths from the dashboard
-func getPackages() (pkgs []string, err os.Error) {
-	r, _, err := http.Get(fmt.Sprintf("http://%v/package?fmt=json", *dashboard))
-	if err != nil {
-		return
-	}
-	defer r.Body.Close()
-	d := json.NewDecoder(r.Body)
+// packages fetches a list of package paths from the dashboard
+func packages() (pkgs []string, err os.Error) {
 	var resp struct {
 		Packages []struct {
 			Path string
 		}
 	}
-	if err = d.Decode(&resp); err != nil {
+	err = dash("GET", "package", &resp, param{"fmt": "json"})
+	if err != nil {
 		return
 	}
 	for _, p := range resp.Packages {
@@ -93,24 +113,36 @@ func getPackages() (pkgs []string, err os.Error) {
 }
 
 // updatePackage sends package build results and info to the dashboard
-func (b *Builder) updatePackage(pkg string, state bool, buildLog, info string, c Commit) os.Error {
-	args := map[string]string{
+func (b *Builder) updatePackage(pkg string, state bool, buildLog, info string, hash string) os.Error {
+	return dash("POST", "package", nil, param{
 		"builder": b.name,
 		"key":     b.key,
 		"path":    pkg,
 		"state":   strconv.Btoa(state),
 		"log":     buildLog,
 		"info":    info,
-		"go_rev":  strconv.Itoa(c.num),
-	}
-	return httpCommand("package", args)
+		"go_rev":  hash[:12],
+	})
 }
 
-func httpCommand(cmd string, args map[string]string) os.Error {
-	if *verbose {
-		log.Println("httpCommand", cmd, args)
+// postCommit informs the dashboard of a new commit
+func postCommit(key string, l *HgLog) os.Error {
+	return dashStatus("POST", "commit", param{
+		"key": key,
+		"node": l.Hash,
+		"date": l.Date,
+		"user": l.Author,
+		"parent": l.Parent,
+		"desc": l.Desc,
+	})
+}
+
+// dashboardCommit returns true if the dashboard knows about hash.
+func dashboardCommit(hash string) bool {
+	err := dashStatus("GET", "commit", param{"node": hash})
+	if err != nil {
+		log.Printf("check %s: %s", hash, err)
+		return false
 	}
-	url := fmt.Sprintf("http://%v/%v", *dashboard, cmd)
-	_, err := http.PostForm(url, args)
-	return err
+	return true
 }
