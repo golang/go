@@ -5,6 +5,7 @@
 # This is the server part of the continuous build system for Go. It must be run
 # by AppEngine.
 
+from django.utils import simplejson
 from google.appengine.api import mail
 from google.appengine.api import memcache
 from google.appengine.ext import db
@@ -50,10 +51,6 @@ class Commit(db.Model):
 
     fail_notification_sent = db.BooleanProperty()
 
-class Cache(db.Model):
-    data = db.BlobProperty()
-    expire = db.IntegerProperty()
-
 # A CompressedLog contains the textual build log of a failed build. 
 # The key name is the hex digest of the SHA256 hash of the contents.
 # The contents is bz2 compressed.
@@ -61,23 +58,6 @@ class CompressedLog(db.Model):
     log = db.BlobProperty()
 
 N = 30
-
-def cache_get(key):
-    c = Cache.get_by_key_name(key)
-    if c is None or c.expire < time.time():
-        return None
-    return c.data
-
-def cache_set(key, val, timeout):
-    c = Cache(key_name = key)
-    c.data = val
-    c.expire = int(time.time() + timeout)
-    c.put()
-
-def cache_del(key):
-    c = Cache.get_by_key_name(key)
-    if c is not None:
-        c.delete()
 
 def builderInfo(b):
     f = b.split('-', 3)
@@ -96,7 +76,7 @@ def builderset():
     for c in results:
         builders.update(set(parseBuild(build)['builder'] for build in c.builds))
     return builders
-    
+
 class MainPage(webapp.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
@@ -147,7 +127,30 @@ class MainPage(webapp.RequestHandler):
         path = os.path.join(os.path.dirname(__file__), 'main.html')
         self.response.out.write(template.render(path, values))
 
-class GetHighwater(webapp.RequestHandler):
+# A DashboardHandler is a webapp.RequestHandler but provides
+#    authenticated_post - called by post after authenticating
+#    json - writes object in json format to response output
+class DashboardHandler(webapp.RequestHandler):
+    def post(self):
+        if not auth(self.request):
+            self.response.set_status(403)
+            return
+        self.authenticated_post()
+
+    def authenticated_post(self):
+        return
+    
+    def json(self, obj):
+        self.response.set_status(200)
+        simplejson.dump(obj, self.response.out)
+        return
+
+def auth(req):
+    k = req.get('key')
+    return k == hmac.new(key.accessKey, req.get('builder')).hexdigest() or k == key.accessKey
+
+# Todo serves /todo.  It tells the builder which commits need to be built.
+class Todo(DashboardHandler):
     def get(self):
         builder = self.request.get('builder')
         key = 'todo-%s' % builder
@@ -155,28 +158,19 @@ class GetHighwater(webapp.RequestHandler):
         if response is None:
             # Fell out of memcache.  Rebuild from datastore results.
             # We walk the commit list looking for nodes that have not
-            # been built by this builder and record the *parents* of those
-            # nodes, because each builder builds the revision *after* the
-            # one return (because we might not know about the latest
-            # revision).
+            # been built by this builder.
             q = Commit.all()
             q.order('-__key__')
             todo = []
-            need = False
             first = None
             for c in q.fetch(N+1):
                 if first is None:
                     first = c
-                if need:
-                    todo.append(c.node)
-                need = not built(c, builder)
-            if not todo:
-                todo.append(first.node)
-            response = ' '.join(todo)
+                if not built(c, builder):
+                    todo.append({'Hash': c.node})
+            response = simplejson.dumps(todo)
             memcache.set(key, response, 3600)
         self.response.set_status(200)
-        if self.request.get('all') != 'yes':
-            response = response.split()[0]
         self.response.out.write(response)
 
 def built(c, builder):
@@ -185,22 +179,8 @@ def built(c, builder):
             return True
     return False
 
-def auth(req):
-    k = req.get('key')
-    return k == hmac.new(key.accessKey, req.get('builder')).hexdigest() or k == key.accessKey
-    
-class SetHighwater(webapp.RequestHandler):
-    def post(self):
-        if not auth(self.request):
-            self.response.set_status(403)
-            return
-
-        # Allow for old builders.
-        # This is a no-op now: we figure out what to build based
-        # on the current dashboard status.
-        return
-
-class LogHandler(webapp.RequestHandler):
+# Log serves /log/.  It retrieves log data by content hash.
+class LogHandler(DashboardHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
         hash = self.request.path[5:]
@@ -214,12 +194,8 @@ class LogHandler(webapp.RequestHandler):
 
 # Init creates the commit with id 0. Since this commit doesn't have a parent,
 # it cannot be created by Build.
-class Init(webapp.RequestHandler):
-    def post(self):
-        if not auth(self.request):
-            self.response.set_status(403)
-            return
-
+class Init(DashboardHandler):
+    def authenticated_post(self):
         date = parseDate(self.request.get('date'))
         node = self.request.get('node')
         if not validNode(node) or date is None:
@@ -239,7 +215,86 @@ class Init(webapp.RequestHandler):
 
         self.response.set_status(200)
 
-# Build is the main command: it records the result of a new build.
+# The last commit when we switched to using entity groups.
+# This is the root of the new commit entity group.
+RootCommitKeyName = '00000f26-f32c6f1038207c55d5780231f7484f311020747e'
+
+# CommitHandler serves /commit.
+# A GET of /commit retrieves information about the specified commit.
+# A POST of /commit creates a node for the given commit.
+# If the commit already exists, the POST silently succeeds (like mkdir -p).
+class CommitHandler(DashboardHandler):
+    def get(self):
+        node = self.request.get('node')
+        if not validNode(node):
+            return self.json({'Status': 'FAIL', 'Error': 'malformed node hash'})
+        n = nodeByHash(node)
+        if n is None:
+            return self.json({'Status': 'FAIL', 'Error': 'unknown revision'})
+        return self.json({'Status': 'OK', 'Node': nodeObj(n)})
+
+    def authenticated_post(self):
+        # Require auth with the master key, not a per-builder key.
+        if self.request.get('builder'):
+            self.response.set_status(403)
+            return
+
+        node = self.request.get('node')
+        date = parseDate(self.request.get('date'))
+        user = self.request.get('user').encode('utf8')
+        desc = self.request.get('desc').encode('utf8')
+        parenthash = self.request.get('parent')
+
+        if not validNode(node) or not validNode(parenthash) or date is None:
+            return self.json({'Status': 'FAIL', 'Error': 'malformed node, parent, or date'})
+
+        n = nodeByHash(node)
+        if n is None:
+            p = nodeByHash(parenthash)
+            if p is None:
+                return self.json({'Status': 'FAIL', 'Error': 'unknown parent'})
+
+            # Want to create new node in a transaction so that multiple
+            # requests creating it do not collide and so that multiple requests
+            # creating different nodes get different sequence numbers.
+            # All queries within a transaction must include an ancestor,
+            # but the original datastore objects we used for the dashboard
+            # have no common ancestor.  Instead, we use a well-known
+            # root node - the last one before we switched to entity groups -
+            # as the as the common ancestor.
+            root = Commit.get_by_key_name(RootCommitKeyName)
+
+            def add_commit():
+                if nodeByHash(node, ancestor=root) is not None:
+                    return
+
+                # Determine number for this commit.
+                # Once we have created one new entry it will be lastRooted.num+1,
+                # but the very first commit created in this scheme will have to use
+                # last.num's number instead (last is likely not rooted).
+                q = Commit.all()
+                q.order('-__key__')
+                q.ancestor(root)
+                last = q.fetch(1)[0]
+                num = last.num+1
+
+                n = Commit(key_name = '%08x-%s' % (num, node), parent = root)
+                n.num = num
+                n.node = node
+                n.parentnode = parenthash
+                n.user = user
+                n.date = date
+                n.desc = desc
+                n.put()
+            db.run_in_transaction(add_commit)
+            n = nodeByHash(node)
+            if n is None:
+                return self.json({'Status': 'FAIL', 'Error': 'failed to create commit node'})
+
+        return self.json({'Status': 'OK', 'Node': nodeObj(n)})
+
+# Build serves /build.
+# A POST to /build records a new build result.
 class Build(webapp.RequestHandler):
     def post(self):
         if not auth(self.request):
@@ -256,44 +311,33 @@ class Build(webapp.RequestHandler):
             l.log = bz2.compress(log)
             l.put()
 
-        date = parseDate(self.request.get('date'))
-        user = self.request.get('user').encode('utf8')
-        desc = self.request.get('desc').encode('utf8')
         node = self.request.get('node')
-        parenthash = self.request.get('parent')
-        if not validNode(node) or not validNode(parenthash) or date is None:
-            logging.error("Not valid node ('%s') or bad date (%s %s)", node, date, self.request.get('date'))
+        if not validNode(node):
+            logging.error('Invalid node %s' % (node))
             self.response.set_status(500)
             return
 
-        q = Commit.all()
-        q.filter('node =', parenthash)
-        parent = q.get()
-        if parent is None:
-            logging.error('Cannot find parent %s of node %s' % (parenthash, node))
+        n = nodeByHash(node)
+        if n is None:
+            logging.error('Cannot find node %s' % (node))
             self.response.set_status(404)
             return
-        parentnum, _ = parent.key().name().split('-', 1)
-        nodenum = int(parentnum, 16) + 1
-
-        key_name = '%08x-%s' % (nodenum, node)
+        nn = n
 
         def add_build():
-            n = Commit.get_by_key_name(key_name)
+            n = nodeByHash(node, ancestor=nn)
             if n is None:
-                n = Commit(key_name = key_name)
-                n.num = nodenum
-                n.node = node
-                n.parentnode = parenthash
-                n.user = user
-                n.date = date
-                n.desc = desc
+                logging.error('Cannot find hash in add_build: %s %s' % (builder, node))
+                return
+
             s = '%s`%s' % (builder, loghash)
             for i, b in enumerate(n.builds):
                 if b.split('`', 1)[0] == builder:
+                    # logging.error('Found result for %s %s already' % (builder, node))
                     n.builds[i] = s
                     break
             else:
+                # logging.error('Added result for %s %s' % (builder, node))
                 n.builds.append(s)
             n.put()
 
@@ -302,30 +346,7 @@ class Build(webapp.RequestHandler):
         key = 'todo-%s' % builder
         memcache.delete(key)
 
-        def mark_sent():
-            n = Commit.get_by_key_name(key_name)
-            n.fail_notification_sent = True
-            n.put()
-
-        n = Commit.get_by_key_name(key_name)
-        if loghash and not failed(parent, builder) and not n.fail_notification_sent:
-            subject = const.mail_fail_subject % (builder, desc.split("\n")[0])
-            path = os.path.join(os.path.dirname(__file__), 'fail-notify.txt')
-            body = template.render(path, {
-                "builder": builder,
-                "node": node[:12],
-                "user": user,
-                "desc": desc, 
-                "loghash": loghash
-            })
-            mail.send_mail(
-                sender=const.mail_from,
-                reply_to=const.mail_fail_reply_to,
-                to=const.mail_fail_to,
-                subject=subject,
-                body=body
-            )
-            db.run_in_transaction(mark_sent)
+        # TODO: Send mail for build breakage.
 
         self.response.set_status(200)
 
@@ -341,6 +362,24 @@ def node(num):
     q.filter('num =', num)
     n = q.get()
     return n
+
+def nodeByHash(hash, ancestor=None):
+    q = Commit.all()
+    q.filter('node =', hash)
+    if ancestor is not None:
+      q.ancestor(ancestor)
+    n = q.get()
+    return n
+
+# nodeObj returns a JSON object (ready to be passed to simplejson.dump) describing node.
+def nodeObj(n):
+    return {
+        'Hash': n.node,
+        'ParentHash': n.parentnode,
+        'User': n.user,
+        'Date': n.date.strftime('%Y-%m-%d %H:%M %z'),
+        'Desc': n.desc,
+    }
 
 class FixedOffset(datetime.tzinfo):
     """Fixed offset in minutes east from UTC."""
@@ -417,15 +456,20 @@ def toRev(c):
 def byBuilder(x, y):
     return cmp(x['builder'], y['builder'])
 
+# Give old builders work; otherwise they pound on the web site.
+class Hwget(DashboardHandler):
+    def get(self):
+        self.response.out.write("8000\n")
+
 # This is the URL map for the server. The first three entries are public, the
 # rest are only used by the builders.
 application = webapp.WSGIApplication(
                                      [('/', MainPage),
+                                      ('/hw-get', Hwget),
                                       ('/log/.*', LogHandler),
-                                      ('/hw-get', GetHighwater),
-                                      ('/hw-set', SetHighwater),
-
+                                      ('/commit', CommitHandler),
                                       ('/init', Init),
+                                      ('/todo', Todo),
                                       ('/build', Build),
                                      ], debug=True)
 

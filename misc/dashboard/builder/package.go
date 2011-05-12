@@ -13,8 +13,8 @@ import (
 	"path"
 )
 
-func (b *Builder) buildPackages(workpath string, c Commit) os.Error {
-	pkgs, err := getPackages()
+func (b *Builder) buildPackages(workpath string, hash string) os.Error {
+	pkgs, err := packages()
 	if err != nil {
 		return err
 	}
@@ -32,13 +32,13 @@ func (b *Builder) buildPackages(workpath string, c Commit) os.Error {
 		built := code != 0
 
 		// get doc comment from package source
-		info, err := getPackageComment(p, path.Join(goroot, "pkg", p))
+		info, err := packageComment(p, path.Join(goroot, "pkg", p))
 		if err != nil {
 			log.Printf("goinstall %v: %v", p, err)
 		}
 
 		// update dashboard with build state + info
-		err = b.updatePackage(p, built, buildLog, info, c)
+		err = b.updatePackage(p, built, buildLog, info, hash)
 		if err != nil {
 			log.Printf("updatePackage %v: %v", p, err)
 		}
@@ -46,7 +46,7 @@ func (b *Builder) buildPackages(workpath string, c Commit) os.Error {
 	return nil
 }
 
-func getPackageComment(pkg, pkgpath string) (info string, err os.Error) {
+func packageComment(pkg, pkgpath string) (info string, err os.Error) {
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, pkgpath, nil, parser.PackageClauseOnly|parser.ParseComments)
 	if err != nil {
