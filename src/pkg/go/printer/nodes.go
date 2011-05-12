@@ -439,7 +439,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 				p.print(formfeed)
 			}
 			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't loose the last line comment
-			p.setLineComment("// contains unexported fields")
+			p.setLineComment("// contains filtered or unexported fields")
 		}
 
 	} else { // interface
@@ -466,7 +466,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 				p.print(formfeed)
 			}
 			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't loose the last line comment
-			p.setLineComment("// contains unexported methods")
+			p.setLineComment("// contains filtered or unexported methods")
 		}
 
 	}
