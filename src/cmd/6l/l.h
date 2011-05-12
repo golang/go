@@ -350,9 +350,6 @@ EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
 
 EXTERN	vlong	textstksiz;
 EXTERN	vlong	textarg;
-EXTERN	int	elfstrsize;
-EXTERN	char*	elfstrdat;
-EXTERN	int	elftextsh;
 
 extern	Optab	optab[];
 extern	Optab*	opindex[];

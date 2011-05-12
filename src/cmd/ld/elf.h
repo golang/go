@@ -978,6 +978,10 @@ ElfShdr* elfshbits(Section*);
 void	elfsetstring(char*, int);
 void	elfaddverneed(Sym*);
 
+EXTERN	int	elfstrsize;
+EXTERN	char*	elfstrdat;
+EXTERN	int	elftextsh;
+
 /*
  * Total amount of space to reserve at the start of the file
  * for Header, PHeaders, SHeaders, and interp.
