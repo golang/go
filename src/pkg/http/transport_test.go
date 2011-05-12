@@ -394,6 +394,9 @@ func TestTransportGzip(t *testing.T) {
 			t.Errorf("Accept-Encoding = %q, want %q", g, e)
 		}
 		rw.Header().Set("Content-Encoding", "gzip")
+		if req.Method == "HEAD" {
+			return
+		}
 
 		var w io.Writer = rw
 		var buf bytes.Buffer
@@ -462,6 +465,16 @@ func TestTransportGzip(t *testing.T) {
 		if n != 0 || err == nil {
 			t.Errorf("expected Read error after Close; got %d, %v", n, err)
 		}
+	}
+
+	// And a HEAD request too, because they're always weird.
+	c := &Client{Transport: &Transport{}}
+	res, err := c.Head(ts.URL)
+	if err != nil {
+		t.Fatalf("Head: %v", err)
+	}
+	if res.StatusCode != 200 {
+		t.Errorf("Head status=%d; want=200", res.StatusCode)
 	}
 }
 
