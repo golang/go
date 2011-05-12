@@ -186,6 +186,7 @@ vlong	addsize(Sym*, Sym*);
 vlong	adduint8(Sym*, uint8);
 vlong	adduint16(Sym*, uint16);
 void	asmsym(void);
+void	asmelfsym32(void);
 void	asmelfsym64(void);
 void	asmplan9sym(void);
 void	strnput(char*, int);

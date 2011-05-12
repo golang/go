@@ -532,6 +532,8 @@ doelf(void)
 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
+		elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
+		elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
 		dwarfaddshstrings(shstrtab);
 	}
 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
@@ -658,7 +660,7 @@ asmb(void)
 {
 	int32 v, magic;
 	int a, dynsym;
-	uint32 symo, startva, machlink;
+	uint32 symo, startva, machlink, elfsymo, elfstro, elfsymsize;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
@@ -669,6 +671,10 @@ asmb(void)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
 	Bflush(&bso);
+
+	elfsymsize = 0;
+	elfstro = 0;
+	elfsymo = 0;
 
 	sect = segtext.sect;
 	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
@@ -741,27 +747,33 @@ asmb(void)
 			symo = rnd(symo, PEFILEALIGN);
 			break;
 		}
-		if(!debug['s']) {
+		if(HEADTYPE == Hplan9x32) {
 			seek(cout, symo, 0);
+			asmplan9sym();
+			cflush();
 			
-			if(HEADTYPE == Hplan9x32) {
-				asmplan9sym();
+			sym = lookup("pclntab", 0);
+			if(sym != nil) {
+				lcsize = sym->np;
+				for(i=0; i < lcsize; i++)
+					cput(sym->p[i]);
+				
 				cflush();
-				
-				sym = lookup("pclntab", 0);
-				if(sym != nil) {
-					lcsize = sym->np;
-					for(i=0; i < lcsize; i++)
-						cput(sym->p[i]);
-					
-					cflush();
-				}
-				
-			} else if(HEADTYPE != Hwindows) {
-				if(debug['v'])
-					Bprint(&bso, "%5.2f dwarf\n", cputime());
-				dwarfemitdebugsections();
 			}
+		} else if(iself) {
+			if(debug['v'])
+			       Bprint(&bso, "%5.2f elfsym\n", cputime());
+			elfsymo = symo+8+symsize+lcsize;
+			seek(cout, elfsymo, 0);
+			asmelfsym32();
+			cflush();
+			elfstro = seek(cout, 0, 1);
+			elfsymsize = elfstro - elfsymo;
+			ewrite(cout, elfstrdat, elfstrsize);
+
+			if(debug['v'])
+				Bprint(&bso, "%5.2f dwarf\n", cputime());
+			dwarfemitdebugsections();
 		}
 	}
 	if(debug['v'])
@@ -1081,6 +1093,20 @@ asmb(void)
 			sh->flags = SHF_ALLOC;
 			sh->addralign = 1;
 			shsym(sh, lookup("pclntab", 0));
+
+			sh = newElfShdr(elfstr[ElfStrSymtab]);
+			sh->type = SHT_SYMTAB;
+			sh->off = elfsymo;
+			sh->size = elfsymsize;
+			sh->addralign = 4;
+			sh->entsize = 16;
+			sh->link = eh->shnum;	// link to strtab
+
+			sh = newElfShdr(elfstr[ElfStrStrtab]);
+			sh->type = SHT_STRTAB;
+			sh->off = elfstro;
+			sh->size = elfstrsize;
+			sh->addralign = 1;
 
 			dwarfaddelfheaders();
 		}
