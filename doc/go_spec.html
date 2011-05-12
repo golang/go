@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of May 4, 2011 -->
+<!-- subtitle Version of May 12, 2011 -->
 
 <!--
 TODO
@@ -1174,8 +1174,10 @@ make(map[string] int, 100)
 <p>
 The initial capacity does not bound its size:
 maps grow to accommodate the number of items
-stored in them.
-</p>
+stored in them, with the exception of <code>nil</code> maps.
+A <code>nil</code> map is equivalent to an empty map except that no elements
+may be added.
+</code>
 
 <h3 id="Channel_types">Channel types</h3>
 
@@ -1234,6 +1236,7 @@ succeed without blocking if the buffer is not full (sends) or not empty (receive
 and elements are received in the order they are sent.
 If the capacity is zero or absent, the communication succeeds only when both a sender and
 receiver are ready.
+A <code>nil</code> channel is never ready for communication.
 </p>
 
 <p>
@@ -1968,7 +1971,7 @@ package, which means that it must begin with a Unicode upper case letter.
 math.Sin
 </pre>
 
-<!---
+<!--
 <p>
 <span class="alert">TODO: Unify this section with Selectors - it's the same syntax.</span>
 </p>
@@ -2336,7 +2339,7 @@ p.M0        // ((*p).T0).M0
 </pre>
 
 
-<!---
+<!--
 <span class="alert">
 TODO: Specify what happens to receivers.
 </span>
@@ -2369,7 +2372,7 @@ or for <code>a</code> of type <code>S</code> where <code>S</code> is a <a href="
 	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code></li>
 	<li><code>a[x]</code> is the array element at index <code>x</code> and the type of
 	  <code>a[x]</code> is the element type of <code>A</code></li>
-	<li>if the index <code>x</code> is out of range,
+	<li>if <code>a</code> is <code>nil</code> or if the index <code>x</code> is out of range,
 	a <a href="#Run_time_panics">run-time panic</a> occurs</li>
 </ul>
 
@@ -2397,7 +2400,7 @@ where <code>M</code> is a <a href="#Map_types">map type</a>:
 	<li>if the map contains an entry with key <code>x</code>,
 	  <code>a[x]</code> is the map value with key <code>x</code>
 	  and the type of <code>a[x]</code> is the value type of <code>M</code></li>
-	<li>if the map does not contain such an entry,
+	<li>if the map is <code>nil</code> or does not contain such an entry,
 	  <code>a[x]</code> is the <a href="#The_zero_value">zero value</a>
 	  for the value type of <code>M</code></li>
 </ul>
@@ -2426,7 +2429,7 @@ where the result of the index expression is a pair of values with types
 </p>
 
 <p>
-Similarly, if an assignment to a map has the special form
+Similarly, if an assignment to a map element has the special form
 </p>
 
 <pre>
@@ -2438,6 +2441,11 @@ and boolean <code>ok</code> has the value <code>false</code>,
 the entry for key <code>x</code> is deleted from the map; if
 <code>ok</code> is <code>true</code>, the construct acts like
 a regular assignment to an element of the map.
+</p>
+
+<p>
+Assigning to an element of a <code>nil</code> map causes a
+<a href="#Run_time_panics">run-time panic</a>.
 </p>
 
 
@@ -3043,6 +3051,7 @@ For an operand <code>ch</code> of <a href="#Channel_types">channel type</a>,
 the value of the receive operation <code>&lt;-ch</code> is the value received
 from the channel <code>ch</code>. The type of the value is the element type of
 the channel. The expression blocks until a value is available.
+Receiving from a <code>nil</code> channel blocks forever.
 </p>
 
 <pre>
@@ -3070,12 +3079,7 @@ or is a <a href="#The_zero_value">zero value</a> returned
 because the channel is closed and empty (<code>false</code>).
 </p>
 
-<p>
-Receiving from a <code>nil</code> channel causes a
-<a href="#Run_time_panics">run-time panic</a>.
-</p>
-
-<!---
+<!--
 <p>
 <span class="alert">TODO: Probably in a separate section, communication semantics
 need to be presented regarding send, receive, select, and goroutines.</span>
@@ -3449,7 +3453,7 @@ int8(^1)    // same as int8(-2)
 ^int8(1)    // same as -1 ^ int8(1) = -2
 </pre>
 
-<!---
+<!--
 <p>
 <span class="alert">
 TODO: perhaps ^ should be disallowed on non-uints instead of assuming twos complement.
@@ -3575,16 +3579,12 @@ begins. Communication blocks until the send can proceed, at which point the
 value is transmitted on the channel.
 A send on an unbuffered channel can proceed if a receiver is ready.
 A send on a buffered channel can proceed if there is room in the buffer.
+A send on a <code>nil</code> channel blocks forever.
 </p>
 
 <pre>
 ch &lt;- 3
 </pre>
-
-<p>
-Sending to a <code>nil</code> channel causes a
-<a href="#Run_time_panics">run-time panic</a>.
-</p>
 
 
 <h3 id="IncDec_statements">IncDec statements</h3>
@@ -3984,10 +3984,14 @@ As with an assignment, the operands on the left must be
 <a href="#Address_operators">addressable</a> or map index expressions; they
 denote the iteration variables. If the range expression is a channel, only
 one iteration variable is permitted, otherwise there may be one or two.
+If the second iteration variable is the <a href="#Blank_identifier">blank identifier</a>,
+the range clause is equivalent to the same clause with only the first variable present.
 </p>
 
 <p>
-The range expression is evaluated once before beginning the loop.
+The range expression is evaluated once before beginning the loop
+except if the expression is an array, in which case, depending on
+the expression, it might not be evaluated (see below).
 Function calls on the left are evaluated once per iteration.
 For each iteration, iteration values are produced as follows:
 </p>
@@ -4003,8 +4007,11 @@ channel         c  chan E                 element  e  E
 
 <ol>
 <li>
-For an array or slice value, the index iteration values are produced in
-increasing order, starting at element index 0.
+For an array, pointer to array, or slice value <code>a</code>, the index iteration
+values are produced in increasing order, starting at element index 0. As a special
+case, if only the first iteration variable is present, the range loop produces
+iteration values from 0 up to <code>len(a)</code> and does not index into the array
+or slice itself. For a <code>nil</code> slice, the number of iterations is 0.
 </li>
 
 <li>
@@ -4023,13 +4030,14 @@ The iteration order over maps is not specified.
 If map entries that have not yet been reached are deleted during iteration,
 the corresponding iteration values will not be produced. If map entries are
 inserted during iteration, the behavior is implementation-dependent, but the
-iteration values for each entry will be produced at most once.
+iteration values for each entry will be produced at most once. If the map
+is <code>nil</code>, the number of iterations is 0.
 </li>
 
 <li>
 For channels, the iteration values produced are the successive values sent on
-the channel until the channel is closed
-(§<a href="#Close"><code>close</code></a>).
+the channel until the channel is <a href="#Close">closed</a>. If the channel
+is <code>nil</code>, the range expression blocks forever.
 </li>
 </ol>
 
@@ -4048,9 +4056,17 @@ after execution their values will be those of the last iteration.
 </p>
 
 <pre>
+var testdata *struct {
+	a *[7]int
+}
+for i, _ := range testdata.a {
+	// testdata.a is never evaluated; len(testdata.a) is constant
+	// i ranges from 0 to 6
+	f(i)
+}
+
 var a [10]string
 m := map[string]int{"mon":0, "tue":1, "wed":2, "thu":3, "fri":4, "sat":5, "sun":6}
-
 for i, s := range a {
 	// type of i is int
 	// type of s is string
@@ -4065,6 +4081,11 @@ for key, val = range m {
 }
 // key == last map key encountered in iteration
 // val == map[key]
+
+var ch chan Work = producer()
+for w := range ch {
+	doWork(w)
+}
 </pre>
 
 
@@ -4247,7 +4268,7 @@ func (devnull) Write(p []byte) (n int, _ os.Error) {
 Regardless of how they are declared, all the result values are initialized to the zero values for their type (§<a href="#The_zero_value">The zero value</a>) upon entry to the function.
 </p>
 
-<!---
+<!--
 <p>
 <span class="alert">
 TODO: Define when return is required.<br />
@@ -4332,7 +4353,7 @@ L:
 <p>
 is erroneous because the jump to label <code>L</code> skips
 the creation of <code>v</code>.
-<!---
+<!--
 (<span class="alert">TODO: Eliminate in favor of used and not set errors?</span>)
 -->
 </p>
@@ -4439,17 +4460,17 @@ The implementation guarantees that the result always fits into an <code>int</cod
 </p>
 
 <pre class="grammar">
-Call      Argument type        Result
+Call      Argument type    Result
 
-len(s)    string type          string length in bytes
-          [n]T, *[n]T          array length (== n)
-          []T                  slice length
-          map[K]T              map length (number of defined keys)
-          chan T               number of elements queued in channel buffer
+len(s)    string type      string length in bytes
+          [n]T, *[n]T      array length (== n)
+          []T              slice length
+          map[K]T          map length (number of defined keys)
+          chan T           number of elements queued in channel buffer
 
-cap(s)    [n]T, *[n]T          array length (== n)
-          []T                  slice capacity
-          chan T               channel buffer capacity
+cap(s)    [n]T, *[n]T      array length (== n)
+          []T              slice capacity
+          chan T           channel buffer capacity
 </pre>
 
 <p>
@@ -4467,19 +4488,16 @@ The length and capacity of a <code>nil</code> slice, map, or channel are 0.
 </p>
 
 <p>
-The expression
-<code>len(s)</code> is a
-<a href="#Constants">constant</a> if <code>s</code> is a string constant.
-The expressions
-<code>len(s)</code> and
-<code>cap(s)</code> are
-constants if <code>s</code> is an (optionally parenthesized)
-identifier or
-<a href="#Qualified_identifiers">qualified identifier</a> 
-denoting an array or pointer to array.
-Otherwise invocations of <code>len</code> and <code>cap</code> are not
-constant.
+The expression <code>len(s)</code> is <a href="#Constants">constant</a> if
+<code>s</code> is a string constant. The expressions <code>len(s)</code> and
+<code>cap(s)</code> are constants if the type of <code>s</code> is an array
+or pointer to an array and the expression <code>s</code> does not contain
+<a href="#Receive_operator">channel receives</a> or
+<a href="#Calls">function calls</a>; in this case <code>s</code> is not evaluated.
+Otherwise, invocations of <code>len</code> and <code>cap</code> are not
+constant and <code>s</code> is evaluated.
 </p>
+
 
 <h3 id="Allocation">Allocation</h3>
 
@@ -5169,5 +5187,8 @@ The following minimal alignment properties are guaranteed:
 
 <h2 id="Implementation_differences"><span class="alert">Implementation differences - TODO</span></h2>
 <ul>
-	<li><span class="alert">Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</span></li>
+	<li><span class="alert">The restriction on <code>goto</code> statements and targets (no intervening declarations) is not honored.</span></li>
+	<li><span class="alert"><code>len(a)</code> is only a constant if <code>a</code> is a (qualified) identifier denoting an array or pointer to an array.</span></li>
+	<li><span class="alert"><code>nil</code> maps are not treated like empty maps.</span></li>
+	<li><span class="alert">Trying to send/receive from a <code>nil</code> channel causes a run-time panic.</span></li>
 </ul>
