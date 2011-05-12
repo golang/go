@@ -18,6 +18,9 @@ CLEANFILES+=y.tab.[ch]
 clean:
 	rm -f *.$(HOST_O) $(TARG) $(CLEANFILES)
 
+nuke: clean
+	rm -f "$(GOBIN)/$(TARG)"
+
 ifneq ($(NOINSTALL),1)
 install: $(QUOTED_GOBIN)/$(TARG)
 endif
