@@ -26,6 +26,8 @@ CLEANFILES+=y.tab.[ch] y.output a.out $(LIB)
 clean:
 	rm -f *.$(HOST_O) $(CLEANFILES)
 
+nuke: clean
+	rm -f "$(GOROOT)/lib/$(LIB)"
 
 y.tab.h: $(YFILES)
 	LANG=C LANGUAGE="en_US.UTF8" bison -v -y $(HOST_YFLAGS) $(YFILES)
