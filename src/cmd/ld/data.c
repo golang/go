@@ -899,10 +899,8 @@ address(void)
 	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
 	if(HEADTYPE == Hwindows)
 		segdata.fileoff = segtext.fileoff + rnd(segtext.len, PEFILEALIGN);
-	if(HEADTYPE == Hplan9x32) {
-		segdata.vaddr = va = rnd(va, 4096);
+	if(HEADTYPE == Hplan9x32)
 		segdata.fileoff = segtext.fileoff + segtext.filelen;
-	}
 	for(s=segdata.sect; s != nil; s=s->next) {
 		s->vaddr = va;
 		va += s->len;
