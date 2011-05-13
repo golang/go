@@ -343,7 +343,7 @@ func (cc *ClientConn) Read(req *Request) (*Response, os.Error) {
 
 // readUsing is the implementation of Read with a replaceable
 // ReadResponse-like function, used by the Transport.
-func (cc *ClientConn) readUsing(req *Request, readRes func(buf *bufio.Reader, method string) (*Response, os.Error)) (resp *Response, err os.Error) {
+func (cc *ClientConn) readUsing(req *Request, readRes func(*bufio.Reader, *Request) (*Response, os.Error)) (resp *Response, err os.Error) {
 	// Retrieve the pipeline ID of this request/response pair
 	cc.lk.Lock()
 	id, ok := cc.pipereq[req]
@@ -386,7 +386,7 @@ func (cc *ClientConn) readUsing(req *Request, readRes func(buf *bufio.Reader, me
 		}
 	}
 
-	resp, err = readRes(r, req.Method)
+	resp, err = readRes(r, req)
 	cc.lk.Lock()
 	defer cc.lk.Unlock()
 	if err != nil {

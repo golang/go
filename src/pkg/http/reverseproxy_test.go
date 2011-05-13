@@ -33,7 +33,7 @@ func TestReverseProxy(t *testing.T) {
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 
-	res, _, err := Get(frontend.URL)
+	res, err := Get(frontend.URL)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}

@@ -22,7 +22,7 @@ var respWriteTests = []respWriteTest{
 			StatusCode:    503,
 			ProtoMajor:    1,
 			ProtoMinor:    0,
-			RequestMethod: "GET",
+			Request:       dummyReq("GET"),
 			Header:        Header{},
 			Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
 			ContentLength: 6,
@@ -38,7 +38,7 @@ var respWriteTests = []respWriteTest{
 			StatusCode:    200,
 			ProtoMajor:    1,
 			ProtoMinor:    0,
-			RequestMethod: "GET",
+			Request:       dummyReq("GET"),
 			Header:        Header{},
 			Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
 			ContentLength: -1,
@@ -53,7 +53,7 @@ var respWriteTests = []respWriteTest{
 			StatusCode:       200,
 			ProtoMajor:       1,
 			ProtoMinor:       1,
-			RequestMethod:    "GET",
+			Request:          dummyReq("GET"),
 			Header:           Header{},
 			Body:             ioutil.NopCloser(bytes.NewBufferString("abcdef")),
 			ContentLength:    6,
@@ -71,10 +71,10 @@ var respWriteTests = []respWriteTest{
 	// Also tests removal of leading and trailing whitespace.
 	{
 		Response{
-			StatusCode:    204,
-			ProtoMajor:    1,
-			ProtoMinor:    1,
-			RequestMethod: "GET",
+			StatusCode: 204,
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Request:    dummyReq("GET"),
 			Header: Header{
 				"Foo": []string{" Bar\nBaz "},
 			},

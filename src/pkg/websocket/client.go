@@ -235,7 +235,7 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
 	}
 
 	// Step 28-29, 32-40. read response from server.
-	resp, err := http.ReadResponse(br, "GET")
+	resp, err := http.ReadResponse(br, &http.Request{Method: "GET"})
 	if err != nil {
 		return err
 	}
@@ -297,7 +297,7 @@ func draft75handshake(resourceName, host, origin, location, protocol string, br 
 	}
 	bw.WriteString("\r\n")
 	bw.Flush()
-	resp, err := http.ReadResponse(br, "GET")
+	resp, err := http.ReadResponse(br, &http.Request{Method: "GET"})
 	if err != nil {
 		return
 	}

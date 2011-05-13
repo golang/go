@@ -26,7 +26,7 @@ func TestClient(t *testing.T) {
 	ts := httptest.NewServer(robotsTxtHandler)
 	defer ts.Close()
 
-	r, _, err := Get(ts.URL)
+	r, err := Get(ts.URL)
 	var b []byte
 	if err == nil {
 		b, err = ioutil.ReadAll(r.Body)
@@ -96,7 +96,7 @@ func TestRedirects(t *testing.T) {
 	defer ts.Close()
 
 	c := &Client{}
-	_, _, err := c.Get(ts.URL)
+	_, err := c.Get(ts.URL)
 	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client, expected error %q, got %q", e, g)
 	}
@@ -107,7 +107,8 @@ func TestRedirects(t *testing.T) {
 		lastVia = via
 		return checkErr
 	}}
-	_, finalUrl, err := c.Get(ts.URL)
+	res, err := c.Get(ts.URL)
+	finalUrl := res.Request.URL.String()
 	if e, g := "<nil>", fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with custom client, expected error %q, got %q", e, g)
 	}
@@ -119,7 +120,8 @@ func TestRedirects(t *testing.T) {
 	}
 
 	checkErr = os.NewError("no redirects allowed")
-	_, finalUrl, err = c.Get(ts.URL)
+	res, err = c.Get(ts.URL)
+	finalUrl = res.Request.URL.String()
 	if e, g := "Get /?n=1: no redirects allowed", fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with redirects forbidden, expected error %q, got %q", e, g)
 	}

@@ -249,18 +249,22 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
 			}
 		}
 	case cm.targetScheme == "https":
-		fmt.Fprintf(conn, "CONNECT %s HTTP/1.1\r\n", cm.targetAddr)
-		fmt.Fprintf(conn, "Host: %s\r\n", cm.targetAddr)
-		if pa != "" {
-			fmt.Fprintf(conn, "Proxy-Authorization: %s\r\n", pa)
+		connectReq := &Request{
+			Method: "CONNECT",
+			RawURL: cm.targetAddr,
+			Host:   cm.targetAddr,
+			Header: make(Header),
 		}
-		fmt.Fprintf(conn, "\r\n")
+		if pa != "" {
+			connectReq.Header.Set("Proxy-Authorization", pa)
+		}
+		connectReq.Write(conn)
 
 		// Read response.
 		// Okay to use and discard buffered reader here, because
 		// TLS server will not speak until spoken to.
 		br := bufio.NewReader(conn)
-		resp, err := ReadResponse(br, "CONNECT")
+		resp, err := ReadResponse(br, connectReq)
 		if err != nil {
 			conn.Close()
 			return nil, err
@@ -447,8 +451,8 @@ func (pc *persistConn) readLoop() {
 		}
 
 		rc := <-pc.reqch
-		resp, err := pc.cc.readUsing(rc.req, func(buf *bufio.Reader, reqMethod string) (*Response, os.Error) {
-			resp, err := ReadResponse(buf, reqMethod)
+		resp, err := pc.cc.readUsing(rc.req, func(buf *bufio.Reader, forReq *Request) (*Response, os.Error) {
+			resp, err := ReadResponse(buf, forReq)
 			if err != nil || resp.ContentLength == 0 {
 				return resp, err
 			}

@@ -176,7 +176,7 @@ func remoteSearch(query string) (res *http.Response, err os.Error) {
 	// remote search
 	for _, addr := range addrs {
 		url := "http://" + addr + search
-		res, _, err = http.Get(url)
+		res, err = http.Get(url)
 		if err == nil && res.StatusCode == http.StatusOK {
 			break
 		}

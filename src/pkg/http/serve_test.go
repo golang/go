@@ -252,7 +252,7 @@ func TestServerTimeouts(t *testing.T) {
 	// Hit the HTTP server successfully.
 	tr := &Transport{DisableKeepAlives: true} // they interfere with this test
 	c := &Client{Transport: tr}
-	r, _, err := c.Get(url)
+	r, err := c.Get(url)
 	if err != nil {
 		t.Fatalf("http Get #1: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestServerTimeouts(t *testing.T) {
 	// Hit the HTTP server successfully again, verifying that the
 	// previous slow connection didn't run our handler.  (that we
 	// get "req=2", not "req=3")
-	r, _, err = Get(url)
+	r, err = Get(url)
 	if err != nil {
 		t.Fatalf("http Get #2: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestIdentityResponse(t *testing.T) {
 	// responses.
 	for _, te := range []string{"", "identity"} {
 		url := ts.URL + "/?te=" + te
-		res, _, err := Get(url)
+		res, err := Get(url)
 		if err != nil {
 			t.Fatalf("error with Get of %s: %v", url, err)
 		}
@@ -342,7 +342,7 @@ func TestIdentityResponse(t *testing.T) {
 
 	// Verify that ErrContentLength is returned
 	url := ts.URL + "/?overwrite=1"
-	_, _, err := Get(url)
+	_, err := Get(url)
 	if err != nil {
 		t.Fatalf("error with Get of %s: %v", url, err)
 	}
@@ -389,7 +389,7 @@ func TestServeHTTP10Close(t *testing.T) {
 	}
 
 	r := bufio.NewReader(conn)
-	_, err = ReadResponse(r, "GET")
+	_, err = ReadResponse(r, &Request{Method: "GET"})
 	if err != nil {
 		t.Fatal("ReadResponse error:", err)
 	}
@@ -417,7 +417,7 @@ func TestSetsRemoteAddr(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	res, _, err := Get(ts.URL)
+	res, err := Get(ts.URL)
 	if err != nil {
 		t.Fatalf("Get error: %v", err)
 	}
@@ -438,7 +438,7 @@ func TestChunkedResponseHeaders(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	res, _, err := Get(ts.URL)
+	res, err := Get(ts.URL)
 	if err != nil {
 		t.Fatalf("Get error: %v", err)
 	}
@@ -465,7 +465,7 @@ func Test304Responses(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	res, _, err := Get(ts.URL)
+	res, err := Get(ts.URL)
 	if err != nil {
 		t.Error(err)
 	}
@@ -516,7 +516,7 @@ func TestTLSServer(t *testing.T) {
 	if !strings.HasPrefix(ts.URL, "https://") {
 		t.Fatalf("expected test TLS server to start with https://, got %q", ts.URL)
 	}
-	res, _, err := Get(ts.URL)
+	res, err := Get(ts.URL)
 	if err != nil {
 		t.Error(err)
 	}
@@ -657,7 +657,7 @@ func TestTimeoutHandler(t *testing.T) {
 
 	// Succeed without timing out:
 	sendHi <- true
-	res, _, err := Get(ts.URL)
+	res, err := Get(ts.URL)
 	if err != nil {
 		t.Error(err)
 	}
@@ -674,7 +674,7 @@ func TestTimeoutHandler(t *testing.T) {
 
 	// Times out:
 	timeout <- 1
-	res, _, err = Get(ts.URL)
+	res, err = Get(ts.URL)
 	if err != nil {
 		t.Error(err)
 	}

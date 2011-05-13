@@ -10,6 +10,7 @@ GOFILES=\
 	netdial.go\
 	main.go\
 	osopen.go\
+	httpfinalurl.go\
 	httpserver.go\
 	procattr.go\
 	reflect.go\

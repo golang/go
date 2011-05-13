@@ -35,7 +35,7 @@ func dash(meth, cmd string, resp interface{}, args param) os.Error {
 			}
 			cmd += "?" + http.EncodeQuery(m)
 		}
-		r, _, err = http.Get(cmd)
+		r, err = http.Get(cmd)
 	case "POST":
 		r, err = http.PostForm(cmd, args)
 	default:
