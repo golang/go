@@ -818,6 +818,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 	} else {
 		// embedded interface
 		typ = x
+		p.resolve(typ)
 	}
 	p.expectSemi() // call before accessing p.linecomment
 

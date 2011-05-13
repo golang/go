@@ -121,7 +121,7 @@ func (f *Field) End() token.Pos {
 // A FieldList represents a list of Fields, enclosed by parentheses or braces.
 type FieldList struct {
 	Opening token.Pos // position of opening parenthesis/brace, if any
-	List    []*Field  // field list
+	List    []*Field  // field list; or nil
 	Closing token.Pos // position of closing parenthesis/brace, if any
 }
 
@@ -334,7 +334,7 @@ type (
 	// A FuncType node represents a function type.
 	FuncType struct {
 		Func    token.Pos  // position of "func" keyword
-		Params  *FieldList // (incoming) parameters
+		Params  *FieldList // (incoming) parameters; or nil
 		Results *FieldList // (outgoing) results; or nil
 	}
 
@@ -946,8 +946,8 @@ func (f *File) End() token.Pos {
 //
 type Package struct {
 	Name    string            // package name
-	Scope   *Scope            // package scope
-	Imports map[string]*Scope // map of import path -> package scope across all files
+	Scope   *Scope            // package scope across all files
+	Imports map[string]*Scope // map of import path -> package scope
 	Files   map[string]*File  // Go source files by filename
 }
 
