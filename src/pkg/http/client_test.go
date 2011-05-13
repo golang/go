@@ -101,6 +101,12 @@ func TestRedirects(t *testing.T) {
 		t.Errorf("with default client, expected error %q, got %q", e, g)
 	}
 
+	// HEAD request should also have the ability to follow redirects.
+	_, err = c.Head(ts.URL)
+	if e, g := "Head /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+		t.Errorf("with default client, expected error %q, got %q", e, g)
+	}
+
 	var checkErr os.Error
 	var lastVia []*Request
 	c = &Client{CheckRedirect: func(_ *Request, via []*Request) os.Error {
