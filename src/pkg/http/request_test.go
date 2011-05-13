@@ -173,6 +173,14 @@ func TestRedirect(t *testing.T) {
 	}
 }
 
+func TestSetBasicAuth(t *testing.T) {
+	r, _ := NewRequest("GET", "http://example.com/", nil)
+	r.SetBasicAuth("Aladdin", "open sesame")
+	if g, e := r.Header.Get("Authorization"), "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="; g != e {
+		t.Errorf("got header %q, want %q", g, e)
+	}
+}
+
 func TestMultipartRequest(t *testing.T) {
 	// Test that we can read the values and files of a 
 	// multipart request with FormValue and FormFile,

@@ -12,6 +12,7 @@ import (
 	"bufio"
 	"crypto/tls"
 	"container/vector"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -477,6 +478,18 @@ func NewRequest(method, url string, body io.Reader) (*Request, os.Error) {
 		Host:       u.Host,
 	}
 	return req, nil
+}
+
+// SetBasicAuth sets the request's Authorization header to use HTTP
+// Basic Authentication with the provided username and password.
+//
+// With HTTP Basic Authentication the provided username and password
+// are not encrypted.
+func (r *Request) SetBasicAuth(username, password string) {
+	s := username + ":" + password
+	buf := make([]byte, base64.StdEncoding.EncodedLen(len(s)))
+	base64.StdEncoding.Encode(buf, []byte(s))
+	r.Header.Set("Authorization", "Basic "+string(buf))
 }
 
 // ReadRequest reads and parses a request from b.
