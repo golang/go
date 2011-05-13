@@ -178,8 +178,10 @@ func processPackage(fset *token.FileSet, files map[string]*ast.File) {
 		report(err)
 		return
 	}
-	// TODO(gri): typecheck package
-	_ = pkg
+	_, err = types.Check(fset, pkg)
+	if err != nil {
+		report(err)
+	}
 }
 
 
