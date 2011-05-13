@@ -742,12 +742,29 @@ asmb(void)
 			symo = rnd(symo, INITRND);
 			break;
 		case Hwindows:
-			// TODO(brainman): not sure what symo meant to be, but it is not used for Windows PE for now anyway
 			symo = rnd(HEADR+segtext.filelen, PEFILEALIGN)+segdata.filelen;
 			symo = rnd(symo, PEFILEALIGN);
 			break;
 		}
-		if(HEADTYPE == Hplan9x32) {
+		switch(HEADTYPE) {
+		default:
+			if(iself) {
+				if(debug['v'])
+				       Bprint(&bso, "%5.2f elfsym\n", cputime());
+				elfsymo = symo+8+symsize+lcsize;
+				seek(cout, elfsymo, 0);
+				asmelfsym32();
+				cflush();
+				elfstro = seek(cout, 0, 1);
+				elfsymsize = elfstro - elfsymo;
+				ewrite(cout, elfstrdat, elfstrsize);
+
+				if(debug['v'])
+					Bprint(&bso, "%5.2f dwarf\n", cputime());
+				dwarfemitdebugsections();
+			}
+			break;
+		case Hplan9x32:
 			seek(cout, symo, 0);
 			asmplan9sym();
 			cflush();
@@ -760,20 +777,13 @@ asmb(void)
 				
 				cflush();
 			}
-		} else if(iself) {
-			if(debug['v'])
-			       Bprint(&bso, "%5.2f elfsym\n", cputime());
-			elfsymo = symo+8+symsize+lcsize;
-			seek(cout, elfsymo, 0);
-			asmelfsym32();
-			cflush();
-			elfstro = seek(cout, 0, 1);
-			elfsymsize = elfstro - elfsymo;
-			ewrite(cout, elfstrdat, elfstrsize);
-
+			break;
+		case Hwindows:
+			seek(cout, symo, 0);
 			if(debug['v'])
 				Bprint(&bso, "%5.2f dwarf\n", cputime());
 			dwarfemitdebugsections();
+			break;
 		}
 	}
 	if(debug['v'])
