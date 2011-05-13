@@ -119,25 +119,6 @@ Error:
 	return nil, &OpError{mode, net, addr, oserr}
 }
 
-func getip(fd int, remote bool) (ip []byte, port int, ok bool) {
-	// No attempt at error reporting because
-	// there are no possible errors, and the
-	// caller won't report them anyway.
-	var sa syscall.Sockaddr
-	if remote {
-		sa, _ = syscall.Getpeername(fd)
-	} else {
-		sa, _ = syscall.Getsockname(fd)
-	}
-	switch sa := sa.(type) {
-	case *syscall.SockaddrInet4:
-		return sa.Addr[0:], sa.Port, true
-	case *syscall.SockaddrInet6:
-		return sa.Addr[0:], sa.Port, true
-	}
-	return
-}
-
 type InvalidAddrError string
 
 func (e InvalidAddrError) String() string  { return string(e) }
