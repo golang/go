@@ -19,7 +19,7 @@
 
 
 ;;;### (autoloads (gofmt-before-save gofmt go-mode) "go-mode" "go-mode.el"
-;;;;;;  (19847 61431))
+;;;;;;  (19917 17808))
 ;;; Generated autoloads from go-mode.el
 
 (autoload 'go-mode "go-mode" "\
