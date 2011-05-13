@@ -1336,8 +1336,6 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 			return err
 		if patch == emptydiff:
 			return "codereview issue %s has no diff" % clname
-		if not repo[vers]:
-			return "codereview issue %s is newer than the current repository; hg sync" % clname
 
 	# find current hg version (hg identify)
 	ctx = repo[None]
@@ -1347,7 +1345,12 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 	# if version does not match the patch version,
 	# try to update the patch line numbers.
 	if vers != "" and id != vers:
-		if vers not in repo:
+		# "vers in repo" gives the wrong answer
+		# on some versions of Mercurial.  Instead, do the actual
+		# lookup and catch the exception.
+		try:
+			repo[vers].description()
+		except:
 			return "local repository is out of date; sync to get %s" % (vers)
 		patch, err = portPatch(repo, patch, vers, id)
 		if err != "":
