@@ -2562,7 +2562,6 @@ dwarfaddmachoheaders(void)
 void
 dwarfaddpeheaders(void)
 {
-	dwarfemitdebugsections();
 	newPEDWARFSection(".debug_abbrev", abbrevsize);
 	newPEDWARFSection(".debug_line", linesize);
 	newPEDWARFSection(".debug_frame", framesize);

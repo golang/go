@@ -484,13 +484,13 @@ asmbpe(void)
 	d->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
 
+	if(!debug['s'])
+		dwarfaddpeheaders();
+
 	addimports(nextfileoff, d);
 	
 	addexports(nextfileoff);
 	
-	if(!debug['s'])
-		dwarfaddpeheaders();
-
 	addsymtable();
 		
 	fh.NumberOfSections = nsect;
