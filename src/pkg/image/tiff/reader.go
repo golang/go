@@ -133,6 +133,20 @@ func (d *decoder) parseIFD(p []byte) os.Error {
 				0xffff,
 			}
 		}
+	case tSampleFormat:
+		// Page 27 of the spec: If the SampleFormat is present and
+		// the value is not 1 [= unsigned integer data], a Baseline
+		// TIFF reader that cannot handle the SampleFormat value
+		// must terminate the import process gracefully.
+		val, err := d.ifdUint(p)
+		if err != nil {
+			return err
+		}
+		for _, v := range val {
+			if v != 1 {
+				return UnsupportedError("sample format")
+			}
+		}
 	}
 	return nil
 }
