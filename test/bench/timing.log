@@ -844,3 +844,11 @@ NEW:
 	gcc -O2 chameneosredux.c -lpthread	8.05u 63.43s 11.16r
 	gccgo -O2 chameneosredux.go	82.95u 304.37s 207.64r
 	gc chameneosredux	9.42u 0.00s 9.43r
+
+# May 13, 2011
+# after gc update to inline append when possible - 35% faster
+
+regex-dna 100000
+	gc regex-dna	3.94u 0.00s 3.95r
+	gc regex-dna-parallel	4.15u 0.01s 1.63r
+	gc_B regex-dna	4.01u 0.01s 4.02r
