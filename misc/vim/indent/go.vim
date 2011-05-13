@@ -4,27 +4,68 @@
 "
 " indent/go.vim: Vim indent file for Go.
 "
+" TODO:
+" - function invocations split across lines
+" - general line splits (line ends in an operator)
 
 if exists("b:did_indent")
     finish
 endif
 let b:did_indent = 1
 
-" C indentation is mostly correct
-setlocal cindent
+" C indentation is too far off useful, mainly due to Go's := operator.
+" Let's just define our own.
+setlocal nolisp
+setlocal autoindent
+setlocal indentexpr=GoIndent(v:lnum)
+setlocal indentkeys+=<:>,0=},0=)
 
-" Options set:
-" +0 -- Don't indent continuation lines (because Go doesn't use semicolons
-"       much)
-" L0 -- Don't move jump labels (NOTE: this isn't correct when working with
-"       gofmt, but it does keep struct literals properly indented.)
-" :0 -- Align case labels with switch statement
-" l1 -- Always align case body relative to case labels
-" J1 -- Indent JSON-style objects (properly indents struct-literals)
-" (0, Ws -- Indent lines inside of unclosed parentheses by one shiftwidth
-" m1 -- Align closing parenthesis line with first non-blank of matching
-"       parenthesis line
-"
-" Known issue: Trying to do a multi-line struct literal in a short variable
-"              declaration will not indent properly.
-setlocal cinoptions+=+0,L0,:0,l1,J1,(0,Ws,m1
+if exists("*GoIndent")
+  finish
+endif
+
+function! GoIndent(lnum)
+  let prevlnum = prevnonblank(a:lnum-1)
+  if prevlnum == 0
+    " top of file
+    return 0
+  endif
+
+  " grab the previous and current line, stripping comments.
+  let prevl = substitute(getline(prevlnum), '//.*$', '', '')
+  let thisl = substitute(getline(a:lnum), '//.*$', '', '')
+  let previ = indent(prevlnum)
+
+  let ind = previ
+
+  if prevl =~ '[({]\s*$'
+    " previous line opened a block
+    let ind += &sw
+  endif
+  if prevl =~# '^\s*\(case .*\|default\):$'
+    " previous line is part of a switch statement
+    let ind += &sw
+  endif
+  " TODO: handle if the previous line is a label.
+
+  if thisl =~ '^\s*[)}]'
+    " this line closed a block
+    let ind -= &sw
+  endif
+
+  " Colons are tricky.
+  " We want to outdent if it's part of a switch ("case foo:" or "default:"),
+  if thisl =~# '^\s*\(case .*\|default\):$'
+    let ind -= &sw
+  endif
+  " ... and put jump labels in the first column (ignore "default:").
+  if thisl =~ '^\s*\S\+:\s*$' 
+    " ignore "default:" and if there's a string on the line;
+    " the latter will more likely be something like "blah: %v".
+    if thisl !~# '^\s*default:\s*$' && thisl !~# '".*:'
+      return 0
+    endif
+  endif
+
+  return ind
+endfunction
