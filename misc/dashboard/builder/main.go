@@ -127,12 +127,6 @@ func main() {
 	// go continuous build mode (default)
 	// check for new commits and build them
 	for {
-		err := run(nil, goroot, "hg", "pull", "-u")
-		if err != nil {
-			log.Println("hg pull failed:", err)
-			time.Sleep(waitInterval)
-			continue
-		}
 		built := false
 		t := time.Nanoseconds()
 		if *parallel {
@@ -246,6 +240,15 @@ func (b *Builder) build() bool {
 	}
 	if hash == "" {
 		return false
+	}
+	// Look for hash locally before running hg pull.
+	
+	if _, err := fullHash(hash[:12]); err != nil {
+		// Don't have hash, so run hg pull.
+		if err := run(nil, goroot, "hg", "pull"); err != nil {
+			log.Println("hg pull failed:", err)
+			return false
+		}
 	}
 	err = b.buildHash(hash)
 	if err != nil {
