@@ -7,8 +7,8 @@ package strconv
 import "os"
 
 // Atob returns the boolean value represented by the string.
-// It accepts 1, t, T, TRUE, true, 0, f, F, FALSE, false.  Any other value returns
-// an error.
+// It accepts 1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False.
+// Any other value returns an error.
 func Atob(str string) (value bool, err os.Error) {
 	switch str {
 	case "1", "t", "T", "true", "TRUE", "True":
