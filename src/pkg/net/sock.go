@@ -153,16 +153,3 @@ type UnknownSocketError struct {
 func (e *UnknownSocketError) String() string {
 	return "unknown socket address type " + reflect.TypeOf(e.sa).String()
 }
-
-func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
-	switch a := sa.(type) {
-	case *syscall.SockaddrInet4:
-		return JoinHostPort(IP(a.Addr[0:]).String(), itoa(a.Port)), nil
-	case *syscall.SockaddrInet6:
-		return JoinHostPort(IP(a.Addr[0:]).String(), itoa(a.Port)), nil
-	case *syscall.SockaddrUnix:
-		return a.Name, nil
-	}
-
-	return "", &UnknownSocketError{sa}
-}

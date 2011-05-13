@@ -117,7 +117,6 @@ type dnsRR interface {
 	Header() *dnsRR_Header
 }
 
-
 // Specific DNS RR formats for each query type.
 
 type dnsRR_CNAME struct {

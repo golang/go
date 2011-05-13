@@ -30,7 +30,6 @@ func (e *DNSConfigError) String() string {
 func (e *DNSConfigError) Timeout() bool   { return false }
 func (e *DNSConfigError) Temporary() bool { return false }
 
-
 // See resolv.conf(5) on a Linux machine.
 // TODO(rsc): Supposed to call uname() and chop the beginning
 // of the host name to get the default search domain.
