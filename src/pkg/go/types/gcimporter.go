@@ -344,28 +344,22 @@ func (p *gcParser) parseName() (name string) {
 
 // Field = Name Type [ ":" string_lit ] .
 //
-func (p *gcParser) parseField(scope *ast.Scope) {
-	// TODO(gri) The code below is not correct for anonymous fields:
-	//           The name is the type name; it should not be empty.
+func (p *gcParser) parseField() (fld *ast.Object, tag string) {
 	name := p.parseName()
 	ftyp := p.parseType()
 	if name == "" {
 		// anonymous field - ftyp must be T or *T and T must be a type name
-		ftyp = Deref(ftyp)
-		if ftyp, ok := ftyp.(*Name); ok {
-			name = ftyp.Obj.Name
-		} else {
+		if _, ok := Deref(ftyp).(*Name); !ok {
 			p.errorf("anonymous field expected")
 		}
 	}
 	if p.tok == ':' {
 		p.next()
-		tag := p.expect(scanner.String)
-		_ = tag // TODO(gri) store tag somewhere
+		tag = p.expect(scanner.String)
 	}
-	fld := ast.NewObj(ast.Var, name)
+	fld = ast.NewObj(ast.Var, name)
 	fld.Type = ftyp
-	scope.Insert(fld)
+	return
 }
 
 
@@ -373,103 +367,119 @@ func (p *gcParser) parseField(scope *ast.Scope) {
 // FieldList  = Field { ";" Field } .
 //
 func (p *gcParser) parseStructType() Type {
+	var fields []*ast.Object
+	var tags []string
+
+	parseField := func() {
+		fld, tag := p.parseField()
+		fields = append(fields, fld)
+		tags = append(tags, tag)
+	}
+
 	p.expectKeyword("struct")
 	p.expect('{')
-	scope := ast.NewScope(nil)
 	if p.tok != '}' {
-		p.parseField(scope)
+		parseField()
 		for p.tok == ';' {
 			p.next()
-			p.parseField(scope)
+			parseField()
 		}
 	}
 	p.expect('}')
-	return &Struct{}
+
+	return &Struct{Fields: fields, Tags: tags}
 }
 
 
 // Parameter = ( identifier | "?" ) [ "..." ] Type .
 //
-func (p *gcParser) parseParameter(scope *ast.Scope, isVariadic *bool) {
+func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
 	name := p.parseName()
 	if name == "" {
 		name = "_" // cannot access unnamed identifiers
 	}
-	if isVariadic != nil {
-		if *isVariadic {
-			p.error("... not on final argument")
-		}
-		if p.tok == '.' {
-			p.expectSpecial("...")
-			*isVariadic = true
-		}
+	if p.tok == '.' {
+		p.expectSpecial("...")
+		isVariadic = true
 	}
 	ptyp := p.parseType()
-	par := ast.NewObj(ast.Var, name)
+	par = ast.NewObj(ast.Var, name)
 	par.Type = ptyp
-	scope.Insert(par)
+	return
 }
 
 
 // Parameters    = "(" [ ParameterList ] ")" .
 // ParameterList = { Parameter "," } Parameter .
 //
-func (p *gcParser) parseParameters(scope *ast.Scope, isVariadic *bool) {
+func (p *gcParser) parseParameters() (list []*ast.Object, isVariadic bool) {
+	parseParameter := func() {
+		par, variadic := p.parseParameter()
+		list = append(list, par)
+		if variadic {
+			if isVariadic {
+				p.error("... not on final argument")
+			}
+			isVariadic = true
+		}
+	}
+
 	p.expect('(')
 	if p.tok != ')' {
-		p.parseParameter(scope, isVariadic)
+		parseParameter()
 		for p.tok == ',' {
 			p.next()
-			p.parseParameter(scope, isVariadic)
+			parseParameter()
 		}
 	}
 	p.expect(')')
+
+	return
 }
 
 
 // Signature = Parameters [ Result ] .
 // Result    = Type | Parameters .
 //
-func (p *gcParser) parseSignature(scope *ast.Scope, isVariadic *bool) {
-	p.parseParameters(scope, isVariadic)
+func (p *gcParser) parseSignature() *Func {
+	params, isVariadic := p.parseParameters()
 
 	// optional result type
+	var results []*ast.Object
 	switch p.tok {
 	case scanner.Ident, scanner.String, '[', '*', '<':
 		// single, unnamed result
 		result := ast.NewObj(ast.Var, "_")
 		result.Type = p.parseType()
-		scope.Insert(result)
+		results = []*ast.Object{result}
 	case '(':
 		// named or multiple result(s)
-		p.parseParameters(scope, nil)
+		var variadic bool
+		results, variadic = p.parseParameters()
+		if variadic {
+			p.error("... not permitted on result type")
+		}
 	}
-}
 
-
-// FuncType = "func" Signature .
-//
-func (p *gcParser) parseFuncType() Type {
-	// "func" already consumed
-	scope := ast.NewScope(nil)
-	isVariadic := false
-	p.parseSignature(scope, &isVariadic)
-	return &Func{IsVariadic: isVariadic}
+	return &Func{Params: params, Results: results, IsVariadic: isVariadic}
 }
 
 
 // MethodSpec = identifier Signature .
 //
-func (p *gcParser) parseMethodSpec(scope *ast.Scope) {
+func (p *gcParser) parseMethodSpec() *ast.Object {
 	if p.tok == scanner.Ident {
 		p.expect(scanner.Ident)
 	} else {
+		// TODO(gri) should this be parseExportedName here?
 		p.parsePkgId()
 		p.expect('.')
 		p.parseDotIdent()
 	}
-	isVariadic := false
-	p.parseSignature(scope, &isVariadic)
+	p.parseSignature()
+
+	// TODO(gri) compute method object
+	return ast.NewObj(ast.Fun, "_")
 }
 
 
@@ -477,18 +487,26 @@ func (p *gcParser) parseMethodSpec(scope *ast.Scope) {
 // MethodList    = MethodSpec { ";" MethodSpec } .
 //
 func (p *gcParser) parseInterfaceType() Type {
+	var methods ObjList
+
+	parseMethod := func() {
+		meth := p.parseMethodSpec()
+		methods = append(methods, meth)
+	}
+
 	p.expectKeyword("interface")
 	p.expect('{')
-	scope := ast.NewScope(nil)
 	if p.tok != '}' {
-		p.parseMethodSpec(scope)
+		parseMethod()
 		for p.tok == ';' {
 			p.next()
-			p.parseMethodSpec(scope)
+			parseMethod()
 		}
 	}
 	p.expect('}')
-	return &Interface{}
+
+	methods.Sort()
+	return &Interface{Methods: methods}
 }
 
 
@@ -520,6 +538,7 @@ func (p *gcParser) parseChanType() Type {
 // TypeName = ExportedName .
 // SliceType = "[" "]" Type .
 // PointerType = "*" Type .
+// FuncType = "func" Signature .
 //
 func (p *gcParser) parseType() Type {
 	switch p.tok {
@@ -530,8 +549,9 @@ func (p *gcParser) parseType() Type {
 		case "struct":
 			return p.parseStructType()
 		case "func":
-			p.next() // parseFuncType assumes "func" is already consumed
-			return p.parseFuncType()
+			// FuncType
+			p.next()
+			return p.parseSignature()
 		case "interface":
 			return p.parseInterfaceType()
 		case "map":
@@ -713,7 +733,7 @@ func (p *gcParser) parseVarDecl() {
 func (p *gcParser) parseFuncDecl() {
 	// "func" already consumed
 	obj := p.parseExportedName(ast.Fun)
-	obj.Type = p.parseFuncType()
+	obj.Type = p.parseSignature()
 }
 
 
@@ -722,14 +742,11 @@ func (p *gcParser) parseFuncDecl() {
 //
 func (p *gcParser) parseMethodDecl() {
 	// "func" already consumed
-	scope := ast.NewScope(nil) // method scope
 	p.expect('(')
-	p.parseParameter(scope, nil) // receiver
+	p.parseParameter() // receiver
 	p.expect(')')
 	p.expect(scanner.Ident)
-	isVariadic := false
-	p.parseSignature(scope, &isVariadic)
-
+	p.parseSignature()
 }
 
 

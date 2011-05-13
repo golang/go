@@ -6,6 +6,7 @@ include ../../../Make.inc
 
 TARG=go/types
 GOFILES=\
+	check.go\
 	const.go\
 	exportdata.go\
 	gcimporter.go\
