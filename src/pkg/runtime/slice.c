@@ -48,20 +48,6 @@ makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
 		ret->array = runtime·mal(size);
 }
 
-// append(type *Type, n int, old []T, ...,) []T
-#pragma textflag 7
-void
-runtime·append(SliceType *t, int32 n, Slice old, ...)
-{
-	Slice sl;
-	Slice *ret;
-	
-	sl.len = n;
-	sl.array = (byte*)(&old+1);
-	ret = (Slice*)(sl.array + ((t->elem->size*n+sizeof(uintptr)-1) & ~(sizeof(uintptr)-1)));
-	appendslice1(t, old, sl, ret);
-}
-
 // appendslice(type *Type, x, y, []T) []T
 void
 runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
