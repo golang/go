@@ -52,7 +52,7 @@ var (
 	xFlag bool
 )
 
-// elapsed returns  time elapsed since gotest started.
+// elapsed returns the number of seconds since gotest started.
 func elapsed() float64 {
 	return float64(time.Nanoseconds()-start) / 1e9
 }
