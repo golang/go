@@ -54,6 +54,7 @@ const (
 	tPredictor    = 317
 	tColorMap     = 320
 	tExtraSamples = 338
+	tSampleFormat = 339
 )
 
 // Compression types (defined in various places in the spec and supplements).
