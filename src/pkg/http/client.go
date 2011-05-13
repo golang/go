@@ -126,13 +126,10 @@ func shouldRedirect(statusCode int) bool {
 //    303 (See Other)
 //    307 (Temporary Redirect)
 //
-// finalURL is the URL from which the response was fetched -- identical to the
-// input URL unless redirects were followed.
-//
 // Caller should close r.Body when done reading from it.
 //
 // Get is a convenience wrapper around DefaultClient.Get.
-func Get(url string) (r *Response, finalURL string, err os.Error) {
+func Get(url string) (r *Response, err os.Error) {
 	return DefaultClient.Get(url)
 }
 
@@ -145,11 +142,8 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 //    303 (See Other)
 //    307 (Temporary Redirect)
 //
-// finalURL is the URL from which the response was fetched -- identical
-// to the input URL unless redirects were followed.
-//
 // Caller should close r.Body when done reading from it.
-func (c *Client) Get(url string) (r *Response, finalURL string, err os.Error) {
+func (c *Client) Get(url string) (r *Response, err os.Error) {
 	// TODO: if/when we add cookie support, the redirected request shouldn't
 	// necessarily supply the same cookies as the original.
 	var base *URL
@@ -198,7 +192,6 @@ func (c *Client) Get(url string) (r *Response, finalURL string, err os.Error) {
 			via = append(via, &req)
 			continue
 		}
-		finalURL = url
 		return
 	}
 

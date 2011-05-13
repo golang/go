@@ -23,6 +23,10 @@ type respTest struct {
 	Body string
 }
 
+func dummyReq(method string) *Request {
+	return &Request{Method: method}
+}
+
 var respTests = []respTest{
 	// Unchunked response without Content-Length.
 	{
@@ -32,12 +36,12 @@ var respTests = []respTest{
 			"Body here\n",
 
 		Response{
-			Status:        "200 OK",
-			StatusCode:    200,
-			Proto:         "HTTP/1.0",
-			ProtoMajor:    1,
-			ProtoMinor:    0,
-			RequestMethod: "GET",
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.0",
+			ProtoMajor: 1,
+			ProtoMinor: 0,
+			Request:    dummyReq("GET"),
 			Header: Header{
 				"Connection": {"close"}, // TODO(rsc): Delete?
 			},
@@ -61,7 +65,7 @@ var respTests = []respTest{
 			Proto:         "HTTP/1.1",
 			ProtoMajor:    1,
 			ProtoMinor:    1,
-			RequestMethod: "GET",
+			Request:       dummyReq("GET"),
 			Close:         true,
 			ContentLength: -1,
 		},
@@ -81,7 +85,7 @@ var respTests = []respTest{
 			Proto:         "HTTP/1.1",
 			ProtoMajor:    1,
 			ProtoMinor:    1,
-			RequestMethod: "GET",
+			Request:       dummyReq("GET"),
 			Close:         false,
 			ContentLength: 0,
 		},
@@ -98,12 +102,12 @@ var respTests = []respTest{
 			"Body here\n",
 
 		Response{
-			Status:        "200 OK",
-			StatusCode:    200,
-			Proto:         "HTTP/1.0",
-			ProtoMajor:    1,
-			ProtoMinor:    0,
-			RequestMethod: "GET",
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.0",
+			ProtoMajor: 1,
+			ProtoMinor: 0,
+			Request:    dummyReq("GET"),
 			Header: Header{
 				"Connection":     {"close"}, // TODO(rsc): Delete?
 				"Content-Length": {"10"},    // TODO(rsc): Delete?
@@ -133,7 +137,7 @@ var respTests = []respTest{
 			Proto:            "HTTP/1.0",
 			ProtoMajor:       1,
 			ProtoMinor:       0,
-			RequestMethod:    "GET",
+			Request:          dummyReq("GET"),
 			Header:           Header{},
 			Close:            true,
 			ContentLength:    -1,
@@ -160,7 +164,7 @@ var respTests = []respTest{
 			Proto:            "HTTP/1.0",
 			ProtoMajor:       1,
 			ProtoMinor:       0,
-			RequestMethod:    "GET",
+			Request:          dummyReq("GET"),
 			Header:           Header{},
 			Close:            true,
 			ContentLength:    -1, // TODO(rsc): Fix?
@@ -183,7 +187,7 @@ var respTests = []respTest{
 			Proto:         "HTTP/1.0",
 			ProtoMajor:    1,
 			ProtoMinor:    0,
-			RequestMethod: "HEAD",
+			Request:       dummyReq("HEAD"),
 			Header:        Header{},
 			Close:         true,
 			ContentLength: 0,
@@ -199,12 +203,12 @@ var respTests = []respTest{
 			"\r\n",
 
 		Response{
-			Status:        "200 OK",
-			StatusCode:    200,
-			Proto:         "HTTP/1.1",
-			ProtoMajor:    1,
-			ProtoMinor:    1,
-			RequestMethod: "GET",
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Request:    dummyReq("GET"),
 			Header: Header{
 				"Content-Length": {"0"},
 			},
@@ -225,7 +229,7 @@ var respTests = []respTest{
 			Proto:         "HTTP/1.0",
 			ProtoMajor:    1,
 			ProtoMinor:    0,
-			RequestMethod: "GET",
+			Request:       dummyReq("GET"),
 			Header:        Header{},
 			Close:         true,
 			ContentLength: -1,
@@ -244,7 +248,7 @@ var respTests = []respTest{
 			Proto:         "HTTP/1.0",
 			ProtoMajor:    1,
 			ProtoMinor:    0,
-			RequestMethod: "GET",
+			Request:       dummyReq("GET"),
 			Header:        Header{},
 			Close:         true,
 			ContentLength: -1,
@@ -259,7 +263,7 @@ func TestReadResponse(t *testing.T) {
 		tt := &respTests[i]
 		var braw bytes.Buffer
 		braw.WriteString(tt.Raw)
-		resp, err := ReadResponse(bufio.NewReader(&braw), tt.Resp.RequestMethod)
+		resp, err := ReadResponse(bufio.NewReader(&braw), tt.Resp.Request)
 		if err != nil {
 			t.Errorf("#%d: %s", i, err)
 			continue
@@ -340,7 +344,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		buf.WriteString("Next Request Here")
 
 		bufr := bufio.NewReader(&buf)
-		resp, err := ReadResponse(bufr, "GET")
+		resp, err := ReadResponse(bufr, dummyReq("GET"))
 		checkErr(err, "ReadResponse")
 		expectedLength := int64(-1)
 		if !test.chunked {

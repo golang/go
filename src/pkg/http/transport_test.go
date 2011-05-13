@@ -43,7 +43,7 @@ func TestTransportKeepAlives(t *testing.T) {
 		c := &Client{Transport: tr}
 
 		fetch := func(n int) string {
-			res, _, err := c.Get(ts.URL)
+			res, err := c.Get(ts.URL)
 			if err != nil {
 				t.Fatalf("error in disableKeepAlive=%v, req #%d, GET: %v", disableKeepAlive, n, err)
 			}
@@ -160,7 +160,7 @@ func TestTransportIdleCacheKeys(t *testing.T) {
 		t.Errorf("After CloseIdleConnections expected %d idle conn cache keys; got %d", e, g)
 	}
 
-	resp, _, err := c.Get(ts.URL)
+	resp, err := c.Get(ts.URL)
 	if err != nil {
 		t.Error(err)
 	}
@@ -201,7 +201,7 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 	// Their responses will hang until we we write to resch, though.
 	donech := make(chan bool)
 	doReq := func() {
-		resp, _, err := c.Get(ts.URL)
+		resp, err := c.Get(ts.URL)
 		if err != nil {
 			t.Error(err)
 		}
@@ -266,7 +266,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 		}
 		for retries >= 0 {
 			retries--
-			res, _, err := c.Get(ts.URL)
+			res, err := c.Get(ts.URL)
 			if err != nil {
 				condFatalf("error in req #%d, GET: %v", n, err)
 				continue
@@ -420,7 +420,7 @@ func TestTransportGzip(t *testing.T) {
 		c := &Client{Transport: &Transport{}}
 
 		// First fetch something large, but only read some of it.
-		res, _, err := c.Get(ts.URL + "?body=large&chunked=" + chunked)
+		res, err := c.Get(ts.URL + "?body=large&chunked=" + chunked)
 		if err != nil {
 			t.Fatalf("large get: %v", err)
 		}
@@ -440,7 +440,7 @@ func TestTransportGzip(t *testing.T) {
 		}
 
 		// Then something small.
-		res, _, err = c.Get(ts.URL + "?chunked=" + chunked)
+		res, err = c.Get(ts.URL + "?chunked=" + chunked)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -490,7 +490,7 @@ func TestTransportGzipRecursive(t *testing.T) {
 	defer ts.Close()
 
 	c := &Client{Transport: &Transport{}}
-	res, _, err := c.Get(ts.URL)
+	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}

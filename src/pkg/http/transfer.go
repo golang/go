@@ -45,7 +45,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err os.Error) {
 		t.TransferEncoding = rr.TransferEncoding
 		t.Trailer = rr.Trailer
 		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
-		t.ResponseToHEAD = noBodyExpected(rr.RequestMethod)
+		t.ResponseToHEAD = noBodyExpected(rr.Request.Method)
 	}
 
 	// Sanitize Body,ContentLength,TransferEncoding
@@ -196,7 +196,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 	case *Response:
 		t.Header = rr.Header
 		t.StatusCode = rr.StatusCode
-		t.RequestMethod = rr.RequestMethod
+		t.RequestMethod = rr.Request.Method
 		t.ProtoMajor = rr.ProtoMajor
 		t.ProtoMinor = rr.ProtoMinor
 		t.Close = shouldClose(t.ProtoMajor, t.ProtoMinor, t.Header)

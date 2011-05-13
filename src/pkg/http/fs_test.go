@@ -96,7 +96,7 @@ func TestServeFileContentType(t *testing.T) {
 	}))
 	defer ts.Close()
 	get := func(want string) {
-		resp, _, err := Get(ts.URL)
+		resp, err := Get(ts.URL)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -37,7 +37,7 @@ func main() {
 		b := strings.NewReader(*post)
 		r, err = http.Post(url, "application/x-www-form-urlencoded", b)
 	} else {
-		r, _, err = http.Get(url)
+		r, err = http.Get(url)
 	}
 	if err != nil {
 		log.Fatal(err)
