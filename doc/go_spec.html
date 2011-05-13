@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of May 12, 2011 -->
+<!-- subtitle Version of May 13, 2011 -->
 
 <!--
 TODO
@@ -46,7 +46,7 @@ The syntax is specified using Extended Backus-Naur Form (EBNF):
 </p>
 
 <pre class="grammar">
-Production  = production_name "=" Expression "." .
+Production  = production_name "=" [ Expression ] "." .
 Expression  = Alternative { "|" Alternative } .
 Alternative = Term { Term } .
 Term        = production_name | token [ "..." token ] | Group | Option | Repetition .
