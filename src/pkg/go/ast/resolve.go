@@ -11,6 +11,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"os"
+	"strconv"
 )
 
 
@@ -70,7 +71,7 @@ type Importer func(path string) (name string, scope *Scope, err os.Error)
 // used to resolve identifiers not declared in any of the package files. Any
 // remaining unresolved identifiers are reported as undeclared. If the files
 // belong to different packages, one package name is selected and files with
-// different package name are reported and then ignored.
+// different package names are reported and then ignored.
 // The result is a package node and a scanner.ErrorList if there were errors.
 //
 func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, universe *Scope) (*Package, os.Error) {
@@ -118,8 +119,7 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, 
 		fileScope := NewScope(pkgScope)
 		for _, spec := range file.Imports {
 			// add import to global map of imports
-			path := string(spec.Path.Value)
-			path = path[1 : len(path)-1] // strip ""'s
+			path, _ := strconv.Unquote(string(spec.Path.Value))
 			pkg := imports[path]
 			if pkg == nil {
 				if importer == nil {
@@ -161,8 +161,8 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, 
 		if importErrors {
 			// don't use the universe scope without correct imports
 			// (objects in the universe may be shadowed by imports;
-			// with missing imports identifiers might get resolved
-			// wrongly)
+			// with missing imports, identifiers might get resolved
+			// incorrectly to universe objects)
 			pkgScope.Outer = nil
 		}
 		i := 0
