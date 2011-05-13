@@ -2025,25 +2025,35 @@ def JSONGet(ui, path):
 	try:
 		data = MySend(path, force_auth=False)
 		typecheck(data, str)
-		d = coerce_to_utf8(json.loads(data))
+		d = fix_json(json.loads(data))
 	except:
 		ui.warn("JSONGet %s: %s\n" % (path, ExceptionDetail()))
 		return None
 	return d
 
-def coerce_to_utf8(x):
+# Clean up json parser output to match our expectations:
+#   * all strings are UTF-8-encoded str, not unicode.
+#   * missing fields are missing, not None,
+#     so that d.get("foo", defaultvalue) works.
+def fix_json(x):
 	if type(x) in [str, int, float, bool, type(None)]:
 		pass
 	elif type(x) is unicode:
 		x = x.encode("utf-8")
 	elif type(x) is list:
 		for i in range(len(x)):
-			x[i] = coerce_to_utf8(x[i])
+			x[i] = fix_json(x[i])
 	elif type(x) is dict:
+		todel = []
 		for k in x:
-			x[k] = coerce_to_utf8(x[k])
+			if x[k] is None:
+				todel.append(k)
+			else:
+				x[k] = fix_json(x[k])
+		for k in todel:
+			del x[k]
 	else:
-		raise util.Abort("unknown type " + str(type(x)) + " in coerce_to_utf8")
+		raise util.Abort("unknown type " + str(type(x)) + " in fix_json")
 	if type(x) is str:
 		x = x.replace('\r\n', '\n')
 	return x
