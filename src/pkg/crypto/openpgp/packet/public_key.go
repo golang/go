@@ -57,7 +57,7 @@ func (pk *PublicKey) parse(r io.Reader) (err os.Error) {
 	// RFC 4880, section 12.2
 	fingerPrint := sha1.New()
 	pk.SerializeSignaturePrefix(fingerPrint)
-	pk.Serialize(fingerPrint)
+	pk.serializeWithoutHeaders(fingerPrint)
 	copy(pk.Fingerprint[:], fingerPrint.Sum())
 	pk.KeyId = binary.BigEndian.Uint64(pk.Fingerprint[12:20])
 
@@ -143,9 +143,30 @@ func (pk *PublicKey) SerializeSignaturePrefix(h hash.Hash) {
 	return
 }
 
-// Serialize marshals the PublicKey to w in the form of an OpenPGP public key
-// packet, not including the packet header.
 func (pk *PublicKey) Serialize(w io.Writer) (err os.Error) {
+	length := 6 // 6 byte header
+
+	switch pk.PubKeyAlgo {
+	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly, PubKeyAlgoRSASignOnly:
+		length += 2 + len(pk.n.bytes)
+		length += 2 + len(pk.e.bytes)
+	case PubKeyAlgoDSA:
+		length += 2 + len(pk.p.bytes)
+		length += 2 + len(pk.q.bytes)
+		length += 2 + len(pk.g.bytes)
+		length += 2 + len(pk.y.bytes)
+	}
+
+	err = serializeHeader(w, packetTypePublicKey, length)
+	if err != nil {
+		return
+	}
+	return pk.serializeWithoutHeaders(w)
+}
+
+// serializeWithoutHeaders marshals the PublicKey to w in the form of an
+// OpenPGP public key packet, not including the packet header.
+func (pk *PublicKey) serializeWithoutHeaders(w io.Writer) (err os.Error) {
 	var buf [6]byte
 	buf[0] = 4
 	buf[1] = byte(pk.CreationTime >> 24)
@@ -221,9 +242,9 @@ func (pk *PublicKey) VerifyKeySignature(signed *PublicKey, sig *Signature) (err 
 
 	// RFC 4880, section 5.2.4
 	pk.SerializeSignaturePrefix(h)
-	pk.Serialize(h)
+	pk.serializeWithoutHeaders(h)
 	signed.SerializeSignaturePrefix(h)
-	signed.Serialize(h)
+	signed.serializeWithoutHeaders(h)
 
 	return pk.VerifySignature(h, sig)
 }
@@ -238,7 +259,7 @@ func (pk *PublicKey) VerifyUserIdSignature(id string, sig *Signature) (err os.Er
 
 	// RFC 4880, section 5.2.4
 	pk.SerializeSignaturePrefix(h)
-	pk.Serialize(h)
+	pk.serializeWithoutHeaders(h)
 
 	var buf [5]byte
 	buf[0] = 0xb4

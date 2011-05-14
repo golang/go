@@ -28,12 +28,12 @@ func TestPublicKeyRead(t *testing.T) {
 		packet, err := Read(readerFromHex(test.hexData))
 		if err != nil {
 			t.Errorf("#%d: Read error: %s", i, err)
-			return
+			continue
 		}
 		pk, ok := packet.(*PublicKey)
 		if !ok {
 			t.Errorf("#%d: failed to parse, got: %#v", i, packet)
-			return
+			continue
 		}
 		if pk.PubKeyAlgo != test.pubKeyAlgo {
 			t.Errorf("#%d: bad public key algorithm got:%x want:%x", i, pk.PubKeyAlgo, test.pubKeyAlgo)
@@ -53,6 +53,38 @@ func TestPublicKeyRead(t *testing.T) {
 		}
 		if g, e := pk.KeyIdShortString(), test.keyIdShort; g != e {
 			t.Errorf("#%d: bad KeyIdShortString got:%q want:%q", i, g, e)
+		}
+	}
+}
+
+func TestPublicKeySerialize(t *testing.T) {
+	for i, test := range pubKeyTests {
+		packet, err := Read(readerFromHex(test.hexData))
+		if err != nil {
+			t.Errorf("#%d: Read error: %s", i, err)
+			continue
+		}
+		pk, ok := packet.(*PublicKey)
+		if !ok {
+			t.Errorf("#%d: failed to parse, got: %#v", i, packet)
+			continue
+		}
+		serializeBuf := bytes.NewBuffer(nil)
+		err = pk.Serialize(serializeBuf)
+		if err != nil {
+			t.Errorf("#%d: failed to serialize: %s", err)
+			continue
+		}
+
+		packet, err = Read(serializeBuf)
+		if err != nil {
+			t.Errorf("#%d: Read error (from serialized data): %s", i, err)
+			continue
+		}
+		pk, ok = packet.(*PublicKey)
+		if !ok {
+			t.Errorf("#%d: failed to parse serialized data, got: %#v", i, packet)
+			continue
 		}
 	}
 }
