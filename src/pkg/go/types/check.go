@@ -118,7 +118,10 @@ func (c *checker) makeType(x ast.Expr, cycleOk bool) (typ Type) {
 		}
 		c.checkObj(obj, cycleOk)
 		if !cycleOk && obj.Type.(*Name).Underlying == nil {
-			msg := c.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name)
+			// TODO(gri) Enable this message again once its position
+			// is independent of the underlying map implementation.
+			// msg := c.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name)
+			msg := "illegal cycle"
 			return &Bad{Msg: msg}
 		}
 		return obj.Type.(Type)
