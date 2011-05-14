@@ -258,7 +258,7 @@ func loadChars() {
 	if *dataURL == "" {
 		flag.Set("data", *url+"UnicodeData.txt")
 	}
-	resp, _, err := http.Get(*dataURL)
+	resp, err := http.Get(*dataURL)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -549,7 +549,7 @@ func printScriptOrProperty(doProps bool) {
 		return
 	}
 	var err os.Error
-	resp, _, err := http.Get(*url + file)
+	resp, err := http.Get(*url + file)
 	if err != nil {
 		logger.Fatal(err)
 	}
