@@ -54,17 +54,11 @@ function! GoIndent(lnum)
   endif
 
   " Colons are tricky.
-  " We want to outdent if it's part of a switch ("case foo:" or "default:"),
+  " We want to outdent if it's part of a switch ("case foo:" or "default:").
+  " We ignore trying to deal with jump labels because (a) they're rare, and
+  " (b) they're hard to disambiguate from a composite literal key.
   if thisl =~# '^\s*\(case .*\|default\):$'
     let ind -= &sw
-  endif
-  " ... and put jump labels in the first column (ignore "default:").
-  if thisl =~ '^\s*\S\+:\s*$' 
-    " ignore "default:" and if there's a string on the line;
-    " the latter will more likely be something like "blah: %v".
-    if thisl !~# '^\s*default:\s*$' && thisl !~# '".*:'
-      return 0
-    endif
   endif
 
   return ind
