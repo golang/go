@@ -386,6 +386,14 @@ func readMPI(r io.Reader) (mpi []byte, bitLength uint16, err os.Error) {
 	return
 }
 
+// mpiLength returns the length of the given *big.Int when serialised as an
+// MPI.
+func mpiLength(n *big.Int) (mpiLengthInBytes int) {
+	mpiLengthInBytes = 2 /* MPI length */
+	mpiLengthInBytes += (n.BitLen() + 7) / 8
+	return
+}
+
 // writeMPI serializes a big integer to w.
 func writeMPI(w io.Writer, bitLength uint16, mpiBytes []byte) (err os.Error) {
 	_, err = w.Write([]byte{byte(bitLength >> 8), byte(bitLength)})

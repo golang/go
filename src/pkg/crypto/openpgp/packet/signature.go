@@ -455,10 +455,8 @@ func (sig *Signature) Serialize(w io.Writer) (err os.Error) {
 	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly:
 		sigLength = len(sig.RSASignature)
 	case PubKeyAlgoDSA:
-		sigLength = 2 /* MPI length */
-		sigLength += (sig.DSASigR.BitLen() + 7) / 8
-		sigLength += 2 /* MPI length */
-		sigLength += (sig.DSASigS.BitLen() + 7) / 8
+		sigLength = mpiLength(sig.DSASigR)
+		sigLength += mpiLength(sig.DSASigS)
 	default:
 		panic("impossible")
 	}
