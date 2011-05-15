@@ -376,7 +376,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		rest, err := ioutil.ReadAll(bufr)
 		checkErr(err, "ReadAll on remainder")
 		if e, g := "Next Request Here", string(rest); e != g {
-			fatalf("for chunked=%v remainder = %q, expected %q", g, e)
+			fatalf("remainder = %q, expected %q", g, e)
 		}
 	}
 }
@@ -385,7 +385,7 @@ func diff(t *testing.T, prefix string, have, want interface{}) {
 	hv := reflect.ValueOf(have).Elem()
 	wv := reflect.ValueOf(want).Elem()
 	if hv.Type() != wv.Type() {
-		t.Errorf("%s: type mismatch %v vs %v", prefix, hv.Type(), wv.Type())
+		t.Errorf("%s: type mismatch %v want %v", prefix, hv.Type(), wv.Type())
 	}
 	for i := 0; i < hv.NumField(); i++ {
 		hf := hv.Field(i).Interface()
