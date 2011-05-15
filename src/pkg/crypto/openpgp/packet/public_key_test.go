@@ -72,7 +72,7 @@ func TestPublicKeySerialize(t *testing.T) {
 		serializeBuf := bytes.NewBuffer(nil)
 		err = pk.Serialize(serializeBuf)
 		if err != nil {
-			t.Errorf("#%d: failed to serialize: %s", err)
+			t.Errorf("#%d: failed to serialize: %s", i, err)
 			continue
 		}
 
