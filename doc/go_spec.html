@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of May 13, 2011 -->
+<!-- subtitle Version of May 15, 2011 -->
 
 <!--
 TODO
@@ -4611,7 +4611,7 @@ a source <code>src</code> to a destination <code>dst</code> and returns the
 number of elements copied. Source and destination may overlap.
 Both arguments must have <a href="#Type_identity">identical</a> element type <code>T</code> and must be
 <a href="#Assignability">assignable</a> to a slice of type <code>[]T</code>.
-The number of arguments copied is the minimum of
+The number of elements copied is the minimum of
 <code>len(src)</code> and <code>len(dst)</code>.
 As a special case, <code>copy</code> also accepts a destination argument assignable
 to type <code>[]byte</code> with a source argument of a string type.
