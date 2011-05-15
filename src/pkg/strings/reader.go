@@ -18,10 +18,7 @@ func (r *Reader) Read(b []byte) (n int, err os.Error) {
 	if len(s) == 0 {
 		return 0, os.EOF
 	}
-	for n < len(s) && n < len(b) {
-		b[n] = s[n]
-		n++
-	}
+	n = copy(b, s)
 	*r = s[n:]
 	return
 }
