@@ -26,7 +26,7 @@ struct	Addr
 	int	width;
 	uchar	type;
 	char	name;
-	char	reg;
+	uchar	reg;
 	char pun;
 	uchar	etype;
 };
@@ -41,7 +41,7 @@ struct	Prog
 	Addr	to;		// dst address
 	Prog*	link;		// next instruction in this func
 	void*	regp;		// points to enclosing Reg struct
-	char	reg;		// doubles as width in DATA op
+	uchar	reg;		// doubles as width in DATA op
 	uchar	scond;
 };
 
