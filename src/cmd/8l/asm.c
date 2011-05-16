@@ -104,6 +104,9 @@ needlib(char *name)
 	char *p;
 	Sym *s;
 
+	if(*name == '\0')
+		return 0;
+
 	/* reuse hash code in symbol table */
 	p = smprint(".dynlib.%s", name);
 	s = lookup(p, 0);
