@@ -315,21 +315,21 @@ func (e *encoder) writeDQT() {
 
 // writeSOF0 writes the Start Of Frame (Baseline) marker.
 func (e *encoder) writeSOF0(size image.Point) {
-	markerlen := 8 + 3*nComponent
+	markerlen := 8 + 3*nColorComponent
 	e.writeMarkerHeader(sof0Marker, markerlen)
 	e.buf[0] = 8 // 8-bit color.
 	e.buf[1] = uint8(size.Y >> 8)
 	e.buf[2] = uint8(size.Y & 0xff)
 	e.buf[3] = uint8(size.X >> 8)
 	e.buf[4] = uint8(size.X & 0xff)
-	e.buf[5] = nComponent
-	for i := 0; i < nComponent; i++ {
+	e.buf[5] = nColorComponent
+	for i := 0; i < nColorComponent; i++ {
 		e.buf[3*i+6] = uint8(i + 1)
 		// We use 4:2:0 chroma subsampling.
 		e.buf[3*i+7] = "\x22\x11\x11"[i]
 		e.buf[3*i+8] = "\x00\x01\x01"[i]
 	}
-	e.write(e.buf[:3*(nComponent-1)+9])
+	e.write(e.buf[:3*(nColorComponent-1)+9])
 }
 
 // writeDHT writes the Define Huffman Table marker.
