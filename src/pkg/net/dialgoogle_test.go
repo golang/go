@@ -105,14 +105,12 @@ func TestDialGoogleIPv4(t *testing.T) {
 		doDial(t, "tcp", addr)
 		if addr[0] != '[' {
 			doDial(t, "tcp4", addr)
-			if !preferIPv4 {
-				// make sure preferIPv4 flag works.
-				preferIPv4 = true
+			if supportsIPv6 {
+				// make sure syscall.SocketDisableIPv6 flag works.
 				syscall.SocketDisableIPv6 = true
 				doDial(t, "tcp", addr)
 				doDial(t, "tcp4", addr)
 				syscall.SocketDisableIPv6 = false
-				preferIPv4 = false
 			}
 		}
 	}
@@ -132,7 +130,7 @@ func TestDialGoogleIPv6(t *testing.T) {
 		return
 	}
 	// Only run tcp6 if the kernel will take it.
-	if !*ipv6 || !kernelSupportsIPv6() {
+	if !*ipv6 || !supportsIPv6 {
 		return
 	}
 

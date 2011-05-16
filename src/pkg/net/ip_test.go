@@ -143,3 +143,36 @@ func TestJoinHostPort(t *testing.T) {
 		}
 	}
 }
+
+var ipaftests = []struct {
+	in  IP
+	af4 bool
+	af6 bool
+}{
+	{IPv4bcast, true, false},
+	{IPv4allsys, true, false},
+	{IPv4allrouter, true, false},
+	{IPv4zero, true, false},
+	{IPv4(224, 0, 0, 1), true, false},
+	{IPv4(127, 0, 0, 1), true, false},
+	{IPv4(240, 0, 0, 1), true, false},
+	{IPv6unspecified, false, true},
+	{IPv6loopback, false, true},
+	{IPv6interfacelocalallnodes, false, true},
+	{IPv6linklocalallnodes, false, true},
+	{IPv6linklocalallrouters, false, true},
+	{ParseIP("ff05::a:b:c:d"), false, true},
+	{ParseIP("fe80::1:2:3:4"), false, true},
+	{ParseIP("2001:db8::123:12:1"), false, true},
+}
+
+func TestIPAddrFamily(t *testing.T) {
+	for _, tt := range ipaftests {
+		if af := tt.in.To4() != nil; af != tt.af4 {
+			t.Errorf("verifying IPv4 address family for %#q = %v, want %v", tt.in, af, tt.af4)
+		}
+		if af := len(tt.in) == IPv6len && tt.in.To4() == nil; af != tt.af6 {
+			t.Errorf("verifying IPv6 address family for %#q = %v, want %v", tt.in, af, tt.af6)
+		}
+	}
+}

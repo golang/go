@@ -15,25 +15,86 @@ import (
 // only dealing with IPv4 sockets?  As long as the host system
 // understands IPv6, it's okay to pass IPv4 addresses to the IPv6
 // interface.  That simplifies our code and is most general.
-// Unfortunately, we need to run on kernels built without IPv6 support too.
-// So probe the kernel to figure it out.
-func kernelSupportsIPv6() bool {
-	s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
-	if err != 0 {
-		return false
+// Unfortunately, we need to run on kernels built without IPv6
+// support too.  So probe the kernel to figure it out.
+//
+// probeIPv6Stack probes both basic IPv6 capability and IPv6 IPv4-
+// mapping capability which is controlled by IPV6_V6ONLY socket
+// option and/or kernel state "net.inet6.ip6.v6only".
+// It returns two boolean values.  If the first boolean value is
+// true, kernel supports basic IPv6 functionality.  If the second
+// boolean value is true, kernel supports IPv6 IPv4-mapping.
+func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+	var probes = []struct {
+		s  int
+		la TCPAddr
+		ok bool
+	}{
+		// IPv6 communication capability
+		{-1, TCPAddr{IP: ParseIP("::1")}, false},
+		// IPv6 IPv4-mapped address communication capability
+		{-1, TCPAddr{IP: IPv4(127, 0, 0, 1)}, false},
 	}
-	defer closesocket(s)
+	var errno int
 
-	la := &TCPAddr{IP: IPv4(127, 0, 0, 1)}
-	sa, oserr := la.toAddr().sockaddr(syscall.AF_INET6)
-	if oserr != nil {
-		return false
+	for i := range probes {
+		probes[i].s, errno = syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+		if errno != 0 {
+			continue
+		}
+		defer closesocket(probes[i].s)
+		sa, err := probes[i].la.toAddr().sockaddr(syscall.AF_INET6)
+		if err != nil {
+			continue
+		}
+		errno = syscall.Bind(probes[i].s, sa)
+		if errno != 0 {
+			continue
+		}
+		probes[i].ok = true
 	}
 
-	return syscall.Bind(s, sa) == 0
+	return probes[0].ok, probes[1].ok
 }
 
-var preferIPv4 = !kernelSupportsIPv6()
+var supportsIPv6, supportsIPv4map = probeIPv6Stack()
+
+func favoriteAddrFamily(net string, raddr, laddr sockaddr) (family int) {
+	// Figure out IP version.
+	// If network has a suffix like "tcp4", obey it.
+	family = syscall.AF_INET6
+	switch net[len(net)-1] {
+	case '4':
+		family = syscall.AF_INET
+	case '6':
+		// nothing to do
+	default:
+		// Otherwise, guess.
+		// If the addresses are IPv4, use 4; else 6.
+		if (laddr == nil || laddr.family() == syscall.AF_INET) &&
+			(raddr == nil || raddr.family() == syscall.AF_INET) {
+			family = syscall.AF_INET
+		}
+	}
+	return
+}
+
+func firstFavoriteAddr(filter func(IP) IP, addrs []string) (addr IP) {
+	if filter == anyaddr {
+		// We'll take any IP address, but since the dialing code
+		// does not yet try multiple addresses, prefer to use
+		// an IPv4 address if possible.  This is especially relevant
+		// if localhost resolves to [ipv6-localhost, ipv4-localhost].
+		// Too much code assumes localhost == ipv4-localhost.
+		addr = firstSupportedAddr(ipv4only, addrs)
+		if addr == nil {
+			addr = firstSupportedAddr(anyaddr, addrs)
+		}
+	} else {
+		addr = firstSupportedAddr(filter, addrs)
+	}
+	return
+}
 
 func firstSupportedAddr(filter func(IP) IP, addrs []string) IP {
 	for _, s := range addrs {
@@ -44,19 +105,25 @@ func firstSupportedAddr(filter func(IP) IP, addrs []string) IP {
 	return nil
 }
 
-func anyaddr(x IP) IP  { return x }
+func anyaddr(x IP) IP {
+	if x4 := x.To4(); x4 != nil {
+		return x4
+	}
+	if supportsIPv6 {
+		return x
+	}
+	return nil
+}
+
 func ipv4only(x IP) IP { return x.To4() }
 
 func ipv6only(x IP) IP {
 	// Only return addresses that we can use
 	// with the kernel's IPv6 addressing modes.
-	// If preferIPv4 is set, it means the IPv6 stack
-	// cannot take IPv4 addresses directly (we prefer
-	// to use the IPv4 stack) so reject IPv4 addresses.
-	if x.To4() != nil && preferIPv4 {
-		return nil
+	if len(x) == IPv6len && x.To4() == nil && supportsIPv6 {
+		return x
 	}
-	return x
+	return nil
 }
 
 // TODO(rsc): if syscall.OS == "linux", we're supposd to read
@@ -78,23 +145,8 @@ func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode
 	// Figure out IP version.
 	// If network has a suffix like "tcp4", obey it.
 	var oserr os.Error
-	family := syscall.AF_INET6
-	switch net[len(net)-1] {
-	case '4':
-		family = syscall.AF_INET
-	case '6':
-		// nothing to do
-	default:
-		// Otherwise, guess.
-		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
-		if preferIPv4 &&
-			(laddr == nil || laddr.family() == syscall.AF_INET) &&
-			(raddr == nil || raddr.family() == syscall.AF_INET) {
-			family = syscall.AF_INET
-		}
-	}
-
 	var la, ra syscall.Sockaddr
+	family := favoriteAddrFamily(net, raddr, laddr)
 	if laddr != nil {
 		if la, oserr = laddr.sockaddr(family); oserr != nil {
 			goto Error
@@ -142,13 +194,13 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
 		return s, nil
 	case syscall.AF_INET6:
 		if len(ip) == 0 {
-			ip = IPzero
+			ip = IPv6zero
 		}
 		// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
 		// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
 		// which it refuses to do.  Rewrite to the IPv6 all zeros.
-		if p4 := ip.To4(); p4 != nil && p4[0] == 0 && p4[1] == 0 && p4[2] == 0 && p4[3] == 0 {
-			ip = IPzero
+		if ip.Equal(IPv4zero) {
+			ip = IPv6zero
 		}
 		if ip = ip.To16(); ip == nil {
 			return nil, InvalidAddrError("non-IPv6 address")
@@ -212,9 +264,10 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
 		addr = ParseIP(host)
 		if addr == nil {
 			filter := anyaddr
-			if len(net) >= 4 && net[3] == '4' {
+			if net != "" && net[len(net)-1] == '4' {
 				filter = ipv4only
-			} else if len(net) >= 4 && net[3] == '6' {
+			}
+			if net != "" && net[len(net)-1] == '6' {
 				filter = ipv6only
 			}
 			// Not an IP address.  Try as a DNS name.
@@ -223,22 +276,10 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
 				err = err1
 				goto Error
 			}
-			if filter == anyaddr {
-				// We'll take any IP address, but since the dialing code
-				// does not yet try multiple addresses, prefer to use
-				// an IPv4 address if possible.  This is especially relevant
-				// if localhost resolves to [ipv6-localhost, ipv4-localhost].
-				// Too much code assumes localhost == ipv4-localhost.
-				addr = firstSupportedAddr(ipv4only, addrs)
-				if addr == nil {
-					addr = firstSupportedAddr(anyaddr, addrs)
-				}
-			} else {
-				addr = firstSupportedAddr(filter, addrs)
-			}
+			addr = firstFavoriteAddr(filter, addrs)
 			if addr == nil {
 				// should not happen
-				err = &AddrError{"LookupHost returned invalid address", addrs[0]}
+				err = &AddrError{"LookupHost returned no suitable address", addrs[0]}
 				goto Error
 			}
 		}

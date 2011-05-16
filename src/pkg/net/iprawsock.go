@@ -43,7 +43,7 @@ func (a *IPAddr) family() int {
 	if a == nil || len(a.IP) <= 4 {
 		return syscall.AF_INET
 	}
-	if ip := a.IP.To4(); ip != nil {
+	if a.IP.To4() != nil {
 		return syscall.AF_INET
 	}
 	return syscall.AF_INET6
@@ -61,10 +61,11 @@ func (a *IPAddr) toAddr() sockaddr {
 }
 
 // ResolveIPAddr parses addr as a IP address and resolves domain
-// names to numeric addresses.  A literal IPv6 host address must be
+// names to numeric addresses on the network net, which must be
+// "ip", "ip4" or "ip6".  A literal IPv6 host address must be
 // enclosed in square brackets, as in "[::]".
-func ResolveIPAddr(addr string) (*IPAddr, os.Error) {
-	ip, err := hostToIP(addr)
+func ResolveIPAddr(net, addr string) (*IPAddr, os.Error) {
+	ip, err := hostToIP(net, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -234,31 +235,35 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
 }
 
 // Convert "host" into IP address.
-func hostToIP(host string) (ip IP, err os.Error) {
+func hostToIP(net, host string) (ip IP, err os.Error) {
 	var addr IP
 	// Try as an IP address.
 	addr = ParseIP(host)
 	if addr == nil {
+		filter := anyaddr
+		if net != "" && net[len(net)-1] == '4' {
+			filter = ipv4only
+		}
+		if net != "" && net[len(net)-1] == '6' {
+			filter = ipv6only
+		}
 		// Not an IP address.  Try as a DNS name.
 		addrs, err1 := LookupHost(host)
 		if err1 != nil {
 			err = err1
 			goto Error
 		}
-		addr = firstSupportedAddr(anyaddr, addrs)
+		addr = firstFavoriteAddr(filter, addrs)
 		if addr == nil {
 			// should not happen
-			err = &AddrError{"LookupHost returned invalid address", addrs[0]}
+			err = &AddrError{"LookupHost returned no suitable address", addrs[0]}
 			goto Error
 		}
 	}
-
 	return addr, nil
-
 Error:
 	return nil, err
 }
-
 
 var protocols map[string]int
 
@@ -285,7 +290,7 @@ func readProtocols() {
 	}
 }
 
-func netProtoSplit(netProto string) (net string, proto int, err os.Error) {
+func splitNetProto(netProto string) (net string, proto int, err os.Error) {
 	onceReadProtocols.Do(readProtocols)
 	i := last(netProto, ':')
 	if i < 0 { // no colon
@@ -307,7 +312,7 @@ func netProtoSplit(netProto string) (net string, proto int, err os.Error) {
 // DialIP connects to the remote address raddr on the network net,
 // which must be "ip", "ip4", or "ip6".
 func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err os.Error) {
-	net, proto, err := netProtoSplit(netProto)
+	net, proto, err := splitNetProto(netProto)
 	if err != nil {
 		return
 	}
@@ -331,7 +336,7 @@ func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err os.Error) {
 // and WriteTo methods can be used to receive and send IP
 // packets with per-packet addressing.
 func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err os.Error) {
-	net, proto, err := netProtoSplit(netProto)
+	net, proto, err := splitNetProto(netProto)
 	if err != nil {
 		return
 	}

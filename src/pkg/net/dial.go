@@ -60,7 +60,7 @@ func Dial(net, addr string) (c Conn, err os.Error) {
 		return c, nil
 	case "ip", "ip4", "ip6":
 		var ra *IPAddr
-		if ra, err = ResolveIPAddr(raddr); err != nil {
+		if ra, err = ResolveIPAddr(net, raddr); err != nil {
 			goto Error
 		}
 		c, err := DialIP(net, nil, ra)
@@ -139,12 +139,13 @@ func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
 		return c, nil
 	}
 
-	if i := last(net, ':'); i > 0 {
-		switch net[0:i] {
+	var rawnet string
+	if rawnet, _, err = splitNetProto(net); err != nil {
+		switch rawnet {
 		case "ip", "ip4", "ip6":
 			var la *IPAddr
 			if laddr != "" {
-				if la, err = ResolveIPAddr(laddr); err != nil {
+				if la, err = ResolveIPAddr(rawnet, laddr); err != nil {
 					return nil, err
 				}
 			}
