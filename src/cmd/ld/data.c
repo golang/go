@@ -804,6 +804,10 @@ dodata(void)
 			diag("%s: no size", s->name);
 			t = 1;
 		}
+		if(t >= PtrSize)
+			t = rnd(t, PtrSize);
+		else if(t > 2)
+			t = rnd(t, 4);
 		if(t & 1)
 			;
 		else if(t & 2)
@@ -826,6 +830,10 @@ dodata(void)
 			diag("unexpected symbol type %d", s->type);
 		}
 		t = s->size;
+		if(t >= PtrSize)
+			t = rnd(t, PtrSize);
+		else if(t > 2)
+			t = rnd(t, 4);
 		if(t & 1)
 			;
 		else if(t & 2)

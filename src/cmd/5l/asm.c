@@ -1046,40 +1046,6 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 			o1 |= 1<<22;
 		break;
 
-	case 22:	/* movb/movh/movhu O(R),R -> lr,shl,shr */
-		aclass(&p->from);
-		r = p->from.reg;
-		if(r == NREG)
-			r = o->param;
-		o1 = olr(instoffset, r, p->to.reg, p->scond);
-
-		o2 = oprrr(ASLL, p->scond);
-		o3 = oprrr(ASRA, p->scond);
-		r = p->to.reg;
-		if(p->as == AMOVB) {
-			o2 |= (24<<7)|(r)|(r<<12);
-			o3 |= (24<<7)|(r)|(r<<12);
-		} else {
-			o2 |= (16<<7)|(r)|(r<<12);
-			if(p->as == AMOVHU)
-				o3 = oprrr(ASRL, p->scond);
-			o3 |= (16<<7)|(r)|(r<<12);
-		}
-		break;
-
-	case 23:	/* movh/movhu R,O(R) -> sb,sb */
-		aclass(&p->to);
-		r = p->to.reg;
-		if(r == NREG)
-			r = o->param;
-		o1 = osr(AMOVH, p->from.reg, instoffset, r, p->scond);
-
-		o2 = oprrr(ASRL, p->scond);
-		o2 |= (8<<7)|(p->from.reg)|(REGTMP<<12);
-
-		o3 = osr(AMOVH, REGTMP, instoffset+1, r, p->scond);
-		break;
-
 	case 30:	/* mov/movb/movbu R,L(R) */
 		o1 = omvl(p, &p->to, REGTMP);
 		if(!o1)
@@ -1093,7 +1059,6 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		break;
 
 	case 31:	/* mov/movbu L(R),R -> lr[b] */
-	case 32:	/* movh/movb L(R),R -> lr[b] */
 		o1 = omvl(p, &p->from, REGTMP);
 		if(!o1)
 			break;
@@ -1103,53 +1068,6 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		o2 = olrr(REGTMP,r, p->to.reg, p->scond);
 		if(p->as == AMOVBU || p->as == AMOVB)
 			o2 |= 1<<22;
-		if(o->type == 31)
-			break;
-
-		o3 = oprrr(ASLL, p->scond);
-
-		if(p->as == AMOVBU || p->as == AMOVHU)
-			o4 = oprrr(ASRL, p->scond);
-		else
-			o4 = oprrr(ASRA, p->scond);
-
-		r = p->to.reg;
-		o3 |= (r)|(r<<12);
-		o4 |= (r)|(r<<12);
-		if(p->as == AMOVB || p->as == AMOVBU) {
-			o3 |= (24<<7);
-			o4 |= (24<<7);
-		} else {
-			o3 |= (16<<7);
-			o4 |= (16<<7);
-		}
-		break;
-
-	case 33:	/* movh/movhu R,L(R) -> sb, sb */
-		o1 = omvl(p, &p->to, REGTMP);
-		if(!o1)
-			break;
-		r = p->to.reg;
-		if(r == NREG)
-			r = o->param;
-		o2 = osrr(p->from.reg, REGTMP, r, p->scond);
-		o2 |= (1<<22) ;
-
-		o3 = oprrr(ASRL, p->scond);
-		o3 |= (8<<7)|(p->from.reg)|(p->from.reg<<12);
-		o3 |= (1<<6);	/* ROR 8 */
-
-		o4 = oprrr(AADD, p->scond);
-		o4 |= (REGTMP << 12) | (REGTMP << 16);
-		o4 |= immrot(1);
-
-		o5 = osrr(p->from.reg, REGTMP,r,p->scond);
-		o5 |= (1<<22);
-
-		o6 = oprrr(ASRL, p->scond);
-		o6 |= (24<<7)|(p->from.reg)|(p->from.reg<<12);
-		o6 |= (1<<6);	/* ROL 8 */
-
 		break;
 
 	case 34:	/* mov $lacon,R */
@@ -1360,54 +1278,12 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		break;
 
 	case 65:	/* mov/movbu addr,R */
-	case 66:	/* movh/movhu/movb addr,R */
 		o1 = omvl(p, &p->from, REGTMP);
 		if(!o1)
 			break;
 		o2 = olr(0, REGTMP, p->to.reg, p->scond);
 		if(p->as == AMOVBU || p->as == AMOVB)
 			o2 |= 1<<22;
-		if(o->type == 65)
-			break;
-
-		o3 = oprrr(ASLL, p->scond);
-
-		if(p->as == AMOVBU || p->as == AMOVHU)
-			o4 = oprrr(ASRL, p->scond);
-		else
-			o4 = oprrr(ASRA, p->scond);
-
-		r = p->to.reg;
-		o3 |= (r)|(r<<12);
-		o4 |= (r)|(r<<12);
-		if(p->as == AMOVB || p->as == AMOVBU) {
-			o3 |= (24<<7);
-			o4 |= (24<<7);
-		} else {
-			o3 |= (16<<7);
-			o4 |= (16<<7);
-		}
-		break;
-
-	case 67:	/* movh/movhu R,addr -> sb, sb */
-		o1 = omvl(p, &p->to, REGTMP);
-		if(!o1)
-			break;
-		o2 = osr(p->as, p->from.reg, 0, REGTMP, p->scond);
-
-		o3 = oprrr(ASRL, p->scond);
-		o3 |= (8<<7)|(p->from.reg)|(p->from.reg<<12);
-		o3 |= (1<<6);	/* ROR 8 */
-
-		o4 = oprrr(AADD, p->scond);
-		o4 |= (REGTMP << 12) | (REGTMP << 16);
-		o4 |= immrot(1);
-
-		o5 = osr(p->as, p->from.reg, 0, REGTMP, p->scond);
-
-		o6 = oprrr(ASRL, p->scond);
-		o6 |= (24<<7)|(p->from.reg)|(p->from.reg<<12);
-		o6 |= (1<<6);	/* ROL 8 */
 		break;
 
 	case 68:	/* floating point store -> ADDR */
@@ -1627,6 +1503,22 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
 		o1 |= p->reg << 0;
 		o1 |= p->to.reg << 12;
 		o1 |= (p->scond & C_SCOND) << 28;
+		break;
+	case 93:	/* movb/movh/movhu addr,R -> ldrsb/ldrsh/ldrh */
+		o1 = omvl(p, &p->from, REGTMP);
+		if(!o1)
+			break;
+		o2 = olhr(0, REGTMP, p->to.reg, p->scond);
+		if(p->as == AMOVB)
+			o2 ^= (1<<5)|(1<<6);
+		else if(p->as == AMOVH)
+			o2 ^= (1<<6);
+		break;
+	case 94:	/* movh/movhu R,addr -> strh */
+		o1 = omvl(p, &p->to, REGTMP);
+		if(!o1)
+			break;
+		o2 = oshr(p->from.reg, 0, REGTMP, p->scond);
 		break;
 	}
 	
