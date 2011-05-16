@@ -44,6 +44,15 @@ func decode(filename string) (image.Image, string, os.Error) {
 	return image.Decode(bufio.NewReader(f))
 }
 
+func decodeConfig(filename string) (image.Config, string, os.Error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return image.Config{}, "", err
+	}
+	defer f.Close()
+	return image.DecodeConfig(bufio.NewReader(f))
+}
+
 func delta(u0, u1 uint32) int {
 	d := int(u0) - int(u1)
 	if d < 0 {
@@ -69,7 +78,7 @@ func TestDecode(t *testing.T) {
 	}
 loop:
 	for _, it := range imageTests {
-		m, _, err := decode(it.filename)
+		m, imageFormat, err := decode(it.filename)
 		if err != nil {
 			t.Errorf("%s: %v", it.filename, err)
 			continue loop
@@ -86,6 +95,17 @@ loop:
 					continue loop
 				}
 			}
+		}
+		if imageFormat == "gif" {
+			// Each frame of a GIF can have a frame-local palette override the
+			// GIF-global palette. Thus, image.Decode can yield a different ColorModel
+			// than image.DecodeConfig.
+			continue
+		}
+		c, _, err := decodeConfig(it.filename)
+		if m.ColorModel() != c.ColorModel {
+			t.Errorf("%s: color models differ", it.filename)
+			continue loop
 		}
 	}
 }
