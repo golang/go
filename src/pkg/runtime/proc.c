@@ -714,7 +714,7 @@ runtime·oldstack(void)
 	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
 
 	if(old.free != 0)
-		runtime·stackfree(g1->stackguard - StackGuard - StackSystem, old.free);
+		runtime·stackfree(g1->stackguard - StackGuard, old.free);
 	g1->stackbase = old.stackbase;
 	g1->stackguard = old.stackguard;
 
@@ -756,7 +756,7 @@ runtime·newstack(void)
 		// the new Stktop* is necessary to unwind, but
 		// we don't need to create a new segment.
 		top = (Stktop*)(m->morebuf.sp - sizeof(*top));
-		stk = g1->stackguard - StackGuard - StackSystem;
+		stk = g1->stackguard - StackGuard;
 		free = 0;
 	} else {
 		// allocate new segment.
@@ -785,7 +785,7 @@ runtime·newstack(void)
 	g1->ispanic = false;
 
 	g1->stackbase = (byte*)top;
-	g1->stackguard = stk + StackGuard + StackSystem;
+	g1->stackguard = stk + StackGuard;
 
 	sp = (byte*)top;
 	if(argsize > 0) {
@@ -834,7 +834,7 @@ runtime·malg(int32 stacksize)
 			g->param = nil;
 		}
 		newg->stack0 = stk;
-		newg->stackguard = stk + StackSystem + StackGuard;
+		newg->stackguard = stk + StackGuard;
 		newg->stackbase = stk + StackSystem + stacksize - sizeof(Stktop);
 		runtime·memclr(newg->stackbase, sizeof(Stktop));
 	}
@@ -880,7 +880,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 
 	if((newg = gfget()) != nil){
 		newg->status = Gwaiting;
-		if(newg->stackguard - StackGuard - StackSystem != newg->stack0)
+		if(newg->stackguard - StackGuard != newg->stack0)
 			runtime·throw("invalid stack in newg");
 	} else {
 		newg = runtime·malg(StackMin);
@@ -1165,7 +1165,7 @@ nomatch:
 static void
 gfput(G *g)
 {
-	if(g->stackguard - StackGuard - StackSystem != g->stack0)
+	if(g->stackguard - StackGuard != g->stack0)
 		runtime·throw("invalid stack in gfput");
 	g->schedlink = runtime·sched.gfree;
 	runtime·sched.gfree = g;

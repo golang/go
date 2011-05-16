@@ -53,6 +53,16 @@ functions to make sure that this limit cannot be violated.
  */
 
 enum {
+	// StackSystem is a number of additional bytes to add
+	// to each stack below the usual guard area for OS-specific
+	// purposes like signal handling. Used on Windows because
+	// it does not use a separate stack.
+#ifdef __WINDOWS__
+	StackSystem = 2048,
+#else
+	StackSystem = 0,
+#endif
+
 	// The amount of extra stack to allocate beyond the size
 	// needed for the single frame that triggered the split.
 	StackExtra = 1024,
@@ -73,7 +83,7 @@ enum {
 
 	// The stack guard is a pointer this many bytes above the
 	// bottom of the stack.
-	StackGuard = 256,
+	StackGuard = 256 + StackSystem,
 
 	// After a stack split check the SP is allowed to be this
 	// many bytes below the stack guard.  This saves an instruction
@@ -82,5 +92,5 @@ enum {
 
 	// The maximum number of bytes that a chain of NOSPLIT
 	// functions can use.
-	StackLimit = StackGuard - StackSmall,
+	StackLimit = StackGuard - StackSystem - StackSmall,
 };
