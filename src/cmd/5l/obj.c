@@ -219,7 +219,7 @@ main(int argc, char *argv[])
 		elfinit();
 		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)
-			INITTEXT = 0x8000 + HEADR;
+			INITTEXT = 0x10000 + HEADR;
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)
