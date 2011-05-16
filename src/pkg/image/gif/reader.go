@@ -191,6 +191,10 @@ Loop:
 			if c != 0 {
 				return os.ErrorString("gif: extra data after image")
 			}
+
+			// Undo the interlacing if necessary.
+			d.uninterlace(m)
+
 			d.image = append(d.image, m)
 			d.delay = append(d.delay, d.delayTime)
 			d.delayTime = 0 // TODO: is this correct, or should we hold on to the value?
@@ -321,14 +325,14 @@ func (d *decoder) newImageFromDescriptor() (*image.Paletted, os.Error) {
 	if _, err := io.ReadFull(d.r, d.tmp[0:9]); err != nil {
 		return nil, fmt.Errorf("gif: can't read image descriptor: %s", err)
 	}
+	// TODO: This code (throughout) ignores the top and left values,
+	// and assumes (in interlacing, for example) that the images'
+	// widths and heights are all the same.
 	_ = int(d.tmp[0]) + int(d.tmp[1])<<8 // TODO: honor left value
 	_ = int(d.tmp[2]) + int(d.tmp[3])<<8 // TODO: honor top value
 	width := int(d.tmp[4]) + int(d.tmp[5])<<8
 	height := int(d.tmp[6]) + int(d.tmp[7])<<8
 	d.imageFields = d.tmp[8]
-	if d.imageFields&ifInterlace != 0 {
-		return nil, os.ErrorString("gif: can't handle interlaced images")
-	}
 	return image.NewPaletted(width, height, nil), nil
 }
 
@@ -340,9 +344,42 @@ func (d *decoder) readBlock() (int, os.Error) {
 	return io.ReadFull(d.r, d.tmp[0:n])
 }
 
+// interlaceScan defines the ordering for a pass of the interlace algorithm.
+type interlaceScan struct {
+	skip, start int
+}
+
+// interlacing represents the set of scans in an interlaced GIF image.
+var interlacing = []interlaceScan{
+	{8, 0}, // Group 1 : Every 8th. row, starting with row 0.
+	{8, 4}, // Group 2 : Every 8th. row, starting with row 4.
+	{4, 2}, // Group 3 : Every 4th. row, starting with row 2.
+	{2, 1}, // Group 4 : Every 2nd. row, starting with row 1.
+}
+
+func (d *decoder) uninterlace(m *image.Paletted) {
+	if d.imageFields&ifInterlace == 0 {
+		return
+	}
+	var nPix []uint8
+	dx := d.width
+	dy := d.height
+	nPix = make([]uint8, dx*dy)
+	offset := 0 // steps through the input by sequentical scan lines.
+	for _, pass := range interlacing {
+		nOffset := pass.start * dx // steps through the output as defined by pass.
+		for y := pass.start; y < dy; y += pass.skip {
+			copy(nPix[nOffset:nOffset+dx], m.Pix[offset:offset+dx])
+			offset += dx
+			nOffset += dx * pass.skip
+		}
+	}
+	m.Pix = nPix
+}
+
 // Decode reads a GIF image from r and returns the first embedded
 // image as an image.Image.
-// Limitation: The file must be 8 bits per pixel and have no interlacing.
+// Limitation: The file must be 8 bits per pixel.
 func Decode(r io.Reader) (image.Image, os.Error) {
 	var d decoder
 	if err := d.decode(r, false); err != nil {
@@ -360,7 +397,7 @@ type GIF struct {
 
 // DecodeAll reads a GIF image from r and returns the sequential frames
 // and timing information.
-// Limitation: The file must be 8 bits per pixel and have no interlacing.
+// Limitation: The file must be 8 bits per pixel.
 func DecodeAll(r io.Reader) (*GIF, os.Error) {
 	var d decoder
 	if err := d.decode(r, false); err != nil {
