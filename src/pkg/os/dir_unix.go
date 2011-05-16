@@ -12,30 +12,40 @@ const (
 	blockSize = 4096
 )
 
-// Readdirnames reads the contents of the directory associated with file and
-// returns an array of up to count names, in directory order.  Subsequent
-// calls on the same file will yield further names.
-// A negative count means to read until EOF.
-// Readdirnames returns the array and an Error, if any.
-func (file *File) Readdirnames(count int) (names []string, err Error) {
+// Readdirnames reads and returns a slice of names from the directory f.
+//
+// If n > 0, Readdirnames returns at most n names. In this case, if
+// Readdirnames returns an empty slice, it will return a non-nil error
+// explaining why. At the end of a directory, the error is os.EOF.
+//
+// If n <= 0, Readdirnames returns all the names from the directory in
+// a single slice. In this case, if Readdirnames succeeds (reads all
+// the way to the end of the directory), it returns the slice and a
+// nil os.Error. If it encounters an error before the end of the
+// directory, Readdirnames returns the names read until that point and
+// a non-nil error.
+func (f *File) Readdirnames(n int) (names []string, err Error) {
 	// If this file has no dirinfo, create one.
-	if file.dirinfo == nil {
-		file.dirinfo = new(dirInfo)
+	if f.dirinfo == nil {
+		f.dirinfo = new(dirInfo)
 		// The buffer must be at least a block long.
-		file.dirinfo.buf = make([]byte, blockSize)
+		f.dirinfo.buf = make([]byte, blockSize)
 	}
-	d := file.dirinfo
-	size := count
+	d := f.dirinfo
+	wantAll := n < 0
+
+	size := n
 	if size < 0 {
 		size = 100
 	}
+
 	names = make([]string, 0, size) // Empty with room to grow.
-	for count != 0 {
+	for n != 0 {
 		// Refill the buffer if necessary
 		if d.bufp >= d.nbuf {
 			d.bufp = 0
 			var errno int
-			d.nbuf, errno = syscall.ReadDirent(file.fd, d.buf)
+			d.nbuf, errno = syscall.ReadDirent(f.fd, d.buf)
 			if errno != 0 {
 				return names, NewSyscallError("readdirent", errno)
 			}
@@ -46,9 +56,12 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
 
 		// Drain the buffer
 		var nb, nc int
-		nb, nc, names = syscall.ParseDirent(d.buf[d.bufp:d.nbuf], count, names)
+		nb, nc, names = syscall.ParseDirent(d.buf[d.bufp:d.nbuf], n, names)
 		d.bufp += nb
-		count -= nc
+		n -= nc
+	}
+	if !wantAll && len(names) == 0 {
+		return names, EOF
 	}
 	return names, nil
 }

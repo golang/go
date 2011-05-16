@@ -124,11 +124,20 @@ func (file *File) Stat() (fi *FileInfo, err Error) {
 
 // Readdir reads the contents of the directory associated with file and
 // returns an array of up to count FileInfo structures, as would be returned
-// by Lstat, in directory order.  Subsequent calls on the same file will yield
+// by Lstat, in directory order. Subsequent calls on the same file will yield
 // further FileInfos.
-// A negative count means to read until EOF.
-// Readdir returns the array and an Error, if any.
-func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+//
+// If n > 0, Readdir returns at most n names. In this case, if
+// Readdirnames returns an empty slice, it will return a non-nil error
+// explaining why. At the end of a directory, the error is os.EOF.
+//
+// If n <= 0, Readdir returns all the FileInfo from the directory in
+// a single slice. In this case, if Readdir succeeds (reads all
+// the way to the end of the directory), it returns the slice and a
+// nil os.Error. If it encounters an error before the end of the
+// directory, Readdir returns the FileInfo read until that point
+// and a non-nil error.
+func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
 	if file == nil || file.fd < 0 {
 		return nil, EINVAL
 	}
@@ -136,12 +145,13 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 		return nil, &PathError{"Readdir", file.name, ENOTDIR}
 	}
 	di := file.dirinfo
-	size := count
+	wantAll := n < 0
+	size := n
 	if size < 0 {
 		size = 100
 	}
 	fi = make([]FileInfo, 0, size) // Empty with room to grow.
-	for count != 0 {
+	for n != 0 {
 		if di.usefirststat {
 			di.usefirststat = false
 		} else {
@@ -150,7 +160,11 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 				if e == syscall.ERROR_NO_MORE_FILES {
 					break
 				} else {
-					return nil, &PathError{"FindNextFile", file.name, Errno(e)}
+					err = &PathError{"FindNextFile", file.name, Errno(e)}
+					if !wantAll {
+						fi = nil
+					}
+					return
 				}
 			}
 		}
@@ -159,8 +173,11 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
 		if f.Name == "." || f.Name == ".." { // Useless names
 			continue
 		}
-		count--
+		n--
 		fi = append(fi, f)
+	}
+	if !wantAll && len(fi) == 0 {
+		return fi, EOF
 	}
 	return fi, nil
 }

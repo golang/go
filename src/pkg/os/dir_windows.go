@@ -4,14 +4,16 @@
 
 package os
 
-func (file *File) Readdirnames(count int) (names []string, err Error) {
-	fis, e := file.Readdir(count)
-	if e != nil {
-		return nil, e
+func (file *File) Readdirnames(n int) (names []string, err Error) {
+	fis, err := file.Readdir(n)
+	// If n > 0 and we get an error, we return now.
+	// If n < 0, we return whatever we got + any error.
+	if n > 0 && e != nil {
+		return nil, err
 	}
 	names = make([]string, len(fis))
 	for i, fi := range fis {
 		names[i] = fi.Name
 	}
-	return names, nil
+	return names, err
 }

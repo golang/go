@@ -95,6 +95,9 @@ func RemoveAll(path string) Error {
 				err = err1
 			}
 		}
+		if err1 == EOF {
+			break
+		}
 		// If Readdirnames returned an error, use it.
 		if err == nil {
 			err = err1
