@@ -29,6 +29,7 @@ var imageTests = []imageTest{
 	// GIF images are restricted to a 256-color palette and the conversion
 	// to GIF loses significant image quality.
 	{"testdata/video-001.gif", 64 << 8},
+	{"testdata/video-001.interlaced.gif", 64 << 8},
 	// JPEG is a lossy format and hence needs a non-zero tolerance.
 	{"testdata/video-001.jpeg", 8 << 8},
 	{"testdata/video-001.png", 0},
