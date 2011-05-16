@@ -597,17 +597,3 @@ int32	runtime·chancap(Hchan*);
 
 void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);
 
-enum
-{
-	// StackSystem is a number of additional bytes to add
-	// to each stack below the usual guard area for OS-specific
-	// purposes like signal handling.
-	// TODO(rsc): This is only for Windows.  Can't Windows use
-	// a separate exception stack like every other operating system?
-#ifdef __WINDOWS__
-	StackSystem = 2048,
-#else
-	StackSystem = 0,
-#endif
-};
-
