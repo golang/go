@@ -109,8 +109,10 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 
 func TestTCPServer(t *testing.T) {
 	doTest(t, "tcp", "127.0.0.1", "127.0.0.1")
-	if kernelSupportsIPv6() {
+	if supportsIPv6 {
 		doTest(t, "tcp", "[::1]", "[::1]")
+	}
+	if supportsIPv6 && supportsIPv4map {
 		doTest(t, "tcp", "127.0.0.1", "[::ffff:127.0.0.1]")
 	}
 }
@@ -186,7 +188,7 @@ func TestUDPServer(t *testing.T) {
 	for _, isEmpty := range []bool{false, true} {
 		doTestPacket(t, "udp", "0.0.0.0", "127.0.0.1", isEmpty)
 		doTestPacket(t, "udp", "", "127.0.0.1", isEmpty)
-		if kernelSupportsIPv6() {
+		if supportsIPv6 && supportsIPv4map {
 			doTestPacket(t, "udp", "[::]", "[::ffff:127.0.0.1]", isEmpty)
 			doTestPacket(t, "udp", "[::]", "127.0.0.1", isEmpty)
 			doTestPacket(t, "udp", "0.0.0.0", "[::ffff:127.0.0.1]", isEmpty)

@@ -41,7 +41,7 @@ func (a *UDPAddr) family() int {
 	if a == nil || len(a.IP) <= 4 {
 		return syscall.AF_INET
 	}
-	if ip := a.IP.To4(); ip != nil {
+	if a.IP.To4() != nil {
 		return syscall.AF_INET
 	}
 	return syscall.AF_INET6
@@ -60,10 +60,11 @@ func (a *UDPAddr) toAddr() sockaddr {
 
 // ResolveUDPAddr parses addr as a UDP address of the form
 // host:port and resolves domain names or port names to
-// numeric addresses.  A literal IPv6 host address must be
+// numeric addresses on the network net, which must be "udp",
+// "udp4" or "udp6".  A literal IPv6 host address must be
 // enclosed in square brackets, as in "[::]:80".
-func ResolveUDPAddr(network, addr string) (*UDPAddr, os.Error) {
-	ip, port, err := hostPortToIP(network, addr)
+func ResolveUDPAddr(net, addr string) (*UDPAddr, os.Error) {
+	ip, port, err := hostPortToIP(net, addr)
 	if err != nil {
 		return nil, err
 	}

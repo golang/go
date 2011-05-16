@@ -62,7 +62,7 @@ func TestFileListener(t *testing.T) {
 	}
 	testFileListener(t, "tcp", "127.0.0.1")
 	testFileListener(t, "tcp", "127.0.0.1")
-	if kernelSupportsIPv6() {
+	if supportsIPv6 && supportsIPv4map {
 		testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
 		testFileListener(t, "tcp", "127.0.0.1")
 		testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
@@ -121,8 +121,10 @@ func TestFilePacketConn(t *testing.T) {
 	}
 	testFilePacketConnListen(t, "udp", "127.0.0.1:0")
 	testFilePacketConnDial(t, "udp", "127.0.0.1:12345")
-	if kernelSupportsIPv6() {
+	if supportsIPv6 {
 		testFilePacketConnListen(t, "udp", "[::1]:0")
+	}
+	if supportsIPv6 && supportsIPv4map {
 		testFilePacketConnDial(t, "udp", "[::ffff:127.0.0.1]:12345")
 	}
 	if syscall.OS == "linux" {
