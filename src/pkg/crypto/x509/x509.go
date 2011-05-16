@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"container/vector"
 	"crypto"
+	"crypto/dsa"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509/crl"
@@ -168,8 +169,13 @@ type tbsCertificate struct {
 	Extensions         []extension    "optional,explicit,tag:3"
 }
 
+type dsaAlgorithmParameters struct {
+	P, Q, G asn1.RawValue
+}
+
 type algorithmIdentifier struct {
-	Algorithm asn1.ObjectIdentifier
+	Algorithm  asn1.ObjectIdentifier
+	Parameters asn1.RawValue "optional"
 }
 
 type rdnSequence []relativeDistinguishedNameSET
@@ -219,6 +225,7 @@ type PublicKeyAlgorithm int
 const (
 	UnknownPublicKeyAlgorithm PublicKeyAlgorithm = iota
 	RSA
+	DSA
 )
 
 // Name represents an X.509 distinguished name. This only includes the common
@@ -337,15 +344,27 @@ func getSignatureAlgorithmFromOID(oid []int) SignatureAlgorithm {
 	return UnknownSignatureAlgorithm
 }
 
-func getPublicKeyAlgorithmFromOID(oid []int) PublicKeyAlgorithm {
-	if len(oid) == 7 && oid[0] == 1 && oid[1] == 2 && oid[2] == 840 &&
-		oid[3] == 113549 && oid[4] == 1 && oid[5] == 1 {
-		switch oid[6] {
-		case 1:
-			return RSA
-		}
-	}
+// RFC 3279, 2.3 Public Key Algorithms
+//
+// pkcs-1 OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
+//    rsadsi(113549) pkcs(1) 1 }
+//
+// rsaEncryption OBJECT IDENTIFIER ::== { pkcs1-1 1 }
+//
+// id-dsa OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
+//    x9-57(10040) x9cm(4) 1 }
+var (
+	oidPublicKeyRsa = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
+	oidPublicKeyDsa = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
+)
 
+func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm {
+	switch {
+	case oid.Equal(oidPublicKeyRsa):
+		return RSA
+	case oid.Equal(oidPublicKeyDsa):
+		return DSA
+	}
 	return UnknownPublicKeyAlgorithm
 }
 
@@ -562,7 +581,8 @@ type generalSubtree struct {
 	Max  int    "optional,tag:1"
 }
 
-func parsePublicKey(algo PublicKeyAlgorithm, asn1Data []byte) (interface{}, os.Error) {
+func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{}, os.Error) {
+	asn1Data := keyData.PublicKey.RightAlign()
 	switch algo {
 	case RSA:
 		p := new(rsaPublicKey)
@@ -580,10 +600,38 @@ func parsePublicKey(algo PublicKeyAlgorithm, asn1Data []byte) (interface{}, os.E
 			N: new(big.Int).SetBytes(p.N.Bytes),
 		}
 		return pub, nil
+	case DSA:
+		p := new(asn1.RawValue)
+		_, err := asn1.Unmarshal(asn1Data, p)
+		if err != nil {
+			return nil, err
+		}
+		if !rawValueIsInteger(p) {
+			return nil, asn1.StructuralError{"tags don't match"}
+		}
+		paramsData := keyData.Algorithm.Parameters.FullBytes
+		params := new(dsaAlgorithmParameters)
+		_, err = asn1.Unmarshal(paramsData, params)
+		if err != nil {
+			return nil, err
+		}
+		if !rawValueIsInteger(&params.P) ||
+			!rawValueIsInteger(&params.Q) ||
+			!rawValueIsInteger(&params.G) {
+			return nil, asn1.StructuralError{"tags don't match"}
+		}
+		pub := &dsa.PublicKey{
+			Parameters: dsa.Parameters{
+				P: new(big.Int).SetBytes(params.P.Bytes),
+				Q: new(big.Int).SetBytes(params.Q.Bytes),
+				G: new(big.Int).SetBytes(params.G.Bytes),
+			},
+			Y: new(big.Int).SetBytes(p.Bytes),
+		}
+		return pub, nil
 	default:
 		return nil, nil
 	}
-
 	panic("unreachable")
 }
 
@@ -600,7 +648,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 	out.PublicKeyAlgorithm =
 		getPublicKeyAlgorithmFromOID(in.TBSCertificate.PublicKey.Algorithm.Algorithm)
 	var err os.Error
-	out.PublicKey, err = parsePublicKey(out.PublicKeyAlgorithm, in.TBSCertificate.PublicKey.PublicKey.RightAlign())
+	out.PublicKey, err = parsePublicKey(out.PublicKeyAlgorithm, &in.TBSCertificate.PublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -1004,11 +1052,11 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
 	c := tbsCertificate{
 		Version:            2,
 		SerialNumber:       asn1.RawValue{Bytes: template.SerialNumber, Tag: 2},
-		SignatureAlgorithm: algorithmIdentifier{oidSHA1WithRSA},
+		SignatureAlgorithm: algorithmIdentifier{Algorithm: oidSHA1WithRSA},
 		Issuer:             parent.Subject.toRDNSequence(),
 		Validity:           validity{template.NotBefore, template.NotAfter},
 		Subject:            template.Subject.toRDNSequence(),
-		PublicKey:          publicKeyInfo{nil, algorithmIdentifier{oidRSA}, encodedPublicKey},
+		PublicKey:          publicKeyInfo{nil, algorithmIdentifier{Algorithm: oidRSA}, encodedPublicKey},
 		Extensions:         extensions,
 	}
 
@@ -1031,7 +1079,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
 	cert, err = asn1.Marshal(certificate{
 		nil,
 		c,
-		algorithmIdentifier{oidSHA1WithRSA},
+		algorithmIdentifier{Algorithm: oidSHA1WithRSA},
 		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
 	})
 	return
