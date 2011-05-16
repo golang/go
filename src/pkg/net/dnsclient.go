@@ -398,10 +398,49 @@ type SRV struct {
 	Weight   uint16
 }
 
+// byPriorityWeight sorts SRV records by ascending priority and weight.
+type byPriorityWeight []*SRV
+
+func (s byPriorityWeight) Len() int { return len(s) }
+
+func (s byPriorityWeight) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+func (s byPriorityWeight) Less(i, j int) bool {
+	return s[i].Priority < s[j].Priority ||
+		(s[i].Priority == s[j].Priority && s[i].Weight < s[j].Weight)
+}
+
+// shuffleSRVByWeight shuffles SRV records by weight using the algorithm
+// described in RFC 2782.  
+func shuffleSRVByWeight(addrs []*SRV) {
+	sum := 0
+	for _, addr := range addrs {
+		sum += int(addr.Weight)
+	}
+	for sum > 0 && len(addrs) > 1 {
+		s := 0
+		n := rand.Intn(sum + 1)
+		for i := range addrs {
+			s += int(addrs[i].Weight)
+			if s >= n {
+				if i > 0 {
+					t := addrs[i]
+					copy(addrs[1:i+1], addrs[0:i])
+					addrs[0] = t
+				}
+				break
+			}
+		}
+		sum -= int(addrs[0].Weight)
+		addrs = addrs[1:]
+	}
+}
+
 // LookupSRV tries to resolve an SRV query of the given service,
 // protocol, and domain name, as specified in RFC 2782. In most cases
 // the proto argument can be the same as the corresponding
-// Addr.Network().
+// Addr.Network(). The returned records are sorted by priority 
+// and randomized by weight within a priority.
 func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.Error) {
 	target := "_" + service + "._" + proto + "." + name
 	var records []dnsRR
@@ -414,6 +453,15 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.
 		r := rr.(*dnsRR_SRV)
 		addrs[i] = &SRV{r.Target, r.Port, r.Priority, r.Weight}
 	}
+	sort.Sort(byPriorityWeight(addrs))
+	i := 0
+	for j := 1; j < len(addrs); j++ {
+		if addrs[i].Priority != addrs[j].Priority {
+			shuffleSRVByWeight(addrs[i:j])
+			i = j
+		}
+	}
+	shuffleSRVByWeight(addrs[i:len(addrs)])
 	return
 }
 
