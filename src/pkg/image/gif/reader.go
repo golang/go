@@ -173,11 +173,10 @@ Loop:
 			if err != nil {
 				return err
 			}
-			if litWidth > 8 {
+			if litWidth < 2 || litWidth > 8 {
 				return fmt.Errorf("gif: pixel size in decode out of range: %d", litWidth)
 			}
-			// A wonderfully Go-like piece of magic. Unfortunately it's only at its
-			// best for 8-bit pixels.
+			// A wonderfully Go-like piece of magic.
 			lzwr := lzw.NewReader(&blockReader{r: d.r}, lzw.LSB, int(litWidth))
 			if _, err = io.ReadFull(lzwr, m.Pix); err != nil {
 				break
@@ -379,7 +378,6 @@ func (d *decoder) uninterlace(m *image.Paletted) {
 
 // Decode reads a GIF image from r and returns the first embedded
 // image as an image.Image.
-// Limitation: The file must be 8 bits per pixel.
 func Decode(r io.Reader) (image.Image, os.Error) {
 	var d decoder
 	if err := d.decode(r, false); err != nil {
@@ -397,7 +395,6 @@ type GIF struct {
 
 // DecodeAll reads a GIF image from r and returns the sequential frames
 // and timing information.
-// Limitation: The file must be 8 bits per pixel.
 func DecodeAll(r io.Reader) (*GIF, os.Error) {
 	var d decoder
 	if err := d.decode(r, false); err != nil {
