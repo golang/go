@@ -984,6 +984,142 @@ func testBitFunSelf(t *testing.T, msg string, f bitFun, x, y *Int, exp string) {
 	}
 }
 
+func altBit(x *Int, i int) uint {
+	z := new(Int).Rsh(x, uint(i))
+	z = z.And(z, NewInt(1))
+	if z.Cmp(new(Int)) != 0 {
+		return 1
+	}
+	return 0
+}
+
+func altSetBit(z *Int, x *Int, i int, b uint) *Int {
+	one := NewInt(1)
+	m := one.Lsh(one, uint(i))
+	switch b {
+	case 1:
+		return z.Or(x, m)
+	case 0:
+		return z.AndNot(x, m)
+	}
+	panic("set bit is not 0 or 1")
+}
+
+func testBitset(t *testing.T, x *Int) {
+	n := x.BitLen()
+	z := new(Int).Set(x)
+	z1 := new(Int).Set(x)
+	for i := 0; i < n+10; i++ {
+		old := z.Bit(i)
+		old1 := altBit(z1, i)
+		if old != old1 {
+			t.Errorf("bitset: inconsistent value for Bit(%s, %d), got %v want %v", z1, i, old, old1)
+		}
+		z := new(Int).SetBit(z, i, 1)
+		z1 := altSetBit(new(Int), z1, i, 1)
+		if z.Bit(i) == 0 {
+			t.Errorf("bitset: bit %d of %s got 0 want 1", i, x)
+		}
+		if z.Cmp(z1) != 0 {
+			t.Errorf("bitset: inconsistent value after SetBit 1, got %s want %s", z, z1)
+		}
+		z.SetBit(z, i, 0)
+		altSetBit(z1, z1, i, 0)
+		if z.Bit(i) != 0 {
+			t.Errorf("bitset: bit %d of %s got 1 want 0", i, x)
+		}
+		if z.Cmp(z1) != 0 {
+			t.Errorf("bitset: inconsistent value after SetBit 0, got %s want %s", z, z1)
+		}
+		altSetBit(z1, z1, i, old)
+		z.SetBit(z, i, old)
+		if z.Cmp(z1) != 0 {
+			t.Errorf("bitset: inconsistent value after SetBit old, got %s want %s", z, z1)
+		}
+	}
+	if z.Cmp(x) != 0 {
+		t.Errorf("bitset: got %s want %s", z, x)
+	}
+}
+
+var bitsetTests = []struct {
+	x string
+	i int
+	b uint
+}{
+	{"0", 0, 0},
+	{"0", 200, 0},
+	{"1", 0, 1},
+	{"1", 1, 0},
+	{"-1", 0, 1},
+	{"-1", 200, 1},
+	{"0x2000000000000000000000000000", 108, 0},
+	{"0x2000000000000000000000000000", 109, 1},
+	{"0x2000000000000000000000000000", 110, 0},
+	{"-0x2000000000000000000000000001", 108, 1},
+	{"-0x2000000000000000000000000001", 109, 0},
+	{"-0x2000000000000000000000000001", 110, 1},
+}
+
+func TestBitSet(t *testing.T) {
+	for _, test := range bitwiseTests {
+		x := new(Int)
+		x.SetString(test.x, 0)
+		testBitset(t, x)
+		x = new(Int)
+		x.SetString(test.y, 0)
+		testBitset(t, x)
+	}
+	for i, test := range bitsetTests {
+		x := new(Int)
+		x.SetString(test.x, 0)
+		b := x.Bit(test.i)
+		if b != test.b {
+
+			t.Errorf("#%d want %v got %v", i, test.b, b)
+		}
+	}
+}
+
+func BenchmarkBitset(b *testing.B) {
+	z := new(Int)
+	z.SetBit(z, 512, 1)
+	b.ResetTimer()
+	b.StartTimer()
+	for i := b.N - 1; i >= 0; i-- {
+		z.SetBit(z, i&512, 1)
+	}
+}
+
+func BenchmarkBitsetNeg(b *testing.B) {
+	z := NewInt(-1)
+	z.SetBit(z, 512, 0)
+	b.ResetTimer()
+	b.StartTimer()
+	for i := b.N - 1; i >= 0; i-- {
+		z.SetBit(z, i&512, 0)
+	}
+}
+
+func BenchmarkBitsetOrig(b *testing.B) {
+	z := new(Int)
+	altSetBit(z, z, 512, 1)
+	b.ResetTimer()
+	b.StartTimer()
+	for i := b.N - 1; i >= 0; i-- {
+		altSetBit(z, z, i&512, 1)
+	}
+}
+
+func BenchmarkBitsetNegOrig(b *testing.B) {
+	z := NewInt(-1)
+	altSetBit(z, z, 512, 0)
+	b.ResetTimer()
+	b.StartTimer()
+	for i := b.N - 1; i >= 0; i-- {
+		altSetBit(z, z, i&512, 0)
+	}
+}
 
 func TestBitwise(t *testing.T) {
 	x := new(Int)

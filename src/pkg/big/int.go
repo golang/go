@@ -560,6 +560,42 @@ func (z *Int) Rsh(x *Int, n uint) *Int {
 }
 
 
+// Bit returns the value of the i'th bit of z. That is, it
+// returns (z>>i)&1. The bit index i must be >= 0.
+func (z *Int) Bit(i int) uint {
+	if i < 0 {
+		panic("negative bit index")
+	}
+	if z.neg {
+		t := nat{}.sub(z.abs, natOne)
+		return t.bit(uint(i)) ^ 1
+	}
+
+	return z.abs.bit(uint(i))
+}
+
+
+// SetBit sets the i'th bit of z to bit and returns z.
+// That is, if bit is 1 SetBit sets z = x | (1 << i);
+// if bit is 0 it sets z = x &^ (1 << i). If bit is not 0 or 1,
+// SetBit will panic.
+func (z *Int) SetBit(x *Int, i int, b uint) *Int {
+	if i < 0 {
+		panic("negative bit index")
+	}
+	if x.neg {
+		t := z.abs.sub(x.abs, natOne)
+		t = t.setBit(t, uint(i), b^1)
+		z.abs = t.add(t, natOne)
+		z.neg = len(z.abs) > 0
+		return z
+	}
+	z.abs = z.abs.setBit(x.abs, uint(i), b)
+	z.neg = false
+	return z
+}
+
+
 // And sets z = x & y and returns z.
 func (z *Int) And(x, y *Int) *Int {
 	if x.neg == y.neg {

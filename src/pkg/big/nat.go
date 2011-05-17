@@ -773,6 +773,43 @@ func (z nat) shr(x nat, s uint) nat {
 }
 
 
+func (z nat) setBit(x nat, i uint, b uint) nat {
+	j := int(i / _W)
+	m := Word(1) << (i % _W)
+	n := len(x)
+	switch b {
+	case 0:
+		z = z.make(n)
+		copy(z, x)
+		if j >= n {
+			// no need to grow
+			return z
+		}
+		z[j] &^= m
+		return z.norm()
+	case 1:
+		if j >= n {
+			n = j + 1
+		}
+		z = z.make(n)
+		copy(z, x)
+		z[j] |= m
+		// no need to normalize
+		return z
+	}
+	panic("set bit is not 0 or 1")
+}
+
+
+func (z nat) bit(i uint) uint {
+	j := int(i / _W)
+	if j >= len(z) {
+		return 0
+	}
+	return uint(z[j] >> (i % _W) & 1)
+}
+
+
 func (z nat) and(x, y nat) nat {
 	m := len(x)
 	n := len(y)
