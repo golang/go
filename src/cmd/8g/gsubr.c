@@ -1429,11 +1429,11 @@ gmove(Node *f, Node *t)
 		split64(t, &tlo, &thi);
 		gins(AXORL, ncon(0x80000000), &thi);	// + 2^63
 		patch(p3, pc);
-		patch(p1, pc);
 		splitclean();
-
 		// restore rounding mode
 		gins(AFLDCW, &t1, N);
+
+		patch(p1, pc);
 		return;
 
 	/*
