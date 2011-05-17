@@ -80,6 +80,9 @@ span.keyword {
 #content-videos .thumbnail._004 {
   background: url(/doc/video-004.png);
 }
+#content-videos .thumbnail._005 {
+  background: url(/doc/video-005.jpg);
+}
 #content-videos a.video {
   display: inline-block;
   width: 150px;
