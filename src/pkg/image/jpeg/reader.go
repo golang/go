@@ -200,6 +200,7 @@ func (d *decoder) processDQT(n int) os.Error {
 func (d *decoder) makeImg(h0, v0, mxx, myy int) {
 	if d.nComp == nGrayComponent {
 		d.img1 = image.NewGray(8*mxx, 8*myy)
+		d.img1.Rect = image.Rect(0, 0, d.width, d.height)
 		return
 	}
 	var subsampleRatio ycbcr.SubsampleRatio
