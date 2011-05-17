@@ -945,10 +945,10 @@ func (f *File) End() token.Pos {
 // collectively building a Go package.
 //
 type Package struct {
-	Name    string            // package name
-	Scope   *Scope            // package scope across all files
-	Imports map[string]*Scope // map of import path -> package scope
-	Files   map[string]*File  // Go source files by filename
+	Name    string             // package name
+	Scope   *Scope             // package scope across all files
+	Imports map[string]*Object // map of package id -> package object
+	Files   map[string]*File   // Go source files by filename
 }
 
 

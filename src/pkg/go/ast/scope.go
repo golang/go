@@ -70,13 +70,24 @@ func (s *Scope) String() string {
 // ----------------------------------------------------------------------------
 // Objects
 
+// TODO(gri) Consider replacing the Object struct with an interface
+//           and a corresponding set of object implementations.
+
 // An Object describes a named language entity such as a package,
 // constant, type, variable, function (incl. methods), or label.
+//
+// The Data fields contains object-specific data:
+//
+//	Kind    Data type    Data value
+//	Pkg	*Scope       package scope
+//	Con     int          iota for the respective declaration
+//	Con     != nil       constant value
 //
 type Object struct {
 	Kind ObjKind
 	Name string      // declared name
 	Decl interface{} // corresponding Field, XxxSpec, FuncDecl, or LabeledStmt; or nil
+	Data interface{} // object-specific data; or nil
 	Type interface{} // place holder for type information; may be nil
 }
 

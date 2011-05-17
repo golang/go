@@ -131,13 +131,14 @@ func (p *parser) closeLabelScope() {
 }
 
 
-func (p *parser) declare(decl interface{}, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
+func (p *parser) declare(decl, data interface{}, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
 	for _, ident := range idents {
 		assert(ident.Obj == nil, "identifier already declared or resolved")
 		obj := ast.NewObj(kind, ident.Name)
 		// remember the corresponding declaration for redeclaration
 		// errors and global variable resolution/typechecking phase
 		obj.Decl = decl
+		obj.Data = data
 		ident.Obj = obj
 		if ident.Name != "_" {
 			if alt := scope.Insert(obj); alt != nil && p.mode&DeclarationErrors != 0 {
@@ -596,7 +597,7 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 	p.expectSemi() // call before accessing p.linecomment
 
 	field := &ast.Field{doc, idents, typ, tag, p.lineComment}
-	p.declare(field, scope, ast.Var, idents...)
+	p.declare(field, nil, scope, ast.Var, idents...)
 
 	return field
 }
@@ -707,7 +708,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 		params = append(params, field)
 		// Go spec: The scope of an identifier denoting a function
 		// parameter or result variable is the function body.
-		p.declare(field, scope, ast.Var, idents...)
+		p.declare(field, nil, scope, ast.Var, idents...)
 		if p.tok == token.COMMA {
 			p.next()
 		}
@@ -719,7 +720,7 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
 			params = append(params, field)
 			// Go spec: The scope of an identifier denoting a function
 			// parameter or result variable is the function body.
-			p.declare(field, scope, ast.Var, idents...)
+			p.declare(field, nil, scope, ast.Var, idents...)
 			if p.tok != token.COMMA {
 				break
 			}
@@ -823,7 +824,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 	p.expectSemi() // call before accessing p.linecomment
 
 	spec := &ast.Field{doc, idents, typ, nil, p.lineComment}
-	p.declare(spec, scope, ast.Fun, idents...)
+	p.declare(spec, nil, scope, ast.Fun, idents...)
 
 	return spec
 }
@@ -1477,7 +1478,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 			// in which it is declared and excludes the body of any nested
 			// function.
 			stmt := &ast.LabeledStmt{label, colon, p.parseStmt()}
-			p.declare(stmt, p.labelScope, ast.Lbl, label)
+			p.declare(stmt, nil, p.labelScope, ast.Lbl, label)
 			return stmt
 		}
 		p.error(x[0].Pos(), "illegal label declaration")
@@ -2001,7 +2002,7 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup, iota int) ast.Spec {
 	// the end of the innermost containing block.
 	// (Global identifiers are resolved in a separate phase after parsing.)
 	spec := &ast.ValueSpec{doc, idents, typ, values, p.lineComment}
-	p.declare(spec, p.topScope, ast.Con, idents...)
+	p.declare(spec, iota, p.topScope, ast.Con, idents...)
 
 	return spec
 }
@@ -2019,7 +2020,7 @@ func parseTypeSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 	// containing block.
 	// (Global identifiers are resolved in a separate phase after parsing.)
 	spec := &ast.TypeSpec{doc, ident, nil, nil}
-	p.declare(spec, p.topScope, ast.Typ, ident)
+	p.declare(spec, nil, p.topScope, ast.Typ, ident)
 
 	spec.Type = p.parseType()
 	p.expectSemi() // call before accessing p.linecomment
@@ -2048,7 +2049,7 @@ func parseVarSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 	// the end of the innermost containing block.
 	// (Global identifiers are resolved in a separate phase after parsing.)
 	spec := &ast.ValueSpec{doc, idents, typ, values, p.lineComment}
-	p.declare(spec, p.topScope, ast.Var, idents...)
+	p.declare(spec, nil, p.topScope, ast.Var, idents...)
 
 	return spec
 }
@@ -2140,7 +2141,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 		// init() functions cannot be referred to and there may
 		// be more than one - don't put them in the pkgScope
 		if ident.Name != "init" {
-			p.declare(decl, p.pkgScope, ast.Fun, ident)
+			p.declare(decl, nil, p.pkgScope, ast.Fun, ident)
 		}
 	}
 

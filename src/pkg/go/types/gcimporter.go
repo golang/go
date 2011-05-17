@@ -74,15 +74,14 @@ func findPkg(path string) (filename, id string) {
 // object/archive file and populates its scope with the results.
 type gcParser struct {
 	scanner scanner.Scanner
-	tok     int                   // current token
-	lit     string                // literal string; only valid for Ident, Int, String tokens
-	id      string                // package id of imported package
-	scope   *ast.Scope            // scope of imported package; alias for deps[id]
-	deps    map[string]*ast.Scope // package id -> package scope
+	tok     int                    // current token
+	lit     string                 // literal string; only valid for Ident, Int, String tokens
+	id      string                 // package id of imported package
+	imports map[string]*ast.Object // package id -> package object
 }
 
 
-func (p *gcParser) init(filename, id string, src io.Reader) {
+func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*ast.Object) {
 	p.scanner.Init(src)
 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
 	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
@@ -90,8 +89,7 @@ func (p *gcParser) init(filename, id string, src io.Reader) {
 	p.scanner.Filename = filename // for good error messages
 	p.next()
 	p.id = id
-	p.scope = ast.NewScope(nil)
-	p.deps = map[string]*ast.Scope{"unsafe": Unsafe, id: p.scope}
+	p.imports = imports
 }
 
 
@@ -110,9 +108,9 @@ func (p *gcParser) next() {
 
 
 // GcImporter implements the ast.Importer signature.
-func GcImporter(path string) (name string, scope *ast.Scope, err os.Error) {
+func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, err os.Error) {
 	if path == "unsafe" {
-		return path, Unsafe, nil
+		return Unsafe, nil
 	}
 
 	defer func() {
@@ -130,6 +128,10 @@ func GcImporter(path string) (name string, scope *ast.Scope, err os.Error) {
 		return
 	}
 
+	if pkg = imports[id]; pkg != nil {
+		return // package was imported before
+	}
+
 	buf, err := ExportData(filename)
 	if err != nil {
 		return
@@ -137,13 +139,12 @@ func GcImporter(path string) (name string, scope *ast.Scope, err os.Error) {
 	defer buf.Close()
 
 	if trace {
-		fmt.Printf("importing %s\n", filename)
+		fmt.Printf("importing %s (%s)\n", id, filename)
 	}
 
 	var p gcParser
-	p.init(filename, id, buf)
-	name, scope = p.parseExport()
-
+	p.init(filename, id, buf, imports)
+	pkg = p.parseExport()
 	return
 }
 
@@ -214,21 +215,31 @@ func (p *gcParser) expectKeyword(keyword string) {
 
 // ImportPath = string_lit .
 //
-func (p *gcParser) parsePkgId() *ast.Scope {
+func (p *gcParser) parsePkgId() *ast.Object {
 	id, err := strconv.Unquote(p.expect(scanner.String))
 	if err != nil {
 		p.error(err)
 	}
 
-	scope := p.scope // id == "" stands for the imported package id
-	if id != "" {
-		if scope = p.deps[id]; scope == nil {
-			scope = ast.NewScope(nil)
-			p.deps[id] = scope
-		}
+	switch id {
+	case "":
+		// id == "" stands for the imported package id
+		// (only known at time of package installation)
+		id = p.id
+	case "unsafe":
+		// package unsafe is not in the imports map - handle explicitly
+		return Unsafe
 	}
 
-	return scope
+	pkg := p.imports[id]
+	if pkg == nil {
+		scope = ast.NewScope(nil)
+		pkg = ast.NewObj(ast.Pkg, "")
+		pkg.Data = scope
+		p.imports[id] = pkg
+	}
+
+	return pkg
 }
 
 
@@ -253,13 +264,14 @@ func (p *gcParser) parseDotIdent() string {
 // ExportedName = ImportPath "." dotIdentifier .
 //
 func (p *gcParser) parseExportedName(kind ast.ObjKind) *ast.Object {
-	scope := p.parsePkgId()
+	pkg := p.parsePkgId()
 	p.expect('.')
 	name := p.parseDotIdent()
 
 	// a type may have been declared before - if it exists
 	// already in the respective package scope, return that
 	// type
+	scope := pkg.Data.(*ast.Scope)
 	if kind == ast.Typ {
 		if obj := scope.Lookup(name); obj != nil {
 			assert(obj.Kind == ast.Typ)
@@ -598,9 +610,10 @@ func (p *gcParser) parseImportDecl() {
 	// The identifier has no semantic meaning in the import data.
 	// It exists so that error messages can print the real package
 	// name: binary.ByteOrder instead of "encoding/binary".ByteOrder.
-	// TODO(gri): Save package id -> package name mapping.
-	p.expect(scanner.Ident)
-	p.parsePkgId()
+	name := p.expect(scanner.Ident)
+	pkg := p.parsePkgId()
+	assert(pkg.Name == "" || pkg.Name == name)
+	pkg.Name = name
 }
 
 
@@ -701,7 +714,7 @@ func (p *gcParser) parseConstDecl() {
 	if obj.Type == nil {
 		obj.Type = typ
 	}
-	_ = x // TODO(gri) store x somewhere
+	obj.Data = x
 }
 
 
@@ -710,12 +723,18 @@ func (p *gcParser) parseConstDecl() {
 func (p *gcParser) parseTypeDecl() {
 	p.expectKeyword("type")
 	obj := p.parseExportedName(ast.Typ)
+
+	// The type object may have been imported before and thus already
+	// have a type associated with it. We still need to parse the type
+	// structure, but throw it away if the object already has a type.
+	// This ensures that all imports refer to the same type object for
+	// a given type declaration.
 	typ := p.parseType()
 
-	name := obj.Type.(*Name)
-	assert(name.Underlying == nil)
-	assert(Underlying(typ) == typ)
-	name.Underlying = typ
+	if name := obj.Type.(*Name); name.Underlying == nil {
+		assert(Underlying(typ) == typ)
+		name.Underlying = typ
+	}
 }
 
 
@@ -780,7 +799,7 @@ func (p *gcParser) parseDecl() {
 // Export        = "PackageClause { Decl } "$$" .
 // PackageClause = "package" identifier [ "safe" ] "\n" .
 //
-func (p *gcParser) parseExport() (string, *ast.Scope) {
+func (p *gcParser) parseExport() *ast.Object {
 	p.expectKeyword("package")
 	name := p.expect(scanner.Ident)
 	if p.tok != '\n' {
@@ -790,6 +809,11 @@ func (p *gcParser) parseExport() (string, *ast.Scope) {
 		p.expectKeyword("safe")
 	}
 	p.expect('\n')
+
+	assert(p.imports[p.id] == nil)
+	pkg := ast.NewObj(ast.Pkg, name)
+	pkg.Data = ast.NewScope(nil)
+	p.imports[p.id] = pkg
 
 	for p.tok != '$' && p.tok != scanner.EOF {
 		p.parseDecl()
@@ -805,5 +829,5 @@ func (p *gcParser) parseExport() (string, *ast.Scope) {
 		p.errorf("expected no scanner errors, got %d", n)
 	}
 
-	return name, p.scope
+	return pkg
 }
