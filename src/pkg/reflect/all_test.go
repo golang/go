@@ -1451,7 +1451,9 @@ func noAlloc(t *testing.T, n int, f func(int)) {
 	for j := 0; j < n; j++ {
 		f(j)
 	}
-	if runtime.MemStats.Mallocs != 0 {
+	// A few allocs may happen in the testing package when GOMAXPROCS > 1, so don't
+	// require zero mallocs.
+	if runtime.MemStats.Mallocs > 5 {
 		t.Fatalf("%d mallocs after %d iterations", runtime.MemStats.Mallocs, n)
 	}
 }
