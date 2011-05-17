@@ -17,24 +17,27 @@ import (
 	_ "image/tiff"
 )
 
-const goldenFile = "testdata/video-001.png"
-
 type imageTest struct {
-	filename  string
-	tolerance int
+	goldenFilename string
+	filename       string
+	tolerance      int
 }
 
 var imageTests = []imageTest{
-	{"testdata/video-001.bmp", 0},
+	{"testdata/video-001.png", "testdata/video-001.bmp", 0},
 	// GIF images are restricted to a 256-color palette and the conversion
 	// to GIF loses significant image quality.
-	{"testdata/video-001.gif", 64 << 8},
-	{"testdata/video-001.interlaced.gif", 64 << 8},
-	{"testdata/video-001.5bpp.gif", 128 << 8},
+	{"testdata/video-001.png", "testdata/video-001.gif", 64 << 8},
+	{"testdata/video-001.png", "testdata/video-001.interlaced.gif", 64 << 8},
+	{"testdata/video-001.png", "testdata/video-001.5bpp.gif", 128 << 8},
 	// JPEG is a lossy format and hence needs a non-zero tolerance.
-	{"testdata/video-001.jpeg", 8 << 8},
-	{"testdata/video-001.png", 0},
-	{"testdata/video-001.tiff", 0},
+	{"testdata/video-001.png", "testdata/video-001.jpeg", 8 << 8},
+	{"testdata/video-001.png", "testdata/video-001.png", 0},
+	{"testdata/video-001.png", "testdata/video-001.tiff", 0},
+
+	// Test grayscale images.
+	{"testdata/video-005.gray.png", "testdata/video-005.gray.jpeg", 8 << 8},
+	{"testdata/video-005.gray.png", "testdata/video-005.gray.png", 0},
 }
 
 func decode(filename string) (image.Image, string, os.Error) {
@@ -74,26 +77,33 @@ func withinTolerance(c0, c1 image.Color, tolerance int) bool {
 }
 
 func TestDecode(t *testing.T) {
-	golden, _, err := decode(goldenFile)
-	if err != nil {
-		t.Errorf("%s: %v", goldenFile, err)
-	}
+	golden := make(map[string]image.Image)
 loop:
 	for _, it := range imageTests {
+		g := golden[it.goldenFilename]
+		if g == nil {
+			var err os.Error
+			g, _, err = decode(it.goldenFilename)
+			if err != nil {
+				t.Errorf("%s: %v", it.goldenFilename, err)
+				continue loop
+			}
+			golden[it.goldenFilename] = g
+		}
 		m, imageFormat, err := decode(it.filename)
 		if err != nil {
 			t.Errorf("%s: %v", it.filename, err)
 			continue loop
 		}
-		b := golden.Bounds()
+		b := g.Bounds()
 		if !b.Eq(m.Bounds()) {
 			t.Errorf("%s: want bounds %v got %v", it.filename, b, m.Bounds())
 			continue loop
 		}
 		for y := b.Min.Y; y < b.Max.Y; y++ {
 			for x := b.Min.X; x < b.Max.X; x++ {
-				if !withinTolerance(golden.At(x, y), m.At(x, y), it.tolerance) {
-					t.Errorf("%s: at (%d, %d), want %v got %v", it.filename, x, y, golden.At(x, y), m.At(x, y))
+				if !withinTolerance(g.At(x, y), m.At(x, y), it.tolerance) {
+					t.Errorf("%s: at (%d, %d), want %v got %v", it.filename, x, y, g.At(x, y), m.At(x, y))
 					continue loop
 				}
 			}
