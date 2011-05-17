@@ -83,6 +83,63 @@ var (
 	IPv6linklocalallrouters    = IP{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02}
 )
 
+// IsUnspecified returns true if ip is an unspecified address.
+func (ip IP) IsUnspecified() bool {
+	if ip.Equal(IPv4zero) || ip.Equal(IPv6unspecified) {
+		return true
+	}
+	return false
+}
+
+// IsLoopback returns true if ip is a loopback address.
+func (ip IP) IsLoopback() bool {
+	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 127 {
+		return true
+	}
+	return ip.Equal(IPv6loopback)
+}
+
+// IsMulticast returns true if ip is a multicast address.
+func (ip IP) IsMulticast() bool {
+	if ip4 := ip.To4(); ip4 != nil && ip4[0]&0xf0 == 0xe0 {
+		return true
+	}
+	return ip[0] == 0xff
+}
+
+// IsInterfaceLinkLocalMulticast returns true if ip is
+// an interface-local multicast address.
+func (ip IP) IsInterfaceLocalMulticast() bool {
+	return len(ip) == IPv6len && ip[0] == 0xff && ip[1]&0x0f == 0x01
+}
+
+// IsLinkLinkLocalMulticast returns true if ip is a link-local
+// multicast address.
+func (ip IP) IsLinkLocalMulticast() bool {
+	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 224 && ip4[1] == 0 && ip4[2] == 0 {
+		return true
+	}
+	return ip[0] == 0xff && ip[1]&0x0f == 0x02
+}
+
+// IsLinkLinkLocalUnicast returns true if ip is a link-local
+// unicast address.
+func (ip IP) IsLinkLocalUnicast() bool {
+	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 169 && ip4[1] == 254 {
+		return true
+	}
+	return ip[0] == 0xfe && ip[1]&0xc0 == 0x80
+}
+
+// IsGlobalUnicast returns true if ip is a global unicast
+// address.
+func (ip IP) IsGlobalUnicast() bool {
+	return !ip.IsUnspecified() &&
+		!ip.IsLoopback() &&
+		!ip.IsMulticast() &&
+		!ip.IsLinkLocalUnicast()
+}
+
 // Is p all zeros?
 func isZeros(p IP) bool {
 	for i := 0; i < len(p); i++ {

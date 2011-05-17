@@ -6,7 +6,6 @@ package http
 
 import (
 	"bufio"
-	"bytes"
 	"compress/gzip"
 	"crypto/tls"
 	"encoding/base64"
@@ -309,11 +308,7 @@ func (t *Transport) useProxy(addr string) bool {
 		return false
 	}
 	if ip := net.ParseIP(host); ip != nil {
-		if ip4 := ip.To4(); ip4 != nil && ip4[0] == 127 {
-			// 127.0.0.0/8 loopback isn't proxied.
-			return false
-		}
-		if bytes.Equal(ip, net.IPv6loopback) {
+		if ip.IsLoopback() {
 			return false
 		}
 	}

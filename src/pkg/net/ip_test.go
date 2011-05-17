@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"testing"
 	"os"
+	"runtime"
 )
 
 func isEqual(a, b []byte) bool {
@@ -31,11 +32,7 @@ var parseiptests = []struct {
 	{"abc", nil},
 	{"123:", nil},
 	{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
-	{"2001:4860:0:2001::68",
-		IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01,
-			0, 0, 0, 0, 0, 0, 0x00, 0x68,
-		},
-	},
+	{"2001:4860:0:2001::68", IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01, 0, 0, 0, 0, 0, 0, 0x00, 0x68}},
 	{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
 }
 
@@ -52,29 +49,21 @@ var ipstringtests = []struct {
 	out string
 }{
 	// cf. RFC 5952 (A Recommendation for IPv6 Address Text Representation)
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
-		0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1},
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1},
 		"2001:db8::123:12:1"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0x1},
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1},
 		"2001:db8::1"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1,
-		0, 0, 0, 0x1, 0, 0, 0, 0x1},
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1},
 		"2001:db8:0:1:0:1:0:1"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0x1, 0, 0,
-		0, 0x1, 0, 0, 0, 0x1, 0, 0},
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0},
 		"2001:db8:1:0:1:0:1:0"},
-	{IP{0x20, 0x1, 0, 0, 0, 0, 0, 0,
-		0, 0x1, 0, 0, 0, 0, 0, 0x1},
+	{IP{0x20, 0x1, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1},
 		"2001::1:0:0:1"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
-		0, 0x1, 0, 0, 0, 0, 0, 0},
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0},
 		"2001:db8:0:0:1::"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
-		0, 0x1, 0, 0, 0, 0, 0, 0x1},
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1},
 		"2001:db8::1:0:0:1"},
-	{IP{0x20, 0x1, 0xD, 0xB8, 0, 0, 0, 0,
-		0, 0xA, 0, 0xB, 0, 0xC, 0, 0xD},
+	{IP{0x20, 0x1, 0xD, 0xB8, 0, 0, 0, 0, 0, 0xA, 0, 0xB, 0, 0xC, 0, 0xD},
 		"2001:db8::a:b:c:d"},
 }
 
@@ -173,6 +162,54 @@ func TestIPAddrFamily(t *testing.T) {
 		}
 		if af := len(tt.in) == IPv6len && tt.in.To4() == nil; af != tt.af6 {
 			t.Errorf("verifying IPv6 address family for %#q = %v, want %v", tt.in, af, tt.af6)
+		}
+	}
+}
+
+var ipscopetests = []struct {
+	scope func(IP) bool
+	in    IP
+	ok    bool
+}{
+	{IP.IsUnspecified, IPv4zero, true},
+	{IP.IsUnspecified, IPv4(127, 0, 0, 1), false},
+	{IP.IsUnspecified, IPv6unspecified, true},
+	{IP.IsUnspecified, IPv6interfacelocalallnodes, false},
+	{IP.IsLoopback, IPv4(127, 0, 0, 1), true},
+	{IP.IsLoopback, IPv4(127, 255, 255, 254), true},
+	{IP.IsLoopback, IPv4(128, 1, 2, 3), false},
+	{IP.IsLoopback, IPv6loopback, true},
+	{IP.IsLoopback, IPv6linklocalallrouters, false},
+	{IP.IsMulticast, IPv4(224, 0, 0, 0), true},
+	{IP.IsMulticast, IPv4(239, 0, 0, 0), true},
+	{IP.IsMulticast, IPv4(240, 0, 0, 0), false},
+	{IP.IsMulticast, IPv6linklocalallnodes, true},
+	{IP.IsMulticast, IP{0xff, 0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, true},
+	{IP.IsMulticast, IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+	{IP.IsLinkLocalMulticast, IPv4(224, 0, 0, 0), true},
+	{IP.IsLinkLocalMulticast, IPv4(239, 0, 0, 0), false},
+	{IP.IsLinkLocalMulticast, IPv6linklocalallrouters, true},
+	{IP.IsLinkLocalMulticast, IP{0xff, 0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+	{IP.IsLinkLocalUnicast, IPv4(169, 254, 0, 0), true},
+	{IP.IsLinkLocalUnicast, IPv4(169, 255, 0, 0), false},
+	{IP.IsLinkLocalUnicast, IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, true},
+	{IP.IsLinkLocalUnicast, IP{0xfe, 0xc0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+	{IP.IsGlobalUnicast, IPv4(240, 0, 0, 0), true},
+	{IP.IsGlobalUnicast, IPv4(232, 0, 0, 0), false},
+	{IP.IsGlobalUnicast, IPv4(169, 254, 0, 0), false},
+	{IP.IsGlobalUnicast, IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1}, true},
+	{IP.IsGlobalUnicast, IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+	{IP.IsGlobalUnicast, IP{0xff, 0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+}
+
+func name(f interface{}) string {
+	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
+}
+
+func TestIPAddrScope(t *testing.T) {
+	for _, tt := range ipscopetests {
+		if ok := tt.scope(tt.in); ok != tt.ok {
+			t.Errorf("%s(%#q) = %v, want %v", name(tt.scope), tt.in, ok, tt.ok)
 		}
 	}
 }
