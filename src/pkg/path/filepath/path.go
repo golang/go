@@ -9,6 +9,7 @@ package filepath
 import (
 	"bytes"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -178,6 +179,14 @@ func Ext(path string) string {
 // links.
 // If path is relative it will be evaluated relative to the current directory.
 func EvalSymlinks(path string) (string, os.Error) {
+	if runtime.GOOS == "windows" {
+		// Symlinks are not supported under windows.
+		_, err := os.Lstat(path)
+		if err != nil {
+			return "", err
+		}
+		return Clean(path), nil
+	}
 	const maxIter = 255
 	originalPath := path
 	// consume path by taking each frontmost path element,
