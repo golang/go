@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"json"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -40,6 +41,35 @@ func TestWriteSetCookies(t *testing.T) {
 			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, tt.Raw, seen)
 			continue
 		}
+	}
+}
+
+type headerOnlyResponseWriter Header
+
+func (ho headerOnlyResponseWriter) Header() Header {
+	return Header(ho)
+}
+
+func (ho headerOnlyResponseWriter) Write([]byte) (int, os.Error) {
+	panic("NOIMPL")
+}
+
+func (ho headerOnlyResponseWriter) WriteHeader(int) {
+	panic("NOIMPL")
+}
+
+func TestSetCookie(t *testing.T) {
+	m := make(Header)
+	SetCookie(headerOnlyResponseWriter(m), &Cookie{Name: "cookie-1", Value: "one", Path: "/restricted/"})
+	SetCookie(headerOnlyResponseWriter(m), &Cookie{Name: "cookie-2", Value: "two", MaxAge: 3600})
+	if l := len(m["Set-Cookie"]); l != 2 {
+		t.Fatalf("expected %d cookies, got %d", 2, l)
+	}
+	if g, e := m["Set-Cookie"][0], "cookie-1=one; Path=/restricted/"; g != e {
+		t.Errorf("cookie #1: want %q, got %q", e, g)
+	}
+	if g, e := m["Set-Cookie"][1], "cookie-2=two; Max-Age=3600"; g != e {
+		t.Errorf("cookie #2: want %q, got %q", e, g)
 	}
 }
 

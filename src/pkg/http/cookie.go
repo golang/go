@@ -130,6 +130,37 @@ func readSetCookies(h Header) []*Cookie {
 	return cookies
 }
 
+// SetCookie adds a Set-Cookie header to the provided ResponseWriter's headers.
+func SetCookie(w ResponseWriter, cookie *Cookie) {
+	var b bytes.Buffer
+	writeSetCookieToBuffer(&b, cookie)
+	w.Header().Add("Set-Cookie", b.String())
+}
+
+func writeSetCookieToBuffer(buf *bytes.Buffer, c *Cookie) {
+	fmt.Fprintf(buf, "%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
+	if len(c.Path) > 0 {
+		fmt.Fprintf(buf, "; Path=%s", sanitizeValue(c.Path))
+	}
+	if len(c.Domain) > 0 {
+		fmt.Fprintf(buf, "; Domain=%s", sanitizeValue(c.Domain))
+	}
+	if len(c.Expires.Zone) > 0 {
+		fmt.Fprintf(buf, "; Expires=%s", c.Expires.Format(time.RFC1123))
+	}
+	if c.MaxAge > 0 {
+		fmt.Fprintf(buf, "; Max-Age=%d", c.MaxAge)
+	} else if c.MaxAge < 0 {
+		fmt.Fprintf(buf, "; Max-Age=0")
+	}
+	if c.HttpOnly {
+		fmt.Fprintf(buf, "; HttpOnly")
+	}
+	if c.Secure {
+		fmt.Fprintf(buf, "; Secure")
+	}
+}
+
 // writeSetCookies writes the wire representation of the set-cookies
 // to w. Each cookie is written on a separate "Set-Cookie: " line.
 // This choice is made because HTTP parsers tend to have a limit on
@@ -142,27 +173,7 @@ func writeSetCookies(w io.Writer, kk []*Cookie) os.Error {
 	var b bytes.Buffer
 	for _, c := range kk {
 		b.Reset()
-		fmt.Fprintf(&b, "%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
-		if len(c.Path) > 0 {
-			fmt.Fprintf(&b, "; Path=%s", sanitizeValue(c.Path))
-		}
-		if len(c.Domain) > 0 {
-			fmt.Fprintf(&b, "; Domain=%s", sanitizeValue(c.Domain))
-		}
-		if len(c.Expires.Zone) > 0 {
-			fmt.Fprintf(&b, "; Expires=%s", c.Expires.Format(time.RFC1123))
-		}
-		if c.MaxAge > 0 {
-			fmt.Fprintf(&b, "; Max-Age=%d", c.MaxAge)
-		} else if c.MaxAge < 0 {
-			fmt.Fprintf(&b, "; Max-Age=0")
-		}
-		if c.HttpOnly {
-			fmt.Fprintf(&b, "; HttpOnly")
-		}
-		if c.Secure {
-			fmt.Fprintf(&b, "; Secure")
-		}
+		writeSetCookieToBuffer(&b, c)
 		lines = append(lines, "Set-Cookie: "+b.String()+"\r\n")
 	}
 	sort.SortStrings(lines)
