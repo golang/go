@@ -6,6 +6,7 @@ package types
 
 import (
 	"exec"
+	"go/ast"
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
@@ -57,8 +58,12 @@ func compile(t *testing.T, dirname, filename string) {
 }
 
 
+// Use the same global imports map for all tests. The effect is
+// as if all tested packages were imported into a single package.
+var imports = make(map[string]*ast.Object)
+
 func testPath(t *testing.T, path string) bool {
-	_, _, err := GcImporter(path)
+	_, err := GcImporter(imports, path)
 	if err != nil {
 		t.Errorf("testPath(%s): %s", path, err)
 		return false

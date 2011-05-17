@@ -11,9 +11,9 @@ import "go/ast"
 
 
 var (
-	scope, // current scope to use for initialization
-	Universe,
-	Unsafe *ast.Scope
+	scope    *ast.Scope // current scope to use for initialization
+	Universe *ast.Scope
+	Unsafe   *ast.Object // package unsafe
 )
 
 
@@ -56,8 +56,8 @@ var (
 
 
 func init() {
-	Universe = ast.NewScope(nil)
-	scope = Universe
+	scope = ast.NewScope(nil)
+	Universe = scope
 
 	Bool = defType("bool")
 	defType("byte") // TODO(gri) should be an alias for uint8
@@ -98,8 +98,10 @@ func init() {
 	defFun("real")
 	defFun("recover")
 
-	Unsafe = ast.NewScope(nil)
-	scope = Unsafe
+	scope = ast.NewScope(nil)
+	Unsafe = ast.NewObj(ast.Pkg, "unsafe")
+	Unsafe.Data = scope
+
 	defType("Pointer")
 
 	defFun("Alignof")
