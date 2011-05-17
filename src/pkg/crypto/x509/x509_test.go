@@ -291,14 +291,14 @@ func TestParseCertificateWithDsaPublicKey(t *testing.T) {
 	pemBlock, _ := pem.Decode([]byte(dsaCertPem))
 	cert, err := ParseCertificate(pemBlock.Bytes)
 	if err != nil {
-		t.Fatal("Failed to parse certificate: %s", err)
+		t.Fatalf("Failed to parse certificate: %s", err)
 	}
 	if cert.PublicKeyAlgorithm != DSA {
 		t.Errorf("Parsed key algorithm was not DSA")
 	}
 	parsedKey, ok := cert.PublicKey.(*dsa.PublicKey)
 	if !ok {
-		t.Fatal("Parsed key was not a DSA key: %s", err)
+		t.Fatalf("Parsed key was not a DSA key: %s", err)
 	}
 	if expectedKey.Y.Cmp(parsedKey.Y) != 0 ||
 		expectedKey.P.Cmp(parsedKey.P) != 0 ||

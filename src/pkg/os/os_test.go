@@ -243,7 +243,7 @@ func smallReaddirnames(file *File, length int, t *testing.T) []string {
 			t.Fatalf("readdirnames %q failed: %v", file.Name(), err)
 		}
 		if len(d) == 0 {
-			t.Fatalf("readdirnames %q returned empty slice and no error")
+			t.Fatalf("readdirnames %q returned empty slice and no error", file.Name())
 		}
 		names[count] = d[0]
 		count++
