@@ -20,6 +20,7 @@ package big
 
 import "rand"
 
+
 // An unsigned integer x of the form
 //
 //   x = x[n-1]*_B^(n-1) + x[n-2]*_B^(n-2) + ... + x[1]*_B + x[0]
@@ -668,16 +669,23 @@ func (z nat) scan(s string, base int) (nat, int, int) {
 }
 
 
-// string converts x to a string for a given base, with 2 <= base <= 16.
-// TODO(gri) in the style of the other routines, perhaps this should take
-//           a []byte buffer and return it
-func (x nat) string(base int) string {
-	if base < 2 || 16 < base {
-		panic("illegal base")
-	}
+// Character sets for string conversion.
+const (
+	lowercaseDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
+	uppercaseDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
 
-	if len(x) == 0 {
-		return "0"
+// string converts x to a string using digits from a charset; a digit with
+// value d is represented by charset[d]. The conversion base is determined
+// by len(charset). If len(charset) < 2, the result is "<illegal base>".
+func (x nat) string(charset string) string {
+	base := len(charset)
+
+	switch {
+	case base < 2:
+		return "<illegal base>"
+	case len(x) == 0:
+		return string(charset[0])
 	}
 
 	// allocate buffer for conversion
@@ -692,10 +700,17 @@ func (x nat) string(base int) string {
 		i--
 		var r Word
 		q, r = q.divW(q, Word(base))
-		s[i] = "0123456789abcdef"[r]
+		s[i] = charset[r]
 	}
 
 	return string(s[i:])
+}
+
+
+// decimalString returns a decimal representation of x.
+// It calls x.string with the charset "0123456789".
+func (x nat) decimalString() string {
+	return x.string(lowercaseDigits[0:10])
 }
 
 

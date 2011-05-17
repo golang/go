@@ -133,7 +133,7 @@ var mulRangesN = []struct {
 
 func TestMulRangeN(t *testing.T) {
 	for i, r := range mulRangesN {
-		prod := nat(nil).mulRange(r.a, r.b).string(10)
+		prod := nat(nil).mulRange(r.a, r.b).decimalString()
 		if prod != r.prod {
 			t.Errorf("#%d: got %s; want %s", i, prod, r.prod)
 		}
@@ -167,31 +167,35 @@ func BenchmarkMul(b *testing.B) {
 }
 
 
-var tab = []struct {
-	x nat
-	b int
-	s string
+var strTests = []struct {
+	x nat    // nat value to be converted
+	c string // conversion charset
+	s string // expected result
 }{
-	{nil, 10, "0"},
-	{nat{1}, 10, "1"},
-	{nat{10}, 10, "10"},
-	{nat{1234567890}, 10, "1234567890"},
+	{nil, "01", "0"},
+	{nat{1}, "01", "1"},
+	{nat{0xc5}, "01", "11000101"},
+	{nat{03271}, lowercaseDigits[0:8], "3271"},
+	{nat{10}, lowercaseDigits[0:10], "10"},
+	{nat{1234567890}, uppercaseDigits[0:10], "1234567890"},
+	{nat{0xdeadbeef}, lowercaseDigits[0:16], "deadbeef"},
+	{nat{0xdeadbeef}, uppercaseDigits[0:16], "DEADBEEF"},
 }
 
 
 func TestString(t *testing.T) {
-	for _, a := range tab {
-		s := a.x.string(a.b)
+	for _, a := range strTests {
+		s := a.x.string(a.c)
 		if s != a.s {
 			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
 		}
 
-		x, b, n := nat(nil).scan(a.s, a.b)
+		x, b, n := nat(nil).scan(a.s, len(a.c))
 		if x.cmp(a.x) != 0 {
 			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
 		}
-		if b != a.b {
-			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, a.b)
+		if b != len(a.c) {
+			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, len(a.c))
 		}
 		if n != len(a.s) {
 			t.Errorf("scan%+v\n\tgot n = %d; want %d", a, n, len(a.s))

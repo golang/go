@@ -313,28 +313,30 @@ func (x *Int) String() string {
 	if x.neg {
 		s = "-"
 	}
-	return s + x.abs.string(10)
+	return s + x.abs.decimalString()
 }
 
 
-func fmtbase(ch int) int {
+func charset(ch int) string {
 	switch ch {
 	case 'b':
-		return 2
+		return lowercaseDigits[0:2]
 	case 'o':
-		return 8
+		return lowercaseDigits[0:8]
 	case 'd':
-		return 10
+		return lowercaseDigits[0:10]
 	case 'x':
-		return 16
+		return lowercaseDigits[0:16]
+	case 'X':
+		return uppercaseDigits[0:16]
 	}
-	return 10
+	return "" // unknown format
 }
 
 
 // Format is a support routine for fmt.Formatter. It accepts
-// the formats 'b' (binary), 'o' (octal), 'd' (decimal) and
-// 'x' (hexadecimal).
+// the formats 'b' (binary), 'o' (octal), 'd' (decimal), 'x'
+// (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
 //
 func (x *Int) Format(s fmt.State, ch int) {
 	if x == nil {
@@ -344,7 +346,7 @@ func (x *Int) Format(s fmt.State, ch int) {
 	if x.neg {
 		fmt.Fprint(s, "-")
 	}
-	fmt.Fprint(s, x.abs.string(fmtbase(ch)))
+	fmt.Fprint(s, x.abs.string(charset(ch)))
 }
 
 
