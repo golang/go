@@ -829,6 +829,7 @@ asmb(void)
 			}
 			break;
 		case Hwindows:
+			seek(cout, symo, 0);
 			if(debug['v'])
 			       Bprint(&bso, "%5.2f dwarf\n", cputime());
 
