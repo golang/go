@@ -40,10 +40,8 @@ func TestUseProxy(t *testing.T) {
 	no_proxy := "foobar.com, .barbaz.net"
 	os.Setenv("NO_PROXY", no_proxy)
 
-	tr := &Transport{}
-
 	for _, test := range UseProxyTests {
-		if tr.useProxy(test.host+":80") != test.match {
+		if useProxy(test.host+":80") != test.match {
 			t.Errorf("useProxy(%v) = %v, want %v", test.host, !test.match, test.match)
 		}
 	}
