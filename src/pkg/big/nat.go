@@ -677,13 +677,14 @@ const (
 
 // string converts x to a string using digits from a charset; a digit with
 // value d is represented by charset[d]. The conversion base is determined
-// by len(charset). If len(charset) < 2, the result is "<illegal base>".
+// by len(charset), which must be >= 2.
 func (x nat) string(charset string) string {
 	base := len(charset)
 
+	// special cases
 	switch {
 	case base < 2:
-		return "<illegal base>"
+		panic("illegal base")
 	case len(x) == 0:
 		return string(charset[0])
 	}

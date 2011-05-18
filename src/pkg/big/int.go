@@ -309,11 +309,13 @@ func (x *Int) Cmp(y *Int) (r int) {
 
 
 func (x *Int) String() string {
-	s := ""
-	if x.neg {
-		s = "-"
+	switch {
+	case x == nil:
+		return "<nil>"
+	case x.neg:
+		return "-" + x.abs.decimalString()
 	}
-	return s + x.abs.decimalString()
+	return x.abs.decimalString()
 }
 
 
@@ -323,7 +325,7 @@ func charset(ch int) string {
 		return lowercaseDigits[0:2]
 	case 'o':
 		return lowercaseDigits[0:8]
-	case 'd':
+	case 'd', 'v':
 		return lowercaseDigits[0:10]
 	case 'x':
 		return lowercaseDigits[0:16]
@@ -339,14 +341,36 @@ func charset(ch int) string {
 // (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
 //
 func (x *Int) Format(s fmt.State, ch int) {
-	if x == nil {
+	cs := charset(ch)
+
+	// special cases
+	switch {
+	case cs == "":
+		// unknown format
+		fmt.Fprintf(s, "%%!%c(big.Int=%s)", ch, x.String())
+		return
+	case x == nil:
 		fmt.Fprint(s, "<nil>")
 		return
 	}
-	if x.neg {
-		fmt.Fprint(s, "-")
+
+	// determine format
+	format := "%s"
+	if s.Flag('#') {
+		switch ch {
+		case 'o':
+			format = "0%s"
+		case 'x':
+			format = "0x%s"
+		case 'X':
+			format = "0X%s"
+		}
 	}
-	fmt.Fprint(s, x.abs.string(charset(ch)))
+	if x.neg {
+		format = "-" + format
+	}
+
+	fmt.Fprintf(s, format, x.abs.string(cs))
 }
 
 

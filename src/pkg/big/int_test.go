@@ -348,6 +348,55 @@ func TestSetString(t *testing.T) {
 }
 
 
+var formatTests = []struct {
+	input  string
+	format string
+	output string
+}{
+	{"<nil>", "%x", "<nil>"},
+	{"<nil>", "%#x", "<nil>"},
+	{"<nil>", "%#y", "%!y(big.Int=<nil>)"},
+
+	{"10", "%b", "1010"},
+	{"10", "%o", "12"},
+	{"10", "%d", "10"},
+	{"10", "%v", "10"},
+	{"10", "%x", "a"},
+	{"10", "%X", "A"},
+	{"-10", "%X", "-A"},
+	{"10", "%y", "%!y(big.Int=10)"},
+	{"-10", "%y", "%!y(big.Int=-10)"},
+
+	{"10", "%#b", "1010"},
+	{"10", "%#o", "012"},
+	{"10", "%#d", "10"},
+	{"10", "%#v", "10"},
+	{"10", "%#x", "0xa"},
+	{"10", "%#X", "0XA"},
+	{"-10", "%#X", "-0XA"},
+	{"10", "%#y", "%!y(big.Int=10)"},
+	{"-10", "%#y", "%!y(big.Int=-10)"},
+}
+
+
+func TestFormat(t *testing.T) {
+	for i, test := range formatTests {
+		var x *Int
+		if test.input != "<nil>" {
+			var ok bool
+			x, ok = new(Int).SetString(test.input, 0)
+			if !ok {
+				t.Errorf("#%d failed reading input %s", i, test.input)
+			}
+		}
+		output := fmt.Sprintf(test.format, x)
+		if output != test.output {
+			t.Errorf("#%d got %s; want %s", i, output, test.output)
+		}
+	}
+}
+
+
 // Examples from the Go Language Spec, section "Arithmetic operators"
 var divisionSignsTests = []struct {
 	x, y int64
@@ -984,6 +1033,7 @@ func testBitFunSelf(t *testing.T, msg string, f bitFun, x, y *Int, exp string) {
 	}
 }
 
+
 func altBit(x *Int, i int) uint {
 	z := new(Int).Rsh(x, uint(i))
 	z = z.And(z, NewInt(1))
@@ -992,6 +1042,7 @@ func altBit(x *Int, i int) uint {
 	}
 	return 0
 }
+
 
 func altSetBit(z *Int, x *Int, i int, b uint) *Int {
 	one := NewInt(1)
@@ -1004,6 +1055,7 @@ func altSetBit(z *Int, x *Int, i int, b uint) *Int {
 	}
 	panic("set bit is not 0 or 1")
 }
+
 
 func testBitset(t *testing.T, x *Int) {
 	n := x.BitLen()
@@ -1042,6 +1094,7 @@ func testBitset(t *testing.T, x *Int) {
 	}
 }
 
+
 var bitsetTests = []struct {
 	x string
 	i int
@@ -1060,6 +1113,7 @@ var bitsetTests = []struct {
 	{"-0x2000000000000000000000000001", 109, 0},
 	{"-0x2000000000000000000000000001", 110, 1},
 }
+
 
 func TestBitSet(t *testing.T) {
 	for _, test := range bitwiseTests {
@@ -1081,6 +1135,7 @@ func TestBitSet(t *testing.T) {
 	}
 }
 
+
 func BenchmarkBitset(b *testing.B) {
 	z := new(Int)
 	z.SetBit(z, 512, 1)
@@ -1090,6 +1145,7 @@ func BenchmarkBitset(b *testing.B) {
 		z.SetBit(z, i&512, 1)
 	}
 }
+
 
 func BenchmarkBitsetNeg(b *testing.B) {
 	z := NewInt(-1)
@@ -1101,6 +1157,7 @@ func BenchmarkBitsetNeg(b *testing.B) {
 	}
 }
 
+
 func BenchmarkBitsetOrig(b *testing.B) {
 	z := new(Int)
 	altSetBit(z, z, 512, 1)
@@ -1111,6 +1168,7 @@ func BenchmarkBitsetOrig(b *testing.B) {
 	}
 }
 
+
 func BenchmarkBitsetNegOrig(b *testing.B) {
 	z := NewInt(-1)
 	altSetBit(z, z, 512, 0)
@@ -1120,6 +1178,7 @@ func BenchmarkBitsetNegOrig(b *testing.B) {
 		altSetBit(z, z, i&512, 0)
 	}
 }
+
 
 func TestBitwise(t *testing.T) {
 	x := new(Int)
@@ -1155,6 +1214,7 @@ var notTests = []struct {
 	},
 }
 
+
 func TestNot(t *testing.T) {
 	in := new(Int)
 	out := new(Int)
@@ -1182,6 +1242,7 @@ var modInverseTests = []struct {
 	{"1", "13"},
 	{"239487239847", "2410312426921032588552076022197566074856950548502459942654116941958108831682612228890093858261341614673227141477904012196503648957050582631942730706805009223062734745341073406696246014589361659774041027169249453200378729434170325843778659198143763193776859869524088940195577346119843545301547043747207749969763750084308926339295559968882457872412993810129130294592999947926365264059284647209730384947211681434464714438488520940127459844288859336526896320919633919"},
 }
+
 
 func TestModInverse(t *testing.T) {
 	var element, prime Int
