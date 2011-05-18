@@ -253,6 +253,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 	}
 }
 
+// Self-signed certificate using DSA with SHA1
 var dsaCertPem = `-----BEGIN CERTIFICATE-----
 MIIEDTCCA82gAwIBAgIJALHPghaoxeDhMAkGByqGSM44BAMweTELMAkGA1UEBhMC
 VVMxCzAJBgNVBAgTAk5DMQ8wDQYDVQQHEwZOZXd0b24xFDASBgNVBAoTC0dvb2ds
@@ -305,5 +306,28 @@ func TestParseCertificateWithDsaPublicKey(t *testing.T) {
 		expectedKey.Q.Cmp(parsedKey.Q) != 0 ||
 		expectedKey.G.Cmp(parsedKey.G) != 0 {
 		t.Fatal("Parsed key differs from expected key")
+	}
+}
+
+func TestParseCertificateWithDSASignatureAlgorithm(t *testing.T) {
+	pemBlock, _ := pem.Decode([]byte(dsaCertPem))
+	cert, err := ParseCertificate(pemBlock.Bytes)
+	if err != nil {
+		t.Fatal("Failed to parse certificate: %s", err)
+	}
+	if cert.SignatureAlgorithm != DSAWithSHA1 {
+		t.Errorf("Parsed signature algorithm was not DSAWithSHA1")
+	}
+}
+
+func TestVerifyCertificateWithDSASignature(t *testing.T) {
+	pemBlock, _ := pem.Decode([]byte(dsaCertPem))
+	cert, err := ParseCertificate(pemBlock.Bytes)
+	if err != nil {
+		t.Fatal("Failed to parse certificate: %s", err)
+	}
+	// test cert is self-signed
+	if err = cert.CheckSignatureFrom(cert); err != nil {
+		t.Fatal("DSA Certificate verfication failed: %s", err)
 	}
 }
