@@ -331,7 +331,11 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		fmt.Fprintf(fgcc, "\tint e;\n") // assuming 32 bit (see comment above structType)
 		fmt.Fprintf(fgcc, "\terrno = 0;\n")
 	}
-	fmt.Fprintf(fgcc, "\t%s *a = v;\n", ctype)
+	// We're trying to write a gcc struct that matches 6c/8c/5c's layout.
+	// Use packed attribute to force no padding in this struct in case
+	// gcc has different packing requirements.  For example,
+	// on 386 Windows, gcc wants to 8-align int64s, but 8c does not.
+	fmt.Fprintf(fgcc, "\t%s __attribute__((__packed__)) *a = v;\n", ctype)
 	fmt.Fprintf(fgcc, "\t")
 	if t := n.FuncType.Result; t != nil {
 		fmt.Fprintf(fgcc, "a->r = ")
@@ -370,7 +374,9 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 		fn := exp.Func
 
 		// Construct a gcc struct matching the 6c argument and
-		// result frame.
+		// result frame.  The gcc struct will be compiled with
+		// __attribute__((packed)) so all padding must be accounted
+		// for explicitly.
 		ctype := "struct {\n"
 		off := int64(0)
 		npad := 0
@@ -458,7 +464,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 		fmt.Fprintf(fgcc, "extern _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgcc, "\n%s\n", s)
 		fmt.Fprintf(fgcc, "{\n")
-		fmt.Fprintf(fgcc, "\t%s a;\n", ctype)
+		fmt.Fprintf(fgcc, "\t%s __attribute__((packed)) a;\n", ctype)
 		if gccResult != "void" && (len(fntype.Results.List) > 1 || len(fntype.Results.List[0].Names) > 1) {
 			fmt.Fprintf(fgcc, "\t%s r;\n", gccResult)
 		}
