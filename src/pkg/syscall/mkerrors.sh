@@ -21,17 +21,21 @@ includes_Linux='
 #define _FILE_OFFSET_BITS 64
 #define _GNU_SOURCE
 
-#include <sys/types.h>
+#include <bits/sockaddr.h>
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <linux/if_addr.h>
+#include <linux/if_tun.h>
+#include <linux/netlink.h>
+#include <linux/reboot.h>
+#include <linux/rtnetlink.h>
 #include <linux/ptrace.h>
 #include <linux/wait.h>
-#include <linux/if_tun.h>
-#include <linux/reboot.h>
 #include <net/if.h>
 #include <netpacket/packet.h>
 '
@@ -132,6 +136,8 @@ done
 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
 		$2 ~ /^LINUX_REBOOT_CMD_/ ||
 		$2 ~ /^LINUX_REBOOT_MAGIC[12]$/ ||
+		$2 !~ "NLA_TYPE_MASK" &&
+		$2 ~ /^(NETLINK|NLM|NLMSG|NLA|IFA|RTM)_/ ||
 		$2 ~ /^SIOC/ ||
 		$2 ~ /^(IFF|NET_RT|RTM|RTF|RTV|RTA|RTAX)_/ ||
 		$2 ~ /^BIOC/ ||
