@@ -38,6 +38,8 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
 #include <sys/user.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 #include <time.h>
 #include <unistd.h>
 #include <ustat.h>
@@ -93,6 +95,7 @@ union sockaddr_all {
 	struct sockaddr_in6 s3;
 	struct sockaddr_un s4;
 	struct sockaddr_ll s5;
+	struct sockaddr_nl s6;
 };
 
 struct sockaddr_any {
@@ -104,6 +107,7 @@ typedef struct sockaddr_in $RawSockaddrInet4;
 typedef struct sockaddr_in6 $RawSockaddrInet6;
 typedef struct sockaddr_un $RawSockaddrUnix;
 typedef struct sockaddr_ll $RawSockaddrLinklayer;
+typedef struct sockaddr_nl $RawSockaddrNetlink;
 typedef struct sockaddr $RawSockaddr;
 typedef struct sockaddr_any $RawSockaddrAny;
 typedef socklen_t $_Socklen;
@@ -120,6 +124,7 @@ enum {
 	$SizeofSockaddrAny = sizeof(struct sockaddr_any),
 	$SizeofSockaddrUnix = sizeof(struct sockaddr_un),
 	$SizeofSockaddrLinklayer = sizeof(struct sockaddr_ll),
+	$SizeofSockaddrNetlink = sizeof(struct sockaddr_nl),
 	$SizeofLinger = sizeof(struct linger),
 	$SizeofIpMreq = sizeof(struct ip_mreq),	
 	$SizeofMsghdr = sizeof(struct msghdr),
@@ -127,14 +132,65 @@ enum {
 	$SizeofUcred = sizeof(struct ucred),
 };
 
+// Netlink routing and interface messages
+
+enum {
+	$IFA_UNSPEC = IFA_UNSPEC,
+	$IFA_ADDRESS = IFA_ADDRESS,
+	$IFA_LOCAL = IFA_LOCAL,
+	$IFA_LABEL = IFA_LABEL,
+	$IFA_BROADCAST = IFA_BROADCAST,
+	$IFA_ANYCAST = IFA_ANYCAST,
+	$IFA_CACHEINFO = IFA_CACHEINFO,
+	$IFA_MULTICAST = IFA_MULTICAST,
+	$IFLA_UNSPEC = IFLA_UNSPEC,
+	$IFLA_ADDRESS = IFLA_ADDRESS,
+	$IFLA_BROADCAST = IFLA_BROADCAST,
+	$IFLA_IFNAME = IFLA_IFNAME,
+	$IFLA_MTU = IFLA_MTU,
+	$IFLA_LINK = IFLA_LINK,
+	$IFLA_QDISC = IFLA_QDISC,
+	$IFLA_STATS = IFLA_STATS,
+	$IFLA_COST = IFLA_COST,
+	$IFLA_PRIORITY = IFLA_PRIORITY,
+	$IFLA_MASTER = IFLA_MASTER,
+	$IFLA_WIRELESS = IFLA_WIRELESS,
+	$IFLA_PROTINFO = IFLA_PROTINFO,
+	$IFLA_TXQLEN = IFLA_TXQLEN,
+	$IFLA_MAP = IFLA_MAP,
+	$IFLA_WEIGHT = IFLA_WEIGHT,
+	$IFLA_OPERSTATE = IFLA_OPERSTATE,
+	$IFLA_LINKMODE = IFLA_LINKMODE,
+	$IFLA_LINKINFO = IFLA_LINKINFO,
+	$IFLA_NET_NS_PID = IFLA_NET_NS_PID,
+	$IFLA_IFALIAS = IFLA_IFALIAS,
+	$IFLA_MAX = IFLA_MAX,
+	$SizeofNlMsghdr = sizeof(struct nlmsghdr),
+	$SizeofNlMsgerr = sizeof(struct nlmsgerr),
+	$SizeofRtGenmsg = sizeof(struct rtgenmsg),
+	$SizeofNlAttr = sizeof(struct nlattr),
+	$SizeofRtAttr = sizeof(struct rtattr),
+	$SizeofIfInfomsg = sizeof(struct ifinfomsg),
+	$SizeofIfAddrmsg = sizeof(struct ifaddrmsg),
+	$SizeofRtmsg = sizeof(struct rtmsg),
+};
+
+typedef struct nlmsghdr $NlMsghdr;
+typedef struct nlmsgerr $NlMsgerr;
+typedef struct rtgenmsg $RtGenmsg;
+typedef struct nlattr $NlAttr;
+typedef struct rtattr $RtAttr;
+typedef struct ifinfomsg $IfInfomsg;
+typedef struct ifaddrmsg $IfAddrmsg;
+typedef struct rtmsg $RtMsg;
 
 // Inotify
+
 typedef struct inotify_event $InotifyEvent;
 
 enum {
 	$SizeofInotifyEvent = sizeof(struct inotify_event)
 };
-
 
 // Ptrace
 

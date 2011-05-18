@@ -17,11 +17,50 @@ const (
 	SizeofSockaddrAny       = 0x70
 	SizeofSockaddrUnix      = 0x6e
 	SizeofSockaddrLinklayer = 0x14
+	SizeofSockaddrNetlink   = 0xc
 	SizeofLinger            = 0x8
 	SizeofIpMreq            = 0x8
 	SizeofMsghdr            = 0x38
 	SizeofCmsghdr           = 0x10
 	SizeofUcred             = 0xc
+	IFA_UNSPEC              = 0
+	IFA_ADDRESS             = 0x1
+	IFA_LOCAL               = 0x2
+	IFA_LABEL               = 0x3
+	IFA_BROADCAST           = 0x4
+	IFA_ANYCAST             = 0x5
+	IFA_CACHEINFO           = 0x6
+	IFA_MULTICAST           = 0x7
+	IFLA_UNSPEC             = 0
+	IFLA_ADDRESS            = 0x1
+	IFLA_BROADCAST          = 0x2
+	IFLA_IFNAME             = 0x3
+	IFLA_MTU                = 0x4
+	IFLA_LINK               = 0x5
+	IFLA_QDISC              = 0x6
+	IFLA_STATS              = 0x7
+	IFLA_COST               = 0x8
+	IFLA_PRIORITY           = 0x9
+	IFLA_MASTER             = 0xa
+	IFLA_WIRELESS           = 0xb
+	IFLA_PROTINFO           = 0xc
+	IFLA_TXQLEN             = 0xd
+	IFLA_MAP                = 0xe
+	IFLA_WEIGHT             = 0xf
+	IFLA_OPERSTATE          = 0x10
+	IFLA_LINKMODE           = 0x11
+	IFLA_LINKINFO           = 0x12
+	IFLA_NET_NS_PID         = 0x13
+	IFLA_IFALIAS            = 0x14
+	IFLA_MAX                = 0x14
+	SizeofNlMsghdr          = 0x10
+	SizeofNlMsgerr          = 0x14
+	SizeofRtGenmsg          = 0x1
+	SizeofNlAttr            = 0x4
+	SizeofRtAttr            = 0x4
+	SizeofIfInfomsg         = 0x10
+	SizeofIfAddrmsg         = 0x8
+	SizeofRtmsg             = 0xc
 	SizeofInotifyEvent      = 0x10
 )
 
@@ -193,6 +232,13 @@ type RawSockaddrLinklayer struct {
 	Addr     [8]uint8
 }
 
+type RawSockaddrNetlink struct {
+	Family uint16
+	Pad    uint16
+	Pid    uint32
+	Groups uint32
+}
+
 type RawSockaddr struct {
 	Family uint16
 	Data   [14]int8
@@ -242,6 +288,62 @@ type Ucred struct {
 	Pid int32
 	Uid uint32
 	Gid uint32
+}
+
+type NlMsghdr struct {
+	Len   uint32
+	Type  uint16
+	Flags uint16
+	Seq   uint32
+	Pid   uint32
+}
+
+type NlMsgerr struct {
+	Error int32
+	Msg   NlMsghdr
+}
+
+type RtGenmsg struct {
+	Family uint8
+}
+
+type NlAttr struct {
+	Len  uint16
+	Type uint16
+}
+
+type RtAttr struct {
+	Len  uint16
+	Type uint16
+}
+
+type IfInfomsg struct {
+	Family     uint8
+	X__ifi_pad uint8
+	Type       uint16
+	Index      int32
+	Flags      uint32
+	Change     uint32
+}
+
+type IfAddrmsg struct {
+	Family    uint8
+	Prefixlen uint8
+	Flags     uint8
+	Scope     uint8
+	Index     uint32
+}
+
+type RtMsg struct {
+	Family   uint8
+	Dst_len  uint8
+	Src_len  uint8
+	Tos      uint8
+	Table    uint8
+	Protocol uint8
+	Scope    uint8
+	Type     uint8
+	Flags    uint32
 }
 
 type InotifyEvent struct {
