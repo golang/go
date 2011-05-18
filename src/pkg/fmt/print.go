@@ -41,7 +41,7 @@ type State interface {
 	Precision() (prec int, ok bool)
 
 	// Flag returns whether the flag c, a character, has been set.
-	Flag(int) bool
+	Flag(c int) bool
 }
 
 // Formatter is the interface implemented by values with a custom formatter.
