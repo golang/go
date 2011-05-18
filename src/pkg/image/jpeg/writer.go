@@ -221,8 +221,7 @@ type encoder struct {
 	// buf is a scratch buffer.
 	buf [16]byte
 	// bits and nBits are accumulated bits to write to w.
-	bits  uint32
-	nBits uint8
+	bits, nBits uint32
 	// quant is the scaled quantization tables.
 	quant [nQuantIndex][blockSize]byte
 }
@@ -250,7 +249,7 @@ func (e *encoder) writeByte(b byte) {
 
 // emit emits the least significant nBits bits of bits to the bitstream.
 // The precondition is bits < 1<<nBits && nBits <= 16.
-func (e *encoder) emit(bits uint32, nBits uint8) {
+func (e *encoder) emit(bits, nBits uint32) {
 	nBits += e.nBits
 	bits <<= 32 - nBits
 	bits |= e.bits
@@ -269,7 +268,7 @@ func (e *encoder) emit(bits uint32, nBits uint8) {
 // emitHuff emits the given value with the given Huffman encoder.
 func (e *encoder) emitHuff(h huffIndex, value int) {
 	x := theHuffmanLUT[h][value]
-	e.emit(x&(1<<24-1), uint8(x>>24))
+	e.emit(x&(1<<24-1), x>>24)
 }
 
 // emitHuffRLE emits a run of runLength copies of value encoded with the given
@@ -279,11 +278,11 @@ func (e *encoder) emitHuffRLE(h huffIndex, runLength, value int) {
 	if a < 0 {
 		a, b = -value, value-1
 	}
-	var nBits uint8
+	var nBits uint32
 	if a < 0x100 {
-		nBits = bitCount[a]
+		nBits = uint32(bitCount[a])
 	} else {
-		nBits = 8 + bitCount[a>>8]
+		nBits = 8 + uint32(bitCount[a>>8])
 	}
 	e.emitHuff(h, runLength<<4|int(nBits))
 	if nBits > 0 {
