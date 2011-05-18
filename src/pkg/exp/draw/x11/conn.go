@@ -310,7 +310,7 @@ func authenticate(w *bufio.Writer, displayStr string) os.Error {
 		return os.NewError("unsupported Xauth")
 	}
 	// 0x006c means little-endian. 0x000b, 0x0000 means X major version 11, minor version 0.
-	// 0x0012 and 0x0010 means the auth key and value have lenths 18 and 16.
+	// 0x0012 and 0x0010 means the auth key and value have lengths 18 and 16.
 	// The final 0x0000 is padding, so that the string length is a multiple of 4.
 	_, err = io.WriteString(w, "\x6c\x00\x0b\x00\x00\x00\x12\x00\x10\x00\x00\x00")
 	if err != nil {
@@ -517,7 +517,7 @@ func (c *conn) handshake() os.Error {
 	if err != nil {
 		return err
 	}
-	// Ignore some things that we don't care about (totalling 10 + vendorLen bytes):
+	// Ignore some things that we don't care about (totaling 10 + vendorLen bytes):
 	// imageByteOrder(1), bitmapFormatBitOrder(1), bitmapFormatScanlineUnit(1) bitmapFormatScanlinePad(1),
 	// minKeycode(1), maxKeycode(1), padding(4), vendor (vendorLen).
 	if 10+int(vendorLen) > cap(c.buf) {

@@ -22,7 +22,7 @@ func blockToUint32(src []byte) (uint32, uint32) {
 	return r0, r1
 }
 
-// uint32ToBlock writes two unint32s into an 8 byte data block.
+// uint32ToBlock writes two uint32s into an 8 byte data block.
 // Values are written as big endian.
 func uint32ToBlock(v0, v1 uint32, dst []byte) {
 	dst[0] = byte(v0 >> 24)

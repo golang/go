@@ -44,7 +44,7 @@ type MessageDetails struct {
 	DecryptedWith            Key                 // the private key used to decrypt the message, if any.
 	IsSigned                 bool                // true if the message is signed.
 	SignedByKeyId            uint64              // the key id of the signer, if any.
-	SignedBy                 *Key                // the key of the signer, if availible.
+	SignedBy                 *Key                // the key of the signer, if available.
 	LiteralData              *packet.LiteralData // the metadata of the contents
 	UnverifiedBody           io.Reader           // the contents of the message.
 
@@ -145,7 +145,7 @@ ParsePackets:
 	// function so that it can decrypt a key or give us a passphrase.
 FindKey:
 	for {
-		// See if any of the keys already have a private key availible
+		// See if any of the keys already have a private key available
 		candidates = candidates[:0]
 		candidateFingerprints := make(map[string]bool)
 
@@ -214,7 +214,7 @@ FindKey:
 	return readSignedMessage(packets, md, keyring)
 }
 
-// readSignedMessage reads a possibily signed message if mdin is non-zero then
+// readSignedMessage reads a possibly signed message if mdin is non-zero then
 // that structure is updated and returned. Otherwise a fresh MessageDetails is
 // used.
 func readSignedMessage(packets *packet.Reader, mdin *MessageDetails, keyring KeyRing) (md *MessageDetails, err os.Error) {
@@ -274,13 +274,13 @@ FindLiteralData:
 
 // hashForSignature returns a pair of hashes that can be used to verify a
 // signature. The signature may specify that the contents of the signed message
-// should be preprocessed (i.e. to normalise line endings). Thus this function
+// should be preprocessed (i.e. to normalize line endings). Thus this function
 // returns two hashes. The second should be used to hash the message itself and
 // performs any needed preprocessing.
 func hashForSignature(hashId crypto.Hash, sigType packet.SignatureType) (hash.Hash, hash.Hash, os.Error) {
 	h := hashId.New()
 	if h == nil {
-		return nil, nil, error.UnsupportedError("hash not availible: " + strconv.Itoa(int(hashId)))
+		return nil, nil, error.UnsupportedError("hash not available: " + strconv.Itoa(int(hashId)))
 	}
 
 	switch sigType {

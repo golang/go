@@ -321,8 +321,8 @@ func TestMarshal(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	serialised := p224.Marshal(x, y)
-	xx, yy := p224.Unmarshal(serialised)
+	serialized := p224.Marshal(x, y)
+	xx, yy := p224.Unmarshal(serialized)
 	if xx == nil {
 		t.Error("failed to unmarshal")
 		return

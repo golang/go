@@ -523,7 +523,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		// Attributes:
 		//	AttrType: type of return value if any
 		//	AttrName: possible name of type [ignored]
-		//	AttrPrototyped: whether used ANSI C prototye [ignored]
+		//	AttrPrototyped: whether used ANSI C prototype [ignored]
 		// Children:
 		//	TagFormalParameter: typed parameter
 		//		AttrType: type of parameter

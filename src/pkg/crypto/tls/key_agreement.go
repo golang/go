@@ -236,12 +236,12 @@ func (ka *ecdheRSAKeyAgreement) generateClientKeyExchange(config *Config, client
 	xBytes := x.Bytes()
 	copy(preMasterSecret[len(preMasterSecret)-len(xBytes):], xBytes)
 
-	serialised := ka.curve.Marshal(mx, my)
+	serialized := ka.curve.Marshal(mx, my)
 
 	ckx := new(clientKeyExchangeMsg)
-	ckx.ciphertext = make([]byte, 1+len(serialised))
-	ckx.ciphertext[0] = byte(len(serialised))
-	copy(ckx.ciphertext[1:], serialised)
+	ckx.ciphertext = make([]byte, 1+len(serialized))
+	ckx.ciphertext[0] = byte(len(serialized))
+	copy(ckx.ciphertext[1:], serialized)
 
 	return preMasterSecret, ckx, nil
 }

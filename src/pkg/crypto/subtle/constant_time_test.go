@@ -14,14 +14,14 @@ type TestConstantTimeCompareStruct struct {
 	out  int
 }
 
-var testConstandTimeCompareData = []TestConstantTimeCompareStruct{
+var testConstantTimeCompareData = []TestConstantTimeCompareStruct{
 	{[]byte{}, []byte{}, 1},
 	{[]byte{0x11}, []byte{0x11}, 1},
 	{[]byte{0x12}, []byte{0x11}, 0},
 }
 
 func TestConstantTimeCompare(t *testing.T) {
-	for i, test := range testConstandTimeCompareData {
+	for i, test := range testConstantTimeCompareData {
 		if r := ConstantTimeCompare(test.a, test.b); r != test.out {
 			t.Errorf("#%d bad result (got %x, want %x)", i, r, test.out)
 		}

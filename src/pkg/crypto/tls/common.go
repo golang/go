@@ -87,7 +87,7 @@ const (
 	certTypeRSASign    = 1 // A certificate containing an RSA key
 	certTypeDSSSign    = 2 // A certificate containing a DSA key
 	certTypeRSAFixedDH = 3 // A certificate containing a static DH key
-	certTypeDSSFixedDH = 4 // A certficiate containing a static DH key
+	certTypeDSSFixedDH = 4 // A certificate containing a static DH key
 	// Rest of these are reserved by the TLS spec
 )
 

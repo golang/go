@@ -112,7 +112,7 @@ func (f *File) Close() os.Error {
 	return err
 }
 
-// NewFile creates a new File for acecssing a PE binary in an underlying reader.
+// NewFile creates a new File for accessing a PE binary in an underlying reader.
 func NewFile(r io.ReaderAt) (*File, os.Error) {
 	f := new(File)
 	sr := io.NewSectionReader(r, 0, 1<<63-1)

@@ -515,10 +515,10 @@ type (
 
 	// An EmptyStmt node represents an empty statement.
 	// The "position" of the empty statement is the position
-	// of the immediately preceeding semicolon.
+	// of the immediately preceding semicolon.
 	//
 	EmptyStmt struct {
-		Semicolon token.Pos // position of preceeding ";"
+		Semicolon token.Pos // position of preceding ";"
 	}
 
 	// A LabeledStmt node represents a labeled statement.
@@ -596,7 +596,7 @@ type (
 	// An IfStmt node represents an if statement.
 	IfStmt struct {
 		If   token.Pos // position of "if" keyword
-		Init Stmt      // initalization statement; or nil
+		Init Stmt      // initialization statement; or nil
 		Cond Expr      // condition
 		Body *BlockStmt
 		Else Stmt // else branch; or nil
@@ -613,7 +613,7 @@ type (
 	// A SwitchStmt node represents an expression switch statement.
 	SwitchStmt struct {
 		Switch token.Pos  // position of "switch" keyword
-		Init   Stmt       // initalization statement; or nil
+		Init   Stmt       // initialization statement; or nil
 		Tag    Expr       // tag expression; or nil
 		Body   *BlockStmt // CaseClauses only
 	}
@@ -621,7 +621,7 @@ type (
 	// An TypeSwitchStmt node represents a type switch statement.
 	TypeSwitchStmt struct {
 		Switch token.Pos  // position of "switch" keyword
-		Init   Stmt       // initalization statement; or nil
+		Init   Stmt       // initialization statement; or nil
 		Assign Stmt       // x := y.(type) or y.(type)
 		Body   *BlockStmt // CaseClauses only
 	}
@@ -643,7 +643,7 @@ type (
 	// A ForStmt represents a for statement.
 	ForStmt struct {
 		For  token.Pos // position of "for" keyword
-		Init Stmt      // initalization statement; or nil
+		Init Stmt      // initialization statement; or nil
 		Cond Expr      // condition; or nil
 		Post Stmt      // post iteration statement; or nil
 		Body *BlockStmt

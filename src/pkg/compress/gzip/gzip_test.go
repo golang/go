@@ -11,7 +11,7 @@ import (
 )
 
 // pipe creates two ends of a pipe that gzip and gunzip, and runs dfunc at the
-// writer end and ifunc at the reader end.
+// writer end and cfunc at the reader end.
 func pipe(t *testing.T, dfunc func(*Compressor), cfunc func(*Decompressor)) {
 	piper, pipew := io.Pipe()
 	defer piper.Close()

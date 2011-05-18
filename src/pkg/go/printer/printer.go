@@ -589,7 +589,7 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
 			// ignore trailing whitespace
 			p.wsbuf[i] = ignore
 		case indent, unindent:
-			// don't loose indentation information
+			// don't lose indentation information
 		case newline, formfeed:
 			// if we need a line break, keep exactly one
 			// but remember if we dropped any formfeeds

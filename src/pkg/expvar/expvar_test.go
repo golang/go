@@ -76,33 +76,33 @@ func TestString(t *testing.T) {
 }
 
 func TestMapCounter(t *testing.T) {
-	colours := NewMap("bike-shed-colours")
+	colors := NewMap("bike-shed-colors")
 
-	colours.Add("red", 1)
-	colours.Add("red", 2)
-	colours.Add("blue", 4)
-	colours.AddFloat("green", 4.125)
-	if x := colours.m["red"].(*Int).i; x != 3 {
-		t.Errorf("colours.m[\"red\"] = %v, want 3", x)
+	colors.Add("red", 1)
+	colors.Add("red", 2)
+	colors.Add("blue", 4)
+	colors.AddFloat("green", 4.125)
+	if x := colors.m["red"].(*Int).i; x != 3 {
+		t.Errorf("colors.m[\"red\"] = %v, want 3", x)
 	}
-	if x := colours.m["blue"].(*Int).i; x != 4 {
-		t.Errorf("colours.m[\"blue\"] = %v, want 4", x)
+	if x := colors.m["blue"].(*Int).i; x != 4 {
+		t.Errorf("colors.m[\"blue\"] = %v, want 4", x)
 	}
-	if x := colours.m["green"].(*Float).f; x != 4.125 {
-		t.Errorf("colours.m[\"green\"] = %v, want 3.14", x)
+	if x := colors.m["green"].(*Float).f; x != 4.125 {
+		t.Errorf("colors.m[\"green\"] = %v, want 3.14", x)
 	}
 
-	// colours.String() should be '{"red":3, "blue":4}',
+	// colors.String() should be '{"red":3, "blue":4}',
 	// though the order of red and blue could vary.
-	s := colours.String()
+	s := colors.String()
 	var j interface{}
 	err := json.Unmarshal([]byte(s), &j)
 	if err != nil {
-		t.Errorf("colours.String() isn't valid JSON: %v", err)
+		t.Errorf("colors.String() isn't valid JSON: %v", err)
 	}
 	m, ok := j.(map[string]interface{})
 	if !ok {
-		t.Error("colours.String() didn't produce a map.")
+		t.Error("colors.String() didn't produce a map.")
 	}
 	red := m["red"]
 	x, ok := red.(float64)

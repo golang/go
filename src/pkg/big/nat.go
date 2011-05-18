@@ -736,7 +736,7 @@ var deBruijn64Lookup = []byte{
 func trailingZeroBits(x Word) int {
 	// x & -x leaves only the right-most bit set in the word. Let k be the
 	// index of that bit. Since only a single bit is set, the value is two
-	// to the power of k. Multipling by a power of two is equivalent to
+	// to the power of k. Multiplying by a power of two is equivalent to
 	// left shifting, in this case by k bits.  The de Bruijn constant is
 	// such that all six bit, consecutive substrings are distinct.
 	// Therefore, if we have a left shifted version of this constant we can

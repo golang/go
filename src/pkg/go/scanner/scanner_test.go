@@ -89,7 +89,7 @@ var tokens = [...]elt{
 		literal,
 	},
 
-	// Operators and delimitors
+	// Operators and delimiters
 	{token.ADD, "+", operator},
 	{token.SUB, "-", operator},
 	{token.MUL, "*", operator},

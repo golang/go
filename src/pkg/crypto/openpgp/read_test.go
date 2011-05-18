@@ -193,9 +193,9 @@ func TestSymmetricallyEncrypted(t *testing.T) {
 		t.Errorf("ReadAll: %s", err)
 	}
 
-	expectedCreatationTime := uint32(1295992998)
-	if md.LiteralData.Time != expectedCreatationTime {
-		t.Errorf("LiteralData.Time is %d, want %d", md.LiteralData.Time, expectedCreatationTime)
+	expectedCreationTime := uint32(1295992998)
+	if md.LiteralData.Time != expectedCreationTime {
+		t.Errorf("LiteralData.Time is %d, want %d", md.LiteralData.Time, expectedCreationTime)
 	}
 
 	if string(contents) != expected {

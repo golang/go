@@ -384,7 +384,7 @@ func TestGobEncoderFieldTypeError(t *testing.T) {
 	y := &GobTest1{}
 	err = dec.Decode(y)
 	if err == nil {
-		t.Fatal("expected decode error for mistmatched fields (non-encoder to decoder)")
+		t.Fatal("expected decode error for mismatched fields (non-encoder to decoder)")
 	}
 	if strings.Index(err.String(), "type") < 0 {
 		t.Fatal("expected type error; got", err)

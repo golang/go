@@ -172,7 +172,7 @@ func ignoreTwoUints(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	state.decodeUint()
 }
 
-// decBool decodes a uiint and stores it as a boolean through p.
+// decBool decodes a uint and stores it as a boolean through p.
 func decBool(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {

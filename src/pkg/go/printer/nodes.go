@@ -33,7 +33,7 @@ import (
 // line break was printed; returns false otherwise.
 //
 // TODO(gri): linebreak may add too many lines if the next statement at "line"
-//            is preceeded by comments because the computation of n assumes
+//            is preceded by comments because the computation of n assumes
 //            the current position before the comment and the target position
 //            after the comment. Thus, after interspersing such comments, the
 //            space taken up by them is not considered to reduce the number of
@@ -438,7 +438,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 			if len(list) > 0 {
 				p.print(formfeed)
 			}
-			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't loose the last line comment
+			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't lose the last line comment
 			p.setLineComment("// contains filtered or unexported fields")
 		}
 
@@ -465,7 +465,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 			if len(list) > 0 {
 				p.print(formfeed)
 			}
-			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't loose the last line comment
+			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't lose the last line comment
 			p.setLineComment("// contains filtered or unexported methods")
 		}
 
@@ -1390,7 +1390,7 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 	size = maxSize + 1 // assume n doesn't fit
 	p.nodeSizes[n] = size
 
-	// nodeSize computation must be indendent of particular
+	// nodeSize computation must be independent of particular
 	// style so that we always get the same decision; print
 	// in RawFormat
 	cfg := Config{Mode: RawFormat}

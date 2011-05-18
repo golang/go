@@ -164,9 +164,9 @@ func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
 	return true
 }
 
-// parseObjectIdentifier parses an OBJECT IDENTIFER from the given bytes and
-// returns it. An object identifer is a sequence of variable length integers
-// that are assigned in a hierarachy.
+// parseObjectIdentifier parses an OBJECT IDENTIFIER from the given bytes and
+// returns it. An object identifier is a sequence of variable length integers
+// that are assigned in a hierarchy.
 func parseObjectIdentifier(bytes []byte) (s []int, err os.Error) {
 	if len(bytes) == 0 {
 		err = SyntaxError{"zero length OBJECT IDENTIFIER"}
@@ -269,7 +269,7 @@ func isPrintable(b byte) bool {
 		b == ':' ||
 		b == '=' ||
 		b == '?' ||
-		// This is techincally not allowed in a PrintableString.
+		// This is technically not allowed in a PrintableString.
 		// However, x509 certificates with wildcard strings don't
 		// always use the correct string type so we permit it.
 		b == '*'

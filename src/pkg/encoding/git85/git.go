@@ -273,5 +273,5 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		d.nbuf = copy(d.buf[0:], d.buf[nl+1:d.nbuf])
 		d.off += int64(nl + 1)
 	}
-	panic("unreacahable")
+	panic("unreachable")
 }

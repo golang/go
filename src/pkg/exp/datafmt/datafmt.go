@@ -594,7 +594,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 		s.eval(t.indent, value, index)
 		// if the indentation evaluates to nil, the state's output buffer
 		// didn't change - either way it's ok to append the difference to
-		// the current identation
+		// the current indentation
 		s.indent.Write(s.output.Bytes()[mark.outputLen:s.output.Len()])
 		s.restore(mark)
 

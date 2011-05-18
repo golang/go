@@ -100,7 +100,7 @@ var tokenTests = []tokenTest{
 		"<p \t\n iD=\"a&quot;B\"  foo=\"bar\"><EM>te&lt;&amp;;xt</em></p>",
 		`<p id="a&quot;B" foo="bar">$<em>$te&lt;&amp;;xt$</em>$</p>`,
 	},
-	// A non-existant entity. Tokenizing and converting back to a string should
+	// A nonexistent entity. Tokenizing and converting back to a string should
 	// escape the "&" to become "&amp;".
 	{
 		"noSuchEntity",

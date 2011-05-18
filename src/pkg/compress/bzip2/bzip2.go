@@ -284,7 +284,7 @@ func (bz2 *reader) readBlock() (err os.Error) {
 	repeat := 0
 	repeat_power := 0
 
-	// The `C' array (used by the inverse BWT) needs to be zero initialised.
+	// The `C' array (used by the inverse BWT) needs to be zero initialized.
 	for i := range bz2.c {
 		bz2.c[i] = 0
 	}
@@ -330,7 +330,7 @@ func (bz2 *reader) readBlock() (err os.Error) {
 
 		if int(v) == numSymbols-1 {
 			// This is the EOF symbol. Because it's always at the
-			// end of the move-to-front list, and nevers gets moved
+			// end of the move-to-front list, and never gets moved
 			// to the front, it has this unique value.
 			break
 		}

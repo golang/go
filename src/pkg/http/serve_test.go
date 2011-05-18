@@ -551,7 +551,7 @@ var serverExpectTests = []serverExpectTest{
 	{100, "", true, "200 OK"},
 
 	// 100-continue but requesting client to deny us,
-	// so it never eads the body.
+	// so it never reads the body.
 	{100, "100-continue", false, "401 Unauthorized"},
 	// Likewise without 100-continue:
 	{100, "", false, "401 Unauthorized"},

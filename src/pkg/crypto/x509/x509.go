@@ -33,10 +33,10 @@ type pkcs1PrivateKey struct {
 	Dq   asn1.RawValue "optional"
 	Qinv asn1.RawValue "optional"
 
-	AdditionalPrimes []pkcs1AddtionalRSAPrime "optional"
+	AdditionalPrimes []pkcs1AdditionalRSAPrime "optional"
 }
 
-type pkcs1AddtionalRSAPrime struct {
+type pkcs1AdditionalRSAPrime struct {
 	Prime asn1.RawValue
 
 	// We ignore these values because rsa will calculate them.
@@ -135,7 +135,7 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
 		Qinv:    rawValueForBig(key.Precomputed.Qinv),
 	}
 
-	priv.AdditionalPrimes = make([]pkcs1AddtionalRSAPrime, len(key.Precomputed.CRTValues))
+	priv.AdditionalPrimes = make([]pkcs1AdditionalRSAPrime, len(key.Precomputed.CRTValues))
 	for i, values := range key.Precomputed.CRTValues {
 		priv.AdditionalPrimes[i].Prime = rawValueForBig(key.Primes[2+i])
 		priv.AdditionalPrimes[i].Exp = rawValueForBig(values.Exp)
@@ -280,7 +280,7 @@ var (
 	oidOrganizationalUnit = []int{2, 5, 4, 11}
 	oidCommonName         = []int{2, 5, 4, 3}
 	oidSerialNumber       = []int{2, 5, 4, 5}
-	oidLocatity           = []int{2, 5, 4, 7}
+	oidLocality           = []int{2, 5, 4, 7}
 	oidProvince           = []int{2, 5, 4, 8}
 	oidStreetAddress      = []int{2, 5, 4, 9}
 	oidPostalCode         = []int{2, 5, 4, 17}
@@ -308,7 +308,7 @@ func (n Name) toRDNSequence() (ret rdnSequence) {
 	ret = appendRDNs(ret, n.Country, oidCountry)
 	ret = appendRDNs(ret, n.Organization, oidOrganization)
 	ret = appendRDNs(ret, n.OrganizationalUnit, oidOrganizationalUnit)
-	ret = appendRDNs(ret, n.Locality, oidLocatity)
+	ret = appendRDNs(ret, n.Locality, oidLocality)
 	ret = appendRDNs(ret, n.Province, oidProvince)
 	ret = appendRDNs(ret, n.StreetAddress, oidStreetAddress)
 	ret = appendRDNs(ret, n.PostalCode, oidPostalCode)
@@ -680,13 +680,13 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 				}
 			case 19:
 				// RFC 5280, 4.2.1.9
-				var constriants basicConstraints
-				_, err := asn1.Unmarshal(e.Value, &constriants)
+				var constraints basicConstraints
+				_, err := asn1.Unmarshal(e.Value, &constraints)
 
 				if err == nil {
 					out.BasicConstraintsValid = true
-					out.IsCA = constriants.IsCA
-					out.MaxPathLen = constriants.MaxPathLen
+					out.IsCA = constraints.IsCA
+					out.MaxPathLen = constraints.MaxPathLen
 					continue
 				}
 			case 17:
