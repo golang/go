@@ -173,6 +173,10 @@ type dsaAlgorithmParameters struct {
 	P, Q, G asn1.RawValue
 }
 
+type dsaSignature struct {
+	R, S asn1.RawValue
+}
+
 type algorithmIdentifier struct {
 	Algorithm  asn1.ObjectIdentifier
 	Parameters asn1.RawValue "optional"
@@ -218,6 +222,8 @@ const (
 	SHA256WithRSA
 	SHA384WithRSA
 	SHA512WithRSA
+	DSAWithSHA1
+	DSAWithSHA256
 )
 
 type PublicKeyAlgorithm int
@@ -322,25 +328,69 @@ func (n Name) toRDNSequence() (ret rdnSequence) {
 	return ret
 }
 
-func getSignatureAlgorithmFromOID(oid []int) SignatureAlgorithm {
-	if len(oid) == 7 && oid[0] == 1 && oid[1] == 2 && oid[2] == 840 &&
-		oid[3] == 113549 && oid[4] == 1 && oid[5] == 1 {
-		switch oid[6] {
-		case 2:
-			return MD2WithRSA
-		case 4:
-			return MD5WithRSA
-		case 5:
-			return SHA1WithRSA
-		case 11:
-			return SHA256WithRSA
-		case 12:
-			return SHA384WithRSA
-		case 13:
-			return SHA512WithRSA
-		}
-	}
+// OIDs for signature algorithms
+//
+// pkcs-1 OBJECT IDENTIFIER ::= {
+//    iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) 1 }
+// 
+// 
+// RFC 3279 2.2.1 RSA Signature Algorithms
+//
+// md2WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 2 }
+//
+// md5WithRSAEncryption OBJECT IDENTIFER ::= { pkcs-1 4 }
+//
+// sha-1WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 5 }
+// 
+// dsaWithSha1 OBJECT IDENTIFIER ::= {
+//    iso(1) member-body(2) us(840) x9-57(10040) x9cm(4) 3 } 
+//
+//
+// RFC 4055 5 PKCS #1 Version 1.5
+// 
+// sha256WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 11 }
+//
+// sha384WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 12 }
+//
+// sha512WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 13 }
+//
+//
+// RFC 5758 3.1 DSA Signature Algorithms
+//
+// dsaWithSha356 OBJECT IDENTIFER ::= {
+//    joint-iso-ccitt(2) country(16) us(840) organization(1) gov(101)
+//    algorithms(4) id-dsa-with-sha2(3) 2}
+//
+var (
+	oidSignatureMD2WithRSA    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 2}
+	oidSignatureMD5WithRSA    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 4}
+	oidSignatureSHA1WithRSA   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 5}
+	oidSignatureSHA256WithRSA = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11}
+	oidSignatureSHA384WithRSA = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 12}
+	oidSignatureSHA512WithRSA = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 13}
+	oidSignatureDSAWithSHA1   = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 3}
+	oidSignatureDSAWithSHA256 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 4, 3, 2}
+)
 
+func getSignatureAlgorithmFromOID(oid asn1.ObjectIdentifier) SignatureAlgorithm {
+	switch {
+	case oid.Equal(oidSignatureMD2WithRSA):
+		return MD2WithRSA
+	case oid.Equal(oidSignatureMD5WithRSA):
+		return MD5WithRSA
+	case oid.Equal(oidSignatureSHA1WithRSA):
+		return SHA1WithRSA
+	case oid.Equal(oidSignatureSHA256WithRSA):
+		return SHA256WithRSA
+	case oid.Equal(oidSignatureSHA384WithRSA):
+		return SHA384WithRSA
+	case oid.Equal(oidSignatureSHA512WithRSA):
+		return SHA512WithRSA
+	case oid.Equal(oidSignatureDSAWithSHA1):
+		return DSAWithSHA1
+	case oid.Equal(oidSignatureDSAWithSHA256):
+		return DSAWithSHA256
+	}
 	return UnknownSignatureAlgorithm
 }
 
@@ -513,9 +563,9 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 	var hashType crypto.Hash
 
 	switch algo {
-	case SHA1WithRSA:
+	case SHA1WithRSA, DSAWithSHA1:
 		hashType = crypto.SHA1
-	case SHA256WithRSA:
+	case SHA256WithRSA, DSAWithSHA256:
 		hashType = crypto.SHA256
 	case SHA384WithRSA:
 		hashType = crypto.SHA384
@@ -530,15 +580,28 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 		return UnsupportedAlgorithmError{}
 	}
 
-	pub, ok := c.PublicKey.(*rsa.PublicKey)
-	if !ok {
-		return UnsupportedAlgorithmError{}
-	}
-
 	h.Write(signed)
 	digest := h.Sum()
 
-	return rsa.VerifyPKCS1v15(pub, hashType, digest, signature)
+	switch pub := c.PublicKey.(type) {
+	case *rsa.PublicKey:
+		return rsa.VerifyPKCS1v15(pub, hashType, digest, signature)
+	case *dsa.PublicKey:
+		dsaSig := new(dsaSignature)
+		if _, err := asn1.Unmarshal(signature, dsaSig); err != nil {
+			return err
+		}
+		if !rawValueIsInteger(&dsaSig.R) || !rawValueIsInteger(&dsaSig.S) {
+			return asn1.StructuralError{"tags don't match"}
+		}
+		r := new(big.Int).SetBytes(dsaSig.R.Bytes)
+		s := new(big.Int).SetBytes(dsaSig.S.Bytes)
+		if !dsa.Verify(pub, digest, r, s) {
+			return os.ErrorString("DSA verification failure")
+		}
+		return
+	}
+	return UnsupportedAlgorithmError{}
 }
 
 // CheckCRLSignature checks that the signature in crl is from c.
