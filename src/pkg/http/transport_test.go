@@ -478,6 +478,30 @@ func TestTransportGzip(t *testing.T) {
 	}
 }
 
+func TestTransportProxy(t *testing.T) {
+	ch := make(chan string, 1)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		ch <- "real server"
+	}))
+	defer ts.Close()
+	proxy := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		ch <- "proxy for " + r.URL.String()
+	}))
+	defer proxy.Close()
+
+	pu, err := ParseURL(proxy.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &Client{Transport: &Transport{Proxy: ProxyURL(pu)}}
+	c.Head(ts.URL)
+	got := <-ch
+	want := "proxy for " + ts.URL + "/"
+	if got != want {
+		t.Errorf("want %q, got %q", want, got)
+	}
+}
+
 // TestTransportGzipRecursive sends a gzip quine and checks that the
 // client gets the same value back. This is more cute than anything,
 // but checks that we don't recurse forever, and checks that
