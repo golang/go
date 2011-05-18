@@ -302,14 +302,11 @@ func (e *encoder) writeMarkerHeader(marker uint8, markerlen int) {
 
 // writeDQT writes the Define Quantization Table marker.
 func (e *encoder) writeDQT() {
-	markerlen := 2
-	for _, q := range e.quant {
-		markerlen += 1 + len(q)
-	}
+	markerlen := 2 + int(nQuantIndex)*(1+blockSize)
 	e.writeMarkerHeader(dqtMarker, markerlen)
-	for i, q := range e.quant {
+	for i := range e.quant {
 		e.writeByte(uint8(i))
-		e.write(q[:])
+		e.write(e.quant[i][:])
 	}
 }
 
