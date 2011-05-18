@@ -184,7 +184,7 @@ func (f *File) Close() os.Error {
 	return err
 }
 
-// NewFile creates a new File for acecssing a Mach-O binary in an underlying reader.
+// NewFile creates a new File for accessing a Mach-O binary in an underlying reader.
 // The Mach-O binary is expected to start at position 0 in the ReaderAt.
 func NewFile(r io.ReaderAt) (*File, os.Error) {
 	f := new(File)

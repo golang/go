@@ -434,7 +434,7 @@ func _() {
 
 
 // Comments immediately adjacent to punctuation (for which the go/printer
-// may obly have estimated position information) must remain after the punctuation.
+// may only have estimated position information) must remain after the punctuation.
 func _() {
 	_ = T{
 		1,    // comment after comma

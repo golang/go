@@ -209,10 +209,10 @@ FindCipherSuite:
 
 	// If we received a client cert in response to our certificate request message,
 	// the client will send us a certificateVerifyMsg immediately after the
-	// clientKeyExchangeMsg.  This message is a MD5SHA1 digest of all preceeding
+	// clientKeyExchangeMsg.  This message is a MD5SHA1 digest of all preceding
 	// handshake-layer messages that is signed using the private key corresponding
 	// to the client's certificate. This allows us to verify that the client is in
-	// posession of the private key of the certificate.
+	// possession of the private key of the certificate.
 	if len(c.peerCertificates) > 0 {
 		msg, err = c.readHandshake()
 		if err != nil {

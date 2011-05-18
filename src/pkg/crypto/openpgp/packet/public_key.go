@@ -293,7 +293,7 @@ type parsedMPI struct {
 	bitLength uint16
 }
 
-// writeMPIs is a utility function for serialising several big integers to the
+// writeMPIs is a utility function for serializing several big integers to the
 // given Writer.
 func writeMPIs(w io.Writer, mpis ...parsedMPI) (err os.Error) {
 	for _, mpi := range mpis {

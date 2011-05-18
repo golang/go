@@ -34,7 +34,7 @@ type Conn struct {
 	cipherSuite       uint16
 	ocspResponse      []byte // stapled OCSP response
 	peerCertificates  []*x509.Certificate
-	// verifedChains contains the certificate chains that we built, as
+	// verifiedChains contains the certificate chains that we built, as
 	// opposed to the ones presented by the server.
 	verifiedChains [][]*x509.Certificate
 
@@ -237,7 +237,7 @@ func (hc *halfConn) decrypt(b *block) (bool, alert) {
 			// "Password Interception in a SSL/TLS Channel", Brice
 			// Canvel et al.
 			//
-			// However, our behaviour matches OpenSSL, so we leak
+			// However, our behavior matches OpenSSL, so we leak
 			// only as much as they do.
 		default:
 			panic("unknown cipher type")
@@ -410,7 +410,7 @@ func (hc *halfConn) freeBlock(b *block) {
 
 // splitBlock splits a block after the first n bytes,
 // returning a block with those n bytes and a
-// block with the remaindec.  the latter may be nil.
+// block with the remainder.  the latter may be nil.
 func (hc *halfConn) splitBlock(b *block, n int) (*block, *block) {
 	if len(b.data) <= n {
 		return b, nil

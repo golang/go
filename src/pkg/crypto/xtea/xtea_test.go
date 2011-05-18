@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// A sample test key for when we just want to initialise a cipher
+// A sample test key for when we just want to initialize a cipher
 var testKey = []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
 
 // Test that the block size for XTEA is correct
@@ -26,12 +26,12 @@ func TestBlocksize(t *testing.T) {
 
 	result := c.BlockSize()
 	if result != 8 {
-		t.Errorf("BlockSize function - expected 8, gotr %d", result)
+		t.Errorf("BlockSize function - expected 8, got %d", result)
 		return
 	}
 }
 
-// A series of test values to confirm that the Cipher.table array was initialised correctly
+// A series of test values to confirm that the Cipher.table array was initialized correctly
 var testTable = []uint32{
 	0x00112233, 0x6B1568B8, 0xE28CE030, 0xC5089E2D, 0xC5089E2D, 0x1EFBD3A2, 0xA7845C2A, 0x78EF0917,
 	0x78EF0917, 0x172682D0, 0x5B6AC714, 0x822AC955, 0x3DE68511, 0xDC1DFECA, 0x2062430E, 0x3611343F,
@@ -43,7 +43,7 @@ var testTable = []uint32{
 	0x4E22726F, 0x309E306C, 0x309E306C, 0x8A9165E1, 0x1319EE69, 0xF595AC66, 0xF595AC66, 0x4F88E1DB,
 }
 
-// Test that the cipher context is initialised correctly
+// Test that the cipher context is initialized correctly
 func TestCipherInit(t *testing.T) {
 	c, err := NewCipher(testKey)
 	if err != nil {
@@ -53,7 +53,7 @@ func TestCipherInit(t *testing.T) {
 
 	for i := 0; i < len(c.table); i++ {
 		if c.table[i] != testTable[i] {
-			t.Errorf("NewCipher() failed to initialise Cipher.table[%d] correctly. Expected %08X, got %08X", i, testTable[i], c.table[i])
+			t.Errorf("NewCipher() failed to initialize Cipher.table[%d] correctly. Expected %08X, got %08X", i, testTable[i], c.table[i])
 			break
 		}
 	}

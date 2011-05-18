@@ -393,7 +393,7 @@ func (sig *Signature) buildHashSuffix() (err os.Error) {
 	sig.HashSuffix[3], ok = s2k.HashToHashId(sig.Hash)
 	if !ok {
 		sig.HashSuffix = nil
-		return error.InvalidArgumentError("hash cannot be repesented in OpenPGP: " + strconv.Itoa(int(sig.Hash)))
+		return error.InvalidArgumentError("hash cannot be represented in OpenPGP: " + strconv.Itoa(int(sig.Hash)))
 	}
 	sig.HashSuffix[4] = byte(hashedSubpacketsLen >> 8)
 	sig.HashSuffix[5] = byte(hashedSubpacketsLen)

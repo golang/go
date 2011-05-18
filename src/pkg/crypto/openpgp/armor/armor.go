@@ -153,7 +153,7 @@ func (r *openpgpReader) Read(p []byte) (n int, err os.Error) {
 
 // Decode reads a PGP armored block from the given Reader. It will ignore
 // leading garbage. If it doesn't find a block, it will return nil, os.EOF. The
-// given Reader is not usable after calling this function: an arbitary amount
+// given Reader is not usable after calling this function: an arbitrary amount
 // of data may have been read past the end of the block.
 func Decode(in io.Reader) (p *Block, err os.Error) {
 	r, _ := bufio.NewReaderSize(in, 100)

@@ -84,7 +84,7 @@ func (z *Rat) Num() *Int {
 }
 
 
-// Demom returns the denominator of z; it is always > 0.
+// Denom returns the denominator of z; it is always > 0.
 // The result is a reference to z's denominator; it
 // may change if a new value is assigned to z.
 func (z *Rat) Denom() *Int {

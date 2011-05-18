@@ -284,7 +284,7 @@ func (curve *Curve) Marshal(x, y *big.Int) []byte {
 	return ret
 }
 
-// Unmarshal converts a point, serialised by Marshal, into an x, y pair. On
+// Unmarshal converts a point, serialized by Marshal, into an x, y pair. On
 // error, x = nil.
 func (curve *Curve) Unmarshal(data []byte) (x, y *big.Int) {
 	byteLen := (curve.BitSize + 7) >> 3

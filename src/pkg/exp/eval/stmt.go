@@ -68,7 +68,7 @@ type flowBuf struct {
 	gotos map[token.Pos]*flowBlock
 	// labels is a map from label name to information on the block
 	// at the point of the label.  labels are tracked by name,
-	// since mutliple labels at the same PC can have different
+	// since multiple labels at the same PC can have different
 	// blocks.
 	labels map[string]*flowBlock
 }
@@ -307,7 +307,7 @@ func (a *stmtCompiler) compile(s ast.Stmt) {
 	}
 
 	if notimpl {
-		a.diag("%T statment node not implemented", s)
+		a.diag("%T statement node not implemented", s)
 	}
 
 	if a.block.inner != nil {
@@ -550,7 +550,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			ident, ok = le.(*ast.Ident)
 			if !ok {
 				a.diagAt(le.Pos(), "left side of := must be a name")
-				// Suppress new defitions errors
+				// Suppress new definitions errors
 				nDefs++
 				continue
 			}

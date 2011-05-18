@@ -190,7 +190,7 @@ func TestHMAC(t *testing.T) {
 				continue
 			}
 
-			// Repetive Sum() calls should return the same value
+			// Repetitive Sum() calls should return the same value
 			for k := 0; k < 2; k++ {
 				sum := fmt.Sprintf("%x", h.Sum())
 				if sum != tt.out {

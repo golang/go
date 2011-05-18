@@ -140,7 +140,7 @@ Error:
 	// any lines which could be header lines. However, a valid preamble
 	// line is not a valid header line, therefore we cannot have consumed
 	// the preamble line for the any subsequent block. Thus, we will always
-	// find any valid block, no matter what bytes preceed it.
+	// find any valid block, no matter what bytes precede it.
 	//
 	// For example, if the input is
 	//

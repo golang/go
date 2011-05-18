@@ -22,7 +22,7 @@ type Interface interface {
 }
 
 
-// A heaper must be initialized before any of the heap operations
+// A heap must be initialized before any of the heap operations
 // can be used. Init is idempotent with respect to the heap invariants
 // and may be called whenever the heap invariants may have been invalidated.
 // Its complexity is O(n) where n = h.Len().

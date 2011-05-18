@@ -1781,7 +1781,7 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 		// written: Function values are equal if they were
 		// created by the same execution of a function literal
 		// or refer to the same function declaration.  This is
-		// *almost* but not quite waht 6g implements.  If a
+		// *almost* but not quite what 6g implements.  If a
 		// function literals does not capture any variables,
 		// then multiple executions of it will result in the
 		// same closure.  Russ says he'll change that.

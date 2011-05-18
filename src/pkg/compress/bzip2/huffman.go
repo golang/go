@@ -68,7 +68,7 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, os.Error) {
 	// each symbol (consider reflecting a tree down the middle, for
 	// example). Since the code length assignments determine the
 	// efficiency of the tree, each of these trees is equally good. In
-	// order to minimise the amount of information needed to build a tree
+	// order to minimize the amount of information needed to build a tree
 	// bzip2 uses a canonical tree so that it can be reconstructed given
 	// only the code length assignments.
 

@@ -68,7 +68,7 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
 	}
 
 	if _, ok := x.Len.(*ast.Ellipsis); ok {
-		a.diagAt(x.Len.Pos(), "... array initailizers not implemented")
+		a.diagAt(x.Len.Pos(), "... array initializers not implemented")
 		return nil
 	}
 	l, ok := a.compileArrayLen(a.block, x.Len)

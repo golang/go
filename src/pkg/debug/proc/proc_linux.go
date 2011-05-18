@@ -277,7 +277,7 @@ func (t *thread) ptraceDetach() os.Error {
 }
 
 /*
- * Logging utilties
+ * Logging utilities
  */
 
 var logLock sync.Mutex
@@ -1192,7 +1192,7 @@ func (p *process) attachAllThreads() os.Error {
 
 	// We stop threads as we attach to them; however, because new
 	// threads can appear while we're looping over all of them, we
-	// have to repeatly scan until we know we're attached to all
+	// have to repeatedly scan until we know we're attached to all
 	// of them.
 	for again := true; again; {
 		again = false
@@ -1214,7 +1214,7 @@ func (p *process) attachAllThreads() os.Error {
 			_, err = p.attachThread(tid)
 			if err != nil {
 				// There could have been a race, or
-				// this process could be a zobmie.
+				// this process could be a zombie.
 				statFile, err2 := ioutil.ReadFile(taskPath + "/" + tidStr + "/stat")
 				if err2 != nil {
 					switch err2 := err2.(type) {

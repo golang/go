@@ -185,7 +185,7 @@ func (w *huffmanBitWriter) writeBytes(bytes []byte) {
 	_, w.err = w.w.Write(bytes)
 }
 
-// RFC 1951 3.2.7 specifies a special run-length encoding for specifiying
+// RFC 1951 3.2.7 specifies a special run-length encoding for specifying
 // the literal and offset lengths arrays (which are concatenated into a single
 // array).  This method generates that run-length encoding.
 //
@@ -279,7 +279,7 @@ func (w *huffmanBitWriter) writeCode(code *huffmanEncoder, literal uint32) {
 //
 //  numLiterals  The number of literals specified in codegen
 //  numOffsets   The number of offsets specified in codegen
-//  numCodegens  Tne number of codegens used in codegen
+//  numCodegens  The number of codegens used in codegen
 func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, numCodegens int, isEof bool) {
 	if w.err != nil {
 		return

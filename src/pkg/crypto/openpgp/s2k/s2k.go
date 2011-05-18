@@ -90,7 +90,7 @@ func Parse(r io.Reader) (f func(out, in []byte), err os.Error) {
 	}
 	h := hash.New()
 	if h == nil {
-		return nil, error.UnsupportedError("hash not availible: " + strconv.Itoa(int(hash)))
+		return nil, error.UnsupportedError("hash not available: " + strconv.Itoa(int(hash)))
 	}
 
 	switch buf[0] {

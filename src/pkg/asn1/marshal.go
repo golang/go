@@ -351,7 +351,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 		startingField := 0
 
 		// If the first element of the structure is a non-empty
-		// RawContents, then we don't bother serialising the rest.
+		// RawContents, then we don't bother serializing the rest.
 		if t.NumField() > 0 && t.Field(0).Type == rawContentsType {
 			s := v.Field(0)
 			if s.Len() > 0 {
@@ -361,7 +361,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 				}
 				/* The RawContents will contain the tag and
 				 * length fields but we'll also be writing
-				 * those outselves, so we strip them out of
+				 * those ourselves, so we strip them out of
 				 * bytes */
 				_, err = out.Write(stripTagAndLength(bytes))
 				return

@@ -673,7 +673,7 @@ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 // A type that implements GobEncoder and GobDecoder has complete
 // control over the representation of its data and may therefore
 // contain things such as private fields, channels, and functions,
-// which are not usually transmissable in gob streams.
+// which are not usually transmissible in gob streams.
 //
 // Note: Since gobs can be stored permanently, It is good design
 // to guarantee the encoding used by a GobEncoder is stable as the

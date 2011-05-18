@@ -94,7 +94,7 @@ type PrivateKey struct {
 	Primes    []*big.Int // prime factors of N, has >= 2 elements.
 
 	// Precomputed contains precomputed values that speed up private
-	// operations, if availible.
+	// operations, if available.
 	Precomputed PrecomputedValues
 }
 
@@ -417,7 +417,7 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
 		// Blinding enabled. Blinding involves multiplying c by r^e.
 		// Then the decryption operation performs (m^e * r^e)^d mod n
 		// which equals mr mod n. The factor of r can then be removed
-		// by multipling by the multiplicative inverse of r.
+		// by multiplying by the multiplicative inverse of r.
 
 		var r *big.Int
 

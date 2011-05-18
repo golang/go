@@ -18,7 +18,7 @@ func NewChunkedWriter(w io.Writer) io.WriteCloser {
 }
 
 // Writing to ChunkedWriter translates to writing in HTTP chunked Transfer
-// Encoding wire format to the undering Wire writer.
+// Encoding wire format to the underlying Wire writer.
 type chunkedWriter struct {
 	Wire io.Writer
 }

@@ -135,7 +135,7 @@ func (f *File) position(p Pos) (pos Position) {
 func (s *FileSet) Position(p Pos) (pos Position) {
 	if p != NoPos {
 		// TODO(gri) consider optimizing the case where p
-		//           is in the last file addded, or perhaps
+		//           is in the last file added, or perhaps
 		//           looked at - will eliminate one level
 		//           of search
 		s.mutex.RLock()
