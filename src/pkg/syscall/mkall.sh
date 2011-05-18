@@ -109,12 +109,12 @@ _* | *_ | _)
 freebsd_386)
 	mkerrors="$mkerrors -f -m32"
 	mksyscall="./mksyscall.pl -l32"
-	mksysnum="curl -s 'http://svn.freebsd.org/viewvc/base/head/sys/kern/syscalls.master?view=markup' | ./mksysnum_freebsd.pl"
+	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
 	mktypes="godefs -gsyscall -f-m32"
 	;;
 freebsd_amd64)
 	mkerrors="$mkerrors -f -m64"
-	mksysnum="curl -s 'http://svn.freebsd.org/viewvc/base/head/sys/kern/syscalls.master?view=markup' | ./mksysnum_freebsd.pl"
+	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
 	mktypes="godefs -gsyscall -f-m64"
 	;;
 darwin_386)
