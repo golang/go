@@ -94,10 +94,15 @@ func multiword(w io.Writer, format string, value ...interface{}) {
 	}
 }
 
+func printf(w io.Writer, format string, v ...interface{}) {
+	io.WriteString(w, fmt.Sprintf(v[0].(string), v[1:]...))
+}
+
 var formatters = FormatterMap{
 	"uppercase": writer(uppercase),
 	"+1":        writer(plus1),
 	"multiword": multiword,
+	"printf":    printf,
 }
 
 var tests = []*Test{
@@ -136,6 +141,36 @@ var tests = []*Test{
 		in: "nil pointer: {*NilPtr}={*Integer}\n",
 
 		out: "nil pointer: <nil>=77\n",
+	},
+
+	&Test{
+		in: `{"Strings" ":"} {""} {"\t\u0123 \x23\\"} {"\"}{\\"}`,
+
+		out: "Strings:  \t\u0123 \x23\\ \"}{\\",
+	},
+
+	&Test{
+		in: "{`Raw strings` `:`} {``} {`\\t\\u0123 \\x23\\`} {`}{\\`}",
+
+		out: "Raw strings:  \\t\\u0123 \\x23\\ }{\\",
+	},
+
+	&Test{
+		in: "Characters: {'a'} {'\\u0123'} {' '} {'}'} {'{'}",
+
+		out: "Characters: 97 291 32 125 123",
+	},
+
+	&Test{
+		in: "Integers: {1} {-2} {+42} {0777} {0x0a}",
+
+		out: "Integers: 1 -2 42 511 10",
+	},
+
+	&Test{
+		in: "Floats: {.5} {-.5} {1.1} {-2.2} {+42.1} {1e10} {1.2e-3} {1.2e3} {-1.2e3}",
+
+		out: "Floats: 0.5 -0.5 1.1 -2.2 42.1 1e+10 0.0012 1200 -1200",
 	},
 
 	// Method at top level
@@ -722,6 +757,10 @@ var formatterTests = []Test{
 	{
 		in:  "{Integer|||||}", // empty string is a valid formatter
 		out: "77",
+	},
+	{
+		in:  `{"%.02f 0x%02X" 1.1 10|printf}`,
+		out: "1.10 0x0A",
 	},
 }
 
