@@ -405,8 +405,12 @@ func Float64(name string, value float64, usage string) *float64 {
 	return p
 }
 
-// Var defines a user-typed flag with specified name, default value, and usage string.
-// The argument p points to a Value variable in which to store the value of the flag.
+// Var defines a flag with the specified name and usage string. The type and
+// value of the flag are represented by the first argument, of type Value, which
+// typically holds a user-defined implementation of Value. For instance, the
+// caller could create a flag that turns a comma-separated string into a slice
+// of strings by giving the slice the methods of Value; in particular, Set would
+// decompose the comma-separated string into the slice.
 func Var(value Value, name string, usage string) {
 	// Remember the default value as a string; it won't change.
 	f := &Flag{name, usage, value, value.String()}
