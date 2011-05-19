@@ -98,13 +98,20 @@ func TestRedirects(t *testing.T) {
 	c := &Client{}
 	_, err := c.Get(ts.URL)
 	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
-		t.Errorf("with default client, expected error %q, got %q", e, g)
+		t.Errorf("with default client Get, expected error %q, got %q", e, g)
 	}
 
 	// HEAD request should also have the ability to follow redirects.
 	_, err = c.Head(ts.URL)
 	if e, g := "Head /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
-		t.Errorf("with default client, expected error %q, got %q", e, g)
+		t.Errorf("with default client Head, expected error %q, got %q", e, g)
+	}
+
+	// Do should also follow redirects.
+	greq, _ := NewRequest("GET", ts.URL, nil)
+	_, err = c.Do(greq)
+	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+		t.Errorf("with default client Do, expected error %q, got %q", e, g)
 	}
 
 	var checkErr os.Error
