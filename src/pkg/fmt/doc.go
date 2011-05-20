@@ -134,10 +134,10 @@
 	The formats behave analogously to those of Printf with the
 	following exceptions:
 
-	%p is not implemented
-	%T is not implemented
-	%e %E %f %F %g %g are all equivalent and scan any floating point or complex value
-	%s and %v on strings scan a space-delimited token
+		%p is not implemented
+		%T is not implemented
+		%e %E %f %F %g %G are all equivalent and scan any floating point or complex value
+		%s and %v on strings scan a space-delimited token
 
 	The familiar base-setting prefixes 0 (octal) and 0x
 	(hexadecimal) are accepted when scanning integers without a
