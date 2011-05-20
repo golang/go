@@ -957,7 +957,6 @@ func Munmap(b []byte) (errno int) {
 // Semget
 // Semop
 // Semtimedop
-// Sendfile
 // SetMempolicy
 // SetRobustList
 // SetThreadArea

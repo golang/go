@@ -56,6 +56,11 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 	return origlen - len(buf), count, names
 }
 
+// TODO
+func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
+	return -1, ENOSYS
+}
+
 /*
  * Exposed directly
  */

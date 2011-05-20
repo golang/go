@@ -327,6 +327,11 @@ func Getgroups() (gids []int, err Error) {
 	return make([]int, 0), nil
 }
 
+// TODO
+func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
+	return -1, ENOSYS
+}
+
 //sys	Dup(oldfd int, newfd int) (fd int, err Error)
 //sys	Open(path string, mode int) (fd int, err Error)
 //sys	Create(path string, mode int, perm uint32) (fd int, err Error)

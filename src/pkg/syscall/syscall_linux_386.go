@@ -41,6 +41,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
 //sys	Pread(fd int, p []byte, offset int64) (n int, errno int) = SYS_PREAD64
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, errno int) = SYS_PWRITE64
+//sys	Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) = SYS_SENDFILE64
 //sys	Setfsgid(gid int) (errno int) = SYS_SETFSGID32
 //sys	Setfsuid(uid int) (errno int) = SYS_SETFSUID32
 //sysnb	Setgid(gid int) (errno int) = SYS_SETGID32

@@ -102,6 +102,11 @@ func getSysProcAddr(m uint32, pname string) uintptr {
 // Implemented in ../runtime/windows/syscall.cgo
 func NewCallback(fn interface{}) uintptr
 
+// TODO
+func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
+	return -1, ENOSYS
+}
+
 // windows api calls
 
 //sys	GetLastError() (lasterrno int)

@@ -92,6 +92,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 //sys	Lchown(path string, uid int, gid int) (errno int)
 //sys	Listen(s int, n int) (errno int)
 //sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
+//sys	Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) = SYS_SENDFILE64
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
 //sys	Setfsgid(gid int) (errno int)
 //sys	Setfsuid(uid int) (errno int)
