@@ -215,12 +215,13 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 		}
 
 		if i > 0 {
-			if mode&commaSep != 0 {
+			switch {
+			case mode&commaSep != 0:
 				p.print(token.COMMA)
-			}
-			if mode&periodSep != 0 {
+			case mode&periodSep != 0:
 				p.print(token.PERIOD)
 			}
+			needsBlank := mode&periodSep == 0 // period-separated list elements don't need a blank
 			if prevLine < line && prevLine > 0 && line > 0 {
 				// lines are broken using newlines so comments remain aligned
 				// unless forceFF is set or there are multiple expressions on
@@ -229,11 +230,12 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 					ws = ignore
 					*multiLine = true
 					prevBreak = i
+					needsBlank = false // we got a line break instead
 				}
-			} else if mode&periodSep == 0 {
+			}
+			if needsBlank {
 				p.print(blank)
 			}
-			// period-separated list elements don't need a blank
 		}
 
 		if isPair && size > 0 && len(list) > 1 {

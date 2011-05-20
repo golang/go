@@ -56,6 +56,6 @@ func TestLookup(t *testing.T) {
 	if !reflect.DeepEqual(u, un) {
 		t.Errorf("Lookup by userid vs. name didn't match\n"+
 			"LookupId(%d): %#v\n"+
-			"Lookup(%q): %#v\n",uid, u, u.Username, un)
+			"Lookup(%q): %#v\n", uid, u, u.Username, un)
 	}
 }

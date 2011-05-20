@@ -59,7 +59,7 @@ func dash(meth, cmd string, resp interface{}, args param) os.Error {
 func dashStatus(meth, cmd string, args param) os.Error {
 	var resp struct {
 		Status string
-		Error string
+		Error  string
 	}
 	err := dash(meth, cmd, &resp, args)
 	if err != nil {
@@ -68,12 +68,12 @@ func dashStatus(meth, cmd string, args param) os.Error {
 	if resp.Status != "OK" {
 		return os.NewError("/build: " + resp.Error)
 	}
-	return nil	
+	return nil
 }
-	
+
 // todo returns the next hash to build.
 func (b *Builder) todo() (rev string, err os.Error) {
-	var resp []struct{
+	var resp []struct {
 		Hash string
 	}
 	if err = dash("GET", "todo", &resp, param{"builder": b.name}); err != nil {
@@ -128,12 +128,12 @@ func (b *Builder) updatePackage(pkg string, state bool, buildLog, info string, h
 // postCommit informs the dashboard of a new commit
 func postCommit(key string, l *HgLog) os.Error {
 	return dashStatus("POST", "commit", param{
-		"key": key,
-		"node": l.Hash,
-		"date": l.Date,
-		"user": l.Author,
+		"key":    key,
+		"node":   l.Hash,
+		"date":   l.Date,
+		"user":   l.Author,
 		"parent": l.Parent,
-		"desc": l.Desc,
+		"desc":   l.Desc,
 	})
 }
 
