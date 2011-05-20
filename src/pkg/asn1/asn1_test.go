@@ -42,6 +42,33 @@ func TestParseInt64(t *testing.T) {
 	}
 }
 
+var bigIntTests = []struct {
+	in     []byte
+	base10 string
+}{
+	{[]byte{0xff}, "-1"},
+	{[]byte{0x00}, "0"},
+	{[]byte{0x01}, "1"},
+	{[]byte{0x00, 0xff}, "255"},
+	{[]byte{0xff, 0x00}, "-256"},
+	{[]byte{0x01, 0x00}, "256"},
+}
+
+func TestParseBigInt(t *testing.T) {
+	for i, test := range bigIntTests {
+		ret := parseBigInt(test.in)
+		if ret.String() != test.base10 {
+			t.Errorf("#%d: bad result from %x, got %s want %s", i, test.in, ret.String(), test.base10)
+		}
+		fw := newForkableWriter()
+		marshalBigInt(fw, ret)
+		result := fw.Bytes()
+		if !bytes.Equal(result, test.in) {
+			t.Errorf("#%d: got %x from marshaling %s, want %x", i, result, ret, test.in)
+		}
+	}
+}
+
 type bitStringTest struct {
 	in        []byte
 	ok        bool
