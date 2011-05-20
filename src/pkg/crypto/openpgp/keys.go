@@ -5,9 +5,11 @@
 package openpgp
 
 import (
+	"crypto"
 	"crypto/openpgp/armor"
 	"crypto/openpgp/error"
 	"crypto/openpgp/packet"
+	"crypto/rsa"
 	"io"
 	"os"
 )
@@ -295,5 +297,106 @@ func addSubkey(e *Entity, packets *packet.Reader, pub *packet.PublicKey, priv *p
 		return error.StructuralError("subkey signature invalid: " + err.String())
 	}
 	e.Subkeys = append(e.Subkeys, subKey)
+	return nil
+}
+
+const defaultRSAKeyBits = 2048
+
+// NewEntity returns an Entity that contains a fresh RSA/RSA keypair with a
+// single identity composed of the given full name, comment and email, any of
+// which may be empty but must not contain any of "()<>\x00".
+func NewEntity(rand io.Reader, currentTimeSecs int64, name, comment, email string) (*Entity, os.Error) {
+	uid := packet.NewUserId(name, comment, email)
+	if uid == nil {
+		return nil, error.InvalidArgumentError("user id field contained invalid characters")
+	}
+	signingPriv, err := rsa.GenerateKey(rand, defaultRSAKeyBits)
+	if err != nil {
+		return nil, err
+	}
+	encryptingPriv, err := rsa.GenerateKey(rand, defaultRSAKeyBits)
+	if err != nil {
+		return nil, err
+	}
+
+	t := uint32(currentTimeSecs)
+
+	e := &Entity{
+		PrimaryKey: packet.NewRSAPublicKey(t, &signingPriv.PublicKey, false /* not a subkey */ ),
+		PrivateKey: packet.NewRSAPrivateKey(t, signingPriv, false /* not a subkey */ ),
+		Identities: make(map[string]*Identity),
+	}
+	isPrimaryId := true
+	e.Identities[uid.Id] = &Identity{
+		Name:   uid.Name,
+		UserId: uid,
+		SelfSignature: &packet.Signature{
+			CreationTime: t,
+			SigType:      packet.SigTypePositiveCert,
+			PubKeyAlgo:   packet.PubKeyAlgoRSA,
+			Hash:         crypto.SHA256,
+			IsPrimaryId:  &isPrimaryId,
+			FlagsValid:   true,
+			FlagSign:     true,
+			FlagCertify:  true,
+			IssuerKeyId:  &e.PrimaryKey.KeyId,
+		},
+	}
+
+	e.Subkeys = make([]Subkey, 1)
+	e.Subkeys[0] = Subkey{
+		PublicKey:  packet.NewRSAPublicKey(t, &encryptingPriv.PublicKey, true /* is a subkey */ ),
+		PrivateKey: packet.NewRSAPrivateKey(t, encryptingPriv, true /* is a subkey */ ),
+		Sig: &packet.Signature{
+			CreationTime:              t,
+			SigType:                   packet.SigTypeSubkeyBinding,
+			PubKeyAlgo:                packet.PubKeyAlgoRSA,
+			Hash:                      crypto.SHA256,
+			FlagsValid:                true,
+			FlagEncryptStorage:        true,
+			FlagEncryptCommunications: true,
+			IssuerKeyId:               &e.PrimaryKey.KeyId,
+		},
+	}
+
+	return e, nil
+}
+
+// SerializePrivate serializes an Entity, including private key material, to
+// the given Writer. For now, it must only be used on an Entity returned from
+// NewEntity.
+func (e *Entity) SerializePrivate(w io.Writer) (err os.Error) {
+	err = e.PrivateKey.Serialize(w)
+	if err != nil {
+		return
+	}
+	for _, ident := range e.Identities {
+		err = ident.UserId.Serialize(w)
+		if err != nil {
+			return
+		}
+		err = ident.SelfSignature.SignUserId(ident.UserId.Id, e.PrimaryKey, e.PrivateKey)
+		if err != nil {
+			return
+		}
+		err = ident.SelfSignature.Serialize(w)
+		if err != nil {
+			return
+		}
+	}
+	for _, subkey := range e.Subkeys {
+		err = subkey.PrivateKey.Serialize(w)
+		if err != nil {
+			return
+		}
+		err = subkey.Sig.SignKey(subkey.PublicKey, e.PrivateKey)
+		if err != nil {
+			return
+		}
+		err = subkey.Sig.Serialize(w)
+		if err != nil {
+			return
+		}
+	}
 	return nil
 }

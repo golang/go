@@ -40,3 +40,48 @@ func TestParseUserId(t *testing.T) {
 		}
 	}
 }
+
+var newUserIdTests = []struct {
+	name, comment, email, id string
+}{
+	{"foo", "", "", "foo"},
+	{"", "bar", "", "(bar)"},
+	{"", "", "baz", "<baz>"},
+	{"foo", "bar", "", "foo (bar)"},
+	{"foo", "", "baz", "foo <baz>"},
+	{"", "bar", "baz", "(bar) <baz>"},
+	{"foo", "bar", "baz", "foo (bar) <baz>"},
+}
+
+func TestNewUserId(t *testing.T) {
+	for i, test := range newUserIdTests {
+		uid := NewUserId(test.name, test.comment, test.email)
+		if uid == nil {
+			t.Errorf("#%d: returned nil", i)
+			continue
+		}
+		if uid.Id != test.id {
+			t.Errorf("#%d: got '%s', want '%s'", i, uid.Id, test.id)
+		}
+	}
+}
+
+var invalidNewUserIdTests = []struct {
+	name, comment, email string
+}{
+	{"foo(", "", ""},
+	{"foo<", "", ""},
+	{"", "bar)", ""},
+	{"", "bar<", ""},
+	{"", "", "baz>"},
+	{"", "", "baz)"},
+	{"", "", "baz\x00"},
+}
+
+func TestNewUserIdWithInvalidInput(t *testing.T) {
+	for i, test := range invalidNewUserIdTests {
+		if uid := NewUserId(test.name, test.comment, test.email); uid != nil {
+			t.Errorf("#%d: returned non-nil value: %#v", i, uid)
+		}
+	}
+}
