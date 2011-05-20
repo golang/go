@@ -104,7 +104,7 @@ function godocs_generateTOC() {
     }
   }
 
-  if (!toc_items.length) { return; }
+  if (toc_items.length <= 1) { return; }
 
   var dl1 = document.createElement('dl');
   var dl2 = document.createElement('dl');
