@@ -132,6 +132,8 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
 		return tagUTCTime, false, true
 	case enumeratedType:
 		return tagEnum, false, true
+	case bigIntType:
+		return tagInteger, false, true
 	}
 	switch t.Kind() {
 	case reflect.Bool:

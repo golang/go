@@ -20,6 +20,7 @@ package asn1
 // everything by any means.
 
 import (
+	"big"
 	"fmt"
 	"os"
 	"reflect"
@@ -86,6 +87,27 @@ func parseInt(bytes []byte) (int, os.Error) {
 		return 0, StructuralError{"integer too large"}
 	}
 	return int(ret64), nil
+}
+
+var bigOne = big.NewInt(1)
+
+// parseBigInt treats the given bytes as a big-endian, signed integer and returns
+// the result.
+func parseBigInt(bytes []byte) *big.Int {
+	ret := new(big.Int)
+	if len(bytes) > 0 && bytes[0]&0x80 == 0x80 {
+		// This is a negative number.
+		notBytes := make([]byte, len(bytes))
+		for i := range notBytes {
+			notBytes[i] = ^bytes[i]
+		}
+		ret.SetBytes(notBytes)
+		ret.Add(ret, bigOne)
+		ret.Neg(ret)
+		return ret
+	}
+	ret.SetBytes(bytes)
+	return ret
 }
 
 // BIT STRING
@@ -425,6 +447,7 @@ var (
 	timeType             = reflect.TypeOf(&time.Time{})
 	rawValueType         = reflect.TypeOf(RawValue{})
 	rawContentsType      = reflect.TypeOf(RawContent(nil))
+	bigIntType           = reflect.TypeOf(new(big.Int))
 )
 
 // invalidLength returns true iff offset + length > sliceLength, or if the
@@ -638,6 +661,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		return
 	case flagType:
 		v.SetBool(true)
+		return
+	case bigIntType:
+		parsedInt := parseBigInt(innerBytes)
+		v.Set(reflect.ValueOf(parsedInt))
 		return
 	}
 	switch val := v; val.Kind() {
