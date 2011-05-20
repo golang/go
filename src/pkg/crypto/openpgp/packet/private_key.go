@@ -32,6 +32,13 @@ type PrivateKey struct {
 	iv            []byte
 }
 
+func NewRSAPrivateKey(currentTimeSecs uint32, priv *rsa.PrivateKey, isSubkey bool) *PrivateKey {
+	pk := new(PrivateKey)
+	pk.PublicKey = *NewRSAPublicKey(currentTimeSecs, &priv.PublicKey, isSubkey)
+	pk.PrivateKey = priv
+	return pk
+}
+
 func (pk *PrivateKey) parse(r io.Reader) (err os.Error) {
 	err = (&pk.PublicKey).parse(r)
 	if err != nil {
@@ -89,6 +96,83 @@ func (pk *PrivateKey) parse(r io.Reader) (err os.Error) {
 	}
 
 	return
+}
+
+func mod64kHash(d []byte) uint16 {
+	h := uint16(0)
+	for i := 0; i < len(d); i += 2 {
+		v := uint16(d[i]) << 8
+		if i+1 < len(d) {
+			v += uint16(d[i+1])
+		}
+		h += v
+	}
+	return h
+}
+
+func (pk *PrivateKey) Serialize(w io.Writer) (err os.Error) {
+	// TODO(agl): support encrypted private keys
+	buf := bytes.NewBuffer(nil)
+	err = pk.PublicKey.serializeWithoutHeaders(buf)
+	if err != nil {
+		return
+	}
+	buf.WriteByte(0 /* no encryption */ )
+
+	privateKeyBuf := bytes.NewBuffer(nil)
+
+	switch priv := pk.PrivateKey.(type) {
+	case *rsa.PrivateKey:
+		err = serializeRSAPrivateKey(privateKeyBuf, priv)
+	default:
+		err = error.InvalidArgumentError("non-RSA private key")
+	}
+	if err != nil {
+		return
+	}
+
+	ptype := packetTypePrivateKey
+	contents := buf.Bytes()
+	privateKeyBytes := privateKeyBuf.Bytes()
+	if pk.IsSubkey {
+		ptype = packetTypePrivateSubkey
+	}
+	err = serializeHeader(w, ptype, len(contents)+len(privateKeyBytes)+2)
+	if err != nil {
+		return
+	}
+	_, err = w.Write(contents)
+	if err != nil {
+		return
+	}
+	_, err = w.Write(privateKeyBytes)
+	if err != nil {
+		return
+	}
+
+	checksum := mod64kHash(privateKeyBytes)
+	var checksumBytes [2]byte
+	checksumBytes[0] = byte(checksum >> 8)
+	checksumBytes[1] = byte(checksum)
+	_, err = w.Write(checksumBytes[:])
+
+	return
+}
+
+func serializeRSAPrivateKey(w io.Writer, priv *rsa.PrivateKey) os.Error {
+	err := writeBig(w, priv.D)
+	if err != nil {
+		return err
+	}
+	err = writeBig(w, priv.Primes[1])
+	if err != nil {
+		return err
+	}
+	err = writeBig(w, priv.Primes[0])
+	if err != nil {
+		return err
+	}
+	return writeBig(w, priv.Precomputed.Qinv)
 }
 
 // Decrypt decrypts an encrypted private key using a passphrase.

@@ -6,15 +6,12 @@ package openpgp
 
 import (
 	"crypto"
-	"crypto/dsa"
 	"crypto/openpgp/armor"
 	"crypto/openpgp/error"
 	"crypto/openpgp/packet"
-	"crypto/rsa"
 	_ "crypto/sha256"
 	"io"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -77,17 +74,7 @@ func detachSign(w io.Writer, signer *Entity, message io.Reader, sigType packet.S
 	}
 	io.Copy(wrappedHash, message)
 
-	switch signer.PrivateKey.PubKeyAlgo {
-	case packet.PubKeyAlgoRSA, packet.PubKeyAlgoRSASignOnly:
-		priv := signer.PrivateKey.PrivateKey.(*rsa.PrivateKey)
-		err = sig.SignRSA(h, priv)
-	case packet.PubKeyAlgoDSA:
-		priv := signer.PrivateKey.PrivateKey.(*dsa.PrivateKey)
-		err = sig.SignDSA(h, priv)
-	default:
-		err = error.UnsupportedError("public key algorithm: " + strconv.Itoa(int(sig.PubKeyAlgo)))
-	}
-
+	err = sig.Sign(h, signer.PrivateKey)
 	if err != nil {
 		return
 	}
