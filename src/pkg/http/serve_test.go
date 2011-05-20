@@ -624,7 +624,7 @@ func TestServerConsumesRequestBody(t *testing.T) {
 		"POST / HTTP/1.1\r\n"+
 			"Host: test\r\n"+
 			"Content-Length: %d\r\n"+
-			"\r\n",len(body))))
+			"\r\n", len(body))))
 	conn.readBuf.Write([]byte(body))
 
 	done := make(chan bool)

@@ -48,7 +48,7 @@ type Builder struct {
 
 var (
 	buildroot     = flag.String("buildroot", path.Join(os.TempDir(), "gobuilder"), "Directory under which to build")
-	commitFlag = flag.Bool("commit", false, "upload information about new commits")
+	commitFlag    = flag.Bool("commit", false, "upload information about new commits")
 	dashboard     = flag.String("dashboard", "godashboard.appspot.com", "Go Dashboard Host")
 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
@@ -93,7 +93,7 @@ func main() {
 	if err := run(nil, *buildroot, "hg", "clone", hgUrl, goroot); err != nil {
 		log.Fatal("Error cloning repository:", err)
 	}
-	
+
 	if *commitFlag {
 		if len(flag.Args()) == 0 {
 			commitWatcher()
@@ -242,7 +242,7 @@ func (b *Builder) build() bool {
 		return false
 	}
 	// Look for hash locally before running hg pull.
-	
+
 	if _, err := fullHash(hash[:12]); err != nil {
 		// Don't have hash, so run hg pull.
 		if err := run(nil, goroot, "hg", "pull"); err != nil {
@@ -389,12 +389,12 @@ func commitWatcher() {
 
 // HgLog represents a single Mercurial revision.
 type HgLog struct {
-	Hash string
+	Hash   string
 	Author string
-	Date string
-	Desc string
+	Date   string
+	Desc   string
 	Parent string
-	
+
 	// Internal metadata
 	added bool
 }
@@ -429,23 +429,23 @@ func commitPoll(key string) {
 		log.Printf("hg pull: %v", err)
 		return
 	}
-	
-	const N = 20   // how many revisions to grab
+
+	const N = 20 // how many revisions to grab
 
 	data, _, err := runLog(nil, "", goroot, "hg", "log",
 		"--encoding=utf-8",
-		"--limit=" + strconv.Itoa(N),
-		"--template=" + xmlLogTemplate,
+		"--limit="+strconv.Itoa(N),
+		"--template="+xmlLogTemplate,
 	)
 	if err != nil {
 		log.Printf("hg log: %v", err)
 		return
 	}
-	
+
 	var logStruct struct {
 		Log []HgLog
 	}
-	err = xml.Unmarshal(strings.NewReader("<top>" + data + "</top>"), &logStruct)
+	err = xml.Unmarshal(strings.NewReader("<top>"+data+"</top>"), &logStruct)
 	if err != nil {
 		log.Printf("unmarshal hg log: %v", err)
 		return
@@ -468,7 +468,7 @@ func commitPoll(key string) {
 			// Can't create node without parent.
 			continue
 		}
-		
+
 		if logByHash[l.Hash] == nil {
 			// Make copy to avoid pinning entire slice when only one entry is new.
 			t := *l
@@ -496,7 +496,7 @@ func addCommit(hash, key string) bool {
 	if l.added {
 		return true
 	}
-	
+
 	// Check for already added, perhaps in an earlier run.
 	if dashboardCommit(hash) {
 		log.Printf("%s already on dashboard\n", hash)

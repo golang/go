@@ -315,7 +315,7 @@ foo: bar
 
 
 --MyBoundary--
-`,"\n", "\r\n", -1)
+`, "\n", "\r\n", -1)
 	r := NewReader(strings.NewReader(testBody), "MyBoundary")
 	part, err := r.NextPart()
 	if err != nil {
