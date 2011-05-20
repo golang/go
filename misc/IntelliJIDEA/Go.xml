@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Copyright 2011 The Go Authors. All rights reserved.
+    Use of this source code is governed by a BSD-style
+    license that can be found in the LICENSE file.
+
+Copy this custom language definition & configuration file to
+        * Mac             : ~/Library/Preferences/IntelliJIdea10/filetypes/
+        * Linux & Windows : ~/.IntelliJIdea10/config/filetypes/
+-->
+
+<filetype binary="false" default_extension="" description="Go" name="Go">
+    <highlighting>
+        <options>
+            <option name="LINE_COMMENT" value="//"/>
+            <option name="COMMENT_START" value="/*"/>
+            <option name="COMMENT_END" value="*/"/>
+            <option name="HEX_PREFIX" value="0x"/>
+            <option name="NUM_POSTFIXES" value=""/>
+            <option name="HAS_BRACKETS" value="true"/>
+            <option name="HAS_BRACES" value="true"/>
+            <option name="HAS_PARENS" value="true"/>
+            <option name="HAS_STRING_ESCAPES" value="true"/>
+        </options>
+        <keywords ignore_case="false">
+            <keyword name="break"/>
+            <keyword name="case"/>
+            <keyword name="chan"/>
+            <keyword name="const"/>
+            <keyword name="continue"/>
+            <keyword name="default"/>
+            <keyword name="defer"/>
+            <keyword name="else"/>
+            <keyword name="fallthrough"/>
+            <keyword name="for"/>
+            <keyword name="func"/>
+            <keyword name="go"/>
+            <keyword name="goto"/>
+            <keyword name="if"/>
+            <keyword name="import"/>
+            <keyword name="interface"/>
+            <keyword name="map"/>
+            <keyword name="package"/>
+            <keyword name="range"/>
+            <keyword name="return"/>
+            <keyword name="select"/>
+            <keyword name="struct"/>
+            <keyword name="switch"/>
+            <keyword name="type"/>
+            <keyword name="var"/>
+        </keywords>
+        <keywords2>
+            <keyword name="bool"/>
+            <keyword name="byte"/>
+            <keyword name="complex64"/>
+            <keyword name="complex128"/>
+            <keyword name="float32"/>
+            <keyword name="float64"/>
+            <keyword name="int"/>
+            <keyword name="int8"/>
+            <keyword name="int16"/>
+            <keyword name="int32"/>
+            <keyword name="int64"/>
+            <keyword name="string"/>
+            <keyword name="uint"/>
+            <keyword name="uint8"/>
+            <keyword name="uint16"/>
+            <keyword name="uint32"/>
+            <keyword name="uint64"/>
+            <keyword name="uintptr"/>
+        </keywords2>
+        <keywords3>
+            <keyword name="append"/>
+            <keyword name="cap"/>
+            <keyword name="close"/>
+            <keyword name="complex"/>
+            <keyword name="copy"/>
+            <keyword name="imag"/>
+            <keyword name="len"/>
+            <keyword name="make"/>
+            <keyword name="new"/>
+            <keyword name="panic"/>
+            <keyword name="print"/>
+            <keyword name="println"/>
+            <keyword name="real"/>
+            <keyword name="recover"/>
+        </keywords3>
+        <keywords4>
+            <keyword name="false"/>
+            <keyword name="iota"/>
+            <keyword name="nil"/>
+            <keyword name="true"/>
+        </keywords4>
+    </highlighting>
+    <extensionMap>
+        <mapping ext="go"/>
+    </extensionMap>
+</filetype>
