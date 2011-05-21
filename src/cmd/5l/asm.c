@@ -295,14 +295,11 @@ asmb(void)
 {
 	int32 t;
 	int a, dynsym;
-	uint32 va, fo, w, symo, startva, elfsymo, elfstro, elfsymsize;
-	int strtabsize;
+	uint32 fo, symo, startva, elfsymo, elfstro, elfsymsize;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
 	Section *sect;
-
-	strtabsize = 0;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -467,9 +464,7 @@ asmb(void)
 		/* elf arm */
 		eh = getElfEhdr();
 		fo = HEADR;
-		va = INITTEXT;
 		startva = INITTEXT - fo;	/* va of byte 0 of file */
-		w = textsize;
 		
 		/* This null SHdr must appear before all others */
 		sh = newElfShdr(elfstr[ElfStrEmpty]);

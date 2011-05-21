@@ -168,7 +168,6 @@ span(void)
 	Optab *o;
 	int m, bflag, i, v;
 	int32 c, otxt, out[6];
-	int lastthumb = -1;
 	Section *sect;
 	uchar *bp;
 
@@ -187,7 +186,6 @@ span(void)
 		p->pc = c;
 		cursym->value = c;
 
-		lastthumb = thumb;
 		autosize = p->to.offset + 4;
 		if(p->from.sym != S)
 			p->from.sym->value = c;
