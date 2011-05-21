@@ -276,9 +276,7 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)
 
 	// Header lines
-	if !usingProxy {
-		fmt.Fprintf(w, "Host: %s\r\n", host)
-	}
+	fmt.Fprintf(w, "Host: %s\r\n", host)
 	fmt.Fprintf(w, "User-Agent: %s\r\n", valueOrDefault(req.UserAgent, defaultUserAgent))
 	if req.Referer != "" {
 		fmt.Fprintf(w, "Referer: %s\r\n", req.Referer)

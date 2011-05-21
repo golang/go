@@ -69,6 +69,7 @@ var reqWriteTests = []reqWriteTest{
 			"Proxy-Connection: keep-alive\r\n\r\n",
 
 		"GET http://www.techcrunch.com/ HTTP/1.1\r\n" +
+			"Host: www.techcrunch.com\r\n" +
 			"User-Agent: Fake\r\n" +
 			"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n" +
 			"Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r\n" +
@@ -101,6 +102,7 @@ var reqWriteTests = []reqWriteTest{
 			"6\r\nabcdef\r\n0\r\n\r\n",
 
 		"GET http://www.google.com/search HTTP/1.1\r\n" +
+			"Host: www.google.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			"6\r\nabcdef\r\n0\r\n\r\n",
@@ -131,6 +133,7 @@ var reqWriteTests = []reqWriteTest{
 			"6\r\nabcdef\r\n0\r\n\r\n",
 
 		"POST http://www.google.com/search HTTP/1.1\r\n" +
+			"Host: www.google.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"Connection: close\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
@@ -164,6 +167,7 @@ var reqWriteTests = []reqWriteTest{
 			"abcdef",
 
 		"POST http://www.google.com/search HTTP/1.1\r\n" +
+			"Host: www.google.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"Connection: close\r\n" +
 			"Content-Length: 6\r\n" +
@@ -188,6 +192,7 @@ var reqWriteTests = []reqWriteTest{
 
 		// Looks weird but RawURL overrides what WriteProxy would choose.
 		"GET /search HTTP/1.1\r\n" +
+			"Host: www.google.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"\r\n",
 	},
