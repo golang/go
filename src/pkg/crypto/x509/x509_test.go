@@ -313,7 +313,7 @@ func TestParseCertificateWithDSASignatureAlgorithm(t *testing.T) {
 	pemBlock, _ := pem.Decode([]byte(dsaCertPem))
 	cert, err := ParseCertificate(pemBlock.Bytes)
 	if err != nil {
-		t.Fatal("Failed to parse certificate: %s", err)
+		t.Fatalf("Failed to parse certificate: %s", err)
 	}
 	if cert.SignatureAlgorithm != DSAWithSHA1 {
 		t.Errorf("Parsed signature algorithm was not DSAWithSHA1")
@@ -324,10 +324,10 @@ func TestVerifyCertificateWithDSASignature(t *testing.T) {
 	pemBlock, _ := pem.Decode([]byte(dsaCertPem))
 	cert, err := ParseCertificate(pemBlock.Bytes)
 	if err != nil {
-		t.Fatal("Failed to parse certificate: %s", err)
+		t.Fatalf("Failed to parse certificate: %s", err)
 	}
 	// test cert is self-signed
 	if err = cert.CheckSignatureFrom(cert); err != nil {
-		t.Fatal("DSA Certificate verfication failed: %s", err)
+		t.Fatalf("DSA Certificate verfication failed: %s", err)
 	}
 }
