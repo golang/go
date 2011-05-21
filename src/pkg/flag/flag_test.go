@@ -89,7 +89,7 @@ func TestEverything(t *testing.T) {
 func TestUsage(t *testing.T) {
 	called := false
 	ResetForTesting(func() { called = true })
-	if ParseForTesting([]string{"a.out", "-x"}) {
+	if CommandLine().Parse([]string{"-x"}) == nil {
 		t.Error("parse did not fail for unknown flag")
 	}
 	if !called {
@@ -97,19 +97,17 @@ func TestUsage(t *testing.T) {
 	}
 }
 
-func TestParse(t *testing.T) {
-	ResetForTesting(func() { t.Error("bad parse") })
-	boolFlag := Bool("bool", false, "bool value")
-	bool2Flag := Bool("bool2", false, "bool2 value")
-	intFlag := Int("int", 0, "int value")
-	int64Flag := Int64("int64", 0, "int64 value")
-	uintFlag := Uint("uint", 0, "uint value")
-	uint64Flag := Uint64("uint64", 0, "uint64 value")
-	stringFlag := String("string", "0", "string value")
-	float64Flag := Float64("float64", 0, "float64 value")
+func testParse(f *FlagSet, t *testing.T) {
+	boolFlag := f.Bool("bool", false, "bool value")
+	bool2Flag := f.Bool("bool2", false, "bool2 value")
+	intFlag := f.Int("int", 0, "int value")
+	int64Flag := f.Int64("int64", 0, "int64 value")
+	uintFlag := f.Uint("uint", 0, "uint value")
+	uint64Flag := f.Uint64("uint64", 0, "uint64 value")
+	stringFlag := f.String("string", "0", "string value")
+	float64Flag := f.Float64("float64", 0, "float64 value")
 	extra := "one-extra-argument"
 	args := []string{
-		"a.out",
 		"-bool",
 		"-bool2=true",
 		"--int", "22",
@@ -120,8 +118,8 @@ func TestParse(t *testing.T) {
 		"-float64", "2718e28",
 		extra,
 	}
-	if !ParseForTesting(args) {
-		t.Fatal("parse failed")
+	if err := f.Parse(args); err != nil {
+		t.Fatal(err)
 	}
 	if *boolFlag != true {
 		t.Error("bool flag should be true, is ", *boolFlag)
@@ -147,14 +145,23 @@ func TestParse(t *testing.T) {
 	if *float64Flag != 2718e28 {
 		t.Error("float64 flag should be 2718e28, is ", *float64Flag)
 	}
-	if len(Args()) != 1 {
-		t.Error("expected one argument, got", len(Args()))
-	} else if Args()[0] != extra {
-		t.Errorf("expected argument %q got %q", extra, Args()[0])
+	if len(f.Args()) != 1 {
+		t.Error("expected one argument, got", len(f.Args()))
+	} else if f.Args()[0] != extra {
+		t.Errorf("expected argument %q got %q", extra, f.Args()[0])
 	}
 }
 
-// Declare a user-defined flag.
+func TestParse(t *testing.T) {
+	ResetForTesting(func() { t.Error("bad parse") })
+	testParse(CommandLine(), t)
+}
+
+func TestFlagSetParse(t *testing.T) {
+	testParse(NewFlagSet("test", ContinueOnError), t)
+}
+
+// Declare a user-defined flag type.
 type flagVar []string
 
 func (f *flagVar) String() string {
@@ -167,11 +174,11 @@ func (f *flagVar) Set(value string) bool {
 }
 
 func TestUserDefined(t *testing.T) {
-	ResetForTesting(func() { t.Fatal("bad parse") })
+	flags := NewFlagSet("test", ContinueOnError)
 	var v flagVar
-	Var(&v, "v", "usage")
-	if !ParseForTesting([]string{"a.out", "-v", "1", "-v", "2", "-v=3"}) {
-		t.Error("parse failed")
+	flags.Var(&v, "v", "usage")
+	if err := flags.Parse([]string{"-v", "1", "-v", "2", "-v=3"}); err != nil {
+		t.Error(err)
 	}
 	if len(v) != 3 {
 		t.Fatal("expected 3 args; got ", len(v))
@@ -182,13 +189,17 @@ func TestUserDefined(t *testing.T) {
 	}
 }
 
+// This tests that one can reset the flags. This still works but not well, and is
+// superseded by FlagSet.
 func TestChangingArgs(t *testing.T) {
 	ResetForTesting(func() { t.Fatal("bad parse") })
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
 	os.Args = []string{"cmd", "-before", "subcmd", "-after", "args"}
 	before := Bool("before", false, "")
-	Parse()
+	if err := CommandLine().Parse(os.Args[1:]); err != nil {
+		t.Fatal(err)
+	}
 	cmd := Arg(0)
 	os.Args = Args()
 	after := Bool("after", false, "")
