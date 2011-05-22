@@ -59,24 +59,43 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 
 var supportsIPv6, supportsIPv4map = probeIPv6Stack()
 
-func favoriteAddrFamily(net string, raddr, laddr sockaddr) (family int) {
-	// Figure out IP version.
-	// If network has a suffix like "tcp4", obey it.
-	family = syscall.AF_INET6
+// favoriteAddrFamily returns the appropriate address family to
+// the given net, raddr, laddr and mode.  At first it figures
+// address family out from the net.  If mode indicates "listen"
+// and laddr.(type).IP is nil, it assuumes that the user wants to
+// make a passive connection with wildcard address family, both
+// INET and INET6, and wildcard address.  Otherwise guess: if the
+// addresses are IPv4 then returns INET, or else returns INET6.
+func favoriteAddrFamily(net string, raddr, laddr sockaddr, mode string) int {
 	switch net[len(net)-1] {
 	case '4':
-		family = syscall.AF_INET
+		return syscall.AF_INET
 	case '6':
-		// nothing to do
-	default:
-		// Otherwise, guess.
-		// If the addresses are IPv4, use 4; else 6.
-		if (laddr == nil || laddr.family() == syscall.AF_INET) &&
-			(raddr == nil || raddr.family() == syscall.AF_INET) {
-			family = syscall.AF_INET
+		return syscall.AF_INET6
+	}
+
+	if mode == "listen" {
+		switch a := laddr.(type) {
+		case *TCPAddr:
+			if a.IP == nil && supportsIPv6 {
+				return syscall.AF_INET6
+			}
+		case *UDPAddr:
+			if a.IP == nil && supportsIPv6 {
+				return syscall.AF_INET6
+			}
+		case *IPAddr:
+			if a.IP == nil && supportsIPv6 {
+				return syscall.AF_INET6
+			}
 		}
 	}
-	return
+
+	if (laddr == nil || laddr.family() == syscall.AF_INET) &&
+		(raddr == nil || raddr.family() == syscall.AF_INET) {
+		return syscall.AF_INET
+	}
+	return syscall.AF_INET6
 }
 
 func firstFavoriteAddr(filter func(IP) IP, addrs []string) (addr IP) {
@@ -142,11 +161,9 @@ type sockaddr interface {
 }
 
 func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
-	// Figure out IP version.
-	// If network has a suffix like "tcp4", obey it.
 	var oserr os.Error
 	var la, ra syscall.Sockaddr
-	family := favoriteAddrFamily(net, raddr, laddr)
+	family := favoriteAddrFamily(net, raddr, laddr, mode)
 	if laddr != nil {
 		if la, oserr = laddr.sockaddr(family); oserr != nil {
 			goto Error
