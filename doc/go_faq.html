@@ -26,6 +26,7 @@ are not well supported by popular systems languages.
 <li>
 The emergence of multicore computers has generated worry and confusion.
 </ul>
+</p>
 
 <p>
 We believe it's worth trying again with a new language, a concurrent,
@@ -49,12 +50,14 @@ concurrent execution and communication.
 By its design, Go proposes an approach for the construction of system
 software on multicore machines.
 </ul>
+</p>
 
 <h3 id="What_is_the_origin_of_the_name">
 What is the origin of the name?</h3>
 
 <p>
 &ldquo;Ogle&rdquo; would be a good name for a Go debugger.
+</p>
 
 <h3 id="Whats_the_origin_of_the_mascot">
 What's the origin of the mascot?</h3>
@@ -83,6 +86,7 @@ http://plan9.bell-labs.com/sys/doc/compiler.html</a>
 
 <code>6</code> is the architecture letter for amd64 (or x86-64, if you prefer), while
 <code>g</code> stands for Go.
+</p>
 
 <h3 id="history">
 What is the history of the project?</h3>
@@ -104,7 +108,6 @@ and libraries from prototype to reality.
 Many others have contributed ideas, discussions, and code.
 </p>
 
-
 <h3 id="creating_a_new_language">
 Why are you creating a new language?</h3>
 <p>
@@ -117,6 +120,7 @@ language.  Programmers who could were choosing ease over
 safety and efficiency by moving to dynamically typed languages such as
 Python and JavaScript rather than C++ or, to a lesser extent, Java.
 </p>
+
 <p>
 Go is an attempt to combine the ease of programming of an interpreted,
 dynamically typed
@@ -130,7 +134,6 @@ concurrency and garbage collection; rigid dependency specification;
 and so on.  These cannot be addressed well by libraries or tools; a new
 language was called for.
 </p>
-
 
 <h3 id="ancestors">
 What are Go's ancestors?</h3>
@@ -146,7 +149,6 @@ In every respect the language was designed by thinking
 about what programmers do and how to make programming, at least the
 kind of programming we do, more effective, which means more fun.
 </p>
-
 
 <h3 id="principles">
 What are the guiding principles in the design?</h3>
@@ -179,7 +181,6 @@ interfaces represent abstraction; and so on.  Orthogonality makes it
 easier to understand what happens when things combine.
 </p>
 
-
 <h2 id="Usage">Usage</h2>
 
 <h3 id="Who_should_use_the_language">
@@ -190,15 +191,17 @@ Go is an experiment. We hope adventurous users will give it a try and see
 if they enjoy it. Not every programmer
 will, but we hope enough will find satisfaction in the approach it
 offers to justify further development.
+</p>
 
 <h3 id="Is_Google_using_go_internally"> Is Google using Go internally?</h3>
 
-<p>Yes. There are now several Go programs deployed in 
+<p>
+Yes. There are now several Go programs deployed in 
 production inside Google.  For instance, the server behind
 <a href="http://golang.org">http://golang.org</a> is a Go program; 
 in fact it's just the <a href="/cmd/godoc"><code>godoc</code></a>
 document server running in a production configuration.
-
+</p>
 
 <h3 id="Do_Go_programs_link_with_Cpp_programs">
 Do Go programs link with C/C++ programs?</h3>
@@ -211,11 +214,14 @@ therefore only be linked with C programs using the same convention.
 There is such a C compiler but no C++ compiler. 
 <code>Gccgo</code> is a GCC front-end that can, with care, be linked with 
 GCC-compiled C or C++ programs. 
+</p>
 
 <p>
 The <a href="/cmd/cgo/">cgo</a> program provides the mechanism for a 
 &ldquo;foreign function interface&rdquo; to allow safe calling of 
 C libraries from Go code. SWIG extends this capability to C++ libraries.
+</p>
+
 
 <h3 id="Does_Go_support_Google_protocol_buffers">
 Does Go support Google's protocol buffers?</h3>
@@ -225,6 +231,7 @@ A separate open source project provides the necessary compiler plugin and librar
 It is available at
 <a href="http://code.google.com/p/goprotobuf/">http://code.google.com/p/goprotobuf/</a>
 </p>
+
 
 <h3 id="Can_I_translate_the_Go_home_page">
 Can I translate the Go home page into another language?</h3>
@@ -277,11 +284,13 @@ such as concurrency and garbage collection. Your favorite feature may be
 missing because it doesn't fit, because it affects compilation speed or
 clarity of design, or because it would make the fundamental system model
 too difficult.
+</p>
 
 <p>
 If it bothers you that Go is missing feature <var>X</var>,
 please forgive us and investigate the features that Go does have. You might find that
 they compensate in interesting ways for the lack of <var>X</var>.
+</p>
 
 <h3 id="generics">
 Why does Go not have generic types?</h3>
@@ -289,6 +298,7 @@ Why does Go not have generic types?</h3>
 Generics may well be added at some point.  We don't feel an urgency for
 them, although we understand some programmers do.
 </p>
+
 <p>
 Generics are convenient but they come at a cost in
 complexity in the type system and run-time.  We haven't yet found a
@@ -298,6 +308,7 @@ plus the ability to use the empty interface to construct containers
 (with explicit unboxing) mean in many cases it is possible to write
 code that does what generics would enable, if less smoothly.
 </p>
+
 <p>
 This remains an open issue.
 </p>
@@ -311,6 +322,7 @@ convoluted code.  It also tends to encourage programmers to label
 too many ordinary errors, such as failing to open a file, as
 exceptional.
 </p>
+
 <p>
 Go takes a different approach.  Instead of exceptions, it has a couple
 of built-in functions to signal and recover from truly exceptional
@@ -319,10 +331,10 @@ function's state being torn down after an error, which is sufficient
 to handle catastrophe but requires no extra control structures and,
 when used well, can result in clean error-handling code.
 </p>
+
 <p>
 See the <a href="http://blog.golang.org/2010/08/defer-panic-and-recover.html">Defer, Panic, and Recover</a> article for details.
 </p>
-
 
 <h3 id="assertions">
 Why does Go not have assertions?</h3>
@@ -336,6 +348,7 @@ Proper error reporting means that errors are direct and to the point,
 saving the programmer from interpreting a large crash trace. Precise
 errors are particularly important when the programmer seeing the errors is
 not familiar with the code.
+</p>
 
 <p>
 The same arguments apply to the use of <code>assert()</code> in test programs. Proper
@@ -348,17 +361,20 @@ answer for 2 and therefore no more tests were run. The programmer who
 triggers the test failure may not be familiar with the code that fails.
 Time invested writing a good error message now pays off later when the
 test breaks.
+</p>
 
 <p>
 In testing, if the amount of extra code required to write
 good errors seems repetitive and overwhelming, it might work better as a
 table-driven test instead.
 Go has excellent support for data structure literals.
+</p>
 
 <p>
 We understand that this is a point of contention. There are many things in
 the Go language and libraries that differ from modern practices, simply
 because we feel it's sometimes worth trying a different approach.
+</p>
 
 <h3 id="csp">
 Why build concurrency on the ideas of CSP?</h3>
@@ -370,6 +386,7 @@ such as mutexes, condition variables, and even memory barriers.
 Higher-level interfaces enable much simpler code, even if there are still
 mutexes and such under the covers.
 </p>
+
 <p>
 One of the most successful models for providing high-level linguistic support
 for concurrency comes from Hoare's Communicating Sequential Processes, or CSP.
@@ -392,6 +409,7 @@ The result, which we call goroutines, can be very cheap: unless they spend a lot
 in long-running system calls, they cost little more than the memory
 for the stack.
 </p>
+
 <p>
 To make the stacks small, Go's run-time uses segmented stacks.  A newly
 minted goroutine is given a few kilobytes, which is almost always enough.
@@ -420,7 +438,6 @@ as when hosting an untrusted program, the implementation could interlock
 map access.
 </p>
 
-
 <h2 id="types">Types</h2>
 
 <h3 id="Is_Go_an_object-oriented_language">
@@ -435,10 +452,12 @@ also ways to embed types in other types to provide something
 analogous&mdash;but not identical&mdash;to subclassing.
 Moreover, methods in Go are more general than in C++ or Java:
 they can be defined for any sort of data, not just structs.
+</p>
 
 <p>
 Also, the lack of type hierarchy makes &ldquo;objects&rdquo; in Go feel much more
 lightweight than in languages such as C++ or Java.
+</p>
 
 <h3 id="How_do_I_get_dynamic_dispatch_of_methods">
 How do I get dynamic dispatch of methods?</h3>
@@ -446,6 +465,7 @@ How do I get dynamic dispatch of methods?</h3>
 <p>
 The only way to have dynamically dispatched methods is through an
 interface. Methods on structs or other types are always resolved statically.
+</p>
 
 <h3 id="inheritance">
 Why is there no type inheritance?</h3>
@@ -455,6 +475,7 @@ involves too much discussion of the relationships between types,
 relationships that often could be derived automatically.  Go takes a
 different approach.
 </p>
+
 <p>
 Rather than requiring the programmer to declare ahead of time that two
 types are related, in Go a type automatically satisfies any interface
@@ -469,6 +490,7 @@ or for testing&mdash;without annotating the original types.
 Because there are no explicit relationships between types
 and interfaces, there is no type hierarchy to manage or discuss.
 </p>
+
 <p>
 It's possible to use these ideas to construct something analogous to
 type-safe Unix pipes.  For instance, see how <code>fmt.Fprintf</code>
@@ -479,6 +501,7 @@ stream ciphers.  All these ideas stem from a single interface
 (<code>io.Writer</code>) representing a single method
 (<code>Write</code>).  And that's only scratching the surface.
 </p>
+
 <p>
 It takes some getting used to but this implicit style of type
 dependency is one of the most exciting things about Go.
@@ -503,6 +526,7 @@ but that it could also be confusing and fragile in practice.  Matching only by n
 and requiring consistency in the types was a major simplifying decision
 in Go's type system.
 </p>
+
 <p>
 Regarding operator overloading, it seems more a convenience than an absolute
 requirement.  Again, things are simpler without it.
@@ -574,7 +598,6 @@ the interface idea. Sometimes, though, they're necessary to resolve ambiguities
 among similar interfaces.
 </p>
 
-
 <h2 id="values">Values</h2>
 
 <h3 id="conversions">
@@ -592,6 +615,7 @@ The definition of constants in Go&mdash;arbitrary precision values free
 of signedness and size annotations&mdash;ameliorates matters considerably,
 though.
 </p>
+
 <p>
 A related detail is that, unlike in C, <code>int</code> and <code>int64</code>
 are distinct types even if <code>int</code> is a 64-bit type.  The <code>int</code>
@@ -609,7 +633,6 @@ is strong enough that it will serve for the vast majority of uses.
 If a specific application can benefit from a custom implementation, it's possible
 to write one but it will not be as convenient syntactically; this seems a reasonable tradeoff.
 </p>
-
 
 <h3 id="map_keys">
 Why don't maps allow structs and arrays as keys?</h3>
@@ -637,7 +660,6 @@ language but they have a large effect on usability: Go became a more
 productive, comfortable language when they were introduced.
 </p>
 
-
 <h2 id="Writing_Code">Writing Code</h2>
 
 <h3 id="How_are_libraries_documented">
@@ -650,6 +672,7 @@ command line or on the web. An instance is running at
 <a href="http://golang.org/pkg/">http://golang.org/pkg/</a>.
 In fact, <code>godoc</code> implements the full site at
 <a href="http://golang.org/">http://golang.org/</a>.
+</p>
 
 <h3 id="Is_there_a_Go_programming_style_guide">
 Is there a Go programming style guide?</h3>
@@ -663,6 +686,7 @@ More directly, the program <code>gofmt</code> is a pretty-printer
 whose purpose is to enforce layout rules; it replaces the usual
 compendium of do's and don'ts that allows interpretation.
 All the Go code in the repository has been run through <code>gofmt</code>.
+</p>
 
 <h3 id="How_do_I_submit_patches_to_the_Go_libraries">
 How do I submit patches to the Go libraries?</h3>
@@ -670,12 +694,13 @@ How do I submit patches to the Go libraries?</h3>
 <p>
 The library sources are in <code>go/src/pkg</code>.
 If you want to make a significant change, please discuss on the mailing list before embarking.
+</p>
 
 <p>
 See the document
 <a href="contribute.html">Contributing to the Go project</a>
 for more information about how to proceed.
-
+</p>
 
 <h2 id="Pointers">Pointers and Allocation</h2>
 
@@ -751,6 +776,7 @@ From a correctness standpoint, you don't need to know.
 Each variable in Go exists as long as there are references to it.
 The storage location chosen by the implementation is irrelevant to the
 semantics of the language.
+</p>
 
 <p>
 The storage location does have an effect on writing efficient programs.
@@ -759,11 +785,13 @@ local to a function in that function's stack frame.  However, if the
 compiler cannot prove that the variable is not referenced after the
 function returns, then the compiler must allocate the variable on the
 garbage-collected heap to avoid dangling pointer errors.
+</p>
 
 <p>
 In the current compilers, the analysis is crude: if a variable has its address
 taken, that variable is allocated on the heap. We are working to improve this
 analysis so that more data is kept on the stack. 
+</p>
 
 <h2 id="Concurrency">Concurrency</h2>
 
@@ -829,7 +857,6 @@ Go's goroutine scheduler is not as good as it needs to be. In future, it
 should recognize such cases and optimize its use of OS threads. For now,
 <code>GOMAXPROCS</code> should be set on a per-application basis.
 </p>
-
 
 <h2 id="Functions_methods">Functions and Methods</h2>
 
@@ -994,6 +1021,7 @@ standard GCC back end. <code>Gc</code> is written in C using
 Although it's a new program, it fits in the Plan 9 C compiler suite
 (<a href="http://plan9.bell-labs.com/sys/doc/compiler.html">http://plan9.bell-labs.com/sys/doc/compiler.html</a>)
 and uses a variant of the Plan 9 loader to generate ELF binaries.
+</p>
 
 <p>
 We considered writing <code>6g</code>, the original Go compiler, in Go itself but
@@ -1003,10 +1031,12 @@ set up a Go environment. <code>Gccgo</code>, which came later, makes it possible
 consider writing a compiler in Go, which might well happen. (Go would be a
 fine language in which to implement a compiler; a native lexer and
 parser are already available in <a href="/pkg/go/"><code>/pkg/go</code></a>.)
+</p>
 
 <p>
 We also considered using LLVM for <code>6g</code> but we felt it was too large and
 slow to meet our performance goals.
+</p>
 
 <h3 id="How_is_the_run_time_support_implemented">
 How is the run-time support implemented?</h3>
@@ -1021,6 +1051,7 @@ compiled with a version of the Plan 9 C compiler that supports
 segmented stacks for goroutines.
 Work is underway to provide the same stack management in
 <code>gccgo</code>.
+</p>
 
 <h3 id="Why_is_my_trivial_program_such_a_large_binary">
 Why is my trivial program such a large binary?</h3>
@@ -1030,12 +1061,14 @@ The gc tool chain (<code>5l</code>, <code>6l</code>, and <code>8l</code>) only
 generate statically linked binaries.  All Go binaries therefore include the Go
 run-time, along with the run-time type information necessary to support dynamic
 type checks, reflection, and even panic-time stack traces.
+</p>
 
 <p>
 A trivial C "hello, world" program compiled and linked statically using gcc
 on Linux is around 750 kB.  An equivalent Go program is around 1.1 MB, but
 that includes more powerful run-time support.  We believe that with some effort
 the size of Go binaries can be reduced.
+</p>
 
 <h2 id="Performance">Performance</h2>
 
@@ -1069,7 +1102,6 @@ better, many libraries need major performance work, and the garbage collector
 isn't fast enough yet (even if it were, taking care not to generate unnecessary 
 garbage can have a huge effect).
 </p>
-
 
 <h2 id="change_from_c">Changes from C</h2>
 
@@ -1169,6 +1201,7 @@ This works very well in practice but has the effect that it forces a
 brace style.  For instance, the opening brace of a function cannot
 appear on a line by itself.
 </p>
+
 <p>
 Some have argued that the lexer should do lookahead to permit the
 brace to live on the next line.  We disagree.  Since Go code is meant
@@ -1195,6 +1228,7 @@ implement it with low enough overhead and no significant
 latency.  (The current implementation is a plain mark-and-sweep
 collector but a replacement is in the works.)
 </p>
+
 <p>
 Another point is that a large part of the difficulty of concurrent
 and multi-threaded programming is memory management;
@@ -1205,8 +1239,8 @@ Of course, implementing garbage collection in a concurrent environment is
 itself a challenge, but meeting it once rather than in every
 program helps everyone.
 </p>
+
 <p>
 Finally, concurrency aside, garbage collection makes interfaces
 simpler because they don't need to specify how memory is managed across them.
 </p>
-
