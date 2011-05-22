@@ -567,7 +567,7 @@ func Var(value Value, name string, usage string) {
 // returns the error.
 func (f *FlagSet) failf(format string, a ...interface{}) os.Error {
 	err := fmt.Errorf(format, a...)
-	fmt.Println(errc)
+	fmt.Fprintln(os.Stderr, err)
 	if f == commandLine {
 		Usage()
 	} else {
