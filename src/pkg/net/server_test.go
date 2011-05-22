@@ -92,15 +92,19 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
 }
 
 func doTest(t *testing.T, network, listenaddr, dialaddr string) {
-	t.Logf("Test %s %s %s\n", network, listenaddr, dialaddr)
+	if listenaddr == "" {
+		t.Logf("Test %s %s %s\n", network, "<nil>", dialaddr)
+	} else {
+		t.Logf("Test %s %s %s\n", network, listenaddr, dialaddr)
+	}
 	listening := make(chan string)
 	done := make(chan int)
-	if network == "tcp" {
+	if network == "tcp" || network == "tcp4" || network == "tcp6" {
 		listenaddr += ":0" // any available port
 	}
 	go runServe(t, network, listenaddr, listening, done)
 	addr := <-listening // wait for server to start
-	if network == "tcp" {
+	if network == "tcp" || network == "tcp4" || network == "tcp6" {
 		dialaddr += addr[strings.LastIndex(addr, ":"):]
 	}
 	connect(t, network, dialaddr, false)
@@ -108,12 +112,33 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 }
 
 func TestTCPServer(t *testing.T) {
+	doTest(t, "tcp", "", "127.0.0.1")
+	doTest(t, "tcp", "0.0.0.0", "127.0.0.1")
 	doTest(t, "tcp", "127.0.0.1", "127.0.0.1")
+	doTest(t, "tcp4", "", "127.0.0.1")
+	doTest(t, "tcp4", "0.0.0.0", "127.0.0.1")
+	doTest(t, "tcp4", "127.0.0.1", "127.0.0.1")
 	if supportsIPv6 {
+		doTest(t, "tcp", "", "[::1]")
+		doTest(t, "tcp", "[::]", "[::1]")
 		doTest(t, "tcp", "[::1]", "[::1]")
+		doTest(t, "tcp6", "", "[::1]")
+		doTest(t, "tcp6", "[::]", "[::1]")
+		doTest(t, "tcp6", "[::1]", "[::1]")
 	}
 	if supportsIPv6 && supportsIPv4map {
+		doTest(t, "tcp", "[::ffff:0.0.0.0]", "127.0.0.1")
+		doTest(t, "tcp", "[::]", "127.0.0.1")
+		doTest(t, "tcp4", "[::ffff:0.0.0.0]", "127.0.0.1")
+		doTest(t, "tcp6", "", "127.0.0.1")
+		doTest(t, "tcp6", "[::ffff:0.0.0.0]", "127.0.0.1")
+		doTest(t, "tcp6", "[::]", "127.0.0.1")
 		doTest(t, "tcp", "127.0.0.1", "[::ffff:127.0.0.1]")
+		doTest(t, "tcp", "[::ffff:127.0.0.1]", "127.0.0.1")
+		doTest(t, "tcp4", "127.0.0.1", "[::ffff:127.0.0.1]")
+		doTest(t, "tcp4", "[::ffff:127.0.0.1]", "127.0.0.1")
+		doTest(t, "tcp6", "127.0.0.1", "[::ffff:127.0.0.1]")
+		doTest(t, "tcp6", "[::ffff:127.0.0.1]", "127.0.0.1")
 	}
 }
 
