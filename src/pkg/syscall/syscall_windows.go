@@ -536,8 +536,9 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, int32, int) {
 }
 
 type SockaddrInet6 struct {
-	Port int
-	Addr [16]byte
+	Port   int
+	ZoneId uint32
+	Addr   [16]byte
 }
 
 func (sa *SockaddrInet6) sockaddr() (uintptr, int32, int) {

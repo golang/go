@@ -191,9 +191,10 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
 }
 
 type SockaddrInet6 struct {
-	Port int
-	Addr [16]byte
-	raw  RawSockaddrInet6
+	Port   int
+	ZoneId uint32
+	Addr   [16]byte
+	raw    RawSockaddrInet6
 }
 
 func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
@@ -205,6 +206,7 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
+	sa.raw.Scope_id = sa.ZoneId
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i]
 	}
@@ -297,6 +299,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
 		sa := new(SockaddrInet6)
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
+		sa.ZoneId = pp.Scope_id
 		for i := 0; i < len(sa.Addr); i++ {
 			sa.Addr[i] = pp.Addr[i]
 		}
