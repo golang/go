@@ -14,6 +14,160 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-05-22">2011-05-22</h2>
+
+<pre>
+This release includes changes to the http package that will require changes to
+client code.
+
+The finalURL return value of the Client.Get method has been removed.
+This value is now accessible via the new Request field on http.Response.
+For example, this code:
+
+	res, finalURL, err := http.Get(...)
+
+should be rewritten as:
+
+	res, err := http.Get(...)
+	if err != nil {
+		// ...
+	}
+	finalURL := res.Request.URL.String()
+
+Uses of http.Get that assign the finalURL value to _ can be rewritten
+automatically with gofix.
+
+This release also includes an optimization to the append function that makes it
+between 2 and 5 times faster in typical use cases.
+
+Other changes:
+* 5a, 6a, 8a, cc: remove old environment variables.
+* 5c, 5g: fix build with too-smart gcc.
+* 5l, 8l: add ELF symbol table to binary.
+* 5l: delete pre-ARMv4 instruction implementations, other fixes.
+* 6l, 8l: emit windows dwarf sections like other platforms (thanks Alex Brainman).
+* 6l: fix emit windows dwarf sections (thanks Wei Guangjing).
+* 8g: fix conversion from float to uint64 (thanks Anthony Martin).
+* Make.cmd: create TARGDIR if necessary (thanks Gustavo Niemeyer).
+* asn1: add big support.
+* big: add Int methods to act on numbered bits (thanks Roger Peppe),
+	better support for string conversions,
+	support %v and # modifier, better handling of unknown formats.
+* cgi: export RequestFromMap (thanks Evan Shaw),
+	set Request.TLS and Request.RemoteAddr for children.
+* cgo: use packed struct to fix Windows behavior.
+* codereview: add release branch support,
+	fetch metadata using JSON API, not XML scraping,
+	handle 'null as missing field' in rietveld json.
+* compress/lzw: silently drop implied codes that are too large.
+* compress/zlib: actually use provided dictionary in NewWriterDict
+* crypto/openpgp: add key generation support,
+	change PublicKey.Serialize to include the header.
+* crypto/rand: add utility functions for number generation (thanks Anthony Martin).
+* crypto/tls: export the verified chains.
+* crypto/x509/crl: add package.
+* crypto/x509: export raw SubjectPublicKeyInfo,
+	support DSA public keys in X.509 certs,
+	support parsing and verifying DSA signatures (thanks Jonathan Allie).
+* doc/roadmap: put "App Engine support" under "Done".
+* doc: add I/O 2011 talks to talks/, docs.html, and front page.
+* effective go: explain about values/pointers in String() example,
+	update to new Open signature.
+* exp/draw: fast paths for drawing a YCbCr or an NRGBA onto an RGBA.
+* filepath: make EvalSymlinks work on Windows (thanks Alex Brainman).
+* flag: allow distinct sets of flags.
+* gc: fix type switch error message for invalid cases (thanks Lorenzo Stoakes),
+	fix unsafe.Sizeof,
+	preserve original expression for errors.
+* go/ast, go/doc, godoc: consider struct fields and interface methods when filtering ASTs.
+* go/ast: consider anonymous fields and set Incomplete bit when filtering ASTs,
+	properly maintain map of package global imports.
+* go/doc, godoc: when filtering for godoc, don't remove elements of a declaration.
+* go/parser: accept parenthesized receive operations in select statements,
+	always introduce an ast.Object when declaring an identifier.
+* go/printer, gofmt: fix alignment of "=" in const/var declarations,
+	fix formatting of expression lists (missing blank).
+* go/printer: added simple performance benchmark,
+	make tests follow syntactic restrictions,
+	more accurate comment for incomplete structs/interfaces,
+* go/token: faster FileSet.Position implementation.
+* go/types: type checker API + testing infrastructure.
+* godoc: added -index flag to enable/disable search index,
+	if there is no search box, don't run the respective JS code.
+* gofmt: update test.sh (exclude a file w/ incorrect syntax).
+* html: parse empty, unquoted, and single-quoted attribute values.
+* http/cgi: correctly set request Content-Type (thanks Evan Shaw),
+	pass down environment variables for IRIX and Solaris.
+* http/pprof: fix POST reading bug.
+* http/spdy: new incomplete package (thanks Ross Light).
+* http: Client.Do should follow redirects for GET and HEAD,
+	add Header.Write method (thanks Evan Shaw),
+	add Request.SetBasicAuth method,
+	add Transport.ProxySelector,
+	add http.SetCookie(ResponseWriter, *Cookie),
+	don't Clean query string in relative redirects,
+	fix FormFile nil pointer dereference on missing multipart form,
+	fix racy test with a simpler version,
+	fix two Transport gzip+persist crashes,
+	include Host header in requests,
+	make HEAD client request follow redirects (thanks Eivind Uggedal).
+	update cookie doc to reference new RFC 6265,
+	write cookies according to RFC 6265 (thanks Christian Himpel).
+* image/bmp: implement a BMP decoder.
+* image/gif: new package provides a GIF decoder.
+* image/jpeg: decode grayscale images, not just color images.
+	optimizations and tweaks.
+* image/png: encode paletted images with alpha channel (thanks Dmitry Chestnykh),
+	speed up opaque RGBA encoding.
+* image/tiff: implement a decoder (thanks Benny Siegert).
+* image: add type-specific Set methods and use them when decoding PNG,
+	make AlphaColor.Set conform to usual signature (thanks Roger Peppe),
+	png & jpeg encoding benchmarks.
+* ld: do not emit reference to dynamic library named "",
+	fix alignment of rodata section on Plan 9 (thanks Anthony Martin),
+	make ELF binaries with no shared library dependencies static binaries.
+* make.bash: remove old bash version of gotest on Windows (thanks Alex Brainman).
+* make: add nuke target for C commands and libs (thanks Anthony Martin).
+* mime/multipart: add FileName accessor on Part,
+	add Writer,
+	return an error on Reader EOF, not (nil, nil).
+* misc/cgo/test: run tests.
+* misc/emacs: use UTF-8 when invoking gofmt as a subprocess (thanks Sameer Ajmani).
+* misc/vim: new Vim indentation script.
+* net, http: add and make use of IP address scope identification API (thanks Mikio Hara).
+* net: default to 127.0.0.1, not localhost, in TestICMP,
+	don't crash on unexpected DNS SRV responses,
+	enable SO_REUSEPORT on BSD variants (thanks Mikio Hara),
+	protocol family adaptive address family selection (thanks Mikio Hara),
+	re-enable wildcard listening (thanks Mikio Hara),
+	sort records returned by LookupSRV (thanks Gary Burd).
+* os: make Readdir & Readdirnames return os.EOF at end,
+	make Setenv update C environment variables.
+* reflect: allow unexported key in Value.MapIndex.
+* runtime, sync/atomic: fix arm cas.
+* runtime: add newline to "finalizer already set" error (thanks Albert Strasheim),
+	handle out-of-threads on Linux gracefully (thanks Albert Strasheim),
+	fix function args not checked warning on ARM (thanks Dave Cheney),
+	make StackSystem part of StackGuard (thanks Alexey Borzenkov),
+	maybe fix Windows build broken by cgo setenv CL.
+* spec: clarify semantics of integer division,
+	clarify semantics of range clause,
+	fix error in production syntax,
+	narrow syntax for expression and select statements,
+	newlines cannot be used inside a char or "" string literal,
+	restricted expressions may still be parenthesized.
+* strings: make Reader.Read use copy instead of an explicit loop.
+* syscall: add Windows file mapping functions and constants (thanks Evan Shaw),
+	add IPv6 scope zone ID support (thanks Mikio Hara),
+	add netlink support for linux/386, linux/amd64, linux/arm (thanks Mikio Hara),
+	add Sendfile,
+	adjust freebsd syscalls.master URL properly (thanks Mikio Hara),
+	change Overlapped.HEvent type, it is a handle (thanks Alex Brainman).
+* syslog: fix skipping of net tests (thanks Gustavo Niemeyer).
+* template: support string, int and float literals (thanks Gustavo Niemeyer).
+* xml: fix reflect error.
+</pre>
+
 <h2 id="2011-04-27">2011-04-27 (<a href="release.html#r57">base for r57</a>)</h2>
 
 <pre>
