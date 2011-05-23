@@ -13,7 +13,7 @@ function focusinput() {
 }
 
 var numericRE = /^\d+$/;
-var commitRE = /^[0-9a-f]{6,20}$/;
+var commitRE = /^(?:\d+:)?([0-9a-f]{6,20})$/; // e.g "8486:ab29d2698a47" or "ab29d2698a47"
 var pkgRE = /^[a-z0-9_\/]+$/;
 
 function navigate() {
@@ -38,8 +38,9 @@ function navigate() {
      return success("http://codereview.appspot.com/" + t + "/");
    }
 
-   if (commitRE.test(t)) {
-     return success("http://code.google.com/p/go/source/detail?r=" + t);
+   var match = commitRE.exec(t);
+   if (match) {
+     return success("http://code.google.com/p/go/source/detail?r=" + match[1])
    }
 
    if (pkgRE.test(t)) {
