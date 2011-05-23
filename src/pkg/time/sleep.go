@@ -91,7 +91,7 @@ func (e *Timer) Stop() (ok bool) {
 // It assumes that f will not block.
 func after(ns int64, f func(int64)) (e *Timer) {
 	now := Nanoseconds()
-	t := Nanoseconds() + ns
+	t := now + ns
 	if ns > 0 && t < now {
 		panic("time: time overflow")
 	}
