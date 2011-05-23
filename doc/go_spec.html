@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of May 15, 2011 -->
+<!-- subtitle Version of May 23, 2011 -->
 
 <!--
 TODO
@@ -10,7 +10,6 @@ TODO
 [ ] clarify what a field name is in struct declarations
     (struct{T} vs struct {T T} vs struct {t T})
 [ ] need explicit language about the result type of operations
-[ ] may want to have some examples for the types of shift operations
 [ ] should string(1<<s) and float32(1<<s) be valid?
 [ ] should probably write something about evaluation order of statements even
 	though obvious
@@ -2702,42 +2701,34 @@ unary_op   = "+" | "-" | "!" | "^" | "*" | "&amp;" | "&lt;-" .
 <p>
 Comparisons are discussed <a href="#Comparison_operators">elsewhere</a>.
 For other binary operators, the operand types must be <a href="#Type_identity">identical</a>
-unless the operation involves channels, shifts, or untyped <a href="#Constants">constants</a>.
+unless the operation involves shifts or untyped <a href="#Constants">constants</a>.
 For operations involving constants only, see the section on
 <a href="#Constant_expressions">constant expressions</a>.
 </p>
 
 <p>
-In a channel send, the first operand is always a channel and the second
-must be a value <a href="#Assignability">assignable</a>
-to the channel's element type.
-</p>
-
-<p>
-Except for shift operations,
-if one operand is an untyped <a href="#Constants">constant</a>
+Except for shift operations, if one operand is an untyped <a href="#Constants">constant</a>
 and the other operand is not, the constant is <a href="#Conversions">converted</a>
 to the type of the other operand.
 </p>
 
 <p>
-The right operand in a shift operation must have unsigned integer type
+The right operand in a shift expression must have unsigned integer type
 or be an untyped constant that can be converted to unsigned integer type.
-</p>
-
-<p>
-If the left operand of a non-constant shift operation is an untyped constant,
-the type of constant is what it would be if the shift operation were replaced by
-the left operand alone.
+If the left operand of a non-constant shift expression is an untyped constant,
+the type of the constant is what it would be if the shift expression were
+replaced by its left operand alone.
 </p>
 
 <pre>
 var s uint = 33
-var i = 1&lt;&lt;s            // 1 has type int
-var j = int32(1&lt;&lt;s)     // 1 has type int32; j == 0
-var u = uint64(1&lt;&lt;s)    // 1 has type uint64; u == 1&lt;&lt;33
-var f = float32(1&lt;&lt;s)   // illegal: 1 has type float32, cannot shift
-var g = float32(1&lt;&lt;33)  // legal; 1&lt;&lt;33 is a constant shift operation; g == 1&lt;&lt;33
+var i = 1&lt;&lt;s           // 1 has type int
+var j int32 = 1&lt;&lt;s     // 1 has type int32; j == 0
+var k = uint64(1&lt;&lt;s)   // 1 has type uint64; k == 1&lt;&lt;33
+var m int = 1.0&lt;&lt;s     // legal: 1.0 has type int
+var u = 1.0&lt;&lt;s         // illegal: 1.0 has type float64, cannot shift
+var v float32 = 1&lt;&lt;s   // illegal: 1 has type float32, cannot shift
+var w int64 = 1.0&lt;&lt;33  // legal: 1.0&lt;&lt;33 is a constant shift expression
 </pre>
 
 <h3 id="Operator_precedence">Operator precedence</h3>
@@ -2869,8 +2860,8 @@ be replaced by a bitwise "and" operation:
 <p>
 The shift operators shift the left operand by the shift count specified by the
 right operand. They implement arithmetic shifts if the left operand is a signed
-integer and logical shifts if it is an unsigned integer. The shift count must
-be an unsigned integer. There is no upper limit on the shift count. Shifts behave
+integer and logical shifts if it is an unsigned integer.
+There is no upper limit on the shift count. Shifts behave
 as if the left operand is shifted <code>n</code> times by 1 for a shift
 count of <code>n</code>.
 As a result, <code>x &lt;&lt; 1</code> is the same as <code>x*2</code>
@@ -3382,20 +3373,34 @@ respectively. Except for shift operations, if the operands of a binary operation
 are an untyped integer constant and an untyped floating-point constant,
 the integer constant is converted to an untyped floating-point constant
 (relevant for <code>/</code> and <code>%</code>).
-Similarly,
-untyped integer or floating-point constants may be used as operands
+Similarly, untyped integer or floating-point constants may be used as operands
 wherever it is legal to use an operand of complex type;
 the integer or floating point constant is converted to a
 complex constant with a zero imaginary part.
 </p>
 
 <p>
-Applying an operator to untyped constants results in an untyped
+A constant <a href="#Comparison_operators">comparison</a> always yields
+a constant of type <code>bool</code>. If the left operand of a constant
+<a href="#Operators">shift expression</a> is an untyped constant, the
+result is an integer constant; otherwise it is a constant of the same
+type as the left operand, which must be of integer type
+(§<a href="#Arithmetic_operators">Arithmetic operators</a>).
+Applying all other operators to untyped constants results in an untyped
 constant of the same kind (that is, a boolean, integer, floating-point,
-complex, or string constant), except for
-<a href="#Comparison_operators">comparison operators</a>, which result in
-a constant of type <code>bool</code>.
+complex, or string constant).
 </p>
+
+<pre>
+const a = 2 + 3.0          // a == 5.0   (floating-point constant)
+const b = 15 / 4           // b == 3     (integer constant)
+const c = 15 / 4.0         // c == 3.75  (floating-point constant)
+const d = 1 &lt;&lt; 3.0         // d == 8     (integer constant)
+const e = 1.0 &lt;&lt; 3         // e == 8     (integer constant)
+const f = int32(1) &lt;&lt; 33   // f == 0     (type int32)
+const g = float64(2) &gt;&gt; 1  // illegal    (float64(2) is a typed floating-point constant)
+const h = "foo" &gt; "bar"    // h == true  (type bool)
+</pre>
 
 <p>
 Imaginary literals are untyped complex constants (with zero real part)
