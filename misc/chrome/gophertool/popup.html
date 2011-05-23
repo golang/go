@@ -1,0 +1,69 @@
+<html>
+<!--
+ Copyright 2011 The Go Authors. All rights reserved.
+ Use of this source code is governed by a BSD-style
+ license that can be found in the LICENSE file.
+-->
+<head>
+  <script>
+    
+function focusinput() {
+  box = document.getElementById("inputbox");
+  box.focus();
+}
+
+var numericRE = /^\d+$/;
+var commitRE = /^[0-9a-f]{6,20}$/;
+var pkgRE = /^[a-z0-9_\/]+$/;
+
+function navigate() {
+  box = document.getElementById("inputbox");
+  box.focus();
+  var t = box.value;
+  if (t == "") {
+    return false;
+  }
+
+  success = function(url) {
+    console.log("matched " + t + " to: " + url)
+    box.value = "";
+    openURL(url);
+    return false;  // cancel form submission
+   };
+
+   if (numericRE.test(t)) {
+     if (t < 1000000) {
+       return success("http://code.google.com/p/go/issues/detail?id=" + t);
+     }
+     return success("http://codereview.appspot.com/" + t + "/");
+   }
+
+   if (commitRE.test(t)) {
+     return success("http://code.google.com/p/go/source/detail?r=" + t);
+   }
+
+   if (pkgRE.test(t)) {
+     // TODO: make this smarter, using a list of packages + substring matches.
+     // Get the list from godoc itself in JSON format?
+     // TODO: prefer localhost:6060 to golang.org if localhost:6060 is responding. 
+     return success("http://golang.org/pkg/" + t);
+   }
+   console.log("no match for text: " + t)
+   return false;
+}
+
+function openURL(url) {
+  chrome.tabs.create({ "url": url })
+}
+
+</script>
+</head>
+<body onload="focusinput()" style='margin: 0.5em; font-family: sans;'>
+<small><a href="#" onclick="openURL('http://code.google.com/p/go/issues/list')">issue</a>,
+<a href="#" onclick="openURL('http://codereview.appspot.com/')">codereview</a>,
+<a href="#" onclick="openURL('http://code.google.com/p/go/source/list')">commit</a>, or
+<a href="#" onclick="openURL('http://golang.org/pkg/')">pkg</a> id/name:</small>
+<form style='margin: 0' onsubmit="return navigate();"><nobr><input id="inputbox" size=10 /><input type="submit" value="go" /></nobr></form>
+<small>Also: <a href="#" onclick="openURL('http://godashboard.appspot.com/')">buildbots</small>
+</body>
+</html>

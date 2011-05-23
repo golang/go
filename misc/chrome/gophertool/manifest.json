@@ -1,0 +1,12 @@
+{
+  "name": "Hacking Gopher",
+  "version": "1.0",
+  "description": "Go Hacking utility",
+  "browser_action": {
+    "default_icon": "gopher.png",
+    "popup": "popup.html"
+  },
+  "permissions": [
+     "tabs"
+  ]
+}
