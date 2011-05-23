@@ -6,14 +6,24 @@ package http
 
 import (
 	"io"
+	"log"
 	"os"
 	"strconv"
 )
 
 // NewChunkedWriter returns a new writer that translates writes into HTTP
-// "chunked" format before writing them to w.  Closing the returned writer
+// "chunked" format before writing them to w. Closing the returned writer
 // sends the final 0-length chunk that marks the end of the stream.
+//
+// NewChunkedWriter is not needed by normal applications. The http
+// package adds chunking automatically if handlers don't set a
+// Content-Length header. Using NewChunkedWriter inside a handler
+// would result in double chunking or chunking with a Content-Length
+// length, both of which are wrong.
 func NewChunkedWriter(w io.Writer) io.WriteCloser {
+	if _, bad := w.(*response); bad {
+		log.Printf("warning: using NewChunkedWriter in an http.Handler; expect corrupt output")
+	}
 	return &chunkedWriter{w}
 }
 
