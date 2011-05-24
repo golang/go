@@ -17,6 +17,14 @@ static	MachoSeg	seg[16];
 static	MachoDebug	xdebug[16];
 static	int	nload, mload, nseg, ndebug, nsect;
 
+// Amount of space left for adding load commands
+// that refer to dynamic libraries.  Because these have
+// to go in the Mach-O header, we can't just pick a
+// "big enough" header size.  The initial header is 
+// one page, the non-dynamic library stuff takes
+// up about 1300 bytes; we overestimate that as 2k.
+static	int	load_budget = INITIAL_MACHO_HEADR - 2*1024;
+
 void
 machoinit(void)
 {
@@ -267,6 +275,17 @@ domacho(void)
 void
 machoadddynlib(char *lib)
 {
+	// Will need to store the library name rounded up
+	// and 24 bytes of header metadata.  If not enough
+	// space, grab another page of initial space at the
+	// beginning of the output file.
+	load_budget -= (strlen(lib)+7)/8*8 + 24;
+	if(load_budget < 0) {
+		HEADR += 4096;
+		INITTEXT += 4096;
+		load_budget += 4096;
+	}
+
 	if(ndylib%32 == 0) {
 		dylib = realloc(dylib, (ndylib+32)*sizeof dylib[0]);
 		if(dylib == nil) {
@@ -463,8 +482,8 @@ asmbmacho(void)
 	}
 
 	a = machowrite();
-	if(a > MACHORESERVE)
-		diag("MACHORESERVE too small: %d > %d", a, MACHORESERVE);
+	if(a > HEADR)
+		diag("HEADR too small: %d > %d", a, HEADR);
 }
 
 vlong

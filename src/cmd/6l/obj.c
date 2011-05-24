@@ -177,7 +177,7 @@ main(int argc, char *argv[])
 		 */
 		tlsoffset = 0x8a0;
 		machoinit();
-		HEADR = MACHORESERVE;
+		HEADR = INITIAL_MACHO_HEADR;
 		if(INITRND == -1)
 			INITRND = 4096;
 		if(INITTEXT == -1)
