@@ -99,7 +99,8 @@ func (p *ebnfParser) parseTerm() bool {
 
 	case token.STRING:
 		p.next()
-		if p.tok == token.ELLIPSIS {
+		const ellipsis = "…" // U+2026, the horizontal ellipsis character
+		if p.tok == token.ILLEGAL && p.lit == ellipsis {
 			p.next()
 			p.expect(token.STRING)
 		}
@@ -157,7 +158,7 @@ func (p *ebnfParser) parse(fset *token.FileSet, out io.Writer, src []byte) {
 	p.out = out
 	p.src = src
 	p.file = fset.AddFile("", fset.Base(), len(src))
-	p.scanner.Init(p.file, src, p, 0)
+	p.scanner.Init(p.file, src, p, scanner.AllowIllegalChars)
 	p.next() // initializes pos, tok, lit
 
 	// process source

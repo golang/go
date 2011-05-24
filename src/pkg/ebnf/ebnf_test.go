@@ -22,7 +22,7 @@ var grammars = []string{
 
 	`Program = "a" | "b" "c" .`,
 
-	`Program = "a" ... "z" .`,
+	`Program = "a" … "z" .`,
 
 	`Program = Song .
 	 Song = { Note } .
