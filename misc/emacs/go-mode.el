@@ -523,7 +523,7 @@ Replace the current buffer on success; display errors on failure."
                    (erase-buffer)
                    (insert-buffer-substring outbuf)
                    (goto-char (min old-point (point-max)))
-                   (if old-mark (set-mark (min old-mark (point-max))))
+                   (if old-mark (push-mark (min old-mark (point-max)) t))
                    (kill-buffer errbuf))
 
                ;; gofmt failed: display the errors
