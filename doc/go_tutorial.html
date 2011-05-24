@@ -341,7 +341,7 @@ Using slices one can write this function (from <code>sum.go</code>):
 15    }
 </pre>
 <p>
-Note how the return type (<code>int</code>) is defined for <code>sum()</code> by stating it
+Note how the return type (<code>int</code>) is defined for <code>sum</code> by stating it
 after the parameter list.
 <p>
 To call the function, we slice the array.  This intricate call (we'll show
@@ -373,7 +373,7 @@ There are also maps, which you can initialize like this:
     m := map[string]int{"one":1 , "two":2}
 </pre>
 <p>
-The built-in function <code>len()</code>, which returns number of elements,
+The built-in function <code>len</code>, which returns number of elements,
 makes its first appearance in <code>sum</code>.  It works on strings, arrays,
 slices, maps, and channels.
 <p>
@@ -401,7 +401,7 @@ for more examples of its use.
 Most types in Go are values. If you have an <code>int</code> or a <code>struct</code>
 or an array, assignment
 copies the contents of the object.
-To allocate a new variable, use <code>new()</code>, which
+To allocate a new variable, use the built-in function <code>new</code>, which
 returns a pointer to the allocated storage.
 <p>
 <pre>
@@ -418,7 +418,7 @@ or the more idiomatic
 Some types&mdash;maps, slices, and channels (see below)&mdash;have reference semantics.
 If you're holding a slice or a map and you modify its contents, other variables
 referencing the same underlying data will see the modification.  For these three
-types you want to use the built-in function <code>make()</code>:
+types you want to use the built-in function <code>make</code>:
 <p>
 <pre>
     m := make(map[string]int)
@@ -432,11 +432,11 @@ If you just declare the map, as in
 </pre>
 <p>
 it creates a <code>nil</code> reference that cannot hold anything. To use the map,
-you must first initialize the reference using <code>make()</code> or by assignment from an
+you must first initialize the reference using <code>make</code> or by assignment from an
 existing map.
 <p>
 Note that <code>new(T)</code> returns type <code>*T</code> while <code>make(T)</code> returns type
-<code>T</code>.  If you (mistakenly) allocate a reference object with <code>new()</code>,
+<code>T</code>.  If you (mistakenly) allocate a reference object with <code>new</code> rather than <code>make</code>,
 you receive a pointer to a nil reference, equivalent to
 declaring an uninitialized variable and taking its address.
 <p>
@@ -767,7 +767,7 @@ Building on the <code>file</code> package, here's a simple version of the Unix u
 By now this should be easy to follow, but the <code>switch</code> statement introduces some
 new features.  Like a <code>for</code> loop, an <code>if</code> or <code>switch</code> can include an
 initialization statement.  The <code>switch</code> on line 18 uses one to create variables
-<code>nr</code> and <code>er</code> to hold the return values from <code>f.Read()</code>.  (The <code>if</code> on line 25
+<code>nr</code> and <code>er</code> to hold the return values from the call to <code>f.Read</code>.  (The <code>if</code> on line 25
 has the same idea.)  The <code>switch</code> statement is general: it evaluates the cases
 from  top to bottom looking for the first case that matches the value; the
 case expressions don't need to be constants or even integers, as long as
@@ -779,14 +779,14 @@ in a <code>for</code> statement, a missing value means <code>true</code>.  In fa
 is a form of <code>if-else</code> chain. While we're here, it should be mentioned that in
 <code>switch</code> statements each <code>case</code> has an implicit <code>break</code>.
 <p>
-Line 25 calls <code>Write()</code> by slicing the incoming buffer, which is itself a slice.
+Line 25 calls <code>Write</code> by slicing the incoming buffer, which is itself a slice.
 Slices provide the standard Go way to handle I/O buffers.
 <p>
 Now let's make a variant of <code>cat</code> that optionally does <code>rot13</code> on its input.
 It's easy to do by just processing the bytes, but instead we will exploit
 Go's notion of an <i>interface</i>.
 <p>
-The <code>cat()</code> subroutine uses only two methods of <code>f</code>: <code>Read()</code> and <code>String()</code>,
+The <code>cat</code> subroutine uses only two methods of <code>f</code>: <code>Read</code> and <code>String</code>,
 so let's start by defining an interface that has exactly those two methods.
 Here is code from <code>progs/cat_rot13.go</code>:
 <p>
@@ -838,7 +838,7 @@ To use the new feature, we define a flag:
 14    var rot13Flag = flag.Bool(&quot;rot13&quot;, false, &quot;rot13 the input&quot;)
 </pre>
 <p>
-and use it from within a mostly unchanged <code>cat()</code> function:
+and use it from within a mostly unchanged <code>cat</code> function:
 <p>
 <pre> <!-- progs/cat_rot13.go /func.cat/ /^}/ -->
 52    func cat(r reader) {
@@ -866,7 +866,7 @@ and use it from within a mostly unchanged <code>cat()</code> function:
 74    }
 </pre>
 <p>
-(We could also do the wrapping in <code>main</code> and leave <code>cat()</code> mostly alone, except
+(We could also do the wrapping in <code>main</code> and leave <code>cat</code> mostly alone, except
 for changing the type of the argument; consider that an exercise.)
 Lines 56 through 58 set it all up: If the <code>rot13</code> flag is true, wrap the <code>reader</code>
 we received into a <code>rotate13</code> and proceed.  Note that the interface variables
@@ -1055,7 +1055,7 @@ to that of the <code>Printf</code> call above.
 </pre>
 <p>
 If you have your own type you'd like <code>Printf</code> or <code>Print</code> to format,
-just give it a <code>String()</code> method that returns a string.  The print
+just give it a <code>String</code> method that returns a string.  The print
 routines will examine the value to inquire whether it implements
 the method and if so, use it rather than some other formatting.
 Here's a simple example.
@@ -1076,14 +1076,14 @@ Here's a simple example.
 21    }
 </pre>
 <p>
-Since <code>*testType</code> has a <code>String()</code> method, the
+Since <code>*testType</code> has a <code>String</code> method, the
 default formatter for that type will use it and produce the output
 <p>
 <pre>
     77 Sunset Strip
 </pre>
 <p>
-Observe that the <code>String()</code> method calls <code>Sprint</code> (the obvious Go
+Observe that the <code>String</code> method calls <code>Sprint</code> (the obvious Go
 variant that returns a string) to do its formatting; special formatters
 can use the <code>fmt</code> library recursively.
 <p>
@@ -1096,7 +1096,7 @@ and such, but that's getting a little off the main thread so we'll leave it
 as an exploration exercise.
 <p>
 You might ask, though, how <code>Printf</code> can tell whether a type implements
-the <code>String()</code> method.  Actually what it does is ask if the value can
+the <code>String</code> method.  Actually what it does is ask if the value can
 be converted to an interface variable that implements the method.
 Schematically, given a value <code>v</code>, it does this:
 <p>
@@ -1141,7 +1141,7 @@ interface type defined in the <code>io</code> library:
 <p>
 (This interface is another conventional name, this time for <code>Write</code>; there are also
 <code>io.Reader</code>, <code>io.ReadWriter</code>, and so on.)
-Thus you can call <code>Fprintf</code> on any type that implements a standard <code>Write()</code>
+Thus you can call <code>Fprintf</code> on any type that implements a standard <code>Write</code>
 method, not just files but also network channels, buffers, whatever
 you want.
 <p>

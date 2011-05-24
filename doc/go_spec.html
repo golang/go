@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of May 23, 2011 -->
+<!-- subtitle Version of May 24, 2011 -->
 
 <!--
 TODO
@@ -821,7 +821,7 @@ make([]T, length, capacity)
 </pre>
 
 <p>
-The <code>make()</code> call allocates a new, hidden array to which the returned
+A call to <code>make</code> allocates a new, hidden array to which the returned
 slice value refers. That is, executing
 </p>
 
@@ -4931,7 +4931,7 @@ func main() {
 <h3 id="The_zero_value">The zero value</h3>
 <p>
 When memory is allocated to store a value, either through a declaration
-or <code>make()</code> or <code>new()</code> call,
+or a call of <code>make</code> or <code>new</code>,
 and no explicit initialization is provided, the memory is
 given a default initialization.  Each element of such a value is
 set to the <i>zero value</i> for its type: <code>false</code> for booleans,
@@ -4989,7 +4989,7 @@ func init()
 <p>
 defined in its source.
 A package may contain multiple
-<code>init()</code> functions, even
+<code>init</code> functions, even
 within a single source file; they execute
 in unspecified order.
 </p>
@@ -5019,8 +5019,8 @@ program is complete. Therefore, all initialization code is run in a single
 goroutine.
 </p>
 <p>
-An <code>init()</code> function cannot be referred to from anywhere
-in a program. In particular, <code>init()</code> cannot be called explicitly,
+An <code>init</code> function cannot be referred to from anywhere
+in a program. In particular, <code>init</code> cannot be called explicitly,
 nor can a pointer to <code>init</code> be assigned to a function variable.
 </p>
 <p>
