@@ -935,13 +935,14 @@ example of its possibilities.
 
 <h2 id="data">Data</h2>
 
-<h3 id="allocation_new">Allocation with <code>new()</code></h3>
+<h3 id="allocation_new">Allocation with <code>new</code></h3>
 
 <p>
-Go has two allocation primitives, <code>new()</code> and <code>make()</code>.
+Go has two allocation primitives, the built-in functions
+<code>new</code> and <code>make</code>.
 They do different things and apply to different types, which can be confusing,
 but the rules are simple.
-Let's talk about <code>new()</code> first.
+Let's talk about <code>new</code> first.
 It's a built-in function essentially the same as its namesakes
 in other languages: <code>new(T)</code> allocates zeroed storage for a new item of type
 <code>T</code> and returns its address, a value of type <code>*T</code>.
@@ -950,9 +951,9 @@ In Go terminology, it returns a pointer to a newly allocated zero value of type
 </p>
 
 <p>
-Since the memory returned by <code>new()</code> is zeroed, it's helpful to arrange that the
+Since the memory returned by <code>new</code> is zeroed, it's helpful to arrange that the
 zeroed object can be used without further initialization.  This means a user of
-the data structure can create one with <code>new()</code> and get right to
+the data structure can create one with <code>new</code> and get right to
 work.
 For example, the documentation for <code>bytes.Buffer</code> states that
 "the zero value for <code>Buffer</code> is an empty buffer ready to use."
@@ -1065,7 +1066,7 @@ s := []string      {Enone: "no error", Eio: "Eio", Einval: "invalid argument"}
 m := map[int]string{Enone: "no error", Eio: "Eio", Einval: "invalid argument"}
 </pre>
 
-<h3 id="allocation_make">Allocation with <code>make()</code></h3>
+<h3 id="allocation_make">Allocation with <code>make</code></h3>
 
 <p>
 Back to allocation.
@@ -1099,8 +1100,8 @@ In contrast, <code>new([]int)</code> returns a pointer to a newly allocated, zer
 structure, that is, a pointer to a <code>nil</code> slice value.
 
 <p>
-These examples illustrate the difference between <code>new()</code> and
-<code>make()</code>.
+These examples illustrate the difference between <code>new</code> and
+<code>make</code>.
 </p>
 
 <pre>
@@ -1116,9 +1117,9 @@ v := make([]int, 100)
 </pre>
 
 <p>
-Remember that <code>make()</code> applies only to maps, slices and channels
+Remember that <code>make</code> applies only to maps, slices and channels
 and does not return a pointer.
-To obtain an explicit pointer allocate with <code>new()</code>.
+To obtain an explicit pointer allocate with <code>new</code>.
 </p>
 
 <h3 id="arrays">Arrays</h3>
@@ -1473,7 +1474,7 @@ map[string] int
 </pre>
 <p>
 If you want to control the default format for a custom type, all that's required is to define
-a method <code>String() string</code> on the type.
+a method with the signature <code>String() string</code> on the type.
 For our simple type <code>T</code>, that might look like this.
 </p>
 <pre>
@@ -1495,7 +1496,7 @@ that's more efficient and idiomatic for struct types.
 See the section below on <a href="#pointers_vs_values">pointers vs. value receivers</a> for more information.)
 </p>
 <p>
-Our <code>String()</code> method is able to call <code>Sprintf</code> because the
+Our <code>String</code> method is able to call <code>Sprintf</code> because the
 print routines are fully reentrant and can be used recursively.
 We can even go one step further and pass a print routine's arguments directly to another such routine.
 The signature of <code>Printf</code> uses the type <code>...interface{}</code>
@@ -1683,19 +1684,20 @@ var (
 <h3 id="init">The init function</h3>
 
 <p>
-Finally, each source file can define its own <code>init()</code> function to
-set up whatever state is required.  The only restriction is that, although
+Finally, each source file can define its own niladic <code>init</code> function to
+set up whatever state is required.  (Actually each file can have multiple
+<code>init</code> functions.) The only restriction is that, although
 goroutines can be launched during initialization, they will not begin
 execution until it completes; initialization always runs as a single thread
 of execution.
-And finally means finally: <code>init()</code> is called after all the
+And finally means finally: <code>init</code> is called after all the
 variable declarations in the package have evaluated their initializers,
 and those are evaluated only after all the imported packages have been
 initialized.
 </p>
 <p>
 Besides initializations that cannot be expressed as declarations,
-a common use of <code>init()</code> functions is to verify or repair
+a common use of <code>init</code> functions is to verify or repair
 correctness of the program state before real execution begins.
 </p>
 
@@ -1899,7 +1901,7 @@ on every instance of a common method.
 In such cases, the constructor should return an interface value
 rather than the implementing type.
 As an example, in the hash libraries
-both <code>crc32.NewIEEE()</code> and <code>adler32.New()</code>
+both <code>crc32.NewIEEE</code> and <code>adler32.New</code>
 return the interface type <code>hash.Hash32</code>.
 Substituting the CRC-32 algorithm for Adler-32 in a Go program
 requires only changing the constructor call;
