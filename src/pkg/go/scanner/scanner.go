@@ -22,6 +22,7 @@ package scanner
 
 import (
 	"bytes"
+	"fmt"
 	"go/token"
 	"path/filepath"
 	"strconv"
@@ -131,36 +132,6 @@ func (S *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode uint
 	S.ErrorCount = 0
 
 	S.next()
-}
-
-
-func charString(ch int) string {
-	var s string
-	switch ch {
-	case -1:
-		return `EOF`
-	case '\a':
-		s = `\a`
-	case '\b':
-		s = `\b`
-	case '\f':
-		s = `\f`
-	case '\n':
-		s = `\n`
-	case '\r':
-		s = `\r`
-	case '\t':
-		s = `\t`
-	case '\v':
-		s = `\v`
-	case '\\':
-		s = `\\`
-	case '\'':
-		s = `\'`
-	default:
-		s = string(ch)
-	}
-	return "'" + s + "' (U+" + strconv.Itob(ch, 16) + ")"
 }
 
 
@@ -700,7 +671,7 @@ scanAgain:
 			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
 		default:
 			if S.mode&AllowIllegalChars == 0 {
-				S.error(offs, "illegal character "+charString(ch))
+				S.error(offs, fmt.Sprintf("illegal character '%c' (%U)", ch, ch))
 			}
 			insertSemi = S.insertSemi // preserve insertSemi info
 		}
