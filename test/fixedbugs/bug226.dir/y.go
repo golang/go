@@ -15,7 +15,7 @@ func f() {
 	_ = x.T{};
 	_ = x.T{Y:2};
 	
-	ok1.M();	// ERROR "assignment.*T"
+	ok1.M();
 	bad1 := *ok;	// ERROR "assignment.*T"
 	bad2 := ok1;	// ERROR "assignment.*T"
 	*ok4 = ok1;	// ERROR "assignment.*T"
