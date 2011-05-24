@@ -822,7 +822,13 @@ reswitch:
 
 		case ODOTMETH:
 			n->op = OCALLMETH;
-			typecheckaste(OCALL, n->left, 0, getthisx(t), list1(l->left), "method receiver");
+			// typecheckaste was used here but there wasn't enough
+			// information further down the call chain to know if we
+			// were testing a method receiver for unexported fields.
+			// It isn't necessary, so just do a sanity check.
+			tp = getthisx(t)->type->type;
+			if(l->left == N || !eqtype(l->left->type, tp))
+				fatal("method receiver");
 			break;
 
 		default:

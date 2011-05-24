@@ -161,8 +161,3 @@ panic: interface conversion: interface is main.T, not main.T
 0x0
 
 == bugs/
-
-=========== bugs/bug322.go
-bugs/bug322.dir/main.go:19: implicit assignment of unexported field 'x' of lib.T in method receiver
-bugs/bug322.dir/main.go:32: implicit assignment of unexported field 'x' of lib.T in method receiver
-BUG: fails incorrectly
