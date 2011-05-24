@@ -81,12 +81,17 @@ func readSetCookies(h Header) []*Cookie {
 			if j := strings.Index(attr, "="); j >= 0 {
 				attr, val = attr[:j], attr[j+1:]
 			}
-			val, success = parseCookieValue(val)
+			lowerAttr := strings.ToLower(attr)
+			parseCookieValueFn := parseCookieValue
+			if lowerAttr == "expires" {
+				parseCookieValueFn = parseCookieExpiresValue
+			}
+			val, success = parseCookieValueFn(val)
 			if !success {
 				c.Unparsed = append(c.Unparsed, parts[i])
 				continue
 			}
-			switch strings.ToLower(attr) {
+			switch lowerAttr {
 			case "secure":
 				c.Secure = true
 				continue
@@ -112,8 +117,11 @@ func readSetCookies(h Header) []*Cookie {
 				c.RawExpires = val
 				exptime, err := time.Parse(time.RFC1123, val)
 				if err != nil {
-					c.Expires = time.Time{}
-					break
+					exptime, err = time.Parse("Mon, 02-Jan-2006 15:04:05 MST", val)
+					if err != nil {
+						c.Expires = time.Time{}
+						break
+					}
 				}
 				c.Expires = *exptime
 				continue
@@ -272,7 +280,7 @@ func unquoteCookieValue(v string) string {
 }
 
 func isCookieByte(c byte) bool {
-	switch true {
+	switch {
 	case c == 0x21, 0x23 <= c && c <= 0x2b, 0x2d <= c && c <= 0x3a,
 		0x3c <= c && c <= 0x5b, 0x5d <= c && c <= 0x7e:
 		return true
@@ -280,10 +288,22 @@ func isCookieByte(c byte) bool {
 	return false
 }
 
+func isCookieExpiresByte(c byte) (ok bool) {
+	return isCookieByte(c) || c == ',' || c == ' '
+}
+
 func parseCookieValue(raw string) (string, bool) {
+	return parseCookieValueUsing(raw, isCookieByte)
+}
+
+func parseCookieExpiresValue(raw string) (string, bool) {
+	return parseCookieValueUsing(raw, isCookieExpiresByte)
+}
+
+func parseCookieValueUsing(raw string, validByte func(byte) bool) (string, bool) {
 	raw = unquoteCookieValue(raw)
 	for i := 0; i < len(raw); i++ {
-		if !isCookieByte(raw[i]) {
+		if !validByte(raw[i]) {
 			return "", false
 		}
 	}

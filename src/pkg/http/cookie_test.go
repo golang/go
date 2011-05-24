@@ -11,8 +11,8 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 )
-
 
 var writeSetCookiesTests = []struct {
 	Cookies []*Cookie
@@ -114,6 +114,19 @@ var readSetCookiesTests = []struct {
 	{
 		Header{"Set-Cookie": {"Cookie-1=v$1"}},
 		[]*Cookie{&Cookie{Name: "Cookie-1", Value: "v$1", Raw: "Cookie-1=v$1"}},
+	},
+	{
+		Header{"Set-Cookie": {"NID=99=YsDT5i3E-CXax-; expires=Wed, 23-Nov-2011 01:05:03 GMT; path=/; domain=.google.ch; HttpOnly"}},
+		[]*Cookie{&Cookie{
+			Name:       "NID",
+			Value:      "99=YsDT5i3E-CXax-",
+			Path:       "/",
+			Domain:     ".google.ch",
+			HttpOnly:   true,
+			Expires:    time.Time{Year: 2011, Month: 11, Day: 23, Hour: 1, Minute: 5, Second: 3, Weekday: 3, ZoneOffset: 0, Zone: "GMT"},
+			RawExpires: "Wed, 23-Nov-2011 01:05:03 GMT",
+			Raw:        "NID=99=YsDT5i3E-CXax-; expires=Wed, 23-Nov-2011 01:05:03 GMT; path=/; domain=.google.ch; HttpOnly",
+		}},
 	},
 }
 
