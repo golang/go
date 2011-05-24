@@ -48,7 +48,7 @@ The syntax is specified using Extended Backus-Naur Form (EBNF):
 Production  = production_name "=" [ Expression ] "." .
 Expression  = Alternative { "|" Alternative } .
 Alternative = Term { Term } .
-Term        = production_name | token [ "..." token ] | Group | Option | Repetition .
+Term        = production_name | token [ "…" token ] | Group | Option | Repetition .
 Group       = "(" Expression ")" .
 Option      = "[" Expression "]" .
 Repetition  = "{" Expression "}" .
@@ -72,8 +72,12 @@ double quotes <code>""</code> or back quotes <code>``</code>.
 </p>
 
 <p>
-The form <code>a ... b</code> represents the set of characters from
-<code>a</code> through <code>b</code> as alternatives.
+The form <code>a … b</code> represents the set of characters from
+<code>a</code> through <code>b</code> as alternatives. The horizontal
+ellipis … is also used elsewhere in the spec to informally denote various
+enumerations or code snippets that are not further specified. The character …
+(as opposed to the three characters <code>...</code>) is not a token of the Go
+language.
 </p>
 
 <h2 id="Source_code_representation">Source code representation</h2>
@@ -122,9 +126,9 @@ The underscore character <code>_</code> (U+005F) is considered a letter.
 </p>
 <pre class="ebnf">
 letter        = unicode_letter | "_" .
-decimal_digit = "0" ... "9" .
-octal_digit   = "0" ... "7" .
-hex_digit     = "0" ... "9" | "A" ... "F" | "a" ... "f" .
+decimal_digit = "0" … "9" .
+octal_digit   = "0" … "7" .
+hex_digit     = "0" … "9" | "A" … "F" | "a" … "f" .
 </pre>
 
 <h2 id="Lexical_elements">Lexical elements</h2>
@@ -286,7 +290,7 @@ An optional prefix sets a non-decimal base: <code>0</code> for octal, <code>0x</
 </p>
 <pre class="ebnf">
 int_lit     = decimal_lit | octal_lit | hex_lit .
-decimal_lit = ( "1" ... "9" ) { decimal_digit } .
+decimal_lit = ( "1" … "9" ) { decimal_digit } .
 octal_lit   = "0" { octal_digit } .
 hex_lit     = "0" ( "x" | "X" ) hex_digit { hex_digit } .
 </pre>
@@ -1053,9 +1057,9 @@ have the method set
 </p>
 
 <pre>
-func (p T) Read(b Buffer) bool { return ... }
-func (p T) Write(b Buffer) bool { return ... }
-func (p T) Close() { ... }
+func (p T) Read(b Buffer) bool { return … }
+func (p T) Write(b Buffer) bool { return … }
+func (p T) Close() { … }
 </pre>
 
 <p>
@@ -1093,8 +1097,8 @@ If <code>S1</code> and <code>S2</code> also implement
 </p>
 
 <pre>
-func (p T) Lock() { ... }
-func (p T) Unlock() { ... }
+func (p T) Lock() { … }
+func (p T) Unlock() { … }
 </pre>
 
 <p>
@@ -2099,7 +2103,7 @@ element index plus one. A slice literal has the form
 </p>
 
 <pre>
-[]T{x1, x2, ... xn}
+[]T{x1, x2, … xn}
 </pre>
 
 <p>
@@ -2107,7 +2111,7 @@ and is a shortcut for a slice operation applied to an array literal:
 </p>
 
 <pre>
-[n]T{x1, x2, ... xn}[0 : n]
+[n]T{x1, x2, … xn}[0 : n]
 </pre>
 
 <p>
@@ -2133,8 +2137,8 @@ parentheses.
 </p>
 
 <pre>
-if x == (T{a,b,c}[i]) { ... }
-if (x == T{a,b,c}[i]) { ... }
+if x == (T{a,b,c}[i]) { … }
+if (x == T{a,b,c}[i]) { … }
 </pre>
 
 <p>
@@ -2567,11 +2571,11 @@ Given an expression <code>f</code> of function type
 </p>
 
 <pre>
-f(a1, a2, ... an)
+f(a1, a2, … an)
 </pre>
 
 <p>
-calls <code>f</code> with arguments <code>a1, a2, ... an</code>.
+calls <code>f</code> with arguments <code>a1, a2, … an</code>.
 Except for one special case, arguments must be single-valued expressions
 <a href="#Assignability">assignable</a> to the parameter types of
 <code>F</code> and are evaluated before the function is called.
@@ -2650,7 +2654,7 @@ arguments bound to the final parameter and may differ for each call site.
 Given the function and call
 </p>
 <pre>
-func Greeting(prefix string, who ... string)
+func Greeting(prefix string, who ...string)
 Greeting("hello:", "Joe", "Anna", "Eileen")
 </pre>
 
@@ -4891,7 +4895,7 @@ package main
 
 import "fmt"
 
-// Send the sequence 2, 3, 4, ... to channel 'ch'.
+// Send the sequence 2, 3, 4, … to channel 'ch'.
 func generate(ch chan&lt;- int) {
 	for i := 2; ; i++ {
 		ch &lt;- i  // Send 'i' to channel 'ch'.
@@ -5042,7 +5046,7 @@ arguments and returns no value.
 </p>
 
 <pre>
-func main() { ... }
+func main() { … }
 </pre>
 
 <p>

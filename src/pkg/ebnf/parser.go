@@ -95,7 +95,8 @@ func (p *parser) parseTerm() (x Expression) {
 	case token.STRING:
 		tok := p.parseToken()
 		x = tok
-		if p.tok == token.ELLIPSIS {
+		const ellipsis = "…" // U+2026, the horizontal ellipsis character
+		if p.tok == token.ILLEGAL && p.lit == ellipsis {
 			p.next()
 			x = &Range{tok, p.parseToken()}
 		}
@@ -177,7 +178,7 @@ func (p *parser) parse(fset *token.FileSet, filename string, src []byte) Grammar
 	// initialize parser
 	p.fset = fset
 	p.ErrorVector.Reset()
-	p.scanner.Init(fset.AddFile(filename, fset.Base(), len(src)), src, p, 0)
+	p.scanner.Init(fset.AddFile(filename, fset.Base(), len(src)), src, p, scanner.AllowIllegalChars)
 	p.next() // initializes pos, tok, lit
 
 	grammar := make(Grammar)
