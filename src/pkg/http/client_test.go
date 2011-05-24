@@ -10,6 +10,7 @@ import (
 	"fmt"
 	. "http"
 	"http/httptest"
+	"io"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -137,5 +138,43 @@ func TestRedirects(t *testing.T) {
 	finalUrl = res.Request.URL.String()
 	if e, g := "Get /?n=1: no redirects allowed", fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with redirects forbidden, expected error %q, got %q", e, g)
+	}
+}
+
+func TestStreamingGet(t *testing.T) {
+	say := make(chan string)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.(Flusher).Flush()
+		for str := range say {
+			w.Write([]byte(str))
+			w.(Flusher).Flush()
+		}
+	}))
+	defer ts.Close()
+
+	c := &Client{}
+	res, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf [10]byte
+	for _, str := range []string{"i", "am", "also", "known", "as", "comet"} {
+		say <- str
+		n, err := io.ReadFull(res.Body, buf[0:len(str)])
+		if err != nil {
+			t.Fatalf("ReadFull on %q: %v", str, err)
+		}
+		if n != len(str) {
+			t.Fatalf("Receiving %q, only read %d bytes", str, n)
+		}
+		got := string(buf[0:n])
+		if got != str {
+			t.Fatalf("Expected %q, got %q", str, got)
+		}
+	}
+	close(say)
+	_, err = io.ReadFull(res.Body, buf[0:1])
+	if err != os.EOF {
+		t.Fatalf("at end expected EOF, got %v", err)
 	}
 }
