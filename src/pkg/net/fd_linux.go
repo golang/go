@@ -117,6 +117,17 @@ func (p *pollster) DelFD(fd int, mode int) {
 	} else {
 		p.StopWaiting(fd, writeFlags)
 	}
+
+	// Discard any queued up events.
+	i := 0
+	for i < len(p.waitEvents) {
+		if fd == int(p.waitEvents[i].Fd) {
+			copy(p.waitEvents[i:], p.waitEvents[i+1:])
+			p.waitEvents = p.waitEvents[:len(p.waitEvents)-1]
+		} else {
+			i++
+		}
+	}
 }
 
 func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err os.Error) {
