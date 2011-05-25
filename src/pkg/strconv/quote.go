@@ -14,17 +14,14 @@ import (
 
 const lowerhex = "0123456789abcdef"
 
-// Quote returns a double-quoted Go string literal
-// representing s.  The returned string s uses Go escape
-// sequences (\t, \n, \xFF, \u0100) for control characters
-// and non-ASCII characters.
-func Quote(s string) string {
+func quoteWith(s string, quote byte) string {
 	var buf bytes.Buffer
-	buf.WriteByte('"')
+	buf.WriteByte(quote)
 	for ; len(s) > 0; s = s[1:] {
 		switch c := s[0]; {
-		case c == '"':
-			buf.WriteString(`\"`)
+		case c == quote:
+			buf.WriteByte('\\')
+			buf.WriteByte(quote)
 		case c == '\\':
 			buf.WriteString(`\\`)
 		case ' ' <= c && c <= '~':
@@ -69,8 +66,26 @@ func Quote(s string) string {
 			buf.WriteByte(lowerhex[c&0xF])
 		}
 	}
-	buf.WriteByte('"')
+	buf.WriteByte(quote)
 	return buf.String()
+
+}
+
+// Quote returns a double-quoted Go string literal
+// representing s.  The returned string uses Go escape
+// sequences (\t, \n, \xFF, \u0100) for control characters
+// and non-ASCII characters.
+func Quote(s string) string {
+	return quoteWith(s, '"')
+}
+
+// QuoteRune returns a single-quoted Go character literal
+// representing the rune.  The returned string uses Go escape
+// sequences (\t, \n, \xFF, \u0100) for control characters
+// and non-ASCII characters.
+func QuoteRune(rune int) string {
+	// TODO: avoid the allocation here.
+	return quoteWith(string(rune), '\'')
 }
 
 // CanBackquote returns whether the string s would be

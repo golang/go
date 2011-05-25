@@ -25,10 +25,33 @@ var quotetests = []quoteTest{
 }
 
 func TestQuote(t *testing.T) {
-	for i := 0; i < len(quotetests); i++ {
-		tt := quotetests[i]
+	for _, tt := range quotetests {
 		if out := Quote(tt.in); out != tt.out {
 			t.Errorf("Quote(%s) = %s, want %s", tt.in, out, tt.out)
+		}
+	}
+}
+
+type quoteRuneTest struct {
+	in  int
+	out string
+}
+
+var quoterunetests = []quoteRuneTest{
+	{'a', `'a'`},
+	{'\a', `'\a'`},
+	{'\\', `'\\'`},
+	{0xFF, `'\u00ff'`},
+	{0x263a, `'\u263a'`},
+	{0x0010ffff, `'\U0010ffff'`},
+	{0x0010ffff + 1, `'\ufffd'`},
+	{0x04, `'\x04'`},
+}
+
+func TestQuoteRune(t *testing.T) {
+	for _, tt := range quoterunetests {
+		if out := QuoteRune(tt.in); out != tt.out {
+			t.Errorf("QuoteRune(%U) = %s, want %s", tt.in, out, tt.out)
 		}
 	}
 }
@@ -80,8 +103,7 @@ var canbackquotetests = []canBackquoteTest{
 }
 
 func TestCanBackquote(t *testing.T) {
-	for i := 0; i < len(canbackquotetests); i++ {
-		tt := canbackquotetests[i]
+	for _, tt := range canbackquotetests {
 		if out := CanBackquote(tt.in); out != tt.out {
 			t.Errorf("CanBackquote(%q) = %v, want %v", tt.in, out, tt.out)
 		}
@@ -146,23 +168,20 @@ var misquoted = []string{
 }
 
 func TestUnquote(t *testing.T) {
-	for i := 0; i < len(unquotetests); i++ {
-		tt := unquotetests[i]
+	for _, tt := range unquotetests {
 		if out, err := Unquote(tt.in); err != nil && out != tt.out {
 			t.Errorf("Unquote(%#q) = %q, %v want %q, nil", tt.in, out, err, tt.out)
 		}
 	}
 
 	// run the quote tests too, backward
-	for i := 0; i < len(quotetests); i++ {
-		tt := quotetests[i]
+	for _, tt := range quotetests {
 		if in, err := Unquote(tt.out); in != tt.in {
 			t.Errorf("Unquote(%#q) = %q, %v, want %q, nil", tt.out, in, err, tt.in)
 		}
 	}
 
-	for i := 0; i < len(misquoted); i++ {
-		s := misquoted[i]
+	for _, s := range misquoted {
 		if out, err := Unquote(s); out != "" || err != os.EINVAL {
 			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", os.EINVAL)
 		}
