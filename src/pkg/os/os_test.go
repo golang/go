@@ -442,7 +442,8 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 	var b bytes.Buffer
 	io.Copy(&b, r)
 	output := b.String()
-	if output != expect {
+	// Accept /usr prefix because Solaris /bin is symlinked to /usr/bin.
+	if output != expect && output != "/usr"+expect {
 		t.Errorf("exec %q returned %q wanted %q",
 			strings.Join(append([]string{cmd}, args...), " "), output, expect)
 	}
