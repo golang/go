@@ -1977,3 +1977,9 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 		Bprint(&bso, "symsize = %ud\n", symsize);
 	Bflush(&bso);
 }
+
+void
+setpersrc(Sym *s)
+{
+	USED(s);
+}
