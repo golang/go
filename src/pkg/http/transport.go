@@ -36,6 +36,7 @@ const DefaultMaxIdleConnsPerHost = 2
 type Transport struct {
 	lk       sync.Mutex
 	idleConn map[string][]*persistConn
+	altProto map[string]RoundTripper // nil or map of URI scheme => RoundTripper
 
 	// TODO: tunable on global max cached connections
 	// TODO: tunable on timeout on cached connections
@@ -97,7 +98,16 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
 		}
 	}
 	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
-		return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme}
+		t.lk.Lock()
+		var rt RoundTripper
+		if t.altProto != nil {
+			rt = t.altProto[req.URL.Scheme]
+		}
+		t.lk.Unlock()
+		if rt == nil {
+			return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme}
+		}
+		return rt.RoundTrip(req)
 	}
 
 	cm, err := t.connectMethodForRequest(req)
@@ -115,6 +125,27 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
 	}
 
 	return pconn.roundTrip(req)
+}
+
+// RegisterProtocol registers a new protocol with scheme.
+// The Transport will pass requests using the given scheme to rt.
+// It is rt's responsibility to simulate HTTP request semantics.
+//
+// RegisterProtocol can be used by other packages to provide
+// implementations of protocol schemes like "ftp" or "file".
+func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
+	if scheme == "http" || scheme == "https" {
+		panic("protocol " + scheme + " already registered")
+	}
+	t.lk.Lock()
+	defer t.lk.Unlock()
+	if t.altProto == nil {
+		t.altProto = make(map[string]RoundTripper)
+	}
+	if _, exists := t.altProto[scheme]; exists {
+		panic("protocol " + scheme + " already registered")
+	}
+	t.altProto[scheme] = rt
 }
 
 // CloseIdleConnections closes any connections which were previously
