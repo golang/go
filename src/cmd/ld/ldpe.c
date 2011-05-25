@@ -147,7 +147,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			goto bad;
 		obj->sect[i].size = obj->sect[i].sh.SizeOfRawData;
 		obj->sect[i].name = (char*)obj->sect[i].sh.Name;
-		// TODO return error if found .cormeta .rsrc
+		// TODO return error if found .cormeta
 	}
 	// load string table
 	Bseek(f, base+obj->fh.PointerToSymbolTable+18*obj->fh.NumberOfSymbols, 0);
@@ -222,6 +222,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			etextp = s;
 		}
 		sect->sym = s;
+		if(strcmp(sect->name, ".rsrc") == 0)
+			setpersrc(sect->sym);
 	}
 	
 	// load relocations
@@ -259,6 +261,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 					rp->type = D_PCREL;
 					rp->add = 0;
 					break;
+				case IMAGE_REL_I386_DIR32NB:
 				case IMAGE_REL_I386_DIR32:
 					rp->type = D_ADDR;
 					// load addend from image

@@ -34,6 +34,8 @@ static char dosstub[] =
 	0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
+static Sym *rsrcsym;
+
 static char symnames[256]; 
 static int  nextsymoff;
 
@@ -459,6 +461,48 @@ addsymtable(void)
 }
 
 void
+setpersrc(Sym *sym)
+{
+	if(rsrcsym != nil)
+		diag("too many .rsrc sections");
+	
+	rsrcsym = sym;
+}
+
+void
+addpersrc(void)
+{
+	IMAGE_SECTION_HEADER *h;
+	uchar *p;
+	uint32 val;
+	Reloc *r;
+
+	if(rsrcsym == nil)
+		return;
+	
+	h = addpesection(".rsrc", rsrcsym->size, rsrcsym->size, 0);
+	h->Characteristics = IMAGE_SCN_MEM_READ|
+		IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA;
+	// relocation
+	for(r=rsrcsym->r; r<rsrcsym->r+rsrcsym->nr; r++) {
+		p = rsrcsym->p + r->off;
+		val = h->VirtualAddress + r->add;
+		// 32-bit little-endian
+		p[0] = val;
+		p[1] = val>>8;
+		p[2] = val>>16;
+		p[3] = val>>24;
+	}
+	ewrite(cout, rsrcsym->p, rsrcsym->size);
+	strnput("", h->SizeOfRawData - rsrcsym->size);
+	cflush();
+
+	// update data directory
+	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h->VirtualAddress;
+	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h->VirtualSize;
+}
+
+void
 asmbpe(void)
 {
 	IMAGE_SECTION_HEADER *t, *d;
@@ -492,7 +536,9 @@ asmbpe(void)
 	addexports(nextfileoff);
 	
 	addsymtable();
-		
+	
+	addpersrc();
+	
 	fh.NumberOfSections = nsect;
 	fh.TimeDateStamp = time(0);
 	fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED|
