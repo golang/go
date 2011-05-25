@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file.
 
 # The master for this file is $GOROOT/src/quietgcc.bash
-# Changes made to $GOBIN/quietgcc will be overridden.
+# Changes made to $GOBIN/quietgcc will be overwritten.
 
 # Gcc output that we don't care to see.
 ignore=': error: .Each undeclared identifier'
@@ -32,7 +32,7 @@ case "$(uname -m -p)-$GOHOSTARCH" in
 esac
 
 # Run gcc, save error status, redisplay output without noise, exit with gcc status.
-tmp=/tmp/qcc.$$.$USER.out
+tmp=${TMPDIR:-/tmp}/quietgcc.$$.$USER.out
 $gcc -Wall -Wno-sign-compare -Wno-missing-braces \
 	-Wno-parentheses -Wno-unknown-pragmas -Wno-switch -Wno-comment \
 	-Werror \
