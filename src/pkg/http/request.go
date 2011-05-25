@@ -485,9 +485,7 @@ func NewRequest(method, url string, body io.Reader) (*Request, os.Error) {
 // are not encrypted.
 func (r *Request) SetBasicAuth(username, password string) {
 	s := username + ":" + password
-	buf := make([]byte, base64.StdEncoding.EncodedLen(len(s)))
-	base64.StdEncoding.Encode(buf, []byte(s))
-	r.Header.Set("Authorization", "Basic "+string(buf))
+	r.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(s)))
 }
 
 // ReadRequest reads and parses a request from b.

@@ -100,13 +100,10 @@ func send(req *Request, t RoundTripper) (resp *Response, err os.Error) {
 
 	info := req.URL.RawUserinfo
 	if len(info) > 0 {
-		enc := base64.URLEncoding
-		encoded := make([]byte, enc.EncodedLen(len(info)))
-		enc.Encode(encoded, []byte(info))
 		if req.Header == nil {
 			req.Header = make(Header)
 		}
-		req.Header.Set("Authorization", "Basic "+string(encoded))
+		req.Header.Set("Authorization", "Basic "+base64.URLEncoding.EncodeToString([]byte(info)))
 	}
 	return t.RoundTrip(req)
 }

@@ -169,10 +169,7 @@ func (cm *connectMethod) proxyAuth() string {
 	}
 	proxyInfo := cm.proxyURL.RawUserinfo
 	if proxyInfo != "" {
-		enc := base64.URLEncoding
-		encoded := make([]byte, enc.EncodedLen(len(proxyInfo)))
-		enc.Encode(encoded, []byte(proxyInfo))
-		return "Basic " + string(encoded)
+		return "Basic " + base64.URLEncoding.EncodeToString([]byte(proxyInfo))
 	}
 	return ""
 }
