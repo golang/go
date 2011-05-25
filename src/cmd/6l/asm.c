@@ -828,6 +828,7 @@ asmb(void)
 				dwarfemitdebugsections();
 			}
 			break;
+		case Hdarwin:
 		case Hwindows:
 			seek(cout, symo, 0);
 			if(debug['v'])
