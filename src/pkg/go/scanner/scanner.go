@@ -22,7 +22,6 @@ package scanner
 
 import (
 	"bytes"
-	"fmt"
 	"go/token"
 	"path/filepath"
 	"strconv"
@@ -671,7 +670,7 @@ scanAgain:
 			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
 		default:
 			if S.mode&AllowIllegalChars == 0 {
-				S.error(offs, fmt.Sprintf("illegal character '%c' (%U)", ch, ch))
+				S.error(offs, "illegal character "+strconv.QuoteRune(ch))
 			}
 			insertSemi = S.insertSemi // preserve insertSemi info
 		}
