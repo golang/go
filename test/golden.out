@@ -40,6 +40,21 @@ hello, world
 -9223372036854775808
 9223372036854775807
 
+=========== ./shift1.go
+BUG: errchk: ./shift1.go:33: error message does not match 'overflow'
+errchk: ./shift1.go:34: error message does not match 'overflow'
+errchk: ./shift1.go:35: error message does not match 'overflow'
+
+=========== ./shift2.go
+./shift2.go:22: illegal constant expression: ideal LSH uint
+./shift2.go:35: illegal constant expression: ideal LSH uint
+./shift2.go:36: illegal constant expression: ideal LSH uint
+./shift2.go:36: invalid operation: 2 << c (shift of type float64)
+./shift2.go:39: illegal constant expression: ideal LSH uint
+./shift2.go:40: illegal constant expression: ideal LSH uint
+./shift2.go:40: invalid operation: 2 << c (shift of type float64)
+./shift2.go:40: cannot use 2 << c as type interface { } in function argument
+
 =========== ./sigchld.go
 survived SIGCHLD
 
