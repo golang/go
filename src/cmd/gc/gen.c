@@ -59,6 +59,8 @@ allocparams(void)
 			fatal("bad width");
 		stksize += w;
 		stksize = rnd(stksize, n->type->align);
+		if(thechar == '5')
+			stksize = rnd(stksize, widthptr);
 		n->xoffset = -stksize;
 	}
 	lineno = lno;
@@ -698,6 +700,8 @@ tempname(Node *n, Type *t)
 	w = t->width;
 	stksize += w;
 	stksize = rnd(stksize, t->align);
+	if(thechar == '5')
+		stksize = rnd(stksize, widthptr);
 	n->xoffset = -stksize;
 	n->pun = anyregalloc();
 }

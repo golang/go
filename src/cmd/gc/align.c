@@ -234,9 +234,11 @@ dowidth(Type *t)
 			if(t->bound > cap)
 				yyerror("type %lT larger than address space", t);
 			w = t->bound * t->type->width;
-			if(w == 0)
-				w = 1;
 			t->align = t->type->align;
+			if(w == 0) {
+				w = 1;
+				t->align = 1;
+			}
 		}
 		else if(t->bound == -1) {
 			w = sizeof_Array;
@@ -253,10 +255,10 @@ dowidth(Type *t)
 		if(t->funarg)
 			fatal("dowidth fn struct %T", t);
 		w = widstruct(t, 0, 1);
-		if(w == 0)
+		if(w == 0) {
 			w = 1;
-		//if(t->align < widthptr)
-		//	warn("align %d: %T\n", t->align, t);
+			t->align = 1;
+		}
 		break;
 
 	case TFUNC:
