@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"unicode"
 	"utf8"
 )
 
@@ -332,6 +333,12 @@ func (p *pp) fmtInt64(v int64, verb int, value interface{}) {
 		p.fmt.integer(v, 10, signed, ldigits)
 	case 'o':
 		p.fmt.integer(v, 8, signed, ldigits)
+	case 'q':
+		if 0 <= v && v <= unicode.MaxRune {
+			p.fmt.fmt_qc(v)
+		} else {
+			p.badVerb(verb, value)
+		}
 	case 'x':
 		p.fmt.integer(v, 16, signed, ldigits)
 	case 'U':
@@ -385,6 +392,12 @@ func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}) {
 		}
 	case 'o':
 		p.fmt.integer(int64(v), 8, unsigned, ldigits)
+	case 'q':
+		if 0 <= v && v <= unicode.MaxRune {
+			p.fmt.fmt_qc(int64(v))
+		} else {
+			p.badVerb(verb, value)
+		}
 	case 'x':
 		p.fmt.integer(int64(v), 16, unsigned, ldigits)
 	case 'X':

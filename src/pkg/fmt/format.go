@@ -296,6 +296,13 @@ func (f *fmt) fmt_q(s string) {
 	f.padString(quoted)
 }
 
+// fmt_qc formats the integer as a single-quoted, escaped Go character constant.
+// If the character is not valid Unicode, it will print '\ufffd'.
+func (f *fmt) fmt_qc(c int64) {
+	quoted := strconv.QuoteRune(int(c))
+	f.padString(quoted)
+}
+
 // floating-point
 
 func doPrec(f *fmt, def int) int {
