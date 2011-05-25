@@ -303,22 +303,26 @@ func Copy(dst Writer, src Reader) (written int64, err os.Error) {
 
 // LimitReader returns a Reader that reads from r
 // but stops with os.EOF after n bytes.
-func LimitReader(r Reader, n int64) Reader { return &limitedReader{r, n} }
+// The underlying implementation is a *LimitedReader.
+func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
 
-type limitedReader struct {
-	r Reader
-	n int64
+// A LimitedReader reads from R but limits the amount of
+// data returned to just N bytes. Each call to Read
+// updates N to reflect the new amount remaining.
+type LimitedReader struct {
+	R Reader // underlying reader
+	N int64  // max bytes remaining
 }
 
-func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
-	if l.n <= 0 {
+func (l *LimitedReader) Read(p []byte) (n int, err os.Error) {
+	if l.N <= 0 {
 		return 0, os.EOF
 	}
-	if int64(len(p)) > l.n {
-		p = p[0:l.n]
+	if int64(len(p)) > l.N {
+		p = p[0:l.N]
 	}
-	n, err = l.r.Read(p)
-	l.n -= int64(n)
+	n, err = l.R.Read(p)
+	l.N -= int64(n)
 	return
 }
 

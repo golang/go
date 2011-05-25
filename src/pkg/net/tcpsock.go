@@ -7,6 +7,7 @@
 package net
 
 import (
+	"io"
 	"os"
 	"syscall"
 )
@@ -93,6 +94,14 @@ func (c *TCPConn) Read(b []byte) (n int, err os.Error) {
 		return 0, os.EINVAL
 	}
 	return c.fd.Read(b)
+}
+
+// ReadFrom implements the io.ReaderFrom ReadFrom method.
+func (c *TCPConn) ReadFrom(r io.Reader) (int64, os.Error) {
+	if n, err, handled := sendFile(c.fd, r); handled {
+		return n, err
+	}
+	return genericReadFrom(c, r)
 }
 
 // Write implements the net.Conn Write method.

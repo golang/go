@@ -7,6 +7,7 @@
 package net
 
 import (
+	"io"
 	"os"
 	"reflect"
 	"syscall"
@@ -152,4 +153,15 @@ type UnknownSocketError struct {
 
 func (e *UnknownSocketError) String() string {
 	return "unknown socket address type " + reflect.TypeOf(e.sa).String()
+}
+
+type writerOnly struct {
+	io.Writer
+}
+
+// Fallback implementation of io.ReaderFrom's ReadFrom, when sendfile isn't
+// applicable.
+func genericReadFrom(w io.Writer, r io.Reader) (n int64, err os.Error) {
+	// Use wrapper to hide existing r.ReadFrom from io.Copy.
+	return io.Copy(writerOnly{w}, r)
 }

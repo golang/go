@@ -119,6 +119,27 @@ type response struct {
 	closeAfterReply bool
 }
 
+type writerOnly struct {
+	io.Writer
+}
+
+func (r *response) ReadFrom(src io.Reader) (n int64, err os.Error) {
+	// Flush before checking r.chunking, as Flush will call
+	// WriteHeader if it hasn't been called yet, and WriteHeader
+	// is what sets r.chunking.
+	r.Flush()
+	if !r.chunking {
+		if rf, ok := r.conn.rwc.(io.ReaderFrom); ok {
+			n, err = rf.ReadFrom(src)
+			r.written += n
+			return
+		}
+	}
+	// Fall back to default io.Copy implementation.
+	// Use wrapper to hide r.ReadFrom from io.Copy.
+	return io.Copy(writerOnly{r}, src)
+}
+
 // Create new connection from rwc.
 func newConn(rwc net.Conn, handler Handler) (c *conn, err os.Error) {
 	c = new(conn)
