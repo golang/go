@@ -781,6 +781,7 @@ asmb(void)
 				cflush();
 			}
 			break;
+		case Hdarwin:
 		case Hwindows:
 			seek(cout, symo, 0);
 			if(debug['v'])

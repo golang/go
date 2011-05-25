@@ -529,8 +529,10 @@ find_or_diag(DWDie *die, char* name)
 {
 	DWDie *r;
 	r = find(die, name);
-	if (r == nil)
+	if (r == nil) {
 		diag("dwarf find: %s has no %s", getattr(die, DW_AT_name)->data, name);
+		errorexit();
+	}
 	return r;
 }
 
@@ -613,7 +615,7 @@ putattr(int form, int cls, vlong value, char *data)
 
 	case DW_FORM_ref_addr:	// reference to a DIE in the .info section
 		if (data == nil) {
-			diag("null dwarf reference");
+			diag("dwarf: null reference");
 			LPUT(0);  // invalid dwarf, gdb will complain.
 		} else {
 			if (((DWDie*)data)->offs == 0)
@@ -631,7 +633,7 @@ putattr(int form, int cls, vlong value, char *data)
 	case DW_FORM_strp:	// string
 	case DW_FORM_indirect:	// (see Section 7.5.3)
 	default:
-		diag("Unsupported atribute form %d / class %d", form, cls);
+		diag("dwarf: unsupported attribute form %d / class %d", form, cls);
 		errorexit();
 	}
 }
@@ -823,7 +825,7 @@ decode_inuxi(uchar* p, int sz)
 		inuxi = inuxi8;
 		break;
 	default:
-		diag("decode inuxi %d", sz);
+		diag("dwarf: decode inuxi %d", sz);
 		errorexit();
 	}
 	for (i = 0; i < sz; i++)
@@ -1013,7 +1015,7 @@ defgotype(Sym *gotype)
 		return find_or_diag(&dwtypes, "<unspecified>");
 
 	if (strncmp("type.", gotype->name, 5) != 0) {
-		diag("Type name doesn't start with \".type\": %s", gotype->name);
+		diag("dwarf: type name doesn't start with \".type\": %s", gotype->name);
 		return find_or_diag(&dwtypes, "<unspecified>");
 	}
 	name = gotype->name + 5;  // could also decode from Type.string
@@ -1164,7 +1166,7 @@ defgotype(Sym *gotype)
 		break;
 
 	default:
-		diag("definition of unknown kind %d: %s", kind, gotype->name);
+		diag("dwarf: definition of unknown kind %d: %s", kind, gotype->name);
 		die = newdie(&dwtypes, DW_ABRV_TYPEDECL, name);
 		newrefattr(die, DW_AT_type, find_or_diag(&dwtypes, "<unspecified>"));
 	 }
@@ -1513,12 +1515,12 @@ decodez(char *s)
 	ss = s + 1;	// first is 0
 	while((o = ((uint8)ss[0] << 8) | (uint8)ss[1]) != 0) {
 		if (o < 0 || o >= ftabsize) {
-			diag("corrupt z entry");
+			diag("dwarf: corrupt z entry");
 			return 0;
 		}
 		f = ftab[o];
 		if (f == nil) {
-			diag("corrupt z entry");
+			diag("dwarf: corrupt z entry");
 			return 0;
 		}
 		len += strlen(f) + 1;	// for the '/'
@@ -1630,11 +1632,11 @@ checknesting(void)
 	int i;
 
 	if (includetop < 0) {
-		diag("corrupt z stack");
+		diag("dwarf: corrupt z stack");
 		errorexit();
 	}
 	if (includetop >= nelem(includestack)) {
-		diag("nesting too deep");
+		diag("dwarf: nesting too deep");
 		for (i = 0; i < nelem(includestack); i++)
 			diag("\t%s", histfile[includestack[i].file]);
 		errorexit();
@@ -1660,7 +1662,7 @@ inithist(Auto *a)
 	// We have a new history.  They are guaranteed to come completely
 	// at the beginning of the compilation unit.
 	if (a->aoffset != 1) {
-		diag("stray 'z' with offset %d", a->aoffset);
+		diag("dwarf: stray 'z' with offset %d", a->aoffset);
 		return 0;
 	}
 
@@ -1915,7 +1917,7 @@ writelines(void)
 			continue;
 
 		if (unitstart < 0) {
-			diag("reachable code before seeing any history: %P", s->text);
+			diag("dwarf: reachable code before seeing any history: %P", s->text);
 			continue;
 		}
 
@@ -1932,7 +1934,7 @@ writelines(void)
 		for(q = s->text; q != P; q = q->link) {
 			lh = searchhist(q->line);
 			if (lh == nil) {
-				diag("corrupt history or bad absolute line: %P", q);
+				diag("dwarf: corrupt history or bad absolute line: %P", q);
 				continue;
 			}
 
@@ -2066,7 +2068,7 @@ writeframes(void)
 	// 4 is to exclude the length field.
 	pad = CIERESERVE + frameo + 4 - cpos();
 	if (pad < 0) {
-		diag("CIERESERVE too small by %lld bytes.", -pad);
+		diag("dwarf: CIERESERVE too small by %lld bytes.", -pad);
 		errorexit();
 	}
 	strnput("", pad);
@@ -2296,6 +2298,9 @@ dwarfemitdebugsections(void)
 	vlong infoe;
 	DWDie* die;
 
+	if(debug['w'])  // disable dwarf
+		return;
+
 	// For diagnostic messages.
 	newattr(&dwtypes, DW_AT_name, DW_CLS_STRING, strlen("dwtypes"), "dwtypes");
 
@@ -2348,11 +2353,11 @@ dwarfemitdebugsections(void)
 		seek(cout, infoo, 0);
 		writeinfo();
 		if (fwdcount > 0) {
-			diag("unresolved references after first dwarf info pass");
+			diag("dwarf: unresolved references after first dwarf info pass");
 			errorexit();
 		}
 		if (infoe != cpos()) {
-			diag("inconsistent second dwarf info pass");
+			diag("dwarf: inconsistent second dwarf info pass");
 			errorexit();
 		}
 	}
@@ -2401,6 +2406,9 @@ vlong elfstrdbg[NElfStrDbg];
 void
 dwarfaddshstrings(Sym *shstrtab)
 {
+	if(debug['w'])  // disable dwarf
+		return;
+
 	elfstrdbg[ElfStrDebugAbbrev]   = addstring(shstrtab, ".debug_abbrev");
 	elfstrdbg[ElfStrDebugAranges]  = addstring(shstrtab, ".debug_aranges");
 	elfstrdbg[ElfStrDebugFrame]    = addstring(shstrtab, ".debug_frame");
@@ -2419,6 +2427,9 @@ void
 dwarfaddelfheaders(void)
 {
 	ElfShdr *sh;
+
+	if(debug['w'])  // disable dwarf
+		return;
 
 	sh = newElfShdr(elfstrdbg[ElfStrDebugAbbrev]);
 	sh->type = SHT_PROGBITS;
@@ -2487,6 +2498,9 @@ dwarfaddmachoheaders(void)
 	MachoSeg *ms;
 	vlong fakestart;
 	int nsect;
+
+	if(debug['w'])  // disable dwarf
+		return;
 
 	// Zero vsize segments won't be loaded in memory, even so they
 	// have to be page aligned in the file.
@@ -2562,6 +2576,9 @@ dwarfaddmachoheaders(void)
 void
 dwarfaddpeheaders(void)
 {
+	if(debug['w'])  // disable dwarf
+		return;
+
 	newPEDWARFSection(".debug_abbrev", abbrevsize);
 	newPEDWARFSection(".debug_line", linesize);
 	newPEDWARFSection(".debug_frame", framesize);
