@@ -202,6 +202,7 @@ void	addexport(void);
 void	dostkcheck(void);
 void	undef(void);
 void	doweak(void);
+void	setpersrc(Sym*);
 
 int	pathchar(void);
 void*	mal(uint32);
