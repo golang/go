@@ -106,6 +106,13 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	}
 }
 
+// EncodeToString returns the base64 encoding of src.
+func (enc *Encoding) EncodeToString(src []byte) string {
+	buf := make([]byte, enc.EncodedLen(len(src)))
+	enc.Encode(buf, src)
+	return string(buf)
+}
+
 type encoder struct {
 	err  os.Error
 	enc  *Encoding
@@ -258,6 +265,13 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err os.Error) {
 
 	n, _, err = enc.decode(dst, src)
 	return
+}
+
+// DecodeString returns the bytes represented by the base64 string s.
+func (enc *Encoding) DecodeString(s string) ([]byte, os.Error) {
+	dbuf := make([]byte, enc.DecodedLen(len(s)))
+	n, err := enc.Decode(dbuf, []byte(s))
+	return dbuf[:n], err
 }
 
 type decoder struct {

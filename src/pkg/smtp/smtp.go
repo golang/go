@@ -151,8 +151,7 @@ func (c *Client) Auth(a Auth) os.Error {
 		var msg []byte
 		switch code {
 		case 334:
-			msg = make([]byte, encoding.DecodedLen(len(msg64)))
-			_, err = encoding.Decode(msg, []byte(msg64))
+			msg, err = encoding.DecodeString(msg64)
 		case 235:
 			// the last message isn't base64 because it isn't a challenge
 			msg = []byte(msg64)

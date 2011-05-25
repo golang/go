@@ -56,9 +56,8 @@ func testEqual(t *testing.T, msg string, args ...interface{}) bool {
 
 func TestEncode(t *testing.T) {
 	for _, p := range pairs {
-		buf := make([]byte, StdEncoding.EncodedLen(len(p.decoded)))
-		StdEncoding.Encode(buf, []byte(p.decoded))
-		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded)
+		got := StdEncoding.EncodeToString([]byte(p.decoded))
+		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, got, p.encoded)
 	}
 }
 
@@ -102,6 +101,10 @@ func TestDecode(t *testing.T) {
 			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded)-1] == '='))
 		}
 		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded)
+
+		dbuf, err = StdEncoding.DecodeString(p.encoded)
+		testEqual(t, "DecodeString(%q) = error %v, want %v", p.encoded, err, os.Error(nil))
+		testEqual(t, "DecodeString(%q) = %q, want %q", string(dbuf), p.decoded)
 	}
 }
 
