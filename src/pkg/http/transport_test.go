@@ -17,6 +17,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -528,6 +529,36 @@ func TestTransportGzipRecursive(t *testing.T) {
 	}
 	if g, e := res.Header.Get("Content-Encoding"), ""; g != e {
 		t.Fatalf("Content-Encoding = %q; want %q", g, e)
+	}
+}
+
+type fooProto struct{}
+
+func (fooProto) RoundTrip(req *Request) (*Response, os.Error) {
+	res := &Response{
+		Status:     "200 OK",
+		StatusCode: 200,
+		Header:     make(Header),
+		Body:       ioutil.NopCloser(strings.NewReader("You wanted " + req.URL.String())),
+	}
+	return res, nil
+}
+
+func TestTransportAltProto(t *testing.T) {
+	tr := &Transport{}
+	c := &Client{Transport: tr}
+	tr.RegisterProtocol("foo", fooProto{})
+	res, err := c.Get("foo://bar.com/path")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodyb, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(bodyb)
+	if e := "You wanted foo://bar.com/path"; body != e {
+		t.Errorf("got response %q, want %q", body, e)
 	}
 }
 
