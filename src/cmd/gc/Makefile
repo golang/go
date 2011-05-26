@@ -49,7 +49,7 @@ include ../../Make.clib
 install: $(LIB)
 
 y1.tab.c: y.tab.c	# make yystate global, yytname mutable
-	cat y.tab.c | sed '/ int yystate;/d; s/int yychar;/int yychar, yystate;/; s/static const char \*const yytname/const char *yytname/' >y1.tab.c
+	cat y.tab.c | sed '/ int yystate;/d; s/int yychar;/int yychar, yystate;/; s/static const char \*const yytname/const char *yytname/; s/char const \*yymsgp/char *yymsgp/' >y1.tab.c
 
 yerr.h: bisonerrors go.errors y.tab.h	# y.tab.h rule generates y.output too
 	awk -f bisonerrors y.output go.errors >yerr.h
