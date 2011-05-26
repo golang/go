@@ -226,6 +226,15 @@ func (s *ss) mustReadRune() (rune int) {
 }
 
 func (s *ss) UnreadRune() os.Error {
+	// Don't use strings.Reader.UnreadRune for now - appears to cause a problem.
+	// TODO(r, gri): Fix this and remove code between --- lines!
+	// ---
+	if _, ok := s.rr.(*strings.Reader); ok {
+		s.peekRune = s.prevRune
+		s.count--
+		return nil
+	}
+	// ---
 	if u, ok := s.rr.(runeUnreader); ok {
 		u.UnreadRune()
 	} else {
