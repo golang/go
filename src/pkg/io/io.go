@@ -162,6 +162,18 @@ type ByteReader interface {
 	ReadByte() (c byte, err os.Error)
 }
 
+// ByteScanner is the interface that adds the UnreadByte method to the
+// basic ReadByte method.
+//
+// UnreadByte causes the next call to ReadByte to return the same byte
+// as the previous call to ReadByte.
+// It may be an error to call UnreadByte twice without an intervening
+// call to ReadByte.
+type ByteScanner interface {
+	ByteReader
+	UnreadByte() os.Error
+}
+
 // RuneReader is the interface that wraps the ReadRune method.
 //
 // ReadRune reads a single UTF-8 encoded Unicode character
@@ -169,6 +181,18 @@ type ByteReader interface {
 // available, err will be set.
 type RuneReader interface {
 	ReadRune() (rune int, size int, err os.Error)
+}
+
+// RuneScanner is the interface that adds the UnreadRune method to the
+// basic ReadRune method.
+//
+// UnreadRune causes the next call to ReadRune to return the same rune
+// as the previous call to ReadRune.
+// It may be an error to call UnreadRune twice without an intervening
+// call to ReadRune.
+type RuneScanner interface {
+	RuneReader
+	UnreadRune() os.Error
 }
 
 // WriteString writes the contents of the string s to w, which accepts an array of bytes.
