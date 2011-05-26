@@ -363,7 +363,12 @@ func (s literalNodeSorter) Less(i, j int) bool {
 func (s literalNodeSorter) Swap(i, j int) { s.a[i], s.a[j] = s.a[j], s.a[i] }
 
 func sortByFreq(a []literalNode) {
-	s := &literalNodeSorter{a, func(i, j int) bool { return a[i].freq < a[j].freq }}
+	s := &literalNodeSorter{a, func(i, j int) bool {
+		if a[i].freq == a[j].freq {
+			return a[i].literal < a[j].literal
+		}
+		return a[i].freq < a[j].freq
+	}}
 	sort.Sort(s)
 }
 
