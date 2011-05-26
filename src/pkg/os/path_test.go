@@ -29,10 +29,11 @@ func TestMkdirAll(t *testing.T) {
 
 	// Make file.
 	fpath := path + "/file"
-	_, err = Create(fpath)
+	f, err := Create(fpath)
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err)
 	}
+	defer f.Close()
 
 	// Can't make directory named after file.
 	err = MkdirAll(fpath, 0777)
