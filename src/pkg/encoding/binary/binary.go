@@ -125,6 +125,54 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // Bytes read from r are decoded using the specified byte order
 // and written to successive fields of the data.
 func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
+	// Fast path for basic types
+	var n int
+	switch data.(type) {
+	case *int8:
+		n = 1
+	case *uint8:
+		n = 1
+	case *int16:
+		n = 2
+	case *uint16:
+		n = 2
+	case *int32:
+		n = 4
+	case *uint32:
+		n = 4
+	case *int64:
+		n = 8
+	case *uint64:
+		n = 8
+	}
+	if n != 0 {
+		var buf [8]byte
+		bs := buf[:n]
+		if _, err := io.ReadFull(r, bs); err != nil {
+			return err
+		}
+		switch v := data.(type) {
+		case *int8:
+			*v = int8(buf[0])
+		case *uint8:
+			*v = buf[0]
+		case *int16:
+			*v = int16(order.Uint16(bs))
+		case *uint16:
+			*v = order.Uint16(bs)
+		case *int32:
+			*v = int32(order.Uint32(bs))
+		case *uint32:
+			*v = order.Uint32(bs)
+		case *int64:
+			*v = int64(order.Uint64(bs))
+		case *uint64:
+			*v = order.Uint64(bs)
+		}
+		return nil
+	}
+
+	// Fallback to reflect-based.
 	var v reflect.Value
 	switch d := reflect.ValueOf(data); d.Kind() {
 	case reflect.Ptr:
