@@ -6,6 +6,7 @@ include ../../../Make.inc
 
 TARG=http/spdy
 GOFILES=\
+	framer.go\
 	protocol.go\
 
 include ../../../Make.pkg

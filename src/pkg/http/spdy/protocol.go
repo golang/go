@@ -9,16 +9,119 @@
 package spdy
 
 import (
-	"bytes"
-	"compress/zlib"
 	"encoding/binary"
 	"http"
-	"io"
 	"os"
-	"strconv"
-	"strings"
-	"sync"
 )
+
+//  Data Frame Format
+//  +----------------------------------+
+//  |0|       Stream-ID (31bits)       |
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   |
+//  +----------------------------------+
+//  |               Data               |
+//  +----------------------------------+
+//
+//  Control Frame Format
+//  +----------------------------------+
+//  |1| Version(15bits) | Type(16bits) |
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   |
+//  +----------------------------------+
+//  |               Data               |
+//  +----------------------------------+
+//
+//  Control Frame: SYN_STREAM
+//  +----------------------------------+
+//  |1|000000000000001|0000000000000001|
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   |  >= 12
+//  +----------------------------------+
+//  |X|       Stream-ID(31bits)        |
+//  +----------------------------------+
+//  |X|Associated-To-Stream-ID (31bits)|
+//  +----------------------------------+
+//  |Pri| unused      | Length (16bits)|
+//  +----------------------------------+
+//
+//  Control Frame: SYN_REPLY
+//  +----------------------------------+
+//  |1|000000000000001|0000000000000010|
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   |  >= 8
+//  +----------------------------------+
+//  |X|       Stream-ID(31bits)        |
+//  +----------------------------------+
+//  | unused (16 bits)| Length (16bits)|
+//  +----------------------------------+
+//
+//  Control Frame: RST_STREAM
+//  +----------------------------------+
+//  |1|000000000000001|0000000000000011|
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   |  >= 4
+//  +----------------------------------+
+//  |X|       Stream-ID(31bits)        |
+//  +----------------------------------+
+//  |        Status code (32 bits)     |
+//  +----------------------------------+
+//
+//  Control Frame: SETTINGS
+//  +----------------------------------+
+//  |1|000000000000001|0000000000000100|
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   |
+//  +----------------------------------+
+//  |        # of entries (32)         |
+//  +----------------------------------+
+//
+//  Control Frame: NOOP
+//  +----------------------------------+
+//  |1|000000000000001|0000000000000101|
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   | = 0
+//  +----------------------------------+
+//
+//  Control Frame: PING
+//  +----------------------------------+
+//  |1|000000000000001|0000000000000110|
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   | = 4
+//  +----------------------------------+
+//  |        Unique id (32 bits)       |
+//  +----------------------------------+
+//
+//  Control Frame: GOAWAY
+//  +----------------------------------+
+//  |1|000000000000001|0000000000000111|
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   | = 4
+//  +----------------------------------+
+//  |X|  Last-accepted-stream-id       |
+//  +----------------------------------+
+//
+//  Control Frame: HEADERS
+//  +----------------------------------+
+//  |1|000000000000001|0000000000001000|
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   | >= 8
+//  +----------------------------------+
+//  |X|      Stream-ID (31 bits)       |
+//  +----------------------------------+
+//  | unused (16 bits)| Length (16bits)|
+//  +----------------------------------+
+//
+//  Control Frame: WINDOW_UPDATE
+//  +----------------------------------+
+//  |1|000000000000001|0000000000001001|
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   | = 8
+//  +----------------------------------+
+//  |X|      Stream-ID (31 bits)       |
+//  +----------------------------------+
+//  |   Delta-Window-Size (32 bits)    |
+//  +----------------------------------+
 
 // Version is the protocol version number that this package implements.
 const Version = 2
@@ -34,182 +137,339 @@ const (
 	TypeSettings                      = 0x0004
 	TypeNoop                          = 0x0005
 	TypePing                          = 0x0006
-	TypeGoaway                        = 0x0007
+	TypeGoAway                        = 0x0007
 	TypeHeaders                       = 0x0008
 	TypeWindowUpdate                  = 0x0009
 )
 
-func (t ControlFrameType) String() string {
-	switch t {
-	case TypeSynStream:
-		return "SYN_STREAM"
-	case TypeSynReply:
-		return "SYN_REPLY"
-	case TypeRstStream:
-		return "RST_STREAM"
-	case TypeSettings:
-		return "SETTINGS"
-	case TypeNoop:
-		return "NOOP"
-	case TypePing:
-		return "PING"
-	case TypeGoaway:
-		return "GOAWAY"
-	case TypeHeaders:
-		return "HEADERS"
-	case TypeWindowUpdate:
-		return "WINDOW_UPDATE"
-	}
-	return "Type(" + strconv.Itoa(int(t)) + ")"
-}
+// ControlFlags are the flags that can be set on a control frame.
+type ControlFlags uint8
 
-type FrameFlags uint8
-
-// Stream frame flags
 const (
-	FlagFin            FrameFlags = 0x01
-	FlagUnidirectional            = 0x02
+	ControlFlagFin ControlFlags = 0x01
 )
 
-// SETTINGS frame flags
+// DataFlags are the flags that can be set on a data frame.
+type DataFlags uint8
+
 const (
-	FlagClearPreviouslyPersistedSettings FrameFlags = 0x01
+	DataFlagFin        DataFlags = 0x01
+	DataFlagCompressed           = 0x02
 )
 
 // MaxDataLength is the maximum number of bytes that can be stored in one frame.
 const MaxDataLength = 1<<24 - 1
 
-// A Frame is a framed message as sent between clients and servers.
-// There are two types of frames: control frames and data frames.
-type Frame struct {
-	Header [4]byte
-	Flags  FrameFlags
-	Data   []byte
+// Frame is a single SPDY frame in its unpacked in-memory representation. Use
+// Framer to read and write it.
+type Frame interface {
+	write(f *Framer) os.Error
 }
 
-// ControlFrame creates a control frame with the given information.
-func ControlFrame(t ControlFrameType, f FrameFlags, data []byte) Frame {
-	return Frame{
-		Header: [4]byte{
-			(Version&0xff00)>>8 | 0x80,
-			(Version & 0x00ff),
-			byte((t & 0xff00) >> 8),
-			byte((t & 0x00ff) >> 0),
-		},
-		Flags: f,
-		Data:  data,
-	}
+// ControlFrameHeader contains all the fields in a control frame header,
+// in its unpacked in-memory representation.
+type ControlFrameHeader struct {
+	// Note, high bit is the "Control" bit.
+	version   uint16
+	frameType ControlFrameType
+	Flags     ControlFlags
+	length    uint32
 }
 
-// DataFrame creates a data frame with the given information.
-func DataFrame(streamId uint32, f FrameFlags, data []byte) Frame {
-	return Frame{
-		Header: [4]byte{
-			byte(streamId & 0x7f000000 >> 24),
-			byte(streamId & 0x00ff0000 >> 16),
-			byte(streamId & 0x0000ff00 >> 8),
-			byte(streamId & 0x000000ff >> 0),
-		},
-		Flags: f,
-		Data:  data,
-	}
+type controlFrame interface {
+	Frame
+	read(h ControlFrameHeader, f *Framer) os.Error
 }
 
-// ReadFrame reads an entire frame into memory.
-func ReadFrame(r io.Reader) (f Frame, err os.Error) {
-	_, err = io.ReadFull(r, f.Header[:])
-	if err != nil {
+// SynStreamFrame is the unpacked, in-memory representation of a SYN_STREAM
+// frame.
+type SynStreamFrame struct {
+	CFHeader             ControlFrameHeader
+	StreamId             uint32
+	AssociatedToStreamId uint32
+	// Note, only 2 highest bits currently used
+	// Rest of Priority is unused.
+	Priority uint16
+	Headers  http.Header
+}
+
+func (frame *SynStreamFrame) write(f *Framer) os.Error {
+	return f.writeSynStreamFrame(frame)
+}
+
+func (frame *SynStreamFrame) read(h ControlFrameHeader, f *Framer) os.Error {
+	return f.readSynStreamFrame(h, frame)
+}
+
+// SynReplyFrame is the unpacked, in-memory representation of a SYN_REPLY frame.
+type SynReplyFrame struct {
+	CFHeader ControlFrameHeader
+	StreamId uint32
+	Headers  http.Header
+}
+
+func (frame *SynReplyFrame) write(f *Framer) os.Error {
+	return f.writeSynReplyFrame(frame)
+}
+
+func (frame *SynReplyFrame) read(h ControlFrameHeader, f *Framer) os.Error {
+	return f.readSynReplyFrame(h, frame)
+}
+
+// StatusCode represents the status that led to a RST_STREAM
+type StatusCode uint32
+
+const (
+	ProtocolError      StatusCode = 1
+	InvalidStream                 = 2
+	RefusedStream                 = 3
+	UnsupportedVersion            = 4
+	Cancel                        = 5
+	InternalError                 = 6
+	FlowControlError              = 7
+)
+
+// RstStreamFrame is the unpacked, in-memory representation of a RST_STREAM
+// frame.
+type RstStreamFrame struct {
+	CFHeader ControlFrameHeader
+	StreamId uint32
+	Status   StatusCode
+}
+
+func (frame *RstStreamFrame) write(f *Framer) (err os.Error) {
+	frame.CFHeader.version = Version
+	frame.CFHeader.frameType = TypeRstStream
+	frame.CFHeader.length = 8
+
+	// Serialize frame to Writer
+	if err = writeControlFrameHeader(f.w, frame.CFHeader); err != nil {
 		return
 	}
-	err = binary.Read(r, binary.BigEndian, &f.Flags)
-	if err != nil {
+	if err = binary.Write(f.w, binary.BigEndian, frame.StreamId); err != nil {
 		return
 	}
-	var lengthField [3]byte
-	_, err = io.ReadFull(r, lengthField[:])
-	if err != nil {
-		if err == os.EOF {
-			err = io.ErrUnexpectedEOF
+	if err = binary.Write(f.w, binary.BigEndian, frame.Status); err != nil {
+		return
+	}
+	return
+}
+
+func (frame *RstStreamFrame) read(h ControlFrameHeader, f *Framer) os.Error {
+	frame.CFHeader = h
+	if err := binary.Read(f.r, binary.BigEndian, &frame.StreamId); err != nil {
+		return err
+	}
+	if err := binary.Read(f.r, binary.BigEndian, &frame.Status); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SettingsFlag represents a flag in a SETTINGS frame.
+type SettingsFlag uint8
+
+const (
+	FlagSettingsPersistValue SettingsFlag = 0x1
+	FlagSettingsPersisted                 = 0x2
+)
+
+// SettingsFlag represents the id of an id/value pair in a SETTINGS frame.
+type SettingsId uint32
+
+const (
+	SettingsUploadBandwidth      SettingsId = 1
+	SettingsDownloadBandwidth               = 2
+	SettingsRoundTripTime                   = 3
+	SettingsMaxConcurrentStreams            = 4
+	SettingsCurrentCwnd                     = 5
+)
+
+// SettingsFlagIdValue is the unpacked, in-memory representation of the
+// combined flag/id/value for a setting in a SETTINGS frame.
+type SettingsFlagIdValue struct {
+	Flag  SettingsFlag
+	Id    SettingsId
+	Value uint32
+}
+
+// SettingsFrame is the unpacked, in-memory representation of a SPDY
+// SETTINGS frame.
+type SettingsFrame struct {
+	CFHeader     ControlFrameHeader
+	FlagIdValues []SettingsFlagIdValue
+}
+
+func (frame *SettingsFrame) write(f *Framer) (err os.Error) {
+	frame.CFHeader.version = Version
+	frame.CFHeader.frameType = TypeSettings
+	frame.CFHeader.length = uint32(len(frame.FlagIdValues)*8 + 4)
+
+	// Serialize frame to Writer
+	if err = writeControlFrameHeader(f.w, frame.CFHeader); err != nil {
+		return
+	}
+	if err = binary.Write(f.w, binary.BigEndian, uint32(len(frame.FlagIdValues))); err != nil {
+		return
+	}
+	for _, flagIdValue := range frame.FlagIdValues {
+		flagId := (uint32(flagIdValue.Flag) << 24) | uint32(flagIdValue.Id)
+		if err = binary.Write(f.w, binary.BigEndian, flagId); err != nil {
+			return
 		}
-		return
-	}
-	var length uint32
-	length |= uint32(lengthField[0]) << 16
-	length |= uint32(lengthField[1]) << 8
-	length |= uint32(lengthField[2]) << 0
-	if length > 0 {
-		f.Data = make([]byte, int(length))
-		_, err = io.ReadFull(r, f.Data)
-		if err == os.EOF {
-			err = io.ErrUnexpectedEOF
+		if err = binary.Write(f.w, binary.BigEndian, flagIdValue.Value); err != nil {
+			return
 		}
-	} else {
-		f.Data = []byte{}
 	}
 	return
 }
 
-// IsControl returns whether the frame holds a control frame.
-func (f Frame) IsControl() bool {
-	return f.Header[0]&0x80 != 0
+func (frame *SettingsFrame) read(h ControlFrameHeader, f *Framer) os.Error {
+	frame.CFHeader = h
+	var numSettings uint32
+	if err := binary.Read(f.r, binary.BigEndian, &numSettings); err != nil {
+		return err
+	}
+	frame.FlagIdValues = make([]SettingsFlagIdValue, numSettings)
+	for i := uint32(0); i < numSettings; i++ {
+		if err := binary.Read(f.r, binary.BigEndian, &frame.FlagIdValues[i].Id); err != nil {
+			return err
+		}
+		frame.FlagIdValues[i].Flag = SettingsFlag((frame.FlagIdValues[i].Id & 0xff000000) >> 24)
+		frame.FlagIdValues[i].Id &= 0xffffff
+		if err := binary.Read(f.r, binary.BigEndian, &frame.FlagIdValues[i].Value); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// Type obtains the type field if the frame is a control frame, otherwise it returns zero.
-func (f Frame) Type() ControlFrameType {
-	if !f.IsControl() {
-		return 0
-	}
-	return (ControlFrameType(f.Header[2])<<8 | ControlFrameType(f.Header[3]))
+// NoopFrame is the unpacked, in-memory representation of a NOOP frame.
+type NoopFrame struct {
+	CFHeader ControlFrameHeader
 }
 
-// StreamId returns the stream ID field if the frame is a data frame, otherwise it returns zero.
-func (f Frame) StreamId() (id uint32) {
-	if f.IsControl() {
-		return 0
+func (frame *NoopFrame) write(f *Framer) os.Error {
+	frame.CFHeader.version = Version
+	frame.CFHeader.frameType = TypeNoop
+
+	// Serialize frame to Writer
+	return writeControlFrameHeader(f.w, frame.CFHeader)
+}
+
+func (frame *NoopFrame) read(h ControlFrameHeader, f *Framer) os.Error {
+	frame.CFHeader = h
+	return nil
+}
+
+// PingFrame is the unpacked, in-memory representation of a PING frame.
+type PingFrame struct {
+	CFHeader ControlFrameHeader
+	Id       uint32
+}
+
+func (frame *PingFrame) write(f *Framer) (err os.Error) {
+	frame.CFHeader.version = Version
+	frame.CFHeader.frameType = TypePing
+	frame.CFHeader.length = 4
+
+	// Serialize frame to Writer
+	if err = writeControlFrameHeader(f.w, frame.CFHeader); err != nil {
+		return
 	}
-	id |= uint32(f.Header[0]) << 24
-	id |= uint32(f.Header[1]) << 16
-	id |= uint32(f.Header[2]) << 8
-	id |= uint32(f.Header[3]) << 0
+	if err = binary.Write(f.w, binary.BigEndian, frame.Id); err != nil {
+		return
+	}
 	return
 }
 
-// WriteTo writes the frame in the SPDY format.
-func (f Frame) WriteTo(w io.Writer) (n int64, err os.Error) {
-	var nn int
-	// Header
-	nn, err = w.Write(f.Header[:])
-	n += int64(nn)
-	if err != nil {
-		return
+func (frame *PingFrame) read(h ControlFrameHeader, f *Framer) os.Error {
+	frame.CFHeader = h
+	if err := binary.Read(f.r, binary.BigEndian, &frame.Id); err != nil {
+		return err
 	}
-	// Flags
-	nn, err = w.Write([]byte{byte(f.Flags)})
-	n += int64(nn)
-	if err != nil {
-		return
-	}
-	// Length
-	nn, err = w.Write([]byte{
-		byte(len(f.Data) & 0x00ff0000 >> 16),
-		byte(len(f.Data) & 0x0000ff00 >> 8),
-		byte(len(f.Data) & 0x000000ff),
-	})
-	n += int64(nn)
-	if err != nil {
-		return
-	}
-	// Data
-	if len(f.Data) > 0 {
-		nn, err = w.Write(f.Data)
-		n += int64(nn)
-	}
-	return
+	return nil
 }
 
-// headerDictionary is the dictionary sent to the zlib compressor/decompressor.
+// GoAwayFrame is the unpacked, in-memory representation of a GOAWAY frame.
+type GoAwayFrame struct {
+	CFHeader         ControlFrameHeader
+	LastGoodStreamId uint32
+}
+
+func (frame *GoAwayFrame) write(f *Framer) (err os.Error) {
+	frame.CFHeader.version = Version
+	frame.CFHeader.frameType = TypeGoAway
+	frame.CFHeader.length = 4
+
+	// Serialize frame to Writer
+	if err = writeControlFrameHeader(f.w, frame.CFHeader); err != nil {
+		return
+	}
+	if err = binary.Write(f.w, binary.BigEndian, frame.LastGoodStreamId); err != nil {
+		return
+	}
+	return nil
+}
+
+func (frame *GoAwayFrame) read(h ControlFrameHeader, f *Framer) os.Error {
+	frame.CFHeader = h
+	if err := binary.Read(f.r, binary.BigEndian, &frame.LastGoodStreamId); err != nil {
+		return err
+	}
+	return nil
+}
+
+// HeadersFrame is the unpacked, in-memory representation of a HEADERS frame.
+type HeadersFrame struct {
+	CFHeader ControlFrameHeader
+	StreamId uint32
+	Headers  http.Header
+}
+
+func (frame *HeadersFrame) write(f *Framer) os.Error {
+	return f.writeHeadersFrame(frame)
+}
+
+func (frame *HeadersFrame) read(h ControlFrameHeader, f *Framer) os.Error {
+	return f.readHeadersFrame(h, frame)
+}
+
+func newControlFrame(frameType ControlFrameType) (controlFrame, os.Error) {
+	ctor, ok := cframeCtor[frameType]
+	if !ok {
+		return nil, InvalidControlFrame
+	}
+	return ctor(), nil
+}
+
+var cframeCtor = map[ControlFrameType]func() controlFrame{
+	TypeSynStream: func() controlFrame { return new(SynStreamFrame) },
+	TypeSynReply:  func() controlFrame { return new(SynReplyFrame) },
+	TypeRstStream: func() controlFrame { return new(RstStreamFrame) },
+	TypeSettings:  func() controlFrame { return new(SettingsFrame) },
+	TypeNoop:      func() controlFrame { return new(NoopFrame) },
+	TypePing:      func() controlFrame { return new(PingFrame) },
+	TypeGoAway:    func() controlFrame { return new(GoAwayFrame) },
+	TypeHeaders:   func() controlFrame { return new(HeadersFrame) },
+	// TODO(willchan): Add TypeWindowUpdate
+}
+
+// DataFrame is the unpacked, in-memory representation of a DATA frame.
+type DataFrame struct {
+	// Note, high bit is the "Control" bit. Should be 0 for data frames.
+	StreamId uint32
+	Flags    DataFlags
+	Data     []byte
+}
+
+func (frame *DataFrame) write(f *Framer) os.Error {
+	return f.writeDataFrame(frame)
+}
+
+// HeaderDictionary is the dictionary sent to the zlib compressor/decompressor.
 // Even though the specification states there is no null byte at the end, Chrome sends it.
-const headerDictionary = "optionsgetheadpostputdeletetrace" +
+const HeaderDictionary = "optionsgetheadpostputdeletetrace" +
 	"acceptaccept-charsetaccept-encodingaccept-languageauthorizationexpectfromhost" +
 	"if-modified-sinceif-matchif-none-matchif-rangeif-unmodifiedsince" +
 	"max-forwardsproxy-authorizationrangerefererteuser-agent" +
@@ -222,146 +482,3 @@ const headerDictionary = "optionsgetheadpostputdeletetrace" +
 	"JanFebMarAprMayJunJulAugSepOctNovDec" +
 	"chunkedtext/htmlimage/pngimage/jpgimage/gifapplication/xmlapplication/xhtmltext/plainpublicmax-age" +
 	"charset=iso-8859-1utf-8gzipdeflateHTTP/1.1statusversionurl\x00"
-
-// hrSource is a reader that passes through reads from another reader.
-// When the underlying reader reaches EOF, Read will block until another reader is added via change.
-type hrSource struct {
-	r io.Reader
-	m sync.RWMutex
-	c *sync.Cond
-}
-
-func (src *hrSource) Read(p []byte) (n int, err os.Error) {
-	src.m.RLock()
-	for src.r == nil {
-		src.c.Wait()
-	}
-	n, err = src.r.Read(p)
-	src.m.RUnlock()
-	if err == os.EOF {
-		src.change(nil)
-		err = nil
-	}
-	return
-}
-
-func (src *hrSource) change(r io.Reader) {
-	src.m.Lock()
-	defer src.m.Unlock()
-	src.r = r
-	src.c.Broadcast()
-}
-
-// A HeaderReader reads zlib-compressed headers.
-type HeaderReader struct {
-	source       hrSource
-	decompressor io.ReadCloser
-}
-
-// NewHeaderReader creates a HeaderReader with the initial dictionary.
-func NewHeaderReader() (hr *HeaderReader) {
-	hr = new(HeaderReader)
-	hr.source.c = sync.NewCond(hr.source.m.RLocker())
-	return
-}
-
-// ReadHeader reads a set of headers from a reader.
-func (hr *HeaderReader) ReadHeader(r io.Reader) (h http.Header, err os.Error) {
-	hr.source.change(r)
-	h, err = hr.read()
-	return
-}
-
-// Decode reads a set of headers from a block of bytes.
-func (hr *HeaderReader) Decode(data []byte) (h http.Header, err os.Error) {
-	hr.source.change(bytes.NewBuffer(data))
-	h, err = hr.read()
-	return
-}
-
-func (hr *HeaderReader) read() (h http.Header, err os.Error) {
-	var count uint16
-	if hr.decompressor == nil {
-		hr.decompressor, err = zlib.NewReaderDict(&hr.source, []byte(headerDictionary))
-		if err != nil {
-			return
-		}
-	}
-	err = binary.Read(hr.decompressor, binary.BigEndian, &count)
-	if err != nil {
-		return
-	}
-	h = make(http.Header, int(count))
-	for i := 0; i < int(count); i++ {
-		var name, value string
-		name, err = readHeaderString(hr.decompressor)
-		if err != nil {
-			return
-		}
-		value, err = readHeaderString(hr.decompressor)
-		if err != nil {
-			return
-		}
-		valueList := strings.Split(string(value), "\x00", -1)
-		for _, v := range valueList {
-			h.Add(name, v)
-		}
-	}
-	return
-}
-
-func readHeaderString(r io.Reader) (s string, err os.Error) {
-	var length uint16
-	err = binary.Read(r, binary.BigEndian, &length)
-	if err != nil {
-		return
-	}
-	data := make([]byte, int(length))
-	_, err = io.ReadFull(r, data)
-	if err != nil {
-		return
-	}
-	return string(data), nil
-}
-
-// HeaderWriter will write zlib-compressed headers on different streams.
-type HeaderWriter struct {
-	compressor *zlib.Writer
-	buffer     *bytes.Buffer
-}
-
-// NewHeaderWriter creates a HeaderWriter ready to compress headers.
-func NewHeaderWriter(level int) (hw *HeaderWriter) {
-	hw = &HeaderWriter{buffer: new(bytes.Buffer)}
-	hw.compressor, _ = zlib.NewWriterDict(hw.buffer, level, []byte(headerDictionary))
-	return
-}
-
-// WriteHeader writes a header block directly to an output.
-func (hw *HeaderWriter) WriteHeader(w io.Writer, h http.Header) (err os.Error) {
-	hw.write(h)
-	_, err = io.Copy(w, hw.buffer)
-	hw.buffer.Reset()
-	return
-}
-
-// Encode returns a compressed header block.
-func (hw *HeaderWriter) Encode(h http.Header) (data []byte) {
-	hw.write(h)
-	data = make([]byte, hw.buffer.Len())
-	hw.buffer.Read(data)
-	return
-}
-
-func (hw *HeaderWriter) write(h http.Header) {
-	binary.Write(hw.compressor, binary.BigEndian, uint16(len(h)))
-	for k, vals := range h {
-		k = strings.ToLower(k)
-		binary.Write(hw.compressor, binary.BigEndian, uint16(len(k)))
-		binary.Write(hw.compressor, binary.BigEndian, []byte(k))
-		v := strings.Join(vals, "\x00")
-		binary.Write(hw.compressor, binary.BigEndian, uint16(len(v)))
-		binary.Write(hw.compressor, binary.BigEndian, []byte(v))
-	}
-	hw.compressor.Flush()
-}
