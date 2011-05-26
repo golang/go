@@ -32,7 +32,7 @@ func TestWriter(t *testing.T) {
 		}
 	}
 
-	r := NewReader(&b, w.Boundary)
+	r := NewReader(&b, w.Boundary())
 
 	part, err := r.NextPart()
 	if err != nil {
