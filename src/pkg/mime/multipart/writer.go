@@ -6,24 +6,18 @@ package multipart
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"net/textproto"
 	"os"
-	"rand"
 	"strings"
 )
 
-// Writer is used to generate multipart messages.
+// A Writer generates multipart messages.
 type Writer struct {
-	// Boundary is the random boundary string between
-	// parts. NewWriter will generate this but it must
-	// not be changed after a part has been created.
-	// Setting this to an invalid value will generate
-	// malformed messages.
-	Boundary string
-
 	w        io.Writer
+	boundary string
 	lastpart *part
 }
 
@@ -32,38 +26,42 @@ type Writer struct {
 func NewWriter(w io.Writer) *Writer {
 	return &Writer{
 		w:        w,
-		Boundary: randomBoundary(),
+		boundary: randomBoundary(),
 	}
+}
+
+// Boundary returns the Writer's randomly selected boundary string.
+func (w *Writer) Boundary() string {
+	return w.boundary
 }
 
 // FormDataContentType returns the Content-Type for an HTTP
 // multipart/form-data with this Writer's Boundary.
 func (w *Writer) FormDataContentType() string {
-	return "multipart/form-data; boundary=" + w.Boundary
+	return "multipart/form-data; boundary=" + w.boundary
 }
 
-const randChars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
 func randomBoundary() string {
-	var buf [60]byte
-	for i := range buf {
-		buf[i] = randChars[rand.Intn(len(randChars))]
+	var buf [30]byte
+	_, err := io.ReadFull(rand.Reader, buf[:])
+	if err != nil {
+		panic(err)
 	}
-	return string(buf[:])
+	return fmt.Sprintf("%x", buf[:])
 }
 
 // CreatePart creates a new multipart section with the provided
-// header. The previous part, if still open, is closed. The body of
-// the part should be written to the returned WriteCloser. Closing the
-// returned WriteCloser after writing is optional.
-func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.WriteCloser, os.Error) {
+// header. The body of the part should be written to the returned
+// Writer. After calling CreatePart, any previous part may no longer
+// be written to.
+func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, os.Error) {
 	if w.lastpart != nil {
-		if err := w.lastpart.Close(); err != nil {
+		if err := w.lastpart.close(); err != nil {
 			return nil, err
 		}
 	}
 	var b bytes.Buffer
-	fmt.Fprintf(&b, "\r\n--%s\r\n", w.Boundary)
+	fmt.Fprintf(&b, "\r\n--%s\r\n", w.boundary)
 	// TODO(bradfitz): move this to textproto.MimeHeader.Write(w), have it sort
 	// and clean, like http.Header.Write(w) does.
 	for k, vv := range header {
@@ -91,7 +89,7 @@ func escapeQuotes(s string) string {
 
 // CreateFormFile is a convenience wrapper around CreatePart. It creates
 // a new form-data header with the provided field name and file name.
-func (w *Writer) CreateFormFile(fieldname, filename string) (io.WriteCloser, os.Error) {
+func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, os.Error) {
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition",
 		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
@@ -100,40 +98,35 @@ func (w *Writer) CreateFormFile(fieldname, filename string) (io.WriteCloser, os.
 	return w.CreatePart(h)
 }
 
-// CreateFormField is a convenience wrapper around CreatePart. It creates
-// a new form-data header with the provided field name.
-func (w *Writer) CreateFormField(fieldname string) (io.WriteCloser, os.Error) {
+// CreateFormField calls calls CreatePart with a header using the
+// given field name.
+func (w *Writer) CreateFormField(fieldname string) (io.Writer, os.Error) {
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition",
 		fmt.Sprintf(`form-data; name="%s"`, escapeQuotes(fieldname)))
 	return w.CreatePart(h)
 }
 
-// WriteField is a convenience wrapper around CreateFormField. It creates and
-// writes a part with the provided name and value.
+// WriteField calls CreateFormField and then writes the given value.
 func (w *Writer) WriteField(fieldname, value string) os.Error {
 	p, err := w.CreateFormField(fieldname)
 	if err != nil {
 		return err
 	}
 	_, err = p.Write([]byte(value))
-	if err != nil {
-		return err
-	}
-	return p.Close()
+	return err
 }
 
-// Close finishes the multipart message. It closes the previous part,
-// if still open, and writes the trailing boundary end line to the
-// output.
+// Close finishes the multipart message and writes the trailing
+// boundary end line to the output.
 func (w *Writer) Close() os.Error {
 	if w.lastpart != nil {
-		if err := w.lastpart.Close(); err != nil {
+		if err := w.lastpart.close(); err != nil {
 			return err
 		}
 		w.lastpart = nil
 	}
-	_, err := fmt.Fprintf(w.w, "\r\n--%s--\r\n", w.Boundary)
+	_, err := fmt.Fprintf(w.w, "\r\n--%s--\r\n", w.boundary)
 	return err
 }
 
@@ -143,14 +136,14 @@ type part struct {
 	we     os.Error // last error that occurred writing
 }
 
-func (p *part) Close() os.Error {
+func (p *part) close() os.Error {
 	p.closed = true
 	return p.we
 }
 
 func (p *part) Write(d []byte) (n int, err os.Error) {
 	if p.closed {
-		return 0, os.NewError("multipart: Write after Close")
+		return 0, os.NewError("multipart: can't write to finished part")
 	}
 	n, err = p.mw.w.Write(d)
 	if err != nil {
