@@ -5,6 +5,7 @@
 package strings_test
 
 import (
+	"bytes"
 	"os"
 	"reflect"
 	"strconv"
@@ -751,13 +752,56 @@ func TestRunes(t *testing.T) {
 	}
 }
 
+func TestReadByte(t *testing.T) {
+	testStrings := []string{"", abcd, faces, commas}
+	for _, s := range testStrings {
+		reader := NewReader(s)
+		if e := reader.UnreadByte(); e == nil {
+			t.Errorf("Unreading %q at beginning: expected error", s)
+		}
+		var res bytes.Buffer
+		for {
+			b, e := reader.ReadByte()
+			if e == os.EOF {
+				break
+			}
+			if e != nil {
+				t.Errorf("Reading %q: %s", s, e)
+				break
+			}
+			res.WriteByte(b)
+			// unread and read again
+			e = reader.UnreadByte()
+			if e != nil {
+				t.Errorf("Unreading %q: %s", s, e)
+				break
+			}
+			b1, e := reader.ReadByte()
+			if e != nil {
+				t.Errorf("Reading %q after unreading: %s", s, e)
+				break
+			}
+			if b1 != b {
+				t.Errorf("Reading %q after unreading: want byte %q, got %q", s, b, b1)
+				break
+			}
+		}
+		if res.String() != s {
+			t.Errorf("Reader(%q).ReadByte() produced %q", s, res.String())
+		}
+	}
+}
+
 func TestReadRune(t *testing.T) {
 	testStrings := []string{"", abcd, faces, commas}
 	for _, s := range testStrings {
 		reader := NewReader(s)
+		if e := reader.UnreadRune(); e == nil {
+			t.Errorf("Unreading %q at beginning: expected error", s)
+		}
 		res := ""
 		for {
-			r, _, e := reader.ReadRune()
+			r, z, e := reader.ReadRune()
 			if e == os.EOF {
 				break
 			}
@@ -766,6 +810,25 @@ func TestReadRune(t *testing.T) {
 				break
 			}
 			res += string(r)
+			// unread and read again
+			e = reader.UnreadRune()
+			if e != nil {
+				t.Errorf("Unreading %q: %s", s, e)
+				break
+			}
+			r1, z1, e := reader.ReadRune()
+			if e != nil {
+				t.Errorf("Reading %q after unreading: %s", s, e)
+				break
+			}
+			if r1 != r {
+				t.Errorf("Reading %q after unreading: want rune %q, got %q", s, r, r1)
+				break
+			}
+			if z1 != z {
+				t.Errorf("Reading %q after unreading: want size %d, got %d", s, z, z1)
+				break
+			}
 		}
 		if res != s {
 			t.Errorf("Reader(%q).ReadRune() produced %q", s, res)
