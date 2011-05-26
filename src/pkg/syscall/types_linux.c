@@ -165,6 +165,42 @@ enum {
 	$IFLA_NET_NS_PID = IFLA_NET_NS_PID,
 	$IFLA_IFALIAS = IFLA_IFALIAS,
 	$IFLA_MAX = IFLA_MAX,
+	$RT_SCOPE_UNIVERSE = RT_SCOPE_UNIVERSE,
+	$RT_SCOPE_SITE = RT_SCOPE_SITE,
+	$RT_SCOPE_LINK = RT_SCOPE_LINK,
+	$RT_SCOPE_HOST = RT_SCOPE_HOST,
+	$RT_SCOPE_NOWHERE = RT_SCOPE_NOWHERE,
+	$RT_TABLE_UNSPEC = RT_TABLE_UNSPEC,
+	$RT_TABLE_COMPAT = RT_TABLE_COMPAT,
+	$RT_TABLE_DEFAULT = RT_TABLE_DEFAULT,
+	$RT_TABLE_MAIN = RT_TABLE_MAIN,
+	$RT_TABLE_LOCAL = RT_TABLE_LOCAL,
+	$RT_TABLE_MAX = RT_TABLE_MAX,
+	$RTA_UNSPEC = RTA_UNSPEC,
+	$RTA_DST = RTA_DST,
+	$RTA_SRC = RTA_SRC,
+	$RTA_IIF = RTA_IIF,
+	$RTA_OIF = RTA_OIF,
+	$RTA_GATEWAY = RTA_GATEWAY,
+	$RTA_PRIORITY = RTA_PRIORITY,
+	$RTA_PREFSRC = RTA_PREFSRC,
+	$RTA_METRICS = RTA_METRICS,
+	$RTA_MULTIPATH = RTA_MULTIPATH,
+	$RTA_FLOW = RTA_FLOW,
+	$RTA_CACHEINFO = RTA_CACHEINFO,
+	$RTA_TABLE = RTA_TABLE,
+	$RTN_UNSPEC = RTN_UNSPEC,
+	$RTN_UNICAST = RTN_UNICAST,
+	$RTN_LOCAL = RTN_LOCAL,
+	$RTN_BROADCAST = RTN_BROADCAST,
+	$RTN_ANYCAST = RTN_ANYCAST,
+	$RTN_MULTICAST = RTN_MULTICAST,
+	$RTN_BLACKHOLE = RTN_BLACKHOLE,
+	$RTN_UNREACHABLE = RTN_UNREACHABLE,
+	$RTN_PROHIBIT = RTN_PROHIBIT,
+	$RTN_THROW = RTN_THROW,
+	$RTN_NAT = RTN_NAT,
+	$RTN_XRESOLVE = RTN_XRESOLVE,
 	$SizeofNlMsghdr = sizeof(struct nlmsghdr),
 	$SizeofNlMsgerr = sizeof(struct nlmsgerr),
 	$SizeofRtGenmsg = sizeof(struct rtgenmsg),
@@ -173,6 +209,7 @@ enum {
 	$SizeofIfInfomsg = sizeof(struct ifinfomsg),
 	$SizeofIfAddrmsg = sizeof(struct ifaddrmsg),
 	$SizeofRtmsg = sizeof(struct rtmsg),
+	$SizeofRtNexthop = sizeof(struct rtnexthop),
 };
 
 typedef struct nlmsghdr $NlMsghdr;
@@ -183,6 +220,7 @@ typedef struct rtattr $RtAttr;
 typedef struct ifinfomsg $IfInfomsg;
 typedef struct ifaddrmsg $IfAddrmsg;
 typedef struct rtmsg $RtMsg;
+typedef struct rtnexthop $RtNexthop;
 
 // Inotify
 

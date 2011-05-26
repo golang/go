@@ -53,6 +53,42 @@ const (
 	IFLA_NET_NS_PID         = 0x13
 	IFLA_IFALIAS            = 0x14
 	IFLA_MAX                = 0x14
+	RT_SCOPE_UNIVERSE       = 0
+	RT_SCOPE_SITE           = 0xc8
+	RT_SCOPE_LINK           = 0xfd
+	RT_SCOPE_HOST           = 0xfe
+	RT_SCOPE_NOWHERE        = 0xff
+	RT_TABLE_UNSPEC         = 0
+	RT_TABLE_COMPAT         = 0xfc
+	RT_TABLE_DEFAULT        = 0xfd
+	RT_TABLE_MAIN           = 0xfe
+	RT_TABLE_LOCAL          = 0xff
+	RT_TABLE_MAX            = 0xffffffff
+	RTA_UNSPEC              = 0
+	RTA_DST                 = 0x1
+	RTA_SRC                 = 0x2
+	RTA_IIF                 = 0x3
+	RTA_OIF                 = 0x4
+	RTA_GATEWAY             = 0x5
+	RTA_PRIORITY            = 0x6
+	RTA_PREFSRC             = 0x7
+	RTA_METRICS             = 0x8
+	RTA_MULTIPATH           = 0x9
+	RTA_FLOW                = 0xb
+	RTA_CACHEINFO           = 0xc
+	RTA_TABLE               = 0xf
+	RTN_UNSPEC              = 0
+	RTN_UNICAST             = 0x1
+	RTN_LOCAL               = 0x2
+	RTN_BROADCAST           = 0x3
+	RTN_ANYCAST             = 0x4
+	RTN_MULTICAST           = 0x5
+	RTN_BLACKHOLE           = 0x6
+	RTN_UNREACHABLE         = 0x7
+	RTN_PROHIBIT            = 0x8
+	RTN_THROW               = 0x9
+	RTN_NAT                 = 0xa
+	RTN_XRESOLVE            = 0xb
 	SizeofNlMsghdr          = 0x10
 	SizeofNlMsgerr          = 0x14
 	SizeofRtGenmsg          = 0x1
@@ -61,6 +97,7 @@ const (
 	SizeofIfInfomsg         = 0x10
 	SizeofIfAddrmsg         = 0x8
 	SizeofRtmsg             = 0xc
+	SizeofRtNexthop         = 0x8
 	SizeofInotifyEvent      = 0x10
 )
 
@@ -342,6 +379,13 @@ type RtMsg struct {
 	Scope    uint8
 	Type     uint8
 	Flags    uint32
+}
+
+type RtNexthop struct {
+	Len     uint16
+	Flags   uint8
+	Hops    uint8
+	Ifindex int32
 }
 
 type InotifyEvent struct {

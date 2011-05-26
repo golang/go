@@ -37,6 +37,7 @@ includes_Linux='
 #include <linux/ptrace.h>
 #include <linux/wait.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <netpacket/packet.h>
 '
 
@@ -137,7 +138,7 @@ done
 		$2 ~ /^LINUX_REBOOT_CMD_/ ||
 		$2 ~ /^LINUX_REBOOT_MAGIC[12]$/ ||
 		$2 !~ "NLA_TYPE_MASK" &&
-		$2 ~ /^(NETLINK|NLM|NLMSG|NLA|IFA|RTM)_/ ||
+		$2 ~ /^(NETLINK|NLM|NLMSG|NLA|IFA|RTM|RTN|RTPROT|RTA|RTAX|RTNH|ARPHRD)_/ ||
 		$2 ~ /^SIOC/ ||
 		$2 ~ /^(IFF|NET_RT|RTM|RTF|RTV|RTA|RTAX)_/ ||
 		$2 ~ /^BIOC/ ||

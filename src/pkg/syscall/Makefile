@@ -17,24 +17,25 @@ GOFILES=\
 	ztypes_$(GOOS)_$(GOARCH).go\
 
 GOFILES_freebsd=\
+	exec_unix.go\
 	syscall_bsd.go\
 	syscall_unix.go\
-	exec_unix.go\
 
 GOFILES_darwin=\
+	exec_unix.go\
 	syscall_bsd.go\
 	syscall_unix.go\
-	exec_unix.go\
 
 GOFILES_linux=\
-	syscall_unix.go\
 	exec_unix.go\
+	netlink_linux.go\
+	syscall_unix.go\
 
 GOFILES_windows=\
-	exec_windows.go
-	
+	exec_windows.go\
+
 GOFILES_plan9=\
-	exec_plan9.go
+	exec_plan9.go\
 
 OFILES=\
 	asm_$(GOOS)_$(GOARCH).$O\
