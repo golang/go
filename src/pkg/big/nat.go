@@ -18,7 +18,11 @@ package big
 // These are the building blocks for the operations on signed integers
 // and rationals.
 
-import "rand"
+import (
+	"io"
+	"os"
+	"rand"
+)
 
 
 // An unsigned integer x of the form
@@ -604,68 +608,95 @@ func (x nat) bitLen() int {
 }
 
 
-func hexValue(ch byte) int {
-	var d byte
+func hexValue(ch int) int {
+	var d int
 	switch {
 	case '0' <= ch && ch <= '9':
 		d = ch - '0'
-	case 'a' <= ch && ch <= 'f':
+	case 'a' <= ch && ch <= 'z':
 		d = ch - 'a' + 10
-	case 'A' <= ch && ch <= 'F':
+	case 'A' <= ch && ch <= 'Z':
 		d = ch - 'A' + 10
 	default:
 		return -1
 	}
-	return int(d)
+	return d
 }
 
 
-// scan returns the natural number corresponding to the
-// longest possible prefix of s representing a natural number in a
-// given conversion base, the actual conversion base used, and the
-// prefix length. The syntax of natural numbers follows the syntax
-// of unsigned integer literals in Go.
+// scan returns the natural number corresponding to the longest
+// possible prefix read from r representing a natural number in a
+// given conversion base, the actual conversion base used, and an
+// error, if any. The syntax of natural numbers follows the syntax of
+// unsigned integer literals in Go.
 //
 // If the base argument is 0, the string prefix determines the actual
 // conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
 // ``0'' prefix selects base 8, and a ``0b'' or ``0B'' prefix selects
 // base 2. Otherwise the selected base is 10.
 //
-func (z nat) scan(s string, base int) (nat, int, int) {
+func (z nat) scan(r io.RuneScanner, base int) (nat, int, os.Error) {
+	n := 0
+	ch, _, err := r.ReadRune()
+	if err != nil {
+		return z, 0, err
+	}
 	// determine base if necessary
-	i, n := 0, len(s)
 	if base == 0 {
 		base = 10
-		if n > 0 && s[0] == '0' {
-			base, i = 8, 1
-			if n > 1 {
-				switch s[1] {
+		if ch == '0' {
+			n++
+			switch ch, _, err = r.ReadRune(); err {
+			case nil:
+				base = 8
+				switch ch {
 				case 'x', 'X':
-					base, i = 16, 2
+					base = 16
 				case 'b', 'B':
-					base, i = 2, 2
+					base = 2
 				}
+				if base == 2 || base == 16 {
+					n--
+					if ch, _, err = r.ReadRune(); err != nil {
+						return z, 0, os.ErrorString("syntax error scanning binary or hexadecimal number")
+					}
+				}
+			case os.EOF:
+				return z, 10, nil
+			default:
+				return z, 0, err
 			}
 		}
 	}
 
-	// reject illegal bases or strings consisting only of prefix
-	if base < 2 || 16 < base || (base != 8 && i >= n) {
-		return z, 0, 0
+	// reject illegal bases
+	if base < 2 || 'z'-'a'+10 < base {
+		return z, 0, os.ErrorString("illegal number base")
 	}
 
 	// convert string
 	z = z.make(0)
-	for ; i < n; i++ {
-		d := hexValue(s[i])
+	for {
+		d := hexValue(ch)
 		if 0 <= d && d < base {
 			z = z.mulAddWW(z, Word(base), Word(d))
 		} else {
-			break
+			r.UnreadRune()
+			if n > 0 {
+				break
+			}
+			return z, 0, os.ErrorString("syntax error scanning number")
+		}
+		n++
+		if ch, _, err = r.ReadRune(); err != nil {
+			if err == os.EOF {
+				break
+			}
+			return z, 0, err
 		}
 	}
 
-	return z.norm(), base, i
+	return z.norm(), base, nil
 }
 
 

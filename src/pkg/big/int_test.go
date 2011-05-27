@@ -397,6 +397,49 @@ func TestFormat(t *testing.T) {
 }
 
 
+var scanTests = []struct {
+	input     string
+	format    string
+	output    string
+	remaining int
+}{
+	{"1010", "%b", "10", 0},
+	{"0b1010", "%v", "10", 0},
+	{"12", "%o", "10", 0},
+	{"012", "%v", "10", 0},
+	{"10", "%d", "10", 0},
+	{"10", "%v", "10", 0},
+	{"a", "%x", "10", 0},
+	{"0xa", "%v", "10", 0},
+	{"A", "%X", "10", 0},
+	{"-A", "%X", "-10", 0},
+	{"+0b1011001", "%v", "89", 0},
+	{"0xA", "%v", "10", 0},
+	{"0 ", "%v", "0", 1},
+	{"2+3", "%v", "2", 2},
+	{"0XABC 12", "%v", "2748", 3},
+}
+
+
+func TestScan(t *testing.T) {
+	var buf bytes.Buffer
+	for i, test := range scanTests {
+		x := new(Int)
+		buf.Reset()
+		buf.WriteString(test.input)
+		if _, err := fmt.Fscanf(&buf, test.format, x); err != nil {
+			t.Errorf("#%d error: %s", i, err.String())
+		}
+		if x.String() != test.output {
+			t.Errorf("#%d got %s; want %s", i, x.String(), test.output)
+		}
+		if buf.Len() != test.remaining {
+			t.Errorf("#%d got %d bytes remaining; want %d", i, buf.Len(), test.remaining)
+		}
+	}
+}
+
+
 // Examples from the Go Language Spec, section "Arithmetic operators"
 var divisionSignsTests = []struct {
 	x, y int64
