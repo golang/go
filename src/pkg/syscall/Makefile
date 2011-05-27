@@ -18,11 +18,13 @@ GOFILES=\
 
 GOFILES_freebsd=\
 	exec_unix.go\
+	route_bsd.go\
 	syscall_bsd.go\
 	syscall_unix.go\
 
 GOFILES_darwin=\
 	exec_unix.go\
+	route_bsd.go\
 	syscall_bsd.go\
 	syscall_unix.go\
 
