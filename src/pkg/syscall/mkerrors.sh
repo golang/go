@@ -54,6 +54,7 @@ includes_Darwin='
 #include <sys/wait.h>
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_types.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -69,6 +70,7 @@ includes_FreeBSD='
 #include <sys/wait.h>
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_types.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -140,7 +142,7 @@ done
 		$2 !~ "NLA_TYPE_MASK" &&
 		$2 ~ /^(NETLINK|NLM|NLMSG|NLA|IFA|RTM|RTN|RTPROT|RTA|RTAX|RTNH|ARPHRD)_/ ||
 		$2 ~ /^SIOC/ ||
-		$2 ~ /^(IFF|NET_RT|RTM|RTF|RTV|RTA|RTAX)_/ ||
+		$2 ~ /^(IFF|IFT|NET_RT|RTM|RTF|RTV|RTA|RTAX)_/ ||
 		$2 ~ /^BIOC/ ||
 		$2 !~ /^(BPF_TIMEVAL)$/ &&
 		$2 ~ /^(BPF|DLT)_/ ||

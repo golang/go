@@ -519,27 +519,6 @@ func SysctlUint32(name string) (value uint32, errno int) {
 	return *(*uint32)(unsafe.Pointer(&buf[0])), 0
 }
 
-func SysctlNetRoute(fourth, fifth, sixth int) (value []byte, errno int) {
-	mib := []_C_int{CTL_NET, AF_ROUTE, 0, _C_int(fourth), _C_int(fifth), _C_int(sixth)}
-
-	// Find size.
-	n := uintptr(0)
-	if errno = sysctl(mib, nil, &n, nil, 0); errno != 0 {
-		return nil, errno
-	}
-	if n == 0 {
-		return nil, 0
-	}
-
-	// Read into buffer of that size.
-	b := make([]byte, n)
-	if errno = sysctl(mib, &b[0], &n, nil, 0); errno != 0 {
-		return nil, errno
-	}
-
-	return b[0:n], 0
-}
-
 //sys	utimes(path string, timeval *[2]Timeval) (errno int)
 func Utimes(path string, tv []Timeval) (errno int) {
 	if len(tv) != 2 {
