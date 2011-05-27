@@ -302,6 +302,36 @@ func TestParseErrors(t *testing.T) {
 	}
 }
 
+func TestNoonIs12PM(t *testing.T) {
+	noon := Time{Hour: 12}
+	const expect = "12:00PM"
+	got := noon.Format("3:04PM")
+	if got != expect {
+		t.Errorf("got %q; expect %q", got, expect)
+	}
+	got = noon.Format("03:04PM")
+	if got != expect {
+		t.Errorf("got %q; expect %q", got, expect)
+	}
+}
+
+func Test12PMIsNoon(t *testing.T) {
+	noon, err := Parse("3:04PM", "12:00PM")
+	if err != nil {
+		t.Fatal("error parsing date:", err)
+	}
+	if noon.Hour != 12 {
+		t.Errorf("got %d; expect 12", noon.Hour)
+	}
+	noon, err = Parse("03:04PM", "12:00PM")
+	if err != nil {
+		t.Fatal("error parsing date:", err)
+	}
+	if noon.Hour != 12 {
+		t.Errorf("got %d; expect 12", noon.Hour)
+	}
+}
+
 // Check that a time without a Zone still produces a (numeric) time zone
 // when formatted with MST as a requested zone.
 func TestMissingZone(t *testing.T) {

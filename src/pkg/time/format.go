@@ -272,9 +272,18 @@ func (t *Time) Format(layout string) string {
 		case stdHour:
 			p = zeroPad(t.Hour)
 		case stdHour12:
-			p = strconv.Itoa(t.Hour % 12)
+			// Noon is 12PM.
+			if t.Hour == 12 {
+				p = "12"
+			} else {
+				p = strconv.Itoa(t.Hour % 12)
+			}
 		case stdZeroHour12:
-			p = zeroPad(t.Hour % 12)
+			if t.Hour == 12 {
+				p = "12"
+			} else {
+				p = zeroPad(t.Hour % 12)
+			}
 		case stdMinute:
 			p = strconv.Itoa(t.Minute)
 		case stdZeroMinute:
