@@ -4,7 +4,11 @@
 
 package big
 
-import "testing"
+import (
+	"bytes"
+	"fmt"
+	"testing"
+)
 
 
 var setStringTests = []struct {
@@ -47,6 +51,29 @@ func TestRatSetString(t *testing.T) {
 		x, ok := new(Rat).SetString(test.in)
 
 		if ok != test.ok || ok && x.RatString() != test.out {
+			t.Errorf("#%d got %s want %s", i, x.RatString(), test.out)
+		}
+	}
+}
+
+
+func TestRatScan(t *testing.T) {
+	var buf bytes.Buffer
+	for i, test := range setStringTests {
+		x := new(Rat)
+		buf.Reset()
+		buf.WriteString(test.in)
+
+		_, err := fmt.Fscanf(&buf, "%v", x)
+		if err == nil != test.ok {
+			if test.ok {
+				t.Errorf("#%d error: %s", i, err.String())
+			} else {
+				t.Errorf("#%d expected error", i)
+			}
+			continue
+		}
+		if err == nil && x.RatString() != test.out {
 			t.Errorf("#%d got %s want %s", i, x.RatString(), test.out)
 		}
 	}

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"rand"
+	"strings"
 )
 
 // An Int represents a signed multi-precision integer.
@@ -325,7 +326,7 @@ func charset(ch int) string {
 		return lowercaseDigits[0:2]
 	case 'o':
 		return lowercaseDigits[0:8]
-	case 'd', 'v':
+	case 'd', 's', 'v':
 		return lowercaseDigits[0:10]
 	case 'x':
 		return lowercaseDigits[0:16]
@@ -374,6 +375,49 @@ func (x *Int) Format(s fmt.State, ch int) {
 }
 
 
+// Scan is a support routine for fmt.Scanner. It accepts the formats
+// 'b' (binary), 'o' (octal), 'd' (decimal), 'x' (lowercase hexadecimal),
+// and 'X' (uppercase hexadecimal).
+func (x *Int) Scan(s fmt.ScanState, ch int) os.Error {
+	var base int
+	switch ch {
+	case 'b':
+		base = 2
+	case 'o':
+		base = 8
+	case 'd':
+		base = 10
+	case 'x', 'X':
+		base = 16
+	case 's', 'v':
+		// let scan determine the base
+	default:
+		return os.ErrorString("Int.Scan: invalid verb")
+	}
+
+	ch, _, err := s.ReadRune()
+	if err != nil {
+		return err
+	}
+	neg := false
+	switch ch {
+	case '-':
+		neg = true
+	case '+': // nothing to do
+	default:
+		s.UnreadRune()
+	}
+
+	x.abs, _, err = x.abs.scan(s, base)
+	if err != nil {
+		return err
+	}
+	x.neg = len(x.abs) > 0 && neg // 0 has no sign
+
+	return nil
+}
+
+
 // Int64 returns the int64 representation of z.
 // If z cannot be represented in an int64, the result is undefined.
 func (x *Int) Int64() int64 {
@@ -401,26 +445,27 @@ func (x *Int) Int64() int64 {
 // base 2. Otherwise the selected base is 10.
 //
 func (z *Int) SetString(s string, base int) (*Int, bool) {
-	if len(s) == 0 || base < 0 || base == 1 || 16 < base {
-		return z, false
-	}
-
-	neg := s[0] == '-'
-	if neg || s[0] == '+' {
-		s = s[1:]
-		if len(s) == 0 {
-			return z, false
+	neg := false
+	if len(s) > 0 {
+		switch s[0] {
+		case '-':
+			neg = true
+			fallthrough
+		case '+':
+			s = s[1:]
 		}
 	}
 
-	var scanned int
-	z.abs, _, scanned = z.abs.scan(s, base)
-	if scanned != len(s) {
+	r := strings.NewReader(s)
+	abs, _, err := z.abs.scan(r, base)
+	if err != nil {
 		return z, false
 	}
-	z.neg = len(z.abs) > 0 && neg // 0 has no sign
+	_, _, err = r.ReadRune()
 
-	return z, true
+	z.abs = abs
+	z.neg = len(abs) > 0 && neg // 0 has no sign
+	return z, err == os.EOF     // err == os.EOF => scan consumed all of s
 }
 
 
@@ -784,11 +829,11 @@ func (z *Int) GobEncode() ([]byte, os.Error) {
 // GobDecode implements the gob.GobDecoder interface.
 func (z *Int) GobDecode(buf []byte) os.Error {
 	if len(buf) == 0 {
-		return os.NewError("Int.GobDecode: no data")
+		return os.ErrorString("Int.GobDecode: no data")
 	}
 	b := buf[0]
 	if b>>1 != version {
-		return os.NewError(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
+		return os.ErrorString(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
 	}
 	z.neg = b&1 != 0
 	z.abs = z.abs.setBytes(buf[1:])

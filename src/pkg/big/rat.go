@@ -6,7 +6,11 @@
 
 package big
 
-import "strings"
+import (
+	"fmt"
+	"os"
+	"strings"
+)
 
 // A Rat represents a quotient a/b of arbitrary precision. The zero value for
 // a Rat, 0/0, is not a legal Rat.
@@ -209,6 +213,28 @@ func (z *Rat) Set(x *Rat) *Rat {
 }
 
 
+func ratTok(ch int) bool {
+	return strings.IndexRune("+-/0123456789.eE", ch) >= 0
+}
+
+
+// Scan is a support routine for fmt.Scanner. It accepts the formats
+// 'e', 'E', 'f', 'F', 'g', 'G', and 'v'. All formats are equivalent.
+func (z *Rat) Scan(s fmt.ScanState, ch int) os.Error {
+	tok, err := s.Token(true, ratTok)
+	if err != nil {
+		return err
+	}
+	if strings.IndexRune("efgEFGv", ch) < 0 {
+		return os.ErrorString("Rat.Scan: invalid verb")
+	}
+	if _, ok := z.SetString(string(tok)); !ok {
+		return os.ErrorString("Rat.Scan: invalid syntax")
+	}
+	return nil
+}
+
+
 // SetString sets z to the value of s and returns z and a boolean indicating
 // success. s can be given as a fraction "a/b" or as a floating-point number
 // optionally followed by an exponent. If the operation failed, the value of z
@@ -225,8 +251,8 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 			return z, false
 		}
 		s = s[sep+1:]
-		var n int
-		if z.b, _, n = z.b.scan(s, 10); n != len(s) {
+		var err os.Error
+		if z.b, _, err = z.b.scan(strings.NewReader(s), 10); err != nil {
 			return z, false
 		}
 		return z.norm(), true
