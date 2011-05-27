@@ -230,16 +230,13 @@ func Open(path string, mode int, perm uint32) (fd int, errno int) {
 	}
 	var createmode uint32
 	switch {
-	case mode&O_CREAT != 0:
-		switch {
-		case mode&O_EXCL != 0:
-			createmode = CREATE_NEW
-		case mode&O_APPEND != 0:
-			createmode = OPEN_ALWAYS
-		default:
-			createmode = CREATE_ALWAYS
-		}
-	case mode&O_TRUNC != 0:
+	case mode&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
+		createmode = CREATE_NEW
+	case mode&(O_CREAT|O_TRUNC) == (O_CREAT | O_TRUNC):
+		createmode = CREATE_ALWAYS
+	case mode&O_CREAT == O_CREAT:
+		createmode = OPEN_ALWAYS
+	case mode&O_TRUNC == O_TRUNC:
 		createmode = TRUNCATE_EXISTING
 	default:
 		createmode = OPEN_EXISTING
