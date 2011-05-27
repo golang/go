@@ -754,3 +754,29 @@ func TestZeroLengthPostAndResponse(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkClientServer(b *testing.B) {
+	b.StopTimer()
+	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
+		fmt.Fprintf(rw, "Hello world.\n")
+	}))
+	defer ts.Close()
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		res, err := Get(ts.URL)
+		if err != nil {
+			panic("Get: " + err.String())
+		}
+		all, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			panic("ReadAll: " + err.String())
+		}
+		body := string(all)
+		if body != "Hello world.\n" {
+			panic("Got body: " + body)
+		}
+	}
+
+	b.StopTimer()
+}
