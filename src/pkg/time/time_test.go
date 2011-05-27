@@ -315,6 +315,19 @@ func TestNoonIs12PM(t *testing.T) {
 	}
 }
 
+func TestMidnightIs12AM(t *testing.T) {
+	midnight := Time{Hour: 0}
+	expect := "12:00AM"
+	got := midnight.Format("3:04PM")
+	if got != expect {
+		t.Errorf("got %q; expect %q", got, expect)
+	}
+	got = midnight.Format("03:04PM")
+	if got != expect {
+		t.Errorf("got %q; expect %q", got, expect)
+	}
+}
+
 func Test12PMIsNoon(t *testing.T) {
 	noon, err := Parse("3:04PM", "12:00PM")
 	if err != nil {
@@ -329,6 +342,23 @@ func Test12PMIsNoon(t *testing.T) {
 	}
 	if noon.Hour != 12 {
 		t.Errorf("got %d; expect 12", noon.Hour)
+	}
+}
+
+func Test12AMIsMidnight(t *testing.T) {
+	midnight, err := Parse("3:04PM", "12:00AM")
+	if err != nil {
+		t.Fatal("error parsing date:", err)
+	}
+	if midnight.Hour != 0 {
+		t.Errorf("got %d; expect 0", midnight.Hour)
+	}
+	midnight, err = Parse("03:04PM", "12:00AM")
+	if err != nil {
+		t.Fatal("error parsing date:", err)
+	}
+	if midnight.Hour != 0 {
+		t.Errorf("got %d; expect 0", midnight.Hour)
 	}
 }
 
