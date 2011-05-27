@@ -104,6 +104,11 @@ NextLine:
 		if err != nil {
 			fatalf("%s: bad #cgo option %s: %s", srcfile, k, err)
 		}
+		for _, arg := range args {
+			if !safeName(arg) {
+				fatalf("%s: #cgo option %s is unsafe: %s", srcfile, k, arg)
+			}
+		}
 
 		switch k {
 
@@ -144,7 +149,7 @@ func (p *Package) addToFlag(flag string, args []string) {
 // for packages.
 func pkgConfig(packages []string) (cflags, ldflags []string, err os.Error) {
 	for _, name := range packages {
-		if len(name) == 0 || !safeName(name) || name[0] == '-' {
+		if len(name) == 0 || name[0] == '-' {
 			return nil, nil, os.NewError(fmt.Sprintf("invalid name: %q", name))
 		}
 	}
@@ -231,7 +236,7 @@ func splitQuoted(s string) (r []string, err os.Error) {
 	return args, err
 }
 
-var safeBytes = []byte("+-./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz")
+var safeBytes = []byte("+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz")
 
 func safeName(s string) bool {
 	if s == "" {
