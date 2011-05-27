@@ -20,7 +20,11 @@ func TestReverseProxy(t *testing.T) {
 		if r.Header.Get("X-Forwarded-For") == "" {
 			t.Errorf("didn't get X-Forwarded-For header")
 		}
+		if g, e := r.Host, "some-name"; g != e {
+			t.Errorf("backend got Host header %q, want %q", g, e)
+		}
 		w.Header().Set("X-Foo", "bar")
+		SetCookie(w, &Cookie{Name: "flavor", Value: "chocolateChip"})
 		w.WriteHeader(backendStatus)
 		w.Write([]byte(backendResponse))
 	}))
@@ -33,7 +37,9 @@ func TestReverseProxy(t *testing.T) {
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 
-	res, err := Get(frontend.URL)
+	getReq, _ := NewRequest("GET", frontend.URL, nil)
+	getReq.Host = "some-name"
+	res, err := DefaultClient.Do(getReq)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -42,6 +48,12 @@ func TestReverseProxy(t *testing.T) {
 	}
 	if g, e := res.Header.Get("X-Foo"), "bar"; g != e {
 		t.Errorf("got X-Foo %q; expected %q", g, e)
+	}
+	if g, e := len(res.SetCookie), 1; g != e {
+		t.Fatalf("got %d SetCookies, want %d", g, e)
+	}
+	if cookie := res.SetCookie[0]; cookie.Name != "flavor" {
+		t.Errorf("unexpected cookie %q", cookie.Name)
 	}
 	bodyBytes, _ := ioutil.ReadAll(res.Body)
 	if g, e := string(bodyBytes), backendResponse; g != e {

@@ -92,6 +92,10 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
 		}
 	}
 
+	for _, cookie := range res.SetCookie {
+		SetCookie(rw, cookie)
+	}
+
 	rw.WriteHeader(res.StatusCode)
 
 	if res.Body != nil {
