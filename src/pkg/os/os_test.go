@@ -296,7 +296,7 @@ func TestReaddirNValues(t *testing.T) {
 		t.Fatalf("TempDir: %v", err)
 	}
 	defer RemoveAll(dir)
-	for i := 1; i <= 20; i++ {
+	for i := 1; i <= 105; i++ {
 		f, err := Create(filepath.Join(dir, fmt.Sprintf("%d", i)))
 		if err != nil {
 			t.Fatalf("Create: %v", err)
@@ -335,18 +335,25 @@ func TestReaddirNValues(t *testing.T) {
 	}
 
 	for _, fn := range []func(int, int, Error){readDirExpect, readDirNamesExpect} {
-		// Test the -1 case
+		// Test the slurp case
 		openDir()
-		fn(-1, 20, nil)
+		fn(0, 105, nil)
+		fn(0, 0, nil)
+		d.Close()
+
+		// Slurp with -1 instead
+		openDir()
+		fn(-1, 105, nil)
 		fn(-2, 0, nil)
 		fn(0, 0, nil)
 		d.Close()
 
 		// Test the bounded case
 		openDir()
-		fn(19, 19, nil)
-		fn(18, 1, nil)
-		fn(17, 0, EOF)
+		fn(1, 1, nil)
+		fn(2, 2, nil)
+		fn(105, 102, nil) // and tests buffer >100 case
+		fn(3, 0, EOF)
 		d.Close()
 	}
 }
