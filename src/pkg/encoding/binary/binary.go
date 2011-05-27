@@ -125,37 +125,18 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // Bytes read from r are decoded using the specified byte order
 // and written to successive fields of the data.
 func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
-	// Fast path for basic types
-	var n int
-	switch data.(type) {
-	case *int8:
-		n = 1
-	case *uint8:
-		n = 1
-	case *int16:
-		n = 2
-	case *uint16:
-		n = 2
-	case *int32:
-		n = 4
-	case *uint32:
-		n = 4
-	case *int64:
-		n = 8
-	case *uint64:
-		n = 8
-	}
-	if n != 0 {
-		var buf [8]byte
-		bs := buf[:n]
+	// Fast path for basic types.
+	if n := intDestSize(data); n != 0 {
+		var b [8]byte
+		bs := b[:n]
 		if _, err := io.ReadFull(r, bs); err != nil {
 			return err
 		}
 		switch v := data.(type) {
 		case *int8:
-			*v = int8(buf[0])
+			*v = int8(b[0])
 		case *uint8:
-			*v = buf[0]
+			*v = b[0]
 		case *int16:
 			*v = int16(order.Uint16(bs))
 		case *uint16:
@@ -203,6 +184,63 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 // Bytes written to w are encoded using the specified byte order
 // and read from successive fields of the data.
 func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
+	// Fast path for basic types.
+	var b [8]byte
+	var bs []byte
+	switch v := data.(type) {
+	case *int8:
+		bs = b[:1]
+		b[0] = byte(*v)
+	case int8:
+		bs = b[:1]
+		b[0] = byte(v)
+	case *uint8:
+		bs = b[:1]
+		b[0] = *v
+	case uint8:
+		bs = b[:1]
+		b[0] = byte(v)
+	case *int16:
+		bs = b[:2]
+		order.PutUint16(bs, uint16(*v))
+	case int16:
+		bs = b[:2]
+		order.PutUint16(bs, uint16(v))
+	case *uint16:
+		bs = b[:2]
+		order.PutUint16(bs, *v)
+	case uint16:
+		bs = b[:2]
+		order.PutUint16(bs, v)
+	case *int32:
+		bs = b[:4]
+		order.PutUint32(bs, uint32(*v))
+	case int32:
+		bs = b[:4]
+		order.PutUint32(bs, uint32(v))
+	case *uint32:
+		bs = b[:4]
+		order.PutUint32(bs, *v)
+	case uint32:
+		bs = b[:4]
+		order.PutUint32(bs, v)
+	case *int64:
+		bs = b[:8]
+		order.PutUint64(bs, uint64(*v))
+	case int64:
+		bs = b[:8]
+		order.PutUint64(bs, uint64(v))
+	case *uint64:
+		bs = b[:8]
+		order.PutUint64(bs, *v)
+	case uint64:
+		bs = b[:8]
+		order.PutUint64(bs, v)
+	}
+	if bs != nil {
+		_, err := w.Write(bs)
+		return err
+	}
 	v := reflect.Indirect(reflect.ValueOf(data))
 	size := TotalSize(v)
 	if size < 0 {
@@ -441,4 +479,20 @@ func (e *encoder) value(v reflect.Value) {
 			e.uint64(math.Float64bits(imag(x)))
 		}
 	}
+}
+
+// intDestSize returns the size of the integer that ptrType points to,
+// or 0 if the type is not supported.
+func intDestSize(ptrType interface{}) int {
+	switch ptrType.(type) {
+	case *int8, *uint8:
+		return 1
+	case *int16, *uint16:
+		return 2
+	case *int32, *uint32:
+		return 4
+	case *int64, *uint64:
+		return 8
+	}
+	return 0
 }
