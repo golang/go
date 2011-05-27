@@ -918,7 +918,15 @@ func TestAppend(t *testing.T) {
 	}
 	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "new&append")
 	if s != "new&append" {
-		t.Fatalf("writeFile: have %q want %q", s, "new&append")
+		t.Fatalf("writeFile: after append have %q want %q", s, "new&append")
+	}
+	s = writeFile(t, f, O_CREATE|O_RDWR, "old")
+	if s != "old&append" {
+		t.Fatalf("writeFile: after create have %q want %q", s, "old&append")
+	}
+	s = writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
+	if s != "new" {
+		t.Fatalf("writeFile: after truncate have %q want %q", s, "new")
 	}
 }
 
