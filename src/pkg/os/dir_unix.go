@@ -32,11 +32,11 @@ func (f *File) Readdirnames(n int) (names []string, err Error) {
 		f.dirinfo.buf = make([]byte, blockSize)
 	}
 	d := f.dirinfo
-	wantAll := n <= 0
 
 	size := n
-	if size < 0 {
+	if size <= 0 {
 		size = 100
+		n = -1
 	}
 
 	names = make([]string, 0, size) // Empty with room to grow.
@@ -60,7 +60,7 @@ func (f *File) Readdirnames(n int) (names []string, err Error) {
 		d.bufp += nb
 		n -= nc
 	}
-	if !wantAll && len(names) == 0 {
+	if n >= 0 && len(names) == 0 {
 		return names, EOF
 	}
 	return names, nil
