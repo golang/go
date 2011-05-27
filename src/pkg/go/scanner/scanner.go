@@ -297,6 +297,10 @@ func (S *Scanner) scanNumber(seenDecimalPoint bool) token.Token {
 			// hexadecimal int
 			S.next()
 			S.scanMantissa(16)
+			if S.offset-offs <= 2 {
+				// only scanned "0x" or "0X"
+				S.error(offs, "illegal hexadecimal number")
+			}
 		} else {
 			// octal int or float
 			seenDecimalDigit := false

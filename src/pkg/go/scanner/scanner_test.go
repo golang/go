@@ -672,6 +672,8 @@ var errors = []struct {
 	{"078e0", token.FLOAT, 0, ""},
 	{"078", token.INT, 0, "illegal octal number"},
 	{"07800000009", token.INT, 0, "illegal octal number"},
+	{"0x", token.INT, 0, "illegal hexadecimal number"},
+	{"0X", token.INT, 0, "illegal hexadecimal number"},
 	{"\"abc\x00def\"", token.STRING, 4, "illegal character NUL"},
 	{"\"abc\x80def\"", token.STRING, 4, "illegal UTF-8 encoding"},
 }
