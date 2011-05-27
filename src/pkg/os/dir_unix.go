@@ -32,7 +32,7 @@ func (f *File) Readdirnames(n int) (names []string, err Error) {
 		f.dirinfo.buf = make([]byte, blockSize)
 	}
 	d := f.dirinfo
-	wantAll := n < 0
+	wantAll := n <= 0
 
 	size := n
 	if size < 0 {
