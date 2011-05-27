@@ -201,3 +201,35 @@ func BenchmarkRead(b *testing.B) {
 		panic("no match")
 	}
 }
+
+func BenchmarkWrite(b *testing.B) {
+	buf := new(bytes.Buffer)
+	var w io.Writer = buf
+
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Write(w, BigEndian, &s.Int8)
+		Write(w, BigEndian, &s.Int16)
+		Write(w, BigEndian, &s.Int32)
+		Write(w, BigEndian, &s.Int64)
+		Write(w, BigEndian, &s.Uint8)
+		Write(w, BigEndian, &s.Uint16)
+		Write(w, BigEndian, &s.Uint32)
+		Write(w, BigEndian, &s.Uint64)
+		Write(w, BigEndian, s.Int8)
+		Write(w, BigEndian, s.Int16)
+		Write(w, BigEndian, s.Int32)
+		Write(w, BigEndian, s.Int64)
+		Write(w, BigEndian, s.Uint8)
+		Write(w, BigEndian, s.Uint16)
+		Write(w, BigEndian, s.Uint32)
+		Write(w, BigEndian, s.Uint64)
+	}
+
+	if !bytes.Equal(buf.Bytes()[:30], big[:30]) {
+		panic("first half doesn't match")
+	}
+	if !bytes.Equal(buf.Bytes()[30:], big[:30]) {
+		panic("second half doesn't match")
+	}
+}
