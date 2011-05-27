@@ -371,6 +371,12 @@ func TestCreateParseDataFrame(t *testing.T) {
 }
 
 func TestCompressionContextAcrossFrames(t *testing.T) {
+	{
+		// TODO(willchan,bradfitz): test is temporarily disabled
+		t.Logf("test temporarily disabled; http://code.google.com/p/go/issues/detail?id=1884")
+		return
+	}
+
 	buffer := new(bytes.Buffer)
 	framer, err := NewFramer(buffer, buffer)
 	if err != nil {
@@ -405,7 +411,7 @@ func TestCompressionContextAcrossFrames(t *testing.T) {
 	}
 	parsedHeadersFrame, ok := frame.(*HeadersFrame)
 	if !ok {
-		t.Fatal("Parsed incorrect frame type:", frame)
+		t.Fatalf("expected HeadersFrame; got %T %v", frame, frame)
 	}
 	if !reflect.DeepEqual(headersFrame, *parsedHeadersFrame) {
 		t.Fatal("got: ", *parsedHeadersFrame, "\nwant: ", headersFrame)
@@ -416,7 +422,7 @@ func TestCompressionContextAcrossFrames(t *testing.T) {
 	}
 	parsedSynStreamFrame, ok := frame.(*SynStreamFrame)
 	if !ok {
-		t.Fatal("Parsed incorrect frame type:", frame)
+		t.Fatalf("expected SynStreamFrame; got %T %v", frame, frame)
 	}
 	if !reflect.DeepEqual(synStreamFrame, *parsedSynStreamFrame) {
 		t.Fatal("got: ", *parsedSynStreamFrame, "\nwant: ", synStreamFrame)
@@ -424,6 +430,12 @@ func TestCompressionContextAcrossFrames(t *testing.T) {
 }
 
 func TestMultipleSPDYFrames(t *testing.T) {
+	{
+		// TODO(willchan,bradfitz): test is temporarily disabled
+		t.Logf("test temporarily disabled; http://code.google.com/p/go/issues/detail?id=1884")
+		return
+	}
+
 	// Initialize the framers.
 	pr1, pw1 := io.Pipe()
 	pr2, pw2 := io.Pipe()
