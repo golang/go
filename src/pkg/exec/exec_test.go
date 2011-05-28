@@ -39,7 +39,7 @@ func TestRunCat(t *testing.T) {
 }
 
 func TestRunEcho(t *testing.T) {
-	cmd, err := run([]string{"sh", "-c", "echo hello world"},
+	cmd, err := run([]string{"bash", "-c", "echo hello world"},
 		DevNull, Pipe, DevNull)
 	if err != nil {
 		t.Fatal("run:", err)
@@ -57,7 +57,7 @@ func TestRunEcho(t *testing.T) {
 }
 
 func TestStderr(t *testing.T) {
-	cmd, err := run([]string{"sh", "-c", "echo hello world 1>&2"},
+	cmd, err := run([]string{"bash", "-c", "echo hello world 1>&2"},
 		DevNull, DevNull, Pipe)
 	if err != nil {
 		t.Fatal("run:", err)
@@ -75,7 +75,7 @@ func TestStderr(t *testing.T) {
 }
 
 func TestMergeWithStdout(t *testing.T) {
-	cmd, err := run([]string{"sh", "-c", "echo hello world 1>&2"},
+	cmd, err := run([]string{"bash", "-c", "echo hello world 1>&2"},
 		DevNull, Pipe, MergeWithStdout)
 	if err != nil {
 		t.Fatal("run:", err)
@@ -97,7 +97,7 @@ func TestAddEnvVar(t *testing.T) {
 	if err != nil {
 		t.Fatal("setenv:", err)
 	}
-	cmd, err := run([]string{"sh", "-c", "echo $NEWVAR"},
+	cmd, err := run([]string{"bash", "-c", "echo $NEWVAR"},
 		DevNull, Pipe, DevNull)
 	if err != nil {
 		t.Fatal("run:", err)

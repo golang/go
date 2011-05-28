@@ -285,8 +285,8 @@ func doRun(argv []string, returnStdout bool) string {
 			}
 			cmd += `"` + v + `"`
 		}
-		command = "sh"
-		argv = []string{"sh", "-c", cmd}
+		command = "bash"
+		argv = []string{"bash", "-c", cmd}
 	}
 	var err os.Error
 	argv[0], err = exec.LookPath(argv[0])
