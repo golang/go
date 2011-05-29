@@ -4,20 +4,11 @@
 
 package filepath
 
-const (
-	Separator     = '\\' // OS-specific path separator
-	ListSeparator = ':'  // OS-specific path list separator
-)
-
-// isSeparator returns true if c is a directory separator character.
-func isSeparator(c uint8) bool {
-	// NOTE: Windows accept / as path separator.
-	return c == '\\' || c == '/'
-}
+import "os"
 
 // IsAbs returns true if the path is absolute.
 func IsAbs(path string) bool {
-	return path != "" && (volumeName(path) != "" || isSeparator(path[0]))
+	return path != "" && (volumeName(path) != "" || os.IsPathSeparator(path[0]))
 }
 
 // volumeName return leading volume name.  
@@ -28,7 +19,7 @@ func volumeName(path string) string {
 	}
 	// with drive letter
 	c := path[0]
-	if len(path) > 2 && path[1] == ':' && isSeparator(path[2]) &&
+	if len(path) > 2 && path[1] == ':' && os.IsPathSeparator(path[2]) &&
 		('0' <= c && c <= '9' || 'a' <= c && c <= 'z' ||
 			'A' <= c && c <= 'Z') {
 		return path[0:2]
