@@ -395,10 +395,11 @@ func words(buf []byte) []string {
 			} else {
 				i++
 			}
-		} else {
-			for i < len(buf) && !white(buf[i]) {
-				i++
-			}
+		}
+		// Even with quotes, break on whitespace only.  This will
+		// work with e.g. {""|} and catch quoting mistakes properly.
+		for i < len(buf) && !white(buf[i]) {
+			i++
 		}
 		s = append(s, string(buf[start:i]))
 	}
