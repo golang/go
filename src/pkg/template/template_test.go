@@ -762,6 +762,10 @@ var formatterTests = []Test{
 		in:  `{"%.02f 0x%02X" 1.1 10|printf}`,
 		out: "1.10 0x0A",
 	},
+	{
+		in:  `{""|}{""||}{""|printf}`, // Issue #1896.
+		out: "",
+	},
 }
 
 func TestFormatters(t *testing.T) {
