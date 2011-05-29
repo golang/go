@@ -15,6 +15,8 @@ import (
 )
 
 const (
+	Separator           = os.PathSeparator
+	ListSeparator       = os.PathListSeparator
 	SeparatorString     = string(Separator)
 	ListSeparatorString = string(ListSeparator)
 )
@@ -61,20 +63,20 @@ func Clean(path string) string {
 
 	for r < n {
 		switch {
-		case isSeparator(path[r]):
+		case os.IsPathSeparator(path[r]):
 			// empty path element
 			r++
-		case path[r] == '.' && (r+1 == n || isSeparator(path[r+1])):
+		case path[r] == '.' && (r+1 == n || os.IsPathSeparator(path[r+1])):
 			// . element
 			r++
-		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || isSeparator(path[r+2])):
+		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || os.IsPathSeparator(path[r+2])):
 			// .. element: remove to last separator
 			r += 2
 			switch {
 			case w > dotdot:
 				// can backtrack
 				w--
-				for w > dotdot && !isSeparator(buf[w]) {
+				for w > dotdot && !os.IsPathSeparator(buf[w]) {
 					w--
 				}
 			case !rooted:
@@ -97,7 +99,7 @@ func Clean(path string) string {
 				w++
 			}
 			// copy element
-			for ; r < n && !isSeparator(path[r]); r++ {
+			for ; r < n && !os.IsPathSeparator(path[r]); r++ {
 				buf[w] = path[r]
 				w++
 			}
@@ -145,7 +147,7 @@ func SplitList(path string) []string {
 // and file set to path.
 func Split(path string) (dir, file string) {
 	i := len(path) - 1
-	for i >= 0 && !isSeparator(path[i]) {
+	for i >= 0 && !os.IsPathSeparator(path[i]) {
 		i--
 	}
 	return path[:i+1], path[i+1:]
@@ -167,7 +169,7 @@ func Join(elem ...string) string {
 // in the final element of path; it is empty if there is
 // no dot.
 func Ext(path string) string {
-	for i := len(path) - 1; i >= 0 && !isSeparator(path[i]); i-- {
+	for i := len(path) - 1; i >= 0 && !os.IsPathSeparator(path[i]); i-- {
 		if path[i] == '.' {
 			return path[i:]
 		}
@@ -339,12 +341,12 @@ func Base(path string) string {
 		return "."
 	}
 	// Strip trailing slashes.
-	for len(path) > 0 && isSeparator(path[len(path)-1]) {
+	for len(path) > 0 && os.IsPathSeparator(path[len(path)-1]) {
 		path = path[0 : len(path)-1]
 	}
 	// Find the last element
 	i := len(path) - 1
-	for i >= 0 && !isSeparator(path[i]) {
+	for i >= 0 && !os.IsPathSeparator(path[i]) {
 		i--
 	}
 	if i >= 0 {

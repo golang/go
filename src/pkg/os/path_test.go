@@ -6,6 +6,7 @@ package os_test
 
 import (
 	. "os"
+	"path/filepath"
 	"testing"
 	"runtime"
 	"syscall"
@@ -44,8 +45,8 @@ func TestMkdirAll(t *testing.T) {
 	if !ok {
 		t.Fatalf("MkdirAll %q returned %T, not *PathError", fpath, err)
 	}
-	if perr.Path != fpath {
-		t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", fpath, perr.Path, fpath)
+	if filepath.Clean(perr.Path) != filepath.Clean(fpath) {
+		t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", fpath, filepath.Clean(perr.Path), filepath.Clean(fpath))
 	}
 
 	// Can't make subdirectory of file.
@@ -58,8 +59,16 @@ func TestMkdirAll(t *testing.T) {
 	if !ok {
 		t.Fatalf("MkdirAll %q returned %T, not *PathError", ffpath, err)
 	}
-	if perr.Path != fpath {
-		t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", ffpath, perr.Path, fpath)
+	if filepath.Clean(perr.Path) != filepath.Clean(fpath) {
+		t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", ffpath, filepath.Clean(perr.Path), filepath.Clean(fpath))
+	}
+
+	if syscall.OS == "windows" {
+		path := `_test\_TestMkdirAll_\dir\.\dir2\`
+		err := MkdirAll(path, 0777)
+		if err != nil {
+			t.Fatalf("MkdirAll %q: %s", path, err)
+		}
 	}
 }
 
