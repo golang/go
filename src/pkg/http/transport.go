@@ -42,11 +42,16 @@ type Transport struct {
 	// TODO: tunable on timeout on cached connections
 	// TODO: optional pipelining
 
-	// Proxy optionally specifies a function to return a proxy for
-	// a given Request. If the function returns a non-nil error,
-	// the request is aborted with the provided error. If Proxy is
-	// nil or returns a nil *URL, no proxy is used.
+	// Proxy specifies a function to return a proxy for a given
+	// Request. If the function returns a non-nil error, the
+	// request is aborted with the provided error.
+	// If Proxy is nil or returns a nil *URL, no proxy is used.
 	Proxy func(*Request) (*URL, os.Error)
+
+	// Dial specifies the dial function for creating TCP
+	// connections.
+	// If Dial is nil, net.Dial is used.
+	Dial func(net, addr string) (c net.Conn, err os.Error)
 
 	DisableKeepAlives  bool
 	DisableCompression bool
@@ -255,6 +260,13 @@ func (t *Transport) getIdleConn(cm *connectMethod) (pconn *persistConn) {
 	return
 }
 
+func (t *Transport) dial(network, addr string) (c net.Conn, err os.Error) {
+	if t.Dial != nil {
+		return t.Dial(network, addr)
+	}
+	return net.Dial(network, addr)
+}
+
 // getConn dials and creates a new persistConn to the target as
 // specified in the connectMethod.  This includes doing a proxy CONNECT
 // and/or setting up TLS.  If this doesn't return an error, the persistConn
@@ -264,7 +276,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
 		return pc, nil
 	}
 
-	conn, err := net.Dial("tcp", cm.addr())
+	conn, err := t.dial("tcp", cm.addr())
 	if err != nil {
 		if cm.proxyURL != nil {
 			err = fmt.Errorf("http: error connecting to proxy %s: %v", cm.proxyURL, err)
