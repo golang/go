@@ -236,8 +236,8 @@ func isExported(name string) bool {
 
 // -- Lexical analysis
 
-// Is c a white space character?
-func white(c uint8) bool { return c == ' ' || c == '\t' || c == '\r' || c == '\n' }
+// Is c a space character?
+func isSpace(c uint8) bool { return c == ' ' || c == '\t' || c == '\r' || c == '\n' }
 
 // Safely, does s[n:n+len(t)] == t?
 func equal(s []byte, n int, t []byte) bool {
@@ -292,9 +292,9 @@ func (t *Template) nextItem() []byte {
 		t.linenum++
 		i++
 	}
-	// Leading white space up to but not including newline
+	// Leading space up to but not including newline
 	for i = start; i < len(t.buf); i++ {
-		if t.buf[i] == '\n' || !white(t.buf[i]) {
+		if t.buf[i] == '\n' || !isSpace(t.buf[i]) {
 			break
 		}
 	}
@@ -339,7 +339,7 @@ func (t *Template) nextItem() []byte {
 			firstChar := t.buf[left+len(t.ldelim)]
 			if firstChar == '.' || firstChar == '#' {
 				// It's special and the first thing on the line. Is it the last?
-				for j := right; j < len(t.buf) && white(t.buf[j]); j++ {
+				for j := right; j < len(t.buf) && isSpace(t.buf[j]); j++ {
 					if t.buf[j] == '\n' {
 						// Yes it is. Drop the surrounding space and return the {.foo}
 						t.linenum++
@@ -351,7 +351,7 @@ func (t *Template) nextItem() []byte {
 		}
 		// No it's not. If there's leading space, return that.
 		if leadingSpace {
-			// not trimming space: return leading white space if there is some.
+			// not trimming space: return leading space if there is some.
 			t.p = left
 			return t.buf[start:left]
 		}
@@ -374,13 +374,13 @@ func (t *Template) nextItem() []byte {
 	return item
 }
 
-// Turn a byte array into a white-space-split array of strings,
+// Turn a byte array into a space-split array of strings,
 // taking into account quoted strings.
 func words(buf []byte) []string {
 	s := make([]string, 0, 5)
 	for i := 0; i < len(buf); {
 		// One word per loop
-		for i < len(buf) && white(buf[i]) {
+		for i < len(buf) && isSpace(buf[i]) {
 			i++
 		}
 		if i == len(buf) {
@@ -396,9 +396,9 @@ func words(buf []byte) []string {
 				i++
 			}
 		}
-		// Even with quotes, break on whitespace only.  This will
-		// work with e.g. {""|} and catch quoting mistakes properly.
-		for i < len(buf) && !white(buf[i]) {
+		// Even with quotes, break on space only.  This handles input
+		// such as {""|} and catches quoting mistakes.
+		for i < len(buf) && !isSpace(buf[i]) {
 			i++
 		}
 		s = append(s, string(buf[start:i]))
@@ -1013,13 +1013,13 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 	}
 }
 
-// A valid delimiter must contain no white space and be non-empty.
+// A valid delimiter must contain no space and be non-empty.
 func validDelim(d []byte) bool {
 	if len(d) == 0 {
 		return false
 	}
 	for _, c := range d {
-		if white(c) {
+		if isSpace(c) {
 			return false
 		}
 	}
