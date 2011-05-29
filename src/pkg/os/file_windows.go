@@ -145,9 +145,10 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
 		return nil, &PathError{"Readdir", file.name, ENOTDIR}
 	}
 	di := file.dirinfo
-	wantAll := n < 0
+	wantAll := n <= 0
 	size := n
-	if size < 0 {
+	if wantAll {
+		n = -1
 		size = 100
 	}
 	fi = make([]FileInfo, 0, size) // Empty with room to grow.
