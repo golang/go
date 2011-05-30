@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 )
 
@@ -17,6 +18,10 @@ import (
 func run(envv []string, dir string, argv ...string) os.Error {
 	if *verbose {
 		log.Println("run", argv)
+	}
+	if runtime.GOOS == "windows" && isBash(argv[0]) {
+		// shell script cannot be executed directly on Windows.
+		argv = append([]string{"bash", "-c"}, argv...)
 	}
 	bin, err := lookPath(argv[0])
 	if err != nil {
@@ -35,6 +40,10 @@ func run(envv []string, dir string, argv ...string) os.Error {
 func runLog(envv []string, logfile, dir string, argv ...string) (output string, exitStatus int, err os.Error) {
 	if *verbose {
 		log.Println("runLog", argv)
+	}
+	if runtime.GOOS == "windows" && isBash(argv[0]) {
+		// shell script cannot be executed directly on Windows.
+		argv = append([]string{"bash", "-c"}, argv...)
 	}
 	bin, err := lookPath(argv[0])
 	if err != nil {
@@ -73,4 +82,10 @@ func lookPath(cmd string) (string, os.Error) {
 		return cmd, nil
 	}
 	return exec.LookPath(cmd)
+}
+
+// isBash determines if name refers to a shell script.
+func isBash(name string) bool {
+	// TODO(brainman): perhaps it is too simple and needs better check.
+	return strings.HasSuffix(name, ".bash")
 }

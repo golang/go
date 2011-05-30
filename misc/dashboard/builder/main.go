@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -347,6 +348,9 @@ func (b *Builder) buildHash(hash string) (err os.Error) {
 
 // envv returns an environment for build/bench execution
 func (b *Builder) envv() []string {
+	if runtime.GOOS == "windows" {
+		return b.envvWindows()
+	}
 	e := []string{
 		"GOOS=" + b.goos,
 		"GOARCH=" + b.goarch,
@@ -354,6 +358,42 @@ func (b *Builder) envv() []string {
 	}
 	for _, k := range extraEnv {
 		e = append(e, k+"="+os.Getenv(k))
+	}
+	return e
+}
+
+// windows version of envv
+func (b *Builder) envvWindows() []string {
+	start := map[string]string{
+		"GOOS":         b.goos,
+		"GOARCH":       b.goarch,
+		"GOROOT_FINAL": "/c/go",
+	}
+	for _, name := range extraEnv {
+		start[name] = os.Getenv(name)
+	}
+	skip := map[string]bool{
+		"GOBIN":   true,
+		"GOROOT":  true,
+		"INCLUDE": true,
+		"LIB":     true,
+	}
+	var e []string
+	for name, v := range start {
+		e = append(e, name+"="+v)
+		skip[name] = true
+	}
+	for _, kv := range os.Environ() {
+		s := strings.Split(kv, "=", 2)
+		name := strings.ToUpper(s[0])
+		switch {
+		case name == "":
+			// variables, like "=C:=C:\", just copy them
+			e = append(e, kv)
+		case !skip[name]:
+			e = append(e, kv)
+			skip[name] = true
+		}
 	}
 	return e
 }
