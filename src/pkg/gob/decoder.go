@@ -155,8 +155,8 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 // Decode reads the next value from the connection and stores
 // it in the data represented by the empty interface value.
 // If e is nil, the value will be discarded. Otherwise,
-// the value underlying e must either be the correct type for the next
-// data item received, and must be a pointer.
+// the value underlying e must be a pointer to the
+// correct type for the next data item received.
 func (dec *Decoder) Decode(e interface{}) os.Error {
 	if e == nil {
 		return dec.DecodeValue(reflect.Value{})
