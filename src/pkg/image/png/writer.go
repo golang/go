@@ -174,7 +174,7 @@ func (e *encoder) Write(b []byte) (int, os.Error) {
 
 // Chooses the filter to use for encoding the current row, and applies it.
 // The return value is the index of the filter and also of the row in cr that has had it applied.
-func filter(cr [][]byte, pr []byte, bpp int) int {
+func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
 	// We try all five filter types, and pick the one that minimizes the sum of absolute differences.
 	// This is the same heuristic that libpng uses, although the filters are attempted in order of
 	// estimated most likely to be minimal (ftUp, ftPaeth, ftNone, ftSub, ftAverage), rather than
@@ -304,7 +304,7 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
 	// The +1 is for the per-row filter type, which is at cr[*][0].
 	b := m.Bounds()
 	var cr [nFilter][]uint8
-	for i := 0; i < len(cr); i++ {
+	for i := range cr {
 		cr[i] = make([]uint8, 1+bpp*b.Dx())
 		cr[i][0] = uint8(i)
 	}
@@ -312,78 +312,84 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
 
 	for y := b.Min.Y; y < b.Max.Y; y++ {
 		// Convert from colors to bytes.
+		i := 1
 		switch cb {
 		case cbG8:
 			for x := b.Min.X; x < b.Max.X; x++ {
 				c := image.GrayColorModel.Convert(m.At(x, y)).(image.GrayColor)
-				cr[0][x+1] = c.Y
+				cr[0][i] = c.Y
+				i++
 			}
 		case cbTC8:
 			// We have previously verified that the alpha value is fully opaque.
 			cr0 := cr[0]
 			if rgba != nil {
 				yoff := y * rgba.Stride
-				xoff := 3*b.Min.X + 1
 				for _, color := range rgba.Pix[yoff+b.Min.X : yoff+b.Max.X] {
-					cr0[xoff] = color.R
-					cr0[xoff+1] = color.G
-					cr0[xoff+2] = color.B
-					xoff += 3
+					cr0[i+0] = color.R
+					cr0[i+1] = color.G
+					cr0[i+2] = color.B
+					i += 3
 				}
 			} else {
 				for x := b.Min.X; x < b.Max.X; x++ {
 					r, g, b, _ := m.At(x, y).RGBA()
-					cr0[3*x+1] = uint8(r >> 8)
-					cr0[3*x+2] = uint8(g >> 8)
-					cr0[3*x+3] = uint8(b >> 8)
+					cr0[i+0] = uint8(r >> 8)
+					cr0[i+1] = uint8(g >> 8)
+					cr0[i+2] = uint8(b >> 8)
+					i += 3
 				}
 			}
 		case cbP8:
 			rowOffset := y * paletted.Stride
-			copy(cr[0][b.Min.X+1:], paletted.Pix[rowOffset+b.Min.X:rowOffset+b.Max.X])
+			copy(cr[0][1:], paletted.Pix[rowOffset+b.Min.X:rowOffset+b.Max.X])
 		case cbTCA8:
 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
 			for x := b.Min.X; x < b.Max.X; x++ {
 				c := image.NRGBAColorModel.Convert(m.At(x, y)).(image.NRGBAColor)
-				cr[0][4*x+1] = c.R
-				cr[0][4*x+2] = c.G
-				cr[0][4*x+3] = c.B
-				cr[0][4*x+4] = c.A
+				cr[0][i+0] = c.R
+				cr[0][i+1] = c.G
+				cr[0][i+2] = c.B
+				cr[0][i+3] = c.A
+				i += 4
 			}
 		case cbG16:
 			for x := b.Min.X; x < b.Max.X; x++ {
 				c := image.Gray16ColorModel.Convert(m.At(x, y)).(image.Gray16Color)
-				cr[0][2*x+1] = uint8(c.Y >> 8)
-				cr[0][2*x+2] = uint8(c.Y)
+				cr[0][i+0] = uint8(c.Y >> 8)
+				cr[0][i+1] = uint8(c.Y)
+				i += 2
 			}
 		case cbTC16:
+			// We have previously verified that the alpha value is fully opaque.
 			for x := b.Min.X; x < b.Max.X; x++ {
-				// We have previously verified that the alpha value is fully opaque.
 				r, g, b, _ := m.At(x, y).RGBA()
-				cr[0][6*x+1] = uint8(r >> 8)
-				cr[0][6*x+2] = uint8(r)
-				cr[0][6*x+3] = uint8(g >> 8)
-				cr[0][6*x+4] = uint8(g)
-				cr[0][6*x+5] = uint8(b >> 8)
-				cr[0][6*x+6] = uint8(b)
+				cr[0][i+0] = uint8(r >> 8)
+				cr[0][i+1] = uint8(r)
+				cr[0][i+2] = uint8(g >> 8)
+				cr[0][i+3] = uint8(g)
+				cr[0][i+4] = uint8(b >> 8)
+				cr[0][i+5] = uint8(b)
+				i += 6
 			}
 		case cbTCA16:
 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
 			for x := b.Min.X; x < b.Max.X; x++ {
 				c := image.NRGBA64ColorModel.Convert(m.At(x, y)).(image.NRGBA64Color)
-				cr[0][8*x+1] = uint8(c.R >> 8)
-				cr[0][8*x+2] = uint8(c.R)
-				cr[0][8*x+3] = uint8(c.G >> 8)
-				cr[0][8*x+4] = uint8(c.G)
-				cr[0][8*x+5] = uint8(c.B >> 8)
-				cr[0][8*x+6] = uint8(c.B)
-				cr[0][8*x+7] = uint8(c.A >> 8)
-				cr[0][8*x+8] = uint8(c.A)
+				cr[0][i+0] = uint8(c.R >> 8)
+				cr[0][i+1] = uint8(c.R)
+				cr[0][i+2] = uint8(c.G >> 8)
+				cr[0][i+3] = uint8(c.G)
+				cr[0][i+4] = uint8(c.B >> 8)
+				cr[0][i+5] = uint8(c.B)
+				cr[0][i+6] = uint8(c.A >> 8)
+				cr[0][i+7] = uint8(c.A)
+				i += 8
 			}
 		}
 
 		// Apply the filter.
-		f := filter(cr[0:nFilter], pr, bpp)
+		f := filter(&cr, pr, bpp)
 
 		// Write the compressed bytes.
 		_, err = zw.Write(cr[f])

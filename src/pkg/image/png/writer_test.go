@@ -5,9 +5,9 @@
 package png
 
 import (
+	"bytes"
 	"fmt"
 	"image"
-	"io"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -15,19 +15,36 @@ import (
 
 func diff(m0, m1 image.Image) os.Error {
 	b0, b1 := m0.Bounds(), m1.Bounds()
-	if !b0.Eq(b1) {
+	if !b0.Size().Eq(b1.Size()) {
 		return fmt.Errorf("dimensions differ: %v vs %v", b0, b1)
 	}
+	dx := b1.Min.X - b0.Min.X
+	dy := b1.Min.Y - b0.Min.Y
 	for y := b0.Min.Y; y < b0.Max.Y; y++ {
 		for x := b0.Min.X; x < b0.Max.X; x++ {
-			r0, g0, b0, a0 := m0.At(x, y).RGBA()
-			r1, g1, b1, a1 := m1.At(x, y).RGBA()
+			c0 := m0.At(x, y)
+			c1 := m1.At(x+dx, y+dy)
+			r0, g0, b0, a0 := c0.RGBA()
+			r1, g1, b1, a1 := c1.RGBA()
 			if r0 != r1 || g0 != g1 || b0 != b1 || a0 != a1 {
-				return fmt.Errorf("colors differ at (%d, %d): %v vs %v", x, y, m0.At(x, y), m1.At(x, y))
+				return fmt.Errorf("colors differ at (%d, %d): %v vs %v", x, y, c0, c1)
 			}
 		}
 	}
 	return nil
+}
+
+func encodeDecode(m image.Image) (image.Image, os.Error) {
+	b := bytes.NewBuffer(nil)
+	err := Encode(b, m)
+	if err != nil {
+		return nil, err
+	}
+	m, err = Decode(b)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func TestWriter(t *testing.T) {
@@ -44,26 +61,16 @@ func TestWriter(t *testing.T) {
 			t.Error(fn, err)
 			continue
 		}
-		// Read the image again, and push it through a pipe that encodes at the write end, and decodes at the read end.
-		pr, pw := io.Pipe()
-		defer pr.Close()
-		go func() {
-			defer pw.Close()
-			m1, err := readPng(qfn)
-			if err != nil {
-				t.Error(fn, err)
-				return
-			}
-			err = Encode(pw, m1)
-			if err != nil {
-				t.Error(fn, err)
-				return
-			}
-		}()
-		m2, err := Decode(pr)
+		// Read the image again, encode it, and decode it.
+		m1, err := readPng(qfn)
 		if err != nil {
 			t.Error(fn, err)
-			continue
+			return
+		}
+		m2, err := encodeDecode(m1)
+		if err != nil {
+			t.Error(fn, err)
+			return
 		}
 		// Compare the two.
 		err = diff(m0, m2)
@@ -71,6 +78,26 @@ func TestWriter(t *testing.T) {
 			t.Error(fn, err)
 			continue
 		}
+	}
+}
+
+func TestSubimage(t *testing.T) {
+	m0 := image.NewRGBA(256, 256)
+	for y := 0; y < 256; y++ {
+		for x := 0; x < 256; x++ {
+			m0.Set(x, y, image.RGBAColor{uint8(x), uint8(y), 0, 255})
+		}
+	}
+	m0.Rect = image.Rect(50, 30, 250, 130)
+	m1, err := encodeDecode(m0)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = diff(m0, m1)
+	if err != nil {
+		t.Error(err)
+		return
 	}
 }
 
