@@ -21,12 +21,12 @@ import (
 func domake(dir, pkg string, root *pkgroot, local, isCmd bool) (err os.Error) {
 	needMakefile := true
 	if local {
-		_, err := os.Stat(dir + "/Makefile")
+		_, err := os.Stat(filepath.Join(dir, "Makefile"))
 		if err == nil {
 			needMakefile = false
 		}
 	}
-	cmd := []string{"gomake"}
+	cmd := []string{"bash", "gomake"}
 	var makefile []byte
 	if needMakefile {
 		if makefile, err = makeMakefile(dir, pkg, root, isCmd); err != nil {
