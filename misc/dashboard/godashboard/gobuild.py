@@ -12,15 +12,12 @@ from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp.util import run_wsgi_app
-import binascii
 import datetime
 import hashlib
 import hmac
 import logging
 import os
 import re
-import struct
-import time
 import bz2
 
 # local imports
@@ -346,16 +343,98 @@ class Build(webapp.RequestHandler):
         key = 'todo-%s' % builder
         memcache.delete(key)
 
-        # TODO: Send mail for build breakage.
+        c = getBrokenCommit(node, builder)
+        if c is not None and not c.fail_notification_sent:
+            notifyBroken(c, builder)
 
         self.response.set_status(200)
 
-def failed(c, builder):
+
+def getBrokenCommit(node, builder):
+    """
+    getBrokenCommit returns a Commit that breaks the build.
+    The Commit will be either the one specified by node or the one after.
+    """
+
+    # Squelch mail if already fixed.
+    head = firstResult(builder)
+    if broken(head, builder) == False:
+        return
+
+    # Get current node and node before, after.
+    cur = nodeByHash(node)
+    if cur is None:
+        return
+    before = nodeBefore(cur)
+    after = nodeAfter(cur)
+
+    if broken(before, builder) == False and broken(cur, builder):
+        return cur
+    if broken(cur, builder) == False and broken(after, builder):
+        return after
+
+    return
+
+def firstResult(builder):
+    q = Commit.all().order('-__key__').limit(20)
+    for c in q:
+        for i, b in enumerate(c.builds):
+            p = b.split('`', 1)
+            if p[0] == builder:
+                return c
+    return None
+
+def nodeBefore(c):
+    return nodeByHash(c.parentnode)
+
+def nodeAfter(c):
+    return Commit.all().filter('parenthash', c.node).get()
+
+def notifyBroken(c, builder):
+    def send():
+        n = Commit.get_by_key_name('%08x-%s' % (c.num, c.node))
+	if n.fail_notification_sent:
+		return False
+        n.fail_notification_sent = True
+        return n.put()
+    if not db.run_in_transaction(send):
+	return
+
+    subject = const.mail_fail_subject % (builder, c.desc.split('\n')[0])
+    path = os.path.join(os.path.dirname(__file__), 'fail-notify.txt')
+    body = template.render(path, {
+        "builder": builder,
+        "node": c.node,
+        "user": c.user,
+        "desc": c.desc,
+        "loghash": logHash(c, builder)
+    })
+    mail.send_mail(
+        sender=const.mail_from,
+        to=const.mail_fail_to,
+        subject=subject,
+        body=body
+    )
+
+def logHash(c, builder):
+    for i, b in enumerate(c.builds):
+        p = b.split('`', 1)
+        if p[0] == builder:
+            return p[1]
+    return ""
+
+def broken(c, builder):
+    """
+    broken returns True if commit c breaks the build for the specified builder,
+    False if it is a good build, and None if no results exist for this builder.
+    """
+    if c is None:
+        return None
     for i, b in enumerate(c.builds):
         p = b.split('`', 1)
         if p[0] == builder:
             return len(p[1]) > 0
-    return False
+    return None
 
 def node(num):
     q = Commit.all()
