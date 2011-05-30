@@ -13,7 +13,7 @@
 "       replacing the buffer with stderr output.
 "
 
-command! Fmt call s:GoFormat()
+command! -buffer Fmt call s:GoFormat()
 
 function! s:GoFormat()
     let view = winsaveview()
