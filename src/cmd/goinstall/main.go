@@ -131,6 +131,11 @@ func logPackage(pkg string) {
 
 // install installs the package named by path, which is needed by parent.
 func install(pkg, parent string) {
+	if isStandardPath(pkg) {
+		visit[pkg] = done
+		return
+	}
+
 	// Make sure we're not already trying to install pkg.
 	switch visit[pkg] {
 	case done:
@@ -159,9 +164,6 @@ func install(pkg, parent string) {
 	}
 	if isLocalPath(pkg) {
 		dir = pkg
-		local = true
-	} else if isStandardPath(pkg) {
-		dir = filepath.Join(root, filepath.FromSlash(pkg))
 		local = true
 	} else {
 		proot = findPkgroot(pkg)
