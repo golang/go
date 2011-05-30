@@ -70,7 +70,7 @@ def upload(file, project_name, user_name, password, summary, labels=None):
 
   Returns: a tuple:
     http_status: 201 if the upload succeeded, something else if an
-                 error occured.
+                 error occurred.
     http_reason: The human-readable string associated with http_status
     file_url: If the upload succeeded, the URL of the file on Google
               Code, None otherwise.

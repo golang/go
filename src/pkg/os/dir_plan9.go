@@ -142,7 +142,7 @@ func pdir(b []byte, d *Dir) []byte {
 	return b
 }
 
-// UnmarshalDir reads a 9P Stat message from a 9P protocol message strored in b,
+// UnmarshalDir reads a 9P Stat message from a 9P protocol message stored in b,
 // returning the corresponding Dir struct.
 func UnmarshalDir(b []byte) (d *Dir, err Error) {
 	n := uint16(0)
@@ -172,7 +172,7 @@ func UnmarshalDir(b []byte) (d *Dir, err Error) {
 	return d, nil
 }
 
-// gqid reads the qid part of a 9P Stat message from a 9P protocol message strored in b,
+// gqid reads the qid part of a 9P Stat message from a 9P protocol message stored in b,
 // returning the corresponding Qid struct and the remaining slice of b.
 func gqid(b []byte) (Qid, []byte) {
 	var q Qid
@@ -190,25 +190,25 @@ func pqid(b []byte, q Qid) []byte {
 	return b
 }
 
-// gbit8 reads a byte-sized numeric value from a 9P protocol message strored in b,
+// gbit8 reads a byte-sized numeric value from a 9P protocol message stored in b,
 // returning the value and the remaining slice of b.
 func gbit8(b []byte) (uint8, []byte) {
 	return uint8(b[0]), b[1:]
 }
 
-// gbit16 reads a 16-bit numeric value from a 9P protocol message strored in b,
+// gbit16 reads a 16-bit numeric value from a 9P protocol message stored in b,
 // returning the value and the remaining slice of b.
 func gbit16(b []byte) (uint16, []byte) {
 	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
 }
 
-// gbit32 reads a 32-bit numeric value from a 9P protocol message strored in b,
+// gbit32 reads a 32-bit numeric value from a 9P protocol message stored in b,
 // returning the value and the remaining slice of b.
 func gbit32(b []byte) (uint32, []byte) {
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24, b[4:]
 }
 
-// gbit64 reads a 64-bit numeric value from a 9P protocol message strored in b,
+// gbit64 reads a 64-bit numeric value from a 9P protocol message stored in b,
 // returning the value and the remaining slice of b.
 func gbit64(b []byte) (uint64, []byte) {
 	lo, b := gbit32(b)
@@ -216,7 +216,7 @@ func gbit64(b []byte) (uint64, []byte) {
 	return uint64(hi)<<32 | uint64(lo), b
 }
 
-// gstring reads a string from a 9P protocol message strored in b,
+// gstring reads a string from a 9P protocol message stored in b,
 // returning the value as a Go string and the remaining slice of b.
 func gstring(b []byte) (string, []byte) {
 	n, b := gbit16(b)

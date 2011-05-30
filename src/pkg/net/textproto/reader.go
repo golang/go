@@ -237,7 +237,7 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err os.
 // to a method on r.
 //
 // Dot encoding is a common framing used for data blocks
-// in text protcols like SMTP.  The data consists of a sequence
+// in text protocols such as SMTP.  The data consists of a sequence
 // of lines, each of which ends in "\r\n".  The sequence itself
 // ends at a line containing just a dot: ".\r\n".  Lines beginning
 // with a dot are escaped with an additional dot to avoid

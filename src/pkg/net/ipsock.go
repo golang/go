@@ -62,7 +62,7 @@ var supportsIPv6, supportsIPv4map = probeIPv6Stack()
 // favoriteAddrFamily returns the appropriate address family to
 // the given net, raddr, laddr and mode.  At first it figures
 // address family out from the net.  If mode indicates "listen"
-// and laddr.(type).IP is nil, it assuumes that the user wants to
+// and laddr.(type).IP is nil, it assumes that the user wants to
 // make a passive connection with wildcard address family, both
 // INET and INET6, and wildcard address.  Otherwise guess: if the
 // addresses are IPv4 then returns INET, or else returns INET6.
@@ -145,7 +145,7 @@ func ipv6only(x IP) IP {
 	return nil
 }
 
-// TODO(rsc): if syscall.OS == "linux", we're supposd to read
+// TODO(rsc): if syscall.OS == "linux", we're supposed to read
 // /proc/sys/net/core/somaxconn,
 // to take advantage of kernels that have raised the limit.
 func listenBacklog() int { return syscall.SOMAXCONN }

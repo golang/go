@@ -113,7 +113,7 @@ func (ip IP) IsInterfaceLocalMulticast() bool {
 	return len(ip) == IPv6len && ip[0] == 0xff && ip[1]&0x0f == 0x01
 }
 
-// IsLinkLinkLocalMulticast returns true if ip is a link-local
+// IsLinkLocalMulticast returns true if ip is a link-local
 // multicast address.
 func (ip IP) IsLinkLocalMulticast() bool {
 	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 224 && ip4[1] == 0 && ip4[2] == 0 {
@@ -122,7 +122,7 @@ func (ip IP) IsLinkLocalMulticast() bool {
 	return ip[0] == 0xff && ip[1]&0x0f == 0x02
 }
 
-// IsLinkLinkLocalUnicast returns true if ip is a link-local
+// IsLinkLocalUnicast returns true if ip is a link-local
 // unicast address.
 func (ip IP) IsLinkLocalUnicast() bool {
 	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 169 && ip4[1] == 254 {

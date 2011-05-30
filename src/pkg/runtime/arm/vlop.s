@@ -105,7 +105,7 @@ loop:
 
 /*
  * compare numerator to denominator
- * if less, subtract and set quotent bit
+ * if less, subtract and set quotient bit
  */
 	CMP	R(D), R(N)
 	ORR.HS  $1, R(Q)

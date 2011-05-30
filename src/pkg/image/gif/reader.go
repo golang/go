@@ -362,7 +362,7 @@ func (d *decoder) uninterlace(m *image.Paletted) {
 	dx := d.width
 	dy := d.height
 	nPix = make([]uint8, dx*dy)
-	offset := 0 // steps through the input by sequentical scan lines.
+	offset := 0 // steps through the input by sequential scan lines.
 	for _, pass := range interlacing {
 		nOffset := pass.start * dx // steps through the output as defined by pass.
 		for y := pass.start; y < dy; y += pass.skip {

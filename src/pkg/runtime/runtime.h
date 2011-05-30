@@ -306,7 +306,7 @@ enum {
 
 /*
  * defined macros
- *    you need super-goru privilege
+ *    you need super-gopher-guru privilege
  *    to add this list.
  */
 #define	nelem(x)	(sizeof(x)/sizeof((x)[0]))

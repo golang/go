@@ -124,7 +124,7 @@ func (f Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	part1 := keyNumber1 / space1
 	part2 := keyNumber2 / space2
 
-	// Step 8. let challenge to be concatination of part1, part2 and key3.
+	// Step 8. let challenge be concatenation of part1, part2 and key3.
 	// Step 9. get MD5 fingerprint of challenge.
 	response, err := getChallengeResponse(part1, part2, key3)
 	if err != nil {
