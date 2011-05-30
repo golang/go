@@ -11,13 +11,30 @@ const (
 	ReplacementChar = 0xFFFD   // Represents invalid code points.
 )
 
+// RangeTable defines a set of Unicode code points by listing the ranges of
+// code points within the set. The ranges are listed in two slices
+// to save space: a slice of 16-bit ranges and a slice of 32-bit ranges.
+// The two slices must be in sorted order and non-overlapping.
+type RangeTable struct {
+	R16 []Range16
+	R32 []Range32
+}
 
-// The representation of a range of Unicode code points.  The range runs from Lo to Hi
+// Range16 represents of a range of 16-bit Unicode code points.  The range runs from Lo to Hi
 // inclusive and has the specified stride.
-type Range struct {
-	Lo     int
-	Hi     int
-	Stride int
+type Range16 struct {
+	Lo     uint16
+	Hi     uint16
+	Stride uint16
+}
+
+// Range32 represents of a range of Unicode code points and is used when one or
+//  more of the values will not fit in 16 bits.  The range runs from Lo to Hi
+// inclusive and has the specified stride.
+type Range32 struct {
+	Lo     uint32
+	Hi     uint32
+	Stride uint32
 }
 
 // CaseRange represents a range of Unicode code points for simple (one
@@ -60,22 +77,8 @@ const (
 	UpperLower = MaxRune + 1 // (Cannot be a valid delta.)
 )
 
-// Is tests whether rune is in the specified table of ranges.
-func Is(ranges []Range, rune int) bool {
-	// common case: rune is ASCII or Latin-1
-	if rune < 0x100 {
-		for _, r := range ranges {
-			if rune > r.Hi {
-				continue
-			}
-			if rune < r.Lo {
-				return false
-			}
-			return (rune-r.Lo)%r.Stride == 0
-		}
-		return false
-	}
-
+// is16 uses binary search to test whether rune is in the specified slice of 16-bit ranges.
+func is16(ranges []Range16, rune uint16) bool {
 	// binary search over ranges
 	lo := 0
 	hi := len(ranges)
@@ -90,6 +93,63 @@ func Is(ranges []Range, rune int) bool {
 		} else {
 			lo = m + 1
 		}
+	}
+	return false
+}
+
+// is32 uses binary search to test whether rune is in the specified slice of 32-bit ranges.
+func is32(ranges []Range32, rune uint32) bool {
+	// binary search over ranges
+	lo := 0
+	hi := len(ranges)
+	for lo < hi {
+		m := lo + (hi-lo)/2
+		r := ranges[m]
+		if r.Lo <= rune && rune <= r.Hi {
+			return (rune-r.Lo)%r.Stride == 0
+		}
+		if rune < r.Lo {
+			hi = m
+		} else {
+			lo = m + 1
+		}
+	}
+	return false
+}
+
+// Is tests whether rune is in the specified table of ranges.
+func Is(rangeTab *RangeTable, rune int) bool {
+	// common case: rune is ASCII or Latin-1.
+	if rune < 0x100 {
+		r16 := uint16(rune)
+		for _, r := range rangeTab.R16 {
+			if r16 > r.Hi {
+				continue
+			}
+			if r16 < r.Lo {
+				return false
+			}
+			return (r16-r.Lo)%r.Stride == 0
+		}
+		r32 := uint32(rune)
+		for _, r := range rangeTab.R32 {
+			if r32 > r.Hi {
+				continue
+			}
+			if r32 < r.Lo {
+				return false
+			}
+			return (r32-r.Lo)%r.Stride == 0
+		}
+		return false
+	}
+	r16 := rangeTab.R16
+	if len(r16) > 0 && rune <= int(r16[len(r16)-1].Hi) {
+		return is16(r16, uint16(rune))
+	}
+	r32 := rangeTab.R32
+	if len(r32) > 0 && rune >= int(r32[0].Lo) {
+		return is32(r32, uint32(rune))
 	}
 	return false
 }
