@@ -491,20 +491,9 @@ func (t *Template) formatter(name string) func(io.Writer, string, ...interface{}
 
 // -- Parsing
 
-// Allocate a new variable-evaluation element.
+// newVariable allocates a new variable-evaluation element.
 func (t *Template) newVariable(words []string) *variableElement {
-	// After the final space-separated argument, formatters may be specified separated
-	// by pipe symbols, for example: {a b c|d|e}
-
-	// Until we learn otherwise, formatters contains a single name: "", the default formatter.
-	formatters := []string{""}
-	lastWord := words[len(words)-1]
-	bar := strings.IndexRune(lastWord, '|')
-	if bar >= 0 {
-		words[len(words)-1] = lastWord[0:bar]
-		formatters = strings.Split(lastWord[bar+1:], "|", -1)
-	}
-
+	formatters := extractFormatters(words)
 	args := make([]interface{}, len(words))
 
 	// Build argument list, processing any literals
@@ -548,6 +537,38 @@ func (t *Template) newVariable(words []string) *variableElement {
 	}
 
 	return &variableElement{t.linenum, args, formatters}
+}
+
+// extractFormatters extracts a list of formatters from words.
+// After the final space-separated argument in a variable, formatters may be
+// specified separated by pipe symbols. For example: {a b c|d|e}
+// The words parameter still has the formatters joined by '|' in the last word.
+// extractFormatters splits formatters, replaces the last word with the content
+// found before the first '|' within it, and returns the formatters obtained.
+// If no formatters are found in words, the default formatter is returned.
+func extractFormatters(words []string) (formatters []string) {
+	// "" is the default formatter.
+	formatters = []string{""}
+	if len(words) == 0 {
+		return
+	}
+	var bar int
+	lastWord := words[len(words)-1]
+	if isQuote(lastWord[0]) {
+		end := endQuote([]byte(lastWord), 0)
+		if end < 0 || end+1 == len(lastWord) || lastWord[end+1] != '|' {
+			return
+		}
+		bar = end + 1
+	} else {
+		bar = strings.IndexRune(lastWord, '|')
+		if bar < 0 {
+			return
+		}
+	}
+	words[len(words)-1] = lastWord[0:bar]
+	formatters = strings.Split(lastWord[bar+1:], "|", -1)
+	return
 }
 
 // Grab the next item.  If it's simple, just append it to the template.
