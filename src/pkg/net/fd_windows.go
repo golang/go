@@ -84,7 +84,7 @@ func (o *bufOp) Init(fd *netFD, buf []byte) {
 	}
 }
 
-// resultSrv will retreive all io completion results from
+// resultSrv will retrieve all io completion results from
 // iocp and send them to the correspondent waiting client
 // goroutine via channel supplied in the request.
 type resultSrv struct {
@@ -513,7 +513,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 	return nfd, nil
 }
 
-// Not implemeted functions.
+// Unimplemented functions.
 
 func (fd *netFD) dup() (f *os.File, err os.Error) {
 	// TODO: Implement this

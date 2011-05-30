@@ -98,7 +98,7 @@ func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, os.Error
 	return w.CreatePart(h)
 }
 
-// CreateFormField calls calls CreatePart with a header using the
+// CreateFormField calls CreatePart with a header using the
 // given field name.
 func (w *Writer) CreateFormField(fieldname string) (io.Writer, os.Error) {
 	h := make(textproto.MIMEHeader)

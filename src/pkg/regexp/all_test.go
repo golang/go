@@ -356,7 +356,7 @@ func BenchmarkMatchClass(b *testing.B) {
 
 func BenchmarkMatchClass_InRange(b *testing.B) {
 	b.StopTimer()
-	// 'b' is betwen 'a' and 'c', so the charclass
+	// 'b' is between 'a' and 'c', so the charclass
 	// range checking is no help here.
 	x := strings.Repeat("bbbb", 20) + "c"
 	re := MustCompile("[ac]")

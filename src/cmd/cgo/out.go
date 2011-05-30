@@ -142,7 +142,7 @@ func dynimport(obj string) {
 	if f, err := pe.Open(obj); err == nil {
 		sym, err := f.ImportedSymbols()
 		if err != nil {
-			fatalf("cannot load imported symbols from PE file %s: v", obj, err)
+			fatalf("cannot load imported symbols from PE file %s: %v", obj, err)
 		}
 		for _, s := range sym {
 			ss := strings.Split(s, ":", -1)

@@ -158,7 +158,7 @@ func (ws *Conn) SetReadTimeout(nsec int64) os.Error {
 	return os.EINVAL
 }
 
-// SetWritetTimeout sets the connection's network write timeout in nanoseconds.
+// SetWriteTimeout sets the connection's network write timeout in nanoseconds.
 func (ws *Conn) SetWriteTimeout(nsec int64) os.Error {
 	if conn, ok := ws.rwc.(net.Conn); ok {
 		return conn.SetWriteTimeout(nsec)

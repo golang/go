@@ -50,7 +50,7 @@ package math
 //      If (2) is false, then q   = q ; otherwise q   = q  + 2      .
 //                             i+1   i             i+1   i
 //
-//      With some algebric manipulation, it is not difficult to see
+//      With some algebraic manipulation, it is not difficult to see
 //      that (2) is equivalent to
 //                             -(i+1)
 //                      s  +  2       <= y                       (3)

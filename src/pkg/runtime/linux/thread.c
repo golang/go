@@ -116,7 +116,7 @@ again:
 	//
 	// We only really care that (v&1) == 1 (the lock is held),
 	// and in fact there is a futex variant that could
-	// accomodate that check, but let's not get carried away.)
+	// accommodate that check, but let's not get carried away.)
 	futexsleep(&l->key, v+2);
 
 	// We're awake: remove ourselves from the count.

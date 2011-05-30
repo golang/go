@@ -173,7 +173,7 @@ type nonEmptyInterface struct {
 // Regarding the implementation of Value:
 //
 // The Internal interface is a true interface value in the Go sense,
-// but it also serves as a (type, address) pair in whcih one cannot
+// but it also serves as a (type, address) pair in which one cannot
 // be changed separately from the other.  That is, it serves as a way
 // to prevent unsafe mutations of the Internal state even though
 // we cannot (yet?) hide the field while preserving the ability for

@@ -108,7 +108,7 @@ func newDecimal(i uint64) *decimal {
 }
 
 // Maximum shift that we can do in one pass without overflow.
-// Signed int has 31 bits, and we have to be able to accomodate 9<<k.
+// Signed int has 31 bits, and we have to be able to accommodate 9<<k.
 const maxShift = 27
 
 // Binary shift right (* 2) by k bits.  k <= maxShift to avoid overflow.

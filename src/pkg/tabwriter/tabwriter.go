@@ -158,7 +158,7 @@ const (
 	TabIndent
 
 	// Print a vertical bar ('|') between columns (after formatting).
-	// Discarded colums appear as zero-width columns ("||").
+	// Discarded columns appear as zero-width columns ("||").
 	Debug
 )
 

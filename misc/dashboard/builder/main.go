@@ -495,7 +495,7 @@ func commitPoll(key string) {
 
 	// Pass 1.  Fill in parents and add new log entries to logsByHash.
 	// Empty parent means take parent from next log entry.
-	// Non-empty parent has form 1234:hashhashhash; we weant full hash.
+	// Non-empty parent has form 1234:hashhashhash; we want full hash.
 	for i := range logs {
 		l := &logs[i]
 		log.Printf("hg log: %s < %s\n", l.Hash, l.Parent)
@@ -556,7 +556,7 @@ func addCommit(hash, key string) bool {
 
 	// Create commit.
 	if err := postCommit(key, l); err != nil {
-		log.Printf("faield to add %s to dashboard: %v", err)
+		log.Printf("failed to add %s to dashboard: %v", key, err)
 		return false
 	}
 	return true

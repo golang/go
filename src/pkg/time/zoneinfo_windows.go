@@ -14,7 +14,7 @@ import (
 // this year's rules for daylight savings time apply to all previous
 // and future years as well.
 
-// TODO(brainman): use GetDynamicTimeZoneInformation, whenever posible (Vista and up),
+// TODO(brainman): use GetDynamicTimeZoneInformation, whenever possible (Vista and up),
 // to improve on situation described in the bug above.
 
 type zone struct {
@@ -46,7 +46,7 @@ func (z *zone) populate(bias, biasdelta int32, d *syscall.Systemtime, name []uin
 	return
 }
 
-// Pre-calculte cutoff time in seconds since the Unix epoch, if data is supplied in "absolute" format.
+// Pre-calculate cutoff time in seconds since the Unix epoch, if data is supplied in "absolute" format.
 func (z *zone) preCalculateAbsSec() {
 	if z.year != 0 {
 		z.abssec = (&Time{z.year, int(z.month), int(z.day), int(z.hour), int(z.minute), int(z.second), 0, 0, ""}).Seconds()
@@ -55,7 +55,7 @@ func (z *zone) preCalculateAbsSec() {
 	}
 }
 
-// Convert zone cutoff time to sec in number of seconds since the Unix epoch, given particualar year.
+// Convert zone cutoff time to sec in number of seconds since the Unix epoch, given particular year.
 func (z *zone) cutoffSeconds(year int64) int64 {
 	// Windows specifies daylight savings information in "day in month" format:
 	// z.month is month number (1-12)
@@ -96,7 +96,7 @@ func (z *zone) isBeforeCutoff(t *Time) bool {
 }
 
 type zoneinfo struct {
-	disabled         bool // daylight saving time is not used localy
+	disabled         bool // daylight saving time is not used locally
 	offsetIfDisabled int
 	januaryIsStd     bool // is january 1 standard time?
 	std, dst         zone

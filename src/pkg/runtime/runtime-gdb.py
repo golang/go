@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-"""GDB Pretty printers and convencience functions for Go's runtime structures.
+"""GDB Pretty printers and convenience functions for Go's runtime structures.
 
 This script is loaded by GDB when it finds a .debug_gdb_scripts
 section in the compiled binary.  The [68]l linkers emit this with a
@@ -393,7 +393,7 @@ class GoIfaceCmd(gdb.Command):
 # so Itype will start with a commontype which has kind = interface
 
 #
-# Register all convience functions and CLI commands
+# Register all convenience functions and CLI commands
 #
 for k in vars().values():
 	if hasattr(k, 'invoke'):

@@ -88,7 +88,7 @@ func wakeLoop(wakeMeAt chan int64, wakeUp chan bool) {
 
 // A single tickerLoop serves all ticks to Tickers.  It waits for two events:
 // either the creation of a new Ticker or a tick from the alarm,
-// signalling a time to wake up one or more Tickers.
+// signaling a time to wake up one or more Tickers.
 func tickerLoop() {
 	// Represents the next alarm to be delivered.
 	var alarm alarmer

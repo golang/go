@@ -29,7 +29,7 @@ var (
 	ErrBadWebSocketOrigin   = &ProtocolError{"missing or bad WebSocket-Origin"}
 	ErrBadWebSocketLocation = &ProtocolError{"missing or bad WebSocket-Location"}
 	ErrBadWebSocketProtocol = &ProtocolError{"missing or bad WebSocket-Protocol"}
-	ErrChallengeResponse    = &ProtocolError{"mismatch challange/response"}
+	ErrChallengeResponse    = &ProtocolError{"mismatch challenge/response"}
 	secKeyRandomChars       [0x30 - 0x21 + 0x7F - 0x3A]byte
 )
 
@@ -226,7 +226,7 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
 	// Step 25. send CRLF.
 	bw.WriteString("\r\n")
 
-	// Step 26. genearte 8 bytes random key.
+	// Step 26. generate 8 bytes random key.
 	key3 := generateKey3()
 	// Step 27. send it out.
 	bw.Write(key3)
@@ -262,7 +262,7 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
 		return ErrBadWebSocketProtocol
 	}
 
-	// Step 42-43. get expected data from challange data.
+	// Step 42-43. get expected data from challenge data.
 	expected, err := getChallengeResponse(number1, number2, key3)
 	if err != nil {
 		return err
@@ -283,7 +283,7 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
 }
 
 /*
-Handhake described in (soon obsolete)
+Handshake described in (soon obsolete)
 draft-hixie-thewebsocket-protocol-75.
 */
 func draft75handshake(resourceName, host, origin, location, protocol string, br *bufio.Reader, bw *bufio.Writer) (err os.Error) {

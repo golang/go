@@ -113,7 +113,7 @@ static uintptr addrmem;
 // hashMultiplier is the bottom 32 bits of int((sqrt(5)-1)/2 * (1<<32)).
 // This is a good multiplier as suggested in CLR, Knuth.  The hash
 // value is taken to be the top AddrHashBits bits of the bottom 32 bits
-// of the muliplied value.
+// of the multiplied value.
 enum {
 	HashMultiplier = 2654435769U
 };

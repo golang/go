@@ -23,7 +23,7 @@ func TestWriter(t *testing.T) {
 		part.Write(fileContents)
 		err = w.WriteField("key", "val")
 		if err != nil {
-			t.Fatalf("CreateFormFieldValue: %v", err)
+			t.Fatalf("WriteField: %v", err)
 		}
 		part.Write([]byte("val"))
 		err = w.Close()
