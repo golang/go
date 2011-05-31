@@ -103,6 +103,8 @@ convlit1(Node **np, Type *t, int explicit)
 	case ORSH:
 		convlit1(&n->left, t, explicit && isideal(n->left->type));
 		t = n->left->type;
+		if(t != T && t->etype == TIDEAL && n->val.ctype != CTINT)
+			n->val = toint(n->val);
 		if(t != T && !isint[t->etype]) {
 			yyerror("invalid operation: %#N (shift of type %T)", n, t);
 			t = T;
@@ -514,6 +516,8 @@ evconst(Node *n)
 		n->right = nr;
 		if(nr->type && (issigned[nr->type->etype] || !isint[nr->type->etype]))
 			goto illegal;
+		nl->val = toint(nl->val);
+		nr->val = toint(nr->val);
 		break;
 	}
 
