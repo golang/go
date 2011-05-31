@@ -86,9 +86,8 @@ explicitly in Go to pointers to arrays, as they do (implicitly) in C.
 
 Garbage collection is the big problem.  It is fine for the Go world to
 have pointers into the C world and to free those pointers when they
-are no longer needed.  To help, the garbage collector calls an
-object's destroy() method prior to collecting it.  C pointers can be
-wrapped by Go objects with appropriate destroy methods.
+are no longer needed.  To help, the Go code can define Go objects
+holding the C pointers and use runtime.SetFinalizer on those Go objects.
 
 It is much more difficult for the C world to have pointers into the Go
 world, because the Go garbage collector is unaware of the memory
