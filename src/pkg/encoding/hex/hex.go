@@ -128,7 +128,7 @@ type dumper struct {
 }
 
 func toChar(b byte) byte {
-	if b < 32 || b > 127 {
+	if b < 32 || b > 126 {
 		return '.'
 	}
 	return b
