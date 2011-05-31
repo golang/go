@@ -24,20 +24,23 @@ func TestStopTheWorldDeadlock(t *testing.T) {
 		t.Logf("skipping during short test")
 		return
 	}
-	runtime.GOMAXPROCS(3)
-	compl := make(chan int, 1)
+	maxprocs := runtime.GOMAXPROCS(3)
+	compl := make(chan bool, 2)
 	go func() {
 		for i := 0; i != 1000; i += 1 {
 			runtime.GC()
 		}
-		compl <- 0
+		compl <- true
 	}()
 	go func() {
 		for i := 0; i != 1000; i += 1 {
 			runtime.GOMAXPROCS(3)
 		}
+		compl <- true
 	}()
 	go perpetuumMobile()
 	<-compl
+	<-compl
 	stop <- true
+	runtime.GOMAXPROCS(maxprocs)
 }
