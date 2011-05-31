@@ -794,7 +794,7 @@ reswitch:
 		defaultlit(&n->left, T);
 		l = n->left;
 		if(l->op == OTYPE) {
-			if(n->isddd)
+			if(n->isddd || l->type->bound == -100)
 				yyerror("invalid use of ... in type conversion", l);
 			// pick off before type-checking arguments
 			ok |= Erv;
