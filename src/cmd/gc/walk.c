@@ -1532,7 +1532,7 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
 static int
 fncall(Node *l, Type *rt)
 {
-	if(l->ullman >= UINF)
+	if(l->ullman >= UINF || l->op == OINDEXMAP)
 		return 1;
 	if(eqtype(l->type, rt))
 		return 0;
