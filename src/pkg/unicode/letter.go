@@ -15,6 +15,7 @@ const (
 // code points within the set. The ranges are listed in two slices
 // to save space: a slice of 16-bit ranges and a slice of 32-bit ranges.
 // The two slices must be in sorted order and non-overlapping.
+// Also, R32 should contain only values >= 0x10000 (1<<16).
 type RangeTable struct {
 	R16 []Range16
 	R32 []Range32
@@ -30,7 +31,7 @@ type Range16 struct {
 
 // Range32 represents of a range of Unicode code points and is used when one or
 //  more of the values will not fit in 16 bits.  The range runs from Lo to Hi
-// inclusive and has the specified stride.
+// inclusive and has the specified stride. Lo and Hi must always be >= 1<<16.
 type Range32 struct {
 	Lo     uint32
 	Hi     uint32
@@ -48,8 +49,8 @@ type Range32 struct {
 //	{UpperLower, UpperLower, UpperLower}
 // The constant UpperLower has an otherwise impossible delta value.
 type CaseRange struct {
-	Lo    int
-	Hi    int
+	Lo    uint32
+	Hi    uint32
 	Delta d
 }
 
@@ -121,6 +122,7 @@ func is32(ranges []Range32, rune uint32) bool {
 func Is(rangeTab *RangeTable, rune int) bool {
 	// common case: rune is ASCII or Latin-1.
 	if rune < 0x100 {
+		// Only need to check R16, since R32 is always >= 1<<16.
 		r16 := uint16(rune)
 		for _, r := range rangeTab.R16 {
 			if r16 > r.Hi {
@@ -130,16 +132,6 @@ func Is(rangeTab *RangeTable, rune int) bool {
 				return false
 			}
 			return (r16-r.Lo)%r.Stride == 0
-		}
-		r32 := uint32(rune)
-		for _, r := range rangeTab.R32 {
-			if r32 > r.Hi {
-				continue
-			}
-			if r32 < r.Lo {
-				return false
-			}
-			return (r32-r.Lo)%r.Stride == 0
 		}
 		return false
 	}
@@ -210,7 +202,7 @@ func to(_case int, rune int, caseRange []CaseRange) int {
 	for lo < hi {
 		m := lo + (hi-lo)/2
 		r := caseRange[m]
-		if r.Lo <= rune && rune <= r.Hi {
+		if int(r.Lo) <= rune && rune <= int(r.Hi) {
 			delta := int(r.Delta[_case])
 			if delta > MaxRune {
 				// In an Upper-Lower sequence, which always starts with
@@ -223,11 +215,11 @@ func to(_case int, rune int, caseRange []CaseRange) int {
 				// bit in the sequence offset.
 				// The constants UpperCase and TitleCase are even while LowerCase
 				// is odd so we take the low bit from _case.
-				return r.Lo + ((rune-r.Lo)&^1 | _case&1)
+				return int(r.Lo) + ((rune-int(r.Lo))&^1 | _case&1)
 			}
 			return rune + delta
 		}
-		if rune < r.Lo {
+		if rune < int(r.Lo) {
 			hi = m
 		} else {
 			lo = m + 1

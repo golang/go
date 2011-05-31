@@ -434,19 +434,36 @@ func dumpRange(header string, inCategory Op) {
 				break
 			}
 		}
-		if size == 16 && (lo >= 1<<16 || hi >= 1<<16) {
-			fmt.Print("\t},\n")
-			fmt.Print("\tR32: []Range32{\n")
-			size = 32
-			count = &range32Count
-		}
-		fmt.Printf(format, lo, hi, stride)
-		*count++
+		size, count = printRange(uint32(lo), uint32(hi), uint32(stride), size, count)
 		// next range: start looking where this range ends
 		next = hi + 1
 	}
 	fmt.Print("\t},\n")
 	fmt.Print("}\n\n")
+}
+
+func printRange(lo, hi, stride uint32, size int, count *int) (int, *int) {
+	if size == 16 && hi >= 1<<16 {
+		if lo < 1<<16 {
+			if lo+stride != hi {
+				log.Fatalf("unexpected straddle: %U %U %d", lo, hi, stride)
+			}
+			// No range contains U+FFFF as an instance, so split
+			// the range into two entries. That way we can maintain
+			// the invariant that R32 contains only >= 1<<16.
+			fmt.Printf(format, lo, lo, 1)
+			lo = hi
+			stride = 1
+			*count++
+		}
+		fmt.Print("\t},\n")
+		fmt.Print("\tR32: []Range32{\n")
+		size = 32
+		count = &range32Count
+	}
+	fmt.Printf(format, lo, hi, stride)
+	*count++
+	return size, count
 }
 
 func fullCategoryTest(list []string) {
@@ -634,14 +651,7 @@ func printScriptOrProperty(doProps bool) {
 		size := 16
 		count := &range16Count
 		for _, s := range ranges {
-			if size == 16 && (s.Lo >= 1<<16 || s.Hi >= 1<<16) {
-				fmt.Print("\t},\n")
-				fmt.Print("\tR32: []Range32{\n")
-				size = 32
-				count = &range32Count
-			}
-			*count++
-			fmt.Printf(format, s.Lo, s.Hi, s.Stride)
+			size, count = printRange(s.Lo, s.Hi, s.Stride, size, count)
 		}
 		fmt.Print("\t},\n")
 		fmt.Print("}\n\n")
@@ -876,6 +886,9 @@ var range16Count = 0 // Number of entries in the 16-bit range tables.
 var range32Count = 0 // Number of entries in the 32-bit range tables.
 
 func printSizes() {
+	if *test {
+		return
+	}
 	fmt.Println()
 	fmt.Printf("// Range entries: %d 16-bit, %d 32-bit, %d total.\n", range16Count, range32Count, range16Count+range32Count)
 	range16Bytes := range16Count * 3 * 2

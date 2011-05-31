@@ -331,9 +331,10 @@ var _Mc = &RangeTable{
 		{0xabe3, 0xabe4, 1},
 		{0xabe6, 0xabe7, 1},
 		{0xabe9, 0xabea, 1},
+		{0xabec, 0xabec, 1},
 	},
 	R32: []Range32{
-		{0xabec, 0x11000, 25620},
+		{0x11000, 0x11000, 1},
 		{0x11002, 0x11082, 128},
 		{0x110b0, 0x110b2, 1},
 		{0x110b7, 0x110b8, 1},
@@ -1118,9 +1119,10 @@ var _Po = &RangeTable{
 		{0xff1b, 0xff1f, 4},
 		{0xff20, 0xff3c, 28},
 		{0xff61, 0xff64, 3},
+		{0xff65, 0xff65, 1},
 	},
 	R32: []Range32{
-		{0xff65, 0x10100, 411},
+		{0x10100, 0x10100, 1},
 		{0x10101, 0x1039f, 670},
 		{0x103d0, 0x10857, 1159},
 		{0x1091f, 0x1093f, 32},
@@ -1439,9 +1441,10 @@ var _So = &RangeTable{
 		{0xfdfd, 0xffe4, 487},
 		{0xffe8, 0xffed, 5},
 		{0xffee, 0xfffc, 14},
+		{0xfffd, 0xfffd, 1},
 	},
 	R32: []Range32{
-		{0xfffd, 0x10102, 261},
+		{0x10102, 0x10102, 1},
 		{0x10137, 0x1013f, 1},
 		{0x10179, 0x10189, 1},
 		{0x10190, 0x1019b, 1},
@@ -4762,5 +4765,5 @@ var _CaseRanges = []CaseRange{
 	{0x10428, 0x1044F, d{-40, 0, -40}},
 }
 
-// Range entries: 2712 16-bit, 545 32-bit, 3257 total.
-// Range bytes: 16272 16-bit, 6540 32-bit, 22812 total.
+// Range entries: 2715 16-bit, 545 32-bit, 3260 total.
+// Range bytes: 16290 16-bit, 6540 32-bit, 22830 total.
