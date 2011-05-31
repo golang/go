@@ -1,0 +1,24 @@
+<html>
+<!--
+ Copyright 2011 The Go Authors. All rights reserved.
+ Use of this source code is governed by a BSD-style
+ license that can be found in the LICENSE file.
+-->
+<head>
+<script src="gopher.js"></script>
+<script>
+    
+chrome.omnibox.onInputEntered.addListener(function(t) {
+  var url = urlForInput(t);
+  if (url) {
+    chrome.tabs.getSelected(null, function(tab) {
+      if (!tab) return;
+      chrome.tabs.update(tab.id, { "url": url, "selected": true });
+    });
+  }
+});
+
+</script>
+</head>
+</html>
+
