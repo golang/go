@@ -43,4 +43,5 @@ func bad(args ...int) {
 	var x int
 	_ = unsafe.Pointer(&x...)	// ERROR "[.][.][.]"
 	_ = unsafe.Sizeof(x...)	// ERROR "[.][.][.]"
+	_ = [...]byte("foo") // ERROR "[.][.][.]"
 }
