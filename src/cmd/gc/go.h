@@ -817,6 +817,7 @@ Node*	closurebody(NodeList *body);
 void	closurehdr(Node *ntype);
 void	typecheckclosure(Node *func);
 Node*	walkclosure(Node *func, NodeList **init);
+void	walkcallclosure(Node *n, NodeList **init);
 
 /*
  *	const.c
