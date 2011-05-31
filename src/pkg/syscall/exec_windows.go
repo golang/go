@@ -14,7 +14,7 @@ import (
 
 var ForkLock sync.RWMutex
 
-// escape rewrites command line argument s as prescribed
+// EscapeArg rewrites command line argument s as prescribed
 // in http://msdn.microsoft.com/en-us/library/ms880421.
 // This function returns "" (2 double quotes) if s is empty.
 // Alternatively, these transformations are done:
@@ -23,7 +23,7 @@ var ForkLock sync.RWMutex
 // - every double quote (") is escaped by back slash (\);
 // - finally, s is wrapped with double quotes (arg -> "arg"),
 //   but only if there is space or tab inside s.
-func escape(s string) string {
+func EscapeArg(s string) string {
 	if len(s) == 0 {
 		return "\"\""
 	}
@@ -89,7 +89,7 @@ func makeCmdLine(args []string) string {
 		if s != "" {
 			s += " "
 		}
-		s += escape(v)
+		s += EscapeArg(v)
 	}
 	return s
 }
@@ -222,6 +222,7 @@ type ProcAttr struct {
 	Env        []string
 	Files      []int
 	HideWindow bool
+	CmdLine    string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
 }
 
 var zeroAttributes ProcAttr
@@ -252,10 +253,19 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
 	}
 	argv0p := StringToUTF16Ptr(argv0)
 
+	var cmdline string
+	// Windows CreateProcess takes the command line as a single string:
+	// use attr.CmdLine if set, else build the command line by escaping
+	// and joining each argument with spaces
+	if attr.CmdLine != "" {
+		cmdline = attr.CmdLine
+	} else {
+		cmdline = makeCmdLine(argv)
+	}
+
 	var argvp *uint16
-	s := makeCmdLine(argv)
-	if len(s) != 0 {
-		argvp = StringToUTF16Ptr(s)
+	if len(cmdline) != 0 {
+		argvp = StringToUTF16Ptr(cmdline)
 	}
 
 	var dirp *uint16
