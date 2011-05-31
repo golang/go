@@ -59,15 +59,21 @@ TEXT runtime·setlasterror(SB),7,$0
 
 TEXT runtime·sigtramp(SB),7,$0
 	PUSHL	BP			// cdecl
+	PUSHL	BX
+	PUSHL	SI
+	PUSHL	DI
 	PUSHL	0(FS)
 	CALL	runtime·sigtramp1(SB)
 	POPL	0(FS)
+	POPL	DI
+	POPL	SI
+	POPL	BX
 	POPL	BP
 	RET
 
-TEXT runtime·sigtramp1(SB),0,$16-28
+TEXT runtime·sigtramp1(SB),0,$16-40
 	// unwinding?
-	MOVL	info+12(FP), BX
+	MOVL	info+24(FP), BX
 	MOVL	4(BX), CX		// exception flags
 	ANDL	$6, CX
 	MOVL	$1, AX
@@ -75,15 +81,15 @@ TEXT runtime·sigtramp1(SB),0,$16-28
 
 	// place ourselves at the top of the SEH chain to
 	// ensure SEH frames lie within thread stack bounds
-	MOVL	frame+16(FP), CX	// our SEH frame
+	MOVL	frame+28(FP), CX	// our SEH frame
 	MOVL	CX, 0(FS)
 
 	// copy arguments for call to sighandler
 	MOVL	BX, 0(SP)
 	MOVL	CX, 4(SP)
-	MOVL	context+20(FP), BX
+	MOVL	context+32(FP), BX
 	MOVL	BX, 8(SP)
-	MOVL	dispatcher+24(FP), BX
+	MOVL	dispatcher+36(FP), BX
 	MOVL	BX, 12(SP)
 
 	CALL	runtime·sighandler(SB)
