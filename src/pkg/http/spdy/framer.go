@@ -44,6 +44,24 @@ func (e FramerError) String() string {
 	return "Error(" + strconv.Itoa(int(e)) + ")"
 }
 
+type corkedReader struct {
+	r  io.Reader
+	ch chan int
+	n  int
+}
+
+func (cr *corkedReader) Read(p []byte) (int, os.Error) {
+	if cr.n == 0 {
+		cr.n = <-cr.ch
+	}
+	if len(p) > cr.n {
+		p = p[:cr.n]
+	}
+	n, err := cr.r.Read(p)
+	cr.n -= n
+	return n, err
+}
+
 // Framer handles serializing/deserializing SPDY frames, including compressing/
 // decompressing payloads.
 type Framer struct {
@@ -52,6 +70,7 @@ type Framer struct {
 	headerBuf                 *bytes.Buffer
 	headerCompressor          *zlib.Writer
 	r                         io.Reader
+	headerReader              corkedReader
 	headerDecompressor        io.ReadCloser
 }
 
@@ -74,11 +93,13 @@ func NewFramer(w io.Writer, r io.Reader) (*Framer, os.Error) {
 	return framer, nil
 }
 
-func (f *Framer) initHeaderDecompression() os.Error {
+func (f *Framer) uncorkHeaderDecompressor(payloadSize int) os.Error {
 	if f.headerDecompressor != nil {
+		f.headerReader.ch <- payloadSize
 		return nil
 	}
-	decompressor, err := zlib.NewReaderDict(f.r, []byte(HeaderDictionary))
+	f.headerReader = corkedReader{r: f.r, ch: make(chan int, 1), n: payloadSize}
+	decompressor, err := zlib.NewReaderDict(&f.headerReader, []byte(HeaderDictionary))
 	if err != nil {
 		return err
 	}
@@ -171,7 +192,7 @@ func (f *Framer) readSynStreamFrame(h ControlFrameHeader, frame *SynStreamFrame)
 
 	reader := f.r
 	if !f.headerCompressionDisabled {
-		f.initHeaderDecompression()
+		f.uncorkHeaderDecompressor(int(h.length - 10))
 		reader = f.headerDecompressor
 	}
 
@@ -194,7 +215,7 @@ func (f *Framer) readSynReplyFrame(h ControlFrameHeader, frame *SynReplyFrame) o
 	}
 	reader := f.r
 	if !f.headerCompressionDisabled {
-		f.initHeaderDecompression()
+		f.uncorkHeaderDecompressor(int(h.length - 6))
 		reader = f.headerDecompressor
 	}
 	frame.Headers, err = parseHeaderValueBlock(reader)
@@ -216,7 +237,7 @@ func (f *Framer) readHeadersFrame(h ControlFrameHeader, frame *HeadersFrame) os.
 	}
 	reader := f.r
 	if !f.headerCompressionDisabled {
-		f.initHeaderDecompression()
+		f.uncorkHeaderDecompressor(int(h.length - 6))
 		reader = f.headerDecompressor
 	}
 	frame.Headers, err = parseHeaderValueBlock(reader)
