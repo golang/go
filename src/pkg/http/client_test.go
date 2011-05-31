@@ -78,6 +78,61 @@ func TestGetRequestFormat(t *testing.T) {
 	}
 }
 
+func TestPostRequestFormat(t *testing.T) {
+	tr := &recordingTransport{}
+	client := &Client{Transport: tr}
+
+	url := "http://dummy.faketld/"
+	json := `{"key":"value"}`
+	b := strings.NewReader(json)
+	client.Post(url, "application/json", b) // Note: doesn't hit network
+
+	if tr.req.Method != "POST" {
+		t.Errorf("got method %q, want %q", tr.req.Method, "POST")
+	}
+	if tr.req.URL.String() != url {
+		t.Errorf("got URL %q, want %q", tr.req.URL.String(), url)
+	}
+	if tr.req.Header == nil {
+		t.Fatalf("expected non-nil request Header")
+	}
+	if tr.req.Close {
+		t.Error("got Close true, want false")
+	}
+	if g, e := tr.req.ContentLength, int64(len(json)); g != e {
+		t.Errorf("got ContentLength %d, want %d", g, e)
+	}
+}
+
+func TestPostFormRequestFormat(t *testing.T) {
+	tr := &recordingTransport{}
+	client := &Client{Transport: tr}
+
+	url := "http://dummy.faketld/"
+	form := map[string]string{"foo": "bar"}
+	client.PostForm(url, form) // Note: doesn't hit network
+
+	if tr.req.Method != "POST" {
+		t.Errorf("got method %q, want %q", tr.req.Method, "POST")
+	}
+	if tr.req.URL.String() != url {
+		t.Errorf("got URL %q, want %q", tr.req.URL.String(), url)
+	}
+	if tr.req.Header == nil {
+		t.Fatalf("expected non-nil request Header")
+	}
+	if g, e := tr.req.Header.Get("Content-Type"), "application/x-www-form-urlencoded"; g != e {
+		t.Errorf("got Content-Type %q, want %q", g, e)
+	}
+	if tr.req.Close {
+		t.Error("got Close true, want false")
+	}
+	if g, e := tr.req.ContentLength, int64(len("foo=bar")); g != e {
+		t.Errorf("got ContentLength %d, want %d", g, e)
+	}
+
+}
+
 func TestRedirects(t *testing.T) {
 	var ts *httptest.Server
 	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {

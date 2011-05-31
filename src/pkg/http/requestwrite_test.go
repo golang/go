@@ -175,6 +175,35 @@ var reqWriteTests = []reqWriteTest{
 			"abcdef",
 	},
 
+	// HTTP/1.1 POST with Content-Length in headers
+	{
+		Request{
+			Method: "POST",
+			RawURL: "http://example.com/",
+			Host:   "example.com",
+			Header: Header{
+				"Content-Length": []string{"10"}, // ignored
+			},
+			ContentLength: 6,
+		},
+
+		[]byte("abcdef"),
+
+		"POST http://example.com/ HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"Content-Length: 6\r\n" +
+			"\r\n" +
+			"abcdef",
+
+		"POST http://example.com/ HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"Content-Length: 6\r\n" +
+			"\r\n" +
+			"abcdef",
+	},
+
 	// default to HTTP/1.1
 	{
 		Request{
