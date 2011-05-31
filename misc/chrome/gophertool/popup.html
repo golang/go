@@ -5,52 +5,36 @@
  license that can be found in the LICENSE file.
 -->
 <head>
-  <script>
+<script src="gopher.js"></script>
+<script>
     
 function focusinput() {
-  box = document.getElementById("inputbox");
-  box.focus();
+  document.getElementById("inputbox").focus();
 }
 
-var numericRE = /^\d+$/;
-var commitRE = /^(?:\d+:)?([0-9a-f]{6,20})$/; // e.g "8486:ab29d2698a47" or "ab29d2698a47"
-var pkgRE = /^[a-z0-9_\/]+$/;
-
 function navigate() {
-  box = document.getElementById("inputbox");
+  var box = document.getElementById("inputbox");
   box.focus();
+
   var t = box.value;
   if (t == "") {
     return false;
   }
 
-  success = function(url) {
+  var success = function(url) {
     console.log("matched " + t + " to: " + url)
     box.value = "";
     openURL(url);
     return false;  // cancel form submission
-   };
+  };
 
-   if (numericRE.test(t)) {
-     if (t < 1000000) {
-       return success("http://code.google.com/p/go/issues/detail?id=" + t);
-     }
-     return success("http://codereview.appspot.com/" + t + "/");
-   }
+  var url = urlForInput(t);
+  if (url) {
+    return success(url);
+  }
 
-   var match = commitRE.exec(t);
-   if (match) {
-     return success("http://code.google.com/p/go/source/detail?r=" + match[1])
-   }
-
-   if (pkgRE.test(t)) {
-     // TODO: make this smarter, using a list of packages + substring matches.
-     // Get the list from godoc itself in JSON format?
-     // TODO: prefer localhost:6060 to golang.org if localhost:6060 is responding. 
-     return success("http://golang.org/pkg/" + t);
-   }
-   console.log("no match for text: " + t)
-   return false;
+  console.log("no match for text: " + t)
+  return false;
 }
 
 function openURL(url) {

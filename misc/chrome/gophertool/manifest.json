@@ -2,9 +2,14 @@
   "name": "Hacking Gopher",
   "version": "1.0",
   "description": "Go Hacking utility",
+  "background_page": "background.html",
   "browser_action": {
     "default_icon": "gopher.png",
     "popup": "popup.html"
+  },
+  "omnibox": { "keyword": "go" },
+  "icons": {
+    "16": "gopher.png"
   },
   "permissions": [
      "tabs"
