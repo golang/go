@@ -870,6 +870,7 @@ void	funcbody(Node *n);
 void	funccompile(Node *n, int isclosure);
 void	funchdr(Node *n);
 Type*	functype(Node *this, NodeList *in, NodeList *out);
+void	ifacedcl(Node *n);
 int	isifacemethod(Type *f);
 void	markdcl(void);
 Node*	methodname(Node *n, Type *t);
