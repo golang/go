@@ -199,3 +199,41 @@ walkclosure(Node *func, NodeList **init)
 	walkexpr(&call, init);
 	return call;
 }
+
+// Special case for closures that get called in place.
+// Optimize runtime.closure(X, __func__xxxx_, .... ) away
+// to __func__xxxx_(Y ....).
+// On entry, expect n->op == OCALL, n->left->op == OCLOSURE.
+void
+walkcallclosure(Node *n, NodeList **init)
+{
+	Node *z;
+	NodeList *ll, *cargs;
+
+	walkexpr(&n->left, init);
+	cargs =	n->left    // FUNC runtime.closure
+		->list     // arguments
+		->next     // skip first
+		->next;    // skip second
+
+	n->left = n->left  // FUNC runtime.closure
+		->list     // arguments
+		->next     // skip first
+		->n        // AS (to indreg) 
+		->right;   // argument  == the generated function 
+
+	// New arg list for n. First the closure-args, stolen from
+	// runtime.closure's 3rd and following,
+	ll = nil;
+	for (; cargs; cargs = cargs->next)
+		ll = list(ll, cargs->n->right);  // cargs->n is the OAS(INDREG, arg)
+
+	// then an extra zero, to fill the dummy return pointer slot,
+	z = nod(OXXX, N, N);
+	nodconst(z, types[TUINTPTR], 0);
+	z->typecheck = 1;
+	ll = list(ll, z);
+
+	// and finally the original parameter list.
+	n->list = concat(ll, n->list);
+}
