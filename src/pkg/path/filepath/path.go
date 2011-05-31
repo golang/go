@@ -247,7 +247,7 @@ func EvalSymlinks(path string) (string, os.Error) {
 // path name for a given file is not guaranteed to be unique.
 func Abs(path string) (string, os.Error) {
 	if IsAbs(path) {
-		return path, nil
+		return Clean(path), nil
 	}
 	wd, err := os.Getwd()
 	if err != nil {

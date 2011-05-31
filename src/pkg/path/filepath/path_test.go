@@ -509,6 +509,7 @@ var abstests = []string{
 
 	// Already absolute
 	"$GOROOT/src/Make.pkg",
+	"$GOROOT/src/../src/Make.pkg",
 }
 
 func TestAbs(t *testing.T) {
@@ -536,6 +537,9 @@ func TestAbs(t *testing.T) {
 		}
 		if !filepath.IsAbs(abspath) {
 			t.Errorf("Abs(%q)=%q, not an absolute path", path, abspath)
+		}
+		if filepath.IsAbs(path) && abspath != filepath.Clean(path) {
+			t.Errorf("Abs(%q)=%q, isn't clean", path, abspath)
 		}
 	}
 }
