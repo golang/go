@@ -147,3 +147,46 @@ func TestDecodeString(t *testing.T) {
 		}
 	}
 }
+
+func TestDumper(t *testing.T) {
+	var in [40]byte
+	for i := range in {
+		in[i] = byte(i + 30)
+	}
+
+	for stride := 1; stride < len(in); stride++ {
+		out := bytes.NewBuffer(nil)
+		dumper := Dumper(out)
+		done := 0
+		for done < len(in) {
+			todo := done + stride
+			if todo > len(in) {
+				todo = len(in)
+			}
+			dumper.Write(in[done:todo])
+			done = todo
+		}
+
+		dumper.Close()
+		if !bytes.Equal(out.Bytes(), expectedHexDump) {
+			t.Errorf("stride: %d failed. got:\n%s\nwant:\n%s", stride, out.Bytes(), expectedHexDump)
+		}
+	}
+}
+
+func TestDump(t *testing.T) {
+	var in [40]byte
+	for i := range in {
+		in[i] = byte(i + 30)
+	}
+
+	out := []byte(Dump(in[:]))
+	if !bytes.Equal(out, expectedHexDump) {
+		t.Errorf("got:\n%s\nwant:\n%s", out, expectedHexDump)
+	}
+}
+
+var expectedHexDump = []byte(`00000000  1e 1f 20 21 22 23 24 25  26 27 28 29 2a 2b 2c 2d  |.. !"#$%&'()*+,-|
+00000010  2e 2f 30 31 32 33 34 35  36 37 38 39 3a 3b 3c 3d  |./0123456789:;<=|
+00000020  3e 3f 40 41 42 43 44 45                           |>?@ABCDE|
+`)
