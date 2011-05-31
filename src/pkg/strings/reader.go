@@ -17,6 +17,12 @@ type Reader struct {
 	prevRune int // index of previous rune; or < 0
 }
 
+// Len returns the number of bytes of the unread portion of the
+// string.
+func (r *Reader) Len() int {
+	return len(r.s) - r.i
+}
+
 func (r *Reader) Read(b []byte) (n int, err os.Error) {
 	if r.i >= len(r.s) {
 		return 0, os.EOF

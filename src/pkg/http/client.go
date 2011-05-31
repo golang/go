@@ -11,9 +11,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -228,23 +226,12 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
 //
 // Caller should close r.Body when done reading from it.
 func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response, err os.Error) {
-	var req Request
-	req.Method = "POST"
-	req.ProtoMajor = 1
-	req.ProtoMinor = 1
-	req.Close = true
-	req.Body = ioutil.NopCloser(body)
-	req.Header = Header{
-		"Content-Type": {bodyType},
-	}
-	req.TransferEncoding = []string{"chunked"}
-
-	req.URL, err = ParseURL(url)
+	req, err := NewRequest("POST", url, body)
 	if err != nil {
 		return nil, err
 	}
-
-	return send(&req, c.Transport)
+	req.Header.Set("Content-Type", bodyType)
+	return send(req, c.Transport)
 }
 
 // PostForm issues a POST to the specified URL, 
@@ -262,25 +249,7 @@ func PostForm(url string, data map[string]string) (r *Response, err os.Error) {
 //
 // Caller should close r.Body when done reading from it.
 func (c *Client) PostForm(url string, data map[string]string) (r *Response, err os.Error) {
-	var req Request
-	req.Method = "POST"
-	req.ProtoMajor = 1
-	req.ProtoMinor = 1
-	req.Close = true
-	body := urlencode(data)
-	req.Body = ioutil.NopCloser(body)
-	req.Header = Header{
-		"Content-Type":   {"application/x-www-form-urlencoded"},
-		"Content-Length": {strconv.Itoa(body.Len())},
-	}
-	req.ContentLength = int64(body.Len())
-
-	req.URL, err = ParseURL(url)
-	if err != nil {
-		return nil, err
-	}
-
-	return send(&req, c.Transport)
+	return c.Post(url, "application/x-www-form-urlencoded", urlencode(data))
 }
 
 // TODO: remove this function when PostForm takes a multimap.
