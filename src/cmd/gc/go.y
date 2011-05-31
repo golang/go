@@ -1380,6 +1380,7 @@ interfacedcl:
 	new_name indcl
 	{
 		$$ = nod(ODCLFIELD, $1, $2);
+		ifacedcl($$);
 	}
 |	packname
 	{
