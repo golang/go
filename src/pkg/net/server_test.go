@@ -92,10 +92,13 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
 }
 
 func doTest(t *testing.T, network, listenaddr, dialaddr string) {
-	if listenaddr == "" {
-		t.Logf("Test %s %s %s\n", network, "<nil>", dialaddr)
-	} else {
-		t.Logf("Test %s %s %s\n", network, listenaddr, dialaddr)
+	t.Logf("Test %q %q %q\n", network, listenaddr, dialaddr)
+	switch listenaddr {
+	case "", "0.0.0.0", "[::]", "[::ffff:0.0.0.0]":
+		if testing.Short() || avoidMacFirewall {
+			t.Logf("skip wildcard listen during short test")
+			return
+		}
 	}
 	listening := make(chan string)
 	done := make(chan int)
