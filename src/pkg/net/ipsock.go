@@ -98,23 +98,6 @@ func favoriteAddrFamily(net string, raddr, laddr sockaddr, mode string) int {
 	return syscall.AF_INET6
 }
 
-func firstFavoriteAddr(filter func(IP) IP, addrs []string) (addr IP) {
-	if filter == anyaddr {
-		// We'll take any IP address, but since the dialing code
-		// does not yet try multiple addresses, prefer to use
-		// an IPv4 address if possible.  This is especially relevant
-		// if localhost resolves to [ipv6-localhost, ipv4-localhost].
-		// Too much code assumes localhost == ipv4-localhost.
-		addr = firstSupportedAddr(ipv4only, addrs)
-		if addr == nil {
-			addr = firstSupportedAddr(anyaddr, addrs)
-		}
-	} else {
-		addr = firstSupportedAddr(filter, addrs)
-	}
-	return
-}
-
 func firstSupportedAddr(filter func(IP) IP, addrs []string) IP {
 	for _, s := range addrs {
 		if addr := filter(ParseIP(s)); addr != nil {
@@ -293,7 +276,7 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
 				err = err1
 				goto Error
 			}
-			addr = firstFavoriteAddr(filter, addrs)
+			addr = firstSupportedAddr(filter, addrs)
 			if addr == nil {
 				// should not happen
 				err = &AddrError{"LookupHost returned no suitable address", addrs[0]}
