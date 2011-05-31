@@ -122,10 +122,10 @@ $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
 	mv -f $@.x $@
 
 goc2c: goc2c.c
-	$(HOST_CC) -o $@ $<
+	quietgcc -o $@ $<
 
 mkversion: mkversion.c
-	$(HOST_CC) -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
+	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
 
 version.go: mkversion
 	GOROOT="$(GOROOT_FINAL)" ./mkversion >version.go
