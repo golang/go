@@ -7,7 +7,7 @@
     "default_icon": "gopher.png",
     "popup": "popup.html"
   },
-  "omnibox": { "keyword": "go" },
+  "omnibox": { "keyword": "golang" },
   "icons": {
     "16": "gopher.png"
   },
