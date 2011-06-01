@@ -124,9 +124,8 @@ func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
 			s = s[n:]
 			chunk = chunk[1:]
 			// possibly negated
-			notNegated := true
-			if len(chunk) > 0 && chunk[0] == '^' {
-				notNegated = false
+			negated := chunk[0] == '^'
+			if negated {
 				chunk = chunk[1:]
 			}
 			// parse all ranges
@@ -152,7 +151,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
 				}
 				nrange++
 			}
-			if match != notNegated {
+			if match == negated {
 				return
 			}
 
