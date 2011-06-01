@@ -251,12 +251,6 @@ var natScanTests = []struct {
 	{"0x", 16, nil, 16, true, 'x'},
 	{"0xdeadbeef", 0, nat{0xdeadbeef}, 16, true, 0},
 	{"0XDEADBEEF", 0, nat{0xdeadbeef}, 16, true, 0},
-	{"0xfedcba9876543213fedcba9876543212fedcba9876543211fedcba9876543210",
-		0,
-		nat{0xfedcba9876543210, 0xfedcba9876543211, 0xfedcba9876543212, 0xfedcba9876543213},
-		16,
-		true,
-		0},
 }
 
 
