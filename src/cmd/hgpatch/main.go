@@ -10,7 +10,6 @@ import (
 	"exec"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"patch"
@@ -333,6 +332,7 @@ func run(argv []string, input []byte) (out string, err os.Error) {
 		err = os.EINVAL
 		goto Error
 	}
+
 	prog, ok := lookPathCache[argv[0]]
 	if !ok {
 		prog, err = exec.LookPath(argv[0])
@@ -341,40 +341,15 @@ func run(argv []string, input []byte) (out string, err os.Error) {
 		}
 		lookPathCache[argv[0]] = prog
 	}
-	// fmt.Fprintf(os.Stderr, "%v\n", argv);
-	var cmd *exec.Cmd
-	if len(input) == 0 {
-		cmd, err = exec.Run(prog, argv, os.Environ(), "", exec.DevNull, exec.Pipe, exec.MergeWithStdout)
-		if err != nil {
-			goto Error
-		}
-	} else {
-		cmd, err = exec.Run(prog, argv, os.Environ(), "", exec.Pipe, exec.Pipe, exec.MergeWithStdout)
-		if err != nil {
-			goto Error
-		}
-		go func() {
-			cmd.Stdin.Write(input)
-			cmd.Stdin.Close()
-		}()
+
+	cmd := exec.Command(prog, argv[1:]...)
+	if len(input) > 0 {
+		cmd.Stdin = bytes.NewBuffer(input)
 	}
-	defer cmd.Close()
-	var buf bytes.Buffer
-	_, err = io.Copy(&buf, cmd.Stdout)
-	out = buf.String()
-	if err != nil {
-		cmd.Wait(0)
-		goto Error
+	bs, err := cmd.CombinedOutput()
+	if err == nil {
+		return string(bs), nil
 	}
-	w, err := cmd.Wait(0)
-	if err != nil {
-		goto Error
-	}
-	if !w.Exited() || w.ExitStatus() != 0 {
-		err = w
-		goto Error
-	}
-	return
 
 Error:
 	err = &runError{dup(argv), err}

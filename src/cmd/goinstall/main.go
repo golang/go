@@ -12,7 +12,6 @@ import (
 	"flag"
 	"fmt"
 	"go/token"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -246,37 +245,22 @@ func quietRun(dir string, stdin []byte, cmd ...string) os.Error {
 }
 
 // genRun implements run and quietRun.
-func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
-	bin, err := exec.LookPath(cmd[0])
+func genRun(dir string, stdin []byte, arg []string, quiet bool) os.Error {
+	cmd := exec.Command(arg[0], arg[1:]...)
+	cmd.Stdin = bytes.NewBuffer(stdin)
+	cmd.Dir = dir
+	vlogf("%s: %s %s\n", dir, cmd.Path, strings.Join(arg[1:], " "))
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return err
-	}
-	p, err := exec.Run(bin, cmd, os.Environ(), dir, exec.Pipe, exec.Pipe, exec.MergeWithStdout)
-	vlogf("%s: %s %s\n", dir, bin, strings.Join(cmd[1:], " "))
-	if err != nil {
-		return err
-	}
-	go func() {
-		p.Stdin.Write(stdin)
-		p.Stdin.Close()
-	}()
-	var buf bytes.Buffer
-	io.Copy(&buf, p.Stdout)
-	w, err := p.Wait(0)
-	p.Close()
-	if err != nil {
-		return err
-	}
-	if !w.Exited() || w.ExitStatus() != 0 {
 		if !quiet || *verbose {
 			if dir != "" {
 				dir = "cd " + dir + "; "
 			}
-			fmt.Fprintf(os.Stderr, "%s: === %s%s\n", argv0, dir, strings.Join(cmd, " "))
-			os.Stderr.Write(buf.Bytes())
-			fmt.Fprintf(os.Stderr, "--- %s\n", w)
+			fmt.Fprintf(os.Stderr, "%s: === %s%s\n", cmd.Path, dir, strings.Join(cmd.Args, " "))
+			os.Stderr.Write(out)
+			fmt.Fprintf(os.Stderr, "--- %s\n", err)
 		}
-		return os.ErrorString("running " + cmd[0] + ": " + w.String())
+		return os.ErrorString("running " + arg[0] + ": " + err.String())
 	}
 	return nil
 }

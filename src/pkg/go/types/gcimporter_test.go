@@ -37,24 +37,14 @@ func init() {
 
 
 func compile(t *testing.T, dirname, filename string) {
-	cmd, err := exec.Run(gcPath, []string{gcPath, filename}, nil, dirname, exec.DevNull, exec.Pipe, exec.MergeWithStdout)
+	cmd := exec.Command(gcPath, filename)
+	cmd.Dir = dirname
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("%s %s failed: %s", gcName, filename, err)
 		return
 	}
-	defer cmd.Close()
-
-	msg, err := cmd.Wait(0)
-	if err != nil {
-		t.Errorf("%s %s failed: %s", gcName, filename, err)
-		return
-	}
-
-	if !msg.Exited() || msg.ExitStatus() != 0 {
-		t.Errorf("%s %s failed: exit status = %d", gcName, filename, msg.ExitStatus())
-		output, _ := ioutil.ReadAll(cmd.Stdout)
-		t.Log(string(output))
-	}
+	t.Logf("%s", string(out))
 }
 
 

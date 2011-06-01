@@ -5,7 +5,6 @@
 package main
 
 import (
-	"bytes"
 	"exec"
 	"flag"
 	"http"
@@ -140,32 +139,7 @@ func error(w http.ResponseWriter, out []byte, err os.Error) {
 
 // run executes the specified command and returns its output and an error.
 func run(cmd ...string) ([]byte, os.Error) {
-	// find the specified binary
-	bin, err := exec.LookPath(cmd[0])
-	if err != nil {
-		// report binary as well as the error
-		return nil, os.NewError(cmd[0] + ": " + err.String())
-	}
-
-	// run the binary and read its combined stdout and stderr into a buffer
-	p, err := exec.Run(bin, cmd, os.Environ(), "", exec.DevNull, exec.Pipe, exec.MergeWithStdout)
-	if err != nil {
-		return nil, err
-	}
-	var buf bytes.Buffer
-	io.Copy(&buf, p.Stdout)
-	w, err := p.Wait(0)
-	p.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	// set the error return value if the program had a non-zero exit status
-	if !w.Exited() || w.ExitStatus() != 0 {
-		err = os.ErrorString("running " + cmd[0] + ": " + w.String())
-	}
-
-	return buf.Bytes(), err
+	return exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
 }
 
 var frontPage, output *template.Template // HTML templates
