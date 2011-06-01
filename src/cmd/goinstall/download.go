@@ -31,23 +31,36 @@ func maybeReportToDashboard(path string) {
 	}
 }
 
-var googlecode = regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/(svn|hg))(/[a-z0-9A-Z_.\-/]*)?$`)
-var github = regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`)
-var bitbucket = regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`)
-var launchpad = regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`)
+var vcsPatterns = map[string]*regexp.Regexp{
+	"googlecode": regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/(svn|hg))(/[a-z0-9A-Z_.\-/]*)?$`),
+	"github":     regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`),
+	"bitbucket":  regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`),
+	"launchpad":  regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`),
+}
+
+// isRemote returns true if the provided package path
+// matches one of the supported remote repositories.
+func isRemote(pkg string) bool {
+	for _, r := range vcsPatterns {
+		if r.MatchString(pkg) {
+			return true
+		}
+	}
+	return false
+}
 
 // download checks out or updates pkg from the remote server.
 func download(pkg, srcDir string) os.Error {
 	if strings.Contains(pkg, "..") {
 		return os.ErrorString("invalid path (contains ..)")
 	}
-	if m := bitbucket.FindStringSubmatch(pkg); m != nil {
+	if m := vcsPatterns["bitbucket"].FindStringSubmatch(pkg); m != nil {
 		if err := vcsCheckout(&hg, srcDir, m[1], "http://"+m[1], m[1]); err != nil {
 			return err
 		}
 		return nil
 	}
-	if m := googlecode.FindStringSubmatch(pkg); m != nil {
+	if m := vcsPatterns["googlecode"].FindStringSubmatch(pkg); m != nil {
 		var v *vcs
 		switch m[2] {
 		case "hg":
@@ -63,7 +76,7 @@ func download(pkg, srcDir string) os.Error {
 		}
 		return nil
 	}
-	if m := github.FindStringSubmatch(pkg); m != nil {
+	if m := vcsPatterns["github"].FindStringSubmatch(pkg); m != nil {
 		if strings.HasSuffix(m[1], ".git") {
 			return os.ErrorString("repository " + pkg + " should not have .git suffix")
 		}
@@ -72,7 +85,7 @@ func download(pkg, srcDir string) os.Error {
 		}
 		return nil
 	}
-	if m := launchpad.FindStringSubmatch(pkg); m != nil {
+	if m := vcsPatterns["launchpad"].FindStringSubmatch(pkg); m != nil {
 		// Either lp.net/<project>[/<series>[/<path>]]
 		//	 or lp.net/~<user or team>/<project>/<branch>[/<path>]
 		if err := vcsCheckout(&bzr, srcDir, m[1], "https://"+m[1], m[1]); err != nil {
