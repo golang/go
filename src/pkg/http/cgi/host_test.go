@@ -17,20 +17,6 @@ import (
 	"testing"
 )
 
-var cgiScriptWorks = canRun("./testdata/test.cgi")
-
-func canRun(s string) bool {
-	c, err := exec.Run(s, []string{s}, nil, ".", exec.DevNull, exec.DevNull, exec.DevNull)
-	if err != nil {
-		return false
-	}
-	w, err := c.Wait(0)
-	if err != nil {
-		return false
-	}
-	return w.Exited() && w.ExitStatus() == 0
-}
-
 func newRequest(httpreq string) *http.Request {
 	buf := bufio.NewReader(strings.NewReader(httpreq))
 	req, err := http.ReadRequest(buf)
@@ -76,8 +62,15 @@ readlines:
 	return rw
 }
 
+var cgiTested = false
+var cgiWorks bool
+
 func skipTest(t *testing.T) bool {
-	if !cgiScriptWorks {
+	if !cgiTested {
+		cgiTested = true
+		cgiWorks = exec.Command("./testdata/test.cgi").Run() == nil
+	}
+	if !cgiWorks {
 		// No Perl on Windows, needed by test.cgi
 		// TODO: make the child process be Go, not Perl.
 		t.Logf("Skipping test: test.cgi failed.")

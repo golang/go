@@ -5,163 +5,139 @@
 package exec
 
 import (
+	"fmt"
 	"io"
-	"io/ioutil"
 	"testing"
 	"os"
+	"strconv"
+	"strings"
 )
 
-func run(argv []string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
-	exe, err := LookPath(argv[0])
-	if err != nil {
-		return nil, err
-	}
-	return Run(exe, argv, nil, "", stdin, stdout, stderr)
+func helperCommand(s ...string) *Cmd {
+	cs := []string{"-test.run=exec.TestHelperProcess", "--"}
+	cs = append(cs, s...)
+	cmd := Command(os.Args[0], cs...)
+	cmd.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
+	return cmd
 }
 
-func TestRunCat(t *testing.T) {
-	cmd, err := run([]string{"cat"}, Pipe, Pipe, DevNull)
+func TestEcho(t *testing.T) {
+	bs, err := helperCommand("echo", "foo bar", "baz").Output()
 	if err != nil {
-		t.Fatal("run:", err)
+		t.Errorf("echo: %v", err)
 	}
-	io.WriteString(cmd.Stdin, "hello, world\n")
-	cmd.Stdin.Close()
-	buf, err := ioutil.ReadAll(cmd.Stdout)
-	if err != nil {
-		t.Fatal("read:", err)
-	}
-	if string(buf) != "hello, world\n" {
-		t.Fatalf("read: got %q", buf)
-	}
-	if err = cmd.Close(); err != nil {
-		t.Fatal("close:", err)
+	if g, e := string(bs), "foo bar baz\n"; g != e {
+		t.Errorf("echo: want %q, got %q", e, g)
 	}
 }
 
-func TestRunEcho(t *testing.T) {
-	cmd, err := run([]string{"bash", "-c", "echo hello world"},
-		DevNull, Pipe, DevNull)
+func TestCatStdin(t *testing.T) {
+	// Cat, testing stdin and stdout.
+	input := "Input string\nLine 2"
+	p := helperCommand("cat")
+	p.Stdin = strings.NewReader(input)
+	bs, err := p.Output()
 	if err != nil {
-		t.Fatal("run:", err)
+		t.Errorf("cat: %v", err)
 	}
-	buf, err := ioutil.ReadAll(cmd.Stdout)
-	if err != nil {
-		t.Fatal("read:", err)
-	}
-	if string(buf) != "hello world\n" {
-		t.Fatalf("read: got %q", buf)
-	}
-	if err = cmd.Close(); err != nil {
-		t.Fatal("close:", err)
+	s := string(bs)
+	if s != input {
+		t.Errorf("cat: want %q, got %q", input, s)
 	}
 }
 
-func TestStderr(t *testing.T) {
-	cmd, err := run([]string{"bash", "-c", "echo hello world 1>&2"},
-		DevNull, DevNull, Pipe)
-	if err != nil {
-		t.Fatal("run:", err)
+func TestCatGoodAndBadFile(t *testing.T) {
+	// Testing combined output and error values.
+	bs, err := helperCommand("cat", "/bogus/file.foo", "exec_test.go").CombinedOutput()
+	if _, ok := err.(*os.Waitmsg); !ok {
+		t.Errorf("expected Waitmsg from cat combined; got %T: %v", err, err)
 	}
-	buf, err := ioutil.ReadAll(cmd.Stderr)
-	if err != nil {
-		t.Fatal("read:", err)
+	s := string(bs)
+	sp := strings.Split(s, "\n", 2)
+	if len(sp) != 2 {
+		t.Fatalf("expected two lines from cat; got %q", s)
 	}
-	if string(buf) != "hello world\n" {
-		t.Fatalf("read: got %q", buf)
+	errLine, body := sp[0], sp[1]
+	if !strings.HasPrefix(errLine, "Error: open /bogus/file.foo") {
+		t.Errorf("expected stderr to complain about file; got %q", errLine)
 	}
-	if err = cmd.Close(); err != nil {
-		t.Fatal("close:", err)
-	}
-}
-
-func TestMergeWithStdout(t *testing.T) {
-	cmd, err := run([]string{"bash", "-c", "echo hello world 1>&2"},
-		DevNull, Pipe, MergeWithStdout)
-	if err != nil {
-		t.Fatal("run:", err)
-	}
-	buf, err := ioutil.ReadAll(cmd.Stdout)
-	if err != nil {
-		t.Fatal("read:", err)
-	}
-	if string(buf) != "hello world\n" {
-		t.Fatalf("read: got %q", buf)
-	}
-	if err = cmd.Close(); err != nil {
-		t.Fatal("close:", err)
+	if !strings.Contains(body, "func TestHelperProcess(t *testing.T)") {
+		t.Errorf("expected test code; got %q (len %d)", body, len(body))
 	}
 }
 
-func TestAddEnvVar(t *testing.T) {
-	err := os.Setenv("NEWVAR", "hello world")
-	if err != nil {
-		t.Fatal("setenv:", err)
-	}
-	cmd, err := run([]string{"bash", "-c", "echo $NEWVAR"},
-		DevNull, Pipe, DevNull)
-	if err != nil {
-		t.Fatal("run:", err)
-	}
-	buf, err := ioutil.ReadAll(cmd.Stdout)
-	if err != nil {
-		t.Fatal("read:", err)
-	}
-	if string(buf) != "hello world\n" {
-		t.Fatalf("read: got %q", buf)
-	}
-	if err = cmd.Close(); err != nil {
-		t.Fatal("close:", err)
+
+func TestNoExistBinary(t *testing.T) {
+	// Can't run a non-existent binary
+	err := Command("/no-exist-binary").Run()
+	if err == nil {
+		t.Error("expected error from /no-exist-binary")
 	}
 }
 
-var tryargs = []string{
-	`2`,
-	`2 `,
-	"2 \t",
-	`2" "`,
-	`2 ab `,
-	`2 "ab" `,
-	`2 \ `,
-	`2 \\ `,
-	`2 \" `,
-	`2 \`,
-	`2\`,
-	`2"`,
-	`2\"`,
-	`2 "`,
-	`2 \"`,
-	``,
-	`2 ^ `,
-	`2 \^`,
-}
-
-func TestArgs(t *testing.T) {
-	for _, a := range tryargs {
-		argv := []string{
-			"awk",
-			`BEGIN{printf("%s|%s|%s",ARGV[1],ARGV[2],ARGV[3])}`,
-			"/dev/null",
-			a,
-			"EOF",
+func TestExitStatus(t *testing.T) {
+	// Test that exit values are returned correctly
+	err := helperCommand("exit", "42").Run()
+	if werr, ok := err.(*os.Waitmsg); ok {
+		if s, e := werr.String(), "exit status 42"; s != e {
+			t.Errorf("from exit 42 got exit %q, want %q", s, e)
 		}
-		exe, err := LookPath(argv[0])
-		if err != nil {
-			t.Fatal("run:", err)
+	} else {
+		t.Fatalf("expected Waitmsg from exit 42; got %T: %v", err, err)
+	}
+}
+
+// TestHelperProcess isn't a real test. It's used as a helper process
+// for TestParameterRun.
+func TestHelperProcess(*testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	defer os.Exit(0)
+
+	args := os.Args
+	for len(args) > 0 {
+		if args[0] == "--" {
+			args = args[1:]
+			break
 		}
-		cmd, err := Run(exe, argv, nil, "", DevNull, Pipe, DevNull)
-		if err != nil {
-			t.Fatal("run:", err)
+		args = args[1:]
+	}
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stderr, "No command\n")
+		os.Exit(2)
+	}
+
+	cmd, args := args[0], args[1:]
+	switch cmd {
+	case "echo":
+		iargs := []interface{}{}
+		for _, s := range args {
+			iargs = append(iargs, s)
 		}
-		buf, err := ioutil.ReadAll(cmd.Stdout)
-		if err != nil {
-			t.Fatal("read:", err)
+		fmt.Println(iargs...)
+	case "cat":
+		if len(args) == 0 {
+			io.Copy(os.Stdout, os.Stdin)
+			return
 		}
-		expect := "/dev/null|" + a + "|EOF"
-		if string(buf) != expect {
-			t.Errorf("read: got %q expect %q", buf, expect)
+		exit := 0
+		for _, fn := range args {
+			f, err := os.Open(fn)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				exit = 2
+			} else {
+				defer f.Close()
+				io.Copy(os.Stdout, f)
+			}
 		}
-		if err = cmd.Close(); err != nil {
-			t.Fatal("close:", err)
-		}
+		os.Exit(exit)
+	case "exit":
+		n, _ := strconv.Atoi(args[0])
+		os.Exit(n)
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
+		os.Exit(2)
 	}
 }
