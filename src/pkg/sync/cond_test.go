@@ -46,6 +46,33 @@ func TestCondSignal(t *testing.T) {
 	c.Signal()
 }
 
+func TestCondSignalGenerations(t *testing.T) {
+	var m Mutex
+	c := NewCond(&m)
+	n := 100
+	running := make(chan bool, n)
+	awake := make(chan int, n)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			m.Lock()
+			running <- true
+			c.Wait()
+			awake <- i
+			m.Unlock()
+		}(i)
+		if i > 0 {
+			a := <-awake
+			if a != i-1 {
+				t.Fatalf("wrong goroutine woke up: want %d, got %d", i-1, a)
+			}
+		}
+		<-running
+		m.Lock()
+		c.Signal()
+		m.Unlock()
+	}
+}
+
 func TestCondBroadcast(t *testing.T) {
 	var m Mutex
 	c := NewCond(&m)
