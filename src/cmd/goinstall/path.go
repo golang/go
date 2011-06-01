@@ -119,7 +119,7 @@ func findPackageRoot(path string) (root *pkgroot, pkg string, err os.Error) {
 			return
 		}
 		for _, r := range gopath {
-			rpath := r.srcDir() + filepath.SeparatorString
+			rpath := r.srcDir() + string(filepath.Separator)
 			if !strings.HasPrefix(path, rpath) {
 				continue
 			}
