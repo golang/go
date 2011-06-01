@@ -80,9 +80,10 @@ type ocfbDecrypter struct {
 // NewOCFBDecrypter returns a Stream which decrypts data with OpenPGP's cipher
 // feedback mode using the given Block. Prefix must be the first blockSize + 2
 // bytes of the ciphertext, where blockSize is the Block's block size. If an
-// incorrect key is detected then nil is returned. Resync determines if the
-// "resynchronization step" from RFC 4880, 13.9 step 7 is performed. Different
-// parts of OpenPGP vary on this point.
+// incorrect key is detected then nil is returned. On successful exit,
+// blockSize+2 bytes of decrypted data are written into prefix. Resync
+// determines if the "resynchronization step" from RFC 4880, 13.9 step 7 is
+// performed. Different parts of OpenPGP vary on this point.
 func NewOCFBDecrypter(block Block, prefix []byte, resync OCFBResyncOption) Stream {
 	blockSize := block.BlockSize()
 	if len(prefix) != blockSize+2 {
@@ -118,6 +119,7 @@ func NewOCFBDecrypter(block Block, prefix []byte, resync OCFBResyncOption) Strea
 		x.fre[1] = prefix[blockSize+1]
 		x.outUsed = 2
 	}
+	copy(prefix, prefixCopy)
 	return x
 }
 
