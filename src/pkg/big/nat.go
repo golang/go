@@ -608,8 +608,11 @@ func (x nat) bitLen() int {
 }
 
 
-func hexValue(ch int) int {
-	var d int
+// MaxBase is the largest number base accepted for string conversions.
+const MaxBase = 'z' - 'a' + 10 + 1 // = hexValue('z') + 1
+
+func hexValue(ch int) Word {
+	d := MaxBase + 1 // illegal base
 	switch {
 	case '0' <= ch && ch <= '9':
 		d = ch - '0'
@@ -617,86 +620,106 @@ func hexValue(ch int) int {
 		d = ch - 'a' + 10
 	case 'A' <= ch && ch <= 'Z':
 		d = ch - 'A' + 10
-	default:
-		return -1
 	}
-	return d
+	return Word(d)
 }
 
 
-// scan returns the natural number corresponding to the longest
-// possible prefix read from r representing a natural number in a
-// given conversion base, the actual conversion base used, and an
-// error, if any. The syntax of natural numbers follows the syntax of
+// scan sets z to the natural number corresponding to the longest possible prefix
+// read from r representing an unsigned integer in a given conversion base.
+// It returns z, the actual conversion base used, and an error, if any. In the
+// error case, the value of z is undefined. The syntax follows the syntax of
 // unsigned integer literals in Go.
 //
-// If the base argument is 0, the string prefix determines the actual
-// conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
-// ``0'' prefix selects base 8, and a ``0b'' or ``0B'' prefix selects
-// base 2. Otherwise the selected base is 10.
+// The base argument must be 0 or a value from 2 through MaxBase. If the base
+// is 0, the string prefix determines the actual conversion base. A prefix of
+// ``0x'' or ``0X'' selects base 16; the ``0'' prefix selects base 8, and a
+// ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
 //
 func (z nat) scan(r io.RuneScanner, base int) (nat, int, os.Error) {
-	n := 0
+	// reject illegal bases
+	if base < 0 || base == 1 || MaxBase < base {
+		return z, 0, os.ErrorString("illegal number base")
+	}
+
+	// one char look-ahead
 	ch, _, err := r.ReadRune()
 	if err != nil {
 		return z, 0, err
 	}
+
 	// determine base if necessary
+	b := Word(base)
 	if base == 0 {
-		base = 10
+		b = 10
 		if ch == '0' {
-			n++
 			switch ch, _, err = r.ReadRune(); err {
 			case nil:
-				base = 8
+				b = 8
 				switch ch {
 				case 'x', 'X':
-					base = 16
+					b = 16
 				case 'b', 'B':
-					base = 2
+					b = 2
 				}
-				if base == 2 || base == 16 {
-					n--
+				if b == 2 || b == 16 {
 					if ch, _, err = r.ReadRune(); err != nil {
-						return z, 0, os.ErrorString("syntax error scanning binary or hexadecimal number")
+						return z, 0, err
 					}
 				}
 			case os.EOF:
 				return z, 10, nil
 			default:
-				return z, 0, err
+				return z, 10, err
 			}
 		}
-	}
-
-	// reject illegal bases
-	if base < 2 || 'z'-'a'+10 < base {
-		return z, 0, os.ErrorString("illegal number base")
 	}
 
 	// convert string
+	// - group as many digits d as possible together into a "super-digit" dd with "super-base" bb
+	// - only when bb does not fit into a word anymore, do a full number mulAddWW using bb and dd
 	z = z.make(0)
+	bb := Word(1)
+	dd := Word(0)
 	for {
 		d := hexValue(ch)
-		if 0 <= d && d < base {
-			z = z.mulAddWW(z, Word(base), Word(d))
-		} else {
-			r.UnreadRune()
-			if n > 0 {
-				break
-			}
-			return z, 0, os.ErrorString("syntax error scanning number")
+		if d >= b {
+			r.UnreadRune() // ch does not belong to number anymore
+			break
 		}
-		n++
+
+		if tmp := bb * b; tmp < bb {
+			// overflow
+			z = z.mulAddWW(z, bb, dd)
+			bb = b
+			dd = d
+		} else {
+			bb = tmp
+			dd = dd*b + d
+		}
+
 		if ch, _, err = r.ReadRune(); err != nil {
-			if err == os.EOF {
-				break
+			if err != os.EOF {
+				return z, int(b), err
 			}
-			return z, 0, err
+			break
 		}
 	}
 
-	return z.norm(), base, nil
+	switch {
+	case bb > 1:
+		// there was at least one mantissa digit
+		z = z.mulAddWW(z, bb, dd)
+	case base == 0 && b == 8:
+		// there was only the octal prefix 0 (possibly followed by digits > 7);
+		// return base 10, not 8
+		return z, 10, nil
+	case base != 0 || b != 8:
+		// there was neither a mantissa digit nor the octal prefix 0
+		return z, int(b), os.ErrorString("syntax error scanning number")
+	}
+
+	return z.norm(), int(b), nil
 }
 
 
