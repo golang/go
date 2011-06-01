@@ -681,21 +681,21 @@ func (z nat) scan(r io.RuneScanner, base int) (nat, int, os.Error) {
 	z = z.make(0)
 	bb := Word(1)
 	dd := Word(0)
-	for {
+	for max := _M / b; ; {
 		d := hexValue(ch)
 		if d >= b {
 			r.UnreadRune() // ch does not belong to number anymore
 			break
 		}
 
-		if tmp := bb * b; tmp < bb {
-			// overflow
+		if bb <= max {
+			bb *= b
+			dd = dd*b + d
+		} else {
+			// bb * b would overflow
 			z = z.mulAddWW(z, bb, dd)
 			bb = b
 			dd = d
-		} else {
-			bb = tmp
-			dd = dd*b + d
 		}
 
 		if ch, _, err = r.ReadRune(); err != nil {
