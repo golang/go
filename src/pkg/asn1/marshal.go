@@ -458,20 +458,17 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 		return marshalField(out, v.Elem(), params)
 	}
 
+	if params.optional && reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
+		return
+	}
+
 	if v.Type() == rawValueType {
 		rv := v.Interface().(RawValue)
-		if rv.Class == 0 && rv.Tag == 0 && len(rv.Bytes) == 0 && params.optional {
-			return
-		}
 		err = marshalTagAndLength(out, tagAndLength{rv.Class, rv.Tag, len(rv.Bytes), rv.IsCompound})
 		if err != nil {
 			return
 		}
 		_, err = out.Write(rv.Bytes)
-		return
-	}
-
-	if params.optional && reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
 		return
 	}
 
