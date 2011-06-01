@@ -1,0 +1,22 @@
+Instructions to get an initial godoc running on a local app engine emulator
+---------------------------------------------------------------------------
+
+To run godoc under the app engine emulator, create a ("goroot") godoc
+directory that contains the app.yaml file, the doc and lib directories
+from the Go distribution, as well as a godoc directory with the godoc
+sources from src/cmd/godoc. In the godoc source directory, replace
+main.go with init.go. The directory structure should look as follows:
+
+godoc				// "goroot" directory
+	app.yaml		// app engine control file
+	doc			// goroot/doc directory
+	favicon.ico
+	godoc			// contains godoc sources
+		godoc.go	// unchanged godoc file
+		init.go		// this file instead of godoc/main.go
+		...		// remaining godoc files
+	lib			// goroot/lib directory
+
+Run app engine emulator locally: dev_appserver.py -a <hostname> godoc
+where godoc is the top-level "goroot" directory. The godoc home page
+is then served at: <hostname>:8080 .
