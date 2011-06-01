@@ -32,9 +32,8 @@ var (
 	argv0         = os.Args[0]
 	errors        = false
 	parents       = make(map[string]string)
-	root          = runtime.GOROOT()
 	visit         = make(map[string]status)
-	logfile       = filepath.Join(root, "goinstall.log")
+	logfile       = filepath.Join(runtime.GOROOT(), "goinstall.log")
 	installedPkgs = make(map[string]bool)
 
 	allpkg            = flag.Bool("a", false, "install all previously installed packages")
@@ -52,14 +51,30 @@ const (
 	done
 )
 
+func logf(format string, args ...interface{}) {
+	format = "%s: " + format
+	args = append([]interface{}{argv0}, args...)
+	fmt.Fprintf(os.Stderr, format, args...)
+}
+
+func vlogf(format string, args ...interface{}) {
+	if *verbose {
+		logf(format, args...)
+	}
+}
+
+func errorf(format string, args ...interface{}) {
+	errors = true
+	logf(format, args...)
+}
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
-	if root == "" {
+	if runtime.GOROOT() == "" {
 		fmt.Fprintf(os.Stderr, "%s: no $GOROOT\n", argv0)
 		os.Exit(1)
 	}
-	root += filepath.FromSlash("/src/pkg/")
 
 	// special case - "unsafe" is already installed
 	visit["unsafe"] = done
@@ -88,6 +103,11 @@ func main() {
 		usage()
 	}
 	for _, path := range args {
+		if strings.HasPrefix(path, "http://") {
+			errorf("'http://' used in remote path, try '%s'\n", path[7:])
+			continue
+		}
+
 		install(path, "")
 	}
 	if errors {
@@ -131,11 +151,6 @@ func logPackage(pkg string) {
 
 // install installs the package named by path, which is needed by parent.
 func install(pkg, parent string) {
-	if isStandardPath(pkg) {
-		visit[pkg] = done
-		return
-	}
-
 	// Make sure we're not already trying to install pkg.
 	switch visit[pkg] {
 	case done:
@@ -148,46 +163,44 @@ func install(pkg, parent string) {
 	}
 	visit[pkg] = visiting
 	parents[pkg] = parent
-	if *verbose {
-		fmt.Println(pkg)
-	}
+
+	vlogf("%s: visit\n", pkg)
 
 	// Check whether package is local or remote.
 	// If remote, download or update it.
-	var dir string
-	proot := gopath[0] // default to GOROOT
-	local := false
-	if strings.HasPrefix(pkg, "http://") {
-		fmt.Fprintf(os.Stderr, "%s: %s: 'http://' used in remote path, try '%s'\n", argv0, pkg, pkg[7:])
-		errors = true
+	proot, pkg, err := findPackageRoot(pkg)
+	// Don't build the standard library.
+	if err == nil && proot.goroot && isStandardPath(pkg) {
+		if parent == "" {
+			errorf("%s: can not goinstall the standard library\n", pkg)
+		} else {
+			vlogf("%s: skipping standard library\n", pkg)
+		}
+		visit[pkg] = done
 		return
 	}
-	if isLocalPath(pkg) {
-		dir = pkg
-		local = true
-	} else {
-		proot = findPkgroot(pkg)
-		err := download(pkg, proot.srcDir())
-		dir = filepath.Join(proot.srcDir(), pkg)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", argv0, pkg, err)
-			errors = true
-			visit[pkg] = done
-			return
-		}
+	// Download remote packages if not found or forced with -u flag.
+	remote := isRemote(pkg)
+	if remote && (err == ErrPackageNotFound || (err == nil && *update)) {
+		vlogf("%s: download\n", pkg)
+		err = download(pkg, proot.srcDir())
 	}
+	if err != nil {
+		errorf("%s: %v\n", pkg, err)
+		visit[pkg] = done
+		return
+	}
+	dir := filepath.Join(proot.srcDir(), pkg)
 
 	// Install prerequisites.
 	dirInfo, err := scanDir(dir, parent == "")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s: %s\n", argv0, pkg, err)
-		errors = true
+		errorf("%s: %v\n", pkg, err)
 		visit[pkg] = done
 		return
 	}
 	if len(dirInfo.goFiles) == 0 {
-		fmt.Fprintf(os.Stderr, "%s: %s: package has no files\n", argv0, pkg)
-		errors = true
+		errorf("%s: package has no files\n", pkg)
 		visit[pkg] = done
 		return
 	}
@@ -200,22 +213,16 @@ func install(pkg, parent string) {
 	// Install this package.
 	if !errors {
 		isCmd := dirInfo.pkgName == "main"
-		if err := domake(dir, pkg, proot, local, isCmd); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: installing %s: %s\n", argv0, pkg, err)
-			errors = true
-		} else if !local && *logPkgs {
-			// mark this package as installed in $GOROOT/goinstall.log
+		if err := domake(dir, pkg, proot, isCmd); err != nil {
+			errorf("installing: %v\n", err)
+		} else if remote && *logPkgs {
+			// mark package as installed in $GOROOT/goinstall.log
 			logPackage(pkg)
 		}
 	}
 	visit[pkg] = done
 }
 
-// Is this a local path?  /foo ./foo ../foo . ..
-func isLocalPath(s string) bool {
-	const sep = string(filepath.Separator)
-	return strings.HasPrefix(s, sep) || strings.HasPrefix(s, "."+sep) || strings.HasPrefix(s, ".."+sep) || s == "." || s == ".."
-}
 
 // Is this a standard package path?  strings container/vector etc.
 // Assume that if the first element has a dot, it's a domain name
@@ -245,9 +252,7 @@ func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
 		return err
 	}
 	p, err := exec.Run(bin, cmd, os.Environ(), dir, exec.Pipe, exec.Pipe, exec.MergeWithStdout)
-	if *verbose {
-		fmt.Fprintf(os.Stderr, "%s: %s; %s %s\n", argv0, dir, bin, strings.Join(cmd[1:], " "))
-	}
+	vlogf("%s: %s %s\n", dir, bin, strings.Join(cmd[1:], " "))
 	if err != nil {
 		return err
 	}
@@ -256,7 +261,6 @@ func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
 		p.Stdin.Close()
 	}()
 	var buf bytes.Buffer
-	io.Copy(&buf, p.Stdout)
 	io.Copy(&buf, p.Stdout)
 	w, err := p.Wait(0)
 	p.Close()
