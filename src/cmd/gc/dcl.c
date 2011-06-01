@@ -188,6 +188,7 @@ declare(Node *n, int ctxt)
 		else if(n->op == ONAME)
 			gen = ++vargen;
 		pushdcl(s);
+		n->curfn = curfn;
 	}
 	if(ctxt == PAUTO)
 		n->xoffset = BADWIDTH;

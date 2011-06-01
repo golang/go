@@ -254,6 +254,7 @@ struct	Node
 	Node*	ntype;
 	Node*	defn;
 	Node*	pack;	// real package for import . names
+	Node*	curfn;	// function for local variables
 
 	// ONAME func param with PHEAP
 	Node*	heapaddr;	// temp holding heap address of param
@@ -517,15 +518,16 @@ enum
 
 enum
 {
-	Etop = 1<<1,	// evaluated at statement level
-	Erv = 1<<2,	// evaluated in value context
+	Etop = 1<<1,		// evaluated at statement level
+	Erv = 1<<2,		// evaluated in value context
 	Etype = 1<<3,
-	Ecall = 1<<4,	// call-only expressions are ok
+	Ecall = 1<<4,		// call-only expressions are ok
 	Efnstruct = 1<<5,	// multivalue function returns are ok
 	Eiota = 1<<6,		// iota is ok
 	Easgn = 1<<7,		// assigning to expression
 	Eindir = 1<<8,		// indirecting through expression
 	Eaddr = 1<<9,		// taking address of expression
+	Eproc = 1<<10,		// inside a go statement
 };
 
 #define	BITS	5
@@ -815,7 +817,7 @@ int	bset(Bits a, uint n);
  */
 Node*	closurebody(NodeList *body);
 void	closurehdr(Node *ntype);
-void	typecheckclosure(Node *func);
+void	typecheckclosure(Node *func, int top);
 Node*	walkclosure(Node *func, NodeList **init);
 void	walkcallclosure(Node *n, NodeList **init);
 

@@ -75,7 +75,7 @@ closurebody(NodeList *body)
 }
 
 void
-typecheckclosure(Node *func)
+typecheckclosure(Node *func, int top)
 {
 	Node *oldfn;
 	NodeList *l;
@@ -106,6 +106,10 @@ typecheckclosure(Node *func)
 			v->op = 0;
 			continue;
 		}
+		// For a closure that is called in place, but not
+		// inside a go statement, avoid moving variables to the heap.
+		if ((top & (Ecall|Eproc)) == Ecall)
+			v->heapaddr->etype = 1;
 		typecheck(&v->heapaddr, Erv);
 		func->enter = list(func->enter, v->heapaddr);
 		v->heapaddr = N;
