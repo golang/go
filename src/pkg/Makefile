@@ -116,6 +116,7 @@ DIRS=\
 	io/ioutil\
 	json\
 	log\
+	mail\
 	math\
 	mime\
 	mime/multipart\
