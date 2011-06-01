@@ -7,6 +7,7 @@ package packet
 import (
 	"crypto/cipher"
 	"crypto/openpgp/error"
+	"crypto/rand"
 	"crypto/sha1"
 	"crypto/subtle"
 	"hash"
@@ -24,6 +25,8 @@ type SymmetricallyEncrypted struct {
 	prefix   []byte
 }
 
+const symmetricallyEncryptedVersion = 1
+
 func (se *SymmetricallyEncrypted) parse(r io.Reader) os.Error {
 	if se.MDC {
 		// See RFC 4880, section 5.13.
@@ -32,7 +35,7 @@ func (se *SymmetricallyEncrypted) parse(r io.Reader) os.Error {
 		if err != nil {
 			return err
 		}
-		if buf[0] != 1 {
+		if buf[0] != symmetricallyEncryptedVersion {
 			return error.UnsupportedError("unknown SymmetricallyEncrypted version")
 		}
 	}
@@ -174,6 +177,9 @@ func (ser *seMDCReader) Read(buf []byte) (n int, err os.Error) {
 	return
 }
 
+// This is a new-format packet tag byte for a type 19 (MDC) packet.
+const mdcPacketTagByte = byte(0x80) | 0x40 | 19
+
 func (ser *seMDCReader) Close() os.Error {
 	if ser.error {
 		return error.SignatureError("error during reading")
@@ -191,16 +197,95 @@ func (ser *seMDCReader) Close() os.Error {
 		}
 	}
 
-	// This is a new-format packet tag byte for a type 19 (MDC) packet.
-	const mdcPacketTagByte = byte(0x80) | 0x40 | 19
 	if ser.trailer[0] != mdcPacketTagByte || ser.trailer[1] != sha1.Size {
 		return error.SignatureError("MDC packet not found")
 	}
 	ser.h.Write(ser.trailer[:2])
 
 	final := ser.h.Sum()
-	if subtle.ConstantTimeCompare(final, ser.trailer[2:]) == 1 {
+	if subtle.ConstantTimeCompare(final, ser.trailer[2:]) != 1 {
 		return error.SignatureError("hash mismatch")
 	}
 	return nil
+}
+
+// An seMDCWriter writes through to an io.WriteCloser while maintains a running
+// hash of the data written. On close, it emits an MDC packet containing the
+// running hash.
+type seMDCWriter struct {
+	w io.WriteCloser
+	h hash.Hash
+}
+
+func (w *seMDCWriter) Write(buf []byte) (n int, err os.Error) {
+	w.h.Write(buf)
+	return w.w.Write(buf)
+}
+
+func (w *seMDCWriter) Close() (err os.Error) {
+	var buf [mdcTrailerSize]byte
+
+	buf[0] = mdcPacketTagByte
+	buf[1] = sha1.Size
+	w.h.Write(buf[:2])
+	digest := w.h.Sum()
+	copy(buf[2:], digest)
+
+	_, err = w.w.Write(buf[:])
+	if err != nil {
+		return
+	}
+	return w.w.Close()
+}
+
+// noOpCloser is like an ioutil.NopCloser, but for an io.Writer.
+type noOpCloser struct {
+	w io.Writer
+}
+
+func (c noOpCloser) Write(data []byte) (n int, err os.Error) {
+	return c.w.Write(data)
+}
+
+func (c noOpCloser) Close() os.Error {
+	return nil
+}
+
+// SerializeSymmetricallyEncrypted serializes a symmetrically encrypted packet
+// to w and returns a WriteCloser to which the to-be-encrypted packets can be
+// written.
+func SerializeSymmetricallyEncrypted(w io.Writer, c CipherFunction, key []byte) (contents io.WriteCloser, err os.Error) {
+	if c.keySize() != len(key) {
+		return nil, error.InvalidArgumentError("SymmetricallyEncrypted.Serialize: bad key length")
+	}
+	writeCloser := noOpCloser{w}
+	ciphertext, err := serializeStreamHeader(writeCloser, packetTypeSymmetricallyEncryptedMDC)
+	if err != nil {
+		return
+	}
+
+	_, err = ciphertext.Write([]byte{symmetricallyEncryptedVersion})
+	if err != nil {
+		return
+	}
+
+	block := c.new(key)
+	blockSize := block.BlockSize()
+	iv := make([]byte, blockSize)
+	_, err = rand.Reader.Read(iv)
+	if err != nil {
+		return
+	}
+	s, prefix := cipher.NewOCFBEncrypter(block, iv, cipher.OCFBNoResync)
+	_, err = ciphertext.Write(prefix)
+	if err != nil {
+		return
+	}
+	plaintext := cipher.StreamWriter{S: s, W: ciphertext}
+
+	h := sha1.New()
+	h.Write(iv)
+	h.Write(iv[blockSize-2:])
+	contents = &seMDCWriter{w: plaintext, h: h}
+	return
 }

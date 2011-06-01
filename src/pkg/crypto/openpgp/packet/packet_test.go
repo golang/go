@@ -210,3 +210,47 @@ func TestSerializeHeader(t *testing.T) {
 		}
 	}
 }
+
+func TestPartialLengths(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	w := new(partialLengthWriter)
+	w.w = noOpCloser{buf}
+
+	const maxChunkSize = 64
+
+	var b [maxChunkSize]byte
+	var n uint8
+	for l := 1; l <= maxChunkSize; l++ {
+		for i := 0; i < l; i++ {
+			b[i] = n
+			n++
+		}
+		m, err := w.Write(b[:l])
+		if m != l {
+			t.Errorf("short write got: %d want: %d", m, l)
+		}
+		if err != nil {
+			t.Errorf("error from write: %s", err)
+		}
+	}
+	w.Close()
+
+	want := (maxChunkSize * (maxChunkSize + 1)) / 2
+	copyBuf := bytes.NewBuffer(nil)
+	r := &partialLengthReader{buf, 0, true}
+	m, err := io.Copy(copyBuf, r)
+	if m != int64(want) {
+		t.Errorf("short copy got: %d want: %d", m, want)
+	}
+	if err != nil {
+		t.Errorf("error from copy: %s", err)
+	}
+
+	copyBytes := copyBuf.Bytes()
+	for i := 0; i < want; i++ {
+		if copyBytes[i] != uint8(i) {
+			t.Errorf("bad pattern in copy at %d", i)
+			break
+		}
+	}
+}

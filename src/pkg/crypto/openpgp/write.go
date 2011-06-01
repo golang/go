@@ -9,6 +9,7 @@ import (
 	"crypto/openpgp/armor"
 	"crypto/openpgp/error"
 	"crypto/openpgp/packet"
+	"crypto/rand"
 	_ "crypto/sha256"
 	"io"
 	"os"
@@ -80,4 +81,37 @@ func detachSign(w io.Writer, signer *Entity, message io.Reader, sigType packet.S
 	}
 
 	return sig.Serialize(w)
+}
+
+// FileHints contains metadata about encrypted files. This metadata is, itself,
+// encrypted.
+type FileHints struct {
+	// IsBinary can be set to hint that the contents are binary data.
+	IsBinary bool
+	// FileName hints at the name of the file that should be written. It's
+	// truncated to 255 bytes if longer. It may be empty to suggest that the
+	// file should not be written to disk. It may be equal to "_CONSOLE" to
+	// suggest the data should not be written to disk.
+	FileName string
+	// EpochSeconds contains the modification time of the file, or 0 if not applicable.
+	EpochSeconds uint32
+}
+
+// SymmetricallyEncrypt acts like gpg -c: it encrypts a file with a passphrase.
+// The resulting WriteCloser MUST be closed after the contents of the file have
+// been written.
+func SymmetricallyEncrypt(ciphertext io.Writer, passphrase []byte, hints *FileHints) (plaintext io.WriteCloser, err os.Error) {
+	if hints == nil {
+		hints = &FileHints{}
+	}
+
+	key, err := packet.SerializeSymmetricKeyEncrypted(ciphertext, rand.Reader, passphrase, packet.CipherAES128)
+	if err != nil {
+		return
+	}
+	w, err := packet.SerializeSymmetricallyEncrypted(ciphertext, packet.CipherAES128, key)
+	if err != nil {
+		return
+	}
+	return packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
 }

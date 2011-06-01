@@ -7,6 +7,8 @@ package openpgp
 import (
 	"bytes"
 	"crypto/rand"
+	"os"
+	"io"
 	"testing"
 	"time"
 )
@@ -83,5 +85,38 @@ func TestNewEntity(t *testing.T) {
 
 	if !bytes.Equal(w.Bytes(), serialized) {
 		t.Errorf("results differed")
+	}
+}
+
+func TestSymmetricEncryption(t *testing.T) {
+	buf := new(bytes.Buffer)
+	plaintext, err := SymmetricallyEncrypt(buf, []byte("testing"), nil)
+	if err != nil {
+		t.Errorf("error writing headers: %s", err)
+		return
+	}
+	message := []byte("hello world\n")
+	_, err = plaintext.Write(message)
+	if err != nil {
+		t.Errorf("error writing to plaintext writer: %s", err)
+	}
+	err = plaintext.Close()
+	if err != nil {
+		t.Errorf("error closing plaintext writer: %s", err)
+	}
+
+	md, err := ReadMessage(buf, nil, func(keys []Key, symmetric bool) ([]byte, os.Error) {
+		return []byte("testing"), nil
+	})
+	if err != nil {
+		t.Errorf("error rereading message: %s", err)
+	}
+	messageBuf := bytes.NewBuffer(nil)
+	_, err = io.Copy(messageBuf, md.UnverifiedBody)
+	if err != nil {
+		t.Errorf("error rereading message: %s", err)
+	}
+	if !bytes.Equal(message, messageBuf.Bytes()) {
+		t.Errorf("recovered message incorrect got '%s', want '%s'", messageBuf.Bytes(), message)
 	}
 }

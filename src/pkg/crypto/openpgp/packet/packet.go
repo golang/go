@@ -92,6 +92,46 @@ func (r *partialLengthReader) Read(p []byte) (n int, err os.Error) {
 	return
 }
 
+// partialLengthWriter writes a stream of data using OpenPGP partial lengths.
+// See RFC 4880, section 4.2.2.4.
+type partialLengthWriter struct {
+	w          io.WriteCloser
+	lengthByte [1]byte
+}
+
+func (w *partialLengthWriter) Write(p []byte) (n int, err os.Error) {
+	for len(p) > 0 {
+		for power := uint(14); power < 32; power-- {
+			l := 1 << power
+			if len(p) >= l {
+				w.lengthByte[0] = 224 + uint8(power)
+				_, err = w.w.Write(w.lengthByte[:])
+				if err != nil {
+					return
+				}
+				var m int
+				m, err = w.w.Write(p[:l])
+				n += m
+				if err != nil {
+					return
+				}
+				p = p[l:]
+				break
+			}
+		}
+	}
+	return
+}
+
+func (w *partialLengthWriter) Close() os.Error {
+	w.lengthByte[0] = 0
+	_, err := w.w.Write(w.lengthByte[:])
+	if err != nil {
+		return err
+	}
+	return w.w.Close()
+}
+
 // A spanReader is an io.LimitReader, but it returns ErrUnexpectedEOF if the
 // underlying Reader returns EOF before the limit has been reached.
 type spanReader struct {
@@ -192,6 +232,20 @@ func serializeHeader(w io.Writer, ptype packetType, length int) (err os.Error) {
 	}
 
 	_, err = w.Write(buf[:n])
+	return
+}
+
+// serializeStreamHeader writes an OpenPGP packet header to w where the
+// length of the packet is unknown. It returns a io.WriteCloser which can be
+// used to write the contents of the packet. See RFC 4880, section 4.2.
+func serializeStreamHeader(w io.WriteCloser, ptype packetType) (out io.WriteCloser, err os.Error) {
+	var buf [1]byte
+	buf[0] = 0x80 | 0x40 | byte(ptype)
+	_, err = w.Write(buf[:])
+	if err != nil {
+		return
+	}
+	out = &partialLengthWriter{w: w}
 	return
 }
 
@@ -327,10 +381,10 @@ const (
 type CipherFunction uint8
 
 const (
-	CipherCAST5  = 3
-	CipherAES128 = 7
-	CipherAES192 = 8
-	CipherAES256 = 9
+	CipherCAST5  CipherFunction = 3
+	CipherAES128 CipherFunction = 7
+	CipherAES192 CipherFunction = 8
+	CipherAES256 CipherFunction = 9
 )
 
 // keySize returns the key size, in bytes, of cipher.

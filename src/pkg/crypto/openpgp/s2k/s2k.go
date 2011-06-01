@@ -123,6 +123,26 @@ func Parse(r io.Reader) (f func(out, in []byte), err os.Error) {
 	return nil, error.UnsupportedError("S2K function")
 }
 
+// Serialize salts and stretches the given passphrase and writes the resulting
+// key into key. It also serializes an S2K descriptor to w.
+func Serialize(w io.Writer, key []byte, rand io.Reader, passphrase []byte) os.Error {
+	var buf [11]byte
+	buf[0] = 3 /* iterated and salted */
+	buf[1], _ = HashToHashId(crypto.SHA1)
+	salt := buf[2:10]
+	if _, err := io.ReadFull(rand, salt); err != nil {
+		return err
+	}
+	const count = 65536 // this is the default in gpg
+	buf[10] = 96        // 65536 iterations
+	if _, err := w.Write(buf[:]); err != nil {
+		return err
+	}
+
+	Iterated(key, crypto.SHA1.New(), passphrase, salt, count)
+	return nil
+}
+
 // hashToHashIdMapping contains pairs relating OpenPGP's hash identifier with
 // Go's crypto.Hash type. See RFC 4880, section 9.4.
 var hashToHashIdMapping = []struct {
