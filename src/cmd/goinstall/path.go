@@ -5,10 +5,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 var (
@@ -19,6 +21,7 @@ var (
 
 // set up gopath: parse and validate GOROOT and GOPATH variables
 func init() {
+	root := runtime.GOROOT()
 	p, err := newPkgroot(root)
 	if err != nil {
 		log.Fatalf("Invalid GOROOT %q: %v", root, err)
@@ -105,13 +108,42 @@ func (r *pkgroot) hasPkg(name string) bool {
 	// TODO(adg): check object version is consistent
 }
 
-// findPkgroot searches each of the gopath roots
-// for the source code for the given import path.
-func findPkgroot(importPath string) *pkgroot {
+
+var ErrPackageNotFound = os.NewError("package could not be found locally")
+
+// findPackageRoot takes an import or filesystem path and returns the
+// root where the package source should be and the package import path.
+func findPackageRoot(path string) (root *pkgroot, pkg string, err os.Error) {
+	if isLocalPath(path) {
+		if path, err = filepath.Abs(path); err != nil {
+			return
+		}
+		for _, r := range gopath {
+			rpath := r.srcDir() + filepath.SeparatorString
+			if !strings.HasPrefix(path, rpath) {
+				continue
+			}
+			root = r
+			pkg = path[len(rpath):]
+			return
+		}
+		err = fmt.Errorf("path %q not inside a GOPATH", path)
+		return
+	}
+	root = defaultRoot
+	pkg = path
 	for _, r := range gopath {
-		if r.hasSrcDir(importPath) {
-			return r
+		if r.hasSrcDir(path) {
+			root = r
+			return
 		}
 	}
-	return defaultRoot
+	err = ErrPackageNotFound
+	return
+}
+
+// Is this a local path?  /foo ./foo ../foo . ..
+func isLocalPath(s string) bool {
+	const sep = string(filepath.Separator)
+	return strings.HasPrefix(s, sep) || strings.HasPrefix(s, "."+sep) || strings.HasPrefix(s, ".."+sep) || s == "." || s == ".."
 }

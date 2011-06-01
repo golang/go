@@ -14,26 +14,14 @@ import (
 )
 
 // domake builds the package in dir.
-// If local is false, the package was copied from an external system.
-// For non-local packages or packages without Makefiles,
 // domake generates a standard Makefile and passes it
 // to make on standard input.
-func domake(dir, pkg string, root *pkgroot, local, isCmd bool) (err os.Error) {
-	needMakefile := true
-	if local {
-		_, err := os.Stat(filepath.Join(dir, "Makefile"))
-		if err == nil {
-			needMakefile = false
-		}
+func domake(dir, pkg string, root *pkgroot, isCmd bool) (err os.Error) {
+	makefile, err := makeMakefile(dir, pkg, root, isCmd)
+	if err != nil {
+		return err
 	}
-	cmd := []string{"bash", "gomake"}
-	var makefile []byte
-	if needMakefile {
-		if makefile, err = makeMakefile(dir, pkg, root, isCmd); err != nil {
-			return err
-		}
-		cmd = append(cmd, "-f-")
-	}
+	cmd := []string{"bash", "gomake", "-f-"}
 	if *clean {
 		cmd = append(cmd, "clean")
 	}
@@ -51,16 +39,8 @@ func makeMakefile(dir, pkg string, root *pkgroot, isCmd bool) ([]byte, os.Error)
 	targ := pkg
 	targDir := root.pkgDir()
 	if isCmd {
-		// use the last part of the package name only
+		// use the last part of the package name for targ
 		_, targ = filepath.Split(pkg)
-		// if building the working dir use the directory name
-		if targ == "." {
-			d, err := filepath.Abs(dir)
-			if err != nil {
-				return nil, os.NewError("finding path: " + err.String())
-			}
-			_, targ = filepath.Split(d)
-		}
 		targDir = root.binDir()
 	}
 	dirInfo, err := scanDir(dir, isCmd)
