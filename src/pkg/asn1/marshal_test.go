@@ -45,6 +45,10 @@ type printableStringTest struct {
 	A string "printable"
 }
 
+type optionalRawValueTest struct {
+	A RawValue "optional"
+}
+
 type testSET []int
 
 func setPST(t *time.Time) *time.Time {
@@ -102,6 +106,7 @@ var marshalTests = []marshalTest{
 			"7878787878787878787878787878787878787878787878787878787878787878",
 	},
 	{ia5StringTest{"test"}, "3006160474657374"},
+	{optionalRawValueTest{}, "3000"},
 	{printableStringTest{"test"}, "3006130474657374"},
 	{printableStringTest{"test*"}, "30071305746573742a"},
 	{rawContentsStruct{nil, 64}, "3003020140"},
