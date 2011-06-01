@@ -29,8 +29,8 @@ static void	typecheckfunc(Node*);
 static void	checklvalue(Node*, char*);
 static void	checkassign(Node*);
 static void	checkassignlist(NodeList*);
-static void stringtoarraylit(Node**);
-static Node* resolve(Node*);
+static void	stringtoarraylit(Node**);
+static Node*	resolve(Node*);
 static Type*	getforwtype(Node*);
 
 /*
@@ -780,7 +780,7 @@ reswitch:
 			n = r;
 			goto reswitch;
 		}
-		typecheck(&n->left, Erv | Etype | Ecall);
+		typecheck(&n->left, Erv | Etype | Ecall |(top&Eproc));
 		l = n->left;
 		if(l->op == ONAME && l->etype != 0) {
 			if(n->isddd && l->etype != OAPPEND)
@@ -1027,9 +1027,9 @@ reswitch:
 		
 		// copy([]byte, string)
 		if(isslice(n->left->type) && n->right->type->etype == TSTRING) {
-		        if (n->left->type->type ==types[TUINT8])
-			        goto ret;
-		        yyerror("arguments to copy have different element types: %lT and string", n->left->type);
+			if (n->left->type->type == types[TUINT8])
+				goto ret;
+			yyerror("arguments to copy have different element types: %lT and string", n->left->type);
 			goto error;
 		}
 			       
@@ -1217,7 +1217,7 @@ reswitch:
 
 	case OCLOSURE:
 		ok |= Erv;
-		typecheckclosure(n);
+		typecheckclosure(n, top);
 		if(n->type == T)
 			goto error;
 		goto ret;
@@ -1246,9 +1246,13 @@ reswitch:
 		goto ret;
 
 	case ODEFER:
-	case OPROC:
 		ok |= Etop;
 		typecheck(&n->left, Etop);
+		goto ret;
+
+	case OPROC:
+		ok |= Etop;
+		typecheck(&n->left, Etop|Eproc);
 		goto ret;
 
 	case OFOR:
@@ -2165,7 +2169,9 @@ addrescapes(Node *n)
 		if(n->noescape)
 			break;
 		switch(n->class) {
-		case PAUTO:
+		case PPARAMREF:
+			addrescapes(n->defn);
+			break;
 		case PPARAM:
 		case PPARAMOUT:
 			// if func param, need separate temporary
@@ -2173,16 +2179,17 @@ addrescapes(Node *n)
 			// the function type has already been checked
 			// (we're in the function body)
 			// so the param already has a valid xoffset.
-			if(n->class == PPARAM || n->class == PPARAMOUT) {
-				// expression to refer to stack copy
-				n->stackparam = nod(OPARAM, n, N);
-				n->stackparam->type = n->type;
-				n->stackparam->addable = 1;
-				if(n->xoffset == BADWIDTH)
-					fatal("addrescapes before param assignment");
-				n->stackparam->xoffset = n->xoffset;
-				n->xoffset = 0;
-			}
+
+			// expression to refer to stack copy
+			n->stackparam = nod(OPARAM, n, N);
+			n->stackparam->type = n->type;
+			n->stackparam->addable = 1;
+			if(n->xoffset == BADWIDTH)
+				fatal("addrescapes before param assignment");
+			n->stackparam->xoffset = n->xoffset;
+			n->xoffset = 0;
+			// fallthrough
+		case PAUTO:
 
 			n->class |= PHEAP;
 			n->addable = 0;
@@ -2195,7 +2202,9 @@ addrescapes(Node *n)
 			snprint(buf, sizeof buf, "&%S", n->sym);
 			n->heapaddr->sym = lookup(buf);
 			n->heapaddr->class = PHEAP-1;	// defer tempname to allocparams
-			curfn->dcl = list(curfn->dcl, n->heapaddr);
+			n->heapaddr->ullman = 1;
+			n->curfn->dcl = list(n->curfn->dcl, n->heapaddr);
+
 			break;
 		}
 		break;
