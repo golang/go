@@ -8,6 +8,7 @@ package big
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"rand"
 	"strings"
@@ -375,11 +376,48 @@ func (x *Int) Format(s fmt.State, ch int) {
 }
 
 
-// Scan is a support routine for fmt.Scanner. It accepts the formats
-// 'b' (binary), 'o' (octal), 'd' (decimal), 'x' (lowercase hexadecimal),
-// and 'X' (uppercase hexadecimal).
-func (x *Int) Scan(s fmt.ScanState, ch int) os.Error {
-	var base int
+// scan sets z to the integer value corresponding to the longest possible prefix
+// read from r representing a signed integer number in a given conversion base.
+// It returns z, the actual conversion base used, and an error, if any. In the
+// error case, the value of z is undefined. The syntax follows the syntax of
+// integer literals in Go.
+//
+// The base argument must be 0 or a value from 2 through MaxBase. If the base
+// is 0, the string prefix determines the actual conversion base. A prefix of
+// ``0x'' or ``0X'' selects base 16; the ``0'' prefix selects base 8, and a
+// ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
+//
+func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, os.Error) {
+	// determine sign
+	ch, _, err := r.ReadRune()
+	if err != nil {
+		return z, 0, err
+	}
+	neg := false
+	switch ch {
+	case '-':
+		neg = true
+	case '+': // nothing to do
+	default:
+		r.UnreadRune()
+	}
+
+	// determine mantissa
+	z.abs, base, err = z.abs.scan(r, base)
+	if err != nil {
+		return z, base, err
+	}
+	z.neg = len(z.abs) > 0 && neg // 0 has no sign
+
+	return z, base, nil
+}
+
+
+// Scan is a support routine for fmt.Scanner; it sets z to the value of
+// the scanned number. It accepts the formats 'b' (binary), 'o' (octal),
+// 'd' (decimal), 'x' (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
+func (z *Int) Scan(s fmt.ScanState, ch int) os.Error {
+	base := 0
 	switch ch {
 	case 'b':
 		base = 2
@@ -394,32 +432,13 @@ func (x *Int) Scan(s fmt.ScanState, ch int) os.Error {
 	default:
 		return os.ErrorString("Int.Scan: invalid verb")
 	}
-
-	ch, _, err := s.ReadRune()
-	if err != nil {
-		return err
-	}
-	neg := false
-	switch ch {
-	case '-':
-		neg = true
-	case '+': // nothing to do
-	default:
-		s.UnreadRune()
-	}
-
-	x.abs, _, err = x.abs.scan(s, base)
-	if err != nil {
-		return err
-	}
-	x.neg = len(x.abs) > 0 && neg // 0 has no sign
-
-	return nil
+	_, _, err := z.scan(s, base)
+	return err
 }
 
 
-// Int64 returns the int64 representation of z.
-// If z cannot be represented in an int64, the result is undefined.
+// Int64 returns the int64 representation of x.
+// If x cannot be represented in an int64, the result is undefined.
 func (x *Int) Int64() int64 {
 	if len(x.abs) == 0 {
 		return 0
@@ -439,33 +458,19 @@ func (x *Int) Int64() int64 {
 // and returns z and a boolean indicating success. If SetString fails,
 // the value of z is undefined.
 //
-// If the base argument is 0, the string prefix determines the actual
-// conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
-// ``0'' prefix selects base 8, and a ``0b'' or ``0B'' prefix selects
-// base 2. Otherwise the selected base is 10.
+// The base argument must be 0 or a value from 2 through MaxBase. If the base
+// is 0, the string prefix determines the actual conversion base. A prefix of
+// ``0x'' or ``0X'' selects base 16; the ``0'' prefix selects base 8, and a
+// ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
 //
 func (z *Int) SetString(s string, base int) (*Int, bool) {
-	neg := false
-	if len(s) > 0 {
-		switch s[0] {
-		case '-':
-			neg = true
-			fallthrough
-		case '+':
-			s = s[1:]
-		}
-	}
-
 	r := strings.NewReader(s)
-	abs, _, err := z.abs.scan(r, base)
+	_, _, err := z.scan(r, base)
 	if err != nil {
 		return z, false
 	}
 	_, _, err = r.ReadRune()
-
-	z.abs = abs
-	z.neg = len(abs) > 0 && neg // 0 has no sign
-	return z, err == os.EOF     // err == os.EOF => scan consumed all of s
+	return z, err == os.EOF // err == os.EOF => scan consumed all of s
 }
 
 
