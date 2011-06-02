@@ -198,3 +198,8 @@ span.alert {
   padding: 0.25em 1em;
   background: #F4F4F4;
 }
+sup.new {
+  color: red;
+  font-size: 8px;
+  line-height: 0;
+}
