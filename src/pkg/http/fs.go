@@ -175,7 +175,9 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 	}
 
 	w.Header().Set("Accept-Ranges", "bytes")
-	w.Header().Set("Content-Length", strconv.Itoa64(size))
+	if w.Header().Get("Content-Encoding") == "" {
+		w.Header().Set("Content-Length", strconv.Itoa64(size))
+	}
 
 	w.WriteHeader(code)
 
