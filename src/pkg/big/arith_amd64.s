@@ -120,8 +120,8 @@ E4:	CMPQ BX, R11		// i < n
 	RET
 
 
-// func shlVW(z, x []Word, s Word) (c Word)
-TEXT ·shlVW(SB),7,$0
+// func shlVU(z, x []Word, s uint) (c Word)
+TEXT ·shlVU(SB),7,$0
 	MOVL n+8(FP), BX	// i = n
 	SUBL $1, BX		// i--
 	JL X8b			// i < 0	(n <= 0)
@@ -129,7 +129,7 @@ TEXT ·shlVW(SB),7,$0
 	// n > 0
 	MOVQ z+0(FP), R10
 	MOVQ x+16(FP), R8
-	MOVQ s+32(FP), CX
+	MOVL s+32(FP), CX
 	MOVQ (R8)(BX*8), AX	// w1 = x[n-1]
 	MOVQ $0, DX
 	SHLQ CX, DX:AX		// w1>>ŝ
@@ -155,8 +155,8 @@ X8b:	MOVQ $0, c+40(FP)
 	RET
 
 
-// func shrVW(z, x []Word, s Word) (c Word)
-TEXT ·shrVW(SB),7,$0
+// func shrVU(z, x []Word, s uint) (c Word)
+TEXT ·shrVU(SB),7,$0
 	MOVL n+8(FP), R11
 	SUBL $1, R11		// n--
 	JL X9b			// n < 0	(n <= 0)
@@ -164,7 +164,7 @@ TEXT ·shrVW(SB),7,$0
 	// n > 0
 	MOVQ z+0(FP), R10
 	MOVQ x+16(FP), R8
-	MOVQ s+32(FP), CX
+	MOVL s+32(FP), CX
 	MOVQ (R8), AX		// w1 = x[0]
 	MOVQ $0, DX
 	SHRQ CX, DX:AX		// w1<<ŝ
