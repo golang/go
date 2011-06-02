@@ -466,6 +466,14 @@ func (s *ss) peek(ok string) bool {
 	return strings.IndexRune(ok, rune) >= 0
 }
 
+func (s *ss) notEOF() {
+	// Guarantee there is data to be read.
+	if rune := s.getRune(); rune == eof {
+		panic(os.EOF)
+	}
+	s.UnreadRune()
+}
+
 // accept checks the next rune in the input.  If it's a byte (sic) in the string, it puts it in the
 // buffer and returns true. Otherwise it return false.
 func (s *ss) accept(ok string) bool {
@@ -485,11 +493,13 @@ func (s *ss) okVerb(verb int, okVerbs, typ string) bool {
 
 // scanBool returns the value of the boolean represented by the next token.
 func (s *ss) scanBool(verb int) bool {
+	s.skipSpace(false)
+	s.notEOF()
 	if !s.okVerb(verb, "tv", "boolean") {
 		return false
 	}
 	// Syntax-checking a boolean is annoying.  We're not fastidious about case.
-	switch s.mustReadRune() {
+	switch s.getRune() {
 	case '0':
 		return false
 	case '1':
@@ -540,6 +550,7 @@ func (s *ss) getBase(verb int) (base int, digits string) {
 
 // scanNumber returns the numerical string with specified digits starting here.
 func (s *ss) scanNumber(digits string, haveDigits bool) string {
+	s.notEOF()
 	if !haveDigits && !s.accept(digits) {
 		s.errorString("expected integer")
 	}
@@ -550,7 +561,8 @@ func (s *ss) scanNumber(digits string, haveDigits bool) string {
 
 // scanRune returns the next rune value in the input.
 func (s *ss) scanRune(bitSize int) int64 {
-	rune := int64(s.mustReadRune())
+	s.notEOF()
+	rune := int64(s.getRune())
 	n := uint(bitSize)
 	x := (rune << (64 - n)) >> (64 - n)
 	if x != rune {
@@ -584,6 +596,7 @@ func (s *ss) scanInt(verb int, bitSize int) int64 {
 		return s.scanRune(bitSize)
 	}
 	s.skipSpace(false)
+	s.notEOF()
 	base, digits := s.getBase(verb)
 	haveDigits := false
 	if verb == 'U' {
@@ -616,6 +629,7 @@ func (s *ss) scanUint(verb int, bitSize int) uint64 {
 		return uint64(s.scanRune(bitSize))
 	}
 	s.skipSpace(false)
+	s.notEOF()
 	base, digits := s.getBase(verb)
 	haveDigits := false
 	if verb == 'U' {
@@ -736,6 +750,7 @@ func (s *ss) scanComplex(verb int, n int) complex128 {
 		return 0
 	}
 	s.skipSpace(false)
+	s.notEOF()
 	sreal, simag := s.complexTokens()
 	real := s.convertFloat(sreal, n/2)
 	imag := s.convertFloat(simag, n/2)
@@ -749,6 +764,7 @@ func (s *ss) convertString(verb int) (str string) {
 		return ""
 	}
 	s.skipSpace(false)
+	s.notEOF()
 	switch verb {
 	case 'q':
 		str = s.quotedString()
@@ -757,16 +773,13 @@ func (s *ss) convertString(verb int) (str string) {
 	default:
 		str = string(s.token(true, notSpace)) // %s and %v just return the next word
 	}
-	// Empty strings other than with %q are not OK.
-	if len(str) == 0 && verb != 'q' && s.maxWid > 0 {
-		s.errorString("Scan: no data for string")
-	}
 	return
 }
 
 // quotedString returns the double- or back-quoted string represented by the next input characters.
 func (s *ss) quotedString() string {
-	quote := s.mustReadRune()
+	s.notEOF()
+	quote := s.getRune()
 	switch quote {
 	case '`':
 		// Back-quoted: Anything goes until EOF or back quote.
@@ -836,6 +849,7 @@ func (s *ss) hexByte() (b byte, ok bool) {
 
 // hexString returns the space-delimited hexpair-encoded string.
 func (s *ss) hexString() string {
+	s.notEOF()
 	for {
 		b, ok := s.hexByte()
 		if !ok {
@@ -869,6 +883,7 @@ func (s *ss) scanOne(verb int, field interface{}) {
 		}
 		return
 	}
+
 	switch v := field.(type) {
 	case *bool:
 		*v = s.scanBool(verb)
@@ -903,11 +918,13 @@ func (s *ss) scanOne(verb int, field interface{}) {
 	case *float32:
 		if s.okVerb(verb, floatVerbs, "float32") {
 			s.skipSpace(false)
+			s.notEOF()
 			*v = float32(s.convertFloat(s.floatToken(), 32))
 		}
 	case *float64:
 		if s.okVerb(verb, floatVerbs, "float64") {
 			s.skipSpace(false)
+			s.notEOF()
 			*v = s.convertFloat(s.floatToken(), 64)
 		}
 	case *string:
@@ -945,6 +962,7 @@ func (s *ss) scanOne(verb int, field interface{}) {
 			}
 		case reflect.Float32, reflect.Float64:
 			s.skipSpace(false)
+			s.notEOF()
 			v.SetFloat(s.convertFloat(s.floatToken(), v.Type().Bits()))
 		case reflect.Complex64, reflect.Complex128:
 			v.SetComplex(s.scanComplex(verb, v.Type().Bits()))
@@ -955,13 +973,13 @@ func (s *ss) scanOne(verb int, field interface{}) {
 	}
 }
 
-// errorHandler turns local panics into error returns.  EOFs are benign.
+// errorHandler turns local panics into error returns.
 func errorHandler(errp *os.Error) {
 	if e := recover(); e != nil {
 		if se, ok := e.(scanError); ok { // catch local error
-			if se.err != os.EOF {
-				*errp = se.err
-			}
+			*errp = se.err
+		} else if eof, ok := e.(os.Error); ok && eof == os.EOF { // out of input
+			*errp = eof
 		} else {
 			panic(e)
 		}
