@@ -65,8 +65,8 @@ type Cmd struct {
 	process         *os.Process
 	finished        bool // when Wait was called
 	childFiles      []*os.File
-	closeAfterStart []*os.File
-	closeAfterWait  []*os.File
+	closeAfterStart []io.Closer
+	closeAfterWait  []io.Closer
 	goroutine       []func() os.Error
 	errch           chan os.Error // one send per goroutine
 }
@@ -306,4 +306,61 @@ func (c *Cmd) CombinedOutput() ([]byte, os.Error) {
 	c.Stderr = &b
 	err := c.Run()
 	return b.Bytes(), err
+}
+
+// StdinPipe returns a pipe that will be connected to the command's
+// standard input when the command starts.
+func (c *Cmd) StdinPipe() (io.WriteCloser, os.Error) {
+	if c.Stdin != nil {
+		return nil, os.NewError("exec: Stdin already set")
+	}
+	if c.process != nil {
+		return nil, os.NewError("exec: StdinPipe after process started")
+	}
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	c.Stdin = pr
+	c.closeAfterStart = append(c.closeAfterStart, pr)
+	c.closeAfterWait = append(c.closeAfterStart, pw)
+	return pw, nil
+}
+
+// StdoutPipe returns a pipe that will be connected to the command's
+// standard output when the command starts.
+func (c *Cmd) StdoutPipe() (io.Reader, os.Error) {
+	if c.Stdout != nil {
+		return nil, os.NewError("exec: Stdout already set")
+	}
+	if c.process != nil {
+		return nil, os.NewError("exec: StdoutPipe after process started")
+	}
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	c.Stdout = pw
+	c.closeAfterStart = append(c.closeAfterStart, pw)
+	c.closeAfterWait = append(c.closeAfterStart, pr)
+	return pr, nil
+}
+
+// StderrPipe returns a pipe that will be connected to the command's
+// standard error when the command starts.
+func (c *Cmd) StderrPipe() (io.Reader, os.Error) {
+	if c.Stderr != nil {
+		return nil, os.NewError("exec: Stderr already set")
+	}
+	if c.process != nil {
+		return nil, os.NewError("exec: StderrPipe after process started")
+	}
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	c.Stderr = pw
+	c.closeAfterStart = append(c.closeAfterStart, pw)
+	c.closeAfterWait = append(c.closeAfterStart, pr)
+	return pr, nil
 }

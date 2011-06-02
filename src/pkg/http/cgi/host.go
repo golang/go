@@ -161,22 +161,20 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		h.printf("CGI error: %v", err)
 	}
 
-	stdoutRead, stdoutWrite, err := os.Pipe()
-	if err != nil {
-		internalError(err)
-		return
-	}
-
 	cmd := &exec.Cmd{
 		Path:   pathBase,
 		Args:   append([]string{h.Path}, h.Args...),
 		Dir:    cwd,
 		Env:    env,
-		Stdout: stdoutWrite,
 		Stderr: os.Stderr, // for now
 	}
 	if req.ContentLength != 0 {
 		cmd.Stdin = req.Body
+	}
+	stdoutRead, err := cmd.StdoutPipe()
+	if err != nil {
+		internalError(err)
+		return
 	}
 
 	err = cmd.Start()
@@ -184,7 +182,6 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		internalError(err)
 		return
 	}
-	stdoutWrite.Close()
 	defer cmd.Wait()
 
 	linebody, _ := bufio.NewReaderSize(stdoutRead, 1024)
