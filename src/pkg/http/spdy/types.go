@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package spdy is an incomplete implementation of the SPDY protocol.
-//
-// The implementation follows draft 2 of the spec:
-// https://sites.google.com/a/chromium.org/dev/spdy/spdy-protocol/spdy-protocol-draft2
 package spdy
 
 import (
-	"encoding/binary"
+	"bytes"
+	"compress/zlib"
 	"http"
+	"io"
 	"os"
+	"strconv"
 )
 
 //  Data Frame Format
@@ -193,27 +192,11 @@ type SynStreamFrame struct {
 	Headers  http.Header
 }
 
-func (frame *SynStreamFrame) write(f *Framer) os.Error {
-	return f.writeSynStreamFrame(frame)
-}
-
-func (frame *SynStreamFrame) read(h ControlFrameHeader, f *Framer) os.Error {
-	return f.readSynStreamFrame(h, frame)
-}
-
 // SynReplyFrame is the unpacked, in-memory representation of a SYN_REPLY frame.
 type SynReplyFrame struct {
 	CFHeader ControlFrameHeader
 	StreamId uint32
 	Headers  http.Header
-}
-
-func (frame *SynReplyFrame) write(f *Framer) os.Error {
-	return f.writeSynReplyFrame(frame)
-}
-
-func (frame *SynReplyFrame) read(h ControlFrameHeader, f *Framer) os.Error {
-	return f.readSynReplyFrame(h, frame)
 }
 
 // StatusCode represents the status that led to a RST_STREAM
@@ -235,35 +218,6 @@ type RstStreamFrame struct {
 	CFHeader ControlFrameHeader
 	StreamId uint32
 	Status   StatusCode
-}
-
-func (frame *RstStreamFrame) write(f *Framer) (err os.Error) {
-	frame.CFHeader.version = Version
-	frame.CFHeader.frameType = TypeRstStream
-	frame.CFHeader.length = 8
-
-	// Serialize frame to Writer
-	if err = writeControlFrameHeader(f.w, frame.CFHeader); err != nil {
-		return
-	}
-	if err = binary.Write(f.w, binary.BigEndian, frame.StreamId); err != nil {
-		return
-	}
-	if err = binary.Write(f.w, binary.BigEndian, frame.Status); err != nil {
-		return
-	}
-	return
-}
-
-func (frame *RstStreamFrame) read(h ControlFrameHeader, f *Framer) os.Error {
-	frame.CFHeader = h
-	if err := binary.Read(f.r, binary.BigEndian, &frame.StreamId); err != nil {
-		return err
-	}
-	if err := binary.Read(f.r, binary.BigEndian, &frame.Status); err != nil {
-		return err
-	}
-	return nil
 }
 
 // SettingsFlag represents a flag in a SETTINGS frame.
@@ -300,66 +254,9 @@ type SettingsFrame struct {
 	FlagIdValues []SettingsFlagIdValue
 }
 
-func (frame *SettingsFrame) write(f *Framer) (err os.Error) {
-	frame.CFHeader.version = Version
-	frame.CFHeader.frameType = TypeSettings
-	frame.CFHeader.length = uint32(len(frame.FlagIdValues)*8 + 4)
-
-	// Serialize frame to Writer
-	if err = writeControlFrameHeader(f.w, frame.CFHeader); err != nil {
-		return
-	}
-	if err = binary.Write(f.w, binary.BigEndian, uint32(len(frame.FlagIdValues))); err != nil {
-		return
-	}
-	for _, flagIdValue := range frame.FlagIdValues {
-		flagId := (uint32(flagIdValue.Flag) << 24) | uint32(flagIdValue.Id)
-		if err = binary.Write(f.w, binary.BigEndian, flagId); err != nil {
-			return
-		}
-		if err = binary.Write(f.w, binary.BigEndian, flagIdValue.Value); err != nil {
-			return
-		}
-	}
-	return
-}
-
-func (frame *SettingsFrame) read(h ControlFrameHeader, f *Framer) os.Error {
-	frame.CFHeader = h
-	var numSettings uint32
-	if err := binary.Read(f.r, binary.BigEndian, &numSettings); err != nil {
-		return err
-	}
-	frame.FlagIdValues = make([]SettingsFlagIdValue, numSettings)
-	for i := uint32(0); i < numSettings; i++ {
-		if err := binary.Read(f.r, binary.BigEndian, &frame.FlagIdValues[i].Id); err != nil {
-			return err
-		}
-		frame.FlagIdValues[i].Flag = SettingsFlag((frame.FlagIdValues[i].Id & 0xff000000) >> 24)
-		frame.FlagIdValues[i].Id &= 0xffffff
-		if err := binary.Read(f.r, binary.BigEndian, &frame.FlagIdValues[i].Value); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // NoopFrame is the unpacked, in-memory representation of a NOOP frame.
 type NoopFrame struct {
 	CFHeader ControlFrameHeader
-}
-
-func (frame *NoopFrame) write(f *Framer) os.Error {
-	frame.CFHeader.version = Version
-	frame.CFHeader.frameType = TypeNoop
-
-	// Serialize frame to Writer
-	return writeControlFrameHeader(f.w, frame.CFHeader)
-}
-
-func (frame *NoopFrame) read(h ControlFrameHeader, f *Framer) os.Error {
-	frame.CFHeader = h
-	return nil
 }
 
 // PingFrame is the unpacked, in-memory representation of a PING frame.
@@ -368,56 +265,10 @@ type PingFrame struct {
 	Id       uint32
 }
 
-func (frame *PingFrame) write(f *Framer) (err os.Error) {
-	frame.CFHeader.version = Version
-	frame.CFHeader.frameType = TypePing
-	frame.CFHeader.length = 4
-
-	// Serialize frame to Writer
-	if err = writeControlFrameHeader(f.w, frame.CFHeader); err != nil {
-		return
-	}
-	if err = binary.Write(f.w, binary.BigEndian, frame.Id); err != nil {
-		return
-	}
-	return
-}
-
-func (frame *PingFrame) read(h ControlFrameHeader, f *Framer) os.Error {
-	frame.CFHeader = h
-	if err := binary.Read(f.r, binary.BigEndian, &frame.Id); err != nil {
-		return err
-	}
-	return nil
-}
-
 // GoAwayFrame is the unpacked, in-memory representation of a GOAWAY frame.
 type GoAwayFrame struct {
 	CFHeader         ControlFrameHeader
 	LastGoodStreamId uint32
-}
-
-func (frame *GoAwayFrame) write(f *Framer) (err os.Error) {
-	frame.CFHeader.version = Version
-	frame.CFHeader.frameType = TypeGoAway
-	frame.CFHeader.length = 4
-
-	// Serialize frame to Writer
-	if err = writeControlFrameHeader(f.w, frame.CFHeader); err != nil {
-		return
-	}
-	if err = binary.Write(f.w, binary.BigEndian, frame.LastGoodStreamId); err != nil {
-		return
-	}
-	return nil
-}
-
-func (frame *GoAwayFrame) read(h ControlFrameHeader, f *Framer) os.Error {
-	frame.CFHeader = h
-	if err := binary.Read(f.r, binary.BigEndian, &frame.LastGoodStreamId); err != nil {
-		return err
-	}
-	return nil
 }
 
 // HeadersFrame is the unpacked, in-memory representation of a HEADERS frame.
@@ -427,44 +278,12 @@ type HeadersFrame struct {
 	Headers  http.Header
 }
 
-func (frame *HeadersFrame) write(f *Framer) os.Error {
-	return f.writeHeadersFrame(frame)
-}
-
-func (frame *HeadersFrame) read(h ControlFrameHeader, f *Framer) os.Error {
-	return f.readHeadersFrame(h, frame)
-}
-
-func newControlFrame(frameType ControlFrameType) (controlFrame, os.Error) {
-	ctor, ok := cframeCtor[frameType]
-	if !ok {
-		return nil, InvalidControlFrame
-	}
-	return ctor(), nil
-}
-
-var cframeCtor = map[ControlFrameType]func() controlFrame{
-	TypeSynStream: func() controlFrame { return new(SynStreamFrame) },
-	TypeSynReply:  func() controlFrame { return new(SynReplyFrame) },
-	TypeRstStream: func() controlFrame { return new(RstStreamFrame) },
-	TypeSettings:  func() controlFrame { return new(SettingsFrame) },
-	TypeNoop:      func() controlFrame { return new(NoopFrame) },
-	TypePing:      func() controlFrame { return new(PingFrame) },
-	TypeGoAway:    func() controlFrame { return new(GoAwayFrame) },
-	TypeHeaders:   func() controlFrame { return new(HeadersFrame) },
-	// TODO(willchan): Add TypeWindowUpdate
-}
-
 // DataFrame is the unpacked, in-memory representation of a DATA frame.
 type DataFrame struct {
 	// Note, high bit is the "Control" bit. Should be 0 for data frames.
 	StreamId uint32
 	Flags    DataFlags
 	Data     []byte
-}
-
-func (frame *DataFrame) write(f *Framer) os.Error {
-	return f.writeDataFrame(frame)
 }
 
 // HeaderDictionary is the dictionary sent to the zlib compressor/decompressor.
@@ -482,3 +301,63 @@ const HeaderDictionary = "optionsgetheadpostputdeletetrace" +
 	"JanFebMarAprMayJunJulAugSepOctNovDec" +
 	"chunkedtext/htmlimage/pngimage/jpgimage/gifapplication/xmlapplication/xhtmltext/plainpublicmax-age" +
 	"charset=iso-8859-1utf-8gzipdeflateHTTP/1.1statusversionurl\x00"
+
+type FramerError int
+
+const (
+	Internal FramerError = iota
+	InvalidControlFrame
+	UnlowercasedHeaderName
+	DuplicateHeaders
+	UnknownFrameType
+	InvalidDataFrame
+)
+
+func (e FramerError) String() string {
+	switch e {
+	case Internal:
+		return "Internal"
+	case InvalidControlFrame:
+		return "InvalidControlFrame"
+	case UnlowercasedHeaderName:
+		return "UnlowercasedHeaderName"
+	case DuplicateHeaders:
+		return "DuplicateHeaders"
+	case UnknownFrameType:
+		return "UnknownFrameType"
+	case InvalidDataFrame:
+		return "InvalidDataFrame"
+	}
+	return "Error(" + strconv.Itoa(int(e)) + ")"
+}
+
+// Framer handles serializing/deserializing SPDY frames, including compressing/
+// decompressing payloads.
+type Framer struct {
+	headerCompressionDisabled bool
+	w                         io.Writer
+	headerBuf                 *bytes.Buffer
+	headerCompressor          *zlib.Writer
+	r                         io.Reader
+	headerReader              corkedReader
+	headerDecompressor        io.ReadCloser
+}
+
+// NewFramer allocates a new Framer for a given SPDY connection, repesented by
+// a io.Writer and io.Reader. Note that Framer will read and write individual fields 
+// from/to the Reader and Writer, so the caller should pass in an appropriately 
+// buffered implementation to optimize performance.
+func NewFramer(w io.Writer, r io.Reader) (*Framer, os.Error) {
+	compressBuf := new(bytes.Buffer)
+	compressor, err := zlib.NewWriterDict(compressBuf, zlib.BestCompression, []byte(HeaderDictionary))
+	if err != nil {
+		return nil, err
+	}
+	framer := &Framer{
+		w:                w,
+		headerBuf:        compressBuf,
+		headerCompressor: compressor,
+		r:                r,
+	}
+	return framer, nil
+}
