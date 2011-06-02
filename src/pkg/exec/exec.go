@@ -63,6 +63,7 @@ type Cmd struct {
 
 	err             os.Error // last error (from LookPath, stdin, stdout, stderr)
 	process         *os.Process
+	finished        bool // when Wait was called
 	childFiles      []*os.File
 	closeAfterStart []*os.File
 	closeAfterWait  []*os.File
@@ -182,7 +183,7 @@ func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err os.Error) {
 	return pw, nil
 }
 
-// Run runs the specified command and waits for it to complete.
+// Run starts the specified command and waits for it to complete.
 //
 // The returned error is nil if the command runs, has no problems
 // copying stdin, stdout, and stderr, and exits with a zero exit
@@ -198,6 +199,7 @@ func (c *Cmd) Run() os.Error {
 	return c.Wait()
 }
 
+// Start starts the specified command but does not wait for it to complete.
 func (c *Cmd) Start() os.Error {
 	if c.err != nil {
 		return c.err
@@ -239,10 +241,24 @@ func (c *Cmd) Start() os.Error {
 	return nil
 }
 
+// Wait waits for the command to exit.
+// It must have been started by Start.
+//
+// The returned error is nil if the command runs, has no problems
+// copying stdin, stdout, and stderr, and exits with a zero exit
+// status.
+//
+// If the command fails to run or doesn't complete successfully, the
+// error is of type *os.Waitmsg. Other error types may be
+// returned for I/O problems.
 func (c *Cmd) Wait() os.Error {
 	if c.process == nil {
 		return os.NewError("exec: not started")
 	}
+	if c.finished {
+		return os.NewError("exec: Wait was already called")
+	}
+	c.finished = true
 	msg, err := c.process.Wait(0)
 
 	var copyError os.Error
@@ -267,6 +283,9 @@ func (c *Cmd) Wait() os.Error {
 
 // Output runs the command and returns its standard output.
 func (c *Cmd) Output() ([]byte, os.Error) {
+	if c.Stdout != nil {
+		return nil, os.NewError("exec: Stdout already set")
+	}
 	var b bytes.Buffer
 	c.Stdout = &b
 	err := c.Run()
@@ -276,6 +295,12 @@ func (c *Cmd) Output() ([]byte, os.Error) {
 // CombinedOutput runs the command and returns its combined standard
 // output and standard error.
 func (c *Cmd) CombinedOutput() ([]byte, os.Error) {
+	if c.Stdout != nil {
+		return nil, os.NewError("exec: Stdout already set")
+	}
+	if c.Stderr != nil {
+		return nil, os.NewError("exec: Stderr already set")
+	}
 	var b bytes.Buffer
 	c.Stdout = &b
 	c.Stderr = &b
