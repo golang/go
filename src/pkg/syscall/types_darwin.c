@@ -39,15 +39,13 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
 
 // Machine characteristics; for internal use.
 
-enum
-{
+enum {
 	$sizeofPtr = sizeof(void*),
 	$sizeofShort = sizeof(short),
 	$sizeofInt = sizeof(int),
 	$sizeofLong = sizeof(long),
 	$sizeofLongLong = sizeof(long long),
 };
-
 
 // Basic types
 
@@ -71,8 +69,7 @@ typedef gid_t $_Gid_t;
 
 // Files
 
-enum
-{
+enum {
 	$O_CLOEXEC = 0,	// not supported
 };
 
@@ -85,8 +82,6 @@ typedef struct fbootstraptransfer $Fbootstraptransfer_t;
 typedef struct log2phys $Log2phys_t;
 
 typedef struct dirent $Dirent;
-
-// Wait status.
 
 // Sockets
 
@@ -112,9 +107,11 @@ typedef struct sockaddr_any $RawSockaddrAny;
 typedef socklen_t $_Socklen;
 typedef struct linger $Linger;
 typedef struct iovec $Iovec;
-typedef struct ip_mreq $IpMreq;
+typedef struct ip_mreq $IPMreq;
+typedef struct ipv6_mreq $IPv6Mreq;
 typedef struct msghdr $Msghdr;
 typedef struct cmsghdr $Cmsghdr;
+typedef struct in6_pktinfo $Inet6Pktinfo;
 
 enum {
 	$SizeofSockaddrInet4 = sizeof(struct sockaddr_in),
@@ -123,18 +120,20 @@ enum {
 	$SizeofSockaddrUnix = sizeof(struct sockaddr_un),
 	$SizeofSockaddrDatalink = sizeof(struct sockaddr_dl),
 	$SizeofLinger = sizeof(struct linger),
-	$SizeofIpMreq = sizeof(struct ip_mreq),
+	$SizeofIPMreq = sizeof(struct ip_mreq),
+	$SizeofIPv6Mreq = sizeof(struct ipv6_mreq),
 	$SizeofMsghdr = sizeof(struct msghdr),
 	$SizeofCmsghdr = sizeof(struct cmsghdr),
+	$SizeofInet6Pktinfo = sizeof(struct in6_pktinfo),
 };
 
 // Ptrace requests
+
 enum {
 	$PTRACE_TRACEME = PT_TRACE_ME,
 	$PTRACE_CONT = PT_CONTINUE,
 	$PTRACE_KILL = PT_KILL,
 };
-
 
 // Events (kqueue, kevent)
 

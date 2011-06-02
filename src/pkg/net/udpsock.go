@@ -293,10 +293,10 @@ func (c *UDPConn) JoinGroup(addr IP) os.Error {
 	if ip == nil {
 		return &OpError{"joingroup", "udp", &IPAddr{ip}, errInvalidMulticast}
 	}
-	mreq := &syscall.IpMreq{
+	mreq := &syscall.IPMreq{
 		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
 	}
-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIpMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq))
+	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq))
 	if err != nil {
 		return &OpError{"joingroup", "udp", &IPAddr{ip}, err}
 	}
@@ -312,10 +312,10 @@ func (c *UDPConn) LeaveGroup(addr IP) os.Error {
 	if ip == nil {
 		return &OpError{"leavegroup", "udp", &IPAddr{ip}, errInvalidMulticast}
 	}
-	mreq := &syscall.IpMreq{
+	mreq := &syscall.IPMreq{
 		Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]},
 	}
-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIpMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq))
+	err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq))
 	if err != nil {
 		return &OpError{"leavegroup", "udp", &IPAddr{ip}, err}
 	}
