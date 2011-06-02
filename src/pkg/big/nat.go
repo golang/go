@@ -551,7 +551,12 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 
 	// D1.
 	shift := Word(leadingZeros(v[n-1]))
-	shlVW(v, v, shift)
+	if shift > 0 {
+		// do not modify v, it may be used by another goroutine simultaneously
+		v1 := make(nat, n)
+		shlVW(v1, v, shift)
+		v = v1
+	}
 	u[len(uIn)] = shlVW(u[0:len(uIn)], uIn, shift)
 
 	// D2.
@@ -592,7 +597,6 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 
 	q = q.norm()
 	shrVW(u, u, shift)
-	shrVW(v, v, shift)
 	r = u.norm()
 
 	return q, r
