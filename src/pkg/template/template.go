@@ -17,12 +17,15 @@
 	Data items may be values or pointers; the interface hides the
 	indirection.
 
-	In the following, 'field' is one of several things, according to the data.
+	In the following, 'Field' is one of several things, according to the data.
 
-		- The name of a field of a struct (result = data.field),
-		- The value stored in a map under that key (result = data[field]), or
+		- The name of a field of a struct (result = data.Field),
+		- The value stored in a map under that key (result = data["Field"]), or
 		- The result of invoking a niladic single-valued method with that name
-		  (result = data.field())
+		  (result = data.Field())
+
+	If Field is a struct field or method name, it must be an exported
+	(capitalized) name.
 
 	Major constructs ({} are the default delimiters for template actions;
 	[] are the notation in this comment for optional elements):
