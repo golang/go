@@ -118,8 +118,8 @@ E4:	CMPL BX, BP		// i < n
 	RET
 
 
-// func shlVW(z, x []Word, s Word) (c Word)
-TEXT ·shlVW(SB),7,$0
+// func shlVU(z, x []Word, s uint) (c Word)
+TEXT ·shlVU(SB),7,$0
 	MOVL n+4(FP), BX	// i = n
 	SUBL $1, BX		// i--
 	JL X8b			// i < 0	(n <= 0)
@@ -153,8 +153,8 @@ X8b:	MOVL $0, c+28(FP)
 	RET
 
 
-// func shrVW(z, x []Word, s Word) (c Word)
-TEXT ·shrVW(SB),7,$0
+// func shrVU(z, x []Word, s uint) (c Word)
+TEXT ·shrVU(SB),7,$0
 	MOVL n+4(FP), BP
 	SUBL $1, BP		// n--
 	JL X9b			// n < 0	(n <= 0)

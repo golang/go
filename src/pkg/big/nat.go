@@ -550,14 +550,14 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	u.clear()
 
 	// D1.
-	shift := Word(leadingZeros(v[n-1]))
+	shift := leadingZeros(v[n-1])
 	if shift > 0 {
 		// do not modify v, it may be used by another goroutine simultaneously
 		v1 := make(nat, n)
-		shlVW(v1, v, shift)
+		shlVU(v1, v, shift)
 		v = v1
 	}
-	u[len(uIn)] = shlVW(u[0:len(uIn)], uIn, shift)
+	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
 
 	// D2.
 	for j := m; j >= 0; j-- {
@@ -596,7 +596,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	}
 
 	q = q.norm()
-	shrVW(u, u, shift)
+	shrVU(u, u, shift)
 	r = u.norm()
 
 	return q, r
@@ -824,7 +824,7 @@ func (z nat) shl(x nat, s uint) nat {
 
 	n := m + int(s/_W)
 	z = z.make(n + 1)
-	z[n] = shlVW(z[n-m:n], x, Word(s%_W))
+	z[n] = shlVU(z[n-m:n], x, s%_W)
 	z[0 : n-m].clear()
 
 	return z.norm()
@@ -841,7 +841,7 @@ func (z nat) shr(x nat, s uint) nat {
 	// n > 0
 
 	z = z.make(n)
-	shrVW(z, x[m-n:], Word(s%_W))
+	shrVU(z, x[m-n:], s%_W)
 
 	return z.norm()
 }
@@ -972,25 +972,26 @@ func (x nat) modW(d Word) (r Word) {
 }
 
 
-// powersOfTwoDecompose finds q and k such that q * 1<<k = n and q is odd.
-func (n nat) powersOfTwoDecompose() (q nat, k Word) {
-	if len(n) == 0 {
-		return n, 0
+// powersOfTwoDecompose finds q and k with x = q * 1<<k and q is odd, or q and k are 0.
+func (x nat) powersOfTwoDecompose() (q nat, k int) {
+	if len(x) == 0 {
+		return x, 0
 	}
 
-	zeroWords := 0
-	for n[zeroWords] == 0 {
-		zeroWords++
+	// One of the words must be non-zero by definition,
+	// so this loop will terminate with i < len(x), and
+	// i is the number of 0 words.
+	i := 0
+	for x[i] == 0 {
+		i++
 	}
-	// One of the words must be non-zero by invariant, therefore
-	// zeroWords < len(n).
-	x := trailingZeroBits(n[zeroWords])
+	n := trailingZeroBits(x[i]) // x[i] != 0
 
-	q = q.make(len(n) - zeroWords)
-	shrVW(q, n[zeroWords:], Word(x))
+	q = make(nat, len(x)-i)
+	shrVU(q, x[i:], uint(n))
+
 	q = q.norm()
-
-	k = Word(_W*zeroWords + x)
+	k = i*_W + n
 	return
 }
 
@@ -1161,7 +1162,7 @@ NextRandom:
 		if y.cmp(natOne) == 0 || y.cmp(nm1) == 0 {
 			continue
 		}
-		for j := Word(1); j < k; j++ {
+		for j := 1; j < k; j++ {
 			y = y.mul(y, y)
 			quotient, y = quotient.div(y, y, n)
 			if y.cmp(nm1) == 0 {

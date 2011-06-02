@@ -185,6 +185,13 @@ func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
 }
 
 
+func makeFunVW(f func(z, x []Word, s uint) (c Word)) funVW {
+	return func(z, x []Word, s Word) (c Word) {
+		return f(z, x, uint(s))
+	}
+}
+
+
 func TestFunVW(t *testing.T) {
 	for _, a := range sumVW {
 		arg := a
@@ -196,16 +203,20 @@ func TestFunVW(t *testing.T) {
 		testFunVW(t, "subVW", subVW, arg)
 	}
 
+	shlVW_g := makeFunVW(shlVU_g)
+	shlVW := makeFunVW(shlVU)
 	for _, a := range lshVW {
 		arg := a
-		testFunVW(t, "shlVW_g", shlVW_g, arg)
-		testFunVW(t, "shlVW", shlVW, arg)
+		testFunVW(t, "shlVU_g", shlVW_g, arg)
+		testFunVW(t, "shlVU", shlVW, arg)
 	}
 
+	shrVW_g := makeFunVW(shrVU_g)
+	shrVW := makeFunVW(shrVU)
 	for _, a := range rshVW {
 		arg := a
-		testFunVW(t, "shrVW_g", shrVW_g, arg)
-		testFunVW(t, "shrVW", shrVW, arg)
+		testFunVW(t, "shrVU_g", shrVW_g, arg)
+		testFunVW(t, "shrVU", shrVW, arg)
 	}
 }
 

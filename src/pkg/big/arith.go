@@ -188,7 +188,7 @@ func subVW_g(z, x []Word, y Word) (c Word) {
 }
 
 
-func shlVW_g(z, x []Word, s Word) (c Word) {
+func shlVU_g(z, x []Word, s uint) (c Word) {
 	if n := len(z); n > 0 {
 		ŝ := _W - s
 		w1 := x[n-1]
@@ -204,7 +204,7 @@ func shlVW_g(z, x []Word, s Word) (c Word) {
 }
 
 
-func shrVW_g(z, x []Word, s Word) (c Word) {
+func shrVU_g(z, x []Word, s uint) (c Word) {
 	if n := len(z); n > 0 {
 		ŝ := _W - s
 		w1 := x[0]
