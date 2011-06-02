@@ -3170,7 +3170,10 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 		dumplist("genwrapper body", fn->nbody);
 
 	funcbody(fn);
+	curfn = fn;
 	typecheck(&fn, Etop);
+	typechecklist(fn->nbody, Etop);
+	curfn = nil;
 	funccompile(fn, 0);
 }
 

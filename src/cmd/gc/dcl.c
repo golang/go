@@ -1251,9 +1251,6 @@ funccompile(Node *n, int isclosure)
 
 	if(curfn)
 		fatal("funccompile %S inside %S", n->nname->sym, curfn->nname->sym);
-	curfn = n;
-	typechecklist(n->nbody, Etop);
-	curfn = nil;
 
 	stksize = 0;
 	dclcontext = PAUTO;

@@ -14,16 +14,17 @@ HFILES=\
 	opt.h\
 
 OFILES=\
-	list.$O\
-	gobj.$O\
-	galign.$O\
-	ggen.$O\
+	../6l/enam.$O\
 	cgen.$O\
 	cplx.$O\
+	galign.$O\
+	ggen.$O\
+	gobj.$O\
 	gsubr.$O\
+	list.$O\
 	peep.$O\
+	pgen.$O\
 	reg.$O\
-	../6l/enam.$O\
 
 LIB=\
 	../gc/gc.a\

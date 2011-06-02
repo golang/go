@@ -1213,6 +1213,7 @@ EXTERN	Prog*	continpc;
 EXTERN	Prog*	breakpc;
 EXTERN	Prog*	pc;
 EXTERN	Prog*	firstpc;
+EXTERN	Prog*	retpc;
 
 EXTERN	Node*	nodfp;
 
@@ -1226,6 +1227,7 @@ void	cgen_callinter(Node *n, Node *res, int proc);
 void	cgen_ret(Node *n);
 void	clearfat(Node *n);
 void	compile(Node*);
+void	defframe(Prog*);
 int	dgostringptr(Sym*, int off, char *str);
 int	dgostrlitptr(Sym*, int off, Strlit*);
 int	dstringptr(Sym *s, int off, char *str);
