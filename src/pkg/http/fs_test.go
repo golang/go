@@ -101,12 +101,27 @@ func TestServeFileContentType(t *testing.T) {
 			t.Fatal(err)
 		}
 		if h := resp.Header.Get("Content-Type"); h != want {
-			t.Errorf("Content-Type mismatch: got %q, want %q", h, want)
+			t.Errorf("Content-Type mismatch: got %d, want %d", h, want)
 		}
 	}
 	get("text/plain; charset=utf-8")
 	override = true
 	get(ctype)
+}
+
+func TestServeFileWithContentEncoding(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Encoding", "foo")
+		ServeFile(w, r, "testdata/file")
+	}))
+	defer ts.Close()
+	resp, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, e := resp.ContentLength, int64(-1); g != e {
+		t.Errorf("Content-Length mismatch: got %q, want %q", g, e)
+	}
 }
 
 func getBody(t *testing.T, req Request) (*Response, []byte) {
