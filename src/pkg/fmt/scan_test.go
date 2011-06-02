@@ -660,6 +660,68 @@ func TestEOF(t *testing.T) {
 	}
 }
 
+// Verify that we see an EOF error if we run out of input.
+// This was a buglet: we used to get "expected integer".
+func TestEOFAtEndOfInput(t *testing.T) {
+	var i, j int
+	n, err := Sscanf("23", "%d %d", &i, &j)
+	if n != 1 || i != 23 {
+		t.Errorf("Sscanf expected one value of 23; got %d %d", n, i)
+	}
+	if err != os.EOF {
+		t.Errorf("Sscanf expected EOF; got %q", err)
+	}
+	n, err = Sscan("234", &i, &j)
+	if n != 1 || i != 234 {
+		t.Errorf("Sscan expected one value of 234; got %d %d", n, i)
+	}
+	if err != os.EOF {
+		t.Errorf("Sscan expected EOF; got %q", err)
+	}
+	// Trailing space is tougher.
+	n, err = Sscan("234 ", &i, &j)
+	if n != 1 || i != 234 {
+		t.Errorf("Sscan expected one value of 234; got %d %d", n, i)
+	}
+	if err != os.EOF {
+		t.Errorf("Sscan expected EOF; got %q", err)
+	}
+}
+
+var eofTests = []struct {
+	format string
+	v      interface{}
+}{
+	{"%s", &stringVal},
+	{"%q", &stringVal},
+	{"%x", &stringVal},
+	{"%v", &stringVal},
+	{"%v", &bytesVal},
+	{"%v", &intVal},
+	{"%v", &uintVal},
+	{"%v", &boolVal},
+	{"%v", &float32Val},
+	{"%v", &complex64Val},
+	{"%v", &renamedStringVal},
+	{"%v", &renamedBytesVal},
+	{"%v", &renamedIntVal},
+	{"%v", &renamedUintVal},
+	{"%v", &renamedBoolVal},
+	{"%v", &renamedFloat32Val},
+	{"%v", &renamedComplex64Val},
+}
+
+func TestEOFAllTypes(t *testing.T) {
+	for i, test := range eofTests {
+		if _, err := Sscanf("", test.format, test.v); err != os.EOF {
+			t.Errorf("#%d: %s %T not eof on empty string: %s", i, test.format, test.v, err)
+		}
+		if _, err := Sscanf("   ", test.format, test.v); err != os.EOF {
+			t.Errorf("#%d: %s %T not eof on trailing blanks: %s", i, test.format, test.v, err)
+		}
+	}
+}
+
 // Verify that, at least when using bufio, successive calls to Fscan do not lose runes.
 func TestUnreadRuneWithBufio(t *testing.T) {
 	r := bufio.NewReader(strings.NewReader("123αb"))
