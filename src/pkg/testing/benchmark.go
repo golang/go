@@ -150,7 +150,7 @@ func (b *B) run() BenchmarkResult {
 type BenchmarkResult struct {
 	N     int   // The number of iterations.
 	Ns    int64 // The total time taken.
-	Bytes int64 // The total number of bytes processed.
+	Bytes int64 // Bytes processed in one iteration.
 }
 
 func (r BenchmarkResult) NsPerOp() int64 {
@@ -160,13 +160,20 @@ func (r BenchmarkResult) NsPerOp() int64 {
 	return r.Ns / int64(r.N)
 }
 
-func (r BenchmarkResult) String() string {
-	ns := r.NsPerOp()
-	mb := ""
-	if ns > 0 && r.Bytes > 0 {
-		mb = fmt.Sprintf("\t%7.2f MB/s", (float64(r.Bytes)/1e6)/(float64(ns)/1e9))
+func (r BenchmarkResult) mbPerSec() float64 {
+	if r.Bytes <= 0 || r.Ns <= 0 || r.N <= 0 {
+		return 0
 	}
-	return fmt.Sprintf("%8d\t%10d ns/op%s", r.N, ns, mb)
+	return float64(r.Bytes) * float64(r.N) / float64(r.Ns) * 1e3
+}
+
+func (r BenchmarkResult) String() string {
+	mbs := r.mbPerSec()
+	mb := ""
+	if mbs != 0 {
+		mb = fmt.Sprintf("\t%7.2f MB/s", mbs)
+	}
+	return fmt.Sprintf("%8d\t%10d ns/op%s", r.N, r.NsPerOp(), mb)
 }
 
 // An internal function but exported because it is cross-package; part of the implementation
