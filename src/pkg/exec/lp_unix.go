@@ -9,12 +9,18 @@ import (
 	"strings"
 )
 
-func canExec(file string) bool {
+// ErrNotFound is the error resulting if a path search failed to find an executable file.
+var ErrNotFound = os.ErrorString("executable file not found in $PATH")
+
+func findExecutable(file string) os.Error {
 	d, err := os.Stat(file)
 	if err != nil {
-		return false
+		return err
 	}
-	return d.IsRegular() && d.Permission()&0111 != 0
+	if d.IsRegular() && d.Permission()&0111 != 0 {
+		return nil
+	}
+	return os.EPERM
 }
 
 // LookPath searches for an executable binary named file
@@ -26,10 +32,11 @@ func LookPath(file string) (string, os.Error) {
 	// but that would not match all the Unix shells.
 
 	if strings.Contains(file, "/") {
-		if canExec(file) {
+		err := findExecutable(file)
+		if err == nil {
 			return file, nil
 		}
-		return "", &PathError{file}
+		return "", &Error{file, err}
 	}
 	pathenv := os.Getenv("PATH")
 	for _, dir := range strings.Split(pathenv, ":", -1) {
@@ -37,9 +44,9 @@ func LookPath(file string) (string, os.Error) {
 			// Unix shell semantics: path element "" means "."
 			dir = "."
 		}
-		if canExec(dir + "/" + file) {
+		if err := findExecutable(dir + "/" + file); err == nil {
 			return dir + "/" + file, nil
 		}
 	}
-	return "", &PathError{file}
+	return "", &Error{file, ErrNotFound}
 }
