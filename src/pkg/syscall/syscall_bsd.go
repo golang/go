@@ -22,7 +22,6 @@ const ImplementsGetwd = false
 
 func Getwd() (string, int) { return "", ENOTSUP }
 
-
 /*
  * Wrapped
  */
@@ -392,7 +391,11 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l))
 }
 
-func SetsockoptIpMreq(fd, level, opt int, mreq *IpMreq) (errno int) {
+func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) (errno int) {
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+}
+
+func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (errno int) {
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
 }
 

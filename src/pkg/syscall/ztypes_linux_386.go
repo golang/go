@@ -19,9 +19,11 @@ const (
 	SizeofSockaddrLinklayer = 0x14
 	SizeofSockaddrNetlink   = 0xc
 	SizeofLinger            = 0x8
-	SizeofIpMreq            = 0x8
+	SizeofIPMreq            = 0x8
+	SizeofIPv6Mreq          = 0x14
 	SizeofMsghdr            = 0x1c
 	SizeofCmsghdr           = 0xc
+	SizeofInet6Pktinfo      = 0x14
 	SizeofUcred             = 0xc
 	IFA_UNSPEC              = 0
 	IFA_ADDRESS             = 0x1
@@ -298,9 +300,14 @@ type Iovec struct {
 	Len  uint32
 }
 
-type IpMreq struct {
+type IPMreq struct {
 	Multiaddr [4]byte /* in_addr */
 	Interface [4]byte /* in_addr */
+}
+
+type IPv6Mreq struct {
+	Multiaddr [16]byte /* in6_addr */
+	Interface uint32
 }
 
 type Msghdr struct {
@@ -317,6 +324,11 @@ type Cmsghdr struct {
 	Len   uint32
 	Level int32
 	Type  int32
+}
+
+type Inet6Pktinfo struct {
+	Addr    [16]byte /* in6_addr */
+	Ifindex uint32
 }
 
 type Ucred struct {

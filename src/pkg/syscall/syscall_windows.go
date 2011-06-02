@@ -680,14 +680,20 @@ const (
 	IP_DROP_MEMBERSHIP
 )
 
-type IpMreq struct {
+type IPMreq struct {
 	Multiaddr [4]byte /* in_addr */
 	Interface [4]byte /* in_addr */
 }
 
-func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int)    { return EWINDOWS }
-func SetsockoptIpMreq(fd, level, opt int, mreq *IpMreq) (errno int) { return EWINDOWS }
-func BindToDevice(fd int, device string) (errno int)                { return EWINDOWS }
+type IPv6Mreq struct {
+	Multiaddr [16]byte /* in6_addr */
+	Interface uint32
+}
+
+func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int)        { return EWINDOWS }
+func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) (errno int)     { return EWINDOWS }
+func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (errno int) { return EWINDOWS }
+func BindToDevice(fd int, device string) (errno int)                    { return EWINDOWS }
 
 // TODO(brainman): fix all needed for os
 
