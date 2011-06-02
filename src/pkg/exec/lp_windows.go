@@ -9,15 +9,21 @@ import (
 	"strings"
 )
 
-func chkStat(file string) bool {
+// ErrNotFound is the error resulting if a path search failed to find an executable file.
+var ErrNotFound = os.ErrorString("executable file not found in %PATH%")
+
+func chkStat(file string) os.Error {
 	d, err := os.Stat(file)
 	if err != nil {
-		return false
+		return err
 	}
-	return d.IsRegular()
+	if d.IsRegular() {
+		return nil
+	}
+	return os.EPERM
 }
 
-func canExec(file string, exts []string) (string, bool) {
+func findExecutable(file string, exts []string) (string, os.Error) {
 	if len(exts) == 0 {
 		return file, chkStat(file)
 	}
@@ -28,14 +34,14 @@ func canExec(file string, exts []string) (string, bool) {
 		}
 	}
 	for _, e := range exts {
-		if f := file + e; chkStat(f) {
-			return f, true
+		if f := file + e; chkStat(f) == nil {
+			return f, nil
 		}
 	}
-	return ``, false
+	return ``, ErrNotFound
 }
 
-func LookPath(file string) (string, os.Error) {
+func LookPath(file string) (f string, err os.Error) {
 	exts := []string{}
 	if x := os.Getenv(`PATHEXT`); x != `` {
 		exts = strings.Split(strings.ToLower(x), `;`, -1)
@@ -46,21 +52,21 @@ func LookPath(file string) (string, os.Error) {
 		}
 	}
 	if strings.Contains(file, `\`) || strings.Contains(file, `/`) {
-		if f, ok := canExec(file, exts); ok {
-			return f, nil
+		if f, err = findExecutable(file, exts); err == nil {
+			return
 		}
-		return ``, &PathError{file}
+		return ``, &Error{file, err}
 	}
 	if pathenv := os.Getenv(`PATH`); pathenv == `` {
-		if f, ok := canExec(`.\`+file, exts); ok {
-			return f, nil
+		if f, err = findExecutable(`.\`+file, exts); err == nil {
+			return
 		}
 	} else {
 		for _, dir := range strings.Split(pathenv, `;`, -1) {
-			if f, ok := canExec(dir+`\`+file, exts); ok {
-				return f, nil
+			if f, err = findExecutable(dir+`\`+file, exts); err == nil {
+				return
 			}
 		}
 	}
-	return ``, &PathError{file}
+	return ``, &Error{file, ErrNotFound}
 }

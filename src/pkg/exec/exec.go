@@ -14,14 +14,15 @@ import (
 	"strconv"
 )
 
-// PathError records the name of a binary that was not
-// found on the current $PATH.
-type PathError struct {
-	Name string
+// Error records the name of a binary that failed to be be executed
+// and the reason it failed.
+type Error struct {
+	Name  string
+	Error os.Error
 }
 
-func (e *PathError) String() string {
-	return "command " + strconv.Quote(e.Name) + " not found in $PATH"
+func (e *Error) String() string {
+	return "exec: " + strconv.Quote(e.Name) + ": " + e.Error.String()
 }
 
 // Cmd represents an external command being prepared or run.
@@ -32,8 +33,8 @@ type Cmd struct {
 	// value.
 	Path string
 
-	// Args is the command line arguments, including the command as Args[0].
-	// If Args is empty, Run uses {Path}.
+	// Args holds command line arguments, including the command as Args[0].
+	// If the Args field is empty or nil, Run uses {Path}.
 	// 
 	// In typical use, both Path and Args are set by calling Command.
 	Args []string
@@ -44,7 +45,7 @@ type Cmd struct {
 
 	// Dir specifies the working directory of the command.
 	// If Dir is the empty string, Run runs the command in the
-	// process's current directory.
+	// calling process's current directory.
 	Dir string
 
 	// Stdin specifies the process's standard input.
@@ -81,7 +82,7 @@ type Cmd struct {
 // resolve the path to a complete name if possible. Otherwise it uses
 // name directly.
 //
-// The returned Cmd's Args is constructed from the command name
+// The returned Cmd's Args field is constructed from the command name
 // followed by the elements of arg, so arg should not include the
 // command name itself. For example, Command("echo", "hello")
 func Command(name string, arg ...string) *Cmd {
@@ -97,7 +98,7 @@ func Command(name string, arg ...string) *Cmd {
 }
 
 // interfaceEqual protects against panics from doing equality tests on
-// two interface with non-comparable underlying types
+// two interfaces with non-comparable underlying types
 func interfaceEqual(a, b interface{}) bool {
 	defer func() {
 		recover()
