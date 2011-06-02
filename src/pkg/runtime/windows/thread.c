@@ -324,13 +324,31 @@ runtime·ctrlhandler1(uint32 type)
 	return 0;
 }
 
+// Will keep all callbacks in a linked list, so they don't get garbage collected.
+typedef	struct	Callback	Callback;
+struct	Callback {
+	Callback*	link;
+	void*		gobody;
+	byte		asmbody;
+};
+
+typedef	struct	Callbacks	Callbacks;
+struct	Callbacks {
+	Lock;
+	Callback*	link;
+	int32		n;
+};
+
+static	Callbacks	cbs;
+
 // Call back from windows dll into go.
 byte *
 runtime·compilecallback(Eface fn, bool cleanstack)
 {
 	Func *f;
 	int32 argsize, n;
-	byte *ret, *p;
+	byte *p;
+	Callback *c;
 
 	if(fn.type->kind != KindFunc)
 		runtime·panicstring("not a function");
@@ -348,7 +366,23 @@ runtime·compilecallback(Eface fn, bool cleanstack)
 	if(cleanstack)
 		n += 2;		// ... argsize
 
-	ret = p = runtime·mal(n);
+	runtime·lock(&cbs);
+	for(c = cbs.link; c != nil; c = c->link) {
+		if(c->gobody == fn.data) {
+			runtime·unlock(&cbs);
+			return &c->asmbody;
+		}
+	}
+	if(cbs.n >= 20)
+		runtime·throw("too many callback functions");
+	c = runtime·mal(sizeof *c + n);
+	c->gobody = fn.data;
+	c->link = cbs.link;
+	cbs.link = c;
+	cbs.n++;
+	runtime·unlock(&cbs);
+
+	p = &c->asmbody;
 
 	// MOVL fn, AX
 	*p++ = 0xb8;
@@ -376,7 +410,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
 	} else
 		*p = 0xc3;
 
-	return ret;
+	return &c->asmbody;
 }
 
 void
