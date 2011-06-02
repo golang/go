@@ -58,6 +58,16 @@ func (p *RGBA) SetRGBA(x, y int, c RGBAColor) {
 	p.Pix[y*p.Stride+x] = c
 }
 
+// SubImage returns an image representing the portion of the image p visible
+// through r. The returned value shares pixels with the original image.
+func (p *RGBA) SubImage(r Rectangle) Image {
+	return &RGBA{
+		Pix:    p.Pix,
+		Stride: p.Stride,
+		Rect:   p.Rect.Intersect(r),
+	}
+}
+
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *RGBA) Opaque() bool {
 	if p.Rect.Empty() {
@@ -115,6 +125,16 @@ func (p *RGBA64) SetRGBA64(x, y int, c RGBA64Color) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = c
+}
+
+// SubImage returns an image representing the portion of the image p visible
+// through r. The returned value shares pixels with the original image.
+func (p *RGBA64) SubImage(r Rectangle) Image {
+	return &RGBA64{
+		Pix:    p.Pix,
+		Stride: p.Stride,
+		Rect:   p.Rect.Intersect(r),
+	}
 }
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
@@ -176,6 +196,16 @@ func (p *NRGBA) SetNRGBA(x, y int, c NRGBAColor) {
 	p.Pix[y*p.Stride+x] = c
 }
 
+// SubImage returns an image representing the portion of the image p visible
+// through r. The returned value shares pixels with the original image.
+func (p *NRGBA) SubImage(r Rectangle) Image {
+	return &NRGBA{
+		Pix:    p.Pix,
+		Stride: p.Stride,
+		Rect:   p.Rect.Intersect(r),
+	}
+}
+
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *NRGBA) Opaque() bool {
 	if p.Rect.Empty() {
@@ -233,6 +263,16 @@ func (p *NRGBA64) SetNRGBA64(x, y int, c NRGBA64Color) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = c
+}
+
+// SubImage returns an image representing the portion of the image p visible
+// through r. The returned value shares pixels with the original image.
+func (p *NRGBA64) SubImage(r Rectangle) Image {
+	return &NRGBA64{
+		Pix:    p.Pix,
+		Stride: p.Stride,
+		Rect:   p.Rect.Intersect(r),
+	}
 }
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
@@ -294,6 +334,16 @@ func (p *Alpha) SetAlpha(x, y int, c AlphaColor) {
 	p.Pix[y*p.Stride+x] = c
 }
 
+// SubImage returns an image representing the portion of the image p visible
+// through r. The returned value shares pixels with the original image.
+func (p *Alpha) SubImage(r Rectangle) Image {
+	return &Alpha{
+		Pix:    p.Pix,
+		Stride: p.Stride,
+		Rect:   p.Rect.Intersect(r),
+	}
+}
+
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *Alpha) Opaque() bool {
 	if p.Rect.Empty() {
@@ -351,6 +401,16 @@ func (p *Alpha16) SetAlpha16(x, y int, c Alpha16Color) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = c
+}
+
+// SubImage returns an image representing the portion of the image p visible
+// through r. The returned value shares pixels with the original image.
+func (p *Alpha16) SubImage(r Rectangle) Image {
+	return &Alpha16{
+		Pix:    p.Pix,
+		Stride: p.Stride,
+		Rect:   p.Rect.Intersect(r),
+	}
 }
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
@@ -412,6 +472,16 @@ func (p *Gray) SetGray(x, y int, c GrayColor) {
 	p.Pix[y*p.Stride+x] = c
 }
 
+// SubImage returns an image representing the portion of the image p visible
+// through r. The returned value shares pixels with the original image.
+func (p *Gray) SubImage(r Rectangle) Image {
+	return &Gray{
+		Pix:    p.Pix,
+		Stride: p.Stride,
+		Rect:   p.Rect.Intersect(r),
+	}
+}
+
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *Gray) Opaque() bool {
 	return true
@@ -455,6 +525,16 @@ func (p *Gray16) SetGray16(x, y int, c Gray16Color) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = c
+}
+
+// SubImage returns an image representing the portion of the image p visible
+// through r. The returned value shares pixels with the original image.
+func (p *Gray16) SubImage(r Rectangle) Image {
+	return &Gray16{
+		Pix:    p.Pix,
+		Stride: p.Stride,
+		Rect:   p.Rect.Intersect(r),
+	}
 }
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
@@ -542,6 +622,17 @@ func (p *Paletted) SetColorIndex(x, y int, index uint8) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = index
+}
+
+// SubImage returns an image representing the portion of the image p visible
+// through r. The returned value shares pixels with the original image.
+func (p *Paletted) SubImage(r Rectangle) Image {
+	return &Paletted{
+		Pix:     p.Pix,
+		Stride:  p.Stride,
+		Rect:    p.Rect.Intersect(r),
+		Palette: p.Palette,
+	}
 }
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
