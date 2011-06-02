@@ -15,16 +15,17 @@ HFILES=\
 
 OFILES=\
 	../5l/enam.$O\
-	list.$O\
-	galign.$O\
-	gobj.$O\
-	ggen.$O\
-	gsubr.$O\
 	cgen.$O\
 	cgen64.$O\
 	cplx.$O\
-	reg.$O\
+	galign.$O\
+	ggen.$O\
+	gobj.$O\
+	gsubr.$O\
+	list.$O\
 	peep.$O\
+	pgen.$O\
+	reg.$O\
 
 LIB=\
 	../gc/gc.a\

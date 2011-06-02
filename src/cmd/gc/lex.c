@@ -235,13 +235,14 @@ main(int argc, char *argv[])
 	if(debug['f'])
 		frame(1);
 
-	// Process top-level declarations in three phases.
+	// Process top-level declarations in four phases.
 	// Phase 1: const, type, and names and types of funcs.
 	//   This will gather all the information about types
 	//   and methods but doesn't depend on any of it.
 	// Phase 2: Variable assignments.
 	//   To check interface assignments, depends on phase 1.
-	// Phase 3: Function bodies.
+	// Phase 3: Type check function bodies.
+	// Phase 4: Compile function bodies.
 	defercheckwidth();
 	for(l=xtop; l; l=l->next)
 		if(l->n->op != ODCL && l->n->op != OAS)
@@ -251,17 +252,28 @@ main(int argc, char *argv[])
 			typecheck(&l->n, Etop);
 	resumetypecopy();
 	resumecheckwidth();
+
+	for(l=xtop; l; l=l->next)
+		if(l->n->op == ODCLFUNC) {
+			curfn = l->n;
+			typechecklist(l->n->nbody, Etop);
+		}
+	curfn = nil;
+
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
 			funccompile(l->n, 0);
+
 	if(nerrors == 0)
 		fninit(xtop);
+
 	while(closures) {
 		l = closures;
 		closures = nil;
 		for(; l; l=l->next)
 			funccompile(l->n, 1);
 	}
+
 	dclchecks();
 
 	if(nerrors)

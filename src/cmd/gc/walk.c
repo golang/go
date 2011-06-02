@@ -66,6 +66,7 @@ walk(Node *fn)
 	int lno;
 
 	curfn = fn;
+
 	if(debug['W']) {
 		snprint(s, sizeof(s), "\nbefore %S", curfn->nname->sym);
 		dumplist(s, curfn->nbody);
@@ -73,7 +74,7 @@ walk(Node *fn)
 	if(curfn->type->outtuple)
 		if(walkret(curfn->nbody))
 			yyerror("function ends without a return statement");
-	typechecklist(curfn->nbody, Etop);
+
 	lno = lineno;
 	for(l=fn->dcl; l; l=l->next) {
 		n = l->n;
@@ -468,8 +469,10 @@ walkstmt(Node **np)
 	case OPANIC:
 	case OEMPTY:
 	case ORECOVER:
-		if(n->typecheck == 0)
+		if(n->typecheck == 0) {
+			dump("missing typecheck:", n);
 			fatal("missing typecheck");
+		}
 		init = n->ninit;
 		n->ninit = nil;
 		walkexpr(&n, &init);

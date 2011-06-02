@@ -182,11 +182,14 @@ fninit(NodeList *n)
 	// (11)
 	a = nod(ORETURN, N, N);
 	r = list(r, a);
-
 	exportsym(fn->nname);
 
 	fn->nbody = r;
 	funcbody(fn);
+
+	curfn = fn;
 	typecheck(&fn, Etop);
+	typechecklist(r, Etop);
+	curfn = nil;
 	funccompile(fn, 0);
 }
