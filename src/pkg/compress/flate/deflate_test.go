@@ -57,7 +57,7 @@ var deflateInflateTests = []*deflateInflateTest{
 	&deflateInflateTest{[]byte{0x11, 0x12}},
 	&deflateInflateTest{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}},
 	&deflateInflateTest{[]byte{0x11, 0x10, 0x13, 0x41, 0x21, 0x21, 0x41, 0x13, 0x87, 0x78, 0x13}},
-	&deflateInflateTest{getLargeDataChunk()},
+	&deflateInflateTest{largeDataChunk()},
 }
 
 var reverseBitsTests = []*reverseBitsTest{
@@ -71,23 +71,22 @@ var reverseBitsTests = []*reverseBitsTest{
 	&reverseBitsTest{29, 5, 23},
 }
 
-func getLargeDataChunk() []byte {
+func largeDataChunk() []byte {
 	result := make([]byte, 100000)
 	for i := range result {
-		result[i] = byte(int64(i) * int64(i) & 0xFF)
+		result[i] = byte(i * i & 0xFF)
 	}
 	return result
 }
 
 func TestDeflate(t *testing.T) {
 	for _, h := range deflateTests {
-		buffer := bytes.NewBuffer(nil)
-		w := NewWriter(buffer, h.level)
+		var buf bytes.Buffer
+		w := NewWriter(&buf, h.level)
 		w.Write(h.in)
 		w.Close()
-		if bytes.Compare(buffer.Bytes(), h.out) != 0 {
-			t.Errorf("buffer is wrong; level = %v, buffer.Bytes() = %v, expected output = %v",
-				h.level, buffer.Bytes(), h.out)
+		if !bytes.Equal(buf.Bytes(), h.out) {
+			t.Errorf("Deflate(%d, %x) = %x, want %x", h.level, h.in, buf.Bytes(), h.out)
 		}
 	}
 }
