@@ -5,6 +5,8 @@
 package exec
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"testing"
@@ -87,6 +89,57 @@ func TestExitStatus(t *testing.T) {
 	}
 }
 
+func TestPipes(t *testing.T) {
+	check := func(what string, err os.Error) {
+		if err != nil {
+			t.Fatalf("%s: %v", what, err)
+		}
+	}
+	// Cat, testing stdin and stdout.
+	c := helperCommand("pipetest")
+	stdin, err := c.StdinPipe()
+	check("StdinPipe", err)
+	stdout, err := c.StdoutPipe()
+	check("StdoutPipe", err)
+	stderr, err := c.StderrPipe()
+	check("StderrPipe", err)
+
+	outbr := bufio.NewReader(stdout)
+	errbr := bufio.NewReader(stderr)
+	line := func(what string, br *bufio.Reader) string {
+		line, _, err := br.ReadLine()
+		if err != nil {
+			t.Fatalf("%s: %v", what, err)
+		}
+		return string(line)
+	}
+
+	err = c.Start()
+	check("Start", err)
+
+	_, err = stdin.Write([]byte("O:I am output\n"))
+	check("first stdin Write", err)
+	if g, e := line("first output line", outbr), "O:I am output"; g != e {
+		t.Errorf("got %q, want %q", g, e)
+	}
+
+	_, err = stdin.Write([]byte("E:I am error\n"))
+	check("second stdin Write", err)
+	if g, e := line("first error line", errbr), "E:I am error"; g != e {
+		t.Errorf("got %q, want %q", g, e)
+	}
+
+	_, err = stdin.Write([]byte("O:I am output2\n"))
+	check("third stdin Write 3", err)
+	if g, e := line("second output line", outbr), "O:I am output2"; g != e {
+		t.Errorf("got %q, want %q", g, e)
+	}
+
+	stdin.Close()
+	err = c.Wait()
+	check("Wait", err)
+}
+
 // TestHelperProcess isn't a real test. It's used as a helper process
 // for TestParameterRun.
 func TestHelperProcess(*testing.T) {
@@ -133,6 +186,25 @@ func TestHelperProcess(*testing.T) {
 			}
 		}
 		os.Exit(exit)
+	case "pipetest":
+		bufr := bufio.NewReader(os.Stdin)
+		for {
+			line, _, err := bufr.ReadLine()
+			if err == os.EOF {
+				break
+			} else if err != nil {
+				os.Exit(1)
+			}
+			if bytes.HasPrefix(line, []byte("O:")) {
+				os.Stdout.Write(line)
+				os.Stdout.Write([]byte{'\n'})
+			} else if bytes.HasPrefix(line, []byte("E:")) {
+				os.Stderr.Write(line)
+				os.Stderr.Write([]byte{'\n'})
+			} else {
+				os.Exit(1)
+			}
+		}
 	case "exit":
 		n, _ := strconv.Atoi(args[0])
 		os.Exit(n)
