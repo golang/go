@@ -8,6 +8,34 @@ package net
 
 import "os"
 
+// IsUp returns true if ifi is up.
+func (ifi *Interface) IsUp() bool {
+	return false
+}
+
+// IsLoopback returns true if ifi is a loopback interface.
+func (ifi *Interface) IsLoopback() bool {
+	return false
+}
+
+// CanBroadcast returns true if ifi supports a broadcast access
+// capability.
+func (ifi *Interface) CanBroadcast() bool {
+	return false
+}
+
+// IsPointToPoint returns true if ifi belongs to a point-to-point
+// link.
+func (ifi *Interface) IsPointToPoint() bool {
+	return false
+}
+
+// CanMulticast returns true if ifi supports a multicast access
+// capability.
+func (ifi *Interface) CanMulticast() bool {
+	return false
+}
+
 // If the ifindex is zero, interfaceTable returns mappings of all
 // network interfaces.  Otheriwse it returns a mapping of a specific
 // interface.
