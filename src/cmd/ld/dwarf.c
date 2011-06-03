@@ -1348,7 +1348,7 @@ synthesizemaptypes(DWDie *die)
 			valtype = defptrto(valtype);
 		newrefattr(fld, DW_AT_type, valtype);
 		newmemberoffsetattr(fld, hashsize + datavo);
-		newattr(dwhe, DW_AT_byte_size, DW_CLS_CONSTANT, hashsize + datsize, NULL);
+		newattr(dwhe, DW_AT_byte_size, DW_CLS_CONSTANT, hashsize + datsize, nil);
 
 		// Construct hash_subtable<hash_entry<K,V>>
 		dwhs = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
@@ -1359,7 +1359,7 @@ synthesizemaptypes(DWDie *die)
 		substitutetype(dwhs, "end", defptrto(dwhe));
 		substitutetype(dwhs, "entry", dwhe);  // todo: []hash_entry with dynamic size
 		newattr(dwhs, DW_AT_byte_size, DW_CLS_CONSTANT,
-			getattr(hash_subtable, DW_AT_byte_size)->value, NULL);
+			getattr(hash_subtable, DW_AT_byte_size)->value, nil);
 
 		// Construct hash<K,V>
 		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
@@ -1369,7 +1369,7 @@ synthesizemaptypes(DWDie *die)
 		copychildren(dwh, hash);
 		substitutetype(dwh, "st", defptrto(dwhs));
 		newattr(dwh, DW_AT_byte_size, DW_CLS_CONSTANT,
-			getattr(hash, DW_AT_byte_size)->value, NULL);
+			getattr(hash, DW_AT_byte_size)->value, nil);
 
 		newrefattr(die, DW_AT_type, defptrto(dwh));
 	}
@@ -1401,30 +1401,30 @@ synthesizechantypes(DWDie *die)
 		// sudog<T>
 		dws = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
 			mkinternaltypename("sudog",
-				getattr(elemtype, DW_AT_name)->data, NULL));
+				getattr(elemtype, DW_AT_name)->data, nil));
 		copychildren(dws, sudog);
 		substitutetype(dws, "elem", elemtype);
 		newattr(dws, DW_AT_byte_size, DW_CLS_CONSTANT,
-			sudogsize + (elemsize > 8 ? elemsize - 8 : 0), NULL);
+			sudogsize + (elemsize > 8 ? elemsize - 8 : 0), nil);
 
 		// waitq<T>
 		dww = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
-			mkinternaltypename("waitq", getattr(elemtype, DW_AT_name)->data, NULL));
+			mkinternaltypename("waitq", getattr(elemtype, DW_AT_name)->data, nil));
 		copychildren(dww, waitq);
 		substitutetype(dww, "first", defptrto(dws));
 		substitutetype(dww, "last",  defptrto(dws));
 		newattr(dww, DW_AT_byte_size, DW_CLS_CONSTANT,
-			getattr(waitq, DW_AT_byte_size)->value, NULL);
+			getattr(waitq, DW_AT_byte_size)->value, nil);
 
 		// hchan<T>
 		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
-			mkinternaltypename("hchan", getattr(elemtype, DW_AT_name)->data, NULL));
+			mkinternaltypename("hchan", getattr(elemtype, DW_AT_name)->data, nil));
 		copychildren(dwh, hchan);
 		substitutetype(dwh, "recvq", dww);
 		substitutetype(dwh, "sendq", dww);
 		substitutetype(dwh, "free", defptrto(dws));
 		newattr(dwh, DW_AT_byte_size, DW_CLS_CONSTANT,
-			getattr(hchan, DW_AT_byte_size)->value, NULL);
+			getattr(hchan, DW_AT_byte_size)->value, nil);
 
 		newrefattr(die, DW_AT_type, defptrto(dwh));
 	}
@@ -1436,6 +1436,7 @@ defdwsymb(Sym* sym, char *s, int t, vlong v, vlong size, int ver, Sym *gotype)
 {
 	DWDie *dv, *dt;
 
+	USED(size);
 	if (strncmp(s, "go.string.", 10) == 0)
 		return;
 
@@ -1592,7 +1593,7 @@ addhistfile(char *zentry)
 // if the histfile stack contains ..../runtime/runtime_defs.go
 // use that to set gdbscript
 static void
-finddebugruntimepath()
+finddebugruntimepath(void)
 {
 	int i, l;
 	char *c;
@@ -1841,7 +1842,8 @@ writelines(void)
 	char *n, *nn;
 
 	unitstart = -1;
-	epc = pc = 0;
+	pc = 0;
+	epc = 0;
 	lc = 1;
 	llc = 1;
 	currfile = -1;
@@ -1903,7 +1905,8 @@ writelines(void)
 				// 4 zeros: the string termination + 3 fields.
 			}
 
-			epc = pc = s->text->pc;
+			pc = s->text->pc;
+			epc = pc;
 			currfile = 1;
 			lc = 1;
 			llc = 1;
@@ -1992,7 +1995,7 @@ writelines(void)
 			newrefattr(dwvar, DW_AT_type, defgotype(a->gotype));
 
 			// push dwvar down dwfunc->child to preserve order
-			newattr(dwvar, DW_AT_internal_location, DW_CLS_CONSTANT, offs, NULL);
+			newattr(dwvar, DW_AT_internal_location, DW_CLS_CONSTANT, offs, nil);
 			dwfunc->child = dwvar->link;  // take dwvar out from the top of the list
 			for (dws = &dwfunc->child; *dws != nil; dws = &(*dws)->link)
 				if (offs > getattr(*dws, DW_AT_internal_location)->value)
@@ -2345,7 +2348,11 @@ dwarfemitdebugsections(void)
 
 	infoo = cpos();
 	writeinfo();
-	gdbscripto = arangeso = pubtypeso = pubnameso = infoe = cpos();
+	infoe = cpos();
+	pubnameso = infoe;
+	pubtypeso = infoe;
+	arangeso = infoe;
+	gdbscripto = infoe;
 
 	if (fwdcount > 0) {
 		if (debug['v'])

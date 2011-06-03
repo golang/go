@@ -69,7 +69,7 @@ libinit(void)
 	// add goroot to the end of the libdir list.
 	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
 
-	unlink(outfile);
+	remove(outfile);
 	cout = create(outfile, 1, 0775);
 	if(cout < 0) {
 		diag("cannot create %s", outfile);
@@ -398,9 +398,6 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
 	eof = Boffset(f) + len;
 
 	pn = strdup(pn);
-	
-	USED(c4);
-	USED(magic);
 
 	c1 = Bgetc(f);
 	c2 = Bgetc(f);
@@ -410,7 +407,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
 	Bungetc(f);
 	Bungetc(f);
 	Bungetc(f);
-	
+
 	magic = c1<<24 | c2<<16 | c3<<8 | c4;
 	if(magic == 0x7f454c46) {	// \x7F E L F
 		ldelf(f, pkg, len, pn);
@@ -498,7 +495,6 @@ _lookup(char *symb, int v, int creat)
 	// not if(h < 0) h = ~h, because gcc 4.3 -O2 miscompiles it.
 	h &= 0xffffff;
 	h %= NHASH;
-	c = symb[0];
 	for(s = hash[h]; s != S; s = s->hash)
 		if(memcmp(s->name, symb, l) == 0)
 			return s;
@@ -523,7 +519,7 @@ _lookup(char *symb, int v, int creat)
 	s->size = 0;
 	hash[h] = s;
 	nsymbol++;
-	
+
 	s->allsym = allsym;
 	allsym = s;
 	return s;
@@ -550,7 +546,6 @@ copyhistfrog(char *buf, int nbuf)
 
 	p = buf;
 	ep = buf + nbuf;
-	i = 0;
 	for(i=0; i<histfrogp; i++) {
 		p = seprint(p, ep, "%s", histfrog[i]->name+1);
 		if(i+1<histfrogp && (p == buf || p[-1] != '/'))
