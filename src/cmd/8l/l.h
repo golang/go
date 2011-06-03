@@ -260,11 +260,15 @@ EXTERN union
 #define	cbuf	u.obuf
 #define	xbuf	u.ibuf
 
-#pragma	varargck	type	"A"	uint
+#pragma	varargck	type	"A"	int
 #pragma	varargck	type	"D"	Adr*
+#pragma	varargck	type	"I"	int
+#pragma	varargck	type	"I"	uchar*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"R"	int
 #pragma	varargck	type	"S"	char*
+#pragma	varargck	type	"Y"	Sym*
+#pragma	varargck	type	"i"	char*
 
 EXTERN	int32	HEADR;
 EXTERN	int32	HEADTYPE;
@@ -382,11 +386,6 @@ void	deadcode(void);
 #define	LPUT(a)	lputl(a)
 #define	WPUT(a)	wputl(a)
 #define	VPUT(a)	vputl(a)
-
-#pragma	varargck	type	"D"	Adr*
-#pragma	varargck	type	"P"	Prog*
-#pragma	varargck	type	"R"	int
-#pragma	varargck	type	"A"	int
 
 /* Used by ../ld/dwarf.c */
 enum
