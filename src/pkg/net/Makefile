@@ -10,6 +10,7 @@ GOFILES=\
 	dnsmsg.go\
 	fd_$(GOOS).go\
 	hosts.go\
+	interface.go\
 	ip.go\
 	ipsock.go\
 	iprawsock.go\
@@ -27,6 +28,7 @@ GOFILES_freebsd=\
 	dnsconfig.go\
 	fd.go\
 	file.go\
+	interface_bsd.go\
 	newpollserver.go\
 	port.go\
 	sendfile_stub.go\
@@ -41,6 +43,7 @@ GOFILES_darwin=\
 	dnsconfig.go\
 	fd.go\
 	file.go\
+	interface_bsd.go\
 	newpollserver.go\
 	port.go\
 	sendfile_stub.go\
@@ -55,12 +58,14 @@ GOFILES_linux=\
 	dnsconfig.go\
 	fd.go\
 	file.go\
+	interface_linux.go\
 	newpollserver.go\
 	port.go\
 	sendfile_linux.go\
 	sock_linux.go\
 
 GOFILES_plan9=\
+	interface_stub.go\
 	sendfile_stub.go\
 
 ifeq ($(GOARCH),arm)
@@ -75,6 +80,7 @@ endif
 GOFILES_windows=\
 	cgo_stub.go\
 	file_windows.go\
+	interface_stub.go\
 	resolv_windows.go\
 	sendfile_stub.go\
 	sock_windows.go\

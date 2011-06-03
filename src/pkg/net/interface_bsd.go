@@ -1,0 +1,148 @@
+// Copyright 2011 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Network interface identification for BSD variants
+
+package net
+
+import (
+	"os"
+	"syscall"
+)
+
+// If the ifindex is zero, interfaceTable returns mappings of all
+// network interfaces.  Otheriwse it returns a mapping of a specific
+// interface.
+func interfaceTable(ifindex int) ([]Interface, os.Error) {
+	var (
+		tab  []byte
+		e    int
+		msgs []syscall.RoutingMessage
+		ift  []Interface
+	)
+
+	tab, e = syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
+	if e != 0 {
+		return nil, os.NewSyscallError("route rib", e)
+	}
+
+	msgs, e = syscall.ParseRoutingMessage(tab)
+	if e != 0 {
+		return nil, os.NewSyscallError("route message", e)
+	}
+
+	for _, m := range msgs {
+		switch v := m.(type) {
+		case *syscall.InterfaceMessage:
+			if ifindex == 0 || ifindex == int(v.Header.Index) {
+				ifi, err := newLink(v)
+				if err != nil {
+					return nil, err
+				}
+				ift = append(ift, ifi...)
+			}
+		}
+	}
+
+	return ift, nil
+}
+
+func newLink(m *syscall.InterfaceMessage) ([]Interface, os.Error) {
+	var ift []Interface
+
+	sas, e := syscall.ParseRoutingSockaddr(m)
+	if e != 0 {
+		return nil, os.NewSyscallError("route sockaddr", e)
+	}
+
+	for _, s := range sas {
+		switch v := s.(type) {
+		case *syscall.SockaddrDatalink:
+			ifi := Interface{Index: int(m.Header.Index), rawFlags: int(m.Header.Flags)}
+			var name [syscall.IFNAMSIZ]byte
+			for i := 0; i < int(v.Nlen); i++ {
+				name[i] = byte(v.Data[i])
+			}
+			ifi.Name = string(name[:v.Nlen])
+			ifi.MTU = int(m.Header.Data.Mtu)
+			addr := make([]byte, v.Alen)
+			for i := 0; i < int(v.Alen); i++ {
+				addr[i] = byte(v.Data[int(v.Nlen)+i])
+			}
+			ifi.HardwareAddr = addr[:v.Alen]
+			ift = append(ift, ifi)
+		}
+	}
+
+	return ift, nil
+}
+
+// If the ifindex is zero, interfaceAddrTable returns addresses
+// for all network interfaces.  Otherwise it returns addresses
+// for a specific interface.
+func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
+	var (
+		tab  []byte
+		e    int
+		msgs []syscall.RoutingMessage
+		ifat []Addr
+	)
+
+	tab, e = syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
+	if e != 0 {
+		return nil, os.NewSyscallError("route rib", e)
+	}
+
+	msgs, e = syscall.ParseRoutingMessage(tab)
+	if e != 0 {
+		return nil, os.NewSyscallError("route message", e)
+	}
+
+	for _, m := range msgs {
+		switch v := m.(type) {
+		case *syscall.InterfaceAddrMessage:
+			if ifindex == 0 || ifindex == int(v.Header.Index) {
+				ifa, err := newAddr(v)
+				if err != nil {
+					return nil, err
+				}
+				ifat = append(ifat, ifa...)
+			}
+		}
+	}
+
+	return ifat, nil
+}
+
+func newAddr(m *syscall.InterfaceAddrMessage) ([]Addr, os.Error) {
+	var ifat []Addr
+
+	sas, e := syscall.ParseRoutingSockaddr(m)
+	if e != 0 {
+		return nil, os.NewSyscallError("route sockaddr", e)
+	}
+
+	for _, s := range sas {
+		var ifa IPAddr
+		switch v := s.(type) {
+		case *syscall.SockaddrInet4:
+			ifa.IP = IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])
+		case *syscall.SockaddrInet6:
+			ifa.IP = make(IP, IPv6len)
+			copy(ifa.IP, v.Addr[:])
+			// NOTE: KAME based IPv6 protcol stack usually embeds
+			// the interface index in the interface-local or link-
+			// local address as the kernel-internal form.
+			if ifa.IP.IsLinkLocalUnicast() ||
+				ifa.IP.IsInterfaceLocalMulticast() ||
+				ifa.IP.IsLinkLocalMulticast() {
+				// remove embedded scope zone ID
+				ifa.IP[2], ifa.IP[3] = 0, 0
+			}
+		}
+		ifat = append(ifat, ifa.toAddr())
+	}
+
+	return ifat, nil
+}
