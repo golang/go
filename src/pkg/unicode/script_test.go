@@ -149,7 +149,14 @@ var inCategoryTest = []T{
 	{0x2028, "Zl"},
 	{0x2029, "Zp"},
 	{0x202f, "Zs"},
-	{0x04aa, "letter"},
+	// Unifieds.
+	{0x04aa, "L"},
+	{0x0009, "C"},
+	{0x1712, "M"},
+	{0x0031, "N"},
+	{0x00bb, "P"},
+	{0x00a2, "S"},
+	{0x00a0, "Z"},
 }
 
 var inPropTest = []T{
@@ -197,13 +204,13 @@ func TestScripts(t *testing.T) {
 			t.Fatal(test.script, "not a known script")
 		}
 		if !Is(Scripts[test.script], test.rune) {
-			t.Errorf("IsScript(%#x, %s) = false, want true", test.rune, test.script)
+			t.Errorf("IsScript(%U, %s) = false, want true", test.rune, test.script)
 		}
 		notTested[test.script] = false, false
 	}
 	for _, test := range outTest {
 		if Is(Scripts[test.script], test.rune) {
-			t.Errorf("IsScript(%#x, %s) = true, want false", test.rune, test.script)
+			t.Errorf("IsScript(%U, %s) = true, want false", test.rune, test.script)
 		}
 	}
 	for k := range notTested {
@@ -221,7 +228,7 @@ func TestCategories(t *testing.T) {
 			t.Fatal(test.script, "not a known category")
 		}
 		if !Is(Categories[test.script], test.rune) {
-			t.Errorf("IsCategory(%#x, %s) = false, want true", test.rune, test.script)
+			t.Errorf("IsCategory(%U, %s) = false, want true", test.rune, test.script)
 		}
 		notTested[test.script] = false, false
 	}
@@ -240,7 +247,7 @@ func TestProperties(t *testing.T) {
 			t.Fatal(test.script, "not a known prop")
 		}
 		if !Is(Properties[test.script], test.rune) {
-			t.Errorf("IsCategory(%#x, %s) = false, want true", test.rune, test.script)
+			t.Errorf("IsCategory(%U, %s) = false, want true", test.rune, test.script)
 		}
 		notTested[test.script] = false, false
 	}

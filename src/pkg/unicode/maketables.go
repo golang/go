@@ -28,6 +28,7 @@ func main() {
 	printScriptOrProperty(false)
 	printScriptOrProperty(true)
 	printCases()
+	printLatinProperties()
 	printSizes()
 }
 
@@ -54,7 +55,17 @@ var test = flag.Bool("test",
 var scriptRe = regexp.MustCompile(`^([0-9A-F]+)(\.\.[0-9A-F]+)? *; ([A-Za-z_]+)$`)
 var logger = log.New(os.Stderr, "", log.Lshortfile)
 
-var category = map[string]bool{"letter": true} // Nd Lu etc. letter is a special case
+var category = map[string]bool{
+	// Nd Lu etc.
+	// We use one-character names to identify merged categories
+	"L": true, // Lu Ll Lt Lm Lo
+	"P": true, // Pc Pd Ps Pe Pu Pf Po
+	"M": true, // Mn Mc Me
+	"N": true, // Nd Nl No
+	"S": true, // Sm Sc Sk So
+	"Z": true, // Zs Zl Zp
+	"C": true, // Cc Cf Cs Co Cn
+}
 
 // UnicodeData.txt has form:
 //	0037;DIGIT SEVEN;Nd;0;EN;;7;7;7;N;;;;;
@@ -247,12 +258,9 @@ func version() string {
 	return "Unknown"
 }
 
-func letterOp(code int) bool {
-	switch chars[code].category {
-	case "Lu", "Ll", "Lt", "Lm", "Lo":
-		return true
-	}
-	return false
+func categoryOp(code int, class uint8) bool {
+	category := chars[code].category
+	return len(category) > 0 && category[0] == class
 }
 
 func loadChars() {
@@ -348,8 +356,27 @@ func printCategories() {
 		// Cases deserving special comments
 		varDecl := ""
 		switch name {
-		case "letter":
-			varDecl = "\tLetter = letter;	// Letter is the set of Unicode letters.\n"
+		case "C":
+			varDecl = "\tOther = _C;	// Other/C is the set of Unicode control and special characters, category C.\n"
+			varDecl += "\tC = _C\n"
+		case "L":
+			varDecl = "\tLetter = _L;	// Letter/L is the set of Unicode letters, category L.\n"
+			varDecl += "\tL = _L\n"
+		case "M":
+			varDecl = "\tMark = _M;	// Mark/M is the set of Unicode mark characters, category  M.\n"
+			varDecl += "\tM = _M\n"
+		case "N":
+			varDecl = "\tNumber = _N;	// Number/N is the set of Unicode number characters, category N.\n"
+			varDecl += "\tN = _N\n"
+		case "P":
+			varDecl = "\tPunct = _P;	// Punct/P is the set of Unicode punctuation characters, category P.\n"
+			varDecl += "\tP = _P\n"
+		case "S":
+			varDecl = "\tSymbol = _S;	// Symbol/S is the set of Unicode symbol characters, category S.\n"
+			varDecl += "\tS = _S\n"
+		case "Z":
+			varDecl = "\tSpace = _Z;	// Space/Z is the set of Unicode space characters, category Z.\n"
+			varDecl += "\tZ = _Z\n"
 		case "Nd":
 			varDecl = "\tDigit = _Nd;	// Digit is the set of Unicode characters with the \"decimal digit\" property.\n"
 		case "Lu":
@@ -359,17 +386,18 @@ func printCategories() {
 		case "Lt":
 			varDecl = "\tTitle = _Lt;	// Title is the set of Unicode title case letters.\n"
 		}
-		if name != "letter" {
+		if len(name) > 1 {
 			varDecl += fmt.Sprintf(
 				"\t%s = _%s;	// %s is the set of Unicode characters in category %s.\n",
 				name, name, name, name)
 		}
 		decl[ndecl] = varDecl
 		ndecl++
-		if name == "letter" { // special case
+		if len(name) == 1 { // unified categories
+			decl := fmt.Sprintf("var _%s = &RangeTable{\n", name)
 			dumpRange(
-				"var letter = &RangeTable{\n",
-				letterOp)
+				decl,
+				func(code int) bool { return categoryOp(code, name[0]) })
 			continue
 		}
 		dumpRange(
@@ -446,7 +474,7 @@ func printRange(lo, hi, stride uint32, size int, count *int) (int, *int) {
 	if size == 16 && hi >= 1<<16 {
 		if lo < 1<<16 {
 			if lo+stride != hi {
-				log.Fatalf("unexpected straddle: %U %U %d", lo, hi, stride)
+				logger.Fatalf("unexpected straddle: %U %U %d", lo, hi, stride)
 			}
 			// No range contains U+FFFF as an instance, so split
 			// the range into two entries. That way we can maintain
@@ -472,11 +500,11 @@ func fullCategoryTest(list []string) {
 			logger.Fatal("unknown category", name)
 		}
 		r, ok := unicode.Categories[name]
-		if !ok {
-			logger.Fatal("unknown table", name)
+		if !ok && len(name) > 1 {
+			logger.Fatalf("unknown table %q", name)
 		}
-		if name == "letter" {
-			verifyRange(name, letterOp, r)
+		if len(name) == 1 {
+			verifyRange(name, func(code int) bool { return categoryOp(code, name[0]) }, r)
 		} else {
 			verifyRange(
 				name,
@@ -487,11 +515,16 @@ func fullCategoryTest(list []string) {
 }
 
 func verifyRange(name string, inCategory Op, table *unicode.RangeTable) {
+	count := 0
 	for i := range chars {
 		web := inCategory(i)
 		pkg := unicode.Is(table, i)
 		if web != pkg {
 			fmt.Fprintf(os.Stderr, "%s: %U: web=%t pkg=%t\n", name, i, web, pkg)
+			count++
+			if count > 10 {
+				break
+			}
 		}
 	}
 }
@@ -880,6 +913,42 @@ func fullCaseTest() {
 			fmt.Fprintf(os.Stderr, "title %U should be %U is %U\n", i, want, title)
 		}
 	}
+}
+
+func printLatinProperties() {
+	if *test {
+		return
+	}
+	fmt.Println("var properties = [Latin1Max]uint8{")
+	for code := 0; code < unicode.Latin1Max; code++ {
+		var property string
+		switch chars[code].category {
+		case "Cc", "": // NUL has no category.
+			property = "pC"
+		case "Cf": // soft hyphen, unique category, not printable.
+			property = "0"
+		case "Ll":
+			property = "pLl | pp"
+		case "Lu":
+			property = "pLu | pp"
+		case "Nd", "No":
+			property = "pN | pp"
+		case "Pc", "Pd", "Pe", "Pf", "Pi", "Po", "Ps":
+			property = "pP | pp"
+		case "Sc", "Sk", "Sm", "So":
+			property = "pS | pp"
+		case "Zs":
+			property = "pZ"
+		default:
+			logger.Fatalf("%U has unknown category %q", code, chars[code].category)
+		}
+		// Special case
+		if code == ' ' {
+			property = "pZ | pp"
+		}
+		fmt.Printf("\t0x%.2X: %s, // %q\n", code, property, code)
+	}
+	fmt.Println("}")
 }
 
 var range16Count = 0 // Number of entries in the 16-bit range tables.
