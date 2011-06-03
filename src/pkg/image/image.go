@@ -38,21 +38,21 @@ func (p *RGBA) ColorModel() ColorModel { return RGBAColorModel }
 func (p *RGBA) Bounds() Rectangle { return p.Rect }
 
 func (p *RGBA) At(x, y int) Color {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return RGBAColor{}
 	}
 	return p.Pix[y*p.Stride+x]
 }
 
 func (p *RGBA) Set(x, y int, c Color) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = toRGBAColor(c).(RGBAColor)
 }
 
 func (p *RGBA) SetRGBA(x, y int, c RGBAColor) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = c
@@ -107,21 +107,21 @@ func (p *RGBA64) ColorModel() ColorModel { return RGBA64ColorModel }
 func (p *RGBA64) Bounds() Rectangle { return p.Rect }
 
 func (p *RGBA64) At(x, y int) Color {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return RGBA64Color{}
 	}
 	return p.Pix[y*p.Stride+x]
 }
 
 func (p *RGBA64) Set(x, y int, c Color) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = toRGBA64Color(c).(RGBA64Color)
 }
 
 func (p *RGBA64) SetRGBA64(x, y int, c RGBA64Color) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = c
@@ -176,21 +176,21 @@ func (p *NRGBA) ColorModel() ColorModel { return NRGBAColorModel }
 func (p *NRGBA) Bounds() Rectangle { return p.Rect }
 
 func (p *NRGBA) At(x, y int) Color {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return NRGBAColor{}
 	}
 	return p.Pix[y*p.Stride+x]
 }
 
 func (p *NRGBA) Set(x, y int, c Color) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = toNRGBAColor(c).(NRGBAColor)
 }
 
 func (p *NRGBA) SetNRGBA(x, y int, c NRGBAColor) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = c
@@ -245,21 +245,21 @@ func (p *NRGBA64) ColorModel() ColorModel { return NRGBA64ColorModel }
 func (p *NRGBA64) Bounds() Rectangle { return p.Rect }
 
 func (p *NRGBA64) At(x, y int) Color {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return NRGBA64Color{}
 	}
 	return p.Pix[y*p.Stride+x]
 }
 
 func (p *NRGBA64) Set(x, y int, c Color) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = toNRGBA64Color(c).(NRGBA64Color)
 }
 
 func (p *NRGBA64) SetNRGBA64(x, y int, c NRGBA64Color) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = c
@@ -314,21 +314,21 @@ func (p *Alpha) ColorModel() ColorModel { return AlphaColorModel }
 func (p *Alpha) Bounds() Rectangle { return p.Rect }
 
 func (p *Alpha) At(x, y int) Color {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return AlphaColor{}
 	}
 	return p.Pix[y*p.Stride+x]
 }
 
 func (p *Alpha) Set(x, y int, c Color) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = toAlphaColor(c).(AlphaColor)
 }
 
 func (p *Alpha) SetAlpha(x, y int, c AlphaColor) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = c
@@ -383,21 +383,21 @@ func (p *Alpha16) ColorModel() ColorModel { return Alpha16ColorModel }
 func (p *Alpha16) Bounds() Rectangle { return p.Rect }
 
 func (p *Alpha16) At(x, y int) Color {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return Alpha16Color{}
 	}
 	return p.Pix[y*p.Stride+x]
 }
 
 func (p *Alpha16) Set(x, y int, c Color) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = toAlpha16Color(c).(Alpha16Color)
 }
 
 func (p *Alpha16) SetAlpha16(x, y int, c Alpha16Color) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = c
@@ -452,21 +452,21 @@ func (p *Gray) ColorModel() ColorModel { return GrayColorModel }
 func (p *Gray) Bounds() Rectangle { return p.Rect }
 
 func (p *Gray) At(x, y int) Color {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return GrayColor{}
 	}
 	return p.Pix[y*p.Stride+x]
 }
 
 func (p *Gray) Set(x, y int, c Color) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = toGrayColor(c).(GrayColor)
 }
 
 func (p *Gray) SetGray(x, y int, c GrayColor) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = c
@@ -507,21 +507,21 @@ func (p *Gray16) ColorModel() ColorModel { return Gray16ColorModel }
 func (p *Gray16) Bounds() Rectangle { return p.Rect }
 
 func (p *Gray16) At(x, y int) Color {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return Gray16Color{}
 	}
 	return p.Pix[y*p.Stride+x]
 }
 
 func (p *Gray16) Set(x, y int, c Color) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = toGray16Color(c).(Gray16Color)
 }
 
 func (p *Gray16) SetGray16(x, y int, c Gray16Color) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = c
@@ -604,21 +604,21 @@ func (p *Paletted) At(x, y int) Color {
 	if len(p.Palette) == 0 {
 		return nil
 	}
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return p.Palette[0]
 	}
 	return p.Palette[p.Pix[y*p.Stride+x]]
 }
 
 func (p *Paletted) ColorIndexAt(x, y int) uint8 {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return 0
 	}
 	return p.Pix[y*p.Stride+x]
 }
 
 func (p *Paletted) SetColorIndex(x, y int, index uint8) {
-	if !p.Rect.Contains(Point{x, y}) {
+	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	p.Pix[y*p.Stride+x] = index

@@ -142,7 +142,7 @@ func (p *YCbCr) Bounds() image.Rectangle {
 }
 
 func (p *YCbCr) At(x, y int) image.Color {
-	if !p.Rect.Contains(image.Point{x, y}) {
+	if !(image.Point{x, y}.In(p.Rect)) {
 		return YCbCrColor{}
 	}
 	switch p.SubsampleRatio {

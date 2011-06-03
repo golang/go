@@ -174,18 +174,18 @@ func TestClip(t *testing.T) {
 
 		// Check that the clipped rectangle is contained by the dst / src / mask
 		// rectangles, in their respective co-ordinate spaces.
-		if !c.dr.ContainsRectangle(r) {
+		if !r.In(c.dr) {
 			t.Errorf("%s: c.dr %v does not contain r %v", c.desc, c.dr, r)
 		}
 		// sr is r translated into src's co-ordinate space.
 		sr := r.Add(c.sp.Sub(c.dr.Min))
-		if !c.sr.ContainsRectangle(sr) {
+		if !sr.In(c.sr) {
 			t.Errorf("%s: c.sr %v does not contain sr %v", c.desc, c.sr, sr)
 		}
 		if !c.nilMask {
 			// mr is r translated into mask's co-ordinate space.
 			mr := r.Add(c.mp.Sub(c.dr.Min))
-			if !c.mr.ContainsRectangle(mr) {
+			if !mr.In(c.mr) {
 				t.Errorf("%s: c.mr %v does not contain mr %v", c.desc, c.mr, mr)
 			}
 		}
