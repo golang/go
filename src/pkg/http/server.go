@@ -860,6 +860,10 @@ func (srv *Server) Serve(l net.Listener) os.Error {
 	for {
 		rw, e := l.Accept()
 		if e != nil {
+			if ne, ok := e.(net.Error); ok && ne.Temporary() {
+				log.Printf("http: Accept error: %v", e)
+				continue
+			}
 			return e
 		}
 		if srv.ReadTimeout != 0 {
