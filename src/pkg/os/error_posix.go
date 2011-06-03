@@ -13,7 +13,7 @@ type Errno int64
 func (e Errno) String() string { return syscall.Errstr(int(e)) }
 
 func (e Errno) Temporary() bool {
-	return e == Errno(syscall.EINTR) || e.Timeout()
+	return e == Errno(syscall.EINTR) || e == Errno(syscall.EMFILE) || e.Timeout()
 }
 
 func (e Errno) Timeout() bool {

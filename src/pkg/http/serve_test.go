@@ -18,6 +18,7 @@ import (
 	"net"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -770,6 +771,42 @@ func TestHandlerPanic(t *testing.T) {
 	_, err := Get(ts.URL)
 	if err == nil {
 		t.Logf("expected an error")
+	}
+}
+
+type errorListener struct {
+	errs []os.Error
+}
+
+func (l *errorListener) Accept() (c net.Conn, err os.Error) {
+	if len(l.errs) == 0 {
+		return nil, os.EOF
+	}
+	err = l.errs[0]
+	l.errs = l.errs[1:]
+	return
+}
+
+func (l *errorListener) Close() os.Error {
+	return nil
+}
+
+func (l *errorListener) Addr() net.Addr {
+	return dummyAddr("test-address")
+}
+
+func TestAcceptMaxFds(t *testing.T) {
+	log.SetOutput(ioutil.Discard) // is noisy otherwise
+	defer log.SetOutput(os.Stderr)
+
+	ln := &errorListener{[]os.Error{
+		&net.OpError{
+			Op:    "accept",
+			Error: os.Errno(syscall.EMFILE),
+		}}}
+	err := Serve(ln, HandlerFunc(HandlerFunc(func(ResponseWriter, *Request) {})))
+	if err != os.EOF {
+		t.Errorf("got error %v, want EOF", err)
 	}
 }
 
