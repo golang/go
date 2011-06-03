@@ -8,6 +8,7 @@ TARG=unicode
 GOFILES=\
 	casetables.go\
 	digit.go\
+	graphic.go\
 	letter.go\
 	tables.go\
 
