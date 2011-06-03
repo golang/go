@@ -438,20 +438,6 @@ newtype(Sym *s)
 	return t;
 }
 
-/*
- * type check top level declarations
- */
-void
-dclchecks(void)
-{
-	NodeList *l;
-
-	for(l=externdcl; l; l=l->next) {
-		if(l->n->op != ONAME)
-			continue;
-		typecheck(&l->n, Erv);
-	}
-}
 
 /*
  * := declarations
