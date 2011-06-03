@@ -45,6 +45,7 @@ func doTestParallelReaders(numReaders, gomaxprocs int) {
 }
 
 func TestParallelReaders(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
 	doTestParallelReaders(1, 4)
 	doTestParallelReaders(3, 4)
 	doTestParallelReaders(4, 2)
@@ -102,6 +103,7 @@ func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
 }
 
 func TestRWMutex(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
 	n := 1000
 	if testing.Short() {
 		n = 5
