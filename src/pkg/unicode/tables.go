@@ -5411,7 +5411,7 @@ var _CaseRanges = []CaseRange{
 	{0x10400, 0x10427, d{0, 40, 0}},
 	{0x10428, 0x1044F, d{-40, 0, -40}},
 }
-var properties = [Latin1Max]uint8{
+var properties = [MaxLatin1 + 1]uint8{
 	0x00: pC,       // '\x00'
 	0x01: pC,       // '\x01'
 	0x02: pC,       // '\x02'

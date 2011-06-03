@@ -323,7 +323,7 @@ func TestIsSpace(t *testing.T) {
 // Check that the optimizations for IsLetter etc. agree with the tables.
 // We only need to check the Latin-1 range.
 func TestLetterOptimizations(t *testing.T) {
-	for i := 0; i < Latin1Max; i++ {
+	for i := 0; i <= MaxLatin1; i++ {
 		if Is(Letter, i) != IsLetter(i) {
 			t.Errorf("IsLetter(U+%04X) disagrees with Is(Letter)", i)
 		}

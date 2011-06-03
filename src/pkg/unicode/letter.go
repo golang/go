@@ -9,8 +9,8 @@ package unicode
 const (
 	MaxRune         = 0x10FFFF // Maximum valid Unicode code point.
 	ReplacementChar = 0xFFFD   // Represents invalid code points.
-	ASCIIMax        = 0x80     // (1 beyond) maximum ASCII value.
-	Latin1Max       = 0x100    // (1 beyond) maximum Latin-1 value.
+	MaxASCII        = 0x7F     // maximum ASCII value.
+	MaxLatin1       = 0xFF     // maximum Latin-1 value.
 )
 
 // RangeTable defines a set of Unicode code points by listing the ranges of
@@ -123,7 +123,7 @@ func is32(ranges []Range32, rune uint32) bool {
 // Is tests whether rune is in the specified table of ranges.
 func Is(rangeTab *RangeTable, rune int) bool {
 	// common case: rune is ASCII or Latin-1.
-	if uint32(rune) < Latin1Max {
+	if uint32(rune) <= MaxLatin1 {
 		// Only need to check R16, since R32 is always >= 1<<16.
 		r16 := uint16(rune)
 		for _, r := range rangeTab.R16 {
@@ -151,7 +151,7 @@ func Is(rangeTab *RangeTable, rune int) bool {
 // IsUpper reports whether the rune is an upper case letter.
 func IsUpper(rune int) bool {
 	// See comment in IsGraphic.
-	if uint32(rune) < Latin1Max {
+	if uint32(rune) <= MaxLatin1 {
 		return properties[uint8(rune)]&pLu != 0
 	}
 	return Is(Upper, rune)
@@ -160,7 +160,7 @@ func IsUpper(rune int) bool {
 // IsLower reports whether the rune is a lower case letter.
 func IsLower(rune int) bool {
 	// See comment in IsGraphic.
-	if uint32(rune) < Latin1Max {
+	if uint32(rune) <= MaxLatin1 {
 		return properties[uint8(rune)]&pLl != 0
 	}
 	return Is(Lower, rune)
@@ -168,7 +168,7 @@ func IsLower(rune int) bool {
 
 // IsTitle reports whether the rune is a title case letter.
 func IsTitle(rune int) bool {
-	if rune < Latin1Max {
+	if rune <= MaxLatin1 {
 		return false
 	}
 	return Is(Title, rune)
@@ -218,7 +218,7 @@ func To(_case int, rune int) int {
 
 // ToUpper maps the rune to upper case.
 func ToUpper(rune int) int {
-	if rune < ASCIIMax {
+	if rune <= MaxASCII {
 		if 'a' <= rune && rune <= 'z' {
 			rune -= 'a' - 'A'
 		}
@@ -229,7 +229,7 @@ func ToUpper(rune int) int {
 
 // ToLower maps the rune to lower case.
 func ToLower(rune int) int {
-	if rune < ASCIIMax {
+	if rune <= MaxASCII {
 		if 'A' <= rune && rune <= 'Z' {
 			rune += 'a' - 'A'
 		}
@@ -240,7 +240,7 @@ func ToLower(rune int) int {
 
 // ToTitle maps the rune to title case.
 func ToTitle(rune int) int {
-	if rune < ASCIIMax {
+	if rune <= MaxASCII {
 		if 'a' <= rune && rune <= 'z' { // title case is upper case for ASCII
 			rune -= 'a' - 'A'
 		}

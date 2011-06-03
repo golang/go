@@ -34,7 +34,7 @@ var PrintRanges = []*RangeTable{
 func IsGraphic(rune int) bool {
 	// We cast to uint32 to avoid the extra test for negative,
 	// and in the index we cast to uint8 to avoid the range check.
-	if uint32(rune) < Latin1Max {
+	if uint32(rune) <= MaxLatin1 {
 		return properties[uint8(rune)]&pg != 0
 	}
 	return IsOneOf(GraphicRanges, rune)
@@ -46,7 +46,7 @@ func IsGraphic(rune int) bool {
 // character.  This categorization is the same as IsGraphic except that the
 // only spacing character is ASCII space, U+0020.
 func IsPrint(rune int) bool {
-	if uint32(rune) < Latin1Max {
+	if uint32(rune) <= MaxLatin1 {
 		return properties[uint8(rune)]&pp != 0
 	}
 	return IsOneOf(PrintRanges, rune)
@@ -67,7 +67,7 @@ func IsOneOf(set []*RangeTable, rune int) bool {
 // The C (Other) Unicode category includes more code points
 // such as surrogates; use Is(C, rune) to test for them.
 func IsControl(rune int) bool {
-	if uint32(rune) < Latin1Max {
+	if uint32(rune) <= MaxLatin1 {
 		return properties[uint8(rune)]&pC != 0
 	}
 	// All control characters are < Latin1Max.
@@ -76,7 +76,7 @@ func IsControl(rune int) bool {
 
 // IsLetter reports whether the rune is a letter (category L).
 func IsLetter(rune int) bool {
-	if uint32(rune) < Latin1Max {
+	if uint32(rune) <= MaxLatin1 {
 		return properties[uint8(rune)]&(pLu|pLl) != 0
 	}
 	return Is(Letter, rune)
@@ -90,7 +90,7 @@ func IsMark(rune int) bool {
 
 // IsNumber reports whether the rune is a number (category N).
 func IsNumber(rune int) bool {
-	if uint32(rune) < Latin1Max {
+	if uint32(rune) <= MaxLatin1 {
 		return properties[uint8(rune)]&pN != 0
 	}
 	return Is(Number, rune)
@@ -99,7 +99,7 @@ func IsNumber(rune int) bool {
 // IsPunct reports whether the rune is a Unicode punctuation character
 // (category P).
 func IsPunct(rune int) bool {
-	if uint32(rune) < Latin1Max {
+	if uint32(rune) <= MaxLatin1 {
 		return properties[uint8(rune)]&pP != 0
 	}
 	return Is(Punct, rune)
@@ -113,7 +113,7 @@ func IsPunct(rune int) bool {
 // Z and property Pattern_White_Space.
 func IsSpace(rune int) bool {
 	// This property isn't the same as Z; special-case it.
-	if uint32(rune) < Latin1Max {
+	if uint32(rune) <= MaxLatin1 {
 		switch rune {
 		case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0:
 			return true
@@ -125,7 +125,7 @@ func IsSpace(rune int) bool {
 
 // IsSymbol reports whether the rune is a symbolic character.
 func IsSymbol(rune int) bool {
-	if uint32(rune) < Latin1Max {
+	if uint32(rune) <= MaxLatin1 {
 		return properties[uint8(rune)]&pS != 0
 	}
 	return Is(Symbol, rune)
