@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"syscall"
 )
 
 // A HardwareAddr represents a physical hardware address.
@@ -36,49 +35,6 @@ type Interface struct {
 	Name         string       // e.g., "en0", "lo0", "eth0.100"
 	HardwareAddr HardwareAddr // IEEE MAC-48, EUI-48 and EUI-64 form
 	rawFlags     int
-}
-
-// IsUp returns true if ifi is up.
-func (ifi *Interface) IsUp() bool {
-	if ifi == nil {
-		return false
-	}
-	return ifi.rawFlags&syscall.IFF_UP != 0
-}
-
-// IsLoopback returns true if ifi is a loopback interface.
-func (ifi *Interface) IsLoopback() bool {
-	if ifi == nil {
-		return false
-	}
-	return ifi.rawFlags&syscall.IFF_LOOPBACK != 0
-}
-
-// CanBroadcast returns true if ifi supports a broadcast access
-// capability.
-func (ifi *Interface) CanBroadcast() bool {
-	if ifi == nil {
-		return false
-	}
-	return ifi.rawFlags&syscall.IFF_BROADCAST != 0
-}
-
-// IsPointToPoint returns true if ifi belongs to a point-to-point
-// link.
-func (ifi *Interface) IsPointToPoint() bool {
-	if ifi == nil {
-		return false
-	}
-	return ifi.rawFlags&syscall.IFF_POINTOPOINT != 0
-}
-
-// CanMulticast returns true if ifi supports a multicast access
-// capability.
-func (ifi *Interface) CanMulticast() bool {
-	if ifi == nil {
-		return false
-	}
-	return ifi.rawFlags&syscall.IFF_MULTICAST != 0
 }
 
 // Addrs returns interface addresses for a specific interface.
