@@ -703,5 +703,4 @@ tempname(Node *n, Type *t)
 	if(thechar == '5')
 		stksize = rnd(stksize, widthptr);
 	n->xoffset = -stksize;
-	n->pun = anyregalloc();
 }
