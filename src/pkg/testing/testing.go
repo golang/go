@@ -171,6 +171,7 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
 	if len(tests) == 0 {
 		println("testing: warning: no tests to run")
 	}
+	procs := runtime.GOMAXPROCS(-1)
 	for i := 0; i < len(tests); i++ {
 		matched, err := matchString(*match, tests[i].Name)
 		if err != nil {
@@ -190,6 +191,11 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
 		<-t.ch
 		ns += time.Nanoseconds()
 		tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
+		if p := runtime.GOMAXPROCS(-1); t.failed == false && p != procs {
+			t.failed = true
+			t.errors = fmt.Sprintf("%s left GOMAXPROCS set to %d\n", tests[i].Name, p)
+			procs = p
+		}
 		if t.failed {
 			println("--- FAIL:", tests[i].Name, tstr)
 			print(t.errors)

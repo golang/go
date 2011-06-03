@@ -143,7 +143,6 @@ func (b *B) run() BenchmarkResult {
 		b.runN(n)
 	}
 	return BenchmarkResult{b.N, b.ns, b.bytes}
-
 }
 
 // The results of a benchmark run.
@@ -183,6 +182,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
 	if len(*matchBenchmarks) == 0 {
 		return
 	}
+	procs := runtime.GOMAXPROCS(-1)
 	for _, Benchmark := range benchmarks {
 		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
 		if err != nil {
@@ -194,7 +194,12 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
 		}
 		b := &B{benchmark: Benchmark}
 		r := b.run()
-		fmt.Printf("%s\t%v\n", Benchmark.Name, r)
+		print(fmt.Sprintf("%s\t%v\n", Benchmark.Name, r))
+		if p := runtime.GOMAXPROCS(-1); p != procs {
+			print(fmt.Sprintf("%s left GOMAXPROCS set to %d\n", Benchmark.Name, p))
+			procs = p
+		}
+
 	}
 }
 
