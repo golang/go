@@ -263,8 +263,8 @@ func TestDrawOverlap(t *testing.T) {
 	}
 }
 
-// TestIssue836 verifies http://code.google.com/p/go/issues/detail?id=836.
-func TestIssue836(t *testing.T) {
+// TestNonZeroSrcPt checks drawing with a non-zero src point parameter.
+func TestNonZeroSrcPt(t *testing.T) {
 	a := image.NewRGBA(1, 1)
 	b := image.NewRGBA(2, 2)
 	b.Set(0, 0, image.RGBAColor{0, 0, 0, 5})
@@ -273,6 +273,6 @@ func TestIssue836(t *testing.T) {
 	b.Set(1, 1, image.RGBAColor{5, 0, 0, 5})
 	Draw(a, image.Rect(0, 0, 1, 1), b, image.Pt(1, 1))
 	if !eq(image.RGBAColor{5, 0, 0, 5}, a.At(0, 0)) {
-		t.Errorf("Issue 836: want %v got %v", image.RGBAColor{5, 0, 0, 5}, a.At(0, 0))
+		t.Errorf("non-zero src pt: want %v got %v", image.RGBAColor{5, 0, 0, 5}, a.At(0, 0))
 	}
 }

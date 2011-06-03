@@ -192,8 +192,19 @@ func (r Rectangle) Overlaps(s Rectangle) bool {
 
 // Contains returns whether r contains p.
 func (r Rectangle) Contains(p Point) bool {
-	return p.X >= r.Min.X && p.X < r.Max.X &&
-		p.Y >= r.Min.Y && p.Y < r.Max.Y
+	return r.Min.X <= p.X && p.X < r.Max.X &&
+		r.Min.Y <= p.Y && p.Y < r.Max.Y
+}
+
+// ContainsRectangle returns whether r contains every point in s.
+func (r Rectangle) ContainsRectangle(s Rectangle) bool {
+	if s.Empty() {
+		return true
+	}
+	// Note that s.Max is an exclusive bound for s, so that r.ContainsRectangle(s)
+	// does not require that r.Contains(s.Max).
+	return r.Min.X <= s.Min.X && s.Max.X <= r.Max.X &&
+		r.Min.Y <= s.Min.Y && s.Max.Y <= r.Max.Y
 }
 
 // Canon returns the canonical version of r. The returned rectangle has minimum
