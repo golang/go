@@ -39,27 +39,31 @@ func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point) {
 	DrawMask(dst, r, src, sp, nil, image.ZP, Over)
 }
 
+// clip clips r against each image's bounds (after translating into the
+// destination image's co-ordinate space) and shifts the points sp and mp by
+// the same amount as the change in r.Min.
+func clip(dst Image, r *image.Rectangle, src image.Image, sp *image.Point, mask image.Image, mp *image.Point) {
+	orig := r.Min
+	*r = r.Intersect(dst.Bounds())
+	*r = r.Intersect(src.Bounds().Add(orig.Sub(*sp)))
+	if mask != nil {
+		*r = r.Intersect(mask.Bounds().Add(orig.Sub(*mp)))
+	}
+	dx := r.Min.X - orig.X
+	dy := r.Min.Y - orig.Y
+	if dx == 0 && dy == 0 {
+		return
+	}
+	(*sp).X += dx
+	(*sp).Y += dy
+	(*mp).X += dx
+	(*mp).Y += dy
+}
+
 // DrawMask aligns r.Min in dst with sp in src and mp in mask and then replaces the rectangle r
 // in dst with the result of a Porter-Duff composition. A nil mask is treated as opaque.
 func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) {
-	sb := src.Bounds()
-	dx, dy := sb.Max.X-sp.X, sb.Max.Y-sp.Y
-	if mask != nil {
-		mb := mask.Bounds()
-		if dx > mb.Max.X-mp.X {
-			dx = mb.Max.X - mp.X
-		}
-		if dy > mb.Max.Y-mp.Y {
-			dy = mb.Max.Y - mp.Y
-		}
-	}
-	if r.Dx() > dx {
-		r.Max.X = r.Min.X + dx
-	}
-	if r.Dy() > dy {
-		r.Max.Y = r.Min.Y + dy
-	}
-	r = r.Intersect(dst.Bounds())
+	clip(dst, &r, src, &sp, mask, &mp)
 	if r.Empty() {
 		return
 	}
