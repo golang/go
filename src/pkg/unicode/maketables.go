@@ -919,8 +919,8 @@ func printLatinProperties() {
 	if *test {
 		return
 	}
-	fmt.Println("var properties = [Latin1Max]uint8{")
-	for code := 0; code < unicode.Latin1Max; code++ {
+	fmt.Println("var properties = [MaxLatin1+1]uint8{")
+	for code := 0; code <= unicode.MaxLatin1; code++ {
 		var property string
 		switch chars[code].category {
 		case "Cc", "": // NUL has no category.

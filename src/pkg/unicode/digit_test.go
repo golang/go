@@ -118,7 +118,7 @@ func TestDigit(t *testing.T) {
 
 // Test that the special case in IsDigit agrees with the table
 func TestDigitOptimization(t *testing.T) {
-	for i := 0; i < Latin1Max; i++ {
+	for i := 0; i <= MaxLatin1; i++ {
 		if Is(Digit, i) != IsDigit(i) {
 			t.Errorf("IsDigit(U+%04X) disagrees with Is(Digit)", i)
 		}
