@@ -403,7 +403,7 @@ func (p *gcParser) parseStructType() Type {
 }
 
 
-// Parameter = ( identifier | "?" ) [ "..." ] Type .
+// Parameter = ( identifier | "?" ) [ "..." ] Type [ ":" string_lit ] .
 //
 func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
 	name := p.parseName()
@@ -415,6 +415,11 @@ func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
 		isVariadic = true
 	}
 	ptyp := p.parseType()
+	// ignore argument tag
+	if p.tok == ':' {
+		p.next()
+		p.expect(scanner.String)
+	}
 	par = ast.NewObj(ast.Var, name)
 	par.Type = ptyp
 	return

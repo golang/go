@@ -1792,24 +1792,12 @@ hidden_opt_sym:
 	}
 
 hidden_dcl:
-	hidden_opt_sym hidden_type
+	hidden_opt_sym hidden_type hidden_tag
 	{
 		$$ = nod(ODCLFIELD, $1, typenod($2));
+		$$->val = $3;
 	}
-|	hidden_opt_sym LDDD
-	{
-		Type *t;
-
-		yyerror("invalid variadic function type in import - recompile import");
-		
-		t = typ(TARRAY);
-		t->bound = -1;
-		t->type = typ(TINTER);
-		$$ = nod(ODCLFIELD, $1, typenod(t));
-		$$->isddd = 1;
-	}
-
-|	hidden_opt_sym LDDD hidden_type
+|	hidden_opt_sym LDDD hidden_type hidden_tag
 	{
 		Type *t;
 		
@@ -1818,6 +1806,7 @@ hidden_dcl:
 		t->type = $3;
 		$$ = nod(ODCLFIELD, $1, typenod(t));
 		$$->isddd = 1;
+		$$->val = $4;
 	}
 
 hidden_structdcl:
