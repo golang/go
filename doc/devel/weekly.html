@@ -14,6 +14,127 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-06-02">2011-06-02</h2>
+
+<pre>
+This release includes changes to the exec package that will require changes
+to client code.
+
+The exec package has been re-designed with a more convenient and succinct API.
+This code:
+	args := []string{“diff”, “-u”, “file1.txt”, “file2.txt”}
+	p, err := exec.Run(“/usr/bin/diff”, args, os.Environ(), "",
+		exec.DevNull, exec.Pipe, exec.DevNull)
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	io.Copy(&buf, p.Stdout)
+	w, err := p.Wait(0)
+	p.Close()
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), err
+can be rewritten as:
+	return exec.Command(“diff”, “-u”, “file1.txt”, “file2.txt”).Output()
+See the exec package documentation for the details ("godoc exec").
+
+By setting the GOPATH environment variable you can use goinstall to build and
+install your own code and external libraries outside of the Go tree (and avoid
+writing Makefiles).
+See the goinstall command documentation for the details ("godoc goinstall").
+
+Other changes:
+* 5g: alignment fixes.
+* 6l, 8l: fix Mach-O binaries with many dynamic libraries.
+* 8l: emit resources (.rsrc) in Windows PE.  (thanks Wei Guangjing).
+* asn1: fix marshalling of empty optional RawValues (thanks Mikkel Krautz).
+* big: make Int and Rat implement fmt.Scanner (thanks Evan Shaw),
+	~8x faster number scanning,
+	remove some unnecessary conversions.
+* cgo: restrict #cgo directives to prevent shell expansion (thanks Gustavo Niemeyer),
+	support pkg-config for flags and libs (thanks Gustavo Niemeyer).
+* compress/flate: fix Huffman tree bug,
+	do not use background goroutines.
+* crypto/openpgp: add support for symmetrically encrypting files.
+* crypto/tls/generate_cert.go: fix misspelling of O_CREATE.
+* dashboard: send notification emails when the build breaks.
+* doc: mention go/printer instead of container/vector in effective go,
+	put Release History link on 'Documentation' page,
+	put Weekly Snapshot History link on 'Contributing' page.
+* encoding/base64: add DecodeString and EncodeToString.
+* encoding/binary: add a non-reflect fast path for Read,
+	add a non-reflect fast path for Write.
+* encoding/hex: add hex dumping.
+* encoding/line: delete package. Its functionality is now in bufio.
+* filepath: Abs must always return a clean path (thanks Gustavo Niemeyer).
+* fmt: fix bug in UnreadRune,
+	make %q work for integers, printing a quoted character literal,
+	return EOF when out of input in Scan*.
+* gc: check parameter declarations in interface fields (thanks Anthony Martin),
+	disallow ... in type conversions (thanks Anthony Martin),
+	do not force heap allocation on referencing outer variable in a closure,
+	fix m[x], _ = y.(T),
+	implement new shift rules,
+	patch y.tab.c to fix build when using Bison 2.5,
+	relax assignability of method receivers (thanks Anthony Martin),
+	typecheck the whole tree before walking.
+* go/scanner: don't allow "0x" and "0X" as integers (thanks Evan Shaw).
+* gobuilder: fixes for windows (thanks Alex Brainman).
+* godoc: basic setup for running godoc on local app engine emulator,
+	display advert for the package dashboard on package list page.
+* goinstall: fixes for windows (thanks Alex Brainman),
+	more verbose logging with -v.
+* gotest, pkg/exec: use bash to run shell scripts on windows (thanks Alex Brainman).
+* http/spdy: redo interfaces, flesh out implementation & frame types (thanks William Chan).
+* http: Transport hook to register non-http(s) protocols,
+	add client+server benchmark,
+	catch Handler goroutine panics,
+	fix Set-Cookie date parsing,
+	have client set Content-Length when possible,
+	let Transport use a custom net.Dial function,
+	propagate Set-Cookie in reverse proxy,
+	ServeFile shouldn't send Content-Length when Content-Encoding is set.
+* image: add a SubImage method.
+* image/gif: simplify blockReader.Read.
+* image/png: fix encoding of images that don't start at (0, 0).
+* io, net, http: sendfile support.
+* io: add ByteScanner, RuneScanner interfaces.
+* ld: add -w to disable dwarf, make errors obviously from dwarf.
+* mail: new package.
+* mime/multipart: misc code/doc fixes.
+* misc/cgo: remove reference to 'destroy' function.
+* misc/emacs: don't select the mark after gofmt (thanks Eric Eisner).
+* misc/gophertool: Chrome extension to aid in Go development
+* misc/vim: limit Fmt command to Go buffers (thanks Yasuhiro Matsumoto).
+* net: if we stop polling, remove any pending events for the socket,
+	update IP multicast socket options (thanks Mikio Hara).
+* os: Fix test to work on Solaris,
+	fix Readdir(0) on EOF,
+	fix Readdir, Readdirnames (thanks Yuval Pavel Zholkover),
+	fix os.MkdirAll with backslash path separator (thanks Yasuhiro Matsumoto),
+	handle OpenFile flag parameter properly on Windows (thanks Alex Brainman).
+* path/filepath: remove string constants.
+* pkg: spelling tweaks, I-Z (thanks Robert Hencke).
+* quietgcc: fix typo, respect $TMPDIR.
+* runtime: do not garbage collect windows callbacks (thanks Alex Brainman),
+	fix mmap error return on linux (thanks Dmitry Chestnykh),
+	reset GOMAXPROCS during tests,
+	save cdecl registers in Windows SEH handler (thanks Alexey Borzenkov).
+* spec: be precise with the use of the informal ellipsis and the Go token,
+	clarify rules for shifts.
+* strconv: add QuoteRune; analogous to Quote but for runes rather than strings.
+* strings: implement UnreadByte, UnreadRune.
+* sync: always wake up sleeping goroutines on Cond.Signal (thanks Gustavo Niemeyer).
+* sync/atomic: fix check64.
+* syscall: add ProcAttr field to pass an unescaped command line on windows (thanks Vincent Vanackere),
+	add routing messages support for Linux and BSD (thanks Mikio Hara).
+* template: fixes and clean-ups (thanks Gustavo Niemeyer).
+* time: fix Format bug: midnight/noon are 12AM/PM not 0AM/PM.
+* unicode: make the tables smaller.
+</pre>
+
 <h2 id="2011-05-22">2011-05-22</h2>
 
 <pre>
