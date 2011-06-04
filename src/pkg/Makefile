@@ -84,6 +84,7 @@ DIRS=\
 	flag\
 	fmt\
 	go/ast\
+	go/build\
 	go/doc\
 	go/parser\
 	go/printer\
