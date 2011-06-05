@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -24,6 +25,10 @@ func TestBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, d := range buildDirs {
+		if runtime.GOARCH == "arm" && strings.Contains(d, "/cgo") {
+			// no cgo for arm, yet.
+			continue
+		}
 		dir := filepath.Join(runtime.GOROOT(), "src", d)
 		testBuild(t, dir, out)
 	}
