@@ -4,7 +4,7 @@
 
 include ../../../../Make.inc
 
-TARG=exp/draw/x11
+TARG=exp/gui/x11
 GOFILES=\
 	auth.go\
 	conn.go\

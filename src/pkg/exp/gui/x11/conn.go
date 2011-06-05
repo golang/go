@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package x11 implements an X11 backend for the exp/draw package.
+// Package x11 implements an X11 backend for the exp/gui package.
 //
 // The X protocol specification is at ftp://ftp.x.org/pub/X11R7.0/doc/PDF/proto.pdf.
 // A summary of the wire format can be found in XCB's xproto.xml.
@@ -10,8 +10,9 @@ package x11
 
 import (
 	"bufio"
-	"exp/draw"
+	"exp/gui"
 	"image"
+	"image/draw"
 	"io"
 	"log"
 	"net"
@@ -43,7 +44,7 @@ type conn struct {
 
 	img        *image.RGBA
 	eventc     chan interface{}
-	mouseState draw.MouseEvent
+	mouseState gui.MouseEvent
 
 	buf [256]byte // General purpose scratch buffer.
 
@@ -53,7 +54,7 @@ type conn struct {
 }
 
 // writeSocket runs in its own goroutine, serving both FlushImage calls
-// directly from the exp/draw client and indirectly from X expose events.
+// directly from the exp/gui client and indirectly from X expose events.
 // It paints c.img to the X server via PutImage requests.
 func (c *conn) writeSocket() {
 	defer c.c.Close()
@@ -143,7 +144,7 @@ func (c *conn) Close() os.Error {
 
 func (c *conn) EventChan() <-chan interface{} { return c.eventc }
 
-// readSocket runs in its own goroutine, reading X events and sending draw
+// readSocket runs in its own goroutine, reading X events and sending gui
 // events on c's EventChan.
 func (c *conn) readSocket() {
 	var (
@@ -155,7 +156,7 @@ func (c *conn) readSocket() {
 		// X events are always 32 bytes long.
 		if _, err := io.ReadFull(c.r, c.buf[0:32]); err != nil {
 			if err != os.EOF {
-				c.eventc <- draw.ErrEvent{err}
+				c.eventc <- gui.ErrEvent{err}
 			}
 			return
 		}
@@ -165,7 +166,7 @@ func (c *conn) readSocket() {
 			if cookie != 1 {
 				// We issued only one request (GetKeyboardMapping) with a cookie of 1,
 				// so we shouldn't get any other reply from the X server.
-				c.eventc <- draw.ErrEvent{os.NewError("x11: unexpected cookie")}
+				c.eventc <- gui.ErrEvent{os.NewError("x11: unexpected cookie")}
 				return
 			}
 			keysymsPerKeycode = int(c.buf[1])
@@ -179,7 +180,7 @@ func (c *conn) readSocket() {
 					u, err := readU32LE(c.r, c.buf[0:4])
 					if err != nil {
 						if err != os.EOF {
-							c.eventc <- draw.ErrEvent{err}
+							c.eventc <- gui.ErrEvent{err}
 						}
 						return
 					}
@@ -204,11 +205,11 @@ func (c *conn) readSocket() {
 			// TODO(nigeltao): Should we send KeyEvents for Shift/Ctrl/Alt? Should Shift-A send
 			// the same int down the channel as the sent on just the A key?
 			// TODO(nigeltao): How should IME events (e.g. key presses that should generate CJK text) work? Or
-			// is that outside the scope of the draw.Window interface?
+			// is that outside the scope of the gui.Window interface?
 			if c.buf[0] == 0x03 {
 				keysym = -keysym
 			}
-			c.eventc <- draw.KeyEvent{keysym}
+			c.eventc <- gui.KeyEvent{keysym}
 		case 0x04, 0x05: // Button press, button release.
 			mask := 1 << (c.buf[1] - 1)
 			if c.buf[0] == 0x04 {
@@ -551,7 +552,7 @@ func (c *conn) handshake() os.Error {
 }
 
 // NewWindow calls NewWindowDisplay with $DISPLAY.
-func NewWindow() (draw.Window, os.Error) {
+func NewWindow() (gui.Window, os.Error) {
 	display := os.Getenv("DISPLAY")
 	if len(display) == 0 {
 		return nil, os.NewError("$DISPLAY not set")
@@ -559,10 +560,10 @@ func NewWindow() (draw.Window, os.Error) {
 	return NewWindowDisplay(display)
 }
 
-// NewWindowDisplay returns a new draw.Window, backed by a newly created and
+// NewWindowDisplay returns a new gui.Window, backed by a newly created and
 // mapped X11 window. The X server to connect to is specified by the display
 // string, such as ":1".
-func NewWindowDisplay(display string) (draw.Window, os.Error) {
+func NewWindowDisplay(display string) (gui.Window, os.Error) {
 	socket, displayStr, err := connect(display)
 	if err != nil {
 		return nil, err

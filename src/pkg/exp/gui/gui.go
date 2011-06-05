@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package draw
+// Package gui defines a basic graphical user interface programming model.
+package gui
 
 import (
 	"image"
+	"image/draw"
 	"os"
 )
 
 // A Window represents a single graphics window.
 type Window interface {
 	// Screen returns an editable Image for the window.
-	Screen() Image
+	Screen() draw.Image
 	// FlushImage flushes changes made to Screen() back to screen.
 	FlushImage()
 	// EventChan returns a channel carrying UI events such as key presses,
