@@ -4,9 +4,8 @@
 
 include ../../../Make.inc
 
-TARG=exp/draw
+TARG=image/draw
 GOFILES=\
 	draw.go\
-	event.go\
 
 include ../../../Make.pkg

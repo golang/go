@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package draw provides basic graphics and drawing primitives,
+// Package draw provides image composition functions
 // in the style of the Plan 9 graphics library
 // (see http://plan9.bell-labs.com/magic/man2html/2/draw)
 // and the X Render extension.
@@ -16,7 +16,7 @@ import (
 // m is the maximum color value returned by image.Color.RGBA.
 const m = 1<<16 - 1
 
-// A Porter-Duff compositing operator.
+// Op is a Porter-Duff compositing operator.
 type Op int
 
 const (
