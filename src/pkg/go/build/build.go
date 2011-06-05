@@ -6,6 +6,7 @@
 package build
 
 import (
+	"bytes"
 	"exec"
 	"fmt"
 	"os"
@@ -79,8 +80,11 @@ func (c *Cmd) String() string {
 }
 
 func (c *Cmd) Run(dir string) os.Error {
+	out := new(bytes.Buffer)
 	cmd := exec.Command(c.Args[0], c.Args[1:]...)
 	cmd.Dir = dir
+	cmd.Stdout = out
+	cmd.Stderr = out
 	if c.Stdout != "" {
 		f, err := os.Create(filepath.Join(dir, c.Stdout))
 		if err != nil {
@@ -90,7 +94,7 @@ func (c *Cmd) Run(dir string) os.Error {
 		cmd.Stdout = f
 	}
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("command %q: %v", c, err)
+		return fmt.Errorf("command %q: %v\n%v", c, err, out)
 	}
 	return nil
 }
