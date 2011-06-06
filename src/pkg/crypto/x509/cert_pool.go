@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"strings"
 )
@@ -25,7 +26,7 @@ func NewCertPool() *CertPool {
 	}
 }
 
-func nameToKey(name *Name) string {
+func nameToKey(name *pkix.Name) string {
 	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
 }
 

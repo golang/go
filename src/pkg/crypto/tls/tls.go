@@ -159,7 +159,7 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (cert Certificate, err os.Err
 
 	key, err := x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes)
 	if err != nil {
-		err = os.ErrorString("crypto/tls: failed to parse key")
+		err = os.ErrorString("crypto/tls: failed to parse key: " + err.String())
 		return
 	}
 
