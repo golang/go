@@ -376,8 +376,8 @@ def getBrokenCommit(node, builder):
     return
 
 def firstResult(builder):
-    q = Commit.all().order('-__key__').limit(20)
-    for c in q:
+    q = Commit.all().order('-__key__')
+    for c in q.fetch(20):
         for i, b in enumerate(c.builds):
             p = b.split('`', 1)
             if p[0] == builder:
@@ -392,9 +392,12 @@ def nodeAfter(c):
 
 def notifyBroken(c, builder):
     def send():
-        n = Commit.get_by_key_name('%08x-%s' % (c.num, c.node))
-	if n.fail_notification_sent:
-		return False
+        n = Commit.get(c.key())
+        if n is None:
+            logging.error("couldn't retrieve Commit '%s'" % c.key())
+            return False
+        if n.fail_notification_sent:
+            return False
         n.fail_notification_sent = True
         return n.put()
     if not db.run_in_transaction(send):
