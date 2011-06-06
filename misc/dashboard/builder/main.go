@@ -294,7 +294,7 @@ func (b *Builder) buildHash(hash string) (err os.Error) {
 	logfile := path.Join(workpath, "build.log")
 	buildLog, status, err := runLog(b.envv(), logfile, srcDir, *buildCmd)
 	if err != nil {
-		return fmt.Errorf("all.bash: %s", err)
+		return fmt.Errorf("%s: %s", *buildCmd, err)
 	}
 
 	// if we're in external mode, build all packages and return

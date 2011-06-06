@@ -27,8 +27,11 @@ func run(envv []string, dir string, argv ...string) os.Error {
 }
 
 // runLog runs a process and returns the combined stdout/stderr, 
-// as well as writing it to logfile (if specified).
-func runLog(envv []string, logfile, dir string, argv ...string) (output string, exitStatus int, err os.Error) {
+// as well as writing it to logfile (if specified). It returns
+// process combined stdout and stderr output, exit status and error.
+// The error returned is nil, if process is started successfully,
+// even if exit status is not 0.
+func runLog(envv []string, logfile, dir string, argv ...string) (string, int, os.Error) {
 	if *verbose {
 		log.Println("runLog", argv)
 	}
@@ -39,7 +42,7 @@ func runLog(envv []string, logfile, dir string, argv ...string) (output string, 
 	if logfile != "" {
 		f, err := os.OpenFile(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
-			return
+			return "", 0, err
 		}
 		defer f.Close()
 		w = io.MultiWriter(f, b)
@@ -51,15 +54,13 @@ func runLog(envv []string, logfile, dir string, argv ...string) (output string, 
 	cmd.Stdout = w
 	cmd.Stderr = w
 
-	err = cmd.Run()
-	output = b.String()
+	err := cmd.Run()
 	if err != nil {
 		if ws, ok := err.(*os.Waitmsg); ok {
-			exitStatus = ws.ExitStatus()
+			return b.String(), ws.ExitStatus(), nil
 		}
-		return
 	}
-	return
+	return b.String(), 0, nil
 }
 
 // useBash prefixes a list of args with 'bash' if the first argument
