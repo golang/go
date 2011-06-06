@@ -141,8 +141,9 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno
 //sys	GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (errno int)
 //sys	CancelIo(s uint32) (errno int)
 //sys	CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (errno int) = CreateProcessW
-//sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle uint32, errno int)
-//sys	GetExitCodeProcess(handle uint32, exitcode *uint32) (errno int)
+//sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle int32, errno int)
+//sys	TerminateProcess(handle int32, exitcode uint32) (errno int)
+//sys	GetExitCodeProcess(handle int32, exitcode *uint32) (errno int)
 //sys	GetStartupInfo(startupInfo *StartupInfo) (errno int) = GetStartupInfoW
 //sys	GetCurrentProcess() (pseudoHandle int32, errno int)
 //sys	DuplicateHandle(hSourceProcessHandle int32, hSourceHandle int32, hTargetProcessHandle int32, lpTargetHandle *int32, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (errno int)
@@ -696,10 +697,6 @@ func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (errno int) { return
 func BindToDevice(fd int, device string) (errno int)                    { return EWINDOWS }
 
 // TODO(brainman): fix all needed for os
-
-const (
-	SIGTRAP = 5
-)
 
 func Getpid() (pid int)   { return -1 }
 func Getppid() (ppid int) { return -1 }

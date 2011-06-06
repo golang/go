@@ -49,6 +49,23 @@ const (
 )
 
 const (
+	// More invented values for signals
+	SIGHUP  = 0x1
+	SIGINT  = 0x2
+	SIGQUIT = 0x3
+	SIGILL  = 0x4
+	SIGTRAP = 0x5
+	SIGABRT = 0x6
+	SIGBUS  = 0x7
+	SIGFPE  = 0x8
+	SIGKILL = 0x9
+	SIGSEGV = 0xb
+	SIGPIPE = 0xd
+	SIGALRM = 0xe
+	SIGTERM = 0xf
+)
+
+const (
 	GENERIC_READ    = 0x80000000
 	GENERIC_WRITE   = 0x40000000
 	GENERIC_EXECUTE = 0x20000000

@@ -27,6 +27,7 @@ GOFILES_freebsd=\
 	sys_bsd.go\
 	exec_posix.go\
 	exec_unix.go\
+	signal_unix.go\
 
 GOFILES_darwin=\
 	dir_unix.go\
@@ -38,6 +39,7 @@ GOFILES_darwin=\
 	sys_bsd.go\
 	exec_posix.go\
 	exec_unix.go\
+	signal_unix.go\
 
 GOFILES_linux=\
 	dir_unix.go\
@@ -49,6 +51,7 @@ GOFILES_linux=\
 	sys_linux.go\
 	exec_posix.go\
 	exec_unix.go\
+	signal_unix.go\
 
 GOFILES_windows=\
 	dir_windows.go\
@@ -60,6 +63,7 @@ GOFILES_windows=\
 	sys_windows.go\
 	exec_posix.go\
 	exec_windows.go\
+	signal_windows.go\
 
 GOFILES_plan9=\
 	dir_plan9.go\
@@ -72,4 +76,12 @@ GOFILES_plan9=\
 
 GOFILES+=$(GOFILES_$(GOOS))
 
+CLEANFILES+=signal_unix.go signal_windows.go
+
 include ../../Make.pkg
+
+signal_unix.go: ../syscall/zerrors_$(GOOS)_$(GOARCH).go
+	./mkunixsignals.sh $< > $@ || rm -f $@
+
+signal_windows.go: ../syscall/ztypes_$(GOOS)_$(GOARCH).go
+	./mkunixsignals.sh $< > $@ || rm -f $@

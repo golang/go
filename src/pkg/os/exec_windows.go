@@ -20,11 +20,21 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
 		return nil, ErrorString("os: unexpected result from WaitForSingleObject")
 	}
 	var ec uint32
-	e = syscall.GetExitCodeProcess(uint32(p.handle), &ec)
+	e = syscall.GetExitCodeProcess(int32(p.handle), &ec)
 	if e != 0 {
 		return nil, NewSyscallError("GetExitCodeProcess", e)
 	}
 	return &Waitmsg{p.Pid, syscall.WaitStatus{s, ec}, new(syscall.Rusage)}, nil
+}
+
+// Signal sends a signal to the Process.
+func (p *Process) Signal(sig Signal) Error {
+	switch sig.(UnixSignal) {
+	case SIGKILL:
+		e := syscall.TerminateProcess(int32(p.handle), 1)
+		return NewSyscallError("TerminateProcess", e)
+	}
+	return Errno(syscall.EWINDOWS)
 }
 
 func (p *Process) Release() Error {
