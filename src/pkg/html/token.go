@@ -355,6 +355,33 @@ loop:
 	return z.buf[i0:i], z.trim(i)
 }
 
+// attrName finds the largest attribute name at the start
+// of z.buf[i:] and returns it lower-cased, as well
+// as the trimmed cursor location after that word.
+//
+// http://dev.w3.org/html5/spec/Overview.html#syntax-attribute-name
+// TODO: unicode characters
+func (z *Tokenizer) attrName(i int) ([]byte, int) {
+	i0 := i
+loop:
+	for ; i < z.p1; i++ {
+		c := z.buf[i]
+		switch c {
+		case '<', '>', '"', '\'', '/', '=':
+			break loop
+		}
+		switch {
+		case 'A' <= c && c <= 'Z':
+			z.buf[i] = c + 'a' - 'A'
+		case c > ' ' && c < 0x7f:
+			// No-op.
+		default:
+			break loop
+		}
+	}
+	return z.buf[i0:i], z.trim(i)
+}
+
 // Text returns the unescaped text of a TextToken or a CommentToken.
 // The contents of the returned slice may change on the next call to Next.
 func (z *Tokenizer) Text() []byte {
@@ -399,7 +426,7 @@ func (z *Tokenizer) TagName() (name []byte, hasAttr bool) {
 // attribute for the current tag token and whether there are more attributes.
 // The contents of the returned slices may change on the next call to Next.
 func (z *Tokenizer) TagAttr() (key, val []byte, moreAttr bool) {
-	key, i := z.word(z.p0, true)
+	key, i := z.attrName(z.p0)
 	// Check for an empty attribute value.
 	if i == z.p1 {
 		z.p0 = i

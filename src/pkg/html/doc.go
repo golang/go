@@ -4,6 +4,7 @@
 
 /*
 Package html implements an HTML5-compliant tokenizer and parser.
+INCOMPLETE.
 
 Tokenization is done by creating a Tokenizer for an io.Reader r. It is the
 caller's responsibility to ensure that r provides UTF-8 encoded HTML.
