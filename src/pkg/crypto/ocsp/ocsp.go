@@ -13,6 +13,7 @@ import (
 	"crypto/rsa"
 	_ "crypto/sha1"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"os"
 	"time"
 )
@@ -32,21 +33,9 @@ const (
 	ocspUnauthorized  = 5
 )
 
-type rdnSequence []relativeDistinguishedNameSET
-
-type relativeDistinguishedNameSET []attributeTypeAndValue
-
-type attributeTypeAndValue struct {
-	Type  asn1.ObjectIdentifier
-	Value interface{}
-}
-
-type algorithmIdentifier struct {
-	Algorithm asn1.ObjectIdentifier
-}
 
 type certID struct {
-	HashAlgorithm algorithmIdentifier
+	HashAlgorithm pkix.AlgorithmIdentifier
 	NameHash      []byte
 	IssuerKeyHash []byte
 	SerialNumber  asn1.RawValue
@@ -64,16 +53,16 @@ type responseBytes struct {
 
 type basicResponse struct {
 	TBSResponseData    responseData
-	SignatureAlgorithm algorithmIdentifier
+	SignatureAlgorithm pkix.AlgorithmIdentifier
 	Signature          asn1.BitString
 	Certificates       []asn1.RawValue "explicit,tag:0,optional"
 }
 
 type responseData struct {
 	Raw           asn1.RawContent
-	Version       int         "optional,default:1,explicit,tag:0"
-	RequestorName rdnSequence "optional,explicit,tag:1"
-	KeyHash       []byte      "optional,explicit,tag:2"
+	Version       int              "optional,default:1,explicit,tag:0"
+	RequestorName pkix.RDNSequence "optional,explicit,tag:1"
+	KeyHash       []byte           "optional,explicit,tag:2"
 	ProducedAt    *time.Time
 	Responses     []singleResponse
 }

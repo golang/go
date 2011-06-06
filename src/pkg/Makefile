@@ -59,7 +59,7 @@ DIRS=\
 	crypto/tls\
 	crypto/twofish\
 	crypto/x509\
-	crypto/x509/crl\
+	crypto/x509/pkix\
 	crypto/xtea\
 	debug/dwarf\
 	debug/macho\
@@ -184,6 +184,7 @@ endif
 NOTEST+=\
 	crypto\
 	crypto/openpgp/error\
+	crypto/x509/pkix\
 	debug/proc\
 	exp/gui\
 	exp/gui/x11\

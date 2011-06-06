@@ -64,7 +64,7 @@ func (priv *PrivateKey) Validate() os.Error {
 	// easy for an attack to generate composites that pass this test.
 	for _, prime := range priv.Primes {
 		if !big.ProbablyPrime(prime, 20) {
-			return os.ErrorString("Prime factor is composite")
+			return os.ErrorString("prime factor is composite")
 		}
 	}
 

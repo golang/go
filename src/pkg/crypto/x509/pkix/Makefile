@@ -4,8 +4,8 @@
 
 include ../../../../Make.inc
 
-TARG=crypto/x509/crl
+TARG=crypto/x509/pkix
 GOFILES=\
-	crl.go\
+	pkix.go\
 
 include ../../../../Make.pkg
