@@ -126,6 +126,11 @@ var tokenTests = []tokenTest{
 		`<input value="yes" foo="BAR">`,
 	},
 	{
+		"Unquoted attribute value, spaces",
+		`<input value = yes FOO = BAR>`,
+		`<input value="yes" foo="BAR">`,
+	},
+	{
 		"Unquoted attribute value, trailing space",
 		`<input value=yes FOO=BAR >`,
 		`<input value="yes" foo="BAR">`,
@@ -144,6 +149,11 @@ var tokenTests = []tokenTest{
 		"Double-quoted attribute value",
 		`<input value="I'm an attribute" FOO="BAR">`,
 		`<input value="I&apos;m an attribute" foo="BAR">`,
+	},
+	{
+		"Attribute name characters",
+		`<meta http-equiv="content-type">`,
+		`<meta http-equiv="content-type">`,
 	},
 }
 
