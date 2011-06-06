@@ -116,7 +116,7 @@ func (c *Cipher) Reset() {
 		c.k[i] = 0
 	}
 	for i := range c.s {
-		for j := 0; j < 265; j++ {
+		for j := 0; j < 256; j++ {
 			c.s[i][j] = 0
 		}
 	}
