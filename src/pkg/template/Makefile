@@ -6,7 +6,9 @@ include ../../Make.inc
 
 TARG=template
 GOFILES=\
+	doc.go\
+	execute.go\
 	format.go\
-	template.go\
+	parse.go\
 
 include ../../Make.pkg
