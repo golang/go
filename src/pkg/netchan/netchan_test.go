@@ -178,6 +178,16 @@ func TestExportDrain(t *testing.T) {
 	<-done
 }
 
+// Not a great test but it does at least invoke Drain.
+func TestImportDrain(t *testing.T) {
+	exp, imp := pair(t)
+	expDone := make(chan bool)
+	go exportReceive(exp, t, expDone)
+	<-expDone
+	importSend(imp, closeCount, t, nil)
+	imp.Drain(0)
+}
+
 // Not a great test but it does at least invoke Sync.
 func TestExportSync(t *testing.T) {
 	exp, imp := pair(t)
