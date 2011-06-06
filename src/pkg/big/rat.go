@@ -314,7 +314,11 @@ func (z *Rat) RatString() string {
 // digits of precision after the decimal point and the last digit rounded.
 func (z *Rat) FloatString(prec int) string {
 	if z.IsInt() {
-		return z.a.String()
+		s := z.a.String()
+		if prec > 0 {
+			s += "." + strings.Repeat("0", prec)
+		}
+		return s
 	}
 
 	q, r := nat{}.div(nat{}, z.a.abs, z.b)
