@@ -5,6 +5,7 @@
 package signal
 
 import (
+	"os"
 	"syscall"
 	"testing"
 )
@@ -13,7 +14,7 @@ func TestSignal(t *testing.T) {
 	// Send this process a SIGHUP.
 	syscall.Syscall(syscall.SYS_KILL, uintptr(syscall.Getpid()), syscall.SIGHUP, 0)
 
-	if sig := (<-Incoming).(UnixSignal); sig != SIGHUP {
-		t.Errorf("signal was %v, want %v", sig, SIGHUP)
+	if sig := (<-Incoming).(os.UnixSignal); sig != os.SIGHUP {
+		t.Errorf("signal was %v, want %v", sig, os.SIGHUP)
 	}
 }

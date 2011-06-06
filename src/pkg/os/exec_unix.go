@@ -45,6 +45,14 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
 	return w, nil
 }
 
+// Signal sends a signal to the Process.
+func (p *Process) Signal(sig Signal) Error {
+	if e := syscall.Kill(p.Pid, int(sig.(UnixSignal))); e != 0 {
+		return Errno(e)
+	}
+	return nil
+}
+
 // Release releases any resources associated with the Process.
 func (p *Process) Release() Error {
 	// NOOP for unix.

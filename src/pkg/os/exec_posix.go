@@ -4,7 +4,25 @@
 
 package os
 
-import "syscall"
+import (
+	"runtime"
+	"syscall"
+)
+
+// A Signal can represent any operating system signal.
+type Signal interface {
+	String() string
+}
+
+type UnixSignal int32
+
+func (sig UnixSignal) String() string {
+	s := runtime.Signame(int32(sig))
+	if len(s) > 0 {
+		return s
+	}
+	return "UnixSignal"
+}
 
 // StartProcess starts a new process with the program, arguments and attributes
 // specified by name, argv and attr.
@@ -32,6 +50,11 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err E
 		return nil, &PathError{"fork/exec", name, Errno(e)}
 	}
 	return newProcess(pid, h), nil
+}
+
+// Kill causes the Process to exit immediately.
+func (p *Process) Kill() Error {
+	return p.Signal(SIGKILL)
 }
 
 // Exec replaces the current process with an execution of the

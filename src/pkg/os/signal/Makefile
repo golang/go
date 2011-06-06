@@ -7,11 +7,5 @@ include ../../../Make.inc
 TARG=os/signal
 GOFILES=\
 	signal.go\
-	unix.go\
-
-CLEANFILES+=unix.go
 
 include ../../../Make.pkg
-
-unix.go: ../../syscall/zerrors_$(GOOS)_$(GOARCH).go
-	./mkunix.sh $< > $@ || rm -f $@
