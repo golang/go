@@ -29,9 +29,9 @@ Let's start in the usual way:
 <p>
 <pre> <!-- progs/helloworld.go /package/ END -->
 05    package main
-<p>
+
 07    import fmt &quot;fmt&quot;  // Package implementing formatted I/O.
-<p>
+
 09    func main() {
 10        fmt.Printf(&quot;Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n&quot;)
 11    }
@@ -119,19 +119,19 @@ Next up, here's a version of the Unix utility <code>echo(1)</code>:
 <p>
 <pre> <!-- progs/echo.go /package/ END -->
 05    package main
-<p>
+
 07    import (
 08        &quot;os&quot;
 09        &quot;flag&quot;  // command line option parser
 10    )
-<p>
+
 12    var omitNewline = flag.Bool(&quot;n&quot;, false, &quot;don't print final newline&quot;)
-<p>
+
 14    const (
 15        Space = &quot; &quot;
 16        Newline = &quot;\n&quot;
 17    )
-<p>
+
 19    func main() {
 20        flag.Parse()   // Scans the arg list and sets up flags
 21        var s string = &quot;&quot;
@@ -479,12 +479,12 @@ open/close/read/write interface.  Here's the start of <code>file.go</code>:
 <p>
 <pre> <!-- progs/file.go /package/ /^}/ -->
 05    package file
-<p>
+
 07    import (
 08        &quot;os&quot;
 09        &quot;syscall&quot;
 10    )
-<p>
+
 12    type File struct {
 13        fd   int    // file descriptor number
 14        name string // file name at Open time
@@ -601,7 +601,7 @@ the tricky standard arguments to open and, especially, to create a file:
 41        O_CREATE = syscall.O_CREAT
 42        O_TRUNC  = syscall.O_TRUNC
 43    )
-<p>
+
 45    func Open(name string) (file *File, err os.Error) {
 46        return OpenFile(name, O_RDONLY, 0)
 47    }
@@ -632,7 +632,7 @@ each of which declares a receiver variable <code>file</code>.
 61        }
 62        return nil
 63    }
-<p>
+
 65    func (file *File) Read(b []byte) (ret int, err os.Error) {
 66        if file == nil {
 67            return -1, os.EINVAL
@@ -643,7 +643,7 @@ each of which declares a receiver variable <code>file</code>.
 72        }
 73        return int(r), err
 74    }
-<p>
+
 76    func (file *File) Write(b []byte) (ret int, err os.Error) {
 77        if file == nil {
 78            return -1, os.EINVAL
@@ -654,7 +654,7 @@ each of which declares a receiver variable <code>file</code>.
 83        }
 84        return int(r), err
 85    }
-<p>
+
 87    func (file *File) String() string {
 88        return file.name
 89    }
@@ -677,13 +677,13 @@ We can now use our new package:
 <p>
 <pre> <!-- progs/helloworld3.go /package/ END -->
 05    package main
-<p>
+
 07    import (
 08        &quot;./file&quot;
 09        &quot;fmt&quot;
 10        &quot;os&quot;
 11    )
-<p>
+
 13    func main() {
 14        hello := []byte(&quot;hello, world\n&quot;)
 15        file.Stdout.Write(hello)
@@ -720,14 +720,14 @@ Building on the <code>file</code> package, here's a simple version of the Unix u
 <p>
 <pre> <!-- progs/cat.go /package/ END -->
 05    package main
-<p>
+
 07    import (
 08        &quot;./file&quot;
 09        &quot;flag&quot;
 10        &quot;fmt&quot;
 11        &quot;os&quot;
 12    )
-<p>
+
 14    func cat(f *file.File) {
 15        const NBUF = 512
 16        var buf [NBUF]byte
@@ -746,7 +746,7 @@ Building on the <code>file</code> package, here's a simple version of the Unix u
 29            }
 30        }
 31    }
-<p>
+
 33    func main() {
 34        flag.Parse() // Scans the arg list and sets up flags
 35        if flag.NArg() == 0 {
@@ -811,11 +811,11 @@ we have a second implementation of the <code>reader</code> interface.
 31    type rotate13 struct {
 32        source reader
 33    }
-<p>
+
 35    func newRotate13(source reader) *rotate13 {
 36        return &amp;rotate13{source}
 37    }
-<p>
+
 39    func (r13 *rotate13) Read(b []byte) (ret int, err os.Error) {
 40        r, e := r13.source.Read(b)
 41        for i := 0; i &lt; r; i++ {
@@ -823,7 +823,7 @@ we have a second implementation of the <code>reader</code> interface.
 43        }
 44        return r, e
 45    }
-<p>
+
 47    func (r13 *rotate13) String() string {
 48        return r13.source.String()
 49    }
@@ -844,7 +844,7 @@ and use it from within a mostly unchanged <code>cat</code> function:
 52    func cat(r reader) {
 53        const NBUF = 512
 54        var buf [NBUF]byte
-<p>
+
 56        if *rot13Flag {
 57            r = newRotate13(r)
 58        }
@@ -937,7 +937,7 @@ arrays of integers, strings, etc.; here's the code for arrays of <code>int</code
 <p>
 <pre> <!-- progs/sort.go /type.*IntArray/ /Swap/ -->
 33    type IntArray []int
-<p>
+
 35    func (p IntArray) Len() int            { return len(p) }
 36    func (p IntArray) Less(i, j int) bool  { return p[i] &lt; p[j] }
 37    func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
@@ -970,11 +970,11 @@ to implement the three methods for that type, like this:
 32        shortName  string
 33        longName   string
 34    }
-<p>
+
 36    type dayArray struct {
 37        data []*day
 38    }
-<p>
+
 40    func (p *dayArray) Len() int            { return len(p.data) }
 41    func (p *dayArray) Less(i, j int) bool  { return p.data[i].num &lt; p.data[j].num }
 42    func (p *dayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i] }
@@ -1065,11 +1065,11 @@ Here's a simple example.
 10        a int
 11        b string
 12    }
-<p>
+
 14    func (t *testType) String() string {
 15        return fmt.Sprint(t.a) + &quot; &quot; + t.b
 16    }
-<p>
+
 18    func main() {
 19        t := &amp;testType{77, &quot;Sunset Strip&quot;}
 20        fmt.Println(t)
@@ -1347,7 +1347,7 @@ code that invokes the operation and responds to the request:
 <p>
 <pre> <!-- progs/server.go /type.binOp/ /^}/ -->
 14    type binOp func(a, b int) int
-<p>
+
 16    func run(op binOp, req *request) {
 17        reply := op(req.a, req.b)
 18        req.replyc &lt;- reply
