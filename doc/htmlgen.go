@@ -5,7 +5,7 @@
 // Process plain text into HTML.
 //	- h2's are made from lines followed by a line "----\n"
 //	- tab-indented blocks become <pre> blocks
-//	- blank lines become <p> marks
+//	- blank lines become <p> marks (except inside <pre> tags)
 //	- "quoted strings" become <code>quoted strings</code>
 
 package main
@@ -35,9 +35,9 @@ var (
 func main() {
 	read()
 	headings()
-	paragraphs()
 	coalesce(preStart, foldPre)
 	coalesce(tab, foldTabs)
+	paragraphs()
 	quotes()
 	write()
 }
