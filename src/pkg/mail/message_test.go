@@ -127,3 +127,74 @@ func TestDateParsing(t *testing.T) {
 		}
 	}
 }
+
+func TestAddressParsing(t *testing.T) {
+	tests := []struct {
+		addrsStr string
+		exp      []*Address
+	}{
+		// Bare address
+		{
+			`jdoe@machine.example`,
+			[]*Address{&Address{
+				Address: "jdoe@machine.example",
+			}},
+		},
+		// RFC 5322, Appendix A.1.1
+		{
+			`John Doe <jdoe@machine.example>`,
+			[]*Address{&Address{
+				Name:    "John Doe",
+				Address: "jdoe@machine.example",
+			}},
+		},
+		// RFC 5322, Appendix A.1.2
+		{
+			`"Joe Q. Public" <john.q.public@example.com>`,
+			[]*Address{&Address{
+				Name:    "Joe Q. Public",
+				Address: "john.q.public@example.com",
+			}},
+		},
+		{
+			`Mary Smith <mary@x.test>, jdoe@example.org, Who? <one@y.test>`,
+			[]*Address{
+				&Address{
+					Name:    "Mary Smith",
+					Address: "mary@x.test",
+				},
+				&Address{
+					Address: "jdoe@example.org",
+				},
+				&Address{
+					Name:    "Who?",
+					Address: "one@y.test",
+				},
+			},
+		},
+		{
+			`<boss@nil.test>, "Giant; \"Big\" Box" <sysservices@example.net>`,
+			[]*Address{
+				&Address{
+					Address: "boss@nil.test",
+				},
+				&Address{
+					Name:    `Giant; "Big" Box`,
+					Address: "sysservices@example.net",
+				},
+			},
+		},
+		// RFC 5322, Appendix A.1.3
+		// TODO(dsymonds): Group addresses.
+	}
+	for _, test := range tests {
+		addrs, err := newAddrParser(test.addrsStr).parseAddressList()
+		if err != nil {
+			t.Errorf("Failed parsing %q: %v", test.addrsStr, err)
+			continue
+		}
+		if !reflect.DeepEqual(addrs, test.exp) {
+			t.Errorf("Parse of %q: got %+v, want %+v", test.addrsStr, addrs, test.exp)
+		}
+	}
+}
