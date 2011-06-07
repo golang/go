@@ -274,7 +274,7 @@ func (d *decoder) readExtension() os.Error {
 		return fmt.Errorf("gif: unknown extension 0x%.2x", extension)
 	}
 	if size > 0 {
-		if _, err := d.r.Read(d.tmp[0:size]); err != nil {
+		if _, err := io.ReadFull(d.r, d.tmp[0:size]); err != nil {
 			return err
 		}
 	}
@@ -406,8 +406,8 @@ func DecodeAll(r io.Reader) (*GIF, os.Error) {
 	return gif, nil
 }
 
-// DecodeConfig returns the color model and dimensions of a GIF image without
-// decoding the entire image.
+// DecodeConfig returns the global color model and dimensions of a GIF image
+// without decoding the entire image.
 func DecodeConfig(r io.Reader) (image.Config, os.Error) {
 	var d decoder
 	if err := d.decode(r, true); err != nil {
