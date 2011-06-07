@@ -34,8 +34,6 @@
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
 
-int32	OFFSET;
-
 static Prog *PP;
 
 char linuxdynld[] = "/lib/ld-linux.so.2";
@@ -295,7 +293,7 @@ asmb(void)
 {
 	int32 t;
 	int a, dynsym;
-	uint32 fo, symo, startva, elfsymo, elfstro, elfsymsize;
+	uint32 fo, symo, startva;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
@@ -304,10 +302,6 @@ asmb(void)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
 	Bflush(&bso);
-
-	elfsymsize = 0;
-	elfstro = 0;
-	elfsymo = 0;
 
 	sect = segtext.sect;
 	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
@@ -361,27 +355,22 @@ asmb(void)
 			debug['s'] = 1;
 			break;
 		case Hplan9x32:
-			OFFSET = HEADR+textsize+segdata.filelen;
-			seek(cout, OFFSET, 0);
+			symo = HEADR+segtext.len+segdata.filelen;
 			break;
 		case Hnetbsd:
-			OFFSET += rnd(segdata.filelen, 4096);
-			seek(cout, OFFSET, 0);
+			symo = rnd(segdata.filelen, 4096);
 			break;
 		ElfSym:
 			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
 		}
+		seek(cout, symo, 0);
 		if(iself) {
 			if(debug['v'])
 			       Bprint(&bso, "%5.2f elfsym\n", cputime());
-			elfsymo = symo+8+symsize+lcsize;
-			seek(cout, elfsymo, 0);
-			asmelfsym32();
+			asmelfsym();
 			cflush();
-			elfstro = seek(cout, 0, 1);
-			elfsymsize = elfstro - elfsymo;
 			ewrite(cout, elfstrdat, elfstrsize);
 
 			// if(debug['v'])
@@ -397,8 +386,7 @@ asmb(void)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f header\n", cputime());
 	Bflush(&bso);
-	OFFSET = 0;
-	seek(cout, OFFSET, 0);
+	seek(cout, 0L, 0);
 	switch(HEADTYPE) {
 	case Hnoheader:	/* no header */
 		break;
@@ -599,15 +587,15 @@ asmb(void)
 
 			sh = newElfShdr(elfstr[ElfStrSymtab]);
 			sh->type = SHT_SYMTAB;
-			sh->off = elfsymo;
-			sh->size = elfsymsize;
+			sh->off = symo;
+			sh->size = symsize;
 			sh->addralign = 4;
 			sh->entsize = 16;
 			sh->link = eh->shnum;	// link to strtab
 
 			sh = newElfShdr(elfstr[ElfStrStrtab]);
 			sh->type = SHT_STRTAB;
-			sh->off = elfstro;
+			sh->off = symo+symsize;
 			sh->size = elfstrsize;
 			sh->addralign = 1;
 
