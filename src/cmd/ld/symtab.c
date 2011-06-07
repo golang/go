@@ -61,11 +61,35 @@ putelfstr(char *s)
 }
 
 void
-putelfsym64(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+putelfsyment(int off, vlong addr, vlong size, int info, int shndx)
 {
-	int bind, type, shndx, stroff;
-	
-	bind = STB_GLOBAL;
+	switch(thechar) {
+	case '6':
+		LPUT(off);
+		cput(info);
+		cput(0);
+		WPUT(shndx);
+		VPUT(addr);
+		VPUT(size);
+		symsize += ELF64SYMSIZE;
+		break;
+	default:
+		LPUT(off);
+		LPUT(addr);
+		LPUT(size);
+		cput(info);
+		cput(0);
+		WPUT(shndx);
+		symsize += ELF32SYMSIZE;
+		break;
+	}
+}
+
+void
+putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+{
+	int bind, type, shndx, off;
+
 	switch(t) {
 	default:
 		return;
@@ -75,65 +99,27 @@ putelfsym64(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 		break;
 	case 'D':
 		type = STT_OBJECT;
-		shndx = elftextsh + 1;
+		if((x->type&~SSUB) == SRODATA)
+			shndx = elftextsh + 1;
+		else
+			shndx = elftextsh + 2;
 		break;
 	case 'B':
 		type = STT_OBJECT;
-		shndx = elftextsh + 2;
+		shndx = elftextsh + 3;
 		break;
 	}
-	
-	stroff = putelfstr(s);
-	LPUT(stroff);	// string
-	cput((bind<<4)|(type&0xF));
-	cput(0);
-	WPUT(shndx);
-	VPUT(addr);
-	VPUT(size);
+	bind = ver ? STB_LOCAL : STB_GLOBAL;
+	off = putelfstr(s);
+	putelfsyment(off, addr, size, (bind<<4)|(type&0xf), shndx);
 }
 
 void
-asmelfsym64(void)
+asmelfsym(void)
 {
-	genasmsym(putelfsym64);
-}
-
-void
-putelfsym32(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
-{
-	int bind, type, shndx, stroff;
-	
-	bind = STB_GLOBAL;
-	switch(t) {
-	default:
-		return;
-	case 'T':
-		type = STT_FUNC;
-		shndx = elftextsh + 0;
-		break;
-	case 'D':
-		type = STT_OBJECT;
-		shndx = elftextsh + 1;
-		break;
-	case 'B':
-		type = STT_OBJECT;
-		shndx = elftextsh + 2;
-		break;
-	}
-	
-	stroff = putelfstr(s);
-	LPUT(stroff);	// string
-	LPUT(addr);
-	LPUT(size);
-	cput((bind<<4)|(type&0xF));
-	cput(0);
-	WPUT(shndx);
-}
-
-void
-asmelfsym32(void)
-{
-	genasmsym(putelfsym32);
+	// the first symbol entry is reserved
+	putelfsyment(0, 0, 0, (STB_LOCAL<<4)|STT_NOTYPE, 0);
+	genasmsym(putelfsym);
 }
 
 void
