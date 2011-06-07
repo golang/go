@@ -9,6 +9,7 @@ package net
 import (
 	"os"
 	"syscall"
+	"unsafe"
 )
 
 // IsUp returns true if ifi is up.
@@ -102,16 +103,19 @@ func newLink(m *syscall.InterfaceMessage) ([]Interface, os.Error) {
 	for _, s := range sas {
 		switch v := s.(type) {
 		case *syscall.SockaddrDatalink:
+			// NOTE: SockaddrDatalink.Data is minimum work area,
+			// can be larger.
+			m.Data = m.Data[unsafe.Offsetof(v.Data):]
 			ifi := Interface{Index: int(m.Header.Index), rawFlags: int(m.Header.Flags)}
 			var name [syscall.IFNAMSIZ]byte
 			for i := 0; i < int(v.Nlen); i++ {
-				name[i] = byte(v.Data[i])
+				name[i] = byte(m.Data[i])
 			}
 			ifi.Name = string(name[:v.Nlen])
 			ifi.MTU = int(m.Header.Data.Mtu)
 			addr := make([]byte, v.Alen)
 			for i := 0; i < int(v.Alen); i++ {
-				addr[i] = byte(v.Data[int(v.Nlen)+i])
+				addr[i] = byte(m.Data[int(v.Nlen)+i])
 			}
 			ifi.HardwareAddr = addr[:v.Alen]
 			ift = append(ift, ifi)
