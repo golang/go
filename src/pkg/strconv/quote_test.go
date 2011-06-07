@@ -11,17 +11,18 @@ import (
 )
 
 type quoteTest struct {
-	in  string
-	out string
+	in    string
+	out   string
+	ascii string
 }
 
 var quotetests = []quoteTest{
-	{"\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`},
-	{"\\", `"\\"`},
-	{"abc\xffdef", `"abc\xffdef"`},
-	{"\u263a", `"\u263a"`},
-	{"\U0010ffff", `"\U0010ffff"`},
-	{"\x04", `"\x04"`},
+	{"\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`, `"\a\b\f\r\n\t\v"`},
+	{"\\", `"\\"`, `"\\"`},
+	{"abc\xffdef", `"abc\xffdef"`, `"abc\xffdef"`},
+	{"\u263a", `"☺"`, `"\u263a"`},
+	{"\U0010ffff", `"\U0010ffff"`, `"\U0010ffff"`},
+	{"\x04", `"\x04"`, `"\x04"`},
 }
 
 func TestQuote(t *testing.T) {
@@ -32,26 +33,44 @@ func TestQuote(t *testing.T) {
 	}
 }
 
+func TestQuoteToASCII(t *testing.T) {
+	for _, tt := range quotetests {
+		if out := QuoteToASCII(tt.in); out != tt.ascii {
+			t.Errorf("QuoteToASCII(%s) = %s, want %s", tt.in, out, tt.ascii)
+		}
+	}
+}
+
 type quoteRuneTest struct {
-	in  int
-	out string
+	in    int
+	out   string
+	ascii string
 }
 
 var quoterunetests = []quoteRuneTest{
-	{'a', `'a'`},
-	{'\a', `'\a'`},
-	{'\\', `'\\'`},
-	{0xFF, `'\u00ff'`},
-	{0x263a, `'\u263a'`},
-	{0x0010ffff, `'\U0010ffff'`},
-	{0x0010ffff + 1, `'\ufffd'`},
-	{0x04, `'\x04'`},
+	{'a', `'a'`, `'a'`},
+	{'\a', `'\a'`, `'\a'`},
+	{'\\', `'\\'`, `'\\'`},
+	{0xFF, `'ÿ'`, `'\u00ff'`},
+	{0x263a, `'☺'`, `'\u263a'`},
+	{0xfffd, `'�'`, `'\ufffd'`},
+	{0x0010ffff, `'\U0010ffff'`, `'\U0010ffff'`},
+	{0x0010ffff + 1, `'�'`, `'\ufffd'`},
+	{0x04, `'\x04'`, `'\x04'`},
 }
 
 func TestQuoteRune(t *testing.T) {
 	for _, tt := range quoterunetests {
 		if out := QuoteRune(tt.in); out != tt.out {
 			t.Errorf("QuoteRune(%U) = %s, want %s", tt.in, out, tt.out)
+		}
+	}
+}
+
+func TestQuoteRuneToASCII(t *testing.T) {
+	for _, tt := range quoterunetests {
+		if out := QuoteRuneToASCII(tt.in); out != tt.ascii {
+			t.Errorf("QuoteRuneToASCII(%U) = %s, want %s", tt.in, out, tt.ascii)
 		}
 	}
 }
@@ -110,7 +129,12 @@ func TestCanBackquote(t *testing.T) {
 	}
 }
 
-var unquotetests = []quoteTest{
+type unQuoteTest struct {
+	in  string
+	out string
+}
+
+var unquotetests = []unQuoteTest{
 	{`""`, ""},
 	{`"a"`, "a"},
 	{`"abc"`, "abc"},

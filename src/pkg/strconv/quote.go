@@ -14,56 +14,68 @@ import (
 
 const lowerhex = "0123456789abcdef"
 
-func quoteWith(s string, quote byte) string {
+func quoteWith(s string, quote byte, ASCIIonly bool) string {
 	var buf bytes.Buffer
 	buf.WriteByte(quote)
-	for ; len(s) > 0; s = s[1:] {
-		switch c := s[0]; {
-		case c == quote:
+	for width := 0; len(s) > 0; s = s[width:] {
+		rune := int(s[0])
+		width = 1
+		if rune >= utf8.RuneSelf {
+			rune, width = utf8.DecodeRuneInString(s)
+		}
+		if width == 1 && rune == utf8.RuneError {
+			goto printEscX
+		}
+		if rune == int(quote) || rune == '\\' { // always backslashed
 			buf.WriteByte('\\')
-			buf.WriteByte(quote)
-		case c == '\\':
-			buf.WriteString(`\\`)
-		case ' ' <= c && c <= '~':
-			buf.WriteString(string(c))
-		case c == '\a':
+			buf.WriteByte(byte(rune))
+			continue
+		}
+		if ASCIIonly {
+			if rune <= unicode.MaxASCII && unicode.IsPrint(rune) {
+				buf.WriteRune(rune)
+				continue
+			}
+		} else if unicode.IsPrint(rune) {
+			buf.WriteRune(rune)
+			continue
+		}
+		switch rune {
+		case '\a':
 			buf.WriteString(`\a`)
-		case c == '\b':
+		case '\b':
 			buf.WriteString(`\b`)
-		case c == '\f':
+		case '\f':
 			buf.WriteString(`\f`)
-		case c == '\n':
+		case '\n':
 			buf.WriteString(`\n`)
-		case c == '\r':
+		case '\r':
 			buf.WriteString(`\r`)
-		case c == '\t':
+		case '\t':
 			buf.WriteString(`\t`)
-		case c == '\v':
+		case '\v':
 			buf.WriteString(`\v`)
-
-		case c >= utf8.RuneSelf && utf8.FullRuneInString(s):
-			r, size := utf8.DecodeRuneInString(s)
-			if r == utf8.RuneError && size == 1 {
-				goto EscX
-			}
-			s = s[size-1:] // next iteration will slice off 1 more
-			if r < 0x10000 {
-				buf.WriteString(`\u`)
-				for j := uint(0); j < 4; j++ {
-					buf.WriteByte(lowerhex[(r>>(12-4*j))&0xF])
-				}
-			} else {
-				buf.WriteString(`\U`)
-				for j := uint(0); j < 8; j++ {
-					buf.WriteByte(lowerhex[(r>>(28-4*j))&0xF])
-				}
-			}
-
 		default:
-		EscX:
-			buf.WriteString(`\x`)
-			buf.WriteByte(lowerhex[c>>4])
-			buf.WriteByte(lowerhex[c&0xF])
+			switch {
+			case rune < ' ':
+			printEscX:
+				buf.WriteString(`\x`)
+				buf.WriteByte(lowerhex[s[0]>>4])
+				buf.WriteByte(lowerhex[s[0]&0xF])
+			case rune > unicode.MaxRune:
+				rune = 0xFFFD
+				fallthrough
+			case rune < 0x10000:
+				buf.WriteString(`\u`)
+				for s := 12; s >= 0; s -= 4 {
+					buf.WriteByte(lowerhex[rune>>uint(s)&0xF])
+				}
+			default:
+				buf.WriteString(`\U`)
+				for s := 28; s >= 0; s -= 4 {
+					buf.WriteByte(lowerhex[rune>>uint(s)&0xF])
+				}
+			}
 		}
 	}
 	buf.WriteByte(quote)
@@ -71,21 +83,38 @@ func quoteWith(s string, quote byte) string {
 
 }
 
-// Quote returns a double-quoted Go string literal
-// representing s.  The returned string uses Go escape
-// sequences (\t, \n, \xFF, \u0100) for control characters
-// and non-ASCII characters.
+// Quote returns a double-quoted Go string literal representing s.  The
+// returned string uses Go escape sequences (\t, \n, \xFF, \u0100) for
+// control characters and non-printable characters as defined by
+// unicode.IsPrint.
 func Quote(s string) string {
-	return quoteWith(s, '"')
+	return quoteWith(s, '"', false)
 }
 
-// QuoteRune returns a single-quoted Go character literal
-// representing the rune.  The returned string uses Go escape
-// sequences (\t, \n, \xFF, \u0100) for control characters
-// and non-ASCII characters.
+// QuoteToASCII returns a double-quoted Go string literal representing s.
+// The returned string uses Go escape sequences (\t, \n, \xFF, \u0100) for
+// non-ASCII characters and non-printable characters as defined by
+// unicode.IsPrint.
+func QuoteToASCII(s string) string {
+	return quoteWith(s, '"', true)
+}
+
+// QuoteRune returns a single-quoted Go character literal representing the
+// rune.  The returned string uses Go escape sequences (\t, \n, \xFF, \u0100)
+// for control characters and non-printable characters as defined by
+// unicode.IsPrint.
 func QuoteRune(rune int) string {
 	// TODO: avoid the allocation here.
-	return quoteWith(string(rune), '\'')
+	return quoteWith(string(rune), '\'', false)
+}
+
+// QuoteRuneToASCII returns a single-quoted Go character literal representing
+// the rune.  The returned string uses Go escape sequences (\t, \n, \xFF,
+// \u0100) for non-ASCII characters and non-printable characters as defined
+// by unicode.IsPrint.
+func QuoteRuneToASCII(rune int) string {
+	// TODO: avoid the allocation here.
+	return quoteWith(string(rune), '\'', true)
 }
 
 // CanBackquote returns whether the string s would be
