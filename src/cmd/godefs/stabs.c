@@ -149,7 +149,7 @@ Intrange intranges[] = {
 	16, 0, Void,
 };
 
-static int kindsize[] = {
+int kindsize[] = {
 	0,
 	0,
 	8,
@@ -381,14 +381,6 @@ parsedef(char **pp, char *name)
 
 			while(f->type->kind == Typedef)
 				f->type = f->type->type;
-			if(f->type->kind == 0 && f->size <= 64 && (f->size&(f->size-1)) == 0) {
-				// unknown type but <= 64 bits and bit size is a power of two.
-				// could be enum - make Uint64 and then let it reduce
-				tt = emalloc(sizeof *tt);
-				*tt = *f->type;
-				f->type = tt;
-				tt->kind = Uint64;
-			}
 
 			// rewrite
 			//	uint32 x : 8;

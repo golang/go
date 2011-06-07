@@ -181,7 +181,7 @@ main(int argc, char **argv)
 	char **av, *q, *r, *tofree, *name;
 	char nambuf[100];
 	Biobuf *bin, *bout;
-	Type *t;
+	Type *t, *tt;
 	Field *f;
 	int orig_output_fd;
 
@@ -373,8 +373,16 @@ Continue:
 				prefix = prefixlen(t);
 			for(j=0; j<t->nf; j++) {
 				f = &t->f[j];
-				if(f->type->kind == 0)
-					continue;
+				if(f->type->kind == 0 && f->size <= 64 && (f->size&(f->size-1)) == 0) {
+					// unknown type but <= 64 bits and bit size is a power of two.
+					// could be enum - make Uint64 and then let it reduce
+					tt = emalloc(sizeof *tt);
+					*tt = *f->type;
+					f->type = tt;
+					tt->kind = Uint64;
+					while(tt->kind > Uint8 && kindsize[tt->kind] > f->size)
+						tt->kind -= 2;
+				}
 				// padding
 				if(t->kind == Struct || lang == &go) {
 					if(f->offset%8 != 0 || f->size%8 != 0) {

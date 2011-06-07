@@ -2,10 +2,6 @@
 
 // MACHINE GENERATED - DO NOT EDIT.
 
-// Manual corrections: TODO: need to fix godefs (issue 1466)
-//	change Msghdr field to Iov *Iovec (was uint32/64)
-//	change BpfProgram field to Insns *BpfInsn (was uint32/64)
-
 package syscall
 
 // Constants
