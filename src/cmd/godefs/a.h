@@ -75,6 +75,7 @@ extern Const *con;
 extern int ncon;
 extern Type **typ;
 extern int ntyp;
+extern int kindsize[];
 
 // Language output
 typedef struct Lang Lang;
