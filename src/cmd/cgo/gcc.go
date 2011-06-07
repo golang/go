@@ -660,11 +660,14 @@ func (p *Package) gccName() (ret string) {
 }
 
 // gccMachine returns the gcc -m flag to use, either "-m32" or "-m64".
-func (p *Package) gccMachine() string {
-	if p.PtrSize == 8 {
-		return "-m64"
+func (p *Package) gccMachine() []string {
+	switch runtime.GOARCH {
+	case "amd64":
+		return []string{"-m64"}
+	case "386":
+		return []string{"-m32"}
 	}
-	return "-m32"
+	return nil
 }
 
 const gccTmp = "_obj/_cgo_.o"
@@ -674,7 +677,6 @@ const gccTmp = "_obj/_cgo_.o"
 func (p *Package) gccCmd() []string {
 	c := []string{
 		p.gccName(),
-		p.gccMachine(),
 		"-Wall",                             // many warnings
 		"-Werror",                           // warnings are errors
 		"-o" + gccTmp,                       // write object to tmp
@@ -684,6 +686,7 @@ func (p *Package) gccCmd() []string {
 		"-xc",                               // input language is C
 	}
 	c = append(c, p.GccOptions...)
+	c = append(c, p.gccMachine()...)
 	c = append(c, "-") //read input from standard input
 	return c
 }
@@ -719,7 +722,8 @@ func (p *Package) gccDebug(stdin []byte) *dwarf.Data {
 // #defines that gcc encountered while processing the input
 // and its included files.
 func (p *Package) gccDefines(stdin []byte) string {
-	base := []string{p.gccName(), p.gccMachine(), "-E", "-dM", "-xc"}
+	base := []string{p.gccName(), "-E", "-dM", "-xc"}
+	base = append(base, p.gccMachine()...)
 	stdout, _ := runGcc(stdin, append(append(base, p.GccOptions...), "-"))
 	return stdout
 }
