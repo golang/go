@@ -615,6 +615,7 @@ func (x nat) bitLen() int {
 // MaxBase is the largest number base accepted for string conversions.
 const MaxBase = 'z' - 'a' + 10 + 1 // = hexValue('z') + 1
 
+
 func hexValue(ch int) Word {
 	d := MaxBase + 1 // illegal base
 	switch {
@@ -733,43 +734,134 @@ const (
 	uppercaseDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
+
+// decimalString returns a decimal representation of x.
+// It calls x.string with the charset "0123456789".
+func (x nat) decimalString() string {
+	return x.string(lowercaseDigits[0:10])
+}
+
+
 // string converts x to a string using digits from a charset; a digit with
 // value d is represented by charset[d]. The conversion base is determined
 // by len(charset), which must be >= 2.
 func (x nat) string(charset string) string {
-	base := len(charset)
+	b := Word(len(charset))
 
 	// special cases
 	switch {
-	case base < 2:
+	case b < 2 || b > 256:
 		panic("illegal base")
 	case len(x) == 0:
 		return string(charset[0])
 	}
 
 	// allocate buffer for conversion
-	i := x.bitLen()/log2(Word(base)) + 1 // +1: round up
+	i := x.bitLen()/log2(b) + 1 // +1: round up
 	s := make([]byte, i)
 
-	// don't destroy x
+	// special case: power of two bases can avoid divisions completely
+	if b == b&-b {
+		// shift is base-b digit size in bits
+		shift := uint(trailingZeroBits(b)) // shift > 0 because b >= 2
+		m := len(x)
+		mask := Word(1)<<shift - 1
+		w := x[0]
+		nbits := uint(_W) // number of unprocessed bits in w
+
+		// convert less-significant words
+		for k := 0; k < m-1; k++ {
+			// convert full digits
+			for nbits >= shift {
+				i--
+				s[i] = charset[w&mask]
+				w >>= shift
+				nbits -= shift
+			}
+
+			// convert any partial leading digit and advance to next word
+			if nbits == 0 {
+				// no partial digit remaining, just advance
+				w = x[k+1]
+				nbits = _W
+			} else {
+				// partial digit in current (k) and next (k+1) word
+				w |= x[k+1] << nbits
+				i--
+				s[i] = charset[w&mask]
+
+				// advance
+				w = x[k+1] >> (shift - nbits)
+				nbits = _W - (shift - nbits)
+			}
+		}
+
+		// convert digits of most-significant word (omit leading zeros)
+		for nbits >= 0 && w != 0 {
+			i--
+			s[i] = charset[w&mask]
+			w >>= shift
+			nbits -= shift
+		}
+
+		return string(s[i:])
+	}
+
+	// general case: extract groups of digits by multiprecision division
+
+	// maximize ndigits where b**ndigits < 2^_W; bb (big base) is b**ndigits
+	bb := Word(1)
+	ndigits := 0
+	for max := Word(_M / b); bb <= max; bb *= b {
+		ndigits++
+	}
+
+	// preserve x, create local copy for use in repeated divisions
 	q := nat(nil).set(x)
+	var r Word
 
 	// convert
-	for len(q) > 0 {
-		i--
-		var r Word
-		q, r = q.divW(q, Word(base))
-		s[i] = charset[r]
+	if b == 10 { // hard-coding for 10 here speeds this up by 1.25x
+		for len(q) > 0 {
+			// extract least significant, base bb "digit"
+			q, r = q.divW(q, bb) // N.B. >82% of time is here. Optimize divW
+			if len(q) == 0 {
+				// skip leading zeros in most-significant group of digits
+				for j := 0; j < ndigits && r != 0; j++ {
+					i--
+					s[i] = charset[r%10]
+					r /= 10
+				}
+			} else {
+				for j := 0; j < ndigits; j++ {
+					i--
+					s[i] = charset[r%10]
+					r /= 10
+				}
+			}
+		}
+	} else {
+		for len(q) > 0 {
+			// extract least significant group of digits
+			q, r = q.divW(q, bb) // N.B. >82% of time is here. Optimize divW
+			if len(q) == 0 {
+				// skip leading zeros in most-significant group of digits
+				for j := 0; j < ndigits && r != 0; j++ {
+					i--
+					s[i] = charset[r%b]
+					r /= b
+				}
+			} else {
+				for j := 0; j < ndigits; j++ {
+					i--
+					s[i] = charset[r%b]
+					r /= b
+				}
+			}
+		}
 	}
 
 	return string(s[i:])
-}
-
-
-// decimalString returns a decimal representation of x.
-// It calls x.string with the charset "0123456789".
-func (x nat) decimalString() string {
-	return x.string(lowercaseDigits[0:10])
 }
 
 
@@ -788,6 +880,7 @@ var deBruijn64Lookup = []byte{
 	63, 55, 48, 27, 60, 41, 37, 16, 46, 35, 44, 21, 52, 32, 23, 11,
 	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
 }
+
 
 // trailingZeroBits returns the number of consecutive zero bits on the right
 // side of the given Word.
@@ -960,7 +1053,9 @@ func (z nat) xor(x, y nat) nat {
 
 
 // greaterThan returns true iff (x1<<_W + x2) > (y1<<_W + y2)
-func greaterThan(x1, x2, y1, y2 Word) bool { return x1 > y1 || x1 == y1 && x2 > y2 }
+func greaterThan(x1, x2, y1, y2 Word) bool {
+	return x1 > y1 || x1 == y1 && x2 > y2
+}
 
 
 // modW returns x % d.

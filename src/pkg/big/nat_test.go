@@ -5,6 +5,7 @@
 package big
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -168,6 +169,36 @@ func BenchmarkMul(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		benchmarkMulLoad()
 	}
+}
+
+
+func toString(x nat, charset string) string {
+	base := len(charset)
+
+	// special cases
+	switch {
+	case base < 2:
+		panic("illegal base")
+	case len(x) == 0:
+		return string(charset[0])
+	}
+
+	// allocate buffer for conversion
+	i := x.bitLen()/log2(Word(base)) + 1 // +1: round up
+	s := make([]byte, i)
+
+	// don't destroy x
+	q := nat(nil).set(x)
+
+	// convert
+	for len(q) > 0 {
+		i--
+		var r Word
+		q, r = q.divW(q, Word(base))
+		s[i] = charset[r]
+	}
+
+	return string(s[i:])
 }
 
 
@@ -360,6 +391,187 @@ func BenchmarkScanPi(b *testing.B) {
 }
 
 
+const (
+	// 314**271
+	// base  2: 2249 digits
+	// base  8:  751 digits
+	// base 10:  678 digits
+	// base 16:  563 digits
+	shortBase     = 314
+	shortExponent = 271
+
+	// 3141**2178
+	// base  2: 31577 digits
+	// base  8: 10527 digits
+	// base 10:  9507 digits
+	// base 16:  7895 digits
+	mediumBase     = 3141
+	mediumExponent = 2718
+
+	// 3141**2178
+	// base  2: 406078 digits
+	// base  8: 135360 digits
+	// base 10: 122243 digits
+	// base 16: 101521 digits
+	longBase     = 31415
+	longExponent = 27182
+)
+
+
+func BenchmarkScanShort2(b *testing.B) {
+	ScanHelper(b, 2, shortBase, shortExponent)
+}
+
+
+func BenchmarkScanShort8(b *testing.B) {
+	ScanHelper(b, 8, shortBase, shortExponent)
+}
+
+
+func BenchmarkScanSort10(b *testing.B) {
+	ScanHelper(b, 10, shortBase, shortExponent)
+}
+
+
+func BenchmarkScanShort16(b *testing.B) {
+	ScanHelper(b, 16, shortBase, shortExponent)
+}
+
+
+func BenchmarkScanMedium2(b *testing.B) {
+	ScanHelper(b, 2, mediumBase, mediumExponent)
+}
+
+
+func BenchmarkScanMedium8(b *testing.B) {
+	ScanHelper(b, 8, mediumBase, mediumExponent)
+}
+
+
+func BenchmarkScanMedium10(b *testing.B) {
+	ScanHelper(b, 10, mediumBase, mediumExponent)
+}
+
+
+func BenchmarkScanMedium16(b *testing.B) {
+	ScanHelper(b, 16, mediumBase, mediumExponent)
+}
+
+
+func BenchmarkScanLong2(b *testing.B) {
+	ScanHelper(b, 2, longBase, longExponent)
+}
+
+
+func BenchmarkScanLong8(b *testing.B) {
+	ScanHelper(b, 8, longBase, longExponent)
+}
+
+
+func BenchmarkScanLong10(b *testing.B) {
+	ScanHelper(b, 10, longBase, longExponent)
+}
+
+
+func BenchmarkScanLong16(b *testing.B) {
+	ScanHelper(b, 16, longBase, longExponent)
+}
+
+
+func ScanHelper(b *testing.B, base int, xv, yv Word) {
+	b.StopTimer()
+	var x, y, z nat
+	x = x.setWord(xv)
+	y = y.setWord(yv)
+	z = z.expNN(x, y, nil)
+
+	var s string
+	s = z.string(lowercaseDigits[0:base])
+	if t := toString(z, lowercaseDigits[0:base]); t != s {
+		panic(fmt.Sprintf("scanning: got %s; want %s", s, t))
+	}
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		x.scan(strings.NewReader(s), base)
+	}
+}
+
+
+func BenchmarkStringShort2(b *testing.B) {
+	StringHelper(b, 2, shortBase, shortExponent)
+}
+
+
+func BenchmarkStringShort8(b *testing.B) {
+	StringHelper(b, 8, shortBase, shortExponent)
+}
+
+
+func BenchmarkStringShort10(b *testing.B) {
+	StringHelper(b, 10, shortBase, shortExponent)
+}
+
+
+func BenchmarkStringShort16(b *testing.B) {
+	StringHelper(b, 16, shortBase, shortExponent)
+}
+
+
+func BenchmarkStringMedium2(b *testing.B) {
+	StringHelper(b, 2, mediumBase, mediumExponent)
+}
+
+
+func BenchmarkStringMedium8(b *testing.B) {
+	StringHelper(b, 8, mediumBase, mediumExponent)
+}
+
+
+func BenchmarkStringMedium10(b *testing.B) {
+	StringHelper(b, 10, mediumBase, mediumExponent)
+}
+
+
+func BenchmarkStringMedium16(b *testing.B) {
+	StringHelper(b, 16, mediumBase, mediumExponent)
+}
+
+
+func BenchmarkStringLong2(b *testing.B) {
+	StringHelper(b, 2, longBase, longExponent)
+}
+
+
+func BenchmarkStringLong8(b *testing.B) {
+	StringHelper(b, 8, longBase, longExponent)
+}
+
+
+func BenchmarkStringLong10(b *testing.B) {
+	StringHelper(b, 10, longBase, longExponent)
+}
+
+
+func BenchmarkStringLong16(b *testing.B) {
+	StringHelper(b, 16, longBase, longExponent)
+}
+
+
+func StringHelper(b *testing.B, base int, xv, yv Word) {
+	b.StopTimer()
+	var x, y, z nat
+	x = x.setWord(xv)
+	y = y.setWord(yv)
+	z = z.expNN(x, y, nil)
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		z.string(lowercaseDigits[0:base])
+	}
+}
+
+
 func TestLeadingZeros(t *testing.T) {
 	var x Word = _B >> 1
 	for i := 0; i <= _W; i++ {
@@ -478,7 +690,6 @@ func TestTrailingZeroBits(t *testing.T) {
 		x <<= 1
 	}
 }
-
 
 var expNNTests = []struct {
 	x, y, m string
