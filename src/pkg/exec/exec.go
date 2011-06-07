@@ -62,9 +62,11 @@ type Cmd struct {
 	Stdout io.Writer
 	Stderr io.Writer
 
+	// Process is the underlying process, once started.
+	Process *os.Process
+
 	err             os.Error // last error (from LookPath, stdin, stdout, stderr)
-	process         *os.Process
-	finished        bool // when Wait was called
+	finished        bool     // when Wait was called
 	childFiles      []*os.File
 	closeAfterStart []io.Closer
 	closeAfterWait  []io.Closer
@@ -205,7 +207,7 @@ func (c *Cmd) Start() os.Error {
 	if c.err != nil {
 		return c.err
 	}
-	if c.process != nil {
+	if c.Process != nil {
 		return os.NewError("exec: already started")
 	}
 
@@ -219,7 +221,7 @@ func (c *Cmd) Start() os.Error {
 	}
 
 	var err os.Error
-	c.process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
+	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
 		Files: c.childFiles,
 		Env:   c.envv(),
@@ -253,14 +255,14 @@ func (c *Cmd) Start() os.Error {
 // error is of type *os.Waitmsg. Other error types may be
 // returned for I/O problems.
 func (c *Cmd) Wait() os.Error {
-	if c.process == nil {
+	if c.Process == nil {
 		return os.NewError("exec: not started")
 	}
 	if c.finished {
 		return os.NewError("exec: Wait was already called")
 	}
 	c.finished = true
-	msg, err := c.process.Wait(0)
+	msg, err := c.Process.Wait(0)
 
 	var copyError os.Error
 	for _ = range c.goroutine {
@@ -315,7 +317,7 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, os.Error) {
 	if c.Stdin != nil {
 		return nil, os.NewError("exec: Stdin already set")
 	}
-	if c.process != nil {
+	if c.Process != nil {
 		return nil, os.NewError("exec: StdinPipe after process started")
 	}
 	pr, pw, err := os.Pipe()
@@ -334,7 +336,7 @@ func (c *Cmd) StdoutPipe() (io.Reader, os.Error) {
 	if c.Stdout != nil {
 		return nil, os.NewError("exec: Stdout already set")
 	}
-	if c.process != nil {
+	if c.Process != nil {
 		return nil, os.NewError("exec: StdoutPipe after process started")
 	}
 	pr, pw, err := os.Pipe()
@@ -353,7 +355,7 @@ func (c *Cmd) StderrPipe() (io.Reader, os.Error) {
 	if c.Stderr != nil {
 		return nil, os.NewError("exec: Stderr already set")
 	}
-	if c.process != nil {
+	if c.Process != nil {
 		return nil, os.NewError("exec: StderrPipe after process started")
 	}
 	pr, pw, err := os.Pipe()
