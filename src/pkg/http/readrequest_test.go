@@ -64,7 +64,7 @@ var reqTests = []reqTest{
 			Host:          "www.techcrunch.com",
 			Referer:       "",
 			UserAgent:     "Fake",
-			Form:          map[string][]string{},
+			Form:          Values{},
 		},
 
 		"abcdef\n",
@@ -99,7 +99,7 @@ var reqTests = []reqTest{
 			Host:          "test",
 			Referer:       "",
 			UserAgent:     "",
-			Form:          map[string][]string{},
+			Form:          Values{},
 		},
 
 		"",

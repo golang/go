@@ -90,10 +90,10 @@ type Request struct {
 	//
 	// then
 	//
-	//	Header = map[string]string{
-	//		"Accept-Encoding": "gzip, deflate",
-	//		"Accept-Language": "en-us",
-	//		"Connection": "keep-alive",
+	//	Header = map[string][]string{
+	//		"Accept-Encoding": {"gzip, deflate"},
+	//		"Accept-Language": {"en-us"},
+	//		"Connection": {"keep-alive"},
 	//	}
 	//
 	// HTTP defines that header names are case-insensitive.
@@ -141,7 +141,7 @@ type Request struct {
 	UserAgent string
 
 	// The parsed form. Only available after ParseForm is called.
-	Form map[string][]string
+	Form Values
 
 	// The parsed multipart form, including file uploads.
 	// Only available after ParseMultipartForm is called.
@@ -597,18 +597,56 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	return req, nil
 }
 
+// Values maps a string key to a list of values.
+// It is typically used for query parameters and form values.
+// Unlike in the Header map, the keys in a Values map
+// are case-sensitive.
+type Values map[string][]string
+
+// Get gets the first value associated with the given key.
+// If there are no values associated with the key, Get returns
+// the empty string. To access multiple values, use the map
+// directly.
+func (v Values) Get(key string) string {
+	if v == nil {
+		return ""
+	}
+	vs, ok := v[key]
+	if !ok || len(vs) == 0 {
+		return ""
+	}
+	return vs[0]
+}
+
+// Set sets the key to value. It replaces any existing
+// values.
+func (v Values) Set(key, value string) {
+	v[key] = []string{value}
+}
+
+// Add adds the key to value. It appends to any existing
+// values associated with key.
+func (v Values) Add(key, value string) {
+	v[key] = append(v[key], value)
+}
+
+// Del deletes the values associated with key.
+func (v Values) Del(key string) {
+	v[key] = nil, false
+}
+
 // ParseQuery parses the URL-encoded query string and returns
 // a map listing the values specified for each key.
 // ParseQuery always returns a non-nil map containing all the
 // valid query parameters found; err describes the first decoding error
 // encountered, if any.
-func ParseQuery(query string) (m map[string][]string, err os.Error) {
-	m = make(map[string][]string)
+func ParseQuery(query string) (m Values, err os.Error) {
+	m = make(Values)
 	err = parseQuery(m, query)
 	return
 }
 
-func parseQuery(m map[string][]string, query string) (err os.Error) {
+func parseQuery(m Values, query string) (err os.Error) {
 	for _, kv := range strings.Split(query, "&", -1) {
 		if len(kv) == 0 {
 			continue
@@ -641,7 +679,7 @@ func (r *Request) ParseForm() (err os.Error) {
 		return
 	}
 
-	r.Form = make(map[string][]string)
+	r.Form = make(Values)
 	if r.URL != nil {
 		err = parseQuery(r.Form, r.URL.RawQuery)
 	}

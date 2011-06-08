@@ -26,18 +26,18 @@ func dash(meth, cmd string, resp interface{}, args param) os.Error {
 		log.Println("dash", cmd, args)
 	}
 	cmd = "http://" + *dashboard + "/" + cmd
+	vals := make(http.Values)
+	for k, v := range args {
+		vals.Add(k, v)
+	}
 	switch meth {
 	case "GET":
-		if args != nil {
-			m := make(map[string][]string)
-			for k, v := range args {
-				m[k] = []string{v}
-			}
-			cmd += "?" + http.EncodeQuery(m)
+		if q := vals.Encode(); q != "" {
+			cmd += "?" + q
 		}
 		r, err = http.Get(cmd)
 	case "POST":
-		r, err = http.PostForm(cmd, args)
+		r, err = http.PostForm(cmd, vals)
 	default:
 		return fmt.Errorf("unknown method %q", meth)
 	}

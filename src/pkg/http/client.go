@@ -7,7 +7,6 @@
 package http
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -240,7 +239,7 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response,
 // Caller should close r.Body when done reading from it.
 //
 // PostForm is a wrapper around DefaultClient.PostForm
-func PostForm(url string, data map[string]string) (r *Response, err os.Error) {
+func PostForm(url string, data Values) (r *Response, err os.Error) {
 	return DefaultClient.PostForm(url, data)
 }
 
@@ -248,17 +247,8 @@ func PostForm(url string, data map[string]string) (r *Response, err os.Error) {
 // with data's keys and values urlencoded as the request body.
 //
 // Caller should close r.Body when done reading from it.
-func (c *Client) PostForm(url string, data map[string]string) (r *Response, err os.Error) {
-	return c.Post(url, "application/x-www-form-urlencoded", urlencode(data))
-}
-
-// TODO: remove this function when PostForm takes a multimap.
-func urlencode(data map[string]string) (b *bytes.Buffer) {
-	m := make(map[string][]string, len(data))
-	for k, v := range data {
-		m[k] = []string{v}
-	}
-	return bytes.NewBuffer([]byte(EncodeQuery(m)))
+func (c *Client) PostForm(url string, data Values) (r *Response, err os.Error) {
+	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }
 
 // Head issues a HEAD to the specified URL.  If the response is one of the

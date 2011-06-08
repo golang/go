@@ -486,10 +486,14 @@ func (url *URL) String() string {
 	return result
 }
 
-// EncodeQuery encodes the query represented as a multimap.
-func EncodeQuery(m map[string][]string) string {
-	parts := make([]string, 0, len(m)) // will be large enough for most uses
-	for k, vs := range m {
+// Encode encodes the values into ``URL encoded'' form.
+// e.g. "foo=bar&bar=baz"
+func (v Values) Encode() string {
+	if v == nil {
+		return ""
+	}
+	parts := make([]string, 0, len(v)) // will be large enough for most uses
+	for k, vs := range v {
 		prefix := URLEscape(k) + "="
 		for _, v := range vs {
 			parts = append(parts, prefix+URLEscape(v))
@@ -592,4 +596,10 @@ func (base *URL) ResolveReference(ref *URL) *URL {
 	}
 	url.Raw = url.String()
 	return url
+}
+
+// Query parses RawQuery and returns the corresponding values.
+func (u *URL) Query() Values {
+	v, _ := ParseQuery(u.RawQuery)
+	return v
 }
