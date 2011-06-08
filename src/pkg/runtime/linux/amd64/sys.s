@@ -53,6 +53,14 @@ TEXT runtime·setitimer(SB),7,$0-24
 	SYSCALL
 	RET
 
+TEXT runtime·mincore(SB),7,$0-24
+	MOVQ	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVQ	24(SP), DX
+	MOVL	$27, AX			// syscall entry
+	SYSCALL
+	RET
+
 TEXT runtime·gettime(SB), 7, $32
 	LEAQ	8(SP), DI
 	MOVQ	$0, SI

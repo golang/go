@@ -26,6 +26,7 @@
 #define SYS_exit_group (SYS_BASE + 248)
 #define SYS_munmap (SYS_BASE + 91)
 #define SYS_setitimer (SYS_BASE + 104)
+#define SYS_mincore (SYS_BASE + 219)
 #define SYS_gettid (SYS_BASE + 224)
 #define SYS_tkill (SYS_BASE + 238)
 
@@ -88,6 +89,14 @@ TEXT runtime·setitimer(SB),7,$0
 	MOVW	4(FP), R1
 	MOVW	8(FP), R2
 	MOVW	$SYS_setitimer, R7
+	SWI	$0
+	RET
+
+TEXT runtime·mincore(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
+	MOVW	$SYS_mincore, R7
 	SWI	$0
 	RET
 

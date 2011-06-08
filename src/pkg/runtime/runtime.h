@@ -413,6 +413,7 @@ int32	runtime·gotraceback(void);
 void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
 void	runtime·tracebackothers(G*);
 int32	runtime·write(int32, void*, int32);
+int32	runtime·mincore(void*, uintptr, byte*);
 bool	runtime·cas(uint32*, uint32, uint32);
 bool	runtime·casp(void**, void*, void*);
 uint32	runtime·xadd(uint32 volatile*, int32);
