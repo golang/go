@@ -85,6 +85,7 @@ func (p *parser) parseToken() *Token {
 }
 
 
+// ParseTerm returns nil if no term was found.
 func (p *parser) parseTerm() (x Expression) {
 	pos := p.pos
 
@@ -131,7 +132,8 @@ func (p *parser) parseSequence() Expression {
 	// no need for a sequence if list.Len() < 2
 	switch len(list) {
 	case 0:
-		return nil
+		p.errorExpected(p.pos, "term")
+		return &Bad{p.pos, "term expected"}
 	case 1:
 		return list[0]
 	}
@@ -144,20 +146,16 @@ func (p *parser) parseExpression() Expression {
 	var list Alternative
 
 	for {
-		if x := p.parseSequence(); x != nil {
-			list = append(list, x)
-		}
+		list = append(list, p.parseSequence())
 		if p.tok != token.OR {
 			break
 		}
 		p.next()
 	}
+	// len(list) > 0
 
 	// no need for an Alternative node if list.Len() < 2
-	switch len(list) {
-	case 0:
-		return nil
-	case 1:
+	if len(list) == 1 {
 		return list[0]
 	}
 
@@ -168,7 +166,10 @@ func (p *parser) parseExpression() Expression {
 func (p *parser) parseProduction() *Production {
 	name := p.parseIdentifier()
 	p.expect(token.ASSIGN)
-	expr := p.parseExpression()
+	var expr Expression
+	if p.tok != token.PERIOD {
+		expr = p.parseExpression()
+	}
 	p.expect(token.PERIOD)
 	return &Production{name, expr}
 }

@@ -14,7 +14,7 @@ import (
 var fset = token.NewFileSet()
 
 
-var grammars = []string{
+var goodGrammars = []string{
 	`Program = .`,
 
 	`Program = foo .
@@ -38,7 +38,19 @@ var grammars = []string{
 }
 
 
-func check(t *testing.T, filename string, src []byte) {
+var badGrammars = []string{
+	`Program = | .`,
+	`Program = | b .`,
+	`Program = a … b .`,
+	`Program = "a" … .`,
+	`Program = … "b" .`,
+	`Program = () .`,
+	`Program = [] .`,
+	`Program = {} .`,
+}
+
+
+func checkGood(t *testing.T, filename string, src []byte) {
 	grammar, err := Parse(fset, filename, src)
 	if err != nil {
 		t.Errorf("Parse(%s) failed: %v", src, err)
@@ -49,9 +61,20 @@ func check(t *testing.T, filename string, src []byte) {
 }
 
 
+func checkBad(t *testing.T, filename string, src []byte) {
+	_, err := Parse(fset, filename, src)
+	if err == nil {
+		t.Errorf("Parse(%s) should have failed", src)
+	}
+}
+
+
 func TestGrammars(t *testing.T) {
-	for _, src := range grammars {
-		check(t, "", []byte(src))
+	for _, src := range goodGrammars {
+		checkGood(t, "", []byte(src))
+	}
+	for _, src := range badGrammars {
+		checkBad(t, "", []byte(src))
 	}
 }
 
@@ -67,6 +90,6 @@ func TestFiles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		check(t, filename, src)
+		checkGood(t, filename, src)
 	}
 }

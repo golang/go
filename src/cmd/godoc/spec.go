@@ -129,6 +129,9 @@ func (p *ebnfParser) parseTerm() bool {
 
 
 func (p *ebnfParser) parseSequence() {
+	if !p.parseTerm() {
+		p.errorExpected(p.pos, "term")
+	}
 	for p.parseTerm() {
 	}
 }
@@ -148,7 +151,9 @@ func (p *ebnfParser) parseExpression() {
 func (p *ebnfParser) parseProduction() {
 	p.parseIdentifier(true)
 	p.expect(token.ASSIGN)
-	p.parseExpression()
+	if p.tok != token.PERIOD {
+		p.parseExpression()
+	}
 	p.expect(token.PERIOD)
 }
 
