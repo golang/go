@@ -105,7 +105,7 @@ hcrash(void)
 		flusherrors();
 		if(outfile)
 			unlink(outfile);
-		abort();
+		*(volatile int*)0 = 0;
 	}
 }
 
