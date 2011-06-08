@@ -238,9 +238,9 @@ const defaultUserAgent = "Go http package"
 //	TransferEncoding
 //	Body
 //
-// If Body is present but Content-Length is <= 0, Write adds
-// "Transfer-Encoding: chunked" to the header. Body is closed after
-// it is sent.
+// If Body is present, Content-Length is <= 0 and TransferEncoding
+// hasn't been set to "identity", Write adds "Transfer-Encoding:
+// chunked" to the header. Body is closed after it is sent.
 func (req *Request) Write(w io.Writer) os.Error {
 	return req.write(w, false)
 }
@@ -487,6 +487,11 @@ func NewRequest(method, url string, body io.Reader) (*Request, os.Error) {
 			req.ContentLength = int64(v.Len())
 		default:
 			req.ContentLength = -1 // chunked
+		}
+		if req.ContentLength == 0 {
+			// To prevent chunking and disambiguate this
+			// from the default ContentLength zero value.
+			req.TransferEncoding = []string{"identity"}
 		}
 	}
 

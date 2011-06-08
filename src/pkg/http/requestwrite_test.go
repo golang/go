@@ -274,13 +274,45 @@ func (rc *closeChecker) Close() os.Error {
 
 // TestRequestWriteClosesBody tests that Request.Write does close its request.Body.
 // It also indirectly tests NewRequest and that it doesn't wrap an existing Closer
-// inside a NopCloser.
+// inside a NopCloser, and that it serializes it correctly.
 func TestRequestWriteClosesBody(t *testing.T) {
 	rc := &closeChecker{Reader: strings.NewReader("my body")}
-	req, _ := NewRequest("GET", "http://foo.com/", rc)
+	req, _ := NewRequest("POST", "http://foo.com/", rc)
+	if g, e := req.ContentLength, int64(-1); g != e {
+		t.Errorf("got req.ContentLength %d, want %d", g, e)
+	}
 	buf := new(bytes.Buffer)
 	req.Write(buf)
 	if !rc.closed {
 		t.Error("body not closed after write")
+	}
+	if g, e := buf.String(), "POST / HTTP/1.1\r\nHost: foo.com\r\nUser-Agent: Go http package\r\nTransfer-Encoding: chunked\r\n\r\n7\r\nmy body\r\n0\r\n\r\n"; g != e {
+		t.Errorf("write:\n got: %s\nwant: %s", g, e)
+	}
+}
+
+func TestZeroLengthNewRequest(t *testing.T) {
+	var buf bytes.Buffer
+
+	// Writing with default identity encoding
+	req, _ := NewRequest("PUT", "http://foo.com/", strings.NewReader(""))
+	if len(req.TransferEncoding) == 0 || req.TransferEncoding[0] != "identity" {
+		t.Fatalf("got req.TransferEncoding of %v, want %v", req.TransferEncoding, []string{"identity"})
+	}
+	if g, e := req.ContentLength, int64(0); g != e {
+		t.Errorf("got req.ContentLength %d, want %d", g, e)
+	}
+	req.Write(&buf)
+	if g, e := buf.String(), "PUT / HTTP/1.1\r\nHost: foo.com\r\nUser-Agent: Go http package\r\nContent-Length: 0\r\n\r\n"; g != e {
+		t.Errorf("identity write:\n got: %s\nwant: %s", g, e)
+	}
+
+	// Overriding identity encoding and forcing chunked.
+	req, _ = NewRequest("PUT", "http://foo.com/", strings.NewReader(""))
+	req.TransferEncoding = nil
+	buf.Reset()
+	req.Write(&buf)
+	if g, e := buf.String(), "PUT / HTTP/1.1\r\nHost: foo.com\r\nUser-Agent: Go http package\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"; g != e {
+		t.Errorf("chunked write:\n got: %s\nwant: %s", g, e)
 	}
 }
