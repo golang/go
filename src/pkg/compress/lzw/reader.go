@@ -64,13 +64,14 @@ type decoder struct {
 	// The c == hi case is a special case.
 	suffix [1 << maxWidth]uint8
 	prefix [1 << maxWidth]uint16
-	// buf is a scratch buffer for reconstituting the bytes that a code expands to.
-	// Code suffixes are written right-to-left from the end of the buffer.
-	buf [1 << maxWidth]byte
 
 	// output is the temporary output buffer.
+	// Literal codes are accumulated from the start of the buffer.
+	// Non-literal codes decode to a sequence of suffixes that are first
+	// written right-to-left from the end of the buffer before being copied
+	// to the start of the buffer.
 	// It is flushed when it contains >= 1<<maxWidth bytes,
-	// so that there is always room to copy buf into it while decoding.
+	// so that there is always room to decode an entire code.
 	output [2 * 1 << maxWidth]byte
 	o      int    // write index into output
 	toRead []byte // bytes to return from Read
@@ -158,7 +159,7 @@ func (d *decoder) decode() {
 			d.err = os.EOF
 			return
 		case code <= d.hi:
-			c, i := code, len(d.buf)-1
+			c, i := code, len(d.output)-1
 			if code == d.hi {
 				// code == hi is a special case which expands to the last expansion
 				// followed by the head of the last expansion. To find the head, we walk
@@ -167,18 +168,18 @@ func (d *decoder) decode() {
 				for c >= d.clear {
 					c = d.prefix[c]
 				}
-				d.buf[i] = uint8(c)
+				d.output[i] = uint8(c)
 				i--
 				c = d.last
 			}
-			// Copy the suffix chain into buf and then write that to w.
+			// Copy the suffix chain into output and then write that to w.
 			for c >= d.clear {
-				d.buf[i] = d.suffix[c]
+				d.output[i] = d.suffix[c]
 				i--
 				c = d.prefix[c]
 			}
-			d.buf[i] = uint8(c)
-			d.o += copy(d.output[d.o:], d.buf[i:])
+			d.output[i] = uint8(c)
+			d.o += copy(d.output[d.o:], d.output[i:])
 			if d.last != decoderInvalidCode {
 				// Save what the hi code expands to.
 				d.suffix[d.hi] = uint8(c)
