@@ -764,13 +764,12 @@ func (x nat) string(charset string) string {
 	if b == b&-b {
 		// shift is base-b digit size in bits
 		shift := uint(trailingZeroBits(b)) // shift > 0 because b >= 2
-		m := len(x)
 		mask := Word(1)<<shift - 1
 		w := x[0]
 		nbits := uint(_W) // number of unprocessed bits in w
 
 		// convert less-significant words
-		for k := 0; k < m-1; k++ {
+		for k := 1; k < len(x); k++ {
 			// convert full digits
 			for nbits >= shift {
 				i--
@@ -782,16 +781,16 @@ func (x nat) string(charset string) string {
 			// convert any partial leading digit and advance to next word
 			if nbits == 0 {
 				// no partial digit remaining, just advance
-				w = x[k+1]
+				w = x[k]
 				nbits = _W
 			} else {
-				// partial digit in current (k) and next (k+1) word
-				w |= x[k+1] << nbits
+				// partial digit in current (k-1) and next (k) word
+				w |= x[k] << nbits
 				i--
 				s[i] = charset[w&mask]
 
 				// advance
-				w = x[k+1] >> (shift - nbits)
+				w = x[k] >> (shift - nbits)
 				nbits = _W - (shift - nbits)
 			}
 		}
