@@ -1303,6 +1303,7 @@ func TestModInverse(t *testing.T) {
 }
 
 
+// used by TestIntGobEncoding and TestRatGobEncoding
 var gobEncodingTests = []string{
 	"0",
 	"1",
@@ -1313,7 +1314,7 @@ var gobEncodingTests = []string{
 	"298472983472983471903246121093472394872319615612417471234712061",
 }
 
-func TestGobEncoding(t *testing.T) {
+func TestIntGobEncoding(t *testing.T) {
 	var medium bytes.Buffer
 	enc := gob.NewEncoder(&medium)
 	dec := gob.NewDecoder(&medium)
@@ -1321,7 +1322,8 @@ func TestGobEncoding(t *testing.T) {
 		for j := 0; j < 2; j++ {
 			medium.Reset() // empty buffer for each test case (in case of failures)
 			stest := test
-			if j == 0 {
+			if j != 0 {
+				// negative numbers
 				stest = "-" + test
 			}
 			var tx Int

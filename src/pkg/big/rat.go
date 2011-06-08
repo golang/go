@@ -7,6 +7,7 @@
 package big
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
 	"strings"
@@ -353,4 +354,46 @@ func (z *Rat) FloatString(prec int) string {
 	}
 
 	return s
+}
+
+
+// Gob codec version. Permits backward-compatible changes to the encoding.
+const ratGobVersion byte = 1
+
+// GobEncode implements the gob.GobEncoder interface.
+func (z *Rat) GobEncode() ([]byte, os.Error) {
+	buf := make([]byte, 1+4+(len(z.a.abs)+len(z.b))*_S) // extra bytes for version and sign bit (1), and numerator length (4)
+	i := z.b.bytes(buf)
+	j := z.a.abs.bytes(buf[0:i])
+	n := i - j
+	if int(uint32(n)) != n {
+		// this should never happen
+		return nil, os.ErrorString("Rat.GobEncode: numerator too large")
+	}
+	binary.BigEndian.PutUint32(buf[j-4:j], uint32(n))
+	j -= 1 + 4
+	b := ratGobVersion << 1 // make space for sign bit
+	if z.a.neg {
+		b |= 1
+	}
+	buf[j] = b
+	return buf[j:], nil
+}
+
+
+// GobDecode implements the gob.GobDecoder interface.
+func (z *Rat) GobDecode(buf []byte) os.Error {
+	if len(buf) == 0 {
+		return os.ErrorString("Rat.GobDecode: no data")
+	}
+	b := buf[0]
+	if b>>1 != ratGobVersion {
+		return os.ErrorString(fmt.Sprintf("Rat.GobDecode: encoding version %d not supported", b>>1))
+	}
+	const j = 1 + 4
+	i := j + binary.BigEndian.Uint32(buf[j-4:j])
+	z.a.neg = b&1 != 0
+	z.a.abs = z.a.abs.setBytes(buf[j:i])
+	z.b = z.b.setBytes(buf[i:])
+	return nil
 }
