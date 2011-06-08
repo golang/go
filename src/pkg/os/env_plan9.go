@@ -23,13 +23,18 @@ func Getenverror(key string) (value string, err Error) {
 	}
 	defer f.Close()
 
-	var buf [4096]byte
-	n, e := f.Read(buf[:len(buf)-1])
+	l, _ := f.Seek(0, 2)
+	f.Seek(0, 0)
+	buf := make([]byte, l)
+	n, e := f.Read(buf)
 	if iserror(e) {
 		return "", ENOENV
 	}
-	buf[n] = 0
-	return string(buf[0:n]), nil
+
+	if n > 0 && buf[n-1] == 0 {
+		buf = buf[:n-1]
+	}
+	return string(buf), nil
 }
 
 // Getenv retrieves the value of the environment variable named by the key.
@@ -52,7 +57,7 @@ func Setenv(key, value string) Error {
 	}
 	defer f.Close()
 
-	_, e = f.Write(syscall.StringByteSlice(value))
+	_, e = f.Write([]byte(value))
 	return nil
 }
 
