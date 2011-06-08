@@ -109,7 +109,10 @@ func TestPostFormRequestFormat(t *testing.T) {
 	client := &Client{Transport: tr}
 
 	url := "http://dummy.faketld/"
-	form := map[string]string{"foo": "bar"}
+	form := make(Values)
+	form.Set("foo", "bar")
+	form.Add("foo", "bar2")
+	form.Set("bar", "baz")
 	client.PostForm(url, form) // Note: doesn't hit network
 
 	if tr.req.Method != "POST" {
@@ -127,10 +130,17 @@ func TestPostFormRequestFormat(t *testing.T) {
 	if tr.req.Close {
 		t.Error("got Close true, want false")
 	}
-	if g, e := tr.req.ContentLength, int64(len("foo=bar")); g != e {
+	expectedBody := "foo=bar&foo=bar2&bar=baz"
+	if g, e := tr.req.ContentLength, int64(len(expectedBody)); g != e {
 		t.Errorf("got ContentLength %d, want %d", g, e)
 	}
-
+	bodyb, err := ioutil.ReadAll(tr.req.Body)
+	if err != nil {
+		t.Fatalf("ReadAll on req.Body: %v", err)
+	}
+	if g := string(bodyb); g != expectedBody {
+		t.Errorf("got body %q, want %q", g, expectedBody)
+	}
 }
 
 func TestRedirects(t *testing.T) {

@@ -538,23 +538,21 @@ func TestUnescapeUserinfo(t *testing.T) {
 	}
 }
 
-type qMap map[string][]string
-
 type EncodeQueryTest struct {
-	m         qMap
+	m         Values
 	expected  string
 	expected1 string
 }
 
 var encodeQueryTests = []EncodeQueryTest{
 	{nil, "", ""},
-	{qMap{"q": {"puppies"}, "oe": {"utf8"}}, "q=puppies&oe=utf8", "oe=utf8&q=puppies"},
-	{qMap{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7", "q=dogs&q=%26&q=7"},
+	{Values{"q": {"puppies"}, "oe": {"utf8"}}, "q=puppies&oe=utf8", "oe=utf8&q=puppies"},
+	{Values{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7", "q=dogs&q=%26&q=7"},
 }
 
 func TestEncodeQuery(t *testing.T) {
 	for _, tt := range encodeQueryTests {
-		if q := EncodeQuery(tt.m); q != tt.expected && q != tt.expected1 {
+		if q := tt.m.Encode(); q != tt.expected && q != tt.expected1 {
 			t.Errorf(`EncodeQuery(%+v) = %q, want %q`, tt.m, q, tt.expected)
 		}
 	}
@@ -672,4 +670,29 @@ func TestResolveReference(t *testing.T) {
 		t.Errorf("Expected an error from ParseURL wrapper parsing an empty string.")
 	}
 
+}
+
+func TestQueryValues(t *testing.T) {
+	u, _ := ParseURL("http://x.com?foo=bar&bar=1&bar=2")
+	v := u.Query()
+	if len(v) != 2 {
+		t.Errorf("got %d keys in Query values, want 2", len(v))
+	}
+	if g, e := v.Get("foo"), "bar"; g != e {
+		t.Errorf("Get(foo) = %q, want %q", g, e)
+	}
+	// Case sensitive:
+	if g, e := v.Get("Foo"), ""; g != e {
+		t.Errorf("Get(Foo) = %q, want %q", g, e)
+	}
+	if g, e := v.Get("bar"), "1"; g != e {
+		t.Errorf("Get(bar) = %q, want %q", g, e)
+	}
+	if g, e := v.Get("baz"), ""; g != e {
+		t.Errorf("Get(baz) = %q, want %q", g, e)
+	}
+	v.Del("bar")
+	if g, e := v.Get("bar"), ""; g != e {
+		t.Errorf("second Get(bar) = %q, want %q", g, e)
+	}
 }
