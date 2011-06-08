@@ -816,13 +816,13 @@ func (z *Int) Not(x *Int) *Int {
 
 
 // Gob codec version. Permits backward-compatible changes to the encoding.
-const version byte = 1
+const intGobVersion byte = 1
 
 // GobEncode implements the gob.GobEncoder interface.
 func (z *Int) GobEncode() ([]byte, os.Error) {
-	buf := make([]byte, len(z.abs)*_S+1) // extra byte for version and sign bit
+	buf := make([]byte, 1+len(z.abs)*_S) // extra byte for version and sign bit
 	i := z.abs.bytes(buf) - 1            // i >= 0
-	b := version << 1                    // make space for sign bit
+	b := intGobVersion << 1              // make space for sign bit
 	if z.neg {
 		b |= 1
 	}
@@ -837,7 +837,7 @@ func (z *Int) GobDecode(buf []byte) os.Error {
 		return os.ErrorString("Int.GobDecode: no data")
 	}
 	b := buf[0]
-	if b>>1 != version {
+	if b>>1 != intGobVersion {
 		return os.ErrorString(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
 	}
 	z.neg = b&1 != 0
