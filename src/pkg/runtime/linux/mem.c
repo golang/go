@@ -3,6 +3,30 @@
 #include "os.h"
 #include "malloc.h"
 
+enum
+{
+	ENOMEM = 12,
+};
+
+static int32
+addrspace_free(void *v, uintptr n)
+{
+	uintptr page_size = 4096;
+	uintptr off;
+	int8 one_byte;
+
+	for(off = 0; off < n; off += page_size) {
+		int32 errval = runtime·mincore((int8 *)v + off, page_size, (void *)&one_byte);
+		// errval is 0 if success, or -(error_code) if error.
+		if (errval == 0 || errval != -ENOMEM)
+			return 0;
+	}
+	USED(v);
+	USED(n);
+	return 1;
+}
+
+
 void*
 runtime·SysAlloc(uintptr n)
 {
@@ -54,11 +78,6 @@ runtime·SysReserve(void *v, uintptr n)
 	return p;
 }
 
-enum
-{
-	ENOMEM = 12,
-};
-
 void
 runtime·SysMap(void *v, uintptr n)
 {
@@ -69,6 +88,11 @@ runtime·SysMap(void *v, uintptr n)
 	// On 64-bit, we don't actually have v reserved, so tread carefully.
 	if(sizeof(void*) == 8) {
 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
+		if(p != v && addrspace_free(v, n)) {
+			// On some systems, mmap ignores v without
+			// MAP_FIXED, so retry if the address space is free.
+			p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+		}
 		if(p == (void*)ENOMEM)
 			runtime·throw("runtime: out of memory");
 		if(p != v) {
