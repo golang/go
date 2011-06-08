@@ -198,3 +198,30 @@ func TestAddressParsing(t *testing.T) {
 		}
 	}
 }
+
+func TestAddressFormatting(t *testing.T) {
+	tests := []struct {
+		addr *Address
+		exp  string
+	}{
+		{
+			&Address{Address: "bob@example.com"},
+			"<bob@example.com>",
+		},
+		{
+			&Address{Name: "Bob", Address: "bob@example.com"},
+			`"Bob" <bob@example.com>`,
+		},
+		{
+			// note the ö (o with an umlaut)
+			&Address{Name: "Böb", Address: "bob@example.com"},
+			`=?utf-8?q?B=C3=B6b?= <bob@example.com>`,
+		},
+	}
+	for _, test := range tests {
+		s := test.addr.String()
+		if s != test.exp {
+			t.Errorf("Address%+v.String() = %v, want %v", *test.addr, s, test.exp)
+		}
+	}
+}

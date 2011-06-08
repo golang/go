@@ -23,7 +23,6 @@ import (
 	"log"
 	"net/textproto"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -97,8 +96,6 @@ func parseDate(date string) (*time.Time, os.Error) {
 	return nil, os.ErrorString("mail: header could not be parsed")
 }
 
-// TODO(dsymonds): Parsers for more specific headers such as To, From, etc.
-
 // A Header represents the key-value pairs in a mail message header.
 type Header map[string][]string
 
@@ -136,12 +133,50 @@ type Address struct {
 	Address string // user@domain
 }
 
+// String formats the address as a valid RFC 5322 address.
+// If the address's name contains non-ASCII characters
+// the name will be rendered according to RFC 2047.
 func (a *Address) String() string {
 	s := "<" + a.Address + ">"
 	if a.Name == "" {
 		return s
 	}
-	return "\"" + strconv.Quote(a.Name) + "\" " + s
+	// If every character is printable ASCII, quoting is simple.
+	allPrintable := true
+	for i := 0; i < len(a.Name); i++ {
+		if !isVchar(a.Name[i]) {
+			allPrintable = false
+			break
+		}
+	}
+	if allPrintable {
+		b := bytes.NewBufferString(`"`)
+		for i := 0; i < len(a.Name); i++ {
+			if !isQtext(a.Name[i]) {
+				b.WriteByte('\\')
+			}
+			b.WriteByte(a.Name[i])
+		}
+		b.WriteString(`" `)
+		b.WriteString(s)
+		return b.String()
+	}
+
+	// UTF-8 "Q" encoding
+	b := bytes.NewBufferString("=?utf-8?q?")
+	for i := 0; i < len(a.Name); i++ {
+		switch c := a.Name[i]; {
+		case c == ' ':
+			b.WriteByte('_')
+		case isVchar(c) && c != '=' && c != '?' && c != '_':
+			b.WriteByte(c)
+		default:
+			fmt.Fprintf(b, "=%02X", c)
+		}
+	}
+	b.WriteString("?= ")
+	b.WriteString(s)
+	return b.String()
 }
 
 type addrParser []byte
@@ -327,7 +362,7 @@ Loop:
 			}
 			qsb = append(qsb, (*p)[i+1])
 			i += 2
-		case '!' <= c && c <= '~', c == ' ' || c == '\t':
+		case isQtext(c), c == ' ' || c == '\t':
 			// qtext (printable US-ASCII excluding " and \), or
 			// FWS (almost; we're ignoring CRLF)
 			qsb = append(qsb, c)
@@ -391,4 +426,19 @@ func isAtext(c byte, dot bool) bool {
 		return true
 	}
 	return bytes.IndexByte(atextChars, c) >= 0
+}
+
+// isQtext returns true if c is an RFC 5322 qtest character.
+func isQtext(c byte) bool {
+	// Printable US-ASCII, excluding backslash or quote.
+	if c == '\\' || c == '"' {
+		return false
+	}
+	return '!' <= c && c <= '~'
+}
+
+// isVchar returns true if c is an RFC 5322 VCHAR character.
+func isVchar(c byte) bool {
+	// Visible (printing) characters.
+	return '!' <= c && c <= '~'
 }
