@@ -207,6 +207,16 @@ func TestAddressParsing(t *testing.T) {
 				},
 			},
 		},
+		// RFC 2047, Section 8.
+		{
+			`=?ISO-8859-1?Q?Andr=E9?= Pirard <PIRARD@vm1.ulg.ac.be>`,
+			[]*Address{
+				&Address{
+					Name:    `André Pirard`,
+					Address: "PIRARD@vm1.ulg.ac.be",
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		addrs, err := newAddrParser(test.addrsStr).parseAddressList()

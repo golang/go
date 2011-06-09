@@ -330,6 +330,12 @@ func (p *addrParser) consumePhrase() (phrase string, err os.Error) {
 			// atom
 			word, err = p.consumeAtom(false)
 		}
+
+		// RFC 2047 encoded-word starts with =?, ends with ?=, and has two other ?s.
+		if err == nil && strings.HasPrefix(word, "=?") && strings.HasSuffix(word, "?=") && strings.Count(word, "?") == 4 {
+			word, err = decodeRFC2047Word(word)
+		}
+
 		if err != nil {
 			break
 		}
@@ -342,11 +348,6 @@ func (p *addrParser) consumePhrase() (phrase string, err os.Error) {
 		return "", os.ErrorString("mail: missing word in phrase")
 	}
 	phrase = strings.Join(words, " ")
-
-	// RFC 2047 encoded-word starts with =?, ends with ?=, and has two other ?s.
-	if strings.HasPrefix(phrase, "=?") && strings.HasSuffix(phrase, "?=") && strings.Count(phrase, "?") == 4 {
-		return decodeRFC2047Word(phrase)
-	}
 	return phrase, nil
 }
 
