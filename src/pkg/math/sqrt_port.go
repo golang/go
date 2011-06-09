@@ -141,3 +141,7 @@ func sqrtGo(x float64) float64 {
 	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
 	return Float64frombits(ix)
 }
+
+func sqrtGoC(f float64, r *float64) {
+	*r = sqrtGo(f)
+}

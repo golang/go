@@ -357,6 +357,15 @@ stage3:	// regd, regm are 4bit variables
 				regd, regm, m->freghi[regd], m->freglo[regd]);
 		break;
 
+	case 0xeeb10bc0:	// D[regd] = sqrt D[regm]
+		math·sqrtGoC(getd(regm), &uval);
+		putd(regd, uval);
+
+		if(trace)
+			runtime·printf("*** D[%d] = sqrt D[%d] %x-%x\n",
+				regd, regm, m->freghi[regd], m->freglo[regd]);
+		break;
+
 	case 0xeeb40bc0:	// D[regd] :: D[regm] (CMPD)
 		runtime·fcmp64c(getd(regd), getd(regm), &cmp, &nan);
 		m->fflag = fstatus(nan, cmp);
