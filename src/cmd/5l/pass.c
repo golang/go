@@ -100,7 +100,6 @@ xfol(Prog *p, Prog **last)
 loop:
 	if(p == P)
 		return;
-	setarch(p);
 	a = p->as;
 	if(a == AB) {
 		q = p->cond;
@@ -210,14 +209,7 @@ patch(void)
 	vexit = s->value;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		for(p = cursym->text; p != P; p = p->link) {
-			setarch(p);
 			a = p->as;
-			if(seenthumb && a == ABL){
-				// if((s = p->to.sym) != S && (s1 = curtext->from.sym) != S)
-				//	print("%s calls %s\n", s1->name, s->name);
-				 if((s = p->to.sym) != S && s->thumb != cursym->thumb)
-					s->foreign = 1;
-			}
 			if((a == ABL || a == ABX || a == AB || a == ARET) &&
 			   p->to.type != D_BRANCH && p->to.sym != S) {
 				s = p->to.sym;
@@ -254,19 +246,7 @@ patch(void)
 
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		for(p = cursym->text; p != P; p = p->link) {
-			setarch(p);
 			a = p->as;
-			if(seenthumb && a == ABL) {
-#ifdef CALLEEBX
-				if(0)
-					{}
-#else
-				if((s = p->to.sym) != S && (s->foreign || s->fnptr))
-					p->as = ABX;
-#endif
-				else if(p->to.type == D_OREG)
-					p->as = ABX;
-			}
 			if(p->cond != P) {
 				p->cond = brloop(p->cond);
 				if(p->cond != P)

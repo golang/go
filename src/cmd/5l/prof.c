@@ -47,7 +47,6 @@ doprof1(void)
 	s = lookup("__mcount", 0);
 	n = 1;
 	for(p = firstp->link; p != P; p = p->link) {
-		setarch(p);
 		if(p->as == ATEXT) {
 			q = prg();
 			q->line = p->line;
@@ -74,7 +73,7 @@ doprof1(void)
 			p->from.sym = s;
 			p->from.offset = n*4 + 4;
 			p->to.type = D_REG;
-			p->to.reg = thumb ? REGTMPT : REGTMP;
+			p->to.reg = REGTMP;
 
 			q = prg();
 			q->line = p->line;
@@ -86,7 +85,7 @@ doprof1(void)
 			p->from.type = D_CONST;
 			p->from.offset = 1;
 			p->to.type = D_REG;
-			p->to.reg = thumb ? REGTMPT : REGTMP;
+			p->to.reg = REGTMP;
 
 			q = prg();
 			q->line = p->line;
@@ -96,7 +95,7 @@ doprof1(void)
 			p = q;
 			p->as = AMOVW;
 			p->from.type = D_REG;
-			p->from.reg = thumb ? REGTMPT : REGTMP;
+			p->from.reg = REGTMP;
 			p->to.type = D_OREG;
 			p->to.name = D_EXTERN;
 			p->to.sym = s;
@@ -143,7 +142,6 @@ doprof2(void)
 	ps4 = P;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		p = cursym->text;
-		setarch(p);
 		if(cursym == s2) {
 			ps2 = p;
 			p->reg = 1;
@@ -155,7 +153,6 @@ doprof2(void)
 	}
 	for(cursym = textp; cursym != nil; cursym = cursym->next)
 	for(p = cursym->text; p != P; p = p->link) {
-		setarch(p);
 		if(p->as == ATEXT) {
 			if(p->reg & NOPROF) {
 				for(;;) {

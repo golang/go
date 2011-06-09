@@ -242,7 +242,6 @@ main(int argc, char *argv[])
 	zprg.from.reg = NREG;
 	zprg.to = zprg.from;
 	buildop();
-	thumbbuildop();	// could build on demand
 	histgen = 0;
 	pc = 0;
 	dtype = 4;
@@ -286,10 +285,8 @@ main(int argc, char *argv[])
 	asmb();
 	undef();
 
-	if(debug['c']){
-		thumbcount();
+	if(debug['c'])
 		print("ARM size = %d\n", armsize);
-	}
 	if(debug['v']) {
 		Bprint(&bso, "%5.2f cpu time\n", cputime());
 		Bprint(&bso, "%d sizeof adr\n", sizeof(Adr));
@@ -405,8 +402,6 @@ nopout(Prog *p)
 	p->from.type = D_NONE;
 	p->to.type = D_NONE;
 }
-
-static void puntfp(Prog *);
 
 void
 ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
@@ -622,8 +617,6 @@ loop:
 		else
 			textp = s;
 		etextp = s;
-		setarch(p);
-		setthumb(p);
 		p->align = 4;
 		autosize = (p->to.offset+3L) & ~3L;
 		p->to.offset = autosize;
@@ -631,7 +624,6 @@ loop:
 		s->type = STEXT;
 		s->text = p;
 		s->value = pc;
-		s->thumb = thumb;
 		lastp = p;
 		p->pc = pc;
 		pc++;
@@ -673,13 +665,9 @@ loop:
 	case AMULD:
 	case ADIVF:
 	case ADIVD:
-		if(thumb)
-			puntfp(p);
 		goto casedef;
 
 	case AMOVF:
-		if(thumb)
-			puntfp(p);
 		if(skip)
 			goto casedef;
 
@@ -701,8 +689,6 @@ loop:
 		goto casedef;
 
 	case AMOVD:
-		if(thumb)
-			puntfp(p);
 		if(skip)
 			goto casedef;
 
@@ -756,17 +742,6 @@ prg(void)
 	p = mal(sizeof(Prog));
 	*p = zprg;
 	return p;
-}
-
-static void
-puntfp(Prog *p)
-{
-	USED(p);
-	/* floating point - punt for now */
-	cursym->text->reg = NREG;	/* ARM */
-	cursym->thumb = 0;
-	thumb = 0;
-	// print("%s: generating ARM code (contains floating point ops %d)\n", curtext->from.sym->name, p->line);
 }
 
 Prog*
