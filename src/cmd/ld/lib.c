@@ -235,24 +235,34 @@ addlibpath(char *srcref, char *objref, char *file, char *pkg)
 }
 
 void
-loadlib(void)
+loadinternal(char *name)
 {
 	char pname[1024];
 	int i, found;
 
 	found = 0;
 	for(i=0; i<nlibdir; i++) {
-		snprint(pname, sizeof pname, "%s/runtime.a", libdir[i]);
+		snprint(pname, sizeof pname, "%s/%s.a", libdir[i], name);
 		if(debug['v'])
-			Bprint(&bso, "searching for runtime.a in %s\n", pname);
+			Bprint(&bso, "searching for %s.a in %s\n", name, pname);
 		if(access(pname, AEXIST) >= 0) {
-			addlibpath("internal", "internal", pname, "runtime");
+			addlibpath("internal", "internal", pname, name);
 			found = 1;
 			break;
 		}
 	}
 	if(!found)
-		Bprint(&bso, "warning: unable to find runtime.a\n");
+		Bprint(&bso, "warning: unable to find %s.a\n", name);
+}
+
+void
+loadlib(void)
+{
+	int i;
+
+	loadinternal("runtime");
+	if(thechar == '5')
+		loadinternal("math");
 
 	for(i=0; i<libraryp; i++) {
 		if(debug['v'])

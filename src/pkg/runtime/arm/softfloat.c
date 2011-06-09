@@ -15,6 +15,7 @@
 #define FLAGS_V (1 << 28)
 
 void	runtime·abort(void);
+void	math·sqrtGoC(uint64, uint64*);
 
 static	uint32	trace = 0;
 
