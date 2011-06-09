@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include	"gg.h"
-#include	"opt.h"
+#undef	EXTERN
+#define	EXTERN
+#include "gg.h"
+#include "opt.h"
+
+static void compactframe(Prog* p);
 
 void
 compile(Node *fn)
@@ -14,6 +18,7 @@ compile(Node *fn)
 	int32 lno;
 	Type *t;
 	Iter save;
+	vlong oldstksize;
 
 	if(newproc == N) {
 		newproc = sysfunc("newproc");
@@ -107,11 +112,114 @@ compile(Node *fn)
 		regopt(ptxt);
 	}
 
+	oldstksize = stksize;
+	compactframe(ptxt);
+	if(0)
+		print("compactframe: %ld to %ld\n", oldstksize, stksize);
+
 	defframe(ptxt);
 
-	if(debug['f'])
+	if(0)
 		frame(0);
 
 ret:
 	lineno = lno;
+}
+
+
+// Sort the list of stack variables.  autos after anything else,
+// within autos, unused after used, and within used on reverse alignment.
+// non-autos sort on offset.
+static int
+cmpstackvar(Node *a, Node *b)
+{
+	if (a->class != b->class)
+		return (a->class == PAUTO) ? 1 : -1;
+	if (a->class != PAUTO)
+		return a->xoffset - b->xoffset;
+	if ((a->used == 0) != (b->used == 0))
+		return b->used - a->used;
+	return b->type->align - a->type->align;
+
+}
+
+static void
+compactframe(Prog* ptxt)
+{
+	NodeList *ll;
+	Node* n;
+	Prog *p;
+	uint32 w;
+
+	if (stksize == 0)
+		return;
+
+	// Mark the PAUTO's unused.
+	for(ll=curfn->dcl; ll != nil; ll=ll->next)
+		if (ll->n->class == PAUTO && ll->n->op == ONAME)
+			ll->n->used = 0;
+
+	// Sweep the prog list to mark any used nodes.
+	for (p = ptxt; p; p = p->link) {
+		if (p->from.type == D_AUTO && p->from.node)
+			p->from.node->used++;
+
+		if (p->to.type == D_AUTO && p->to.node)
+			p->to.node->used++;
+	}
+
+	listsort(&curfn->dcl, cmpstackvar);
+
+	// Unused autos are at the end, chop 'em off.
+	ll = curfn->dcl;
+	n = ll->n;
+	if (n->class == PAUTO && n->op == ONAME && !n->used) {
+		curfn->dcl = nil;
+		stksize = 0;
+		return;
+	}
+
+	for(ll = curfn->dcl; ll->next != nil; ll=ll->next) {
+		n = ll->next->n;
+		if (n->class == PAUTO && n->op == ONAME && !n->used) {
+			ll->next = nil;
+			curfn->dcl->end = ll;
+			break;
+		}
+	}
+
+	// Reassign stack offsets of the locals that are still there.
+	stksize = 0;
+	for(ll = curfn->dcl; ll != nil; ll=ll->next) {
+		n = ll->n;
+		// TODO find out where the literal autos come from
+		if (n->class != PAUTO || n->op != ONAME)
+			continue;
+
+		w = n->type->width;
+		if((w >= MAXWIDTH) || (w < 1))
+			fatal("bad width");
+		stksize += w;
+		stksize = rnd(stksize, n->type->align);
+		if(thechar == '5')
+			stksize = rnd(stksize, widthptr);
+		n->stkdelta = -stksize - n->xoffset;
+	}
+
+	// Fixup instructions.
+	for (p = ptxt; p; p = p->link) {
+		if (p->from.type == D_AUTO && p->from.node)
+			p->from.offset += p->from.node->stkdelta;
+
+		if (p->to.type == D_AUTO && p->to.node)
+			p->to.offset += p->to.node->stkdelta;
+	}
+
+	// The debug information needs accurate offsets on the symbols.
+	for(ll = curfn->dcl ;ll != nil; ll=ll->next) {
+		if (ll->n->class != PAUTO || ll->n->op != ONAME)
+			continue;
+		ll->n->xoffset += ll->n->stkdelta;
+		ll->n->stkdelta = 0;
+	}
 }

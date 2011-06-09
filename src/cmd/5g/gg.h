@@ -23,6 +23,7 @@ struct	Addr
 	char	sval[NSNAME];
 
 	Sym*	sym;
+	Node*	node;
 	int	width;
 	uchar	type;
 	char	name;

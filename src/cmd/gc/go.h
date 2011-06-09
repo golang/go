@@ -225,7 +225,7 @@ struct	Node
 	Type*	realtype;	// as determined by typecheck
 	NodeList*	list;
 	NodeList*	rlist;
-	Node*	orig;		// original form, for printing
+	Node*	orig;		// original form, for printing, and tracking copies of ONAMEs
 
 	// for-body
 	NodeList*	ninit;
@@ -273,6 +273,7 @@ struct	Node
 	int32	lineno;
 	int32	endlineno;
 	vlong	xoffset;
+	int32	stkdelta;	// offset added by stack frame compaction phase.
 	int32	ostk;
 	int32	iota;
 };
@@ -547,6 +548,7 @@ struct	Var
 	vlong	offset;
 	Sym*	sym;
 	Sym*	gotype;
+	Node*	node;
 	int	width;
 	char	name;
 	char	etype;
@@ -1107,6 +1109,7 @@ int	istype(Type *t, int et);
 void	linehist(char *file, int32 off, int relative);
 NodeList*	list(NodeList *l, Node *n);
 NodeList*	list1(Node *n);
+void	listsort(NodeList**, int(*f)(Node*, Node*));
 Node*	liststmt(NodeList *l);
 NodeList*	listtreecopy(NodeList *l);
 Sym*	lookup(char *name);
