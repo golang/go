@@ -134,6 +134,10 @@ exprfmt(Fmt *f, Node *n, int prec)
 		fmtprint(f, "(node %O)", n->op);
 		break;
 
+	case OREGISTER:
+		fmtprint(f, "%R", n->val.u.reg);
+		break;
+
 	case OLITERAL:
 		if(n->sym != S) {
 			fmtprint(f, "%S", n->sym);
