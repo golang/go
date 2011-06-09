@@ -186,6 +186,27 @@ func TestAddressParsing(t *testing.T) {
 		},
 		// RFC 5322, Appendix A.1.3
 		// TODO(dsymonds): Group addresses.
+
+		// RFC 2047 "Q"-encoded ISO-8859-1 address.
+		{
+			`=?iso-8859-1?q?J=F6rg_Doe?= <joerg@example.com>`,
+			[]*Address{
+				&Address{
+					Name:    `Jörg Doe`,
+					Address: "joerg@example.com",
+				},
+			},
+		},
+		// RFC 2047 "Q"-encoded UTF-8 address.
+		{
+			`=?utf-8?q?J=C3=B6rg_Doe?= <joerg@example.com>`,
+			[]*Address{
+				&Address{
+					Name:    `Jörg Doe`,
+					Address: "joerg@example.com",
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		addrs, err := newAddrParser(test.addrsStr).parseAddressList()

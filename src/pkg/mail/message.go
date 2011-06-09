@@ -23,6 +23,7 @@ import (
 	"log"
 	"net/textproto"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -340,7 +341,13 @@ func (p *addrParser) consumePhrase() (phrase string, err os.Error) {
 		debug.Printf("consumePhrase: hit err: %v", err)
 		return "", os.ErrorString("mail: missing word in phrase")
 	}
-	return strings.Join(words, " "), nil
+	phrase = strings.Join(words, " ")
+
+	// RFC 2047 encoded-word starts with =?, ends with ?=, and has two other ?s.
+	if strings.HasPrefix(phrase, "=?") && strings.HasSuffix(phrase, "?=") && strings.Count(phrase, "?") == 4 {
+		return decodeRFC2047Word(phrase)
+	}
+	return phrase, nil
 }
 
 // consumeQuotedString parses the quoted string at the start of p.
@@ -412,6 +419,45 @@ func (p *addrParser) empty() bool {
 
 func (p *addrParser) len() int {
 	return len(*p)
+}
+
+func decodeRFC2047Word(s string) (string, os.Error) {
+	fields := strings.Split(s, "?", -1)
+	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" {
+		return "", os.ErrorString("mail: address not RFC 2047 encoded")
+	}
+	charset, enc := strings.ToLower(fields[1]), strings.ToLower(fields[2])
+	// TODO(dsymonds): Support "b" encoding too.
+	if enc != "q" {
+		return "", fmt.Errorf("mail: RFC 2047 encoding not supported: %q", enc)
+	}
+	if charset != "iso-8859-1" && charset != "utf-8" {
+		return "", fmt.Errorf("mail: charset not supported: %q", charset)
+	}
+
+	in := fields[3]
+	b := new(bytes.Buffer)
+	for i := 0; i < len(in); i++ {
+		switch c := in[i]; {
+		case c == '=' && i+2 < len(in):
+			x, err := strconv.Btoi64(in[i+1:i+3], 16)
+			if err != nil {
+				return "", fmt.Errorf("mail: invalid RFC 2047 encoding: %q", in[i:i+3])
+			}
+			i += 2
+			switch charset {
+			case "iso-8859-1":
+				b.WriteRune(int(x))
+			case "utf-8":
+				b.WriteByte(byte(x))
+			}
+		case c == '_':
+			b.WriteByte(' ')
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String(), nil
 }
 
 var atextChars = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
