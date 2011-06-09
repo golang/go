@@ -745,6 +745,7 @@ addmove(Reg *r, int bn, int rn, int f)
 	a = &p1->to;
 	a->sym = v->sym;
 	a->name = v->name;
+	a->node = v->node;
 	a->offset = v->offset;
 	a->etype = v->etype;
 	a->type = D_OREG;
@@ -953,7 +954,8 @@ mkvar(Reg *r, Adr *a)
 	v->etype = et;
 	v->width = w;
 	v->addr = flag;		// funny punning
-
+	v->node = a->node;
+	
 	if(debug['R'])
 		print("bit=%2d et=%E pun=%d %D\n", i, et, flag, a);
 

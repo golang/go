@@ -23,6 +23,7 @@ struct	Addr
 
 	Sym*	gotype;
 	Sym*	sym;
+	Node*	node;
 	int	width;
 	uchar	type;
 	uchar	index;

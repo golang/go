@@ -837,6 +837,7 @@ addmove(Reg *r, int bn, int rn, int f)
 	a->etype = v->etype;
 	a->type = v->name;
 	a->gotype = v->gotype;
+	a->node = v->node;
 
 	// need to clean this up with wptr and
 	// some of the defaults
@@ -1021,6 +1022,7 @@ mkvar(Reg *r, Adr *a)
 	v->etype = et;
 	v->width = w;
 	v->addr = flag;		// funny punning
+	v->node = a->node;
 
 	if(debug['R'])
 		print("bit=%2d et=%2d w=%d %S %D\n", i, et, w, s, a);
