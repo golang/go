@@ -111,7 +111,8 @@ compile(Node *fn)
 	}
 
 	oldstksize = stksize;
-	compactframe(ptxt);
+	if(thechar != '5')
+		compactframe(ptxt);
 	if(0)
 		print("compactframe: %ld to %ld\n", oldstksize, stksize);
 
