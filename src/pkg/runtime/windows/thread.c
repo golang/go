@@ -373,7 +373,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
 			return &c->asmbody;
 		}
 	}
-	if(cbs.n >= 20)
+	if(cbs.n >= 2000)
 		runtime·throw("too many callback functions");
 	c = runtime·mal(sizeof *c + n);
 	c->gobody = fn.data;
