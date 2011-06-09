@@ -126,6 +126,8 @@ enum	as
 	AMULD,
 	ADIVF,
 	ADIVD,
+	ASQRTF,
+	ASQRTD,
 
 	ASRL,
 	ASRA,

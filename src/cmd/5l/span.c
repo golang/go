@@ -1023,6 +1023,8 @@ buildop(void)
 			oprange[AMULD] = oprange[r];
 			oprange[ADIVF] = oprange[r];
 			oprange[ADIVD] = oprange[r];
+			oprange[ASQRTF] = oprange[r];
+			oprange[ASQRTD] = oprange[r];
 			oprange[AMOVFD] = oprange[r];
 			oprange[AMOVDF] = oprange[r];
 			break;

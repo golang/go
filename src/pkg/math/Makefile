@@ -6,6 +6,9 @@ include ../../Make.inc
 
 TARG=math
 
+OFILES_arm=\
+	sqrt_arm.$O\
+
 OFILES_amd64=\
 	exp_amd64.$O\
 	fabs_amd64.$O\

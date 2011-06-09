@@ -67,6 +67,7 @@ static char*
 linkername[] =
 {
 	"runtime.softfloat",
+	"math.sqrtGoC",
 };
 
 void
