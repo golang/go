@@ -628,7 +628,7 @@ We can apply "Sort" to any type that implements "Len", "Less", and "Swap".
 The "sort" package includes the necessary methods to allow sorting of
 arrays of integers, strings, etc.; here's the code for arrays of "int"
 
---PROG progs/sort.go /type.*IntArray/ /Swap/
+--PROG progs/sort.go /type.*IntSlice/ /Swap/
 
 Here we see methods defined for non-"struct" types.  You can define methods
 for any type you define and name in your package.

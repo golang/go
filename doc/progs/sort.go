@@ -30,34 +30,34 @@ func IsSorted(data Interface) bool {
 
 // Convenience types for common cases
 
-type IntArray []int
+type IntSlice []int
 
-func (p IntArray) Len() int            { return len(p) }
-func (p IntArray) Less(i, j int) bool  { return p[i] < p[j] }
-func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
-
-
-type Float64Array []float64
-
-func (p Float64Array) Len() int            { return len(p) }
-func (p Float64Array) Less(i, j int) bool  { return p[i] < p[j] }
-func (p Float64Array) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+func (p IntSlice) Len() int            { return len(p) }
+func (p IntSlice) Less(i, j int) bool  { return p[i] < p[j] }
+func (p IntSlice) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
 
 
-type StringArray []string
+type Float64Slice []float64
 
-func (p StringArray) Len() int            { return len(p) }
-func (p StringArray) Less(i, j int) bool  { return p[i] < p[j] }
-func (p StringArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+func (p Float64Slice) Len() int            { return len(p) }
+func (p Float64Slice) Less(i, j int) bool  { return p[i] < p[j] }
+func (p Float64Slice) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+
+
+type StringSlice []string
+
+func (p StringSlice) Len() int            { return len(p) }
+func (p StringSlice) Less(i, j int) bool  { return p[i] < p[j] }
+func (p StringSlice) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
 
 
 // Convenience wrappers for common cases
 
-func SortInts(a []int)        { Sort(IntArray(a)) }
-func SortFloat64s(a []float64)    { Sort(Float64Array(a)) }
-func SortStrings(a []string)  { Sort(StringArray(a)) }
+func SortInts(a []int)        { Sort(IntSlice(a)) }
+func SortFloat64s(a []float64)    { Sort(Float64Slice(a)) }
+func SortStrings(a []string)  { Sort(StringSlice(a)) }
 
 
-func IntsAreSorted(a []int) bool       { return IsSorted(IntArray(a)) }
-func Float64sAreSorted(a []float64) bool   { return IsSorted(Float64Array(a)) }
-func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)) }
+func IntsAreSorted(a []int) bool       { return IsSorted(IntSlice(a)) }
+func Float64sAreSorted(a []float64) bool   { return IsSorted(Float64Slice(a)) }
+func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }

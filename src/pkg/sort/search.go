@@ -99,7 +99,7 @@ func SearchStrings(a []string, x string) int {
 
 
 // Search returns the result of applying SearchInts to the receiver and x.
-func (p IntArray) Search(x int) int { return SearchInts(p, x) }
+func (p IntSlice) Search(x int) int { return SearchInts(p, x) }
 
 
 // Search returns the result of applying SearchFloat64s to the receiver and x.
@@ -107,4 +107,4 @@ func (p Float64Array) Search(x float64) int { return SearchFloat64s(p, x) }
 
 
 // Search returns the result of applying SearchStrings to the receiver and x.
-func (p StringArray) Search(x string) int { return SearchStrings(p, x) }
+func (p StringSlice) Search(x string) int { return SearchStrings(p, x) }

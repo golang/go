@@ -934,12 +934,12 @@ We can apply <code>Sort</code> to any type that implements <code>Len</code>, <co
 The <code>sort</code> package includes the necessary methods to allow sorting of
 arrays of integers, strings, etc.; here's the code for arrays of <code>int</code>
 <p>
-<pre> <!-- progs/sort.go /type.*IntArray/ /Swap/ -->
-33    type IntArray []int
+<pre> <!-- progs/sort.go /type.*IntSlice/ /Swap/ -->
+33    type IntSlice []int
 
-35    func (p IntArray) Len() int            { return len(p) }
-36    func (p IntArray) Less(i, j int) bool  { return p[i] &lt; p[j] }
-37    func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+35    func (p IntSlice) Len() int            { return len(p) }
+36    func (p IntSlice) Less(i, j int) bool  { return p[i] &lt; p[j] }
+37    func (p IntSlice) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
 </pre>
 <p>
 Here we see methods defined for non-<code>struct</code> types.  You can define methods
@@ -952,7 +952,7 @@ to test that the result is sorted.
 <pre> <!-- progs/sortmain.go /func.ints/ /^}/ -->
 12    func ints() {
 13        data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
-14        a := sort.IntArray(data)
+14        a := sort.IntSlice(data)
 15        sort.Sort(a)
 16        if !sort.IsSorted(a) {
 17            panic(&quot;fail&quot;)
