@@ -1536,8 +1536,7 @@ page(Arfile *ap)
 
 	bp = ap->head;
 	if (!ap->paged) {		/* not yet paged - create file */
-		ap->fname = mktemp(ap->fname);
-		ap->fd = create(ap->fname, ORDWR|ORCLOSE, 0600);
+		ap->fd = mkstemp(ap->fname);
 		if (ap->fd < 0) {
 			fprint(2,"gopack: can't create temp file\n");
 			return 0;
