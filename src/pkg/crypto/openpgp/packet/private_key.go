@@ -181,7 +181,7 @@ func (pk *PrivateKey) Decrypt(passphrase []byte) os.Error {
 		return nil
 	}
 
-	key := make([]byte, pk.cipher.keySize())
+	key := make([]byte, pk.cipher.KeySize())
 	pk.s2k(key, passphrase)
 	block := pk.cipher.new(key)
 	cfb := cipher.NewCFBDecrypter(block, pk.iv)

@@ -9,10 +9,12 @@ import (
 	"crypto/openpgp/armor"
 	"crypto/openpgp/error"
 	"crypto/openpgp/packet"
+	"crypto/openpgp/s2k"
 	"crypto/rand"
 	_ "crypto/sha256"
 	"io"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -98,7 +100,7 @@ type FileHints struct {
 }
 
 // SymmetricallyEncrypt acts like gpg -c: it encrypts a file with a passphrase.
-// The resulting WriteCloser MUST be closed after the contents of the file have
+// The resulting WriteCloser must be closed after the contents of the file have
 // been written.
 func SymmetricallyEncrypt(ciphertext io.Writer, passphrase []byte, hints *FileHints) (plaintext io.WriteCloser, err os.Error) {
 	if hints == nil {
@@ -112,6 +114,105 @@ func SymmetricallyEncrypt(ciphertext io.Writer, passphrase []byte, hints *FileHi
 	w, err := packet.SerializeSymmetricallyEncrypted(ciphertext, packet.CipherAES128, key)
 	if err != nil {
 		return
+	}
+	return packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
+}
+
+// intersectPreferences mutates and returns a prefix of a that contains only
+// the values in the intersection of a and b. The order of a is preserved.
+func intersectPreferences(a []uint8, b []uint8) (intersection []uint8) {
+	var j int
+	for _, v := range a {
+		for _, v2 := range b {
+			if v == v2 {
+				a[j] = v
+				j++
+				break
+			}
+		}
+	}
+
+	return a[:j]
+}
+
+func hashToHashId(h crypto.Hash) uint8 {
+	v, ok := s2k.HashToHashId(h)
+	if !ok {
+		panic("tried to convert unknown hash")
+	}
+	return v
+}
+
+// Encrypt encrypts a message to a number of recipients and, optionally, signs
+// it. (Note: signing is not yet implemented.) hints contains optional
+// information, that is also encrypted, that aids the recipients in processing
+// the message. The resulting WriteCloser must be closed after the contents of
+// the file have been written.
+func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHints) (plaintext io.WriteCloser, err os.Error) {
+	// These are the possible ciphers that we'll use for the message.
+	candidateCiphers := []uint8{
+		uint8(packet.CipherAES128),
+		uint8(packet.CipherAES256),
+		uint8(packet.CipherCAST5),
+	}
+	// These are the possible hash functions that we'll use for the signature.
+	candidateHashes := []uint8{
+		hashToHashId(crypto.SHA256),
+		hashToHashId(crypto.SHA512),
+		hashToHashId(crypto.SHA1),
+		hashToHashId(crypto.RIPEMD160),
+	}
+	// In the event that a recipient doesn't specify any supported ciphers
+	// or hash functions, these are the ones that we assume that every
+	// implementation supports.
+	defaultCiphers := candidateCiphers[len(candidateCiphers)-1:]
+	defaultHashes := candidateHashes[len(candidateHashes)-1:]
+
+	encryptKeys := make([]Key, len(to))
+	for i := range to {
+		encryptKeys[i] = to[i].encryptionKey()
+		if encryptKeys[i].PublicKey == nil {
+			return nil, error.InvalidArgumentError("cannot encrypt a message to key id " + strconv.Uitob64(to[i].PrimaryKey.KeyId, 16) + " because it has no encryption keys")
+		}
+
+		sig := to[i].primaryIdentity().SelfSignature
+
+		preferredSymmetric := sig.PreferredSymmetric
+		if len(preferredSymmetric) == 0 {
+			preferredSymmetric = defaultCiphers
+		}
+		preferredHashes := sig.PreferredHash
+		if len(preferredHashes) == 0 {
+			preferredHashes = defaultHashes
+		}
+		candidateCiphers = intersectPreferences(candidateCiphers, preferredSymmetric)
+		candidateHashes = intersectPreferences(candidateHashes, preferredHashes)
+	}
+
+	if len(candidateCiphers) == 0 || len(candidateHashes) == 0 {
+		return nil, error.InvalidArgumentError("cannot encrypt because recipient set shares no common algorithms")
+	}
+
+	cipher := packet.CipherFunction(candidateCiphers[0])
+	// hash := s2k.HashIdToHash(candidateHashes[0])
+	symKey := make([]byte, cipher.KeySize())
+	if _, err := io.ReadFull(rand.Reader, symKey); err != nil {
+		return nil, err
+	}
+
+	for _, key := range encryptKeys {
+		if err := packet.SerializeEncryptedKey(ciphertext, rand.Reader, key.PublicKey, cipher, symKey); err != nil {
+			return nil, err
+		}
+	}
+
+	w, err := packet.SerializeSymmetricallyEncrypted(ciphertext, cipher, symKey)
+	if err != nil {
+		return
+	}
+
+	if hints == nil {
+		hints = &FileHints{}
 	}
 	return packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
 }

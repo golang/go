@@ -376,6 +376,26 @@ const (
 	PubKeyAlgoDSA            PublicKeyAlgorithm = 17
 )
 
+// CanEncrypt returns true if it's possible to encrypt a message to a public
+// key of the given type.
+func (pka PublicKeyAlgorithm) CanEncrypt() bool {
+	switch pka {
+	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly, PubKeyAlgoElgamal:
+		return true
+	}
+	return false
+}
+
+// CanSign returns true if it's possible for a public key of the given type to
+// sign a message.
+func (pka PublicKeyAlgorithm) CanSign() bool {
+	switch pka {
+	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly, PubKeyAlgoDSA:
+		return true
+	}
+	return false
+}
+
 // CipherFunction represents the different block ciphers specified for OpenPGP. See
 // http://www.iana.org/assignments/pgp-parameters/pgp-parameters.xhtml#pgp-parameters-13
 type CipherFunction uint8
@@ -387,8 +407,8 @@ const (
 	CipherAES256 CipherFunction = 9
 )
 
-// keySize returns the key size, in bytes, of cipher.
-func (cipher CipherFunction) keySize() int {
+// KeySize returns the key size, in bytes, of cipher.
+func (cipher CipherFunction) KeySize() int {
 	switch cipher {
 	case CipherCAST5:
 		return cast5.KeySize

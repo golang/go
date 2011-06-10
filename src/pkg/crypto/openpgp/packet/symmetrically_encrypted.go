@@ -47,7 +47,7 @@ func (se *SymmetricallyEncrypted) parse(r io.Reader) os.Error {
 // packet can be read. An incorrect key can, with high probability, be detected
 // immediately and this will result in a KeyIncorrect error being returned.
 func (se *SymmetricallyEncrypted) Decrypt(c CipherFunction, key []byte) (io.ReadCloser, os.Error) {
-	keySize := c.keySize()
+	keySize := c.KeySize()
 	if keySize == 0 {
 		return nil, error.UnsupportedError("unknown cipher: " + strconv.Itoa(int(c)))
 	}
@@ -255,7 +255,7 @@ func (c noOpCloser) Close() os.Error {
 // to w and returns a WriteCloser to which the to-be-encrypted packets can be
 // written.
 func SerializeSymmetricallyEncrypted(w io.Writer, c CipherFunction, key []byte) (contents io.WriteCloser, err os.Error) {
-	if c.keySize() != len(key) {
+	if c.KeySize() != len(key) {
 		return nil, error.InvalidArgumentError("SymmetricallyEncrypted.Serialize: bad key length")
 	}
 	writeCloser := noOpCloser{w}

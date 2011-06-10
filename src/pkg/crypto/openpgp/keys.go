@@ -64,6 +64,78 @@ type KeyRing interface {
 	DecryptionKeys() []Key
 }
 
+// primaryIdentity returns the Identity marked as primary or the first identity
+// if none are so marked.
+func (e *Entity) primaryIdentity() *Identity {
+	var firstIdentity *Identity
+	for _, ident := range e.Identities {
+		if firstIdentity == nil {
+			firstIdentity = ident
+		}
+		if ident.SelfSignature.IsPrimaryId != nil && *ident.SelfSignature.IsPrimaryId {
+			return ident
+		}
+	}
+	return firstIdentity
+}
+
+// encryptionKey returns the best candidate Key for encrypting a message to the
+// given Entity.
+func (e *Entity) encryptionKey() Key {
+	candidateSubkey := -1
+
+	for i, subkey := range e.Subkeys {
+		if subkey.Sig.FlagsValid && subkey.Sig.FlagEncryptCommunications && subkey.PublicKey.PubKeyAlgo.CanEncrypt() {
+			candidateSubkey = i
+			break
+		}
+	}
+
+	i := e.primaryIdentity()
+
+	if e.PrimaryKey.PubKeyAlgo.CanEncrypt() {
+		// If we don't have any candidate subkeys for encryption and
+		// the primary key doesn't have any usage metadata then we
+		// assume that the primary key is ok. Or, if the primary key is
+		// marked as ok to encrypt to, then we can obviously use it.
+		if candidateSubkey == -1 && !i.SelfSignature.FlagsValid || i.SelfSignature.FlagEncryptCommunications && i.SelfSignature.FlagsValid {
+			return Key{e, e.PrimaryKey, e.PrivateKey, i.SelfSignature}
+		}
+	}
+
+	if candidateSubkey != -1 {
+		subkey := e.Subkeys[candidateSubkey]
+		return Key{e, subkey.PublicKey, subkey.PrivateKey, subkey.Sig}
+	}
+
+	// This Entity appears to be signing only.
+	return Key{}
+}
+
+// signingKey return the best candidate Key for signing a message with this
+// Entity.
+func (e *Entity) signingKey() Key {
+	candidateSubkey := -1
+
+	for i, subkey := range e.Subkeys {
+		if subkey.Sig.FlagsValid && subkey.Sig.FlagSign && subkey.PublicKey.PubKeyAlgo.CanSign() {
+			candidateSubkey = i
+			break
+		}
+	}
+
+	i := e.primaryIdentity()
+
+	// If we have no candidate subkey then we assume that it's ok to sign
+	// with the primary key.
+	if candidateSubkey == -1 || i.SelfSignature.FlagsValid && i.SelfSignature.FlagSign {
+		return Key{e, e.PrimaryKey, e.PrivateKey, i.SelfSignature}
+	}
+
+	subkey := e.Subkeys[candidateSubkey]
+	return Key{e, subkey.PublicKey, subkey.PrivateKey, subkey.Sig}
+}
+
 // An EntityList contains one or more Entities.
 type EntityList []*Entity
 
@@ -197,6 +269,10 @@ func readEntity(packets *packet.Reader) (*Entity, os.Error) {
 		} else {
 			e.PrimaryKey = &e.PrivateKey.PublicKey
 		}
+	}
+
+	if !e.PrimaryKey.PubKeyAlgo.CanSign() {
+		return nil, error.StructuralError("primary key cannot be used for signatures")
 	}
 
 	var current *Identity
