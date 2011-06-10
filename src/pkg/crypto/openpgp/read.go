@@ -57,7 +57,6 @@ type MessageDetails struct {
 	// been consumed. Once EOF has been seen, the following fields are
 	// valid. (An authentication code failure is reported as a
 	// SignatureError error when reading from UnverifiedBody.)
-
 	SignatureError os.Error          // nil if the signature is good.
 	Signature      *packet.Signature // the signature packet itself.
 

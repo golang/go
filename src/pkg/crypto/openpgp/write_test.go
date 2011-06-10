@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"os"
 	"io"
+	"io/ioutil"
 	"testing"
 	"time"
 )
@@ -118,5 +119,49 @@ func TestSymmetricEncryption(t *testing.T) {
 	}
 	if !bytes.Equal(message, messageBuf.Bytes()) {
 		t.Errorf("recovered message incorrect got '%s', want '%s'", messageBuf.Bytes(), message)
+	}
+}
+
+func TestEncryption(t *testing.T) {
+	kring, _ := ReadKeyRing(readerFromHex(testKeys1And2PrivateHex))
+
+	buf := new(bytes.Buffer)
+	w, err := Encrypt(buf, kring[:1], nil, /* not signed */ nil /* no hints */ )
+	if err != nil {
+		t.Errorf("error in Encrypt: %s", err)
+		return
+	}
+
+	const message = "testing"
+	_, err = w.Write([]byte(message))
+	if err != nil {
+		t.Errorf("error writing plaintext: %s", err)
+		return
+	}
+	err = w.Close()
+	if err != nil {
+		t.Errorf("error closing WriteCloser: %s", err)
+		return
+	}
+
+	md, err := ReadMessage(buf, kring, nil /* no prompt */ )
+	if err != nil {
+		t.Errorf("error reading message: %s", err)
+		return
+	}
+
+	plaintext, err := ioutil.ReadAll(md.UnverifiedBody)
+	if err != nil {
+		t.Errorf("error reading encrypted contents: %s", err)
+		return
+	}
+
+	expectedKeyId := kring[0].encryptionKey().PublicKey.KeyId
+	if len(md.EncryptedToKeyIds) != 1 || md.EncryptedToKeyIds[0] != expectedKeyId {
+		t.Errorf("expected message to be encrypted to %v, but got %#v", expectedKeyId, md.EncryptedToKeyIds)
+	}
+
+	if string(plaintext) != message {
+		t.Errorf("got: %s, want: %s", string(plaintext), message)
 	}
 }

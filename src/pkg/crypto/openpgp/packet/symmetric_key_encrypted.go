@@ -42,7 +42,7 @@ func (ske *SymmetricKeyEncrypted) parse(r io.Reader) (err os.Error) {
 	}
 	ske.CipherFunc = CipherFunction(buf[1])
 
-	if ske.CipherFunc.keySize() == 0 {
+	if ske.CipherFunc.KeySize() == 0 {
 		return error.UnsupportedError("unknown cipher: " + strconv.Itoa(int(buf[1])))
 	}
 
@@ -78,7 +78,7 @@ func (ske *SymmetricKeyEncrypted) Decrypt(passphrase []byte) os.Error {
 		return nil
 	}
 
-	key := make([]byte, ske.CipherFunc.keySize())
+	key := make([]byte, ske.CipherFunc.KeySize())
 	ske.s2k(key, passphrase)
 
 	if len(ske.encryptedKey) == 0 {
@@ -109,7 +109,7 @@ func (ske *SymmetricKeyEncrypted) Decrypt(passphrase []byte) os.Error {
 // given passphrase. The session key is returned and must be passed to
 // SerializeSymmetricallyEncrypted.
 func SerializeSymmetricKeyEncrypted(w io.Writer, rand io.Reader, passphrase []byte, cipherFunc CipherFunction) (key []byte, err os.Error) {
-	keySize := cipherFunc.keySize()
+	keySize := cipherFunc.KeySize()
 	if keySize == 0 {
 		return nil, error.UnsupportedError("unknown cipher: " + strconv.Itoa(int(cipherFunc)))
 	}
