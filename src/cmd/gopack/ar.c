@@ -1532,24 +1532,7 @@ arwrite(int fd, Armember *bp)
 int
 page(Arfile *ap)
 {
-	Armember *bp;
-
-	bp = ap->head;
-	if (!ap->paged) {		/* not yet paged - create file */
-		ap->fd = mkstemp(ap->fname);
-		if (ap->fd < 0) {
-			fprint(2,"gopack: can't create temp file\n");
-			return 0;
-		}
-		ap->paged = 1;
-	}
-	if (!arwrite(ap->fd, bp))	/* write member and free buffer block */
-		return 0;
-	ap->head = bp->next;
-	if (ap->tail == bp)
-		ap->tail = bp->next;
-	free(bp->member);
-	free(bp);
+	sysfatal("page");
 	return 1;
 }
 
