@@ -344,7 +344,7 @@ func printCategories() {
 		fmt.Print("}\n\n")
 	}
 
-	decl := make(sort.StringArray, len(list))
+	decl := make(sort.StringSlice, len(list))
 	ndecl := 0
 	for _, name := range list {
 		if _, ok := category[name]; !ok {
@@ -665,7 +665,7 @@ func printScriptOrProperty(doProps bool) {
 		fmt.Print("}\n\n")
 	}
 
-	decl := make(sort.StringArray, len(list))
+	decl := make(sort.StringSlice, len(list))
 	ndecl := 0
 	for _, name := range list {
 		if doProps {

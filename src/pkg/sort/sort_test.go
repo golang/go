@@ -16,9 +16,9 @@ var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984,
 var float64s = [...]float64{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
 var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
 
-func TestSortIntArray(t *testing.T) {
+func TestSortIntSlice(t *testing.T) {
 	data := ints
-	a := IntArray(data[0:])
+	a := IntSlice(data[0:])
 	Sort(a)
 	if !IsSorted(a) {
 		t.Errorf("sorted %v", ints)
@@ -36,9 +36,9 @@ func TestSortFloat64Array(t *testing.T) {
 	}
 }
 
-func TestSortStringArray(t *testing.T) {
+func TestSortStringSlice(t *testing.T) {
 	data := strings
-	a := StringArray(data[0:])
+	a := StringSlice(data[0:])
 	Sort(a)
 	if !IsSorted(a) {
 		t.Errorf("sorted %v", strings)

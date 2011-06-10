@@ -62,7 +62,7 @@ var ForkLock sync.RWMutex
 
 // Convert array of string to array
 // of NUL-terminated byte pointer.
-func StringArrayPtr(ss []string) []*byte {
+func StringSlicePtr(ss []string) []*byte {
 	bb := make([]*byte, len(ss)+1)
 	for i := 0; i < len(ss); i++ {
 		bb[i] = StringBytePtr(ss[i])
@@ -293,8 +293,8 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
 
 	// Convert args to C form.
 	argv0p := StringBytePtr(argv0)
-	argvp := StringArrayPtr(argv)
-	envvp := StringArrayPtr(attr.Env)
+	argvp := StringSlicePtr(argv)
+	envvp := StringSlicePtr(attr.Env)
 
 	if OS == "freebsd" && len(argv[0]) > len(argv0) {
 		argvp[0] = argv0p
@@ -378,7 +378,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
 func Exec(argv0 string, argv []string, envv []string) (err int) {
 	_, _, err1 := RawSyscall(SYS_EXECVE,
 		uintptr(unsafe.Pointer(StringBytePtr(argv0))),
-		uintptr(unsafe.Pointer(&StringArrayPtr(argv)[0])),
-		uintptr(unsafe.Pointer(&StringArrayPtr(envv)[0])))
+		uintptr(unsafe.Pointer(&StringSlicePtr(argv)[0])),
+		uintptr(unsafe.Pointer(&StringSlicePtr(envv)[0])))
 	return int(err1)
 }
