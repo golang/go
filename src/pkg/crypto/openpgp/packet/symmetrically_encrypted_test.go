@@ -81,7 +81,7 @@ const mdcPlaintextHex = "a302789c3b2d93c4e0eb9aba22283539b3203335af44a134afb800c
 func TestSerialize(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
 	c := CipherAES128
-	key := make([]byte, c.keySize())
+	key := make([]byte, c.KeySize())
 
 	w, err := SerializeSymmetricallyEncrypted(buf, c, key)
 	if err != nil {
