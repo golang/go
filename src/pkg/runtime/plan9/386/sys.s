@@ -9,6 +9,11 @@
 TEXT runtime·setldt(SB),7,$0
 	RET
 
+TEXT runtime·open(SB),7,$0
+	MOVL    $14, AX
+	INT     $64
+	RET
+
 TEXT runtime·write(SB),7,$0
 	MOVL    $20, AX
 	INT     $64

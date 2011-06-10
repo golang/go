@@ -27,24 +27,48 @@ runtime·initsig(int32 queue)
 {
 }
 
+extern Tos *_tos;
 void
 runtime·exit(int32)
 {
+	int32 fd;
+	uint8 buf[128];
+	uint8 tmp[16];
+	uint8 *p, *q;
+	int32 pid;
+	
+	runtime·memclr(buf, sizeof buf);
+	runtime·memclr(tmp, sizeof tmp);
+	pid = _tos->pid;
+
+	/* build path string /proc/pid/notepg */
+	for(q=tmp; pid > 0;) {
+		*q++ = '0' + (pid%10);
+		pid = pid/10;
+	}
+	p = buf;
+	runtime·mcpy((void*)p, (void*)"/proc/", 6);
+	p += 6;
+	for(q--; q >= tmp;)
+		*p++ = *q--;
+	runtime·mcpy((void*)p, (void*)"/notepg", 7);
+	
+	/* post interrupt note */
+	fd = runtime·open(buf, OWRITE);
+	runtime·write(fd, "interrupt", 9);
 	runtime·exits(nil);
 }
 
 void
 runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
-	USED(m, g, stk, fn);
-	
 	m->tls[0] = m->id;	// so 386 asm can find it
 	if(0){
 		runtime·printf("newosproc stk=%p m=%p g=%p fn=%p rfork=%p id=%d/%d ostk=%p\n",
 			stk, m, g, fn, runtime·rfork, m->id, m->tls[0], &m);
 	}        
 	
-	if (runtime·rfork(RFPROC | RFMEM, stk, m, g, fn) < 0 )
+	if (runtime·rfork(RFPROC|RFMEM|RFNOWAIT, stk, m, g, fn) < 0 )
 		runtime·throw("newosproc: rfork failed");
 }
 
