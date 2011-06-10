@@ -90,11 +90,11 @@ add64loop:
 TEXT	check64<>(SB),7,$16
 	MOVW	$10, R1
 	// 8-aligned stack address scratch space.
-	MOVW	$8(SP), R3
-	AND	$~7, R3
+	MOVW	$8(R13), R5
+	AND	$~7, R5
 loop:
-	LDREXD	(R3), R2
-	STREXD	R2, (R3), R0
+	LDREXD	(R5), R2
+	STREXD	R2, (R5), R0
 	CMP	$0, R0
 	BEQ	ok
 	SUB	$1, R1
