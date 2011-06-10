@@ -1,4 +1,5 @@
 <!-- The Go Memory Model -->
+<!-- subtitle Version of June 10, 2011 -->
 
 <style>
 p.rule {
@@ -42,8 +43,8 @@ Also, if <span class="event">e<sub>1</sub></span> does not happen before <span c
 after <span class="event">e<sub>2</sub></span>, then we say that <span class="event">e<sub>1</sub></span> and <span class="event">e<sub>2</sub></span> happen concurrently.
 </p>
 
-<p>
-Within a single goroutine, the happens before order is the
+<p class="rule">
+Within a single goroutine, the happens-before order is the
 order expressed by the program.
 </p>
 
