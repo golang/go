@@ -563,14 +563,19 @@ func (p PalettedColorModel) Convert(c Color) Color {
 	if len(p) == 0 {
 		return nil
 	}
+	return p[p.Index(c)]
+}
+
+// Index returns the index of the palette color closest to c in Euclidean
+// R,G,B space.
+func (p PalettedColorModel) Index(c Color) int {
 	cr, cg, cb, _ := c.RGBA()
 	// Shift by 1 bit to avoid potential uint32 overflow in sum-squared-difference.
 	cr >>= 1
 	cg >>= 1
 	cb >>= 1
-	result := Color(nil)
-	bestSSD := uint32(1<<32 - 1)
-	for _, v := range p {
+	ret, bestSSD := 0, uint32(1<<32-1)
+	for i, v := range p {
 		vr, vg, vb, _ := v.RGBA()
 		vr >>= 1
 		vg >>= 1
@@ -578,11 +583,10 @@ func (p PalettedColorModel) Convert(c Color) Color {
 		dr, dg, db := diff(cr, vr), diff(cg, vg), diff(cb, vb)
 		ssd := (dr * dr) + (dg * dg) + (db * db)
 		if ssd < bestSSD {
-			bestSSD = ssd
-			result = v
+			ret, bestSSD = i, ssd
 		}
 	}
-	return result
+	return ret
 }
 
 // A Paletted is an in-memory image backed by a 2-D slice of uint8 values and a PalettedColorModel.
@@ -608,6 +612,13 @@ func (p *Paletted) At(x, y int) Color {
 		return p.Palette[0]
 	}
 	return p.Palette[p.Pix[y*p.Stride+x]]
+}
+
+func (p *Paletted) Set(x, y int, c Color) {
+	if !(Point{x, y}.In(p.Rect)) {
+		return
+	}
+	p.Pix[y*p.Stride+x] = uint8(p.Palette.Index(c))
 }
 
 func (p *Paletted) ColorIndexAt(x, y int) uint8 {
