@@ -14,6 +14,64 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-06-09">2011-06-09</h2>
+
+<pre>
+This release includes changes to the strconv, http, and exp/draw packages.
+Client code that uses the http or exp/draw packages will need to be changed,
+and code that uses strconv or fmt's "%q" formatting directive merits checking.
+
+The strconv package's Quote function now escapes only those Unicode code points
+not classified as printable by unicode.IsPrint. Previously Quote would escape
+all non-ASCII characters. This also affects the fmt package's "%q" formatting
+directive. The previous quoting behavior is still available via strconv's new
+QuoteToASCII function.   
+
+Most instances of the type map[string][]string in the http package have been
+replaced with the new Values type. The http.Values type has the Get, Set, Add,
+and Del helper methods to make working with query parameters and form values
+more convenient.
+
+The exp/draw package has been split into the image/draw and exp/gui packages.
+
+Other changes:
+* 8l, ld: initial adjustments for Plan 9 native compilation of 8l (thanks Lucio De Re).
+* arm: floating point improvements (thanks Fan Hongjian).
+* big: Improved speed of nat-to-string conversion (thanks Michael T. Jones),
+        Rat outputs the requested precision from FloatString (thanks Graham Miller),
+        gobs for big.Rats.
+* cgo: support non intel gcc machine flags (thanks Dave Cheney).
+* compress/lzw: do not use background goroutines,
+        reduce decoder buffer size from 3*4096 to 2*4096.
+* crypto/twofish: fix Reset index overflow bug.
+* crypto: reorg, cleanup and add function for generating CRLs.
+* exec: export the underlying *os.Process in Cmd.
+* gc: enable building under clang/2.9 (thanks Dave Cheney),
+        preparatory work toward escape analysis, compact stack frames.
+* go/build: new incomplete package for building go programs.
+* godefs: do not assume forward type references are enums (thanks Robert Hencke).
+* gofix, gofmt: fix diff regression from exec change.
+* html: improve attribute parsing, note package status.
+* http: don't fail on accept hitting EMFILE,
+        fix handling of 0-length HTTP requests.
+* image/draw: fix clipping bug where sp/mp were not shifted when r.Min was.
+* image/gif: fix buglet in graphics extension.
+* image/tiff: support for bit depths other than 8 (thanks Benny Siegert).
+* ld: fix and simplify ELF symbol generation (thanks Anthony Martin)
+* libmach: use the standardized format for designated initializers (thanks Jeff Hodges)
+* mail: address list parsing.
+* net: add network interface identification API (thanks Mikio Hara),
+        fix bug in net.Interfaces: handle elastic sdl_data size correctly (thanks Mikio Hara).
+* netchan: added drain method to importer (thanks David Jakob Fritz).
+* os: add Process.Kill and Process.Signal (thanks Evan Shaw),
+        fix Getenv for Plan 9 (thanks Yuval Pavel Zholkover).
+* runtime: improve memmove by checking memory overlap (thanks Quan Yong Zhai),
+        support for Linux grsecurity systems (thanks Jonathan Mark).
+* spec: handle a corner case for shifts.
+* testing: check that tests and benchmarks do not affect GOMAXPROCS (thanks Dmitriy Vyukov).
+* unicode: add IsPrint and related properties, general categories.
+</pre>
+
 <h2 id="2011-06-02">2011-06-02</h2>
 
 <pre>
@@ -22,8 +80,8 @@ to client code.
 
 The exec package has been re-designed with a more convenient and succinct API.
 This code:
-	args := []string{“diff”, “-u”, “file1.txt”, “file2.txt”}
-	p, err := exec.Run(“/usr/bin/diff”, args, os.Environ(), "",
+	args := []string{"diff", "-u", "file1.txt", "file2.txt"}
+	p, err := exec.Run("/usr/bin/diff", args, os.Environ(), "",
 		exec.DevNull, exec.Pipe, exec.DevNull)
 	if err != nil {
 		return nil, err
@@ -37,7 +95,7 @@ This code:
 	}
 	return buf.Bytes(), err
 can be rewritten as:
-	return exec.Command(“diff”, “-u”, “file1.txt”, “file2.txt”).Output()
+	return exec.Command("diff", "-u", "file1.txt", "file2.txt").Output()
 See the exec package documentation for the details ("godoc exec").
 
 By setting the GOPATH environment variable you can use goinstall to build and
@@ -293,7 +351,7 @@ Other changes:
 
 <pre>
 This release includes revisions to the reflect package to make it more
-efficient, after the last weekly’s major API update. If your code uses reflect
+efficient, after the last weekly's major API update. If your code uses reflect
 it may require further changes, not all of which can be made automatically by
 gofix. For the full details of the change, see
 	http://codereview.appspot.com/4435042
@@ -443,7 +501,7 @@ The os package's Open function has been replaced by three functions:
         Open(name) // same as old Open(name, O_RDONLY, 0)
         Create(name) // same as old Open(name, O_RDWR|O_TRUNC|O_CREAT, 0666)
 
-To update your code to use the new APIs, run "gofix path/to/code".  Gofix can’t
+To update your code to use the new APIs, run "gofix path/to/code".  Gofix can't
 handle all situations perfectly, so read and test the changes it makes before
 committing them.
 
@@ -573,8 +631,8 @@ produce memory and CPU profiling data when invoked with the -test.memprofile
 and -test.cpuprofile flags. Run "godoc gotest" for details.
 
 We have also introduced a way for tests to run quickly when an exhaustive test
-is unnecessary. Gotest’s new -test.short flag in combination with the testing
-package’s new Short function allows you to write tests that can be run in
+is unnecessary. Gotest's new -test.short flag in combination with the testing
+package's new Short function allows you to write tests that can be run in
 normal or "short" mode; short mode is now used by all.bash to reduce
 installation time.
 The Makefiles know about the flag - you can just run "make testshort".
