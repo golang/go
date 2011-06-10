@@ -12,6 +12,7 @@ import (
 	"fmt"
 	. "http"
 	"http/httptest"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -494,6 +495,12 @@ func TestHeadResponses(t *testing.T) {
 		_, err := w.Write([]byte("Ignored body"))
 		if err != ErrBodyNotAllowed {
 			t.Errorf("on Write, expected ErrBodyNotAllowed, got %v", err)
+		}
+
+		// Also exercise the ReaderFrom path
+		_, err = io.Copy(w, strings.NewReader("Ignored body"))
+		if err != ErrBodyNotAllowed {
+			t.Errorf("on Copy, expected ErrBodyNotAllowed, got %v", err)
 		}
 	}))
 	defer ts.Close()

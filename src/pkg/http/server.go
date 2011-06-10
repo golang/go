@@ -129,7 +129,7 @@ func (r *response) ReadFrom(src io.Reader) (n int64, err os.Error) {
 	// WriteHeader if it hasn't been called yet, and WriteHeader
 	// is what sets r.chunking.
 	r.Flush()
-	if !r.chunking {
+	if !r.chunking && r.bodyAllowed() {
 		if rf, ok := r.conn.rwc.(io.ReaderFrom); ok {
 			n, err = rf.ReadFrom(src)
 			r.written += n
@@ -335,6 +335,15 @@ func (w *response) WriteHeader(code int) {
 	io.WriteString(w.conn.buf, "\r\n")
 }
 
+// bodyAllowed returns true if a Write is allowed for this response type.
+// It's illegal to call this before the header has been flushed.
+func (w *response) bodyAllowed() bool {
+	if !w.wroteHeader {
+		panic("")
+	}
+	return w.status != StatusNotModified && w.req.Method != "HEAD"
+}
+
 func (w *response) Write(data []byte) (n int, err os.Error) {
 	if w.conn.hijacked {
 		log.Print("http: response.Write on hijacked connection")
@@ -346,9 +355,7 @@ func (w *response) Write(data []byte) (n int, err os.Error) {
 	if len(data) == 0 {
 		return 0, nil
 	}
-
-	if w.status == StatusNotModified || w.req.Method == "HEAD" {
-		// Must not have body.
+	if !w.bodyAllowed() {
 		return 0, ErrBodyNotAllowed
 	}
 
