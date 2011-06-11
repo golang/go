@@ -650,9 +650,9 @@ var errors = []struct {
 	pos int
 	err string
 }{
-	{"\a", token.ILLEGAL, 0, "illegal character '\\a'"},
-	{`#`, token.ILLEGAL, 0, "illegal character '#'"},
-	{`…`, token.ILLEGAL, 0, "illegal character '…'"},
+	{"\a", token.ILLEGAL, 0, "illegal character U+0007"},
+	{`#`, token.ILLEGAL, 0, "illegal character U+0023 '#'"},
+	{`…`, token.ILLEGAL, 0, "illegal character U+2026 '…'"},
 	{`' '`, token.CHAR, 0, ""},
 	{`''`, token.CHAR, 0, "illegal character literal"},
 	{`'\8'`, token.CHAR, 2, "unknown escape sequence"},
