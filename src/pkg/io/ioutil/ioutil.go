@@ -63,7 +63,7 @@ func WriteFile(filename string, data []byte, perm uint32) os.Error {
 	return err
 }
 
-// A dirList implements sort.Interface.
+// A fileInfoList implements sort.Interface.
 type fileInfoList []*os.FileInfo
 
 func (f fileInfoList) Len() int           { return len(f) }
