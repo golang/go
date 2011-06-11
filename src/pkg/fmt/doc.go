@@ -63,11 +63,13 @@
 	number of characters to output, truncating if necessary.
 
 	Other flags:
-		+	always print a sign for numeric values
+		+	always print a sign for numeric values;
+			guarantee ASCII-only output for %q (%+q)
 		-	pad with spaces on the right rather than the left (left-justify the field)
 		#	alternate format: add leading 0 for octal (%#o), 0x for hex (%#x);
 			0X for hex (%#X); suppress 0x for %p (%#p);
-			print a raw (backquoted) string if possible for %q (%#q)
+			print a raw (backquoted) string if possible for %q (%#q);
+			write e.g. U+0078 'x' if the character is printable for %U (%#U).
 		' '	(space) leave a space for elided sign in numbers (% d);
 			put spaces between bytes printing strings or slices in hex (% x, % X)
 		0	pad with leading zeros rather than spaces
