@@ -31,10 +31,12 @@ func TestReadForm(t *testing.T) {
 	if _, ok := fd.(*os.File); ok {
 		t.Error("file is *os.File, should not be")
 	}
+	fd.Close()
 	fd = testFile(t, f.File["fileb"][0], "fileb.txt", filebContents)
 	if _, ok := fd.(*os.File); !ok {
 		t.Errorf("file has unexpected underlying type %T", fd)
 	}
+	fd.Close()
 }
 
 func testFile(t *testing.T, fh *FileHeader, efn, econtent string) File {
