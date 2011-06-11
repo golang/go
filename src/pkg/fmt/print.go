@@ -363,6 +363,8 @@ func (p *pp) fmt0x64(v uint64, leading0x bool) {
 // temporarily turning on the unicode flag and tweaking the precision.
 func (p *pp) fmtUnicode(v int64) {
 	precPresent := p.fmt.precPresent
+	sharp := p.fmt.sharp
+	p.fmt.sharp = false
 	prec := p.fmt.prec
 	if !precPresent {
 		// If prec is already set, leave it alone; otherwise 4 is minimum.
@@ -370,10 +372,13 @@ func (p *pp) fmtUnicode(v int64) {
 		p.fmt.precPresent = true
 	}
 	p.fmt.unicode = true // turn on U+
+	p.fmt.uniQuote = sharp
 	p.fmt.integer(int64(v), 16, unsigned, udigits)
 	p.fmt.unicode = false
+	p.fmt.uniQuote = false
 	p.fmt.prec = prec
 	p.fmt.precPresent = precPresent
+	p.fmt.sharp = sharp
 }
 
 func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}) {

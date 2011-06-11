@@ -7,6 +7,7 @@ package fmt
 import (
 	"bytes"
 	"strconv"
+	"unicode"
 	"utf8"
 )
 
@@ -50,6 +51,7 @@ type fmt struct {
 	sharp       bool
 	space       bool
 	unicode     bool
+	uniQuote    bool // Use 'x'= prefix for %U if printable.
 	zero        bool
 }
 
@@ -63,6 +65,7 @@ func (f *fmt) clearflags() {
 	f.sharp = false
 	f.space = false
 	f.unicode = false
+	f.uniQuote = false
 	f.zero = false
 }
 
@@ -232,6 +235,24 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 		i--
 		buf[i] = ' '
 	}
+
+	// If we want a quoted char for %#U, move the data up to make room.
+	if f.unicode && f.uniQuote && a >= 0 && a <= unicode.MaxRune && unicode.IsPrint(int(a)) {
+		runeWidth := utf8.RuneLen(int(a))
+		width := 1 + 1 + runeWidth + 1 // space, quote, rune, quote
+		copy(buf[i-width:], buf[i:])   // guaranteed to have enough room.
+		i -= width
+		// Now put " 'x'" at the end.
+		j := len(buf) - width
+		buf[j] = ' '
+		j++
+		buf[j] = '\''
+		j++
+		utf8.EncodeRune(buf[j:], int(a))
+		j += runeWidth
+		buf[j] = '\''
+	}
+
 	f.pad(buf[i:])
 }
 
@@ -291,7 +312,11 @@ func (f *fmt) fmt_q(s string) {
 	if f.sharp && strconv.CanBackquote(s) {
 		quoted = "`" + s + "`"
 	} else {
-		quoted = strconv.Quote(s)
+		if f.plus {
+			quoted = strconv.QuoteToASCII(s)
+		} else {
+			quoted = strconv.Quote(s)
+		}
 	}
 	f.padString(quoted)
 }
@@ -299,7 +324,12 @@ func (f *fmt) fmt_q(s string) {
 // fmt_qc formats the integer as a single-quoted, escaped Go character constant.
 // If the character is not valid Unicode, it will print '\ufffd'.
 func (f *fmt) fmt_qc(c int64) {
-	quoted := strconv.QuoteRune(int(c))
+	var quoted string
+	if f.plus {
+		quoted = strconv.QuoteRuneToASCII(int(c))
+	} else {
+		quoted = strconv.QuoteRune(int(c))
+	}
 	f.padString(quoted)
 }
 
