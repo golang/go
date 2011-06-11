@@ -77,6 +77,7 @@ var (
 	procFlushViewOfFile            = getSysProcAddr(modkernel32, "FlushViewOfFile")
 	procVirtualLock                = getSysProcAddr(modkernel32, "VirtualLock")
 	procVirtualUnlock              = getSysProcAddr(modkernel32, "VirtualUnlock")
+	procTransmitFile               = getSysProcAddr(modwsock32, "TransmitFile")
 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
 	procsocket                     = getSysProcAddr(modwsock32, "socket")
@@ -996,6 +997,20 @@ func VirtualLock(addr uintptr, length uintptr) (errno int) {
 
 func VirtualUnlock(addr uintptr, length uintptr) (errno int) {
 	r1, _, e1 := Syscall(procVirtualUnlock, 2, uintptr(addr), uintptr(length), 0)
+	if int(r1) == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func TransmitFile(s int32, handle int32, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (errno int) {
+	r1, _, e1 := Syscall9(procTransmitFile, 7, uintptr(s), uintptr(handle), uintptr(bytesToWrite), uintptr(bytsPerSend), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(transmitFileBuf)), uintptr(flags), 0, 0)
 	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)

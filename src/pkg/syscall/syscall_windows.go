@@ -173,6 +173,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno
 //sys	FlushViewOfFile(addr uintptr, length uintptr) (errno int)
 //sys	VirtualLock(addr uintptr, length uintptr) (errno int)
 //sys	VirtualUnlock(addr uintptr, length uintptr) (errno int)
+//sys	TransmitFile(s int32, handle int32, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (errno int) = wsock32.TransmitFile
 
 // syscall interface implementation for other packages
 

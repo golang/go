@@ -82,7 +82,7 @@ GOFILES_windows=\
 	file_windows.go\
 	interface_stub.go\
 	resolv_windows.go\
-	sendfile_stub.go\
+	sendfile_windows.go\
 	sock_windows.go\
 
 GOFILES+=$(GOFILES_$(GOOS))

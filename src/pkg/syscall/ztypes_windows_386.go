@@ -545,3 +545,19 @@ type DNSRecord struct {
 	Reserved uint32
 	Data     [40]byte
 }
+
+const (
+	TF_DISCONNECT         = 1
+	TF_REUSE_SOCKET       = 2
+	TF_WRITE_BEHIND       = 4
+	TF_USE_DEFAULT_WORKER = 0
+	TF_USE_SYSTEM_THREAD  = 16
+	TF_USE_KERNEL_APC     = 32
+)
+
+type TransmitFileBuffers struct {
+	Head       uintptr
+	HeadLength uint32
+	Tail       uintptr
+	TailLength uint32
+}
