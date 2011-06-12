@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of June 7, 2011 -->
+<!-- subtitle Version of June 10, 2011 -->
 
 <!--
 TODO
@@ -10,7 +10,6 @@ TODO
 [ ] clarify what a field name is in struct declarations
     (struct{T} vs struct {T T} vs struct {t T})
 [ ] need explicit language about the result type of operations
-[ ] should string(1<<s) and float32(1<<s) be valid?
 [ ] should probably write something about evaluation order of statements even
 	though obvious
 [ ] review language on implicit dereferencing
@@ -1452,6 +1451,7 @@ Go is lexically scoped using blocks:
 
 	<li>The scope of a constant or variable identifier declared
 	    inside a function begins at the end of the ConstSpec or VarSpec
+	    (ShortVarDecl for short variable declarations)
 	    and ends at the end of the innermost containing block.</li>
 
 	<li>The scope of a type identifier declared inside a function
@@ -4590,11 +4590,14 @@ Two built-in functions assist in common slice operations.
 </p>
 
 <p>
-The function <code>append</code> appends zero or more values <code>x</code>
+The <a href="#Function_types">variadic</a> function <code>append</code>
+appends zero or more values <code>x</code>
 to <code>s</code> of type <code>S</code>, which must be a slice type, and
 returns the resulting slice, also of type <code>S</code>.
-Each value <code>x</code> must be <a href="#Assignability">assignable</a> to
-the <a href="#Slice_types">element type</a> of <code>S</code>.
+The values <code>x</code> are passed to a parameter of type <code>...T</code>
+where <code>T</code> is the <a href="#Slice_types">element type</a> of
+<code>S</code> and the respective
+<a href="#Passing_arguments_to_..._parameters">parameter passing rules</a> apply.
 </p>
 
 <pre class="grammar">
