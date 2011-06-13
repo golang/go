@@ -12,6 +12,7 @@ import (
 	"crypto/openpgp/s2k"
 	"crypto/rand"
 	_ "crypto/sha256"
+	"hash"
 	"io"
 	"os"
 	"strconv"
@@ -144,11 +145,18 @@ func hashToHashId(h crypto.Hash) uint8 {
 }
 
 // Encrypt encrypts a message to a number of recipients and, optionally, signs
-// it. (Note: signing is not yet implemented.) hints contains optional
-// information, that is also encrypted, that aids the recipients in processing
-// the message. The resulting WriteCloser must be closed after the contents of
-// the file have been written.
+// it. hints contains optional information, that is also encrypted, that aids
+// the recipients in processing the message. The resulting WriteCloser must
+// be closed after the contents of the file have been written.
 func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHints) (plaintext io.WriteCloser, err os.Error) {
+	var signer *packet.PrivateKey
+	if signed != nil {
+		signer = signed.signingKey().PrivateKey
+		if signer == nil || signer.Encrypted {
+			return nil, error.InvalidArgumentError("signing key must be decrypted")
+		}
+	}
+
 	// These are the possible ciphers that we'll use for the message.
 	candidateCiphers := []uint8{
 		uint8(packet.CipherAES128),
@@ -194,7 +202,7 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
 	}
 
 	cipher := packet.CipherFunction(candidateCiphers[0])
-	// hash := s2k.HashIdToHash(candidateHashes[0])
+	hash, _ := s2k.HashIdToHash(candidateHashes[0])
 	symKey := make([]byte, cipher.KeySize())
 	if _, err := io.ReadFull(rand.Reader, symKey); err != nil {
 		return nil, err
@@ -206,13 +214,95 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
 		}
 	}
 
-	w, err := packet.SerializeSymmetricallyEncrypted(ciphertext, cipher, symKey)
+	encryptedData, err := packet.SerializeSymmetricallyEncrypted(ciphertext, cipher, symKey)
 	if err != nil {
 		return
+	}
+
+	if signer != nil {
+		ops := &packet.OnePassSignature{
+			SigType:    packet.SigTypeBinary,
+			Hash:       hash,
+			PubKeyAlgo: signer.PubKeyAlgo,
+			KeyId:      signer.KeyId,
+			IsLast:     true,
+		}
+		if err := ops.Serialize(encryptedData); err != nil {
+			return nil, err
+		}
 	}
 
 	if hints == nil {
 		hints = &FileHints{}
 	}
-	return packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
+
+	w := encryptedData
+	if signer != nil {
+		// If we need to write a signature packet after the literal
+		// data then we need to stop literalData from closing
+		// encryptedData.
+		w = noOpCloser{encryptedData}
+
+	}
+	literalData, err := packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
+	if err != nil {
+		return nil, err
+	}
+
+	if signer != nil {
+		return signatureWriter{encryptedData, literalData, hash, hash.New(), signer}, nil
+	}
+	return literalData, nil
+}
+
+// signatureWriter hashes the contents of a message while passing it along to
+// literalData. When closed, it closes literalData, writes a signature packet
+// to encryptedData and then also closes encryptedData.
+type signatureWriter struct {
+	encryptedData io.WriteCloser
+	literalData   io.WriteCloser
+	hashType      crypto.Hash
+	h             hash.Hash
+	signer        *packet.PrivateKey
+}
+
+func (s signatureWriter) Write(data []byte) (int, os.Error) {
+	s.h.Write(data)
+	return s.literalData.Write(data)
+}
+
+func (s signatureWriter) Close() os.Error {
+	sig := &packet.Signature{
+		SigType:      packet.SigTypeBinary,
+		PubKeyAlgo:   s.signer.PubKeyAlgo,
+		Hash:         s.hashType,
+		CreationTime: uint32(time.Seconds()),
+		IssuerKeyId:  &s.signer.KeyId,
+	}
+
+	if err := sig.Sign(s.h, s.signer); err != nil {
+		return err
+	}
+	if err := s.literalData.Close(); err != nil {
+		return err
+	}
+	if err := sig.Serialize(s.encryptedData); err != nil {
+		return err
+	}
+	return s.encryptedData.Close()
+}
+
+// noOpCloser is like an ioutil.NopCloser, but for an io.Writer.
+// TODO: we have two of these in OpenPGP packages alone. This probably needs
+// to be promoted somewhere more common.
+type noOpCloser struct {
+	w io.Writer
+}
+
+func (c noOpCloser) Write(data []byte) (n int, err os.Error) {
+	return c.w.Write(data)
+}
+
+func (c noOpCloser) Close() os.Error {
+	return nil
 }

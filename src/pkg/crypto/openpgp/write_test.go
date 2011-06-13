@@ -122,11 +122,16 @@ func TestSymmetricEncryption(t *testing.T) {
 	}
 }
 
-func TestEncryption(t *testing.T) {
+func testEncryption(t *testing.T, isSigned bool) {
 	kring, _ := ReadKeyRing(readerFromHex(testKeys1And2PrivateHex))
 
+	var signed *Entity
+	if isSigned {
+		signed = kring[0]
+	}
+
 	buf := new(bytes.Buffer)
-	w, err := Encrypt(buf, kring[:1], nil, /* not signed */ nil /* no hints */ )
+	w, err := Encrypt(buf, kring[:1], signed, nil /* no hints */ )
 	if err != nil {
 		t.Errorf("error in Encrypt: %s", err)
 		return
@@ -150,6 +155,16 @@ func TestEncryption(t *testing.T) {
 		return
 	}
 
+	if isSigned {
+		expectedKeyId := kring[0].signingKey().PublicKey.KeyId
+		if md.SignedByKeyId != expectedKeyId {
+			t.Errorf("message signed by wrong key id, got: %d, want: %d", *md.SignedBy, expectedKeyId)
+		}
+		if md.SignedBy == nil {
+			t.Errorf("failed to find the signing Entity")
+		}
+	}
+
 	plaintext, err := ioutil.ReadAll(md.UnverifiedBody)
 	if err != nil {
 		t.Errorf("error reading encrypted contents: %s", err)
@@ -164,4 +179,21 @@ func TestEncryption(t *testing.T) {
 	if string(plaintext) != message {
 		t.Errorf("got: %s, want: %s", string(plaintext), message)
 	}
+
+	if isSigned {
+		if md.SignatureError != nil {
+			t.Errorf("signature error: %s", err)
+		}
+		if md.Signature == nil {
+			t.Error("signature missing")
+		}
+	}
+}
+
+func TestEncryption(t *testing.T) {
+	testEncryption(t, false /* not signed */ )
+}
+
+func TestEncryptAndSign(t *testing.T) {
+	testEncryption(t, true /* signed */ )
 }

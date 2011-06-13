@@ -305,7 +305,7 @@ EachPacket:
 					return nil, error.StructuralError("user ID packet not followed by self-signature")
 				}
 
-				if sig.SigType == packet.SigTypePositiveCert && sig.IssuerKeyId != nil && *sig.IssuerKeyId == e.PrimaryKey.KeyId {
+				if (sig.SigType == packet.SigTypePositiveCert || sig.SigType == packet.SigTypeGenericCert) && sig.IssuerKeyId != nil && *sig.IssuerKeyId == e.PrimaryKey.KeyId {
 					if err = e.PrimaryKey.VerifyUserIdSignature(pkt.Id, sig); err != nil {
 						return nil, error.StructuralError("user ID self-signature invalid: " + err.String())
 					}
