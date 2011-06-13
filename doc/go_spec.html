@@ -528,7 +528,8 @@ A constant value is represented by an
 <a href="#Character_literals">character</a>, or
 <a href="#String_literals">string</a> literal,
 an identifier denoting a constant,
-a <a href="#Constant_expressions">constant expression</a>, or
+a <a href="#Constant_expressions">constant expression</a>,
+a <a href="#Conversions">conversion</a> with a result that is a constant, or
 the result value of some built-in functions such as
 <code>unsafe.Sizeof</code> applied to any value,
 <code>cap</code> or <code>len</code> applied to
@@ -3227,8 +3228,42 @@ If the type starts with an operator it must be parenthesized:
 </pre>
 
 <p>
-A value <code>x</code> can be converted to type <code>T</code> in any
-of these cases:
+A <a href="#Constants">constant</a> value <code>x</code> can be converted to
+type <code>T</code> in any of these cases:
+</p>
+
+<ul>
+	<li>
+	<code>x</code> is representable by a value of type <code>T</code>.
+	</li>
+	<li>
+	<code>x</code> is an integer constant and <code>T</code> is a
+	<a href="#String_types">string type</a>.
+	The same rule as for non-constant <code>x</code> applies in this case
+	(§<a href="#Conversions_to_and_from_a_string_type">Conversions to and from a string type</a>).
+	</li>
+</ul>
+
+<p>
+Converting a constant yields a typed constant as result.
+</p>
+
+<pre>
+uint(iota)               // iota value of type uint
+float32(2.718281828)     // 2.718281828 of type float32
+complex128(1)            // 1.0 + 0.0i of type complex128
+string('x')              // "x" of type string
+string(0x266c)           // "♬" of type string
+MyString("foo" + "bar")  // "foobar" of type MyString
+string([]byte{'a'})      // not a constant: []byte{'a'} is not a constant
+(*int)(nil)              // not a constant: nil is not a constant, *int is not a boolean, numeric, or string type
+int(1.2)                 // illegal: 1.2 cannot be represented as an int
+string(65.0)             // illegal: 65.0 is not an integer constant
+</pre>
+
+<p>
+A non-constant value <code>x</code> can be converted to type <code>T</code>
+in any of these cases:
 </p>
 
 <ul>
@@ -3262,15 +3297,27 @@ of these cases:
 </ul>
 
 <p>
-Specific rules apply to conversions between numeric types or to and from
-a string type.
+Specific rules apply to (non-constant) conversions between numeric types or
+to and from a string type.
 These conversions may change the representation of <code>x</code>
 and incur a run-time cost.
 All other conversions only change the type but not the representation
 of <code>x</code>.
 </p>
 
+<p>
+There is no linguistic mechanism to convert between pointers and integers.
+The package <a href="#Package_unsafe"><code>unsafe</code></a>
+implements this functionality under
+restricted circumstances.
+</p>
+
 <h4>Conversions between numeric types</h4>
+
+<p>
+For the conversion of non-constant numeric values, the following rules apply:
+</p>
+
 <ol>
 <li>
 When converting between integer types, if the value is a signed integer, it is
@@ -3296,13 +3343,12 @@ of precision, but <code>float32(x + 0.1)</code> does not.
 </ol>
 
 <p>
-In all conversions involving floating-point or complex values,
+In all non-constant conversions involving floating-point or complex values,
 if the result type cannot represent the value the conversion
-succeeds but the result value is
-implementation-dependent.
+succeeds but the result value is implementation-dependent.
 </p>
 
-<h4>Conversions to and from a string type</h4>
+<h4 id="Conversions_to_and_from_a_string_type">Conversions to and from a string type</h4>
 
 <ol>
 <li>
@@ -3360,12 +3406,6 @@ If the string is empty, the result is <code>[]int(nil)</code>.
 </li>
 </ol>
 
-<p>
-There is no linguistic mechanism to convert between pointers and integers.
-The package <a href="#Package_unsafe"><code>unsafe</code></a>
-implements this functionality under
-restricted circumstances.
-</p>
 
 <h3 id="Constant_expressions">Constant expressions</h3>
 
