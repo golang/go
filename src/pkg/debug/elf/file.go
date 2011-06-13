@@ -546,6 +546,12 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
 	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
 }
 
+// Symbols returns the symbol table for f.
+func (f *File) Symbols() ([]Symbol, os.Error) {
+	sym, _, err := f.getSymbols(SHT_SYMTAB)
+	return sym, err
+}
+
 type ImportedSymbol struct {
 	Name    string
 	Version string
