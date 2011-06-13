@@ -243,7 +243,16 @@ walkstmt(Node **np)
 		break;
 
 	case OPROC:
-		walkexpr(&n->left, &n->ninit);
+		switch(n->left->op) {
+		case OPRINT:
+		case OPRINTN:
+			walkexprlist(n->left->list, &n->ninit);
+			n->left = walkprint(n->left, &n->ninit, 1);
+			break;
+		default:
+			walkexpr(&n->left, &n->ninit);
+			break;
+		}
 		break;
 
 	case ORETURN:
