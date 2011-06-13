@@ -14,8 +14,8 @@ import (
 var hostentLock sync.Mutex
 var serventLock sync.Mutex
 
-func goLookupHost(name string) (addrs []string, err os.Error) {
-	ips, err := goLookupIP(name)
+func LookupHost(name string) (addrs []string, err os.Error) {
+	ips, err := LookupIP(name)
 	if err != nil {
 		return
 	}
@@ -26,7 +26,7 @@ func goLookupHost(name string) (addrs []string, err os.Error) {
 	return
 }
 
-func goLookupIP(name string) (addrs []IP, err os.Error) {
+func LookupIP(name string) (addrs []IP, err os.Error) {
 	hostentLock.Lock()
 	defer hostentLock.Unlock()
 	h, e := syscall.GetHostByName(name)
@@ -47,7 +47,23 @@ func goLookupIP(name string) (addrs []IP, err os.Error) {
 	return addrs, nil
 }
 
-func goLookupCNAME(name string) (cname string, err os.Error) {
+func LookupPort(network, service string) (port int, err os.Error) {
+	switch network {
+	case "tcp4", "tcp6":
+		network = "tcp"
+	case "udp4", "udp6":
+		network = "udp"
+	}
+	serventLock.Lock()
+	defer serventLock.Unlock()
+	s, e := syscall.GetServByName(service, network)
+	if e != 0 {
+		return 0, os.NewSyscallError("GetServByName", e)
+	}
+	return int(syscall.Ntohs(s.Port)), nil
+}
+
+func LookupCNAME(name string) (cname string, err os.Error) {
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_CNAME, 0, nil, &r, nil)
 	if int(e) != 0 {
@@ -59,13 +75,6 @@ func goLookupCNAME(name string) (cname string, err os.Error) {
 		cname = syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:]) + "."
 	}
 	return
-}
-
-type SRV struct {
-	Target   string
-	Port     uint16
-	Priority uint16
-	Weight   uint16
 }
 
 func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.Error) {
@@ -87,55 +96,12 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.
 	return name, addrs, nil
 }
 
-func goLookupPort(network, service string) (port int, err os.Error) {
-	switch network {
-	case "tcp4", "tcp6":
-		network = "tcp"
-	case "udp4", "udp6":
-		network = "udp"
-	}
-	serventLock.Lock()
-	defer serventLock.Unlock()
-	s, e := syscall.GetServByName(service, network)
-	if e != 0 {
-		return 0, os.NewSyscallError("GetServByName", e)
-	}
-	return int(syscall.Ntohs(s.Port)), nil
+// TODO(brainman): implement LookupMX and LookupAddr.
+
+func LookupMX(name string) (mx []*MX, err os.Error) {
+	return nil, os.NewSyscallError("LookupMX", syscall.EWINDOWS)
 }
 
-// TODO(brainman): Following code is only to get tests running.
-
-func isDomainName(s string) bool {
-	panic("unimplemented")
+func LookupAddr(addr string) (name []string, err os.Error) {
+	return nil, os.NewSyscallError("LookupAddr", syscall.EWINDOWS)
 }
-
-func reverseaddr(addr string) (arpa string, err os.Error) {
-	panic("unimplemented")
-}
-
-func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs []dnsRR, err os.Error) {
-	panic("unimplemented")
-}
-
-// DNSError represents a DNS lookup error.
-type DNSError struct {
-	Error     string // description of the error
-	Name      string // name looked for
-	Server    string // server used
-	IsTimeout bool
-}
-
-func (e *DNSError) String() string {
-	if e == nil {
-		return "<nil>"
-	}
-	s := "lookup " + e.Name
-	if e.Server != "" {
-		s += " on " + e.Server
-	}
-	s += ": " + e.Error
-	return s
-}
-
-func (e *DNSError) Timeout() bool   { return e.IsTimeout }
-func (e *DNSError) Temporary() bool { return e.IsTimeout }

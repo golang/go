@@ -6,14 +6,10 @@ package net
 
 import (
 	"encoding/hex"
-	"runtime"
 	"testing"
 )
 
 func TestDNSParseSRVReply(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		return
-	}
 	data, err := hex.DecodeString(dnsSRVReply)
 	if err != nil {
 		t.Fatal(err)
@@ -45,9 +41,6 @@ func TestDNSParseSRVReply(t *testing.T) {
 }
 
 func TestDNSParseCorruptSRVReply(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		return
-	}
 	data, err := hex.DecodeString(dnsSRVCorruptReply)
 	if err != nil {
 		t.Fatal(err)
