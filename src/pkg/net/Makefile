@@ -7,6 +7,7 @@ include ../../Make.inc
 TARG=net
 GOFILES=\
 	dial.go\
+	dnsclient.go\
 	dnsmsg.go\
 	fd_$(GOOS).go\
 	hosts.go\
@@ -14,7 +15,6 @@ GOFILES=\
 	ip.go\
 	ipsock.go\
 	iprawsock.go\
-	lookup.go\
 	net.go\
 	parse.go\
 	pipe.go\
@@ -24,11 +24,12 @@ GOFILES=\
 	unixsock.go\
 
 GOFILES_freebsd=\
-	dnsclient.go\
+	dnsclient_unix.go\
 	dnsconfig.go\
 	fd.go\
 	file.go\
 	interface_bsd.go\
+	lookup_unix.go\
 	newpollserver.go\
 	port.go\
 	sendfile_stub.go\
@@ -39,11 +40,12 @@ CGOFILES_freebsd=\
 	cgo_unix.go\
 
 GOFILES_darwin=\
-	dnsclient.go\
+	dnsclient_unix.go\
 	dnsconfig.go\
 	fd.go\
 	file.go\
 	interface_bsd.go\
+	lookup_unix.go\
 	newpollserver.go\
 	port.go\
 	sendfile_stub.go\
@@ -54,11 +56,12 @@ CGOFILES_darwin=\
 	cgo_unix.go\
 
 GOFILES_linux=\
-	dnsclient.go\
+	dnsclient_unix.go\
 	dnsconfig.go\
 	fd.go\
 	file.go\
 	interface_linux.go\
+	lookup_unix.go\
 	newpollserver.go\
 	port.go\
 	sendfile_linux.go\
@@ -66,6 +69,7 @@ GOFILES_linux=\
 
 GOFILES_plan9=\
 	interface_stub.go\
+	lookup_unix.go\
 	sendfile_stub.go\
 
 ifeq ($(GOARCH),arm)
@@ -78,10 +82,9 @@ CGOFILES_linux=\
 endif
 
 GOFILES_windows=\
-	cgo_stub.go\
 	file_windows.go\
 	interface_stub.go\
-	resolv_windows.go\
+	lookup_windows.go\
 	sendfile_windows.go\
 	sock_windows.go\
 
