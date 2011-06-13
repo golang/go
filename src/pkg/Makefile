@@ -81,6 +81,7 @@ DIRS=\
 	exp/eval\
 	exp/gui\
 	exp/gui/x11\
+	exp/regexp/syntax\
 	expvar\
 	flag\
 	fmt\
