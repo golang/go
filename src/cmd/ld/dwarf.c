@@ -1804,7 +1804,7 @@ mkvarname(char* name, int da)
 
 // flush previous compilation unit.
 static void
-flushunit(DWDie *dwinfo, vlong pc, vlong unitstart)
+flushunit(DWDie *dwinfo, vlong pc, vlong unitstart, int32 header_length)
 {
 	vlong here;
 
@@ -1820,7 +1820,9 @@ flushunit(DWDie *dwinfo, vlong pc, vlong unitstart)
 
 		here = cpos();
 		seek(cout, unitstart, 0);
-		LPUT(here - unitstart - sizeof(int32));
+		LPUT(here - unitstart - sizeof(int32));	 // unit_length
+		WPUT(3);  // dwarf version
+		LPUT(header_length); // header lenght starting here
 		cflush();
 		seek(cout, here, 0);
 	}
@@ -1832,7 +1834,7 @@ writelines(void)
 	Prog *q;
 	Sym *s;
 	Auto *a;
-	vlong unitstart, offs;
+	vlong unitstart, headerend, offs;
 	vlong pc, epc, lc, llc, lline;
 	int currfile;
 	int i, lang, da, dt;
@@ -1842,6 +1844,7 @@ writelines(void)
 	char *n, *nn;
 
 	unitstart = -1;
+	headerend = -1;
 	pc = 0;
 	epc = 0;
 	lc = 1;
@@ -1859,7 +1862,7 @@ writelines(void)
 		// we're entering a new compilation unit
 
 		if (inithist(s->autom)) {
-			flushunit(dwinfo, epc, unitstart);
+			flushunit(dwinfo, epc, unitstart, headerend - unitstart - 10);
 			unitstart = cpos();
 
 			if(debug['v'] > 1) {
@@ -1880,10 +1883,10 @@ writelines(void)
 
 			// Write .debug_line Line Number Program Header (sec 6.2.4)
 			// Fields marked with (*) must be changed for 64-bit dwarf
-			LPUT(0);   // unit_length (*), will be filled in later.
+			LPUT(0);   // unit_length (*), will be filled in by flushunit.
 			WPUT(3);   // dwarf version (appendix F)
-			LPUT(11);  // header_length (*), starting here.
-
+			LPUT(0);   // header_length (*), filled in by flushunit.
+			// cpos == unitstart + 4 + 2 + 4
 			cput(1);   // minimum_instruction_length
 			cput(1);   // default_is_stmt
 			cput(LINE_BASE);     // line_base
@@ -1894,16 +1897,14 @@ writelines(void)
 			cput(1);   // standard_opcode_lengths[3]
 			cput(1);   // standard_opcode_lengths[4]
 			cput(0);   // include_directories  (empty)
-			cput(0);   // file_names (empty) (emitted by DW_LNE's below)
-			// header_length ends here.
 
 			for (i=1; i < histfilesize; i++) {
-				cput(0);  // start extended opcode
-				uleb128put(1 + strlen(histfile[i]) + 4);
-				cput(DW_LNE_define_file);
 				strnput(histfile[i], strlen(histfile[i]) + 4);
 				// 4 zeros: the string termination + 3 fields.
 			}
+
+			cput(0);   // terminate file_names.
+			headerend = cpos();
 
 			pc = s->text->pc;
 			epc = pc;
@@ -2009,7 +2010,7 @@ writelines(void)
 		dwfunc->hash = nil;
 	}
 
-	flushunit(dwinfo, epc, unitstart);
+	flushunit(dwinfo, epc, unitstart, headerend - unitstart - 10);
 	linesize = cpos() - lineo;
 }
 
