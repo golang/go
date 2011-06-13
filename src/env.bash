@@ -39,11 +39,54 @@ if [ ! -d "$GOBIN" -a "$GOBIN" != "$GOROOT/bin" ]; then
 fi
 
 export OLDPATH=$PATH
-export PATH="$GOBIN":/bin:/usr/bin:$PATH
+export PATH="$GOBIN":$PATH
 
 MAKE=make
 if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
 	MAKE=gmake
+fi
+
+PROGS="
+	ar
+	awk
+	bash
+	bison
+	chmod
+	cp
+	cut
+	echo
+	ed
+	egrep
+	gcc
+	grep
+	ls
+	mkdir
+	mv
+	pwd
+	rm
+	sed
+	sort
+	tee
+	touch
+	tr
+	true
+	uname
+	uniq
+"
+
+for i in bison ed awk gcc $MAKE; do
+	if ! which $i >/dev/null 2>&1; then
+		echo "Cannot find '$i' on search path." 1>&2
+		echo "See http://golang.org/doc/install.html#ctools" 1>&2
+		exit 1
+	fi
+done
+
+if bison --version 2>&1 | grep 'bison++' >/dev/null 2>&1; then
+	echo "Your system's 'bison' is bison++."
+	echo "Go needs the original bison instead." 1>&2
+	echo "See http://golang.org/doc/install.html#ctools" 1>&2
+	exit 1
 fi
 
 # Tried to use . <($MAKE ...) here, but it cannot set environment
