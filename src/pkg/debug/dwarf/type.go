@@ -352,8 +352,8 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 			}
 		}
 		if ndim == 0 {
-			err = DecodeError{"info", e.Offset, "missing dimension for array"}
-			goto Error
+			// LLVM generates this for x[].
+			t.Count = -1
 		}
 
 	case TagBaseType:
