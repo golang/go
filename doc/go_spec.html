@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of June 10, 2011 -->
+<!-- subtitle Version of June 13, 2011 -->
 
 <!--
 TODO
@@ -5105,9 +5105,9 @@ package unsafe
 type ArbitraryType int  // shorthand for an arbitrary Go type; it is not a real type
 type Pointer *ArbitraryType
 
-func Alignof(variable ArbitraryType) int
-func Offsetof(selector ArbitraryType) int
-func Sizeof(variable ArbitraryType) int
+func Alignof(variable ArbitraryType) uintptr
+func Offsetof(selector ArbitraryType) uinptr
+func Sizeof(variable ArbitraryType) uintptr
 
 func Reflect(val interface{}) (typ runtime.Type, addr uintptr)
 func Typeof(val interface{}) (typ interface{})
@@ -5130,7 +5130,7 @@ For a struct <code>s</code> with field <code>f</code>:
 </p>
 
 <pre>
-uintptr(unsafe.Pointer(&amp;s)) + uintptr(unsafe.Offsetof(s.f)) == uintptr(unsafe.Pointer(&amp;s.f))
+uintptr(unsafe.Pointer(&amp;s)) + unsafe.Offsetof(s.f) == uintptr(unsafe.Pointer(&amp;s.f))
 </pre>
 
 <p>
@@ -5143,12 +5143,12 @@ alignment of the (type of the) variable in bytes.  For a variable
 </p>
 
 <pre>
-uintptr(unsafe.Pointer(&amp;x)) % uintptr(unsafe.Alignof(x)) == 0
+uintptr(unsafe.Pointer(&amp;x)) % unsafe.Alignof(x) == 0
 </pre>
 
 <p>
 Calls to <code>Alignof</code>, <code>Offsetof</code>, and
-<code>Sizeof</code> are compile-time constant expressions of type <code>int</code>.
+<code>Sizeof</code> are compile-time constant expressions of type <code>uintptr</code>.
 </p>
 <p>
 The functions <code>unsafe.Typeof</code>,
@@ -5201,10 +5201,13 @@ The following minimal alignment properties are guaranteed:
 </li>
 </ol>
 
-<h2 id="Implementation_differences"><span class="alert">Implementation differences - TODO</span></h2>
+<span class="alert">
+<h2 id="Implementation_differences">Implementation differences - TODO</h2>
 <ul>
-	<li><span class="alert">The restriction on <code>goto</code> statements and targets (no intervening declarations) is not honored.</span></li>
-	<li><span class="alert"><code>len(a)</code> is only a constant if <code>a</code> is a (qualified) identifier denoting an array or pointer to an array.</span></li>
-	<li><span class="alert"><code>nil</code> maps are not treated like empty maps.</span></li>
-	<li><span class="alert">Trying to send/receive from a <code>nil</code> channel causes a run-time panic.</span></li>
+	<li>The restriction on <code>goto</code> statements and targets (no intervening declarations) is not honored.</li>
+	<li><code>len(a)</code> is only a constant if <code>a</code> is a (qualified) identifier denoting an array or pointer to an array.</li>
+	<li><code>nil</code> maps are not treated like empty maps.</li>
+	<li>Trying to send/receive from a <code>nil</code> channel causes a run-time panic.</li>
+	<li><code>unsafe.Alignof</code>, <code>unsafe.Offsetof</code>, and <code>unsafe.Sizeof</code> return an <code>int</code>.</li>
 </ul>
+</span>
