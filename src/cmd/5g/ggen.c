@@ -22,6 +22,32 @@ defframe(Prog *ptxt)
 	maxstksize = 0;
 }
 
+// Sweep the prog list to mark any used nodes.
+void
+markautoused(Prog* p)
+{
+	for (; p; p = p->link) {
+		if (p->from.name == D_AUTO && p->from.node)
+			p->from.node->used++;
+
+		if (p->to.name == D_AUTO && p->to.node)
+			p->to.node->used++;
+	}
+}
+
+// Fixup instructions after compactframe has moved all autos around.
+void
+fixautoused(Prog* p)
+{
+	for (; p; p = p->link) {
+		if (p->from.name == D_AUTO && p->from.node)
+			p->from.offset += p->from.node->stkdelta;
+
+		if (p->to.name == D_AUTO && p->to.node)
+			p->to.offset += p->to.node->stkdelta;
+	}
+}
+
 /*
  * generate:
  *	call f
