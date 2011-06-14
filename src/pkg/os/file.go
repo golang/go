@@ -4,6 +4,8 @@
 
 // Package os provides a platform-independent interface to operating system
 // functionality.  The design is Unix-like.
+// The os interface is intended to be uniform across all operating systems.
+// Features not generally available appear in the system-specific package syscall.
 package os
 
 import (
