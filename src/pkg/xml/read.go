@@ -106,6 +106,11 @@ import (
 //      The struct field may have type []byte or string.
 //      If there is no such field, the character data is discarded.
 //
+//   * If the XML element contains comments, they are accumulated in
+//      the first struct field that has tag "comments".  The struct
+//      field may have type []byte or string.  If there is no such
+//      field, the comments are discarded.
+//
 //   * If the XML element contains a sub-element whose name matches
 //      the prefix of a struct field tag formatted as "a>b>c", unmarshal
 //      will descend into the XML structure looking for elements with the
@@ -120,17 +125,22 @@ import (
 //      maps the sub-element to that struct field.
 //
 // Unmarshal maps an XML element to a string or []byte by saving the
-// concatenation of that element's character data in the string or []byte.
+// concatenation of that element's character data in the string or
+// []byte.
 //
-// Unmarshal maps an XML element to a slice by extending the length
-// of the slice and mapping the element to the newly created value.
+// Unmarshal maps an attribute value to a string or []byte by saving
+// the value in the string or slice.
 //
-// Unmarshal maps an XML element to a bool by setting it to the boolean
-// value represented by the string.
+// Unmarshal maps an XML element to a slice by extending the length of
+// the slice and mapping the element to the newly created value.
 //
-// Unmarshal maps an XML element to an integer or floating-point
-// field by setting the field to the result of interpreting the string
-// value in decimal.  There is no check for overflow.
+// Unmarshal maps an XML element or attribute value to a bool by
+// setting it to the boolean value represented by the string.
+//
+// Unmarshal maps an XML element or attribute value to an integer or
+// floating-point field by setting the field to the result of
+// interpreting the string value in decimal.  There is no check for
+// overflow.
 //
 // Unmarshal maps an XML element to an xml.Name by recording the
 // element name.
@@ -323,9 +333,6 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 			switch f.Tag {
 			case "attr":
 				strv := sv.FieldByIndex(f.Index)
-				if strv.Kind() != reflect.String {
-					return UnmarshalError(sv.Type().String() + " field " + f.Name + " has attr tag but is not type string")
-				}
 				// Look for attribute.
 				val := ""
 				k := strings.ToLower(f.Name)
@@ -335,7 +342,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 						break
 					}
 				}
-				strv.SetString(val)
+				copyValue(strv, []byte(val))
 
 			case "comment":
 				if !saveComment.IsValid() {
@@ -454,29 +461,50 @@ Loop:
 		}
 	}
 
-	var err os.Error
+	if err := copyValue(saveData, data); err != nil {
+		return err
+	}
+
+	switch t := saveComment; t.Kind() {
+	case reflect.String:
+		t.SetString(string(comment))
+	case reflect.Slice:
+		t.Set(reflect.ValueOf(comment))
+	}
+
+	switch t := saveXML; t.Kind() {
+	case reflect.String:
+		t.SetString(string(saveXMLData))
+	case reflect.Slice:
+		t.Set(reflect.ValueOf(saveXMLData))
+	}
+
+	return nil
+}
+
+func copyValue(dst reflect.Value, src []byte) (err os.Error) {
 	// Helper functions for integer and unsigned integer conversions
 	var itmp int64
 	getInt64 := func() bool {
-		itmp, err = strconv.Atoi64(string(data))
+		itmp, err = strconv.Atoi64(string(src))
 		// TODO: should check sizes
 		return err == nil
 	}
 	var utmp uint64
 	getUint64 := func() bool {
-		utmp, err = strconv.Atoui64(string(data))
+		utmp, err = strconv.Atoui64(string(src))
 		// TODO: check for overflow?
 		return err == nil
 	}
 	var ftmp float64
 	getFloat64 := func() bool {
-		ftmp, err = strconv.Atof64(string(data))
+		ftmp, err = strconv.Atof64(string(src))
 		// TODO: check for overflow?
 		return err == nil
 	}
 
 	// Save accumulated data and comments
-	switch t := saveData; t.Kind() {
+	switch t := dst; t.Kind() {
 	case reflect.Invalid:
 		// Probably a comment, handled below
 	default:
@@ -497,31 +525,16 @@ Loop:
 		}
 		t.SetFloat(ftmp)
 	case reflect.Bool:
-		value, err := strconv.Atob(strings.TrimSpace(string(data)))
+		value, err := strconv.Atob(strings.TrimSpace(string(src)))
 		if err != nil {
 			return err
 		}
 		t.SetBool(value)
 	case reflect.String:
-		t.SetString(string(data))
+		t.SetString(string(src))
 	case reflect.Slice:
-		t.Set(reflect.ValueOf(data))
+		t.Set(reflect.ValueOf(src))
 	}
-
-	switch t := saveComment; t.Kind() {
-	case reflect.String:
-		t.SetString(string(comment))
-	case reflect.Slice:
-		t.Set(reflect.ValueOf(comment))
-	}
-
-	switch t := saveXML; t.Kind() {
-	case reflect.String:
-		t.SetString(string(saveXMLData))
-	case reflect.Slice:
-		t.Set(reflect.ValueOf(saveXMLData))
-	}
-
 	return nil
 }
 
