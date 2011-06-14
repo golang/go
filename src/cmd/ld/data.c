@@ -249,7 +249,7 @@ dynrelocsym(Sym *s)
 			return;
 		for(r=s->r; r<s->r+s->nr; r++) {
 			targ = r->sym;
-			if(r->sym->plt == -2) { // make dynimport JMP table for PE object files.
+			if(r->sym->plt == -2 && r->sym->got != -2) { // make dynimport JMP table for PE object files.
 				targ->plt = rel->size;
 				r->sym = rel;
 				r->add = targ->plt;
