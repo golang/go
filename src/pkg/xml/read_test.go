@@ -325,3 +325,47 @@ func TestUnmarshalBadPaths(t *testing.T) {
 		}
 	}
 }
+
+func TestUnmarshalAttrs(t *testing.T) {
+	var f AttrTest
+	if err := Unmarshal(StringReader(attrString), &f); err != nil {
+		t.Fatalf("Unmarshal: %s", err)
+	}
+	if !reflect.DeepEqual(f, attrStruct) {
+		t.Fatalf("have %#v\nwant %#v", f, attrStruct)
+	}
+}
+
+type AttrTest struct {
+	Test1 Test1
+	Test2 Test2
+}
+
+type Test1 struct {
+	Int   int     "attr"
+	Float float64 "attr"
+	Uint8 uint8   "attr"
+}
+
+type Test2 struct {
+	Bool bool "attr"
+}
+
+const attrString = `
+<?xml version="1.0" charset="utf-8"?>
+<attrtest>
+  <test1 int="8" float="23.5" uint8="255"/>
+  <test2 bool="true"/>
+</attrtest>
+`
+
+var attrStruct = AttrTest{
+	Test1: Test1{
+		Int:   8,
+		Float: 23.5,
+		Uint8: 255,
+	},
+	Test2: Test2{
+		Bool: true,
+	},
+}
