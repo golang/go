@@ -42,14 +42,19 @@ func findExecutable(file string, exts []string) (string, os.Error) {
 }
 
 func LookPath(file string) (f string, err os.Error) {
+	x := os.Getenv(`PATHEXT`)
+	if x == `` {
+		x = `.COM;.EXE;.BAT;.CMD`
+	}
 	exts := []string{}
-	if x := os.Getenv(`PATHEXT`); x != `` {
-		exts = strings.Split(strings.ToLower(x), `;`, -1)
-		for i, e := range exts {
-			if e == `` || e[0] != '.' {
-				exts[i] = `.` + e
-			}
+	for _, e := range strings.Split(strings.ToLower(x), `;`, -1) {
+		if e == "" {
+			continue
 		}
+		if e[0] != '.' {
+			e = "." + e
+		}
+		exts = append(exts, e)
 	}
 	if strings.Contains(file, `\`) || strings.Contains(file, `/`) {
 		if f, err = findExecutable(file, exts); err == nil {
