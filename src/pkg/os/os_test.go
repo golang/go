@@ -359,8 +359,8 @@ func TestReaddirNValues(t *testing.T) {
 }
 
 func TestHardLink(t *testing.T) {
-	// Hardlinks are not supported under windows.
-	if syscall.OS == "windows" {
+	// Hardlinks are not supported under windows or Plan 9.
+	if syscall.OS == "windows" || syscall.OS == "plan9" {
 		return
 	}
 	from, to := "hardlinktestfrom", "hardlinktestto"
@@ -392,8 +392,8 @@ func TestHardLink(t *testing.T) {
 }
 
 func TestSymLink(t *testing.T) {
-	// Symlinks are not supported under windows.
-	if syscall.OS == "windows" {
+	// Symlinks are not supported under windows or Plan 9.
+	if syscall.OS == "windows" || syscall.OS == "plan9" {
 		return
 	}
 	from, to := "symlinktestfrom", "symlinktestto"
@@ -454,8 +454,8 @@ func TestSymLink(t *testing.T) {
 }
 
 func TestLongSymlink(t *testing.T) {
-	// Symlinks are not supported under windows.
-	if syscall.OS == "windows" {
+	// Symlinks are not supported under windows or Plan 9.
+	if syscall.OS == "windows" || syscall.OS == "plan9" {
 		return
 	}
 	s := "0123456789abcdef"
@@ -588,8 +588,9 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
 }
 
 func TestChown(t *testing.T) {
-	// Chown is not supported under windows.
-	if syscall.OS == "windows" {
+	// Chown is not supported under windows or Plan 9.
+	// Plan9 provides a native ChownPlan9 version instead.
+	if syscall.OS == "windows" || syscall.OS == "plan9" {
 		return
 	}
 	// Use TempDir() to make sure we're on a local file system,
@@ -708,7 +709,11 @@ func TestChtimes(t *testing.T) {
 		t.Fatalf("second Stat %s: %s", f.Name(), err)
 	}
 
-	if postStat.Atime_ns >= preStat.Atime_ns {
+	/* Plan 9:
+		Mtime is the time of the last change of content.  Similarly, atime is set whenever the
+	    contents are accessed; also, it is set whenever mtime is set.
+	*/
+	if postStat.Atime_ns >= preStat.Atime_ns && syscall.OS != "plan9" {
 		t.Errorf("Atime_ns didn't go backwards; was=%d, after=%d",
 			preStat.Atime_ns,
 			postStat.Atime_ns)
@@ -733,6 +738,10 @@ func TestChdirAndGetwd(t *testing.T) {
 	// These are chosen carefully not to be symlinks on a Mac
 	// (unlike, say, /var, /etc, and /tmp).
 	dirs := []string{"/", "/usr/bin"}
+	// /usr/bin does not usually exist on Plan 9.
+	if syscall.OS == "plan9" {
+		dirs = []string{"/", "/usr"}
+	}
 	for mode := 0; mode < 2; mode++ {
 		for _, d := range dirs {
 			if mode == 0 {
@@ -858,7 +867,15 @@ func TestOpenError(t *testing.T) {
 			t.Errorf("Open(%q, %d) returns error of %T type; want *os.PathError", tt.path, tt.mode, err)
 		}
 		if perr.Error != tt.error {
-			t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Error.String(), tt.error.String())
+			if syscall.OS == "plan9" {
+				syscallErrStr := perr.Error.String()
+				expectedErrStr := strings.Replace(tt.error.String(), "file ", "", 1)
+				if !strings.HasSuffix(syscallErrStr, expectedErrStr) {
+					t.Errorf("Open(%q, %d) = _, %q; want suffix %q", tt.path, tt.mode, syscallErrStr, expectedErrStr)
+				}
+			} else {
+				t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Error.String(), tt.error.String())
+			}
 		}
 	}
 }
@@ -893,7 +910,8 @@ func run(t *testing.T, cmd []string) string {
 
 func TestHostname(t *testing.T) {
 	// There is no other way to fetch hostname on windows, but via winapi.
-	if syscall.OS == "windows" {
+	// On Plan 9 it is can be taken from #c/sysname as Hostname() does.
+	if syscall.OS == "windows" || syscall.OS == "plan9" {
 		return
 	}
 	// Check internal Hostname() against the output of /bin/hostname.
