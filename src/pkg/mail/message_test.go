@@ -229,7 +229,6 @@ func TestAddressParsing(t *testing.T) {
 		},
 		// Custom example of RFC 2047 "B"-encoded UTF-8 address.
 		{
-			// XXX: a different example
 			`=?UTF-8?B?SsO2cmc=?= <joerg@example.com>`,
 			[]*Address{
 				&Address{
@@ -246,7 +245,7 @@ func TestAddressParsing(t *testing.T) {
 			continue
 		}
 		if !reflect.DeepEqual(addrs, test.exp) {
-			t.Errorf("Parse of %q: got %+v, want %+v", test.addrsStr, *addrs[0], *test.exp[0])
+			t.Errorf("Parse of %q: got %+v, want %+v", test.addrsStr, addrs, test.exp)
 		}
 	}
 }
