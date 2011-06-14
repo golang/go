@@ -19,20 +19,18 @@ enum {
 	OREAD	= 0,	// open for read
 	OWRITE	= 1,	// write
 	ORDWR	= 2,	// read and write
+	OEXEC	= 3,	// execute, == read but check execute permission
+	OTRUNC	= 16,	// or'ed in (except for exec), truncate file first
+	OCEXEC	= 32,	// or'ed in, close on exec
+	ORCLOSE	= 64,		// or'ed in, remove on close
+	OEXCL	= 0x1000,	// or'ed in, exclusive use (create only)
 
 	$O_RDONLY	= OREAD,
 	$O_WRONLY	= OWRITE,
 	$O_RDWR		= ORDWR,
-
-	OEXEC	= 3,	// execute, == read but check execute permission
-	OTRUNC	= 16,	// or'ed in (except for exec), truncate file first
-	OCEXEC	= 32,	// or'ed in, close on exec
-
-	$O_CLOEXEC  = OCEXEC,
-
-	ORCLOSE	= 64,		// or'ed in, remove on close
-	OEXCL	= 0x1000,	// or'ed in, exclusive use (create only)
-	$O_EXCL	= OEXCL,
+	$O_TRUNC	= OTRUNC,
+	$O_CLOEXEC	= OCEXEC,
+	$O_EXCL		= OEXCL,
 
 	$STATMAX	= 65535U,
 	$ERRMAX		= 128,

@@ -4,10 +4,9 @@ package syscall
 const (
 	// Invented values to support what package os expects.
 	O_CREAT    = 0x02000
+	O_APPEND   = 0x00400
 	O_NOCTTY   = 0x00000
-	O_TRUNC    = 0x00000
 	O_NONBLOCK = 0x00000
-	O_APPEND   = 0x00000
 	O_SYNC     = 0x00000
 	O_ASYNC    = 0x00000
 

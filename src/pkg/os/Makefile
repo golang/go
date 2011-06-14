@@ -73,6 +73,7 @@ GOFILES_plan9=\
 	path_plan9.go\
 	sys_plan9.go\
 	exec_plan9.go\
+	str.go\
 
 GOFILES+=$(GOFILES_$(GOOS))
 

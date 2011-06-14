@@ -9,6 +9,7 @@ const (
 	O_RDONLY   = 0
 	O_WRONLY   = 0x1
 	O_RDWR     = 0x2
+	O_TRUNC    = 0x10
 	O_CLOEXEC  = 0x20
 	O_EXCL     = 0x1000
 	STATMAX    = 0xffff

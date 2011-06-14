@@ -166,8 +166,8 @@ func TestRemoveAll(t *testing.T) {
 }
 
 func TestMkdirAllWithSymlink(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Log("Skipping test: symlinks don't exist under Windows")
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Log("Skipping test: symlinks don't exist under Windows/Plan 9")
 		return
 	}
 
@@ -191,7 +191,7 @@ func TestMkdirAllWithSymlink(t *testing.T) {
 }
 
 func TestMkdirAllAtSlash(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
 		return
 	}
 	RemoveAll("/_go_os_test")
