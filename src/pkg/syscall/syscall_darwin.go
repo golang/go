@@ -56,6 +56,10 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 	return origlen - len(buf), count, names
 }
 
+//sys   ptrace(request int, pid int, addr uintptr, data uintptr) (errno int)
+func PtraceAttach(pid int) (errno int) { return ptrace(PT_ATTACH, pid, 0, 0) }
+func PtraceDetach(pid int) (errno int) { return ptrace(PT_DETACH, pid, 0, 0) }
+
 // TODO
 func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
 	return -1, ENOSYS

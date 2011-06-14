@@ -3,8 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 #
-# Generate system call table for Darwin from master list
-# (for example, xnu-1228/bsd/kern/syscalls.master).
+# Generate system call table for Darwin from sys/syscall.h
 
 my $command = "mksysnum_darwin.pl " . join(' ', @ARGV);
 
@@ -18,18 +17,11 @@ const (
 EOF
 
 while(<>){
-	if(/^([0-9]+)\s+ALL\s+({ \S+\s+(\w+).*})/){
-		my $num = $1;
-		my $proto = $2;
-		my $name = "SYS_$3";
+	if(/^#define\s+SYS_(\w+)\s+([0-9]+)/){
+		my $name = $1;
+		my $num = $2;
 		$name =~ y/a-z/A-Z/;
-
-		# There are multiple entries for enosys and nosys, so comment them out.
-		if($name =~ /^SYS_E?NOSYS$/){
-			$name = "// $name";
-		}
-
-		print "	$name = $num;  // $proto\n";
+		print "	SYS_$name = $num;"
 	}
 }
 

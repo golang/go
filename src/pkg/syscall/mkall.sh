@@ -120,14 +120,13 @@ freebsd_amd64)
 darwin_386)
 	mkerrors="$mkerrors -f -m32"
 	mksyscall="./mksyscall.pl -l32"
-	mksysnum="./mksysnum_darwin.pl /home/rsc/pub/xnu-1228/bsd/kern/syscalls.master"
+	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
 	mktypes="godefs -gsyscall -f-m32"
 	;;
 darwin_amd64)
 	mkerrors="$mkerrors -f -m64"
-	mksysnum="./mksysnum_darwin.pl /home/rsc/pub/xnu-1228/bsd/kern/syscalls.master"
+	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
 	mktypes="godefs -gsyscall -f-m64"
-	mkerrors="./mkerrors.sh"
 	;;
 linux_386)
 	mkerrors="$mkerrors -f -m32"
