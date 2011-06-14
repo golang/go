@@ -19,30 +19,6 @@ func sameInterface(i, j *Interface) bool {
 	return false
 }
 
-func interfaceFlagsString(ifi *Interface) string {
-	fs := "<"
-	if ifi.IsUp() {
-		fs += "UP,"
-	}
-	if ifi.CanBroadcast() {
-		fs += "BROADCAST,"
-	}
-	if ifi.IsLoopback() {
-		fs += "LOOPBACK,"
-	}
-	if ifi.IsPointToPoint() {
-		fs += "POINTOPOINT,"
-	}
-	if ifi.CanMulticast() {
-		fs += "MULTICAST,"
-	}
-	if len(fs) > 1 {
-		fs = fs[:len(fs)-1]
-	}
-	fs += ">"
-	return fs
-}
-
 func TestInterfaces(t *testing.T) {
 	ift, err := Interfaces()
 	if err != nil {
@@ -69,11 +45,11 @@ func TestInterfaces(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Interface.Addrs() failed: %v", err)
 		}
-		t.Logf("%s: flags %s, ifindex %v, mtu %v\n", ifi.Name, interfaceFlagsString(&ifi), ifi.Index, ifi.MTU)
+		t.Logf("%q: flags %q, ifindex %v, mtu %v\n", ifi.Name, ifi.Flags.String(), ifi.Index, ifi.MTU)
 		for _, ifa := range ifat {
-			t.Logf("\tinterface address %s\n", ifa.String())
+			t.Logf("\tinterface address %q\n", ifa.String())
 		}
-		t.Logf("\thardware address %v", ifi.HardwareAddr.String())
+		t.Logf("\thardware address %q", ifi.HardwareAddr.String())
 	}
 }
 
@@ -85,6 +61,6 @@ func TestInterfaceAddrs(t *testing.T) {
 	t.Logf("table: len/cap = %v/%v\n", len(ifat), cap(ifat))
 
 	for _, ifa := range ifat {
-		t.Logf("interface address %s\n", ifa.String())
+		t.Logf("interface address %q\n", ifa.String())
 	}
 }

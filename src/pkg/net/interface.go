@@ -34,7 +34,41 @@ type Interface struct {
 	MTU          int          // maximum transmission unit
 	Name         string       // e.g., "en0", "lo0", "eth0.100"
 	HardwareAddr HardwareAddr // IEEE MAC-48, EUI-48 and EUI-64 form
-	rawFlags     int
+	Flags        Flags        // e.g., FlagUp, FlagLoopback, FlagMulticast
+}
+
+type Flags uint
+
+const (
+	FlagUp           Flags = 1 << iota // interface is up
+	FlagBroadcast                      // interface supports broadcast access capability
+	FlagLoopback                       // interface is a loopback interface
+	FlagPointToPoint                   // interface belongs to a point-to-point link
+	FlagMulticast                      // interface supports multicast access capability
+)
+
+var flagNames = []string{
+	"up",
+	"broadcast",
+	"loopback",
+	"pointtopoint",
+	"multicast",
+}
+
+func (f Flags) String() string {
+	s := ""
+	for i, name := range flagNames {
+		if f&(1<<uint(i)) != 0 {
+			if s != "" {
+				s += "|"
+			}
+			s += name
+		}
+	}
+	if s == "" {
+		s = "0"
+	}
+	return s
 }
 
 // Addrs returns interface addresses for a specific interface.
