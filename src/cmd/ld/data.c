@@ -781,7 +781,7 @@ dodata(void)
 	 */
 
 	/* read-only data */
-	sect = addsection(&segtext, ".rodata", 06);
+	sect = addsection(&segtext, ".rodata", 04);
 	sect->vaddr = 0;
 	datsize = 0;
 	s = datap;
