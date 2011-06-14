@@ -136,15 +136,15 @@ type relocationTest struct {
 
 var relocationTests = []relocationTest{
 	{
-		"testdata/go-relocation-test-gcc441-x86-64.o",
+		"testdata/go-relocation-test-gcc441-x86-64.obj",
 		&dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.4.1"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "go-relocation-test.c"}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: uint64(0x6)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}},
 	},
 	{
-		"testdata/go-relocation-test-gcc441-x86.o",
+		"testdata/go-relocation-test-gcc441-x86.obj",
 		&dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.4.1"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "t.c"}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: uint64(0x5)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}},
 	},
 	{
-		"testdata/go-relocation-test-gcc424-x86-64.o",
+		"testdata/go-relocation-test-gcc424-x86-64.obj",
 		&dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.2.4 (Ubuntu 4.2.4-1ubuntu4)"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "go-relocation-test-gcc424.c"}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: uint64(0x6)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}},
 	},
 }
