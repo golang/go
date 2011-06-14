@@ -218,22 +218,32 @@ func joinExeDirAndFName(dir, p string) (name string, err int) {
 }
 
 type ProcAttr struct {
-	Dir        string
-	Env        []string
-	Files      []int
+	Dir   string
+	Env   []string
+	Files []int
+	Sys   *SysProcAttr
+}
+
+type SysProcAttr struct {
 	HideWindow bool
 	CmdLine    string // used if non-empty, else the windows command line is built by escaping the arguments passed to StartProcess
 }
 
-var zeroAttributes ProcAttr
+var zeroProcAttr ProcAttr
+var zeroSysProcAttr SysProcAttr
 
 func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err int) {
 	if len(argv0) == 0 {
 		return 0, 0, EWINDOWS
 	}
 	if attr == nil {
-		attr = &zeroAttributes
+		attr = &zeroProcAttr
 	}
+	sys := attr.Sys
+	if sys == nil {
+		sys = &zeroSysProcAttr
+	}
+
 	if len(attr.Files) > 3 {
 		return 0, 0, EWINDOWS
 	}
@@ -257,8 +267,8 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
 	// Windows CreateProcess takes the command line as a single string:
 	// use attr.CmdLine if set, else build the command line by escaping
 	// and joining each argument with spaces
-	if attr.CmdLine != "" {
-		cmdline = attr.CmdLine
+	if sys.CmdLine != "" {
+		cmdline = sys.CmdLine
 	} else {
 		cmdline = makeCmdLine(argv)
 	}
@@ -293,7 +303,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
 	si := new(StartupInfo)
 	si.Cb = uint32(unsafe.Sizeof(*si))
 	si.Flags = STARTF_USESTDHANDLES
-	if attr.HideWindow {
+	if sys.HideWindow {
 		si.Flags |= STARTF_USESHOWWINDOW
 		si.ShowWindow = SW_HIDE
 	}

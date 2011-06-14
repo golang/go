@@ -30,6 +30,7 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err E
 	sysattr := &syscall.ProcAttr{
 		Dir: attr.Dir,
 		Env: attr.Env,
+		Sys: attr.Sys,
 	}
 	if sysattr.Env == nil {
 		sysattr.Env = Environ()

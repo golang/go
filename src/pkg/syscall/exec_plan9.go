@@ -169,7 +169,7 @@ func init() {
 // no rescheduling, no malloc calls, and no new stack segments.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
-func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, chroot, dir *byte, attr *ProcAttr, fdsToClose []int, pipe int) (pid int, err Error) {
+func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, attr *ProcAttr, fdsToClose []int, pipe int, rflag int) (pid int, err Error) {
 	// Declare all variables at top in case any
 	// declarations require heap allocation (e.g., errbuf).
 	var (
@@ -190,7 +190,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, chroot, dir *
 
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
-	r1, _, _ = RawSyscall(SYS_RFORK, uintptr(RFPROC|RFFDG|RFREND|clearenv), 0, 0)
+	r1, _, _ = RawSyscall(SYS_RFORK, uintptr(RFPROC|RFFDG|RFREND|clearenv|rflag), 0, 0)
 
 	if r1 != 0 {
 		if int(r1) == -1 {
@@ -338,14 +338,18 @@ type envItem struct {
 }
 
 type ProcAttr struct {
-	Dir    string   // Current working directory.
-	Env    []string // Environment.
-	Files  []int    // File descriptors.
-	Chroot string   // Chroot.
+	Dir   string   // Current working directory.
+	Env   []string // Environment.
+	Files []int    // File descriptors.
+	Sys   *SysProcAttr
 }
 
-var zeroAttributes ProcAttr
+type SysProcAttr struct {
+	Rfork int // additional flags to pass to rfork
+}
 
+var zeroProcAttr ProcAttr
+var zeroSysProcAttr SysProcAttr
 
 func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err Error) {
 	var (
@@ -356,7 +360,11 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err Error) 
 	)
 
 	if attr == nil {
-		attr = &zeroAttributes
+		attr = &zeroProcAttr
+	}
+	sys := attr.Sys
+	if sys == nil {
+		sys = &zeroSysProcAttr
 	}
 
 	p[0] = -1
@@ -366,10 +374,6 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err Error) 
 	argv0p := StringBytePtr(argv0)
 	argvp := StringSlicePtr(argv)
 
-	var chroot *byte
-	if attr.Chroot != "" {
-		chroot = StringBytePtr(attr.Chroot)
-	}
 	var dir *byte
 	if attr.Dir != "" {
 		dir = StringBytePtr(attr.Dir)
@@ -439,7 +443,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err Error) 
 	fdsToClose = append(fdsToClose, p[0])
 
 	// Kick off child.
-	pid, err = forkAndExecInChild(argv0p, argvp, envvParsed, chroot, dir, attr, fdsToClose, p[1])
+	pid, err = forkAndExecInChild(argv0p, argvp, envvParsed, dir, attr, fdsToClose, p[1], sys.Rfork)
 
 	if err != nil {
 		if p[0] >= 0 {

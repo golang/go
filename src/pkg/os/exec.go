@@ -37,6 +37,12 @@ type ProcAttr struct {
 	// depending on the underlying operating system.  A nil entry corresponds
 	// to that file being closed when the process starts.
 	Files []*File
+
+	// Operating system-specific process creation attributes.
+	// Note that setting this field means that your program
+	// may not execute properly or even compile on some
+	// operating systems.
+	Sys *syscall.SysProcAttr
 }
 
 // Getpid returns the process id of the caller.
