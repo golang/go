@@ -69,6 +69,7 @@ extern "C" {
 #include <math.h>
 #include <ctype.h>	/* for tolower */
 #include <signal.h>
+#include <time.h>
 
 /*
  * OS-specific crap
