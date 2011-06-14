@@ -21,7 +21,8 @@ func TestHeaderParsing(t *testing.T) {
 	var headerValueBlockBuf bytes.Buffer
 	writeHeaderValueBlock(&headerValueBlockBuf, headers)
 
-	newHeaders, err := parseHeaderValueBlock(&headerValueBlockBuf)
+	const bogusStreamId = 1
+	newHeaders, err := parseHeaderValueBlock(&headerValueBlockBuf, bogusStreamId)
 	if err != nil {
 		t.Fatal("parseHeaderValueBlock:", err)
 	}
