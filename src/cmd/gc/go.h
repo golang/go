@@ -1195,7 +1195,7 @@ void	walkstmt(Node **np);
 void	walkstmtlist(NodeList *l);
 
 /*
- *	arch-specific ggen.c/gsubr.c/gobj.c
+ *	arch-specific ggen.c/gsubr.c/gobj.c/pgen.c
  */
 #define	P	((Prog*)0)
 
@@ -1237,6 +1237,7 @@ int	dsymptr(Sym *s, int off, Sym *x, int xoff);
 int	duintxx(Sym *s, int off, uint64 v, int wid);
 void	dumpdata(void);
 void	dumpfuncs(void);
+void	fixautoused(Prog*);
 void	gdata(Node*, Node*, int);
 void	gdatacomplex(Node*, Mpcplx*);
 void	gdatastring(Node*, Strlit*);
@@ -1246,6 +1247,7 @@ void	ggloblsym(Sym *s, int32 width, int dupok);
 Prog*	gjmp(Prog*);
 void	gused(Node*);
 int	isfat(Type*);
+void	markautoused(Prog*);
 Plist*	newplist(void);
 Node*	nodarg(Type*, int);
 void	nopout(Prog*);
