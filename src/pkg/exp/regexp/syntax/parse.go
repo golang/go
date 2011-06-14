@@ -7,6 +7,7 @@ package syntax
 import (
 	"os"
 	"sort"
+	"strings"
 	"unicode"
 	"utf8"
 )
@@ -119,14 +120,17 @@ func (p *parser) op(op Op) *Regexp {
 
 // repeat replaces the top stack element with itself repeated
 // according to op.
-func (p *parser) repeat(op Op, opstr string) os.Error {
+func (p *parser) repeat(op Op, min, max int, flags Flags, opstr string) os.Error {
 	n := len(p.stack)
 	if n == 0 {
 		return &Error{ErrMissingRepeatArgument, opstr}
 	}
 	sub := p.stack[n-1]
 	re := &Regexp{
-		Op: op,
+		Op:    op,
+		Min:   min,
+		Max:   max,
+		Flags: flags,
 	}
 	re.Sub = re.Sub0[:1]
 	re.Sub[0] = sub
@@ -185,6 +189,23 @@ func (p *parser) alternate() *Regexp {
 	return p.push(re)
 }
 
+func literalRegexp(s string, flags Flags) *Regexp {
+	re := &Regexp{
+		Op:    OpLiteral,
+		Flags: flags,
+	}
+	re.Rune = re.Rune0[:0] // use local storage for small strings
+	for _, c := range s {
+		if len(re.Rune) >= cap(re.Rune) {
+			// string is too long to fit in Rune0.  let Go handle it
+			re.Rune = []int(s)
+			break
+		}
+		re.Rune = append(re.Rune, c)
+	}
+	return re
+}
+
 // Parsing.
 
 func Parse(s string, flags Flags) (*Regexp, os.Error) {
@@ -193,33 +214,24 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 		if err := checkUTF8(s); err != nil {
 			return nil, err
 		}
-		re := &Regexp{
-			Op:    OpLiteral,
-			Flags: flags,
-		}
-		re.Rune = re.Rune0[:0] // use local storage for small strings
-		for _, c := range s {
-			if len(re.Rune) >= cap(re.Rune) {
-				// string is too long to fit in Rune0.  let Go handle it
-				re.Rune = []int(s)
-				break
-			}
-			re.Rune = append(re.Rune, c)
-		}
-		return re, nil
+		return literalRegexp(s, flags), nil
 	}
 
 	// Otherwise, must do real work.
 	var (
-		p   parser
-		err os.Error
-		c   int
-		op  Op
+		p          parser
+		err        os.Error
+		c          int
+		op         Op
+		lastRepeat string
+		min, max   int
 	)
 	p.flags = flags
 	p.wholeRegexp = s
 	t := s
 	for t != "" {
+		repeat := ""
+	BigSwitch:
 		switch t[0] {
 		default:
 			if c, t, err = nextRune(t); err != nil {
@@ -228,11 +240,11 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 			p.literal(c)
 
 		case '(':
-			// TODO: Actual Perl flag parsing.
-			if len(t) >= 3 && t[1] == '?' && t[2] == ':' {
-				// non-capturing paren
-				p.op(opLeftParen)
-				t = t[3:]
+			if p.flags&PerlX != 0 && len(t) >= 2 && t[1] == '?' {
+				// Flag changes and non-capturing groups.
+				if t, err = p.parsePerlFlags(t); err != nil {
+					return nil, err
+				}
 				break
 			}
 			p.numCap++
@@ -283,16 +295,109 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 			case '?':
 				op = OpQuest
 			}
-			// TODO: greedy
-			if err = p.repeat(op, t[0:1]); err != nil {
+			repeat = t
+			t = t[1:]
+			goto Repeat
+		case '{':
+			op = OpRepeat
+			n, m, tt, ok := p.parseRepeat(t)
+			if !ok {
+				// If the repeat cannot be parsed, { is a literal.
+				p.literal('{')
+				t = t[1:]
+				break
+			}
+			repeat, t = t, tt
+			min, max = n, m
+		Repeat:
+			flags := p.flags
+			if p.flags&PerlX != 0 {
+				if len(t) > 0 && t[0] == '?' {
+					t = t[1:]
+					flags ^= NonGreedy
+				}
+				if lastRepeat != "" {
+					// In Perl it is not allowed to stack repetition operators:
+					// a** is a syntax error, not a doubled star, and a++ means
+					// something else entirely, which we don't support!
+					return nil, &Error{ErrInvalidRepeatOp, lastRepeat[:len(lastRepeat)-len(t)]}
+				}
+			}
+			if err = p.repeat(op, min, max, flags, repeat[:len(repeat)-len(t)]); err != nil {
 				return nil, err
 			}
-			t = t[1:]
-		case '{':
-			return nil, os.NewError("repeat not implemented")
 		case '\\':
-			return nil, os.NewError("escape not implemented")
+			if p.flags&PerlX != 0 && len(t) >= 2 {
+				switch t[1] {
+				case 'A':
+					p.op(OpBeginText)
+					t = t[2:]
+					break BigSwitch
+				case 'b':
+					p.op(OpWordBoundary)
+					t = t[2:]
+					break BigSwitch
+				case 'B':
+					p.op(OpNoWordBoundary)
+					t = t[2:]
+					break BigSwitch
+				case 'C':
+					// any byte; not supported
+					return nil, &Error{ErrInvalidEscape, t[:2]}
+				case 'Q':
+					// \Q ... \E: the ... is always literals
+					var lit string
+					if i := strings.Index(t, `\E`); i < 0 {
+						lit = t[2:]
+						t = ""
+					} else {
+						lit = t[2:i]
+						t = t[i+2:]
+					}
+					p.push(literalRegexp(lit, p.flags))
+					break BigSwitch
+				case 'z':
+					p.op(OpEndText)
+					t = t[2:]
+					break BigSwitch
+				}
+			}
+
+			re := &Regexp{Op: OpCharClass, Flags: p.flags}
+
+			// Look for Unicode character group like \p{Han}
+			if len(t) >= 2 && (t[1] == 'p' || t[1] == 'P') {
+				r, rest, err := p.parseUnicodeClass(t, re.Rune0[:0])
+				if err != nil {
+					return nil, err
+				}
+				if r != nil {
+					re.Rune = r
+					t = rest
+					// TODO: Handle FoldCase flag.
+					p.push(re)
+					break BigSwitch
+				}
+			}
+
+			// Perl character class escape.
+			if r, rest := p.parsePerlClassEscape(t, re.Rune0[:0]); r != nil {
+				re.Rune = r
+				t = rest
+				// TODO: Handle FoldCase flag.
+				p.push(re)
+				break BigSwitch
+			}
+
+			// TODO: Give re back to parser's pool.
+
+			// Ordinary single-character escape.
+			if c, t, err = p.parseEscape(t); err != nil {
+				return nil, err
+			}
+			p.literal(c)
 		}
+		lastRepeat = repeat
 	}
 
 	p.concat()
@@ -307,6 +412,187 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 		return nil, &Error{ErrMissingParen, s}
 	}
 	return p.stack[0], nil
+}
+
+// parseRepeat parses {min} (max=min) or {min,} (max=-1) or {min,max}.
+// If s is not of that form, it returns ok == false.
+func (p *parser) parseRepeat(s string) (min, max int, rest string, ok bool) {
+	if s == "" || s[0] != '{' {
+		return
+	}
+	s = s[1:]
+	if min, s, ok = p.parseInt(s); !ok {
+		return
+	}
+	if s == "" {
+		return
+	}
+	if s[0] != ',' {
+		max = min
+	} else {
+		s = s[1:]
+		if s == "" {
+			return
+		}
+		if s[0] == '}' {
+			max = -1
+		} else if max, s, ok = p.parseInt(s); !ok {
+			return
+		}
+	}
+	if s == "" || s[0] != '}' {
+		return
+	}
+	rest = s[1:]
+	ok = true
+	return
+}
+
+// parsePerlFlags parses a Perl flag setting or non-capturing group or both,
+// like (?i) or (?: or (?i:.  It removes the prefix from s and updates the parse state.
+// The caller must have ensured that s begins with "(?".
+func (p *parser) parsePerlFlags(s string) (rest string, err os.Error) {
+	t := s
+
+	// Check for named captures, first introduced in Python's regexp library.
+	// As usual, there are three slightly different syntaxes:
+	//
+	//   (?P<name>expr)   the original, introduced by Python
+	//   (?<name>expr)    the .NET alteration, adopted by Perl 5.10
+	//   (?'name'expr)    another .NET alteration, adopted by Perl 5.10
+	//
+	// Perl 5.10 gave in and implemented the Python version too,
+	// but they claim that the last two are the preferred forms.
+	// PCRE and languages based on it (specifically, PHP and Ruby)
+	// support all three as well.  EcmaScript 4 uses only the Python form.
+	//
+	// In both the open source world (via Code Search) and the
+	// Google source tree, (?P<expr>name) is the dominant form,
+	// so that's the one we implement.  One is enough.
+	if len(t) > 4 && t[2] == 'P' && t[3] == '<' {
+		// Pull out name.
+		end := strings.IndexRune(t, '>')
+		if end < 0 {
+			if err = checkUTF8(t); err != nil {
+				return "", err
+			}
+			return "", &Error{ErrInvalidNamedCapture, s}
+		}
+
+		capture := t[:end+1] // "(?P<name>"
+		name := t[4:end]     // "name"
+		if err = checkUTF8(name); err != nil {
+			return "", err
+		}
+		if !isValidCaptureName(name) {
+			return "", &Error{ErrInvalidNamedCapture, capture}
+		}
+
+		// Like ordinary capture, but named.
+		p.numCap++
+		re := p.op(opLeftParen)
+		re.Cap = p.numCap
+		re.Name = name
+		return t[end+1:], nil
+	}
+
+	// Non-capturing group.  Might also twiddle Perl flags.
+	var c int
+	t = t[2:] // skip (?
+	flags := p.flags
+	sign := +1
+	sawFlag := false
+Loop:
+	for t != "" {
+		if c, t, err = nextRune(t); err != nil {
+			return "", err
+		}
+		switch c {
+		default:
+			break Loop
+
+		// Flags.
+		case 'i':
+			flags |= FoldCase
+			sawFlag = true
+		case 'm':
+			flags &^= OneLine
+			sawFlag = true
+		case 's':
+			flags |= DotNL
+			sawFlag = true
+		case 'U':
+			flags |= NonGreedy
+			sawFlag = true
+
+		// Switch to negation.
+		case '-':
+			if sign < 0 {
+				break Loop
+			}
+			sign = -1
+			// Invert flags so that | above turn into &^ and vice versa.
+			// We'll invert flags again before using it below.
+			flags = ^flags
+			sawFlag = false
+
+		// End of flags, starting group or not.
+		case ':', ')':
+			if sign < 0 {
+				if !sawFlag {
+					break Loop
+				}
+				flags = ^flags
+			}
+			if c == ':' {
+				// Open new group
+				p.op(opLeftParen)
+			}
+			p.flags = flags
+			return t, nil
+		}
+	}
+
+	return "", &Error{ErrInvalidPerlOp, s[:len(s)-len(t)]}
+}
+
+// isValidCaptureName reports whether name
+// is a valid capture name: [A-Za-z0-9_]+.
+// PCRE limits names to 32 bytes.
+// Python rejects names starting with digits.
+// We don't enforce either of those.
+func isValidCaptureName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, c := range name {
+		if c != '_' && !isalnum(c) {
+			return false
+		}
+	}
+	return true
+}
+
+// parseInt parses a decimal integer.
+func (p *parser) parseInt(s string) (n int, rest string, ok bool) {
+	if s == "" || s[0] < '0' || '9' < s[0] {
+		return
+	}
+	// Disallow leading zeros.
+	if len(s) >= 2 && s[0] == '0' && '0' <= s[1] && s[1] <= '9' {
+		return
+	}
+	for s != "" && '0' <= s[0] && s[0] <= '9' {
+		// Avoid overflow.
+		if n >= 1e8 {
+			return
+		}
+		n = n*10 + int(s[0]) - '0'
+		s = s[1:]
+	}
+	rest = s
+	ok = true
+	return
 }
 
 // parseVerticalBar handles a | in the input.
@@ -371,6 +657,121 @@ func (p *parser) parseRightParen() os.Error {
 	return nil
 }
 
+// parseEscape parses an escape sequence at the beginning of s
+// and returns the rune.
+func (p *parser) parseEscape(s string) (r int, rest string, err os.Error) {
+	t := s[1:]
+	if t == "" {
+		return 0, "", &Error{ErrTrailingBackslash, ""}
+	}
+	c, t, err := nextRune(t)
+	if err != nil {
+		return 0, "", err
+	}
+
+Switch:
+	switch c {
+	default:
+		if c < utf8.RuneSelf && !isalnum(c) {
+			// Escaped non-word characters are always themselves.
+			// PCRE is not quite so rigorous: it accepts things like
+			// \q, but we don't.  We once rejected \_, but too many
+			// programs and people insist on using it, so allow \_.
+			return c, t, nil
+		}
+
+	// Octal escapes.
+	case '1', '2', '3', '4', '5', '6', '7':
+		// Single non-zero digit is a backreference; not supported
+		if t == "" || t[0] < '0' || t[0] > '7' {
+			break
+		}
+		fallthrough
+	case '0':
+		// Consume up to three octal digits; already have one.
+		r = c - '0'
+		for i := 1; i < 3; i++ {
+			if t == "" || t[0] < '0' || t[0] > '7' {
+				break
+			}
+			r = r*8 + int(t[0]) - '0'
+			t = t[1:]
+		}
+		return r, t, nil
+
+	// Hexadecimal escapes.
+	case 'x':
+		if t == "" {
+			break
+		}
+		if c, t, err = nextRune(t); err != nil {
+			return 0, "", err
+		}
+		if c == '{' {
+			// Any number of digits in braces.
+			// Perl accepts any text at all; it ignores all text
+			// after the first non-hex digit.  We require only hex digits,
+			// and at least one.
+			nhex := 0
+			r = 0
+			for {
+				if t == "" {
+					break Switch
+				}
+				if c, t, err = nextRune(t); err != nil {
+					return 0, "", err
+				}
+				if c == '}' {
+					break
+				}
+				v := unhex(c)
+				if v < 0 {
+					break Switch
+				}
+				r = r*16 + v
+				if r > unicode.MaxRune {
+					break Switch
+				}
+			}
+			if nhex == 0 {
+				break Switch
+			}
+			return r, t, nil
+		}
+
+		// Easy case: two hex digits.
+		x := unhex(c)
+		if c, t, err = nextRune(t); err != nil {
+			return 0, "", err
+		}
+		y := unhex(c)
+		if x < 0 || y < 0 {
+			break
+		}
+		return x*16 + y, t, nil
+
+	// C escapes.  There is no case 'b', to avoid misparsing
+	// the Perl word-boundary \b as the C backspace \b
+	// when in POSIX mode.  In Perl, /\b/ means word-boundary
+	// but /[\b]/ means backspace.  We don't support that.
+	// If you want a backspace, embed a literal backspace
+	// character or use \x08.
+	case 'a':
+		return '\a', t, err
+	case 'f':
+		return '\f', t, err
+	case 'n':
+		return '\n', t, err
+	case 'r':
+		return '\r', t, err
+	case 't':
+		return '\t', t, err
+	case 'v':
+		return '\v', t, err
+	}
+	return 0, "", &Error{ErrInvalidEscape, s[:len(s)-len(t)]}
+}
+
 // parseClassChar parses a character class character at the beginning of s
 // and returns it.
 func (p *parser) parseClassChar(s, wholeClass string) (r int, rest string, err os.Error) {
@@ -378,9 +779,131 @@ func (p *parser) parseClassChar(s, wholeClass string) (r int, rest string, err o
 		return 0, "", &Error{Code: ErrMissingBracket, Expr: wholeClass}
 	}
 
-	// TODO: Escapes
+	// Allow regular escape sequences even though
+	// many need not be escaped in this context.
+	if s[0] == '\\' {
+		return p.parseEscape(s)
+	}
 
 	return nextRune(s)
+}
+
+type charGroup struct {
+	sign  int
+	class []int
+}
+
+// parsePerlClassEscape parses a leading Perl character class escape like \d
+// from the beginning of s.  If one is present, it appends the characters to r
+// and returns the new slice r and the remainder of the string.
+func (p *parser) parsePerlClassEscape(s string, r []int) (out []int, rest string) {
+	if p.flags&PerlX == 0 || len(s) < 2 || s[0] != '\\' {
+		return
+	}
+	g := perlGroup[s[0:2]]
+	if g.sign == 0 {
+		return
+	}
+	if g.sign < 0 {
+		r = appendNegatedClass(r, g.class)
+	} else {
+		r = appendClass(r, g.class)
+	}
+	return r, s[2:]
+}
+
+// parseNamedClass parses a leading POSIX named character class like [:alnum:]
+// from the beginning of s.  If one is present, it appends the characters to r
+// and returns the new slice r and the remainder of the string.
+func (p *parser) parseNamedClass(s string, r []int) (out []int, rest string, err os.Error) {
+	if len(s) < 2 || s[0] != '[' || s[1] != ':' {
+		return
+	}
+
+	i := strings.Index(s[2:], ":]")
+	if i < 0 {
+		return
+	}
+	i += 2
+	name, s := s[0:i+2], s[i+2:]
+	g := posixGroup[name]
+	if g.sign == 0 {
+		return nil, "", &Error{ErrInvalidCharRange, name}
+	}
+	if g.sign < 0 {
+		r = appendNegatedClass(r, g.class)
+	} else {
+		r = appendClass(r, g.class)
+	}
+	return r, s, nil
+}
+
+// unicodeTable returns the unicode.RangeTable identified by name.
+func unicodeTable(name string) *unicode.RangeTable {
+	if t := unicode.Categories[name]; t != nil {
+		return t
+	}
+	if t := unicode.Scripts[name]; t != nil {
+		return t
+	}
+	return nil
+}
+
+// parseUnicodeClass parses a leading Unicode character class like \p{Han}
+// from the beginning of s.  If one is present, it appends the characters to r
+// and returns the new slice r and the remainder of the string.
+func (p *parser) parseUnicodeClass(s string, r []int) (out []int, rest string, err os.Error) {
+	if p.flags&UnicodeGroups == 0 || len(s) < 2 || s[0] != '\\' || s[1] != 'p' && s[1] != 'P' {
+		return
+	}
+
+	// Committed to parse or return error.
+	sign := +1
+	if s[1] == 'P' {
+		sign = -1
+	}
+	t := s[2:]
+	c, t, err := nextRune(t)
+	if err != nil {
+		return
+	}
+	var seq, name string
+	if c != '{' {
+		// Single-letter name.
+		seq = s[:len(s)-len(t)]
+		name = seq[2:]
+	} else {
+		// Name is in braces.
+		end := strings.IndexRune(s, '}')
+		if end < 0 {
+			if err = checkUTF8(s); err != nil {
+				return
+			}
+			return nil, "", &Error{ErrInvalidCharRange, s}
+		}
+		seq, t = s[:end+1], s[end+1:]
+		name = s[3:end]
+		if err = checkUTF8(name); err != nil {
+			return
+		}
+	}
+
+	// Group can have leading negation too.  \p{^Han} == \P{Han}, \P{^Han} == \p{Han}.
+	if name != "" && name[0] == '^' {
+		sign = -sign
+		name = name[1:]
+	}
+
+	tab := unicodeTable(name)
+	if tab == nil {
+		return nil, "", &Error{ErrInvalidCharRange, seq}
+	}
+	if sign > 0 {
+		r = appendTable(r, tab)
+	} else {
+		r = appendNegatedTable(r, tab)
+	}
+	return r, t, nil
 }
 
 // parseClass parses a character class at the beginning of s
@@ -413,9 +936,33 @@ func (p *parser) parseClass(s string) (rest string, err os.Error) {
 		}
 		first = false
 
-		// TODO: Look for [:alnum:]
-		// TODO: Look for Unicode group.
-		// TODO: Look for Perl group.
+		// Look for POSIX [:alnum:] etc.
+		if len(t) > 2 && t[0] == '[' && t[1] == ':' {
+			nclass, nt, err := p.parseNamedClass(t, class)
+			if err != nil {
+				return "", err
+			}
+			if nclass != nil {
+				class, t = nclass, nt
+				continue
+			}
+		}
+
+		// Look for Unicode character group like \p{Han}.
+		nclass, nt, err := p.parseUnicodeClass(t, class)
+		if err != nil {
+			return "", err
+		}
+		if nclass != nil {
+			class, t = nclass, nt
+			continue
+		}
+
+		// Look for Perl character class symbols (extension).
+		if nclass, nt := p.parsePerlClassEscape(t, class); nclass != nil {
+			class, t = nclass, nt
+			continue
+		}
 
 		// Single character or simple range.
 		rng := t
@@ -435,24 +982,11 @@ func (p *parser) parseClass(s string) (rest string, err os.Error) {
 				return "", &Error{Code: ErrInvalidCharRange, Expr: rng}
 			}
 		}
-
-		// Expand last range if overlaps or abuts.
-		if n := len(class); n > 0 {
-			clo, chi := class[n-2], class[n-1]
-			if lo <= chi+1 && clo <= hi+1 {
-				if lo < clo {
-					class[n-2] = lo
-				}
-				if hi > chi {
-					class[n-1] = hi
-				}
-				continue
-			}
-		}
-
-		class = append(class, lo, hi)
+		class = appendRange(class, lo, hi)
 	}
 	t = t[1:] // chop ]
+
+	// TODO: Handle FoldCase flag.
 
 	// Use &re.Rune instead of &class to avoid allocation.
 	re.Rune = class
@@ -490,6 +1024,117 @@ func cleanClass(rp *[]int) []int {
 	}
 
 	return r[:w]
+}
+
+// appendRange returns the result of appending the range lo-hi to the class r.
+func appendRange(r []int, lo, hi int) []int {
+	// Expand last range if overlaps or abuts.
+	if n := len(r); n > 0 {
+		rlo, rhi := r[n-2], r[n-1]
+		if lo <= rhi+1 && rlo <= hi+1 {
+			if lo < rlo {
+				r[n-2] = lo
+			}
+			if hi > rhi {
+				r[n-1] = hi
+			}
+			return r
+		}
+	}
+
+	return append(r, lo, hi)
+}
+
+// appendClass returns the result of appending the class x to the class r.
+// It assume x is clean.
+func appendClass(r []int, x []int) []int {
+	for i := 0; i < len(x); i += 2 {
+		r = appendRange(r, x[i], x[i+1])
+	}
+	return r
+}
+
+// appendNegatedClass returns the result of appending the negation of the class x to the class r.
+// It assumes x is clean.
+func appendNegatedClass(r []int, x []int) []int {
+	nextLo := 0
+	for i := 0; i < len(x); i += 2 {
+		lo, hi := x[i], x[i+1]
+		if nextLo <= lo-1 {
+			r = appendRange(r, nextLo, lo-1)
+		}
+		nextLo = hi + 1
+	}
+	if nextLo <= unicode.MaxRune {
+		r = appendRange(r, nextLo, unicode.MaxRune)
+	}
+	return r
+}
+
+// appendTable returns the result of appending x to the class r.
+func appendTable(r []int, x *unicode.RangeTable) []int {
+	for _, xr := range x.R16 {
+		lo, hi, stride := int(xr.Lo), int(xr.Hi), int(xr.Stride)
+		if stride == 1 {
+			r = appendRange(r, lo, hi)
+			continue
+		}
+		for c := lo; c <= hi; c += stride {
+			r = appendRange(r, c, c)
+		}
+	}
+	for _, xr := range x.R32 {
+		lo, hi, stride := int(xr.Lo), int(xr.Hi), int(xr.Stride)
+		if stride == 1 {
+			r = appendRange(r, lo, hi)
+			continue
+		}
+		for c := lo; c <= hi; c += stride {
+			r = appendRange(r, c, c)
+		}
+	}
+	return r
+}
+
+// appendNegatedTable returns the result of appending the negation of x to the class r.
+func appendNegatedTable(r []int, x *unicode.RangeTable) []int {
+	nextLo := 0 // lo end of next class to add
+	for _, xr := range x.R16 {
+		lo, hi, stride := int(xr.Lo), int(xr.Hi), int(xr.Stride)
+		if stride == 1 {
+			if nextLo <= lo-1 {
+				r = appendRange(r, nextLo, lo-1)
+			}
+			nextLo = hi + 1
+			continue
+		}
+		for c := lo; c <= hi; c += stride {
+			if nextLo <= c-1 {
+				r = appendRange(r, nextLo, c-1)
+			}
+			nextLo = c + 1
+		}
+	}
+	for _, xr := range x.R32 {
+		lo, hi, stride := int(xr.Lo), int(xr.Hi), int(xr.Stride)
+		if stride == 1 {
+			if nextLo <= lo-1 {
+				r = appendRange(r, nextLo, lo-1)
+			}
+			nextLo = hi + 1
+			continue
+		}
+		for c := lo; c <= hi; c += stride {
+			if nextLo <= c-1 {
+				r = appendRange(r, nextLo, c-1)
+			}
+			nextLo = c + 1
+		}
+	}
+	if nextLo <= unicode.MaxRune {
+		r = appendRange(r, nextLo, unicode.MaxRune)
+	}
+	return r
 }
 
 // negateClass overwrites r and returns r's negation.
@@ -558,4 +1203,21 @@ func nextRune(s string) (c int, t string, err os.Error) {
 		return 0, "", &Error{Code: ErrInvalidUTF8, Expr: s}
 	}
 	return c, s[size:], nil
+}
+
+func isalnum(c int) bool {
+	return '0' <= c && c <= '9' || 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
+}
+
+func unhex(c int) int {
+	if '0' <= c && c <= '9' {
+		return c - '0'
+	}
+	if 'a' <= c && c <= 'f' {
+		return c - 'a' + 10
+	}
+	if 'A' <= c && c <= 'F' {
+		return c - 'A' + 10
+	}
+	return -1
 }
