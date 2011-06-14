@@ -1284,9 +1284,11 @@ func Attach(pid int) (Process, os.Error) {
 // details.
 func StartProcess(argv0 string, argv []string, attr *os.ProcAttr) (Process, os.Error) {
 	sysattr := &syscall.ProcAttr{
-		Dir:    attr.Dir,
-		Env:    attr.Env,
-		Ptrace: true,
+		Dir: attr.Dir,
+		Env: attr.Env,
+		Sys: &syscall.SysProcAttr{
+			Ptrace: true,
+		},
 	}
 	p := newProcess(-1)
 

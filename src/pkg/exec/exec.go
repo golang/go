@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"syscall"
 )
 
 // Error records the name of a binary that failed to be be executed
@@ -61,6 +62,10 @@ type Cmd struct {
 	// goroutine at a time will call Write.
 	Stdout io.Writer
 	Stderr io.Writer
+
+	// SysProcAttr holds optional, operating system-specific attributes.
+	// Run passes it to os.StartProcess as the os.ProcAttr's Sys field.
+	SysProcAttr *syscall.SysProcAttr
 
 	// Process is the underlying process, once started.
 	Process *os.Process
@@ -225,6 +230,7 @@ func (c *Cmd) Start() os.Error {
 		Dir:   c.Dir,
 		Files: c.childFiles,
 		Env:   c.envv(),
+		Sys:   c.SysProcAttr,
 	})
 	if err != nil {
 		return err
