@@ -7,6 +7,7 @@ include ../../../../Make.inc
 TARG=exp/regexp/syntax
 GOFILES=\
 	parse.go\
+	perl_groups.go\
 	regexp.go\
 
 include ../../../../Make.pkg
