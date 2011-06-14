@@ -267,10 +267,9 @@ func (f *Framer) writeHeadersFrame(frame *HeadersFrame) (err os.Error) {
 func (f *Framer) writeDataFrame(frame *DataFrame) (err os.Error) {
 	// Validate DataFrame
 	if frame.StreamId&0x80000000 != 0 || len(frame.Data) >= 0x0f000000 {
-		return InvalidDataFrame
+		return &Error{InvalidDataFrame, frame.StreamId}
 	}
 
-	// TODO(willchan): Support data compression.
 	// Serialize frame to Writer
 	if err = binary.Write(f.w, binary.BigEndian, frame.StreamId); err != nil {
 		return

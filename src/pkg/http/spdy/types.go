@@ -10,7 +10,6 @@ import (
 	"http"
 	"io"
 	"os"
-	"strconv"
 )
 
 //  Data Frame Format
@@ -302,33 +301,41 @@ const HeaderDictionary = "optionsgetheadpostputdeletetrace" +
 	"chunkedtext/htmlimage/pngimage/jpgimage/gifapplication/xmlapplication/xhtmltext/plainpublicmax-age" +
 	"charset=iso-8859-1utf-8gzipdeflateHTTP/1.1statusversionurl\x00"
 
-type FramerError int
+// A SPDY specific error.
+type ErrorCode string
 
 const (
-	Internal FramerError = iota
-	InvalidControlFrame
-	UnlowercasedHeaderName
-	DuplicateHeaders
-	UnknownFrameType
-	InvalidDataFrame
+	UnlowercasedHeaderName     ErrorCode = "header was not lowercased"
+	DuplicateHeaders           ErrorCode = "multiple headers with same name"
+	WrongCompressedPayloadSize ErrorCode = "compressed payload size was incorrect"
+	UnknownFrameType           ErrorCode = "unknown frame type"
+	InvalidControlFrame        ErrorCode = "invalid control frame"
+	InvalidDataFrame           ErrorCode = "invalid data frame"
+	InvalidHeaderPresent       ErrorCode = "frame contained invalid header"
 )
 
-func (e FramerError) String() string {
-	switch e {
-	case Internal:
-		return "Internal"
-	case InvalidControlFrame:
-		return "InvalidControlFrame"
-	case UnlowercasedHeaderName:
-		return "UnlowercasedHeaderName"
-	case DuplicateHeaders:
-		return "DuplicateHeaders"
-	case UnknownFrameType:
-		return "UnknownFrameType"
-	case InvalidDataFrame:
-		return "InvalidDataFrame"
-	}
-	return "Error(" + strconv.Itoa(int(e)) + ")"
+// Error contains both the type of error and additional values. StreamId is 0
+// if Error is not associated with a stream.
+type Error struct {
+	Err      ErrorCode
+	StreamId uint32
+}
+
+func (e *Error) String() string {
+	return string(e.Err)
+}
+
+var invalidReqHeaders = map[string]bool{
+	"Connection":        true,
+	"Keep-Alive":        true,
+	"Proxy-Connection":  true,
+	"Transfer-Encoding": true,
+}
+
+var invalidRespHeaders = map[string]bool{
+	"Connection":        true,
+	"Keep-Alive":        true,
+	"Transfer-Encoding": true,
 }
 
 // Framer handles serializing/deserializing SPDY frames, including compressing/
@@ -339,7 +346,7 @@ type Framer struct {
 	headerBuf                 *bytes.Buffer
 	headerCompressor          *zlib.Writer
 	r                         io.Reader
-	headerReader              corkedReader
+	headerReader              io.LimitedReader
 	headerDecompressor        io.ReadCloser
 }
 
