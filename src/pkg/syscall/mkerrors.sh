@@ -47,6 +47,7 @@ includes_Darwin='
 #define _DARWIN_USE_64_BIT_INODE
 #include <sys/types.h>
 #include <sys/event.h>
+#include <sys/ptrace.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -136,7 +137,7 @@ done
 		$2 == "CTL_MAXNAME" ||
 		$2 ~ /^(MS|MNT)_/ ||
 		$2 ~ /^TUN(SET|GET|ATTACH|DETACH)/ ||
-		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
+		$2 ~ /^(O|F|FD|NAME|S|PTRACE|PT)_/ ||
 		$2 ~ /^LINUX_REBOOT_CMD_/ ||
 		$2 ~ /^LINUX_REBOOT_MAGIC[12]$/ ||
 		$2 !~ "NLA_TYPE_MASK" &&
