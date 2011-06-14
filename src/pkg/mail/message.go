@@ -59,7 +59,7 @@ func ReadMessage(r io.Reader) (msg *Message, err os.Error) {
 	return &Message{
 		Header: Header(hdr),
 		Body:   tp.R,
-	},nil
+	}, nil
 }
 
 // Layouts suitable for passing to time.Parse.
@@ -228,7 +228,7 @@ func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
 	if err == nil {
 		return &Address{
 			Address: spec,
-		},err
+		}, err
 	}
 	debug.Printf("parseAddress: not an addr-spec: %v", err)
 	debug.Printf("parseAddress: state is now %q", *p)
@@ -260,7 +260,7 @@ func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
 	return &Address{
 		Name:    displayName,
 		Address: spec,
-	},nil
+	}, nil
 }
 
 // consumeAddrSpec parses a single RFC 5322 addr-spec at the start of p.
