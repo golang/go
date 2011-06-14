@@ -403,6 +403,8 @@ readsym(PeObj *obj, int i, PeSym **y)
 
 	if(s != nil && s->type == 0 && !(sym->sclass == IMAGE_SYM_CLASS_STATIC && sym->value == 0))
 		s->type = SXREF;
+	if(strncmp(sym->name, "__imp__", 6) == 0)
+		s->got = -2; // flag for __imp__
 	sym->sym = s;
 
 	return 0;
