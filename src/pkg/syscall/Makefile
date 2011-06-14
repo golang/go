@@ -17,12 +17,14 @@ GOFILES=\
 	ztypes_$(GOOS)_$(GOARCH).go\
 
 GOFILES_freebsd=\
+	bpf_bsd.go\
 	exec_unix.go\
 	route_bsd.go\
 	syscall_bsd.go\
 	syscall_unix.go\
 
 GOFILES_darwin=\
+	bpf_bsd.go\
 	exec_unix.go\
 	route_bsd.go\
 	syscall_bsd.go\
