@@ -217,6 +217,27 @@ func TestAddressParsing(t *testing.T) {
 				},
 			},
 		},
+		// Custom example of RFC 2047 "B"-encoded ISO-8859-1 address.
+		{
+			`=?ISO-8859-1?B?SvZyZw==?= <joerg@example.com>`,
+			[]*Address{
+				&Address{
+					Name:    `Jörg`,
+					Address: "joerg@example.com",
+				},
+			},
+		},
+		// Custom example of RFC 2047 "B"-encoded UTF-8 address.
+		{
+			// XXX: a different example
+			`=?UTF-8?B?SsO2cmc=?= <joerg@example.com>`,
+			[]*Address{
+				&Address{
+					Name:    `Jörg`,
+					Address: "joerg@example.com",
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		addrs, err := newAddrParser(test.addrsStr).parseAddressList()
@@ -225,7 +246,7 @@ func TestAddressParsing(t *testing.T) {
 			continue
 		}
 		if !reflect.DeepEqual(addrs, test.exp) {
-			t.Errorf("Parse of %q: got %+v, want %+v", test.addrsStr, addrs, test.exp)
+			t.Errorf("Parse of %q: got %+v, want %+v", test.addrsStr, *addrs[0], *test.exp[0])
 		}
 	}
 }

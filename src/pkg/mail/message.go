@@ -18,8 +18,10 @@ package mail
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/textproto"
 	"os"
@@ -57,7 +59,7 @@ func ReadMessage(r io.Reader) (msg *Message, err os.Error) {
 	return &Message{
 		Header: Header(hdr),
 		Body:   tp.R,
-	}, nil
+	},nil
 }
 
 // Layouts suitable for passing to time.Parse.
@@ -226,7 +228,7 @@ func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
 	if err == nil {
 		return &Address{
 			Address: spec,
-		}, err
+		},err
 	}
 	debug.Printf("parseAddress: not an addr-spec: %v", err)
 	debug.Printf("parseAddress: state is now %q", *p)
@@ -258,7 +260,7 @@ func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
 	return &Address{
 		Name:    displayName,
 		Address: spec,
-	}, nil
+	},nil
 }
 
 // consumeAddrSpec parses a single RFC 5322 addr-spec at the start of p.
@@ -428,37 +430,68 @@ func decodeRFC2047Word(s string) (string, os.Error) {
 		return "", os.ErrorString("mail: address not RFC 2047 encoded")
 	}
 	charset, enc := strings.ToLower(fields[1]), strings.ToLower(fields[2])
-	// TODO(dsymonds): Support "b" encoding too.
-	if enc != "q" {
-		return "", fmt.Errorf("mail: RFC 2047 encoding not supported: %q", enc)
-	}
 	if charset != "iso-8859-1" && charset != "utf-8" {
 		return "", fmt.Errorf("mail: charset not supported: %q", charset)
 	}
 
-	in := fields[3]
-	b := new(bytes.Buffer)
-	for i := 0; i < len(in); i++ {
-		switch c := in[i]; {
-		case c == '=' && i+2 < len(in):
-			x, err := strconv.Btoi64(in[i+1:i+3], 16)
-			if err != nil {
-				return "", fmt.Errorf("mail: invalid RFC 2047 encoding: %q", in[i:i+3])
-			}
-			i += 2
-			switch charset {
-			case "iso-8859-1":
-				b.WriteRune(int(x))
-			case "utf-8":
-				b.WriteByte(byte(x))
-			}
-		case c == '_':
-			b.WriteByte(' ')
-		default:
-			b.WriteByte(c)
-		}
+	in := bytes.NewBufferString(fields[3])
+	var r io.Reader
+	switch enc {
+	case "b":
+		r = base64.NewDecoder(base64.StdEncoding, in)
+	case "q":
+		r = qDecoder{r: in}
+	default:
+		return "", fmt.Errorf("mail: RFC 2047 encoding not supported: %q", enc)
 	}
-	return b.String(), nil
+
+	dec, err := ioutil.ReadAll(r)
+	if err != nil {
+		return "", err
+	}
+
+	switch charset {
+	case "iso-8859-1":
+		b := new(bytes.Buffer)
+		for _, c := range dec {
+			b.WriteRune(int(c))
+		}
+		return b.String(), nil
+	case "utf-8":
+		return string(dec), nil
+	}
+	panic("unreachable")
+}
+
+type qDecoder struct {
+	r       io.Reader
+	scratch [2]byte
+}
+
+func (qd qDecoder) Read(p []byte) (n int, err os.Error) {
+	// This method writes at most one byte into p.
+	if len(p) == 0 {
+		return 0, nil
+	}
+	if _, err := qd.r.Read(qd.scratch[:1]); err != nil {
+		return 0, err
+	}
+	switch c := qd.scratch[0]; {
+	case c == '=':
+		if _, err := io.ReadFull(qd.r, qd.scratch[:2]); err != nil {
+			return 0, err
+		}
+		x, err := strconv.Btoi64(string(qd.scratch[:2]), 16)
+		if err != nil {
+			return 0, fmt.Errorf("mail: invalid RFC 2047 encoding: %q", qd.scratch[:2])
+		}
+		p[0] = byte(x)
+	case c == '_':
+		p[0] = ' '
+	default:
+		p[0] = c
+	}
+	return 1, nil
 }
 
 var atextChars = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
