@@ -12,49 +12,6 @@ import (
 	"unsafe"
 )
 
-// IsUp returns true if ifi is up.
-func (ifi *Interface) IsUp() bool {
-	if ifi == nil {
-		return false
-	}
-	return ifi.rawFlags&syscall.IFF_UP != 0
-}
-
-// IsLoopback returns true if ifi is a loopback interface.
-func (ifi *Interface) IsLoopback() bool {
-	if ifi == nil {
-		return false
-	}
-	return ifi.rawFlags&syscall.IFF_LOOPBACK != 0
-}
-
-// CanBroadcast returns true if ifi supports a broadcast access
-// capability.
-func (ifi *Interface) CanBroadcast() bool {
-	if ifi == nil {
-		return false
-	}
-	return ifi.rawFlags&syscall.IFF_BROADCAST != 0
-}
-
-// IsPointToPoint returns true if ifi belongs to a point-to-point
-// link.
-func (ifi *Interface) IsPointToPoint() bool {
-	if ifi == nil {
-		return false
-	}
-	return ifi.rawFlags&syscall.IFF_POINTOPOINT != 0
-}
-
-// CanMulticast returns true if ifi supports a multicast access
-// capability.
-func (ifi *Interface) CanMulticast() bool {
-	if ifi == nil {
-		return false
-	}
-	return ifi.rawFlags&syscall.IFF_MULTICAST != 0
-}
-
 // If the ifindex is zero, interfaceTable returns mappings of all
 // network interfaces.  Otheriwse it returns a mapping of a specific
 // interface.
@@ -98,7 +55,7 @@ done:
 }
 
 func newLink(attrs []syscall.NetlinkRouteAttr, ifim *syscall.IfInfomsg) Interface {
-	ifi := Interface{Index: int(ifim.Index), rawFlags: int(ifim.Flags)}
+	ifi := Interface{Index: int(ifim.Index), Flags: linkFlags(ifim.Flags)}
 	for _, a := range attrs {
 		switch a.Attr.Type {
 		case syscall.IFLA_ADDRESS:
@@ -112,12 +69,32 @@ func newLink(attrs []syscall.NetlinkRouteAttr, ifim *syscall.IfInfomsg) Interfac
 				ifi.HardwareAddr = a.Value[:]
 			}
 		case syscall.IFLA_IFNAME:
-			ifi.Name = string(a.Value[:])
+			ifi.Name = string(a.Value[:len(a.Value)-1])
 		case syscall.IFLA_MTU:
 			ifi.MTU = int(uint32(a.Value[3])<<24 | uint32(a.Value[2])<<16 | uint32(a.Value[1])<<8 | uint32(a.Value[0]))
 		}
 	}
 	return ifi
+}
+
+func linkFlags(rawFlags uint32) Flags {
+	var f Flags
+	if rawFlags&syscall.IFF_UP != 0 {
+		f |= FlagUp
+	}
+	if rawFlags&syscall.IFF_BROADCAST != 0 {
+		f |= FlagBroadcast
+	}
+	if rawFlags&syscall.IFF_LOOPBACK != 0 {
+		f |= FlagLoopback
+	}
+	if rawFlags&syscall.IFF_POINTOPOINT != 0 {
+		f |= FlagPointToPoint
+	}
+	if rawFlags&syscall.IFF_MULTICAST != 0 {
+		f |= FlagMulticast
+	}
+	return f
 }
 
 // If the ifindex is zero, interfaceAddrTable returns addresses
