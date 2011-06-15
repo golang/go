@@ -50,4 +50,8 @@ func testBuild(t *testing.T, tree *Tree, pkg string) {
 			return
 		}
 	}
+	if err := s.Clean(); err != nil {
+		t.Errorf("cleaning: %v", err)
+		t.Logf("Intermediate: %v", s.Intermediate)
+	}
 }

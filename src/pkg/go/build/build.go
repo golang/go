@@ -48,9 +48,10 @@ func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
 	if len(info.CgoFiles) > 0 {
 		cgoFiles := b.abss(info.CgoFiles...)
 		s.addInput(cgoFiles...)
-		outGo, outObj := b.cgo(cgoFiles)
+		outInter, outGo, outObj := b.cgo(cgoFiles)
 		gofiles = append(gofiles, outGo...)
 		ofiles = append(ofiles, outObj...)
+		s.addIntermediate(outInter...)
 		s.addIntermediate(outGo...)
 		s.addIntermediate(outObj...)
 	}
@@ -313,7 +314,7 @@ func (b *build) cc(ofile string, cfiles ...string) {
 
 func (b *build) gccCompile(ofile, cfile string) {
 	b.add(Cmd{
-		Args:   gccArgs(b.arch, "-o", ofile, "-c", cfile),
+		Args:   b.gccArgs("-o", ofile, "-c", cfile),
 		Input:  []string{cfile},
 		Output: []string{ofile},
 	})
@@ -321,42 +322,45 @@ func (b *build) gccCompile(ofile, cfile string) {
 
 func (b *build) gccLink(ofile string, ofiles ...string) {
 	b.add(Cmd{
-		Args:   append(gccArgs(b.arch, "-o", ofile), ofiles...),
+		Args:   append(b.gccArgs("-o", ofile), ofiles...),
 		Input:  ofiles,
 		Output: []string{ofile},
 	})
 }
 
-func gccArgs(arch string, args ...string) []string {
+func (b *build) gccArgs(args ...string) []string {
 	// TODO(adg): HOST_CC
 	m := "-m32"
-	if arch == "6" {
+	if b.arch == "6" {
 		m = "-m64"
 	}
-	return append([]string{"gcc", m, "-I", ".", "-g", "-fPIC", "-O2"}, args...)
+	return append([]string{"gcc", m, "-I", b.path, "-g", "-fPIC", "-O2"}, args...)
 }
 
-func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
+func (b *build) cgo(cgofiles []string) (outInter, outGo, outObj []string) {
 	// cgo
 	// TODO(adg): CGOPKGPATH
 	// TODO(adg): CGO_FLAGS
 	gofiles := []string{b.obj + "_cgo_gotypes.go"}
 	cfiles := []string{b.obj + "_cgo_main.c", b.obj + "_cgo_export.c"}
 	for _, fn := range cgofiles {
-		fn = filepath.Base(fn)
-		f := b.obj + fn[:len(fn)-2]
+		f := b.obj + strings.Replace(fn[:len(fn)-2], "/", "_", -1)
 		gofiles = append(gofiles, f+"cgo1.go")
 		cfiles = append(cfiles, f+"cgo2.c")
 	}
 	defunC := b.obj + "_cgo_defun.c"
-	output := append([]string{defunC}, gofiles...)
-	output = append(output, cfiles...)
+	output := append([]string{defunC}, cfiles...)
+	output = append(output, gofiles...)
 	b.add(Cmd{
 		Args:   append([]string{"cgo", "--"}, cgofiles...),
+		Dir:    b.path,
 		Input:  cgofiles,
 		Output: output,
 	})
 	outGo = append(outGo, gofiles...)
+	exportH := filepath.Join(b.path, "_cgo_export.h")
+	outInter = append(outInter, exportH, defunC, b.obj+"_cgo_flags")
+	outInter = append(outInter, cfiles...)
 
 	// cc _cgo_defun.c
 	defunObj := b.obj + "_cgo_defun." + b.arch
@@ -371,10 +375,13 @@ func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
 		linkobj = append(linkobj, ofile)
 		if !strings.HasSuffix(ofile, "_cgo_main.o") {
 			outObj = append(outObj, ofile)
+		} else {
+			outInter = append(outInter, ofile)
 		}
 	}
-	dynObj := b.obj + "_cgo1_.o"
+	dynObj := b.obj + "_cgo_.o"
 	b.gccLink(dynObj, linkobj...)
+	outInter = append(outInter, dynObj)
 
 	// cgo -dynimport
 	importC := b.obj + "_cgo_import.c"
@@ -384,6 +391,7 @@ func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
 		Input:  []string{dynObj},
 		Output: []string{importC},
 	})
+	outInter = append(outInter, importC)
 
 	// cc _cgo_import.ARCH
 	importObj := b.obj + "_cgo_import." + b.arch
