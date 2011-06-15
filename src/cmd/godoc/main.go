@@ -222,6 +222,10 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
+	// Determine file system to use.
+	// TODO(gri) Complete this - for now we only have one.
+	fs = OS
+
 	// Clean goroot: normalize path separator.
 	*goroot = filepath.Clean(*goroot)
 
