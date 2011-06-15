@@ -13,7 +13,7 @@ var osopenFix = fix{
 	osopen,
 	`Adapt os.Open calls to new, easier API and rename O_CREAT O_CREATE.
 
-	http://codereview.appspot.com/4357052
+http://codereview.appspot.com/4357052
 `,
 }
 

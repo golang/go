@@ -13,7 +13,7 @@ var httpFinalURLFix = fix{
 	httpfinalurl,
 	`Adapt http Get calls to not have a finalURL result parameter.
 
-	http://codereview.appspot.com/4535056/
+http://codereview.appspot.com/4535056/
 `,
 }
 
