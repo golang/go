@@ -44,6 +44,10 @@ func (v *RWValue) get() (interface{}, int64) {
 }
 
 
+// TODO(gri) For now, using os.Getwd() is ok here since the functionality
+//           based on this code is not invoked for the appengine version,
+//           but this is fragile. Determine what the right thing to do is,
+//           here (possibly have some Getwd-equivalent in FileSystem).
 var cwd, _ = os.Getwd() // ignore errors
 
 // canonicalizePaths takes a list of (directory/file) paths and returns
@@ -95,6 +99,7 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
 // atomically renames that file to the file named by filename.
 //
 func writeFileAtomically(filename string, data []byte) os.Error {
+	// TODO(gri) this won't work on appengine
 	f, err := ioutil.TempFile(filepath.Split(filename))
 	if err != nil {
 		return err
@@ -155,7 +160,7 @@ func isTextFile(filename string) bool {
 
 	// the extension is not known; read an initial chunk
 	// of the file and check if it looks like text
-	f, err := os.Open(filename)
+	f, err := fs.Open(filename)
 	if err != nil {
 		return false
 	}

@@ -9,7 +9,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -174,7 +173,7 @@ func (m *Mapping) ToAbsolute(spath string) string {
 			continue // no match
 		}
 		abspath := filepath.Join(e.path, tail)
-		if _, err := os.Stat(abspath); err == nil {
+		if _, err := fs.Stat(abspath); err == nil {
 			return abspath
 		}
 	}

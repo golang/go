@@ -11,9 +11,7 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -29,21 +27,23 @@ type Directory struct {
 }
 
 
-func isGoFile(f *os.FileInfo) bool {
-	return f.IsRegular() &&
-		!strings.HasPrefix(f.Name, ".") && // ignore .files
-		filepath.Ext(f.Name) == ".go"
+func isGoFile(fi FileInfo) bool {
+	name := fi.Name()
+	return fi.IsRegular() &&
+		!strings.HasPrefix(name, ".") && // ignore .files
+		filepath.Ext(name) == ".go"
 }
 
 
-func isPkgFile(f *os.FileInfo) bool {
-	return isGoFile(f) &&
-		!strings.HasSuffix(f.Name, "_test.go") // ignore test files
+func isPkgFile(fi FileInfo) bool {
+	return isGoFile(fi) &&
+		!strings.HasSuffix(fi.Name(), "_test.go") // ignore test files
 }
 
 
-func isPkgDir(f *os.FileInfo) bool {
-	return f.IsDirectory() && len(f.Name) > 0 && f.Name[0] != '_'
+func isPkgDir(fi FileInfo) bool {
+	name := fi.Name()
+	return fi.IsDirectory() && len(name) > 0 && name[0] != '_'
 }
 
 
@@ -101,12 +101,12 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		return &Directory{depth, path, name, "", nil}
 	}
 
-	list, err := ioutil.ReadDir(path)
+	list, err := fs.ReadDir(path)
 	if err != nil {
 		// newDirTree is called with a path that should be a package
 		// directory; errors here should not happen, but if they do,
 		// we want to know about them
-		log.Printf("ioutil.ReadDir(%s): %s", path, err)
+		log.Printf("ReadDir(%s): %s", path, err)
 	}
 
 	// determine number of subdirectories and if there are package files
@@ -123,7 +123,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 			// though the directory doesn't contain any real package files - was bug)
 			if synopses[0] == "" {
 				// no "optimal" package synopsis yet; continue to collect synopses
-				file, err := parser.ParseFile(fset, filepath.Join(path, d.Name), nil,
+				file, err := parser.ParseFile(fset, filepath.Join(path, d.Name()), nil,
 					parser.ParseComments|parser.PackageClauseOnly)
 				if err == nil {
 					hasPkgFiles = true
@@ -156,7 +156,8 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 		i := 0
 		for _, d := range list {
 			if isPkgDir(d) {
-				dd := b.newDirTree(fset, filepath.Join(path, d.Name), d.Name, depth+1)
+				name := d.Name()
+				dd := b.newDirTree(fset, filepath.Join(path, name), name, depth+1)
 				if dd != nil {
 					dirs[i] = dd
 					i++
@@ -195,8 +196,8 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 // (i.e., in this case the tree may contain directories w/o any package files).
 //
 func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Directory {
-	// The root could be a symbolic link so use os.Stat not os.Lstat.
-	d, err := os.Stat(root)
+	// The root could be a symbolic link so use Stat not Lstat.
+	d, err := fs.Stat(root)
 	// If we fail here, report detailed error messages; otherwise
 	// is is hard to see why a directory tree was not built.
 	switch {
@@ -213,7 +214,7 @@ func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Dire
 	b := treeBuilder{pathFilter, maxDepth}
 	// the file set provided is only for local parsing, no position
 	// information escapes and thus we don't need to save the set
-	return b.newDirTree(token.NewFileSet(), root, d.Name, 0)
+	return b.newDirTree(token.NewFileSet(), root, d.Name(), 0)
 }
 
 

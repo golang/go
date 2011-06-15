@@ -45,7 +45,6 @@ import (
 	"go/token"
 	"go/scanner"
 	"index/suffixarray"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -624,7 +623,7 @@ func pkgName(filename string) string {
 // failed (that is, if the file was not added), it returns file == nil.
 func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *ast.File) {
 	// open file
-	f, err := os.Open(filename)
+	f, err := fs.Open(filename)
 	if err != nil {
 		return
 	}
@@ -727,12 +726,12 @@ func isWhitelisted(filename string) bool {
 }
 
 
-func (x *Indexer) visitFile(dirname string, f *os.FileInfo, fulltextIndex bool) {
+func (x *Indexer) visitFile(dirname string, f FileInfo, fulltextIndex bool) {
 	if !f.IsRegular() {
 		return
 	}
 
-	filename := filepath.Join(dirname, f.Name)
+	filename := filepath.Join(dirname, f.Name())
 	goFile := false
 
 	switch {
@@ -745,7 +744,7 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo, fulltextIndex bool) 
 		}
 		goFile = true
 
-	case !fulltextIndex || !isWhitelisted(f.Name):
+	case !fulltextIndex || !isWhitelisted(f.Name()):
 		return
 	}
 
@@ -804,7 +803,7 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
 
 	// index all files in the directories given by dirnames
 	for dirname := range dirnames {
-		list, err := ioutil.ReadDir(dirname)
+		list, err := fs.ReadDir(dirname)
 		if err != nil {
 			continue // ignore this directory
 		}
