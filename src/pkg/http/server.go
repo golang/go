@@ -20,7 +20,7 @@ import (
 	"net"
 	"os"
 	"path"
-	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -490,23 +490,9 @@ func (c *conn) serve() {
 		}
 		c.rwc.Close()
 
-		// TODO(rsc,bradfitz): this is boilerplate. move it to runtime.Stack()
 		var buf bytes.Buffer
 		fmt.Fprintf(&buf, "http: panic serving %v: %v\n", c.remoteAddr, err)
-		for i := 1; i < 20; i++ {
-			pc, file, line, ok := runtime.Caller(i)
-			if !ok {
-				break
-			}
-			var name string
-			f := runtime.FuncForPC(pc)
-			if f != nil {
-				name = f.Name()
-			} else {
-				name = fmt.Sprintf("%#x", pc)
-			}
-			fmt.Fprintf(&buf, "  %s %s:%d\n", name, file, line)
-		}
+		buf.Write(debug.Stack())
 		log.Print(buf.String())
 	}()
 
