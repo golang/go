@@ -18,7 +18,6 @@ DIRS=\
 	archive/zip\
 	asn1\
 	big\
-	bike/shed\
 	bufio\
 	bytes\
 	cmath\
