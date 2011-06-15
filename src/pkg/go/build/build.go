@@ -48,10 +48,9 @@ func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
 	if len(info.CgoFiles) > 0 {
 		cgoFiles := b.abss(info.CgoFiles...)
 		s.addInput(cgoFiles...)
-		outInter, outGo, outObj := b.cgo(cgoFiles)
+		outGo, outObj := b.cgo(cgoFiles)
 		gofiles = append(gofiles, outGo...)
 		ofiles = append(ofiles, outObj...)
-		s.addIntermediate(outInter...)
 		s.addIntermediate(outGo...)
 		s.addIntermediate(outObj...)
 	}
@@ -71,7 +70,7 @@ func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
 		s.addInput(sfile)
 		b.asm(ofile, sfile)
 		ofiles = append(ofiles, ofile)
-		s.addIntermediate(sfile, ofile)
+		s.addIntermediate(ofile)
 	}
 
 	if len(ofiles) == 0 {
@@ -158,6 +157,7 @@ func (s *Script) Stale() bool {
 // Clean removes the Script's Intermediate files.
 // It tries to remove every file and returns the first error it encounters.
 func (s *Script) Clean() (err os.Error) {
+	// Reverse order so that directories get removed after the files they contain.
 	for i := len(s.Intermediate) - 1; i >= 0; i-- {
 		if e := os.Remove(s.Intermediate[i]); err == nil {
 			err = e
@@ -169,6 +169,7 @@ func (s *Script) Clean() (err os.Error) {
 // Clean removes the Script's Intermediate and Output files.
 // It tries to remove every file and returns the first error it encounters.
 func (s *Script) Nuke() (err os.Error) {
+	// Reverse order so that directories get removed after the files they contain.
 	for i := len(s.Output) - 1; i >= 0; i-- {
 		if e := os.Remove(s.Output[i]); err == nil {
 			err = e
@@ -337,7 +338,7 @@ func (b *build) gccArgs(args ...string) []string {
 	return append([]string{"gcc", m, "-I", b.path, "-g", "-fPIC", "-O2"}, args...)
 }
 
-func (b *build) cgo(cgofiles []string) (outInter, outGo, outObj []string) {
+func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
 	// cgo
 	// TODO(adg): CGOPKGPATH
 	// TODO(adg): CGO_FLAGS
@@ -359,8 +360,8 @@ func (b *build) cgo(cgofiles []string) (outInter, outGo, outObj []string) {
 	})
 	outGo = append(outGo, gofiles...)
 	exportH := filepath.Join(b.path, "_cgo_export.h")
-	outInter = append(outInter, exportH, defunC, b.obj+"_cgo_flags")
-	outInter = append(outInter, cfiles...)
+	b.script.addIntermediate(defunC, exportH, b.obj+"_cgo_flags")
+	b.script.addIntermediate(cfiles...)
 
 	// cc _cgo_defun.c
 	defunObj := b.obj + "_cgo_defun." + b.arch
@@ -376,12 +377,12 @@ func (b *build) cgo(cgofiles []string) (outInter, outGo, outObj []string) {
 		if !strings.HasSuffix(ofile, "_cgo_main.o") {
 			outObj = append(outObj, ofile)
 		} else {
-			outInter = append(outInter, ofile)
+			b.script.addIntermediate(ofile)
 		}
 	}
 	dynObj := b.obj + "_cgo_.o"
 	b.gccLink(dynObj, linkobj...)
-	outInter = append(outInter, dynObj)
+	b.script.addIntermediate(dynObj)
 
 	// cgo -dynimport
 	importC := b.obj + "_cgo_import.c"
@@ -391,7 +392,7 @@ func (b *build) cgo(cgofiles []string) (outInter, outGo, outObj []string) {
 		Input:  []string{dynObj},
 		Output: []string{importC},
 	})
-	outInter = append(outInter, importC)
+	b.script.addIntermediate(importC)
 
 	// cc _cgo_import.ARCH
 	importObj := b.obj + "_cgo_import." + b.arch
