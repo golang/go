@@ -208,6 +208,7 @@ NOTEST+=\
 	../cmd/cgo\
 	../cmd/ebnflint\
 	../cmd/godoc\
+	../cmd/goinstall\
 	../cmd/gotest\
 	../cmd/govet\
 	../cmd/goyacc\

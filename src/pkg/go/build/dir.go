@@ -50,7 +50,6 @@ func ScanDir(dir string, allowMain bool) (info *DirInfo, err os.Error) {
 
 	var di DirInfo
 	imported := make(map[string]bool)
-	pkgName := ""
 	fset := token.NewFileSet()
 	for i := range dirs {
 		d := &dirs[i]
@@ -89,14 +88,14 @@ func ScanDir(dir string, allowMain bool) (info *DirInfo, err os.Error) {
 		if s == "documentation" {
 			continue
 		}
-		if pkgName == "" {
-			pkgName = s
-		} else if pkgName != s {
+		if di.PkgName == "" {
+			di.PkgName = s
+		} else if di.PkgName != s {
 			// Only if all files in the directory are in package main
-			// do we return pkgName=="main".
+			// do we return PkgName=="main".
 			// A mix of main and another package reverts
 			// to the original (allowMain=false) behaviour.
-			if s == "main" || pkgName == "main" {
+			if s == "main" || di.PkgName == "main" {
 				return ScanDir(dir, false)
 			}
 			return nil, os.ErrorString("multiple package names in " + dir)

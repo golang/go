@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Experimental Go package installer; see doc.go.
-
 package main
 
 import (
@@ -11,6 +9,7 @@ import (
 	"exec"
 	"flag"
 	"fmt"
+	"go/build"
 	"go/token"
 	"io/ioutil"
 	"os"
@@ -39,7 +38,9 @@ var (
 	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
 	logPkgs           = flag.Bool("log", true, "log installed packages to $GOROOT/goinstall.log for use by -a")
 	update            = flag.Bool("u", false, "update already-downloaded packages")
+	doInstall         = flag.Bool("install", true, "build and install")
 	clean             = flag.Bool("clean", false, "clean the package directory before installing")
+	nuke              = flag.Bool("nuke", false, "clean the package directory and target before installing")
 	verbose           = flag.Bool("v", false, "verbose")
 )
 
@@ -160,66 +161,83 @@ func install(pkg, parent string) {
 		fmt.Fprintf(os.Stderr, "\t%s\n", pkg)
 		os.Exit(2)
 	}
-	visit[pkg] = visiting
 	parents[pkg] = parent
-
-	vlogf("%s: visit\n", pkg)
+	visit[pkg] = visiting
+	defer func() {
+		visit[pkg] = done
+	}()
 
 	// Check whether package is local or remote.
 	// If remote, download or update it.
-	proot, pkg, err := findPackageRoot(pkg)
+	tree, pkg, err := build.FindTree(pkg)
 	// Don't build the standard library.
-	if err == nil && proot.goroot && isStandardPath(pkg) {
+	if err == nil && tree.Goroot && isStandardPath(pkg) {
 		if parent == "" {
 			errorf("%s: can not goinstall the standard library\n", pkg)
 		} else {
 			vlogf("%s: skipping standard library\n", pkg)
 		}
-		visit[pkg] = done
 		return
 	}
 	// Download remote packages if not found or forced with -u flag.
 	remote := isRemote(pkg)
-	if remote && (err == ErrPackageNotFound || (err == nil && *update)) {
+	if remote && (err == build.ErrNotFound || (err == nil && *update)) {
 		vlogf("%s: download\n", pkg)
-		err = download(pkg, proot.srcDir())
+		err = download(pkg, tree.SrcDir())
 	}
 	if err != nil {
 		errorf("%s: %v\n", pkg, err)
-		visit[pkg] = done
 		return
 	}
-	dir := filepath.Join(proot.srcDir(), pkg)
+	dir := filepath.Join(tree.SrcDir(), pkg)
 
 	// Install prerequisites.
-	dirInfo, err := scanDir(dir, parent == "")
+	dirInfo, err := build.ScanDir(dir, parent == "")
 	if err != nil {
 		errorf("%s: %v\n", pkg, err)
-		visit[pkg] = done
 		return
 	}
-	if len(dirInfo.goFiles) == 0 {
+	if len(dirInfo.GoFiles) == 0 {
 		errorf("%s: package has no files\n", pkg)
-		visit[pkg] = done
 		return
 	}
-	for _, p := range dirInfo.imports {
+	for _, p := range dirInfo.Imports {
 		if p != "C" {
 			install(p, pkg)
 		}
 	}
+	if errors {
+		return
+	}
 
 	// Install this package.
-	if !errors {
-		isCmd := dirInfo.pkgName == "main"
-		if err := domake(dir, pkg, proot, isCmd); err != nil {
-			errorf("installing: %v\n", err)
-		} else if remote && *logPkgs {
-			// mark package as installed in $GOROOT/goinstall.log
-			logPackage(pkg)
+	script, err := build.Build(tree, pkg, dirInfo)
+	if err != nil {
+		errorf("%s: install: %v\n", pkg, err)
+		return
+	}
+	if *nuke {
+		vlogf("%s: nuke\n", pkg)
+		script.Nuke()
+	} else if *clean {
+		vlogf("%s: clean\n", pkg)
+		script.Clean()
+	}
+	if *doInstall {
+		if script.Stale() {
+			vlogf("%s: install\n", pkg)
+			if err := script.Run(); err != nil {
+				errorf("%s: install: %v\n", pkg, err)
+				return
+			}
+		} else {
+			vlogf("%s: install: up-to-date\n", pkg)
 		}
 	}
-	visit[pkg] = done
+	if remote {
+		// mark package as installed in $GOROOT/goinstall.log
+		logPackage(pkg)
+	}
 }
 
 

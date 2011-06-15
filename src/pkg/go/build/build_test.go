@@ -5,50 +5,46 @@
 package build
 
 import (
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 )
 
-var buildDirs = []string{
-	"pkg/path",
-	"cmd/gofix",
-	"pkg/big",
-	"pkg/go/build/cgotest",
+// TODO(adg): test building binaries
+
+var buildPkgs = []string{
+	"path",
+	"big",
+	"go/build/cgotest",
 }
 
 func TestBuild(t *testing.T) {
-	out, err := filepath.Abs("_test/out")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, d := range buildDirs {
-		if runtime.GOARCH == "arm" && strings.Contains(d, "/cgo") {
+	for _, pkg := range buildPkgs {
+		if runtime.GOARCH == "arm" && strings.Contains(pkg, "/cgo") {
 			// no cgo for arm, yet.
 			continue
 		}
-		dir := filepath.Join(runtime.GOROOT(), "src", d)
-		testBuild(t, dir, out)
+		tree := Path[0] // Goroot
+		testBuild(t, tree, pkg)
 	}
 }
 
-func testBuild(t *testing.T, dir, targ string) {
-	d, err := ScanDir(dir, true)
+func testBuild(t *testing.T, tree *Tree, pkg string) {
+	dir := filepath.Join(tree.SrcDir(), pkg)
+	info, err := ScanDir(dir, true)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	defer os.Remove(targ)
-	cmds, err := d.Build(targ)
+	s, err := Build(tree, pkg, info)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	for _, c := range cmds {
+	for _, c := range s.Cmd {
 		t.Log("Run:", c)
-		err = c.Run(dir)
+		err = c.Run()
 		if err != nil {
 			t.Error(c, err)
 			return
