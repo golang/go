@@ -27,6 +27,8 @@ $cmdline = "mksyscall_windows.pl " . join(' ', @ARGV);
 $errors = 0;
 $_32bit = "";
 
+binmode STDOUT;
+
 if($ARGV[0] eq "-b32") {
 	$_32bit = "big-endian";
 	shift;
