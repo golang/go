@@ -15,8 +15,14 @@ import (
 	"strings"
 )
 
-func (d *DirInfo) Build(targ string) ([]*Cmd, os.Error) {
-	b := &build{obj: "_obj/"}
+// Build produces a build Script for the given package.
+func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
+	s := &Script{}
+	b := &build{
+		script: s,
+		path:   filepath.Join(tree.SrcDir(), pkg),
+	}
+	b.obj = b.abs("_obj") + "/"
 
 	goarch := runtime.GOARCH
 	if g := os.Getenv("GOARCH"); g != "" {
@@ -28,17 +34,25 @@ func (d *DirInfo) Build(targ string) ([]*Cmd, os.Error) {
 		return nil, err
 	}
 
-	var gofiles = d.GoFiles // .go files to be built with gc
-	var ofiles []string     // *.GOARCH files to be linked or packed
+	// .go files to be built with gc
+	gofiles := b.abss(info.GoFiles...)
+	s.addInput(gofiles...)
+
+	var ofiles []string // object files to be linked or packed
 
 	// make build directory
 	b.mkdir(b.obj)
+	s.addIntermediate(b.obj)
 
 	// cgo
-	if len(d.CgoFiles) > 0 {
-		outGo, outObj := b.cgo(d.CgoFiles)
+	if len(info.CgoFiles) > 0 {
+		cgoFiles := b.abss(info.CgoFiles...)
+		s.addInput(cgoFiles...)
+		outGo, outObj := b.cgo(cgoFiles)
 		gofiles = append(gofiles, outGo...)
 		ofiles = append(ofiles, outObj...)
+		s.addIntermediate(outGo...)
+		s.addIntermediate(outObj...)
 	}
 
 	// compile
@@ -46,31 +60,130 @@ func (d *DirInfo) Build(targ string) ([]*Cmd, os.Error) {
 		ofile := b.obj + "_go_." + b.arch
 		b.gc(ofile, gofiles...)
 		ofiles = append(ofiles, ofile)
+		s.addIntermediate(ofile)
 	}
 
 	// assemble
-	for _, sfile := range d.SFiles {
+	for _, sfile := range info.SFiles {
 		ofile := b.obj + sfile[:len(sfile)-1] + b.arch
+		sfile = b.abs(sfile)
+		s.addInput(sfile)
 		b.asm(ofile, sfile)
 		ofiles = append(ofiles, ofile)
+		s.addIntermediate(sfile, ofile)
 	}
 
 	if len(ofiles) == 0 {
 		return nil, os.NewError("make: no object files to build")
 	}
 
-	if d.IsCommand() {
+	// choose target file
+	var targ string
+	if info.IsCommand() {
+		// use the last part of the import path as binary name
+		_, bin := filepath.Split(pkg)
+		targ = filepath.Join(tree.BinDir(), bin)
+	} else {
+		targ = filepath.Join(tree.PkgDir(), pkg+".a")
+	}
+
+	// make target directory
+	targDir, _ := filepath.Split(targ)
+	b.mkdir(targDir)
+
+	// link binary or pack object
+	if info.IsCommand() {
 		b.ld(targ, ofiles...)
 	} else {
 		b.gopack(targ, ofiles...)
 	}
+	s.Output = append(s.Output, targ)
 
-	return b.cmds, nil
+	return b.script, nil
 }
 
+// A Script describes the build process for a Go package.
+// The Input, Intermediate, and Output fields are lists of absolute paths.
+type Script struct {
+	Cmd          []*Cmd
+	Input        []string
+	Intermediate []string
+	Output       []string
+}
+
+func (s *Script) addInput(file ...string) {
+	s.Input = append(s.Input, file...)
+}
+
+func (s *Script) addIntermediate(file ...string) {
+	s.Intermediate = append(s.Intermediate, file...)
+}
+
+// Run runs the Script's Cmds in order.
+func (s *Script) Run() os.Error {
+	for _, c := range s.Cmd {
+		if err := c.Run(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Stale returns true if the build's inputs are newer than its outputs.
+func (s *Script) Stale() bool {
+	var latest int64
+	// get latest mtime of outputs
+	for _, file := range s.Output {
+		fi, err := os.Stat(file)
+		if err != nil {
+			// any error reading output files means stale
+			return true
+		}
+		if m := fi.Mtime_ns; m > latest {
+			latest = m
+		}
+	}
+	for _, file := range s.Input {
+		fi, err := os.Stat(file)
+		if err != nil || fi.Mtime_ns > latest {
+			// any error reading input files means stale
+			// (attempt to rebuild to figure out why)
+			return true
+		}
+	}
+	return false
+}
+
+// Clean removes the Script's Intermediate files.
+// It tries to remove every file and returns the first error it encounters.
+func (s *Script) Clean() (err os.Error) {
+	for i := len(s.Intermediate) - 1; i >= 0; i-- {
+		if e := os.Remove(s.Intermediate[i]); err == nil {
+			err = e
+		}
+	}
+	return
+}
+
+// Clean removes the Script's Intermediate and Output files.
+// It tries to remove every file and returns the first error it encounters.
+func (s *Script) Nuke() (err os.Error) {
+	for i := len(s.Output) - 1; i >= 0; i-- {
+		if e := os.Remove(s.Output[i]); err == nil {
+			err = e
+		}
+	}
+	if e := s.Clean(); err == nil {
+		err = e
+	}
+	return
+}
+
+// A Cmd describes an individual build command.
 type Cmd struct {
 	Args   []string // command-line
 	Stdout string   // write standard output to this file, "" is passthrough
+	Dir    string   // working directory
 	Input  []string // file paths (dependencies)
 	Output []string // file paths
 }
@@ -79,14 +192,15 @@ func (c *Cmd) String() string {
 	return strings.Join(c.Args, " ")
 }
 
-func (c *Cmd) Run(dir string) os.Error {
+// Run executes the Cmd.
+func (c *Cmd) Run() os.Error {
 	out := new(bytes.Buffer)
 	cmd := exec.Command(c.Args[0], c.Args[1:]...)
-	cmd.Dir = dir
+	cmd.Dir = c.Dir
 	cmd.Stdout = out
 	cmd.Stderr = out
 	if c.Stdout != "" {
-		f, err := os.Create(filepath.Join(dir, c.Stdout))
+		f, err := os.Create(c.Stdout)
 		if err != nil {
 			return err
 		}
@@ -97,15 +211,6 @@ func (c *Cmd) Run(dir string) os.Error {
 		return fmt.Errorf("command %q: %v\n%v", c, err, out)
 	}
 	return nil
-}
-
-func (c *Cmd) Clean(dir string) (err os.Error) {
-	for _, fn := range c.Output {
-		if e := os.RemoveAll(fn); err == nil {
-			err = e
-		}
-	}
-	return
 }
 
 // ArchChar returns the architecture character for the given goarch.
@@ -123,13 +228,29 @@ func ArchChar(goarch string) (string, os.Error) {
 }
 
 type build struct {
-	cmds []*Cmd
-	obj  string
-	arch string
+	script *Script
+	path   string
+	obj    string
+	arch   string
+}
+
+func (b *build) abs(file string) string {
+	if filepath.IsAbs(file) {
+		return file
+	}
+	return filepath.Join(b.path, file)
+}
+
+func (b *build) abss(file ...string) []string {
+	s := make([]string, len(file))
+	for i, f := range file {
+		s[i] = b.abs(f)
+	}
+	return s
 }
 
 func (b *build) add(c Cmd) {
-	b.cmds = append(b.cmds, &c)
+	b.script.Cmd = append(b.script.Cmd, &c)
 }
 
 func (b *build) mkdir(name string) {
@@ -222,6 +343,7 @@ func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
 	gofiles := []string{b.obj + "_cgo_gotypes.go"}
 	cfiles := []string{b.obj + "_cgo_main.c", b.obj + "_cgo_export.c"}
 	for _, fn := range cgofiles {
+		fn = filepath.Base(fn)
 		f := b.obj + fn[:len(fn)-2]
 		gofiles = append(gofiles, f+"cgo1.go")
 		cfiles = append(cfiles, f+"cgo2.c")
