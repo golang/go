@@ -5,6 +5,8 @@
 #
 # Generate system call table for Darwin from sys/syscall.h
 
+use strict;
+
 my $command = "mksysnum_darwin.pl " . join(' ', @ARGV);
 
 print <<EOF;

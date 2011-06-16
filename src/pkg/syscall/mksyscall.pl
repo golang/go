@@ -19,11 +19,13 @@
 # block, as otherwise the system call could cause all goroutines to
 # hang.
 
-$cmdline = "mksyscall.pl " . join(' ', @ARGV);
-$errors = 0;
-$_32bit = "";
-$nacl = 0;
-$plan9 = 0;
+use strict;
+
+my $cmdline = "mksyscall.pl " . join(' ', @ARGV);
+my $errors = 0;
+my $_32bit = "";
+my $nacl = 0;
+my $plan9 = 0;
 
 if($ARGV[0] eq "-b32") {
 	$_32bit = "big-endian";
@@ -66,7 +68,7 @@ sub parseparam($) {
 	return ($1, $2);
 }
 
-$text = "";
+my $text = "";
 while(<>) {
 	chomp;
 	s/\s+/ /g;
