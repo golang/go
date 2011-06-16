@@ -205,6 +205,7 @@ gen(Node *n)
 		break;
 
 	case OGOTO:
+		hasgoto = 1;
 		newlab(OGOTO, n, N);
 		gjmp(P);
 		break;
