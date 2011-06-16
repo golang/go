@@ -11,6 +11,7 @@ GOFILES=\
 	main.go\
 	osopen.go\
 	httpfinalurl.go\
+	httpheaders.go\
 	httpserver.go\
 	procattr.go\
 	reflect.go\

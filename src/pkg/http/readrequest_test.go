@@ -58,12 +58,11 @@ var reqTests = []reqTest{
 				"Keep-Alive":       {"300"},
 				"Proxy-Connection": {"keep-alive"},
 				"Content-Length":   {"7"},
+				"User-Agent":       {"Fake"},
 			},
 			Close:         false,
 			ContentLength: 7,
 			Host:          "www.techcrunch.com",
-			Referer:       "",
-			UserAgent:     "Fake",
 			Form:          Values{},
 		},
 
@@ -97,8 +96,6 @@ var reqTests = []reqTest{
 			Close:         false,
 			ContentLength: -1,
 			Host:          "test",
-			Referer:       "",
-			UserAgent:     "",
 			Form:          Values{},
 		},
 

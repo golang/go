@@ -40,9 +40,6 @@ type Response struct {
 	// Keys in the map are canonicalized (see CanonicalHeaderKey).
 	Header Header
 
-	// SetCookie records the Set-Cookie requests sent with the response.
-	SetCookie []*Cookie
-
 	// Body represents the response body.
 	Body io.ReadCloser
 
@@ -69,6 +66,11 @@ type Response struct {
 	// Request's Body is nil (having already been consumed).
 	// This is only populated for Client requests.
 	Request *Request
+}
+
+// Cookies parses and returns the cookies set in the Set-Cookie headers.
+func (r *Response) Cookies() []*Cookie {
+	return readSetCookies(r.Header)
 }
 
 // ReadResponse reads and returns an HTTP response from r.  The
@@ -126,8 +128,6 @@ func ReadResponse(r *bufio.Reader, req *Request) (resp *Response, err os.Error) 
 	if err != nil {
 		return nil, err
 	}
-
-	resp.SetCookie = readSetCookies(resp.Header)
 
 	return resp, nil
 }
@@ -197,10 +197,6 @@ func (resp *Response) Write(w io.Writer) os.Error {
 	// Rest of header
 	err = resp.Header.WriteSubset(w, respExcludeHeader)
 	if err != nil {
-		return err
-	}
-
-	if err = writeSetCookies(w, resp.SetCookie); err != nil {
 		return err
 	}
 

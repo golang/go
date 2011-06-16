@@ -5,7 +5,6 @@
 package http
 
 import (
-	"bytes"
 	"fmt"
 	"json"
 	"os"
@@ -15,30 +14,31 @@ import (
 )
 
 var writeSetCookiesTests = []struct {
-	Cookies []*Cookie
-	Raw     string
+	Cookie *Cookie
+	Raw    string
 }{
 	{
-		[]*Cookie{
-			&Cookie{Name: "cookie-1", Value: "v$1"},
-			&Cookie{Name: "cookie-2", Value: "two", MaxAge: 3600},
-			&Cookie{Name: "cookie-3", Value: "three", Domain: ".example.com"},
-			&Cookie{Name: "cookie-4", Value: "four", Path: "/restricted/"},
-		},
-		"Set-Cookie: cookie-1=v$1\r\n" +
-			"Set-Cookie: cookie-2=two; Max-Age=3600\r\n" +
-			"Set-Cookie: cookie-3=three; Domain=.example.com\r\n" +
-			"Set-Cookie: cookie-4=four; Path=/restricted/\r\n",
+		&Cookie{Name: "cookie-1", Value: "v$1"},
+		"cookie-1=v$1",
+	},
+	{
+		&Cookie{Name: "cookie-2", Value: "two", MaxAge: 3600},
+		"cookie-2=two; Max-Age=3600",
+	},
+	{
+		&Cookie{Name: "cookie-3", Value: "three", Domain: ".example.com"},
+		"cookie-3=three; Domain=.example.com",
+	},
+	{
+		&Cookie{Name: "cookie-4", Value: "four", Path: "/restricted/"},
+		"cookie-4=four; Path=/restricted/",
 	},
 }
 
 func TestWriteSetCookies(t *testing.T) {
 	for i, tt := range writeSetCookiesTests {
-		var w bytes.Buffer
-		writeSetCookies(&w, tt.Cookies)
-		seen := string(w.Bytes())
-		if seen != tt.Raw {
-			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, tt.Raw, seen)
+		if g, e := tt.Cookie.String(), tt.Raw; g != e {
+			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, e, g)
 			continue
 		}
 	}
@@ -73,7 +73,7 @@ func TestSetCookie(t *testing.T) {
 	}
 }
 
-var writeCookiesTests = []struct {
+var addCookieTests = []struct {
 	Cookies []*Cookie
 	Raw     string
 }{
@@ -83,7 +83,7 @@ var writeCookiesTests = []struct {
 	},
 	{
 		[]*Cookie{&Cookie{Name: "cookie-1", Value: "v$1"}},
-		"Cookie: cookie-1=v$1\r\n",
+		"cookie-1=v$1",
 	},
 	{
 		[]*Cookie{
@@ -91,17 +91,18 @@ var writeCookiesTests = []struct {
 			&Cookie{Name: "cookie-2", Value: "v$2"},
 			&Cookie{Name: "cookie-3", Value: "v$3"},
 		},
-		"Cookie: cookie-1=v$1; cookie-2=v$2; cookie-3=v$3\r\n",
+		"cookie-1=v$1; cookie-2=v$2; cookie-3=v$3",
 	},
 }
 
-func TestWriteCookies(t *testing.T) {
-	for i, tt := range writeCookiesTests {
-		var w bytes.Buffer
-		writeCookies(&w, tt.Cookies)
-		seen := string(w.Bytes())
-		if seen != tt.Raw {
-			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, tt.Raw, seen)
+func TestAddCookie(t *testing.T) {
+	for i, tt := range addCookieTests {
+		req, _ := NewRequest("GET", "http://example.com/", nil)
+		for _, c := range tt.Cookies {
+			req.AddCookie(c)
+		}
+		if g := req.Header.Get("Cookie"); g != tt.Raw {
+			t.Errorf("Test %d:\nwant: %s\n got: %s\n", i, tt.Raw, g)
 			continue
 		}
 	}
@@ -140,30 +141,46 @@ func toJSON(v interface{}) string {
 
 func TestReadSetCookies(t *testing.T) {
 	for i, tt := range readSetCookiesTests {
-		c := readSetCookies(tt.Header)
-		if !reflect.DeepEqual(c, tt.Cookies) {
-			t.Errorf("#%d readSetCookies: have\n%s\nwant\n%s\n", i, toJSON(c), toJSON(tt.Cookies))
-			continue
+		for n := 0; n < 2; n++ { // to verify readSetCookies doesn't mutate its input
+			c := readSetCookies(tt.Header)
+			if !reflect.DeepEqual(c, tt.Cookies) {
+				t.Errorf("#%d readSetCookies: have\n%s\nwant\n%s\n", i, toJSON(c), toJSON(tt.Cookies))
+				continue
+			}
 		}
 	}
 }
 
 var readCookiesTests = []struct {
 	Header  Header
+	Filter  string
 	Cookies []*Cookie
 }{
 	{
-		Header{"Cookie": {"Cookie-1=v$1"}},
-		[]*Cookie{&Cookie{Name: "Cookie-1", Value: "v$1"}},
+		Header{"Cookie": {"Cookie-1=v$1", "c2=v2"}},
+		"",
+		[]*Cookie{
+			&Cookie{Name: "Cookie-1", Value: "v$1"},
+			&Cookie{Name: "c2", Value: "v2"},
+		},
+	},
+	{
+		Header{"Cookie": {"Cookie-1=v$1", "c2=v2"}},
+		"c2",
+		[]*Cookie{
+			&Cookie{Name: "c2", Value: "v2"},
+		},
 	},
 }
 
 func TestReadCookies(t *testing.T) {
 	for i, tt := range readCookiesTests {
-		c := readCookies(tt.Header)
-		if !reflect.DeepEqual(c, tt.Cookies) {
-			t.Errorf("#%d readCookies: have\n%s\nwant\n%s\n", i, toJSON(c), toJSON(tt.Cookies))
-			continue
+		for n := 0; n < 2; n++ { // to verify readCookies doesn't mutate its input                                                  
+			c := readCookies(tt.Header, tt.Filter)
+			if !reflect.DeepEqual(c, tt.Cookies) {
+				t.Errorf("#%d readCookies: have\n%s\nwant\n%s\n", i, toJSON(c), toJSON(tt.Cookies))
+				continue
+			}
 		}
 	}
 }

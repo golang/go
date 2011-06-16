@@ -7,9 +7,6 @@ package http
 import (
 	"bytes"
 	"fmt"
-	"io"
-	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -40,11 +37,9 @@ type Cookie struct {
 }
 
 // readSetCookies parses all "Set-Cookie" values from
-// the header h, removes the successfully parsed values from the 
-// "Set-Cookie" key in h and returns the parsed Cookies.
+// the header h and returns the successfully parsed Cookies.
 func readSetCookies(h Header) []*Cookie {
 	cookies := []*Cookie{}
-	var unparsedLines []string
 	for _, line := range h["Set-Cookie"] {
 		parts := strings.Split(strings.TrimSpace(line), ";", -1)
 		if len(parts) == 1 && parts[0] == "" {
@@ -53,17 +48,14 @@ func readSetCookies(h Header) []*Cookie {
 		parts[0] = strings.TrimSpace(parts[0])
 		j := strings.Index(parts[0], "=")
 		if j < 0 {
-			unparsedLines = append(unparsedLines, line)
 			continue
 		}
 		name, value := parts[0][:j], parts[0][j+1:]
 		if !isCookieNameValid(name) {
-			unparsedLines = append(unparsedLines, line)
 			continue
 		}
 		value, success := parseCookieValue(value)
 		if !success {
-			unparsedLines = append(unparsedLines, line)
 			continue
 		}
 		c := &Cookie{
@@ -134,75 +126,54 @@ func readSetCookies(h Header) []*Cookie {
 		}
 		cookies = append(cookies, c)
 	}
-	h["Set-Cookie"] = unparsedLines, unparsedLines != nil
 	return cookies
 }
 
 // SetCookie adds a Set-Cookie header to the provided ResponseWriter's headers.
 func SetCookie(w ResponseWriter, cookie *Cookie) {
-	var b bytes.Buffer
-	writeSetCookieToBuffer(&b, cookie)
-	w.Header().Add("Set-Cookie", b.String())
+	w.Header().Add("Set-Cookie", cookie.String())
 }
 
-func writeSetCookieToBuffer(buf *bytes.Buffer, c *Cookie) {
-	fmt.Fprintf(buf, "%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
+// String returns the serialization of the cookie for use in a Cookie
+// header (if only Name and Value are set) or a Set-Cookie response
+// header (if other fields are set).
+func (c *Cookie) String() string {
+	var b bytes.Buffer
+	fmt.Fprintf(&b, "%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
 	if len(c.Path) > 0 {
-		fmt.Fprintf(buf, "; Path=%s", sanitizeValue(c.Path))
+		fmt.Fprintf(&b, "; Path=%s", sanitizeValue(c.Path))
 	}
 	if len(c.Domain) > 0 {
-		fmt.Fprintf(buf, "; Domain=%s", sanitizeValue(c.Domain))
+		fmt.Fprintf(&b, "; Domain=%s", sanitizeValue(c.Domain))
 	}
 	if len(c.Expires.Zone) > 0 {
-		fmt.Fprintf(buf, "; Expires=%s", c.Expires.Format(time.RFC1123))
+		fmt.Fprintf(&b, "; Expires=%s", c.Expires.Format(time.RFC1123))
 	}
 	if c.MaxAge > 0 {
-		fmt.Fprintf(buf, "; Max-Age=%d", c.MaxAge)
+		fmt.Fprintf(&b, "; Max-Age=%d", c.MaxAge)
 	} else if c.MaxAge < 0 {
-		fmt.Fprintf(buf, "; Max-Age=0")
+		fmt.Fprintf(&b, "; Max-Age=0")
 	}
 	if c.HttpOnly {
-		fmt.Fprintf(buf, "; HttpOnly")
+		fmt.Fprintf(&b, "; HttpOnly")
 	}
 	if c.Secure {
-		fmt.Fprintf(buf, "; Secure")
+		fmt.Fprintf(&b, "; Secure")
 	}
+	return b.String()
 }
 
-// writeSetCookies writes the wire representation of the set-cookies
-// to w. Each cookie is written on a separate "Set-Cookie: " line.
-// This choice is made because HTTP parsers tend to have a limit on
-// line-length, so it seems safer to place cookies on separate lines.
-func writeSetCookies(w io.Writer, kk []*Cookie) os.Error {
-	if kk == nil {
-		return nil
-	}
-	lines := make([]string, 0, len(kk))
-	var b bytes.Buffer
-	for _, c := range kk {
-		b.Reset()
-		writeSetCookieToBuffer(&b, c)
-		lines = append(lines, "Set-Cookie: "+b.String()+"\r\n")
-	}
-	sort.SortStrings(lines)
-	for _, l := range lines {
-		if _, err := io.WriteString(w, l); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// readCookies parses all "Cookie" values from
-// the header h, removes the successfully parsed values from the 
-// "Cookie" key in h and returns the parsed Cookies.
-func readCookies(h Header) []*Cookie {
+// readCookies parses all "Cookie" values from the header h and
+// returns the successfully parsed Cookies.
+//
+// if filter isn't empty, only cookies of that name are returned
+func readCookies(h Header, filter string) []*Cookie {
 	cookies := []*Cookie{}
 	lines, ok := h["Cookie"]
 	if !ok {
 		return cookies
 	}
-	unparsedLines := []string{}
+Lines:
 	for _, line := range lines {
 		parts := strings.Split(strings.TrimSpace(line), ";", -1)
 		if len(parts) == 1 && parts[0] == "" {
@@ -215,48 +186,25 @@ func readCookies(h Header) []*Cookie {
 			if len(parts[i]) == 0 {
 				continue
 			}
-			attr, val := parts[i], ""
-			if j := strings.Index(attr, "="); j >= 0 {
-				attr, val = attr[:j], attr[j+1:]
+			name, val := parts[i], ""
+			if j := strings.Index(name, "="); j >= 0 {
+				name, val = name[:j], name[j+1:]
 			}
-			if !isCookieNameValid(attr) {
+			if !isCookieNameValid(name) {
 				continue
+			}
+			if filter != "" && filter != name {
+				continue Lines
 			}
 			val, success := parseCookieValue(val)
 			if !success {
 				continue
 			}
-			cookies = append(cookies, &Cookie{Name: attr, Value: val})
+			cookies = append(cookies, &Cookie{Name: name, Value: val})
 			parsedPairs++
 		}
-		if parsedPairs == 0 {
-			unparsedLines = append(unparsedLines, line)
-		}
 	}
-	h["Cookie"] = unparsedLines, len(unparsedLines) > 0
 	return cookies
-}
-
-// writeCookies writes the wire representation of the cookies to
-// w. According to RFC 6265 section 5.4, writeCookies does not
-// attach more than one Cookie header field.  That means all
-// cookies, if any, are written into the same line, separated by
-// semicolon.
-func writeCookies(w io.Writer, kk []*Cookie) os.Error {
-	if len(kk) == 0 {
-		return nil
-	}
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "Cookie: ")
-	for i, c := range kk {
-		if i > 0 {
-			fmt.Fprintf(&buf, "; ")
-		}
-		fmt.Fprintf(&buf, "%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
-	}
-	fmt.Fprintf(&buf, "\r\n")
-	_, err := w.Write(buf.Bytes())
-	return err
 }
 
 func sanitizeName(n string) string {

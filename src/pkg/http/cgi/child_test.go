@@ -28,15 +28,11 @@ func TestRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RequestFromMap: %v", err)
 	}
-	if g, e := req.UserAgent, "goclient"; e != g {
+	if g, e := req.UserAgent(), "goclient"; e != g {
 		t.Errorf("expected UserAgent %q; got %q", e, g)
 	}
 	if g, e := req.Method, "GET"; e != g {
 		t.Errorf("expected Method %q; got %q", e, g)
-	}
-	if g, e := req.Header.Get("User-Agent"), ""; e != g {
-		// Tests that we don't put recognized headers in the map
-		t.Errorf("expected User-Agent %q; got %q", e, g)
 	}
 	if g, e := req.Header.Get("Content-Type"), "text/xml"; e != g {
 		t.Errorf("expected Content-Type %q; got %q", e, g)
@@ -44,7 +40,7 @@ func TestRequest(t *testing.T) {
 	if g, e := req.ContentLength, int64(123); e != g {
 		t.Errorf("expected ContentLength %d; got %d", e, g)
 	}
-	if g, e := req.Referer, "elsewhere"; e != g {
+	if g, e := req.Referer(), "elsewhere"; e != g {
 		t.Errorf("expected Referer %q; got %q", e, g)
 	}
 	if req.Header == nil {

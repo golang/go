@@ -16,7 +16,6 @@ package cgi
 
 import (
 	"bufio"
-	"bytes"
 	"exec"
 	"fmt"
 	"http"
@@ -106,20 +105,13 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		env = append(env, "HTTPS=on")
 	}
 
-	if len(req.Cookie) > 0 {
-		b := new(bytes.Buffer)
-		for idx, c := range req.Cookie {
-			if idx > 0 {
-				b.Write([]byte("; "))
-			}
-			fmt.Fprintf(b, "%s=%s", c.Name, c.Value)
-		}
-		env = append(env, "HTTP_COOKIE="+b.String())
-	}
-
 	for k, v := range req.Header {
 		k = strings.Map(upperCaseAndUnderscore, k)
-		env = append(env, "HTTP_"+k+"="+strings.Join(v, ", "))
+		joinStr := ", "
+		if k == "COOKIE" {
+			joinStr = "; "
+		}
+		env = append(env, "HTTP_"+k+"="+strings.Join(v, joinStr))
 	}
 
 	if req.ContentLength > 0 {
