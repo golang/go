@@ -26,9 +26,9 @@ func TestSortIntSlice(t *testing.T) {
 	}
 }
 
-func TestSortFloat64Array(t *testing.T) {
+func TestSortFloat64Slice(t *testing.T) {
 	data := float64s
-	a := Float64Array(data[0:])
+	a := Float64Slice(data[0:])
 	Sort(a)
 	if !IsSorted(a) {
 		t.Errorf("sorted %v", float64s)
@@ -161,7 +161,7 @@ func (d *testingData) Len() int           { return len(d.data) }
 func (d *testingData) Less(i, j int) bool { return d.data[i] < d.data[j] }
 func (d *testingData) Swap(i, j int) {
 	if d.nswap >= d.maxswap {
-		d.t.Errorf("%s: used %d swaps sorting array of %d", d.desc, d.nswap, len(d.data))
+		d.t.Errorf("%s: used %d swaps sorting slice of %d", d.desc, d.nswap, len(d.data))
 		d.t.FailNow()
 	}
 	d.nswap++
@@ -255,13 +255,13 @@ func TestBentleyMcIlroy(t *testing.T) {
 					Sort(d)
 
 					// If we were testing C qsort, we'd have to make a copy
-					// of the array and sort it ourselves and then compare
+					// of the slice and sort it ourselves and then compare
 					// x against it, to ensure that qsort was only permuting
 					// the data, not (for example) overwriting it with zeros.
 					//
 					// In go, we don't have to be so paranoid: since the only
 					// mutating method Sort can call is TestingData.swap,
-					// it suffices here just to check that the final array is sorted.
+					// it suffices here just to check that the final slice is sorted.
 					if !IntsAreSorted(mdata) {
 						t.Errorf("%s: ints not sorted", desc)
 						t.Errorf("\t%v", mdata)
