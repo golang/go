@@ -40,7 +40,7 @@ xlibcgo_thread_start(ThreadStart *arg)
 	/* Make our own copy that can persist after we return. */
 	ts = malloc(sizeof *ts);
 	if(ts == nil) {
-		fprintf(stderr, "libcgo: out of memory in thread_start\n");
+		fprintf(stderr, "runtime/cgo: out of memory in thread_start\n");
 		abort();
 	}
 	*ts = *arg;
