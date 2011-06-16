@@ -188,7 +188,7 @@ var multipartByReader = &multipart.Form{
 // multipart/form-data POST request, else returns nil and an error.
 // Use this function instead of ParseMultipartForm to
 // process the request body as a stream.
-func (r *Request) MultipartReader() (multipart.Reader, os.Error) {
+func (r *Request) MultipartReader() (*multipart.Reader, os.Error) {
 	if r.MultipartForm == multipartByReader {
 		return nil, os.NewError("http: MultipartReader called twice")
 	}
@@ -199,7 +199,7 @@ func (r *Request) MultipartReader() (multipart.Reader, os.Error) {
 	return r.multipartReader()
 }
 
-func (r *Request) multipartReader() (multipart.Reader, os.Error) {
+func (r *Request) multipartReader() (*multipart.Reader, os.Error) {
 	v := r.Header.Get("Content-Type")
 	if v == "" {
 		return nil, ErrNotMultipart

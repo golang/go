@@ -28,21 +28,6 @@ var headerRegexp *regexp.Regexp = regexp.MustCompile("^([a-zA-Z0-9\\-]+): *([^\r
 
 var emptyParams = make(map[string]string)
 
-// Reader is an iterator over parts in a MIME multipart body.
-// Reader's underlying parser consumes its input as needed.  Seeking
-// isn't supported.
-type Reader interface {
-	// NextPart returns the next part in the multipart or an error.
-	// When there are no more parts, the error os.EOF is returned.
-	NextPart() (*Part, os.Error)
-
-	// ReadForm parses an entire multipart message whose parts have
-	// a Content-Disposition of "form-data".
-	// It stores up to maxMemory bytes of the file parts in memory
-	// and the remainder on disk in temporary files.
-	ReadForm(maxMemory int64) (*Form, os.Error)
-}
-
 // A Part represents a single part in a multipart body.
 type Part struct {
 	// The headers of the body, if any, with the keys canonicalized
@@ -51,7 +36,7 @@ type Part struct {
 	Header textproto.MIMEHeader
 
 	buffer *bytes.Buffer
-	mr     *multiReader
+	mr     *Reader
 
 	disposition       string
 	dispositionParams map[string]string
@@ -91,9 +76,9 @@ func (p *Part) parseContentDisposition() {
 
 // NewReader creates a new multipart Reader reading from r using the
 // given MIME boundary.
-func NewReader(reader io.Reader, boundary string) Reader {
+func NewReader(reader io.Reader, boundary string) *Reader {
 	b := []byte("\r\n--" + boundary + "--")
-	return &multiReader{
+	return &Reader{
 		bufReader: bufio.NewReader(reader),
 
 		nlDashBoundary:   b[:len(b)-2],
@@ -102,9 +87,7 @@ func NewReader(reader io.Reader, boundary string) Reader {
 	}
 }
 
-// Implementation ....
-
-func newPart(mr *multiReader) (*Part, os.Error) {
+func newPart(mr *Reader) (*Part, os.Error) {
 	bp := &Part{
 		Header: make(map[string][]string),
 		mr:     mr,
@@ -188,7 +171,10 @@ func (bp *Part) Close() os.Error {
 	return nil
 }
 
-type multiReader struct {
+// Reader is an iterator over parts in a MIME multipart body.
+// Reader's underlying parser consumes its input as needed.  Seeking
+// isn't supported.
+type Reader struct {
 	bufReader *bufio.Reader
 
 	currentPart *Part
@@ -197,7 +183,9 @@ type multiReader struct {
 	nlDashBoundary, dashBoundaryDash, dashBoundary []byte
 }
 
-func (mr *multiReader) NextPart() (*Part, os.Error) {
+// NextPart returns the next part in the multipart or an error.
+// When there are no more parts, the error os.EOF is returned.
+func (mr *Reader) NextPart() (*Part, os.Error) {
 	if mr.currentPart != nil {
 		mr.currentPart.Close()
 	}
@@ -247,7 +235,7 @@ func (mr *multiReader) NextPart() (*Part, os.Error) {
 	panic("unreachable")
 }
 
-func (mr *multiReader) isBoundaryDelimiterLine(line []byte) bool {
+func (mr *Reader) isBoundaryDelimiterLine(line []byte) bool {
 	// http://tools.ietf.org/html/rfc2046#section-5.1
 	//   The boundary delimiter line is then defined as a line
 	//   consisting entirely of two hyphen characters ("-",
