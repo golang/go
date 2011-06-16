@@ -16,6 +16,11 @@ import (
 
 // A Client is an HTTP client. Its zero value (DefaultClient) is a usable client
 // that uses DefaultTransport.
+//
+// The Client's Transport typically has internal state (cached
+// TCP connections), so Clients should be reused instead of created as
+// needed. Clients are safe for concurrent use by multiple goroutines.
+//
 // Client is not yet very configurable.
 type Client struct {
 	Transport RoundTripper // if nil, DefaultTransport is used
@@ -36,6 +41,9 @@ var DefaultClient = &Client{}
 
 // RoundTripper is an interface representing the ability to execute a
 // single HTTP transaction, obtaining the Response for a given Request.
+//
+// A RoundTripper must be safe for concurrent use by multiple
+// goroutines.
 type RoundTripper interface {
 	// RoundTrip executes a single HTTP transaction, returning
 	// the Response for the request req.  RoundTrip should not
