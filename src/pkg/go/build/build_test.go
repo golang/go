@@ -7,8 +7,6 @@ package build
 import (
 	"exec"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"testing"
 )
 
@@ -22,11 +20,6 @@ const cmdtestOutput = "3"
 
 func TestBuild(t *testing.T) {
 	for _, pkg := range buildPkgs {
-		if runtime.GOARCH == "arm" && strings.Contains(pkg, "/cgo") {
-			// no cgo for arm, yet.
-			continue
-		}
-
 		tree := Path[0] // Goroot
 		dir := filepath.Join(tree.SrcDir(), pkg)
 

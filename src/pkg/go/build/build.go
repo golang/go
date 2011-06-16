@@ -331,11 +331,14 @@ func (b *build) gccLink(ofile string, ofiles ...string) {
 
 func (b *build) gccArgs(args ...string) []string {
 	// TODO(adg): HOST_CC
-	m := "-m32"
-	if b.arch == "6" {
-		m = "-m64"
+	a := []string{"gcc", "-I", b.path, "-g", "-fPIC", "-O2"}
+	switch b.arch {
+	case "8":
+		a = append(a, "-m32")
+	case "6":
+		a = append(a, "-m64")
 	}
-	return append([]string{"gcc", m, "-I", b.path, "-g", "-fPIC", "-O2"}, args...)
+	return append(a, args...)
 }
 
 func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
