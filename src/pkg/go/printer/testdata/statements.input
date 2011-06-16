@@ -91,6 +91,19 @@ func _() {
 }
 
 
+// Formatting of selected select statements.
+func _() {
+	select {
+	}
+	select { /* this comment should not be tab-aligned because the closing } is on the same line */ }
+	select { /* this comment should be tab-aligned */
+	}
+	select { // this comment should be tab-aligned
+	}
+	select { case <-c: }
+}
+
+
 // Formatting of for-statement headers.
 func _() {
 	for{}

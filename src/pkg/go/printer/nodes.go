@@ -1158,8 +1158,14 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
 
 	case *ast.SelectStmt:
 		p.print(token.SELECT, blank)
-		p.block(s.Body, 0)
-		*multiLine = true
+		body := s.Body
+		if len(body.List) == 0 && !p.commentBefore(p.fset.Position(body.Rbrace)) {
+			// print empty select statement w/o comments on one line
+			p.print(body.Lbrace, token.LBRACE, body.Rbrace, token.RBRACE)
+		} else {
+			p.block(body, 0)
+			*multiLine = true
+		}
 
 	case *ast.ForStmt:
 		p.print(token.FOR)
