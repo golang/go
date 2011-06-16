@@ -1257,3 +1257,6 @@ void	zhist(Biobuf *b, int line, vlong offset);
 void	zname(Biobuf *b, Sym *s, int t);
 void	data(void);
 void	text(void);
+
+EXTERN	int	hasgoto;
+void	clearstk(void);

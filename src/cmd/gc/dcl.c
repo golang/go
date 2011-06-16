@@ -1241,9 +1241,14 @@ funccompile(Node *n, int isclosure)
 	stksize = 0;
 	dclcontext = PAUTO;
 	funcdepth = n->funcdepth + 1;
+	hasgoto = 0;
 	compile(n);
+	if(hasgoto)
+		clearstk();
 	curfn = nil;
 	funcdepth = 0;
 	dclcontext = PEXTERN;
 }
+
+
 
