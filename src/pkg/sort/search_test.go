@@ -108,7 +108,7 @@ var wrappertests = []struct {
 	{"SearchFloat64s", SearchFloat64s(fdata, 2.1), 4},
 	{"SearchStrings", SearchStrings(sdata, ""), 0},
 	{"IntSlice.Search", IntSlice(data).Search(0), 2},
-	{"Float64Array.Search", Float64Array(fdata).Search(2.0), 3},
+	{"Float64Slice.Search", Float64Slice(fdata).Search(2.0), 3},
 	{"StringSlice.Search", StringSlice(sdata).Search("x"), 3},
 }
 

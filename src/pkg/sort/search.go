@@ -15,7 +15,7 @@ package sort
 // Search calls f(i) only for i in the range [0, n).
 //
 // A common use of Search is to find the index i for a value x in
-// a sorted, indexable data structure like an array or slice.
+// a sorted, indexable data structure such as an array or slice.
 // In this case, the argument f, typically a closure, captures the value
 // to be searched for, and how the data structure is indexed and
 // ordered.
@@ -75,7 +75,7 @@ func Search(n int, f func(int) bool) int {
 // Convenience wrappers for common cases.
 
 // SearchInts searches for x in a sorted slice of ints and returns the index
-// as specified by Search. The array must be sorted in ascending order.
+// as specified by Search. The slice must be sorted in ascending order.
 //
 func SearchInts(a []int, x int) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
@@ -83,15 +83,15 @@ func SearchInts(a []int, x int) int {
 
 
 // SearchFloat64s searches for x in a sorted slice of float64s and returns the index
-// as specified by Search. The array must be sorted in ascending order.
+// as specified by Search. The slice must be sorted in ascending order.
 // 
 func SearchFloat64s(a []float64, x float64) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
 
-// SearchStrings searches for x in a sorted slice of strings and returns the index
-// as specified by Search. The array must be sorted in ascending order.
+// SearchStrings searches for x slice a sorted slice of strings and returns the index
+// as specified by Search. The slice must be sorted in ascending order.
 // 
 func SearchStrings(a []string, x string) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
@@ -103,7 +103,7 @@ func (p IntSlice) Search(x int) int { return SearchInts(p, x) }
 
 
 // Search returns the result of applying SearchFloat64s to the receiver and x.
-func (p Float64Array) Search(x float64) int { return SearchFloat64s(p, x) }
+func (p Float64Slice) Search(x float64) int { return SearchFloat64s(p, x) }
 
 
 // Search returns the result of applying SearchStrings to the receiver and x.
