@@ -34,9 +34,9 @@ type Image interface {
 	Set(x, y int, c image.Color)
 }
 
-// Draw calls DrawMask with a nil mask and an Over op.
-func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point) {
-	DrawMask(dst, r, src, sp, nil, image.ZP, Over)
+// Draw calls DrawMask with a nil mask.
+func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point, op Op) {
+	DrawMask(dst, r, src, sp, nil, image.ZP, op)
 }
 
 // clip clips r against each image's bounds (after translating into the

@@ -271,7 +271,7 @@ func TestNonZeroSrcPt(t *testing.T) {
 	b.Set(1, 0, image.RGBAColor{0, 0, 5, 5})
 	b.Set(0, 1, image.RGBAColor{0, 5, 0, 5})
 	b.Set(1, 1, image.RGBAColor{5, 0, 0, 5})
-	Draw(a, image.Rect(0, 0, 1, 1), b, image.Pt(1, 1))
+	Draw(a, image.Rect(0, 0, 1, 1), b, image.Pt(1, 1), Over)
 	if !eq(image.RGBAColor{5, 0, 0, 5}, a.At(0, 0)) {
 		t.Errorf("non-zero src pt: want %v got %v", image.RGBAColor{5, 0, 0, 5}, a.At(0, 0))
 	}
