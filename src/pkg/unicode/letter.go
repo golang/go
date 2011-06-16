@@ -275,3 +275,52 @@ func (special SpecialCase) ToLower(rune int) int {
 	}
 	return r
 }
+
+// caseOrbit is defined in tables.go as []foldPair.  Right now all the
+// entries fit in uint16, so use uint16.  If that changes, compilation
+// will fail (the constants in the composite literal will not fit in uint16)
+// and the types here can change to uint32.
+type foldPair struct {
+	From uint16
+	To   uint16
+}
+
+// SimpleFold iterates over Unicode code points equivalent under
+// the Unicode-defined simple case folding.  Among the code points
+// equivalent to rune (including rune itself), SimpleFold returns the
+// smallest r >= rune if one exists, or else the smallest r >= 0. 
+//
+// For example:
+//	SimpleFold('A') = 'a'
+//	SimpleFold('a') = 'A'
+//
+//	SimpleFold('K') = 'k'
+//	SimpleFold('k') = '\u212A' (Kelvin symbol, K)
+//	SimpleFold('\u212A') = 'K'
+//
+//	SimpleFold('1') = '1'
+//
+func SimpleFold(rune int) int {
+	// Consult caseOrbit table for special cases.
+	lo := 0
+	hi := len(caseOrbit)
+	for lo < hi {
+		m := lo + (hi-lo)/2
+		if int(caseOrbit[m].From) < rune {
+			lo = m + 1
+		} else {
+			hi = m
+		}
+	}
+	if lo < len(caseOrbit) && int(caseOrbit[lo].From) == rune {
+		return int(caseOrbit[lo].To)
+	}
+
+	// No folding specified.  This is a one- or two-element
+	// equivalence class containing rune and ToLower(rune)
+	// and ToUpper(rune) if they are different from rune.
+	if l := ToLower(rune); l != rune {
+		return l
+	}
+	return ToUpper(rune)
+}
