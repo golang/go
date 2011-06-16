@@ -445,6 +445,33 @@ func TestUnquotedAttrs(t *testing.T) {
 	}
 }
 
+func TestValuelessAttrs(t *testing.T) {
+	tests := [][3]string{
+		{"<p nowrap>", "p", "nowrap"},
+		{"<p nowrap >", "p", "nowrap"},
+		{"<input checked/>", "input", "checked"},
+		{"<input checked />", "input", "checked"},
+	}
+	for _, test := range tests {
+		p := NewParser(StringReader(test[0]))
+		p.Strict = false
+		token, err := p.Token()
+		if _, ok := err.(*SyntaxError); ok {
+			t.Errorf("Unexpected error: %v", err)
+		}
+		if token.(StartElement).Name.Local != test[1] {
+			t.Errorf("Unexpected tag name: %v", token.(StartElement).Name.Local)
+		}
+		attr := token.(StartElement).Attr[0]
+		if attr.Value != test[2] {
+			t.Errorf("Unexpected attribute value: %v", attr.Value)
+		}
+		if attr.Name.Local != test[2] {
+			t.Errorf("Unexpected attribute name: %v", attr.Name.Local)
+		}
+	}
+}
+
 func TestCopyTokenCharData(t *testing.T) {
 	data := []byte("same data")
 	var tok1 Token = CharData(data)

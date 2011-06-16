@@ -659,17 +659,22 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			return nil, p.err
 		}
 		if b != '=' {
-			p.err = p.syntaxError("attribute name without = in element")
-			return nil, p.err
+			if p.Strict {
+				p.err = p.syntaxError("attribute name without = in element")
+				return nil, p.err
+			} else {
+				p.ungetc(b)
+				a.Value = a.Name.Local
+			}
+		} else {
+			p.space()
+			data := p.attrval()
+			if data == nil {
+				return nil, p.err
+			}
+			a.Value = string(data)
 		}
-		p.space()
-		data := p.attrval()
-		if data == nil {
-			return nil, p.err
-		}
-		a.Value = string(data)
 	}
-
 	if empty {
 		p.needClose = true
 		p.toClose = name
