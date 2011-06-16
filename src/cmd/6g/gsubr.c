@@ -125,7 +125,7 @@ clearstk(void)
 {
 	Plist *pl;
 	Prog *p1, *p2;
-	Node sp, di, cx, con;
+	Node sp, di, cx, con, ax;
 
 	if((uint32)plast->firstpc->to.offset <= 0)
 		return;
@@ -147,6 +147,9 @@ clearstk(void)
 	gins(ACLD, N, N);
 	gins(AMOVQ, &sp, &di);
 	gins(AMOVQ, &con, &cx);
+	nodconst(&con, types[TUINT64], 0);
+	nodreg(&ax, types[TUINT64], D_AX);
+	gins(AMOVQ, &con, &ax);
 	gins(AREP, N, N);
 	gins(ASTOSQ, N, N);
 
