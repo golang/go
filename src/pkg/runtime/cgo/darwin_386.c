@@ -8,11 +8,13 @@
 static void* threadentry(void*);
 static pthread_key_t k1, k2;
 
+#define magic1 (0x23581321U)
+
 static void
 inittls(void)
 {
 	uint32 x, y;
-	pthread_key_t tofree[16], k;
+	pthread_key_t tofree[128], k;
 	int i, ntofree;
 	int havek1, havek2;
 
@@ -35,9 +37,8 @@ inittls(void)
 	 * 0x48+4*0x108 = 0x468 and 0x48+4*0x109 = 0x46c.
 	 *
 	 * The linker and runtime hard-code these constant offsets
-	 * from %gs where we expect to find m and g.  The code
-	 * below verifies that the constants are correct once it has
-	 * obtained the keys.  Known to ../cmd/8l/obj.c:/468
+	 * from %gs where we expect to find m and g.
+	 * Known to ../cmd/8l/obj.c:/468
 	 * and to ../pkg/runtime/darwin/386/sys.s:/468
 	 *
 	 * This is truly disgusting and a bit fragile, but taking care
@@ -48,55 +49,54 @@ inittls(void)
 	 * require an extra instruction and memory reference in
 	 * every stack growth prolog and would also require
 	 * rewriting the code that 8c generates for extern registers.
+	 *
+	 * Things get more disgusting on OS X 10.7 Lion.
+	 * The 0x48 base mentioned above is the offset of the tsd
+	 * array within the per-thread structure on Leopard and Snow Leopard.
+	 * On Lion, the base moved a little, so while the math above
+	 * still applies, the base is different.  Thus, we cannot
+	 * look for specific key values if we want to build binaries
+	 * that run on both systems.  Instead, forget about the
+	 * specific key values and just allocate and initialize per-thread
+	 * storage until we find a key that writes to the memory location
+	 * we want.  Then keep that key.
 	 */
 	havek1 = 0;
 	havek2 = 0;
 	ntofree = 0;
 	while(!havek1 || !havek2) {
 		if(pthread_key_create(&k, nil) < 0) {
-			fprintf(stderr, "libcgo: pthread_key_create failed\n");
+			fprintf(stderr, "runtime/cgo: pthread_key_create failed\n");
 			abort();
 		}
-		if(k == 0x108) {
+		pthread_setspecific(k, (void*)magic1);
+		asm volatile("movl %%gs:0x468, %0" : "=r"(x));
+		asm volatile("movl %%gs:0x46c, %0" : "=r"(y));
+		if(x == magic1) {
 			havek1 = 1;
 			k1 = k;
-			continue;
-		}
-		if(k == 0x109) {
+		} else if(y == magic1) {
 			havek2 = 1;
 			k2 = k;
-			continue;
+		} else {
+			if(ntofree >= nelem(tofree)) {
+				fprintf(stderr, "runtime/cgo: could not obtain pthread_keys\n");
+				fprintf(stderr, "\ttried");
+				for(i=0; i<ntofree; i++)
+					fprintf(stderr, " %#x", (unsigned)tofree[i]);
+				fprintf(stderr, "\n");
+				abort();
+			}
+			tofree[ntofree++] = k;
 		}
-		if(ntofree >= nelem(tofree)) {
-			fprintf(stderr, "libcgo: could not obtain pthread_keys\n");
-			fprintf(stderr, "\twanted 0x108 and 0x109\n");
-			fprintf(stderr, "\tgot");
-			for(i=0; i<ntofree; i++)
-				fprintf(stderr, " %#lx", tofree[i]);
-			fprintf(stderr, "\n");
-			abort();
-		}
-		tofree[ntofree++] = k;
+		pthread_setspecific(k, 0);
 	}
-
-	for(i=0; i<ntofree; i++)
-		pthread_key_delete(tofree[i]);
 
 	/*
-	 * We got the keys we wanted.  Make sure that we observe
-	 * updates to k1 at 0x468, to verify that the TLS array
-	 * offset from %gs hasn't changed.
+	 * We got the keys we wanted.  Free the others.
 	 */
-	pthread_setspecific(k1, (void*)0x12345678);
-	asm volatile("movl %%gs:0x468, %0" : "=r"(x));
-
-	pthread_setspecific(k1, (void*)0x87654321);
-	asm volatile("movl %%gs:0x468, %0" : "=r"(y));
-
-	if(x != 0x12345678 || y != 0x87654321) {
-		printf("libcgo: thread-local storage %#lx not at %%gs:0x468 - x=%#x y=%#x\n", k1, x, y);
-		abort();
-	}
+	for(i=0; i<ntofree; i++)
+		pthread_key_delete(tofree[i]);
 }
 
 static void
