@@ -45,13 +45,6 @@ func envMap(env []string) map[string]string {
 	return m
 }
 
-// These environment variables are manually copied into Request
-var skipHeader = map[string]bool{
-	"HTTP_HOST":       true,
-	"HTTP_REFERER":    true,
-	"HTTP_USER_AGENT": true,
-}
-
 // RequestFromMap creates an http.Request from CGI variables.
 // The returned Request's Body field is not populated.
 func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
@@ -73,8 +66,6 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
 	r.Header = http.Header{}
 
 	r.Host = params["HTTP_HOST"]
-	r.Referer = params["HTTP_REFERER"]
-	r.UserAgent = params["HTTP_USER_AGENT"]
 
 	if lenstr := params["CONTENT_LENGTH"]; lenstr != "" {
 		clen, err := strconv.Atoi64(lenstr)
@@ -90,7 +81,7 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
 
 	// Copy "HTTP_FOO_BAR" variables to "Foo-Bar" Headers
 	for k, v := range params {
-		if !strings.HasPrefix(k, "HTTP_") || skipHeader[k] {
+		if !strings.HasPrefix(k, "HTTP_") || k == "HTTP_HOST" {
 			continue
 		}
 		r.Header.Add(strings.Replace(k[5:], "_", "-", -1), v)

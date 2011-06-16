@@ -173,7 +173,7 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
 				// Add the Referer header.
 				lastReq := via[len(via)-1]
 				if lastReq.URL.Scheme != "https" {
-					req.Referer = lastReq.URL.String()
+					req.Header.Set("Referer", lastReq.URL.String())
 				}
 
 				err = redirectChecker(req, via)

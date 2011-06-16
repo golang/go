@@ -149,7 +149,7 @@ func TestRedirects(t *testing.T) {
 		n, _ := strconv.Atoi(r.FormValue("n"))
 		// Test Referer header. (7 is arbitrary position to test at)
 		if n == 7 {
-			if g, e := r.Referer, ts.URL+"/?n=6"; e != g {
+			if g, e := r.Referer(), ts.URL+"/?n=6"; e != g {
 				t.Errorf("on request ?n=7, expected referer of %q; got %q", e, g)
 			}
 		}

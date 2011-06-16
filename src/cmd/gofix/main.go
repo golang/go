@@ -123,7 +123,7 @@ func processFile(filename string, useStdin bool) os.Error {
 	newFile := file
 	fixed := false
 	for _, fix := range fixes {
-		if allowed != nil && !allowed[fix.desc] {
+		if allowed != nil && !allowed[fix.name] {
 			continue
 		}
 		if fix.f(newFile) {

@@ -47,13 +47,12 @@ var reqWriteTests = []reqWriteTest{
 				"Accept-Language":  {"en-us,en;q=0.5"},
 				"Keep-Alive":       {"300"},
 				"Proxy-Connection": {"keep-alive"},
+				"User-Agent":       {"Fake"},
 			},
-			Body:      nil,
-			Close:     false,
-			Host:      "www.techcrunch.com",
-			Referer:   "",
-			UserAgent: "Fake",
-			Form:      map[string][]string{},
+			Body:  nil,
+			Close: false,
+			Host:  "www.techcrunch.com",
+			Form:  map[string][]string{},
 		},
 
 		nil,
@@ -232,6 +231,9 @@ func TestRequestWrite(t *testing.T) {
 		tt := &reqWriteTests[i]
 		if tt.Body != nil {
 			tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(tt.Body))
+		}
+		if tt.Req.Header == nil {
+			tt.Req.Header = make(Header)
 		}
 		var braw bytes.Buffer
 		err := tt.Req.Write(&braw)

@@ -60,10 +60,10 @@ type badStringError struct {
 
 func (e *badStringError) String() string { return fmt.Sprintf("%s %q", e.what, e.str) }
 
-var reqExcludeHeader = map[string]bool{
+// Headers that Request.Write handles itself and should be skipped.
+var reqWriteExcludeHeader = map[string]bool{
 	"Host":              true,
 	"User-Agent":        true,
-	"Referer":           true,
 	"Content-Length":    true,
 	"Transfer-Encoding": true,
 	"Trailer":           true,
@@ -102,9 +102,6 @@ type Request struct {
 	// following a hyphen uppercase and the rest lowercase.
 	Header Header
 
-	// Cookie records the HTTP cookies sent with the request.
-	Cookie []*Cookie
-
 	// The message body.
 	Body io.ReadCloser
 
@@ -124,21 +121,6 @@ type Request struct {
 	// Per RFC 2616, this is either the value of the Host: header
 	// or the host name given in the URL itself.
 	Host string
-
-	// The referring URL, if sent in the request.
-	//
-	// Referer is misspelled as in the request itself,
-	// a mistake from the earliest days of HTTP.
-	// This value can also be fetched from the Header map
-	// as Header["Referer"]; the benefit of making it
-	// available as a structure field is that the compiler
-	// can diagnose programs that use the alternate
-	// (correct English) spelling req.Referrer but cannot
-	// diagnose programs that use Header["Referrer"].
-	Referer string
-
-	// The User-Agent: header string, if sent in the request.
-	UserAgent string
 
 	// The parsed form. Only available after ParseForm is called.
 	Form Values
@@ -174,6 +156,52 @@ type Request struct {
 func (r *Request) ProtoAtLeast(major, minor int) bool {
 	return r.ProtoMajor > major ||
 		r.ProtoMajor == major && r.ProtoMinor >= minor
+}
+
+// UserAgent returns the client's User-Agent, if sent in the request.
+func (r *Request) UserAgent() string {
+	return r.Header.Get("User-Agent")
+}
+
+// Cookies parses and returns the HTTP cookies sent with the request.
+func (r *Request) Cookies() []*Cookie {
+	return readCookies(r.Header, "")
+}
+
+var ErrNoCookie = os.NewError("http: named cookied not present")
+
+// Cookie returns the named cookie provided in the request or
+// ErrNoCookie if not found.
+func (r *Request) Cookie(name string) (*Cookie, os.Error) {
+	for _, c := range readCookies(r.Header, name) {
+		return c, nil
+	}
+	return nil, ErrNoCookie
+}
+
+// AddCookie adds a cookie to the request.  Per RFC 6265 section 5.4,
+// AddCookie does not attach more than one Cookie header field.  That
+// means all cookies, if any, are written into the same line,
+// separated by semicolon.
+func (r *Request) AddCookie(c *Cookie) {
+	s := fmt.Sprintf("%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
+	if c := r.Header.Get("Cookie"); c != "" {
+		r.Header.Set("Cookie", c+"; "+s)
+	} else {
+		r.Header.Set("Cookie", s)
+	}
+}
+
+// Referer returns the referring URL, if sent in the request.
+//
+// Referer is misspelled as in the request itself, a mistake from the
+// earliest days of HTTP.  This value can also be fetched from the
+// Header map as Header["Referer"]; the benefit of making it available
+// as a method is that the compiler can diagnose programs that use the
+// alternate (correct English) spelling req.Referrer() but cannot
+// diagnose programs that use Header["Referrer"].
+func (r *Request) Referer() string {
+	return r.Header.Get("Referer")
 }
 
 // multipartByReader is a sentinel value.
@@ -230,10 +258,7 @@ const defaultUserAgent = "Go http package"
 //	Host
 //	RawURL, if non-empty, or else URL
 //	Method (defaults to "GET")
-//	UserAgent (defaults to defaultUserAgent)
-//	Referer
-//	Header (only keys not already in this list)
-//	Cookie
+//	Header
 //	ContentLength
 //	TransferEncoding
 //	Body
@@ -281,9 +306,17 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 
 	// Header lines
 	fmt.Fprintf(w, "Host: %s\r\n", host)
-	fmt.Fprintf(w, "User-Agent: %s\r\n", valueOrDefault(req.UserAgent, defaultUserAgent))
-	if req.Referer != "" {
-		fmt.Fprintf(w, "Referer: %s\r\n", req.Referer)
+
+	// Use the defaultUserAgent unless the Header contains one, which
+	// may be blank to not send the header.
+	userAgent := defaultUserAgent
+	if req.Header != nil {
+		if ua := req.Header["User-Agent"]; len(ua) > 0 {
+			userAgent = ua[0]
+		}
+	}
+	if userAgent != "" {
+		fmt.Fprintf(w, "User-Agent: %s\r\n", userAgent)
 	}
 
 	// Process Body,ContentLength,Close,Trailer
@@ -297,18 +330,8 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 	}
 
 	// TODO: split long values?  (If so, should share code with Conn.Write)
-	// TODO: if Header includes values for Host, User-Agent, or Referer, this
-	// may conflict with the User-Agent or Referer headers we add manually.
-	// One solution would be to remove the Host, UserAgent, and Referer fields
-	// from Request, and introduce Request methods along the lines of
-	// Response.{GetHeader,AddHeader} and string constants for "Host",
-	// "User-Agent" and "Referer".
-	err = req.Header.WriteSubset(w, reqExcludeHeader)
+	err = req.Header.WriteSubset(w, reqWriteExcludeHeader)
 	if err != nil {
-		return err
-	}
-
-	if err = writeCookies(w, req.Cookie); err != nil {
 		return err
 	}
 
@@ -559,13 +582,6 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 
 	fixPragmaCacheControl(req.Header)
 
-	// Pull out useful fields as a convenience to clients.
-	req.Referer = req.Header.Get("Referer")
-	req.Header.Del("Referer")
-
-	req.UserAgent = req.Header.Get("User-Agent")
-	req.Header.Del("User-Agent")
-
 	// TODO: Parse specific header values:
 	//	Accept
 	//	Accept-Encoding
@@ -596,8 +612,6 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	if err != nil {
 		return nil, err
 	}
-
-	req.Cookie = readCookies(req.Header)
 
 	return req, nil
 }
