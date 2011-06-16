@@ -6,6 +6,8 @@
 # Generate system call table for FreeBSD from master list
 # (for example, /usr/src/sys/kern/syscalls.master).
 
+use strict;
+
 my $command = "mksysnum_freebsd.pl " . join(' ', @ARGV);
 
 print <<EOF;

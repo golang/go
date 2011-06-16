@@ -23,9 +23,11 @@
 #	  //sys LoadLibrary(libname string) (handle uint32, errno int) [failretval==-1] = LoadLibraryA
 #	  and is [failretval==0] by default.
 
-$cmdline = "mksyscall_windows.pl " . join(' ', @ARGV);
-$errors = 0;
-$_32bit = "";
+use strict;
+
+my $cmdline = "mksyscall_windows.pl " . join(' ', @ARGV);
+my $errors = 0;
+my $_32bit = "";
 
 binmode STDOUT;
 
@@ -62,10 +64,10 @@ sub parseparam($) {
 	return ($1, $2);
 }
 
-$text = "";
-$vars = "";
-$mods = "";
-$modnames = "";
+my $text = "";
+my $vars = "";
+my $mods = "";
+my $modnames = "";
 while(<>) {
 	chomp;
 	s/\s+/ /g;
@@ -91,7 +93,7 @@ while(<>) {
 	if($modname eq "") {
 		$modname = "kernel32";
 	}
-	$modvname = "mod$modname";
+	my $modvname = "mod$modname";
 	if($modnames !~ /$modname/) {
 		$modnames .= ".$modname";
 		$mods .= "\t$modvname = loadDll(\"$modname.dll\")\n";
@@ -103,7 +105,7 @@ while(<>) {
 	}
 
 	# System call pointer variable name.
-	$sysvarname = "proc$sysname";
+	my $sysvarname = "proc$sysname";
 
 	# Returned value when failed
 	if($failcond eq "") {
@@ -111,17 +113,13 @@ while(<>) {
 	}
 
 	# Decide which version of api is used: ascii or unicode.
-	if($sysname !~ /W$/) {
-		$strconvfunc = "StringBytePtr";
-	} else {
-		$strconvfunc = "StringToUTF16Ptr";
-	}
+	my $strconvfunc = $sysname !~ /W$/ ? "StringBytePtr" : "StringToUTF16Ptr";
 
 	# Winapi proc address variable.
 	$vars .= sprintf "\t%s = getSysProcAddr(%s, \"%s\")\n", $sysvarname, $modvname, $sysname;
 
 	# Go function header.
-	my $out = join(', ', @out);
+	$out = join(', ', @out);
 	if($out ne "") {
 		$out = " ($out)";
 	}
@@ -242,7 +240,7 @@ while(<>) {
 				$failexpr = "$name $failcond";
 			}
 		}
-		$failexpr =~ s/(=)([0-9A-Za-z\-+])/\1 \2/;  # gofmt compatible
+		$failexpr =~ s/(=)([0-9A-Za-z\-+])/$1 $2/;  # gofmt compatible
 		if($name eq "errno") {
 			# Set errno to "last error" only if returned value indicate failure
 			$body .= "\tif $failexpr {\n";
