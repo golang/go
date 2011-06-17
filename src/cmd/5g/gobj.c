@@ -182,6 +182,8 @@ dumpfuncs(void)
 	// fix up pc
 	pcloc = 0;
 	for(pl=plist; pl!=nil; pl=pl->link) {
+		if(isblank(pl->name))
+			continue;
 		for(p=pl->firstpc; p!=P; p=p->link) {
 			p->loc = pcloc;
 			if(p->as != ADATA && p->as != AGLOBL)
@@ -191,6 +193,8 @@ dumpfuncs(void)
 
 	// put out functions
 	for(pl=plist; pl!=nil; pl=pl->link) {
+		if(isblank(pl->name))
+			continue;
 
 		if(debug['S']) {
 			s = S;

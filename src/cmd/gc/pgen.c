@@ -30,6 +30,8 @@ compile(Node *fn)
 	if(fn->nbody == nil)
 		return;
 
+	saveerrors();
+
 	// set up domain for labels
 	clearlabels();
 
@@ -53,7 +55,7 @@ compile(Node *fn)
 
 	hasdefer = 0;
 	walk(curfn);
-	if(nerrors != 0 || isblank(curfn->nname))
+	if(nerrors != 0)
 		goto ret;
 
 	allocparams();
@@ -67,7 +69,7 @@ compile(Node *fn)
 	setlineno(curfn);
 
 	nodconst(&nod1, types[TINT32], 0);
-	ptxt = gins(ATEXT, curfn->nname, &nod1);
+	ptxt = gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
 	afunclit(&ptxt->from);
 
 	ginit();

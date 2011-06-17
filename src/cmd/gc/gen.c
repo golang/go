@@ -11,6 +11,10 @@
 
 static void	cgen_dcl(Node *n);
 static void	cgen_proc(Node *n, int proc);
+static void checkgoto(Node*, Node*);
+
+static Label *labellist;
+static Label *lastlabel;
 
 Node*
 sysfunc(char *name)
@@ -80,71 +84,122 @@ clearlabels(void)
 	lastlabel = L;
 }
 
-static void
-newlab(int op, Node *nlab, Node *stmt)
+static Label*
+newlab(Node *n)
 {
-	Label *lab;
 	Sym *s;
-	int32 lno;
+	Label *lab;
 	
-	s = nlab->left->sym;
-	lno = nlab->left->lineno;
+	s = n->left->sym;
+	if((lab = s->label) == L) {
+		lab = mal(sizeof(*lab));
+		if(lastlabel == nil)
+			labellist = lab;
+		else
+			lastlabel->link = lab;
+		lastlabel = lab;
+		lab->sym = s;
+		s->label = lab;
+	}
+	
+	if(n->op == OLABEL) {
+		if(lab->def != N)
+			yyerror("label %S already defined at %L", s, lab->def->lineno);
+		else
+			lab->def = n;
+	} else
+		lab->use = list(lab->use, n);
 
-	lab = mal(sizeof(*lab));
-	if(lastlabel == nil)
-		labellist = lab;
-	else
-		lastlabel->link = lab;
-	lastlabel = lab;
-
-	lab->lineno = lno;
-	lab->sym = s;
-	lab->op = op;
-	lab->label = pc;
-	lab->stmt = stmt;
-	if(op == OLABEL) {
-		if(s->label != L) {
-			lineno = lno;
-			yyerror("label %S already defined at %L", s, s->label->lineno);
-		} else
-			s->label = lab;
-	}	
+	return lab;
 }
 
 void
 checklabels(void)
 {
-	Label *l;
-	Sym *s;
+	Label *lab;
+	NodeList *l;
+
+	for(lab=labellist; lab!=L; lab=lab->link) {
+		if(lab->def == N) {
+			for(l=lab->use; l; l=l->next)
+				yyerrorl(l->n->lineno, "label %S not defined", lab->sym);
+			continue;
+		}
+		if(lab->use == nil && !lab->used) {
+			yyerrorl(lab->def->lineno, "label %S defined and not used", lab->sym);
+			continue;
+		}
+		if(lab->gotopc != P)
+			fatal("label %S never resolved", lab->sym);
+		for(l=lab->use; l; l=l->next)
+			checkgoto(l->n, lab->def);
+	}
+}
+
+static void
+checkgoto(Node *from, Node *to)
+{
+	int nf, nt;
+	Sym *block, *dcl, *fs, *ts;
 	int lno;
 
-	lno = lineno;
-	
-	// resolve goto using syms
-	for(l=labellist; l!=L; l=l->link) {
-		switch(l->op) {
-		case OGOTO:
-			s = l->sym;
-			if(s->label == L) {
-				lineno = l->lineno;
-				yyerror("label %S not defined", s);
-				break;
-			}
-			s->label->used = 1;
-			patch(l->label, s->label->label);
-			break;
+	if(from->sym == to->sym)
+		return;
+
+	nf = 0;
+	for(fs=from->sym; fs; fs=fs->link)
+		nf++;
+	nt = 0;
+	for(fs=to->sym; fs; fs=fs->link)
+		nt++;
+	fs = from->sym;
+	for(; nf > nt; nf--)
+		fs = fs->link;
+	if(fs != to->sym) {
+		lno = lineno;
+		setlineno(from);
+
+		// decide what to complain about.
+		// prefer to complain about 'into block' over declarations,
+		// so scan backward to find most recent block or else dcl.
+		block = S;
+		dcl = S;
+		ts = to->sym;
+		for(; nt > nf; nt--) {
+			if(ts->pkg == nil)
+				block = ts;
+			else
+				dcl = ts;
+			ts = ts->link;
 		}
-	}
-	
-	// diagnose unused labels
-	for(l=labellist; l!=L; l=l->link) {
-		if(l->op == OLABEL && !l->used) {
-			lineno = l->lineno;
-			yyerror("label %S defined and not used", l->sym);
+		while(ts != fs) {
+			if(ts->pkg == nil)
+				block = ts;
+			else
+				dcl = ts;
+			ts = ts->link;
+			fs = fs->link;
 		}
+
+		if(block)
+			yyerror("goto %S jumps into block starting at %L", from->left->sym, block->lastlineno);
+		else
+			yyerror("goto %S jumps over declaration of %S at %L", from->left->sym, dcl, dcl->lastlineno);
+		lineno = lno;
 	}
-	
-	lineno = lno;
+}
+
+static Label*
+stmtlabel(Node *n)
+{
+	Label *lab;
+
+	if(n->sym != S)
+	if((lab = n->sym->label) != L)
+	if(lab->def != N)
+	if(lab->def->right == n)
+		return lab;
+	return L;
 }
 
 /*
@@ -193,11 +248,6 @@ gen(Node *n)
 		break;
 
 	case OEMPTY:
-		// insert no-op so that
-		//	L:; for { }
-		// does not treat L as a label for the loop.
-		if(lastlabel != L && lastlabel->label == p3)
-			gused(N);
 		break;
 
 	case OBLOCK:
@@ -205,13 +255,41 @@ gen(Node *n)
 		break;
 
 	case OLABEL:
-		newlab(OLABEL, n, n->right);
+		lab = newlab(n);
+
+		// if there are pending gotos, resolve them all to the current pc.
+		for(p1=lab->gotopc; p1; p1=p2) {
+			p2 = unpatch(p1);
+			patch(p1, pc);
+		}
+		lab->gotopc = P;
+		if(lab->labelpc == P)
+			lab->labelpc = pc;
+
+		if(n->right) {
+			switch(n->right->op) {
+			case OFOR:
+			case OSWITCH:
+			case OSELECT:
+				// so stmtlabel can find the label
+				n->right->sym = lab->sym;
+			}
+		}
 		break;
 
 	case OGOTO:
-		hasgoto = 1;
-		newlab(OGOTO, n, N);
-		gjmp(P);
+		// if label is defined, emit jump to it.
+		// otherwise save list of pending gotos in lab->gotopc.
+		// the list is linked through the normal jump target field
+		// to avoid a second list.  (the jumps are actually still
+		// valid code, since they're just going to another goto
+		// to the same label.  we'll unwind it when we learn the pc
+		// of the label in the OLABEL case above.)
+		lab = newlab(n);
+		if(lab->labelpc != P)
+			gjmp(lab->labelpc);
+		else
+			lab->gotopc = gjmp(lab->gotopc);
 		break;
 
 	case OBREAK:
@@ -266,12 +344,10 @@ gen(Node *n)
 		continpc = pc;
 
 		// define break and continue labels
-		if((lab = lastlabel) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n) {
+		if((lab = stmtlabel(n)) != L) {
 			lab->breakpc = breakpc;
 			lab->continpc = continpc;
-		} else
-			lab = L;
-
+		}
 		gen(n->nincr);				// contin:	incr
 		patch(p1, pc);				// test:
 		bgen(n->ntest, 0, breakpc);		//		if(!test) goto break
@@ -304,10 +380,8 @@ gen(Node *n)
 		breakpc = gjmp(P);		// break:	goto done
 
 		// define break label
-		if((lab = lastlabel) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n)
+		if((lab = stmtlabel(n)) != L)
 			lab->breakpc = breakpc;
-		else
-			lab = L;
 
 		patch(p1, pc);				// test:
 		genlist(n->nbody);				//		switch(test) body
@@ -323,10 +397,8 @@ gen(Node *n)
 		breakpc = gjmp(P);		// break:	goto done
 
 		// define break label
-		if((lab = lastlabel) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n)
+		if((lab = stmtlabel(n)) != L)
 			lab->breakpc = breakpc;
-		else
-			lab = L;
 
 		patch(p1, pc);				// test:
 		genlist(n->nbody);				//		select() body
