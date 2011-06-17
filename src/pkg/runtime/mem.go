@@ -52,7 +52,7 @@ type MemStatsType struct {
 	}
 }
 
-var sizeof_C_MStats int // filled in by malloc.goc
+var sizeof_C_MStats uintptr // filled in by malloc.goc
 
 func init() {
 	if sizeof_C_MStats != unsafe.Sizeof(MemStats) {

@@ -827,7 +827,7 @@ func (t *commonType) runtimeType() *runtime.Type {
 		i  runtime.Type
 		ct commonType
 	}
-	return (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(t)) - uintptr(unsafe.Offsetof(rt.ct))))
+	return (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(t)) - unsafe.Offsetof(rt.ct)))
 }
 
 // PtrTo returns the pointer type with element t.
@@ -888,7 +888,7 @@ func PtrTo(t Type) Type {
 
 	p.uncommonType = nil
 	p.ptrToThis = nil
-	p.elem = (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(ct)) - uintptr(unsafe.Offsetof(rt.ptrType))))
+	p.elem = (*runtime.Type)(unsafe.Pointer(uintptr(unsafe.Pointer(ct)) - unsafe.Offsetof(rt.ptrType)))
 
 	ptrMap.m[ct] = p
 	ptrMap.Unlock()

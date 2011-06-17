@@ -146,8 +146,8 @@ func getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errn
 	return
 }
 
-func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
-	_, errno = socketcall(_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+func setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int) {
+	_, errno = socketcall(_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), val, vallen, 0)
 	return
 }
 
@@ -190,13 +190,13 @@ func Shutdown(s, how int) (errno int) {
 }
 
 func Fstatfs(fd int, buf *Statfs_t) (errno int) {
-	_, _, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), uintptr(unsafe.Sizeof(*buf)), uintptr(unsafe.Pointer(buf)))
+	_, _, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
 	errno = int(e1)
 	return
 }
 
 func Statfs(path string, buf *Statfs_t) (errno int) {
-	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Sizeof(*buf)), uintptr(unsafe.Pointer(buf)))
+	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
 	errno = int(e1)
 	return
 }

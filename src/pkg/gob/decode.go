@@ -367,7 +367,7 @@ func decComplex64(i *decInstr, state *decoderState, p unsafe.Pointer) {
 		p = *(*unsafe.Pointer)(p)
 	}
 	storeFloat32(i, state, p)
-	storeFloat32(i, state, unsafe.Pointer(uintptr(p)+uintptr(unsafe.Sizeof(float32(0)))))
+	storeFloat32(i, state, unsafe.Pointer(uintptr(p)+unsafe.Sizeof(float32(0))))
 }
 
 // decComplex128 decodes a pair of unsigned integers, treats them as a

@@ -11,7 +11,6 @@ import (
 	"encoding/binary"
 	"hash"
 	"os"
-	"unsafe"
 )
 
 type (
@@ -102,31 +101,31 @@ func (s *sum64a) Write(data []byte) (int, os.Error) {
 	return len(data), nil
 }
 
-func (s *sum32) Size() int  { return unsafe.Sizeof(*s) }
-func (s *sum32a) Size() int { return unsafe.Sizeof(*s) }
-func (s *sum64) Size() int  { return unsafe.Sizeof(*s) }
-func (s *sum64a) Size() int { return unsafe.Sizeof(*s) }
+func (s *sum32) Size() int  { return 4 }
+func (s *sum32a) Size() int { return 4 }
+func (s *sum64) Size() int  { return 8 }
+func (s *sum64a) Size() int { return 8 }
 
 func (s *sum32) Sum() []byte {
-	a := make([]byte, unsafe.Sizeof(*s))
+	a := make([]byte, 4)
 	binary.BigEndian.PutUint32(a, uint32(*s))
 	return a
 }
 
 func (s *sum32a) Sum() []byte {
-	a := make([]byte, unsafe.Sizeof(*s))
+	a := make([]byte, 4)
 	binary.BigEndian.PutUint32(a, uint32(*s))
 	return a
 }
 
 func (s *sum64) Sum() []byte {
-	a := make([]byte, unsafe.Sizeof(*s))
+	a := make([]byte, 8)
 	binary.BigEndian.PutUint64(a, uint64(*s))
 	return a
 }
 
 func (s *sum64a) Sum() []byte {
-	a := make([]byte, unsafe.Sizeof(*s))
+	a := make([]byte, 8)
 	binary.BigEndian.PutUint64(a, uint64(*s))
 	return a
 }

@@ -11,7 +11,7 @@ import (
 	"unsafe"
 )
 
-const uint64Size = unsafe.Sizeof(uint64(0))
+const uint64Size = int(unsafe.Sizeof(uint64(0)))
 
 // encoderState is the global execution state of an instance of the encoder.
 // Field numbers are delta encoded and always increase. The field
