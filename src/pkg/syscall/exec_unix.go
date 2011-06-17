@@ -337,13 +337,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
 	// Kick off child.
 	pid, err = forkAndExecInChild(argv0p, argvp, envvp, chroot, dir, attr, sys, p[1])
 	if err != 0 {
-	error:
-		if p[0] >= 0 {
-			Close(p[0])
-			Close(p[1])
-		}
-		ForkLock.Unlock()
-		return 0, err
+		goto error
 	}
 	ForkLock.Unlock()
 
@@ -370,6 +364,14 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
 
 	// Read got EOF, so pipe closed on exec, so exec succeeded.
 	return pid, 0
+
+error:
+	if p[0] >= 0 {
+		Close(p[0])
+		Close(p[1])
+	}
+	ForkLock.Unlock()
+	return 0, err
 }
 
 // Combination of fork and exec, careful to be thread safe.

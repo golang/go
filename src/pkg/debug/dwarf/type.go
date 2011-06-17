@@ -566,12 +566,13 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		goto Error
 	}
 
-	b, ok := e.Val(AttrByteSize).(int64)
-	if !ok {
-		b = -1
+	{
+		b, ok := e.Val(AttrByteSize).(int64)
+		if !ok {
+			b = -1
+		}
+		typ.Common().ByteSize = b
 	}
-	typ.Common().ByteSize = b
-
 	return typ, nil
 
 Error:

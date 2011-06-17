@@ -348,6 +348,11 @@ func ParseRequestURL(rawurl string) (url *URL, err os.Error) {
 // in which case only absolute URLs or path-absolute relative URLs are allowed.
 // If viaRequest is false, all forms of relative URLs are allowed.
 func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
+	var (
+		leadingSlash bool
+		path         string
+	)
+
 	if rawurl == "" {
 		err = os.ErrorString("empty url")
 		goto Error
@@ -357,12 +362,10 @@ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
 
 	// Split off possible leading "http:", "mailto:", etc.
 	// Cannot contain escaped characters.
-	var path string
 	if url.Scheme, path, err = getscheme(rawurl); err != nil {
 		goto Error
 	}
-
-	leadingSlash := strings.HasPrefix(path, "/")
+	leadingSlash = strings.HasPrefix(path, "/")
 
 	if url.Scheme != "" && !leadingSlash {
 		// RFC 2396:

@@ -18,12 +18,7 @@ func newPollServer() (s *pollServer, err os.Error) {
 	}
 	var e int
 	if e = syscall.SetNonblock(s.pr.Fd(), true); e != 0 {
-	Errno:
-		err = &os.PathError{"setnonblock", s.pr.Name(), os.Errno(e)}
-	Error:
-		s.pr.Close()
-		s.pw.Close()
-		return nil, err
+		goto Errno
 	}
 	if e = syscall.SetNonblock(s.pw.Fd(), true); e != 0 {
 		goto Errno
@@ -38,4 +33,11 @@ func newPollServer() (s *pollServer, err os.Error) {
 	s.pending = make(map[int]*netFD)
 	go s.Run()
 	return s, nil
+
+Errno:
+	err = &os.PathError{"setnonblock", s.pr.Name(), os.Errno(e)}
+Error:
+	s.pr.Close()
+	s.pw.Close()
+	return nil, err
 }

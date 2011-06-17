@@ -24,7 +24,10 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
 			rune, width = utf8.DecodeRuneInString(s)
 		}
 		if width == 1 && rune == utf8.RuneError {
-			goto printEscX
+			buf.WriteString(`\x`)
+			buf.WriteByte(lowerhex[s[0]>>4])
+			buf.WriteByte(lowerhex[s[0]&0xF])
+			continue
 		}
 		if rune == int(quote) || rune == '\\' { // always backslashed
 			buf.WriteByte('\\')
@@ -58,7 +61,6 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
 		default:
 			switch {
 			case rune < ' ':
-			printEscX:
 				buf.WriteString(`\x`)
 				buf.WriteByte(lowerhex[s[0]>>4])
 				buf.WriteByte(lowerhex[s[0]&0xF])

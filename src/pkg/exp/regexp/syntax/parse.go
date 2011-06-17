@@ -120,10 +120,23 @@ func (p *parser) op(op Op) *Regexp {
 
 // repeat replaces the top stack element with itself repeated
 // according to op.
-func (p *parser) repeat(op Op, min, max int, flags Flags, opstr string) os.Error {
+func (p *parser) repeat(op Op, min, max int, opstr, t, lastRepeat string) (string, os.Error) {
+	flags := p.flags
+	if p.flags&PerlX != 0 {
+		if len(t) > 0 && t[0] == '?' {
+			t = t[1:]
+			flags ^= NonGreedy
+		}
+		if lastRepeat != "" {
+			// In Perl it is not allowed to stack repetition operators:
+			// a** is a syntax error, not a doubled star, and a++ means
+			// something else entirely, which we don't support!
+			return "", &Error{ErrInvalidRepeatOp, lastRepeat[:len(lastRepeat)-len(t)]}
+		}
+	}
 	n := len(p.stack)
 	if n == 0 {
-		return &Error{ErrMissingRepeatArgument, opstr}
+		return "", &Error{ErrMissingRepeatArgument, opstr}
 	}
 	sub := p.stack[n-1]
 	re := &Regexp{
@@ -135,7 +148,7 @@ func (p *parser) repeat(op Op, min, max int, flags Flags, opstr string) os.Error
 	re.Sub = re.Sub0[:1]
 	re.Sub[0] = sub
 	p.stack[n-1] = re
-	return nil
+	return t, nil
 }
 
 // concat replaces the top of the stack (above the topmost '|' or '(') with its concatenation.
@@ -295,35 +308,19 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 			case '?':
 				op = OpQuest
 			}
-			repeat = t
-			t = t[1:]
-			goto Repeat
+			if t, err = p.repeat(op, min, max, t[:1], t[1:], lastRepeat); err != nil {
+				return nil, err
+			}
 		case '{':
 			op = OpRepeat
-			n, m, tt, ok := p.parseRepeat(t)
+			min, max, tt, ok := p.parseRepeat(t)
 			if !ok {
 				// If the repeat cannot be parsed, { is a literal.
 				p.literal('{')
 				t = t[1:]
 				break
 			}
-			repeat, t = t, tt
-			min, max = n, m
-		Repeat:
-			flags := p.flags
-			if p.flags&PerlX != 0 {
-				if len(t) > 0 && t[0] == '?' {
-					t = t[1:]
-					flags ^= NonGreedy
-				}
-				if lastRepeat != "" {
-					// In Perl it is not allowed to stack repetition operators:
-					// a** is a syntax error, not a doubled star, and a++ means
-					// something else entirely, which we don't support!
-					return nil, &Error{ErrInvalidRepeatOp, lastRepeat[:len(lastRepeat)-len(t)]}
-				}
-			}
-			if err = p.repeat(op, min, max, flags, repeat[:len(repeat)-len(t)]); err != nil {
+			if t, err = p.repeat(op, min, max, t[:len(t)-len(tt)], tt, lastRepeat); err != nil {
 				return nil, err
 			}
 		case '\\':
