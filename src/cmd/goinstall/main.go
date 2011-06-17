@@ -197,7 +197,7 @@ func install(pkg, parent string) {
 		errorf("%s: %v\n", pkg, err)
 		return
 	}
-	if len(dirInfo.GoFiles) == 0 {
+	if len(dirInfo.GoFiles)+len(dirInfo.CgoFiles) == 0 {
 		errorf("%s: package has no files\n", pkg)
 		return
 	}
