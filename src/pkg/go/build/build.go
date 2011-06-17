@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -22,14 +23,14 @@ func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
 		script: s,
 		path:   filepath.Join(tree.SrcDir(), pkg),
 	}
-	b.obj = b.abs("_obj") + "/"
+	b.obj = b.abs("_obj") + string(filepath.Separator)
 
-	goarch := runtime.GOARCH
+	b.goarch = runtime.GOARCH
 	if g := os.Getenv("GOARCH"); g != "" {
-		goarch = g
+		b.goarch = g
 	}
 	var err os.Error
-	b.arch, err = ArchChar(goarch)
+	b.arch, err = ArchChar(b.goarch)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +83,9 @@ func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
 	if info.IsCommand() {
 		// use the last part of the import path as binary name
 		_, bin := filepath.Split(pkg)
+		if runtime.GOOS == "windows" {
+			bin += ".exe"
+		}
 		targ = filepath.Join(tree.BinDir(), bin)
 	} else {
 		targ = filepath.Join(tree.PkgDir(), pkg+".a")
@@ -186,6 +190,7 @@ type Cmd struct {
 	Args   []string // command-line
 	Stdout string   // write standard output to this file, "" is passthrough
 	Dir    string   // working directory
+	Env    []string // environment
 	Input  []string // file paths (dependencies)
 	Output []string // file paths
 }
@@ -199,6 +204,7 @@ func (c *Cmd) Run() os.Error {
 	out := new(bytes.Buffer)
 	cmd := exec.Command(c.Args[0], c.Args[1:]...)
 	cmd.Dir = c.Dir
+	cmd.Env = c.Env
 	cmd.Stdout = out
 	cmd.Stderr = out
 	if c.Stdout != "" {
@@ -233,6 +239,7 @@ type build struct {
 	script *Script
 	path   string
 	obj    string
+	goarch string
 	arch   string
 }
 
@@ -341,6 +348,8 @@ func (b *build) gccArgs(args ...string) []string {
 	return append(a, args...)
 }
 
+var cgoRe = regexp.MustCompile("[/\\:]")
+
 func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
 	// cgo
 	// TODO(adg): CGOPKGPATH
@@ -348,7 +357,7 @@ func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
 	gofiles := []string{b.obj + "_cgo_gotypes.go"}
 	cfiles := []string{b.obj + "_cgo_main.c", b.obj + "_cgo_export.c"}
 	for _, fn := range cgofiles {
-		f := b.obj + strings.Replace(fn[:len(fn)-2], "/", "_", -1)
+		f := b.obj + cgoRe.ReplaceAllString(fn[:len(fn)-2], "_")
 		gofiles = append(gofiles, f+"cgo1.go")
 		cfiles = append(cfiles, f+"cgo2.c")
 	}
@@ -358,6 +367,7 @@ func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
 	b.add(Cmd{
 		Args:   append([]string{"cgo", "--"}, cgofiles...),
 		Dir:    b.path,
+		Env:    append(os.Environ(), "GOARCH="+b.goarch),
 		Input:  cgofiles,
 		Output: output,
 	})
