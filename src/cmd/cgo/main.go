@@ -18,6 +18,7 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 )
@@ -228,7 +229,7 @@ func main() {
 		}
 		pkg := f.Package
 		if dir := os.Getenv("CGOPKGPATH"); dir != "" {
-			pkg = dir + "/" + pkg
+			pkg = filepath.Join(dir, pkg)
 		}
 		p.PackagePath = pkg
 		p.writeOutput(f, input)

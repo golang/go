@@ -103,7 +103,7 @@ func creat(name string) *os.File {
 }
 
 func slashToUnderscore(c int) int {
-	if c == '/' {
+	if c == '/' || c == '\\' || c == ':' {
 		c = '_'
 	}
 	return c

@@ -697,7 +697,7 @@ func (p *Package) gccMachine() []string {
 	return nil
 }
 
-const gccTmp = "_obj/_cgo_.o"
+var gccTmp = objDir + "_cgo_.o"
 
 // gccCmd returns the gcc command line to use for compiling
 // the input.
