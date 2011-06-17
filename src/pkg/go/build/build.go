@@ -348,7 +348,7 @@ func (b *build) gccArgs(args ...string) []string {
 	return append(a, args...)
 }
 
-var cgoRe = regexp.MustCompile("[/\\:]")
+var cgoRe = regexp.MustCompile(`[/\\:]`)
 
 func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
 	// cgo
