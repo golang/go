@@ -394,7 +394,6 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
 		f := val.Type().Field(i)
 		switch fv := val.Field(i); fv.Kind() {
 		default:
-		BadType:
 			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
 			return len(msg), false
 		case reflect.Struct:
@@ -419,7 +418,8 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
 			off += 4
 		case reflect.Array:
 			if fv.Type().Elem().Kind() != reflect.Uint8 {
-				goto BadType
+				fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
+				return len(msg), false
 			}
 			n := fv.Len()
 			if off+n > len(msg) {
@@ -471,7 +471,6 @@ func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok boo
 		f := val.Type().Field(i)
 		switch fv := val.Field(i); fv.Kind() {
 		default:
-		BadType:
 			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
 			return len(msg), false
 		case reflect.Struct:
@@ -492,7 +491,8 @@ func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok boo
 			off += 4
 		case reflect.Array:
 			if fv.Type().Elem().Kind() != reflect.Uint8 {
-				goto BadType
+				fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
+				return len(msg), false
 			}
 			n := fv.Len()
 			if off+n > len(msg) {

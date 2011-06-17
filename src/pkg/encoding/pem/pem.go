@@ -86,7 +86,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 
 	typeLine, rest := getLine(rest)
 	if !bytes.HasSuffix(typeLine, pemEndOfLine) {
-		goto Error
+		return decodeError(data, rest)
 	}
 	typeLine = typeLine[0 : len(typeLine)-len(pemEndOfLine)]
 
@@ -118,22 +118,23 @@ func Decode(data []byte) (p *Block, rest []byte) {
 
 	i := bytes.Index(rest, pemEnd)
 	if i < 0 {
-		goto Error
+		return decodeError(data, rest)
 	}
 	base64Data := removeWhitespace(rest[0:i])
 
 	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
 	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
 	if err != nil {
-		goto Error
+		return decodeError(data, rest)
 	}
 	p.Bytes = p.Bytes[0:n]
 
 	_, rest = getLine(rest[i+len(pemEnd):])
 
 	return
+}
 
-Error:
+func decodeError(data, rest []byte) (*Block, []byte) {
 	// If we get here then we have rejected a likely looking, but
 	// ultimately invalid PEM block. We need to start over from a new
 	// position.  We have consumed the preamble line and will have consumed
@@ -154,11 +155,11 @@ Error:
 	//
 	// we've failed to parse using the first BEGIN line
 	// and now will try again, using the second BEGIN line.
-	p, rest = Decode(rest)
+	p, rest := Decode(rest)
 	if p == nil {
 		rest = data
 	}
-	return
+	return p, rest
 }
 
 const pemLineLength = 64

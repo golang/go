@@ -270,12 +270,16 @@ func JoinHostPort(host, port string) string {
 
 // Convert "host:port" into IP address and port.
 func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
+	var (
+		addr IP
+		p, i int
+		ok   bool
+	)
 	host, port, err := SplitHostPort(hostport)
 	if err != nil {
 		goto Error
 	}
 
-	var addr IP
 	if host != "" {
 		// Try as an IP address.
 		addr = ParseIP(host)
@@ -302,7 +306,7 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
 		}
 	}
 
-	p, i, ok := dtoi(port, 0)
+	p, i, ok = dtoi(port, 0)
 	if !ok || i != len(port) {
 		p, err = LookupPort(net, port)
 		if err != nil {

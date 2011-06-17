@@ -945,7 +945,7 @@ func (s *ss) scanOne(verb int, field interface{}) {
 			// For now, can only handle (renamed) []byte.
 			typ := v.Type()
 			if typ.Elem().Kind() != reflect.Uint8 {
-				goto CantHandle
+				s.errorString("Scan: can't handle type: " + val.Type().String())
 			}
 			str := s.convertString(verb)
 			v.Set(reflect.MakeSlice(typ, len(str), len(str)))
@@ -959,7 +959,6 @@ func (s *ss) scanOne(verb int, field interface{}) {
 		case reflect.Complex64, reflect.Complex128:
 			v.SetComplex(s.scanComplex(verb, v.Type().Bits()))
 		default:
-		CantHandle:
 			s.errorString("Scan: can't handle type: " + val.Type().String())
 		}
 	}

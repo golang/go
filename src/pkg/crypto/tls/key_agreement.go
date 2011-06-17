@@ -176,9 +176,11 @@ func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *cl
 	return preMasterSecret, nil
 }
 
+var errServerKeyExchange = os.ErrorString("invalid ServerKeyExchange")
+
 func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) os.Error {
 	if len(skx.key) < 4 {
-		goto Error
+		return errServerKeyExchange
 	}
 	if skx.key[0] != 3 { // named curve
 		return os.ErrorString("server selected unsupported curve")
@@ -198,29 +200,26 @@ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientH
 
 	publicLen := int(skx.key[3])
 	if publicLen+4 > len(skx.key) {
-		goto Error
+		return errServerKeyExchange
 	}
 	ka.x, ka.y = ka.curve.Unmarshal(skx.key[4 : 4+publicLen])
 	if ka.x == nil {
-		goto Error
+		return errServerKeyExchange
 	}
 	serverECDHParams := skx.key[:4+publicLen]
 
 	sig := skx.key[4+publicLen:]
 	if len(sig) < 2 {
-		goto Error
+		return errServerKeyExchange
 	}
 	sigLen := int(sig[0])<<8 | int(sig[1])
 	if sigLen+2 != len(sig) {
-		goto Error
+		return errServerKeyExchange
 	}
 	sig = sig[2:]
 
 	md5sha1 := md5SHA1Hash(clientHello.random, serverHello.random, serverECDHParams)
 	return rsa.VerifyPKCS1v15(cert.PublicKey.(*rsa.PublicKey), crypto.MD5SHA1, md5sha1, sig)
-
-Error:
-	return os.ErrorString("invalid ServerKeyExchange")
 }
 
 func (ka *ecdheRSAKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, os.Error) {

@@ -14,6 +14,9 @@ L:
 			break L
 		}
 		panic("BUG: not reached - break")
+		if false {
+			goto L1
+		}
 	}
 
 L2:
@@ -23,11 +26,8 @@ L2:
 			continue L2
 		}
 		panic("BUG: not reached - continue")
-	}
-	if false {
-		goto L1
-	}
-	if false {
-		goto L3
+		if false {
+			goto L3
+		}
 	}
 }

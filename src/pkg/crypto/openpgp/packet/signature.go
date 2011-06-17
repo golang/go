@@ -177,7 +177,11 @@ const (
 // parseSignatureSubpacket parses a single subpacket. len(subpacket) is >= 1.
 func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (rest []byte, err os.Error) {
 	// RFC 4880, section 5.2.3.1
-	var length uint32
+	var (
+		length     uint32
+		packetType byte
+		isCritical bool
+	)
 	switch {
 	case subpacket[0] < 192:
 		length = uint32(subpacket[0])
@@ -207,8 +211,8 @@ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (r
 		err = error.StructuralError("zero length signature subpacket")
 		return
 	}
-	packetType := subpacket[0] & 0x7f
-	isCritial := subpacket[0]&0x80 == 0x80
+	packetType = subpacket[0] & 0x7f
+	isCritical = subpacket[0]&0x80 == 0x80
 	subpacket = subpacket[1:]
 	switch signatureSubpacketType(packetType) {
 	case creationTimeSubpacket:
@@ -309,7 +313,7 @@ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (r
 		}
 
 	default:
-		if isCritial {
+		if isCritical {
 			err = error.UnsupportedError("unknown critical signature subpacket type " + strconv.Itoa(int(packetType)))
 			return
 		}
