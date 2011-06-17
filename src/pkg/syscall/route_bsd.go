@@ -59,7 +59,7 @@ type RoutingMessage interface {
 	sockaddr() []Sockaddr
 }
 
-const anyMessageLen = unsafe.Sizeof(anyMessage{})
+const anyMessageLen = int(unsafe.Sizeof(anyMessage{}))
 
 type anyMessage struct {
 	Msglen  uint16
