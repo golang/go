@@ -278,6 +278,7 @@ struct	Node
 	int32	iota;
 };
 #define	N	((Node*)0)
+EXTERN	int32	walkgen;
 
 struct	NodeList
 {
@@ -632,20 +633,19 @@ typedef struct	Prog Prog;
 
 struct	Label
 {
-	uchar	op;		// OGOTO/OLABEL
 	uchar	used;
 	Sym*	sym;
-	Node*	stmt;
-	Prog*	label;		// pointer to code
+	Node*	def;
+	NodeList*	use;
+	Label*	link;
+	
+	// for use during gen
+	Prog*	gotopc;	// pointer to unresolved gotos
+	Prog*	labelpc;	// pointer to code
 	Prog*	breakpc;	// pointer to code
 	Prog*	continpc;	// pointer to code
-	Label*	link;
-	int32	lineno;
 };
 #define	L	((Label*)0)
-
-EXTERN	Label*	labellist;
-EXTERN	Label*	lastlabel;
 
 /*
  * note this is the runtime representation
@@ -691,6 +691,7 @@ EXTERN	char*	infile;
 EXTERN	char*	outfile;
 EXTERN	Biobuf*	bout;
 EXTERN	int	nerrors;
+EXTERN	int	nsavederrors;
 EXTERN	int	nsyntaxerrors;
 EXTERN	int	safemode;
 EXTERN	char	namebuf[NSYMB];
@@ -913,8 +914,8 @@ Type*	pkgtype(Sym *s);
 void	allocparams(void);
 void	cgen_as(Node *nl, Node *nr);
 void	cgen_callmeth(Node *n, int proc);
-void	checklabels(void);
 void	clearlabels(void);
+void	checklabels(void);
 int	dotoffset(Node *n, int *oary, Node **nn);
 void	gen(Node *n);
 void	genlist(NodeList *l);
@@ -1132,6 +1133,7 @@ Type*	ptrto(Type *t);
 void*	remal(void *p, int32 on, int32 n);
 Sym*	restrictlookup(char *name, Pkg *pkg);
 Node*	safeexpr(Node *n, NodeList **init);
+void	saveerrors(void);
 Node*	cheapexpr(Node *n, NodeList **init);
 int32	setlineno(Node *n);
 void	setmaxarg(Type *t);
@@ -1252,11 +1254,10 @@ Plist*	newplist(void);
 Node*	nodarg(Type*, int);
 void	nopout(Prog*);
 void	patch(Prog*, Prog*);
+Prog*	unpatch(Prog*);
 void	zfile(Biobuf *b, char *p, int n);
 void	zhist(Biobuf *b, int line, vlong offset);
 void	zname(Biobuf *b, Sym *s, int t);
 void	data(void);
 void	text(void);
 
-EXTERN	int	hasgoto;
-void	clearstk(void);

@@ -66,7 +66,7 @@ static void fixlbrace(int);
 %type	<node>	switch_stmt uexpr
 %type	<node>	xfndcl typedcl
 
-%type	<list>	xdcl fnbody fnres switch_body loop_body dcl_name_list
+%type	<list>	xdcl fnbody fnres loop_body dcl_name_list
 %type	<list>	new_name_list expr_list keyval_list braced_keyval_list expr_or_type_list xdcl_list
 %type	<list>	oexpr_list caseblock_list stmt_list oarg_type_list_ocomma arg_type_list
 %type	<list>	interfacedcl_list vardcl vardcl_list structdcl structdcl_list
@@ -449,7 +449,7 @@ case:
 		// will be converted to OCASE
 		// right will point to next case
 		// done in casebody()
-		poptodcl();
+		markdcl();
 		$$ = nod(OXCASE, N, N);
 		$$->list = $2;
 		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
@@ -468,7 +468,7 @@ case:
 		// will be converted to OCASE
 		// right will point to next case
 		// done in casebody()
-		poptodcl();
+		markdcl();
 		$$ = nod(OXCASE, N, N);
 		if($2->next == nil)
 			n = nod(OAS, $2->n, $4);
@@ -484,7 +484,7 @@ case:
 		// will be converted to OCASE
 		// right will point to next case
 		// done in casebody()
-		poptodcl();
+		markdcl();
 		$$ = nod(OXCASE, N, N);
 		$$->list = list1(colas($2, list1($4)));
 	}
@@ -492,7 +492,7 @@ case:
 	{
 		Node *n;
 
-		poptodcl();
+		markdcl();
 		$$ = nod(OXCASE, N, N);
 		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
 			// type switch - declare variable
@@ -511,17 +511,6 @@ compound_stmt:
 	stmt_list '}'
 	{
 		$$ = liststmt($3);
-		popdcl();
-	}
-
-switch_body:
-	LBODY
-	{
-		markdcl();
-	}
-	caseblock_list '}'
-	{
-		$$ = $3;
 		popdcl();
 	}
 
@@ -553,6 +542,7 @@ caseblock:
 			yyerror("missing statement after label");
 		$$ = $1;
 		$$->nbody = $3;
+		popdcl();
 	}
 
 caseblock_list:
@@ -674,11 +664,11 @@ switch_stmt:
 			n = N;
 		typesw = nod(OXXX, typesw, n);
 	}
-	switch_body
+	LBODY caseblock_list '}'
 	{
 		$$ = $3;
 		$$->op = OSWITCH;
-		$$->list = $5;
+		$$->list = $6;
 		typesw = typesw->left;
 		popdcl();
 	}
@@ -686,15 +676,13 @@ switch_stmt:
 select_stmt:
 	LSELECT
 	{
-		markdcl();
 		typesw = nod(OXXX, typesw, N);
 	}
-	switch_body
+	LBODY caseblock_list '}'
 	{
 		$$ = nod(OSELECT, N, N);
-		$$->list = $3;
+		$$->list = $4;
 		typesw = typesw->left;
-		popdcl();
 	}
 
 /*
@@ -1474,13 +1462,19 @@ non_dcl_stmt:
 		$$ = $1;
 		$$->nelse = list1($3);
 	}
-|	labelname ':' stmt
+|	labelname ':'
+	{
+		$1 = nod(OLABEL, $1, N);
+		$1->sym = dclstack;  // context, for goto restrictions
+	}
+	stmt
 	{
 		NodeList *l;
 
-		l = list1(nod(OLABEL, $1, $3));
-		if($3)
-			l = list(l, $3);
+		$1->right = $4;
+		l = list1($1);
+		if($4)
+			l = list(l, $4);
 		$$ = liststmt(l);
 	}
 |	LFALL
@@ -1507,6 +1501,7 @@ non_dcl_stmt:
 |	LGOTO new_name
 	{
 		$$ = nod(OGOTO, $2, N);
+		$$->sym = dclstack;  // context, for goto restrictions
 	}
 |	LRETURN oexpr_list
 	{

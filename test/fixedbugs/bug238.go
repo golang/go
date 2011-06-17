@@ -19,4 +19,3 @@ const h bool = false
 const i int = 2
 const j float64 = 5
 
-func main() { println(a, b, c, d, e, f, g) }

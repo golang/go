@@ -97,7 +97,7 @@ fault(int s)
 	// in the program, don't bother complaining
 	// about the seg fault too; let the user clean up
 	// the code and try again.
-	if(nerrors > 0)
+	if(nsavederrors + nerrors > 0)
 		errorexit();
 	fatal("fault");
 }
@@ -256,7 +256,10 @@ main(int argc, char *argv[])
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC) {
 			curfn = l->n;
+			saveerrors();
 			typechecklist(l->n->nbody, Etop);
+			if(nerrors != 0)
+				l->n->nbody = nil;  // type errors; do not compile
 		}
 	curfn = nil;
 
@@ -264,7 +267,7 @@ main(int argc, char *argv[])
 		if(l->n->op == ODCLFUNC)
 			funccompile(l->n, 0);
 
-	if(nerrors == 0)
+	if(nsavederrors+nerrors == 0)
 		fninit(xtop);
 
 	while(closures) {
@@ -278,17 +281,24 @@ main(int argc, char *argv[])
 		if(l->n->op == ONAME)
 			typecheck(&l->n, Erv);
 
-	if(nerrors)
+	if(nerrors+nsavederrors)
 		errorexit();
 
 	dumpobj();
 
-	if(nerrors)
+	if(nerrors+nsavederrors)
 		errorexit();
 
 	flusherrors();
 	exit(0);
 	return 0;
+}
+
+void
+saveerrors(void)
+{
+	nsavederrors += nerrors;
+	nerrors = 0;
 }
 
 static int

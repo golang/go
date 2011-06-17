@@ -2716,6 +2716,11 @@ typecheckdef(Node *n)
 	default:
 		fatal("typecheckdef %O", n->op);
 
+	case OGOTO:
+	case OLABEL:
+		// not really syms
+		break;
+
 	case OLITERAL:
 		if(n->ntype != N) {
 			typecheck(&n->ntype, Etype);
@@ -2772,7 +2777,7 @@ typecheckdef(Node *n)
 		if(n->defn == N) {
 			if(n->etype != 0)	// like OPRINTN
 				break;
-			if(nerrors > 0) {
+			if(nsavederrors+nerrors > 0) {
 				// Can have undefined variables in x := foo
 				// that make x have an n->ndefn == nil.
 				// If there are other errors anyway, don't

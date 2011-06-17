@@ -100,6 +100,21 @@ patch(Prog *p, Prog *to)
 	p->to.offset = to->loc;
 }
 
+Prog*
+unpatch(Prog *p)
+{
+	Prog *q;
+
+	if(p->to.type != D_BRANCH)
+		fatal("unpatch: not a branch");
+	if(p->to.branch == P)
+		fatal("unpatch: not patched");
+	q = p->to.branch;
+	p->to.branch = P;
+	p->to.offset = 0;
+	return q;
+}
+
 /*
  * start a new Prog list.
  */

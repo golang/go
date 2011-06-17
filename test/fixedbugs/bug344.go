@@ -1,4 +1,4 @@
-// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug344
+// errchk $G -e $D/$F.go
 
 // Copyright 2011 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -14,7 +14,9 @@ func main() {
 	i := 42
 	a := []*int{&i, &i, &i, &i}
 	x := a[0]
-	goto start
+	goto start  // ERROR "goto start jumps into block"
+	z := 1
+	_ = z
 	for _, x = range a {
 	start:
 		fmt.Sprint(*x)
