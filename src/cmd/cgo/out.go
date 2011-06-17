@@ -14,17 +14,20 @@ import (
 	"go/printer"
 	"go/token"
 	"os"
+	"path/filepath"
 	"strings"
 )
+
+var objDir = "_obj" + string(filepath.Separator)
 
 // writeDefs creates output files to be compiled by 6g, 6c, and gcc.
 // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
 func (p *Package) writeDefs() {
-	fgo2 := creat("_obj/_cgo_gotypes.go")
-	fc := creat("_obj/_cgo_defun.c")
-	fm := creat("_obj/_cgo_main.c")
+	fgo2 := creat(objDir + "_cgo_gotypes.go")
+	fc := creat(objDir + "_cgo_defun.c")
+	fm := creat(objDir + "_cgo_main.c")
 
-	fflg := creat("_obj/_cgo_flags")
+	fflg := creat(objDir + "_cgo_flags")
 	for k, v := range p.CgoFlags {
 		fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, v)
 	}
@@ -285,8 +288,8 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 		base = base[0 : len(base)-3]
 	}
 	base = strings.Map(slashToUnderscore, base)
-	fgo1 := creat("_obj/" + base + ".cgo1.go")
-	fgcc := creat("_obj/" + base + ".cgo2.c")
+	fgo1 := creat(objDir + base + ".cgo1.go")
+	fgcc := creat(objDir + base + ".cgo2.c")
 
 	p.GoFiles = append(p.GoFiles, base+".cgo1.go")
 	p.GccFiles = append(p.GccFiles, base+".cgo2.c")
@@ -361,7 +364,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 // Write out the various stubs we need to support functions exported
 // from Go so that they are callable from C.
 func (p *Package) writeExports(fgo2, fc, fm *os.File) {
-	fgcc := creat("_obj/_cgo_export.c")
+	fgcc := creat(objDir + "_cgo_export.c")
 	fgcch := creat("_cgo_export.h")
 
 	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
