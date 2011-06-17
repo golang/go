@@ -11,7 +11,7 @@ import (
 	"unsafe"
 )
 
-const ptrSize = uintptr(unsafe.Sizeof((*byte)(nil)))
+const ptrSize = unsafe.Sizeof((*byte)(nil))
 const cannotSet = "cannot set value obtained from unexported struct field"
 
 // TODO: This will have to go away when

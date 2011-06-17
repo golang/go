@@ -229,7 +229,7 @@ runtime·allocmcache(void)
 	return c;
 }
 
-int32 runtime·sizeof_C_MStats = sizeof(MStats);
+uintptr runtime·sizeof_C_MStats = sizeof(MStats);
 
 #define MaxArena32 (2U<<30)
 

@@ -249,7 +249,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 
 childerror:
 	// send error code on pipe
-	RawSyscall(SYS_WRITE, uintptr(pipe), uintptr(unsafe.Pointer(&err1)), uintptr(unsafe.Sizeof(err1)))
+	RawSyscall(SYS_WRITE, uintptr(pipe), uintptr(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
 	for {
 		RawSyscall(SYS_EXIT, 253, 0, 0)
 	}
@@ -343,10 +343,10 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
 
 	// Read child error status from pipe.
 	Close(p[1])
-	n, err = read(p[0], (*byte)(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
+	n, err = read(p[0], (*byte)(unsafe.Pointer(&err1)), int(unsafe.Sizeof(err1)))
 	Close(p[0])
 	if err != 0 || n != 0 {
-		if n == unsafe.Sizeof(err1) {
+		if n == int(unsafe.Sizeof(err1)) {
 			err = int(err1)
 		}
 		if err == 0 {

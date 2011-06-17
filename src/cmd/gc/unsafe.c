@@ -92,6 +92,6 @@ ret:
 	mpmovecfix(val.u.xval, v);
 	n = nod(OLITERAL, N, N);
 	n->val = val;
-	n->type = types[TINT];
+	n->type = types[TUINTPTR];
 	return n;
 }

@@ -71,7 +71,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 //sysnb	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
 //sysnb	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
 //sys	getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errno int)
-//sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+//sys	setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int)
 //sysnb	socket(domain int, typ int, proto int) (fd int, errno int)
 //sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 //sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)

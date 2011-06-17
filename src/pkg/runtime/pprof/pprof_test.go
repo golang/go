@@ -43,7 +43,7 @@ func TestCPUProfile(t *testing.T) {
 	// Convert []byte to []uintptr.
 	bytes := prof.Bytes()
 	val := *(*[]uintptr)(unsafe.Pointer(&bytes))
-	val = val[:len(bytes)/unsafe.Sizeof(uintptr(0))]
+	val = val[:len(bytes)/int(unsafe.Sizeof(uintptr(0)))]
 
 	if len(val) < 10 {
 		t.Fatalf("profile too short: %#x", val)

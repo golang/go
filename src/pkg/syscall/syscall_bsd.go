@@ -155,7 +155,7 @@ func Sleep(ns int64) (errno int) {
 //sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
 //sysnb	socket(domain int, typ int, proto int) (fd int, errno int)
 //sys	getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errno int)
-//sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+//sys	setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int)
 //sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 //sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 //sys	Shutdown(s int, how int) (errno int)
@@ -451,7 +451,7 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno
 
 // Translate "kern.hostname" to []_C_int{0,1,2,3}.
 func nametomib(name string) (mib []_C_int, errno int) {
-	const siz = uintptr(unsafe.Sizeof(mib[0]))
+	const siz = unsafe.Sizeof(mib[0])
 
 	// NOTE(rsc): It seems strange to set the buffer to have
 	// size CTL_MAXNAME+2 but use only CTL_MAXNAME

@@ -42,7 +42,7 @@ package syscall
 //sysnb	getgroups(n int, list *_Gid_t) (nn int, errno int)
 //sysnb	setgroups(n int, list *_Gid_t) (errno int)
 //sys	getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (errno int)
-//sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+//sys	setsockopt(s int, level int, name int, val uintptr, vallen uintptr) (errno int)
 //sysnb	socket(domain int, typ int, proto int) (fd int, errno int)
 //sysnb	socketpair(domain int, typ int, proto int, fd *[2]int) (errno int)
 //sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
