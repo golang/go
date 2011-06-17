@@ -3131,8 +3131,9 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 	NodeList *l, *args, *in, *out;
 	Type *tpad;
 	int isddd;
+	Val v;
 
-	if(0 && debug['r'])
+	if(debug['r'])
 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
 			rcvr, method, newnam);
 
@@ -3174,17 +3175,38 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 		args = list(args, l->n->left);
 		isddd = l->n->left->isddd;
 	}
+	
+	// generate nil pointer check for better error
+	if(isptr[rcvr->etype] && rcvr->type == getthisx(method->type)->type->type) {
+		// generating wrapper from *T to T.
+		n = nod(OIF, N, N);
+		n->ntest = nod(OEQ, this->left, nodnil());
+		// these strings are already in the reflect tables,
+		// so no space cost to use them here.
+		l = nil;
+		v.ctype = CTSTR;
+		v.u.sval = strlit(rcvr->type->sym->pkg->name);  // package name
+		l = list(l, nodlit(v));
+		v.u.sval = strlit(rcvr->type->sym->name);  // type name
+		l = list(l, nodlit(v));
+		v.u.sval = strlit(method->sym->name);
+		l = list(l, nodlit(v));  // method name
+		call = nod(OCALL, syslook("panicwrap", 0), N);
+		call->list = l;
+		n->nbody = list1(call);
+		fn->nbody = list(fn->nbody, n);
+	}
 
 	// generate call
 	call = nod(OCALL, adddot(nod(OXDOT, this->left, newname(method->sym))), N);
 	call->list = args;
 	call->isddd = isddd;
-	fn->nbody = list1(call);
 	if(method->type->outtuple > 0) {
 		n = nod(ORETURN, N, N);
-		n->list = fn->nbody;
-		fn->nbody = list1(n);
+		n->list = list1(call);
+		call = n;
 	}
+	fn->nbody = list(fn->nbody, call);
 
 	if(0 && debug['r'])
 		dumplist("genwrapper body", fn->nbody);

@@ -15,6 +15,7 @@ func panicindex()
 func panicslice()
 func throwreturn()
 func throwinit()
+func panicwrap(string, string, string)
 
 func panic(interface{})
 func recover(*int32) interface{}
