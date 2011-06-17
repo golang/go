@@ -233,9 +233,9 @@ Since the whole declaration is presented, such a comment can often be perfunctor
 <pre>
 // Error codes returned by failures to parse an expression.
 var (
-    ErrInternal      = os.NewError("internal error")
-    ErrUnmatchedLpar = os.NewError("unmatched '('")
-    ErrUnmatchedRpar = os.NewError("unmatched ')'")
+    ErrInternal      = os.NewError("regexp: internal error")
+    ErrUnmatchedLpar = os.NewError("regexp: unmatched '('")
+    ErrUnmatchedRpar = os.NewError("regexp: unmatched ')'")
     ...
 )
 </pre>
@@ -2671,6 +2671,13 @@ operation, and the operating system error it triggered, is useful even
 if printed far from the call that caused it;
 it is much more informative than the plain
 "no such file or directory".
+</p>
+
+<p>
+When feasible, error strings should identify their origin, such as by having
+a prefix naming the package that generated the error.  For example, in package
+image, the string representation for a decoding error due to an unknown format
+is "image: unknown format".
 </p>
 
 <p>
