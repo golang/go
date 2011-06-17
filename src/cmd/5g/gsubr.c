@@ -109,8 +109,6 @@ unpatch(Prog *p)
 
 	if(p->to.type != D_BRANCH)
 		fatal("unpatch: not a branch");
-	if(p->to.branch == P)
-		fatal("unpatch: not patched");
 	q = p->to.branch;
 	p->to.branch = P;
 	p->to.offset = 0;
