@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of June 13, 2011 -->
+<!-- subtitle Version of June 17, 2011 -->
 
 <!--
 TODO
@@ -4393,8 +4393,8 @@ goto Error
 
 <p>
 Executing the "goto" statement must not cause any variables to come into
-scope that were not already in scope at the point of the goto.  For
-instance, this example:
+<a href="#Declarations_and_scope">scope</a> that were not already in scope at the point of the goto.
+For instance, this example:
 </p>
 
 <pre>
@@ -4406,9 +4406,29 @@ L:
 <p>
 is erroneous because the jump to label <code>L</code> skips
 the creation of <code>v</code>.
-<!--
-(<span class="alert">TODO: Eliminate in favor of used and not set errors?</span>)
--->
+</p>
+
+<p>
+A "goto" statement outside a <a href="#Blocks">block</a> cannot jump to a label inside that block.
+For instance, this example:
+</p>
+
+<pre>
+if n%2 == 1 {
+	goto L1
+}
+for n &gt; 0 {
+	f()
+	n--
+L1:
+	f()
+	n--
+}
+</pre>
+
+<p>
+is erroneous because the label <code>L1</code> is inside 
+the "for" statement's block but the <code>goto</code> is not.
 </p>
 
 <h3 id="Fallthrough_statements">Fallthrough statements</h3>
@@ -5244,7 +5264,6 @@ The following minimal alignment properties are guaranteed:
 <span class="alert">
 <h2 id="Implementation_differences">Implementation differences - TODO</h2>
 <ul>
-	<li>The restriction on <code>goto</code> statements and targets (no intervening declarations) is not honored.</li>
 	<li><code>len(a)</code> is only a constant if <code>a</code> is a (qualified) identifier denoting an array or pointer to an array.</li>
 	<li><code>nil</code> maps are not treated like empty maps.</li>
 	<li>Trying to send/receive from a <code>nil</code> channel causes a run-time panic.</li>
