@@ -371,7 +371,7 @@ readsym(PeObj *obj, int i, PeSym **y)
 	name = sym->name;
 	if(sym->sclass == IMAGE_SYM_CLASS_STATIC && sym->value == 0) // section
 		name = obj->sect[sym->sectnum-1].sym->name;
-	if(strncmp(sym->name, "__imp__", 6) == 0)
+	if(strncmp(sym->name, "__imp__", 7) == 0)
 		name = &sym->name[7]; // __imp__Name => Name
 	else if(sym->name[0] == '_') 
 		name = &sym->name[1]; // _Name => Name
