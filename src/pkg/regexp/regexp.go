@@ -87,16 +87,16 @@ func (e Error) String() string {
 
 // Error codes returned by failures to parse an expression.
 var (
-	ErrInternal            = Error("internal error")
-	ErrUnmatchedLpar       = Error("unmatched '('")
-	ErrUnmatchedRpar       = Error("unmatched ')'")
-	ErrUnmatchedLbkt       = Error("unmatched '['")
-	ErrUnmatchedRbkt       = Error("unmatched ']'")
-	ErrBadRange            = Error("bad range in character class")
-	ErrExtraneousBackslash = Error("extraneous backslash")
-	ErrBadClosure          = Error("repeated closure (**, ++, etc.)")
-	ErrBareClosure         = Error("closure applies to nothing")
-	ErrBadBackslash        = Error("illegal backslash escape")
+	ErrInternal            = Error("regexp: internal error")
+	ErrUnmatchedLpar       = Error("regexp: unmatched '('")
+	ErrUnmatchedRpar       = Error("regexp: unmatched ')'")
+	ErrUnmatchedLbkt       = Error("regexp: unmatched '['")
+	ErrUnmatchedRbkt       = Error("regexp: unmatched ']'")
+	ErrBadRange            = Error("regexp: bad range in character class")
+	ErrExtraneousBackslash = Error("regexp: extraneous backslash")
+	ErrBadClosure          = Error("regexp: repeated closure (**, ++, etc.)")
+	ErrBareClosure         = Error("regexp: closure applies to nothing")
+	ErrBadBackslash        = Error("regexp: illegal backslash escape")
 )
 
 const (
