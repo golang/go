@@ -1525,6 +1525,7 @@ noreturn(Prog *p)
 		symlist[1] = pkglookup("panicslice", runtimepkg);
 		symlist[2] = pkglookup("throwinit", runtimepkg);
 		symlist[3] = pkglookup("panic", runtimepkg);
+		symlist[4] = pkglookup("panicwrap", runtimepkg);
 	}
 
 	s = p->to.sym;
