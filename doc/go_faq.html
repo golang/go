@@ -598,6 +598,24 @@ the interface idea. Sometimes, though, they're necessary to resolve ambiguities
 among similar interfaces.
 </p>
 
+<h3 id="convert_slice_of_interface">
+Can I convert a []T to an []interface{}?</h3>
+
+<p>
+Not directly because they do not have the same representation in memory.
+It is necessary to copy the elements individually to the destination
+slice. This example converts a slice of <code>int</code> to a slice of
+<code>interface{}</code>:
+</p>
+
+<pre>
+t := []int{1, 2, 3, 4}
+s := make([]interface{}, len(t))
+for i, v := range t {
+	s[i] = v
+}
+</pre>
+
 <h2 id="values">Values</h2>
 
 <h3 id="conversions">
