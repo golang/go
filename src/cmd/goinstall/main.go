@@ -150,7 +150,7 @@ func logPackage(pkg string) {
 }
 
 // install installs the package named by path, which is needed by parent.
-func install(pkg, parent string) {
+func install(pkg, parent string) (built bool) {
 	// Make sure we're not already trying to install pkg.
 	switch visit[pkg] {
 	case done:
@@ -201,9 +201,12 @@ func install(pkg, parent string) {
 		errorf("%s: package has no files\n", pkg)
 		return
 	}
+	var depBuilt bool
 	for _, p := range dirInfo.Imports {
 		if p != "C" {
-			install(p, pkg)
+			if install(p, pkg) {
+				depBuilt = true
+			}
 		}
 	}
 	if errors {
@@ -224,20 +227,22 @@ func install(pkg, parent string) {
 		script.Clean()
 	}
 	if *doInstall {
-		if script.Stale() {
+		if depBuilt || script.Stale() {
 			vlogf("%s: install\n", pkg)
 			if err := script.Run(); err != nil {
 				errorf("%s: install: %v\n", pkg, err)
 				return
 			}
+			built = true
 		} else {
-			vlogf("%s: install: up-to-date\n", pkg)
+			vlogf("%s: up-to-date\n", pkg)
 		}
 	}
 	if remote {
 		// mark package as installed in $GOROOT/goinstall.log
 		logPackage(pkg)
 	}
+	return
 }
 
 
