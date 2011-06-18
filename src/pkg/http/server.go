@@ -570,7 +570,7 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err os.Error) 
 // Handler object that calls f.
 type HandlerFunc func(ResponseWriter, *Request)
 
-// ServeHTTP calls f(w, req).
+// ServeHTTP calls f(w, r).
 func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 	f(w, r)
 }
