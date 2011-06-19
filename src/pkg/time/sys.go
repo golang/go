@@ -4,10 +4,7 @@
 
 package time
 
-import (
-	"os"
-	"syscall"
-)
+import "os"
 
 // Seconds reports the number of seconds since the Unix epoch,
 // January 1, 1970 00:00:00 UTC.
@@ -51,12 +48,4 @@ func sleep(t, ns int64) (int64, os.Error) {
 		t = Nanoseconds()
 	}
 	return t, nil
-}
-
-func sysSleep(t int64) os.Error {
-	errno := syscall.Sleep(t)
-	if errno != 0 && errno != syscall.EINTR {
-		return os.NewSyscallError("sleep", errno)
-	}
-	return nil
 }
