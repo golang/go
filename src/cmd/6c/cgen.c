@@ -1544,7 +1544,7 @@ sugen(Node *n, Node *nn, int32 w)
 			nod0.addable = 0;
 			nod0.right = l;
 
-			/* prtree(&nod0, "hand craft"); /* */
+			// prtree(&nod0, "hand craft");
 			cgen(&nod0, Z);
 		}
 		break;
