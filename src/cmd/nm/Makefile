@@ -12,7 +12,4 @@ TARG=6nm
 OFILES=\
 	nm.$O\
 
-LIB=\
-	../../../lib/libmach.a\
-
 include ../../Make.ccmd
