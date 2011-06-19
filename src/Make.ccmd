@@ -9,7 +9,7 @@ TARG:=$(TARG).exe
 endif
 
 $(TARG): $(OFILES) $(LIB)
-	$(HOST_LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lmach -lbio -l9 $(HOST_LDFLAGS)
+	$(HOST_LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lmach -lbio -l9 -lm $(HOST_LDFLAGS)
 
 $(OFILES): $(HFILES)
 
