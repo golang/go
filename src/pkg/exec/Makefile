@@ -20,6 +20,9 @@ GOFILES_linux=\
 GOFILES_windows=\
 	lp_windows.go\
 
+GOFILES_plan9=\
+	lp_plan9.go\
+
 GOFILES+=$(GOFILES_$(GOOS))
 
 include ../../Make.pkg

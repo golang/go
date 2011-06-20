@@ -63,7 +63,9 @@ func Exec(name string, argv []string, envv []string) Error {
 }
 
 // Waitmsg stores the information about an exited process as reported by Wait.
-type Waitmsg syscall.Waitmsg
+type Waitmsg struct {
+	syscall.Waitmsg
+}
 
 // Wait waits for the Process to exit or stop, and then returns a
 // Waitmsg describing its status and an Error, if any. The options
@@ -87,7 +89,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
 		}
 	}
 
-	return (*Waitmsg)(&waitmsg), nil
+	return &Waitmsg{waitmsg}, nil
 }
 
 // Wait waits for process pid to exit or stop, and then returns a

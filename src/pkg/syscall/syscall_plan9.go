@@ -35,7 +35,7 @@ var (
 	Stdout = 1
 	Stderr = 2
 
-	EISDIR Error = NewError("file is a directory")
+	EISDIR = NewError("file is a directory")
 )
 
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err string)
@@ -200,6 +200,17 @@ type Waitmsg struct {
 	Msg  string
 }
 
+func (w Waitmsg) Exited() bool   { return true }
+func (w Waitmsg) Signaled() bool { return false }
+
+func (w Waitmsg) ExitStatus() int {
+	if len(w.Msg) == 0 {
+		// a normal exit returns no message
+		return 0
+	}
+	return 1
+}
+
 //sys	await(s []byte) (n int, err Error)
 func Await(w *Waitmsg) (err Error) {
 	var buf [512]byte
@@ -230,7 +241,7 @@ func Await(w *Waitmsg) (err Error) {
 	w.Time[0] = uint32(atoi(f[1]))
 	w.Time[1] = uint32(atoi(f[2]))
 	w.Time[2] = uint32(atoi(f[3]))
-	w.Msg = string(f[4])
+	w.Msg = cstring(f[4])
 	return
 }
 

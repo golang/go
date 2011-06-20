@@ -45,6 +45,7 @@ var (
 	EEXIST  = Eexist
 	EIO     = Eio
 	EACCES  = Eperm
+	EPERM   = Eperm
 	EISDIR  = syscall.EISDIR
 
 	ENAMETOOLONG = NewError("file name too long")
