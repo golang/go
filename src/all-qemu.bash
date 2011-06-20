@@ -8,7 +8,8 @@
 
 export NOTEST=""
 
-NOTEST="$NOTEST big" # xxx
+NOTEST="$NOTEST big" # just slow
+NOTEST="$NOTEST go/build" # wants to run cgo
 NOTEST="$NOTEST http net rpc syslog websocket"  # no localhost network
 NOTEST="$NOTEST os"  # 64-bit seek fails
 
