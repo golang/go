@@ -781,6 +781,21 @@ func TestHandlerPanic(t *testing.T) {
 	}
 }
 
+func TestNoDate(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header()["Date"] = nil
+	}))
+	defer ts.Close()
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, present := res.Header["Date"]
+	if present {
+		t.Fatalf("Expected no Date header; got %v", res.Header["Date"])
+	}
+}
+
 type errorListener struct {
 	errs []os.Error
 }
