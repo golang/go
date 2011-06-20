@@ -45,8 +45,6 @@ static	Sym*	sym_divu;
 static	Sym*	sym_mod;
 static	Sym*	sym_modu;
 
-static void setdiv(int);
-
 void
 noops(void)
 {
@@ -93,7 +91,6 @@ noops(void)
 				if(prog_div == P)
 					initdiv();
 				cursym->text->mark &= ~LEAF;
-				setdiv(p->as);
 				continue;
 	
 			case ANOP:
@@ -530,27 +527,6 @@ initdiv(void)
 	if(prog_modu == P) {
 		diag("undefined: %s", s5->name);
 		prog_modu = cursym->text;
-	}
-}
-
-static void
-setdiv(int as)
-{
-	Prog *p = nil;
-
-	switch(as){
-	case ADIV:
-		p = prog_div;
-		break;
-	case ADIVU:
-		p = prog_divu;
-		break;
-	case AMOD:
-		p = prog_mod;
-		break;
-	case AMODU:
-		p = prog_modu;
-		break;
 	}
 }
 
