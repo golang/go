@@ -16,6 +16,8 @@ var (
 	Stderr = 2
 )
 
+const darwinAMD64 = OS == "darwin" && ARCH == "amd64"
+
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
 func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)

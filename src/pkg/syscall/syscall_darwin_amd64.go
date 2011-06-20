@@ -39,3 +39,15 @@ func SetKevent(k *Kevent_t, fd, mode, flags int) {
 	k.Filter = int16(mode)
 	k.Flags = uint16(flags)
 }
+
+func (iov *Iovec) SetLen(length int) {
+	iov.Len = uint64(length)
+}
+
+func (msghdr *Msghdr) SetControllen(length int) {
+	msghdr.Controllen = uint32(length)
+}
+
+func (cmsg *Cmsghdr) SetLen(length int) {
+	cmsg.Len = uint32(length)
+}

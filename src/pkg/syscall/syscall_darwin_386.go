@@ -40,4 +40,16 @@ func SetKevent(k *Kevent_t, fd, mode, flags int) {
 	k.Flags = uint16(flags)
 }
 
+func (iov *Iovec) SetLen(length int) {
+	iov.Len = uint32(length)
+}
+
+func (msghdr *Msghdr) SetControllen(length int) {
+	msghdr.Controllen = uint32(length)
+}
+
+func (cmsg *Cmsghdr) SetLen(length int) {
+	cmsg.Len = uint32(length)
+}
+
 func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) // sic

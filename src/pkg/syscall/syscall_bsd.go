@@ -425,6 +425,80 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
 	return sendto(fd, p, flags, ptr, n)
 }
 
+//sys	recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
+
+func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, errno int) {
+	var msg Msghdr
+	var rsa RawSockaddrAny
+	msg.Name = (*byte)(unsafe.Pointer(&rsa))
+	msg.Namelen = uint32(SizeofSockaddrAny)
+	var iov Iovec
+	if len(p) > 0 {
+		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+		iov.SetLen(len(p))
+	}
+	var dummy byte
+	if len(oob) > 0 {
+		// receive at least one normal byte
+		if len(p) == 0 {
+			iov.Base = &dummy
+			iov.SetLen(1)
+		}
+		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
+		msg.SetControllen(len(oob))
+	}
+	msg.Iov = &iov
+	msg.Iovlen = 1
+	if n, errno = recvmsg(fd, &msg, flags); errno != 0 {
+		return
+	}
+	oobn = int(msg.Controllen)
+	recvflags = int(msg.Flags)
+	// source address is only specified if the socket is unconnected
+	if rsa.Addr.Family != AF_UNSPEC {
+		from, errno = anyToSockaddr(&rsa)
+	}
+	return
+}
+
+//sys	sendmsg(s int, msg *Msghdr, flags int) (errno int)
+
+func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (errno int) {
+	var ptr uintptr
+	var salen _Socklen
+	if to != nil {
+		var err int
+		ptr, salen, err = to.sockaddr()
+		if err != 0 {
+			return err
+		}
+	}
+	var msg Msghdr
+	msg.Name = (*byte)(unsafe.Pointer(ptr))
+	msg.Namelen = uint32(salen)
+	var iov Iovec
+	if len(p) > 0 {
+		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+		iov.SetLen(len(p))
+	}
+	var dummy byte
+	if len(oob) > 0 {
+		// send at least one normal byte
+		if len(p) == 0 {
+			iov.Base = &dummy
+			iov.SetLen(1)
+		}
+		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
+		msg.SetControllen(len(oob))
+	}
+	msg.Iov = &iov
+	msg.Iovlen = 1
+	if errno = sendmsg(fd, &msg, flags); errno != 0 {
+		return
+	}
+	return
+}
+
 // TODO:
 // FreeBSD has IP_SENDIF.  Darwin probably needs BSDLLCTest, see:
 // http://developer.apple.com/mac/library/samplecode/BSDLLCTest/index.html
@@ -539,14 +613,6 @@ func Futimes(fd int, tv []Timeval) (errno int) {
 }
 
 //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
-
-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, errno int) {
-	return 0, 0, 0, nil, EAFNOSUPPORT
-}
-
-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (errno int) {
-	return EAFNOSUPPORT
-}
 
 // TODO: wrap
 //	Acct(name nil-string) (errno int)
