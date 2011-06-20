@@ -81,6 +81,19 @@ sub chk {
 			next;
 		}
 		$regexp = $1;
+		
+		# Turn relative line number in message into absolute line number.
+		if($regexp =~ /LINE(([+-])([0-9]+))?/) {
+			my $n = $line;
+			if(defined($1)) {
+				if($2 eq "+") {
+					$n += int($3);
+				} else {
+					$n -= int($3);
+				}
+			}
+			$regexp = "$`$file:$n$'";
+		}
 
 		@errmsg = grep { /$file:$line[:[]/ } @out;
 		@out = grep { !/$file:$line[:[]/ } @out;
@@ -93,6 +106,9 @@ sub chk {
 		if(@match == 0) {
 			bug();
 			print STDERR "errchk: $file:$line: error message does not match '$regexp'\n";
+			foreach my $l (@errmsg) {
+				print STDERR "> $l";
+			}
 			next;
 		}
 	}
