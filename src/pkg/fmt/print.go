@@ -22,6 +22,7 @@ var (
 	nilBytes        = []byte("nil")
 	mapBytes        = []byte("map[")
 	missingBytes    = []byte("(MISSING)")
+	panicBytes      = []byte("(PANIC=")
 	extraBytes      = []byte("%!(EXTRA ")
 	irparenBytes    = []byte("i)")
 	bytesBytes      = []byte("[]byte{")
@@ -69,10 +70,11 @@ type GoStringer interface {
 }
 
 type pp struct {
-	n       int
-	buf     bytes.Buffer
-	runeBuf [utf8.UTFMax]byte
-	fmt     fmt
+	n         int
+	panicking bool
+	buf       bytes.Buffer
+	runeBuf   [utf8.UTFMax]byte
+	fmt       fmt
 }
 
 // A cache holds a set of reusable objects.
@@ -111,6 +113,7 @@ var ppFree = newCache(func() interface{} { return new(pp) })
 // Allocate a new pp struct or grab a cached one.
 func newPrinter() *pp {
 	p := ppFree.get().(*pp)
+	p.panicking = false
 	p.fmt.init(&p.buf)
 	return p
 }
@@ -566,6 +569,31 @@ var (
 	uintptrBits = reflect.TypeOf(uintptr(0)).Bits()
 )
 
+func (p *pp) catchPanic(val interface{}, verb int) {
+	if err := recover(); err != nil {
+		// If it's a nil pointer, just say "<nil>". The likeliest causes are a
+		// Stringer that fails to guard against nil or a nil pointer for a
+		// value receiver, and in either case, "<nil>" is a nice result.
+		if v := reflect.ValueOf(val); v.Kind() == reflect.Ptr && v.IsNil() {
+			p.buf.Write(nilAngleBytes)
+			return
+		}
+		// Otherwise print a concise panic message. Most of the time the panic
+		// value will print itself nicely.
+		if p.panicking {
+			// Nested panics; the recursion in printField cannot succeed.
+			panic(err)
+		}
+		p.buf.WriteByte('%')
+		p.add(verb)
+		p.buf.Write(panicBytes)
+		p.panicking = true
+		p.printField(err, 'v', false, false, 0)
+		p.panicking = false
+		p.buf.WriteByte(')')
+	}
+}
+
 func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth int) (wasString bool) {
 	if field == nil {
 		if verb == 'T' || verb == 'v' {
@@ -588,6 +616,7 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth 
 	}
 	// Is it a Formatter?
 	if formatter, ok := field.(Formatter); ok {
+		defer p.catchPanic(field, verb)
 		formatter.Format(p, verb)
 		return false // this value is not a string
 
@@ -600,6 +629,7 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth 
 	if goSyntax {
 		p.fmt.sharp = false
 		if stringer, ok := field.(GoStringer); ok {
+			defer p.catchPanic(field, verb)
 			// Print the result of GoString unadorned.
 			p.fmtString(stringer.GoString(), 's', false, field)
 			return false // this value is not a string
@@ -607,6 +637,7 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth 
 	} else {
 		// Is it a Stringer?
 		if stringer, ok := field.(Stringer); ok {
+			defer p.catchPanic(field, verb)
 			p.printField(stringer.String(), verb, plus, false, depth)
 			return false // this value is not a string
 		}
