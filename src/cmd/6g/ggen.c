@@ -128,13 +128,13 @@ cgen_callinter(Node *n, Node *res, int proc)
 
 	nodindreg(&nodsp, types[tptr], D_SP);
 	nodo.xoffset += widthptr;
-	cgen(&nodo, &nodsp);	// 0(SP) = 8(REG) -- i.s
+	cgen(&nodo, &nodsp);	// 0(SP) = 8(REG) -- i.data
 
 	nodo.xoffset -= widthptr;
-	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.m
+	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.tab
 
 	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
-	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
+	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.tab->fun[f]
 
 	// BOTCH nodr.type = fntype;
 	nodr.type = n->left->type;
