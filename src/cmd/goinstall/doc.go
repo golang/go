@@ -41,9 +41,17 @@ Another common idiom is to use
 to update, recompile, and reinstall all goinstalled packages.
 
 The source code for a package with import path foo/bar is expected
-to be in the directory $GOROOT/src/pkg/foo/bar/.  If the import
-path refers to a code hosting site, goinstall will download the code
-if necessary.  The recognized code hosting sites are:
+to be in the directory $GOPATH/src/foo/bar/ or $GOROOT/src/pkg/foo/bar/.
+(See the discussion of GOPATH below for more detail.)
+
+If the package source is not found locally and the import path begins
+with a domain name, goinstall attempts to detect a remote source repository
+(Bazaar, Git, Mercurial, or Subversion). If a supported repository is found,
+goinstall uses the appropriate tool to download the source code.
+
+If the import path refers to a known code hosting site, goinstall skips the
+repository detection and downloads the code directly.
+The recognized code hosting sites are:
 
 	BitBucket (Mercurial)
 
@@ -63,7 +71,7 @@ if necessary.  The recognized code hosting sites are:
 		import "project.googlecode.com/svn/trunk"
 		import "project.googlecode.com/svn/trunk/sub/directory"
 
-	Launchpad
+	Launchpad (Bazaar)
 
 		import "launchpad.net/project"
 		import "launchpad.net/project/series"
@@ -87,7 +95,7 @@ system, typically HEAD for git, tip for Mercurial.
 After a successful download and installation of a publicly accessible
 remote package, goinstall reports the installation to godashboard.appspot.com,
 which increments a count associated with the package and the time
-of its most recent installation.  This mechanism powers the package list
+of its most recent installation. This mechanism powers the package list
 at http://godashboard.appspot.com/package, allowing Go programmers
 to learn about popular packages that might be worth looking at.
 The -dashboard=false flag disables this reporting.
@@ -96,11 +104,7 @@ By default, goinstall prints output only when it encounters an error.
 The -v flag causes goinstall to print information about packages
 being considered and installed.
 
-Goinstall does not attempt to be a replacement for make.
-Instead, it invokes "make install" after locating the package sources.
-For local packages without a Makefile and all remote packages,
-goinstall creates and uses a temporary Makefile constructed from
-the import path and the list of Go files in the package.
+Goinstall does not use make. Makefiles are ignored by goinstall.
 
 
 The GOPATH Environment Variable
