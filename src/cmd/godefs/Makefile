@@ -14,3 +14,6 @@ OFILES=\
 HFILES=a.h
 
 include ../../Make.ccmd
+
+test: $(TARG)
+	./test.sh
