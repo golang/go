@@ -1845,7 +1845,7 @@ def sync_changes(ui, repo):
 			cl.Flush(ui, repo)
 		if not cl.files:
 			if not cl.copied_from:
-				ui.warn("CL %s has no files; delete with hg change -d %s\n" % (cl.name, cl.name))
+				ui.warn("CL %s has no files; delete (abandon) with hg change -d %s\n" % (cl.name, cl.name))
 			else:
 				ui.warn("CL %s has no files; delete locally with hg change -D %s\n" % (cl.name, cl.name))
 	return
