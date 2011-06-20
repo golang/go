@@ -32,6 +32,7 @@ GOFILES_darwin=\
 
 GOFILES_linux=\
 	exec_unix.go\
+	lsf_linux.go\
 	netlink_linux.go\
 	syscall_unix.go\
 

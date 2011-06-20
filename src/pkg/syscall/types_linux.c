@@ -38,6 +38,7 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
 #include <sys/user.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
+#include <linux/filter.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <time.h>
@@ -224,6 +225,16 @@ typedef struct ifinfomsg $IfInfomsg;
 typedef struct ifaddrmsg $IfAddrmsg;
 typedef struct rtmsg $RtMsg;
 typedef struct rtnexthop $RtNexthop;
+
+// Linux socket filter
+
+enum {
+	$SizeofSockFilter = sizeof(struct sock_filter),
+	$SizeofSockFprog = sizeof(struct sock_fprog),
+};
+
+typedef struct sock_filter $SockFilter;
+typedef struct sock_fprog $SockFprog;
 
 // Inotify
 

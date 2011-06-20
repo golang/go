@@ -105,6 +105,8 @@ const (
 	SizeofIfAddrmsg         = 0x8
 	SizeofRtmsg             = 0xc
 	SizeofRtNexthop         = 0x8
+	SizeofSockFilter        = 0x8
+	SizeofSockFprog         = 0x8
 	SizeofInotifyEvent      = 0x10
 )
 
@@ -405,6 +407,19 @@ type RtNexthop struct {
 	Flags   uint8
 	Hops    uint8
 	Ifindex int32
+}
+
+type SockFilter struct {
+	Code uint16
+	Jt   uint8
+	Jf   uint8
+	K    uint32
+}
+
+type SockFprog struct {
+	Len          uint16
+	Pad_godefs_0 [2]byte
+	Filter       *SockFilter
 }
 
 type InotifyEvent struct {

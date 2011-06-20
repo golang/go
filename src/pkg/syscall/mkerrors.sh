@@ -30,7 +30,9 @@ includes_Linux='
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <linux/if_addr.h>
+#include <linux/if_ether.h>
 #include <linux/if_tun.h>
+#include <linux/filter.h>
 #include <linux/netlink.h>
 #include <linux/reboot.h>
 #include <linux/rtnetlink.h>
@@ -141,7 +143,7 @@ done
 		$2 ~ /^LINUX_REBOOT_CMD_/ ||
 		$2 ~ /^LINUX_REBOOT_MAGIC[12]$/ ||
 		$2 !~ "NLA_TYPE_MASK" &&
-		$2 ~ /^(NETLINK|NLM|NLMSG|NLA|IFA|RTM|RTN|RTPROT|RTA|RTAX|RTNH|ARPHRD)_/ ||
+		$2 ~ /^(NETLINK|NLM|NLMSG|NLA|IFA|RTM|RTN|RTPROT|RTA|RTAX|RTNH|ARPHRD|ETH_P)_/ ||
 		$2 ~ /^SIOC/ ||
 		$2 ~ /^(IFF|IFT|NET_RT|RTM|RTF|RTV|RTA|RTAX)_/ ||
 		$2 ~ /^BIOC/ ||
