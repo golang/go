@@ -45,7 +45,7 @@ class Project(db.Model):
 
 re_bitbucket = re.compile(r'^bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+$')
 re_googlecode = re.compile(r'^[a-z0-9\-]+\.googlecode\.com/(svn|hg)$')
-re_github = re.compile(r'^github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+$')
+re_github = re.compile(r'^github\.com/[a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)+$')
 re_launchpad = re.compile(r'^launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]+)?$')
 
 
@@ -54,10 +54,9 @@ def vc_to_web(path):
         check_url = 'http://' + path + '/?cmd=heads'
         web = 'http://' + path + '/'
     elif re_github.match(path):
-        # github doesn't let you fetch the .git directory anymore.
-        # fetch .git/info/refs instead, like git clone would.
-        check_url = 'http://'+path+'.git/info/refs'
-        web = 'http://' + path
+        m = re_github_web.match(path)
+        check_url = 'https://raw.github.com/' + m.group(1) + '/' + m.group(2) + '/master/'
+        web = 'http://github.com/' + m.group(1) + '/' + m.group(2)
     elif re_googlecode.match(path):
         check_url = 'http://'+path
         web = 'http://code.google.com/p/' + path[:path.index('.')]
