@@ -1556,27 +1556,27 @@ dumpone(Reg *r)
 			r->regdiff.b[z] |
 			r->act.b[z] |
 				0;
-//	if(bany(&bit)) {
-//		print("\t");
-//		if(bany(&r->set))
-//			print(" s:%Q", r->set);
-//		if(bany(&r->use1))
-//			print(" u1:%Q", r->use1);
-//		if(bany(&r->use2))
-//			print(" u2:%Q", r->use2);
-//		if(bany(&r->refbehind))
-//			print(" rb:%Q ", r->refbehind);
-//		if(bany(&r->refahead))
-//			print(" ra:%Q ", r->refahead);
-//		if(bany(&r->calbehind))
-//			print("cb:%Q ", r->calbehind);
-//		if(bany(&r->calahead))
-//			print(" ca:%Q ", r->calahead);
-//		if(bany(&r->regdiff))
-//			print(" d:%Q ", r->regdiff);
-//		if(bany(&r->act))
-//			print(" a:%Q ", r->act);
-//	}
+	if(bany(&bit)) {
+		print("\t");
+		if(bany(&r->set))
+			print(" s:%Q", r->set);
+		if(bany(&r->use1))
+			print(" u1:%Q", r->use1);
+		if(bany(&r->use2))
+			print(" u2:%Q", r->use2);
+		if(bany(&r->refbehind))
+			print(" rb:%Q ", r->refbehind);
+		if(bany(&r->refahead))
+			print(" ra:%Q ", r->refahead);
+		if(bany(&r->calbehind))
+			print("cb:%Q ", r->calbehind);
+		if(bany(&r->calahead))
+			print(" ca:%Q ", r->calahead);
+		if(bany(&r->regdiff))
+			print(" d:%Q ", r->regdiff);
+		if(bany(&r->act))
+			print(" a:%Q ", r->act);
+	}
 	print("\n");
 }
 
