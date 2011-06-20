@@ -173,7 +173,7 @@ func readCookies(h Header, filter string) []*Cookie {
 	if !ok {
 		return cookies
 	}
-Lines:
+
 	for _, line := range lines {
 		parts := strings.Split(strings.TrimSpace(line), ";", -1)
 		if len(parts) == 1 && parts[0] == "" {
@@ -194,7 +194,7 @@ Lines:
 				continue
 			}
 			if filter != "" && filter != name {
-				continue Lines
+				continue
 			}
 			val, success := parseCookieValue(val)
 			if !success {
