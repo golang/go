@@ -57,6 +57,16 @@ var headerWriteTests = []struct {
 		map[string]bool{"Content-Length": true, "Expires": true, "Content-Encoding": true},
 		"",
 	},
+	{
+		Header{
+			"Nil":          nil,
+			"Empty":        {},
+			"Blank":        {""},
+			"Double-Blank": {"", ""},
+		},
+		nil,
+		"Blank: \r\nDouble-Blank: \r\nDouble-Blank: \r\n",
+	},
 }
 
 func TestHeaderWrite(t *testing.T) {
