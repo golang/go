@@ -171,6 +171,21 @@ var readCookiesTests = []struct {
 			&Cookie{Name: "c2", Value: "v2"},
 		},
 	},
+	{
+		Header{"Cookie": {"Cookie-1=v$1; c2=v2"}},
+		"",
+		[]*Cookie{
+			&Cookie{Name: "Cookie-1", Value: "v$1"},
+			&Cookie{Name: "c2", Value: "v2"},
+		},
+	},
+	{
+		Header{"Cookie": {"Cookie-1=v$1; c2=v2"}},
+		"c2",
+		[]*Cookie{
+			&Cookie{Name: "c2", Value: "v2"},
+		},
+	},
 }
 
 func TestReadCookies(t *testing.T) {
@@ -178,7 +193,7 @@ func TestReadCookies(t *testing.T) {
 		for n := 0; n < 2; n++ { // to verify readCookies doesn't mutate its input                                                  
 			c := readCookies(tt.Header, tt.Filter)
 			if !reflect.DeepEqual(c, tt.Cookies) {
-				t.Errorf("#%d readCookies: have\n%s\nwant\n%s\n", i, toJSON(c), toJSON(tt.Cookies))
+				t.Errorf("#%d readCookies:\nhave: %s\nwant: %s\n", i, toJSON(c), toJSON(tt.Cookies))
 				continue
 			}
 		}
