@@ -123,6 +123,9 @@ func FindProcess(pid int) (p *Process, err Error) {
 	return newProcess(pid, 0), nil
 }
 
-func (w Waitmsg) String() string {
+func (w *Waitmsg) String() string {
+	if w == nil {
+		return "<nil>"
+	}
 	return "exit status: " + w.Msg
 }

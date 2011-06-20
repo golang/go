@@ -128,7 +128,10 @@ func itod(i int) string {
 	return string(b[bp:])
 }
 
-func (w Waitmsg) String() string {
+func (w *Waitmsg) String() string {
+	if w == nil {
+		return "<nil>"
+	}
 	// TODO(austin) Use signal names when possible?
 	res := ""
 	switch {
