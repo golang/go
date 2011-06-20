@@ -254,7 +254,7 @@ func (w *response) WriteHeader(code int) {
 		}
 	}
 
-	if w.header.Get("Date") == "" {
+	if _, ok := w.header["Date"]; !ok {
 		w.Header().Set("Date", time.UTC().Format(TimeFormat))
 	}
 
