@@ -173,7 +173,7 @@ func tryCommand(c chan *vcsMatch, v *vcs, prefixes []string) {
 		for _, prefix := range prefixes {
 			for _, suffix := range suffixes {
 				repo := proto + "://" + prefix + suffix
-				vlogf("try: %s %s %s\n", v.cmd, v.check, repo)
+				printf("try: %s %s %s\n", v.cmd, v.check, repo)
 				if exec.Command(v.cmd, v.check, repo).Run() == nil {
 					c <- &vcsMatch{v, prefix, repo}
 					return
