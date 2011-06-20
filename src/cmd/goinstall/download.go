@@ -7,11 +7,15 @@
 package main
 
 import (
+	"exec"
 	"http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 )
 
 const dashboardURL = "http://godashboard.appspot.com/package"
@@ -31,74 +35,15 @@ func maybeReportToDashboard(path string) {
 	}
 }
 
-var vcsPatterns = map[string]*regexp.Regexp{
-	"googlecode": regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/(svn|hg))(/[a-z0-9A-Z_.\-/]*)?$`),
-	"github":     regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`),
-	"bitbucket":  regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`),
-	"launchpad":  regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`),
-}
-
-// isRemote returns true if the provided package path
-// matches one of the supported remote repositories.
-func isRemote(pkg string) bool {
-	for _, r := range vcsPatterns {
-		if r.MatchString(pkg) {
-			return true
-		}
-	}
-	return false
-}
-
-// download checks out or updates pkg from the remote server.
-func download(pkg, srcDir string) os.Error {
-	if strings.Contains(pkg, "..") {
-		return os.ErrorString("invalid path (contains ..)")
-	}
-	if m := vcsPatterns["bitbucket"].FindStringSubmatch(pkg); m != nil {
-		if err := vcsCheckout(&hg, srcDir, m[1], "http://"+m[1], m[1]); err != nil {
-			return err
-		}
-		return nil
-	}
-	if m := vcsPatterns["googlecode"].FindStringSubmatch(pkg); m != nil {
-		var v *vcs
-		switch m[2] {
-		case "hg":
-			v = &hg
-		case "svn":
-			v = &svn
-		default:
-			// regexp only allows hg, svn to get through
-			panic("missing case in download: " + pkg)
-		}
-		if err := vcsCheckout(v, srcDir, m[1], "https://"+m[1], m[1]); err != nil {
-			return err
-		}
-		return nil
-	}
-	if m := vcsPatterns["github"].FindStringSubmatch(pkg); m != nil {
-		if strings.HasSuffix(m[1], ".git") {
-			return os.ErrorString("repository " + pkg + " should not have .git suffix")
-		}
-		if err := vcsCheckout(&git, srcDir, m[1], "http://"+m[1]+".git", m[1]); err != nil {
-			return err
-		}
-		return nil
-	}
-	if m := vcsPatterns["launchpad"].FindStringSubmatch(pkg); m != nil {
-		// Either lp.net/<project>[/<series>[/<path>]]
-		//	 or lp.net/~<user or team>/<project>/<branch>[/<path>]
-		if err := vcsCheckout(&bzr, srcDir, m[1], "https://"+m[1], m[1]); err != nil {
-			return err
-		}
-		return nil
-	}
-	return os.ErrorString("unknown repository: " + pkg)
+type host struct {
+	pattern  *regexp.Regexp
+	protocol string
 }
 
 // a vcs represents a version control system
 // like Mercurial, Git, or Subversion.
 type vcs struct {
+	name              string
 	cmd               string
 	metadir           string
 	checkout          string
@@ -110,9 +55,23 @@ type vcs struct {
 	log               string
 	logLimitFlag      string
 	logReleaseFlag    string
+	check             string
+	protocols         []string
+	suffix            string
+	findRepos         bool
+	defaultHosts      []host
+
+	// Is this tool present? (set by findTools)
+	available bool
+}
+
+type vcsMatch struct {
+	*vcs
+	prefix, repo string
 }
 
 var hg = vcs{
+	name:              "Mercurial",
 	cmd:               "hg",
 	metadir:           ".hg",
 	checkout:          "checkout",
@@ -123,9 +82,17 @@ var hg = vcs{
 	log:               "log",
 	logLimitFlag:      "-l1",
 	logReleaseFlag:    "-rrelease",
+	check:             "identify",
+	protocols:         []string{"http"},
+	findRepos:         true,
+	defaultHosts: []host{
+		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/hg)(/[a-z0-9A-Z_.\-/]*)?$`), "https"},
+		{regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http"},
+	},
 }
 
 var git = vcs{
+	name:              "Git",
 	cmd:               "git",
 	metadir:           ".git",
 	checkout:          "checkout",
@@ -136,9 +103,17 @@ var git = vcs{
 	log:               "show-ref",
 	logLimitFlag:      "",
 	logReleaseFlag:    "release",
+	check:             "peek-remote",
+	protocols:         []string{"git", "http"},
+	suffix:            ".git",
+	findRepos:         true,
+	defaultHosts: []host{
+		{regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http"},
+	},
 }
 
 var svn = vcs{
+	name:              "Subversion",
 	cmd:               "svn",
 	metadir:           ".svn",
 	checkout:          "checkout",
@@ -148,9 +123,16 @@ var svn = vcs{
 	log:               "log",
 	logLimitFlag:      "-l1",
 	logReleaseFlag:    "release",
+	check:             "info",
+	protocols:         []string{"http", "svn"},
+	findRepos:         false,
+	defaultHosts: []host{
+		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/svn)(/[a-z0-9A-Z_.\-/]*)?$`), "https"},
+	},
 }
 
 var bzr = vcs{
+	name:              "Bazaar",
 	cmd:               "bzr",
 	metadir:           ".bzr",
 	checkout:          "update",
@@ -162,6 +144,129 @@ var bzr = vcs{
 	log:               "log",
 	logLimitFlag:      "-l1",
 	logReleaseFlag:    "-rrelease",
+	check:             "info",
+	protocols:         []string{"http", "bzr"},
+	findRepos:         true,
+	defaultHosts: []host{
+		{regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`), "https"},
+	},
+}
+
+var vcsList = []*vcs{&git, &hg, &bzr, &svn}
+
+func potentialPrefixes(pkg string) []string {
+	prefixes := []string{}
+
+	parts := strings.Split(pkg, "/", -1)
+	elem := parts[0]
+	for _, part := range parts[1:] {
+		elem = path.Join(elem, part)
+		prefixes = append(prefixes, elem)
+	}
+
+	return prefixes
+}
+
+func tryCommand(c chan *vcsMatch, v *vcs, prefixes []string) {
+	for _, proto := range v.protocols {
+		for _, prefix := range prefixes {
+			repo := proto + "://" + prefix + v.suffix
+			if exec.Command(v.cmd, v.check, repo).Run() == nil {
+				c <- &vcsMatch{v, prefix, repo}
+				return
+			}
+		}
+	}
+}
+
+var findToolsOnce sync.Once
+
+func findTools() {
+	for _, v := range vcsList {
+		v.available = exec.Command(v.cmd, "help").Run() == nil
+	}
+}
+
+var logMissingToolsOnce sync.Once
+
+func logMissingTools() {
+	for _, v := range vcsList {
+		if !v.available {
+			logf("%s not found; %s packages will be ignored\n", v.cmd, v.name)
+		}
+	}
+}
+
+func findVcs(pkg string) *vcsMatch {
+	c := make(chan *vcsMatch, len(vcsList))
+
+	findToolsOnce.Do(findTools)
+
+	// we don't know how much of the name constitutes the repository prefix, so
+	// build a list of possibilities
+	prefixes := potentialPrefixes(pkg)
+
+	for _, v := range vcsList {
+		if !v.available {
+			continue
+		}
+		if v.findRepos {
+			go tryCommand(c, v, prefixes)
+		} else {
+			go tryCommand(c, v, []string{pkg})
+		}
+	}
+
+	select {
+	case m := <-c:
+		return m
+	case <-time.After(20 * 1e9):
+	}
+
+	logMissingToolsOnce.Do(logMissingTools)
+
+	return nil
+}
+
+// isRemote returns true if the first part of the package name looks like a
+// hostname - i.e. contains at least one '.' and the last part is at least 2
+// characters.
+func isRemote(pkg string) bool {
+	parts := strings.Split(pkg, "/", 2)
+	if len(parts) != 2 {
+		return false
+	}
+	parts = strings.Split(parts[0], ".", -1)
+	if len(parts) < 2 || len(parts[len(parts)-1]) < 2 {
+		return false
+	}
+	return true
+}
+
+// download checks out or updates pkg from the remote server.
+func download(pkg, srcDir string) os.Error {
+	if strings.Contains(pkg, "..") {
+		return os.ErrorString("invalid path (contains ..)")
+	}
+	var m *vcsMatch
+	for _, v := range vcsList {
+		for _, host := range v.defaultHosts {
+			if hm := host.pattern.FindStringSubmatch(pkg); hm != nil {
+				if v.suffix != "" && strings.HasSuffix(hm[1], v.suffix) {
+					return os.ErrorString("repository " + pkg + " should not have " + v.suffix + " suffix")
+				}
+				repo := host.protocol + "://" + hm[1] + v.suffix
+				m = &vcsMatch{v, hm[1], repo}
+			}
+		}
+	}
+	if m == nil {
+		m = findVcs(pkg)
+	}
+	if m == nil {
+		return os.ErrorString("cannot download: " + pkg)
+	}
+	return vcsCheckout(m.vcs, srcDir, m.prefix, m.repo, pkg)
 }
 
 // Try to detect if a "release" tag exists.  If it does, update
