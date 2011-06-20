@@ -31,7 +31,7 @@ func validMediaTypeOrDisposition(s string) bool {
 }
 
 // ParseMediaType parses a media type value and any optional
-// parameters, per RFC 1531.  Media types are the values in
+// parameters, per RFC 1521.  Media types are the values in
 // Content-Type and Content-Disposition headers (RFC 2183).  On
 // success, ParseMediaType returns the media type converted to
 // lowercase and trimmed of white space and a non-nil params.  On
