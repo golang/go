@@ -10,8 +10,6 @@ import (
 	"unsafe"
 )
 
-const darwinAMD64 = OS == "darwin" && ARCH == "amd64"
-
 // Round the length of a raw sockaddr up to align it properly.
 func rsaAlignOf(salen int) int {
 	salign := sizeofPtr
