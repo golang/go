@@ -1042,3 +1042,11 @@ func TestStatDirWithTrailingSlash(t *testing.T) {
 		t.Fatal("stat failed:", err)
 	}
 }
+
+func TestNilWaitmsgString(t *testing.T) {
+	var w *Waitmsg
+	s := w.String()
+	if s != "<nil>" {
+		t.Errorf("(*Waitmsg)(nil).String() = %q, want %q", s, "<nil>")
+	}
+}
