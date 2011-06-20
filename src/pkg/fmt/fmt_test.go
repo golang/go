@@ -683,3 +683,56 @@ func TestWidthAndPrecision(t *testing.T) {
 		}
 	}
 }
+
+// A type that panics in String.
+type Panic struct {
+	message interface{}
+}
+
+// Value receiver.
+func (p Panic) GoString() string {
+	panic(p.message)
+}
+
+// Value receiver.
+func (p Panic) String() string {
+	panic(p.message)
+}
+
+// A type that panics in Format.
+type PanicF struct {
+	message interface{}
+}
+
+// Value receiver.
+func (p PanicF) Format(f State, c int) {
+	panic(p.message)
+}
+
+var panictests = []struct {
+	fmt string
+	in  interface{}
+	out string
+}{
+	// String
+	{"%d", (*Panic)(nil), "<nil>"}, // nil pointer special case
+	{"%d", Panic{io.ErrUnexpectedEOF}, "%d(PANIC=unexpected EOF)"},
+	{"%d", Panic{3}, "%d(PANIC=3)"},
+	// GoString
+	{"%#v", (*Panic)(nil), "<nil>"}, // nil pointer special case
+	{"%#v", Panic{io.ErrUnexpectedEOF}, "%v(PANIC=unexpected EOF)"},
+	{"%#v", Panic{3}, "%v(PANIC=3)"},
+	// Format
+	{"%s", (*PanicF)(nil), "<nil>"}, // nil pointer special case
+	{"%s", PanicF{io.ErrUnexpectedEOF}, "%s(PANIC=unexpected EOF)"},
+	{"%s", PanicF{3}, "%s(PANIC=3)"},
+}
+
+func TestPanics(t *testing.T) {
+	for _, tt := range panictests {
+		s := Sprintf(tt.fmt, tt.in)
+		if s != tt.out {
+			t.Errorf("%q: got %q expected %q", tt.fmt, s, tt.out)
+		}
+	}
+}
