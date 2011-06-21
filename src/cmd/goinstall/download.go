@@ -7,14 +7,11 @@
 package main
 
 import (
-	"exec"
 	"http"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 )
 
 const dashboardURL = "http://godashboard.appspot.com/package"
@@ -57,11 +54,7 @@ type vcs struct {
 	check             string
 	protocols         []string
 	suffix            string
-	tryPrefixes       bool
 	defaultHosts      []host
-
-	// Is this tool present? (set by findTools)
-	available bool
 }
 
 type vcsMatch struct {
@@ -83,7 +76,6 @@ var hg = vcs{
 	logReleaseFlag:    "-rrelease",
 	check:             "identify",
 	protocols:         []string{"http"},
-	tryPrefixes:       true,
 	defaultHosts: []host{
 		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/hg)(/[a-z0-9A-Z_.\-/]*)?$`), "https"},
 		{regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http"},
@@ -105,7 +97,6 @@ var git = vcs{
 	check:             "peek-remote",
 	protocols:         []string{"git", "http"},
 	suffix:            ".git",
-	tryPrefixes:       true,
 	defaultHosts: []host{
 		{regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http"},
 	},
@@ -124,7 +115,6 @@ var svn = vcs{
 	logReleaseFlag:    "release",
 	check:             "info",
 	protocols:         []string{"http", "svn"},
-	tryPrefixes:       false,
 	defaultHosts: []host{
 		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/svn)(/[a-z0-9A-Z_.\-/]*)?$`), "https"},
 	},
@@ -145,91 +135,12 @@ var bzr = vcs{
 	logReleaseFlag:    "-rrelease",
 	check:             "info",
 	protocols:         []string{"http", "bzr"},
-	tryPrefixes:       true,
 	defaultHosts: []host{
 		{regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`), "https"},
 	},
 }
 
 var vcsList = []*vcs{&git, &hg, &bzr, &svn}
-
-func potentialPrefixes(pkg string) (prefixes []string) {
-	parts := strings.Split(pkg, "/", -1)
-	elem := parts[0]
-	for _, part := range parts[1:] {
-		elem = path.Join(elem, part)
-		prefixes = append(prefixes, elem)
-	}
-	return
-}
-
-func tryCommand(c chan *vcsMatch, v *vcs, prefixes []string) {
-	// try empty suffix and v.suffix if non-empty
-	suffixes := []string{""}
-	if v.suffix != "" {
-		suffixes = append(suffixes, v.suffix)
-	}
-	for _, proto := range v.protocols {
-		for _, prefix := range prefixes {
-			for _, suffix := range suffixes {
-				repo := proto + "://" + prefix + suffix
-				printf("try: %s %s %s\n", v.cmd, v.check, repo)
-				if exec.Command(v.cmd, v.check, repo).Run() == nil {
-					c <- &vcsMatch{v, prefix, repo}
-					return
-				}
-			}
-		}
-	}
-	c <- nil
-}
-
-var findToolsOnce sync.Once
-
-func findTools() {
-	for _, v := range vcsList {
-		v.available = exec.Command(v.cmd, "help").Run() == nil
-	}
-}
-
-var logMissingToolsOnce sync.Once
-
-func logMissingTools() {
-	for _, v := range vcsList {
-		if !v.available {
-			logf("%s not found; %s packages will be ignored\n", v.cmd, v.name)
-		}
-	}
-}
-
-func findVcs(pkg string) *vcsMatch {
-	findToolsOnce.Do(findTools)
-
-	// we don't know how much of the name constitutes the repository prefix
-	// so build a list of possibilities
-	prefixes := potentialPrefixes(pkg)
-
-	c := make(chan *vcsMatch, len(vcsList))
-	for _, v := range vcsList {
-		if !v.available {
-			c <- nil
-			continue
-		}
-		if v.tryPrefixes {
-			go tryCommand(c, v, prefixes)
-		} else {
-			go tryCommand(c, v, []string{pkg})
-		}
-	}
-	for _ = range vcsList {
-		if m := <-c; m != nil {
-			return m
-		}
-	}
-
-	logMissingToolsOnce.Do(logMissingTools)
-	return nil
-}
 
 // isRemote returns true if the first part of the package name looks like a
 // hostname - i.e. contains at least one '.' and the last part is at least 2
@@ -262,9 +173,6 @@ func download(pkg, srcDir string) os.Error {
 				m = &vcsMatch{v, hm[1], repo}
 			}
 		}
-	}
-	if m == nil {
-		m = findVcs(pkg)
 	}
 	if m == nil {
 		return os.ErrorString("cannot download: " + pkg)
