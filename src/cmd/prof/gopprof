@@ -150,7 +150,8 @@ pprof [options] <profile>
    The /<service> can be $HEAP_PAGE, $PROFILE_PAGE, /pprof/pmuprofile,
                          $GROWTH_PAGE, $CONTENTION_PAGE, /pprof/wall,
                          or /pprof/filteredprofile.
-   For instance: "pprof http://myserver.com:80$HEAP_PAGE".
+   For instance:
+     pprof http://myserver.com:80$HEAP_PAGE
    If /<service> is omitted, the service defaults to $PROFILE_PAGE (cpu profiling).
 pprof --symbols <program>
    Maps addresses to symbol names.  In this mode, stdin should be a
@@ -532,7 +533,7 @@ sub Init() {
     ConfigureObjTools($main::prog)
   }
 
-  # Break the opt_list_prefix into the prefix_list array
+  # Break the opt_lib_prefix into the prefix_list array
   @prefix_list = split (',', $main::opt_lib_prefix);
 
   # Remove trailing / from the prefixes, in the list to prevent
@@ -626,7 +627,7 @@ sub Main() {
     if ($main::opt_disasm) {
       PrintDisassembly($libs, $flat, $cumulative, $main::opt_disasm, $total);
     } elsif ($main::opt_list) {
-      PrintListing($libs, $flat, $cumulative, $main::opt_list);
+      PrintListing($total, $libs, $flat, $cumulative, $main::opt_list, 0);
     } elsif ($main::opt_text) {
       # Make sure the output is empty when have nothing to report
       # (only matters when --heapcheck is given but we must be
@@ -814,7 +815,7 @@ sub InteractiveCommand {
     my $ignore;
     ($routine, $ignore) = ParseInteractiveArgs($3);
 
-    my $profile = ProcessProfile($orig_profile, $symbols, "", $ignore);
+    my $profile = ProcessProfile($total, $orig_profile, $symbols, "", $ignore);
     my $reduced = ReduceProfile($symbols, $profile);
 
     # Get derived profiles
@@ -841,21 +842,22 @@ sub InteractiveCommand {
 
     return 1;
   }
-  if (m/^\s*list\s*(.+)/) {
+  if (m/^\s*(web)?list\s*(.+)/) {
+    my $html = (defined($1) && ($1 eq "web"));
     $main::opt_list = 1;
 
     my $routine;
     my $ignore;
-    ($routine, $ignore) = ParseInteractiveArgs($1);
+    ($routine, $ignore) = ParseInteractiveArgs($2);
 
-    my $profile = ProcessProfile($orig_profile, $symbols, "", $ignore);
+    my $profile = ProcessProfile($total, $orig_profile, $symbols, "", $ignore);
     my $reduced = ReduceProfile($symbols, $profile);
 
     # Get derived profiles
     my $flat = FlatProfile($reduced);
     my $cumulative = CumulativeProfile($reduced);
 
-    PrintListing($libs, $flat, $cumulative, $routine);
+    PrintListing($total, $libs, $flat, $cumulative, $routine, $html);
     return 1;
   }
   if (m/^\s*disasm\s*(.+)/) {
@@ -866,7 +868,7 @@ sub InteractiveCommand {
     ($routine, $ignore) = ParseInteractiveArgs($1);
 
     # Process current profile to account for various settings
-    my $profile = ProcessProfile($orig_profile, $symbols, "", $ignore);
+    my $profile = ProcessProfile($total, $orig_profile, $symbols, "", $ignore);
     my $reduced = ReduceProfile($symbols, $profile);
 
     # Get derived profiles
@@ -890,7 +892,7 @@ sub InteractiveCommand {
     ($focus, $ignore) = ParseInteractiveArgs($2);
 
     # Process current profile to account for various settings
-    my $profile = ProcessProfile($orig_profile, $symbols, $focus, $ignore);
+    my $profile = ProcessProfile($total, $orig_profile, $symbols, $focus, $ignore);
     my $reduced = ReduceProfile($symbols, $profile);
 
     # Get derived profiles
@@ -916,6 +918,7 @@ sub InteractiveCommand {
 
 
 sub ProcessProfile {
+  my $total_count = shift;
   my $orig_profile = shift;
   my $symbols = shift;
   my $focus = shift;
@@ -923,7 +926,6 @@ sub ProcessProfile {
 
   # Process current profile to account for various settings
   my $profile = $orig_profile;
-  my $total_count = TotalProfile($profile);
   printf("Total: %s %s\n", Unparse($total_count), Units());
   if ($focus ne '') {
     $profile = FocusProfile($symbols, $profile, $focus);
@@ -969,6 +971,11 @@ Commands:
 
   list [routine_regexp] [-ignore1] [-ignore2]
       Show source listing of routines whose names match "routine_regexp"
+
+  weblist [routine_regexp] [-ignore1] [-ignore2]
+      Displays a source listing of routines whose names match "routine_regexp"
+      in a web browser.  You can click on source lines to view the
+      corresponding disassembly.
 
   top [--cum] [-ignore1] [-ignore2]
   top20 [--cum] [-ignore1] [-ignore2]
@@ -1144,7 +1151,7 @@ sub PrintText {
              $sym);
     }
     $lines++;
-    last if ($line_limit >= 0 && $lines > $line_limit);
+    last if ($line_limit >= 0 && $lines >= $line_limit);
   }
 }
 
@@ -1291,11 +1298,32 @@ sub ByName {
 
 # Print source-listing for all all routines that match $main::opt_list
 sub PrintListing {
+  my $total = shift;
   my $libs = shift;
   my $flat = shift;
   my $cumulative = shift;
   my $list_opts = shift;
+  my $html = shift;
+  
+  my $output = \*STDOUT;
+  my $fname = "";
+  
 
+  if ($html) {
+    # Arrange to write the output to a temporary file
+    $fname = TempName($main::next_tmpfile, "html");
+    $main::next_tmpfile++;
+    if (!open(TEMP, ">$fname")) {
+      print STDERR "$fname: $!\n";
+      return;
+    }
+    $output = \*TEMP;
+    print $output HtmlListingHeader();
+    printf $output ("<div class=\"legend\">%s<br>Total: %s %s</div>\n",
+                    $main::prog, Unparse($total), Units());
+  }
+ 
+  my $listed = 0;
   foreach my $lib (@{$libs}) {
     my $symbol_table = GetProcedureBoundaries($lib->[0], $list_opts);
     my $offset = AddressSub($lib->[1], $lib->[3]);
@@ -1307,15 +1335,98 @@ sub PrintListing {
       my $addr = AddressAdd($start_addr, $offset);
       for (my $i = 0; $i < $length; $i++) {
         if (defined($cumulative->{$addr})) {
-          PrintSource($lib->[0], $offset,
-                      $routine, $flat, $cumulative,
-                      $start_addr, $end_addr);
+          $listed += PrintSource(
+            $lib->[0], $offset,
+            $routine, $flat, $cumulative,
+            $start_addr, $end_addr,
+            $html,
+            $output);
           last;
         }
         $addr = AddressInc($addr);
       }
     }
   }
+
+  if ($html) {
+    if ($listed > 0) {
+      print $output HtmlListingFooter();
+      close($output);
+      RunWeb($fname);
+    } else {
+      close($output);
+      unlink($fname);
+    }
+  }
+}
+
+sub HtmlListingHeader {
+  return <<'EOF';
+<DOCTYPE html>
+<html>
+<head>
+<title>Pprof listing</title>
+<style type="text/css">
+body {
+  font-family: sans-serif;
+}
+h1 {
+  font-size: 1.5em;
+  margin-bottom: 4px;
+}
+.legend {
+  font-size: 1.25em;
+}
+.line {
+  color: #aaaaaa;
+}
+.livesrc {
+  color: #0000ff;
+  cursor: pointer;
+}
+.livesrc:hover {
+  background-color: #cccccc;
+}
+.asm {
+  color: #888888;
+  display: none;
+}
+</style>
+<script type="text/javascript">
+function pprof_toggle_asm(e) {
+  var target;
+  if (!e) e = window.event;
+  if (e.target) target = e.target;
+  else if (e.srcElement) target = e.srcElement;
+
+  if (target && target.className == "livesrc") {
+    var asm = target.nextSibling;
+    if (asm && asm.className == "asm") {
+      asm.style.display = (asm.style.display == "block" ? "none" : "block");
+      e.preventDefault();
+      return false;
+    }
+  }
+}
+</script>
+</head>
+<body>
+EOF
+}
+
+sub HtmlListingFooter {
+  return <<'EOF';
+</body>
+</html>
+EOF
+}
+
+sub HtmlEscape {
+  my $text = shift;
+  $text =~ s/&/&amp;/g;
+  $text =~ s/</&lt;/g;
+  $text =~ s/>/&gt;/g;
+  return $text;
 }
 
 # Returns the indentation of the line, if it has any non-whitespace
@@ -1338,6 +1449,8 @@ sub PrintSource {
   my $cumulative = shift;
   my $start_addr = shift;
   my $end_addr = shift;
+  my $html = shift;
+  my $output = shift;
 
   # Disassemble all instructions (just to get line numbers)
   my @instructions = Disassemble($prog, $offset, $start_addr, $end_addr);
@@ -1353,7 +1466,7 @@ sub PrintSource {
   }
   if (!defined($filename)) {
     print STDERR "no filename found in $routine\n";
-    return;
+    return 0;
   }
 
   # Hack 2: assume that the largest line number from $filename is the
@@ -1386,7 +1499,7 @@ sub PrintSource {
   {
     if (!open(FILE, "<$filename")) {
       print STDERR "$filename: $!\n";
-      return;
+      return 0;
     }
     my $l = 0;
     my $first_indentation = -1;
@@ -1414,12 +1527,21 @@ sub PrintSource {
   # Assign all samples to the range $firstline,$lastline,
   # Hack 4: If an instruction does not occur in the range, its samples
   # are moved to the next instruction that occurs in the range.
-  my $samples1 = {};
-  my $samples2 = {};
-  my $running1 = 0;     # Unassigned flat counts
-  my $running2 = 0;     # Unassigned cumulative counts
-  my $total1 = 0;       # Total flat counts
-  my $total2 = 0;       # Total cumulative counts
+  my $samples1 = {};        # Map from line number to flat count
+  my $samples2 = {};        # Map from line number to cumulative count
+  my $running1 = 0;         # Unassigned flat counts
+  my $running2 = 0;         # Unassigned cumulative counts
+  my $total1 = 0;           # Total flat counts
+  my $total2 = 0;           # Total cumulative counts
+  my %disasm = ();          # Map from line number to disassembly
+  my $running_disasm = "";  # Unassigned disassembly
+  my $skip_marker = "---\n";
+  if ($html) {
+    $skip_marker = "";
+    for (my $l = $firstline; $l <= $lastline; $l++) {
+      $disasm{$l} = "";
+    }
+  }
   foreach my $e (@instructions) {
     # Add up counts for all address that fall inside this instruction
     my $c1 = 0;
@@ -1428,6 +1550,15 @@ sub PrintSource {
       $c1 += GetEntry($flat, $a);
       $c2 += GetEntry($cumulative, $a);
     }
+
+    if ($html) {
+      $running_disasm .= sprintf("      %6s %6s \t\t%8s: %s\n",
+                                 HtmlPrintNumber($c1),
+                                 HtmlPrintNumber($c2),
+                                 $e->[0],
+                                 CleanDisassembly($e->[3]));
+    }
+
     $running1 += $c1;
     $running2 += $c2;
     $total1 += $c1;
@@ -1442,6 +1573,10 @@ sub PrintSource {
       AddEntry($samples2, $line, $running2);
       $running1 = 0;
       $running2 = 0;
+      if ($html) {
+        $disasm{$line} .= $running_disasm;
+        $running_disasm = '';
+      }
     }
   }
 
@@ -1449,16 +1584,28 @@ sub PrintSource {
   AddEntry($samples1, $lastline, $running1);
   AddEntry($samples2, $lastline, $running2);
 
-  printf("ROUTINE ====================== %s in %s\n" .
-         "%6s %6s Total %s (flat / cumulative)\n",
-         ShortFunctionName($routine),
-         $filename,
-         Units(),
-         Unparse($total1),
-         Unparse($total2));
+  if ($html) {
+    printf $output (
+      "<h1>%s</h1>%s\n<pre onClick=\"pprof_toggle_asm()\">\n" .
+      "Total:%6s %6s (flat / cumulative %s)\n",
+      HtmlEscape(ShortFunctionName($routine)),
+      HtmlEscape($filename),
+      Unparse($total1),
+      Unparse($total2),
+      Units());
+  } else {
+    printf $output (
+      "ROUTINE ====================== %s in %s\n" .
+      "%6s %6s Total %s (flat / cumulative)\n",
+      ShortFunctionName($routine),
+      $filename,
+      Unparse($total1),
+      Unparse($total2),
+      Units());
+  }
   if (!open(FILE, "<$filename")) {
     print STDERR "$filename: $!\n";
-    return;
+    return 0;
   }
   my $l = 0;
   while (<FILE>) {
@@ -1468,16 +1615,47 @@ sub PrintSource {
         (($l <= $oldlastline + 5) || ($l <= $lastline))) {
       chop;
       my $text = $_;
-      if ($l == $firstline) { printf("---\n"); }
-      printf("%6s %6s %4d: %s\n",
-             UnparseAlt(GetEntry($samples1, $l)),
-             UnparseAlt(GetEntry($samples2, $l)),
-             $l,
-             $text);
-      if ($l == $lastline)  { printf("---\n"); }
+      if ($l == $firstline) { print $output $skip_marker; }
+      my $n1 = GetEntry($samples1, $l);
+      my $n2 = GetEntry($samples2, $l);
+      if ($html) {
+        my $dis = $disasm{$l};
+        if (!defined($dis) || $n1 + $n2 == 0) {
+          # No samples/disassembly for this source line
+          printf $output (
+            "<span class=\"line\">%5d</span> " .
+            "<span class=\"deadsrc\">%6s %6s %s</span>\n",
+            $l,
+            HtmlPrintNumber($n1),
+            HtmlPrintNumber($n2),
+            HtmlEscape($text));
+        } else {
+          printf $output (
+            "<span class=\"line\">%5d</span> " .
+            "<span class=\"livesrc\">%6s %6s %s</span>" .
+            "<span class=\"asm\">%s</span>\n",
+            $l,
+            HtmlPrintNumber($n1),
+            HtmlPrintNumber($n2),
+            HtmlEscape($text),
+            HtmlEscape($dis));
+        }
+      } else {
+        printf $output(
+          "%6s %6s %4d: %s\n",
+          UnparseAlt($n1),
+          UnparseAlt($n2),
+          $l,
+          $text);
+      }
+      if ($l == $lastline)  { print $output $skip_marker; }
     };
   }
   close(FILE);
+  if ($html) {
+    print $output "</pre>\n";
+  }
+  return 1;
 }
 
 # Return the source line for the specified file/linenumber.
@@ -1625,16 +1803,11 @@ sub PrintDisassembledFunction {
       $address =~ s/^0x//;
       $address =~ s/^0*//;
 
-      # Trim symbols
-      my $d = $e->[3];
-      while ($d =~ s/\([^()%]*\)(\s*const)?//g) { } # Argument types, not (%rax)
-      while ($d =~ s/(\w+)<[^<>]*>/$1/g)  { }       # Remove template arguments
-
       printf("%6s %6s    %8s: %6s\n",
              UnparseAlt($flat_count[$x]),
              UnparseAlt($cum_count[$x]),
              $address,
-             $d);
+             CleanDisassembly($e->[3]));
     }
   }
 }
@@ -2254,6 +2427,16 @@ sub UnparseAlt {
   }
 }
 
+# Alternate pretty-printed form: 0 maps to ""
+sub HtmlPrintNumber {
+  my $num = shift;
+  if ($num == 0) {
+    return "";
+  } else {
+    return Unparse($num);
+  }
+}
+
 # Return output units
 sub Units {
   if ($main::profile_type eq 'heap' || $main::profile_type eq 'growth') {
@@ -2415,6 +2598,8 @@ sub RemoveUninterestingFrames {
                       'copyin',
                       'gostring',
                       'gostringsize',
+                      'growslice1',
+                      'appendslice1',
                       'hash_init',
                       'hash_subtable_new',
                       'hash_conv',
@@ -2422,6 +2607,8 @@ sub RemoveUninterestingFrames {
                       'hash_insert_internal',
                       'hash_insert',
                       'mapassign',
+                      'runtime.mapassign',
+                      'runtime.appendslice',
                       'runtime.mapassign1',
                       'makechan',
                       'makemap',
@@ -2433,11 +2620,13 @@ sub RemoveUninterestingFrames {
                       'unsafe.New',
                       'runtime.mallocgc',
                       'runtime.catstring',
+                      'runtime.growslice',
                       'runtime.ifaceT2E',
                       'runtime.ifaceT2I',
                       'runtime.makechan',
                       'runtime.makechan_c',
                       'runtime.makemap',
+                      'runtime.makemap_c',
                       'runtime.makeslice',
                       'runtime.mal',
                       'runtime.slicebytetostring',
@@ -4300,6 +4489,14 @@ sub ShortFunctionName {
   while ($function =~ s/<[^<>]*>//g)  { }    # Remove template arguments
   $function =~ s/^.*\s+(\w+::)/$1/;          # Remove leading type
   return $function;
+}
+
+# Trim overly long symbols found in disassembler output
+sub CleanDisassembly {
+  my $d = shift;
+  while ($d =~ s/\([^()%]*\)(\s*const)?//g) { } # Argument types, not (%rax)
+  while ($d =~ s/(\w+)<[^<>]*>/$1/g)  { }       # Remove template arguments
+  return $d;
 }
 
 ##### Miscellaneous #####
