@@ -260,10 +260,8 @@ enum {
 	Hipaq,		// ipaq
 	Hdarwin,	// Apple Mach-O
 	Hlinux,		// Linux ELF
-	Hnacl,		// Google Native Client
 	Hfreebsd,	// FreeBSD ELF
 	Hwindows,	// MS Windows PE
-	Htiny		// tiny (os image)
 };
 
 typedef struct Header Header;

@@ -54,11 +54,9 @@ Header headers[] = {
    "msdosexe", Hmsdosexe,
    "darwin", Hdarwin,
    "linux", Hlinux,
-   "nacl", Hnacl,
    "freebsd", Hfreebsd,
    "windows", Hwindows,
    "windowsgui", Hwindows,
-   "tiny", Htiny,
    0, 0
 };
 
@@ -70,10 +68,8 @@ Header headers[] = {
  *	-Hmsdosexe -Tx -Rx			is fake MS-DOS .EXE
  *	-Hdarwin -Tx -Rx			is Apple Mach-O
  *	-Hlinux -Tx -Rx				is Linux ELF32
- *	-Hnacl -Tx -Rx				was Google Native Client
  *	-Hfreebsd -Tx -Rx			is FreeBSD ELF32
  *	-Hwindows -Tx -Rx			is MS Windows PE32
- *	-Htiny -Tx -Rx				is tiny (os image)
  */
 
 void
@@ -253,17 +249,6 @@ main(int argc, char *argv[])
 			INITDAT = 0;
 		if(INITRND == -1)
 			INITRND = PESECTALIGN;
-		break;
-	case Htiny:
-		tlsoffset = 0;
-		elfinit();
-		HEADR = ELFRESERVE;
-		if(INITTEXT == -1)
-			INITTEXT = 0x100000+HEADR;
-		if(INITDAT == -1)
-			INITDAT = 0;
-		if(INITRND == -1)
-			INITRND = 4096;
 		break;
 	}
 	if(INITDAT != 0 && INITRND != 0)

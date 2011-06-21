@@ -23,11 +23,6 @@ Xarm)
 	exit 1
 esac
 
-case X"$GOOS" in
-Xnacl)
-	export E=${GORUN:-$GOROOT/misc/nacl/naclrun}
-esac
-
 export G=${A}g
 export L=${A}l
 export GOTRACEBACK=0
@@ -112,7 +107,6 @@ done | # clean up some stack noise
 		/^Trace\/BPT trap/d
 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
-		/Fault in NaCl untrusted code/d
 		/Segmentation fault/d
 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
 
