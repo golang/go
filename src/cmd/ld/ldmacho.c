@@ -440,6 +440,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	Reloc *r, *rp;
 	char *name;
 
+	USED(pkg);
 	version++;
 	base = Boffset(f);
 	if(Bread(f, hdr, sizeof hdr) != sizeof hdr)

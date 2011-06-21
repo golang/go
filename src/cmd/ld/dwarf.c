@@ -1822,7 +1822,7 @@ flushunit(DWDie *dwinfo, vlong pc, vlong unitstart, int32 header_length)
 		seek(cout, unitstart, 0);
 		LPUT(here - unitstart - sizeof(int32));	 // unit_length
 		WPUT(3);  // dwarf version
-		LPUT(header_length); // header lenght starting here
+		LPUT(header_length); // header length starting here
 		cflush();
 		seek(cout, here, 0);
 	}

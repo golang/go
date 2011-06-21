@@ -1272,6 +1272,6 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
 				put(nil, a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
 	}
 	if(debug['v'] || debug['n'])
-		Bprint(&bso, "symsize = %uld\n", symsize);
+		Bprint(&bso, "symsize = %d\n", symsize);
 	Bflush(&bso);
 }

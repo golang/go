@@ -89,7 +89,7 @@ span1(Sym *s)
 					*bp++ = v;
 					*bp++ = v>>8;
 					*bp++ = v>>16;
-					*bp++ = v>>24;
+					*bp = v>>24;
 				}	
 			}
 			p->comefrom = P;
@@ -1319,7 +1319,7 @@ asmins(Prog *p)
 	andptr = and;
 	doasm(p);
 	if(andptr > and+sizeof and) {
-		print("and[] is too short - %d byte instruction\n", andptr - and);
+		print("and[] is too short - %ld byte instruction\n", andptr - and);
 		errorexit();
 	}
 }
