@@ -5,8 +5,6 @@
 // PE (Portable Executable) file writing
 // http://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
 
-#include <time.h>
-
 #include "l.h"
 #include "../ld/lib.h"
 #include "../ld/pe.h"
@@ -150,7 +148,7 @@ pewrite(void)
 		ewrite(cout, &oh64, sizeof oh64);
 	else
 		ewrite(cout, &oh, sizeof oh);
-	ewrite(cout, &sh, nsect * sizeof sh[0]);
+	ewrite(cout, sh, nsect * sizeof sh[0]);
 }
 
 static void
@@ -175,7 +173,7 @@ initdynimport(void)
 	Sym *s, *dynamic;
 
 	dr = nil;
-	
+	m = nil;
 	for(s = allsym; s != S; s = s->allsym) {
 		if(!s->reachable || !s->dynimpname || s->dynexport)
 			continue;

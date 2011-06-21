@@ -90,6 +90,7 @@ putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 {
 	int bind, type, shndx, off;
 
+	USED(go);
 	switch(t) {
 	default:
 		return;
@@ -127,6 +128,10 @@ putplan9sym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
 {
 	int i;
 
+	USED(go);
+	USED(ver);
+	USED(size);
+	USED(x);
 	switch(t) {
 	case 'T':
 	case 'L':
@@ -252,6 +257,7 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 	int i, f, l;
 	Reloc *rel;
 
+	USED(size);
 	if(t == 'f')
 		name++;
 	l = 4;
@@ -280,7 +286,6 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 		}
 		scput(0);
 		scput(0);
-		i++;
 	}
 	else {
 		for(i=0; name[i]; i++)
@@ -311,9 +316,9 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
 			return;
 		}
 		if(ver)
-			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, s, ver, typ ? typ->name : "");
+			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, s->name, ver, typ ? typ->name : "");
 		else
-			Bprint(&bso, "%c %.8llux %s %s\n", t, v, s, typ ? typ->name : "");
+			Bprint(&bso, "%c %.8llux %s %s\n", t, v, s->name, typ ? typ->name : "");
 	}
 }
 

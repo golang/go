@@ -473,7 +473,6 @@ loop:
 		s = lookup(x, r);
 		if(x != name)
 			free(x);
-		name = nil;
 
 		if(debug['S'] && r == 0)
 			sig = 1729;
@@ -703,7 +702,6 @@ loop:
 		lastp = p;
 		goto loop;
 	}
-	goto loop;
 
 eof:
 	diag("truncated object file: %s", pn);

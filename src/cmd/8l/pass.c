@@ -414,7 +414,6 @@ dostkoff(void)
 			autoffset = 0;
 
 		q = P;
-		q1 = P;
 		if(pmorestack != P)
 		if(!(p->from.scale & NOSPLIT)) {
 			p = appendp(p);	// load g into CX

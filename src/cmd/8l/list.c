@@ -176,7 +176,7 @@ Dconv(Fmt *fp)
 	}
 brk:
 	if(a->index != D_NONE) {
-		sprint(s, "(%R*%d)", a->index, a->scale);
+		sprint(s, "(%R*%d)", (int)a->index, a->scale);
 		strcat(str, s);
 	}
 conv:
