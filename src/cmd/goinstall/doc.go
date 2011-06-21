@@ -41,17 +41,9 @@ Another common idiom is to use
 to update, recompile, and reinstall all goinstalled packages.
 
 The source code for a package with import path foo/bar is expected
-to be in the directory $GOPATH/src/foo/bar/ or $GOROOT/src/pkg/foo/bar/.
-(See the discussion of GOPATH below for more detail.)
-
-If the package source is not found locally and the import path begins
-with a domain name, goinstall attempts to detect a remote source repository
-(Bazaar, Git, Mercurial, or Subversion). If a supported repository is found,
-goinstall uses the appropriate tool to download the source code.
-
-If the import path refers to a known code hosting site, goinstall skips the
-repository detection and downloads the code directly.
-The recognized code hosting sites are:
+to be in the directory $GOROOT/src/pkg/foo/bar/.  If the import
+path refers to a code hosting site, goinstall will download the code
+if necessary.  The recognized code hosting sites are:
 
 	BitBucket (Mercurial)
 
