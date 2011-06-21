@@ -920,10 +920,6 @@ asmb(void)
 		break;
 
 	Elfput:
-		/* elf 386 */
-		if(HEADTYPE == Htiny)
-			debug['d'] = 1;
-
 		eh = getElfEhdr();
 		startva = INITTEXT - HEADR;
 

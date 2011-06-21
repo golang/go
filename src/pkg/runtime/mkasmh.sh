@@ -14,7 +14,6 @@ EOF
 case "$GOARCH" in
 386)
 	# The offsets 0 and 4 are also known to:
-	#	nacl/thread.c:/^newosproc
 	#	../../cmd/8l/pass.c:/D_GS
 	#	../../libcgo/linux_386.c:/^threadentry
 	#	../../libcgo/darwin_386.c:/^threadentry

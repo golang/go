@@ -110,7 +110,6 @@ typedef struct {
 #define ELFOSABI_OPENVMS	13	/* Open VMS */
 #define ELFOSABI_NSK		14	/* HP Non-Stop Kernel */
 #define ELFOSABI_ARM		97	/* ARM */
-#define ELFOSABI_NACL		123	/* Native Client */
 #define ELFOSABI_STANDALONE	255	/* Standalone (embedded) application */
 
 #define ELFOSABI_SYSV		ELFOSABI_NONE	/* symbol used in old spec */

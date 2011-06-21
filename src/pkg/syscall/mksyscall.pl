@@ -24,7 +24,6 @@ use strict;
 my $cmdline = "mksyscall.pl " . join(' ', @ARGV);
 my $errors = 0;
 my $_32bit = "";
-my $nacl = 0;
 my $plan9 = 0;
 
 if($ARGV[0] eq "-b32") {
@@ -32,10 +31,6 @@ if($ARGV[0] eq "-b32") {
 	shift;
 } elsif($ARGV[0] eq "-l32") {
 	$_32bit = "little-endian";
-	shift;
-}
-if($ARGV[0] eq "-nacl") {
-	$nacl = 1;
 	shift;
 }
 if($ARGV[0] eq "-plan9") {
