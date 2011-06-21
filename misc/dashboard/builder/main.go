@@ -357,7 +357,10 @@ func (b *Builder) envv() []string {
 		"GOROOT_FINAL=/usr/local/go",
 	}
 	for _, k := range extraEnv {
-		e = append(e, k+"="+os.Getenv(k))
+		s, err := os.Getenverror(k)
+		if err == nil {
+			e = append(e, k+"="+s)
+		}
 	}
 	return e
 }
@@ -368,9 +371,14 @@ func (b *Builder) envvWindows() []string {
 		"GOOS":         b.goos,
 		"GOARCH":       b.goarch,
 		"GOROOT_FINAL": "/c/go",
+		// TODO(brainman): remove once we find make that does not hang.
+		"MAKEFLAGS": "-j1",
 	}
 	for _, name := range extraEnv {
-		start[name] = os.Getenv(name)
+		s, err := os.Getenverror(name)
+		if err == nil {
+			start[name] = s
+		}
 	}
 	skip := map[string]bool{
 		"GOBIN":   true,
