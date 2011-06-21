@@ -2245,7 +2245,7 @@ we would write <code>job.Logger</code>.
 This would be useful if we wanted to refine the methods of <code>Logger</code>.
 </p>
 <pre>
-func (job *Job) Logf(format string, args ...) {
+func (job *Job) Logf(format string, args ...interface{}) {
     job.Logger.Logf("%q: %s", job.Command, fmt.Sprintf(format, args))
 }
 </pre>
