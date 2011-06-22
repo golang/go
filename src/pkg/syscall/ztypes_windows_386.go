@@ -23,6 +23,7 @@ const (
 	ERROR_PATH_NOT_FOUND      = 3
 	ERROR_NO_MORE_FILES       = 18
 	ERROR_BROKEN_PIPE         = 109
+	ERROR_BUFFER_OVERFLOW     = 111
 	ERROR_INSUFFICIENT_BUFFER = 122
 	ERROR_MOD_NOT_FOUND       = 126
 	ERROR_PROC_NOT_FOUND      = 127
@@ -347,6 +348,7 @@ type Timezoneinformation struct {
 // Socket related.
 
 const (
+	AF_UNSPEC  = 0
 	AF_UNIX    = 1
 	AF_INET    = 2
 	AF_INET6   = 23
@@ -560,4 +562,95 @@ type TransmitFileBuffers struct {
 	HeadLength uint32
 	Tail       uintptr
 	TailLength uint32
+}
+
+const (
+	IFF_UP           = 1
+	IFF_BROADCAST    = 2
+	IFF_LOOPBACK     = 4
+	IFF_POINTTOPOINT = 8
+	IFF_MULTICAST    = 16
+)
+
+const SIO_GET_INTERFACE_LIST = 0x4004747F
+
+// TODO(mattn): SockaddrGen is union of sockaddr/sockaddr_in/sockaddr_in6_old.
+// will be fixed to change variable type as suitable.
+
+type SockaddrGen [24]byte
+
+type InterfaceInfo struct {
+	Flags            uint32
+	Address          SockaddrGen
+	BroadcastAddress SockaddrGen
+	Netmask          SockaddrGen
+}
+
+type IpAddressString struct {
+	String [16]byte
+}
+
+type IpMaskString IpAddressString
+
+type IpAddrString struct {
+	Next      *IpAddrString
+	IpAddress IpAddressString
+	IpMask    IpMaskString
+	Context   uint32
+}
+
+const MAX_ADAPTER_NAME_LENGTH = 256
+const MAX_ADAPTER_DESCRIPTION_LENGTH = 128
+const MAX_ADAPTER_ADDRESS_LENGTH = 8
+
+type IpAdapterInfo struct {
+	Next                *IpAdapterInfo
+	ComboIndex          uint32
+	AdapterName         [MAX_ADAPTER_NAME_LENGTH + 4]byte
+	Description         [MAX_ADAPTER_DESCRIPTION_LENGTH + 4]byte
+	AddressLength       uint32
+	Address             [MAX_ADAPTER_ADDRESS_LENGTH]byte
+	Index               uint32
+	Type                uint32
+	DhcpEnabled         uint32
+	CurrentIpAddress    *IpAddrString
+	IpAddressList       IpAddrString
+	GatewayList         IpAddrString
+	DhcpServer          IpAddrString
+	HaveWins            bool
+	PrimaryWinsServer   IpAddrString
+	SecondaryWinsServer IpAddrString
+	LeaseObtained       int64
+	LeaseExpires        int64
+}
+
+const MAXLEN_PHYSADDR = 8
+const MAX_INTERFACE_NAME_LEN = 256
+const MAXLEN_IFDESCR = 256
+
+type MibIfRow struct {
+	Name            [MAX_INTERFACE_NAME_LEN]uint16
+	Index           uint32
+	Type            uint32
+	Mtu             uint32
+	Speed           uint32
+	PhysAddrLen     uint32
+	PhysAddr        [MAXLEN_PHYSADDR]byte
+	AdminStatus     uint32
+	OperStatus      uint32
+	LastChange      uint32
+	InOctets        uint32
+	InUcastPkts     uint32
+	InNUcastPkts    uint32
+	InDiscards      uint32
+	InErrors        uint32
+	InUnknownProtos uint32
+	OutOctets       uint32
+	OutUcastPkts    uint32
+	OutNUcastPkts   uint32
+	OutDiscards     uint32
+	OutErrors       uint32
+	OutQLen         uint32
+	DescrLen        uint32
+	Descr           [MAXLEN_IFDESCR]byte
 }
