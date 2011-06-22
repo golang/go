@@ -43,7 +43,7 @@ func BenchmarkContendedSemaphore(b *testing.B) {
 	s := new(uint32)
 	*s = 1
 	c := make(chan bool)
-	runtime.GOMAXPROCS(2)
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
 	b.StartTimer()
 
 	go HammerSemaphore(s, b.N/2, c)
@@ -81,7 +81,7 @@ func BenchmarkContendedMutex(b *testing.B) {
 	b.StopTimer()
 	m := new(Mutex)
 	c := make(chan bool)
-	runtime.GOMAXPROCS(2)
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
 	b.StartTimer()
 
 	go HammerMutex(m, b.N/2, c)
