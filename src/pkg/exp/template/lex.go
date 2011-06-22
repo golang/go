@@ -17,21 +17,76 @@ type item struct {
 	val string
 }
 
+func (i item) String() string {
+	switch i.typ {
+	case itemEOF:
+		return "EOF"
+	case itemError:
+		return i.val
+	}
+	if len(i.val) > 10 {
+		return fmt.Sprintf("%.10q...", i.val)
+	}
+	return fmt.Sprintf("%q", i.val)
+}
+
 // itemType identifies the type of lex item.
 type itemType int
 
 const (
-	itemError      itemType = iota // error occurred; value is text of error
-	itemText                       // plain text
-	itemLeftMeta                   // left meta-string
-	itemRightMeta                  // right meta-string
-	itemPipe                       // pipe symbol
-	itemIdentifier                 // alphanumeric identifier
-	itemNumber                     // number
-	itemRawString                  // raw quoted string (includes quotes)
-	itemString                     // quoted string (includes quotes)
+	itemError itemType = iota // error occurred; value is text of error
+	itemDot                   // the cursor, spelled '.'.
 	itemEOF
+	itemElse       // else keyword
+	itemEnd        // end keyword
+	itemField      // alphanumeric identifier, starting with '.'.
+	itemIdentifier // alphanumeric identifier
+	itemIf         // if keyword
+	itemLeftMeta   // left meta-string
+	itemNumber     // number
+	itemPipe       // pipe symbol
+	itemRange      // range keyword
+	itemRawString  // raw quoted string (includes quotes)
+	itemRightMeta  // right meta-string
+	itemString     // quoted string (includes quotes)
+	itemText       // plain text
 )
+
+// Make the types prettyprint.
+var itemName = map[itemType]string{
+	itemError:      "error",
+	itemDot:        ".",
+	itemEOF:        "EOF",
+	itemElse:       "else",
+	itemEnd:        "end",
+	itemField:      "field",
+	itemIdentifier: "identifier",
+	itemIf:         "if",
+	itemLeftMeta:   "left meta",
+	itemNumber:     "number",
+	itemPipe:       "pipe",
+	itemRange:      "range",
+	itemRawString:  "raw string",
+	itemRightMeta:  "rightMeta",
+	itemString:     "string",
+	itemText:       "text",
+}
+
+func (i itemType) String() string {
+	s := itemName[i]
+	if s == "" {
+		return fmt.Sprintf("item%d", int(i))
+	}
+	return s
+}
+
+var key = map[string]itemType{
+	".":     itemDot,
+	"else":  itemElse,
+	"end":   itemEnd,
+	"if":    itemIf,
+	"range": itemRange,
+}
 
 const eof = -1
 
@@ -51,6 +106,7 @@ type lexer struct {
 // next returns the next rune in the input.
 func (l *lexer) next() (rune int) {
 	if l.pos >= len(l.input) {
+		l.width = 0
 		return eof
 	}
 	rune, l.width = utf8.DecodeRuneInString(l.input[l.pos:])
@@ -72,12 +128,11 @@ func (l *lexer) backup() {
 
 // emit passes an item back to the client.
 func (l *lexer) emit(t itemType) {
-	start := l.start
+	l.items <- item{t, l.input[l.start:l.pos]}
 	l.start = l.pos
-	l.items <- item{t, l.input[start:l.pos]}
 }
 
-// ignore discards whatever input is before this point.
+// ignore skips over the pending input before this point.
 func (l *lexer) ignore() {
 	l.start = l.pos
 }
@@ -106,13 +161,12 @@ func (l *lexer) lineNumber() int {
 
 // error returns an error token and terminates the scan by passing
 // back a nil pointer that will be the next state, terminating l.run.
-func (l *lexer) error(format string, args ...interface{}) stateFn {
-	format = fmt.Sprintf("%s:%d %s", l.name, l.lineNumber(), format)
+func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 	l.items <- item{itemError, fmt.Sprintf(format, args...)}
 	return nil
 }
 
-// run lexes the input by execute state functions until nil.
+// run lexes the input by executing state functions until nil.
 func (l *lexer) run() {
 	for state := lexText; state != nil; {
 		state = state(l)
@@ -121,14 +175,14 @@ func (l *lexer) run() {
 }
 
 // lex launches a new scanner and returns the channel of items.
-func lex(name, input string) chan item {
+func lex(name, input string) (*lexer, chan item) {
 	l := &lexer{
 		name:  name,
 		input: input,
 		items: make(chan item),
 	}
 	go l.run()
-	return l.items
+	return l, l.items
 }
 
 // state functions
@@ -182,7 +236,7 @@ func lexInsideAction(l *lexer) stateFn {
 		}
 		switch r := l.next(); {
 		case r == eof || r == '\n':
-			return l.error("unclosed action")
+			return l.errorf("unclosed action")
 		case isSpace(r):
 			l.ignore()
 		case r == '|':
@@ -191,20 +245,29 @@ func lexInsideAction(l *lexer) stateFn {
 			return lexQuote
 		case r == '`':
 			return lexRawQuote
-		case r == '+' || r == '-' || r == '.' || ('0' <= r && r <= '9'):
+		case r == '.':
+			// special look-ahead for ".field" so we don't break l.backup().
+			if l.pos < len(l.input) {
+				r := l.input[l.pos]
+				if r < '0' || '9' < r {
+					return lexIdentifier // itemDot comes from the keyword table.
+				}
+			}
+			fallthrough // '.' can start a number.
+		case r == '+' || r == '-' || ('0' <= r && r <= '9'):
 			l.backup()
 			return lexNumber
 		case isAlphaNumeric(r):
 			l.backup()
 			return lexIdentifier
 		default:
-			return l.error("unrecognized character in action: %#U", r)
+			return l.errorf("unrecognized character in action: %#U", r)
 		}
 	}
 	return nil
 }
 
-// lexIdentifier scans an alphanumeric.
+// lexIdentifier scans an alphanumeric or field.
 func lexIdentifier(l *lexer) stateFn {
 Loop:
 	for {
@@ -213,7 +276,15 @@ Loop:
 			// absorb
 		default:
 			l.backup()
-			l.emit(itemIdentifier)
+			word := l.input[l.start:l.pos]
+			switch {
+			case key[word] != itemError:
+				l.emit(key[word])
+			case word[0] == '.':
+				l.emit(itemField)
+			default:
+				l.emit(itemIdentifier)
+			}
 			break Loop
 		}
 	}
@@ -246,7 +317,7 @@ func lexNumber(l *lexer) stateFn {
 	// Next thing mustn't be alphanumeric.
 	if isAlphaNumeric(l.peek()) {
 		l.next()
-		return l.error("bad number syntax: %q", l.input[l.start:l.pos])
+		return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
 	}
 	l.emit(itemNumber)
 	return lexInsideAction
@@ -263,7 +334,7 @@ Loop:
 			}
 			fallthrough
 		case eof, '\n':
-			return l.error("unterminated quoted string")
+			return l.errorf("unterminated quoted string")
 		case '"':
 			break Loop
 		}
@@ -278,7 +349,7 @@ Loop:
 	for {
 		switch l.next() {
 		case eof, '\n':
-			return l.error("unterminated raw quoted string")
+			return l.errorf("unterminated raw quoted string")
 		case '`':
 			break Loop
 		}
