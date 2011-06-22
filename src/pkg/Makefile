@@ -45,6 +45,7 @@ DIRS=\
 	crypto/ocsp\
 	crypto/openpgp\
 	crypto/openpgp/armor\
+	crypto/openpgp/elgamal\
 	crypto/openpgp/error\
 	crypto/openpgp/packet\
 	crypto/openpgp/s2k\

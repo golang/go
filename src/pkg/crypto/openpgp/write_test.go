@@ -122,78 +122,112 @@ func TestSymmetricEncryption(t *testing.T) {
 	}
 }
 
-func testEncryption(t *testing.T, isSigned bool) {
-	kring, _ := ReadKeyRing(readerFromHex(testKeys1And2PrivateHex))
-
-	var signed *Entity
-	if isSigned {
-		signed = kring[0]
-	}
-
-	buf := new(bytes.Buffer)
-	w, err := Encrypt(buf, kring[:1], signed, nil /* no hints */ )
-	if err != nil {
-		t.Errorf("error in Encrypt: %s", err)
-		return
-	}
-
-	const message = "testing"
-	_, err = w.Write([]byte(message))
-	if err != nil {
-		t.Errorf("error writing plaintext: %s", err)
-		return
-	}
-	err = w.Close()
-	if err != nil {
-		t.Errorf("error closing WriteCloser: %s", err)
-		return
-	}
-
-	md, err := ReadMessage(buf, kring, nil /* no prompt */ )
-	if err != nil {
-		t.Errorf("error reading message: %s", err)
-		return
-	}
-
-	if isSigned {
-		expectedKeyId := kring[0].signingKey().PublicKey.KeyId
-		if md.SignedByKeyId != expectedKeyId {
-			t.Errorf("message signed by wrong key id, got: %d, want: %d", *md.SignedBy, expectedKeyId)
-		}
-		if md.SignedBy == nil {
-			t.Errorf("failed to find the signing Entity")
-		}
-	}
-
-	plaintext, err := ioutil.ReadAll(md.UnverifiedBody)
-	if err != nil {
-		t.Errorf("error reading encrypted contents: %s", err)
-		return
-	}
-
-	expectedKeyId := kring[0].encryptionKey().PublicKey.KeyId
-	if len(md.EncryptedToKeyIds) != 1 || md.EncryptedToKeyIds[0] != expectedKeyId {
-		t.Errorf("expected message to be encrypted to %v, but got %#v", expectedKeyId, md.EncryptedToKeyIds)
-	}
-
-	if string(plaintext) != message {
-		t.Errorf("got: %s, want: %s", string(plaintext), message)
-	}
-
-	if isSigned {
-		if md.SignatureError != nil {
-			t.Errorf("signature error: %s", err)
-		}
-		if md.Signature == nil {
-			t.Error("signature missing")
-		}
-	}
+var testEncryptionTests = []struct {
+	keyRingHex string
+	isSigned   bool
+}{
+	{
+		testKeys1And2PrivateHex,
+		false,
+	},
+	{
+		testKeys1And2PrivateHex,
+		true,
+	},
+	{
+		dsaElGamalTestKeysHex,
+		false,
+	},
+	{
+		dsaElGamalTestKeysHex,
+		true,
+	},
 }
 
 func TestEncryption(t *testing.T) {
-	testEncryption(t, false /* not signed */ )
-}
+	for i, test := range testEncryptionTests {
+		kring, _ := ReadKeyRing(readerFromHex(test.keyRingHex))
 
-func TestEncryptAndSign(t *testing.T) {
-	testEncryption(t, true /* signed */ )
+		passphrase := []byte("passphrase")
+		for _, entity := range kring {
+			if entity.PrivateKey != nil && entity.PrivateKey.Encrypted {
+				err := entity.PrivateKey.Decrypt(passphrase)
+				if err != nil {
+					t.Errorf("#%d: failed to decrypt key", i)
+				}
+			}
+			for _, subkey := range entity.Subkeys {
+				if subkey.PrivateKey != nil && subkey.PrivateKey.Encrypted {
+					err := subkey.PrivateKey.Decrypt(passphrase)
+					if err != nil {
+						t.Errorf("#%d: failed to decrypt subkey", i)
+					}
+				}
+			}
+		}
+
+		var signed *Entity
+		if test.isSigned {
+			signed = kring[0]
+		}
+
+		buf := new(bytes.Buffer)
+		w, err := Encrypt(buf, kring[:1], signed, nil /* no hints */ )
+		if err != nil {
+			t.Errorf("#%d: error in Encrypt: %s", i, err)
+			continue
+		}
+
+		const message = "testing"
+		_, err = w.Write([]byte(message))
+		if err != nil {
+			t.Errorf("#%d: error writing plaintext: %s", i, err)
+			continue
+		}
+		err = w.Close()
+		if err != nil {
+			t.Errorf("#%d: error closing WriteCloser: %s", i, err)
+			continue
+		}
+
+		md, err := ReadMessage(buf, kring, nil /* no prompt */ )
+		if err != nil {
+			t.Errorf("#%d: error reading message: %s", i, err)
+			continue
+		}
+
+		if test.isSigned {
+			expectedKeyId := kring[0].signingKey().PublicKey.KeyId
+			if md.SignedByKeyId != expectedKeyId {
+				t.Errorf("#%d: message signed by wrong key id, got: %d, want: %d", i, *md.SignedBy, expectedKeyId)
+			}
+			if md.SignedBy == nil {
+				t.Errorf("#%d: failed to find the signing Entity", i)
+			}
+		}
+
+		plaintext, err := ioutil.ReadAll(md.UnverifiedBody)
+		if err != nil {
+			t.Errorf("#%d: error reading encrypted contents: %s", i, err)
+			continue
+		}
+
+		expectedKeyId := kring[0].encryptionKey().PublicKey.KeyId
+		if len(md.EncryptedToKeyIds) != 1 || md.EncryptedToKeyIds[0] != expectedKeyId {
+			t.Errorf("#%d: expected message to be encrypted to %v, but got %#v", i, expectedKeyId, md.EncryptedToKeyIds)
+		}
+
+		if string(plaintext) != message {
+			t.Errorf("#%d: got: %s, want: %s", i, string(plaintext), message)
+		}
+
+		if test.isSigned {
+			if md.SignatureError != nil {
+				t.Errorf("#%d: signature error: %s", i, err)
+			}
+			if md.Signature == nil {
+				t.Error("signature missing")
+			}
+		}
+	}
 }
