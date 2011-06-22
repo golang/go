@@ -5,6 +5,8 @@
 package packet
 
 import (
+	"big"
+	"crypto/openpgp/elgamal"
 	"crypto/openpgp/error"
 	"crypto/rand"
 	"crypto/rsa"
@@ -21,9 +23,10 @@ const encryptedKeyVersion = 3
 type EncryptedKey struct {
 	KeyId      uint64
 	Algo       PublicKeyAlgorithm
-	Encrypted  []byte
 	CipherFunc CipherFunction // only valid after a successful Decrypt
 	Key        []byte         // only valid after a successful Decrypt
+
+	encryptedMPI1, encryptedMPI2 []byte
 }
 
 func (e *EncryptedKey) parse(r io.Reader) (err os.Error) {
@@ -37,8 +40,15 @@ func (e *EncryptedKey) parse(r io.Reader) (err os.Error) {
 	}
 	e.KeyId = binary.BigEndian.Uint64(buf[1:9])
 	e.Algo = PublicKeyAlgorithm(buf[9])
-	if e.Algo == PubKeyAlgoRSA || e.Algo == PubKeyAlgoRSAEncryptOnly {
-		e.Encrypted, _, err = readMPI(r)
+	switch e.Algo {
+	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly:
+		e.encryptedMPI1, _, err = readMPI(r)
+	case PubKeyAlgoElGamal:
+		e.encryptedMPI1, _, err = readMPI(r)
+		if err != nil {
+			return
+		}
+		e.encryptedMPI2, _, err = readMPI(r)
 	}
 	_, err = consumeAll(r)
 	return
@@ -52,15 +62,29 @@ func checksumKeyMaterial(key []byte) uint16 {
 	return checksum
 }
 
-// DecryptRSA decrypts an RSA encrypted session key with the given private key.
-func (e *EncryptedKey) DecryptRSA(priv *rsa.PrivateKey) (err os.Error) {
-	if e.Algo != PubKeyAlgoRSA && e.Algo != PubKeyAlgoRSAEncryptOnly {
-		return error.InvalidArgumentError("EncryptedKey not RSA encrypted")
+// Decrypt decrypts an encrypted session key with the given private key. The
+// private key must have been decrypted first.
+func (e *EncryptedKey) Decrypt(priv *PrivateKey) os.Error {
+	var err os.Error
+	var b []byte
+
+	// TODO(agl): use session key decryption routines here to avoid
+	// padding oracle attacks.
+	switch priv.PubKeyAlgo {
+	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly:
+		b, err = rsa.DecryptPKCS1v15(rand.Reader, priv.PrivateKey.(*rsa.PrivateKey), e.encryptedMPI1)
+	case PubKeyAlgoElGamal:
+		c1 := new(big.Int).SetBytes(e.encryptedMPI1)
+		c2 := new(big.Int).SetBytes(e.encryptedMPI2)
+		b, err = elgamal.Decrypt(priv.PrivateKey.(*elgamal.PrivateKey), c1, c2)
+	default:
+		err = error.InvalidArgumentError("cannot decrypted encrypted session key with private key of type " + strconv.Itoa(int(priv.PubKeyAlgo)))
 	}
-	b, err := rsa.DecryptPKCS1v15(rand.Reader, priv, e.Encrypted)
+
 	if err != nil {
-		return
+		return err
 	}
+
 	e.CipherFunc = CipherFunction(b[0])
 	e.Key = b[1 : len(b)-2]
 	expectedChecksum := uint16(b[len(b)-2])<<8 | uint16(b[len(b)-1])
@@ -69,7 +93,7 @@ func (e *EncryptedKey) DecryptRSA(priv *rsa.PrivateKey) (err os.Error) {
 		return error.StructuralError("EncryptedKey checksum incorrect")
 	}
 
-	return
+	return nil
 }
 
 // SerializeEncryptedKey serializes an encrypted key packet to w that contains
@@ -90,6 +114,8 @@ func SerializeEncryptedKey(w io.Writer, rand io.Reader, pub *PublicKey, cipherFu
 	switch pub.PubKeyAlgo {
 	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly:
 		return serializeEncryptedKeyRSA(w, rand, buf, pub.PublicKey.(*rsa.PublicKey), keyBlock)
+	case PubKeyAlgoElGamal:
+		return serializeEncryptedKeyElGamal(w, rand, buf, pub.PublicKey.(*elgamal.PublicKey), keyBlock)
 	case PubKeyAlgoDSA, PubKeyAlgoRSASignOnly:
 		return error.InvalidArgumentError("cannot encrypt to public key of type " + strconv.Itoa(int(pub.PubKeyAlgo)))
 	}
@@ -114,4 +140,29 @@ func serializeEncryptedKeyRSA(w io.Writer, rand io.Reader, header [10]byte, pub 
 		return err
 	}
 	return writeMPI(w, 8*uint16(len(cipherText)), cipherText)
+}
+
+func serializeEncryptedKeyElGamal(w io.Writer, rand io.Reader, header [10]byte, pub *elgamal.PublicKey, keyBlock []byte) os.Error {
+	c1, c2, err := elgamal.Encrypt(rand, pub, keyBlock)
+	if err != nil {
+		return error.InvalidArgumentError("ElGamal encryption failed: " + err.String())
+	}
+
+	packetLen := 10 /* header length */
+	packetLen += 2 /* mpi size */ + (c1.BitLen()+7)/8
+	packetLen += 2 /* mpi size */ + (c2.BitLen()+7)/8
+
+	err = serializeHeader(w, packetTypeEncryptedKey, packetLen)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(header[:])
+	if err != nil {
+		return err
+	}
+	err = writeBig(w, c1)
+	if err != nil {
+		return err
+	}
+	return writeBig(w, c2)
 }

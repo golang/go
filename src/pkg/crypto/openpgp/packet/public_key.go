@@ -7,6 +7,7 @@ package packet
 import (
 	"big"
 	"crypto/dsa"
+	"crypto/openpgp/elgamal"
 	"crypto/openpgp/error"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -69,6 +70,8 @@ func (pk *PublicKey) parse(r io.Reader) (err os.Error) {
 		err = pk.parseRSA(r)
 	case PubKeyAlgoDSA:
 		err = pk.parseDSA(r)
+	case PubKeyAlgoElGamal:
+		err = pk.parseElGamal(r)
 	default:
 		err = error.UnsupportedError("public key type: " + strconv.Itoa(int(pk.PubKeyAlgo)))
 	}
@@ -117,7 +120,7 @@ func (pk *PublicKey) parseRSA(r io.Reader) (err os.Error) {
 	return
 }
 
-// parseRSA parses DSA public key material from the given Reader. See RFC 4880,
+// parseDSA parses DSA public key material from the given Reader. See RFC 4880,
 // section 5.5.2.
 func (pk *PublicKey) parseDSA(r io.Reader) (err os.Error) {
 	pk.p.bytes, pk.p.bitLength, err = readMPI(r)
@@ -146,6 +149,30 @@ func (pk *PublicKey) parseDSA(r io.Reader) (err os.Error) {
 	return
 }
 
+// parseElGamal parses ElGamal public key material from the given Reader. See
+// RFC 4880, section 5.5.2.
+func (pk *PublicKey) parseElGamal(r io.Reader) (err os.Error) {
+	pk.p.bytes, pk.p.bitLength, err = readMPI(r)
+	if err != nil {
+		return
+	}
+	pk.g.bytes, pk.g.bitLength, err = readMPI(r)
+	if err != nil {
+		return
+	}
+	pk.y.bytes, pk.y.bitLength, err = readMPI(r)
+	if err != nil {
+		return
+	}
+
+	elgamal := new(elgamal.PublicKey)
+	elgamal.P = new(big.Int).SetBytes(pk.p.bytes)
+	elgamal.G = new(big.Int).SetBytes(pk.g.bytes)
+	elgamal.Y = new(big.Int).SetBytes(pk.y.bytes)
+	pk.PublicKey = elgamal
+	return
+}
+
 // SerializeSignaturePrefix writes the prefix for this public key to the given Writer.
 // The prefix is used when calculating a signature over this public key. See
 // RFC 4880, section 5.2.4.
@@ -158,6 +185,10 @@ func (pk *PublicKey) SerializeSignaturePrefix(h hash.Hash) {
 	case PubKeyAlgoDSA:
 		pLength += 2 + uint16(len(pk.p.bytes))
 		pLength += 2 + uint16(len(pk.q.bytes))
+		pLength += 2 + uint16(len(pk.g.bytes))
+		pLength += 2 + uint16(len(pk.y.bytes))
+	case PubKeyAlgoElGamal:
+		pLength += 2 + uint16(len(pk.p.bytes))
 		pLength += 2 + uint16(len(pk.g.bytes))
 		pLength += 2 + uint16(len(pk.y.bytes))
 	default:
@@ -180,6 +211,12 @@ func (pk *PublicKey) Serialize(w io.Writer) (err os.Error) {
 		length += 2 + len(pk.q.bytes)
 		length += 2 + len(pk.g.bytes)
 		length += 2 + len(pk.y.bytes)
+	case PubKeyAlgoElGamal:
+		length += 2 + len(pk.p.bytes)
+		length += 2 + len(pk.g.bytes)
+		length += 2 + len(pk.y.bytes)
+	default:
+		panic("unknown public key algorithm")
 	}
 
 	err = serializeHeader(w, packetTypePublicKey, length)
@@ -210,13 +247,15 @@ func (pk *PublicKey) serializeWithoutHeaders(w io.Writer) (err os.Error) {
 		return writeMPIs(w, pk.n, pk.e)
 	case PubKeyAlgoDSA:
 		return writeMPIs(w, pk.p, pk.q, pk.g, pk.y)
+	case PubKeyAlgoElGamal:
+		return writeMPIs(w, pk.p, pk.g, pk.y)
 	}
 	return error.InvalidArgumentError("bad public-key algorithm")
 }
 
 // CanSign returns true iff this public key can generate signatures
 func (pk *PublicKey) CanSign() bool {
-	return pk.PubKeyAlgo != PubKeyAlgoRSAEncryptOnly && pk.PubKeyAlgo != PubKeyAlgoElgamal
+	return pk.PubKeyAlgo != PubKeyAlgoRSAEncryptOnly && pk.PubKeyAlgo != PubKeyAlgoElGamal
 }
 
 // VerifySignature returns nil iff sig is a valid signature, made by this

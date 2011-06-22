@@ -10,7 +10,6 @@ import (
 	"crypto/openpgp/armor"
 	"crypto/openpgp/error"
 	"crypto/openpgp/packet"
-	"crypto/rsa"
 	_ "crypto/sha256"
 	"hash"
 	"io"
@@ -111,7 +110,10 @@ ParsePackets:
 		case *packet.EncryptedKey:
 			// This packet contains the decryption key encrypted to a public key.
 			md.EncryptedToKeyIds = append(md.EncryptedToKeyIds, p.KeyId)
-			if p.Algo != packet.PubKeyAlgoRSA && p.Algo != packet.PubKeyAlgoRSAEncryptOnly {
+			switch p.Algo {
+			case packet.PubKeyAlgoRSA, packet.PubKeyAlgoRSAEncryptOnly, packet.PubKeyAlgoElGamal:
+				break
+			default:
 				continue
 			}
 			var keys []Key
@@ -154,7 +156,7 @@ FindKey:
 			}
 			if !pk.key.PrivateKey.Encrypted {
 				if len(pk.encryptedKey.Key) == 0 {
-					pk.encryptedKey.DecryptRSA(pk.key.PrivateKey.PrivateKey.(*rsa.PrivateKey))
+					pk.encryptedKey.Decrypt(pk.key.PrivateKey)
 				}
 				if len(pk.encryptedKey.Key) == 0 {
 					continue

@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"crypto/cipher"
 	"crypto/dsa"
+	"crypto/openpgp/elgamal"
 	"crypto/openpgp/error"
 	"crypto/openpgp/s2k"
 	"crypto/rsa"
@@ -224,6 +225,8 @@ func (pk *PrivateKey) parsePrivateKey(data []byte) (err os.Error) {
 		return pk.parseRSAPrivateKey(data)
 	case PubKeyAlgoDSA:
 		return pk.parseDSAPrivateKey(data)
+	case PubKeyAlgoElGamal:
+		return pk.parseElGamalPrivateKey(data)
 	}
 	panic("impossible")
 }
@@ -272,6 +275,25 @@ func (pk *PrivateKey) parseDSAPrivateKey(data []byte) (err os.Error) {
 
 	dsaPriv.X = new(big.Int).SetBytes(x)
 	pk.PrivateKey = dsaPriv
+	pk.Encrypted = false
+	pk.encryptedData = nil
+
+	return nil
+}
+
+func (pk *PrivateKey) parseElGamalPrivateKey(data []byte) (err os.Error) {
+	pub := pk.PublicKey.PublicKey.(*elgamal.PublicKey)
+	priv := new(elgamal.PrivateKey)
+	priv.PublicKey = *pub
+
+	buf := bytes.NewBuffer(data)
+	x, _, err := readMPI(buf)
+	if err != nil {
+		return
+	}
+
+	priv.X = new(big.Int).SetBytes(x)
+	pk.PrivateKey = priv
 	pk.Encrypted = false
 	pk.encryptedData = nil
 

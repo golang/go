@@ -27,9 +27,16 @@ var encryptedKeyPub = rsa.PublicKey{
 	N: bigFromBase10("115804063926007623305902631768113868327816898845124614648849934718568541074358183759250136204762053879858102352159854352727097033322663029387610959884180306668628526686121021235757016368038585212410610742029286439607686208110250133174279811431933746643015923132833417396844716207301518956640020862630546868823"),
 }
 
-var encryptedKeyPriv = &rsa.PrivateKey{
+var encryptedKeyRSAPriv = &rsa.PrivateKey{
 	PublicKey: encryptedKeyPub,
 	D:         bigFromBase10("32355588668219869544751561565313228297765464314098552250409557267371233892496951383426602439009993875125222579159850054973310859166139474359774543943714622292329487391199285040721944491839695981199720170366763547754915493640685849961780092241140181198779299712578774460837139360803883139311171713302987058393"),
+}
+
+var encryptedKeyPriv = &PrivateKey{
+	PublicKey: PublicKey{
+		PubKeyAlgo: PubKeyAlgoRSA,
+	},
+	PrivateKey: encryptedKeyRSAPriv,
 }
 
 func TestDecryptingEncryptedKey(t *testing.T) {
@@ -52,9 +59,9 @@ func TestDecryptingEncryptedKey(t *testing.T) {
 		return
 	}
 
-	err = ek.DecryptRSA(encryptedKeyPriv)
+	err = ek.Decrypt(encryptedKeyPriv)
 	if err != nil {
-		t.Errorf("error from DecryptRSA: %s", err)
+		t.Errorf("error from Decrypt: %s", err)
 		return
 	}
 
@@ -102,9 +109,9 @@ func TestEncryptingEncryptedKey(t *testing.T) {
 		return
 	}
 
-	err = ek.DecryptRSA(encryptedKeyPriv)
+	err = ek.Decrypt(encryptedKeyPriv)
 	if err != nil {
-		t.Errorf("error from DecryptRSA: %s", err)
+		t.Errorf("error from Decrypt: %s", err)
 		return
 	}
 
