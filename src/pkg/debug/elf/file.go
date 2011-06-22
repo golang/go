@@ -81,7 +81,7 @@ func (s *Section) Data() ([]byte, os.Error) {
 // specified link value.
 func (f *File) stringTable(link uint32) ([]byte, os.Error) {
 	if link <= 0 || link >= uint32(len(f.Sections)) {
-		return nil, os.ErrorString("section has invalid string table link")
+		return nil, os.NewError("section has invalid string table link")
 	}
 	return f.Sections[link].Data()
 }
@@ -341,27 +341,27 @@ func (f *File) getSymbols(typ SectionType) ([]Symbol, []byte, os.Error) {
 		return f.getSymbols32(typ)
 	}
 
-	return nil, nil, os.ErrorString("not implemented")
+	return nil, nil, os.NewError("not implemented")
 }
 
 func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, os.Error) {
 	symtabSection := f.SectionByType(typ)
 	if symtabSection == nil {
-		return nil, nil, os.ErrorString("no symbol section")
+		return nil, nil, os.NewError("no symbol section")
 	}
 
 	data, err := symtabSection.Data()
 	if err != nil {
-		return nil, nil, os.ErrorString("cannot load symbol section")
+		return nil, nil, os.NewError("cannot load symbol section")
 	}
 	symtab := bytes.NewBuffer(data)
 	if symtab.Len()%Sym32Size != 0 {
-		return nil, nil, os.ErrorString("length of symbol section is not a multiple of SymSize")
+		return nil, nil, os.NewError("length of symbol section is not a multiple of SymSize")
 	}
 
 	strdata, err := f.stringTable(symtabSection.Link)
 	if err != nil {
-		return nil, nil, os.ErrorString("cannot load string table section")
+		return nil, nil, os.NewError("cannot load string table section")
 	}
 
 	// The first entry is all zeros.
@@ -390,21 +390,21 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, os.Error) {
 func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, os.Error) {
 	symtabSection := f.SectionByType(typ)
 	if symtabSection == nil {
-		return nil, nil, os.ErrorString("no symbol section")
+		return nil, nil, os.NewError("no symbol section")
 	}
 
 	data, err := symtabSection.Data()
 	if err != nil {
-		return nil, nil, os.ErrorString("cannot load symbol section")
+		return nil, nil, os.NewError("cannot load symbol section")
 	}
 	symtab := bytes.NewBuffer(data)
 	if symtab.Len()%Sym64Size != 0 {
-		return nil, nil, os.ErrorString("length of symbol section is not a multiple of Sym64Size")
+		return nil, nil, os.NewError("length of symbol section is not a multiple of Sym64Size")
 	}
 
 	strdata, err := f.stringTable(symtabSection.Link)
 	if err != nil {
-		return nil, nil, os.ErrorString("cannot load string table section")
+		return nil, nil, os.NewError("cannot load string table section")
 	}
 
 	// The first entry is all zeros.
@@ -462,12 +462,12 @@ func (f *File) applyRelocations(dst []byte, rels []byte) os.Error {
 		return f.applyRelocationsAMD64(dst, rels)
 	}
 
-	return os.ErrorString("not implemented")
+	return os.NewError("not implemented")
 }
 
 func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) os.Error {
 	if len(rels)%Sym64Size != 0 {
-		return os.ErrorString("length of relocation section is not a multiple of Sym64Size")
+		return os.NewError("length of relocation section is not a multiple of Sym64Size")
 	}
 
 	symbols, _, err := f.getSymbols(SHT_SYMTAB)

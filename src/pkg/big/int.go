@@ -430,7 +430,7 @@ func (z *Int) Scan(s fmt.ScanState, ch int) os.Error {
 	case 's', 'v':
 		// let scan determine the base
 	default:
-		return os.ErrorString("Int.Scan: invalid verb")
+		return os.NewError("Int.Scan: invalid verb")
 	}
 	_, _, err := z.scan(s, base)
 	return err
@@ -834,11 +834,11 @@ func (z *Int) GobEncode() ([]byte, os.Error) {
 // GobDecode implements the gob.GobDecoder interface.
 func (z *Int) GobDecode(buf []byte) os.Error {
 	if len(buf) == 0 {
-		return os.ErrorString("Int.GobDecode: no data")
+		return os.NewError("Int.GobDecode: no data")
 	}
 	b := buf[0]
 	if b>>1 != intGobVersion {
-		return os.ErrorString(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
+		return os.NewError(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
 	}
 	z.neg = b&1 != 0
 	z.abs = z.abs.setBytes(buf[1:])

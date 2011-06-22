@@ -12,8 +12,10 @@ import "os"
 
 // Error represents an unexpected I/O behavior.
 type Error struct {
-	os.ErrorString
+	ErrorString string
 }
+
+func (err *Error) String() string { return err.ErrorString }
 
 // ErrShortWrite means that a write accepted fewer bytes than requested
 // but failed to return an explicit error.

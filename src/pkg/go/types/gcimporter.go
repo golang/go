@@ -124,7 +124,7 @@ func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, e
 
 	filename, id := findPkg(path)
 	if filename == "" {
-		err = os.ErrorString("can't find import: " + id)
+		err = os.NewError("can't find import: " + id)
 		return
 	}
 
@@ -166,7 +166,7 @@ func (e importError) String() string {
 
 func (p *gcParser) error(err interface{}) {
 	if s, ok := err.(string); ok {
-		err = os.ErrorString(s)
+		err = os.NewError(s)
 	}
 	// panic with a runtime.Error if err is not an os.Error
 	panic(importError{p.scanner.Pos(), err.(os.Error)})

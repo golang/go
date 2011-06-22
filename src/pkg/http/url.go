@@ -299,7 +299,7 @@ func getscheme(rawurl string) (scheme, path string, err os.Error) {
 			}
 		case c == ':':
 			if i == 0 {
-				return "", "", os.ErrorString("missing protocol scheme")
+				return "", "", os.NewError("missing protocol scheme")
 			}
 			return rawurl[0:i], rawurl[i+1:], nil
 		default:
@@ -354,7 +354,7 @@ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
 	)
 
 	if rawurl == "" {
-		err = os.ErrorString("empty url")
+		err = os.NewError("empty url")
 		goto Error
 	}
 	url = new(URL)
@@ -380,7 +380,7 @@ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
 		url.OpaquePath = true
 	} else {
 		if viaRequest && !leadingSlash {
-			err = os.ErrorString("invalid URI for request")
+			err = os.NewError("invalid URI for request")
 			goto Error
 		}
 
@@ -414,7 +414,7 @@ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
 
 		if strings.Contains(rawHost, "%") {
 			// Host cannot contain escaped characters.
-			err = os.ErrorString("hexadecimal escape in host")
+			err = os.NewError("hexadecimal escape in host")
 			goto Error
 		}
 		url.Host = rawHost

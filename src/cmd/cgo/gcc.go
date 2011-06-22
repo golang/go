@@ -230,9 +230,9 @@ func splitQuoted(s string) (r []string, err os.Error) {
 		args = append(args, string(arg[:i]))
 	}
 	if quote != 0 {
-		err = os.ErrorString("unclosed quote")
+		err = os.NewError("unclosed quote")
 	} else if escaped {
-		err = os.ErrorString("unfinished escaping")
+		err = os.NewError("unfinished escaping")
 	}
 	return args, err
 }

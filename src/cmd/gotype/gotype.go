@@ -114,7 +114,7 @@ func parseFiles(fset *token.FileSet, filenames []string) (files map[string]*ast.
 		}
 		if file := parse(fset, filename, src); file != nil {
 			if files[filename] != nil {
-				report(os.ErrorString(fmt.Sprintf("%q: duplicate file", filename)))
+				report(os.NewError(fmt.Sprintf("%q: duplicate file", filename)))
 				continue
 			}
 			files[filename] = file

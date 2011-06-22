@@ -70,7 +70,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 		}
 
 	default:
-		err = os.ErrorString("invalid base " + Itoa(b))
+		err = os.NewError("invalid base " + Itoa(b))
 		goto Error
 	}
 

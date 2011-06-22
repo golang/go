@@ -198,7 +198,7 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
 		if shouldRedirect(r.StatusCode) {
 			r.Body.Close()
 			if url = r.Header.Get("Location"); url == "" {
-				err = os.ErrorString(fmt.Sprintf("%d response missing Location header", r.StatusCode))
+				err = os.NewError(fmt.Sprintf("%d response missing Location header", r.StatusCode))
 				break
 			}
 			base = req.URL
@@ -215,7 +215,7 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
 
 func defaultCheckRedirect(req *Request, via []*Request) os.Error {
 	if len(via) >= 10 {
-		return os.ErrorString("stopped after 10 redirects")
+		return os.NewError("stopped after 10 redirects")
 	}
 	return nil
 }

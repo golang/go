@@ -56,7 +56,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, os.Error) {
 		return false, os.NewSyscallError("kevent", e)
 	}
 	if n != 1 || (ev.Flags&syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
-		return false, os.ErrorString("kqueue phase error")
+		return false, os.NewError("kqueue phase error")
 	}
 	if ev.Data != 0 {
 		return false, os.Errno(int(ev.Data))

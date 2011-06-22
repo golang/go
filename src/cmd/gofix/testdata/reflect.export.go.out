@@ -343,20 +343,20 @@ func (exp *Exporter) Sync(timeout int64) os.Error {
 func checkChan(chT interface{}, dir Dir) (reflect.Value, os.Error) {
 	chanType := reflect.TypeOf(chT)
 	if chanType.Kind() != reflect.Chan {
-		return reflect.Value{}, os.ErrorString("not a channel")
+		return reflect.Value{}, os.NewError("not a channel")
 	}
 	if dir != Send && dir != Recv {
-		return reflect.Value{}, os.ErrorString("unknown channel direction")
+		return reflect.Value{}, os.NewError("unknown channel direction")
 	}
 	switch chanType.ChanDir() {
 	case reflect.BothDir:
 	case reflect.SendDir:
 		if dir != Recv {
-			return reflect.Value{}, os.ErrorString("to import/export with Send, must provide <-chan")
+			return reflect.Value{}, os.NewError("to import/export with Send, must provide <-chan")
 		}
 	case reflect.RecvDir:
 		if dir != Send {
-			return reflect.Value{}, os.ErrorString("to import/export with Recv, must provide chan<-")
+			return reflect.Value{}, os.NewError("to import/export with Recv, must provide chan<-")
 		}
 	}
 	return reflect.ValueOf(chT), nil
@@ -376,7 +376,7 @@ func (exp *Exporter) Export(name string, chT interface{}, dir Dir) os.Error {
 	defer exp.mu.Unlock()
 	_, present := exp.names[name]
 	if present {
-		return os.ErrorString("channel name already being exported:" + name)
+		return os.NewError("channel name already being exported:" + name)
 	}
 	exp.names[name] = &chanDir{ch, dir}
 	return nil
@@ -393,7 +393,7 @@ func (exp *Exporter) Hangup(name string) os.Error {
 	// TODO drop all instances of channel from client sets
 	exp.mu.Unlock()
 	if !ok {
-		return os.ErrorString("netchan export: hangup: no such channel: " + name)
+		return os.NewError("netchan export: hangup: no such channel: " + name)
 	}
 	chDir.ch.Close()
 	return nil

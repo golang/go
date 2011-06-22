@@ -40,7 +40,7 @@ func (c *Conn) clientHandshake() os.Error {
 	_, err := io.ReadFull(c.config.rand(), hello.random[4:])
 	if err != nil {
 		c.sendAlert(alertInternalError)
-		return os.ErrorString("short read from Rand")
+		return os.NewError("short read from Rand")
 	}
 
 	finishedHash.Write(hello.marshal())
@@ -69,7 +69,7 @@ func (c *Conn) clientHandshake() os.Error {
 
 	if !hello.nextProtoNeg && serverHello.nextProtoNeg {
 		c.sendAlert(alertHandshakeFailure)
-		return os.ErrorString("server advertised unrequested NPN")
+		return os.NewError("server advertised unrequested NPN")
 	}
 
 	suite, suiteId := mutualCipherSuite(c.config.cipherSuites(), serverHello.cipherSuite)
@@ -92,7 +92,7 @@ func (c *Conn) clientHandshake() os.Error {
 		cert, err := x509.ParseCertificate(asn1Data)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
-			return os.ErrorString("failed to parse certificate from server: " + err.String())
+			return os.NewError("failed to parse certificate from server: " + err.String())
 		}
 		certs[i] = cert
 	}

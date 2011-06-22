@@ -44,7 +44,7 @@ func (g *ByteStruct) GobEncode() ([]byte, os.Error) {
 
 func (g *ByteStruct) GobDecode(data []byte) os.Error {
 	if g == nil {
-		return os.ErrorString("NIL RECEIVER")
+		return os.NewError("NIL RECEIVER")
 	}
 	// Expect N sequential-valued bytes.
 	if len(data) == 0 {
@@ -53,7 +53,7 @@ func (g *ByteStruct) GobDecode(data []byte) os.Error {
 	g.a = data[0]
 	for i, c := range data {
 		if c != g.a+byte(i) {
-			return os.ErrorString("invalid data sequence")
+			return os.NewError("invalid data sequence")
 		}
 	}
 	return nil
@@ -71,7 +71,7 @@ func (g *StringStruct) GobDecode(data []byte) os.Error {
 	a := data[0]
 	for i, c := range data {
 		if c != a+byte(i) {
-			return os.ErrorString("invalid data sequence")
+			return os.NewError("invalid data sequence")
 		}
 	}
 	g.s = string(data)
@@ -84,7 +84,7 @@ func (a *ArrayStruct) GobEncode() ([]byte, os.Error) {
 
 func (a *ArrayStruct) GobDecode(data []byte) os.Error {
 	if len(data) != len(a.a) {
-		return os.ErrorString("wrong length in array decode")
+		return os.NewError("wrong length in array decode")
 	}
 	copy(a.a[:], data)
 	return nil

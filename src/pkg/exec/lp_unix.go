@@ -10,7 +10,7 @@ import (
 )
 
 // ErrNotFound is the error resulting if a path search failed to find an executable file.
-var ErrNotFound = os.ErrorString("executable file not found in $PATH")
+var ErrNotFound = os.NewError("executable file not found in $PATH")
 
 func findExecutable(file string) os.Error {
 	d, err := os.Stat(file)

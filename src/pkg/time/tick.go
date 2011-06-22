@@ -160,7 +160,7 @@ var onceStartTickerLoop sync.Once
 // ns must be greater than zero; if not, NewTicker will panic.
 func NewTicker(ns int64) *Ticker {
 	if ns <= 0 {
-		panic(os.ErrorString("non-positive interval for NewTicker"))
+		panic(os.NewError("non-positive interval for NewTicker"))
 	}
 	c := make(chan int64, 1) //  See comment on send in tickerLoop
 	t := &Ticker{

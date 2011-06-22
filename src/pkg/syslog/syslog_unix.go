@@ -27,5 +27,5 @@ func unixSyslog() (conn serverConn, err os.Error) {
 			}
 		}
 	}
-	return nil, os.ErrorString("Unix syslog delivery error")
+	return nil, os.NewError("Unix syslog delivery error")
 }

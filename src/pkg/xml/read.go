@@ -251,7 +251,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 
 	switch v := val; v.Kind() {
 	default:
-		return os.ErrorString("unknown type " + v.Type().String())
+		return os.NewError("unknown type " + v.Type().String())
 
 	case reflect.Slice:
 		typ := v.Type()
@@ -508,7 +508,7 @@ func copyValue(dst reflect.Value, src []byte) (err os.Error) {
 	case reflect.Invalid:
 		// Probably a comment, handled below
 	default:
-		return os.ErrorString("cannot happen: unknown type " + t.Type().String())
+		return os.NewError("cannot happen: unknown type " + t.Type().String())
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if !getInt64() {
 			return err

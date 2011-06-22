@@ -186,7 +186,7 @@ Loop:
 				return err
 			}
 			if c != 0 {
-				return os.ErrorString("gif: extra data after image")
+				return os.NewError("gif: extra data after image")
 			}
 
 			// Undo the interlacing if necessary.

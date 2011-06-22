@@ -644,7 +644,7 @@ func hexValue(ch int) Word {
 func (z nat) scan(r io.RuneScanner, base int) (nat, int, os.Error) {
 	// reject illegal bases
 	if base < 0 || base == 1 || MaxBase < base {
-		return z, 0, os.ErrorString("illegal number base")
+		return z, 0, os.NewError("illegal number base")
 	}
 
 	// one char look-ahead
@@ -721,7 +721,7 @@ func (z nat) scan(r io.RuneScanner, base int) (nat, int, os.Error) {
 		return z, 10, nil
 	case base != 0 || b != 8:
 		// there was neither a mantissa digit nor the octal prefix 0
-		return z, int(b), os.ErrorString("syntax error scanning number")
+		return z, int(b), os.NewError("syntax error scanning number")
 	}
 
 	return z.norm(), int(b), nil

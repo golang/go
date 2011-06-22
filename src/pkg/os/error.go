@@ -9,20 +9,17 @@ type Error interface {
 	String() string
 }
 
-// A helper type that can be embedded or wrapped to simplify satisfying
-// Error.
-type ErrorString string
+// // errorString is a helper type used by NewError.
+type errorString string
 
-func (e ErrorString) String() string  { return string(e) }
-func (e ErrorString) Temporary() bool { return false }
-func (e ErrorString) Timeout() bool   { return false }
+func (e errorString) String() string { return string(e) }
 
 // Note: If the name of the function NewError changes,
 // pkg/go/doc/doc.go should be adjusted since it hardwires
 // this name in a heuristic.
 
-// NewError converts s to an ErrorString, which satisfies the Error interface.
-func NewError(s string) Error { return ErrorString(s) }
+// // NewError returns a new error with error.String() == s.
+func NewError(s string) Error { return errorString(s) }
 
 // PathError records an error and the operation and file path that caused it.
 type PathError struct {

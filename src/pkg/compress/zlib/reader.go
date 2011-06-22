@@ -34,9 +34,9 @@ import (
 
 const zlibDeflate = 8
 
-var ChecksumError os.Error = os.ErrorString("zlib checksum error")
-var HeaderError os.Error = os.ErrorString("invalid zlib header")
-var DictionaryError os.Error = os.ErrorString("invalid zlib dictionary")
+var ChecksumError = os.NewError("zlib checksum error")
+var HeaderError = os.NewError("invalid zlib header")
+var DictionaryError = os.NewError("invalid zlib dictionary")
 
 type reader struct {
 	r            flate.Reader

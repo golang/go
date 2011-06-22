@@ -58,11 +58,11 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 	}
 
 	if priv.Version > 1 {
-		return nil, os.ErrorString("x509: unsupported private key version")
+		return nil, os.NewError("x509: unsupported private key version")
 	}
 
 	if priv.N.Sign() <= 0 || priv.D.Sign() <= 0 || priv.P.Sign() <= 0 || priv.Q.Sign() <= 0 {
-		return nil, os.ErrorString("private key contains zero or negative value")
+		return nil, os.NewError("private key contains zero or negative value")
 	}
 
 	key = new(rsa.PrivateKey)
@@ -77,7 +77,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 	key.Primes[1] = priv.Q
 	for i, a := range priv.AdditionalPrimes {
 		if a.Prime.Sign() <= 0 {
-			return nil, os.ErrorString("private key contains zero or negative prime")
+			return nil, os.NewError("private key contains zero or negative prime")
 		}
 		key.Primes[i+2] = a.Prime
 		// We ignore the other two values because rsa will calculate
@@ -457,10 +457,10 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 			return err
 		}
 		if dsaSig.R.Sign() <= 0 || dsaSig.S.Sign() <= 0 {
-			return os.ErrorString("DSA signature contained zero or negative values")
+			return os.NewError("DSA signature contained zero or negative values")
 		}
 		if !dsa.Verify(pub, digest, dsaSig.R, dsaSig.S) {
-			return os.ErrorString("DSA verification failure")
+			return os.NewError("DSA verification failure")
 		}
 		return
 	}
@@ -535,7 +535,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 			return nil, err
 		}
 		if p.Sign() <= 0 || params.P.Sign() <= 0 || params.Q.Sign() <= 0 || params.G.Sign() <= 0 {
-			return nil, os.ErrorString("zero or negative DSA parameter")
+			return nil, os.NewError("zero or negative DSA parameter")
 		}
 		pub := &dsa.PublicKey{
 			Parameters: dsa.Parameters{
@@ -571,7 +571,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 	}
 
 	if in.TBSCertificate.SerialNumber.Sign() < 0 {
-		return nil, os.ErrorString("negative serial number")
+		return nil, os.NewError("negative serial number")
 	}
 
 	out.Version = in.TBSCertificate.Version + 1

@@ -120,7 +120,7 @@ func expectAuthorityUnknown(t *testing.T, i int, err os.Error) (ok bool) {
 func certificateFromPEM(pemBytes string) (*Certificate, os.Error) {
 	block, _ := pem.Decode([]byte(pemBytes))
 	if block == nil {
-		return nil, os.ErrorString("failed to decode PEM")
+		return nil, os.NewError("failed to decode PEM")
 	}
 	return ParseCertificate(block.Bytes)
 }

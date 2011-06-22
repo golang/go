@@ -790,10 +790,10 @@ func (c *Conn) VerifyHostname(host string) os.Error {
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
 	if !c.isClient {
-		return os.ErrorString("VerifyHostname called on TLS server connection")
+		return os.NewError("VerifyHostname called on TLS server connection")
 	}
 	if !c.handshakeComplete {
-		return os.ErrorString("TLS handshake has not yet been performed")
+		return os.NewError("TLS handshake has not yet been performed")
 	}
 	return c.peerCertificates[0].VerifyHostname(host)
 }

@@ -115,7 +115,7 @@ type Listener interface {
 	Addr() Addr
 }
 
-var errMissingAddress = os.ErrorString("missing address")
+var errMissingAddress = os.NewError("missing address")
 
 type OpError struct {
 	Op    string

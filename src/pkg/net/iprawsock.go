@@ -294,7 +294,7 @@ func splitNetProto(netProto string) (net string, proto int, err os.Error) {
 	onceReadProtocols.Do(readProtocols)
 	i := last(netProto, ':')
 	if i < 0 { // no colon
-		return "", 0, os.ErrorString("no IP protocol specified")
+		return "", 0, os.NewError("no IP protocol specified")
 	}
 	net = netProto[0:i]
 	protostr := netProto[i+1:]
