@@ -49,10 +49,6 @@ GOMAXPROCS=10 gomake testshort
 time gomake test
 ) || exit $?
 
-(xcd cmd/godefs
-gomake test
-) || exit $?
-
 [ "$GOARCH" == arm ] ||
 [ "$GOHOSTOS" == windows ] ||
 (xcd ../misc/cgo/stdio
