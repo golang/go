@@ -38,7 +38,7 @@ func findExecutable(file string, exts []string) (string, os.Error) {
 			return f, nil
 		}
 	}
-	return ``, ErrNotFound
+	return ``, os.ENOENT
 }
 
 func LookPath(file string) (f string, err os.Error) {
