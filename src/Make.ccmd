@@ -36,6 +36,7 @@ y.tab.c: y.tab.h
 
 all: $(TARG)
 
+# Use $(PWD)/$*.c so that gdb shows full path in stack traces.
 %.$(HOST_O): %.c
 	$(HOST_CC) $(HOST_CFLAGS) -c "$(PWD)/$*.c"
 
