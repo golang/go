@@ -278,6 +278,10 @@ dynreloc(void)
 {
 	Sym *s;
 	
+	// -d supresses dynamic loader format, so we may as well not
+	// compute these sections or mark their symbols as reachable.
+	if(debug['d'] && HEADTYPE != Hwindows)
+		return;
 	if(debug['v'])
 		Bprint(&bso, "%5.2f reloc\n", cputime());
 	Bflush(&bso);
