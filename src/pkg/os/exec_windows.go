@@ -17,7 +17,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
 	case syscall.WAIT_FAILED:
 		return nil, NewSyscallError("WaitForSingleObject", e)
 	default:
-		return nil, ErrorString("os: unexpected result from WaitForSingleObject")
+		return nil, NewError("os: unexpected result from WaitForSingleObject")
 	}
 	var ec uint32
 	e = syscall.GetExitCodeProcess(int32(p.handle), &ec)
