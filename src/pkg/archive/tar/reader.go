@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	HeaderError os.Error = os.ErrorString("invalid tar header")
+	HeaderError = os.NewError("invalid tar header")
 )
 
 // A Reader provides sequential access to the contents of a tar archive.

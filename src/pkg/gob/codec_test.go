@@ -330,7 +330,7 @@ func newDecodeStateFromData(data []byte) *decoderState {
 // Test instruction execution for decoding.
 // Do not run the machine yet; instead do individual instructions crafted by hand.
 func TestScalarDecInstructions(t *testing.T) {
-	ovfl := os.ErrorString("overflow")
+	ovfl := os.NewError("overflow")
 
 	// bool
 	{

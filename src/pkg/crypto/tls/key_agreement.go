@@ -32,11 +32,11 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKe
 	}
 
 	if len(ckx.ciphertext) < 2 {
-		return nil, os.ErrorString("bad ClientKeyExchange")
+		return nil, os.NewError("bad ClientKeyExchange")
 	}
 	ciphertextLen := int(ckx.ciphertext[0])<<8 | int(ckx.ciphertext[1])
 	if ciphertextLen != len(ckx.ciphertext)-2 {
-		return nil, os.ErrorString("bad ClientKeyExchange")
+		return nil, os.NewError("bad ClientKeyExchange")
 	}
 	ciphertext := ckx.ciphertext[2:]
 
@@ -54,7 +54,7 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKe
 }
 
 func (ka rsaKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) os.Error {
-	return os.ErrorString("unexpected ServerKeyExchange")
+	return os.NewError("unexpected ServerKeyExchange")
 }
 
 func (ka rsaKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, os.Error) {
@@ -146,7 +146,7 @@ Curve:
 	md5sha1 := md5SHA1Hash(clientHello.random, hello.random, serverECDHParams)
 	sig, err := rsa.SignPKCS1v15(config.rand(), config.Certificates[0].PrivateKey, crypto.MD5SHA1, md5sha1)
 	if err != nil {
-		return nil, os.ErrorString("failed to sign ECDHE parameters: " + err.String())
+		return nil, os.NewError("failed to sign ECDHE parameters: " + err.String())
 	}
 
 	skx := new(serverKeyExchangeMsg)
@@ -162,11 +162,11 @@ Curve:
 
 func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg) ([]byte, os.Error) {
 	if len(ckx.ciphertext) == 0 || int(ckx.ciphertext[0]) != len(ckx.ciphertext)-1 {
-		return nil, os.ErrorString("bad ClientKeyExchange")
+		return nil, os.NewError("bad ClientKeyExchange")
 	}
 	x, y := ka.curve.Unmarshal(ckx.ciphertext[1:])
 	if x == nil {
-		return nil, os.ErrorString("bad ClientKeyExchange")
+		return nil, os.NewError("bad ClientKeyExchange")
 	}
 	x, _ = ka.curve.ScalarMult(x, y, ka.privateKey)
 	preMasterSecret := make([]byte, (ka.curve.BitSize+7)>>3)
@@ -176,14 +176,14 @@ func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *cl
 	return preMasterSecret, nil
 }
 
-var errServerKeyExchange = os.ErrorString("invalid ServerKeyExchange")
+var errServerKeyExchange = os.NewError("invalid ServerKeyExchange")
 
 func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) os.Error {
 	if len(skx.key) < 4 {
 		return errServerKeyExchange
 	}
 	if skx.key[0] != 3 { // named curve
-		return os.ErrorString("server selected unsupported curve")
+		return os.NewError("server selected unsupported curve")
 	}
 	curveid := uint16(skx.key[1])<<8 | uint16(skx.key[2])
 
@@ -195,7 +195,7 @@ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientH
 	case curveP521:
 		ka.curve = elliptic.P521()
 	default:
-		return os.ErrorString("server selected unsupported curve")
+		return os.NewError("server selected unsupported curve")
 	}
 
 	publicLen := int(skx.key[3])
@@ -224,7 +224,7 @@ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientH
 
 func (ka *ecdheRSAKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, os.Error) {
 	if ka.curve == nil {
-		return nil, nil, os.ErrorString("missing ServerKeyExchange message")
+		return nil, nil, os.NewError("missing ServerKeyExchange message")
 	}
 	priv, mx, my, err := ka.curve.GenerateKey(config.rand())
 	if err != nil {

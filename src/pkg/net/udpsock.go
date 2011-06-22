@@ -281,7 +281,7 @@ func (c *UDPConn) BindToDevice(device string) os.Error {
 // Closing c does not affect f, and closing f does not affect c.
 func (c *UDPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
 
-var errInvalidMulticast = os.ErrorString("invalid IPv4 multicast address")
+var errInvalidMulticast = os.NewError("invalid IPv4 multicast address")
 
 // JoinGroup joins the IPv4 multicast group named by addr.
 // The UDPConn must use the "udp4" network.

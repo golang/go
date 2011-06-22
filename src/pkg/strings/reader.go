@@ -49,7 +49,7 @@ func (r *Reader) ReadByte() (b byte, err os.Error) {
 // read yet.
 func (r *Reader) UnreadByte() os.Error {
 	if r.i <= 0 {
-		return os.ErrorString("strings.Reader: at beginning of string")
+		return os.NewError("strings.Reader: at beginning of string")
 	}
 	r.i--
 	r.prevRune = -1
@@ -80,7 +80,7 @@ func (r *Reader) ReadRune() (rune int, size int, err os.Error) {
 // The last method called on r must have been ReadRune.
 func (r *Reader) UnreadRune() os.Error {
 	if r.prevRune < 0 {
-		return os.ErrorString("strings.Reader: previous operation was not ReadRune")
+		return os.NewError("strings.Reader: previous operation was not ReadRune")
 	}
 	r.i = r.prevRune
 	r.prevRune = -1

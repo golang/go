@@ -29,7 +29,7 @@ func readGopackHeader(buf *bufio.Reader) (name string, size int, err os.Error) {
 	s := strings.TrimSpace(string(hdr[64+12+6+6+8:][:10]))
 	size, err = strconv.Atoi(s)
 	if err != nil || hdr[len(hdr)-2] != '`' || hdr[len(hdr)-1] != '\n' {
-		err = os.ErrorString("invalid archive header")
+		err = os.NewError("invalid archive header")
 		return
 	}
 	name = strings.TrimSpace(string(hdr[:64]))
@@ -80,7 +80,7 @@ func ExportData(filename string) (rc io.ReadCloser, err os.Error) {
 			return
 		}
 		if name != "__.SYMDEF" {
-			err = os.ErrorString("go archive does not begin with __.SYMDEF")
+			err = os.NewError("go archive does not begin with __.SYMDEF")
 			return
 		}
 		const block = 4096
@@ -102,7 +102,7 @@ func ExportData(filename string) (rc io.ReadCloser, err os.Error) {
 			return
 		}
 		if name != "__.PKGDEF" {
-			err = os.ErrorString("go archive is missing __.PKGDEF")
+			err = os.NewError("go archive is missing __.PKGDEF")
 			return
 		}
 
@@ -117,7 +117,7 @@ func ExportData(filename string) (rc io.ReadCloser, err os.Error) {
 	// Now at __.PKGDEF in archive or still at beginning of file.
 	// Either way, line should begin with "go object ".
 	if !strings.HasPrefix(string(line), "go object ") {
-		err = os.ErrorString("not a go object file")
+		err = os.NewError("not a go object file")
 		return
 	}
 

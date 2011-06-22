@@ -23,7 +23,7 @@ func (e ServerError) String() string {
 	return string(e)
 }
 
-const ErrShutdown = os.ErrorString("connection is shut down")
+var ErrShutdown = os.NewError("connection is shut down")
 
 // Call represents an active RPC.
 type Call struct {
@@ -110,7 +110,7 @@ func (client *Client) input() {
 		if response.Error == "" {
 			err = client.codec.ReadResponseBody(c.Reply)
 			if err != nil {
-				c.Error = os.ErrorString("reading body " + err.String())
+				c.Error = os.NewError("reading body " + err.String())
 			}
 		} else {
 			// We've got an error response. Give this to the request;
@@ -119,7 +119,7 @@ func (client *Client) input() {
 			c.Error = ServerError(response.Error)
 			err = client.codec.ReadResponseBody(nil)
 			if err != nil {
-				err = os.ErrorString("reading error body: " + err.String())
+				err = os.NewError("reading error body: " + err.String())
 			}
 		}
 		c.done()
@@ -221,7 +221,7 @@ func DialHTTPPath(network, address, path string) (*Client, os.Error) {
 		return NewClient(conn), nil
 	}
 	if err == nil {
-		err = os.ErrorString("unexpected HTTP response: " + resp.Status)
+		err = os.NewError("unexpected HTTP response: " + resp.Status)
 	}
 	conn.Close()
 	return nil, &net.OpError{"dial-http", network + " " + address, nil, err}

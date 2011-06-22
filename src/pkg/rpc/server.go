@@ -242,10 +242,10 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 	if s.typ.PkgPath() != "" && !isExported(sname) && !useName {
 		s := "rpc Register: type " + sname + " is not exported"
 		log.Print(s)
-		return os.ErrorString(s)
+		return os.NewError(s)
 	}
 	if _, present := server.serviceMap[sname]; present {
-		return os.ErrorString("rpc: service already defined: " + sname)
+		return os.NewError("rpc: service already defined: " + sname)
 	}
 	s.name = sname
 	s.method = make(map[string]*methodType)
@@ -294,7 +294,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 	if len(s.method) == 0 {
 		s := "rpc Register: type " + sname + " has no exported methods of suitable type"
 		log.Print(s)
-		return os.ErrorString(s)
+		return os.NewError(s)
 	}
 	server.serviceMap[s.name] = s
 	return nil
@@ -491,13 +491,13 @@ func (server *Server) readRequest(codec ServerCodec) (req *Request, service *ser
 		if err == os.EOF || err == io.ErrUnexpectedEOF {
 			return
 		}
-		err = os.ErrorString("rpc: server cannot decode request: " + err.String())
+		err = os.NewError("rpc: server cannot decode request: " + err.String())
 		return
 	}
 
 	serviceMethod := strings.Split(req.ServiceMethod, ".", -1)
 	if len(serviceMethod) != 2 {
-		err = os.ErrorString("rpc: service/method request ill-formed: " + req.ServiceMethod)
+		err = os.NewError("rpc: service/method request ill-formed: " + req.ServiceMethod)
 		return
 	}
 	// Look up the request.
@@ -505,12 +505,12 @@ func (server *Server) readRequest(codec ServerCodec) (req *Request, service *ser
 	service = server.serviceMap[serviceMethod[0]]
 	server.Unlock()
 	if service == nil {
-		err = os.ErrorString("rpc: can't find service " + req.ServiceMethod)
+		err = os.NewError("rpc: can't find service " + req.ServiceMethod)
 		return
 	}
 	mtype = service.method[serviceMethod[1]]
 	if mtype == nil {
-		err = os.ErrorString("rpc: can't find method " + req.ServiceMethod)
+		err = os.NewError("rpc: can't find method " + req.ServiceMethod)
 	}
 	return
 }

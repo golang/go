@@ -102,7 +102,7 @@ func (imp *Importer) run() {
 			if err.Error != "" {
 				impLog("response error:", err.Error)
 				select {
-				case imp.errors <- os.ErrorString(err.Error):
+				case imp.errors <- os.NewError(err.Error):
 					continue // errors are not acknowledged
 				default:
 					imp.shutdown()
@@ -203,7 +203,7 @@ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, size, 
 	defer imp.chanLock.Unlock()
 	_, present := imp.names[name]
 	if present {
-		return os.ErrorString("channel name already being imported:" + name)
+		return os.NewError("channel name already being imported:" + name)
 	}
 	if size < 1 {
 		size = 1
@@ -254,7 +254,7 @@ func (imp *Importer) Hangup(name string) os.Error {
 	defer imp.chanLock.Unlock()
 	nc := imp.names[name]
 	if nc == nil {
-		return os.ErrorString("netchan import: hangup: no such channel: " + name)
+		return os.NewError("netchan import: hangup: no such channel: " + name)
 	}
 	imp.names[name] = nil, false
 	imp.chans[nc.id] = nil, false
@@ -279,7 +279,7 @@ func (imp *Importer) Drain(timeout int64) os.Error {
 	startTime := time.Nanoseconds()
 	for imp.unackedCount() > 0 {
 		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
-			return os.ErrorString("timeout")
+			return os.NewError("timeout")
 		}
 		time.Sleep(100 * 1e6)
 	}

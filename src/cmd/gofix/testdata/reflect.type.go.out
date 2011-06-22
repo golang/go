@@ -67,7 +67,7 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
 		ut.base = pt.Elem()
 		if ut.base == slowpoke { // ut.base lapped slowpoke
 			// recursive pointer type.
-			return nil, os.ErrorString("can't represent recursive pointer type " + ut.base.String())
+			return nil, os.NewError("can't represent recursive pointer type " + ut.base.String())
 		}
 		if ut.indir%2 == 0 {
 			slowpoke = slowpoke.Elem()
@@ -524,7 +524,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
 		return st, nil
 
 	default:
-		return nil, os.ErrorString("gob NewTypeObject can't handle type: " + rt.String())
+		return nil, os.NewError("gob NewTypeObject can't handle type: " + rt.String())
 	}
 	return nil, nil
 }

@@ -79,7 +79,7 @@ func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes
 		L = 3072
 		N = 256
 	default:
-		return os.ErrorString("crypto/dsa: invalid ParameterSizes")
+		return os.NewError("crypto/dsa: invalid ParameterSizes")
 	}
 
 	qBytes := make([]byte, N/8)
@@ -158,7 +158,7 @@ GeneratePrimes:
 // PrivateKey must already be valid (see GenerateParameters).
 func GenerateKey(priv *PrivateKey, rand io.Reader) os.Error {
 	if priv.P == nil || priv.Q == nil || priv.G == nil {
-		return os.ErrorString("crypto/dsa: parameters not set up before generating key")
+		return os.NewError("crypto/dsa: parameters not set up before generating key")
 	}
 
 	x := new(big.Int)

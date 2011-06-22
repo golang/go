@@ -98,7 +98,7 @@ func ScanDir(dir string, allowMain bool) (info *DirInfo, err os.Error) {
 			if s == "main" || di.PkgName == "main" {
 				return ScanDir(dir, false)
 			}
-			return nil, os.ErrorString("multiple package names in " + dir)
+			return nil, os.NewError("multiple package names in " + dir)
 		}
 		isCgo := false
 		for _, spec := range pf.Imports {

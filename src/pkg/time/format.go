@@ -355,7 +355,7 @@ func (t *Time) String() string {
 	return t.Format(UnixDate)
 }
 
-var errBad = os.ErrorString("bad") // just a marker; not returned to user
+var errBad = os.NewError("bad") // just a marker; not returned to user
 
 // ParseError describes a problem parsing a time string.
 type ParseError struct {

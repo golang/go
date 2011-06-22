@@ -22,8 +22,10 @@ const (
 
 // Errors introduced by this package.
 type Error struct {
-	os.ErrorString
+	ErrorString string
 }
+
+func (err *Error) String() string { return err.ErrorString }
 
 var (
 	ErrInvalidUnreadByte os.Error = &Error{"bufio: invalid use of UnreadByte"}

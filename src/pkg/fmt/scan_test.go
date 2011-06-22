@@ -94,7 +94,7 @@ func (x *Xs) Scan(state ScanState, verb int) os.Error {
 	}
 	s := string(tok)
 	if !regexp.MustCompile("^" + string(verb) + "+$").MatchString(s) {
-		return os.ErrorString("syntax error for xs")
+		return os.NewError("syntax error for xs")
 	}
 	*x = Xs(s)
 	return nil
@@ -818,7 +818,7 @@ func (r *RecursiveInt) Scan(state ScanState, verb int) (err os.Error) {
 	next := new(RecursiveInt)
 	_, err = Fscanf(state, ".%v", next)
 	if err != nil {
-		if err == os.ErrorString("input does not match format") || err == io.ErrUnexpectedEOF {
+		if err == os.NewError("input does not match format") || err == io.ErrUnexpectedEOF {
 			err = nil
 		}
 		return

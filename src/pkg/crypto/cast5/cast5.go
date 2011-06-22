@@ -20,7 +20,7 @@ type Cipher struct {
 
 func NewCipher(key []byte) (c *Cipher, err os.Error) {
 	if len(key) != KeySize {
-		return nil, os.ErrorString("CAST5: keys must be 16 bytes")
+		return nil, os.NewError("CAST5: keys must be 16 bytes")
 	}
 
 	c = new(Cipher)

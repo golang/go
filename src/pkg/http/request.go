@@ -35,12 +35,14 @@ const (
 
 // ErrMissingFile is returned by FormFile when the provided file field name
 // is either not present in the request or not a file field.
-var ErrMissingFile = os.ErrorString("http: no such file")
+var ErrMissingFile = os.NewError("http: no such file")
 
 // HTTP request parsing errors.
 type ProtocolError struct {
-	os.ErrorString
+	ErrorString string
 }
+
+func (err *ProtocolError) String() string { return err.ErrorString }
 
 var (
 	ErrLineTooLong          = &ProtocolError{"header line too long"}
@@ -704,7 +706,7 @@ func (r *Request) ParseForm() (err os.Error) {
 	}
 	if r.Method == "POST" {
 		if r.Body == nil {
-			return os.ErrorString("missing form body")
+			return os.NewError("missing form body")
 		}
 		ct := r.Header.Get("Content-Type")
 		switch strings.Split(ct, ";", 2)[0] {

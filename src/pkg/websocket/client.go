@@ -19,11 +19,13 @@ import (
 )
 
 type ProtocolError struct {
-	os.ErrorString
+	ErrorString string
 }
 
+func (err *ProtocolError) String() string { return string(err.ErrorString) }
+
 var (
-	ErrBadScheme            = os.ErrorString("bad scheme")
+	ErrBadScheme            = &ProtocolError{"bad scheme"}
 	ErrBadStatus            = &ProtocolError{"bad status"}
 	ErrBadUpgrade           = &ProtocolError{"missing or bad upgrade"}
 	ErrBadWebSocketOrigin   = &ProtocolError{"missing or bad WebSocket-Origin"}

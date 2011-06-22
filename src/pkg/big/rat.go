@@ -227,10 +227,10 @@ func (z *Rat) Scan(s fmt.ScanState, ch int) os.Error {
 		return err
 	}
 	if strings.IndexRune("efgEFGv", ch) < 0 {
-		return os.ErrorString("Rat.Scan: invalid verb")
+		return os.NewError("Rat.Scan: invalid verb")
 	}
 	if _, ok := z.SetString(string(tok)); !ok {
-		return os.ErrorString("Rat.Scan: invalid syntax")
+		return os.NewError("Rat.Scan: invalid syntax")
 	}
 	return nil
 }
@@ -368,7 +368,7 @@ func (z *Rat) GobEncode() ([]byte, os.Error) {
 	n := i - j
 	if int(uint32(n)) != n {
 		// this should never happen
-		return nil, os.ErrorString("Rat.GobEncode: numerator too large")
+		return nil, os.NewError("Rat.GobEncode: numerator too large")
 	}
 	binary.BigEndian.PutUint32(buf[j-4:j], uint32(n))
 	j -= 1 + 4
@@ -384,11 +384,11 @@ func (z *Rat) GobEncode() ([]byte, os.Error) {
 // GobDecode implements the gob.GobDecoder interface.
 func (z *Rat) GobDecode(buf []byte) os.Error {
 	if len(buf) == 0 {
-		return os.ErrorString("Rat.GobDecode: no data")
+		return os.NewError("Rat.GobDecode: no data")
 	}
 	b := buf[0]
 	if b>>1 != ratGobVersion {
-		return os.ErrorString(fmt.Sprintf("Rat.GobDecode: encoding version %d not supported", b>>1))
+		return os.NewError(fmt.Sprintf("Rat.GobDecode: encoding version %d not supported", b>>1))
 	}
 	const j = 1 + 4
 	i := j + binary.BigEndian.Uint32(buf[j-4:j])

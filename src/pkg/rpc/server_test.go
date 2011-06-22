@@ -52,7 +52,7 @@ func (t *Arith) Mul(args *Args, reply *Reply) os.Error {
 
 func (t *Arith) Div(args Args, reply *Reply) os.Error {
 	if args.B == 0 {
-		return os.ErrorString("divide by zero")
+		return os.NewError("divide by zero")
 	}
 	reply.C = args.A / args.B
 	return nil

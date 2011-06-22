@@ -9,6 +9,7 @@ GOFILES=\
 	fix.go\
 	netdial.go\
 	main.go\
+	oserrorstring.go\
 	osopen.go\
 	httpfinalurl.go\
 	httpheaders.go\

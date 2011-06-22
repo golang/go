@@ -38,7 +38,7 @@ func Listen(x, y string) (T, string) {
 }
 
 func (t T) Addr() os.Error {
-	return os.ErrorString("stringer")
+	return os.NewError("stringer")
 }
 
 func (t T) Accept() (int, string) {
@@ -49,4 +49,3 @@ func Dial(x, y, z string) (int, string) {
 	global <- 1
 	return 0, ""
 }
-

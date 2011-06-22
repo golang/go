@@ -37,7 +37,7 @@ type PrivateKey struct {
 func Encrypt(random io.Reader, pub *PublicKey, msg []byte) (c1, c2 *big.Int, err os.Error) {
 	pLen := (pub.P.BitLen() + 7) / 8
 	if len(msg) > pLen-11 {
-		err = os.ErrorString("elgamal: message too long")
+		err = os.NewError("elgamal: message too long")
 		return
 	}
 
@@ -97,7 +97,7 @@ func Decrypt(priv *PrivateKey, c1, c2 *big.Int) (msg []byte, err os.Error) {
 	}
 
 	if firstByteIsTwo != 1 || lookingForIndex != 0 || index < 9 {
-		return nil, os.ErrorString("elgamal: decryption error")
+		return nil, os.NewError("elgamal: decryption error")
 	}
 	return em[index+1:], nil
 }

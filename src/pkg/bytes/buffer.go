@@ -280,7 +280,7 @@ func (b *Buffer) ReadRune() (r int, size int, err os.Error) {
 // from any read operation.)
 func (b *Buffer) UnreadRune() os.Error {
 	if b.lastRead != opReadRune {
-		return os.ErrorString("bytes.Buffer: UnreadRune: previous operation was not ReadRune")
+		return os.NewError("bytes.Buffer: UnreadRune: previous operation was not ReadRune")
 	}
 	b.lastRead = opInvalid
 	if b.off > 0 {
@@ -295,7 +295,7 @@ func (b *Buffer) UnreadRune() os.Error {
 // returns an error.
 func (b *Buffer) UnreadByte() os.Error {
 	if b.lastRead != opReadRune && b.lastRead != opRead {
-		return os.ErrorString("bytes.Buffer: UnreadByte: previous operation was not a read")
+		return os.NewError("bytes.Buffer: UnreadByte: previous operation was not a read")
 	}
 	b.lastRead = opInvalid
 	if b.off > 0 {

@@ -17,9 +17,9 @@ import (
 )
 
 var (
-	errBadUint = os.ErrorString("gob: encoded unsigned integer out of range")
-	errBadType = os.ErrorString("gob: unknown type id or corrupted data")
-	errRange   = os.ErrorString("gob: bad data: field numbers out of bounds")
+	errBadUint = os.NewError("gob: encoded unsigned integer out of range")
+	errBadType = os.NewError("gob: unknown type id or corrupted data")
+	errRange   = os.NewError("gob: bad data: field numbers out of bounds")
 )
 
 // decoderState is the execution state of an instance of the decoder. A new state
@@ -54,8 +54,8 @@ func (dec *Decoder) freeDecoderState(d *decoderState) {
 	dec.freeList = d
 }
 
-func overflow(name string) os.ErrorString {
-	return os.ErrorString(`value for "` + name + `" out of range`)
+func overflow(name string) os.Error {
+	return os.NewError(`value for "` + name + `" out of range`)
 }
 
 // decodeUintReader reads an encoded unsigned integer from an io.Reader.
@@ -135,10 +135,10 @@ type decOp func(i *decInstr, state *decoderState, p unsafe.Pointer)
 // The 'instructions' of the decoding machine
 type decInstr struct {
 	op     decOp
-	field  int            // field number of the wire type
-	indir  int            // how many pointer indirections to reach the value in the struct
-	offset uintptr        // offset in the structure of the field to encode
-	ovfl   os.ErrorString // error message for overflow/underflow (for arrays, of the elements)
+	field  int      // field number of the wire type
+	indir  int      // how many pointer indirections to reach the value in the struct
+	offset uintptr  // offset in the structure of the field to encode
+	ovfl   os.Error // error message for overflow/underflow (for arrays, of the elements)
 }
 
 // Since the encoder writes no zeros, if we arrive at a decoder we have
@@ -552,7 +552,7 @@ func (dec *Decoder) ignoreSingle(engine *decEngine) {
 }
 
 // decodeArrayHelper does the work for decoding arrays and slices.
-func (dec *Decoder) decodeArrayHelper(state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl os.ErrorString) {
+func (dec *Decoder) decodeArrayHelper(state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl os.Error) {
 	instr := &decInstr{elemOp, 0, elemIndir, 0, ovfl}
 	for i := 0; i < length; i++ {
 		up := unsafe.Pointer(p)
@@ -567,7 +567,7 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, p uintptr, elemOp dec
 // decodeArray decodes an array and stores it through p, that is, p points to the zeroth element.
 // The length is an unsigned integer preceding the elements.  Even though the length is redundant
 // (it's part of the type), it's a useful check and is included in the encoding.
-func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl os.ErrorString) {
+func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl os.Error) {
 	if indir > 0 {
 		p = allocate(atyp, p, 1) // All but the last level has been allocated by dec.Indirect
 	}
@@ -579,7 +579,7 @@ func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintpt
 
 // decodeIntoValue is a helper for map decoding.  Since maps are decoded using reflection,
 // unlike the other items we can't use a pointer directly.
-func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value, ovfl os.ErrorString) reflect.Value {
+func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value, ovfl os.Error) reflect.Value {
 	instr := &decInstr{op, 0, indir, 0, ovfl}
 	up := unsafe.Pointer(unsafeAddr(v))
 	if indir > 1 {
@@ -593,7 +593,7 @@ func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value, 
 // Maps are encoded as a length followed by key:value pairs.
 // Because the internals of maps are not visible to us, we must
 // use reflection rather than pointer magic.
-func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl os.ErrorString) {
+func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl os.Error) {
 	if indir > 0 {
 		p = allocate(mtyp, p, 1) // All but the last level has been allocated by dec.Indirect
 	}
@@ -616,7 +616,7 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr,
 
 // ignoreArrayHelper does the work for discarding arrays and slices.
 func (dec *Decoder) ignoreArrayHelper(state *decoderState, elemOp decOp, length int) {
-	instr := &decInstr{elemOp, 0, 0, 0, os.ErrorString("no error")}
+	instr := &decInstr{elemOp, 0, 0, 0, os.NewError("no error")}
 	for i := 0; i < length; i++ {
 		elemOp(instr, state, nil)
 	}
@@ -633,8 +633,8 @@ func (dec *Decoder) ignoreArray(state *decoderState, elemOp decOp, length int) {
 // ignoreMap discards the data for a map value with no destination.
 func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
 	n := int(state.decodeUint())
-	keyInstr := &decInstr{keyOp, 0, 0, 0, os.ErrorString("no error")}
-	elemInstr := &decInstr{elemOp, 0, 0, 0, os.ErrorString("no error")}
+	keyInstr := &decInstr{keyOp, 0, 0, 0, os.NewError("no error")}
+	elemInstr := &decInstr{elemOp, 0, 0, 0, os.NewError("no error")}
 	for i := 0; i < n; i++ {
 		keyOp(keyInstr, state, nil)
 		elemOp(elemInstr, state, nil)
@@ -643,7 +643,7 @@ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
 
 // decodeSlice decodes a slice and stores the slice header through p.
 // Slices are encoded as an unsigned length followed by the elements.
-func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl os.ErrorString) {
+func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl os.Error) {
 	n := int(uintptr(state.decodeUint()))
 	if indir > 0 {
 		up := unsafe.Pointer(p)
@@ -1064,10 +1064,10 @@ func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *de
 	engine.instr = make([]decInstr, 1) // one item
 	name := rt.String()                // best we can do
 	if !dec.compatibleType(rt, remoteId, make(map[reflect.Type]typeId)) {
-		return nil, os.ErrorString("gob: wrong type received for local value " + name + ": " + dec.typeString(remoteId))
+		return nil, os.NewError("gob: wrong type received for local value " + name + ": " + dec.typeString(remoteId))
 	}
 	op, indir := dec.decOpFor(remoteId, rt, name, make(map[reflect.Type]*decOp))
-	ovfl := os.ErrorString(`value for "` + name + `" out of range`)
+	ovfl := os.NewError(`value for "` + name + `" out of range`)
 	engine.instr[singletonField] = decInstr{*op, singletonField, indir, 0, ovfl}
 	engine.numInstr = 1
 	return

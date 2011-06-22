@@ -45,12 +45,12 @@ func (this *statsResults) checkSimilarDistribution(expected *statsResults) os.Er
 	if !nearEqual(this.mean, expected.mean, expected.closeEnough, expected.maxError) {
 		s := fmt.Sprintf("mean %v != %v (allowed error %v, %v)", this.mean, expected.mean, expected.closeEnough, expected.maxError)
 		fmt.Println(s)
-		return os.ErrorString(s)
+		return os.NewError(s)
 	}
 	if !nearEqual(this.stddev, expected.stddev, 0, expected.maxError) {
 		s := fmt.Sprintf("stddev %v != %v (allowed error %v, %v)", this.stddev, expected.stddev, expected.closeEnough, expected.maxError)
 		fmt.Println(s)
-		return os.ErrorString(s)
+		return os.NewError(s)
 	}
 	return nil
 }

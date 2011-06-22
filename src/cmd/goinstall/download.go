@@ -160,14 +160,14 @@ func isRemote(pkg string) bool {
 // download checks out or updates pkg from the remote server.
 func download(pkg, srcDir string) os.Error {
 	if strings.Contains(pkg, "..") {
-		return os.ErrorString("invalid path (contains ..)")
+		return os.NewError("invalid path (contains ..)")
 	}
 	var m *vcsMatch
 	for _, v := range vcsList {
 		for _, host := range v.defaultHosts {
 			if hm := host.pattern.FindStringSubmatch(pkg); hm != nil {
 				if v.suffix != "" && strings.HasSuffix(hm[1], v.suffix) {
-					return os.ErrorString("repository " + pkg + " should not have " + v.suffix + " suffix")
+					return os.NewError("repository " + pkg + " should not have " + v.suffix + " suffix")
 				}
 				repo := host.protocol + "://" + hm[1] + v.suffix
 				m = &vcsMatch{v, hm[1], repo}
@@ -175,7 +175,7 @@ func download(pkg, srcDir string) os.Error {
 		}
 	}
 	if m == nil {
-		return os.ErrorString("cannot download: " + pkg)
+		return os.NewError("cannot download: " + pkg)
 	}
 	return vcsCheckout(m.vcs, srcDir, m.prefix, m.repo, pkg)
 }
@@ -205,7 +205,7 @@ func vcsCheckout(vcs *vcs, srcDir, pkgprefix, repo, dashpath string) os.Error {
 	dst := filepath.Join(srcDir, filepath.FromSlash(pkgprefix))
 	dir, err := os.Stat(filepath.Join(dst, vcs.metadir))
 	if err == nil && !dir.IsDirectory() {
-		return os.ErrorString("not a directory: " + dst)
+		return os.NewError("not a directory: " + dst)
 	}
 	if err != nil {
 		parent, _ := filepath.Split(dst)

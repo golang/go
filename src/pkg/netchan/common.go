@@ -153,7 +153,7 @@ func (cs *clientSet) drain(timeout int64) os.Error {
 			break
 		}
 		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
-			return os.ErrorString("timeout")
+			return os.NewError("timeout")
 		}
 		time.Sleep(100 * 1e6) // 100 milliseconds
 	}
@@ -186,7 +186,7 @@ func (cs *clientSet) sync(timeout int64) os.Error {
 			break
 		}
 		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
-			return os.ErrorString("timeout")
+			return os.NewError("timeout")
 		}
 		time.Sleep(100 * 1e6) // 100 milliseconds
 	}

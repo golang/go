@@ -42,7 +42,7 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
 			}
 			return buf.Bytes(), nil
 		default:
-			return nil, os.ErrorString("invalid source")
+			return nil, os.NewError("invalid source")
 		}
 	}
 

@@ -96,7 +96,7 @@ func parseDate(date string) (*time.Time, os.Error) {
 			return t, nil
 		}
 	}
-	return nil, os.ErrorString("mail: header could not be parsed")
+	return nil, os.NewError("mail: header could not be parsed")
 }
 
 // A Header represents the key-value pairs in a mail message header.
@@ -108,7 +108,7 @@ func (h Header) Get(key string) string {
 	return textproto.MIMEHeader(h).Get(key)
 }
 
-var ErrHeaderNotPresent = os.ErrorString("mail: header not in message")
+var ErrHeaderNotPresent = os.NewError("mail: header not in message")
 
 // Date parses the Date header field.
 func (h Header) Date() (*time.Time, os.Error) {
@@ -204,7 +204,7 @@ func (p *addrParser) parseAddressList() ([]*Address, os.Error) {
 			break
 		}
 		if !p.consume(',') {
-			return nil, os.ErrorString("mail: expected comma")
+			return nil, os.NewError("mail: expected comma")
 		}
 	}
 	return list, nil
@@ -215,7 +215,7 @@ func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
 	debug.Printf("parseAddress: %q", *p)
 	p.skipSpace()
 	if p.empty() {
-		return nil, os.ErrorString("mail: no address")
+		return nil, os.NewError("mail: no address")
 	}
 
 	// address = name-addr / addr-spec
@@ -246,14 +246,14 @@ func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
 	// angle-addr = "<" addr-spec ">"
 	p.skipSpace()
 	if !p.consume('<') {
-		return nil, os.ErrorString("mail: no angle-addr")
+		return nil, os.NewError("mail: no angle-addr")
 	}
 	spec, err = p.consumeAddrSpec()
 	if err != nil {
 		return nil, err
 	}
 	if !p.consume('>') {
-		return nil, os.ErrorString("mail: unclosed angle-addr")
+		return nil, os.NewError("mail: unclosed angle-addr")
 	}
 	debug.Printf("parseAddress: spec=%q", spec)
 
@@ -278,7 +278,7 @@ func (p *addrParser) consumeAddrSpec() (spec string, err os.Error) {
 	var localPart string
 	p.skipSpace()
 	if p.empty() {
-		return "", os.ErrorString("mail: no addr-spec")
+		return "", os.NewError("mail: no addr-spec")
 	}
 	if p.peek() == '"' {
 		// quoted-string
@@ -295,14 +295,14 @@ func (p *addrParser) consumeAddrSpec() (spec string, err os.Error) {
 	}
 
 	if !p.consume('@') {
-		return "", os.ErrorString("mail: missing @ in addr-spec")
+		return "", os.NewError("mail: missing @ in addr-spec")
 	}
 
 	// domain = dot-atom / domain-literal
 	var domain string
 	p.skipSpace()
 	if p.empty() {
-		return "", os.ErrorString("mail: no domain in addr-spec")
+		return "", os.NewError("mail: no domain in addr-spec")
 	}
 	// TODO(dsymonds): Handle domain-literal
 	domain, err = p.consumeAtom(true)
@@ -323,7 +323,7 @@ func (p *addrParser) consumePhrase() (phrase string, err os.Error) {
 		var word string
 		p.skipSpace()
 		if p.empty() {
-			return "", os.ErrorString("mail: missing phrase")
+			return "", os.NewError("mail: missing phrase")
 		}
 		if p.peek() == '"' {
 			// quoted-string
@@ -347,7 +347,7 @@ func (p *addrParser) consumePhrase() (phrase string, err os.Error) {
 	// Ignore any error if we got at least one word.
 	if err != nil && len(words) == 0 {
 		debug.Printf("consumePhrase: hit err: %v", err)
-		return "", os.ErrorString("mail: missing word in phrase")
+		return "", os.NewError("mail: missing word in phrase")
 	}
 	phrase = strings.Join(words, " ")
 	return phrase, nil
@@ -361,14 +361,14 @@ func (p *addrParser) consumeQuotedString() (qs string, err os.Error) {
 Loop:
 	for {
 		if i >= p.len() {
-			return "", os.ErrorString("mail: unclosed quoted-string")
+			return "", os.NewError("mail: unclosed quoted-string")
 		}
 		switch c := (*p)[i]; {
 		case c == '"':
 			break Loop
 		case c == '\\':
 			if i+1 == p.len() {
-				return "", os.ErrorString("mail: unclosed quoted-string")
+				return "", os.NewError("mail: unclosed quoted-string")
 			}
 			qsb = append(qsb, (*p)[i+1])
 			i += 2
@@ -389,7 +389,7 @@ Loop:
 // If dot is true, consumeAtom parses an RFC 5322 dot-atom instead.
 func (p *addrParser) consumeAtom(dot bool) (atom string, err os.Error) {
 	if !isAtext(p.peek(), false) {
-		return "", os.ErrorString("mail: invalid string")
+		return "", os.NewError("mail: invalid string")
 	}
 	i := 1
 	for ; i < p.len() && isAtext((*p)[i], dot); i++ {
@@ -427,7 +427,7 @@ func (p *addrParser) len() int {
 func decodeRFC2047Word(s string) (string, os.Error) {
 	fields := strings.Split(s, "?", -1)
 	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" {
-		return "", os.ErrorString("mail: address not RFC 2047 encoded")
+		return "", os.NewError("mail: address not RFC 2047 encoded")
 	}
 	charset, enc := strings.ToLower(fields[1]), strings.ToLower(fields[2])
 	if charset != "iso-8859-1" && charset != "utf-8" {

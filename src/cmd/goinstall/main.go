@@ -279,7 +279,7 @@ func genRun(dir string, stdin []byte, arg []string, quiet bool) os.Error {
 			os.Stderr.Write(out)
 			fmt.Fprintf(os.Stderr, "--- %s\n", err)
 		}
-		return os.ErrorString("running " + arg[0] + ": " + err.String())
+		return os.NewError("running " + arg[0] + ": " + err.String())
 	}
 	return nil
 }

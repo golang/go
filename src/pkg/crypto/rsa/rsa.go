@@ -64,7 +64,7 @@ func (priv *PrivateKey) Validate() os.Error {
 	// easy for an attack to generate composites that pass this test.
 	for _, prime := range priv.Primes {
 		if !big.ProbablyPrime(prime, 20) {
-			return os.ErrorString("prime factor is composite")
+			return os.NewError("prime factor is composite")
 		}
 	}
 
@@ -74,7 +74,7 @@ func (priv *PrivateKey) Validate() os.Error {
 		modulus.Mul(modulus, prime)
 	}
 	if modulus.Cmp(priv.N) != 0 {
-		return os.ErrorString("invalid modulus")
+		return os.NewError("invalid modulus")
 	}
 	// Check that e and totient(Πprimes) are coprime.
 	totient := new(big.Int).Set(bigOne)
@@ -88,13 +88,13 @@ func (priv *PrivateKey) Validate() os.Error {
 	y := new(big.Int)
 	big.GcdInt(gcd, x, y, totient, e)
 	if gcd.Cmp(bigOne) != 0 {
-		return os.ErrorString("invalid public exponent E")
+		return os.NewError("invalid public exponent E")
 	}
 	// Check that de ≡ 1 (mod totient(Πprimes))
 	de := new(big.Int).Mul(priv.D, e)
 	de.Mod(de, totient)
 	if de.Cmp(bigOne) != 0 {
-		return os.ErrorString("invalid private exponent D")
+		return os.NewError("invalid private exponent D")
 	}
 	return nil
 }
@@ -127,7 +127,7 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (priv *Priva
 	priv.E = 3
 
 	if nprimes < 2 {
-		return nil, os.ErrorString("rsa.GenerateMultiPrimeKey: nprimes must be >= 2")
+		return nil, os.NewError("rsa.GenerateMultiPrimeKey: nprimes must be >= 2")
 	}
 
 	primes := make([]*big.Int, nprimes)
