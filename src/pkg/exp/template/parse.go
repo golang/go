@@ -68,6 +68,7 @@ const (
 	nodeEnd
 	nodeField
 	nodeIdentifier
+	nodeList
 	nodeNumber
 	nodeRange
 	nodeString
@@ -82,7 +83,7 @@ type listNode struct {
 }
 
 func newList() *listNode {
-	return &listNode{nodeType: nodeText}
+	return &listNode{nodeType: nodeList}
 }
 
 func (l *listNode) append(n node) {
@@ -178,8 +179,7 @@ func (f *fieldNode) String() string {
 }
 
 // numberNode holds a number, signed or unsigned, integer, floating, or imaginary.
-// The value is parsed and stored under all the types that can represent the value
-// (although for simplicity -0 is not considered a valid unsigned integer).
+// The value is parsed and stored under all the types that can represent the value.
 // This simulates in a small amount of code the behavior of Go's ideal constants.
 // TODO: booleans, complex numbers.
 type numberNode struct {
@@ -207,7 +207,7 @@ func newNumber(text string) (*numberNode, os.Error) {
 		}
 	}
 	// Do integer test first so we get 0x123 etc.
-	u, err := strconv.Btoui64(text, 0) // will fail for -0; tough.
+	u, err := strconv.Btoui64(text, 0) // will fail for -0; fixed below.
 	if err == nil {
 		n.isUint = true
 		n.uint64 = u
@@ -216,6 +216,10 @@ func newNumber(text string) (*numberNode, os.Error) {
 	if err == nil {
 		n.isInt = true
 		n.int64 = i
+		if i == 0 {
+			n.isUint = true // in case of -0.
+			n.uint64 = u
+		}
 	}
 	// If an integer extraction succeeded, promote the float.
 	if n.isInt {
