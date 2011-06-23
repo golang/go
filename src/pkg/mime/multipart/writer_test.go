@@ -30,6 +30,13 @@ func TestWriter(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Close: %v", err)
 		}
+		s := b.String()
+		if len(s) == 0 {
+			t.Fatal("String: unexpected empty result")
+		}
+		if s[0] == '\r' || s[0] == '\n' {
+			t.Fatal("String: unexpected newline")
+		}
 	}
 
 	r := NewReader(&b, w.Boundary())
