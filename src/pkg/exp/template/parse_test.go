@@ -25,6 +25,7 @@ type numberTest struct {
 var numberTests = []numberTest{
 	// basics
 	{"0", true, true, true, false, 0, 0, 0},
+	{"-0", true, true, true, false, 0, 0, 0}, // check that -0 is a uint.
 	{"73", true, true, true, false, 73, 73, 73},
 	{"-73", true, false, true, false, -73, 0, -73},
 	{"+73", true, false, true, false, 73, 0, 73},
@@ -37,7 +38,7 @@ var numberTests = []numberTest{
 	{"4i", false, false, true, true, 0, 0, 4},
 	// funny bases
 	{"0123", true, true, true, false, 0123, 0123, 0123},
-	{"-0x0", true, false, true, false, 0, 0, 0},
+	{"-0x0", true, true, true, false, 0, 0, 0},
 	{"0xdeadbeef", true, true, true, false, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef},
 	// some broken syntax
 	{text: "+-2"},
