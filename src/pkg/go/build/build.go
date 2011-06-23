@@ -35,6 +35,18 @@ func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
 		return nil, err
 	}
 
+	// add import object files to list of Inputs
+	for _, pkg := range info.Imports {
+		t, p, err := FindTree(pkg)
+		if err != nil && err != ErrNotFound {
+			// FindTree should always be able to suggest an import
+			// path and tree. The path must be malformed
+			// (for example, an absolute or relative path).
+			return nil, os.NewError("build: invalid import: " + pkg)
+		}
+		s.addInput(filepath.Join(t.PkgDir(), p+".a"))
+	}
+
 	// .go files to be built with gc
 	gofiles := b.abss(info.GoFiles...)
 	s.addInput(gofiles...)
