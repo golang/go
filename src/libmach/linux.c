@@ -238,8 +238,7 @@ fixup:
 			PTRACE_O_TRACEVFORK |
 			PTRACE_O_TRACECLONE |
 			PTRACE_O_TRACEEXEC |
-			PTRACE_O_TRACEVFORKDONE |
-			PTRACE_O_TRACEEXIT;
+			PTRACE_O_TRACEVFORKDONE;
 		if(ptrace(PTRACE_SETOPTIONS, tid, 0, (void*)flags) < 0)	{
 			fprint(2, "ptrace PTRACE_SETOPTIONS %d: %r\n", tid);
 			return nil;
@@ -358,6 +357,12 @@ wait1(int nohang)
 				break;
 
 			case PTRACE_EVENT_EXIT:
+				// We won't see this unless we set PTRACE_O_TRACEEXIT.
+				// The debuggers assume that a read or write on a Map
+				// will fail for a thread that has exited.  This event
+				// breaks that assumption.  It's not a big deal: we
+				// only lose the ability to see the register state at
+				// the time of exit.
 				if(trace)
 					fprint(2, "tid %d: exiting %#x\n", tid, status);
 				t->state = Exiting;
@@ -755,13 +760,19 @@ static int
 ptracerw(int type, int xtype, int isr, int pid, uvlong addr, void *v, uint n)
 {
 	int i;
-	uintptr u;
+	uintptr u, a;
 	uchar buf[sizeof(uintptr)];
 
 	for(i=0; i<n; i+=sizeof(uintptr)){
+		// Tread carefully here.  On recent versions of glibc,
+		// ptrace is a variadic function which means the third
+		// argument will be pushed onto the stack as a uvlong.
+		// This is fine on amd64 but will not work for 386.
+		// We must convert addr to a uintptr.
+		a = addr+i;
 		if(isr){
 			errno = 0;
-			u = ptrace(type, pid, addr+i, 0);
+			u = ptrace(type, pid, a, 0);
 			if(errno)
 				goto ptraceerr;
 			if(n-i >= sizeof(uintptr))
@@ -775,14 +786,14 @@ ptracerw(int type, int xtype, int isr, int pid, uvlong addr, void *v, uint n)
 				u = *(uintptr*)((char*)v+i);
 			else{
 				errno = 0;
-				u = ptrace(xtype, pid, addr+i, 0);
+				u = ptrace(xtype, pid, a, 0);
 				if(errno)
 					return -1;
 				memmove(buf, &u, sizeof u);
 				memmove(buf, (char*)v+i, n-i);
 				memmove(&u, buf, sizeof u);
 			}
-			if(ptrace(type, pid, addr+i, u) < 0)
+			if(ptrace(type, pid, a, u) < 0)
 				goto ptraceerr;
 		}
 	}
