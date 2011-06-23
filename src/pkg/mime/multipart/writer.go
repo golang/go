@@ -61,7 +61,11 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, os.Error) {
 		}
 	}
 	var b bytes.Buffer
-	fmt.Fprintf(&b, "\r\n--%s\r\n", w.boundary)
+	if w.lastpart != nil {
+		fmt.Fprintf(&b, "\r\n--%s\r\n", w.boundary)
+	} else {
+		fmt.Fprintf(&b, "--%s\r\n", w.boundary)
+	}
 	// TODO(bradfitz): move this to textproto.MimeHeader.Write(w), have it sort
 	// and clean, like http.Header.Write(w) does.
 	for k, vv := range header {
