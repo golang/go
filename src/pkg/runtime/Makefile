@@ -12,9 +12,6 @@ SIZE_amd64=64
 SIZE_arm=32
 SIZE=$(SIZE_$(GOARCH))
 
-# TODO(kaib): fix register allocation to honor extern register so we
-# can enable optimizations again.
-CFLAGS_arm=-N
 CFLAGS_windows=-D__WINDOWS__
 CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
 

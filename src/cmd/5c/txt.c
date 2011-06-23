@@ -292,8 +292,7 @@ tmpreg(void)
 void
 regalloc(Node *n, Node *tn, Node *o)
 {
-	int i, j;
-	static int lasti;
+	int i;
 
 	switch(tn->type->etype) {
 	case TCHAR:
@@ -310,16 +309,9 @@ regalloc(Node *n, Node *tn, Node *o)
 			if(i >= 0 && i < NREG)
 				goto out;
 		}
-		j = lasti + REGRET+1;
-		for(i=REGRET+1; i<NREG; i++) {
-			if(j >= NREG)
-				j = REGRET+1;
-			if(reg[j] == 0) {
-				i = j;
+		for(i=REGRET+1; i<=REGEXT-2; i++)
+			if(reg[i] == 0)
 				goto out;
-			}
-			j++;
-		}
 		diag(tn, "out of fixed registers");
 		goto err;
 
@@ -331,16 +323,9 @@ regalloc(Node *n, Node *tn, Node *o)
 			if(i >= NREG && i < NREG+NFREG)
 				goto out;
 		}
-		j = 0*2 + NREG;
-		for(i=NREG; i<NREG+NFREG; i++) {
-			if(j >= NREG+NFREG)
-				j = NREG;
-			if(reg[j] == 0) {
-				i = j;
+		for(i=NREG; i<NREG+NFREG; i++)
+			if(reg[i] == 0)
 				goto out;
-			}
-			j++;
-		}
 		diag(tn, "out of float registers");
 		goto err;
 	}
@@ -350,9 +335,6 @@ err:
 	return;
 out:
 	reg[i]++;
-/* 	lasti++;	*** StrongARM does register forwarding */
-	if(lasti >= 5)
-		lasti = 0;
 	nodreg(n, tn, i);
 }
 
