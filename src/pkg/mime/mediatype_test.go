@@ -60,6 +60,7 @@ func TestConsumeMediaParam(t *testing.T) {
 		{" ; foo=bar", "foo", "bar", ""},
 		{"; foo=bar", "foo", "bar", ""},
 		{";foo=bar", "foo", "bar", ""},
+		{";FOO=bar", "foo", "bar", ""},
 		{`;foo="bar"`, "foo", "bar", ""},
 		{`;foo="bar"; `, "foo", "bar", "; "},
 		{`;foo="bar"; foo=baz`, "foo", "bar", "; foo=baz"},
@@ -127,7 +128,7 @@ func TestParseMediaType(t *testing.T) {
 			`URL*1="cs.utk.edu/pub/moore/bulk-mailer/bulk-mailer.tar"`,
 			"message/external-body",
 			m("access-type", "URL",
-				"URL", "ftp://cs.utk.edu/pub/moore/bulk-mailer/bulk-mailer.tar")},
+				"url", "ftp://cs.utk.edu/pub/moore/bulk-mailer/bulk-mailer.tar")},
 
 		{`application/x-stuff; ` +
 			`title*0*=us-ascii'en'This%20is%20even%20more%20; ` +
