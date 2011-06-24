@@ -41,6 +41,7 @@ var (
 	doInstall         = flag.Bool("install", true, "build and install")
 	clean             = flag.Bool("clean", false, "clean the package directory before installing")
 	nuke              = flag.Bool("nuke", false, "clean the package directory and target before installing")
+	useMake           = flag.Bool("make", true, "use make to build and install")
 	verbose           = flag.Bool("v", false, "verbose")
 )
 
@@ -211,27 +212,35 @@ func install(pkg, parent string) {
 	}
 
 	// Install this package.
-	script, err := build.Build(tree, pkg, dirInfo)
-	if err != nil {
-		errorf("%s: install: %v\n", pkg, err)
-		return
-	}
-	if *nuke {
-		printf("%s: nuke\n", pkg)
-		script.Nuke()
-	} else if *clean {
-		printf("%s: clean\n", pkg)
-		script.Clean()
-	}
-	if *doInstall {
-		if script.Stale() {
-			printf("%s: install\n", pkg)
-			if err := script.Run(); err != nil {
-				errorf("%s: install: %v\n", pkg, err)
-				return
+	if *useMake {
+		err := domake(dir, pkg, tree, dirInfo.IsCommand())
+		if err != nil {
+			errorf("%s: install: %v\n", pkg, err)
+			return
+		}
+	} else {
+		script, err := build.Build(tree, pkg, dirInfo)
+		if err != nil {
+			errorf("%s: install: %v\n", pkg, err)
+			return
+		}
+		if *nuke {
+			printf("%s: nuke\n", pkg)
+			script.Nuke()
+		} else if *clean {
+			printf("%s: clean\n", pkg)
+			script.Clean()
+		}
+		if *doInstall {
+			if script.Stale() {
+				printf("%s: install\n", pkg)
+				if err := script.Run(); err != nil {
+					errorf("%s: install: %v\n", pkg, err)
+					return
+				}
+			} else {
+				printf("%s: up-to-date\n", pkg)
 			}
-		} else {
-			printf("%s: up-to-date\n", pkg)
 		}
 	}
 	if remote {
