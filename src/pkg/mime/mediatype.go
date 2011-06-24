@@ -32,10 +32,12 @@ func validMediaTypeOrDisposition(s string) bool {
 
 // ParseMediaType parses a media type value and any optional
 // parameters, per RFC 1521.  Media types are the values in
-// Content-Type and Content-Disposition headers (RFC 2183).  On
-// success, ParseMediaType returns the media type converted to
-// lowercase and trimmed of white space and a non-nil params.  On
-// error, it returns an empty string and a nil params.
+// Content-Type and Content-Disposition headers (RFC 2183).
+// On success, ParseMediaType returns the media type converted
+// to lowercase and trimmed of white space. The returned params
+// is always a non-nil map. Params maps from the lowercase
+// attribute to the attribute value with its case preserved.
+// On error, it returns an empty string and a nil params.
 func ParseMediaType(v string) (mediatype string, params map[string]string) {
 	i := strings.Index(v, ";")
 	if i == -1 {
@@ -211,6 +213,7 @@ func consumeMediaParam(v string) (param, value, rest string) {
 	rest = rest[1:] // consume semicolon
 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
 	param, rest = consumeToken(rest)
+	param = strings.ToLower(param)
 	if param == "" {
 		return "", "", v
 	}
