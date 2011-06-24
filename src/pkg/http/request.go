@@ -511,13 +511,6 @@ func NewRequest(method, url string, body io.Reader) (*Request, os.Error) {
 			req.ContentLength = int64(v.Len())
 		case *bytes.Buffer:
 			req.ContentLength = int64(v.Len())
-		default:
-			req.ContentLength = -1 // chunked
-		}
-		if req.ContentLength == 0 {
-			// To prevent chunking and disambiguate this
-			// from the default ContentLength zero value.
-			req.TransferEncoding = []string{"identity"}
 		}
 	}
 

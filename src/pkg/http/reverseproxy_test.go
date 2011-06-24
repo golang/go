@@ -17,6 +17,9 @@ func TestReverseProxy(t *testing.T) {
 	const backendResponse = "I am the backend"
 	const backendStatus = 404
 	backend := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if len(r.TransferEncoding) > 0 {
+			t.Errorf("backend got unexpected TransferEncoding: %v", r.TransferEncoding)
+		}
 		if r.Header.Get("X-Forwarded-For") == "" {
 			t.Errorf("didn't get X-Forwarded-For header")
 		}

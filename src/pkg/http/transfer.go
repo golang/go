@@ -5,6 +5,7 @@
 package http
 
 import (
+	"bytes"
 	"bufio"
 	"io"
 	"io/ioutil"
@@ -17,7 +18,8 @@ import (
 // sanitizes them without changing the user object and provides methods for
 // writing the respective header, body and trailer in wire format.
 type transferWriter struct {
-	Body             io.ReadCloser
+	Body             io.Reader
+	BodyCloser       io.Closer
 	ResponseToHEAD   bool
 	ContentLength    int64
 	Close            bool
@@ -33,16 +35,37 @@ func newTransferWriter(r interface{}) (t *transferWriter, err os.Error) {
 	switch rr := r.(type) {
 	case *Request:
 		t.Body = rr.Body
+		t.BodyCloser = rr.Body
 		t.ContentLength = rr.ContentLength
 		t.Close = rr.Close
 		t.TransferEncoding = rr.TransferEncoding
 		t.Trailer = rr.Trailer
 		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
-		if t.Body != nil && t.ContentLength <= 0 && len(t.TransferEncoding) == 0 && atLeastHTTP11 {
-			t.TransferEncoding = []string{"chunked"}
+		if t.Body != nil && len(t.TransferEncoding) == 0 && atLeastHTTP11 {
+			if t.ContentLength == 0 {
+				// Test to see if it's actually zero or just unset.
+				var buf [1]byte
+				n, _ := io.ReadFull(t.Body, buf[:])
+				if n == 1 {
+					// Oh, guess there is data in this Body Reader after all.
+					// The ContentLength field just wasn't set.
+					// Stich the Body back together again, re-attaching our
+					// consumed byte.
+					t.ContentLength = -1
+					t.Body = io.MultiReader(bytes.NewBuffer(buf[:]), t.Body)
+				} else {
+					// Body is actually empty.
+					t.Body = nil
+					t.BodyCloser = nil
+				}
+			}
+			if t.ContentLength < 0 {
+				t.TransferEncoding = []string{"chunked"}
+			}
 		}
 	case *Response:
 		t.Body = rr.Body
+		t.BodyCloser = rr.Body
 		t.ContentLength = rr.ContentLength
 		t.Close = rr.Close
 		t.TransferEncoding = rr.TransferEncoding
@@ -147,7 +170,7 @@ func (t *transferWriter) WriteBody(w io.Writer) (err os.Error) {
 		if err != nil {
 			return err
 		}
-		if err = t.Body.Close(); err != nil {
+		if err = t.BodyCloser.Close(); err != nil {
 			return err
 		}
 	}

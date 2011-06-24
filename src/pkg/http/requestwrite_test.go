@@ -6,6 +6,7 @@ package http
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -15,7 +16,7 @@ import (
 
 type reqWriteTest struct {
 	Req      Request
-	Body     []byte
+	Body     interface{} // optional []byte or func() io.ReadCloser to populate Req.Body
 	Raw      string
 	RawProxy string
 }
@@ -98,13 +99,13 @@ var reqWriteTests = []reqWriteTest{
 			"Host: www.google.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
-			"6\r\nabcdef\r\n0\r\n\r\n",
+			chunk("abcdef") + chunk(""),
 
 		"GET http://www.google.com/search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
-			"6\r\nabcdef\r\n0\r\n\r\n",
+			chunk("abcdef") + chunk(""),
 	},
 	// HTTP/1.1 POST => chunked coding; body; empty trailer
 	{
@@ -129,14 +130,14 @@ var reqWriteTests = []reqWriteTest{
 			"User-Agent: Go http package\r\n" +
 			"Connection: close\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
-			"6\r\nabcdef\r\n0\r\n\r\n",
+			chunk("abcdef") + chunk(""),
 
 		"POST http://www.google.com/search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"Connection: close\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
-			"6\r\nabcdef\r\n0\r\n\r\n",
+			chunk("abcdef") + chunk(""),
 	},
 
 	// HTTP/1.1 POST with Content-Length, no chunking
@@ -224,13 +225,72 @@ var reqWriteTests = []reqWriteTest{
 			"User-Agent: Go http package\r\n" +
 			"\r\n",
 	},
+
+	// Request with a 0 ContentLength and a 0 byte body.
+	{
+		Request{
+			Method:        "POST",
+			RawURL:        "/",
+			Host:          "example.com",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 0, // as if unset by user
+		},
+
+		func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
+
+		"POST / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"\r\n",
+
+		"POST / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"\r\n",
+	},
+
+	// Request with a 0 ContentLength and a 1 byte body.
+	{
+		Request{
+			Method:        "POST",
+			RawURL:        "/",
+			Host:          "example.com",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 0, // as if unset by user
+		},
+
+		func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 1)) },
+
+		"POST / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"Transfer-Encoding: chunked\r\n\r\n" +
+			chunk("x") + chunk(""),
+
+		"POST / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"Transfer-Encoding: chunked\r\n\r\n" +
+			chunk("x") + chunk(""),
+	},
 }
 
 func TestRequestWrite(t *testing.T) {
 	for i := range reqWriteTests {
 		tt := &reqWriteTests[i]
+
+		setBody := func() {
+			switch b := tt.Body.(type) {
+			case []byte:
+				tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+			case func() io.ReadCloser:
+				tt.Req.Body = b()
+			}
+		}
 		if tt.Body != nil {
-			tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(tt.Body))
+			setBody()
 		}
 		if tt.Req.Header == nil {
 			tt.Req.Header = make(Header)
@@ -248,7 +308,7 @@ func TestRequestWrite(t *testing.T) {
 		}
 
 		if tt.Body != nil {
-			tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(tt.Body))
+			setBody()
 		}
 		var praw bytes.Buffer
 		err = tt.Req.WriteProxy(&praw)
@@ -280,41 +340,30 @@ func (rc *closeChecker) Close() os.Error {
 func TestRequestWriteClosesBody(t *testing.T) {
 	rc := &closeChecker{Reader: strings.NewReader("my body")}
 	req, _ := NewRequest("POST", "http://foo.com/", rc)
-	if g, e := req.ContentLength, int64(-1); g != e {
-		t.Errorf("got req.ContentLength %d, want %d", g, e)
+	if req.ContentLength != 0 {
+		t.Errorf("got req.ContentLength %d, want 0", req.ContentLength)
 	}
 	buf := new(bytes.Buffer)
 	req.Write(buf)
 	if !rc.closed {
 		t.Error("body not closed after write")
 	}
-	if g, e := buf.String(), "POST / HTTP/1.1\r\nHost: foo.com\r\nUser-Agent: Go http package\r\nTransfer-Encoding: chunked\r\n\r\n7\r\nmy body\r\n0\r\n\r\n"; g != e {
-		t.Errorf("write:\n got: %s\nwant: %s", g, e)
+	expected := "POST / HTTP/1.1\r\n" +
+		"Host: foo.com\r\n" +
+		"User-Agent: Go http package\r\n" +
+		"Transfer-Encoding: chunked\r\n\r\n" +
+		// TODO: currently we don't buffer before chunking, so we get a
+		// single "m" chunk before the other chunks, as this was the 1-byte
+		// read from our MultiReader where we stiched the Body back together
+		// after sniffing whether the Body was 0 bytes or not.
+		chunk("m") +
+		chunk("y body") +
+		chunk("")
+	if buf.String() != expected {
+		t.Errorf("write:\n got: %s\nwant: %s", buf.String(), expected)
 	}
 }
 
-func TestZeroLengthNewRequest(t *testing.T) {
-	var buf bytes.Buffer
-
-	// Writing with default identity encoding
-	req, _ := NewRequest("PUT", "http://foo.com/", strings.NewReader(""))
-	if len(req.TransferEncoding) == 0 || req.TransferEncoding[0] != "identity" {
-		t.Fatalf("got req.TransferEncoding of %v, want %v", req.TransferEncoding, []string{"identity"})
-	}
-	if g, e := req.ContentLength, int64(0); g != e {
-		t.Errorf("got req.ContentLength %d, want %d", g, e)
-	}
-	req.Write(&buf)
-	if g, e := buf.String(), "PUT / HTTP/1.1\r\nHost: foo.com\r\nUser-Agent: Go http package\r\nContent-Length: 0\r\n\r\n"; g != e {
-		t.Errorf("identity write:\n got: %s\nwant: %s", g, e)
-	}
-
-	// Overriding identity encoding and forcing chunked.
-	req, _ = NewRequest("PUT", "http://foo.com/", strings.NewReader(""))
-	req.TransferEncoding = nil
-	buf.Reset()
-	req.Write(&buf)
-	if g, e := buf.String(), "PUT / HTTP/1.1\r\nHost: foo.com\r\nUser-Agent: Go http package\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"; g != e {
-		t.Errorf("chunked write:\n got: %s\nwant: %s", g, e)
-	}
+func chunk(s string) string {
+	return fmt.Sprintf("%x\r\n%s\r\n", len(s), s)
 }
