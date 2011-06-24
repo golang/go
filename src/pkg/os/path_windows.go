@@ -6,7 +6,7 @@ package os
 
 const (
 	PathSeparator     = '\\' // OS-specific path separator
-	PathListSeparator = ':'  // OS-specific path list separator
+	PathListSeparator = ';'  // OS-specific path list separator
 )
 
 // IsPathSeparator returns true if c is a directory separator character.
