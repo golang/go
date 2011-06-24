@@ -195,6 +195,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 	t := &transferReader{}
 
 	// Unify input
+	isResponse := false
 	switch rr := msg.(type) {
 	case *Response:
 		t.Header = rr.Header
@@ -203,6 +204,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 		t.ProtoMajor = rr.ProtoMajor
 		t.ProtoMinor = rr.ProtoMinor
 		t.Close = shouldClose(t.ProtoMajor, t.ProtoMinor, t.Header)
+		isResponse = true
 	case *Request:
 		t.Header = rr.Header
 		t.ProtoMajor = rr.ProtoMajor
@@ -211,6 +213,8 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 		// Responses with status code 200, responding to a GET method
 		t.StatusCode = 200
 		t.RequestMethod = "GET"
+	default:
+		panic("unexpected type")
 	}
 
 	// Default to HTTP/1.1
@@ -224,7 +228,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 		return err
 	}
 
-	t.ContentLength, err = fixLength(t.StatusCode, t.RequestMethod, t.Header, t.TransferEncoding)
+	t.ContentLength, err = fixLength(isResponse, t.StatusCode, t.RequestMethod, t.Header, t.TransferEncoding)
 	if err != nil {
 		return err
 	}
@@ -265,9 +269,6 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 			// Persistent connection (i.e. HTTP/1.1)
 			t.Body = &body{Reader: io.LimitReader(r, 0), closing: t.Close}
 		}
-		// TODO(petar): It may be a good idea, for extra robustness, to
-		// assume ContentLength=0 for GET requests (and other special
-		// cases?). This logic should be in fixLength().
 	}
 
 	// Unify output
@@ -345,7 +346,7 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, os.Erro
 // Determine the expected body length, using RFC 2616 Section 4.4. This
 // function is not a method, because ultimately it should be shared by
 // ReadResponse and ReadRequest.
-func fixLength(status int, requestMethod string, header Header, te []string) (int64, os.Error) {
+func fixLength(isResponse bool, status int, requestMethod string, header Header, te []string) (int64, os.Error) {
 
 	// Logic based on response type or status
 	if noBodyExpected(requestMethod) {
@@ -374,6 +375,14 @@ func fixLength(status int, requestMethod string, header Header, te []string) (in
 		return n, nil
 	} else {
 		header.Del("Content-Length")
+	}
+
+	if !isResponse && requestMethod == "GET" {
+		// RFC 2616 doesn't explicitly permit nor forbid an
+		// entity-body on a GET request so we permit one if
+		// declared, but we default to 0 here (not -1 below)
+		// if there's no mention of a body.
+		return 0, nil
 	}
 
 	// Logic based on media type. The purpose of the following code is just
