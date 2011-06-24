@@ -8,5 +8,6 @@ TARG=goinstall
 GOFILES=\
 	download.go\
 	main.go\
+	make.go\
 
 include ../../Make.cmd
