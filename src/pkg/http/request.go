@@ -304,10 +304,11 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 		}
 	}
 
-	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)
+	bw := bufio.NewWriter(w)
+	fmt.Fprintf(bw, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)
 
 	// Header lines
-	fmt.Fprintf(w, "Host: %s\r\n", host)
+	fmt.Fprintf(bw, "Host: %s\r\n", host)
 
 	// Use the defaultUserAgent unless the Header contains one, which
 	// may be blank to not send the header.
@@ -318,7 +319,7 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 		}
 	}
 	if userAgent != "" {
-		fmt.Fprintf(w, "User-Agent: %s\r\n", userAgent)
+		fmt.Fprintf(bw, "User-Agent: %s\r\n", userAgent)
 	}
 
 	// Process Body,ContentLength,Close,Trailer
@@ -326,25 +327,25 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 	if err != nil {
 		return err
 	}
-	err = tw.WriteHeader(w)
+	err = tw.WriteHeader(bw)
 	if err != nil {
 		return err
 	}
 
 	// TODO: split long values?  (If so, should share code with Conn.Write)
-	err = req.Header.WriteSubset(w, reqWriteExcludeHeader)
+	err = req.Header.WriteSubset(bw, reqWriteExcludeHeader)
 	if err != nil {
 		return err
 	}
 
-	io.WriteString(w, "\r\n")
+	io.WriteString(bw, "\r\n")
 
 	// Write body and trailer
-	err = tw.WriteBody(w)
+	err = tw.WriteBody(bw)
 	if err != nil {
 		return err
 	}
-
+	bw.Flush()
 	return nil
 }
 
