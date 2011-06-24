@@ -69,6 +69,31 @@ var reqTests = []reqTest{
 		"abcdef\n",
 	},
 
+	// GET request with no body (the normal case)
+	{
+		"GET / HTTP/1.1\r\n" +
+			"Host: foo.com\r\n\r\n",
+
+		Request{
+			Method: "GET",
+			RawURL: "/",
+			URL: &URL{
+				Raw:     "/",
+				Path:    "/",
+				RawPath: "/",
+			},
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			Close:         false,
+			ContentLength: 0,
+			Host:          "foo.com",
+			Form:          Values{},
+		},
+
+		"",
+	},
+
 	// Tests that we don't parse a path that looks like a
 	// scheme-relative URI as a scheme-relative URI.
 	{
@@ -94,7 +119,7 @@ var reqTests = []reqTest{
 			ProtoMinor:    1,
 			Header:        Header{},
 			Close:         false,
-			ContentLength: -1,
+			ContentLength: 0,
 			Host:          "test",
 			Form:          Values{},
 		},
