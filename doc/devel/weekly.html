@@ -14,6 +14,67 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-06-23">2011-06-23</h2>
+
+<pre>
+This release includes a language change that restricts the use of goto.
+In essence, a "goto" statement outside a block cannot jump to a label inside
+that block. Your code may require changes if it uses goto.
+This changeset shows how the new rule affected the Go tree:
+	http://code.google.com/p/go/source/detail?r=dc6d3cf9279d
+
+The os.ErrorString type has been hidden. If your code uses os.ErrorString it
+must be changed. Most uses of os.ErrorString can be replaced with os.NewError.
+
+Other changes:
+* 5c: do not use R9 and R10.
+* 8l: more fixes for Plan 9 (thanks Lucio De Re).
+* build: Make.ccmd: link with mach lib (thanks Joe Poirier).
+* build: exclude packages that fail on Plan 9 (thanks Anthony Martin).
+* cc: nit: silence comment warnings (thanks Dave Cheney).
+* codereview.py: note that hg change -d abandons a change list (thanks Robert Hencke).
+* crypto/openpgp: add ElGamal support.
+* doc/faq: add question about converting from []T to []interface{}.
+* doc: Effective Go: fix variadic function example (thanks Ben Lynn).
+* exec: LookPath should not search %PATH% for files like c:cmd.exe (thanks Alex Brainman),
+        add support for Plan 9 (thanks Anthony Martin),
+        better error message for windows LookPath (thanks Alex Brainman).
+* fmt: catch panics from calls to String etc.
+* gc: descriptive panic for nil pointer -> value method call,
+        implement goto restriction,
+        unsafe.Alignof, unsafe.Offsetof, unsafe.Sizeof now return uintptr.
+* go/build: include Import objects in Script Inputs.
+* godefs: rudimentary tests (thanks Robert Hencke).
+* goinstall: refactor and generalize repo handling code (thanks Julian Phillips),
+        temporarily use Makefiles by default (override with -make=false).
+* gopprof: update list of memory allocators.
+* http: add Server.ListenAndServeTLS,
+        buffer request.Write,
+        fix req.Cookie(name) with cookies in one header,
+        permit handlers to explicitly remove the Date header,
+        write Header keys with empty values.
+* image: basic test for the 16-bits-per-color-channel types.
+* io: clarify Read, ReadAt, Copy, Copyn EOF behavior.
+* ld: don't attempt to build dynamic sections unnecessarily (thanks Gustavo Niemeyer).
+* libmach: fix disassembly of FCMOVcc and FCOMI (thanks Anthony Martin),
+        fix tracing on linux (for cov) (thanks Anthony Martin).
+* mime: fix RFC references (thanks Pascal S. de Kloe).
+* misc/gobuilder: run make single-threaded on windows (thanks Alex Brainman).
+* misc/godashboard: Accept sub-directories for goinstall's report (thanks Yasuhiro Matsumoto).
+* nacl, tiny: remove vestiges (thanks Robert Hencke).
+* net, syscall: interface for windows (thanks Yasuhiro Matsumoto).
+* os: change Waitmsg String method to use pointer receiver (thanks Graham Miller).
+* runtime: don't use twice the memory with grsec-like kernels (thanks Gustavo Niemeyer),
+* spec: disallow goto into blocks.
+* sync: restore GOMAXPROCS during benchmarks.
+* syscall: add LSF support for linux (thanks Mikio Hara),
+        add socket control message support for darwin, freebsd, linux (thanks Mikio Hara),
+        add tty support to StartProcess (thanks Ken Rockot),
+        fix build for Sizeof change.
+* test: test of goto restrictions.
+* time: add support for Plan 9 (thanks Anthony Martin).
+</pre>
+
 <h2 id="2011-06-16">2011-06-16</h2>
 
 <pre>
