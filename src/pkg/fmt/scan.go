@@ -35,6 +35,10 @@ type ScanState interface {
 	ReadRune() (rune int, size int, err os.Error)
 	// UnreadRune causes the next call to ReadRune to return the same rune.
 	UnreadRune() os.Error
+	// SkipSpace skips space in the input. Newlines are treated as space 
+	// unless the scan operation is Scanln, Fscanln or Sscanln, in which case 
+	// a newline is treated as EOF.
+	SkipSpace()
 	// Token skips space in the input if skipSpace is true, then returns the
 	// run of Unicode code points c satisfying f(c).  If f is nil,
 	// !unicode.IsSpace(c) is used; that is, the token will hold non-space
@@ -266,6 +270,14 @@ func (s *ss) Token(skipSpace bool, f func(int) bool) (tok []byte, err os.Error) 
 func notSpace(r int) bool {
 	return !unicode.IsSpace(r)
 }
+
+
+// skipSpace provides Scan() methods the ability to skip space and newline characters 
+// in keeping with the current scanning mode set by format strings and Scan()/Scanln().
+func (s *ss) SkipSpace() {
+	s.skipSpace(false)
+}
+
 
 // readRune is a structure to enable reading UTF-8 encoded code points
 // from an io.Reader.  It is used if the Reader given to the scanner does
