@@ -368,11 +368,60 @@ func (x *Int) Format(s fmt.State, ch int) {
 			format = "0X%s"
 		}
 	}
-	if x.neg {
-		format = "-" + format
+	t := fmt.Sprintf(format, x.abs.string(cs))
+
+	// insert spaces in hexadecimal formats if needed
+	if len(t) > 0 && s.Flag(' ') && (ch == 'x' || ch == 'X') {
+		spaces := (len(t)+1)/2 - 1
+		spaced := make([]byte, len(t)+spaces)
+		var i, j int
+		spaced[i] = t[j]
+		i++
+		j++
+		if len(t)&1 == 0 {
+			spaced[i] = t[j]
+			i++
+			j++
+		}
+		for j < len(t) {
+			spaced[i] = ' '
+			i++
+			spaced[i] = t[j]
+			i++
+			j++
+			spaced[i] = t[j]
+			i++
+			j++
+		}
+		t = string(spaced)
 	}
 
-	fmt.Fprintf(s, format, x.abs.string(cs))
+	// determine sign prefix
+	prefix := ""
+	switch {
+	case x.neg:
+		prefix = "-"
+	case s.Flag('+'):
+		prefix = "+"
+	case s.Flag(' ') && ch != 'x' && ch != 'X':
+		prefix = " "
+	}
+
+	// fill to minimum width and prepend sign prefix
+	if width, ok := s.Width(); ok && len(t)+len(prefix) < width {
+		if s.Flag('0') {
+			t = fmt.Sprintf("%s%0*d%s", prefix, width-len(t)-len(prefix), 0, t)
+		} else {
+			if s.Flag('-') {
+				width = -width
+			}
+			t = fmt.Sprintf("%*s", width, prefix+t)
+		}
+	} else if prefix != "" {
+		t = prefix + t
+	}
+
+	fmt.Fprint(s, t)
 }
 
 
@@ -417,6 +466,7 @@ func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, os.Error) {
 // the scanned number. It accepts the formats 'b' (binary), 'o' (octal),
 // 'd' (decimal), 'x' (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
 func (z *Int) Scan(s fmt.ScanState, ch int) os.Error {
+	s.SkipSpace() // skip leading space characters
 	base := 0
 	switch ch {
 	case 'b':
@@ -585,7 +635,7 @@ func ProbablyPrime(z *Int, n int) bool {
 }
 
 
-// Rand sets z to a pseudo-random number in [0, n) and returns z. 
+// Rand sets z to a pseudo-random number in [0, n) and returns z.
 func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 	z.neg = false
 	if n.neg == true || len(n.abs) == 0 {
