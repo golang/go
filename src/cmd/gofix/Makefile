@@ -7,15 +7,16 @@ include ../../Make.inc
 TARG=gofix
 GOFILES=\
 	fix.go\
-	netdial.go\
-	main.go\
-	oserrorstring.go\
-	osopen.go\
 	httpfinalurl.go\
 	httpheaders.go\
 	httpserver.go\
+	main.go\
+	netdial.go\
+	oserrorstring.go\
+	osopen.go\
 	procattr.go\
 	reflect.go\
+	sortslice.go\
 	typecheck.go\
 
 include ../../Make.cmd
