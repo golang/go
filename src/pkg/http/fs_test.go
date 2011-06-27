@@ -85,6 +85,72 @@ func TestServeFile(t *testing.T) {
 	}
 }
 
+type testFileSystem struct {
+	open func(name string) (File, os.Error)
+}
+
+func (fs *testFileSystem) Open(name string) (File, os.Error) {
+	return fs.open(name)
+}
+
+func TestFileServerCleans(t *testing.T) {
+	ch := make(chan string, 1)
+	fs := FileServer(&testFileSystem{func(name string) (File, os.Error) {
+		ch <- name
+		return nil, os.ENOENT
+	}})
+	tests := []struct {
+		reqPath, openArg string
+	}{
+		{"/foo.txt", "/foo.txt"},
+		{"//foo.txt", "/foo.txt"},
+		{"/../foo.txt", "/foo.txt"},
+	}
+	req, _ := NewRequest("GET", "http://example.com", nil)
+	for n, test := range tests {
+		rec := httptest.NewRecorder()
+		req.URL.Path = test.reqPath
+		fs.ServeHTTP(rec, req)
+		if got := <-ch; got != test.openArg {
+			t.Errorf("test %d: got %q, want %q", n, got, test.openArg)
+		}
+	}
+}
+
+func TestDirJoin(t *testing.T) {
+	wfi, err := os.Stat("/etc/hosts")
+	if err != nil {
+		t.Logf("skipping test; no /etc/hosts file")
+		return
+	}
+	test := func(d Dir, name string) {
+		f, err := d.Open(name)
+		if err != nil {
+			t.Fatalf("open of %s: %v", name, err)
+		}
+		defer f.Close()
+		gfi, err := f.Stat()
+		if err != nil {
+			t.Fatalf("stat of %s: %v", err)
+		}
+		if gfi.Ino != wfi.Ino {
+			t.Errorf("%s got different inode")
+		}
+	}
+	test(Dir("/etc/"), "/hosts")
+	test(Dir("/etc/"), "hosts")
+	test(Dir("/etc/"), "../../../../hosts")
+	test(Dir("/etc"), "/hosts")
+	test(Dir("/etc"), "hosts")
+	test(Dir("/etc"), "../../../../hosts")
+
+	// Not really directories, but since we use this trick in
+	// ServeFile, test it:
+	test(Dir("/etc/hosts"), "")
+	test(Dir("/etc/hosts"), "/")
+	test(Dir("/etc/hosts"), "../")
+}
+
 func TestServeFileContentType(t *testing.T) {
 	const ctype = "icecream/chocolate"
 	override := false
