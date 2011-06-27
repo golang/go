@@ -136,7 +136,7 @@ func SplitList(path string) []string {
 	if path == "" {
 		return []string{}
 	}
-	return strings.Split(path, string(ListSeparator), -1)
+	return strings.Split(path, string(ListSeparator))
 }
 
 // Split splits path immediately following the final Separator,

@@ -22,7 +22,7 @@ func initRewrite() {
 		rewrite = nil // disable any previous rewrite
 		return
 	}
-	f := strings.Split(*rewriteRule, "->", -1)
+	f := strings.Split(*rewriteRule, "->")
 	if len(f) != 2 {
 		fmt.Fprintf(os.Stderr, "rewrite rule must be of the form 'pattern -> replacement'\n")
 		os.Exit(2)

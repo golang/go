@@ -6,6 +6,7 @@ package bytes_test
 
 import (
 	. "bytes"
+	"reflect"
 	"testing"
 	"unicode"
 	"utf8"
@@ -315,7 +316,7 @@ var explodetests = []ExplodeTest{
 
 func TestExplode(t *testing.T) {
 	for _, tt := range explodetests {
-		a := Split([]byte(tt.s), nil, tt.n)
+		a := SplitN([]byte(tt.s), nil, tt.n)
 		result := arrayOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Explode("%s", %d) = %v; want %v`, tt.s, tt.n, result, tt.a)
@@ -354,7 +355,7 @@ var splittests = []SplitTest{
 
 func TestSplit(t *testing.T) {
 	for _, tt := range splittests {
-		a := Split([]byte(tt.s), []byte(tt.sep), tt.n)
+		a := SplitN([]byte(tt.s), []byte(tt.sep), tt.n)
 		result := arrayOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
@@ -366,6 +367,12 @@ func TestSplit(t *testing.T) {
 		s := Join(a, []byte(tt.sep))
 		if string(s) != tt.s {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+		}
+		if tt.n < 0 {
+			b := Split([]byte(tt.s), []byte(tt.sep))
+			if !reflect.DeepEqual(a, b) {
+				t.Errorf("Split disagrees withSplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+			}
 		}
 	}
 }
@@ -388,7 +395,7 @@ var splitaftertests = []SplitTest{
 
 func TestSplitAfter(t *testing.T) {
 	for _, tt := range splitaftertests {
-		a := SplitAfter([]byte(tt.s), []byte(tt.sep), tt.n)
+		a := SplitAfterN([]byte(tt.s), []byte(tt.sep), tt.n)
 		result := arrayOfString(a)
 		if !eq(result, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
@@ -397,6 +404,12 @@ func TestSplitAfter(t *testing.T) {
 		s := Join(a, nil)
 		if string(s) != tt.s {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+		}
+		if tt.n < 0 {
+			b := SplitAfter([]byte(tt.s), []byte(tt.sep))
+			if !reflect.DeepEqual(a, b) {
+				t.Errorf("SplitAfter disagrees withSplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+			}
 		}
 	}
 }

@@ -161,7 +161,7 @@ func NewBuilder(builder string) (*Builder, os.Error) {
 	b := &Builder{name: builder}
 
 	// get goos/goarch from builder string
-	s := strings.Split(builder, "-", 3)
+	s := strings.SplitN(builder, "-", 3)
 	if len(s) >= 2 {
 		b.goos, b.goarch = s[0], s[1]
 	} else {
@@ -177,7 +177,7 @@ func NewBuilder(builder string) (*Builder, os.Error) {
 	if err != nil {
 		return nil, fmt.Errorf("readKeys %s (%s): %s", b.name, fn, err)
 	}
-	v := strings.Split(string(c), "\n", -1)
+	v := strings.Split(string(c), "\n")
 	b.key = v[0]
 	if len(v) >= 3 {
 		b.codeUsername, b.codePassword = v[1], v[2]
@@ -392,7 +392,7 @@ func (b *Builder) envvWindows() []string {
 		skip[name] = true
 	}
 	for _, kv := range os.Environ() {
-		s := strings.Split(kv, "=", 2)
+		s := strings.SplitN(kv, "=", 2)
 		name := strings.ToUpper(s[0])
 		switch {
 		case name == "":
@@ -602,7 +602,7 @@ var revisionRe = regexp.MustCompile(`^([^ ]+) +[0-9]+:([0-9a-f]+)$`)
 // firstTag returns the hash and tag of the most recent tag matching re.
 func firstTag(re *regexp.Regexp) (hash string, tag string, err os.Error) {
 	o, _, err := runLog(nil, "", goroot, "hg", "tags")
-	for _, l := range strings.Split(o, "\n", -1) {
+	for _, l := range strings.Split(o, "\n") {
 		if l == "" {
 			continue
 		}

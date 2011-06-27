@@ -444,7 +444,7 @@ func (t *Template) newVariable(words []string) *variableElement {
 	bar := strings.IndexRune(lastWord, '|')
 	if bar >= 0 {
 		words[len(words)-1] = lastWord[0:bar]
-		formatters = strings.Split(lastWord[bar+1:], "|", -1)
+		formatters = strings.Split(lastWord[bar+1:], "|")
 	}
 
 	// We could remember the function address here and avoid the lookup later,
@@ -705,7 +705,7 @@ func (t *Template) findVar(st *state, s string) reflect.Value {
 	if s == "@" {
 		return indirectPtr(data, numStars)
 	}
-	for _, elem := range strings.Split(s, ".", -1) {
+	for _, elem := range strings.Split(s, ".") {
 		// Look up field; data must be a struct or map.
 		data = t.lookup(st, data, elem)
 		if !data.IsValid() {

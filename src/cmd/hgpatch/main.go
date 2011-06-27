@@ -282,7 +282,7 @@ func hgModified() ([]string, os.Error) {
 	if err != nil {
 		return nil, err
 	}
-	return strings.Split(strings.TrimSpace(out), "\n", -1), nil
+	return strings.Split(strings.TrimSpace(out), "\n"), nil
 }
 
 // hgAdd adds name to the repository.

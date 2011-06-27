@@ -287,7 +287,7 @@ func parseCpuList() {
 	if len(*cpuListStr) == 0 {
 		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
 	} else {
-		for _, val := range strings.Split(*cpuListStr, ",", -1) {
+		for _, val := range strings.Split(*cpuListStr, ",") {
 			cpu, err := strconv.Atoi(val)
 			if err != nil || cpu <= 0 {
 				println("invalid value for -test.cpu")

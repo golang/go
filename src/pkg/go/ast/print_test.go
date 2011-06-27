@@ -53,7 +53,7 @@ var tests = []struct {
 // Split s into lines, trim whitespace from all lines, and return
 // the concatenated non-empty lines.
 func trim(s string) string {
-	lines := strings.Split(s, "\n", -1)
+	lines := strings.Split(s, "\n")
 	i := 0
 	for _, line := range lines {
 		line = strings.TrimSpace(line)

@@ -47,7 +47,7 @@ func LookPath(file string) (f string, err os.Error) {
 		x = `.COM;.EXE;.BAT;.CMD`
 	}
 	exts := []string{}
-	for _, e := range strings.Split(strings.ToLower(x), `;`, -1) {
+	for _, e := range strings.Split(strings.ToLower(x), `;`) {
 		if e == "" {
 			continue
 		}
@@ -67,7 +67,7 @@ func LookPath(file string) (f string, err os.Error) {
 			return
 		}
 	} else {
-		for _, dir := range strings.Split(pathenv, `;`, -1) {
+		for _, dir := range strings.Split(pathenv, `;`) {
 			if f, err = findExecutable(dir+`\`+file, exts); err == nil {
 				return
 			}

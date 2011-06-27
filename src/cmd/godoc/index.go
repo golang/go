@@ -901,7 +901,7 @@ func isIdentifier(s string) bool {
 // identifier, Lookup returns a LookupResult, and a list of alternative
 // spellings, if any. If the query syntax is wrong, an error is reported.
 func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, err os.Error) {
-	ss := strings.Split(query, ".", -1)
+	ss := strings.Split(query, ".")
 
 	// check query syntax
 	for _, s := range ss {

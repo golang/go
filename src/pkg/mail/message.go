@@ -425,7 +425,7 @@ func (p *addrParser) len() int {
 }
 
 func decodeRFC2047Word(s string) (string, os.Error) {
-	fields := strings.Split(s, "?", -1)
+	fields := strings.Split(s, "?")
 	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" {
 		return "", os.NewError("mail: address not RFC 2047 encoded")
 	}

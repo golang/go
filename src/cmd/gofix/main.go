@@ -53,7 +53,7 @@ func main() {
 
 	if *allowedRewrites != "" {
 		allowed = make(map[string]bool)
-		for _, f := range strings.Split(*allowedRewrites, ",", -1) {
+		for _, f := range strings.Split(*allowedRewrites, ",") {
 			allowed[f] = true
 		}
 	}

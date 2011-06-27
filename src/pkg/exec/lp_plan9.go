@@ -42,7 +42,7 @@ func LookPath(file string) (string, os.Error) {
 	}
 
 	path := os.Getenv("path")
-	for _, dir := range strings.Split(path, "\000", -1) {
+	for _, dir := range strings.Split(path, "\000") {
 		if err := findExecutable(dir + "/" + file); err == nil {
 			return dir + "/" + file, nil
 		}

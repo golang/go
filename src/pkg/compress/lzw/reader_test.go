@@ -84,7 +84,7 @@ var lzwTests = []lzwTest{
 func TestReader(t *testing.T) {
 	b := bytes.NewBuffer(nil)
 	for _, tt := range lzwTests {
-		d := strings.Split(tt.desc, ";", -1)
+		d := strings.Split(tt.desc, ";")
 		var order Order
 		switch d[1] {
 		case "LSB":

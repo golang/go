@@ -28,7 +28,7 @@ func pow2(i int) float64 {
 // Wrapper around strconv.Atof64.  Handles dddddp+ddd (binary exponent)
 // itself, passes the rest on to strconv.Atof64.
 func myatof64(s string) (f float64, ok bool) {
-	a := strings.Split(s, "p", 2)
+	a := strings.SplitN(s, "p", 2)
 	if len(a) == 2 {
 		n, err := strconv.Atoi64(a[0])
 		if err != nil {
@@ -72,7 +72,7 @@ func myatof64(s string) (f float64, ok bool) {
 // Wrapper around strconv.Atof32.  Handles dddddp+ddd (binary exponent)
 // itself, passes the rest on to strconv.Atof32.
 func myatof32(s string) (f float32, ok bool) {
-	a := strings.Split(s, "p", 2)
+	a := strings.SplitN(s, "p", 2)
 	if len(a) == 2 {
 		n, err := strconv.Atoi(a[0])
 		if err != nil {
@@ -116,7 +116,7 @@ func TestFp(t *testing.T) {
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
-		a := strings.Split(line, " ", -1)
+		a := strings.Split(line, " ")
 		if len(a) != 4 {
 			t.Error("testfp.txt:", lineno, ": wrong field count")
 			continue
