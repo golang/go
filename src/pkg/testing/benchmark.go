@@ -174,7 +174,18 @@ func (r BenchmarkResult) String() string {
 	if mbs != 0 {
 		mb = fmt.Sprintf("\t%7.2f MB/s", mbs)
 	}
-	return fmt.Sprintf("%8d\t%10d ns/op%s", r.N, r.NsPerOp(), mb)
+	nsop := r.NsPerOp()
+	ns := fmt.Sprintf("%10d ns/op", nsop)
+	if r.N > 0 && nsop < 100 {
+		// The format specifiers here make sure that
+		// the ones digits line up for all three possible formats.
+		if nsop < 10 {
+			ns = fmt.Sprintf("%13.2f ns/op", float64(r.Ns)/float64(r.N))
+		} else {
+			ns = fmt.Sprintf("%12.1f ns/op", float64(r.Ns)/float64(r.N))
+		}
+	}
+	return fmt.Sprintf("%8d\t%s%s", r.N, ns, mb)
 }
 
 // An internal function but exported because it is cross-package; part of the implementation
