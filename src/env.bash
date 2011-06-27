@@ -55,7 +55,6 @@ PROGS="
 	cp
 	cut
 	echo
-	ed
 	egrep
 	gcc
 	grep
