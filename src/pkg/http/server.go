@@ -152,6 +152,7 @@ func newConn(rwc net.Conn, handler Handler) (c *conn, err os.Error) {
 	c.buf = bufio.NewReadWriter(br, bw)
 
 	if tlsConn, ok := rwc.(*tls.Conn); ok {
+		tlsConn.Handshake()
 		c.tlsState = new(tls.ConnectionState)
 		*c.tlsState = tlsConn.ConnectionState()
 	}
