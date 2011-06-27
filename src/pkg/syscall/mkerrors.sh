@@ -78,6 +78,7 @@ includes_FreeBSD='
 #include <net/if_types.h>
 #include <net/route.h>
 #include <netinet/in.h>
+#include <termios.h>
 #include <netinet/ip.h>
 #include <netinet/ip_mroute.h>
 '
