@@ -45,14 +45,14 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
 
 // BlockSize returns the AES block size, 16 bytes.
 // It is necessary to satisfy the Cipher interface in the
-// package "crypto/block".
+// package "crypto/cipher".
 func (c *Cipher) BlockSize() int { return BlockSize }
 
 // Encrypt encrypts the 16-byte buffer src using the key k
 // and stores the result in dst.
 // Note that for amounts of data larger than a block,
 // it is not safe to just call Encrypt on successive blocks;
-// instead, use an encryption mode like CBC (see crypto/block/cbc.go).
+// instead, use an encryption mode like CBC (see crypto/cipher/cbc.go).
 func (c *Cipher) Encrypt(dst, src []byte) { encryptBlock(c.enc, dst, src) }
 
 // Decrypt decrypts the 16-byte buffer src using the key k
