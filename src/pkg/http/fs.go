@@ -192,23 +192,19 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
 }
 
 type fileHandler struct {
-	root   string
-	prefix string
+	root string
 }
 
 // FileServer returns a handler that serves HTTP requests
 // with the contents of the file system rooted at root.
 // It strips prefix from the incoming requests before
 // looking up the file name in the file system.
-func FileServer(root, prefix string) Handler { return &fileHandler{root, prefix} }
+func FileServer(root, prefix string) Handler {
+	return StripPrefix(prefix, &fileHandler{root})
+}
 
 func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
 	path := r.URL.Path
-	if !strings.HasPrefix(path, f.prefix) {
-		NotFound(w, r)
-		return
-	}
-	path = path[len(f.prefix):]
 	serveFile(w, r, filepath.Join(f.root, filepath.FromSlash(path)), true)
 }
 
