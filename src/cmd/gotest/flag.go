@@ -23,6 +23,8 @@ var usageMessage = `Usage of %s:
 
   // These flags can be passed with or without a "test." prefix: -v or -test.v.
   -bench="": passes -test.bench to test
+  -benchtime=1: passes -test.benchtime to test
+  -cpu="": passes -test.cpu to test
   -cpuprofile="": passes -test.cpuprofile to test
   -memprofile="": passes -test.memprofile to test
   -memprofilerate=0: passes -test.memprofilerate to test
@@ -56,6 +58,8 @@ var flagDefn = []*flagSpec{
 
 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
 	&flagSpec{name: "bench", passToTest: true},
+	&flagSpec{name: "benchtime", passToTest: true},
+	&flagSpec{name: "cpu", passToTest: true},
 	&flagSpec{name: "cpuprofile", passToTest: true},
 	&flagSpec{name: "memprofile", passToTest: true},
 	&flagSpec{name: "memprofilerate", passToTest: true},

@@ -53,7 +53,9 @@ The resulting test binary, called (for amd64) 6.out, has several flags.
 Usage:
 	6.out [-test.v] [-test.run pattern] [-test.bench pattern] \
 		[-test.cpuprofile=cpu.out] \
-		[-test.memprofile=mem.out] [-test.memprofilerate=1]
+		[-test.memprofile=mem.out] [-test.memprofilerate=1] \
+		[-test.timeout=10] [-test.short] \
+		[-test.benchtime=3] [-test.cpu=1,2,3,4]
 
 The -test.v flag causes the tests to be logged as they run.  The
 -test.run flag causes only those tests whose names match the regular
@@ -92,6 +94,13 @@ exhaustive tests.
 The -test.timeout flag sets a timeout for the test in seconds.  If the
 test runs for longer than that, it will panic, dumping a stack trace
 of all existing goroutines.
+
+The -test.benchtime flag specifies the number of seconds to run each benchmark.
+The default is one second.
+
+The -test.cpu flag specifies a list of GOMAXPROCS values for which
+the tests or benchmarks are executed.  The default is the current
+value of GOMAXPROCS.
 
 For convenience, each of these -test.X flags of the test binary is
 also available as the flag -X in gotest itself.  Flags not listed here

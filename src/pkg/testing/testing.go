@@ -44,6 +44,8 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"strings"
+	"strconv"
 	"time"
 )
 
@@ -62,6 +64,9 @@ var (
 	memProfileRate = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
 	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
 	timeout        = flag.Int64("test.timeout", 0, "if > 0, sets time limit for tests in seconds")
+	cpuListStr     = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
+
+	cpuList []int
 )
 
 // Short reports whether the -test.short flag is set.
@@ -157,6 +162,7 @@ func tRunner(t *T, test *InternalTest) {
 // of gotest.
 func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTest, benchmarks []InternalBenchmark) {
 	flag.Parse()
+	parseCpuList()
 
 	before()
 	startAlarm()
@@ -171,7 +177,6 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
 	if len(tests) == 0 {
 		println("testing: warning: no tests to run")
 	}
-	procs := runtime.GOMAXPROCS(-1)
 	for i := 0; i < len(tests); i++ {
 		matched, err := matchString(*match, tests[i].Name)
 		if err != nil {
@@ -181,28 +186,34 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
 		if !matched {
 			continue
 		}
-		if *chatty {
-			println("=== RUN ", tests[i].Name)
-		}
-		ns := -time.Nanoseconds()
-		t := new(T)
-		t.ch = make(chan *T)
-		go tRunner(t, &tests[i])
-		<-t.ch
-		ns += time.Nanoseconds()
-		tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
-		if p := runtime.GOMAXPROCS(-1); t.failed == false && p != procs {
-			t.failed = true
-			t.errors = fmt.Sprintf("%s left GOMAXPROCS set to %d\n", tests[i].Name, p)
-			procs = p
-		}
-		if t.failed {
-			println("--- FAIL:", tests[i].Name, tstr)
-			print(t.errors)
-			ok = false
-		} else if *chatty {
-			println("--- PASS:", tests[i].Name, tstr)
-			print(t.errors)
+		for _, procs := range cpuList {
+			runtime.GOMAXPROCS(procs)
+			testName := tests[i].Name
+			if procs != 1 {
+				testName = fmt.Sprintf("%s-%d", tests[i].Name, procs)
+			}
+			if *chatty {
+				println("=== RUN ", testName)
+			}
+			ns := -time.Nanoseconds()
+			t := new(T)
+			t.ch = make(chan *T)
+			go tRunner(t, &tests[i])
+			<-t.ch
+			ns += time.Nanoseconds()
+			tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
+			if p := runtime.GOMAXPROCS(-1); t.failed == false && p != procs {
+				t.failed = true
+				t.errors = fmt.Sprintf("%s left GOMAXPROCS set to %d\n", testName, p)
+			}
+			if t.failed {
+				println("--- FAIL:", testName, tstr)
+				print(t.errors)
+				ok = false
+			} else if *chatty {
+				println("--- PASS:", testName, tstr)
+				print(t.errors)
+			}
 		}
 	}
 	if !ok {
@@ -270,4 +281,19 @@ func stopAlarm() {
 // alarm is called if the timeout expires.
 func alarm() {
 	panic("test timed out")
+}
+
+func parseCpuList() {
+	if len(*cpuListStr) == 0 {
+		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
+	} else {
+		for _, val := range strings.Split(*cpuListStr, ",", -1) {
+			cpu, err := strconv.Atoi(val)
+			if err != nil || cpu <= 0 {
+				println("invalid value for -test.cpu")
+				os.Exit(1)
+			}
+			cpuList = append(cpuList, cpu)
+		}
+	}
 }

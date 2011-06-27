@@ -13,6 +13,7 @@ import (
 )
 
 var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
+var benchTime = flag.Float64("test.benchtime", 1, "approximate run time for each benchmark, in seconds")
 
 // An internal type but exported because it is cross-package; part of the implementation
 // of gotest.
@@ -125,14 +126,15 @@ func (b *B) run() BenchmarkResult {
 	// Run the benchmark for a single iteration in case it's expensive.
 	n := 1
 	b.runN(n)
-	// Run the benchmark for at least a second.
-	for b.ns < 1e9 && n < 1e9 {
+	// Run the benchmark for at least the specified amount of time.
+	time := int64(*benchTime * 1e9)
+	for b.ns < time && n < 1e9 {
 		last := n
 		// Predict iterations/sec.
 		if b.nsPerOp() == 0 {
 			n = 1e9
 		} else {
-			n = 1e9 / int(b.nsPerOp())
+			n = int(time / b.nsPerOp())
 		}
 		// Run more iterations than we think we'll need for a second (1.5x).
 		// Don't grow too fast in case we had timing errors previously.
@@ -182,7 +184,6 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
 	if len(*matchBenchmarks) == 0 {
 		return
 	}
-	procs := runtime.GOMAXPROCS(-1)
 	for _, Benchmark := range benchmarks {
 		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
 		if err != nil {
@@ -192,14 +193,19 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
 		if !matched {
 			continue
 		}
-		b := &B{benchmark: Benchmark}
-		r := b.run()
-		print(fmt.Sprintf("%s\t%v\n", Benchmark.Name, r))
-		if p := runtime.GOMAXPROCS(-1); p != procs {
-			print(fmt.Sprintf("%s left GOMAXPROCS set to %d\n", Benchmark.Name, p))
-			procs = p
+		for _, procs := range cpuList {
+			runtime.GOMAXPROCS(procs)
+			b := &B{benchmark: Benchmark}
+			r := b.run()
+			benchName := Benchmark.Name
+			if procs != 1 {
+				benchName = fmt.Sprintf("%s-%d", Benchmark.Name, procs)
+			}
+			print(fmt.Sprintf("%s\t%v\n", benchName, r))
+			if p := runtime.GOMAXPROCS(-1); p != procs {
+				print(fmt.Sprintf("%s left GOMAXPROCS set to %d\n", benchName, p))
+			}
 		}
-
 	}
 }
 
