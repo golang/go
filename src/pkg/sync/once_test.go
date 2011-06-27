@@ -6,6 +6,8 @@ package sync_test
 
 import (
 	. "sync"
+	"sync/atomic"
+	"runtime"
 	"testing"
 )
 
@@ -33,5 +35,28 @@ func TestOnce(t *testing.T) {
 	}
 	if *o != 1 {
 		t.Errorf("once failed: %d is not 1", *o)
+	}
+}
+
+func BenchmarkOnce(b *testing.B) {
+	const CallsPerSched = 1000
+	procs := runtime.GOMAXPROCS(-1)
+	N := int32(b.N / CallsPerSched)
+	var once Once
+	f := func() {}
+	c := make(chan bool, procs)
+	for p := 0; p < procs; p++ {
+		go func() {
+			for atomic.AddInt32(&N, -1) >= 0 {
+				runtime.Gosched()
+				for g := 0; g < CallsPerSched; g++ {
+					once.Do(f)
+				}
+			}
+			c <- true
+		}()
+	}
+	for p := 0; p < procs; p++ {
+		<-c
 	}
 }
