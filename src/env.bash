@@ -73,7 +73,7 @@ PROGS="
 	uniq
 "
 
-for i in bison ed awk gcc $MAKE; do
+for i in $PROGS; do
 	if ! which $i >/dev/null 2>&1; then
 		echo "Cannot find '$i' on search path." 1>&2
 		echo "See http://golang.org/doc/install.html#ctools" 1>&2
