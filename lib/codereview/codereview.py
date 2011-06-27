@@ -1352,10 +1352,12 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 			repo[vers].description()
 		except:
 			return "local repository is out of date; sync to get %s" % (vers)
-		patch, err = portPatch(repo, patch, vers, id)
+		patch1, err = portPatch(repo, patch, vers, id)
 		if err != "":
-			return "codereview issue %s is out of date: %s (%s->%s)" % (clname, err, vers, id)
-
+			if not opts["ignore_hgpatch_failure"]:
+				return "codereview issue %s is out of date: %s (%s->%s)" % (clname, err, vers, id)
+		else:
+			patch = patch1
 	argv = ["hgpatch"]
 	if opts["no_incoming"] or mode == "backport":
 		argv += ["--checksync=false"]
@@ -1369,7 +1371,7 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 		return "hgpatch failed"
 	cl.local = True
 	cl.files = out.strip().split()
-	if not cl.files:
+	if not cl.files and not opts["ignore_hgpatch_failure"]:
 		return "codereview issue %s has no changed files" % clname
 	files = ChangedFiles(ui, repo, [], opts)
 	extra = Sub(cl.files, files)
