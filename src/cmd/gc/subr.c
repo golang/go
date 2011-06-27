@@ -45,10 +45,12 @@ adderr(int line, char *fmt, va_list arg)
 	Fmt f;
 	Error *p;
 
+	erroring++;
 	fmtstrinit(&f);
 	fmtprint(&f, "%L: ", line);
 	fmtvprint(&f, fmt, arg);
 	fmtprint(&f, "\n");
+	erroring--;
 
 	if(nerr >= merr) {
 		if(merr == 0)
@@ -1123,6 +1125,13 @@ Sconv(Fmt *fp)
 	}
 
 	if(s->pkg != localpkg || longsymnames || (fp->flags & FmtLong)) {
+		// This one is for the user.  If the package name
+		// was used by multiple packages, give the full
+		// import path to disambiguate.
+		if(erroring && pkglookup(s->pkg->name, nil)->npkg > 1) {
+			fmtprint(fp, "\"%Z\".%s", s->pkg->path, s->name);
+			return 0;
+		}
 		fmtprint(fp, "%s.%s", s->pkg->name, s->name);
 		return 0;
 	}
