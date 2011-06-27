@@ -302,6 +302,7 @@ struct	Sym
 	uchar	flags;
 	uchar	sym;		// huffman encoding in object file
 	Sym*	link;
+	int32	npkg;	// number of imported packages with this name
 
 	// saved and restored by dcopy
 	Pkg*	pkg;
@@ -777,6 +778,7 @@ EXTERN	int32	nhunk;
 EXTERN	int32	thunk;
 
 EXTERN	int	exporting;
+EXTERN	int	erroring;
 EXTERN	int	noargnames;
 
 EXTERN	int	funcdepth;

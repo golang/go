@@ -238,6 +238,7 @@ import_package:
 	LPACKAGE sym import_safety ';'
 	{
 		importpkg->name = $2->name;
+		pkglookup($2->name, nil)->npkg++;
 		importpkg->direct = 1;
 		
 		if(safemode && !curio.importsafe)
@@ -1658,6 +1659,7 @@ hidden_import:
 
 		p = mkpkg($3.u.sval);
 		p->name = $2->name;
+		pkglookup($2->name, nil)->npkg++;
 	}
 |	LVAR hidden_pkg_importsym hidden_type ';'
 	{
