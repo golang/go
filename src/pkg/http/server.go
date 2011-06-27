@@ -592,6 +592,22 @@ func NotFound(w ResponseWriter, r *Request) { Error(w, "404 page not found", Sta
 // that replies to each request with a ``404 page not found'' reply.
 func NotFoundHandler() Handler { return HandlerFunc(NotFound) }
 
+// StripPrefix returns a handler that serves HTTP requests
+// by removing the given prefix from the request URL's Path
+// and invoking the handler h. StripPrefix handles a
+// request for a path that doesn't begin with prefix by
+// replying with an HTTP 404 not found error.
+func StripPrefix(prefix string, h Handler) Handler {
+	return HandlerFunc(func(w ResponseWriter, r *Request) {
+		if !strings.HasPrefix(r.URL.Path, prefix) {
+			NotFound(w, r)
+			return
+		}
+		r.URL.Path = r.URL.Path[len(prefix):]
+		h.ServeHTTP(w, r)
+	})
+}
+
 // Redirect replies to the request with a redirect to url,
 // which may be a path relative to the request path.
 func Redirect(w ResponseWriter, r *Request, url string, code int) {

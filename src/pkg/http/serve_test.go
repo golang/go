@@ -798,6 +798,30 @@ func TestNoDate(t *testing.T) {
 	}
 }
 
+func TestStripPrefix(t *testing.T) {
+	h := HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("X-Path", r.URL.Path)
+	})
+	ts := httptest.NewServer(StripPrefix("/foo", h))
+	defer ts.Close()
+
+	res, err := Get(ts.URL + "/foo/bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, e := res.Header.Get("X-Path"), "/bar"; g != e {
+		t.Errorf("test 1: got %s, want %s", g, e)
+	}
+
+	res, err = Get(ts.URL + "/bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, e := res.StatusCode, 404; g != e {
+		t.Errorf("test 2: got status %v, want %v", g, e)
+	}
+}
+
 type errorListener struct {
 	errs []os.Error
 }
