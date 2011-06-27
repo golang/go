@@ -11,12 +11,45 @@ import (
 	"io"
 	"mime"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 	"utf8"
 )
+
+// A Dir implements http.FileSystem using the native file
+// system restricted to a specific directory tree.
+type Dir string
+
+func (d Dir) Open(name string) (File, os.Error) {
+	if filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0 {
+		return nil, os.NewError("http: invalid character in file path")
+	}
+	f, err := os.Open(filepath.Join(string(d), filepath.FromSlash(path.Clean("/"+name))))
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
+// A FileSystem implements access to a collection of named files.
+// The elements in a file path are separated by slash ('/', U+002F)
+// characters, regardless of host operating system convention.
+type FileSystem interface {
+	Open(name string) (File, os.Error)
+}
+
+// A File is returned by a FileSystem's Open method and can be
+// served by the FileServer implementation.
+type File interface {
+	Close() os.Error
+	Stat() (*os.FileInfo, os.Error)
+	Readdir(count int) ([]os.FileInfo, os.Error)
+	Read([]byte) (int, os.Error)
+	Seek(offset int64, whence int) (int64, os.Error)
+}
 
 // Heuristic: b is text if it is valid UTF-8 and doesn't
 // contain any unprintable ASCII or Unicode characters.
@@ -44,7 +77,7 @@ func isText(b []byte) bool {
 	return true
 }
 
-func dirList(w ResponseWriter, f *os.File) {
+func dirList(w ResponseWriter, f File) {
 	fmt.Fprintf(w, "<pre>\n")
 	for {
 		dirs, err := f.Readdir(100)
@@ -63,7 +96,8 @@ func dirList(w ResponseWriter, f *os.File) {
 	fmt.Fprintf(w, "</pre>\n")
 }
 
-func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+// name is '/'-separated, not filepath.Separator.
+func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirect bool) {
 	const indexPage = "/index.html"
 
 	// redirect .../index.html to .../
@@ -72,7 +106,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 		return
 	}
 
-	f, err := os.Open(name)
+	f, err := fs.Open(name)
 	if err != nil {
 		// TODO expose actual error?
 		NotFound(w, r)
@@ -113,7 +147,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 	// use contents of index.html for directory, if present
 	if d.IsDirectory() {
 		index := name + filepath.FromSlash(indexPage)
-		ff, err := os.Open(index)
+		ff, err := fs.Open(index)
 		if err == nil {
 			defer ff.Close()
 			dd, err := ff.Stat()
@@ -188,24 +222,26 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
 
 // ServeFile replies to the request with the contents of the named file or directory.
 func ServeFile(w ResponseWriter, r *Request, name string) {
-	serveFile(w, r, name, false)
+	serveFile(w, r, Dir(name), "", false)
 }
 
 type fileHandler struct {
-	root string
+	root FileSystem
 }
 
 // FileServer returns a handler that serves HTTP requests
 // with the contents of the file system rooted at root.
-// It strips prefix from the incoming requests before
-// looking up the file name in the file system.
-func FileServer(root, prefix string) Handler {
-	return StripPrefix(prefix, &fileHandler{root})
+//
+// To use the operating system's file system implementation,
+// use http.Dir:
+//
+//     http.Handle("/", http.FileServer(http.Dir("/tmp")))
+func FileServer(root FileSystem) Handler {
+	return &fileHandler{root}
 }
 
 func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
-	path := r.URL.Path
-	serveFile(w, r, filepath.Join(f.root, filepath.FromSlash(path)), true)
+	serveFile(w, r, f.root, path.Clean(r.URL.Path), true)
 }
 
 // httpRange specifies the byte range to be sent to the client.

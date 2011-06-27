@@ -84,7 +84,7 @@ var (
 
 func initHandlers() {
 	fsMap.Init(*pkgPath)
-	fileServer = http.FileServer(*goroot, "")
+	fileServer = http.FileServer(http.Dir(*goroot))
 	cmdHandler = httpHandler{"/cmd/", filepath.Join(*goroot, "src", "cmd"), false}
 	pkgHandler = httpHandler{"/pkg/", filepath.Join(*goroot, "src", "pkg"), true}
 }
