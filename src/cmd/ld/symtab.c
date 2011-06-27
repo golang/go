@@ -372,5 +372,7 @@ symtab(void)
 		}
 	}
 
+	if(debug['s'])
+		return;
 	genasmsym(putsymb);
 }
