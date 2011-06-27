@@ -269,7 +269,7 @@ func h(in, key []byte, offset int) uint32 {
 // Encrypt encrypts a 16-byte block from src to dst, which may overlap.
 // Note that for amounts of data larger than a block,
 // it is not safe to just call Encrypt on successive blocks;
-// instead, use an encryption mode like CBC (see crypto/block/cbc.go).
+// instead, use an encryption mode like CBC (see crypto/cipher/cbc.go).
 func (c *Cipher) Encrypt(dst, src []byte) {
 	S1 := c.s[0]
 	S2 := c.s[1]
