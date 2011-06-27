@@ -315,6 +315,10 @@ func (w *response) WriteHeader(code int) {
 		w.closeAfterReply = true
 	}
 
+	if w.header.Get("Connection") == "close" {
+		w.closeAfterReply = true
+	}
+
 	// Cannot use Content-Length with non-identity Transfer-Encoding.
 	if w.chunking {
 		w.header.Del("Content-Length")
