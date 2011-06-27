@@ -41,7 +41,7 @@ type Cookie struct {
 func readSetCookies(h Header) []*Cookie {
 	cookies := []*Cookie{}
 	for _, line := range h["Set-Cookie"] {
-		parts := strings.Split(strings.TrimSpace(line), ";", -1)
+		parts := strings.Split(strings.TrimSpace(line), ";")
 		if len(parts) == 1 && parts[0] == "" {
 			continue
 		}
@@ -175,7 +175,7 @@ func readCookies(h Header, filter string) []*Cookie {
 	}
 
 	for _, line := range lines {
-		parts := strings.Split(strings.TrimSpace(line), ";", -1)
+		parts := strings.Split(strings.TrimSpace(line), ";")
 		if len(parts) == 1 && parts[0] == "" {
 			continue
 		}

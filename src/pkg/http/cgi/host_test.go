@@ -46,7 +46,7 @@ readlines:
 		}
 		linesRead++
 		trimmedLine := strings.TrimRight(line, "\r\n")
-		split := strings.Split(trimmedLine, "=", 2)
+		split := strings.SplitN(trimmedLine, "=", 2)
 		if len(split) != 2 {
 			t.Fatalf("Unexpected %d parts from invalid line number %v: %q; existing map=%v",
 				len(split), linesRead, line, m)

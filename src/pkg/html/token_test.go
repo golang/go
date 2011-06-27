@@ -161,7 +161,7 @@ func TestTokenizer(t *testing.T) {
 loop:
 	for _, tt := range tokenTests {
 		z := NewTokenizer(bytes.NewBuffer([]byte(tt.html)))
-		for i, s := range strings.Split(tt.golden, "$", -1) {
+		for i, s := range strings.Split(tt.golden, "$") {
 			if z.Next() == ErrorToken {
 				t.Errorf("%s token %d: want %q got error %v", tt.desc, i, s, z.Error())
 				continue loop

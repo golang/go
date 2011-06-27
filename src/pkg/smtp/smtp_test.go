@@ -64,8 +64,8 @@ func (f faker) Close() os.Error {
 }
 
 func TestBasic(t *testing.T) {
-	basicServer = strings.Join(strings.Split(basicServer, "\n", -1), "\r\n")
-	basicClient = strings.Join(strings.Split(basicClient, "\n", -1), "\r\n")
+	basicServer = strings.Join(strings.Split(basicServer, "\n"), "\r\n")
+	basicClient = strings.Join(strings.Split(basicClient, "\n"), "\r\n")
 
 	var cmdbuf bytes.Buffer
 	bcmdbuf := bufio.NewWriter(&cmdbuf)

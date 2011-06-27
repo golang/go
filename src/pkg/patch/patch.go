@@ -319,4 +319,4 @@ func hasPrefix(s []byte, t string) bool {
 
 // splitLines returns the result of splitting s into lines.
 // The \n on each line is preserved.
-func splitLines(s []byte) [][]byte { return bytes.SplitAfter(s, newline, -1) }
+func splitLines(s []byte) [][]byte { return bytes.SplitAfter(s, newline) }

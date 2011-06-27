@@ -20,8 +20,8 @@ func runTest(t *testing.T, dirname, in, out, flags string) {
 	// process flags
 	*simplifyAST = false
 	*rewriteRule = ""
-	for _, flag := range strings.Split(flags, " ", -1) {
-		elts := strings.Split(flag, "=", 2)
+	for _, flag := range strings.Split(flags, " ") {
+		elts := strings.SplitN(flag, "=", 2)
 		name := elts[0]
 		value := ""
 		if len(elts) == 2 {

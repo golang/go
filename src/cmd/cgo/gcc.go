@@ -66,7 +66,7 @@ func cname(s string) string {
 // preamble. Multiple occurrences are concatenated with a separating space,
 // even across files.
 func (p *Package) ParseFlags(f *File, srcfile string) {
-	linesIn := strings.Split(f.Preamble, "\n", -1)
+	linesIn := strings.Split(f.Preamble, "\n")
 	linesOut := make([]string, 0, len(linesIn))
 
 NextLine:
@@ -78,7 +78,7 @@ NextLine:
 		}
 
 		l = strings.TrimSpace(l[4:])
-		fields := strings.Split(l, ":", 2)
+		fields := strings.SplitN(l, ":", 2)
 		if len(fields) != 2 {
 			fatalf("%s: bad #cgo line: %s", srcfile, line)
 		}
@@ -275,7 +275,7 @@ func (p *Package) loadDefines(f *File) {
 	b.WriteString(f.Preamble)
 	stdout := p.gccDefines(b.Bytes())
 
-	for _, line := range strings.Split(stdout, "\n", -1) {
+	for _, line := range strings.Split(stdout, "\n") {
 		if len(line) < 9 || line[0:7] != "#define" {
 			continue
 		}
@@ -397,7 +397,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		isConst[i] = true // until proven otherwise
 	}
 
-	for _, line := range strings.Split(stderr, "\n", -1) {
+	for _, line := range strings.Split(stderr, "\n") {
 		if len(line) < 9 || line[0:9] != "cgo-test:" {
 			// the user will see any compiler errors when the code is compiled later.
 			continue
@@ -1188,7 +1188,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 			if ss, ok := dwarfToName[s]; ok {
 				s = ss
 			}
-			s = strings.Join(strings.Split(s, " ", -1), "") // strip spaces
+			s = strings.Join(strings.Split(s, " "), "") // strip spaces
 			name := c.Ident("_Ctype_" + s)
 			typedef[name.Name] = t.Go
 			t.Go = name

@@ -197,7 +197,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		if len(line) == 0 {
 			break
 		}
-		parts := strings.Split(string(line), ":", 2)
+		parts := strings.SplitN(string(line), ":", 2)
 		if len(parts) < 2 {
 			h.printf("cgi: bogus header line: %s", string(line))
 			continue

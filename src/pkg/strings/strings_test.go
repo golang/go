@@ -186,7 +186,7 @@ var explodetests = []ExplodeTest{
 
 func TestExplode(t *testing.T) {
 	for _, tt := range explodetests {
-		a := Split(tt.s, "", tt.n)
+		a := SplitN(tt.s, "", tt.n)
 		if !eq(a, tt.a) {
 			t.Errorf("explode(%q, %d) = %v; want %v", tt.s, tt.n, a, tt.a)
 			continue
@@ -223,7 +223,7 @@ var splittests = []SplitTest{
 
 func TestSplit(t *testing.T) {
 	for _, tt := range splittests {
-		a := Split(tt.s, tt.sep, tt.n)
+		a := SplitN(tt.s, tt.sep, tt.n)
 		if !eq(a, tt.a) {
 			t.Errorf("Split(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, a, tt.a)
 			continue
@@ -234,6 +234,12 @@ func TestSplit(t *testing.T) {
 		s := Join(a, tt.sep)
 		if s != tt.s {
 			t.Errorf("Join(Split(%q, %q, %d), %q) = %q", tt.s, tt.sep, tt.n, tt.sep, s)
+		}
+		if tt.n < 0 {
+			b := Split(tt.s, tt.sep)
+			if !reflect.DeepEqual(a, b) {
+				t.Errorf("Split disagrees with SplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+			}
 		}
 	}
 }
@@ -256,7 +262,7 @@ var splitaftertests = []SplitTest{
 
 func TestSplitAfter(t *testing.T) {
 	for _, tt := range splitaftertests {
-		a := SplitAfter(tt.s, tt.sep, tt.n)
+		a := SplitAfterN(tt.s, tt.sep, tt.n)
 		if !eq(a, tt.a) {
 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, a, tt.a)
 			continue
@@ -264,6 +270,12 @@ func TestSplitAfter(t *testing.T) {
 		s := Join(a, "")
 		if s != tt.s {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+		}
+		if tt.n < 0 {
+			b := SplitAfter(tt.s, tt.sep)
+			if !reflect.DeepEqual(a, b) {
+				t.Errorf("SplitAfter disagrees with SplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+			}
 		}
 	}
 }
@@ -623,8 +635,8 @@ func equal(m string, s1, s2 string, t *testing.T) bool {
 	if s1 == s2 {
 		return true
 	}
-	e1 := Split(s1, "", -1)
-	e2 := Split(s2, "", -1)
+	e1 := Split(s1, "")
+	e2 := Split(s2, "")
 	for i, c1 := range e1 {
 		if i > len(e2) {
 			break

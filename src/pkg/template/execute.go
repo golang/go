@@ -114,7 +114,7 @@ func (t *Template) findVar(st *state, s string) reflect.Value {
 	if s == "@" {
 		return indirectPtr(data, numStars)
 	}
-	for _, elem := range strings.Split(s, ".", -1) {
+	for _, elem := range strings.Split(s, ".") {
 		// Look up field; data must be a struct or map.
 		data = t.lookup(st, data, elem)
 		if !data.IsValid() {

@@ -93,11 +93,11 @@ func (c *Client) ehlo() os.Error {
 		return err
 	}
 	ext := make(map[string]string)
-	extList := strings.Split(msg, "\n", -1)
+	extList := strings.Split(msg, "\n")
 	if len(extList) > 1 {
 		extList = extList[1:]
 		for _, line := range extList {
-			args := strings.Split(line, " ", 2)
+			args := strings.SplitN(line, " ", 2)
 			if len(args) > 1 {
 				ext[args[0]] = args[1]
 			} else {
@@ -106,7 +106,7 @@ func (c *Client) ehlo() os.Error {
 		}
 	}
 	if mechs, ok := ext["AUTH"]; ok {
-		c.auth = strings.Split(mechs, " ", -1)
+		c.auth = strings.Split(mechs, " ")
 	}
 	c.ext = ext
 	return err

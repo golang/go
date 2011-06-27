@@ -50,7 +50,7 @@ func main() {
 	flag.Parse()
 
 	if *printfuncs != "" {
-		for _, name := range strings.Split(*printfuncs, ",", -1) {
+		for _, name := range strings.Split(*printfuncs, ",") {
 			if len(name) == 0 {
 				flag.Usage()
 			}

@@ -2834,7 +2834,7 @@ func others() {
 	// copy yaccpar
 	fmt.Fprintf(ftable, "\n//line yaccpar:1\n")
 
-	parts := strings.Split(yaccpar, prefix+"run()", 2)
+	parts := strings.SplitN(yaccpar, prefix+"run()", 2)
 	fmt.Fprintf(ftable, "%v", parts[0])
 	ftable.Write(fcode.Bytes())
 	fmt.Fprintf(ftable, "%v", parts[1])

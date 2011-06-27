@@ -543,7 +543,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	}
 
 	var f []string
-	if f = strings.Split(s, " ", 3); len(f) < 3 {
+	if f = strings.SplitN(s, " ", 3); len(f) < 3 {
 		return nil, &badStringError{"malformed HTTP request", s}
 	}
 	req.Method, req.RawURL, req.Proto = f[0], f[1], f[2]
@@ -662,11 +662,11 @@ func ParseQuery(query string) (m Values, err os.Error) {
 }
 
 func parseQuery(m Values, query string) (err os.Error) {
-	for _, kv := range strings.Split(query, "&", -1) {
+	for _, kv := range strings.Split(query, "&") {
 		if len(kv) == 0 {
 			continue
 		}
-		kvPair := strings.Split(kv, "=", 2)
+		kvPair := strings.SplitN(kv, "=", 2)
 
 		var key, value string
 		var e os.Error
@@ -703,7 +703,7 @@ func (r *Request) ParseForm() (err os.Error) {
 			return os.NewError("missing form body")
 		}
 		ct := r.Header.Get("Content-Type")
-		switch strings.Split(ct, ";", 2)[0] {
+		switch strings.SplitN(ct, ";", 2)[0] {
 		case "text/plain", "application/x-www-form-urlencoded", "":
 			const maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
 			b, e := ioutil.ReadAll(io.LimitReader(r.Body, maxFormSize+1))

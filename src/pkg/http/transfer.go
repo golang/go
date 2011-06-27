@@ -334,7 +334,7 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, os.Erro
 		return nil, nil
 	}
 
-	encodings := strings.Split(raw[0], ",", -1)
+	encodings := strings.Split(raw[0], ",")
 	te := make([]string, 0, len(encodings))
 	// TODO: Even though we only support "identity" and "chunked"
 	// encodings, the loop below is designed with foresight. One
@@ -450,7 +450,7 @@ func fixTrailer(header Header, te []string) (Header, os.Error) {
 
 	header.Del("Trailer")
 	trailer := make(Header)
-	keys := strings.Split(raw, ",", -1)
+	keys := strings.Split(raw, ",")
 	for _, key := range keys {
 		key = CanonicalHeaderKey(strings.TrimSpace(key))
 		switch key {

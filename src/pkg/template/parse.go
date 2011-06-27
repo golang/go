@@ -483,7 +483,7 @@ func extractFormatters(words []string) (formatters []string) {
 		}
 	}
 	words[len(words)-1] = lastWord[0:bar]
-	formatters = strings.Split(lastWord[bar+1:], "|", -1)
+	formatters = strings.Split(lastWord[bar+1:], "|")
 	return
 }
 

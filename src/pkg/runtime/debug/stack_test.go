@@ -35,7 +35,7 @@ func (t T) method() []byte {
 */
 func TestStack(t *testing.T) {
 	b := T(0).method()
-	lines := strings.Split(string(b), "\n", -1)
+	lines := strings.Split(string(b), "\n")
 	if len(lines) <= 6 {
 		t.Fatal("too few lines")
 	}

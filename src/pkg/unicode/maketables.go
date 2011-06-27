@@ -156,7 +156,7 @@ const (
 )
 
 func parseCategory(line string) (state State) {
-	field := strings.Split(line, ";", -1)
+	field := strings.Split(line, ";")
 	if len(field) != NumField {
 		logger.Fatalf("%5s: %d fields (expected %d)\n", line, len(field), NumField)
 	}
@@ -253,7 +253,7 @@ func all(scripts map[string][]Script) []string {
 // Extract the version number from the URL
 func version() string {
 	// Break on slashes and look for the first numeric field
-	fields := strings.Split(*url, "/", -1)
+	fields := strings.Split(*url, "/")
 	for _, f := range fields {
 		if len(f) > 0 && '0' <= f[0] && f[0] <= '9' {
 			return f
@@ -336,7 +336,7 @@ func loadCasefold() {
 		if line[0] == '#' {
 			continue
 		}
-		field := strings.Split(line, "; ", -1)
+		field := strings.Split(line, "; ")
 		if len(field) != 4 {
 			logger.Fatalf("CaseFolding.txt %.5s...: %d fields (expected %d)\n", line, len(field), 4)
 		}
@@ -372,7 +372,7 @@ func printCategories() {
 		return
 	}
 	// Find out which categories to dump
-	list := strings.Split(*tablelist, ",", -1)
+	list := strings.Split(*tablelist, ",")
 	if *tablelist == "all" {
 		list = allCategories()
 	}
@@ -588,7 +588,7 @@ func parseScript(line string, scripts map[string][]Script) {
 	if len(line) == 0 {
 		return
 	}
-	field := strings.Split(line, ";", -1)
+	field := strings.Split(line, ";")
 	if len(field) != 2 {
 		logger.Fatalf("%s: %d fields (expected 2)\n", line, len(field))
 	}
@@ -685,7 +685,7 @@ func printScriptOrProperty(doProps bool) {
 	resp.Body.Close()
 
 	// Find out which scripts to dump
-	list := strings.Split(flaglist, ",", -1)
+	list := strings.Split(flaglist, ",")
 	if flaglist == "all" {
 		list = all(table)
 	}

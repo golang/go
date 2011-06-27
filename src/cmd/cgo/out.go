@@ -148,7 +148,7 @@ func dynimport(obj string) {
 			fatalf("cannot load imported symbols from PE file %s: %v", obj, err)
 		}
 		for _, s := range sym {
-			ss := strings.Split(s, ":", -1)
+			ss := strings.Split(s, ":")
 			fmt.Printf("#pragma dynimport %s %s %q\n", ss[0], ss[0], strings.ToLower(ss[1]))
 		}
 		return

@@ -421,7 +421,7 @@ func errorKludge(w *response) {
 	msg += " would ignore this error page if this text weren't here.\n"
 
 	// Is it text?  ("Content-Type" is always in the map)
-	baseType := strings.Split(w.header.Get("Content-Type"), ";", 2)[0]
+	baseType := strings.SplitN(w.header.Get("Content-Type"), ";", 2)[0]
 	switch baseType {
 	case "text/html":
 		io.WriteString(w, "<!-- ")

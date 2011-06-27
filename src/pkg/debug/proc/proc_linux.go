@@ -1229,7 +1229,7 @@ func (p *process) attachAllThreads() os.Error {
 					return err
 				}
 
-				statParts := strings.Split(string(statFile), " ", 4)
+				statParts := strings.SplitN(string(statFile), " ", 4)
 				if len(statParts) > 2 && statParts[2] == "Z" {
 					// tid is a zombie
 					p.logTrace("thread %d is a zombie", tid)

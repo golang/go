@@ -134,7 +134,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string) {
 }
 
 func decode2231Enc(v string) string {
-	sv := strings.Split(v, "'", 3)
+	sv := strings.SplitN(v, "'", 3)
 	if len(sv) != 3 {
 		return ""
 	}

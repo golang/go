@@ -19,6 +19,7 @@ GOFILES=\
 	procattr.go\
 	reflect.go\
 	sortslice.go\
+	stringssplit.go\
 	typecheck.go\
 
 include ../../Make.cmd

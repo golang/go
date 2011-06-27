@@ -55,7 +55,7 @@ func TestCatGoodAndBadFile(t *testing.T) {
 		t.Errorf("expected Waitmsg from cat combined; got %T: %v", err, err)
 	}
 	s := string(bs)
-	sp := strings.Split(s, "\n", 2)
+	sp := strings.SplitN(s, "\n", 2)
 	if len(sp) != 2 {
 		t.Fatalf("expected two lines from cat; got %q", s)
 	}

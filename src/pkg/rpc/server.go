@@ -495,7 +495,7 @@ func (server *Server) readRequest(codec ServerCodec) (req *Request, service *ser
 		return
 	}
 
-	serviceMethod := strings.Split(req.ServiceMethod, ".", -1)
+	serviceMethod := strings.Split(req.ServiceMethod, ".")
 	if len(serviceMethod) != 2 {
 		err = os.NewError("rpc: service/method request ill-formed: " + req.ServiceMethod)
 		return

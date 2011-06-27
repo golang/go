@@ -508,8 +508,8 @@ func (v Values) Encode() string {
 // resolvePath applies special path segments from refs and applies
 // them to base, per RFC 2396.
 func resolvePath(basepath string, refpath string) string {
-	base := strings.Split(basepath, "/", -1)
-	refs := strings.Split(refpath, "/", -1)
+	base := strings.Split(basepath, "/")
+	refs := strings.Split(refpath, "/")
 	if len(base) == 0 {
 		base = []string{""}
 	}

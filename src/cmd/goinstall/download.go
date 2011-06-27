@@ -146,11 +146,11 @@ var vcsList = []*vcs{&git, &hg, &bzr, &svn}
 // hostname - i.e. contains at least one '.' and the last part is at least 2
 // characters.
 func isRemote(pkg string) bool {
-	parts := strings.Split(pkg, "/", 2)
+	parts := strings.SplitN(pkg, "/", 2)
 	if len(parts) != 2 {
 		return false
 	}
-	parts = strings.Split(parts[0], ".", -1)
+	parts = strings.Split(parts[0], ".")
 	if len(parts) < 2 || len(parts[len(parts)-1]) < 2 {
 		return false
 	}
