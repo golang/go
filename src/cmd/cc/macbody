@@ -830,11 +830,11 @@ linehist(char *f, int offset)
 	if(debug['f'])
 		if(f) {
 			if(offset)
-				print("%4ld: %s (#line %d)\n", lineno, f, offset);
+				print("%4d: %s (#line %d)\n", lineno, f, offset);
 			else
-				print("%4ld: %s\n", lineno, f);
+				print("%4d: %s\n", lineno, f);
 		} else
-			print("%4ld: <pop>\n", lineno);
+			print("%4d: <pop>\n", lineno);
 	newflag = 0;
 
 	h = alloc(sizeof(Hist));
