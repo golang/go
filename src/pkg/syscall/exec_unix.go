@@ -146,6 +146,14 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		}
 	}
 
+	// Set process group
+	if sys.Setpgid {
+		_, _, err1 = RawSyscall(SYS_SETPGID, 0, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
 	// Chroot
 	if chroot != nil {
 		_, _, err1 = RawSyscall(SYS_CHROOT, uintptr(unsafe.Pointer(chroot)), 0, 0)
@@ -241,6 +249,22 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
 	}
 
+	// Detach fd 0 from tty
+	if sys.Noctty {
+		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCNOTTY), 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// Make fd 0 the tty
+	if sys.Setctty {
+		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCSCTTY), 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
 	// Time to exec.
 	_, _, err1 = RawSyscall(SYS_EXECVE,
 		uintptr(unsafe.Pointer(argv0)),
@@ -260,12 +284,16 @@ childerror:
 	panic("unreached")
 }
 
+// Credential holds user and group identities to be assumed
+// by a child process started by StartProcess.
 type Credential struct {
 	Uid    uint32   // User ID.
 	Gid    uint32   // Group ID.
 	Groups []uint32 // Supplementary group IDs.
 }
 
+// ProcAttr holds attributes that will be applied to a new process started
+// by StartProcess.
 type ProcAttr struct {
 	Dir   string   // Current working directory.
 	Env   []string // Environment.
@@ -278,6 +306,9 @@ type SysProcAttr struct {
 	Credential *Credential // Credential.
 	Ptrace     bool        // Enable tracing.
 	Setsid     bool        // Create session.
+	Setpgid    bool        // Set process group ID to new pid (SYSV setpgrp)
+	Setctty    bool        // Set controlling terminal to fd 0
+	Noctty     bool        // Detach fd 0 from controlling terminal
 }
 
 var zeroProcAttr ProcAttr
