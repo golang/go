@@ -28,18 +28,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-ed - ../5l/5.out.h <<'!'
-v/^	A/d
-,s/^	A/	"/
-g/ .*$/s///
-,s/,*$/",/
-1i
-char*	anames[] =
-{
-.
-$a
-};
-.
-w enam.c
-Q
-!
+awk '
+BEGIN {
+	print "char*	anames[] ="
+	print "{"
+}
+
+/^	A/ {
+	name=$1
+	sub(/,/, "", name)
+	sub(/^A/, "", name)
+	print "\t\"" name "\","
+}
+
+END { print "};" }
+' ../5l/5.out.h >enam.c
