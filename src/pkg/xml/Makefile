@@ -7,6 +7,7 @@ include ../../Make.inc
 TARG=xml
 
 GOFILES=\
+	marshal.go\
 	read.go\
 	xml.go\
 
