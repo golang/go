@@ -10,7 +10,8 @@ import (
 	"go/token"
 	"log"
 	"os"
-	"path"
+	"path/filepath"
+	"strings"
 )
 
 func (b *Builder) buildPackages(workpath string, hash string) os.Error {
@@ -19,8 +20,8 @@ func (b *Builder) buildPackages(workpath string, hash string) os.Error {
 		return err
 	}
 	for _, p := range pkgs {
-		goroot := path.Join(workpath, "go")
-		goinstall := path.Join(goroot, "bin", "goinstall")
+		goroot := filepath.Join(workpath, "go")
+		goinstall := filepath.Join(goroot, "bin", "goinstall")
 		envv := append(b.envv(), "GOROOT="+goroot)
 
 		// goinstall
@@ -29,10 +30,10 @@ func (b *Builder) buildPackages(workpath string, hash string) os.Error {
 			log.Printf("goinstall %v: %v", p, err)
 			continue
 		}
-		built := code != 0
+		built := code == 0
 
 		// get doc comment from package source
-		info, err := packageComment(p, path.Join(goroot, "pkg", p))
+		info, err := packageComment(p, filepath.Join(goroot, "pkg", p))
 		if err != nil {
 			log.Printf("goinstall %v: %v", p, err)
 		}
@@ -46,9 +47,15 @@ func (b *Builder) buildPackages(workpath string, hash string) os.Error {
 	return nil
 }
 
+func isGoFile(fi *os.FileInfo) bool {
+	return fi.IsRegular() && // exclude directories
+		!strings.HasPrefix(fi.Name, ".") && // ignore .files
+		filepath.Ext(fi.Name) == ".go"
+}
+
 func packageComment(pkg, pkgpath string) (info string, err os.Error) {
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, pkgpath, nil, parser.PackageClauseOnly|parser.ParseComments)
+	pkgs, err := parser.ParseDir(fset, pkgpath, isGoFile, parser.PackageClauseOnly|parser.ParseComments)
 	if err != nil {
 		return
 	}
