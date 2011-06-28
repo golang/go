@@ -47,6 +47,7 @@ OFILES_arm=\
 
 OFILES=\
 	asm.$O\
+	atomic.$O\
 	cgocall.$O\
 	chan.$O\
 	closure.$O\
