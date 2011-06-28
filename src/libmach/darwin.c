@@ -222,12 +222,21 @@ addpid(int pid, int force)
 		// The excthread reads that port and signals
 		// us if we are waiting on that thread.
 		pthread_t p;
+		int err;
 
 		excport = mach_reply_port();
 		pthread_mutex_init(&mu, nil);
 		pthread_cond_init(&cond, nil);
-		pthread_create(&p, nil, excthread, nil);
-		pthread_create(&p, nil, waitthread, (void*)(uintptr)pid);
+		err = pthread_create(&p, nil, excthread, nil);
+		if (err != 0) {
+			fprint(2, "pthread_create failed: %s\n", strerror(err));
+			abort();
+		}
+		err = pthread_create(&p, nil, waitthread, (void*)(uintptr)pid);
+		if (err != 0) {
+			fprint(2, "pthread_create failed: %s\n", strerror(err));
+			abort();
+		}
 		first = 0;
 	}
 

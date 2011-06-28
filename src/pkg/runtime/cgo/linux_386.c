@@ -21,6 +21,7 @@ libcgo_sys_thread_start(ThreadStart *ts)
 	pthread_attr_t attr;
 	pthread_t p;
 	size_t size;
+	int err;
 
 	// Not sure why the memset is necessary here,
 	// but without it, we get a bogus stack size
@@ -30,7 +31,11 @@ libcgo_sys_thread_start(ThreadStart *ts)
 	size = 0;
 	pthread_attr_getstacksize(&attr, &size);
 	ts->g->stackguard = size;
-	pthread_create(&p, &attr, threadentry, ts);
+	err = pthread_create(&p, &attr, threadentry, ts);
+	if (err != 0) {
+		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+		abort();
+	}
 }
 
 static void*
