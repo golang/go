@@ -187,9 +187,7 @@ func (file *File) WriteString(s string) (ret int, err Error) {
 	if file == nil {
 		return 0, EINVAL
 	}
-	b := syscall.StringByteSlice(s)
-	b = b[0 : len(b)-1]
-	return file.Write(b)
+	return file.Write([]byte(s))
 }
 
 // Mkdir creates a new directory with the specified name and permission bits.
