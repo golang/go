@@ -56,7 +56,9 @@ struct	Tname
 {
 	char*	name;
 	int	param;
+	int	count;
 	Tname*	link;
+	Tprot*	prot;
 };
 
 static	Type*	indchar;
@@ -131,8 +133,8 @@ getflag(char *s)
 	return flag;
 }
 
-void
-newprot(Sym *m, Type *t, char *s)
+static void
+newprot(Sym *m, Type *t, char *s, Tprot **prot)
 {
 	Bits flag;
 	Tprot *l;
@@ -142,32 +144,37 @@ newprot(Sym *m, Type *t, char *s)
 		return;
 	}
 	flag = getflag(s);
-	for(l=tprot; l; l=l->link)
+	for(l=*prot; l; l=l->link)
 		if(beq(flag, l->flag) && sametype(t, l->type))
 			return;
 	l = alloc(sizeof(*l));
 	l->type = t;
 	l->flag = flag;
-	l->link = tprot;
-	tprot = l;
+	l->link = *prot;
+	*prot = l;
 }
 
-void
-newname(char *s, int p)
+static Tname*
+newname(char *s, int p, int count)
 {
 	Tname *l;
 
 	for(l=tname; l; l=l->link)
 		if(strcmp(l->name, s) == 0) {
-			if(l->param != p)
+			if(p >= 0 && l->param != p)
 				yyerror("vargck %s already defined\n", s);
-			return;
+			return l;
 		}
+	if(p < 0)
+		return nil;
+
 	l = alloc(sizeof(*l));
 	l->name = s;
 	l->param = p;
 	l->link = tname;
+	l->count = count;
 	tname = l;
+	return l;
 }
 
 void
@@ -234,6 +241,7 @@ pragvararg(void)
 	int n, c;
 	char *t;
 	Type *ty;
+	Tname *l;
 
 	if(!debug['F'])
 		goto out;
@@ -244,6 +252,8 @@ pragvararg(void)
 		goto cktype;
 	if(s && strcmp(s->name, "flag") == 0)
 		goto ckflag;
+	if(s && strcmp(s->name, "countpos") == 0)
+		goto ckcount;
 	yyerror("syntax in #pragma varargck");
 	goto out;
 
@@ -255,7 +265,18 @@ ckpos:
 	n = getnsn();
 	if(n < 0)
 		goto bad;
-	newname(s->name, n);
+	newname(s->name, n, 0);
+	goto out;
+
+ckcount:
+/*#pragma	varargck	countpos	name 2*/
+	s = getsym();
+	if(s == S)
+		goto bad;
+	n = getnsn();
+	if(n < 0)
+		goto bad;
+	newname(s->name, 0, n);
 	goto out;
 
 ckflag:
@@ -276,6 +297,25 @@ ckflag:
 	goto out;
 
 cktype:
+	c = getnsc();
+	unget(c);
+	if(c != '"') {
+/*#pragma	varargck	type	name	int*/
+		s = getsym();
+		if(s == S)
+			goto bad;
+		l = newname(s->name, -1, -1);
+		s = getsym();
+		if(s == S)
+			goto bad;
+		ty = s->type;
+		while((c = getnsc()) == '*')
+			ty = typ(TIND, ty);
+		unget(c);
+		newprot(s, ty, "a", &l->prot);
+		goto out;
+	}
+
 /*#pragma	varargck	type	O	int*/
 	t = getquoted();
 	if(t == nil)
@@ -287,7 +327,7 @@ cktype:
 	while((c = getnsc()) == '*')
 		ty = typ(TIND, ty);
 	unget(c);
-	newprot(s, ty, t);
+	newprot(s, ty, t, &tprot);
 	goto out;
 
 bad:
@@ -384,7 +424,8 @@ dpcheck(Node *n)
 	char *s;
 	Node *a, *b;
 	Tname *l;
-	int i;
+	Tprot *tl;
+	int i, j;
 
 	if(n == Z)
 		return;
@@ -398,20 +439,76 @@ dpcheck(Node *n)
 	if(l == 0)
 		return;
 
+	if(l->count > 0) {
+		// fetch count, then check remaining length
+		i = l->count;
+		a = nil;
+		b = n->right;
+		while(i > 0) {
+			b = nextarg(b, &a);
+			i--;
+		}
+		if(a == Z) {
+			diag(n, "can't find count arg");
+			return;
+		}
+		if(a->op != OCONST || !typechl[a->type->etype]) {
+			diag(n, "count is invalid constant");
+			return;
+		}
+		j = a->vconst;
+		i = 0;
+		while(b != Z) {
+			b = nextarg(b, &a);
+			i++;
+		}
+		if(i != j)
+			diag(n, "found %d argument%s after count %d", i, i == 1 ? "" : "s", j);
+	}
+
+	if(l->prot != nil) {
+		// check that all arguments after param or count
+		// are listed in type list.
+		i = l->count;
+		if(i == 0)
+			i = l->param;
+		if(i == 0)
+			return;
+		a = nil;
+		b = n->right;
+		while(i > 0) {
+			b = nextarg(b, &a);
+			i--;
+		}
+		if(a == Z) {
+			diag(n, "can't find count/param arg");
+			return;
+		}
+		while(b != Z) {
+			b = nextarg(b, &a);
+			for(tl=l->prot; tl; tl=tl->link)
+				if(sametype(a->type, tl->type))
+					break;
+			if(tl == nil)
+				diag(a, "invalid type %T in call to %s", a->type, s);
+		}
+	}
+
+	if(l->param <= 0)
+		return;
 	i = l->param;
 	a = nil;
 	b = n->right;
-	a = Z;
 	while(i > 0) {
 		b = nextarg(b, &a);
 		i--;
 	}
 	if(a == Z) {
-		warn(n, "cant find format arg");
+		diag(n, "can't find format arg");
 		return;
 	}
 	if(!sametype(indchar, a->type)) {
-		warn(n, "format arg type %T", a->type);
+		diag(n, "format arg type %T", a->type);
 		return;
 	}
 	if(a->op != OADDR || a->left->op != ONAME || a->left->sym != symstring) {
