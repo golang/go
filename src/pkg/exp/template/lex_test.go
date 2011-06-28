@@ -46,13 +46,18 @@ var lexTests = []lexTest{
 		tRight,
 		tEOF,
 	}},
-	{"dots", "{{.x . .2 .x.y }}", []item{
+	{"dot", "{{.}}", []item{
+		tLeft,
+		{itemDot, "."},
+		tRight,
+		tEOF,
+	}},
+	{"dots", "{{.x . .2 .x.y}}", []item{
 		tLeft,
 		{itemField, ".x"},
 		{itemDot, "."},
 		{itemNumber, ".2"},
-		{itemField, ".x"},
-		{itemField, ".y"},
+		{itemField, ".x.y"},
 		tRight,
 		tEOF,
 	}},

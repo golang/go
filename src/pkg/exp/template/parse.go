@@ -10,13 +10,14 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 // Template is the representation of a parsed template.
 type Template struct {
-	// TODO: At the moment, these are all internal to parsing.
-	name     string
-	root     *listNode
+	name string
+	root *listNode
+	// Parsing.
 	lex      *lexer
 	tokens   chan item
 	token    item // token lookahead for parser
@@ -64,6 +65,7 @@ const (
 	nodeText nodeType = iota
 	nodeAction
 	nodeCommand
+	nodeDot
 	nodeElse
 	nodeEnd
 	nodeField
@@ -103,11 +105,11 @@ func (l *listNode) String() string {
 // textNode holds plain text.
 type textNode struct {
 	nodeType
-	text string
+	text []byte
 }
 
 func newText(text string) *textNode {
-	return &textNode{nodeType: nodeText, text: text}
+	return &textNode{nodeType: nodeText, text: []byte(text)}
 }
 
 func (t *textNode) String() string {
@@ -117,11 +119,12 @@ func (t *textNode) String() string {
 // actionNode holds an action (something bounded by metacharacters).
 type actionNode struct {
 	nodeType
+	line     int
 	pipeline []*commandNode
 }
 
-func newAction() *actionNode {
-	return &actionNode{nodeType: nodeAction}
+func newAction(line int, pipeline []*commandNode) *actionNode {
+	return &actionNode{nodeType: nodeAction, line: line, pipeline: pipeline}
 }
 
 func (a *actionNode) append(command *commandNode) {
@@ -164,18 +167,35 @@ func (i *identifierNode) String() string {
 	return fmt.Sprintf("I=%s", i.ident)
 }
 
-// fieldNode holds a field (identifier starting with '.'). The period is dropped from the ident.
+// dotNode holds the special identifier '.'. It is represented by a nil pointer.
+type dotNode bool
+
+func newDot() *dotNode {
+	return nil
+}
+
+func (d *dotNode) typ() nodeType {
+	return nodeDot
+}
+
+func (d *dotNode) String() string {
+	return "{{<.>}}"
+}
+
+// fieldNode holds a field (identifier starting with '.').
+// The names may be chained ('.x.y').
+// The period is dropped from each ident.
 type fieldNode struct {
 	nodeType
-	ident string
+	ident []string
 }
 
 func newField(ident string) *fieldNode {
-	return &fieldNode{nodeType: nodeField, ident: ident[1:]} //drop period
+	return &fieldNode{nodeType: nodeField, ident: strings.Split(ident[1:], ".")} // [1:] to drop leading period
 }
 
 func (f *fieldNode) String() string {
-	return fmt.Sprintf("F=.%s", f.ident)
+	return fmt.Sprintf("F=%s", f.ident)
 }
 
 // numberNode holds a number, signed or unsigned, integer, floating, or imaginary.
@@ -283,11 +303,14 @@ func (e *endNode) String() string {
 	return "{{end}}"
 }
 
-// elseNode represents an {{else}} action. It is represented by a nil pointer.
-type elseNode bool
+// elseNode represents an {{else}} action.
+type elseNode struct {
+	nodeType
+	line int
+}
 
-func newElse() *elseNode {
-	return nil
+func newElse(line int) *elseNode {
+	return &elseNode{nodeType: nodeElse, line: line}
 }
 
 func (e *elseNode) typ() nodeType {
@@ -298,23 +321,24 @@ func (e *elseNode) String() string {
 	return "{{else}}"
 }
 
-// rangeNode represents an {{range}} action and its commands.
+// rangeNode represents a {{range}} action and its commands.
 type rangeNode struct {
 	nodeType
-	field    node
+	line     int
+	pipeline []*commandNode
 	list     *listNode
 	elseList *listNode
 }
 
-func newRange(field node, list *listNode) *rangeNode {
-	return &rangeNode{nodeType: nodeRange, field: field, list: list}
+func newRange(line int, pipeline []*commandNode, list *listNode) *rangeNode {
+	return &rangeNode{nodeType: nodeRange, line: line, pipeline: pipeline, list: list}
 }
 
 func (r *rangeNode) String() string {
 	if r.elseList != nil {
-		return fmt.Sprintf("({{range %s}} %s {{else}} %s)", r.field, r.list, r.elseList)
+		return fmt.Sprintf("({{range %s}} %s {{else}} %s)", r.pipeline, r.list, r.elseList)
 	}
-	return fmt.Sprintf("({{range %s}} %s)", r.field, r.list)
+	return fmt.Sprintf("({{range %s}} %s)", r.pipeline, r.list)
 }
 
 // Parsing.
@@ -351,24 +375,31 @@ func (t *Template) unexpected(token item, context string) {
 	t.errorf("unexpected %s in %s", token, context)
 }
 
-// Parse parses the template definition string and constructs an efficient representation of the template.
+// recover is the handler that turns panics into returns from the top
+// level of Parse or Execute.
+func (t *Template) recover(errp *os.Error) {
+	e := recover()
+	if e != nil {
+		if _, ok := e.(runtime.Error); ok {
+			panic(e)
+		}
+		t.root, t.lex, t.tokens = nil, nil, nil
+		*errp = e.(os.Error)
+	}
+	return
+}
+
+// Parse parses the template definition string to construct an internal representation
+// of the template for execution.
 func (t *Template) Parse(s string) (err os.Error) {
 	t.lex, t.tokens = lex(t.name, s)
-	defer func() {
-		e := recover()
-		if e != nil {
-			if _, ok := e.(runtime.Error); ok {
-				panic(e)
-			}
-			err = e.(os.Error)
-		}
-		return
-	}()
+	defer t.recover(&err)
 	var next node
 	t.root, next = t.itemList(true)
 	if next != nil {
 		t.errorf("unexpected %s", next)
 	}
+	t.lex, t.tokens = nil, nil
 	return nil
 }
 
@@ -410,8 +441,8 @@ func (t *Template) textOrAction() node {
 //	control
 //	command ("|" command)*
 // Left meta is past. Now get actions.
+// First word could be a keyword such as range.
 func (t *Template) action() (n node) {
-	action := newAction()
 	switch token := t.next(); token.typ {
 	case itemRange:
 		return t.rangeControl()
@@ -421,23 +452,29 @@ func (t *Template) action() (n node) {
 		return t.endControl()
 	}
 	t.backup()
-Loop:
+	return newAction(t.lex.lineNumber(), t.pipeline("command"))
+}
+
+// Pipeline:
+//	field or command
+//	pipeline "|" pipeline
+func (t *Template) pipeline(context string) (pipe []*commandNode) {
 	for {
 		switch token := t.next(); token.typ {
 		case itemRightMeta:
-			break Loop
-		case itemIdentifier, itemField:
+			return
+		case itemIdentifier, itemField, itemDot:
 			t.backup()
 			cmd, err := t.command()
 			if err != nil {
 				t.error(err)
 			}
-			action.append(cmd)
+			pipe = append(pipe, cmd)
 		default:
-			t.unexpected(token, "command")
+			t.unexpected(token, context)
 		}
 	}
-	return action
+	return
 }
 
 // Range:
@@ -445,10 +482,9 @@ Loop:
 //	{{range field}} itemList {{else}} itemList {{end}}
 // Range keyword is past.
 func (t *Template) rangeControl() node {
-	field := t.expect(itemField, "range")
-	t.expect(itemRightMeta, "range")
+	pipeline := t.pipeline("range")
 	list, next := t.itemList(false)
-	r := newRange(newField(field.val), list)
+	r := newRange(t.lex.lineNumber(), pipeline, list)
 	switch next.typ() {
 	case nodeEnd: //done
 	case nodeElse:
@@ -474,7 +510,7 @@ func (t *Template) endControl() node {
 // Else keyword is past.
 func (t *Template) elseControl() node {
 	t.expect(itemRightMeta, "else")
-	return newElse()
+	return newElse(t.lex.lineNumber())
 }
 
 // command:
@@ -494,6 +530,8 @@ Loop:
 			return nil, os.NewError(token.val)
 		case itemIdentifier:
 			cmd.append(newIdentifier(token.val))
+		case itemDot:
+			cmd.append(newDot())
 		case itemField:
 			cmd.append(newField(token.val))
 		case itemNumber:
@@ -517,6 +555,9 @@ Loop:
 		default:
 			t.unexpected(token, "command")
 		}
+	}
+	if len(cmd.args) == 0 {
+		t.errorf("empty command")
 	}
 	return cmd, nil
 }
