@@ -112,7 +112,7 @@ codgen(Node *n, Node *nn)
 	warnreach = 1;
 	gen(n);
 	if(canreach && thisfn->link->etype != TVOID)
-		warn(Z, "no return at end of function: %s", n1->sym->name);
+		diag(Z, "no return at end of function: %s", n1->sym->name);
 	noretval(3);
 	gbranch(ORETURN);
 

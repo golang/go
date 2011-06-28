@@ -127,7 +127,7 @@ tcomo(Node *n, int f)
 	case ORETURN:
 		if(l == Z) {
 			if(n->type->etype != TVOID)
-				warn(n, "null return of a typed function");
+				diag(n, "null return of a typed function");
 			break;
 		}
 		if(tcom(l))
