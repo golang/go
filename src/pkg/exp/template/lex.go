@@ -39,7 +39,7 @@ const (
 	itemEOF
 	itemElse       // else keyword
 	itemEnd        // end keyword
-	itemField      // alphanumeric identifier, starting with '.'.
+	itemField      // alphanumeric identifier, starting with '.', possibly chained ('.x.y')
 	itemIdentifier // alphanumeric identifier
 	itemIf         // if keyword
 	itemLeftMeta   // left meta-string
@@ -273,7 +273,9 @@ Loop:
 	for {
 		switch r := l.next(); {
 		case isAlphaNumeric(r):
-			// absorb
+			// absorb.
+		case r == '.' && l.input[l.start] == '.':
+			// field chaining; absorb into one token.
 		default:
 			l.backup()
 			word := l.input[l.start:l.pos]

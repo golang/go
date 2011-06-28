@@ -6,6 +6,7 @@ include ../../../Make.inc
 
 TARG=template
 GOFILES=\
+	exec.go\
 	lex.go\
 	parse.go\
 
