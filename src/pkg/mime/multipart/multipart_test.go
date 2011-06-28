@@ -81,7 +81,7 @@ func TestNameAccessors(t *testing.T) {
 
 var longLine = strings.Repeat("\n\n\r\r\r\n\r\000", (1<<20)/8)
 
-func testMultipartBody() string {
+func testMultipartBody(sep string) string {
 	testBody := `
 This is a multi-part message.  This line is ignored.
 --MyBoundary
@@ -112,21 +112,26 @@ never read data
 
 useless trailer
 `
-	testBody = strings.Replace(testBody, "\n", "\r\n", -1)
+	testBody = strings.Replace(testBody, "\n", sep, -1)
 	return strings.Replace(testBody, "[longline]", longLine, 1)
 }
 
 func TestMultipart(t *testing.T) {
-	bodyReader := strings.NewReader(testMultipartBody())
-	testMultipart(t, bodyReader)
+	bodyReader := strings.NewReader(testMultipartBody("\r\n"))
+	testMultipart(t, bodyReader, false)
+}
+
+func TestMultipartOnlyNewlines(t *testing.T) {
+	bodyReader := strings.NewReader(testMultipartBody("\n"))
+	testMultipart(t, bodyReader, true)
 }
 
 func TestMultipartSlowInput(t *testing.T) {
-	bodyReader := strings.NewReader(testMultipartBody())
-	testMultipart(t, &slowReader{bodyReader})
+	bodyReader := strings.NewReader(testMultipartBody("\r\n"))
+	testMultipart(t, &slowReader{bodyReader}, false)
 }
 
-func testMultipart(t *testing.T, r io.Reader) {
+func testMultipart(t *testing.T, r io.Reader, onlyNewlines bool) {
 	reader := NewReader(r, "MyBoundary")
 	buf := new(bytes.Buffer)
 
@@ -149,8 +154,15 @@ func testMultipart(t *testing.T, r io.Reader) {
 	if _, err := io.Copy(buf, part); err != nil {
 		t.Errorf("part 1 copy: %v", err)
 	}
-	expectEq(t, "My value\r\nThe end.",
-		buf.String(), "Value of first part")
+
+	adjustNewlines := func(s string) string {
+		if onlyNewlines {
+			return strings.Replace(s, "\r\n", "\n", -1)
+		}
+		return s
+	}
+
+	expectEq(t, adjustNewlines("My value\r\nThe end."), buf.String(), "Value of first part")
 
 	// Part2
 	part, err = reader.NextPart()
@@ -187,7 +199,7 @@ func testMultipart(t *testing.T, r io.Reader) {
 	if _, err := io.Copy(buf, part); err != nil {
 		t.Errorf("part 3 copy: %v", err)
 	}
-	expectEq(t, "Line 1\r\nLine 2\r\nLine 3 ends in a newline, but just one.\r\n",
+	expectEq(t, adjustNewlines("Line 1\r\nLine 2\r\nLine 3 ends in a newline, but just one.\r\n"),
 		buf.String(), "body of part 3")
 
 	// Part4
