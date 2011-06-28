@@ -45,7 +45,7 @@ void
 runtime·osinit(void)
 {
 	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
-	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, 1);
+	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
 }
 
 void
@@ -81,7 +81,7 @@ runtime·goenvs(void)
 void
 runtime·exit(int32 code)
 {
-	runtime·stdcall(runtime·ExitProcess, 1, code);
+	runtime·stdcall(runtime·ExitProcess, 1, (uintptr)code);
 }
 
 int32
@@ -93,15 +93,15 @@ runtime·write(int32 fd, void *buf, int32 n)
 	written = 0;
 	switch(fd) {
 	case 1:
-		handle = runtime·stdcall(runtime·GetStdHandle, 1, -11);
+		handle = runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-11);
 		break;
 	case 2:
-		handle = runtime·stdcall(runtime·GetStdHandle, 1, -12);
+		handle = runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-12);
 		break;
 	default:
 		return -1;
 	}
-	runtime·stdcall(runtime·WriteFile, 5, handle, buf, n, &written, 0);
+	runtime·stdcall(runtime·WriteFile, 5, handle, buf, (uintptr)n, &written, (uintptr)0);
 	return written;
 }
 
@@ -111,7 +111,7 @@ initevent(void **pevent)
 {
 	void *event;
 
-	event = runtime·stdcall(runtime·CreateEvent, 4, 0, 0, 0, 0);
+	event = runtime·stdcall(runtime·CreateEvent, 4, (uintptr)0, (uintptr)0, (uintptr)0, (uintptr)0);
 	if(!runtime·casp(pevent, 0, event)) {
 		// Someone else filled it in.  Use theirs.
 		runtime·stdcall(runtime·CloseHandle, 1, event);
@@ -126,7 +126,7 @@ eventlock(Lock *l)
 		initevent(&l->event);
 
 	if(runtime·xadd(&l->key, 1) > 1)	// someone else has it; wait
-		runtime·stdcall(runtime·WaitForSingleObject, 2, l->event, -1);
+		runtime·stdcall(runtime·WaitForSingleObject, 2, l->event, (uintptr)-1);
 }
 
 static void
@@ -190,7 +190,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	USED(g);	// assuming g = m->g0
 	USED(fn);	// assuming fn = mstart
 
-	thandle = runtime·stdcall(runtime·CreateThread, 6, 0, 0, runtime·tstart_stdcall, m, 0, 0);
+	thandle = runtime·stdcall(runtime·CreateThread, 6, (uintptr)0, (uintptr)0, runtime·tstart_stdcall, m, (uintptr)0, (uintptr)0);
 	if(thandle == 0) {
 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), runtime·getlasterror());
 		runtime·throw("runtime.newosproc");

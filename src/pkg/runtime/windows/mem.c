@@ -24,7 +24,7 @@ void*
 runtime·SysAlloc(uintptr n)
 {
 	mstats.sys += n;
-	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, (uintptr)(MEM_COMMIT|MEM_RESERVE), (uintptr)PAGE_EXECUTE_READWRITE);
 }
 
 void
@@ -40,7 +40,7 @@ runtime·SysFree(void *v, uintptr n)
 	uintptr r;
 
 	mstats.sys -= n;
-	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, 0, MEM_RELEASE);
+	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, (uintptr)0, (uintptr)MEM_RELEASE);
 	if(r == 0)
 		runtime·throw("runtime: failed to release pages");
 }
@@ -50,12 +50,12 @@ runtime·SysReserve(void *v, uintptr n)
 {
 	// v is just a hint.
 	// First try at v.
-	v = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	v = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_RESERVE, (uintptr)PAGE_EXECUTE_READWRITE);
 	if(v != nil)
 		return v;
 	
 	// Next let the kernel choose the address.
-	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, (uintptr)MEM_RESERVE, (uintptr)PAGE_EXECUTE_READWRITE);
 }
 
 void
@@ -64,7 +64,7 @@ runtime·SysMap(void *v, uintptr n)
 	void *p;
 	
 	mstats.sys += n;
-	p = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+	p = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_COMMIT, (uintptr)PAGE_EXECUTE_READWRITE);
 	if(p != v)
 		runtime·throw("runtime: cannot map pages in arena address space");
 }

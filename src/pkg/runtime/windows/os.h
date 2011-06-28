@@ -7,6 +7,9 @@ extern void *runtime·GetProcAddress;
 
 // Call a Windows function with stdcall conventions,
 // and switch to os stack during the call.
+#pragma	varargck	countpos	runtime·stdcall	2
+#pragma	varargck	type		runtime·stdcall	void*
+#pragma	varargck	type		runtime·stdcall	uintptr
 void *runtime·stdcall_raw(void *fn, uintptr nargs, void *args);
 void *runtime·stdcall(void *fn, int32 count, ...);
 uintptr runtime·syscall(void *fn, uintptr nargs, void *args, uintptr *err);
