@@ -81,6 +81,7 @@ type parser struct {
 	stack       []*Regexp // stack of parsed expressions
 	numCap      int       // number of capturing groups seen
 	wholeRegexp string
+	tmpClass    []int // temporary char class work space
 }
 
 // Parse stack manipulation.
@@ -371,7 +372,6 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 				if r != nil {
 					re.Rune = r
 					t = rest
-					// TODO: Handle FoldCase flag.
 					p.push(re)
 					break BigSwitch
 				}
@@ -729,6 +729,7 @@ Switch:
 				if r > unicode.MaxRune {
 					break Switch
 				}
+				nhex++
 			}
 			if nhex == 0 {
 				break Switch
@@ -801,12 +802,7 @@ func (p *parser) parsePerlClassEscape(s string, r []int) (out []int, rest string
 	if g.sign == 0 {
 		return
 	}
-	if g.sign < 0 {
-		r = appendNegatedClass(r, g.class)
-	} else {
-		r = appendClass(r, g.class)
-	}
-	return r, s[2:]
+	return p.appendGroup(r, g), s[2:]
 }
 
 // parseNamedClass parses a leading POSIX named character class like [:alnum:]
@@ -827,23 +823,40 @@ func (p *parser) parseNamedClass(s string, r []int) (out []int, rest string, err
 	if g.sign == 0 {
 		return nil, "", &Error{ErrInvalidCharRange, name}
 	}
-	if g.sign < 0 {
-		r = appendNegatedClass(r, g.class)
-	} else {
-		r = appendClass(r, g.class)
-	}
-	return r, s, nil
+	return p.appendGroup(r, g), s, nil
 }
 
-// unicodeTable returns the unicode.RangeTable identified by name.
-func unicodeTable(name string) *unicode.RangeTable {
+func (p *parser) appendGroup(r []int, g charGroup) []int {
+	if p.flags&FoldCase == 0 {
+		if g.sign < 0 {
+			r = appendNegatedClass(r, g.class)
+		} else {
+			r = appendClass(r, g.class)
+		}
+	} else {
+		tmp := p.tmpClass[:0]
+		tmp = appendFoldedClass(tmp, g.class)
+		p.tmpClass = tmp
+		tmp = cleanClass(&p.tmpClass)
+		if g.sign < 0 {
+			r = appendNegatedClass(r, tmp)
+		} else {
+			r = appendClass(r, tmp)
+		}
+	}
+	return r
+}
+
+// unicodeTable returns the unicode.RangeTable identified by name
+// and the table of additional fold-equivalent code points.
+func unicodeTable(name string) (*unicode.RangeTable, *unicode.RangeTable) {
 	if t := unicode.Categories[name]; t != nil {
-		return t
+		return t, unicode.FoldCategory[name]
 	}
 	if t := unicode.Scripts[name]; t != nil {
-		return t
+		return t, unicode.FoldScript[name]
 	}
-	return nil
+	return nil, nil
 }
 
 // parseUnicodeClass parses a leading Unicode character class like \p{Han}
@@ -891,14 +904,31 @@ func (p *parser) parseUnicodeClass(s string, r []int) (out []int, rest string, e
 		name = name[1:]
 	}
 
-	tab := unicodeTable(name)
+	tab, fold := unicodeTable(name)
 	if tab == nil {
 		return nil, "", &Error{ErrInvalidCharRange, seq}
 	}
-	if sign > 0 {
-		r = appendTable(r, tab)
+
+	if p.flags&FoldCase == 0 || fold == nil {
+		if sign > 0 {
+			r = appendTable(r, tab)
+		} else {
+			r = appendNegatedTable(r, tab)
+		}
 	} else {
-		r = appendNegatedTable(r, tab)
+		// Merge and clean tab and fold in a temporary buffer.
+		// This is necessary for the negative case and just tidy
+		// for the positive case.
+		tmp := p.tmpClass[:0]
+		tmp = appendTable(tmp, tab)
+		tmp = appendTable(tmp, fold)
+		p.tmpClass = tmp
+		tmp = cleanClass(&p.tmpClass)
+		if sign > 0 {
+			r = appendClass(r, tmp)
+		} else {
+			r = appendNegatedClass(r, tmp)
+		}
 	}
 	return r, t, nil
 }
@@ -979,7 +1009,11 @@ func (p *parser) parseClass(s string) (rest string, err os.Error) {
 				return "", &Error{Code: ErrInvalidCharRange, Expr: rng}
 			}
 		}
-		class = appendRange(class, lo, hi)
+		if p.flags&FoldCase == 0 {
+			class = appendRange(class, lo, hi)
+		} else {
+			class = appendFoldedRange(class, lo, hi)
+		}
 	}
 	t = t[1:] // chop ]
 
@@ -999,10 +1033,15 @@ func (p *parser) parseClass(s string) (rest string, err os.Error) {
 // cleanClass sorts the ranges (pairs of elements of r),
 // merges them, and eliminates duplicates.
 func cleanClass(rp *[]int) []int {
+
 	// Sort by lo increasing, hi decreasing to break ties.
 	sort.Sort(ranges{rp})
 
 	r := *rp
+	if len(r) < 2 {
+		return r
+	}
+
 	// Merge abutting, overlapping.
 	w := 2 // write index
 	for i := 2; i < len(r); i += 2 {
@@ -1025,21 +1064,69 @@ func cleanClass(rp *[]int) []int {
 
 // appendRange returns the result of appending the range lo-hi to the class r.
 func appendRange(r []int, lo, hi int) []int {
-	// Expand last range if overlaps or abuts.
-	if n := len(r); n > 0 {
-		rlo, rhi := r[n-2], r[n-1]
-		if lo <= rhi+1 && rlo <= hi+1 {
-			if lo < rlo {
-				r[n-2] = lo
+	// Expand last range or next to last range if it overlaps or abuts.
+	// Checking two ranges helps when appending case-folded
+	// alphabets, so that one range can be expanding A-Z and the
+	// other expanding a-z.
+	n := len(r)
+	for i := 2; i <= 4; i += 2 { // twice, using i=2, i=4
+		if n >= i {
+			rlo, rhi := r[n-i], r[n-i+1]
+			if lo <= rhi+1 && rlo <= hi+1 {
+				if lo < rlo {
+					r[n-i] = lo
+				}
+				if hi > rhi {
+					r[n-i+1] = hi
+				}
+				return r
 			}
-			if hi > rhi {
-				r[n-1] = hi
-			}
-			return r
 		}
 	}
 
 	return append(r, lo, hi)
+}
+
+const (
+	// minimum and maximum runes involved in folding.
+	// checked during test.
+	minFold = 0x0041
+	maxFold = 0x1044f
+)
+
+// appendFoldedRange returns the result of appending the range lo-hi
+// and its case folding-equivalent runes to the class r.
+func appendFoldedRange(r []int, lo, hi int) []int {
+	// Optimizations.
+	if lo <= minFold && hi >= maxFold {
+		// Range is full: folding can't add more.
+		return appendRange(r, lo, hi)
+	}
+	if hi < minFold || lo > maxFold {
+		// Range is outside folding possibilities.
+		return appendRange(r, lo, hi)
+	}
+	if lo < minFold {
+		// [lo, minFold-1] needs no folding.
+		r = appendRange(r, lo, minFold-1)
+		lo = minFold
+	}
+	if hi > maxFold {
+		// [maxFold+1, hi] needs no folding.
+		r = appendRange(r, maxFold+1, hi)
+		hi = maxFold
+	}
+
+	// Brute force.  Depend on appendRange to coalesce ranges on the fly.
+	for c := lo; c <= hi; c++ {
+		r = appendRange(r, c, c)
+		f := unicode.SimpleFold(c)
+		for f != c {
+			r = appendRange(r, f, f)
+			f = unicode.SimpleFold(f)
+		}
+	}
+	return r
 }
 
 // appendClass returns the result of appending the class x to the class r.
@@ -1047,6 +1134,14 @@ func appendRange(r []int, lo, hi int) []int {
 func appendClass(r []int, x []int) []int {
 	for i := 0; i < len(x); i += 2 {
 		r = appendRange(r, x[i], x[i+1])
+	}
+	return r
+}
+
+// appendFolded returns the result of appending the case folding of the class x to the class r.
+func appendFoldedClass(r []int, x []int) []int {
+	for i := 0; i < len(x); i += 2 {
+		r = appendFoldedRange(r, x[i], x[i+1])
 	}
 	return r
 }

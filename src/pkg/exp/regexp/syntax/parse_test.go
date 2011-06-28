@@ -74,18 +74,18 @@ var parseTests = []struct {
 	{"[a-z]", "cc{0x61-0x7a}"},
 	{"[^[:lower:]]", "cc{0x0-0x60 0x7b-0x10ffff}"},
 	{"[[:^lower:]]", "cc{0x0-0x60 0x7b-0x10ffff}"},
-	//	{ "(?i)[[:lower:]]", "cc{0x41-0x5a 0x61-0x7a 0x17f 0x212a}" },
-	//	{ "(?i)[a-z]", "cc{0x41-0x5a 0x61-0x7a 0x17f 0x212a}" },
-	//	{ "(?i)[^[:lower:]]", "cc{0x0-0x40 0x5b-0x60 0x7b-0x17e 0x180-0x2129 0x212b-0x10ffff}" },
-	//	{ "(?i)[[:^lower:]]", "cc{0x0-0x40 0x5b-0x60 0x7b-0x17e 0x180-0x2129 0x212b-0x10ffff}" },
+	{"(?i)[[:lower:]]", "cc{0x41-0x5a 0x61-0x7a 0x17f 0x212a}"},
+	{"(?i)[a-z]", "cc{0x41-0x5a 0x61-0x7a 0x17f 0x212a}"},
+	{"(?i)[^[:lower:]]", "cc{0x0-0x40 0x5b-0x60 0x7b-0x17e 0x180-0x2129 0x212b-0x10ffff}"},
+	{"(?i)[[:^lower:]]", "cc{0x0-0x40 0x5b-0x60 0x7b-0x17e 0x180-0x2129 0x212b-0x10ffff}"},
 	{"\\d", "cc{0x30-0x39}"},
 	{"\\D", "cc{0x0-0x2f 0x3a-0x10ffff}"},
 	{"\\s", "cc{0x9-0xa 0xc-0xd 0x20}"},
 	{"\\S", "cc{0x0-0x8 0xb 0xe-0x1f 0x21-0x10ffff}"},
 	{"\\w", "cc{0x30-0x39 0x41-0x5a 0x5f 0x61-0x7a}"},
 	{"\\W", "cc{0x0-0x2f 0x3a-0x40 0x5b-0x5e 0x60 0x7b-0x10ffff}"},
-	//	{ "(?i)\\w", "cc{0x30-0x39 0x41-0x5a 0x5f 0x61-0x7a 0x17f 0x212a}" },
-	//	{ "(?i)\\W", "cc{0x0-0x2f 0x3a-0x40 0x5b-0x5e 0x60 0x7b-0x17e 0x180-0x2129 0x212b-0x10ffff}" },
+	{"(?i)\\w", "cc{0x30-0x39 0x41-0x5a 0x5f 0x61-0x7a 0x17f 0x212a}"},
+	{"(?i)\\W", "cc{0x0-0x2f 0x3a-0x40 0x5b-0x5e 0x60 0x7b-0x17e 0x180-0x2129 0x212b-0x10ffff}"},
 	{"[^\\\\]", "cc{0x0-0x5b 0x5d-0x10ffff}"},
 	//	{ "\\C", "byte{}" },
 
@@ -100,6 +100,13 @@ var parseTests = []struct {
 	{"[\\p{^Braille}]", "cc{0x0-0x27ff 0x2900-0x10ffff}"},
 	{"[\\P{^Braille}]", "cc{0x2800-0x28ff}"},
 	{"[\\pZ]", "cc{0x20 0xa0 0x1680 0x180e 0x2000-0x200a 0x2028-0x2029 0x202f 0x205f 0x3000}"},
+	{"\\p{Lu}", mkCharClass(unicode.IsUpper)},
+	{"[\\p{Lu}]", mkCharClass(unicode.IsUpper)},
+	{"(?i)[\\p{Lu}]", mkCharClass(isUpperFold)},
+
+	// Hex, octal.
+	{"[\\012-\\234]\\141", "cat{cc{0xa-0x9c}lit{a}}"},
+	{"[\\x{41}-\\x7a]\\x61", "cat{cc{0x41-0x7a}lit{a}}"},
 
 	// More interesting regular expressions.
 	//	{ "a{,2}", "str{a{,2}}" },
@@ -269,4 +276,70 @@ func dumpRegexp(b *bytes.Buffer, re *Regexp) {
 		}
 	}
 	b.WriteByte('}')
+}
+
+func mkCharClass(f func(int) bool) string {
+	re := &Regexp{Op: OpCharClass}
+	lo := -1
+	for i := 0; i <= unicode.MaxRune; i++ {
+		if f(i) {
+			if lo < 0 {
+				lo = i
+			}
+		} else {
+			if lo >= 0 {
+				re.Rune = append(re.Rune, lo, i-1)
+				lo = -1
+			}
+		}
+	}
+	if lo >= 0 {
+		re.Rune = append(re.Rune, lo, unicode.MaxRune)
+	}
+	return dump(re)
+}
+
+func isUpperFold(rune int) bool {
+	if unicode.IsUpper(rune) {
+		return true
+	}
+	c := unicode.SimpleFold(rune)
+	for c != rune {
+		if unicode.IsUpper(c) {
+			return true
+		}
+		c = unicode.SimpleFold(c)
+	}
+	return false
+}
+
+func TestFoldConstants(t *testing.T) {
+	last := -1
+	for i := 0; i <= unicode.MaxRune; i++ {
+		if unicode.SimpleFold(i) == i {
+			continue
+		}
+		if last == -1 && minFold != i {
+			t.Errorf("minFold=%#U should be %#U", minFold, i)
+		}
+		last = i
+	}
+	if maxFold != last {
+		t.Errorf("maxFold=%#U should be %#U", maxFold, last)
+	}
+}
+
+func TestAppendRangeCollapse(t *testing.T) {
+	// AppendRange should collapse each of the new ranges
+	// into the earlier ones (it looks back two ranges), so that
+	// the slice never grows very large.
+	// Note that we are not calling cleanClass.
+	var r []int
+	for i := 'A'; i <= 'Z'; i++ {
+		r = appendRange(r, i, i)
+		r = appendRange(r, i+'a'-'A', i+'a'-'A')
+	}
+	if string(r) != "AZaz" {
+		t.Errorf("appendRange interlaced A-Z a-z = %s, want AZaz", string(r))
+	}
 }
