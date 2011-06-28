@@ -956,7 +956,7 @@ pclntab(void)
 	uchar *bp;
 	
 	sym = lookup("pclntab", 0);
-	sym->type = SRODATA;
+	sym->type = SPCLNTAB;
 	sym->reachable = 1;
 	if(debug['s'])
 		return;

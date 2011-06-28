@@ -40,6 +40,8 @@ enum
 	SSTRING,
 	SGOSTRING,
 	SRODATA,
+	SSYMTAB,
+	SPCLNTAB,
 	SDATA,
 	SMACHO,	/* Mach-O __nl_symbol_ptr */
 	SMACHOGOT,
