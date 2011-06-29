@@ -35,7 +35,11 @@ type B struct {
 // StartTimer starts timing a test.  This function is called automatically
 // before a benchmark starts, but it can also used to resume timing after
 // a call to StopTimer.
-func (b *B) StartTimer() { b.start = time.Nanoseconds() }
+func (b *B) StartTimer() {
+	if b.start == 0 {
+		b.start = time.Nanoseconds()
+	}
+}
 
 // StopTimer stops timing a test.  This can be used to pause the timer
 // while performing complex initialization that you don't
@@ -47,9 +51,12 @@ func (b *B) StopTimer() {
 	b.start = 0
 }
 
-// ResetTimer stops the timer and sets the elapsed benchmark time to zero.
+// ResetTimer sets the elapsed benchmark time to zero.
+// It does not affect whether the timer is running.
 func (b *B) ResetTimer() {
-	b.start = 0
+	if b.start > 0 {
+		b.start = time.Nanoseconds()
+	}
 	b.ns = 0
 }
 
