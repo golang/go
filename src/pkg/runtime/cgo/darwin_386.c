@@ -120,7 +120,7 @@ libcgo_sys_thread_start(ThreadStart *ts)
 	ts->g->stackguard = size;
 	err = pthread_create(&p, &attr, threadentry, ts);
 	if (err != 0) {
-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(error));
+		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
 		abort();
 	}
 }
