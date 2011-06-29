@@ -428,10 +428,6 @@ type chunkedReader struct {
 	err os.Error
 }
 
-func newChunkedReader(r *bufio.Reader) *chunkedReader {
-	return &chunkedReader{r: r}
-}
-
 func (cr *chunkedReader) beginChunk() {
 	// chunk-size CRLF
 	var line string

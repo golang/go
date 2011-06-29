@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"bufio"
 )
 
 // NewChunkedWriter returns a new writer that translates writes into HTTP
@@ -63,4 +64,14 @@ func (cw *chunkedWriter) Write(data []byte) (n int, err os.Error) {
 func (cw *chunkedWriter) Close() os.Error {
 	_, err := io.WriteString(cw.Wire, "0\r\n")
 	return err
+}
+
+// NewChunkedReader returns a new reader that translates the data read from r
+// out of HTTP "chunked" format before returning it. 
+// The reader returns os.EOF when the final 0-length chunk is read.
+//
+// NewChunkedReader is not needed by normal applications. The http package
+// automatically decodes chunking when reading response bodies.
+func NewChunkedReader(r *bufio.Reader) io.Reader {
+	return &chunkedReader{r: r}
 }
