@@ -224,7 +224,8 @@ func (s *state) evalArg(data reflect.Value, typ reflect.Type, n node) reflect.Va
 		return value
 	}
 	switch typ.Kind() {
-	// TODO: boolean
+	case reflect.Bool:
+		return s.evalBool(data, typ, n)
 	case reflect.String:
 		return s.evalString(data, typ, n)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -237,6 +238,16 @@ func (s *state) evalArg(data reflect.Value, typ reflect.Type, n node) reflect.Va
 		return s.evalComplex(data, typ, n)
 	}
 	s.errorf("can't handle node %s for method arg of type %s", n, typ)
+	panic("not reached")
+}
+
+func (s *state) evalBool(v reflect.Value, typ reflect.Type, n node) reflect.Value {
+	if n, ok := n.(*boolNode); ok {
+		value := reflect.New(typ).Elem()
+		value.SetBool(n.true)
+		return value
+	}
+	s.errorf("expected bool; found %s", n)
 	panic("not reached")
 }
 

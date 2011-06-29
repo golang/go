@@ -24,6 +24,7 @@ type T struct {
 	// Slices
 	SI     []int
 	SEmpty []int
+	SB     []bool
 	// Maps
 	MSI      map[string]int
 	MSIEmpty map[string]int
@@ -63,11 +64,11 @@ func (t *T) MSort(m map[string]int) []string {
 }
 
 // EPERM returns a value and an os.Error according to its argument.
-func (t *T) EPERM(a int) (int, os.Error) {
-	if a == 0 {
-		return 0, os.EPERM
+func (t *T) EPERM(error bool) (bool, os.Error) {
+	if error {
+		return true, os.EPERM
 	}
-	return a, nil
+	return false, nil
 }
 
 type U struct {
@@ -80,6 +81,7 @@ var tVal = &T{
 	X:   "x",
 	U:   &U{"v"},
 	SI:  []int{3, 4, 5},
+	SB:  []bool{true, false},
 	MSI: map[string]int{"one": 1, "two": 2, "three": 3},
 }
 
@@ -106,13 +108,14 @@ var execTests = []execTest{
 	{"range empty no else", "{{range .SEmpty}}-{{.}}-{{end}}", "", tVal, true},
 	{"range []int else", "{{range .SI}}-{{.}}-{{else}}EMPTY{{end}}", "-3--4--5-", tVal, true},
 	{"range empty else", "{{range .SEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	{"range []bool", "{{range .SB}}-{{.}}-{{end}}", "-true--false-", tVal, true},
 	{"range []int method", "{{range .SI | .MAdd .I}}-{{.}}-{{end}}", "-20--21--22-", tVal, true},
 	{"range map", "{{range .MSI | .MSort}}-{{.}}-{{end}}", "-one--three--two-", tVal, true},
 	{"range empty map no else", "{{range .MSIEmpty}}-{{.}}-{{end}}", "", tVal, true},
 	{"range map else", "{{range .MSI | .MSort}}-{{.}}-{{else}}EMPTY{{end}}", "-one--three--two-", tVal, true},
 	{"range empty map else", "{{range .MSIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
-	{"error method, no error", "{{.EPERM 1}}", "1", tVal, true},
-	{"error method, error", "{{.EPERM 0}}", "1", tVal, false},
+	{"error method, error", "{{.EPERM true}}", "", tVal, false},
+	{"error method, no error", "{{.EPERM false}}", "false", tVal, true},
 }
 
 func TestExecute(t *testing.T) {
@@ -147,7 +150,7 @@ func TestExecute(t *testing.T) {
 func TestExecuteError(t *testing.T) {
 	b := new(bytes.Buffer)
 	tmpl := New("error")
-	err := tmpl.Parse("{{.EPERM 0}}")
+	err := tmpl.Parse("{{.EPERM true}}")
 	if err != nil {
 		t.Fatalf("parse error: %s", err)
 	}
@@ -155,6 +158,6 @@ func TestExecuteError(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected error; got none")
 	} else if !strings.Contains(err.String(), os.EPERM.String()) {
-		t.Errorf("expected os.EPERM; got %s %s", err)
+		t.Errorf("expected os.EPERM; got %s", err)
 	}
 }
