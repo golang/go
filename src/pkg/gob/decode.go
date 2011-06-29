@@ -741,7 +741,7 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 
 // decodeGobDecoder decodes something implementing the GobDecoder interface.
 // The data is encoded as a byte slice.
-func (dec *Decoder) decodeGobDecoder(state *decoderState, v reflect.Value, index int) {
+func (dec *Decoder) decodeGobDecoder(state *decoderState, v reflect.Value) {
 	// Read the bytes for the value.
 	b := make([]byte, state.decodeUint())
 	_, err := state.b.Read(b)
@@ -969,7 +969,7 @@ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
 		} else {
 			v = reflect.ValueOf(unsafe.Unreflect(rcvrType, p))
 		}
-		state.dec.decodeGobDecoder(state, v, methodIndex(rcvrType, gobDecodeMethodName))
+		state.dec.decodeGobDecoder(state, v)
 	}
 	return &op, int(ut.indir)
 

@@ -468,7 +468,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
 
 // encGobEncoder encodes a value that implements the GobEncoder interface.
 // The data is sent as a byte array.
-func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, v reflect.Value, index int) {
+func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, v reflect.Value) {
 	// TODO: should we catch panics from the called method?
 	// We know it's a GobEncoder, so just call the method directly.
 	data, err := v.Interface().(GobEncoder).GobEncode()
@@ -592,17 +592,6 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 	return &op, indir
 }
 
-// methodIndex returns which method of rt implements the method.
-func methodIndex(rt reflect.Type, method string) int {
-	for i := 0; i < rt.NumMethod(); i++ {
-		if rt.Method(i).Name == method {
-			return i
-		}
-	}
-	errorf("internal error: can't find method %s", method)
-	return 0
-}
-
 // gobEncodeOpFor returns the op for a type that is known to implement
 // GobEncoder.
 func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
@@ -624,7 +613,7 @@ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 			v = reflect.ValueOf(unsafe.Unreflect(rt, p))
 		}
 		state.update(i)
-		state.enc.encodeGobEncoder(state.b, v, methodIndex(rt, gobEncodeMethodName))
+		state.enc.encodeGobEncoder(state.b, v)
 	}
 	return &op, int(ut.encIndir) // encIndir: op will get called with p == address of receiver.
 }
