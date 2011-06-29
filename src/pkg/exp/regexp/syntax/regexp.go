@@ -33,6 +33,8 @@ type Regexp struct {
 type Op uint8
 
 // Operators are listed in precedence order, tightest binding to weakest.
+// Character class operators are listed simplest to most complex
+// (OpLiteral, OpCharClass, OpAnyCharNotNL, OpAnyChar).
 
 const (
 	OpNoMatch        Op = 1 + iota // matches no strings

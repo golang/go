@@ -79,29 +79,110 @@ const (
 type parser struct {
 	flags       Flags     // parse mode flags
 	stack       []*Regexp // stack of parsed expressions
-	numCap      int       // number of capturing groups seen
+	free        *Regexp
+	numCap      int // number of capturing groups seen
 	wholeRegexp string
 	tmpClass    []int // temporary char class work space
+}
+
+func (p *parser) newRegexp(op Op) *Regexp {
+	re := p.free
+	if re != nil {
+		p.free = re.Sub0[0]
+		*re = Regexp{}
+	} else {
+		re = new(Regexp)
+	}
+	re.Op = op
+	return re
+}
+
+func (p *parser) reuse(re *Regexp) {
+	re.Sub0[0] = p.free
+	p.free = re
 }
 
 // Parse stack manipulation.
 
 // push pushes the regexp re onto the parse stack and returns the regexp.
 func (p *parser) push(re *Regexp) *Regexp {
-	// TODO: automatic concatenation
-	// TODO: turn character class into literal
 	// TODO: compute simple
+
+	if re.Op == OpCharClass && len(re.Rune) == 2 && re.Rune[0] == re.Rune[1] {
+		// Single rune.
+		if p.maybeConcat(re.Rune[0], p.flags&^FoldCase) {
+			return nil
+		}
+		re.Op = OpLiteral
+		re.Rune = re.Rune[:1]
+		re.Flags = p.flags &^ FoldCase
+	} else if re.Op == OpCharClass && len(re.Rune) == 4 &&
+		re.Rune[0] == re.Rune[1] && re.Rune[2] == re.Rune[3] &&
+		unicode.SimpleFold(re.Rune[0]) == re.Rune[2] &&
+		unicode.SimpleFold(re.Rune[2]) == re.Rune[0] ||
+		re.Op == OpCharClass && len(re.Rune) == 2 &&
+			re.Rune[0]+1 == re.Rune[1] &&
+			unicode.SimpleFold(re.Rune[0]) == re.Rune[1] &&
+			unicode.SimpleFold(re.Rune[1]) == re.Rune[0] {
+		// Case-insensitive rune like [Aa] or [Δδ].
+		if p.maybeConcat(re.Rune[0], p.flags|FoldCase) {
+			return nil
+		}
+
+		// Rewrite as (case-insensitive) literal.
+		re.Op = OpLiteral
+		re.Rune = re.Rune[:1]
+		re.Flags = p.flags | FoldCase
+	} else {
+		// Incremental concatenation.
+		p.maybeConcat(-1, 0)
+	}
 
 	p.stack = append(p.stack, re)
 	return re
 }
 
-// newLiteral returns a new OpLiteral Regexp with the given flags
-func newLiteral(r int, flags Flags) *Regexp {
-	re := &Regexp{
-		Op:    OpLiteral,
-		Flags: flags,
+// maybeConcat implements incremental concatenation
+// of literal runes into string nodes.  The parser calls this
+// before each push, so only the top fragment of the stack
+// might need processing.  Since this is called before a push,
+// the topmost literal is no longer subject to operators like *
+// (Otherwise ab* would turn into (ab)*.)
+// If r >= 0 and there's a node left over, maybeConcat uses it
+// to push r with the given flags.
+// maybeConcat reports whether r was pushed.
+func (p *parser) maybeConcat(r int, flags Flags) bool {
+	n := len(p.stack)
+	if n < 2 {
+		return false
 	}
+
+	re1 := p.stack[n-1]
+	re2 := p.stack[n-2]
+	if re1.Op != OpLiteral || re2.Op != OpLiteral || re1.Flags&FoldCase != re2.Flags&FoldCase {
+		return false
+	}
+
+	// Push re1 into re2.
+	re2.Rune = append(re2.Rune, re1.Rune...)
+
+	// Reuse re1 if possible.
+	if r >= 0 {
+		re1.Rune = re1.Rune0[:1]
+		re1.Rune[0] = r
+		re1.Flags = flags
+		return true
+	}
+
+	p.stack = p.stack[:n-1]
+	p.reuse(re1)
+	return false // did not push r
+}
+
+// newLiteral returns a new OpLiteral Regexp with the given flags
+func (p *parser) newLiteral(r int, flags Flags) *Regexp {
+	re := p.newRegexp(OpLiteral)
+	re.Flags = flags
 	re.Rune0[0] = r
 	re.Rune = re.Rune0[:1]
 	return re
@@ -109,14 +190,16 @@ func newLiteral(r int, flags Flags) *Regexp {
 
 // literal pushes a literal regexp for the rune r on the stack
 // and returns that regexp.
-func (p *parser) literal(r int) *Regexp {
-	return p.push(newLiteral(r, p.flags))
+func (p *parser) literal(r int) {
+	p.push(p.newLiteral(r, p.flags))
 }
 
 // op pushes a regexp with the given op onto the stack
 // and returns that regexp.
 func (p *parser) op(op Op) *Regexp {
-	return p.push(&Regexp{Op: op, Flags: p.flags})
+	re := p.newRegexp(op)
+	re.Flags = p.flags
+	return p.push(re)
 }
 
 // repeat replaces the top stack element with itself repeated
@@ -140,12 +223,10 @@ func (p *parser) repeat(op Op, min, max int, opstr, t, lastRepeat string) (strin
 		return "", &Error{ErrMissingRepeatArgument, opstr}
 	}
 	sub := p.stack[n-1]
-	re := &Regexp{
-		Op:    op,
-		Min:   min,
-		Max:   max,
-		Flags: flags,
-	}
+	re := p.newRegexp(op)
+	re.Min = min
+	re.Max = max
+	re.Flags = flags
 	re.Sub = re.Sub0[:1]
 	re.Sub[0] = sub
 	p.stack[n-1] = re
@@ -154,60 +235,97 @@ func (p *parser) repeat(op Op, min, max int, opstr, t, lastRepeat string) (strin
 
 // concat replaces the top of the stack (above the topmost '|' or '(') with its concatenation.
 func (p *parser) concat() *Regexp {
-	// TODO: Flatten concats.
+	p.maybeConcat(-1, 0)
 
 	// Scan down to find pseudo-operator | or (.
 	i := len(p.stack)
 	for i > 0 && p.stack[i-1].Op < opPseudo {
 		i--
 	}
-	sub := p.stack[i:]
+	subs := p.stack[i:]
 	p.stack = p.stack[:i]
 
-	var re *Regexp
-	switch len(sub) {
-	case 0:
-		re = &Regexp{Op: OpEmptyMatch}
-	case 1:
-		re = sub[0]
-	default:
-		re = &Regexp{Op: OpConcat}
-		re.Sub = append(re.Sub0[:0], sub...)
+	// Empty concatenation is special case.
+	if len(subs) == 0 {
+		return p.push(p.newRegexp(OpEmptyMatch))
 	}
-	return p.push(re)
+
+	return p.collapse(subs, OpConcat)
 }
 
 // alternate replaces the top of the stack (above the topmost '(') with its alternation.
 func (p *parser) alternate() *Regexp {
-	// TODO: Flatten alternates.
-
 	// Scan down to find pseudo-operator (.
 	// There are no | above (.
 	i := len(p.stack)
 	for i > 0 && p.stack[i-1].Op < opPseudo {
 		i--
 	}
-	sub := p.stack[i:]
+	subs := p.stack[i:]
 	p.stack = p.stack[:i]
 
-	var re *Regexp
-	switch len(sub) {
-	case 0:
-		re = &Regexp{Op: OpNoMatch}
-	case 1:
-		re = sub[0]
-	default:
-		re = &Regexp{Op: OpAlternate}
-		re.Sub = append(re.Sub0[:0], sub...)
+	// Make sure top class is clean.
+	// All the others already are (see swapVerticalBar).
+	if len(subs) > 0 {
+		cleanAlt(subs[len(subs)-1])
+	}
+
+	// Empty alternate is special case
+	// (shouldn't happen but easy to handle).
+	if len(subs) == 0 {
+		return p.push(p.newRegexp(OpNoMatch))
+	}
+
+	return p.collapse(subs, OpAlternate)
+}
+
+// cleanAlt cleans re for eventual inclusion in an alternation.
+func cleanAlt(re *Regexp) {
+	switch re.Op {
+	case OpCharClass:
+		re.Rune = cleanClass(&re.Rune)
+		if len(re.Rune) == 2 && re.Rune[0] == 0 && re.Rune[1] == unicode.MaxRune {
+			re.Rune = nil
+			re.Op = OpAnyChar
+			return
+		}
+		if len(re.Rune) == 4 && re.Rune[0] == 0 && re.Rune[1] == '\n'-1 && re.Rune[2] == '\n'+1 && re.Rune[3] == unicode.MaxRune {
+			re.Rune = nil
+			re.Op = OpAnyCharNotNL
+			return
+		}
+		if cap(re.Rune)-len(re.Rune) > 100 {
+			// re.Rune will not grow any more.
+			// Make a copy or inline to reclaim storage.
+			re.Rune = append(re.Rune0[:0], re.Rune...)
+		}
+	}
+}
+
+// collapse pushes the result of applying op to sub
+// onto the stack.  If sub contains op nodes, they all
+// get flattened into a single node.
+// sub points into p.stack so it cannot be kept.
+func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
+	if len(subs) == 1 {
+		return p.push(subs[0])
+	}
+	re := p.newRegexp(op)
+	re.Sub = re.Sub0[:0]
+	for _, sub := range subs {
+		if sub.Op == op {
+			re.Sub = append(re.Sub, sub.Sub...)
+			p.reuse(sub)
+		} else {
+			re.Sub = append(re.Sub, sub)
+		}
 	}
 	return p.push(re)
 }
 
 func literalRegexp(s string, flags Flags) *Regexp {
-	re := &Regexp{
-		Op:    OpLiteral,
-		Flags: flags,
-	}
+	re := &Regexp{Op: OpLiteral}
+	re.Flags = flags
 	re.Rune = re.Rune0[:0] // use local storage for small strings
 	for _, c := range s {
 		if len(re.Rune) >= cap(re.Rune) {
@@ -265,7 +383,6 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 			p.op(opLeftParen).Cap = p.numCap
 			t = t[1:]
 		case '|':
-			p.concat()
 			if err = p.parseVerticalBar(); err != nil {
 				return nil, err
 			}
@@ -361,7 +478,8 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 				}
 			}
 
-			re := &Regexp{Op: OpCharClass, Flags: p.flags}
+			re := p.newRegexp(OpCharClass)
+			re.Flags = p.flags
 
 			// Look for Unicode character group like \p{Han}
 			if len(t) >= 2 && (t[1] == 'p' || t[1] == 'P') {
@@ -381,12 +499,10 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 			if r, rest := p.parsePerlClassEscape(t, re.Rune0[:0]); r != nil {
 				re.Rune = r
 				t = rest
-				// TODO: Handle FoldCase flag.
 				p.push(re)
 				break BigSwitch
 			}
-
-			// TODO: Give re back to parser's pool.
+			p.reuse(re)
 
 			// Ordinary single-character escape.
 			if c, t, err = p.parseEscape(t); err != nil {
@@ -592,6 +708,35 @@ func (p *parser) parseInt(s string) (n int, rest string, ok bool) {
 	return
 }
 
+// can this be represented as a character class?
+// single-rune literal string, char class, ., and .|\n.
+func isCharClass(re *Regexp) bool {
+	return re.Op == OpLiteral && len(re.Rune) == 1 ||
+		re.Op == OpCharClass ||
+		re.Op == OpAnyCharNotNL ||
+		re.Op == OpAnyChar
+}
+
+// does re match r?
+func matchRune(re *Regexp, r int) bool {
+	switch re.Op {
+	case OpLiteral:
+		return len(re.Rune) == 1 && re.Rune[0] == r
+	case OpCharClass:
+		for i := 0; i < len(re.Rune); i += 2 {
+			if re.Rune[i] <= r && r <= re.Rune[i+1] {
+				return true
+			}
+		}
+		return false
+	case OpAnyCharNotNL:
+		return r != '\n'
+	case OpAnyChar:
+		return true
+	}
+	return false
+}
+
 // parseVerticalBar handles a | in the input.
 func (p *parser) parseVerticalBar() os.Error {
 	p.concat()
@@ -611,10 +756,55 @@ func (p *parser) parseVerticalBar() os.Error {
 // swapVerticalBar swaps the two and returns true.
 // Otherwise it returns false.
 func (p *parser) swapVerticalBar() bool {
-	if n := len(p.stack); n >= 2 {
+	// If above and below vertical bar are literal or char class,
+	// can merge into a single char class.
+	n := len(p.stack)
+	if n >= 3 && p.stack[n-2].Op == opVerticalBar && isCharClass(p.stack[n-1]) && isCharClass(p.stack[n-3]) {
+		re1 := p.stack[n-1]
+		re3 := p.stack[n-3]
+		// Make re3 the more complex of the two.
+		if re1.Op > re3.Op {
+			re1, re3 = re3, re1
+			p.stack[n-3] = re3
+		}
+		switch re3.Op {
+		case OpAnyChar:
+			// re1 doesn't add anything.
+		case OpAnyCharNotNL:
+			// re1 might add \n
+			if matchRune(re1, '\n') {
+				re3.Op = OpAnyChar
+			}
+		case OpCharClass:
+			// re1 is simpler, so either literal or char class
+			if re1.Op == OpLiteral {
+				re3.Rune = appendRange(re3.Rune, re1.Rune[0], re1.Rune[0])
+			} else {
+				re3.Rune = appendClass(re3.Rune, re1.Rune)
+			}
+		case OpLiteral:
+			// both literal
+			if re1.Rune[0] == re3.Rune[0] {
+				break
+			}
+			re3.Op = OpCharClass
+			re3.Rune = append(re3.Rune, re3.Rune[0])
+			re3.Rune = appendRange(re3.Rune, re1.Rune[0], re1.Rune[0])
+		}
+		p.reuse(re1)
+		p.stack = p.stack[:n-1]
+		return true
+	}
+
+	if n >= 2 {
 		re1 := p.stack[n-1]
 		re2 := p.stack[n-2]
 		if re2.Op == opVerticalBar {
+			if n >= 3 {
+				// Now out of reach.
+				// Clean opportunistically.
+				cleanAlt(p.stack[n-3])
+			}
 			p.stack[n-2] = re1
 			p.stack[n-1] = re2
 			return true
@@ -937,7 +1127,8 @@ func (p *parser) parseUnicodeClass(s string, r []int) (out []int, rest string, e
 // and pushes it onto the parse stack.
 func (p *parser) parseClass(s string) (rest string, err os.Error) {
 	t := s[1:] // chop [
-	re := &Regexp{Op: OpCharClass, Flags: p.flags}
+	re := p.newRegexp(OpCharClass)
+	re.Flags = p.flags
 	re.Rune = re.Rune0[:0]
 
 	sign := +1
@@ -1016,8 +1207,6 @@ func (p *parser) parseClass(s string) (rest string, err os.Error) {
 		}
 	}
 	t = t[1:] // chop ]
-
-	// TODO: Handle FoldCase flag.
 
 	// Use &re.Rune instead of &class to avoid allocation.
 	re.Rune = class
