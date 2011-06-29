@@ -242,6 +242,11 @@ struct	M
 	uint32	fflag;		// floating point compare flags
 #ifdef __WINDOWS__
 	void*	sehframe;
+
+#ifdef _64BIT	
+	void*	gostack;
+#endif
+
 #endif
 };
 

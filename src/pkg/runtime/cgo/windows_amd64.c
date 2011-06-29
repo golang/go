@@ -37,11 +37,21 @@ threadentry(void *v)
 	ts.g->stackbase = (uintptr)&ts;
 
 	/*
-	* libcgo_sys_thread_start set stackguard to stack size;
-	* change to actual guard pointer.
-	*/
+	 * libcgo_sys_thread_start set stackguard to stack size;
+	 * change to actual guard pointer.
+	 */
 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
 
-	crosscall_386(ts.fn);
+	/*
+	 * Set specific keys in thread local storage.
+	 */
+	asm volatile (
+	  "movq %%gs:0x58, %%rax\n" // MOVQ 0x58(GS), tmp
+	  "movq %0, 0(%%rax)\n" // MOVQ g, 0(GS)
+	  "movq %1, 8(%%rax)\n" // MOVQ m, 8(GS)
+	  :: "r"(ts.g), "r"(ts.m) : "%rax"
+	);
+
+	crosscall_amd64(ts.fn);
 	return nil;
 }
