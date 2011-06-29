@@ -279,7 +279,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
 	// or close connection when finished, since multipart is not supported yet
 	switch {
 	case chunked(t.TransferEncoding):
-		t.Body = &body{Reader: newChunkedReader(r), hdr: msg, r: r, closing: t.Close}
+		t.Body = &body{Reader: NewChunkedReader(r), hdr: msg, r: r, closing: t.Close}
 	case t.ContentLength >= 0:
 		// TODO: limit the Content-Length. This is an easy DoS vector.
 		t.Body = &body{Reader: io.LimitReader(r, t.ContentLength), closing: t.Close}
