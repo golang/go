@@ -14,6 +14,7 @@ GOFILES=\
 	httpserver.go\
 	procattr.go\
 	reflect.go\
+	signal.go\
 	typecheck.go\
 
 include ../../Make.cmd

@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type fix struct {
@@ -258,13 +259,28 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 
 // imports returns true if f imports path.
 func imports(f *ast.File, path string) bool {
+	return importSpec(f, path) != nil
+}
+
+// importSpec returns the import spec if f imports path,
+// or nil otherwise.
+func importSpec(f *ast.File, path string) *ast.ImportSpec {
 	for _, s := range f.Imports {
-		t, err := strconv.Unquote(s.Path.Value)
-		if err == nil && t == path {
-			return true
+		if importPath(s) == path {
+			return s
 		}
 	}
-	return false
+	return nil
+}
+
+// importPath returns the unquoted import path of s,
+// or "" if the path is not properly quoted.
+func importPath(s *ast.ImportSpec) string {
+	t, err := strconv.Unquote(s.Path.Value)
+	if err == nil {
+		return t
+	}
+	return ""
 }
 
 // isPkgDot returns true if t is the expression "pkg.name"
@@ -419,4 +435,139 @@ func newPkgDot(pos token.Pos, pkg, name string) ast.Expr {
 			Name:    name,
 		},
 	}
+}
+
+// addImport adds the import path to the file f, if absent.
+func addImport(f *ast.File, path string) {
+	if imports(f, path) {
+		return
+	}
+
+	newImport := &ast.ImportSpec{
+		Path: &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: strconv.Quote(path),
+		},
+	}
+
+	var impdecl *ast.GenDecl
+
+	// Find an import decl to add to.
+	for _, decl := range f.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+
+		if ok && gen.Tok == token.IMPORT {
+			impdecl = gen
+			break
+		}
+	}
+
+	// No import decl found.  Add one.
+	if impdecl == nil {
+		impdecl = &ast.GenDecl{
+			Tok: token.IMPORT,
+		}
+		f.Decls = append(f.Decls, nil)
+		copy(f.Decls[1:], f.Decls)
+		f.Decls[0] = impdecl
+	}
+
+	// Ensure the import decl has parentheses, if needed.
+	if len(impdecl.Specs) > 0 && !impdecl.Lparen.IsValid() {
+		impdecl.Lparen = impdecl.Pos()
+	}
+
+	// Assume the import paths are alphabetically ordered.
+	// If they are not, the result is ugly, but legal.
+	insertAt := len(impdecl.Specs) // default to end of specs
+	for i, spec := range impdecl.Specs {
+		impspec := spec.(*ast.ImportSpec)
+		if importPath(impspec) > path {
+			insertAt = i
+			break
+		}
+	}
+
+	impdecl.Specs = append(impdecl.Specs, nil)
+	copy(impdecl.Specs[insertAt+1:], impdecl.Specs[insertAt:])
+	impdecl.Specs[insertAt] = newImport
+
+	f.Imports = append(f.Imports, newImport)
+}
+
+// deleteImport deletes the import path from the file f, if present.
+func deleteImport(f *ast.File, path string) {
+	oldImport := importSpec(f, path)
+
+	// Find the import node that imports path, if any.
+	for i, decl := range f.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.IMPORT {
+			continue
+		}
+		for j, spec := range gen.Specs {
+			impspec := spec.(*ast.ImportSpec)
+
+			if oldImport != impspec {
+				continue
+			}
+
+			// We found an import spec that imports path.
+			// Delete it.
+			copy(gen.Specs[j:], gen.Specs[j+1:])
+			gen.Specs = gen.Specs[:len(gen.Specs)-1]
+
+			// If this was the last import spec in this decl,
+			// delete the decl, too.
+			if len(gen.Specs) == 0 {
+				copy(f.Decls[i:], f.Decls[i+1:])
+				f.Decls = f.Decls[:len(f.Decls)-1]
+			} else if len(gen.Specs) == 1 {
+				gen.Lparen = token.NoPos // drop parens
+			}
+
+			break
+		}
+	}
+
+	// Delete it from f.Imports.
+	for i, imp := range f.Imports {
+		if imp == oldImport {
+			copy(f.Imports[i:], f.Imports[i+1:])
+			f.Imports = f.Imports[:len(f.Imports)-1]
+			break
+		}
+	}
+}
+
+func usesImport(f *ast.File, path string) (used bool) {
+	spec := importSpec(f, path)
+	if spec == nil {
+		return
+	}
+
+	name := spec.Name.String()
+	switch name {
+	case "<nil>":
+		// If the package name is not explicitly specified,
+		// make an educated guess. This is not guaranteed to be correct.
+		lastSlash := strings.LastIndex(path, "/")
+		if lastSlash == -1 {
+			name = path
+		} else {
+			name = path[lastSlash+1:]
+		}
+	case "_", ".":
+		// Not sure if this import is used - err on the side of caution.
+		return true
+	}
+
+	walk(f, func(n interface{}) {
+		sel, ok := n.(*ast.SelectorExpr)
+		if ok && isTopName(sel.X, name) {
+			used = true
+		}
+	})
+
+	return
 }
