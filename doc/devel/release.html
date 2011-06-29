@@ -14,6 +14,78 @@ hg pull
 hg update release.r<i>NN</i>
 </pre>
 
+<h2 id="r58">r58 (released 2011/06/29)</h2>
+
+<p>
+The r58 release corresponds to 
+<code><a href="weekly.html#2011-06-09">weekly.2011-06-09</a></code>
+with additional bug fixes.
+This section highlights the most significant changes in this release.
+For a more detailed summary, see the
+<a href="weekly.html#2011-06-09">weekly release notes</a>.
+For complete information, see the
+<a href="http://code.google.com/p/go/source/list?r=release-branch.r58">Mercurial change list</a>.
+</p>
+
+<h3 id="r58.lang">Language</h3>
+
+<p>
+This release fixes a <a href="http://code.google.com/p/go/source/detail?r=b720749486e1">use of uninitialized memory in programs that misuse <code>goto</code></a>.
+</p>
+
+<h3 id="r58.pkg">Packages</h3>
+
+<p>
+As usual, <a href="/cmd/gofix/">gofix</a> will handle the bulk of the rewrites
+necessary for these changes to package APIs.
+</p>
+
+<p>
+<a href="/pkg/http/">Package http</a> drops the <code>finalURL</code> return
+value from the <a href="/pkg/http/#Client.Get">Client.Get</a> method. The value
+is now available via the new <code>Request</code> field on <a
+href="/pkg/http/#Response">http.Response</a>.
+Most instances of the type map[string][]string in have been
+replaced with the new <a href="/pkg/http/#Values">Values</a> type.
+</p>
+
+<p>
+<a href="/pkg/exec/">Package exec</a> has been redesigned with a more
+convenient and succinct API.
+</p>
+
+<p>
+<a href="/pkg/strconv/">Package strconv</a>'s <a href="/pkg/strconv/#Quote">Quote</a>
+function now escapes only those Unicode code points not classified as printable
+by <a href="/pkg/unicode/#IsPrint">unicode.IsPrint</a>.
+Previously Quote would escape all non-ASCII characters.
+This also affects the <a href="/pkg/fmt/">fmt</a> package's <code>"%q"</code>
+formatting directive. The previous quoting behavior is still available via
+strconv's new <a href="/pkg/strconv/#QuoteToASCII">QuoteToASCII</a> function.   
+</p>
+
+<p>
+<a href="/pkg/os/signal/">Package os/signal</a>'s
+<a href="/pkg/os/#Signal">Signal</a> and 
+<a href="/pkg/os/#UnixSignal">UnixSignal</a> types have been moved to the
+<a href="/pkg/os/">os</a> package.
+</p>
+
+<p>
+<a href="/pkg/image/draw/">Package image/draw</a> is the new name for
+<code>exp/draw</code>. The GUI-related code from <code>exp/draw</code> is now
+located in the <a href="/pkg/exp/gui/">exp/gui</a> package.
+</p>
+
+<h3 id="r58.cmd">Tools</h3>
+
+<p>
+<a href="/cmd/goinstall/">Goinstall</a> now observes the GOPATH environment
+variable to build and install your own code and external libraries outside of
+the Go tree (and avoid writing Makefiles).
+</p>
+
+
 <h2 id="r57">r57 (released 2011/05/03)</h2>
 
 <p>
