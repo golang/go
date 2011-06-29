@@ -219,7 +219,7 @@ runtime·gettime(int64 *sec, int32 *usec)
 void *
 runtime·stdcall(void *fn, int32 count, ...)
 {
-	return runtime·stdcall_raw(fn, count, (uintptr*)(&count + 1));
+	return runtime·stdcall_raw(fn, count, (uintptr*)&count + 1);
 }
 
 uintptr

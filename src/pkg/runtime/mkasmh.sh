@@ -61,14 +61,23 @@ case "$GOARCH" in
 	esac
 	;;
 amd64)
-	# The offsets 0 and 8 are known to:
-	#	../../cmd/6l/pass.c:/D_GS
-	#	../../libcgo/linux_amd64.c:/^threadentry
-	#	../../libcgo/darwin_amd64.c:/^threadentry
-	#
-	echo '#define	get_tls(r)'
-	echo '#define	g(r) 0(GS)'
-	echo '#define	m(r) 8(GS)'
+	case "$GOOS" in
+	windows)
+		echo '#define	get_tls(r) MOVQ 0x58(GS), r'
+		echo '#define	g(r) 0(r)'
+		echo '#define	m(r) 8(r)'
+		;;
+	*)
+		# The offsets 0 and 8 are known to:
+		#	../../cmd/6l/pass.c:/D_GS
+		#	../../libcgo/linux_amd64.c:/^threadentry
+		#	../../libcgo/darwin_amd64.c:/^threadentry
+		#
+		echo '#define	get_tls(r)'
+		echo '#define	g(r) 0(GS)'
+		echo '#define	m(r) 8(GS)'
+		;;
+	esac
 	;;
 arm)
 	echo '#define	g	R10'
