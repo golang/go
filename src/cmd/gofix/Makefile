@@ -18,6 +18,7 @@ GOFILES=\
 	osopen.go\
 	procattr.go\
 	reflect.go\
+	signal.go\
 	sortslice.go\
 	stringssplit.go\
 	typecheck.go\
