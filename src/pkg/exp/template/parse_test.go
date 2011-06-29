@@ -151,6 +151,8 @@ var parseTests = []parseTest{
 		`[({{range [(command: [F=[X]]) (command: [F=[M]])]}} [(text: "true")] {{else}} [(text: "false")])]`},
 	{"range []int", "{{range .SI}}{{.}}{{end}}", noError,
 		`[({{range [(command: [F=[SI]])]}} [(action: [(command: [{{<.>}}])])])]`},
+	{"constants", "{{range .SI 1 -3.2i true false }}{{end}}", noError,
+		`[({{range [(command: [F=[SI] N=1 N=-3.2i B=true B=false])]}} [])]`},
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},
 	{"missing end", "hello{{range .x}}", hasError, ""},

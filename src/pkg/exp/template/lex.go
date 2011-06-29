@@ -35,6 +35,7 @@ type itemType int
 
 const (
 	itemError itemType = iota // error occurred; value is text of error
+	itemBool                  // boolean constant
 	itemDot                   // the cursor, spelled '.'.
 	itemEOF
 	itemElse       // else keyword
@@ -55,6 +56,7 @@ const (
 // Make the types prettyprint.
 var itemName = map[itemType]string{
 	itemError:      "error",
+	itemBool:       "bool",
 	itemDot:        ".",
 	itemEOF:        "EOF",
 	itemElse:       "else",
@@ -284,6 +286,8 @@ Loop:
 				l.emit(key[word])
 			case word[0] == '.':
 				l.emit(itemField)
+			case word == "true", word == "false":
+				l.emit(itemBool)
 			default:
 				l.emit(itemIdentifier)
 			}

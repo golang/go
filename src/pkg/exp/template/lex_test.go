@@ -46,6 +46,13 @@ var lexTests = []lexTest{
 		tRight,
 		tEOF,
 	}},
+	{"bools", "{{true false}}", []item{
+		tLeft,
+		{itemBool, "true"},
+		{itemBool, "false"},
+		tRight,
+		tEOF,
+	}},
 	{"dot", "{{.}}", []item{
 		tLeft,
 		{itemDot, "."},

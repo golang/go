@@ -198,6 +198,23 @@ func (f *fieldNode) String() string {
 	return fmt.Sprintf("F=%s", f.ident)
 }
 
+// boolNode holds a boolean constant.
+type boolNode struct {
+	nodeType
+	true bool
+}
+
+func newBool(true bool) *boolNode {
+	return &boolNode{nodeType: nodeString, true: true}
+}
+
+func (b *boolNode) String() string {
+	if b.true {
+		return fmt.Sprintf("B=true")
+	}
+	return fmt.Sprintf("B=false")
+}
+
 // numberNode holds a number, signed or unsigned, integer, floating, or imaginary.
 // The value is parsed and stored under all the types that can represent the value.
 // This simulates in a small amount of code the behavior of Go's ideal constants.
@@ -534,6 +551,8 @@ Loop:
 			cmd.append(newDot())
 		case itemField:
 			cmd.append(newField(token.val))
+		case itemBool:
+			cmd.append(newBool(token.val == "true"))
 		case itemNumber:
 			if len(cmd.args) == 0 {
 				t.errorf("command cannot be %q", token.val)
