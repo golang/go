@@ -158,6 +158,7 @@ func (i *instr) print() {
 
 // Regexp is the representation of a compiled regular expression.
 // The public interface is entirely through methods.
+// A Regexp is safe for concurrent use by multiple goroutines.
 type Regexp struct {
 	expr        string // the original expression
 	prefix      string // initial plain text string
