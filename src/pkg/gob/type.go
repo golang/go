@@ -80,11 +80,6 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
 	return
 }
 
-const (
-	gobEncodeMethodName = "GobEncode"
-	gobDecodeMethodName = "GobDecode"
-)
-
 var (
 	gobEncoderInterfaceType = reflect.TypeOf(new(GobEncoder)).Elem()
 	gobDecoderInterfaceType = reflect.TypeOf(new(GobDecoder)).Elem()
