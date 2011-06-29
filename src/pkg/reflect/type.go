@@ -47,6 +47,16 @@ type Type interface {
 	// method signature, without a receiver, and the Func field is nil.
 	Method(int) Method
 
+	// MethodByName returns the method with that name in the type's
+	// method set and a boolean indicating if the method was found.
+	//
+	// For a non-interface type T or *T, the returned Method's Type and Func
+	// fields describe a function whose first argument is the receiver.
+	//
+	// For an interface type, the returned Method's Type field gives the
+	// method signature, without a receiver, and the Func field is nil.
+	MethodByName(string) (Method, bool)
+
 	// NumMethod returns the number of methods in the type's method set.
 	NumMethod() int
 
@@ -344,6 +354,7 @@ type Method struct {
 	Name    string
 	Type    Type
 	Func    Value
+	Index   int
 }
 
 // High bit says whether type has
@@ -451,6 +462,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 	m.Type = toType(p.typ)
 	fn := p.tfn
 	m.Func = valueFromIword(flag, m.Type, iword(fn))
+	m.Index = i
 	return
 }
 
@@ -459,6 +471,20 @@ func (t *uncommonType) NumMethod() int {
 		return 0
 	}
 	return len(t.methods)
+}
+
+func (t *uncommonType) MethodByName(name string) (m Method, ok bool) {
+	if t == nil {
+		return
+	}
+	var p *method
+	for i := range t.methods {
+		p = &t.methods[i]
+		if p.name != nil && *p.name == name {
+			return t.Method(i), true
+		}
+	}
+	return
 }
 
 // TODO(rsc): 6g supplies these, but they are not
@@ -478,6 +504,14 @@ func (t *commonType) Method(i int) (m Method) {
 		return tt.Method(i)
 	}
 	return t.uncommonType.Method(i)
+}
+
+func (t *commonType) MethodByName(name string) (m Method, ok bool) {
+	if t.Kind() == Interface {
+		tt := (*interfaceType)(unsafe.Pointer(t))
+		return tt.MethodByName(name)
+	}
+	return t.uncommonType.MethodByName(name)
 }
 
 func (t *commonType) PkgPath() string {
@@ -636,11 +670,27 @@ func (t *interfaceType) Method(i int) (m Method) {
 		m.PkgPath = *p.pkgPath
 	}
 	m.Type = toType(p.typ)
+	m.Index = i
 	return
 }
 
 // NumMethod returns the number of interface methods in the type's method set.
 func (t *interfaceType) NumMethod() int { return len(t.methods) }
+
+// MethodByName method with the given name in the type's method set.
+func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
+	if t == nil {
+		return
+	}
+	var p *imethod
+	for i := range t.methods {
+		p = &t.methods[i]
+		if *p.name == name {
+			return t.Method(i), true
+		}
+	}
+	return
+}
 
 type StructField struct {
 	PkgPath   string // empty for uppercase Name

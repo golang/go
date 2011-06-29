@@ -1050,6 +1050,12 @@ type Point struct {
 	x, y int
 }
 
+// This will be index 0.
+func (p Point) AnotherMethod(scale int) int {
+	return -1
+}
+
+// This will be index 1.
 func (p Point) Dist(scale int) int {
 	//	println("Point.Dist", p.x, p.y, scale)
 	return p.x*p.x*scale + p.y*p.y*scale
@@ -1058,26 +1064,52 @@ func (p Point) Dist(scale int) int {
 func TestMethod(t *testing.T) {
 	// Non-curried method of type.
 	p := Point{3, 4}
-	i := TypeOf(p).Method(0).Func.Call([]Value{ValueOf(p), ValueOf(10)})[0].Int()
+	i := TypeOf(p).Method(1).Func.Call([]Value{ValueOf(p), ValueOf(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Type Method returned %d; want 250", i)
 	}
 
-	i = TypeOf(&p).Method(0).Func.Call([]Value{ValueOf(&p), ValueOf(10)})[0].Int()
+	m, ok := TypeOf(p).MethodByName("Dist")
+	if !ok {
+		t.Fatalf("method by name failed")
+	}
+	m.Func.Call([]Value{ValueOf(p), ValueOf(10)})[0].Int()
+	if i != 250 {
+		t.Errorf("Type MethodByName returned %d; want 250", i)
+	}
+
+	i = TypeOf(&p).Method(1).Func.Call([]Value{ValueOf(&p), ValueOf(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Pointer Type Method returned %d; want 250", i)
 	}
 
+	m, ok = TypeOf(&p).MethodByName("Dist")
+	if !ok {
+		t.Fatalf("ptr method by name failed")
+	}
+	i = m.Func.Call([]Value{ValueOf(&p), ValueOf(10)})[0].Int()
+	if i != 250 {
+		t.Errorf("Pointer Type MethodByName returned %d; want 250", i)
+	}
+
 	// Curried method of value.
-	i = ValueOf(p).Method(0).Call([]Value{ValueOf(10)})[0].Int()
+	i = ValueOf(p).Method(1).Call([]Value{ValueOf(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Value Method returned %d; want 250", i)
 	}
+	i = ValueOf(p).MethodByName("Dist").Call([]Value{ValueOf(10)})[0].Int()
+	if i != 250 {
+		t.Errorf("Value MethodByName returned %d; want 250", i)
+	}
 
 	// Curried method of pointer.
-	i = ValueOf(&p).Method(0).Call([]Value{ValueOf(10)})[0].Int()
+	i = ValueOf(&p).Method(1).Call([]Value{ValueOf(10)})[0].Int()
 	if i != 250 {
-		t.Errorf("Value Method returned %d; want 250", i)
+		t.Errorf("Pointer Value Method returned %d; want 250", i)
+	}
+	i = ValueOf(&p).MethodByName("Dist").Call([]Value{ValueOf(10)})[0].Int()
+	if i != 250 {
+		t.Errorf("Pointer Value MethodByName returned %d; want 250", i)
 	}
 
 	// Curried method of interface value.
@@ -1093,6 +1125,10 @@ func TestMethod(t *testing.T) {
 	i = pv.Method(0).Call([]Value{ValueOf(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Interface Method returned %d; want 250", i)
+	}
+	i = pv.MethodByName("Dist").Call([]Value{ValueOf(10)})[0].Int()
+	if i != 250 {
+		t.Errorf("Interface MethodByName returned %d; want 250", i)
 	}
 }
 
