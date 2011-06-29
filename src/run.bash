@@ -34,7 +34,7 @@ if $rebuild; then
 	(xcd pkg
 		gomake clean
 		time gomake install
-	) || exit $i
+	) || exit $?
 fi
 
 (xcd pkg
