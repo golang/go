@@ -127,17 +127,17 @@ var typeTests = []pair{
 	},
 	{struct {
 		x struct {
-			a int8 "hi there"
+			a int8 `reflect:"hi there"`
 		}
 	}{},
-		`struct { a int8 "hi there" }`,
+		`struct { a int8 "reflect:\"hi there\"" }`,
 	},
 	{struct {
 		x struct {
-			a int8 "hi \x00there\t\n\"\\"
+			a int8 `reflect:"hi \x00there\t\n\"\\"`
 		}
 	}{},
-		`struct { a int8 "hi \x00there\t\n\"\\" }`,
+		`struct { a int8 "reflect:\"hi \\x00there\\t\\n\\\"\\\\\"" }`,
 	},
 	{struct {
 		x struct {
@@ -423,7 +423,7 @@ func TestAll(t *testing.T) {
 
 	// make sure tag strings are not part of element type
 	typ = TypeOf(struct {
-		d []uint32 "TAG"
+		d []uint32 `reflect:"TAG"`
 	}{}).Field(0).Type
 	testType(t, 14, typ, "[]uint32")
 }
@@ -1542,5 +1542,25 @@ func TestVariadic(t *testing.T) {
 	V(fmt.Fprintf).CallSlice([]Value{V(&b), V("%s, %d world"), V([]interface{}{"hello", 42})})
 	if b.String() != "hello, 42 world" {
 		t.Errorf("after Fprintf CallSlice: %q != %q", b.String(), "hello 42 world")
+	}
+}
+
+var tagGetTests = []struct {
+	Tag   StructTag
+	Key   string
+	Value string
+}{
+	{`protobuf:"PB(1,2)"`, `protobuf`, `PB(1,2)`},
+	{`protobuf:"PB(1,2)"`, `foo`, ``},
+	{`protobuf:"PB(1,2)"`, `rotobuf`, ``},
+	{`protobuf:"PB(1,2)" json:"name"`, `json`, `name`},
+	{`protobuf:"PB(1,2)" json:"name"`, `protobuf`, `PB(1,2)`},
+}
+
+func TestTagGet(t *testing.T) {
+	for _, tt := range tagGetTests {
+		if v := tt.Tag.Get(tt.Key); v != tt.Value {
+			t.Errorf("StructTag(%#q).Get(%#q) = %#q, want %#q", tt.Tag, tt.Key, v, tt.Value)
+		}
 	}
 }

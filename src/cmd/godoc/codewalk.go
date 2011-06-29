@@ -74,7 +74,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
 
 // A Codewalk represents a single codewalk read from an XML file.
 type Codewalk struct {
-	Title string "attr"
+	Title string `xml:"attr"`
 	File  []string
 	Step  []*Codestep
 }
@@ -83,9 +83,9 @@ type Codewalk struct {
 // A Codestep is a single step in a codewalk.
 type Codestep struct {
 	// Filled in from XML
-	Src   string "attr"
-	Title string "attr"
-	XML   string "innerxml"
+	Src   string `xml:"attr"`
+	Title string `xml:"attr"`
+	XML   string `xml:"innerxml"`
 
 	// Derived from Src; not in XML.
 	Err    os.Error

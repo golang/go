@@ -22,18 +22,18 @@ const (
 )
 
 type Passenger struct {
-	Name   []string "name"
-	Weight float32  "weight"
+	Name   []string `xml:"name"`
+	Weight float32  `xml:"weight"`
 }
 
 type Ship struct {
-	XMLName Name "spaceship"
+	XMLName Name `xml:"spaceship"`
 
-	Name      string       "attr"
-	Pilot     string       "attr"
-	Drive     DriveType    "drive"
-	Age       uint         "age"
-	Passenger []*Passenger "passenger"
+	Name      string       `xml:"attr"`
+	Pilot     string       `xml:"attr"`
+	Drive     DriveType    `xml:"drive"`
+	Age       uint         `xml:"age"`
+	Passenger []*Passenger `xml:"passenger"`
 	secret    string
 }
 
@@ -46,22 +46,22 @@ func (rx RawXML) MarshalXML() ([]byte, os.Error) {
 type NamedType string
 
 type Port struct {
-	XMLName Name   "port"
-	Type    string "attr"
-	Number  string "chardata"
+	XMLName Name   `xml:"port"`
+	Type    string `xml:"attr"`
+	Number  string `xml:"chardata"`
 }
 
 type Domain struct {
-	XMLName Name   "domain"
-	Country string "attr"
-	Name    []byte "chardata"
+	XMLName Name   `xml:"domain"`
+	Country string `xml:"attr"`
+	Name    []byte `xml:"chardata"`
 }
 
 type SecretAgent struct {
-	XMLName   Name   "agent"
-	Handle    string "attr"
+	XMLName   Name   `xml:"agent"`
+	Handle    string `xml:"attr"`
 	Identity  string
-	Obfuscate string "innerxml"
+	Obfuscate string `xml:"innerxml"`
 }
 
 var nilStruct *Ship

@@ -413,7 +413,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 		for i := startingField; i < t.NumField(); i++ {
 			var pre *forkableWriter
 			pre, out = out.fork()
-			err = marshalField(pre, v.Field(i), parseFieldParameters(t.Field(i).Tag))
+			err = marshalField(pre, v.Field(i), parseFieldParameters(t.Field(i).Tag.Get("asn1")))
 			if err != nil {
 				return
 			}

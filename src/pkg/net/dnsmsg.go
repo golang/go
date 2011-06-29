@@ -93,7 +93,7 @@ const (
 
 // DNS queries.
 type dnsQuestion struct {
-	Name   string "domain-name" // "domain-name" specifies encoding; see packers below
+	Name   string `net:"domain-name"` // `net:"domain-name"` specifies encoding; see packers below
 	Qtype  uint16
 	Qclass uint16
 }
@@ -102,7 +102,7 @@ type dnsQuestion struct {
 // There are many types of messages,
 // but they all share the same header.
 type dnsRR_Header struct {
-	Name     string "domain-name"
+	Name     string `net:"domain-name"`
 	Rrtype   uint16
 	Class    uint16
 	Ttl      uint32
@@ -121,7 +121,7 @@ type dnsRR interface {
 
 type dnsRR_CNAME struct {
 	Hdr   dnsRR_Header
-	Cname string "domain-name"
+	Cname string `net:"domain-name"`
 }
 
 func (rr *dnsRR_CNAME) Header() *dnsRR_Header {
@@ -140,7 +140,7 @@ func (rr *dnsRR_HINFO) Header() *dnsRR_Header {
 
 type dnsRR_MB struct {
 	Hdr dnsRR_Header
-	Mb  string "domain-name"
+	Mb  string `net:"domain-name"`
 }
 
 func (rr *dnsRR_MB) Header() *dnsRR_Header {
@@ -149,7 +149,7 @@ func (rr *dnsRR_MB) Header() *dnsRR_Header {
 
 type dnsRR_MG struct {
 	Hdr dnsRR_Header
-	Mg  string "domain-name"
+	Mg  string `net:"domain-name"`
 }
 
 func (rr *dnsRR_MG) Header() *dnsRR_Header {
@@ -158,8 +158,8 @@ func (rr *dnsRR_MG) Header() *dnsRR_Header {
 
 type dnsRR_MINFO struct {
 	Hdr   dnsRR_Header
-	Rmail string "domain-name"
-	Email string "domain-name"
+	Rmail string `net:"domain-name"`
+	Email string `net:"domain-name"`
 }
 
 func (rr *dnsRR_MINFO) Header() *dnsRR_Header {
@@ -168,7 +168,7 @@ func (rr *dnsRR_MINFO) Header() *dnsRR_Header {
 
 type dnsRR_MR struct {
 	Hdr dnsRR_Header
-	Mr  string "domain-name"
+	Mr  string `net:"domain-name"`
 }
 
 func (rr *dnsRR_MR) Header() *dnsRR_Header {
@@ -178,7 +178,7 @@ func (rr *dnsRR_MR) Header() *dnsRR_Header {
 type dnsRR_MX struct {
 	Hdr  dnsRR_Header
 	Pref uint16
-	Mx   string "domain-name"
+	Mx   string `net:"domain-name"`
 }
 
 func (rr *dnsRR_MX) Header() *dnsRR_Header {
@@ -187,7 +187,7 @@ func (rr *dnsRR_MX) Header() *dnsRR_Header {
 
 type dnsRR_NS struct {
 	Hdr dnsRR_Header
-	Ns  string "domain-name"
+	Ns  string `net:"domain-name"`
 }
 
 func (rr *dnsRR_NS) Header() *dnsRR_Header {
@@ -196,7 +196,7 @@ func (rr *dnsRR_NS) Header() *dnsRR_Header {
 
 type dnsRR_PTR struct {
 	Hdr dnsRR_Header
-	Ptr string "domain-name"
+	Ptr string `net:"domain-name"`
 }
 
 func (rr *dnsRR_PTR) Header() *dnsRR_Header {
@@ -205,8 +205,8 @@ func (rr *dnsRR_PTR) Header() *dnsRR_Header {
 
 type dnsRR_SOA struct {
 	Hdr     dnsRR_Header
-	Ns      string "domain-name"
-	Mbox    string "domain-name"
+	Ns      string `net:"domain-name"`
+	Mbox    string `net:"domain-name"`
 	Serial  uint32
 	Refresh uint32
 	Retry   uint32
@@ -232,7 +232,7 @@ type dnsRR_SRV struct {
 	Priority uint16
 	Weight   uint16
 	Port     uint16
-	Target   string "domain-name"
+	Target   string `net:"domain-name"`
 }
 
 func (rr *dnsRR_SRV) Header() *dnsRR_Header {
@@ -241,7 +241,7 @@ func (rr *dnsRR_SRV) Header() *dnsRR_Header {
 
 type dnsRR_A struct {
 	Hdr dnsRR_Header
-	A   uint32 "ipv4"
+	A   uint32 `net:"ipv4"`
 }
 
 func (rr *dnsRR_A) Header() *dnsRR_Header {
@@ -250,7 +250,7 @@ func (rr *dnsRR_A) Header() *dnsRR_Header {
 
 type dnsRR_AAAA struct {
 	Hdr  dnsRR_Header
-	AAAA [16]byte "ipv6"
+	AAAA [16]byte `net:"ipv6"`
 }
 
 func (rr *dnsRR_AAAA) Header() *dnsRR_Header {
@@ -435,7 +435,7 @@ func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool)
 			default:
 				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", f.Tag)
 				return len(msg), false
-			case "domain-name":
+			case `net:"domain-name"`:
 				off, ok = packDomainName(s, msg, off)
 				if !ok {
 					return len(msg), false
@@ -506,7 +506,7 @@ func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok boo
 			default:
 				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", f.Tag)
 				return len(msg), false
-			case "domain-name":
+			case `net:"domain-name"`:
 				s, off, ok = unpackDomainName(msg, off)
 				if !ok {
 					return len(msg), false
@@ -536,9 +536,9 @@ func unpackStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
 }
 
 // Generic struct printer.
-// Doesn't care about the string tag "domain-name",
-// but does look for an "ipv4" tag on uint32 variables
-// and the "ipv6" tag on array variables,
+// Doesn't care about the string tag `net:"domain-name"`,
+// but does look for an `net:"ipv4"` tag on uint32 variables
+// and the `net:"ipv6"` tag on array variables,
 // printing them as IP addresses.
 func printStructValue(val reflect.Value) string {
 	s := "{"
@@ -553,10 +553,10 @@ func printStructValue(val reflect.Value) string {
 		fval := val.Field(i)
 		if fv := fval; fv.Kind() == reflect.Struct {
 			s += printStructValue(fv)
-		} else if fv := fval; (fv.Kind() == reflect.Uint || fv.Kind() == reflect.Uint8 || fv.Kind() == reflect.Uint16 || fv.Kind() == reflect.Uint32 || fv.Kind() == reflect.Uint64 || fv.Kind() == reflect.Uintptr) && f.Tag == "ipv4" {
+		} else if fv := fval; (fv.Kind() == reflect.Uint || fv.Kind() == reflect.Uint8 || fv.Kind() == reflect.Uint16 || fv.Kind() == reflect.Uint32 || fv.Kind() == reflect.Uint64 || fv.Kind() == reflect.Uintptr) && f.Tag == `net:"ipv4"` {
 			i := fv.Uint()
 			s += IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i)).String()
-		} else if fv := fval; fv.Kind() == reflect.Array && f.Tag == "ipv6" {
+		} else if fv := fval; fv.Kind() == reflect.Array && f.Tag == `net:"ipv6"` {
 			i := fv.Interface().([]byte)
 			s += IP(i).String()
 		} else {

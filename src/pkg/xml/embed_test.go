@@ -12,14 +12,14 @@ type C struct {
 }
 
 type A struct {
-	XMLName Name "http://domain a"
+	XMLName Name `xml:"http://domain a"`
 	C
 	B      B
 	FieldA string
 }
 
 type B struct {
-	XMLName Name "b"
+	XMLName Name `xml:"b"`
 	C
 	FieldB string
 }
@@ -65,7 +65,7 @@ func TestEmbedded1(t *testing.T) {
 }
 
 type A2 struct {
-	XMLName Name "http://domain a"
+	XMLName Name `xml:"http://domain a"`
 	XY      string
 	Xy      string
 }
@@ -92,7 +92,7 @@ func TestEmbedded2(t *testing.T) {
 }
 
 type A3 struct {
-	XMLName Name "http://domain a"
+	XMLName Name `xml:"http://domain a"`
 	xy      string
 }
 
@@ -108,7 +108,7 @@ func TestEmbedded3(t *testing.T) {
 }
 
 type A4 struct {
-	XMLName Name "http://domain a"
+	XMLName Name `xml:"http://domain a"`
 	Any     string
 }
 

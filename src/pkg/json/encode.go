@@ -36,11 +36,13 @@ import (
 // Array and slice values encode as JSON arrays, except that
 // []byte encodes as a base64-encoded string.
 //
-// Struct values encode as JSON objects.  Each struct field becomes
-// a member of the object.  By default the object's key name is the
-// struct field name.  If the struct field has a non-empty tag consisting
-// of only Unicode letters, digits, and underscores, that tag will be used
-// as the name instead.  Only exported fields will be encoded.
+// Struct values encode as JSON objects.  Each exported struct field
+// becomes a member of the object.  By default the object's key string
+// is the struct field name.  If the struct field's tag has a "json" key with a
+// value that is a non-empty string consisting of only Unicode letters,
+// digits, and underscores, that value will be used as the object key.
+// For example, the field tag `json:"myName"` says to use "myName"
+// as the object key.
 //
 // Map values encode as JSON objects.
 // The map's key type must be string; the object keys are used directly
@@ -236,8 +238,8 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 			} else {
 				e.WriteByte(',')
 			}
-			if isValidTag(f.Tag) {
-				e.string(f.Tag)
+			if tag := f.Tag.Get("json"); tag != "" && isValidTag(tag) {
+				e.string(tag)
 			} else {
 				e.string(f.Name)
 			}

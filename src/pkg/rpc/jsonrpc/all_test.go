@@ -51,9 +51,9 @@ func init() {
 
 func TestServer(t *testing.T) {
 	type addResp struct {
-		Id     interface{} "id"
-		Result Reply       "result"
-		Error  interface{} "error"
+		Id     interface{} `json:"id"`
+		Result Reply       `json:"result"`
+		Error  interface{} `json:"error"`
 	}
 
 	cli, srv := net.Pipe()

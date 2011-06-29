@@ -108,7 +108,7 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
 	xmlns := ""
 	if kind == reflect.Struct {
 		if f, ok := typ.FieldByName("XMLName"); ok {
-			if tag := f.Tag; tag != "" {
+			if tag := f.Tag.Get("xml"); tag != "" {
 				if i := strings.Index(tag, " "); i >= 0 {
 					xmlns, name = tag[:i], tag[i+1:]
 				} else {
@@ -132,7 +132,7 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
 		}
 
 		for i, n := 0, typ.NumField(); i < n; i++ {
-			if f := typ.Field(i); f.PkgPath == "" && f.Tag == "attr" {
+			if f := typ.Field(i); f.PkgPath == "" && f.Tag.Get("xml") == "attr" {
 				if f.Type.Kind() == reflect.String {
 					if str := val.Field(i).String(); str != "" {
 						p.WriteByte(' ')
@@ -173,7 +173,7 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
 		for i, n := 0, val.NumField(); i < n; i++ {
 			if f := typ.Field(i); f.Name != "XMLName" && f.PkgPath == "" {
 				name := f.Name
-				switch tag := f.Tag; tag {
+				switch tag := f.Tag.Get("xml"); tag {
 				case "":
 				case "chardata":
 					if tk := f.Type.Kind(); tk == reflect.String {

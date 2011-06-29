@@ -42,8 +42,9 @@ var (
 
 type badTag struct {
 	X string
-	Y string "y"
-	Z string "@#*%(#@"
+	Y string `json:"y"`
+	Z string `x:"@#*%(#@"`
+	W string `json:"@#$@#$"`
 }
 
 type unmarshalTest struct {
@@ -68,7 +69,7 @@ var unmarshalTests = []unmarshalTest{
 	{`{"x": 1}`, new(tx), tx{}, &UnmarshalFieldError{"x", txType, txType.Field(0)}},
 
 	// skip invalid tags
-	{`{"X":"a", "y":"b", "Z":"c"}`, new(badTag), badTag{"a", "b", "c"}, nil},
+	{`{"X":"a", "y":"b", "Z":"c", "W":"d"}`, new(badTag), badTag{"a", "b", "c", "d"}, nil},
 
 	// syntax errors
 	{`{"X": "foo", "Y"}`, nil, nil, &SyntaxError{"invalid character '}' after object key", 17}},
@@ -250,7 +251,7 @@ type All struct {
 	Float32 float32
 	Float64 float64
 
-	Foo string "bar"
+	Foo string `json:"bar"`
 
 	PBool    *bool
 	PInt     *int

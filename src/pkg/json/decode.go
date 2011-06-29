@@ -482,7 +482,7 @@ func (d *decodeState) object(v reflect.Value) {
 			if isValidTag(key) {
 				for i := 0; i < sv.NumField(); i++ {
 					f = st.Field(i)
-					if f.Tag == key {
+					if f.Tag.Get("json") == key {
 						ok = true
 						break
 					}
