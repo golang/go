@@ -237,8 +237,11 @@ import_here:
 import_package:
 	LPACKAGE sym import_safety ';'
 	{
-		importpkg->name = $2->name;
-		pkglookup($2->name, nil)->npkg++;
+		if(importpkg->name == nil) {
+			importpkg->name = $2->name;
+			pkglookup($2->name, nil)->npkg++;
+		} else if(strcmp(importpkg->name, $2->name) != 0)
+			yyerror("conflicting names %s and %s for package %Z", importpkg->name, $2->name, importpkg->path);
 		importpkg->direct = 1;
 		
 		if(safemode && !curio.importsafe)
@@ -1658,8 +1661,11 @@ hidden_import:
 		Pkg *p;
 
 		p = mkpkg($3.u.sval);
-		p->name = $2->name;
-		pkglookup($2->name, nil)->npkg++;
+		if(p->name == nil) {
+			p->name = $2->name;
+			pkglookup($2->name, nil)->npkg++;
+		} else if(strcmp(p->name, $2->name) != 0)
+			yyerror("conflicting names %s and %s for package %Z", p->name, $2->name, p->path);
 	}
 |	LVAR hidden_pkg_importsym hidden_type ';'
 	{
