@@ -134,10 +134,7 @@ func (s *state) evalFieldNode(data reflect.Value, field *fieldNode, args []node,
 }
 
 func (s *state) evalField(data reflect.Value, fieldName string) reflect.Value {
-	for {
-		if data.Kind() != reflect.Ptr {
-			break
-		}
+	for data.Kind() == reflect.Ptr {
 		data = reflect.Indirect(data)
 	}
 	switch data.Kind() {
@@ -162,12 +159,8 @@ func (s *state) evalMethodOrField(data reflect.Value, fieldName string, args []n
 		ptr, data = data, reflect.Indirect(data)
 	}
 	// Is it a method? We use the pointer because it has value methods too.
-	// TODO: reflect.Type could use a MethodByName.
-	for i := 0; i < ptr.Type().NumMethod(); i++ {
-		method := ptr.Type().Method(i)
-		if method.Name == fieldName {
-			return s.evalMethod(ptr, i, args, final)
-		}
+	if method, ok := ptr.Type().MethodByName(fieldName); ok {
+		return s.evalMethod(ptr, method, args, final)
 	}
 	if len(args) > 1 || final.IsValid() {
 		s.errorf("%s is not a method but has arguments", fieldName)
@@ -185,8 +178,7 @@ var (
 	osErrorType = reflect.TypeOf(new(os.Error)).Elem()
 )
 
-func (s *state) evalMethod(v reflect.Value, i int, args []node, final reflect.Value) reflect.Value {
-	method := v.Type().Method(i)
+func (s *state) evalMethod(v reflect.Value, method reflect.Method, args []node, final reflect.Value) reflect.Value {
 	typ := method.Type
 	fun := method.Func
 	numIn := len(args)
