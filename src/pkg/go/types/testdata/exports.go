@@ -38,7 +38,7 @@ type (
 	T9  struct {
 		a    int
 		b, c float32
-		d    []string "tag"
+		d    []string `go:"tag"`
 	}
 	T10 struct {
 		T8

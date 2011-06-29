@@ -707,7 +707,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			if i == 0 && field.Type == rawContentsType {
 				continue
 			}
-			innerOffset, err = parseField(val.Field(i), innerBytes, innerOffset, parseFieldParameters(field.Tag))
+			innerOffset, err = parseField(val.Field(i), innerBytes, innerOffset, parseFieldParameters(field.Tag.Get("asn1")))
 			if err != nil {
 				return
 			}

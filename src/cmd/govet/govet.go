@@ -15,6 +15,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"utf8"
@@ -59,7 +60,7 @@ func main() {
 				var err os.Error
 				skip, err = strconv.Atoi(name[colon+1:])
 				if err != nil {
-					error(`illegal format for "Func:N" argument %q; %s`, name, err)
+					errorf(`illegal format for "Func:N" argument %q; %s`, name, err)
 				}
 				name = name[:colon]
 			}
@@ -93,7 +94,7 @@ func doFile(name string, reader io.Reader) {
 	fs := token.NewFileSet()
 	parsedFile, err := parser.ParseFile(fs, name, reader, 0)
 	if err != nil {
-		error("%s: %s", name, err)
+		errorf("%s: %s", name, err)
 		return
 	}
 	file := &File{fs.File(parsedFile.Pos())}
@@ -121,7 +122,7 @@ func walkDir(root string) {
 	done := make(chan bool)
 	go func() {
 		for e := range errors {
-			error("walk error: %s", e)
+			errorf("walk error: %s", e)
 		}
 		done <- true
 	}()
@@ -132,7 +133,7 @@ func walkDir(root string) {
 
 // error formats the error to standard error, adding program
 // identification and a newline
-func error(format string, args ...interface{}) {
+func errorf(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "govet: "+format+"\n", args...)
 	setExit(2)
 }
@@ -185,15 +186,35 @@ func (f *File) checkFile(name string, file *ast.File) {
 
 // Visit implements the ast.Visitor interface.
 func (f *File) Visit(node ast.Node) ast.Visitor {
-	// TODO: could return nil for nodes that cannot contain a CallExpr -
-	// will shortcut traversal.  Worthwhile?
 	switch n := node.(type) {
 	case *ast.CallExpr:
 		f.checkCallExpr(n)
+	case *ast.Field:
+		f.checkFieldTag(n)
 	}
 	return f
 }
 
+// checkField checks a struct field tag.
+func (f *File) checkFieldTag(field *ast.Field) {
+	if field.Tag == nil {
+		return
+	}
+
+	tag, err := strconv.Unquote(field.Tag.Value)
+	if err != nil {
+		f.Warnf(field.Pos(), "unable to read struct tag %s", field.Tag.Value)
+		return
+	}
+
+	// Check tag for validity by appending
+	// new key:value to end and checking that
+	// the tag parsing code can find it.
+	if reflect.StructTag(tag+` _gofix:"_magic"`).Get("_gofix") != "_magic" {
+		f.Warnf(field.Pos(), "struct field tag %s not compatible with reflect.StructTag.Get", field.Tag.Value)
+		return
+	}
+}
 
 // checkCallExpr checks a call expression.
 func (f *File) checkCallExpr(call *ast.CallExpr) {
@@ -371,6 +392,10 @@ func BadFunctionUsedInTests() {
 	f := new(File)
 	f.Warn(0, "%s", "hello", 3)  // % in call to added function
 	f.Warnf(0, "%s", "hello", 3) // wrong # %s in call to added function
+}
+
+type BadTypeUsedInTests struct {
+	X int "hello" // struct field not well-formed
 }
 
 // printf is used by the test.

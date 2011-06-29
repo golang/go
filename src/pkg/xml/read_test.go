@@ -78,7 +78,7 @@ not being used from outside intra_region_diff.py.
 </summary></entry></feed> 	   `
 
 type Feed struct {
-	XMLName Name "http://www.w3.org/2005/Atom feed"
+	XMLName Name `xml:"http://www.w3.org/2005/Atom feed"`
 	Title   string
 	Id      string
 	Link    []Link
@@ -97,20 +97,20 @@ type Entry struct {
 }
 
 type Link struct {
-	Rel  string "attr"
-	Href string "attr"
+	Rel  string `xml:"attr"`
+	Href string `xml:"attr"`
 }
 
 type Person struct {
 	Name     string
 	URI      string
 	Email    string
-	InnerXML string "innerxml"
+	InnerXML string `xml:"innerxml"`
 }
 
 type Text struct {
-	Type string "attr"
-	Body string "chardata"
+	Type string `xml:"attr"`
+	Body string `xml:"chardata"`
 }
 
 type Time string
@@ -255,18 +255,18 @@ type PathTestItem struct {
 }
 
 type PathTestA struct {
-	Items         []PathTestItem ">item1"
+	Items         []PathTestItem `xml:">item1"`
 	Before, After string
 }
 
 type PathTestB struct {
-	Other         []PathTestItem "items>Item1"
+	Other         []PathTestItem `xml:"items>Item1"`
 	Before, After string
 }
 
 type PathTestC struct {
-	Values1       []string "items>item1>value"
-	Values2       []string "items>item2>value"
+	Values1       []string `xml:"items>item1>value"`
+	Values2       []string `xml:"items>item2>value"`
 	Before, After string
 }
 
@@ -275,7 +275,7 @@ type PathTestSet struct {
 }
 
 type PathTestD struct {
-	Other         PathTestSet "items>"
+	Other         PathTestSet `xml:"items>"`
 	Before, After string
 }
 
@@ -299,15 +299,15 @@ func TestUnmarshalPaths(t *testing.T) {
 }
 
 type BadPathTestA struct {
-	First  string "items>item1"
-	Other  string "items>item2"
-	Second string "items>"
+	First  string `xml:"items>item1"`
+	Other  string `xml:"items>item2"`
+	Second string `xml:"items>"`
 }
 
 type BadPathTestB struct {
-	Other  string "items>item2>value"
-	First  string "items>item1"
-	Second string "items>item1>value"
+	Other  string `xml:"items>item2>value"`
+	First  string `xml:"items>item1"`
+	Second string `xml:"items>item1>value"`
 }
 
 var badPathTests = []struct {
@@ -342,13 +342,13 @@ type AttrTest struct {
 }
 
 type Test1 struct {
-	Int   int     "attr"
-	Float float64 "attr"
-	Uint8 uint8   "attr"
+	Int   int     `xml:"attr"`
+	Float float64 `xml:"attr"`
+	Uint8 uint8   `xml:"attr"`
 }
 
 type Test2 struct {
-	Bool bool "attr"
+	Bool bool `xml:"attr"`
 }
 
 const attrString = `

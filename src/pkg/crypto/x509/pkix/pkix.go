@@ -16,7 +16,7 @@ import (
 // 5280, section 4.1.1.2.
 type AlgorithmIdentifier struct {
 	Algorithm  asn1.ObjectIdentifier
-	Parameters asn1.RawValue "optional"
+	Parameters asn1.RawValue `asn1:"optional"`
 }
 
 type RDNSequence []RelativeDistinguishedNameSET
@@ -32,7 +32,7 @@ type AttributeTypeAndValue struct {
 // 5280, section 4.2.
 type Extension struct {
 	Id       asn1.ObjectIdentifier
-	Critical bool "optional"
+	Critical bool `asn1:"optional"`
 	Value    []byte
 }
 
@@ -149,13 +149,13 @@ func (certList *CertificateList) HasExpired(currentTimeSeconds int64) bool {
 // 5280, section 5.1.
 type TBSCertificateList struct {
 	Raw                 asn1.RawContent
-	Version             int "optional,default:2"
+	Version             int `asn1:"optional,default:2"`
 	Signature           AlgorithmIdentifier
 	Issuer              RDNSequence
 	ThisUpdate          *time.Time
 	NextUpdate          *time.Time
-	RevokedCertificates []RevokedCertificate "optional"
-	Extensions          []Extension          "tag:0,optional,explicit"
+	RevokedCertificates []RevokedCertificate `asn1:"optional"`
+	Extensions          []Extension          `asn1:"tag:0,optional,explicit"`
 }
 
 // RevokedCertificate represents the ASN.1 structure of the same name. See RFC
@@ -163,5 +163,5 @@ type TBSCertificateList struct {
 type RevokedCertificate struct {
 	SerialNumber   *big.Int
 	RevocationTime *time.Time
-	Extensions     []Extension "optional"
+	Extensions     []Extension `asn1:"optional"`
 }

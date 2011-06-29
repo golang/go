@@ -30,11 +30,11 @@ type pkcs1PrivateKey struct {
 	P       *big.Int
 	Q       *big.Int
 	// We ignore these values, if present, because rsa will calculate them.
-	Dp   *big.Int "optional"
-	Dq   *big.Int "optional"
-	Qinv *big.Int "optional"
+	Dp   *big.Int `asn1:"optional"`
+	Dq   *big.Int `asn1:"optional"`
+	Qinv *big.Int `asn1:"optional"`
 
-	AdditionalPrimes []pkcs1AdditionalRSAPrime "optional"
+	AdditionalPrimes []pkcs1AdditionalRSAPrime `asn1:"optional"`
 }
 
 type pkcs1AdditionalRSAPrime struct {
@@ -136,16 +136,16 @@ type certificate struct {
 
 type tbsCertificate struct {
 	Raw                asn1.RawContent
-	Version            int "optional,explicit,default:1,tag:0"
+	Version            int `asn1:"optional,explicit,default:1,tag:0"`
 	SerialNumber       *big.Int
 	SignatureAlgorithm pkix.AlgorithmIdentifier
 	Issuer             pkix.RDNSequence
 	Validity           validity
 	Subject            pkix.RDNSequence
 	PublicKey          publicKeyInfo
-	UniqueId           asn1.BitString   "optional,tag:1"
-	SubjectUniqueId    asn1.BitString   "optional,tag:2"
-	Extensions         []pkix.Extension "optional,explicit,tag:3"
+	UniqueId           asn1.BitString   `asn1:"optional,tag:1"`
+	SubjectUniqueId    asn1.BitString   `asn1:"optional,tag:2"`
+	Extensions         []pkix.Extension `asn1:"optional,explicit,tag:3"`
 }
 
 type dsaAlgorithmParameters struct {
@@ -168,7 +168,7 @@ type publicKeyInfo struct {
 
 // RFC 5280,  4.2.1.1
 type authKeyId struct {
-	Id []byte "optional,tag:0"
+	Id []byte `asn1:"optional,tag:0"`
 }
 
 type SignatureAlgorithm int
@@ -480,8 +480,8 @@ func (h UnhandledCriticalExtension) String() string {
 }
 
 type basicConstraints struct {
-	IsCA       bool "optional"
-	MaxPathLen int  "optional"
+	IsCA       bool `asn1:"optional"`
+	MaxPathLen int  `asn1:"optional"`
 }
 
 type rsaPublicKey struct {
@@ -497,14 +497,14 @@ type policyInformation struct {
 
 // RFC 5280, 4.2.1.10
 type nameConstraints struct {
-	Permitted []generalSubtree "optional,tag:0"
-	Excluded  []generalSubtree "optional,tag:1"
+	Permitted []generalSubtree `asn1:"optional,tag:0"`
+	Excluded  []generalSubtree `asn1:"optional,tag:1"`
 }
 
 type generalSubtree struct {
-	Name string "tag:2,optional,ia5"
-	Min  int    "optional,tag:0"
-	Max  int    "optional,tag:1"
+	Name string `asn1:"tag:2,optional,ia5"`
+	Min  int    `asn1:"optional,tag:0"`
+	Max  int    `asn1:"optional,tag:1"`
 }
 
 func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{}, os.Error) {

@@ -299,11 +299,11 @@ type TestObjectIdentifierStruct struct {
 }
 
 type TestContextSpecificTags struct {
-	A int "tag:1"
+	A int `asn1:"tag:1"`
 }
 
 type TestContextSpecificTags2 struct {
-	A int "explicit,tag:1"
+	A int `asn1:"explicit,tag:1"`
 	B int
 }
 
@@ -353,7 +353,7 @@ type Certificate struct {
 }
 
 type TBSCertificate struct {
-	Version            int "optional,explicit,default:0,tag:0"
+	Version            int `asn1:"optional,explicit,default:0,tag:0"`
 	SerialNumber       RawValue
 	SignatureAlgorithm AlgorithmIdentifier
 	Issuer             RDNSequence

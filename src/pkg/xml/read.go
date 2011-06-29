@@ -31,16 +31,16 @@ import (
 // For example, given these definitions:
 //
 //	type Email struct {
-//		Where string "attr"
+//		Where string `xml:"attr"`
 //		Addr  string
 //	}
 //
 //	type Result struct {
-//		XMLName xml.Name "result"
+//		XMLName xml.Name `xml:"result"`
 //		Name	string
 //		Phone	string
 //		Email	[]Email
-//		Groups  []string "group>value"
+//		Groups  []string `xml:"group>value"`
 //	}
 //
 //	result := Result{Name: "name", Phone: "phone", Email: nil}
@@ -79,11 +79,13 @@ import (
 // Groups was assigned considering the element path provided in the
 // field tag.
 //
-// Because Unmarshal uses the reflect package, it can only
-// assign to upper case fields.  Unmarshal uses a case-insensitive
+// Because Unmarshal uses the reflect package, it can only assign
+// to exported (upper case) fields.  Unmarshal uses a case-insensitive
 // comparison to match XML element names to struct field names.
 //
-// Unmarshal maps an XML element to a struct using the following rules:
+// Unmarshal maps an XML element to a struct using the following rules.
+// In the rules, the tag of a field refers to the value associated with the
+// key 'xml' in the struct field's tag (see the example above).
 //
 //   * If the struct has a field of type []byte or string with tag "innerxml",
 //      Unmarshal accumulates the raw XML nested inside the element
@@ -92,9 +94,9 @@ import (
 //   * If the struct has a field named XMLName of type xml.Name,
 //      Unmarshal records the element name in that field.
 //
-//   * If the XMLName field has an associated tag string of the form
-//      "tag" or "namespace-URL tag", the XML element must have
-//      the given tag (and, optionally, name space) or else Unmarshal
+//   * If the XMLName field has an associated tag of the form
+//      "name" or "namespace-URL name", the XML element must have
+//      the given name (and, optionally, name space) or else Unmarshal
 //      returns an error.
 //
 //   * If the XML element has an attribute whose name matches a
@@ -112,14 +114,14 @@ import (
 //      field, the comments are discarded.
 //
 //   * If the XML element contains a sub-element whose name matches
-//      the prefix of a struct field tag formatted as "a>b>c", unmarshal
+//      the prefix of a tag formatted as "a>b>c", unmarshal
 //      will descend into the XML structure looking for elements with the
 //      given names, and will map the innermost elements to that struct field.
-//      A struct field tag starting with ">" is equivalent to one starting
+//      A tag starting with ">" is equivalent to one starting
 //      with the field name followed by ">".
 //
 //   * If the XML element contains a sub-element whose name
-//      matches a struct field whose tag is neither "attr" nor "chardata",
+//      matches a field whose tag is neither "attr" nor "chardata",
 //      Unmarshal maps the sub-element to that struct field.
 //      Otherwise, if the struct has a field named Any, unmarshal
 //      maps the sub-element to that struct field.
@@ -297,8 +299,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		// Assign name.
 		if f, ok := typ.FieldByName("XMLName"); ok {
 			// Validate element name.
-			if f.Tag != "" {
-				tag := f.Tag
+			if tag := f.Tag.Get("xml"); tag != "" {
 				ns := ""
 				i := strings.LastIndex(tag, " ")
 				if i >= 0 {
@@ -330,7 +331,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		// Also, determine whether we need to save character data or comments.
 		for i, n := 0, typ.NumField(); i < n; i++ {
 			f := typ.Field(i)
-			switch f.Tag {
+			switch f.Tag.Get("xml") {
 			case "attr":
 				strv := sv.FieldByIndex(f.Index)
 				// Look for attribute.
@@ -366,15 +367,15 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 				}
 
 			default:
-				if strings.Contains(f.Tag, ">") {
+				if tag := f.Tag.Get("xml"); strings.Contains(tag, ">") {
 					if fieldPaths == nil {
 						fieldPaths = make(map[string]pathInfo)
 					}
-					path := strings.ToLower(f.Tag)
-					if strings.HasPrefix(f.Tag, ">") {
+					path := strings.ToLower(tag)
+					if strings.HasPrefix(tag, ">") {
 						path = strings.ToLower(f.Name) + path
 					}
-					if strings.HasSuffix(f.Tag, ">") {
+					if strings.HasSuffix(tag, ">") {
 						path = path[:len(path)-1]
 					}
 					err := addFieldPath(sv, fieldPaths, path, f.Index)
@@ -574,7 +575,7 @@ func tagError(sv reflect.Value, idx1 []int, idx2 []int) os.Error {
 	t := sv.Type()
 	f1 := t.FieldByIndex(idx1)
 	f2 := t.FieldByIndex(idx2)
-	return &TagPathError{t, f1.Name, f1.Tag, f2.Name, f2.Tag}
+	return &TagPathError{t, f1.Name, f1.Tag.Get("xml"), f2.Name, f2.Tag.Get("xml")}
 }
 
 // unmarshalPaths walks down an XML structure looking for

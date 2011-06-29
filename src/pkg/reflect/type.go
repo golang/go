@@ -274,7 +274,7 @@ const (
 
 // arrayType represents a fixed array type.
 type arrayType struct {
-	commonType "array"
+	commonType `reflect:"array"`
 	elem       *runtime.Type
 	slice      *runtime.Type
 	len        uintptr
@@ -282,14 +282,14 @@ type arrayType struct {
 
 // chanType represents a channel type.
 type chanType struct {
-	commonType "chan"
+	commonType `reflect:"chan"`
 	elem       *runtime.Type
 	dir        uintptr
 }
 
 // funcType represents a function type.
 type funcType struct {
-	commonType "func"
+	commonType `reflect:"func"`
 	dotdotdot  bool
 	in         []*runtime.Type
 	out        []*runtime.Type
@@ -304,26 +304,26 @@ type imethod struct {
 
 // interfaceType represents an interface type.
 type interfaceType struct {
-	commonType "interface"
+	commonType `reflect:"interface"`
 	methods    []imethod
 }
 
 // mapType represents a map type.
 type mapType struct {
-	commonType "map"
+	commonType `reflect:"map"`
 	key        *runtime.Type
 	elem       *runtime.Type
 }
 
 // ptrType represents a pointer type.
 type ptrType struct {
-	commonType "ptr"
+	commonType `reflect:"ptr"`
 	elem       *runtime.Type
 }
 
 // sliceType represents a slice type.
 type sliceType struct {
-	commonType "slice"
+	commonType `reflect:"slice"`
 	elem       *runtime.Type
 }
 
@@ -338,7 +338,7 @@ type structField struct {
 
 // structType represents a struct type.
 type structType struct {
-	commonType "struct"
+	commonType `reflect:"struct"`
 	fields     []structField
 }
 
@@ -696,10 +696,70 @@ type StructField struct {
 	PkgPath   string // empty for uppercase Name
 	Name      string
 	Type      Type
-	Tag       string
+	Tag       StructTag
 	Offset    uintptr
 	Index     []int
 	Anonymous bool
+}
+
+// A StructTag is the tag string in a struct field.
+//
+// By convention, tag strings are a concatenation of
+// optionally space-separated key:"value" pairs.
+// Each key is a non-empty string consisting of non-control
+// characters other than space (U+0020 ' '), quote (U+0022 '"'),
+// and colon (U+003A ':').  Each value is quoted using U+0022 '"'
+// characters and Go string literal syntax.
+type StructTag string
+
+// Get returns the value associated with key in the tag string.
+// If there is no such key in the tag, Get returns the empty string.
+// If the tag does not have the conventional format, the value
+// returned by Get is unspecified, 
+func (tag StructTag) Get(key string) string {
+	for tag != "" {
+		// skip leading space
+		i := 0
+		for i < len(tag) && tag[i] == ' ' {
+			i++
+		}
+		tag = tag[i:]
+		if tag == "" {
+			break
+		}
+
+		// scan to colon.
+		// a space or a quote is a syntax error
+		i = 0
+		for i < len(tag) && tag[i] != ' ' && tag[i] != ':' && tag[i] != '"' {
+			i++
+		}
+		if i+1 >= len(tag) || tag[i] != ':' || tag[i+1] != '"' {
+			break
+		}
+		name := string(tag[:i])
+		tag = tag[i+1:]
+
+		// scan quoted string to find value
+		i = 1
+		for i < len(tag) && tag[i] != '"' {
+			if tag[i] == '\\' {
+				i++
+			}
+			i++
+		}
+		if i >= len(tag) {
+			break
+		}
+		qvalue := string(tag[:i+1])
+		tag = tag[i+1:]
+
+		if key == name {
+			value, _ := strconv.Unquote(qvalue)
+			return value
+		}
+	}
+	return ""
 }
 
 // Field returns the i'th struct field.
@@ -723,7 +783,7 @@ func (t *structType) Field(i int) (f StructField) {
 		f.PkgPath = *p.pkgPath
 	}
 	if p.tag != nil {
-		f.Tag = *p.tag
+		f.Tag = StructTag(*p.tag)
 	}
 	f.Offset = p.offset
 	f.Index = []int{i}
