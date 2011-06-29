@@ -1316,7 +1316,7 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 		# Create fresh CL and start with patch that would reverse the change.
 		vers = short(rev.node())
 		cl = CL("new")
-		desc = rev.description()
+		desc = str(rev.description())
 		if mode == "undo":
 			cl.desc = (undoHeader % (clname, vers)) + desc + undoFooter
 		else:
@@ -1783,7 +1783,7 @@ def sync(ui, repo, **opts):
 		err = commands.postincoming(ui, repo, modheads, True, "tip")
 		if err:
 			return err
-	commands.update(ui, repo)
+	commands.update(ui, repo, rev="default")
 	sync_changes(ui, repo)
 
 def sync_note(msg):
