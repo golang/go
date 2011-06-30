@@ -11,5 +11,6 @@ GOFILES=\
 	perl_groups.go\
 	prog.go\
 	regexp.go\
+	simplify.go\
 
 include ../../../../Make.pkg
