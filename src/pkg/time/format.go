@@ -248,7 +248,7 @@ func (t *Time) Format(layout string) string {
 		var p string
 		switch std {
 		case stdYear:
-			p = strconv.Itoa64(t.Year % 100)
+			p = zeroPad(int(t.Year % 100))
 		case stdLongYear:
 			p = strconv.Itoa64(t.Year)
 		case stdMonth:
