@@ -13,8 +13,10 @@ import (
 	"http"
 	"http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"runtime"
 )
 
 func newRequest(httpreq string) *http.Request {
@@ -300,4 +302,78 @@ func TestInternalRedirect(t *testing.T) {
 		"remoteaddr": "1.2.3.4",
 	}
 	runCgiTest(t, h, "GET /test.cgi?loc=/foo HTTP/1.0\nHost: example.com\n\n", expectedMap)
+}
+
+func TestDirUnix(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		return
+	}
+
+	cwd, _ := os.Getwd()
+	h := &Handler{
+		Path: "testdata/test.cgi",
+		Root: "/test.cgi",
+		Dir:  cwd,
+	}
+	expectedMap := map[string]string{
+		"cwd": cwd,
+	}
+	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
+
+	cwd, _ = os.Getwd()
+	cwd = filepath.Join(cwd, "testdata")
+	h = &Handler{
+		Path: "testdata/test.cgi",
+		Root: "/test.cgi",
+	}
+	expectedMap = map[string]string{
+		"cwd": cwd,
+	}
+	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
+}
+
+func TestDirWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+
+	cgifile, _ := filepath.Abs("testdata/test.cgi")
+
+	var perl string
+	var err os.Error
+	perl, err = exec.LookPath("perl")
+	if err != nil {
+		return
+	}
+	perl, _ = filepath.Abs(perl)
+
+	cwd, _ := os.Getwd()
+	h := &Handler{
+		Path: perl,
+		Root: "/test.cgi",
+		Dir:  cwd,
+		Args: []string{cgifile},
+		Env:  []string{"SCRIPT_FILENAME=" + cgifile},
+	}
+	expectedMap := map[string]string{
+		"cwd": cwd,
+	}
+	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
+
+	// If not specify Dir on windows, working directory should be
+	// base directory of perl.
+	cwd, _ = filepath.Split(perl)
+	if cwd != "" && cwd[len(cwd)-1] == filepath.Separator {
+		cwd = cwd[:len(cwd)-1]
+	}
+	h = &Handler{
+		Path: perl,
+		Root: "/test.cgi",
+		Args: []string{cgifile},
+		Env:  []string{"SCRIPT_FILENAME=" + cgifile},
+	}
+	expectedMap = map[string]string{
+		"cwd": cwd,
+	}
+	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
