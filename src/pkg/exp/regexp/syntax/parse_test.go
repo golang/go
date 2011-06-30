@@ -39,8 +39,7 @@ var parseTests = []struct {
 	{`a{2,3}?`, `nrep{2,3 lit{a}}`},
 	{`a{2,}?`, `nrep{2,-1 lit{a}}`},
 	{``, `emp{}`},
-	//	{ `|`, `emp{}` },  // alt{emp{}emp{}} but got factored
-	{`|`, `alt{emp{}emp{}}`},
+	{`|`, `emp{}`}, // alt{emp{}emp{}} but got factored
 	{`|x|`, `alt{emp{}lit{x}emp{}}`},
 	{`.`, `dot{}`},
 	{`^`, `bol{}`},
@@ -64,6 +63,9 @@ var parseTests = []struct {
 	{`\-`, `lit{-}`},
 	{`-`, `lit{-}`},
 	{`\_`, `lit{_}`},
+	{`abc`, `str{abc}`},
+	{`abc|def`, `alt{str{abc}str{def}}`},
+	{`abc|def|ghi`, `alt{str{abc}str{def}str{ghi}}`},
 
 	// Posix and Perl extensions
 	{`[[:lower:]]`, `cc{0x61-0x7a}`},
@@ -156,6 +158,10 @@ var parseTests = []struct {
 	// Strings
 	{`abcde`, `str{abcde}`},
 	{`[Aa][Bb]cd`, `cat{strfold{AB}str{cd}}`},
+
+	// Factoring.
+	{`abc|abd|aef|bcx|bcy`, `alt{cat{lit{a}alt{cat{lit{b}cc{0x63-0x64}}str{ef}}}cat{str{bc}cc{0x78-0x79}}}`},
+	{`ax+y|ax+z|ay+w`, `cat{lit{a}alt{cat{plus{lit{x}}cc{0x79-0x7a}}cat{plus{lit{y}}lit{w}}}}`},
 }
 
 const testFlags = MatchNL | PerlX | UnicodeGroups

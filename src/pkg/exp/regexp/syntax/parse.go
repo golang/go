@@ -106,8 +106,6 @@ func (p *parser) reuse(re *Regexp) {
 
 // push pushes the regexp re onto the parse stack and returns the regexp.
 func (p *parser) push(re *Regexp) *Regexp {
-	// TODO: compute simple
-
 	if re.Op == OpCharClass && len(re.Rune) == 2 && re.Rune[0] == re.Rune[1] {
 		// Single rune.
 		if p.maybeConcat(re.Rune[0], p.flags&^FoldCase) {
@@ -250,7 +248,7 @@ func (p *parser) concat() *Regexp {
 		return p.push(p.newRegexp(OpEmptyMatch))
 	}
 
-	return p.collapse(subs, OpConcat)
+	return p.push(p.collapse(subs, OpConcat))
 }
 
 // alternate replaces the top of the stack (above the topmost '(') with its alternation.
@@ -276,7 +274,7 @@ func (p *parser) alternate() *Regexp {
 		return p.push(p.newRegexp(OpNoMatch))
 	}
 
-	return p.collapse(subs, OpAlternate)
+	return p.push(p.collapse(subs, OpAlternate))
 }
 
 // cleanAlt cleans re for eventual inclusion in an alternation.
@@ -302,13 +300,13 @@ func cleanAlt(re *Regexp) {
 	}
 }
 
-// collapse pushes the result of applying op to sub
-// onto the stack.  If sub contains op nodes, they all
-// get flattened into a single node.
-// sub points into p.stack so it cannot be kept.
+// collapse returns the result of applying op to sub.
+// If sub contains op nodes, they all get hoisted up
+// so that there is never a concat of a concat or an
+// alternate of an alternate.
 func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
 	if len(subs) == 1 {
-		return p.push(subs[0])
+		return subs[0]
 	}
 	re := p.newRegexp(op)
 	re.Sub = re.Sub0[:0]
@@ -320,7 +318,295 @@ func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
 			re.Sub = append(re.Sub, sub)
 		}
 	}
-	return p.push(re)
+	if op == OpAlternate {
+		re.Sub = p.factor(re.Sub, re.Flags)
+		if len(re.Sub) == 1 {
+			old := re
+			re = re.Sub[0]
+			p.reuse(old)
+		}
+	}
+	return re
+}
+
+// factor factors common prefixes from the alternation list sub.
+// It returns a replacement list that reuses the same storage and
+// frees (passes to p.reuse) any removed *Regexps.
+//
+// For example,
+//     ABC|ABD|AEF|BCX|BCY
+// simplifies by literal prefix extraction to
+//     A(B(C|D)|EF)|BC(X|Y)
+// which simplifies by character class introduction to
+//     A(B[CD]|EF)|BC[XY]
+//
+func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
+	if len(sub) < 2 {
+		return sub
+	}
+
+	// Round 1: Factor out common literal prefixes.
+	var str []int
+	var strflags Flags
+	start := 0
+	out := sub[:0]
+	for i := 0; i <= len(sub); i++ {
+		// Invariant: the Regexps that were in sub[0:start] have been
+		// used or marked for reuse, and the slice space has been reused
+		// for out (len(out) <= start).
+		//
+		// Invariant: sub[start:i] consists of regexps that all begin
+		// with str as modified by strflags.
+		var istr []int
+		var iflags Flags
+		if i < len(sub) {
+			istr, iflags = p.leadingString(sub[i])
+			if iflags == strflags {
+				same := 0
+				for same < len(str) && same < len(istr) && str[same] == istr[same] {
+					same++
+				}
+				if same > 0 {
+					// Matches at least one rune in current range.
+					// Keep going around.
+					str = str[:same]
+					continue
+				}
+			}
+		}
+
+		// Found end of a run with common leading literal string:
+		// sub[start:i] all begin with str[0:len(str)], but sub[i]
+		// does not even begin with str[0].
+		//
+		// Factor out common string and append factored expression to out.
+		if i == start {
+			// Nothing to do - run of length 0.
+		} else if i == start+1 {
+			// Just one: don't bother factoring.
+			out = append(out, sub[start])
+		} else {
+			// Construct factored form: prefix(suffix1|suffix2|...)
+			prefix := p.newRegexp(OpLiteral)
+			prefix.Flags = strflags
+			prefix.Rune = append(prefix.Rune[:0], str...)
+
+			for j := start; j < i; j++ {
+				sub[j] = p.removeLeadingString(sub[j], len(str))
+			}
+			suffix := p.collapse(sub[start:i], OpAlternate) // recurse
+
+			re := p.newRegexp(OpConcat)
+			re.Sub = append(re.Sub[:0], prefix, suffix)
+			out = append(out, re)
+		}
+
+		// Prepare for next iteration.
+		start = i
+		str = istr
+		strflags = iflags
+	}
+	sub = out
+
+	// Round 2: Factor out common complex prefixes,
+	// just the first piece of each concatenation,
+	// whatever it is.  This is good enough a lot of the time.
+	start = 0
+	out = sub[:0]
+	var first *Regexp
+	for i := 0; i <= len(sub); i++ {
+		// Invariant: the Regexps that were in sub[0:start] have been
+		// used or marked for reuse, and the slice space has been reused
+		// for out (len(out) <= start).
+		//
+		// Invariant: sub[start:i] consists of regexps that all begin
+		// with str as modified by strflags.
+		var ifirst *Regexp
+		if i < len(sub) {
+			ifirst = p.leadingRegexp(sub[i])
+			if first != nil && first.Equal(ifirst) {
+				continue
+			}
+		}
+
+		// Found end of a run with common leading regexp:
+		// sub[start:i] all begin with first but sub[i] does not.
+		//
+		// Factor out common regexp and append factored expression to out.
+		if i == start {
+			// Nothing to do - run of length 0.
+		} else if i == start+1 {
+			// Just one: don't bother factoring.
+			out = append(out, sub[start])
+		} else {
+			// Construct factored form: prefix(suffix1|suffix2|...)
+			prefix := first
+
+			for j := start; j < i; j++ {
+				reuse := j != start // prefix came from sub[start] 
+				sub[j] = p.removeLeadingRegexp(sub[j], reuse)
+			}
+			suffix := p.collapse(sub[start:i], OpAlternate) // recurse
+
+			re := p.newRegexp(OpConcat)
+			re.Sub = append(re.Sub[:0], prefix, suffix)
+			out = append(out, re)
+		}
+
+		// Prepare for next iteration.
+		start = i
+		first = ifirst
+	}
+	sub = out
+
+	// Round 3: Collapse runs of single literals into character classes.
+	start = 0
+	out = sub[:0]
+	for i := 0; i <= len(sub); i++ {
+		// Invariant: the Regexps that were in sub[0:start] have been
+		// used or marked for reuse, and the slice space has been reused
+		// for out (len(out) <= start).
+		//
+		// Invariant: sub[start:i] consists of regexps that are either
+		// literal runes or character classes.
+		if i < len(sub) && isCharClass(sub[i]) {
+			continue
+		}
+
+		// sub[i] is not a char or char class;
+		// emit char class for sub[start:i]...
+		if i == start {
+			// Nothing to do - run of length 0.
+		} else if i == start+1 {
+			out = append(out, sub[start])
+		} else {
+			// Make new char class.
+			// Start with most complex regexp in sub[start].
+			max := start
+			for j := start + 1; j < i; j++ {
+				if sub[max].Op < sub[j].Op || sub[max].Op == sub[j].Op && len(sub[max].Rune) < len(sub[j].Rune) {
+					max = j
+				}
+			}
+			sub[start], sub[max] = sub[max], sub[start]
+
+			for j := start + 1; j < i; j++ {
+				mergeCharClass(sub[start], sub[j])
+				p.reuse(sub[j])
+			}
+			cleanAlt(sub[start])
+			out = append(out, sub[start])
+		}
+
+		// ... and then emit sub[i].
+		if i < len(sub) {
+			out = append(out, sub[i])
+		}
+		start = i + 1
+	}
+	sub = out
+
+	// Round 4: Collapse runs of empty matches into a single empty match.
+	start = 0
+	out = sub[:0]
+	for i := range sub {
+		if i+1 < len(sub) && sub[i].Op == OpEmptyMatch && sub[i+1].Op == OpEmptyMatch {
+			continue
+		}
+		out = append(out, sub[i])
+	}
+	sub = out
+
+	return sub
+}
+
+// leadingString returns the leading literal string that re begins with.
+// The string refers to storage in re or its children.
+func (p *parser) leadingString(re *Regexp) ([]int, Flags) {
+	if re.Op == OpConcat && len(re.Sub) > 0 {
+		re = re.Sub[0]
+	}
+	if re.Op != OpLiteral {
+		return nil, 0
+	}
+	return re.Rune, re.Flags & FoldCase
+}
+
+// removeLeadingString removes the first n leading runes
+// from the beginning of re.  It returns the replacement for re.
+func (p *parser) removeLeadingString(re *Regexp, n int) *Regexp {
+	if re.Op == OpConcat && len(re.Sub) > 0 {
+		// Removing a leading string in a concatenation
+		// might simplify the concatenation.
+		sub := re.Sub[0]
+		sub = p.removeLeadingString(sub, n)
+		re.Sub[0] = sub
+		if sub.Op == OpEmptyMatch {
+			p.reuse(sub)
+			switch len(re.Sub) {
+			case 0, 1:
+				// Impossible but handle.
+				re.Op = OpEmptyMatch
+				re.Sub = nil
+			case 2:
+				old := re
+				re = re.Sub[1]
+				p.reuse(old)
+			default:
+				copy(re.Sub, re.Sub[1:])
+				re.Sub = re.Sub[:len(re.Sub)-1]
+			}
+		}
+		return re
+	}
+
+	if re.Op == OpLiteral {
+		re.Rune = re.Rune[:copy(re.Rune, re.Rune[n:])]
+		if len(re.Rune) == 0 {
+			re.Op = OpEmptyMatch
+		}
+	}
+	return re
+}
+
+// leadingRegexp returns the leading regexp that re begins with.
+// The regexp refers to storage in re or its children.
+func (p *parser) leadingRegexp(re *Regexp) *Regexp {
+	if re.Op == OpEmptyMatch {
+		return nil
+	}
+	if re.Op == OpConcat && len(re.Sub) > 0 {
+		sub := re.Sub[0]
+		if sub.Op == OpEmptyMatch {
+			return nil
+		}
+		return sub
+	}
+	return re
+}
+
+// removeLeadingRegexp removes the leading regexp in re.
+// It returns the replacement for re.
+// If reuse is true, it passes the removed regexp (if no longer needed) to p.reuse.
+func (p *parser) removeLeadingRegexp(re *Regexp, reuse bool) *Regexp {
+	if re.Op == OpConcat && len(re.Sub) > 0 {
+		if reuse {
+			p.reuse(re.Sub[0])
+		}
+		re.Sub = re.Sub[:copy(re.Sub, re.Sub[1:])]
+		switch len(re.Sub) {
+		case 0:
+			re.Op = OpEmptyMatch
+			re.Sub = nil
+		case 1:
+			old := re
+			re = re.Sub[0]
+			p.reuse(old)
+		}
+		return re
+	}
+	re.Op = OpEmptyMatch
+	return re
 }
 
 func literalRegexp(s string, flags Flags) *Regexp {
@@ -752,6 +1038,36 @@ func (p *parser) parseVerticalBar() os.Error {
 	return nil
 }
 
+// mergeCharClass makes dst = dst|src.
+// The caller must ensure that dst.Op >= src.Op,
+// to reduce the amount of copying.
+func mergeCharClass(dst, src *Regexp) {
+	switch dst.Op {
+	case OpAnyChar:
+		// src doesn't add anything.
+	case OpAnyCharNotNL:
+		// src might add \n
+		if matchRune(src, '\n') {
+			dst.Op = OpAnyChar
+		}
+	case OpCharClass:
+		// src is simpler, so either literal or char class
+		if src.Op == OpLiteral {
+			dst.Rune = appendRange(dst.Rune, src.Rune[0], src.Rune[0])
+		} else {
+			dst.Rune = appendClass(dst.Rune, src.Rune)
+		}
+	case OpLiteral:
+		// both literal
+		if src.Rune[0] == dst.Rune[0] {
+			break
+		}
+		dst.Op = OpCharClass
+		dst.Rune = append(dst.Rune, dst.Rune[0])
+		dst.Rune = appendRange(dst.Rune, src.Rune[0], src.Rune[0])
+	}
+}
+
 // If the top of the stack is an element followed by an opVerticalBar
 // swapVerticalBar swaps the two and returns true.
 // Otherwise it returns false.
@@ -767,30 +1083,7 @@ func (p *parser) swapVerticalBar() bool {
 			re1, re3 = re3, re1
 			p.stack[n-3] = re3
 		}
-		switch re3.Op {
-		case OpAnyChar:
-			// re1 doesn't add anything.
-		case OpAnyCharNotNL:
-			// re1 might add \n
-			if matchRune(re1, '\n') {
-				re3.Op = OpAnyChar
-			}
-		case OpCharClass:
-			// re1 is simpler, so either literal or char class
-			if re1.Op == OpLiteral {
-				re3.Rune = appendRange(re3.Rune, re1.Rune[0], re1.Rune[0])
-			} else {
-				re3.Rune = appendClass(re3.Rune, re1.Rune)
-			}
-		case OpLiteral:
-			// both literal
-			if re1.Rune[0] == re3.Rune[0] {
-				break
-			}
-			re3.Op = OpCharClass
-			re3.Rune = append(re3.Rune, re3.Rune[0])
-			re3.Rune = appendRange(re3.Rune, re1.Rune[0], re1.Rune[0])
-		}
+		mergeCharClass(re3, re1)
 		p.reuse(re1)
 		p.stack = p.stack[:n-1]
 		return true
@@ -1432,10 +1725,11 @@ func negateClass(r []int) []int {
 		}
 		nextLo = hi + 1
 	}
+	r = r[:w]
 	if nextLo <= unicode.MaxRune {
 		// It's possible for the negation to have one more
 		// range - this one - than the original class, so use append.
-		r = append(r[:w], nextLo, unicode.MaxRune)
+		r = append(r, nextLo, unicode.MaxRune)
 	}
 	return r
 }

@@ -60,6 +60,59 @@ const (
 
 const opPseudo Op = 128 // where pseudo-ops start
 
+// Equal returns true if x and y have identical structure.
+func (x *Regexp) Equal(y *Regexp) bool {
+	if x == nil || y == nil {
+		return x == y
+	}
+	if x.Op != y.Op {
+		return false
+	}
+	switch x.Op {
+	case OpEndText:
+		// The parse flags remember whether this is \z or \Z.
+		if x.Flags&WasDollar != y.Flags&WasDollar {
+			return false
+		}
+
+	case OpLiteral, OpCharClass:
+		if len(x.Rune) != len(y.Rune) {
+			return false
+		}
+		for i, r := range x.Rune {
+			if r != y.Rune[i] {
+				return false
+			}
+		}
+
+	case OpAlternate, OpConcat:
+		if len(x.Sub) != len(y.Sub) {
+			return false
+		}
+		for i, sub := range x.Sub {
+			if !sub.Equal(y.Sub[i]) {
+				return false
+			}
+		}
+
+	case OpStar, OpPlus, OpQuest:
+		if x.Flags&NonGreedy != y.Flags&NonGreedy || !x.Sub[0].Equal(y.Sub[0]) {
+			return false
+		}
+
+	case OpRepeat:
+		if x.Flags&NonGreedy != y.Flags&NonGreedy || x.Min != y.Min || x.Max != y.Max || !x.Sub[0].Equal(y.Sub[0]) {
+			return false
+		}
+
+	case OpCapture:
+		if x.Cap != y.Cap || x.Name != y.Name || !x.Sub[0].Equal(y.Sub[0]) {
+			return false
+		}
+	}
+	return true
+}
+
 // writeRegexp writes the Perl syntax for the regular expression re to b.
 func writeRegexp(b *bytes.Buffer, re *Regexp) {
 	switch re.Op {
@@ -70,8 +123,14 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 	case OpEmptyMatch:
 		b.WriteString(`(?:)`)
 	case OpLiteral:
+		if re.Flags&FoldCase != 0 {
+			b.WriteString(`(?i:`)
+		}
 		for _, r := range re.Rune {
 			escape(b, r, false)
+		}
+		if re.Flags&FoldCase != 0 {
+			b.WriteString(`)`)
 		}
 	case OpCharClass:
 		if len(re.Rune)%2 != 0 {
@@ -79,7 +138,9 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 			break
 		}
 		b.WriteRune('[')
-		if len(re.Rune) > 0 && re.Rune[0] == 0 && re.Rune[len(re.Rune)-1] == unicode.MaxRune {
+		if len(re.Rune) == 0 {
+			b.WriteString(`^\x00-\x{10FFFF}`)
+		} else if re.Rune[0] == 0 && re.Rune[len(re.Rune)-1] == unicode.MaxRune {
 			// Contains 0 and MaxRune.  Probably a negated class.
 			// Print the gaps.
 			b.WriteRune('^')
@@ -126,7 +187,9 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 		} else {
 			b.WriteRune('(')
 		}
-		writeRegexp(b, re.Sub[0])
+		if re.Sub[0].Op != OpEmptyMatch {
+			writeRegexp(b, re.Sub[0])
+		}
 		b.WriteRune(')')
 	case OpStar, OpPlus, OpQuest, OpRepeat:
 		if sub := re.Sub[0]; sub.Op > OpCapture {
@@ -205,6 +268,15 @@ func escape(b *bytes.Buffer, r int, force bool) {
 	case '\v':
 		b.WriteString(`\v`)
 	default:
+		if r < 0x100 {
+			b.WriteString(`\x`)
+			s := strconv.Itob(r, 16)
+			if len(s) == 1 {
+				b.WriteRune('0')
+			}
+			b.WriteString(s)
+			break
+		}
 		b.WriteString(`\x{`)
 		b.WriteString(strconv.Itob(r, 16))
 		b.WriteString(`}`)
