@@ -379,23 +379,24 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
 }
 
 // This function never executes, but it serves as a simple test for the program.
-// Test with govet -printfuncs="Bad:1,Badf:1,Warn:1,Warnf:1" govet.go
+// Test with make test.
 func BadFunctionUsedInTests() {
-	fmt.Println()                      // niladic call
-	fmt.Println("%s", "hi")            // % in call to Println
-	fmt.Printf("%s", "hi", 3)          // wrong # percents
-	fmt.Printf("%s%%%d", "hi", 3)      // right # percents
-	fmt.Printf("%.*d", 3, 3)           // right # percents, with a *
-	fmt.Printf("%.*d", 3, 3, 3)        // wrong # percents, with a *
-	printf("now is the time", "buddy") // no %s
-	Printf("now is the time", "buddy") // no %s
+	fmt.Println()                      // not an error
+	fmt.Println("%s", "hi")            // ERROR "possible formatting directive in Println call"
+	fmt.Printf("%s", "hi", 3)          // ERROR "wrong number of args in Printf call"
+	fmt.Printf("%s%%%d", "hi", 3)      // correct
+	fmt.Printf("%.*d", 3, 3)           // correct
+	fmt.Printf("%.*d", 3, 3, 3)        // ERROR "wrong number of args in Printf call"
+	printf("now is the time", "buddy") // ERROR "no formatting directive"
+	Printf("now is the time", "buddy") // ERROR "no formatting directive"
+	Printf("hi")                       // ok
 	f := new(File)
-	f.Warn(0, "%s", "hello", 3)  // % in call to added function
-	f.Warnf(0, "%s", "hello", 3) // wrong # %s in call to added function
+	f.Warn(0, "%s", "hello", 3)  // ERROR "possible formatting directive in Warn call"
+	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args in Warnf call"
 }
 
 type BadTypeUsedInTests struct {
-	X int "hello" // struct field not well-formed
+	X int "hello" // ERROR "struct field tag"
 }
 
 // printf is used by the test.
