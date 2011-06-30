@@ -14,7 +14,7 @@ import (
   "syscall"
 )
 
-var _ = syscall.Syscall  // in case there are zero signals
+var _ = syscall.Open  // in case there are zero signals
 
 const (
 EOH
