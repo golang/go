@@ -46,6 +46,12 @@ type Handler struct {
 	Path string // path to the CGI executable
 	Root string // root URI prefix of handler or empty for "/"
 
+	// Dir specifies the CGI executable's working directory.
+	// If Dir is empty, the base directory of Path is used.
+	// If Path has no base directory, the current working
+	// directory is used.
+	Dir string
+
 	Env        []string    // extra environment variables to set, if any, as "key=value"
 	InheritEnv []string    // environment variables to inherit from host, as "key"
 	Logger     *log.Logger // optional log for errors or nil to use log.Print
@@ -125,11 +131,11 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		env = append(env, h.Env...)
 	}
 
-	path := os.Getenv("PATH")
-	if path == "" {
-		path = "/bin:/usr/bin:/usr/ucb:/usr/bsd:/usr/local/bin"
+	envPath := os.Getenv("PATH")
+	if envPath == "" {
+		envPath = "/bin:/usr/bin:/usr/ucb:/usr/bsd:/usr/local/bin"
 	}
-	env = append(env, "PATH="+path)
+	env = append(env, "PATH="+envPath)
 
 	for _, e := range h.InheritEnv {
 		if v := os.Getenv(e); v != "" {
@@ -143,7 +149,13 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	cwd, pathBase := filepath.Split(h.Path)
+	var cwd, path string
+	if h.Dir != "" {
+		path = h.Path
+		cwd = h.Dir
+	} else {
+		cwd, path = filepath.Split(h.Path)
+	}
 	if cwd == "" {
 		cwd = "."
 	}
@@ -154,7 +166,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	cmd := &exec.Cmd{
-		Path:   pathBase,
+		Path:   path,
 		Args:   append([]string{h.Path}, h.Args...),
 		Dir:    cwd,
 		Env:    env,

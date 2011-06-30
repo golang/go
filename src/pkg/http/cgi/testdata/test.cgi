@@ -7,6 +7,7 @@
 
 use strict;
 use CGI;
+use Cwd;
 
 my $q = CGI->new;
 my $params = $q->Vars;
@@ -39,3 +40,16 @@ foreach my $k (sort keys %ENV) {
   $clean_env =~ s/[\n\r]//g;
   print "env-$k=$clean_env\n";
 }
+
+# NOTE: don't call getcwd() for windows.
+# msys return /c/go/src/... not C:\go\...
+my $dir;
+if ($^O eq 'MSWin32' || $^O eq 'msys') {
+  my $cmd = $ENV{'COMSPEC'} || 'c:\\windows\\system32\\cmd.exe';
+  $cmd =~ s!\\!/!g;
+  $dir = `$cmd /c cd`;
+  chomp $dir;
+} else {
+  $dir = getcwd();
+}
+print "cwd=$dir\n";
