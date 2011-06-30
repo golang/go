@@ -17,8 +17,8 @@ import (
 // Mutexes can be created as part of other structures;
 // the zero value for a Mutex is an unlocked mutex.
 type Mutex struct {
-	key  int32
-	sema uint32
+	state int32
+	sema  uint32
 }
 
 // A Locker represents an object that can be locked and unlocked.
@@ -27,15 +27,41 @@ type Locker interface {
 	Unlock()
 }
 
+const (
+	mutexLocked = 1 << iota // mutex is locked
+	mutexWoken
+	mutexWaiterShift = iota
+)
+
 // Lock locks m.
 // If the lock is already in use, the calling goroutine
 // blocks until the mutex is available.
 func (m *Mutex) Lock() {
-	if atomic.AddInt32(&m.key, 1) == 1 {
-		// changed from 0 to 1; we hold lock
+	// Fast path: grab unlocked mutex.
+	if atomic.CompareAndSwapInt32(&m.state, 0, mutexLocked) {
 		return
 	}
-	runtime.Semacquire(&m.sema)
+
+	awoke := false
+	for {
+		old := m.state
+		new := old | mutexLocked
+		if old&mutexLocked != 0 {
+			new = old + 1<<mutexWaiterShift
+		}
+		if awoke {
+			// The goroutine has been woken from sleep,
+			// so we need to reset the flag in either case.
+			new &^= mutexWoken
+		}
+		if atomic.CompareAndSwapInt32(&m.state, old, new) {
+			if old&mutexLocked == 0 {
+				break
+			}
+			runtime.Semacquire(&m.sema)
+			awoke = true
+		}
+	}
 }
 
 // Unlock unlocks m.
@@ -45,14 +71,25 @@ func (m *Mutex) Lock() {
 // It is allowed for one goroutine to lock a Mutex and then
 // arrange for another goroutine to unlock it.
 func (m *Mutex) Unlock() {
-	switch v := atomic.AddInt32(&m.key, -1); {
-	case v == 0:
-		// changed from 1 to 0; no contention
-		return
-	case v == -1:
-		// changed from 0 to -1: wasn't locked
-		// (or there are 4 billion goroutines waiting)
+	// Fast path: drop lock bit.
+	new := atomic.AddInt32(&m.state, -mutexLocked)
+	if (new+mutexLocked)&mutexLocked == 0 {
 		panic("sync: unlock of unlocked mutex")
 	}
-	runtime.Semrelease(&m.sema)
+
+	old := new
+	for {
+		// If there are no waiters or a goroutine has already
+		// been woken or grabbed the lock, no need to wake anyone.
+		if old>>mutexWaiterShift == 0 || old&(mutexLocked|mutexWoken) != 0 {
+			return
+		}
+		// Grab the right to wake someone.
+		new = (old - 1<<mutexWaiterShift) | mutexWoken
+		if atomic.CompareAndSwapInt32(&m.state, old, new) {
+			runtime.Semrelease(&m.sema)
+			return
+		}
+		old = m.state
+	}
 }
