@@ -413,7 +413,10 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 				p.pop()
 			}
 		default:
-			// TODO.
+			// TODO: any other end tag
+			if p.tok.Data == p.top().Data {
+				p.pop()
+			}
 		}
 	}
 	if endP {
