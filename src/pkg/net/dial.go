@@ -6,6 +6,28 @@ package net
 
 import "os"
 
+func resolveNetAddr(op, net, addr string) (a Addr, err os.Error) {
+	if addr == "" {
+		return nil, &OpError{op, net, nil, errMissingAddress}
+	}
+	switch net {
+	case "tcp", "tcp4", "tcp6":
+		a, err = ResolveTCPAddr(net, addr)
+	case "udp", "udp4", "udp6":
+		a, err = ResolveUDPAddr(net, addr)
+	case "unix", "unixgram", "unixpacket":
+		a, err = ResolveUnixAddr(net, addr)
+	case "ip", "ip4", "ip6":
+		a, err = ResolveIPAddr(net, addr)
+	default:
+		err = UnknownNetworkError(net)
+	}
+	if err != nil {
+		return nil, &OpError{op, net + " " + addr, nil, err}
+	}
+	return
+}
+
 // Dial connects to the address addr on the network net.
 //
 // Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
@@ -23,56 +45,26 @@ import "os"
 //	Dial("tcp", "[de:ad:be:ef::ca:fe]:80")
 //
 func Dial(net, addr string) (c Conn, err os.Error) {
-	raddr := addr
-	if raddr == "" {
-		return nil, &OpError{"dial", net, nil, errMissingAddress}
+	addri, err := resolveNetAddr("dial", net, addr)
+	if err != nil {
+		return nil, err
 	}
-	switch net {
-	case "tcp", "tcp4", "tcp6":
-		var ra *TCPAddr
-		if ra, err = ResolveTCPAddr(net, raddr); err != nil {
-			goto Error
-		}
-		c, err := DialTCP(net, nil, ra)
-		if err != nil {
-			return nil, err
-		}
-		return c, nil
-	case "udp", "udp4", "udp6":
-		var ra *UDPAddr
-		if ra, err = ResolveUDPAddr(net, raddr); err != nil {
-			goto Error
-		}
-		c, err := DialUDP(net, nil, ra)
-		if err != nil {
-			return nil, err
-		}
-		return c, nil
-	case "unix", "unixgram", "unixpacket":
-		var ra *UnixAddr
-		if ra, err = ResolveUnixAddr(net, raddr); err != nil {
-			goto Error
-		}
+	switch ra := addri.(type) {
+	case *TCPAddr:
+		c, err = DialTCP(net, nil, ra)
+	case *UDPAddr:
+		c, err = DialUDP(net, nil, ra)
+	case *UnixAddr:
 		c, err = DialUnix(net, nil, ra)
-		if err != nil {
-			return nil, err
-		}
-		return c, nil
-	case "ip", "ip4", "ip6":
-		var ra *IPAddr
-		if ra, err = ResolveIPAddr(net, raddr); err != nil {
-			goto Error
-		}
-		c, err := DialIP(net, nil, ra)
-		if err != nil {
-			return nil, err
-		}
-		return c, nil
-
+	case *IPAddr:
+		c, err = DialIP(net, nil, ra)
+	default:
+		err = UnknownNetworkError(net)
 	}
-	err = UnknownNetworkError(net)
-Error:
-	return nil, &OpError{"dial", net + " " + raddr, nil, err}
+	if err != nil {
+		return nil, &OpError{"dial", net + " " + addr, nil, err}
+	}
+	return
 }
 
 // Listen announces on the local network address laddr.
