@@ -9,3 +9,6 @@ GOFILES=\
 	govet.go\
 
 include ../../Make.cmd
+
+test testshort: $(TARG)
+	../../../test/errchk $(TARG) -printfuncs='Warn:1,Warnf:1' govet.go

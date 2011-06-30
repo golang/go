@@ -241,7 +241,6 @@ NOTEST+=\
 	../cmd/godoc\
 	../cmd/goinstall\
 	../cmd/gotest\
-	../cmd/govet\
 	../cmd/goyacc\
 	../cmd/hgpatch\
 
