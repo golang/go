@@ -1,1 +1,1 @@
-au BufRead,BufNewFile *.go set fileencoding=utf-8 filetype=go
+au BufReadPre,BufNewFile *.go set filetype=go fileencoding=utf-8 fileencodings=utf-8
