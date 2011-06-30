@@ -24,6 +24,9 @@ var (
 // to regain control over the connection. ServerConn supports pipe-lining,
 // i.e. requests can be read out of sync (but in the same order) while the
 // respective responses are sent.
+//
+// ServerConn is low-level and should not be needed by most applications.
+// See Server.
 type ServerConn struct {
 	lk              sync.Mutex // read-write protects the following fields
 	c               net.Conn
@@ -211,6 +214,9 @@ func (sc *ServerConn) Write(req *Request, resp *Response) os.Error {
 // connection, while respecting the HTTP keepalive logic. ClientConn
 // supports hijacking the connection calling Hijack to
 // regain control of the underlying net.Conn and deal with it as desired.
+//
+// ClientConn is low-level and should not be needed by most applications.
+// See Client.
 type ClientConn struct {
 	lk              sync.Mutex // read-write protects the following fields
 	c               net.Conn
