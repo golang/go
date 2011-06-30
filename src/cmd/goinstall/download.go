@@ -7,6 +7,7 @@
 package main
 
 import (
+	"exec"
 	"http"
 	"os"
 	"path/filepath"
@@ -34,6 +35,7 @@ func maybeReportToDashboard(path string) {
 type host struct {
 	pattern  *regexp.Regexp
 	protocol string
+	suffix   string
 }
 
 // a vcs represents a version control system
@@ -76,9 +78,10 @@ var hg = vcs{
 	logReleaseFlag:    "-rrelease",
 	check:             "identify",
 	protocols:         []string{"http"},
+	suffix:            ".hg",
 	defaultHosts: []host{
-		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/hg)(/[a-z0-9A-Z_.\-/]*)?$`), "https"},
-		{regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http"},
+		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/hg)(/[a-z0-9A-Z_.\-/]*)?$`), "https", ""},
+		{regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http", ""},
 	},
 }
 
@@ -98,7 +101,7 @@ var git = vcs{
 	protocols:         []string{"git", "http"},
 	suffix:            ".git",
 	defaultHosts: []host{
-		{regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http"},
+		{regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http", ".git"},
 	},
 }
 
@@ -115,8 +118,9 @@ var svn = vcs{
 	logReleaseFlag:    "release",
 	check:             "info",
 	protocols:         []string{"http", "svn"},
+	suffix:            ".svn",
 	defaultHosts: []host{
-		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/svn)(/[a-z0-9A-Z_.\-/]*)?$`), "https"},
+		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/svn)(/[a-z0-9A-Z_.\-/]*)?$`), "https", ""},
 	},
 }
 
@@ -135,12 +139,39 @@ var bzr = vcs{
 	logReleaseFlag:    "-rrelease",
 	check:             "info",
 	protocols:         []string{"http", "bzr"},
+	suffix:            ".bzr",
 	defaultHosts: []host{
-		{regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`), "https"},
+		{regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`), "https", ""},
 	},
 }
 
 var vcsList = []*vcs{&git, &hg, &bzr, &svn}
+
+func (v *vcs) findRepo(prefix string) *vcsMatch {
+	for _, proto := range v.protocols {
+		for _, suffix := range []string{v.suffix, ""} {
+			repo := proto + "://" + prefix + suffix
+			out, err := exec.Command(v.cmd, v.check, repo).CombinedOutput()
+			if err == nil {
+				return &vcsMatch{v, prefix + v.suffix, repo}
+			}
+			printf("find %s: %s %s %s: %v\n%s\n", prefix, v.cmd, v.check, repo, err, out)
+		}
+	}
+
+	errorf("find %s: couldn't find %s repository\n", prefix, v.name)
+	return nil
+}
+
+func findRepo(pkg string) *vcsMatch {
+	for _, v := range vcsList {
+		i := strings.Index(pkg+"/", v.suffix+"/")
+		if i >= 0 {
+			return v.findRepo(pkg[:i])
+		}
+	}
+	return nil
+}
 
 // isRemote returns true if the first part of the package name looks like a
 // hostname - i.e. contains at least one '.' and the last part is at least 2
@@ -162,6 +193,7 @@ func download(pkg, srcDir string) os.Error {
 	if strings.Contains(pkg, "..") {
 		return os.NewError("invalid path (contains ..)")
 	}
+	dashpath := pkg
 	var m *vcsMatch
 	for _, v := range vcsList {
 		for _, host := range v.defaultHosts {
@@ -169,15 +201,19 @@ func download(pkg, srcDir string) os.Error {
 				if v.suffix != "" && strings.HasSuffix(hm[1], v.suffix) {
 					return os.NewError("repository " + pkg + " should not have " + v.suffix + " suffix")
 				}
-				repo := host.protocol + "://" + hm[1] + v.suffix
+				repo := host.protocol + "://" + hm[1] + host.suffix
 				m = &vcsMatch{v, hm[1], repo}
 			}
 		}
 	}
 	if m == nil {
+		m = findRepo(pkg)
+		dashpath = "" // don't report to dashboard
+	}
+	if m == nil {
 		return os.NewError("cannot download: " + pkg)
 	}
-	return vcsCheckout(m.vcs, srcDir, m.prefix, m.repo, pkg)
+	return vcsCheckout(m.vcs, srcDir, m.prefix, m.repo, dashpath)
 }
 
 // Try to detect if a "release" tag exists.  If it does, update
@@ -219,7 +255,9 @@ func vcsCheckout(vcs *vcs, srcDir, pkgprefix, repo, dashpath string) os.Error {
 			return err
 		}
 		// success on first installation - report
-		maybeReportToDashboard(dashpath)
+		if dashpath != "" {
+			maybeReportToDashboard(dashpath)
+		}
 	} else if *update {
 		// Retrieve new revisions from the remote branch, if the VCS
 		// supports this operation independently (e.g. svn doesn't)
