@@ -16,8 +16,15 @@ if [ $? != 0 ]; then
 	VERSION=$(echo $OLD | awk '{print $1}')
 fi
 
-# Find most recent known release tag.
+# Get branch type
+BRANCH=release
+if [ "$(hg identify -b 2>/dev/null)" == "default" ]; then
+	BRANCH=weekly
+fi
+
+# Find most recent known release or weekly tag.
 TAG=$(hg tags |
+	grep $BRANCH |
 	sed 's/:.*//' |
 	sort -rn -k2 |
 	awk -v ver=$VERSION '$2 <= ver && $1~/^(release|weekly)\./ {print $1}' |
