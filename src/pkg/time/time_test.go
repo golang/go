@@ -142,21 +142,22 @@ type FormatTest struct {
 }
 
 var formatTests = []FormatTest{
-	{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010"},
-	{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010"},
-	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010"},
-	{"RFC822", RFC822, "04 Feb 10 2100 PST"},
-	{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST"},
-	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST"},
-	{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00"},
+	{"ANSIC", ANSIC, "Wed Feb  4 21:00:57 2009"},
+	{"UnixDate", UnixDate, "Wed Feb  4 21:00:57 PST 2009"},
+	{"RubyDate", RubyDate, "Wed Feb 04 21:00:57 -0800 2009"},
+	{"RFC822", RFC822, "04 Feb 09 2100 PST"},
+	{"RFC850", RFC850, "Wednesday, 04-Feb-09 21:00:57 PST"},
+	{"RFC1123", RFC1123, "Wed, 04 Feb 2009 21:00:57 PST"},
+	{"RFC3339", RFC3339, "2009-02-04T21:00:57-08:00"},
 	{"Kitchen", Kitchen, "9:00PM"},
 	{"am/pm", "3pm", "9pm"},
 	{"AM/PM", "3PM", "9PM"},
+	{"two-digit year", "06 01 02", "09 02 04"},
 }
 
 func TestFormat(t *testing.T) {
 	// The numeric time represents Thu Feb  4 21:00:57 PST 2010
-	time := SecondsToLocalTime(1265346057)
+	time := SecondsToLocalTime(1233810057)
 	for _, test := range formatTests {
 		result := time.Format(test.format)
 		if result != test.result {
