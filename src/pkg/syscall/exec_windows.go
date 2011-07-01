@@ -121,11 +121,11 @@ func createEnvBlock(envv []string) *uint16 {
 	return &utf16.Encode([]int(string(b)))[0]
 }
 
-func CloseOnExec(fd int) {
-	SetHandleInformation(int32(fd), HANDLE_FLAG_INHERIT, 0)
+func CloseOnExec(fd Handle) {
+	SetHandleInformation(Handle(fd), HANDLE_FLAG_INHERIT, 0)
 }
 
-func SetNonblock(fd int, nonblocking bool) (errno int) {
+func SetNonblock(fd Handle, nonblocking bool) (errno int) {
 	return 0
 }
 
@@ -220,7 +220,7 @@ func joinExeDirAndFName(dir, p string) (name string, err int) {
 type ProcAttr struct {
 	Dir   string
 	Env   []string
-	Files []int
+	Files []Handle
 	Sys   *SysProcAttr
 }
 
@@ -290,14 +290,14 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
 	defer ForkLock.Unlock()
 
 	p, _ := GetCurrentProcess()
-	fd := make([]int32, len(attr.Files))
+	fd := make([]Handle, len(attr.Files))
 	for i := range attr.Files {
 		if attr.Files[i] > 0 {
-			err := DuplicateHandle(p, int32(attr.Files[i]), p, &fd[i], 0, true, DUPLICATE_SAME_ACCESS)
+			err := DuplicateHandle(p, Handle(attr.Files[i]), p, &fd[i], 0, true, DUPLICATE_SAME_ACCESS)
 			if err != 0 {
 				return 0, 0, err
 			}
-			defer CloseHandle(int32(fd[i]))
+			defer CloseHandle(Handle(fd[i]))
 		}
 	}
 	si := new(StartupInfo)
@@ -317,7 +317,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
 	if err != 0 {
 		return 0, 0, err
 	}
-	defer CloseHandle(pi.Thread)
+	defer CloseHandle(Handle(pi.Thread))
 
 	return int(pi.ProcessId), int(pi.Process), 0
 }

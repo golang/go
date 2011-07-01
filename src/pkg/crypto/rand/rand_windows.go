@@ -19,7 +19,7 @@ func init() { Reader = &rngReader{} }
 
 // A rngReader satisfies reads by reading from the Windows CryptGenRandom API.
 type rngReader struct {
-	prov uint32
+	prov syscall.Handle
 	mu   sync.Mutex
 }
 

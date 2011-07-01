@@ -6,8 +6,36 @@ package os
 
 import (
 	"runtime"
+	"sync"
 	"syscall"
 )
+
+// File represents an open file descriptor.
+type File struct {
+	fd      int
+	name    string
+	dirinfo *dirInfo   // nil unless directory being read
+	nepipe  int        // number of consecutive EPIPE in Write
+	l       sync.Mutex // used to implement windows pread/pwrite
+}
+
+// Fd returns the integer Unix file descriptor referencing the open file.
+func (file *File) Fd() int {
+	if file == nil {
+		return -1
+	}
+	return file.fd
+}
+
+// NewFile returns a new File with the given file descriptor and name.
+func NewFile(fd int, name string) *File {
+	if fd < 0 {
+		return nil
+	}
+	f := &File{fd: fd, name: name}
+	runtime.SetFinalizer(f, (*File).Close)
+	return f
+}
 
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
@@ -160,4 +188,23 @@ func basename(name string) string {
 	}
 
 	return name
+}
+
+// Pipe returns a connected pair of Files; reads from r return bytes written to w.
+// It returns the files and an Error, if any.
+func Pipe() (r *File, w *File, err Error) {
+	var p [2]int
+
+	// See ../syscall/exec.go for description of lock.
+	syscall.ForkLock.RLock()
+	e := syscall.Pipe(p[0:])
+	if iserror(e) {
+		syscall.ForkLock.RUnlock()
+		return nil, nil, NewSyscallError("pipe", e)
+	}
+	syscall.CloseOnExec(p[0])
+	syscall.CloseOnExec(p[1])
+	syscall.ForkLock.RUnlock()
+
+	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
 }

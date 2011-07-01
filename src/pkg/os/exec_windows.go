@@ -10,7 +10,7 @@ import (
 )
 
 func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
-	s, e := syscall.WaitForSingleObject(int32(p.handle), syscall.INFINITE)
+	s, e := syscall.WaitForSingleObject(syscall.Handle(p.handle), syscall.INFINITE)
 	switch s {
 	case syscall.WAIT_OBJECT_0:
 		break
@@ -20,7 +20,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
 		return nil, NewError("os: unexpected result from WaitForSingleObject")
 	}
 	var ec uint32
-	e = syscall.GetExitCodeProcess(int32(p.handle), &ec)
+	e = syscall.GetExitCodeProcess(syscall.Handle(p.handle), &ec)
 	if e != 0 {
 		return nil, NewSyscallError("GetExitCodeProcess", e)
 	}
@@ -31,7 +31,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
 func (p *Process) Signal(sig Signal) Error {
 	switch sig.(UnixSignal) {
 	case SIGKILL:
-		e := syscall.TerminateProcess(int32(p.handle), 1)
+		e := syscall.TerminateProcess(syscall.Handle(p.handle), 1)
 		return NewSyscallError("TerminateProcess", e)
 	}
 	return Errno(syscall.EWINDOWS)
@@ -41,7 +41,7 @@ func (p *Process) Release() Error {
 	if p.handle == -1 {
 		return EINVAL
 	}
-	e := syscall.CloseHandle(int32(p.handle))
+	e := syscall.CloseHandle(syscall.Handle(p.handle))
 	if e != 0 {
 		return NewSyscallError("CloseHandle", e)
 	}

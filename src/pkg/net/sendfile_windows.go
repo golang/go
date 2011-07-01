@@ -12,12 +12,12 @@ import (
 
 type sendfileOp struct {
 	anOp
-	src int32 // source
+	src syscall.Handle // source
 	n   uint32
 }
 
 func (o *sendfileOp) Submit() (errno int) {
-	return syscall.TransmitFile(int32(o.fd.sysfd), o.src, o.n, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
+	return syscall.TransmitFile(o.fd.sysfd, o.src, o.n, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
 }
 
 func (o *sendfileOp) Name() string {
@@ -56,7 +56,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err os.Error, handled bool)
 	var o sendfileOp
 	o.Init(c)
 	o.n = uint32(n)
-	o.src = int32(f.Fd())
+	o.src = f.Fd()
 	done, err := iosrv.ExecIO(&o, 0)
 	if err != nil {
 		return 0, err, false

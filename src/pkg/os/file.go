@@ -9,35 +9,11 @@
 package os
 
 import (
-	"runtime"
-	"sync"
 	"syscall"
 )
 
-// File represents an open file descriptor.
-type File struct {
-	fd      int
-	name    string
-	dirinfo *dirInfo   // nil unless directory being read
-	nepipe  int        // number of consecutive EPIPE in Write
-	l       sync.Mutex // used to implement windows pread/pwrite
-}
-
-// Fd returns the integer Unix file descriptor referencing the open file.
-func (file *File) Fd() int { return file.fd }
-
 // Name returns the name of the file as presented to Open.
 func (file *File) Name() string { return file.name }
-
-// NewFile returns a new File with the given file descriptor and name.
-func NewFile(fd int, name string) *File {
-	if fd < 0 {
-		return nil
-	}
-	f := &File{fd: fd, name: name}
-	runtime.SetFinalizer(f, (*File).Close)
-	return f
-}
 
 // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
 // standard output, and standard error file descriptors.
