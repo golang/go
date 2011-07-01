@@ -28,6 +28,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include	<u.h>
 #include	"../cc/cc.h"
 #include	"../8l/8.out.h"
 
@@ -400,6 +401,7 @@ void	shiftit(Type*, Node*, Node*);
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"B"	Bits
 #pragma	varargck	type	"D"	Adr*
+#pragma	varargck	type	"lD"	Adr*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"R"	int
 #pragma	varargck	type	"S"	char*

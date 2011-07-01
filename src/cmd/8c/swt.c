@@ -237,10 +237,10 @@ outcode(void)
 		Bprint(&b, "\n");
 		Bprint(&b, "$$  // exports\n\n");
 		Bprint(&b, "$$  // local types\n\n");
-		Bprint(&b, "$$  // dynimport\n", thestring);
+		Bprint(&b, "$$  // dynimport\n");
 		for(i=0; i<ndynimp; i++)
 			Bprint(&b, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
-		Bprint(&b, "\n$$  // dynexport\n", thestring);
+		Bprint(&b, "\n$$  // dynexport\n");
 		for(i=0; i<ndynexp; i++)
 			Bprint(&b, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
 		Bprint(&b, "\n$$\n\n");
