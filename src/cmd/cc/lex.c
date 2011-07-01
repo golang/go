@@ -28,6 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include	<u.h>
+#include	<ctype.h>
 #include	"cc.h"
 #include	"y.tab.h"
 
@@ -384,7 +386,7 @@ lookup(void)
 		}else
 			*w++ = *r;
 	}
-	*w++ = '\0';
+	*w = '\0';
 
 	h = 0;
 	for(p=symb; *p;) {
@@ -1524,7 +1526,7 @@ alloc(int32 n)
 	p = malloc(n);
 	if(p == nil) {
 		print("alloc out of mem\n");
-		exit(1);
+		exits("alloc: out of mem");
 	}
 	memset(p, 0, n);
 	return p;
@@ -1538,7 +1540,7 @@ allocn(void *p, int32 n, int32 d)
 	p = realloc(p, n+d);
 	if(p == nil) {
 		print("allocn out of mem\n");
-		exit(1);
+		exits("allocn: out of mem");
 	}
 	if(d > 0)
 		memset((char*)p+n, 0, d);

@@ -29,6 +29,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include <u.h>
 #include "cc.h"
 
 static int upper;
@@ -238,7 +239,7 @@ printtypename(Type *t)
 			Bprint(&outbuf, "%U", n);
 		break;
 	case TFUNC:
-		Bprint(&outbuf, "func(", t);
+		Bprint(&outbuf, "func(");
 		for(t1 = t->down; t1 != T; t1 = t1->down) {
 			if(t1->etype == TVOID)
 				break;
