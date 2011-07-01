@@ -12,6 +12,7 @@ import (
 	"crypto/rsa"
 	"io"
 	"os"
+	"time"
 )
 
 // PublicKeyType is the armor type for a PGP public key.
@@ -474,5 +475,71 @@ func (e *Entity) SerializePrivate(w io.Writer) (err os.Error) {
 			return
 		}
 	}
+	return nil
+}
+
+// Serialize writes the public part of the given Entity to w. (No private
+// key material will be output).
+func (e *Entity) Serialize(w io.Writer) os.Error {
+	err := e.PrimaryKey.Serialize(w)
+	if err != nil {
+		return err
+	}
+	for _, ident := range e.Identities {
+		err = ident.UserId.Serialize(w)
+		if err != nil {
+			return err
+		}
+		err = ident.SelfSignature.Serialize(w)
+		if err != nil {
+			return err
+		}
+		for _, sig := range ident.Signatures {
+			err = sig.Serialize(w)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	for _, subkey := range e.Subkeys {
+		err = subkey.PublicKey.Serialize(w)
+		if err != nil {
+			return err
+		}
+		err = subkey.Sig.Serialize(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SignIdentity adds a signature to e, from signer, attesting that identity is
+// associated with e. The provided identity must already be an element of
+// e.Identities and the private key of signer must have been decrypted if
+// necessary.
+func (e *Entity) SignIdentity(identity string, signer *Entity) os.Error {
+	if signer.PrivateKey == nil {
+		return error.InvalidArgumentError("signing Entity must have a private key")
+	}
+	if signer.PrivateKey.Encrypted {
+		return error.InvalidArgumentError("signing Entity's private key must be decrypted")
+	}
+	ident, ok := e.Identities[identity]
+	if !ok {
+		return error.InvalidArgumentError("given identity string not found in Entity")
+	}
+
+	sig := &packet.Signature{
+		SigType:      packet.SigTypeGenericCert,
+		PubKeyAlgo:   signer.PrivateKey.PubKeyAlgo,
+		Hash:         crypto.SHA256,
+		CreationTime: uint32(time.Seconds()),
+		IssuerKeyId:  &signer.PrivateKey.KeyId,
+	}
+	if err := sig.SignKey(e.PrimaryKey, signer.PrivateKey); err != nil {
+		return err
+	}
+	ident.Signatures = append(ident.Signatures, sig)
 	return nil
 }
