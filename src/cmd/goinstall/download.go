@@ -77,7 +77,7 @@ var hg = vcs{
 	logLimitFlag:      "-l1",
 	logReleaseFlag:    "-rrelease",
 	check:             "identify",
-	protocols:         []string{"http"},
+	protocols:         []string{"https", "http"},
 	suffix:            ".hg",
 	defaultHosts: []host{
 		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/hg)(/[a-z0-9A-Z_.\-/]*)?$`), "https", ""},
@@ -98,7 +98,7 @@ var git = vcs{
 	logLimitFlag:      "",
 	logReleaseFlag:    "release",
 	check:             "peek-remote",
-	protocols:         []string{"git", "http"},
+	protocols:         []string{"git", "https", "http"},
 	suffix:            ".git",
 	defaultHosts: []host{
 		{regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http", ".git"},
@@ -117,7 +117,7 @@ var svn = vcs{
 	logLimitFlag:      "-l1",
 	logReleaseFlag:    "release",
 	check:             "info",
-	protocols:         []string{"http", "svn"},
+	protocols:         []string{"https", "http", "svn"},
 	suffix:            ".svn",
 	defaultHosts: []host{
 		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/svn)(/[a-z0-9A-Z_.\-/]*)?$`), "https", ""},
@@ -138,7 +138,7 @@ var bzr = vcs{
 	logLimitFlag:      "-l1",
 	logReleaseFlag:    "-rrelease",
 	check:             "info",
-	protocols:         []string{"http", "bzr"},
+	protocols:         []string{"https", "http", "bzr"},
 	suffix:            ".bzr",
 	defaultHosts: []host{
 		{regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`), "https", ""},
