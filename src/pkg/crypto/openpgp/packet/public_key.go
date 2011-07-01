@@ -219,7 +219,11 @@ func (pk *PublicKey) Serialize(w io.Writer) (err os.Error) {
 		panic("unknown public key algorithm")
 	}
 
-	err = serializeHeader(w, packetTypePublicKey, length)
+	packetType := packetTypePublicKey
+	if pk.IsSubkey {
+		packetType = packetTypePublicSubkey
+	}
+	err = serializeHeader(w, packetType, length)
 	if err != nil {
 		return
 	}
@@ -279,14 +283,14 @@ func (pk *PublicKey) VerifySignature(signed hash.Hash, sig *Signature) (err os.E
 	switch pk.PubKeyAlgo {
 	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly:
 		rsaPublicKey, _ := pk.PublicKey.(*rsa.PublicKey)
-		err = rsa.VerifyPKCS1v15(rsaPublicKey, sig.Hash, hashBytes, sig.RSASignature)
+		err = rsa.VerifyPKCS1v15(rsaPublicKey, sig.Hash, hashBytes, sig.RSASignature.bytes)
 		if err != nil {
 			return error.SignatureError("RSA verification failure")
 		}
 		return nil
 	case PubKeyAlgoDSA:
 		dsaPublicKey, _ := pk.PublicKey.(*dsa.PublicKey)
-		if !dsa.Verify(dsaPublicKey, hashBytes, sig.DSASigR, sig.DSASigS) {
+		if !dsa.Verify(dsaPublicKey, hashBytes, new(big.Int).SetBytes(sig.DSASigR.bytes), new(big.Int).SetBytes(sig.DSASigS.bytes)) {
 			return error.SignatureError("DSA verification failure")
 		}
 		return nil

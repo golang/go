@@ -33,6 +33,29 @@ func TestReadKeyRing(t *testing.T) {
 	}
 }
 
+func TestRereadKeyRing(t *testing.T) {
+	kring, err := ReadKeyRing(readerFromHex(testKeys1And2Hex))
+	if err != nil {
+		t.Errorf("error in initial parse: %s", err)
+		return
+	}
+	out := new(bytes.Buffer)
+	err = kring[0].Serialize(out)
+	if err != nil {
+		t.Errorf("error in serialization: %s", err)
+		return
+	}
+	kring, err = ReadKeyRing(out)
+	if err != nil {
+		t.Errorf("error in second parse: %s", err)
+		return
+	}
+
+	if len(kring) != 1 || uint32(kring[0].PrimaryKey.KeyId) != 0xC20C31BB {
+		t.Errorf("bad keyring: %#v", kring)
+	}
+}
+
 func TestReadPrivateKeyRing(t *testing.T) {
 	kring, err := ReadKeyRing(readerFromHex(testKeys1And2PrivateHex))
 	if err != nil {
