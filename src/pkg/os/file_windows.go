@@ -6,8 +6,36 @@ package os
 
 import (
 	"runtime"
+	"sync"
 	"syscall"
 )
+
+// File represents an open file descriptor.
+type File struct {
+	fd      syscall.Handle
+	name    string
+	dirinfo *dirInfo   // nil unless directory being read
+	nepipe  int        // number of consecutive EPIPE in Write
+	l       sync.Mutex // used to implement windows pread/pwrite
+}
+
+// Fd returns the Windows handle referencing the open file.
+func (file *File) Fd() syscall.Handle {
+	if file == nil {
+		return syscall.InvalidHandle
+	}
+	return file.fd
+}
+
+// NewFile returns a new File with the given file descriptor and name.
+func NewFile(fd syscall.Handle, name string) *File {
+	if fd < 0 {
+		return nil
+	}
+	f := &File{fd: fd, name: name}
+	runtime.SetFinalizer(f, (*File).Close)
+	return f
+}
 
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
@@ -40,7 +68,7 @@ func openDir(name string) (file *File, err Error) {
 	if e != 0 {
 		return nil, &PathError{"open", name, Errno(e)}
 	}
-	f := NewFile(int(r), name)
+	f := NewFile(r, name)
 	d.usefirststat = true
 	f.dirinfo = d
 	return f, nil
@@ -85,15 +113,15 @@ func (file *File) Close() Error {
 	}
 	var e int
 	if file.isdir() {
-		e = syscall.FindClose(int32(file.fd))
+		e = syscall.FindClose(syscall.Handle(file.fd))
 	} else {
-		e = syscall.CloseHandle(int32(file.fd))
+		e = syscall.CloseHandle(syscall.Handle(file.fd))
 	}
 	var err Error
 	if e != 0 {
 		err = &PathError{"close", file.name, Errno(e)}
 	}
-	file.fd = -1 // so it can't be closed again
+	file.fd = syscall.InvalidHandle // so it can't be closed again
 
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(file, nil)
@@ -102,7 +130,7 @@ func (file *File) Close() Error {
 
 func (file *File) statFile(name string) (fi *FileInfo, err Error) {
 	var stat syscall.ByHandleFileInformation
-	e := syscall.GetFileInformationByHandle(int32(file.fd), &stat)
+	e := syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &stat)
 	if e != 0 {
 		return nil, &PathError{"stat", file.name, Errno(e)}
 	}
@@ -156,7 +184,7 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
 		if di.usefirststat {
 			di.usefirststat = false
 		} else {
-			e := syscall.FindNextFile(int32(file.fd), &di.stat.Windata)
+			e := syscall.FindNextFile(syscall.Handle(file.fd), &di.stat.Windata)
 			if e != 0 {
 				if e == syscall.ERROR_NO_MORE_FILES {
 					break
@@ -207,7 +235,7 @@ func (f *File) pread(b []byte, off int64) (n int, err int) {
 		Offset:     uint32(off),
 	}
 	var done uint32
-	e = syscall.ReadFile(int32(f.fd), b, &done, &o)
+	e = syscall.ReadFile(syscall.Handle(f.fd), b, &done, &o)
 	if e != 0 {
 		return 0, e
 	}
@@ -237,7 +265,7 @@ func (f *File) pwrite(b []byte, off int64) (n int, err int) {
 		Offset:     uint32(off),
 	}
 	var done uint32
-	e = syscall.WriteFile(int32(f.fd), b, &done, &o)
+	e = syscall.WriteFile(syscall.Handle(f.fd), b, &done, &o)
 	if e != 0 {
 		return 0, e
 	}
@@ -267,4 +295,23 @@ func Truncate(name string, size int64) Error {
 		return e1
 	}
 	return nil
+}
+
+// Pipe returns a connected pair of Files; reads from r return bytes written to w.
+// It returns the files and an Error, if any.
+func Pipe() (r *File, w *File, err Error) {
+	var p [2]syscall.Handle
+
+	// See ../syscall/exec.go for description of lock.
+	syscall.ForkLock.RLock()
+	e := syscall.Pipe(p[0:])
+	if iserror(e) {
+		syscall.ForkLock.RUnlock()
+		return nil, nil, NewSyscallError("pipe", e)
+	}
+	syscall.CloseOnExec(p[0])
+	syscall.CloseOnExec(p[1])
+	syscall.ForkLock.RUnlock()
+
+	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
 }

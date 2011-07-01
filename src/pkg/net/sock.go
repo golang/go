@@ -50,8 +50,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 
 	if ra != nil {
 		if err = fd.connect(ra); err != nil {
-			fd.sysfd = -1
-			closesocket(s)
+			fd.Close()
 			return nil, err
 		}
 	}
@@ -65,25 +64,25 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 	return fd, nil
 }
 
-func setsockoptInt(fd, level, opt int, value int) os.Error {
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, level, opt, value))
+func setsockoptInt(fd *netFD, level, opt int, value int) os.Error {
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, level, opt, value))
 }
 
-func setsockoptNsec(fd, level, opt int, nsec int64) os.Error {
+func setsockoptNsec(fd *netFD, level, opt int, nsec int64) os.Error {
 	var tv = syscall.NsecToTimeval(nsec)
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptTimeval(fd, level, opt, &tv))
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptTimeval(fd.sysfd, level, opt, &tv))
 }
 
 func setReadBuffer(fd *netFD, bytes int) os.Error {
 	fd.incref()
 	defer fd.decref()
-	return setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes)
+	return setsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes)
 }
 
 func setWriteBuffer(fd *netFD, bytes int) os.Error {
 	fd.incref()
 	defer fd.decref()
-	return setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes)
+	return setsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes)
 }
 
 func setReadTimeout(fd *netFD, nsec int64) os.Error {
@@ -106,7 +105,7 @@ func setTimeout(fd *netFD, nsec int64) os.Error {
 func setReuseAddr(fd *netFD, reuse bool) os.Error {
 	fd.incref()
 	defer fd.decref()
-	return setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse))
+	return setsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse))
 }
 
 func bindToDevice(fd *netFD, dev string) os.Error {
@@ -117,19 +116,19 @@ func bindToDevice(fd *netFD, dev string) os.Error {
 func setDontRoute(fd *netFD, dontroute bool) os.Error {
 	fd.incref()
 	defer fd.decref()
-	return setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute))
+	return setsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute))
 }
 
 func setKeepAlive(fd *netFD, keepalive bool) os.Error {
 	fd.incref()
 	defer fd.decref()
-	return setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive))
+	return setsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive))
 }
 
 func setNoDelay(fd *netFD, noDelay bool) os.Error {
 	fd.incref()
 	defer fd.decref()
-	return setsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay))
+	return setsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay))
 }
 
 func setLinger(fd *netFD, sec int) os.Error {

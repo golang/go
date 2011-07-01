@@ -42,12 +42,12 @@ func getInterfaceList() ([]syscall.InterfaceInfo, os.Error) {
 	if e != 0 {
 		return nil, os.NewSyscallError("Socket", e)
 	}
-	defer syscall.Closesocket(int32(s))
+	defer syscall.Closesocket(s)
 
 	ii := [20]syscall.InterfaceInfo{}
 	ret := uint32(0)
 	size := uint32(unsafe.Sizeof(ii))
-	e = syscall.WSAIoctl(int32(s), syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&ii[0])), size, &ret, nil, 0)
+	e = syscall.WSAIoctl(s, syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&ii[0])), size, &ret, nil, 0)
 	if e != 0 {
 		return nil, os.NewSyscallError("WSAIoctl", e)
 	}

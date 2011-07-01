@@ -216,7 +216,7 @@ type Overlapped struct {
 	InternalHigh uint32
 	Offset       uint32
 	OffsetHigh   uint32
-	HEvent       int32
+	HEvent       Handle
 }
 
 type Filetime struct {
@@ -306,14 +306,14 @@ type StartupInfo struct {
 	ShowWindow    uint16
 	_             uint16
 	_             *byte
-	StdInput      int32
-	StdOutput     int32
-	StdErr        int32
+	StdInput      Handle
+	StdOutput     Handle
+	StdErr        Handle
 }
 
 type ProcessInformation struct {
-	Process   int32
-	Thread    int32
+	Process   Handle
+	Thread    Handle
 	ProcessId uint32
 	ThreadId  uint32
 }

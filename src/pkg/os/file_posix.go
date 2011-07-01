@@ -21,26 +21,6 @@ func epipecheck(file *File, e int) {
 	}
 }
 
-
-// Pipe returns a connected pair of Files; reads from r return bytes written to w.
-// It returns the files and an Error, if any.
-func Pipe() (r *File, w *File, err Error) {
-	var p [2]int
-
-	// See ../syscall/exec.go for description of lock.
-	syscall.ForkLock.RLock()
-	e := syscall.Pipe(p[0:])
-	if iserror(e) {
-		syscall.ForkLock.RUnlock()
-		return nil, nil, NewSyscallError("pipe", e)
-	}
-	syscall.CloseOnExec(p[0])
-	syscall.CloseOnExec(p[1])
-	syscall.ForkLock.RUnlock()
-
-	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
-}
-
 // Stat returns a FileInfo structure describing the named file and an error, if any.
 // If name names a valid symbolic link, the returned FileInfo describes
 // the file pointed at by the link and has fi.FollowedSymlink set to true.

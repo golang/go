@@ -10,7 +10,7 @@ import (
 	"syscall"
 )
 
-func setKernelSpecificSockopt(s, f int) {
+func setKernelSpecificSockopt(s syscall.Handle, f int) {
 	// Allow reuse of recently-used addresses and ports.
 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
 
