@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/doc"
 	"go/printer"
 	"go/token"
@@ -83,7 +84,15 @@ var (
 
 
 func initHandlers() {
-	fsMap.Init(*pkgPath)
+	paths := filepath.SplitList(*pkgPath)
+	for _, t := range build.Path {
+		if t.Goroot {
+			continue
+		}
+		paths = append(paths, t.SrcDir())
+	}
+	fsMap.Init(paths)
+
 	fileServer = http.FileServer(http.Dir(*goroot))
 	cmdHandler = httpHandler{"/cmd/", filepath.Join(*goroot, "src", "cmd"), false}
 	pkgHandler = httpHandler{"/pkg/", filepath.Join(*goroot, "src", "pkg"), true}
