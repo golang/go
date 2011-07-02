@@ -112,16 +112,15 @@ func packages() (pkgs []string, err os.Error) {
 	return
 }
 
-// updatePackage sends package build results and info to the dashboard
-func (b *Builder) updatePackage(pkg string, state bool, buildLog, info string, hash string) os.Error {
+// updatePackage sends package build results and info dashboard
+func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) os.Error {
 	return dash("POST", "package", nil, param{
 		"builder": b.name,
 		"key":     b.key,
 		"path":    pkg,
-		"state":   strconv.Btoa(state),
+		"ok":      strconv.Btoa(ok),
 		"log":     buildLog,
 		"info":    info,
-		"go_rev":  hash[:12],
 	})
 }
 

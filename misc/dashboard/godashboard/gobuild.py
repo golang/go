@@ -14,14 +14,13 @@ from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp.util import run_wsgi_app
 import datetime
 import hashlib
-import hmac
 import logging
 import os
 import re
 import bz2
 
 # local imports
-import key
+from auth import auth
 import const
 
 # The majority of our state are commit objects. One of these exists for each of
@@ -141,10 +140,6 @@ class DashboardHandler(webapp.RequestHandler):
         self.response.set_status(200)
         simplejson.dump(obj, self.response.out)
         return
-
-def auth(req):
-    k = req.get('key')
-    return k == hmac.new(key.accessKey, req.get('builder')).hexdigest() or k == key.accessKey
 
 # Todo serves /todo.  It tells the builder which commits need to be built.
 class Todo(DashboardHandler):
