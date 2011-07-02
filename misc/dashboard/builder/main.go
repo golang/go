@@ -60,8 +60,9 @@ var (
 )
 
 var (
-	goroot        string
-	releaseRegexp = regexp.MustCompile(`^(release|weekly)\.[0-9\-.]+`)
+	goroot      string
+	binaryTagRe = regexp.MustCompile(`^(release\.r|weekly\.)[0-9\-.]+`)
+	releaseRe   = regexp.MustCompile(`^release\.r[0-9\-.]+`)
 )
 
 func main() {
@@ -200,7 +201,7 @@ func (b *Builder) buildExternal() {
 			log.Println("hg pull failed:", err)
 			continue
 		}
-		hash, tag, err := firstTag(releaseRegexp)
+		hash, tag, err := firstTag(releaseRe)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -321,7 +322,7 @@ func (b *Builder) buildHash(hash string) (err os.Error) {
 	}
 
 	// if this is a release, create tgz and upload to google code
-	releaseHash, release, err := firstTag(releaseRegexp)
+	releaseHash, release, err := firstTag(binaryTagRe)
 	if hash == releaseHash {
 		// clean out build state
 		err = run(b.envv(), srcDir, "./clean.bash", "--nopkg")
@@ -591,7 +592,7 @@ func fullHash(rev string) (hash string, err os.Error) {
 	if s == "" {
 		return "", fmt.Errorf("cannot find revision")
 	}
-	if len(s) != 20 {
+	if len(s) != 40 {
 		return "", fmt.Errorf("hg returned invalid hash " + s)
 	}
 	return s, nil
@@ -615,7 +616,7 @@ func firstTag(re *regexp.Regexp) (hash string, tag string, err os.Error) {
 			continue
 		}
 		tag = s[1]
-		hash, err = fullHash(s[3])
+		hash, err = fullHash(s[2])
 		return
 	}
 	err = os.NewError("no matching tag found")

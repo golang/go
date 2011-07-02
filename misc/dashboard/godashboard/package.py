@@ -23,6 +23,7 @@ import sets
 # local imports
 import toutf8
 import const
+from auth import auth
 
 template.register_template_library('toutf8')
 
@@ -34,6 +35,11 @@ class Package(db.Model):
     count = db.IntegerProperty()
     last_install = db.DateTimeProperty()
 
+    # data contributed by gobuilder
+    info = db.StringProperty()  
+    ok = db.BooleanProperty()
+    last_ok = db.DateTimeProperty()
+
 class Project(db.Model):
     name = db.StringProperty(indexed=True)
     descr = db.StringProperty()
@@ -43,22 +49,25 @@ class Project(db.Model):
     tags = db.ListProperty(str)
     approved = db.BooleanProperty(indexed=True)
 
-re_bitbucket = re.compile(r'^bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+$')
-re_googlecode = re.compile(r'^[a-z0-9\-]+\.googlecode\.com/(svn|hg)$')
+re_bitbucket = re.compile(r'^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-zA-Z0-9_.\-]+)(/[a-z0-9A-Z_.\-/]+)?$')
+re_googlecode = re.compile(r'^[a-z0-9\-]+\.googlecode\.com/(svn|hg)(/[a-z0-9A-Z_.\-/]+)?$')
 re_github = re.compile(r'^github\.com/[a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)+$')
 re_launchpad = re.compile(r'^launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]+)?$')
 
-
 def vc_to_web(path):
     if re_bitbucket.match(path):
-        check_url = 'http://' + path + '/?cmd=heads'
-        web = 'http://' + path + '/'
+        m = re_bitbucket.match(path)
+        check_url = 'http://' + m.group(1) + '/?cmd=heads'
+        web = 'http://' + m.group(1) + '/'
     elif re_github.match(path):
         m = re_github_web.match(path)
         check_url = 'https://raw.github.com/' + m.group(1) + '/' + m.group(2) + '/master/'
-        web = 'http://github.com/' + m.group(1) + '/' + m.group(2)
+        web = 'http://github.com/' + m.group(1) + '/' + m.group(2) + '/'
     elif re_googlecode.match(path):
+        m = re_googlecode.match(path)
         check_url = 'http://'+path
+        if not m.group(2):  # append / after bare '/hg'
+            check_url += '/'
         web = 'http://code.google.com/p/' + path[:path.index('.')]
     elif re_launchpad.match(path):
         check_url = web = 'https://'+path
@@ -142,8 +151,7 @@ class PackagePage(webapp.RequestHandler):
 
     def can_get_url(self, url):
         try:
-            req = urllib2.Request(url)
-            response = urllib2.urlopen(req)
+            urllib2.urlopen(urllib2.Request(url))
             return True
         except:
             return False
@@ -173,15 +181,23 @@ class PackagePage(webapp.RequestHandler):
                 return False
             p = Package(key_name = key, path = path, count = 0, web_url = web)
 
+        # is this the builder updating package metadata?
+        if auth(self.request):
+            p.info = self.request.get('info')
+            p.ok = self.request.get('ok') == "true"
+            if p.ok:
+                p.last_ok = datetime.datetime.utcnow()
+        else:
+            p.count += 1
+            p.last_install = datetime.datetime.utcnow()
+
         # update package object
-        p.count += 1
-        p.last_install = datetime.datetime.utcnow()
         p.put()
         return True
 
     def post(self):
         path = self.request.get('path')
-        ok = self.record_pkg(path)
+        ok = db.run_in_transaction(self.record_pkg,  path)
         if ok:
             self.response.set_status(200)
             self.response.out.write('ok')

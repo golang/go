@@ -14,6 +14,8 @@ import (
 	"strings"
 )
 
+const MaxCommentLength = 500 // App Engine won't store more in a StringProperty.
+
 func (b *Builder) buildPackages(workpath string, hash string) os.Error {
 	pkgs, err := packages()
 	if err != nil {
@@ -21,25 +23,34 @@ func (b *Builder) buildPackages(workpath string, hash string) os.Error {
 	}
 	for _, p := range pkgs {
 		goroot := filepath.Join(workpath, "go")
-		goinstall := filepath.Join(goroot, "bin", "goinstall")
+		gobin := filepath.Join(goroot, "bin")
+		goinstall := filepath.Join(gobin, "goinstall")
 		envv := append(b.envv(), "GOROOT="+goroot)
 
+		// add GOBIN to path
+		for i, v := range envv {
+			if strings.HasPrefix(v, "PATH=") {
+				p := filepath.SplitList(v[5:])
+				p = append([]string{gobin}, p...)
+				s := strings.Join(p, string(filepath.ListSeparator))
+				envv[i] = "PATH=" + s
+			}
+		}
+
 		// goinstall
-		buildLog, code, err := runLog(envv, "", goroot, goinstall, p)
+		buildLog, code, err := runLog(envv, "", goroot, goinstall, "-log=false", p)
 		if err != nil {
 			log.Printf("goinstall %v: %v", p, err)
-			continue
 		}
-		built := code == 0
 
 		// get doc comment from package source
-		info, err := packageComment(p, filepath.Join(goroot, "pkg", p))
+		info, err := packageComment(p, filepath.Join(goroot, "src", "pkg", p))
 		if err != nil {
-			log.Printf("goinstall %v: %v", p, err)
+			log.Printf("packageComment %v: %v", p, err)
 		}
 
 		// update dashboard with build state + info
-		err = b.updatePackage(p, built, buildLog, info, hash)
+		err = b.updatePackage(p, code == 0, buildLog, info)
 		if err != nil {
 			log.Printf("updatePackage %v: %v", p, err)
 		}
@@ -68,6 +79,16 @@ func packageComment(pkg, pkgpath string) (info string, err os.Error) {
 		}
 		pdoc := doc.NewPackageDoc(pkgs[name], pkg)
 		info = pdoc.Doc
+	}
+	// grab only first paragraph
+	if parts := strings.SplitN(info, "\n\n", 2); len(parts) > 1 {
+		info = parts[0]
+	}
+	// replace newlines with spaces
+	info = strings.Replace(info, "\n", " ", -1)
+	// truncate
+	if len(info) > MaxCommentLength {
+		info = info[:MaxCommentLength]
 	}
 	return
 }

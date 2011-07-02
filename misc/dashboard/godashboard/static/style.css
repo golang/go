@@ -52,7 +52,7 @@ table.alternate tr td:last-child {
 	padding-right: 0;
 }
 table.alternate tr:nth-child(2n) {
-	background-color: #f8f8f8;
+	background-color: #f0f0f0;
 }
 span.hash {
 	font-family: monospace;
@@ -62,10 +62,19 @@ span.hash {
 td.date {
 	color: #aaa;
 }
-td.result {
+td.ok { 
 	text-align: center;
+	color: #060; 
+	font-weight: bold;
+}
+td.ok a {
+	cursor: help;
+}
+th {
+	text-align: left;
 }
 th.builder {
+	text-align: center;
 	font-weight: bold;
 }
 a.fail {
