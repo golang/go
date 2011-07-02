@@ -8,6 +8,7 @@ package main
 
 import (
 	"exec"
+	"fmt"
 	"http"
 	"os"
 	"path/filepath"
@@ -32,12 +33,6 @@ func maybeReportToDashboard(path string) {
 	}
 }
 
-type host struct {
-	pattern  *regexp.Regexp
-	protocol string
-	suffix   string
-}
-
 // a vcs represents a version control system
 // like Mercurial, Git, or Subversion.
 type vcs struct {
@@ -59,9 +54,10 @@ type vcs struct {
 	defaultHosts      []host
 }
 
-type vcsMatch struct {
-	*vcs
-	prefix, repo string
+type host struct {
+	pattern  *regexp.Regexp
+	protocol string
+	suffix   string
 }
 
 var hg = vcs{
@@ -97,7 +93,7 @@ var git = vcs{
 	log:               "show-ref",
 	logLimitFlag:      "",
 	logReleaseFlag:    "release",
-	check:             "peek-remote",
+	check:             "ls-remote",
 	protocols:         []string{"git", "https", "http"},
 	suffix:            ".git",
 	defaultHosts: []host{
@@ -147,27 +143,56 @@ var bzr = vcs{
 
 var vcsList = []*vcs{&git, &hg, &bzr, &svn}
 
-func (v *vcs) findRepo(prefix string) *vcsMatch {
-	for _, proto := range v.protocols {
-		for _, suffix := range []string{v.suffix, ""} {
-			repo := proto + "://" + prefix + suffix
-			out, err := exec.Command(v.cmd, v.check, repo).CombinedOutput()
-			if err == nil {
-				return &vcsMatch{v, prefix + v.suffix, repo}
-			}
-			printf("find %s: %s %s %s: %v\n%s\n", prefix, v.cmd, v.check, repo, err, out)
-		}
-	}
-
-	errorf("find %s: couldn't find %s repository\n", prefix, v.name)
-	return nil
+type vcsMatch struct {
+	*vcs
+	prefix, repo string
 }
 
-func findRepo(pkg string) *vcsMatch {
+// findHostedRepo checks whether pkg is located at one of
+// the supported code hosting sites and, if so, returns a match.
+func findHostedRepo(pkg string) (*vcsMatch, os.Error) {
+	for _, v := range vcsList {
+		for _, host := range v.defaultHosts {
+			if hm := host.pattern.FindStringSubmatch(pkg); hm != nil {
+				if host.suffix != "" && strings.HasSuffix(hm[1], host.suffix) {
+					return nil, os.NewError("repository " + pkg + " should not have " + v.suffix + " suffix")
+				}
+				repo := host.protocol + "://" + hm[1] + host.suffix
+				return &vcsMatch{v, hm[1], repo}, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
+// findAnyRepo looks for a vcs suffix in pkg (.git, etc) and returns a match.
+func findAnyRepo(pkg string) (*vcsMatch, os.Error) {
 	for _, v := range vcsList {
 		i := strings.Index(pkg+"/", v.suffix+"/")
-		if i >= 0 {
-			return v.findRepo(pkg[:i])
+		if i < 0 {
+			continue
+		}
+		if !strings.Contains(pkg[:i], "/") {
+			continue // don't match vcs suffix in the host name
+		}
+		if m := v.find(pkg[:i]); m != nil {
+			return m, nil
+		}
+		return nil, fmt.Errorf("couldn't find %s repository", v.name)
+	}
+	return nil, nil
+}
+
+func (v *vcs) find(pkg string) *vcsMatch {
+	for _, proto := range v.protocols {
+		for _, suffix := range []string{"", v.suffix} {
+			repo := proto + "://" + pkg + suffix
+			out, err := exec.Command(v.cmd, v.check, repo).CombinedOutput()
+			if err == nil {
+				printf("find %s: found %s\n", pkg, repo)
+				return &vcsMatch{v, pkg + v.suffix, repo}
+			}
+			printf("find %s: %s %s %s: %v\n%s\n", pkg, v.cmd, v.check, repo, err, out)
 		}
 	}
 	return nil
@@ -193,27 +218,29 @@ func download(pkg, srcDir string) os.Error {
 	if strings.Contains(pkg, "..") {
 		return os.NewError("invalid path (contains ..)")
 	}
-	dashpath := pkg
-	var m *vcsMatch
-	for _, v := range vcsList {
-		for _, host := range v.defaultHosts {
-			if hm := host.pattern.FindStringSubmatch(pkg); hm != nil {
-				if v.suffix != "" && strings.HasSuffix(hm[1], v.suffix) {
-					return os.NewError("repository " + pkg + " should not have " + v.suffix + " suffix")
-				}
-				repo := host.protocol + "://" + hm[1] + host.suffix
-				m = &vcsMatch{v, hm[1], repo}
-			}
-		}
+	dashReport := true
+	m, err := findHostedRepo(pkg)
+	if err != nil {
+		return err
 	}
 	if m == nil {
-		m = findRepo(pkg)
-		dashpath = "" // don't report to dashboard
+		m, err = findAnyRepo(pkg)
+		if err != nil {
+			return err
+		}
+		dashReport = false // only report public code hosting sites
 	}
 	if m == nil {
 		return os.NewError("cannot download: " + pkg)
 	}
-	return vcsCheckout(m.vcs, srcDir, m.prefix, m.repo, dashpath)
+	installed, err := m.checkoutRepo(srcDir, m.prefix, m.repo)
+	if err != nil {
+		return err
+	}
+	if dashReport && installed {
+		maybeReportToDashboard(pkg)
+	}
+	return nil
 }
 
 // Try to detect if a "release" tag exists.  If it does, update
@@ -232,49 +259,46 @@ func (v *vcs) updateRepo(dst string) os.Error {
 	return nil
 }
 
-// vcsCheckout checks out repo into dst using vcs.
+// checkoutRepo checks out repo into dst using vcs.
 // It tries to check out (or update, if the dst already
 // exists and -u was specified on the command line)
 // the repository at tag/branch "release".  If there is no
 // such tag or branch, it falls back to the repository tip.
-func vcsCheckout(vcs *vcs, srcDir, pkgprefix, repo, dashpath string) os.Error {
+func (vcs *vcs) checkoutRepo(srcDir, pkgprefix, repo string) (installed bool, err os.Error) {
 	dst := filepath.Join(srcDir, filepath.FromSlash(pkgprefix))
 	dir, err := os.Stat(filepath.Join(dst, vcs.metadir))
 	if err == nil && !dir.IsDirectory() {
-		return os.NewError("not a directory: " + dst)
+		err = os.NewError("not a directory: " + dst)
+		return
 	}
 	if err != nil {
 		parent, _ := filepath.Split(dst)
-		if err := os.MkdirAll(parent, 0777); err != nil {
-			return err
+		if err = os.MkdirAll(parent, 0777); err != nil {
+			return
 		}
-		if err := run(string(filepath.Separator), nil, vcs.cmd, vcs.clone, repo, dst); err != nil {
-			return err
+		if err = run(string(filepath.Separator), nil, vcs.cmd, vcs.clone, repo, dst); err != nil {
+			return
 		}
-		if err := vcs.updateRepo(dst); err != nil {
-			return err
+		if err = vcs.updateRepo(dst); err != nil {
+			return
 		}
-		// success on first installation - report
-		if dashpath != "" {
-			maybeReportToDashboard(dashpath)
-		}
+		installed = true
 	} else if *update {
 		// Retrieve new revisions from the remote branch, if the VCS
 		// supports this operation independently (e.g. svn doesn't)
 		if vcs.pull != "" {
 			if vcs.pullForceFlag != "" {
-				if err := run(dst, nil, vcs.cmd, vcs.pull, vcs.pullForceFlag); err != nil {
-					return err
+				if err = run(dst, nil, vcs.cmd, vcs.pull, vcs.pullForceFlag); err != nil {
+					return
 				}
-			} else if err := run(dst, nil, vcs.cmd, vcs.pull); err != nil {
-				return err
+			} else if err = run(dst, nil, vcs.cmd, vcs.pull); err != nil {
+				return
 			}
 		}
-
 		// Update to release or latest revision
-		if err := vcs.updateRepo(dst); err != nil {
-			return err
+		if err = vcs.updateRepo(dst); err != nil {
+			return
 		}
 	}
-	return nil
+	return
 }
