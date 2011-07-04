@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // Template is the representation of a parsed template.
@@ -19,7 +20,7 @@ type Template struct {
 	root *listNode
 	// Parsing.
 	lex      *lexer
-	tokens   chan item
+	tokens   <-chan item
 	token    item // token lookahead for parser
 	havePeek bool
 }
@@ -70,10 +71,13 @@ const (
 	nodeEnd
 	nodeField
 	nodeIdentifier
+	nodeIf
 	nodeList
 	nodeNumber
 	nodeRange
 	nodeString
+	nodeTemplate
+	nodeWith
 )
 
 // Nodes.
@@ -215,31 +219,40 @@ func (b *boolNode) String() string {
 	return fmt.Sprintf("B=false")
 }
 
-// numberNode holds a number, signed or unsigned, integer, floating, or imaginary.
+// numberNode holds a number, signed or unsigned integer, floating, or complex.
 // The value is parsed and stored under all the types that can represent the value.
 // This simulates in a small amount of code the behavior of Go's ideal constants.
-// TODO: booleans, complex numbers.
 type numberNode struct {
 	nodeType
-	isInt     bool // number has an integral value
-	isUint    bool // number has an unsigned integral value
-	isFloat   bool // number has a floating-point value
-	imaginary bool // number is imaginary
-	int64          // the signed integer value
-	uint64         // the unsigned integer value
-	float64        // the positive floating-point value
-	text      string
+	isInt      bool // number has an integral value
+	isUint     bool // number has an unsigned integral value
+	isFloat    bool // number has a floating-point value
+	isComplex  bool // number is complex
+	int64           // the signed integer value
+	uint64          // the unsigned integer value
+	float64         // the floating-point value
+	complex128      // the complex value
+	text       string
 }
 
-func newNumber(text string) (*numberNode, os.Error) {
+func newNumber(text string, isComplex bool) (*numberNode, os.Error) {
 	n := &numberNode{nodeType: nodeNumber, text: text}
-	// Imaginary constants can only be floating-point.
+	if isComplex {
+		// fmt.Sscan can parse the pair, so let it do the work.
+		if _, err := fmt.Sscan(text, &n.complex128); err != nil {
+			return nil, err
+		}
+		n.isComplex = true
+		n.simplifyComplex()
+		return n, nil
+	}
+	// Imaginary constants can only be complex unless they are zero.
 	if len(text) > 0 && text[len(text)-1] == 'i' {
 		f, err := strconv.Atof64(text[:len(text)-1])
 		if err == nil {
-			n.imaginary = true
-			n.isFloat = true
-			n.float64 = f
+			n.isComplex = true
+			n.complex128 = complex(0, f)
+			n.simplifyComplex()
 			return n, nil
 		}
 	}
@@ -285,6 +298,23 @@ func newNumber(text string) (*numberNode, os.Error) {
 		return nil, fmt.Errorf("illegal number syntax: %q", text)
 	}
 	return n, nil
+}
+
+// simplifyComplex pulls out any other types that are represented by the complex number.
+// These all require that the imaginary part be zero.
+func (n *numberNode) simplifyComplex() {
+	n.isFloat = imag(n.complex128) == 0
+	if n.isFloat {
+		n.float64 = real(n.complex128)
+		n.isInt = float64(int64(n.float64)) == n.float64
+		if n.isInt {
+			n.int64 = int64(n.float64)
+		}
+		n.isUint = float64(uint64(n.float64)) == n.float64
+		if n.isUint {
+			n.uint64 = uint64(n.float64)
+		}
+	}
 }
 
 func (n *numberNode) String() string {
@@ -337,6 +367,26 @@ func (e *elseNode) typ() nodeType {
 func (e *elseNode) String() string {
 	return "{{else}}"
 }
+// ifNode represents an {{if}} action and its commands.
+// TODO: what should evaluation look like? is a pipeline enough?
+type ifNode struct {
+	nodeType
+	line     int
+	pipeline []*commandNode
+	list     *listNode
+	elseList *listNode
+}
+
+func newIf(line int, pipeline []*commandNode, list, elseList *listNode) *ifNode {
+	return &ifNode{nodeType: nodeIf, line: line, pipeline: pipeline, list: list, elseList: elseList}
+}
+
+func (i *ifNode) String() string {
+	if i.elseList != nil {
+		return fmt.Sprintf("({{if %s}} %s {{else}} %s)", i.pipeline, i.list, i.elseList)
+	}
+	return fmt.Sprintf("({{if %s}} %s)", i.pipeline, i.list)
+}
 
 // rangeNode represents a {{range}} action and its commands.
 type rangeNode struct {
@@ -347,8 +397,8 @@ type rangeNode struct {
 	elseList *listNode
 }
 
-func newRange(line int, pipeline []*commandNode, list *listNode) *rangeNode {
-	return &rangeNode{nodeType: nodeRange, line: line, pipeline: pipeline, list: list}
+func newRange(line int, pipeline []*commandNode, list, elseList *listNode) *rangeNode {
+	return &rangeNode{nodeType: nodeRange, line: line, pipeline: pipeline, list: list, elseList: elseList}
 }
 
 func (r *rangeNode) String() string {
@@ -357,6 +407,43 @@ func (r *rangeNode) String() string {
 	}
 	return fmt.Sprintf("({{range %s}} %s)", r.pipeline, r.list)
 }
+
+// templateNode represents a {{template}} action.
+type templateNode struct {
+	nodeType
+	line     int
+	name     node
+	pipeline []*commandNode
+}
+
+func newTemplate(line int, name node, pipeline []*commandNode) *templateNode {
+	return &templateNode{nodeType: nodeTemplate, line: line, name: name, pipeline: pipeline}
+}
+
+func (t *templateNode) String() string {
+	return fmt.Sprintf("{{template %s %s}}", t.name, t.pipeline)
+}
+
+// withNode represents a {{with}} action and its commands.
+type withNode struct {
+	nodeType
+	line     int
+	pipeline []*commandNode
+	list     *listNode
+	elseList *listNode
+}
+
+func newWith(line int, pipeline []*commandNode, list, elseList *listNode) *withNode {
+	return &withNode{nodeType: nodeWith, line: line, pipeline: pipeline, list: list, elseList: elseList}
+}
+
+func (w *withNode) String() string {
+	if w.elseList != nil {
+		return fmt.Sprintf("({{with %s}} %s {{else}} %s)", w.pipeline, w.list, w.elseList)
+	}
+	return fmt.Sprintf("({{with %s}} %s)", w.pipeline, w.list)
+}
+
 
 // Parsing.
 
@@ -400,24 +487,62 @@ func (t *Template) recover(errp *os.Error) {
 		if _, ok := e.(runtime.Error); ok {
 			panic(e)
 		}
-		t.root, t.lex, t.tokens = nil, nil, nil
+		t.stopParse()
+		t.root = nil
 		*errp = e.(os.Error)
 	}
 	return
 }
 
+// startParse starts the template parsing from the lexer.
+func (t *Template) startParse(lex *lexer, tokens <-chan item) {
+	t.root = nil
+	t.lex, t.tokens = lex, tokens
+}
+
+// stopParse terminates parsing.
+func (t *Template) stopParse() {
+	t.lex, t.tokens = nil, nil
+}
+
+// atEOF returns true if, possibly after spaces, we're at EOF.
+func (t *Template) atEOF() bool {
+	for {
+		token := t.peek()
+		switch token.typ {
+		case itemEOF:
+			return true
+		case itemText:
+			for _, r := range token.val {
+				if !unicode.IsSpace(r) {
+					return false
+				}
+			}
+			t.next() // skip spaces.
+			continue
+		}
+		break
+	}
+	return false
+}
+
 // Parse parses the template definition string to construct an internal representation
 // of the template for execution.
 func (t *Template) Parse(s string) (err os.Error) {
-	t.lex, t.tokens = lex(t.name, s)
+	t.startParse(lex(t.name, s))
 	defer t.recover(&err)
-	var next node
+	t.parse(true)
+	t.stopParse()
+	return
+}
+
+// parse is the helper for Parse. It triggers an error if we expect EOF but don't reach it.
+func (t *Template) parse(toEOF bool) (next node) {
 	t.root, next = t.itemList(true)
-	if next != nil {
+	if toEOF && next != nil {
 		t.errorf("unexpected %s", next)
 	}
-	t.lex, t.tokens = nil, nil
-	return nil
+	return next
 }
 
 // itemList:
@@ -461,12 +586,18 @@ func (t *Template) textOrAction() node {
 // First word could be a keyword such as range.
 func (t *Template) action() (n node) {
 	switch token := t.next(); token.typ {
-	case itemRange:
-		return t.rangeControl()
 	case itemElse:
 		return t.elseControl()
 	case itemEnd:
 		return t.endControl()
+	case itemIf:
+		return t.ifControl()
+	case itemRange:
+		return t.rangeControl()
+	case itemTemplate:
+		return t.templateControl()
+	case itemWith:
+		return t.withControl()
 	}
 	t.backup()
 	return newAction(t.lex.lineNumber(), t.pipeline("command"))
@@ -479,14 +610,13 @@ func (t *Template) pipeline(context string) (pipe []*commandNode) {
 	for {
 		switch token := t.next(); token.typ {
 		case itemRightMeta:
-			return
-		case itemIdentifier, itemField, itemDot:
-			t.backup()
-			cmd, err := t.command()
-			if err != nil {
-				t.error(err)
+			if len(pipe) == 0 {
+				t.errorf("missing value for %s", context)
 			}
-			pipe = append(pipe, cmd)
+			return
+		case itemBool, itemComplex, itemDot, itemField, itemIdentifier, itemNumber, itemRawString, itemString:
+			t.backup()
+			pipe = append(pipe, t.command())
 		default:
 			t.unexpected(token, context)
 		}
@@ -494,25 +624,46 @@ func (t *Template) pipeline(context string) (pipe []*commandNode) {
 	return
 }
 
-// Range:
-//	{{range field}} itemList {{end}}
-//	{{range field}} itemList {{else}} itemList {{end}}
-// Range keyword is past.
-func (t *Template) rangeControl() node {
-	pipeline := t.pipeline("range")
-	list, next := t.itemList(false)
-	r := newRange(t.lex.lineNumber(), pipeline, list)
+func (t *Template) parseControl(context string) (lineNum int, pipe []*commandNode, list, elseList *listNode) {
+	pipe = t.pipeline(context)
+	var next node
+	list, next = t.itemList(false)
 	switch next.typ() {
 	case nodeEnd: //done
 	case nodeElse:
-		elseList, next := t.itemList(false)
+		elseList, next = t.itemList(false)
 		if next.typ() != nodeEnd {
 			t.errorf("expected end; found %s", next)
 		}
-		r.elseList = elseList
+		elseList = elseList
 	}
-	return r
+	return lineNum, pipe, list, elseList
 }
+
+// If:
+//	{{if pipeline}} itemList {{end}}
+//	{{if pipeline}} itemList {{else}} itemList {{end}}
+// If keyword is past.
+func (t *Template) ifControl() node {
+	return newIf(t.parseControl("if"))
+}
+
+// Range:
+//	{{range pipeline}} itemList {{end}}
+//	{{range pipeline}} itemList {{else}} itemList {{end}}
+// Range keyword is past.
+func (t *Template) rangeControl() node {
+	return newRange(t.parseControl("range"))
+}
+
+// With:
+//	{{with pipeline}} itemList {{end}}
+//	{{with pipeline}} itemList {{else}} itemList {{end}}
+// If keyword is past.
+func (t *Template) withControl() node {
+	return newWith(t.parseControl("with"))
+}
+
 
 // End:
 //	{{end}}
@@ -530,10 +681,36 @@ func (t *Template) elseControl() node {
 	return newElse(t.lex.lineNumber())
 }
 
+// Template:
+//	{{template stringValue pipeline}}
+// Template keyword is past.  The name must be something that can evaluate
+// to a string.
+func (t *Template) templateControl() node {
+	var name node
+	switch token := t.next(); token.typ {
+	case itemIdentifier:
+		name = newIdentifier(token.val)
+	case itemDot:
+		name = newDot()
+	case itemField:
+		name = newField(token.val)
+	case itemString, itemRawString:
+		s, err := strconv.Unquote(token.val)
+		if err != nil {
+			t.error(err)
+		}
+		name = newString(s)
+	default:
+		t.unexpected(token, "template invocation")
+	}
+	pipeline := t.pipeline("template")
+	return newTemplate(t.lex.lineNumber(), name, pipeline)
+}
+
 // command:
 // space-separated arguments up to a pipeline character or right metacharacter.
 // we consume the pipe character but leave the right meta to terminate the action.
-func (t *Template) command() (*commandNode, os.Error) {
+func (t *Template) command() *commandNode {
 	cmd := newCommand()
 Loop:
 	for {
@@ -544,7 +721,7 @@ Loop:
 		case itemPipe:
 			break Loop
 		case itemError:
-			return nil, os.NewError(token.val)
+			t.errorf("%s", token.val)
 		case itemIdentifier:
 			cmd.append(newIdentifier(token.val))
 		case itemDot:
@@ -553,22 +730,16 @@ Loop:
 			cmd.append(newField(token.val))
 		case itemBool:
 			cmd.append(newBool(token.val == "true"))
-		case itemNumber:
-			if len(cmd.args) == 0 {
-				t.errorf("command cannot be %q", token.val)
-			}
-			number, err := newNumber(token.val)
+		case itemComplex, itemNumber:
+			number, err := newNumber(token.val, token.typ == itemComplex)
 			if err != nil {
 				t.error(err)
 			}
 			cmd.append(number)
 		case itemString, itemRawString:
-			if len(cmd.args) == 0 {
-				t.errorf("command cannot be %q", token.val)
-			}
 			s, err := strconv.Unquote(token.val)
 			if err != nil {
-				return nil, err
+				t.error(err)
 			}
 			cmd.append(newString(s))
 		default:
@@ -578,5 +749,5 @@ Loop:
 	if len(cmd.args) == 0 {
 		t.errorf("empty command")
 	}
-	return cmd, nil
+	return cmd
 }
