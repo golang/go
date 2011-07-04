@@ -18,60 +18,71 @@ type item struct {
 }
 
 func (i item) String() string {
-	switch i.typ {
-	case itemEOF:
+	switch {
+	case i.typ == itemEOF:
 		return "EOF"
-	case itemError:
+	case i.typ == itemError:
 		return i.val
-	}
-	if len(i.val) > 10 {
+	case i.typ > itemKeyword:
+		return fmt.Sprintf("<%s>", i.val)
+	case len(i.val) > 10:
 		return fmt.Sprintf("%.10q...", i.val)
 	}
 	return fmt.Sprintf("%q", i.val)
 }
 
-// itemType identifies the type of lex item.
+// itemType identifies the type of lex items.
 type itemType int
 
 const (
-	itemError itemType = iota // error occurred; value is text of error
-	itemBool                  // boolean constant
-	itemDot                   // the cursor, spelled '.'.
+	itemError   itemType = iota // error occurred; value is text of error
+	itemBool                    // boolean constant
+	itemComplex                 // complex constant (1+2i); imaginary is just a number
 	itemEOF
-	itemElse       // else keyword
-	itemEnd        // end keyword
 	itemField      // alphanumeric identifier, starting with '.', possibly chained ('.x.y')
 	itemIdentifier // alphanumeric identifier
-	itemIf         // if keyword
 	itemLeftMeta   // left meta-string
-	itemNumber     // number
+	itemNumber     // simple number, including imaginary
 	itemPipe       // pipe symbol
-	itemRange      // range keyword
 	itemRawString  // raw quoted string (includes quotes)
 	itemRightMeta  // right meta-string
 	itemString     // quoted string (includes quotes)
 	itemText       // plain text
+	// Keywords appear after all the rest.
+	itemKeyword  // used only to delimit the keywords
+	itemDot      // the cursor, spelled '.'.
+	itemDefine   // define keyword
+	itemElse     // else keyword
+	itemEnd      // end keyword
+	itemIf       // if keyword
+	itemRange    // range keyword
+	itemTemplate // template keyword
+	itemWith     // with keyword
 )
 
 // Make the types prettyprint.
 var itemName = map[itemType]string{
 	itemError:      "error",
 	itemBool:       "bool",
-	itemDot:        ".",
+	itemComplex:    "complex",
 	itemEOF:        "EOF",
-	itemElse:       "else",
-	itemEnd:        "end",
 	itemField:      "field",
 	itemIdentifier: "identifier",
-	itemIf:         "if",
 	itemLeftMeta:   "left meta",
 	itemNumber:     "number",
 	itemPipe:       "pipe",
-	itemRange:      "range",
 	itemRawString:  "raw string",
 	itemRightMeta:  "rightMeta",
 	itemString:     "string",
-	itemText:       "text",
+	// keywords
+	itemDot:      ".",
+	itemDefine:   "define",
+	itemElse:     "else",
+	itemIf:       "if",
+	itemEnd:      "end",
+	itemRange:    "range",
+	itemTemplate: "template",
+	itemWith:     "with",
 }
 
 func (i itemType) String() string {
@@ -83,11 +94,14 @@ func (i itemType) String() string {
 }
 
 var key = map[string]itemType{
-	".":     itemDot,
-	"else":  itemElse,
-	"end":   itemEnd,
-	"if":    itemIf,
-	"range": itemRange,
+	".":        itemDot,
+	"define":   itemDefine,
+	"else":     itemElse,
+	"end":      itemEnd,
+	"if":       itemIf,
+	"range":    itemRange,
+	"template": itemTemplate,
+	"with":     itemWith,
 }
 
 const eof = -1
@@ -282,7 +296,7 @@ Loop:
 			l.backup()
 			word := l.input[l.start:l.pos]
 			switch {
-			case key[word] != itemError:
+			case key[word] > itemKeyword:
 				l.emit(key[word])
 			case word[0] == '.':
 				l.emit(itemField)
@@ -301,8 +315,23 @@ Loop:
 // isn't a perfect number scanner - for instance it accepts "." and "0x0.2"
 // and "089" - but when it's wrong the input is invalid and the parser (via
 // strconv) will notice.
-// TODO: without expressions you can do imaginary but not complex.
 func lexNumber(l *lexer) stateFn {
+	if !l.scanNumber() {
+		return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
+	}
+	if sign := l.peek(); sign == '+' || sign == '-' {
+		// Complex: 1+2i.  No spaces, must end in 'i'.
+		if !l.scanNumber() || l.input[l.pos-1] != 'i' {
+			return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
+		}
+		l.emit(itemComplex)
+	} else {
+		l.emit(itemNumber)
+	}
+	return lexInsideAction
+}
+
+func (l *lexer) scanNumber() bool {
 	// Optional leading sign.
 	l.accept("+-")
 	// Is it hex?
@@ -323,10 +352,9 @@ func lexNumber(l *lexer) stateFn {
 	// Next thing mustn't be alphanumeric.
 	if isAlphaNumeric(l.peek()) {
 		l.next()
-		return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
+		return false
 	}
-	l.emit(itemNumber)
-	return lexInsideAction
+	return true
 }
 
 // lexQuote scans a quoted string.
