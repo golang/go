@@ -182,9 +182,10 @@ func install(pkg, parent string) {
 	}
 	// Download remote packages if not found or forced with -u flag.
 	remote := isRemote(pkg)
+	dashReport := false
 	if remote && (err == build.ErrNotFound || (err == nil && *update)) {
 		printf("%s: download\n", pkg)
-		err = download(pkg, tree.SrcDir())
+		dashReport, err = download(pkg, tree.SrcDir())
 	}
 	if err != nil {
 		errorf("%s: %v\n", pkg, err)
@@ -242,6 +243,9 @@ func install(pkg, parent string) {
 				printf("%s: up-to-date\n", pkg)
 			}
 		}
+	}
+	if dashReport {
+		maybeReportToDashboard(pkg)
 	}
 	if remote {
 		// mark package as installed in $GOROOT/goinstall.log

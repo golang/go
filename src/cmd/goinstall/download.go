@@ -214,33 +214,35 @@ func isRemote(pkg string) bool {
 }
 
 // download checks out or updates pkg from the remote server.
-func download(pkg, srcDir string) os.Error {
+func download(pkg, srcDir string) (dashReport bool, err os.Error) {
 	if strings.Contains(pkg, "..") {
-		return os.NewError("invalid path (contains ..)")
+		err = os.NewError("invalid path (contains ..)")
+		return
 	}
-	dashReport := true
 	m, err := findHostedRepo(pkg)
 	if err != nil {
-		return err
+		return
 	}
-	if m == nil {
+	if m != nil {
+		dashReport = true // only report public code hosting sites
+	} else {
 		m, err = findAnyRepo(pkg)
 		if err != nil {
-			return err
+			return
 		}
-		dashReport = false // only report public code hosting sites
 	}
 	if m == nil {
-		return os.NewError("cannot download: " + pkg)
+		err = os.NewError("cannot download: " + pkg)
+		return
 	}
 	installed, err := m.checkoutRepo(srcDir, m.prefix, m.repo)
 	if err != nil {
-		return err
+		return
 	}
-	if dashReport && installed {
-		maybeReportToDashboard(pkg)
+	if !installed {
+		dashReport = false
 	}
-	return nil
+	return
 }
 
 // Try to detect if a "release" tag exists.  If it does, update
