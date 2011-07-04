@@ -933,7 +933,7 @@ func (v Value) Kind() Kind {
 }
 
 // Len returns v's length.
-// It panics if v's Kind is not Array, Chan, Map, or Slice.
+// It panics if v's Kind is not Array, Chan, Map, Slice, or String.
 func (v Value) Len() int {
 	iv := v.internal()
 	switch iv.kind {
@@ -945,6 +945,8 @@ func (v Value) Len() int {
 		return int(maplen(iv.word))
 	case Slice:
 		return (*SliceHeader)(iv.addr).Len
+	case String:
+		return (*StringHeader)(iv.addr).Len
 	}
 	panic(&ValueError{"reflect.Value.Len", iv.kind})
 }
