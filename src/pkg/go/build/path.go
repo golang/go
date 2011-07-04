@@ -88,6 +88,9 @@ func FindTree(path string) (tree *Tree, pkg string, err os.Error) {
 		if path, err = filepath.Abs(path); err != nil {
 			return
 		}
+		if path, err = filepath.EvalSymlinks(path); err != nil {
+			return
+		}
 		for _, t := range Path {
 			tpath := t.SrcDir() + string(filepath.Separator)
 			if !strings.HasPrefix(path, tpath) {
