@@ -7,7 +7,6 @@ set -e
 
 TXT=${1:-go_tutorial.txt}		# input file
 HTML=$(basename $TXT .txt).html		# output file (basename)
-TMP=TEMP.txt				# input to htmlgen
 
 if ! test -w $HTML
 then
@@ -15,17 +14,4 @@ then
 	exit 1
 fi
 
-if grep -q '^--PROG' $TXT
-then
-	echo >&2 makehtml: processing PROG sections
-	<$TXT >$TMP awk '
-		/^--PROG/ { system("sh ./prog.sh "$2" "$3" "$4" "); getline }
-		/^/ {print}
-	'
-else
-	cp $TXT $TMP
-fi
-
-make htmlgen && ./htmlgen < $TMP > $HTML
-
-rm -f $TMP
+make htmlgen && ./htmlgen < $TXT > $HTML

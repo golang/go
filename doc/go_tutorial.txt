@@ -28,7 +28,7 @@ Hello, World
 
 Let's start in the usual way:
 
---PROG progs/helloworld.go /package/ END
+!src progs/helloworld.go /package/ $
 
 Every Go source file declares, using a "package" statement, which package it's part of.
 It may also import other packages to use their facilities.
@@ -107,13 +107,13 @@ Echo
 
 Next up, here's a version of the Unix utility "echo(1)":
 
---PROG progs/echo.go /package/ END
+!src progs/echo.go /package/ $
 
 This program is small but it's doing a number of new things.  In the last example,
 we saw "func" introduce a function.  The keywords "var", "const", and "type"
 (not used yet) also introduce declarations, as does "import".
 Notice that we can group declarations of the same sort into
-parenthesized lists, one item per line, as on lines 7-10 and 14-17.
+parenthesized lists, one item per line, as in the "import" and "const" clauses here.
 But it's not necessary to do so; we could have said
 
 	const Space = " "
@@ -163,7 +163,7 @@ or we could go even shorter and write the idiom
 The ":=" operator is used a lot in Go to represent an initializing declaration.
 There's one in the "for" clause on the next line:
 
---PROG  progs/echo.go /for/
+!src  progs/echo.go /for/
 
 The "flag" package has parsed the arguments and left the non-flag arguments
 in a list that can be iterated over in the obvious way.
@@ -210,7 +210,7 @@ Once you've built a string <i>value</i>, you can't change it, although
 of course you can change a string <i>variable</i> simply by
 reassigning it.  This snippet from "strings.go" is legal code:
 
---PROG progs/strings.go /hello/ /ciao/
+!src progs/strings.go /hello/ /ciao/
 
 However the following statements are illegal because they would modify
 a "string" value:
@@ -269,7 +269,7 @@ will slice the whole array.
 
 Using slices one can write this function (from "sum.go"):
 
---PROG progs/sum.go /sum/ /^}/
+!src progs/sum.go /sum/ /^}/
 
 Note how the return type ("int") is defined for "sum" by stating it
 after the parameter list.
@@ -386,7 +386,7 @@ An I/O Package
 Next we'll look at a simple package for doing file I/O with an
 open/close/read/write interface.  Here's the start of "file.go":
 
---PROG progs/file.go /package/ /^}/
+!src progs/file.go /package/ /^}/
 
 The first few lines declare the name of the
 package&mdash;"file"&mdash;and then import two packages.  The "os"
@@ -416,7 +416,7 @@ will soon give it some exported, upper-case methods.
 
 First, though, here is a factory to create a "File":
 
---PROG progs/file.go /newFile/ /^}/
+!src progs/file.go /newFile/ /^}/
 
 This returns a pointer to a new "File" structure with the file descriptor and name
 filled in.  This code uses Go's notion of a ''composite literal'', analogous to
@@ -433,12 +433,12 @@ composite literal, as is done here on line 21.
 
 We can use the factory to construct some familiar, exported variables of type "*File":
 
---PROG progs/file.go /var/ /^.$/
+!src progs/file.go /var/ /^.$/
 
 The "newFile" function was not exported because it's internal. The proper,
 exported factory to use is "OpenFile" (we'll explain that name in a moment):
 
---PROG progs/file.go /func.OpenFile/ /^}/
+!src progs/file.go /func.OpenFile/ /^}/
 
 There are a number of new things in these few lines.  First, "OpenFile" returns
 multiple values, a "File" and an error (more about errors in a moment).
@@ -468,9 +468,9 @@ the implementation of our "Open" and "Create"; they're trivial
 wrappers that eliminate common errors by capturing
 the tricky standard arguments to open and, especially, to create a file:
 
---PROG progs/file.go /^const/ /^}/
+!src progs/file.go /^const/ /^}/
 
---PROG progs/file.go /func.Create/ /^}/
+!src progs/file.go /func.Create/ /^}/
 
 Back to our main story.
 Now that we can build "Files", we can write methods for them. To declare
@@ -479,7 +479,7 @@ of that type, placed
 in parentheses before the function name. Here are some methods for "*File",
 each of which declares a receiver variable "file".
 
---PROG progs/file.go /Close/ END
+!src progs/file.go /Close/ $
 
 There is no implicit "this" and the receiver variable must be used to access
 members of the structure.  Methods are not declared within
@@ -496,7 +496,7 @@ set of such error values.
 
 We can now use our new package:
 
---PROG progs/helloworld3.go /package/ END
+!src progs/helloworld3.go /package/ $
 
 The ''"./"'' in the import of ''"./file"'' tells the compiler
 to use our own package rather than
@@ -520,12 +520,12 @@ Rotting cats
 Building on the "file" package, here's a simple version of the Unix utility "cat(1)",
 "progs/cat.go":
 
---PROG progs/cat.go /package/ END
+!src progs/cat.go /package/ $
 
 By now this should be easy to follow, but the "switch" statement introduces some
 new features.  Like a "for" loop, an "if" or "switch" can include an
-initialization statement.  The "switch" on line 18 uses one to create variables
-"nr" and "er" to hold the return values from the call to "f.Read".  (The "if" on line 25
+initialization statement.  The "switch" statement in "cat" uses one to create variables
+"nr" and "er" to hold the return values from the call to "f.Read".  (The "if" a few lines later
 has the same idea.)  The "switch" statement is general: it evaluates the cases
 from  top to bottom looking for the first case that matches the value; the
 case expressions don't need to be constants or even integers, as long as
@@ -537,7 +537,7 @@ in a "for" statement, a missing value means "true".  In fact, such a "switch"
 is a form of "if-else" chain. While we're here, it should be mentioned that in
 "switch" statements each "case" has an implicit "break".
 
-Line 25 calls "Write" by slicing the incoming buffer, which is itself a slice.
+The argument to "file.Stdout.Write" is created by slicing the array "buf".
 Slices provide the standard Go way to handle I/O buffers.
 
 Now let's make a variant of "cat" that optionally does "rot13" on its input.
@@ -548,7 +548,7 @@ The "cat" subroutine uses only two methods of "f": "Read" and "String",
 so let's start by defining an interface that has exactly those two methods.
 Here is code from "progs/cat_rot13.go":
 
---PROG progs/cat_rot13.go /type.reader/ /^}/
+!src progs/cat_rot13.go /type.reader/ /^}/
 
 Any type that has the two methods of "reader"&mdash;regardless of whatever
 other methods the type may also have&mdash;is said to <i>implement</i> the
@@ -560,34 +560,32 @@ existing "reader" and does "rot13" on the data. To do this, we just define
 the type and implement the methods and with no other bookkeeping,
 we have a second implementation of the "reader" interface.
 
---PROG progs/cat_rot13.go /type.rotate13/ /end.of.rotate13/
+!src progs/cat_rot13.go /type.rotate13/ /end.of.rotate13/
 
-(The "rot13" function called on line 42 is trivial and not worth reproducing here.)
+(The "rot13" function called in "Read" is trivial and not worth reproducing here.)
 
 To use the new feature, we define a flag:
 
---PROG progs/cat_rot13.go /rot13Flag/
+!src progs/cat_rot13.go /rot13Flag/
 
 and use it from within a mostly unchanged "cat" function:
 
---PROG progs/cat_rot13.go /func.cat/ /^}/
+!src progs/cat_rot13.go /func.cat/ /^}/
 
 (We could also do the wrapping in "main" and leave "cat" mostly alone, except
 for changing the type of the argument; consider that an exercise.)
-Lines 56 through 58 set it all up: If the "rot13" flag is true, wrap the "reader"
+The "if" at the top of "cat" sets it all up: If the "rot13" flag is true, wrap the "reader"
 we received into a "rotate13" and proceed.  Note that the interface variables
 are values, not pointers: the argument is of type "reader", not "*reader",
 even though under the covers it holds a pointer to a "struct".
 
 Here it is in action:
 
-<pre>
 	$ echo abcdefghijklmnopqrstuvwxyz | ./cat
 	abcdefghijklmnopqrstuvwxyz
 	$ echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
 	nopqrstuvwxyzabcdefghijklm
 	$
-</pre>
 
 Fans of dependency injection may take cheer from how easily interfaces
 allow us to substitute the implementation of a file descriptor.
@@ -601,9 +599,7 @@ as we saw with "rot13".  The type "file.File" implements "reader"; it could also
 implement a "writer", or any other interface built from its methods that
 fits the current situation. Consider the <i>empty interface</i>
 
-<pre>
 	type Empty interface {}
-</pre>
 
 <i>Every</i> type implements the empty interface, which makes it
 useful for things like containers.
@@ -618,17 +614,17 @@ same interface variable.
 
 As an example, consider this simple sort algorithm taken from "progs/sort.go":
 
---PROG progs/sort.go /func.Sort/ /^}/
+!src progs/sort.go /func.Sort/ /^}/
 
 The code needs only three methods, which we wrap into sort's "Interface":
 
---PROG progs/sort.go /interface/ /^}/
+!src progs/sort.go /interface/ /^}/
 
 We can apply "Sort" to any type that implements "Len", "Less", and "Swap".
 The "sort" package includes the necessary methods to allow sorting of
 arrays of integers, strings, etc.; here's the code for arrays of "int"
 
---PROG progs/sort.go /type.*IntSlice/ /Swap/
+!src progs/sort.go /type.*IntSlice/ /Swap/
 
 Here we see methods defined for non-"struct" types.  You can define methods
 for any type you define and name in your package.
@@ -637,12 +633,12 @@ And now a routine to test it out, from "progs/sortmain.go".  This
 uses a function in the "sort" package, omitted here for brevity,
 to test that the result is sorted.
 
---PROG progs/sortmain.go /func.ints/ /^}/
+!src progs/sortmain.go /func.ints/ /^}/
 
 If we have a new type we want to be able to sort, all we need to do is
 to implement the three methods for that type, like this:
 
---PROG progs/sortmain.go /type.day/ /Swap/
+!src progs/sortmain.go /type.day/ /Swap/
 
 
 Printing
@@ -675,7 +671,7 @@ argument.  It's easier in many cases in Go.  Instead of "%llud" you
 can just say "%d"; "Printf" knows the size and signedness of the
 integer and can do the right thing for you.  The snippet
 
---PROG progs/print.go 'NR==10' 'NR==11'
+!src progs/print.go 10 11
 
 prints
 
@@ -684,7 +680,7 @@ prints
 In fact, if you're lazy the format "%v" will print, in a simple
 appropriate style, any value, even an array or structure.  The output of
 
---PROG progs/print.go 'NR==14' 'NR==20'
+!src progs/print.go 14 20
 
 is
 
@@ -697,7 +693,7 @@ of "%v" while "Println" inserts spaces between arguments
 and adds a newline.  The output of each of these two lines is identical
 to that of the "Printf" call above.
 
---PROG progs/print.go 'NR==21' 'NR==22'
+!src progs/print.go 21 22
 
 If you have your own type you'd like "Printf" or "Print" to format,
 just give it a "String" method that returns a string.  The print
@@ -705,7 +701,7 @@ routines will examine the value to inquire whether it implements
 the method and if so, use it rather than some other formatting.
 Here's a simple example.
 
---PROG progs/print_string.go 'NR==9' END
+!src progs/print_string.go 9 $
 
 Since "*testType" has a "String" method, the
 default formatter for that type will use it and produce the output
@@ -803,7 +799,7 @@ coordinates the communication; as with maps and slices, use
 
 Here is the first function in "progs/sieve.go":
 
---PROG progs/sieve.go /Send/ /^}/
+!src progs/sieve.go /Send/ /^}/
 
 The "generate" function sends the sequence 2, 3, 4, 5, ... to its
 argument channel, "ch", using the binary communications operator "&lt;-".
@@ -815,7 +811,7 @@ channel, and a prime number.  It copies values from the input to the
 output, discarding anything divisible by the prime.  The unary communications
 operator "&lt;-" (receive) retrieves the next value on the channel.
 
---PROG progs/sieve.go /Copy.the/ /^}/
+!src progs/sieve.go /Copy.the/ /^}/
 
 The generator and filters execute concurrently.  Go has
 its own model of process/threads/light-weight processes/coroutines,
@@ -838,9 +834,9 @@ on which it can report back:
 Back to our prime sieve.  Here's how the sieve pipeline is stitched
 together:
 
---PROG progs/sieve.go /func.main/ /^}/
+!src progs/sieve.go /func.main/ /^}/
 
-Line 29 creates the initial channel to pass to "generate", which it
+The first line of "main" creates the initial channel to pass to "generate", which it
 then starts up.  As each prime pops out of the channel, a new "filter"
 is added to the pipeline and <i>its</i> output becomes the new value
 of "ch".
@@ -849,30 +845,30 @@ The sieve program can be tweaked to use a pattern common
 in this style of programming.  Here is a variant version
 of "generate", from "progs/sieve1.go":
 
---PROG progs/sieve1.go /func.generate/ /^}/
+!src progs/sieve1.go /func.generate/ /^}/
 
 This version does all the setup internally. It creates the output
 channel, launches a goroutine running a function literal, and
 returns the channel to the caller.  It is a factory for concurrent
 execution, starting the goroutine and returning its connection.
 
-The function literal notation (lines 12-16) allows us to construct an
+The function literal notation used in the "go" statement allows us to construct an
 anonymous function and invoke it on the spot. Notice that the local
 variable "ch" is available to the function literal and lives on even
 after "generate" returns.
 
 The same change can be made to "filter":
 
---PROG progs/sieve1.go /func.filter/ /^}/
+!src progs/sieve1.go /func.filter/ /^}/
 
 The "sieve" function's main loop becomes simpler and clearer as a
 result, and while we're at it let's turn it into a factory too:
 
---PROG progs/sieve1.go /func.sieve/ /^}/
+!src progs/sieve1.go /func.sieve/ /^}/
 
 Now "main"'s interface to the prime sieve is a channel of primes:
 
---PROG progs/sieve1.go /func.main/ /^}/
+!src progs/sieve1.go /func.main/ /^}/
 
 Multiplexing
 ----
@@ -884,41 +880,41 @@ A realistic client-server program is a lot of code, so here is a very simple sub
 to illustrate the idea.  It starts by defining a "request" type, which embeds a channel
 that will be used for the reply.
 
---PROG progs/server.go /type.request/ /^}/
+!src progs/server.go /type.request/ /^}/
 
 The server will be trivial: it will do simple binary operations on integers.  Here's the
 code that invokes the operation and responds to the request:
 
---PROG progs/server.go /type.binOp/ /^}/
+!src progs/server.go /type.binOp/ /^}/
 
-Line 14 defines the name "binOp" to be a function taking two integers and
+The type declaration makes "binOp" represent a function taking two integers and
 returning a third.
 
 The "server" routine loops forever, receiving requests and, to avoid blocking due to
 a long-running operation, starting a goroutine to do the actual work.
 
---PROG progs/server.go /func.server/ /^}/
+!src progs/server.go /func.server/ /^}/
 
 We construct a server in a familiar way, starting it and returning a channel
 connected to it:
 
---PROG progs/server.go /func.startServer/ /^}/
+!src progs/server.go /func.startServer/ /^}/
 
 Here's a simple test.  It starts a server with an addition operator and sends out
 "N" requests without waiting for the replies.  Only after all the requests are sent
 does it check the results.
 
---PROG progs/server.go /func.main/ /^}/
+!src progs/server.go /func.main/ /^}/
 
 One annoyance with this program is that it doesn't shut down the server cleanly; when "main" returns
 there are a number of lingering goroutines blocked on communication.  To solve this,
 we can provide a second, "quit" channel to the server:
 
---PROG progs/server1.go /func.startServer/ /^}/
+!src progs/server1.go /func.startServer/ /^}/
 
 It passes the quit channel to the "server" function, which uses it like this:
 
---PROG progs/server1.go /func.server/ /^}/
+!src progs/server1.go /func.server/ /^}/
 
 Inside "server", the "select" statement chooses which of the multiple communications
 listed by its cases can proceed.  If all are blocked, it waits until one can proceed; if
@@ -930,9 +926,9 @@ returns, terminating its execution.
 All that's left is to strobe the "quit" channel
 at the end of main:
 
---PROG progs/server1.go /adder,.quit/
+!src progs/server1.go /adder,.quit/
 ...
---PROG progs/server1.go /quit....true/
+!src progs/server1.go /quit....true/
 
 There's a lot more to Go programming and concurrent programming in general but this
 quick tour should give you some of the basics.
