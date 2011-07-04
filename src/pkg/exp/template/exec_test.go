@@ -16,17 +16,20 @@ import (
 // T has lots of interesting pieces to use to test execution.
 type T struct {
 	// Basics
-	I   int
-	U16 uint16
-	X   string
+	I           int
+	U16         uint16
+	X           string
+	FloatZero   float64
+	ComplexZero float64
 	// Nested structs.
 	U *U
 	// Slices
-	SI     []int
-	SEmpty []int
-	SB     []bool
+	SI      []int
+	SIEmpty []int
+	SB      []bool
 	// Maps
 	MSI      map[string]int
+	MSIone   map[string]int // one element, for deterministic output
 	MSIEmpty map[string]int
 }
 
@@ -76,13 +79,14 @@ type U struct {
 }
 
 var tVal = &T{
-	I:   17,
-	U16: 16,
-	X:   "x",
-	U:   &U{"v"},
-	SI:  []int{3, 4, 5},
-	SB:  []bool{true, false},
-	MSI: map[string]int{"one": 1, "two": 2, "three": 3},
+	I:      17,
+	U16:    16,
+	X:      "x",
+	U:      &U{"v"},
+	SI:     []int{3, 4, 5},
+	SB:     []bool{true, false},
+	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
+	MSIone: map[string]int{"one": 1},
 }
 
 type execTest struct {
@@ -94,31 +98,80 @@ type execTest struct {
 }
 
 var execTests = []execTest{
+	// Trivial cases.
 	{"empty", "", "", nil, true},
 	{"text", "some text", "some text", nil, true},
+	// Fields of structs.
 	{".X", "-{{.X}}-", "-x-", tVal, true},
 	{".U.V", "-{{.U.V}}-", "-v-", tVal, true},
+	// Dots of all kinds to test basic evaluation.
+	{"dot int", "<{{.}}>", "<13>", 13, true},
+	{"dot uint", "<{{.}}>", "<14>", uint(14), true},
+	{"dot float", "<{{.}}>", "<15.1>", 15.1, true},
+	{"dot bool", "<{{.}}>", "<true>", true, true},
+	{"dot complex", "<{{.}}>", "<(16.2-17i)>", 16.2 - 17i, true},
+	{"dot string", "<{{.}}>", "<hello>", "hello", true},
+	{"dot slice", "<{{.}}>", "<[-1 -2 -3]>", []int{-1, -2, -3}, true},
+	{"dot map", "<{{.}}>", "<map[two:22 one:11]>", map[string]int{"one": 11, "two": 22}, true},
+	{"dot struct", "<{{.}}>", "<{7 seven}>", struct {
+		a int
+		b string
+	}{7, "seven"}, true},
+	// Method calls.
 	{".Method0", "-{{.Method0}}-", "-resultOfMethod0-", tVal, true},
 	{".Method1(1234)", "-{{.Method1 1234}}-", "-1234-", tVal, true},
 	{".Method1(.I)", "-{{.Method1 .I}}-", "-17-", tVal, true},
 	{".Method2(3, .X)", "-{{.Method2 3 .X}}-", "-Method2: 3 x-", tVal, true},
 	{".Method2(.U16, `str`)", "-{{.Method2 .U16 `str`}}-", "-Method2: 16 str-", tVal, true},
+	// Pipelines.
 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 resultOfMethod0-", tVal, true},
+	// If.
+	{"if true", "{{if true}}TRUE{{end}}", "TRUE", tVal, true},
+	{"if false", "{{if false}}TRUE{{else}}FALSE{{end}}", "FALSE", tVal, true},
+	{"if 1", "{{if 1}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
+	{"if 0", "{{if 0}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
+	{"if 1.5", "{{if 1.5}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
+	{"if 0.0", "{{if .FloatZero}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
+	{"if 1.5i", "{{if 1.5i}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
+	{"if 0.0i", "{{if .ComplexZero}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
+	{"if emptystring", "{{if ``}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	{"if string", "{{if `notempty`}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
+	{"if emptyslice", "{{if .SIEmpty}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	{"if slice", "{{if .SI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
+	{"if emptymap", "{{if .MSIEmpty}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	{"if map", "{{if .MSI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
+	// With.
+	{"with true", "{{with true}}{{.}}{{end}}", "true", tVal, true},
+	{"with false", "{{with false}}{{.}}{{else}}FALSE{{end}}", "FALSE", tVal, true},
+	{"with 1", "{{with 1}}{{.}}{{else}}ZERO{{end}}", "1", tVal, true},
+	{"with 0", "{{with 0}}{{.}}{{else}}ZERO{{end}}", "ZERO", tVal, true},
+	{"with 1.5", "{{with 1.5}}{{.}}{{else}}ZERO{{end}}", "1.5", tVal, true},
+	{"with 0.0", "{{with .FloatZero}}{{.}}{{else}}ZERO{{end}}", "ZERO", tVal, true},
+	{"with 1.5i", "{{with 1.5i}}{{.}}{{else}}ZERO{{end}}", "(0+1.5i)", tVal, true},
+	{"with 0.0i", "{{with .ComplexZero}}{{.}}{{else}}ZERO{{end}}", "ZERO", tVal, true},
+	{"with emptystring", "{{with ``}}{{.}}{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	{"with string", "{{with `notempty`}}{{.}}{{else}}EMPTY{{end}}", "notempty", tVal, true},
+	{"with emptyslice", "{{with .SIEmpty}}{{.}}{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	{"with slice", "{{with .SI}}{{.}}{{else}}EMPTY{{end}}", "[3 4 5]", tVal, true},
+	{"with emptymap", "{{with .MSIEmpty}}{{.}}{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	{"with map", "{{with .MSIone}}{{.}}{{else}}EMPTY{{end}}", "map[one:1]", tVal, true},
+	// Range.
 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},
-	{"range empty no else", "{{range .SEmpty}}-{{.}}-{{end}}", "", tVal, true},
+	{"range empty no else", "{{range .SIEmpty}}-{{.}}-{{end}}", "", tVal, true},
 	{"range []int else", "{{range .SI}}-{{.}}-{{else}}EMPTY{{end}}", "-3--4--5-", tVal, true},
-	{"range empty else", "{{range .SEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	{"range empty else", "{{range .SIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"range []bool", "{{range .SB}}-{{.}}-{{end}}", "-true--false-", tVal, true},
 	{"range []int method", "{{range .SI | .MAdd .I}}-{{.}}-{{end}}", "-20--21--22-", tVal, true},
 	{"range map", "{{range .MSI | .MSort}}-{{.}}-{{end}}", "-one--three--two-", tVal, true},
 	{"range empty map no else", "{{range .MSIEmpty}}-{{.}}-{{end}}", "", tVal, true},
 	{"range map else", "{{range .MSI | .MSort}}-{{.}}-{{else}}EMPTY{{end}}", "-one--three--two-", tVal, true},
 	{"range empty map else", "{{range .MSIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	// Error handling.
 	{"error method, error", "{{.EPERM true}}", "", tVal, false},
 	{"error method, no error", "{{.EPERM false}}", "false", tVal, true},
 }
 
-func TestExecute(t *testing.T) {
+func testExecute(execTests []execTest, set *Set, t *testing.T) {
 	b := new(bytes.Buffer)
 	for _, test := range execTests {
 		tmpl := New(test.name)
@@ -128,7 +181,7 @@ func TestExecute(t *testing.T) {
 			continue
 		}
 		b.Reset()
-		err = tmpl.Execute(b, test.data)
+		err = tmpl.ExecuteInSet(b, test.data, set)
 		switch {
 		case !test.ok && err == nil:
 			t.Errorf("%s: expected error; got none", test.name)
@@ -144,6 +197,10 @@ func TestExecute(t *testing.T) {
 			t.Errorf("%s: expected\n\t%q\ngot\n\t%q", test.name, test.output, result)
 		}
 	}
+}
+
+func TestExecute(t *testing.T) {
+	testExecute(execTests, nil, t)
 }
 
 // Check that an error from a method flows back to the top.

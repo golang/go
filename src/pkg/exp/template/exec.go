@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strings"
 )
 
 // state represents the state of an execution. It's not part of the
@@ -17,6 +18,7 @@ import (
 type state struct {
 	tmpl *Template
 	wr   io.Writer
+	set  *Set
 	line int // line number for errors
 }
 
@@ -33,11 +35,19 @@ func (s *state) error(err os.Error) {
 
 // Execute applies a parsed template to the specified data object,
 // writing the output to wr.
-func (t *Template) Execute(wr io.Writer, data interface{}) (err os.Error) {
+func (t *Template) Execute(wr io.Writer, data interface{}) os.Error {
+	return t.ExecuteInSet(wr, data, nil)
+}
+
+// ExecuteInSet applies a parsed template to the specified data object,
+// writing the output to wr. Nested template invocations will be resolved
+// from the specified set.
+func (t *Template) ExecuteInSet(wr io.Writer, data interface{}, set *Set) (err os.Error) {
 	defer t.recover(&err)
 	state := &state{
 		tmpl: t,
 		wr:   wr,
+		set:  set,
 		line: 1,
 	}
 	if t.root == nil {
@@ -49,7 +59,6 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err os.Error) {
 
 // Walk functions step through the major pieces of the template structure,
 // generating output as they go.
-
 func (s *state) walk(data reflect.Value, n node) {
 	switch n := n.(type) {
 	case *actionNode:
@@ -59,14 +68,53 @@ func (s *state) walk(data reflect.Value, n node) {
 		for _, node := range n.nodes {
 			s.walk(data, node)
 		}
+	case *ifNode:
+		s.walkIfOrWith(nodeIf, data, n.pipeline, n.list, n.elseList)
 	case *rangeNode:
 		s.walkRange(data, n)
 	case *textNode:
 		if _, err := s.wr.Write(n.text); err != nil {
 			s.error(err)
 		}
+	case *templateNode:
+		s.walkTemplate(data, n)
+	case *withNode:
+		s.walkIfOrWith(nodeWith, data, n.pipeline, n.list, n.elseList)
 	default:
 		s.errorf("unknown node: %s", n)
+	}
+}
+
+// walkIfOrWith walks an 'if' or 'with' node. The two control structures
+// are identical in behavior except that 'with' sets dot.
+func (s *state) walkIfOrWith(typ nodeType, data reflect.Value, pipe []*commandNode, list, elseList *listNode) {
+	val := s.evalPipeline(data, pipe)
+	truth := false
+	switch val.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		truth = val.Len() > 0
+	case reflect.Bool:
+		truth = val.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		truth = val.Int() != 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		truth = val.Uint() != 0
+	case reflect.Float32, reflect.Float64:
+		truth = val.Float() != 0
+	case reflect.Complex64, reflect.Complex128:
+		truth = val.Complex() != 0
+	case reflect.Chan, reflect.Func, reflect.Ptr:
+		truth = !val.IsNil()
+	default:
+		s.errorf("if/with can't use value of type %T", val.Interface())
+	}
+	if truth {
+		if typ == nodeWith {
+			data = val
+		}
+		s.walk(data, list)
+	} else if elseList != nil {
+		s.walk(data, elseList)
 	}
 }
 
@@ -97,6 +145,21 @@ func (s *state) walkRange(data reflect.Value, r *rangeNode) {
 	}
 }
 
+func (s *state) walkTemplate(data reflect.Value, t *templateNode) {
+	name := s.evalArg(data, reflect.TypeOf("string"), t.name).String()
+	if s.set == nil {
+		s.errorf("no set defined in which to invoke template named %q", name)
+	}
+	tmpl := s.set.tmpl[name]
+	if tmpl == nil {
+		s.errorf("template %q not in set", name)
+	}
+	data = s.evalPipeline(data, t.pipeline)
+	newState := *s
+	newState.tmpl = tmpl
+	newState.walk(data, tmpl.root)
+}
+
 // Eval functions evaluate pipelines, commands, and their elements and extract
 // values from the data structure by examining fields, calling methods, and so on.
 // The printing of those values happens only through walk functions.
@@ -110,16 +173,38 @@ func (s *state) evalPipeline(data reflect.Value, pipe []*commandNode) reflect.Va
 }
 
 func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.Value) reflect.Value {
-	switch field := cmd.args[0].(type) {
-	case *dotNode:
-		if final.IsValid() {
-			s.errorf("can't give argument to dot")
-		}
-		return data
-	case *fieldNode:
+	firstWord := cmd.args[0]
+	if field, ok := firstWord.(*fieldNode); ok {
 		return s.evalFieldNode(data, field, cmd.args, final)
 	}
-	s.errorf("%s not a field", cmd.args[0])
+	if len(cmd.args) > 1 || final.IsValid() {
+		// TODO: functions
+		s.errorf("can't give argument to non-method %s", cmd.args[0])
+	}
+	switch word := cmd.args[0].(type) {
+	case *dotNode:
+		return data
+	case *boolNode:
+		return reflect.ValueOf(word.true)
+	case *numberNode:
+		// These are ideal constants but we don't know the type
+		// and we have no context.  (If it was a method argument,
+		// we'd know what we need.) The syntax guides us to some extent.
+		switch {
+		case word.isComplex:
+			return reflect.ValueOf(word.complex128) // incontrovertible.
+		case word.isFloat && strings.IndexAny(word.text, ".eE") >= 0:
+			return reflect.ValueOf(word.float64)
+		case word.isInt:
+			return reflect.ValueOf(word.int64)
+		case word.isUint:
+			return reflect.ValueOf(word.uint64)
+		}
+	case *stringNode:
+		return reflect.ValueOf(word.text)
+	default:
+		s.errorf("can't handle command %q", firstWord)
+	}
 	panic("not reached")
 }
 
@@ -148,7 +233,7 @@ func (s *state) evalField(data reflect.Value, fieldName string) reflect.Value {
 		}
 		s.errorf("%s has no field %s", data.Type(), fieldName)
 	default:
-		s.errorf("can't evaluate field %s of  type %s", fieldName, data.Type())
+		s.errorf("can't evaluate field %s of type %s", fieldName, data.Type())
 	}
 	panic("not reached")
 }
@@ -282,7 +367,7 @@ func (s *state) evalUnsignedInteger(v reflect.Value, typ reflect.Type, n node) r
 }
 
 func (s *state) evalFloat(v reflect.Value, typ reflect.Type, n node) reflect.Value {
-	if n, ok := n.(*numberNode); ok && n.isFloat && !n.imaginary {
+	if n, ok := n.(*numberNode); ok && n.isFloat {
 		value := reflect.New(typ).Elem()
 		value.SetFloat(n.float64)
 		return value
@@ -292,9 +377,9 @@ func (s *state) evalFloat(v reflect.Value, typ reflect.Type, n node) reflect.Val
 }
 
 func (s *state) evalComplex(v reflect.Value, typ reflect.Type, n node) reflect.Value {
-	if n, ok := n.(*numberNode); ok && n.isFloat && n.imaginary {
+	if n, ok := n.(*numberNode); ok && n.isComplex {
 		value := reflect.New(typ).Elem()
-		value.SetComplex(complex(0, n.float64))
+		value.SetComplex(n.complex128)
 		return value
 	}
 	s.errorf("expected complex; found %s", n)

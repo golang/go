@@ -16,41 +16,53 @@ type numberTest struct {
 	isInt     bool
 	isUint    bool
 	isFloat   bool
-	imaginary bool
+	isComplex bool
 	int64
 	uint64
 	float64
+	complex128
 }
 
 var numberTests = []numberTest{
 	// basics
-	{"0", true, true, true, false, 0, 0, 0},
-	{"-0", true, true, true, false, 0, 0, 0}, // check that -0 is a uint.
-	{"73", true, true, true, false, 73, 73, 73},
-	{"-73", true, false, true, false, -73, 0, -73},
-	{"+73", true, false, true, false, 73, 0, 73},
-	{"100", true, true, true, false, 100, 100, 100},
-	{"1e9", true, true, true, false, 1e9, 1e9, 1e9},
-	{"-1e9", true, false, true, false, -1e9, 0, -1e9},
-	{"-1.2", false, false, true, false, 0, 0, -1.2},
-	{"1e19", false, true, true, false, 0, 1e19, 1e19},
-	{"-1e19", false, false, true, false, 0, 0, -1e19},
-	{"4i", false, false, true, true, 0, 0, 4},
+	{"0", true, true, true, false, 0, 0, 0, 0},
+	{"-0", true, true, true, false, 0, 0, 0, 0}, // check that -0 is a uint.
+	{"73", true, true, true, false, 73, 73, 73, 0},
+	{"-73", true, false, true, false, -73, 0, -73, 0},
+	{"+73", true, false, true, false, 73, 0, 73, 0},
+	{"100", true, true, true, false, 100, 100, 100, 0},
+	{"1e9", true, true, true, false, 1e9, 1e9, 1e9, 0},
+	{"-1e9", true, false, true, false, -1e9, 0, -1e9, 0},
+	{"-1.2", false, false, true, false, 0, 0, -1.2, 0},
+	{"1e19", false, true, true, false, 0, 1e19, 1e19, 0},
+	{"-1e19", false, false, true, false, 0, 0, -1e19, 0},
+	{"4i", false, false, false, true, 0, 0, 0, 4i},
+	{"-1.2+4.2i", false, false, false, true, 0, 0, 0, -1.2 + 4.2i},
+	// complex with 0 imaginary are float (and maybe integer)
+	{"0i", true, true, true, true, 0, 0, 0, 0},
+	{"-1.2+0i", false, false, true, true, 0, 0, -1.2, -1.2},
+	{"-12+0i", true, false, true, true, -12, 0, -12, -12},
+	{"13+0i", true, true, true, true, 13, 13, 13, 13},
 	// funny bases
-	{"0123", true, true, true, false, 0123, 0123, 0123},
-	{"-0x0", true, true, true, false, 0, 0, 0},
-	{"0xdeadbeef", true, true, true, false, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef},
+	{"0123", true, true, true, false, 0123, 0123, 0123, 0},
+	{"-0x0", true, true, true, false, 0, 0, 0, 0},
+	{"0xdeadbeef", true, true, true, false, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0},
 	// some broken syntax
 	{text: "+-2"},
 	{text: "0x123."},
 	{text: "1e."},
 	{text: "0xi."},
+	{text: "1+2."},
 }
 
 func TestNumberParse(t *testing.T) {
 	for _, test := range numberTests {
-		n, err := newNumber(test.text)
-		ok := test.isInt || test.isUint || test.isFloat
+		// If fmt.Sscan thinks it's complex, it's complex.  We can't trust the output
+		// because imaginary comes out as a number.
+		var c complex128
+		_, err := fmt.Sscan(test.text, &c)
+		n, err := newNumber(test.text, err == nil)
+		ok := test.isInt || test.isUint || test.isFloat || test.isComplex
 		if ok && err != nil {
 			t.Errorf("unexpected error for %q", test.text)
 			continue
@@ -62,8 +74,8 @@ func TestNumberParse(t *testing.T) {
 		if !ok {
 			continue
 		}
-		if n.imaginary != test.imaginary {
-			t.Errorf("imaginary incorrect for %q; should be %t", test.text, test.imaginary)
+		if n.isComplex != test.isComplex {
+			t.Errorf("complex incorrect for %q; should be %t", test.text, test.isComplex)
 		}
 		if test.isInt {
 			if !n.isInt {
@@ -95,15 +107,17 @@ func TestNumberParse(t *testing.T) {
 		} else if n.isFloat {
 			t.Errorf("did not expect float for %q", test.text)
 		}
+		if test.isComplex {
+			if !n.isComplex {
+				t.Errorf("expected complex for %q", test.text)
+			}
+			if n.complex128 != test.complex128 {
+				t.Errorf("complex128 for %q should be %g is %g", test.text, test.complex128, n.complex128)
+			}
+		} else if n.isComplex {
+			t.Errorf("did not expect complex for %q", test.text)
+		}
 	}
-}
-
-func num(s string) *numberNode {
-	n, err := newNumber(s)
-	if err != nil {
-		panic(err)
-	}
-	return n
 }
 
 type parseTest struct {
@@ -125,7 +139,7 @@ var parseTests = []parseTest{
 		`[(text: " \t\n")]`},
 	{"text", "some text", noError,
 		`[(text: "some text")]`},
-	{"emptyMeta", "{{}}", noError,
+	{"emptyMeta", "{{}}", hasError,
 		`[(action: [])]`},
 	{"field", "{{.X}}", noError,
 		`[(action: [(command: [F=[X]])])]`},
@@ -139,6 +153,10 @@ var parseTests = []parseTest{
 		"[(action: [(command: [I=hello S=`quoted text`])])]"},
 	{"pipeline", "{{hello|world}}", noError,
 		`[(action: [(command: [I=hello]) (command: [I=world])])]`},
+	{"simple if", "{{if .X}}hello{{end}}", noError,
+		`[({{if [(command: [F=[X]])]}} [(text: "hello")])]`},
+	{"if with else", "{{if .X}}true{{else}}false{{end}}", noError,
+		`[({{if [(command: [F=[X]])]}} [(text: "true")] {{else}} [(text: "false")])]`},
 	{"simple range", "{{range .X}}hello{{end}}", noError,
 		`[({{range [(command: [F=[X]])]}} [(text: "hello")])]`},
 	{"chained field range", "{{range .X.Y.Z}}hello{{end}}", noError,
@@ -153,6 +171,12 @@ var parseTests = []parseTest{
 		`[({{range [(command: [F=[SI]])]}} [(action: [(command: [{{<.>}}])])])]`},
 	{"constants", "{{range .SI 1 -3.2i true false }}{{end}}", noError,
 		`[({{range [(command: [F=[SI] N=1 N=-3.2i B=true B=false])]}} [])]`},
+	{"template", "{{template foo .X}}", noError,
+		"[{{template I=foo [(command: [F=[X]])]}}]"},
+	{"with", "{{with .X}}hello{{end}}", noError,
+		`[({{with [(command: [F=[X]])]}} [(text: "hello")])]`},
+	{"with with else", "{{with .X}}hello{{else}}goodbye{{end}}", noError,
+		`[({{with [(command: [F=[X]])]}} [(text: "hello")] {{else}} [(text: "goodbye")])]`},
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},
 	{"missing end", "hello{{range .x}}", hasError, ""},

@@ -9,5 +9,6 @@ GOFILES=\
 	exec.go\
 	lex.go\
 	parse.go\
+	set.go\
 
 include ../../../Make.pkg
