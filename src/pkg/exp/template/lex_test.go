@@ -35,7 +35,7 @@ var lexTests = []lexTest{
 	{"for", `{{for }}`, []item{tLeft, tFor, tRight, tEOF}},
 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
 	{"raw quote", "{{" + raw + "}}", []item{tLeft, tRawQuote, tRight, tEOF}},
-	{"numbers", "{{1 02 0x14 -7.2i 1e3 +1.2e-4}}", []item{
+	{"numbers", "{{1 02 0x14 -7.2i 1e3 +1.2e-4 4.2i 1+2i}}", []item{
 		tLeft,
 		{itemNumber, "1"},
 		{itemNumber, "02"},
@@ -43,6 +43,8 @@ var lexTests = []lexTest{
 		{itemNumber, "-7.2i"},
 		{itemNumber, "1e3"},
 		{itemNumber, "+1.2e-4"},
+		{itemNumber, "4.2i"},
+		{itemComplex, "1+2i"},
 		tRight,
 		tEOF,
 	}},
@@ -68,12 +70,13 @@ var lexTests = []lexTest{
 		tRight,
 		tEOF,
 	}},
-	{"keywords", "{{range if else end}}", []item{
+	{"keywords", "{{range if else end with}}", []item{
 		tLeft,
 		{itemRange, "range"},
 		{itemIf, "if"},
 		{itemElse, "else"},
 		{itemEnd, "end"},
+		{itemWith, "with"},
 		tRight,
 		tEOF,
 	}},
