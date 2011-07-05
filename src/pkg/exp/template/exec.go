@@ -89,7 +89,23 @@ func (s *state) walk(data reflect.Value, n node) {
 // are identical in behavior except that 'with' sets dot.
 func (s *state) walkIfOrWith(typ nodeType, data reflect.Value, pipe []*commandNode, list, elseList *listNode) {
 	val := s.evalPipeline(data, pipe)
-	truth := false
+	truth, ok := isTrue(val)
+	if !ok {
+		s.errorf("if/with can't use value of type %T", val.Interface())
+	}
+	if truth {
+		if typ == nodeWith {
+			data = val
+		}
+		s.walk(data, list)
+	} else if elseList != nil {
+		s.walk(data, elseList)
+	}
+}
+
+// isTrue returns whether the value is 'true', in the sense of not the zero of its type,
+// and whether the value has a meaningful truth value.
+func isTrue(val reflect.Value) (truth, ok bool) {
 	switch val.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		truth = val.Len() > 0
@@ -106,16 +122,9 @@ func (s *state) walkIfOrWith(typ nodeType, data reflect.Value, pipe []*commandNo
 	case reflect.Chan, reflect.Func, reflect.Ptr:
 		truth = !val.IsNil()
 	default:
-		s.errorf("if/with can't use value of type %T", val.Interface())
+		return
 	}
-	if truth {
-		if typ == nodeWith {
-			data = val
-		}
-		s.walk(data, list)
-	} else if elseList != nil {
-		s.walk(data, elseList)
-	}
+	return truth, true
 }
 
 func (s *state) walkRange(data reflect.Value, r *rangeNode) {
