@@ -150,6 +150,10 @@ var execTests = []execTest{
 	{"printf field", `{{printf "%s" .U.V}}`, "v", tVal, true},
 	{"printf method", `{{printf "%s" .Method0}}`, "resultOfMethod0", tVal, true},
 	{"printf lots", `{{printf "%d %s %g %s" 127 "hello" 7-3i .Method0}}`, "127 hello (7-3i) resultOfMethod0", tVal, true},
+	{"html", `{{html "<script>alert(\"XSS\");</script>"}}`,
+		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", tVal, true},
+	{"html pipeline", `{{printf "<script>alert(\"XSS\");</script>" | html}}`,
+		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", tVal, true},
 	// With.
 	{"with true", "{{with true}}{{.}}{{end}}", "true", tVal, true},
 	{"with false", "{{with false}}{{.}}{{else}}FALSE{{end}}", "FALSE", tVal, true},

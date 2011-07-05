@@ -5,8 +5,11 @@
 package template
 
 import (
+	"bytes"
+	"io"
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 // FuncMap is the type of the map defining the mapping from names to functions.
@@ -16,6 +19,7 @@ type FuncMap map[string]interface{}
 
 var funcs = map[string]reflect.Value{
 	"printf": reflect.ValueOf(fmt.Sprintf),
+	"html":   reflect.ValueOf(HTMLEscaper),
 }
 
 // addFuncs adds to values the functions in funcs, converting them to reflect.Values.
@@ -60,4 +64,65 @@ func findFunction(name string, tmpl *Template, set *Set) (reflect.Value, bool) {
 		return fn, true
 	}
 	return reflect.Value{}, false
+}
+
+// HTML escaping
+
+var (
+	escQuot = []byte("&#34;") // shorter than "&quot;"
+	escApos = []byte("&#39;") // shorter than "&apos;"
+	escAmp  = []byte("&amp;")
+	escLt   = []byte("&lt;")
+	escGt   = []byte("&gt;")
+)
+
+// HTMLEscape writes to w the escaped HTML equivalent of the plain text data b.
+func HTMLEscape(w io.Writer, b []byte) {
+	last := 0
+	for i, c := range b {
+		var esc []byte
+		switch c {
+		case '"':
+			esc = escQuot
+		case '\'':
+			esc = escApos
+		case '&':
+			esc = escAmp
+		case '<':
+			esc = escLt
+		case '>':
+			esc = escGt
+		default:
+			continue
+		}
+		w.Write(b[last:i])
+		w.Write(esc)
+		last = i + 1
+	}
+	w.Write(b[last:])
+}
+
+// HTMLEscapeString returns the escaped HTML equivalent of the plain text data s.
+func HTMLEscapeString(s string) string {
+	// Avoid allocation if we can.
+	if strings.IndexAny(s, `'"&<>`) < 0 {
+		return s
+	}
+	var b bytes.Buffer
+	HTMLEscape(&b, []byte(s))
+	return b.String()
+}
+
+// HTMLEscaper returns the escaped HTML equivalent of the textual
+// representation of its arguments.
+func HTMLEscaper(args ...interface{}) string {
+	ok := false
+	var s string
+	if len(args) == 1 {
+		s, ok = args[0].(string)
+	}
+	if !ok {
+		s = fmt.Sprint(args...)
+	}
+	return HTMLEscapeString(s)
 }
