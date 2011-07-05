@@ -56,7 +56,7 @@ func (s *Set) Parse(text string) (err os.Error) {
 	const context = "define clause"
 	for {
 		t := New("set") // name will be updated once we know it.
-		t.startParse(lex, tokens)
+		t.startParse(s, lex, tokens)
 		// Expect EOF or "{{ define name }}".
 		if t.atEOF() {
 			return

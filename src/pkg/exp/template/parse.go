@@ -20,7 +20,8 @@ type Template struct {
 	name  string
 	root  *listNode
 	funcs map[string]reflect.Value
-	// Parsing.
+	// Parsing only; cleared after parse.
+	set      *Set
 	lex      *lexer
 	tokens   <-chan item
 	token    item // token lookahead for parser
@@ -507,14 +508,15 @@ func (t *Template) recover(errp *os.Error) {
 }
 
 // startParse starts the template parsing from the lexer.
-func (t *Template) startParse(lex *lexer, tokens <-chan item) {
+func (t *Template) startParse(set *Set, lex *lexer, tokens <-chan item) {
 	t.root = nil
+	t.set = set
 	t.lex, t.tokens = lex, tokens
 }
 
 // stopParse terminates parsing.
 func (t *Template) stopParse() {
-	t.lex, t.tokens = nil, nil
+	t.set, t.lex, t.tokens = nil, nil, nil
 }
 
 // atEOF returns true if, possibly after spaces, we're at EOF.
@@ -541,7 +543,19 @@ func (t *Template) atEOF() bool {
 // Parse parses the template definition string to construct an internal representation
 // of the template for execution.
 func (t *Template) Parse(s string) (err os.Error) {
-	t.startParse(lex(t.name, s))
+	lexer, tokens := lex(t.name, s)
+	t.startParse(nil, lexer, tokens)
+	defer t.recover(&err)
+	t.parse(true)
+	t.stopParse()
+	return
+}
+
+// ParseInSet parses the template definition string to construct an internal representation
+// of the template for execution. Function bindings are checked against those in the set.
+func (t *Template) ParseInSet(s string, set *Set) (err os.Error) {
+	lexer, tokens := lex(t.name, s)
+	t.startParse(set, lexer, tokens)
 	defer t.recover(&err)
 	t.parse(true)
 	t.stopParse()
@@ -701,6 +715,9 @@ func (t *Template) templateControl() node {
 	var name node
 	switch token := t.next(); token.typ {
 	case itemIdentifier:
+		if _, ok := findFunction(token.val, t, t.set); !ok {
+			t.errorf("function %q not defined", token.val)
+		}
 		name = newIdentifier(token.val)
 	case itemDot:
 		name = newDot()
@@ -735,6 +752,9 @@ Loop:
 		case itemError:
 			t.errorf("%s", token.val)
 		case itemIdentifier:
+			if _, ok := findFunction(token.val, t, t.set); !ok {
+				t.errorf("function %q not defined", token.val)
+			}
 			cmd.append(newIdentifier(token.val))
 		case itemDot:
 			cmd.append(newDot())
