@@ -20,6 +20,9 @@ type FuncMap map[string]interface{}
 var funcs = map[string]reflect.Value{
 	"printf": reflect.ValueOf(fmt.Sprintf),
 	"html":   reflect.ValueOf(HTMLEscaper),
+	"and":    reflect.ValueOf(and),
+	"or":     reflect.ValueOf(or),
+	"not":    reflect.ValueOf(not),
 }
 
 // addFuncs adds to values the functions in funcs, converting them to reflect.Values.
@@ -66,7 +69,33 @@ func findFunction(name string, tmpl *Template, set *Set) (reflect.Value, bool) {
 	return reflect.Value{}, false
 }
 
-// HTML escaping
+// Boolean logic.
+
+// and returns the Boolean AND of its arguments.
+func and(arg0 interface{}, args ...interface{}) (truth bool) {
+	truth, _ = isTrue(reflect.ValueOf(arg0))
+	for i := 0; truth && i < len(args); i++ {
+		truth, _ = isTrue(reflect.ValueOf(args[i]))
+	}
+	return
+}
+
+// or returns the Boolean OR of its arguments.
+func or(arg0 interface{}, args ...interface{}) (truth bool) {
+	truth, _ = isTrue(reflect.ValueOf(arg0))
+	for i := 0; !truth && i < len(args); i++ {
+		truth, _ = isTrue(reflect.ValueOf(args[i]))
+	}
+	return
+}
+
+// not returns the Boolean negation of its argument.
+func not(arg interface{}) (truth bool) {
+	truth, _ = isTrue(reflect.ValueOf(arg))
+	return !truth
+}
+
+// HTML escaping.
 
 var (
 	escQuot = []byte("&#34;") // shorter than "&quot;"

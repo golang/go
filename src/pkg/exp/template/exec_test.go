@@ -140,7 +140,7 @@ var execTests = []execTest{
 	{"if slice", "{{if .SI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
 	{"if emptymap", "{{if .MSIEmpty}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"if map", "{{if .MSI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
-	// Function calls.
+	// Printf.
 	{"printf", `{{printf "hello, printf"}}`, "hello, printf", tVal, true},
 	{"printf int", `{{printf "%04x" 127}}`, "007f", tVal, true},
 	{"printf float", `{{printf "%g" 3.5}}`, "3.5", tVal, true},
@@ -150,10 +150,17 @@ var execTests = []execTest{
 	{"printf field", `{{printf "%s" .U.V}}`, "v", tVal, true},
 	{"printf method", `{{printf "%s" .Method0}}`, "resultOfMethod0", tVal, true},
 	{"printf lots", `{{printf "%d %s %g %s" 127 "hello" 7-3i .Method0}}`, "127 hello (7-3i) resultOfMethod0", tVal, true},
+	// HTML.
 	{"html", `{{html "<script>alert(\"XSS\");</script>"}}`,
-		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", tVal, true},
+		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
 	{"html pipeline", `{{printf "<script>alert(\"XSS\");</script>" | html}}`,
-		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", tVal, true},
+		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
+	// Booleans
+	{"not", "{{not true}} {{not false}}", "false true", nil, true},
+	{"and", "{{and 0 0}} {{and 1 0}} {{and 0 1}} {{and 1 1}}", "false false false true", nil, true},
+	{"or", "{{or 0 0}} {{or 1 0}} {{or 0 1}} {{or 1 1}}", "false true true true", nil, true},
+	{"boolean if", "{{if and true 1 `hi`}}TRUE{{else}}FALSE{{end}}", "TRUE", tVal, true},
+	{"boolean if not", "{{if and true 1 `hi` | not}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
 	// With.
 	{"with true", "{{with true}}{{.}}{{end}}", "true", tVal, true},
 	{"with false", "{{with false}}{{.}}{{else}}FALSE{{end}}", "FALSE", tVal, true},

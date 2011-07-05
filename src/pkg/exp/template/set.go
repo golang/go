@@ -5,6 +5,7 @@
 package template
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"runtime"
@@ -32,6 +33,19 @@ func NewSet() *Set {
 // The return value is the set, so calls can be chained.
 func (s *Set) Funcs(funcMap FuncMap) *Set {
 	addFuncs(s.funcs, funcMap)
+	return s
+}
+
+// Add adds the argument templates to the set. It panics if the call
+// attempts to reuse a name defined in the template.
+// The return value is the set, so calls can be chained.
+func (s *Set) Add(templates ...*Template) *Set {
+	for _, t := range templates {
+		if _, ok := s.tmpl[t.name]; ok {
+			panic(fmt.Errorf("template: %q already defined in set", t.name))
+		}
+		s.tmpl[t.name] = t
+	}
 	return s
 }
 
