@@ -6,6 +6,7 @@ package template
 
 import (
 	"os"
+	"reflect"
 	"runtime"
 	"strconv"
 )
@@ -13,14 +14,25 @@ import (
 // Set holds a set of related templates that can refer to one another by name.
 // A template may be a member of multiple sets.
 type Set struct {
-	tmpl map[string]*Template
+	tmpl  map[string]*Template
+	funcs map[string]reflect.Value
 }
 
 // NewSet allocates a new, empty template set.
 func NewSet() *Set {
 	return &Set{
-		tmpl: make(map[string]*Template),
+		tmpl:  make(map[string]*Template),
+		funcs: make(map[string]reflect.Value),
 	}
+}
+
+// Funcs adds to the set's function map the elements of the
+// argument map.   It panics if a value in the map is not a function
+// with appropriate return type.
+// The return value is the set, so calls can be chained.
+func (s *Set) Funcs(funcMap FuncMap) *Set {
+	addFuncs(s.funcs, funcMap)
+	return s
 }
 
 // recover is the handler that turns panics into returns from the top
