@@ -9,6 +9,32 @@ import (
 	"syscall"
 )
 
+// File represents an open file descriptor.
+type File struct {
+	fd      int
+	name    string
+	dirinfo *dirInfo // nil unless directory being read
+	nepipe  int      // number of consecutive EPIPE in Write
+}
+
+// Fd returns the integer Unix file descriptor referencing the open file.
+func (file *File) Fd() int {
+	if file == nil {
+		return -1
+	}
+	return file.fd
+}
+
+// NewFile returns a new File with the given file descriptor and name.
+func NewFile(fd int, name string) *File {
+	if fd < 0 {
+		return nil
+	}
+	f := &File{fd: fd, name: name}
+	runtime.SetFinalizer(f, (*File).Close)
+	return f
+}
+
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
 	buf  [syscall.STATMAX]byte // buffer for directory I/O

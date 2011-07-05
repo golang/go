@@ -6,7 +6,6 @@ package os
 
 import (
 	"runtime"
-	"sync"
 	"syscall"
 )
 
@@ -14,9 +13,8 @@ import (
 type File struct {
 	fd      int
 	name    string
-	dirinfo *dirInfo   // nil unless directory being read
-	nepipe  int        // number of consecutive EPIPE in Write
-	l       sync.Mutex // used to implement windows pread/pwrite
+	dirinfo *dirInfo // nil unless directory being read
+	nepipe  int      // number of consecutive EPIPE in Write
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
