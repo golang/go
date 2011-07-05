@@ -276,3 +276,63 @@ func TestNonZeroSrcPt(t *testing.T) {
 		t.Errorf("non-zero src pt: want %v got %v", image.RGBAColor{5, 0, 0, 5}, a.At(0, 0))
 	}
 }
+
+func TestFill(t *testing.T) {
+	rr := []image.Rectangle{
+		image.Rect(0, 0, 0, 0),
+		image.Rect(0, 0, 40, 30),
+		image.Rect(10, 0, 40, 30),
+		image.Rect(0, 20, 40, 30),
+		image.Rect(10, 20, 40, 30),
+		image.Rect(10, 20, 15, 25),
+		image.Rect(10, 0, 35, 30),
+		image.Rect(0, 15, 40, 16),
+		image.Rect(24, 24, 25, 25),
+		image.Rect(23, 23, 26, 26),
+		image.Rect(22, 22, 27, 27),
+		image.Rect(21, 21, 28, 28),
+		image.Rect(20, 20, 29, 29),
+	}
+	for _, r := range rr {
+		m := image.NewRGBA(40, 30).SubImage(r).(*image.RGBA)
+		b := m.Bounds()
+		c := image.RGBAColor{11, 0, 0, 255}
+		src := &image.ColorImage{c}
+		check := func(desc string) {
+			for y := b.Min.Y; y < b.Max.Y; y++ {
+				for x := b.Min.X; x < b.Max.X; x++ {
+					if !eq(c, m.At(x, y)) {
+						t.Errorf("%s fill: at (%d, %d), sub-image bounds=%v: want %v got %v", desc, x, y, r, c, m.At(x, y))
+						return
+					}
+				}
+			}
+		}
+		// Draw 1 pixel at a time.
+		for y := b.Min.Y; y < b.Max.Y; y++ {
+			for x := b.Min.X; x < b.Max.X; x++ {
+				DrawMask(m, image.Rect(x, y, x+1, y+1), src, image.ZP, nil, image.ZP, Src)
+			}
+		}
+		check("pixel")
+		// Draw 1 row at a time.
+		c = image.RGBAColor{0, 22, 0, 255}
+		src = &image.ColorImage{c}
+		for y := b.Min.Y; y < b.Max.Y; y++ {
+			DrawMask(m, image.Rect(b.Min.X, y, b.Max.X, y+1), src, image.ZP, nil, image.ZP, Src)
+		}
+		check("row")
+		// Draw 1 column at a time.
+		c = image.RGBAColor{0, 0, 33, 255}
+		src = &image.ColorImage{c}
+		for x := b.Min.X; x < b.Max.X; x++ {
+			DrawMask(m, image.Rect(x, b.Min.Y, x+1, b.Max.Y), src, image.ZP, nil, image.ZP, Src)
+		}
+		check("column")
+		// Draw the whole image at once.
+		c = image.RGBAColor{44, 55, 66, 77}
+		src = &image.ColorImage{c}
+		DrawMask(m, b, src, image.ZP, nil, image.ZP, Src)
+		check("whole")
+	}
+}
