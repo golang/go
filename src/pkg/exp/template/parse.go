@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -16,8 +17,9 @@ import (
 
 // Template is the representation of a parsed template.
 type Template struct {
-	name string
-	root *listNode
+	name  string
+	root  *listNode
+	funcs map[string]reflect.Value
 	// Parsing.
 	lex      *lexer
 	tokens   <-chan item
@@ -450,12 +452,23 @@ func (w *withNode) String() string {
 // New allocates a new template with the given name.
 func New(name string) *Template {
 	return &Template{
-		name: name,
+		name:  name,
+		funcs: make(map[string]reflect.Value),
 	}
+}
+
+// Funcs adds to the template's function map the elements of the
+// argument map.   It panics if a value in the map is not a function
+// with appropriate return type.
+// The return value is the template, so calls can be chained.
+func (t *Template) Funcs(funcMap FuncMap) *Template {
+	addFuncs(t.funcs, funcMap)
+	return t
 }
 
 // errorf formats the error and terminates processing.
 func (t *Template) errorf(format string, args ...interface{}) {
+	t.root = nil
 	format = fmt.Sprintf("template: %s:%d: %s", t.name, t.lex.lineNumber(), format)
 	panic(fmt.Errorf(format, args...))
 }
@@ -488,7 +501,6 @@ func (t *Template) recover(errp *os.Error) {
 			panic(e)
 		}
 		t.stopParse()
-		t.root = nil
 		*errp = e.(os.Error)
 	}
 	return

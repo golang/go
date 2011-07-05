@@ -140,6 +140,16 @@ var execTests = []execTest{
 	{"if slice", "{{if .SI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
 	{"if emptymap", "{{if .MSIEmpty}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"if map", "{{if .MSI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
+	// Function calls.
+	{"printf", `{{printf "hello, printf"}}`, "hello, printf", tVal, true},
+	{"printf int", `{{printf "%04x" 127}}`, "007f", tVal, true},
+	{"printf float", `{{printf "%g" 3.5}}`, "3.5", tVal, true},
+	{"printf complex", `{{printf "%g" 1+7i}}`, "(1+7i)", tVal, true},
+	{"printf string", `{{printf "%s" "hello"}}`, "hello", tVal, true},
+	{"printf function", `{{printf "%#q" gopher}}`, "`gopher`", tVal, true},
+	{"printf field", `{{printf "%s" .U.V}}`, "v", tVal, true},
+	{"printf method", `{{printf "%s" .Method0}}`, "resultOfMethod0", tVal, true},
+	{"printf lots", `{{printf "%d %s %g %s" 127 "hello" 7-3i .Method0}}`, "127 hello (7-3i) resultOfMethod0", tVal, true},
 	// With.
 	{"with true", "{{with true}}{{.}}{{end}}", "true", tVal, true},
 	{"with false", "{{with false}}{{.}}{{else}}FALSE{{end}}", "FALSE", tVal, true},
@@ -171,10 +181,15 @@ var execTests = []execTest{
 	{"error method, no error", "{{.EPERM false}}", "false", tVal, true},
 }
 
+func gopher() string {
+	return "gopher"
+}
+
 func testExecute(execTests []execTest, set *Set, t *testing.T) {
 	b := new(bytes.Buffer)
+	funcs := FuncMap{"gopher": gopher}
 	for _, test := range execTests {
-		tmpl := New(test.name)
+		tmpl := New(test.name).Funcs(funcs)
 		err := tmpl.Parse(test.input)
 		if err != nil {
 			t.Errorf("%s: parse error: %s", test.name, err)
