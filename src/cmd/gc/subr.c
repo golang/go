@@ -1124,7 +1124,7 @@ Sconv(Fmt *fp)
 		return 0;
 	}
 
-	if(s->pkg != localpkg || longsymnames || (fp->flags & FmtLong)) {
+	if(s->pkg && s->pkg != localpkg || longsymnames || (fp->flags & FmtLong)) {
 		// This one is for the user.  If the package name
 		// was used by multiple packages, give the full
 		// import path to disambiguate.
