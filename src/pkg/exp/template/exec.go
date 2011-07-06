@@ -10,6 +10,8 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"unicode"
+	"utf8"
 )
 
 // state represents the state of an execution. It's not part of the
@@ -69,16 +71,20 @@ func (s *state) walk(data reflect.Value, n node) {
 			s.walk(data, node)
 		}
 	case *ifNode:
+		s.line = n.line
 		s.walkIfOrWith(nodeIf, data, n.pipeline, n.list, n.elseList)
 	case *rangeNode:
+		s.line = n.line
 		s.walkRange(data, n)
 	case *textNode:
 		if _, err := s.wr.Write(n.text); err != nil {
 			s.error(err)
 		}
 	case *templateNode:
+		s.line = n.line
 		s.walkTemplate(data, n)
 	case *withNode:
+		s.line = n.line
 		s.walkIfOrWith(nodeWith, data, n.pipeline, n.list, n.elseList)
 	default:
 		s.errorf("unknown node: %s", n)
@@ -230,6 +236,12 @@ func (s *state) evalFieldNode(data reflect.Value, field *fieldNode, args []node,
 	return s.evalFieldOrCall(data, field.ident[n-1], args, final)
 }
 
+// Is this an exported - upper case - name?
+func isExported(name string) bool {
+	rune, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(rune)
+}
+
 func (s *state) evalField(data reflect.Value, fieldName string) reflect.Value {
 	for data.Kind() == reflect.Ptr {
 		data = reflect.Indirect(data)
@@ -240,7 +252,7 @@ func (s *state) evalField(data reflect.Value, fieldName string) reflect.Value {
 		field := data.FieldByName(fieldName)
 		// TODO: look higher up the tree if we can't find it here. Also unexported fields
 		// might succeed higher up, as map keys.
-		if field.IsValid() && field.Type().PkgPath() == "" { // valid and exported
+		if field.IsValid() && isExported(fieldName) { // valid and exported
 			return field
 		}
 		s.errorf("%s has no field %s", data.Type(), fieldName)
@@ -260,7 +272,7 @@ func (s *state) evalFieldOrCall(data reflect.Value, fieldName string, args []nod
 		ptr, data = data, reflect.Indirect(data)
 	}
 	// Is it a method? We use the pointer because it has value methods too.
-	if method, ok := ptr.Type().MethodByName(fieldName); ok {
+	if method, ok := methodByName(ptr.Type(), fieldName); ok {
 		return s.evalCall(ptr, method.Func, fieldName, true, args, final)
 	}
 	if len(args) > 1 || final.IsValid() {
@@ -273,6 +285,16 @@ func (s *state) evalFieldOrCall(data reflect.Value, fieldName string, args []nod
 		s.errorf("can't handle evaluation of field %s of type %s", fieldName, data.Type())
 	}
 	panic("not reached")
+}
+
+// TODO: delete when reflect's own MethodByName is released.
+func methodByName(typ reflect.Type, name string) (reflect.Method, bool) {
+	for i := 0; i < typ.NumMethod(); i++ {
+		if typ.Method(i).Name == name {
+			return typ.Method(i), true
+		}
+	}
+	return reflect.Method{}, false
 }
 
 var (

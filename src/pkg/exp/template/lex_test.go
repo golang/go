@@ -31,6 +31,11 @@ var lexTests = []lexTest{
 	{"empty", "", []item{tEOF}},
 	{"spaces", " \t\n", []item{{itemText, " \t\n"}, tEOF}},
 	{"text", `now is the time`, []item{{itemText, "now is the time"}, tEOF}},
+	{"text with comment", "hello-{{/* this is a comment */}}-world", []item{
+		{itemText, "hello-"},
+		{itemText, "-world"},
+		tEOF,
+	}},
 	{"empty action", `{{}}`, []item{tLeft, tRight, tEOF}},
 	{"for", `{{for }}`, []item{tLeft, tFor, tRight, tEOF}},
 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},

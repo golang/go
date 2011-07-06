@@ -209,8 +209,12 @@ func lex(name, input string) *lexer {
 
 // state functions
 
-const leftMeta = "{{"
-const rightMeta = "}}"
+const (
+	leftMeta     = "{{"
+	rightMeta    = "}}"
+	leftComment  = "{{/*"
+	rightComment = "*/}}"
+)
 
 // lexText scans until a metacharacter
 func lexText(l *lexer) stateFn {
@@ -235,9 +239,23 @@ func lexText(l *lexer) stateFn {
 
 // leftMeta scans the left "metacharacter", which is known to be present.
 func lexLeftMeta(l *lexer) stateFn {
+	if strings.HasPrefix(l.input[l.pos:], leftComment) {
+		return lexComment
+	}
 	l.pos += len(leftMeta)
 	l.emit(itemLeftMeta)
 	return lexInsideAction
+}
+
+// lexComment scans a comment. The left comment marker is known to be present.
+func lexComment(l *lexer) stateFn {
+	i := strings.Index(l.input[l.pos:], rightComment)
+	if i < 0 {
+		return l.errorf("unclosed comment")
+	}
+	l.pos += i + len(rightComment)
+	l.ignore()
+	return lexText
 }
 
 // rightMeta scans the right "metacharacter", which is known to be present.
