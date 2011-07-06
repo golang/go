@@ -73,7 +73,7 @@ var category = map[string]bool{
 // UnicodeData.txt has form:
 //	0037;DIGIT SEVEN;Nd;0;EN;;7;7;7;N;;;;;
 //	007A;LATIN SMALL LETTER Z;Ll;0;L;;;;;N;;;005A;;005A
-// See http://www.unicode.org/Public/5.1.0/ucd/UCD.html for full explanation
+// See http://www.unicode.org/reports/tr44/ for a full explanation
 // The fields:
 const (
 	FCodePoint = iota
@@ -81,10 +81,10 @@ const (
 	FGeneralCategory
 	FCanonicalCombiningClass
 	FBidiClass
-	FDecompositionType
-	FDecompositionMapping
+	FDecompositionTypeAndMapping
 	FNumericType
-	FNumericValue
+	FNumericDigit // If a decimal digit.
+	FNumericValue // Includes non-decimal, e.g. U+2155=1/5
 	FBidiMirrored
 	FUnicode1Name
 	FISOComment
@@ -97,21 +97,21 @@ const (
 )
 
 var fieldName = []string{
-	"CodePoint",
-	"Name",
-	"GeneralCategory",
-	"CanonicalCombiningClass",
-	"BidiClass",
-	"DecompositionType",
-	"DecompositionMapping",
-	"NumericType",
-	"NumericValue",
-	"BidiMirrored",
-	"Unicode1Name",
-	"ISOComment",
-	"SimpleUppercaseMapping",
-	"SimpleLowercaseMapping",
-	"SimpleTitlecaseMapping",
+	FCodePoint:                   "CodePoint",
+	FName:                        "Name",
+	FGeneralCategory:             "GeneralCategory",
+	FCanonicalCombiningClass:     "CanonicalCombiningClass",
+	FBidiClass:                   "BidiClass",
+	FDecompositionTypeAndMapping: "DecompositionTypeAndMapping",
+	FNumericType:                 "NumericType",
+	FNumericDigit:                "NumericDigit",
+	FNumericValue:                "NumericValue",
+	FBidiMirrored:                "BidiMirrored",
+	FUnicode1Name:                "Unicode1Name",
+	FISOComment:                  "ISOComment",
+	FSimpleUppercaseMapping:      "SimpleUppercaseMapping",
+	FSimpleLowercaseMapping:      "SimpleLowercaseMapping",
+	FSimpleTitlecaseMapping:      "SimpleTitlecaseMapping",
 }
 
 // This contains only the properties we're interested in.
