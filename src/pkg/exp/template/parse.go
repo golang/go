@@ -648,6 +648,7 @@ func (t *Template) pipeline(context string) (pipe []*commandNode) {
 }
 
 func (t *Template) parseControl(context string) (lineNum int, pipe []*commandNode, list, elseList *listNode) {
+	lineNum = t.lex.lineNumber()
 	pipe = t.pipeline(context)
 	var next node
 	list, next = t.itemList(false)

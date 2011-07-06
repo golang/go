@@ -6,6 +6,7 @@ package template
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"runtime"
@@ -47,6 +48,23 @@ func (s *Set) Add(templates ...*Template) *Set {
 		s.tmpl[t.name] = t
 	}
 	return s
+}
+
+// Template returns the template with the given name in the set,
+// or nil if there is no such template.
+func (s *Set) Template(name string) *Template {
+	return s.tmpl[name]
+}
+
+// Execute looks for the named template in the set and then applies that
+// template to the specified data object, writing the output to wr.  Nested
+// template invocations will be resolved from the set.
+func (s *Set) Execute(name string, wr io.Writer, data interface{}) os.Error {
+	tmpl := s.tmpl[name]
+	if tmpl == nil {
+		return fmt.Errorf("template: no template %q in set", name)
+	}
+	return tmpl.ExecuteInSet(wr, data, s)
 }
 
 // recover is the handler that turns panics into returns from the top
