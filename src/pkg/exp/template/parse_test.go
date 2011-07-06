@@ -5,11 +5,12 @@
 package template
 
 import (
+	"flag"
 	"fmt"
 	"testing"
 )
 
-const dumpErrors = true
+var debug = flag.Bool("debug", false, "show the errors produced by the tests")
 
 type numberTest struct {
 	text      string
@@ -193,7 +194,7 @@ func TestParse(t *testing.T) {
 			continue
 		case err != nil && !test.ok:
 			// expected error, got one
-			if dumpErrors {
+			if *debug {
 				fmt.Printf("%s: %s\n\t%s\n", test.name, test.input, err)
 			}
 			continue
