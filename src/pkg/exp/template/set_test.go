@@ -49,7 +49,7 @@ func TestSetParse(t *testing.T) {
 			continue
 		case err != nil && !test.ok:
 			// expected error, got one
-			if dumpErrors {
+			if *debug {
 				fmt.Printf("%s: %s\n\t%s\n", test.name, test.input, err)
 			}
 			continue

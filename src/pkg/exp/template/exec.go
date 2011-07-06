@@ -200,8 +200,7 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
 		return s.evalFieldOrCall(data, n.ident, cmd.args, final)
 	}
 	if len(cmd.args) > 1 || final.IsValid() {
-		// TODO: functions
-		s.errorf("can't give argument to non-method %s", cmd.args[0])
+		s.errorf("can't give argument to non-function %s", cmd.args[0])
 	}
 	switch word := cmd.args[0].(type) {
 	case *dotNode:
@@ -224,9 +223,8 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
 		}
 	case *stringNode:
 		return reflect.ValueOf(word.text)
-	default:
-		s.errorf("can't handle command %q", firstWord)
 	}
+	s.errorf("can't handle command %q", firstWord)
 	panic("not reached")
 }
 
