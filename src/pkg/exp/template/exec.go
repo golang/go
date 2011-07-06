@@ -255,7 +255,7 @@ func (s *state) evalField(data reflect.Value, fieldName string) reflect.Value {
 		if field.IsValid() && isExported(fieldName) { // valid and exported
 			return field
 		}
-		s.errorf("%s has no field %s", data.Type(), fieldName)
+		s.errorf("%s has no exported field %q", data.Type(), fieldName)
 	default:
 		s.errorf("can't evaluate field %s of type %s", fieldName, data.Type())
 	}
