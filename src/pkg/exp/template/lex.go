@@ -190,15 +190,20 @@ func (l *lexer) run() {
 	close(l.items)
 }
 
+// nextItem returns the next item from the input.
+func (l *lexer) nextItem() item {
+	return <-l.items
+}
+
 // lex launches a new scanner and returns the channel of items.
-func lex(name, input string) (*lexer, chan item) {
+func lex(name, input string) *lexer {
 	l := &lexer{
 		name:  name,
 		input: input,
 		items: make(chan item),
 	}
 	go l.run()
-	return l, l.items
+	return l
 }
 
 // state functions

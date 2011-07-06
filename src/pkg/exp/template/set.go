@@ -66,11 +66,11 @@ func (s *Set) recover(errp *os.Error) {
 // Parse parses the file into a set of named templates.
 func (s *Set) Parse(text string) (err os.Error) {
 	defer s.recover(&err)
-	lex, tokens := lex("set", text)
+	lex := lex("set", text)
 	const context = "define clause"
 	for {
 		t := New("set") // name will be updated once we know it.
-		t.startParse(s, lex, tokens)
+		t.startParse(s, lex)
 		// Expect EOF or "{{ define name }}".
 		if t.atEOF() {
 			return

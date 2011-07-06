@@ -127,8 +127,8 @@ var lexTests = []lexTest{
 
 // collect gathers the emitted items into a slice.
 func collect(t *lexTest) (items []item) {
-	_, tokens := lex(t.name, t.input)
-	for i := range tokens {
+	l := lex(t.name, t.input)
+	for i := range l.items {
 		items = append(items, i)
 	}
 	return
