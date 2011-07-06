@@ -8,8 +8,10 @@
 package main
 
 import (
-	"crypto/rsa"
+	"big"
+	"crypto/x509/pkix"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"flag"
@@ -32,8 +34,8 @@ func main() {
 	now := time.Seconds()
 
 	template := x509.Certificate{
-		SerialNumber: []byte{0},
-		Subject: x509.Name{
+		SerialNumber: new(big.Int).SetInt64(0),
+		Subject: pkix.Name{
 			CommonName:   *hostName,
 			Organization: []string{"Acme Co"},
 		},
