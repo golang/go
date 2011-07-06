@@ -89,7 +89,7 @@ func index(item interface{}, indices ...interface{}) (interface{}, os.Error) {
 			switch index.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				x = index.Int()
-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 				x = int64(index.Uint())
 			default:
 				return nil, fmt.Errorf("cannot index slice/array with type %s", index.Type())
