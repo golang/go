@@ -23,7 +23,6 @@ type Template struct {
 	// Parsing only; cleared after parse.
 	set      *Set
 	lex      *lexer
-	tokens   <-chan item
 	token    item // token lookahead for parser
 	havePeek bool
 }
@@ -33,7 +32,7 @@ func (t *Template) next() item {
 	if t.havePeek {
 		t.havePeek = false
 	} else {
-		t.token = <-t.tokens
+		t.token = t.lex.nextItem()
 	}
 	return t.token
 }
@@ -48,7 +47,7 @@ func (t *Template) peek() item {
 	if t.havePeek {
 		return t.token
 	}
-	t.token = <-t.tokens
+	t.token = t.lex.nextItem()
 	t.havePeek = true
 	return t.token
 }
@@ -508,15 +507,15 @@ func (t *Template) recover(errp *os.Error) {
 }
 
 // startParse starts the template parsing from the lexer.
-func (t *Template) startParse(set *Set, lex *lexer, tokens <-chan item) {
+func (t *Template) startParse(set *Set, lex *lexer) {
 	t.root = nil
 	t.set = set
-	t.lex, t.tokens = lex, tokens
+	t.lex = lex
 }
 
 // stopParse terminates parsing.
 func (t *Template) stopParse() {
-	t.set, t.lex, t.tokens = nil, nil, nil
+	t.set, t.lex = nil, nil
 }
 
 // atEOF returns true if, possibly after spaces, we're at EOF.
@@ -543,8 +542,7 @@ func (t *Template) atEOF() bool {
 // Parse parses the template definition string to construct an internal representation
 // of the template for execution.
 func (t *Template) Parse(s string) (err os.Error) {
-	lexer, tokens := lex(t.name, s)
-	t.startParse(nil, lexer, tokens)
+	t.startParse(nil, lex(t.name, s))
 	defer t.recover(&err)
 	t.parse(true)
 	t.stopParse()
@@ -554,8 +552,7 @@ func (t *Template) Parse(s string) (err os.Error) {
 // ParseInSet parses the template definition string to construct an internal representation
 // of the template for execution. Function bindings are checked against those in the set.
 func (t *Template) ParseInSet(s string, set *Set) (err os.Error) {
-	lexer, tokens := lex(t.name, s)
-	t.startParse(set, lexer, tokens)
+	t.startParse(set, lex(t.name, s))
 	defer t.recover(&err)
 	t.parse(true)
 	t.stopParse()
