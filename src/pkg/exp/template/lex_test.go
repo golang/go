@@ -128,14 +128,19 @@ var lexTests = []lexTest{
 // collect gathers the emitted items into a slice.
 func collect(t *lexTest) (items []item) {
 	l := lex(t.name, t.input)
-	for i := range l.items {
-		items = append(items, i)
+	for {
+		item := l.nextItem()
+		items = append(items, item)
+		if item.typ == itemEOF || item.typ == itemError {
+			break
+		}
 	}
 	return
 }
 
 func TestLex(t *testing.T) {
 	for _, test := range lexTests {
+		println(test.name)
 		items := collect(&test)
 		if !reflect.DeepEqual(items, test.items) {
 			t.Errorf("%s: got\n\t%v\nexpected\n\t%v", test.name, items, test.items)
