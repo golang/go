@@ -400,6 +400,7 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 			p.framesetOK = false
 		default:
 			// TODO.
+			p.addElement(p.tok.Data, p.tok.Attr)
 		}
 	case EndTagToken:
 		switch p.tok.Data {
