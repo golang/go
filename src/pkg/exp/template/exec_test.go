@@ -31,6 +31,8 @@ type T struct {
 	MSI      map[string]int
 	MSIone   map[string]int // one element, for deterministic output
 	MSIEmpty map[string]int
+	// Empty interface; used to see if we can dig inside one.
+	EmptyInterface interface{}
 }
 
 // Simple methods with and without arguments.
@@ -79,14 +81,15 @@ type U struct {
 }
 
 var tVal = &T{
-	I:      17,
-	U16:    16,
-	X:      "x",
-	U:      &U{"v"},
-	SI:     []int{3, 4, 5},
-	SB:     []bool{true, false},
-	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
-	MSIone: map[string]int{"one": 1},
+	I:              17,
+	U16:            16,
+	X:              "x",
+	U:              &U{"v"},
+	SI:             []int{3, 4, 5},
+	SB:             []bool{true, false},
+	MSI:            map[string]int{"one": 1, "two": 2, "three": 3},
+	MSIone:         map[string]int{"one": 1},
+	EmptyInterface: []int{7, 8},
 }
 
 type execTest struct {
@@ -187,6 +190,7 @@ var execTests = []execTest{
 	{"range empty map no else", "{{range .MSIEmpty}}-{{.}}-{{end}}", "", tVal, true},
 	{"range map else", "{{range .MSI | .MSort}}-{{.}}-{{else}}EMPTY{{end}}", "-one--three--two-", tVal, true},
 	{"range empty map else", "{{range .MSIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	{"range empty interface", "{{range .EmptyInterface}}-{{.}}-{{else}}EMPTY{{end}}", "-7--8-", tVal, true},
 	// Error handling.
 	{"error method, error", "{{.EPERM true}}", "", tVal, false},
 	{"error method, no error", "{{.EPERM false}}", "false", tVal, true},

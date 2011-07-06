@@ -183,6 +183,10 @@ func (s *state) evalPipeline(data reflect.Value, pipe []*commandNode) reflect.Va
 	value := reflect.Value{}
 	for _, cmd := range pipe {
 		value = s.evalCommand(data, cmd, value) // previous value is this one's final arg.
+		// If the object has type interface{}, dig down one level to the thing inside.
+		if value.Kind() == reflect.Interface && value.Type().NumMethod() == 0 {
+			value = reflect.ValueOf(value.Interface()) // lovely!
+		}
 	}
 	return value
 }
