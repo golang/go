@@ -252,7 +252,10 @@ func genArray(n int) []interface{} {
 	if f > n {
 		f = n
 	}
-	x := make([]interface{}, int(f))
+	if n > 0 && f == 0 {
+		f = 1
+	}
+	x := make([]interface{}, f)
 	for i := range x {
 		x[i] = genValue(((i+1)*n)/f - (i*n)/f)
 	}
