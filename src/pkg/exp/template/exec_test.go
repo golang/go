@@ -31,6 +31,7 @@ type T struct {
 	MSI      map[string]int
 	MSIone   map[string]int // one element, for deterministic output
 	MSIEmpty map[string]int
+	SMSI     []map[string]int
 	// Empty interface; used to see if we can dig inside one.
 	EmptyInterface interface{}
 }
@@ -81,14 +82,18 @@ type U struct {
 }
 
 var tVal = &T{
-	I:              17,
-	U16:            16,
-	X:              "x",
-	U:              &U{"v"},
-	SI:             []int{3, 4, 5},
-	SB:             []bool{true, false},
-	MSI:            map[string]int{"one": 1, "two": 2, "three": 3},
-	MSIone:         map[string]int{"one": 1},
+	I:      17,
+	U16:    16,
+	X:      "x",
+	U:      &U{"v"},
+	SI:     []int{3, 4, 5},
+	SB:     []bool{true, false},
+	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
+	MSIone: map[string]int{"one": 1},
+	SMSI: []map[string]int{
+		{"one": 1, "two": 2},
+		{"eleven": 11, "twelve": 12},
+	},
 	EmptyInterface: []int{7, 8},
 }
 
@@ -166,6 +171,16 @@ var execTests = []execTest{
 	{"or", "{{or 0 0}} {{or 1 0}} {{or 0 1}} {{or 1 1}}", "false true true true", nil, true},
 	{"boolean if", "{{if and true 1 `hi`}}TRUE{{else}}FALSE{{end}}", "TRUE", tVal, true},
 	{"boolean if not", "{{if and true 1 `hi` | not}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
+	// Indexing.
+	{"slice[0]", "{{index .SI 0}}", "3", tVal, true},
+	{"slice[1]", "{{index .SI 1}}", "4", tVal, true},
+	{"slice[HUGE]", "{{index .SI 10}}", "", tVal, false},
+	{"slice[WRONG]", "{{index .SI `hello`}}", "", tVal, false},
+	{"map[one]", "{{index .MSI `one`}}", "1", tVal, true},
+	{"map[two]", "{{index .MSI `two`}}", "2", tVal, true},
+	{"map[NO]", "{{index .MSI `XXX`}}", "", tVal, false},
+	{"map[WRONG]", "{{index .MSI 10}}", "", tVal, false},
+	{"double index", "{{index .SMSI 1 `eleven`}}", "11", tVal, true},
 	// With.
 	{"with true", "{{with true}}{{.}}{{end}}", "true", tVal, true},
 	{"with false", "{{with false}}{{.}}{{else}}FALSE{{end}}", "FALSE", tVal, true},
@@ -222,7 +237,10 @@ func testExecute(execTests []execTest, set *Set, t *testing.T) {
 			t.Errorf("%s: unexpected execute error: %s", test.name, err)
 			continue
 		case !test.ok && err != nil:
-			continue
+			// expected error, got one
+			if *debug {
+				fmt.Printf("%s: %s\n\t%s\n", test.name, test.input, err)
+			}
 		}
 		result := b.String()
 		if result != test.output {
