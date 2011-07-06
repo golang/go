@@ -113,6 +113,7 @@ type stateFn func(*lexer) stateFn
 type lexer struct {
 	name  string    // the name of the input; used only for error reports.
 	input string    // the string being scanned.
+	state stateFn   // the next lexing function to enter
 	pos   int       // current position in the input.
 	start int       // start position of this item.
 	width int       // width of last rune read from input.
@@ -182,27 +183,27 @@ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 	return nil
 }
 
-// run lexes the input by executing state functions until nil.
-func (l *lexer) run() {
-	for state := lexText; state != nil; {
-		state = state(l)
-	}
-	close(l.items)
-}
-
 // nextItem returns the next item from the input.
 func (l *lexer) nextItem() item {
-	return <-l.items
+	for {
+		select {
+		case item := <-l.items:
+			return item
+		default:
+			l.state = l.state(l)
+		}
+	}
+	panic("not reached")
 }
 
-// lex launches a new scanner and returns the channel of items.
+// lex creates a new scanner for the input string.
 func lex(name, input string) *lexer {
 	l := &lexer{
 		name:  name,
 		input: input,
-		items: make(chan item),
+		state: lexText,
+		items: make(chan item, 2), // Two items of buffering is sufficient for all state functions
 	}
-	go l.run()
 	return l
 }
 
