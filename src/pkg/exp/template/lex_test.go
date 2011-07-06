@@ -140,7 +140,6 @@ func collect(t *lexTest) (items []item) {
 
 func TestLex(t *testing.T) {
 	for _, test := range lexTests {
-		println(test.name)
 		items := collect(&test)
 		if !reflect.DeepEqual(items, test.items) {
 			t.Errorf("%s: got\n\t%v\nexpected\n\t%v", test.name, items, test.items)
