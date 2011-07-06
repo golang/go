@@ -6,10 +6,12 @@ package template
 
 import (
 	"bytes"
-	"io"
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
+	"unicode"
+	"utf8"
 )
 
 // FuncMap is the type of the map defining the mapping from names to functions.
@@ -20,6 +22,7 @@ type FuncMap map[string]interface{}
 var funcs = map[string]reflect.Value{
 	"printf": reflect.ValueOf(fmt.Sprintf),
 	"html":   reflect.ValueOf(HTMLEscaper),
+	"js":     reflect.ValueOf(JSEscaper),
 	"and":    reflect.ValueOf(and),
 	"or":     reflect.ValueOf(or),
 	"not":    reflect.ValueOf(not),
@@ -98,34 +101,34 @@ func not(arg interface{}) (truth bool) {
 // HTML escaping.
 
 var (
-	escQuot = []byte("&#34;") // shorter than "&quot;"
-	escApos = []byte("&#39;") // shorter than "&apos;"
-	escAmp  = []byte("&amp;")
-	escLt   = []byte("&lt;")
-	escGt   = []byte("&gt;")
+	htmlQuot = []byte("&#34;") // shorter than "&quot;"
+	htmlApos = []byte("&#39;") // shorter than "&apos;"
+	htmlAmp  = []byte("&amp;")
+	htmlLt   = []byte("&lt;")
+	htmlGt   = []byte("&gt;")
 )
 
 // HTMLEscape writes to w the escaped HTML equivalent of the plain text data b.
 func HTMLEscape(w io.Writer, b []byte) {
 	last := 0
 	for i, c := range b {
-		var esc []byte
+		var html []byte
 		switch c {
 		case '"':
-			esc = escQuot
+			html = htmlQuot
 		case '\'':
-			esc = escApos
+			html = htmlApos
 		case '&':
-			esc = escAmp
+			html = htmlAmp
 		case '<':
-			esc = escLt
+			html = htmlLt
 		case '>':
-			esc = escGt
+			html = htmlGt
 		default:
 			continue
 		}
 		w.Write(b[last:i])
-		w.Write(esc)
+		w.Write(html)
 		last = i + 1
 	}
 	w.Write(b[last:])
@@ -154,4 +157,93 @@ func HTMLEscaper(args ...interface{}) string {
 		s = fmt.Sprint(args...)
 	}
 	return HTMLEscapeString(s)
+}
+
+// JavaScript escaping.
+
+var (
+	jsLowUni = []byte(`\u00`)
+	hex      = []byte("0123456789ABCDEF")
+
+	jsBackslash = []byte(`\\`)
+	jsApos      = []byte(`\'`)
+	jsQuot      = []byte(`\"`)
+)
+
+
+// JSEscape writes to w the escaped JavaScript equivalent of the plain text data b.
+func JSEscape(w io.Writer, b []byte) {
+	last := 0
+	for i := 0; i < len(b); i++ {
+		c := b[i]
+
+		if ' ' <= c && c < utf8.RuneSelf && c != '\\' && c != '"' && c != '\'' {
+			// fast path: nothing to do
+			continue
+		}
+		w.Write(b[last:i])
+
+		if c < utf8.RuneSelf {
+			// Quotes and slashes get quoted.
+			// Control characters get written as \u00XX.
+			switch c {
+			case '\\':
+				w.Write(jsBackslash)
+			case '\'':
+				w.Write(jsApos)
+			case '"':
+				w.Write(jsQuot)
+			default:
+				w.Write(jsLowUni)
+				t, b := c>>4, c&0x0f
+				w.Write(hex[t : t+1])
+				w.Write(hex[b : b+1])
+			}
+		} else {
+			// Unicode rune.
+			rune, size := utf8.DecodeRune(b[i:])
+			if unicode.IsPrint(rune) {
+				w.Write(b[i : i+size])
+			} else {
+				// TODO(dsymonds): Do this without fmt?
+				fmt.Fprintf(w, "\\u%04X", rune)
+			}
+			i += size - 1
+		}
+		last = i + 1
+	}
+	w.Write(b[last:])
+}
+
+// JSEscapeString returns the escaped JavaScript equivalent of the plain text data s.
+func JSEscapeString(s string) string {
+	// Avoid allocation if we can.
+	if strings.IndexFunc(s, jsIsSpecial) < 0 {
+		return s
+	}
+	var b bytes.Buffer
+	JSEscape(&b, []byte(s))
+	return b.String()
+}
+
+func jsIsSpecial(rune int) bool {
+	switch rune {
+	case '\\', '\'', '"':
+		return true
+	}
+	return rune < ' ' || utf8.RuneSelf <= rune
+}
+
+// JSEscaper returns the escaped JavaScript equivalent of the textual
+// representation of its arguments.
+func JSEscaper(args ...interface{}) string {
+	ok := false
+	var s string
+	if len(args) == 1 {
+		s, ok = args[0].(string)
+	}
+	if !ok {
+		s = fmt.Sprint(args...)
+	}
+	return JSEscapeString(s)
 }

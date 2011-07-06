@@ -158,6 +158,8 @@ var execTests = []execTest{
 		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
 	{"html pipeline", `{{printf "<script>alert(\"XSS\");</script>" | html}}`,
 		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
+	// JS.
+	{"js", `{{js .}}`, `It\'d be nice.`, `It'd be nice.`, true},
 	// Booleans
 	{"not", "{{not true}} {{not false}}", "false true", nil, true},
 	{"and", "{{and 0 0}} {{and 1 0}} {{and 0 1}} {{and 1 1}}", "false false false true", nil, true},
@@ -246,5 +248,23 @@ func TestExecuteError(t *testing.T) {
 		t.Errorf("expected error; got none")
 	} else if !strings.Contains(err.String(), os.EPERM.String()) {
 		t.Errorf("expected os.EPERM; got %s", err)
+	}
+}
+
+func TestJSEscaping(t *testing.T) {
+	testCases := []struct {
+		in, exp string
+	}{
+		{`a`, `a`},
+		{`'foo`, `\'foo`},
+		{`Go "jump" \`, `Go \"jump\" \\`},
+		{`Yukihiro says "今日は世界"`, `Yukihiro says \"今日は世界\"`},
+		{"unprintable \uFDFF", `unprintable \uFDFF`},
+	}
+	for _, tc := range testCases {
+		s := JSEscapeString(tc.in)
+		if s != tc.exp {
+			t.Errorf("JS escaping [%s] got [%s] want [%s]", tc.in, s, tc.exp)
+		}
 	}
 }
