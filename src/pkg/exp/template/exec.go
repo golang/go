@@ -447,6 +447,8 @@ func (s *state) evalEmptyInterface(data reflect.Value, typ reflect.Type, n node)
 	switch n := n.(type) {
 	case *boolNode:
 		return reflect.ValueOf(n.true)
+	case *dotNode:
+		return data
 	case *fieldNode:
 		return s.evalFieldNode(data, n, nil, reflect.Value{})
 	case *identifierNode:
