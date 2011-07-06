@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"strings"
 	"unicode"
@@ -20,12 +21,13 @@ import (
 type FuncMap map[string]interface{}
 
 var funcs = map[string]reflect.Value{
-	"printf": reflect.ValueOf(fmt.Sprintf),
-	"html":   reflect.ValueOf(HTMLEscaper),
-	"js":     reflect.ValueOf(JSEscaper),
 	"and":    reflect.ValueOf(and),
-	"or":     reflect.ValueOf(or),
+	"html":   reflect.ValueOf(HTMLEscaper),
+	"index":  reflect.ValueOf(index),
+	"js":     reflect.ValueOf(JSEscaper),
 	"not":    reflect.ValueOf(not),
+	"or":     reflect.ValueOf(or),
+	"printf": reflect.ValueOf(fmt.Sprintf),
 }
 
 // addFuncs adds to values the functions in funcs, converting them to reflect.Values.
@@ -70,6 +72,45 @@ func findFunction(name string, tmpl *Template, set *Set) (reflect.Value, bool) {
 		return fn, true
 	}
 	return reflect.Value{}, false
+}
+
+// Indexing.
+
+// index returns the result of indexing its first argument by the following
+// arguments.  Thus "index x 1 2 3" is, in Go syntax, x[1][2][3]. Each
+// indexed item must be a map, slice, or array.
+func index(item interface{}, indices ...interface{}) (interface{}, os.Error) {
+	v := reflect.ValueOf(item)
+	for _, i := range indices {
+		index := reflect.ValueOf(i)
+		switch v.Kind() {
+		case reflect.Array, reflect.Slice:
+			var x int64
+			switch index.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				x = index.Int()
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				x = int64(index.Uint())
+			default:
+				return nil, fmt.Errorf("cannot index slice/array with type %s", index.Type())
+			}
+			if x < 0 || x >= int64(v.Len()) {
+				return nil, fmt.Errorf("index out of range: %d", x)
+			}
+			v = v.Index(int(x))
+		case reflect.Map:
+			if !index.Type().AssignableTo(v.Type().Key()) {
+				return nil, fmt.Errorf("%s is not index type for %s", index.Type(), v.Type())
+			}
+			v = v.MapIndex(index)
+			if !v.IsValid() {
+				return nil, fmt.Errorf("index %v not present in map", index.Interface())
+			}
+		default:
+			return nil, fmt.Errorf("can't index item of type %s", index.Type())
+		}
+	}
+	return v.Interface(), nil
 }
 
 // Boolean logic.
