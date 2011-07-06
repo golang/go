@@ -149,7 +149,7 @@ func (b BitString) RightAlign() []byte {
 	return a
 }
 
-// parseBitString parses an ASN.1 bit string from the given byte array and returns it.
+// parseBitString parses an ASN.1 bit string from the given byte slice and returns it.
 func parseBitString(bytes []byte) (ret BitString, err os.Error) {
 	if len(bytes) == 0 {
 		err = SyntaxError{"zero length BIT STRING"}
@@ -227,7 +227,7 @@ type Enumerated int
 type Flag bool
 
 // parseBase128Int parses a base-128 encoded int from the given offset in the
-// given byte array. It returns the value and the new offset.
+// given byte slice. It returns the value and the new offset.
 func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err os.Error) {
 	offset = initOffset
 	for shifted := 0; offset < len(bytes); shifted++ {
@@ -259,7 +259,7 @@ func parseUTCTime(bytes []byte) (ret *time.Time, err os.Error) {
 	return
 }
 
-// parseGeneralizedTime parses the GeneralizedTime from the given byte array
+// parseGeneralizedTime parses the GeneralizedTime from the given byte slice
 // and returns the resulting time.
 func parseGeneralizedTime(bytes []byte) (ret *time.Time, err os.Error) {
 	return time.Parse("20060102150405Z0700", string(bytes))
@@ -300,7 +300,7 @@ func isPrintable(b byte) bool {
 // IA5String
 
 // parseIA5String parses a ASN.1 IA5String (ASCII string) from the given
-// byte array and returns it.
+// byte slice and returns it.
 func parseIA5String(bytes []byte) (ret string, err os.Error) {
 	for _, b := range bytes {
 		if b >= 0x80 {
@@ -315,8 +315,16 @@ func parseIA5String(bytes []byte) (ret string, err os.Error) {
 // T61String
 
 // parseT61String parses a ASN.1 T61String (8-bit clean string) from the given
-// byte array and returns it.
+// byte slice and returns it.
 func parseT61String(bytes []byte) (ret string, err os.Error) {
+	return string(bytes), nil
+}
+
+// UTF8String
+
+// parseUTF8String parses a ASN.1 UTF8String (raw UTF-8) from the given byte
+// array and returns it.
+func parseUTF8String(bytes []byte) (ret string, err os.Error) {
 	return string(bytes), nil
 }
 
@@ -336,7 +344,7 @@ type RawContent []byte
 // Tagging
 
 // parseTagAndLength parses an ASN.1 tag and length pair from the given offset
-// into a byte array. It returns the parsed data and the new offset. SET and
+// into a byte slice. It returns the parsed data and the new offset. SET and
 // SET OF (tag 17) are mapped to SEQUENCE and SEQUENCE OF (tag 16) since we
 // don't distinguish between ordered and unordered objects in this code.
 func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset int, err os.Error) {
@@ -393,7 +401,7 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 }
 
 // parseSequenceOf is used for SEQUENCE OF and SET OF values. It tries to parse
-// a number of ASN.1 values from the given byte array and returns them as a
+// a number of ASN.1 values from the given byte slice and returns them as a
 // slice of Go values of the given type.
 func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type) (ret reflect.Value, err os.Error) {
 	expectedTag, compoundType, ok := getUniversalType(elemType)
@@ -456,7 +464,7 @@ func invalidLength(offset, length, sliceLength int) bool {
 	return offset+length < offset || offset+length > sliceLength
 }
 
-// parseField is the main parsing function. Given a byte array and an offset
+// parseField is the main parsing function. Given a byte slice and an offset
 // into the array, it will try to parse a suitable ASN.1 value out and store it
 // in the given Value.
 func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParameters) (offset int, err os.Error) {
@@ -573,16 +581,15 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 	}
 
-	// Special case for strings: PrintableString and IA5String both map to
-	// the Go type string. getUniversalType returns the tag for
-	// PrintableString when it sees a string so, if we see an IA5String on
-	// the wire, we change the universal type to match.
-	if universalTag == tagPrintableString && t.tag == tagIA5String {
-		universalTag = tagIA5String
-	}
-	// Likewise for GeneralString
-	if universalTag == tagPrintableString && t.tag == tagGeneralString {
-		universalTag = tagGeneralString
+	// Special case for strings: all the ASN.1 string types map to the Go
+	// type string. getUniversalType returns the tag for PrintableString
+	// when it sees a string, so if we see a different string type on the
+	// wire, we change the universal type to match.
+	if universalTag == tagPrintableString {
+		switch t.tag {
+		case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
+			universalTag = t.tag
+		}
 	}
 
 	// Special case for time: UTCTime and GeneralizedTime both map to the
@@ -738,6 +745,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			v, err = parseIA5String(innerBytes)
 		case tagT61String:
 			v, err = parseT61String(innerBytes)
+		case tagUTF8String:
+			v, err = parseUTF8String(innerBytes)
 		case tagGeneralString:
 			// GeneralString is specified in ISO-2022/ECMA-35,
 			// A brief review suggests that it includes structures
