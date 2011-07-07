@@ -83,6 +83,10 @@ func index(item interface{}, indices ...interface{}) (interface{}, os.Error) {
 	v := reflect.ValueOf(item)
 	for _, i := range indices {
 		index := reflect.ValueOf(i)
+		var isNil bool
+		if v, isNil = indirect(v); isNil {
+			return nil, fmt.Errorf("index of nil pointer")
+		}
 		switch v.Kind() {
 		case reflect.Array, reflect.Slice:
 			var x int64

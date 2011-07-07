@@ -245,8 +245,9 @@ func isExported(name string) bool {
 }
 
 func (s *state) evalField(data reflect.Value, fieldName string) reflect.Value {
-	for data.Kind() == reflect.Ptr {
-		data = reflect.Indirect(data)
+	var isNil bool
+	if data, isNil = indirect(data); isNil {
+		s.errorf("%s is nil pointer", fieldName)
 	}
 	switch data.Kind() {
 	case reflect.Struct:
@@ -270,7 +271,7 @@ func (s *state) evalFieldOrCall(data reflect.Value, fieldName string, args []nod
 		return s.evalCall(data, function, fieldName, false, args, final)
 	}
 	ptr := data
-	for data.Kind() == reflect.Ptr {
+	for data.Kind() == reflect.Ptr && !data.IsNil() {
 		ptr, data = data, reflect.Indirect(data)
 	}
 	// Is it a method? We use the pointer because it has value methods too.
@@ -475,16 +476,30 @@ func (s *state) evalEmptyInterface(data reflect.Value, typ reflect.Type, n node)
 	panic("not reached")
 }
 
+// indirect returns the item at the end of indirection, and a bool to indicate if it's nil.
+func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
+	for v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return v, true
+		}
+		v = v.Elem()
+	}
+	return v, false
+}
+
 // printValue writes the textual representation of the value to the output of
 // the template.
 func (s *state) printValue(n node, v reflect.Value) {
 	if !v.IsValid() {
+		fmt.Fprint(s.wr, "<no value>")
 		return
 	}
 	switch v.Kind() {
 	case reflect.Ptr:
-		if v.IsNil() {
-			s.errorf("%s: nil value", n)
+		var isNil bool
+		if v, isNil = indirect(v); isNil {
+			fmt.Fprint(s.wr, "<nil>")
+			return
 		}
 	case reflect.Chan, reflect.Func, reflect.Interface:
 		s.errorf("can't print %s of type %s", n, v.Type())
