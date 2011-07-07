@@ -72,16 +72,6 @@ var verifyTests = []verifyTest{
 		},
 	},
 	{
-		leaf:          googleLeaf,
-		intermediates: []string{verisignRoot, thawteIntermediate},
-		roots:         []string{verisignRoot},
-		currentTime:   1302726541,
-
-		expectedChains: [][]string{
-			[]string{"Google", "Thawte", "VeriSign"},
-		},
-	},
-	{
 		leaf:          dnssecExpLeaf,
 		intermediates: []string{startComIntermediate},
 		roots:         []string{startComRoot},
@@ -89,6 +79,17 @@ var verifyTests = []verifyTest{
 
 		expectedChains: [][]string{
 			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
+		},
+	},
+	{
+		leaf:          dnssecExpLeaf,
+		intermediates: []string{startComIntermediate, startComRoot},
+		roots:         []string{startComRoot},
+		currentTime:   1302726541,
+
+		expectedChains: [][]string{
+			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
+			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority", "StartCom Certification Authority"},
 		},
 	},
 }

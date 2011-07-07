@@ -171,8 +171,14 @@ func (c *Certificate) buildChains(cache map[int][][]*Certificate, currentChain [
 		chains = append(chains, appendToFreshChain(currentChain, root))
 	}
 
+nextIntermediate:
 	for _, intermediateNum := range opts.Intermediates.findVerifiedParents(c) {
 		intermediate := opts.Intermediates.certs[intermediateNum]
+		for _, cert := range currentChain {
+			if cert == intermediate {
+				continue nextIntermediate
+			}
+		}
 		err = intermediate.isValid(intermediateCertificate, opts)
 		if err != nil {
 			continue
