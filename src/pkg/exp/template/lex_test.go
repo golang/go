@@ -17,8 +17,8 @@ type lexTest struct {
 
 var (
 	tEOF      = item{itemEOF, ""}
-	tLeft     = item{itemLeftMeta, "{{"}
-	tRight    = item{itemRightMeta, "}}"}
+	tLeft     = item{itemLeftDelim, "{{"}
+	tRight    = item{itemRightDelim, "}}"}
 	tRange    = item{itemRange, "range"}
 	tPipe     = item{itemPipe, "|"}
 	tFor      = item{itemIdentifier, "for"}
