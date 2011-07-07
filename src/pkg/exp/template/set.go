@@ -93,14 +93,14 @@ func (s *Set) Parse(text string) (err os.Error) {
 		if t.atEOF() {
 			return
 		}
-		t.expect(itemLeftMeta, context)
+		t.expect(itemLeftDelim, context)
 		t.expect(itemDefine, context)
 		name := t.expect(itemString, context)
 		t.name, err = strconv.Unquote(name.val)
 		if err != nil {
 			t.error(err)
 		}
-		t.expect(itemRightMeta, context)
+		t.expect(itemRightDelim, context)
 		end := t.parse(false)
 		if end == nil {
 			t.errorf("unexpected EOF in %s", context)

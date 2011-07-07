@@ -41,11 +41,11 @@ const (
 	itemEOF
 	itemField      // alphanumeric identifier, starting with '.', possibly chained ('.x.y')
 	itemIdentifier // alphanumeric identifier
-	itemLeftMeta   // left meta-string
+	itemLeftDelim  // left action delimiter
 	itemNumber     // simple number, including imaginary
 	itemPipe       // pipe symbol
 	itemRawString  // raw quoted string (includes quotes)
-	itemRightMeta  // right meta-string
+	itemRightDelim // right action delimiter
 	itemString     // quoted string (includes quotes)
 	itemText       // plain text
 	// Keywords appear after all the rest.
@@ -68,11 +68,11 @@ var itemName = map[itemType]string{
 	itemEOF:        "EOF",
 	itemField:      "field",
 	itemIdentifier: "identifier",
-	itemLeftMeta:   "left meta",
+	itemLeftDelim:  "left delim",
 	itemNumber:     "number",
 	itemPipe:       "pipe",
 	itemRawString:  "raw string",
-	itemRightMeta:  "rightMeta",
+	itemRightDelim: "right delim",
 	itemString:     "string",
 	// keywords
 	itemDot:      ".",
@@ -210,20 +210,20 @@ func lex(name, input string) *lexer {
 // state functions
 
 const (
-	leftMeta     = "{{"
-	rightMeta    = "}}"
+	leftDelim    = "{{"
+	rightDelim   = "}}"
 	leftComment  = "{{/*"
 	rightComment = "*/}}"
 )
 
-// lexText scans until a metacharacter
+// lexText scans until an opening action delimiter, "{{".
 func lexText(l *lexer) stateFn {
 	for {
-		if strings.HasPrefix(l.input[l.pos:], leftMeta) {
+		if strings.HasPrefix(l.input[l.pos:], leftDelim) {
 			if l.pos > l.start {
 				l.emit(itemText)
 			}
-			return lexLeftMeta
+			return lexLeftDelim
 		}
 		if l.next() == eof {
 			break
@@ -237,13 +237,13 @@ func lexText(l *lexer) stateFn {
 	return nil
 }
 
-// leftMeta scans the left "metacharacter", which is known to be present.
-func lexLeftMeta(l *lexer) stateFn {
+// lexLeftDelim scans the left delimiter, which is known to be present.
+func lexLeftDelim(l *lexer) stateFn {
 	if strings.HasPrefix(l.input[l.pos:], leftComment) {
 		return lexComment
 	}
-	l.pos += len(leftMeta)
-	l.emit(itemLeftMeta)
+	l.pos += len(leftDelim)
+	l.emit(itemLeftDelim)
 	return lexInsideAction
 }
 
@@ -258,21 +258,21 @@ func lexComment(l *lexer) stateFn {
 	return lexText
 }
 
-// rightMeta scans the right "metacharacter", which is known to be present.
-func lexRightMeta(l *lexer) stateFn {
-	l.pos += len(rightMeta)
-	l.emit(itemRightMeta)
+// lexRightDelim scans the right delimiter, which is known to be present.
+func lexRightDelim(l *lexer) stateFn {
+	l.pos += len(rightDelim)
+	l.emit(itemRightDelim)
 	return lexText
 }
 
-// lexInsideAction scans the elements inside "metacharacters".
+// lexInsideAction scans the elements inside action delimiters.
 func lexInsideAction(l *lexer) stateFn {
 	// Either number, quoted string, or identifier.
 	// Spaces separate and are ignored.
 	// Pipe symbols separate and are emitted.
 	for {
-		if strings.HasPrefix(l.input[l.pos:], rightMeta) {
-			return lexRightMeta
+		if strings.HasPrefix(l.input[l.pos:], rightDelim) {
+			return lexRightDelim
 		}
 		switch r := l.next(); {
 		case r == eof || r == '\n':

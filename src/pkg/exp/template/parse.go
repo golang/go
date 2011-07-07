@@ -122,7 +122,7 @@ func (t *textNode) String() string {
 	return fmt.Sprintf("(text: %q)", t.text)
 }
 
-// actionNode holds an action (something bounded by metacharacters).
+// actionNode holds an action (something bounded by delimiters).
 type actionNode struct {
 	nodeType
 	line     int
@@ -594,7 +594,7 @@ func (t *Template) textOrAction() node {
 	switch token := t.next(); token.typ {
 	case itemText:
 		return newText(token.val)
-	case itemLeftMeta:
+	case itemLeftDelim:
 		return t.action()
 	default:
 		t.unexpected(token, "input")
@@ -605,7 +605,7 @@ func (t *Template) textOrAction() node {
 // Action:
 //	control
 //	command ("|" command)*
-// Left meta is past. Now get actions.
+// Left delim is past. Now get actions.
 // First word could be a keyword such as range.
 func (t *Template) action() (n node) {
 	switch token := t.next(); token.typ {
@@ -632,7 +632,7 @@ func (t *Template) action() (n node) {
 func (t *Template) pipeline(context string) (pipe []*commandNode) {
 	for {
 		switch token := t.next(); token.typ {
-		case itemRightMeta:
+		case itemRightDelim:
 			if len(pipe) == 0 {
 				t.errorf("missing value for %s", context)
 			}
@@ -693,7 +693,7 @@ func (t *Template) withControl() node {
 //	{{end}}
 // End keyword is past.
 func (t *Template) endControl() node {
-	t.expect(itemRightMeta, "end")
+	t.expect(itemRightDelim, "end")
 	return newEnd()
 }
 
@@ -701,7 +701,7 @@ func (t *Template) endControl() node {
 //	{{else}}
 // Else keyword is past.
 func (t *Template) elseControl() node {
-	t.expect(itemRightMeta, "else")
+	t.expect(itemRightDelim, "else")
 	return newElse(t.lex.lineNumber())
 }
 
@@ -735,14 +735,14 @@ func (t *Template) templateControl() node {
 }
 
 // command:
-// space-separated arguments up to a pipeline character or right metacharacter.
-// we consume the pipe character but leave the right meta to terminate the action.
+// space-separated arguments up to a pipeline character or right delimiter.
+// we consume the pipe character but leave the right delim to terminate the action.
 func (t *Template) command() *commandNode {
 	cmd := newCommand()
 Loop:
 	for {
 		switch token := t.next(); token.typ {
-		case itemRightMeta:
+		case itemRightDelim:
 			t.backup()
 			break Loop
 		case itemPipe:

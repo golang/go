@@ -140,7 +140,7 @@ var parseTests = []parseTest{
 		`[(text: " \t\n")]`},
 	{"text", "some text", noError,
 		`[(text: "some text")]`},
-	{"emptyMeta", "{{}}", hasError,
+	{"emptyAction", "{{}}", hasError,
 		`[(action: [])]`},
 	{"field", "{{.X}}", noError,
 		`[(action: [(command: [F=[X]])])]`},
