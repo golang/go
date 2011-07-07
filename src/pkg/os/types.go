@@ -27,7 +27,7 @@ type FileInfo struct {
 	Atime_ns        int64  // access time; nanoseconds since epoch.
 	Mtime_ns        int64  // modified time; nanoseconds since epoch.
 	Ctime_ns        int64  // status change time; nanoseconds since epoch.
-	Name            string // name of file as presented to Open.
+	Name            string // base name of the file name provided in Open, Stat, etc.
 	FollowedSymlink bool   // followed a symlink to get this information
 }
 
