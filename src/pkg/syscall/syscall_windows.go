@@ -100,6 +100,8 @@ func getSysProcAddr(m uintptr, pname string) uintptr {
 	return p
 }
 
+func Getpagesize() int { return 4096 }
+
 // Converts a Go function to a function pointer conforming
 // to the stdcall calling convention.  This is useful when
 // interoperating with Windows code requiring callbacks.

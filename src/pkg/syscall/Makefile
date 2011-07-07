@@ -41,6 +41,8 @@ GOFILES_linux=\
 
 GOFILES_windows=\
 	exec_windows.go\
+	zerrors_windows.go\
+	ztypes_windows.go\
 
 GOFILES_plan9=\
 	exec_plan9.go\
