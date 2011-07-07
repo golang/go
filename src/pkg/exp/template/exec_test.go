@@ -32,8 +32,51 @@ type T struct {
 	MSIone   map[string]int // one element, for deterministic output
 	MSIEmpty map[string]int
 	SMSI     []map[string]int
-	// Empty interface; used to see if we can dig inside one.
-	EmptyInterface interface{}
+	// Empty interfaces; used to see if we can dig inside one.
+	Empty0 interface{} // nil
+	Empty1 interface{}
+	Empty2 interface{}
+	Empty3 interface{}
+	Empty4 interface{}
+	// Pointers
+	PI  *int
+	PSI *[]int
+	NIL *int
+}
+
+var tVal = &T{
+	I:      17,
+	U16:    16,
+	X:      "x",
+	U:      &U{"v"},
+	SI:     []int{3, 4, 5},
+	SB:     []bool{true, false},
+	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
+	MSIone: map[string]int{"one": 1},
+	SMSI: []map[string]int{
+		{"one": 1, "two": 2},
+		{"eleven": 11, "twelve": 12},
+	},
+	Empty1: 3,
+	Empty2: "empty2",
+	Empty3: []int{7, 8},
+	Empty4: &U{"v"},
+	PI:     newInt(23),
+	PSI:    newIntSlice(21, 22, 23),
+}
+
+// Helpers for creation.
+func newInt(n int) *int {
+	p := new(int)
+	*p = n
+	return p
+}
+
+func newIntSlice(n ...int) *[]int {
+	p := new([]int)
+	*p = make([]int, len(n))
+	copy(*p, n)
+	return p
 }
 
 // Simple methods with and without arguments.
@@ -81,22 +124,6 @@ type U struct {
 	V string
 }
 
-var tVal = &T{
-	I:      17,
-	U16:    16,
-	X:      "x",
-	U:      &U{"v"},
-	SI:     []int{3, 4, 5},
-	SB:     []bool{true, false},
-	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
-	MSIone: map[string]int{"one": 1},
-	SMSI: []map[string]int{
-		{"one": 1, "two": 2},
-		{"eleven": 11, "twelve": 12},
-	},
-	EmptyInterface: []int{7, 8},
-}
-
 type execTest struct {
 	name   string
 	input  string
@@ -109,9 +136,11 @@ var execTests = []execTest{
 	// Trivial cases.
 	{"empty", "", "", nil, true},
 	{"text", "some text", "some text", nil, true},
+
 	// Fields of structs.
 	{".X", "-{{.X}}-", "-x-", tVal, true},
 	{".U.V", "-{{.U.V}}-", "-v-", tVal, true},
+
 	// Dots of all kinds to test basic evaluation.
 	{"dot int", "<{{.}}>", "<13>", 13, true},
 	{"dot uint", "<{{.}}>", "<14>", uint(14), true},
@@ -125,14 +154,30 @@ var execTests = []execTest{
 		a int
 		b string
 	}{7, "seven"}, true},
+
+	// Pointers.
+	{"*int", "{{.PI}}", "23", tVal, true},
+	{"*[]int", "{{.PSI}}", "[21 22 23]", tVal, true},
+	{"*[]int[1]", "{{index .PSI 1}}", "22", tVal, true},
+	{"NIL", "{{.NIL}}", "<nil>", tVal, true},
+
+	// Emtpy interfaces holding values.
+	{"empty nil", "{{.Empty0}}", "<no value>", tVal, true},
+	{"empty with int", "{{.Empty1}}", "3", tVal, true},
+	{"empty with string", "{{.Empty2}}", "empty2", tVal, true},
+	{"empty with slice", "{{.Empty3}}", "[7 8]", tVal, true},
+	{"empty with struct", "{{.Empty4}}", "{v}", tVal, true},
+
 	// Method calls.
 	{".Method0", "-{{.Method0}}-", "-resultOfMethod0-", tVal, true},
 	{".Method1(1234)", "-{{.Method1 1234}}-", "-1234-", tVal, true},
 	{".Method1(.I)", "-{{.Method1 .I}}-", "-17-", tVal, true},
 	{".Method2(3, .X)", "-{{.Method2 3 .X}}-", "-Method2: 3 x-", tVal, true},
 	{".Method2(.U16, `str`)", "-{{.Method2 .U16 `str`}}-", "-Method2: 16 str-", tVal, true},
+
 	// Pipelines.
 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 resultOfMethod0-", tVal, true},
+
 	// If.
 	{"if true", "{{if true}}TRUE{{end}}", "TRUE", tVal, true},
 	{"if false", "{{if false}}TRUE{{else}}FALSE{{end}}", "FALSE", tVal, true},
@@ -148,6 +193,7 @@ var execTests = []execTest{
 	{"if slice", "{{if .SI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
 	{"if emptymap", "{{if .MSIEmpty}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"if map", "{{if .MSI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
+
 	// Printf.
 	{"printf", `{{printf "hello, printf"}}`, "hello, printf", tVal, true},
 	{"printf int", `{{printf "%04x" 127}}`, "007f", tVal, true},
@@ -158,19 +204,23 @@ var execTests = []execTest{
 	{"printf field", `{{printf "%s" .U.V}}`, "v", tVal, true},
 	{"printf method", `{{printf "%s" .Method0}}`, "resultOfMethod0", tVal, true},
 	{"printf lots", `{{printf "%d %s %g %s" 127 "hello" 7-3i .Method0}}`, "127 hello (7-3i) resultOfMethod0", tVal, true},
+
 	// HTML.
 	{"html", `{{html "<script>alert(\"XSS\");</script>"}}`,
 		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
 	{"html pipeline", `{{printf "<script>alert(\"XSS\");</script>" | html}}`,
 		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
-	// JS.
+
+	// JavaScript.
 	{"js", `{{js .}}`, `It\'d be nice.`, `It'd be nice.`, true},
+
 	// Booleans
 	{"not", "{{not true}} {{not false}}", "false true", nil, true},
 	{"and", "{{and 0 0}} {{and 1 0}} {{and 0 1}} {{and 1 1}}", "false false false true", nil, true},
 	{"or", "{{or 0 0}} {{or 1 0}} {{or 0 1}} {{or 1 1}}", "false true true true", nil, true},
 	{"boolean if", "{{if and true 1 `hi`}}TRUE{{else}}FALSE{{end}}", "TRUE", tVal, true},
 	{"boolean if not", "{{if and true 1 `hi` | not}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
+
 	// Indexing.
 	{"slice[0]", "{{index .SI 0}}", "3", tVal, true},
 	{"slice[1]", "{{index .SI 1}}", "4", tVal, true},
@@ -181,6 +231,7 @@ var execTests = []execTest{
 	{"map[NO]", "{{index .MSI `XXX`}}", "", tVal, false},
 	{"map[WRONG]", "{{index .MSI 10}}", "", tVal, false},
 	{"double index", "{{index .SMSI 1 `eleven`}}", "11", tVal, true},
+
 	// With.
 	{"with true", "{{with true}}{{.}}{{end}}", "true", tVal, true},
 	{"with false", "{{with false}}{{.}}{{else}}FALSE{{end}}", "FALSE", tVal, true},
@@ -196,6 +247,8 @@ var execTests = []execTest{
 	{"with slice", "{{with .SI}}{{.}}{{else}}EMPTY{{end}}", "[3 4 5]", tVal, true},
 	{"with emptymap", "{{with .MSIEmpty}}{{.}}{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"with map", "{{with .MSIone}}{{.}}{{else}}EMPTY{{end}}", "map[one:1]", tVal, true},
+	{"with empty interface, struct field", "{{with .Empty4}}{{.V}}{{end}}", "v", tVal, true},
+
 	// Range.
 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},
 	{"range empty no else", "{{range .SIEmpty}}-{{.}}-{{end}}", "", tVal, true},
@@ -207,7 +260,8 @@ var execTests = []execTest{
 	{"range empty map no else", "{{range .MSIEmpty}}-{{.}}-{{end}}", "", tVal, true},
 	{"range map else", "{{range .MSI | .MSort}}-{{.}}-{{else}}EMPTY{{end}}", "-one--three--two-", tVal, true},
 	{"range empty map else", "{{range .MSIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
-	{"range empty interface", "{{range .EmptyInterface}}-{{.}}-{{else}}EMPTY{{end}}", "-7--8-", tVal, true},
+	{"range empty interface", "{{range .Empty3}}-{{.}}-{{else}}EMPTY{{end}}", "-7--8-", tVal, true},
+
 	// Error handling.
 	{"error method, error", "{{.EPERM true}}", "", tVal, false},
 	{"error method, no error", "{{.EPERM false}}", "false", tVal, true},
