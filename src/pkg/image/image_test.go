@@ -10,6 +10,7 @@ import (
 
 type image interface {
 	Image
+	Opaque() bool
 	Set(int, int, Color)
 	SubImage(Rectangle) Image
 }
@@ -47,6 +48,10 @@ func TestImage(t *testing.T) {
 		m.Set(6, 3, Opaque)
 		if !cmp(t, m.ColorModel(), Opaque, m.At(6, 3)) {
 			t.Errorf("%T: at (6, 3), want a non-zero color, got %v", m, m.At(6, 3))
+			continue
+		}
+		if !m.SubImage(Rect(6, 3, 7, 4)).(image).Opaque() {
+			t.Errorf("%T: at (6, 3) was not opaque", m)
 			continue
 		}
 		m = m.SubImage(Rect(3, 2, 9, 8)).(image)

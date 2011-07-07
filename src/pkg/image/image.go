@@ -548,7 +548,7 @@ func NewGray16(w, h int) *Gray16 {
 	return &Gray16{pix, w, Rectangle{ZP, Point{w, h}}}
 }
 
-// A PalettedColorModel represents a fixed palette of colors.
+// A PalettedColorModel represents a fixed palette of at most 256 colors.
 type PalettedColorModel []Color
 
 func diff(a, b uint32) uint32 {
@@ -648,7 +648,20 @@ func (p *Paletted) SubImage(r Rectangle) Image {
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *Paletted) Opaque() bool {
-	for _, c := range p.Palette {
+	var present [256]bool
+	base := p.Rect.Min.Y * p.Stride
+	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+		for _, c := range p.Pix[i0:i1] {
+			present[c] = true
+		}
+		i0 += p.Stride
+		i1 += p.Stride
+	}
+	for i, c := range p.Palette {
+		if !present[i] {
+			continue
+		}
 		_, _, _, a := c.RGBA()
 		if a != 0xffff {
 			return false
