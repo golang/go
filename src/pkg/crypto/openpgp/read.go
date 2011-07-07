@@ -250,11 +250,12 @@ FindLiteralData:
 			md.IsSigned = true
 			md.SignedByKeyId = p.KeyId
 			keys := keyring.KeysById(p.KeyId)
-			for _, key := range keys {
+			for i, key := range keys {
 				if key.SelfSignature.FlagsValid && !key.SelfSignature.FlagSign {
 					continue
 				}
-				md.SignedBy = &key
+				md.SignedBy = &keys[i]
+				break
 			}
 		case *packet.LiteralData:
 			md.LiteralData = p
