@@ -6,10 +6,9 @@
 # Test script run as a child process under cgi_test.go
 
 use strict;
-use CGI;
 use Cwd;
 
-my $q = CGI->new;
+my $q = MiniCGI->new;
 my $params = $q->Vars;
 
 if ($params->{"loc"}) {
@@ -53,3 +52,37 @@ if ($^O eq 'MSWin32' || $^O eq 'msys') {
   $dir = getcwd();
 }
 print "cwd=$dir\n";
+
+
+# A minimal version of CGI.pm, for people without the perl-modules
+# package installed.  (CGI.pm used to be part of the Perl core, but
+# some distros now bundle perl-base and perl-modules separately...)
+package MiniCGI;
+
+sub new {
+    my $class = shift;
+    return bless {}, $class;
+}
+
+sub Vars {
+    my $self = shift;
+    my $pairs;
+    if ($ENV{CONTENT_LENGTH}) {
+        $pairs = do { local $/; <STDIN> };
+    } else {
+        $pairs = $ENV{QUERY_STRING};
+    }
+    my $vars = {};
+    foreach my $kv (split(/&/, $pairs)) {
+        my ($k, $v) = split(/=/, $kv, 2);
+        $vars->{_urldecode($k)} = _urldecode($v);
+    }
+    return $vars;
+}
+
+sub _urldecode {
+    my $v = shift;
+    $v =~ tr/+/ /;
+    $v =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+    return $v;
+}
