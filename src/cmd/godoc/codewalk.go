@@ -168,7 +168,7 @@ func loadCodewalk(filename string) (*Codewalk, os.Error) {
 		cw.File[i] = f
 		i++
 	}
-	sort.SortStrings(cw.File)
+	sort.Strings(cw.File)
 
 	return cw, nil
 }

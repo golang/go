@@ -46,27 +46,27 @@ func TestSortStringSlice(t *testing.T) {
 	}
 }
 
-func TestSortInts(t *testing.T) {
+func TestInts(t *testing.T) {
 	data := ints
-	SortInts(data[0:])
+	Ints(data[0:])
 	if !IntsAreSorted(data[0:]) {
 		t.Errorf("sorted %v", ints)
 		t.Errorf("   got %v", data)
 	}
 }
 
-func TestSortFloat64s(t *testing.T) {
+func TestFloat64s(t *testing.T) {
 	data := float64s
-	SortFloat64s(data[0:])
+	Float64s(data[0:])
 	if !Float64sAreSorted(data[0:]) {
 		t.Errorf("sorted %v", float64s)
 		t.Errorf("   got %v", data)
 	}
 }
 
-func TestSortStrings(t *testing.T) {
+func TestStrings(t *testing.T) {
 	data := strings
-	SortStrings(data[0:])
+	Strings(data[0:])
 	if !StringsAreSorted(data[0:]) {
 		t.Errorf("sorted %v", strings)
 		t.Errorf("   got %v", data)
@@ -85,7 +85,7 @@ func TestSortLarge_Random(t *testing.T) {
 	if IntsAreSorted(data) {
 		t.Fatalf("terrible rand.rand")
 	}
-	SortInts(data)
+	Ints(data)
 	if !IntsAreSorted(data) {
 		t.Errorf("sort didn't sort - 1M ints")
 	}
@@ -99,7 +99,7 @@ func BenchmarkSortString1K(b *testing.B) {
 			data[i] = strconv.Itoa(i ^ 0x2cc)
 		}
 		b.StartTimer()
-		SortStrings(data)
+		Strings(data)
 		b.StopTimer()
 	}
 }
@@ -112,7 +112,7 @@ func BenchmarkSortInt1K(b *testing.B) {
 			data[i] = i ^ 0x2cc
 		}
 		b.StartTimer()
-		SortInts(data)
+		Ints(data)
 		b.StopTimer()
 	}
 }
@@ -125,7 +125,7 @@ func BenchmarkSortInt64K(b *testing.B) {
 			data[i] = i ^ 0xcccc
 		}
 		b.StartTimer()
-		SortInts(data)
+		Ints(data)
 		b.StopTimer()
 	}
 }
@@ -241,9 +241,9 @@ func TestBentleyMcIlroy(t *testing.T) {
 						for i := 0; i < n; i++ {
 							mdata[i] = data[i]
 						}
-						// SortInts is known to be correct
+						// Ints is known to be correct
 						// because mode Sort runs after mode _Copy.
-						SortInts(mdata)
+						Ints(mdata)
 					case _Dither:
 						for i := 0; i < n; i++ {
 							mdata[i] = data[i] + i%5

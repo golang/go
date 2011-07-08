@@ -176,7 +176,7 @@ func main() {
 		list[i] = f
 		i++
 	}
-	sort.SortStrings(list)
+	sort.Strings(list)
 	for _, f := range list {
 		fmt.Printf("%s\n", f)
 	}

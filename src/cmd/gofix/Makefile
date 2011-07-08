@@ -19,6 +19,7 @@ GOFILES=\
 	procattr.go\
 	reflect.go\
 	signal.go\
+	sorthelpers.go\
 	sortslice.go\
 	stringssplit.go\
 	typecheck.go\

@@ -954,7 +954,7 @@ func (list positionList) Swap(i, j int)      { list[i], list[j] = list[j], list[
 
 // unique returns the list sorted and with duplicate entries removed
 func unique(list []int) []int {
-	sort.SortInts(list)
+	sort.Ints(list)
 	var last int
 	i := 0
 	for _, x := range list {

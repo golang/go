@@ -1042,7 +1042,7 @@ func printCasefold() {
 		if orb == nil {
 			continue
 		}
-		sort.SortInts(orb)
+		sort.Ints(orb)
 		c := orb[len(orb)-1]
 		for _, d := range orb {
 			chars[c].caseOrbit = d

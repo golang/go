@@ -59,7 +59,7 @@ func TestLookupHost(t *testing.T) {
 	// duplicate addresses (a common bug due to the way
 	// getaddrinfo works).
 	addrs, _ := LookupHost("localhost")
-	sort.SortStrings(addrs)
+	sort.Strings(addrs)
 	for i := 0; i+1 < len(addrs); i++ {
 		if addrs[i] == addrs[i+1] {
 			t.Fatalf("LookupHost(\"localhost\") = %v, has duplicate addresses", addrs)

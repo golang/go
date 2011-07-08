@@ -108,7 +108,7 @@ func (t *T) MSort(m map[string]int) []string {
 		keys[i] = k
 		i++
 	}
-	sort.SortStrings(keys)
+	sort.Strings(keys)
 	return keys
 }
 

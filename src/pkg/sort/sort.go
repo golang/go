@@ -190,12 +190,12 @@ func (p StringSlice) Sort() { Sort(p) }
 
 // Convenience wrappers for common cases
 
-// SortInts sorts a slice of ints in increasing order.
-func SortInts(a []int) { Sort(IntSlice(a)) }
-// SortFloat64s sorts a slice of float64s in increasing order.
-func SortFloat64s(a []float64) { Sort(Float64Slice(a)) }
-// SortStrings sorts a slice of strings in increasing order.
-func SortStrings(a []string) { Sort(StringSlice(a)) }
+// Ints sorts a slice of ints in increasing order.
+func Ints(a []int) { Sort(IntSlice(a)) }
+// Float64s sorts a slice of float64s in increasing order.
+func Float64s(a []float64) { Sort(Float64Slice(a)) }
+// Strings sorts a slice of strings in increasing order.
+func Strings(a []string) { Sort(StringSlice(a)) }
 
 
 // IntsAreSorted tests whether a slice of ints is sorted in increasing order.

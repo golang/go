@@ -56,7 +56,7 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) os.Error {
 			keys = append(keys, k)
 		}
 	}
-	sort.SortStrings(keys)
+	sort.Strings(keys)
 	for _, k := range keys {
 		for _, v := range h[k] {
 			v = strings.Replace(v, "\n", " ", -1)
