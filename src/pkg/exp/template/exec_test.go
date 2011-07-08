@@ -44,6 +44,10 @@ type T struct {
 	NIL *int
 }
 
+type U struct {
+	V string
+}
+
 var tVal = &T{
 	I:      17,
 	U16:    16,
@@ -81,7 +85,7 @@ func newIntSlice(n ...int) *[]int {
 
 // Simple methods with and without arguments.
 func (t *T) Method0() string {
-	return "resultOfMethod0"
+	return "M0"
 }
 
 func (t *T) Method1(a int) int {
@@ -118,10 +122,6 @@ func (t *T) EPERM(error bool) (bool, os.Error) {
 		return true, os.EPERM
 	}
 	return false, nil
-}
-
-type U struct {
-	V string
 }
 
 type execTest struct {
@@ -169,14 +169,14 @@ var execTests = []execTest{
 	{"empty with struct", "{{.Empty4}}", "{v}", tVal, true},
 
 	// Method calls.
-	{".Method0", "-{{.Method0}}-", "-resultOfMethod0-", tVal, true},
+	{".Method0", "-{{.Method0}}-", "-M0-", tVal, true},
 	{".Method1(1234)", "-{{.Method1 1234}}-", "-1234-", tVal, true},
 	{".Method1(.I)", "-{{.Method1 .I}}-", "-17-", tVal, true},
 	{".Method2(3, .X)", "-{{.Method2 3 .X}}-", "-Method2: 3 x-", tVal, true},
 	{".Method2(.U16, `str`)", "-{{.Method2 .U16 `str`}}-", "-Method2: 16 str-", tVal, true},
 
 	// Pipelines.
-	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 resultOfMethod0-", tVal, true},
+	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
 
 	// If.
 	{"if true", "{{if true}}TRUE{{end}}", "TRUE", tVal, true},
@@ -202,8 +202,8 @@ var execTests = []execTest{
 	{"printf string", `{{printf "%s" "hello"}}`, "hello", tVal, true},
 	{"printf function", `{{printf "%#q" gopher}}`, "`gopher`", tVal, true},
 	{"printf field", `{{printf "%s" .U.V}}`, "v", tVal, true},
-	{"printf method", `{{printf "%s" .Method0}}`, "resultOfMethod0", tVal, true},
-	{"printf lots", `{{printf "%d %s %g %s" 127 "hello" 7-3i .Method0}}`, "127 hello (7-3i) resultOfMethod0", tVal, true},
+	{"printf method", `{{printf "%s" .Method0}}`, "M0", tVal, true},
+	{"printf lots", `{{printf "%d %s %g %s" 127 "hello" 7-3i .Method0}}`, "127 hello (7-3i) M0", tVal, true},
 
 	// HTML.
 	{"html", `{{html "<script>alert(\"XSS\");</script>"}}`,
@@ -248,6 +248,12 @@ var execTests = []execTest{
 	{"with emptymap", "{{with .MSIEmpty}}{{.}}{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"with map", "{{with .MSIone}}{{.}}{{else}}EMPTY{{end}}", "map[one:1]", tVal, true},
 	{"with empty interface, struct field", "{{with .Empty4}}{{.V}}{{end}}", "v", tVal, true},
+
+	// Fields and methods in parent struct.
+	{"with .U, get .I", "{{with .U}}{{.I}}{{end}}", "17", tVal, true},
+	{"with .U, do .Method0", "{{with .U}}{{.Method0}}{{end}}", "M0", tVal, true},
+	{"range .SI .I", "{{range .SI}}<{{.I}}>{{end}}", "<17><17><17>", tVal, true},
+	{"range .SI .Method0", "{{range .SI}}{{.Method0}}{{end}}", "M0M0M0", tVal, true},
 
 	// Range.
 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},
