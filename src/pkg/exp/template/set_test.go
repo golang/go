@@ -81,6 +81,10 @@ var setExecTests = []execTest{
 	{"invoke dot []int", `{{template "dot" .SI}}`, "[3 4 5]", tVal, true},
 	{"invoke dotV", `{{template "dotV" .U}}`, "v", tVal, true},
 	{"invoke nested int", `{{template "nested" .I}}`, "17", tVal, true},
+
+	// User-defined function: test argument evaluator.
+	{"testFunc literal", `{{oneArg "joe"}}`, "oneArg=joe", tVal, true},
+	{"testFunc .", `{{oneArg .}}`, "oneArg=joe", "joe", true},
 }
 
 const setText = `
