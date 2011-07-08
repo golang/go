@@ -249,12 +249,6 @@ var execTests = []execTest{
 	{"with map", "{{with .MSIone}}{{.}}{{else}}EMPTY{{end}}", "map[one:1]", tVal, true},
 	{"with empty interface, struct field", "{{with .Empty4}}{{.V}}{{end}}", "v", tVal, true},
 
-	// Fields and methods in parent struct.
-	{"with .U, get .I", "{{with .U}}{{.I}}{{end}}", "17", tVal, true},
-	{"with .U, do .Method0", "{{with .U}}{{.Method0}}{{end}}", "M0", tVal, true},
-	{"range .SI .I", "{{range .SI}}<{{.I}}>{{end}}", "<17><17><17>", tVal, true},
-	{"range .SI .Method0", "{{range .SI}}{{.Method0}}{{end}}", "M0M0M0", tVal, true},
-
 	// Range.
 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},
 	{"range empty no else", "{{range .SIEmpty}}-{{.}}-{{end}}", "", tVal, true},
