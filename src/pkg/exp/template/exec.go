@@ -267,7 +267,7 @@ func isExported(name string) bool {
 // The 'final' argument represents the return value from the preceding
 // value of the pipeline, if any.
 // If we're in a chain, such as (.X.Y.Z), .X and .Y cannot be methods;
-//canBeMethod will be true only for the last element of such chains (here .Z).
+// canBeMethod will be true only for the last element of such chains (here .Z).
 // The isFirst argument tells whether this is the first element of a chain (here .X).
 // If true, evaluation is allowed to examine the parent to resolve the reference.
 func (s *state) evalField(data reflect.Value, fieldName string, args []node, final reflect.Value,
