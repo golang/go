@@ -29,29 +29,29 @@ receiver and transmitter will do all necessary indirection and dereferencing to
 convert between gobs and actual Go values.  For instance, a gob type that is
 schematically,
 
-	struct { a, b int }
+	struct { A, B int }
 
 can be sent from or received into any of these Go types:
 
-	struct { a, b int }	// the same
-	*struct { a, b int }	// extra indirection of the struct
-	struct { *a, **b int }	// extra indirection of the fields
-	struct { a, b int64 }	// different concrete value type; see below
+	struct { A, B int }	// the same
+	*struct { A, B int }	// extra indirection of the struct
+	struct { *A, **B int }	// extra indirection of the fields
+	struct { A, B int64 }	// different concrete value type; see below
 
 It may also be received into any of these:
 
-	struct { a, b int }	// the same
-	struct { b, a int }	// ordering doesn't matter; matching is by name
-	struct { a, b, c int }	// extra field (c) ignored
-	struct { b int }	// missing field (a) ignored; data will be dropped
-	struct { b, c int }	// missing field (a) ignored; extra field (c) ignored.
+	struct { A, B int }	// the same
+	struct { B, A int }	// ordering doesn't matter; matching is by name
+	struct { A, B, C int }	// extra field (C) ignored
+	struct { B int }	// missing field (A) ignored; data will be dropped
+	struct { B, C int }	// missing field (A) ignored; extra field (C) ignored.
 
 Attempting to receive into these types will draw a decode error:
 
-	struct { a int; b uint }	// change of signedness for b
-	struct { a int; b float }	// change of type for b
+	struct { A int; B uint }	// change of signedness for B
+	struct { A int; B float }	// change of type for B
 	struct { }			// no field names in common
-	struct { c, d int }		// no field names in common
+	struct { C, D int }		// no field names in common
 
 Integers are transmitted two ways: arbitrary precision signed integers or
 arbitrary precision unsigned integers.  There is no int8, int16 etc.
@@ -269,12 +269,12 @@ StructValue:
 
 /*
 For implementers and the curious, here is an encoded example.  Given
-	type Point struct {x, y int}
+	type Point struct {X, Y int}
 and the value
 	p := Point{22, 33}
 the bytes transmitted that encode p will be:
 	1f ff 81 03 01 01 05 50 6f 69 6e 74 01 ff 82 00
-	01 02 01 01 78 01 04 00 01 01 79 01 04 00 00 00
+	01 02 01 01 58 01 04 00 01 01 59 01 04 00 00 00
 	07 ff 82 01 2c 01 42 00
 They are determined as follows.
 
@@ -310,13 +310,13 @@ reserved).
 	02	// There are two fields in the type (len(structType.field))
 	01	// Start of first field structure; add 1 to get field number 0: field[0].name
 	01	// 1 byte
-	78	// structType.field[0].name = "x"
+	58	// structType.field[0].name = "X"
 	01	// Add 1 to get field number 1: field[0].id
 	04	// structType.field[0].typeId is 2 (signed int).
 	00	// End of structType.field[0]; start structType.field[1]; set field number to -1.
 	01	// Add 1 to get field number 0: field[1].name
 	01	// 1 byte
-	79	// structType.field[1].name = "y"
+	59	// structType.field[1].name = "Y"
 	01	// Add 1 to get field number 1: field[0].id
 	04	// struct.Type.field[1].typeId is 2 (signed int).
 	00	// End of structType.field[1]; end of structType.field.
