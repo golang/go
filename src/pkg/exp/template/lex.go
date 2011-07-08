@@ -35,9 +35,10 @@ func (i item) String() string {
 type itemType int
 
 const (
-	itemError   itemType = iota // error occurred; value is text of error
-	itemBool                    // boolean constant
-	itemComplex                 // complex constant (1+2i); imaginary is just a number
+	itemError       itemType = iota // error occurred; value is text of error
+	itemBool                        // boolean constant
+	itemComplex                     // complex constant (1+2i); imaginary is just a number
+	itemColonEquals                 // colon-equals (':=') introducing a declaration
 	itemEOF
 	itemField      // alphanumeric identifier, starting with '.', possibly chained ('.x.y')
 	itemIdentifier // alphanumeric identifier
@@ -48,6 +49,7 @@ const (
 	itemRightDelim // right action delimiter
 	itemString     // quoted string (includes quotes)
 	itemText       // plain text
+	itemVariable   // variable starting with '$', such as '$' or  '$1' or '$hello'.
 	// Keywords appear after all the rest.
 	itemKeyword  // used only to delimit the keywords
 	itemDot      // the cursor, spelled '.'.
@@ -62,18 +64,20 @@ const (
 
 // Make the types prettyprint.
 var itemName = map[itemType]string{
-	itemError:      "error",
-	itemBool:       "bool",
-	itemComplex:    "complex",
-	itemEOF:        "EOF",
-	itemField:      "field",
-	itemIdentifier: "identifier",
-	itemLeftDelim:  "left delim",
-	itemNumber:     "number",
-	itemPipe:       "pipe",
-	itemRawString:  "raw string",
-	itemRightDelim: "right delim",
-	itemString:     "string",
+	itemError:       "error",
+	itemBool:        "bool",
+	itemComplex:     "complex",
+	itemColonEquals: ":=",
+	itemEOF:         "EOF",
+	itemField:       "field",
+	itemIdentifier:  "identifier",
+	itemLeftDelim:   "left delim",
+	itemNumber:      "number",
+	itemPipe:        "pipe",
+	itemRawString:   "raw string",
+	itemRightDelim:  "right delim",
+	itemString:      "string",
+	itemVariable:    "variable",
 	// keywords
 	itemDot:      ".",
 	itemDefine:   "define",
@@ -279,12 +283,19 @@ func lexInsideAction(l *lexer) stateFn {
 			return l.errorf("unclosed action")
 		case isSpace(r):
 			l.ignore()
+		case r == ':':
+			if l.next() != '=' {
+				return l.errorf("expected :=")
+			}
+			l.emit(itemColonEquals)
 		case r == '|':
 			l.emit(itemPipe)
 		case r == '"':
 			return lexQuote
 		case r == '`':
 			return lexRawQuote
+		case r == '$':
+			return lexIdentifier
 		case r == '.':
 			// special look-ahead for ".field" so we don't break l.backup().
 			if l.pos < len(l.input) {
@@ -324,6 +335,8 @@ Loop:
 				l.emit(key[word])
 			case word[0] == '.':
 				l.emit(itemField)
+			case word[0] == '$':
+				l.emit(itemVariable)
 			case word == "true", word == "false":
 				l.emit(itemBool)
 			default:
