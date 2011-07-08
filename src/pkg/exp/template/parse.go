@@ -539,8 +539,8 @@ func (t *Template) atEOF() bool {
 	return false
 }
 
-// Parse parses the template definition string to construct an internal representation
-// of the template for execution.
+// Parse parses the template definition string to construct an internal
+// representation of the template for execution.
 func (t *Template) Parse(s string) (err os.Error) {
 	t.startParse(nil, lex(t.name, s))
 	defer t.recover(&err)
@@ -549,8 +549,9 @@ func (t *Template) Parse(s string) (err os.Error) {
 	return
 }
 
-// ParseInSet parses the template definition string to construct an internal representation
-// of the template for execution. Function bindings are checked against those in the set.
+// ParseInSet parses the template definition string to construct an internal
+// representation of the template for execution.
+// Function bindings are checked against those in the set.
 func (t *Template) ParseInSet(s string, set *Set) (err os.Error) {
 	t.startParse(set, lex(t.name, s))
 	defer t.recover(&err)
@@ -559,7 +560,8 @@ func (t *Template) ParseInSet(s string, set *Set) (err os.Error) {
 	return
 }
 
-// parse is the helper for Parse. It triggers an error if we expect EOF but don't reach it.
+// parse is the helper for Parse.
+// It triggers an error if we expect EOF but don't reach it.
 func (t *Template) parse(toEOF bool) (next node) {
 	t.root, next = t.itemList(true)
 	if toEOF && next != nil {
