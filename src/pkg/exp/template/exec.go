@@ -82,14 +82,14 @@ func (s *state) walk(data reflect.Value, n node) {
 	switch n := n.(type) {
 	case *actionNode:
 		s.line = n.line
-		s.printValue(n, s.evalPipeline(data, n.pipeline))
+		s.printValue(n, s.evalPipeline(data, n.pipe))
 	case *listNode:
 		for _, node := range n.nodes {
 			s.walk(data, node)
 		}
 	case *ifNode:
 		s.line = n.line
-		s.walkIfOrWith(nodeIf, data, n.pipeline, n.list, n.elseList)
+		s.walkIfOrWith(nodeIf, data, n.pipe, n.list, n.elseList)
 	case *rangeNode:
 		s.line = n.line
 		s.walkRange(data, n)
@@ -102,7 +102,7 @@ func (s *state) walk(data reflect.Value, n node) {
 		s.walkTemplate(data, n)
 	case *withNode:
 		s.line = n.line
-		s.walkIfOrWith(nodeWith, data, n.pipeline, n.list, n.elseList)
+		s.walkIfOrWith(nodeWith, data, n.pipe, n.list, n.elseList)
 	default:
 		s.errorf("unknown node: %s", n)
 	}
@@ -110,7 +110,7 @@ func (s *state) walk(data reflect.Value, n node) {
 
 // walkIfOrWith walks an 'if' or 'with' node. The two control structures
 // are identical in behavior except that 'with' sets dot.
-func (s *state) walkIfOrWith(typ nodeType, data reflect.Value, pipe []*commandNode, list, elseList *listNode) {
+func (s *state) walkIfOrWith(typ nodeType, data reflect.Value, pipe *pipeNode, list, elseList *listNode) {
 	val := s.evalPipeline(data, pipe)
 	truth, ok := isTrue(val)
 	if !ok {
@@ -152,7 +152,7 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 }
 
 func (s *state) walkRange(data reflect.Value, r *rangeNode) {
-	val := s.evalPipeline(data, r.pipeline)
+	val := s.evalPipeline(data, r.pipe)
 	down := s.down(data)
 	switch val.Kind() {
 	case reflect.Array, reflect.Slice:
@@ -188,7 +188,7 @@ func (s *state) walkTemplate(data reflect.Value, t *templateNode) {
 	if tmpl == nil {
 		s.errorf("template %q not in set", name)
 	}
-	data = s.evalPipeline(data, t.pipeline)
+	data = s.evalPipeline(data, t.pipe)
 	newState := *s
 	newState.tmpl = tmpl
 	newState.walk(data, tmpl.root)
@@ -198,9 +198,9 @@ func (s *state) walkTemplate(data reflect.Value, t *templateNode) {
 // values from the data structure by examining fields, calling methods, and so on.
 // The printing of those values happens only through walk functions.
 
-func (s *state) evalPipeline(data reflect.Value, pipe []*commandNode) reflect.Value {
+func (s *state) evalPipeline(data reflect.Value, pipe *pipeNode) reflect.Value {
 	value := zero
-	for _, cmd := range pipe {
+	for _, cmd := range pipe.cmds {
 		value = s.evalCommand(data, cmd, value) // previous value is this one's final arg.
 		// If the object has type interface{}, dig down one level to the thing inside.
 		if value.Kind() == reflect.Interface && value.Type().NumMethod() == 0 {
