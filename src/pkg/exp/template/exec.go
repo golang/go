@@ -284,7 +284,10 @@ isFirst, canBeMethod bool) reflect.Value {
 		if canBeMethod {
 			// Need to get to a value of type *T to guarantee we see all
 			// methods of T and *T.
-			ptr := data.Addr()
+			ptr := data
+			if ptr.CanAddr() {
+				ptr = ptr.Addr()
+			}
 			if method, ok := methodByName(ptr.Type(), fieldName); ok {
 				return s.evalCall(ptr, method.Func, fieldName, true, args, final)
 			}
@@ -382,8 +385,14 @@ func (s *state) evalCall(v, fun reflect.Value, name string, isMethod bool, args 
 }
 
 func (s *state) evalArg(data reflect.Value, typ reflect.Type, n node) reflect.Value {
-	if field, ok := n.(*fieldNode); ok {
-		value := s.evalFieldNode(data, field, []node{n}, zero)
+	switch arg := n.(type) {
+	case *dotNode:
+		if !data.Type().AssignableTo(typ) {
+			s.errorf("wrong type for value; expected %s; got %s", typ, data.Type())
+		}
+		return data
+	case *fieldNode:
+		value := s.evalFieldNode(data, arg, []node{n}, zero)
 		if !value.Type().AssignableTo(typ) {
 			s.errorf("wrong type for value; expected %s; got %s", typ, value.Type())
 		}

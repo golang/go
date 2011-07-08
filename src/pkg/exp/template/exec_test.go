@@ -161,7 +161,7 @@ var execTests = []execTest{
 	{"*[]int[1]", "{{index .PSI 1}}", "22", tVal, true},
 	{"NIL", "{{.NIL}}", "<nil>", tVal, true},
 
-	// Emtpy interfaces holding values.
+	// Empty interfaces holding values.
 	{"empty nil", "{{.Empty0}}", "<no value>", tVal, true},
 	{"empty with int", "{{.Empty1}}", "3", tVal, true},
 	{"empty with string", "{{.Empty2}}", "empty2", tVal, true},
@@ -200,7 +200,7 @@ var execTests = []execTest{
 	{"printf float", `{{printf "%g" 3.5}}`, "3.5", tVal, true},
 	{"printf complex", `{{printf "%g" 1+7i}}`, "(1+7i)", tVal, true},
 	{"printf string", `{{printf "%s" "hello"}}`, "hello", tVal, true},
-	{"printf function", `{{printf "%#q" gopher}}`, "`gopher`", tVal, true},
+	{"printf function", `{{printf "%#q" zeroArgs}}`, "`zeroArgs`", tVal, true},
 	{"printf field", `{{printf "%s" .U.V}}`, "v", tVal, true},
 	{"printf method", `{{printf "%s" .Method0}}`, "M0", tVal, true},
 	{"printf lots", `{{printf "%d %s %g %s" 127 "hello" 7-3i .Method0}}`, "127 hello (7-3i) M0", tVal, true},
@@ -273,13 +273,17 @@ var execTests = []execTest{
 	{"error method, no error", "{{.EPERM false}}", "false", tVal, true},
 }
 
-func gopher() string {
-	return "gopher"
+func zeroArgs() string {
+	return "zeroArgs"
+}
+
+func oneArg(a string) string {
+	return "oneArg=" + a
 }
 
 func testExecute(execTests []execTest, set *Set, t *testing.T) {
 	b := new(bytes.Buffer)
-	funcs := FuncMap{"gopher": gopher}
+	funcs := FuncMap{"zeroArgs": zeroArgs, "oneArg": oneArg}
 	for _, test := range execTests {
 		tmpl := New(test.name).Funcs(funcs)
 		err := tmpl.Parse(test.input)
