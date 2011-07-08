@@ -27,6 +27,11 @@ type Template struct {
 	peekCount int
 }
 
+// Name returns the name of the template.
+func (t *Template) Name() string {
+	return t.name
+}
+
 // next returns the next token.
 func (t *Template) next() item {
 	if t.peekCount > 0 {

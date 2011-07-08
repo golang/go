@@ -22,21 +22,6 @@ type state struct {
 	wr   io.Writer
 	set  *Set
 	line int // line number for errors
-	// parent holds the state for the surrounding data object,
-	// typically the structure containing the field we are evaluating.
-	parent struct {
-		state *state
-		data  reflect.Value
-	}
-}
-
-// down returns a new state representing a child of the current state.
-// data represents the parent of the child.
-func (s *state) down(data reflect.Value) *state {
-	var child = *s
-	child.parent.state = s
-	child.parent.data = data
-	return &child
 }
 
 var zero reflect.Value
@@ -118,7 +103,7 @@ func (s *state) walkIfOrWith(typ nodeType, data reflect.Value, pipe *pipeNode, l
 	}
 	if truth {
 		if typ == nodeWith {
-			s.down(data).walk(val, list)
+			s.walk(val, list)
 		} else {
 			s.walk(data, list)
 		}
@@ -153,14 +138,13 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 
 func (s *state) walkRange(data reflect.Value, r *rangeNode) {
 	val := s.evalPipeline(data, r.pipe)
-	down := s.down(data)
 	switch val.Kind() {
 	case reflect.Array, reflect.Slice:
 		if val.Len() == 0 {
 			break
 		}
 		for i := 0; i < val.Len(); i++ {
-			down.walk(val.Index(i), r.list)
+			s.walk(val.Index(i), r.list)
 		}
 		return
 	case reflect.Map:
@@ -168,7 +152,7 @@ func (s *state) walkRange(data reflect.Value, r *rangeNode) {
 			break
 		}
 		for _, key := range val.MapKeys() {
-			down.walk(val.MapIndex(key), r.list)
+			s.walk(val.MapIndex(key), r.list)
 		}
 		return
 	default:
@@ -216,7 +200,8 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
 	case *fieldNode:
 		return s.evalFieldNode(data, n, cmd.args, final)
 	case *identifierNode:
-		return s.evalField(data, n.ident, cmd.args, final, true, true)
+		// Must be a function.
+		return s.evalFunction(data, n.ident, cmd.args, final)
 	}
 	if len(cmd.args) > 1 || final.IsValid() {
 		s.errorf("can't give argument to non-function %s", cmd.args[0])
@@ -251,10 +236,18 @@ func (s *state) evalFieldNode(data reflect.Value, field *fieldNode, args []node,
 	// Up to the last entry, it must be a field.
 	n := len(field.ident)
 	for i := 0; i < n-1; i++ {
-		data = s.evalField(data, field.ident[i], nil, zero, i == 0, false)
+		data = s.evalField(data, field.ident[i], nil, zero, false)
 	}
 	// Now it can be a field or method and if a method, gets arguments.
-	return s.evalField(data, field.ident[n-1], args, final, len(field.ident) == 1, true)
+	return s.evalField(data, field.ident[n-1], args, final, true)
+}
+
+func (s *state) evalFunction(data reflect.Value, name string, args []node, final reflect.Value) reflect.Value {
+	function, ok := findFunction(name, s.tmpl, s.set)
+	if !ok {
+		s.errorf("%q is not a defined function", name)
+	}
+	return s.evalCall(data, function, name, false, args, final)
 }
 
 // Is this an exported - upper case - name?
@@ -268,53 +261,38 @@ func isExported(name string) bool {
 // value of the pipeline, if any.
 // If we're in a chain, such as (.X.Y.Z), .X and .Y cannot be methods;
 // canBeMethod will be true only for the last element of such chains (here .Z).
-// The isFirst argument tells whether this is the first element of a chain (here .X).
-// If true, evaluation is allowed to examine the parent to resolve the reference.
 func (s *state) evalField(data reflect.Value, fieldName string, args []node, final reflect.Value,
-isFirst, canBeMethod bool) reflect.Value {
-	topState, topData := s, data // Remember initial state for diagnostics.
-	// Is it a function?
-	if function, ok := findFunction(fieldName, s.tmpl, s.set); ok {
-		return s.evalCall(data, function, fieldName, false, args, final)
+canBeMethod bool) reflect.Value {
+	typ := data.Type()
+	var isNil bool
+	data, isNil = indirect(data)
+	if canBeMethod {
+		// Need to get to a value of type *T to guarantee we see all
+		// methods of T and *T.
+		ptr := data
+		if ptr.CanAddr() {
+			ptr = ptr.Addr()
+		}
+		if method, ok := methodByName(ptr.Type(), fieldName); ok {
+			return s.evalCall(ptr, method.Func, fieldName, true, args, final)
+		}
 	}
-	// Look for methods and fields at this level, and then in the parent.
-	for s != nil {
-		var isNil bool
-		data, isNil = indirect(data)
-		if canBeMethod {
-			// Need to get to a value of type *T to guarantee we see all
-			// methods of T and *T.
-			ptr := data
-			if ptr.CanAddr() {
-				ptr = ptr.Addr()
+	// It's not a method; is it a field of a struct?
+	if data.Kind() == reflect.Struct {
+		field := data.FieldByName(fieldName)
+		if field.IsValid() {
+			if len(args) > 1 || final.IsValid() {
+				s.errorf("%s is not a method but has arguments", fieldName)
 			}
-			if method, ok := methodByName(ptr.Type(), fieldName); ok {
-				return s.evalCall(ptr, method.Func, fieldName, true, args, final)
+			if isExported(fieldName) { // valid and exported
+				return field
 			}
 		}
-		// It's not a method; is it a field of a struct?
-		if data.Kind() == reflect.Struct {
-			field := data.FieldByName(fieldName)
-			if field.IsValid() {
-				if len(args) > 1 || final.IsValid() {
-					s.errorf("%s is not a method but has arguments", fieldName)
-				}
-				if isExported(fieldName) { // valid and exported
-					return field
-				}
-			}
-		}
-		if !isFirst {
-			// We check for nil pointers only if there's no possibility of resolution
-			// in the parent.
-			if isNil {
-				s.errorf("nil pointer evaluating %s.%s", topData.Type(), fieldName)
-			}
-			break
-		}
-		s, data = s.parent.state, s.parent.data
 	}
-	topState.errorf("can't handle evaluation of field %s in type %s", fieldName, topData.Type())
+	if isNil {
+		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+	}
+	s.errorf("can't handle evaluation of field %s in type %s", fieldName, typ)
 	panic("not reached")
 }
 
@@ -489,7 +467,7 @@ func (s *state) evalEmptyInterface(data reflect.Value, typ reflect.Type, n node)
 	case *fieldNode:
 		return s.evalFieldNode(data, n, nil, zero)
 	case *identifierNode:
-		return s.evalField(data, n.ident, nil, zero, false, true)
+		return s.evalFunction(data, n.ident, nil, zero)
 	case *numberNode:
 		if n.isComplex {
 			return reflect.ValueOf(n.complex128)
