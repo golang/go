@@ -346,3 +346,84 @@ func TestJSEscaping(t *testing.T) {
 		}
 	}
 }
+
+// A nice example: walk a binary tree.
+
+type Tree struct {
+	Val         int
+	Left, Right *Tree
+}
+
+const treeTemplate = `
+	{{define "tree"}}
+	[
+		{{.Val}}
+		{{with .Left}}
+			{{template "tree" .}}
+		{{end}}
+		{{with .Right}}
+			{{template "tree" .}}
+		{{end}}
+	]
+	{{end}}
+`
+
+func TestTree(t *testing.T) {
+	var tree = &Tree{
+		1,
+		&Tree{
+			2, &Tree{
+				3,
+				&Tree{
+					4, nil, nil,
+				},
+				nil,
+			},
+			&Tree{
+				5,
+				&Tree{
+					6, nil, nil,
+				},
+				nil,
+			},
+		},
+		&Tree{
+			7,
+			&Tree{
+				8,
+				&Tree{
+					9, nil, nil,
+				},
+				nil,
+			},
+			&Tree{
+				10,
+				&Tree{
+					11, nil, nil,
+				},
+				nil,
+			},
+		},
+	}
+	set := NewSet()
+	err := set.Parse(treeTemplate)
+	if err != nil {
+		t.Fatal("parse error:", err)
+	}
+	var b bytes.Buffer
+	err = set.Execute("tree", &b, tree)
+	if err != nil {
+		t.Fatal("exec error:", err)
+	}
+	stripSpace := func(r int) int {
+		if r == '\t' || r == '\n' {
+			return -1
+		}
+		return r
+	}
+	result := strings.Map(stripSpace, b.String())
+	const expect = "[1[2[3[4]][5[6]]][7[8[9]][10[11]]]]"
+	if result != expect {
+		t.Errorf("expected %q got %q", expect, result)
+	}
+}
