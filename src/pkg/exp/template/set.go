@@ -81,7 +81,7 @@ func (s *Set) recover(errp *os.Error) {
 	return
 }
 
-// Parse parses the file into a set of named templates.
+// Parse parses a string into a set of named templates.
 func (s *Set) Parse(text string) (err os.Error) {
 	defer s.recover(&err)
 	lex := lex("set", text)
