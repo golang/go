@@ -14,6 +14,112 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-07-07">2011-07-07</h2>
+
+<pre>
+This weekly snapshot includes changes to the strings, http, reflect, json, and
+xml packages. Code that uses these packages will need changes. Most of these
+changes can be made automatically with gofix.
+
+The strings package's Split function has itself been split into Split and
+SplitN. SplitN is the same as the old Split. The new Split is equivalent to
+SplitN with a final argument of -1.
+
+The http package has a new FileSystem interface that provides access to files.
+The FileServer helper now takes a FileSystem argument instead of an explicit
+file system root. By implementing your own FileSystem you can use the
+FileServer to serve arbitrary data.
+
+The reflect package supports a new struct tag scheme that enables sharing of
+struct tags between multiple packages.
+In this scheme, the tags must be of the form:
+        key:"value" key2:"value2"
+reflect.StructField's Tag field now has type StructTag (a string type), which
+has method Get(key string) string that returns the associated value.
+Clients of json and xml will need to be updated. Code that says
+        type T struct {
+                X int "name"
+        }
+should become
+        type T struct {
+                X int `json:"name"`  // or `xml:"name"`
+        }
+Use govet to identify struct tags that need to be changed to use the new syntax.
+
+Other changes:
+* 5l, 6l, 8l: drop use of ed during build.
+* asn1: support T61 and UTF8 string.
+* bufio: do not cache Read errors (thanks Graham Miller).
+* build: make version.bash aware of branches.
+* cgi: don't depend on CGI.pm for tests.
+* codereview: make --ignore_hgpatch_failure work again,
+	restrict sync to default branch.
+* crypto/openpgp: add ability to reserialize keys,
+	bug fix (thanks Gideon Jan-Wessel Redelinghuys).
+* crypto/tls: fix generate_cert.go.
+* crypto/x509: prevent chain cycles in Verify.
+* csv: new package.
+* doc: remove ed from apt-get package list.
+* docs: fold the prog.sh scripting from makehtml into htmlgen itself.
+* ebnflint: better handling of stdin.
+* exp/regexp/syntax: new experimental RE2-based regexp implementation.
+* exp/template: a new experimental templating package.
+* fmt: add SkipSpace to fmt's ScanState interface.
+* fmt: rename errno and error to err for doc consistency.
+* gc: avoid package name ambiguity in error messages,
+	fix package quoting logic,
+	fixes for Plan 9 (thanks Lucio De Re).
+* go/build: evaluate symlinks before comparing path to GOPATH.
+* gob: use exported fields in structs in the package documentation.
+* godoc: ignore directories that begin with '.',
+	search GOPATH for documentation.
+* gofix: os/signal, path/filepath, and sort fixes (thanks Robert Hencke),
+* goinstall: add support for generic hosts (thanks Julian Phillips),
+	only report successfully-installed packages to the dashboard,
+	try to access via https (thanks Yasuhiro Matsumoto).
+* gotest: add -test.benchtime and -test.cpu flags.
+* html: fixes and improvements (thanks Yasuhiro Matsumoto).
+* http/cgi: add Handler.Dir to specify working directory (thanks Yasuhiro Matsumoto).
+* http: add StripPrefix handler wrapper,
+	assume ContentLength 0 on GET requests,
+	better handling of 0-length Request.Body,
+	do TLS handshake explicitly before copying TLS state,
+	document that ServerConn and ClientConn are low-level,
+	make NewChunkedReader public (thanks Andrew Balholm),
+	respect Handlers setting Connection: close in their response.
+* image: more tests, Paletted.Opaque optimization.
+* io.WriteString: if the object has a WriteString method, use it (thanks Evan Shaw).
+* ld: elide the Go symbol table when using -s (thanks Anthony Martin).
+* ld: fix ELF strip by removing overlap of sections (thanks Gustavo Niemeyer).
+* mime/multipart: parse LF-delimited messages, not just CRLF.
+* mime: permit lower-case media type parameters (thanks Pascal S. de Kloe).
+* misc/dashboard: new features and improvements (not yet deployed).
+* misc/emacs: update list of builtins (thanks Quan Yong Zhai).
+* misc/vim: allow only utf-8 for file encoding (thanks Yasuhiro Matsumoto).
+* os: fix documentation for FileInfo.Name,
+	simplify WriteString,
+	use a different symbol from syscall in mkunixsignals.sh.
+* path/filepath: enable TestWalk to run on windows (thanks Alex Brainman).
+* reflect: add MethodByName,
+	allow Len on String values.
+* regexp: document that Regexp is thread-safe.
+* runtime/cgo: check for errors from pthread_create (thanks Albert Strasheim).
+* runtime: add Semacquire/Semrelease benchmarks,
+	improved Semacquire/Semrelease implementation,
+	windows/amd64 port (thanks Wei Guangjing).
+* sync: add fast path to Once,
+	improve Mutex to allow successive acquisitions,
+	new and improved benchmarks.
+* syscall: regenerate zerrors for darwin/linux/freebsd,
+	support for tty options in StartProcess (thanks Ken Rockot).
+* testing: make ResetTimer not start/stop the timer,
+	scale benchmark precision to 0.01ns if needed.
+* time: zero-pad two-digit years.
+* unicode/maketables: update debugging data.
+* windows: define and use syscall.Handle (thanks Wei Guangjing).
+* xml: add Marshal and MarshalIndent.
+</pre>
+
 <h2 id="2011-06-23">2011-06-23</h2>
 
 <pre>
