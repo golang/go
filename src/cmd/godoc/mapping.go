@@ -120,7 +120,7 @@ func (m *Mapping) PrefixList() []string {
 		}
 
 		// sort the list and remove duplicate entries
-		sort.SortStrings(list)
+		sort.Strings(list)
 		i := 0
 		prev := ""
 		for _, path := range list {

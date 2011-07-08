@@ -80,7 +80,7 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
 	list = list[0:i]
 
 	// sort the list and remove duplicate entries
-	sort.SortStrings(list)
+	sort.Strings(list)
 	i = 0
 	prev := ""
 	for _, path := range list {

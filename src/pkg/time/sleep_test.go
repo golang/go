@@ -172,7 +172,7 @@ func testAfterQueuing(t *testing.T) os.Error {
 	for _, slot := range slots {
 		go await(slot, result, After(int64(slot)*Delta))
 	}
-	sort.SortInts(slots)
+	sort.Ints(slots)
 	for _, slot := range slots {
 		r := <-result
 		if r.slot != slot {

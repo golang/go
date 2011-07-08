@@ -115,7 +115,7 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
 			if len(indices) == 0 {
 				return
 			}
-			sort.SortInts(indices)
+			sort.Ints(indices)
 			pairs := make([]int, 2*len(indices))
 			result = make([][]int, len(indices))
 			count := 0
@@ -159,7 +159,7 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
 		if len(indices) == 0 {
 			return
 		}
-		sort.SortInts(indices)
+		sort.Ints(indices)
 		result = result[0:0]
 		prev := 0
 		for _, i := range indices {

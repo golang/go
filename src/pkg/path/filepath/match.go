@@ -272,7 +272,7 @@ func glob(dir, pattern string, matches []string) (m []string, e os.Error) {
 	if err != nil {
 		return
 	}
-	sort.SortStrings(names)
+	sort.Strings(names)
 
 	for _, n := range names {
 		matched, err := Match(pattern, n)

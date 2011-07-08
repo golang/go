@@ -551,7 +551,7 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc 
 	p := new(PackageDoc)
 	p.PackageName = doc.pkgName
 	p.ImportPath = importpath
-	sort.SortStrings(filenames)
+	sort.Strings(filenames)
 	p.Filenames = filenames
 	p.Doc = CommentText(doc.doc)
 	// makeTypeDocs may extend the list of doc.values and
