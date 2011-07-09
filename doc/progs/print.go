@@ -7,7 +7,7 @@ package main
 import "fmt"
 
 func main() {
-	var u64 uint64 = 1<<64-1
+	var u64 uint64 = 1<<64 - 1
 	fmt.Printf("%d %d\n", u64, int64(u64))
 
 	// harder stuff

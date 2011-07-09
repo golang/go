@@ -6,18 +6,18 @@ package main
 
 import (
 	"os"
-	"flag"  // command line option parser
+	"flag" // command line option parser
 )
 
 var omitNewline = flag.Bool("n", false, "don't print final newline")
 
 const (
-	Space = " "
+	Space   = " "
 	Newline = "\n"
 )
 
 func main() {
-	flag.Parse()   // Scans the arg list and sets up flags
+	flag.Parse() // Scans the arg list and sets up flags
 	var s string = ""
 	for i := 0; i < flag.NArg(); i++ {
 		if i > 0 {

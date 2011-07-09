@@ -10,8 +10,8 @@ import (
 )
 
 type File struct {
-	fd   syscall.Handle    // file descriptor number
-	name string // file name at Open time
+	fd   syscall.Handle // file descriptor number
+	name string         // file name at Open time
 }
 
 func newFile(fd syscall.Handle, name string) *File {
