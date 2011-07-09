@@ -469,6 +469,9 @@ func newTemplate(line int, name node, pipe *pipeNode) *templateNode {
 }
 
 func (t *templateNode) String() string {
+	if t.pipe == nil {
+		return fmt.Sprintf("{{template %s}}", t.name)
+	}
 	return fmt.Sprintf("{{template %s %s}}", t.name, t.pipe)
 }
 
@@ -748,7 +751,6 @@ func (t *Template) withControl() node {
 	return newWith(t.parseControl("with"))
 }
 
-
 // End:
 //	{{end}}
 // End keyword is past.
@@ -790,7 +792,12 @@ func (t *Template) templateControl() node {
 	default:
 		t.unexpected(token, "template invocation")
 	}
-	return newTemplate(t.lex.lineNumber(), name, t.pipeline("template"))
+	var pipe *pipeNode
+	if t.next().typ != itemRightDelim {
+		t.backup()
+		pipe = t.pipeline("template")
+	}
+	return newTemplate(t.lex.lineNumber(), name, pipe)
 }
 
 // command:

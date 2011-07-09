@@ -42,6 +42,8 @@ type T struct {
 	PI  *int
 	PSI *[]int
 	NIL *int
+	// Template to test evaluation of templates.
+	Tmpl *Template
 }
 
 type U struct {
@@ -67,6 +69,7 @@ var tVal = &T{
 	Empty4: &U{"v"},
 	PI:     newInt(23),
 	PSI:    newIntSlice(21, 22, 23),
+	Tmpl:   New("x").MustParse("test template"), // "x" is the value of .X
 }
 
 // Helpers for creation.

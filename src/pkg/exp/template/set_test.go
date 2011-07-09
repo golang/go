@@ -76,11 +76,15 @@ func TestSetParse(t *testing.T) {
 var setExecTests = []execTest{
 	{"empty", "", "", nil, true},
 	{"text", "some text", "some text", nil, true},
-	{"invoke text", `{{template "text" .SI}}`, "TEXT", tVal, true},
+	{"invoke x", `{{template "x" .SI}}`, "TEXT", tVal, true},
+	{"invoke x no args", `{{template "x"}}`, "TEXT", tVal, true},
 	{"invoke dot int", `{{template "dot" .I}}`, "17", tVal, true},
 	{"invoke dot []int", `{{template "dot" .SI}}`, "[3 4 5]", tVal, true},
 	{"invoke dotV", `{{template "dotV" .U}}`, "v", tVal, true},
 	{"invoke nested int", `{{template "nested" .I}}`, "17", tVal, true},
+	{"invoke template by field", `{{template .X}}`, "TEXT", tVal, true},
+	{"invoke template by template", `{{template .Tmpl}}`, "test template", tVal, true},
+	{"invalid: invoke template by []int", `{{template .SI}}`, "", tVal, false},
 
 	// User-defined function: test argument evaluator.
 	{"testFunc literal", `{{oneArg "joe"}}`, "oneArg=joe", tVal, true},
@@ -88,7 +92,7 @@ var setExecTests = []execTest{
 }
 
 const setText = `
-	{{define "text"}}TEXT{{end}}
+	{{define "x"}}TEXT{{end}}
 	{{define "dotV"}}{{.V}}{{end}}
 	{{define "dot"}}{{.}}{{end}}
 	{{define "nested"}}{{template "dot" .}}{{end}}
