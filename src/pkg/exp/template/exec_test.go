@@ -183,6 +183,7 @@ var execTests = []execTest{
 	{".Method1(.I)", "-{{.Method1 .I}}-", "-17-", tVal, true},
 	{".Method2(3, .X)", "-{{.Method2 3 .X}}-", "-Method2: 3 x-", tVal, true},
 	{".Method2(.U16, `str`)", "-{{.Method2 .U16 `str`}}-", "-Method2: 16 str-", tVal, true},
+	{".Method2(.U16, $x)", "{{if $x := .X}}-{{.Method2 .U16 $x}}{{end}}-", "-Method2: 16 x-", tVal, true},
 
 	// Pipelines.
 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
@@ -212,6 +213,8 @@ var execTests = []execTest{
 	{"printf function", `{{printf "%#q" zeroArgs}}`, "`zeroArgs`", tVal, true},
 	{"printf field", `{{printf "%s" .U.V}}`, "v", tVal, true},
 	{"printf method", `{{printf "%s" .Method0}}`, "M0", tVal, true},
+	{"printf dot", `{{with .I}}{{printf "%d" .}}{{end}}`, "17", tVal, true},
+	{"printf var", `{{with $x := .I}}{{printf "%d" $x}}{{end}}`, "17", tVal, true},
 	{"printf lots", `{{printf "%d %s %g %s" 127 "hello" 7-3i .Method0}}`, "127 hello (7-3i) M0", tVal, true},
 
 	// HTML.
