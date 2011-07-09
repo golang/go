@@ -138,7 +138,7 @@ func main() {
 	expvar.Publish("counter", ctr)
 
 	http.Handle("/", http.HandlerFunc(Logger))
-	http.Handle("/go/", http.FileServer(*webroot, "/go/"))
+	http.Handle("/go/", http.StripPrefix("/go/", http.FileServer(http.Dir(*webroot))))
 	http.Handle("/flags", http.HandlerFunc(FlagServer))
 	http.Handle("/args", http.HandlerFunc(ArgServer))
 	http.Handle("/go/hello", http.HandlerFunc(HelloServer))
