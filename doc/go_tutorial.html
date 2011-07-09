@@ -19,9 +19,6 @@ The presentation here proceeds through a series of modest programs to illustrate
 key features of the language.  All the programs work (at time of writing) and are
 checked into the repository in the directory <a href='/doc/progs'><code>/doc/progs/</code></a>.
 <p>
-Program snippets are annotated with the line number in the original file; for
-cleanliness, blank lines remain blank.
-<p>
 <h2>Hello, World</h2>
 <p>
 Let's start in the usual way:
@@ -29,7 +26,7 @@ Let's start in the usual way:
 <pre><!-- progs/helloworld.go /package/ $
 -->package main
 
-import fmt &#34;fmt&#34;  // Package implementing formatted I/O.
+import fmt &#34;fmt&#34; // Package implementing formatted I/O.
 
 func main() {
     fmt.Printf(&#34;Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n&#34;)
@@ -121,18 +118,18 @@ Next up, here's a version of the Unix utility <code>echo(1)</code>:
 
 import (
     &#34;os&#34;
-    &#34;flag&#34;  // command line option parser
+    &#34;flag&#34; // command line option parser
 )
 
 var omitNewline = flag.Bool(&#34;n&#34;, false, &#34;don&#39;t print final newline&#34;)
 
 const (
-    Space = &#34; &#34;
+    Space   = &#34; &#34;
     Newline = &#34;\n&#34;
 )
 
 func main() {
-    flag.Parse()   // Scans the arg list and sets up flags
+    flag.Parse() // Scans the arg list and sets up flags
     var s string = &#34;&#34;
     for i := 0; i &lt; flag.NArg(); i++ {
         if i &gt; 0 {
@@ -176,12 +173,13 @@ a naming conflict.
 <p>
 Given <code>os.Stdout</code> we can use its <code>WriteString</code> method to print the string.
 <p>
-Having imported the <code>flag</code> package, line 12 creates a global variable to hold
-the value of echo's <code>-n</code> flag. The variable <code>omitNewline</code> has type <code>*bool</code>, pointer
-to <code>bool</code>.
+After importing the <code>flag</code> package, we use a <code>var</code> declaration
+to create and initialize a global variable, called <code>omitNewline</code>,
+to hold the value of echo's <code>-n</code> flag. 
+The variable  has type <code>*bool</code>, pointer to <code>bool</code>.
 <p>
-In <code>main.main</code>, we parse the arguments (line 20) and then create a local
-string variable we will use to build the output.
+In <code>main.main</code>, we parse the arguments (the call to <code>flag.Parse</code>) and then create a local
+string variable with which to build the output.
 <p>
 The declaration statement has the form
 <p>
@@ -261,7 +259,9 @@ reassigning it.  This snippet from <code>strings.go</code> is legal code:
 <p>
 <pre><!-- progs/strings.go /hello/ /ciao/
 -->    s := &#34;hello&#34;
-    if s[1] != 'e' { os.Exit(1) }
+    if s[1] != 'e' {
+        os.Exit(1)
+    }
     s = &#34;good bye&#34;
     var p *string = &amp;s
     *p = &#34;ciao&#34;
@@ -540,7 +540,7 @@ return n
 </pre>
 <p>
 but for simple structures like <code>File</code> it's easier to return the address of a 
-composite literal, as is done here on line 21.
+composite literal, as is done here in the <code>return</code> statement from <code>newFile</code>.
 <p>
 We can use the factory to construct some familiar, exported variables of type <code>*File</code>:
 <p>
@@ -573,9 +573,9 @@ multi-value return as a parenthesized list of declarations; syntactically
 they look just like a second parameter list.  The function
 <code>syscall.Open</code>
 also has a multi-value return, which we can grab with the multi-variable
-declaration on line 31; it declares <code>r</code> and <code>e</code> to hold the two values,
+declaration on the first line; it declares <code>r</code> and <code>e</code> to hold the two values,
 both of type <code>int</code> (although you'd have to look at the <code>syscall</code> package
-to see that).  Finally, line 35 returns two values: a pointer to the new <code>File</code>
+to see that).  Finally, <code>OpenFile</code> returns two values: a pointer to the new <code>File</code>
 and the error.  If <code>syscall.Open</code> fails, the file descriptor <code>r</code> will
 be negative and <code>newFile</code> will return <code>nil</code>.
 <p>
@@ -689,7 +689,7 @@ func main() {
     file.Stdout.Write(hello)
     f, err := file.Open(&#34;/does/not/exist&#34;)
     if f == nil {
-        fmt.Printf(&#34;can&#39;t open file; err=%s\n&#34;,  err.String())
+        fmt.Printf(&#34;can&#39;t open file; err=%s\n&#34;, err.String())
         os.Exit(1)
     }
 }
@@ -938,9 +938,9 @@ arrays of integers, strings, etc.; here's the code for arrays of <code>int</code
 <pre><!-- progs/sort.go /type.*IntSlice/ /Swap/
 -->type IntSlice []int
 
-func (p IntSlice) Len() int            { return len(p) }
-func (p IntSlice) Less(i, j int) bool  { return p[i] &lt; p[j] }
-func (p IntSlice) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+func (p IntSlice) Len() int           { return len(p) }
+func (p IntSlice) Less(i, j int) bool { return p[i] &lt; p[j] }
+func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 </pre>
 <p>
 Here we see methods defined for non-<code>struct</code> types.  You can define methods
@@ -966,18 +966,18 @@ to implement the three methods for that type, like this:
 <p>
 <pre><!-- progs/sortmain.go /type.day/ /Swap/
 -->type day struct {
-    num        int
-    shortName  string
-    longName   string
+    num       int
+    shortName string
+    longName  string
 }
 
 type dayArray struct {
     data []*day
 }
 
-func (p *dayArray) Len() int            { return len(p.data) }
-func (p *dayArray) Less(i, j int) bool  { return p.data[i].num &lt; p.data[j].num }
-func (p *dayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i] }
+func (p *dayArray) Len() int           { return len(p.data) }
+func (p *dayArray) Less(i, j int) bool { return p.data[i].num &lt; p.data[j].num }
+func (p *dayArray) Swap(i, j int)      { p.data[i], p.data[j] = p.data[j], p.data[i] }
 </pre>
 <p>
 <p>
@@ -1013,7 +1013,7 @@ can just say <code>%d</code>; <code>Printf</code> knows the size and signedness 
 integer and can do the right thing for you.  The snippet
 <p>
 <pre><!-- progs/print.go 10 11
--->    var u64 uint64 = 1&lt;&lt;64-1
+-->    var u64 uint64 = 1&lt;&lt;64 - 1
     fmt.Printf(&#34;%d %d\n&#34;, u64, int64(u64))
 </pre>
 <p>
@@ -1183,7 +1183,7 @@ Here is the first function in <code>progs/sieve.go</code>:
 -->// Send the sequence 2, 3, 4, ... to channel 'ch'.
 func generate(ch chan int) {
     for i := 2; ; i++ {
-        ch &lt;- i  // Send &#39;i&#39; to channel &#39;ch&#39;.
+        ch &lt;- i // Send &#39;i&#39; to channel &#39;ch&#39;.
     }
 }
 </pre>
@@ -1203,9 +1203,9 @@ operator <code>&lt;-</code> (receive) retrieves the next value on the channel.
 // removing those divisible by 'prime'.
 func filter(in, out chan int, prime int) {
     for {
-        i := &lt;-in  // Receive value of new variable &#39;i&#39; from &#39;in&#39;.
-        if i % prime != 0 {
-            out &lt;- i  // Send &#39;i&#39; to channel &#39;out&#39;.
+        i := &lt;-in // Receive value of new variable &#39;i&#39; from &#39;in&#39;.
+        if i%prime != 0 {
+            out &lt;- i // Send &#39;i&#39; to channel &#39;out&#39;.
         }
     }
 }
@@ -1238,8 +1238,8 @@ together:
 <p>
 <pre><!-- progs/sieve.go /func.main/ /^}/
 -->func main() {
-    ch := make(chan int)  // Create a new channel.
-    go generate(ch)  // Start generate() as a goroutine.
+    ch := make(chan int)       // Create a new channel.
+    go generate(ch)            // Start generate() as a goroutine.
     for i := 0; i &lt; 100; i++ { // Print the first hundred primes.
         prime := &lt;-ch
         fmt.Println(prime)
@@ -1262,7 +1262,7 @@ of <code>generate</code>, from <code>progs/sieve1.go</code>:
 <pre><!-- progs/sieve1.go /func.generate/ /^}/
 -->func generate() chan int {
     ch := make(chan int)
-    go func(){
+    go func() {
         for i := 2; ; i++ {
             ch &lt;- i
         }
@@ -1288,7 +1288,7 @@ The same change can be made to <code>filter</code>:
     out := make(chan int)
     go func() {
         for {
-            if i := &lt;-in; i % prime != 0 {
+            if i := &lt;-in; i%prime != 0 {
                 out &lt;- i
             }
         }
@@ -1337,8 +1337,8 @@ that will be used for the reply.
 <p>
 <pre><!-- progs/server.go /type.request/ /^}/
 -->type request struct {
-    a, b    int
-    replyc  chan int
+    a, b   int
+    replyc chan int
 }
 </pre>
 <p>
@@ -1364,7 +1364,7 @@ a long-running operation, starting a goroutine to do the actual work.
 -->func server(op binOp, service chan *request) {
     for {
         req := &lt;-service
-        go run(op, req)  // don't wait for it
+        go run(op, req) // don't wait for it
     }
 }
 </pre>
@@ -1396,8 +1396,8 @@ does it check the results.
         req.replyc = make(chan int)
         adder &lt;- req
     }
-    for i := N-1; i &gt;= 0; i-- {   // doesn&#39;t matter what order
-        if &lt;-reqs[i].replyc != N + 2*i {
+    for i := N - 1; i &gt;= 0; i-- { // doesn&#39;t matter what order
+        if &lt;-reqs[i].replyc != N+2*i {
             fmt.Println(&#34;fail at&#34;, i)
         }
     }
@@ -1425,7 +1425,7 @@ It passes the quit channel to the <code>server</code> function, which uses it li
     for {
         select {
         case req := &lt;-service:
-            go run(op, req)  // don't wait for it
+            go run(op, req) // don't wait for it
         case &lt;-quit:
             return
         }

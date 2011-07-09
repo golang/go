@@ -20,9 +20,6 @@ The presentation here proceeds through a series of modest programs to illustrate
 key features of the language.  All the programs work (at time of writing) and are
 checked into the repository in the directory <a href='/doc/progs'>"/doc/progs/"</a>.
 
-Program snippets are annotated with the line number in the original file; for
-cleanliness, blank lines remain blank.
-
 Hello, World
 ----
 
@@ -136,12 +133,13 @@ a naming conflict.
 
 Given "os.Stdout" we can use its "WriteString" method to print the string.
 
-Having imported the "flag" package, line 12 creates a global variable to hold
-the value of echo's "-n" flag. The variable "omitNewline" has type "*bool", pointer
-to "bool".
+After importing the "flag" package, we use a "var" declaration
+to create and initialize a global variable, called "omitNewline",
+to hold the value of echo's "-n" flag. 
+The variable  has type "*bool", pointer to "bool".
 
-In "main.main", we parse the arguments (line 20) and then create a local
-string variable we will use to build the output.
+In "main.main", we parse the arguments (the call to "flag.Parse") and then create a local
+string variable with which to build the output.
 
 The declaration statement has the form
 
@@ -429,7 +427,7 @@ object.  We could write
 	return n
 
 but for simple structures like "File" it's easier to return the address of a 
-composite literal, as is done here on line 21.
+composite literal, as is done here in the "return" statement from "newFile".
 
 We can use the factory to construct some familiar, exported variables of type "*File":
 
@@ -447,9 +445,9 @@ multi-value return as a parenthesized list of declarations; syntactically
 they look just like a second parameter list.  The function
 "syscall.Open"
 also has a multi-value return, which we can grab with the multi-variable
-declaration on line 31; it declares "r" and "e" to hold the two values,
+declaration on the first line; it declares "r" and "e" to hold the two values,
 both of type "int" (although you'd have to look at the "syscall" package
-to see that).  Finally, line 35 returns two values: a pointer to the new "File"
+to see that).  Finally, "OpenFile" returns two values: a pointer to the new "File"
 and the error.  If "syscall.Open" fails, the file descriptor "r" will
 be negative and "newFile" will return "nil".
 
