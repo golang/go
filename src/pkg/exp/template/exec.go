@@ -51,8 +51,8 @@ func (s *state) setTop(value reflect.Value) {
 	s.vars[len(s.vars)-1].value = value
 }
 
-// value returns the value of the named variable.
-func (s *state) value(name string) reflect.Value {
+// varValue returns the value of the named variable.
+func (s *state) varValue(name string) reflect.Value {
 	for i := s.mark() - 1; i >= 0; i-- {
 		if s.vars[i].name == name {
 			return s.vars[i].value
@@ -112,23 +112,23 @@ func (s *state) walk(data reflect.Value, n node) {
 		s.line = n.line
 		defer s.pop(s.mark())
 		s.printValue(n, s.evalPipeline(data, n.pipe))
+	case *ifNode:
+		s.line = n.line
+		s.walkIfOrWith(nodeIf, data, n.pipe, n.list, n.elseList)
 	case *listNode:
 		for _, node := range n.nodes {
 			s.walk(data, node)
 		}
-	case *ifNode:
-		s.line = n.line
-		s.walkIfOrWith(nodeIf, data, n.pipe, n.list, n.elseList)
 	case *rangeNode:
 		s.line = n.line
 		s.walkRange(data, n)
+	case *templateNode:
+		s.line = n.line
+		s.walkTemplate(data, n)
 	case *textNode:
 		if _, err := s.wr.Write(n.text); err != nil {
 			s.error(err)
 		}
-	case *templateNode:
-		s.line = n.line
-		s.walkTemplate(data, n)
 	case *withNode:
 		s.line = n.line
 		s.walkIfOrWith(nodeWith, data, n.pipe, n.list, n.elseList)
@@ -165,16 +165,16 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 		truth = val.Len() > 0
 	case reflect.Bool:
 		truth = val.Bool()
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		truth = val.Int() != 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		truth = val.Uint() != 0
-	case reflect.Float32, reflect.Float64:
-		truth = val.Float() != 0
 	case reflect.Complex64, reflect.Complex128:
 		truth = val.Complex() != 0
 	case reflect.Chan, reflect.Func, reflect.Ptr:
 		truth = !val.IsNil()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		truth = val.Int() != 0
+	case reflect.Float32, reflect.Float64:
+		truth = val.Float() != 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		truth = val.Uint() != 0
 	default:
 		return
 	}
@@ -274,15 +274,13 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
 	case *identifierNode:
 		// Must be a function.
 		return s.evalFunction(data, n.ident, cmd.args, final)
-	case *variableNode:
-		return s.evalVariable(data, n.ident, cmd.args, final)
 	}
 	s.notAFunction(cmd.args, final)
-	switch word := cmd.args[0].(type) {
-	case *dotNode:
-		return data
+	switch word := firstWord.(type) {
 	case *boolNode:
 		return reflect.ValueOf(word.true)
+	case *dotNode:
+		return data
 	case *numberNode:
 		// These are ideal constants but we don't know the type
 		// and we have no context.  (If it was a method argument,
@@ -299,6 +297,8 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
 		}
 	case *stringNode:
 		return reflect.ValueOf(word.text)
+	case *variableNode:
+		return s.varValue(word.ident)
 	}
 	s.errorf("can't handle command %q", firstWord)
 	panic("not reached")
@@ -320,11 +320,6 @@ func (s *state) evalFunction(data reflect.Value, name string, args []node, final
 		s.errorf("%q is not a defined function", name)
 	}
 	return s.evalCall(data, function, name, false, args, final)
-}
-
-func (s *state) evalVariable(data reflect.Value, name string, args []node, final reflect.Value) reflect.Value {
-	s.notAFunction(args, final) // Can't invoke function-valued variables - too confusing.
-	return s.value(name)
 }
 
 // Is this an exported - upper case - name?
@@ -439,37 +434,40 @@ func (s *state) evalCall(v, fun reflect.Value, name string, isMethod bool, args 
 	return result[0]
 }
 
+// validateType guarantees that the value is assignable to the type.
+func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Value {
+	if !value.Type().AssignableTo(typ) {
+		s.errorf("wrong type for value; expected %s; got %s", typ, value.Type())
+	}
+	return value
+}
+
 func (s *state) evalArg(data reflect.Value, typ reflect.Type, n node) reflect.Value {
 	switch arg := n.(type) {
 	case *dotNode:
-		if !data.Type().AssignableTo(typ) {
-			s.errorf("wrong type for value; expected %s; got %s", typ, data.Type())
-		}
-		return data
+		return s.validateType(data, typ)
 	case *fieldNode:
-		value := s.evalFieldNode(data, arg, []node{n}, zero)
-		if !value.Type().AssignableTo(typ) {
-			s.errorf("wrong type for value; expected %s; got %s", typ, value.Type())
-		}
-		return value
+		return s.validateType(s.evalFieldNode(data, arg, []node{n}, zero), typ)
+	case *variableNode:
+		return s.validateType(s.varValue(arg.ident), typ)
 	}
 	switch typ.Kind() {
 	case reflect.Bool:
 		return s.evalBool(typ, n)
-	case reflect.String:
-		return s.evalString(typ, n)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return s.evalInteger(typ, n)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return s.evalUnsignedInteger(typ, n)
-	case reflect.Float32, reflect.Float64:
-		return s.evalFloat(typ, n)
 	case reflect.Complex64, reflect.Complex128:
 		return s.evalComplex(typ, n)
+	case reflect.Float32, reflect.Float64:
+		return s.evalFloat(typ, n)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return s.evalInteger(typ, n)
 	case reflect.Interface:
 		if typ.NumMethod() == 0 {
 			return s.evalEmptyInterface(data, typ, n)
 		}
+	case reflect.String:
+		return s.evalString(typ, n)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return s.evalUnsignedInteger(typ, n)
 	}
 	s.errorf("can't handle %s for arg of type %s", n, typ)
 	panic("not reached")
@@ -560,6 +558,8 @@ func (s *state) evalEmptyInterface(data reflect.Value, typ reflect.Type, n node)
 		}
 	case *stringNode:
 		return reflect.ValueOf(n.text)
+	case *variableNode:
+		return s.varValue(n.ident)
 	}
 	s.errorf("can't handle assignment of %s to empty interface argument", n)
 	panic("not reached")
