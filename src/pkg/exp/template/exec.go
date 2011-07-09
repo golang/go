@@ -220,13 +220,27 @@ func (s *state) walkRange(data reflect.Value, r *rangeNode) {
 }
 
 func (s *state) walkTemplate(data reflect.Value, t *templateNode) {
-	name := s.evalArg(data, reflect.TypeOf("string"), t.name).String()
-	if s.set == nil {
-		s.errorf("no set defined in which to invoke template named %q", name)
+	// Can't use evalArg because there are two types we expect.
+	arg := s.evalEmptyInterface(data, t.name)
+	if !arg.IsValid() {
+		s.errorf("invalid value in template invocation; expected string or *Template")
 	}
-	tmpl := s.set.tmpl[name]
-	if tmpl == nil {
-		s.errorf("template %q not in set", name)
+	var tmpl *Template
+	if arg.Type() == reflect.TypeOf((*Template)(nil)) {
+		tmpl = arg.Interface().(*Template)
+		if tmpl == nil {
+			s.errorf("nil template")
+		}
+	} else {
+		s.validateType(arg, reflect.TypeOf(""))
+		name := arg.String()
+		if s.set == nil {
+			s.errorf("no set defined in which to invoke template named %q", name)
+		}
+		tmpl = s.set.tmpl[name]
+		if tmpl == nil {
+			s.errorf("template %q not in set", name)
+		}
 	}
 	defer s.pop(s.mark())
 	data = s.evalPipeline(data, t.pipe)
@@ -245,8 +259,10 @@ func (s *state) walkTemplate(data reflect.Value, t *templateNode) {
 // pipeline has a variable declaration, the variable will be pushed on the
 // stack. Callers should therefore pop the stack after they are finished
 // executing commands depending on the pipeline value.
-func (s *state) evalPipeline(data reflect.Value, pipe *pipeNode) reflect.Value {
-	value := zero
+func (s *state) evalPipeline(data reflect.Value, pipe *pipeNode) (value reflect.Value) {
+	if pipe == nil {
+		return
+	}
 	for _, cmd := range pipe.cmds {
 		value = s.evalCommand(data, cmd, value) // previous value is this one's final arg.
 		// If the object has type interface{}, dig down one level to the thing inside.
@@ -434,8 +450,11 @@ func (s *state) evalCall(v, fun reflect.Value, name string, isMethod bool, args 
 	return result[0]
 }
 
-// validateType guarantees that the value is assignable to the type.
+// validateType guarantees that the value is valid and assignable to the type.
 func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Value {
+	if !value.IsValid() {
+		s.errorf("invalid value; expected %s", typ)
+	}
 	if !value.Type().AssignableTo(typ) {
 		s.errorf("wrong type for value; expected %s; got %s", typ, value.Type())
 	}
@@ -462,7 +481,7 @@ func (s *state) evalArg(data reflect.Value, typ reflect.Type, n node) reflect.Va
 		return s.evalInteger(typ, n)
 	case reflect.Interface:
 		if typ.NumMethod() == 0 {
-			return s.evalEmptyInterface(data, typ, n)
+			return s.evalEmptyInterface(data, n)
 		}
 	case reflect.String:
 		return s.evalString(typ, n)
@@ -533,7 +552,7 @@ func (s *state) evalComplex(typ reflect.Type, n node) reflect.Value {
 	panic("not reached")
 }
 
-func (s *state) evalEmptyInterface(data reflect.Value, typ reflect.Type, n node) reflect.Value {
+func (s *state) evalEmptyInterface(data reflect.Value, n node) reflect.Value {
 	switch n := n.(type) {
 	case *boolNode:
 		return reflect.ValueOf(n.true)

@@ -174,6 +174,8 @@ var parseTests = []parseTest{
 		`[({{range [(command: [F=[SI]])]}} [(action: [(command: [{{<.>}}])])])]`},
 	{"constants", "{{range .SI 1 -3.2i true false }}{{end}}", noError,
 		`[({{range [(command: [F=[SI] N=1 N=-3.2i B=true B=false])]}} [])]`},
+	{"template", "{{template `x`}}", noError,
+		"[{{template S=`x`}}]"},
 	{"template", "{{template `x` .Y}}", noError,
 		"[{{template S=`x` [(command: [F=[Y]])]}}]"},
 	{"with", "{{with .X}}hello{{end}}", noError,
