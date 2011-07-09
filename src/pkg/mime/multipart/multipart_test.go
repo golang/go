@@ -352,3 +352,29 @@ func (s *slowReader) Read(p []byte) (int, os.Error) {
 	}
 	return s.r.Read(p[:1])
 }
+
+func TestLineContinuation(t *testing.T) {
+	// This body, extracted from an email, contains headers that span multiple
+	// lines.
+
+	// TODO: The original mail ended with a double-newline before the
+	// final delimiter; this was manually edited to use a CRLF.
+	testBody :=
+		"\n--Apple-Mail-2-292336769\nContent-Transfer-Encoding: 7bit\nContent-Type: text/plain;\n\tcharset=US-ASCII;\n\tdelsp=yes;\n\tformat=flowed\n\nI'm finding the same thing happening on my system (10.4.1).\n\n\n--Apple-Mail-2-292336769\nContent-Transfer-Encoding: quoted-printable\nContent-Type: text/html;\n\tcharset=ISO-8859-1\n\n<HTML><BODY>I'm finding the same thing =\nhappening on my system (10.4.1).=A0 But I built it with XCode =\n2.0.</BODY></=\nHTML>=\n\r\n--Apple-Mail-2-292336769--\n"
+
+	r := NewReader(strings.NewReader(testBody), "Apple-Mail-2-292336769")
+
+	for i := 0; i < 2; i++ {
+		part, err := r.NextPart()
+		if err != nil {
+			t.Fatalf("didn't get a part")
+		}
+		n, err := io.Copy(ioutil.Discard, part)
+		if err != nil {
+			t.Errorf("error reading part: %v", err)
+		}
+		if n <= 0 {
+			t.Errorf("read %d bytes; expected >0", n)
+		}
+	}
+}
