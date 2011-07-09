@@ -7,8 +7,8 @@ package main
 import "fmt"
 
 type request struct {
-	a, b	int
-	replyc	chan int
+	a, b   int
+	replyc chan int
 }
 
 type binOp func(a, b int) int
@@ -22,7 +22,7 @@ func server(op binOp, service chan *request, quit chan bool) {
 	for {
 		select {
 		case req := <-service:
-			go run(op, req)  // don't wait for it
+			go run(op, req) // don't wait for it
 		case <-quit:
 			return
 		}
@@ -47,8 +47,8 @@ func main() {
 		req.replyc = make(chan int)
 		adder <- req
 	}
-	for i := N-1; i >= 0; i-- {   // doesn't matter what order
-		if <-reqs[i].replyc != N + 2*i {
+	for i := N - 1; i >= 0; i-- { // doesn't matter what order
+		if <-reqs[i].replyc != N+2*i {
 			fmt.Println("fail at", i)
 		}
 	}
