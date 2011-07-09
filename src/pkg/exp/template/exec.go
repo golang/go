@@ -21,7 +21,45 @@ type state struct {
 	tmpl *Template
 	wr   io.Writer
 	set  *Set
-	line int // line number for errors
+	line int        // line number for errors
+	vars []variable // push-down stack of variable values.
+}
+
+// variable holds the dynamic value of a variable such as $, $x etc.
+type variable struct {
+	name  string
+	value reflect.Value
+}
+
+// push pushes a new variable on the stack.
+func (s *state) push(name string, value reflect.Value) {
+	s.vars = append(s.vars, variable{name, value})
+}
+
+// mark returns the length of the variable stack.
+func (s *state) mark() int {
+	return len(s.vars)
+}
+
+// pop pops the variable stack up to the mark.
+func (s *state) pop(mark int) {
+	s.vars = s.vars[0:mark]
+}
+
+// setTop overwrites the top variable on the stack. Used by range iterations.
+func (s *state) setTop(value reflect.Value) {
+	s.vars[len(s.vars)-1].value = value
+}
+
+// value returns the value of the named variable.
+func (s *state) value(name string) reflect.Value {
+	for i := s.mark() - 1; i >= 0; i-- {
+		if s.vars[i].name == name {
+			return s.vars[i].value
+		}
+	}
+	s.errorf("undefined variable: %s", name)
+	return zero
 }
 
 var zero reflect.Value
@@ -48,16 +86,21 @@ func (t *Template) Execute(wr io.Writer, data interface{}) os.Error {
 // from the specified set.
 func (t *Template) ExecuteInSet(wr io.Writer, data interface{}, set *Set) (err os.Error) {
 	defer t.recover(&err)
+	value := reflect.ValueOf(data)
 	state := &state{
 		tmpl: t,
 		wr:   wr,
 		set:  set,
 		line: 1,
+		vars: []variable{{"$", value}},
 	}
 	if t.root == nil {
 		state.errorf("must be parsed before execution")
 	}
-	state.walk(reflect.ValueOf(data), t.root)
+	state.walk(value, t.root)
+	if state.mark() != 1 {
+		t.errorf("internal error: variable stack at %d", state.mark())
+	}
 	return
 }
 
@@ -67,6 +110,7 @@ func (s *state) walk(data reflect.Value, n node) {
 	switch n := n.(type) {
 	case *actionNode:
 		s.line = n.line
+		defer s.pop(s.mark())
 		s.printValue(n, s.evalPipeline(data, n.pipe))
 	case *listNode:
 		for _, node := range n.nodes {
@@ -96,6 +140,7 @@ func (s *state) walk(data reflect.Value, n node) {
 // walkIfOrWith walks an 'if' or 'with' node. The two control structures
 // are identical in behavior except that 'with' sets dot.
 func (s *state) walkIfOrWith(typ nodeType, data reflect.Value, pipe *pipeNode, list, elseList *listNode) {
+	defer s.pop(s.mark())
 	val := s.evalPipeline(data, pipe)
 	truth, ok := isTrue(val)
 	if !ok {
@@ -137,14 +182,20 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 }
 
 func (s *state) walkRange(data reflect.Value, r *rangeNode) {
-	val := s.evalPipeline(data, r.pipe)
+	defer s.pop(s.mark())
+	val, _ := indirect(s.evalPipeline(data, r.pipe))
 	switch val.Kind() {
 	case reflect.Array, reflect.Slice:
 		if val.Len() == 0 {
 			break
 		}
 		for i := 0; i < val.Len(); i++ {
-			s.walk(val.Index(i), r.list)
+			elem := val.Index(i)
+			// Set $x to the element rather than the slice.
+			if r.pipe.decl != nil {
+				s.setTop(elem)
+			}
+			s.walk(elem, r.list)
 		}
 		return
 	case reflect.Map:
@@ -152,7 +203,12 @@ func (s *state) walkRange(data reflect.Value, r *rangeNode) {
 			break
 		}
 		for _, key := range val.MapKeys() {
-			s.walk(val.MapIndex(key), r.list)
+			elem := val.MapIndex(key)
+			// Set $x to the key rather than the map.
+			if r.pipe.decl != nil {
+				s.setTop(elem)
+			}
+			s.walk(elem, r.list)
 		}
 		return
 	default:
@@ -172,9 +228,12 @@ func (s *state) walkTemplate(data reflect.Value, t *templateNode) {
 	if tmpl == nil {
 		s.errorf("template %q not in set", name)
 	}
+	defer s.pop(s.mark())
 	data = s.evalPipeline(data, t.pipe)
 	newState := *s
 	newState.tmpl = tmpl
+	// No dynamic scoping: template invocations inherit no variables.
+	newState.vars = []variable{{"$", data}}
 	newState.walk(data, tmpl.root)
 }
 
@@ -182,6 +241,10 @@ func (s *state) walkTemplate(data reflect.Value, t *templateNode) {
 // values from the data structure by examining fields, calling methods, and so on.
 // The printing of those values happens only through walk functions.
 
+// evalPipeline returns the value acquired by evaluating a pipeline. If the
+// pipeline has a variable declaration, the variable will be pushed on the
+// stack. Callers should therefore pop the stack after they are finished
+// executing commands depending on the pipeline value.
 func (s *state) evalPipeline(data reflect.Value, pipe *pipeNode) reflect.Value {
 	value := zero
 	for _, cmd := range pipe.cmds {
@@ -191,7 +254,16 @@ func (s *state) evalPipeline(data reflect.Value, pipe *pipeNode) reflect.Value {
 			value = reflect.ValueOf(value.Interface()) // lovely!
 		}
 	}
+	if pipe.decl != nil {
+		s.push(pipe.decl.ident, value)
+	}
 	return value
+}
+
+func (s *state) notAFunction(args []node, final reflect.Value) {
+	if len(args) > 1 || final.IsValid() {
+		s.errorf("can't give argument to non-function %s", args[0])
+	}
 }
 
 func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.Value) reflect.Value {
@@ -202,10 +274,10 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
 	case *identifierNode:
 		// Must be a function.
 		return s.evalFunction(data, n.ident, cmd.args, final)
+	case *variableNode:
+		return s.evalVariable(data, n.ident, cmd.args, final)
 	}
-	if len(cmd.args) > 1 || final.IsValid() {
-		s.errorf("can't give argument to non-function %s", cmd.args[0])
-	}
+	s.notAFunction(cmd.args, final)
 	switch word := cmd.args[0].(type) {
 	case *dotNode:
 		return data
@@ -248,6 +320,11 @@ func (s *state) evalFunction(data reflect.Value, name string, args []node, final
 		s.errorf("%q is not a defined function", name)
 	}
 	return s.evalCall(data, function, name, false, args, final)
+}
+
+func (s *state) evalVariable(data reflect.Value, name string, args []node, final reflect.Value) reflect.Value {
+	s.notAFunction(args, final) // Can't invoke function-valued variables - too confusing.
+	return s.value(name)
 }
 
 // Is this an exported - upper case - name?
