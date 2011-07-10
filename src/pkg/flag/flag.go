@@ -66,6 +66,9 @@ import (
 	"strconv"
 )
 
+// ErrHelp is the error returned if the flag -help is invoked but no such flag is defined.
+var ErrHelp = os.NewError("flag: help requested")
+
 // -- Bool Value
 type boolValue bool
 
@@ -568,12 +571,18 @@ func Var(value Value, name string, usage string) {
 func (f *FlagSet) failf(format string, a ...interface{}) os.Error {
 	err := fmt.Errorf(format, a...)
 	fmt.Fprintln(os.Stderr, err)
+	f.usage()
+	return err
+}
+
+// usage calls the Usage method for the flag set, or the usage function if
+// the flag set is commandLine.
+func (f *FlagSet) usage() {
 	if f == commandLine {
 		Usage()
 	} else {
 		f.Usage()
 	}
-	return err
 }
 
 // parseOne parses one flag. It returns whether a flag was seen.
@@ -613,6 +622,10 @@ func (f *FlagSet) parseOne() (bool, os.Error) {
 	m := f.formal
 	flag, alreadythere := m[name] // BUG
 	if !alreadythere {
+		if name == "help" || name == "h" { // special case for nice help message.
+			f.usage()
+			return false, ErrHelp
+		}
 		return false, f.failf("flag provided but not defined: -%s", name)
 	}
 	if fv, ok := flag.Value.(*boolValue); ok { // special case: doesn't need an arg
@@ -645,6 +658,7 @@ func (f *FlagSet) parseOne() (bool, os.Error) {
 // Parse parses flag definitions from the argument list, which should not
 // include the command name.  Must be called after all flags in the FlagSet
 // are defined and before flags are accessed by the program.
+// The return value will be ErrHelp if -help was set but not defined.
 func (f *FlagSet) Parse(arguments []string) os.Error {
 	f.args = arguments
 	for {
