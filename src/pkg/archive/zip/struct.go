@@ -1,4 +1,23 @@
+// Copyright 2010 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+/*
+Package zip provides support for reading and writing ZIP archives.
+
+See: http://www.pkware.com/documents/casestudies/APPNOTE.TXT
+
+This package does not support ZIP64 or disk spanning.
+*/
 package zip
+
+import "os"
+
+// Compression methods.
+const (
+	Store   uint16 = 0
+	Deflate uint16 = 8
+)
 
 const (
 	fileHeaderSignature      = 0x04034b50
@@ -31,4 +50,14 @@ type directoryEnd struct {
 	directoryOffset    uint32 // relative to file
 	commentLen         uint16
 	comment            string
+}
+
+func recoverError(err *os.Error) {
+	if e := recover(); e != nil {
+		if osErr, ok := e.(os.Error); ok {
+			*err = osErr
+			return
+		}
+		panic(e)
+	}
 }

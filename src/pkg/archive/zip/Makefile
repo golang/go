@@ -8,5 +8,6 @@ TARG=archive/zip
 GOFILES=\
 	reader.go\
 	struct.go\
+	writer.go\
 
 include ../../../Make.pkg

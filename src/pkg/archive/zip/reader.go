@@ -2,13 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/*
-Package zip provides support for reading ZIP archives.
-
-See: http://www.pkware.com/documents/casestudies/APPNOTE.TXT
-
-This package does not support ZIP64 or disk spanning.
-*/
 package zip
 
 import (
@@ -24,9 +17,9 @@ import (
 )
 
 var (
-	FormatError       = os.NewError("not a valid zip file")
-	UnsupportedMethod = os.NewError("unsupported compression algorithm")
-	ChecksumError     = os.NewError("checksum error")
+	FormatError       = os.NewError("zip: not a valid zip file")
+	UnsupportedMethod = os.NewError("zip: unsupported compression algorithm")
+	ChecksumError     = os.NewError("zip: checksum error")
 )
 
 type Reader struct {
@@ -52,7 +45,7 @@ func (f *File) hasDataDescriptor() bool {
 	return f.Flags&0x8 != 0
 }
 
-// OpenReader will open the Zip file specified by name and return a ReaderCloser.
+// OpenReader will open the Zip file specified by name and return a ReadCloser.
 func OpenReader(name string) (*ReadCloser, os.Error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -111,6 +104,7 @@ func (rc *ReadCloser) Close() os.Error {
 // Open returns a ReadCloser that provides access to the File's contents.
 func (f *File) Open() (rc io.ReadCloser, err os.Error) {
 	off := int64(f.headerOffset)
+	size := int64(f.CompressedSize)
 	if f.bodyOffset == 0 {
 		r := io.NewSectionReader(f.zipr, off, f.zipsize-off)
 		if err = readFileHeader(f, r); err != nil {
@@ -119,21 +113,19 @@ func (f *File) Open() (rc io.ReadCloser, err os.Error) {
 		if f.bodyOffset, err = r.Seek(0, os.SEEK_CUR); err != nil {
 			return
 		}
-	}
-	size := int64(f.CompressedSize)
-	if f.hasDataDescriptor() {
 		if size == 0 {
-			// permit SectionReader to see the rest of the file
-			size = f.zipsize - (off + f.bodyOffset)
-		} else {
-			size += dataDescriptorLen
+			size = int64(f.CompressedSize)
 		}
+	}
+	if f.hasDataDescriptor() && size == 0 {
+		// permit SectionReader to see the rest of the file
+		size = f.zipsize - (off + f.bodyOffset)
 	}
 	r := io.NewSectionReader(f.zipr, off+f.bodyOffset, size)
 	switch f.Method {
-	case 0: // store (no compression)
+	case Store: // (no compression)
 		rc = ioutil.NopCloser(r)
-	case 8: // DEFLATE
+	case Deflate:
 		rc = flate.NewReader(r)
 	default:
 		err = UnsupportedMethod
@@ -171,11 +163,7 @@ func (r *checksumReader) Read(b []byte) (n int, err os.Error) {
 func (r *checksumReader) Close() os.Error { return r.rc.Close() }
 
 func readFileHeader(f *File, r io.Reader) (err os.Error) {
-	defer func() {
-		if rerr, ok := recover().(os.Error); ok {
-			err = rerr
-		}
-	}()
+	defer recoverError(&err)
 	var (
 		signature      uint32
 		filenameLength uint16
@@ -201,11 +189,7 @@ func readFileHeader(f *File, r io.Reader) (err os.Error) {
 }
 
 func readDirectoryHeader(f *File, r io.Reader) (err os.Error) {
-	defer func() {
-		if rerr, ok := recover().(os.Error); ok {
-			err = rerr
-		}
-	}()
+	defer recoverError(&err)
 	var (
 		signature          uint32
 		filenameLength     uint16
@@ -242,18 +226,14 @@ func readDirectoryHeader(f *File, r io.Reader) (err os.Error) {
 }
 
 func readDataDescriptor(r io.Reader, f *File) (err os.Error) {
-	defer func() {
-		if rerr, ok := recover().(os.Error); ok {
-			err = rerr
-		}
-	}()
+	defer recoverError(&err)
 	read(r, &f.CRC32)
 	read(r, &f.CompressedSize)
 	read(r, &f.UncompressedSize)
 	return
 }
 
-func readDirectoryEnd(r io.ReaderAt, size int64) (d *directoryEnd, err os.Error) {
+func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err os.Error) {
 	// look for directoryEndSignature in the last 1k, then in the last 65k
 	var b []byte
 	for i, bLen := range []int64{1024, 65 * 1024} {
@@ -274,14 +254,9 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (d *directoryEnd, err os.Error)
 	}
 
 	// read header into struct
-	defer func() {
-		if rerr, ok := recover().(os.Error); ok {
-			err = rerr
-			d = nil
-		}
-	}()
+	defer recoverError(&err)
 	br := bytes.NewBuffer(b[4:]) // skip over signature
-	d = new(directoryEnd)
+	d := new(directoryEnd)
 	read(br, &d.diskNbr)
 	read(br, &d.dirDiskNbr)
 	read(br, &d.dirRecordsThisDisk)
