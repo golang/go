@@ -17,17 +17,27 @@ import (
 
 // FuncMap is the type of the map defining the mapping from names to functions.
 // Each function must have either a single return value, or two return values of
-// which the second has type os.Error.
+// which the second has type os.Error. If the second argument evaluates to non-nil
+// during execution, execution terminates and the error is returned by Execute.
 type FuncMap map[string]interface{}
 
 var funcs = map[string]reflect.Value{
-	"and":    reflect.ValueOf(and),
-	"html":   reflect.ValueOf(HTMLEscaper),
-	"index":  reflect.ValueOf(index),
-	"js":     reflect.ValueOf(JSEscaper),
-	"not":    reflect.ValueOf(not),
-	"or":     reflect.ValueOf(or),
-	"printf": reflect.ValueOf(fmt.Sprintf),
+	"and":     reflect.ValueOf(and),
+	"html":    reflect.ValueOf(HTMLEscaper),
+	"index":   reflect.ValueOf(index),
+	"js":      reflect.ValueOf(JSEscaper),
+	"not":     reflect.ValueOf(not),
+	"or":      reflect.ValueOf(or),
+	"print":   reflect.ValueOf(fmt.Sprint),
+	"printf":  reflect.ValueOf(fmt.Sprintf),
+	"println": reflect.ValueOf(fmt.Sprintln),
+}
+
+// Funcs adds to the global function map the elements of the
+// argument map.   It panics if a value in the map is not a function
+// with appropriate return type.
+func Funcs(funcMap FuncMap) {
+	addFuncs(funcs, funcMap)
 }
 
 // addFuncs adds to values the functions in funcs, converting them to reflect.Values.
