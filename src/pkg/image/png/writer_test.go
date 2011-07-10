@@ -81,14 +81,14 @@ func TestWriter(t *testing.T) {
 	}
 }
 
-func TestSubimage(t *testing.T) {
+func TestSubImage(t *testing.T) {
 	m0 := image.NewRGBA(256, 256)
 	for y := 0; y < 256; y++ {
 		for x := 0; x < 256; x++ {
 			m0.Set(x, y, image.RGBAColor{uint8(x), uint8(y), 0, 255})
 		}
 	}
-	m0.Rect = image.Rect(50, 30, 250, 130)
+	m0 = m0.SubImage(image.Rect(50, 30, 250, 130)).(*image.RGBA)
 	m1, err := encodeDecode(m0)
 	if err != nil {
 		t.Error(err)

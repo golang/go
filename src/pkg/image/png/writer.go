@@ -324,8 +324,8 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
 			// We have previously verified that the alpha value is fully opaque.
 			cr0 := cr[0]
 			if rgba != nil {
-				yoff := y * rgba.Stride
-				for _, color := range rgba.Pix[yoff+b.Min.X : yoff+b.Max.X] {
+				offset := (y - b.Min.Y) * rgba.Stride
+				for _, color := range rgba.Pix[offset : offset+b.Dx()] {
 					cr0[i+0] = color.R
 					cr0[i+1] = color.G
 					cr0[i+2] = color.B
@@ -341,8 +341,8 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
 				}
 			}
 		case cbP8:
-			rowOffset := y * paletted.Stride
-			copy(cr[0][1:], paletted.Pix[rowOffset+b.Min.X:rowOffset+b.Max.X])
+			offset := (y - b.Min.Y) * paletted.Stride
+			copy(cr[0][1:], paletted.Pix[offset:offset+b.Dx()])
 		case cbTCA8:
 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
 			for x := b.Min.X; x < b.Max.X; x++ {

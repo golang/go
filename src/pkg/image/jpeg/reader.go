@@ -199,8 +199,8 @@ func (d *decoder) processDQT(n int) os.Error {
 // makeImg allocates and initializes the destination image.
 func (d *decoder) makeImg(h0, v0, mxx, myy int) {
 	if d.nComp == nGrayComponent {
-		d.img1 = image.NewGray(8*mxx, 8*myy)
-		d.img1.Rect = image.Rect(0, 0, d.width, d.height)
+		m := image.NewGray(8*mxx, 8*myy)
+		d.img1 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.Gray)
 		return
 	}
 	var subsampleRatio ycbcr.SubsampleRatio

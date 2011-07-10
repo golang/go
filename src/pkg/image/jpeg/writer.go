@@ -397,13 +397,13 @@ func rgbaToYCbCr(m *image.RGBA, p image.Point, yBlock, cbBlock, crBlock *block) 
 		if sj > ymax {
 			sj = ymax
 		}
-		yoff := sj * m.Stride
+		offset := (sj-b.Min.Y)*m.Stride - b.Min.X
 		for i := 0; i < 8; i++ {
 			sx := p.X + i
 			if sx > xmax {
 				sx = xmax
 			}
-			col := &m.Pix[yoff+sx]
+			col := &m.Pix[offset+sx]
 			yy, cb, cr := ycbcr.RGBToYCbCr(col.R, col.G, col.B)
 			yBlock[8*j+i] = int(yy)
 			cbBlock[8*j+i] = int(cb)

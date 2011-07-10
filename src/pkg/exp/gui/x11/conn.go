@@ -85,15 +85,15 @@ func (c *conn) writeSocket() {
 
 		for y := b.Min.Y; y < b.Max.Y; y++ {
 			setU32LE(c.flushBuf0[16:20], uint32(y<<16))
-			if _, err := c.w.Write(c.flushBuf0[0:24]); err != nil {
+			if _, err := c.w.Write(c.flushBuf0[:24]); err != nil {
 				if err != os.EOF {
 					log.Println("x11:", err.String())
 				}
 				return
 			}
-			p := c.img.Pix[y*c.img.Stride : (y+1)*c.img.Stride]
-			for x := b.Min.X; x < b.Max.X; {
-				nx := b.Max.X - x
+			p := c.img.Pix[(y-b.Min.Y)*c.img.Stride:]
+			for x, dx := 0, b.Dx(); x < dx; {
+				nx := dx - x
 				if nx > len(c.flushBuf1)/4 {
 					nx = len(c.flushBuf1) / 4
 				}
@@ -103,7 +103,7 @@ func (c *conn) writeSocket() {
 					c.flushBuf1[4*i+2] = rgba.R
 				}
 				x += nx
-				if _, err := c.w.Write(c.flushBuf1[0 : 4*nx]); err != nil {
+				if _, err := c.w.Write(c.flushBuf1[:4*nx]); err != nil {
 					if err != os.EOF {
 						log.Println("x11:", err.String())
 					}
@@ -154,7 +154,7 @@ func (c *conn) readSocket() {
 	defer close(c.eventc)
 	for {
 		// X events are always 32 bytes long.
-		if _, err := io.ReadFull(c.r, c.buf[0:32]); err != nil {
+		if _, err := io.ReadFull(c.r, c.buf[:32]); err != nil {
 			if err != os.EOF {
 				c.eventc <- gui.ErrEvent{err}
 			}
@@ -177,7 +177,7 @@ func (c *conn) readSocket() {
 			for i := keymapLo; i <= keymapHi; i++ {
 				m := keymap[i]
 				for j := range m {
-					u, err := readU32LE(c.r, c.buf[0:4])
+					u, err := readU32LE(c.r, c.buf[:4])
 					if err != nil {
 						if err != os.EOF {
 							c.eventc <- gui.ErrEvent{err}
@@ -260,14 +260,14 @@ func connect(display string) (conn net.Conn, displayStr string, err os.Error) {
 	// Parse the section before the colon.
 	var protocol, host, socket string
 	if display[0] == '/' {
-		socket = display[0:colonIdx]
+		socket = display[:colonIdx]
 	} else {
 		if i := strings.LastIndex(display, "/"); i < 0 {
 			// The default protocol is TCP.
 			protocol = "tcp"
-			host = display[0:colonIdx]
+			host = display[:colonIdx]
 		} else {
-			protocol = display[0:i]
+			protocol = display[:i]
 			host = display[i+1 : colonIdx]
 		}
 	}
@@ -279,7 +279,7 @@ func connect(display string) (conn net.Conn, displayStr string, err os.Error) {
 	if i := strings.LastIndex(after, "."); i < 0 {
 		displayStr = after
 	} else {
-		displayStr = after[0:i]
+		displayStr = after[:i]
 	}
 	displayInt, err := strconv.Atoi(displayStr)
 	if err != nil || displayInt < 0 {
@@ -339,7 +339,7 @@ func authenticate(w *bufio.Writer, displayStr string) os.Error {
 
 // readU8 reads a uint8 from r, using b as a scratch buffer.
 func readU8(r io.Reader, b []byte) (uint8, os.Error) {
-	_, err := io.ReadFull(r, b[0:1])
+	_, err := io.ReadFull(r, b[:1])
 	if err != nil {
 		return 0, err
 	}
@@ -348,7 +348,7 @@ func readU8(r io.Reader, b []byte) (uint8, os.Error) {
 
 // readU16LE reads a little-endian uint16 from r, using b as a scratch buffer.
 func readU16LE(r io.Reader, b []byte) (uint16, os.Error) {
-	_, err := io.ReadFull(r, b[0:2])
+	_, err := io.ReadFull(r, b[:2])
 	if err != nil {
 		return 0, err
 	}
@@ -357,14 +357,14 @@ func readU16LE(r io.Reader, b []byte) (uint16, os.Error) {
 
 // readU32LE reads a little-endian uint32 from r, using b as a scratch buffer.
 func readU32LE(r io.Reader, b []byte) (uint32, os.Error) {
-	_, err := io.ReadFull(r, b[0:4])
+	_, err := io.ReadFull(r, b[:4])
 	if err != nil {
 		return 0, err
 	}
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24, nil
 }
 
-// setU32LE sets b[0:4] to be the little-endian representation of u.
+// setU32LE sets b[:4] to be the little-endian representation of u.
 func setU32LE(b []byte, u uint32) {
 	b[0] = byte((u >> 0) & 0xff)
 	b[1] = byte((u >> 8) & 0xff)
@@ -375,7 +375,7 @@ func setU32LE(b []byte, u uint32) {
 // checkPixmapFormats checks that we have an agreeable X pixmap Format.
 func checkPixmapFormats(r io.Reader, b []byte, n int) (agree bool, err os.Error) {
 	for i := 0; i < n; i++ {
-		_, err = io.ReadFull(r, b[0:8])
+		_, err = io.ReadFull(r, b[:8])
 		if err != nil {
 			return
 		}
@@ -400,7 +400,7 @@ func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err o
 			return
 		}
 		// Ignore 4 bytes of padding.
-		_, err = io.ReadFull(r, b[0:4])
+		_, err = io.ReadFull(r, b[:4])
 		if err != nil {
 			return
 		}
@@ -433,7 +433,7 @@ func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err os.Err
 		}
 		// Ignore the next 7x4 bytes, which is: colormap, whitepixel, blackpixel, current input masks,
 		// width and height (pixels), width and height (mm), min and max installed maps.
-		_, err = io.ReadFull(r, b[0:28])
+		_, err = io.ReadFull(r, b[:28])
 		if err != nil {
 			return
 		}
@@ -462,26 +462,26 @@ func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err os.Err
 // handshake performs the protocol handshake with the X server, and ensures
 // that the server provides a compatible Screen, Depth, etc.
 func (c *conn) handshake() os.Error {
-	_, err := io.ReadFull(c.r, c.buf[0:8])
+	_, err := io.ReadFull(c.r, c.buf[:8])
 	if err != nil {
 		return err
 	}
-	// Byte 0:1 should be 1 (success), bytes 2:6 should be 0xb0000000 (major/minor version 11.0).
+	// Byte 0 should be 1 (success), bytes 2:6 should be 0xb0000000 (major/minor version 11.0).
 	if c.buf[0] != 1 || c.buf[2] != 11 || c.buf[3] != 0 || c.buf[4] != 0 || c.buf[5] != 0 {
 		return os.NewError("unsupported X version")
 	}
 	// Ignore the release number.
-	_, err = io.ReadFull(c.r, c.buf[0:4])
+	_, err = io.ReadFull(c.r, c.buf[:4])
 	if err != nil {
 		return err
 	}
 	// Read the resource ID base.
-	resourceIdBase, err := readU32LE(c.r, c.buf[0:4])
+	resourceIdBase, err := readU32LE(c.r, c.buf[:4])
 	if err != nil {
 		return err
 	}
 	// Read the resource ID mask.
-	resourceIdMask, err := readU32LE(c.r, c.buf[0:4])
+	resourceIdMask, err := readU32LE(c.r, c.buf[:4])
 	if err != nil {
 		return err
 	}
@@ -489,19 +489,19 @@ func (c *conn) handshake() os.Error {
 		return os.NewError("X resource ID mask is too small")
 	}
 	// Ignore the motion buffer size.
-	_, err = io.ReadFull(c.r, c.buf[0:4])
+	_, err = io.ReadFull(c.r, c.buf[:4])
 	if err != nil {
 		return err
 	}
 	// Read the vendor length and round it up to a multiple of 4,
 	// for X11 protocol alignment reasons.
-	vendorLen, err := readU16LE(c.r, c.buf[0:2])
+	vendorLen, err := readU16LE(c.r, c.buf[:2])
 	if err != nil {
 		return err
 	}
 	vendorLen = (vendorLen + 3) &^ 3
 	// Read the maximum request length.
-	maxReqLen, err := readU16LE(c.r, c.buf[0:2])
+	maxReqLen, err := readU16LE(c.r, c.buf[:2])
 	if err != nil {
 		return err
 	}
@@ -509,12 +509,12 @@ func (c *conn) handshake() os.Error {
 		return os.NewError("unsupported X maximum request length")
 	}
 	// Read the roots length.
-	rootsLen, err := readU8(c.r, c.buf[0:1])
+	rootsLen, err := readU8(c.r, c.buf[:1])
 	if err != nil {
 		return err
 	}
 	// Read the pixmap formats length.
-	pixmapFormatsLen, err := readU8(c.r, c.buf[0:1])
+	pixmapFormatsLen, err := readU8(c.r, c.buf[:1])
 	if err != nil {
 		return err
 	}
@@ -524,12 +524,12 @@ func (c *conn) handshake() os.Error {
 	if 10+int(vendorLen) > cap(c.buf) {
 		return os.NewError("unsupported X vendor")
 	}
-	_, err = io.ReadFull(c.r, c.buf[0:10+int(vendorLen)])
+	_, err = io.ReadFull(c.r, c.buf[:10+int(vendorLen)])
 	if err != nil {
 		return err
 	}
 	// Check that we have an agreeable pixmap format.
-	agree, err := checkPixmapFormats(c.r, c.buf[0:8], int(pixmapFormatsLen))
+	agree, err := checkPixmapFormats(c.r, c.buf[:8], int(pixmapFormatsLen))
 	if err != nil {
 		return err
 	}
@@ -537,7 +537,7 @@ func (c *conn) handshake() os.Error {
 		return os.NewError("unsupported X pixmap formats")
 	}
 	// Check that we have an agreeable screen.
-	root, visual, err := checkScreens(c.r, c.buf[0:24], int(rootsLen))
+	root, visual, err := checkScreens(c.r, c.buf[:24], int(rootsLen))
 	if err != nil {
 		return err
 	}
@@ -608,7 +608,7 @@ func NewWindowDisplay(display string) (gui.Window, os.Error) {
 	setU32LE(c.buf[72:76], 0x00020008) // 0x08 is the MapWindow opcode, and the message is 2 x 4 bytes long.
 	setU32LE(c.buf[76:80], uint32(c.window))
 	// Write the bytes.
-	_, err = c.w.Write(c.buf[0:80])
+	_, err = c.w.Write(c.buf[:80])
 	if err != nil {
 		return nil, err
 	}
