@@ -210,3 +210,46 @@ func TestChangingArgs(t *testing.T) {
 		t.Fatalf("expected true subcmd true [args] got %v %v %v %v", *before, cmd, *after, args)
 	}
 }
+
+// Test that -help invokes the usage message and returns ErrHelp.
+func TestHelp(t *testing.T) {
+	var helpCalled = false
+	fs := NewFlagSet("help test", ContinueOnError)
+	fs.Usage = func() { helpCalled = true }
+	var flag bool
+	fs.BoolVar(&flag, "flag", false, "regular flag")
+	// Regular flag invocation should work
+	err := fs.Parse([]string{"-flag=true"})
+	if err != nil {
+		t.Fatal("expected no error; got ", err)
+	}
+	if !flag {
+		t.Error("flag was not set by -flag")
+	}
+	if helpCalled {
+		t.Error("help called for regular flag")
+		helpCalled = false // reset for next test
+	}
+	// Help flag should work as expected.
+	err = fs.Parse([]string{"-help"})
+	if err == nil {
+		t.Fatal("error expected")
+	}
+	if err != ErrHelp {
+		t.Fatal("expected ErrHelp; got ", err)
+	}
+	if !helpCalled {
+		t.Fatal("help was not called")
+	}
+	// If we define a help flag, that should override.
+	var help bool
+	fs.BoolVar(&help, "help", false, "help flag")
+	helpCalled = false
+	err = fs.Parse([]string{"-help"})
+	if err != nil {
+		t.Fatal("expected no error for defined -help; got ", err)
+	}
+	if helpCalled {
+		t.Fatal("help was called; should not have been for defined help flag")
+	}
+}
