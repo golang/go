@@ -173,11 +173,10 @@ func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
 	cr, cg, cb, ca := src.RGBA()
 	// The 0x101 is here for the same reason as in drawRGBA.
 	a := (m - ca) * 0x101
-	x0, x1 := r.Min.X, r.Max.X
-	y0, y1 := r.Min.Y, r.Max.Y
-	for y := y0; y != y1; y++ {
-		dbase := y * dst.Stride
-		dpix := dst.Pix[dbase+x0 : dbase+x1]
+	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + r.Min.X - dst.Rect.Min.X
+	i1 := i0 + r.Dx()
+	for y := r.Min.Y; y != r.Max.Y; y++ {
+		dpix := dst.Pix[i0:i1]
 		for i, rgba := range dpix {
 			dr := (uint32(rgba.R)*a)/m + cr
 			dg := (uint32(rgba.G)*a)/m + cg
@@ -185,18 +184,15 @@ func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
 			da := (uint32(rgba.A)*a)/m + ca
 			dpix[i] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
+		i0 += dst.Stride
+		i1 += dst.Stride
 	}
 }
 
 func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
-	dx0, dx1 := r.Min.X, r.Max.X
-	dy0, dy1 := r.Min.Y, r.Max.Y
-	nrows := dy1 - dy0
-	sx0, sx1 := sp.X, sp.X+dx1-dx0
-	d0 := dy0*dst.Stride + dx0
-	d1 := dy0*dst.Stride + dx1
-	s0 := sp.Y*src.Stride + sx0
-	s1 := sp.Y*src.Stride + sx1
+	dx, dy := r.Dx(), r.Dy()
+	d0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + r.Min.X - dst.Rect.Min.X
+	s0 := (sp.Y-src.Rect.Min.Y)*src.Stride + sp.X - src.Rect.Min.X
 	var (
 		ddelta, sdelta int
 		i0, i1, idelta int
@@ -204,21 +200,19 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
 	if r.Min.Y < sp.Y || r.Min.Y == sp.Y && r.Min.X <= sp.X {
 		ddelta = dst.Stride
 		sdelta = src.Stride
-		i0, i1, idelta = 0, d1-d0, +1
+		i0, i1, idelta = 0, dx, +1
 	} else {
 		// If the source start point is higher than the destination start point, or equal height but to the left,
 		// then we compose the rows in right-to-left, bottom-up order instead of left-to-right, top-down.
-		d0 += (nrows - 1) * dst.Stride
-		d1 += (nrows - 1) * dst.Stride
-		s0 += (nrows - 1) * src.Stride
-		s1 += (nrows - 1) * src.Stride
+		d0 += (dy - 1) * dst.Stride
+		s0 += (dy - 1) * src.Stride
 		ddelta = -dst.Stride
 		sdelta = -src.Stride
-		i0, i1, idelta = d1-d0-1, -1, -1
+		i0, i1, idelta = dx-1, -1, -1
 	}
-	for ; nrows > 0; nrows-- {
-		dpix := dst.Pix[d0:d1]
-		spix := src.Pix[s0:s1]
+	for ; dy > 0; dy-- {
+		dpix := dst.Pix[d0:]
+		spix := src.Pix[s0:]
 		for i := i0; i != i1; i += idelta {
 			// For unknown reasons, even though both dpix[i] and spix[i] are
 			// image.RGBAColors, on an x86 CPU it seems fastest to call RGBA
@@ -238,17 +232,23 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
 			dpix[i] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
 		d0 += ddelta
-		d1 += ddelta
 		s0 += sdelta
-		s1 += sdelta
 	}
 }
 
 func drawNRGBAOver(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image.Point) {
-	for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
-		dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
-		spix := src.Pix[sy*src.Stride : (sy+1)*src.Stride]
-		for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
+	xMax := r.Max.X - dst.Rect.Min.X
+	yMax := r.Max.Y - dst.Rect.Min.Y
+
+	y := r.Min.Y - dst.Rect.Min.Y
+	sy := sp.Y - src.Rect.Min.Y
+	for ; y != yMax; y, sy = y+1, sy+1 {
+		dpix := dst.Pix[y*dst.Stride:]
+		spix := src.Pix[sy*src.Stride:]
+
+		x := r.Min.X - dst.Rect.Min.X
+		sx := sp.X - src.Rect.Min.X
+		for ; x != xMax; x, sx = x+1, sx+1 {
 			// Convert from non-premultiplied color to pre-multiplied color.
 			// The order of operations here is to match the NRGBAColor.RGBA
 			// method in image/color.go.
@@ -275,14 +275,13 @@ func drawNRGBAOver(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp imag
 }
 
 func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage, mask *image.Alpha, mp image.Point) {
-	x0, x1 := r.Min.X, r.Max.X
-	y0, y1 := r.Min.Y, r.Max.Y
+	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + r.Min.X - dst.Rect.Min.X
+	i1 := i0 + r.Dx()
+	j0 := (mp.Y-mask.Rect.Min.Y)*mask.Stride + mp.X - mask.Rect.Min.X
 	cr, cg, cb, ca := src.RGBA()
-	for y, my := y0, mp.Y; y != y1; y, my = y+1, my+1 {
-		dbase := y * dst.Stride
-		dpix := dst.Pix[dbase+x0 : dbase+x1]
-		mbase := my * mask.Stride
-		mpix := mask.Pix[mbase+mp.X:]
+	for y, my := r.Min.Y, mp.Y; y != r.Max.Y; y, my = y+1, my+1 {
+		dpix := dst.Pix[i0:i1]
+		mpix := mask.Pix[j0:]
 		for i, rgba := range dpix {
 			ma := uint32(mpix[i].A)
 			if ma == 0 {
@@ -301,6 +300,9 @@ func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage, ma
 			da = (da*a + ca*ma) / m
 			dpix[i] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
+		i0 += dst.Stride
+		i1 += dst.Stride
+		j0 += mask.Stride
 	}
 }
 
@@ -313,15 +315,13 @@ func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
 	// The built-in copy function is faster than a straightforward for loop to fill the destination with
 	// the color, but copy requires a slice source. We therefore use a for loop to fill the first row, and
 	// then use the first row as the slice source for the remaining rows.
-	dx0, dx1 := r.Min.X, r.Max.X
-	dy0, dy1 := r.Min.Y, r.Max.Y
-	dbase := dy0 * dst.Stride
-	i0, i1 := dbase+dx0, dbase+dx1
+	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + r.Min.X - dst.Rect.Min.X
+	i1 := i0 + r.Dx()
 	firstRow := dst.Pix[i0:i1]
 	for i := range firstRow {
 		firstRow[i] = color
 	}
-	for y := dy0 + 1; y < dy1; y++ {
+	for y := r.Min.Y + 1; y < r.Max.Y; y++ {
 		i0 += dst.Stride
 		i1 += dst.Stride
 		copy(dst.Pix[i0:i1], firstRow)
@@ -329,14 +329,9 @@ func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
 }
 
 func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
-	dx0, dx1 := r.Min.X, r.Max.X
-	dy0, dy1 := r.Min.Y, r.Max.Y
-	nrows := dy1 - dy0
-	sx0, sx1 := sp.X, sp.X+dx1-dx0
-	d0 := dy0*dst.Stride + dx0
-	d1 := dy0*dst.Stride + dx1
-	s0 := sp.Y*src.Stride + sx0
-	s1 := sp.Y*src.Stride + sx1
+	dx, dy := r.Dx(), r.Dy()
+	d0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + r.Min.X - dst.Rect.Min.X
+	s0 := (sp.Y-src.Rect.Min.Y)*src.Stride + sp.X - src.Rect.Min.X
 	var ddelta, sdelta int
 	if r.Min.Y <= sp.Y {
 		ddelta = dst.Stride
@@ -345,27 +340,31 @@ func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.P
 		// If the source start point is higher than the destination start point, then we compose the rows
 		// in bottom-up order instead of top-down. Unlike the drawCopyOver function, we don't have to
 		// check the x co-ordinates because the built-in copy function can handle overlapping slices.
-		d0 += (nrows - 1) * dst.Stride
-		d1 += (nrows - 1) * dst.Stride
-		s0 += (nrows - 1) * src.Stride
-		s1 += (nrows - 1) * src.Stride
+		d0 += (dy - 1) * dst.Stride
+		s0 += (dy - 1) * src.Stride
 		ddelta = -dst.Stride
 		sdelta = -src.Stride
 	}
-	for ; nrows > 0; nrows-- {
-		copy(dst.Pix[d0:d1], src.Pix[s0:s1])
+	for ; dy > 0; dy-- {
+		copy(dst.Pix[d0:d0+dx], src.Pix[s0:s0+dx])
 		d0 += ddelta
-		d1 += ddelta
 		s0 += sdelta
-		s1 += sdelta
 	}
 }
 
 func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image.Point) {
-	for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
-		dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
-		spix := src.Pix[sy*src.Stride : (sy+1)*src.Stride]
-		for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
+	xMax := r.Max.X - dst.Rect.Min.X
+	yMax := r.Max.Y - dst.Rect.Min.Y
+
+	y := r.Min.Y - dst.Rect.Min.Y
+	sy := sp.Y - src.Rect.Min.Y
+	for ; y != yMax; y, sy = y+1, sy+1 {
+		dpix := dst.Pix[y*dst.Stride:]
+		spix := src.Pix[sy*src.Stride:]
+
+		x := r.Min.X - dst.Rect.Min.X
+		sx := sp.X - src.Rect.Min.X
+		for ; x != xMax; x, sx = x+1, sx+1 {
 			// Convert from non-premultiplied color to pre-multiplied color.
 			// The order of operations here is to match the NRGBAColor.RGBA
 			// method in image/color.go.
@@ -388,11 +387,15 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Po
 		yy, cb, cr uint8
 		rr, gg, bb uint8
 	)
+	x0 := r.Min.X - dst.Rect.Min.X
+	x1 := r.Max.X - dst.Rect.Min.X
+	y0 := r.Min.Y - dst.Rect.Min.Y
+	y1 := r.Max.Y - dst.Rect.Min.Y
 	switch src.SubsampleRatio {
 	case ycbcr.SubsampleRatio422:
-		for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
-			dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
-			for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
+		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+			dpix := dst.Pix[y*dst.Stride:]
+			for x, sx := x0, sp.X; x != x1; x, sx = x+1, sx+1 {
 				i := sx / 2
 				yy = src.Y[sy*src.YStride+sx]
 				cb = src.Cb[sy*src.CStride+i]
@@ -402,9 +405,9 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Po
 			}
 		}
 	case ycbcr.SubsampleRatio420:
-		for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
-			dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
-			for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
+		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+			dpix := dst.Pix[y*dst.Stride:]
+			for x, sx := x0, sp.X; x != x1; x, sx = x+1, sx+1 {
 				i, j := sx/2, sy/2
 				yy = src.Y[sy*src.YStride+sx]
 				cb = src.Cb[j*src.CStride+i]
@@ -415,9 +418,9 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Po
 		}
 	default:
 		// Default to 4:4:4 subsampling.
-		for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
-			dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
-			for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
+		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+			dpix := dst.Pix[y*dst.Stride:]
+			for x, sx := x0, sp.X; x != x1; x, sx = x+1, sx+1 {
 				yy = src.Y[sy*src.YStride+sx]
 				cb = src.Cb[sy*src.CStride+sx]
 				cr = src.Cr[sy*src.CStride+sx]
@@ -440,11 +443,12 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 
 	sy := sp.Y + y0 - r.Min.Y
 	my := mp.Y + y0 - r.Min.Y
+	sx0 := sp.X + x0 - r.Min.X
+	mx0 := mp.X + x0 - r.Min.X
+	i0 := (y0 - dst.Rect.Min.Y) * dst.Stride
 	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
-		sx := sp.X + x0 - r.Min.X
-		mx := mp.X + x0 - r.Min.X
-		dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
-		for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
+		dpix := dst.Pix[i0:]
+		for x, sx, mx := x0, sx0, mx0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
 			ma := uint32(m)
 			if mask != nil {
 				_, _, _, ma = mask.At(mx, my).RGBA()
@@ -452,7 +456,7 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 			sr, sg, sb, sa := src.At(sx, sy).RGBA()
 			var dr, dg, db, da uint32
 			if op == Over {
-				rgba := dpix[x]
+				rgba := dpix[x-dst.Rect.Min.X]
 				dr = uint32(rgba.R)
 				dg = uint32(rgba.G)
 				db = uint32(rgba.B)
@@ -474,7 +478,8 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 				db = sb * ma / m
 				da = sa * ma / m
 			}
-			dpix[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
+			dpix[x-dst.Rect.Min.X] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
 		}
+		i0 += dy * dst.Stride
 	}
 }

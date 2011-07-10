@@ -72,6 +72,11 @@ func TestImage(t *testing.T) {
 			t.Errorf("%T: sub-image at (3, 3), want a non-zero color, got %v", m, m.At(3, 3))
 			continue
 		}
+		// Test that taking an empty sub-image starting at a corner does not panic.
+		m.SubImage(Rect(0, 0, 0, 0))
+		m.SubImage(Rect(10, 0, 10, 0))
+		m.SubImage(Rect(0, 10, 0, 10))
+		m.SubImage(Rect(10, 10, 10, 10))
 	}
 }
 

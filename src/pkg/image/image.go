@@ -26,7 +26,8 @@ type Image interface {
 
 // An RGBA is an in-memory image of RGBAColor values.
 type RGBA struct {
-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	// Pix holds the image's pixels. The pixel at (x, y) is
+	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
 	Pix    []RGBAColor
 	Stride int
 	// Rect is the image's bounds.
@@ -41,30 +42,41 @@ func (p *RGBA) At(x, y int) Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return RGBAColor{}
 	}
-	return p.Pix[y*p.Stride+x]
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	return p.Pix[i]
 }
 
 func (p *RGBA) Set(x, y int, c Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = toRGBAColor(c).(RGBAColor)
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = toRGBAColor(c).(RGBAColor)
 }
 
 func (p *RGBA) SetRGBA(x, y int, c RGBAColor) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = c
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = c
 }
 
 // SubImage returns an image representing the portion of the image p visible
 // through r. The returned value shares pixels with the original image.
 func (p *RGBA) SubImage(r Rectangle) Image {
+	r = r.Intersect(p.Rect)
+	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
+	// either r1 or r2 if the intersection is empty. Without explicitly checking for
+	// this, the Pix[i:] expression below can panic.
+	if r.Empty() {
+		return &RGBA{}
+	}
+	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
 	return &RGBA{
-		Pix:    p.Pix,
+		Pix:    p.Pix[i:],
 		Stride: p.Stride,
-		Rect:   p.Rect.Intersect(r),
+		Rect:   r,
 	}
 }
 
@@ -73,8 +85,7 @@ func (p *RGBA) Opaque() bool {
 	if p.Rect.Empty() {
 		return true
 	}
-	base := p.Rect.Min.Y * p.Stride
-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	i0, i1 := 0, p.Rect.Dx()
 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
 		for _, c := range p.Pix[i0:i1] {
 			if c.A != 0xff {
@@ -95,7 +106,8 @@ func NewRGBA(w, h int) *RGBA {
 
 // An RGBA64 is an in-memory image of RGBA64Color values.
 type RGBA64 struct {
-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	// Pix holds the image's pixels. The pixel at (x, y) is
+	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
 	Pix    []RGBA64Color
 	Stride int
 	// Rect is the image's bounds.
@@ -110,30 +122,41 @@ func (p *RGBA64) At(x, y int) Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return RGBA64Color{}
 	}
-	return p.Pix[y*p.Stride+x]
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	return p.Pix[i]
 }
 
 func (p *RGBA64) Set(x, y int, c Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = toRGBA64Color(c).(RGBA64Color)
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = toRGBA64Color(c).(RGBA64Color)
 }
 
 func (p *RGBA64) SetRGBA64(x, y int, c RGBA64Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = c
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = c
 }
 
 // SubImage returns an image representing the portion of the image p visible
 // through r. The returned value shares pixels with the original image.
 func (p *RGBA64) SubImage(r Rectangle) Image {
+	r = r.Intersect(p.Rect)
+	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
+	// either r1 or r2 if the intersection is empty. Without explicitly checking for
+	// this, the Pix[i:] expression below can panic.
+	if r.Empty() {
+		return &RGBA64{}
+	}
+	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
 	return &RGBA64{
-		Pix:    p.Pix,
+		Pix:    p.Pix[i:],
 		Stride: p.Stride,
-		Rect:   p.Rect.Intersect(r),
+		Rect:   r,
 	}
 }
 
@@ -142,8 +165,7 @@ func (p *RGBA64) Opaque() bool {
 	if p.Rect.Empty() {
 		return true
 	}
-	base := p.Rect.Min.Y * p.Stride
-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	i0, i1 := 0, p.Rect.Dx()
 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
 		for _, c := range p.Pix[i0:i1] {
 			if c.A != 0xffff {
@@ -164,7 +186,8 @@ func NewRGBA64(w, h int) *RGBA64 {
 
 // An NRGBA is an in-memory image of NRGBAColor values.
 type NRGBA struct {
-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	// Pix holds the image's pixels. The pixel at (x, y) is
+	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
 	Pix    []NRGBAColor
 	Stride int
 	// Rect is the image's bounds.
@@ -179,30 +202,41 @@ func (p *NRGBA) At(x, y int) Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return NRGBAColor{}
 	}
-	return p.Pix[y*p.Stride+x]
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	return p.Pix[i]
 }
 
 func (p *NRGBA) Set(x, y int, c Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = toNRGBAColor(c).(NRGBAColor)
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = toNRGBAColor(c).(NRGBAColor)
 }
 
 func (p *NRGBA) SetNRGBA(x, y int, c NRGBAColor) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = c
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = c
 }
 
 // SubImage returns an image representing the portion of the image p visible
 // through r. The returned value shares pixels with the original image.
 func (p *NRGBA) SubImage(r Rectangle) Image {
+	r = r.Intersect(p.Rect)
+	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
+	// either r1 or r2 if the intersection is empty. Without explicitly checking for
+	// this, the Pix[i:] expression below can panic.
+	if r.Empty() {
+		return &NRGBA{}
+	}
+	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
 	return &NRGBA{
-		Pix:    p.Pix,
+		Pix:    p.Pix[i:],
 		Stride: p.Stride,
-		Rect:   p.Rect.Intersect(r),
+		Rect:   r,
 	}
 }
 
@@ -211,8 +245,7 @@ func (p *NRGBA) Opaque() bool {
 	if p.Rect.Empty() {
 		return true
 	}
-	base := p.Rect.Min.Y * p.Stride
-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	i0, i1 := 0, p.Rect.Dx()
 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
 		for _, c := range p.Pix[i0:i1] {
 			if c.A != 0xff {
@@ -233,7 +266,8 @@ func NewNRGBA(w, h int) *NRGBA {
 
 // An NRGBA64 is an in-memory image of NRGBA64Color values.
 type NRGBA64 struct {
-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	// Pix holds the image's pixels. The pixel at (x, y) is
+	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
 	Pix    []NRGBA64Color
 	Stride int
 	// Rect is the image's bounds.
@@ -248,30 +282,41 @@ func (p *NRGBA64) At(x, y int) Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return NRGBA64Color{}
 	}
-	return p.Pix[y*p.Stride+x]
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	return p.Pix[i]
 }
 
 func (p *NRGBA64) Set(x, y int, c Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = toNRGBA64Color(c).(NRGBA64Color)
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = toNRGBA64Color(c).(NRGBA64Color)
 }
 
 func (p *NRGBA64) SetNRGBA64(x, y int, c NRGBA64Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = c
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = c
 }
 
 // SubImage returns an image representing the portion of the image p visible
 // through r. The returned value shares pixels with the original image.
 func (p *NRGBA64) SubImage(r Rectangle) Image {
+	r = r.Intersect(p.Rect)
+	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
+	// either r1 or r2 if the intersection is empty. Without explicitly checking for
+	// this, the Pix[i:] expression below can panic.
+	if r.Empty() {
+		return &NRGBA64{}
+	}
+	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
 	return &NRGBA64{
-		Pix:    p.Pix,
+		Pix:    p.Pix[i:],
 		Stride: p.Stride,
-		Rect:   p.Rect.Intersect(r),
+		Rect:   r,
 	}
 }
 
@@ -280,8 +325,7 @@ func (p *NRGBA64) Opaque() bool {
 	if p.Rect.Empty() {
 		return true
 	}
-	base := p.Rect.Min.Y * p.Stride
-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	i0, i1 := 0, p.Rect.Dx()
 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
 		for _, c := range p.Pix[i0:i1] {
 			if c.A != 0xffff {
@@ -302,7 +346,8 @@ func NewNRGBA64(w, h int) *NRGBA64 {
 
 // An Alpha is an in-memory image of AlphaColor values.
 type Alpha struct {
-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	// Pix holds the image's pixels. The pixel at (x, y) is
+	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
 	Pix    []AlphaColor
 	Stride int
 	// Rect is the image's bounds.
@@ -317,30 +362,41 @@ func (p *Alpha) At(x, y int) Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return AlphaColor{}
 	}
-	return p.Pix[y*p.Stride+x]
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	return p.Pix[i]
 }
 
 func (p *Alpha) Set(x, y int, c Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = toAlphaColor(c).(AlphaColor)
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = toAlphaColor(c).(AlphaColor)
 }
 
 func (p *Alpha) SetAlpha(x, y int, c AlphaColor) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = c
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = c
 }
 
 // SubImage returns an image representing the portion of the image p visible
 // through r. The returned value shares pixels with the original image.
 func (p *Alpha) SubImage(r Rectangle) Image {
+	r = r.Intersect(p.Rect)
+	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
+	// either r1 or r2 if the intersection is empty. Without explicitly checking for
+	// this, the Pix[i:] expression below can panic.
+	if r.Empty() {
+		return &Alpha{}
+	}
+	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
 	return &Alpha{
-		Pix:    p.Pix,
+		Pix:    p.Pix[i:],
 		Stride: p.Stride,
-		Rect:   p.Rect.Intersect(r),
+		Rect:   r,
 	}
 }
 
@@ -349,8 +405,7 @@ func (p *Alpha) Opaque() bool {
 	if p.Rect.Empty() {
 		return true
 	}
-	base := p.Rect.Min.Y * p.Stride
-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	i0, i1 := 0, p.Rect.Dx()
 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
 		for _, c := range p.Pix[i0:i1] {
 			if c.A != 0xff {
@@ -371,7 +426,8 @@ func NewAlpha(w, h int) *Alpha {
 
 // An Alpha16 is an in-memory image of Alpha16Color values.
 type Alpha16 struct {
-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	// Pix holds the image's pixels. The pixel at (x, y) is
+	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
 	Pix    []Alpha16Color
 	Stride int
 	// Rect is the image's bounds.
@@ -386,30 +442,41 @@ func (p *Alpha16) At(x, y int) Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return Alpha16Color{}
 	}
-	return p.Pix[y*p.Stride+x]
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	return p.Pix[i]
 }
 
 func (p *Alpha16) Set(x, y int, c Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = toAlpha16Color(c).(Alpha16Color)
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = toAlpha16Color(c).(Alpha16Color)
 }
 
 func (p *Alpha16) SetAlpha16(x, y int, c Alpha16Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = c
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = c
 }
 
 // SubImage returns an image representing the portion of the image p visible
 // through r. The returned value shares pixels with the original image.
 func (p *Alpha16) SubImage(r Rectangle) Image {
+	r = r.Intersect(p.Rect)
+	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
+	// either r1 or r2 if the intersection is empty. Without explicitly checking for
+	// this, the Pix[i:] expression below can panic.
+	if r.Empty() {
+		return &Alpha16{}
+	}
+	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
 	return &Alpha16{
-		Pix:    p.Pix,
+		Pix:    p.Pix[i:],
 		Stride: p.Stride,
-		Rect:   p.Rect.Intersect(r),
+		Rect:   r,
 	}
 }
 
@@ -418,8 +485,7 @@ func (p *Alpha16) Opaque() bool {
 	if p.Rect.Empty() {
 		return true
 	}
-	base := p.Rect.Min.Y * p.Stride
-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	i0, i1 := 0, p.Rect.Dx()
 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
 		for _, c := range p.Pix[i0:i1] {
 			if c.A != 0xffff {
@@ -440,7 +506,8 @@ func NewAlpha16(w, h int) *Alpha16 {
 
 // A Gray is an in-memory image of GrayColor values.
 type Gray struct {
-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	// Pix holds the image's pixels. The pixel at (x, y) is
+	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
 	Pix    []GrayColor
 	Stride int
 	// Rect is the image's bounds.
@@ -455,30 +522,41 @@ func (p *Gray) At(x, y int) Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return GrayColor{}
 	}
-	return p.Pix[y*p.Stride+x]
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	return p.Pix[i]
 }
 
 func (p *Gray) Set(x, y int, c Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = toGrayColor(c).(GrayColor)
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = toGrayColor(c).(GrayColor)
 }
 
 func (p *Gray) SetGray(x, y int, c GrayColor) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = c
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = c
 }
 
 // SubImage returns an image representing the portion of the image p visible
 // through r. The returned value shares pixels with the original image.
 func (p *Gray) SubImage(r Rectangle) Image {
+	r = r.Intersect(p.Rect)
+	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
+	// either r1 or r2 if the intersection is empty. Without explicitly checking for
+	// this, the Pix[i:] expression below can panic.
+	if r.Empty() {
+		return &Gray{}
+	}
+	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
 	return &Gray{
-		Pix:    p.Pix,
+		Pix:    p.Pix[i:],
 		Stride: p.Stride,
-		Rect:   p.Rect.Intersect(r),
+		Rect:   r,
 	}
 }
 
@@ -495,7 +573,8 @@ func NewGray(w, h int) *Gray {
 
 // A Gray16 is an in-memory image of Gray16Color values.
 type Gray16 struct {
-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	// Pix holds the image's pixels. The pixel at (x, y) is
+	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
 	Pix    []Gray16Color
 	Stride int
 	// Rect is the image's bounds.
@@ -510,30 +589,41 @@ func (p *Gray16) At(x, y int) Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return Gray16Color{}
 	}
-	return p.Pix[y*p.Stride+x]
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	return p.Pix[i]
 }
 
 func (p *Gray16) Set(x, y int, c Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = toGray16Color(c).(Gray16Color)
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = toGray16Color(c).(Gray16Color)
 }
 
 func (p *Gray16) SetGray16(x, y int, c Gray16Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = c
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = c
 }
 
 // SubImage returns an image representing the portion of the image p visible
 // through r. The returned value shares pixels with the original image.
 func (p *Gray16) SubImage(r Rectangle) Image {
+	r = r.Intersect(p.Rect)
+	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
+	// either r1 or r2 if the intersection is empty. Without explicitly checking for
+	// this, the Pix[i:] expression below can panic.
+	if r.Empty() {
+		return &Gray16{}
+	}
+	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
 	return &Gray16{
-		Pix:    p.Pix,
+		Pix:    p.Pix[i:],
 		Stride: p.Stride,
-		Rect:   p.Rect.Intersect(r),
+		Rect:   r,
 	}
 }
 
@@ -591,7 +681,8 @@ func (p PalettedColorModel) Index(c Color) int {
 
 // A Paletted is an in-memory image backed by a 2-D slice of uint8 values and a PalettedColorModel.
 type Paletted struct {
-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+	// Pix holds the image's pixels. The pixel at (x, y) is
+	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
 	Pix    []uint8
 	Stride int
 	// Rect is the image's bounds.
@@ -611,35 +702,49 @@ func (p *Paletted) At(x, y int) Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return p.Palette[0]
 	}
-	return p.Palette[p.Pix[y*p.Stride+x]]
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	return p.Palette[p.Pix[i]]
 }
 
 func (p *Paletted) Set(x, y int, c Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = uint8(p.Palette.Index(c))
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = uint8(p.Palette.Index(c))
 }
 
 func (p *Paletted) ColorIndexAt(x, y int) uint8 {
 	if !(Point{x, y}.In(p.Rect)) {
 		return 0
 	}
-	return p.Pix[y*p.Stride+x]
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	return p.Pix[i]
 }
 
 func (p *Paletted) SetColorIndex(x, y int, index uint8) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	p.Pix[y*p.Stride+x] = index
+	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	p.Pix[i] = index
 }
 
 // SubImage returns an image representing the portion of the image p visible
 // through r. The returned value shares pixels with the original image.
 func (p *Paletted) SubImage(r Rectangle) Image {
+	r = r.Intersect(p.Rect)
+	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
+	// either r1 or r2 if the intersection is empty. Without explicitly checking for
+	// this, the Pix[i:] expression below can panic.
+	if r.Empty() {
+		return &Paletted{
+			Palette: p.Palette,
+		}
+	}
+	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
 	return &Paletted{
-		Pix:     p.Pix,
+		Pix:     p.Pix[i:],
 		Stride:  p.Stride,
 		Rect:    p.Rect.Intersect(r),
 		Palette: p.Palette,
@@ -649,8 +754,7 @@ func (p *Paletted) SubImage(r Rectangle) Image {
 // Opaque scans the entire image and returns whether or not it is fully opaque.
 func (p *Paletted) Opaque() bool {
 	var present [256]bool
-	base := p.Rect.Min.Y * p.Stride
-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
+	i0, i1 := 0, p.Rect.Dx()
 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
 		for _, c := range p.Pix[i0:i1] {
 			present[c] = true
