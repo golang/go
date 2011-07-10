@@ -207,8 +207,10 @@ var execTests = []execTest{
 	{"if emptymap", "{{if .MSIEmpty}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"if map", "{{if .MSI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
 
-	// Printf.
-	{"printf", `{{printf "hello, printf"}}`, "hello, printf", tVal, true},
+	// Print etc.
+	{"print", `{{print "hello, print"}}`, "hello, print", tVal, true},
+	{"print", `{{print 1 2 3}}`, "1 2 3", tVal, true},
+	{"println", `{{println 1 2 3}}`, "1 2 3\n", tVal, true},
 	{"printf int", `{{printf "%04x" 127}}`, "007f", tVal, true},
 	{"printf float", `{{printf "%g" 3.5}}`, "3.5", tVal, true},
 	{"printf complex", `{{printf "%g" 1+7i}}`, "(1+7i)", tVal, true},
