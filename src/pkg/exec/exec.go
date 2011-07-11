@@ -332,7 +332,7 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, os.Error) {
 	}
 	c.Stdin = pr
 	c.closeAfterStart = append(c.closeAfterStart, pr)
-	c.closeAfterWait = append(c.closeAfterStart, pw)
+	c.closeAfterWait = append(c.closeAfterWait, pw)
 	return pw, nil
 }
 
@@ -351,7 +351,7 @@ func (c *Cmd) StdoutPipe() (io.Reader, os.Error) {
 	}
 	c.Stdout = pw
 	c.closeAfterStart = append(c.closeAfterStart, pw)
-	c.closeAfterWait = append(c.closeAfterStart, pr)
+	c.closeAfterWait = append(c.closeAfterWait, pr)
 	return pr, nil
 }
 
@@ -370,6 +370,6 @@ func (c *Cmd) StderrPipe() (io.Reader, os.Error) {
 	}
 	c.Stderr = pw
 	c.closeAfterStart = append(c.closeAfterStart, pw)
-	c.closeAfterWait = append(c.closeAfterStart, pr)
+	c.closeAfterWait = append(c.closeAfterWait, pr)
 	return pr, nil
 }
