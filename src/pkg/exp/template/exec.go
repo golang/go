@@ -106,32 +106,32 @@ func (t *Template) ExecuteInSet(wr io.Writer, data interface{}, set *Set) (err o
 
 // Walk functions step through the major pieces of the template structure,
 // generating output as they go.
-func (s *state) walk(data reflect.Value, n node) {
+func (s *state) walk(dot reflect.Value, n node) {
 	switch n := n.(type) {
 	case *actionNode:
 		s.line = n.line
 		defer s.pop(s.mark())
-		s.printValue(n, s.evalPipeline(data, n.pipe))
+		s.printValue(n, s.evalPipeline(dot, n.pipe))
 	case *ifNode:
 		s.line = n.line
-		s.walkIfOrWith(nodeIf, data, n.pipe, n.list, n.elseList)
+		s.walkIfOrWith(nodeIf, dot, n.pipe, n.list, n.elseList)
 	case *listNode:
 		for _, node := range n.nodes {
-			s.walk(data, node)
+			s.walk(dot, node)
 		}
 	case *rangeNode:
 		s.line = n.line
-		s.walkRange(data, n)
+		s.walkRange(dot, n)
 	case *templateNode:
 		s.line = n.line
-		s.walkTemplate(data, n)
+		s.walkTemplate(dot, n)
 	case *textNode:
 		if _, err := s.wr.Write(n.text); err != nil {
 			s.error(err)
 		}
 	case *withNode:
 		s.line = n.line
-		s.walkIfOrWith(nodeWith, data, n.pipe, n.list, n.elseList)
+		s.walkIfOrWith(nodeWith, dot, n.pipe, n.list, n.elseList)
 	default:
 		s.errorf("unknown node: %s", n)
 	}
@@ -139,9 +139,9 @@ func (s *state) walk(data reflect.Value, n node) {
 
 // walkIfOrWith walks an 'if' or 'with' node. The two control structures
 // are identical in behavior except that 'with' sets dot.
-func (s *state) walkIfOrWith(typ nodeType, data reflect.Value, pipe *pipeNode, list, elseList *listNode) {
+func (s *state) walkIfOrWith(typ nodeType, dot reflect.Value, pipe *pipeNode, list, elseList *listNode) {
 	defer s.pop(s.mark())
-	val := s.evalPipeline(data, pipe)
+	val := s.evalPipeline(dot, pipe)
 	truth, ok := isTrue(val)
 	if !ok {
 		s.errorf("if/with can't use value of type %T", val.Interface())
@@ -150,10 +150,10 @@ func (s *state) walkIfOrWith(typ nodeType, data reflect.Value, pipe *pipeNode, l
 		if typ == nodeWith {
 			s.walk(val, list)
 		} else {
-			s.walk(data, list)
+			s.walk(dot, list)
 		}
 	} else if elseList != nil {
-		s.walk(data, elseList)
+		s.walk(dot, elseList)
 	}
 }
 
@@ -181,9 +181,9 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 	return truth, true
 }
 
-func (s *state) walkRange(data reflect.Value, r *rangeNode) {
+func (s *state) walkRange(dot reflect.Value, r *rangeNode) {
 	defer s.pop(s.mark())
-	val, _ := indirect(s.evalPipeline(data, r.pipe))
+	val, _ := indirect(s.evalPipeline(dot, r.pipe))
 	switch val.Kind() {
 	case reflect.Array, reflect.Slice:
 		if val.Len() == 0 {
@@ -215,13 +215,13 @@ func (s *state) walkRange(data reflect.Value, r *rangeNode) {
 		s.errorf("range can't iterate over value of type %T", val.Interface())
 	}
 	if r.elseList != nil {
-		s.walk(data, r.elseList)
+		s.walk(dot, r.elseList)
 	}
 }
 
-func (s *state) walkTemplate(data reflect.Value, t *templateNode) {
+func (s *state) walkTemplate(dot reflect.Value, t *templateNode) {
 	// Can't use evalArg because there are two types we expect.
-	arg := s.evalEmptyInterface(data, t.name)
+	arg := s.evalEmptyInterface(dot, t.name)
 	if !arg.IsValid() {
 		s.errorf("invalid value in template invocation; expected string or *Template")
 	}
@@ -243,12 +243,12 @@ func (s *state) walkTemplate(data reflect.Value, t *templateNode) {
 		}
 	}
 	defer s.pop(s.mark())
-	data = s.evalPipeline(data, t.pipe)
+	dot = s.evalPipeline(dot, t.pipe)
 	newState := *s
 	newState.tmpl = tmpl
 	// No dynamic scoping: template invocations inherit no variables.
-	newState.vars = []variable{{"$", data}}
-	newState.walk(data, tmpl.root)
+	newState.vars = []variable{{"$", dot}}
+	newState.walk(dot, tmpl.root)
 }
 
 // Eval functions evaluate pipelines, commands, and their elements and extract
@@ -259,12 +259,12 @@ func (s *state) walkTemplate(data reflect.Value, t *templateNode) {
 // pipeline has a variable declaration, the variable will be pushed on the
 // stack. Callers should therefore pop the stack after they are finished
 // executing commands depending on the pipeline value.
-func (s *state) evalPipeline(data reflect.Value, pipe *pipeNode) (value reflect.Value) {
+func (s *state) evalPipeline(dot reflect.Value, pipe *pipeNode) (value reflect.Value) {
 	if pipe == nil {
 		return
 	}
 	for _, cmd := range pipe.cmds {
-		value = s.evalCommand(data, cmd, value) // previous value is this one's final arg.
+		value = s.evalCommand(dot, cmd, value) // previous value is this one's final arg.
 		// If the object has type interface{}, dig down one level to the thing inside.
 		if value.Kind() == reflect.Interface && value.Type().NumMethod() == 0 {
 			value = reflect.ValueOf(value.Interface()) // lovely!
@@ -282,23 +282,23 @@ func (s *state) notAFunction(args []node, final reflect.Value) {
 	}
 }
 
-func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.Value) reflect.Value {
+func (s *state) evalCommand(dot reflect.Value, cmd *commandNode, final reflect.Value) reflect.Value {
 	firstWord := cmd.args[0]
 	switch n := firstWord.(type) {
 	case *fieldNode:
-		return s.evalFieldNode(data, n, cmd.args, final)
+		return s.evalFieldNode(dot, n, cmd.args, final)
 	case *identifierNode:
 		// Must be a function.
-		return s.evalFunction(data, n.ident, cmd.args, final)
+		return s.evalFunction(dot, n.ident, cmd.args, final)
 	case *variableNode:
-		return s.evalVariableNode(n, cmd.args, final)
+		return s.evalVariableNode(dot, n, cmd.args, final)
 	}
 	s.notAFunction(cmd.args, final)
 	switch word := firstWord.(type) {
 	case *boolNode:
 		return reflect.ValueOf(word.true)
 	case *dotNode:
-		return data
+		return dot
 	case *numberNode:
 		// These are ideal constants but we don't know the type
 		// and we have no context.  (If it was a method argument,
@@ -320,35 +320,35 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
 	panic("not reached")
 }
 
-func (s *state) evalFieldNode(data reflect.Value, field *fieldNode, args []node, final reflect.Value) reflect.Value {
-	return s.evalFieldChain(data, field.ident, args, final)
+func (s *state) evalFieldNode(dot reflect.Value, field *fieldNode, args []node, final reflect.Value) reflect.Value {
+	return s.evalFieldChain(dot, dot, field.ident, args, final)
 }
 
-func (s *state) evalVariableNode(v *variableNode, args []node, final reflect.Value) reflect.Value {
+func (s *state) evalVariableNode(dot reflect.Value, v *variableNode, args []node, final reflect.Value) reflect.Value {
 	// $x.Field has $x as the first ident, Field as the second. Eval the var, then the fields.
-	data := s.varValue(v.ident[0])
+	value := s.varValue(v.ident[0])
 	if len(v.ident) == 1 {
-		return data
+		return value
 	}
-	return s.evalFieldChain(data, v.ident[1:], args, final)
+	return s.evalFieldChain(dot, value, v.ident[1:], args, final)
 }
 
-func (s *state) evalFieldChain(data reflect.Value, ident []string, args []node, final reflect.Value) reflect.Value {
+func (s *state) evalFieldChain(dot, receiver reflect.Value, ident []string, args []node, final reflect.Value) reflect.Value {
 	// Up to the last entry, it must be a field.
 	n := len(ident)
 	for i := 0; i < n-1; i++ {
-		data = s.evalField(data, ident[i], nil, zero, false)
+		dot = s.evalField(dot, ident[i], nil, zero, zero)
 	}
 	// Now it can be a field or method and if a method, gets arguments.
-	return s.evalField(data, ident[n-1], args, final, true)
+	return s.evalField(dot, ident[n-1], args, final, receiver)
 }
 
-func (s *state) evalFunction(data reflect.Value, name string, args []node, final reflect.Value) reflect.Value {
+func (s *state) evalFunction(dot reflect.Value, name string, args []node, final reflect.Value) reflect.Value {
 	function, ok := findFunction(name, s.tmpl, s.set)
 	if !ok {
 		s.errorf("%q is not a defined function", name)
 	}
-	return s.evalCall(data, function, name, false, args, final)
+	return s.evalCall(dot, zero, function, name, args, final)
 }
 
 // Is this an exported - upper case - name?
@@ -362,25 +362,25 @@ func isExported(name string) bool {
 // value of the pipeline, if any.
 // If we're in a chain, such as (.X.Y.Z), .X and .Y cannot be methods;
 // canBeMethod will be true only for the last element of such chains (here .Z).
-func (s *state) evalField(data reflect.Value, fieldName string, args []node, final reflect.Value,
-canBeMethod bool) reflect.Value {
-	typ := data.Type()
-	var isNil bool
-	data, isNil = indirect(data)
-	if canBeMethod {
+func (s *state) evalField(dot reflect.Value, fieldName string, args []node, final reflect.Value,
+receiver reflect.Value) reflect.Value {
+	typ := dot.Type()
+	if receiver.IsValid() {
+		receiver, _ = indirect(receiver)
 		// Need to get to a value of type *T to guarantee we see all
 		// methods of T and *T.
-		ptr := data
+		ptr := receiver
 		if ptr.CanAddr() {
 			ptr = ptr.Addr()
 		}
 		if method, ok := methodByName(ptr.Type(), fieldName); ok {
-			return s.evalCall(ptr, method.Func, fieldName, true, args, final)
+			return s.evalCall(dot, ptr, method.Func, fieldName, args, final)
 		}
 	}
 	// It's not a method; is it a field of a struct?
-	if data.Kind() == reflect.Struct {
-		field := data.FieldByName(fieldName)
+	dot, isNil := indirect(dot)
+	if dot.Kind() == reflect.Struct {
+		field := dot.FieldByName(fieldName)
 		if field.IsValid() {
 			if len(args) > 1 || final.IsValid() {
 				s.errorf("%s is not a method but has arguments", fieldName)
@@ -411,8 +411,9 @@ var (
 	osErrorType = reflect.TypeOf(new(os.Error)).Elem()
 )
 
-func (s *state) evalCall(v, fun reflect.Value, name string, isMethod bool, args []node, final reflect.Value) reflect.Value {
+func (s *state) evalCall(dot, receiver, fun reflect.Value, name string, args []node, final reflect.Value) reflect.Value {
 	typ := fun.Type()
+	isMethod := receiver.IsValid()
 	if !isMethod && len(args) > 0 { // Args will be nil if it's a niladic call in an argument list
 		args = args[1:] // first arg is name of function; not used in call.
 	}
@@ -437,18 +438,18 @@ func (s *state) evalCall(v, fun reflect.Value, name string, isMethod bool, args 
 	// First arg is the receiver.
 	i := 0
 	if isMethod {
-		argv[0] = v
+		argv[0] = receiver
 		i++
 	}
 	// Others must be evaluated. Fixed args first.
 	for ; i < numFixed; i++ {
-		argv[i] = s.evalArg(v, typ.In(i), args[i])
+		argv[i] = s.evalArg(dot, typ.In(i), args[i])
 	}
 	// And now the ... args.
 	if typ.IsVariadic() {
 		argType := typ.In(typ.NumIn() - 1).Elem() // Argument is a slice.
 		for ; i < len(args); i++ {
-			argv[i] = s.evalArg(v, argType, args[i])
+			argv[i] = s.evalArg(dot, argType, args[i])
 		}
 	}
 	// Add final value if necessary.
@@ -474,14 +475,14 @@ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Valu
 	return value
 }
 
-func (s *state) evalArg(data reflect.Value, typ reflect.Type, n node) reflect.Value {
+func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n node) reflect.Value {
 	switch arg := n.(type) {
 	case *dotNode:
-		return s.validateType(data, typ)
+		return s.validateType(dot, typ)
 	case *fieldNode:
-		return s.validateType(s.evalFieldNode(data, arg, []node{n}, zero), typ)
+		return s.validateType(s.evalFieldNode(dot, arg, []node{n}, zero), typ)
 	case *variableNode:
-		return s.validateType(s.evalVariableNode(arg, nil, zero), typ)
+		return s.validateType(s.evalVariableNode(dot, arg, nil, zero), typ)
 	}
 	switch typ.Kind() {
 	case reflect.Bool:
@@ -494,7 +495,7 @@ func (s *state) evalArg(data reflect.Value, typ reflect.Type, n node) reflect.Va
 		return s.evalInteger(typ, n)
 	case reflect.Interface:
 		if typ.NumMethod() == 0 {
-			return s.evalEmptyInterface(data, n)
+			return s.evalEmptyInterface(dot, n)
 		}
 	case reflect.String:
 		return s.evalString(typ, n)
@@ -565,16 +566,16 @@ func (s *state) evalComplex(typ reflect.Type, n node) reflect.Value {
 	panic("not reached")
 }
 
-func (s *state) evalEmptyInterface(data reflect.Value, n node) reflect.Value {
+func (s *state) evalEmptyInterface(dot reflect.Value, n node) reflect.Value {
 	switch n := n.(type) {
 	case *boolNode:
 		return reflect.ValueOf(n.true)
 	case *dotNode:
-		return data
+		return dot
 	case *fieldNode:
-		return s.evalFieldNode(data, n, nil, zero)
+		return s.evalFieldNode(dot, n, nil, zero)
 	case *identifierNode:
-		return s.evalFunction(data, n.ident, nil, zero)
+		return s.evalFunction(dot, n.ident, nil, zero)
 	case *numberNode:
 		if n.isComplex {
 			return reflect.ValueOf(n.complex128)
@@ -591,7 +592,7 @@ func (s *state) evalEmptyInterface(data reflect.Value, n node) reflect.Value {
 	case *stringNode:
 		return reflect.ValueOf(n.text)
 	case *variableNode:
-		return s.evalVariableNode(n, nil, zero)
+		return s.evalVariableNode(dot, n, nil, zero)
 	}
 	s.errorf("can't handle assignment of %s to empty interface argument", n)
 	panic("not reached")
