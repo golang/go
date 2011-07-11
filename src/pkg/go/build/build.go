@@ -213,6 +213,14 @@ func (c *Cmd) String() string {
 
 // Run executes the Cmd.
 func (c *Cmd) Run() os.Error {
+	if c.Args[0] == "mkdir" {
+		for _, p := range c.Output {
+			if err := os.MkdirAll(p, 0777); err != nil {
+				return fmt.Errorf("command %q: %v", c, err)
+			}
+		}
+		return nil
+	}
 	out := new(bytes.Buffer)
 	cmd := exec.Command(c.Args[0], c.Args[1:]...)
 	cmd.Dir = c.Dir
