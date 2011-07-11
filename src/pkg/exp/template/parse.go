@@ -293,15 +293,12 @@ func newNumber(text string, typ itemType) (*numberNode, os.Error) {
 	n := &numberNode{nodeType: nodeNumber, text: text}
 	switch typ {
 	case itemChar:
-		if len(text) < 3 {
-			return nil, fmt.Errorf("illegal character constant: %s", text)
-		}
-		rune, _, tail, err := strconv.UnquoteChar(text[1:len(text)-1], text[0])
+		rune, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
 		if err != nil {
 			return nil, err
 		}
-		if len(tail) > 0 {
-			return nil, fmt.Errorf("extra bytes in character constant: %s", text)
+		if tail != "'" {
+			return nil, fmt.Errorf("malformed character constant: %s", text)
 		}
 		n.int64 = int64(rune)
 		n.isInt = true
