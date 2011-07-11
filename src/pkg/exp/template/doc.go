@@ -79,7 +79,7 @@ maps, and strings, any value v with len(v)==0 counts as a zero value.
 
 Arguments
 
-An argument is a simple value, denoted by one of the following:
+An argument is a simple value, denoted by one of the following.
 
 	- A boolean, string, character, integer, floating-point, imaginary
 	  or complex constant in Go syntax. These behave like Go's untyped
@@ -100,6 +100,8 @@ An argument is a simple value, denoted by one of the following:
 	  The result is the value of the field. Field invocations may be
 	  chained:
 	    .Field1.Field2
+	  Fields can also be evaluated on variables, including chaining:
+	    $x.Field1.Field2
 	- The name of a niladic method of the data, preceded by a period,
 	  such as
 		.Method
@@ -111,6 +113,8 @@ An argument is a simple value, denoted by one of the following:
 	  Method invocations may be chained, but only the last element of
 	  the chain may be a method; other others must be struct fields:
 	    .Field1.Field2.Method
+	  Methods can also be evaluated on variables, including chaining:
+	    $x.Field1.Method
 	- The name of a niladic function, such as
 		fun
 	  The result is the value of invoking the function, fun(). The return

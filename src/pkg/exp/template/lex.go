@@ -329,7 +329,7 @@ Loop:
 		switch r := l.next(); {
 		case isAlphaNumeric(r):
 			// absorb.
-		case r == '.' && l.input[l.start] == '.':
+		case r == '.' && (l.input[l.start] == '.' || l.input[l.start] == '$'):
 			// field chaining; absorb into one token.
 		default:
 			l.backup()

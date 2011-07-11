@@ -214,11 +214,11 @@ func (i *identifierNode) String() string {
 // variableNode holds a variable.
 type variableNode struct {
 	nodeType
-	ident string
+	ident []string
 }
 
 func newVariable(ident string) *variableNode {
-	return &variableNode{nodeType: nodeVariable, ident: ident}
+	return &variableNode{nodeType: nodeVariable, ident: strings.Split(ident, ".")}
 }
 
 func (v *variableNode) String() string {
@@ -716,6 +716,9 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
 		if ce := t.peek(); ce.typ == itemColonEquals {
 			t.next()
 			decl = newVariable(v.val)
+			if len(decl.ident) != 1 {
+				t.errorf("illegal variable in declaration: %s", v.val)
+			}
 			t.vars = append(t.vars, v.val)
 		} else {
 			t.backup2(v)
@@ -854,9 +857,10 @@ Loop:
 		case itemDot:
 			cmd.append(newDot())
 		case itemVariable:
+			v := newVariable(token.val)
 			found := false
 			for _, varName := range t.vars {
-				if varName == token.val {
+				if varName == v.ident[0] {
 					found = true
 					break
 				}
@@ -864,7 +868,7 @@ Loop:
 			if !found {
 				t.errorf("undefined variable %q", token.val)
 			}
-			cmd.append(newVariable(token.val))
+			cmd.append(v)
 		case itemField:
 			cmd.append(newField(token.val))
 		case itemBool:

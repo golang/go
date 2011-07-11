@@ -172,15 +172,17 @@ var parseTests = []parseTest{
 	{"simple command", "{{printf}}", noError,
 		`[(action: [(command: [I=printf])])]`},
 	{"$ invocation", "{{$}}", noError,
-		"[(action: [(command: [V=$])])]"},
+		"[(action: [(command: [V=[$]])])]"},
 	{"variable invocation", "{{with $x := 3}}{{$x 23}}{{end}}", noError,
-		"[({{with $x := [(command: [N=3])]}} [(action: [(command: [V=$x N=23])])])]"},
+		"[({{with [$x] := [(command: [N=3])]}} [(action: [(command: [V=[$x] N=23])])])]"},
+	{"variable with fields", "{{$.I}}", noError,
+		"[(action: [(command: [V=[$ I]])])]"},
 	{"multi-word command", "{{printf `%d` 23}}", noError,
 		"[(action: [(command: [I=printf S=`%d` N=23])])]"},
 	{"pipeline", "{{.X|.Y}}", noError,
 		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
 	{"pipeline with decl", "{{$x := .X|.Y}}", noError,
-		`[(action: $x := [(command: [F=[X]]) (command: [F=[Y]])])]`},
+		`[(action: [$x] := [(command: [F=[X]]) (command: [F=[Y]])])]`},
 	{"declaration", "{{.X|.Y}}", noError,
 		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
 	{"simple if", "{{if .X}}hello{{end}}", noError,
@@ -217,6 +219,7 @@ var parseTests = []parseTest{
 	{"undefined function", "hello{{undefined}}", hasError, ""},
 	{"undefined variable", "{{$x}}", hasError, ""},
 	{"variable undefined after end", "{{with $x := 4}}{{end}}{{$x}}", hasError, ""},
+	{"declare with field", "{{with $x.Y := 4}}{{end}}", hasError, ""},
 }
 
 func TestParse(t *testing.T) {

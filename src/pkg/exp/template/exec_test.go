@@ -165,6 +165,9 @@ var execTests = []execTest{
 	{"range $x PSI", "{{range $x := .PSI}}<{{$x}}>{{end}}", "<21><22><23>", tVal, true},
 	{"if $x with $y int", "{{if $x := true}}{{with $y := .I}}{{$x}},{{$y}}{{end}}{{end}}", "true,17", tVal, true},
 	{"if $x with $x int", "{{if $x := true}}{{with $x := .I}}{{$x}},{{end}}{{$x}}{{end}}", "17,true", tVal, true},
+	{"$.I", "{{$.I}}", "17", tVal, true},
+	{"$.U.V", "{{$.U.V}}", "v", tVal, true},
+	{"with $x struct.U.V", "{{with $x := $}}{{$.U.V}}{{end}}", "v", tVal, true},
 
 	// Pointers.
 	{"*int", "{{.PI}}", "23", tVal, true},
@@ -186,6 +189,7 @@ var execTests = []execTest{
 	{".Method2(3, .X)", "-{{.Method2 3 .X}}-", "-Method2: 3 x-", tVal, true},
 	{".Method2(.U16, `str`)", "-{{.Method2 .U16 `str`}}-", "-Method2: 16 str-", tVal, true},
 	{".Method2(.U16, $x)", "{{if $x := .X}}-{{.Method2 .U16 $x}}{{end}}-", "-Method2: 16 x-", tVal, true},
+	{"method on var", "{{if $x := .}}-{{$x.Method2 .U16 $x.X}}{{end}}-", "-Method2: 16 x-", tVal, true},
 
 	// Pipelines.
 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},

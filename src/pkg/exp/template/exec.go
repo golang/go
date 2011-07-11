@@ -271,7 +271,7 @@ func (s *state) evalPipeline(data reflect.Value, pipe *pipeNode) (value reflect.
 		}
 	}
 	if pipe.decl != nil {
-		s.push(pipe.decl.ident, value)
+		s.push(pipe.decl.ident[0], value)
 	}
 	return value
 }
@@ -290,6 +290,8 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
 	case *identifierNode:
 		// Must be a function.
 		return s.evalFunction(data, n.ident, cmd.args, final)
+	case *variableNode:
+		return s.evalVariableNode(n, cmd.args, final)
 	}
 	s.notAFunction(cmd.args, final)
 	switch word := firstWord.(type) {
@@ -313,21 +315,32 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
 		}
 	case *stringNode:
 		return reflect.ValueOf(word.text)
-	case *variableNode:
-		return s.varValue(word.ident)
 	}
 	s.errorf("can't handle command %q", firstWord)
 	panic("not reached")
 }
 
 func (s *state) evalFieldNode(data reflect.Value, field *fieldNode, args []node, final reflect.Value) reflect.Value {
+	return s.evalFieldChain(data, field.ident, args, final)
+}
+
+func (s *state) evalVariableNode(v *variableNode, args []node, final reflect.Value) reflect.Value {
+	// $x.Field has $x as the first ident, Field as the second. Eval the var, then the fields.
+	data := s.varValue(v.ident[0])
+	if len(v.ident) == 1 {
+		return data
+	}
+	return s.evalFieldChain(data, v.ident[1:], args, final)
+}
+
+func (s *state) evalFieldChain(data reflect.Value, ident []string, args []node, final reflect.Value) reflect.Value {
 	// Up to the last entry, it must be a field.
-	n := len(field.ident)
+	n := len(ident)
 	for i := 0; i < n-1; i++ {
-		data = s.evalField(data, field.ident[i], nil, zero, false)
+		data = s.evalField(data, ident[i], nil, zero, false)
 	}
 	// Now it can be a field or method and if a method, gets arguments.
-	return s.evalField(data, field.ident[n-1], args, final, true)
+	return s.evalField(data, ident[n-1], args, final, true)
 }
 
 func (s *state) evalFunction(data reflect.Value, name string, args []node, final reflect.Value) reflect.Value {
@@ -468,7 +481,7 @@ func (s *state) evalArg(data reflect.Value, typ reflect.Type, n node) reflect.Va
 	case *fieldNode:
 		return s.validateType(s.evalFieldNode(data, arg, []node{n}, zero), typ)
 	case *variableNode:
-		return s.validateType(s.varValue(arg.ident), typ)
+		return s.validateType(s.evalVariableNode(arg, nil, zero), typ)
 	}
 	switch typ.Kind() {
 	case reflect.Bool:
@@ -578,7 +591,7 @@ func (s *state) evalEmptyInterface(data reflect.Value, n node) reflect.Value {
 	case *stringNode:
 		return reflect.ValueOf(n.text)
 	case *variableNode:
-		return s.varValue(n.ident)
+		return s.evalVariableNode(n, nil, zero)
 	}
 	s.errorf("can't handle assignment of %s to empty interface argument", n)
 	panic("not reached")
