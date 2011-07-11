@@ -12,10 +12,14 @@ import (
 	"fmt"
 	"http"
 	"http/httptest"
+	"io"
 	"os"
+	"net"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 	"runtime"
 )
 
@@ -304,8 +308,76 @@ func TestInternalRedirect(t *testing.T) {
 	runCgiTest(t, h, "GET /test.cgi?loc=/foo HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
 
+// TestCopyError tests that we kill the process if there's an error copying
+// its output. (for example, from the client having gone away)
+func TestCopyError(t *testing.T) {
+	if skipTest(t) || runtime.GOOS == "windows" {
+		return
+	}
+	h := &Handler{
+		Path: "testdata/test.cgi",
+		Root: "/test.cgi",
+	}
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := http.NewRequest("GET", "http://example.com/test.cgi?bigresponse=1", nil)
+	err = req.Write(conn)
+	if err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+
+	res, err := http.ReadResponse(bufio.NewReader(conn), req)
+	if err != nil {
+		t.Fatalf("ReadResponse: %v", err)
+	}
+
+	pidstr := res.Header.Get("X-CGI-Pid")
+	if pidstr == "" {
+		t.Fatalf("expected an X-CGI-Pid header in response")
+	}
+	pid, err := strconv.Atoi(pidstr)
+	if err != nil {
+		t.Fatalf("invalid X-CGI-Pid value")
+	}
+
+	var buf [5000]byte
+	n, err := io.ReadFull(res.Body, buf[:])
+	if err != nil {
+		t.Fatalf("ReadFull: %d bytes, %v", n, err)
+	}
+
+	childRunning := func() bool {
+		p, err := os.FindProcess(pid)
+		if err != nil {
+			return false
+		}
+		return p.Signal(os.UnixSignal(0)) == nil
+	}
+
+	if !childRunning() {
+		t.Fatalf("pre-conn.Close, expected child to be running")
+	}
+	conn.Close()
+
+	if tries := 0; childRunning() {
+		for tries < 5 && childRunning() {
+			time.Sleep(50e6 * int64(tries))
+			tries++
+		}
+		if childRunning() {
+			t.Fatalf("post-conn.Close, expected child to be gone")
+		}
+	}
+}
+
+
 func TestDirUnix(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if skipTest(t) || runtime.GOOS == "windows" {
 		return
 	}
 
@@ -333,7 +405,7 @@ func TestDirUnix(t *testing.T) {
 }
 
 func TestDirWindows(t *testing.T) {
-	if runtime.GOOS != "windows" {
+	if skipTest(t) || runtime.GOOS != "windows" {
 		return
 	}
 

@@ -25,8 +25,16 @@ my $p = sub {
 
 # With carriage returns
 $p->("Content-Type: text/html");
+$p->("X-CGI-Pid: $$");
 $p->("X-Test-Header: X-Test-Value");
 $p->("");
+
+if ($params->{"bigresponse"}) {
+    for (1..1024) {
+        print "A" x 1024, "\n";
+    }
+    exit 0;
+}
 
 print "test=Hello CGI\n";
 
