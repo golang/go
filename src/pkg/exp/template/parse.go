@@ -25,11 +25,17 @@ type Template struct {
 	lex       *lexer
 	token     [2]item // two-token lookahead for parser
 	peekCount int
+	vars      []string // variables defined at the moment
 }
 
 // Name returns the name of the template.
 func (t *Template) Name() string {
 	return t.name
+}
+
+// popVars trims the variable list to the specified length
+func (t *Template) popVars(n int) {
+	t.vars = t.vars[:n]
 }
 
 // next returns the next token.
@@ -560,11 +566,13 @@ func (t *Template) startParse(set *Set, lex *lexer) {
 	t.root = nil
 	t.set = set
 	t.lex = lex
+	t.vars = []string{"$"}
 }
 
 // stopParse terminates parsing.
 func (t *Template) stopParse() {
 	t.set, t.lex = nil, nil
+	t.vars = nil
 }
 
 // atEOF returns true if, possibly after spaces, we're at EOF.
@@ -605,6 +613,9 @@ func (t *Template) ParseInSet(s string, set *Set) (err os.Error) {
 	t.startParse(set, lex(t.name, s))
 	defer t.recover(&err)
 	t.parse(true)
+	if len(t.vars) != 1 { // $ should still be defined
+		t.errorf("internal error: vars not popped")
+	}
 	t.stopParse()
 	return
 }
@@ -674,6 +685,7 @@ func (t *Template) action() (n node) {
 		return t.withControl()
 	}
 	t.backup()
+	defer t.popVars(len(t.vars))
 	return newAction(t.lex.lineNumber(), t.pipeline("command"))
 }
 
@@ -688,6 +700,7 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
 		if ce := t.peek(); ce.typ == itemColonEquals {
 			t.next()
 			decl = newVariable(v.val)
+			t.vars = append(t.vars, v.val)
 		} else {
 			t.backup2(v)
 		}
@@ -712,6 +725,7 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
 
 func (t *Template) parseControl(context string) (lineNum int, pipe *pipeNode, list, elseList *listNode) {
 	lineNum = t.lex.lineNumber()
+	defer t.popVars(len(t.vars))
 	pipe = t.pipeline(context)
 	var next node
 	list, next = t.itemList(false)
@@ -795,6 +809,7 @@ func (t *Template) templateControl() node {
 	var pipe *pipeNode
 	if t.next().typ != itemRightDelim {
 		t.backup()
+		defer t.popVars(len(t.vars))
 		pipe = t.pipeline("template")
 	}
 	return newTemplate(t.lex.lineNumber(), name, pipe)
@@ -823,6 +838,16 @@ Loop:
 		case itemDot:
 			cmd.append(newDot())
 		case itemVariable:
+			found := false
+			for _, varName := range t.vars {
+				if varName == token.val {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.errorf("undefined variable %q", token.val)
+			}
 			cmd.append(newVariable(token.val))
 		case itemField:
 			cmd.append(newField(token.val))

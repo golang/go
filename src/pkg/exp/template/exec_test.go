@@ -163,7 +163,6 @@ var execTests = []execTest{
 	{"with $x int", "{{with $x := .I}}{{$x}}{{end}}", "17", tVal, true},
 	{"range $x SI", "{{range $x := .SI}}<{{$x}}>{{end}}", "<3><4><5>", tVal, true},
 	{"range $x PSI", "{{range $x := .PSI}}<{{$x}}>{{end}}", "<21><22><23>", tVal, true},
-	{"after range $x", "{{range $x := .SI}}{{end}}{{$x}}", "", tVal, false},
 	{"if $x with $y int", "{{if $x := true}}{{with $y := .I}}{{$x}},{{$y}}{{end}}{{end}}", "true,17", tVal, true},
 	{"if $x with $x int", "{{if $x := true}}{{with $x := .I}}{{$x}},{{end}}{{$x}}{{end}}", "17,true", tVal, true},
 
