@@ -53,6 +53,18 @@ var lexTests = []lexTest{
 		tRight,
 		tEOF,
 	}},
+	{"characters", `{{'a' '\n' '\'' '\\' '\u00FF' '\xFF' '本'}}`, []item{
+		tLeft,
+		{itemChar, `'a'`},
+		{itemChar, `'\n'`},
+		{itemChar, `'\''`},
+		{itemChar, `'\\'`},
+		{itemChar, `'\u00FF'`},
+		{itemChar, `'\xFF'`},
+		{itemChar, `'本'`},
+		tRight,
+		tEOF,
+	}},
 	{"bools", "{{true false}}", []item{
 		tLeft,
 		{itemBool, "true"},
@@ -136,6 +148,10 @@ var lexTests = []lexTest{
 	{"unclosed raw quote", "{{`xx\n`}}", []item{
 		tLeft,
 		{itemError, "unterminated raw quoted string"},
+	}},
+	{"unclosed char constant", "{{'\n}}", []item{
+		tLeft,
+		{itemError, "unterminated character constant"},
 	}},
 	{"bad number", "{{3k}}", []item{
 		tLeft,

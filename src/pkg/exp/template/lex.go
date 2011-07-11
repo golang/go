@@ -37,6 +37,7 @@ type itemType int
 const (
 	itemError       itemType = iota // error occurred; value is text of error
 	itemBool                        // boolean constant
+	itemChar                        // character constant
 	itemComplex                     // complex constant (1+2i); imaginary is just a number
 	itemColonEquals                 // colon-equals (':=') introducing a declaration
 	itemEOF
@@ -66,6 +67,7 @@ const (
 var itemName = map[itemType]string{
 	itemError:       "error",
 	itemBool:        "bool",
+	itemChar:        "char",
 	itemComplex:     "complex",
 	itemColonEquals: ":=",
 	itemEOF:         "EOF",
@@ -296,6 +298,8 @@ func lexInsideAction(l *lexer) stateFn {
 			return lexRawQuote
 		case r == '$':
 			return lexIdentifier
+		case r == '\'':
+			return lexChar
 		case r == '.':
 			// special look-ahead for ".field" so we don't break l.backup().
 			if l.pos < len(l.input) {
@@ -345,6 +349,27 @@ Loop:
 			break Loop
 		}
 	}
+	return lexInsideAction
+}
+
+// lexChar scans a character constant. The initial quote is already
+// scanned.  Syntax checking is done by the parse.
+func lexChar(l *lexer) stateFn {
+Loop:
+	for {
+		switch l.next() {
+		case '\\':
+			if r := l.next(); r != eof && r != '\n' {
+				break
+			}
+			fallthrough
+		case eof, '\n':
+			return l.errorf("unterminated character constant")
+		case '\'':
+			break Loop
+		}
+	}
+	l.emit(itemChar)
 	return lexInsideAction
 }
 
