@@ -289,9 +289,28 @@ type numberNode struct {
 	text       string
 }
 
-func newNumber(text string, isComplex bool) (*numberNode, os.Error) {
+func newNumber(text string, typ itemType) (*numberNode, os.Error) {
 	n := &numberNode{nodeType: nodeNumber, text: text}
-	if isComplex {
+	switch typ {
+	case itemChar:
+		if len(text) < 3 {
+			return nil, fmt.Errorf("illegal character constant: %s", text)
+		}
+		rune, _, tail, err := strconv.UnquoteChar(text[1:len(text)-1], text[0])
+		if err != nil {
+			return nil, err
+		}
+		if len(tail) > 0 {
+			return nil, fmt.Errorf("extra bytes in character constant: %s", text)
+		}
+		n.int64 = int64(rune)
+		n.isInt = true
+		n.uint64 = uint64(rune)
+		n.isUint = true
+		n.float64 = float64(rune) // odd but those are the rules.
+		n.isFloat = true
+		return n, nil
+	case itemComplex:
 		// fmt.Sscan can parse the pair, so let it do the work.
 		if _, err := fmt.Sscan(text, &n.complex128); err != nil {
 			return nil, err
@@ -713,7 +732,7 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
 				t.errorf("missing value for %s", context)
 			}
 			return
-		case itemBool, itemComplex, itemDot, itemField, itemIdentifier, itemVariable, itemNumber, itemRawString, itemString:
+		case itemBool, itemChar, itemComplex, itemDot, itemField, itemIdentifier, itemVariable, itemNumber, itemRawString, itemString:
 			t.backup()
 			pipe.append(t.command())
 		default:
@@ -853,8 +872,8 @@ Loop:
 			cmd.append(newField(token.val))
 		case itemBool:
 			cmd.append(newBool(token.val == "true"))
-		case itemComplex, itemNumber:
-			number, err := newNumber(token.val, token.typ == itemComplex)
+		case itemChar, itemComplex, itemNumber:
+			number, err := newNumber(token.val, token.typ)
 			if err != nil {
 				t.error(err)
 			}

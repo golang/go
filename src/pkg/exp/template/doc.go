@@ -78,10 +78,9 @@ Arguments
 
 An argument is a simple value, denoted by one of the following:
 
-	- A boolean, string, integer, floating-point, imaginary or complex
-	  constant in Go syntax. These behave like Go's untyped constants,
-	  although raw strings may not span newlines. (Character constants are
-	  not supported; this may change.)
+	- A boolean, string, character, integer, floating-point, imaginary
+	  or complex constant in Go syntax. These behave like Go's untyped
+	  constants, although raw strings may not span newlines.
 	- The character '.' (period):
 		.
 	  The result is the value of dot.
