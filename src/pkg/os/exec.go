@@ -13,10 +13,11 @@ import (
 type Process struct {
 	Pid    int
 	handle int
+	done   bool // process has been successfuly waited on
 }
 
 func newProcess(pid, handle int) *Process {
-	p := &Process{pid, handle}
+	p := &Process{Pid: pid, handle: handle}
 	runtime.SetFinalizer(p, (*Process).Release)
 	return p
 }

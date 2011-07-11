@@ -895,7 +895,14 @@ func run(t *testing.T, cmd []string) string {
 
 	var b bytes.Buffer
 	io.Copy(&b, r)
-	p.Wait(0)
+	_, err = p.Wait(0)
+	if err != nil {
+		t.Fatalf("run hostname Wait: %v", err)
+	}
+	err = p.Kill()
+	if err == nil {
+		t.Errorf("expected an error from Kill running 'hostname'")
+	}
 	output := b.String()
 	if n := len(output); n > 0 && output[n-1] == '\n' {
 		output = output[0 : n-1]
