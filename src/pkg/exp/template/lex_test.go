@@ -97,7 +97,7 @@ var lexTests = []lexTest{
 		tRight,
 		tEOF,
 	}},
-	{"variables", "{{$c := printf $ $hello $23 $.Method}}", []item{
+	{"variables", "{{$c := printf $ $hello $23 $ $var.Field .Method}}", []item{
 		tLeft,
 		{itemVariable, "$c"},
 		{itemColonEquals, ":="},
@@ -106,6 +106,7 @@ var lexTests = []lexTest{
 		{itemVariable, "$hello"},
 		{itemVariable, "$23"},
 		{itemVariable, "$"},
+		{itemVariable, "$var.Field"},
 		{itemField, ".Method"},
 		tRight,
 		tEOF,
