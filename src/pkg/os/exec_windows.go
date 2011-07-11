@@ -24,11 +24,15 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
 	if e != 0 {
 		return nil, NewSyscallError("GetExitCodeProcess", e)
 	}
+	p.done = true
 	return &Waitmsg{p.Pid, syscall.WaitStatus{s, ec}, new(syscall.Rusage)}, nil
 }
 
 // Signal sends a signal to the Process.
 func (p *Process) Signal(sig Signal) Error {
+	if p.done {
+		return NewError("os: process already finished")
+	}
 	switch sig.(UnixSignal) {
 	case SIGKILL:
 		e := syscall.TerminateProcess(syscall.Handle(p.handle), 1)
