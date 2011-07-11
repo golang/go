@@ -47,6 +47,9 @@ var atoftests = []atofTest{
 	{"inf", "+Inf", nil},
 	{"-Inf", "-Inf", nil},
 	{"+INF", "+Inf", nil},
+	{"-Infinity", "-Inf", nil},
+	{"+INFINITY", "+Inf", nil},
+	{"Infinity", "+Inf", nil},
 
 	// largest float64
 	{"1.7976931348623157e308", "1.7976931348623157e+308", nil},
