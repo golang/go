@@ -146,8 +146,10 @@ var parseTests = []parseTest{
 		`[(action: [(command: [F=[X]])])]`},
 	{"simple command", "{{printf}}", noError,
 		`[(action: [(command: [I=printf])])]`},
-	{"variable invocation", "{{$x 23}}", noError,
-		"[(action: [(command: [V=$x N=23])])]"},
+	{"$ invocation", "{{$}}", noError,
+		"[(action: [(command: [V=$])])]"},
+	{"variable invocation", "{{with $x := 3}}{{$x 23}}{{end}}", noError,
+		"[({{with $x := [(command: [N=3])]}} [(action: [(command: [V=$x N=23])])])]"},
 	{"multi-word command", "{{printf `%d` 23}}", noError,
 		"[(action: [(command: [I=printf S=`%d` N=23])])]"},
 	{"pipeline", "{{.X|.Y}}", noError,
@@ -184,9 +186,12 @@ var parseTests = []parseTest{
 		`[({{with [(command: [F=[X]])]}} [(text: "hello")] {{else}} [(text: "goodbye")])]`},
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},
+	{"unmatched end", "{{end}}", hasError, ""},
 	{"missing end", "hello{{range .x}}", hasError, ""},
 	{"missing end after else", "hello{{range .x}}{{else}}", hasError, ""},
 	{"undefined function", "hello{{undefined}}", hasError, ""},
+	{"undefined variable", "{{$x}}", hasError, ""},
+	{"variable undefined after end", "{{with $x := 4}}{{end}}{{$x}}", hasError, ""},
 }
 
 func TestParse(t *testing.T) {
