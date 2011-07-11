@@ -42,7 +42,7 @@ func (t *Template) MustParseFile(filename string) *Template {
 	return t
 }
 
-// ParseFile is a helper function that creates a new *Template and parses
+// ParseFile is a helper function that creates a new Template and parses
 // the template definition from the named file.
 // The template name is the base name of the file.
 func ParseFile(filename string) (*Template, os.Error) {
@@ -50,7 +50,7 @@ func ParseFile(filename string) (*Template, os.Error) {
 	return t, t.ParseFile(filename)
 }
 
-// MustParseFile is a helper function that creates a new *Template and parses
+// MustParseFile is a helper function that creates a new Template and parses
 // the template definition from the named file.
 // The template name is the base name of the file.
 // It panics if the file cannot be read or the template cannot be parsed.
@@ -85,14 +85,14 @@ func (s *Set) MustParseFile(filename string) *Set {
 	return s
 }
 
-// ParseSetFile is a helper function that creates a new *Set and parses
+// ParseSetFile is a helper function that creates a new Set and parses
 // the set definition from the named file.
 func ParseSetFile(filename string) (*Set, os.Error) {
 	s := NewSet()
 	return s, s.ParseFile(filename)
 }
 
-// MustParseSetFile is a helper function that creates a new *Set and parses
+// MustParseSetFile is a helper function that creates a new Set and parses
 // the set definition from the named file.
 // It panics if the file cannot be read or the set cannot be parsed.
 func MustParseSetFile(filename string) *Set {
