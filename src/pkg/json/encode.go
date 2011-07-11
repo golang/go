@@ -344,10 +344,17 @@ func (e *encodeState) string(s string) {
 			if start < i {
 				e.WriteString(s[start:i])
 			}
-			if b == '\\' || b == '"' {
+			switch b {
+			case '\\', '"':
 				e.WriteByte('\\')
 				e.WriteByte(b)
-			} else {
+			case '\n':
+				e.WriteByte('\\')
+				e.WriteByte('n')
+			case '\r':
+				e.WriteByte('\\')
+				e.WriteByte('r')
+			default:
 				e.WriteString(`\u00`)
 				e.WriteByte(hex[b>>4])
 				e.WriteByte(hex[b&0xF])
