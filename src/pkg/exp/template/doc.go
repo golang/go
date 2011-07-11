@@ -33,9 +33,9 @@ data, defined in detail below.
 		is copied to the output.
 
 	{{if pipeline}} T1 {{end}}
-		If the value of the pipeline is the zero value for its type, no
-		output is generated; otherwise, T1 is executed. Dot is
-		unaffected.
+		If the value of the pipeline is the "zero value" (see below) for
+		its type, no output is generated; otherwise, T1 is executed.
+		Dot is unaffected.
 
 	{{if pipeline}} T1 {{else}} T0 {{end}}
 		If the value of the pipeline is the zero value for its type, T0
@@ -60,7 +60,7 @@ data, defined in detail below.
 
 	{{template argument pipeline}}
 		If the value of the argument is a string, the template with that
-		name is executed with data set to the value of the pipeline . If
+		name is executed with data set to the value of the pipeline. If
 		the value of arg is of type *Template, that template is
 		executed.
 
@@ -73,6 +73,9 @@ data, defined in detail below.
 		If the value of the pipeline is the zero value for its type, dot
 		is unaffected and T0 is executed; otherwise, dot is set to the
 		value of the pipeline and T1 is executed.
+
+"Zero value" means the true zero value in Go terms.  Also, for arrays, slices,
+maps, and strings, any value v with len(v)==0 counts as a zero value.
 
 Arguments
 
@@ -91,6 +94,12 @@ An argument is a simple value, denoted by one of the following:
 		$
 	  The result is the value of the variable.
 	  Variables are described below.
+	- The name of a field of the data, which must be a struct, preceded
+	  by a period, such as
+		.Field
+	  The result is the value of the field. Field invocations may be
+	  chained:
+	    .Field1.Field2
 	- The name of a niladic method of the data, preceded by a period,
 	  such as
 		.Method
@@ -99,6 +108,9 @@ An argument is a simple value, denoted by one of the following:
 	  any type) or two return values, the second of which is an os.Error.
 	  If it has two and the returned error is non-nil, execution terminates
 	  and that error is returned to the caller as the value of Execute.
+	  Method invocations may be chained, but only the last element of
+	  the chain may be a method; other others must be struct fields:
+	    .Field1.Field2.Method
 	- The name of a niladic function, such as
 		fun
 	  The result is the value of invoking the function, fun(). The return
@@ -187,7 +199,7 @@ the set but the Funcs methods can be used to add them.
 Predefined global functions are named as follows.
 
 	and
-		Returns the boolean and AND of its arguments.
+		Returns the boolean AND of its arguments.
 	html
 		Returns the escaped HTML equivalent of the textual
 		representation of its arguments.
@@ -201,7 +213,7 @@ Predefined global functions are named as follows.
 	not
 		Returns the boolean negation of its single argument.
 	or
-		Returns the booland OR of its arguments.
+		Returns the boolean OR of its arguments.
 	print
 		An alias for fmt.Sprint
 	printf
