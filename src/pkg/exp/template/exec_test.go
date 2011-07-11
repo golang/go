@@ -285,6 +285,10 @@ var execTests = []execTest{
 	// Error handling.
 	{"error method, error", "{{.EPERM true}}", "", tVal, false},
 	{"error method, no error", "{{.EPERM false}}", "false", tVal, true},
+
+	// Fixed bugs.
+	// Must separate dot and receiver; otherwise args are evaluated with dot set to variable.
+	{"problem", "{{range .MSIone}}-{{if $.Method1 .}}X{{end}}{{end}}-", "-X-", tVal, true},
 }
 
 func zeroArgs() string {
