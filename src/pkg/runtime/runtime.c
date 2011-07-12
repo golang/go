@@ -588,3 +588,16 @@ runtime·FuncForPC(uintptr pc, void *retf)
 	retf = runtime·findfunc(pc);
 	FLUSH(&retf);
 }
+
+uint32
+runtime·fastrand1(void)
+{
+	uint32 x;
+
+	x = m->fastrand;
+	x += x;
+	if(x & 0x80000000L)
+		x ^= 0x88888eefUL;
+	m->fastrand = x;
+	return x;
+}

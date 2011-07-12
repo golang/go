@@ -18,21 +18,6 @@ extern MStats mstats;	// defined in extern.go
 
 extern volatile int32 runtime·MemProfileRate;
 
-// Same algorithm from chan.c, but a different
-// instance of the static uint32 x.
-// Not protected by a lock - let the threads use
-// the same random number if they like.
-static uint32
-fastrand1(void)
-{
-	static uint32 x = 0x49f6428aUL;
-
-	x += x;
-	if(x & 0x80000000L)
-		x ^= 0x88888eefUL;
-	return x;
-}
-
 // Allocate an object of at least size bytes.
 // Small objects are allocated from the per-thread cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
@@ -97,7 +82,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 			// pick next profile time
 			if(rate > 0x3fffffff)	// make 2*rate not overflow
 				rate = 0x3fffffff;
-			m->mcache->next_sample = fastrand1() % (2*rate);
+			m->mcache->next_sample = runtime·fastrand1() % (2*rate);
 		profile:
 			runtime·setblockspecial(v);
 			runtime·MProf_Malloc(v, size);
