@@ -182,7 +182,7 @@ func (s *Script) Clean() (err os.Error) {
 	return
 }
 
-// Clean removes the Script's Intermediate and Output files.
+// Nuke removes the Script's Intermediate and Output files.
 // It tries to remove every file and returns the first error it encounters.
 func (s *Script) Nuke() (err os.Error) {
 	// Reverse order so that directories get removed after the files they contain.
