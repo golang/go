@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -127,6 +128,10 @@ func (t *T) EPERM(error bool) (bool, os.Error) {
 	return false, nil
 }
 
+func typeOf(arg interface{}) string {
+	return fmt.Sprintf("%T", arg)
+}
+
 type execTest struct {
 	name   string
 	input  string
@@ -135,10 +140,26 @@ type execTest struct {
 	ok     bool
 }
 
+// bigInt and bigUint are hex string representing numbers either side
+// of the max int boundary.
+// We do it this way so the test doesn't depend on ints being 32 bits.
+var (
+	bigInt  = fmt.Sprintf("0x%x", int(1<<uint(reflect.TypeOf(0).Bits()-1)-1))
+	bigUint = fmt.Sprintf("0x%x", uint(1<<uint(reflect.TypeOf(0).Bits()-1)))
+)
+
 var execTests = []execTest{
 	// Trivial cases.
 	{"empty", "", "", nil, true},
 	{"text", "some text", "some text", nil, true},
+
+	// Ideal constants.
+	{"ideal int", "{{typeOf 3}}", "int", 0, true},
+	{"ideal float", "{{typeOf 1.0}}", "float64", 0, true},
+	{"ideal exp float", "{{typeOf 1e1}}", "float64", 0, true},
+	{"ideal complex", "{{typeOf 1i}}", "complex128", 0, true},
+	{"ideal int", "{{typeOf " + bigInt + "}}", "int", 0, true},
+	{"ideal too big", "{{typeOf " + bigUint + "}}", "", 0, false},
 
 	// Fields of structs.
 	{".X", "-{{.X}}-", "-x-", tVal, true},
@@ -301,7 +322,7 @@ func oneArg(a string) string {
 
 func testExecute(execTests []execTest, set *Set, t *testing.T) {
 	b := new(bytes.Buffer)
-	funcs := FuncMap{"zeroArgs": zeroArgs, "oneArg": oneArg}
+	funcs := FuncMap{"zeroArgs": zeroArgs, "oneArg": oneArg, "typeOf": typeOf}
 	for _, test := range execTests {
 		tmpl := New(test.name).Funcs(funcs)
 		err := tmpl.Parse(test.input)
