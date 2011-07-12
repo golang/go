@@ -300,24 +300,37 @@ func (s *state) evalCommand(dot reflect.Value, cmd *commandNode, final reflect.V
 	case *dotNode:
 		return dot
 	case *numberNode:
-		// These are ideal constants but we don't know the type
-		// and we have no context.  (If it was a method argument,
-		// we'd know what we need.) The syntax guides us to some extent.
-		switch {
-		case word.isComplex:
-			return reflect.ValueOf(word.complex128) // incontrovertible.
-		case word.isFloat && strings.IndexAny(word.text, ".eE") >= 0:
-			return reflect.ValueOf(word.float64)
-		case word.isInt:
-			return reflect.ValueOf(word.int64)
-		case word.isUint:
-			return reflect.ValueOf(word.uint64)
-		}
+		return s.idealConstant(word)
 	case *stringNode:
 		return reflect.ValueOf(word.text)
 	}
 	s.errorf("can't handle command %q", firstWord)
 	panic("not reached")
+}
+
+// idealConstant is called to return the value of a number in a context where
+// we don't know the type. In that case, the syntax of the number tells us
+// its type, and we use Go rules to resolve.  Note there is no such thing as
+// a uint ideal constant in this situation - the value must be of int type.
+func (s *state) idealConstant(constant *numberNode) reflect.Value {
+	// These are ideal constants but we don't know the type
+	// and we have no context.  (If it was a method argument,
+	// we'd know what we need.) The syntax guides us to some extent.
+	switch {
+	case constant.isComplex:
+		return reflect.ValueOf(constant.complex128) // incontrovertible.
+	case constant.isFloat && strings.IndexAny(constant.text, ".eE") >= 0:
+		return reflect.ValueOf(constant.float64)
+	case constant.isInt:
+		n := int(constant.int64)
+		if int64(n) != constant.int64 {
+			s.errorf("%s overflows int", constant.text)
+		}
+		return reflect.ValueOf(n)
+	case constant.isUint:
+		s.errorf("%s overflows int", constant.text)
+	}
+	return zero
 }
 
 func (s *state) evalFieldNode(dot reflect.Value, field *fieldNode, args []node, final reflect.Value) reflect.Value {
@@ -577,18 +590,7 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n node) reflect.Value {
 	case *identifierNode:
 		return s.evalFunction(dot, n.ident, nil, zero)
 	case *numberNode:
-		if n.isComplex {
-			return reflect.ValueOf(n.complex128)
-		}
-		if n.isInt {
-			return reflect.ValueOf(n.int64)
-		}
-		if n.isUint {
-			return reflect.ValueOf(n.uint64)
-		}
-		if n.isFloat {
-			return reflect.ValueOf(n.float64)
-		}
+		return s.idealConstant(n)
 	case *stringNode:
 		return reflect.ValueOf(n.text)
 	case *variableNode:
