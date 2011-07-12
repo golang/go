@@ -75,6 +75,12 @@ except:
 	def findcommonincoming(repo, remote):
 		return repo.findcommonincoming(remote)
 
+# in Mercurial 1.9 the cmdutil.match and cmdutil.revpair moved to scmutil
+if hgversion >= '1.9':
+    from mercurial import scmutil
+else:
+    scmutil = cmdutil
+
 oldMessage = """
 The code review extension requires Mercurial 1.3 or newer.
 
@@ -713,14 +719,14 @@ _change_prolog = """# Change list.
 # Get effective change nodes taking into account applied MQ patches
 def effective_revpair(repo):
     try:
-	return cmdutil.revpair(repo, ['qparent'])
+	return scmutil.revpair(repo, ['qparent'])
     except:
-	return cmdutil.revpair(repo, None)
+	return scmutil.revpair(repo, None)
 
 # Return list of changed files in repository that match pats.
 # Warn about patterns that did not match.
 def matchpats(ui, repo, pats, opts):
-	matcher = cmdutil.match(repo, pats, opts)
+	matcher = scmutil.match(repo, pats, opts)
 	node1, node2 = effective_revpair(repo)
 	modified, added, removed, deleted, unknown, ignored, clean = repo.status(node1, node2, matcher, ignored=True, clean=True, unknown=True)
 	return (modified, added, removed, deleted, unknown, ignored, clean)
@@ -827,7 +833,6 @@ Examples:
 
 '''
 
-	
 
 def promptremove(ui, repo, f):
 	if promptyesno(ui, "hg remove %s (y/n)?" % (f,)):
@@ -959,6 +964,11 @@ def ReplacementForCmdutilMatch(repo, pats=None, opts=None, globbed=False, defaul
 				raise util.Abort("no files in CL " + clname)
 			files = Add(files, cl.files)
 	pats = Sub(pats, taken) + ['path:'+f for f in files]
+
+	# work-around for http://selenic.com/hg/rev/785bbc8634f8
+	if hgversion >= '1.9' and not hasattr(repo, 'match'):
+		repo = repo[None]
+
 	return original_match(repo, pats=pats, opts=opts, globbed=globbed, default=default)
 
 def RelativePath(path, cwd):
@@ -1292,7 +1302,7 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 		# sequence numbers get to be 7 digits long.
 		if re.match('^[0-9]{7,}$', clname):
 			found = False
-			matchfn = cmdutil.match(repo, [], {'rev': None})
+			matchfn = scmutil.match(repo, [], {'rev': None})
 			def prep(ctx, fns):
 				pass
 			for ctx in cmdutil.walkchangerevs(repo, matchfn, {'rev': None}, prep):
@@ -1607,8 +1617,8 @@ def reposetup(ui, repo):
 	global original_match
 	if original_match is None:
 		start_status_thread()
-		original_match = cmdutil.match
-		cmdutil.match = ReplacementForCmdutilMatch
+		original_match = scmutil.match
+		scmutil.match = ReplacementForCmdutilMatch
 		RietveldSetup(ui, repo)
 
 def CheckContributor(ui, repo, user=None):
@@ -1828,7 +1838,7 @@ def sync_changes(ui, repo):
 				break
 			Rev(rev)
 	else:
-		matchfn = cmdutil.match(repo, [], {'rev': None})
+		matchfn = scmutil.match(repo, [], {'rev': None})
 		def prep(ctx, fns):
 			pass
 		for ctx in cmdutil.walkchangerevs(repo, matchfn, {'rev': None}, prep):
