@@ -193,9 +193,6 @@ func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
 }
 
 func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
-	if r.Dy() < 1 {
-		return
-	}
 	sr, sg, sb, sa := src.RGBA()
 	// The built-in copy function is faster than a straightforward for loop to fill the destination with
 	// the color, but copy requires a slice source. We therefore use a for loop to fill the first row, and
