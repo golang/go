@@ -6,32 +6,32 @@ package main
 
 import (
 	"crypto/aes"
-	"crypto/block"
+	"crypto/cipher"
 	"compress/gzip"
 	"io"
 	"os"
 )
 
 func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) {
-	r, _ := os.Open(srcfile, os.O_RDONLY, 0)
+	r, _ := os.Open(srcfile)
 	var w io.Writer
-	w, _ = os.Open(dstfile, os.O_WRONLY|os.O_CREATE, 0666)
+	w, _ = os.Create(dstfile)
 	c, _ := aes.NewCipher(key)
-	w = block.NewOFBWriter(c, iv, w)
-	w2, _ := gzip.NewDeflater(w)
+	w = cipher.StreamWriter{S: cipher.NewOFB(c, iv), W: w}
+	w2, _ := gzip.NewWriter(w)
 	io.Copy(w2, r)
 	w2.Close()
 }
 
 func DecryptAndGunzip(dstfile, srcfile string, key, iv []byte) {
-	f, _ := os.Open(srcfile, os.O_RDONLY, 0)
+	f, _ := os.Open(srcfile)
 	defer f.Close()
 	c, _ := aes.NewCipher(key)
-	r := block.NewOFBReader(c, iv, f)
-	r, _ = gzip.NewInflater(r)
-	w, _ := os.Open(dstfile, os.O_WRONLY|os.O_CREATE, 0666)
+	r := cipher.StreamReader{S: cipher.NewOFB(c, iv), R: f}
+	r2, _ := gzip.NewReader(r)
+	w, _ := os.Create(dstfile)
 	defer w.Close()
-	io.Copy(w, r)
+	io.Copy(w, r2)
 }
 
 func main() {
