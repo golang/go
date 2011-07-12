@@ -245,6 +245,7 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
 // satisfied by other libraries at dynamic load time.
 // It does not return weak symbols.
 func (f *File) ImportedSymbols() ([]string, os.Error) {
+	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64
 	ds := f.Section(".idata")
 	if ds == nil {
 		// not dynamic, so no libraries
@@ -274,17 +275,31 @@ func (f *File) ImportedSymbols() ([]string, os.Error) {
 		// seek to OriginalFirstThunk
 		d = d[dt.OriginalFirstThunk-ds.VirtualAddress:]
 		for len(d) > 0 {
-			va := binary.LittleEndian.Uint32(d[0:4])
-			d = d[4:]
-			if va == 0 {
-				break
-			}
-			if va&0x80000000 > 0 { // is Ordinal
-				// TODO add dynimport ordinal support.
-				//ord := va&0x0000FFFF
-			} else {
-				fn, _ := getString(names, int(va-ds.VirtualAddress+2))
-				all = append(all, fn+":"+dt.dll)
+			if pe64 { // 64bit
+				va := binary.LittleEndian.Uint64(d[0:8])
+				d = d[8:]
+				if va == 0 {
+					break
+				}
+				if va&0x8000000000000000 > 0 { // is Ordinal
+					// TODO add dynimport ordinal support.
+				} else {
+					fn, _ := getString(names, int(uint32(va)-ds.VirtualAddress+2))
+					all = append(all, fn+":"+dt.dll)
+				}
+			} else { // 32bit
+				va := binary.LittleEndian.Uint32(d[0:4])
+				d = d[4:]
+				if va == 0 {
+					break
+				}
+				if va&0x80000000 > 0 { // is Ordinal
+					// TODO add dynimport ordinal support.
+					//ord := va&0x0000FFFF
+				} else {
+					fn, _ := getString(names, int(va-ds.VirtualAddress+2))
+					all = append(all, fn+":"+dt.dll)
+				}
 			}
 		}
 	}
