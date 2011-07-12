@@ -210,8 +210,11 @@ runtime·idlegoroutine(void)
 static void
 mcommoninit(M *m)
 {
+	// Add to runtime·allm so garbage collector doesn't free m
+	// when it is just in a register or thread-local storage.
 	m->alllink = runtime·allm;
 	runtime·allm = m;
+
 	m->id = runtime·sched.mcount++;
 	m->fastrand = 0x49f6428aUL + m->id;
 	m->stackalloc = runtime·malloc(sizeof(*m->stackalloc));
@@ -502,8 +505,6 @@ matchmg(void)
 		// Find the m that will run g.
 		if((m = mget(g)) == nil){
 			m = runtime·malloc(sizeof(M));
-			// Add to runtime·allm so garbage collector doesn't free m
-			// when it is just in a register or thread-local storage.
 			mcommoninit(m);
 
 			if(runtime·iscgo) {
