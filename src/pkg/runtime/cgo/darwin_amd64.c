@@ -8,24 +8,25 @@
 static void* threadentry(void*);
 static pthread_key_t k1, k2;
 
+#define magic1 (0x23581321345589ULL)
+
 static void
 inittls(void)
 {
 	uint64 x, y;
-	pthread_key_t tofree[16], k;
+	pthread_key_t tofree[128], k;
 	int i, ntofree;
 	int havek1, havek2;
 
 	/*
 	 * Same logic, code as darwin_386.c:/inittls, except that words
-	 * are 8 bytes long now, and the thread-local storage starts at 0x60.
-	 * So the offsets are
+	 * are 8 bytes long now, and the thread-local storage starts
+	 * at 0x60 on Leopard / Snow Leopard. So the offsets are
 	 * 0x60+8*0x108 = 0x8a0 and 0x60+8*0x109 = 0x8a8.
 	 *
 	 * The linker and runtime hard-code these constant offsets
-	 * from %gs where we expect to find m and g.  The code
-	 * below verifies that the constants are correct once it has
-	 * obtained the keys.  Known to ../cmd/6l/obj.c:/8a0
+	 * from %gs where we expect to find m and g.
+	 * Known to ../cmd/6l/obj.c:/8a0
 	 * and to ../pkg/runtime/darwin/amd64/sys.s:/8a0
 	 *
 	 * As disgusting as on the 386; same justification.
@@ -35,49 +36,37 @@ inittls(void)
 	ntofree = 0;
 	while(!havek1 || !havek2) {
 		if(pthread_key_create(&k, nil) < 0) {
-			fprintf(stderr, "libcgo: pthread_key_create failed\n");
+			fprintf(stderr, "runtime/cgo: pthread_key_create failed\n");
 			abort();
 		}
-		if(k == 0x108) {
+		pthread_setspecific(k, (void*)magic1);
+		asm volatile("movq %%gs:0x8a0, %0" : "=r"(x));
+		asm volatile("movq %%gs:0x8a8, %0" : "=r"(y));
+		if(x == magic1) {
 			havek1 = 1;
 			k1 = k;
-			continue;
-		}
-		if(k == 0x109) {
+		} else if(y == magic1) {
 			havek2 = 1;
 			k2 = k;
-			continue;
+		} else {
+			if(ntofree >= nelem(tofree)) {
+				fprintf(stderr, "runtime/cgo: could not obtain pthread_keys\n");
+				fprintf(stderr, "\ttried");
+				for(i=0; i<ntofree; i++)
+					fprintf(stderr, " %#x", (unsigned)tofree[i]);
+				fprintf(stderr, "\n");
+				abort();
+			}
+			tofree[ntofree++] = k;
 		}
-		if(ntofree >= nelem(tofree)) {
-			fprintf(stderr, "libcgo: could not obtain pthread_keys\n");
-			fprintf(stderr, "\twanted 0x108 and 0x109\n");
-			fprintf(stderr, "\tgot");
-			for(i=0; i<ntofree; i++)
-				fprintf(stderr, " %#x", (unsigned)tofree[i]);
-			fprintf(stderr, "\n");
-			abort();
-		}
-		tofree[ntofree++] = k;
+		pthread_setspecific(k, 0);
 	}
-
-	for(i=0; i<ntofree; i++)
-		pthread_key_delete(tofree[i]);
 
 	/*
-	 * We got the keys we wanted.  Make sure that we observe
-	 * updates to k1 at 0x8a0, to verify that the TLS array
-	 * offset from %gs hasn't changed.
+	 * We got the keys we wanted.  Free the others.
 	 */
-	pthread_setspecific(k1, (void*)0x123456789abcdef0ULL);
-	asm volatile("movq %%gs:0x8a0, %0" : "=r"(x));
-
-	pthread_setspecific(k2, (void*)0x0fedcba987654321);
-	asm volatile("movq %%gs:0x8a8, %0" : "=r"(y));
-
-	if(x != 0x123456789abcdef0ULL || y != 0x0fedcba987654321) {
-		printf("libcgo: thread-local storage %#x not at %%gs:0x8a0 - x=%#llx y=%#llx\n", (unsigned)k1, x, y);
-		abort();
-	}
+	for(i=0; i<ntofree; i++)
+		pthread_key_delete(tofree[i]);
 }
 
 void
