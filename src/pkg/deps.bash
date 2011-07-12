@@ -15,7 +15,13 @@ fi
 
 # Get list of directories from Makefile
 dirs=$(gomake --no-print-directory echo-dirs)
-dirpat=$(echo $dirs C | sed 's/ /|/g; s/.*/^(&)$/')
+dirpat=$(echo $dirs C | awk '{
+	for(i=1;i<=NF;i++){ 
+		x=$i
+		gsub("/", "\\/", x)
+		printf("/^(%s)$/\n", x)
+	}
+}')
 
 for dir in $dirs; do (
 	cd $dir || exit 1
@@ -30,7 +36,7 @@ for dir in $dirs; do (
 	deps=$(
 		sed -n '/^import.*"/p; /^import[ \t]*(/,/^)/p' $sources /dev/null |
 		cut -d '"' -f2 |
-		egrep "$dirpat" |
+		awk "$dirpat" |
 		grep -v "^$dir\$" |
 		sed 's/$/.install/' |
 		sed 's;^C\.install;runtime/cgo.install;' |
