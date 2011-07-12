@@ -192,6 +192,30 @@ func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
 	}
 }
 
+func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
+	if r.Dy() < 1 {
+		return
+	}
+	sr, sg, sb, sa := src.RGBA()
+	// The built-in copy function is faster than a straightforward for loop to fill the destination with
+	// the color, but copy requires a slice source. We therefore use a for loop to fill the first row, and
+	// then use the first row as the slice source for the remaining rows.
+	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
+	i1 := i0 + r.Dx()*4
+	for i := i0; i < i1; i += 4 {
+		dst.Pix[i+0] = uint8(sr >> 8)
+		dst.Pix[i+1] = uint8(sg >> 8)
+		dst.Pix[i+2] = uint8(sb >> 8)
+		dst.Pix[i+3] = uint8(sa >> 8)
+	}
+	firstRow := dst.Pix[i0:i1]
+	for y := r.Min.Y + 1; y < r.Max.Y; y++ {
+		i0 += dst.Stride
+		i1 += dst.Stride
+		copy(dst.Pix[i0:i1], firstRow)
+	}
+}
+
 func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
 	dx, dy := r.Dx(), r.Dy()
 	d0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
@@ -240,6 +264,30 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
 	}
 }
 
+func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
+	n, dy := 4*r.Dx(), r.Dy()
+	d0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
+	s0 := (sp.Y-src.Rect.Min.Y)*src.Stride + (sp.X-src.Rect.Min.X)*4
+	var ddelta, sdelta int
+	if r.Min.Y <= sp.Y {
+		ddelta = dst.Stride
+		sdelta = src.Stride
+	} else {
+		// If the source start point is higher than the destination start point, then we compose the rows
+		// in bottom-up order instead of top-down. Unlike the drawCopyOver function, we don't have to
+		// check the x co-ordinates because the built-in copy function can handle overlapping slices.
+		d0 += (dy - 1) * dst.Stride
+		s0 += (dy - 1) * src.Stride
+		ddelta = -dst.Stride
+		sdelta = -src.Stride
+	}
+	for ; dy > 0; dy-- {
+		copy(dst.Pix[d0:d0+n], src.Pix[s0:s0+n])
+		d0 += ddelta
+		s0 += sdelta
+	}
+}
+
 func drawNRGBAOver(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image.Point) {
 	i0 := (r.Min.X - dst.Rect.Min.X) * 4
 	i1 := (r.Max.X - dst.Rect.Min.X) * 4
@@ -272,86 +320,6 @@ func drawNRGBAOver(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp imag
 			dpix[i+2] = uint8((db*a/m + sb) >> 8)
 			dpix[i+3] = uint8((da*a/m + sa) >> 8)
 		}
-	}
-}
-
-func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage, mask *image.Alpha, mp image.Point) {
-	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
-	i1 := i0 + r.Dx()*4
-	mi0 := (mp.Y-mask.Rect.Min.Y)*mask.Stride + mp.X - mask.Rect.Min.X
-	sr, sg, sb, sa := src.RGBA()
-	for y, my := r.Min.Y, mp.Y; y != r.Max.Y; y, my = y+1, my+1 {
-		for i, mi := i0, mi0; i < i1; i, mi = i+4, mi+1 {
-			ma := uint32(mask.Pix[mi])
-			if ma == 0 {
-				continue
-			}
-			ma |= ma << 8
-
-			dr := uint32(dst.Pix[i+0])
-			dg := uint32(dst.Pix[i+1])
-			db := uint32(dst.Pix[i+2])
-			da := uint32(dst.Pix[i+3])
-
-			// The 0x101 is here for the same reason as in drawRGBA.
-			a := (m - (sa * ma / m)) * 0x101
-
-			dst.Pix[i+0] = uint8((dr*a + sr*ma) / m >> 8)
-			dst.Pix[i+1] = uint8((dg*a + sg*ma) / m >> 8)
-			dst.Pix[i+2] = uint8((db*a + sb*ma) / m >> 8)
-			dst.Pix[i+3] = uint8((da*a + sa*ma) / m >> 8)
-		}
-		i0 += dst.Stride
-		i1 += dst.Stride
-		mi0 += mask.Stride
-	}
-}
-
-func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
-	if r.Dy() < 1 {
-		return
-	}
-	sr, sg, sb, sa := src.RGBA()
-	// The built-in copy function is faster than a straightforward for loop to fill the destination with
-	// the color, but copy requires a slice source. We therefore use a for loop to fill the first row, and
-	// then use the first row as the slice source for the remaining rows.
-	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
-	i1 := i0 + r.Dx()*4
-	for i := i0; i < i1; i += 4 {
-		dst.Pix[i+0] = uint8(sr >> 8)
-		dst.Pix[i+1] = uint8(sg >> 8)
-		dst.Pix[i+2] = uint8(sb >> 8)
-		dst.Pix[i+3] = uint8(sa >> 8)
-	}
-	firstRow := dst.Pix[i0:i1]
-	for y := r.Min.Y + 1; y < r.Max.Y; y++ {
-		i0 += dst.Stride
-		i1 += dst.Stride
-		copy(dst.Pix[i0:i1], firstRow)
-	}
-}
-
-func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
-	n, dy := 4*r.Dx(), r.Dy()
-	d0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
-	s0 := (sp.Y-src.Rect.Min.Y)*src.Stride + (sp.X-src.Rect.Min.X)*4
-	var ddelta, sdelta int
-	if r.Min.Y <= sp.Y {
-		ddelta = dst.Stride
-		sdelta = src.Stride
-	} else {
-		// If the source start point is higher than the destination start point, then we compose the rows
-		// in bottom-up order instead of top-down. Unlike the drawCopyOver function, we don't have to
-		// check the x co-ordinates because the built-in copy function can handle overlapping slices.
-		d0 += (dy - 1) * dst.Stride
-		s0 += (dy - 1) * src.Stride
-		ddelta = -dst.Stride
-		sdelta = -src.Stride
-	}
-	for ; dy > 0; dy-- {
-		copy(dst.Pix[d0:d0+n], src.Pix[s0:s0+n])
-		d0 += ddelta
-		s0 += sdelta
 	}
 }
 
@@ -438,6 +406,38 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Po
 				dpix[x+3] = 255
 			}
 		}
+	}
+}
+
+func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage, mask *image.Alpha, mp image.Point) {
+	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
+	i1 := i0 + r.Dx()*4
+	mi0 := (mp.Y-mask.Rect.Min.Y)*mask.Stride + mp.X - mask.Rect.Min.X
+	sr, sg, sb, sa := src.RGBA()
+	for y, my := r.Min.Y, mp.Y; y != r.Max.Y; y, my = y+1, my+1 {
+		for i, mi := i0, mi0; i < i1; i, mi = i+4, mi+1 {
+			ma := uint32(mask.Pix[mi])
+			if ma == 0 {
+				continue
+			}
+			ma |= ma << 8
+
+			dr := uint32(dst.Pix[i+0])
+			dg := uint32(dst.Pix[i+1])
+			db := uint32(dst.Pix[i+2])
+			da := uint32(dst.Pix[i+3])
+
+			// The 0x101 is here for the same reason as in drawRGBA.
+			a := (m - (sa * ma / m)) * 0x101
+
+			dst.Pix[i+0] = uint8((dr*a + sr*ma) / m >> 8)
+			dst.Pix[i+1] = uint8((dg*a + sg*ma) / m >> 8)
+			dst.Pix[i+2] = uint8((db*a + sb*ma) / m >> 8)
+			dst.Pix[i+3] = uint8((da*a + sa*ma) / m >> 8)
+		}
+		i0 += dst.Stride
+		i1 += dst.Stride
+		mi0 += mask.Stride
 	}
 }
 
