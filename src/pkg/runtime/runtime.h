@@ -369,7 +369,6 @@ extern	Alg	runtime·algarray[Amax];
 extern	String	runtime·emptystring;
 G*	runtime·allg;
 M*	runtime·allm;
-int32	runtime·goidgen;
 extern	int32	runtime·gomaxprocs;
 extern	uint32	runtime·panicking;
 extern	int32	runtime·gcwaiting;		// gc is waiting to run

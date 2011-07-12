@@ -56,6 +56,7 @@ struct Sched {
 	Lock;
 
 	G *gfree;	// available gs (status == Gdead)
+	int32 goidgen;
 
 	G *ghead;	// gs waiting to run
 	G *gtail;
@@ -907,8 +908,8 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	newg->gopc = (uintptr)callerpc;
 
 	runtime·sched.gcount++;
-	runtime·goidgen++;
-	newg->goid = runtime·goidgen;
+	runtime·sched.goidgen++;
+	newg->goid = runtime·sched.goidgen;
 
 	newprocreadylocked(newg);
 	schedunlock();
