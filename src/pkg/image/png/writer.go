@@ -275,11 +275,6 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
 
 	bpp := 0 // Bytes per pixel.
 
-	// Used by fast paths for common image types
-	var paletted *image.Paletted
-	var rgba *image.RGBA
-	rgba, _ = m.(*image.RGBA)
-
 	switch cb {
 	case cbG8:
 		bpp = 1
@@ -287,7 +282,6 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
 		bpp = 3
 	case cbP8:
 		bpp = 1
-		paletted = m.(*image.Paletted)
 	case cbTCA8:
 		bpp = 4
 	case cbTC16:
@@ -323,12 +317,13 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
 		case cbTC8:
 			// We have previously verified that the alpha value is fully opaque.
 			cr0 := cr[0]
-			if rgba != nil {
-				offset := (y - b.Min.Y) * rgba.Stride
-				for _, color := range rgba.Pix[offset : offset+b.Dx()] {
-					cr0[i+0] = color.R
-					cr0[i+1] = color.G
-					cr0[i+2] = color.B
+			if rgba, _ := m.(*image.RGBA); rgba != nil {
+				j0 := (y - b.Min.Y) * rgba.Stride
+				j1 := j0 + b.Dx()*4
+				for j := j0; j < j1; j += 4 {
+					cr0[i+0] = rgba.Pix[j+0]
+					cr0[i+1] = rgba.Pix[j+1]
+					cr0[i+2] = rgba.Pix[j+2]
 					i += 3
 				}
 			} else {
@@ -341,6 +336,7 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
 				}
 			}
 		case cbP8:
+			paletted := m.(*image.Paletted)
 			offset := (y - b.Min.Y) * paletted.Stride
 			copy(cr[0][1:], paletted.Pix[offset:offset+b.Dx()])
 		case cbTCA8:

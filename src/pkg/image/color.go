@@ -4,14 +4,14 @@
 
 package image
 
-// All Colors can convert themselves, with a possible loss of precision,
-// to 64-bit alpha-premultiplied RGBA. Each channel value ranges within
-// [0, 0xFFFF].
+// Color can convert itself to alpha-premultiplied RGBA, with a possible loss
+// of precision. Each value ranges within [0, 0xFFFF], but is represented by a
+// uint32 so that multiplying by a blend factor up to 0xFFFF will not overflow.
 type Color interface {
 	RGBA() (r, g, b, a uint32)
 }
 
-// An RGBAColor represents a traditional 32-bit alpha-premultiplied color,
+// RGBAColor represents a traditional 32-bit alpha-premultiplied color,
 // having 8 bits for each of red, green, blue and alpha.
 type RGBAColor struct {
 	R, G, B, A uint8
@@ -29,7 +29,7 @@ func (c RGBAColor) RGBA() (r, g, b, a uint32) {
 	return
 }
 
-// An RGBA64Color represents a 64-bit alpha-premultiplied color,
+// RGBA64Color represents a 64-bit alpha-premultiplied color,
 // having 16 bits for each of red, green, blue and alpha.
 type RGBA64Color struct {
 	R, G, B, A uint16
@@ -39,7 +39,7 @@ func (c RGBA64Color) RGBA() (r, g, b, a uint32) {
 	return uint32(c.R), uint32(c.G), uint32(c.B), uint32(c.A)
 }
 
-// An NRGBAColor represents a non-alpha-premultiplied 32-bit color.
+// NRGBAColor represents a non-alpha-premultiplied 32-bit color.
 type NRGBAColor struct {
 	R, G, B, A uint8
 }
@@ -62,7 +62,7 @@ func (c NRGBAColor) RGBA() (r, g, b, a uint32) {
 	return
 }
 
-// An NRGBA64Color represents a non-alpha-premultiplied 64-bit color,
+// NRGBA64Color represents a non-alpha-premultiplied 64-bit color,
 // having 16 bits for each of red, green, blue and alpha.
 type NRGBA64Color struct {
 	R, G, B, A uint16
@@ -82,7 +82,7 @@ func (c NRGBA64Color) RGBA() (r, g, b, a uint32) {
 	return
 }
 
-// An AlphaColor represents an 8-bit alpha.
+// AlphaColor represents an 8-bit alpha.
 type AlphaColor struct {
 	A uint8
 }
@@ -93,7 +93,7 @@ func (c AlphaColor) RGBA() (r, g, b, a uint32) {
 	return a, a, a, a
 }
 
-// An Alpha16Color represents a 16-bit alpha.
+// Alpha16Color represents a 16-bit alpha.
 type Alpha16Color struct {
 	A uint16
 }
@@ -103,7 +103,7 @@ func (c Alpha16Color) RGBA() (r, g, b, a uint32) {
 	return a, a, a, a
 }
 
-// A GrayColor represents an 8-bit grayscale color.
+// GrayColor represents an 8-bit grayscale color.
 type GrayColor struct {
 	Y uint8
 }
@@ -114,7 +114,7 @@ func (c GrayColor) RGBA() (r, g, b, a uint32) {
 	return y, y, y, 0xffff
 }
 
-// A Gray16Color represents a 16-bit grayscale color.
+// Gray16Color represents a 16-bit grayscale color.
 type Gray16Color struct {
 	Y uint16
 }
@@ -124,7 +124,7 @@ func (c Gray16Color) RGBA() (r, g, b, a uint32) {
 	return y, y, y, 0xffff
 }
 
-// A ColorModel can convert foreign Colors, with a possible loss of precision,
+// ColorModel can convert foreign Colors, with a possible loss of precision,
 // to a Color from its own color model.
 type ColorModel interface {
 	Convert(c Color) Color

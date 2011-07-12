@@ -58,10 +58,13 @@ func decodeRGBA(r io.Reader, c image.Config) (image.Image, os.Error) {
 		if err != nil {
 			return nil, err
 		}
-		p := rgba.Pix[y*rgba.Stride : y*rgba.Stride+c.Width]
-		for x := range p {
+		p := rgba.Pix[y*rgba.Stride : y*rgba.Stride+c.Width*4]
+		for i, j := 0, 0; i < len(p); i, j = i+4, j+3 {
 			// BMP images are stored in BGR order rather than RGB order.
-			p[x] = image.RGBAColor{b[3*x+2], b[3*x+1], b[3*x+0], 0xFF}
+			p[i+0] = b[j+2]
+			p[i+1] = b[j+1]
+			p[i+2] = b[j+0]
+			p[i+3] = 0xFF
 		}
 	}
 	return rgba, nil
