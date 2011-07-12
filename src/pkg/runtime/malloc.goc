@@ -358,26 +358,11 @@ func new(n uint32) (ret *uint8) {
 	ret = runtime·mal(n);
 }
 
-// Stack allocator uses malloc/free most of the time,
-// but if we're in the middle of malloc and need stack,
-// we have to do something else to avoid deadlock.
-// In that case, we fall back on a fixed-size free-list
-// allocator, assuming that inside malloc all the stack
-// frames are small, so that all the stack allocations
-// will be a single size, the minimum (right now, 5k).
-static struct {
-	Lock;
-	FixAlloc;
-} stacks;
-
-enum {
-	FixedStack = StackMin,
-};
-
 void*
 runtime·stackalloc(uint32 n)
 {
 	void *v;
+	uintptr sys0;
 
 	// Stackalloc must be called on scheduler stack, so that we
 	// never try to grow the stack during the code that stackalloc runs.
@@ -385,18 +370,22 @@ runtime·stackalloc(uint32 n)
 	if(g != m->g0)
 		runtime·throw("stackalloc not on scheduler stack");
 
+	// Stack allocator uses malloc/free most of the time,
+	// but if we're in the middle of malloc and need stack,
+	// we have to do something else to avoid deadlock.
+	// In that case, we fall back on a fixed-size free-list
+	// allocator, assuming that inside malloc all the stack
+	// frames are small, so that all the stack allocations
+	// will be a single size, the minimum (right now, 5k).
 	if(m->mallocing || m->gcing || n == FixedStack) {
-		runtime·lock(&stacks);
-		if(stacks.size == 0)
-			runtime·FixAlloc_Init(&stacks, n, runtime·SysAlloc, nil, nil);
-		if(stacks.size != n) {
-			runtime·printf("stackalloc: in malloc, size=%D want %d", (uint64)stacks.size, n);
+		if(n != FixedStack) {
+			runtime·printf("stackalloc: in malloc, size=%d want %d", FixedStack, n);
 			runtime·throw("stackalloc");
 		}
-		v = runtime·FixAlloc_Alloc(&stacks);
-		mstats.stacks_inuse = stacks.inuse;
-		mstats.stacks_sys = stacks.sys;
-		runtime·unlock(&stacks);
+		sys0 = m->stackalloc->sys;
+		v = runtime·FixAlloc_Alloc(m->stackalloc);
+		mstats.stacks_inuse += FixedStack;
+		mstats.stacks_sys += m->stackalloc->sys - sys0;
 		return v;
 	}
 	return runtime·mallocgc(n, FlagNoProfiling|FlagNoGC, 0, 0);
@@ -405,12 +394,13 @@ runtime·stackalloc(uint32 n)
 void
 runtime·stackfree(void *v, uintptr n)
 {
+	uintptr sys0;
+
 	if(m->mallocing || m->gcing || n == FixedStack) {
-		runtime·lock(&stacks);
-		runtime·FixAlloc_Free(&stacks, v);
-		mstats.stacks_inuse = stacks.inuse;
-		mstats.stacks_sys = stacks.sys;
-		runtime·unlock(&stacks);
+		sys0 = m->stackalloc->sys;
+		runtime·FixAlloc_Free(m->stackalloc, v);
+		mstats.stacks_inuse -= FixedStack;
+		mstats.stacks_sys += m->stackalloc->sys - sys0;
 		return;
 	}
 	runtime·free(v);

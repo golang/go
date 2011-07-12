@@ -80,7 +80,6 @@
 // This C code was written with an eye toward translating to Go
 // in the future.  Methods have the form Type_Method(Type *t, ...).
 
-typedef struct FixAlloc	FixAlloc;
 typedef struct MCentral	MCentral;
 typedef struct MHeap	MHeap;
 typedef struct MSpan	MSpan;

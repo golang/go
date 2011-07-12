@@ -57,6 +57,7 @@ typedef	struct	String		String;
 typedef	struct	Usema		Usema;
 typedef	struct	SigTab		SigTab;
 typedef	struct	MCache		MCache;
+typedef struct	FixAlloc	FixAlloc;
 typedef	struct	Iface		Iface;
 typedef	struct	Itab		Itab;
 typedef	struct	Eface		Eface;
@@ -236,6 +237,7 @@ struct	M
 	M*	schedlink;
 	uint32	machport;	// Return address for Mach IPC (OS X)
 	MCache	*mcache;
+	FixAlloc	*stackalloc;
 	G*	lockedg;
 	G*	idleg;
 	uint32	freglo[16];	// D[i] lsb and F[i]
