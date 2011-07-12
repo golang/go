@@ -97,6 +97,7 @@ static G* gfget(void);
 static void matchmg(void);	// match ms to gs
 static void readylocked(G*);	// ready, but sched is locked
 static void mnextg(M*, G*);
+static void mcommoninit(M*);
 
 // The bootstrap sequence is:
 //
@@ -116,11 +117,10 @@ runtime·schedinit(void)
 	int32 n;
 	byte *p;
 
-	runtime·allm = m;
 	m->nomemprof++;
-	m->fastrand = 0x49f6428aUL + m->id;
-
 	runtime·mallocinit();
+	mcommoninit(m);
+
 	runtime·goargs();
 	runtime·goenvs();
 
@@ -134,7 +134,6 @@ runtime·schedinit(void)
 	if(p != nil && (n = runtime·atoi(p)) != 0)
 		runtime·gomaxprocs = n;
 	runtime·sched.mcpumax = runtime·gomaxprocs;
-	runtime·sched.mcount = 1;
 	runtime·sched.predawn = 1;
 
 	m->nomemprof--;
@@ -206,6 +205,17 @@ runtime·idlegoroutine(void)
 	if(g->idlem != nil)
 		runtime·throw("g is already an idle goroutine");
 	g->idlem = m;
+}
+
+static void
+mcommoninit(M *m)
+{
+	m->alllink = runtime·allm;
+	runtime·allm = m;
+	m->id = runtime·sched.mcount++;
+	m->fastrand = 0x49f6428aUL + m->id;
+	m->stackalloc = runtime·malloc(sizeof(*m->stackalloc));
+	runtime·FixAlloc_Init(m->stackalloc, FixedStack, runtime·SysAlloc, nil, nil);
 }
 
 // Put on `g' queue.  Sched must be locked.
@@ -494,10 +504,7 @@ matchmg(void)
 			m = runtime·malloc(sizeof(M));
 			// Add to runtime·allm so garbage collector doesn't free m
 			// when it is just in a register or thread-local storage.
-			m->alllink = runtime·allm;
-			runtime·allm = m;
-			m->id = runtime·sched.mcount++;
-			m->fastrand = 0x49f6428aUL + m->id;
+			mcommoninit(m);
 
 			if(runtime·iscgo) {
 				CgoThreadStart ts;
