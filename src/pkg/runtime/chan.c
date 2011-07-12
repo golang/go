@@ -1222,17 +1222,6 @@ freesg(Hchan *c, SudoG *sg)
 }
 
 static uint32
-fastrand1(void)
-{
-	static uint32 x = 0x49f6428aUL;
-
-	x += x;
-	if(x & 0x80000000L)
-		x ^= 0x88888eefUL;
-	return x;
-}
-
-static uint32
 fastrandn(uint32 n)
 {
 	uint32 max, r;
@@ -1240,12 +1229,12 @@ fastrandn(uint32 n)
 	if(n <= 1)
 		return 0;
 
-	r = fastrand1();
+	r = runtime·fastrand1();
 	if(r < (1ULL<<31)-n)  // avoid computing max in common case
 		return r%n;
 
 	max = (1ULL<<31)/n * n;
 	while(r >= max)
-		r = fastrand1();
+		r = runtime·fastrand1();
 	return r%n;
 }

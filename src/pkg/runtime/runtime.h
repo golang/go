@@ -229,6 +229,7 @@ struct	M
 	int32	waitnextg;
 	int32	dying;
 	int32	profilehz;
+	uint32	fastrand;
 	Note	havenextg;
 	G*	nextg;
 	M*	alllink;	// on allm
@@ -454,6 +455,7 @@ void	runtime·runpanic(Panic*);
 void*	runtime·getcallersp(void*);
 int32	runtime·mcount(void);
 void	runtime·mcall(void(*)(G*));
+uint32	runtime·fastrand1(void);
 
 void	runtime·exit(int32);
 void	runtime·breakpoint(void);

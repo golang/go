@@ -117,6 +117,7 @@ runtime·schedinit(void)
 
 	runtime·allm = m;
 	m->nomemprof++;
+	m->fastrand = 0x49f6428aUL + m->id;
 
 	runtime·mallocinit();
 	runtime·goargs();
@@ -495,6 +496,7 @@ matchmg(void)
 			m->alllink = runtime·allm;
 			runtime·allm = m;
 			m->id = runtime·sched.mcount++;
+			m->fastrand = 0x49f6428aUL + m->id;
 
 			if(runtime·iscgo) {
 				CgoThreadStart ts;
