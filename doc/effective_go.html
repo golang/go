@@ -116,7 +116,7 @@ Some formatting details remain.  Very briefly,
     <dt>Parentheses</dt>
     <dd>
     Go needs fewer parentheses: control structures (<code>if</code>,
-    <code>for</code>, <code>switch</code>) do not require parentheses in
+    <code>for</code>, <code>switch</code>) do not have parentheses in
     their syntax.
     Also, the operator precedence hierarchy is shorter and clearer, so
 <pre>
@@ -405,7 +405,7 @@ break continue fallthrough return ++ -- ) }
 <p>
 the lexer always inserts a semicolon after the token.
 This could be summarized as, &ldquo;if the newline comes
-after a token that could end a statement, add a semicolon&rdquo;.
+after a token that could end a statement, insert a semicolon&rdquo;.
 </p>
 
 <p>
@@ -461,7 +461,7 @@ initialization statement like that of <code>for</code>;
 and there are new control structures including a type switch and a
 multiway communications multiplexer, <code>select</code>.
 The syntax is also slightly different:
-parentheses are not required
+there are no parentheses
 and the bodies must always be brace-delimited.
 </p>
 
@@ -564,7 +564,7 @@ for i := 0; i &lt; 10; i++ {
 <p>
 If you're looping over an array, slice, string, or map,
 or reading from a channel, a <code>range</code> clause can
-manage the loop for you.
+manage the loop.
 </p>
 <pre>
 var m map[string]int
@@ -943,8 +943,11 @@ Go has two allocation primitives, the built-in functions
 They do different things and apply to different types, which can be confusing,
 but the rules are simple.
 Let's talk about <code>new</code> first.
-It's a built-in function essentially the same as its namesakes
-in other languages: <code>new(T)</code> allocates zeroed storage for a new item of type
+It's a built-in function that allocates memory, but unlike its namesakes
+in some other languages it does not <em>initialize</em> the memory,
+it only <em>zeroes</em> it.
+That is,
+<code>new(T)</code> allocates zeroed storage for a new item of type
 <code>T</code> and returns its address, a value of type <code>*T</code>.
 In Go terminology, it returns a pointer to a newly allocated zero value of type
 <code>T</code>.
