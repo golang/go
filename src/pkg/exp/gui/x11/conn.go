@@ -92,18 +92,19 @@ func (c *conn) writeSocket() {
 				return
 			}
 			p := c.img.Pix[(y-b.Min.Y)*c.img.Stride:]
-			for x, dx := 0, b.Dx(); x < dx; {
+			for x, dx := 0, 4*b.Dx(); x < dx; {
 				nx := dx - x
-				if nx > len(c.flushBuf1)/4 {
-					nx = len(c.flushBuf1) / 4
+				if nx > len(c.flushBuf1) {
+					nx = len(c.flushBuf1) &^ 3
 				}
-				for i, rgba := range p[x : x+nx] {
-					c.flushBuf1[4*i+0] = rgba.B
-					c.flushBuf1[4*i+1] = rgba.G
-					c.flushBuf1[4*i+2] = rgba.R
+				for i := 0; i < nx; i += 4 {
+					// X11's order is BGRX, not RGBA.
+					c.flushBuf1[i+0] = p[x+i+2]
+					c.flushBuf1[i+1] = p[x+i+1]
+					c.flushBuf1[i+2] = p[x+i+0]
 				}
 				x += nx
-				if _, err := c.w.Write(c.flushBuf1[:4*nx]); err != nil {
+				if _, err := c.w.Write(c.flushBuf1[:nx]); err != nil {
 					if err != os.EOF {
 						log.Println("x11:", err.String())
 					}

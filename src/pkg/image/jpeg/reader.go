@@ -319,16 +319,7 @@ func (d *decoder) processSOS(n int) os.Error {
 
 					// Perform the inverse DCT and store the MCU component to the image.
 					if d.nComp == nGrayComponent {
-						idct(d.tmp[:64], 8, &b)
-						// Convert from []uint8 to []image.GrayColor.
-						p := d.img1.Pix[8*(my*d.img1.Stride+mx):]
-						for y := 0; y < 8; y++ {
-							dst := p[y*d.img1.Stride:]
-							src := d.tmp[8*y:]
-							for x := 0; x < 8; x++ {
-								dst[x] = image.GrayColor{src[x]}
-							}
-						}
+						idct(d.img1.Pix[8*(my*d.img1.Stride+mx):], d.img1.Stride, &b)
 					} else {
 						switch i {
 						case 0:
