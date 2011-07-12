@@ -709,7 +709,7 @@ runtime·oldstack(void)
 	uint32 argsize;
 	byte *sp;
 	G *g1;
-	static int32 goid;
+	int32 goid;
 
 //printf("oldstack m->cret=%p\n", m->cret);
 
@@ -723,6 +723,7 @@ runtime·oldstack(void)
 		runtime·mcpy(top->argp, sp, argsize);
 	}
 	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
+	USED(goid);
 
 	if(old.free != 0)
 		runtime·stackfree(g1->stackguard - StackGuard, old.free);
