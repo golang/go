@@ -222,6 +222,7 @@ enum
 	Zxxx		= 0,
 
 	Zlit,
+	Zlitm_r,
 	Z_rp,
 	Zbr,
 	Zcall,

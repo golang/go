@@ -730,6 +730,8 @@ enum	as
 	ASWAPGS,
 
 	AMODE,
+	ACRC32B,
+	ACRC32Q,
 
 	ALAST
 };
