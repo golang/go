@@ -7,6 +7,13 @@ package cgotest
 /*
 char* greeting = "hello, world";
 */
+// #include "cgotest.h"
 import "C"
+import "unsafe"
 
 var Greeting = C.GoString(C.greeting)
+
+func DoAdd(x, y int) (sum int) {
+	C.Add(C.int(x), C.int(y), (*C.int)(unsafe.Pointer(&sum)))
+	return
+}

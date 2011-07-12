@@ -61,7 +61,9 @@ func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
 	if len(info.CgoFiles) > 0 {
 		cgoFiles := b.abss(info.CgoFiles...)
 		s.addInput(cgoFiles...)
-		outGo, outObj := b.cgo(cgoFiles)
+		cgoCFiles := b.abss(info.CFiles...)
+		s.addInput(cgoCFiles...)
+		outGo, outObj := b.cgo(cgoFiles, cgoCFiles)
 		gofiles = append(gofiles, outGo...)
 		ofiles = append(ofiles, outObj...)
 		s.addIntermediate(outGo...)
@@ -370,7 +372,7 @@ func (b *build) gccArgs(args ...string) []string {
 
 var cgoRe = regexp.MustCompile(`[/\\:]`)
 
-func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
+func (b *build) cgo(cgofiles, cgocfiles []string) (outGo, outObj []string) {
 	// cgo
 	// TODO(adg): CGOPKGPATH
 	// TODO(adg): CGO_FLAGS
@@ -412,6 +414,12 @@ func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
 		} else {
 			b.script.addIntermediate(ofile)
 		}
+	}
+	for _, cfile := range cgocfiles {
+		ofile := b.obj + cgoRe.ReplaceAllString(cfile[:len(cfile)-1], "_") + "o"
+		b.gccCompile(ofile, cfile)
+		linkobj = append(linkobj, ofile)
+		outObj = append(outObj, ofile)
 	}
 	dynObj := b.obj + "_cgo_.o"
 	b.gccLink(dynObj, linkobj...)
