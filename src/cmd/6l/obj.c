@@ -84,7 +84,7 @@ main(int argc, char *argv[])
 	listinit();
 	memset(debug, 0, sizeof(debug));
 	nerrors = 0;
-	outfile = "6.out";
+	outfile = nil;
 	HEADTYPE = -1;
 	INITTEXT = -1;
 	INITDAT = -1;
@@ -134,10 +134,19 @@ main(int argc, char *argv[])
 	if(argc != 1)
 		usage();
 
-	libinit();
+	mywhatsys();	// get goos
 
 	if(HEADTYPE == -1)
 		HEADTYPE = headtype(goos);
+
+	if(outfile == nil) {
+		if(HEADTYPE == Hwindows)
+			outfile = "6.out.exe";
+		else
+			outfile = "6.out";
+	}
+
+	libinit();
 
 	switch(HEADTYPE) {
 	default:
