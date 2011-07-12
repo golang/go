@@ -5,7 +5,16 @@
 include ../../../Make.inc
 
 TARG=hash/crc32
+
+ifeq ($(GOARCH), amd64)
+	ARCH_GOFILES=crc32_amd64.go
+	OFILES=crc32_amd64.6
+else
+	ARCH_GOFILES=crc32_generic.go
+endif
+
 GOFILES=\
 	crc32.go\
+	$(ARCH_GOFILES)
 
 include ../../../Make.pkg

@@ -1166,6 +1166,12 @@ found:
 			*andptr++ = op;
 		break;
 
+	case Zlitm_r:
+		for(; op = o->op[z]; z++)
+			*andptr++ = op;
+		asmand(&p->from, &p->to);
+		break;
+
 	case Zmb_r:
 		bytereg(&p->from, &p->ft);
 		/* fall through */
