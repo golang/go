@@ -32,19 +32,23 @@ runtime·findnullw(uint16 *s)
 	return l;
 }
 
-int32 runtime·maxstring = 256;
+uint32 runtime·maxstring = 256;
 
 String
 runtime·gostringsize(int32 l)
 {
 	String s;
+	uint32 ms;
 
 	if(l == 0)
 		return runtime·emptystring;
 	s.str = runtime·mal(l+1);	// leave room for NUL for C runtime (e.g., callers of getenv)
 	s.len = l;
-	if(l > runtime·maxstring)
-		runtime·maxstring = l;
+	for(;;) {
+		ms = runtime·maxstring;
+		if((uint32)l <= ms || runtime·cas(&runtime·maxstring, ms, (uint32)l))
+			break;
+	}
 	return s;
 }
 

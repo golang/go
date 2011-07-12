@@ -320,7 +320,7 @@ runtime·printpointer(void *p)
 void
 runtime·printstring(String v)
 {
-	extern int32 runtime·maxstring;
+	extern uint32 runtime·maxstring;
 
 	if(v.len > runtime·maxstring) {
 		runtime·write(2, "[invalid string]", 16);
