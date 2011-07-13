@@ -10,3 +10,10 @@ runtime·atomicload(uint32 volatile* addr)
 {
 	return *addr;
 }
+
+#pragma textflag 7
+void*
+runtime·atomicloadp(void* volatile* addr)
+{
+	return *addr;
+}
