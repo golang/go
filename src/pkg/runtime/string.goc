@@ -60,7 +60,7 @@ runtime·gostring(byte *str)
 
 	l = runtime·findnull(str);
 	s = runtime·gostringsize(l);
-	runtime·mcpy(s.str, str, l);
+	runtime·memmove(s.str, str, l);
 	return s;
 }
 
@@ -70,7 +70,7 @@ runtime·gostringn(byte *str, int32 l)
 	String s;
 
 	s = runtime·gostringsize(l);
-	runtime·mcpy(s.str, str, l);
+	runtime·memmove(s.str, str, l);
 	return s;
 }
 
@@ -113,8 +113,8 @@ runtime·catstring(String s1, String s2)
 		return s1;
 
 	s3 = runtime·gostringsize(s1.len + s2.len);
-	runtime·mcpy(s3.str, s1.str, s1.len);
-	runtime·mcpy(s3.str+s1.len, s2.str, s2.len);
+	runtime·memmove(s3.str, s1.str, s1.len);
+	runtime·memmove(s3.str+s1.len, s2.str, s2.len);
 	return s3;
 }
 
@@ -134,7 +134,7 @@ concatstring(int32 n, String *s)
 	out = runtime·gostringsize(l);
 	l = 0;
 	for(i=0; i<n; i++) {
-		runtime·mcpy(out.str+l, s[i].str, s[i].len);
+		runtime·memmove(out.str+l, s[i].str, s[i].len);
 		l += s[i].len;
 	}
 	return out;
@@ -225,14 +225,14 @@ func intstring(v int64) (s String) {
 
 func slicebytetostring(b Slice) (s String) {
 	s = runtime·gostringsize(b.len);
-	runtime·mcpy(s.str, b.array, s.len);
+	runtime·memmove(s.str, b.array, s.len);
 }
 
 func stringtoslicebyte(s String) (b Slice) {
 	b.array = runtime·mallocgc(s.len, FlagNoPointers, 1, 1);
 	b.len = s.len;
 	b.cap = s.len;
-	runtime·mcpy(b.array, s.str, s.len);
+	runtime·memmove(b.array, s.str, s.len);
 }
 
 func sliceinttostring(b Slice) (s String) {

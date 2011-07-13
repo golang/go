@@ -45,7 +45,7 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
 	q = p + n - siz;
 
 	if(siz > 0) {
-		runtime·mcpy(q, (byte*)&arg0, siz);
+		runtime·memmove(q, (byte*)&arg0, siz);
 
 		// SUBQ $siz, SP
 		*p++ = 0x48;

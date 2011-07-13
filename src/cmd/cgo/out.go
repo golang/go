@@ -708,7 +708,7 @@ void
 ·_Cfunc_CString(String s, int8 *p)
 {
 	p = runtime·cmalloc(s.len+1);
-	runtime·mcpy((byte*)p, s.str, s.len);
+	runtime·memmove((byte*)p, s.str, s.len);
 	p[s.len] = 0;
 	FLUSH(&p);
 }
