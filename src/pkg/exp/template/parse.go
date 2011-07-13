@@ -477,19 +477,19 @@ func (r *rangeNode) String() string {
 type templateNode struct {
 	nodeType
 	line int
-	name node
+	name string
 	pipe *pipeNode
 }
 
-func newTemplate(line int, name node, pipe *pipeNode) *templateNode {
+func newTemplate(line int, name string, pipe *pipeNode) *templateNode {
 	return &templateNode{nodeType: nodeTemplate, line: line, name: name, pipe: pipe}
 }
 
 func (t *templateNode) String() string {
 	if t.pipe == nil {
-		return fmt.Sprintf("{{template %s}}", t.name)
+		return fmt.Sprintf("{{template %q}}", t.name)
 	}
-	return fmt.Sprintf("{{template %s %s}}", t.name, t.pipe)
+	return fmt.Sprintf("{{template %q %s}}", t.name, t.pipe)
 }
 
 // withNode represents a {{with}} action and its commands.
@@ -523,9 +523,9 @@ func New(name string) *Template {
 	}
 }
 
-// Funcs adds to the template's function map the elements of the
-// argument map.   It panics if a value in the map is not a function
-// with appropriate return type.
+// Funcs adds the elements of the argument map to the template's function
+// map.  It panics if a value in the map is not a function with appropriate
+// return type.
 // The return value is the template, so calls can be chained.
 func (t *Template) Funcs(funcMap FuncMap) *Template {
 	addFuncs(t.funcs, funcMap)
@@ -800,25 +800,14 @@ func (t *Template) elseControl() node {
 // Template keyword is past.  The name must be something that can evaluate
 // to a string.
 func (t *Template) templateControl() node {
-	var name node
+	var name string
 	switch token := t.next(); token.typ {
-	case itemIdentifier:
-		if _, ok := findFunction(token.val, t, t.set); !ok {
-			t.errorf("function %q not defined", token.val)
-		}
-		name = newIdentifier(token.val)
-	case itemDot:
-		name = newDot()
-	case itemVariable:
-		name = t.useVar(token.val)
-	case itemField:
-		name = newField(token.val)
 	case itemString, itemRawString:
 		s, err := strconv.Unquote(token.val)
 		if err != nil {
 			t.error(err)
 		}
-		name = newString(s)
+		name = s
 	default:
 		t.unexpected(token, "template invocation")
 	}

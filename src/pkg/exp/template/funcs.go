@@ -18,7 +18,7 @@ import (
 // FuncMap is the type of the map defining the mapping from names to functions.
 // Each function must have either a single return value, or two return values of
 // which the second has type os.Error. If the second argument evaluates to non-nil
-// during execution, execution terminates and the error is returned by Execute.
+// during execution, execution terminates and Execute returns an error.
 type FuncMap map[string]interface{}
 
 var funcs = map[string]reflect.Value{
@@ -31,13 +31,6 @@ var funcs = map[string]reflect.Value{
 	"print":   reflect.ValueOf(fmt.Sprint),
 	"printf":  reflect.ValueOf(fmt.Sprintf),
 	"println": reflect.ValueOf(fmt.Sprintln),
-}
-
-// Funcs adds to the global function map the elements of the
-// argument map.   It panics if a value in the map is not a function
-// with appropriate return type.
-func Funcs(funcMap FuncMap) {
-	addFuncs(funcs, funcMap)
 }
 
 // addFuncs adds to values the functions in funcs, converting them to reflect.Values.

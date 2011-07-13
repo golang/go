@@ -220,27 +220,12 @@ func (s *state) walkRange(dot reflect.Value, r *rangeNode) {
 }
 
 func (s *state) walkTemplate(dot reflect.Value, t *templateNode) {
-	// Can't use evalArg because there are two types we expect.
-	arg := s.evalEmptyInterface(dot, t.name)
-	if !arg.IsValid() {
-		s.errorf("invalid value in template invocation; expected string or *Template")
+	if s.set == nil {
+		s.errorf("no set defined in which to invoke template named %q", t.name)
 	}
-	var tmpl *Template
-	if arg.Type() == reflect.TypeOf((*Template)(nil)) {
-		tmpl = arg.Interface().(*Template)
-		if tmpl == nil {
-			s.errorf("nil template")
-		}
-	} else {
-		s.validateType(arg, reflect.TypeOf(""))
-		name := arg.String()
-		if s.set == nil {
-			s.errorf("no set defined in which to invoke template named %q", name)
-		}
-		tmpl = s.set.tmpl[name]
-		if tmpl == nil {
-			s.errorf("template %q not in set", name)
-		}
+	tmpl := s.set.tmpl[t.name]
+	if tmpl == nil {
+		s.errorf("template %q not in set", t.name)
 	}
 	defer s.pop(s.mark())
 	dot = s.evalPipeline(dot, t.pipe)
