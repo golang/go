@@ -93,6 +93,7 @@ func (s *Section) Open() io.ReadSeeker { return io.NewSectionReader(s.sr, 0, 1<<
 type ProgHeader struct {
 	Type   ProgType
 	Flags  ProgFlag
+	Off    uint64
 	Vaddr  uint64
 	Paddr  uint64
 	Filesz uint64
@@ -224,6 +225,8 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	f.ABIVersion = ident[EI_ABIVERSION]
 
 	// Read ELF file header
+	var phoff int64
+	var phentsize, phnum int
 	var shoff int64
 	var shentsize, shnum, shstrndx int
 	shstrndx = -1
@@ -239,6 +242,9 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		if v := Version(hdr.Version); v != f.Version {
 			return nil, &FormatError{0, "mismatched ELF version", v}
 		}
+		phoff = int64(hdr.Phoff)
+		phentsize = int(hdr.Phentsize)
+		phnum = int(hdr.Phnum)
 		shoff = int64(hdr.Shoff)
 		shentsize = int(hdr.Shentsize)
 		shnum = int(hdr.Shnum)
@@ -254,6 +260,9 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		if v := Version(hdr.Version); v != f.Version {
 			return nil, &FormatError{0, "mismatched ELF version", v}
 		}
+		phoff = int64(hdr.Phoff)
+		phentsize = int(hdr.Phentsize)
+		phnum = int(hdr.Phnum)
 		shoff = int64(hdr.Shoff)
 		shentsize = int(hdr.Shentsize)
 		shnum = int(hdr.Shnum)
@@ -264,7 +273,47 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	}
 
 	// Read program headers
-	// TODO
+	f.Progs = make([]*Prog, phnum)
+	for i := 0; i < phnum; i++ {
+		off := phoff + int64(i)*int64(phentsize)
+		sr.Seek(off, os.SEEK_SET)
+		p := new(Prog)
+		switch f.Class {
+		case ELFCLASS32:
+			ph := new(Prog32)
+			if err := binary.Read(sr, f.ByteOrder, ph); err != nil {
+				return nil, err
+			}
+			p.ProgHeader = ProgHeader{
+				Type:   ProgType(ph.Type),
+				Flags:  ProgFlag(ph.Flags),
+				Off:    uint64(ph.Off),
+				Vaddr:  uint64(ph.Vaddr),
+				Paddr:  uint64(ph.Paddr),
+				Filesz: uint64(ph.Filesz),
+				Memsz:  uint64(ph.Memsz),
+				Align:  uint64(ph.Align),
+			}
+		case ELFCLASS64:
+			ph := new(Prog64)
+			if err := binary.Read(sr, f.ByteOrder, ph); err != nil {
+				return nil, err
+			}
+			p.ProgHeader = ProgHeader{
+				Type:   ProgType(ph.Type),
+				Flags:  ProgFlag(ph.Flags),
+				Off:    uint64(ph.Off),
+				Vaddr:  uint64(ph.Vaddr),
+				Paddr:  uint64(ph.Paddr),
+				Filesz: uint64(ph.Filesz),
+				Memsz:  uint64(ph.Memsz),
+				Align:  uint64(ph.Align),
+			}
+		}
+		p.sr = io.NewSectionReader(r, int64(p.Off), int64(p.Filesz))
+		p.ReaderAt = p.sr
+		f.Progs[i] = p
+	}
 
 	// Read section headers
 	f.Sections = make([]*Section, shnum)
