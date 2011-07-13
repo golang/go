@@ -87,7 +87,7 @@ var (
 // Comma is the field delimiter.  It defaults to ','.
 //
 // Comment, if not 0, is the comment character. Lines beginning with the
-// Comment character is ignored.
+// Comment character are ignored.
 //
 // If FieldsPerRecord is positive, Read requires each record to
 // have the given number of fields.  If FieldsPerRecord is 0, Read sets it to
@@ -97,7 +97,7 @@ var (
 // If LazyQuotes is true, a quote may appear in an unquoted field and a
 // non-doubled quote may appear in a quoted field.
 //
-// If TrailingComma is true, the last field may be a unquoted empty field.
+// If TrailingComma is true, the last field may be an unquoted empty field.
 //
 // If TrimLeadingSpace is true, leading white space in a field is ignored.
 type Reader struct {
@@ -171,7 +171,7 @@ func (r *Reader) ReadAll() (records [][]string, err os.Error) {
 }
 
 // readRune reads one rune from r, folding \r\n to \n and keeping track
-// of our far into the line we have read.  r.column will point to the start
+// of how far into the line we have read.  r.column will point to the start
 // of this rune, not the end of this rune.
 func (r *Reader) readRune() (int, os.Error) {
 	rune, _, err := r.r.ReadRune()
@@ -222,7 +222,7 @@ func (r *Reader) parseRecord() (fields []string, err os.Error) {
 
 	// Peek at the first rune.  If it is an error we are done.
 	// If we are support comments and it is the comment character
-	// the skip to the end of line.
+	// then skip to the end of line.
 
 	rune, _, err := r.r.ReadRune()
 	if err != nil {
@@ -281,7 +281,7 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
 		// will check below
 
 	case '\n':
-		// We are a trailing empty field or a blank linke
+		// We are a trailing empty field or a blank line
 		if r.column == 0 {
 			return false, rune, nil
 		}
@@ -352,7 +352,7 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
 	if !r.TrailingComma {
 		// We don't allow trailing commas.  See if we
 		// are at the end of the line (being mindful
-		// of triming spaces
+		// of trimming spaces).
 		c := r.column
 		rune, err = r.readRune()
 		if r.TrimLeadingSpace {

@@ -22,7 +22,6 @@ import (
 // Comma is the field delimiter.
 //
 // If UseCRLF is true, the Writer ends each record with \r\n instead of \n.
-// just \n is written.
 type Writer struct {
 	Comma   int  // Field delimiter (set to to ',' by NewWriter)
 	UseCRLF bool // True to use \r\n as the line terminator
