@@ -549,3 +549,32 @@ func TestMapBug1(t *testing.T) {
 		t.Errorf("mismatch: %v %v", in, out)
 	}
 }
+
+func TestGobMapInterfaceEncode(t *testing.T) {
+	m := map[string]interface{}{
+		"up": uintptr(0),
+		"i0": []int{-1},
+		"i1": []int8{-1},
+		"i2": []int16{-1},
+		"i3": []int32{-1},
+		"i4": []int64{-1},
+		"u0": []uint{1},
+		"u1": []uint8{1},
+		"u2": []uint16{1},
+		"u3": []uint32{1},
+		"u4": []uint64{1},
+		"f0": []float32{1},
+		"f1": []float64{1},
+		"c0": []complex64{complex(2, -2)},
+		"c1": []complex128{complex(2, float64(-2))},
+		"us": []uintptr{0},
+		"bo": []bool{false},
+		"st": []string{"s"},
+	}
+	buf := bytes.NewBuffer(nil)
+	enc := NewEncoder(buf)
+	err := enc.Encode(m)
+	if err != nil {
+		t.Errorf("gob.Encode map: %s", err)
+	}
+}
