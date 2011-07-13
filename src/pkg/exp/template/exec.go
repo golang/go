@@ -331,13 +331,15 @@ func (s *state) evalVariableNode(dot reflect.Value, v *variableNode, args []node
 	return s.evalFieldChain(dot, value, v.ident[1:], args, final)
 }
 
+// evalFieldChain evaluates .X.Y.Z possibly followed by arguments.
+// dot is the environment in which to evaluate arguments, while
+// receiver is the value being walked along the chain.
 func (s *state) evalFieldChain(dot, receiver reflect.Value, ident []string, args []node, final reflect.Value) reflect.Value {
-	// Up to the last entry, it must be a field.
 	n := len(ident)
 	for i := 0; i < n-1; i++ {
-		dot = s.evalField(dot, ident[i], nil, zero, zero)
+		receiver = s.evalField(dot, ident[i], args[:1], zero, receiver)
 	}
-	// Now it can be a field or method and if a method, gets arguments.
+	// Now if it's a method, it gets the arguments.
 	return s.evalField(dot, ident[n-1], args, final, receiver)
 }
 
@@ -358,27 +360,25 @@ func isExported(name string) bool {
 // evalField evaluates an expression like (.Field) or (.Field arg1 arg2).
 // The 'final' argument represents the return value from the preceding
 // value of the pipeline, if any.
-// If we're in a chain, such as (.X.Y.Z), .X and .Y cannot be methods;
-// canBeMethod will be true only for the last element of such chains (here .Z).
-func (s *state) evalField(dot reflect.Value, fieldName string, args []node, final reflect.Value,
-receiver reflect.Value) reflect.Value {
-	typ := dot.Type()
-	if receiver.IsValid() {
-		receiver, _ = indirect(receiver)
-		// Need to get to a value of type *T to guarantee we see all
-		// methods of T and *T.
-		ptr := receiver
-		if ptr.CanAddr() {
-			ptr = ptr.Addr()
-		}
-		if method, ok := methodByName(ptr.Type(), fieldName); ok {
-			return s.evalCall(dot, ptr, method.Func, fieldName, args, final)
-		}
+func (s *state) evalField(dot reflect.Value, fieldName string, args []node, final, receiver reflect.Value) reflect.Value {
+	if !receiver.IsValid() {
+		return zero
+	}
+	typ := receiver.Type()
+	receiver, _ = indirect(receiver)
+	// Need to get to a value of type *T to guarantee we see all
+	// methods of T and *T.
+	ptr := receiver
+	if ptr.CanAddr() {
+		ptr = ptr.Addr()
+	}
+	if method, ok := methodByName(ptr.Type(), fieldName); ok {
+		return s.evalCall(dot, ptr, method.Func, fieldName, args, final)
 	}
 	// It's not a method; is it a field of a struct?
-	dot, isNil := indirect(dot)
-	if dot.Kind() == reflect.Struct {
-		field := dot.FieldByName(fieldName)
+	receiver, isNil := indirect(receiver)
+	if receiver.Kind() == reflect.Struct {
+		field := receiver.FieldByName(fieldName)
 		if field.IsValid() {
 			if len(args) > 1 || final.IsValid() {
 				s.errorf("%s is not a method but has arguments", fieldName)
@@ -391,7 +391,7 @@ receiver reflect.Value) reflect.Value {
 	if isNil {
 		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
 	}
-	s.errorf("can't handle evaluation of field %s in type %s", fieldName, typ)
+	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
 	panic("not reached")
 }
 

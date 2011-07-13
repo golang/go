@@ -17,6 +17,7 @@ import (
 // T has lots of interesting pieces to use to test execution.
 type T struct {
 	// Basics
+	True        bool
 	I           int
 	U16         uint16
 	X           string
@@ -52,6 +53,7 @@ type U struct {
 }
 
 var tVal = &T{
+	True:   true,
 	I:      17,
 	U16:    16,
 	X:      "x",
@@ -126,6 +128,18 @@ func (t *T) EPERM(error bool) (bool, os.Error) {
 		return true, os.EPERM
 	}
 	return false, nil
+}
+
+// A few methods to test chaining.
+func (t *T) GetU() *U {
+	return t.U
+}
+
+func (u *U) TrueFalse(b bool) string {
+	if b {
+		return "true"
+	}
+	return ""
 }
 
 func typeOf(arg interface{}) string {
@@ -211,6 +225,15 @@ var execTests = []execTest{
 	{".Method2(.U16, `str`)", "-{{.Method2 .U16 `str`}}-", "-Method2: 16 str-", tVal, true},
 	{".Method2(.U16, $x)", "{{if $x := .X}}-{{.Method2 .U16 $x}}{{end}}-", "-Method2: 16 x-", tVal, true},
 	{"method on var", "{{if $x := .}}-{{$x.Method2 .U16 $x.X}}{{end}}-", "-Method2: 16 x-", tVal, true},
+	{"method on chained var",
+		"{{range .MSIone}}{{if $.U.TrueFalse $.True}}{{$.U.TrueFalse $.True}}{{else}}WRONG{{end}}{{end}}",
+		"true", tVal, true},
+	{"chained method",
+		"{{range .MSIone}}{{if $.GetU.TrueFalse $.True}}{{$.U.TrueFalse $.True}}{{else}}WRONG{{end}}{{end}}",
+		"true", tVal, true},
+	{"chained method on variable",
+		"{{with $x := .}}{{with .SI}}{{$.GetU.TrueFalse $.True}}{{end}}{{end}}",
+		"true", tVal, true},
 
 	// Pipelines.
 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
@@ -309,7 +332,7 @@ var execTests = []execTest{
 
 	// Fixed bugs.
 	// Must separate dot and receiver; otherwise args are evaluated with dot set to variable.
-	{"problem", "{{range .MSIone}}-{{if $.Method1 .}}X{{end}}{{end}}-", "-X-", tVal, true},
+	{"bug0", "{{range .MSIone}}{{if $.Method1 .}}X{{end}}{{end}}", "X", tVal, true},
 }
 
 func zeroArgs() string {

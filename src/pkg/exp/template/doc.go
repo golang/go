@@ -105,11 +105,11 @@ An argument is a simple value, denoted by one of the following.
 	  any type) or two return values, the second of which is an os.Error.
 	  If it has two and the returned error is non-nil, execution terminates
 	  and an error is returned to the caller as the value of Execute.
-	  Method invocations may be chained, but only the last element of
-	  the chain may be a method; others must be struct fields:
-	    .Field1.Field2.Method
+	  Method invocations may be chained and combined with fields
+	  to any depth:
+	    .Field1.Method1.Field2.Method2
 	  Methods can also be evaluated on variables, including chaining:
-	    $x.Field1.Method
+	    $x.Method1.Field
 	- The name of a niladic function, such as
 		fun
 	  The result is the value of invoking the function, fun(). The return
@@ -125,7 +125,10 @@ value (argument) or a function or method call, possibly with multiple arguments:
 	Argument
 		The result is the value of evaluating the argument.
 	.Method [Argument...]
-		The result is the value of calling the method with the arguments:
+		The method can be alone or the last element of a chain but,
+		unlike methods in the middle of a chain, it can take arguments.
+		The result is the value of calling the method with the
+		arguments:
 			dot.Method(Argument1, etc.)
 	functionName [Argument...]
 		The result is the value of calling the function associated
