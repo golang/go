@@ -155,7 +155,7 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline_delta int64) (n int, err os.Error)
 	case 0:
 		// IO completed immediately, but we need to get our completion message anyway.
 	case syscall.ERROR_IO_PENDING:
-		// IO started, and we have to wait for it's completion.
+		// IO started, and we have to wait for its completion.
 	default:
 		return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, os.Errno(e)}
 	}

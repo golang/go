@@ -633,7 +633,7 @@ func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *
 	// this permits the direct mapping of suffix array lookup results to
 	// to corresponding Pos values.
 	//
-	// When a file is added to the file set, it's offset base increases by
+	// When a file is added to the file set, its offset base increases by
 	// the size of the file + 1; and the initial base offset is 1. Add an
 	// extra byte to the sources here.
 	x.sources.WriteByte(0)
