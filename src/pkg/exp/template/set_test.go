@@ -92,9 +92,12 @@ var setExecTests = []execTest{
 	{"testFunc .", `{{oneArg .}}`, "oneArg=joe", "joe", true},
 }
 
-const setText = `
+const setText1 = `
 	{{define "x"}}TEXT{{end}}
 	{{define "dotV"}}{{.V}}{{end}}
+`
+
+const setText2 = `
 	{{define "dot"}}{{.}}{{end}}
 	{{define "nested"}}{{template "dot" .}}{{end}}
 `
@@ -102,7 +105,11 @@ const setText = `
 func TestSetExecute(t *testing.T) {
 	// Declare a set with a couple of templates first.
 	set := NewSet()
-	err := set.Parse(setText)
+	err := set.Parse(setText1)
+	if err != nil {
+		t.Fatalf("error parsing set: %s", err)
+	}
+	err = set.Parse(setText2)
 	if err != nil {
 		t.Fatalf("error parsing set: %s", err)
 	}
