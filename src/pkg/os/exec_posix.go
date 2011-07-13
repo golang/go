@@ -9,11 +9,6 @@ import (
 	"syscall"
 )
 
-// A Signal can represent any operating system signal.
-type Signal interface {
-	String() string
-}
-
 type UnixSignal int32
 
 func (sig UnixSignal) String() string {

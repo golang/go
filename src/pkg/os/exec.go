@@ -46,6 +46,11 @@ type ProcAttr struct {
 	Sys *syscall.SysProcAttr
 }
 
+// A Signal can represent any operating system signal.
+type Signal interface {
+	String() string
+}
+
 // Getpid returns the process id of the caller.
 func Getpid() int { return syscall.Getpid() }
 

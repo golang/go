@@ -14,7 +14,6 @@ type File struct {
 	fd      int
 	name    string
 	dirinfo *dirInfo // nil unless directory being read
-	nepipe  int      // number of consecutive EPIPE in Write
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
@@ -269,20 +268,6 @@ func Chmod(name string, mode uint32) Error {
 	d.Mode = (odir.Mode & mask) | (mode &^ mask)
 	if e := syscall.Wstat(name, pdir(nil, &d)); iserror(e) {
 		return &PathError{"chmod", name, e}
-	}
-	return nil
-}
-
-// ChownPlan9 changes the uid and gid strings of the named file.
-func ChownPlan9(name, uid, gid string) Error {
-	var d Dir
-	d.Null()
-
-	d.Uid = uid
-	d.Gid = gid
-
-	if e := syscall.Wstat(name, pdir(nil, &d)); iserror(e) {
-		return &PathError{"chown_plan9", name, e}
 	}
 	return nil
 }
