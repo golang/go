@@ -33,11 +33,6 @@ func (t *Template) Name() string {
 	return t.name
 }
 
-// popVars trims the variable list to the specified length
-func (t *Template) popVars(n int) {
-	t.vars = t.vars[:n]
-}
-
 // next returns the next token.
 func (t *Template) next() item {
 	if t.peekCount > 0 {
@@ -814,6 +809,8 @@ func (t *Template) templateControl() node {
 		name = newIdentifier(token.val)
 	case itemDot:
 		name = newDot()
+	case itemVariable:
+		name = t.useVar(token.val)
 	case itemField:
 		name = newField(token.val)
 	case itemString, itemRawString:
@@ -857,18 +854,7 @@ Loop:
 		case itemDot:
 			cmd.append(newDot())
 		case itemVariable:
-			v := newVariable(token.val)
-			found := false
-			for _, varName := range t.vars {
-				if varName == v.ident[0] {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.errorf("undefined variable %q", token.val)
-			}
-			cmd.append(v)
+			cmd.append(t.useVar(token.val))
 		case itemField:
 			cmd.append(newField(token.val))
 		case itemBool:
@@ -893,4 +879,22 @@ Loop:
 		t.errorf("empty command")
 	}
 	return cmd
+}
+
+// popVars trims the variable list to the specified length
+func (t *Template) popVars(n int) {
+	t.vars = t.vars[:n]
+}
+
+// useVar returns a node for a variable reference. It errors if the
+// variable is not defined.
+func (t *Template) useVar(name string) node {
+	v := newVariable(name)
+	for _, varName := range t.vars {
+		if varName == v.ident[0] {
+			return v
+		}
+	}
+	t.errorf("undefined variable %q", v.ident[0])
+	return nil
 }

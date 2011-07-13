@@ -211,6 +211,8 @@ var parseTests = []parseTest{
 		`[({{with [(command: [F=[X]])]}} [(text: "hello")])]`},
 	{"with with else", "{{with .X}}hello{{else}}goodbye{{end}}", noError,
 		`[({{with [(command: [F=[X]])]}} [(text: "hello")] {{else}} [(text: "goodbye")])]`},
+	{"variable in template", "{{with $v := `hi`}}{{template $v}}{{end}}", noError,
+		"[({{with [$v] := [(command: [S=`hi`])]}} [{{template V=[$v]}}])]"},
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},
 	{"unmatched end", "{{end}}", hasError, ""},
@@ -219,6 +221,7 @@ var parseTests = []parseTest{
 	{"undefined function", "hello{{undefined}}", hasError, ""},
 	{"undefined variable", "{{$x}}", hasError, ""},
 	{"variable undefined after end", "{{with $x := 4}}{{end}}{{$x}}", hasError, ""},
+	{"variable undefined in template", "{{template $v}}", hasError, ""},
 	{"declare with field", "{{with $x.Y := 4}}{{end}}", hasError, ""},
 }
 

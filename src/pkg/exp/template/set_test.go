@@ -84,6 +84,7 @@ var setExecTests = []execTest{
 	{"invoke nested int", `{{template "nested" .I}}`, "17", tVal, true},
 	{"invoke template by field", `{{template .X}}`, "TEXT", tVal, true},
 	{"invoke template by template", `{{template .Tmpl}}`, "test template", tVal, true},
+	{"invoke template by variable", `{{with $t := "x"}}{{template $t}}{{end}}`, "TEXT", tVal, true},
 	{"invalid: invoke template by []int", `{{template .SI}}`, "", tVal, false},
 
 	// User-defined function: test argument evaluator.
