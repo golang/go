@@ -71,7 +71,7 @@ enum {
 	// If the amount needed for the splitting frame + StackExtra
 	// is less than this number, the stack will have this size instead.
 	StackMin = 4096,
-	FixedStack = StackMin,
+	FixedStack = StackMin + StackSystem,
 
 	// Functions that need frames bigger than this call morestack
 	// unconditionally.  That is, on entry to a function it is assumed
