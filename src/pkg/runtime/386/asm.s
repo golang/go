@@ -318,6 +318,12 @@ TEXT runtime·casp(SB), 7, $0
 	MOVL	$1, AX
 	RET
 
+TEXT runtime·atomicstorep(SB), 7, $0
+	MOVL	4(SP), BX
+	MOVL	8(SP), AX
+	XCHGL	AX, 0(BX)
+	RET
+
 // void jmpdefer(fn, sp);
 // called from deferreturn.
 // 1. pop the caller

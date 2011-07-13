@@ -81,7 +81,7 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
 	for(locked=0; locked<2; locked++) {
 		if(locked)
 			runtime·lock(&ifacelock);
-		for(m=hash[h]; m!=nil; m=m->link) {
+		for(m=runtime·atomicloadp(&hash[h]); m!=nil; m=m->link) {
 			if(m->inter == inter && m->type == type) {
 				if(m->bad) {
 					m = nil;
@@ -145,10 +145,11 @@ search:
 	}
 
 out:
+	if(!locked)
+		runtime·panicstring("invalid itab locking");
 	m->link = hash[h];
-	hash[h] = m;
-	if(locked)
-		runtime·unlock(&ifacelock);
+	runtime·atomicstorep(&hash[h], m);
+	runtime·unlock(&ifacelock);
 	if(m->bad)
 		return nil;
 	return m;
