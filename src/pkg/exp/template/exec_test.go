@@ -448,13 +448,13 @@ func TestTree(t *testing.T) {
 			},
 		},
 	}
-	set := NewSet()
+	set := new(Set)
 	err := set.Parse(treeTemplate)
 	if err != nil {
 		t.Fatal("parse error:", err)
 	}
 	var b bytes.Buffer
-	err = set.Execute("tree", &b, tree)
+	err = set.Execute(&b, "tree", tree)
 	if err != nil {
 		t.Fatal("exec error:", err)
 	}

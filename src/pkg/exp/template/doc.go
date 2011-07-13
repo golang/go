@@ -33,13 +33,15 @@ data, defined in detail below.
 		is copied to the output.
 
 	{{if pipeline}} T1 {{end}}
-		If the value of the pipeline is the "zero value" (see below) for
-		its type, no output is generated; otherwise, T1 is executed.
+		If the value of the pipeline is empty, no output is generated;
+		otherwise, T1 is executed.  The empty values are false, 0, any
+		nil pointer or interface value, and any array, slice, map, or
+		string of length zero.
 		Dot is unaffected.
 
 	{{if pipeline}} T1 {{else}} T0 {{end}}
-		If the value of the pipeline is the zero value for its type, T0
-		is executed; otherwise, T1 is executed. Dot is unaffected.
+		If the value of the pipeline is empty, T0 is executed;
+		otherwise, T1 is executed.  Dot is unaffected.
 
 	{{range pipeline}} T1 {{end}}
 		The value of the pipeline must be an array, slice, or map. If
@@ -53,29 +55,22 @@ data, defined in detail below.
 		T0 is executed; otherwise, dot is set to the successive elements
 		of the array, slice, or map and T1 is executed.
 
-	{{template argument}}
-		If the value of the argument is a string, the template with that
-		name is executed with nil data. If the value of arg is of type
-		*Template, that template is executed.
+	{{template "name"}}
+		The template with the specified name is executed with nil data.
 
-	{{template argument pipeline}}
-		If the value of the argument is a string, the template with that
-		name is executed with data set to the value of the pipeline. If
-		the value of arg is of type *Template, that template is
-		executed.
+	{{template "name" pipeline}}
+		The template with the specified name is executed with dot set
+		to the value of the pipeline.
 
 	{{with pipeline}} T1 {{end}}
-		If the value of the pipeline is the zero value for its type, no
-		output is generated; otherwise, dot is set to the value of the
-		pipeline and T1 is executed.
+		If the value of the pipeline is empty, no output is generated;
+		otherwise, dot is set to the value of the pipeline and T1 is
+		executed.
 
 	{{with pipeline}} T1 {{else}} T0 {{end}}
-		If the value of the pipeline is the zero value for its type, dot
-		is unaffected and T0 is executed; otherwise, dot is set to the
-		value of the pipeline and T1 is executed.
-
-"Zero value" means the true zero value in Go terms.  Also, for arrays, slices,
-maps, and strings, any value v with len(v)==0 counts as a zero value.
+		If the value of the pipeline is empty, dot is unaffected and T0
+		is executed; otherwise, dot is set to the value of the pipeline
+		and T1 is executed.
 
 Arguments
 
@@ -106,12 +101,12 @@ An argument is a simple value, denoted by one of the following.
 	  such as
 		.Method
 	  The result is the value of invoking the method with dot as the
-	  receiver, dot.Method(). Such methods must have one return value (of
+	  receiver, dot.Method(). Such a method must have one return value (of
 	  any type) or two return values, the second of which is an os.Error.
 	  If it has two and the returned error is non-nil, execution terminates
-	  and that error is returned to the caller as the value of Execute.
+	  and an error is returned to the caller as the value of Execute.
 	  Method invocations may be chained, but only the last element of
-	  the chain may be a method; other others must be struct fields:
+	  the chain may be a method; others must be struct fields:
 	    .Field1.Field2.Method
 	  Methods can also be evaluated on variables, including chaining:
 	    $x.Field1.Method
@@ -173,7 +168,7 @@ All produce the quoted word "output":
 		A string constant.
 	{{`"output"`}}
 		A raw string constant.
-	{{printf "%q" output}}
+	{{printf "%q" "output"}}
 		A function call.
 	{{"output" | printf "%q"}}
 		A function call whose final argument comes from the previous
@@ -182,14 +177,12 @@ All produce the quoted word "output":
 		A more elaborate call.
 	{{"output" | printf "%s" | printf "%q"}}
 		A longer chain.
-	{{$x := "output" | printf "%s" | printf "%q"}}
-		An unused variables captures the output.
 	{{with "output"}}{{printf "%q" .}}{{end}}
 		A with action using dot.
 	{{with $x := "output" | printf "%q"}}{{$x}}{{end}}
-		A with action creates and uses a variable.
+		A with action that creates and uses a variable.
 	{{with $x := "output"}}{{printf "%q" $x}}{{end}}
-		A with action uses the variable in another action.
+		A with action that uses the variable in another action.
 	{{with $x := "output"}}{{$x | printf "%q"}}{{end}}
 		The same, but pipelined.
 
@@ -230,10 +223,10 @@ be true.
 
 Template sets
 
-All templates are named by a string specified when they are created. A template
-may use a template invocation to instantiate another template directly or by its
-name; see the explanation of the template action above. The name of a template
-is looked up in the template set active during the invocation.
+Each template is named by a string specified when it is created.  A template may
+use a template invocation to instantiate another template directly or by its
+name; see the explanation of the template action above. The name is looked up
+in the template set active during the invocation.
 
 If no template invocation actions occur in the template, the issue of template
 sets can be ignored. If it does contain invocations, though, a set must be
@@ -241,10 +234,9 @@ defined in which to look up the names.
 
 There are two ways to construct template sets.
 
-The first is to use the Parse method of Set to create a set of named templates
-by reading a single string defining multiple templates. The syntax of the
-definitions is to surround each template declaration with a define and end
-action; those actions are discarded after parsing.
+The first is to use a Set's Parse method to create a set of named templates from
+a single input defining multiple templates.  The syntax of the definitions is to
+surround each template declaration with a define and end action.
 
 The define action names the template being created by providing a string
 constant. Here is a simple example of input to Set.Parse:
@@ -256,14 +248,14 @@ constant. Here is a simple example of input to Set.Parse:
 This defines two templates, T1 and T2, and a third T3 that invokes the other two
 when it is executed.
 
-The second way to build a template set is to use the Add method of Set to bind
+The second way to build a template set is to use Set's Add method to add
 a template to a set. A template may be bound to multiple sets.
 
 Set.Parse may be called multiple times on different inputs to construct the set.
 Two sets may therefore be constructed with a common base set of templates plus,
 through a second Parse call each, specializations for some elements.
 
-When templates are executed via Template.Execute, no set is defined and so no
+When a template is executed via Template.Execute, no set is defined and so no
 template invocations are possible. The method Template.ExecuteInSet provides a
 way to specify a template set when executing a template directly.
 

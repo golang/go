@@ -204,15 +204,13 @@ var parseTests = []parseTest{
 	{"constants", "{{range .SI 1 -3.2i true false 'a'}}{{end}}", noError,
 		`[({{range [(command: [F=[SI] N=1 N=-3.2i B=true B=false N='a'])]}} [])]`},
 	{"template", "{{template `x`}}", noError,
-		"[{{template S=`x`}}]"},
-	{"template", "{{template `x` .Y}}", noError,
-		"[{{template S=`x` [(command: [F=[Y]])]}}]"},
+		`[{{template "x"}}]`},
+	{"template with arg", "{{template `x` .Y}}", noError,
+		`[{{template "x" [(command: [F=[Y]])]}}]`},
 	{"with", "{{with .X}}hello{{end}}", noError,
 		`[({{with [(command: [F=[X]])]}} [(text: "hello")])]`},
 	{"with with else", "{{with .X}}hello{{else}}goodbye{{end}}", noError,
 		`[({{with [(command: [F=[X]])]}} [(text: "hello")] {{else}} [(text: "goodbye")])]`},
-	{"variable in template", "{{with $v := `hi`}}{{template $v}}{{end}}", noError,
-		"[({{with [$v] := [(command: [S=`hi`])]}} [{{template V=[$v]}}])]"},
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},
 	{"unmatched end", "{{end}}", hasError, ""},
@@ -223,6 +221,8 @@ var parseTests = []parseTest{
 	{"variable undefined after end", "{{with $x := 4}}{{end}}{{$x}}", hasError, ""},
 	{"variable undefined in template", "{{template $v}}", hasError, ""},
 	{"declare with field", "{{with $x.Y := 4}}{{end}}", hasError, ""},
+	{"template with field ref", "{{template .X}}", hasError, ""},
+	{"template with var", "{{template $v}}", hasError, ""},
 }
 
 func TestParse(t *testing.T) {
