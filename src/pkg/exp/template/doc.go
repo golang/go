@@ -199,7 +199,10 @@ the set but the Funcs methods can be used to add them.
 Predefined global functions are named as follows.
 
 	and
-		Returns the boolean AND of its arguments.
+		Returns the boolean AND of its arguments by returning the
+		first empty argument or the last argument, that is,
+		"and x y" behaves as "if x then y else x". All the
+		arguments are evaluated.
 	html
 		Returns the escaped HTML equivalent of the textual
 		representation of its arguments.
@@ -213,7 +216,10 @@ Predefined global functions are named as follows.
 	not
 		Returns the boolean negation of its single argument.
 	or
-		Returns the boolean OR of its arguments.
+		Returns the boolean OR of its arguments by returning the
+		first non-empty argument or the last argument, that is,
+		"or x y" behaves as "if x then x else y". All the
+		arguments are evaluated.
 	print
 		An alias for fmt.Sprint
 	printf

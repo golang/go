@@ -289,7 +289,7 @@ func (s *state) evalCommand(dot reflect.Value, cmd *commandNode, final reflect.V
 	case *stringNode:
 		return reflect.ValueOf(word.text)
 	}
-	s.errorf("can't handle command %q", firstWord)
+	s.errorf("can't evaluate command %q", firstWord)
 	panic("not reached")
 }
 

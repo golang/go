@@ -280,8 +280,8 @@ var execTests = []execTest{
 
 	// Booleans
 	{"not", "{{not true}} {{not false}}", "false true", nil, true},
-	{"and", "{{and 0 0}} {{and 1 0}} {{and 0 1}} {{and 1 1}}", "false false false true", nil, true},
-	{"or", "{{or 0 0}} {{or 1 0}} {{or 0 1}} {{or 1 1}}", "false true true true", nil, true},
+	{"and", "{{and false 0}} {{and 1 0}} {{and 0 true}} {{and 1 1}}", "false 0 0 1", nil, true},
+	{"or", "{{or 0 0}} {{or 1 0}} {{or 0 true}} {{or 1 1}}", "0 1 true 1", nil, true},
 	{"boolean if", "{{if and true 1 `hi`}}TRUE{{else}}FALSE{{end}}", "TRUE", tVal, true},
 	{"boolean if not", "{{if and true 1 `hi` | not}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
 
@@ -325,6 +325,10 @@ var execTests = []execTest{
 	{"range map else", "{{range .MSI | .MSort}}-{{.}}-{{else}}EMPTY{{end}}", "-one--three--two-", tVal, true},
 	{"range empty map else", "{{range .MSIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"range empty interface", "{{range .Empty3}}-{{.}}-{{else}}EMPTY{{end}}", "-7--8-", tVal, true},
+
+	// Cute examples.
+	{"or as if true", `{{or .SI "slice is empty"}}`, "[3 4 5]", tVal, true},
+	{"or as if false", `{{or .SIEmpty "slice is empty"}}`, "slice is empty", tVal, true},
 
 	// Error handling.
 	{"error method, error", "{{.EPERM true}}", "", tVal, false},
