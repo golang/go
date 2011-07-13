@@ -38,6 +38,27 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err E
 	return newProcess(pid, h), nil
 }
 
+// Plan9Note implements the Signal interface on Plan 9.
+type Plan9Note string
+
+func (note Plan9Note) String() string {
+	return string(note)
+}
+
+func (p *Process) Signal(sig Signal) Error {
+	if p.done {
+		return NewError("os: process already finished")
+	}
+
+	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/note", O_WRONLY, 0)
+	if iserror(e) {
+		return NewSyscallError("signal", e)
+	}
+	defer f.Close()
+	_, e = f.Write([]byte(sig.String()))
+	return e
+}
+
 // Kill causes the Process to exit immediately.
 func (p *Process) Kill() Error {
 	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/ctl", O_WRONLY, 0)
@@ -85,6 +106,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
 		}
 
 		if waitmsg.Pid == p.Pid {
+			p.done = true
 			break
 		}
 	}
