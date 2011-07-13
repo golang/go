@@ -212,8 +212,8 @@ type SecurityAttributes struct {
 }
 
 type Overlapped struct {
-	Internal     uint32
-	InternalHigh uint32
+	Internal     uintptr
+	InternalHigh uintptr
 	Offset       uint32
 	OffsetHigh   uint32
 	HEvent       Handle
@@ -388,16 +388,6 @@ const (
 	WSASYS_STATUS_LEN  = 128
 )
 
-type WSAData struct {
-	Version      uint16
-	HighVersion  uint16
-	Description  [WSADESCRIPTION_LEN + 1]byte
-	SystemStatus [WSASYS_STATUS_LEN + 1]byte
-	MaxSockets   uint16
-	MaxUdpDg     uint16
-	VendorInfo   *byte
-}
-
 type WSABuf struct {
 	Len uint32
 	Buf *byte
@@ -451,13 +441,6 @@ type Hostent struct {
 	AddrType uint16
 	Length   uint16
 	AddrList **byte
-}
-
-type Servent struct {
-	Name    *byte
-	Aliases **byte
-	Port    uint16
-	Proto   *byte
 }
 
 const (

@@ -594,7 +594,7 @@ func Socket(domain, typ, proto int) (fd Handle, errno int) {
 
 func SetsockoptInt(fd Handle, level, opt int, value int) (errno int) {
 	v := int32(value)
-	return int(setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&v)), int32(unsafe.Sizeof(v))))
+	return int(Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&v)), int32(unsafe.Sizeof(v))))
 }
 
 func Bind(fd Handle, sa Sockaddr) (errno int) {

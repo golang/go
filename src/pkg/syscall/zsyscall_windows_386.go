@@ -1076,7 +1076,7 @@ func socket(af int32, typ int32, protocol int32) (handle Handle, errno int) {
 	return
 }
 
-func setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (errno int) {
+func Setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (errno int) {
 	r1, _, e1 := Syscall6(procsetsockopt, 5, uintptr(s), uintptr(level), uintptr(optname), uintptr(unsafe.Pointer(optval)), uintptr(optlen), 0)
 	if int(r1) == -1 {
 		if e1 != 0 {
