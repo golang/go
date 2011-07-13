@@ -20,6 +20,7 @@ TEXT runtime·stdcall_raw(SB),7,$8
 	CMPQ	g(DI), SI
 	JEQ 3(PC)
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
+	ANDQ	$~15, SP
 	MOVQ	SI, g(DI)
 	
 	SUBQ	$0x60, SP
