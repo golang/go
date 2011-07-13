@@ -140,8 +140,8 @@ func SplitList(path string) []string {
 }
 
 // Split splits path immediately following the final Separator,
-// partitioning it into a directory and a file name components.
-// If there are no separators in path, Split returns an empty base
+// separating it into a directory and file name component.
+// If there is no Separator in path, Split returns an empty dir
 // and file set to path.
 func Split(path string) (dir, file string) {
 	i := len(path) - 1
