@@ -317,12 +317,12 @@ func newState(fmt Format, env Environment, errors chan os.Error) *State {
 	s.errors = errors
 	s.linePos = token.Position{Line: 1}
 
-	// if we have a default rule, cache it's expression for fast access
+	// if we have a default rule, cache its expression for fast access
 	if x, found := fmt["default"]; found {
 		s.default_ = x
 	}
 
-	// if we have a global separator rule, cache it's expression for fast access
+	// if we have a global separator rule, cache its expression for fast access
 	if x, found := fmt["/"]; found {
 		s.separator = x
 	}

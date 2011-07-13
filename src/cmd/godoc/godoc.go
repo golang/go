@@ -170,7 +170,7 @@ func readDirList(filename string) ([]string, os.Error) {
 		return e == nil && isPkgDir(d)
 	}
 	list := canonicalizePaths(strings.Split(string(contents), "\n"), filter)
-	// for each parent path, remove all it's children q
+	// for each parent path, remove all its children q
 	// (requirement for binary search to work when filtering)
 	i := 0
 	for _, q := range list {

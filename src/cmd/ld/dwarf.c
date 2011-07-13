@@ -1209,7 +1209,7 @@ copychildren(DWDie *dst, DWDie *src)
 }
 
 // Search children (assumed to have DW_TAG_member) for the one named
-// field and set it's DW_AT_type to dwtype
+// field and set its DW_AT_type to dwtype
 static void
 substitutetype(DWDie *structdie, char *field, DWDie* dwtype)
 {
@@ -1698,7 +1698,7 @@ inithist(Auto *a)
 			// We could just fixup the current
 			// linehist->line, but there doesn't appear to
 			// be a guarantee that every 'Z' is preceded
-			// by it's own 'z', so do the safe thing and
+			// by its own 'z', so do the safe thing and
 			// update the stack and push a new Linehist
 			// entry
 			includestack[includetop].line =	 a->aoffset;
