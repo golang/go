@@ -45,11 +45,11 @@ type parser struct {
 	hasSelfClosingToken bool
 	// doc is the document root element.
 	doc *Node
-	// The stack of open elements (section 10.2.3.2).
+	// The stack of open elements (section 11.2.3.2).
 	stack []*Node
-	// Element pointers (section 10.2.3.4).
+	// Element pointers (section 11.2.3.4).
 	head, form *Node
-	// Other parsing state flags (section 10.2.3.5).
+	// Other parsing state flags (section 11.2.3.5).
 	scripting, framesetOK bool
 }
 
@@ -76,7 +76,7 @@ func (p *parser) pop() *Node {
 	return ret
 }
 
-// stopTags for use in popUntil. These come from section 10.2.3.2.
+// stopTags for use in popUntil. These come from section 11.2.3.2.
 var (
 	defaultScopeStopTags  = []string{"applet", "caption", "html", "table", "td", "th", "marquee", "object"}
 	listItemScopeStopTags = []string{"applet", "caption", "html", "table", "td", "th", "marquee", "object", "ol", "ul"}
@@ -148,13 +148,13 @@ func (p *parser) addElement(tag string, attr []Attribute) {
 	})
 }
 
-// Section 10.2.3.3.
+// Section 11.2.3.3.
 func (p *parser) addFormattingElement(tag string, attr []Attribute) {
 	p.addElement(tag, attr)
 	// TODO.
 }
 
-// Section 10.2.3.3.
+// Section 11.2.3.3.
 func (p *parser) reconstructActiveFormattingElements() {
 	// TODO.
 }
@@ -180,12 +180,12 @@ func (p *parser) read() os.Error {
 	return nil
 }
 
-// Section 10.2.4.
+// Section 11.2.4.
 func (p *parser) acknowledgeSelfClosingTag() {
 	p.hasSelfClosingToken = false
 }
 
-// An insertion mode (section 10.2.3.1) is the state transition function from
+// An insertion mode (section 11.2.3.1) is the state transition function from
 // a particular state in the HTML5 parser's state machine. It updates the
 // parser's fields depending on parser.token (where ErrorToken means EOF). In
 // addition to returning the next insertionMode state, it also returns whether
@@ -194,7 +194,7 @@ type insertionMode func(*parser) (insertionMode, bool)
 
 // useTheRulesFor runs the delegate insertionMode over p, returning the actual
 // insertionMode unless the delegate caused a state transition.
-// Section 10.2.3.1, "using the rules for".
+// Section 11.2.3.1, "using the rules for".
 func useTheRulesFor(p *parser, actual, delegate insertionMode) (insertionMode, bool) {
 	im, consumed := delegate(p)
 	if im != delegate {
@@ -203,13 +203,13 @@ func useTheRulesFor(p *parser, actual, delegate insertionMode) (insertionMode, b
 	return actual, consumed
 }
 
-// Section 10.2.5.4.
+// Section 11.2.5.4.1.
 func initialIM(p *parser) (insertionMode, bool) {
 	// TODO: check p.tok for DOCTYPE.
 	return beforeHTMLIM, false
 }
 
-// Section 10.2.5.5.
+// Section 11.2.5.4.2.
 func beforeHTMLIM(p *parser) (insertionMode, bool) {
 	var (
 		add     bool
@@ -243,7 +243,7 @@ func beforeHTMLIM(p *parser) (insertionMode, bool) {
 	return beforeHeadIM, !implied
 }
 
-// Section 10.2.5.6.
+// Section 11.2.5.4.3.
 func beforeHeadIM(p *parser) (insertionMode, bool) {
 	var (
 		add     bool
@@ -280,7 +280,7 @@ func beforeHeadIM(p *parser) (insertionMode, bool) {
 	return inHeadIM, !implied
 }
 
-// Section 10.2.5.7.
+// Section 11.2.5.4.4.
 func inHeadIM(p *parser) (insertionMode, bool) {
 	var (
 		pop     bool
@@ -314,7 +314,7 @@ func inHeadIM(p *parser) (insertionMode, bool) {
 	return inHeadIM, !implied
 }
 
-// Section 10.2.5.9.
+// Section 11.2.5.4.6.
 func afterHeadIM(p *parser) (insertionMode, bool) {
 	var (
 		add        bool
@@ -354,7 +354,7 @@ func afterHeadIM(p *parser) (insertionMode, bool) {
 	return inBodyIM, !implied
 }
 
-// Section 10.2.5.10.
+// Section 11.2.5.4.7.
 func inBodyIM(p *parser) (insertionMode, bool) {
 	var endP bool
 	switch p.tok.Type {
@@ -364,7 +364,7 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 	case StartTagToken:
 		switch p.tok.Data {
 		case "address", "article", "aside", "blockquote", "center", "details", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "menu", "nav", "ol", "p", "section", "summary", "ul":
-			// TODO: Do the proper "does the stack of open elements has a p element in button scope" algorithm in section 10.2.3.2.
+			// TODO: Do the proper "does the stack of open elements has a p element in button scope" algorithm in section 11.2.3.2.
 			n := p.top()
 			if n.Type == ElementNode && n.Data == "p" {
 				endP = true
@@ -430,7 +430,7 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 	return inBodyIM, !endP
 }
 
-// Section 10.2.5.12.
+// Section 11.2.5.4.9.
 func inTableIM(p *parser) (insertionMode, bool) {
 	var (
 		add      bool
@@ -461,7 +461,7 @@ func inTableIM(p *parser) (insertionMode, bool) {
 		switch p.tok.Data {
 		case "table":
 			if p.popUntil(tableScopeStopTags, "table") {
-				// TODO: "reset the insertion mode appropriately" as per 10.2.3.1.
+				// TODO: "reset the insertion mode appropriately" as per 11.2.3.1.
 				return inBodyIM, false
 			}
 			// Ignore the token.
@@ -480,7 +480,7 @@ func inTableIM(p *parser) (insertionMode, bool) {
 	return inTableIM, true
 }
 
-// Section 10.2.5.16.
+// Section 11.2.5.4.13.
 func inTableBodyIM(p *parser) (insertionMode, bool) {
 	var (
 		add      bool
@@ -528,7 +528,7 @@ func inTableBodyIM(p *parser) (insertionMode, bool) {
 	return useTheRulesFor(p, inTableBodyIM, inTableIM)
 }
 
-// Section 10.2.5.17.
+// Section 11.2.5.4.14.
 func inRowIM(p *parser) (insertionMode, bool) {
 	switch p.tok.Type {
 	case ErrorToken:
@@ -567,7 +567,7 @@ func inRowIM(p *parser) (insertionMode, bool) {
 	return useTheRulesFor(p, inRowIM, inTableIM)
 }
 
-// Section 10.2.5.18.
+// Section 11.2.5.4.15.
 func inCellIM(p *parser) (insertionMode, bool) {
 	var (
 		closeTheCellAndReprocess bool
@@ -599,7 +599,7 @@ func inCellIM(p *parser) (insertionMode, bool) {
 	return useTheRulesFor(p, inCellIM, inBodyIM)
 }
 
-// Section 10.2.5.22.
+// Section 11.2.5.4.18.
 func afterBodyIM(p *parser) (insertionMode, bool) {
 	switch p.tok.Type {
 	case ErrorToken:
@@ -620,7 +620,7 @@ func afterBodyIM(p *parser) (insertionMode, bool) {
 	return afterBodyIM, true
 }
 
-// Section 10.2.5.25.
+// Section 11.2.5.4.21.
 func afterAfterBodyIM(p *parser) (insertionMode, bool) {
 	switch p.tok.Type {
 	case ErrorToken:
