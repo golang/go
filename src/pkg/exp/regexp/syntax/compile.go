@@ -185,6 +185,10 @@ func (c *compiler) cap(arg uint32) frag {
 	f := c.inst(InstCapture)
 	f.out = patchList(f.i << 1)
 	c.p.Inst[f.i].Arg = arg
+
+	if c.p.NumCap < int(arg)+1 {
+		c.p.NumCap = int(arg) + 1
+	}
 	return f
 }
 
