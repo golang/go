@@ -699,6 +699,7 @@ asmb(void)
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
 	Section *sect;
+	int o;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -861,6 +862,17 @@ asmb(void)
 		pph->vaddr = INITTEXT - HEADR + pph->off;
 		pph->paddr = INITTEXT - HEADR + pph->off;
 		pph->align = INITRND;
+
+		/*
+		 * PHDR must be in a loaded segment. Adjust the text
+		 * segment boundaries downwards to include it.
+		 */
+		o = segtext.vaddr - pph->vaddr;
+		segtext.vaddr -= o;
+		segtext.len += o;
+		o = segtext.fileoff - pph->off;
+		segtext.fileoff -= o;
+		segtext.filelen += o;
 
 		if(!debug['d']) {
 			/* interpreter */
