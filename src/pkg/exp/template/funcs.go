@@ -122,22 +122,39 @@ func index(item interface{}, indices ...interface{}) (interface{}, os.Error) {
 
 // Boolean logic.
 
-// and returns the Boolean AND of its arguments.
-func and(arg0 interface{}, args ...interface{}) (truth bool) {
-	truth, _ = isTrue(reflect.ValueOf(arg0))
-	for i := 0; truth && i < len(args); i++ {
-		truth, _ = isTrue(reflect.ValueOf(args[i]))
-	}
-	return
+func truth(a interface{}) bool {
+	t, _ := isTrue(reflect.ValueOf(a))
+	return t
 }
 
-// or returns the Boolean OR of its arguments.
-func or(arg0 interface{}, args ...interface{}) (truth bool) {
-	truth, _ = isTrue(reflect.ValueOf(arg0))
-	for i := 0; !truth && i < len(args); i++ {
-		truth, _ = isTrue(reflect.ValueOf(args[i]))
+// and computes the Boolean AND of its arguments, returning
+// the first false argument it encounters, or the last argument.
+func and(arg0 interface{}, args ...interface{}) interface{} {
+	if !truth(arg0) {
+		return arg0
 	}
-	return
+	for i := range args {
+		arg0 = args[i]
+		if !truth(arg0) {
+			break
+		}
+	}
+	return arg0
+}
+
+// or computes the Boolean OR of its arguments, returning
+// the first true argument it encounters, or the last argument.
+func or(arg0 interface{}, args ...interface{}) interface{} {
+	if truth(arg0) {
+		return arg0
+	}
+	for i := range args {
+		arg0 = args[i]
+		if truth(arg0) {
+			break
+		}
+	}
+	return arg0
 }
 
 // not returns the Boolean negation of its argument.
