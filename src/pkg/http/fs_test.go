@@ -184,7 +184,7 @@ func TestServeFileMimeType(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "text/css"
+	want := "text/css; charset=utf-8"
 	if h := resp.Header.Get("Content-Type"); h != want {
 		t.Errorf("Content-Type mismatch: got %q, want %q", h, want)
 	}
