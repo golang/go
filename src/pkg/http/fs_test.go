@@ -175,6 +175,21 @@ func TestServeFileContentType(t *testing.T) {
 	get(ctype)
 }
 
+func TestServeFileMimeType(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		ServeFile(w, r, "testdata/style.css")
+	}))
+	defer ts.Close()
+	resp, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "text/css"
+	if h := resp.Header.Get("Content-Type"); h != want {
+		t.Errorf("Content-Type mismatch: got %q, want %q", h, want)
+	}
+}
+
 func TestServeFileWithContentEncoding(t *testing.T) {
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Encoding", "foo")

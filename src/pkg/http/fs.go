@@ -222,7 +222,8 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 
 // ServeFile replies to the request with the contents of the named file or directory.
 func ServeFile(w ResponseWriter, r *Request, name string) {
-	serveFile(w, r, Dir(name), "", false)
+	dir, file := filepath.Split(name)
+	serveFile(w, r, Dir(dir), file, false)
 }
 
 type fileHandler struct {
