@@ -116,17 +116,6 @@ runtime·panicstring(int8 *s)
 	runtime·panic(err);
 }
 
-void
-runtime·mcpy(byte *t, byte *f, uint32 n)
-{
-	while(n > 0) {
-		*t = *f;
-		t++;
-		f++;
-		n--;
-	}
-}
-
 int32
 runtime·mcmp(byte *s1, byte *s2, uint32 n)
 {

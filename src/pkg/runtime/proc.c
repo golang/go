@@ -720,7 +720,7 @@ runtime·oldstack(void)
 	argsize = old.argsize;
 	if(argsize > 0) {
 		sp -= argsize;
-		runtime·mcpy(top->argp, sp, argsize);
+		runtime·memmove(top->argp, sp, argsize);
 	}
 	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
 	USED(goid);
@@ -802,7 +802,7 @@ runtime·newstack(void)
 	sp = (byte*)top;
 	if(argsize > 0) {
 		sp -= argsize;
-		runtime·mcpy(sp, m->moreargp, argsize);
+		runtime·memmove(sp, m->moreargp, argsize);
 	}
 	if(thechar == '5') {
 		// caller would have saved its LR below args.
@@ -903,7 +903,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 
 	sp = newg->stackbase;
 	sp -= siz;
-	runtime·mcpy(sp, argp, narg);
+	runtime·memmove(sp, argp, narg);
 	if(thechar == '5') {
 		// caller's LR
 		sp -= sizeof(void*);
@@ -941,7 +941,7 @@ runtime·deferproc(int32 siz, byte* fn, ...)
 		d->argp = (byte*)(&fn+2);  // skip caller's saved link register
 	else
 		d->argp = (byte*)(&fn+1);
-	runtime·mcpy(d->args, d->argp, d->siz);
+	runtime·memmove(d->args, d->argp, d->siz);
 
 	d->link = g->defer;
 	g->defer = d;
@@ -968,7 +968,7 @@ runtime·deferreturn(uintptr arg0)
 	argp = (byte*)&arg0;
 	if(d->argp != argp)
 		return;
-	runtime·mcpy(argp, d->args, d->siz);
+	runtime·memmove(argp, d->args, d->siz);
 	g->defer = d->link;
 	fn = d->fn;
 	runtime·free(d);
@@ -1367,11 +1367,11 @@ os·setenv_c(String k, String v)
 		return;
 
 	arg[0] = runtime·malloc(k.len + 1);
-	runtime·mcpy(arg[0], k.str, k.len);
+	runtime·memmove(arg[0], k.str, k.len);
 	arg[0][k.len] = 0;
 
 	arg[1] = runtime·malloc(v.len + 1);
-	runtime·mcpy(arg[1], v.str, v.len);
+	runtime·memmove(arg[1], v.str, v.len);
 	arg[1][v.len] = 0;
 
 	runtime·asmcgocall(libcgo_setenv, arg);

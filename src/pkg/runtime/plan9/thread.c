@@ -47,11 +47,11 @@ runtime·exit(int32)
 		pid = pid/10;
 	}
 	p = buf;
-	runtime·mcpy((void*)p, (void*)"/proc/", 6);
+	runtime·memmove((void*)p, (void*)"/proc/", 6);
 	p += 6;
 	for(q--; q >= tmp;)
 		*p++ = *q--;
-	runtime·mcpy((void*)p, (void*)"/notepg", 7);
+	runtime·memmove((void*)p, (void*)"/notepg", 7);
 	
 	/* post interrupt note */
 	fd = runtime·open(buf, OWRITE);

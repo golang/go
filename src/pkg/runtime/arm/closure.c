@@ -83,7 +83,7 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
 	*pc++ = 0xe52de000 | (siz + 4);
 
 	if(siz > 0) {
-		runtime·mcpy(q, (byte*)&arg0, siz);
+		runtime·memmove(q, (byte*)&arg0, siz);
 
 		//	MOVW	$vars(PC), R0
 		*pc = 0xe28f0000 | (int32)(q - (byte*)pc - 8);

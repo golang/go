@@ -406,7 +406,6 @@ uint32	runtime·rnd(uint32, uint32);
 void	runtime·prints(int8*);
 void	runtime·printf(int8*, ...);
 byte*	runtime·mchr(byte*, byte, byte*);
-void	runtime·mcpy(byte*, byte*, uint32);
 int32	runtime·mcmp(byte*, byte*, uint32);
 void	runtime·memmove(void*, void*, uint32);
 void*	runtime·mal(uintptr);
