@@ -38,13 +38,37 @@ func (s *Set) Funcs(funcMap FuncMap) *Set {
 }
 
 // Add adds the argument templates to the set. It panics if the call
-// attempts to reuse a name defined in the template.
+// attempts to reuse a name defined in the set.
 // The return value is the set, so calls can be chained.
 func (s *Set) Add(templates ...*Template) *Set {
 	for _, t := range templates {
 		if _, ok := s.tmpl[t.name]; ok {
 			panic(fmt.Errorf("template: %q already defined in set", t.name))
 		}
+		s.tmpl[t.name] = t
+	}
+	return s
+}
+
+// AddSet adds the templates from the provided set to the to the receiver.
+// It panics if the call attempts to reuse a name defined in the set.
+// The return value is the set, so calls can be chained.
+func (s *Set) AddSet(set *Set) *Set {
+	for _, t := range set.tmpl {
+		if _, ok := s.tmpl[t.name]; ok {
+			panic(fmt.Errorf("template: %q already defined in set", t.name))
+		}
+		s.tmpl[t.name] = t
+	}
+	return s
+}
+
+// Union adds the templates from the provided set to the to the receiver.
+// Unlike AddSet, it does not panic if a name is reused; instead the old
+// template is replaced.
+// The return value is the set, so calls can be chained.
+func (s *Set) Union(set *Set) *Set {
+	for _, t := range set.tmpl {
 		s.tmpl[t.name] = t
 	}
 	return s
@@ -81,7 +105,10 @@ func (s *Set) recover(errp *os.Error) {
 	return
 }
 
-// Parse parses a string into a set of named templates.
+// Parse parses a string into a set of named templates.  Parse may be called
+// multiple times for a given set, adding the templates defined in the string
+// to the set.  If a template is redefined, the element in the set is
+// overwritten with the new definition.
 func (s *Set) Parse(text string) (err os.Error) {
 	defer s.recover(&err)
 	lex := lex("set", text)

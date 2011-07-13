@@ -259,6 +259,10 @@ when it is executed.
 The second way to build a template set is to use the Add method of Set to bind
 a template to a set. A template may be bound to multiple sets.
 
+Set.Parse may be called multiple times on different inputs to construct the set.
+Two sets may therefore be constructed with a common base set of templates plus,
+through a second Parse call each, specializations for some elements.
+
 When templates are executed via Template.Execute, no set is defined and so no
 template invocations are possible. The method Template.ExecuteInSet provides a
 way to specify a template set when executing a template directly.
