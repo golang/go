@@ -4,8 +4,8 @@
 
 include ../src/Make.inc
 
-TARG=htmlgen
+TARG=tmpltohtml
 GOFILES=\
-	htmlgen.go\
+	tmpltohtml.go\
 
 include ../src/Make.cmd

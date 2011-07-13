@@ -5,8 +5,8 @@
 
 set -e
 
-TXT=${1:-go_tutorial.txt}		# input file
-HTML=$(basename $TXT .txt).html		# output file (basename)
+TMPL=${1:-go_tutorial.tmpl}		# input file
+HTML=$(basename $TMPL .tmpl).html		# output file (basename)
 
 if ! test -w $HTML
 then
@@ -14,4 +14,4 @@ then
 	exit 1
 fi
 
-make && ./htmlgen < $TXT > $HTML
+make && ./tmpltohtml $TMPL > $HTML
