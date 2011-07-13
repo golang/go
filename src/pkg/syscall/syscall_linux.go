@@ -774,6 +774,7 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 //sys	Fchownat(dirfd int, path string, uid int, gid int, flags int) (errno int)
 //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
 //sys	Fdatasync(fd int) (errno int)
+//sys	Flock(fd int, how int) (errno int)
 //sys	Fsync(fd int) (errno int)
 //sys	Getdents(fd int, buf []byte) (n int, errno int) = SYS_GETDENTS64
 //sysnb	Getpgid(pid int) (pgid int, errno int)
@@ -878,7 +879,6 @@ func Munmap(b []byte) (errno int) {
 // Fadvise64
 // Fgetxattr
 // Flistxattr
-// Flock
 // Fork
 // Fremovexattr
 // Fsetxattr
