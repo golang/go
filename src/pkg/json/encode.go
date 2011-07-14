@@ -337,7 +337,7 @@ func (e *encodeState) string(s string) {
 	start := 0
 	for i := 0; i < len(s); {
 		if b := s[i]; b < utf8.RuneSelf {
-			if 0x20 <= b && b != '\\' && b != '"' {
+			if 0x20 <= b && b != '\\' && b != '"' && b != '<' && b != '>' {
 				i++
 				continue
 			}
@@ -355,6 +355,10 @@ func (e *encodeState) string(s string) {
 				e.WriteByte('\\')
 				e.WriteByte('r')
 			default:
+				// This encodes bytes < 0x20 except for \n and \r,
+				// as well as < and >. The latter are escaped because they
+				// can lead to security holes when user-controlled strings
+				// are rendered into JSON and served to some browsers.
 				e.WriteString(`\u00`)
 				e.WriteByte(hex[b>>4])
 				e.WriteByte(hex[b&0xF])
