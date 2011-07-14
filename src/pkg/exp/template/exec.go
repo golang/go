@@ -337,7 +337,7 @@ func (s *state) evalVariableNode(dot reflect.Value, v *variableNode, args []node
 func (s *state) evalFieldChain(dot, receiver reflect.Value, ident []string, args []node, final reflect.Value) reflect.Value {
 	n := len(ident)
 	for i := 0; i < n-1; i++ {
-		receiver = s.evalField(dot, ident[i], args[:1], zero, receiver)
+		receiver = s.evalField(dot, ident[i], nil, zero, receiver)
 	}
 	// Now if it's a method, it gets the arguments.
 	return s.evalField(dot, ident[n-1], args, final, receiver)
@@ -348,7 +348,7 @@ func (s *state) evalFunction(dot reflect.Value, name string, args []node, final 
 	if !ok {
 		s.errorf("%q is not a defined function", name)
 	}
-	return s.evalCall(dot, zero, function, name, args, final)
+	return s.evalCall(dot, function, name, args, final)
 }
 
 // Is this an exported - upper case - name?
@@ -372,8 +372,8 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []node, fina
 	if ptr.CanAddr() {
 		ptr = ptr.Addr()
 	}
-	if method, ok := methodByName(ptr.Type(), fieldName); ok {
-		return s.evalCall(dot, ptr, method.Func, fieldName, args, final)
+	if method, ok := methodByName(ptr, fieldName); ok {
+		return s.evalCall(dot, method, fieldName, args, final)
 	}
 	// It's not a method; is it a field of a struct?
 	receiver, isNil := indirect(receiver)
@@ -396,25 +396,28 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []node, fina
 }
 
 // TODO: delete when reflect's own MethodByName is released.
-func methodByName(typ reflect.Type, name string) (reflect.Method, bool) {
+func methodByName(receiver reflect.Value, name string) (reflect.Value, bool) {
+	typ := receiver.Type()
 	for i := 0; i < typ.NumMethod(); i++ {
 		if typ.Method(i).Name == name {
-			return typ.Method(i), true
+			return receiver.Method(i), true // This value includes the receiver.
 		}
 	}
-	return reflect.Method{}, false
+	return zero, false
 }
 
 var (
 	osErrorType = reflect.TypeOf(new(os.Error)).Elem()
 )
 
-func (s *state) evalCall(dot, receiver, fun reflect.Value, name string, args []node, final reflect.Value) reflect.Value {
-	typ := fun.Type()
-	isMethod := receiver.IsValid()
-	if !isMethod && len(args) > 0 { // Args will be nil if it's a niladic call in an argument list
-		args = args[1:] // first arg is name of function; not used in call.
+// evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
+// it looks just like a function call.  The arg list, if non-nil, includes (in the manner of the shell), arg[0]
+// as the function itself.
+func (s *state) evalCall(dot, fun reflect.Value, name string, args []node, final reflect.Value) reflect.Value {
+	if args != nil {
+		args = args[1:] // Zeroth arg is function name/node; not passed to function.
 	}
+	typ := fun.Type()
 	numIn := len(args)
 	if final.IsValid() {
 		numIn++
@@ -433,17 +436,12 @@ func (s *state) evalCall(dot, receiver, fun reflect.Value, name string, args []n
 	}
 	// Build the arg list.
 	argv := make([]reflect.Value, numIn)
-	// First arg is the receiver.
+	// Args must be evaluated. Fixed args first.
 	i := 0
-	if isMethod {
-		argv[0] = receiver
-		i++
-	}
-	// Others must be evaluated. Fixed args first.
 	for ; i < numFixed; i++ {
 		argv[i] = s.evalArg(dot, typ.In(i), args[i])
 	}
-	// And now the ... args.
+	// Now the ... args.
 	if typ.IsVariadic() {
 		argType := typ.In(typ.NumIn() - 1).Elem() // Argument is a slice.
 		for ; i < len(args); i++ {
@@ -452,7 +450,7 @@ func (s *state) evalCall(dot, receiver, fun reflect.Value, name string, args []n
 	}
 	// Add final value if necessary.
 	if final.IsValid() {
-		argv[len(args)] = final
+		argv[i] = final
 	}
 	result := fun.Call(argv)
 	// If we have an os.Error that is not nil, stop execution and return that error to the caller.
