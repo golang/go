@@ -1462,6 +1462,9 @@ non_dcl_stmt:
 	}
 |	if_stmt LELSE stmt
 	{
+		if($3->op != OIF && $3->op != OBLOCK)
+			yyerror("missing { } after else");
+
 		popdcl();
 		$$ = $1;
 		$$->nelse = list1($3);

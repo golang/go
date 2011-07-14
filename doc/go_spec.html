@@ -3762,7 +3762,7 @@ present, the "else" branch is executed.
 </p>
 
 <pre class="ebnf">
-IfStmt    = "if" [ SimpleStmt ";" ] Expression Block [ "else" Statement ] .
+IfStmt = "if" [ SimpleStmt ";" ] Expression Block [ "else" ( IfStmt | Block ) ] .
 </pre>
 
 <pre>
