@@ -63,7 +63,6 @@ type printer struct {
 	errors chan os.Error
 
 	// Current state
-	nesting int         // nesting level (0: top-level (package scope), >0: functions/decls.)
 	written int         // number of bytes written
 	indent  int         // current indentation
 	mode    pmode       // current printer mode
@@ -123,18 +122,14 @@ func (p *printer) escape(s string) string {
 }
 
 // nlines returns the adjusted number of linebreaks given the desired number
-// of breaks n such that min <= result <= max where max depends on the current
-// nesting level.
+// of breaks n such that min <= result <= max.
 //
 func (p *printer) nlines(n, min int) int {
-	if n < min {
+	const max = 2 // max. number of newlines
+	switch {
+	case n < min:
 		return min
-	}
-	max := 2 // max. number of newlines at the top level (p.nesting == 0)
-	if p.nesting > 0 {
-		max = 2 // max. number of newlines everywhere else
-	}
-	if n > max {
+	case n > max:
 		return max
 	}
 	return n
@@ -961,11 +956,9 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
 	go func() {
 		switch n := node.(type) {
 		case ast.Expr:
-			p.nesting = 1
 			p.useNodeComments = true
 			p.expr(n, ignoreMultiLine)
 		case ast.Stmt:
-			p.nesting = 1
 			p.useNodeComments = true
 			// A labeled statement will un-indent to position the
 			// label. Set indent to 1 so we don't get indent "underflow".
@@ -974,15 +967,12 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
 			}
 			p.stmt(n, false, ignoreMultiLine)
 		case ast.Decl:
-			p.nesting = 1
 			p.useNodeComments = true
 			p.decl(n, ignoreMultiLine)
 		case ast.Spec:
-			p.nesting = 1
 			p.useNodeComments = true
 			p.spec(n, 1, false, ignoreMultiLine)
 		case *ast.File:
-			p.nesting = 0
 			p.comments = n.Comments
 			p.useNodeComments = n.Comments == nil
 			p.file(n)
