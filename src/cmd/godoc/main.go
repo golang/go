@@ -26,6 +26,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	_ "expvar" // to serve /debug/vars
 	"flag"
@@ -47,6 +48,10 @@ import (
 const defaultAddr = ":6060" // default webserver address
 
 var (
+	// file system to serve
+	// (with e.g.: zip -r go.zip $GOROOT -i \*.go -i \*.html -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh)
+	zipfile = flag.String("zip", "", "zip file providing the file system to serve; disabled if empty")
+
 	// periodic sync
 	syncCmd   = flag.String("sync", "", "sync command; disabled if empty")
 	syncMin   = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0")
@@ -223,12 +228,18 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	// Determine file system to use.
-	// TODO(gri) Complete this - for now we only have one.
-	fs = OS
-
 	// Clean goroot: normalize path separator.
 	*goroot = filepath.Clean(*goroot)
+
+	// Determine file system to use.
+	fs = OS
+	if *zipfile != "" {
+		rc, err := zip.OpenReader(*zipfile)
+		if err != nil {
+			log.Fatalf("%s: %s\n", *zipfile, err)
+		}
+		fs = NewZipFS(rc)
+	}
 
 	// Check usage: either server and no args, or command line and args
 	if (*httpAddr != "") != (flag.NArg() == 0) {
