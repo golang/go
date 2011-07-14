@@ -73,6 +73,8 @@ The flags are:
 		filter file containing permitted package directory paths
 	-filter_minutes=0
 		filter file update interval in minutes; update is disabled if <= 0
+	-zip=""
+		zip file providing the file system to serve; disabled if empty
 
 The -path flag accepts a list of colon-separated paths; unrooted paths are relative
 to the current working directory. Each path is considered as an additional root for

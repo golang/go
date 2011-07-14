@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file defines abstract file system access.
+// This file defines types for abstract file system access and
+// provides an implementation accessing the file system of the
+// underlying OS.
 
 package main
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -62,7 +65,18 @@ func (fi osFI) Size() int64 {
 type osFS struct{}
 
 func (osFS) Open(path string) (io.ReadCloser, os.Error) {
-	return os.Open(path)
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if fi.IsDirectory() {
+		return nil, fmt.Errorf("Open: %s is a directory", path)
+	}
+	return f, nil
 }
 
 
@@ -79,7 +93,7 @@ func (osFS) Stat(path string) (FileInfo, os.Error) {
 
 
 func (osFS) ReadDir(path string) ([]FileInfo, os.Error) {
-	l0, err := ioutil.ReadDir(path)
+	l0, err := ioutil.ReadDir(path) // l0 is sorted
 	if err != nil {
 		return nil, err
 	}
