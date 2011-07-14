@@ -37,7 +37,6 @@ func TestSalted(t *testing.T) {
 	}
 }
 
-
 var iteratedTests = []struct {
 	in, out string
 }{
@@ -62,7 +61,6 @@ func TestIterated(t *testing.T) {
 		}
 	}
 }
-
 
 var parseTests = []struct {
 	spec, in, out string
@@ -96,7 +94,6 @@ func TestParse(t *testing.T) {
 		}
 	}
 }
-
 
 func TestSerialize(t *testing.T) {
 	buf := bytes.NewBuffer(nil)

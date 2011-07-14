@@ -56,7 +56,6 @@ const (
 	encodeOpaque
 )
 
-
 type URLEscapeError string
 
 func (e URLEscapeError) String() string {
@@ -113,7 +112,6 @@ func shouldEscape(c byte, mode encoding) bool {
 	// Everything else must be escaped.
 	return true
 }
-
 
 // URLUnescape unescapes a string in ``URL encoded'' form,
 // converting %AB into the byte 0xAB and '+' into ' ' (space).

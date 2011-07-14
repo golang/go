@@ -68,7 +68,6 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, os.Er
 	return nil, &DNSError{Error: "no answer from server", Name: name, Server: server, IsTimeout: true}
 }
 
-
 // Do a lookup for a single name, which must be rooted
 // (otherwise answer will not find the answers).
 func tryOneName(cfg *dnsConfig, name string, qtype uint16) (cname string, addrs []dnsRR, err os.Error) {

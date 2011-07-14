@@ -211,7 +211,6 @@ import (
 	"runtime"
 )
 
-
 // ----------------------------------------------------------------------------
 // Format representation
 
@@ -228,12 +227,10 @@ import (
 //
 type Formatter func(state *State, value interface{}, ruleName string) bool
 
-
 // A FormatterMap is a set of custom formatters.
 // It maps a rule name to a formatter function.
 //
 type FormatterMap map[string]Formatter
-
 
 // A parsed format expression is built from the following nodes.
 //
@@ -269,12 +266,10 @@ type (
 	}
 )
 
-
 // A Format is the result of parsing a format specification.
 // The format may be applied repeatedly to format values.
 //
 type Format map[string]expr
-
 
 // ----------------------------------------------------------------------------
 // Formatting
@@ -293,7 +288,6 @@ type Environment interface {
 	Copy() Environment
 }
 
-
 // State represents the current formatting state.
 // It is provided as argument to custom formatters.
 //
@@ -308,7 +302,6 @@ type State struct {
 	default_  expr           // possibly nil
 	separator expr           // possibly nil
 }
-
 
 func newState(fmt Format, env Environment, errors chan os.Error) *State {
 	s := new(State)
@@ -330,16 +323,13 @@ func newState(fmt Format, env Environment, errors chan os.Error) *State {
 	return s
 }
 
-
 // Env returns the environment passed to Format.Apply.
 func (s *State) Env() interface{} { return s.env }
-
 
 // LinePos returns the position of the current line beginning
 // in the state's output buffer. Line numbers start at 1.
 //
 func (s *State) LinePos() token.Position { return s.linePos }
-
 
 // Pos returns the position of the next byte to be written to the
 // output buffer. Line numbers start at 1.
@@ -348,7 +338,6 @@ func (s *State) Pos() token.Position {
 	offs := s.output.Len()
 	return token.Position{Line: s.linePos.Line, Column: offs - s.linePos.Offset, Offset: offs}
 }
-
 
 // Write writes data to the output buffer, inserting the indentation
 // string after each newline or form feed character. It cannot return an error.
@@ -371,14 +360,12 @@ func (s *State) Write(data []byte) (int, os.Error) {
 	return n + n3, nil
 }
 
-
 type checkpoint struct {
 	env       Environment
 	hasOutput bool
 	outputLen int
 	linePos   token.Position
 }
-
 
 func (s *State) save() checkpoint {
 	saved := checkpoint{nil, s.hasOutput, s.output.Len(), s.linePos}
@@ -388,18 +375,15 @@ func (s *State) save() checkpoint {
 	return saved
 }
 
-
 func (s *State) restore(m checkpoint) {
 	s.env = m.env
 	s.output.Truncate(m.outputLen)
 }
 
-
 func (s *State) error(msg string) {
 	s.errors <- os.NewError(msg)
 	runtime.Goexit()
 }
-
 
 // TODO At the moment, unnamed types are simply mapped to the default
 //      names below. For instance, all unnamed arrays are mapped to
@@ -439,7 +423,6 @@ func (s *State) getFormat(name string) expr {
 	s.error(fmt.Sprintf("no format rule for type: '%s'", name))
 	return nil
 }
-
 
 // eval applies a format expression fexpr to a value. If the expression
 // evaluates internally to a non-nil []byte, that slice is appended to
@@ -653,7 +636,6 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 	return false
 }
 
-
 // Eval formats each argument according to the format
 // f and returns the resulting []byte and os.Error. If
 // an error occurred, the []byte contains the partially
@@ -688,7 +670,6 @@ func (f Format) Eval(env Environment, args ...interface{}) ([]byte, os.Error) {
 	return s.output.Bytes(), err
 }
 
-
 // ----------------------------------------------------------------------------
 // Convenience functions
 
@@ -705,7 +686,6 @@ func (f Format) Fprint(w io.Writer, env Environment, args ...interface{}) (int, 
 	return w.Write(data)
 }
 
-
 // Print formats each argument according to the format f
 // and writes to standard output. The result is the total
 // number of bytes written and an os.Error, if any.
@@ -713,7 +693,6 @@ func (f Format) Fprint(w io.Writer, env Environment, args ...interface{}) (int, 
 func (f Format) Print(args ...interface{}) (int, os.Error) {
 	return f.Fprint(os.Stdout, nil, args...)
 }
-
 
 // Sprint formats each argument according to the format f
 // and returns the resulting string. If an error occurs

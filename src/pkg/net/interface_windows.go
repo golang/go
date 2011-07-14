@@ -55,7 +55,6 @@ func getInterfaceList() ([]syscall.InterfaceInfo, os.Error) {
 	return ii[:c-1], nil
 }
 
-
 // If the ifindex is zero, interfaceTable returns mappings of all
 // network interfaces.  Otheriwse it returns a mapping of a specific
 // interface.

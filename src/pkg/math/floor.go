@@ -4,7 +4,6 @@
 
 package math
 
-
 // Floor returns the greatest integer value less than or equal to x.
 //
 // Special cases are:

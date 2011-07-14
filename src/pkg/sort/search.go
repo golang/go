@@ -71,7 +71,6 @@ func Search(n int, f func(int) bool) int {
 	return i
 }
 
-
 // Convenience wrappers for common cases.
 
 // SearchInts searches for x in a sorted slice of ints and returns the index
@@ -81,14 +80,12 @@ func SearchInts(a []int, x int) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
-
 // SearchFloat64s searches for x in a sorted slice of float64s and returns the index
 // as specified by Search. The slice must be sorted in ascending order.
 // 
 func SearchFloat64s(a []float64, x float64) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
-
 
 // SearchStrings searches for x slice a sorted slice of strings and returns the index
 // as specified by Search. The slice must be sorted in ascending order.
@@ -97,14 +94,11 @@ func SearchStrings(a []string, x string) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
-
 // Search returns the result of applying SearchInts to the receiver and x.
 func (p IntSlice) Search(x int) int { return SearchInts(p, x) }
 
-
 // Search returns the result of applying SearchFloat64s to the receiver and x.
 func (p Float64Slice) Search(x float64) int { return SearchFloat64s(p, x) }
-
 
 // Search returns the result of applying SearchStrings to the receiver and x.
 func (p StringSlice) Search(x string) int { return SearchStrings(p, x) }

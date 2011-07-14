@@ -1087,7 +1087,6 @@ const (
 
 // Types
 
-
 // Error table
 var errors = [...]string{
 	1:   "operation not permitted",

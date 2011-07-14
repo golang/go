@@ -30,7 +30,6 @@ func (r recordingHash) Size() int {
 	panic("shouldn't be called")
 }
 
-
 func testCanonicalText(t *testing.T, input, expected string) {
 	r := recordingHash{bytes.NewBuffer(nil)}
 	c := NewCanonicalTextHash(r)

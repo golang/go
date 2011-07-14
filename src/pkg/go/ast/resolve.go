@@ -14,22 +14,18 @@ import (
 	"strconv"
 )
 
-
 type pkgBuilder struct {
 	scanner.ErrorVector
 	fset *token.FileSet
 }
 
-
 func (p *pkgBuilder) error(pos token.Pos, msg string) {
 	p.Error(p.fset.Position(pos), msg)
 }
 
-
 func (p *pkgBuilder) errorf(pos token.Pos, format string, args ...interface{}) {
 	p.error(pos, fmt.Sprintf(format, args...))
 }
-
 
 func (p *pkgBuilder) declare(scope, altScope *Scope, obj *Object) {
 	alt := scope.Insert(obj)
@@ -46,7 +42,6 @@ func (p *pkgBuilder) declare(scope, altScope *Scope, obj *Object) {
 	}
 }
 
-
 func resolve(scope *Scope, ident *Ident) bool {
 	for ; scope != nil; scope = scope.Outer {
 		if obj := scope.Lookup(ident.Name); obj != nil {
@@ -56,7 +51,6 @@ func resolve(scope *Scope, ident *Ident) bool {
 	}
 	return false
 }
-
 
 // An Importer resolves import paths to package Objects.
 // The imports map records the packages already imported,
@@ -68,7 +62,6 @@ func resolve(scope *Scope, ident *Ident) bool {
 // a new *Object (pkg), record pkg in the imports map, and then
 // return pkg.
 type Importer func(imports map[string]*Object, path string) (pkg *Object, err os.Error)
-
 
 // NewPackage creates a new Package node from a set of File nodes. It resolves
 // unresolved identifiers across files and updates each file's Unresolved list

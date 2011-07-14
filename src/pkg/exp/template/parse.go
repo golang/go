@@ -512,7 +512,6 @@ func (w *withNode) String() string {
 	return fmt.Sprintf("({{with %s}} %s)", w.pipe, w.list)
 }
 
-
 // Parsing.
 
 // New allocates a new template with the given name.

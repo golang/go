@@ -237,7 +237,6 @@ var (
 	jsGt        = []byte(`\x3E`)
 )
 
-
 // JSEscape writes to w the escaped JavaScript equivalent of the plain text data b.
 func JSEscape(w io.Writer, b []byte) {
 	last := 0

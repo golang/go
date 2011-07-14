@@ -15,7 +15,6 @@ import (
 	"os"
 )
 
-
 // The FileInfo interface provides access to file information.
 type FileInfo interface {
 	Name() string
@@ -23,7 +22,6 @@ type FileInfo interface {
 	IsRegular() bool
 	IsDirectory() bool
 }
-
 
 // The FileSystem interface specifies the methods godoc is using
 // to access the file system for which it serves documentation.
@@ -35,23 +33,19 @@ type FileSystem interface {
 	ReadFile(path string) ([]byte, os.Error)
 }
 
-
 // ----------------------------------------------------------------------------
 // OS-specific FileSystem implementation
 
 var OS FileSystem = osFS{}
-
 
 // osFI is the OS-specific implementation of FileInfo.
 type osFI struct {
 	*os.FileInfo
 }
 
-
 func (fi osFI) Name() string {
 	return fi.FileInfo.Name
 }
-
 
 func (fi osFI) Size() int64 {
 	if fi.IsDirectory() {
@@ -59,7 +53,6 @@ func (fi osFI) Size() int64 {
 	}
 	return fi.FileInfo.Size
 }
-
 
 // osFS is the OS-specific implementation of FileSystem
 type osFS struct{}
@@ -79,18 +72,15 @@ func (osFS) Open(path string) (io.ReadCloser, os.Error) {
 	return f, nil
 }
 
-
 func (osFS) Lstat(path string) (FileInfo, os.Error) {
 	fi, err := os.Lstat(path)
 	return osFI{fi}, err
 }
 
-
 func (osFS) Stat(path string) (FileInfo, os.Error) {
 	fi, err := os.Stat(path)
 	return osFI{fi}, err
 }
-
 
 func (osFS) ReadDir(path string) ([]FileInfo, os.Error) {
 	l0, err := ioutil.ReadDir(path) // l0 is sorted
@@ -103,7 +93,6 @@ func (osFS) ReadDir(path string) ([]FileInfo, os.Error) {
 	}
 	return l1, nil
 }
-
 
 func (osFS) ReadFile(path string) ([]byte, os.Error) {
 	return ioutil.ReadFile(path)

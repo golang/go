@@ -2,7 +2,6 @@
 //
 package main
 
-
 // The SZ struct; it is empty.
 type SZ struct{}
 

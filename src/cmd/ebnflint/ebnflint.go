@@ -16,10 +16,8 @@ import (
 	"path/filepath"
 )
 
-
 var fset = token.NewFileSet()
 var start = flag.String("start", "Start", "name of start production")
-
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: ebnflint [flags] [filename]\n")
@@ -27,19 +25,16 @@ func usage() {
 	os.Exit(1)
 }
 
-
 // Markers around EBNF sections in .html files
 var (
 	open  = []byte(`<pre class="ebnf">`)
 	close = []byte(`</pre>`)
 )
 
-
 func report(err os.Error) {
 	scanner.PrintError(os.Stderr, err)
 	os.Exit(1)
 }
-
 
 func extractEBNF(src []byte) []byte {
 	var buf bytes.Buffer
@@ -76,7 +71,6 @@ func extractEBNF(src []byte) []byte {
 
 	return buf.Bytes()
 }
-
 
 func main() {
 	flag.Parse()

@@ -13,13 +13,11 @@ import (
 	"testing"
 )
 
-
 type testCase struct {
 	name     string   // name of test case
 	source   string   // source to index
 	patterns []string // patterns to lookup
 }
-
 
 var testCases = []testCase{
 	{
@@ -107,7 +105,6 @@ var testCases = []testCase{
 	},
 }
 
-
 // find all occurrences of s in source; report at most n occurrences
 func find(src, s string, n int) []int {
 	var res vector.IntVector
@@ -124,7 +121,6 @@ func find(src, s string, n int) []int {
 	}
 	return res
 }
-
 
 func testLookup(t *testing.T, tc *testCase, x *Index, s string, n int) {
 	res := x.Lookup([]byte(s), n)
@@ -164,7 +160,6 @@ func testLookup(t *testing.T, tc *testCase, x *Index, s string, n int) {
 	}
 }
 
-
 func testFindAllIndex(t *testing.T, tc *testCase, x *Index, rx *regexp.Regexp, n int) {
 	res := x.FindAllIndex(rx, n)
 	exp := rx.FindAllStringIndex(tc.source, n)
@@ -200,7 +195,6 @@ func testFindAllIndex(t *testing.T, tc *testCase, x *Index, rx *regexp.Regexp, n
 	}
 }
 
-
 func testLookups(t *testing.T, tc *testCase, x *Index, n int) {
 	for _, pat := range tc.patterns {
 		testLookup(t, tc, x, pat, n)
@@ -210,7 +204,6 @@ func testLookups(t *testing.T, tc *testCase, x *Index, n int) {
 	}
 }
 
-
 // index is used to hide the sort.Interface
 type index Index
 
@@ -219,13 +212,11 @@ func (x *index) Less(i, j int) bool { return bytes.Compare(x.at(i), x.at(j)) < 0
 func (x *index) Swap(i, j int)      { x.sa[i], x.sa[j] = x.sa[j], x.sa[i] }
 func (a *index) at(i int) []byte    { return a.data[a.sa[i]:] }
 
-
 func testConstruction(t *testing.T, tc *testCase, x *Index) {
 	if !sort.IsSorted((*index)(x)) {
 		t.Errorf("testConstruction failed %s", tc.name)
 	}
 }
-
 
 func TestIndex(t *testing.T) {
 	for _, tc := range testCases {

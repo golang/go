@@ -324,7 +324,6 @@ func (r *readRune) ReadRune() (rune int, size int, err os.Error) {
 	return
 }
 
-
 var ssFree = newCache(func() interface{} { return new(ss) })
 
 // Allocate a new ss struct or grab a cached one.
@@ -397,7 +396,6 @@ func (s *ss) skipSpace(stopAtNewline bool) {
 		}
 	}
 }
-
 
 // token returns the next space-delimited string from the input.  It
 // skips white space.  For Scanln, it stops at newlines.  For Scan,

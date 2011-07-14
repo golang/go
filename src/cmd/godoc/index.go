@@ -52,7 +52,6 @@ import (
 	"strings"
 )
 
-
 // ----------------------------------------------------------------------------
 // RunList
 
@@ -69,12 +68,10 @@ type RunList struct {
 
 func (h *RunList) Less(i, j int) bool { return h.less(h.At(i), h.At(j)) }
 
-
 func (h *RunList) sort(less func(x, y interface{}) bool) {
 	h.less = less
 	sort.Sort(h)
 }
-
 
 // Compress entries which are the same according to a sort criteria
 // (specified by less) into "runs".
@@ -98,7 +95,6 @@ func (h *RunList) reduce(less func(x, y interface{}) bool, newRun func(h *RunLis
 
 	return &hh
 }
-
 
 // ----------------------------------------------------------------------------
 // SpotInfo
@@ -130,7 +126,6 @@ const (
 	nKinds
 )
 
-
 func init() {
 	// sanity check: if nKinds is too large, the SpotInfo
 	// accessor functions may need to be updated
@@ -138,7 +133,6 @@ func init() {
 		panic("nKinds > 8")
 	}
 }
-
 
 // makeSpotInfo makes a SpotInfo.
 func makeSpotInfo(kind SpotKind, lori int, isIndex bool) SpotInfo {
@@ -159,11 +153,9 @@ func makeSpotInfo(kind SpotKind, lori int, isIndex bool) SpotInfo {
 	return x
 }
 
-
 func (x SpotInfo) Kind() SpotKind { return SpotKind(x >> 1 & 7) }
 func (x SpotInfo) Lori() int      { return int(x >> 4) }
 func (x SpotInfo) IsIndex() bool  { return x&1 != 0 }
-
 
 // ----------------------------------------------------------------------------
 // KindRun
@@ -177,17 +169,14 @@ type KindRun struct {
 	Infos []SpotInfo
 }
 
-
 // KindRuns are sorted by line number or index. Since the isIndex bit
 // is always the same for all infos in one list we can compare lori's.
 func (f *KindRun) Len() int           { return len(f.Infos) }
 func (f *KindRun) Less(i, j int) bool { return f.Infos[i].Lori() < f.Infos[j].Lori() }
 func (f *KindRun) Swap(i, j int)      { f.Infos[i], f.Infos[j] = f.Infos[j], f.Infos[i] }
 
-
 // FileRun contents are sorted by Kind for the reduction into KindRuns.
 func lessKind(x, y interface{}) bool { return x.(SpotInfo).Kind() < y.(SpotInfo).Kind() }
-
 
 // newKindRun allocates a new KindRun from the SpotInfo run [i, j) in h.
 func newKindRun(h *RunList, i, j int) interface{} {
@@ -224,7 +213,6 @@ func newKindRun(h *RunList, i, j int) interface{} {
 	return run
 }
 
-
 // ----------------------------------------------------------------------------
 // FileRun
 
@@ -239,13 +227,11 @@ func (p *Pak) less(q *Pak) bool {
 	return p.Name < q.Name || p.Name == q.Name && p.Path < q.Path
 }
 
-
 // A File describes a Go file.
 type File struct {
 	Path string // complete file name
 	Pak  Pak    // the package to which the file belongs
 }
-
 
 // A Spot describes a single occurrence of a word.
 type Spot struct {
@@ -253,17 +239,14 @@ type Spot struct {
 	Info SpotInfo
 }
 
-
 // A FileRun is a list of KindRuns belonging to the same file.
 type FileRun struct {
 	File   *File
 	Groups []*KindRun
 }
 
-
 // Spots are sorted by path for the reduction into FileRuns.
 func lessSpot(x, y interface{}) bool { return x.(Spot).File.Path < y.(Spot).File.Path }
-
 
 // newFileRun allocates a new FileRun from the Spot run [i, j) in h.
 func newFileRun(h0 *RunList, i, j int) interface{} {
@@ -287,7 +270,6 @@ func newFileRun(h0 *RunList, i, j int) interface{} {
 	return &FileRun{file, groups}
 }
 
-
 // ----------------------------------------------------------------------------
 // PakRun
 
@@ -302,12 +284,10 @@ func (p *PakRun) Len() int           { return len(p.Files) }
 func (p *PakRun) Less(i, j int) bool { return p.Files[i].File.Path < p.Files[j].File.Path }
 func (p *PakRun) Swap(i, j int)      { p.Files[i], p.Files[j] = p.Files[j], p.Files[i] }
 
-
 // FileRuns are sorted by package for the reduction into PakRuns.
 func lessFileRun(x, y interface{}) bool {
 	return x.(*FileRun).File.Pak.less(&y.(*FileRun).File.Pak)
 }
-
 
 // newPakRun allocates a new PakRun from the *FileRun run [i, j) in h.
 func newPakRun(h *RunList, i, j int) interface{} {
@@ -323,17 +303,14 @@ func newPakRun(h *RunList, i, j int) interface{} {
 	return run
 }
 
-
 // ----------------------------------------------------------------------------
 // HitList
 
 // A HitList describes a list of PakRuns.
 type HitList []*PakRun
 
-
 // PakRuns are sorted by package.
 func lessPakRun(x, y interface{}) bool { return x.(*PakRun).Pak.less(&y.(*PakRun).Pak) }
-
 
 func reduce(h0 *RunList) HitList {
 	// reduce a list of Spots into a list of FileRuns
@@ -349,7 +326,6 @@ func reduce(h0 *RunList) HitList {
 	}
 	return h
 }
-
 
 func (h HitList) filter(pakname string) HitList {
 	// determine number of matching packages (most of the time just one)
@@ -371,7 +347,6 @@ func (h HitList) filter(pakname string) HitList {
 	return hh
 }
 
-
 // ----------------------------------------------------------------------------
 // AltWords
 
@@ -380,7 +355,6 @@ type wordPair struct {
 	alt   string // alternative spelling
 }
 
-
 // An AltWords describes a list of alternative spellings for a
 // canonical (all lowercase) spelling of a word.
 type AltWords struct {
@@ -388,10 +362,8 @@ type AltWords struct {
 	Alts  []string // alternative spelling for the same word
 }
 
-
 // wordPairs are sorted by their canonical spelling.
 func lessWordPair(x, y interface{}) bool { return x.(*wordPair).canon < y.(*wordPair).canon }
-
 
 // newAltWords allocates a new AltWords from the *wordPair run [i, j) in h.
 func newAltWords(h *RunList, i, j int) interface{} {
@@ -404,7 +376,6 @@ func newAltWords(h *RunList, i, j int) interface{} {
 	}
 	return &AltWords{canon, alts}
 }
-
 
 func (a *AltWords) filter(s string) *AltWords {
 	if len(a.Alts) == 1 && a.Alts[0] == s {
@@ -424,7 +395,6 @@ func (a *AltWords) filter(s string) *AltWords {
 	return &AltWords{a.Canon, alts[0:i]}
 }
 
-
 // ----------------------------------------------------------------------------
 // Indexer
 
@@ -432,12 +402,10 @@ func (a *AltWords) filter(s string) *AltWords {
 const includeMainPackages = true
 const includeTestFiles = true
 
-
 type IndexResult struct {
 	Decls  RunList // package-level declarations (with snippets)
 	Others RunList // all other occurrences
 }
-
 
 // Statistics provides statistics information for an index.
 type Statistics struct {
@@ -447,7 +415,6 @@ type Statistics struct {
 	Words int // number of different identifiers
 	Spots int // number of identifier occurrences
 }
-
 
 // An Indexer maintains the data structures and provides the machinery
 // for indexing .go files under a file tree. It implements the path.Visitor
@@ -464,20 +431,17 @@ type Indexer struct {
 	stats    Statistics
 }
 
-
 func (x *Indexer) addSnippet(s *Snippet) int {
 	index := x.snippets.Len()
 	x.snippets.Push(s)
 	return index
 }
 
-
 func (x *Indexer) visitComment(c *ast.CommentGroup) {
 	if c != nil {
 		ast.Walk(x, c)
 	}
 }
-
 
 func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 	if id != nil {
@@ -501,7 +465,6 @@ func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 		x.stats.Spots++
 	}
 }
-
 
 func (x *Indexer) visitSpec(spec ast.Spec, isVarDecl bool) {
 	switch n := spec.(type) {
@@ -533,7 +496,6 @@ func (x *Indexer) visitSpec(spec ast.Spec, isVarDecl bool) {
 		x.visitComment(n.Comment)
 	}
 }
-
 
 func (x *Indexer) Visit(node ast.Node) ast.Visitor {
 	// TODO(gri): methods in interface types are categorized as VarDecl
@@ -606,7 +568,6 @@ func (x *Indexer) Visit(node ast.Node) ast.Visitor {
 	return nil
 }
 
-
 func pkgName(filename string) string {
 	// use a new file set each time in order to not pollute the indexer's
 	// file set (which must stay in sync with the concatenated source code)
@@ -616,7 +577,6 @@ func pkgName(filename string) string {
 	}
 	return file.Name.Name
 }
-
 
 // addFile adds a file to the index if possible and returns the file set file
 // and the file's AST if it was successfully parsed as a Go file. If addFile
@@ -679,7 +639,6 @@ func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *
 	return
 }
 
-
 // Design note: Using an explicit white list of permitted files for indexing
 // makes sure that the important files are included and massively reduces the
 // number of files to index. The advantage over a blacklist is that unexpected
@@ -712,7 +671,6 @@ var whitelisted = map[string]bool{
 	"README":       true,
 }
 
-
 // isWhitelisted returns true if a file is on the list
 // of "permitted" files for indexing. The filename must
 // be the directory-local name of the file.
@@ -724,7 +682,6 @@ func isWhitelisted(filename string) bool {
 	}
 	return whitelisted[key]
 }
-
 
 func (x *Indexer) visitFile(dirname string, f FileInfo, fulltextIndex bool) {
 	if !f.IsRegular() {
@@ -768,7 +725,6 @@ func (x *Indexer) visitFile(dirname string, f FileInfo, fulltextIndex bool) {
 	x.stats.Lines += file.LineCount()
 }
 
-
 // ----------------------------------------------------------------------------
 // Index
 
@@ -776,7 +732,6 @@ type LookupResult struct {
 	Decls  HitList // package-level declarations (with snippets)
 	Others HitList // all other occurrences
 }
-
 
 type Index struct {
 	fset     *token.FileSet           // file set used during indexing; nil if no textindex
@@ -787,9 +742,7 @@ type Index struct {
 	stats    Statistics
 }
 
-
 func canonical(w string) string { return strings.ToLower(w) }
-
 
 // NewIndex creates a new index for the .go files
 // in the directories given by dirnames.
@@ -865,12 +818,10 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
 	return &Index{x.fset, suffixes, words, alts, snippets, x.stats}
 }
 
-
 // Stats() returns index statistics.
 func (x *Index) Stats() Statistics {
 	return x.stats
 }
-
 
 func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
 	match = x.words[w]
@@ -884,7 +835,6 @@ func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
 	return
 }
 
-
 func isIdentifier(s string) bool {
 	var S scanner.Scanner
 	fset := token.NewFileSet()
@@ -895,7 +845,6 @@ func isIdentifier(s string) bool {
 	}
 	return false
 }
-
 
 // For a given query, which is either a single identifier or a qualified
 // identifier, Lookup returns a LookupResult, and a list of alternative
@@ -932,7 +881,6 @@ func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, err os
 	return
 }
 
-
 func (x *Index) Snippet(i int) *Snippet {
 	// handle illegal snippet indices gracefully
 	if 0 <= i && i < len(x.snippets) {
@@ -940,7 +888,6 @@ func (x *Index) Snippet(i int) *Snippet {
 	}
 	return nil
 }
-
 
 type positionList []struct {
 	filename string
@@ -950,7 +897,6 @@ type positionList []struct {
 func (list positionList) Len() int           { return len(list) }
 func (list positionList) Less(i, j int) bool { return list[i].filename < list[j].filename }
 func (list positionList) Swap(i, j int)      { list[i], list[j] = list[j], list[i] }
-
 
 // unique returns the list sorted and with duplicate entries removed
 func unique(list []int) []int {
@@ -967,13 +913,11 @@ func unique(list []int) []int {
 	return list[0:i]
 }
 
-
 // A FileLines value specifies a file and line numbers within that file.
 type FileLines struct {
 	Filename string
 	Lines    []int
 }
-
 
 // LookupRegexp returns the number of matches and the matches where a regular
 // expression r is found in the full text index. At most n matches are

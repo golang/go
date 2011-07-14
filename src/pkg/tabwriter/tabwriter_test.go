@@ -10,17 +10,13 @@ import (
 	"testing"
 )
 
-
 type buffer struct {
 	a []byte
 }
 
-
 func (b *buffer) init(n int) { b.a = make([]byte, n)[0:0] }
 
-
 func (b *buffer) clear() { b.a = b.a[0:0] }
-
 
 func (b *buffer) Write(buf []byte) (written int, err os.Error) {
 	n := len(b.a)
@@ -36,9 +32,7 @@ func (b *buffer) Write(buf []byte) (written int, err os.Error) {
 	return len(buf), nil
 }
 
-
 func (b *buffer) String() string { return string(b.a) }
-
 
 func write(t *testing.T, testname string, w *Writer, src string) {
 	written, err := io.WriteString(w, src)
@@ -49,7 +43,6 @@ func write(t *testing.T, testname string, w *Writer, src string) {
 		t.Errorf("--- test: %s\n--- src:\n%q\n--- written = %d, len(src) = %d\n", testname, src, written, len(src))
 	}
 }
-
 
 func verify(t *testing.T, testname string, w *Writer, b *buffer, src, expected string) {
 	err := w.Flush()
@@ -62,7 +55,6 @@ func verify(t *testing.T, testname string, w *Writer, b *buffer, src, expected s
 		t.Errorf("--- test: %s\n--- src:\n%q\n--- found:\n%q\n--- expected:\n%q\n", testname, src, res, expected)
 	}
 }
-
 
 func check(t *testing.T, testname string, minwidth, tabwidth, padding int, padchar byte, flags uint, src, expected string) {
 	var b buffer
@@ -97,7 +89,6 @@ func check(t *testing.T, testname string, minwidth, tabwidth, padding int, padch
 	}
 	verify(t, title, &w, &b, src, expected)
 }
-
 
 var tests = []struct {
 	testname                    string
@@ -616,7 +607,6 @@ var tests = []struct {
 			"a\t|b\t|c\t|d\t|e\n",
 	},
 }
-
 
 func Test(t *testing.T) {
 	for _, e := range tests {

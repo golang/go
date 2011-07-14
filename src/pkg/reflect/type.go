@@ -271,7 +271,6 @@ const (
 	BothDir = RecvDir | SendDir
 )
 
-
 // arrayType represents a fixed array type.
 type arrayType struct {
 	commonType `reflect:"array"`
@@ -341,7 +340,6 @@ type structType struct {
 	commonType `reflect:"struct"`
 	fields     []structField
 }
-
 
 /*
  * The compiler knows the exact layout of all the data structures above.

@@ -17,7 +17,6 @@ func init() {
 	})
 }
 
-
 func sorthelpers(f *ast.File) (fixed bool) {
 	if !imports(f, "sort") {
 		return

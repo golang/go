@@ -58,7 +58,6 @@ func machoData(t *testing.T, name string) *Data {
 	return d
 }
 
-
 func TestTypedefsELF(t *testing.T) { testTypedefs(t, elfData(t, "testdata/typedef.elf")) }
 
 func TestTypedefsMachO(t *testing.T) {

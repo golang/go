@@ -189,7 +189,6 @@ func (f Func) String() string {
 	return string(v)
 }
 
-
 // All published variables.
 var vars map[string]Var = make(map[string]Var)
 var mutex sync.Mutex

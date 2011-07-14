@@ -4,7 +4,6 @@
 
 package vector
 
-
 import (
 	"fmt"
 	"sort"
@@ -17,27 +16,22 @@ var (
 	strzero string
 )
 
-
 func int2Value(x int) int       { return x }
 func int2IntValue(x int) int    { return x }
 func int2StrValue(x int) string { return string(x) }
-
 
 func elem2Value(x interface{}) int  { return x.(int) }
 func elem2IntValue(x int) int       { return x }
 func elem2StrValue(x string) string { return x }
 
-
 func intf2Value(x interface{}) int       { return x.(int) }
 func intf2IntValue(x interface{}) int    { return x.(int) }
 func intf2StrValue(x interface{}) string { return x.(string) }
-
 
 type VectorInterface interface {
 	Len() int
 	Cap() int
 }
-
 
 func checkSize(t *testing.T, v VectorInterface, len, cap int) {
 	if v.Len() != len {
@@ -48,9 +42,7 @@ func checkSize(t *testing.T, v VectorInterface, len, cap int) {
 	}
 }
 
-
 func val(i int) int { return i*991 - 1234 }
-
 
 func TestSorting(t *testing.T) {
 	const n = 100
@@ -71,6 +63,5 @@ func TestSorting(t *testing.T) {
 		t.Error("string vector not sorted")
 	}
 }
-
 
 func tname(x interface{}) string { return fmt.Sprintf("%T: ", x) }

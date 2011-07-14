@@ -72,7 +72,6 @@ func qsufsort(data []byte) []int {
 	return sa
 }
 
-
 func sortedByFirstByte(data []byte) []int {
 	// total byte counts
 	var count [256]int
@@ -92,7 +91,6 @@ func sortedByFirstByte(data []byte) []int {
 	}
 	return sa
 }
-
 
 func initGroups(sa []int, data []byte) []int {
 	// label contiguous same-letter groups with the same group number
@@ -133,7 +131,6 @@ func initGroups(sa []int, data []byte) []int {
 	return inv
 }
 
-
 type suffixSortable struct {
 	sa  []int
 	inv []int
@@ -143,7 +140,6 @@ type suffixSortable struct {
 func (x *suffixSortable) Len() int           { return len(x.sa) }
 func (x *suffixSortable) Less(i, j int) bool { return x.inv[x.sa[i]+x.h] < x.inv[x.sa[j]+x.h] }
 func (x *suffixSortable) Swap(i, j int)      { x.sa[i], x.sa[j] = x.sa[j], x.sa[i] }
-
 
 func (x *suffixSortable) updateGroups(offset int) {
 	bounds := make([]int, 0, 4)

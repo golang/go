@@ -198,7 +198,6 @@ func parseObjectIdentifier(bytes []byte) (s []int, err os.Error) {
 // An Enumerated is represented as a plain int.
 type Enumerated int
 
-
 // FLAG
 
 // A Flag accepts any data and is set to true if present.

@@ -159,7 +159,6 @@ func Kill(pid int, signum int) (errno int) { return kill(pid, signum, 1) }
 //sys	read(fd int, buf *byte, nbuf int) (n int, errno int)
 //sys	write(fd int, buf *byte, nbuf int) (n int, errno int)
 
-
 /*
  * Unimplemented
  */

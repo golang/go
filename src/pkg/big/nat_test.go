@@ -31,7 +31,6 @@ var cmpTests = []struct {
 	{nat{34986, 41, 105, 1957}, nat{56, 7458, 104, 1957}, 1},
 }
 
-
 func TestCmp(t *testing.T) {
 	for i, a := range cmpTests {
 		r := a.x.cmp(a.y)
@@ -41,12 +40,10 @@ func TestCmp(t *testing.T) {
 	}
 }
 
-
 type funNN func(z, x, y nat) nat
 type argNN struct {
 	z, x, y nat
 }
-
 
 var sumNN = []argNN{
 	{},
@@ -56,7 +53,6 @@ var sumNN = []argNN{
 	{nat{0, 0, 0, 1111111110}, nat{0, 0, 0, 123456789}, nat{0, 0, 0, 987654321}},
 	{nat{0, 0, 0, 1}, nat{0, 0, _M}, nat{0, 0, 1}},
 }
-
 
 var prodNN = []argNN{
 	{},
@@ -69,7 +65,6 @@ var prodNN = []argNN{
 	{nat{4, 11, 20, 30, 20, 11, 4}, nat{1, 2, 3, 4}, nat{4, 3, 2, 1}},
 }
 
-
 func TestSet(t *testing.T) {
 	for _, a := range sumNN {
 		z := nat(nil).set(a.z)
@@ -79,14 +74,12 @@ func TestSet(t *testing.T) {
 	}
 }
 
-
 func testFunNN(t *testing.T, msg string, f funNN, a argNN) {
 	z := f(nil, a.x, a.y)
 	if z.cmp(a.z) != 0 {
 		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, z, a.z)
 	}
 }
-
 
 func TestFunNN(t *testing.T) {
 	for _, a := range sumNN {
@@ -112,7 +105,6 @@ func TestFunNN(t *testing.T) {
 	}
 }
 
-
 var mulRangesN = []struct {
 	a, b uint64
 	prod string
@@ -135,7 +127,6 @@ var mulRangesN = []struct {
 	},
 }
 
-
 func TestMulRangeN(t *testing.T) {
 	for i, r := range mulRangesN {
 		prod := nat(nil).mulRange(r.a, r.b).decimalString()
@@ -144,7 +135,6 @@ func TestMulRangeN(t *testing.T) {
 		}
 	}
 }
-
 
 var mulArg, mulTmp nat
 
@@ -156,7 +146,6 @@ func init() {
 	}
 }
 
-
 func benchmarkMulLoad() {
 	for j := 1; j <= 10; j++ {
 		x := mulArg[0 : j*100]
@@ -164,13 +153,11 @@ func benchmarkMulLoad() {
 	}
 }
 
-
 func BenchmarkMul(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		benchmarkMulLoad()
 	}
 }
-
 
 func toString(x nat, charset string) string {
 	base := len(charset)
@@ -201,7 +188,6 @@ func toString(x nat, charset string) string {
 	return string(s[i:])
 }
 
-
 var strTests = []struct {
 	x nat    // nat value to be converted
 	c string // conversion charset
@@ -218,7 +204,6 @@ var strTests = []struct {
 	{nat{0x229be7}, lowercaseDigits[0:17], "1a2b3c"},
 	{nat{0x309663e6}, uppercaseDigits[0:32], "O9COV6"},
 }
-
 
 func TestString(t *testing.T) {
 	for _, a := range strTests {
@@ -239,7 +224,6 @@ func TestString(t *testing.T) {
 		}
 	}
 }
-
 
 var natScanTests = []struct {
 	s    string // string to be scanned
@@ -284,7 +268,6 @@ var natScanTests = []struct {
 	{"0XDEADBEEF", 0, nat{0xdeadbeef}, 16, true, 0},
 }
 
-
 func TestScanBase(t *testing.T) {
 	for _, a := range natScanTests {
 		r := strings.NewReader(a.s)
@@ -314,7 +297,6 @@ func TestScanBase(t *testing.T) {
 		}
 	}
 }
-
 
 var pi = "3" +
 	"14159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651" +
@@ -369,7 +351,6 @@ var pi = "3" +
 	"88281613323166636528619326686336062735676303544776280350450777235547105859548702790814356240145171806246436267" +
 	"94561275318134078330336254232783944975382437205835311477119926063813346776879695970309833913077109870408591337"
 
-
 // Test case for BenchmarkScanPi.
 func TestScanPi(t *testing.T) {
 	var x nat
@@ -382,14 +363,12 @@ func TestScanPi(t *testing.T) {
 	}
 }
 
-
 func BenchmarkScanPi(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var x nat
 		x.scan(strings.NewReader(pi), 10)
 	}
 }
-
 
 const (
 	// 314**271
@@ -417,66 +396,53 @@ const (
 	longExponent = 27182
 )
 
-
 func BenchmarkScanShort2(b *testing.B) {
 	ScanHelper(b, 2, shortBase, shortExponent)
 }
-
 
 func BenchmarkScanShort8(b *testing.B) {
 	ScanHelper(b, 8, shortBase, shortExponent)
 }
 
-
 func BenchmarkScanSort10(b *testing.B) {
 	ScanHelper(b, 10, shortBase, shortExponent)
 }
-
 
 func BenchmarkScanShort16(b *testing.B) {
 	ScanHelper(b, 16, shortBase, shortExponent)
 }
 
-
 func BenchmarkScanMedium2(b *testing.B) {
 	ScanHelper(b, 2, mediumBase, mediumExponent)
 }
-
 
 func BenchmarkScanMedium8(b *testing.B) {
 	ScanHelper(b, 8, mediumBase, mediumExponent)
 }
 
-
 func BenchmarkScanMedium10(b *testing.B) {
 	ScanHelper(b, 10, mediumBase, mediumExponent)
 }
-
 
 func BenchmarkScanMedium16(b *testing.B) {
 	ScanHelper(b, 16, mediumBase, mediumExponent)
 }
 
-
 func BenchmarkScanLong2(b *testing.B) {
 	ScanHelper(b, 2, longBase, longExponent)
 }
-
 
 func BenchmarkScanLong8(b *testing.B) {
 	ScanHelper(b, 8, longBase, longExponent)
 }
 
-
 func BenchmarkScanLong10(b *testing.B) {
 	ScanHelper(b, 10, longBase, longExponent)
 }
 
-
 func BenchmarkScanLong16(b *testing.B) {
 	ScanHelper(b, 16, longBase, longExponent)
 }
-
 
 func ScanHelper(b *testing.B, base int, xv, yv Word) {
 	b.StopTimer()
@@ -497,66 +463,53 @@ func ScanHelper(b *testing.B, base int, xv, yv Word) {
 	}
 }
 
-
 func BenchmarkStringShort2(b *testing.B) {
 	StringHelper(b, 2, shortBase, shortExponent)
 }
-
 
 func BenchmarkStringShort8(b *testing.B) {
 	StringHelper(b, 8, shortBase, shortExponent)
 }
 
-
 func BenchmarkStringShort10(b *testing.B) {
 	StringHelper(b, 10, shortBase, shortExponent)
 }
-
 
 func BenchmarkStringShort16(b *testing.B) {
 	StringHelper(b, 16, shortBase, shortExponent)
 }
 
-
 func BenchmarkStringMedium2(b *testing.B) {
 	StringHelper(b, 2, mediumBase, mediumExponent)
 }
-
 
 func BenchmarkStringMedium8(b *testing.B) {
 	StringHelper(b, 8, mediumBase, mediumExponent)
 }
 
-
 func BenchmarkStringMedium10(b *testing.B) {
 	StringHelper(b, 10, mediumBase, mediumExponent)
 }
-
 
 func BenchmarkStringMedium16(b *testing.B) {
 	StringHelper(b, 16, mediumBase, mediumExponent)
 }
 
-
 func BenchmarkStringLong2(b *testing.B) {
 	StringHelper(b, 2, longBase, longExponent)
 }
-
 
 func BenchmarkStringLong8(b *testing.B) {
 	StringHelper(b, 8, longBase, longExponent)
 }
 
-
 func BenchmarkStringLong10(b *testing.B) {
 	StringHelper(b, 10, longBase, longExponent)
 }
 
-
 func BenchmarkStringLong16(b *testing.B) {
 	StringHelper(b, 16, longBase, longExponent)
 }
-
 
 func StringHelper(b *testing.B, base int, xv, yv Word) {
 	b.StopTimer()
@@ -571,7 +524,6 @@ func StringHelper(b *testing.B, base int, xv, yv Word) {
 	}
 }
 
-
 func TestLeadingZeros(t *testing.T) {
 	var x Word = _B >> 1
 	for i := 0; i <= _W; i++ {
@@ -582,13 +534,11 @@ func TestLeadingZeros(t *testing.T) {
 	}
 }
 
-
 type shiftTest struct {
 	in    nat
 	shift uint
 	out   nat
 }
-
 
 var leftShiftTests = []shiftTest{
 	{nil, 0, nil},
@@ -598,7 +548,6 @@ var leftShiftTests = []shiftTest{
 	{nat{1 << (_W - 1)}, 1, nat{0}},
 	{nat{1 << (_W - 1), 0}, 1, nat{0, 1}},
 }
-
 
 func TestShiftLeft(t *testing.T) {
 	for i, test := range leftShiftTests {
@@ -613,7 +562,6 @@ func TestShiftLeft(t *testing.T) {
 	}
 }
 
-
 var rightShiftTests = []shiftTest{
 	{nil, 0, nil},
 	{nil, 1, nil},
@@ -623,7 +571,6 @@ var rightShiftTests = []shiftTest{
 	{nat{0, 1}, 1, nat{1 << (_W - 1)}},
 	{nat{2, 1, 1}, 1, nat{1<<(_W-1) + 1, 1 << (_W - 1)}},
 }
-
 
 func TestShiftRight(t *testing.T) {
 	for i, test := range rightShiftTests {
@@ -638,23 +585,19 @@ func TestShiftRight(t *testing.T) {
 	}
 }
 
-
 type modWTest struct {
 	in       string
 	dividend string
 	out      string
 }
 
-
 var modWTests32 = []modWTest{
 	{"23492635982634928349238759823742", "252341", "220170"},
 }
 
-
 var modWTests64 = []modWTest{
 	{"6527895462947293856291561095690465243862946", "524326975699234", "375066989628668"},
 }
-
 
 func runModWTests(t *testing.T, tests []modWTest) {
 	for i, test := range tests {
@@ -669,7 +612,6 @@ func runModWTests(t *testing.T, tests []modWTest) {
 	}
 }
 
-
 func TestModW(t *testing.T) {
 	if _W >= 32 {
 		runModWTests(t, modWTests32)
@@ -678,7 +620,6 @@ func TestModW(t *testing.T) {
 		runModWTests(t, modWTests64)
 	}
 }
-
 
 func TestTrailingZeroBits(t *testing.T) {
 	var x Word
@@ -707,7 +648,6 @@ var expNNTests = []struct {
 		"23537740700184054162508175125554701713153216681790245129157191391322321508055833908509185839069455749219131480588829346291",
 	},
 }
-
 
 func TestExpNN(t *testing.T) {
 	for i, test := range expNNTests {

@@ -29,18 +29,15 @@ import (
 	"strings"
 )
 
-
 // zipFI is the zip-file based implementation of FileInfo
 type zipFI struct {
 	name string    // directory-local name
 	file *zip.File // nil for a directory
 }
 
-
 func (fi zipFI) Name() string {
 	return fi.name
 }
-
 
 func (fi zipFI) Size() int64 {
 	if fi.file != nil {
@@ -49,16 +46,13 @@ func (fi zipFI) Size() int64 {
 	return 0 // directory
 }
 
-
 func (fi zipFI) IsDirectory() bool {
 	return fi.file == nil
 }
 
-
 func (fi zipFI) IsRegular() bool {
 	return fi.file != nil
 }
-
 
 // zipFS is the zip-file based implementation of FileSystem
 type zipFS struct {
@@ -66,12 +60,10 @@ type zipFS struct {
 	list zipList
 }
 
-
 func (fs *zipFS) Close() os.Error {
 	fs.list = nil
 	return fs.ReadCloser.Close()
 }
-
 
 func zipPath(name string) string {
 	if !path.IsAbs(name) {
@@ -79,7 +71,6 @@ func zipPath(name string) string {
 	}
 	return name[1:] // strip '/'
 }
-
 
 func (fs *zipFS) stat(abspath string) (int, zipFI, os.Error) {
 	i := fs.list.lookup(abspath)
@@ -94,7 +85,6 @@ func (fs *zipFS) stat(abspath string) (int, zipFI, os.Error) {
 	return i, zipFI{name, file}, nil
 }
 
-
 func (fs *zipFS) Open(abspath string) (io.ReadCloser, os.Error) {
 	_, fi, err := fs.stat(zipPath(abspath))
 	if err != nil {
@@ -106,18 +96,15 @@ func (fs *zipFS) Open(abspath string) (io.ReadCloser, os.Error) {
 	return fi.file.Open()
 }
 
-
 func (fs *zipFS) Lstat(abspath string) (FileInfo, os.Error) {
 	_, fi, err := fs.stat(zipPath(abspath))
 	return fi, err
 }
 
-
 func (fs *zipFS) Stat(abspath string) (FileInfo, os.Error) {
 	_, fi, err := fs.stat(zipPath(abspath))
 	return fi, err
 }
-
 
 func (fs *zipFS) ReadDir(abspath string) ([]FileInfo, os.Error) {
 	path := zipPath(abspath)
@@ -157,7 +144,6 @@ func (fs *zipFS) ReadDir(abspath string) ([]FileInfo, os.Error) {
 	return list, nil
 }
 
-
 func (fs *zipFS) ReadFile(abspath string) ([]byte, os.Error) {
 	rc, err := fs.Open(abspath)
 	if err != nil {
@@ -166,7 +152,6 @@ func (fs *zipFS) ReadFile(abspath string) ([]byte, os.Error) {
 	return ioutil.ReadAll(rc)
 }
 
-
 func NewZipFS(rc *zip.ReadCloser) FileSystem {
 	list := make(zipList, len(rc.File))
 	copy(list, rc.File) // sort a copy of rc.File
@@ -174,14 +159,12 @@ func NewZipFS(rc *zip.ReadCloser) FileSystem {
 	return &zipFS{rc, list}
 }
 
-
 type zipList []*zip.File
 
 // zipList implements sort.Interface
 func (z zipList) Len() int           { return len(z) }
 func (z zipList) Less(i, j int) bool { return z[i].Name < z[j].Name }
 func (z zipList) Swap(i, j int)      { z[i], z[j] = z[j], z[i] }
-
 
 // lookup returns the first index in the zipList
 // of a path equal to name or beginning with name/.

@@ -148,7 +148,6 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno
 //sys	read(fd int, buf *byte, nbuf int) (n int, errno int)
 //sys	write(fd int, buf *byte, nbuf int) (n int, errno int)
 
-
 /*
  * Unimplemented
  */

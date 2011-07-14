@@ -17,7 +17,6 @@ var (
 	p	*int
 )
 
-
 func _() {
 	// no spaces around simple or parenthesized expressions
 	_ = (a + 0)
@@ -115,7 +114,6 @@ func _() {
 	x < y || z > 42
 }
 
-
 func _() {
 	_ = a + b
 	_ = a + b + c
@@ -187,7 +185,6 @@ func _() {
 	_ = token(matchType + xlength<<lengthShift + xoffset)
 }
 
-
 func f(x int, args ...int) {
 	f(0, args...)
 	f(1, args)
@@ -226,7 +223,6 @@ func f(x int, args ...int) {
 	_ = f(x / *y, x < -1, x < <-1, x + +1, x - -1, x & &x, x & ^x)
 }
 
-
 func _() {
 	_ = T{}
 	_ = struct{}{}
@@ -236,7 +232,6 @@ func _() {
 	_ = map[int]T{}
 }
 
-
 // one-line structs/interfaces in composite literals (up to a threshold)
 func _() {
 	_ = struct{}{}
@@ -245,7 +240,6 @@ func _() {
 	_ = struct{ int }{0}
 	_ = struct{ s struct{ int } }{struct{ int }{0}}
 }
-
 
 func _() {
 	// do not modify literals
@@ -260,7 +254,6 @@ func _() {
 	_ = `three spaces before the end of the line starting here:   
 they must not be removed`
 }
-
 
 func _() {
 	// smart handling of indentation for multi-line raw strings
@@ -332,7 +325,6 @@ bar`
 	}
 }
 
-
 func _() {
 	// one-line function literals (body is on a single line)
 	_ = func() {}
@@ -361,7 +353,6 @@ func _() {
 	})
 }
 
-
 func _() {
 	_ = [][]int{
 		[]int{1},
@@ -381,7 +372,6 @@ func _() {
 	_ = [][]int{{1}, {1, 2}, {1, 2, 3}}
 }
 
-
 // various multi-line expressions
 func _() {
 	// do not add extra indentation to multi-line string lists
@@ -397,24 +387,20 @@ func _() {
 	}
 }
 
-
 const _ = F1 +
 	`string = "%s";` +
 	`ptr = *;` +
 	`datafmt.T2 = s ["-" p "-"];`
 
-
 const _ = `datafmt "datafmt";` +
 	`default = "%v";` +
 	`array = *;` +
 	`datafmt.T3 = s  {" " a a / ","};`
 
-
 const _ = `datafmt "datafmt";` +
 	`default = "%v";` +
 	`array = *;` +
 	`datafmt.T3 = s  {" " a a / ","};`
-
 
 func _() {
 	_ = F1 +
@@ -434,7 +420,6 @@ func _() {
 		`datafmt.T3 = s  {" " a a / ","};`
 }
 
-
 func _() {
 	// respect source lines in multi-line expressions
 	_ = a +
@@ -448,7 +433,6 @@ func _() {
 	_ = "170141183460469231731687303715884105727"	// prime
 }
 
-
 // Alignment after overlong lines
 const (
 	_	= "991"
@@ -458,7 +442,6 @@ const (
 		"51185210916864000000000000000000000000"	// 100!
 	_	= "170141183460469231731687303715884105727"		// prime
 )
-
 
 // Correct placement of operators and comments in multi-line expressions
 func _() {
@@ -470,7 +453,6 @@ func _() {
 		"c"
 	_ = "ba0408" + "7265717569726564"	// field 71, encoding 2, string "required"
 }
-
 
 // Correct placement of terminating comma/closing parentheses in multi-line calls.
 func _() {
@@ -497,7 +479,6 @@ func _() {
 	)
 }
 
-
 // Align comments in multi-line lists of single-line expressions.
 var txpix = [NCOL]draw.Color{
 	draw.Yellow,	// yellow
@@ -512,7 +493,6 @@ var txpix = [NCOL]draw.Color{
 	draw.Color(0xBB005DFF),	/* maroon */
 }
 
-
 func same(t, u *Time) bool {
 	// respect source lines in multi-line expressions
 	return t.Year == u.Year &&
@@ -526,7 +506,6 @@ func same(t, u *Time) bool {
 		t.Zone == u.Zone
 }
 
-
 func (p *parser) charClass() {
 	// respect source lines in multi-line expressions
 	if cc.negate && len(cc.ranges) == 2 &&
@@ -535,7 +514,6 @@ func (p *parser) charClass() {
 		p.re.add(nl)
 	}
 }
-
 
 func addState(s []state, inst instr, match []int) {
 	// handle comments correctly in multi-line expressions
@@ -638,7 +616,6 @@ func _() {
 		b.(T).
 		c
 }
-
 
 // Don't introduce extra newlines in strangely formatted expression lists.
 func f() {

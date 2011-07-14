@@ -44,7 +44,6 @@ import _ "os"
 import _ "os"
 import _ "os"
 
-
 import _ "fmt"
 import _ "fmt"
 import _ "fmt"
@@ -116,7 +115,6 @@ import _ "io"
 
 var _ int
 
-
 // printing of constant literals
 const (
 	_	= "foobar"
@@ -157,7 +155,6 @@ const (
 ---
 bar`
 )
-
 
 func _() {
 	type _ int
@@ -203,7 +200,6 @@ func _() {
 	var _ func() interface{}
 }
 
-
 // don't lose blank lines in grouped declarations
 const (
 	_	int	= 0
@@ -220,7 +216,6 @@ const (
 	_
 )
 
-
 type (
 	_	int
 	_	struct{}
@@ -230,7 +225,6 @@ type (
 	// a comment
 	_	map[string]int
 )
-
 
 var (
 	_	int	= 0
@@ -243,7 +237,6 @@ var (
 	// a comment
 	_	bool
 )
-
 
 // don't lose blank lines in this struct
 type _ struct {
@@ -292,7 +285,6 @@ type _ struct {
 		Stackbase, Sched, Status, Alllink int
 	}
 }
-
 
 // no tabs for single or ungrouped decls
 func _() {
@@ -426,7 +418,6 @@ var (
 	filterDelay	delayTime	// actual filter update interval in minutes; usually filterDelay == filterMin, but filterDelay may back off exponentially
 )
 
-
 // formatting of structs
 type _ struct{}
 
@@ -494,13 +485,11 @@ type _ struct {
 	r, s	float	// this line should be indented
 }
 
-
 // difficult cases
 type _ struct {
 	bool		// comment
 	text	[]byte	// comment
 }
-
 
 // formatting of interfaces
 type EI interface{}
@@ -527,7 +516,6 @@ type _ interface {	// this comment must not change indentation
 	gggggggggggg(x, y, z int)	// hurray
 }
 
-
 // formatting of variable declarations
 func _() {
 	type day struct {
@@ -545,7 +533,6 @@ func _() {
 	)
 }
 
-
 // formatting of multi-line variable declarations
 var a1, b1, c1 int	// all on one line
 
@@ -558,7 +545,6 @@ var (
 	a4, b4, c4	int	// this line should be indented
 )
 
-
 func _() {
 	var privateKey2 = &Block{Type:	"RSA PRIVATE KEY",
 		Headers:	map[string]string{},
@@ -569,7 +555,6 @@ func _() {
 		},
 	}
 }
-
 
 func _() {
 	var Universe = Scope{
@@ -614,7 +599,6 @@ func _() {
 	}
 }
 
-
 // alignment of map composite entries
 var _ = map[int]int{
 	// small key sizes: always align even if size ratios are large
@@ -638,20 +622,17 @@ var _ = map[int]int{
 	abcde:	a,	// align with previous line
 }
 
-
 func _() {
 	var _ = T{
 		a,	// must introduce trailing comma
 	}
 }
 
-
 // formatting of function results
 func _() func()				{}
 func _() func(int)			{ return nil }
 func _() func(int) int			{ return nil }
 func _() func(int) func(int) func()	{ return nil }
-
 
 // formatting of consecutive single-line functions
 func _()	{}
@@ -680,7 +661,6 @@ func _() int {
 	return x
 }
 
-
 // making function declarations safe for new semicolon rules
 func _() { /* multi-line func because of comment */
 }
@@ -688,7 +668,6 @@ func _() { /* multi-line func because of comment */
 func _() {
 	/* multi-line func because block is on multiple lines */
 }
-
 
 // ellipsis parameters
 func _(...int)
@@ -710,7 +689,6 @@ func _(x ...func())
 func _(x ...func(...int))
 func _(x ...map[string]int)
 func _(x ...chan int)
-
 
 // these parameter lists must remain multi-line since they are multi-line in the source
 func _(bool,

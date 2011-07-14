@@ -16,18 +16,14 @@ import (
 	"time"
 )
 
-
 const (
 	dataDir  = "testdata"
 	tabwidth = 8
 )
 
-
 var update = flag.Bool("update", false, "update golden files")
 
-
 var fset = token.NewFileSet()
-
 
 func lineString(text []byte, i int) string {
 	i0 := i
@@ -37,14 +33,12 @@ func lineString(text []byte, i int) string {
 	return string(text[i0:i])
 }
 
-
 type checkMode uint
 
 const (
 	export checkMode = 1 << iota
 	rawFormat
 )
-
 
 func runcheck(t *testing.T, source, golden string, mode checkMode) {
 	// parse source
@@ -109,7 +103,6 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 	}
 }
 
-
 func check(t *testing.T, source, golden string, mode checkMode) {
 	// start a timer to produce a time-out signal
 	tc := make(chan int)
@@ -135,7 +128,6 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 	}
 }
 
-
 type entry struct {
 	source, golden string
 	mode           checkMode
@@ -154,7 +146,6 @@ var data = []entry{
 	{"slow.input", "slow.golden", 0},
 }
 
-
 func TestFiles(t *testing.T) {
 	for i, e := range data {
 		source := filepath.Join(dataDir, e.source)
@@ -167,7 +158,6 @@ func TestFiles(t *testing.T) {
 		}
 	}
 }
-
 
 // TestLineComments, using a simple test case, checks that consequtive line
 // comments are properly terminated with a newline even if the AST position

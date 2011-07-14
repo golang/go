@@ -27,7 +27,6 @@ const (
 	_M2 = _B2 - 1  // half digit mask
 )
 
-
 // ----------------------------------------------------------------------------
 // Elementary operations on words
 //
@@ -43,7 +42,6 @@ func addWW_g(x, y, c Word) (z1, z0 Word) {
 	return
 }
 
-
 // z1<<_W + z0 = x-y-c, with c == 0 or 1
 func subWW_g(x, y, c Word) (z1, z0 Word) {
 	yc := y + c
@@ -53,7 +51,6 @@ func subWW_g(x, y, c Word) (z1, z0 Word) {
 	}
 	return
 }
-
 
 // z1<<_W + z0 = x*y
 // Adapted from Warren, Hacker's Delight, p. 132.
@@ -72,7 +69,6 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
 	return
 }
 
-
 // z1<<_W + z0 = x*y + c
 func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 	z1, zz0 := mulWW(x, y)
@@ -81,7 +77,6 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 	}
 	return
 }
-
 
 // Length of x in bits.
 func bitLen(x Word) (n int) {
@@ -94,7 +89,6 @@ func bitLen(x Word) (n int) {
 	return
 }
 
-
 // log2 computes the integer binary logarithm of x.
 // The result is the integer n for which 2^n <= x < 2^(n+1).
 // If x == 0, the result is -1.
@@ -102,12 +96,10 @@ func log2(x Word) int {
 	return bitLen(x) - 1
 }
 
-
 // Number of leading zeros in x.
 func leadingZeros(x Word) uint {
 	return uint(_W - bitLen(x))
 }
-
 
 // q = (u1<<_W + u0 - r)/y
 // Adapted from Warren, Hacker's Delight, p. 152.
@@ -153,7 +145,6 @@ again2:
 	return q1*_B2 + q0, (un21*_B2 + un0 - q0*v) >> s
 }
 
-
 func addVV_g(z, x, y []Word) (c Word) {
 	for i := range z {
 		c, z[i] = addWW_g(x[i], y[i], c)
@@ -161,14 +152,12 @@ func addVV_g(z, x, y []Word) (c Word) {
 	return
 }
 
-
 func subVV_g(z, x, y []Word) (c Word) {
 	for i := range z {
 		c, z[i] = subWW_g(x[i], y[i], c)
 	}
 	return
 }
-
 
 func addVW_g(z, x []Word, y Word) (c Word) {
 	c = y
@@ -178,7 +167,6 @@ func addVW_g(z, x []Word, y Word) (c Word) {
 	return
 }
 
-
 func subVW_g(z, x []Word, y Word) (c Word) {
 	c = y
 	for i := range z {
@@ -186,7 +174,6 @@ func subVW_g(z, x []Word, y Word) (c Word) {
 	}
 	return
 }
-
 
 func shlVU_g(z, x []Word, s uint) (c Word) {
 	if n := len(z); n > 0 {
@@ -203,7 +190,6 @@ func shlVU_g(z, x []Word, s uint) (c Word) {
 	return
 }
 
-
 func shrVU_g(z, x []Word, s uint) (c Word) {
 	if n := len(z); n > 0 {
 		ŝ := _W - s
@@ -219,7 +205,6 @@ func shrVU_g(z, x []Word, s uint) (c Word) {
 	return
 }
 
-
 func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
 	c = r
 	for i := range z {
@@ -227,7 +212,6 @@ func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
 	}
 	return
 }
-
 
 func addMulVVW_g(z, x []Word, y Word) (c Word) {
 	for i := range z {
@@ -237,7 +221,6 @@ func addMulVVW_g(z, x []Word, y Word) (c Word) {
 	}
 	return
 }
-
 
 func divWVW_g(z []Word, xn Word, x []Word, y Word) (r Word) {
 	r = xn

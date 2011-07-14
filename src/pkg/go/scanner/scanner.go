@@ -30,7 +30,6 @@ import (
 	"utf8"
 )
 
-
 // A Scanner holds the scanner's internal state while processing
 // a given text.  It can be allocated as part of another data
 // structure but must be initialized via Init before use.
@@ -53,7 +52,6 @@ type Scanner struct {
 	// public state - ok to modify
 	ErrorCount int // number of errors encountered
 }
-
 
 // Read the next Unicode char into S.ch.
 // S.ch < 0 means end-of-file.
@@ -87,7 +85,6 @@ func (S *Scanner) next() {
 		S.ch = -1 // eof
 	}
 }
-
 
 // The mode parameter to the Init function is a set of flags (or 0).
 // They control scanner behavior.
@@ -134,14 +131,12 @@ func (S *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode uint
 	S.next()
 }
 
-
 func (S *Scanner) error(offs int, msg string) {
 	if S.err != nil {
 		S.err.Error(S.file.Position(S.file.Pos(offs)), msg)
 	}
 	S.ErrorCount++
 }
-
 
 var prefix = []byte("//line ")
 
@@ -162,7 +157,6 @@ func (S *Scanner) interpretLineComment(text []byte) {
 		}
 	}
 }
-
 
 func (S *Scanner) scanComment() {
 	// initial '/' already consumed; S.ch == '/' || S.ch == '*'
@@ -194,7 +188,6 @@ func (S *Scanner) scanComment() {
 
 	S.error(offs, "comment not terminated")
 }
-
 
 func (S *Scanner) findLineEnd() bool {
 	// initial '/' already consumed
@@ -240,16 +233,13 @@ func (S *Scanner) findLineEnd() bool {
 	return false
 }
 
-
 func isLetter(ch int) bool {
 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 0x80 && unicode.IsLetter(ch)
 }
 
-
 func isDigit(ch int) bool {
 	return '0' <= ch && ch <= '9' || ch >= 0x80 && unicode.IsDigit(ch)
 }
-
 
 func (S *Scanner) scanIdentifier() token.Token {
 	offs := S.offset
@@ -258,7 +248,6 @@ func (S *Scanner) scanIdentifier() token.Token {
 	}
 	return token.Lookup(S.src[offs:S.offset])
 }
-
 
 func digitVal(ch int) int {
 	switch {
@@ -272,13 +261,11 @@ func digitVal(ch int) int {
 	return 16 // larger than any legal digit val
 }
 
-
 func (S *Scanner) scanMantissa(base int) {
 	for digitVal(S.ch) < base {
 		S.next()
 	}
 }
-
 
 func (S *Scanner) scanNumber(seenDecimalPoint bool) token.Token {
 	// digitVal(S.ch) < 10
@@ -351,7 +338,6 @@ exit:
 	return tok
 }
 
-
 func (S *Scanner) scanEscape(quote int) {
 	offs := S.offset
 
@@ -396,7 +382,6 @@ func (S *Scanner) scanEscape(quote int) {
 	}
 }
 
-
 func (S *Scanner) scanChar() {
 	// '\'' opening already consumed
 	offs := S.offset - 1
@@ -423,7 +408,6 @@ func (S *Scanner) scanChar() {
 	}
 }
 
-
 func (S *Scanner) scanString() {
 	// '"' opening already consumed
 	offs := S.offset - 1
@@ -443,7 +427,6 @@ func (S *Scanner) scanString() {
 	S.next()
 }
 
-
 func (S *Scanner) scanRawString() {
 	// '`' opening already consumed
 	offs := S.offset - 1
@@ -460,13 +443,11 @@ func (S *Scanner) scanRawString() {
 	S.next()
 }
 
-
 func (S *Scanner) skipWhitespace() {
 	for S.ch == ' ' || S.ch == '\t' || S.ch == '\n' && !S.insertSemi || S.ch == '\r' {
 		S.next()
 	}
 }
-
 
 // Helper functions for scanning multi-byte tokens such as >> += >>= .
 // Different routines recognize different length tok_i based on matches
@@ -482,7 +463,6 @@ func (S *Scanner) switch2(tok0, tok1 token.Token) token.Token {
 	return tok0
 }
 
-
 func (S *Scanner) switch3(tok0, tok1 token.Token, ch2 int, tok2 token.Token) token.Token {
 	if S.ch == '=' {
 		S.next()
@@ -494,7 +474,6 @@ func (S *Scanner) switch3(tok0, tok1 token.Token, ch2 int, tok2 token.Token) tok
 	}
 	return tok0
 }
-
 
 func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Token) token.Token {
 	if S.ch == '=' {
@@ -511,7 +490,6 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Toke
 	}
 	return tok0
 }
-
 
 // Scan scans the next token and returns the token position,
 // the token, and the literal string corresponding to the

@@ -12,7 +12,6 @@ import (
 	"sync"
 )
 
-
 // Position describes an arbitrary source position
 // including the file, line, and column location.
 // A Position is valid if the line number is > 0.
@@ -24,10 +23,8 @@ type Position struct {
 	Column   int    // column number, starting at 1 (character count)
 }
 
-
 // IsValid returns true if the position is valid.
 func (pos *Position) IsValid() bool { return pos.Line > 0 }
-
 
 // String returns a string in one of several forms:
 //
@@ -49,7 +46,6 @@ func (pos Position) String() string {
 	}
 	return s
 }
-
 
 // Pos is a compact encoding of a source position within a file set.
 // It can be converted into a Position for a more convenient, but much
@@ -73,7 +69,6 @@ func (pos Position) String() string {
 //
 type Pos int
 
-
 // The zero value for Pos is NoPos; there is no file and line information
 // associated with it, and NoPos().IsValid() is false. NoPos is always
 // smaller than any other Pos value. The corresponding Position value
@@ -81,17 +76,14 @@ type Pos int
 // 
 const NoPos Pos = 0
 
-
 // IsValid returns true if the position is valid.
 func (p Pos) IsValid() bool {
 	return p != NoPos
 }
 
-
 func searchFiles(a []*File, x int) int {
 	return sort.Search(len(a), func(i int) bool { return a[i].base > x }) - 1
 }
-
 
 func (s *FileSet) file(p Pos) *File {
 	if f := s.last; f != nil && f.base <= int(p) && int(p) <= f.base+f.size {
@@ -108,7 +100,6 @@ func (s *FileSet) file(p Pos) *File {
 	return nil
 }
 
-
 // File returns the file which contains the position p.
 // If no such file is found (for instance for p == NoPos),
 // the result is nil.
@@ -122,14 +113,12 @@ func (s *FileSet) File(p Pos) (f *File) {
 	return
 }
 
-
 func (f *File) position(p Pos) (pos Position) {
 	offset := int(p) - f.base
 	pos.Offset = offset
 	pos.Filename, pos.Line, pos.Column = f.info(offset)
 	return
 }
-
 
 // Position converts a Pos in the fileset into a general Position.
 func (s *FileSet) Position(p Pos) (pos Position) {
@@ -147,13 +136,11 @@ func (s *FileSet) Position(p Pos) (pos Position) {
 	return
 }
 
-
 type lineInfo struct {
 	offset   int
 	filename string
 	line     int
 }
-
 
 // AddLineInfo adds alternative file and line number information for
 // a given file offset. The offset must be larger than the offset for
@@ -171,7 +158,6 @@ func (f *File) AddLineInfo(offset int, filename string, line int) {
 	f.set.mutex.Unlock()
 }
 
-
 // A File is a handle for a file belonging to a FileSet.
 // A File has a name, size, and line offset table.
 //
@@ -186,24 +172,20 @@ type File struct {
 	infos []lineInfo
 }
 
-
 // Name returns the file name of file f as registered with AddFile.
 func (f *File) Name() string {
 	return f.name
 }
-
 
 // Base returns the base offset of file f as registered with AddFile.
 func (f *File) Base() int {
 	return f.base
 }
 
-
 // Size returns the size of file f as registered with AddFile.
 func (f *File) Size() int {
 	return f.size
 }
-
 
 // LineCount returns the number of lines in file f.
 func (f *File) LineCount() int {
@@ -212,7 +194,6 @@ func (f *File) LineCount() int {
 	f.set.mutex.RUnlock()
 	return n
 }
-
 
 // AddLine adds the line offset for a new line.
 // The line offset must be larger than the offset for the previous line
@@ -225,7 +206,6 @@ func (f *File) AddLine(offset int) {
 	}
 	f.set.mutex.Unlock()
 }
-
 
 // SetLines sets the line offsets for a file and returns true if successful.
 // The line offsets are the offsets of the first character of each line;
@@ -251,7 +231,6 @@ func (f *File) SetLines(lines []int) bool {
 	return true
 }
 
-
 // SetLinesForContent sets the line offsets for the given file content.
 func (f *File) SetLinesForContent(content []byte) {
 	var lines []int
@@ -272,7 +251,6 @@ func (f *File) SetLinesForContent(content []byte) {
 	f.set.mutex.Unlock()
 }
 
-
 // Pos returns the Pos value for the given file offset;
 // the offset must be <= f.Size().
 // f.Pos(f.Offset(p)) == p.
@@ -283,7 +261,6 @@ func (f *File) Pos(offset int) Pos {
 	}
 	return Pos(f.base + offset)
 }
-
 
 // Offset returns the offset for the given file position p;
 // p must be a valid Pos value in that file.
@@ -296,7 +273,6 @@ func (f *File) Offset(p Pos) int {
 	return int(p) - f.base
 }
 
-
 // Line returns the line number for the given file position p;
 // p must be a Pos value in that file or NoPos.
 //
@@ -304,7 +280,6 @@ func (f *File) Line(p Pos) int {
 	// TODO(gri) this can be implemented much more efficiently
 	return f.Position(p).Line
 }
-
 
 // Position returns the Position value for the given file position p;
 // p must be a Pos value in that file or NoPos.
@@ -318,7 +293,6 @@ func (f *File) Position(p Pos) (pos Position) {
 	}
 	return
 }
-
 
 func searchInts(a []int, x int) int {
 	// This function body is a manually inlined version of:
@@ -342,11 +316,9 @@ func searchInts(a []int, x int) int {
 	return i - 1
 }
 
-
 func searchLineInfos(a []lineInfo, x int) int {
 	return sort.Search(len(a), func(i int) bool { return a[i].offset > x }) - 1
 }
-
 
 // info returns the file name, line, and column number for a file offset.
 func (f *File) info(offset int) (filename string, line, column int) {
@@ -367,7 +339,6 @@ func (f *File) info(offset int) (filename string, line, column int) {
 	return
 }
 
-
 // A FileSet represents a set of source files.
 // Methods of file sets are synchronized; multiple goroutines
 // may invoke them concurrently.
@@ -379,14 +350,12 @@ type FileSet struct {
 	last  *File        // cache of last file looked up
 }
 
-
 // NewFileSet creates a new file set.
 func NewFileSet() *FileSet {
 	s := new(FileSet)
 	s.base = 1 // 0 == NoPos
 	return s
 }
-
 
 // Base returns the minimum base offset that must be provided to
 // AddFile when adding the next file.
@@ -398,7 +367,6 @@ func (s *FileSet) Base() int {
 	return b
 
 }
-
 
 // AddFile adds a new file with a given filename, base offset, and file size
 // to the file set s and returns the file. Multiple files may have the same
@@ -433,7 +401,6 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 	s.last = f
 	return f
 }
-
 
 // Files returns the files added to the file set.
 func (s *FileSet) Files() <-chan *File {

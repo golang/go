@@ -197,7 +197,6 @@ func (c *gobClientCodec) Close() os.Error {
 	return c.rwc.Close()
 }
 
-
 // DialHTTP connects to an HTTP RPC server at the specified network address
 // listening on the default HTTP RPC path.
 func DialHTTP(network, address string) (*Client, os.Error) {

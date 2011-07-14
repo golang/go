@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 // TODO(cw): ListenPacket test, Read() test, ipv6 test &
 // Dial()/Listen() level tests
 

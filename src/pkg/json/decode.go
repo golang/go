@@ -71,7 +71,6 @@ type Unmarshaler interface {
 	UnmarshalJSON([]byte) os.Error
 }
 
-
 // An UnmarshalTypeError describes a JSON value that was
 // not appropriate for a value of a specific Go type.
 type UnmarshalTypeError struct {
@@ -741,7 +740,6 @@ func (d *decodeState) objectInterface() map[string]interface{} {
 	}
 	return m
 }
-
 
 // literalInterface is like literal but returns an interface value.
 func (d *decodeState) literalInterface() interface{} {

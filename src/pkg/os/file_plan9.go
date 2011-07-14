@@ -44,7 +44,6 @@ type dirInfo struct {
 func epipecheck(file *File, e syscall.Error) {
 }
 
-
 // DevNull is the name of the operating system's ``null device.''
 // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "/dev/null"
@@ -303,7 +302,6 @@ func Pipe() (r *File, w *File, err Error) {
 
 	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
 }
-
 
 // not supported on Plan 9
 

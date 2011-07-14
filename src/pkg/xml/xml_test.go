@@ -546,7 +546,6 @@ func TestEntityInsideCDATA(t *testing.T) {
 	}
 }
 
-
 // The last three tests (respectively one for characters in attribute
 // names and two for character entities) pass not because of code
 // changed for issue 1259, but instead pass with the given messages
@@ -566,7 +565,6 @@ var characterTests = []struct {
 	{"<doc>&\x01;</doc>", "invalid character entity &;"},
 	{"<doc>&\xef\xbf\xbe;</doc>", "invalid character entity &;"},
 }
-
 
 func TestDisallowedCharacters(t *testing.T) {
 

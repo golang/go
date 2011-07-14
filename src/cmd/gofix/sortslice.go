@@ -20,7 +20,6 @@ http://codereview.appspot.com/4639041
 	})
 }
 
-
 func sortslice(f *ast.File) (fixed bool) {
 	if !imports(f, "sort") {
 		return

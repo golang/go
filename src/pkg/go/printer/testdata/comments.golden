@@ -106,7 +106,6 @@ type S3 struct {
 var x int	// x
 var ()
 
-
 // This comment SHOULD be associated with the next declaration.
 func f0() {
 	const pi = 3.14	// pi
@@ -128,11 +127,9 @@ func f1() {
 	f0()
 }
 
-
 func _() {
 	// this comment should be properly indented
 }
-
 
 func _(x int) int {
 	if x < 0 {	// the tab printed before this comment's // must not affect the remaining lines
@@ -143,7 +140,6 @@ func _(x int) int {
 	}
 	return x
 }
-
 
 func typeswitch(x interface{}) {
 	switch v := x.(type) {
@@ -211,7 +207,6 @@ func _() {
 		aligned line */
 }
 
-
 func _() {
 	/*
 	   freestanding comment
@@ -291,7 +286,6 @@ func _() {
 	/*	freestanding comment
 		aligned line */
 }
-
 
 func _() {
 	/*
@@ -409,7 +403,6 @@ func _() {
 	*/
 }
 
-
 // Some interesting interspersed comments
 func _( /* this */ x /* is */ /* an */ int) {
 }
@@ -433,7 +426,6 @@ func _() {
 func _() {
 	_ = []int{0, 1 /* don't introduce a newline after this comment - was issue 1365 */ }
 }
-
 
 // Comments immediately adjacent to punctuation (for which the go/printer
 // may only have estimated position information) must remain after the punctuation.
@@ -466,7 +458,6 @@ func _() {
 	}
 }
 
-
 // Line comments with tabs
 func _() {
 	var finput *bufio.Reader	// input file
@@ -478,6 +469,5 @@ func _() {
 	var vflag string	// -v [y.output]	- y.output file
 	var lflag bool		// -l			- disable line directives
 }
-
 
 /* This comment is the last entry in this file. It must be printed and should be followed by a newline */

@@ -1760,7 +1760,6 @@ func (ra ranges) Swap(i, j int) {
 	p[i], p[i+1], p[j], p[j+1] = p[j], p[j+1], p[i], p[i+1]
 }
 
-
 func checkUTF8(s string) os.Error {
 	for s != "" {
 		rune, size := utf8.DecodeRuneInString(s)

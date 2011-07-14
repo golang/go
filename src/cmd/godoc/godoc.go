@@ -27,14 +27,12 @@ import (
 	"time"
 )
 
-
 // ----------------------------------------------------------------------------
 // Globals
 
 type delayTime struct {
 	RWValue
 }
-
 
 func (dt *delayTime) backoff(max int) {
 	dt.mutex.Lock()
@@ -46,7 +44,6 @@ func (dt *delayTime) backoff(max int) {
 	// don't change dt.timestamp - calling backoff indicates an error condition
 	dt.mutex.Unlock()
 }
-
 
 var (
 	verbose = flag.Bool("v", false, "verbose mode")
@@ -82,7 +79,6 @@ var (
 	pkgHandler httpHandler
 )
 
-
 func initHandlers() {
 	paths := filepath.SplitList(*pkgPath)
 	for _, t := range build.Path {
@@ -98,7 +94,6 @@ func initHandlers() {
 	pkgHandler = httpHandler{"/pkg/", filepath.Join(*goroot, "src", "pkg"), true}
 }
 
-
 func registerPublicHandlers(mux *http.ServeMux) {
 	mux.Handle(cmdHandler.pattern, &cmdHandler)
 	mux.Handle(pkgHandler.pattern, &pkgHandler)
@@ -108,12 +103,10 @@ func registerPublicHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/", serveFile)
 }
 
-
 func initFSTree() {
 	fsTree.set(newDirectory(filepath.Join(*goroot, *testDir), nil, -1))
 	invalidateIndex()
 }
-
 
 // ----------------------------------------------------------------------------
 // Directory filters
@@ -124,7 +117,6 @@ func isParentOf(p, q string) bool {
 	n := len(p)
 	return strings.HasPrefix(q, p) && (len(q) <= n || q[n] == '/')
 }
-
 
 func setPathFilter(list []string) {
 	if len(list) == 0 {
@@ -142,7 +134,6 @@ func setPathFilter(list []string) {
 	})
 }
 
-
 func getPathFilter() func(string) bool {
 	f, _ := pathFilter.get()
 	if f != nil {
@@ -150,7 +141,6 @@ func getPathFilter() func(string) bool {
 	}
 	return nil
 }
-
 
 // readDirList reads a file containing a newline-separated list
 // of directory paths and returns the list of paths.
@@ -182,7 +172,6 @@ func readDirList(filename string) ([]string, os.Error) {
 	return list[0:i], err
 }
 
-
 // updateMappedDirs computes the directory tree for
 // each user-defined file system mapping. If a filter
 // is provided, it is used to filter directories.
@@ -196,7 +185,6 @@ func updateMappedDirs(filter func(string) bool) {
 		invalidateIndex()
 	}
 }
-
 
 func updateFilterFile() {
 	updateMappedDirs(nil) // no filter for accuracy
@@ -219,7 +207,6 @@ func updateFilterFile() {
 		filterDelay.set(*filterMin) // revert to regular filter update schedule
 	}
 }
-
 
 func initDirTrees() {
 	// setup initial path filter
@@ -255,7 +242,6 @@ func initDirTrees() {
 	}
 }
 
-
 // ----------------------------------------------------------------------------
 // Path mapping
 
@@ -270,7 +256,6 @@ func absolutePath(relpath, defaultRoot string) string {
 	}
 	return abspath
 }
-
 
 func relativeURL(abspath string) string {
 	relpath := fsMap.ToRelative(abspath)
@@ -293,7 +278,6 @@ func relativeURL(abspath string) string {
 	return relpath
 }
 
-
 // ----------------------------------------------------------------------------
 // Tab conversion
 
@@ -311,7 +295,6 @@ type tconv struct {
 	indent int // valid if state == indenting
 }
 
-
 func (p *tconv) writeIndent() (err os.Error) {
 	i := p.indent
 	for i >= len(spaces) {
@@ -326,7 +309,6 @@ func (p *tconv) writeIndent() (err os.Error) {
 	}
 	return
 }
-
 
 func (p *tconv) Write(data []byte) (n int, err os.Error) {
 	if len(data) == 0 {
@@ -371,7 +353,6 @@ func (p *tconv) Write(data []byte) (n int, err os.Error) {
 	return
 }
 
-
 // ----------------------------------------------------------------------------
 // Templates
 
@@ -389,7 +370,6 @@ func writeNode(w io.Writer, fset *token.FileSet, x interface{}) {
 	(&printer.Config{mode, *tabwidth}).Fprint(&tconv{output: w}, fset, x)
 }
 
-
 // Write anything to w.
 func writeAny(w io.Writer, fset *token.FileSet, x interface{}) {
 	switch v := x.(type) {
@@ -403,7 +383,6 @@ func writeAny(w io.Writer, fset *token.FileSet, x interface{}) {
 		fmt.Fprint(w, x)
 	}
 }
-
 
 // Write anything html-escaped to w.
 func writeAnyHTML(w io.Writer, fset *token.FileSet, x interface{}) {
@@ -423,7 +402,6 @@ func writeAnyHTML(w io.Writer, fset *token.FileSet, x interface{}) {
 	}
 }
 
-
 func fileset(x []interface{}) *token.FileSet {
 	if len(x) > 1 {
 		if fset, ok := x[1].(*token.FileSet); ok {
@@ -433,12 +411,10 @@ func fileset(x []interface{}) *token.FileSet {
 	return nil
 }
 
-
 // Template formatter for "html-esc" format.
 func htmlEscFmt(w io.Writer, format string, x ...interface{}) {
 	writeAnyHTML(w, fileset(x), x[0])
 }
-
 
 // Template formatter for "html-comment" format.
 func htmlCommentFmt(w io.Writer, format string, x ...interface{}) {
@@ -449,12 +425,10 @@ func htmlCommentFmt(w io.Writer, format string, x ...interface{}) {
 	doc.ToHTML(w, buf.Bytes(), nil) // does html-escaping
 }
 
-
 // Template formatter for "" (default) format.
 func textFmt(w io.Writer, format string, x ...interface{}) {
 	writeAny(w, fileset(x), x[0])
 }
-
 
 // Template formatter for "urlquery-esc" format.
 func urlQueryEscFmt(w io.Writer, format string, x ...interface{}) {
@@ -462,7 +436,6 @@ func urlQueryEscFmt(w io.Writer, format string, x ...interface{}) {
 	writeAny(&buf, fileset(x), x[0])
 	template.HTMLEscape(w, []byte(http.URLEscape(string(buf.Bytes()))))
 }
-
 
 // Template formatter for the various "url-xxx" formats excluding url-esc.
 func urlFmt(w io.Writer, format string, x ...interface{}) {
@@ -536,7 +509,6 @@ func urlFmt(w io.Writer, format string, x ...interface{}) {
 	}
 }
 
-
 // The strings in infoKinds must be properly html-escaped.
 var infoKinds = [nKinds]string{
 	PackageClause: "package&nbsp;clause",
@@ -549,12 +521,10 @@ var infoKinds = [nKinds]string{
 	Use:           "use",
 }
 
-
 // Template formatter for "infoKind" format.
 func infoKindFmt(w io.Writer, format string, x ...interface{}) {
 	fmt.Fprintf(w, infoKinds[x[0].(SpotKind)]) // infoKind entries are html-escaped
 }
-
 
 // Template formatter for "infoLine" format.
 func infoLineFmt(w io.Writer, format string, x ...interface{}) {
@@ -575,7 +545,6 @@ func infoLineFmt(w io.Writer, format string, x ...interface{}) {
 	fmt.Fprintf(w, "%d", line)
 }
 
-
 // Template formatter for "infoSnippet" format.
 func infoSnippetFmt(w io.Writer, format string, x ...interface{}) {
 	info := x[0].(SpotInfo)
@@ -589,7 +558,6 @@ func infoSnippetFmt(w io.Writer, format string, x ...interface{}) {
 	w.Write(text)
 }
 
-
 // Template formatter for "padding" format.
 func paddingFmt(w io.Writer, format string, x ...interface{}) {
 	for i := x[0].(int); i > 0; i-- {
@@ -597,12 +565,10 @@ func paddingFmt(w io.Writer, format string, x ...interface{}) {
 	}
 }
 
-
 // Template formatter for "time" format.
 func timeFmt(w io.Writer, format string, x ...interface{}) {
 	template.HTMLEscape(w, []byte(time.SecondsToLocalTime(x[0].(int64)/1e9).String()))
 }
-
 
 // Template formatter for "dir/" format.
 func dirslashFmt(w io.Writer, format string, x ...interface{}) {
@@ -611,20 +577,17 @@ func dirslashFmt(w io.Writer, format string, x ...interface{}) {
 	}
 }
 
-
 // Template formatter for "localname" format.
 func localnameFmt(w io.Writer, format string, x ...interface{}) {
 	_, localname := filepath.Split(x[0].(string))
 	template.HTMLEscape(w, []byte(localname))
 }
 
-
 // Template formatter for "numlines" format.
 func numlinesFmt(w io.Writer, format string, x ...interface{}) {
 	list := x[0].([]int)
 	fmt.Fprintf(w, "%d", len(list))
 }
-
 
 var fmap = template.FormatterMap{
 	"":             textFmt,
@@ -643,7 +606,6 @@ var fmap = template.FormatterMap{
 	"localname":    localnameFmt,
 	"numlines":     numlinesFmt,
 }
-
 
 func readTemplate(name string) *template.Template {
 	path := filepath.Join(*goroot, "lib", "godoc", name)
@@ -665,7 +627,6 @@ func readTemplate(name string) *template.Template {
 	}
 	return t
 }
-
 
 var (
 	codewalkHTML,
@@ -691,7 +652,6 @@ func readTemplates() {
 	searchHTML = readTemplate("search.html")
 	searchText = readTemplate("search.txt")
 }
-
 
 // ----------------------------------------------------------------------------
 // Generic HTML wrapper
@@ -722,12 +682,10 @@ func servePage(w http.ResponseWriter, title, subtitle, query string, content []b
 	}
 }
 
-
 func serveText(w http.ResponseWriter, text []byte) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write(text)
 }
-
 
 // ----------------------------------------------------------------------------
 // Files
@@ -738,7 +696,6 @@ var (
 	firstCommentRx = regexp.MustCompile(`<!--([^\-]*)-->`)
 )
 
-
 func extractString(src []byte, rx *regexp.Regexp) (s string) {
 	m := rx.FindSubmatch(src)
 	if m != nil {
@@ -746,7 +703,6 @@ func extractString(src []byte, rx *regexp.Regexp) (s string) {
 	}
 	return
 }
-
 
 func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	// get HTML body contents
@@ -782,7 +738,6 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 	servePage(w, title, subtitle, "", src)
 }
 
-
 func applyTemplate(t *template.Template, name string, data interface{}) []byte {
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, data); err != nil {
@@ -790,7 +745,6 @@ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
 	}
 	return buf.Bytes()
 }
-
 
 func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
 	if canonical := path.Clean(r.URL.Path) + "/"; r.URL.Path != canonical {
@@ -816,7 +770,6 @@ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, tit
 	servePage(w, title+" "+relpath, "", "", buf.Bytes())
 }
 
-
 func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	if redirect(w, r) {
 		return
@@ -832,7 +785,6 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath str
 	contents := applyTemplate(dirlistHTML, "dirlistHTML", list)
 	servePage(w, "Directory "+relpath, "", "", contents)
 }
-
 
 func serveFile(w http.ResponseWriter, r *http.Request) {
 	relpath := r.URL.Path[1:] // serveFile URL paths start with '/'
@@ -893,7 +845,6 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 	fileServer.ServeHTTP(w, r)
 }
 
-
 // ----------------------------------------------------------------------------
 // Packages
 
@@ -908,7 +859,6 @@ const (
 	genDoc                               // generate documentation
 )
 
-
 type PageInfo struct {
 	Dirname string          // directory containing the package
 	PList   []string        // list of package names found
@@ -921,18 +871,15 @@ type PageInfo struct {
 	Err     os.Error        // directory read error or nil
 }
 
-
 func (info *PageInfo) IsEmpty() bool {
 	return info.Err != nil || info.PAst == nil && info.PDoc == nil && info.Dirs == nil
 }
-
 
 type httpHandler struct {
 	pattern string // url pattern; e.g. "/pkg/"
 	fsRoot  string // file system root to which the pattern is mapped
 	isPkg   bool   // true if this handler serves real package documentation (as opposed to command documentation)
 }
-
 
 // getPageInfo returns the PageInfo for a package directory abspath. If the
 // parameter genAST is set, an AST containing only the package exports is
@@ -1072,7 +1019,6 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 	return PageInfo{abspath, plist, fset, past, pdoc, dir.listing(true), timestamp, h.isPkg, nil}
 }
 
-
 func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if redirect(w, r) {
 		return
@@ -1123,7 +1069,6 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	servePage(w, title, subtitle, "", contents)
 }
 
-
 // ----------------------------------------------------------------------------
 // Search
 
@@ -1142,7 +1087,6 @@ type SearchResult struct {
 	Textual  []FileLines // textual matches of Query
 	Complete bool        // true if all textual occurrences of Query are reported
 }
-
 
 func lookup(query string) (result SearchResult) {
 	result.Query = query
@@ -1195,7 +1139,6 @@ func lookup(query string) (result SearchResult) {
 	return
 }
 
-
 func search(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.FormValue("q"))
 	result := lookup(query)
@@ -1217,7 +1160,6 @@ func search(w http.ResponseWriter, r *http.Request) {
 	servePage(w, title, "", query, contents)
 }
 
-
 // ----------------------------------------------------------------------------
 // Indexer
 
@@ -1228,7 +1170,6 @@ func invalidateIndex() {
 	fsModified.set(nil)
 }
 
-
 // indexUpToDate() returns true if the search index is not older
 // than any of the file systems under godoc's observation.
 //
@@ -1237,7 +1178,6 @@ func indexUpToDate() bool {
 	_, siTime := searchIndex.get()
 	return fsTime <= siTime
 }
-
 
 // feedDirnames feeds the directory names of all directories
 // under the file system given by root to channel c.
@@ -1249,7 +1189,6 @@ func feedDirnames(root *RWValue, c chan<- string) {
 		}
 	}
 }
-
 
 // fsDirnames() returns a channel sending all directory names
 // of all the file systems under godoc's observation.
@@ -1266,7 +1205,6 @@ func fsDirnames() <-chan string {
 	}()
 	return c
 }
-
 
 func indexer() {
 	for {

@@ -58,7 +58,6 @@ func (p *Part) FormName() string {
 	return p.dispositionParams["name"]
 }
 
-
 // FileName returns the filename parameter of the Part's
 // Content-Disposition header.
 func (p *Part) FileName() string {

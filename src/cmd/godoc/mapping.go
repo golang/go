@@ -15,7 +15,6 @@ import (
 	"strings"
 )
 
-
 // A Mapping object maps relative paths (e.g. from URLs)
 // to absolute paths (of the file system) and vice versa.
 //
@@ -52,12 +51,10 @@ type Mapping struct {
 	prefixes []string // lazily computed from list
 }
 
-
 type mapping struct {
 	prefix, path string
 	value        *RWValue
 }
-
 
 // Init initializes the Mapping from a list of paths.
 // Empty paths are ignored; relative paths are assumed to be relative to
@@ -93,10 +90,8 @@ func (m *Mapping) Init(paths []string) {
 	m.list = list
 }
 
-
 // IsEmpty returns true if there are no mappings specified.
 func (m *Mapping) IsEmpty() bool { return len(m.list) == 0 }
-
 
 // PrefixList returns a list of all prefixes, with duplicates removed.
 // For instance, for the mapping:
@@ -137,14 +132,12 @@ func (m *Mapping) PrefixList() []string {
 	return m.prefixes
 }
 
-
 // Fprint prints the mapping.
 func (m *Mapping) Fprint(w io.Writer) {
 	for _, e := range m.list {
 		fmt.Fprintf(w, "\t%s -> %s\n", e.prefix, e.path)
 	}
 }
-
 
 func splitFirst(path string) (head, tail string) {
 	i := strings.Index(path, string(filepath.Separator))
@@ -154,7 +147,6 @@ func splitFirst(path string) (head, tail string) {
 	}
 	return "", path
 }
-
 
 // ToAbsolute maps a slash-separated relative path to an absolute filesystem
 // path using the Mapping specified by the receiver. If the path cannot
@@ -181,7 +173,6 @@ func (m *Mapping) ToAbsolute(spath string) string {
 	return "" // no match
 }
 
-
 // ToRelative maps an absolute filesystem path to a relative slash-separated
 // path using the Mapping specified by the receiver. If the path cannot
 // be mapped, the empty string is returned.
@@ -196,7 +187,6 @@ func (m *Mapping) ToRelative(fpath string) string {
 	}
 	return "" // no match
 }
-
 
 // Iterate calls f for each path and RWValue in the mapping (in uspecified order)
 // until f returns false.

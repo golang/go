@@ -12,17 +12,14 @@ package typechecker
 
 import "go/ast"
 
-
 func (tc *typechecker) openScope() *ast.Scope {
 	tc.topScope = ast.NewScope(tc.topScope)
 	return tc.topScope
 }
 
-
 func (tc *typechecker) closeScope() {
 	tc.topScope = tc.topScope.Outer
 }
-
 
 // declInScope declares an object of a given kind and name in scope and sets the object's Decl and N fields.
 // It returns the newly allocated object. If an object with the same name already exists in scope, an error
@@ -40,12 +37,10 @@ func (tc *typechecker) declInScope(scope *ast.Scope, kind ast.ObjKind, name *ast
 	return obj
 }
 
-
 // decl is the same as declInScope(tc.topScope, ...)
 func (tc *typechecker) decl(kind ast.ObjKind, name *ast.Ident, decl interface{}, n int) *ast.Object {
 	return tc.declInScope(tc.topScope, kind, name, decl, n)
 }
-
 
 // find returns the object with the given name if visible in the current scope hierarchy.
 // If no such object is found, an error is reported and a bad object is returned instead.
@@ -60,7 +55,6 @@ func (tc *typechecker) find(name *ast.Ident) (obj *ast.Object) {
 	name.Obj = obj
 	return
 }
-
 
 // findField returns the object with the given name if visible in the type's scope.
 // If no such object is found, an error is reported and a bad object is returned instead.

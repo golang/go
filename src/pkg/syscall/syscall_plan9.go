@@ -121,7 +121,6 @@ func Getppid() (ppid int) {
 	return int(n)
 }
 
-
 func Read(fd int, p []byte) (n int, err Error) {
 	return Pread(fd, p, -1)
 }
@@ -163,7 +162,6 @@ func Pipe(p []int) (err Error) {
 	p[1] = int(pp[1])
 	return
 }
-
 
 //sys	sleep(millisecs int32) (err Error)
 func Sleep(nsec int64) (err Error) {

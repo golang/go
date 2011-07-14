@@ -68,7 +68,6 @@ func TestCatGoodAndBadFile(t *testing.T) {
 	}
 }
 
-
 func TestNoExistBinary(t *testing.T) {
 	// Can't run a non-existent binary
 	err := Command("/no-exist-binary").Run()

@@ -11,7 +11,6 @@ import (
 	"testing"
 )
 
-
 var setStringTests = []struct {
 	in, out string
 	ok      bool
@@ -57,7 +56,6 @@ func TestRatSetString(t *testing.T) {
 	}
 }
 
-
 func TestRatScan(t *testing.T) {
 	var buf bytes.Buffer
 	for i, test := range setStringTests {
@@ -79,7 +77,6 @@ func TestRatScan(t *testing.T) {
 		}
 	}
 }
-
 
 var floatStringTests = []struct {
 	in   string
@@ -113,7 +110,6 @@ func TestFloatString(t *testing.T) {
 	}
 }
 
-
 func TestRatSign(t *testing.T) {
 	zero := NewRat(0, 1)
 	for _, a := range setStringTests {
@@ -126,7 +122,6 @@ func TestRatSign(t *testing.T) {
 		}
 	}
 }
-
 
 var ratCmpTests = []struct {
 	rat1, rat2 string
@@ -155,7 +150,6 @@ func TestRatCmp(t *testing.T) {
 	}
 }
 
-
 func TestIsInt(t *testing.T) {
 	one := NewInt(1)
 	for _, a := range setStringTests {
@@ -168,7 +162,6 @@ func TestIsInt(t *testing.T) {
 		}
 	}
 }
-
 
 func TestRatAbs(t *testing.T) {
 	zero := NewRat(0, 1)
@@ -187,7 +180,6 @@ func TestRatAbs(t *testing.T) {
 	}
 }
 
-
 type ratBinFun func(z, x, y *Rat) *Rat
 type ratBinArg struct {
 	x, y, z string
@@ -203,7 +195,6 @@ func testRatBin(t *testing.T, i int, name string, f ratBinFun, a ratBinArg) {
 		t.Errorf("%s #%d got %s want %s", name, i, out, z)
 	}
 }
-
 
 var ratBinTests = []struct {
 	x, y      string
@@ -261,7 +252,6 @@ func TestRatBin(t *testing.T) {
 	}
 }
 
-
 func TestIssue820(t *testing.T) {
 	x := NewRat(3, 1)
 	y := NewRat(2, 1)
@@ -287,7 +277,6 @@ func TestIssue820(t *testing.T) {
 	}
 }
 
-
 var setFrac64Tests = []struct {
 	a, b int64
 	out  string
@@ -309,7 +298,6 @@ func TestRatSetFrac64Rat(t *testing.T) {
 		}
 	}
 }
-
 
 func TestRatGobEncoding(t *testing.T) {
 	var medium bytes.Buffer

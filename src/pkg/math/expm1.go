@@ -4,7 +4,6 @@
 
 package math
 
-
 // The original C code, the long comment, and the constants
 // below are from FreeBSD's /usr/src/lib/msun/src/s_expm1.c
 // and came with this notice.  The go code is a simplified

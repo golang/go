@@ -35,7 +35,6 @@ type SectionHeader struct {
 	Characteristics      uint32
 }
 
-
 type Section struct {
 	SectionHeader
 
@@ -68,7 +67,6 @@ func (s *Section) Data() ([]byte, os.Error) {
 
 // Open returns a new ReadSeeker reading the PE section.
 func (s *Section) Open() io.ReadSeeker { return io.NewSectionReader(s.sr, 0, 1<<63-1) }
-
 
 type FormatError struct {
 	off int64

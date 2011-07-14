@@ -69,13 +69,11 @@ var (
 	query = flag.Bool("q", false, "arguments are considered search queries")
 )
 
-
 func serveError(w http.ResponseWriter, r *http.Request, relpath string, err os.Error) {
 	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
 	w.WriteHeader(http.StatusNotFound)
 	servePage(w, "File "+relpath, "", "", contents)
 }
-
 
 func exec(rw http.ResponseWriter, args []string) (status int) {
 	r, w, err := os.Pipe()
@@ -124,7 +122,6 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
 	return
 }
 
-
 func dosync(w http.ResponseWriter, r *http.Request) {
 	args := []string{"/bin/sh", "-c", *syncCmd}
 	switch exec(w, args) {
@@ -146,7 +143,6 @@ func dosync(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
 func usage() {
 	fmt.Fprintf(os.Stderr,
 		"usage: godoc package [name ...]\n"+
@@ -155,14 +151,12 @@ func usage() {
 	os.Exit(2)
 }
 
-
 func loggingHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		log.Printf("%s\t%s", req.RemoteAddr, req.URL)
 		h.ServeHTTP(w, req)
 	})
 }
-
 
 func remoteSearch(query string) (res *http.Response, err os.Error) {
 	search := "/search?f=text&q=" + http.URLEscape(query)
@@ -195,12 +189,10 @@ func remoteSearch(query string) (res *http.Response, err os.Error) {
 	return
 }
 
-
 // Does s look like a regular expression?
 func isRegexp(s string) bool {
 	return strings.IndexAny(s, ".(|)*+?^$[]") >= 0
 }
-
 
 // Make a regular expression of the form
 // names[0]|names[1]|...names[len(names)-1].
@@ -222,7 +214,6 @@ func makeRx(names []string) (rx *regexp.Regexp) {
 	}
 	return
 }
-
 
 func main() {
 	flag.Usage = usage

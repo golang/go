@@ -182,7 +182,6 @@ func main() {
 	}
 }
 
-
 // make parent directory for name, if necessary
 func makeParent(name string) {
 	parent, _ := filepath.Split(name)
@@ -240,7 +239,6 @@ func chk(err os.Error) {
 	}
 }
 
-
 // Undo log
 type undo func() os.Error
 
@@ -257,7 +255,6 @@ func runUndo() {
 		}
 	}
 }
-
 
 // hgRoot returns the root directory of the repository.
 func hgRoot() (string, os.Error) {

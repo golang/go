@@ -914,7 +914,6 @@ func run(t *testing.T, cmd []string) string {
 	return output
 }
 
-
 func TestHostname(t *testing.T) {
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it is can be taken from #c/sysname as Hostname() does.

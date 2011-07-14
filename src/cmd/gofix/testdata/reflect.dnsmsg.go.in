@@ -117,7 +117,6 @@ type dnsRR interface {
 	Header() *dnsRR_Header
 }
 
-
 // Specific DNS RR formats for each query type.
 
 type dnsRR_CNAME struct {
@@ -644,7 +643,6 @@ type dnsMsg struct {
 	ns       []dnsRR
 	extra    []dnsRR
 }
-
 
 func (dns *dnsMsg) Pack() (msg []byte, ok bool) {
 	var dh dnsHeader

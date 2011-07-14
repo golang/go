@@ -124,7 +124,6 @@ func (i *Inst) MatchEmptyWidth(before int, after int) bool {
 	panic("unknown empty width arg")
 }
 
-
 func (i *Inst) String() string {
 	var b bytes.Buffer
 	dumpInst(&b, i)
