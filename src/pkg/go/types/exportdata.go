@@ -15,7 +15,6 @@ import (
 	"strings"
 )
 
-
 func readGopackHeader(buf *bufio.Reader) (name string, size int, err os.Error) {
 	// See $GOROOT/include/ar.h.
 	hdr := make([]byte, 64+12+6+6+8+10+2)
@@ -36,12 +35,10 @@ func readGopackHeader(buf *bufio.Reader) (name string, size int, err os.Error) {
 	return
 }
 
-
 type dataReader struct {
 	*bufio.Reader
 	io.Closer
 }
-
 
 // ExportData returns a readCloser positioned at the beginning of the
 // export data section of the given object/archive file, or an error.

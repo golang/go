@@ -22,7 +22,6 @@ import (
 	"strings"
 )
 
-
 var (
 	// main operation modes
 	list        = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
@@ -41,7 +40,6 @@ var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
 )
 
-
 var (
 	fset        = token.NewFileSet()
 	exitCode    = 0
@@ -50,12 +48,10 @@ var (
 	printerMode uint
 )
 
-
 func report(err os.Error) {
 	scanner.PrintError(os.Stderr, err)
 	exitCode = 2
 }
-
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: gofmt [flags] [path ...]\n")
@@ -63,14 +59,12 @@ func usage() {
 	os.Exit(2)
 }
 
-
 func initParserMode() {
 	parserMode = uint(0)
 	if *comments {
 		parserMode |= parser.ParseComments
 	}
 }
-
 
 func initPrinterMode() {
 	printerMode = uint(0)
@@ -82,12 +76,10 @@ func initPrinterMode() {
 	}
 }
 
-
 func isGoFile(f *os.FileInfo) bool {
 	// ignore non-Go files
 	return f.IsRegular() && !strings.HasPrefix(f.Name, ".") && strings.HasSuffix(f.Name, ".go")
 }
-
 
 // If in == nil, the source is the contents of the file with the given filename.
 func processFile(filename string, in io.Reader, out io.Writer) os.Error {
@@ -153,13 +145,11 @@ func processFile(filename string, in io.Reader, out io.Writer) os.Error {
 	return err
 }
 
-
 type fileVisitor chan os.Error
 
 func (v fileVisitor) VisitDir(path string, f *os.FileInfo) bool {
 	return true
 }
-
 
 func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
 	if isGoFile(f) {
@@ -169,7 +159,6 @@ func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
 		}
 	}
 }
-
 
 func walkDir(path string) {
 	v := make(fileVisitor)
@@ -184,7 +173,6 @@ func walkDir(path string) {
 	}
 }
 
-
 func main() {
 	// call gofmtMain in a separate function
 	// so that it can use defer and have them
@@ -192,7 +180,6 @@ func main() {
 	gofmtMain()
 	os.Exit(exitCode)
 }
-
 
 func gofmtMain() {
 	flag.Usage = usage
@@ -240,7 +227,6 @@ func gofmtMain() {
 		}
 	}
 }
-
 
 func diff(b1, b2 []byte) (data []byte, err os.Error) {
 	f1, err := ioutil.TempFile("", "gofmt")

@@ -53,7 +53,6 @@ func BenchmarkContendedSemaphore(b *testing.B) {
 	<-c
 }
 
-
 func HammerMutex(m *Mutex, loops int, cdone chan bool) {
 	for i := 0; i < loops; i++ {
 		m.Lock()

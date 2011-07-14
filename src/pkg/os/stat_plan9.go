@@ -69,7 +69,6 @@ func dirstat(arg interface{}) (d *Dir, err Error) {
 	return nil, &PathError{"stat", name, Ebadstat}
 }
 
-
 // Stat returns a FileInfo structure describing the named file and an error, if any.
 func Stat(name string) (fi *FileInfo, err Error) {
 	d, err := dirstat(name)

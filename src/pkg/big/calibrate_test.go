@@ -19,9 +19,7 @@ import (
 	"time"
 )
 
-
 var calibrate = flag.Bool("calibrate", false, "run calibration test")
-
 
 // measure returns the time to run f
 func measure(f func()) int64 {
@@ -33,7 +31,6 @@ func measure(f func()) int64 {
 	stop := time.Nanoseconds()
 	return (stop - start) / N
 }
-
 
 func computeThresholds() {
 	fmt.Printf("Multiplication times for varying Karatsuba thresholds\n")
@@ -83,7 +80,6 @@ func computeThresholds() {
 		n++
 	}
 }
-
 
 func TestCalibrate(t *testing.T) {
 	if *calibrate {

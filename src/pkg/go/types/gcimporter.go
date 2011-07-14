@@ -20,14 +20,12 @@ import (
 	"strconv"
 )
 
-
 const trace = false // set to true for debugging
 
 var (
 	pkgRoot = filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH)
 	pkgExts = [...]string{".a", ".5", ".6", ".8"}
 )
-
 
 // findPkg returns the filename and package id for an import path.
 // If no file was found, an empty filename is returned.
@@ -69,7 +67,6 @@ func findPkg(path string) (filename, id string) {
 	return
 }
 
-
 // gcParser parses the exports inside a gc compiler-produced
 // object/archive file and populates its scope with the results.
 type gcParser struct {
@@ -79,7 +76,6 @@ type gcParser struct {
 	id      string                 // package id of imported package
 	imports map[string]*ast.Object // package id -> package object
 }
-
 
 func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*ast.Object) {
 	p.scanner.Init(src)
@@ -91,7 +87,6 @@ func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*
 	p.id = id
 	p.imports = imports
 }
-
 
 func (p *gcParser) next() {
 	p.tok = p.scanner.Scan()
@@ -105,7 +100,6 @@ func (p *gcParser) next() {
 		fmt.Printf("%s: %q -> %q\n", scanner.TokenString(p.tok), p.scanner.TokenText(), p.lit)
 	}
 }
-
 
 // GcImporter implements the ast.Importer signature.
 func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, err os.Error) {
@@ -148,7 +142,6 @@ func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, e
 	return
 }
 
-
 // ----------------------------------------------------------------------------
 // Error handling
 
@@ -158,11 +151,9 @@ type importError struct {
 	err os.Error
 }
 
-
 func (e importError) String() string {
 	return fmt.Sprintf("import error %s (byte offset = %d): %s", e.pos, e.pos.Offset, e.err)
 }
-
 
 func (p *gcParser) error(err interface{}) {
 	if s, ok := err.(string); ok {
@@ -172,11 +163,9 @@ func (p *gcParser) error(err interface{}) {
 	panic(importError{p.scanner.Pos(), err.(os.Error)})
 }
 
-
 func (p *gcParser) errorf(format string, args ...interface{}) {
 	p.error(fmt.Sprintf(format, args...))
 }
-
 
 func (p *gcParser) expect(tok int) string {
 	lit := p.lit
@@ -186,7 +175,6 @@ func (p *gcParser) expect(tok int) string {
 	p.next()
 	return lit
 }
-
 
 func (p *gcParser) expectSpecial(tok string) {
 	sep := 'x' // not white space
@@ -201,14 +189,12 @@ func (p *gcParser) expectSpecial(tok string) {
 	}
 }
 
-
 func (p *gcParser) expectKeyword(keyword string) {
 	lit := p.expect(scanner.Ident)
 	if lit != keyword {
 		p.errorf("expected keyword %s, got %q", keyword, lit)
 	}
 }
-
 
 // ----------------------------------------------------------------------------
 // Import declarations
@@ -242,7 +228,6 @@ func (p *gcParser) parsePkgId() *ast.Object {
 	return pkg
 }
 
-
 // dotIdentifier = ( ident | '·' ) { ident | int | '·' } .
 func (p *gcParser) parseDotIdent() string {
 	ident := ""
@@ -259,7 +244,6 @@ func (p *gcParser) parseDotIdent() string {
 	}
 	return ident
 }
-
 
 // ExportedName = ImportPath "." dotIdentifier .
 //
@@ -295,7 +279,6 @@ func (p *gcParser) parseExportedName(kind ast.ObjKind) *ast.Object {
 	return obj
 }
 
-
 // ----------------------------------------------------------------------------
 // Types
 
@@ -308,7 +291,6 @@ func (p *gcParser) parseBasicType() Type {
 	}
 	return obj.Type.(Type)
 }
-
 
 // ArrayType = "[" int_lit "]" Type .
 //
@@ -324,7 +306,6 @@ func (p *gcParser) parseArrayType() Type {
 	return &Array{Len: n, Elt: elt}
 }
 
-
 // MapType = "map" "[" Type "]" Type .
 //
 func (p *gcParser) parseMapType() Type {
@@ -335,7 +316,6 @@ func (p *gcParser) parseMapType() Type {
 	elt := p.parseType()
 	return &Map{Key: key, Elt: elt}
 }
-
 
 // Name = identifier | "?" .
 //
@@ -352,7 +332,6 @@ func (p *gcParser) parseName() (name string) {
 	}
 	return
 }
-
 
 // Field = Name Type [ ":" string_lit ] .
 //
@@ -373,7 +352,6 @@ func (p *gcParser) parseField() (fld *ast.Object, tag string) {
 	fld.Type = ftyp
 	return
 }
-
 
 // StructType = "struct" "{" [ FieldList ] "}" .
 // FieldList  = Field { ";" Field } .
@@ -402,7 +380,6 @@ func (p *gcParser) parseStructType() Type {
 	return &Struct{Fields: fields, Tags: tags}
 }
 
-
 // Parameter = ( identifier | "?" ) [ "..." ] Type [ ":" string_lit ] .
 //
 func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
@@ -424,7 +401,6 @@ func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
 	par.Type = ptyp
 	return
 }
-
 
 // Parameters    = "(" [ ParameterList ] ")" .
 // ParameterList = { Parameter "," } Parameter .
@@ -454,7 +430,6 @@ func (p *gcParser) parseParameters() (list []*ast.Object, isVariadic bool) {
 	return
 }
 
-
 // Signature = Parameters [ Result ] .
 // Result    = Type | Parameters .
 //
@@ -481,7 +456,6 @@ func (p *gcParser) parseSignature() *Func {
 	return &Func{Params: params, Results: results, IsVariadic: isVariadic}
 }
 
-
 // MethodSpec = identifier Signature .
 //
 func (p *gcParser) parseMethodSpec() *ast.Object {
@@ -498,7 +472,6 @@ func (p *gcParser) parseMethodSpec() *ast.Object {
 	// TODO(gri) compute method object
 	return ast.NewObj(ast.Fun, "_")
 }
-
 
 // InterfaceType = "interface" "{" [ MethodList ] "}" .
 // MethodList    = MethodSpec { ";" MethodSpec } .
@@ -526,7 +499,6 @@ func (p *gcParser) parseInterfaceType() Type {
 	return &Interface{Methods: methods}
 }
 
-
 // ChanType = ( "chan" [ "<-" ] | "<-" "chan" ) Type .
 //
 func (p *gcParser) parseChanType() Type {
@@ -545,7 +517,6 @@ func (p *gcParser) parseChanType() Type {
 	elt := p.parseType()
 	return &Chan{Dir: dir, Elt: elt}
 }
-
 
 // Type =
 //	BasicType | TypeName | ArrayType | SliceType | StructType |
@@ -604,7 +575,6 @@ func (p *gcParser) parseType() Type {
 	return nil
 }
 
-
 // ----------------------------------------------------------------------------
 // Declarations
 
@@ -621,7 +591,6 @@ func (p *gcParser) parseImportDecl() {
 	pkg.Name = name
 }
 
-
 // int_lit = [ "+" | "-" ] { "0" ... "9" } .
 //
 func (p *gcParser) parseInt() (sign, val string) {
@@ -635,7 +604,6 @@ func (p *gcParser) parseInt() (sign, val string) {
 	val = p.expect(scanner.Int)
 	return
 }
-
 
 // number = int_lit [ "p" int_lit ] .
 //
@@ -666,7 +634,6 @@ func (p *gcParser) parseNumber() Const {
 
 	return Const{mant}
 }
-
 
 // ConstDecl   = "const" ExportedName [ Type ] "=" Literal .
 // Literal     = bool_lit | int_lit | float_lit | complex_lit | string_lit .
@@ -722,7 +689,6 @@ func (p *gcParser) parseConstDecl() {
 	obj.Data = x
 }
 
-
 // TypeDecl = "type" ExportedName Type .
 //
 func (p *gcParser) parseTypeDecl() {
@@ -742,7 +708,6 @@ func (p *gcParser) parseTypeDecl() {
 	}
 }
 
-
 // VarDecl = "var" ExportedName Type .
 //
 func (p *gcParser) parseVarDecl() {
@@ -751,7 +716,6 @@ func (p *gcParser) parseVarDecl() {
 	obj.Type = p.parseType()
 }
 
-
 // FuncDecl = "func" ExportedName Signature .
 //
 func (p *gcParser) parseFuncDecl() {
@@ -759,7 +723,6 @@ func (p *gcParser) parseFuncDecl() {
 	obj := p.parseExportedName(ast.Fun)
 	obj.Type = p.parseSignature()
 }
-
 
 // MethodDecl = "func" Receiver identifier Signature .
 // Receiver   = "(" ( identifier | "?" ) [ "*" ] ExportedName ")" .
@@ -772,7 +735,6 @@ func (p *gcParser) parseMethodDecl() {
 	p.expect(scanner.Ident)
 	p.parseSignature()
 }
-
 
 // Decl = [ ImportDecl | ConstDecl | TypeDecl | VarDecl | FuncDecl | MethodDecl ] "\n" .
 //
@@ -796,7 +758,6 @@ func (p *gcParser) parseDecl() {
 	}
 	p.expect('\n')
 }
-
 
 // ----------------------------------------------------------------------------
 // Export

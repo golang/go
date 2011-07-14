@@ -11,7 +11,6 @@ import (
 	"go/ast"
 )
 
-
 const (
 	C0 int = 0
 	C1     = 3.14159265
@@ -22,7 +21,6 @@ const (
 	C6     = "foo\n"
 	C7     = `bar\n`
 )
-
 
 type (
 	T1  int
@@ -72,18 +70,15 @@ type (
 	T28 func(T28) T28
 )
 
-
 var (
 	V0 int
 	V1 = -991.0
 )
-
 
 func F1()         {}
 func F2(x int)    {}
 func F3() int     { return 0 }
 func F4() float32 { return 0 }
 func F5(a, b, c int, u, v, w struct{ x, y T1 }, more ...interface{}) (p, q, r chan<- T10)
-
 
 func (p *T1) M1()

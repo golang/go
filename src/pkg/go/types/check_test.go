@@ -34,7 +34,6 @@ import (
 	"testing"
 )
 
-
 // The test filenames do not end in .go so that they are invisible
 // to gofmt since they contain comments that must not change their
 // positions relative to surrounding tokens.
@@ -46,9 +45,7 @@ var tests = []struct {
 	{"test0", []string{"testdata/test0.src"}},
 }
 
-
 var fset = token.NewFileSet()
-
 
 // TODO(gri) This functionality should be in token.Fileset.
 func getFile(filename string) *token.File {
@@ -60,7 +57,6 @@ func getFile(filename string) *token.File {
 	return nil
 }
 
-
 // TODO(gri) This functionality should be in token.Fileset.
 func getPos(filename string, offset int) token.Pos {
 	if f := getFile(filename); f != nil {
@@ -68,7 +64,6 @@ func getPos(filename string, offset int) token.Pos {
 	}
 	return token.NoPos
 }
-
 
 // TODO(gri) Need to revisit parser interface. We should be able to use parser.ParseFiles
 //           or a similar function instead.
@@ -94,7 +89,6 @@ func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*
 	}
 	return files, errors
 }
-
 
 // ERROR comments must be of the form /* ERROR "rx" */ and rx is
 // a regular expression that matches the expected error message.
@@ -138,7 +132,6 @@ func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) m
 	return errors
 }
 
-
 func eliminate(t *testing.T, expected map[token.Pos]string, errors os.Error) {
 	if errors == nil {
 		return
@@ -172,7 +165,6 @@ func eliminate(t *testing.T, expected map[token.Pos]string, errors os.Error) {
 	}
 }
 
-
 func check(t *testing.T, testname string, testfiles []string) {
 	// TODO(gri) Eventually all these different phases should be
 	//           subsumed into a single function call that takes
@@ -205,7 +197,6 @@ func check(t *testing.T, testname string, testfiles []string) {
 		}
 	}
 }
-
 
 func TestCheck(t *testing.T) {
 	// For easy debugging w/o changing the testing code,

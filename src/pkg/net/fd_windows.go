@@ -113,7 +113,6 @@ func (s *resultSrv) Run() {
 	}
 }
 
-
 // ioSrv executes net io requests.
 type ioSrv struct {
 	submchan chan anOpIface // submit io requests

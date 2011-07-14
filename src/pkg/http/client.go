@@ -85,7 +85,6 @@ func (c *Client) Do(req *Request) (resp *Response, err os.Error) {
 	return send(req, c.Transport)
 }
 
-
 // send issues an HTTP request.  Caller should close resp.Body when done reading from it.
 func send(req *Request, t RoundTripper) (resp *Response, err os.Error) {
 	if t == nil {

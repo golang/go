@@ -366,7 +366,6 @@ package unicode
 
 `
 
-
 func printCategories() {
 	if *tablelist == "" {
 		return

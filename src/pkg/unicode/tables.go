@@ -6099,7 +6099,6 @@ var foldLt = &RangeTable{
 // If there is no entry for a script name, there are no such points.
 var FoldScript = map[string]*RangeTable{}
 
-
 // Range entries: 3391 16-bit, 659 32-bit, 4050 total.
 // Range bytes: 20346 16-bit, 7908 32-bit, 28254 total.
 

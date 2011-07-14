@@ -12,7 +12,6 @@ import (
 	"testing"
 )
 
-
 func runTest(t *testing.T, dirname, in, out, flags string) {
 	in = filepath.Join(dirname, in)
 	out = filepath.Join(dirname, out)
@@ -62,7 +61,6 @@ func runTest(t *testing.T, dirname, in, out, flags string) {
 	}
 }
 
-
 // TODO(gri) Add more test cases!
 var tests = []struct {
 	dirname, in, out, flags string
@@ -73,7 +71,6 @@ var tests = []struct {
 	{"testdata", "rewrite1.input", "rewrite1.golden", "-r=Foo->Bar"},
 	{"testdata", "rewrite2.input", "rewrite2.golden", "-r=int->bool"},
 }
-
 
 func TestRewrite(t *testing.T) {
 	for _, test := range tests {

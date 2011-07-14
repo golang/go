@@ -74,7 +74,6 @@ func Short() bool {
 	return *short
 }
 
-
 // Insert final newline if needed and tabs after internal newlines.
 func tabify(s string) string {
 	n := len(s)

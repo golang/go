@@ -416,7 +416,6 @@ func (deb *debugger) typeDefinition(indent tab, id typeId) {
 	deb.wireType[id] = wire
 }
 
-
 // Value:
 //	SingletonValue | StructValue
 func (deb *debugger) value(indent tab, id typeId) {
@@ -462,7 +461,6 @@ func (deb *debugger) nilInterfaceValue(indent tab) int {
 	fmt.Fprintf(os.Stderr, "%snil interface\n", indent)
 	return 0
 }
-
 
 // NonNilInterfaceValue:
 //	ConcreteTypeName TypeSequence InterfaceContents
@@ -602,7 +600,6 @@ func (deb *debugger) printBuiltin(indent tab, id typeId) {
 		panic("unknown builtin")
 	}
 }
-
 
 // ArrayValue:
 //	uint(n) FieldValue*n

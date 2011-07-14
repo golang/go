@@ -249,7 +249,6 @@ func (r *Reader) parseRecord() (fields []string, err os.Error) {
 	panic("unreachable")
 }
 
-
 // parseField parses the next field in the record.  The read field is
 // located in r.field.  Delim is the first character not part of the field
 // (r.Comma or '\n').

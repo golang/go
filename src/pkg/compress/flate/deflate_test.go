@@ -225,7 +225,6 @@ func testSync(t *testing.T, level int, input []byte, name string) {
 	}
 }
 
-
 func testToFromWithLevel(t *testing.T, level int, input []byte, name string) os.Error {
 	buffer := bytes.NewBuffer(nil)
 	w := NewWriter(buffer, level)

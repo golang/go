@@ -24,7 +24,6 @@ type data struct {
 	error bool
 }
 
-
 func (d *data) read(n int) []byte {
 	if len(d.p) < n {
 		d.p = nil
@@ -53,7 +52,6 @@ func (d *data) byte() (n byte, ok bool) {
 	}
 	return p[0], true
 }
-
 
 // Make a string by stopping at the first NUL
 func byteString(p []byte) string {

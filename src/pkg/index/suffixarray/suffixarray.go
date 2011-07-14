@@ -22,20 +22,17 @@ import (
 	"sort"
 )
 
-
 // Index implements a suffix array for fast substring search.
 type Index struct {
 	data []byte
 	sa   []int // suffix array for data
 }
 
-
 // New creates a new Index for data.
 // Index creation time is O(N*log(N)) for N = len(data).
 func New(data []byte) *Index {
 	return &Index{data, qsufsort(data)}
 }
-
 
 // Bytes returns the data over which the index was created.
 // It must not be modified.
@@ -44,11 +41,9 @@ func (x *Index) Bytes() []byte {
 	return x.data
 }
 
-
 func (x *Index) at(i int) []byte {
 	return x.data[x.sa[i]:]
 }
-
 
 // lookupAll returns a slice into the matching region of the index.
 // The runtime is O(log(N)*len(s)).
@@ -60,7 +55,6 @@ func (x *Index) lookupAll(s []byte) []int {
 	j := i + sort.Search(len(x.sa)-i, func(j int) bool { return !bytes.HasPrefix(x.at(j+i), s) })
 	return x.sa[i:j]
 }
-
 
 // Lookup returns an unsorted list of at most n indices where the byte string s
 // occurs in the indexed data. If n < 0, all occurrences are returned.
@@ -81,7 +75,6 @@ func (x *Index) Lookup(s []byte, n int) (result []int) {
 	}
 	return
 }
-
 
 // FindAllIndex returns a sorted list of non-overlapping matches of the
 // regular expression r, where a match is a pair of indices specifying

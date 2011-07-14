@@ -1289,7 +1289,6 @@ func (i R_SPARC) GoString() string { return stringName(uint32(i), rsparcStrings,
 // Magic number for the elf trampoline, chosen wisely to be an immediate value.
 const ARM_MAGIC_TRAMP_NUMBER = 0x5c000003
 
-
 // ELF32 File header.
 type Header32 struct {
 	Ident     [EI_NIDENT]byte /* File identification. */
@@ -1454,7 +1453,6 @@ type Rela64 struct {
 func R_SYM64(info uint64) uint32    { return uint32(info >> 32) }
 func R_TYPE64(info uint64) uint32   { return uint32(info) }
 func R_INFO(sym, typ uint32) uint64 { return uint64(sym)<<32 | uint64(typ) }
-
 
 // ELF64 symbol table entries.
 type Sym64 struct {

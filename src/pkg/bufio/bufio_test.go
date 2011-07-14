@@ -76,7 +76,6 @@ func TestReaderSimple(t *testing.T) {
 	}
 }
 
-
 type readMaker struct {
 	name string
 	fn   func(io.Reader) io.Reader

@@ -16,7 +16,6 @@ import (
 	"strconv"
 )
 
-
 // hello world, the web server
 var helloRequests = expvar.NewInt("hello-requests")
 
@@ -125,7 +124,6 @@ func Logger(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(404)
 	w.Write([]byte("oops"))
 }
-
 
 var webroot = flag.String("root", "/home/rsc", "web root directory")
 

@@ -43,7 +43,6 @@ func TestFmtInterface(t *testing.T) {
 	}
 }
 
-
 const b32 uint32 = 1<<32 - 1
 const b64 uint64 = 1<<64 - 1
 
@@ -633,7 +632,6 @@ func TestBlankln(t *testing.T) {
 		t.Errorf("got %q expected %q", got, expect)
 	}
 }
-
 
 // Check Formatter with Sprint, Sprintln, Sprintf
 func TestFormatterPrintln(t *testing.T) {

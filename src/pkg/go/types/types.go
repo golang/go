@@ -12,12 +12,10 @@ import (
 	"sort"
 )
 
-
 // All types implement the Type interface.
 type Type interface {
 	isType()
 }
-
 
 // All concrete types embed ImplementsType which
 // ensures that all types implement the Type interface.
@@ -25,20 +23,17 @@ type ImplementsType struct{}
 
 func (t *ImplementsType) isType() {}
 
-
 // A Bad type is a non-nil placeholder type when we don't know a type.
 type Bad struct {
 	ImplementsType
 	Msg string // for better error reporting/debugging
 }
 
-
 // A Basic represents a (unnamed) basic type.
 type Basic struct {
 	ImplementsType
 	// TODO(gri) need a field specifying the exact basic type
 }
-
 
 // An Array represents an array type [Len]Elt.
 type Array struct {
@@ -47,13 +42,11 @@ type Array struct {
 	Elt Type
 }
 
-
 // A Slice represents a slice type []Elt.
 type Slice struct {
 	ImplementsType
 	Elt Type
 }
-
 
 // A Struct represents a struct type struct{...}.
 // Anonymous fields are represented by objects with empty names.
@@ -67,13 +60,11 @@ type Struct struct {
 	// - there is no scope for fast lookup (but the parser creates one)
 }
 
-
 // A Pointer represents a pointer type *Base.
 type Pointer struct {
 	ImplementsType
 	Base Type
 }
-
 
 // A Func represents a function type func(...) (...).
 // Unnamed parameters are represented by objects with empty names.
@@ -85,13 +76,11 @@ type Func struct {
 	IsVariadic bool        // true if the last parameter's type is of the form ...T
 }
 
-
 // An Interface represents an interface type interface{...}.
 type Interface struct {
 	ImplementsType
 	Methods ObjList // interface methods sorted by name; or nil
 }
-
 
 // A Map represents a map type map[Key]Elt.
 type Map struct {
@@ -99,14 +88,12 @@ type Map struct {
 	Key, Elt Type
 }
 
-
 // A Chan represents a channel type chan Elt, <-chan Elt, or chan<-Elt.
 type Chan struct {
 	ImplementsType
 	Dir ast.ChanDir
 	Elt Type
 }
-
 
 // A Name represents a named type as declared in a type declaration.
 type Name struct {
@@ -116,7 +103,6 @@ type Name struct {
 	// TODO(gri) need to remember fields and methods.
 }
 
-
 // If typ is a pointer type, Deref returns the pointer's base type;
 // otherwise it returns typ.
 func Deref(typ Type) Type {
@@ -125,7 +111,6 @@ func Deref(typ Type) Type {
 	}
 	return typ
 }
-
 
 // Underlying returns the underlying type of a type.
 func Underlying(typ Type) Type {
@@ -141,7 +126,6 @@ func Underlying(typ Type) Type {
 	return typ
 }
 
-
 // An ObjList represents an ordered (in some fashion) list of objects.
 type ObjList []*ast.Object
 
@@ -152,7 +136,6 @@ func (list ObjList) Swap(i, j int)      { list[i], list[j] = list[j], list[i] }
 
 // Sort sorts an object list by object name.
 func (list ObjList) Sort() { sort.Sort(list) }
-
 
 // identicalTypes returns true if both lists a and b have the
 // same length and corresponding objects have identical types.
@@ -168,7 +151,6 @@ func identicalTypes(a, b ObjList) bool {
 	}
 	return false
 }
-
 
 // Identical returns true if two types are identical.
 func Identical(x, y Type) bool {

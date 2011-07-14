@@ -43,7 +43,6 @@ func (r *Reader) ReadByte() (b byte, err os.Error) {
 	return
 }
 
-
 // UnreadByte moves the reading position back by one byte.
 // It is an error to call UnreadByte if nothing has been
 // read yet.

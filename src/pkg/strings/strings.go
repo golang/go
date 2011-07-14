@@ -363,7 +363,6 @@ func Repeat(s string, count int) string {
 	return string(b)
 }
 
-
 // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
 func ToUpper(s string) string { return Map(unicode.ToUpper, s) }
 

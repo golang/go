@@ -72,7 +72,6 @@ func TestSetParse(t *testing.T) {
 	}
 }
 
-
 var setExecTests = []execTest{
 	{"empty", "", "", nil, true},
 	{"text", "some text", "some text", nil, true},

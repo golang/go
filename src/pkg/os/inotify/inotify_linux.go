@@ -34,7 +34,6 @@ import (
 	"unsafe"
 )
 
-
 type Event struct {
 	Mask   uint32 // Mask of events
 	Cookie uint32 // Unique cookie associating related events (for rename(2))
@@ -56,7 +55,6 @@ type Watcher struct {
 	isClosed bool              // Set to true when Close() is first called
 }
 
-
 // NewWatcher creates and returns a new inotify instance using inotify_init(2)
 func NewWatcher() (*Watcher, os.Error) {
 	fd, errno := syscall.InotifyInit()
@@ -75,7 +73,6 @@ func NewWatcher() (*Watcher, os.Error) {
 	go w.readEvents()
 	return w, nil
 }
-
 
 // Close closes an inotify watcher instance
 // It sends a message to the reader goroutine to quit and removes all watches
@@ -119,12 +116,10 @@ func (w *Watcher) AddWatch(path string, flags uint32) os.Error {
 	return nil
 }
 
-
 // Watch adds path to the watched file set, watching all events.
 func (w *Watcher) Watch(path string) os.Error {
 	return w.AddWatch(path, IN_ALL_EVENTS)
 }
-
 
 // RemoveWatch removes path from the watched file set.
 func (w *Watcher) RemoveWatch(path string) os.Error {
@@ -139,7 +134,6 @@ func (w *Watcher) RemoveWatch(path string) os.Error {
 	w.watches[path] = nil, false
 	return nil
 }
-
 
 // readEvents reads from the inotify file descriptor, converts the
 // received events into Event objects and sends them via the Event channel
@@ -207,7 +201,6 @@ func (w *Watcher) readEvents() {
 		}
 	}
 }
-
 
 // String formats the event e in the form
 // "filename: 0xEventMask = IN_ACCESS|IN_ATTRIB_|..."

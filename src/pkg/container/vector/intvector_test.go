@@ -9,7 +9,6 @@ package vector
 
 import "testing"
 
-
 func TestIntZeroLen(t *testing.T) {
 	a := new(IntVector)
 	if a.Len() != 0 {
@@ -27,7 +26,6 @@ func TestIntZeroLen(t *testing.T) {
 	}
 }
 
-
 func TestIntResize(t *testing.T) {
 	var a IntVector
 	checkSize(t, &a, 0, 0)
@@ -39,7 +37,6 @@ func TestIntResize(t *testing.T) {
 	checkSize(t, a.Resize(0, 100), 0, 100)
 	checkSize(t, a.Resize(11, 100), 11, 100)
 }
-
 
 func TestIntResize2(t *testing.T) {
 	var a IntVector
@@ -62,7 +59,6 @@ func TestIntResize2(t *testing.T) {
 	}
 }
 
-
 func checkIntZero(t *testing.T, a *IntVector, i int) {
 	for j := 0; j < i; j++ {
 		if a.At(j) == intzero {
@@ -82,7 +78,6 @@ func checkIntZero(t *testing.T, a *IntVector, i int) {
 	}
 }
 
-
 func TestIntTrailingElements(t *testing.T) {
 	var a IntVector
 	for i := 0; i < 10; i++ {
@@ -94,7 +89,6 @@ func TestIntTrailingElements(t *testing.T) {
 	checkSize(t, a.Resize(10, 0), 10, 16)
 	checkIntZero(t, &a, 5)
 }
-
 
 func TestIntAccess(t *testing.T) {
 	const n = 100
@@ -119,7 +113,6 @@ func TestIntAccess(t *testing.T) {
 		}
 	}
 }
-
 
 func TestIntInsertDeleteClear(t *testing.T) {
 	const n = 100
@@ -207,7 +200,6 @@ func TestIntInsertDeleteClear(t *testing.T) {
 	}
 }
 
-
 func verify_sliceInt(t *testing.T, x *IntVector, elt, i, j int) {
 	for k := i; k < j; k++ {
 		if elem2IntValue(x.At(k)) != int2IntValue(elt) {
@@ -223,7 +215,6 @@ func verify_sliceInt(t *testing.T, x *IntVector, elt, i, j int) {
 	}
 }
 
-
 func verify_patternInt(t *testing.T, x *IntVector, a, b, c int) {
 	n := a + b + c
 	if x.Len() != n {
@@ -237,7 +228,6 @@ func verify_patternInt(t *testing.T, x *IntVector, a, b, c int) {
 	verify_sliceInt(t, x, 0, a+b, n)
 }
 
-
 func make_vectorInt(elt, len int) *IntVector {
 	x := new(IntVector).Resize(len, 0)
 	for i := 0; i < len; i++ {
@@ -245,7 +235,6 @@ func make_vectorInt(elt, len int) *IntVector {
 	}
 	return x
 }
-
 
 func TestIntInsertVector(t *testing.T) {
 	// 1
@@ -269,7 +258,6 @@ func TestIntInsertVector(t *testing.T) {
 	a.InsertVector(8, b)
 	verify_patternInt(t, a, 8, 1000, 2)
 }
-
 
 func TestIntDo(t *testing.T) {
 	const n = 25
@@ -324,7 +312,6 @@ func TestIntDo(t *testing.T) {
 	}
 
 }
-
 
 func TestIntVectorCopy(t *testing.T) {
 	// verify Copy() returns a copy, not simply a slice of the original vector

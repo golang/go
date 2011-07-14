@@ -25,7 +25,6 @@ var pairs = []testpair{
 	{"fooba", "MZXW6YTB"},
 	{"foobar", "MZXW6YTBOI======"},
 
-
 	// Wikipedia examples, converted to base32
 	{"sure.", "ON2XEZJO"},
 	{"sure", "ON2XEZI="},

@@ -78,7 +78,6 @@ func (ka rsaKeyAgreement) generateClientKeyExchange(config *Config, clientHello 
 	return preMasterSecret, ckx, nil
 }
 
-
 // md5SHA1Hash implements TLS 1.0's hybrid hash function which consists of the
 // concatenation of an MD5 and SHA1 hash.
 func md5SHA1Hash(slices ...[]byte) []byte {

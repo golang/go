@@ -254,7 +254,6 @@ func install(pkg, parent string) {
 	return
 }
 
-
 // Is this a standard package path?  strings container/vector etc.
 // Assume that if the first element has a dot, it's a domain name
 // and is not the standard package path.

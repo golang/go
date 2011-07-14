@@ -416,7 +416,6 @@ func (p *Parser) autoClose(t Token) (Token, bool) {
 	return nil, false
 }
 
-
 // RawToken is like Token but does not verify that
 // start and end elements match and does not translate
 // name space prefixes to their corresponding URLs.

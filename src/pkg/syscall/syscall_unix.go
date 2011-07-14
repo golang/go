@@ -9,7 +9,6 @@ import (
 	"unsafe"
 )
 
-
 var (
 	Stdin  = 0
 	Stdout = 1

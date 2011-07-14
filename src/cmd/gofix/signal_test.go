@@ -63,7 +63,6 @@ func f() {
 
 import "os"
 
-
 func f() {
 	var _ os.Error
 	_ = os.SIGHUP
@@ -85,7 +84,6 @@ func f() {
 		Out: `package main
 
 import "os"
-
 
 func f() {
 	var _ os.Error

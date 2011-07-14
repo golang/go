@@ -20,7 +20,6 @@ func identListExports(list []*Ident) []*Ident {
 	return list[0:j]
 }
 
-
 // fieldName assumes that x is the type of an anonymous field and
 // returns the corresponding field name. If x is not an acceptable
 // anonymous field, the result is nil.
@@ -38,7 +37,6 @@ func fieldName(x Expr) *Ident {
 	}
 	return nil
 }
-
 
 func fieldListExports(fields *FieldList) (removedFields bool) {
 	if fields == nil {
@@ -78,7 +76,6 @@ func fieldListExports(fields *FieldList) (removedFields bool) {
 	return
 }
 
-
 func paramListExports(fields *FieldList) {
 	if fields == nil {
 		return
@@ -87,7 +84,6 @@ func paramListExports(fields *FieldList) {
 		typeExports(f.Type)
 	}
 }
-
 
 func typeExports(typ Expr) {
 	switch t := typ.(type) {
@@ -112,7 +108,6 @@ func typeExports(typ Expr) {
 	}
 }
 
-
 func specExports(spec Spec) bool {
 	switch s := spec.(type) {
 	case *ValueSpec:
@@ -130,7 +125,6 @@ func specExports(spec Spec) bool {
 	return false
 }
 
-
 func specListExports(list []Spec) []Spec {
 	j := 0
 	for _, s := range list {
@@ -141,7 +135,6 @@ func specListExports(list []Spec) []Spec {
 	}
 	return list[0:j]
 }
-
 
 func declExports(decl Decl) bool {
 	switch d := decl.(type) {
@@ -154,7 +147,6 @@ func declExports(decl Decl) bool {
 	}
 	return false
 }
-
 
 // FileExports trims the AST for a Go source file in place such that only
 // exported nodes remain: all top-level identifiers which are not exported
@@ -178,7 +170,6 @@ func FileExports(src *File) bool {
 	return j > 0
 }
 
-
 // PackageExports trims the AST for a Go package in place such that only
 // exported nodes remain. The pkg.Files list is not changed, so that file
 // names and top-level package comments don't get lost.
@@ -196,7 +187,6 @@ func PackageExports(pkg *Package) bool {
 	return hasExports
 }
 
-
 // ----------------------------------------------------------------------------
 // General filtering
 
@@ -212,7 +202,6 @@ func filterIdentList(list []*Ident, f Filter) []*Ident {
 	}
 	return list[0:j]
 }
-
 
 func filterFieldList(fields *FieldList, filter Filter) (removedFields bool) {
 	if fields == nil {
@@ -246,7 +235,6 @@ func filterFieldList(fields *FieldList, filter Filter) (removedFields bool) {
 	return
 }
 
-
 func filterSpec(spec Spec, f Filter) bool {
 	switch s := spec.(type) {
 	case *ValueSpec:
@@ -272,7 +260,6 @@ func filterSpec(spec Spec, f Filter) bool {
 	return false
 }
 
-
 func filterSpecList(list []Spec, f Filter) []Spec {
 	j := 0
 	for _, s := range list {
@@ -283,7 +270,6 @@ func filterSpecList(list []Spec, f Filter) []Spec {
 	}
 	return list[0:j]
 }
-
 
 // FilterDecl trims the AST for a Go declaration in place by removing
 // all names (including struct field and interface method names, but
@@ -302,7 +288,6 @@ func FilterDecl(decl Decl, f Filter) bool {
 	}
 	return false
 }
-
 
 // FilterFile trims the AST for a Go file in place by removing all
 // names from top-level declarations (including struct field and
@@ -326,7 +311,6 @@ func FilterFile(src *File, f Filter) bool {
 	return j > 0
 }
 
-
 // FilterPackage trims the AST for a Go package in place by removing all
 // names from top-level declarations (including struct field and
 // interface method names, but not from parameter lists) that don't
@@ -348,7 +332,6 @@ func FilterPackage(pkg *Package, f Filter) bool {
 	return hasDecls
 }
 
-
 // ----------------------------------------------------------------------------
 // Merging of package files
 
@@ -367,7 +350,6 @@ const (
 // different comment groups when they are concatenated into a single group
 //
 var separator = &Comment{noPos, "//"}
-
 
 // MergePackageFiles creates a file AST by merging the ASTs of the
 // files belonging to a package. The mode flags control merging behavior.

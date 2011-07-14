@@ -42,7 +42,6 @@ func (e InvalidHexCharError) String() string {
 	return "invalid hex char: " + strconv.Itoa(int(e))
 }
 
-
 func DecodedLen(x int) int { return x / 2 }
 
 // Decode decodes src into DecodedLen(len(src)) bytes, returning the actual

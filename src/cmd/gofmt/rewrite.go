@@ -16,7 +16,6 @@ import (
 	"utf8"
 )
 
-
 func initRewrite() {
 	if *rewriteRule == "" {
 		rewrite = nil // disable any previous rewrite
@@ -32,7 +31,6 @@ func initRewrite() {
 	rewrite = func(p *ast.File) *ast.File { return rewriteFile(pattern, replace, p) }
 }
 
-
 // parseExpr parses s as an expression.
 // It might make sense to expand this to allow statement patterns,
 // but there are problems with preserving formatting and also
@@ -46,7 +44,6 @@ func parseExpr(s string, what string) ast.Expr {
 	return x
 }
 
-
 // Keep this function for debugging.
 /*
 func dump(msg string, val reflect.Value) {
@@ -55,7 +52,6 @@ func dump(msg string, val reflect.Value) {
 	fmt.Println()
 }
 */
-
 
 // rewriteFile applies the rewrite rule 'pattern -> replace' to an entire file.
 func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
@@ -80,7 +76,6 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 	return apply(f, reflect.ValueOf(p)).Interface().(*ast.File)
 }
 
-
 // setValue is a wrapper for x.SetValue(y); it protects
 // the caller from panics if x cannot be changed to y.
 func setValue(x, y reflect.Value) {
@@ -100,7 +95,6 @@ func setValue(x, y reflect.Value) {
 	x.Set(y)
 }
 
-
 // Values/types for special cases.
 var (
 	objectPtrNil = reflect.ValueOf((*ast.Object)(nil))
@@ -111,7 +105,6 @@ var (
 	positionType  = reflect.TypeOf(token.NoPos)
 	scopePtrType  = reflect.TypeOf((*ast.Scope)(nil))
 )
-
 
 // apply replaces each AST field x in val with f(x), returning val.
 // To avoid extra conversions, f operates on the reflect.Value form.
@@ -150,12 +143,10 @@ func apply(f func(reflect.Value) reflect.Value, val reflect.Value) reflect.Value
 	return val
 }
 
-
 func isWildcard(s string) bool {
 	rune, size := utf8.DecodeRuneInString(s)
 	return size == len(s) && unicode.IsLower(rune)
 }
-
 
 // match returns true if pattern matches val,
 // recording wildcard submatches in m.
@@ -237,7 +228,6 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 	// Handle token integers, etc.
 	return p.Interface() == v.Interface()
 }
-
 
 // subst returns a copy of pattern with values from m substituted in place
 // of wildcards and pos used as the position of tokens from the pattern.

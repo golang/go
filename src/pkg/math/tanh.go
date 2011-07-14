@@ -4,7 +4,6 @@
 
 package math
 
-
 /*
 	Floating-point hyperbolic tangent.
 

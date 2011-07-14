@@ -782,7 +782,6 @@ func TestOverflow(t *testing.T) {
 	}
 }
 
-
 func TestNesting(t *testing.T) {
 	type RT struct {
 		A    string
@@ -979,7 +978,6 @@ func TestIgnoredFields(t *testing.T) {
 		t.Errorf("rt0->rt1: expected %v; got %v", it0, rt1)
 	}
 }
-
 
 func TestBadRecursiveType(t *testing.T) {
 	type Rec ***Rec

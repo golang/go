@@ -376,7 +376,6 @@ func (c *gobServerCodec) Close() os.Error {
 	return c.rwc.Close()
 }
 
-
 // ServeConn runs the server on a single connection.
 // ServeConn blocks, serving the connection until the client hangs up.
 // The caller typically invokes ServeConn in a go statement.

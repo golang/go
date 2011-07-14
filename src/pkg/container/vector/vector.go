@@ -7,7 +7,6 @@
 
 package vector
 
-
 func (p *Vector) realloc(length, capacity int) (b []interface{}) {
 	if capacity < initialSize {
 		capacity = initialSize
@@ -20,7 +19,6 @@ func (p *Vector) realloc(length, capacity int) (b []interface{}) {
 	*p = b
 	return
 }
-
 
 // Insert n elements at position i.
 func (p *Vector) Expand(i, n int) {
@@ -51,10 +49,8 @@ func (p *Vector) Expand(i, n int) {
 	*p = a
 }
 
-
 // Insert n elements at the end of a vector.
 func (p *Vector) Extend(n int) { p.Expand(len(*p), n) }
-
 
 // Resize changes the length and capacity of a vector.
 // If the new length is shorter than the current length, Resize discards
@@ -80,29 +76,23 @@ func (p *Vector) Resize(length, capacity int) *Vector {
 	return p
 }
 
-
 // Len returns the number of elements in the vector.
 // Same as len(*p).
 func (p *Vector) Len() int { return len(*p) }
-
 
 // Cap returns the capacity of the vector; that is, the
 // maximum length the vector can grow without resizing.
 // Same as cap(*p).
 func (p *Vector) Cap() int { return cap(*p) }
 
-
 // At returns the i'th element of the vector.
 func (p *Vector) At(i int) interface{} { return (*p)[i] }
-
 
 // Set sets the i'th element of the vector to value x.
 func (p *Vector) Set(i int, x interface{}) { (*p)[i] = x }
 
-
 // Last returns the element in the vector of highest index.
 func (p *Vector) Last() interface{} { return (*p)[len(*p)-1] }
-
 
 // Copy makes a copy of the vector and returns it.
 func (p *Vector) Copy() Vector {
@@ -111,14 +101,12 @@ func (p *Vector) Copy() Vector {
 	return arr
 }
 
-
 // Insert inserts into the vector an element of value x before
 // the current element at index i.
 func (p *Vector) Insert(i int, x interface{}) {
 	p.Expand(i, 1)
 	(*p)[i] = x
 }
-
 
 // Delete deletes the i'th element of the vector.  The gap is closed so the old
 // element at index i+1 has index i afterwards.
@@ -132,7 +120,6 @@ func (p *Vector) Delete(i int) {
 	*p = a[0 : n-1]
 }
 
-
 // InsertVector inserts into the vector the contents of the vector
 // x such that the 0th element of x appears at index i after insertion.
 func (p *Vector) InsertVector(i int, x *Vector) {
@@ -141,7 +128,6 @@ func (p *Vector) InsertVector(i int, x *Vector) {
 	p.Expand(i, len(b))
 	copy((*p)[i:i+len(b)], b)
 }
-
 
 // Cut deletes elements i through j-1, inclusive.
 func (p *Vector) Cut(i, j int) {
@@ -158,7 +144,6 @@ func (p *Vector) Cut(i, j int) {
 	*p = a[0:m]
 }
 
-
 // Slice returns a new sub-vector by slicing the old one to extract slice [i:j].
 // The elements are copied. The original vector is unchanged.
 func (p *Vector) Slice(i, j int) *Vector {
@@ -168,12 +153,10 @@ func (p *Vector) Slice(i, j int) *Vector {
 	return &s
 }
 
-
 // Convenience wrappers
 
 // Push appends x to the end of the vector.
 func (p *Vector) Push(x interface{}) { p.Insert(len(*p), x) }
-
 
 // Pop deletes the last element of the vector.
 func (p *Vector) Pop() interface{} {
@@ -187,17 +170,14 @@ func (p *Vector) Pop() interface{} {
 	return x
 }
 
-
 // AppendVector appends the entire vector x to the end of this vector.
 func (p *Vector) AppendVector(x *Vector) { p.InsertVector(len(*p), x) }
-
 
 // Swap exchanges the elements at indexes i and j.
 func (p *Vector) Swap(i, j int) {
 	a := *p
 	a[i], a[j] = a[j], a[i]
 }
-
 
 // Do calls function f for each element of the vector, in order.
 // The behavior of Do is undefined if f changes *p.

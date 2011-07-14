@@ -62,7 +62,6 @@ func oserrorstring(f *ast.File) bool {
 	return fixed
 }
 
-
 // callExpr returns the call expression if x is a call to pkg.name with one argument;
 // otherwise it returns nil.
 func callExpr(x interface{}, pkg, name string) *ast.CallExpr {

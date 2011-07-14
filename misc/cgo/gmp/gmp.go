@@ -211,7 +211,6 @@ func (z *Int) destroy() {
 	z.init = false
 }
 
-
 /*
  * arithmetic
  */
@@ -300,7 +299,6 @@ func (z *Int) Int64() int64 {
 	return int64(C.mpz_get_si(&z.i[0]))
 }
 
-
 // Neg sets z = -x and returns z.
 func (z *Int) Neg(x *Int) *Int {
 	x.doinit()
@@ -316,7 +314,6 @@ func (z *Int) Abs(x *Int) *Int {
 	C.mpz_abs(&z.i[0], &x.i[0])
 	return z
 }
-
 
 /*
  * functions without a clear receiver

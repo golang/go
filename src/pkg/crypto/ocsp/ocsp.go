@@ -33,7 +33,6 @@ const (
 	ocspUnauthorized  = 5
 )
 
-
 type certID struct {
 	HashAlgorithm pkix.AlgorithmIdentifier
 	NameHash      []byte

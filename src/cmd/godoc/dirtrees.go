@@ -17,7 +17,6 @@ import (
 	"unicode"
 )
 
-
 type Directory struct {
 	Depth int
 	Path  string // includes Name
@@ -26,7 +25,6 @@ type Directory struct {
 	Dirs  []*Directory // subdirectories
 }
 
-
 func isGoFile(fi FileInfo) bool {
 	name := fi.Name()
 	return fi.IsRegular() &&
@@ -34,19 +32,16 @@ func isGoFile(fi FileInfo) bool {
 		filepath.Ext(name) == ".go"
 }
 
-
 func isPkgFile(fi FileInfo) bool {
 	return isGoFile(fi) &&
 		!strings.HasSuffix(fi.Name(), "_test.go") // ignore test files
 }
-
 
 func isPkgDir(fi FileInfo) bool {
 	name := fi.Name()
 	return fi.IsDirectory() && len(name) > 0 &&
 		name[0] != '_' && name[0] != '.' // ignore _files and .files
 }
-
 
 func firstSentence(s string) string {
 	i := -1 // index+1 of first terminator (punctuation ending a sentence)
@@ -83,12 +78,10 @@ func firstSentence(s string) string {
 	return s[0:j]
 }
 
-
 type treeBuilder struct {
 	pathFilter func(string) bool
 	maxDepth   int
 }
-
 
 func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth int) *Directory {
 	if b.pathFilter != nil && !b.pathFilter(path) {
@@ -185,7 +178,6 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 	return &Directory{depth, path, name, synopsis, dirs}
 }
 
-
 // newDirectory creates a new package directory tree with at most maxDepth
 // levels, anchored at root. The result tree is pruned such that it only
 // contains directories that contain package files or that contain
@@ -218,7 +210,6 @@ func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Dire
 	return b.newDirTree(token.NewFileSet(), root, d.Name(), 0)
 }
 
-
 func (dir *Directory) writeLeafs(buf *bytes.Buffer) {
 	if dir != nil {
 		if len(dir.Dirs) == 0 {
@@ -233,7 +224,6 @@ func (dir *Directory) writeLeafs(buf *bytes.Buffer) {
 	}
 }
 
-
 func (dir *Directory) walk(c chan<- *Directory, skipRoot bool) {
 	if dir != nil {
 		if !skipRoot {
@@ -245,7 +235,6 @@ func (dir *Directory) walk(c chan<- *Directory, skipRoot bool) {
 	}
 }
 
-
 func (dir *Directory) iter(skipRoot bool) <-chan *Directory {
 	c := make(chan *Directory)
 	go func() {
@@ -255,7 +244,6 @@ func (dir *Directory) iter(skipRoot bool) <-chan *Directory {
 	return c
 }
 
-
 func (dir *Directory) lookupLocal(name string) *Directory {
 	for _, d := range dir.Dirs {
 		if d.Name == name {
@@ -264,7 +252,6 @@ func (dir *Directory) lookupLocal(name string) *Directory {
 	}
 	return nil
 }
-
 
 // lookup looks for the *Directory for a given path, relative to dir.
 func (dir *Directory) lookup(path string) *Directory {
@@ -284,7 +271,6 @@ func (dir *Directory) lookup(path string) *Directory {
 	return dir
 }
 
-
 // DirEntry describes a directory entry. The Depth and Height values
 // are useful for presenting an entry in an indented fashion.
 //
@@ -296,12 +282,10 @@ type DirEntry struct {
 	Synopsis string
 }
 
-
 type DirList struct {
 	MaxHeight int // directory tree height, > 0
 	List      []DirEntry
 }
-
 
 // listing creates a (linear) directory listing from a directory tree.
 // If skipRoot is set, the root directory itself is excluded from the list.

@@ -10,9 +10,7 @@ import (
 	"testing"
 )
 
-
 var fset = token.NewFileSet()
-
 
 var goodGrammars = []string{
 	`Program = .`,
@@ -37,7 +35,6 @@ var goodGrammars = []string{
 	 ti = "b" .`,
 }
 
-
 var badGrammars = []string{
 	`Program = | .`,
 	`Program = | b .`,
@@ -49,7 +46,6 @@ var badGrammars = []string{
 	`Program = {} .`,
 }
 
-
 func checkGood(t *testing.T, filename string, src []byte) {
 	grammar, err := Parse(fset, filename, src)
 	if err != nil {
@@ -60,14 +56,12 @@ func checkGood(t *testing.T, filename string, src []byte) {
 	}
 }
 
-
 func checkBad(t *testing.T, filename string, src []byte) {
 	_, err := Parse(fset, filename, src)
 	if err == nil {
 		t.Errorf("Parse(%s) should have failed", src)
 	}
 }
-
 
 func TestGrammars(t *testing.T) {
 	for _, src := range goodGrammars {
@@ -78,11 +72,9 @@ func TestGrammars(t *testing.T) {
 	}
 }
 
-
 var files = []string{
 // TODO(gri) add some test files
 }
-
 
 func TestFiles(t *testing.T) {
 	for _, filename := range files {

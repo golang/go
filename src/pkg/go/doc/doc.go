@@ -12,7 +12,6 @@ import (
 	"sort"
 )
 
-
 // ----------------------------------------------------------------------------
 
 type typeDoc struct {
@@ -24,7 +23,6 @@ type typeDoc struct {
 	factories map[string]*ast.FuncDecl
 	methods   map[string]*ast.FuncDecl
 }
-
 
 // docReader accumulates documentation for a single package.
 // It modifies the AST: Comments (declaration documentation)
@@ -42,13 +40,11 @@ type docReader struct {
 	bugs    []*ast.CommentGroup
 }
 
-
 func (doc *docReader) init(pkgName string) {
 	doc.pkgName = pkgName
 	doc.types = make(map[string]*typeDoc)
 	doc.funcs = make(map[string]*ast.FuncDecl)
 }
-
 
 func (doc *docReader) addDoc(comments *ast.CommentGroup) {
 	if doc.doc == nil {
@@ -71,7 +67,6 @@ func (doc *docReader) addDoc(comments *ast.CommentGroup) {
 	doc.doc = &ast.CommentGroup{list}
 }
 
-
 func (doc *docReader) addType(decl *ast.GenDecl) {
 	spec := decl.Specs[0].(*ast.TypeSpec)
 	typ := doc.lookupTypeDoc(spec.Name.Name)
@@ -83,7 +78,6 @@ func (doc *docReader) addType(decl *ast.GenDecl) {
 		typ.decl = decl
 	}
 }
-
 
 func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
 	if name == "" {
@@ -98,7 +92,6 @@ func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
 	return tdoc
 }
 
-
 func baseTypeName(typ ast.Expr) string {
 	switch t := typ.(type) {
 	case *ast.Ident:
@@ -112,7 +105,6 @@ func baseTypeName(typ ast.Expr) string {
 	}
 	return ""
 }
-
 
 func (doc *docReader) addValue(decl *ast.GenDecl) {
 	// determine if decl should be associated with a type
@@ -165,7 +157,6 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
 	*values = append(*values, decl)
 }
 
-
 // Helper function to set the table entry for function f. Makes sure that
 // at least one f with associated documentation is stored in table, if there
 // are multiple f's with the same name.
@@ -182,7 +173,6 @@ func setFunc(table map[string]*ast.FuncDecl, f *ast.FuncDecl) {
 	// function doesn't exist or has no documentation; use f
 	table[name] = f
 }
-
 
 func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	name := fun.Name.Name
@@ -238,7 +228,6 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	setFunc(doc.funcs, fun)
 }
 
-
 func (doc *docReader) addDecl(decl ast.Decl) {
 	switch d := decl.(type) {
 	case *ast.GenDecl:
@@ -271,7 +260,6 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 	}
 }
 
-
 func copyCommentList(list []*ast.Comment) []*ast.Comment {
 	return append([]*ast.Comment(nil), list...)
 }
@@ -280,7 +268,6 @@ var (
 	bug_markers = regexp.MustCompile("^/[/*][ \t]*BUG\\(.*\\):[ \t]*") // BUG(uid):
 	bug_content = regexp.MustCompile("[^ \n\r\t]+")                    // at least one non-whitespace char
 )
-
 
 // addFile adds the AST for a source file to the docReader.
 // Adding the same AST multiple times is a no-op.
@@ -313,14 +300,12 @@ func (doc *docReader) addFile(src *ast.File) {
 	src.Comments = nil // consumed unassociated comments - remove from ast.File node
 }
 
-
 func NewFileDoc(file *ast.File) *PackageDoc {
 	var r docReader
 	r.init(file.Name.Name)
 	r.addFile(file)
 	return r.newDoc("", nil)
 }
-
 
 func NewPackageDoc(pkg *ast.Package, importpath string) *PackageDoc {
 	var r docReader
@@ -334,7 +319,6 @@ func NewPackageDoc(pkg *ast.Package, importpath string) *PackageDoc {
 	}
 	return r.newDoc(importpath, filenames)
 }
-
 
 // ----------------------------------------------------------------------------
 // Conversion to external representation
@@ -353,7 +337,6 @@ type sortValueDoc []*ValueDoc
 func (p sortValueDoc) Len() int      { return len(p) }
 func (p sortValueDoc) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 
-
 func declName(d *ast.GenDecl) string {
 	if len(d.Specs) != 1 {
 		return ""
@@ -369,7 +352,6 @@ func declName(d *ast.GenDecl) string {
 	return ""
 }
 
-
 func (p sortValueDoc) Less(i, j int) bool {
 	// sort by name
 	// pull blocks (name = "") up to top
@@ -379,7 +361,6 @@ func (p sortValueDoc) Less(i, j int) bool {
 	}
 	return p[i].order < p[j].order
 }
-
 
 func makeValueDocs(list []*ast.GenDecl, tok token.Token) []*ValueDoc {
 	d := make([]*ValueDoc, len(list)) // big enough in any case
@@ -396,7 +377,6 @@ func makeValueDocs(list []*ast.GenDecl, tok token.Token) []*ValueDoc {
 	return d
 }
 
-
 // FuncDoc is the documentation for a func declaration,
 // either a top-level function or a method function.
 //
@@ -412,7 +392,6 @@ type sortFuncDoc []*FuncDoc
 func (p sortFuncDoc) Len() int           { return len(p) }
 func (p sortFuncDoc) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 func (p sortFuncDoc) Less(i, j int) bool { return p[i].Name < p[j].Name }
-
 
 func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
 	d := make([]*FuncDoc, len(m))
@@ -432,7 +411,6 @@ func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
 	sort.Sort(sortFuncDoc(d))
 	return d
 }
-
 
 // TypeDoc is the documentation for a declared type.
 // Consts and Vars are sorted lists of constants and variables of (mostly) that type.
@@ -462,7 +440,6 @@ func (p sortTypeDoc) Less(i, j int) bool {
 	}
 	return p[i].order < p[j].order
 }
-
 
 // NOTE(rsc): This would appear not to be correct for type ( )
 // blocks, but the doc extractor above has split them into
@@ -520,7 +497,6 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
 	return d
 }
 
-
 func makeBugDocs(list []*ast.CommentGroup) []string {
 	d := make([]string, len(list))
 	for i, g := range list {
@@ -528,7 +504,6 @@ func makeBugDocs(list []*ast.CommentGroup) []string {
 	}
 	return d
 }
-
 
 // PackageDoc is the documentation for an entire package.
 //
@@ -543,7 +518,6 @@ type PackageDoc struct {
 	Funcs       []*FuncDoc
 	Bugs        []string
 }
-
 
 // newDoc returns the accumulated documentation for the package.
 //
@@ -565,12 +539,10 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc 
 	return p
 }
 
-
 // ----------------------------------------------------------------------------
 // Filtering by name
 
 type Filter func(string) bool
-
 
 func matchFields(fields *ast.FieldList, f Filter) bool {
 	if fields != nil {
@@ -584,7 +556,6 @@ func matchFields(fields *ast.FieldList, f Filter) bool {
 	}
 	return false
 }
-
 
 func matchDecl(d *ast.GenDecl, f Filter) bool {
 	for _, d := range d.Specs {
@@ -614,7 +585,6 @@ func matchDecl(d *ast.GenDecl, f Filter) bool {
 	return false
 }
 
-
 func filterValueDocs(a []*ValueDoc, f Filter) []*ValueDoc {
 	w := 0
 	for _, vd := range a {
@@ -626,7 +596,6 @@ func filterValueDocs(a []*ValueDoc, f Filter) []*ValueDoc {
 	return a[0:w]
 }
 
-
 func filterFuncDocs(a []*FuncDoc, f Filter) []*FuncDoc {
 	w := 0
 	for _, fd := range a {
@@ -637,7 +606,6 @@ func filterFuncDocs(a []*FuncDoc, f Filter) []*FuncDoc {
 	}
 	return a[0:w]
 }
-
 
 func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
 	w := 0
@@ -660,7 +628,6 @@ func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
 	}
 	return a[0:w]
 }
-
 
 // Filter eliminates documentation for names that don't pass through the filter f.
 // TODO: Recognize "Type.Method" as a name.

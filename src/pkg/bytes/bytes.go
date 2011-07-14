@@ -398,7 +398,6 @@ func ToTitleSpecial(_case unicode.SpecialCase, s []byte) []byte {
 	return Map(func(r int) int { return _case.ToTitle(r) }, s)
 }
 
-
 // isSeparator reports whether the rune could mark a word boundary.
 // TODO: update when package unicode captures more of the properties.
 func isSeparator(rune int) bool {

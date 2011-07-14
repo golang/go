@@ -85,7 +85,6 @@ func skipTest(t *testing.T) bool {
 	return false
 }
 
-
 func TestCGIBasicGet(t *testing.T) {
 	if skipTest(t) {
 		return
@@ -374,7 +373,6 @@ func TestCopyError(t *testing.T) {
 		}
 	}
 }
-
 
 func TestDirUnix(t *testing.T) {
 	if skipTest(t) || runtime.GOOS == "windows" {

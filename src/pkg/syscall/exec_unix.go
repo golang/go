@@ -87,7 +87,6 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
 	return err
 }
 
-
 // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
 // If a dup or exec fails, write the errno int to pipe.
 // (Pipe is close-on-exec so if exec succeeds, it will be closed.)

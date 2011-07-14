@@ -271,13 +271,11 @@ func notSpace(r int) bool {
 	return !unicode.IsSpace(r)
 }
 
-
 // skipSpace provides Scan() methods the ability to skip space and newline characters 
 // in keeping with the current scanning mode set by format strings and Scan()/Scanln().
 func (s *ss) SkipSpace() {
 	s.skipSpace(false)
 }
-
 
 // readRune is a structure to enable reading UTF-8 encoded code points
 // from an io.Reader.  It is used if the Reader given to the scanner does
@@ -336,7 +334,6 @@ func (r *readRune) ReadRune() (rune int, size int, err os.Error) {
 	}
 	return
 }
-
 
 var ssFree = newCache(func() interface{} { return new(ss) })
 
@@ -410,7 +407,6 @@ func (s *ss) skipSpace(stopAtNewline bool) {
 		}
 	}
 }
-
 
 // token returns the next space-delimited string from the input.  It
 // skips white space.  For Scanln, it stops at newlines.  For Scan,
