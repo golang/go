@@ -395,6 +395,9 @@ func TestExecuteError(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected error; got none")
 	} else if !strings.Contains(err.String(), os.EPERM.String()) {
+		if *debug {
+			fmt.Printf("test execute error: %s\n", err)
+		}
 		t.Errorf("expected os.EPERM; got %s", err)
 	}
 }

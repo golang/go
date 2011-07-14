@@ -455,7 +455,7 @@ func (s *state) evalCall(dot, fun reflect.Value, name string, args []node, final
 	result := fun.Call(argv)
 	// If we have an os.Error that is not nil, stop execution and return that error to the caller.
 	if len(result) == 2 && !result[1].IsNil() {
-		s.error(result[1].Interface().(os.Error))
+		s.errorf("error calling %s: %s", name, result[1].Interface().(os.Error))
 	}
 	return result[0]
 }
