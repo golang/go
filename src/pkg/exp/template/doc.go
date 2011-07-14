@@ -155,9 +155,18 @@ initialization has syntax
 
 	$variable := pipeline
 
-where $variable is the name of the variable. The one exception is a pipeline in
-a range action; in ranges, the variable is set to the successive elements of the
-iteration.
+where $variable is the name of the variable.
+
+The one exception is a pipeline in a range action; in ranges, the variable is
+set to the successive elements of the iteration.  Also, a range may declare two
+variables, separated by a comma:
+
+	$index, $element := pipeline
+
+In this case $index and $element are set to the successive values of the
+array/slice index or map key and element, respectively.  Note that if there is
+only one variable, it is assigned the element; this is opposite to the
+convention in Go range clauses.
 
 When execution begins, $ is set to the data argument passed to Execute, that is,
 to the starting value of dot.

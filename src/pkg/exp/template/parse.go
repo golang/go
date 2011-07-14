@@ -140,11 +140,11 @@ func (t *textNode) String() string {
 type pipeNode struct {
 	nodeType
 	line int
-	decl *variableNode
+	decl []*variableNode
 	cmds []*commandNode
 }
 
-func newPipeline(line int, decl *variableNode) *pipeNode {
+func newPipeline(line int, decl []*variableNode) *pipeNode {
 	return &pipeNode{nodeType: nodePipe, line: line, decl: decl}
 }
 
@@ -154,7 +154,7 @@ func (p *pipeNode) append(command *commandNode) {
 
 func (p *pipeNode) String() string {
 	if p.decl != nil {
-		return fmt.Sprintf("%s := %v", p.decl.ident, p.cmds)
+		return fmt.Sprintf("%v := %v", p.decl, p.cmds)
 	}
 	return fmt.Sprintf("%v", p.cmds)
 }
@@ -287,7 +287,7 @@ type numberNode struct {
 func newNumber(text string, typ itemType) (*numberNode, os.Error) {
 	n := &numberNode{nodeType: nodeNumber, text: text}
 	switch typ {
-	case itemChar:
+	case itemCharConstant:
 		rune, _, tail, err := strconv.UnquoteChar(text[1:], text[0])
 		if err != nil {
 			return nil, err
@@ -704,20 +704,30 @@ func (t *Template) action() (n node) {
 //	field or command
 //	pipeline "|" pipeline
 func (t *Template) pipeline(context string) (pipe *pipeNode) {
-	var decl *variableNode
-	// Is there a declaration?
-	if v := t.peek(); v.typ == itemVariable {
-		t.next()
-		if ce := t.peek(); ce.typ == itemColonEquals {
+	var decl []*variableNode
+	// Are there declarations?
+	for {
+		if v := t.peek(); v.typ == itemVariable {
 			t.next()
-			decl = newVariable(v.val)
-			if len(decl.ident) != 1 {
-				t.errorf("illegal variable in declaration: %s", v.val)
+			if next := t.peek(); next.typ == itemColonEquals || next.typ == itemChar {
+				t.next()
+				variable := newVariable(v.val)
+				if len(variable.ident) != 1 {
+					t.errorf("illegal variable in declaration: %s", v.val)
+				}
+				decl = append(decl, variable)
+				t.vars = append(t.vars, v.val)
+				if next.typ == itemChar && next.val == "," {
+					if context == "range" && len(decl) < 2 {
+						continue
+					}
+					t.errorf("too many declarations in %s", context)
+				}
+			} else {
+				t.backup2(v)
 			}
-			t.vars = append(t.vars, v.val)
-		} else {
-			t.backup2(v)
 		}
+		break
 	}
 	pipe = newPipeline(t.lex.lineNumber(), decl)
 	for {
@@ -727,7 +737,8 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
 				t.errorf("missing value for %s", context)
 			}
 			return
-		case itemBool, itemChar, itemComplex, itemDot, itemField, itemIdentifier, itemVariable, itemNumber, itemRawString, itemString:
+		case itemBool, itemCharConstant, itemComplex, itemDot, itemField, itemIdentifier,
+			itemVariable, itemNumber, itemRawString, itemString:
 			t.backup()
 			pipe.append(t.command())
 		default:
@@ -848,7 +859,7 @@ Loop:
 			cmd.append(newField(token.val))
 		case itemBool:
 			cmd.append(newBool(token.val == "true"))
-		case itemChar, itemComplex, itemNumber:
+		case itemCharConstant, itemComplex, itemNumber:
 			number, err := newNumber(token.val, token.typ)
 			if err != nil {
 				t.error(err)

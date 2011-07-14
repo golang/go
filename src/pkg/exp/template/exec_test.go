@@ -195,14 +195,8 @@ var execTests = []execTest{
 
 	// Variables.
 	{"$ int", "{{$}}", "123", 123, true},
-	{"with $x int", "{{with $x := .I}}{{$x}}{{end}}", "17", tVal, true},
-	{"range $x SI", "{{range $x := .SI}}<{{$x}}>{{end}}", "<3><4><5>", tVal, true},
-	{"range $x PSI", "{{range $x := .PSI}}<{{$x}}>{{end}}", "<21><22><23>", tVal, true},
-	{"if $x with $y int", "{{if $x := true}}{{with $y := .I}}{{$x}},{{$y}}{{end}}{{end}}", "true,17", tVal, true},
-	{"if $x with $x int", "{{if $x := true}}{{with $x := .I}}{{$x}},{{end}}{{$x}}{{end}}", "17,true", tVal, true},
 	{"$.I", "{{$.I}}", "17", tVal, true},
 	{"$.U.V", "{{$.U.V}}", "v", tVal, true},
-	{"with $x struct.U.V", "{{with $x := $}}{{$.U.V}}{{end}}", "v", tVal, true},
 
 	// Pointers.
 	{"*int", "{{.PI}}", "23", tVal, true},
@@ -253,6 +247,8 @@ var execTests = []execTest{
 	{"if slice", "{{if .SI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
 	{"if emptymap", "{{if .MSIEmpty}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"if map", "{{if .MSI}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
+	{"if $x with $y int", "{{if $x := true}}{{with $y := .I}}{{$x}},{{$y}}{{end}}{{end}}", "true,17", tVal, true},
+	{"if $x with $x int", "{{if $x := true}}{{with $x := .I}}{{$x}},{{end}}{{$x}}{{end}}", "17,true", tVal, true},
 
 	// Print etc.
 	{"print", `{{print "hello, print"}}`, "hello, print", tVal, true},
@@ -312,6 +308,8 @@ var execTests = []execTest{
 	{"with emptymap", "{{with .MSIEmpty}}{{.}}{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"with map", "{{with .MSIone}}{{.}}{{else}}EMPTY{{end}}", "map[one:1]", tVal, true},
 	{"with empty interface, struct field", "{{with .Empty4}}{{.V}}{{end}}", "v", tVal, true},
+	{"with $x int", "{{with $x := .I}}{{$x}}{{end}}", "17", tVal, true},
+	{"with $x struct.U.V", "{{with $x := $}}{{$.U.V}}{{end}}", "v", tVal, true},
 
 	// Range.
 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},
@@ -325,6 +323,11 @@ var execTests = []execTest{
 	{"range map else", "{{range .MSI | .MSort}}-{{.}}-{{else}}EMPTY{{end}}", "-one--three--two-", tVal, true},
 	{"range empty map else", "{{range .MSIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"range empty interface", "{{range .Empty3}}-{{.}}-{{else}}EMPTY{{end}}", "-7--8-", tVal, true},
+	{"range $x SI", "{{range $x := .SI}}<{{$x}}>{{end}}", "<3><4><5>", tVal, true},
+	{"range $x $y SI", "{{range $x, $y := .SI}}<{{$x}}={{$y}}>{{end}}", "<0=3><1=4><2=5>", tVal, true},
+	{"range $x MSIone", "{{range $x := .MSIone}}<{{$x}}>{{end}}", "<1>", tVal, true},
+	{"range $x $y MSIone", "{{range $x, $y := .MSIone}}<{{$x}}={{$y}}>{{end}}", "<one=1>", tVal, true},
+	{"range $x PSI", "{{range $x := .PSI}}<{{$x}}>{{end}}", "<21><22><23>", tVal, true},
 
 	// Cute examples.
 	{"or as if true", `{{or .SI "slice is empty"}}`, "[3 4 5]", tVal, true},
