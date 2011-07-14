@@ -38,11 +38,11 @@ import (
 //
 // Struct values encode as JSON objects.  Each exported struct field
 // becomes a member of the object.  By default the object's key string
-// is the struct field name.  If the struct field's tag has a "json" key with a
-// value that is a non-empty string consisting of only Unicode letters,
-// digits, and underscores, that value will be used as the object key.
-// For example, the field tag `json:"myName"` says to use "myName"
-// as the object key.
+// is the struct field name.  If the struct field's tag has a "json"
+// key with a value that is a non-empty string consisting of only
+// Unicode letters, digits, dollar signs, hyphens, and underscores,
+// that value will be used as the object key.  For example, the field
+// tag `json:"myName"` says to use "myName" as the object key.
 //
 // Map values encode as JSON objects.
 // The map's key type must be string; the object keys are used directly
@@ -316,7 +316,7 @@ func isValidTag(s string) bool {
 		return false
 	}
 	for _, c := range s {
-		if c != '_' && !unicode.IsLetter(c) && !unicode.IsDigit(c) {
+		if c != '$' && c != '-' && c != '_' && !unicode.IsLetter(c) && !unicode.IsDigit(c) {
 			return false
 		}
 	}
