@@ -1025,6 +1025,15 @@ func (v Value) Method(i int) Value {
 	return Value{v.Internal, i + 1}
 }
 
+// NumMethod returns the number of methods in the value's method set.
+func (v Value) NumMethod() int {
+	iv := v.internal()
+	if iv.kind == Invalid {
+		panic(&ValueError{"reflect.Value.NumMethod", Invalid})
+	}
+	return iv.typ.NumMethod()
+}
+
 // MethodByName returns a function value corresponding to the method
 // of v with the given name.
 // The arguments to a Call on the returned function should not include
