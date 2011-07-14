@@ -346,11 +346,6 @@ func (p *printer) setLineComment(text string) {
 }
 
 func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) {
-	p.nesting++
-	defer func() {
-		p.nesting--
-	}()
-
 	lbrace := fields.Opening
 	list := fields.List
 	rbrace := fields.Closing
@@ -1412,11 +1407,6 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
 	if b == nil {
 		return
 	}
-
-	p.nesting++
-	defer func() {
-		p.nesting--
-	}()
 
 	if p.isOneLineFunc(b, headerSize) {
 		sep := vtab
