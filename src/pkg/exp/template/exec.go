@@ -46,9 +46,9 @@ func (s *state) pop(mark int) {
 	s.vars = s.vars[0:mark]
 }
 
-// setTop overwrites the top variable on the stack. Used by range iterations.
-func (s *state) setTop(value reflect.Value) {
-	s.vars[len(s.vars)-1].value = value
+// setVar overwrites the top-nth variable on the stack. Used by range iterations.
+func (s *state) setVar(n int, value reflect.Value) {
+	s.vars[len(s.vars)-n].value = value
 }
 
 // varValue returns the value of the named variable.
@@ -191,9 +191,13 @@ func (s *state) walkRange(dot reflect.Value, r *rangeNode) {
 		}
 		for i := 0; i < val.Len(); i++ {
 			elem := val.Index(i)
-			// Set $x to the element rather than the slice.
-			if r.pipe.decl != nil {
-				s.setTop(elem)
+			// Set top var (lexically the second if there are two) to the element.
+			if len(r.pipe.decl) > 0 {
+				s.setVar(1, elem)
+			}
+			// Set next var (lexically the first if there are two) to the index.
+			if len(r.pipe.decl) > 1 {
+				s.setVar(2, reflect.ValueOf(i))
 			}
 			s.walk(elem, r.list)
 		}
@@ -204,9 +208,13 @@ func (s *state) walkRange(dot reflect.Value, r *rangeNode) {
 		}
 		for _, key := range val.MapKeys() {
 			elem := val.MapIndex(key)
-			// Set $x to the key rather than the map.
-			if r.pipe.decl != nil {
-				s.setTop(elem)
+			// Set top var (lexically the second if there are two) to the element.
+			if len(r.pipe.decl) > 0 {
+				s.setVar(1, elem)
+			}
+			// Set next var (lexically the first if there are two) to the key.
+			if len(r.pipe.decl) > 1 {
+				s.setVar(2, key)
 			}
 			s.walk(elem, r.list)
 		}
@@ -255,8 +263,8 @@ func (s *state) evalPipeline(dot reflect.Value, pipe *pipeNode) (value reflect.V
 			value = reflect.ValueOf(value.Interface()) // lovely!
 		}
 	}
-	if pipe.decl != nil {
-		s.push(pipe.decl.ident[0], value)
+	for _, variable := range pipe.decl {
+		s.push(variable.ident[0], value)
 	}
 	return value
 }

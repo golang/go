@@ -77,7 +77,7 @@ func TestNumberParse(t *testing.T) {
 		var c complex128
 		typ := itemNumber
 		if test.text[0] == '\'' {
-			typ = itemChar
+			typ = itemCharConstant
 		} else {
 			_, err := fmt.Sscan(test.text, &c)
 			if err == nil {
@@ -174,7 +174,7 @@ var parseTests = []parseTest{
 	{"$ invocation", "{{$}}", noError,
 		"[(action: [(command: [V=[$]])])]"},
 	{"variable invocation", "{{with $x := 3}}{{$x 23}}{{end}}", noError,
-		"[({{with [$x] := [(command: [N=3])]}} [(action: [(command: [V=[$x] N=23])])])]"},
+		"[({{with [V=[$x]] := [(command: [N=3])]}} [(action: [(command: [V=[$x] N=23])])])]"},
 	{"variable with fields", "{{$.I}}", noError,
 		"[(action: [(command: [V=[$ I]])])]"},
 	{"multi-word command", "{{printf `%d` 23}}", noError,
@@ -182,7 +182,7 @@ var parseTests = []parseTest{
 	{"pipeline", "{{.X|.Y}}", noError,
 		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
 	{"pipeline with decl", "{{$x := .X|.Y}}", noError,
-		`[(action: [$x] := [(command: [F=[X]]) (command: [F=[Y]])])]`},
+		`[(action: [V=[$x]] := [(command: [F=[X]]) (command: [F=[Y]])])]`},
 	{"declaration", "{{.X|.Y}}", noError,
 		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
 	{"simple if", "{{if .X}}hello{{end}}", noError,
@@ -223,6 +223,9 @@ var parseTests = []parseTest{
 	{"declare with field", "{{with $x.Y := 4}}{{end}}", hasError, ""},
 	{"template with field ref", "{{template .X}}", hasError, ""},
 	{"template with var", "{{template $v}}", hasError, ""},
+	{"invalid punctuation", "{{printf 3, 4}}", hasError, ""},
+	{"multidecl outside range", "{{with $v, $u := 3}}{{end}}", hasError, ""},
+	{"too many decls in range", "{{range $u, $v, $w := 3}}{{end}}", hasError, ""},
 }
 
 func TestParse(t *testing.T) {

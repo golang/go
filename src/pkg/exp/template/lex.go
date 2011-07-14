@@ -35,11 +35,12 @@ func (i item) String() string {
 type itemType int
 
 const (
-	itemError       itemType = iota // error occurred; value is text of error
-	itemBool                        // boolean constant
-	itemChar                        // character constant
-	itemComplex                     // complex constant (1+2i); imaginary is just a number
-	itemColonEquals                 // colon-equals (':=') introducing a declaration
+	itemError        itemType = iota // error occurred; value is text of error
+	itemBool                         // boolean constant
+	itemChar                         // printable ASCII character; grab bag for comma etc.
+	itemCharConstant                 // character constant
+	itemComplex                      // complex constant (1+2i); imaginary is just a number
+	itemColonEquals                  // colon-equals (':=') introducing a declaration
 	itemEOF
 	itemField      // alphanumeric identifier, starting with '.', possibly chained ('.x.y')
 	itemIdentifier // alphanumeric identifier
@@ -65,21 +66,22 @@ const (
 
 // Make the types prettyprint.
 var itemName = map[itemType]string{
-	itemError:       "error",
-	itemBool:        "bool",
-	itemChar:        "char",
-	itemComplex:     "complex",
-	itemColonEquals: ":=",
-	itemEOF:         "EOF",
-	itemField:       "field",
-	itemIdentifier:  "identifier",
-	itemLeftDelim:   "left delim",
-	itemNumber:      "number",
-	itemPipe:        "pipe",
-	itemRawString:   "raw string",
-	itemRightDelim:  "right delim",
-	itemString:      "string",
-	itemVariable:    "variable",
+	itemError:        "error",
+	itemBool:         "bool",
+	itemChar:         "char",
+	itemCharConstant: "charconst",
+	itemComplex:      "complex",
+	itemColonEquals:  ":=",
+	itemEOF:          "EOF",
+	itemField:        "field",
+	itemIdentifier:   "identifier",
+	itemLeftDelim:    "left delim",
+	itemNumber:       "number",
+	itemPipe:         "pipe",
+	itemRawString:    "raw string",
+	itemRightDelim:   "right delim",
+	itemString:       "string",
+	itemVariable:     "variable",
 	// keywords
 	itemDot:      ".",
 	itemDefine:   "define",
@@ -315,6 +317,9 @@ func lexInsideAction(l *lexer) stateFn {
 		case isAlphaNumeric(r):
 			l.backup()
 			return lexIdentifier
+		case r <= unicode.MaxASCII && unicode.IsPrint(r):
+			l.emit(itemChar)
+			return lexInsideAction
 		default:
 			return l.errorf("unrecognized character in action: %#U", r)
 		}
@@ -369,7 +374,7 @@ Loop:
 			break Loop
 		}
 	}
-	l.emit(itemChar)
+	l.emit(itemCharConstant)
 	return lexInsideAction
 }
 
