@@ -18,5 +18,6 @@ GOFILES=\
 	snippet.go\
 	spec.go\
 	utils.go\
+	zip.go\
 
 include ../../Make.cmd
