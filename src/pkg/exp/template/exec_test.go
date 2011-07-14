@@ -411,6 +411,7 @@ func TestJSEscaping(t *testing.T) {
 		{`Go "jump" \`, `Go \"jump\" \\`},
 		{`Yukihiro says "今日は世界"`, `Yukihiro says \"今日は世界\"`},
 		{"unprintable \uFDFF", `unprintable \uFDFF`},
+		{`<html>`, `\x3Chtml\x3E`},
 	}
 	for _, tc := range testCases {
 		s := JSEscapeString(tc.in)

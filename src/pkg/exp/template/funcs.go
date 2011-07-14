@@ -233,6 +233,8 @@ var (
 	jsBackslash = []byte(`\\`)
 	jsApos      = []byte(`\'`)
 	jsQuot      = []byte(`\"`)
+	jsLt        = []byte(`\x3C`)
+	jsGt        = []byte(`\x3E`)
 )
 
 
@@ -242,14 +244,14 @@ func JSEscape(w io.Writer, b []byte) {
 	for i := 0; i < len(b); i++ {
 		c := b[i]
 
-		if ' ' <= c && c < utf8.RuneSelf && c != '\\' && c != '"' && c != '\'' {
+		if !jsIsSpecial(int(c)) {
 			// fast path: nothing to do
 			continue
 		}
 		w.Write(b[last:i])
 
 		if c < utf8.RuneSelf {
-			// Quotes and slashes get quoted.
+			// Quotes, slashes and angle brackets get quoted.
 			// Control characters get written as \u00XX.
 			switch c {
 			case '\\':
@@ -258,6 +260,10 @@ func JSEscape(w io.Writer, b []byte) {
 				w.Write(jsApos)
 			case '"':
 				w.Write(jsQuot)
+			case '<':
+				w.Write(jsLt)
+			case '>':
+				w.Write(jsGt)
 			default:
 				w.Write(jsLowUni)
 				t, b := c>>4, c&0x0f
@@ -293,7 +299,7 @@ func JSEscapeString(s string) string {
 
 func jsIsSpecial(rune int) bool {
 	switch rune {
-	case '\\', '\'', '"':
+	case '\\', '\'', '"', '<', '>':
 		return true
 	}
 	return rune < ' ' || utf8.RuneSelf <= rune
