@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+	"strings"
 	"unicode"
 	"utf8"
 )
@@ -36,13 +37,30 @@ import (
 // Array and slice values encode as JSON arrays, except that
 // []byte encodes as a base64-encoded string.
 //
-// Struct values encode as JSON objects.  Each exported struct field
-// becomes a member of the object.  By default the object's key string
-// is the struct field name.  If the struct field's tag has a "json"
-// key with a value that is a non-empty string consisting of only
-// Unicode letters, digits, dollar signs, hyphens, and underscores,
-// that value will be used as the object key.  For example, the field
-// tag `json:"myName"` says to use "myName" as the object key.
+// Struct values encode as JSON objects. Each exported struct field
+// becomes a member of the object unless the field is empty and its tag
+// specifies the "omitempty" option. The empty values are false, 0, any
+// nil pointer or interface value, and any array, slice, map, or string of
+// length zero. The object's default key string is the struct field name
+// but can be specified in the struct field's tag value. The "json" key in
+// struct field's tag value is the key name, followed by an optional comma
+// and options. Examples:
+//
+//   // Specifies that Field appears in JSON as key "myName"
+//   Field int `json:"myName"`
+//
+//   // Specifies that Field appears in JSON as key "myName" and
+//   // the field is omitted from the object if its value is empty,
+//   // as defined above.
+//   Field int `json:"myName,omitempty"`
+//
+//   // Field appears in JSON as key "Field" (the default), but
+//   // the field is skipped if empty.
+//   // Note the leading comma.
+//   Field int `json:",omitempty"`
+//
+// The key name will be used if it's a non-empty string consisting of
+// only Unicode letters, digits, dollar signs, hyphens, and underscores.
 //
 // Map values encode as JSON objects.
 // The map's key type must be string; the object keys are used directly
@@ -184,6 +202,24 @@ func (e *encodeState) error(err os.Error) {
 
 var byteSliceType = reflect.TypeOf([]byte(nil))
 
+func isEmptyValue(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		return v.Len() == 0
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.Interface, reflect.Ptr:
+		return v.IsNil()
+	}
+	return false
+}
+
 func (e *encodeState) reflectValue(v reflect.Value) {
 	if !v.IsValid() {
 		e.WriteString("null")
@@ -233,18 +269,30 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 			if f.PkgPath != "" {
 				continue
 			}
+			tag, omitEmpty := f.Name, false
+			if tv := f.Tag.Get("json"); tv != "" {
+				ss := strings.SplitN(tv, ",", 2)
+				if isValidTag(ss[0]) {
+					tag = ss[0]
+				}
+				if len(ss) > 1 {
+					// Currently the only option is omitempty,
+					// so parsing is trivial.
+					omitEmpty = ss[1] == "omitempty"
+				}
+			}
+			fieldValue := v.Field(i)
+			if omitEmpty && isEmptyValue(fieldValue) {
+				continue
+			}
 			if first {
 				first = false
 			} else {
 				e.WriteByte(',')
 			}
-			if tag := f.Tag.Get("json"); tag != "" && isValidTag(tag) {
-				e.string(tag)
-			} else {
-				e.string(f.Name)
-			}
+			e.string(tag)
 			e.WriteByte(':')
-			e.reflectValue(v.Field(i))
+			e.reflectValue(fieldValue)
 		}
 		e.WriteByte('}')
 
