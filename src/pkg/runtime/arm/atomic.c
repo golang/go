@@ -4,6 +4,21 @@
 
 #include "runtime.h"
 
+// Atomic add and return new value.
+#pragma textflag 7
+uint32
+runtime·xadd(uint32 volatile *val, int32 delta)
+{
+	uint32 oval, nval;
+
+	for(;;){
+		oval = *val;
+		nval = oval + delta;
+		if(runtime·cas(val, oval, nval))
+			return nval;
+	}
+}
+
 #pragma textflag 7
 uint32
 runtime·atomicload(uint32 volatile* addr)
