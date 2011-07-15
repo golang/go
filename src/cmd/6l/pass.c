@@ -402,8 +402,6 @@ dostkoff(void)
 		pmorestack[i] = symmorestack[i]->text;
 	}
 
-	autoffset = 0;
-	deltasp = 0;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		if(cursym->text == nil || cursym->text->link == nil)
 			continue;
@@ -415,7 +413,6 @@ dostkoff(void)
 			autoffset = 0;
 
 		q = P;
-		q1 = P;
 		if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
 			diag("nosplit func likely to overflow stack");
 
@@ -471,7 +468,6 @@ dostkoff(void)
 				p = appendp(p);
 				p->as = ANOP;
 				q1->pcond = p;
-				q1 = P;
 			}
 
 			if(autoffset < StackBig) {  // do we need to call morestack?
@@ -611,7 +607,6 @@ dostkoff(void)
 			p = appendp(p);
 			p->as = ANOP;
 			q1->pcond = p;
-			q1 = P;
 		}
 		
 		for(; p != P; p = p->link) {

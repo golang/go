@@ -28,8 +28,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include <u.h>
-#include <libc.h>
 #include <bio.h>
 #include "../6l/6.out.h"
 
@@ -57,7 +55,9 @@ typedef	struct	Gen2	Gen2;
 #define	NSYMB		500
 #define	BUFSIZ		8192
 #define	HISTSZ		20
+#ifndef	EOF
 #define	EOF		(-1)
+#endif
 #define	IGN		(-2)
 #define	GETC()		((--fi.c < 0)? filbuf(): *fi.p++ & 0xff)
 #define	NHASH		503

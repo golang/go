@@ -398,6 +398,7 @@ void	shiftit(Type*, Node*, Node*);
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"B"	Bits
 #pragma	varargck	type	"D"	Adr*
+#pragma	varargck	type	"lD"	Adr*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"R"	int
 #pragma	varargck	type	"S"	char*
