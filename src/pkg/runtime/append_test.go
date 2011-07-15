@@ -36,7 +36,7 @@ func BenchmarkAppendSpecialCase(b *testing.B) {
 	}
 }
 
-var x = make([]int, 0, 10)
+var x []int
 
 func f() int {
 	x[:1][0] = 3
@@ -44,6 +44,7 @@ func f() int {
 }
 
 func TestSideEffectOrder(t *testing.T) {
+	x = make([]int, 0, 10)
 	x = append(x, 1, f())
 	if x[0] != 1 || x[1] != 2 {
 		t.Error("append failed: ", x[0], x[1])
