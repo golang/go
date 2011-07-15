@@ -131,7 +131,7 @@ func (r *response) ReadFrom(src io.Reader) (n int64, err os.Error) {
 	// WriteHeader if it hasn't been called yet, and WriteHeader
 	// is what sets r.chunking.
 	r.Flush()
-	if !r.chunking && r.bodyAllowed() {
+	if !r.chunking && r.bodyAllowed() && !r.needSniff {
 		if rf, ok := r.conn.rwc.(io.ReaderFrom); ok {
 			n, err = rf.ReadFrom(src)
 			r.written += n
@@ -367,8 +367,8 @@ func (w *response) sniff() {
 
 	if w.chunking && len(data) > 0 {
 		fmt.Fprintf(w.conn.buf, "%x\r\n", len(data))
-		w.conn.buf.Write(data)
 	}
+	w.conn.buf.Write(data)
 }
 
 // bodyAllowed returns true if a Write is allowed for this response type.
