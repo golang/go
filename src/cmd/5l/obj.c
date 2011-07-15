@@ -151,11 +151,12 @@ main(int argc, char *argv[])
 	if(HEADTYPE == -1) {
 		if(debug['U'])
 			HEADTYPE = Hnoheader;
-		if(debug['B'])
+		else if(debug['B'])
 			HEADTYPE = Hrisc;
-		if(debug['9'])
+		else if(debug['9'])
 			HEADTYPE = Hplan9x32;
-		HEADTYPE = Hlinux;
+		else
+			HEADTYPE = Hlinux;
 	}
 	switch(HEADTYPE) {
 	default:
@@ -347,7 +348,6 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 
 	case D_REGREG:
 		a->offset = Bgetc(f);
-		c++;
 		break;
 
 	case D_CONST2:
@@ -363,7 +363,6 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	case D_SCONST:
 		a->sval = mal(NSNAME);
 		Bread(f, a->sval, NSNAME);
-		c += NSNAME;
 		break;
 
 	case D_FCONST:
@@ -462,7 +461,6 @@ loop:
 		s = lookup(x, r);
 		if(x != name)
 			free(x);
-		name = nil;
 
 		if(sig != 0){
 			if(s->sig != 0 && s->sig != sig)

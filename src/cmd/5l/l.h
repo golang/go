@@ -31,7 +31,7 @@
 #include	<u.h>
 #include	<libc.h>
 #include	<bio.h>
-#include	"../5l/5.out.h"
+#include	"5.out.h"
 
 enum
 {
@@ -337,9 +337,11 @@ EXTERN	Prog*	prog_modu;
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"C"	int
 #pragma	varargck	type	"D"	Adr*
+#pragma	varargck	type	"I"	uchar*
 #pragma	varargck	type	"N"	Adr*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"S"	char*
+#pragma	varargck	type	"i"	char*
 
 int	Aconv(Fmt*);
 int	Cconv(Fmt*);

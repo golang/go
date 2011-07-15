@@ -246,7 +246,6 @@ patch(void)
 
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		for(p = cursym->text; p != P; p = p->link) {
-			a = p->as;
 			if(p->cond != P) {
 				p->cond = brloop(p->cond);
 				if(p->cond != P)

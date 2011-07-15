@@ -97,8 +97,6 @@ span(void)
 
 	bflag = 0;
 	c = INITTEXT;
-	op = nil;
-	p = nil;
 	otxt = c;
 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
 		p = cursym->text;
@@ -224,7 +222,6 @@ span(void)
 	
 		bp = cursym->p;
 		for(p = p->link; p != P; p = p->link) {
-			curp = p;
 			pc = p->pc;
 			curp = p;
 			o = oplook(p);
@@ -234,7 +231,7 @@ span(void)
 				*bp++ = v;
 				*bp++ = v>>8;
 				*bp++ = v>>16;
-				*bp++ = v>>24;
+				*bp = v>>24;
 			}
 		}
 	}
@@ -463,8 +460,6 @@ aclass(Adr *a)
 				print("%D\n", a);
 				return C_GOK;
 			}
-			s = a->sym;
-			t = s->type;
 			instoffset = 0;	// s.b. unused but just in case
 			return C_ADDR;
 
@@ -520,8 +515,6 @@ aclass(Adr *a)
 		switch(a->name) {
 		case D_EXTERN:
 		case D_STATIC:
-			s = a->sym;
-			t = s->type;
 			instoffset = 0;	// s.b. unused but just in case
 			return C_ADDR;
 		}
@@ -556,7 +549,6 @@ aclass(Adr *a)
 			s = a->sym;
 			if(s == S)
 				break;
-			t = s->type;
 			instoffset = 0;	// s.b. unused but just in case
 			return C_LCON;
 
