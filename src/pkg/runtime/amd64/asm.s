@@ -364,6 +364,19 @@ TEXT runtime·casp(SB), 7, $0
 	MOVL	$1, AX
 	RET
 
+// uint32 xadd(uint32 volatile *val, int32 delta)
+// Atomically:
+//	*val += delta;
+//	return *val;
+TEXT runtime·xadd(SB), 7, $0
+	MOVQ	8(SP), BX
+	MOVL	16(SP), AX
+	MOVL	AX, CX
+	LOCK
+	XADDL	AX, 0(BX)
+	ADDL	CX, AX
+	RET
+
 TEXT runtime·atomicstorep(SB), 7, $0
 	MOVQ	8(SP), BX
 	MOVQ	16(SP), AX
