@@ -31,7 +31,7 @@ OFILES=\
 
 HFILES=\
 	l.h\
-	../8l/8.out.h\
+	8.out.h\
 	../ld/dwarf.h\
 	../ld/elf.h\
 	../ld/macho.h\
