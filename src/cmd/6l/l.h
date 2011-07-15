@@ -31,7 +31,7 @@
 #include	<u.h>
 #include	<libc.h>
 #include	<bio.h>
-#include	"../6l/6.out.h"
+#include	"6.out.h"
 
 #ifndef	EXTERN
 #define	EXTERN	extern
@@ -301,9 +301,11 @@ EXTERN union
 
 #pragma	varargck	type	"A"	uint
 #pragma	varargck	type	"D"	Adr*
+#pragma	varargck	type	"I"	uchar*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"R"	int
 #pragma	varargck	type	"S"	char*
+#pragma	varargck	type	"i"	char*
 
 EXTERN	int32	HEADR;
 EXTERN	int32	HEADTYPE;

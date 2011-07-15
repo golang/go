@@ -29,9 +29,10 @@
 // THE SOFTWARE.
 
 #define	EXTERN
+#include <u.h>
+#include <libc.h>
 #include "a.h"
 #include "y.tab.h"
-#include <ctype.h>
 
 enum
 {
