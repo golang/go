@@ -18,6 +18,7 @@ GOFILES=\
 	response.go\
 	reverseproxy.go\
 	server.go\
+	sniff.go\
 	status.go\
 	transfer.go\
 	transport.go\
