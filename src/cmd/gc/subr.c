@@ -1049,21 +1049,25 @@ Jconv(Fmt *fp)
 {
 	Node *n;
 	char *s;
+	int c;
 
 	n = va_arg(fp->args, Node*);
-	if(n->ullman != 0)
+
+	c = fp->flags&FmtShort;
+
+	if(!c && n->ullman != 0)
 		fmtprint(fp, " u(%d)", n->ullman);
 
-	if(n->addable != 0)
+	if(!c && n->addable != 0)
 		fmtprint(fp, " a(%d)", n->addable);
 
-	if(n->vargen != 0)
+	if(!c && n->vargen != 0)
 		fmtprint(fp, " g(%d)", n->vargen);
 
 	if(n->lineno != 0)
 		fmtprint(fp, " l(%d)", n->lineno);
 
-	if(n->xoffset != BADWIDTH)
+	if(!c && n->xoffset != BADWIDTH)
 		fmtprint(fp, " x(%lld%+d)", n->xoffset, n->stkdelta);
 
 	if(n->class != 0) {
@@ -1081,10 +1085,13 @@ Jconv(Fmt *fp)
 	if(n->funcdepth != 0)
 		fmtprint(fp, " f(%d)", n->funcdepth);
 
-	if(n->typecheck != 0)
+	if(n->noescape != 0)
+		fmtprint(fp, " ne(%d)", n->noescape);
+
+	if(!c && n->typecheck != 0)
 		fmtprint(fp, " tc(%d)", n->typecheck);
 
-	if(n->dodata != 0)
+	if(!c && n->dodata != 0)
 		fmtprint(fp, " dd(%d)", n->dodata);
 
 	if(n->isddd != 0)
@@ -1093,10 +1100,10 @@ Jconv(Fmt *fp)
 	if(n->implicit != 0)
 		fmtprint(fp, " implicit(%d)", n->implicit);
 
-	if(n->pun != 0)
+	if(!c && n->pun != 0)
 		fmtprint(fp, " pun(%d)", n->pun);
 
-	if(n->used != 0)
+	if(!c && n->used != 0)
 		fmtprint(fp, " used(%d)", n->used);
 	return 0;
 }
@@ -1494,17 +1501,25 @@ Nconv(Fmt *fp)
 
 	switch(n->op) {
 	default:
-		fmtprint(fp, "%O%J", n->op, n);
+		if (fp->flags & FmtShort)
+			fmtprint(fp, "%O%hJ", n->op, n);
+		else
+			fmtprint(fp, "%O%J", n->op, n);
 		break;
 
 	case ONAME:
 	case ONONAME:
 		if(n->sym == S) {
-			fmtprint(fp, "%O%J", n->op, n);
+			if (fp->flags & FmtShort)
+				fmtprint(fp, "%O%hJ", n->op, n);
+			else
+				fmtprint(fp, "%O%J", n->op, n);
 			break;
 		}
-		fmtprint(fp, "%O-%S G%d%J", n->op,
-			n->sym, n->vargen, n);
+		if (fp->flags & FmtShort)
+			fmtprint(fp, "%O-%S%hJ", n->op, n->sym, n);
+		else
+			fmtprint(fp, "%O-%S%J", n->op, n->sym, n);
 		goto ptyp;
 
 	case OREGISTER:
