@@ -31,7 +31,7 @@
 #include	<u.h>
 #include	<libc.h>
 #include	<bio.h>
-#include	"../8l/8.out.h"
+#include	"8.out.h"
 
 #ifndef	EXTERN
 #define	EXTERN	extern
@@ -262,7 +262,6 @@ EXTERN union
 
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"D"	Adr*
-#pragma	varargck	type	"I"	int
 #pragma	varargck	type	"I"	uchar*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"R"	int
