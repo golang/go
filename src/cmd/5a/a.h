@@ -28,8 +28,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include <u.h>
-#include <libc.h>
 #include <bio.h>
 #include "../5l/5.out.h"
 
@@ -54,7 +52,9 @@ typedef	struct	Hist	Hist;
 #define	NSYMB		8192
 #define	BUFSIZ		8192
 #define	HISTSZ		20
+#ifndef	EOF
 #define	EOF		(-1)
+#endif
 #define	IGN		(-2)
 #define	GETC()		((--fi.c < 0)? filbuf(): *fi.p++ & 0xff)
 #define	NHASH		503

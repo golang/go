@@ -36,7 +36,7 @@
 void
 doprof1(void)
 {
-#if 0	// TODO(rsc)
+#ifdef	NOTDEF	// TODO(rsc)
 	Sym *s;
 	int32 n;
 	Prog *p, *q;

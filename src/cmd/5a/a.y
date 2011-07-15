@@ -29,7 +29,9 @@
 // THE SOFTWARE.
 
 %{
+#include <u.h>
 #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
+#include <libc.h>
 #include "a.h"
 %}
 %union

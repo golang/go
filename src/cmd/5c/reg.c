@@ -83,6 +83,7 @@ regopt(Prog *p)
 	// the disable is unconventionally here because the call is in common code shared by 5c/6c/8c
 	return;
 
+#ifdef	NOTDEF
 	firstr = R;
 	lastr = R;
 	nvar = 0;
@@ -490,6 +491,7 @@ brk:
 		r1->link = freer;
 		freer = firstr;
 	}
+#endif
 }
 
 void

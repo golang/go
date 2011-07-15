@@ -102,12 +102,15 @@ int	nelfsym = 1;
 void
 adddynrel(Sym *s, Reloc *r)
 {
+	USED(s);
+	USED(r);
 	diag("adddynrel: unsupported binary format");
 }
 
 void
 adddynsym(Sym *s)
 {
+	USED(s);
 	diag("adddynsym: not implemented");
 }
 
@@ -120,6 +123,9 @@ elfsetupplt(void)
 int
 archreloc(Reloc *r, Sym *s, vlong *val)
 {
+	USED(r);
+	USED(s);
+	USED(val);
 	return -1;
 }
 
@@ -452,7 +458,7 @@ asmb(void)
 		startva = INITTEXT - fo;	/* va of byte 0 of file */
 		
 		/* This null SHdr must appear before all others */
-		sh = newElfShdr(elfstr[ElfStrEmpty]);
+		newElfShdr(elfstr[ElfStrEmpty]);
 
 		/* program header info */
 		pph = newElfPhdr();
@@ -635,11 +641,11 @@ asmb(void)
 	cflush();
 	if(debug['c']){
 		print("textsize=%d\n", textsize);
-		print("datsize=%d\n", segdata.filelen);
-		print("bsssize=%d\n", segdata.len - segdata.filelen);
+		print("datsize=%ulld\n", segdata.filelen);
+		print("bsssize=%ulld\n", segdata.len - segdata.filelen);
 		print("symsize=%d\n", symsize);
 		print("lcsize=%d\n", lcsize);
-		print("total=%d\n", textsize+segdata.len+symsize+lcsize);
+		print("total=%lld\n", textsize+segdata.len+symsize+lcsize);
 	}
 }
 
@@ -1436,6 +1442,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 	out[5] = o6;
 	return;
 
+#ifdef	NOTDEF
 	v = p->pc;
 	switch(o->size) {
 	default:
@@ -1491,6 +1498,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 		lputl(o6);
 		break;
 	}
+#endif
 }
 
 int32
