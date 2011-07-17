@@ -197,6 +197,7 @@ var execTests = []execTest{
 	{"$ int", "{{$}}", "123", 123, true},
 	{"$.I", "{{$.I}}", "17", tVal, true},
 	{"$.U.V", "{{$.U.V}}", "v", tVal, true},
+	{"declare in action", "{{$x := $.U.V}},{{$x}}", "v,v", tVal, true},
 
 	// Pointers.
 	{"*int", "{{.PI}}", "23", tVal, true},
@@ -309,7 +310,8 @@ var execTests = []execTest{
 	{"with map", "{{with .MSIone}}{{.}}{{else}}EMPTY{{end}}", "map[one:1]", tVal, true},
 	{"with empty interface, struct field", "{{with .Empty4}}{{.V}}{{end}}", "v", tVal, true},
 	{"with $x int", "{{with $x := .I}}{{$x}}{{end}}", "17", tVal, true},
-	{"with $x struct.U.V", "{{with $x := $}}{{$.U.V}}{{end}}", "v", tVal, true},
+	{"with $x struct.U.V", "{{with $x := $}}{{$x.U.V}}{{end}}", "v", tVal, true},
+	{"with variable and action", "{{with $x := $}}{{$y := $.U.V}},{{$y}}{{end}}", "v,v", tVal, true},
 
 	// Range.
 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},

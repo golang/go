@@ -153,8 +153,8 @@ Execute.
 
 Variables
 
-A pipeline inside an "if" or "with" action may initialize a variable to capture
-the result.  The initialization has syntax
+A pipeline inside an action may initialize a variable to capture the result.
+The initialization has syntax
 
 	$variable := pipeline
 
@@ -171,8 +171,10 @@ array/slice index or map key and element, respectively.  Note that if there is
 only one variable, it is assigned the element; this is opposite to the
 convention in Go range clauses.
 
-A variable's scope extends to the "end" action of the control structure
-declaring it.
+A variable's scope extends to the "end" action of the control structure ("if",
+"with", or "range") in which it is declared, or to the end of the template if
+there is no such control structure.  A template invocation does not inherit
+variables from the point of its invocation.
 
 When execution begins, $ is set to the data argument passed to Execute, that is,
 to the starting value of dot.

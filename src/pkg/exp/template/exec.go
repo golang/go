@@ -98,9 +98,6 @@ func (t *Template) ExecuteInSet(wr io.Writer, data interface{}, set *Set) (err o
 		state.errorf("must be parsed before execution")
 	}
 	state.walk(value, t.root)
-	if state.mark() != 1 {
-		t.errorf("internal error: variable stack at %d", state.mark())
-	}
 	return
 }
 
@@ -110,7 +107,7 @@ func (s *state) walk(dot reflect.Value, n node) {
 	switch n := n.(type) {
 	case *actionNode:
 		s.line = n.line
-		defer s.pop(s.mark())
+		// Do not pop variables so they persist until next end.
 		s.printValue(n, s.evalPipeline(dot, n.pipe))
 	case *ifNode:
 		s.line = n.line
@@ -235,7 +232,7 @@ func (s *state) walkTemplate(dot reflect.Value, t *templateNode) {
 	if tmpl == nil {
 		s.errorf("template %q not in set", t.name)
 	}
-	defer s.pop(s.mark())
+	// Variables declared by the pipeline persist.
 	dot = s.evalPipeline(dot, t.pipe)
 	newState := *s
 	newState.tmpl = tmpl
