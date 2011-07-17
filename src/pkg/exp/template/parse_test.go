@@ -181,8 +181,6 @@ var parseTests = []parseTest{
 		"[(action: [(command: [I=printf S=`%d` N=23])])]"},
 	{"pipeline", "{{.X|.Y}}", noError,
 		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
-	{"pipeline with decl", "{{$x := .X|.Y}}", noError,
-		`[(action: [V=[$x]] := [(command: [F=[X]]) (command: [F=[Y]])])]`},
 	{"declaration", "{{.X|.Y}}", noError,
 		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
 	{"simple if", "{{if .X}}hello{{end}}", noError,
@@ -226,6 +224,7 @@ var parseTests = []parseTest{
 	{"invalid punctuation", "{{printf 3, 4}}", hasError, ""},
 	{"multidecl outside range", "{{with $v, $u := 3}}{{end}}", hasError, ""},
 	{"too many decls in range", "{{range $u, $v, $w := 3}}{{end}}", hasError, ""},
+	{"useless declaration", "{{$x := .X|.Y}}", hasError, ""},
 }
 
 func TestParse(t *testing.T) {

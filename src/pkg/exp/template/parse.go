@@ -696,13 +696,13 @@ func (t *Template) action() (n node) {
 	}
 	t.backup()
 	defer t.popVars(len(t.vars))
-	return newAction(t.lex.lineNumber(), t.pipeline("command"))
+	return newAction(t.lex.lineNumber(), t.pipeline("command", false))
 }
 
 // Pipeline:
 //	field or command
 //	pipeline "|" pipeline
-func (t *Template) pipeline(context string) (pipe *pipeNode) {
+func (t *Template) pipeline(context string, allowDecls bool) (pipe *pipeNode) {
 	var decl []*variableNode
 	// Are there declarations?
 	for {
@@ -713,6 +713,9 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
 				variable := newVariable(v.val)
 				if len(variable.ident) != 1 {
 					t.errorf("illegal variable in declaration: %s", v.val)
+				}
+				if !allowDecls {
+					t.errorf("variable %q declared but cannot be referenced", v.val)
 				}
 				decl = append(decl, variable)
 				t.vars = append(t.vars, v.val)
@@ -750,7 +753,7 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
 func (t *Template) parseControl(context string) (lineNum int, pipe *pipeNode, list, elseList *listNode) {
 	lineNum = t.lex.lineNumber()
 	defer t.popVars(len(t.vars))
-	pipe = t.pipeline(context)
+	pipe = t.pipeline(context, true)
 	var next node
 	list, next = t.itemList(false)
 	switch next.typ() {
@@ -825,7 +828,7 @@ func (t *Template) templateControl() node {
 	if t.next().typ != itemRightDelim {
 		t.backup()
 		defer t.popVars(len(t.vars))
-		pipe = t.pipeline("template")
+		pipe = t.pipeline("template", false)
 	}
 	return newTemplate(t.lex.lineNumber(), name, pipe)
 }

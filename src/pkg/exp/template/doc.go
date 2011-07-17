@@ -18,6 +18,9 @@ The input text for a template is UTF-8-encoded text in any format.
 "{{" and "}}"; all text outside actions is copied to the output unchanged.
 Actions may not span newlines.
 
+Once constructed, templates and template sets can be executed safely in
+parallel.
+
 Actions
 
 Here is the list of actions. "Arguments" and "pipelines" are evaluations of
@@ -150,23 +153,26 @@ Execute.
 
 Variables
 
-A pipeline may initialize a single variable to capture the result. The
-initialization has syntax
+A pipeline inside an "if" or "with" action may initialize a variable to capture
+the result.  The initialization has syntax
 
 	$variable := pipeline
 
 where $variable is the name of the variable.
 
-The one exception is a pipeline in a range action; in ranges, the variable is
-set to the successive elements of the iteration.  Also, a range may declare two
+If a "range" action initializes a variable, the variable is set to the
+successive elements of the iteration.  Also, a "range" may declare two
 variables, separated by a comma:
 
 	$index, $element := pipeline
 
-In this case $index and $element are set to the successive values of the
+in which case $index and $element are set to the successive values of the
 array/slice index or map key and element, respectively.  Note that if there is
 only one variable, it is assigned the element; this is opposite to the
 convention in Go range clauses.
+
+A variable's scope extends to the "end" action of the control structure
+declaring it.
 
 When execution begins, $ is set to the data argument passed to Execute, that is,
 to the starting value of dot.
