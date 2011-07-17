@@ -29,7 +29,7 @@ OFILES=\
 
 HFILES=\
 	l.h\
-	../5l/5.out.h\
+	5.out.h\
 	../ld/elf.h\
 
 include ../../Make.ccmd
