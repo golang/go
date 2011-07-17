@@ -41,9 +41,9 @@ const (
 // the Writer's Write method.  A Logger can be used simultaneously from
 // multiple goroutines; it guarantees to serialize access to the Writer.
 type Logger struct {
+	mu     sync.Mutex   // ensures atomic writes; protects the following fields
 	prefix string       // prefix to write at beginning of each line
 	flag   int          // properties
-	mu     sync.Mutex   // ensures atomic writes; protects the following fields
 	out    io.Writer    // destination for output
 	buf    bytes.Buffer // for accumulating text to write
 }
@@ -134,19 +134,21 @@ func (l *Logger) formatHeader(buf *bytes.Buffer, ns int64, file string, line int
 // paths it will be 2.
 func (l *Logger) Output(calldepth int, s string) os.Error {
 	now := time.Nanoseconds() // get this early.
-	// get caller info (if required) before locking - it's expensive.
 	var file string
 	var line int
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if l.flag&(Lshortfile|Llongfile) != 0 {
+		// release lock while getting caller info - it's expensive.
+		l.mu.Unlock()
 		var ok bool
 		_, file, line, ok = runtime.Caller(calldepth)
 		if !ok {
 			file = "???"
 			line = 0
 		}
+		l.mu.Lock()
 	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
 	l.buf.Reset()
 	l.formatHeader(&l.buf, now, file, line)
 	l.buf.WriteString(s)
@@ -212,26 +214,36 @@ func (l *Logger) Panicln(v ...interface{}) {
 
 // Flags returns the output flags for the logger.
 func (l *Logger) Flags() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	return l.flag
 }
 
 // SetFlags sets the output flags for the logger.
 func (l *Logger) SetFlags(flag int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.flag = flag
 }
 
 // Prefix returns the output prefix for the logger.
 func (l *Logger) Prefix() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	return l.prefix
 }
 
 // SetPrefix sets the output prefix for the logger.
 func (l *Logger) SetPrefix(prefix string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.prefix = prefix
 }
 
 // SetOutput sets the output destination for the standard logger.
 func SetOutput(w io.Writer) {
+	std.mu.Lock()
+	defer std.mu.Unlock()
 	std.out = w
 }
 
