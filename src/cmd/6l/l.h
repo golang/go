@@ -46,10 +46,6 @@ enum
 #define	P		((Prog*)0)
 #define	S		((Sym*)0)
 #define	TNAME		(cursym?cursym->name:noname)
-#define	cput(c)\
-	{ *cbp++ = c;\
-	if(--cbc <= 0)\
-		cflush(); }
 
 typedef	struct	Adr	Adr;
 typedef	struct	Prog	Prog;
@@ -286,19 +282,6 @@ enum
 	Maxand	= 10,		/* in -a output width of the byte codes */
 };
 
-EXTERN union
-{
-	struct
-	{
-		char	obuf[MAXIO];			/* output buffer */
-		uchar	ibuf[MAXIO];			/* input buffer */
-	} u;
-	char	dbuf[1];
-} buf;
-
-#define	cbuf	u.obuf
-#define	xbuf	u.ibuf
-
 #pragma	varargck	type	"A"	uint
 #pragma	varargck	type	"D"	Adr*
 #pragma	varargck	type	"I"	uchar*
@@ -313,9 +296,6 @@ EXTERN	int32	INITRND;
 EXTERN	vlong	INITTEXT;
 EXTERN	vlong	INITDAT;
 EXTERN	char*	INITENTRY;		/* entry point */
-EXTERN	Biobuf	bso;
-EXTERN	int	cbc;
-EXTERN	char*	cbp;
 EXTERN	char*	pcstr;
 EXTERN	Auto*	curauto;
 EXTERN	Auto*	curhist;
@@ -376,9 +356,7 @@ vlong	atolwhex(char*);
 Prog*	brchain(Prog*);
 Prog*	brloop(Prog*);
 void	buildop(void);
-void	cflush(void);
 Prog*	copyp(Prog*);
-vlong	cpos(void);
 double	cputime(void);
 void	datblk(int32, int32);
 void	deadcode(void);

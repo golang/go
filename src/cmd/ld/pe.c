@@ -135,20 +135,20 @@ peinit(void)
 static void
 pewrite(void)
 {
-	seek(cout, 0, 0);
-	ewrite(cout, dosstub, sizeof dosstub);
+	cseek(0);
+	cwrite(dosstub, sizeof dosstub);
 	strnput("PE", 4);
 	cflush();
 	// TODO: This code should not assume that the
 	// memory representation is little-endian or
 	// that the structs are packed identically to
 	// their file representation.
-	ewrite(cout, &fh, sizeof fh);
+	cwrite(&fh, sizeof fh);
 	if(pe64)
-		ewrite(cout, &oh64, sizeof oh64);
+		cwrite(&oh64, sizeof oh64);
 	else
-		ewrite(cout, &oh, sizeof oh);
-	ewrite(cout, sh, nsect * sizeof sh[0]);
+		cwrite(&oh, sizeof oh);
+	cwrite(sh, nsect * sizeof sh[0]);
 }
 
 static void
@@ -227,7 +227,7 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 	n = 0;
 	for(d = dr; d != nil; d = d->next)
 		n++;
-	seek(cout, fileoff + sizeof(IMAGE_IMPORT_DESCRIPTOR) * (n + 1), 0);
+	cseek(fileoff + sizeof(IMAGE_IMPORT_DESCRIPTOR) * (n + 1));
 
 	// write dll names
 	for(d = dr; d != nil; d = d->next) {
@@ -264,7 +264,7 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 
 	// write FirstThunks (allocated in .data section)
 	ftbase = dynamic->value - datsect->VirtualAddress - PEBASE;
-	seek(cout, datsect->PointerToRawData + ftbase, 0);
+	cseek(datsect->PointerToRawData + ftbase);
 	for(d = dr; d != nil; d = d->next) {
 		for(m = d->ms; m != nil; m = m->next)
 			put(m->off);
@@ -273,7 +273,7 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 	cflush();
 	
 	// finally write import descriptor table
-	seek(cout, fileoff, 0);
+	cseek(fileoff);
 	for(d = dr; d != nil; d = d->next) {
 		lputl(isect->VirtualAddress + oftbase + d->thunkoff);
 		lputl(0);
@@ -294,7 +294,7 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 	dd[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = dynamic->value - PEBASE;
 	dd[IMAGE_DIRECTORY_ENTRY_IAT].Size = dynamic->size;
 
-	seek(cout, 0, 2);
+	cseekend();
 }
 
 static int
@@ -348,7 +348,7 @@ addexports(vlong fileoff)
 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = va;
 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect->VirtualSize;
 
-	seek(cout, fileoff, 0);
+	cseek(fileoff);
 	va_name = va + sizeof e + nexport*4;
 	va_addr = va + sizeof e;
 	va_na = va + sizeof e + nexport*8;
@@ -385,7 +385,7 @@ addexports(vlong fileoff)
 	strnput("", sect->SizeOfRawData - size);
 	cflush();
 
-	seek(cout, 0, 2);
+	cseekend();
 }
 
 void
@@ -491,7 +491,7 @@ addpersrc(void)
 		p[2] = val>>16;
 		p[3] = val>>24;
 	}
-	ewrite(cout, rsrcsym->p, rsrcsym->size);
+	cwrite(rsrcsym->p, rsrcsym->size);
 	strnput("", h->SizeOfRawData - rsrcsym->size);
 	cflush();
 

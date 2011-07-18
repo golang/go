@@ -307,12 +307,12 @@ asmb(void)
 	Bflush(&bso);
 
 	sect = segtext.sect;
-	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
 	codeblk(sect->vaddr, sect->len);
 
 	/* output read-only data in text segment (rodata, gosymtab and pclntab) */
 	for(sect = sect->next; sect != nil; sect = sect->next) {
-		seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
 		datblk(sect->vaddr, sect->len);
 	}
 
@@ -320,12 +320,12 @@ asmb(void)
 		Bprint(&bso, "%5.2f datblk\n", cputime());
 	Bflush(&bso);
 
-	seek(cout, segdata.fileoff, 0);
+	cseek(segdata.fileoff);
 	datblk(segdata.vaddr, segdata.filelen);
 
 	/* output read-only data in text segment */
 	sect = segtext.sect->next;
-	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
 	datblk(sect->vaddr, sect->len);
 
 	if(iself) {
@@ -369,13 +369,13 @@ asmb(void)
 			symo = rnd(symo, INITRND);
 			break;
 		}
-		seek(cout, symo, 0);
+		cseek(symo);
 		if(iself) {
 			if(debug['v'])
 			       Bprint(&bso, "%5.2f elfsym\n", cputime());
 			asmelfsym();
 			cflush();
-			ewrite(cout, elfstrdat, elfstrsize);
+			cwrite(elfstrdat, elfstrsize);
 
 			// if(debug['v'])
 			// 	Bprint(&bso, "%5.2f dwarf\n", cputime());
@@ -389,7 +389,7 @@ asmb(void)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f header\n", cputime());
 	Bflush(&bso);
-	seek(cout, 0L, 0);
+	cseek(0L);
 	switch(HEADTYPE) {
 	case Hnoheader:	/* no header */
 		break;
@@ -628,7 +628,7 @@ asmb(void)
 			pph->memsz = pph->filesz;
 		}
 
-		seek(cout, 0, 0);
+		cseek(0);
 		a = 0;
 		a += elfwritehdr();
 		a += elfwritephdrs();
@@ -647,16 +647,6 @@ asmb(void)
 		print("lcsize=%d\n", lcsize);
 		print("total=%lld\n", textsize+segdata.len+symsize+lcsize);
 	}
-}
-
-void
-cput(int c)
-{
-	cbp[0] = c;
-	cbp++;
-	cbc--;
-	if(cbc <= 0)
-		cflush();
 }
 
 /*
@@ -706,19 +696,6 @@ lput(int32 l)
 	cbc -= 4;
 	if(cbc <= 0)
 		cflush();
-}
-
-void
-cflush(void)
-{
-	int n;
-
-	/* no bug if cbc < 0 since obuf(cbuf) followed by ibuf in buf! */
-	n = sizeof(buf.cbuf) - cbc;
-	if(n)
-		ewrite(cout, buf.cbuf, n);
-	cbp = buf.cbuf;
-	cbc = sizeof(buf.cbuf);
 }
 
 void
@@ -1442,7 +1419,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
 	out[5] = o6;
 	return;
 
-#ifdef	NOTDEF
+#ifdef NOTDEF
 	v = p->pc;
 	switch(o->size) {
 	default:

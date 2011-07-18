@@ -84,7 +84,6 @@ main(int argc, char *argv[])
 	char *p;
 
 	Binit(&bso, 1, OWRITE);
-	cout = -1;
 	listinit();
 	nerrors = 0;
 	outfile = "5.out";
