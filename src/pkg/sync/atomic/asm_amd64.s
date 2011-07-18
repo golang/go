@@ -57,3 +57,13 @@ TEXT ·AddUint64(SB),7,$0
 	ADDQ	AX, CX
 	MOVQ	CX, ret+16(FP)
 	RET
+
+TEXT ·LoadInt32(SB),7,$0
+	JMP	·LoadUint32(SB)
+
+TEXT ·LoadUint32(SB),7,$0
+	MOVQ	addrptr+0(FP), AX
+	MOVL	0(AX), AX
+	MOVL	AX, ret+8(FP)
+	RET
+

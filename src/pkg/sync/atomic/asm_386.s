@@ -85,3 +85,12 @@ addloop:
 	MOVL	BX, retlo+12(FP)
 	MOVL	CX, rethi+16(FP)
 	RET
+
+TEXT ·LoadInt32(SB),7,$0
+	JMP	·LoadUint32(SB)
+
+TEXT ·LoadUint32(SB),7,$0
+	MOVL	addrptr+0(FP), AX
+	MOVL	0(AX), AX
+	MOVL	AX, ret+4(FP)
+	RET

@@ -83,3 +83,16 @@ TEXT ·AddInt64(SB),7,$0
 
 TEXT ·AddUint64(SB),7,$0
 	B	·armAddUint64(SB)
+
+TEXT ·LoadInt32(SB),7,$0
+	B	·LoadUint32(SB)
+
+TEXT ·LoadUint32(SB),7,$0
+	MOVW	addrptr+0(FP), R2
+loadloop1:
+	MOVW	0(R2), R0
+	MOVW	R0, R1
+	BL	cas<>(SB)
+	BCC	loadloop1
+	MOVW	R0, val+4(FP)
+	RET

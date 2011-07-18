@@ -308,6 +308,46 @@ func TestCompareAndSwapUintptr(t *testing.T) {
 	}
 }
 
+func TestLoadInt32(t *testing.T) {
+	var x struct {
+		before int32
+		i      int32
+		after  int32
+	}
+	x.before = magic32
+	x.after = magic32
+	for delta := int32(1); delta+delta > delta; delta += delta {
+		k := LoadInt32(&x.i)
+		if k != x.i {
+			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
+		}
+		x.i += delta
+	}
+	if x.before != magic32 || x.after != magic32 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
+func TestLoadUint32(t *testing.T) {
+	var x struct {
+		before uint32
+		i      uint32
+		after  uint32
+	}
+	x.before = magic32
+	x.after = magic32
+	for delta := uint32(1); delta+delta > delta; delta += delta {
+		k := LoadUint32(&x.i)
+		if k != x.i {
+			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
+		}
+		x.i += delta
+	}
+	if x.before != magic32 || x.after != magic32 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
 // Tests of correct behavior, with contention.
 // (Is the function atomic?)
 //
@@ -534,6 +574,68 @@ func TestHammer64(t *testing.T) {
 		}
 		if val != uint64(n)*p {
 			t.Errorf("%s: val=%d want %d", tt.name, val, n*p)
+		}
+	}
+}
+
+func hammerLoadInt32(t *testing.T, uval *uint32) {
+	val := (*int32)(unsafe.Pointer(uval))
+	for {
+		v := LoadInt32(val)
+		vlo := v & ((1 << 16) - 1)
+		vhi := v >> 16
+		if vlo != vhi {
+			t.Fatalf("LoadInt32: %#x != %#x", vlo, vhi)
+		}
+		new := v + 1 + 1<<16
+		if vlo == 1e4 {
+			new = 0
+		}
+		if CompareAndSwapInt32(val, v, new) {
+			break
+		}
+	}
+}
+
+func hammerLoadUint32(t *testing.T, val *uint32) {
+	for {
+		v := LoadUint32(val)
+		vlo := v & ((1 << 16) - 1)
+		vhi := v >> 16
+		if vlo != vhi {
+			t.Fatalf("LoadUint32: %#x != %#x", vlo, vhi)
+		}
+		new := v + 1 + 1<<16
+		if vlo == 1e4 {
+			new = 0
+		}
+		if CompareAndSwapUint32(val, v, new) {
+			break
+		}
+	}
+}
+
+func TestHammerLoad(t *testing.T) {
+	tests := [...]func(*testing.T, *uint32){hammerLoadInt32, hammerLoadUint32}
+	n := 100000
+	if testing.Short() {
+		n = 10000
+	}
+	const procs = 8
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(procs))
+	for _, tt := range tests {
+		c := make(chan int)
+		var val uint32
+		for p := 0; p < procs; p++ {
+			go func() {
+				for i := 0; i < n; i++ {
+					tt(t, &val)
+				}
+				c <- 1
+			}()
+		}
+		for p := 0; p < procs; p++ {
+			<-c
 		}
 	}
 }
