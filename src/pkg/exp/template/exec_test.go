@@ -69,7 +69,7 @@ var tVal = &T{
 	Empty1: 3,
 	Empty2: "empty2",
 	Empty3: []int{7, 8},
-	Empty4: &U{"v"},
+	Empty4: &U{"UinEmpty"},
 	PI:     newInt(23),
 	PSI:    newIntSlice(21, 22, 23),
 	Tmpl:   New("x").MustParse("test template"), // "x" is the value of .X
@@ -210,7 +210,8 @@ var execTests = []execTest{
 	{"empty with int", "{{.Empty1}}", "3", tVal, true},
 	{"empty with string", "{{.Empty2}}", "empty2", tVal, true},
 	{"empty with slice", "{{.Empty3}}", "[7 8]", tVal, true},
-	{"empty with struct", "{{.Empty4}}", "{v}", tVal, true},
+	{"empty with struct", "{{.Empty4}}", "{UinEmpty}", tVal, true},
+	{"empty with struct, field", "{{.Empty4.V}}", "UinEmpty", tVal, true},
 
 	// Method calls.
 	{".Method0", "-{{.Method0}}-", "-M0-", tVal, true},
@@ -308,7 +309,7 @@ var execTests = []execTest{
 	{"with slice", "{{with .SI}}{{.}}{{else}}EMPTY{{end}}", "[3 4 5]", tVal, true},
 	{"with emptymap", "{{with .MSIEmpty}}{{.}}{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"with map", "{{with .MSIone}}{{.}}{{else}}EMPTY{{end}}", "map[one:1]", tVal, true},
-	{"with empty interface, struct field", "{{with .Empty4}}{{.V}}{{end}}", "v", tVal, true},
+	{"with empty interface, struct field", "{{with .Empty4}}{{.V}}{{end}}", "UinEmpty", tVal, true},
 	{"with $x int", "{{with $x := .I}}{{$x}}{{end}}", "17", tVal, true},
 	{"with $x struct.U.V", "{{with $x := $}}{{$x.U.V}}{{end}}", "v", tVal, true},
 	{"with variable and action", "{{with $x := $}}{{$y := $.U.V}},{{$y}}{{end}}", "v,v", tVal, true},
