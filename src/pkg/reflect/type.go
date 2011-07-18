@@ -446,7 +446,7 @@ func (t *commonType) common() *commonType { return t }
 
 func (t *uncommonType) Method(i int) (m Method) {
 	if t == nil || i < 0 || i >= len(t.methods) {
-		return
+		panic("reflect: Method index out of range")
 	}
 	p := &t.methods[i]
 	if p.name != nil {
@@ -904,7 +904,7 @@ func toCommonType(p *runtime.Type) *commonType {
 	}
 	x := unsafe.Pointer(p)
 	if uintptr(x)&reflectFlags != 0 {
-		panic("invalid interface value")
+		panic("reflect: invalid interface value")
 	}
 	return &(*hdr)(x).t
 }
