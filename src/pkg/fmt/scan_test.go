@@ -298,6 +298,8 @@ var scanfTests = []ScanfTest{
 	// Fixed bugs
 	{"%d\n", "27\n", &intVal, 27},  // ok
 	{"%d\n", "28 \n", &intVal, 28}, // was: "unexpected newline"
+	{"%v", "0", &intVal, 0},        // was: "EOF"; 0 was taken as base prefix and not counted.
+	{"%v", "0", &uintVal, uint(0)}, // was: "EOF"; 0 was taken as base prefix and not counted.
 }
 
 var overflowTests = []ScanTest{
