@@ -36,6 +36,7 @@ GOFILES_linux=\
 	exec_unix.go\
 	lsf_linux.go\
 	netlink_linux.go\
+	sockcmsg_linux.go\
 	sockcmsg_unix.go\
 	syscall_unix.go\
 
