@@ -712,12 +712,12 @@ asmb(void)
 	Bflush(&bso);
 
 	sect = segtext.sect;
-	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
 	codeblk(sect->vaddr, sect->len);
 
 	/* output read-only data in text segment (rodata, gosymtab and pclntab) */
 	for(sect = sect->next; sect != nil; sect = sect->next) {
-		seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
 		datblk(sect->vaddr, sect->len);
 	}
 
@@ -725,7 +725,7 @@ asmb(void)
 		Bprint(&bso, "%5.2f datblk\n", cputime());
 	Bflush(&bso);
 
-	seek(cout, segdata.fileoff, 0);
+	cseek(segdata.fileoff);
 	datblk(segdata.vaddr, segdata.filelen);
 
 	machlink = 0;
@@ -785,14 +785,14 @@ asmb(void)
 			symo = rnd(symo, PEFILEALIGN);
 			break;
 		}
-		seek(cout, symo, 0);
+		cseek(symo);
 		switch(HEADTYPE) {
 		default:
 			if(iself) {
-				seek(cout, symo, 0);
+				cseek(symo);
 				asmelfsym();
 				cflush();
-				ewrite(cout, elfstrdat, elfstrsize);
+				cwrite(elfstrdat, elfstrsize);
 
 				if(debug['v'])
 				       Bprint(&bso, "%5.2f dwarf\n", cputime());
@@ -813,7 +813,7 @@ asmb(void)
 	if(debug['v'])
 		Bprint(&bso, "%5.2f headr\n", cputime());
 	Bflush(&bso);
-	seek(cout, 0L, 0);
+	cseek(0L);
 	switch(HEADTYPE) {
 	default:
 	case Hplan9x32:	/* plan9 */
@@ -1063,7 +1063,7 @@ asmb(void)
 		pph->filesz = eh->phnum * eh->phentsize;
 		pph->memsz = pph->filesz;
 
-		seek(cout, 0, 0);
+		cseek(0);
 		a = 0;
 		a += elfwritehdr();
 		a += elfwritephdrs();
@@ -1077,25 +1077,6 @@ asmb(void)
 		break;
 	}
 	cflush();
-}
-
-void
-cflush(void)
-{
-	int n;
-
-	n = sizeof(buf.cbuf) - cbc;
-	if(n)
-		ewrite(cout, buf.cbuf, n);
-	cbp = buf.cbuf;
-	cbc = sizeof(buf.cbuf);
-}
-
-/* Current position in file */
-vlong
-cpos(void)
-{
-	return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
 }
 
 vlong

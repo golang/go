@@ -264,19 +264,6 @@ enum
 	MINLC	= 4,
 };
 
-EXTERN union
-{
-	struct
-	{
-		uchar	obuf[MAXIO];			/* output buffer */
-		uchar	ibuf[MAXIO];			/* input buffer */
-	} u;
-	char	dbuf[1];
-} buf;
-
-#define	cbuf	u.obuf
-#define	xbuf	u.ibuf
-
 #ifndef COFFCVT
 
 EXTERN	int32	HEADR;			/* length of header */
@@ -286,10 +273,6 @@ EXTERN	int32	INITRND;		/* data round above text location */
 EXTERN	int32	INITTEXT;		/* text location */
 EXTERN	char*	INITENTRY;		/* entry point */
 EXTERN	int32	autosize;
-EXTERN	Biobuf	bso;
-EXTERN	int	cbc;
-EXTERN	uchar*	cbp;
-EXTERN	int	cout;
 EXTERN	Auto*	curauto;
 EXTERN	Auto*	curhist;
 EXTERN	Prog*	curp;

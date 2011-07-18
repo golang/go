@@ -80,7 +80,6 @@ main(int argc, char *argv[])
 	int c;
 
 	Binit(&bso, 1, OWRITE);
-	cout = -1;
 	listinit();
 	memset(debug, 0, sizeof(debug));
 	nerrors = 0;

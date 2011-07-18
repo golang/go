@@ -313,8 +313,8 @@ elfwriteinterp(void)
 		return 0;
 
 	n = strlen(interp)+1;
-	seek(cout, ELFRESERVE-n, 0);
-	ewrite(cout, interp, n);
+	cseek(ELFRESERVE-n);
+	cwrite(interp, n);
 	return n;
 }
 

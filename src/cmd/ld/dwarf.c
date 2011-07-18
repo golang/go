@@ -1816,15 +1816,13 @@ flushunit(DWDie *dwinfo, vlong pc, vlong unitstart, int32 header_length)
 		cput(0);  // start extended opcode
 		uleb128put(1);
 		cput(DW_LNE_end_sequence);
-		cflush();
 
 		here = cpos();
-		seek(cout, unitstart, 0);
+		cseek(unitstart);
 		LPUT(here - unitstart - sizeof(int32));	 // unit_length
 		WPUT(3);  // dwarf version
 		LPUT(header_length); // header length starting here
-		cflush();
-		seek(cout, here, 0);
+		cseek(here);
 	}
 }
 
@@ -2105,17 +2103,14 @@ writeframes(void)
 		pad = rnd(fdesize, PtrSize) - fdesize;
 		strnput("", pad);
 		fdesize += pad;
-		cflush();
 
 		// Emit the FDE header for real, Section 6.4.1.
-		seek(cout, fdeo, 0);
+		cseek(fdeo);
 		LPUT(fdesize);
 		LPUT(0);
 		addrput(p->pc);
 		addrput(s->size);
-
-		cflush();
-		seek(cout, fdeo + 4 + fdesize, 0);
+		cseek(fdeo + 4 + fdesize);
 	}
 
 	cflush();
@@ -2151,14 +2146,12 @@ writeinfo(void)
 
 		putdie(compunit);
 
-		cflush();
 		here = cpos();
-		seek(cout, unitstart, 0);
+		cseek(unitstart);
 		LPUT(here - unitstart - 4);	// exclude the length field.
-		cflush();
-		seek(cout, here, 0);
+		cseek(here);
 	}
-
+	cflush();
 }
 
 /*
@@ -2213,12 +2206,10 @@ writepub(int (*ispub)(DWDie*))
 		}
 		LPUT(0);
 
-		cflush();
 		here = cpos();
-		seek(cout, sectionstart, 0);
+		cseek(sectionstart);
 		LPUT(here - sectionstart - 4);	// exclude the length field.
-		cflush();
-		seek(cout, here, 0);
+		cseek(here);
 
 	}
 
@@ -2358,7 +2349,7 @@ dwarfemitdebugsections(void)
 	if (fwdcount > 0) {
 		if (debug['v'])
 			Bprint(&bso, "%5.2f dwarf pass 2.\n", cputime());
-		seek(cout, infoo, 0);
+		cseek(infoo);
 		writeinfo();
 		if (fwdcount > 0) {
 			diag("dwarf: unresolved references after first dwarf info pass");

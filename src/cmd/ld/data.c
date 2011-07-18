@@ -451,7 +451,7 @@ codeblk(int32 addr, int32 size)
 	uchar *q;
 
 	if(debug['a'])
-		Bprint(&bso, "codeblk [%#x,%#x) at offset %#llx\n", addr, addr+size, seek(cout, 0, 1));
+		Bprint(&bso, "codeblk [%#x,%#x) at offset %#llx\n", addr, addr+size, cpos());
 
 	blk(textp, addr, size);
 
@@ -527,7 +527,7 @@ datblk(int32 addr, int32 size)
 	uchar *p, *ep;
 
 	if(debug['a'])
-		Bprint(&bso, "datblk [%#x,%#x) at offset %#llx\n", addr, addr+size, seek(cout, 0, 1));
+		Bprint(&bso, "datblk [%#x,%#x) at offset %#llx\n", addr, addr+size, cpos());
 
 	blk(datap, addr, size);
 

@@ -247,19 +247,6 @@ enum
 	Pb		= 0xfe,	/* byte operands */
 };
 
-EXTERN union
-{
-	struct
-	{
-		char	obuf[MAXIO];			/* output buffer */
-		uchar	ibuf[MAXIO];			/* input buffer */
-	} u;
-	char	dbuf[1];
-} buf;
-
-#define	cbuf	u.obuf
-#define	xbuf	u.ibuf
-
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"D"	Adr*
 #pragma	varargck	type	"I"	uchar*
@@ -275,10 +262,7 @@ EXTERN	int32	INITRND;
 EXTERN	int32	INITTEXT;
 EXTERN	int32	INITDAT;
 EXTERN	char*	INITENTRY;		/* entry point */
-EXTERN	Biobuf	bso;
 EXTERN	int32	casepc;
-EXTERN	int	cbc;
-EXTERN	char*	cbp;
 EXTERN	char*	pcstr;
 EXTERN	Auto*	curauto;
 EXTERN	Auto*	curhist;

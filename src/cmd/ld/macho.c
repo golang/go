@@ -506,12 +506,12 @@ domacholink(void)
 
 	if(size > 0) {
 		linkoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND);
-		seek(cout, linkoff, 0);
+		cseek(linkoff);
 
-		ewrite(cout, s1->p, s1->size);
-		ewrite(cout, s2->p, s2->size);
-		ewrite(cout, s3->p, s3->size);
-		ewrite(cout, s4->p, s4->size);
+		cwrite(s1->p, s1->size);
+		cwrite(s2->p, s2->size);
+		cwrite(s3->p, s3->size);
+		cwrite(s4->p, s4->size);
 	}
 
 	return rnd(size, INITRND);
