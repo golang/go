@@ -820,6 +820,7 @@ func TestHandlerPanic(t *testing.T) {
 	go func() {
 		buf := make([]byte, 1024)
 		_, err := pr.Read(buf)
+		pr.Close()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -829,7 +830,7 @@ func TestHandlerPanic(t *testing.T) {
 	case <-done:
 		return
 	case <-time.After(5e9):
-		t.Error("expected server handler to log an error")
+		t.Fatal("expected server handler to log an error")
 	}
 }
 
