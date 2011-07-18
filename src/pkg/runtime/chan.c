@@ -1167,12 +1167,15 @@ loop:
 static void
 dequeueg(WaitQ *q, Hchan *c)
 {
-	SudoG **l, *sgp;
-	
-	for(l=&q->first; (sgp=*l) != nil; l=&sgp->link) {
+	SudoG **l, *sgp, *prevsgp;
+
+	prevsgp = nil;
+	for(l=&q->first; (sgp=*l) != nil; l=&sgp->link, prevsgp=sgp) {
 		if(sgp->g == g) {
 			*l = sgp->link;
 			freesg(c, sgp);
+			if(q->last == sgp)
+				q->last = prevsgp;
 			break;
 		}
 	}
