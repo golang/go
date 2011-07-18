@@ -67,9 +67,27 @@ var cleantests = []PathTest{
 	{"abc/../../././../def", "../../def"},
 }
 
+var wincleantests = []PathTest{
+	{`c:`, `c:.`},
+	{`c:\`, `c:\`},
+	{`c:\abc`, `c:\abc`},
+	{`c:abc\..\..\.\.\..\def`, `c:..\..\def`},
+	{`c:\abc\def\..\..`, `c:\`},
+	{`c:..\abc`, `c:..\abc`},
+	{`\`, `\`},
+	{`/`, `\`},
+}
+
 func TestClean(t *testing.T) {
-	for _, test := range cleantests {
-		if s := filepath.ToSlash(filepath.Clean(test.path)); s != test.result {
+	tests := cleantests
+	if runtime.GOOS == "windows" {
+		for i, _ := range tests {
+			tests[i].result = filepath.FromSlash(tests[i].result)
+		}
+		tests = append(tests, wincleantests...)
+	}
+	for _, test := range tests {
+		if s := filepath.Clean(test.path); s != test.result {
 			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)
 		}
 	}
@@ -399,16 +417,30 @@ var winisabstests = []IsAbsTest{
 	{`C:\`, true},
 	{`c\`, false},
 	{`c::`, false},
-	{`/`, true},
-	{`\`, true},
-	{`\Windows`, true},
+	{`c:`, false},
+	{`/`, false},
+	{`\`, false},
+	{`\Windows`, false},
+	{`c:a\b`, false},
 }
 
 func TestIsAbs(t *testing.T) {
+	var tests []IsAbsTest
 	if runtime.GOOS == "windows" {
-		isabstests = append(isabstests, winisabstests...)
+		tests = append(tests, winisabstests...)
+		// All non-windows tests should fail, because they have no volume letter.
+		for _, test := range isabstests {
+			tests = append(tests, IsAbsTest{test.path, false})
+		}
+		// All non-windows test should work as intended if prefixed with volume letter.
+		for _, test := range isabstests {
+			tests = append(tests, IsAbsTest{"c:" + test.path, test.isAbs})
+		}
+	} else {
+		tests = isabstests
 	}
-	for _, test := range isabstests {
+
+	for _, test := range tests {
 		if r := filepath.IsAbs(test.path); r != test.isAbs {
 			t.Errorf("IsAbs(%q) = %v, want %v", test.path, r, test.isAbs)
 		}
