@@ -550,9 +550,11 @@ func (s *ss) getBase(verb int) (base int, digits string) {
 
 // scanNumber returns the numerical string with specified digits starting here.
 func (s *ss) scanNumber(digits string, haveDigits bool) string {
-	s.notEOF()
-	if !haveDigits && !s.accept(digits) {
-		s.errorString("expected integer")
+	if !haveDigits {
+		s.notEOF()
+		if !s.accept(digits) {
+			s.errorString("expected integer")
+		}
 	}
 	for s.accept(digits) {
 	}
