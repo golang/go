@@ -10,6 +10,8 @@ import (
 	"http/httptest"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -114,6 +116,36 @@ func TestFileServerCleans(t *testing.T) {
 		if got := <-ch; got != test.openArg {
 			t.Errorf("test %d: got %q, want %q", n, got, test.openArg)
 		}
+	}
+}
+
+func TestFileServerImplicitLeadingSlash(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("TempDir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+	if err := ioutil.WriteFile(filepath.Join(tempDir, "foo.txt"), []byte("Hello world"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	ts := httptest.NewServer(StripPrefix("/bar/", FileServer(Dir(tempDir))))
+	defer ts.Close()
+	get := func(suffix string) string {
+		res, err := Get(ts.URL + suffix)
+		if err != nil {
+			t.Fatalf("Get %s: %v", suffix, err)
+		}
+		b, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			t.Fatalf("ReadAll %s: %v", suffix, err)
+		}
+		return string(b)
+	}
+	if s := get("/bar/"); !strings.Contains(s, ">foo.txt<") {
+		t.Logf("expected a directory listing with foo.txt, got %q", s)
+	}
+	if s := get("/bar/foo.txt"); s != "Hello world" {
+		t.Logf("expected %q, got %q", "Hello world", s)
 	}
 }
 
