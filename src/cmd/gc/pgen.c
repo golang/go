@@ -149,7 +149,7 @@ compactframe(Prog* ptxt)
 {
 	NodeList *ll;
 	Node* n;
-	uint32 w;
+	vlong w;
 
 	if (stksize == 0)
 		return;
