@@ -268,7 +268,7 @@ struct MCache
 	uint64 size;
 	int64 local_cachealloc;	// bytes allocated (or freed) from cache since last lock of heap
 	int64 local_objects;	// objects allocated (or freed) from cache since last lock of heap
-	int64 local_alloc;	// bytes allocated and still in use since last lock of heap
+	int64 local_alloc;	// bytes allocated (or freed) since last lock of heap
 	int64 local_total_alloc;	// bytes allocated (even if freed) since last lock of heap
 	int64 local_nmalloc;	// number of mallocs since last lock of heap
 	int64 local_nfree;	// number of frees since last lock of heap
