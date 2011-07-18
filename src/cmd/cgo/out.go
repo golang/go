@@ -412,7 +412,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 				t := p.cgoType(atype)
 				if off%t.Align != 0 {
 					pad := t.Align - off%t.Align
-					ctype += fmt.Sprintf("\t\tchar __pad%d[%d]\n", npad, pad)
+					ctype += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
 					off += pad
 					npad++
 				}
