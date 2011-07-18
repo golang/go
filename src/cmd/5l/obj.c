@@ -145,18 +145,8 @@ main(int argc, char *argv[])
 
 	libinit();
 
-	if(!debug['9'] && !debug['U'] && !debug['B'])
-		debug[DEFAULT] = 1;
-	if(HEADTYPE == -1) {
-		if(debug['U'])
-			HEADTYPE = Hnoheader;
-		else if(debug['B'])
-			HEADTYPE = Hrisc;
-		else if(debug['9'])
-			HEADTYPE = Hplan9x32;
-		else
-			HEADTYPE = Hlinux;
-	}
+	if(HEADTYPE == -1)
+		HEADTYPE = Hlinux;
 	switch(HEADTYPE) {
 	default:
 		diag("unknown -H option");
