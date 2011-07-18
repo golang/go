@@ -62,7 +62,7 @@ func (state *encoderState) encodeUint(x uint64) {
 	var n, m int
 	m = uint64Size
 	for n = 1; x > 0; n++ {
-		state.buf[m] = uint8(x & 0xFF)
+		state.buf[m] = uint8(x)
 		x >>= 8
 		m--
 	}
