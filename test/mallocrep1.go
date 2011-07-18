@@ -60,6 +60,7 @@ func AllocAndFree(size, count int) {
 		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats)
 	}
 	n3 := stats.Alloc
+	runtime.GC()
 	for j := 0; j < count; j++ {
 		i := j
 		if *reverse {
@@ -72,6 +73,7 @@ func AllocAndFree(size, count int) {
 			panic("fail")
 		}
 		runtime.Free(b[i])
+		runtime.GC()
 		if stats.Alloc != uint64(alloc-n) {
 			println("free alloc got", stats.Alloc, "expected", alloc-n, "after free of", n)
 			panic("fail")

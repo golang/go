@@ -47,6 +47,7 @@ func main() {
 			b := runtime.Alloc(uintptr(j))
 			during := runtime.MemStats.Alloc
 			runtime.Free(b)
+			runtime.GC()
 			if a := runtime.MemStats.Alloc; a != 0 {
 				println("allocated ", j, ": wrong stats: during=", during, " after=", a, " (want 0)")
 				panic("fail")
