@@ -62,13 +62,13 @@ struct Sched {
 	G *gtail;
 	int32 gwait;	// number of gs waiting to run
 	int32 gcount;	// number of gs that are alive
+	int32 grunning;	// number of gs running on cpu or in syscall
 
 	M *mhead;	// ms waiting for work
 	int32 mwait;	// number of ms waiting for work
 	int32 mcount;	// number of ms that have been created
 	int32 mcpu;	// number of ms executing on cpu
 	int32 mcpumax;	// max number of ms allowed on cpu
-	int32 msyscall;	// number of ms in system calls
 
 	int32 predawn;	// running initialization, don't run new gs.
 	int32 profilehz;	// cpu profiling rate
@@ -353,6 +353,7 @@ newprocreadylocked(G *g)
 static void
 mnextg(M *m, G *g)
 {
+	runtime·sched.grunning++;
 	runtime·sched.mcpu++;
 	m->nextg = g;
 	if(m->waitnextg) {
@@ -397,6 +398,7 @@ nextgandunlock(void)
 				mnextg(gp->lockedm, gp);
 				continue;
 			}
+			runtime·sched.grunning++;
 			runtime·sched.mcpu++;		// this m will run gp
 			schedunlock();
 			return gp;
@@ -404,7 +406,7 @@ nextgandunlock(void)
 		// Otherwise, wait on global m queue.
 		mput(m);
 	}
-	if(runtime·sched.mcpu == 0 && runtime·sched.msyscall == 0)
+	if(runtime·sched.grunning == 0)
 		runtime·throw("all goroutines are asleep - deadlock!");
 	m->nextg = nil;
 	m->waitnextg = 1;
@@ -548,6 +550,7 @@ schedule(G *gp)
 		// Just finished running gp.
 		gp->m = nil;
 		runtime·sched.mcpu--;
+		runtime·sched.grunning--;
 
 		if(runtime·sched.mcpu < 0)
 			runtime·throw("runtime·sched.mcpu < 0 in scheduler");
@@ -634,7 +637,6 @@ runtime·entersyscall(void)
 	schedlock();
 	g->status = Gsyscall;
 	runtime·sched.mcpu--;
-	runtime·sched.msyscall++;
 	if(runtime·sched.gwait != 0)
 		matchmg();
 
@@ -668,7 +670,6 @@ runtime·exitsyscall(void)
 		return;
 
 	schedlock();
-	runtime·sched.msyscall--;
 	runtime·sched.mcpu++;
 	// Fast path - if there's room for this m, we're done.
 	if(m->profilehz == runtime·sched.profilehz && runtime·sched.mcpu <= runtime·sched.mcpumax) {
