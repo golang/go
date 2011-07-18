@@ -53,7 +53,7 @@ type Formatter interface {
 	Format(f State, c int)
 }
 
-// Stringer is implemented by any value that has a String method(),
+// Stringer is implemented by any value that has a String method,
 // which defines the ``native'' format for that value.
 // The String method is used to print values passed as an operand
 // to a %s or %v format or to an unformatted printer such as Print.
@@ -61,7 +61,7 @@ type Stringer interface {
 	String() string
 }
 
-// GoStringer is implemented by any value that has a GoString() method,
+// GoStringer is implemented by any value that has a GoString method,
 // which defines the Go syntax for that value.
 // The GoString method is used to print values passed as an operand
 // to a %#v format.
