@@ -38,19 +38,19 @@ const (
 // Getting Dot-Dot right,''
 // http://plan9.bell-labs.com/sys/doc/lexnames.html
 func Clean(path string) string {
+	vol := volumeName(path)
+	path = path[len(vol):]
 	if path == "" {
-		return "."
+		return vol + "."
 	}
 
-	rooted := IsAbs(path)
+	rooted := os.IsPathSeparator(path[0])
 
 	// Invariants:
 	//	reading from path; r is index of next byte to process.
 	//	writing to buf; w is index of next byte to write.
 	//	dotdot is index in buf where .. must stop, either because
 	//		it is the leading slash or it is a leading ../../.. prefix.
-	prefix := volumeName(path)
-	path = path[len(prefix):]
 	n := len(path)
 	buf := []byte(path)
 	r, w, dotdot := 0, 0, 0
@@ -110,7 +110,7 @@ func Clean(path string) string {
 		w++
 	}
 
-	return prefix + string(buf[0:w])
+	return FromSlash(vol + string(buf[0:w]))
 }
 
 // ToSlash returns the result of replacing each separator character

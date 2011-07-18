@@ -451,24 +451,31 @@ var segments = []segment{
 	{"\n //line foo:42\n  line44", filepath.Join("dir", "foo"), 44},           // bad line comment, ignored
 	{"\n//line foo 42\n  line46", filepath.Join("dir", "foo"), 46},            // bad line comment, ignored
 	{"\n//line foo:42 extra text\n  line48", filepath.Join("dir", "foo"), 48}, // bad line comment, ignored
-	{"\n//line /bar:42\n  line42", string(filepath.Separator) + "bar", 42},
 	{"\n//line ./foo:42\n  line42", filepath.Join("dir", "foo"), 42},
 	{"\n//line a/b/c/File1.go:100\n  line100", filepath.Join("dir", "a", "b", "c", "File1.go"), 100},
 }
 
+var unixsegments = []segment{
+	{"\n//line /bar:42\n  line42", "/bar", 42},
+}
+
 var winsegments = []segment{
+	{"\n//line c:\\bar:42\n  line42", "c:\\bar", 42},
 	{"\n//line c:\\dir\\File1.go:100\n  line100", "c:\\dir\\File1.go", 100},
 }
 
 // Verify that comments of the form "//line filename:line" are interpreted correctly.
 func TestLineComments(t *testing.T) {
+	segs := segments
 	if runtime.GOOS == "windows" {
-		segments = append(segments, winsegments...)
+		segs = append(segs, winsegments...)
+	} else {
+		segs = append(segs, unixsegments...)
 	}
 
 	// make source
 	var src string
-	for _, e := range segments {
+	for _, e := range segs {
 		src += e.srcline
 	}
 
@@ -476,7 +483,7 @@ func TestLineComments(t *testing.T) {
 	var S Scanner
 	file := fset.AddFile(filepath.Join("dir", "TestLineComments"), fset.Base(), len(src))
 	S.Init(file, []byte(src), nil, 0)
-	for _, s := range segments {
+	for _, s := range segs {
 		p, _, lit := S.Scan()
 		pos := file.Position(p)
 		checkPos(t, lit, p, token.Position{s.filename, pos.Offset, s.line, pos.Column})
