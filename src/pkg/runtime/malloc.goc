@@ -38,18 +38,18 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 	if(size == 0)
 		size = 1;
 
-	mstats.nmalloc++;
+	c = m->mcache;
+	c->local_nmalloc++;
 	if(size <= MaxSmallSize) {
 		// Allocate from mcache free lists.
 		sizeclass = runtime·SizeToClass(size);
 		size = runtime·class_to_size[sizeclass];
-		c = m->mcache;
 		v = runtime·MCache_Alloc(c, sizeclass, size, zeroed);
 		if(v == nil)
 			runtime·throw("out of memory");
-		mstats.alloc += size;
-		mstats.total_alloc += size;
-		mstats.by_size[sizeclass].nmalloc++;
+		c->local_alloc += size;
+		c->local_total_alloc += size;
+		c->local_by_size[sizeclass].nmalloc++;
 	} else {
 		// TODO(rsc): Report tracebacks for very large allocations.
 
@@ -61,8 +61,8 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
 		if(s == nil)
 			runtime·throw("out of memory");
 		size = npages<<PageShift;
-		mstats.alloc += size;
-		mstats.total_alloc += size;
+		c->local_alloc += size;
+		c->local_total_alloc += size;
 		v = (void*)(s->start << PageShift);
 
 		// setup for mark sweep
@@ -128,6 +128,7 @@ runtime·free(void *v)
 
 	// Find size class for v.
 	sizeclass = s->sizeclass;
+	c = m->mcache;
 	if(sizeclass == 0) {
 		// Large object.
 		size = s->npages<<PageShift;
@@ -139,7 +140,6 @@ runtime·free(void *v)
 		runtime·MHeap_Free(&runtime·mheap, s, 1);
 	} else {
 		// Small object.
-		c = m->mcache;
 		size = runtime·class_to_size[sizeclass];
 		if(size > sizeof(uintptr))
 			((uintptr*)v)[1] = 1;	// mark as "needs to be zeroed"
@@ -147,10 +147,10 @@ runtime·free(void *v)
 		// it might coalesce v and other blocks into a bigger span
 		// and change the bitmap further.
 		runtime·markfreed(v, size);
-		mstats.by_size[sizeclass].nfree++;
+		c->local_by_size[sizeclass].nfree++;
 		runtime·MCache_Free(c, v, sizeclass, size);
 	}
-	mstats.alloc -= size;
+	c->local_alloc -= size;
 	if(prof)
 		runtime·MProf_Free(v, size);
 	m->mallocing = 0;
@@ -163,7 +163,7 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 	byte *p;
 	MSpan *s;
 
-	mstats.nlookup++;
+	m->mcache->local_nlookup++;
 	s = runtime·MHeap_LookupMaybe(&runtime·mheap, v);
 	if(sp)
 		*sp = s;
@@ -192,9 +192,10 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
 	}
 
 	n = runtime·class_to_size[s->sizeclass];
-	i = ((byte*)v - p)/n;
-	if(base)
+	if(base) {
+		i = ((byte*)v - p)/n;
 		*base = p + i*n;
+	}
 	if(size)
 		*size = n;
 
@@ -212,6 +213,29 @@ runtime·allocmcache(void)
 	mstats.mcache_sys = runtime·mheap.cachealloc.sys;
 	runtime·unlock(&runtime·mheap);
 	return c;
+}
+
+void
+runtime·purgecachedstats(M* m)
+{
+	MCache *c;
+
+	// Protected by either heap or GC lock.
+	c = m->mcache;
+	mstats.heap_alloc += c->local_cachealloc;
+	c->local_cachealloc = 0;
+	mstats.heap_objects += c->local_objects;
+	c->local_objects = 0;
+	mstats.nmalloc += c->local_nmalloc;
+	c->local_nmalloc = 0;
+	mstats.nfree += c->local_nfree;
+	c->local_nfree = 0;
+	mstats.nlookup += c->local_nlookup;
+	c->local_nlookup = 0;
+	mstats.alloc += c->local_alloc;
+	c->local_alloc= 0;
+	mstats.total_alloc += c->local_total_alloc;
+	c->local_total_alloc= 0;
 }
 
 uintptr runtime·sizeof_C_MStats = sizeof(MStats);
@@ -361,9 +385,6 @@ func new(n uint32) (ret *uint8) {
 void*
 runtime·stackalloc(uint32 n)
 {
-	void *v;
-	uintptr sys0;
-
 	// Stackalloc must be called on scheduler stack, so that we
 	// never try to grow the stack during the code that stackalloc runs.
 	// Doing so would cause a deadlock (issue 1547).
@@ -382,11 +403,7 @@ runtime·stackalloc(uint32 n)
 			runtime·printf("stackalloc: in malloc, size=%d want %d", FixedStack, n);
 			runtime·throw("stackalloc");
 		}
-		sys0 = m->stackalloc->sys;
-		v = runtime·FixAlloc_Alloc(m->stackalloc);
-		mstats.stacks_inuse += FixedStack;
-		mstats.stacks_sys += m->stackalloc->sys - sys0;
-		return v;
+		return runtime·FixAlloc_Alloc(m->stackalloc);
 	}
 	return runtime·mallocgc(n, FlagNoProfiling|FlagNoGC, 0, 0);
 }
@@ -394,13 +411,8 @@ runtime·stackalloc(uint32 n)
 void
 runtime·stackfree(void *v, uintptr n)
 {
-	uintptr sys0;
-
 	if(m->mallocing || m->gcing || n == FixedStack) {
-		sys0 = m->stackalloc->sys;
 		runtime·FixAlloc_Free(m->stackalloc, v);
-		mstats.stacks_inuse -= FixedStack;
-		mstats.stacks_sys += m->stackalloc->sys - sys0;
 		return;
 	}
 	runtime·free(v);

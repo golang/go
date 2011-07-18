@@ -48,7 +48,7 @@ runtime·MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed)
 			v->next = nil;
 		}
 	}
-	c->local_alloc += size;
+	c->local_cachealloc += size;
 	c->local_objects++;
 	return v;
 }
@@ -90,7 +90,7 @@ runtime·MCache_Free(MCache *c, void *v, int32 sizeclass, uintptr size)
 	l->list = p;
 	l->nlist++;
 	c->size += size;
-	c->local_alloc -= size;
+	c->local_cachealloc -= size;
 	c->local_objects--;
 
 	if(l->nlist >= MaxMCacheListLen) {
