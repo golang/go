@@ -94,5 +94,5 @@ loadloop1:
 	MOVW	R0, R1
 	BL	cas<>(SB)
 	BCC	loadloop1
-	MOVW	R0, val+4(FP)
+	MOVW	R1, val+4(FP)
 	RET
