@@ -19,6 +19,7 @@ import (
 type FileInfo interface {
 	Name() string
 	Size() int64
+	Mtime_ns() int64
 	IsRegular() bool
 	IsDirectory() bool
 }
@@ -52,6 +53,10 @@ func (fi osFI) Size() int64 {
 		return 0
 	}
 	return fi.FileInfo.Size
+}
+
+func (fi osFI) Mtime_ns() int64 {
+	return fi.FileInfo.Mtime_ns
 }
 
 // osFS is the OS-specific implementation of FileSystem
