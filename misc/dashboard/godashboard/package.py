@@ -114,7 +114,7 @@ class Project(db.Model):
 
 
 re_bitbucket = re.compile(r'^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-zA-Z0-9_.\-]+)(/[a-z0-9A-Z_.\-/]+)?$')
-re_googlecode = re.compile(r'^[a-z0-9\-]+\.googlecode\.com/(svn|hg)(/[a-z0-9A-Z_.\-/]+)?$')
+re_googlecode = re.compile(r'^[a-z0-9\-]+\.googlecode\.com/(svn|hg|git)(/[a-z0-9A-Z_.\-/]+)?$')
 re_github = re.compile(r'^github\.com/[a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)+$')
 re_launchpad = re.compile(r'^launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]+)?$')
 
@@ -130,7 +130,7 @@ def vc_to_web(path):
     elif re_googlecode.match(path):
         m = re_googlecode.match(path)
         check_url = 'http://'+path
-        if not m.group(2):  # append / after bare '/hg'
+        if not m.group(2):  # append / after bare '/hg' or '/git'
             check_url += '/'
         web = 'http://code.google.com/p/' + path[:path.index('.')]
     elif re_launchpad.match(path):
@@ -145,6 +145,17 @@ re_github_web = re.compile(r'github\.com/([a-z0-9A-Z_.\-]+)/([a-z0-9A-Z_.\-]+)')
 re_launchpad_web = re.compile(r'launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]+)?')
 re_striphttp = re.compile(r'https?://(www\.)?')
 
+def find_googlecode_vcs(path):
+    # Perform http request to path/hg or path/git to check if they're
+    # using mercurial or git.  Otherwise, assume svn.
+    for vcs in ['git', 'hg']:
+        try:
+            response = urlfetch.fetch('http://'+path+vcs, deadline=1)
+            if response.status_code == 200:
+                return vcs
+        except: pass
+    return 'svn'
+
 def web_to_vc(url):
     url = re_striphttp.sub('', url)
     m = re_bitbucket_web.match(url)
@@ -156,13 +167,7 @@ def web_to_vc(url):
     m = re_googlecode_web.match(url)
     if m:
         path = m.group(1)+'.googlecode.com/'
-        # perform http request to path/hg to check if they're using mercurial
-        vcs = 'svn'
-        try:
-            response = urlfetch.fetch('http://'+path+'hg', deadline=1)
-            if response.status_code == 200:
-                vcs = 'hg'
-        except: pass
+        vcs = find_googlecode_vcs(path)
         return path + vcs
     m = re_launchpad_web.match(url)
     if m:

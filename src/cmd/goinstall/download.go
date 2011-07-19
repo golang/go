@@ -97,6 +97,7 @@ var git = vcs{
 	protocols:         []string{"git", "https", "http"},
 	suffix:            ".git",
 	defaultHosts: []host{
+		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/git)(/[a-z0-9A-Z_.\-/]*)?$`), "https", ""},
 		{regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http", ".git"},
 	},
 }
