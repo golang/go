@@ -12,6 +12,7 @@ This package does not support ZIP64 or disk spanning.
 package zip
 
 import "os"
+import "time"
 
 // Compression methods.
 const (
@@ -32,8 +33,8 @@ type FileHeader struct {
 	ReaderVersion    uint16
 	Flags            uint16
 	Method           uint16
-	ModifiedTime     uint16
-	ModifiedDate     uint16
+	ModifiedTime     uint16 // MS-DOS time
+	ModifiedDate     uint16 // MS-DOS date
 	CRC32            uint32
 	CompressedSize   uint32
 	UncompressedSize uint32
@@ -60,4 +61,28 @@ func recoverError(err *os.Error) {
 		}
 		panic(e)
 	}
+}
+
+// msDosTimeToTime converts an MS-DOS date and time into a time.Time.
+// The resolution is 2s.
+// See: http://msdn.microsoft.com/en-us/library/ms724247(v=VS.85).aspx
+func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
+	return time.Time{
+		// date bits 0-4: day of month; 5-8: month; 9-15: years since 1980
+		Year:  int64(dosDate>>9 + 1980),
+		Month: int(dosDate >> 5 & 0xf),
+		Day:   int(dosDate & 0x1f),
+
+		// time bits 0-4: second/2; 5-10: minute; 11-15: hour
+		Hour:   int(dosTime >> 11),
+		Minute: int(dosTime >> 5 & 0x3f),
+		Second: int(dosTime & 0x1f * 2),
+	}
+}
+
+// Mtime_ns returns the modified time in ns since epoch.
+// The resolution is 2s.
+func (h *FileHeader) Mtime_ns() int64 {
+	t := msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
+	return t.Seconds() * 1e9
 }

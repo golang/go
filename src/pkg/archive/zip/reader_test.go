@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 )
 
 type ZipTest struct {
@@ -24,7 +25,18 @@ type ZipTestFile struct {
 	Name    string
 	Content []byte // if blank, will attempt to compare against File
 	File    string // name of file to compare to (relative to testdata/)
+	Mtime   string // modified time in format "mm-dd-yy hh:mm:ss"
 }
+
+// Caution: The Mtime values found for the test files should correspond to
+//          the values listed with unzip -l <zipfile>. However, the values
+//          listed by unzip appear to be off by some hours. When creating
+//          fresh test files and testing them, this issue is not present.
+//          The test files were created in Sydney, so there might be a time
+//          zone issue. The time zone information does have to be encoded
+//          somewhere, because otherwise unzip -l could not provide a different
+//          time from what the archive/zip package provides, but there appears
+//          to be no documentation about this.
 
 var tests = []ZipTest{
 	{
@@ -34,10 +46,12 @@ var tests = []ZipTest{
 			{
 				Name:    "test.txt",
 				Content: []byte("This is a test text file.\n"),
+				Mtime:   "09-05-10 12:12:02",
 			},
 			{
-				Name: "gophercolor16x16.png",
-				File: "gophercolor16x16.png",
+				Name:  "gophercolor16x16.png",
+				File:  "gophercolor16x16.png",
+				Mtime: "09-05-10 15:52:58",
 			},
 		},
 	},
@@ -45,8 +59,9 @@ var tests = []ZipTest{
 		Name: "r.zip",
 		File: []ZipTestFile{
 			{
-				Name: "r/r.zip",
-				File: "r.zip",
+				Name:  "r/r.zip",
+				File:  "r.zip",
+				Mtime: "03-04-10 00:24:16",
 			},
 		},
 	},
@@ -58,6 +73,7 @@ var tests = []ZipTest{
 			{
 				Name:    "filename",
 				Content: []byte("This is a test textfile.\n"),
+				Mtime:   "02-02-11 13:06:20",
 			},
 		},
 	},
@@ -136,18 +152,30 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
 	if f.Name != ft.Name {
 		t.Errorf("name=%q, want %q", f.Name, ft.Name)
 	}
+
+	mtime, err := time.Parse("01-02-06 15:04:05", ft.Mtime)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if got, want := f.Mtime_ns()/1e9, mtime.Seconds(); got != want {
+		t.Errorf("%s: mtime=%s (%d); want %s (%d)", f.Name, time.SecondsToUTC(got), got, mtime, want)
+	}
+
 	var b bytes.Buffer
 	r, err := f.Open()
 	if err != nil {
 		t.Error(err)
 		return
 	}
+
 	_, err = io.Copy(&b, r)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	r.Close()
+
 	var c []byte
 	if len(ft.Content) != 0 {
 		c = ft.Content
@@ -155,10 +183,12 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
 		t.Error(err)
 		return
 	}
+
 	if b.Len() != len(c) {
 		t.Errorf("%s: len=%d, want %d", f.Name, b.Len(), len(c))
 		return
 	}
+
 	for i, b := range b.Bytes() {
 		if b != c[i] {
 			t.Errorf("%s: content[%d]=%q want %q", f.Name, i, b, c[i])
