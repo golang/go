@@ -67,11 +67,12 @@ var (
 	maxResults   = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
 
 	// file system mapping
-	fs         FileSystem // the underlying file system
-	fsMap      Mapping    // user-defined mapping
-	fsTree     RWValue    // *Directory tree of packages, updated with each sync
-	pathFilter RWValue    // filter used when building fsMap directory trees
-	fsModified RWValue    // timestamp of last call to invalidateIndex
+	fs         FileSystem      // the underlying file system for godoc
+	fsHttp     http.FileSystem // the underlying file system for http
+	fsMap      Mapping         // user-defined mapping
+	fsTree     RWValue         // *Directory tree of packages, updated with each sync
+	pathFilter RWValue         // filter used when building fsMap directory trees
+	fsModified RWValue         // timestamp of last call to invalidateIndex
 
 	// http handlers
 	fileServer http.Handler // default file server
@@ -89,7 +90,7 @@ func initHandlers() {
 	}
 	fsMap.Init(paths)
 
-	fileServer = http.FileServer(http.Dir(*goroot))
+	fileServer = http.FileServer(fsHttp)
 	cmdHandler = httpHandler{"/cmd/", filepath.Join(*goroot, "src", "cmd"), false}
 	pkgHandler = httpHandler{"/pkg/", filepath.Join(*goroot, "src", "pkg"), true}
 }
@@ -565,22 +566,32 @@ func paddingFmt(w io.Writer, format string, x ...interface{}) {
 	}
 }
 
-// Template formatter for "time" format.
-func timeFmt(w io.Writer, format string, x ...interface{}) {
-	template.HTMLEscape(w, []byte(time.SecondsToLocalTime(x[0].(int64)/1e9).String()))
-}
-
-// Template formatter for "dir/" format.
-func dirslashFmt(w io.Writer, format string, x ...interface{}) {
-	if x[0].(FileInfo).IsDirectory() {
-		w.Write([]byte{'/'})
-	}
-}
-
 // Template formatter for "localname" format.
 func localnameFmt(w io.Writer, format string, x ...interface{}) {
 	_, localname := filepath.Split(x[0].(string))
 	template.HTMLEscape(w, []byte(localname))
+}
+
+// Template formatter for "fileInfoName" format.
+func fileInfoNameFmt(w io.Writer, format string, x ...interface{}) {
+	fi := x[0].(FileInfo)
+	template.HTMLEscape(w, []byte(fi.Name()))
+	if fi.IsDirectory() {
+		w.Write([]byte{'/'})
+	}
+}
+
+// Template formatter for "fileInfoSize" format.
+func fileInfoSizeFmt(w io.Writer, format string, x ...interface{}) {
+	fmt.Fprintf(w, "%d", x[0].(FileInfo).Size())
+}
+
+// Template formatter for "fileInfoTime" format.
+func fileInfoTimeFmt(w io.Writer, format string, x ...interface{}) {
+	if t := x[0].(FileInfo).Mtime_ns(); t != 0 {
+		template.HTMLEscape(w, []byte(time.SecondsToLocalTime(t/1e9).String()))
+	}
+	// don't print epoch if time is obviously not set
 }
 
 // Template formatter for "numlines" format.
@@ -601,8 +612,9 @@ var fmap = template.FormatterMap{
 	"infoLine":     infoLineFmt,
 	"infoSnippet":  infoSnippetFmt,
 	"padding":      paddingFmt,
-	"time":         timeFmt,
-	"dir/":         dirslashFmt,
+	"fileInfoName": fileInfoNameFmt,
+	"fileInfoSize": fileInfoSizeFmt,
+	"fileInfoTime": fileInfoTimeFmt,
 	"localname":    localnameFmt,
 	"numlines":     numlinesFmt,
 }

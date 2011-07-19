@@ -11,6 +11,7 @@ GOFILES=\
 	filesystem.go\
 	format.go\
 	godoc.go\
+	httpzip.go\
 	index.go\
 	main.go\
 	mapping.go\

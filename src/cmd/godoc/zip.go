@@ -40,10 +40,17 @@ func (fi zipFI) Name() string {
 }
 
 func (fi zipFI) Size() int64 {
-	if fi.file != nil {
-		return int64(fi.file.UncompressedSize)
+	if f := fi.file; f != nil {
+		return int64(f.UncompressedSize)
 	}
 	return 0 // directory
+}
+
+func (fi zipFI) Mtime_ns() int64 {
+	if f := fi.file; f != nil {
+		return f.Mtime_ns()
+	}
+	return 0 // directory has no modified time entry
 }
 
 func (fi zipFI) IsDirectory() bool {

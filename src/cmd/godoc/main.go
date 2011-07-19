@@ -49,7 +49,7 @@ const defaultAddr = ":6060" // default webserver address
 
 var (
 	// file system to serve
-	// (with e.g.: zip -r go.zip $GOROOT -i \*.go -i \*.html -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh)
+	// (with e.g.: zip -r go.zip $GOROOT -i \*.go -i \*.html -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh -i favicon.ico)
 	zipfile = flag.String("zip", "", "zip file providing the file system to serve; disabled if empty")
 
 	// periodic sync
@@ -219,19 +219,6 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	// Clean goroot: normalize path separator.
-	*goroot = filepath.Clean(*goroot)
-
-	// Determine file system to use.
-	fs = OS
-	if *zipfile != "" {
-		rc, err := zip.OpenReader(*zipfile)
-		if err != nil {
-			log.Fatalf("%s: %s\n", *zipfile, err)
-		}
-		fs = NewZipFS(rc)
-	}
-
 	// Check usage: either server and no args, or command line and args
 	if (*httpAddr != "") != (flag.NArg() == 0) {
 		usage()
@@ -239,6 +226,27 @@ func main() {
 
 	if *tabwidth < 0 {
 		log.Fatalf("negative tabwidth %d", *tabwidth)
+	}
+
+	// Clean goroot: normalize path separator.
+	*goroot = filepath.Clean(*goroot)
+
+	// Determine file system to use.
+	// TODO(gri) - fs and fsHttp should really be the same. Try to unify.
+	//           - fsHttp doesn't need to be set up in command-line mode,
+	//             same is true for the http handlers in initHandlers.
+	if *zipfile == "" {
+		// use file system of underlying OS
+		fs = OS
+		fsHttp = http.Dir(*goroot)
+	} else {
+		// use file system specified via .zip file
+		rc, err := zip.OpenReader(*zipfile)
+		if err != nil {
+			log.Fatalf("%s: %s\n", *zipfile, err)
+		}
+		fs = NewZipFS(rc)
+		fsHttp = NewHttpZipFS(rc, *goroot)
 	}
 
 	initHandlers()

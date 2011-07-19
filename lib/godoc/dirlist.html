@@ -18,11 +18,11 @@
 </tr>
 {.repeated section @}
 <tr>
-	<td align="left"><a href="{Name|html-esc}{@|dir/}">{Name|html-esc}{@|dir/}</a></td>
+	<td align="left"><a href="{@|fileInfoName}">{@|fileInfoName}</a></td>
 	<td></td>
-	<td align="right">{Size|html-esc}</td>
+	<td align="right">{@|fileInfoSize}</td>
 	<td></td>
-	<td align="left">{Mtime_ns|time}</td>
+	<td align="left">{@|fileInfoTime}</td>
 </tr>
 {.end}
 </table>
