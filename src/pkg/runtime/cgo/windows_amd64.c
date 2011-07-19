@@ -30,6 +30,7 @@ static void*
 threadentry(void *v)
 {
 	ThreadStart ts;
+	void *tls0;
 
 	ts = *(ThreadStart*)v;
 	free(v);
@@ -45,11 +46,13 @@ threadentry(void *v)
 	/*
 	 * Set specific keys in thread local storage.
 	 */
+	tls0 = (void*)LocalAlloc(LPTR, 64);
 	asm volatile (
+	  "movq %0, %%gs:0x58\n"	// MOVL tls0, 0x58(GS)
 	  "movq %%gs:0x58, %%rax\n" // MOVQ 0x58(GS), tmp
-	  "movq %0, 0(%%rax)\n" // MOVQ g, 0(GS)
-	  "movq %1, 8(%%rax)\n" // MOVQ m, 8(GS)
-	  :: "r"(ts.g), "r"(ts.m) : "%rax"
+	  "movq %1, 0(%%rax)\n" // MOVQ g, 0(GS)
+	  "movq %2, 8(%%rax)\n" // MOVQ m, 8(GS)
+	  :: "r"(tls0), "r"(ts.g), "r"(ts.m) : "%rax"
 	);
 
 	crosscall_amd64(ts.fn);

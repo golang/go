@@ -8,3 +8,6 @@ TEXT	_rt0_amd64_windows(SB),7,$-8
 	MOVQ	$_rt0_amd64(SB), AX
 	MOVQ	SP, DI
 	JMP	AX
+
+DATA  runtime·iswindows(SB)/4, $1
+GLOBL runtime·iswindows(SB), $4

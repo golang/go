@@ -18,7 +18,8 @@ TEXT _rt0_amd64(SB),7,$-8
 	TESTQ	AX, AX
 	JZ	needtls
 	CALL	AX
-	JMP ok
+	CMPL	runtime·iswindows(SB), $0
+	JEQ ok
 
 needtls:
 	LEAQ	runtime·tls0(SB), DI
@@ -432,6 +433,7 @@ TEXT runtime·asmcgocall(SB),7,$0
 	MOVQ	DI, 16(SP)	// save g
 	MOVQ	DX, 8(SP)	// save SP
 	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
+	MOVQ	BX, CX		// CX = first argument in Win64
 	CALL	AX
 
 	// Restore registers, g, stack pointer.

@@ -524,7 +524,7 @@ adddynsym(Sym *s)
 			adduint64(d, 0);	// value
 		else
 			addaddr(d, s);
-	} else {
+	} else if(HEADTYPE != Hwindows) {
 		diag("adddynsym: unsupported binary format");
 	}
 }
