@@ -36,6 +36,7 @@
 #include	"../ld/pe.h"
 
 void	dynreloc(void);
+static vlong addaddrplus4(Sym *s, Sym *t, int32 add);
 
 /*
  * divide-and-conquer list-link
@@ -255,11 +256,19 @@ dynrelocsym(Sym *s)
 				r->add = targ->plt;
 				
 				// jmp *addr
-				adduint8(rel, 0xff);
-				adduint8(rel, 0x25);
-				addaddr(rel, targ);
-				adduint8(rel, 0x90);
-				adduint8(rel, 0x90);
+				if(thechar == '8') {
+					adduint8(rel, 0xff);
+					adduint8(rel, 0x25);
+					addaddr(rel, targ);
+					adduint8(rel, 0x90);
+					adduint8(rel, 0x90);
+				} else {
+					adduint8(rel, 0xff);
+					adduint8(rel, 0x24);
+					adduint8(rel, 0x25);
+					addaddrplus4(rel, targ, 0);
+					adduint8(rel, 0x90);
+				}
 			} else if(r->sym->plt >= 0) {
 				r->sym = rel;
 				r->add = targ->plt;
@@ -673,6 +682,27 @@ addaddrplus(Sym *s, Sym *t, int32 add)
 	r->sym = t;
 	r->off = i;
 	r->siz = PtrSize;
+	r->type = D_ADDR;
+	r->add = add;
+	return i;
+}
+
+vlong
+addaddrplus4(Sym *s, Sym *t, int32 add)
+{
+	vlong i;
+	Reloc *r;
+
+	if(s->type == 0)
+		s->type = SDATA;
+	s->reachable = 1;
+	i = s->size;
+	s->size += 4;
+	symgrow(s, s->size);
+	r = addrel(s);
+	r->sym = t;
+	r->off = i;
+	r->siz = 4;
 	r->type = D_ADDR;
 	r->add = add;
 	return i;
