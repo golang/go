@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 )
 
 // Path is a validated list of Trees derived from $GOROOT and $GOPATH at init.
@@ -96,7 +95,7 @@ func FindTree(path string) (tree *Tree, pkg string, err os.Error) {
 		}
 		for _, t := range Path {
 			tpath := t.SrcDir() + string(filepath.Separator)
-			if !strings.HasPrefix(path, tpath) {
+			if !filepath.HasPrefix(path, tpath) {
 				continue
 			}
 			tree = t
@@ -123,9 +122,13 @@ func FindTree(path string) (tree *Tree, pkg string, err os.Error) {
 }
 
 // isLocalPath returns whether the given path is local (/foo ./foo ../foo . ..)
+// Windows paths that starts with drive letter (c:\foo c:foo) are considered local.
 func isLocalPath(s string) bool {
 	const sep = string(filepath.Separator)
-	return strings.HasPrefix(s, sep) || strings.HasPrefix(s, "."+sep) || strings.HasPrefix(s, ".."+sep) || s == "." || s == ".."
+	return s == "." || s == ".." ||
+		filepath.HasPrefix(s, sep) ||
+		filepath.HasPrefix(s, "."+sep) || filepath.HasPrefix(s, ".."+sep) ||
+		filepath.VolumeName(s) != ""
 }
 
 var (
