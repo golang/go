@@ -32,6 +32,20 @@
     <a href="http://blog.golang.org/2011/03/godoc-documenting-go-code.html">package doc comment</a>.
     </p>
     
+    <h2>Most Installed Packages (this week)</h2>
+    <table class="alternate" cellpadding="0" cellspacing="0">
+      <tr><th>last install</th><th>count</th><th>build</th><th>path</th><th>info</th></tr>
+      {% for r in by_week_count %}
+        <tr>
+          <td class="time">{{r.last_install|date:"Y-M-d H:i"}}</td>
+          <td class="count">{{r.week_count}}</td>
+          <td class="ok">{% if r.ok %}<a title="{{r.last_ok|date:"Y-M-d H:i"}}">ok</a>{% else %}&nbsp;{% endif %}</td>
+          <td class="path"><a href="{{r.web_url}}">{{r.path}}</a></td>
+          <td class="info">{% if r.info %}{{r.info|escape}}{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </table>
+    
     <h2>Recently Installed Packages</h2>
     <table class="alternate" cellpadding="0" cellspacing="0">
       <tr><th>last install</th><th>count</th><th>build</th><th>path</th><th>info</th></tr>
@@ -41,12 +55,12 @@
           <td class="count">{{r.count}}</td>
           <td class="ok">{% if r.ok %}<a title="{{r.last_ok|date:"Y-M-d H:i"}}">ok</a>{% else %}&nbsp;{% endif %}</td>
           <td class="path"><a href="{{r.web_url}}">{{r.path}}</a></td>
-	      <td class="info">{% if r.info %}{{r.info|escape}}{% endif %}</td>
+          <td class="info">{% if r.info %}{{r.info|escape}}{% endif %}</td>
         </tr>
       {% endfor %}
     </table>
 
-    <h2>Most Installed Packages</h2>
+    <h2>Most Installed Packages (all time)</h2>
     <table class="alternate" cellpadding="0" cellspacing="0">
       <tr><th>last install</th><th>count</th><th>build</th><th>path</th><th>info</th></tr>
       {% for r in by_count %}
@@ -55,7 +69,7 @@
           <td class="count">{{r.count}}</td>
           <td class="ok">{% if r.ok %}<a title="{{r.last_ok|date:"Y-M-d H:i"}}">ok</a>{% else %}&nbsp;{% endif %}</td>
           <td class="path"><a href="{{r.web_url}}">{{r.path}}</a></td>
-	      <td class="info">{% if r.info %}{{r.info|escape}}{% endif %}</td>
+          <td class="info">{% if r.info %}{{r.info|escape}}{% endif %}</td>
         </tr>
       {% endfor %}
     </table>
