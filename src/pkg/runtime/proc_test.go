@@ -73,3 +73,53 @@ func BenchmarkStackGrowth(b *testing.B) {
 		<-c
 	}
 }
+
+func BenchmarkSyscall(b *testing.B) {
+	const CallsPerSched = 1000
+	procs := runtime.GOMAXPROCS(-1)
+	N := int32(b.N / CallsPerSched)
+	c := make(chan bool, procs)
+	for p := 0; p < procs; p++ {
+		go func() {
+			for atomic.AddInt32(&N, -1) >= 0 {
+				runtime.Gosched()
+				for g := 0; g < CallsPerSched; g++ {
+					runtime.Entersyscall()
+					runtime.Exitsyscall()
+				}
+			}
+			c <- true
+		}()
+	}
+	for p := 0; p < procs; p++ {
+		<-c
+	}
+}
+
+func BenchmarkSyscallWork(b *testing.B) {
+	const CallsPerSched = 1000
+	const LocalWork = 100
+	procs := runtime.GOMAXPROCS(-1)
+	N := int32(b.N / CallsPerSched)
+	c := make(chan bool, procs)
+	for p := 0; p < procs; p++ {
+		go func() {
+			foo := 42
+			for atomic.AddInt32(&N, -1) >= 0 {
+				runtime.Gosched()
+				for g := 0; g < CallsPerSched; g++ {
+					runtime.Entersyscall()
+					for i := 0; i < LocalWork; i++ {
+						foo *= 2
+						foo /= 2
+					}
+					runtime.Exitsyscall()
+				}
+			}
+			c <- foo == 42
+		}()
+	}
+	for p := 0; p < procs; p++ {
+		<-c
+	}
+}
