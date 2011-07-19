@@ -434,7 +434,7 @@ func skip(value, prefix string) (string, os.Error) {
 // structure.  Also, if the input string represents an inconsistent time
 // (such as having the wrong day of the week), the returned value will also
 // be inconsistent.  In any case, the elements of the returned time will be
-// sane: hours in 0..23, minutes in 0..59, day of month in 0..31, etc.
+// sane: hours in 0..23, minutes in 0..59, day of month in 1..31, etc.
 // Years must be in the range 0000..9999.
 func Parse(alayout, avalue string) (*Time, os.Error) {
 	var t Time
