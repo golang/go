@@ -309,9 +309,6 @@ func TestCompareAndSwapUintptr(t *testing.T) {
 }
 
 func TestLoadInt32(t *testing.T) {
-	if runtime.GOARCH == "arm" && testing.Short() {
-		return /* TODO: broken on arm */
-	}
 	var x struct {
 		before int32
 		i      int32
@@ -332,9 +329,6 @@ func TestLoadInt32(t *testing.T) {
 }
 
 func TestLoadUint32(t *testing.T) {
-	if runtime.GOARCH == "arm" && testing.Short() {
-		return /* TODO: broken on arm */
-	}
 	var x struct {
 		before uint32
 		i      uint32
@@ -622,9 +616,6 @@ func hammerLoadUint32(t *testing.T, val *uint32) {
 }
 
 func TestHammerLoad(t *testing.T) {
-	if runtime.GOARCH == "arm" && testing.Short() {
-		return /* TODO: broken on arm */
-	}
 	tests := [...]func(*testing.T, *uint32){hammerLoadInt32, hammerLoadUint32}
 	n := 100000
 	if testing.Short() {
