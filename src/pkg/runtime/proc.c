@@ -28,10 +28,10 @@ int32	runtime·gcwaiting;
 // Go scheduler
 //
 // The go scheduler's job is to match ready-to-run goroutines (`g's)
-// with waiting-for-work schedulers (`m's).  If there are ready gs
-// and no waiting ms, ready() will start a new m running in a new
-// OS thread, so that all ready gs can run simultaneously, up to a limit.
-// For now, ms never go away.
+// with waiting-for-work schedulers (`m's).  If there are ready g's
+// and no waiting m's, ready() will start a new m running in a new
+// OS thread, so that all ready g's can run simultaneously, up to a limit.
+// For now, m's never go away.
 //
 // By default, Go keeps only one kernel thread (m) running user code
 // at a single time; other threads may be blocked in the operating system.
@@ -41,10 +41,10 @@ int32	runtime·gcwaiting;
 // approximation of the maximum number of cores to use.
 //
 // Even a program that can run without deadlock in a single process
-// might use more ms if given the chance.  For example, the prime
-// sieve will use as many ms as there are primes (up to runtime·sched.mmax),
+// might use more m's if given the chance.  For example, the prime
+// sieve will use as many m's as there are primes (up to runtime·sched.mmax),
 // allowing different stages of the pipeline to execute in parallel.
-// We could revisit this choice, only kicking off new ms for blocking
+// We could revisit this choice, only kicking off new m's for blocking
 // system calls, but that would limit the amount of parallel computation
 // that go would try to do.
 //
@@ -55,27 +55,74 @@ int32	runtime·gcwaiting;
 struct Sched {
 	Lock;
 
-	G *gfree;	// available gs (status == Gdead)
+	G *gfree;	// available g's (status == Gdead)
 	int32 goidgen;
 
-	G *ghead;	// gs waiting to run
+	G *ghead;	// g's waiting to run
 	G *gtail;
-	int32 gwait;	// number of gs waiting to run
-	int32 gcount;	// number of gs that are alive
-	int32 grunning;	// number of gs running on cpu or in syscall
+	int32 gwait;	// number of g's waiting to run
+	int32 gcount;	// number of g's that are alive
+	int32 grunning;	// number of g's running on cpu or in syscall
 
-	M *mhead;	// ms waiting for work
-	int32 mwait;	// number of ms waiting for work
-	int32 mcount;	// number of ms that have been created
-	int32 mcpu;	// number of ms executing on cpu
-	int32 mcpumax;	// max number of ms allowed on cpu
+	M *mhead;	// m's waiting for work
+	int32 mwait;	// number of m's waiting for work
+	int32 mcount;	// number of m's that have been created
 
-	int32 predawn;	// running initialization, don't run new gs.
+	volatile uint32 atomic;	// atomic scheduling word (see below)
+
+	int32 predawn;		// running initialization, don't run new g's.
 	int32 profilehz;	// cpu profiling rate
 
-	Note	stopped;	// one g can wait here for ms to stop
-	int32 waitstop;	// after setting this flag
+	Note	stopped;	// one g can set waitstop and wait here for m's to stop
 };
+
+// The atomic word in sched is an atomic uint32 that
+// holds these fields.
+//
+//	[15 bits] mcpu		number of m's executing on cpu
+//	[15 bits] mcpumax	max number of m's allowed on cpu
+//	[1 bit] waitstop	some g is waiting on stopped
+//	[1 bit] gwaiting	gwait != 0
+//
+// These fields are the information needed by entersyscall
+// and exitsyscall to decide whether to coordinate with the
+// scheduler.  Packing them into a single machine word lets
+// them use a fast path with a single atomic read/write and
+// no lock/unlock.  This greatly reduces contention in
+// syscall- or cgo-heavy multithreaded programs.
+//
+// Except for entersyscall and exitsyscall, the manipulations
+// to these fields only happen while holding the schedlock,
+// so the routines holding schedlock only need to worry about
+// what entersyscall and exitsyscall do, not the other routines
+// (which also use the schedlock).
+//
+// In particular, entersyscall and exitsyscall only read mcpumax,
+// waitstop, and gwaiting.  They never write them.  Thus, writes to those
+// fields can be done (holding schedlock) without fear of write conflicts.
+// There may still be logic conflicts: for example, the set of waitstop must
+// be conditioned on mcpu >= mcpumax or else the wait may be a
+// spurious sleep.  The Promela model in proc.p verifies these accesses.
+enum {
+	mcpuWidth = 15,
+	mcpuMask = (1<<mcpuWidth) - 1,
+	mcpuShift = 0,
+	mcpumaxShift = mcpuShift + mcpuWidth,
+	waitstopShift = mcpumaxShift + mcpuWidth,
+	gwaitingShift = waitstopShift+1,
+
+	// The max value of GOMAXPROCS is constrained
+	// by the max value we can store in the bit fields
+	// of the atomic word.  Reserve a few high values
+	// so that we can detect accidental decrement
+	// beyond zero.
+	maxgomaxprocs = mcpuMask - 10,
+};
+
+#define atomic_mcpu(v)		(((v)>>mcpuShift)&mcpuMask)
+#define atomic_mcpumax(v)	(((v)>>mcpumaxShift)&mcpuMask)
+#define atomic_waitstop(v)	(((v)>>waitstopShift)&1)
+#define atomic_gwaiting(v)	(((v)>>gwaitingShift)&1)
 
 Sched runtime·sched;
 int32 runtime·gomaxprocs;
@@ -94,10 +141,25 @@ static void mput(M*);	// put/get on mhead
 static M* mget(G*);
 static void gfput(G*);	// put/get on gfree
 static G* gfget(void);
-static void matchmg(void);	// match ms to gs
+static void matchmg(void);	// match m's to g's
 static void readylocked(G*);	// ready, but sched is locked
 static void mnextg(M*, G*);
 static void mcommoninit(M*);
+
+void
+setmcpumax(uint32 n)
+{
+	uint32 v, w;
+
+	for(;;) {
+		v = runtime·sched.atomic;
+		w = v;
+		w &= ~(mcpuMask<<mcpumaxShift);
+		w |= n<<mcpumaxShift;
+		if(runtime·cas(&runtime·sched.atomic, v, w))
+			break;
+	}
+}
 
 // The bootstrap sequence is:
 //
@@ -131,9 +193,12 @@ runtime·schedinit(void)
 
 	runtime·gomaxprocs = 1;
 	p = runtime·getenv("GOMAXPROCS");
-	if(p != nil && (n = runtime·atoi(p)) != 0)
+	if(p != nil && (n = runtime·atoi(p)) != 0) {
+		if(n > maxgomaxprocs)
+			n = maxgomaxprocs;
 		runtime·gomaxprocs = n;
-	runtime·sched.mcpumax = runtime·gomaxprocs;
+	}
+	setmcpumax(runtime·gomaxprocs);
 	runtime·sched.predawn = 1;
 
 	m->nomemprof--;
@@ -168,7 +233,7 @@ runtime·initdone(void)
 	mstats.enablegc = 1;
 
 	// If main·init_function started other goroutines,
-	// kick off new ms to handle them, like ready
+	// kick off new m's to handle them, like ready
 	// would have, had it not been pre-dawn.
 	schedlock();
 	matchmg();
@@ -221,6 +286,21 @@ mcommoninit(M *m)
 	runtime·FixAlloc_Init(m->stackalloc, FixedStack, runtime·SysAlloc, nil, nil);
 }
 
+// Try to increment mcpu.  Report whether succeeded.
+static bool
+canaddmcpu(void)
+{
+	uint32 v;
+
+	for(;;) {
+		v = runtime·sched.atomic;
+		if(atomic_mcpu(v) >= atomic_mcpumax(v))
+			return 0;
+		if(runtime·cas(&runtime·sched.atomic, v, v+(1<<mcpuShift)))
+			return 1;
+	}
+}
+
 // Put on `g' queue.  Sched must be locked.
 static void
 gput(G *g)
@@ -228,11 +308,11 @@ gput(G *g)
 	M *m;
 
 	// If g is wired, hand it off directly.
-	if(runtime·sched.mcpu < runtime·sched.mcpumax && (m = g->lockedm) != nil) {
+	if((m = g->lockedm) != nil && canaddmcpu()) {
 		mnextg(m, g);
 		return;
 	}
-	
+
 	// If g is the idle goroutine for an m, hand it off.
 	if(g->idlem != nil) {
 		if(g->idlem->idleg != nil) {
@@ -251,7 +331,18 @@ gput(G *g)
 	else
 		runtime·sched.gtail->schedlink = g;
 	runtime·sched.gtail = g;
-	runtime·sched.gwait++;
+
+	// increment gwait.
+	// if it transitions to nonzero, set atomic gwaiting bit.
+	if(runtime·sched.gwait++ == 0)
+		runtime·xadd(&runtime·sched.atomic, 1<<gwaitingShift);
+}
+
+// Report whether gget would return something.
+static bool
+haveg(void)
+{
+	return runtime·sched.ghead != nil || m->idleg != nil;
 }
 
 // Get from `g' queue.  Sched must be locked.
@@ -265,7 +356,10 @@ gget(void)
 		runtime·sched.ghead = g->schedlink;
 		if(runtime·sched.ghead == nil)
 			runtime·sched.gtail = nil;
-		runtime·sched.gwait--;
+		// decrement gwait.
+		// if it transitions to zero, clear atomic gwaiting bit.
+		if(--runtime·sched.gwait == 0)
+			runtime·xadd(&runtime·sched.atomic, -1<<gwaitingShift);
 	} else if(m->idleg != nil) {
 		g = m->idleg;
 		m->idleg = nil;
@@ -350,11 +444,11 @@ newprocreadylocked(G *g)
 }
 
 // Pass g to m for running.
+// Caller has already incremented mcpu.
 static void
 mnextg(M *m, G *g)
 {
 	runtime·sched.grunning++;
-	runtime·sched.mcpu++;
 	m->nextg = g;
 	if(m->waitnextg) {
 		m->waitnextg = 0;
@@ -366,18 +460,19 @@ mnextg(M *m, G *g)
 
 // Get the next goroutine that m should run.
 // Sched must be locked on entry, is unlocked on exit.
-// Makes sure that at most $GOMAXPROCS gs are
+// Makes sure that at most $GOMAXPROCS g's are
 // running on cpus (not in system calls) at any given time.
 static G*
 nextgandunlock(void)
 {
 	G *gp;
+	uint32 v;
 
-	if(runtime·sched.mcpu < 0)
-		runtime·throw("negative runtime·sched.mcpu");
+	if(atomic_mcpu(runtime·sched.atomic) >= maxgomaxprocs)
+		runtime·throw("negative mcpu");
 
-	// If there is a g waiting as m->nextg,
-	// mnextg took care of the runtime·sched.mcpu++.
+	// If there is a g waiting as m->nextg, the mcpu++
+	// happened before it was passed to mnextg.
 	if(m->nextg != nil) {
 		gp = m->nextg;
 		m->nextg = nil;
@@ -393,26 +488,50 @@ nextgandunlock(void)
 			matchmg();
 	} else {
 		// Look for work on global queue.
-		while(runtime·sched.mcpu < runtime·sched.mcpumax && (gp=gget()) != nil) {
+		while(haveg() && canaddmcpu()) {
+			gp = gget();
+			if(gp == nil)
+				runtime·throw("gget inconsistency");
+
 			if(gp->lockedm) {
 				mnextg(gp->lockedm, gp);
 				continue;
 			}
 			runtime·sched.grunning++;
-			runtime·sched.mcpu++;		// this m will run gp
 			schedunlock();
 			return gp;
 		}
-		// Otherwise, wait on global m queue.
+
+		// The while loop ended either because the g queue is empty
+		// or because we have maxed out our m procs running go
+		// code (mcpu >= mcpumax).  We need to check that
+		// concurrent actions by entersyscall/exitsyscall cannot
+		// invalidate the decision to end the loop.
+		//
+		// We hold the sched lock, so no one else is manipulating the
+		// g queue or changing mcpumax.  Entersyscall can decrement
+		// mcpu, but if does so when there is something on the g queue,
+		// the gwait bit will be set, so entersyscall will take the slow path
+		// and use the sched lock.  So it cannot invalidate our decision.
+		//
+		// Wait on global m queue.
 		mput(m);
 	}
+
+	v = runtime·atomicload(&runtime·sched.atomic);
 	if(runtime·sched.grunning == 0)
 		runtime·throw("all goroutines are asleep - deadlock!");
 	m->nextg = nil;
 	m->waitnextg = 1;
 	runtime·noteclear(&m->havenextg);
-	if(runtime·sched.waitstop && runtime·sched.mcpu <= runtime·sched.mcpumax) {
-		runtime·sched.waitstop = 0;
+
+	// Stoptheworld is waiting for all but its cpu to go to stop.
+	// Entersyscall might have decremented mcpu too, but if so
+	// it will see the waitstop and take the slow path.
+	// Exitsyscall never increments mcpu beyond mcpumax.
+	if(atomic_waitstop(v) && atomic_mcpu(v) <= atomic_mcpumax(v)) {
+		// set waitstop = 0 (known to be 1)
+		runtime·xadd(&runtime·sched.atomic, -1<<waitstopShift);
 		runtime·notewakeup(&runtime·sched.stopped);
 	}
 	schedunlock();
@@ -424,21 +543,34 @@ nextgandunlock(void)
 	return gp;
 }
 
-// TODO(rsc): Remove. This is only temporary,
-// for the mark and sweep collector.
 void
 runtime·stoptheworld(void)
 {
+	uint32 v;
+
 	schedlock();
 	runtime·gcwaiting = 1;
-	runtime·sched.mcpumax = 1;
-	while(runtime·sched.mcpu > 1) {
+
+	setmcpumax(1);
+
+	// while mcpu > 1
+	for(;;) {
+		v = runtime·sched.atomic;
+		if(atomic_mcpu(v) <= 1)
+			break;
+
 		// It would be unsafe for multiple threads to be using
 		// the stopped note at once, but there is only
-		// ever one thread doing garbage collection,
-		// so this is okay.
+		// ever one thread doing garbage collection.
 		runtime·noteclear(&runtime·sched.stopped);
-		runtime·sched.waitstop = 1;
+		if(atomic_waitstop(v))
+			runtime·throw("invalid waitstop");
+
+		// atomic { waitstop = 1 }, predicated on mcpu <= 1 check above
+		// still being true.
+		if(!runtime·cas(&runtime·sched.atomic, v, v+(1<<waitstopShift)))
+			continue;
+
 		schedunlock();
 		runtime·notesleep(&runtime·sched.stopped);
 		schedlock();
@@ -453,7 +585,7 @@ runtime·starttheworld(void)
 {
 	schedlock();
 	runtime·gcwaiting = 0;
-	runtime·sched.mcpumax = runtime·gomaxprocs;
+	setmcpumax(runtime·gomaxprocs);
 	matchmg();
 	schedunlock();
 }
@@ -490,7 +622,7 @@ struct CgoThreadStart
 	void (*fn)(void);
 };
 
-// Kick off new ms as needed (up to mcpumax).
+// Kick off new m's as needed (up to mcpumax).
 // There are already `other' other cpus that will
 // start looking for goroutines shortly.
 // Sched is locked.
@@ -501,10 +633,14 @@ matchmg(void)
 
 	if(m->mallocing || m->gcing)
 		return;
-	while(runtime·sched.mcpu < runtime·sched.mcpumax && (g = gget()) != nil){
-		M *m;
+
+	while(haveg() && canaddmcpu()) {
+		g = gget();
+		if(g == nil)
+			runtime·throw("gget inconsistency");
 
 		// Find the m that will run g.
+		M *m;
 		if((m = mget(g)) == nil){
 			m = runtime·malloc(sizeof(M));
 			mcommoninit(m);
@@ -541,6 +677,7 @@ static void
 schedule(G *gp)
 {
 	int32 hz;
+	uint32 v;
 
 	schedlock();
 	if(gp != nil) {
@@ -549,11 +686,13 @@ schedule(G *gp)
 
 		// Just finished running gp.
 		gp->m = nil;
-		runtime·sched.mcpu--;
 		runtime·sched.grunning--;
 
-		if(runtime·sched.mcpu < 0)
-			runtime·throw("runtime·sched.mcpu < 0 in scheduler");
+		// atomic { mcpu-- }
+		v = runtime·xadd(&runtime·sched.atomic, -1<<mcpuShift);
+		if(atomic_mcpu(v) > maxgomaxprocs)
+			runtime·throw("negative mcpu in scheduler");
+
 		switch(gp->status){
 		case Grunnable:
 		case Gdead:
@@ -588,7 +727,7 @@ schedule(G *gp)
 	gp->status = Grunning;
 	m->curg = gp;
 	gp->m = m;
-	
+
 	// Check whether the profiler needs to be turned on or off.
 	hz = runtime·sched.profilehz;
 	if(m->profilehz != hz)
@@ -632,30 +771,60 @@ runtime·gosched(void)
 void
 runtime·entersyscall(void)
 {
+	uint32 v, w;
+
 	if(runtime·sched.predawn)
 		return;
-	schedlock();
-	g->status = Gsyscall;
-	runtime·sched.mcpu--;
-	if(runtime·sched.gwait != 0)
-		matchmg();
-
-	if(runtime·sched.waitstop && runtime·sched.mcpu <= runtime·sched.mcpumax) {
-		runtime·sched.waitstop = 0;
-		runtime·notewakeup(&runtime·sched.stopped);
-	}
 
 	// Leave SP around for gc and traceback.
-	// Do before schedunlock so that gc
-	// never sees Gsyscall with wrong stack.
 	runtime·gosave(&g->sched);
 	g->gcsp = g->sched.sp;
 	g->gcstack = g->stackbase;
 	g->gcguard = g->stackguard;
+	g->status = Gsyscall;
 	if(g->gcsp < g->gcguard-StackGuard || g->gcstack < g->gcsp) {
-		runtime·printf("entersyscall inconsistent %p [%p,%p]\n", g->gcsp, g->gcguard-StackGuard, g->gcstack);
+		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
+		//	g->gcsp, g->gcguard-StackGuard, g->gcstack);
 		runtime·throw("entersyscall");
 	}
+
+	// Fast path.
+	// The slow path inside the schedlock/schedunlock will get
+	// through without stopping if it does:
+	//	mcpu--
+	//	gwait not true
+	//	waitstop && mcpu <= mcpumax not true
+	// If we can do the same with a single atomic read/write,
+	// then we can skip the locks.
+	for(;;) {
+		v = runtime·sched.atomic;
+		if(atomic_gwaiting(v))
+			break;
+		if(atomic_waitstop(v) && atomic_mcpu(v)-1 <= atomic_mcpumax(v))
+			break;
+		w = v;
+		w += (-1<<mcpuShift);
+		if(runtime·cas(&runtime·sched.atomic, v, w))
+			return;
+	}
+
+	schedlock();
+
+	// atomic { mcpu--; }
+	v = runtime·xadd(&runtime·sched.atomic, (-1<<mcpuShift));
+	if(atomic_gwaiting(v)) {
+		matchmg();
+		v = runtime·atomicload(&runtime·sched.atomic);
+	}
+	if(atomic_waitstop(v) && atomic_mcpu(v) <= atomic_mcpumax(v)) {
+		runtime·xadd(&runtime·sched.atomic, -1<<waitstopShift);
+		runtime·notewakeup(&runtime·sched.stopped);
+	}
+
+	// Re-save sched in case one of the calls
+	// (notewakeup, matchmg) triggered something using it.
+	runtime·gosave(&g->sched);
+
 	schedunlock();
 }
 
@@ -666,21 +835,43 @@ runtime·entersyscall(void)
 void
 runtime·exitsyscall(void)
 {
+	uint32 v, w;
+
 	if(runtime·sched.predawn)
 		return;
 
-	schedlock();
-	runtime·sched.mcpu++;
-	// Fast path - if there's room for this m, we're done.
-	if(m->profilehz == runtime·sched.profilehz && runtime·sched.mcpu <= runtime·sched.mcpumax) {
-		// There's a cpu for us, so we can run.
-		g->status = Grunning;
-		// Garbage collector isn't running (since we are),
-		// so okay to clear gcstack.
-		g->gcstack = nil;
-		schedunlock();
-		return;
+	// Fast path.
+	// If we can do the mcpu-- bookkeeping and
+	// find that we still have mcpu <= mcpumax, then we can
+	// start executing Go code immediately, without having to
+	// schedlock/schedunlock.
+	for(;;) {
+		// If the profiler frequency needs updating,
+		// take the slow path.
+		if(m->profilehz != runtime·sched.profilehz)
+			break;
+
+		v = runtime·sched.atomic;
+		if(atomic_mcpu(v) >= atomic_mcpumax(v))
+			break;
+
+		w = v;
+		w += (1<<mcpuShift);
+		if(runtime·cas(&runtime·sched.atomic, v, w)) {
+			// There's a cpu for us, so we can run.
+			g->status = Grunning;
+			// Garbage collector isn't running (since we are),
+			// so okay to clear gcstack.
+			g->gcstack = nil;
+			return;
+		}
 	}
+
+	schedlock();
+
+	// atomic { mcpu++; }
+	runtime·xadd(&runtime·sched.atomic, (1<<mcpuShift));
+
 	// Tell scheduler to put g back on the run queue:
 	// mostly equivalent to g->status = Grunning,
 	// but keeps the garbage collector from thinking
@@ -688,12 +879,12 @@ runtime·exitsyscall(void)
 	g->readyonstop = 1;
 	schedunlock();
 
-	// Slow path - all the cpus are taken.
+	// All the cpus are taken.
 	// The scheduler will ready g and put this m to sleep.
 	// When the scheduler takes g away from m,
 	// it will undo the runtime·sched.mcpu++ above.
 	runtime·gosched();
-	
+
 	// Gosched returned, so we're allowed to run now.
 	// Delete the gcstack information that we left for
 	// the garbage collector during the system call.
@@ -868,7 +1059,7 @@ void
 runtime·newproc(int32 siz, byte* fn, ...)
 {
 	byte *argp;
-	
+
 	if(thechar == '5')
 		argp = (byte*)(&fn+2);  // skip caller's saved LR
 	else
@@ -946,7 +1137,7 @@ runtime·deferproc(int32 siz, byte* fn, ...)
 
 	d->link = g->defer;
 	g->defer = d;
-	
+
 	// deferproc returns 0 normally.
 	// a deferred func that stops a panic
 	// makes the deferproc return 1.
@@ -978,9 +1169,9 @@ runtime·deferreturn(uintptr arg0)
 
 static void
 rundefer(void)
-{	
+{
 	Defer *d;
-	
+
 	while((d = g->defer) != nil) {
 		g->defer = d->link;
 		reflect·call(d->fn, d->args, d->siz);
@@ -995,7 +1186,7 @@ unwindstack(G *gp, byte *sp)
 {
 	Stktop *top;
 	byte *stk;
-	
+
 	// Must be called from a different goroutine, usually m->g0.
 	if(g == gp)
 		runtime·throw("unwindstack on self");
@@ -1031,7 +1222,7 @@ printpanics(Panic *p)
 }
 
 static void recovery(G*);
-	
+
 void
 runtime·panic(Eface e)
 {
@@ -1081,7 +1272,7 @@ recovery(G *gp)
 	// Rewind gp's stack; we're running on m->g0's stack.
 	d = gp->defer;
 	gp->defer = d->link;
-	
+
 	// Unwind to the stack frame with d's arguments in it.
 	unwindstack(gp, d->argp);
 
@@ -1229,25 +1420,29 @@ int32
 runtime·gomaxprocsfunc(int32 n)
 {
 	int32 ret;
+	uint32 v;
 
 	schedlock();
 	ret = runtime·gomaxprocs;
-	if (n <= 0)
+	if(n <= 0)
 		n = ret;
+	if(n > maxgomaxprocs)
+		n = maxgomaxprocs;
 	runtime·gomaxprocs = n;
- 	if (runtime·gcwaiting != 0) {
- 		if (runtime·sched.mcpumax != 1)
- 			runtime·throw("invalid runtime·sched.mcpumax during gc");
+ 	if(runtime·gcwaiting != 0) {
+ 		if(atomic_mcpumax(runtime·sched.atomic) != 1)
+ 			runtime·throw("invalid mcpumax during gc");
 		schedunlock();
 		return ret;
 	}
-	runtime·sched.mcpumax = n;
-	// handle fewer procs?
-	if(runtime·sched.mcpu > runtime·sched.mcpumax) {
+
+	setmcpumax(n);
+
+	// If there are now fewer allowed procs
+	// than procs running, stop.
+	v = runtime·atomicload(&runtime·sched.atomic);
+	if(atomic_mcpu(v) > n) {
 		schedunlock();
-		// just give up the cpu.
-		// we'll only get rescheduled once the
-		// number has come down.
 		runtime·gosched();
 		return ret;
 	}
@@ -1314,10 +1509,10 @@ void
 runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
 {
 	int32 n;
-	
+
 	if(prof.fn == nil || prof.hz == 0)
 		return;
-	
+
 	runtime·lock(&prof);
 	if(prof.fn == nil) {
 		runtime·unlock(&prof);
@@ -1352,7 +1547,7 @@ runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
 	runtime·lock(&runtime·sched);
 	runtime·sched.profilehz = hz;
 	runtime·unlock(&runtime·sched);
-	
+
 	if(hz != 0)
 		runtime·resetcpuprofiler(hz);
 }
