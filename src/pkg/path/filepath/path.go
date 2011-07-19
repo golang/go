@@ -38,7 +38,7 @@ const (
 // Getting Dot-Dot right,''
 // http://plan9.bell-labs.com/sys/doc/lexnames.html
 func Clean(path string) string {
-	vol := volumeName(path)
+	vol := VolumeName(path)
 	path = path[len(vol):]
 	if path == "" {
 		return vol + "."

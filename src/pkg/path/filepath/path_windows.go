@@ -4,9 +4,11 @@
 
 package filepath
 
+import "strings"
+
 // IsAbs returns true if the path is absolute.
 func IsAbs(path string) (b bool) {
-	v := volumeName(path)
+	v := VolumeName(path)
 	if v == "" {
 		return false
 	}
@@ -17,9 +19,10 @@ func IsAbs(path string) (b bool) {
 	return path[0] == '/' || path[0] == '\\'
 }
 
-// volumeName return leading volume name.  
-// If given "C:\foo\bar", return "C:" on windows.
-func volumeName(path string) (v string) {
+// VolumeName returns leading volume name.  
+// Given "C:\foo\bar" it returns "C:" under windows.
+// On other platforms it returns "".
+func VolumeName(path string) (v string) {
 	if len(path) < 2 {
 		return ""
 	}
@@ -31,4 +34,13 @@ func volumeName(path string) (v string) {
 		return path[:2]
 	}
 	return ""
+}
+
+// HasPrefix tests whether the path p begins with prefix.
+// It ignores case while comparing.
+func HasPrefix(p, prefix string) bool {
+	if strings.HasPrefix(p, prefix) {
+		return true
+	}
+	return strings.HasPrefix(strings.ToLower(p), strings.ToLower(prefix))
 }
