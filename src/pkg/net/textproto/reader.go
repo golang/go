@@ -33,22 +33,25 @@ func NewReader(r *bufio.Reader) *Reader {
 // ReadLine reads a single line from r,
 // eliding the final \n or \r\n from the returned string.
 func (r *Reader) ReadLine() (string, os.Error) {
-	line, err := r.ReadLineBytes()
+	line, err := r.readLineSlice()
 	return string(line), err
 }
 
 // ReadLineBytes is like ReadLine but returns a []byte instead of a string.
 func (r *Reader) ReadLineBytes() ([]byte, os.Error) {
-	r.closeDot()
-	line, err := r.R.ReadBytes('\n')
-	n := len(line)
-	if n > 0 && line[n-1] == '\n' {
-		n--
-		if n > 0 && line[n-1] == '\r' {
-			n--
-		}
+	line, err := r.readLineSlice()
+	if line != nil {
+		buf := make([]byte, len(line))
+		copy(buf, line)
+		line = buf
 	}
-	return line[0:n], err
+	return line, err
+}
+
+func (r *Reader) readLineSlice() ([]byte, os.Error) {
+	r.closeDot()
+	line, _, err := r.R.ReadLine()
+	return line, err
 }
 
 // ReadContinuedLine reads a possibly continued line from r,
@@ -71,7 +74,7 @@ func (r *Reader) ReadLineBytes() ([]byte, os.Error) {
 // A line consisting of only white space is never continued.
 //
 func (r *Reader) ReadContinuedLine() (string, os.Error) {
-	line, err := r.ReadContinuedLineBytes()
+	line, err := r.readContinuedLineSlice()
 	return string(line), err
 }
 
@@ -92,8 +95,18 @@ func trim(s []byte) []byte {
 // ReadContinuedLineBytes is like ReadContinuedLine but
 // returns a []byte instead of a string.
 func (r *Reader) ReadContinuedLineBytes() ([]byte, os.Error) {
+	line, err := r.readContinuedLineSlice()
+	if line != nil {
+		buf := make([]byte, len(line))
+		copy(buf, line)
+		line = buf
+	}
+	return line, err
+}
+
+func (r *Reader) readContinuedLineSlice() ([]byte, os.Error) {
 	// Read the first line.
-	line, err := r.ReadLineBytes()
+	line, err := r.readLineSlice()
 	if err != nil {
 		return line, err
 	}
@@ -127,8 +140,11 @@ func (r *Reader) ReadContinuedLineBytes() ([]byte, os.Error) {
 				break
 			}
 		}
+		// copy now since the next call to read a slice invalidates line
+		line = append(make([]byte, 0, len(line)*2), line...)
+
 		var cont []byte
-		cont, err = r.ReadLineBytes()
+		cont, err = r.readLineSlice()
 		cont = trim(cont)
 		line = append(line, ' ')
 		line = append(line, cont...)
@@ -422,7 +438,7 @@ func (r *Reader) ReadDotLines() ([]string, os.Error) {
 func (r *Reader) ReadMIMEHeader() (MIMEHeader, os.Error) {
 	m := make(MIMEHeader)
 	for {
-		kv, err := r.ReadContinuedLineBytes()
+		kv, err := r.readContinuedLineSlice()
 		if len(kv) == 0 {
 			return m, err
 		}
