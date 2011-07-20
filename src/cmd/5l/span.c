@@ -416,7 +416,7 @@ symaddr(Sym *s)
 		return 0;
 	
 	case STEXT:
-	case SELFDATA:
+	case SELFROSECT:
 	case SRODATA:
 	case SDATA:
 	case SBSS:

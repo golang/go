@@ -19,7 +19,6 @@ static	int	elf64;
 static	ElfEhdr	hdr;
 static	ElfPhdr	*phdr[NSECT];
 static	ElfShdr	*shdr[NSECT];
-static	char	*interp;
 
 typedef struct Elfstring Elfstring;
 struct Elfstring
@@ -304,32 +303,6 @@ elfwritedynentsymsize(Sym *s, int tag, Sym *t)
 	addsize(s, t);
 }
 
-int
-elfwriteinterp(void)
-{
-	int n;
-	
-	if(interp == nil)
-		return 0;
-
-	n = strlen(interp)+1;
-	cseek(ELFRESERVE-n);
-	cwrite(interp, n);
-	return n;
-}
-
-void
-elfinterp(ElfShdr *sh, uint64 startva, char *p)
-{
-	int n;
-	
-	interp = p;
-	n = strlen(interp)+1;
-	sh->addr = startva + ELFRESERVE - n;
-	sh->off = ELFRESERVE - n;
-	sh->size = n;
-}
-
 extern int nelfsym;
 int elfverneed;
 
@@ -393,7 +366,7 @@ elfdynhash(void)
 
 	nsym = nelfsym;
 	s = lookup(".hash", 0);
-	s->type = SELFDATA;
+	s->type = SELFROSECT;
 	s->reachable = 1;
 
 	i = nsym;
@@ -539,6 +512,12 @@ elfshbits(Section *sect)
 	return nil;
 
 found:
+	for(i=0; i<hdr.shnum; i++) {
+		sh = shdr[i];
+		if(sh->name == off)
+			return sh;
+	}
+
 	sh = newElfShdr(off);
 	if(sect->vaddr < sect->seg->vaddr + sect->seg->filelen)
 		sh->type = SHT_PROGBITS;
