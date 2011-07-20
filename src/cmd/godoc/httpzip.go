@@ -61,7 +61,6 @@ func (f *httpZipFile) Stat() (*os.FileInfo, os.Error) {
 }
 
 func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, os.Error) {
-	println("Readdir", f.info.Name)
 	if f.info.IsRegular() {
 		return nil, fmt.Errorf("Readdir called for regular file: %s", f.info.Name)
 	}
@@ -134,14 +133,15 @@ type httpZipFS struct {
 }
 
 func (fs *httpZipFS) Open(abspath string) (http.File, os.Error) {
-	name := path.Join(fs.root, abspath)
-	index := fs.list.lookup(name)
+	name := path.Join(fs.root, abspath) // name is clean
+	index, exact := fs.list.lookup(name)
 	if index < 0 {
 		return nil, fmt.Errorf("file not found: %s", abspath)
 	}
 
-	if f := fs.list[index]; f.Name == name {
+	if exact {
 		// exact match found - must be a file
+		f := fs.list[index]
 		rc, err := f.Open()
 		if err != nil {
 			return nil, err
@@ -159,7 +159,6 @@ func (fs *httpZipFS) Open(abspath string) (http.File, os.Error) {
 	}
 
 	// not an exact match - must be a directory
-	println("opened directory", abspath, len(fs.list[index:]))
 	return &httpZipFile{
 		os.FileInfo{
 			Name: abspath,
