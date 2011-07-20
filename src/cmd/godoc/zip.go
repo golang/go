@@ -73,22 +73,23 @@ func (fs *zipFS) Close() os.Error {
 }
 
 func zipPath(name string) string {
+	name = path.Clean(name)
 	if !path.IsAbs(name) {
 		panic(fmt.Sprintf("stat: not an absolute path: %s", name))
 	}
-	return name[1:] // strip '/'
+	return name[1:] // strip leading '/'
 }
 
 func (fs *zipFS) stat(abspath string) (int, zipFI, os.Error) {
-	i := fs.list.lookup(abspath)
+	i, exact := fs.list.lookup(abspath)
 	if i < 0 {
 		return -1, zipFI{}, fmt.Errorf("file not found: %s", abspath)
 	}
+	_, name := path.Split(abspath)
 	var file *zip.File
-	if abspath == fs.list[i].Name {
+	if exact {
 		file = fs.list[i] // exact match found - must be a file
 	}
-	_, name := path.Split(abspath)
 	return i, zipFI{name, file}, nil
 }
 
@@ -173,17 +174,29 @@ func (z zipList) Len() int           { return len(z) }
 func (z zipList) Less(i, j int) bool { return z[i].Name < z[j].Name }
 func (z zipList) Swap(i, j int)      { z[i], z[j] = z[j], z[i] }
 
-// lookup returns the first index in the zipList
-// of a path equal to name or beginning with name/.
-func (z zipList) lookup(name string) int {
+// lookup returns the smallest index of an entry with an exact match
+// for name, or an inexact match starting with name/. If there is no
+// such entry, the result is -1, false.
+func (z zipList) lookup(name string) (index int, exact bool) {
+	// look for exact match first (name comes before name/ in z)
 	i := sort.Search(len(z), func(i int) bool {
 		return name <= z[i].Name
 	})
-	if i >= 0 {
-		iname := z[i].Name
-		if strings.HasPrefix(iname, name) && (len(name) == len(iname) || iname[len(name)] == '/') {
-			return i
-		}
+	if i < 0 {
+		return -1, false
 	}
-	return -1 // no match
+	if z[i].Name == name {
+		return i, true
+	}
+
+	// look for inexact match (must be in z[i:], if present)
+	z = z[i:]
+	name += "/"
+	j := sort.Search(len(z), func(i int) bool {
+		return name <= z[i].Name
+	})
+	if j < 0 {
+		return -1, false
+	}
+	return i + j, false
 }
