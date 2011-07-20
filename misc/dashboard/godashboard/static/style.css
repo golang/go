@@ -54,6 +54,9 @@ table.alternate tr td:last-child {
 table.alternate tr:nth-child(2n) {
 	background-color: #f0f0f0;
 }
+td.result {
+	text-align: center;
+}
 span.hash {
 	font-family: monospace;
 	font-size: small;
