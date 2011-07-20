@@ -359,10 +359,7 @@ func (w *response) sniff() {
 	w.needSniff = false
 
 	data := w.conn.body
-	ctype := detectContentType(data)
-	if ctype != "" {
-		fmt.Fprintf(w.conn.buf, "Content-Type: %s\r\n", ctype)
-	}
+	fmt.Fprintf(w.conn.buf, "Content-Type: %s\r\n", DetectContentType(data))
 	io.WriteString(w.conn.buf, "\r\n")
 
 	if w.chunking && len(data) > 0 {
