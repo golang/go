@@ -115,6 +115,13 @@ func (r *Reader) readContinuedLineSlice() ([]byte, os.Error) {
 	}
 	line = trim(line)
 
+	copied := false
+	if r.R.Buffered() < 1 {
+		// ReadByte will flush the buffer; make a copy of the slice.
+		copied = true
+		line = append([]byte(nil), line...)
+	}
+
 	// Look for a continuation line.
 	c, err := r.R.ReadByte()
 	if err != nil {
@@ -125,6 +132,11 @@ func (r *Reader) readContinuedLineSlice() ([]byte, os.Error) {
 		// Not a continuation.
 		r.R.UnreadByte()
 		return line, nil
+	}
+
+	if !copied {
+		// The next readLineSlice will invalidate the previous one.
+		line = append(make([]byte, 0, len(line)*2), line...)
 	}
 
 	// Read continuation lines.
@@ -140,9 +152,6 @@ func (r *Reader) readContinuedLineSlice() ([]byte, os.Error) {
 				break
 			}
 		}
-		// copy now since the next call to read a slice invalidates line
-		line = append(make([]byte, 0, len(line)*2), line...)
-
 		var cont []byte
 		cont, err = r.readLineSlice()
 		cont = trim(cont)
