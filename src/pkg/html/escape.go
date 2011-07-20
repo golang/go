@@ -53,7 +53,8 @@ var replacementTable = [...]int{
 // unescapeEntity reads an entity like "&lt;" from b[src:] and writes the
 // corresponding "<" to b[dst:], returning the incremented dst and src cursors.
 // Precondition: b[src] == '&' && dst <= src.
-func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
+// attribute should be true if parsing an attribute value.
+func unescapeEntity(b []byte, dst, src int, attribute bool) (dst1, src1 int) {
 	// http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
 
 	// i starts at 1 because we already know that s[0] == '&'.
@@ -121,12 +122,11 @@ func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
 	// Consume the maximum number of characters possible, with the
 	// consumed characters matching one of the named references.
 
-	// TODO(nigeltao): unescape("&notit;") should be "¬it;"
 	for i < len(s) {
 		c := s[i]
 		i++
 		// Lower-cased characters are more common in entities, so we check for them first.
-		if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
+		if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' {
 			continue
 		}
 		if c != ';' {
@@ -136,11 +136,25 @@ func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
 	}
 
 	entityName := string(s[1:i])
-	if x := entity[entityName]; x != 0 {
+	if entityName == "" {
+		// No-op.
+	} else if attribute && entityName[len(entityName)-1] != ';' && len(s) > i && s[i] == '=' {
+		// No-op.
+	} else if x := entity[entityName]; x != 0 {
 		return dst + utf8.EncodeRune(b[dst:], x), src + i
-	} else if x := entity2[entityName]; x[0] != 0 { // Check if it's a two-character entity.
+	} else if x := entity2[entityName]; x[0] != 0 {
 		dst1 := dst + utf8.EncodeRune(b[dst:], x[0])
 		return dst1 + utf8.EncodeRune(b[dst1:], x[1]), src + i
+	} else if !attribute {
+		maxLen := len(entityName) - 1
+		if maxLen > longestEntityWithoutSemicolon {
+			maxLen = longestEntityWithoutSemicolon
+		}
+		for j := maxLen; j > 1; j-- {
+			if x := entity[entityName[:j]]; x != 0 {
+				return dst + utf8.EncodeRune(b[dst:], x), src + j + 1
+			}
+		}
 	}
 
 	dst1, src1 = dst+i, src+i
@@ -152,11 +166,11 @@ func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
 func unescape(b []byte) []byte {
 	for i, c := range b {
 		if c == '&' {
-			dst, src := unescapeEntity(b, i, i)
+			dst, src := unescapeEntity(b, i, i, false)
 			for src < len(b) {
 				c := b[src]
 				if c == '&' {
-					dst, src = unescapeEntity(b, dst, src)
+					dst, src = unescapeEntity(b, dst, src, false)
 				} else {
 					b[dst] = c
 					dst, src = dst+1, src+1
