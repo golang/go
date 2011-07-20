@@ -38,7 +38,7 @@ func (b *Builder) buildPackages(workpath string, hash string) os.Error {
 		}
 
 		// goinstall
-		buildLog, code, err := runLog(envv, "", goroot, goinstall, "-log=false", p)
+		buildLog, code, err := runLog(envv, "", goroot, goinstall, "-dashboard=false", p)
 		if err != nil {
 			log.Printf("goinstall %v: %v", p, err)
 		}
