@@ -107,6 +107,16 @@ var tokenTests = []tokenTest{
 		`<a b="c&noSuchEntity;d">&lt;&alsoDoesntExist;&`,
 		`<a b="c&amp;noSuchEntity;d">$&lt;&amp;alsoDoesntExist;&amp;`,
 	},
+	{
+		"entity without semicolon",
+		`&notit;&notin;<a b="q=z&amp=5&notice=hello&not;=world">`,
+		`¬it;∉$<a b="q=z&amp;amp=5&amp;notice=hello¬=world">`,
+	},
+	{
+		"entity with digits",
+		"&frac12;",
+		"½",
+	},
 
 	// Attribute tests:
 	// http://dev.w3.org/html5/spec/Overview.html#attributes-0
