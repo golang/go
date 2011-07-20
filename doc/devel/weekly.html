@@ -14,6 +14,123 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-07-19">2011-07-19</h2>
+
+<pre>
+This weekly snapshot includes a language change and a change to the image
+package that may require changes to client code.
+
+The language change is that an "else" block is now required to have braces
+except if the body of the "else" is another "if". Since gofmt always puts those
+braces in anyway, programs will not be affected unless they contain "else for",
+"else switch", or "else select". Run gofmt to fix any such programs.
+
+The image package has had significant changes made to the Pix field of struct
+types such as image.RGBA and image.NRGBA. The image.Image interface type has
+not changed, though, and you should not need to change your code if you don't
+explicitly refer to Pix fields. For example, if you decode a number of images
+using the image/jpeg package, compose them using image/draw, and then encode
+the result using image/png, then your code should still work as before.
+
+If you do explicitly refer to Pix fields, there are two changes.  First, Pix[0]
+now refers to the pixel at Bounds().Min instead of the pixel at (0, 0). Second,
+the element type of the Pix slice is now uint8 instead of image.FooColor. For
+example, for an image.RGBA, the channel values will be packed R, G, B, A, R, G,
+B, A, etc. For 16-bits-per-channel color types, the pixel data will be stored
+as big-endian uint8s.
+
+Most Pix field types have changed, and so if your code still compiles after
+this change, then you probably don't need to make any further changes (unless
+you use an image.Paletted's Pix field). If you do get compiler errors, code
+that used to look like this:
+
+	// Get the R, G, B, A values for the pixel at (x, y).
+	var m *image.RGBA = loadAnImage()
+	c := m.Pix[y*m.Stride + x]
+	r, g, b, a := c.R, c.G, c.B, c.A
+
+should now look like this:
+
+	// Get the R, G, B, A values for the pixel at (x, y).
+	var m *image.RGBA = loadAnImage()
+	i := (y-m.Rect.Min.Y)*m.Stride + (x-m.Rect.Min.X)*4
+	r := m.Pix[i+0]
+	g := m.Pix[i+1]
+	b := m.Pix[i+2]
+	a := m.Pix[i+3]
+
+This image package change will not be fixed by gofix: how best to translate
+code into something efficient and idiomatic depends on the surrounding context,
+and is not easily automatable. Examples of what to do can be found in the
+changes to image/draw/draw.go in http://codereview.appspot.com/4675076/
+
+Other changes:
+* 6l: change default output name to 6.out.exe on windows (thanks Alex Brainman).
+* archive/zip: add Writer,
+	add Mtime_ns function to get modified time in sensible format.
+* cc, ld, gc: fixes for Plan 9 build (thanks Lucio De Re).
+* cgi: close stdout reader pipe when finished.
+* cgo: add missing semicolon in generated struct,
+	windows amd64 port (thanks Wei Guangjing).
+* codereview: fix for Mercurial 1.9.
+* dashboard: list "most installed this week" with rolling count.
+* debug/elf: read ELF Program headers (thanks Matthew Horsnell).
+* debug/pe: fixes ImportedSymbols for Win64 (thanks Wei Guangjing).
+* debug/proc: remove unused package.
+* doc/talks/io2010: update with gofix and handle the errors.
+* exp/eval, exp/ogle: remove packages eval and ogle.
+* exp/regexp/syntax: add Prog.NumCap.
+* exp/template: API changes, bug fixes, and tweaks.
+* flag: make -help nicer.
+* fmt: Scan(&int) was mishandling a lone digit.
+* gc: fix closure bug,
+	fix to build with clang (thanks Dave Cheney),
+	make size of struct{} and [0]byte 0 bytes (thanks Robert Hencke),
+	some enhancements to printing debug info.
+* gif: fix local color map and coordinates.
+* go/build: fixes for windows (thanks Alex Brainman),
+	include processing of .c files for cgo packages (thanks Alex Brainman),
+	less aggressive failure when GOROOT not found.
+* go/printer: changed max. number of newlines from 3 to 2.
+* gob: register more slice types (thanks Bobby Powers).
+* godoc: support for file systems stored in .zip files.
+* goinstall, dashboard: Google Code now supports git (thanks Tarmigan Casebolt).
+* hash/crc32: add SSE4.2 support.
+* html: update section references in comments to the latest HTML5 spec.
+* http: drain the pipe output in TestHandlerPanic to avoid logging deadlock,
+	fix Content-Type of file extension (thanks Yasuhiro Matsumoto),
+	implement http.FileSystem for zip files,
+	let FileServer work when path doesn't begin with a slash,
+	support for periodic flushing in ReverseProxy.
+* image/draw: add benchmarks.
+* json: add omitempty struct tag option,
+	allow using '$' and '-' as the struct field's tag (thanks Mikio Hara),
+	encode \r and \n in strings as e.g. "\n", not "\u000A" (thanks Evan Martin),
+	escape < and > in any JSON string for XSS prevention.
+* ld: allow seek within write buffer<
+	add a PT_LOAD PHDR entry for the PHDR (thanks David Anderson).
+* net: windows/amd64 port (thanks Wei Guangjing).
+* os: plan9: add Process.Signal as a way to send notes (thanks Yuval Pavel Zholkover).
+* os: don't permit Process.Signal after a successful Wait.
+* path/filepath: fixes for windows paths (thanks Alex Brainman).
+* reflect: add Value.NumMethod,
+	panic if Method index is out of range for a type.
+* runtime: faster entersyscall, exitsyscall,
+	fix panic for make(chan [0]byte),
+	fix subtle select bug (thanks Hector Chu),
+	make goc2c build on Plan 9 (thanks Lucio De Re),
+	make TestSideEffectOrder work twice,
+	several parallelism-related optimizations and fixes,
+	stdcall_raw stack 16byte align for Win64 (thanks Wei Guangjing),
+	string-related optimizations (thanks Quan Yong Zhai),
+	track running goroutine count.
+* strconv: handle [-+]Infinity in atof.
+* sync: add fast paths to WaitGroup,
+	improve RWMutex performance.
+* syscall: add Flock on Linux,
+	parse and encode SCM_RIGHTS and SCM_CREDENTIALS (thanks Albert Strasheim).
+</pre>
+
 <h2 id="2011-07-07">2011-07-07</h2>
 
 <pre>
