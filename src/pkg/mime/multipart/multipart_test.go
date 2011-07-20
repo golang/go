@@ -141,14 +141,14 @@ func testMultipart(t *testing.T, r io.Reader, onlyNewlines bool) {
 		t.Error("Expected part1")
 		return
 	}
-	if part.Header.Get("Header1") != "value1" {
-		t.Error("Expected Header1: value")
+	if x := part.Header.Get("Header1"); x != "value1" {
+		t.Errorf("part.Header.Get(%q) = %q, want %q", "Header1", x, "value1")
 	}
-	if part.Header.Get("foo-bar") != "baz" {
-		t.Error("Expected foo-bar: baz")
+	if x := part.Header.Get("foo-bar"); x != "baz" {
+		t.Errorf("part.Header.Get(%q) = %q, want %q", "foo-bar", x, "baz")
 	}
-	if part.Header.Get("Foo-Bar") != "baz" {
-		t.Error("Expected Foo-Bar: baz")
+	if x := part.Header.Get("Foo-Bar"); x != "baz" {
+		t.Errorf("part.Header.Get(%q) = %q, want %q", "Foo-Bar", x, "baz")
 	}
 	buf.Reset()
 	if _, err := io.Copy(buf, part); err != nil {
