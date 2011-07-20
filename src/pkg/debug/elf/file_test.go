@@ -7,7 +7,10 @@ package elf
 import (
 	"debug/dwarf"
 	"encoding/binary"
+	"net"
+	"os"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -207,6 +210,32 @@ func TestDWARFRelocations(t *testing.T) {
 		if !reflect.DeepEqual(test.firstEntry, firstEntry) {
 			t.Errorf("#%d: mismatch: got:%#v want:%#v", i, firstEntry, test.firstEntry)
 			continue
+		}
+	}
+}
+
+func TestNoSectionOverlaps(t *testing.T) {
+	// Ensure 6l outputs sections without overlaps.
+	if runtime.GOOS != "linux" && runtime.GOOS != "freebsd" {
+		return // not ELF
+	}
+	_ = net.ResolveIPAddr // force dynamic linkage
+	f, err := Open(os.Args[0])
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	for i, si := range f.Sections {
+		sih := si.SectionHeader
+		for j, sj := range f.Sections {
+			sjh := sj.SectionHeader
+			if i == j || sjh.Type == SHT_NOBITS || sih.Offset == sjh.Offset && sih.Size == 0 {
+				continue
+			}
+			if sih.Offset >= sjh.Offset && sih.Offset < sjh.Offset+sjh.Size {
+				t.Errorf("ld produced ELF with section %s within %s: 0x%x <= 0x%x..0x%x < 0x%x",
+					sih.Name, sjh.Name, sjh.Offset, sih.Offset, sih.Offset+sih.Size, sjh.Offset+sjh.Size)
+			}
 		}
 	}
 }

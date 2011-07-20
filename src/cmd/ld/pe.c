@@ -396,7 +396,7 @@ dope(void)
 	/* relocation table */
 	rel = lookup(".rel", 0);
 	rel->reachable = 1;
-	rel->type = SELFDATA;
+	rel->type = SELFROSECT;
 
 	initdynimport();
 	initdynexport();
