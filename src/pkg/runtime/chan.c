@@ -21,7 +21,7 @@ struct	SudoG
 	int16	offset;		// offset of case number
 	int8	isfree;		// offset of case number
 	SudoG*	link;
-	byte	elem[8];	// synch data element (+ more)
+	byte*	elem;		// data element
 };
 
 struct	WaitQ
@@ -38,8 +38,8 @@ struct	Hchan
 	bool	closed;
 	uint8	elemalign;
 	Alg*	elemalg;		// interface for element type
-	uint32	sendx;	// send index
-	uint32	recvx;	// receive index
+	uint32	sendx;			// send index
+	uint32	recvx;			// receive index
 	WaitQ	recvq;			// list of recv waiters
 	WaitQ	sendq;			// list of send waiters
 	SudoG*	free;			// freelist
@@ -170,6 +170,7 @@ void
 runtime·chansend(Hchan *c, byte *ep, bool *pres)
 {
 	SudoG *sg;
+	SudoG mysg;
 	G* gp;
 
 	if(c == nil)
@@ -185,7 +186,6 @@ runtime·chansend(Hchan *c, byte *ep, bool *pres)
 	}
 
 	runtime·lock(c);
-loop:
 	if(c->closed)
 		goto closed;
 
@@ -194,12 +194,12 @@ loop:
 
 	sg = dequeue(&c->recvq, c);
 	if(sg != nil) {
-		if(ep != nil)
-			c->elemalg->copy(c->elemsize, sg->elem, ep);
-
+		runtime·unlock(c);
+		
 		gp = sg->g;
 		gp->param = sg;
-		runtime·unlock(c);
+		if(sg->elem != nil)
+			c->elemalg->copy(c->elemsize, sg->elem, ep);
 		runtime·ready(gp);
 
 		if(pres != nil)
@@ -213,21 +213,22 @@ loop:
 		return;
 	}
 
-	sg = allocsg(c);
-	if(ep != nil)
-		c->elemalg->copy(c->elemsize, sg->elem, ep);
+	mysg.elem = ep;
+	mysg.g = g;
+	mysg.selgen = g->selgen;
 	g->param = nil;
 	g->status = Gwaiting;
-	enqueue(&c->sendq, sg);
+	enqueue(&c->sendq, &mysg);
 	runtime·unlock(c);
 	runtime·gosched();
 
-	runtime·lock(c);
-	sg = g->param;
-	if(sg == nil)
-		goto loop;
-	freesg(c, sg);
-	runtime·unlock(c);
+	if(g->param == nil) {
+		runtime·lock(c);
+		if(!c->closed)
+			runtime·throw("chansend: spurious wakeup");
+		goto closed;
+	}
+
 	return;
 
 asynch:
@@ -240,17 +241,18 @@ asynch:
 			*pres = false;
 			return;
 		}
-		sg = allocsg(c);
+		mysg.g = g;
+		mysg.elem = nil;
+		mysg.selgen = g->selgen;
 		g->status = Gwaiting;
-		enqueue(&c->sendq, sg);
+		enqueue(&c->sendq, &mysg);
 		runtime·unlock(c);
 		runtime·gosched();
 
 		runtime·lock(c);
 		goto asynch;
 	}
-	if(ep != nil)
-		c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), ep);
+	c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), ep);
 	if(++c->sendx == c->dataqsiz)
 		c->sendx = 0;
 	c->qcount++;
@@ -258,7 +260,6 @@ asynch:
 	sg = dequeue(&c->recvq, c);
 	if(sg != nil) {
 		gp = sg->g;
-		freesg(c, sg);
 		runtime·unlock(c);
 		runtime·ready(gp);
 	} else
@@ -277,6 +278,7 @@ void
 runtime·chanrecv(Hchan* c, byte *ep, bool *selected, bool *received)
 {
 	SudoG *sg;
+	SudoG mysg;
 	G *gp;
 
 	if(c == nil)
@@ -289,8 +291,6 @@ runtime·chanrecv(Hchan* c, byte *ep, bool *selected, bool *received)
 		runtime·printf("chanrecv: chan=%p\n", c);
 
 	runtime·lock(c);
-
-loop:
 	if(c->dataqsiz > 0)
 		goto asynch;
 
@@ -299,13 +299,12 @@ loop:
 
 	sg = dequeue(&c->sendq, c);
 	if(sg != nil) {
+		runtime·unlock(c);
+
 		if(ep != nil)
 			c->elemalg->copy(c->elemsize, ep, sg->elem);
-		c->elemalg->copy(c->elemsize, sg->elem, nil);
-
 		gp = sg->g;
 		gp->param = sg;
-		runtime·unlock(c);
 		runtime·ready(gp);
 
 		if(selected != nil)
@@ -321,25 +320,24 @@ loop:
 		return;
 	}
 
-	sg = allocsg(c);
+	mysg.elem = ep;
+	mysg.g = g;
+	mysg.selgen = g->selgen;
 	g->param = nil;
 	g->status = Gwaiting;
-	enqueue(&c->recvq, sg);
+	enqueue(&c->recvq, &mysg);
 	runtime·unlock(c);
 	runtime·gosched();
 
-	runtime·lock(c);
-	sg = g->param;
-	if(sg == nil)
-		goto loop;
+	if(g->param == nil) {
+		runtime·lock(c);
+		if(!c->closed)
+			runtime·throw("chanrecv: spurious wakeup");
+		goto closed;
+	}
 
-	if(ep != nil)
-		c->elemalg->copy(c->elemsize, ep, sg->elem);
-	c->elemalg->copy(c->elemsize, sg->elem, nil);
 	if(received != nil)
 		*received = true;
-	freesg(c, sg);
-	runtime·unlock(c);
 	return;
 
 asynch:
@@ -354,9 +352,11 @@ asynch:
 				*received = false;
 			return;
 		}
-		sg = allocsg(c);
+		mysg.g = g;
+		mysg.elem = nil;
+		mysg.selgen = g->selgen;
 		g->status = Gwaiting;
-		enqueue(&c->recvq, sg);
+		enqueue(&c->recvq, &mysg);
 		runtime·unlock(c);
 		runtime·gosched();
 
@@ -369,10 +369,10 @@ asynch:
 	if(++c->recvx == c->dataqsiz)
 		c->recvx = 0;
 	c->qcount--;
+
 	sg = dequeue(&c->sendq, c);
 	if(sg != nil) {
 		gp = sg->g;
-		freesg(c, sg);
 		runtime·unlock(c);
 		runtime·ready(gp);
 	} else
@@ -721,7 +721,6 @@ selectrecv(Select *sel, Hchan *c, void *pc, void *elem, bool *received, int32 so
 	cas->so = so;
 	cas->kind = CaseRecv;
 	cas->u.recv.elemp = elem;
-	cas->u.recv.receivedp = nil;
 	cas->u.recv.receivedp = received;
 
 	if(debug)
@@ -911,6 +910,7 @@ loop:
 	}
 
 	if(dfl != nil) {
+		selunlock(sel);
 		cas = dfl;
 		goto retc;
 	}
@@ -926,12 +926,12 @@ loop:
 
 		switch(cas->kind) {
 		case CaseRecv:
+			sg->elem = cas->u.recv.elemp;
 			enqueue(&c->recvq, sg);
 			break;
 		
 		case CaseSend:
-			if(c->dataqsiz == 0)
-				c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
+			sg->elem = cas->u.elem;
 			enqueue(&c->sendq, sg);
 			break;
 		}
@@ -965,10 +965,8 @@ loop:
 	cas = sel->scase[o];
 	c = cas->chan;
 
-	if(c->dataqsiz > 0) {
-//		prints("shouldnt happen\n");
-		goto loop;
-	}
+	if(c->dataqsiz > 0)
+		runtime·throw("selectgo: shouldnt happen");
 
 	if(debug)
 		runtime·printf("wait-return: sel=%p c=%p cas=%p kind=%d o=%d\n",
@@ -977,12 +975,10 @@ loop:
 	if(cas->kind == CaseRecv) {
 		if(cas->u.recv.receivedp != nil)
 			*cas->u.recv.receivedp = true;
-		if(cas->u.recv.elemp != nil)
-			c->elemalg->copy(c->elemsize, cas->u.recv.elemp, sg->elem);
-		c->elemalg->copy(c->elemsize, sg->elem, nil);
 	}
 
 	freesg(c, sg);
+	selunlock(sel);
 	goto retc;
 
 asyncrecv:
@@ -998,35 +994,38 @@ asyncrecv:
 	sg = dequeue(&c->sendq, c);
 	if(sg != nil) {
 		gp = sg->g;
-		freesg(c, sg);
+		selunlock(sel);
 		runtime·ready(gp);
+	} else {
+		selunlock(sel);
 	}
 	goto retc;
 
 asyncsend:
 	// can send to buffer
-	if(cas->u.elem != nil)
-		c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), cas->u.elem);
+	c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), cas->u.elem);
 	if(++c->sendx == c->dataqsiz)
 		c->sendx = 0;
 	c->qcount++;
 	sg = dequeue(&c->recvq, c);
 	if(sg != nil) {
 		gp = sg->g;
-		freesg(c, sg);
+		selunlock(sel);
 		runtime·ready(gp);
+	} else {
+		selunlock(sel);
 	}
 	goto retc;
 
 syncrecv:
 	// can receive from sleeping sender (sg)
+	selunlock(sel);
 	if(debug)
 		runtime·printf("syncrecv: sel=%p c=%p o=%d\n", sel, c, o);
 	if(cas->u.recv.receivedp != nil)
 		*cas->u.recv.receivedp = true;
 	if(cas->u.recv.elemp != nil)
 		c->elemalg->copy(c->elemsize, cas->u.recv.elemp, sg->elem);
-	c->elemalg->copy(c->elemsize, sg->elem, nil);
 	gp = sg->g;
 	gp->param = sg;
 	runtime·ready(gp);
@@ -1034,6 +1033,7 @@ syncrecv:
 
 rclose:
 	// read at end of closed channel
+	selunlock(sel);
 	if(cas->u.recv.receivedp != nil)
 		*cas->u.recv.receivedp = false;
 	if(cas->u.recv.elemp != nil)
@@ -1042,18 +1042,16 @@ rclose:
 
 syncsend:
 	// can send to sleeping receiver (sg)
+	selunlock(sel);
 	if(debug)
 		runtime·printf("syncsend: sel=%p c=%p o=%d\n", sel, c, o);
-	if(c->closed)
-		goto sclose;
-	c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
+	if(sg->elem != nil)
+		c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
 	gp = sg->g;
 	gp->param = sg;
 	runtime·ready(gp);
 
 retc:
-	selunlock(sel);
-
 	// return to pc corresponding to chosen case
 	pc = cas->pc;
 	as = (byte*)selp + cas->so;
@@ -1093,7 +1091,6 @@ runtime·closechan(Hchan *c)
 			break;
 		gp = sg->g;
 		gp->param = nil;
-		freesg(c, sg);
 		runtime·ready(gp);
 	}
 
@@ -1104,7 +1101,6 @@ runtime·closechan(Hchan *c)
 			break;
 		gp = sg->g;
 		gp->param = nil;
-		freesg(c, sg);
 		runtime·ready(gp);
 	}
 
@@ -1203,7 +1199,7 @@ allocsg(Hchan *c)
 	if(sg != nil) {
 		c->free = sg->link;
 	} else
-		sg = runtime·mal(sizeof(*sg) + c->elemsize - sizeof(sg->elem));
+		sg = runtime·mal(sizeof(*sg));
 	sg->selgen = g->selgen;
 	sg->g = g;
 	sg->offset = 0;
@@ -1220,6 +1216,7 @@ freesg(Hchan *c, SudoG *sg)
 			runtime·throw("chan.freesg: already free");
 		sg->isfree = 1;
 		sg->link = c->free;
+		sg->elem = nil;
 		c->free = sg;
 	}
 }
