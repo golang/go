@@ -1422,7 +1422,6 @@ synthesizechantypes(DWDie *die)
 		copychildren(dwh, hchan);
 		substitutetype(dwh, "recvq", dww);
 		substitutetype(dwh, "sendq", dww);
-		substitutetype(dwh, "free", defptrto(dws));
 		newattr(dwh, DW_AT_byte_size, DW_CLS_CONSTANT,
 			getattr(hchan, DW_AT_byte_size)->value, nil);
 
