@@ -1720,29 +1720,6 @@ isblank(Node *n)
 }
 
 int
-isselect(Node *n)
-{
-	Sym *s;
-
-	if(n == N)
-		return 0;
-	n = n->left;
-	s = pkglookup("selectsend", runtimepkg);
-	if(s == n->sym)
-		return 1;
-	s = pkglookup("selectrecv", runtimepkg);
-	if(s == n->sym)
-		return 1;
-	s = pkglookup("selectrecv2", runtimepkg);
-	if(s == n->sym)
-		return 1;
-	s = pkglookup("selectdefault", runtimepkg);
-	if(s == n->sym)
-		return 1;
-	return 0;
-}
-
-int
 isinter(Type *t)
 {
 	return t != T && t->etype == TINTER;

@@ -632,6 +632,9 @@ static void selectsend(Select *sel, Hchan *c, void *pc, void *elem, int32 so);
 void
 runtime·selectsend(Select *sel, Hchan *c, void *elem, bool selected)
 {
+	selected = false;
+	FLUSH(&selected);
+
 	// nil cases do not compete
 	if(c == nil)
 		return;
@@ -670,6 +673,9 @@ static void selectrecv(Select *sel, Hchan *c, void *pc, void *elem, bool*, int32
 void
 runtime·selectrecv(Select *sel, Hchan *c, void *elem, bool selected)
 {
+	selected = false;
+	FLUSH(&selected);
+
 	// nil cases do not compete
 	if(c == nil)
 		return;
@@ -682,6 +688,9 @@ runtime·selectrecv(Select *sel, Hchan *c, void *elem, bool selected)
 void
 runtime·selectrecv2(Select *sel, Hchan *c, void *elem, bool *received, bool selected)
 {
+	selected = false;
+	FLUSH(&selected);
+
 	// nil cases do not compete
 	if(c == nil)
 		return;
@@ -721,6 +730,9 @@ static void selectdefault(Select*, void*, int32);
 void
 runtime·selectdefault(Select *sel, bool selected)
 {
+	selected = false;
+	FLUSH(&selected);
+
 	selectdefault(sel, runtime·getcallerpc(&sel), (byte*)&selected - (byte*)&sel);
 }
 
