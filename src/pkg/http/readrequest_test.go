@@ -152,28 +152,6 @@ var reqTests = []reqTest{
 		noBody,
 		"parse : empty url",
 	},
-
-	// CONNECT method.
-	{
-		"CONNECT proxy.example.com:443 HTTP/1.0\r\n" +
-			"Host: proxy.example.com\r\n\r\n",
-
-		&Request{
-			Method:        "CONNECT",
-			RawURL:        "proxy.example.com:443",
-			URL:           nil,
-			Proto:         "HTTP/1.0",
-			ProtoMajor:    1,
-			ProtoMinor:    0,
-			Close:         false,
-			ContentLength: 0,
-			Host:          "proxy.example.com",
-			Form:          Values{},
-		},
-
-		noBody,
-		noError,
-	},
 }
 
 func TestReadRequest(t *testing.T) {
