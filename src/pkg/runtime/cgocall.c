@@ -83,7 +83,6 @@
 // callee-save registers for gcc and returns to GoF, which returns to f.
 
 void *initcgo;	/* filled in by dynamic linker when Cgo is available */
-int64 ncgocall;
 
 static void unlockm(void);
 static void unwindm(void);
@@ -101,7 +100,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 	if(fn == 0)
 		runtime·throw("cgocall nil");
 
-	ncgocall++;
+	m->ncgocall++;
 
 	/*
 	 * Lock g to m to ensure we stay on the same stack if we do a
@@ -155,7 +154,11 @@ unlockm(void)
 void
 runtime·Cgocalls(int64 ret)
 {
-	ret = ncgocall;
+	M *m;
+
+	ret = 0;
+	for(m=runtime·atomicloadp(&runtime·allm); m; m=m->alllink)
+		ret += m->ncgocall;
 	FLUSH(&ret);
 }
 

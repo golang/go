@@ -231,6 +231,7 @@ struct	M
 	int32	dying;
 	int32	profilehz;
 	uint32	fastrand;
+	uint64	ncgocall;
 	Note	havenextg;
 	G*	nextg;
 	M*	alllink;	// on allm
