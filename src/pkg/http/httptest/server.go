@@ -9,6 +9,7 @@ package httptest
 import (
 	"crypto/rand"
 	"crypto/tls"
+	"flag"
 	"fmt"
 	"http"
 	"net"
@@ -49,15 +50,34 @@ func newLocalListener() net.Listener {
 	return l
 }
 
+// When debugging a particular http server-based test,
+// this flag lets you run
+//	gotest -run=BrokenTest -httptest.serve=127.0.0.1:8000
+// to start the broken server so you can interact with it manually.
+var serve = flag.String("httptest.serve", "", "if non-empty, httptest.NewServer serves on this address and blocks")
+
 // NewServer starts and returns a new Server.
 // The caller should call Close when finished, to shut it down.
 func NewServer(handler http.Handler) *Server {
 	ts := new(Server)
-	l := newLocalListener()
+	var l net.Listener
+	if *serve != "" {
+		var err os.Error
+		l, err = net.Listen("tcp", *serve)
+		if err != nil {
+			panic(fmt.Sprintf("httptest: failed to listen on %v: %v", *serve, err))
+		}
+	} else {
+		l = newLocalListener()
+	}
 	ts.Listener = &historyListener{l, make([]net.Conn, 0)}
 	ts.URL = "http://" + l.Addr().String()
 	server := &http.Server{Handler: handler}
 	go server.Serve(ts.Listener)
+	if *serve != "" {
+		fmt.Println(os.Stderr, "httptest: serving on", ts.URL)
+		select {}
+	}
 	return ts
 }
 
