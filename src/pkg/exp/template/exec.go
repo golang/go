@@ -20,7 +20,6 @@ import (
 type state struct {
 	tmpl *Template
 	wr   io.Writer
-	set  *Set
 	line int        // line number for errors
 	vars []variable // push-down stack of variable values.
 }
@@ -77,20 +76,12 @@ func (s *state) error(err os.Error) {
 
 // Execute applies a parsed template to the specified data object,
 // writing the output to wr.
-func (t *Template) Execute(wr io.Writer, data interface{}) os.Error {
-	return t.ExecuteInSet(wr, data, nil)
-}
-
-// ExecuteInSet applies a parsed template to the specified data object,
-// writing the output to wr. Nested template invocations will be resolved
-// from the specified set.
-func (t *Template) ExecuteInSet(wr io.Writer, data interface{}, set *Set) (err os.Error) {
+func (t *Template) Execute(wr io.Writer, data interface{}) (err os.Error) {
 	defer t.recover(&err)
 	value := reflect.ValueOf(data)
 	state := &state{
 		tmpl: t,
 		wr:   wr,
-		set:  set,
 		line: 1,
 		vars: []variable{{"$", value}},
 	}
@@ -225,10 +216,11 @@ func (s *state) walkRange(dot reflect.Value, r *rangeNode) {
 }
 
 func (s *state) walkTemplate(dot reflect.Value, t *templateNode) {
-	if s.set == nil {
+	set := s.tmpl.set
+	if set == nil {
 		s.errorf("no set defined in which to invoke template named %q", t.name)
 	}
-	tmpl := s.set.tmpl[t.name]
+	tmpl := set.tmpl[t.name]
 	if tmpl == nil {
 		s.errorf("template %q not in set", t.name)
 	}
@@ -349,7 +341,7 @@ func (s *state) evalFieldChain(dot, receiver reflect.Value, ident []string, args
 }
 
 func (s *state) evalFunction(dot reflect.Value, name string, args []node, final reflect.Value) reflect.Value {
-	function, ok := findFunction(name, s.tmpl, s.set)
+	function, ok := findFunction(name, s.tmpl, s.tmpl.set)
 	if !ok {
 		s.errorf("%q is not a defined function", name)
 	}

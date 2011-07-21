@@ -20,12 +20,13 @@ type Template struct {
 	name  string
 	root  *listNode
 	funcs map[string]reflect.Value
+	set   *Set // can be nil.
 	// Parsing only; cleared after parse.
-	set       *Set
+	parseSet  *Set // for function lookup during parse.
 	lex       *lexer
-	token     [2]item // two-token lookahead for parser
+	token     [2]item // two-token lookahead for parser.
 	peekCount int
-	vars      []string // variables defined at the moment
+	vars      []string // variables defined at the moment.
 }
 
 // Name returns the name of the template.
@@ -574,15 +575,16 @@ func (t *Template) recover(errp *os.Error) {
 // startParse starts the template parsing from the lexer.
 func (t *Template) startParse(set *Set, lex *lexer) {
 	t.root = nil
-	t.set = set
 	t.lex = lex
 	t.vars = []string{"$"}
+	t.parseSet = set
 }
 
 // stopParse terminates parsing.
 func (t *Template) stopParse() {
-	t.set, t.lex = nil, nil
+	t.lex = nil
 	t.vars = nil
+	t.parseSet = nil
 }
 
 // atEOF returns true if, possibly after spaces, we're at EOF.
@@ -609,25 +611,33 @@ func (t *Template) atEOF() bool {
 // Parse parses the template definition string to construct an internal
 // representation of the template for execution.
 func (t *Template) Parse(s string) (err os.Error) {
-	t.startParse(nil, lex(t.name, s))
 	defer t.recover(&err)
+	t.startParse(t.set, lex(t.name, s))
 	t.parse(true)
 	t.stopParse()
 	return
 }
 
 // ParseInSet parses the template definition string to construct an internal
-// representation of the template for execution.
+// representation of the template for execution. It also adds the template
+// to the set.
 // Function bindings are checked against those in the set.
 func (t *Template) ParseInSet(s string, set *Set) (err os.Error) {
-	t.startParse(set, lex(t.name, s))
 	defer t.recover(&err)
+	t.startParse(set, lex(t.name, s))
 	t.parse(true)
-	if len(t.vars) != 1 { // $ should still be defined
-		t.errorf("internal error: vars not popped")
-	}
 	t.stopParse()
-	return
+	t.addToSet(set)
+	return nil
+}
+
+// addToSet adds the template to the set, verifying it's not being double-assigned.
+func (t *Template) addToSet(set *Set) {
+	if set == nil || t.set == set {
+		return
+	}
+	// If double-assigned, Add will panic and we will turn that into an error.
+	set.Add(t)
 }
 
 // parse is the helper for Parse.
@@ -846,7 +856,7 @@ Loop:
 		case itemError:
 			t.errorf("%s", token.val)
 		case itemIdentifier:
-			if _, ok := findFunction(token.val, t, t.set); !ok {
+			if _, ok := findFunction(token.val, t, t.parseSet); !ok {
 				t.errorf("function %q not defined", token.val)
 			}
 			cmd.append(newIdentifier(token.val))
