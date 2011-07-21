@@ -9,6 +9,18 @@
 |     <svg svg>
 
 #data
+<!DOCTYPE html><svg></svg><![CDATA[a]]>
+#errors
+29: Bogus comment
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <svg svg>
+|     <!-- [CDATA[a]] -->
+
+#data
 <!DOCTYPE html><body><svg></svg>
 #errors
 #document
@@ -428,3 +440,360 @@
 |         xlink href="foo"
 |         xml lang="en"
 |       "bar"
+
+#data
+<svg></path>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <svg svg>
+
+#data
+<div><svg></div>a
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       <svg svg>
+|     "a"
+
+#data
+<div><svg><path></div>a
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       <svg svg>
+|         <svg path>
+|     "a"
+
+#data
+<div><svg><path></svg><path>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       <svg svg>
+|         <svg path>
+|       <path>
+
+#data
+<div><svg><path><foreignObject><math></div>a
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       <svg svg>
+|         <svg path>
+|           <svg foreignObject>
+|             <math math>
+|               "a"
+
+#data
+<div><svg><path><foreignObject><p></div>a
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       <svg svg>
+|         <svg path>
+|           <svg foreignObject>
+|             <p>
+|               "a"
+
+#data
+<!DOCTYPE html><svg><desc><div><svg><ul>a
+#errors
+40: HTML start tag “ul” in a foreign namespace context.
+41: End of file in a foreign namespace context.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <svg svg>
+|       <svg desc>
+|         <div>
+|           <svg svg>
+|           <ul>
+|             "a"
+
+#data
+<!DOCTYPE html><svg><desc><svg><ul>a
+#errors
+35: HTML start tag “ul” in a foreign namespace context.
+36: End of file in a foreign namespace context.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <svg svg>
+|       <svg desc>
+|         <svg svg>
+|         <ul>
+|           "a"
+
+#data
+<!DOCTYPE html><p><svg><desc><p>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <svg svg>
+|         <svg desc>
+|           <p>
+
+#data
+<!DOCTYPE html><p><svg><title><p>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <p>
+|       <svg svg>
+|         <svg title>
+|           <p>
+
+#data
+<div><svg><path><foreignObject><p></foreignObject><p>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <div>
+|       <svg svg>
+|         <svg path>
+|           <svg foreignObject>
+|             <p>
+|             <p>
+
+#data
+<math><mi><div><object><div><span></span></div></object></div></mi><mi>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math mi>
+|         <div>
+|           <object>
+|             <div>
+|               <span>
+|       <math mi>
+
+#data
+<math><mi><svg><foreignObject><div><div></div></div></foreignObject></svg></mi><mi>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math mi>
+|         <svg svg>
+|           <svg foreignObject>
+|             <div>
+|               <div>
+|       <math mi>
+
+#data
+<svg><script></script><path>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <svg svg>
+|       <svg script>
+|       <svg path>
+
+#data
+<table><svg></svg><tr>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <svg svg>
+|     <table>
+|       <tbody>
+|         <tr>
+
+#data
+<math><mi><mglyph>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math mi>
+|         <math mglyph>
+
+#data
+<math><mi><malignmark>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math mi>
+|         <math malignmark>
+
+#data
+<math><mo><mglyph>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math mo>
+|         <math mglyph>
+
+#data
+<math><mo><malignmark>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math mo>
+|         <math malignmark>
+
+#data
+<math><mn><mglyph>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math mn>
+|         <math mglyph>
+
+#data
+<math><mn><malignmark>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math mn>
+|         <math malignmark>
+
+#data
+<math><ms><mglyph>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math ms>
+|         <math mglyph>
+
+#data
+<math><ms><malignmark>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math ms>
+|         <math malignmark>
+
+#data
+<math><mtext><mglyph>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math mtext>
+|         <math mglyph>
+
+#data
+<math><mtext><malignmark>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math mtext>
+|         <math malignmark>
+
+#data
+<math><annotation-xml><svg></svg></annotation-xml><mi>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math annotation-xml>
+|         <svg svg>
+|       <math mi>
+
+#data
+<math><annotation-xml><svg><foreignObject><div><math><mi></mi></math><span></span></div></foreignObject><path></path></svg></annotation-xml><mi>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math annotation-xml>
+|         <svg svg>
+|           <svg foreignObject>
+|             <div>
+|               <math math>
+|                 <math mi>
+|               <span>
+|           <svg path>
+|       <math mi>
+
+#data
+<math><annotation-xml><svg><foreignObject><math><mi><svg></svg></mi><mo></mo></math><span></span></foreignObject><path></path></svg></annotation-xml><mi>
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math annotation-xml>
+|         <svg svg>
+|           <svg foreignObject>
+|             <math math>
+|               <math mi>
+|                 <svg svg>
+|               <math mo>
+|             <span>
+|           <svg path>
+|       <math mi>

@@ -144,6 +144,18 @@ Line: 2 Col: 7 End tag (pre) seen too early. Expected other end tag.
 y"
 
 #data
+<!DOCTYPE html><pre>&#x0a;&#x0a;A</pre>
+#errors
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <pre>
+|       "
+A"
+
+#data
 <!DOCTYPE html><HTML><META><HEAD></HEAD></HTML>
 #errors
 Line: 1 Col: 33 Unexpected start tag head in existing head. Ignored.

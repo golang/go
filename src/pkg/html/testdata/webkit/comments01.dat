@@ -28,8 +28,7 @@ FOO<!-- BAR --   >BAZ
 |   <head>
 |   <body>
 |     "FOO"
-|     <!--  BAR --    -->
-|     "BAZ"
+|     <!--  BAR --   >BAZ -->
 
 #data
 FOO<!-- BAR -- <QUX> -- MUX -->BAZ
@@ -61,8 +60,7 @@ FOO<!-- BAR -- <QUX> -- MUX -- >BAZ
 |   <head>
 |   <body>
 |     "FOO"
-|     <!--  BAR -- <QUX> -- MUX --  -->
-|     "BAZ"
+|     <!--  BAR -- <QUX> -- MUX -- >BAZ -->
 
 #data
 FOO<!---->BAZ
@@ -124,3 +122,14 @@ FOO<!-->BAZ
 | <html>
 |   <head>
 |   <body>
+
+#data
+FOO<!----->BAZ
+#errors
+#document
+| <html>
+|   <head>
+|   <body>
+|     "FOO"
+|     <!-- - -->
+|     "BAZ"

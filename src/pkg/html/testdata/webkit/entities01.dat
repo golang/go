@@ -189,15 +189,6 @@ FOO&#x0000;ZOO
 |     "FOO�ZOO"
 
 #data
-FOO&#x000D;ZOO
-#errors
-#document
-| <html>
-|   <head>
-|   <body>
-|     "FOOZOO"
-
-#data
 FOO&#x0078;ZOO
 #errors
 #document
