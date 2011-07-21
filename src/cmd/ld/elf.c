@@ -19,6 +19,7 @@ static	int	elf64;
 static	ElfEhdr	hdr;
 static	ElfPhdr	*phdr[NSECT];
 static	ElfShdr	*shdr[NSECT];
+static	char	*interp;
 
 typedef struct Elfstring Elfstring;
 struct Elfstring
@@ -301,6 +302,32 @@ elfwritedynentsymsize(Sym *s, int tag, Sym *t)
 	else
 		adduint32(s, tag);
 	addsize(s, t);
+}
+
+int
+elfwriteinterp(void)
+{
+	int n;
+
+	if(interp == nil)
+		return 0;
+
+	n = strlen(interp)+1;
+	cseek(ELFRESERVE-n);
+	cwrite(interp, n);
+	return n;
+}
+
+void
+elfinterp(ElfShdr *sh, uint64 startva, char *p)
+{
+	int n;
+
+	interp = p;
+	n = strlen(interp)+1;
+	sh->addr = startva + ELFRESERVE - n;
+	sh->off = ELFRESERVE - n;
+	sh->size = n;
 }
 
 extern int nelfsym;

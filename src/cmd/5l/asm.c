@@ -185,14 +185,6 @@ doelf(void)
 		elfstr[ElfStrRelPlt] = addstring(shstrtab, ".rel.plt");
 		elfstr[ElfStrPlt] = addstring(shstrtab, ".plt");
 
-		/* interpreter string */
-		if(interpreter == nil)
-			interpreter = linuxdynld;
-		s = lookup(".interp", 0);
-		s->type = SELFROSECT;
-		s->reachable = 1;
-		addstring(s, interpreter);
-
 		/* dynamic symbol table - first entry all zeros */
 		s = lookup(".dynsym", 0);
 		s->type = SELFROSECT;
@@ -492,7 +484,9 @@ asmb(void)
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC;
 			sh->addralign = 1;
-			shsym(sh, lookup(".interp", 0));
+			if(interpreter == nil)
+				interpreter = linuxdynld;
+			elfinterp(sh, startva, interpreter);
 
 			ph = newElfPhdr();
 			ph->type = PT_INTERP;
@@ -638,7 +632,7 @@ asmb(void)
 		a += elfwritephdrs();
 		a += elfwriteshdrs();
 		cflush();
-		if(a > ELFRESERVE)	
+		if(a+elfwriteinterp() > ELFRESERVE)	
 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
 		break;
 	}
