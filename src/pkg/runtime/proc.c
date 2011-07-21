@@ -278,7 +278,9 @@ mcommoninit(M *m)
 	// Add to runtime·allm so garbage collector doesn't free m
 	// when it is just in a register or thread-local storage.
 	m->alllink = runtime·allm;
-	runtime·allm = m;
+	// runtime·Cgocalls() iterates over allm w/o schedlock,
+	// so we need to publish it safely.
+	runtime·atomicstorep(&runtime·allm, m);
 
 	m->id = runtime·sched.mcount++;
 	m->fastrand = 0x49f6428aUL + m->id;
