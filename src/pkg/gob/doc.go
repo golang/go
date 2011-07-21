@@ -113,6 +113,11 @@ uninterpreted bytes of the value.
 All other slices and arrays are sent as an unsigned count followed by that many
 elements using the standard gob encoding for their type, recursively.
 
+Maps are sent as an unsigned count followed by that man key, element
+pairs. Empty but non-nil maps are sent, so if the sender has allocated
+a map, the receiver will allocate a map even no elements are
+transmitted.
+
 Structs are sent as a sequence of (field number, field value) pairs.  The field
 value is sent using the standard gob encoding for its type, recursively.  If a
 field has the zero value for its type, it is omitted from the transmission.  The

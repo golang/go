@@ -573,30 +573,32 @@ func TestEndToEnd(t *testing.T) {
 	s1 := "string1"
 	s2 := "string2"
 	type T1 struct {
-		A, B, C int
-		M       map[string]*float64
-		N       *[3]float64
-		Strs    *[2]string
-		Int64s  *[]int64
-		RI      complex64
-		S       string
-		Y       []byte
-		T       *T2
+		A, B, C  int
+		M        map[string]*float64
+		EmptyMap map[string]int // to check that we receive a non-nil map.
+		N        *[3]float64
+		Strs     *[2]string
+		Int64s   *[]int64
+		RI       complex64
+		S        string
+		Y        []byte
+		T        *T2
 	}
 	pi := 3.14159
 	e := 2.71828
 	t1 := &T1{
-		A:      17,
-		B:      18,
-		C:      -5,
-		M:      map[string]*float64{"pi": &pi, "e": &e},
-		N:      &[3]float64{1.5, 2.5, 3.5},
-		Strs:   &[2]string{s1, s2},
-		Int64s: &[]int64{77, 89, 123412342134},
-		RI:     17 - 23i,
-		S:      "Now is the time",
-		Y:      []byte("hello, sailor"),
-		T:      &T2{"this is T2"},
+		A:        17,
+		B:        18,
+		C:        -5,
+		M:        map[string]*float64{"pi": &pi, "e": &e},
+		EmptyMap: make(map[string]int),
+		N:        &[3]float64{1.5, 2.5, 3.5},
+		Strs:     &[2]string{s1, s2},
+		Int64s:   &[]int64{77, 89, 123412342134},
+		RI:       17 - 23i,
+		S:        "Now is the time",
+		Y:        []byte("hello, sailor"),
+		T:        &T2{"this is T2"},
 	}
 	b := new(bytes.Buffer)
 	err := NewEncoder(b).Encode(t1)
@@ -610,6 +612,13 @@ func TestEndToEnd(t *testing.T) {
 	}
 	if !reflect.DeepEqual(t1, &_t1) {
 		t.Errorf("encode expected %v got %v", *t1, _t1)
+	}
+	// Be absolutely sure the received map is non-nil.
+	if t1.EmptyMap == nil {
+		t.Errorf("nil map sent")
+	}
+	if _t1.EmptyMap == nil {
+		t.Errorf("nil map received")
 	}
 }
 
