@@ -316,9 +316,26 @@ func charset(ch int) string {
 	return "" // unknown format
 }
 
+// write count copies of text to s
+func writeMultiple(s fmt.State, text string, count int) {
+	if len(text) > 0 {
+		b := []byte(text)
+		for ; count > 0; count-- {
+			s.Write(b)
+		}
+	}
+}
+
 // Format is a support routine for fmt.Formatter. It accepts
 // the formats 'b' (binary), 'o' (octal), 'd' (decimal), 'x'
 // (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
+// Also supported are the full suite of "Printf" style format
+// codes for integral types, including PLUS, MINUS, and SPACE
+// for sign control, HASH for leading ZERO in octal and for
+// hexadecimal, a leading "0x" or "0X" for "%#x" and "%#X"
+// respectively, specification of minimum digits precision,
+// output field width, space or zero padding, and left or
+// right justification.
 //
 func (x *Int) Format(s fmt.State, ch int) {
 	cs := charset(ch)
@@ -334,72 +351,69 @@ func (x *Int) Format(s fmt.State, ch int) {
 		return
 	}
 
-	// determine format
-	format := "%s"
-	if s.Flag('#') {
-		switch ch {
-		case 'o':
-			format = "0%s"
-		case 'x':
-			format = "0x%s"
-		case 'X':
-			format = "0X%s"
-		}
-	}
-	t := fmt.Sprintf(format, x.abs.string(cs))
-
-	// insert spaces in hexadecimal formats if needed
-	if len(t) > 0 && s.Flag(' ') && (ch == 'x' || ch == 'X') {
-		spaces := (len(t)+1)/2 - 1
-		spaced := make([]byte, len(t)+spaces)
-		var i, j int
-		spaced[i] = t[j]
-		i++
-		j++
-		if len(t)&1 == 0 {
-			spaced[i] = t[j]
-			i++
-			j++
-		}
-		for j < len(t) {
-			spaced[i] = ' '
-			i++
-			spaced[i] = t[j]
-			i++
-			j++
-			spaced[i] = t[j]
-			i++
-			j++
-		}
-		t = string(spaced)
-	}
-
-	// determine sign prefix
-	prefix := ""
+	// determine sign character
+	sign := ""
 	switch {
 	case x.neg:
-		prefix = "-"
-	case s.Flag('+'):
-		prefix = "+"
-	case s.Flag(' ') && ch != 'x' && ch != 'X':
-		prefix = " "
+		sign = "-"
+	case s.Flag('+'): // supersedes ' ' when both specified
+		sign = "+"
+	case s.Flag(' '):
+		sign = " "
 	}
 
-	// fill to minimum width and prepend sign prefix
-	if width, ok := s.Width(); ok && len(t)+len(prefix) < width {
-		if s.Flag('0') {
-			t = fmt.Sprintf("%s%0*d%s", prefix, width-len(t)-len(prefix), 0, t)
-		} else {
-			if s.Flag('-') {
-				width = -width
-			}
-			t = fmt.Sprintf("%*s", width, prefix+t)
+	// determine prefix characters for indicating output base
+	prefix := ""
+	if s.Flag('#') {
+		switch ch {
+		case 'o': // octal
+			prefix = "0"
+		case 'x': // hexadecimal
+			prefix = "0x"
+		case 'X':
+			prefix = "0X"
 		}
-	} else if prefix != "" {
-		t = prefix + t
 	}
 
-	fmt.Fprint(s, t)
+	// determine digits with base set by len(cs) and digit characters from cs
+	digits := x.abs.string(cs)
+
+	// number of characters for the Sprintf family's three classes of number padding
+	var left int   // space characters to left of digits for right justification ("%8d")
+	var zeroes int // zero characters (acutally cs[0]) as left-most digits ("%.8d")
+	var right int  // space characters to right of digits for left justification ("%-8d")
+
+	// determine number padding from precision: the least number of digits to output
+	precision, precisionSet := s.Precision()
+	if precisionSet {
+		switch {
+		case len(digits) < precision:
+			zeroes = precision - len(digits) // count of zero padding 
+		case digits == "0" && precision == 0:
+			return // print nothing if zero value (x == 0) and zero precision ("." or ".0")
+		}
+	}
+
+	// determine field pad from width: the least number of characters to output
+	length := len(sign) + len(prefix) + zeroes + len(digits)
+	if width, widthSet := s.Width(); widthSet && length < width { // pad as specified
+		switch d := width - length; {
+		case s.Flag('-'): // pad on the right with spaces. supersedes '0' when both specified
+			right = d
+		case s.Flag('0') && !precisionSet: // pad with zeroes unless precision also specified
+			zeroes = d
+		default: // pad on the left with spaces
+			left = d
+		}
+	}
+
+	// print Int as [left pad][sign][prefix][zero pad][digits][right pad]
+	writeMultiple(s, " ", left)
+	writeMultiple(s, sign, 1)
+	writeMultiple(s, prefix, 1)
+	writeMultiple(s, "0", zeroes)
+	writeMultiple(s, digits, 1)
+	writeMultiple(s, " ", right)
 }
 
 // scan sets z to the integer value corresponding to the longest possible prefix
