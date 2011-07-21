@@ -259,7 +259,7 @@ Line: 1 Col: 24 End tag (a) violates step 1, paragraph 1 of the adoption agency 
 |       "Z"
 
 #data
-<b><button></b></button></b>
+<b><button>foo</b>bar
 #errors
 Line: 1 Col: 3 Unexpected start tag (b). Expected DOCTYPE.
 Line: 1 Col: 15 End tag (b) violates step 1, paragraph 1 of the adoption agency algorithm.
@@ -268,7 +268,23 @@ Line: 1 Col: 15 End tag (b) violates step 1, paragraph 1 of the adoption agency 
 |   <head>
 |   <body>
 |     <b>
+|     <button>
+|       <b>
+|         "foo"
+|       "bar"
+
+#data
+<!DOCTYPE html><span><button>foo</span>bar
+#errors
+39: End tag “span” seen but there were unclosed elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <span>
 |       <button>
+|         "foobar"
 
 #data
 <p><b><div><marquee></p></b></div>X
@@ -818,32 +834,6 @@ Line: 1 Col: 22 Expected closing tag. Unexpected end of file.
 |       "D"
 
 #data
-<cite><b><cite><i><cite><i><cite><i><div>X</b>TEST
-#errors
-Line: 1 Col: 6 Unexpected start tag (cite). Expected DOCTYPE.
-Line: 1 Col: 46 End tag (b) violates step 1, paragraph 3 of the adoption agency algorithm.
-Line: 1 Col: 50 Expected closing tag. Unexpected end of file.
-#document
-| <html>
-|   <head>
-|   <body>
-|     <cite>
-|       <b>
-|         <cite>
-|           <i>
-|             <cite>
-|               <i>
-|                 <cite>
-|                   <i>
-|       <i>
-|         <i>
-|           <i>
-|             <div>
-|               <b>
-|                 "X"
-|               "TEST"
-
-#data
 
 #errors
 Line: 1 Col: 0 Unexpected End of file. Expected DOCTYPE.
@@ -1246,6 +1236,18 @@ Line: 1 Col: 49 Unexpected end tag (code). Ignored.
 |         <strike>
 
 #data
+<!DOCTYPE html><spacer>foo
+#errors
+26: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <spacer>
+|       "foo"
+
+#data
 <title><meta></title><link><title><meta></title>
 #errors
 Line: 1 Col: 7 Unexpected start tag (title). Expected DOCTYPE.
@@ -1474,7 +1476,8 @@ Line: 1 Col: 15 End tag (b) violates step 1, paragraph 1 of the adoption agency 
 |   <head>
 |   <body>
 |     <b>
-|       <button>
+|     <button>
+|       <b>
 
 #data
 <p><b><div><marquee></p></b></div>

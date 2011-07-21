@@ -19,6 +19,33 @@
 |     <math math>
 
 #data
+<!DOCTYPE html><math><mi>
+#errors
+25: End of file in a foreign namespace context.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math mi>
+
+#data
+<!DOCTYPE html><math><annotation-xml><svg><u>
+#errors
+45: HTML start tag “u” in a foreign namespace context.
+45: End of file seen and there were open elements.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <math math>
+|       <math annotation-xml>
+|         <svg svg>
+|     <u>
+
+#data
 <!DOCTYPE html><body><select><math></math></select>
 #errors
 Line: 1 Col: 35 Unexpected start tag token (math) in the select phase. Ignored.

@@ -631,6 +631,16 @@ Line: 1 Col: 17 Unexpected start tag (frameset).
 |   <frameset>
 
 #data
+<track><frameset></frameset>
+#errors
+Line: 1 Col: 7 Unexpected start tag (track). Expected DOCTYPE.
+Line: 1 Col: 17 Unexpected start tag (frameset).
+#document
+| <html>
+|   <head>
+|   <frameset>
+
+#data
 </html><frameset></frameset>
 #errors
 7: End tag seen without seeing a doctype first. Expected “<!DOCTYPE html>”.
