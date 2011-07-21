@@ -871,7 +871,7 @@ dodata(void)
 
 	/* data */
 	sect = addsection(&segdata, ".data", 06);
-	sect->vaddr = 0;
+	sect->vaddr = datsize;
 	for(; s != nil && s->type < SBSS; s = s->next) {
 		s->type = SDATA;
 		t = s->size;
