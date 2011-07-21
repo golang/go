@@ -358,13 +358,13 @@ func testExecute(execTests []execTest, set *Set, t *testing.T) {
 	funcs := FuncMap{"zeroArgs": zeroArgs, "oneArg": oneArg, "typeOf": typeOf}
 	for _, test := range execTests {
 		tmpl := New(test.name).Funcs(funcs)
-		err := tmpl.Parse(test.input)
+		err := tmpl.ParseInSet(test.input, set)
 		if err != nil {
 			t.Errorf("%s: parse error: %s", test.name, err)
 			continue
 		}
 		b.Reset()
-		err = tmpl.ExecuteInSet(b, test.data, set)
+		err = tmpl.Execute(b, test.data)
 		switch {
 		case !test.ok && err == nil:
 			t.Errorf("%s: expected error; got none", test.name)

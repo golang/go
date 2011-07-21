@@ -252,11 +252,12 @@ Template sets
 Each template is named by a string specified when it is created.  A template may
 use a template invocation to instantiate another template directly or by its
 name; see the explanation of the template action above. The name is looked up
-in the template set active during the invocation.
+in the template set associated with the template.
 
 If no template invocation actions occur in the template, the issue of template
-sets can be ignored. If it does contain invocations, though, a set must be
-defined in which to look up the names.
+sets can be ignored.  If it does contain invocations, though, the template
+containing the invocations must be part of a template set in which to look up
+the names.
 
 There are two ways to construct template sets.
 
@@ -274,22 +275,19 @@ constant. Here is a simple example of input to Set.Parse:
 This defines two templates, T1 and T2, and a third T3 that invokes the other two
 when it is executed.
 
-The second way to build a template set is to use Set's Add method to add
-a template to a set. A template may be bound to multiple sets.
+The second way to build a template set is to use Set's Add method to add a
+parsed template to a set.  A template may be bound at most one set.  If it's
+necessary to have a template in multiple sets, the template definition must be
+parsed multiple times to create distinct *Template values.
 
 Set.Parse may be called multiple times on different inputs to construct the set.
 Two sets may therefore be constructed with a common base set of templates plus,
 through a second Parse call each, specializations for some elements.
 
-When a template is executed via Template.Execute, no set is defined and so no
-template invocations are possible. The method Template.ExecuteInSet provides a
-way to specify a template set when executing a template directly.
+A template may be executed directly or through Set.Execute, which executes a
+named template from the set.  To invoke our example above, we might write,
 
-A more direct technique is to use Set.Execute, which executes a named template
-from the set and provides the context for looking up templates in template
-invocations. To invoke our example above, we might write,
-
-	err := set.Execute("T3", os.Stdout, "no data needed")
+	err := set.Execute(os.Stdout, "T3", "no data needed")
 	if err != nil {
 		log.Fatalf("execution failed: %s", err)
 	}

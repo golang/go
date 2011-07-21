@@ -39,41 +39,20 @@ func (s *Set) Funcs(funcMap FuncMap) *Set {
 }
 
 // Add adds the argument templates to the set. It panics if two templates
-// with the same name are added.
+// with the same name are added or if a template is already a member of
+// a set.
 // The return value is the set, so calls can be chained.
 func (s *Set) Add(templates ...*Template) *Set {
 	s.init()
 	for _, t := range templates {
+		if t.set != nil {
+			panic(fmt.Errorf("template: %q already in a set", t.name))
+		}
 		if _, ok := s.tmpl[t.name]; ok {
 			panic(fmt.Errorf("template: %q already defined in set", t.name))
 		}
 		s.tmpl[t.name] = t
-	}
-	return s
-}
-
-// AddSet adds the templates from the provided set to the to the receiver.
-// It panics if the call attempts to reuse a name defined in the set.
-// The return value is the set, so calls can be chained.
-func (s *Set) AddSet(set *Set) *Set {
-	s.init()
-	for _, t := range set.tmpl {
-		if _, ok := s.tmpl[t.name]; ok {
-			panic(fmt.Errorf("template: %q already defined in set", t.name))
-		}
-		s.tmpl[t.name] = t
-	}
-	return s
-}
-
-// Union adds the templates from the provided set to the to the receiver.
-// Unlike AddSet, it does not panic if a name is reused; instead the old
-// template is replaced.
-// The return value is the set, so calls can be chained.
-func (s *Set) Union(set *Set) *Set {
-	s.init()
-	for _, t := range set.tmpl {
-		s.tmpl[t.name] = t
+		t.set = s
 	}
 	return s
 }
@@ -85,13 +64,13 @@ func (s *Set) Template(name string) *Template {
 }
 
 // Execute applies the named template to the specified data object, writing
-// the output to wr.  Nested template invocations will be resolved from the set.
+// the output to wr.
 func (s *Set) Execute(wr io.Writer, name string, data interface{}) os.Error {
 	tmpl := s.tmpl[name]
 	if tmpl == nil {
 		return fmt.Errorf("template: no template %q in set", name)
 	}
-	return tmpl.ExecuteInSet(wr, data, s)
+	return tmpl.Execute(wr, data)
 }
 
 // recover is the handler that turns panics into returns from the top
@@ -140,6 +119,7 @@ func (s *Set) Parse(text string) (err os.Error) {
 			t.errorf("unexpected %s in %s", end, context)
 		}
 		t.stopParse()
+		t.addToSet(s)
 		s.tmpl[t.name] = t
 	}
 	return nil
