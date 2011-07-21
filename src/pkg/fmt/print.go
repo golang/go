@@ -928,6 +928,10 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 				}
 			} else {
 				p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i+1, end)
+				if !p.fmt.precPresent {
+					p.fmt.prec = 0
+					p.fmt.precPresent = true
+				}
 			}
 		}
 		if i >= end {
