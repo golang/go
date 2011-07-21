@@ -255,7 +255,9 @@ func (w *response) WriteHeader(code int) {
 	} else {
 		// If no content type, apply sniffing algorithm to body.
 		if w.header.Get("Content-Type") == "" {
-			w.needSniff = true
+			// NOTE(dsymonds): the sniffing mechanism in this file is currently broken.
+			//w.needSniff = true
+			w.header.Set("Content-Type", "text/html; charset=utf-8")
 		}
 	}
 
