@@ -172,6 +172,8 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 func (s *state) walkRange(dot reflect.Value, r *rangeNode) {
 	defer s.pop(s.mark())
 	val, _ := indirect(s.evalPipeline(dot, r.pipe))
+	// mark top of stack before any variables in the body are pushed.
+	mark := s.mark()
 	switch val.Kind() {
 	case reflect.Array, reflect.Slice:
 		if val.Len() == 0 {
@@ -188,6 +190,7 @@ func (s *state) walkRange(dot reflect.Value, r *rangeNode) {
 				s.setVar(2, reflect.ValueOf(i))
 			}
 			s.walk(elem, r.list)
+			s.pop(mark)
 		}
 		return
 	case reflect.Map:
@@ -205,6 +208,7 @@ func (s *state) walkRange(dot reflect.Value, r *rangeNode) {
 				s.setVar(2, key)
 			}
 			s.walk(elem, r.list)
+			s.pop(mark)
 		}
 		return
 	default:
