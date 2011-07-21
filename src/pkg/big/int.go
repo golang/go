@@ -329,9 +329,9 @@ func writeMultiple(s fmt.State, text string, count int) {
 // Format is a support routine for fmt.Formatter. It accepts
 // the formats 'b' (binary), 'o' (octal), 'd' (decimal), 'x'
 // (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
-// Also supported are the full suite of "Printf" style format
-// codes for integral types, including PLUS, MINUS, and SPACE
-// for sign control, HASH for leading ZERO in octal and for
+// Also supported are the full suite of package fmt's format
+// verbs for integral types, including '+', '-', and ' '
+// for sign control, '#' for leading zero in octal and for
 // hexadecimal, a leading "0x" or "0X" for "%#x" and "%#X"
 // respectively, specification of minimum digits precision,
 // output field width, space or zero padding, and left or
@@ -378,9 +378,9 @@ func (x *Int) Format(s fmt.State, ch int) {
 	// determine digits with base set by len(cs) and digit characters from cs
 	digits := x.abs.string(cs)
 
-	// number of characters for the Sprintf family's three classes of number padding
+	// number of characters for the three classes of number padding
 	var left int   // space characters to left of digits for right justification ("%8d")
-	var zeroes int // zero characters (acutally cs[0]) as left-most digits ("%.8d")
+	var zeroes int // zero characters (actually cs[0]) as left-most digits ("%.8d")
 	var right int  // space characters to right of digits for left justification ("%-8d")
 
 	// determine number padding from precision: the least number of digits to output
@@ -398,16 +398,19 @@ func (x *Int) Format(s fmt.State, ch int) {
 	length := len(sign) + len(prefix) + zeroes + len(digits)
 	if width, widthSet := s.Width(); widthSet && length < width { // pad as specified
 		switch d := width - length; {
-		case s.Flag('-'): // pad on the right with spaces. supersedes '0' when both specified
+		case s.Flag('-'):
+			// pad on the right with spaces; supersedes '0' when both specified
 			right = d
-		case s.Flag('0') && !precisionSet: // pad with zeroes unless precision also specified
+		case s.Flag('0') && !precisionSet:
+			// pad with zeroes unless precision also specified
 			zeroes = d
-		default: // pad on the left with spaces
+		default:
+			// pad on the left with spaces
 			left = d
 		}
 	}
 
-	// print Int as [left pad][sign][prefix][zero pad][digits][right pad]
+	// print number as [left pad][sign][prefix][zero pad][digits][right pad]
 	writeMultiple(s, " ", left)
 	writeMultiple(s, sign, 1)
 	writeMultiple(s, prefix, 1)
