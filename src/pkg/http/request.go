@@ -548,11 +548,8 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 		return nil, &badStringError{"malformed HTTP version", req.Proto}
 	}
 
-	isConnect := strings.ToUpper(req.Method) == "CONNECT"
-	if !isConnect {
-		if req.URL, err = ParseRequestURL(req.RawURL); err != nil {
-			return nil, err
-		}
+	if req.URL, err = ParseRequestURL(req.RawURL); err != nil {
+		return nil, err
 	}
 
 	// Subsequent lines: Key: value.
@@ -569,9 +566,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	//	GET http://www.google.com/index.html HTTP/1.1
 	//	Host: doesntmatter
 	// the same.  In the second case, any Host line is ignored.
-	if !isConnect {
-		req.Host = req.URL.Host
-	}
+	req.Host = req.URL.Host
 	if req.Host == "" {
 		req.Host = req.Header.Get("Host")
 	}
