@@ -501,17 +501,6 @@ walkexpr(Node **np, NodeList **init)
 
 		ll = ascompatte(n->op, n->isddd, getinarg(t), n->list, 0, init);
 		n->list = reorder1(ll);
-		if(isselect(n)) {
-			// special prob with selectsend and selectrecv:
-			// if chan is nil, they don't know big the channel
-			// element is and therefore don't know how to find
-			// the output bool, so we clear it before the call.
-			Node *b;
-			b = nodbool(0);
-			typecheck(&b, Erv);
-			lr = ascompatte(n->op, 0, getoutarg(t), list1(b), 0, init);
-			n->list = concat(n->list, lr);
-		}
 		goto ret;
 
 	case OCALLMETH:

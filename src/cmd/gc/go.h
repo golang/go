@@ -1106,7 +1106,6 @@ int	isinter(Type *t);
 int	isnil(Node *n);
 int	isnilinter(Type *t);
 int	isptrto(Type *t, int et);
-int	isselect(Node *n);
 int	isslice(Type *t);
 int	istype(Type *t, int et);
 void	linehist(char *file, int32 off, int relative);
