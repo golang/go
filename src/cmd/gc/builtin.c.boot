@@ -76,7 +76,7 @@ char *runtimeimport =
 	"func \"\".selectnbrecv (elem *any, hchan <-chan any) bool\n"
 	"func \"\".selectnbrecv2 (elem *any, received *bool, hchan <-chan any) bool\n"
 	"func \"\".newselect (size int) *uint8\n"
-	"func \"\".selectsend (sel *uint8, hchan chan<- any, elem any) bool\n"
+	"func \"\".selectsend (sel *uint8, hchan chan<- any, elem *any) bool\n"
 	"func \"\".selectrecv (sel *uint8, hchan <-chan any, elem *any) bool\n"
 	"func \"\".selectrecv2 (sel *uint8, hchan <-chan any, elem *any, received *bool) bool\n"
 	"func \"\".selectdefault (sel *uint8) bool\n"

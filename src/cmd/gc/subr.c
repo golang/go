@@ -2750,21 +2750,11 @@ safeexpr(Node *n, NodeList **init)
 	return cheapexpr(n, init);
 }
 
-/*
- * return side-effect free and cheap n, appending side effects to init.
- * result may not be assignable.
- */
-Node*
-cheapexpr(Node *n, NodeList **init)
+static Node*
+copyexpr(Node *n, NodeList **init)
 {
 	Node *a, *l;
-
-	switch(n->op) {
-	case ONAME:
-	case OLITERAL:
-		return n;
-	}
-
+	
 	l = nod(OXXX, N, N);
 	tempname(l, n->type);
 	a = nod(OAS, l, n);
@@ -2772,6 +2762,35 @@ cheapexpr(Node *n, NodeList **init)
 	walkexpr(&a, init);
 	*init = list(*init, a);
 	return l;
+}
+
+/*
+ * return side-effect free and cheap n, appending side effects to init.
+ * result may not be assignable.
+ */
+Node*
+cheapexpr(Node *n, NodeList **init)
+{
+	switch(n->op) {
+	case ONAME:
+	case OLITERAL:
+		return n;
+	}
+
+	return copyexpr(n, init);
+}
+
+/*
+ * return n in a local variable if it is not already.
+ */
+Node*
+localexpr(Node *n, NodeList **init)
+{
+	if(n->op == ONAME &&
+		 (n->class == PAUTO || n->class == PPARAM || n->class == PPARAMOUT))
+		return n;
+	
+	return copyexpr(n, init);
 }
 
 void
