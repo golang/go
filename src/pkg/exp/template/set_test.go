@@ -139,9 +139,9 @@ func TestParseSetFile(t *testing.T) {
 }
 
 func TestParseSetFiles(t *testing.T) {
-	set, err := ParseSetFiles("NO SUCH FILE")
+	set, err := ParseSetFiles("DOES NOT EXIST")
 	if err == nil {
-		t.Error("expected error for empty file list; got none")
+		t.Error("expected error for non-existent file; got none")
 	}
 	set, err = ParseSetFiles("[x")
 	if err == nil {
