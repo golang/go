@@ -99,7 +99,11 @@ func (s *state) walk(dot reflect.Value, n node) {
 	case *actionNode:
 		s.line = n.line
 		// Do not pop variables so they persist until next end.
-		s.printValue(n, s.evalPipeline(dot, n.pipe))
+		// Also, if the action declares variables, don't print the result.
+		val := s.evalPipeline(dot, n.pipe)
+		if len(n.pipe.decl) == 0 {
+			s.printValue(n, val)
+		}
 	case *ifNode:
 		s.line = n.line
 		s.walkIfOrWith(nodeIf, dot, n.pipe, n.list, n.elseList)

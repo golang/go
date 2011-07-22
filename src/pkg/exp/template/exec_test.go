@@ -197,7 +197,7 @@ var execTests = []execTest{
 	{"$ int", "{{$}}", "123", 123, true},
 	{"$.I", "{{$.I}}", "17", tVal, true},
 	{"$.U.V", "{{$.U.V}}", "v", tVal, true},
-	{"declare in action", "{{$x := $.U.V}},{{$x}}", "v,v", tVal, true},
+	{"declare in action", "{{$x := $.U.V}}{{$x}}", "v", tVal, true},
 
 	// Pointers.
 	{"*int", "{{.PI}}", "23", tVal, true},
@@ -312,7 +312,7 @@ var execTests = []execTest{
 	{"with empty interface, struct field", "{{with .Empty4}}{{.V}}{{end}}", "UinEmpty", tVal, true},
 	{"with $x int", "{{with $x := .I}}{{$x}}{{end}}", "17", tVal, true},
 	{"with $x struct.U.V", "{{with $x := $}}{{$x.U.V}}{{end}}", "v", tVal, true},
-	{"with variable and action", "{{with $x := $}}{{$y := $.U.V}},{{$y}}{{end}}", "v,v", tVal, true},
+	{"with variable and action", "{{with $x := $}}{{$y := $.U.V}}{{$y}}{{end}}", "v", tVal, true},
 
 	// Range.
 	{"range []int", "{{range .SI}}-{{.}}-{{end}}", "-3--4--5-", tVal, true},
@@ -331,7 +331,7 @@ var execTests = []execTest{
 	{"range $x MSIone", "{{range $x := .MSIone}}<{{$x}}>{{end}}", "<1>", tVal, true},
 	{"range $x $y MSIone", "{{range $x, $y := .MSIone}}<{{$x}}={{$y}}>{{end}}", "<one=1>", tVal, true},
 	{"range $x PSI", "{{range $x := .PSI}}<{{$x}}>{{end}}", "<21><22><23>", tVal, true},
-	{"declare in range", "{{range $x := .PSI}}<{{$foo:=$x}}>{{end}}", "<21><22><23>", tVal, true},
+	{"declare in range", "{{range $x := .PSI}}<{{$foo:=$x}}{{$x}}>{{end}}", "<21><22><23>", tVal, true},
 
 	// Cute examples.
 	{"or as if true", `{{or .SI "slice is empty"}}`, "[3 4 5]", tVal, true},
