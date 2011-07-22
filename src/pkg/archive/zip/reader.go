@@ -80,19 +80,33 @@ func (z *Reader) init(r io.ReaderAt, size int64) os.Error {
 		return err
 	}
 	z.r = r
-	z.File = make([]*File, end.directoryRecords)
+	z.File = make([]*File, 0, end.directoryRecords)
 	z.Comment = end.comment
 	rs := io.NewSectionReader(r, 0, size)
 	if _, err = rs.Seek(int64(end.directoryOffset), os.SEEK_SET); err != nil {
 		return err
 	}
 	buf := bufio.NewReader(rs)
-	for i := range z.File {
-		z.File[i] = &File{zipr: r, zipsize: size}
-		if err := readDirectoryHeader(z.File[i], buf); err != nil {
+
+	// The count of files inside a zip is truncated to fit in a uint16.
+	// Gloss over this by reading headers until we encounter
+	// a bad one, and then only report a FormatError if
+	// the file count modulo 65536 is incorrect.
+	for {
+		f := &File{zipr: r, zipsize: size}
+		err := readDirectoryHeader(f, buf)
+		if err == FormatError {
+			break
+		}
+		if err != nil {
 			return err
 		}
+		z.File = append(z.File, f)
 	}
+	if uint16(len(z.File)) != end.directoryRecords {
+		return FormatError
+	}
+
 	return nil
 }
 
