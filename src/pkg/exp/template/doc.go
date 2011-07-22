@@ -158,7 +158,8 @@ The initialization has syntax
 
 	$variable := pipeline
 
-where $variable is the name of the variable.
+where $variable is the name of the variable. An action that declares a
+variable produces no output.
 
 If a "range" action initializes a variable, the variable is set to the
 successive elements of the iteration.  Also, a "range" may declare two
