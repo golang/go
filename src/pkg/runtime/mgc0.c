@@ -663,6 +663,22 @@ runtime·gc(int32 force)
 		runtime·gc(1);
 }
 
+void
+runtime·UpdateMemStats(void)
+{
+	// Have to acquire gcsema to stop the world,
+	// because stoptheworld can only be used by
+	// one goroutine at a time, and there might be
+	// a pending garbage collection already calling it.
+	runtime·semacquire(&gcsema);
+	m->gcing = 1;
+	runtime·stoptheworld();
+	cachestats();
+	m->gcing = 0;
+	runtime·semrelease(&gcsema);
+	runtime·starttheworld();
+}
+
 static void
 runfinq(void)
 {

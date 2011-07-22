@@ -18,6 +18,7 @@ var chatty = flag.Bool("v", false, "chatty")
 
 func main() {
 	runtime.Free(runtime.Alloc(1))
+	runtime.UpdateMemStats()
 	if *chatty {
 		fmt.Printf("%+v %v\n", runtime.MemStats, uint64(0))
 	}

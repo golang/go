@@ -18,6 +18,7 @@ var chatty = flag.Bool("v", false, "chatty")
 var oldsys uint64
 
 func bigger() {
+	runtime.UpdateMemStats()
 	if st := runtime.MemStats; oldsys < st.Sys {
 		oldsys = st.Sys
 		if *chatty {
@@ -31,7 +32,7 @@ func bigger() {
 }
 
 func main() {
-	runtime.GC()		   // clean up garbage from init
+	runtime.GC()               // clean up garbage from init
 	runtime.MemProfileRate = 0 // disable profiler
 	runtime.MemStats.Alloc = 0 // ignore stacks
 	flag.Parse()
@@ -45,9 +46,10 @@ func main() {
 				panic("fail")
 			}
 			b := runtime.Alloc(uintptr(j))
+			runtime.UpdateMemStats()
 			during := runtime.MemStats.Alloc
 			runtime.Free(b)
-			runtime.GC()
+			runtime.UpdateMemStats()
 			if a := runtime.MemStats.Alloc; a != 0 {
 				println("allocated ", j, ": wrong stats: during=", during, " after=", a, " (want 0)")
 				panic("fail")

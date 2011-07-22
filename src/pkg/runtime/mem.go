@@ -62,8 +62,13 @@ func init() {
 }
 
 // MemStats holds statistics about the memory system.
-// The statistics are only approximate, as they are not interlocked on update.
+// The statistics may be out of date, as the information is
+// updated lazily from per-thread caches.
+// Use UpdateMemStats to bring the statistics up to date.
 var MemStats MemStatsType
+
+// UpdateMemStats brings MemStats up to date.
+func UpdateMemStats()
 
 // GC runs a garbage collection.
 func GC()
