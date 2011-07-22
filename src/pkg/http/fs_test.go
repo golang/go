@@ -163,10 +163,10 @@ func TestDirJoin(t *testing.T) {
 		defer f.Close()
 		gfi, err := f.Stat()
 		if err != nil {
-			t.Fatalf("stat of %s: %v", err)
+			t.Fatalf("stat of %s: %v", name, err)
 		}
 		if gfi.Ino != wfi.Ino {
-			t.Errorf("%s got different inode")
+			t.Errorf("%s got different inode", name)
 		}
 	}
 	test(Dir("/etc/"), "/hosts")
