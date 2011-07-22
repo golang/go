@@ -69,10 +69,10 @@ var vflag bool
 
 %union
 {
-	node	Node;
-	vvar	*Var;
-	numb	int;
-	vval	float64;
+	node	Node
+	vvar	*Var
+	numb	int
+	vval	float64
 }
 
 %type	<node>	prog expr expr0 expr1 expr2 expr3 expr4
@@ -84,42 +84,41 @@ var vflag bool
 prog:
 	':' VAR expr
 	{
-		var f int;
+		var f int
 
-		f = int($2.node.dim[0]);
-		$2.node = $3;
-		$2.node.dim[0] = 1;
+		f = int($2.node.dim[0])
+		$2.node = $3
+		$2.node.dim[0] = 1
 		if f != 0 {
-			Errorf("redefinition of %v", $2.name);
-		} else
-		if vflag {
-			fmt.Printf("%v\t%v\n", $2.name, &$2.node);
+			Errorf("redefinition of %v", $2.name)
+		} else if vflag {
+			fmt.Printf("%v\t%v\n", $2.name, &$2.node)
 		}
 	}
 |	':' VAR '#'
 	{
-		var f, i int;
+		var f, i int
 
 		for i=1; i<Ndim; i++ {
 			if fund[i] == nil {
-				break;
+				break
 			}
 		}
 		if i >= Ndim {
-			Errorf("too many dimensions");
-			i = Ndim-1;
+			Error("too many dimensions")
+			i = Ndim-1
 		}
-		fund[i] = $2;
+		fund[i] = $2
 
-		f = int($2.node.dim[0]);
-		$2.node = one;
-		$2.node.dim[0] = 1;
-		$2.node.dim[i] = 1;
+		f = int($2.node.dim[0])
+		$2.node = one
+		$2.node.dim[0] = 1
+		$2.node.dim[i] = 1
 		if f != 0 {
-			Errorf("redefinition of %v", $2.name);
+			Errorf("redefinition of %v", $2.name)
 		} else
 		if vflag {
-			fmt.Printf("%v\t#\n", $2.name);
+			fmt.Printf("%v\t#\n", $2.name)
 		}
 	}
 |	':'
@@ -127,65 +126,65 @@ prog:
 	}
 |	'?' expr
 	{
-		retnode1 = $2;
+		retnode1 = $2
 	}
 |	'?'
 	{
-		retnode1 = one;
+		retnode1 = one
 	}
 
 expr:
 	expr4
 |	expr '+' expr4
 	{
-		add(&$$, &$1, &$3);
+		add(&$$, &$1, &$3)
 	}
 |	expr '-' expr4
 	{
-		sub(&$$, &$1, &$3);
+		sub(&$$, &$1, &$3)
 	}
 
 expr4:
 	expr3
 |	expr4 '*' expr3
 	{
-		mul(&$$, &$1, &$3);
+		mul(&$$, &$1, &$3)
 	}
 |	expr4 '/' expr3
 	{
-		div(&$$, &$1, &$3);
+		div(&$$, &$1, &$3)
 	}
 
 expr3:
 	expr2
 |	expr3 expr2
 	{
-		mul(&$$, &$1, &$2);
+		mul(&$$, &$1, &$2)
 	}
 
 expr2:
 	expr1
 |	expr2 SUP
 	{
-		xpn(&$$, &$1, $2);
+		xpn(&$$, &$1, $2)
 	}
 |	expr2 '^' expr1
 	{
-		var i int;
+		var i int
 
 		for i=1; i<Ndim; i++ {
 			if $3.dim[i] != 0 {
-				Errorf("exponent has units");
-				$$ = $1;
-				break;
+				Error("exponent has units")
+				$$ = $1
+				break
 			}
 		}
 		if i >= Ndim {
-			i = int($3.vval);
+			i = int($3.vval)
 			if float64(i) != $3.vval {
-				Errorf("exponent not integral");
+				Error("exponent not integral")
 			}
-			xpn(&$$, &$1, i);
+			xpn(&$$, &$1, i)
 		}
 	}
 
@@ -193,26 +192,27 @@ expr1:
 	expr0
 |	expr1 '|' expr0
 	{
-		div(&$$, &$1, &$3);
+		div(&$$, &$1, &$3)
 	}
 
 expr0:
 	VAR
 	{
 		if $1.node.dim[0] == 0 {
-			Errorf("undefined %v", $1.name);
-			$$ = one;
-		} else
-			$$ = $1.node;
+			Errorf("undefined %v", $1.name)
+			$$ = one
+		} else {
+			$$ = $1.node
+		}
 	}
 |	VAL
 	{
-		$$ = one;
-		$$.vval = $1;
+		$$ = one
+		$$.vval = $1
 	}
 |	'(' expr ')'
 	{
-		$$ = $2;
+		$$ = $2
 	}
 %%
 
@@ -403,6 +403,10 @@ func Errorf(s string, v ...interface{}) {
 	}
 }
 
+func Error(s string) {
+	Errorf("%s", s)
+}
+
 func add(c, a, b *Node) {
 	var i int
 	var d int8
@@ -411,7 +415,7 @@ func add(c, a, b *Node) {
 		d = a.dim[i]
 		c.dim[i] = d
 		if d != b.dim[i] {
-			Errorf("add must be like units")
+			Error("add must be like units")
 		}
 	}
 	c.vval = fadd(a.vval, b.vval)
@@ -425,7 +429,7 @@ func sub(c, a, b *Node) {
 		d = a.dim[i]
 		c.dim[i] = d
 		if d != b.dim[i] {
-			Errorf("sub must be like units")
+			Error("sub must be like units")
 		}
 	}
 	c.vval = fadd(a.vval, -b.vval)
@@ -633,29 +637,29 @@ type Prefix struct {
 }
 
 var prefix = []Prefix{ // prefix table
-	Prefix{1e-24, "yocto"},
-	Prefix{1e-21, "zepto"},
-	Prefix{1e-18, "atto"},
-	Prefix{1e-15, "femto"},
-	Prefix{1e-12, "pico"},
-	Prefix{1e-9, "nano"},
-	Prefix{1e-6, "micro"},
-	Prefix{1e-6, "μ"},
-	Prefix{1e-3, "milli"},
-	Prefix{1e-2, "centi"},
-	Prefix{1e-1, "deci"},
-	Prefix{1e1, "deka"},
-	Prefix{1e2, "hecta"},
-	Prefix{1e2, "hecto"},
-	Prefix{1e3, "kilo"},
-	Prefix{1e6, "mega"},
-	Prefix{1e6, "meg"},
-	Prefix{1e9, "giga"},
-	Prefix{1e12, "tera"},
-	Prefix{1e15, "peta"},
-	Prefix{1e18, "exa"},
-	Prefix{1e21, "zetta"},
-	Prefix{1e24, "yotta"},
+	{1e-24, "yocto"},
+	{1e-21, "zepto"},
+	{1e-18, "atto"},
+	{1e-15, "femto"},
+	{1e-12, "pico"},
+	{1e-9, "nano"},
+	{1e-6, "micro"},
+	{1e-6, "μ"},
+	{1e-3, "milli"},
+	{1e-2, "centi"},
+	{1e-1, "deci"},
+	{1e1, "deka"},
+	{1e2, "hecta"},
+	{1e2, "hecto"},
+	{1e3, "kilo"},
+	{1e6, "mega"},
+	{1e6, "meg"},
+	{1e9, "giga"},
+	{1e12, "tera"},
+	{1e15, "peta"},
+	{1e18, "exa"},
+	{1e21, "zetta"},
+	{1e24, "yotta"},
 }
 
 func pname() float64 {
@@ -711,11 +715,11 @@ func fmul(a, b float64) float64 {
 	}
 
 	if l > Maxe {
-		Errorf("overflow in multiply")
+		Error("overflow in multiply")
 		return 1
 	}
 	if l < -Maxe {
-		Errorf("underflow in multiply")
+		Error("underflow in multiply")
 		return 0
 	}
 	return a * b
@@ -746,11 +750,11 @@ func fdiv(a, b float64) float64 {
 	}
 
 	if l < -Maxe {
-		Errorf("overflow in divide")
+		Error("overflow in divide")
 		return 1
 	}
 	if l > Maxe {
-		Errorf("underflow in divide")
+		Error("underflow in divide")
 		return 0
 	}
 	return a / b
