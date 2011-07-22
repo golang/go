@@ -359,8 +359,7 @@ func (w *response) sniff() {
 	w.needSniff = false
 
 	data := w.conn.body
-	fmt.Fprintf(w.conn.buf, "Content-Type: %s\r\n", DetectContentType(data))
-	io.WriteString(w.conn.buf, "\r\n")
+	fmt.Fprintf(w.conn.buf, "Content-Type: %s\r\n\r\n", DetectContentType(data))
 
 	if len(data) == 0 {
 		return
@@ -408,10 +407,14 @@ func (w *response) Write(data []byte) (n int, err os.Error) {
 		// We need to sniff the beginning of the output to
 		// determine the content type.  Accumulate the
 		// initial writes in w.conn.body.
-		body := w.conn.body
-		m = copy(body[len(body):cap(body)], data)
-		w.conn.body = body[:len(body)+m]
-		if m == len(data) {
+		// Cap m so that append won't allocate.
+		m := cap(w.conn.body) - len(w.conn.body)
+		if m > len(data) {
+			m = len(data)
+		}
+		w.conn.body = append(w.conn.body, data[:m]...)
+		data = data[m:]
+		if len(data) == 0 {
 			// Copied everything into the buffer.
 			// Wait for next write.
 			return m, nil
@@ -423,7 +426,6 @@ func (w *response) Write(data []byte) (n int, err os.Error) {
 		// of the data as a normal Write.
 		// Calling sniff clears needSniff.
 		w.sniff()
-		data = data[m:]
 	}
 
 	// TODO(rsc): if chunking happened after the buffering,
