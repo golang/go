@@ -410,7 +410,7 @@ outer:
 					if t < NTBASE {
 						j = TYPE(toklev[t])
 						if j != 0 && j != ty {
-							errorf("type redeclaration of token ",
+							errorf("type redeclaration of token %s",
 								tokset[t].name)
 						} else {
 							toklev[t] = SETTYPE(toklev[t], ty)
@@ -1448,15 +1448,15 @@ func cpres() {
 
 func dumppres() {
 	for i := 0; i <= nnonter; i++ {
-		print("nonterm %d\n", i)
+		fmt.Printf("nonterm %d\n", i)
 		curres := pres[i]
 		for j := 0; j < len(curres); j++ {
-			print("\tproduction %d:", j)
+			fmt.Printf("\tproduction %d:", j)
 			prd := curres[j]
 			for k := 0; k < len(prd); k++ {
-				print(" %d", prd[k])
+				fmt.Printf(" %d", prd[k])
 			}
-			print("\n")
+			fmt.Print("\n")
 		}
 	}
 }
@@ -1550,7 +1550,7 @@ again:
 func dumpempty() {
 	for i := 0; i <= nnonter; i++ {
 		if pempty[i] == EMPTY {
-			print("non-term %d %s matches empty\n", i, symnam(i+NTBASE))
+			fmt.Printf("non-term %d %s matches empty\n", i, symnam(i+NTBASE))
 		}
 	}
 }
@@ -2768,8 +2768,8 @@ func others() {
 		j = tokset[i].value
 		if j >= 0 && j < 256 {
 			if temp1[j] != 0 {
-				print("yacc bug -- cant have 2 different Ts with same value\n")
-				print("	%s and %s\n", tokset[i].name, tokset[temp1[j]].name)
+				fmt.Print("yacc bug -- cant have 2 different Ts with same value\n")
+				fmt.Printf("	%s and %s\n", tokset[i].name, tokset[temp1[j]].name)
 				nerrors++
 			}
 			temp1[j] = i
@@ -2792,8 +2792,8 @@ func others() {
 		j = tokset[i].value - PRIVATE
 		if j >= 0 && j < 256 {
 			if temp1[j] != 0 {
-				print("yacc bug -- cant have 2 different Ts with same value\n")
-				print("	%s and %s\n", tokset[i].name, tokset[temp1[j]].name)
+				fmt.Print("yacc bug -- cant have 2 different Ts with same value\n")
+				fmt.Printf("	%s and %s\n", tokset[i].name, tokset[temp1[j]].name)
 				nerrors++
 			}
 			temp1[j] = i
