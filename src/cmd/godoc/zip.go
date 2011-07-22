@@ -198,5 +198,9 @@ func (z zipList) lookup(name string) (index int, exact bool) {
 	if j < 0 {
 		return -1, false
 	}
-	return i + j, false
+	if strings.HasPrefix(z[j].Name, name) {
+		return i + j, false
+	}
+
+	return -1, false
 }
