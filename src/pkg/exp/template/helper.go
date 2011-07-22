@@ -7,6 +7,7 @@
 package template
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -65,34 +66,97 @@ func (s *Set) MustParse(text string) *Set {
 	return s
 }
 
-// ParseFile parses the named file into a set of named templates.
-func (s *Set) ParseFile(filename string) os.Error {
-	b, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return err
+// ParseFile parses the named files into a set of named templates.
+// Each file must be parseable by itself. Parsing stops if an error is
+// encountered.
+func (s *Set) ParseFile(filenames ...string) os.Error {
+	for _, filename := range filenames {
+		b, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+		err = s.Parse(string(b))
+		if err != nil {
+			return err
+		}
 	}
-	return s.Parse(string(b))
+	return nil
 }
 
 // MustParseFile parses the named file into a set of named templates.
-// It panics if the file cannot be read or the set cannot be parsed.
-func (s *Set) MustParseFile(filename string) *Set {
-	if err := s.ParseFile(filename); err != nil {
+// Each file must be parseable by itself.
+// MustParseFile panics if any file cannot be read or parsed.
+func (s *Set) MustParseFile(filenames ...string) *Set {
+	err := s.ParseFile(filenames...)
+	if err != nil {
 		panic(err)
 	}
 	return s
 }
 
 // ParseSetFile creates a new Set and parses the set definition from the
-// named file.
-func ParseSetFile(filename string) (*Set, os.Error) {
+// named files. Each file must be individually parseable.
+func ParseSetFile(filenames ...string) (set *Set, err os.Error) {
 	s := new(Set)
-	return s, s.ParseFile(filename)
+	var b []byte
+	for _, filename := range filenames {
+		b, err = ioutil.ReadFile(filename)
+		if err != nil {
+			return
+		}
+		err = s.Parse(string(b))
+		if err != nil {
+			return
+		}
+	}
+	return s, nil
 }
 
 // MustParseSetFile creates a new Set and parses the set definition from the
-// named file.
-// It panics if the file cannot be read or the set cannot be parsed.
-func MustParseSetFile(filename string) *Set {
-	return new(Set).MustParseFile(filename)
+// named files. Each file must be individually parseable.
+// MustParseSetFile panics if any file cannot be read or parsed.
+func MustParseSetFile(filenames ...string) *Set {
+	s, err := ParseSetFile(filenames...)
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
+// ParseFiles parses the set definition from the files identified by the
+// pattern.  The pattern is processed by filepath.Glob and must match at
+// least one file.
+func (s *Set) ParseFiles(pattern string) os.Error {
+	filenames, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+	if len(filenames) == 0 {
+		return fmt.Errorf("pattern matches no files: %#q", pattern)
+	}
+	return s.ParseFile(filenames...)
+}
+
+// ParseSetFiles creates a new Set and parses the set definition from the
+// files identified by the pattern. The pattern is processed by filepath.Glob
+// and must match at least one file.
+func ParseSetFiles(pattern string) (*Set, os.Error) {
+	set := new(Set)
+	err := set.ParseFiles(pattern)
+	if err != nil {
+		return nil, err
+	}
+	return set, nil
+}
+
+// MustParseSetFiles creates a new Set and parses the set definition from the
+// files identified by the pattern. The pattern is processed by filepath.Glob.
+// MustParseSetFiles panics if the pattern is invalid or a matched file cannot be
+// read or parsed.
+func MustParseSetFiles(pattern string) *Set {
+	set, err := ParseSetFiles(pattern)
+	if err != nil {
+		panic(err)
+	}
+	return set
 }
