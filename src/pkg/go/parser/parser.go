@@ -26,6 +26,7 @@ const (
 	ParseComments                      // parse comments and add them to AST
 	Trace                              // print a trace of parsed productions
 	DeclarationErrors                  // report declaration errors
+	SpuriousErrors                     // report all (not just the first) errors per line
 )
 
 // The parser structure holds the parser's internal state.
@@ -1408,7 +1409,13 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 			p.declare(stmt, nil, p.labelScope, ast.Lbl, label)
 			return stmt
 		}
-		p.error(x[0].Pos(), "illegal label declaration")
+		// The label declaration typically starts at x[0].Pos(), but the label
+		// declaration may be erroneous due to a token after that position (and
+		// before the ':'). If SpuriousErrors is not set, the (only) error re-
+		// ported for the line is the illegal label error instead of the token
+		// before the ':' that caused the problem. Thus, use the (latest) colon
+		// position for error reporting.
+		p.error(colon, "illegal label declaration")
 		return &ast.BadStmt{x[0].Pos(), colon + 1}
 
 	case token.ARROW:

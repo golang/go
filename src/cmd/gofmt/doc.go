@@ -14,11 +14,12 @@ Usage:
 	gofmt [flags] [path ...]
 
 The flags are:
-
 	-d
 		Do not print reformatted sources to standard output.
 		If a file's formatting is different than gofmt's, print diffs
 		to standard output.
+	-e
+		Print all (including spurious) errors.
 	-l
 		Do not print reformatted sources to standard output.
 		If a file's formatting is different from gofmt's, print its name
@@ -31,6 +32,8 @@ The flags are:
 		Do not print reformatted sources to standard output.
 		If a file's formatting is different from gofmt's, overwrite it
 		with gofmt's version.
+
+Formatting control flags:
 	-comments=true
 		Print comments; if false, all comments are elided from the output.
 	-spaces
@@ -39,6 +42,7 @@ The flags are:
 		Indent with tabs independent of -spaces.
 	-tabwidth=8
 		Tab width in spaces.
+
 
 The rewrite rule specified with the -r flag must be a string of the form:
 
