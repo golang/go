@@ -864,6 +864,3 @@ importcycles(void)
 	for(p=pkgall; p; p=p->all)
 		cycle(p);
 }
-
-
-	
