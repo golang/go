@@ -327,6 +327,10 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 		if(sym->sectnum == 0) {// extern
 			if(s->type == SDYNIMPORT)
 				s->plt = -2; // flag for dynimport in PE object files.
+			if (s->type == SXREF && sym->value > 0) {// global data
+				s->type = SDATA; 
+				s->size = sym->value;
+			}
 			continue;
 		} else if (sym->sectnum > 0) {
 			sect = &obj->sect[sym->sectnum-1];
