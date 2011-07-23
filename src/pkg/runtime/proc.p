@@ -3,8 +3,9 @@
 // license that can be found in the LICENSE file.
 
 /*
-model for proc.c as of 2011/07/15.
-takes 4300 seconds to explore 1128130 states
+model for proc.c as of 2011/07/22.
+
+takes 4900 seconds to explore 1189070 states
 with G=3, var_gomaxprocs=1
 on a Core i7 L640 2.13 GHz Lenovo X201s.
 
@@ -330,32 +331,52 @@ inline schedule() {
 }
 
 /*
+ * schedpend is > 0 if a goroutine is about to committed to
+ * entering the scheduler but has not yet done so.
+ * Just as we don't test for the undesirable conditions when a
+ * goroutine is in the scheduler, we don't test for them when
+ * a goroutine will be in the scheduler shortly.
+ * Modeling this state lets us replace mcpu cas loops with
+ * simpler mcpu atomic adds.
+ */
+byte schedpend;
+
+/*
  * entersyscall is like the C function.
  */
 inline entersyscall() {
+	bit willsched;
+
 	/*
 	 * Fast path.  Check all the conditions tested during schedlock/schedunlock
 	 * below, and if we can get through the whole thing without stopping, run it
 	 * in one atomic cas-based step.
 	 */
 	atomic {
+		atomic_mcpu--;
 		if
 		:: atomic_gwaiting ->
 			skip
-		:: atomic_waitstop && atomic_mcpu-1 <= atomic_mcpumax ->
+		:: atomic_waitstop && atomic_mcpu <= atomic_mcpumax ->
 			skip
 		:: else ->
-			atomic_mcpu--;
 			goto Lreturn_entersyscall;
-		fi
+		fi;
+		willsched = 1;
+		schedpend++;
 	}
 
 	/*
 	 * Normal path.
 	 */
 	schedlock()
-	d_step {
-		atomic_mcpu--;
+	opt_dstep {
+		if
+		:: willsched ->
+			schedpend--;
+			willsched = 0
+		:: else
+		fi
 	}
 	if
 	:: atomic_gwaiting ->
@@ -382,11 +403,11 @@ inline exitsyscall() {
 	 */
 	atomic {
 		// omitted profilehz check
+		atomic_mcpu++;
 		if
 		:: atomic_mcpu >= atomic_mcpumax ->
 			skip
 		:: else ->
-			atomic_mcpu++;
 			goto Lreturn_exitsyscall
 		fi
 	}
@@ -396,7 +417,6 @@ inline exitsyscall() {
 	 */
 	schedlock();
 	d_step {
-		atomic_mcpu++;
 		if
 		:: atomic_mcpu <= atomic_mcpumax ->
 			skip
@@ -497,10 +517,10 @@ active proctype monitor() {
 
 	do
 	// Should never have goroutines waiting with procs available.
-	:: !sched_lock && gwait > 0 && atomic_mcpu < atomic_mcpumax ->
+	:: !sched_lock && schedpend==0 && gwait > 0 && atomic_mcpu < atomic_mcpumax ->
 		assert 0
 	// Should never have gc waiting for stop if things have already stopped.
-	:: !sched_lock && atomic_waitstop && atomic_mcpu <= atomic_mcpumax ->
+	:: !sched_lock && schedpend==0 && atomic_waitstop && atomic_mcpu <= atomic_mcpumax ->
 		assert 0
 	od
 }

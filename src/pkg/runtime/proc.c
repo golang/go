@@ -773,7 +773,7 @@ runtime·gosched(void)
 void
 runtime·entersyscall(void)
 {
-	uint32 v, w;
+	uint32 v;
 
 	if(runtime·sched.predawn)
 		return;
@@ -796,24 +796,14 @@ runtime·entersyscall(void)
 	//	mcpu--
 	//	gwait not true
 	//	waitstop && mcpu <= mcpumax not true
-	// If we can do the same with a single atomic read/write,
+	// If we can do the same with a single atomic add,
 	// then we can skip the locks.
-	for(;;) {
-		v = runtime·sched.atomic;
-		if(atomic_gwaiting(v))
-			break;
-		if(atomic_waitstop(v) && atomic_mcpu(v)-1 <= atomic_mcpumax(v))
-			break;
-		w = v;
-		w += (-1<<mcpuShift);
-		if(runtime·cas(&runtime·sched.atomic, v, w))
-			return;
-	}
+	v = runtime·xadd(&runtime·sched.atomic, -1<<mcpuShift);
+	if(!atomic_gwaiting(v) && (!atomic_waitstop(v) || atomic_mcpu(v) > atomic_mcpumax(v)))
+		return;
 
 	schedlock();
-
-	// atomic { mcpu--; }
-	v = runtime·xadd(&runtime·sched.atomic, (-1<<mcpuShift));
+	v = runtime·atomicload(&runtime·sched.atomic);
 	if(atomic_gwaiting(v)) {
 		matchmg();
 		v = runtime·atomicload(&runtime·sched.atomic);
@@ -837,42 +827,27 @@ runtime·entersyscall(void)
 void
 runtime·exitsyscall(void)
 {
-	uint32 v, w;
+	uint32 v;
 
 	if(runtime·sched.predawn)
 		return;
 
 	// Fast path.
-	// If we can do the mcpu-- bookkeeping and
+	// If we can do the mcpu++ bookkeeping and
 	// find that we still have mcpu <= mcpumax, then we can
 	// start executing Go code immediately, without having to
 	// schedlock/schedunlock.
-	for(;;) {
-		// If the profiler frequency needs updating,
-		// take the slow path.
-		if(m->profilehz != runtime·sched.profilehz)
-			break;
-
-		v = runtime·sched.atomic;
-		if(atomic_mcpu(v) >= atomic_mcpumax(v))
-			break;
-
-		w = v;
-		w += (1<<mcpuShift);
-		if(runtime·cas(&runtime·sched.atomic, v, w)) {
-			// There's a cpu for us, so we can run.
-			g->status = Grunning;
-			// Garbage collector isn't running (since we are),
-			// so okay to clear gcstack.
-			g->gcstack = nil;
-			return;
-		}
+	v = runtime·xadd(&runtime·sched.atomic, (1<<mcpuShift));
+	if(m->profilehz == runtime·sched.profilehz && atomic_mcpu(v) <= atomic_mcpumax(v)) {
+		// There's a cpu for us, so we can run.
+		g->status = Grunning;
+		// Garbage collector isn't running (since we are),
+		// so okay to clear gcstack.
+		g->gcstack = nil;
+		return;
 	}
 
 	schedlock();
-
-	// atomic { mcpu++; }
-	runtime·xadd(&runtime·sched.atomic, (1<<mcpuShift));
 
 	// Tell scheduler to put g back on the run queue:
 	// mostly equivalent to g->status = Grunning,
