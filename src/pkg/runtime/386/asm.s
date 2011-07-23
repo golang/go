@@ -479,12 +479,16 @@ TEXT runtime·stackcheck(SB), 7, $0
 TEXT runtime·memclr(SB),7,$0
 	MOVL	4(SP), DI		// arg 1 addr
 	MOVL	8(SP), CX		// arg 2 count
-	ADDL	$3, CX
+	MOVL	CX, BX
+	ANDL	$3, BX
 	SHRL	$2, CX
 	MOVL	$0, AX
 	CLD
 	REP
 	STOSL
+	MOVL	BX, CX
+	REP
+	STOSB
 	RET
 
 TEXT runtime·getcallerpc(SB),7,$0
