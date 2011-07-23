@@ -6,6 +6,8 @@
 // collections.
 package sort
 
+import "math"
+
 // A type, typically a collection, that satisfies sort.Interface can be
 // sorted by the routines in this package.  The methods require that the
 // elements of the collection be enumerated by an integer index.
@@ -167,7 +169,7 @@ func (p IntSlice) Sort() { Sort(p) }
 type Float64Slice []float64
 
 func (p Float64Slice) Len() int           { return len(p) }
-func (p Float64Slice) Less(i, j int) bool { return p[i] < p[j] }
+func (p Float64Slice) Less(i, j int) bool { return p[i] < p[j] || math.IsNaN(p[i]) && !math.IsNaN(p[j]) }
 func (p Float64Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 // Sort is a convenience method.
