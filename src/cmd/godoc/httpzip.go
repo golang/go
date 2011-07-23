@@ -14,7 +14,8 @@
 // - The zip file system treats the file paths found in the zip internally
 //   like absolute paths w/o a leading '/'; i.e., the paths are considered
 //   relative to the root of the file system.
-// - All path arguments to file system methods must be absolute paths.
+// - All path arguments to file system methods are considered relative to
+//   the root specified with NewHttpZipFS (even if the paths start with a '/').
 
 // TODO(gri) Should define a commonly used FileSystem API that is the same
 //           for http and godoc. Then we only need one zip-file based file
@@ -43,6 +44,7 @@ const (
 
 // httpZipFile is the zip-file based implementation of http.File
 type httpZipFile struct {
+	path          string // absolute path within zip FS without leading '/'
 	info          os.FileInfo
 	io.ReadCloser // nil for directory
 	list          zipList
@@ -61,12 +63,8 @@ func (f *httpZipFile) Stat() (*os.FileInfo, os.Error) {
 }
 
 func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, os.Error) {
-	if f.info.IsRegular() {
-		return nil, fmt.Errorf("Readdir called for regular file: %s", f.info.Name)
-	}
-
 	var list []os.FileInfo
-	dirname := zipPath(f.info.Name) + "/"
+	dirname := f.path + "/"
 	prevname := ""
 	for i, e := range f.list {
 		if count == 0 {
@@ -114,13 +112,6 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, os.Error) {
 	return list, nil
 }
 
-func (f *httpZipFile) Read(buf []byte) (int, os.Error) {
-	if f.info.IsRegular() {
-		return f.ReadCloser.Read(buf)
-	}
-	return 0, fmt.Errorf("Read called for directory: %s", f.info.Name)
-}
-
 func (f *httpZipFile) Seek(offset int64, whence int) (int64, os.Error) {
 	return 0, fmt.Errorf("Seek not implemented for zip file entry: %s", f.info.Name)
 }
@@ -132,11 +123,13 @@ type httpZipFS struct {
 	root string
 }
 
-func (fs *httpZipFS) Open(abspath string) (http.File, os.Error) {
-	name := path.Join(fs.root, abspath) // name is clean
-	index, exact := fs.list.lookup(name)
-	if index < 0 {
-		return nil, fmt.Errorf("file not found: %s", abspath)
+func (fs *httpZipFS) Open(name string) (http.File, os.Error) {
+	// fs.root does not start with '/'.
+	path := path.Join(fs.root, name) // path is clean
+	index, exact := fs.list.lookup(path)
+	if index < 0 || !strings.HasPrefix(path, fs.root) {
+		// file not found or not under root
+		return nil, fmt.Errorf("file not found: %s", name)
 	}
 
 	if exact {
@@ -147,8 +140,9 @@ func (fs *httpZipFS) Open(abspath string) (http.File, os.Error) {
 			return nil, err
 		}
 		return &httpZipFile{
+			path,
 			os.FileInfo{
-				Name:     abspath,
+				Name:     name,
 				Mode:     S_IFREG,
 				Size:     int64(f.UncompressedSize),
 				Mtime_ns: f.Mtime_ns(),
@@ -160,8 +154,9 @@ func (fs *httpZipFS) Open(abspath string) (http.File, os.Error) {
 
 	// not an exact match - must be a directory
 	return &httpZipFile{
+		path,
 		os.FileInfo{
-			Name: abspath,
+			Name: name,
 			Mode: S_IFDIR,
 			// no size or mtime_ns for directories
 		},
@@ -175,6 +170,9 @@ func (fs *httpZipFS) Close() os.Error {
 	return fs.ReadCloser.Close()
 }
 
+// NewHttpZipFS creates a new http.FileSystem based on the contents of
+// the zip file rc restricted to the directory tree specified by root;
+// root must be an absolute path.
 func NewHttpZipFS(rc *zip.ReadCloser, root string) http.FileSystem {
 	list := make(zipList, len(rc.File))
 	copy(list, rc.File) // sort a copy of rc.File
