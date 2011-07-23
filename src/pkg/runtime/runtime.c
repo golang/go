@@ -381,18 +381,11 @@ memprint(uint32 s, void *a)
 static void
 memcopy(uint32 s, void *a, void *b)
 {
-	byte *ba, *bb;
-	uint32 i;
-
-	ba = a;
-	bb = b;
-	if(bb == nil) {
-		for(i=0; i<s; i++)
-			ba[i] = 0;
+	if(b == nil) {
+		runtime·memclr(a,s);
 		return;
 	}
-	for(i=0; i<s; i++)
-		ba[i] = bb[i];
+	runtime·memmove(a,b,s);
 }
 
 static uint32

@@ -527,12 +527,16 @@ TEXT runtime·stackcheck(SB), 7, $0
 TEXT runtime·memclr(SB),7,$0
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVQ	16(SP), CX		// arg 2 count
-	ADDQ	$7, CX
+	MOVQ	CX, BX
+	ANDQ	$7, BX
 	SHRQ	$3, CX
 	MOVQ	$0, AX
 	CLD
 	REP
 	STOSQ
+	MOVQ	BX, CX
+	REP
+	STOSB
 	RET
 
 TEXT runtime·getcallerpc(SB),7,$0
