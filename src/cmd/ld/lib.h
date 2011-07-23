@@ -302,3 +302,5 @@ vlong	cpos(void);
 void	cseek(vlong);
 void	cseekend(void);
 void	cwrite(void*, int);
+void	importcycles(void);
+int	Zconv(Fmt*);
