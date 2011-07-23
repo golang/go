@@ -62,6 +62,7 @@ libinit(void)
 {
 	fmtinstall('i', iconv);
 	fmtinstall('Y', Yconv);
+	fmtinstall('Z', Zconv);
 	mywhatsys();	// get goroot, goarch, goos
 	if(strcmp(goarch, thestring) != 0)
 		print("goarch is not known: %s\n", goarch);
@@ -281,6 +282,8 @@ loadlib(void)
 	// binaries, so leave it enabled on OS X (Mach-O) binaries.
 	if(!havedynamic && HEADTYPE != Hdarwin)
 		debug['d'] = 1;
+	
+	importcycles();
 }
 
 /*

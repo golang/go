@@ -32,6 +32,7 @@ enum {
 };
 static Import *ihash[NIHASH];
 static int nimport;
+static void imported(char *pkg, char *import);
 
 static int
 hashstr(char *name)
@@ -308,12 +309,23 @@ loop:
 		p += 6;
 	else if(strncmp(p, "import ", 7) == 0) {
 		p += 7;
+		while(p < ep && *p != ' ')
+			p++;
+		p++;
+		name = p;
 		while(p < ep && *p != '\n')
 			p++;
+		if(p >= ep) {
+			fprint(2, "%s: %s: confused in import line\n", argv0, file);
+			nerrors++;
+			return -1;
+		}
+		*p++ = '\0';
+		imported(pkg, name);
 		goto loop;
 	}
 	else {
-		fprint(2, "%s: confused in pkg data near <<%.40s>>\n", argv0, prefix);
+		fprint(2, "%s: %s: confused in pkg data near <<%.40s>>\n", argv0, file, prefix);
 		nerrors++;
 		return -1;
 	}
@@ -708,3 +720,150 @@ addexport(void)
 	for(i=0; i<ndynexp; i++)
 		adddynsym(dynexp[i]);
 }
+
+/* %Z from gc, for quoting import paths */
+int
+Zconv(Fmt *fp)
+{
+	Rune r;
+	char *s, *se;
+	int n;
+
+	s = va_arg(fp->args, char*);
+	if(s == nil)
+		return fmtstrcpy(fp, "<nil>");
+
+	se = s + strlen(s);
+	while(s < se) {
+		n = chartorune(&r, s);
+		s += n;
+		switch(r) {
+		case Runeerror:
+			if(n == 1) {
+				fmtprint(fp, "\\x%02x", (uchar)*(s-1));
+				break;
+			}
+			// fall through
+		default:
+			if(r < ' ') {
+				fmtprint(fp, "\\x%02x", r);
+				break;
+			}
+			fmtrune(fp, r);
+			break;
+		case '\t':
+			fmtstrcpy(fp, "\\t");
+			break;
+		case '\n':
+			fmtstrcpy(fp, "\\n");
+			break;
+		case '\"':
+		case '\\':
+			fmtrune(fp, '\\');
+			fmtrune(fp, r);
+			break;
+		}
+	}
+	return 0;
+}
+
+
+typedef struct Pkg Pkg;
+struct Pkg
+{
+	uchar mark;
+	uchar checked;
+	Pkg *next;
+	char *path;
+	Pkg **impby;
+	int nimpby;
+	int mimpby;
+	Pkg *all;
+};
+
+static Pkg *phash[1024];
+static Pkg *pkgall;
+
+static Pkg*
+getpkg(char *path)
+{
+	Pkg *p;
+	int h;
+	
+	h = hashstr(path) % nelem(phash);
+	for(p=phash[h]; p; p=p->next)
+		if(strcmp(p->path, path) == 0)
+			return p;
+	p = mal(sizeof *p);
+	p->path = strdup(path);
+	p->next = phash[h];
+	phash[h] = p;
+	p->all = pkgall;
+	pkgall = p;
+	return p;
+}
+
+static void
+imported(char *pkg, char *import)
+{
+	Pkg *p, *i;
+	
+	// everyone imports runtime, even runtime.
+	if(strcmp(import, "\"runtime\"") == 0)
+		return;
+
+	pkg = smprint("\"%Z\"", pkg);  // turn pkg path into quoted form, freed below
+	p = getpkg(pkg);
+	i = getpkg(import);
+	if(i->nimpby >= i->mimpby) {
+		i->mimpby *= 2;
+		if(i->mimpby == 0)
+			i->mimpby = 16;
+		i->impby = realloc(i->impby, i->mimpby*sizeof i->impby[0]);
+	}
+	i->impby[i->nimpby++] = p;
+	free(pkg);
+}
+
+static Pkg*
+cycle(Pkg *p)
+{
+	int i;
+	Pkg *bad;
+
+	if(p->checked)
+		return 0;
+
+	if(p->mark) {
+		nerrors++;
+		print("import cycle:\n");
+		print("\t%s\n", p->path);
+		return p;
+	}
+	p->mark = 1;
+	for(i=0; i<p->nimpby; i++) {
+		if((bad = cycle(p->impby[i])) != nil) {
+			p->mark = 0;
+			p->checked = 1;
+			print("\timports %s\n", p->path);
+			if(bad == p)
+				return nil;
+			return bad;
+		}
+	}
+	p->checked = 1;
+	p->mark = 0;
+	return 0;
+}
+
+void
+importcycles(void)
+{
+	Pkg *p;
+	
+	for(p=pkgall; p; p=p->all)
+		cycle(p);
+}
+
+
+	
