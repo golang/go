@@ -43,18 +43,26 @@ func (s *Set) Funcs(funcMap FuncMap) *Set {
 // a set.
 // The return value is the set, so calls can be chained.
 func (s *Set) Add(templates ...*Template) *Set {
-	s.init()
 	for _, t := range templates {
-		if t.set != nil {
-			panic(fmt.Errorf("template: %q already in a set", t.name))
+		if err := s.add(t); err != nil {
+			panic(err)
 		}
-		if _, ok := s.tmpl[t.name]; ok {
-			panic(fmt.Errorf("template: %q already defined in set", t.name))
-		}
-		s.tmpl[t.name] = t
-		t.set = s
 	}
 	return s
+}
+
+// add adds the argument template to the set.
+func (s *Set) add(t *Template) os.Error {
+	s.init()
+	if t.set != nil {
+		return fmt.Errorf("template: %q already in a set", t.name)
+	}
+	if _, ok := s.tmpl[t.name]; ok {
+		return fmt.Errorf("template: %q already defined in set", t.name)
+	}
+	s.tmpl[t.name] = t
+	t.set = s
+	return nil
 }
 
 // Template returns the template with the given name in the set,
