@@ -17,7 +17,6 @@ Flags and default settings:
 	-clean=false      clean the package directory before installing
 	-dashboard=true   tally public packages on godashboard.appspot.com
 	-install=true     build and install the package and its dependencies
-	-log=true         log installed packages to $GOROOT/goinstall.log for use by -a
 	-nuke=false       remove the target object and clean before installing
 	-u=false          update already-downloaded packages
 	-v=false          verbose operation

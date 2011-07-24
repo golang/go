@@ -149,9 +149,9 @@ type vcsMatch struct {
 	prefix, repo string
 }
 
-// findHostedRepo checks whether pkg is located at one of
+// findPublicRepo checks whether pkg is located at one of
 // the supported code hosting sites and, if so, returns a match.
-func findHostedRepo(pkg string) (*vcsMatch, os.Error) {
+func findPublicRepo(pkg string) (*vcsMatch, os.Error) {
 	for _, v := range vcsList {
 		for _, host := range v.defaultHosts {
 			if hm := host.pattern.FindStringSubmatch(pkg); hm != nil {
@@ -215,17 +215,17 @@ func isRemote(pkg string) bool {
 }
 
 // download checks out or updates pkg from the remote server.
-func download(pkg, srcDir string) (dashReport bool, err os.Error) {
+func download(pkg, srcDir string) (public bool, err os.Error) {
 	if strings.Contains(pkg, "..") {
 		err = os.NewError("invalid path (contains ..)")
 		return
 	}
-	m, err := findHostedRepo(pkg)
+	m, err := findPublicRepo(pkg)
 	if err != nil {
 		return
 	}
 	if m != nil {
-		dashReport = true // only report public code hosting sites
+		public = true
 	} else {
 		m, err = findAnyRepo(pkg)
 		if err != nil {
@@ -236,13 +236,7 @@ func download(pkg, srcDir string) (dashReport bool, err os.Error) {
 		err = os.NewError("cannot download: " + pkg)
 		return
 	}
-	installed, err := m.checkoutRepo(srcDir, m.prefix, m.repo)
-	if err != nil {
-		return
-	}
-	if !installed {
-		dashReport = false
-	}
+	err = m.checkoutRepo(srcDir, m.prefix, m.repo)
 	return
 }
 
@@ -267,41 +261,36 @@ func (v *vcs) updateRepo(dst string) os.Error {
 // exists and -u was specified on the command line)
 // the repository at tag/branch "release".  If there is no
 // such tag or branch, it falls back to the repository tip.
-func (vcs *vcs) checkoutRepo(srcDir, pkgprefix, repo string) (installed bool, err os.Error) {
+func (vcs *vcs) checkoutRepo(srcDir, pkgprefix, repo string) os.Error {
 	dst := filepath.Join(srcDir, filepath.FromSlash(pkgprefix))
 	dir, err := os.Stat(filepath.Join(dst, vcs.metadir))
 	if err == nil && !dir.IsDirectory() {
-		err = os.NewError("not a directory: " + dst)
-		return
+		return os.NewError("not a directory: " + dst)
 	}
 	if err != nil {
 		parent, _ := filepath.Split(dst)
 		if err = os.MkdirAll(parent, 0777); err != nil {
-			return
+			return err
 		}
 		if err = run(string(filepath.Separator), nil, vcs.cmd, vcs.clone, repo, dst); err != nil {
-			return
+			return err
 		}
-		if err = vcs.updateRepo(dst); err != nil {
-			return
-		}
-		installed = true
-	} else if *update {
+		return vcs.updateRepo(dst)
+	}
+	if *update {
 		// Retrieve new revisions from the remote branch, if the VCS
 		// supports this operation independently (e.g. svn doesn't)
 		if vcs.pull != "" {
 			if vcs.pullForceFlag != "" {
 				if err = run(dst, nil, vcs.cmd, vcs.pull, vcs.pullForceFlag); err != nil {
-					return
+					return err
 				}
 			} else if err = run(dst, nil, vcs.cmd, vcs.pull); err != nil {
-				return
+				return err
 			}
 		}
 		// Update to release or latest revision
-		if err = vcs.updateRepo(dst); err != nil {
-			return
-		}
+		return vcs.updateRepo(dst)
 	}
-	return
+	return nil
 }
