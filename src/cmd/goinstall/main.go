@@ -25,18 +25,18 @@ func usage() {
 	os.Exit(2)
 }
 
+const logfile = "goinstall.log"
+
 var (
 	fset          = token.NewFileSet()
 	argv0         = os.Args[0]
 	errors        = false
 	parents       = make(map[string]string)
 	visit         = make(map[string]status)
-	logfile       = filepath.Join(runtime.GOROOT(), "goinstall.log")
-	installedPkgs = make(map[string]bool)
+	installedPkgs = make(map[string]map[string]bool)
 
 	allpkg            = flag.Bool("a", false, "install all previously installed packages")
 	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
-	logPkgs           = flag.Bool("log", true, "log installed packages to $GOROOT/goinstall.log for use by -a")
 	update            = flag.Bool("u", false, "update already-downloaded packages")
 	doInstall         = flag.Bool("install", true, "build and install")
 	clean             = flag.Bool("clean", false, "clean the package directory before installing")
@@ -76,28 +76,27 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s: no $GOROOT\n", argv0)
 		os.Exit(1)
 	}
+	readPackageList()
 
 	// special case - "unsafe" is already installed
 	visit["unsafe"] = done
 
 	args := flag.Args()
-	if *allpkg || *logPkgs {
-		readPackageList()
-	}
 	if *allpkg {
 		if len(args) != 0 {
 			usage() // -a and package list both provided
 		}
 		// install all packages that were ever installed
-		if len(installedPkgs) == 0 {
-			fmt.Fprintf(os.Stderr, "%s: no installed packages\n", argv0)
-			os.Exit(1)
+		n := 0
+		for _, pkgs := range installedPkgs {
+			for pkg := range pkgs {
+				args = append(args, pkg)
+				n++
+			}
 		}
-		args = make([]string, len(installedPkgs), len(installedPkgs))
-		i := 0
-		for pkg := range installedPkgs {
-			args[i] = pkg
-			i++
+		if n == 0 {
+			logf("no installed packages\n")
+			os.Exit(1)
 		}
 	}
 	if len(args) == 0 {
@@ -127,27 +126,40 @@ func printDeps(pkg string) {
 	fmt.Fprintf(os.Stderr, "\t%s ->\n", pkg)
 }
 
-// readPackageList reads the list of installed packages from goinstall.log
+// readPackageList reads the list of installed packages from the
+// goinstall.log files in GOROOT and the GOPATHs and initalizes
+// the installedPkgs variable.
 func readPackageList() {
-	pkglistdata, _ := ioutil.ReadFile(logfile)
-	pkglist := strings.Fields(string(pkglistdata))
-	for _, pkg := range pkglist {
-		installedPkgs[pkg] = true
+	for _, t := range build.Path {
+		installedPkgs[t.Path] = make(map[string]bool)
+		name := filepath.Join(t.Path, logfile)
+		pkglistdata, err := ioutil.ReadFile(name)
+		if err != nil {
+			printf("%s\n", err)
+			continue
+		}
+		pkglist := strings.Fields(string(pkglistdata))
+		for _, pkg := range pkglist {
+			installedPkgs[t.Path][pkg] = true
+		}
 	}
 }
 
-// logPackage logs the named package as installed in goinstall.log, if the package is not found in there
-func logPackage(pkg string) {
-	if installedPkgs[pkg] {
-		return
+// logPackage logs the named package as installed in the goinstall.log file
+// in the given tree if the package is not already in that file.
+func logPackage(pkg string, tree *build.Tree) (logged bool) {
+	if installedPkgs[tree.Path][pkg] {
+		return false
 	}
-	fout, err := os.OpenFile(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	name := filepath.Join(tree.Path, logfile)
+	fout, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", argv0, err)
-		return
+		logf("%s\n", err)
+		return false
 	}
 	fmt.Fprintf(fout, "%s\n", pkg)
 	fout.Close()
+	return true
 }
 
 // install installs the package named by path, which is needed by parent.
@@ -181,11 +193,10 @@ func install(pkg, parent string) {
 		return
 	}
 	// Download remote packages if not found or forced with -u flag.
-	remote := isRemote(pkg)
-	dashReport := false
+	remote, public := isRemote(pkg), false
 	if remote && (err == build.ErrNotFound || (err == nil && *update)) {
 		printf("%s: download\n", pkg)
-		dashReport, err = download(pkg, tree.SrcDir())
+		public, err = download(pkg, tree.SrcDir())
 	}
 	if err != nil {
 		errorf("%s: %v\n", pkg, err)
@@ -244,14 +255,17 @@ func install(pkg, parent string) {
 			}
 		}
 	}
-	if dashReport {
-		maybeReportToDashboard(pkg)
-	}
+
 	if remote {
-		// mark package as installed in $GOROOT/goinstall.log
-		logPackage(pkg)
+		// mark package as installed in goinstall.log
+		logged := logPackage(pkg, tree)
+
+		// report installation to the dashboard if this is the first
+		// install from a public repository.
+		if logged && public {
+			maybeReportToDashboard(pkg)
+		}
 	}
-	return
 }
 
 // Is this a standard package path?  strings container/vector etc.
