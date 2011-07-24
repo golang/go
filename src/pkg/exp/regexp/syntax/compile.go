@@ -86,6 +86,7 @@ func Compile(re *Regexp) (*Prog, os.Error) {
 
 func (c *compiler) init() {
 	c.p = new(Prog)
+	c.p.NumCap = 2 // implicit ( and ) for whole match $0
 	c.inst(InstFail)
 }
 
