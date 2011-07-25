@@ -76,7 +76,7 @@ func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 
 // dll helpers
 
-// implemented in ../runtime/windows/syscall.cgo
+// Implemented in ../runtime/windows/syscall.goc
 func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr)
 func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr)
@@ -105,13 +105,8 @@ func Getpagesize() int { return 4096 }
 // Converts a Go function to a function pointer conforming
 // to the stdcall calling convention.  This is useful when
 // interoperating with Windows code requiring callbacks.
-// Implemented in ../runtime/windows/syscall.cgo
+// Implemented in ../runtime/windows/syscall.goc
 func NewCallback(fn interface{}) uintptr
-
-// TODO
-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
-	return -1, ENOSYS
-}
 
 // windows api calls
 
@@ -728,24 +723,3 @@ func Geteuid() (euid int)                { return -1 }
 func Getgid() (gid int)                  { return -1 }
 func Getegid() (egid int)                { return -1 }
 func Getgroups() (gids []int, errno int) { return nil, EWINDOWS }
-
-// TODO(brainman): fix all this meaningless code, it is here to compile exec.go
-
-func read(fd Handle, buf *byte, nbuf int) (n int, errno int) {
-	return 0, EWINDOWS
-}
-
-func fcntl(fd Handle, cmd, arg int) (val int, errno int) {
-	return 0, EWINDOWS
-}
-
-const (
-	PTRACE_TRACEME = 1 + iota
-	WNOHANG
-	WSTOPPED
-	WUNTRACED
-	SYS_CLOSE
-	SYS_WRITE
-	SYS_EXIT
-	SYS_READ
-)
