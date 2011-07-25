@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -34,6 +35,7 @@ var (
 	parents       = make(map[string]string)
 	visit         = make(map[string]status)
 	installedPkgs = make(map[string]map[string]bool)
+	schemeRe      = regexp.MustCompile(`^[a-z]+://`)
 
 	allpkg            = flag.Bool("a", false, "install all previously installed packages")
 	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
@@ -103,8 +105,8 @@ func main() {
 		usage()
 	}
 	for _, path := range args {
-		if strings.HasPrefix(path, "http://") {
-			errorf("'http://' used in remote path, try '%s'\n", path[7:])
+		if s := schemeRe.FindString(path); s != "" {
+			errorf("%q used in import path, try %q\n", s, path[len(s):])
 			continue
 		}
 
