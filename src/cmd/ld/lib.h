@@ -277,6 +277,8 @@ extern	Header	headers[];
 int	headtype(char*);
 
 int	Yconv(Fmt*);
+
+#pragma	varargck	type	"O"	int
 #pragma	varargck	type	"Y"	Sym*
 
 // buffered output

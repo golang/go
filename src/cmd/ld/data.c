@@ -512,7 +512,7 @@ codeblk(int32 addr, int32 size)
 				epc = p->link->pc;
 			else
 				epc = sym->value + sym->size;
-			Bprint(&bso, "%.6ux\t", p->pc);
+			Bprint(&bso, "%.6llux\t", (uvlong)p->pc);
 			q = sym->p + p->pc - sym->value;
 			n = epc - p->pc;
 			Bprint(&bso, "%-20.*I | %P\n", (int)n, q, p);
