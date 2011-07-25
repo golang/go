@@ -28,15 +28,18 @@ TEXT _rt0_386(SB),7,$0
 	TESTL	AX, AX
 	JZ	4(PC)
 	CALL	AX
+	// skip runtime·ldt0setup(SB) and tls test after initcgo for non-windows
 	CMPL runtime·iswindows(SB), $0
 	JEQ ok
+
+	// skip runtime·ldt0setup(SB) and tls test on Plan 9 in all cases
+	CMPL	runtime·isplan9(SB), $1
+	JEQ	ok
 
 	// set up %gs
 	CALL	runtime·ldt0setup(SB)
 
 	// store through it, to make sure it works
-	CMPL	runtime·isplan9(SB), $1
-	JEQ	ok
 	get_tls(BX)
 	MOVL	$0x123, g(BX)
 	MOVL	runtime·tls0(SB), AX
