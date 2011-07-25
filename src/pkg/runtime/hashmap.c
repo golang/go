@@ -753,12 +753,12 @@ runtime·makemap_c(Type *key, Type *val, int64 hint)
 	// func(key) (val[, pres])
 	h->ko1 = runtime·rnd(sizeof(h), key->align);
 	h->vo1 = runtime·rnd(h->ko1+keysize, Structrnd);
-	h->po1 = runtime·rnd(h->vo1+valsize, 1);
+	h->po1 = h->vo1 + valsize;
 
 	// func(key, val[, pres])
 	h->ko2 = runtime·rnd(sizeof(h), key->align);
 	h->vo2 = runtime·rnd(h->ko2+keysize, val->align);
-	h->po2 = runtime·rnd(h->vo2+valsize, 1);
+	h->po2 = h->vo2 + valsize;
 
 	if(debug) {
 		runtime·printf("makemap: map=%p; keysize=%d; valsize=%d; keyalg=%d; valalg=%d; offsets=%d,%d; %d,%d,%d; %d,%d,%d\n",
