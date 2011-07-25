@@ -194,6 +194,8 @@ typedef u64int uint64;
 #undef _NEEDUINT
 #undef _NEEDULONG
 
+#define getcallerpc(x)	__builtin_return_address(0)
+
 #ifndef SIGBUS
 #define SIGBUS SIGSEGV /* close enough */
 #endif
