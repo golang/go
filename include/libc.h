@@ -292,16 +292,20 @@ extern	char*	getgoroot(void);
 extern	char*	getgoversion(void);
 
 #ifdef _WIN32
+
+#ifndef _WIN64
 struct timespec {
 	int tv_sec;
 	long tv_nsec;
 };
+#define execv(prog, argv) execv(prog, (const char* const*)(argv))
+#define execvp(prog, argv) execvp(prog, (const char**)(argv))
+#endif
+
 extern int nanosleep(const struct timespec *rqtp, struct timespec *rmtp);
 extern int fork(void);
 extern int pread(int fd, void *buf, int n, int off);
 extern int pwrite(int fd, void *buf, int n, int off);
-#define execv(prog, argv) execv(prog, (const char* const*)(argv))
-#define execvp(prog, argv) execvp(prog, (const char**)(argv))
 #define lseek(fd, n, base) _lseeki64(fd, n, base)
 #define mkdir(path, perm) mkdir(path)
 #define pipe(fd) _pipe(fd, 512, O_BINARY)

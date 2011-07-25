@@ -369,7 +369,7 @@ __ifmt(Fmt *f)
 	}
 #endif
 	if(f->r == 'p'){
-		u = (ulong)va_arg(f->args, void*);
+		u = (uintptr)va_arg(f->args, void*);
 		f->r = 'x';
 		fl |= FmtUnsigned;
 	}else if(fl & FmtVLong){
