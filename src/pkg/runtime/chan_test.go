@@ -10,6 +10,22 @@ import (
 	"testing"
 )
 
+func TestChanSendInterface(t *testing.T) {
+	type mt struct{}
+	m := &mt{}
+	c := make(chan interface{}, 1)
+	c <- m
+	select {
+	case c <- m:
+	default:
+	}
+	select {
+	case c <- m:
+	case c <- &mt{}:
+	default:
+	}
+}
+
 func BenchmarkSelectUncontended(b *testing.B) {
 	const CallsPerSched = 1000
 	procs := runtime.GOMAXPROCS(-1)

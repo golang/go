@@ -2728,12 +2728,12 @@ safeexpr(Node *n, NodeList **init)
 }
 
 static Node*
-copyexpr(Node *n, NodeList **init)
+copyexpr(Node *n, Type *t, NodeList **init)
 {
 	Node *a, *l;
 	
 	l = nod(OXXX, N, N);
-	tempname(l, n->type);
+	tempname(l, t);
 	a = nod(OAS, l, n);
 	typecheck(&a, Etop);
 	walkexpr(&a, init);
@@ -2754,20 +2754,21 @@ cheapexpr(Node *n, NodeList **init)
 		return n;
 	}
 
-	return copyexpr(n, init);
+	return copyexpr(n, n->type, init);
 }
 
 /*
- * return n in a local variable if it is not already.
+ * return n in a local variable of type t if it is not already.
  */
 Node*
-localexpr(Node *n, NodeList **init)
+localexpr(Node *n, Type *t, NodeList **init)
 {
 	if(n->op == ONAME &&
-		 (n->class == PAUTO || n->class == PPARAM || n->class == PPARAMOUT))
+		(n->class == PAUTO || n->class == PPARAM || n->class == PPARAMOUT) &&
+		convertop(n->type, t, nil) == OCONVNOP)
 		return n;
 	
-	return copyexpr(n, init);
+	return copyexpr(n, t, init);
 }
 
 void
