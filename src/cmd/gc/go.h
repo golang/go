@@ -1136,7 +1136,7 @@ Sym*	restrictlookup(char *name, Pkg *pkg);
 Node*	safeexpr(Node *n, NodeList **init);
 void	saveerrors(void);
 Node*	cheapexpr(Node *n, NodeList **init);
-Node*	localexpr(Node *n, NodeList **init);
+Node*	localexpr(Node *n, Type *t, NodeList **init);
 int32	setlineno(Node *n);
 void	setmaxarg(Type *t);
 Type*	shallow(Type *t);

@@ -311,7 +311,7 @@ walkselect(Node *sel)
 			case OSEND:
 				// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
 				n->left = safeexpr(n->left, &r->ninit);
-				n->right = localexpr(n->right, &r->ninit);
+				n->right = localexpr(n->right, n->left->type->type, &r->ninit);
 				n->right = nod(OADDR, n->right, N);
 				n->right->etype = 1;  // pointer does not escape
 				typecheck(&n->right, Erv);
