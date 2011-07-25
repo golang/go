@@ -311,8 +311,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 	}
 	
 	// enter sub-symbols into symbol table.
-	// frist 2 entry is file name.
-	for(i=2; i<obj->npesym; i++) {
+	for(i=0; i<obj->npesym; i++) {
 		if(obj->pesym[i].name == 0)
 			continue;
 		if(obj->pesym[i].name[0] == '.') //skip section
