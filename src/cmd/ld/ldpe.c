@@ -338,7 +338,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 			if(sect->sym == 0)
 				diag("%s: %s sym == 0!", pn, s->name);
 		} else {
-			diag("%s: %s sectnum <0!", pn, s->name, sym->sectnum);
+			diag("%s: %s sectnum < 0!", pn, s->name);
 		}
 
 		if(sect == nil) 
@@ -383,7 +383,7 @@ map(PeObj *obj, PeSect *sect)
 		return 0;
 
 	sect->base = mal(sect->sh.SizeOfRawData);
-	if(sect->sh.PointerToRawData == 0) // .bss don't has data in object file.
+	if(sect->sh.PointerToRawData == 0) // .bss doesn't have data in object file
 		return 0;
 	werrstr("short read");
 	if(Bseek(obj->f, obj->base+sect->sh.PointerToRawData, 0) < 0 || 

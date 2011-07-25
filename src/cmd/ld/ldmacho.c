@@ -480,7 +480,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
 	
 	switch(thechar) {
 	default:
-		diag("%s: mach-o %s unimplemented", thestring);
+		diag("%s: mach-o %s unimplemented", pn, thestring);
 		return;
 	case '6':
 		if(e != &le || m->cputype != MachoCpuAmd64) {

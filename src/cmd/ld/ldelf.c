@@ -398,13 +398,13 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 		goto bad;
 
 	if(e->e16(hdr->type) != ElfTypeRelocatable) {
-		diag("%s: elf but not elf relocatable object");
+		diag("%s: elf but not elf relocatable object", pn);
 		return;
 	}
 
 	switch(thechar) {
 	default:
-		diag("%s: elf %s unimplemented", thestring);
+		diag("%s: elf %s unimplemented", pn, thestring);
 		return;
 	case '5':
 		if(e != &le || obj->machine != ElfMachArm || hdr->ident[4] != ElfClass32) {
