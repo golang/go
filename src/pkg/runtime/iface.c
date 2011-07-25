@@ -265,7 +265,7 @@ runtime·assertI2T2(Type *t, Iface i, ...)
 
 	ret = (byte*)(&i+1);
 	wid = t->size;
-	ok = (bool*)(ret+runtime·rnd(wid, 1));
+	ok = (bool*)(ret + wid);
 
 	if(i.tab == nil || i.tab->type != t) {
 		*ok = false;
@@ -327,7 +327,7 @@ runtime·assertE2T2(Type *t, Eface e, ...)
 		runtime·throw("invalid interface value");
 	ret = (byte*)(&e+1);
 	wid = t->size;
-	ok = (bool*)(ret+runtime·rnd(wid, 1));
+	ok = (bool*)(ret + wid);
 
 	if(t != e.type) {
 		*ok = false;

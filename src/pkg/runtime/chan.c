@@ -427,7 +427,7 @@ runtime·chanrecv2(Hchan* c, ...)
 
 	o = runtime·rnd(sizeof(c), Structrnd);
 	ae = (byte*)&c + o;
-	o = runtime·rnd(o+c->elemsize, 1);
+	o += c->elemsize;
 	ac = (byte*)&c + o;
 
 	runtime·chanrecv(c, ae, nil, ac);
