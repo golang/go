@@ -119,6 +119,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 	runtime·exit(2);
 }
 
+// Called from kernel on signal stack, so no stack split.
+#pragma textflag 7
 void
 runtime·sigignore(void)
 {
