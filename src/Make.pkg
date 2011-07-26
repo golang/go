@@ -59,7 +59,7 @@ coverage:
 	gotest
 	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
 
-CLEANFILES+=*.so _obj _test _testmain.go *.exe _cgo* *.cgo[12].* test.out build.out
+CLEANFILES+=*.so _obj _test _testmain.go *.exe _cgo* test.out build.out
 
 test:
 	gotest
