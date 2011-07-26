@@ -8,11 +8,11 @@ package main
 
 import (
 	"bytes"
+	"exp/template"
 	"go/build"
 	"os"
 	"path/filepath"
 	"strings"
-	"template"
 )
 
 // domake builds the package in dir.
@@ -138,43 +138,38 @@ type makedata struct {
 	Imports   []string // gc/ld import paths
 }
 
-var makefileTemplate = template.MustParse(`
+var makefileTemplate = template.New("Makefile").MustParse(`
 include $(GOROOT)/src/Make.inc
 
-TARG={Targ}
-TARGDIR={TargDir}
+TARG={{.Targ}}
+TARGDIR={{.TargDir}}
 
-{.section GoFiles}
+{{with .GoFiles}}
 GOFILES=\
-{.repeated section @}
-	{@}\
-{.end}
+{{range .}}	{{.}}\
+{{end}}
 
-{.end}
-{.section OFiles}
+{{end}}
+{{with .OFiles}}
 OFILES=\
-{.repeated section @}
-	{@}\
-{.end}
+{{range .}}	{{.}}\
+{{end}}
 
-{.end}
-{.section CgoFiles}
+{{end}}
+{{with .CgoFiles}}
 CGOFILES=\
-{.repeated section @}
-	{@}\
-{.end}
+{{range .}}	{{.}}\
+{{end}}
 
-{.end}
-{.section CgoOFiles}
+{{end}}
+{{with .CgoOFiles}}
 CGO_OFILES=\
-{.repeated section @}
-	{@}\
-{.end}
+{{range .}}	{{.}}\
+{{end}}
 
-{.end}
-GCIMPORTS={.repeated section Imports}-I "{@}" {.end}
-LDIMPORTS={.repeated section Imports}-L "{@}" {.end}
+{{end}}
+GCIMPORTS={{range .Imports}}-I "{{.}}" {{end}}
+LDIMPORTS={{range .Imports}}-L "{{.}}" {{end}}
 
-include $(GOROOT)/src/Make.{Type}
-`,
-	nil)
+include $(GOROOT)/src/Make.{{.Type}}
+`)
