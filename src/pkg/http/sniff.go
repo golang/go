@@ -6,6 +6,7 @@ package http
 
 import (
 	"bytes"
+	"encoding/binary"
 )
 
 // Content-type sniffing algorithm.
@@ -97,7 +98,7 @@ var sniffSignatures = []sniffSig{
 	&exactSig{[]byte("\x50\x4B\x03\x04"), "application/zip"},
 	&exactSig{[]byte("\x1F\x8B\x08"), "application/x-gzip"},
 
-	// TODO(dsymonds): MP4.
+	mp4Sig(0),
 
 	textSig(0), // should be last
 }
@@ -157,6 +158,32 @@ func (h htmlSig) match(data []byte, firstNonWS int) string {
 		return ""
 	}
 	return "text/html; charset=utf-8"
+}
+
+type mp4Sig int
+
+func (mp4Sig) match(data []byte, firstNonWS int) string {
+	// c.f. section 6.1.
+	if len(data) < 8 {
+		return ""
+	}
+	boxSize := int(binary.BigEndian.Uint32(data[:4]))
+	if boxSize%4 != 0 || len(data) < boxSize {
+		return ""
+	}
+	if !bytes.Equal(data[4:8], []byte("ftyp")) {
+		return ""
+	}
+	for st := 8; st < boxSize; st += 4 {
+		if st == 12 {
+			// minor version number
+			continue
+		}
+		if bytes.Equal(data[st:st+3], []byte("mp4")) {
+			return "video/mp4"
+		}
+	}
+	return ""
 }
 
 type textSig int
