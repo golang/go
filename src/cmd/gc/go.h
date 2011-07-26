@@ -531,6 +531,7 @@ enum
 	Eindir = 1<<8,		// indirecting through expression
 	Eaddr = 1<<9,		// taking address of expression
 	Eproc = 1<<10,		// inside a go statement
+	Ecomplit = 1<<11,	// type in composite literal
 };
 
 #define	BITS	5
