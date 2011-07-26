@@ -10,6 +10,7 @@ void runtime·deferproc(void);
 void runtime·newproc(void);
 void runtime·newstack(void);
 void runtime·morestack(void);
+void runtime·sigpanic(void);
 
 // This code is also used for the 386 tracebacks.
 // Use uintptr for an appropriate word-sized integer.
@@ -27,11 +28,13 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 	byte *fp;
 	Stktop *stk;
 	Func *f;
+	bool waspanic;
 
 	USED(lr0);
 	pc = (uintptr)pc0;
 	lr = 0;
 	fp = nil;
+	waspanic = false;
 	
 	// If the PC is goexit, the goroutine hasn't started yet.
 	if(pc0 == g->sched.pc && sp == g->sched.sp && pc0 == (byte*)runtime·goexit) {
@@ -127,7 +130,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 			if(pc > f->entry)
 				runtime·printf("+%p", (uintptr)(pc - f->entry));
 			tracepc = pc;	// back up to CALL instruction for funcline.
-			if(n > 0 && pc > f->entry)
+			if(n > 0 && pc > f->entry && !waspanic)
 				tracepc--;
 			runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
 			runtime·printf("\t%S(", f->name);
@@ -144,6 +147,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 			n++;
 		}
 		
+		waspanic = f->entry == (uintptr)runtime·sigpanic;
+
 		if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
 			fp += 2*sizeof(uintptr);
 

@@ -9,6 +9,7 @@ void runtime·deferproc(void);
 void runtime·newproc(void);
 void runtime·newstack(void);
 void runtime·morestack(void);
+void runtime·sigpanic(void);
 void _div(void);
 void _mod(void);
 void _divu(void);
@@ -20,12 +21,14 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 	int32 i, n, iter;
 	uintptr pc, lr, tracepc, x;
 	byte *fp, *p;
+	bool waspanic;
 	Stktop *stk;
 	Func *f;
 	
 	pc = (uintptr)pc0;
 	lr = (uintptr)lr0;
 	fp = nil;
+	waspanic = false;
 
 	// If the PC is goexit, the goroutine hasn't started yet.
 	if(pc == (uintptr)runtime·goexit) {
@@ -121,7 +124,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 			if(pc > f->entry)
 				runtime·printf("+%p", (uintptr)(pc - f->entry));
 			tracepc = pc;	// back up to CALL instruction for funcline.
-			if(n > 0 && pc > f->entry)
+			if(n > 0 && pc > f->entry && !waspanic)
 				tracepc -= sizeof(uintptr);
 			runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
 			runtime·printf("\t%S(", f->name);
@@ -137,6 +140,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 			runtime·prints(")\n");
 			n++;
 		}
+		
+		waspanic = f->entry == (uintptr)runtime·sigpanic;
 
 		if(pcbuf == nil && f->entry == (uintptr)runtime·newstack && g == m->g0) {
 			runtime·printf("----- newstack called from goroutine %d -----\n", m->curg->goid);
