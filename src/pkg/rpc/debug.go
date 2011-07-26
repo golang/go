@@ -10,33 +10,33 @@ package rpc
 */
 
 import (
+	"exp/template"
 	"fmt"
 	"http"
 	"sort"
-	"template"
 )
 
 const debugText = `<html>
 	<body>
 	<title>Services</title>
-	{.repeated section @}
+	{{range .}}
 	<hr>
-	Service {Name}
+	Service {{.Name}}
 	<hr>
 		<table>
 		<th align=center>Method</th><th align=center>Calls</th>
-		{.repeated section Method}
+		{{range .Method}}
 			<tr>
-			<td align=left font=fixed>{Name}({Type.ArgType}, {Type.ReplyType}) os.Error</td>
-			<td align=center>{Type.NumCalls}</td>
+			<td align=left font=fixed>{{.Name}}({{.Type.ArgType}}, {{.Type.ReplyType}}) os.Error</td>
+			<td align=center>{{.Type.NumCalls}}</td>
 			</tr>
-		{.end}
+		{{end}}
 		</table>
-	{.end}
+	{{end}}
 	</body>
 	</html>`
 
-var debug = template.MustParse(debugText, nil)
+var debug = template.New("RPC debug").MustParse(debugText)
 
 type debugMethod struct {
 	Type *methodType
