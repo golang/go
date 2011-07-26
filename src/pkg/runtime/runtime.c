@@ -11,6 +11,14 @@ enum {
 
 uint32	runtime·panicking;
 
+/*
+ * We assume that all architectures turn faults and the like
+ * into apparent calls to runtime.sigpanic.  If we see a "call"
+ * to runtime.sigpanic, we do not back up the PC to find the
+ * line number of the CALL instruction, because there is no CALL.
+ */
+void	runtime·sigpanic(void);
+
 int32
 runtime·gotraceback(void)
 {
@@ -519,25 +527,35 @@ runtime·nanotime(void)
 void
 runtime·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool retbool)
 {
-	Func *f;
+	Func *f, *g;
 	uintptr pc;
+	uintptr rpc[2];
 
-	if(runtime·callers(1+skip, &retpc, 1) == 0) {
+	/*
+	 * Ask for two PCs: the one we were asked for
+	 * and what it called, so that we can see if it
+	 * "called" sigpanic.
+	 */
+	retpc = 0;
+	if(runtime·callers(1+skip-1, rpc, 2) < 2) {
 		retfile = runtime·emptystring;
 		retline = 0;
 		retbool = false;
-	} else if((f = runtime·findfunc(retpc)) == nil) {
+	} else if((f = runtime·findfunc(rpc[1])) == nil) {
 		retfile = runtime·emptystring;
 		retline = 0;
 		retbool = true;  // have retpc at least
 	} else {
+		retpc = rpc[1];
 		retfile = f->src;
 		pc = retpc;
-		if(pc > f->entry)
+		g = runtime·findfunc(rpc[0]);
+		if(pc > f->entry && (g == nil || g->entry != (uintptr)runtime·sigpanic))
 			pc--;
 		retline = runtime·funcline(f, pc);
 		retbool = true;
 	}
+	FLUSH(&retpc);
 	FLUSH(&retfile);
 	FLUSH(&retline);
 	FLUSH(&retbool);

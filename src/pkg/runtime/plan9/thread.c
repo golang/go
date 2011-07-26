@@ -167,3 +167,14 @@ os·sigpipe(void)
 {
 	runtime·throw("too many writes on closed pipe");
 }
+
+/*
+ * placeholder - once notes are implemented,
+ * a signal generating a panic must appear as
+ * a call to this function for correct handling by
+ * traceback.
+ */
+void
+runtime·sigpanic(void)
+{
+}
