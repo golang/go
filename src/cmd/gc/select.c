@@ -108,6 +108,7 @@ walkselect(Node *sel)
 	// optimization: one-case select: single op.
 	if(i == 1) {
 		cas = sel->list->n;
+		setlineno(cas);
 		l = cas->ninit;
 		if(cas->left != N) {  // not default:
 			n = cas->left;
@@ -165,6 +166,7 @@ walkselect(Node *sel)
 	// this rewrite is used by both the general code and the next optimization.
 	for(l=sel->list; l; l=l->next) {
 		cas = l->n;
+		setlineno(cas);
 		n = cas->left;
 		if(n == N)
 			continue;
@@ -238,6 +240,7 @@ walkselect(Node *sel)
 		}
 		
 		n = cas->left;
+		setlineno(n);
 		r = nod(OIF, N, N);
 		r->ninit = cas->ninit;
 		switch(n->op) {
@@ -283,6 +286,7 @@ walkselect(Node *sel)
 	sel->ninit = nil;
 
 	// generate sel-struct
+	setlineno(sel);
 	var = nod(OXXX, N, N);
 	tempname(var, ptrto(types[TUINT8]));
 	r = nod(OAS, var, mkcall("newselect", var->type, nil, nodintconst(sel->xoffset)));
@@ -292,6 +296,7 @@ walkselect(Node *sel)
 	// register cases
 	for(l=sel->list; l; l=l->next) {
 		cas = l->n;
+		setlineno(cas);
 		n = cas->left;
 		r = nod(OIF, N, N);
 		r->nbody = cas->ninit;
@@ -338,6 +343,7 @@ walkselect(Node *sel)
 	}
 
 	// run the select
+	setlineno(sel);
 	init = list(init, mkcall("selectgo", T, nil, var));
 	sel->nbody = init;
 
