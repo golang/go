@@ -34,6 +34,8 @@ var sniffTests = []struct {
 	// Image types.
 	{"GIF 87a", []byte(`GIF87a`), "image/gif"},
 	{"GIF 89a", []byte(`GIF89a...`), "image/gif"},
+
+	{"MP4", []byte("\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom<\x06t\xbfmdat"), "video/mp4"},
 }
 
 func TestDetectContentType(t *testing.T) {
