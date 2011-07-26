@@ -685,6 +685,7 @@ select_stmt:
 	LBODY caseblock_list '}'
 	{
 		$$ = nod(OSELECT, N, N);
+		$$->lineno = typesw->lineno;
 		$$->list = $4;
 		typesw = typesw->left;
 	}
