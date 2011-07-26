@@ -272,7 +272,7 @@ func (fd *netFD) incref() {
 func (fd *netFD) decref() {
 	fd.sysmu.Lock()
 	fd.sysref--
-	if fd.closing && fd.sysref == 0 && fd.sysfd >= 0 {
+	if fd.closing && fd.sysref == 0 && fd.sysfd != syscall.InvalidHandle {
 		// In case the user has set linger, switch to blocking mode so
 		// the close blocks.  As long as this doesn't happen often, we
 		// can handle the extra OS processes.  Otherwise we'll need to
@@ -337,13 +337,13 @@ func (fd *netFD) Read(buf []byte) (n int, err os.Error) {
 
 type readFromOp struct {
 	bufOp
-	rsa syscall.RawSockaddrAny
+	rsa  syscall.RawSockaddrAny
+	rsan int32
 }
 
 func (o *readFromOp) Submit() (errno int) {
 	var d, f uint32
-	l := int32(unsafe.Sizeof(o.rsa))
-	return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &d, &f, &o.rsa, &l, &o.o, nil)
+	return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &d, &f, &o.rsa, &o.rsan, &o.o, nil)
 }
 
 func (o *readFromOp) Name() string {
@@ -366,7 +366,11 @@ func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err os.Error)
 	}
 	var o readFromOp
 	o.Init(fd, buf)
+	o.rsan = int32(unsafe.Sizeof(o.rsa))
 	n, err = iosrv.ExecIO(&o, fd.rdeadline_delta)
+	if err != nil {
+		return 0, nil, err
+	}
 	sa, _ = o.rsa.Sockaddr()
 	return
 }
