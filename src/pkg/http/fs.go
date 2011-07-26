@@ -78,6 +78,7 @@ func isText(b []byte) bool {
 }
 
 func dirList(w ResponseWriter, f File) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, "<pre>\n")
 	for {
 		dirs, err := f.Readdir(100)
