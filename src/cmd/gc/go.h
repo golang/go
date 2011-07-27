@@ -43,8 +43,9 @@ enum
 	AMEMWORD,
 
 	BADWIDTH	= -1000000000,
-	MAXWIDTH	= 1<<30
 };
+
+extern vlong	MAXWIDTH;
 
 /*
  * note this is the representation

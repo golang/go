@@ -30,14 +30,18 @@ offmod(Type *t)
 	o = 0;
 	for(f=t->type; f!=T; f=f->down) {
 		if(f->etype != TFIELD)
-			fatal("widstruct: not TFIELD: %lT", f);
+			fatal("offmod: not TFIELD: %lT", f);
 		f->width = o;
 		o += widthptr;
+		if(o >= MAXWIDTH) {
+			yyerror("interface too large");
+			o = widthptr;
+		}
 	}
 }
 
-static uint32
-widstruct(Type *t, uint32 o, int flag)
+static vlong
+widstruct(Type *errtype, Type *t, vlong o, int flag)
 {
 	Type *f;
 	int32 w, maxalign;
@@ -69,6 +73,10 @@ widstruct(Type *t, uint32 o, int flag)
 				f->nname->xoffset = o;
 		}
 		o += w;
+		if(o >= MAXWIDTH) {
+			yyerror("type %lT too large", errtype);
+			o = 8;  // small but nonzero
+		}
 	}
 	// final width is rounded
 	if(flag)
@@ -226,10 +234,7 @@ dowidth(Type *t)
 
 			dowidth(t->type);
 			if(t->type->width != 0) {
-				if(tptr == TPTR32)
-					cap = ((uint32)-1) / t->type->width;
-				else
-					cap = ((uint64)-1) / t->type->width;
+				cap = (MAXWIDTH-1) / t->type->width;
 				if(t->bound > cap)
 					yyerror("type %lT larger than address space", t);
 			}
@@ -250,7 +255,7 @@ dowidth(Type *t)
 	case TSTRUCT:
 		if(t->funarg)
 			fatal("dowidth fn struct %T", t);
-		w = widstruct(t, 0, 1);
+		w = widstruct(t, t, 0, 1);
 		break;
 
 	case TFUNC:
@@ -268,9 +273,9 @@ dowidth(Type *t)
 		// function is 3 cated structures;
 		// compute their widths as side-effect.
 		t1 = t->type;
-		w = widstruct(*getthis(t1), 0, 0);
-		w = widstruct(*getinarg(t1), w, widthptr);
-		w = widstruct(*getoutarg(t1), w, widthptr);
+		w = widstruct(t->type, *getthis(t1), 0, 0);
+		w = widstruct(t->type, *getinarg(t1), w, widthptr);
+		w = widstruct(t->type, *getoutarg(t1), w, widthptr);
 		t1->argwid = w;
 		if(w%widthptr)
 			warn("bad type %T %d\n", t1, w);

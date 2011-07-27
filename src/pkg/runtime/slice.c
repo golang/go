@@ -20,7 +20,7 @@ runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
 {
 	if(len < 0 || (int32)len != len)
 		runtime·panicstring("makeslice: len out of range");
-	if(cap < len || (int32)cap != cap || cap > ((uintptr)-1) / t->elem->size)
+	if(cap < len || (int32)cap != cap || t->elem->size > 0 && cap > ((uintptr)-1) / t->elem->size)
 		runtime·panicstring("makeslice: cap out of range");
 
 	makeslice1(t, len, cap, &ret);

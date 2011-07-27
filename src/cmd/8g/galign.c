@@ -7,6 +7,7 @@
 int	thechar	= '8';
 char*	thestring	= "386";
 
+vlong MAXWIDTH = (1LL<<32) - 1;
 
 /*
  * go declares several platform-specific type aliases:
