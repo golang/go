@@ -1327,7 +1327,7 @@ func TestImportPath(t *testing.T) {
 	}
 }
 
-func TestVariadic(t *testing.T) {
+func TestVariadicType(t *testing.T) {
 	// Test example from Type documentation.
 	var f func(x int, y ...float64)
 	typ := TypeOf(f)
