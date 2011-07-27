@@ -218,6 +218,7 @@ main(int argc, char *argv[])
 		curio.nlsemi = 0;
 
 		block = 1;
+		iota = -1000000;
 
 		yyparse();
 		if(nsyntaxerrors != 0)
