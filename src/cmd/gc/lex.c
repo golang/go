@@ -255,7 +255,7 @@ main(int argc, char *argv[])
 	resumecheckwidth();
 
 	for(l=xtop; l; l=l->next)
-		if(l->n->op == ODCLFUNC) {
+		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE) {
 			curfn = l->n;
 			saveerrors();
 			typechecklist(l->n->nbody, Etop);
@@ -274,8 +274,9 @@ main(int argc, char *argv[])
 	while(closures) {
 		l = closures;
 		closures = nil;
-		for(; l; l=l->next)
+		for(; l; l=l->next) {
 			funccompile(l->n, 1);
+		}
 	}
 
 	for(l=externdcl; l; l=l->next)

@@ -84,6 +84,11 @@ typecheckclosure(Node *func, int top)
 	oldfn = curfn;
 	typecheck(&func->ntype, Etype);
 	func->type = func->ntype->type;
+	if(curfn == nil) {
+		xtop = list(xtop, func);
+		return;
+	}
+
 	if(func->type != T) {
 		curfn = func;
 		typechecklist(func->nbody, Etop);
