@@ -595,9 +595,6 @@ agen(Node *n, Node *res)
 		// i is in &n1 (if not constant)
 		// w is width
 
-		if(w == 0)
-			fatal("index is zero width");
-
 		// constant index
 		if(isconst(nr, CTINT)) {
 			if(isconst(nl, CTSTR))
@@ -683,7 +680,9 @@ agen(Node *n, Node *res)
 			gmove(&n1, &n3);
 		}
 
-		if(w == 1 || w == 2 || w == 4 || w == 8) {
+		if(w == 0) {
+			// nothing to do
+		} else if(w == 1 || w == 2 || w == 4 || w == 8) {
 			memset(&n4, 0, sizeof n4);
 			n4.op = OADDR;
 			n4.left = &n2;

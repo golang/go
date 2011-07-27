@@ -7,6 +7,7 @@
 int	thechar	= '6';
 char*	thestring	= "amd64";
 
+vlong MAXWIDTH = 1LL<<50;
 
 /*
  * go declares several platform-specific type aliases:
