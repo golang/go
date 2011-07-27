@@ -23,7 +23,7 @@ func (t T) method() []byte {
 	Don't worry much about the base levels, but check the ones in our own package.
 
 		/Users/r/go/src/pkg/runtime/debug/stack_test.go:15 (0x13878)
-			*T.ptrmethod: return Stack()
+			(*T).ptrmethod: return Stack()
 		/Users/r/go/src/pkg/runtime/debug/stack_test.go:18 (0x138dd)
 			T.method: return t.ptrmethod()
 		/Users/r/go/src/pkg/runtime/debug/stack_test.go:23 (0x13920)
@@ -40,7 +40,7 @@ func TestStack(t *testing.T) {
 		t.Fatal("too few lines")
 	}
 	check(t, lines[0], "src/pkg/runtime/debug/stack_test.go")
-	check(t, lines[1], "\t*T.ptrmethod: return Stack()")
+	check(t, lines[1], "\t(*T).ptrmethod: return Stack()")
 	check(t, lines[2], "src/pkg/runtime/debug/stack_test.go")
 	check(t, lines[3], "\tT.method: return t.ptrmethod()")
 	check(t, lines[4], "src/pkg/runtime/debug/stack_test.go")
