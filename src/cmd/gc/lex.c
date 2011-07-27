@@ -728,6 +728,7 @@ l0:
 		yylval.val.u.sval = (Strlit*)cp;
 		yylval.val.ctype = CTSTR;
 		DBG("lex: string literal\n");
+		strcpy(litbuf, "string literal");
 		return LLITERAL;
 
 	case '\'':
@@ -744,6 +745,7 @@ l0:
 		mpmovecfix(yylval.val.u.xval, v);
 		yylval.val.ctype = CTINT;
 		DBG("lex: codepoint literal\n");
+		strcpy(litbuf, "string literal");
 		return LLITERAL;
 
 	case '/':
@@ -1133,6 +1135,8 @@ ncu:
 	}
 	yylval.val.ctype = CTINT;
 	DBG("lex: integer literal\n");
+	strcpy(litbuf, "literal ");
+	strcat(litbuf, lexbuf);
 	return LLITERAL;
 
 casedot:
@@ -1205,6 +1209,8 @@ casei:
 	}
 	yylval.val.ctype = CTCPLX;
 	DBG("lex: imaginary literal\n");
+	strcpy(litbuf, "literal ");
+	strcat(litbuf, lexbuf);
 	return LLITERAL;
 
 caseout:
@@ -1219,6 +1225,8 @@ caseout:
 	}
 	yylval.val.ctype = CTFLT;
 	DBG("lex: floating literal\n");
+	strcpy(litbuf, "literal ");
+	strcat(litbuf, lexbuf);
 	return LLITERAL;
 }
 
@@ -1858,6 +1866,12 @@ yytinit(void)
 
 	for(i=0; yytname[i] != nil; i++) {
 		s = yytname[i];
+		
+		if(strcmp(s, "LLITERAL") == 0) {
+			strcpy(litbuf, "literal");
+			yytname[i] = litbuf;
+			goto loop;
+		}
 		
 		// apply yytfix if possible
 		for(j=0; j<nelem(yytfix); j++) {
