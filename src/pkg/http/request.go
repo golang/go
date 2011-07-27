@@ -12,7 +12,6 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
-	"container/vector"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -674,9 +673,7 @@ func parseQuery(m Values, query string) (err os.Error) {
 			err = e
 			continue
 		}
-		vec := vector.StringVector(m[key])
-		vec.Push(value)
-		m[key] = vec
+		m[key] = append(m[key], value)
 	}
 	return err
 }

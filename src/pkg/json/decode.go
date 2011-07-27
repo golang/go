@@ -8,7 +8,6 @@
 package json
 
 import (
-	"container/vector"
 	"encoding/base64"
 	"os"
 	"reflect"
@@ -669,7 +668,7 @@ func (d *decodeState) valueInterface() interface{} {
 
 // arrayInterface is like array but returns []interface{}.
 func (d *decodeState) arrayInterface() []interface{} {
-	var v vector.Vector
+	var v []interface{}
 	for {
 		// Look ahead for ] - can only happen on first iteration.
 		op := d.scanWhile(scanSkipSpace)
@@ -681,7 +680,7 @@ func (d *decodeState) arrayInterface() []interface{} {
 		d.off--
 		d.scan.undo(op)
 
-		v.Push(d.valueInterface())
+		v = append(v, d.valueInterface())
 
 		// Next token must be , or ].
 		op = d.scanWhile(scanSkipSpace)

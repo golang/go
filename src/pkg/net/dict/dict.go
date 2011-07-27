@@ -7,7 +7,6 @@
 package dict
 
 import (
-	"container/vector"
 	"net/textproto"
 	"os"
 	"strconv"
@@ -144,7 +143,7 @@ func (c *Client) Define(dict, word string) ([]*Defn, os.Error) {
 // Fields are space separated unquoted words
 // or quoted with single or double quote.
 func fields(s string) ([]string, os.Error) {
-	var v vector.StringVector
+	var v []string
 	i := 0
 	for {
 		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
@@ -170,7 +169,7 @@ func fields(s string) ([]string, os.Error) {
 					break
 				}
 			}
-			v.Push(unquote(s[i+1 : j-1]))
+			v = append(v, unquote(s[i+1:j-1]))
 			i = j
 		} else {
 			// atom
@@ -180,7 +179,7 @@ func fields(s string) ([]string, os.Error) {
 					break
 				}
 			}
-			v.Push(s[i:j])
+			v = append(v, s[i:j])
 			i = j
 		}
 		if i < len(s) {

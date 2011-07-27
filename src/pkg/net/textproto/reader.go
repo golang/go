@@ -7,7 +7,6 @@ package textproto
 import (
 	"bufio"
 	"bytes"
-	"container/vector"
 	"io"
 	"io/ioutil"
 	"os"
@@ -400,7 +399,7 @@ func (r *Reader) ReadDotLines() ([]string, os.Error) {
 	// We could use ReadDotBytes and then Split it,
 	// but reading a line at a time avoids needing a
 	// large contiguous block of memory and is simpler.
-	var v vector.StringVector
+	var v []string
 	var err os.Error
 	for {
 		var line string
@@ -419,7 +418,7 @@ func (r *Reader) ReadDotLines() ([]string, os.Error) {
 			}
 			line = line[1:]
 		}
-		v.Push(line)
+		v = append(v, line)
 	}
 	return v, err
 }
@@ -466,9 +465,7 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, os.Error) {
 		}
 		value := string(kv[i:])
 
-		v := vector.StringVector(m[key])
-		v.Push(value)
-		m[key] = v
+		m[key] = append(m[key], value)
 
 		if err != nil {
 			return m, err
