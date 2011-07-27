@@ -88,6 +88,11 @@ if bison --version 2>&1 | grep 'bison++' >/dev/null 2>&1; then
 	exit 1
 fi
 
+# Issue 2020: some users configure bash to default to
+#	set +o noclobber
+# which makes >x fail if x already exists.  Restore sanity.
+set -o noclobber
+
 # Tried to use . <($MAKE ...) here, but it cannot set environment
 # variables in the version of bash that ships with OS X.  Amazing.
 eval $($MAKE --no-print-directory -f Make.inc go-env | egrep 'GOARCH|GOOS|GOHOSTARCH|GOHOSTOS|GO_ENV')
