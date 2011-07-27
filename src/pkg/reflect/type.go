@@ -114,11 +114,11 @@ type Type interface {
 	// is a "..." parameter.  If so, t.In(t.NumIn() - 1) returns the parameter's
 	// implicit actual type []T.
 	//
-	// For concreteness, if t represents func(x int, y ... float), then
+	// For concreteness, if t represents func(x int, y ... float64), then
 	//
 	//	t.NumIn() == 2
 	//	t.In(0) is the reflect.Type for "int"
-	//	t.In(1) is the reflect.Type for "[]float"
+	//	t.In(1) is the reflect.Type for "[]float64"
 	//	t.IsVariadic() == true
 	//
 	// IsVariadic panics if the type's Kind is not Func.
@@ -232,8 +232,8 @@ const (
 
 // commonType is the common implementation of most values.
 // It is embedded in other, public struct types, but always
-// with a unique tag like "uint" or "float" so that the client cannot
-// convert from, say, *UintType to *FloatType.
+// with a unique tag like `reflect:"array"` or `reflect:"ptr"`
+// so that code cannot convert from, say, *arrayType to *ptrType.
 
 type commonType struct {
 	size       uintptr
@@ -977,8 +977,8 @@ func PtrTo(t Type) Type {
 	}
 	rt.i = (*runtime.PtrType)(unsafe.Pointer(&rt.ptrType))
 
-	// initialize p using *byte's PtrType as a prototype.
-	// have to do assignment as PtrType, not runtime.PtrType,
+	// initialize p using *byte's ptrType as a prototype.
+	// have to do assignment as ptrType, not runtime.PtrType,
 	// in order to write to unexported fields.
 	p = &rt.ptrType
 	bp := (*ptrType)(unsafe.Pointer(unsafe.Typeof((*byte)(nil)).(*runtime.PtrType)))

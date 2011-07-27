@@ -1327,8 +1327,8 @@ func TestImportPath(t *testing.T) {
 	}
 }
 
-func TestDotDotDot(t *testing.T) {
-	// Test example from FuncType.DotDotDot documentation.
+func TestVariadic(t *testing.T) {
+	// Test example from Type documentation.
 	var f func(x int, y ...float64)
 	typ := TypeOf(f)
 	if typ.NumIn() == 2 && typ.In(0) == TypeOf(int(0)) {
