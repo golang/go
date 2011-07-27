@@ -124,9 +124,16 @@ typecheck(Node **np, int top)
 	n = *np;
 	if(n == N)
 		return N;
+	
+	lno = setlineno(n);
+
+	// Skip over parens.
+	while(n->op == OPAREN)
+		n = n->left;
 
 	// Resolve definition of name and value of iota lazily.
 	n = resolve(n);
+
 	*np = n;
 
 	// Skip typecheck if already done.

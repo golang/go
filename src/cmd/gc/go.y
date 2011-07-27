@@ -916,6 +916,18 @@ pexpr:
 |	'(' expr_or_type ')'
 	{
 		$$ = $2;
+		
+		// Need to know on lhs of := whether there are ( ).
+		// Don't bother with the OPAREN in other cases:
+		// it's just a waste of memory and time.
+		switch($$->op) {
+		case ONAME:
+		case ONONAME:
+		case OPACK:
+		case OTYPE:
+		case OLITERAL:
+			$$ = nod(OPAREN, $$, N);
+		}
 	}
 
 expr_or_type:

@@ -78,6 +78,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OTPAREN:
 	case OINDEX:
 	case OINDEXMAP:
+	case OPAREN:
 		nprec = 7;
 		break;
 
@@ -132,6 +133,10 @@ exprfmt(Fmt *f, Node *n, int prec)
 	default:
 	bad:
 		fmtprint(f, "(node %O)", n->op);
+		break;
+
+	case OPAREN:
+		fmtprint(f, "(%#N)", n->left);
 		break;
 
 	case OREGISTER:
