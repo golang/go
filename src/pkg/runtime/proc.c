@@ -1054,8 +1054,13 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 //printf("newproc1 %p %p narg=%d nret=%d\n", fn, argp, narg, nret);
 	siz = narg + nret;
 	siz = (siz+7) & ~7;
-	if(siz > 1024)
-		runtime·throw("runtime.newproc: too many args");
+	
+	// We could instead create a secondary stack frame
+	// and make it look like goexit was on the original but
+	// the call to the actual goroutine function was split.
+	// Not worth it: this is almost always an error.
+	if(siz > StackMin - 1024)
+		runtime·throw("runtime.newproc: function arguments too large for new goroutine");
 
 	schedlock();
 
