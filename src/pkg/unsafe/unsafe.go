@@ -47,7 +47,7 @@ func Reflect(i interface{}) (typ interface{}, addr Pointer)
 // empty interface value with contents the type and the value (not the pointer to
 // the value).  The typ is assumed to contain a pointer to a runtime type; the type
 // information in the interface{} is ignored, so that, for example, both
-// *reflect.StructType and *runtime.StructType can be passed for typ.
+// *reflect.structType and *runtime.StructType can be passed for typ.
 func Unreflect(typ interface{}, addr Pointer) (ret interface{})
 
 // New allocates and returns a pointer to memory for a new value of the given type.
