@@ -212,6 +212,10 @@ var caseTest = []caseT{
 	{UpperCase, 0x10450, 0x10450},
 	{LowerCase, 0x10450, 0x10450},
 	{TitleCase, 0x10450, 0x10450},
+
+	// Non-letters with case.
+	{LowerCase, 0x2161, 0x2171},
+	{UpperCase, 0x0345, 0x0399},
 }
 
 func TestIsLetter(t *testing.T) {
