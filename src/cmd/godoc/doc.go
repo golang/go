@@ -97,10 +97,9 @@ may be provided with the -filter flag; if it exists, only directories
 on those paths are considered. If -filter_minutes is set, the filter_file is
 updated regularly by walking the entire directory tree.
 
-When godoc runs as a web server, it creates a search index from all .go files
-under -goroot (excluding files starting with .). The index is created at startup
-and is automatically updated every time the -sync command terminates with exit
-status 0, indicating that files have changed.
+When godoc runs as a web server and -index is set, a search index is maintained.
+The index is created at startup and is automatically updated every time the
+-sync command terminates with exit status 0, indicating that files have changed.
 
 If the sync exit status is 1, godoc assumes that it succeeded without errors
 but that no files changed; the index is not updated in this case.
@@ -108,6 +107,24 @@ but that no files changed; the index is not updated in this case.
 In all other cases, sync is assumed to have failed and godoc backs off running
 sync exponentially (up to 1 day). As soon as sync succeeds again (exit status 0
 or 1), the normal sync rhythm is re-established.
+
+The index contains both identifier and full text search information (searchable
+via regular expressions). The maximum number of full text search results shown
+can be set with the -maxresults flag; if set to 0, no full text results are
+shown, and only an identifier index but no full text search index is created.
+
+By default, godoc serves files from the file system of the underlying OS.
+Instead, a .zip file may be provided via the -zip flag, which contains
+the file system to serve. The file paths stored in the .zip file must use
+slash ('/') as path separator; and they must be unrooted. $GOROOT (or -goroot)
+must be set to the .zip file directory path containing the Go root directory.
+For instance, for a .zip file created by the command:
+
+	zip go.zip $HOME/go
+
+one may run godoc as follows:
+
+	godoc -http=:6060 -zip=go.zip -goroot=$HOME/go
 
 */
 package documentation

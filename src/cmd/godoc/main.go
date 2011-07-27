@@ -38,6 +38,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -228,23 +229,22 @@ func main() {
 		log.Fatalf("negative tabwidth %d", *tabwidth)
 	}
 
-	// Clean goroot: normalize path separator.
-	*goroot = filepath.Clean(*goroot)
-
 	// Determine file system to use.
 	// TODO(gri) - fs and fsHttp should really be the same. Try to unify.
 	//           - fsHttp doesn't need to be set up in command-line mode,
 	//             same is true for the http handlers in initHandlers.
 	if *zipfile == "" {
 		// use file system of underlying OS
+		*goroot = filepath.Clean(*goroot) // normalize path separator
 		fs = OS
 		fsHttp = http.Dir(*goroot)
 	} else {
-		// use file system specified via .zip file
+		// use file system specified via .zip file (path separator must be '/')
 		rc, err := zip.OpenReader(*zipfile)
 		if err != nil {
 			log.Fatalf("%s: %s\n", *zipfile, err)
 		}
+		*goroot = path.Join("/", *goroot) // fsHttp paths are relative to '/'
 		fs = NewZipFS(rc)
 		fsHttp = NewHttpZipFS(rc, *goroot)
 	}
