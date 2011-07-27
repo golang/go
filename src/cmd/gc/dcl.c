@@ -1079,7 +1079,10 @@ methodsym(Sym *nsym, Type *t0, int iface)
 		if(t0->width < types[tptr]->width)
 			suffix = "·i";
 	}
-	p = smprint("%#hT·%s%s", t0, nsym->name, suffix);
+	if(t0->sym == S && isptr[t0->etype])
+		p = smprint("(%#hT).%s%s", t0, nsym->name, suffix);
+	else
+		p = smprint("%#hT.%s%s", t0, nsym->name, suffix);
 	s = pkglookup(p, s->pkg);
 	free(p);
 	return s;
@@ -1106,14 +1109,17 @@ methodname1(Node *n, Node *t)
 	char *star;
 	char *p;
 
-	star = "";
+	star = nil;
 	if(t->op == OIND) {
 		star = "*";
 		t = t->left;
 	}
 	if(t->sym == S || isblank(n))
 		return newname(n->sym);
-	p = smprint("%s%S·%S", star, t->sym, n->sym);
+	if(star)
+		p = smprint("(%s%S).%S", star, t->sym, n->sym);
+	else
+		p = smprint("%S.%S", t->sym, n->sym);
 	n = newname(pkglookup(p, t->sym->pkg));
 	free(p);
 	return n;
