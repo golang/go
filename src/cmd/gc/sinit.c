@@ -686,7 +686,7 @@ anylit(int ctxt, Node *n, Node *var, NodeList **init)
 			if(ctxt == 0) {
 				// lay out static data
 				vstat = staticname(t, ctxt);
-				structlit(1, 1, n, vstat, init);
+				structlit(ctxt, 1, n, vstat, init);
 
 				// copy static to var
 				a = nod(OAS, var, vstat);
