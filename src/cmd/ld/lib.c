@@ -1415,9 +1415,3 @@ cwrite(void *buf, int n)
 	}
 	coutpos += n;
 }
-
-void
-cseekend(void)
-{
-	seek(cout, 0, 2);
-}
