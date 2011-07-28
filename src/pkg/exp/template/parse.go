@@ -610,25 +610,25 @@ func (t *Template) atEOF() bool {
 
 // Parse parses the template definition string to construct an internal
 // representation of the template for execution.
-func (t *Template) Parse(s string) (err os.Error) {
+func (t *Template) Parse(s string) (tmpl *Template, err os.Error) {
 	defer t.recover(&err)
 	t.startParse(t.set, lex(t.name, s))
 	t.parse(true)
 	t.stopParse()
-	return
+	return t, nil
 }
 
 // ParseInSet parses the template definition string to construct an internal
 // representation of the template for execution. It also adds the template
 // to the set.
 // Function bindings are checked against those in the set.
-func (t *Template) ParseInSet(s string, set *Set) (err os.Error) {
+func (t *Template) ParseInSet(s string, set *Set) (tmpl *Template, err os.Error) {
 	defer t.recover(&err)
 	t.startParse(set, lex(t.name, s))
 	t.parse(true)
 	t.stopParse()
 	t.addToSet(set)
-	return nil
+	return t, nil
 }
 
 // addToSet adds the template to the set, verifying it's not being double-assigned.

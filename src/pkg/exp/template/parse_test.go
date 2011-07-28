@@ -230,8 +230,7 @@ var parseTests = []parseTest{
 
 func TestParse(t *testing.T) {
 	for _, test := range parseTests {
-		tmpl := New(test.name)
-		err := tmpl.Parse(test.input)
+		tmpl, err := New(test.name).Parse(test.input)
 		switch {
 		case err == nil && !test.ok:
 			t.Errorf("%q: expected error; got none", test.name)
