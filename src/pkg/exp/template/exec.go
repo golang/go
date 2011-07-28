@@ -10,8 +10,6 @@ import (
 	"os"
 	"reflect"
 	"strings"
-	"unicode"
-	"utf8"
 )
 
 // state represents the state of an execution. It's not part of the
@@ -356,12 +354,6 @@ func (s *state) evalFunction(dot reflect.Value, name string, args []node, final 
 	return s.evalCall(dot, function, name, args, final)
 }
 
-// Is this an exported - upper case - name?
-func isExported(name string) bool {
-	rune, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(rune)
-}
-
 // evalField evaluates an expression like (.Field) or (.Field arg1 arg2).
 // The 'final' argument represents the return value from the preceding
 // value of the pipeline, if any.
@@ -383,12 +375,13 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []node, fina
 	// It's not a method; is it a field of a struct?
 	receiver, isNil := indirect(receiver)
 	if receiver.Kind() == reflect.Struct {
-		field := receiver.FieldByName(fieldName)
-		if field.IsValid() {
+		tField, ok := receiver.Type().FieldByName(fieldName)
+		if ok {
+			field := receiver.FieldByIndex(tField.Index)
 			if len(args) > 1 || final.IsValid() {
 				s.errorf("%s is not a method but has arguments", fieldName)
 			}
-			if isExported(fieldName) { // valid and exported
+			if tField.PkgPath == "" { // field is exported
 				return field
 			}
 		}

@@ -360,6 +360,7 @@ func countMallocs(dial func() (*Client, os.Error), t *testing.T) uint64 {
 	}
 	args := &Args{7, 8}
 	reply := new(Reply)
+	runtime.UpdateMemStats()
 	mallocs := 0 - runtime.MemStats.Mallocs
 	const count = 100
 	for i := 0; i < count; i++ {
@@ -371,6 +372,7 @@ func countMallocs(dial func() (*Client, os.Error), t *testing.T) uint64 {
 			t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
 		}
 	}
+	runtime.UpdateMemStats()
 	mallocs += runtime.MemStats.Mallocs
 	return mallocs / count
 }
