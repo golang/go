@@ -36,7 +36,7 @@ const debugText = `<html>
 	</body>
 	</html>`
 
-var debug = template.New("RPC debug").MustParse(debugText)
+var debug = template.Must(template.New("RPC debug").Parse(debugText))
 
 type debugMethod struct {
 	Type *methodType
