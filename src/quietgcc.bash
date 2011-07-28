@@ -32,13 +32,13 @@ case "$(uname -m -p)-$GOHOSTARCH" in
 esac
 
 # Run gcc, save error status, redisplay output without noise, exit with gcc status.
-tmp=${TMPDIR:-/tmp}/quietgcc.$$.$USER.out
+tmp="${TMPDIR:-/tmp}/quietgcc.$$.$USER.out"
 $gcc -Wall -Wno-sign-compare -Wno-missing-braces \
 	-Wno-parentheses -Wno-unknown-pragmas -Wno-switch -Wno-comment \
 	-Werror \
-	"$@" >$tmp 2>&1
+	"$@" >"$tmp" 2>&1
 status=$?
-egrep -v "$ignore" $tmp | uniq | tee $tmp.1
+egrep -v "$ignore" "$tmp" | uniq | tee "$tmp.1"
 
-rm -f $tmp $tmp.1
+rm -f "$tmp" "$tmp.1"
 exit $status
