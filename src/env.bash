@@ -89,9 +89,9 @@ if bison --version 2>&1 | grep 'bison++' >/dev/null 2>&1; then
 fi
 
 # Issue 2020: some users configure bash to default to
-#	set +o noclobber
+#	set -o noclobber
 # which makes >x fail if x already exists.  Restore sanity.
-set -o noclobber
+set +o noclobber
 
 # Tried to use . <($MAKE ...) here, but it cannot set environment
 # variables in the version of bash that ships with OS X.  Amazing.
