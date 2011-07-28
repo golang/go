@@ -1140,6 +1140,14 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 			t.Align = c.ptrSize
 			break
 		}
+		if dt.Name == "_GoBytes_" {
+			// Special C name for Go []byte type.
+			// Knows slice layout used by compilers: pointer, length, cap.
+			t.Go = c.Ident("[]byte")
+			t.Size = c.ptrSize + 4 + 4
+			t.Align = c.ptrSize
+			break
+		}
 		name := c.Ident("_Ctypedef_" + dt.Name)
 		t.Go = name // publish before recursive call
 		sub := c.Type(dt.Type)

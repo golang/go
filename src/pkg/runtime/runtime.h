@@ -413,6 +413,7 @@ void*	runtime·mal(uintptr);
 String	runtime·catstring(String, String);
 String	runtime·gostring(byte*);
 String  runtime·gostringn(byte*, int32);
+Slice	runtime·gobytes(byte*, int32);
 String	runtime·gostringnocopy(byte*);
 String	runtime·gostringw(uint16*);
 void	runtime·initsig(int32);

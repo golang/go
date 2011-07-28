@@ -74,6 +74,16 @@ runtime·gostringn(byte *str, int32 l)
 	return s;
 }
 
+Slice
+runtime·gobytes(byte *p, int32 n)
+{
+	Slice sl;
+
+	sl.array = runtime·mallocgc(n, FlagNoPointers, 1, 0);
+	runtime·memmove(sl.array, p, n);
+	return sl;
+}
+
 String
 runtime·gostringnocopy(byte *str)
 {
