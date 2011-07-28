@@ -947,8 +947,24 @@ defaultlit(Node **np, Type *t)
 			dump("defaultlit", n);
 			fatal("defaultlit");
 		}
-		defaultlit(&n->left, t);
-		defaultlit(&n->right, t);
+		// n is ideal, so left and right must both be ideal.
+		// n has not been computed as a constant value,
+		// so either left or right must not be constant.
+		// The only 'ideal' non-constant expressions are shifts.  Ugh.
+		// If one of these is a shift and the other is not, use that type.
+		// When compiling x := 1<<i + 3.14, this means we try to push
+		// the float64 down into the 1<<i, producing the correct error
+		// (cannot shift float64).
+		if(t == T && (n->right->op == OLSH || n->right->op == ORSH)) {
+			defaultlit(&n->left, T);
+			defaultlit(&n->right, n->left->type);
+		} else if(t == T && (n->left->op == OLSH || n->left->op == ORSH)) {
+			defaultlit(&n->right, T);
+			defaultlit(&n->left, n->right->type);
+		} else {
+			defaultlit(&n->left, t);
+			defaultlit(&n->right, t);
+		}
 		if(n->type == idealbool || n->type == idealstring)
 			n->type = types[n->type->etype];
 		else
