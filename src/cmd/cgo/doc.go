@@ -52,6 +52,7 @@ C.char, C.schar (signed char), C.uchar (unsigned char),
 C.short, C.ushort (unsigned short), C.int, C.uint (unsigned int),
 C.long, C.ulong (unsigned long), C.longlong (long long),
 C.ulonglong (unsigned long long), C.float, C.double.
+The C type void* is represented by Go's unsafe.Pointer.
 
 To access a struct, union, or enum type directly, prefix it with
 struct_, union_, or enum_, as in C.struct_stat.
@@ -67,6 +68,21 @@ actually requires a pointer to the first element of the array.
 C compilers are aware of this calling convention and adjust
 the call accordingly, but Go cannot.  In Go, you must pass
 the pointer to the first element explicitly: C.f(&x[0]).
+
+A few special functions convert between Go and C types
+by making copies of the data.  In pseudo-Go definitions:
+
+	// Go string to C string
+	func C.CString(string) *C.char
+
+	// C string to Go string
+	func C.GoString(*C.char) string
+
+	// C string, length to Go string
+	func C.GoStringN(*C.char, C.int) string
+
+	// C pointer, length to Go []byte
+	func C.GoBytes(unsafe.Pointer, C.int) []byte
 
 Cgo transforms the input file into four output files: two Go source
 files, a C file for 6c (or 8c or 5c), and a C file for gcc.

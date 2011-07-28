@@ -189,6 +189,10 @@ func (f *File) saveExport(x interface{}, context string) {
 			error(c.Pos(), "export missing name")
 		}
 
+		if name != n.Name.Name {
+			error(c.Pos(), "export comment has wrong name %q, want %q", name, n.Name.Name)
+		}
+
 		f.ExpFunc = append(f.ExpFunc, &ExpFunc{
 			Func:    n,
 			ExpName: name,

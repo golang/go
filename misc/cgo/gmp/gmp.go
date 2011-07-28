@@ -265,7 +265,7 @@ func (z *Int) Mod(x, y *Int) *Int {
 func (z *Int) Lsh(x *Int, s uint) *Int {
 	x.doinit()
 	z.doinit()
-	C.mpz_mul_2exp(&z.i[0], &x.i[0], C.ulong(s))
+	C.mpz_mul_2exp(&z.i[0], &x.i[0], C.mp_bitcnt_t(s))
 	return z
 }
 
@@ -273,7 +273,7 @@ func (z *Int) Lsh(x *Int, s uint) *Int {
 func (z *Int) Rsh(x *Int, s uint) *Int {
 	x.doinit()
 	z.doinit()
-	C.mpz_div_2exp(&z.i[0], &x.i[0], C.ulong(s))
+	C.mpz_div_2exp(&z.i[0], &x.i[0], C.mp_bitcnt_t(s))
 	return z
 }
 

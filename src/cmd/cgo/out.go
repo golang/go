@@ -236,7 +236,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 	printer.Fprint(fgo2, fset, d)
 	fmt.Fprintf(fgo2, "\n")
 
-	if name == "CString" || name == "GoString" || name == "GoStringN" {
+	if name == "CString" || name == "GoString" || name == "GoStringN" || name == "GoBytes" {
 		// The builtins are already defined in the C prolog.
 		return
 	}
@@ -316,7 +316,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 
 func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	name := n.Mangle
-	if name == "_Cfunc_CString" || name == "_Cfunc_GoString" || name == "_Cfunc_GoStringN" || p.Written[name] {
+	if name == "_Cfunc_CString" || name == "_Cfunc_GoString" || name == "_Cfunc_GoStringN" || name == "_Cfunc_GoBytes" || p.Written[name] {
 		// The builtins are already defined in the C prolog, and we don't
 		// want to duplicate function definitions we've already done.
 		return
@@ -646,6 +646,8 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			}
 			return r
 		}
+		error(e.Pos(), "unrecognized Go type %s", t.Name)
+		return &Type{Size: 4, Align: 4, C: c("int")}
 	case *ast.SelectorExpr:
 		id, ok := t.X.(*ast.Ident)
 		if ok && id.Name == "unsafe" && t.Sel.Name == "Pointer" {
@@ -679,8 +681,10 @@ __cgo_size_assert(double, 8)
 
 const builtinProlog = `
 typedef struct { char *p; int n; } _GoString_;
+typedef struct { char *p; int n; int c; } _GoBytes_;
 _GoString_ GoString(char *p);
 _GoString_ GoStringN(char *p, int l);
+_GoBytes_ GoBytes(void *p, int n);
 char *CString(_GoString_);
 `
 
@@ -701,6 +705,13 @@ void
 ·_Cfunc_GoStringN(int8 *p, int32 l, String s)
 {
 	s = runtime·gostringn((byte*)p, l);
+	FLUSH(&s);
+}
+
+void
+·_Cfunc_GoBytes(int8 *p, int32 l, Slice s)
+{
+	s = runtime·gobytes((byte*)p, l);
 	FLUSH(&s);
 }
 

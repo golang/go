@@ -42,3 +42,4 @@ func (f *File) Flush() {
 }
 
 var Greeting = C.GoString(C.greeting)
+var Gbytes = C.GoBytes(unsafe.Pointer(C.greeting), C.int(len(Greeting)))
