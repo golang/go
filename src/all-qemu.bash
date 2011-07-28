@@ -6,11 +6,11 @@
 # Run all.bash but exclude tests that depend on functionality
 # missing in QEMU's system call emulation.
 
+export GOARCH=arm
 export NOTEST=""
-
 NOTEST="$NOTEST big" # just slow
 NOTEST="$NOTEST go/build" # wants to run cgo
-NOTEST="$NOTEST http net rpc syslog websocket"  # no localhost network
+NOTEST="$NOTEST http http/cgi net rpc syslog websocket"  # no localhost network
 NOTEST="$NOTEST os"  # 64-bit seek fails
 
 ./all.bash
