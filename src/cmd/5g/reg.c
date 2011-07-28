@@ -728,13 +728,19 @@ addsplits(void)
 void
 addmove(Reg *r, int bn, int rn, int f)
 {
-	Prog *p, *p1;
+	Prog *p, *p1, *p2;
 	Adr *a;
 	Var *v;
 
 	p1 = mal(sizeof(*p1));
 	*p1 = zprog;
 	p = r->prog;
+	
+	// If there's a stack fixup coming (after BL newproc or BL deferproc),
+	// delay the load until after the fixup.
+	p2 = p->link;
+	if(p2 && p2->as == AMOVW && p2->from.type == D_CONST && p2->from.reg == REGSP && p2->to.reg == REGSP && p2->to.type == D_REG)
+		p = p2;
 
 	p1->link = p->link;
 	p->link = p1;
