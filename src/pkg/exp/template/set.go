@@ -99,7 +99,8 @@ func (s *Set) recover(errp *os.Error) {
 // multiple times for a given set, adding the templates defined in the string
 // to the set.  If a template is redefined, the element in the set is
 // overwritten with the new definition.
-func (s *Set) Parse(text string) (err os.Error) {
+func (s *Set) Parse(text string) (set *Set, err os.Error) {
+	set = s
 	s.init()
 	defer s.recover(&err)
 	lex := lex("set", text)
@@ -130,5 +131,5 @@ func (s *Set) Parse(text string) (err os.Error) {
 		t.addToSet(s)
 		s.tmpl[t.name] = t
 	}
-	return nil
+	return s, nil
 }

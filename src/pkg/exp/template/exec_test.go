@@ -72,7 +72,7 @@ var tVal = &T{
 	Empty4: &U{"UinEmpty"},
 	PI:     newInt(23),
 	PSI:    newIntSlice(21, 22, 23),
-	Tmpl:   New("x").MustParse("test template"), // "x" is the value of .X
+	Tmpl:   Must(New("x").Parse("test template")), // "x" is the value of .X
 }
 
 // Helpers for creation.
@@ -359,7 +359,7 @@ func testExecute(execTests []execTest, set *Set, t *testing.T) {
 	funcs := FuncMap{"zeroArgs": zeroArgs, "oneArg": oneArg, "typeOf": typeOf}
 	for _, test := range execTests {
 		tmpl := New(test.name).Funcs(funcs)
-		err := tmpl.ParseInSet(test.input, set)
+		_, err := tmpl.ParseInSet(test.input, set)
 		if err != nil {
 			t.Errorf("%s: parse error: %s", test.name, err)
 			continue
@@ -394,7 +394,7 @@ func TestExecute(t *testing.T) {
 func TestExecuteError(t *testing.T) {
 	b := new(bytes.Buffer)
 	tmpl := New("error")
-	err := tmpl.Parse("{{.EPERM true}}")
+	_, err := tmpl.Parse("{{.EPERM true}}")
 	if err != nil {
 		t.Fatalf("parse error: %s", err)
 	}
@@ -487,7 +487,7 @@ func TestTree(t *testing.T) {
 		},
 	}
 	set := new(Set)
-	err := set.Parse(treeTemplate)
+	_, err := set.Parse(treeTemplate)
 	if err != nil {
 		t.Fatal("parse error:", err)
 	}
