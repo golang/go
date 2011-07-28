@@ -111,7 +111,8 @@ function getFunctions() {
 functions=$(getFunctions)
 
 # Write file to compile
-rm -f /tmp/$USER.try.go
+file="/tmp/$USER.try"
+rm -f "file.go"
 (
 cat <<'!'
 package main
@@ -159,9 +160,9 @@ var _ os.Error
 func toSlice(a ...interface{}) []interface{} { return a }
 !
 
-)>/tmp/$USER.try.go
+)>"$file.go"
 
-$GC -o /tmp/$USER.try.$O /tmp/$USER.try.go &&
-$GL -o /tmp/$USER.try /tmp/$USER.try.$O &&
-/tmp/$USER.try "_$@"
-rm -f /tmp/$USER.try /tmp/$USER.try.go /tmp/$USER.try.$O
+$GC -o "$file.$O" "$file.go" &&
+$GL -o "$file" "$file.$O" &&
+"$file" "_$@"
+rm -f "$file" "$file.go" "$file.$O"

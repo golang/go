@@ -33,9 +33,9 @@ failed=0
 
 PATH=/bin:/usr/bin:/usr/local/bin:${GOBIN:-$GOROOT/bin}:`pwd`
 
-RUNFILE=/tmp/gorun-$$-$USER
-TMP1FILE=/tmp/gotest1-$$-$USER
-TMP2FILE=/tmp/gotest2-$$-$USER
+RUNFILE="/tmp/gorun-$$-$USER"
+TMP1FILE="/tmp/gotest1-$$-$USER"
+TMP2FILE="/tmp/gotest2-$$-$USER"
 
 # don't run the machine out of memory: limit individual processes to 4GB.
 # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
@@ -64,20 +64,20 @@ do
 		fi
 		export F=$(basename $i .go)
 		export D=$dir
-		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|g' >$RUNFILE
-		if ! { time -p bash -c "bash $RUNFILE >$TMP1FILE 2>&1" ; } 2>$TMP2FILE
+		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|g' >"$RUNFILE"
+		if ! { time -p bash -c "bash '$RUNFILE' >'$TMP1FILE' 2>&1" ; } 2>"$TMP2FILE"
 		then
 			echo
 			echo "===========" $i
-			cat $TMP1FILE
+			cat "$TMP1FILE"
 			echo >&2 fail: $i
 			echo "# $i	# fail" >>pass.out
-		elif test -s $TMP1FILE
+		elif test -s "$TMP1FILE"
 		then
 			echo
 			echo "===========" $i
-			cat $TMP1FILE
-			if grep -q '^BUG' $TMP1FILE
+			cat "$TMP1FILE"
+			if grep -q '^BUG' "$TMP1FILE"
 			then
 				if [ $dir != bugs ]
 				then
@@ -93,13 +93,13 @@ do
 		else
 			echo $i >>pass.out
 		fi
-		echo $(awk 'NR==1{print $2}' $TMP2FILE) $D/$F >>times.out
+		echo $(awk 'NR==1{print $2}' "$TMP2FILE") $D/$F >>times.out
 		rm -f $F.$A $A.out
 	) done
 done | # clean up some stack noise
 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
 	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/
-		s!'$RUNFILE'!$RUNFILE!g
+		s!'"$RUNFILE"'!$RUNFILE!g
 		s/^PC=0x[0-9a-f]*/pc: xxx/
 		s/^pc: 0x[0-9a-f]*/pc: xxx/
 		s/PC=0x[0-9a-f]*/PC=xxx/
@@ -110,7 +110,7 @@ done | # clean up some stack noise
 		/Segmentation fault/d
 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
 
-rm -f $RUNFILE $TMP1FILE $TMP2FILE *.$A *.a $A.out
+rm -f "$RUNFILE" "$TMP1FILE" "$TMP2FILE" *.$A *.a $A.out
 diffmsg=""
 if ! diff $golden run.out
 then
