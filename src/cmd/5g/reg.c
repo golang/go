@@ -336,6 +336,7 @@ regopt(Prog *firstp)
 		case AMULD:
 		case ADIVF:
 		case ADIVD:
+		case AMULA:
 		case AMULAL:
 		case AMULALU:
 			for(z=0; z<BITS; z++) {
@@ -770,6 +771,7 @@ addmove(Reg *r, int bn, int rn, int f)
 		break;
 	case TBOOL:
 	case TUINT8:
+//print("movbu %E %d %S\n", v->etype, bn, v->sym);
 		p1->as = AMOVBU;
 		break;
 	case TINT16:
@@ -843,9 +845,6 @@ mkvar(Reg *r, Adr *a)
 	n = D_NONE;
 
 	flag = 0;
-	if(a->pun)
-		flag = 1;
-
 	switch(t) {
 	default:
 		print("type %d %d %D\n", t, a->name, a);
@@ -928,7 +927,7 @@ mkvar(Reg *r, Adr *a)
 				if(!flag)
 					return blsh(i);
 
-			// if they overlaps, disable both
+			// if they overlap, disable both
 			if(overlap(v->offset, v->width, o, w)) {
 				v->addr = 1;
 				flag = 1;
@@ -952,6 +951,7 @@ mkvar(Reg *r, Adr *a)
 
 	i = nvar;
 	nvar++;
+//print("var %d %E %D %S\n", i, et, a, s);
 	v = var+i;
 	v->sym = s;
 	v->offset = o;
@@ -963,7 +963,7 @@ mkvar(Reg *r, Adr *a)
 	v->node = a->node;
 	
 	if(debug['R'])
-		print("bit=%2d et=%E pun=%d %D\n", i, et, flag, a);
+		print("bit=%2d et=%2d w=%d+%d %S %D flag=%d\n", i, et, o, w, s, a, v->addr);
 
 	bit = blsh(i);
 	if(n == D_EXTERN || n == D_STATIC)
@@ -1453,10 +1453,6 @@ paint3(Reg *r, int bn, int32 rb, int rn)
 void
 addreg(Adr *a, int rn)
 {
-
-	if(a->type == D_CONST)
-		fatal("addreg: cant do this %D %d\n", a, rn);
-
 	a->sym = 0;
 	a->name = D_NONE;
 	a->type = D_REG;
@@ -1477,8 +1473,7 @@ addreg(Adr *a, int rn)
 int32
 RtoB(int r)
 {
-
-	if(r < 2 || r >= REGTMP-2)	// excluded R9 and R10 for m and g
+	if(r >= REGTMP-2)	// excluded R9 and R10 for m and g
 		return 0;
 	return 1L << r;
 }

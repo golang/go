@@ -933,7 +933,6 @@ xtramodes(Reg *r, Adr *a)
 int
 copyu(Prog *p, Adr *v, Adr *s)
 {
-
 	switch(p->as) {
 
 	default:
@@ -1011,6 +1010,8 @@ copyu(Prog *p, Adr *v, Adr *s)
 			return 0;
 		}
 		if(copyas(&p->to, v)) {
+			if(p->scond != C_SCOND_NONE)
+				return 2;
 			if(copyau(&p->from, v))
 				return 4;
 			return 3;
@@ -1069,6 +1070,8 @@ copyu(Prog *p, Adr *v, Adr *s)
 			return 0;
 		}
 		if(copyas(&p->to, v)) {
+			if(p->scond != C_SCOND_NONE)
+				return 2;
 			if(p->reg == NREG)
 				p->reg = p->to.reg;
 			if(copyau(&p->from, v))

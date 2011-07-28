@@ -470,9 +470,10 @@ samereg(Node *a, Node *b)
 void
 cgen_shift(int op, Node *nl, Node *nr, Node *res)
 {
-	Node n1, n2, n3, t;
+	Node n1, n2, n3, nt, t, lo, hi;
 	int w;
-	Prog *p1, *p2, *p3;
+	Prog *p1, *p2, *p3, *pbig;
+	Type *tr;
 	uvlong sc;
 
 	if(nl->type->width > 4)
@@ -504,16 +505,43 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		return;
 	}
 
-	if(nl->ullman >= nr->ullman) {
-		regalloc(&n2, nl->type, res);
-		cgen(nl, &n2);
-		regalloc(&n1, nr->type, N);
-		cgen(nr, &n1);
+	pbig = P;
+	tr = nr->type;
+	if(tr->width > 4) {
+		tempname(&nt, nr->type);
+		if(nl->ullman >= nr->ullman) {
+			regalloc(&n2, nl->type, res);
+			cgen(nl, &n2);
+			cgen(nr, &nt);
+			n1 = nt;
+		} else {
+			cgen(nr, &nt);
+			regalloc(&n2, nl->type, res);
+			cgen(nl, &n2);
+		}
+		split64(&nt, &lo, &hi);
+		regalloc(&n1, types[TUINT32], N);
+		regalloc(&n3, types[TUINT32], N);
+		gmove(&lo, &n1);
+		gmove(&hi, &n3);
+		gins(ATST, &n3, N);
+		nodconst(&t, types[TUINT32], w);
+		p1 = gins(AMOVW, &t, &n1);
+		p1->scond = C_SCOND_NE;
+		tr = types[TUINT32];
+		regfree(&n3);
 	} else {
-		regalloc(&n1, nr->type, N);
-		cgen(nr, &n1);
-		regalloc(&n2, nl->type, res);
-		cgen(nl, &n2);
+		if(nl->ullman >= nr->ullman) {
+			regalloc(&n2, nl->type, res);
+			cgen(nl, &n2);
+			regalloc(&n1, nr->type, N);
+			cgen(nr, &n1);
+		} else {
+			regalloc(&n1, nr->type, N);
+			cgen(nr, &n1);
+			regalloc(&n2, nl->type, res);
+			cgen(nl, &n2);
+		}
 	}
 
 	// test for shift being 0
@@ -521,7 +549,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	p3 = gbranch(ABEQ, T);
 
 	// test and fix up large shifts
-	regalloc(&n3, nr->type, N);
+	regalloc(&n3, tr, N);
 	nodconst(&t, types[TUINT32], w);
 	gmove(&t, &n3);
 	gcmp(ACMP, &n1, &n3);

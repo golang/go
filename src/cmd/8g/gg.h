@@ -9,7 +9,7 @@
 #include "../8l/8.out.h"
 
 #ifndef	EXTERN
-#define EXTERN	extern
+#define	EXTERN	extern
 #endif
 
 typedef	struct	Addr	Addr;
