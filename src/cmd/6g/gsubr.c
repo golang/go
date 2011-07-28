@@ -473,6 +473,7 @@ fatal("shouldnt be used");
 		n->xoffset += types[tptr]->width;
 		break;
 	}
+	n->typecheck = 1;
 	return n;
 }
 
@@ -986,7 +987,6 @@ gins(int as, Node *f, Node *t)
 		p->to = at;
 	if(debug['g'])
 		print("%P\n", p);
-
 
 	w = 0;
 	switch(as) {

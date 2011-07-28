@@ -865,7 +865,7 @@ mkvar(Reg *r, Adr *a)
 			if(v->width == w)
 				return blsh(i);
 
-			// if they overlaps, disable both
+			// if they overlap, disable both
 			if(overlap(v->offset, v->width, o, w)) {
 				if(debug['R'])
 					print("disable %s\n", v->sym->name);
@@ -874,8 +874,6 @@ mkvar(Reg *r, Adr *a)
 			}
 		}
 	}
-	if(a->pun)
-		flag = 1;
 
 	switch(et) {
 	case 0:
@@ -902,7 +900,7 @@ mkvar(Reg *r, Adr *a)
 	v->node = a->node;
 
 	if(debug['R'])
-		print("bit=%2d et=%2d w=%d %S %D flag=%d\n", i, et, w, s, a, v->addr);
+		print("bit=%2d et=%2d w=%d+%d %S %D flag=%d\n", i, et, o, w, s, a, v->addr);
 	ostats.nvar++;
 
 	bit = blsh(i);

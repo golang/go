@@ -497,6 +497,7 @@ fp:
 		n->class = PPARAM;
 		break;
 	}
+	n->typecheck = 1;
 	return n;
 }
 
@@ -1173,6 +1174,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 	a->name = D_NONE;
 	a->reg = NREG;
 	a->node = N;
+	a->etype = 0;
 	if(n == N)
 		return;
 
@@ -1308,6 +1310,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 	case OLEN:
 		// len of string or slice
 		naddr(n->left, a, canemitcode);
+		a->etype = TINT32;
 		if(a->type == D_CONST && a->offset == 0)
 			break;	// len(nil)
 		a->offset += Array_nel;
@@ -1318,6 +1321,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 	case OCAP:
 		// cap of string or slice
 		naddr(n->left, a, canemitcode);
+		a->etype = TINT32;
 		if(a->type == D_CONST && a->offset == 0)
 			break;	// cap(nil)
 		a->offset += Array_cap;
@@ -1327,6 +1331,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 
 	case OADDR:
 		naddr(n->left, a, canemitcode);
+		a->etype = tptr;
 		switch(a->type) {
 		case D_OREG:
 			a->type = D_CONST;
@@ -1819,6 +1824,7 @@ odot:
 
 	a->type = D_NONE;
 	a->name = D_NONE;
+	n1.type = n->type;
 	naddr(&n1, a, 1);
 	goto yes;
 
@@ -1946,7 +1952,6 @@ oindex:
 	a->type = D_OREG;
 	a->reg = reg->val.u.reg;
 	a->offset = 0;
-
 	goto yes;
 
 oindex_const:

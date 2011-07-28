@@ -620,9 +620,9 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 void
 cgen_shift(int op, Node *nl, Node *nr, Node *res)
 {
-	Node n1, n2, cx, oldcx;
+	Node n1, n2, nt, cx, oldcx, hi, lo;
 	int a, w;
-	Prog *p1;
+	Prog *p1, *p2;
 	uvlong sc;
 
 	if(nl->type->width > 4)
@@ -656,8 +656,13 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		gmove(&cx, &oldcx);
 	}
 
-	nodreg(&n1, types[TUINT32], D_CX);
-	regalloc(&n1, nr->type, &n1);		// to hold the shift type in CX
+	if(nr->type->width > 4) {
+		tempname(&nt, nr->type);
+		n1 = nt;
+	} else {
+		nodreg(&n1, types[TUINT32], D_CX);
+		regalloc(&n1, nr->type, &n1);		// to hold the shift type in CX
+	}
 
 	if(samereg(&cx, res))
 		regalloc(&n2, nl->type, N);
@@ -672,8 +677,21 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	}
 
 	// test and fix up large shifts
-	gins(optoas(OCMP, nr->type), &n1, ncon(w));
-	p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+	if(nr->type->width > 4) {
+		// delayed reg alloc
+		nodreg(&n1, types[TUINT32], D_CX);
+		regalloc(&n1, types[TUINT32], &n1);		// to hold the shift type in CX
+		split64(&nt, &lo, &hi);
+		gmove(&lo, &n1);
+		gins(optoas(OCMP, types[TUINT32]), &hi, ncon(0));
+		p2 = gbranch(optoas(ONE, types[TUINT32]), T);
+		gins(optoas(OCMP, types[TUINT32]), &n1, ncon(w));
+		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+		patch(p2, pc);
+	} else {
+		gins(optoas(OCMP, nr->type), &n1, ncon(w));
+		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+	}
 	if(op == ORSH && issigned[nl->type->etype]) {
 		gins(a, ncon(w-1), &n2);
 	} else {

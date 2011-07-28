@@ -158,7 +158,7 @@ cgen64(Node *n, Node *res)
 		gins(AMOVW, &hi2, &ch);
 		gins(AMOVW, &lo2, &cl);
 
-		// bl * cl
+		// bl * cl -> ah al
 		p1 = gins(AMULLU, N, N);
 		p1->from.type = D_REG;
 		p1->from.reg = bl.val.u.reg;
@@ -168,7 +168,7 @@ cgen64(Node *n, Node *res)
 		p1->to.offset = al.val.u.reg;
 //print("%P\n", p1);
 
-		// bl * ch
+		// bl * ch + ah -> ah
 		p1 = gins(AMULA, N, N);
 		p1->from.type = D_REG;
 		p1->from.reg = bl.val.u.reg;
@@ -178,7 +178,7 @@ cgen64(Node *n, Node *res)
 		p1->to.offset = ah.val.u.reg;
 //print("%P\n", p1);
 
-		// bh * cl
+		// bh * cl + ah -> ah
 		p1 = gins(AMULA, N, N);
 		p1->from.type = D_REG;
 		p1->from.reg = bh.val.u.reg;
