@@ -138,7 +138,7 @@ type makedata struct {
 	Imports   []string // gc/ld import paths
 }
 
-var makefileTemplate = template.New("Makefile").MustParse(`
+var makefileTemplate = template.Must(template.New("Makefile").Parse(`
 include $(GOROOT)/src/Make.inc
 
 TARG={{.Targ}}
@@ -172,4 +172,4 @@ GCIMPORTS={{range .Imports}}-I "{{.}}" {{end}}
 LDIMPORTS={{range .Imports}}-L "{{.}}" {{end}}
 
 include $(GOROOT)/src/Make.{{.Type}}
-`)
+`))
