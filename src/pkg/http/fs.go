@@ -102,8 +102,10 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	const indexPage = "/index.html"
 
 	// redirect .../index.html to .../
+	// can't use Redirect() because that would make the path absolute,
+	// which would be a problem running under StripPrefix
 	if strings.HasSuffix(r.URL.Path, indexPage) {
-		Redirect(w, r, r.URL.Path[0:len(r.URL.Path)-len(indexPage)+1], StatusMovedPermanently)
+		localRedirect(w, r, "./")
 		return
 	}
 
@@ -128,12 +130,12 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 		url := r.URL.Path
 		if d.IsDirectory() {
 			if url[len(url)-1] != '/' {
-				Redirect(w, r, url+"/", StatusMovedPermanently)
+				localRedirect(w, r, path.Base(url)+"/")
 				return
 			}
 		} else {
 			if url[len(url)-1] == '/' {
-				Redirect(w, r, url[0:len(url)-1], StatusMovedPermanently)
+				localRedirect(w, r, "../"+path.Base(url))
 				return
 			}
 		}
@@ -219,6 +221,16 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	if r.Method != "HEAD" {
 		io.Copyn(w, f, size)
 	}
+}
+
+// localRedirect gives a Moved Permanently response.
+// It does not convert relative paths to absolute paths like Redirect does.
+func localRedirect(w ResponseWriter, r *Request, newPath string) {
+	if q := r.URL.RawQuery; q != "" {
+		newPath += "?" + q
+	}
+	w.Header().Set("Location", newPath)
+	w.WriteHeader(StatusMovedPermanently)
 }
 
 // ServeFile replies to the request with the contents of the named file or directory.
