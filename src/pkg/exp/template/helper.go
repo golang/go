@@ -35,6 +35,17 @@ func (t *Template) ParseFile(filename string) os.Error {
 	return t.Parse(string(b))
 }
 
+// ParseFileInSet is the same as ParseFile except that function bindings
+// are checked against those in the set and the template is added
+// to the set.
+func (t *Template) ParseFileInSet(filename string, set *Set) os.Error {
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	return t.ParseInSet(string(b), set)
+}
+
 // MustParseFile reads the template definition from a file and parses it to
 // construct an internal representation of the template for execution.
 // It panics if the file cannot be read or the template cannot be parsed.
@@ -50,6 +61,15 @@ func (t *Template) MustParseFile(filename string) *Template {
 func ParseFile(filename string) (*Template, os.Error) {
 	t := New(filepath.Base(filename))
 	return t, t.ParseFile(filename)
+}
+
+// ParseFileInSet creates a new Template and parses the template
+// definition from the named file. The template name is the base name
+// of the file. It also adds the template to the set. Function bindings are
+//checked against those in the set.
+func ParseFileInSet(filename string, set *Set) (*Template, os.Error) {
+	t := New(filepath.Base(filename))
+	return t, t.ParseFileInSet(filename, set)
 }
 
 // MustParseFile creates a new Template and parses the template definition
@@ -179,11 +199,8 @@ func MustParseSetFiles(pattern string) *Set {
 // encountered.
 func (s *Set) ParseTemplateFile(filenames ...string) os.Error {
 	for _, filename := range filenames {
-		t, err := ParseFile(filename)
+		_, err := ParseFileInSet(filename, s)
 		if err != nil {
-			return err
-		}
-		if err := s.add(t); err != nil {
 			return err
 		}
 	}
@@ -216,11 +233,8 @@ func (s *Set) ParseTemplateFiles(pattern string) os.Error {
 		return err
 	}
 	for _, filename := range filenames {
-		t, err := ParseFile(filename)
+		_, err := ParseFileInSet(filename, s)
 		if err != nil {
-			return err
-		}
-		if err := s.add(t); err != nil {
 			return err
 		}
 	}
