@@ -1249,7 +1249,10 @@ fnliteral:
 		$$ = closurebody($3);
 		fixlbrace($2);
 	}
-
+|	fnlitdcl error
+	{
+		$$ = closurebody(nil);
+	}
 
 /*
  * lists of things
