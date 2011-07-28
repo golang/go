@@ -87,6 +87,30 @@ func TestServeFile(t *testing.T) {
 	}
 }
 
+var fsRedirectTestData = []struct {
+	original, redirect string
+}{
+	{"/test/index.html", "/test/"},
+	{"/test/testdata", "/test/testdata/"},
+	{"/test/testdata/file/", "/test/testdata/file"},
+}
+
+func TestFSRedirect(t *testing.T) {
+	ts := httptest.NewServer(StripPrefix("/test", FileServer(Dir("."))))
+	defer ts.Close()
+
+	for _, data := range fsRedirectTestData {
+		res, err := Get(ts.URL + data.original)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if g, e := res.Request.URL.Path, data.redirect; g != e {
+			t.Errorf("redirect from %s: got %s, want %s", data.original, g, e)
+		}
+	}
+}
+
 type testFileSystem struct {
 	open func(name string) (File, os.Error)
 }
