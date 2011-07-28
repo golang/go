@@ -362,6 +362,10 @@ func Decode(r io.Reader) (img image.Image, err os.Error) {
 
 	// Check if we have the right number of strips, offsets and counts.
 	rps := int(d.firstVal(tRowsPerStrip))
+	if rps == 0 {
+		// Assume only one strip.
+		rps = d.config.Height
+	}
 	numStrips := (d.config.Height + rps - 1) / rps
 	if rps == 0 || len(d.features[tStripOffsets]) < numStrips || len(d.features[tStripByteCounts]) < numStrips {
 		return nil, FormatError("inconsistent header")
