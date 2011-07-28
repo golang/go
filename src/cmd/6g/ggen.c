@@ -436,9 +436,6 @@ samereg(Node *a, Node *b)
 
 /*
  * generate division.
- * caller must set:
- *	ax = allocated AX register
- *	dx = allocated DX register
  * generates one of:
  *	res = nl / nr
  *	res = nl % nr
@@ -447,17 +444,35 @@ samereg(Node *a, Node *b)
 void
 dodiv(int op, Node *nl, Node *nr, Node *res)
 {
-	int a;
-	Node n3, n4;
+	int a, check;
+	Node n3, n4, n5;
 	Type *t;
 	Node ax, dx, oldax, olddx;
+	Prog *p1, *p2, *p3;
 
+	// Have to be careful about handling
+	// most negative int divided by -1 correctly.
+	// The hardware will trap.
+	// Also the byte divide instruction needs AH,
+	// which we otherwise don't have to deal with.
+	// Easiest way to avoid for int8, int16: use int32.
+	// For int32 and int64, use explicit test.
+	// Could use int64 hw for int32.
 	t = nl->type;
-	if(t->width == 1) {
+	check = 0;
+	if(issigned[t->etype]) {
+		check = 1;
+		if(isconst(nl, CTINT) && mpgetfix(nl->val.u.xval) != -1LL<<(t->width*8-1))
+			check = 0;
+		else if(isconst(nr, CTINT) && mpgetfix(nr->val.u.xval) != -1)
+			check = 0;
+	}
+	if(t->width < 4) {
 		if(issigned[t->etype])
 			t = types[TINT32];
 		else
 			t = types[TUINT32];
+		check = 0;
 	}
 	a = optoas(op, t);
 
@@ -473,6 +488,31 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
 		savex(D_AX, &ax, &oldax, res, t);
 		cgen(nl, &ax);
 	}
+	p3 = P;
+	if(check) {
+		nodconst(&n4, t, -1);
+		gins(optoas(OCMP, t), &n3, &n4);
+		p1 = gbranch(optoas(ONE, t), T);
+		nodconst(&n4, t, -1LL<<(t->width*8-1));
+		if(t->width == 8) {
+			n5 = n4;
+			regalloc(&n4, t, N);
+			gins(AMOVQ, &n5, &n4);
+		}
+		gins(optoas(OCMP, t), &ax, &n4);
+		p2 = gbranch(optoas(ONE, t), T);
+		if(op == ODIV)
+			gmove(&n4, res);
+		if(t->width == 8)
+			regfree(&n4);
+		if(op == OMOD) {
+			nodconst(&n4, t, 0);
+			gmove(&n4, res);
+		}
+		p3 = gbranch(AJMP, T);
+		patch(p1, pc);
+		patch(p2, pc);
+	}
 	savex(D_DX, &dx, &olddx, res, t);
 	if(!issigned[t->etype]) {
 		nodconst(&n4, t, 0);
@@ -481,13 +521,14 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
 		gins(optoas(OEXTEND, t), N, N);
 	gins(a, &n3, N);
 	regfree(&n3);
-
 	if(op == ODIV)
 		gmove(&ax, res);
 	else
 		gmove(&dx, res);
-	restx(&ax, &oldax);
 	restx(&dx, &olddx);
+	if(check)
+		patch(p3, pc);
+	restx(&ax, &oldax);
 }
 
 /*
