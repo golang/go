@@ -146,17 +146,18 @@ typecheck(Node **np, int top)
 		case OPACK:
 			break;
 		default:
+			lineno = lno;
 			return n;
 		}
 	}
 
 	if(n->typecheck == 2) {
 		yyerror("typechecking loop");
+		lineno = lno;
 		return n;
 	}
 	n->typecheck = 2;
 
-	lno = setlineno(n);
 	if(n->sym) {
 		if(n->op == ONAME && n->etype != 0 && !(top & Ecall)) {
 			yyerror("use of builtin %S not in function call", n->sym);

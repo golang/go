@@ -254,7 +254,7 @@ main(int argc, char *argv[])
 	resumetypecopy();
 	resumecheckwidth();
 
-	for(l=xtop; l; l=l->next)
+	for(l=xtop; l; l=l->next) {
 		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE) {
 			curfn = l->n;
 			saveerrors();
@@ -262,7 +262,12 @@ main(int argc, char *argv[])
 			if(nerrors != 0)
 				l->n->nbody = nil;  // type errors; do not compile
 		}
+	}
+
 	curfn = nil;
+	
+	if(nsavederrors+nerrors)
+		errorexit();
 
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
