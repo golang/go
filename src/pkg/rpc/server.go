@@ -196,12 +196,14 @@ func isExported(name string) bool {
 	return unicode.IsUpper(rune)
 }
 
-// Is this type exported or local to this package?
-func isExportedOrLocalType(t reflect.Type) bool {
+// Is this type exported or a builtin?
+func isExportedOrBuiltinType(t reflect.Type) bool {
 	for t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
-	return t.PkgPath() == "" || isExported(t.Name())
+	// PkgPath will be non-empty even for an exported type,
+	// so we need to check the type name as well.
+	return isExported(t.Name()) || t.PkgPath() == ""
 }
 
 // Register publishes in the server the set of methods of the
@@ -239,7 +241,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 	if sname == "" {
 		log.Fatal("rpc: no service name for type", s.typ.String())
 	}
-	if s.typ.PkgPath() != "" && !isExported(sname) && !useName {
+	if !isExported(sname) && !useName {
 		s := "rpc Register: type " + sname + " is not exported"
 		log.Print(s)
 		return os.NewError(s)
@@ -255,7 +257,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 		method := s.typ.Method(m)
 		mtype := method.Type
 		mname := method.Name
-		if mtype.PkgPath() != "" || !isExported(mname) {
+		if method.PkgPath != "" {
 			continue
 		}
 		// Method needs three ins: receiver, *args, *reply.
@@ -265,7 +267,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 		}
 		// First arg need not be a pointer.
 		argType := mtype.In(1)
-		if !isExportedOrLocalType(argType) {
+		if !isExportedOrBuiltinType(argType) {
 			log.Println(mname, "argument type not exported or local:", argType)
 			continue
 		}
@@ -275,7 +277,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 			log.Println("method", mname, "reply type not a pointer:", replyType)
 			continue
 		}
-		if !isExportedOrLocalType(replyType) {
+		if !isExportedOrBuiltinType(replyType) {
 			log.Println("method", mname, "reply type not exported or local:", replyType)
 			continue
 		}
