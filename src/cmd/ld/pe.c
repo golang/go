@@ -76,7 +76,7 @@ static Sym *dexport[1024];
 static int nexport;
 
 static IMAGE_SECTION_HEADER*
-addpesection(char *name, int sectsize, int filesize, Segment *s)
+addpesection(char *name, int sectsize, int filesize)
 {
 	IMAGE_SECTION_HEADER *h;
 
@@ -94,17 +94,29 @@ addpesection(char *name, int sectsize, int filesize, Segment *s)
 		h->SizeOfRawData = rnd(filesize, PEFILEALIGN);
 		nextfileoff += h->SizeOfRawData;
 	}
-	if(s) {
-		if(s->vaddr-PEBASE != h->VirtualAddress) {
-			diag("%s.VirtualAddress = %#llux, want %#llux", name, (vlong)h->VirtualAddress, (vlong)(s->vaddr-PEBASE));
-			errorexit();
-		}
-		if(s->fileoff != h->PointerToRawData) {
-			diag("%s.PointerToRawData = %#llux, want %#llux", name, (vlong)h->PointerToRawData, (vlong)(s->fileoff));
-			errorexit();
-		}
-	}
 	return h;
+}
+
+static void
+chksectoff(IMAGE_SECTION_HEADER *h, vlong off)
+{
+	if(off != h->PointerToRawData) {
+		diag("%s.PointerToRawData = %#llux, want %#llux", h->Name, (vlong)h->PointerToRawData, off);
+		errorexit();
+	}
+}
+
+static void
+chksectseg(IMAGE_SECTION_HEADER *h, Segment *s)
+{
+	if(s->vaddr-PEBASE != h->VirtualAddress) {
+		diag("%s.VirtualAddress = %#llux, want %#llux", h->Name, (vlong)h->VirtualAddress, (vlong)(s->vaddr-PEBASE));
+		errorexit();
+	}
+	if(s->fileoff != h->PointerToRawData) {
+		diag("%s.PointerToRawData = %#llux, want %#llux", h->Name, (vlong)h->PointerToRawData, (vlong)(s->fileoff));
+		errorexit();
+	}
 }
 
 void
@@ -138,7 +150,6 @@ pewrite(void)
 	cseek(0);
 	cwrite(dosstub, sizeof dosstub);
 	strnput("PE", 4);
-	cflush();
 	// TODO: This code should not assume that the
 	// memory representation is little-endian or
 	// that the structs are packed identically to
@@ -213,39 +224,41 @@ initdynimport(void)
 }
 
 static void
-addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
+addimports(IMAGE_SECTION_HEADER *datsect)
 {
 	IMAGE_SECTION_HEADER *isect;
 	uvlong n, oftbase, ftbase;
+	vlong startoff, endoff;
 	Imp *m;
 	Dll *d;
 	Sym* dynamic;
 	
+	startoff = cpos();
 	dynamic = lookup(".windynamic", 0);
 
 	// skip import descriptor table (will write it later)
 	n = 0;
 	for(d = dr; d != nil; d = d->next)
 		n++;
-	cseek(fileoff + sizeof(IMAGE_IMPORT_DESCRIPTOR) * (n + 1));
+	cseek(startoff + sizeof(IMAGE_IMPORT_DESCRIPTOR) * (n + 1));
 
 	// write dll names
 	for(d = dr; d != nil; d = d->next) {
-		d->nameoff = cpos() - fileoff;
+		d->nameoff = cpos() - startoff;
 		strput(d->name);
 	}
 
 	// write function names
 	for(d = dr; d != nil; d = d->next) {
 		for(m = d->ms; m != nil; m = m->next) {
-			m->off = nextsectoff + cpos() - fileoff;
+			m->off = nextsectoff + cpos() - startoff;
 			wputl(0); // hint
 			strput(m->s->dynimpname);
 		}
 	}
 	
 	// write OriginalFirstThunks
-	oftbase = cpos() - fileoff;
+	oftbase = cpos() - startoff;
 	n = cpos();
 	for(d = dr; d != nil; d = d->next) {
 		d->thunkoff = cpos() - n;
@@ -255,12 +268,13 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 	}
 
 	// add pe section and pad it at the end
-	n = cpos() - fileoff;
-	isect = addpesection(".idata", n, n, 0);
+	n = cpos() - startoff;
+	isect = addpesection(".idata", n, n);
 	isect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
+	chksectoff(isect, startoff);
 	strnput("", isect->SizeOfRawData - n);
-	cflush();
+	endoff = cpos();
 
 	// write FirstThunks (allocated in .data section)
 	ftbase = dynamic->value - datsect->VirtualAddress - PEBASE;
@@ -270,10 +284,9 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 			put(m->off);
 		put(0);
 	}
-	cflush();
 	
 	// finally write import descriptor table
-	cseek(fileoff);
+	cseek(startoff);
 	for(d = dr; d != nil; d = d->next) {
 		lputl(isect->VirtualAddress + oftbase + d->thunkoff);
 		lputl(0);
@@ -286,7 +299,6 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 	lputl(0);
 	lputl(0);
 	lputl(0);
-	cflush();
 	
 	// update data directory
 	dd[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = isect->VirtualAddress;
@@ -294,7 +306,7 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
 	dd[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = dynamic->value - PEBASE;
 	dd[IMAGE_DIRECTORY_ENTRY_IAT].Size = dynamic->size;
 
-	cseekend();
+	cseek(endoff);
 }
 
 static int
@@ -329,7 +341,7 @@ initdynexport(void)
 }
 
 void
-addexports(vlong fileoff)
+addexports(void)
 {
 	IMAGE_SECTION_HEADER *sect;
 	IMAGE_EXPORT_DIRECTORY e;
@@ -342,13 +354,13 @@ addexports(vlong fileoff)
 	if (nexport == 0)
 		return;
 		
-	sect = addpesection(".edata", size, size, 0);
+	sect = addpesection(".edata", size, size);
 	sect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_MEM_READ;
+	chksectoff(sect, cpos());
 	va = sect->VirtualAddress;
 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = va;
 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect->VirtualSize;
 
-	cseek(fileoff);
 	va_name = va + sizeof e + nexport*4;
 	va_addr = va + sizeof e;
 	va_na = va + sizeof e + nexport*8;
@@ -383,9 +395,6 @@ addexports(vlong fileoff)
 	for(i=0; i<nexport; i++)
 		strnput(dexport[i]->dynimpname, strlen(dexport[i]->dynimpname)+1);
 	strnput("", sect->SizeOfRawData - size);
-	cflush();
-
-	cseekend();
 }
 
 void
@@ -428,7 +437,7 @@ newPEDWARFSection(char *name, vlong size)
 	nextsymoff += strlen(name);
 	symnames[nextsymoff] = 0;
 	nextsymoff ++;
-	h = addpesection(s, size, size, 0);
+	h = addpesection(s, size, size);
 	h->Characteristics = IMAGE_SCN_MEM_READ|
 		IMAGE_SCN_MEM_DISCARDABLE;
 
@@ -445,9 +454,10 @@ addsymtable(void)
 		return;
 	
 	size  = nextsymoff + 4;
-	h = addpesection(".symtab", size, size, 0);
+	h = addpesection(".symtab", size, size);
 	h->Characteristics = IMAGE_SCN_MEM_READ|
 		IMAGE_SCN_MEM_DISCARDABLE;
+	chksectoff(h, cpos());
 	fh.PointerToSymbolTable = cpos();
 	fh.NumberOfSymbols = 0;
 	// put symbol string table
@@ -455,7 +465,6 @@ addsymtable(void)
 	for (i=0; i<nextsymoff; i++)
 		cput(symnames[i]);
 	strnput("", h->SizeOfRawData - size);
-	cflush();
 }
 
 void
@@ -478,9 +487,10 @@ addpersrc(void)
 	if(rsrcsym == nil)
 		return;
 	
-	h = addpesection(".rsrc", rsrcsym->size, rsrcsym->size, 0);
+	h = addpesection(".rsrc", rsrcsym->size, rsrcsym->size);
 	h->Characteristics = IMAGE_SCN_MEM_READ|
 		IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA;
+	chksectoff(h, cpos());
 	// relocation
 	for(r=rsrcsym->r; r<rsrcsym->r+rsrcsym->nr; r++) {
 		p = rsrcsym->p + r->off;
@@ -493,7 +503,6 @@ addpersrc(void)
 	}
 	cwrite(rsrcsym->p, rsrcsym->size);
 	strnput("", h->SizeOfRawData - rsrcsym->size);
-	cflush();
 
 	// update data directory
 	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h->VirtualAddress;
@@ -517,24 +526,24 @@ asmbpe(void)
 		break;
 	}
 
-	t = addpesection(".text", segtext.len, segtext.len, &segtext);
+	t = addpesection(".text", segtext.len, segtext.len);
 	t->Characteristics = IMAGE_SCN_CNT_CODE|
 		IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ;
+	chksectseg(t, &segtext);
 
-	d = addpesection(".data", segdata.len, segdata.filelen, &segdata);
+	d = addpesection(".data", segdata.len, segdata.filelen);
 	d->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
+	chksectseg(d, &segdata);
 
 	if(!debug['s'])
 		dwarfaddpeheaders();
 
-	addimports(nextfileoff, d);
-	
-	addexports(nextfileoff);
-	
+	cseek(nextfileoff);
+	addimports(d);
+	addexports();
 	addsymtable();
-	
 	addpersrc();
 	
 	fh.NumberOfSections = nsect;
