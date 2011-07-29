@@ -123,7 +123,7 @@ func isText(s []byte) bool {
 			// last char may be incomplete - ignore
 			break
 		}
-		if c == 0xFFFD || c < ' ' && c != '\n' && c != '\t' {
+		if c == 0xFFFD || c < ' ' && c != '\n' && c != '\t' && c != '\f' {
 			// decoding error or control character - not a text file
 			return false
 		}
