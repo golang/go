@@ -22,9 +22,31 @@ TEXT runtime·exit1(SB),7,$0
 	INT $3	// not reached
 	RET
 
+TEXT runtime·open(SB),7,$0
+	MOVL	$5, AX		// syscall - open
+	MOVL	4(SP), BX
+	MOVL	8(SP), CX
+	MOVL	12(SP), DX
+	INT	$0x80
+	RET
+
+TEXT runtime·close(SB),7,$0
+	MOVL	$6, AX		// syscall - close
+	MOVL	4(SP), BX
+	INT	$0x80
+	RET
+
 TEXT runtime·write(SB),7,$0
 	MOVL	$4, AX		// syscall - write
-	MOVL	4(SP),  BX
+	MOVL	4(SP), BX
+	MOVL	8(SP), CX
+	MOVL	12(SP), DX
+	INT	$0x80
+	RET
+
+TEXT runtime·read(SB),7,$0
+	MOVL	$3, AX		// syscall - read
+	MOVL	4(SP), BX
 	MOVL	8(SP), CX
 	MOVL	12(SP), DX
 	INT	$0x80
@@ -314,4 +336,9 @@ TEXT runtime·setldt(SB),7,$32
 	ADDL	$7, AX
 	MOVW	AX, GS
 
+	RET
+
+TEXT runtime·osyield(SB),7,$0
+	MOVL	$158, AX
+	INT	$0x80
 	RET

@@ -131,7 +131,10 @@ struct	Usema
 union	Note
 {
 	struct {	// Linux
-		Lock	lock;
+		uint32	state;
+	};
+	struct {	// Windows
+		Lock lock;
 	};
 	struct {	// OS X
 		int32	wakeup;
@@ -382,6 +385,7 @@ extern	bool	runtime·iscgo;
  * common functions and data
  */
 int32	runtime·strcmp(byte*, byte*);
+byte*	runtime·strstr(byte*, byte*);
 int32	runtime·findnull(byte*);
 int32	runtime·findnullw(uint16*);
 void	runtime·dump(byte*, int32);
@@ -427,6 +431,7 @@ bool	runtime·casp(void**, void*, void*);
 // Don't confuse with XADD x86 instruction,
 // this one is actually 'addx', that is, add-and-fetch.
 uint32	runtime·xadd(uint32 volatile*, int32);
+uint32	runtime·xchg(uint32 volatile*, uint32);
 uint32	runtime·atomicload(uint32 volatile*);
 void*	runtime·atomicloadp(void* volatile*);
 void	runtime·atomicstorep(void* volatile*, void*);
@@ -596,6 +601,8 @@ void	runtime·semacquire(uint32*);
 void	runtime·semrelease(uint32*);
 String	runtime·signame(int32 sig);
 int32	runtime·gomaxprocsfunc(int32 n);
+void	runtime·procyield(uint32);
+void	runtime·osyield(void);
 
 void	runtime·mapassign(Hmap*, byte*, byte*);
 void	runtime·mapaccess(Hmap*, byte*, byte*, bool*);

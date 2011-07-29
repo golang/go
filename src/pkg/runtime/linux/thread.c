@@ -8,6 +8,11 @@
 #include "stack.h"
 
 extern SigTab runtime·sigtab[];
+static int32 proccount;
+
+int32 runtime·open(uint8*, int32, int32);
+int32 runtime·close(int32);
+int32 runtime·read(int32, void*, int32);
 
 // Linux futex.
 //
@@ -15,11 +20,19 @@ extern SigTab runtime·sigtab[];
 //	futexwakeup(uint32 *addr)
 //
 // Futexsleep atomically checks if *addr == val and if so, sleeps on addr.
-// Futexwakeup wakes up one thread sleeping on addr.
+// Futexwakeup wakes up threads sleeping on addr.
 // Futexsleep is allowed to wake up spuriously.
 
 enum
 {
+	MUTEX_UNLOCKED = 0,
+	MUTEX_LOCKED = 1,
+	MUTEX_SLEEPING = 2,
+
+	ACTIVE_SPIN = 4,
+	ACTIVE_SPIN_CNT = 30,
+	PASSIVE_SPIN = 1,
+
 	FUTEX_WAIT = 0,
 	FUTEX_WAKE = 1,
 
@@ -52,13 +65,13 @@ futexsleep(uint32 *addr, uint32 val)
 	runtime·futex(addr, FUTEX_WAIT, val, &longtime, nil, 0);
 }
 
-// If any procs are sleeping on addr, wake up at least one.
+// If any procs are sleeping on addr, wake up at most cnt.
 static void
-futexwakeup(uint32 *addr)
+futexwakeup(uint32 *addr, uint32 cnt)
 {
 	int64 ret;
 
-	ret = runtime·futex(addr, FUTEX_WAKE, 1, nil, nil, 0);
+	ret = runtime·futex(addr, FUTEX_WAKE, cnt, nil, nil, 0);
 
 	if(ret >= 0)
 		return;
@@ -66,70 +79,96 @@ futexwakeup(uint32 *addr)
 	// I don't know that futex wakeup can return
 	// EAGAIN or EINTR, but if it does, it would be
 	// safe to loop and call futex again.
-
-	runtime·prints("futexwakeup addr=");
-	runtime·printpointer(addr);
-	runtime·prints(" returned ");
-	runtime·printint(ret);
-	runtime·prints("\n");
+	runtime·printf("futexwakeup addr=%p returned %D\n", addr, ret);
 	*(int32*)0x1006 = 0x1006;
 }
 
+static int32
+getproccount(void)
+{
+	int32 fd, rd, cnt, cpustrlen;
+	byte *cpustr, *pos, *bufpos;
+	byte buf[256];
 
-// Lock and unlock.
-//
-// The lock state is a single 32-bit word that holds
-// a 31-bit count of threads waiting for the lock
-// and a single bit (the low bit) saying whether the lock is held.
-// The uncontended case runs entirely in user space.
-// When contention is detected, we defer to the kernel (futex).
-//
-// A reminder: compare-and-swap runtime·cas(addr, old, new) does
-//	if(*addr == old) { *addr = new; return 1; }
-//	else return 0;
-// but atomically.
+	fd = runtime·open((byte*)"/proc/stat", O_RDONLY|O_CLOEXEC, 0);
+	if(fd == -1)
+		return 1;
+	cnt = 0;
+	bufpos = buf;
+	cpustr = (byte*)"\ncpu";
+	cpustrlen = runtime·findnull(cpustr);
+	for(;;) {
+		rd = runtime·read(fd, bufpos, sizeof(buf)-cpustrlen);
+		if(rd == -1)
+			break;
+		bufpos[rd] = 0;
+		for(pos=buf; pos=runtime·strstr(pos, cpustr); cnt++, pos++) {
+		}
+		if(rd < cpustrlen)
+			break;
+		runtime·memmove(buf, bufpos+rd-cpustrlen+1, cpustrlen-1);
+		bufpos = buf+cpustrlen-1;
+	}
+	runtime·close(fd);
+	return cnt ? cnt : 1;
+}
 
+// Possible lock states are MUTEX_UNLOCKED, MUTEX_LOCKED and MUTEX_SLEEPING.
+// MUTEX_SLEEPING means that there is presumably at least one sleeping thread.
+// Note that there can be spinning threads during all states - they do not
+// affect mutex's state.
 static void
 futexlock(Lock *l)
 {
-	uint32 v;
+	uint32 i, v, wait, spin;
 
-again:
-	v = l->key;
-	if((v&1) == 0){
-		if(runtime·cas(&l->key, v, v|1)){
-			// Lock wasn't held; we grabbed it.
-			return;
+	// Speculative grab for lock.
+	v = runtime·xchg(&l->key, MUTEX_LOCKED);
+	if(v == MUTEX_UNLOCKED)
+		return;
+
+	// wait is either MUTEX_LOCKED or MUTEX_SLEEPING
+	// depending on whether there is a thread sleeping
+	// on this mutex.  If we ever change l->key from
+	// MUTEX_SLEEPING to some other value, we must be
+	// careful to change it back to MUTEX_SLEEPING before
+	// returning, to ensure that the sleeping thread gets
+	// its wakeup call.
+	wait = v;
+
+	if(proccount == 0)
+		proccount = getproccount();
+
+	// On uniprocessor's, no point spinning.
+	// On multiprocessors, spin for ACTIVE_SPIN attempts.
+	spin = 0;
+	if(proccount > 1)
+		spin = ACTIVE_SPIN;
+
+	for(;;) {
+		// Try for lock, spinning.
+		for(i = 0; i < spin; i++) {
+			while(l->key == MUTEX_UNLOCKED)
+				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
+						return;
+			runtime·procyield(ACTIVE_SPIN_CNT);
 		}
-		goto again;
+
+		// Try for lock, rescheduling.
+		for(i=0; i < PASSIVE_SPIN; i++) {
+			while(l->key == MUTEX_UNLOCKED)
+				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
+					return;
+			runtime·osyield();
+		}
+
+		// Sleep.
+		v = runtime·xchg(&l->key, MUTEX_SLEEPING);
+		if(v == MUTEX_UNLOCKED)
+			return;
+		wait = MUTEX_SLEEPING;
+		futexsleep(&l->key, MUTEX_SLEEPING);
 	}
-
-	// Lock was held; try to add ourselves to the waiter count.
-	if(!runtime·cas(&l->key, v, v+2))
-		goto again;
-
-	// We're accounted for, now sleep in the kernel.
-	//
-	// We avoid the obvious lock/unlock race because
-	// the kernel won't put us to sleep if l->key has
-	// changed underfoot and is no longer v+2.
-	//
-	// We only really care that (v&1) == 1 (the lock is held),
-	// and in fact there is a futex variant that could
-	// accommodate that check, but let's not get carried away.)
-	futexsleep(&l->key, v+2);
-
-	// We're awake: remove ourselves from the count.
-	for(;;){
-		v = l->key;
-		if(v < 2)
-			runtime·throw("bad lock key");
-		if(runtime·cas(&l->key, v, v-2))
-			break;
-	}
-
-	// Try for the lock again.
-	goto again;
 }
 
 static void
@@ -137,34 +176,26 @@ futexunlock(Lock *l)
 {
 	uint32 v;
 
-	// Atomically get value and clear lock bit.
-again:
-	v = l->key;
-	if((v&1) == 0)
+	v = runtime·xchg(&l->key, MUTEX_UNLOCKED);
+	if(v == MUTEX_UNLOCKED)
 		runtime·throw("unlock of unlocked lock");
-	if(!runtime·cas(&l->key, v, v&~1))
-		goto again;
-
-	// If there were waiters, wake one.
-	if(v & ~1)
-		futexwakeup(&l->key);
+	if(v == MUTEX_SLEEPING)
+		futexwakeup(&l->key, 1);
 }
 
 void
 runtime·lock(Lock *l)
 {
-	if(m->locks < 0)
-		runtime·throw("lock count");
-	m->locks++;
+	if(m->locks++ < 0)
+		runtime·throw("runtime·lock: lock count");
 	futexlock(l);
 }
 
 void
 runtime·unlock(Lock *l)
 {
-	m->locks--;
-	if(m->locks < 0)
-		runtime·throw("lock count");
+	if(--m->locks < 0)
+		runtime·throw("runtime·unlock: lock count");
 	futexunlock(l);
 }
 
@@ -175,35 +206,24 @@ runtime·destroylock(Lock*)
 
 
 // One-time notifications.
-//
-// Since the lock/unlock implementation already
-// takes care of sleeping in the kernel, we just reuse it.
-// (But it's a weird use, so it gets its own interface.)
-//
-// We use a lock to represent the event:
-// unlocked == event has happened.
-// Thus the lock starts out locked, and to wait for the
-// event you try to lock the lock.  To signal the event,
-// you unlock the lock.
-
 void
 runtime·noteclear(Note *n)
 {
-	n->lock.key = 0;	// memset(n, 0, sizeof *n)
-	futexlock(&n->lock);
+	n->state = 0;
 }
 
 void
 runtime·notewakeup(Note *n)
 {
-	futexunlock(&n->lock);
+	runtime·xchg(&n->state, 1);
+	futexwakeup(&n->state, 1<<30);
 }
 
 void
 runtime·notesleep(Note *n)
 {
-	futexlock(&n->lock);
-	futexunlock(&n->lock);	// Let other sleepers find out too.
+	while(runtime·atomicload(&n->state) == 0)
+		futexsleep(&n->state, 0);
 }
 
 

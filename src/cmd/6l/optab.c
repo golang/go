@@ -919,6 +919,7 @@ Optab optab[] =
 	{ APADDW,	ymm,	Py, 0xfd,Pe,0xfd },
 	{ APAND,	ymm,	Py, 0xdb,Pe,0xdb },
 	{ APANDN,	ymm,	Py, 0xdf,Pe,0xdf },
+	{ APAUSE,	ynone,	Px, 0xf3,0x90 },
 	{ APAVGB,	ymm,	Py, 0xe0,Pe,0xe0 },
 	{ APAVGW,	ymm,	Py, 0xe3,Pe,0xe3 },
 	{ APCMPEQB,	ymm,	Py, 0x74,Pe,0x74 },

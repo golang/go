@@ -61,6 +61,8 @@ enum {
 	ITIMER_REAL = 0,
 	ITIMER_VIRTUAL = 0x1,
 	ITIMER_PROF = 0x2,
+	O_RDONLY = 0,
+	O_CLOEXEC = 02000000,
 };
 
 // Types

@@ -203,6 +203,28 @@ runtime·strcmp(byte *s1, byte *s2)
 	}
 }
 
+byte*
+runtime·strstr(byte *s1, byte *s2)
+{
+	byte *sp1, *sp2;
+
+	if(*s2 == 0)
+		return s1;
+	for(; *s1; s1++) {
+		if(*s1 != *s2)
+			continue;
+		sp1 = s1;
+		sp2 = s2;
+		for(;;) {
+			if(*sp2 == 0)
+				return s1;
+			if(*sp1++ != *sp2++)
+				break;
+		}
+	}
+	return nil;
+}
+
 func slicestring(si String, lindex int32, hindex int32) (so String) {
 	int32 l;
 

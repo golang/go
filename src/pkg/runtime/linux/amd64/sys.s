@@ -28,11 +28,25 @@ TEXT runtime·open(SB),7,$0-16
 	SYSCALL
 	RET
 
+TEXT runtime·close(SB),7,$0-16
+	MOVL	8(SP), DI
+	MOVL	$3, AX			// syscall entry
+	SYSCALL
+	RET
+
 TEXT runtime·write(SB),7,$0-24
 	MOVL	8(SP), DI
 	MOVQ	16(SP), SI
 	MOVL	24(SP), DX
 	MOVL	$1, AX			// syscall entry
+	SYSCALL
+	RET
+
+TEXT runtime·read(SB),7,$0-24
+	MOVL	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVL	24(SP), DX
+	MOVL	$0, AX			// syscall entry
 	SYSCALL
 	RET
 
@@ -232,3 +246,7 @@ TEXT runtime·settls(SB),7,$32
 	CALL	runtime·notok(SB)
 	RET
 
+TEXT runtime·osyield(SB),7,$0
+	MOVL	$24, AX
+	SYSCALL
+	RET
