@@ -162,11 +162,17 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
 		t.Errorf("%s: mtime=%s (%d); want %s (%d)", f.Name, time.SecondsToUTC(got), got, mtime, want)
 	}
 
+	size0 := f.UncompressedSize
+
 	var b bytes.Buffer
 	r, err := f.Open()
 	if err != nil {
 		t.Error(err)
 		return
+	}
+
+	if size1 := f.UncompressedSize; size0 != size1 {
+		t.Errorf("file %q changed f.UncompressedSize from %d to %d", f.Name, size0, size1)
 	}
 
 	_, err = io.Copy(&b, r)
