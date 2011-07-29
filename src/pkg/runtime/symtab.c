@@ -420,10 +420,19 @@ runtime·findfunc(uintptr addr)
 	Func *f;
 	int32 nf, n;
 
-	runtime·lock(&funclock);
-	if(func == nil)
-		buildfuncs();
-	runtime·unlock(&funclock);
+	// Use atomic double-checked locking,
+	// because when called from pprof signal
+	// handler, findfunc must run without
+	// grabbing any locks.
+	// (Before enabling the signal handler,
+	// SetCPUProfileRate calls findfunc to trigger
+	// the initialization outside the handler.)
+	if(runtime·atomicloadp(&func) == nil) {
+		runtime·lock(&funclock);
+		if(func == nil)
+			buildfuncs();
+		runtime·unlock(&funclock);
+	}
 
 	if(nfunc == 0)
 		return nil;
