@@ -24,6 +24,9 @@ const (
 	fileHeaderSignature      = 0x04034b50
 	directoryHeaderSignature = 0x02014b50
 	directoryEndSignature    = 0x06054b50
+	fileHeaderLen            = 30 // + filename + extra
+	directoryHeaderLen       = 46 // + filename + extra + comment
+	directoryEndLen          = 22 // + comment
 	dataDescriptorLen        = 12
 )
 
