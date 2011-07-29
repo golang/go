@@ -135,16 +135,6 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	return
 }
 
-//sysnb	pipe() (r int, w int, errno int)
-
-func Pipe(p []int) (errno int) {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	p[0], p[1], errno = pipe()
-	return
-}
-
 func Sleep(ns int64) (errno int) {
 	tv := NsecToTimeval(ns)
 	return Select(0, nil, nil, nil, &tv)
