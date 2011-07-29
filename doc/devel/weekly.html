@@ -14,6 +14,54 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-07-29">2011-07-29</h2>
+
+<pre>
+This weekly contains performance improvements and many bug fixes.
+
+* 6l: OpenBSD support.
+* archive/zip: handle zip files with more than 65535 files,
+	more efficient reader and bug fix.
+* big: refine printf formatting and optimize string conversion.
+* build: fixes for mingw-w64 (thanks Wei Guangjing),
+	miscellaneous fixes.
+* cgo: add GoBytes, fix gmp example.
+* exp/norm: API for normalization library.
+* exp/regexp: implement regexp API using exp/regexp/syntax.
+* exp/template: more tweaks and fixes, convert the tree to use exp/template.
+* fmt: handle precision 0 format strings in standard way.
+* gc: a raft of bug fixes.
+* go/parser: report illegal label declarations at ':'.
+* gob: send empty but non-nil maps.
+* godoc: allow form feed in text files,
+	app engine configuration and updated documentation.
+* goinstall: abort and warn when using any url scheme, not just 'http://',
+	write to goinstall.log in respective GOPATH.
+* html: handle character entities without semicolons (thanks Andrew Balholm),
+	parse misnested formatting tags according to the HTML5 spec,
+	sync html/testdata/webkit with upstream WebKit.
+* http: content-type sniffing,
+	make serveFile redirects relative (thanks Andrew Balholm),
+	other fixes.
+* image/tiff: Do not panic when RowsPerStrip is missing (thanks Benny Siegert).
+* io/ioutil: improve performance of ioutil.Discard (thanks Mike Solomon).
+* ld: detect all import cycles,
+	ldpe fixes (thanks Wei Guangjing),
+	remove cseekend and redo pe writing (thanks Alex Brainman),
+	remove overlap of ELF sections on dynamic binaries (thanks Gustavo Niemeyer).
+* net/textproto: avoid 1 copy in ReadLine, ReadContinuedLine.
+* net: fix memory corruption in windows *netFD.ReadFrom (thanks Alex Brainman).
+* runtime: faster entersyscall/exitsyscall,
+	fix scheduler races (thanks Hector Chu),
+	higher goroutine arg limit, clearer error,
+	parallelism-related performance optimizations and fixes,
+	replace byte-at-a-time zeroing loop with memclr (thanks Quan Yong Zhai).
+* sort: fix Float64Slice sort; NaN smallest value (thanks Florian Uekermann).
+* src: removed some uses of container/vector (thanks John Asmuth).
+* sync: improve Once fast path.
+* unicode: fix case-mapping for roman numerals.
+</pre>
+
 <h2 id="2011-07-19">2011-07-19</h2>
 
 <pre>
@@ -307,7 +355,7 @@ require changes to client code.
 The sort.IntArray type has been renamed to IntSlice, and similarly for
 StringArray and Float64Array.
 
-The image/draw package’s Draw function now takes an additional argument,
+The image/draw package's Draw function now takes an additional argument,
 a compositing operator. If in doubt, use draw.Over.
 
 Other changes:
