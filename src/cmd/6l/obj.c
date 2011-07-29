@@ -50,6 +50,7 @@ Header headers[] = {
    "darwin", Hdarwin,
    "linux", Hlinux,
    "freebsd", Hfreebsd,
+   "openbsd", Hopenbsd,
    "windows", Hwindows,
    "windowsgui", Hwindows,
    0, 0
@@ -62,6 +63,7 @@ Header headers[] = {
  *	-Hdarwin -Tx -Rx		is apple MH-exec
  *	-Hlinux -Tx -Rx			is linux elf-exec
  *	-Hfreebsd -Tx -Rx		is FreeBSD elf-exec
+ *	-Hopenbsd -Tx -Rx		is OpenBSD elf-exec
  *	-Hwindows -Tx -Rx		is MS Windows PE32+
  *
  *	options used: 189BLQSWabcjlnpsvz
@@ -194,7 +196,8 @@ main(int argc, char *argv[])
 			INITDAT = 0;
 		break;
 	case Hlinux:	/* elf64 executable */
-	case Hfreebsd: /* freebsd */
+	case Hfreebsd:	/* freebsd */
+	case Hopenbsd:	/* openbsd */
 		/*
 		 * ELF uses TLS offset negative from FS.
 		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).

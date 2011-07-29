@@ -43,6 +43,7 @@
 
 char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
 char freebsddynld[] = "/libexec/ld-elf.so.1";
+char openbsddynld[] = "/usr/libexec/ld.so";
 
 char	zeroes[32];
 
@@ -554,7 +555,7 @@ doelf(void)
 {
 	Sym *s, *shstrtab, *dynstr;
 
-	if(HEADTYPE != Hlinux && HEADTYPE != Hfreebsd)
+	if(HEADTYPE != Hlinux && HEADTYPE != Hfreebsd && HEADTYPE != Hopenbsd)
 		return;
 
 	/* predefine strings we need for section headers */
@@ -746,6 +747,7 @@ asmb(void)
 		break;
 	case Hlinux:
 	case Hfreebsd:
+	case Hopenbsd:
 		debug['8'] = 1;	/* 64-bit addresses */
 		/* index of elf text section; needed by asmelfsym, double-checked below */
 		/* !debug['d'] causes extra sections before the .text section */
@@ -780,6 +782,7 @@ asmb(void)
 			break;
 		case Hlinux:
 		case Hfreebsd:
+		case Hopenbsd:
 			symo = rnd(HEADR+segtext.len, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
 			break;
@@ -849,6 +852,7 @@ asmb(void)
 		break;
 	case Hlinux:
 	case Hfreebsd:
+	case Hopenbsd:
 		/* elf amd-64 */
 
 		eh = getElfEhdr();
@@ -890,6 +894,9 @@ asmb(void)
 					break;
 				case Hfreebsd:
 					interpreter = freebsddynld;
+					break;
+				case Hopenbsd:
+					interpreter = openbsddynld;
 					break;
 				}
 			}
@@ -1053,7 +1060,9 @@ asmb(void)
 		eh->ident[EI_MAG2] = 'L';
 		eh->ident[EI_MAG3] = 'F';
 		if(HEADTYPE == Hfreebsd)
-			eh->ident[EI_OSABI] = 9;
+			eh->ident[EI_OSABI] = ELFOSABI_FREEBSD;
+		else if(HEADTYPE == Hopenbsd)
+			eh->ident[EI_OSABI] = ELFOSABI_OPENBSD;
 		eh->ident[EI_CLASS] = ELFCLASS64;
 		eh->ident[EI_DATA] = ELFDATA2LSB;
 		eh->ident[EI_VERSION] = EV_CURRENT;
