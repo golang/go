@@ -486,8 +486,16 @@ nextgandunlock(void)
 		// We can only run one g, and it's not available.
 		// Make sure some other cpu is running to handle
 		// the ordinary run queue.
-		if(runtime·sched.gwait != 0)
+		if(runtime·sched.gwait != 0) {
 			matchmg();
+			// m->lockedg might have been on the queue.
+			if(m->nextg != nil) {
+				gp = m->nextg;
+				m->nextg = nil;
+				schedunlock();
+				return gp;
+			}
+		}
 	} else {
 		// Look for work on global queue.
 		while(haveg() && canaddmcpu()) {
