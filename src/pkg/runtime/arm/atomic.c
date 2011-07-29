@@ -68,3 +68,16 @@ runtime·atomicstorep(void* volatile* addr, void* v)
 			return;
 	}
 }
+
+#pragma textflag 7
+void
+runtime·atomicstore(uint32 volatile* addr, uint32 v)
+{
+	uint32 old;
+	
+	for(;;) {
+		old = *addr;
+		if(runtime·cas(addr, old, v))
+			return;
+	}
+}
