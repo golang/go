@@ -21,6 +21,29 @@ runtime·xadd(uint32 volatile *val, int32 delta)
 
 #pragma textflag 7
 uint32
+runtime·xchg(uint32 volatile* addr, uint32 v)
+{
+	uint32 old;
+
+	for(;;) {
+		old = *addr;
+		if(runtime·cas(addr, old, v))
+			return old;
+	}
+}
+
+#pragma textflag 7
+void
+runtime·procyield(uint32 cnt)
+{
+	uint32 volatile i;
+
+	for(i = 0; i < cnt; i++) {
+	}
+}
+
+#pragma textflag 7
+uint32
 runtime·atomicload(uint32 volatile* addr)
 {
 	return runtime·xadd(addr, 0);

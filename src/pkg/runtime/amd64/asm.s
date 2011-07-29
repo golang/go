@@ -378,6 +378,20 @@ TEXT runtime·xadd(SB), 7, $0
 	ADDL	CX, AX
 	RET
 
+TEXT runtime·xchg(SB), 7, $0
+	MOVQ	8(SP), BX
+	MOVL	16(SP), AX
+	XCHGL	AX, 0(BX)
+	RET
+
+TEXT runtime·procyield(SB),7,$0
+	MOVL	8(SP), AX
+again:
+	PAUSE
+	SUBL	$1, AX
+	JNZ	again
+	RET
+
 TEXT runtime·atomicstorep(SB), 7, $0
 	MOVQ	8(SP), BX
 	MOVQ	16(SP), AX

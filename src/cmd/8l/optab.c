@@ -495,6 +495,7 @@ Optab optab[] =
 	{ AOUTSB,	ynone,	Pb, 0x6e },
 	{ AOUTSL,	ynone,	Px, 0x6f },
 	{ AOUTSW,	ynone,	Pe, 0x6f },
+	{ APAUSE,	ynone,	Px, 0xf3,0x90 },
 	{ APOPAL,	ynone,	Px, 0x61 },
 	{ APOPAW,	ynone,	Pe, 0x61 },
 	{ APOPFL,	ynone,	Px, 0x9d },

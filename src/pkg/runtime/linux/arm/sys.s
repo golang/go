@@ -15,7 +15,10 @@
 #define SYS_BASE 0x0
 
 #define SYS_exit (SYS_BASE + 1)
+#define SYS_read (SYS_BASE + 3)
 #define SYS_write (SYS_BASE + 4)
+#define SYS_open (SYS_BASE + 5)
+#define SYS_close (SYS_BASE + 6)
 #define SYS_gettimeofday (SYS_BASE + 78)
 #define SYS_clone (SYS_BASE + 120)
 #define SYS_rt_sigreturn (SYS_BASE + 173)
@@ -29,15 +32,38 @@
 #define SYS_mincore (SYS_BASE + 219)
 #define SYS_gettid (SYS_BASE + 224)
 #define SYS_tkill (SYS_BASE + 238)
+#define SYS_sched_yield (SYS_BASE + 158)
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 #define SYS_ARM_cacheflush (ARM_BASE + 2)
+
+TEXT runtime·open(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
+	MOVW	$SYS_open, R7
+	SWI	$0
+	RET
+
+TEXT runtime·close(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	$SYS_close, R7
+	SWI	$0
+	RET
 
 TEXT runtime·write(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	8(FP), R2
 	MOVW	$SYS_write, R7
+	SWI	$0
+	RET
+
+TEXT runtime·read(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
+	MOVW	$SYS_read, R7
 	SWI	$0
 	RET
 
@@ -287,3 +313,7 @@ cascheck:
 TEXT runtime·casp(SB),7,$0
 	B	runtime·cas(SB)
 
+TEXT runtime·osyield(SB),7,$0
+	MOVW	$SYS_sched_yield, R7
+	SWI	$0
+	RET
