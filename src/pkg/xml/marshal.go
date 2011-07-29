@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	// A generic XML header suitable for use with the output of Marshal and MarshalIndent.
-	// This is not automatically added to any output of this package, it is provided as a
-	// convenience.
-	Header = `<?xml version="1.0" encoding="UTF-8">\n`
+	// A generic XML header suitable for use with the output of Marshal and
+	// MarshalIndent.  This is not automatically added to any output of this
+	// package, it is provided as a convenience.
+	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
 )
 
 // A Marshaler can produce well-formatted XML representing its internal state.
