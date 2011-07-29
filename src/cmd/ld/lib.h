@@ -263,6 +263,7 @@ enum {
 	Hlinux,		// Linux ELF
 	Hfreebsd,	// FreeBSD ELF
 	Hwindows,	// MS Windows PE
+	Hopenbsd,	// OpenBSD ELF
 };
 
 typedef struct Header Header;
