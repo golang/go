@@ -746,10 +746,8 @@ stotype(NodeList *l, int et, Type **t, int funarg)
 			} else {
 				typecheck(&n->right, Etype);
 				n->type = n->right->type;
-				if(n->type == T) {
-					*t0 = T;
-					return t0;
-				}
+				if(n->type == T)
+					continue;
 				if(left != N)
 					left->type = n->type;
 				n->right = N;
