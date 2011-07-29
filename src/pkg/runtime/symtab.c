@@ -78,6 +78,7 @@ static int32 nfunc;
 static byte **fname;
 static int32 nfname;
 
+static uint32 funcinit;
 static Lock funclock;
 
 static void
@@ -427,10 +428,12 @@ runtime·findfunc(uintptr addr)
 	// (Before enabling the signal handler,
 	// SetCPUProfileRate calls findfunc to trigger
 	// the initialization outside the handler.)
-	if(runtime·atomicloadp(&func) == nil) {
+	if(runtime·atomicload(&funcinit) == 0) {
 		runtime·lock(&funclock);
-		if(func == nil)
+		if(funcinit == 0) {
 			buildfuncs();
+			runtime·atomicstore(&funcinit, 1);
+		}
 		runtime·unlock(&funclock);
 	}
 
