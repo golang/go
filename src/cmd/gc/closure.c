@@ -116,12 +116,11 @@ typecheckclosure(Node *func, int top)
 	}
 }
 
-Node*
-walkclosure(Node *func, NodeList **init)
+static Node*
+makeclosure(Node *func, NodeList **init, int nowrap)
 {
-	int narg;
-	Node *xtype, *v, *addr, *xfunc, *call, *clos;
-	NodeList *l, *in;
+	Node *xtype, *v, *addr, *xfunc;
+	NodeList *l;
 	static int closgen;
 	char *p;
 
@@ -133,7 +132,6 @@ walkclosure(Node *func, NodeList **init)
 
 	// each closure variable has a corresponding
 	// address parameter.
-	narg = 0;
 	for(l=func->cvars; l; l=l->next) {
 		v = l->n;
 		if(v->op == 0)
@@ -146,7 +144,6 @@ walkclosure(Node *func, NodeList **init)
 		addr->class = PPARAM;
 		addr->addable = 1;
 		addr->ullman = 1;
-		narg++;
 
 		v->heapaddr = addr;
 
@@ -154,7 +151,8 @@ walkclosure(Node *func, NodeList **init)
 	}
 
 	// then a dummy arg where the closure's caller pc sits
-	xtype->list = list(xtype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+	if (!nowrap)
+		xtype->list = list(xtype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
 
 	// then the function arguments
 	xtype->list = concat(xtype->list, func->list);
@@ -176,15 +174,36 @@ walkclosure(Node *func, NodeList **init)
 	typecheck(&xfunc, Etop);
 	closures = list(closures, xfunc);
 
+	return xfunc;
+}
+
+Node*
+walkclosure(Node *func, NodeList **init)
+{
+	int narg;
+	Node *xtype, *xfunc, *call, *clos;
+	NodeList *l, *in;
+
+	/*
+	 * wrap body in external function
+	 * with extra closure parameters.
+	 */
+
+	// create the function
+	xfunc = makeclosure(func, init, 0);
+	xtype = xfunc->nname->ntype;
+
 	// prepare call of sys.closure that turns external func into func literal value.
 	clos = syslook("closure", 1);
 	clos->type = T;
 	clos->ntype = nod(OTFUNC, N, N);
 	in = list1(nod(ODCLFIELD, N, typenod(types[TINT])));	// siz
 	in = list(in, nod(ODCLFIELD, N, xtype));
+	narg = 0;
 	for(l=func->cvars; l; l=l->next) {
 		if(l->n->op == 0)
 			continue;
+		narg++;
 		in = list(in, nod(ODCLFIELD, N, l->n->heapaddr->ntype));
 	}
 	clos->ntype->list = in;
@@ -211,33 +230,18 @@ walkclosure(Node *func, NodeList **init)
 void
 walkcallclosure(Node *n, NodeList **init)
 {
-	Node *z;
-	NodeList *ll, *cargs;
+	if (n->op != OCALLFUNC || n->left->op != OCLOSURE) {
+		dump("walkcallclosure", n);
+		fatal("abuse of walkcallclosure");
+	}
 
-	walkexpr(&n->left, init);
-	cargs =	n->left    // FUNC runtime.closure
-		->list     // arguments
-		->next     // skip first
-		->next;    // skip second
-
-	n->left = n->left  // FUNC runtime.closure
-		->list     // arguments
-		->next     // skip first
-		->n        // AS (to indreg) 
-		->right;   // argument  == the generated function 
-
-	// New arg list for n. First the closure-args, stolen from
-	// runtime.closure's 3rd and following,
-	ll = nil;
-	for (; cargs; cargs = cargs->next)
-		ll = list(ll, cargs->n->right);  // cargs->n is the OAS(INDREG, arg)
-
-	// then an extra zero, to fill the dummy return pointer slot,
-	z = nod(OXXX, N, N);
-	nodconst(z, types[TUINTPTR], 0);
-	z->typecheck = 1;
-	ll = list(ll, z);
-
-	// and finally the original parameter list.
-	n->list = concat(ll, n->list);
+	// New arg list for n. First the closure-args
+	// and then the original parameter list.
+	n->list = concat(n->left->enter, n->list);
+	n->left = makeclosure(n->left, init, 1)->nname;
+	dowidth(n->left->type);
+	n->type = getoutargx(n->left->type);
+	// for a single valued function, pull the field type out of the struct
+	if (n->type && n->type->type && !n->type->type->down)
+		n->type = n->type->type->type;
 }
