@@ -14,6 +14,113 @@ hg pull
 hg update release.r<i>NN</i>
 </pre>
 
+<h2 id="r59">r59 (released 2011/08/01)</h2>
+
+<p>
+The r59 release corresponds to 
+<code><a href="weekly.html#2011-07-07">weekly.2011-07-07</a></code>.
+This section highlights the most significant changes in this release.
+For a more detailed summary, see the
+<a href="weekly.html#2011-07-07">weekly release notes</a>.
+For complete information, see the
+<a href="http://code.google.com/p/go/source/list?r=release-branch.r59">Mercurial change list</a>.
+</p>
+
+<h3 id="r59.lang">Language</h3>
+
+<p>
+This release includes a language change that restricts the use of
+<code>goto</code>.  In essence, a <code>goto</code> statement outside a block
+cannot jump to a label inside that block. Your code may require changes if it
+uses <code>goto</code>.
+See <a href="http://code.google.com/p/go/source/detail?r=dc6d3cf9279d">this
+changeset</a> for how the new rule affected the Go tree.
+</p>
+
+<h3 id="r59.pkg">Packages</h3>
+
+<p>
+As usual, <a href="/cmd/gofix/">gofix</a> will handle the bulk of the rewrites
+necessary for these changes to package APIs.
+</p>
+
+<p>
+<a href="/pkg/http">Package http</a> has a new
+<a href="/pkg/http/#FileSystem">FileSystem</a> interface that provides access
+to files. The <a href="/pkg/http/#FileServer">FileServer</a> helper now takes a
+<code>FileSystem</code> argument instead of an explicit file system root. By
+implementing your own <code>FileSystem</code> you can use the
+<code>FileServer</code> to serve arbitrary data.
+</p>
+
+<p>
+<a href="/pkg/os/">Package os</a>'s <code>ErrorString</code> type has been
+hidden. Most uses of <code>os.ErrorString</code> can be replaced with
+<a href="/pkg/os/#NewError">os.NewError</a>.
+</p>
+
+<p>
+<a href="/pkg/reflect/">Package reflect</a> supports a new struct tag scheme
+that enables sharing of struct tags between multiple packages.
+In this scheme, the tags must be of the form:
+</p>
+<pre>
+	`key:"value" key2:"value2"`
+</pre>
+<p>
+The <a href="/pkg/reflect/#StructField">StructField</a> type's Tag field now
+has type <a href="/pkg/reflect/#StructTag">StructTag</a>, which has a
+<code>Get</code> method. Clients of <a href="/pkg/json">json</a> and
+<a href="/pkg/xml">xml</a> will need to be updated. Code that says
+</p>
+<pre>
+	type T struct {
+		X int "name"
+	}
+</pre>
+<p>
+should become
+</p>
+<pre>
+	type T struct {
+		X int `json:"name"`  // or `xml:"name"`
+	}
+</pre>
+<p>
+Use <a href="/cmd/govet/">govet</a> to identify struct tags that need to be
+changed to use the new syntax.
+</p>
+
+<p>
+<a href="/pkg/sort/">Package sort</a>'s <code>IntArray</code> type has been
+renamed to <a href="/pkg/sort/#IntSlice">IntSlice</a>, and similarly for
+<a href="/pkg/sort/#Float64Slice">Float64Slice</a> and
+<a href="/pkg/sort/#StringSlice">StringSlice</a>.
+</p>
+
+<p>
+<a href="/pkg/strings/">Package strings</a>'s <code>Split</code> function has
+itself been split into <a href="/pkg/strings/#Split">Split</a> and
+<a href="/pkg/strings/#SplitN">SplitN</a>.
+<code>SplitN</code> is the same as the old <code>Split</code>.
+The new <code>Split</code> is equivalent to <code>SplitN</code> with a final
+argument of -1.
+</p>
+
+<a href="/pkg/image/draw/">Package image/draw</a>'s
+<a href="/pkg/image/draw/#Draw">Draw</a> function now takes an additional
+argument, a compositing operator.
+If in doubt, use <a href="/pkg/image/draw/#Op">draw.Over</a>.
+</p>
+
+<h3 id="r59.cmd">Tools</h3>
+
+<p>
+<a href="/cmd/goinstall/">Goinstall</a> now installs packages and commands from
+arbitrary remote repositories (not just Google Code, Github, and so on).
+See the <a href="/cmd/goinstall/">goinstall documentation</a> for details.
+</p>
+
 <h2 id="r58">r58 (released 2011/06/29)</h2>
 
 <p>
