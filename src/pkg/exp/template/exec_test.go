@@ -75,6 +75,13 @@ var tVal = &T{
 	Tmpl:   Must(New("x").Parse("test template")), // "x" is the value of .X
 }
 
+// A non-empty interface.
+type I interface {
+	Method0() string
+}
+
+var iVal I = tVal
+
 // Helpers for creation.
 func newInt(n int) *int {
 	p := new(int)
@@ -344,6 +351,9 @@ var execTests = []execTest{
 	// Fixed bugs.
 	// Must separate dot and receiver; otherwise args are evaluated with dot set to variable.
 	{"bug0", "{{range .MSIone}}{{if $.Method1 .}}X{{end}}{{end}}", "X", tVal, true},
+	// Do not loop endlessly in indirect for non-empty interfaces.
+	// The bug appears with *interface only; this is supposed to fail (cannot invoke Method0), but terminate.
+	{"bug1", "{{.Method0}}", "", &iVal, false},
 }
 
 func zeroArgs() string {
