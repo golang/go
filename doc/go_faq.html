@@ -1053,7 +1053,7 @@ How is the run-time support implemented?</h3>
 Again due to bootstrapping issues, the run-time code is mostly in C (with a
 tiny bit of assembler) although Go is capable of implementing most of
 it now. <code>Gccgo</code>'s run-time support uses <code>glibc</code>.
-<code>Gc</code> uses a custom library, to keep the footprint under
+<code>Gc</code> uses a custom library to keep the footprint under
 control; it is
 compiled with a version of the Plan 9 C compiler that supports
 segmented stacks for goroutines.
