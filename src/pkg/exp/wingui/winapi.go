@@ -5,25 +5,8 @@
 package main
 
 import (
-	"syscall"
 	"unsafe"
 )
-
-func loadDll(fname string) syscall.Handle {
-	h, e := syscall.LoadLibrary(fname)
-	if e != 0 {
-		abortf("LoadLibrary(%s) failed with err=%d.\n", fname, e)
-	}
-	return h
-}
-
-func getSysProcAddr(m syscall.Handle, pname string) uintptr {
-	p, e := syscall.GetProcAddress(m, pname)
-	if e != 0 {
-		abortf("GetProcAddress(%s) failed with err=%d.\n", pname, e)
-	}
-	return uintptr(p)
-}
 
 type Wndclassex struct {
 	Size       uint32
