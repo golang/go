@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"sync"
 	"unsafe"
 	"utf16"
 )
@@ -84,20 +85,64 @@ func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 ui
 func loadlibraryex(filename uintptr) (handle uintptr)
 func getprocaddress(handle uintptr, procname uintptr) (proc uintptr)
 
-func loadDll(fname string) uintptr {
-	m := loadlibraryex(uintptr(unsafe.Pointer(StringBytePtr(fname))))
-	if m == 0 {
-		panic("syscall: could not LoadLibraryEx " + fname)
-	}
-	return m
+// A LazyDLL implements access to a single DLL.
+// It will delay the load of the DLL until the first
+// call to its Handle method or to one of its
+// LazyProc's Addr method.
+type LazyDLL struct {
+	sync.Mutex
+	Name string
+	h    uintptr // module handle once dll is loaded
 }
 
-func getSysProcAddr(m uintptr, pname string) uintptr {
-	p := getprocaddress(m, uintptr(unsafe.Pointer(StringBytePtr(pname))))
-	if p == 0 {
-		panic("syscall: could not GetProcAddress for " + pname)
+// Handle returns d's module handle.
+func (d *LazyDLL) Handle() uintptr {
+	if d.h == 0 {
+		d.Lock()
+		defer d.Unlock()
+		if d.h == 0 {
+			d.h = loadlibraryex(uintptr(unsafe.Pointer(StringBytePtr(d.Name))))
+			if d.h == 0 {
+				panic("syscall: could not LoadLibraryEx " + d.Name)
+			}
+		}
 	}
-	return p
+	return d.h
+}
+
+// NewProc returns a LazyProc for accessing the named procedure in the DLL d.
+func (d *LazyDLL) NewProc(name string) *LazyProc {
+	return &LazyProc{dll: d, Name: name}
+}
+
+// NewLazyDLL creates new LazyDLL associated with dll file.
+func NewLazyDLL(name string) *LazyDLL {
+	return &LazyDLL{Name: name}
+}
+
+// A LazyProc implements access to a procedure inside a LazyDLL.
+// It delays the lookup until the Addr method is called.
+type LazyProc struct {
+	sync.Mutex
+	Name string
+	dll  *LazyDLL
+	addr uintptr
+}
+
+// Addr returns the address of the procedure represented by s.
+// The return value can be passed to Syscall to run the procedure.
+func (s *LazyProc) Addr() uintptr {
+	if s.addr == 0 {
+		s.Lock()
+		defer s.Unlock()
+		if s.addr == 0 {
+			s.addr = getprocaddress(s.dll.Handle(), uintptr(unsafe.Pointer(StringBytePtr(s.Name))))
+			if s.addr == 0 {
+				panic("syscall: could not GetProcAddress for " + s.Name)
+			}
+		}
+	}
+	return s.addr
 }
 
 func Getpagesize() int { return 4096 }

@@ -23,6 +23,7 @@ zwinapi.go: winapi.go
 		| sed '/^import/a \
 			import "syscall"' \
 		| sed 's/Syscall/syscall.Syscall/' \
+		| sed 's/NewLazyDLL/syscall.NewLazyDLL/' \
 		| sed 's/EINVAL/syscall.EINVAL/' \
 		| gofmt \
 		> $@

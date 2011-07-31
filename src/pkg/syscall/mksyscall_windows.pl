@@ -96,7 +96,7 @@ while(<>) {
 	my $modvname = "mod$modname";
 	if($modnames !~ /$modname/) {
 		$modnames .= ".$modname";
-		$mods .= "\t$modvname = loadDll(\"$modname.dll\")\n";
+		$mods .= "\t$modvname = NewLazyDLL(\"$modname.dll\")\n";
 	}
 
 	# System call name.
@@ -116,7 +116,7 @@ while(<>) {
 	my $strconvfunc = $sysname !~ /W$/ ? "StringBytePtr" : "StringToUTF16Ptr";
 
 	# Winapi proc address variable.
-	$vars .= sprintf "\t%s = getSysProcAddr(%s, \"%s\")\n", $sysvarname, $modvname, $sysname;
+	$vars .= "\t$sysvarname = $modvname.NewProc(\"$sysname\")\n";
 
 	# Go function header.
 	$out = join(', ', @out);
@@ -191,7 +191,7 @@ while(<>) {
 
 	# Actual call.
 	my $args = join(', ', @args);
-	my $call = "$asm($sysvarname, $nargs, $args)";
+	my $call = "$asm($sysvarname.Addr(), $nargs, $args)";
 
 	# Assign return values.
 	my $body = "";
