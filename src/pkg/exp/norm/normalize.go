@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package form contains types and functions for normalizing Unicode strings.
+// Package norm contains types and functions for normalizing Unicode strings.
 package norm
 
 // A Form denotes a canonical representation of Unicode code points.
