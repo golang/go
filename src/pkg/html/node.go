@@ -13,6 +13,7 @@ const (
 	DocumentNode
 	ElementNode
 	CommentNode
+	DoctypeNode
 	scopeMarkerNode
 )
 
