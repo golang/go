@@ -81,8 +81,8 @@ func (p *parser) popUntil(stopTags []string, matchTags ...string) bool {
 	return false
 }
 
-// addChild adds a child node n to the top element, and pushes n if it is an
-// element node (text nodes are not part of the stack of open elements).
+// addChild adds a child node n to the top element, and pushes n onto the stack
+// of open elements if it is an element node.
 func (p *parser) addChild(n *Node) {
 	p.top().Add(n)
 	if n.Type == ElementNode {
@@ -90,10 +90,15 @@ func (p *parser) addChild(n *Node) {
 	}
 }
 
-// addText calls addChild with a text node.
+// addText adds text to the preceding node if it is a text node, or else it
+// calls addChild with a new text node.
 func (p *parser) addText(text string) {
-	// TODO: merge s with previous text, if the preceding node is a text node.
 	// TODO: distinguish whitespace text from others.
+	t := p.top()
+	if i := len(t.Child); i > 0 && t.Child[i-1].Type == TextNode {
+		t.Child[i-1].Data += text
+		return
+	}
 	p.addChild(&Node{
 		Type: TextNode,
 		Data: text,
@@ -201,7 +206,15 @@ func useTheRulesFor(p *parser, actual, delegate insertionMode) (insertionMode, b
 
 // Section 11.2.5.4.1.
 func initialIM(p *parser) (insertionMode, bool) {
-	// TODO: check p.tok for DOCTYPE.
+	if p.tok.Type == DoctypeToken {
+		p.addChild(&Node{
+			Type: DoctypeNode,
+			Data: p.tok.Data,
+		})
+		return beforeHTMLIM, true
+	}
+	// TODO: set "quirks mode"? It's defined in the DOM spec instead of HTML5 proper,
+	// and so switching on "quirks mode" might belong in a different package.
 	return beforeHTMLIM, false
 }
 
