@@ -101,7 +101,7 @@ static void
 chksectoff(IMAGE_SECTION_HEADER *h, vlong off)
 {
 	if(off != h->PointerToRawData) {
-		diag("%s.PointerToRawData = %#llux, want %#llux", h->Name, (vlong)h->PointerToRawData, off);
+		diag("%s.PointerToRawData = %#llux, want %#llux", (char *)h->Name, (vlong)h->PointerToRawData, off);
 		errorexit();
 	}
 }
@@ -110,11 +110,11 @@ static void
 chksectseg(IMAGE_SECTION_HEADER *h, Segment *s)
 {
 	if(s->vaddr-PEBASE != h->VirtualAddress) {
-		diag("%s.VirtualAddress = %#llux, want %#llux", h->Name, (vlong)h->VirtualAddress, (vlong)(s->vaddr-PEBASE));
+		diag("%s.VirtualAddress = %#llux, want %#llux", (char *)h->Name, (vlong)h->VirtualAddress, (vlong)(s->vaddr-PEBASE));
 		errorexit();
 	}
 	if(s->fileoff != h->PointerToRawData) {
-		diag("%s.PointerToRawData = %#llux, want %#llux", h->Name, (vlong)h->PointerToRawData, (vlong)(s->fileoff));
+		diag("%s.PointerToRawData = %#llux, want %#llux", (char *)h->Name, (vlong)h->PointerToRawData, (vlong)(s->fileoff));
 		errorexit();
 	}
 }
