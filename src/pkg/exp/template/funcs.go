@@ -109,9 +109,10 @@ func index(item interface{}, indices ...interface{}) (interface{}, os.Error) {
 			if !index.Type().AssignableTo(v.Type().Key()) {
 				return nil, fmt.Errorf("%s is not index type for %s", index.Type(), v.Type())
 			}
-			v = v.MapIndex(index)
-			if !v.IsValid() {
-				return nil, fmt.Errorf("index %v not present in map", index.Interface())
+			if x := v.MapIndex(index); x.IsValid() {
+				v = x
+			} else {
+				v = reflect.Zero(v.Type().Key())
 			}
 		default:
 			return nil, fmt.Errorf("can't index item of type %s", index.Type())
