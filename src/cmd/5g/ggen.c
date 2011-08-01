@@ -472,7 +472,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 {
 	Node n1, n2, n3, nt, t, lo, hi;
 	int w;
-	Prog *p1, *p2, *p3, *pbig;
+	Prog *p1, *p2, *p3;
 	Type *tr;
 	uvlong sc;
 
@@ -505,7 +505,6 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		return;
 	}
 
-	pbig = P;
 	tr = nr->type;
 	if(tr->width > 4) {
 		tempname(&nt, nr->type);
