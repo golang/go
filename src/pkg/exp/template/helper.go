@@ -97,6 +97,7 @@ func (s *Set) ParseFile(filenames ...string) (*Set, os.Error) {
 // named files. Each file must be individually parseable.
 func ParseSetFile(filenames ...string) (*Set, os.Error) {
 	s := new(Set)
+	s.init()
 	for _, filename := range filenames {
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {
@@ -193,6 +194,7 @@ func (s *Set) ParseTemplateFiles(pattern string) (*Set, os.Error) {
 // encountered.
 func ParseTemplateFile(filenames ...string) (*Set, os.Error) {
 	set := new(Set)
+	set.init()
 	for _, filename := range filenames {
 		t, err := ParseFile(filename)
 		if err != nil {
@@ -217,6 +219,7 @@ func ParseTemplateFile(filenames ...string) (*Set, os.Error) {
 // encountered.
 func ParseTemplateFiles(pattern string) (*Set, os.Error) {
 	set := new(Set)
+	set.init()
 	filenames, err := filepath.Glob(pattern)
 	if err != nil {
 		return set, err
