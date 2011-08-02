@@ -148,8 +148,11 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
 					;
 			}
 		}
-		if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0)
+		if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0) {
 			fprint(2, "%s: %s: not package main (package %s)\n", argv0, filename, name);
+			nerrors++;
+			errorexit();
+		}
 		loadpkgdata(filename, pkg, p0, p1 - p0);
 	}
 
