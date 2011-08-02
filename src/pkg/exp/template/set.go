@@ -110,7 +110,7 @@ func (s *Set) Parse(text string) (set *Set, err os.Error) {
 		t.startParse(s, lex)
 		// Expect EOF or "{{ define name }}".
 		if t.atEOF() {
-			return
+			return nil, err
 		}
 		t.expect(itemLeftDelim, context)
 		t.expect(itemDefine, context)

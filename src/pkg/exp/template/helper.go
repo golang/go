@@ -44,10 +44,11 @@ func parseFileInSet(filename string, set *Set) (*Template, os.Error) {
 
 // ParseFile reads the template definition from a file and parses it to
 // construct an internal representation of the template for execution.
+// The returned template will be nil if an error occurs.
 func (t *Template) ParseFile(filename string) (*Template, os.Error) {
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return t, err
+		return nil, err
 	}
 	return t.Parse(string(b))
 }
@@ -55,10 +56,11 @@ func (t *Template) ParseFile(filename string) (*Template, os.Error) {
 // parseFileInSet is the same as ParseFile except that function bindings
 // are checked against those in the set and the template is added
 // to the set.
+// The returned template will be nil if an error occurs.
 func (t *Template) parseFileInSet(filename string, set *Set) (*Template, os.Error) {
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return t, err
+		return nil, err
 	}
 	return t.ParseInSet(string(b), set)
 }
@@ -77,17 +79,17 @@ func SetMust(s *Set, err os.Error) *Set {
 }
 
 // ParseFile parses the named files into a set of named templates.
-// Each file must be parseable by itself. Parsing stops if an error is
-// encountered.
+// Each file must be parseable by itself.
+// If an error occurs, parsing stops and the returned set is nil.
 func (s *Set) ParseFile(filenames ...string) (*Set, os.Error) {
 	for _, filename := range filenames {
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {
-			return s, err
+			return nil, err
 		}
 		_, err = s.Parse(string(b))
 		if err != nil {
-			return s, err
+			return nil, err
 		}
 	}
 	return s, nil
@@ -97,15 +99,14 @@ func (s *Set) ParseFile(filenames ...string) (*Set, os.Error) {
 // named files. Each file must be individually parseable.
 func ParseSetFile(filenames ...string) (*Set, os.Error) {
 	s := new(Set)
-	s.init()
 	for _, filename := range filenames {
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {
-			return s, err
+			return nil, err
 		}
 		_, err = s.Parse(string(b))
 		if err != nil {
-			return s, err
+			return nil, err
 		}
 	}
 	return s, nil
@@ -114,13 +115,14 @@ func ParseSetFile(filenames ...string) (*Set, os.Error) {
 // ParseFiles parses the set definition from the files identified by the
 // pattern.  The pattern is processed by filepath.Glob and must match at
 // least one file.
+// If an error occurs, parsing stops and the returned set is nil.
 func (s *Set) ParseFiles(pattern string) (*Set, os.Error) {
 	filenames, err := filepath.Glob(pattern)
 	if err != nil {
-		return s, err
+		return nil, err
 	}
 	if len(filenames) == 0 {
-		return s, fmt.Errorf("pattern matches no files: %#q", pattern)
+		return nil, fmt.Errorf("pattern matches no files: %#q", pattern)
 	}
 	return s.ParseFile(filenames...)
 }
@@ -131,7 +133,7 @@ func (s *Set) ParseFiles(pattern string) (*Set, os.Error) {
 func ParseSetFiles(pattern string) (*Set, os.Error) {
 	set, err := new(Set).ParseFiles(pattern)
 	if err != nil {
-		return set, err
+		return nil, err
 	}
 	return set, nil
 }
@@ -146,13 +148,13 @@ func ParseSetFiles(pattern string) (*Set, os.Error) {
 // file does not contain {{define}} clauses. ParseTemplateFile is
 // therefore equivalent to calling the ParseFile function to create
 // individual templates, which are then added to the set.
-// Each file must be parseable by itself. Parsing stops if an error is
-// encountered.
+// Each file must be parseable by itself.
+// If an error occurs, parsing stops and the returned set is nil.
 func (s *Set) ParseTemplateFile(filenames ...string) (*Set, os.Error) {
 	for _, filename := range filenames {
 		_, err := parseFileInSet(filename, s)
 		if err != nil {
-			return s, err
+			return nil, err
 		}
 	}
 	return s, nil
@@ -166,17 +168,17 @@ func (s *Set) ParseTemplateFile(filenames ...string) (*Set, os.Error) {
 // file does not contain {{define}} clauses. ParseTemplateFiles is
 // therefore equivalent to calling the ParseFile function to create
 // individual templates, which are then added to the set.
-// Each file must be parseable by itself. Parsing stops if an error is
-// encountered.
+// Each file must be parseable by itself.
+// If an error occurs, parsing stops and the returned set is nil.
 func (s *Set) ParseTemplateFiles(pattern string) (*Set, os.Error) {
 	filenames, err := filepath.Glob(pattern)
 	if err != nil {
-		return s, err
+		return nil, err
 	}
 	for _, filename := range filenames {
 		_, err := parseFileInSet(filename, s)
 		if err != nil {
-			return s, err
+			return nil, err
 		}
 	}
 	return s, nil
@@ -198,10 +200,10 @@ func ParseTemplateFile(filenames ...string) (*Set, os.Error) {
 	for _, filename := range filenames {
 		t, err := ParseFile(filename)
 		if err != nil {
-			return set, err
+			return nil, err
 		}
 		if err := set.add(t); err != nil {
-			return set, err
+			return nil, err
 		}
 	}
 	return set, nil
@@ -219,18 +221,17 @@ func ParseTemplateFile(filenames ...string) (*Set, os.Error) {
 // encountered.
 func ParseTemplateFiles(pattern string) (*Set, os.Error) {
 	set := new(Set)
-	set.init()
 	filenames, err := filepath.Glob(pattern)
 	if err != nil {
-		return set, err
+		return nil, err
 	}
 	for _, filename := range filenames {
 		t, err := ParseFile(filename)
 		if err != nil {
-			return set, err
+			return nil, err
 		}
 		if err := set.add(t); err != nil {
-			return set, err
+			return nil, err
 		}
 	}
 	return set, nil
