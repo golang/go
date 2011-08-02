@@ -54,6 +54,11 @@ func (t *Tree) PkgDir() string {
 
 // BinDir returns the tree's binary executable directory.
 func (t *Tree) BinDir() string {
+	if t.Goroot {
+		if gobin := os.Getenv("GOBIN"); gobin != "" {
+			return gobin
+		}
+	}
 	return filepath.Join(t.Path, "bin")
 }
 
