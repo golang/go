@@ -17,6 +17,13 @@
 
 use POSIX;
 
+my $exitcode = 1;
+
+if(@ARGV >= 1 && $ARGV[0] eq "-0") {
+	$exitcode = 0;
+	shift;
+}
+
 if(@ARGV < 1) {
 	print STDERR "Usage: errchk COMPILER [OPTS] SOURCEFILES\n";
 	exit 1;
@@ -47,8 +54,14 @@ $out = join('', <CMD>);
 
 close CMD;
 
-if($? == 0) {
+if($exitcode != 0 && $? == 0) {
 	print STDERR "BUG: errchk: command succeeded unexpectedly\n";
+	print STDERR @out;
+	exit 0;
+}
+
+if($exitcode == 0 && $? != 0) {
+	print STDERR "BUG: errchk: command failed unexpectedly\n";
 	print STDERR @out;
 	exit 0;
 }
