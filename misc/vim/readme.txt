@@ -48,3 +48,14 @@ To install automatic indentation for Go:
   3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
 
      filetype indent on
+
+
+Godoc plugin
+============
+
+To install godoc plugin:
+
+  1. Same as 1 above.
+  2. Copy or link plugin/godoc.vim to $HOME/.vim/plugin/godoc,
+     syntax/godoc.vim to $HOME/.vim/syntax/godoc.vim,
+     and ftplugin/go/godoc.vim to $HOME/.vim/ftplugin/go/godoc.vim.
