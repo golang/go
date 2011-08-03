@@ -521,10 +521,13 @@ void	runtime·destroylock(Lock*);
  * sleep and wakeup on one-time events.
  * before any calls to notesleep or notewakeup,
  * must call noteclear to initialize the Note.
- * then, any number of threads can call notesleep
+ * then, exactly one thread can call notesleep
  * and exactly one thread can call notewakeup (once).
- * once notewakeup has been called, all the notesleeps
- * will return.  future notesleeps will return immediately.
+ * once notewakeup has been called, the notesleep
+ * will return.  future notesleep will return immediately.
+ * subsequent noteclear must be called only after
+ * previous notesleep has returned, e.g. it's disallowed
+ * to call noteclear straight after notewakeup.
  */
 void	runtime·noteclear(Note*);
 void	runtime·notesleep(Note*);
