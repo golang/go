@@ -149,7 +149,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 
 	// use contents of index.html for directory, if present
 	if d.IsDirectory() {
-		index := name + filepath.FromSlash(indexPage)
+		index := name + indexPage
 		ff, err := fs.Open(index)
 		if err == nil {
 			defer ff.Close()
