@@ -10,6 +10,7 @@ enum {
 };
 
 uint32	runtime·panicking;
+void	(*runtime·destroylock)(Lock*);
 
 /*
  * We assume that all architectures turn faults and the like

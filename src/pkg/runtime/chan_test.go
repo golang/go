@@ -265,3 +265,25 @@ func BenchmarkChanProdConsWork10(b *testing.B) {
 func BenchmarkChanProdConsWork100(b *testing.B) {
 	benchmarkChanProdCons(b, 100, 100)
 }
+
+func BenchmarkChanCreation(b *testing.B) {
+	const CallsPerSched = 1000
+	procs := runtime.GOMAXPROCS(-1)
+	N := int32(b.N / CallsPerSched)
+	c := make(chan bool, procs)
+	for p := 0; p < procs; p++ {
+		go func() {
+			for atomic.AddInt32(&N, -1) >= 0 {
+				for g := 0; g < CallsPerSched; g++ {
+					myc := make(chan int, 1)
+					myc <- 0
+					<-myc
+				}
+			}
+			c <- true
+		}()
+	}
+	for p := 0; p < procs; p++ {
+		<-c
+	}
+}
