@@ -80,6 +80,7 @@ DIRS=\
 	exp/datafmt\
 	exp/gui\
 	exp/gui/x11\
+	exp/norm\
 	exp/regexp/syntax\
 	exp/template\
 	expvar\
