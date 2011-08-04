@@ -157,6 +157,7 @@ enum {
 	$SizeofIfMsghdr = sizeof(struct if_msghdr),
 	$SizeofIfData = sizeof(struct if_data),
 	$SizeofIfaMsghdr = sizeof(struct ifa_msghdr),
+	$SizeofIfmaMsghdr = sizeof(struct ifma_msghdr),
 	$SizeofRtMsghdr = sizeof(struct rt_msghdr),
 	$SizeofRtMetrics = sizeof(struct rt_metrics),
 };
@@ -164,6 +165,7 @@ enum {
 typedef struct if_msghdr $IfMsghdr;
 typedef struct if_data $IfData;
 typedef struct ifa_msghdr $IfaMsghdr;
+typedef struct ifma_msghdr $IfmaMsghdr;
 typedef struct rt_msghdr $RtMsghdr;
 typedef struct rt_metrics $RtMetrics;
 
