@@ -81,8 +81,8 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
 }
 
 var (
-	gobEncoderInterfaceType = reflect.TypeOf(new(GobEncoder)).Elem()
-	gobDecoderInterfaceType = reflect.TypeOf(new(GobDecoder)).Elem()
+	gobEncoderInterfaceType = reflect.TypeOf((*GobEncoder)(nil)).Elem()
+	gobDecoderInterfaceType = reflect.TypeOf((*GobDecoder)(nil)).Elem()
 )
 
 // implementsInterface reports whether the type implements the
