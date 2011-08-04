@@ -484,7 +484,7 @@ func isZero(val reflect.Value) bool {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return val.Uint() == 0
 	}
-	panic("unknown type in isZero" + val.Type().String())
+	panic("unknown type in isZero " + val.Type().String())
 }
 
 // encGobEncoder encodes a value that implements the GobEncoder interface.
