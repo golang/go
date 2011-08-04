@@ -7,6 +7,7 @@
 package net
 
 import (
+	"fmt"
 	"os"
 	"syscall"
 	"unsafe"
@@ -102,13 +103,13 @@ func linkFlags(rawFlags uint32) Flags {
 // for a specific interface.
 func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
 	var (
-		ifat4 []Addr
-		ifat6 []Addr
 		tab   []byte
-		msgs4 []syscall.NetlinkMessage
-		msgs6 []syscall.NetlinkMessage
 		e     int
 		err   os.Error
+		ifat4 []Addr
+		ifat6 []Addr
+		msgs4 []syscall.NetlinkMessage
+		msgs6 []syscall.NetlinkMessage
 	)
 
 	tab, e = syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_INET)
@@ -169,17 +170,102 @@ func newAddr(attrs []syscall.NetlinkRouteAttr, family int) []Addr {
 	for _, a := range attrs {
 		switch a.Attr.Type {
 		case syscall.IFA_ADDRESS:
-			ifa := IPAddr{}
 			switch family {
 			case syscall.AF_INET:
-				ifa.IP = IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3])
+				ifa := &IPAddr{IP: IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3])}
+				ifat = append(ifat, ifa.toAddr())
 			case syscall.AF_INET6:
-				ifa.IP = make(IP, IPv6len)
+				ifa := &IPAddr{IP: make(IP, IPv6len)}
 				copy(ifa.IP, a.Value[:])
+				ifat = append(ifat, ifa.toAddr())
 			}
-			ifat = append(ifat, ifa.toAddr())
 		}
 	}
 
 	return ifat
+}
+
+// If the ifindex is zero, interfaceMulticastAddrTable returns
+// addresses for all network interfaces.  Otherwise it returns
+// addresses for a specific interface.
+func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
+	var (
+		ifi    *Interface
+		err    os.Error
+		ifmat4 []Addr
+		ifmat6 []Addr
+	)
+
+	if ifindex > 0 {
+		ifi, err = InterfaceByIndex(ifindex)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	ifmat4, err = parseProcNetIGMP(ifi)
+	if err != nil {
+		return nil, err
+	}
+
+	ifmat6, err = parseProcNetIGMP6(ifi)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(ifmat4, ifmat6...), nil
+}
+
+func parseProcNetIGMP(ifi *Interface) ([]Addr, os.Error) {
+	var (
+		ifmat []Addr
+		name  string
+	)
+
+	fd, err := open("/proc/net/igmp")
+	if err != nil {
+		return nil, err
+	}
+	defer fd.close()
+
+	fd.readLine() // skip first line
+	b := make([]byte, IPv4len)
+	for l, ok := fd.readLine(); ok; l, ok = fd.readLine() {
+		f := getFields(l)
+		switch len(f) {
+		case 4:
+			if ifi == nil || name == ifi.Name {
+				fmt.Sscanf(f[0], "%08x", &b)
+				ifma := IPAddr{IP: IPv4(b[3], b[2], b[1], b[0])}
+				ifmat = append(ifmat, ifma.toAddr())
+			}
+		case 5:
+			name = f[1]
+		}
+	}
+
+	return ifmat, nil
+}
+
+func parseProcNetIGMP6(ifi *Interface) ([]Addr, os.Error) {
+	var ifmat []Addr
+
+	fd, err := open("/proc/net/igmp6")
+	if err != nil {
+		return nil, err
+	}
+	defer fd.close()
+
+	b := make([]byte, IPv6len)
+	for l, ok := fd.readLine(); ok; l, ok = fd.readLine() {
+		f := getFields(l)
+		if ifi == nil || f[1] == ifi.Name {
+			fmt.Sscanf(f[2], "%32x", &b)
+			ifma := IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
+			ifmat = append(ifmat, ifma.toAddr())
+
+		}
+	}
+
+	return ifmat, nil
 }
