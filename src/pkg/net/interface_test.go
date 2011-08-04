@@ -45,9 +45,16 @@ func TestInterfaces(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Interface.Addrs() failed: %v", err)
 		}
+		ifmat, err := ifi.MulticastAddrs()
+		if err != nil {
+			t.Fatalf("Interface.MulticastAddrs() failed: %v", err)
+		}
 		t.Logf("%q: flags %q, ifindex %v, mtu %v\n", ifi.Name, ifi.Flags.String(), ifi.Index, ifi.MTU)
 		for _, ifa := range ifat {
 			t.Logf("\tinterface address %q\n", ifa.String())
+		}
+		for _, ifma := range ifmat {
+			t.Logf("\tjoined group address %q\n", ifma.String())
 		}
 		t.Logf("\thardware address %q", ifi.HardwareAddr.String())
 	}

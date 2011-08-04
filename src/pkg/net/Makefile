@@ -29,6 +29,7 @@ GOFILES_freebsd=\
 	fd.go\
 	file.go\
 	interface_bsd.go\
+	interface_freebsd.go\
 	lookup_unix.go\
 	newpollserver.go\
 	port.go\
@@ -45,6 +46,7 @@ GOFILES_darwin=\
 	fd.go\
 	file.go\
 	interface_bsd.go\
+	interface_darwin.go\
 	lookup_unix.go\
 	newpollserver.go\
 	port.go\

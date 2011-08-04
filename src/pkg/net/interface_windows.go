@@ -149,3 +149,10 @@ func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
 	}
 	return ifat, nil
 }
+
+// If the ifindex is zero, interfaceMulticastAddrTable returns
+// addresses for all network interfaces.  Otherwise it returns
+// addresses for a specific interface.
+func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
+	return nil, nil
+}

@@ -79,6 +79,15 @@ func (ifi *Interface) Addrs() ([]Addr, os.Error) {
 	return interfaceAddrTable(ifi.Index)
 }
 
+// MulticastAddrs returns multicast, joined group addresses for
+// a specific interface.
+func (ifi *Interface) MulticastAddrs() ([]Addr, os.Error) {
+	if ifi == nil {
+		return nil, os.NewError("net: invalid interface")
+	}
+	return interfaceMulticastAddrTable(ifi.Index)
+}
+
 // Interfaces returns a list of the systems's network interfaces.
 func Interfaces() ([]Interface, os.Error) {
 	return interfaceTable(0)
