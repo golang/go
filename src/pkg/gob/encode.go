@@ -466,6 +466,27 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
 	enc.freeEncoderState(state)
 }
 
+// isZero returns whether the value is the zero of its type.
+func isZero(val reflect.Value) bool {
+	switch val.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		return val.Len() == 0
+	case reflect.Bool:
+		return !val.Bool()
+	case reflect.Complex64, reflect.Complex128:
+		return val.Complex() == 0
+	case reflect.Chan, reflect.Func, reflect.Ptr:
+		return val.IsNil()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return val.Int() == 0
+	case reflect.Float32, reflect.Float64:
+		return val.Float() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return val.Uint() == 0
+	}
+	panic("unknown type in isZero" + val.Type().String())
+}
+
 // encGobEncoder encodes a value that implements the GobEncoder interface.
 // The data is sent as a byte array.
 func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, v reflect.Value) {
@@ -613,6 +634,9 @@ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 			v = reflect.ValueOf(unsafe.Unreflect(rt, unsafe.Pointer(&p)))
 		} else {
 			v = reflect.ValueOf(unsafe.Unreflect(rt, p))
+		}
+		if !state.sendZero && isZero(v) {
+			return
 		}
 		state.update(i)
 		state.enc.encodeGobEncoder(state.b, v)

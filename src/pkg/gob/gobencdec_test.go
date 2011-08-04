@@ -466,3 +466,25 @@ func TestGobEncoderIgnoreNonStructField(t *testing.T) {
 		t.Errorf("expected 17 got %c", x.X)
 	}
 }
+
+func TestGobEncoderIgnoreNilEncoder(t *testing.T) {
+	b := new(bytes.Buffer)
+	// First a field that's a structure.
+	enc := NewEncoder(b)
+	err := enc.Encode(GobTest0{X: 18}) // G is nil
+	if err != nil {
+		t.Fatal("encode error:", err)
+	}
+	dec := NewDecoder(b)
+	x := new(GobTest0)
+	err = dec.Decode(x)
+	if err != nil {
+		t.Fatal("decode error:", err)
+	}
+	if x.X != 18 {
+		t.Errorf("expected x.X = 18, got %v", x.X)
+	}
+	if x.G != nil {
+		t.Errorf("expected x.G = nil, got %v", x.G)
+	}
+}
