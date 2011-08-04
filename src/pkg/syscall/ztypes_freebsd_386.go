@@ -43,6 +43,7 @@ const (
 	SizeofIfMsghdr         = 0x60
 	SizeofIfData           = 0x50
 	SizeofIfaMsghdr        = 0x14
+	SizeofIfmaMsghdr       = 0x10
 	SizeofRtMsghdr         = 0x5c
 	SizeofRtMetrics        = 0x38
 	SizeofBpfVersion       = 0x4
@@ -313,6 +314,16 @@ type IfaMsghdr struct {
 	Index        uint16
 	Pad_godefs_0 [2]byte
 	Metric       int32
+}
+
+type IfmaMsghdr struct {
+	Msglen       uint16
+	Version      uint8
+	Type         uint8
+	Addrs        int32
+	Flags        int32
+	Index        uint16
+	Pad_godefs_0 [2]byte
 }
 
 type RtMsghdr struct {

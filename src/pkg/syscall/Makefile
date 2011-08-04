@@ -20,6 +20,7 @@ GOFILES_freebsd=\
 	bpf_bsd.go\
 	exec_unix.go\
 	route_bsd.go\
+	route_freebsd.go\
 	sockcmsg_unix.go\
 	syscall_bsd.go\
 	syscall_unix.go\
@@ -28,6 +29,7 @@ GOFILES_darwin=\
 	bpf_bsd.go\
 	exec_unix.go\
 	route_bsd.go\
+	route_darwin.go\
 	sockcmsg_unix.go\
 	syscall_bsd.go\
 	syscall_unix.go\
