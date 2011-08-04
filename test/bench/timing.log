@@ -852,3 +852,30 @@ regex-dna 100000
 	gc regex-dna	3.94u 0.00s 3.95r
 	gc regex-dna-parallel	4.15u 0.01s 1.63r
 	gc_B regex-dna	4.01u 0.01s 4.02r
+
+# Aug 4, 2011
+# After various updates to locking code and some runtime changes.
+
+fannkuch 12
+	gccgo -O2 fannkuch.go	51.59u 0.00s 51.69r # -4%
+	gccgo -O2 fannkuch-parallel.go	253.17u 0.00s 64.67r # -11%
+	gc fannkuch	103.14u 0.00s 103.36r # -5%
+	gc fannkuch-parallel	189.63u 0.00s 49.37r # +9%
+	gc_B fannkuch	49.19u 0.00s 49.29r # -14%
+
+regex-dna 100000
+	gc regex-dna	3.78u 0.00s 3.78r # -43%
+	gc regex-dna-parallel	3.84u 0.02s 1.48r # -49%
+	gc_B regex-dna	3.62u 0.00s 3.63r # -52%
+
+k-nucleotide 1000000
+	gc k-nucleotide	12.23u 0.02s 12.27r # +27%
+	gc k-nucleotide-parallel	12.76u 0.02s 4.37r # +29%
+	gc_B k-nucleotide	12.18u 0.01s 12.21r # +33%
+
+threadring 50000000
+	gc threadring	17.49u 0.00s 17.53r # +4%
+
+chameneos 6000000
+	gc chameneosredux	7.61u 0.00s 7.63r # -24%
+
