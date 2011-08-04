@@ -82,8 +82,8 @@ runtime·unlock(Lock *l)
 	}
 }
 
-void
-runtime·destroylock(Lock *l)
+static void
+destroylock(Lock *l)
 {
 	if(l->sema != 0) {
 		runtime·mach_semdestroy(l->sema);
@@ -147,6 +147,7 @@ runtime·osinit(void)
 	// to let the C pthread libary install its own thread-creation callback.
 	if(!runtime·iscgo)
 		runtime·bsdthread_register();
+	runtime·destroylock = destroylock;
 }
 
 void

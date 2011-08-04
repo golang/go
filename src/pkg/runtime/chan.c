@@ -85,7 +85,6 @@ runtime·makechan_c(Type *elem, int64 hint)
 {
 	Hchan *c;
 	int32 n;
-	byte *by;
 
 	if(hint < 0 || (int32)hint != hint || (elem->size > 0 && hint > ((uintptr)-1) / elem->size))
 		runtime·panicstring("makechan: size out of range");
@@ -101,10 +100,9 @@ runtime·makechan_c(Type *elem, int64 hint)
 		n++;
 
 	// allocate memory in one call
-	by = runtime·mal(n + hint*elem->size);
-
-	c = (Hchan*)by;
-	runtime·addfinalizer(c, destroychan, 0);
+	c = (Hchan*)runtime·mal(n + hint*elem->size);
+	if(runtime·destroylock)
+		runtime·addfinalizer(c, destroychan, 0);
 
 	c->elemsize = elem->size;
 	c->elemalg = &runtime·algarray[elem->alg];

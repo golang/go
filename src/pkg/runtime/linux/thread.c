@@ -199,11 +199,6 @@ runtime·unlock(Lock *l)
 	futexunlock(l);
 }
 
-void
-runtime·destroylock(Lock*)
-{
-}
-
 
 // One-time notifications.
 void

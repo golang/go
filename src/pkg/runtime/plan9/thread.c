@@ -114,12 +114,6 @@ runtime·unlock(Lock *l)
 }
 
 
-void 
-runtime·destroylock(Lock *l)
-{
-	// nothing
-}
-
 // User-level semaphore implementation:
 // try to do the operations in user space on u,
 // but when it's time to block, fall back on the kernel semaphore k.

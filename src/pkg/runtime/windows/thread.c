@@ -40,12 +40,14 @@ extern void *runtime·WaitForSingleObject;
 extern void *runtime·WriteFile;
 
 static int64 timerfreq;
+static void destroylock(Lock *l);
 
 void
 runtime·osinit(void)
 {
 	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
+	runtime·destroylock = destroylock;
 }
 
 void
@@ -154,8 +156,8 @@ runtime·unlock(Lock *l)
 	eventunlock(l);
 }
 
-void
-runtime·destroylock(Lock *l)
+static void
+destroylock(Lock *l)
 {
 	if(l->event != 0)
 		runtime·stdcall(runtime·CloseHandle, 1, l->event);

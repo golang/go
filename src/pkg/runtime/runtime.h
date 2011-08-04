@@ -380,6 +380,7 @@ extern	uint32	runtime·panicking;
 extern	int32	runtime·gcwaiting;		// gc is waiting to run
 int8*	runtime·goos;
 extern	bool	runtime·iscgo;
+extern	void	(*runtime·destroylock)(Lock*);
 
 /*
  * common functions and data
@@ -515,7 +516,6 @@ void	runtime·starttheworld(void);
  */
 void	runtime·lock(Lock*);
 void	runtime·unlock(Lock*);
-void	runtime·destroylock(Lock*);
 
 /*
  * sleep and wakeup on one-time events.

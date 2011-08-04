@@ -102,11 +102,6 @@ runtime·unlock(Lock *l)
 	umtx_unlock(l);
 }
 
-void
-runtime·destroylock(Lock*)
-{
-}
-
 // Event notifications.
 void
 runtime·noteclear(Note *n)
