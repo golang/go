@@ -477,28 +477,36 @@ func TestCountMallocs(t *testing.T) {
 	if testing.Short() {
 		return
 	}
+	runtime.UpdateMemStats()
 	mallocs := 0 - runtime.MemStats.Mallocs
 	for i := 0; i < 100; i++ {
 		Sprintf("")
 	}
+	runtime.UpdateMemStats()
 	mallocs += runtime.MemStats.Mallocs
 	Printf("mallocs per Sprintf(\"\"): %d\n", mallocs/100)
+	runtime.UpdateMemStats()
 	mallocs = 0 - runtime.MemStats.Mallocs
 	for i := 0; i < 100; i++ {
 		Sprintf("xxx")
 	}
+	runtime.UpdateMemStats()
 	mallocs += runtime.MemStats.Mallocs
 	Printf("mallocs per Sprintf(\"xxx\"): %d\n", mallocs/100)
+	runtime.UpdateMemStats()
 	mallocs = 0 - runtime.MemStats.Mallocs
 	for i := 0; i < 100; i++ {
 		Sprintf("%x", i)
 	}
+	runtime.UpdateMemStats()
 	mallocs += runtime.MemStats.Mallocs
 	Printf("mallocs per Sprintf(\"%%x\"): %d\n", mallocs/100)
+	runtime.UpdateMemStats()
 	mallocs = 0 - runtime.MemStats.Mallocs
 	for i := 0; i < 100; i++ {
 		Sprintf("%x %x", i, i)
 	}
+	runtime.UpdateMemStats()
 	mallocs += runtime.MemStats.Mallocs
 	Printf("mallocs per Sprintf(\"%%x %%x\"): %d\n", mallocs/100)
 }
