@@ -98,7 +98,8 @@ var sniffSignatures = []sniffSig{
 	&exactSig{[]byte("\x50\x4B\x03\x04"), "application/zip"},
 	&exactSig{[]byte("\x1F\x8B\x08"), "application/x-gzip"},
 
-	mp4Sig(0),
+	// TODO(dsymonds): Re-enable this when the spec is sorted w.r.t. MP4.
+	//mp4Sig(0),
 
 	textSig(0), // should be last
 }
@@ -179,8 +180,18 @@ func (mp4Sig) match(data []byte, firstNonWS int) string {
 			// minor version number
 			continue
 		}
-		if bytes.Equal(data[st:st+3], []byte("mp4")) {
+		seg := string(data[st : st+3])
+		switch seg {
+		case "mp4", "iso", "M4V", "M4P", "M4B":
 			return "video/mp4"
+			/* The remainder are not in the spec.
+			case "M4A":
+				return "audio/mp4"
+			case "3gp":
+				return "video/3gpp"
+			case "jp2":
+				return "image/jp2" // JPEG 2000
+			*/
 		}
 	}
 	return ""
