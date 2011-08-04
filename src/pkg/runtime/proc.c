@@ -855,14 +855,11 @@ runtime·exitsyscall(void)
 		return;
 	}
 
-	schedlock();
-
 	// Tell scheduler to put g back on the run queue:
 	// mostly equivalent to g->status = Grunning,
 	// but keeps the garbage collector from thinking
 	// that g is running right now, which it's not.
 	g->readyonstop = 1;
-	schedunlock();
 
 	// All the cpus are taken.
 	// The scheduler will ready g and put this m to sleep.
