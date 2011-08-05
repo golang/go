@@ -37,21 +37,31 @@ type TimeTest struct {
 }
 
 var utctests = []TimeTest{
-	{0, Time{1970, 1, 1, 0, 0, 0, Thursday, 0, "UTC"}},
-	{1221681866, Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "UTC"}},
-	{-1221681866, Time{1931, 4, 16, 3, 55, 34, Thursday, 0, "UTC"}},
-	{-11644473600, Time{1601, 1, 1, 0, 0, 0, Monday, 0, "UTC"}},
-	{599529660, Time{1988, 12, 31, 0, 1, 0, Saturday, 0, "UTC"}},
-	{978220860, Time{2000, 12, 31, 0, 1, 0, Sunday, 0, "UTC"}},
-	{1e18, Time{31688740476, 10, 23, 1, 46, 40, Friday, 0, "UTC"}},
-	{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, Tuesday, 0, "UTC"}},
-	{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, Sunday, 0, "UTC"}},
-	{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, Sunday, 0, "UTC"}},
+	{0, Time{1970, 1, 1, 0, 0, 0, 0, Thursday, 0, "UTC"}},
+	{1221681866, Time{2008, 9, 17, 20, 4, 26, 0, Wednesday, 0, "UTC"}},
+	{-1221681866, Time{1931, 4, 16, 3, 55, 34, 0, Thursday, 0, "UTC"}},
+	{-11644473600, Time{1601, 1, 1, 0, 0, 0, 0, Monday, 0, "UTC"}},
+	{599529660, Time{1988, 12, 31, 0, 1, 0, 0, Saturday, 0, "UTC"}},
+	{978220860, Time{2000, 12, 31, 0, 1, 0, 0, Sunday, 0, "UTC"}},
+	{1e18, Time{31688740476, 10, 23, 1, 46, 40, 0, Friday, 0, "UTC"}},
+	{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, 0, Tuesday, 0, "UTC"}},
+	{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, 0, Sunday, 0, "UTC"}},
+	{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, 0, Sunday, 0, "UTC"}},
+}
+
+var nanoutctests = []TimeTest{
+	{0, Time{1970, 1, 1, 0, 0, 0, 1e8, Thursday, 0, "UTC"}},
+	{1221681866, Time{2008, 9, 17, 20, 4, 26, 2e8, Wednesday, 0, "UTC"}},
 }
 
 var localtests = []TimeTest{
-	{0, Time{1969, 12, 31, 16, 0, 0, Wednesday, -8 * 60 * 60, "PST"}},
-	{1221681866, Time{2008, 9, 17, 13, 4, 26, Wednesday, -7 * 60 * 60, "PDT"}},
+	{0, Time{1969, 12, 31, 16, 0, 0, 0, Wednesday, -8 * 60 * 60, "PST"}},
+	{1221681866, Time{2008, 9, 17, 13, 4, 26, 0, Wednesday, -7 * 60 * 60, "PDT"}},
+}
+
+var nanolocaltests = []TimeTest{
+	{0, Time{1969, 12, 31, 16, 0, 0, 1e8, Wednesday, -8 * 60 * 60, "PST"}},
+	{1221681866, Time{2008, 9, 17, 13, 4, 26, 3e8, Wednesday, -7 * 60 * 60, "PDT"}},
 }
 
 func same(t, u *Time) bool {
@@ -61,15 +71,16 @@ func same(t, u *Time) bool {
 		t.Hour == u.Hour &&
 		t.Minute == u.Minute &&
 		t.Second == u.Second &&
+		t.Nanosecond == u.Nanosecond &&
 		t.Weekday == u.Weekday &&
 		t.ZoneOffset == u.ZoneOffset &&
 		t.Zone == u.Zone
 }
 
 func TestSecondsToUTC(t *testing.T) {
-	for i := 0; i < len(utctests); i++ {
-		sec := utctests[i].seconds
-		golden := &utctests[i].golden
+	for _, test := range utctests {
+		sec := test.seconds
+		golden := &test.golden
 		tm := SecondsToUTC(sec)
 		newsec := tm.Seconds()
 		if newsec != sec {
@@ -83,10 +94,27 @@ func TestSecondsToUTC(t *testing.T) {
 	}
 }
 
+func TestNanosecondsToUTC(t *testing.T) {
+	for _, test := range nanoutctests {
+		golden := &test.golden
+		nsec := test.seconds*1e9 + int64(golden.Nanosecond)
+		tm := NanosecondsToUTC(nsec)
+		newnsec := tm.Nanoseconds()
+		if newnsec != nsec {
+			t.Errorf("NanosecondsToUTC(%d).Nanoseconds() = %d", nsec, newnsec)
+		}
+		if !same(tm, golden) {
+			t.Errorf("NanosecondsToUTC(%d):", nsec)
+			t.Errorf("  want=%+v", *golden)
+			t.Errorf("  have=%+v", *tm)
+		}
+	}
+}
+
 func TestSecondsToLocalTime(t *testing.T) {
-	for i := 0; i < len(localtests); i++ {
-		sec := localtests[i].seconds
-		golden := &localtests[i].golden
+	for _, test := range localtests {
+		sec := test.seconds
+		golden := &test.golden
 		tm := SecondsToLocalTime(sec)
 		newsec := tm.Seconds()
 		if newsec != sec {
@@ -94,6 +122,23 @@ func TestSecondsToLocalTime(t *testing.T) {
 		}
 		if !same(tm, golden) {
 			t.Errorf("SecondsToLocalTime(%d):", sec)
+			t.Errorf("  want=%+v", *golden)
+			t.Errorf("  have=%+v", *tm)
+		}
+	}
+}
+
+func TestNanoecondsToLocalTime(t *testing.T) {
+	for _, test := range nanolocaltests {
+		golden := &test.golden
+		nsec := test.seconds*1e9 + int64(golden.Nanosecond)
+		tm := NanosecondsToLocalTime(nsec)
+		newnsec := tm.Nanoseconds()
+		if newnsec != nsec {
+			t.Errorf("NanosecondsToLocalTime(%d).Seconds() = %d", nsec, newnsec)
+		}
+		if !same(tm, golden) {
+			t.Errorf("NanosecondsToLocalTime(%d):", nsec)
 			t.Errorf("  want=%+v", *golden)
 			t.Errorf("  have=%+v", *tm)
 		}
@@ -114,15 +159,30 @@ func TestSecondsToUTCAndBack(t *testing.T) {
 	}
 }
 
+func TestNanosecondsToUTCAndBack(t *testing.T) {
+	f := func(nsec int64) bool { return NanosecondsToUTC(nsec).Nanoseconds() == nsec }
+	f32 := func(nsec int32) bool { return f(int64(nsec)) }
+	cfg := &quick.Config{MaxCount: 10000}
+
+	// Try a small date first, then the large ones. (The span is only a few hundred years
+	// for nanoseconds in an int64.)
+	if err := quick.Check(f32, cfg); err != nil {
+		t.Fatal(err)
+	}
+	if err := quick.Check(f, cfg); err != nil {
+		t.Fatal(err)
+	}
+}
+
 type TimeFormatTest struct {
 	time           Time
 	formattedValue string
 }
 
 var rfc3339Formats = []TimeFormatTest{
-	{Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "UTC"}, "2008-09-17T20:04:26Z"},
-	{Time{1994, 9, 17, 20, 4, 26, Wednesday, -18000, "EST"}, "1994-09-17T20:04:26-05:00"},
-	{Time{2000, 12, 26, 1, 15, 6, Wednesday, 15600, "OTO"}, "2000-12-26T01:15:06+04:20"},
+	{Time{2008, 9, 17, 20, 4, 26, 0, Wednesday, 0, "UTC"}, "2008-09-17T20:04:26Z"},
+	{Time{1994, 9, 17, 20, 4, 26, 0, Wednesday, -18000, "EST"}, "1994-09-17T20:04:26-05:00"},
+	{Time{2000, 12, 26, 1, 15, 6, 0, Wednesday, 15600, "OTO"}, "2000-12-26T01:15:06+04:20"},
 }
 
 func TestRFC3339Conversion(t *testing.T) {
