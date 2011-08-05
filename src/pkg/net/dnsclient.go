@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"rand"
+	"sort"
 )
 
 // DNSError represents a DNS lookup error.
@@ -182,9 +183,9 @@ func (s byPriorityWeight) Less(i, j int) bool {
 		(s[i].Priority == s[j].Priority && s[i].Weight < s[j].Weight)
 }
 
-// shuffleSRVByWeight shuffles SRV records by weight using the algorithm
+// shuffleByWeight shuffles SRV records by weight using the algorithm
 // described in RFC 2782.  
-func shuffleSRVByWeight(addrs []*SRV) {
+func (addrs byPriorityWeight) shuffleByWeight() {
 	sum := 0
 	for _, addr := range addrs {
 		sum += int(addr.Weight)
@@ -208,6 +209,19 @@ func shuffleSRVByWeight(addrs []*SRV) {
 	}
 }
 
+// sort reorders SRV records as specified in RFC 2782.
+func (addrs byPriorityWeight) sort() {
+	sort.Sort(addrs)
+	i := 0
+	for j := 1; j < len(addrs); j++ {
+		if addrs[i].Priority != addrs[j].Priority {
+			addrs[i:j].shuffleByWeight()
+			i = j
+		}
+	}
+	addrs[i:].shuffleByWeight()
+}
+
 // An MX represents a single DNS MX record.
 type MX struct {
 	Host string
@@ -222,3 +236,12 @@ func (s byPref) Len() int { return len(s) }
 func (s byPref) Less(i, j int) bool { return s[i].Pref < s[j].Pref }
 
 func (s byPref) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+// sort reorders MX records as specified in RFC 5321.
+func (s byPref) sort() {
+	for i := range s {
+		j := rand.Intn(i + 1)
+		s[i], s[j] = s[j], s[i]
+	}
+	sort.Sort(s)
+}

@@ -6,8 +6,6 @@ package net
 
 import (
 	"os"
-	"rand"
-	"sort"
 )
 
 // LookupHost looks up the given host using the local resolver.
@@ -68,15 +66,7 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.
 		r := rr.(*dnsRR_SRV)
 		addrs[i] = &SRV{r.Target, r.Port, r.Priority, r.Weight}
 	}
-	sort.Sort(byPriorityWeight(addrs))
-	i := 0
-	for j := 1; j < len(addrs); j++ {
-		if addrs[i].Priority != addrs[j].Priority {
-			shuffleSRVByWeight(addrs[i:j])
-			i = j
-		}
-	}
-	shuffleSRVByWeight(addrs[i:len(addrs)])
+	byPriorityWeight(addrs).sort()
 	return
 }
 
@@ -91,12 +81,7 @@ func LookupMX(name string) (mx []*MX, err os.Error) {
 		r := rr[i].(*dnsRR_MX)
 		mx[i] = &MX{r.Mx, r.Pref}
 	}
-	// Shuffle the records to match RFC 5321 when sorted
-	for i := range mx {
-		j := rand.Intn(i + 1)
-		mx[i], mx[j] = mx[j], mx[i]
-	}
-	sort.Sort(byPref(mx))
+	byPref(mx).sort()
 	return
 }
 
