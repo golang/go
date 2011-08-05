@@ -27,3 +27,31 @@ func TestGoogleSRV(t *testing.T) {
 		t.Errorf("no results")
 	}
 }
+
+func TestGmailMX(t *testing.T) {
+	if testing.Short() || avoidMacFirewall {
+		t.Logf("skipping test to avoid external network")
+		return
+	}
+	mx, err := LookupMX("gmail.com")
+	if err != nil {
+		t.Errorf("failed: %s", err)
+	}
+	if len(mx) == 0 {
+		t.Errorf("no results")
+	}
+}
+
+func TestGoogleDNSAddr(t *testing.T) {
+	if testing.Short() || avoidMacFirewall {
+		t.Logf("skipping test to avoid external network")
+		return
+	}
+	names, err := LookupAddr("8.8.8.8")
+	if err != nil {
+		t.Errorf("failed: %s", err)
+	}
+	if len(names) == 0 {
+		t.Errorf("no results")
+	}
+}

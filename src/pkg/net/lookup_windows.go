@@ -85,23 +85,46 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.
 		return "", nil, os.NewSyscallError("LookupSRV", int(e))
 	}
 	defer syscall.DnsRecordListFree(r, 1)
-	addrs = make([]*SRV, 100)
-	i := 0
+	addrs = make([]*SRV, 0, 10)
 	for p := r; p != nil && p.Type == syscall.DNS_TYPE_SRV; p = p.Next {
 		v := (*syscall.DNSSRVData)(unsafe.Pointer(&p.Data[0]))
-		addrs[i] = &SRV{syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))[:]), v.Port, v.Priority, v.Weight}
-		i++
+		addrs = append(addrs, &SRV{syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))[:]), v.Port, v.Priority, v.Weight})
 	}
-	addrs = addrs[0:i]
+	byPriorityWeight(addrs).sort()
 	return name, addrs, nil
 }
 
-// TODO(brainman): implement LookupMX and LookupAddr.
-
 func LookupMX(name string) (mx []*MX, err os.Error) {
-	return nil, os.NewSyscallError("LookupMX", syscall.EWINDOWS)
+	var r *syscall.DNSRecord
+	e := syscall.DnsQuery(name, syscall.DNS_TYPE_MX, 0, nil, &r, nil)
+	if int(e) != 0 {
+		return nil, os.NewSyscallError("LookupMX", int(e))
+	}
+	defer syscall.DnsRecordListFree(r, 1)
+	mx = make([]*MX, 0, 10)
+	for p := r; p != nil && p.Type == syscall.DNS_TYPE_MX; p = p.Next {
+		v := (*syscall.DNSMXData)(unsafe.Pointer(&p.Data[0]))
+		mx = append(mx, &MX{syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.NameExchange))[:]) + ".", v.Preference})
+	}
+	byPref(mx).sort()
+	return mx, nil
 }
 
 func LookupAddr(addr string) (name []string, err os.Error) {
-	return nil, os.NewSyscallError("LookupAddr", syscall.EWINDOWS)
+	arpa, err := reverseaddr(addr)
+	if err != nil {
+		return nil, err
+	}
+	var r *syscall.DNSRecord
+	e := syscall.DnsQuery(arpa, syscall.DNS_TYPE_PTR, 0, nil, &r, nil)
+	if int(e) != 0 {
+		return nil, os.NewSyscallError("LookupAddr", int(e))
+	}
+	defer syscall.DnsRecordListFree(r, 1)
+	name = make([]string, 0, 10)
+	for p := r; p != nil && p.Type == syscall.DNS_TYPE_PTR; p = p.Next {
+		v := (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0]))
+		name = append(name, syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:]))
+	}
+	return name, nil
 }

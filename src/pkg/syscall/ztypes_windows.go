@@ -478,6 +478,12 @@ type DNSPTRData struct {
 	Host *uint16
 }
 
+type DNSMXData struct {
+	NameExchange *uint16
+	Preference   uint16
+	Pad          uint16
+}
+
 type DNSRecord struct {
 	Next     *DNSRecord
 	Name     *uint16
