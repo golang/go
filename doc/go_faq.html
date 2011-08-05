@@ -8,6 +8,7 @@ What is the purpose of the project?</h3>
 <p>
 No major systems language has emerged in over a decade, but over that time
 the computing landscape has changed tremendously. There are several trends:
+</p>
 
 <ul>
 <li>
@@ -26,11 +27,11 @@ are not well supported by popular systems languages.
 <li>
 The emergence of multicore computers has generated worry and confusion.
 </ul>
-</p>
 
 <p>
 We believe it's worth trying again with a new language, a concurrent,
 garbage-collected language with fast compilation. Regarding the points above:
+</p>
 
 <ul>
 <li>
@@ -50,7 +51,6 @@ concurrent execution and communication.
 By its design, Go proposes an approach for the construction of system
 software on multicore machines.
 </ul>
-</p>
 
 <h3 id="What_is_the_origin_of_the_name">
 What is the origin of the name?</h3>
@@ -105,7 +105,8 @@ and libraries from prototype to reality.
 </p>
 
 <p>
-Many others have contributed ideas, discussions, and code.
+Go became a public open source project on November 10, 2009.
+Many people from the community have contributed ideas, discussions, and code.
 </p>
 
 <h3 id="creating_a_new_language">
@@ -314,7 +315,16 @@ exceptional.
 </p>
 
 <p>
-Go takes a different approach.  Instead of exceptions, it has a couple
+Go takes a different approach.  For plain error handling, Go's multi-value
+returns make it easy to report an error without overloading the return value.
+<a href="http://blog.golang.org/2011/07/error-handling-and-go.html">A
+canonical error type, coupled
+with Go's other features</a>, makes error
+handling pleasant but quite different from that in other languages.
+</p>
+
+<p>
+Go also has a couple
 of built-in functions to signal and recover from truly exceptional
 conditions.  The recovery mechanism is executed only as part of a
 function's state being torn down after an error, which is sufficient
@@ -372,7 +382,7 @@ Why build concurrency on the ideas of CSP?</h3>
 Concurrency and multi-threaded programming have a reputation
 for difficulty.  We believe the problem is due partly to complex
 designs such as pthreads and partly to overemphasis on low-level details
-such as mutexes, condition variables, and even memory barriers.
+such as mutexes, condition variables, and memory barriers.
 Higher-level interfaces enable much simpler code, even if there are still
 mutexes and such under the covers.
 </p>
@@ -390,14 +400,14 @@ Why goroutines instead of threads?</h3>
 <p>
 Goroutines are part of making concurrency easy to use.  The idea, which has
 been around for a while, is to multiplex independently executing
-functions&mdash;coroutines, really&mdash;onto a set of threads.
+functions&mdash;coroutines&mdash;onto a set of threads.
 When a coroutine blocks, such as by calling a blocking system call,
 the run-time automatically moves other coroutines on the same operating
 system thread to a different, runnable thread so they won't be blocked.
 The programmer sees none of this, which is the point.
 The result, which we call goroutines, can be very cheap: unless they spend a lot of time
 in long-running system calls, they cost little more than the memory
-for the stack.
+for the stack, which is just a few kilobytes.
 </p>
 
 <p>
@@ -473,8 +483,8 @@ that specifies a subset of its methods.  Besides reducing the
 bookkeeping, this approach has real advantages.  Types can satisfy
 many interfaces at once, without the complexities of traditional
 multiple inheritance.
-Interfaces can be very lightweight&mdash;having one or even zero methods
-in an interface can express useful concepts.
+Interfaces can be very lightweight&mdash;an interface with
+one or even zero methods can express a useful concept.
 Interfaces can be added after the fact if a new idea comes along
 or for testing&mdash;without annotating the original types.
 Because there are no explicit relationships between types
@@ -494,7 +504,7 @@ stream ciphers.  All these ideas stem from a single interface
 
 <p>
 It takes some getting used to but this implicit style of type
-dependency is one of the most exciting things about Go.
+dependency is one of the most productive things about Go.
 </p>
 
 <h3 id="methods_on_basics">
@@ -586,6 +596,85 @@ func (b Bar) Foo() {}
 Most code doesn't make use of such constraints, since they limit the utility of 
 the interface idea. Sometimes, though, they're necessary to resolve ambiguities
 among similar interfaces.
+</p>
+
+<h3 id="t_and_equal_interface">
+Why doesn't type T satisfy the Equal interface?</h3>
+
+<p>
+Consider this simple interface to represent an object that can compare
+itself with another value:
+</p>
+
+<pre>
+type Equaler interface {
+	Equal(Equaler) bool
+}
+</pre>
+
+<p>
+and this type, <code>T</code>:
+</p>
+
+<pre>
+type T int
+func (t T) Equal(u T) bool { return t == u } // does not satisfy Equaler
+</pre>
+
+<p>
+Unlike the analogous situation in some polymorphic type systems,
+<code>T</code> does not implement <code>Equaler</code>.
+The argument type of <code>T.Equal</code> is <code>T</code>,
+not literally the required type <code>Equaler</code>.
+</p>
+
+<p>
+In Go, the type system does not promote the argument of
+<code>Equal</code>; that is the programmer's responsibility, as
+illustrated by the type <code>T2</code>, which does implement
+<code>Equaler</code>:
+</p>
+
+<pre>
+type T2 int
+func (t T2) Equal(u Equaler) bool { return t == u.(T2) }  // satisfies Equaler
+</pre>
+
+<p>
+Even this isn't like other type systems, though, because in Go <em>any</em>
+type that satisfies <code>Equaler</code> could be passed as the
+argument to <code>T2.Equal</code>, and at run time we must
+check that the argument is of type <code>T2</code>.
+Some languages arrange to make that guarantee at compile time.
+</p>
+
+<p>
+A related example goes the other way:
+</p>
+
+<pre>
+type Opener interface {
+   Open(name) Reader
+}
+
+func (t T3) Open() *os.File
+</pre>
+
+<p>
+In Go, <code>T3</code> does not satisfy <code>Opener</code>,
+although it might in another language.
+</p>
+
+<p>
+While it is true that Go's type system does less for the programmer
+in such cases, the lack of subtyping makes the rules about
+interface satisfaction very easy to state: are the function's names
+and signatures exactly those of the interface?
+Go's rule is also easy to implement efficiently.
+We feel these benefits offset the lack of
+automatic type promotion. Should Go one day adopt some form of generic
+typing, we expect there would be a way to express the idea of these
+examples and also have them be statically checked.
 </p>
 
 <h3 id="convert_slice_of_interface">
@@ -736,16 +825,61 @@ makes a copy of the pointer, but again not the data it points to.
 Should I define methods on values or pointers?</h3>
 
 <pre>
-func (s *MyStruct) someMethod() { } // method on pointer
-func (s MyStruct) someMethod() { }  // method on value
+func (s *MyStruct) pointerMethod() { } // method on pointer
+func (s MyStruct)  valueMethod()   { } // method on value
 </pre>
 
 <p>
+For programmers unaccustomed to pointers, the distinction between these
+two examples can be confusing, but the situation is actually very simple.
 When defining a method on a type, the receiver (<code>s</code> in the above
-example) behaves exactly is if it were an argument to the method. Define the
-method on a pointer type if you need the method to modify the data the receiver
-points to. Otherwise, it is often cleaner to define the method on a value type.
+example) behaves exactly as if it were an argument to the method.
+Whether to define the receiver as a value or as a pointer is the same
+question, then, as whether a function argument should be a value or
+a pointer.
+There are several considerations.
 </p>
+
+<p>
+First, and most important, does the method need to modify the
+receiver?
+If it does, the receiver <em>must</em> be a pointer.
+(Slices and maps are reference types, so their story is a little
+more subtle, but for instance to change the length of a slice
+in a method the receiver must still be a pointer.)
+In the examples above, if <code>pointerMethod</code> modifies
+the fields of <code>s</code>,
+the caller will see those changes, but <code>valueMethod</code>
+is called with a copy of the caller's argument (that's the definition
+of passing a value), so changes it makes will be invisible to the caller.
+</p>
+
+<p>
+By the way, pointer receivers are identical to the situation in Java,
+although in Java the pointers are hidden under the covers; it's Go's
+value receivers that are unusual.
+</p>
+
+<p>
+Second is the consideration of efficiency. If the receiver is large,
+a big <code>struct</code> for instance, it will be much cheaper to
+use a pointer receiver.
+</p>
+
+<p>
+Next is consistency. If some of the methods of the type must have
+pointer receivers, the rest should too, so the method set is
+consistent regardless of how the type is used.
+See the section on <a href="#different_method_sets">method sets</a>
+for details.
+</p>
+
+<p>
+For types such as basic types, slices, and small <code>structs</code>,
+a value receiver is very cheap so unless the semantics of the method
+requires a pointer, a value receiver is efficient and clear.
+</p>
+
 
 <h3 id="new_and_make">
 What's the difference between new and make?</h3>
@@ -1111,6 +1245,11 @@ isn't fast enough yet (even if it were, taking care not to generate unnecessary
 garbage can have a huge effect).
 </p>
 
+<p>
+In any case, Go can often be very competitive. See the blog post about
+<a href="http://blog.golang.org/2011/06/profiling-go-programs.html">profiling
+Go programs</a> for an informative example.
+
 <h2 id="change_from_c">Changes from C</h2>
 
 <h3 id="different_syntax">
@@ -1165,7 +1304,9 @@ and <code>chan</code> keep things clear.
 </p>
 
 <p>
-See the <a href="http://blog.golang.org/2010/07/gos-declaration-syntax.html">Go's Declaration Syntax</a> article for more details.
+See the article about
+<a href="http://blog.golang.org/2010/07/gos-declaration-syntax.html">Go's Declaration Syntax</a>
+for more details.
 </p>
 
 <h3 id="no_pointer_arithmetic">
@@ -1251,4 +1392,15 @@ program helps everyone.
 <p>
 Finally, concurrency aside, garbage collection makes interfaces
 simpler because they don't need to specify how memory is managed across them.
+</p>
+
+<p>
+On the topic of performance, keep in mind that Go gives the programmer
+considerable control over memory layout and allocation, much more than
+is typical in garbage-collected languages. A careful programmer can reduce
+the garbage collection overhead dramatically by using the language well;
+see the article about
+<a href="http://blog.golang.org/2011/06/profiling-go-programs.html">profiling
+Go programs</a> for a worked example, including a demonstration of Go's
+profiling tools.
 </p>
