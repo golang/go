@@ -695,6 +695,42 @@ for i, v := range t {
 }
 </pre>
 
+<h3 id="unions">
+Why are there no untagged unions, as in C?</h3>
+
+<p>
+Untagged unions would violate Go's memory safety
+guarantees.
+</p>
+
+<h3 id="variant_types">
+Why does Go not have variant types?</h3>
+
+<p>
+Variant types, also known as algebraic types, provide a way to specify
+that a value might take one of a set of other types, but only those
+types. A common example in systems programming would specify that an
+error is, say, a network error, a security error or an application
+error and allow the caller to discriminate the source of the problem
+by examining the type of the error. Another example is a syntax tree
+in which each node can be a different type: declaration, statement,
+assignment and so on.
+</p>
+
+<p>
+We considered adding variant types to Go, but after discussion
+decided to leave them out because they overlap in confusing ways
+with interfaces. What would happen if the elements of a variant type
+were themselves interfaces?
+</p>
+
+<p>
+Also, some of what variant types address is already covered by the
+language. The error example is easy to express using an interface
+value to hold the error and a type switch to discriminate cases.  The
+syntax tree example is also doable, although not as elegantly.
+</p>
+
 <h2 id="values">Values</h2>
 
 <h3 id="conversions">
@@ -1211,6 +1247,60 @@ on Linux is around 750 kB.  An equivalent Go program is around 1.1 MB, but
 that includes more powerful run-time support.  We believe that with some effort
 the size of Go binaries can be reduced.
 </p>
+
+<h3 id="unused_variables_and_imports">
+Can I stop these complaints about my unused variable/import?</h3>
+
+<p>
+The presence of an unused variable may indicate a bug, while
+unused imports just slow down compilation.
+Accumulate enough unused imports in your code tree and
+things can get very slow.
+For these reasons, Go allows neither.
+</p>
+
+<p>
+When developing code, it's common to create these situations
+temporarily and it can be annoying to have to edit them out before the
+program will compile.  
+</p>
+
+<p>
+Some have asked for a compiler option to turn those checks off
+or at least reduce them to warnings.
+Such an option has not been added, though,
+because compiler options should not affect the semantics of the
+language and because the Go compiler does not report warnings, only
+errors that prevent compilation.
+</p>
+
+<p>
+There are two reasons for having no warnings.  First, if it's worth
+complaining about, it's worth fixing in the code.  (And if it's not
+worth fixing, it's not worth mentioning.) Second, having the compiler
+generate warnings encourages the implementation to warn about weak
+cases that can make compilation noisy, masking real errors that
+<em>should</em> be fixed.
+</p>
+
+<p>
+It's easy to address the situation, though.  Use the blank identifier
+to let unused things persist while you're developing.
+</p>
+
+<pre>
+import "unused"
+
+// This declaration marks the import as used by referencing an
+// item from the package.
+var _ = unused.Item  // TODO: Delete before committing!
+
+func main() {
+	debugData := debug.Profile()
+	_ = debugData // Used only during debugging.
+	....
+}
+</pre>
 
 <h2 id="Performance">Performance</h2>
 
