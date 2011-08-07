@@ -6,6 +6,7 @@ package time_test
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/quick"
@@ -213,11 +214,16 @@ var formatTests = []FormatTest{
 	{"am/pm", "3pm", "9pm"},
 	{"AM/PM", "3PM", "9PM"},
 	{"two-digit year", "06 01 02", "09 02 04"},
+	// Time stamps, Fractional seconds.
+	{"Stamp", Stamp, "Feb  4 21:00:57"},
+	{"StampMilli", StampMilli, "Feb  4 21:00:57.012"},
+	{"StampMicro", StampMicro, "Feb  4 21:00:57.012345"},
+	{"StampNano", StampNano, "Feb  4 21:00:57.012345678"},
 }
 
 func TestFormat(t *testing.T) {
-	// The numeric time represents Thu Feb  4 21:00:57 PST 2010
-	time := SecondsToLocalTime(1233810057)
+	// The numeric time represents Thu Feb  4 21:00:57.012345678 PST 2010
+	time := NanosecondsToLocalTime(1233810057012345678)
 	for _, test := range formatTests {
 		result := time.Format(test.format)
 		if result != test.result {
@@ -227,25 +233,33 @@ func TestFormat(t *testing.T) {
 }
 
 type ParseTest struct {
-	name     string
-	format   string
-	value    string
-	hasTZ    bool  // contains a time zone
-	hasWD    bool  // contains a weekday
-	yearSign int64 // sign of year
+	name       string
+	format     string
+	value      string
+	hasTZ      bool  // contains a time zone
+	hasWD      bool  // contains a weekday
+	yearSign   int64 // sign of year
+	fracDigits int   // number of digits of fractional second
 }
 
 var parseTests = []ParseTest{
-	{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010", false, true, 1},
-	{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010", true, true, 1},
-	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1},
-	{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1},
-	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1},
-	{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00", true, false, 1},
-	{"custom: \"2006-01-02 15:04:05-07\"", "2006-01-02 15:04:05-07", "2010-02-04 21:00:57-08", true, false, 1},
+	{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010", false, true, 1, 0},
+	{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010", true, true, 1, 0},
+	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1, 0},
+	{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1, 0},
+	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1, 0},
+	{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00", true, false, 1, 0},
+	{"custom: \"2006-01-02 15:04:05-07\"", "2006-01-02 15:04:05-07", "2010-02-04 21:00:57-08", true, false, 1, 0},
 	// Amount of white space should not matter.
-	{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true, 1},
-	{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true, 1},
+	{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true, 1, 0},
+	{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true, 1, 0},
+	// Fractional seconds.
+	{"millisecond", "Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 21:00:57.012 2010", false, true, 1, 3},
+	{"microsecond", "Mon Jan _2 15:04:05.000000 2006", "Thu Feb  4 21:00:57.012345 2010", false, true, 1, 6},
+	{"nanosecond", "Mon Jan _2 15:04:05.000000000 2006", "Thu Feb  4 21:00:57.012345678 2010", false, true, 1, 9},
+	// Leading zeros in other places should not be taken as fractional seconds.
+	{"zero1", "2006.01.02.15.04.05.0", "2010.02.04.21.00.57.0", false, false, 1, 1},
+	{"zero2", "2006.01.02.15.04.05.00", "2010.02.04.21.00.57.01", false, false, 1, 2},
 }
 
 func TestParse(t *testing.T) {
@@ -260,11 +274,11 @@ func TestParse(t *testing.T) {
 }
 
 var rubyTests = []ParseTest{
-	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1},
+	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1, 0},
 	// Ignore the time zone in the test. If it parses, it'll be OK.
-	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0000 2010", false, true, 1},
-	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +0000 2010", false, true, 1},
-	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +1130 2010", false, true, 1},
+	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0000 2010", false, true, 1, 0},
+	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +0000 2010", false, true, 1, 0},
+	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 +1130 2010", false, true, 1, 0},
 }
 
 // Problematic time zone format needs special tests.
@@ -298,6 +312,14 @@ func checkTime(time *Time, test *ParseTest, t *testing.T) {
 	}
 	if time.Second != 57 {
 		t.Errorf("%s: bad second: %d not %d", test.name, time.Second, 57)
+	}
+	// Nanoseconds must be checked against the precision of the input.
+	nanosec, err := strconv.Atoui("012345678"[:test.fracDigits] + "000000000"[:9-test.fracDigits])
+	if err != nil {
+		panic(err)
+	}
+	if time.Nanosecond != int(nanosec) {
+		t.Errorf("%s: bad nanosecond: %d not %d", test.name, time.Nanosecond, nanosec)
 	}
 	if test.hasTZ && time.ZoneOffset != -28800 {
 		t.Errorf("%s: bad tz offset: %d not %d", test.name, time.ZoneOffset, -28800)
@@ -345,11 +367,14 @@ type ParseErrorTest struct {
 }
 
 var parseErrorTests = []ParseErrorTest{
-	{ANSIC, "Feb  4 21:00:60 2010", "parse"}, // cannot parse Feb as Mon
-	{ANSIC, "Thu Feb  4 21:00:57 @2010", "parse"},
+	{ANSIC, "Feb  4 21:00:60 2010", "cannot parse"}, // cannot parse Feb as Mon
+	{ANSIC, "Thu Feb  4 21:00:57 @2010", "cannot parse"},
 	{ANSIC, "Thu Feb  4 21:00:60 2010", "second out of range"},
 	{ANSIC, "Thu Feb  4 21:61:57 2010", "minute out of range"},
 	{ANSIC, "Thu Feb  4 24:00:60 2010", "hour out of range"},
+	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59x01 2010", "cannot parse"},
+	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.xxx 2010", "cannot parse"},
+	{"Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 23:00:59.-123 2010", "fractional second out of range"},
 }
 
 func TestParseErrors(t *testing.T) {
