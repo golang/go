@@ -26,6 +26,9 @@ const (
 // replaced by a digit if the following number (a day) has two digits; for
 // compatibility with fixed-width Unix time formats.
 //
+// A decimal point followed by one or more zeros represents a
+// fractional second.
+//
 // Numeric time zone offsets format as follows:
 //	-0700  ±hhmm
 //	-07:00 ±hh:mm
@@ -45,6 +48,11 @@ const (
 	RFC1123 = "Mon, 02 Jan 2006 15:04:05 MST"
 	RFC3339 = "2006-01-02T15:04:05Z07:00"
 	Kitchen = "3:04PM"
+	// Handy time stamps.
+	Stamp      = "Jan _2 15:04:05"
+	StampMilli = "Jan _2 15:04:05.000"
+	StampMicro = "Jan _2 15:04:05.000000"
+	StampNano  = "Jan _2 15:04:05.000000000"
 )
 
 const (
@@ -154,6 +162,16 @@ func nextStdChunk(layout string) (prefix, std, suffix string) {
 			if len(layout) >= i+6 && layout[i:i+6] == stdISO8601ColonTZ {
 				return layout[0:i], layout[i : i+6], layout[i+6:]
 			}
+		case '.': // .000 - multiple digits of zeros (only) for fractional seconds.
+			numZeros := 0
+			var j int
+			for j = i + 1; j < len(layout) && layout[j] == '0'; j++ {
+				numZeros++
+			}
+			// String of digits must end here - only fractional second is all zeros.
+			if numZeros > 0 && (j >= len(layout) || layout[j] < '0' || '9' < layout[j]) {
+				return layout[0:i], layout[i : i+1+numZeros], layout[i+1+numZeros:]
+			}
 		}
 	}
 	return layout, "", ""
@@ -229,6 +247,21 @@ func pad(i int, padding string) string {
 }
 
 func zeroPad(i int) string { return pad(i, "0") }
+
+// formatNano formats a fractional second, as nanoseconds.
+func formatNano(nanosec, n int) string {
+	// User might give us bad data. Make sure it's positive and in range.
+	// They'll get nonsense output but it will have the right format.
+	s := strconv.Uitoa(uint(nanosec) % 1e9)
+	// Zero pad left without fmt.
+	if len(s) < 9 {
+		s = "000000000"[:9-len(s)] + s
+	}
+	if n > 9 {
+		n = 9
+	}
+	return "." + s[:n]
+}
 
 // Format returns a textual representation of the time value formatted
 // according to layout.  The layout defines the format by showing the
@@ -340,6 +373,10 @@ func (t *Time) Format(layout string) string {
 				p += zeroPad(zone / 60)
 				p += zeroPad(zone % 60)
 			}
+		default:
+			if len(std) >= 2 && std[0:2] == ".0" {
+				p = formatNano(t.Nanosecond, len(std)-1)
+			}
 		}
 		b.WriteString(p)
 		layout = suffix
@@ -355,7 +392,7 @@ func (t *Time) String() string {
 	return t.Format(UnixDate)
 }
 
-var errBad = os.NewError("bad") // just a marker; not returned to user
+var errBad = os.NewError("bad value for field") // placeholder not passed to user
 
 // ParseError describes a problem parsing a time string.
 type ParseError struct {
@@ -619,6 +656,33 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 			// Can we find its offset?
 			if offset, found := lookupByName(p); found {
 				t.ZoneOffset = offset
+			}
+		default:
+			if len(value) < len(std) {
+				err = errBad
+				break
+			}
+			if len(std) >= 2 && std[0:2] == ".0" {
+				if value[0] != '.' {
+					err = errBad
+					break
+				}
+				t.Nanosecond, err = strconv.Atoi(value[1:len(std)])
+				if err != nil {
+					break
+				}
+				if t.Nanosecond < 0 || t.Nanosecond >= 1e9 {
+					rangeErrString = "fractional second"
+					break
+				}
+				value = value[len(std):]
+				// We need nanoseconds, which means scaling by the number
+				// of missing digits in the format, maximum length 10. If it's
+				// longer than 10, we won't scale.
+				scaleDigits := 10 - len(std)
+				for i := 0; i < scaleDigits; i++ {
+					t.Nanosecond *= 10
+				}
 			}
 		}
 		if rangeErrString != "" {
