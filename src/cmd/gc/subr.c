@@ -493,8 +493,16 @@ algtype(Type *t)
 
 	if(issimple[t->etype] || isptr[t->etype] ||
 		t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP) {
-		if(t->width == widthptr)
-			a = AMEMWORD;
+		if(t->width == 1)
+			a = AMEM8;
+		else if(t->width == 2)
+			a = AMEM16;
+		else if(t->width == 4)
+			a = AMEM32;
+		else if(t->width == 8)
+			a = AMEM64;
+		else if(t->width == 16)
+			a = AMEM128;
 		else
 			a = AMEM;	// just bytes (int, ptr, etc)
 	} else if(t->etype == TSTRING)
@@ -503,8 +511,22 @@ algtype(Type *t)
 		a = ANILINTER;	// nil interface
 	else if(t->etype == TINTER)
 		a = AINTER;	// interface
-	else
-		a = ANOEQ;	// just bytes, but no hash/eq
+	else if(isslice(t))
+		a = ASLICE;	// slice
+	else {
+		if(t->width == 1)
+			a = ANOEQ8;
+		else if(t->width == 2)
+			a = ANOEQ16;
+		else if(t->width == 4)
+			a = ANOEQ32;
+		else if(t->width == 8)
+			a = ANOEQ64;
+		else if(t->width == 16)
+			a = ANOEQ128;
+		else
+			a = ANOEQ;	// just bytes, but no hash/eq
+	}
 	return a;
 }
 
