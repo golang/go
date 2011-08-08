@@ -69,6 +69,18 @@ GOFILES_linux=\
 	sendfile_linux.go\
 	sock_linux.go\
 
+GOFILES_openbsd=\
+	dnsclient.go\
+	dnsconfig.go\
+	fd.go\
+	file.go\
+	interface_bsd.go\
+	newpollserver.go\
+	port.go\
+	sendfile_stub.go\
+	sock_bsd.go\
+	cgo_stub.go\
+
 GOFILES_plan9=\
 	interface_stub.go\
 	lookup_unix.go\
