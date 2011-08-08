@@ -401,12 +401,15 @@ func TestScanWhitespace(t *testing.T) {
 	}
 }
 
-func testError(t *testing.T, src, msg string, tok int) {
+func testError(t *testing.T, src, pos, msg string, tok int) {
 	s := new(Scanner).Init(bytes.NewBufferString(src))
 	errorCalled := false
-	s.Error = func(_ *Scanner, m string) {
+	s.Error = func(s *Scanner, m string) {
 		if !errorCalled {
 			// only look at first error
+			if p := s.Pos().String(); p != pos {
+				t.Errorf("pos = %q, want %q for %q", p, pos, src)
+			}
 			if m != msg {
 				t.Errorf("msg = %q, want %q for %q", m, msg, src)
 			}
@@ -426,18 +429,34 @@ func testError(t *testing.T, src, msg string, tok int) {
 }
 
 func TestError(t *testing.T) {
-	testError(t, "\x00", "illegal character NUL", 0)
-	testError(t, "\xff", "illegal UTF-8 encoding", utf8.RuneError)
-	testError(t, `01238`, "illegal octal number", Int)
-	testError(t, `'\"'`, "illegal char escape", Char)
-	testError(t, `'aa'`, "illegal char literal", Char)
-	testError(t, `'`, "literal not terminated", Char)
-	testError(t, `"\'"`, "illegal char escape", String)
-	testError(t, `"abc`, "literal not terminated", String)
-	testError(t, "`abc", "literal not terminated", String)
-	testError(t, `/*/`, "comment not terminated", EOF)
-	testError(t, `"abc`+"\x00"+`def"`, "illegal character NUL", String)
-	testError(t, `"abc`+"\xff"+`def"`, "illegal UTF-8 encoding", String)
+	testError(t, "\x00", "1:1", "illegal character NUL", 0)
+	testError(t, "\x80", "1:1", "illegal UTF-8 encoding", utf8.RuneError)
+	testError(t, "\xff", "1:1", "illegal UTF-8 encoding", utf8.RuneError)
+
+	testError(t, "a\x00", "1:2", "illegal character NUL", Ident)
+	testError(t, "ab\x80", "1:3", "illegal UTF-8 encoding", Ident)
+	testError(t, "abc\xff", "1:4", "illegal UTF-8 encoding", Ident)
+
+	testError(t, `"a`+"\x00", "1:3", "illegal character NUL", String)
+	testError(t, `"ab`+"\x80", "1:4", "illegal UTF-8 encoding", String)
+	testError(t, `"abc`+"\xff", "1:5", "illegal UTF-8 encoding", String)
+
+	testError(t, "`a"+"\x00", "1:3", "illegal character NUL", String)
+	testError(t, "`ab"+"\x80", "1:4", "illegal UTF-8 encoding", String)
+	testError(t, "`abc"+"\xff", "1:5", "illegal UTF-8 encoding", String)
+
+	testError(t, `'\"'`, "1:3", "illegal char escape", Char)
+	testError(t, `"\'"`, "1:3", "illegal char escape", String)
+
+	testError(t, `01238`, "1:6", "illegal octal number", Int)
+	testError(t, `'aa'`, "1:4", "illegal char literal", Char)
+
+	testError(t, `'`, "1:2", "literal not terminated", Char)
+	testError(t, `'`+"\n", "1:2", "literal not terminated", Char)
+	testError(t, `"abc`, "1:5", "literal not terminated", String)
+	testError(t, `"abc`+"\n", "1:5", "literal not terminated", String)
+	testError(t, "`abc\n", "2:1", "literal not terminated", String)
+	testError(t, `/*/`, "1:4", "comment not terminated", EOF)
 }
 
 func checkPos(t *testing.T, got, want Position) {
