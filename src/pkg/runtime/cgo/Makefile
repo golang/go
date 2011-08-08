@@ -13,6 +13,9 @@ endif
 ifeq ($(GOOS),plan9)
 ENABLED:=0
 endif
+ifeq ($(GOOS),openbsd)
+ENABLED:=0
+endif
 
 ifeq ($(DISABLE_CGO),1)
 ENABLED:=0
