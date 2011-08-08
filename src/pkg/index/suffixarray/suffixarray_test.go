@@ -6,7 +6,6 @@ package suffixarray
 
 import (
 	"bytes"
-	"container/vector"
 	"regexp"
 	"sort"
 	"strings"
@@ -107,7 +106,7 @@ var testCases = []testCase{
 
 // find all occurrences of s in source; report at most n occurrences
 func find(src, s string, n int) []int {
-	var res vector.IntVector
+	var res []int
 	if s != "" && n != 0 {
 		// find at most n occurrences of s in src
 		for i := -1; n < 0 || len(res) < n; {
@@ -116,7 +115,7 @@ func find(src, s string, n int) []int {
 				break
 			}
 			i += j + 1
-			res.Push(i)
+			res = append(res, i)
 		}
 	}
 	return res

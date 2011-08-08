@@ -31,18 +31,14 @@ type ErrorHandler interface {
 // error handling is obtained.
 //
 type ErrorVector struct {
-	errors []interface{}
+	errors []*Error
 }
 
 // Reset resets an ErrorVector to no errors.
-func (h *ErrorVector) Reset() {
-	h.errors = h.errors[:0]
-}
+func (h *ErrorVector) Reset() { h.errors = h.errors[:0] }
 
 // ErrorCount returns the number of errors collected.
-func (h *ErrorVector) ErrorCount() int {
-	return len(h.errors)
-}
+func (h *ErrorVector) ErrorCount() int { return len(h.errors) }
 
 // Within ErrorVector, an error is represented by an Error node. The
 // position Pos, if valid, points to the beginning of the offending
@@ -118,9 +114,7 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
 	}
 
 	list := make(ErrorList, len(h.errors))
-	for i := 0; i < len(h.errors); i++ {
-		list[i] = h.errors[i].(*Error)
-	}
+	copy(list, h.errors)
 
 	if mode >= Sorted {
 		sort.Sort(list)
