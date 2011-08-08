@@ -18,7 +18,7 @@ import (
 // Must is a helper that wraps a call to a function returning (*Template, os.Error)
 // and panics if the error is non-nil. It is intended for use in variable initializations
 // such as
-//	var t = template.Must(template.Parse("text"))
+//	var t = template.Must(template.New("name").Parse("text"))
 func Must(t *Template, err os.Error) *Template {
 	if err != nil {
 		panic(err)
