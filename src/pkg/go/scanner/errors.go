@@ -5,7 +5,6 @@
 package scanner
 
 import (
-	"container/vector"
 	"fmt"
 	"go/token"
 	"io"
@@ -32,14 +31,18 @@ type ErrorHandler interface {
 // error handling is obtained.
 //
 type ErrorVector struct {
-	errors vector.Vector
+	errors []interface{}
 }
 
 // Reset resets an ErrorVector to no errors.
-func (h *ErrorVector) Reset() { h.errors.Resize(0, 0) }
+func (h *ErrorVector) Reset() {
+	h.errors = h.errors[:0]
+}
 
 // ErrorCount returns the number of errors collected.
-func (h *ErrorVector) ErrorCount() int { return h.errors.Len() }
+func (h *ErrorVector) ErrorCount() int {
+	return len(h.errors)
+}
 
 // Within ErrorVector, an error is represented by an Error node. The
 // position Pos, if valid, points to the beginning of the offending
@@ -110,13 +113,13 @@ const (
 // parameter. If there are no errors, the result is nil.
 //
 func (h *ErrorVector) GetErrorList(mode int) ErrorList {
-	if h.errors.Len() == 0 {
+	if len(h.errors) == 0 {
 		return nil
 	}
 
-	list := make(ErrorList, h.errors.Len())
-	for i := 0; i < h.errors.Len(); i++ {
-		list[i] = h.errors.At(i).(*Error)
+	list := make(ErrorList, len(h.errors))
+	for i := 0; i < len(h.errors); i++ {
+		list[i] = h.errors[i].(*Error)
 	}
 
 	if mode >= Sorted {
@@ -144,7 +147,7 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
 // remains nil.
 //
 func (h *ErrorVector) GetError(mode int) os.Error {
-	if h.errors.Len() == 0 {
+	if len(h.errors) == 0 {
 		return nil
 	}
 
@@ -153,7 +156,7 @@ func (h *ErrorVector) GetError(mode int) os.Error {
 
 // ErrorVector implements the ErrorHandler interface.
 func (h *ErrorVector) Error(pos token.Position, msg string) {
-	h.errors.Push(&Error{pos, msg})
+	h.errors = append(h.errors, &Error{pos, msg})
 }
 
 // PrintError is a utility function that prints a list of errors to w,

@@ -5,7 +5,6 @@
 package datafmt
 
 import (
-	"container/vector"
 	"go/scanner"
 	"go/token"
 	"os"
@@ -140,14 +139,14 @@ func (p *parser) parseLiteral() literal {
 	// and speed up printing of the literal, split it into segments
 	// that start with "%" possibly followed by a last segment that
 	// starts with some other character.
-	var list vector.Vector
+	var list []interface{}
 	i0 := 0
 	for i := 0; i < len(s); i++ {
 		if s[i] == '%' && i+1 < len(s) {
 			// the next segment starts with a % format
 			if i0 < i {
 				// the current segment is not empty, split it off
-				list.Push(s[i0:i])
+				list = append(list, s[i0:i])
 				i0 = i
 			}
 			i++ // skip %; let loop skip over char after %
@@ -155,12 +154,12 @@ func (p *parser) parseLiteral() literal {
 	}
 	// the final segment may start with any character
 	// (it is empty iff the string is empty)
-	list.Push(s[i0:])
+	list = append(list, s[i0:])
 
 	// convert list into a literal
-	lit := make(literal, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		lit[i] = list.At(i).([]byte)
+	lit := make(literal, len(list))
+	for i := 0; i < len(list); i++ {
+		lit[i] = list[i].([]byte)
 	}
 
 	return lit
@@ -231,35 +230,35 @@ func (p *parser) parseOperand() (x expr) {
 }
 
 func (p *parser) parseSequence() expr {
-	var list vector.Vector
+	var list []interface{}
 
 	for x := p.parseOperand(); x != nil; x = p.parseOperand() {
-		list.Push(x)
+		list = append(list, x)
 	}
 
 	// no need for a sequence if list.Len() < 2
-	switch list.Len() {
+	switch len(list) {
 	case 0:
 		return nil
 	case 1:
-		return list.At(0).(expr)
+		return list[0].(expr)
 	}
 
 	// convert list into a sequence
-	seq := make(sequence, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		seq[i] = list.At(i).(expr)
+	seq := make(sequence, len(list))
+	for i := 0; i < len(list); i++ {
+		seq[i] = list[i].(expr)
 	}
 	return seq
 }
 
 func (p *parser) parseExpression() expr {
-	var list vector.Vector
+	var list []interface{}
 
 	for {
 		x := p.parseSequence()
 		if x != nil {
-			list.Push(x)
+			list = append(list, x)
 		}
 		if p.tok != token.OR {
 			break
@@ -268,17 +267,17 @@ func (p *parser) parseExpression() expr {
 	}
 
 	// no need for an alternatives if list.Len() < 2
-	switch list.Len() {
+	switch len(list) {
 	case 0:
 		return nil
 	case 1:
-		return list.At(0).(expr)
+		return list[0].(expr)
 	}
 
 	// convert list into a alternatives
-	alt := make(alternatives, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		alt[i] = list.At(i).(expr)
+	alt := make(alternatives, len(list))
+	for i := 0; i < len(list); i++ {
+		alt[i] = list[i].(expr)
 	}
 	return alt
 }
