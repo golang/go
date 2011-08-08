@@ -612,9 +612,6 @@ func Futimes(fd int, tv []Timeval) (errno int) {
 //	Msync(addr *byte, len int, flags int) (errno int)
 //	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, errno int)
 
-//sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, errno int)
-//sys	munmap(addr uintptr, length uintptr) (errno int)
-
 var mapper = &mmapper{
 	active: make(map[*byte][]byte),
 	mmap:   mmap,
