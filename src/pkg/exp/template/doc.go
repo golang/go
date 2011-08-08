@@ -244,6 +244,9 @@ Predefined global functions are named as follows.
 		An alias for fmt.Sprintf
 	println
 		An alias for fmt.Sprintln
+	url
+		Returns the escaped value of the textual representation of
+		its arguments in a form suitable for embedding in a URL.
 
 The boolean functions take any zero value to be false and a non-zero value to
 be true.
