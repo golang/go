@@ -398,21 +398,110 @@ memcopy(uint32 s, void *a, void *b)
 }
 
 static uint32
-memwordequal(uint32 s, void *a, void *b)
+memequal8(uint32 s, uint8 *a, uint8 *b)
 {
 	USED(s);
-	return *(uintptr*)(a) == *(uintptr*)(b);
+	return *a == *b;
 }
 
 static void
-memwordcopy(uint32 s, void *a, void *b)
+memcopy8(uint32 s, uint8 *a, uint8 *b)
 {
 	USED(s);
-	if (b == nil) {
-		*(uintptr*)(a) = 0;
+	if(b == nil) {
+		*a = 0;
 		return;
 	}
-	*(uintptr*)(a) = *(uintptr*)(b);
+	*a = *b;
+}
+
+static uint32
+memequal16(uint32 s, uint16 *a, uint16 *b)
+{
+	USED(s);
+	return *a == *b;
+}
+
+static void
+memcopy16(uint32 s, uint16 *a, uint16 *b)
+{
+	USED(s);
+	if(b == nil) {
+		*a = 0;
+		return;
+	}
+	*a = *b;
+}
+
+static uint32
+memequal32(uint32 s, uint32 *a, uint32 *b)
+{
+	USED(s);
+	return *a == *b;
+}
+
+static void
+memcopy32(uint32 s, uint32 *a, uint32 *b)
+{
+	USED(s);
+	if(b == nil) {
+		*a = 0;
+		return;
+	}
+	*a = *b;
+}
+
+static uint32
+memequal64(uint32 s, uint64 *a, uint64 *b)
+{
+	USED(s);
+	return *a == *b;
+}
+
+static void
+memcopy64(uint32 s, uint64 *a, uint64 *b)
+{
+	USED(s);
+	if(b == nil) {
+		*a = 0;
+		return;
+	}
+	*a = *b;
+}
+
+static uint32
+memequal128(uint32 s, uint64 *a, uint64 *b)
+{
+	USED(s);
+	return a[0] == b[0] && a[1] == b[1];
+}
+
+static void
+memcopy128(uint32 s, uint64 *a, uint64 *b)
+{
+	USED(s);
+	if(b == nil) {
+		a[0] = 0;
+		a[1] = 0;
+		return;
+	}
+	a[0] = b[0];
+	a[1] = b[1];
+}
+
+static void
+slicecopy(uint32 s, Slice *a, Slice *b)
+{
+	USED(s);
+	if(b == nil) {
+		a->array = 0;
+		a->len = 0;
+		a->cap = 0;
+		return;
+	}
+	a->array = b->array;
+	a->len = b->len;
+	a->cap = b->cap;
 }
 
 static uintptr
@@ -441,6 +530,19 @@ strprint(uint32 s, String *a)
 	runtime·printstring(*a);
 }
 
+static void
+strcopy(uint32 s, String *a, String *b)
+{
+	USED(s);
+	if(b == nil) {
+		a->str = 0;
+		a->len = 0;
+		return;
+	}
+	a->str = b->str;
+	a->len = b->len;
+}
+
 static uintptr
 interhash(uint32 s, Iface *a)
 {
@@ -462,6 +564,19 @@ interequal(uint32 s, Iface *a, Iface *b)
 	return runtime·ifaceeq_c(*a, *b);
 }
 
+static void
+intercopy(uint32 s, Iface *a, Iface *b)
+{
+	USED(s);
+	if(b == nil) {
+		a->tab = 0;
+		a->data = 0;
+		return;
+	}
+	a->tab = b->tab;
+	a->data = b->data;
+}
+
 static uintptr
 nilinterhash(uint32 s, Eface *a)
 {
@@ -481,6 +596,19 @@ nilinterequal(uint32 s, Eface *a, Eface *b)
 {
 	USED(s);
 	return runtime·efaceeq_c(*a, *b);
+}
+
+static void
+nilintercopy(uint32 s, Eface *a, Eface *b)
+{
+	USED(s);
+	if(b == nil) {
+		a->type = 0;
+		a->data = 0;
+		return;
+	}
+	a->type = b->type;
+	a->data = b->data;
 }
 
 uintptr
@@ -507,10 +635,20 @@ runtime·algarray[] =
 {
 [AMEM]	{ memhash, memequal, memprint, memcopy },
 [ANOEQ]	{ runtime·nohash, runtime·noequal, memprint, memcopy },
-[ASTRING]	{ strhash, strequal, strprint, memcopy },
-[AINTER]		{ interhash, interequal, interprint, memcopy },
-[ANILINTER]	{ nilinterhash, nilinterequal, nilinterprint, memcopy },
-[AMEMWORD] { memhash, memwordequal, memprint, memwordcopy },
+[ASTRING]	{ strhash, strequal, strprint, strcopy },
+[AINTER]		{ interhash, interequal, interprint, intercopy },
+[ANILINTER]	{ nilinterhash, nilinterequal, nilinterprint, nilintercopy },
+[ASLICE]	{ runtime·nohash, runtime·noequal, memprint, slicecopy },
+[AMEM8]		{ memhash, memequal8, memprint, memcopy8 },
+[AMEM16]	{ memhash, memequal16, memprint, memcopy16 },
+[AMEM32]	{ memhash, memequal32, memprint, memcopy32 },
+[AMEM64]	{ memhash, memequal64, memprint, memcopy64 },
+[AMEM128]	{ memhash, memequal128, memprint, memcopy128 },
+[ANOEQ8]	{ runtime·nohash, runtime·noequal, memprint, memcopy8 },
+[ANOEQ16]	{ runtime·nohash, runtime·noequal, memprint, memcopy16 },
+[ANOEQ32]	{ runtime·nohash, runtime·noequal, memprint, memcopy32 },
+[ANOEQ64]	{ runtime·nohash, runtime·noequal, memprint, memcopy64 },
+[ANOEQ128]	{ runtime·nohash, runtime·noequal, memprint, memcopy128 },
 };
 
 int64
