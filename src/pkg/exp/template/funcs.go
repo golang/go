@@ -7,6 +7,7 @@ package template
 import (
 	"bytes"
 	"fmt"
+	"http"
 	"io"
 	"os"
 	"reflect"
@@ -31,6 +32,7 @@ var funcs = map[string]reflect.Value{
 	"print":   reflect.ValueOf(fmt.Sprint),
 	"printf":  reflect.ValueOf(fmt.Sprintf),
 	"println": reflect.ValueOf(fmt.Sprintln),
+	"url":     reflect.ValueOf(URLEscaper),
 }
 
 // addFuncs adds to values the functions in funcs, converting them to reflect.Values.
@@ -317,4 +319,17 @@ func JSEscaper(args ...interface{}) string {
 		s = fmt.Sprint(args...)
 	}
 	return JSEscapeString(s)
+}
+
+// URLEscaper returns the escaped value of the textual representation of its
+// arguments in a form suitable for embedding in a URL.
+func URLEscaper(args ...interface{}) string {
+	s, ok := "", false
+	if len(args) == 1 {
+		s, ok = args[0].(string)
+	}
+	if !ok {
+		s = fmt.Sprint(args...)
+	}
+	return http.URLEscape(s)
 }
