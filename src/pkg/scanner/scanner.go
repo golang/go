@@ -265,7 +265,12 @@ func (s *Scanner) next() int {
 			// uncommon case: not ASCII
 			ch, width = utf8.DecodeRune(s.srcBuf[s.srcPos:s.srcEnd])
 			if ch == utf8.RuneError && width == 1 {
+				// advance for correct error position
+				s.srcPos += width
+				s.lastCharLen = width
+				s.column++
 				s.error("illegal UTF-8 encoding")
+				return ch
 			}
 		}
 	}
