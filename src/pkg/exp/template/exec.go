@@ -179,6 +179,8 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 		truth = val.Float() != 0
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		truth = val.Uint() != 0
+	case reflect.Struct:
+		truth = true // Struct values are always true.
 	default:
 		return
 	}
@@ -377,10 +379,10 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
 	}
 	typ := receiver.Type()
 	receiver, _ = indirect(receiver)
-	// Need to get to a value of type *T to guarantee we see all
-	// methods of T and *T.
+	// Unless it's an interface, need to get to a value of type *T to guarantee
+	// we see all methods of T and *T.
 	ptr := receiver
-	if ptr.CanAddr() {
+	if ptr.Kind() != reflect.Interface && ptr.CanAddr() {
 		ptr = ptr.Addr()
 	}
 	if method, ok := methodByName(ptr, fieldName); ok {
