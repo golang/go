@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package template
+package parse
 
 import (
 	"flag"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -100,47 +101,47 @@ func TestNumberParse(t *testing.T) {
 			}
 			continue
 		}
-		if n.isComplex != test.isComplex {
+		if n.IsComplex != test.isComplex {
 			t.Errorf("complex incorrect for %q; should be %t", test.text, test.isComplex)
 		}
 		if test.isInt {
-			if !n.isInt {
+			if !n.IsInt {
 				t.Errorf("expected integer for %q", test.text)
 			}
-			if n.int64 != test.int64 {
-				t.Errorf("int64 for %q should be %d is %d", test.text, test.int64, n.int64)
+			if n.Int64 != test.int64 {
+				t.Errorf("int64 for %q should be %d Is %d", test.text, test.int64, n.Int64)
 			}
-		} else if n.isInt {
+		} else if n.IsInt {
 			t.Errorf("did not expect integer for %q", test.text)
 		}
 		if test.isUint {
-			if !n.isUint {
+			if !n.IsUint {
 				t.Errorf("expected unsigned integer for %q", test.text)
 			}
-			if n.uint64 != test.uint64 {
-				t.Errorf("uint64 for %q should be %d is %d", test.text, test.uint64, n.uint64)
+			if n.Uint64 != test.uint64 {
+				t.Errorf("uint64 for %q should be %d Is %d", test.text, test.uint64, n.Uint64)
 			}
-		} else if n.isUint {
+		} else if n.IsUint {
 			t.Errorf("did not expect unsigned integer for %q", test.text)
 		}
 		if test.isFloat {
-			if !n.isFloat {
+			if !n.IsFloat {
 				t.Errorf("expected float for %q", test.text)
 			}
-			if n.float64 != test.float64 {
-				t.Errorf("float64 for %q should be %g is %g", test.text, test.float64, n.float64)
+			if n.Float64 != test.float64 {
+				t.Errorf("float64 for %q should be %g Is %g", test.text, test.float64, n.Float64)
 			}
-		} else if n.isFloat {
+		} else if n.IsFloat {
 			t.Errorf("did not expect float for %q", test.text)
 		}
 		if test.isComplex {
-			if !n.isComplex {
+			if !n.IsComplex {
 				t.Errorf("expected complex for %q", test.text)
 			}
-			if n.complex128 != test.complex128 {
-				t.Errorf("complex128 for %q should be %g is %g", test.text, test.complex128, n.complex128)
+			if n.Complex128 != test.complex128 {
+				t.Errorf("complex128 for %q should be %g Is %g", test.text, test.complex128, n.Complex128)
 			}
-		} else if n.isComplex {
+		} else if n.IsComplex {
 			t.Errorf("did not expect complex for %q", test.text)
 		}
 	}
@@ -160,6 +161,8 @@ const (
 
 var parseTests = []parseTest{
 	{"empty", "", noError,
+		`[]`},
+	{"comment", "{{/*\n\n\n*/}}", noError,
 		`[]`},
 	{"spaces", " \t\n", noError,
 		`[(text: " \t\n")]`},
@@ -228,9 +231,13 @@ var parseTests = []parseTest{
 	{"too many decls in range", "{{range $u, $v, $w := 3}}{{end}}", hasError, ""},
 }
 
+var builtins = map[string]reflect.Value{
+	"printf": reflect.ValueOf(fmt.Sprintf),
+}
+
 func TestParse(t *testing.T) {
 	for _, test := range parseTests {
-		tmpl, err := New(test.name).Parse(test.input)
+		tmpl, err := New(test.name).Parse(test.input, builtins)
 		switch {
 		case err == nil && !test.ok:
 			t.Errorf("%q: expected error; got none", test.name)
@@ -245,7 +252,7 @@ func TestParse(t *testing.T) {
 			}
 			continue
 		}
-		result := tmpl.root.String()
+		result := tmpl.Root.String()
 		if result != test.result {
 			t.Errorf("%s=(%q): got\n\t%v\nexpected\n\t%v", test.name, test.input, result, test.result)
 		}
