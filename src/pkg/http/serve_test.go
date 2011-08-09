@@ -873,6 +873,28 @@ func TestStripPrefix(t *testing.T) {
 	}
 }
 
+func TestRequestLimit(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		t.Fatalf("didn't expect to get request in Handler")
+	}))
+	defer ts.Close()
+	req, _ := NewRequest("GET", ts.URL, nil)
+	var bytesPerHeader = len("header12345: val12345\r\n")
+	for i := 0; i < ((DefaultMaxHeaderBytes+4096)/bytesPerHeader)+1; i++ {
+		req.Header.Set(fmt.Sprintf("header%05d", i), fmt.Sprintf("val%05d", i))
+	}
+	res, err := DefaultClient.Do(req)
+	if err != nil {
+		// Some HTTP clients may fail on this undefined behavior (server replying and
+		// closing the connection while the request is still being written), but
+		// we do support it (at least currently), so we expect a response below.
+		t.Fatalf("Do: %v", err)
+	}
+	if res.StatusCode != 400 {
+		t.Fatalf("expected 400 response status; got: %d %s", res.StatusCode, res.Status)
+	}
+}
+
 type errorListener struct {
 	errs []os.Error
 }
