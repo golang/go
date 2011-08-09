@@ -16,14 +16,16 @@ import (
 // The zero value represents an empty set.
 // A template may be a member of multiple sets.
 type Set struct {
-	tmpl  map[string]*Template
-	funcs map[string]reflect.Value
+	tmpl       map[string]*Template
+	parseFuncs FuncMap
+	execFuncs  map[string]reflect.Value
 }
 
 func (s *Set) init() {
 	if s.tmpl == nil {
 		s.tmpl = make(map[string]*Template)
-		s.funcs = make(map[string]reflect.Value)
+		s.parseFuncs = make(FuncMap)
+		s.execFuncs = make(map[string]reflect.Value)
 	}
 }
 
@@ -33,7 +35,8 @@ func (s *Set) init() {
 // The return value is the set, so calls can be chained.
 func (s *Set) Funcs(funcMap FuncMap) *Set {
 	s.init()
-	addFuncs(s.funcs, funcMap)
+	addValueFuncs(s.execFuncs, funcMap)
+	addFuncs(s.parseFuncs, funcMap)
 	return s
 }
 
@@ -71,8 +74,8 @@ func (s *Set) Template(name string) *Template {
 }
 
 // FuncMap returns the set's function map.
-func (s *Set) FuncMap() map[string]reflect.Value {
-	return s.funcs
+func (s *Set) FuncMap() FuncMap {
+	return s.parseFuncs
 }
 
 // Execute applies the named template to the specified data object, writing
@@ -90,7 +93,7 @@ func (s *Set) Execute(wr io.Writer, name string, data interface{}) os.Error {
 // to the set.  If a template is redefined, the element in the set is
 // overwritten with the new definition.
 func (s *Set) Parse(text string) (*Set, os.Error) {
-	trees, err := parse.Set(text, s.funcs, builtins)
+	trees, err := parse.Set(text, s.parseFuncs, builtins)
 	if err != nil {
 		return nil, err
 	}
