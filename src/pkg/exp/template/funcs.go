@@ -22,7 +22,7 @@ import (
 // during execution, execution terminates and Execute returns an error.
 type FuncMap map[string]interface{}
 
-var funcs = map[string]reflect.Value{
+var builtins = map[string]reflect.Value{
 	"and":     reflect.ValueOf(and),
 	"html":    reflect.ValueOf(HTMLEscaper),
 	"index":   reflect.ValueOf(index),
@@ -73,7 +73,7 @@ func findFunction(name string, tmpl *Template, set *Set) (reflect.Value, bool) {
 			return fn, true
 		}
 	}
-	if fn := funcs[name]; fn.IsValid() {
+	if fn := builtins[name]; fn.IsValid() {
 		return fn, true
 	}
 	return reflect.Value{}, false

@@ -6,6 +6,7 @@ package template
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"os"
 	"reflect"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"testing"
 )
+
+var debug = flag.Bool("debug", false, "show the errors produced by the tests")
 
 // T has lots of interesting pieces to use to test execution.
 type T struct {

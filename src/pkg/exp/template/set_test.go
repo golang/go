@@ -9,6 +9,11 @@ import (
 	"testing"
 )
 
+const (
+	noError  = true
+	hasError = false
+)
+
 type setParseTest struct {
 	name    string
 	input   string
@@ -66,7 +71,7 @@ func TestSetParse(t *testing.T) {
 				t.Errorf("%s: can't find template %q", test.name, name)
 				continue
 			}
-			result := tmpl.root.String()
+			result := tmpl.Root.String()
 			if result != test.results[i] {
 				t.Errorf("%s=(%q): got\n\t%v\nexpected\n\t%v", test.name, test.input, result, test.results[i])
 			}
