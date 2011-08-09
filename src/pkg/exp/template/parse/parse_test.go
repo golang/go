@@ -7,7 +7,6 @@ package parse
 import (
 	"flag"
 	"fmt"
-	"reflect"
 	"testing"
 )
 
@@ -231,8 +230,8 @@ var parseTests = []parseTest{
 	{"too many decls in range", "{{range $u, $v, $w := 3}}{{end}}", hasError, ""},
 }
 
-var builtins = map[string]reflect.Value{
-	"printf": reflect.ValueOf(fmt.Sprintf),
+var builtins = map[string]interface{}{
+	"printf": fmt.Sprintf,
 }
 
 func TestParse(t *testing.T) {

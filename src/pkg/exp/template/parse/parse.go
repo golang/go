@@ -9,7 +9,6 @@ package parse
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"runtime"
 	"strconv"
 	"unicode"
@@ -20,7 +19,7 @@ type Tree struct {
 	Name string    // Name is the name of the template.
 	Root *ListNode // Root is the top-level root of the parse tree.
 	// Parsing only; cleared after parse.
-	funcs     []map[string]reflect.Value
+	funcs     []map[string]interface{}
 	lex       *lexer
 	token     [2]item // two-token lookahead for parser.
 	peekCount int
@@ -61,7 +60,7 @@ func (t *Tree) peek() item {
 // Parsing.
 
 // New allocates a new template with the given name.
-func New(name string, funcs ...map[string]reflect.Value) *Tree {
+func New(name string, funcs ...map[string]interface{}) *Tree {
 	return &Tree{
 		Name:  name,
 		funcs: funcs,
@@ -110,7 +109,7 @@ func (t *Tree) recover(errp *os.Error) {
 }
 
 // startParse starts the template parsing from the lexer.
-func (t *Tree) startParse(funcs []map[string]reflect.Value, lex *lexer) {
+func (t *Tree) startParse(funcs []map[string]interface{}, lex *lexer) {
 	t.Root = nil
 	t.lex = lex
 	t.vars = []string{"$"}
@@ -147,7 +146,7 @@ func (t *Tree) atEOF() bool {
 
 // Parse parses the template definition string to construct an internal
 // representation of the template for execution.
-func (t *Tree) Parse(s string, funcs ...map[string]reflect.Value) (tree *Tree, err os.Error) {
+func (t *Tree) Parse(s string, funcs ...map[string]interface{}) (tree *Tree, err os.Error) {
 	defer t.recover(&err)
 	t.startParse(funcs, lex(t.Name, s))
 	t.parse(true)
@@ -371,7 +370,7 @@ Loop:
 		case itemError:
 			t.errorf("%s", token.val)
 		case itemIdentifier:
-			if _, ok := t.findFunction(token.val); !ok {
+			if !t.hasFunction(token.val) {
 				t.errorf("function %q not defined", token.val)
 			}
 			cmd.append(newIdentifier(token.val))
@@ -405,17 +404,17 @@ Loop:
 	return cmd
 }
 
-// findFunction looks for a function in the Tree's maps.
-func (t *Tree) findFunction(name string) (reflect.Value, bool) {
+// hasFunction reports if a function name exists in the Tree's maps.
+func (t *Tree) hasFunction(name string) bool {
 	for _, funcMap := range t.funcs {
 		if funcMap == nil {
 			continue
 		}
-		if fn := funcMap[name]; fn.IsValid() {
-			return fn, true
+		if funcMap[name] != nil {
+			return true
 		}
 	}
-	return reflect.Value{}, false
+	return false
 }
 
 // popVars trims the variable list to the specified length
