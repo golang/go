@@ -261,6 +261,27 @@ func TestServeFileWithContentEncoding(t *testing.T) {
 	}
 }
 
+func TestServeIndexHtml(t *testing.T) {
+	const want = "index.html says hello\n"
+	ts := httptest.NewServer(FileServer(Dir(".")))
+	defer ts.Close()
+
+	for _, path := range []string{"/testdata/", "/testdata/index.html"} {
+		res, err := Get(ts.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		b, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			t.Fatal("reading Body:", err)
+		}
+		if s := string(b); s != want {
+			t.Errorf("for path %q got %q, want %q", path, s, want)
+		}
+	}
+}
+
 func getBody(t *testing.T, req Request) (*Response, []byte) {
 	r, err := DefaultClient.Do(&req)
 	if err != nil {
