@@ -453,13 +453,14 @@ addsymtable(void)
 	if(nextsymoff == 0)
 		return;
 	
-	size  = nextsymoff + 4;
+	size  = nextsymoff + 4 + 18;
 	h = addpesection(".symtab", size, size);
 	h->Characteristics = IMAGE_SCN_MEM_READ|
 		IMAGE_SCN_MEM_DISCARDABLE;
 	chksectoff(h, cpos());
 	fh.PointerToSymbolTable = cpos();
-	fh.NumberOfSymbols = 0;
+	fh.NumberOfSymbols = 1;
+	strnput("", 18); // one empty symbol
 	// put symbol string table
 	lputl(size);
 	for (i=0; i<nextsymoff; i++)
