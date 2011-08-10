@@ -729,6 +729,9 @@ func (r *Request) ParseForm() (err os.Error) {
 // ParseMultipartForm calls ParseForm if necessary.
 // After one call to ParseMultipartForm, subsequent calls have no effect.
 func (r *Request) ParseMultipartForm(maxMemory int64) os.Error {
+	if r.MultipartForm == multipartByReader {
+		return os.NewError("http: multipart handled by MultipartReader")
+	}
 	if r.Form == nil {
 		err := r.ParseForm()
 		if err != nil {
@@ -737,9 +740,6 @@ func (r *Request) ParseMultipartForm(maxMemory int64) os.Error {
 	}
 	if r.MultipartForm != nil {
 		return nil
-	}
-	if r.MultipartForm == multipartByReader {
-		return os.NewError("http: multipart handled by MultipartReader")
 	}
 
 	mr, err := r.multipartReader()
