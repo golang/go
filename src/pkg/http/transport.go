@@ -511,6 +511,9 @@ func (pc *persistConn) readLoop() {
 			if err != nil || resp.ContentLength == 0 {
 				return resp, err
 			}
+			if rc.addedGzip {
+				forReq.Header.Del("Accept-Encoding")
+			}
 			if rc.addedGzip && resp.Header.Get("Content-Encoding") == "gzip" {
 				resp.Header.Del("Content-Encoding")
 				resp.Header.Del("Content-Length")
