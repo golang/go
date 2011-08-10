@@ -26,8 +26,11 @@ const (
 // replaced by a digit if the following number (a day) has two digits; for
 // compatibility with fixed-width Unix time formats.
 //
-// A decimal point followed by one or more zeros represents a
-// fractional second.
+// A decimal point followed by one or more zeros represents a fractional
+// second. When parsing (only), the input may contain a fractional second
+// field immediately after the seconds field, even if the layout does not
+// signify its presence. In that case a decimal point followed by a maximal
+// series of digits is parsed as a fractional second.
 //
 // Numeric time zone offsets format as follows:
 //	-0700  ±hhmm
@@ -169,7 +172,7 @@ func nextStdChunk(layout string) (prefix, std, suffix string) {
 				numZeros++
 			}
 			// String of digits must end here - only fractional second is all zeros.
-			if numZeros > 0 && (j >= len(layout) || layout[j] < '0' || '9' < layout[j]) {
+			if numZeros > 0 && !isDigit(layout, j) {
 				return layout[0:i], layout[i : i+1+numZeros], layout[i+1+numZeros:]
 			}
 		}
@@ -416,14 +419,24 @@ func (e *ParseError) String() string {
 		strconv.Quote(e.Value) + e.Message
 }
 
+// isDigit returns true if s[i] is a decimal digit, false if not or
+// if s[i] is out of range.
+func isDigit(s string, i int) bool {
+	if len(s) <= i {
+		return false
+	}
+	c := s[i]
+	return '0' <= c && c <= '9'
+}
+
 // getnum parses s[0:1] or s[0:2] (fixed forces the latter)
 // as a decimal integer and returns the integer and the
 // remainder of the string.
 func getnum(s string, fixed bool) (int, string, os.Error) {
-	if len(s) == 0 || s[0] < '0' || s[0] > '9' {
+	if !isDigit(s, 0) {
 		return 0, s, errBad
 	}
-	if len(s) == 1 || s[1] < '0' || s[1] > '9' {
+	if !isDigit(s, 1) {
 		if fixed {
 			return 0, s, errBad
 		}
@@ -509,7 +522,7 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 				t.Year += 2000
 			}
 		case stdLongYear:
-			if len(value) < 4 || value[0] < '0' || value[0] > '9' {
+			if len(value) < 4 || !isDigit(value, 0) {
 				err = errBad
 				break
 			}
@@ -556,6 +569,21 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 			t.Second, value, err = getnum(value, std == stdZeroSecond)
 			if t.Second < 0 || 60 <= t.Second {
 				rangeErrString = "second"
+			}
+			// Special case: do we have a fractional second but no
+			// fractional second in the format?
+			if len(value) > 2 && value[0] == '.' && isDigit(value, 1) {
+				_, std, _ := nextStdChunk(layout)
+				if len(std) > 0 && std[0] == '.' && isDigit(std, 1) {
+					// Fractional second in the layout; proceed normally
+					break
+				}
+				// No fractional second in the layout but we have one in the input.
+				n := 2
+				for ; n < len(value) && isDigit(value, n); n++ {
+				}
+				rangeErrString, err = t.parseNanoseconds(value, n)
+				value = value[n:]
 			}
 		case stdISO8601TZ, stdISO8601ColonTZ, stdNumTZ, stdNumShortTZ, stdNumColonTZ:
 			if std[0] == 'Z' && len(value) >= 1 && value[0] == 'Z' {
@@ -663,26 +691,8 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 				break
 			}
 			if len(std) >= 2 && std[0:2] == ".0" {
-				if value[0] != '.' {
-					err = errBad
-					break
-				}
-				t.Nanosecond, err = strconv.Atoi(value[1:len(std)])
-				if err != nil {
-					break
-				}
-				if t.Nanosecond < 0 || t.Nanosecond >= 1e9 {
-					rangeErrString = "fractional second"
-					break
-				}
+				rangeErrString, err = t.parseNanoseconds(value, len(std))
 				value = value[len(std):]
-				// We need nanoseconds, which means scaling by the number
-				// of missing digits in the format, maximum length 10. If it's
-				// longer than 10, we won't scale.
-				scaleDigits := 10 - len(std)
-				for i := 0; i < scaleDigits; i++ {
-					t.Nanosecond *= 10
-				}
 			}
 		}
 		if rangeErrString != "" {
@@ -698,4 +708,27 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 		t.Hour = 0
 	}
 	return &t, nil
+}
+
+func (t *Time) parseNanoseconds(value string, nbytes int) (rangErrString string, err os.Error) {
+	if value[0] != '.' {
+		return "", errBad
+	}
+	var ns int
+	ns, err = strconv.Atoi(value[1:nbytes])
+	if err != nil {
+		return "", err
+	}
+	if ns < 0 || 1e9 <= ns {
+		return "fractional second", nil
+	}
+	// We need nanoseconds, which means scaling by the number
+	// of missing digits in the format, maximum length 10. If it's
+	// longer than 10, we won't scale.
+	scaleDigits := 10 - nbytes
+	for i := 0; i < scaleDigits; i++ {
+		ns *= 10
+	}
+	t.Nanosecond = ns
+	return
 }
