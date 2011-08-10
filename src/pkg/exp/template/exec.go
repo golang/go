@@ -148,7 +148,7 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
 	val := s.evalPipeline(dot, pipe)
 	truth, ok := isTrue(val)
 	if !ok {
-		s.errorf("if/with can't use value of type %T", val.Interface())
+		s.errorf("if/with can't use %v", val)
 	}
 	if truth {
 		if typ == parse.NodeWith {
@@ -164,6 +164,10 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
 // isTrue returns whether the value is 'true', in the sense of not the zero of its type,
 // and whether the value has a meaningful truth value.
 func isTrue(val reflect.Value) (truth, ok bool) {
+	if !val.IsValid() {
+		// Something like var x interface{}, never set. It's a form of nil.
+		return false, true
+	}
 	switch val.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		truth = val.Len() > 0
@@ -171,7 +175,7 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 		truth = val.Bool()
 	case reflect.Complex64, reflect.Complex128:
 		truth = val.Complex() != 0
-	case reflect.Chan, reflect.Func, reflect.Ptr:
+	case reflect.Chan, reflect.Func, reflect.Ptr, reflect.Interface:
 		truth = !val.IsNil()
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		truth = val.Int() != 0
