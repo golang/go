@@ -219,6 +219,18 @@ func TestEmptyMultipartRequest(t *testing.T) {
 	testMissingFile(t, req)
 }
 
+func TestRequestMultipartCallOrder(t *testing.T) {
+	req := newTestMultipartRequest(t)
+	_, err := req.MultipartReader()
+	if err != nil {
+		t.Fatalf("MultipartReader: %v", err)
+	}
+	err = req.ParseMultipartForm(1024)
+	if err == nil {
+		t.Errorf("expected an error from ParseMultipartForm after call to MultipartReader")
+	}
+}
+
 func testMissingFile(t *testing.T, req *Request) {
 	f, fh, err := req.FormFile("missing")
 	if f != nil {
