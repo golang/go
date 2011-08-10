@@ -42,6 +42,7 @@ src/cmd/gc/yerr.h
 src/cmd/goinstall/syslist.go
 src/pkg/Make.deps
 src/pkg/exp/norm/maketables
+src/pkg/exp/norm/maketesttables
 src/pkg/exp/ogle/ogle
 src/pkg/go/build/syslist.go
 src/pkg/os/signal/unix.go

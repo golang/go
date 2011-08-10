@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"hash/crc32"
 	"http"
 	"io"
 	"log"
@@ -20,7 +19,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"utf8"
 )
 
 func main() {
@@ -535,130 +533,6 @@ func completeCharFields(form int) {
 	}
 }
 
-// Intermediate trie structure
-type trieNode struct {
-	table [256]*trieNode
-	value uint16
-	b     byte
-	leaf  bool
-}
-
-func newNode() *trieNode {
-	return new(trieNode)
-}
-
-type nodeIndex struct {
-	lookupBlocks []*trieNode
-	valueBlocks  []*trieNode
-
-	lookupBlockIdx map[uint32]uint16
-	valueBlockIdx  map[uint32]uint16
-}
-
-func newIndex() *nodeIndex {
-	index := &nodeIndex{}
-	index.lookupBlocks = make([]*trieNode, 0)
-	index.valueBlocks = make([]*trieNode, 0)
-	index.lookupBlockIdx = make(map[uint32]uint16)
-	index.valueBlockIdx = make(map[uint32]uint16)
-	return index
-}
-
-func (n trieNode) isInternal() bool {
-	internal := true
-	for i := 0; i < 256; i++ {
-		if nn := n.table[i]; nn != nil {
-			if !internal && !nn.leaf {
-				panic("Node contains both leaf and non-leaf children.")
-			}
-			internal = internal && !nn.leaf
-		}
-	}
-	return internal
-}
-
-func (n *trieNode) insert(rune int, value uint16) {
-	var p [utf8.UTFMax]byte
-	sz := utf8.EncodeRune(p[:], rune)
-
-	for i := 0; i < sz; i++ {
-		if n.leaf {
-			panic("Node should not be a leaf")
-		}
-		nn := n.table[int(p[i])]
-		if nn == nil {
-			nn = newNode()
-			nn.b = p[i]
-			n.table[int(p[i])] = nn
-		}
-		n = nn
-	}
-	n.value = value
-	n.leaf = true
-}
-
-func computeOffsets(index *nodeIndex, n *trieNode) uint16 {
-	if n.leaf {
-		return n.value
-	}
-	hasher := crc32.New(crc32.MakeTable(crc32.IEEE))
-	// We only index continuation bytes.
-	for i := 0; i < 64; i++ {
-		var v uint16 = 0
-		if nn := n.table[0x80+i]; nn != nil {
-			v = computeOffsets(index, nn)
-		}
-		hasher.Write([]byte{uint8(v >> 8), uint8(v)})
-	}
-	h := hasher.Sum32()
-	if n.isInternal() {
-		v, ok := index.lookupBlockIdx[h]
-		if !ok {
-			v = uint16(len(index.lookupBlocks))
-			index.lookupBlocks = append(index.lookupBlocks, n)
-			index.lookupBlockIdx[h] = v
-		}
-		n.value = v
-	} else {
-		v, ok := index.valueBlockIdx[h]
-		if !ok {
-			v = uint16(len(index.valueBlocks))
-			index.valueBlocks = append(index.valueBlocks, n)
-			index.valueBlockIdx[h] = v
-		}
-		n.value = v
-	}
-	return n.value
-}
-
-func printValueBlock(nr int, n *trieNode, offset int) {
-	fmt.Printf("\n// Block %X", nr)
-	for i := 0; i < 64; i++ {
-		if i%8 == 0 {
-			fmt.Printf("\n")
-		}
-		var v uint16 = 0
-		if nn := n.table[i+offset]; nn != nil {
-			v = nn.value
-		}
-		fmt.Printf("0x%.4X, ", v)
-	}
-}
-
-func printLookupBlock(nr int, n *trieNode, offset int) {
-	fmt.Printf("\n// Block %X", nr)
-	for i := 0; i < 64; i++ {
-		if i%8 == 0 {
-			fmt.Printf("\n")
-		}
-		var v uint16 = 0
-		if nn := n.table[i+offset]; nn != nil {
-			v = nn.value
-		}
-		fmt.Printf("0x%.2X, ", v)
-	}
-}
-
 func printBytes(b []byte, name string) {
 	fmt.Printf("// %s: %d bytes\n", name, len(b))
 	fmt.Printf("var %s = [...]byte {", name)
@@ -672,48 +546,6 @@ func printBytes(b []byte, name string) {
 		fmt.Printf("0x%.2X, ", c)
 	}
 	fmt.Print("\n}\n\n")
-}
-
-// printTrieTables returns the size of the generated tables.
-func printTrieTables(t *trieNode, name string) int {
-	index := newIndex()
-	// Directly add first 128 values of UTF-8, followed by nil block.
-	index.valueBlocks = append(index.valueBlocks, nil, nil, nil)
-	// First byte of multi-byte UTF-8 codepoints are indexed in 4th block.
-	index.lookupBlocks = append(index.lookupBlocks, nil, nil, nil, nil)
-	// Index starter bytes of multi-byte UTF-8.
-	for i := 0xC0; i < 0x100; i++ {
-		if t.table[i] != nil {
-			computeOffsets(index, t.table[i])
-		}
-	}
-
-	nv := len(index.valueBlocks) * 64
-
-	fmt.Printf("// %sValues: %d entries, %d bytes\n", name, nv, nv*2)
-	fmt.Printf("// Block 2 is the null block.\n")
-	fmt.Printf("var %sValues = [...]uint16 {", name)
-	printValueBlock(0, t, 0)
-	printValueBlock(1, t, 64)
-	printValueBlock(2, newNode(), 0)
-	for i := 3; i < len(index.valueBlocks); i++ {
-		printValueBlock(i, index.valueBlocks[i], 0x80)
-	}
-	fmt.Print("\n}\n\n")
-
-	ni := len(index.lookupBlocks) * 64
-	fmt.Printf("// %sLookup: %d bytes\n", name, ni)
-	fmt.Printf("// Block 0 is the null block.\n")
-	fmt.Printf("var %sLookup = [...]uint8 {", name)
-	printLookupBlock(0, newNode(), 0)
-	printLookupBlock(1, newNode(), 0)
-	printLookupBlock(2, newNode(), 0)
-	printLookupBlock(3, t, 0xC0)
-	for i := 4; i < len(index.lookupBlocks); i++ {
-		printLookupBlock(i, index.lookupBlocks[i], 0x80)
-	}
-	fmt.Print("\n}\n\n")
-	return nv*2 + ni
 }
 
 // See forminfo.go for format.
@@ -757,7 +589,7 @@ func printCharInfoTables() int {
 			t.insert(i, v)
 		}
 	}
-	return printTrieTables(t, "charInfo")
+	return t.printTables("charInfo")
 }
 
 func printDecompositionTables() int {
@@ -791,14 +623,26 @@ func printDecompositionTables() int {
 		d := c.forms[FCanonical].expandedDecomp
 		if len(d) != 0 {
 			nfcT.insert(i, positionMap[string([]int(d))])
+			if ccc(c.codePoint) != ccc(d[0]) {
+				// We assume the lead ccc of a decomposition is !=0 in this case.
+				if ccc(d[0]) == 0 {
+					logger.Fatal("Expected differing CCC to be non-zero.")
+				}
+			}
 		}
 		d = c.forms[FCompatibility].expandedDecomp
 		if len(d) != 0 {
 			nfkcT.insert(i, positionMap[string([]int(d))])
+			if ccc(c.codePoint) != ccc(d[0]) {
+				// We assume the lead ccc of a decomposition is !=0 in this case.
+				if ccc(d[0]) == 0 {
+					logger.Fatal("Expected differing CCC to be non-zero.")
+				}
+			}
 		}
 	}
-	size += printTrieTables(nfcT, "nfcDecomp")
-	size += printTrieTables(nfkcT, "nfkcDecomp")
+	size += nfcT.printTables("nfcDecomp")
+	size += nfkcT.printTables("nfkcDecomp")
 	return size
 }
 

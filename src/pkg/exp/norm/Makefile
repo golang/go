@@ -7,22 +7,31 @@ include ../../../Make.inc
 TARG=exp/norm
 GOFILES=\
 	tables.go\
+	trie.go\
 
 include ../../../Make.pkg
 
-CLEANFILES+=maketables
+CLEANFILES+=maketables maketesttables
 
-maketables: maketables.go
-	$(GC) maketables.go
+maketables: maketables.go triegen.go
+	$(GC) maketables.go triegen.go
 	$(LD) -o maketables maketables.$O
+
+maketesttables: maketesttables.go triegen.go
+	$(GC) maketesttables.go triegen.go
+	$(LD) -o maketesttables maketesttables.$O
 
 tables:	maketables
 	./maketables > tables.go
 	gofmt -w tables.go
 
+trietesttables: maketesttables
+	./maketesttables > triedata_test.go
+	gofmt -w triedata_test.go
+
 # Build (but do not run) maketables during testing,
 # just to make sure it still compiles.
-testshort: maketables
+testshort: maketables maketesttables
 
 # Downloads from www.unicode.org, so not part
 # of standard test scripts.
