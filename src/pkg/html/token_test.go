@@ -41,6 +41,22 @@ var tokenTests = []tokenTest{
 		"<a>b<c/>d</e>",
 		"<a>$b$<c/>$d$</e>",
 	},
+	// Some malformed tags that are missing a '>'.
+	{
+		"malformed tag #0",
+		`<p</p>`,
+		`<p< p="">`,
+	},
+	{
+		"malformed tag #1",
+		`<p id=0</p>`,
+		`<p id="0&lt;/p">`,
+	},
+	{
+		"malformed tag #2",
+		`<p id="0</p>`,
+		`<p id="0&lt;/p&gt;">`,
+	},
 	// Comments.
 	{
 		"comment0",
@@ -117,7 +133,6 @@ var tokenTests = []tokenTest{
 		"&frac12;",
 		"½",
 	},
-
 	// Attribute tests:
 	// http://dev.w3.org/html5/spec/Overview.html#attributes-0
 	{
