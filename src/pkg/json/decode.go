@@ -251,6 +251,12 @@ func (d *decodeState) value(v reflect.Value) {
 // if it encounters an Unmarshaler, indirect stops and returns that.
 // if wantptr is true, indirect stops at the last pointer.
 func (d *decodeState) indirect(v reflect.Value, wantptr bool) (Unmarshaler, reflect.Value) {
+	// If v is a named type and is addressable,
+	// start with its address, so that if the type has pointer methods,
+	// we find them.
+	if v.Kind() != reflect.Ptr && v.Type().Name() != "" && v.CanAddr() {
+		v = v.Addr()
+	}
 	for {
 		var isUnmarshaler bool
 		if v.Type().NumMethod() > 0 {
