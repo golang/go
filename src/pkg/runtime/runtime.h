@@ -248,12 +248,9 @@ struct	M
 	uint32	freghi[16];	// D[i] msb and F[i+16]
 	uint32	fflag;		// floating point compare flags
 #ifdef __WINDOWS__
-	void*	sehframe;
-
 #ifdef _64BIT	
 	void*	gostack;
 #endif
-
 #endif
 };
 
