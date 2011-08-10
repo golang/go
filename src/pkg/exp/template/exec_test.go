@@ -366,7 +366,9 @@ var execTests = []execTest{
 	// Was taking address of interface field, so method set was empty.
 	{"bug2", "{{$.NonEmptyInterface.Method0}}", "M0", tVal, true},
 	// Struct values were not legal in with - mere oversight.
-	{"bug4", "{{with $}}{{.Method0}}{{end}}", "M0", tVal, true},
+	{"bug3", "{{with $}}{{.Method0}}{{end}}", "M0", tVal, true},
+	// Nil interface values in if.
+	{"bug4", "{{if .Empty0}}non-nil{{else}}nil{{end}}", "nil", tVal, true},
 }
 
 func zeroArgs() string {
