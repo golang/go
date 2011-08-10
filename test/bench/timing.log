@@ -855,6 +855,7 @@ regex-dna 100000
 
 # Aug 4, 2011
 # After various updates to locking code and some runtime changes.
+# Slowdowns believed due to slower (but more correct) memmove.
 
 fannkuch 12
 	gccgo -O2 fannkuch.go	51.59u 0.00s 51.69r # -4%
@@ -879,3 +880,23 @@ threadring 50000000
 chameneos 6000000
 	gc chameneosredux	7.61u 0.00s 7.63r # -24%
 
+Aug 9, 2011
+# After custom algorithms for 1- 2- 4- 8-byte scalars.
+
+fannkuch 12
+	gc fannkuch-parallel	157.17u 0.00s 41.08r # -17%
+
+k-nucleotide 1000000
+	gc k-nucleotide	8.72u 0.03s 8.76r # -39%
+	gc k-nucleotide-parallel	8.79u 0.01s 3.14r # -39%
+	gc_B k-nucleotide	8.65u 0.03s 8.69r # -39%
+
+pidigits 10000
+	gc pidigits	3.71u 0.02s 3.73r # +4%
+	gc_B pidigits	3.73u 0.00s 3.73r # +4%
+
+threadring 50000000
+	gc threadring	14.51u 0.00s 14.54r # -17%
+
+chameneos 6000000
+	gc chameneosredux	7.41u 0.00s 7.42r # -3%
