@@ -14,6 +14,63 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-08-10">2011-08-10</h2>
+
+<pre>
+This weekly contains performance improvements and bug fixes.
+
+There are no outward-facing changes, but imports of the old-style
+container/vector package have also been removed from the core library (thanks
+John Asmuth, Kyle Consalus).
+
+Other changes:
+
+* 5g: fix set but not used error (thanks Dave Cheney).
+* cmd/ld: Corrected mismatched print formats and variables (thanks Lucio De Re).
+* errchk: add -0 flag.
+* exp/norm: fix build by adding a test placeholder,
+	maketables tool for generating tables for normalization.
+* exp/template: bug fixes,
+	ensure that a valid Set is returned even on error (thanks Roger Peppe),
+	make index on maps return zero when key not present (thanks Roger Peppe),
+	split the parse tree into a separate package exp/template/parse,
+	add url query formatting filter.
+* faq: lots of small tweaks plus a couple of new discussions,
+	variant types, unions.
+* fmt: call UpdateMemStats in malloc counter.
+* go/build: use GOBIN as binary path for GOROOT.
+* gob: add UpdateMemStats calls to malloc counter,
+	avoid a couple of init-time allocations,
+	don't invoke GobEncoder on zero values.
+* gofmt: update test script so 'make test' succeeds.
+* html: parse doctype tokens; merge adjacent text nodes.
+* http: add more MPEG-4 MIME types to sniffer, and disable MP4 sniffing,
+	add test to serve content in index.html (thanks Yasuhiro Matsumoto),
+	configurable and default request header size limit,
+	correct format flags when printing errors in tests (thanks Alex Brainman),
+	correct path to serve index.html (thanks Yasuhiro Matsumoto),
+* ld: add one empty symbol into pe to make dumpbin works (thanks Wei Guangjing),
+	fail linking if the top-level package is not main.
+* misc/vim: godoc command (thanks Yasuhiro Matsumoto).
+* net: add support for openbsd (thanks Joel Sing),
+	fix /proc/net/igmp,igmp6 reading bug on linux (thanks Mikio Hara),
+	implement windows LookupMX and LookupAddr (thanks Mikio Hara),
+	sort SRV records before returning from LookupSRV (thanks Alex Brainman),
+* os: add support for openbsd (thanks Joel Sing).
+* runtime: add more specialized type algorithms,
+	correct Note documentation,
+	faster chan creation on Linux/FreeBSD/Plan9,
+	openbsd amd64 runtime support (thanks Joel Sing),
+	remove unnecessary locking (thanks Hector Chu).
+* scanner: correct error position for illegal UTF-8 encodings.
+* syscall: delay load of dll functions on Windows (thanks Alex Brainman),
+	move BSD mmap syscall (thanks Joel Sing),
+	update routing message support for BSD variants (thanks Mikio Hara).
+* test/bench: note changes after recent improvements to locking and runtime.
+* time: add nanoseconds to the Time structure,
+	parse and format fractional seconds.
+</pre>
+
 <h2 id="2011-07-29">2011-07-29</h2>
 
 <pre>
