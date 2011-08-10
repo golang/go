@@ -34,10 +34,17 @@ func (u *unmarshaler) UnmarshalJSON(b []byte) os.Error {
 	return nil
 }
 
+type ustruct struct {
+	M unmarshaler
+}
+
 var (
 	um0, um1 unmarshaler // target2 of unmarshaling
 	ump      = &um1
 	umtrue   = unmarshaler{true}
+	umslice  = []unmarshaler{unmarshaler{true}}
+	umslicep = new([]unmarshaler)
+	umstruct = ustruct{unmarshaler{true}}
 )
 
 type unmarshalTest struct {
@@ -77,6 +84,9 @@ var unmarshalTests = []unmarshalTest{
 	// unmarshal interface test
 	{`{"T":false}`, &um0, umtrue, nil}, // use "false" so test will fail if custom unmarshaler is not called
 	{`{"T":false}`, &ump, &umtrue, nil},
+	{`[{"T":false}]`, &umslice, umslice, nil},
+	{`[{"T":false}]`, &umslicep, &umslice, nil},
+	{`{"M":{"T":false}}`, &umstruct, umstruct, nil},
 }
 
 func TestMarshal(t *testing.T) {
@@ -140,7 +150,6 @@ func TestUnmarshal(t *testing.T) {
 			println(string(data))
 			data, _ = Marshal(tt.out)
 			println(string(data))
-			return
 			continue
 		}
 	}
