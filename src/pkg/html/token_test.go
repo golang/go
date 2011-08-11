@@ -49,13 +49,23 @@ var tokenTests = []tokenTest{
 	},
 	{
 		"malformed tag #1",
+		`<p </p>`,
+		`<p <="" p="">`,
+	},
+	{
+		"malformed tag #2",
 		`<p id=0</p>`,
 		`<p id="0&lt;/p">`,
 	},
 	{
-		"malformed tag #2",
+		"malformed tag #3",
 		`<p id="0</p>`,
 		`<p id="0&lt;/p&gt;">`,
+	},
+	{
+		"malformed tag #4",
+		`<p id="0"</p>`,
+		`<p id="0" <="" p="">`,
 	},
 	// Comments.
 	{
