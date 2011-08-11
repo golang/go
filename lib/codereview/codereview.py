@@ -1722,6 +1722,7 @@ def submit(ui, repo, *pats, **opts):
 		print Indent('\n'.join(cl.files), "\t")
 		return "dry run; not submitted"
 
+	set_status("pushing " + cl.name + " to remote server")
 	m = match.exact(repo.root, repo.getcwd(), cl.files)
 	node = repo.commit(ustr(opts['message']), ustr(userline), opts.get('date'), m)
 	if not node:
