@@ -429,7 +429,7 @@ loop:
 	for ; i < z.p1; i++ {
 		c := z.buf[i]
 		switch c {
-		case '<', '>', '"', '\'', '/', '=':
+		case '>', '/', '=':
 			break loop
 		}
 		switch {
