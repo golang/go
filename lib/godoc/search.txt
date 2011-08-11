@@ -1,61 +1,39 @@
 QUERY
-	{Query}
+	{{.Query}}
+{{with .Alert}}
+{{.}}
+{{end}}{{/* .Alert */}}{{/*
 
-{.section Alert}
-{@}
+---------------------------------------
 
-{.end}
-{.section Alt}
+*/}}{{with .Alt}}
 DID YOU MEAN
-{.repeated section Alts}
-	{@}
-{.end}
+{{range .Alts}}	{{.}}
+{{end}}{{end}}{{/* .Alts */}}{{/*
 
-{.end}
-{.section Hit}
-{.section Decls}
+---------------------------------------
+
+*/}}{{with .Hit}}{{with .Decls}}
 PACKAGE-LEVEL DECLARATIONS
 
-{.repeated section @}
-package {Pak.Name}
-{.repeated section Files}
-{.repeated section Groups}
-{.repeated section Infos}
-	{File.Path|url-src}:{@|infoLine}
-{.end}
-{.end}
-{.end}
+{{range .}}package {{.Pak.Name}}
+{{range $File := .Files}}{{range .Groups}}{{range .Infos}}	{{$File.File.Path|url_src}}:{{.|infoLine}}{{end}}
+{{end}}{{end}}{{/* .Files */}}{{end}}{{end}}{{/* .Decls */}}{{/*
 
-{.end}
-{.end}
-{.section Others}
+---------------------------------------
+
+*/}}{{with .Others}}
 LOCAL DECLARATIONS AND USES
 
-{.repeated section @}
-package {Pak.Name}
-{.repeated section Files}
-{.repeated section Groups}
-{.repeated section Infos}
-	{File.Path|url-src}:{@|infoLine}
-{.end}
-{.end}
-{.end}
+{{range .}}package {{.Pak.Name}}
+{{range $File := .Files}}{{range .Groups}}{{range .Infos}}	{{$File.File.Path|url_src}}:{{.|infoLine}}
+{{end}}{{end}}{{end}}{{/* .Files */}}
+{{end}}{{end}}{{/* .Others */}}{{end}}{{/* .Hit */}}{{/*
 
-{.end}
-{.end}
-{.end}
-{.section Textual}
-{.section Complete}
-{Found} TEXTUAL OCCURRENCES
-{.or}
-MORE THAN {Found} TEXTUAL OCCURRENCES
-{.end}
+---------------------------------------
 
-{.repeated section @}
-{Lines|numlines}	{Filename|url-src}
-{.end}
-{.section Complete}
-{.or}
-...	...
-{.end}
-{.end}
+*/}}{{if .Textual}}{{if .Complete}}{{.Found}} TEXTUAL OCCURRENCES{{else}}MORE THAN {{.Found}} TEXTUAL OCCURRENCES{{end}}
+
+{{range .Textual}}{{.Lines|numlines}}	{{.Filename|url_src}}
+{{end}}{{if not .Complete}}...	...
+{{end}}{{end}}

@@ -16,14 +16,15 @@
 <tr>
 	<td><a href="..">..</a></td>
 </tr>
-{.repeated section @}
+{{range .}}
 <tr>
-	<td align="left"><a href="{@|fileInfoName}">{@|fileInfoName}</a></td>
+	<td align="left"><a href="{{.|fileInfoName}}">{{.|fileInfoName}}</a></td>
 	<td></td>
-	<td align="right">{@|fileInfoSize}</td>
+	<td align="right">{{.|fileInfoSize}}</td>
 	<td></td>
-	<td align="left">{@|fileInfoTime}</td>
+	<td align="left">{{.|fileInfoTime}}</td>
 </tr>
-{.end}
+{{end}}
+
 </table>
 </p>

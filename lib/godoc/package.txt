@@ -1,95 +1,90 @@
-{.section PAst}
-{@ FSet}
-{.end}
-{.section PDoc}
-{.section IsPkg}
-PACKAGE
+{{$FSet := .FSet}}{{$Info := .}}{{/*
 
-package {PackageName}
-import "{ImportPath}"
-{.or}
-COMMAND DOCUMENTATION
-{.end}
-{.section Doc}
+---------------------------------------
 
-{@ FSet}
-{.end}
-{.section Consts}
+*/}}{{with .PAst}}{{text . $FSet}}{{end}}{{/*
 
+---------------------------------------
+
+*/}}{{with .PDoc}}{{if $Info.IsPkg}}PACKAGE
+
+package {{.PackageName}}
+import "{{.ImportPath}}"
+
+{{else}}COMMAND DOCUMENTATION
+{{end}}{{/*
+
+---------------------------------------
+
+*/}}{{with .Doc}}{{text . $FSet}}
+{{end}}{{/*
+
+---------------------------------------
+
+*/}}{{with .Consts}}
 CONSTANTS
 
-{.repeated section @}
-{Decl FSet}
-{Doc}
-{.end}
-{.end}
-{.section Vars}
+{{range .}}{{text .Decl $FSet}}
+{{.Doc}}{{end}}
+{{end}}{{/*
 
+---------------------------------------
+
+*/}}{{with .Vars}}
 VARIABLES
 
-{.repeated section @}
-{Decl FSet}
-{Doc}
-{.end}
-{.end}
-{.section Funcs}
+{{range .}}{{.Decl $FSet}}
+{{.Doc}}{{end}}
+{{end}}{{/*
 
+---------------------------------------
+
+*/}}{{with .Funcs}}
 FUNCTIONS
 
-{.repeated section @}
-{Decl FSet}
-{Doc}
-{.end}
-{.end}
-{.section Types}
+{{range .}}{{text .Decl $FSet}}
+{{.Doc}}
+{{end}}{{end}}{{/*
 
+---------------------------------------
+
+*/}}{{with .Types}}
 TYPES
 
-{.repeated section @}
-{Decl FSet}
-{Doc}
-{.repeated section Consts}
-{Decl FSet}
-{Doc}
-{.end}
-{.repeated section Vars}
-{Decl FSet}
-{Doc}
-{.end}
-{.repeated section Factories}
-{Decl FSet}
-{Doc}
-{.end}
-{.repeated section Methods}
-{Decl FSet}
-{Doc}
-{.end}
-{.end}
-{.end}
-{.section Bugs}
+{{range .}}{{text .Decl $FSet}}
+{{.Doc}}
+{{range .Consts}}{{text .Decl $FSet}}
+{{.Doc}}
+{{end}}{{range .Vars}}{{text .Decl $FSet}}
+{{.Doc}}
+{{end}}{{range .Factories}}{{text .Decl $FSet}}
+{{.Doc}}
+{{end}}{{range .Methods}}{{text .Decl $FSet}}
+{{.Doc}}
+{{end}}{{end}}{{end}}{{/*
 
+---------------------------------------
+
+*/}}{{with .Bugs}}
 BUGS
 
-{.repeated section @}
-{@}
-{.end}
-{.end}
-{.end}
-{.section PList}
+{{range .}}{{.}}
+{{end}}{{end}}{{end}}{{/*
 
+---------------------------------------
+
+*/}}{{with .PList}}
 OTHER PACKAGES
 
-{.repeated section @}
-{@}
-{.end}
-{.end}
-{.section Dirs}
-{.section Dirs}
+{{range .}}
+{{.}}{{end}}
+{{end}}{{/*
 
+---------------------------------------
+
+*/}}{{with .Dirs}}
 SUBDIRECTORIES
 
-{.repeated section List}
-	{Name}
-{.end}
-{.end}
-{.end}
+{{range .List}}
+	{{.Name}}{{end}}
+{{end}}

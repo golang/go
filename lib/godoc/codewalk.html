@@ -18,9 +18,9 @@
           <img title="View code in new window" alt="Pop Out Code" src="/doc/codewalk/popout.png" style="display: block; float: right;"/>
         </a>
         <select id="code-selector">
-          {.repeated section File}
-          <option value="/doc/codewalk/?fileprint=/{@|html-esc}">{@|html-esc}</option>
-          {.end}
+          {{range .File}}
+          <option value="/doc/codewalk/?fileprint=/{{.|urlquery_esc}}">{{.|html_esc}}</option>
+          {{end}}
         </select>
       </div>
       <div id="code">
@@ -35,19 +35,19 @@
   </div>
   <div class="right" id="comment-column">
     <div id="comment-area">
-      {.repeated section Step}
+      {{range .Step}}
       <div class="comment first last">
-        <a class="comment-link" href="/doc/codewalk/?fileprint=/{File|html-esc}&lo={Lo|html-esc}&hi={Hi|html-esc}#mark" target="code-display"></a>
-        <div class="comment-title">{Title|html-esc}</div>
+        <a class="comment-link" href="/doc/codewalk/?fileprint=/{{.File|urlquery_esc}}&lo={{.Lo|html_esc}}&hi={{.Hi|html_esc}}#mark" target="code-display"></a>
+        <div class="comment-title">{{.Title|html_esc}}</div>
         <div class="comment-text">
-        {.section Err}
-        ERROR LOADING FILE: {Err|html-esc}<br/><br/>
-        {.end}
-        {XML}
+	{{with .Err}}
+	ERROR LOADING FILE: {{.|html_esc}}<br/><br/>
+	{{end}}
+        {{.XML}}
         </div>
-        <div class="comment-text file-name"><span class="path-file">{@|html-esc}</span></div>
+        <div class="comment-text file-name"><span class="path-file">{{.|html_esc}}</span></div>
       </div>
-      {.end}
+      {{end}}
     </div>
     <div id="comment-options" class="setting">
       <a id="prev-comment" href="#"><span class="hotkey">p</span>revious step</a>

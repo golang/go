@@ -5,11 +5,11 @@
 -->
 
 <table class="layout">
-{.repeated section @}
+{{range .}}
 <tr>
-    <td><a href="{Name|html-esc}">{Name|html-esc}</a></td>
+    <td><a href="{{.Name|html_esc}}">{{.Name|html_esc}}</a></td>
     <td width="25">&nbsp;</td>
-    <td>{Title|html-esc}</td>
+    <td>{{.Title|html_esc}}</td>
 </tr>
-{.end}
+{{end}}
 </table>
