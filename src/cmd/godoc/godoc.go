@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"exp/template"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -23,7 +24,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"template"
 	"time"
 )
 
@@ -481,16 +481,16 @@ func urlFmt(w io.Writer, format string, x ...interface{}) {
 		// and assume the url-pkg format instead
 		log.Printf("INTERNAL ERROR: urlFmt(%s)", format)
 		fallthrough
-	case "url-pkg":
+	case "url_pkg":
 		// because of the irregular mapping under goroot
 		// we need to correct certain relative paths
 		if strings.HasPrefix(relpath, "src/pkg/") {
 			relpath = relpath[len("src/pkg/"):]
 		}
 		template.HTMLEscape(w, []byte(pkgHandler.pattern[1:]+relpath)) // remove trailing '/' for relative URL
-	case "url-src":
+	case "url_src":
 		template.HTMLEscape(w, []byte(relpath))
-	case "url-pos":
+	case "url_pos":
 		template.HTMLEscape(w, []byte(relpath))
 		// selection ranges are of form "s=low:high"
 		if low < high {
@@ -600,14 +600,32 @@ func numlinesFmt(w io.Writer, format string, x ...interface{}) {
 	fmt.Fprintf(w, "%d", len(list))
 }
 
-var fmap = template.FormatterMap{
-	"":             textFmt,
-	"html-esc":     htmlEscFmt,
-	"html-comment": htmlCommentFmt,
-	"urlquery-esc": urlQueryEscFmt,
-	"url-pkg":      urlFmt,
-	"url-src":      urlFmt,
-	"url-pos":      urlFmt,
+// TODO(gri): Remove this type once fmtMap2funcMap is gone.
+type FormatterMap map[string]func(io.Writer, string, ...interface{})
+
+// TODO(gri): Remove the need for this conversion function by rewriting
+//            the old template formatters into new template functions.
+func fmtMap2funcMap(fmtMap FormatterMap) template.FuncMap {
+	funcMap := make(template.FuncMap)
+	for n, f := range fmtMap {
+		name, fmt := n, f // separate instance of name, fmt for each closure!
+		funcMap[name] = func(args ...interface{}) string {
+			var buf bytes.Buffer
+			fmt(&buf, name, args...)
+			return buf.String()
+		}
+	}
+	return funcMap
+}
+
+var fmap = fmtMap2funcMap(FormatterMap{
+	"text":         textFmt,
+	"html_esc":     htmlEscFmt,
+	"html_comment": htmlCommentFmt,
+	"urlquery_esc": urlQueryEscFmt,
+	"url_pkg":      urlFmt,
+	"url_src":      urlFmt,
+	"url_pos":      urlFmt,
 	"infoKind":     infoKindFmt,
 	"infoLine":     infoLineFmt,
 	"infoSnippet":  infoSnippetFmt,
@@ -617,7 +635,7 @@ var fmap = template.FormatterMap{
 	"fileInfoTime": fileInfoTimeFmt,
 	"localname":    localnameFmt,
 	"numlines":     numlinesFmt,
-}
+})
 
 func readTemplate(name string) *template.Template {
 	path := filepath.Join(*goroot, "lib", "godoc", name)
@@ -629,15 +647,7 @@ func readTemplate(name string) *template.Template {
 			path = defaultpath
 		}
 	}
-	data, err := fs.ReadFile(path)
-	if err != nil {
-		log.Fatalf("ReadFile %s: %v", path, err)
-	}
-	t, err := template.Parse(string(data), fmap)
-	if err != nil {
-		log.Fatalf("%s: %v", name, err)
-	}
-	return t
+	return template.Must(template.New(name).Funcs(fmap).ParseFile(path))
 }
 
 var (

@@ -2,11 +2,11 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-{.section Title}
-  <title>{@|html-esc} - The Go Programming Language</title>
-{.or}
+{{with .Title}}
+  <title>{{.|html_esc}} - The Go Programming Language</title>
+{{else}}
   <title>The Go Programming Language</title>
-{.end}
+{{end}}
 <link rel="stylesheet" href="/doc/all.css" type="text/css" media="all" charset="utf-8">
 <!--[if lt IE 8]>
 <link rel="stylesheet" href="/doc/ie.css" type="text/css">
@@ -23,19 +23,19 @@
       </ul>
       <div class="quickref">
         <form method="GET" action="/search">
-        {.section PkgRoots}
-        {.repeated section PkgRoots}
-        <a href="/pkg/{@|html-esc}">{@|html-esc}</a> <span class="sep">|</span>
-        {.end}
-        {.or}
+        {{with .PkgRoots}}
+        {{range .PkgRoots}}
+        <a href="/pkg/{{.|html_esc}}">{{.|html_esc}}</a> <span class="sep">|</span>
+        {{end}}
+        {{else}}
         References:
-        {.end}
+        {{end}}
         <a href="/pkg/">Packages</a> <span class="sep">|</span>
         <a href="/cmd/">Commands</a> <span class="sep">|</span>
         <a href="/doc/go_spec.html">Specification</a>
-	{.section SearchBox}
-        <input id="search" type="search" name="q" value="{.section Query}{Query|html-esc}{.end}" class="{.section Query}{.or}inactive{.end}" placeholder="code search" results="0" />
-	{.end}
+	{{if .SearchBox}}
+        <input id="search" type="search" name="q" value="{{if .Query}}{{.Query|html_esc}}{{end}}" class="{{if .Query}}{{else}}inactive{{end}}" placeholder="code search" results="0" />
+	{{end}}
         </form>
       </div>
     </div>
@@ -43,28 +43,28 @@
   </div>
   <div id="content">
   <!-- Menu is HTML-escaped elsewhere -->
-  {.section Menu}
+  {{with .Menu}}
     <div id="menu">
-      {@}
+      {{printf "%s" .}}
     </div>
-  {.end}
+  {{end}}
 
-  {.section Title}
-    <h1 id="generatedHeader">{@|html-esc}</h1>
-  {.end}
-  {.section Subtitle}
-    <span class="subtitle">{@|html-esc}</span>
-  {.end}
+  {{with .Title}}
+    <h1 id="generatedHeader">{{.|html_esc}}</h1>
+  {{end}}
+  {{with .Subtitle}}
+    <span class="subtitle">{{.|html_esc}}</span>
+  {{end}}
 
   <!-- The Table of Contents is automatically inserted in this <div>.
        Do not delete this <div>. -->
   <div id="nav"></div>
 
   <!-- Content is HTML-escaped elsewhere -->
-  {Content}
+  {{printf "%s" .Content}}
   </div>
   <div id="site-info">
-    <p>Build version {Version|html-esc}. Except as noted, this content is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0 License</a>.</p>
+    <p>Build version {{.Version|html_esc}}. Except as noted, this content is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0 License</a>.</p>
   </div>
 </div>
 </body>

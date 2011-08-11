@@ -11,13 +11,13 @@
 package main
 
 import (
+	"exp/template"
 	"fmt"
 	"go/scanner"
 	"go/token"
 	"io"
 	"regexp"
 	"strconv"
-	"template"
 )
 
 // ----------------------------------------------------------------------------

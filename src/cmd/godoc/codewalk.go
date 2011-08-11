@@ -14,6 +14,7 @@ package main
 
 import (
 	"container/vector"
+	"exp/template"
 	"fmt"
 	"http"
 	"io"
@@ -23,7 +24,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"template"
 	"utf8"
 	"xml"
 )
