@@ -9,6 +9,8 @@ import (
 	"strconv"
 )
 
+var implemented = false // set to true by lookup_unix.go's init
+
 // User represents a user account.
 type User struct {
 	Uid      int // user id

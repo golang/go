@@ -121,6 +121,21 @@ HOST_CFLAGS=-I"$(GOROOT)/include" $(HOST_EXTRA_CFLAGS)
 HOST_LDFLAGS=$(HOST_EXTRA_LDFLAGS)
 PWD=$(shell pwd)
 
+# Decide whether use of cgo is okay.
+ifeq ($(CGO_ENABLED),)
+# Default on...
+CGO_ENABLED:=1
+ifeq ($(GOARCH),arm)  # ... but not on ARM
+CGO_ENABLED:=0
+endif
+ifeq ($(GOOS),plan9)  # ... and not on Plan 9
+CGO_ENABLED:=0
+endif
+ifeq ($(GOOS),openbsd)  # ... and not on OpenBSD
+CGO_ENABLED:=0
+endif
+endif
+
 # Make environment more standard.
 LANG:=
 LC_ALL:=C
@@ -130,11 +145,12 @@ GREP_COLORS:=
 export LANG LC_ALL LC_CTYPE GREP_OPTIONS GREP_COLORS
 
 go-env:
-	@echo export GOARCH=$(GOARCH)
-	@echo export GOOS=$(GOOS)
-	@echo export GOHOSTARCH=$(GOHOSTARCH)
-	@echo export GOHOSTOS=$(GOHOSTOS)
-	@echo export O=$O
+	@echo export GOARCH="$(GOARCH)"
+	@echo export GOOS="$(GOOS)"
+	@echo export GOHOSTARCH="$(GOHOSTARCH)"
+	@echo export GOHOSTOS="$(GOHOSTOS)"
+	@echo export CGO_ENABLED="$(CGO_ENABLED)"
+	@echo export O="$O"
 	@echo export AS="$(AS)"
 	@echo export CC="$(CC)"
 	@echo export GC="$(GC)"

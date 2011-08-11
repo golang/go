@@ -8,7 +8,7 @@ TARG=os/user
 GOFILES=\
 	user.go\
 
-ifneq ($(GOARCH),arm)
+ifeq ($(CGO_ENABLED),1)
 CGOFILES_linux=\
 	lookup_unix.go
 CGOFILES_freebsd=\

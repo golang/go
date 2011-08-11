@@ -25,6 +25,10 @@ static int mygetpwuid_r(int uid, struct passwd *pwd,
 */
 import "C"
 
+func init() {
+	implemented = true
+}
+
 // Lookup looks up a user by username. If the user cannot be found,
 // the returned error is of type UnknownUserError.
 func Lookup(username string) (*User, os.Error) {
