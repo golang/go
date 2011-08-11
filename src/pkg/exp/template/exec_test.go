@@ -28,6 +28,9 @@ type T struct {
 	ComplexZero float64
 	// Nested structs.
 	U *U
+	// Struct with String method.
+	V0     V
+	V1, V2 *V
 	// Slices
 	SI      []int
 	SIEmpty []int
@@ -57,12 +60,25 @@ type U struct {
 	V string
 }
 
+type V struct {
+	j int
+}
+
+func (v *V) String() string {
+	if v == nil {
+		return "nilV"
+	}
+	return fmt.Sprintf("<%d>", v.j)
+}
+
 var tVal = &T{
 	True:   true,
 	I:      17,
 	U16:    16,
 	X:      "x",
 	U:      &U{"v"},
+	V0:     V{6666},
+	V1:     &V{7777}, // leave V2 as nil
 	SI:     []int{3, 4, 5},
 	SB:     []bool{true, false},
 	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
@@ -211,6 +227,11 @@ var execTests = []execTest{
 	{"$.I", "{{$.I}}", "17", tVal, true},
 	{"$.U.V", "{{$.U.V}}", "v", tVal, true},
 	{"declare in action", "{{$x := $.U.V}}{{$x}}", "v", tVal, true},
+
+	// Type with String method.
+	{"V{6666}.String()", "-{{.V0}}-", "-<6666>-", tVal, true},
+	{"&V{7777}.String()", "-{{.V1}}-", "-<7777>-", tVal, true},
+	{"(*V)(nil).String()", "-{{.V2}}-", "-nilV-", tVal, true},
 
 	// Pointers.
 	{"*int", "{{.PI}}", "23", tVal, true},

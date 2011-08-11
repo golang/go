@@ -425,7 +425,8 @@ func methodByName(receiver reflect.Value, name string) (reflect.Value, bool) {
 }
 
 var (
-	osErrorType = reflect.TypeOf(new(os.Error)).Elem()
+	osErrorType     = reflect.TypeOf((*os.Error)(nil)).Elem()
+	fmtStringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
 )
 
 // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
@@ -625,13 +626,13 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
 	}
 	switch v.Kind() {
 	case reflect.Ptr:
-		var isNil bool
-		if v, isNil = indirect(v); isNil {
-			fmt.Fprint(s.wr, "<nil>")
-			return
-		}
+		v, _ = indirect(v) // fmt.Fprint handles nil.
 	case reflect.Chan, reflect.Func, reflect.Interface:
 		s.errorf("can't print %s of type %s", n, v.Type())
+	}
+	// If it's a value but the pointer implements Stringer, use the pointer.
+	if v.Kind() != reflect.Ptr && v.CanAddr() && reflect.PtrTo(v.Type()).Implements(fmtStringerType) {
+		v = v.Addr()
 	}
 	fmt.Fprint(s.wr, v.Interface())
 }
