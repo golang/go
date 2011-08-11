@@ -36,9 +36,13 @@ GOFILES_freebsd=\
 	sendfile_stub.go\
 	sock_bsd.go\
 
+ifeq ($(CGO_ENABLED),1)
 CGOFILES_freebsd=\
 	cgo_bsd.go\
-	cgo_unix.go\
+	cgo_unix.go
+else
+GOFILES_freebsd+=cgo_stub.go
+endif
 
 GOFILES_darwin=\
 	dnsclient_unix.go\
@@ -53,9 +57,13 @@ GOFILES_darwin=\
 	sendfile_stub.go\
 	sock_bsd.go\
 
+ifeq ($(CGO_ENABLED),1)
 CGOFILES_darwin=\
 	cgo_bsd.go\
-	cgo_unix.go\
+	cgo_unix.go
+else
+GOFILES_darwin+=cgo_stub.go
+endif
 
 GOFILES_linux=\
 	dnsclient_unix.go\
@@ -68,6 +76,14 @@ GOFILES_linux=\
 	port.go\
 	sendfile_linux.go\
 	sock_linux.go\
+
+ifeq ($(CGO_ENABLED),1)
+CGOFILES_linux=\
+	cgo_linux.go\
+	cgo_unix.go
+else
+GOFILES_linux+=cgo_stub.go
+endif
 
 GOFILES_openbsd=\
 	dnsclient.go\
@@ -85,15 +101,6 @@ GOFILES_plan9=\
 	interface_stub.go\
 	lookup_unix.go\
 	sendfile_stub.go\
-
-ifeq ($(GOARCH),arm)
-# ARM has no cgo, so use the stubs.
-GOFILES_linux+=cgo_stub.go
-else
-CGOFILES_linux=\
-	cgo_linux.go\
-	cgo_unix.go
-endif
 
 GOFILES_windows=\
 	file_windows.go\

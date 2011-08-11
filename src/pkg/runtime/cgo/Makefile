@@ -4,29 +4,12 @@
 
 include ../../../Make.inc
 
-ENABLED:=1
-
-ifeq ($(GOARCH),arm)
-ENABLED:=0
-endif
-
-ifeq ($(GOOS),plan9)
-ENABLED:=0
-endif
-ifeq ($(GOOS),openbsd)
-ENABLED:=0
-endif
-
-ifeq ($(DISABLE_CGO),1)
-ENABLED:=0
-endif
-
 TARG=runtime/cgo
 
 GOFILES=\
 	cgo.go\
 
-ifeq ($(ENABLED),1)
+ifeq ($(CGO_ENABLED),1)
 
 # Unwarranted chumminess with Make.pkg's cgo rules.
 # Do not try this at home.
@@ -59,7 +42,7 @@ endif
 
 include ../../../Make.pkg
 
-ifeq ($(ENABLED),1)
+ifeq ($(CGO_ENABLED),1)
 _cgo_defun.c:
 	echo >$@
 

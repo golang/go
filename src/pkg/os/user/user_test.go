@@ -13,8 +13,8 @@ import (
 )
 
 func skip(t *testing.T) bool {
-	if runtime.GOARCH == "arm" {
-		t.Logf("user: cgo not implemented on arm; skipping tests")
+	if !implemented {
+		t.Logf("user: not implemented; skipping tests")
 		return true
 	}
 
