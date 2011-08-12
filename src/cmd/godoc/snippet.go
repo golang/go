@@ -18,7 +18,7 @@ import (
 
 type Snippet struct {
 	Line int
-	Text []byte
+	Text string // HTML-escaped
 }
 
 func newSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
@@ -30,7 +30,7 @@ func newSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) *Snippet {
 	buf2.WriteString("<pre>")
 	FormatText(&buf2, buf1.Bytes(), -1, true, id.Name, nil)
 	buf2.WriteString("</pre>")
-	return &Snippet{fset.Position(id.Pos()).Line, buf2.Bytes()}
+	return &Snippet{fset.Position(id.Pos()).Line, buf2.String()}
 }
 
 func findSpec(list []ast.Spec, id *ast.Ident) ast.Spec {
@@ -94,10 +94,7 @@ func NewSnippet(fset *token.FileSet, decl ast.Decl, id *ast.Ident) (s *Snippet) 
 	if s == nil {
 		var buf bytes.Buffer
 		fmt.Fprintf(&buf, `<span class="alert">could not generate a snippet for <span class="highlight">%s</span></span>`, id.Name)
-		s = &Snippet{
-			fset.Position(id.Pos()).Line,
-			buf.Bytes(),
-		}
+		s = &Snippet{fset.Position(id.Pos()).Line, buf.String()}
 	}
 	return
 }

@@ -3,10 +3,9 @@
 	Use of this source code is governed by a BSD-style
 	license that can be found in the LICENSE file.
 -->
-{{$SearchResult := .}}
 {{with .Alert}}
 	<p>
-	<span class="alert" style="font-size:120%">{{.}}</span>
+	<span class="alert" style="font-size:120%">{{html .}}</span>
 	</p>
 {{end}}
 {{with .Alt}}
@@ -21,13 +20,14 @@
 	{{with .Decls}}
 		<h2 id="Global">Package-level declarations</h2>
 		{{range .}}
-			<h3 id="Global_{{url_pkg .Pak.Path}}">package <a href="/{{url_pkg .Pak.Path}}">{{html .Pak.Name}}</a></h3>
+			{{$pkg := pkgLink .Pak.Path}}
+			<h3 id="Global_{{html $pkg}}">package <a href="/{{url $pkg}}">{{html .Pak.Name}}</a></h3>
 			{{range .Files}}
-				{{$path := url_src .File.Path}}
+				{{$src := srcLink .File.Path}}
 				{{range .Groups}}
 					{{range .Infos}}
-						<a href="/{{$path}}?h={{url $SearchResult.Query}}#L{{infoLine .}}">{{$path}}:{{infoLine .}}</a>
-						{{infoSnippet .}}
+						<a href="/{{url $src}}?h={{url $.Query}}#L{{infoLine .}}">{{html $src}}:{{infoLine .}}</a>
+						{{infoSnippet_html .}}
 					{{end}}
 				{{end}}
 			{{end}}
@@ -36,19 +36,20 @@
 	{{with .Others}}
 		<h2 id="Local">Local declarations and uses</h2>
 		{{range .}}
-			<h3 id="Local_{{url_pkg .Pak.Path}}">package <a href="/{{url_pkg .Pak.Path}}">{{html .Pak.Name}}</a></h3>
+			{{$pkg := pkgLink .Pak.Path}}
+			<h3 id="Local_{{html $pkg}}">package <a href="/{{url $pkg}}">{{html .Pak.Name}}</a></h3>
 			{{range .Files}}
-				{{$path := url_src .File.Path}}
-				<a href="/{{$path}}?h={{url $SearchResult.Query}}">{{$path}}</a>
+				{{$src := srcLink .File.Path}}
+				<a href="/{{url $src}}?h={{url $.Query}}">{{html $src}}</a>
 				<table class="layout">
 				{{range .Groups}}
 					<tr>
 					<td width="25"></td>
-					<th align="left" valign="top">{{infoKind .Kind}}</th>
+					<th align="left" valign="top">{{infoKind_html .Kind}}</th>
 					<td align="left" width="4"></td>
 					<td>
 					{{range .Infos}}
-						<a href="/{{$path}}?h={{url $SearchResult.Query}}#L{{infoLine .}}">{{infoLine .}}</a>
+						<a href="/{{url $src}}?h={{url $.Query}}#L{{infoLine .}}">{{infoLine .}}</a>
 					{{end}}
 					</td>
 					</tr>
@@ -59,36 +60,36 @@
 	{{end}}
 {{end}}
 {{with .Textual}}
-	{{if $SearchResult.Complete}}
-		<h2 id="Textual">{{html $SearchResult.Found}} textual occurrences</h2>
+	{{if $.Complete}}
+		<h2 id="Textual">{{html $.Found}} textual occurrences</h2>
 	{{else}}
-		<h2 id="Textual">More than {{html $SearchResult.Found}} textual occurrences</h2>
+		<h2 id="Textual">More than {{html $.Found}} textual occurrences</h2>
 		<p>
-		<span class="alert" style="font-size:120%">Not all files or lines containing "{{html $SearchResult.Query}}" are shown.</span>
+		<span class="alert" style="font-size:120%">Not all files or lines containing "{{html $.Query}}" are shown.</span>
 		</p>
 	{{end}}
 	<p>
 	<table class="layout">
 	{{range .}}
-		{{$path := url_src .Filename}}
+		{{$src := srcLink .Filename}}
 		<tr>
 		<td align="left" valign="top">
-		<a href="/{{$path}}?h={{url $SearchResult.Query}}">{{$path}}</a>:
+		<a href="/{{url $src}}?h={{url $.Query}}">{{html $src}}</a>:
 		</td>
 		<td align="left" width="4"></td>
 		<th align="left" valign="top">{{len .Lines}}</th>
 		<td align="left" width="4"></td>
 		<td align="left">
 		{{range .Lines}}
-			<a href="/{{$path}}?h={{url $SearchResult.Query}}#L{{url .}}">{{html .}}</a>
+			<a href="/{{url $src}}?h={{url $.Query}}#L{{url .}}">{{html .}}</a>
 		{{end}}
-		{{if not $SearchResult.Complete}}
+		{{if not $.Complete}}
 			...
 		{{end}}
 		</td>
 		</tr>
 	{{end}}
-	{{if not $SearchResult.Complete}}
+	{{if not $.Complete}}
 		<tr><td align="left">...</td></tr>
 	{{end}}
 	</table>

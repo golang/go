@@ -2,7 +2,7 @@
 
 ---------------------------------------
 
-*/}}{{with .PAst}}{{text_node . $FSet}}{{end}}{{/*
+*/}}{{with .PAst}}{{node . $FSet}}{{end}}{{/*
 
 ---------------------------------------
 
@@ -16,7 +16,7 @@ import "{{.ImportPath}}"
 
 ---------------------------------------
 
-*/}}{{with .Doc}}{{text_node . $FSet}}
+*/}}{{with .Doc}}{{node . $FSet}}
 {{end}}{{/*
 
 ---------------------------------------
@@ -24,7 +24,7 @@ import "{{.ImportPath}}"
 */}}{{with .Consts}}
 CONSTANTS
 
-{{range .}}{{text_node .Decl $FSet}}
+{{range .}}{{node .Decl $FSet}}
 {{.Doc}}{{end}}
 {{end}}{{/*
 
@@ -33,7 +33,7 @@ CONSTANTS
 */}}{{with .Vars}}
 VARIABLES
 
-{{range .}}{{text_node .Decl $FSet}}
+{{range .}}{{node .Decl $FSet}}
 {{.Doc}}{{end}}
 {{end}}{{/*
 
@@ -42,7 +42,7 @@ VARIABLES
 */}}{{with .Funcs}}
 FUNCTIONS
 
-{{range .}}{{text_node .Decl $FSet}}
+{{range .}}{{node .Decl $FSet}}
 {{.Doc}}
 {{end}}{{end}}{{/*
 
@@ -51,15 +51,15 @@ FUNCTIONS
 */}}{{with .Types}}
 TYPES
 
-{{range .}}{{text_node .Decl $FSet}}
+{{range .}}{{node .Decl $FSet}}
 {{.Doc}}
-{{range .Consts}}{{text_node .Decl $FSet}}
+{{range .Consts}}{{node .Decl $FSet}}
 {{.Doc}}
-{{end}}{{range .Vars}}{{text_node .Decl $FSet}}
+{{end}}{{range .Vars}}{{node .Decl $FSet}}
 {{.Doc}}
-{{end}}{{range .Factories}}{{text_node .Decl $FSet}}
+{{end}}{{range .Factories}}{{node .Decl $FSet}}
 {{.Doc}}
-{{end}}{{range .Methods}}{{text_node .Decl $FSet}}
+{{end}}{{range .Methods}}{{node .Decl $FSet}}
 {{.Doc}}
 {{end}}{{end}}{{end}}{{/*
 

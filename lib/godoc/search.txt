@@ -17,7 +17,7 @@ DID YOU MEAN
 PACKAGE-LEVEL DECLARATIONS
 
 {{range .}}package {{.Pak.Name}}
-{{range $File := .Files}}{{range .Groups}}{{range .Infos}}	{{url_src $File.File.Path}}:{{infoLine .}}{{end}}
+{{range $File := .Files}}{{range .Groups}}{{range .Infos}}	{{srcLink $File.File.Path}}:{{infoLine .}}{{end}}
 {{end}}{{end}}{{/* .Files */}}
 {{end}}{{end}}{{/* .Decls */}}{{/*
 
@@ -27,7 +27,7 @@ PACKAGE-LEVEL DECLARATIONS
 LOCAL DECLARATIONS AND USES
 
 {{range .}}package {{.Pak.Name}}
-{{range $File := .Files}}{{range .Groups}}{{range .Infos}}	{{url_src $File.File.Path}}:{{infoLine .}}
+{{range $File := .Files}}{{range .Groups}}{{range .Infos}}	{{srcLink $File.File.Path}}:{{infoLine .}}
 {{end}}{{end}}{{end}}{{/* .Files */}}
 {{end}}{{end}}{{/* .Others */}}{{end}}{{/* .Hit */}}{{/*
 
@@ -35,6 +35,6 @@ LOCAL DECLARATIONS AND USES
 
 */}}{{if .Textual}}{{if .Complete}}{{.Found}} TEXTUAL OCCURRENCES{{else}}MORE THAN {{.Found}} TEXTUAL OCCURRENCES{{end}}
 
-{{range .Textual}}{{len .Lines}}	{{url_src .Filename}}
+{{range .Textual}}{{len .Lines}}	{{srcLink .Filename}}
 {{end}}{{if not .Complete}}...	...
 {{end}}{{end}}
