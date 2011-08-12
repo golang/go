@@ -31,14 +31,14 @@ func (t NodeType) Type() NodeType {
 
 const (
 	NodeText       NodeType = iota // Plain text.
-	NodeAction                     // An simple action such as field evaluation.
+	NodeAction                     // A simple action such as field evaluation.
 	NodeBool                       // A boolean constant.
 	NodeCommand                    // An element of a pipeline.
 	NodeDot                        // The cursor, dot.
 	NodeElse                       // An else action.
 	NodeEnd                        // An end action.
 	NodeField                      // A field or method name.
-	NodeIdentifier                 // A identifier; always a function name.
+	NodeIdentifier                 // An identifier; always a function name.
 	NodeIf                         // An if action.
 	NodeList                       // A list of Nodes.
 	NodeNumber                     // A numerical constant.
@@ -154,7 +154,8 @@ type IdentifierNode struct {
 	Ident string // The identifier's name.
 }
 
-func newIdentifier(ident string) *IdentifierNode {
+// NewIdentifier returns a new IdentifierNode with the given identifier name.
+func NewIdentifier(ident string) *IdentifierNode {
 	return &IdentifierNode{NodeType: NodeIdentifier, Ident: ident}
 }
 

@@ -83,6 +83,7 @@ DIRS=\
 	exp/norm\
 	exp/regexp/syntax\
 	exp/template\
+	exp/template/html\
 	exp/template/parse\
 	expvar\
 	flag\

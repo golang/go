@@ -373,7 +373,7 @@ Loop:
 			if !t.hasFunction(token.val) {
 				t.errorf("function %q not defined", token.val)
 			}
-			cmd.append(newIdentifier(token.val))
+			cmd.append(NewIdentifier(token.val))
 		case itemDot:
 			cmd.append(newDot())
 		case itemVariable:
