@@ -24,7 +24,7 @@ type Template struct {
 
 // Name returns the name of the template.
 func (t *Template) Name() string {
-	return t.Tree.Name
+	return t.name
 }
 
 // Parsing.
