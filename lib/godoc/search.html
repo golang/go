@@ -13,7 +13,7 @@
 	<p>
 	<span class="alert" style="font-size:120%">Did you mean: </span>
 	{{range .Alts}}
-		<a href="search?q={{.|urlquery_esc}}" style="font-size:120%">{{.|html_esc}}</a>
+		<a href="search?q={{url .}}" style="font-size:120%">{{html .}}</a>
 	{{end}}
 	</p>
 {{end}}
@@ -21,12 +21,13 @@
 	{{with .Decls}}
 		<h2 id="Global">Package-level declarations</h2>
 		{{range .}}
-			<h3 id="Global_{{.Pak.Path|url_pkg}}">package <a href="/{{.Pak.Path|url_pkg}}">{{.Pak.Name|html_esc}}</a></h3>
-			{{range $File := .Files}}
+			<h3 id="Global_{{url_pkg .Pak.Path}}">package <a href="/{{url_pkg .Pak.Path}}">{{html .Pak.Name}}</a></h3>
+			{{range .Files}}
+				{{$path := url_src .File.Path}}
 				{{range .Groups}}
 					{{range .Infos}}
-						<a href="/{{$File.File.Path|url_src}}?h={{$SearchResult.Query|urlquery_esc}}#L{{.|infoLine}}">{{$File.File.Path|url_src}}:{{.|infoLine}}</a>
-						{{.|infoSnippet}}
+						<a href="/{{$path}}?h={{url $SearchResult.Query}}#L{{infoLine .}}">{{$path}}:{{infoLine .}}</a>
+						{{infoSnippet .}}
 					{{end}}
 				{{end}}
 			{{end}}
@@ -35,18 +36,19 @@
 	{{with .Others}}
 		<h2 id="Local">Local declarations and uses</h2>
 		{{range .}}
-			<h3 id="Local_{{.Pak.Path|url_pkg}}">package <a href="/{{.Pak.Path|url_pkg}}">{{.Pak.Name|html_esc}}</a></h3>
-			{{range $File := .Files}}
-				<a href="/{{.File.Path|url_src}}?h={{$SearchResult.Query|urlquery_esc}}">{{.File.Path|url_src}}</a>
+			<h3 id="Local_{{url_pkg .Pak.Path}}">package <a href="/{{url_pkg .Pak.Path}}">{{html .Pak.Name}}</a></h3>
+			{{range .Files}}
+				{{$path := url_src .File.Path}}
+				<a href="/{{$path}}?h={{url $SearchResult.Query}}">{{$path}}</a>
 				<table class="layout">
 				{{range .Groups}}
 					<tr>
 					<td width="25"></td>
-					<th align="left" valign="top">{{.Kind|infoKind}}</th>
+					<th align="left" valign="top">{{infoKind .Kind}}</th>
 					<td align="left" width="4"></td>
 					<td>
 					{{range .Infos}}
-						<a href="/{{$File.File.Path|url_src}}?h={{$SearchResult.Query|urlquery_esc}}#L{{.|infoLine}}">{{.|infoLine}}</a>
+						<a href="/{{$path}}?h={{url $SearchResult.Query}}#L{{infoLine .}}">{{infoLine .}}</a>
 					{{end}}
 					</td>
 					</tr>
@@ -58,26 +60,27 @@
 {{end}}
 {{with .Textual}}
 	{{if $SearchResult.Complete}}
-		<h2 id="Textual">{{$SearchResult.Found|html_esc}} textual occurrences</h2>
+		<h2 id="Textual">{{html $SearchResult.Found}} textual occurrences</h2>
 	{{else}}
-		<h2 id="Textual">More than {{$SearchResult.Found|html_esc}} textual occurrences</h2>
+		<h2 id="Textual">More than {{html $SearchResult.Found}} textual occurrences</h2>
 		<p>
-		<span class="alert" style="font-size:120%">Not all files or lines containing "{{$SearchResult.Query|html_esc}}" are shown.</span>
+		<span class="alert" style="font-size:120%">Not all files or lines containing "{{html $SearchResult.Query}}" are shown.</span>
 		</p>
 	{{end}}
 	<p>
 	<table class="layout">
-	{{range $File := .}}
+	{{range .}}
+		{{$path := url_src .Filename}}
 		<tr>
 		<td align="left" valign="top">
-		<a href="/{{.Filename|url_src}}?h={{$SearchResult.Query|urlquery_esc}}">{{.Filename|url_src}}</a>:
+		<a href="/{{$path}}?h={{url $SearchResult.Query}}">{{$path}}</a>:
 		</td>
 		<td align="left" width="4"></td>
-		<th align="left" valign="top">{{.Lines|numlines}}</th>
+		<th align="left" valign="top">{{len .Lines}}</th>
 		<td align="left" width="4"></td>
 		<td align="left">
 		{{range .Lines}}
-			<a href="/{{$File.Filename|url_src}}?h={{$SearchResult.Query|urlquery_esc}}#L{{.|html_esc}}">{{.|html_esc}}</a>
+			<a href="/{{$path}}?h={{url $SearchResult.Query}}#L{{url .}}">{{html .}}</a>
 		{{end}}
 		{{if not $SearchResult.Complete}}
 			...

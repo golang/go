@@ -19,7 +19,7 @@
         </a>
         <select id="code-selector">
           {{range .File}}
-          <option value="/doc/codewalk/?fileprint=/{{.|urlquery_esc}}">{{.|html_esc}}</option>
+          <option value="/doc/codewalk/?fileprint=/{{url .}}">{{html .}}</option>
           {{end}}
         </select>
       </div>
@@ -37,15 +37,15 @@
     <div id="comment-area">
       {{range .Step}}
       <div class="comment first last">
-        <a class="comment-link" href="/doc/codewalk/?fileprint=/{{.File|urlquery_esc}}&lo={{.Lo|html_esc}}&hi={{.Hi|html_esc}}#mark" target="code-display"></a>
-        <div class="comment-title">{{.Title|html_esc}}</div>
+        <a class="comment-link" href="/doc/codewalk/?fileprint=/{{url .File}}&lo={{url .Lo}}&hi={{url .Hi}}#mark" target="code-display"></a>
+        <div class="comment-title">{{html .Title}}</div>
         <div class="comment-text">
 	{{with .Err}}
-	ERROR LOADING FILE: {{.|html_esc}}<br/><br/>
+	ERROR LOADING FILE: {{html .}}<br/><br/>
 	{{end}}
         {{.XML}}
         </div>
-        <div class="comment-text file-name"><span class="path-file">{{.|html_esc}}</span></div>
+        <div class="comment-text file-name"><span class="path-file">{{html .}}</span></div>
       </div>
       {{end}}
     </div>
