@@ -48,6 +48,8 @@ type T struct {
 	Empty4 interface{}
 	// Non-empty interface.
 	NonEmptyInterface I
+	// Stringer.
+	Str fmt.Stringer
 	// Pointers
 	PI  *int
 	PSI *[]int
@@ -92,6 +94,7 @@ var tVal = &T{
 	Empty3:            []int{7, 8},
 	Empty4:            &U{"UinEmpty"},
 	NonEmptyInterface: new(T),
+	Str:               os.NewError("foozle"),
 	PI:                newInt(23),
 	PSI:               newIntSlice(21, 22, 23),
 	Tmpl:              Must(New("x").Parse("test template")), // "x" is the value of .X
@@ -396,6 +399,8 @@ var execTests = []execTest{
 	{"bug3", "{{with $}}{{.Method0}}{{end}}", "M0", tVal, true},
 	// Nil interface values in if.
 	{"bug4", "{{if .Empty0}}non-nil{{else}}nil{{end}}", "nil", tVal, true},
+	// Stringer.
+	{"bug5", "{{.Str}}", "foozle", tVal, true},
 }
 
 func zeroArgs() string {
