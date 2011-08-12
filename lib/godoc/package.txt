@@ -33,7 +33,7 @@ CONSTANTS
 */}}{{with .Vars}}
 VARIABLES
 
-{{range .}}{{.Decl $FSet}}
+{{range .}}{{text .Decl $FSet}}
 {{.Doc}}{{end}}
 {{end}}{{/*
 
