@@ -206,5 +206,6 @@ func (t *trieNode) printTables(name string) int {
 		printLookupBlock(i, index.lookupBlocks[i], 0x80)
 	}
 	fmt.Print("\n}\n\n")
+	fmt.Printf("var %sTrie = trie{ %sLookup[:], %sValues[:] }\n\n", name, name, name)
 	return nv*2 + ni
 }

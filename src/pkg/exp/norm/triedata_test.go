@@ -59,3 +59,5 @@ var testdataLookup = [640]uint8{
 	// Block 0x9, offset 0x240
 	0x24f: 0x08,
 }
+
+var testdataTrie = trie{testdataLookup[:], testdataValues[:]}
