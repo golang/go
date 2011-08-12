@@ -232,6 +232,8 @@ Predefined global functions are named as follows.
 	js
 		Returns the escaped JavaScript equivalent of the textual
 		representation of its arguments.
+	len
+		Returns the integer length of its argument.
 	not
 		Returns the boolean negation of its single argument.
 	or
