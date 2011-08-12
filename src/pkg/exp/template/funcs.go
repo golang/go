@@ -27,6 +27,7 @@ var builtins = FuncMap{
 	"html":    HTMLEscaper,
 	"index":   index,
 	"js":      JSEscaper,
+	"len":     length,
 	"not":     not,
 	"or":      or,
 	"print":   fmt.Sprint,
@@ -138,6 +139,21 @@ func index(item interface{}, indices ...interface{}) (interface{}, os.Error) {
 		}
 	}
 	return v.Interface(), nil
+}
+
+// Length
+
+// length returns the length of the item, with an error if it has no defined length.
+func length(item interface{}) (int, os.Error) {
+	v, isNil := indirect(reflect.ValueOf(item))
+	if isNil {
+		return 0, fmt.Errorf("len of nil pointer")
+	}
+	switch v.Kind() {
+	case reflect.Array, reflect.Chan, reflect.Map, reflect.Slice, reflect.String:
+		return v.Len(), nil
+	}
+	return 0, fmt.Errorf("len of type %s", v.Type())
 }
 
 // Boolean logic.

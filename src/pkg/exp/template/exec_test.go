@@ -331,6 +331,12 @@ var execTests = []execTest{
 	{"map[WRONG]", "{{index .MSI 10}}", "", tVal, false},
 	{"double index", "{{index .SMSI 1 `eleven`}}", "11", tVal, true},
 
+	// Len.
+	{"slice", "{{len .SI}}", "3", tVal, true},
+	{"map", "{{len .MSI }}", "3", tVal, true},
+	{"len of int", "{{len 3}}", "", tVal, false},
+	{"len of nothing", "{{len .Empty0}}", "", tVal, false},
+
 	// With.
 	{"with true", "{{with true}}{{.}}{{end}}", "true", tVal, true},
 	{"with false", "{{with false}}{{.}}{{else}}FALSE{{end}}", "FALSE", tVal, true},
