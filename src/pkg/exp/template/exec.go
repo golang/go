@@ -620,19 +620,23 @@ func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
 // printValue writes the textual representation of the value to the output of
 // the template.
 func (s *state) printValue(n parse.Node, v reflect.Value) {
+	if v.Kind() == reflect.Ptr {
+		v, _ = indirect(v) // fmt.Fprint handles nil.
+	}
 	if !v.IsValid() {
 		fmt.Fprint(s.wr, "<no value>")
 		return
 	}
-	switch v.Kind() {
-	case reflect.Ptr:
-		v, _ = indirect(v) // fmt.Fprint handles nil.
-	case reflect.Chan, reflect.Func, reflect.Interface:
-		s.errorf("can't print %s of type %s", n, v.Type())
-	}
-	// If it's a value but the pointer implements Stringer, use the pointer.
-	if v.Kind() != reflect.Ptr && v.CanAddr() && reflect.PtrTo(v.Type()).Implements(fmtStringerType) {
-		v = v.Addr()
+
+	if !v.Type().Implements(fmtStringerType) {
+		if v.CanAddr() && reflect.PtrTo(v.Type()).Implements(fmtStringerType) {
+			v = v.Addr()
+		} else {
+			switch v.Kind() {
+			case reflect.Chan, reflect.Func:
+				s.errorf("can't print %s of type %s", n, v.Type())
+			}
+		}
 	}
 	fmt.Fprint(s.wr, v.Interface())
 }
