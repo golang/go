@@ -42,7 +42,7 @@
 		{{range .}}
 			{{/* Name is a string - no need for FSet */}}
 			{{$name := html .Name}}
-			<h2 id="{{$name}}">func <a href="/{{posLink .Decl $.FSet}}">{{$name}}</a></h2>
+			<h2 id="{{$name}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name}}</a></h2>
 			<p><code>{{node_html .Decl $.FSet}}</code></p>
 			{{comment_html .Doc}}
 		{{end}}
@@ -50,7 +50,7 @@
 	{{with .Types}}
 		{{range .}}
 			{{$tname := node_html .Type.Name $.FSet}}
-			<h2 id="{{$tname}}">type <a href="/{{posLink .Decl $.FSet}}">{{$tname}}</a></h2>
+			<h2 id="{{$tname}}">type <a href="/{{posLink_url .Decl $.FSet}}">{{$tname}}</a></h2>
 			{{comment_html .Doc}}
 			<p><pre>{{node_html .Decl $.FSet}}</pre></p>
 			{{range .Consts}}
@@ -63,13 +63,13 @@
 			{{end}}
 			{{range .Factories}}
 				{{$name := html .Name}}
-				<h3 id="{{$tname}}.{{$name}}">func <a href="/{{posLink .Decl $.FSet}}">{{$name}}</a></h3>
+				<h3 id="{{$tname}}.{{$name}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name}}</a></h3>
 				<p><code>{{node_html .Decl $.FSet}}</code></p>
 				{{comment_html .Doc}}
 			{{end}}
 			{{range .Methods}}
 				{{$name := html .Name}}
-				<h3 id="{{$tname}}.{{$name}}">func ({{node_html .Recv $.FSet}}) <a href="/{{posLink .Decl $.FSet}}">{{$name}}</a></h3>
+				<h3 id="{{$tname}}.{{$name}}">func ({{node_html .Recv $.FSet}}) <a href="/{{posLink_url .Decl $.FSet}}">{{$name}}</a></h3>
 				<p><code>{{node_html .Decl $.FSet}}</code></p>
 				{{comment_html .Doc}}
 			{{end}}

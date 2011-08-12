@@ -465,7 +465,7 @@ func pkgLinkFunc(path string) string {
 	return pkgHandler.pattern[1:] + relpath // remove trailing '/' for relative URL
 }
 
-func posLinkFunc(node ast.Node, fset *token.FileSet) string {
+func posLink_urlFunc(node ast.Node, fset *token.FileSet) string {
 	var relpath string
 	var line int
 	var low, high int // selection
@@ -481,10 +481,10 @@ func posLinkFunc(node ast.Node, fset *token.FileSet) string {
 	}
 
 	var buf bytes.Buffer
-	buf.WriteString(relpath)
+	buf.WriteString(http.URLEscape(relpath))
 	// selection ranges are of form "s=low:high"
 	if low < high {
-		fmt.Fprintf(&buf, "?s=%d:%d", low, high)
+		fmt.Fprintf(&buf, "?s=%d:%d", low, high) // no need for URL escaping
 		// if we have a selection, position the page
 		// such that the selection is a bit below the top
 		line -= 10
@@ -495,16 +495,16 @@ func posLinkFunc(node ast.Node, fset *token.FileSet) string {
 	// line id's in html-printed source are of the
 	// form "L%d" where %d stands for the line number
 	if line > 0 {
-		fmt.Fprintf(&buf, "#L%d", line)
+		fmt.Fprintf(&buf, "#L%d", line) // no need for URL escaping
 	}
 
 	return buf.String()
 }
 
 // fmap describes the template functions installed with all godoc templates.
-// Convention: template function names ending in "_html" produce an HTML-
-//             escaped string; all other function results may require HTML
-//             or URL escaping in the template.
+// Convention: template function names ending in "_html" or "_url" produce
+//             HTML- or URL-escaped strings; all other function results may
+//             require explicit escaping in the template.
 var fmap = template.FuncMap{
 	// various helpers
 	"filename": filenameFunc,
@@ -525,9 +525,9 @@ var fmap = template.FuncMap{
 	"comment_html": comment_htmlFunc,
 
 	// support for URL attributes
-	"pkgLink": pkgLinkFunc,
-	"srcLink": relativeURL,
-	"posLink": posLinkFunc,
+	"pkgLink":     pkgLinkFunc,
+	"srcLink":     relativeURL,
+	"posLink_url": posLink_urlFunc,
 }
 
 func readTemplate(name string) *template.Template {
