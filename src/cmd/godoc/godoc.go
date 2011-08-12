@@ -371,38 +371,6 @@ func writeNode(w io.Writer, fset *token.FileSet, x interface{}) {
 	(&printer.Config{mode, *tabwidth}).Fprint(&tconv{output: w}, fset, x)
 }
 
-// Write anything to w.
-func writeAny(w io.Writer, fset *token.FileSet, x interface{}) {
-	switch v := x.(type) {
-	case []byte:
-		w.Write(v)
-	case string:
-		w.Write([]byte(v))
-	case ast.Decl, ast.Expr, ast.Stmt, *ast.File:
-		writeNode(w, fset, x)
-	default:
-		fmt.Fprint(w, x)
-	}
-}
-
-// Write anything html-escaped to w.
-func writeAnyHTML(w io.Writer, fset *token.FileSet, x interface{}) {
-	switch v := x.(type) {
-	case []byte:
-		template.HTMLEscape(w, v)
-	case string:
-		template.HTMLEscape(w, []byte(v))
-	case ast.Decl, ast.Expr, ast.Stmt, *ast.File:
-		var buf bytes.Buffer
-		writeNode(&buf, fset, x)
-		FormatText(w, buf.Bytes(), -1, true, "", nil)
-	default:
-		var buf bytes.Buffer
-		fmt.Fprint(&buf, x)
-		template.HTMLEscape(w, buf.Bytes())
-	}
-}
-
 func fileset(x []interface{}) *token.FileSet {
 	if len(x) > 1 {
 		if fset, ok := x[1].(*token.FileSet); ok {
@@ -410,32 +378,6 @@ func fileset(x []interface{}) *token.FileSet {
 		}
 	}
 	return nil
-}
-
-// Template formatter for "html-esc" format.
-func htmlEscFmt(w io.Writer, format string, x ...interface{}) {
-	writeAnyHTML(w, fileset(x), x[0])
-}
-
-// Template formatter for "html-comment" format.
-func htmlCommentFmt(w io.Writer, format string, x ...interface{}) {
-	var buf bytes.Buffer
-	writeAny(&buf, fileset(x), x[0])
-	// TODO(gri) Provide list of words (e.g. function parameters)
-	//           to be emphasized by ToHTML.
-	doc.ToHTML(w, buf.Bytes(), nil) // does html-escaping
-}
-
-// Template formatter for "" (default) format.
-func textFmt(w io.Writer, format string, x ...interface{}) {
-	writeAny(w, fileset(x), x[0])
-}
-
-// Template formatter for "urlquery-esc" format.
-func urlQueryEscFmt(w io.Writer, format string, x ...interface{}) {
-	var buf bytes.Buffer
-	writeAny(&buf, fileset(x), x[0])
-	template.HTMLEscape(w, []byte(http.URLEscape(string(buf.Bytes()))))
 }
 
 // Template formatter for the various "url-xxx" formats excluding url-esc.
@@ -559,56 +501,17 @@ func infoSnippetFmt(w io.Writer, format string, x ...interface{}) {
 	w.Write(text)
 }
 
-// Template formatter for "padding" format.
-func paddingFmt(w io.Writer, format string, x ...interface{}) {
-	for i := x[0].(int); i > 0; i-- {
-		fmt.Fprint(w, `<td width="25"></td>`)
-	}
-}
-
-// Template formatter for "localname" format.
-func localnameFmt(w io.Writer, format string, x ...interface{}) {
-	_, localname := filepath.Split(x[0].(string))
-	template.HTMLEscape(w, []byte(localname))
-}
-
-// Template formatter for "fileInfoName" format.
-func fileInfoNameFmt(w io.Writer, format string, x ...interface{}) {
-	fi := x[0].(FileInfo)
-	template.HTMLEscape(w, []byte(fi.Name()))
-	if fi.IsDirectory() {
-		w.Write([]byte{'/'})
-	}
-}
-
-// Template formatter for "fileInfoSize" format.
-func fileInfoSizeFmt(w io.Writer, format string, x ...interface{}) {
-	fmt.Fprintf(w, "%d", x[0].(FileInfo).Size())
-}
-
-// Template formatter for "fileInfoTime" format.
-func fileInfoTimeFmt(w io.Writer, format string, x ...interface{}) {
-	if t := x[0].(FileInfo).Mtime_ns(); t != 0 {
-		template.HTMLEscape(w, []byte(time.SecondsToLocalTime(t/1e9).String()))
-	}
-	// don't print epoch if time is obviously not set
-}
-
-// Template formatter for "numlines" format.
-func numlinesFmt(w io.Writer, format string, x ...interface{}) {
-	list := x[0].([]int)
-	fmt.Fprintf(w, "%d", len(list))
-}
-
 // TODO(gri): Remove this type once fmtMap2funcMap is gone.
 type FormatterMap map[string]func(io.Writer, string, ...interface{})
 
 // TODO(gri): Remove the need for this conversion function by rewriting
 //            the old template formatters into new template functions.
-func fmtMap2funcMap(fmtMap FormatterMap) template.FuncMap {
-	funcMap := make(template.FuncMap)
+func append2funcMap(funcMap template.FuncMap, fmtMap FormatterMap) template.FuncMap {
 	for n, f := range fmtMap {
 		name, fmt := n, f // separate instance of name, fmt for each closure!
+		if _, ok := funcMap[name]; ok {
+			panic("function already in map: " + name)
+		}
 		funcMap[name] = func(args ...interface{}) string {
 			var buf bytes.Buffer
 			fmt(&buf, name, args...)
@@ -618,23 +521,63 @@ func fmtMap2funcMap(fmtMap FormatterMap) template.FuncMap {
 	return funcMap
 }
 
-var fmap = fmtMap2funcMap(FormatterMap{
-	"text":         textFmt,
-	"html_esc":     htmlEscFmt,
-	"html_comment": htmlCommentFmt,
-	"urlquery_esc": urlQueryEscFmt,
-	"url_pkg":      urlFmt,
-	"url_src":      urlFmt,
-	"url_pos":      urlFmt,
-	"infoKind":     infoKindFmt,
-	"infoLine":     infoLineFmt,
-	"infoSnippet":  infoSnippetFmt,
-	"padding":      paddingFmt,
-	"fileInfoName": fileInfoNameFmt,
-	"fileInfoSize": fileInfoSizeFmt,
-	"fileInfoTime": fileInfoTimeFmt,
-	"localname":    localnameFmt,
-	"numlines":     numlinesFmt,
+func textNodeFunc(node interface{}, fset *token.FileSet) string {
+	var buf bytes.Buffer
+	writeNode(&buf, fset, node)
+	return buf.String()
+}
+
+func htmlNodeFunc(node interface{}, fset *token.FileSet) string {
+	var buf1 bytes.Buffer
+	writeNode(&buf1, fset, node)
+	var buf2 bytes.Buffer
+	FormatText(&buf2, buf1.Bytes(), -1, true, "", nil)
+	return buf2.String()
+}
+
+func htmlCommentFunc(comment string) string {
+	var buf bytes.Buffer
+	// TODO(gri) Provide list of words (e.g. function parameters)
+	//           to be emphasized by ToHTML.
+	doc.ToHTML(&buf, []byte(comment), nil) // does html-escaping
+	return buf.String()
+}
+
+func fileInfoNameFunc(fi FileInfo) string {
+	name := fi.Name()
+	if fi.IsDirectory() {
+		name += "/"
+	}
+	return name
+}
+
+func fileInfoTimeFunc(fi FileInfo) string {
+	if t := fi.Mtime_ns(); t != 0 {
+		return time.SecondsToLocalTime(t / 1e9).String()
+	}
+	return "" // don't return epoch if time is obviously not set
+}
+
+func localnameFunc(path string) string {
+	_, localname := filepath.Split(path)
+	return localname
+}
+
+var fmap = append2funcMap(template.FuncMap{
+	"text_node":    textNodeFunc,
+	"html_node":    htmlNodeFunc,
+	"html_comment": htmlCommentFunc,
+	"fileInfoName": fileInfoNameFunc,
+	"fileInfoTime": fileInfoTimeFunc,
+	"localname":    localnameFunc,
+	"repeat":       strings.Repeat,
+}, FormatterMap{
+	"url_pkg":     urlFmt,
+	"url_src":     urlFmt,
+	"url_pos":     urlFmt,
+	"infoKind":    infoKindFmt,
+	"infoLine":    infoLineFmt,
+	"infoSnippet": infoSnippetFmt,
 })
 
 func readTemplate(name string) *template.Template {

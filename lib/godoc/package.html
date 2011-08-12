@@ -3,26 +3,22 @@
 	Use of this source code is governed by a BSD-style
 	license that can be found in the LICENSE file.
 -->
-{{$FSet := .FSet}}
-{{$Info := .}}
 {{with .PAst}}
-	<pre>{{html_esc . $FSet}}</pre>
+	<pre>{{html_node . $.FSet}}</pre>
 {{end}}
 {{with .PDoc}}
 	<!-- PackageName is printed as title by the top-level template -->
-	{{if $Info.IsPkg}}
-		{{/* ImportPath is a string - no need for FSet */}}
-		<p><code>import "{{.ImportPath|html_esc}}"</code></p>
+	{{if $.IsPkg}}
+		<p><code>import "{{html .ImportPath}}"</code></p>
 	{{end}}
-	{{.Doc|html_comment}}
-	{{if $Info.IsPkg}}
+	{{html_comment .Doc}}
+	{{if $.IsPkg}}
 		{{with .Filenames}}
-			{{/* Filenames are strings - no need for FSet */}}
 			<p>
 			<h4>Package files</h4>
 			<span style="font-size:90%">
 			{{range .}}
-				<a href="/{{.|url_src}}">{{.|localname}}</a>
+				<a href="/{{url_src .}}">{{.|localname|html}}</a>
 			{{end}}
 			</span>
 			</p>
@@ -32,53 +28,57 @@
 		<h2 id="Constants">Constants</h2>
 		{{range .}}
 			{{html_comment .Doc}}
-			<pre>{{html_esc .Decl $FSet}}</pre>
+			<pre>{{html_node .Decl $.FSet}}</pre>
 		{{end}}
 	{{end}}
 	{{with .Vars}}
 		<h2 id="Variables">Variables</h2>
 		{{range .}}
 			{{html_comment .Doc}}
-			<pre>{{html_esc .Decl $FSet}}</pre>
+			<pre>{{html_node .Decl $.FSet}}</pre>
 		{{end}}
 	{{end}}
 	{{with .Funcs}}
 		{{range .}}
 			{{/* Name is a string - no need for FSet */}}
-			<h2 id="{{.Name|html_esc}}">func <a href="/{{url_pos .Decl $FSet}}">{{.Name|html_esc}}</a></h2>
-			<p><code>{{html_esc .Decl $FSet}}</code></p>
-			{{.Doc|html_comment}}
+			{{$name := html .Name}}
+			<h2 id="{{$name}}">func <a href="/{{url_pos .Decl $.FSet}}">{{$name}}</a></h2>
+			<p><code>{{html_node .Decl $.FSet}}</code></p>
+			{{html_comment .Doc}}
 		{{end}}
 	{{end}}
 	{{with .Types}}
-		{{range $type := .}}
-			<h2 id="{{html_esc .Type.Name $FSet}}">type <a href="/{{url_pos .Decl $FSet}}">{{html_esc .Type.Name $FSet}}</a></h2>
-			{{.Doc|html_comment}}
-			<p><pre>{{html_esc .Decl $FSet}}</pre></p>
+		{{range .}}
+			{{$tname := html_node .Type.Name $.FSet}}
+			<h2 id="{{$tname}}">type <a href="/{{url_pos .Decl $.FSet}}">{{$tname}}</a></h2>
+			{{html_comment .Doc}}
+			<p><pre>{{html_node .Decl $.FSet}}</pre></p>
 			{{range .Consts}}
-				{{.Doc|html_comment}}
-				<pre>{{html_esc .Decl $FSet}}</pre>
+				{{html_comment .Doc}}
+				<pre>{{html_node .Decl $.FSet}}</pre>
 			{{end}}
 			{{range .Vars}}
-				{{.Doc|html_comment}}
-				<pre>{{html_esc .Decl $FSet}}</pre>
+				{{html_comment .Doc}}
+				<pre>{{html_node .Decl $.FSet}}</pre>
 			{{end}}
 			{{range .Factories}}
-				<h3 id="{{html_esc $type.Type.Name $FSet}}.{{.Name|html_esc}}">func <a href="/{{url_pos .Decl $FSet}}">{{.Name|html_esc}}</a></h3>
-				<p><code>{{html_esc .Decl $FSet}}</code></p>
-				{{.Doc|html_comment}}
+				{{$name := html .Name}}
+				<h3 id="{{$tname}}.{{$name}}">func <a href="/{{url_pos .Decl $.FSet}}">{{$name}}</a></h3>
+				<p><code>{{html_node .Decl $.FSet}}</code></p>
+				{{html_comment .Doc}}
 			{{end}}
 			{{range .Methods}}
-				<h3 id="{{html_esc $type.Type.Name $FSet}}.{{.Name|html_esc}}">func ({{html_esc .Recv $FSet}}) <a href="/{{url_pos .Decl $FSet}}">{{.Name|html_esc}}</a></h3>
-				<p><code>{{html_esc .Decl $FSet}}</code></p>
-				{{.Doc|html_comment}}
+				{{$name := html .Name}}
+				<h3 id="{{$tname}}.{{$name}}">func ({{html_node .Recv $.FSet}}) <a href="/{{url_pos .Decl $.FSet}}">{{$name}}</a></h3>
+				<p><code>{{html_node .Decl $.FSet}}</code></p>
+				{{html_comment .Doc}}
 			{{end}}
 		{{end}}
 	{{end}}
 	{{with .Bugs}}
 		<h2 id="Bugs">Bugs</h2>
 		{{range .}}
-		{{.|html_comment}}
+		{{html_comment .}}
 		{{end}}
 	{{end}}
 {{end}}
@@ -87,7 +87,7 @@
 	<p>
 	{{/* PList entries are strings - no need for FSet */}}
 	{{range .}}
-	<a href="?p={{html .}}">{{html .}}</a><br />
+	<a href="?p={{url .}}">{{html .}}</a><br />
 	{{end}}
 	</p>
 {{end}}
@@ -102,7 +102,7 @@
 	<p>
 	<table class="layout">
 	<tr>
-	<th align="left" colspan="{{.MaxHeight|html_esc}}">Name</th>
+	<th align="left" colspan="{{html .MaxHeight}}">Name</th>
 	<td width="25">&nbsp;</td>
 	<th align="left">Synopsis</th>
 	</tr>
@@ -111,7 +111,7 @@
 	</tr>
 	{{range .List}}
 		<tr>
-		{{.Depth|padding}}
+		{{repeat `<td width="25"></td>` .Depth}}
 		<td align="left" colspan="{{html .Height}}"><a href="{{html .Path}}">{{html .Name}}</a></td>
 		<td></td>
 		<td align="left">{{html .Synopsis}}</td>

@@ -3,7 +3,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 {{with .Title}}
-  <title>{{.|html_esc}} - The Go Programming Language</title>
+  <title>{{html .}} - The Go Programming Language</title>
 {{else}}
   <title>The Go Programming Language</title>
 {{end}}
@@ -25,7 +25,7 @@
         <form method="GET" action="/search">
         {{with .PkgRoots}}
         {{range .PkgRoots}}
-        <a href="/pkg/{{.|html_esc}}">{{.|html_esc}}</a> <span class="sep">|</span>
+        <a href="/pkg/{{html .}}">{{html .}}</a> <span class="sep">|</span>
         {{end}}
         {{else}}
         References:
@@ -34,7 +34,7 @@
         <a href="/cmd/">Commands</a> <span class="sep">|</span>
         <a href="/doc/go_spec.html">Specification</a>
 	{{if .SearchBox}}
-        <input id="search" type="search" name="q" value="{{if .Query}}{{.Query|html_esc}}{{end}}" class="{{if .Query}}{{else}}inactive{{end}}" placeholder="code search" results="0" />
+        <input id="search" type="search" name="q" value="{{with .Query}}{{html .}}{{end}}" class="{{if not .Query}}inactive{{end}}" placeholder="code search" results="0" />
 	{{end}}
         </form>
       </div>
@@ -50,10 +50,10 @@
   {{end}}
 
   {{with .Title}}
-    <h1 id="generatedHeader">{{.|html_esc}}</h1>
+    <h1 id="generatedHeader">{{html .}}</h1>
   {{end}}
   {{with .Subtitle}}
-    <span class="subtitle">{{.|html_esc}}</span>
+    <span class="subtitle">{{html .}}</span>
   {{end}}
 
   <!-- The Table of Contents is automatically inserted in this <div>.
@@ -64,7 +64,7 @@
   {{printf "%s" .Content}}
   </div>
   <div id="site-info">
-    <p>Build version {{.Version|html_esc}}. Except as noted, this content is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0 License</a>.</p>
+    <p>Build version {{html .Version}}. Except as noted, this content is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/3.0/">Creative Commons Attribution 3.0 License</a>.</p>
   </div>
 </div>
 </body>

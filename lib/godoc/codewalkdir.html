@@ -7,9 +7,9 @@
 <table class="layout">
 {{range .}}
 <tr>
-    <td><a href="{{.Name|html_esc}}">{{.Name|html_esc}}</a></td>
+    <td><a href="{{url .Name}}">{{html .Name}}</a></td>
     <td width="25">&nbsp;</td>
-    <td>{{.Title|html_esc}}</td>
+    <td>{{html .Title}}</td>
 </tr>
 {{end}}
 </table>
