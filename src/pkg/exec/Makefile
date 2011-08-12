@@ -17,6 +17,9 @@ GOFILES_darwin=\
 GOFILES_linux=\
 	lp_unix.go\
 
+GOFILES_openbsd=\
+	lp_unix.go\
+
 GOFILES_windows=\
 	lp_windows.go\
 
