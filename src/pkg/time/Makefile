@@ -27,6 +27,11 @@ GOFILES_linux=\
 	zoneinfo_posix.go\
 	zoneinfo_unix.go\
 
+GOFILES_openbsd=\
+	sys_posix.go\
+	zoneinfo_posix.go\
+	zoneinfo_unix.go\
+
 GOFILES_windows=\
 	sys_posix.go\
 	zoneinfo_windows.go\
