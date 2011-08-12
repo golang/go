@@ -4,21 +4,21 @@
 	license that can be found in the LICENSE file.
 -->
 {{with .PAst}}
-	<pre>{{html_node . $.FSet}}</pre>
+	<pre>{{node_html . $.FSet}}</pre>
 {{end}}
 {{with .PDoc}}
 	<!-- PackageName is printed as title by the top-level template -->
 	{{if $.IsPkg}}
 		<p><code>import "{{html .ImportPath}}"</code></p>
 	{{end}}
-	{{html_comment .Doc}}
+	{{comment_html .Doc}}
 	{{if $.IsPkg}}
 		{{with .Filenames}}
 			<p>
 			<h4>Package files</h4>
 			<span style="font-size:90%">
 			{{range .}}
-				<a href="/{{url_src .}}">{{.|localname|html}}</a>
+				<a href="/{{.|srcLink}}">{{.|filename|html}}</a>
 			{{end}}
 			</span>
 			</p>
@@ -27,58 +27,58 @@
 	{{with .Consts}}
 		<h2 id="Constants">Constants</h2>
 		{{range .}}
-			{{html_comment .Doc}}
-			<pre>{{html_node .Decl $.FSet}}</pre>
+			{{comment_html .Doc}}
+			<pre>{{node_html .Decl $.FSet}}</pre>
 		{{end}}
 	{{end}}
 	{{with .Vars}}
 		<h2 id="Variables">Variables</h2>
 		{{range .}}
-			{{html_comment .Doc}}
-			<pre>{{html_node .Decl $.FSet}}</pre>
+			{{comment_html .Doc}}
+			<pre>{{node_html .Decl $.FSet}}</pre>
 		{{end}}
 	{{end}}
 	{{with .Funcs}}
 		{{range .}}
 			{{/* Name is a string - no need for FSet */}}
 			{{$name := html .Name}}
-			<h2 id="{{$name}}">func <a href="/{{url_pos .Decl $.FSet}}">{{$name}}</a></h2>
-			<p><code>{{html_node .Decl $.FSet}}</code></p>
-			{{html_comment .Doc}}
+			<h2 id="{{$name}}">func <a href="/{{posLink .Decl $.FSet}}">{{$name}}</a></h2>
+			<p><code>{{node_html .Decl $.FSet}}</code></p>
+			{{comment_html .Doc}}
 		{{end}}
 	{{end}}
 	{{with .Types}}
 		{{range .}}
-			{{$tname := html_node .Type.Name $.FSet}}
-			<h2 id="{{$tname}}">type <a href="/{{url_pos .Decl $.FSet}}">{{$tname}}</a></h2>
-			{{html_comment .Doc}}
-			<p><pre>{{html_node .Decl $.FSet}}</pre></p>
+			{{$tname := node_html .Type.Name $.FSet}}
+			<h2 id="{{$tname}}">type <a href="/{{posLink .Decl $.FSet}}">{{$tname}}</a></h2>
+			{{comment_html .Doc}}
+			<p><pre>{{node_html .Decl $.FSet}}</pre></p>
 			{{range .Consts}}
-				{{html_comment .Doc}}
-				<pre>{{html_node .Decl $.FSet}}</pre>
+				{{comment_html .Doc}}
+				<pre>{{node_html .Decl $.FSet}}</pre>
 			{{end}}
 			{{range .Vars}}
-				{{html_comment .Doc}}
-				<pre>{{html_node .Decl $.FSet}}</pre>
+				{{comment_html .Doc}}
+				<pre>{{node_html .Decl $.FSet}}</pre>
 			{{end}}
 			{{range .Factories}}
 				{{$name := html .Name}}
-				<h3 id="{{$tname}}.{{$name}}">func <a href="/{{url_pos .Decl $.FSet}}">{{$name}}</a></h3>
-				<p><code>{{html_node .Decl $.FSet}}</code></p>
-				{{html_comment .Doc}}
+				<h3 id="{{$tname}}.{{$name}}">func <a href="/{{posLink .Decl $.FSet}}">{{$name}}</a></h3>
+				<p><code>{{node_html .Decl $.FSet}}</code></p>
+				{{comment_html .Doc}}
 			{{end}}
 			{{range .Methods}}
 				{{$name := html .Name}}
-				<h3 id="{{$tname}}.{{$name}}">func ({{html_node .Recv $.FSet}}) <a href="/{{url_pos .Decl $.FSet}}">{{$name}}</a></h3>
-				<p><code>{{html_node .Decl $.FSet}}</code></p>
-				{{html_comment .Doc}}
+				<h3 id="{{$tname}}.{{$name}}">func ({{node_html .Recv $.FSet}}) <a href="/{{posLink .Decl $.FSet}}">{{$name}}</a></h3>
+				<p><code>{{node_html .Decl $.FSet}}</code></p>
+				{{comment_html .Doc}}
 			{{end}}
 		{{end}}
 	{{end}}
 	{{with .Bugs}}
 		<h2 id="Bugs">Bugs</h2>
 		{{range .}}
-		{{html_comment .}}
+		{{comment_html .}}
 		{{end}}
 	{{end}}
 {{end}}
