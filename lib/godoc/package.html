@@ -87,7 +87,7 @@
 	<p>
 	{{/* PList entries are strings - no need for FSet */}}
 	{{range .}}
-	<a href="?p={{url .}}">{{html .}}</a><br />
+	<a href="?p={{urlquery .}}">{{html .}}</a><br />
 	{{end}}
 	</p>
 {{end}}

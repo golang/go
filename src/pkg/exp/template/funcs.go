@@ -23,17 +23,17 @@ import (
 type FuncMap map[string]interface{}
 
 var builtins = FuncMap{
-	"and":     and,
-	"html":    HTMLEscaper,
-	"index":   index,
-	"js":      JSEscaper,
-	"len":     length,
-	"not":     not,
-	"or":      or,
-	"print":   fmt.Sprint,
-	"printf":  fmt.Sprintf,
-	"println": fmt.Sprintln,
-	"url":     URLEscaper,
+	"and":      and,
+	"html":     HTMLEscaper,
+	"index":    index,
+	"js":       JSEscaper,
+	"len":      length,
+	"not":      not,
+	"or":       or,
+	"print":    fmt.Sprint,
+	"printf":   fmt.Sprintf,
+	"println":  fmt.Sprintln,
+	"urlquery": URLQueryEscaper,
 }
 
 var builtinFuncs = createValueFuncs(builtins)
@@ -354,9 +354,9 @@ func JSEscaper(args ...interface{}) string {
 	return JSEscapeString(s)
 }
 
-// URLEscaper returns the escaped value of the textual representation of its
-// arguments in a form suitable for embedding in a URL.
-func URLEscaper(args ...interface{}) string {
+// URLQueryEscaper returns the escaped value of the textual representation of
+// its arguments in a form suitable for embedding in a URL query.
+func URLQueryEscaper(args ...interface{}) string {
 	s, ok := "", false
 	if len(args) == 1 {
 		s, ok = args[0].(string)
