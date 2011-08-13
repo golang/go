@@ -23,10 +23,8 @@
       </ul>
       <div class="quickref">
         <form method="GET" action="/search">
-        {{with .PkgRoots}}
         {{range .PkgRoots}}
         <a href="/pkg/{{html .}}">{{html .}}</a> <span class="sep">|</span>
-        {{end}}
         {{else}}
         References:
         {{end}}
