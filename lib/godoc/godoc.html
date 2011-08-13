@@ -25,7 +25,7 @@
         <form method="GET" action="/search">
         {{with .PkgRoots}}
         {{range .PkgRoots}}
-        <a href="/pkg/{{url .}}">{{html .}}</a> <span class="sep">|</span>
+        <a href="/pkg/{{html .}}">{{html .}}</a> <span class="sep">|</span>
         {{end}}
         {{else}}
         References:

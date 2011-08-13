@@ -313,8 +313,8 @@ var execTests = []execTest{
 	// JavaScript.
 	{"js", `{{js .}}`, `It\'d be nice.`, `It'd be nice.`, true},
 
-	// URL.
-	{"url", `{{"http://www.example.org/"|url}}`, "http%3A%2F%2Fwww.example.org%2F", nil, true},
+	// URL query.
+	{"urlquery", `{{"http://www.example.org/"|urlquery}}`, "http%3A%2F%2Fwww.example.org%2F", nil, true},
 
 	// Booleans
 	{"not", "{{not true}} {{not false}}", "false true", nil, true},

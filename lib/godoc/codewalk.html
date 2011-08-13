@@ -19,7 +19,7 @@
         </a>
         <select id="code-selector">
           {{range .File}}
-          <option value="/doc/codewalk/?fileprint=/{{url .}}">{{html .}}</option>
+          <option value="/doc/codewalk/?fileprint=/{{urlquery .}}">{{html .}}</option>
           {{end}}
         </select>
       </div>
@@ -37,7 +37,7 @@
     <div id="comment-area">
       {{range .Step}}
       <div class="comment first last">
-        <a class="comment-link" href="/doc/codewalk/?fileprint=/{{url .File}}&lo={{url .Lo}}&hi={{url .Hi}}#mark" target="code-display"></a>
+        <a class="comment-link" href="/doc/codewalk/?fileprint=/{{urlquery .File}}&lo={{urlquery .Lo}}&hi={{urlquery .Hi}}#mark" target="code-display"></a>
         <div class="comment-title">{{html .Title}}</div>
         <div class="comment-text">
 	{{with .Err}}

@@ -12,7 +12,7 @@
 	<p>
 	<span class="alert" style="font-size:120%">Did you mean: </span>
 	{{range .Alts}}
-		<a href="search?q={{url .}}" style="font-size:120%">{{html .}}</a>
+		<a href="search?q={{urlquery .}}" style="font-size:120%">{{html .}}</a>
 	{{end}}
 	</p>
 {{end}}
@@ -21,12 +21,12 @@
 		<h2 id="Global">Package-level declarations</h2>
 		{{range .}}
 			{{$pkg := pkgLink .Pak.Path}}
-			<h3 id="Global_{{html $pkg}}">package <a href="/{{url $pkg}}">{{html .Pak.Name}}</a></h3>
+			<h3 id="Global_{{html $pkg}}">package <a href="/{{$pkg}}">{{html .Pak.Name}}</a></h3>
 			{{range .Files}}
 				{{$src := srcLink .File.Path}}
 				{{range .Groups}}
 					{{range .Infos}}
-						<a href="/{{url $src}}?h={{url $.Query}}#L{{infoLine .}}">{{html $src}}:{{infoLine .}}</a>
+						<a href="/{{$src}}?h={{urlquery $.Query}}#L{{infoLine .}}">{{html $src}}:{{infoLine .}}</a>
 						{{infoSnippet_html .}}
 					{{end}}
 				{{end}}
@@ -37,10 +37,10 @@
 		<h2 id="Local">Local declarations and uses</h2>
 		{{range .}}
 			{{$pkg := pkgLink .Pak.Path}}
-			<h3 id="Local_{{html $pkg}}">package <a href="/{{url $pkg}}">{{html .Pak.Name}}</a></h3>
+			<h3 id="Local_{{html $pkg}}">package <a href="/{{$pkg}}">{{html .Pak.Name}}</a></h3>
 			{{range .Files}}
 				{{$src := srcLink .File.Path}}
-				<a href="/{{url $src}}?h={{url $.Query}}">{{html $src}}</a>
+				<a href="/{{$src}}?h={{urlquery $.Query}}">{{html $src}}</a>
 				<table class="layout">
 				{{range .Groups}}
 					<tr>
@@ -49,7 +49,7 @@
 					<td align="left" width="4"></td>
 					<td>
 					{{range .Infos}}
-						<a href="/{{url $src}}?h={{url $.Query}}#L{{infoLine .}}">{{infoLine .}}</a>
+						<a href="/{{$src}}?h={{urlquery $.Query}}#L{{infoLine .}}">{{infoLine .}}</a>
 					{{end}}
 					</td>
 					</tr>
@@ -74,14 +74,14 @@
 		{{$src := srcLink .Filename}}
 		<tr>
 		<td align="left" valign="top">
-		<a href="/{{url $src}}?h={{url $.Query}}">{{html $src}}</a>:
+		<a href="/{{$src}}?h={{urlquery $.Query}}">{{html $src}}</a>:
 		</td>
 		<td align="left" width="4"></td>
 		<th align="left" valign="top">{{len .Lines}}</th>
 		<td align="left" width="4"></td>
 		<td align="left">
 		{{range .Lines}}
-			<a href="/{{url $src}}?h={{url $.Query}}#L{{url .}}">{{html .}}</a>
+			<a href="/{{$src}}?h={{urlquery $.Query}}#L{{.}}">{{html .}}</a>
 		{{end}}
 		{{if not $.Complete}}
 			...
