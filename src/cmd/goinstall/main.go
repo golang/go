@@ -196,9 +196,17 @@ func install(pkg, parent string) {
 	}
 	// Download remote packages if not found or forced with -u flag.
 	remote, public := isRemote(pkg), false
-	if remote && (err == build.ErrNotFound || (err == nil && *update)) {
-		printf("%s: download\n", pkg)
-		public, err = download(pkg, tree.SrcDir())
+	if remote {
+		if err == build.ErrNotFound || (err == nil && *update) {
+			// Download remote package.
+			printf("%s: download\n", pkg)
+			public, err = download(pkg, tree.SrcDir())
+		} else {
+			// Test if this is a public repository
+			// (for reporting to dashboard).
+			m, _ := findPublicRepo(pkg)
+			public = m != nil
+		}
 	}
 	if err != nil {
 		errorf("%s: %v\n", pkg, err)
