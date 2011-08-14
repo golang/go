@@ -116,7 +116,6 @@ const (
 	MNumberOfModes
 )
 
-
 // This contains only the properties we're interested in.
 type Char struct {
 	name          string
@@ -267,7 +266,7 @@ func parseCharacter(line string) {
 	}
 	x, err = strconv.Atoui64(field[FCanonicalCombiningClass])
 	if err != nil {
-		logger.Fatal("%U: bad ccc field: %s", int(x), err)
+		logger.Fatalf("%U: bad ccc field: %s", int(x), err)
 	}
 	ccc := uint8(x)
 	decmap := field[FDecompMapping]
@@ -437,7 +436,6 @@ func decomposeRecursive(form int, rune int, d Decomposition) Decomposition {
 	}
 	return d
 }
-
 
 func completeCharFields(form int) {
 	// Phase 0: pre-expand decomposition.
