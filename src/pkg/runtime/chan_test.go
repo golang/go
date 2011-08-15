@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"testing"
 )
@@ -24,6 +25,38 @@ func TestChanSendInterface(t *testing.T) {
 	case c <- &mt{}:
 	default:
 	}
+}
+
+func TestPseudoRandomSend(t *testing.T) {
+	n := 100
+	c := make(chan int)
+	l := make([]int, n)
+	var m sync.Mutex
+	m.Lock()
+	go func() {
+		for i := 0; i < n; i++ {
+			runtime.Gosched()
+			l[i] = <-c
+		}
+		m.Unlock()
+	}()
+	for i := 0; i < n; i++ {
+		select {
+		case c <- 0:
+		case c <- 1:
+		}
+	}
+	m.Lock() // wait
+	n0 := 0
+	n1 := 0
+	for _, i := range l {
+		n0 += (i + 1) % 2
+		n1 += i
+		if n0 > n/10 && n1 > n/10 {
+			return
+		}
+	}
+	t.Errorf("Want pseudo random, got %d zeros and %d ones", n0, n1)
 }
 
 func BenchmarkSelectUncontended(b *testing.B) {
