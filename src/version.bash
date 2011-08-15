@@ -5,8 +5,9 @@
 
 # Check that we can use 'hg'
 if ! hg version > /dev/null 2>&1; then
-	echo 'hg not installed' 1>&2
-	exit 2
+	echo 'unable to report version: hg not installed' 1>&2
+	echo 'unknown'
+	exit 0
 fi
 
 # Get numerical revision
