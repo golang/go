@@ -101,6 +101,17 @@ An argument is a simple value, denoted by one of the following.
 	    .Field1.Field2
 	  Fields can also be evaluated on variables, including chaining:
 	    $x.Field1.Field2
+	- The name of a key of the data, which must be a map, preceded
+	  by a period, such as
+		.Key
+	  The result is the map element value indexed by the key.
+	  Key invocations may be chained and combined with fields to any
+	  depth:
+	    .Field1.Key1.Field2.Key2
+	  Although the key must be an alphanumeric identifier, unlike with
+	  field names they do not need to start with an upper case letter.
+	  Keys can also be evaluated on variables, including chaining:
+	    $x.key1.key2
 	- The name of a niladic method of the data, preceded by a period,
 	  such as
 		.Method
@@ -109,9 +120,9 @@ An argument is a simple value, denoted by one of the following.
 	  any type) or two return values, the second of which is an os.Error.
 	  If it has two and the returned error is non-nil, execution terminates
 	  and an error is returned to the caller as the value of Execute.
-	  Method invocations may be chained and combined with fields
+	  Method invocations may be chained and combined with fields and keys
 	  to any depth:
-	    .Field1.Method1.Field2.Method2
+	    .Field1.Key1.Method1.Field2.Key2.Method2
 	  Methods can also be evaluated on variables, including chaining:
 	    $x.Method1.Field
 	- The name of a niladic function, such as

@@ -39,6 +39,8 @@ type T struct {
 	MSI      map[string]int
 	MSIone   map[string]int // one element, for deterministic output
 	MSIEmpty map[string]int
+	MXI      map[interface{}]int
+	MII      map[int]int
 	SMSI     []map[string]int
 	// Empty interfaces; used to see if we can dig inside one.
 	Empty0 interface{} // nil
@@ -85,6 +87,8 @@ var tVal = &T{
 	SB:     []bool{true, false},
 	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
 	MSIone: map[string]int{"one": 1},
+	MXI:    map[interface{}]int{"one": 1},
+	MII:    map[int]int{1: 1},
 	SMSI: []map[string]int{
 		{"one": 1, "two": 2},
 		{"eleven": 11, "twelve": 12},
@@ -210,6 +214,14 @@ var execTests = []execTest{
 	// Fields of structs.
 	{".X", "-{{.X}}-", "-x-", tVal, true},
 	{".U.V", "-{{.U.V}}-", "-v-", tVal, true},
+
+	// Fields on maps.
+	{"map .one", "{{.MSI.one}}", "1", tVal, true},
+	{"map .two", "{{.MSI.two}}", "2", tVal, true},
+	{"map .NO", "{{.MSI.NO}}", "<no value>", tVal, true},
+	{"map .one interface", "{{.MXI.one}}", "1", tVal, true},
+	{"map .WRONG args", "{{.MSI.one 1}}", "", tVal, false},
+	{"map .WRONG type", "{{.MII.one}}", "", tVal, false},
 
 	// Dots of all kinds to test basic evaluation.
 	{"dot int", "<{{.}}>", "<13>", 13, true},
