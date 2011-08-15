@@ -233,8 +233,10 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			s.pop(mark)
 		}
 		return
+	case reflect.Invalid:
+		break // An invalid value is likely a nil map, etc. and acts like an empty map.
 	default:
-		s.errorf("range can't iterate over value of type %T", val.Interface())
+		s.errorf("range can't iterate over %v", val)
 	}
 	if r.ElseList != nil {
 		s.walk(dot, r.ElseList)
