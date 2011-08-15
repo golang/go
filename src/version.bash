@@ -3,11 +3,19 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-# Check that we can use 'hg'
-if ! hg version > /dev/null 2>&1; then
-	echo 'unable to report version: hg not installed' 1>&2
-	echo 'unknown'
+GOROOT=$(cd `dirname $0`/..; pwd)
+
+# If a version file created by -save is available, use it
+if [ -f "$GOROOT/VERSION" ]; then
+	cat $GOROOT/VERSION
 	exit 0
+fi
+
+# Otherwise, if hg doesn't work for whatever reason, fail
+if [ ! -d "$GOROOT/.hg" ] || ! hg version > /dev/null 2>&1; then
+	echo 'Unable to report version: hg and VERSION file missing' 1>&2
+	echo 'Generate VERSION with `src/version.bash -save` while hg is usable' 1>&2
+	exit 2
 fi
 
 # Get numerical revision
@@ -35,5 +43,9 @@ if [ "$TAG" != "" ]; then
 	VERSION="$TAG $VERSION"
 fi
 
-echo $VERSION
-
+if [ "$1" = "-save" ]; then
+	echo $VERSION > $GOROOT/VERSION
+	echo "Saved '$VERSION' to $GOROOT/VERSION" 1>&2
+else
+	echo $VERSION
+fi
