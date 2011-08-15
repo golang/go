@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-GOROOT=$(cd `dirname $0`/..; pwd)
+GOROOT=$(dirname $0)/..
 
 # If a version file created by -save is available, use it
 if [ -f "$GOROOT/VERSION" ]; then
@@ -45,7 +45,6 @@ fi
 
 if [ "$1" = "-save" ]; then
 	echo $VERSION > $GOROOT/VERSION
-	echo "Saved '$VERSION' to $GOROOT/VERSION" 1>&2
 else
 	echo $VERSION
 fi
