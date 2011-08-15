@@ -481,7 +481,7 @@ func posLink_urlFunc(node ast.Node, fset *token.FileSet) string {
 	}
 
 	var buf bytes.Buffer
-	buf.WriteString(http.URLEscape(relpath))
+	template.HTMLEscape(&buf, []byte(relpath))
 	// selection ranges are of form "s=low:high"
 	if low < high {
 		fmt.Fprintf(&buf, "?s=%d:%d", low, high) // no need for URL escaping

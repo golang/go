@@ -18,7 +18,8 @@
 </tr>
 {{range .}}
 <tr>
-	<td align="left"><a href="{{.|fileInfoName|html}}">{{.|fileInfoName|html}}</a></td>
+	{{$name := .|fileInfoName|html}}
+	<td align="left"><a href="{{$name}}">{{$name}}</a></td>
 	<td></td>
 	<td align="right">{{html .Size}}</td>
 	<td></td>
