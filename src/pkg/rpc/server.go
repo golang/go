@@ -394,7 +394,7 @@ func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 func (server *Server) ServeCodec(codec ServerCodec) {
 	sending := new(sync.Mutex)
 	for {
-		req, service, mtype, err := server.readRequest(codec)
+		service, mtype, req, argv, replyv, err := server.readRequest(codec)
 		if err != nil {
 			if err != os.EOF {
 				log.Println("rpc:", err)
@@ -402,9 +402,6 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 			if err == os.EOF || err == io.ErrUnexpectedEOF {
 				break
 			}
-			// discard body
-			codec.ReadRequestBody(nil)
-
 			// send a response if we actually managed to read a header.
 			if req != nil {
 				server.sendResponse(sending, req, invalidRequest, codec, err.String())
@@ -412,35 +409,29 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 			}
 			continue
 		}
-
-		// Decode the argument value.
-		var argv reflect.Value
-		argIsValue := false // if true, need to indirect before calling.
-		if mtype.ArgType.Kind() == reflect.Ptr {
-			argv = reflect.New(mtype.ArgType.Elem())
-		} else {
-			argv = reflect.New(mtype.ArgType)
-			argIsValue = true
-		}
-		// argv guaranteed to be a pointer now.
-		replyv := reflect.New(mtype.ReplyType.Elem())
-		err = codec.ReadRequestBody(argv.Interface())
-		if err != nil {
-			if err == os.EOF || err == io.ErrUnexpectedEOF {
-				if err == io.ErrUnexpectedEOF {
-					log.Println("rpc:", err)
-				}
-				break
-			}
-			server.sendResponse(sending, req, replyv.Interface(), codec, err.String())
-			continue
-		}
-		if argIsValue {
-			argv = argv.Elem()
-		}
 		go service.call(server, sending, mtype, req, argv, replyv, codec)
 	}
 	codec.Close()
+}
+
+// ServeRequest is like ServeCodec but synchronously serves a single request.
+// It does not close the codec upon completion.
+func (server *Server) ServeRequest(codec ServerCodec) os.Error {
+	sending := new(sync.Mutex)
+	service, mtype, req, argv, replyv, err := server.readRequest(codec)
+	if err != nil {
+		if err == os.EOF || err == io.ErrUnexpectedEOF {
+			return err
+		}
+		// send a response if we actually managed to read a header.
+		if req != nil {
+			server.sendResponse(sending, req, invalidRequest, codec, err.String())
+			server.freeRequest(req)
+		}
+		return err
+	}
+	service.call(server, sending, mtype, req, argv, replyv, codec)
+	return nil
 }
 
 func (server *Server) getRequest() *Request {
@@ -483,7 +474,38 @@ func (server *Server) freeResponse(resp *Response) {
 	server.respLock.Unlock()
 }
 
-func (server *Server) readRequest(codec ServerCodec) (req *Request, service *service, mtype *methodType, err os.Error) {
+func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *methodType, req *Request, argv, replyv reflect.Value, err os.Error) {
+	service, mtype, req, err = server.readRequestHeader(codec)
+	if err != nil {
+		if err == os.EOF || err == io.ErrUnexpectedEOF {
+			return
+		}
+		// discard body
+		codec.ReadRequestBody(nil)
+		return
+	}
+
+	// Decode the argument value.
+	argIsValue := false // if true, need to indirect before calling.
+	if mtype.ArgType.Kind() == reflect.Ptr {
+		argv = reflect.New(mtype.ArgType.Elem())
+	} else {
+		argv = reflect.New(mtype.ArgType)
+		argIsValue = true
+	}
+	// argv guaranteed to be a pointer now.
+	if err = codec.ReadRequestBody(argv.Interface()); err != nil {
+		return
+	}
+	if argIsValue {
+		argv = argv.Elem()
+	}
+
+	replyv = reflect.New(mtype.ReplyType.Elem())
+	return
+}
+
+func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mtype *methodType, req *Request, err os.Error) {
 	// Grab the request header.
 	req = server.getRequest()
 	err = codec.ReadRequestHeader(req)
@@ -566,6 +588,12 @@ func ServeConn(conn io.ReadWriteCloser) {
 // decode requests and encode responses.
 func ServeCodec(codec ServerCodec) {
 	DefaultServer.ServeCodec(codec)
+}
+
+// ServeRequest is like ServeCodec but synchronously serves a single request.
+// It does not close the codec upon completion.
+func ServeRequest(codec ServerCodec) os.Error {
+	return DefaultServer.ServeRequest(codec)
 }
 
 // Accept accepts connections on the listener and serves requests

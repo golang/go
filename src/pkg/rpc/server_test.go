@@ -7,6 +7,7 @@ package rpc
 import (
 	"fmt"
 	"http/httptest"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -18,6 +19,7 @@ import (
 )
 
 var (
+	newServer                 *Server
 	serverAddr, newServerAddr string
 	httpServerAddr            string
 	once, newOnce, httpOnce   sync.Once
@@ -93,15 +95,15 @@ func startServer() {
 }
 
 func startNewServer() {
-	s := NewServer()
-	s.Register(new(Arith))
+	newServer = NewServer()
+	newServer.Register(new(Arith))
 
 	var l net.Listener
 	l, newServerAddr = listenTCP()
 	log.Println("NewServer test RPC server listening on", newServerAddr)
 	go Accept(l)
 
-	s.HandleHTTP(newHttpPath, "/bar")
+	newServer.HandleHTTP(newHttpPath, "/bar")
 	httpOnce.Do(startHttpServer)
 }
 
@@ -261,6 +263,85 @@ func testHTTPRPC(t *testing.T, path string) {
 	}
 	if reply.C != args.A+args.B {
 		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+	}
+}
+
+// CodecEmulator provides a client-like api and a ServerCodec interface.
+// Can be used to test ServeRequest.
+type CodecEmulator struct {
+	server        *Server
+	serviceMethod string
+	args          *Args
+	reply         *Reply
+	err           os.Error
+}
+
+func (codec *CodecEmulator) Call(serviceMethod string, args *Args, reply *Reply) os.Error {
+	codec.serviceMethod = serviceMethod
+	codec.args = args
+	codec.reply = reply
+	codec.err = nil
+	var serverError os.Error
+	if codec.server == nil {
+		serverError = ServeRequest(codec)
+	} else {
+		serverError = codec.server.ServeRequest(codec)
+	}
+	if codec.err == nil && serverError != nil {
+		codec.err = serverError
+	}
+	return codec.err
+}
+
+func (codec *CodecEmulator) ReadRequestHeader(req *Request) os.Error {
+	req.ServiceMethod = codec.serviceMethod
+	req.Seq = 0
+	return nil
+}
+
+func (codec *CodecEmulator) ReadRequestBody(argv interface{}) os.Error {
+	if codec.args == nil {
+		return io.ErrUnexpectedEOF
+	}
+	*(argv.(*Args)) = *codec.args
+	return nil
+}
+
+func (codec *CodecEmulator) WriteResponse(resp *Response, reply interface{}) os.Error {
+	if resp.Error != "" {
+		codec.err = os.NewError(resp.Error)
+	}
+	*codec.reply = *(reply.(*Reply))
+	return nil
+}
+
+func (codec *CodecEmulator) Close() os.Error {
+	return nil
+}
+
+func TestServeRequest(t *testing.T) {
+	once.Do(startServer)
+	testServeRequest(t, nil)
+	newOnce.Do(startNewServer)
+	testServeRequest(t, newServer)
+}
+
+func testServeRequest(t *testing.T, server *Server) {
+	client := CodecEmulator{server: server}
+
+	args := &Args{7, 8}
+	reply := new(Reply)
+	err := client.Call("Arith.Add", args, reply)
+	if err != nil {
+		t.Errorf("Add: expected no error but got string %q", err.String())
+	}
+	if reply.C != args.A+args.B {
+		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+	}
+
+	err = client.Call("Arith.Add", nil, reply)
+	if err == nil {
+		t.Errorf("expected error calling Arith.Add with nil arg")
 	}
 }
 
