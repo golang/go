@@ -904,7 +904,8 @@ loop:
 
 	// pass 2 - enqueue on all chans
 	for(i=0; i<sel->ncase; i++) {
-		cas = &sel->scase[i];
+		o = sel->pollorder[i];
+		cas = &sel->scase[o];
 		c = cas->chan;
 		sg = &cas->sg;
 		sg->g = g;
