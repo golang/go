@@ -1,30 +1,22 @@
-{{$FSet := .FSet}}{{$Info := .}}{{/*
+{{with .PAst}}{{node . $.FSet}}{{end}}{{/*
 
 ---------------------------------------
 
-*/}}{{with .PAst}}{{node . $FSet}}{{end}}{{/*
-
----------------------------------------
-
-*/}}{{with .PDoc}}{{if $Info.IsPkg}}PACKAGE
+*/}}{{with .PDoc}}{{if $.IsPkg}}PACKAGE
 
 package {{.PackageName}}
 import "{{.ImportPath}}"
 
 {{else}}COMMAND DOCUMENTATION
-{{end}}{{/*
 
----------------------------------------
-
-*/}}{{with .Doc}}{{node . $FSet}}
-{{end}}{{/*
+{{end}}{{.Doc}}{{/*
 
 ---------------------------------------
 
 */}}{{with .Consts}}
 CONSTANTS
 
-{{range .}}{{node .Decl $FSet}}
+{{range .}}{{node .Decl $.FSet}}
 {{.Doc}}{{end}}
 {{end}}{{/*
 
@@ -33,7 +25,7 @@ CONSTANTS
 */}}{{with .Vars}}
 VARIABLES
 
-{{range .}}{{node .Decl $FSet}}
+{{range .}}{{node .Decl $.FSet}}
 {{.Doc}}{{end}}
 {{end}}{{/*
 
@@ -42,7 +34,7 @@ VARIABLES
 */}}{{with .Funcs}}
 FUNCTIONS
 
-{{range .}}{{node .Decl $FSet}}
+{{range .}}{{node .Decl $.FSet}}
 {{.Doc}}
 {{end}}{{end}}{{/*
 
@@ -51,15 +43,15 @@ FUNCTIONS
 */}}{{with .Types}}
 TYPES
 
-{{range .}}{{node .Decl $FSet}}
+{{range .}}{{node .Decl $.FSet}}
 {{.Doc}}
-{{range .Consts}}{{node .Decl $FSet}}
+{{range .Consts}}{{node .Decl $.FSet}}
 {{.Doc}}
-{{end}}{{range .Vars}}{{node .Decl $FSet}}
+{{end}}{{range .Vars}}{{node .Decl $.FSet}}
 {{.Doc}}
-{{end}}{{range .Factories}}{{node .Decl $FSet}}
+{{end}}{{range .Factories}}{{node .Decl $.FSet}}
 {{.Doc}}
-{{end}}{{range .Methods}}{{node .Decl $FSet}}
+{{end}}{{range .Methods}}{{node .Decl $.FSet}}
 {{.Doc}}
 {{end}}{{end}}{{end}}{{/*
 
