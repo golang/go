@@ -687,7 +687,7 @@ addaddrplus(Sym *s, Sym *t, int32 add)
 	return i;
 }
 
-vlong
+static vlong
 addaddrplus4(Sym *s, Sym *t, int32 add)
 {
 	vlong i;
