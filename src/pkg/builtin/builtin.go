@@ -45,18 +45,20 @@ func copy(dst, src []Type) int
 
 // The len built-in function returns the length of v, according to its type:
 //	Array: the number of elements in v.
-//	Pointer to array: the number of elements in *v.
-//	Slice, or map: the number of elements in v. If v is nil, len(v) is zero.
+//	Pointer to array: the number of elements in *v (even if v is nil).
+//	Slice, or map: the number of elements in v; if v is nil, len(v) is zero.
 //	String: the number of bytes in v.
-//	Channel: the number of elements queued (unread) in the channel buffer.
-//	If v is nil, len(v) is zero.
+//	Channel: the number of elements queued (unread) in the channel buffer;
+//	if v is nil, len(v) is zero.
 func len(v Type) int
 
 // The cap built-in function returns the capacity of v, according to its type:
 //	Array: the number of elements in v (same as len(v)).
 //	Pointer to array: the number of elements in *v (same as len(v)).
-//	Slice: the maximum length the slice can reach when resliced.
-//	Channel: the maximum channel buffer capacity, in units of elements.
+//	Slice: the maximum length the slice can reach when resliced;
+//	if v is nil, cap(v) is zero.
+//	Channel: the channel buffer capacity, in units of elements;
+//	if v is nil, cap(v) is zero.
 func cap(v Type) int
 
 // The make built-in function allocates and initializes an object of type
