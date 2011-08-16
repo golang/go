@@ -324,6 +324,7 @@ EXTERN	Prog*	prog_modu;
 #pragma	varargck	type	"N"	Adr*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"S"	char*
+#pragma	varargck	type	"Z"	char*
 #pragma	varargck	type	"i"	char*
 
 int	Aconv(Fmt*);
