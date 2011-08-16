@@ -737,11 +737,11 @@ runtime·markallocated(void *v, uintptr n, bool noptr)
 		bits = (obits & ~(bitMask<<shift)) | (bitAllocated<<shift);
 		if(noptr)
 			bits |= bitNoPointers<<shift;
-		if(runtime·gomaxprocs == 1) {
+		if(runtime·singleproc) {
 			*b = bits;
 			break;
 		} else {
-			// gomaxprocs > 1: use atomic op
+			// more than one goroutine is potentially running: use atomic op
 			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
 				break;
 		}
@@ -767,11 +767,11 @@ runtime·markfreed(void *v, uintptr n)
 	for(;;) {
 		obits = *b;
 		bits = (obits & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
-		if(runtime·gomaxprocs == 1) {
+		if(runtime·singleproc) {
 			*b = bits;
 			break;
 		} else {
-			// gomaxprocs > 1: use atomic op
+			// more than one goroutine is potentially running: use atomic op
 			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
 				break;
 		}
@@ -878,11 +878,11 @@ runtime·setblockspecial(void *v)
 	for(;;) {
 		obits = *b;
 		bits = obits | (bitSpecial<<shift);
-		if(runtime·gomaxprocs == 1) {
+		if(runtime·singleproc) {
 			*b = bits;
 			break;
 		} else {
-			// gomaxprocs > 1: use atomic op
+			// more than one goroutine is potentially running: use atomic op
 			if(runtime·casp((void**)b, (void*)obits, (void*)bits))
 				break;
 		}
