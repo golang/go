@@ -410,6 +410,7 @@ uint32	machheadr(void);
 #pragma	varargck	type	"D"	Adr*
 #pragma	varargck	type	"P"	Prog*
 #pragma	varargck	type	"R"	int
+#pragma	varargck	type	"Z"	char*
 #pragma	varargck	type	"A"	int
 #pragma	varargck	argpos	diag 1
 

@@ -46,10 +46,6 @@ enum
 #define	P		((Prog*)0)
 #define	S		((Sym*)0)
 #define	TNAME		(cursym?cursym->name:noname)
-#define	cput(c)\
-	{ *cbp++ = c;\
-	if(--cbc <= 0)\
-		cflush(); }
 
 typedef	struct	Adr	Adr;
 typedef	struct	Prog	Prog;
@@ -254,6 +250,7 @@ enum
 #pragma	varargck	type	"R"	int
 #pragma	varargck	type	"S"	char*
 #pragma	varargck	type	"Y"	Sym*
+#pragma	varargck	type	"Z"	char*
 #pragma	varargck	type	"i"	char*
 
 EXTERN	int32	HEADR;
