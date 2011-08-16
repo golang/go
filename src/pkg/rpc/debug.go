@@ -70,7 +70,7 @@ func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Build a sorted version of the data.
 	var services = make(serviceArray, len(server.serviceMap))
 	i := 0
-	server.Lock()
+	server.mu.Lock()
 	for sname, service := range server.serviceMap {
 		services[i] = debugService{service, sname, make(methodArray, len(service.method))}
 		j := 0
@@ -81,7 +81,7 @@ func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		sort.Sort(services[i].Method)
 		i++
 	}
-	server.Unlock()
+	server.mu.Unlock()
 	sort.Sort(services)
 	err := debug.Execute(w, services)
 	if err != nil {
