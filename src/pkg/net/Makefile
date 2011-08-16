@@ -86,11 +86,13 @@ GOFILES_linux+=cgo_stub.go
 endif
 
 GOFILES_openbsd=\
-	dnsclient.go\
+	dnsclient_unix.go\
 	dnsconfig.go\
 	fd.go\
 	file.go\
 	interface_bsd.go\
+	interface_openbsd.go\
+	lookup_unix.go\
 	newpollserver.go\
 	port.go\
 	sendfile_stub.go\
