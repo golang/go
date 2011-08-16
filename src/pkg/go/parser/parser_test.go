@@ -51,6 +51,7 @@ var validPrograms = []interface{}{
 	`package p; func f() { select { case x := (<-c): } };`,
 	`package p; func f() { if ; true {} };`,
 	`package p; func f() { switch ; {} };`,
+	`package p; func f() { for _ = range "foo" + "bar" {} };`,
 }
 
 func TestParseValidPrograms(t *testing.T) {
