@@ -126,6 +126,7 @@ enum {
 
 Sched runtime·sched;
 int32 runtime·gomaxprocs;
+bool runtime·singleproc;
 
 // An m that is waiting for notewakeup(&m->havenextg).  This may be
 // only be accessed while the scheduler lock is held.  This is used to
@@ -199,6 +200,7 @@ runtime·schedinit(void)
 		runtime·gomaxprocs = n;
 	}
 	setmcpumax(runtime·gomaxprocs);
+	runtime·singleproc = runtime·gomaxprocs == 1;
 	runtime·sched.predawn = 1;
 
 	m->nomemprof--;
@@ -585,6 +587,7 @@ runtime·stoptheworld(void)
 		runtime·notesleep(&runtime·sched.stopped);
 		schedlock();
 	}
+	runtime·singleproc = runtime·gomaxprocs == 1;
 	schedunlock();
 }
 
@@ -1416,6 +1419,8 @@ runtime·gomaxprocsfunc(int32 n)
 	if(n > maxgomaxprocs)
 		n = maxgomaxprocs;
 	runtime·gomaxprocs = n;
+	if(runtime·gomaxprocs > 1)
+		runtime·singleproc = false;
  	if(runtime·gcwaiting != 0) {
  		if(atomic_mcpumax(runtime·sched.atomic) != 1)
  			runtime·throw("invalid mcpumax during gc");

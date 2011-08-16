@@ -383,6 +383,7 @@ extern	String	runtime·emptystring;
 G*	runtime·allg;
 M*	runtime·allm;
 extern	int32	runtime·gomaxprocs;
+extern	bool	runtime·singleproc;
 extern	uint32	runtime·panicking;
 extern	int32	runtime·gcwaiting;		// gc is waiting to run
 int8*	runtime·goos;
