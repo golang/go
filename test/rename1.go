@@ -10,7 +10,7 @@ func main() {
 	var n byte       // ERROR "not a type|expected type"
 	var y = float(0) // ERROR "cannot call|expected function"
 	const (
-		a = 1 + iota // ERROR "string|incompatible types"
+		a = 1 + iota // ERROR "string|incompatible types" "convert iota"
 	)
 
 }

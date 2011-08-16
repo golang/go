@@ -16,7 +16,7 @@ type Painting struct {
 }
 
 func (p Painting) Foo() {
-	for e := p.fragments; e.Front() != nil; e = e.Next() {  // ERROR "unexported field"
+	for e := p.fragments; e.Front() != nil; {  // ERROR "unexported field"
 	}
 }
 

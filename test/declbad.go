@@ -40,7 +40,7 @@ func main() {
 	{
 		// single redeclaration
 		i, f, s := f3()
-		i := f1() // ERROR "redeclared|no new|incompatible"
+		i := 1 // ERROR "redeclared|no new|incompatible"
 		_, _, _ = i, f, s
 	}
 	// double redeclaration

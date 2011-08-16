@@ -8,7 +8,7 @@ package main
 
 func f(x int, y ...int)	// ok
 
-func g(x int, y float) (...)	// ERROR "[.][.][.]"
+func g(x int, y float) (...)	// ERROR "[.][.][.]" "final argument"
 
 func h(x, y ...int)		// ERROR "[.][.][.]"
 

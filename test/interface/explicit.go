@@ -48,7 +48,7 @@ func main() {
 	i2 = I2(i) // ERROR "invalid|missing N method"
 
 	e = E(t) // ok
-	t = T(e) // ERROR "need explicit|need type assertion|incompatible"
+	t = T(e) // ERROR "need explicit|need type assertion|incompatible" "as type [*]T"
 }
 
 type M interface {

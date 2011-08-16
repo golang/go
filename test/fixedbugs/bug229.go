@@ -16,5 +16,5 @@ func main() {
 
 	t.ch = nil	// ERROR "unexported"
 	
-	println(testing.anyLowercaseName("asdf"))	// ERROR "unexported"
+	println(testing.anyLowercaseName("asdf"))	// ERROR "unexported" "undefined: testing.anyLowercaseName"
 }
