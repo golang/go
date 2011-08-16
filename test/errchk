@@ -88,41 +88,46 @@ sub chk {
 		$line++;
 		next if $src =~ m|////|;  # double comment disables ERROR
 		next unless $src =~ m|// (GC_)?ERROR (.*)|;
-		$regexp = $2;
-		if($regexp !~ /^"([^"]*)"/) {
+		my $all = $2;
+		if($all !~ /^"([^"]*)"/) {
 			print STDERR "$file:$line: malformed regexp\n";
 			next;
 		}
-		$regexp = $1;
-		
-		# Turn relative line number in message into absolute line number.
-		if($regexp =~ /LINE(([+-])([0-9]+))?/) {
-			my $n = $line;
-			if(defined($1)) {
-				if($2 eq "+") {
-					$n += int($3);
-				} else {
-					$n -= int($3);
-				}
-			}
-			$regexp = "$`$file:$n$'";
-		}
-
 		@errmsg = grep { /$file:$line[:[]/ } @out;
 		@out = grep { !/$file:$line[:[]/ } @out;
 		if(@errmsg == 0) {
 			bug();
-			print STDERR "errchk: $file:$line: missing expected error: '$regexp'\n";
+			print STDERR "errchk: $file:$line: missing expected error: '$all'\n";
 			next;
 		}
-		@match = grep { /$regexp/ } @errmsg;
-		if(@match == 0) {
+		foreach my $regexp ($all =~ /"([^"]*)"/g) {
+			# Turn relative line number in message into absolute line number.
+			if($regexp =~ /LINE(([+-])([0-9]+))?/) {
+				my $n = $line;
+				if(defined($1)) {
+					if($2 eq "+") {
+						$n += int($3);
+					} else {
+						$n -= int($3);
+					}
+				}
+				$regexp = "$`$file:$n$'";
+			}
+	
+			@match = grep { /$regexp/ } @errmsg;
+			if(@match == 0) {
+				bug();
+				print STDERR "errchk: $file:$line: error messages do not match '$regexp'\n";
+				next;
+			}
+			@errmsg = grep { !/$regexp/ } @errmsg;
+		}
+		if(@errmsg != 0) {
 			bug();
-			print STDERR "errchk: $file:$line: error message does not match '$regexp'\n";
+			print STDERR "errchk: $file:$line: unmatched error messages:\n";
 			foreach my $l (@errmsg) {
 				print STDERR "> $l";
 			}
-			next;
 		}
 	}
 }

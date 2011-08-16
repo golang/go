@@ -16,13 +16,13 @@ func h(x float64) int     { return 0 }
 var (
 	s uint    = 33
 	u         = 1.0 << s // ERROR "invalid operation"
-	v float32 = 1 << s   // ERROR "invalid operation"
+	v float32 = 1 << s   // ERROR "invalid operation" "as type float32"
 )
 
 // non-constant shift expressions
 var (
-	e1       = g(2.0 << s) // ERROR "invalid operation"
-	f1       = h(2 << s)   // ERROR "invalid operation"
+	e1       = g(2.0 << s) // ERROR "invalid operation" "as type interface"
+	f1       = h(2 << s)   // ERROR "invalid operation" "as type float64"
 	g1 int64 = 1.1 << s    // ERROR "truncated"
 )
 

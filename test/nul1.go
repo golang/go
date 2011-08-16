@@ -39,7 +39,7 @@ var y = ` + "`in raw string \x00 foo`" + `  // ERROR "NUL"
 
 /* in other comment ` + "\x00" + ` */ // ERROR "NUL"
 
-/* in source code */ ` + "\x00" + `// ERROR "NUL"
+/* in source code */ ` + "\x00" + `// ERROR "NUL" "illegal character"
 
 var xx = "in string ` + "\xc2\xff" + `" // ERROR "UTF-8"
 
@@ -50,9 +50,9 @@ var yy = ` + "`in raw string \xff foo`" + `  // ERROR "UTF-8"
 /* in other comment ` + "\xe0\x00\x00" + ` */ // ERROR "UTF-8|NUL"
 
 /* in variable name */
-var z` + "\xc1\x81" + ` int // ERROR "UTF-8"
+var z` + "\xc1\x81" + ` int // ERROR "UTF-8" "invalid identifier character"
 
-/* in source code */ ` + "\xc2A" + `// ERROR "UTF-8"
+/* in source code */ ` + "var \xc2A int" + `// ERROR "UTF-8" "invalid identifier character"
 
 `)
 }
