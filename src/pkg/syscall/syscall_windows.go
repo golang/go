@@ -90,7 +90,7 @@ func getprocaddress(handle uintptr, procname uintptr) (proc uintptr)
 // call to its Handle method or to one of its
 // LazyProc's Addr method.
 type LazyDLL struct {
-	sync.Mutex
+	mu   sync.Mutex
 	Name string
 	h    uintptr // module handle once dll is loaded
 }
@@ -98,8 +98,8 @@ type LazyDLL struct {
 // Handle returns d's module handle.
 func (d *LazyDLL) Handle() uintptr {
 	if d.h == 0 {
-		d.Lock()
-		defer d.Unlock()
+		d.mu.Lock()
+		defer d.mu.Unlock()
 		if d.h == 0 {
 			d.h = loadlibraryex(uintptr(unsafe.Pointer(StringBytePtr(d.Name))))
 			if d.h == 0 {
@@ -123,7 +123,7 @@ func NewLazyDLL(name string) *LazyDLL {
 // A LazyProc implements access to a procedure inside a LazyDLL.
 // It delays the lookup until the Addr method is called.
 type LazyProc struct {
-	sync.Mutex
+	mu   sync.Mutex
 	Name string
 	dll  *LazyDLL
 	addr uintptr
@@ -133,8 +133,8 @@ type LazyProc struct {
 // The return value can be passed to Syscall to run the procedure.
 func (s *LazyProc) Addr() uintptr {
 	if s.addr == 0 {
-		s.Lock()
-		defer s.Unlock()
+		s.mu.Lock()
+		defer s.mu.Unlock()
 		if s.addr == 0 {
 			s.addr = getprocaddress(s.dll.Handle(), uintptr(unsafe.Pointer(StringBytePtr(s.Name))))
 			if s.addr == 0 {
