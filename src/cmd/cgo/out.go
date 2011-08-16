@@ -59,17 +59,21 @@ func (p *Package) writeDefs() {
 
 	fmt.Fprintf(fc, cProlog)
 
-	var cVars []string
+	cVars := make(map[string]bool)
 	for _, n := range p.Name {
 		if n.Kind != "var" {
 			continue
 		}
-		cVars = append(cVars, n.C)
 
-		fmt.Fprintf(fm, "extern char %s[];\n", n.C)
-		fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
+		if !cVars[n.C] {
+			fmt.Fprintf(fm, "extern char %s[];\n", n.C)
+			fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
 
-		fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
+			fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
+
+			cVars[n.C] = true
+		}
+
 		fmt.Fprintf(fc, "void *·%s = &%s;\n", n.Mangle, n.C)
 		fmt.Fprintf(fc, "\n")
 
