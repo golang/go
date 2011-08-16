@@ -591,13 +591,13 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 	// because we have put fd.sysfd into non-blocking mode.
 	syscall.ForkLock.RLock()
 	var s, e int
-	var sa syscall.Sockaddr
+	var rsa syscall.Sockaddr
 	for {
 		if fd.closing {
 			syscall.ForkLock.RUnlock()
 			return nil, os.EINVAL
 		}
-		s, sa, e = syscall.Accept(fd.sysfd)
+		s, rsa, e = syscall.Accept(fd.sysfd)
 		if e != syscall.EAGAIN {
 			break
 		}
@@ -616,7 +616,8 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 		syscall.Close(s)
 		return nil, err
 	}
-	nfd.setAddr(fd.laddr, toAddr(sa))
+	lsa, _ := syscall.Getsockname(nfd.sysfd)
+	nfd.setAddr(toAddr(lsa), toAddr(rsa))
 	return nfd, nil
 }
 
