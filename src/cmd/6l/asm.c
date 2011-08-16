@@ -298,6 +298,9 @@ adddynrel(Sym *s, Reloc *r)
 int
 archreloc(Reloc *r, Sym *s, vlong *val)
 {
+	USED(r);
+	USED(s);
+	USED(val);
 	return -1;
 }
 
@@ -859,7 +862,7 @@ asmb(void)
 		startva = INITTEXT - HEADR;
 
 		/* This null SHdr must appear before all others */
-		sh = newElfShdr(elfstr[ElfStrEmpty]);
+		newElfShdr(elfstr[ElfStrEmpty]);
 
 		/* program header info */
 		pph = newElfPhdr();
