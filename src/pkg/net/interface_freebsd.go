@@ -47,3 +47,34 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
 
 	return ifmat, nil
 }
+
+func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, os.Error) {
+	var ifmat []Addr
+
+	sas, e := syscall.ParseRoutingSockaddr(m)
+	if e != 0 {
+		return nil, os.NewSyscallError("route sockaddr", e)
+	}
+
+	for _, s := range sas {
+		switch v := s.(type) {
+		case *syscall.SockaddrInet4:
+			ifma := &IPAddr{IP: IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])}
+			ifmat = append(ifmat, ifma.toAddr())
+		case *syscall.SockaddrInet6:
+			ifma := &IPAddr{IP: make(IP, IPv6len)}
+			copy(ifma.IP, v.Addr[:])
+			// NOTE: KAME based IPv6 protcol stack usually embeds
+			// the interface index in the interface-local or link-
+			// local address as the kernel-internal form.
+			if ifma.IP.IsInterfaceLocalMulticast() ||
+				ifma.IP.IsLinkLocalMulticast() {
+				// remove embedded scope zone ID
+				ifma.IP[2], ifma.IP[3] = 0, 0
+			}
+			ifmat = append(ifmat, ifma.toAddr())
+		}
+	}
+
+	return ifmat, nil
+}
