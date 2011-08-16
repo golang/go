@@ -423,6 +423,14 @@ func (l *UnixListener) Close() os.Error {
 // Addr returns the listener's network address.
 func (l *UnixListener) Addr() Addr { return l.fd.laddr }
 
+// SetTimeout sets the deadline associated wuth the listener
+func (l *UnixListener) SetTimeout(nsec int64) (err os.Error) {
+	if l == nil || l.fd == nil {
+		return os.EINVAL
+	}
+	return setTimeout(l.fd, nsec)
+}
+
 // File returns a copy of the underlying os.File, set to blocking mode.
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.

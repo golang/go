@@ -298,6 +298,14 @@ func (l *TCPListener) Close() os.Error {
 // Addr returns the listener's network address, a *TCPAddr.
 func (l *TCPListener) Addr() Addr { return l.fd.laddr }
 
+// SetTimeout sets the deadline associated with the listener
+func (l *TCPListener) SetTimeout(nsec int64) os.Error {
+	if l == nil || l.fd == nil {
+		return os.EINVAL
+	}
+	return setTimeout(l.fd, nsec)
+}
+
 // File returns a copy of the underlying os.File, set to blocking mode.
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.

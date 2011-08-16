@@ -585,6 +585,11 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 
 	fd.incref()
 	defer fd.decref()
+	if fd.rdeadline_delta > 0 {
+		fd.rdeadline = pollserver.Now() + fd.rdeadline_delta
+	} else {
+		fd.rdeadline = 0
+	}
 
 	// See ../syscall/exec.go for description of ForkLock.
 	// It is okay to hold the lock across syscall.Accept
@@ -598,7 +603,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 			return nil, os.EINVAL
 		}
 		s, rsa, e = syscall.Accept(fd.sysfd)
-		if e != syscall.EAGAIN {
+		if e != syscall.EAGAIN || fd.rdeadline < 0 {
 			break
 		}
 		syscall.ForkLock.RUnlock()
