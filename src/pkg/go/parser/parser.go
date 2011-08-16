@@ -1154,11 +1154,6 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	case *ast.CallExpr:
 	case *ast.StarExpr:
 	case *ast.UnaryExpr:
-		if t.Op == token.RANGE {
-			// the range operator is only allowed at the top of a for statement
-			p.errorExpected(x.Pos(), "expression")
-			x = &ast.BadExpr{x.Pos(), x.End()}
-		}
 	case *ast.BinaryExpr:
 	default:
 		// all other nodes are not proper expressions
@@ -1223,11 +1218,6 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 	case *ast.ParenExpr:
 		panic("unreachable")
 	case *ast.UnaryExpr:
-		if t.Op == token.RANGE {
-			// the range operator is only allowed at the top of a for statement
-			p.errorExpected(x.Pos(), "expression")
-			x = &ast.BadExpr{x.Pos(), x.End()}
-		}
 	case *ast.ArrayType:
 		if len, isEllipsis := t.Len.(*ast.Ellipsis); isEllipsis {
 			p.error(len.Pos(), "expected array length, found '...'")
@@ -1300,7 +1290,7 @@ func (p *parser) parseUnaryExpr(lhs bool) ast.Expr {
 	}
 
 	switch p.tok {
-	case token.ADD, token.SUB, token.NOT, token.XOR, token.AND, token.RANGE:
+	case token.ADD, token.SUB, token.NOT, token.XOR, token.AND:
 		pos, op := p.pos, p.tok
 		p.next()
 		x := p.parseUnaryExpr(false)
@@ -1384,10 +1374,17 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 		token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN,
 		token.REM_ASSIGN, token.AND_ASSIGN, token.OR_ASSIGN,
 		token.XOR_ASSIGN, token.SHL_ASSIGN, token.SHR_ASSIGN, token.AND_NOT_ASSIGN:
-		// assignment statement
+		// assignment statement, possibly part of a range clause
 		pos, tok := p.pos, p.tok
 		p.next()
-		y := p.parseRhsList()
+		var y []ast.Expr
+		if p.tok == token.RANGE && (tok == token.DEFINE || tok == token.ASSIGN) {
+			pos := p.pos
+			p.next()
+			y = []ast.Expr{&ast.UnaryExpr{pos, token.RANGE, p.parseRhs()}}
+		} else {
+			y = p.parseRhsList()
+		}
 		return &ast.AssignStmt{x, pos, tok, y}
 	}
 
@@ -1797,7 +1794,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 		}
 		if rhs, isUnary := as.Rhs[0].(*ast.UnaryExpr); isUnary && rhs.Op == token.RANGE {
 			// rhs is range expression
-			// (any short variable declaration was handled by parseSimpleStat above)
+			// (any short variable declaration was handled by parseSimpleStmt above)
 			return &ast.RangeStmt{pos, key, value, as.TokPos, as.Tok, rhs.X, body}
 		}
 		p.errorExpected(s2.Pos(), "range clause")
