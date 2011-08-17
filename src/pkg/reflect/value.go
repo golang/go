@@ -977,7 +977,7 @@ func (v Value) MapIndex(key Value) Value {
 
 	flag := (iv.flag | ikey.flag) & flagRO
 	elemType := typ.Elem()
-	elemWord, ok := mapaccess(iv.word, ikey.word)
+	elemWord, ok := mapaccess(typ.runtimeType(), iv.word, ikey.word)
 	if !ok {
 		return Value{}
 	}
@@ -999,7 +999,7 @@ func (v Value) MapKeys() []Value {
 	if m != 0 {
 		mlen = maplen(m)
 	}
-	it := mapiterinit(m)
+	it := mapiterinit(iv.typ.runtimeType(), m)
 	a := make([]Value, mlen)
 	var i int
 	for i = 0; i < len(a); i++ {
@@ -1309,7 +1309,7 @@ func (v Value) SetMapIndex(key, val Value) {
 		ival = convertForAssignment("reflect.Value.SetMapIndex", nil, iv.typ.Elem(), ival)
 	}
 
-	mapassign(iv.word, ikey.word, ival.word, ival.kind != Invalid)
+	mapassign(iv.typ.runtimeType(), iv.word, ikey.word, ival.word, ival.kind != Invalid)
 }
 
 // SetUint sets v's underlying value to x.
@@ -1725,9 +1725,9 @@ func chansend(ch iword, val iword, nb bool) bool
 
 func makechan(typ *runtime.Type, size uint32) (ch iword)
 func makemap(t *runtime.Type) iword
-func mapaccess(m iword, key iword) (val iword, ok bool)
-func mapassign(m iword, key, val iword, ok bool)
-func mapiterinit(m iword) *byte
+func mapaccess(t *runtime.Type, m iword, key iword) (val iword, ok bool)
+func mapassign(t *runtime.Type, m iword, key, val iword, ok bool)
+func mapiterinit(t *runtime.Type, m iword) *byte
 func mapiterkey(it *byte) (key iword, ok bool)
 func mapiternext(it *byte)
 func maplen(m iword) int32

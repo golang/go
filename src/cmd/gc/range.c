@@ -175,7 +175,7 @@ walkrange(Node *n)
 		argtype(fn, t->down);
 		argtype(fn, t->type);
 		argtype(fn, th);
-		init = list(init, mkcall1(fn, T, nil, ha, nod(OADDR, hit, N)));
+		init = list(init, mkcall1(fn, T, nil, typename(t), ha, nod(OADDR, hit, N)));
 		n->ntest = nod(ONE, nod(OINDEX, hit, nodintconst(0)), nodnil());
 
 		fn = syslook("mapiternext", 1);

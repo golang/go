@@ -16,7 +16,6 @@ typedef struct UncommonType UncommonType;
 typedef struct InterfaceType InterfaceType;
 typedef struct Method Method;
 typedef struct IMethod IMethod;
-typedef struct MapType MapType;
 typedef struct ChanType ChanType;
 typedef struct SliceType SliceType;
 typedef struct FuncType FuncType;
