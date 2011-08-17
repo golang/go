@@ -16,7 +16,7 @@ if [ -z "$GC" ]; then
 	exit 1
 fi
 
-gcc -o mkbuiltin1 mkbuiltin1.c
+gomake mkbuiltin1
 rm -f _builtin.c
 for i in runtime unsafe
 do

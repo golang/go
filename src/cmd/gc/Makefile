@@ -65,3 +65,7 @@ opnames.h:	mkopnames go.h
 	./mkopnames go.h >opnames.h
 
 CLEANFILES+=*.[568] [568].out y1.tab.c yerr.h mkbuiltin1 builtin.c _builtin.c opnames.h
+
+mkbuiltin1: mkbuiltin1.$O
+	$(HOST_LD) -o $@ mkbuiltin1.$O -L"$(GOROOT)"/lib -lbio -l9 -lm $(HOST_LDFLAGS)
+
