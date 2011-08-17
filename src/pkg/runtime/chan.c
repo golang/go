@@ -81,10 +81,13 @@ static	void	enqueue(WaitQ*, SudoG*);
 static	void	destroychan(Hchan*);
 
 Hchan*
-runtime·makechan_c(Type *elem, int64 hint)
+runtime·makechan_c(ChanType *t, int64 hint)
 {
 	Hchan *c;
 	int32 n;
+	Type *elem;
+	
+	elem = t->elem;
 
 	if(hint < 0 || (int32)hint != hint || (elem->size > 0 && hint > ((uintptr)-1) / elem->size))
 		runtime·panicstring("makechan: size out of range");
@@ -121,7 +124,7 @@ runtime·makechan_c(Type *elem, int64 hint)
 void
 reflect·makechan(ChanType *t, uint32 size, Hchan *c)
 {
-	c = runtime·makechan_c(t->elem, size);
+	c = runtime·makechan_c(t, size);
 	FLUSH(&c);
 }
 
@@ -132,11 +135,11 @@ destroychan(Hchan *c)
 }
 
 
-// makechan(elem *Type, hint int64) (hchan *chan any);
+// makechan(t *ChanType, hint int64) (hchan *chan any);
 void
-runtime·makechan(Type *elem, int64 hint, Hchan *ret)
+runtime·makechan(ChanType *t, int64 hint, Hchan *ret)
 {
-	ret = runtime·makechan_c(elem, hint);
+	ret = runtime·makechan_c(t, hint);
 	FLUSH(&ret);
 }
 
@@ -155,14 +158,22 @@ runtime·makechan(Type *elem, int64 hint, Hchan *ret)
  * the operation; we'll see that it's now closed.
  */
 void
-runtime·chansend(Hchan *c, byte *ep, bool *pres)
+runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
 {
 	SudoG *sg;
 	SudoG mysg;
 	G* gp;
 
-	if(c == nil)
-		runtime·panicstring("send to nil channel");
+	if(c == nil) {
+		USED(t);
+		if(pres != nil) {
+			*pres = false;
+			return;
+		}
+		g->status = Gwaiting;
+		runtime·gosched();
+		return;  // not reached
+	}
 
 	if(runtime·gcwaiting)
 		runtime·gosched();
@@ -263,20 +274,28 @@ closed:
 
 
 void
-runtime·chanrecv(Hchan* c, byte *ep, bool *selected, bool *received)
+runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *received)
 {
 	SudoG *sg;
 	SudoG mysg;
 	G *gp;
-
-	if(c == nil)
-		runtime·panicstring("receive from nil channel");
 
 	if(runtime·gcwaiting)
 		runtime·gosched();
 
 	if(debug)
 		runtime·printf("chanrecv: chan=%p\n", c);
+
+	if(c == nil) {
+		USED(t);
+		if(selected != nil) {
+			*selected = false;
+			return;
+		}
+		g->status = Gwaiting;
+		runtime·gosched();
+		return;  // not reached
+	}
 
 	runtime·lock(c);
 	if(c->dataqsiz > 0)
@@ -385,50 +404,29 @@ closed:
 // chansend1(hchan *chan any, elem any);
 #pragma textflag 7
 void
-runtime·chansend1(Hchan* c, ...)
+runtime·chansend1(ChanType *t, Hchan* c, ...)
 {
-	int32 o;
-	byte *ae;
-
-	if(c == nil)
-		runtime·panicstring("send to nil channel");
-
-	o = runtime·rnd(sizeof(c), c->elemalign);
-	ae = (byte*)&c + o;
-	runtime·chansend(c, ae, nil);
+	runtime·chansend(t, c, (byte*)(&c+1), nil);
 }
 
 // chanrecv1(hchan *chan any) (elem any);
 #pragma textflag 7
 void
-runtime·chanrecv1(Hchan* c, ...)
+runtime·chanrecv1(ChanType *t, Hchan* c, ...)
 {
-	int32 o;
-	byte *ae;
-
-	o = runtime·rnd(sizeof(c), Structrnd);
-	ae = (byte*)&c + o;
-
-	runtime·chanrecv(c, ae, nil, nil);
+	runtime·chanrecv(t, c, (byte*)(&c+1), nil, nil);
 }
 
 // chanrecv2(hchan *chan any) (elem any, received bool);
 #pragma textflag 7
 void
-runtime·chanrecv2(Hchan* c, ...)
+runtime·chanrecv2(ChanType *t, Hchan* c, ...)
 {
-	int32 o;
-	byte *ae, *ac;
-	
-	if(c == nil)
-		runtime·panicstring("receive from nil channel");
+	byte *ae, *ap;
 
-	o = runtime·rnd(sizeof(c), Structrnd);
-	ae = (byte*)&c + o;
-	o += c->elemsize;
-	ac = (byte*)&c + o;
-
-	runtime·chanrecv(c, ae, nil, ac);
+	ae = (byte*)(&c+1);
+	ap = ae + t->elem->size;
+	runtime·chanrecv(t, c, ae, nil, ap);
 }
 
 // func selectnbsend(c chan any, elem any) bool
@@ -444,7 +442,7 @@ runtime·chanrecv2(Hchan* c, ...)
 //
 // as
 //
-//	if c != nil && selectnbsend(c, v) {
+//	if selectnbsend(c, v) {
 //		... foo
 //	} else {
 //		... bar
@@ -452,17 +450,13 @@ runtime·chanrecv2(Hchan* c, ...)
 //
 #pragma textflag 7
 void
-runtime·selectnbsend(Hchan *c, ...)
+runtime·selectnbsend(ChanType *t, Hchan *c, ...)
 {
-	int32 o;
 	byte *ae, *ap;
 
-	o = runtime·rnd(sizeof(c), c->elemalign);
-	ae = (byte*)&c + o;
-	o = runtime·rnd(o+c->elemsize, Structrnd);
-	ap = (byte*)&c + o;
-
-	runtime·chansend(c, ae, ap);
+	ae = (byte*)(&c + 1);
+	ap = ae + runtime·rnd(t->elem->size, Structrnd);
+	runtime·chansend(t, c, ae, ap);
 }
 
 // func selectnbrecv(elem *any, c chan any) bool
@@ -478,7 +472,7 @@ runtime·selectnbsend(Hchan *c, ...)
 //
 // as
 //
-//	if c != nil && selectnbrecv(&v, c) {
+//	if selectnbrecv(&v, c) {
 //		... foo
 //	} else {
 //		... bar
@@ -486,9 +480,9 @@ runtime·selectnbsend(Hchan *c, ...)
 //
 #pragma textflag 7
 void
-runtime·selectnbrecv(byte *v, Hchan *c, bool selected)
+runtime·selectnbrecv(ChanType *t, byte *v, Hchan *c, bool selected)
 {
-	runtime·chanrecv(c, v, &selected, nil);
+	runtime·chanrecv(t, c, v, &selected, nil);
 }	
 
 // func selectnbrecv2(elem *any, ok *bool, c chan any) bool
@@ -512,9 +506,9 @@ runtime·selectnbrecv(byte *v, Hchan *c, bool selected)
 //
 #pragma textflag 7
 void
-runtime·selectnbrecv2(byte *v, bool *received, Hchan *c, bool selected)
+runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool selected)
 {
-	runtime·chanrecv(c, v, &selected, received);
+	runtime·chanrecv(t, c, v, &selected, received);
 }	
 
 // For reflect:
@@ -525,14 +519,11 @@ runtime·selectnbrecv2(byte *v, bool *received, Hchan *c, bool selected)
 // The "uintptr selected" is really "bool selected" but saying
 // uintptr gets us the right alignment for the output parameter block.
 void
-reflect·chansend(Hchan *c, uintptr val, bool nb, uintptr selected)
+reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
 {
 	bool *sp;
 	byte *vp;
 	
-	if(c == nil)
-		runtime·panicstring("send to nil channel");
-
 	if(nb) {
 		selected = false;
 		sp = (bool*)&selected;
@@ -541,11 +532,11 @@ reflect·chansend(Hchan *c, uintptr val, bool nb, uintptr selected)
 		FLUSH(&selected);
 		sp = nil;
 	}
-	if(c->elemsize <= sizeof(val))
+	if(t->elem->size <= sizeof(val))
 		vp = (byte*)&val;
 	else
 		vp = (byte*)val;
-	runtime·chansend(c, vp, sp);
+	runtime·chansend(t, c, vp, sp);
 }
 
 // For reflect:
@@ -553,13 +544,10 @@ reflect·chansend(Hchan *c, uintptr val, bool nb, uintptr selected)
 // where an iword is the same word an interface value would use:
 // the actual data if it fits, or else a pointer to the data.
 void
-reflect·chanrecv(Hchan *c, bool nb, uintptr val, bool selected, bool received)
+reflect·chanrecv(ChanType *t, Hchan *c, bool nb, uintptr val, bool selected, bool received)
 {
 	byte *vp;
 	bool *sp;
-	
-	if(c == nil)
-		runtime·panicstring("receive from nil channel");
 
 	if(nb) {
 		selected = false;
@@ -571,15 +559,15 @@ reflect·chanrecv(Hchan *c, bool nb, uintptr val, bool selected, bool received)
 	}
 	received = false;
 	FLUSH(&received);
-	if(c->elemsize <= sizeof(val)) {
+	if(t->elem->size <= sizeof(val)) {
 		val = 0;
 		vp = (byte*)&val;
 	} else {
-		vp = runtime·mal(c->elemsize);
+		vp = runtime·mal(t->elem->size);
 		val = (uintptr)vp;
 		FLUSH(&val);
 	}
-	runtime·chanrecv(c, vp, sp, &received);
+	runtime·chanrecv(t, c, vp, sp, &received);
 }
 
 static void newselect(int32, Select**);

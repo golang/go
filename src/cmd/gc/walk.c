@@ -591,7 +591,7 @@ walkexpr(Node **np, NodeList **init)
 		walkexprlistsafe(n->list, init);
 		walkexpr(&r->left, init);
 		fn = chanfn("chanrecv2", 2, r->left->type);
-		r = mkcall1(fn, getoutargx(fn->type), init, r->left);
+		r = mkcall1(fn, getoutargx(fn->type), init, typename(r->left->type), r->left);
 		n->rlist->n = r;
 		n->op = OAS2FUNC;
 		goto as2func;
@@ -858,7 +858,7 @@ walkexpr(Node **np, NodeList **init)
 	case ORECV:
 		walkexpr(&n->left, init);
 		walkexpr(&n->right, init);
-		n = mkcall1(chanfn("chanrecv1", 2, n->left->type), n->type, init, n->left);
+		n = mkcall1(chanfn("chanrecv1", 2, n->left->type), n->type, init, typename(n->left->type), n->left);
 		goto ret;
 
 	case OSLICE:
@@ -1078,7 +1078,7 @@ walkexpr(Node **np, NodeList **init)
 
 	case OMAKECHAN:
 		n = mkcall1(chanfn("makechan", 1, n->type), n->type, init,
-			typename(n->type->type),
+			typename(n->type),
 			conv(n->left, types[TINT64]));
 		goto ret;
 
@@ -1163,7 +1163,7 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OSEND:
-		n = mkcall1(chanfn("chansend1", 2, n->left->type), T, init, n->left, n->right);
+		n = mkcall1(chanfn("chansend1", 2, n->left->type), T, init, typename(n->left->type), n->left, n->right);
 		goto ret;
 
 	case OCLOSURE:

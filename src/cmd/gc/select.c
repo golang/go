@@ -250,9 +250,8 @@ walkselect(Node *sel)
 		case OSEND:
 			// if c != nil && selectnbsend(c, v) { body } else { default body }
 			ch = cheapexpr(n->left, &r->ninit);
-			r->ntest = nod(OANDAND, nod(ONE, ch, nodnil()),
-				mkcall1(chanfn("selectnbsend", 2, ch->type),
-					types[TBOOL], &r->ninit, ch, n->right));
+			r->ntest = mkcall1(chanfn("selectnbsend", 2, ch->type),
+					types[TBOOL], &r->ninit, typename(ch->type), ch, n->right);
 			break;
 			
 		case OSELRECV:
@@ -260,9 +259,8 @@ walkselect(Node *sel)
 			r = nod(OIF, N, N);
 			r->ninit = cas->ninit;
 			ch = cheapexpr(n->right->left, &r->ninit);
-			r->ntest = nod(OANDAND, nod(ONE, ch, nodnil()),
-				mkcall1(chanfn("selectnbrecv", 2, ch->type),
-					types[TBOOL], &r->ninit, n->left, ch));
+			r->ntest = mkcall1(chanfn("selectnbrecv", 2, ch->type),
+					types[TBOOL], &r->ninit, typename(ch->type), n->left, ch);
 			break;
 
 		case OSELRECV2:
@@ -270,9 +268,8 @@ walkselect(Node *sel)
 			r = nod(OIF, N, N);
 			r->ninit = cas->ninit;
 			ch = cheapexpr(n->right->left, &r->ninit);
-			r->ntest = nod(OANDAND, nod(ONE, ch, nodnil()),
-				mkcall1(chanfn("selectnbrecv2", 2, ch->type),
-					types[TBOOL], &r->ninit, n->left, n->ntest, ch));
+			r->ntest = mkcall1(chanfn("selectnbrecv2", 2, ch->type),
+					types[TBOOL], &r->ninit, typename(ch->type), n->left, n->ntest, ch);
 			break;
 		}
 		typecheck(&r->ntest, Erv);

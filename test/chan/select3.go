@@ -58,15 +58,15 @@ func main() {
 	closedch := make(chan int)
 	close(closedch)
 
-	// sending/receiving from a nil channel outside a select panics
-	testPanic(always, func() {
+	// sending/receiving from a nil channel blocks
+	testBlock(always, func() {
 		nilch <- 7
 	})
-	testPanic(always, func() {
+	testBlock(always, func() {
 		<-nilch
 	})
 
-	// sending/receiving from a nil channel inside a select never panics
+	// sending/receiving from a nil channel inside a select is never selected
 	testPanic(never, func() {
 		select {
 		case nilch <- 7:

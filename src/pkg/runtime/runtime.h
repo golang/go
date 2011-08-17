@@ -62,6 +62,7 @@ typedef	struct	Iface		Iface;
 typedef	struct	Itab		Itab;
 typedef	struct	Eface		Eface;
 typedef	struct	Type		Type;
+typedef	struct	ChanType		ChanType;
 typedef	struct	MapType		MapType;
 typedef	struct	Defer		Defer;
 typedef	struct	Panic		Panic;
@@ -624,9 +625,9 @@ bool	runtime·mapiterkey(struct hash_iter*, void*);
 void	runtime·mapiterkeyvalue(struct hash_iter*, void*, void*);
 Hmap*	runtime·makemap_c(MapType*, int64);
 
-Hchan*	runtime·makechan_c(Type*, int64);
-void	runtime·chansend(Hchan*, void*, bool*);
-void	runtime·chanrecv(Hchan*, void*, bool*, bool*);
+Hchan*	runtime·makechan_c(ChanType*, int64);
+void	runtime·chansend(ChanType*, Hchan*, void*, bool*);
+void	runtime·chanrecv(ChanType*, Hchan*, void*, bool*, bool*);
 int32	runtime·chanlen(Hchan*);
 int32	runtime·chancap(Hchan*);
 
