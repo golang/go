@@ -177,7 +177,7 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
 				case "":
 				case "chardata":
 					if tk := f.Type.Kind(); tk == reflect.String {
-						p.Write([]byte(val.Field(i).String()))
+						Escape(p, []byte(val.Field(i).String()))
 					} else if tk == reflect.Slice {
 						if elem, ok := val.Field(i).Interface().([]byte); ok {
 							Escape(p, elem)
