@@ -681,23 +681,21 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 		err = err1
 		return
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		switch val.Type().Kind() {
-		case reflect.Int:
-			parsedInt, err1 := parseInt(innerBytes)
-			if err1 == nil {
-				val.SetInt(int64(parsedInt))
-			}
-			err = err1
-			return
-		case reflect.Int64:
-			parsedInt, err1 := parseInt64(innerBytes)
-			if err1 == nil {
-				val.SetInt(parsedInt)
-			}
-			err = err1
-			return
+	case reflect.Int, reflect.Int32:
+		parsedInt, err1 := parseInt(innerBytes)
+		if err1 == nil {
+			val.SetInt(int64(parsedInt))
 		}
+		err = err1
+		return
+	case reflect.Int64:
+		parsedInt, err1 := parseInt64(innerBytes)
+		if err1 == nil {
+			val.SetInt(parsedInt)
+		}
+		err = err1
+		return
+	// TODO(dfc) Add support for the remaining integer types
 	case reflect.Struct:
 		structType := fieldType
 
@@ -760,7 +758,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 		return
 	}
-	err = StructuralError{"unknown Go type"}
+	err = StructuralError{"unsupported: " + v.Type().String()}
 	return
 }
 
@@ -787,7 +785,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // Because Unmarshal uses the reflect package, the structs
 // being written to must use upper case field names.
 //
-// An ASN.1 INTEGER can be written to an int or int64.
+// An ASN.1 INTEGER can be written to an int, int32 or int64.
 // If the encoded value does not fit in the Go type,
 // Unmarshal returns a parse error.
 //
