@@ -146,8 +146,8 @@ func TestTCPServer(t *testing.T) {
 }
 
 func TestUnixServer(t *testing.T) {
-	// "unix" sockets are not supported on windows.
-	if runtime.GOOS == "windows" {
+	// "unix" sockets are not supported on windows and Plan 9.
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
 		return
 	}
 	os.Remove("/tmp/gotest.net")
@@ -225,8 +225,8 @@ func TestUDPServer(t *testing.T) {
 }
 
 func TestUnixDatagramServer(t *testing.T) {
-	// "unix" sockets are not supported on windows.
-	if runtime.GOOS == "windows" {
+	// "unix" sockets are not supported on windows and Plan 9.
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
 		return
 	}
 	for _, isEmpty := range []bool{false} {
