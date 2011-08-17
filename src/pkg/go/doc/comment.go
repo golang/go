@@ -11,7 +11,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
-	"exp/template" // for HTMLEscape
+	"template" // for HTMLEscape
 )
 
 func isWhitespace(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' }

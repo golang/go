@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package parse builds parse trees for templates.  The grammar is defined
-// in the documents for the exp/template package.
+// in the documents for the template package.
 package parse
 
 import (

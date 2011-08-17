@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"exp/template"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -24,6 +23,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"template"
 	"time"
 )
 

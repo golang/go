@@ -8,11 +8,11 @@ package main
 
 import (
 	"bytes"
-	"exp/template"
 	"go/build"
 	"os"
 	"path/filepath"
 	"strings"
+	"template"
 )
 
 // domake builds the package in dir.

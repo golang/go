@@ -14,7 +14,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
-	"exp/template"
+	"template"
 )
 
 var (

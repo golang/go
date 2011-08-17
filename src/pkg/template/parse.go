@@ -5,9 +5,9 @@
 package template
 
 import (
-	"exp/template/parse"
 	"os"
 	"reflect"
+	"template/parse"
 )
 
 // Template is the representation of a parsed template.

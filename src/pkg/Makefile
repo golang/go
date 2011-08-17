@@ -82,9 +82,7 @@ DIRS=\
 	exp/gui/x11\
 	exp/norm\
 	exp/regexp/syntax\
-	exp/template\
 	exp/template/html\
-	exp/template/parse\
 	expvar\
 	flag\
 	fmt\
@@ -157,6 +155,8 @@ DIRS=\
 	syscall\
 	syslog\
 	tabwriter\
+	template\
+	template/parse\
 	testing\
 	testing/iotest\
 	testing/quick\
