@@ -18,12 +18,12 @@
 </tr>
 {{range .}}
 <tr>
-	{{$name := .|fileInfoName|html}}
-	<td align="left"><a href="{{$name}}">{{$name}}</a></td>
+	{{$name_html := fileInfoName . | html}}
+	<td align="left"><a href="{{$name_html}}">{{$name_html}}</a></td>
 	<td></td>
 	<td align="right">{{html .Size}}</td>
 	<td></td>
-	<td align="left">{{.|fileInfoTime|html}}</td>
+	<td align="left">{{fileInfoTime . | html}}</td>
 </tr>
 {{end}}
 

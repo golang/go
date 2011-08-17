@@ -3,7 +3,7 @@
 	Use of this source code is governed by a BSD-style
 	license that can be found in the LICENSE file.
 -->
-{{$query := urlquery .Query}}
+{{$query_url := urlquery .Query}}
 {{with .Alert}}
 	<p>
 	<span class="alert" style="font-size:120%">{{html .}}</span>
@@ -21,13 +21,13 @@
 	{{with .Decls}}
 		<h2 id="Global">Package-level declarations</h2>
 		{{range .}}
-			{{$pkg := pkgLink .Pak.Path | html}}
-			<h3 id="Global_{{$pkg}}">package <a href="/{{$pkg}}">{{html .Pak.Name}}</a></h3>
+			{{$pkg_html := pkgLink .Pak.Path | html}}
+			<h3 id="Global_{{$pkg_html}}">package <a href="/{{$pkg_html}}">{{html .Pak.Name}}</a></h3>
 			{{range .Files}}
-				{{$src := srcLink .File.Path | html}}
+				{{$src_html := srcLink .File.Path | html}}
 				{{range .Groups}}
 					{{range .Infos}}
-						<a href="/{{$src}}?h={{$query}}#L{{infoLine .}}">{{$src}}:{{infoLine .}}</a>
+						<a href="/{{$src_html}}?h={{$query_url}}#L{{infoLine .}}">{{$src_html}}:{{infoLine .}}</a>
 						{{infoSnippet_html .}}
 					{{end}}
 				{{end}}
@@ -37,11 +37,11 @@
 	{{with .Others}}
 		<h2 id="Local">Local declarations and uses</h2>
 		{{range .}}
-			{{$pkg := pkgLink .Pak.Path | html}}
-			<h3 id="Local_{{$pkg}}">package <a href="/{{$pkg}}">{{html .Pak.Name}}</a></h3>
+			{{$pkg_html := pkgLink .Pak.Path | html}}
+			<h3 id="Local_{{$pkg_html}}">package <a href="/{{$pkg_html}}">{{html .Pak.Name}}</a></h3>
 			{{range .Files}}
-				{{$src := srcLink .File.Path | html}}
-				<a href="/{{$src}}?h={{$query}}">{{$src}}</a>
+				{{$src_html := srcLink .File.Path | html}}
+				<a href="/{{$src_html}}?h={{$query_url}}">{{$src_html}}</a>
 				<table class="layout">
 				{{range .Groups}}
 					<tr>
@@ -50,7 +50,7 @@
 					<td align="left" width="4"></td>
 					<td>
 					{{range .Infos}}
-						<a href="/{{$src}}?h={{$query}}#L{{infoLine .}}">{{infoLine .}}</a>
+						<a href="/{{$src_html}}?h={{$query_url}}#L{{infoLine .}}">{{infoLine .}}</a>
 					{{end}}
 					</td>
 					</tr>
@@ -72,17 +72,17 @@
 	<p>
 	<table class="layout">
 	{{range .}}
-		{{$src := srcLink .Filename | html}}
+		{{$src_html := srcLink .Filename | html}}
 		<tr>
 		<td align="left" valign="top">
-		<a href="/{{$src}}?h={{$query}}">{{$src}}</a>:
+		<a href="/{{$src_html}}?h={{$query_url}}">{{$src_html}}</a>:
 		</td>
 		<td align="left" width="4"></td>
 		<th align="left" valign="top">{{len .Lines}}</th>
 		<td align="left" width="4"></td>
 		<td align="left">
 		{{range .Lines}}
-			<a href="/{{$src}}?h={{$query}}#L{{html .}}">{{html .}}</a>
+			<a href="/{{$src_html}}?h={{$query_url}}#L{{html .}}">{{html .}}</a>
 		{{end}}
 		{{if not $.Complete}}
 			...

@@ -7,8 +7,8 @@
 <table class="layout">
 {{range .}}
 <tr>
-	{{$name := html .Name}}
-	<td><a href="{{$name}}">{{$name}}</a></td>
+	{{$name_html := html .Name}}
+	<td><a href="{{$name_html}}">{{$name_html}}</a></td>
 	<td width="25">&nbsp;</td>
 	<td>{{html .Title}}</td>
 </tr>
