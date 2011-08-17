@@ -6,6 +6,9 @@ include ../../../Make.inc
 
 TARG=exp/norm
 GOFILES=\
+	composition.go\
+	forminfo.go\
+	normalize.go\
 	tables.go\
 	trie.go\
 
