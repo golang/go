@@ -57,6 +57,11 @@ type Domain struct {
 	Name    []byte `xml:"chardata"`
 }
 
+type Book struct {
+	XMLName Name   `xml:"book"`
+	Title   string `xml:"chardata"`
+}
+
 type SecretAgent struct {
 	XMLName   Name   `xml:"agent"`
 	Handle    string `xml:"attr"`
@@ -113,6 +118,7 @@ var marshalTests = []struct {
 	{Value: &Port{Number: "443"}, ExpectXML: `<port>443</port>`},
 	{Value: &Port{Type: "<unix>"}, ExpectXML: `<port type="&lt;unix&gt;"></port>`},
 	{Value: &Domain{Name: []byte("google.com&friends")}, ExpectXML: `<domain>google.com&amp;friends</domain>`},
+	{Value: &Book{Title: "Pride & Prejudice"}, ExpectXML: `<book>Pride &amp; Prejudice</book>`},
 	{Value: atomValue, ExpectXML: atomXml},
 	{
 		Value: &Ship{
