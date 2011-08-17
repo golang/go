@@ -1366,7 +1366,18 @@ func (p *parser) parseRhsOrType() ast.Expr {
 // ----------------------------------------------------------------------------
 // Statements
 
-func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+// Parsing modes for parseSimpleStmt.
+const (
+	basic = iota
+	labelOk
+	rangeOk
+)
+
+// parseSimpleStmt returns true as 2nd result if it parsed the assignment
+// of a range clause (with mode == rangeOk). The returned statement is an
+// assignment with a right-hand side that is a single unary expression of
+// the form "range x". No guarantees are given for the left-hand side.
+func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 	if p.trace {
 		defer un(trace(p, "SimpleStmt"))
 	}
@@ -1383,14 +1394,16 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 		pos, tok := p.pos, p.tok
 		p.next()
 		var y []ast.Expr
-		if p.tok == token.RANGE && (tok == token.DEFINE || tok == token.ASSIGN) {
+		isRange := false
+		if mode == rangeOk && p.tok == token.RANGE && (tok == token.DEFINE || tok == token.ASSIGN) {
 			pos := p.pos
 			p.next()
 			y = []ast.Expr{&ast.UnaryExpr{pos, token.RANGE, p.parseRhs()}}
+			isRange = true
 		} else {
 			y = p.parseRhsList()
 		}
-		return &ast.AssignStmt{x, pos, tok, y}
+		return &ast.AssignStmt{x, pos, tok, y}, isRange
 	}
 
 	if len(x) > 1 {
@@ -1403,13 +1416,13 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 		// labeled statement
 		colon := p.pos
 		p.next()
-		if label, isIdent := x[0].(*ast.Ident); labelOk && isIdent {
+		if label, isIdent := x[0].(*ast.Ident); mode == labelOk && isIdent {
 			// Go spec: The scope of a label is the body of the function
 			// in which it is declared and excludes the body of any nested
 			// function.
 			stmt := &ast.LabeledStmt{label, colon, p.parseStmt()}
 			p.declare(stmt, nil, p.labelScope, ast.Lbl, label)
-			return stmt
+			return stmt, false
 		}
 		// The label declaration typically starts at x[0].Pos(), but the label
 		// declaration may be erroneous due to a token after that position (and
@@ -1418,24 +1431,24 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 		// before the ':' that caused the problem. Thus, use the (latest) colon
 		// position for error reporting.
 		p.error(colon, "illegal label declaration")
-		return &ast.BadStmt{x[0].Pos(), colon + 1}
+		return &ast.BadStmt{x[0].Pos(), colon + 1}, false
 
 	case token.ARROW:
 		// send statement
 		arrow := p.pos
 		p.next() // consume "<-"
 		y := p.parseRhs()
-		return &ast.SendStmt{x[0], arrow, y}
+		return &ast.SendStmt{x[0], arrow, y}, false
 
 	case token.INC, token.DEC:
 		// increment or decrement
 		s := &ast.IncDecStmt{x[0], p.pos, p.tok}
 		p.next() // consume "++" or "--"
-		return s
+		return s, false
 	}
 
 	// expression
-	return &ast.ExprStmt{x[0]}
+	return &ast.ExprStmt{x[0]}, false
 }
 
 func (p *parser) parseCallExpr() *ast.CallExpr {
@@ -1540,7 +1553,7 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 			p.next()
 			x = p.parseRhs()
 		} else {
-			s = p.parseSimpleStmt(false)
+			s, _ = p.parseSimpleStmt(basic)
 			if p.tok == token.SEMICOLON {
 				p.next()
 				x = p.parseRhs()
@@ -1631,14 +1644,14 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 		prevLev := p.exprLev
 		p.exprLev = -1
 		if p.tok != token.SEMICOLON {
-			s2 = p.parseSimpleStmt(false)
+			s2, _ = p.parseSimpleStmt(basic)
 		}
 		if p.tok == token.SEMICOLON {
 			p.next()
 			s1 = s2
 			s2 = nil
 			if p.tok != token.LBRACE {
-				s2 = p.parseSimpleStmt(false)
+				s2, _ = p.parseSimpleStmt(basic)
 			}
 		}
 		p.exprLev = prevLev
@@ -1751,22 +1764,23 @@ func (p *parser) parseForStmt() ast.Stmt {
 	defer p.closeScope()
 
 	var s1, s2, s3 ast.Stmt
+	var isRange bool
 	if p.tok != token.LBRACE {
 		prevLev := p.exprLev
 		p.exprLev = -1
 		if p.tok != token.SEMICOLON {
-			s2 = p.parseSimpleStmt(false)
+			s2, isRange = p.parseSimpleStmt(rangeOk)
 		}
-		if p.tok == token.SEMICOLON {
+		if !isRange && p.tok == token.SEMICOLON {
 			p.next()
 			s1 = s2
 			s2 = nil
 			if p.tok != token.SEMICOLON {
-				s2 = p.parseSimpleStmt(false)
+				s2, _ = p.parseSimpleStmt(basic)
 			}
 			p.expectSemi()
 			if p.tok != token.LBRACE {
-				s3 = p.parseSimpleStmt(false)
+				s3, _ = p.parseSimpleStmt(basic)
 			}
 		}
 		p.exprLev = prevLev
@@ -1775,12 +1789,8 @@ func (p *parser) parseForStmt() ast.Stmt {
 	body := p.parseBlockStmt()
 	p.expectSemi()
 
-	if as, isAssign := s2.(*ast.AssignStmt); isAssign {
-		// possibly a for statement with a range clause; check assignment operator
-		if as.Tok != token.ASSIGN && as.Tok != token.DEFINE {
-			p.errorExpected(as.TokPos, "'=' or ':='")
-			return &ast.BadStmt{pos, body.End()}
-		}
+	if isRange {
+		as := s2.(*ast.AssignStmt)
 		// check lhs
 		var key, value ast.Expr
 		switch len(as.Lhs) {
@@ -1792,18 +1802,10 @@ func (p *parser) parseForStmt() ast.Stmt {
 			p.errorExpected(as.Lhs[0].Pos(), "1 or 2 expressions")
 			return &ast.BadStmt{pos, body.End()}
 		}
-		// check rhs
-		if len(as.Rhs) != 1 {
-			p.errorExpected(as.Rhs[0].Pos(), "1 expression")
-			return &ast.BadStmt{pos, body.End()}
-		}
-		if rhs, isUnary := as.Rhs[0].(*ast.UnaryExpr); isUnary && rhs.Op == token.RANGE {
-			// rhs is range expression
-			// (any short variable declaration was handled by parseSimpleStmt above)
-			return &ast.RangeStmt{pos, key, value, as.TokPos, as.Tok, rhs.X, body}
-		}
-		p.errorExpected(s2.Pos(), "range clause")
-		return &ast.BadStmt{pos, body.End()}
+		// parseSimpleStmt returned a right-hand side that
+		// is a single unary expression of the form "range x"
+		x := as.Rhs[0].(*ast.UnaryExpr).X
+		return &ast.RangeStmt{pos, key, value, as.TokPos, as.Tok, x, body}
 	}
 
 	// regular for statement
@@ -1823,7 +1825,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN, // operand
 		token.LBRACK, token.STRUCT, // composite type
 		token.MUL, token.AND, token.ARROW, token.ADD, token.SUB, token.XOR: // unary operators
-		s = p.parseSimpleStmt(true)
+		s, _ = p.parseSimpleStmt(labelOk)
 		// because of the required look-ahead, labeled statements are
 		// parsed by parseSimpleStmt - don't expect a semicolon after
 		// them
