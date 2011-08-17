@@ -420,10 +420,10 @@ func (p *parser) parseExprList(lhs bool) (list []ast.Expr) {
 		defer un(trace(p, "ExpressionList"))
 	}
 
-	list = append(list, p.parseExpr(lhs))
+	list = append(list, p.checkExpr(p.parseExpr(lhs)))
 	for p.tok == token.COMMA {
 		p.next()
-		list = append(list, p.parseExpr(lhs))
+		list = append(list, p.checkExpr(p.parseExpr(lhs)))
 	}
 
 	return
@@ -973,7 +973,7 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 		lparen := p.pos
 		p.next()
 		p.exprLev++
-		x := p.parseRhs()
+		x := p.parseRhsOrType() // types may be parenthesized: (some type)
 		p.exprLev--
 		rparen := p.expect(token.RPAREN)
 		return &ast.ParenExpr{lparen, x, rparen}
@@ -1062,7 +1062,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 	var list []ast.Expr
 	var ellipsis token.Pos
 	for p.tok != token.RPAREN && p.tok != token.EOF && !ellipsis.IsValid() {
-		list = append(list, p.parseRhs())
+		list = append(list, p.parseRhsOrType()) // builtins may expect a type: make(some type, ...)
 		if p.tok == token.ELLIPSIS {
 			ellipsis = p.pos
 			p.next()
@@ -1087,7 +1087,7 @@ func (p *parser) parseElement(keyOk bool) ast.Expr {
 		return p.parseLiteralValue(nil)
 	}
 
-	x := p.parseExpr(keyOk) // don't resolve if map key
+	x := p.checkExpr(p.parseExpr(keyOk)) // don't resolve if map key
 	if keyOk {
 		if p.tok == token.COLON {
 			colon := p.pos
@@ -1146,11 +1146,11 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	case *ast.IndexExpr:
 	case *ast.SliceExpr:
 	case *ast.TypeAssertExpr:
-		if t.Type == nil {
-			// the form X.(type) is only allowed in type switch expressions
-			p.errorExpected(x.Pos(), "expression")
-			x = &ast.BadExpr{x.Pos(), x.End()}
-		}
+		// If t.Type == nil we have a type assertion of the form
+		// y.(type), which is only allowed in type switch expressions.
+		// It's hard to exclude those but for the case where we are in
+		// a type switch. Instead be lenient and test this in the type
+		// checker.
 	case *ast.CallExpr:
 	case *ast.StarExpr:
 	case *ast.UnaryExpr:
@@ -1344,8 +1344,9 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
 }
 
 // If lhs is set and the result is an identifier, it is not resolved.
-// TODO(gri): parseExpr may return a type or even a raw type ([..]int) -
-//            should reject when a type/raw type is obviously not allowed
+// The result may be a type or even a raw type ([...]int). Callers must
+// check the result (using checkExpr or checkExprOrType), depending on
+// context.
 func (p *parser) parseExpr(lhs bool) ast.Expr {
 	if p.trace {
 		defer un(trace(p, "Expression"))
@@ -1355,7 +1356,11 @@ func (p *parser) parseExpr(lhs bool) ast.Expr {
 }
 
 func (p *parser) parseRhs() ast.Expr {
-	return p.parseExpr(false)
+	return p.checkExpr(p.parseExpr(false))
+}
+
+func (p *parser) parseRhsOrType() ast.Expr {
+	return p.checkExprOrType(p.parseExpr(false))
 }
 
 // ----------------------------------------------------------------------------
@@ -1434,7 +1439,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 }
 
 func (p *parser) parseCallExpr() *ast.CallExpr {
-	x := p.parseRhs()
+	x := p.parseRhsOrType() // could be a conversion: (some type)(x)
 	if call, isCall := x.(*ast.CallExpr); isCall {
 		return call
 	}
@@ -2150,6 +2155,5 @@ func (p *parser) parseFile() *ast.File {
 		}
 	}
 
-	// TODO(gri): store p.imports in AST
 	return &ast.File{doc, pos, ident, decls, p.pkgScope, p.imports, p.unresolved[0:i], p.comments}
 }
