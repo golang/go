@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"url"
 )
 
 type reqWriteTest struct {
@@ -27,7 +28,7 @@ var reqWriteTests = []reqWriteTest{
 		Request{
 			Method: "GET",
 			RawURL: "http://www.techcrunch.com/",
-			URL: &URL{
+			URL: &url.URL{
 				Raw:          "http://www.techcrunch.com/",
 				Scheme:       "http",
 				RawPath:      "http://www.techcrunch.com/",
@@ -82,7 +83,7 @@ var reqWriteTests = []reqWriteTest{
 	{
 		Request{
 			Method: "GET",
-			URL: &URL{
+			URL: &url.URL{
 				Scheme: "http",
 				Host:   "www.google.com",
 				Path:   "/search",
@@ -111,7 +112,7 @@ var reqWriteTests = []reqWriteTest{
 	{
 		Request{
 			Method: "POST",
-			URL: &URL{
+			URL: &url.URL{
 				Scheme: "http",
 				Host:   "www.google.com",
 				Path:   "/search",
@@ -144,7 +145,7 @@ var reqWriteTests = []reqWriteTest{
 	{
 		Request{
 			Method: "POST",
-			URL: &URL{
+			URL: &url.URL{
 				Scheme: "http",
 				Host:   "www.google.com",
 				Path:   "/search",

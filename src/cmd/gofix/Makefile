@@ -23,6 +23,7 @@ GOFILES=\
 	sortslice.go\
 	stringssplit.go\
 	typecheck.go\
+	url.go\
 
 include ../../Make.cmd
 

@@ -11,6 +11,7 @@ import (
 	"http/httptest"
 	"io/ioutil"
 	"testing"
+	"url"
 )
 
 func TestReverseProxy(t *testing.T) {
@@ -32,7 +33,7 @@ func TestReverseProxy(t *testing.T) {
 		w.Write([]byte(backendResponse))
 	}))
 	defer backend.Close()
-	backendURL, err := ParseURL(backend.URL)
+	backendURL, err := url.Parse(backend.URL)
 	if err != nil {
 		t.Fatal(err)
 	}

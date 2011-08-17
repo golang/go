@@ -276,7 +276,7 @@ func (h *Handler) printf(format string, v ...interface{}) {
 }
 
 func (h *Handler) handleInternalRedirect(rw http.ResponseWriter, req *http.Request, path string) {
-	url, err := req.URL.ParseURL(path)
+	url, err := req.URL.Parse(path)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		h.printf("cgi: error resolving local URI path %q: %v", path, err)

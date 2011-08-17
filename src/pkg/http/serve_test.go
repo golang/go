@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"url"
 )
 
 type dummyAddr string
@@ -183,7 +184,7 @@ func TestHostHandlers(t *testing.T) {
 	for _, vt := range vtests {
 		var r *Response
 		var req Request
-		if req.URL, err = ParseURL(vt.url); err != nil {
+		if req.URL, err = url.Parse(vt.url); err != nil {
 			t.Errorf("cannot parse url: %v", err)
 			continue
 		}

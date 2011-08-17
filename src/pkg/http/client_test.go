@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"url"
 )
 
 var robotsTxtHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -109,18 +110,18 @@ func TestPostFormRequestFormat(t *testing.T) {
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 
-	url := "http://dummy.faketld/"
-	form := make(Values)
+	urlStr := "http://dummy.faketld/"
+	form := make(url.Values)
 	form.Set("foo", "bar")
 	form.Add("foo", "bar2")
 	form.Set("bar", "baz")
-	client.PostForm(url, form) // Note: doesn't hit network
+	client.PostForm(urlStr, form) // Note: doesn't hit network
 
 	if tr.req.Method != "POST" {
 		t.Errorf("got method %q, want %q", tr.req.Method, "POST")
 	}
-	if tr.req.URL.String() != url {
-		t.Errorf("got URL %q, want %q", tr.req.URL.String(), url)
+	if tr.req.URL.String() != urlStr {
+		t.Errorf("got URL %q, want %q", tr.req.URL.String(), urlStr)
 	}
 	if tr.req.Header == nil {
 		t.Fatalf("expected non-nil request Header")
@@ -281,7 +282,7 @@ func TestClientWrites(t *testing.T) {
 	}
 
 	writes = 0
-	_, err = c.PostForm(ts.URL, Values{"foo": {"bar"}})
+	_, err = c.PostForm(ts.URL, url.Values{"foo": {"bar"}})
 	if err != nil {
 		t.Fatal(err)
 	}

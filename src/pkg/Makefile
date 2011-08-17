@@ -164,6 +164,7 @@ DIRS=\
 	time\
 	try\
 	unicode\
+	url\
 	utf16\
 	utf8\
 	websocket\

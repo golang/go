@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"url"
 )
 
 // A Client is an HTTP client. Its zero value (DefaultClient) is a usable client
@@ -158,7 +159,7 @@ func (c *Client) Get(url string) (r *Response, err os.Error) {
 func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error) {
 	// TODO: if/when we add cookie support, the redirected request shouldn't
 	// necessarily supply the same cookies as the original.
-	var base *URL
+	var base *url.URL
 	redirectChecker := c.CheckRedirect
 	if redirectChecker == nil {
 		redirectChecker = defaultCheckRedirect
@@ -166,13 +167,13 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
 	var via []*Request
 
 	req := ireq
-	url := "" // next relative or absolute URL to fetch (after first request)
+	urlStr := "" // next relative or absolute URL to fetch (after first request)
 	for redirect := 0; ; redirect++ {
 		if redirect != 0 {
 			req = new(Request)
 			req.Method = ireq.Method
 			req.Header = make(Header)
-			req.URL, err = base.ParseURL(url)
+			req.URL, err = base.Parse(urlStr)
 			if err != nil {
 				break
 			}
@@ -190,13 +191,13 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
 			}
 		}
 
-		url = req.URL.String()
+		urlStr = req.URL.String()
 		if r, err = send(req, c.Transport); err != nil {
 			break
 		}
 		if shouldRedirect(r.StatusCode) {
 			r.Body.Close()
-			if url = r.Header.Get("Location"); url == "" {
+			if urlStr = r.Header.Get("Location"); urlStr == "" {
 				err = os.NewError(fmt.Sprintf("%d response missing Location header", r.StatusCode))
 				break
 			}
@@ -208,7 +209,7 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
 	}
 
 	method := ireq.Method
-	err = &URLError{method[0:1] + strings.ToLower(method[1:]), url, err}
+	err = &url.Error{method[0:1] + strings.ToLower(method[1:]), urlStr, err}
 	return
 }
 
@@ -246,7 +247,7 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response,
 // Caller should close r.Body when done reading from it.
 //
 // PostForm is a wrapper around DefaultClient.PostForm
-func PostForm(url string, data Values) (r *Response, err os.Error) {
+func PostForm(url string, data url.Values) (r *Response, err os.Error) {
 	return DefaultClient.PostForm(url, data)
 }
 
@@ -254,7 +255,7 @@ func PostForm(url string, data Values) (r *Response, err os.Error) {
 // with data's keys and values urlencoded as the request body.
 //
 // Caller should close r.Body when done reading from it.
-func (c *Client) PostForm(url string, data Values) (r *Response, err os.Error) {
+func (c *Client) PostForm(url string, data url.Values) (r *Response, err os.Error) {
 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }
 

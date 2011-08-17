@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"url"
 )
 
 type param map[string]string
@@ -26,7 +27,7 @@ func dash(meth, cmd string, resp interface{}, args param) os.Error {
 		log.Println("dash", cmd, args)
 	}
 	cmd = "http://" + *dashboard + "/" + cmd
-	vals := make(http.Values)
+	vals := make(url.Values)
 	for k, v := range args {
 		vals.Add(k, v)
 	}

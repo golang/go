@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"url"
 )
 
 const (
@@ -49,7 +50,7 @@ func TestServeFile(t *testing.T) {
 	// set up the Request (re-used for all tests)
 	var req Request
 	req.Header = make(Header)
-	if req.URL, err = ParseURL(ts.URL); err != nil {
+	if req.URL, err = url.Parse(ts.URL); err != nil {
 		t.Fatal("ParseURL:", err)
 	}
 	req.Method = "GET"

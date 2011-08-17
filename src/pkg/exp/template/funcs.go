@@ -7,12 +7,12 @@ package template
 import (
 	"bytes"
 	"fmt"
-	"http"
 	"io"
 	"os"
 	"reflect"
 	"strings"
 	"unicode"
+	"url"
 	"utf8"
 )
 
@@ -364,5 +364,5 @@ func URLQueryEscaper(args ...interface{}) string {
 	if !ok {
 		s = fmt.Sprint(args...)
 	}
-	return http.URLEscape(s)
+	return url.QueryEscape(s)
 }

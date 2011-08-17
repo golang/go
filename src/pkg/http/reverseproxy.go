@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"url"
 )
 
 // ReverseProxy is an HTTP Handler that takes an incoming request and
@@ -53,7 +54,7 @@ func singleJoiningSlash(a, b string) string {
 // URLs to the scheme, host, and base path provided in target. If the
 // target's path is "/base" and the incoming request was for "/dir",
 // the target request will be for /base/dir.
-func NewSingleHostReverseProxy(target *URL) *ReverseProxy {
+func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
 	director := func(req *Request) {
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host

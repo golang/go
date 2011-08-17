@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"url"
 )
 
 // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
@@ -77,7 +78,7 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
 		fetch := func(n int) string {
 			req := new(Request)
 			var err os.Error
-			req.URL, err = ParseURL(ts.URL + fmt.Sprintf("?close=%v", connectionClose))
+			req.URL, err = url.Parse(ts.URL + fmt.Sprintf("?close=%v", connectionClose))
 			if err != nil {
 				t.Fatalf("URL parse error: %v", err)
 			}
@@ -119,7 +120,7 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
 		fetch := func(n int) string {
 			req := new(Request)
 			var err os.Error
-			req.URL, err = ParseURL(ts.URL)
+			req.URL, err = url.Parse(ts.URL)
 			if err != nil {
 				t.Fatalf("URL parse error: %v", err)
 			}
@@ -552,7 +553,7 @@ func TestTransportProxy(t *testing.T) {
 	}))
 	defer proxy.Close()
 
-	pu, err := ParseURL(proxy.URL)
+	pu, err := url.Parse(proxy.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
