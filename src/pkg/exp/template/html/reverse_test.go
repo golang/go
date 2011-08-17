@@ -6,7 +6,7 @@ package html
 
 import (
 	"bytes"
-	"exp/template"
+	"template"
 	"testing"
 )
 

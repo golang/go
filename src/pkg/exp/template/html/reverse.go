@@ -9,9 +9,9 @@
 package html
 
 import (
-	"exp/template"
-	"exp/template/parse"
 	"fmt"
+	"template"
+	"template/parse"
 )
 
 // Reverse reverses a template.

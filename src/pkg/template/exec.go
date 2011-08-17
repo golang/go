@@ -5,13 +5,13 @@
 package template
 
 import (
-	"exp/template/parse"
 	"fmt"
 	"io"
 	"os"
 	"reflect"
 	"runtime"
 	"strings"
+	"template/parse"
 )
 
 // state represents the state of an execution. It's not part of the

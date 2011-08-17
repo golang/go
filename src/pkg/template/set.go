@@ -5,11 +5,11 @@
 package template
 
 import (
-	"exp/template/parse"
 	"fmt"
 	"io"
 	"os"
 	"reflect"
+	"template/parse"
 )
 
 // Set holds a set of related templates that can refer to one another by name.
