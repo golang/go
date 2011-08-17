@@ -91,16 +91,15 @@ func mapiter1(hiter *any) (key any)
 func mapiter2(hiter *any) (key any, val any)
 
 // *byte is really *runtime.Type
-func makechan(elem *byte, hint int64) (hchan chan any)
-func chanrecv1(hchan <-chan any) (elem any)
-func chanrecv2(hchan <-chan any) (elem any, received bool)
-func chansend1(hchan chan<- any, elem any)
+func makechan(chanType *byte, hint int64) (hchan chan any)
+func chanrecv1(chanType *byte, hchan <-chan any) (elem any)
+func chanrecv2(chanType *byte, hchan <-chan any) (elem any, received bool)
+func chansend1(chanType *byte, hchan chan<- any, elem any)
 func closechan(hchan any)
-func closedchan(hchan any) bool
 
-func selectnbsend(hchan chan<- any, elem any) bool
-func selectnbrecv(elem *any, hchan <-chan any) bool
-func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
+func selectnbsend(chanType *byte, hchan chan<- any, elem any) bool
+func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool
+func selectnbrecv2(chanType *byte, elem *any, received *bool, hchan <-chan any) bool
 
 func newselect(size int) (sel *byte)
 func selectsend(sel *byte, hchan chan<- any, elem *any) (selected bool)
