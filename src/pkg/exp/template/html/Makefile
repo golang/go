@@ -6,6 +6,6 @@ include ../../../../Make.inc
 
 TARG=exp/template/html
 GOFILES=\
-	reverse.go
+	escape.go
 
 include ../../../../Make.pkg
