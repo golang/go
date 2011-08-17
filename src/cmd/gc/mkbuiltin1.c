@@ -10,7 +10,7 @@
 
 void esc(char*);
 
-int
+void
 main(int argc, char **argv)
 {
 	char *name;
@@ -64,13 +64,13 @@ begin:
 		}
 
 		esc(p);
-		printf("\\n\"\n", p);
+		printf("\\n\"\n");
 	}
 	sysfatal("did not find end of imports\n");
 
 end:
 	printf("\t\"$$\\n\";\n");
-	return 0;
+	exits(0);
 }
 
 void
