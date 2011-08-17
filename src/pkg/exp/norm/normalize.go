@@ -31,45 +31,69 @@ const (
 )
 
 // Bytes returns f(b). May return b if f(b) = b.
-func (f Form) Bytes(b []byte) []byte
+func (f Form) Bytes(b []byte) []byte {
+	panic("not implemented")
+}
 
 // String returns f(s).
-func (f Form) String(s string) string
+func (f Form) String(s string) string {
+	panic("not implemented")
+}
 
 // IsNormal returns true if b == f(b).
-func (f Form) IsNormal(b []byte) bool
+func (f Form) IsNormal(b []byte) bool {
+	panic("not implemented")
+}
 
 // IsNormalString returns true if s == f(s).
-func (f Form) IsNormalString(s string) bool
+func (f Form) IsNormalString(s string) bool {
+	panic("not implemented")
+}
 
 // Append returns f(append(out, b...)).
 // The buffer out must be empty or equal to f(out).
-func (f Form) Append(out, b []byte) []byte
+func (f Form) Append(out, b []byte) []byte {
+	panic("not implemented")
+}
 
 // AppendString returns f(append(out, []byte(s))).
 // The buffer out must be empty or equal to f(out).
-func (f Form) AppendString(out []byte, s string) []byte
+func (f Form) AppendString(out []byte, s string) []byte {
+	panic("not implemented")
+}
 
 // QuickSpan returns a boundary n such that b[0:n] == f(b[0:n]).
 // It is not guaranteed to return the largest such n.
-func (f Form) QuickSpan(b []byte) int
+func (f Form) QuickSpan(b []byte) int {
+	panic("not implemented")
+}
 
 // QuickSpanString returns a boundary n such that b[0:n] == f(s[0:n]).
 // It is not guaranteed to return the largest such n.
-func (f Form) QuickSpanString(s string) int
+func (f Form) QuickSpanString(s string) int {
+	panic("not implemented")
+}
 
 // FirstBoundary returns the position i of the first boundary in b.
 // It returns len(b), false if b contains no boundaries.
-func (f Form) FirstBoundary(b []byte) (i int, ok bool)
+func (f Form) FirstBoundary(b []byte) (i int, ok bool) {
+	panic("not implemented")
+}
 
 // FirstBoundaryInString return the position i of the first boundary in s.
 // It returns len(s), false if s contains no boundaries.
-func (f Form) FirstBoundaryInString(s string) (i int, ok bool)
+func (f Form) FirstBoundaryInString(s string) (i int, ok bool) {
+	panic("not implemented")
+}
 
 // LastBoundaryIn returns the position i of the last boundary in b.
 // It returns 0, false if b contains no boundary.
-func (f Form) LastBoundary(b []byte) (i int, ok bool)
+func (f Form) LastBoundary(b []byte) (i int, ok bool) {
+	panic("not implemented")
+}
 
 // LastBoundaryInString returns the position i of the last boundary in s.
 // It returns 0, false if s contains no boundary.
-func (f Form) LastBoundaryInString(s string) (i int, ok bool)
+func (f Form) LastBoundaryInString(s string) (i int, ok bool) {
+	panic("not implemented")
+}
