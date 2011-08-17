@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"testing"
+	"url"
 )
 
 type reqTest struct {
@@ -40,7 +41,7 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "GET",
 			RawURL: "http://www.techcrunch.com/",
-			URL: &URL{
+			URL: &url.URL{
 				Raw:          "http://www.techcrunch.com/",
 				Scheme:       "http",
 				RawPath:      "/",
@@ -67,7 +68,7 @@ var reqTests = []reqTest{
 			Close:         false,
 			ContentLength: 7,
 			Host:          "www.techcrunch.com",
-			Form:          Values{},
+			Form:          url.Values{},
 		},
 
 		"abcdef\n",
@@ -83,7 +84,7 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "GET",
 			RawURL: "/",
-			URL: &URL{
+			URL: &url.URL{
 				Raw:     "/",
 				Path:    "/",
 				RawPath: "/",
@@ -94,7 +95,7 @@ var reqTests = []reqTest{
 			Close:         false,
 			ContentLength: 0,
 			Host:          "foo.com",
-			Form:          Values{},
+			Form:          url.Values{},
 		},
 
 		noBody,
@@ -110,7 +111,7 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "GET",
 			RawURL: "//user@host/is/actually/a/path/",
-			URL: &URL{
+			URL: &url.URL{
 				Raw:          "//user@host/is/actually/a/path/",
 				Scheme:       "",
 				RawPath:      "//user@host/is/actually/a/path/",
@@ -128,7 +129,7 @@ var reqTests = []reqTest{
 			Close:         false,
 			ContentLength: 0,
 			Host:          "test",
-			Form:          Values{},
+			Form:          url.Values{},
 		},
 
 		noBody,

@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Parse URLs (actually URIs, but that seems overly pedantic).
-// RFC 3986
-
-package http
+// Package URL parses URLs and implements query escaping.
+// See RFC 3986.
+package url
 
 import (
 	"os"
@@ -13,14 +12,14 @@ import (
 	"strings"
 )
 
-// URLError reports an error and the operation and URL that caused it.
-type URLError struct {
+// Error reports an error and the operation and URL that caused it.
+type Error struct {
 	Op    string
 	URL   string
 	Error os.Error
 }
 
-func (e *URLError) String() string { return e.Op + " " + e.URL + ": " + e.Error.String() }
+func (e *Error) String() string { return e.Op + " " + e.URL + ": " + e.Error.String() }
 
 func ishex(c byte) bool {
 	switch {
@@ -56,9 +55,9 @@ const (
 	encodeOpaque
 )
 
-type URLEscapeError string
+type EscapeError string
 
-func (e URLEscapeError) String() string {
+func (e EscapeError) String() string {
 	return "invalid URL escape " + strconv.Quote(string(e))
 }
 
@@ -113,19 +112,16 @@ func shouldEscape(c byte, mode encoding) bool {
 	return true
 }
 
-// URLUnescape unescapes a string in ``URL encoded'' form,
-// converting %AB into the byte 0xAB and '+' into ' ' (space).
-// It returns an error if any % is not followed
-// by two hexadecimal digits.
-// Despite the name, this encoding applies only to individual
-// components of the query portion of the URL.
-func URLUnescape(s string) (string, os.Error) {
-	return urlUnescape(s, encodeQueryComponent)
+// QueryUnescape does the inverse transformation of QueryEscape, converting
+// %AB into the byte 0xAB and '+' into ' ' (space). It returns an error if
+// any % is not followed by two hexadecimal digits.
+func QueryUnescape(s string) (string, os.Error) {
+	return unescape(s, encodeQueryComponent)
 }
 
-// urlUnescape is like URLUnescape but mode specifies
-// which section of the URL is being unescaped.
-func urlUnescape(s string, mode encoding) (string, os.Error) {
+// unescape unescapes a string; the mode specifies
+// which section of the URL string is being unescaped.
+func unescape(s string, mode encoding) (string, os.Error) {
 	// Count %, check that they're well-formed.
 	n := 0
 	hasPlus := false
@@ -138,7 +134,7 @@ func urlUnescape(s string, mode encoding) (string, os.Error) {
 				if len(s) > 3 {
 					s = s[0:3]
 				}
-				return "", URLEscapeError(s)
+				return "", EscapeError(s)
 			}
 			i += 3
 		case '+':
@@ -178,14 +174,13 @@ func urlUnescape(s string, mode encoding) (string, os.Error) {
 	return string(t), nil
 }
 
-// URLEscape converts a string into ``URL encoded'' form.
-// Despite the name, this encoding applies only to individual
-// components of the query portion of the URL.
-func URLEscape(s string) string {
-	return urlEscape(s, encodeQueryComponent)
+// QueryEscape escapes the string so it can be safely placed
+// inside a URL query.
+func QueryEscape(s string) string {
+	return escape(s, encodeQueryComponent)
 }
 
-func urlEscape(s string, mode encoding) string {
+func escape(s string, mode encoding) string {
 	spaceCount, hexCount := 0, 0
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -233,10 +228,10 @@ func urlEscape(s string, mode encoding) string {
 // security risk in almost every case where it has been used.''
 func UnescapeUserinfo(rawUserinfo string) (user, password string, err os.Error) {
 	u, p := split(rawUserinfo, ':', true)
-	if user, err = urlUnescape(u, encodeUserPassword); err != nil {
+	if user, err = unescape(u, encodeUserPassword); err != nil {
 		return "", "", err
 	}
-	if password, err = urlUnescape(p, encodeUserPassword); err != nil {
+	if password, err = unescape(p, encodeUserPassword); err != nil {
 		return "", "", err
 	}
 	return
@@ -252,9 +247,9 @@ func UnescapeUserinfo(rawUserinfo string) (user, password string, err os.Error) 
 // information in clear text (such as URI) has proven to be a
 // security risk in almost every case where it has been used.''
 func EscapeUserinfo(user, password string) string {
-	raw := urlEscape(user, encodeUserPassword)
+	raw := escape(user, encodeUserPassword)
 	if password != "" {
-		raw += ":" + urlEscape(password, encodeUserPassword)
+		raw += ":" + escape(password, encodeUserPassword)
 	}
 	return raw
 }
@@ -324,28 +319,28 @@ func split(s string, c byte, cutc bool) (string, string) {
 	return s, ""
 }
 
-// ParseURL parses rawurl into a URL structure.
+// Parse parses rawurl into a URL structure.
 // The string rawurl is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
 // The rawurl may be relative or absolute.
-func ParseURL(rawurl string) (url *URL, err os.Error) {
-	return parseURL(rawurl, false)
+func Parse(rawurl string) (url *URL, err os.Error) {
+	return parse(rawurl, false)
 }
 
-// ParseRequestURL parses rawurl into a URL structure.  It assumes that
+// ParseRequest parses rawurl into a URL structure.  It assumes that
 // rawurl was received from an HTTP request, so the rawurl is interpreted
 // only as an absolute URI or an absolute path.
 // The string rawurl is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
-func ParseRequestURL(rawurl string) (url *URL, err os.Error) {
-	return parseURL(rawurl, true)
+func ParseRequest(rawurl string) (url *URL, err os.Error) {
+	return parse(rawurl, true)
 }
 
-// parseURL parses a URL from a string in one of two contexts.  If
+// parse parses a URL from a string in one of two contexts.  If
 // viaRequest is true, the URL is assumed to have arrived via an HTTP request,
 // in which case only absolute URLs or path-absolute relative URLs are allowed.
 // If viaRequest is false, all forms of relative URLs are allowed.
-func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
+func parse(rawurl string, viaRequest bool) (url *URL, err os.Error) {
 	var (
 		leadingSlash bool
 		path         string
@@ -372,7 +367,7 @@ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
 		// This is the case that handles mailto:name@example.com.
 		url.RawPath = path
 
-		if url.Path, err = urlUnescape(path, encodeOpaque); err != nil {
+		if url.Path, err = unescape(path, encodeOpaque); err != nil {
 			goto Error
 		}
 		url.OpaquePath = true
@@ -417,30 +412,30 @@ func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
 		}
 		url.Host = rawHost
 
-		if url.Path, err = urlUnescape(path, encodePath); err != nil {
+		if url.Path, err = unescape(path, encodePath); err != nil {
 			goto Error
 		}
 	}
 	return url, nil
 
 Error:
-	return nil, &URLError{"parse", rawurl, err}
+	return nil, &Error{"parse", rawurl, err}
 
 }
 
-// ParseURLReference is like ParseURL but allows a trailing #fragment.
-func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
+// ParseWithReference is like Parse but allows a trailing #fragment.
+func ParseWithReference(rawurlref string) (url *URL, err os.Error) {
 	// Cut off #frag.
 	rawurl, frag := split(rawurlref, '#', false)
-	if url, err = ParseURL(rawurl); err != nil {
+	if url, err = Parse(rawurl); err != nil {
 		return nil, err
 	}
 	url.Raw += frag
 	url.RawPath += frag
 	if len(frag) > 1 {
 		frag = frag[1:]
-		if url.Fragment, err = urlUnescape(frag, encodeFragment); err != nil {
-			return nil, &URLError{"parse", rawurl, err}
+		if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
+			return nil, &Error{"parse", rawurl, err}
 		}
 	}
 	return url, nil
@@ -474,17 +469,88 @@ func (url *URL) String() string {
 			result += "%2f"
 			path = path[1:]
 		}
-		result += urlEscape(path, encodeOpaque)
+		result += escape(path, encodeOpaque)
 	} else {
-		result += urlEscape(url.Path, encodePath)
+		result += escape(url.Path, encodePath)
 	}
 	if url.RawQuery != "" {
 		result += "?" + url.RawQuery
 	}
 	if url.Fragment != "" {
-		result += "#" + urlEscape(url.Fragment, encodeFragment)
+		result += "#" + escape(url.Fragment, encodeFragment)
 	}
 	return result
+}
+
+// Values maps a string key to a list of values.
+// It is typically used for query parameters and form values.
+// Unlike in the http.Header map, the keys in a Values map
+// are case-sensitive.
+type Values map[string][]string
+
+// Get gets the first value associated with the given key.
+// If there are no values associated with the key, Get returns
+// the empty string. To access multiple values, use the map
+// directly.
+func (v Values) Get(key string) string {
+	if v == nil {
+		return ""
+	}
+	vs, ok := v[key]
+	if !ok || len(vs) == 0 {
+		return ""
+	}
+	return vs[0]
+}
+
+// Set sets the key to value. It replaces any existing
+// values.
+func (v Values) Set(key, value string) {
+	v[key] = []string{value}
+}
+
+// Add adds the key to value. It appends to any existing
+// values associated with key.
+func (v Values) Add(key, value string) {
+	v[key] = append(v[key], value)
+}
+
+// Del deletes the values associated with key.
+func (v Values) Del(key string) {
+	v[key] = nil, false
+}
+
+// ParseQuery parses the URL-encoded query string and returns
+// a map listing the values specified for each key.
+// ParseQuery always returns a non-nil map containing all the
+// valid query parameters found; err describes the first decoding error
+// encountered, if any.
+func ParseQuery(query string) (m Values, err os.Error) {
+	m = make(Values)
+	err = parseQuery(m, query)
+	return
+}
+
+func parseQuery(m Values, query string) (err os.Error) {
+	for _, kv := range strings.Split(query, "&") {
+		if len(kv) == 0 {
+			continue
+		}
+		kvPair := strings.SplitN(kv, "=", 2)
+
+		var key, value string
+		var e os.Error
+		key, e = QueryUnescape(kvPair[0])
+		if e == nil && len(kvPair) > 1 {
+			value, e = QueryUnescape(kvPair[1])
+		}
+		if e != nil {
+			err = e
+			continue
+		}
+		m[key] = append(m[key], value)
+	}
+	return err
 }
 
 // Encode encodes the values into ``URL encoded'' form.
@@ -495,9 +561,9 @@ func (v Values) Encode() string {
 	}
 	parts := make([]string, 0, len(v)) // will be large enough for most uses
 	for k, vs := range v {
-		prefix := URLEscape(k) + "="
+		prefix := QueryEscape(k) + "="
 		for _, v := range vs {
-			parts = append(parts, prefix+URLEscape(v))
+			parts = append(parts, prefix+QueryEscape(v))
 		}
 	}
 	return strings.Join(parts, "&")
@@ -538,11 +604,11 @@ func (url *URL) IsAbs() bool {
 	return url.Scheme != ""
 }
 
-// ParseURL parses a URL in the context of a base URL.  The URL in ref
-// may be relative or absolute.  ParseURL returns nil, err on parse
+// Parse parses a URL in the context of a base URL.  The URL in ref
+// may be relative or absolute.  Parse returns nil, err on parse
 // failure, otherwise its return value is the same as ResolveReference.
-func (base *URL) ParseURL(ref string) (*URL, os.Error) {
-	refurl, err := ParseURL(ref)
+func (base *URL) Parse(ref string) (*URL, os.Error) {
+	refurl, err := Parse(ref)
 	if err != nil {
 		return nil, err
 	}
@@ -603,4 +669,9 @@ func (base *URL) ResolveReference(ref *URL) *URL {
 func (u *URL) Query() Values {
 	v, _ := ParseQuery(u.RawQuery)
 	return v
+}
+
+// EncodedPath returns the URL's path in "URL path encoded" form.
+func (u *URL) EncodedPath() string {
+	return escape(u.Path, encodePath)
 }

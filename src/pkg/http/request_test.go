@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"url"
 )
 
 type stringMultimap map[string][]string
@@ -43,7 +44,7 @@ var parseTests = []parseTest{
 
 func TestParseForm(t *testing.T) {
 	for i, test := range parseTests {
-		form, err := ParseQuery(test.query)
+		form, err := url.ParseQuery(test.query)
 		if err != nil {
 			t.Errorf("test %d: Unexpected error: %v", i, err)
 			continue
@@ -72,7 +73,7 @@ func TestParseForm(t *testing.T) {
 
 func TestQuery(t *testing.T) {
 	req := &Request{Method: "GET"}
-	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar")
+	req.URL, _ = url.Parse("http://www.google.com/search?q=foo&q=bar")
 	if q := req.FormValue("q"); q != "foo" {
 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
 	}
@@ -80,7 +81,7 @@ func TestQuery(t *testing.T) {
 
 func TestPostQuery(t *testing.T) {
 	req := &Request{Method: "POST"}
-	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar&both=x")
+	req.URL, _ = url.Parse("http://www.google.com/search?q=foo&q=bar&both=x")
 	req.Header = Header{
 		"Content-Type": {"application/x-www-form-urlencoded; boo!"},
 	}

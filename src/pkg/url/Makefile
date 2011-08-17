@@ -4,23 +4,8 @@
 
 include ../../Make.inc
 
-TARG=http
+TARG=url
 GOFILES=\
-	chunked.go\
-	client.go\
-	cookie.go\
-	dump.go\
-	fs.go\
-	header.go\
-	lex.go\
-	persist.go\
-	request.go\
-	response.go\
-	reverseproxy.go\
-	server.go\
-	sniff.go\
-	status.go\
-	transfer.go\
-	transport.go\
+	url.go\
 
 include ../../Make.pkg

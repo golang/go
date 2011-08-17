@@ -18,6 +18,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"url"
 )
 
 // Request returns the HTTP request as represented in the current
@@ -93,7 +94,7 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
 		// Hostname is provided, so we can reasonably construct a URL,
 		// even if we have to assume 'http' for the scheme.
 		r.RawURL = "http://" + r.Host + params["REQUEST_URI"]
-		url, err := http.ParseURL(r.RawURL)
+		url, err := url.Parse(r.RawURL)
 		if err != nil {
 			return nil, os.NewError("cgi: failed to parse host and REQUEST_URI into a URL: " + r.RawURL)
 		}
@@ -103,7 +104,7 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
 	// failed to parse
 	if r.URL == nil {
 		r.RawURL = params["REQUEST_URI"]
-		url, err := http.ParseURL(r.RawURL)
+		url, err := url.Parse(r.RawURL)
 		if err != nil {
 			return nil, os.NewError("cgi: failed to parse REQUEST_URI into a URL: " + r.RawURL)
 		}

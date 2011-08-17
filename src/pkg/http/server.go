@@ -25,6 +25,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"url"
 )
 
 // Errors introduced by the HTTP server.
@@ -716,8 +717,8 @@ func StripPrefix(prefix string, h Handler) Handler {
 
 // Redirect replies to the request with a redirect to url,
 // which may be a path relative to the request path.
-func Redirect(w ResponseWriter, r *Request, url string, code int) {
-	if u, err := ParseURL(url); err == nil {
+func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
+	if u, err := url.Parse(urlStr); err == nil {
 		// If url was relative, make absolute by
 		// combining with request path.
 		// The browser would probably do this for us,
@@ -740,35 +741,35 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
 		}
 		if u.Scheme == "" {
 			// no leading http://server
-			if url == "" || url[0] != '/' {
+			if urlStr == "" || urlStr[0] != '/' {
 				// make relative path absolute
 				olddir, _ := path.Split(oldpath)
-				url = olddir + url
+				urlStr = olddir + urlStr
 			}
 
 			var query string
-			if i := strings.Index(url, "?"); i != -1 {
-				url, query = url[:i], url[i:]
+			if i := strings.Index(urlStr, "?"); i != -1 {
+				urlStr, query = urlStr[:i], urlStr[i:]
 			}
 
 			// clean up but preserve trailing slash
-			trailing := url[len(url)-1] == '/'
-			url = path.Clean(url)
-			if trailing && url[len(url)-1] != '/' {
-				url += "/"
+			trailing := urlStr[len(urlStr)-1] == '/'
+			urlStr = path.Clean(urlStr)
+			if trailing && urlStr[len(urlStr)-1] != '/' {
+				urlStr += "/"
 			}
-			url += query
+			urlStr += query
 		}
 	}
 
-	w.Header().Set("Location", url)
+	w.Header().Set("Location", urlStr)
 	w.WriteHeader(code)
 
 	// RFC2616 recommends that a short note "SHOULD" be included in the
 	// response because older user agents may not understand 301/307.
 	// Shouldn't send the response for POST or HEAD; that leaves GET.
 	if r.Method == "GET" {
-		note := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
+		note := "<a href=\"" + htmlEscape(urlStr) + "\">" + statusText[code] + "</a>.\n"
 		fmt.Fprintln(w, note)
 	}
 }

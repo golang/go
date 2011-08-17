@@ -17,6 +17,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"url"
 )
 
 // DefaultTransport is the default implementation of Transport and is
@@ -46,7 +47,7 @@ type Transport struct {
 	// Request. If the function returns a non-nil error, the
 	// request is aborted with the provided error.
 	// If Proxy is nil or returns a nil *URL, no proxy is used.
-	Proxy func(*Request) (*URL, os.Error)
+	Proxy func(*Request) (*url.URL, os.Error)
 
 	// Dial specifies the dial function for creating TCP
 	// connections.
@@ -66,7 +67,7 @@ type Transport struct {
 // given request, as indicated by the environment variables
 // $HTTP_PROXY and $NO_PROXY (or $http_proxy and $no_proxy).
 // Either URL or an error is returned.
-func ProxyFromEnvironment(req *Request) (*URL, os.Error) {
+func ProxyFromEnvironment(req *Request) (*url.URL, os.Error) {
 	proxy := getenvEitherCase("HTTP_PROXY")
 	if proxy == "" {
 		return nil, nil
@@ -74,12 +75,12 @@ func ProxyFromEnvironment(req *Request) (*URL, os.Error) {
 	if !useProxy(canonicalAddr(req.URL)) {
 		return nil, nil
 	}
-	proxyURL, err := ParseRequestURL(proxy)
+	proxyURL, err := url.ParseRequest(proxy)
 	if err != nil {
 		return nil, os.NewError("invalid proxy address")
 	}
 	if proxyURL.Host == "" {
-		proxyURL, err = ParseRequestURL("http://" + proxy)
+		proxyURL, err = url.ParseRequest("http://" + proxy)
 		if err != nil {
 			return nil, os.NewError("invalid proxy address")
 		}
@@ -89,16 +90,16 @@ func ProxyFromEnvironment(req *Request) (*URL, os.Error) {
 
 // ProxyURL returns a proxy function (for use in a Transport)
 // that always returns the same URL.
-func ProxyURL(url *URL) func(*Request) (*URL, os.Error) {
-	return func(*Request) (*URL, os.Error) {
-		return url, nil
+func ProxyURL(fixedURL *url.URL) func(*Request) (*url.URL, os.Error) {
+	return func(*Request) (*url.URL, os.Error) {
+		return fixedURL, nil
 	}
 }
 
 // RoundTrip implements the RoundTripper interface.
 func (t *Transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
 	if req.URL == nil {
-		if req.URL, err = ParseURL(req.RawURL); err != nil {
+		if req.URL, err = url.Parse(req.RawURL); err != nil {
 			return
 		}
 	}
@@ -413,9 +414,9 @@ func useProxy(addr string) bool {
 // Note: no support to https to the proxy yet.
 //
 type connectMethod struct {
-	proxyURL     *URL   // "" for no proxy, else full proxy URL
-	targetScheme string // "http" or "https"
-	targetAddr   string // Not used if proxy + http targetScheme (4th example in table)
+	proxyURL     *url.URL // nil for no proxy, else full proxy URL
+	targetScheme string   // "http" or "https"
+	targetAddr   string   // Not used if proxy + http targetScheme (4th example in table)
 }
 
 func (ck *connectMethod) String() string {
@@ -642,7 +643,7 @@ var portMap = map[string]string{
 }
 
 // canonicalAddr returns url.Host but always with a ":port" suffix
-func canonicalAddr(url *URL) string {
+func canonicalAddr(url *url.URL) string {
 	addr := url.Host
 	if !hasPort(addr) {
 		return addr + ":" + portMap[url.Scheme]

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package http
+package url
 
 import (
 	"fmt"
@@ -12,9 +12,9 @@ import (
 )
 
 // TODO(rsc):
-//	test URLUnescape
-//	test URLEscape
-//	test ParseURL
+//	test Unescape
+//	test Escape
+//	test Parse
 
 type URLTest struct {
 	in        string
@@ -218,7 +218,7 @@ var urltests = []URLTest{
 	},
 	// Three leading slashes isn't an authority, but doesn't return an error.
 	// (We can't return an error, as this code is also used via
-	// ServeHTTP -> ReadRequest -> ParseURL, which is arguably a
+	// ServeHTTP -> ReadRequest -> Parse, which is arguably a
 	// different URL parsing context, but currently shares the
 	// same codepath)
 	{
@@ -325,14 +325,14 @@ func DoTest(t *testing.T, parse func(string) (*URL, os.Error), name string, test
 	}
 }
 
-func TestParseURL(t *testing.T) {
-	DoTest(t, ParseURL, "ParseURL", urltests)
-	DoTest(t, ParseURL, "ParseURL", urlnofragtests)
+func TestParse(t *testing.T) {
+	DoTest(t, Parse, "Parse", urltests)
+	DoTest(t, Parse, "Parse", urlnofragtests)
 }
 
-func TestParseURLReference(t *testing.T) {
-	DoTest(t, ParseURLReference, "ParseURLReference", urltests)
-	DoTest(t, ParseURLReference, "ParseURLReference", urlfragtests)
+func TestParseWithReference(t *testing.T) {
+	DoTest(t, ParseWithReference, "ParseWithReference", urltests)
+	DoTest(t, ParseWithReference, "ParseWithReference", urlfragtests)
 }
 
 const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
@@ -351,16 +351,16 @@ var parseRequestUrlTests = []struct {
 	{"../dir/", false},
 }
 
-func TestParseRequestURL(t *testing.T) {
+func TestParseRequest(t *testing.T) {
 	for _, test := range parseRequestUrlTests {
-		_, err := ParseRequestURL(test.url)
+		_, err := ParseRequest(test.url)
 		valid := err == nil
 		if valid != test.expectedValid {
 			t.Errorf("Expected valid=%v for %q; got %v", test.expectedValid, test.url, valid)
 		}
 	}
 
-	url, err := ParseRequestURL(pathThatLooksSchemeRelative)
+	url, err := ParseRequest(pathThatLooksSchemeRelative)
 	if err != nil {
 		t.Fatalf("Unexpected error %v", err)
 	}
@@ -388,19 +388,19 @@ func DoTestString(t *testing.T, parse func(string) (*URL, os.Error), name string
 }
 
 func TestURLString(t *testing.T) {
-	DoTestString(t, ParseURL, "ParseURL", urltests)
-	DoTestString(t, ParseURL, "ParseURL", urlnofragtests)
-	DoTestString(t, ParseURLReference, "ParseURLReference", urltests)
-	DoTestString(t, ParseURLReference, "ParseURLReference", urlfragtests)
+	DoTestString(t, Parse, "Parse", urltests)
+	DoTestString(t, Parse, "Parse", urlnofragtests)
+	DoTestString(t, ParseWithReference, "ParseWithReference", urltests)
+	DoTestString(t, ParseWithReference, "ParseWithReference", urlfragtests)
 }
 
-type URLEscapeTest struct {
+type EscapeTest struct {
 	in  string
 	out string
 	err os.Error
 }
 
-var unescapeTests = []URLEscapeTest{
+var unescapeTests = []EscapeTest{
 	{
 		"",
 		"",
@@ -434,40 +434,40 @@ var unescapeTests = []URLEscapeTest{
 	{
 		"%", // not enough characters after %
 		"",
-		URLEscapeError("%"),
+		EscapeError("%"),
 	},
 	{
 		"%a", // not enough characters after %
 		"",
-		URLEscapeError("%a"),
+		EscapeError("%a"),
 	},
 	{
 		"%1", // not enough characters after %
 		"",
-		URLEscapeError("%1"),
+		EscapeError("%1"),
 	},
 	{
 		"123%45%6", // not enough characters after %
 		"",
-		URLEscapeError("%6"),
+		EscapeError("%6"),
 	},
 	{
 		"%zzzzz", // invalid hex digits
 		"",
-		URLEscapeError("%zz"),
+		EscapeError("%zz"),
 	},
 }
 
-func TestURLUnescape(t *testing.T) {
+func TestUnescape(t *testing.T) {
 	for _, tt := range unescapeTests {
-		actual, err := URLUnescape(tt.in)
+		actual, err := QueryUnescape(tt.in)
 		if actual != tt.out || (err != nil) != (tt.err != nil) {
-			t.Errorf("URLUnescape(%q) = %q, %s; want %q, %s", tt.in, actual, err, tt.out, tt.err)
+			t.Errorf("QueryUnescape(%q) = %q, %s; want %q, %s", tt.in, actual, err, tt.out, tt.err)
 		}
 	}
 }
 
-var escapeTests = []URLEscapeTest{
+var escapeTests = []EscapeTest{
 	{
 		"",
 		"",
@@ -495,17 +495,17 @@ var escapeTests = []URLEscapeTest{
 	},
 }
 
-func TestURLEscape(t *testing.T) {
+func TestEscape(t *testing.T) {
 	for _, tt := range escapeTests {
-		actual := URLEscape(tt.in)
+		actual := QueryEscape(tt.in)
 		if tt.out != actual {
-			t.Errorf("URLEscape(%q) = %q, want %q", tt.in, actual, tt.out)
+			t.Errorf("QueryEscape(%q) = %q, want %q", tt.in, actual, tt.out)
 		}
 
 		// for bonus points, verify that escape:unescape is an identity.
-		roundtrip, err := URLUnescape(actual)
+		roundtrip, err := QueryUnescape(actual)
 		if roundtrip != tt.in || err != nil {
-			t.Errorf("URLUnescape(%q) = %q, %s; want %q, %s", actual, roundtrip, err, tt.in, "[no error]")
+			t.Errorf("QueryUnescape(%q) = %q, %s; want %q, %s", actual, roundtrip, err, tt.in, "[no error]")
 		}
 	}
 }
@@ -629,16 +629,16 @@ var resolveReferenceTests = []struct {
 }
 
 func TestResolveReference(t *testing.T) {
-	mustParseURL := func(url string) *URL {
-		u, err := ParseURLReference(url)
+	mustParse := func(url string) *URL {
+		u, err := ParseWithReference(url)
 		if err != nil {
 			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
 		}
 		return u
 	}
 	for _, test := range resolveReferenceTests {
-		base := mustParseURL(test.base)
-		rel := mustParseURL(test.rel)
+		base := mustParse(test.base)
+		rel := mustParse(test.rel)
 		url := base.ResolveReference(rel)
 		urlStr := url.String()
 		if urlStr != test.expected {
@@ -647,33 +647,33 @@ func TestResolveReference(t *testing.T) {
 	}
 
 	// Test that new instances are returned.
-	base := mustParseURL("http://foo.com/")
-	abs := base.ResolveReference(mustParseURL("."))
+	base := mustParse("http://foo.com/")
+	abs := base.ResolveReference(mustParse("."))
 	if base == abs {
 		t.Errorf("Expected no-op reference to return new URL instance.")
 	}
-	barRef := mustParseURL("http://bar.com/")
+	barRef := mustParse("http://bar.com/")
 	abs = base.ResolveReference(barRef)
 	if abs == barRef {
 		t.Errorf("Expected resolution of absolute reference to return new URL instance.")
 	}
 
 	// Test the convenience wrapper too
-	base = mustParseURL("http://foo.com/path/one/")
-	abs, _ = base.ParseURL("../two")
+	base = mustParse("http://foo.com/path/one/")
+	abs, _ = base.Parse("../two")
 	expected := "http://foo.com/path/two"
 	if abs.String() != expected {
-		t.Errorf("ParseURL wrapper got %q; expected %q", abs.String(), expected)
+		t.Errorf("Parse wrapper got %q; expected %q", abs.String(), expected)
 	}
-	_, err := base.ParseURL("")
+	_, err := base.Parse("")
 	if err == nil {
-		t.Errorf("Expected an error from ParseURL wrapper parsing an empty string.")
+		t.Errorf("Expected an error from Parse wrapper parsing an empty string.")
 	}
 
 }
 
 func TestQueryValues(t *testing.T) {
-	u, _ := ParseURL("http://x.com?foo=bar&bar=1&bar=2")
+	u, _ := Parse("http://x.com?foo=bar&bar=1&bar=2")
 	v := u.Query()
 	if len(v) != 2 {
 		t.Errorf("got %d keys in Query values, want 2", len(v))

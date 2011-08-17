@@ -15,6 +15,7 @@ import (
 	"os"
 	"rand"
 	"strings"
+	"url"
 )
 
 type ProtocolError struct {
@@ -99,10 +100,10 @@ A trivial example client:
 		// use msg[0:n]
 	}
 */
-func Dial(url, protocol, origin string) (ws *Conn, err os.Error) {
+func Dial(url_, protocol, origin string) (ws *Conn, err os.Error) {
 	var client net.Conn
 
-	parsedUrl, err := http.ParseURL(url)
+	parsedUrl, err := url.Parse(url_)
 	if err != nil {
 		goto Error
 	}
@@ -121,14 +122,14 @@ func Dial(url, protocol, origin string) (ws *Conn, err os.Error) {
 		goto Error
 	}
 
-	ws, err = newClient(parsedUrl.RawPath, parsedUrl.Host, origin, url, protocol, client, handshake)
+	ws, err = newClient(parsedUrl.RawPath, parsedUrl.Host, origin, url_, protocol, client, handshake)
 	if err != nil {
 		goto Error
 	}
 	return
 
 Error:
-	return nil, &DialError{url, protocol, origin, err}
+	return nil, &DialError{url_, protocol, origin, err}
 }
 
 /*

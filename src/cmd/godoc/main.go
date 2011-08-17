@@ -44,6 +44,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"url"
 )
 
 const defaultAddr = ":6060" // default webserver address
@@ -160,7 +161,7 @@ func loggingHandler(h http.Handler) http.Handler {
 }
 
 func remoteSearch(query string) (res *http.Response, err os.Error) {
-	search := "/search?f=text&q=" + http.URLEscape(query)
+	search := "/search?f=text&q=" + url.QueryEscape(query)
 
 	// list of addresses to try
 	var addrs []string

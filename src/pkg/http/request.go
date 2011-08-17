@@ -22,6 +22,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"url"
 )
 
 const (
@@ -72,9 +73,9 @@ var reqWriteExcludeHeader = map[string]bool{
 
 // A Request represents a parsed HTTP request header.
 type Request struct {
-	Method string // GET, POST, PUT, etc.
-	RawURL string // The raw URL given in the request.
-	URL    *URL   // Parsed URL.
+	Method string   // GET, POST, PUT, etc.
+	RawURL string   // The raw URL given in the request.
+	URL    *url.URL // Parsed URL.
 
 	// The protocol version for incoming requests.
 	// Outgoing requests always use HTTP/1.1.
@@ -124,7 +125,7 @@ type Request struct {
 	Host string
 
 	// The parsed form. Only available after ParseForm is called.
-	Form Values
+	Form url.Values
 
 	// The parsed multipart form, including file uploads.
 	// Only available after ParseMultipartForm is called.
@@ -289,22 +290,22 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 		host = req.URL.Host
 	}
 
-	uri := req.RawURL
-	if uri == "" {
-		uri = valueOrDefault(urlEscape(req.URL.Path, encodePath), "/")
+	urlStr := req.RawURL
+	if urlStr == "" {
+		urlStr = valueOrDefault(req.URL.EncodedPath(), "/")
 		if req.URL.RawQuery != "" {
-			uri += "?" + req.URL.RawQuery
+			urlStr += "?" + req.URL.RawQuery
 		}
 		if usingProxy {
-			if uri == "" || uri[0] != '/' {
-				uri = "/" + uri
+			if urlStr == "" || urlStr[0] != '/' {
+				urlStr = "/" + urlStr
 			}
-			uri = req.URL.Scheme + "://" + host + uri
+			urlStr = req.URL.Scheme + "://" + host + urlStr
 		}
 	}
 
 	bw := bufio.NewWriter(w)
-	fmt.Fprintf(bw, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri)
+	fmt.Fprintf(bw, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), urlStr)
 
 	// Header lines
 	fmt.Fprintf(bw, "Host: %s\r\n", host)
@@ -481,8 +482,8 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
 }
 
 // NewRequest returns a new Request given a method, URL, and optional body.
-func NewRequest(method, url string, body io.Reader) (*Request, os.Error) {
-	u, err := ParseURL(url)
+func NewRequest(method, urlStr string, body io.Reader) (*Request, os.Error) {
+	u, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +548,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 		return nil, &badStringError{"malformed HTTP version", req.Proto}
 	}
 
-	if req.URL, err = ParseRequestURL(req.RawURL); err != nil {
+	if req.URL, err = url.ParseRequest(req.RawURL); err != nil {
 		return nil, err
 	}
 
@@ -607,77 +608,6 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	return req, nil
 }
 
-// Values maps a string key to a list of values.
-// It is typically used for query parameters and form values.
-// Unlike in the Header map, the keys in a Values map
-// are case-sensitive.
-type Values map[string][]string
-
-// Get gets the first value associated with the given key.
-// If there are no values associated with the key, Get returns
-// the empty string. To access multiple values, use the map
-// directly.
-func (v Values) Get(key string) string {
-	if v == nil {
-		return ""
-	}
-	vs, ok := v[key]
-	if !ok || len(vs) == 0 {
-		return ""
-	}
-	return vs[0]
-}
-
-// Set sets the key to value. It replaces any existing
-// values.
-func (v Values) Set(key, value string) {
-	v[key] = []string{value}
-}
-
-// Add adds the key to value. It appends to any existing
-// values associated with key.
-func (v Values) Add(key, value string) {
-	v[key] = append(v[key], value)
-}
-
-// Del deletes the values associated with key.
-func (v Values) Del(key string) {
-	v[key] = nil, false
-}
-
-// ParseQuery parses the URL-encoded query string and returns
-// a map listing the values specified for each key.
-// ParseQuery always returns a non-nil map containing all the
-// valid query parameters found; err describes the first decoding error
-// encountered, if any.
-func ParseQuery(query string) (m Values, err os.Error) {
-	m = make(Values)
-	err = parseQuery(m, query)
-	return
-}
-
-func parseQuery(m Values, query string) (err os.Error) {
-	for _, kv := range strings.Split(query, "&") {
-		if len(kv) == 0 {
-			continue
-		}
-		kvPair := strings.SplitN(kv, "=", 2)
-
-		var key, value string
-		var e os.Error
-		key, e = URLUnescape(kvPair[0])
-		if e == nil && len(kvPair) > 1 {
-			value, e = URLUnescape(kvPair[1])
-		}
-		if e != nil {
-			err = e
-			continue
-		}
-		m[key] = append(m[key], value)
-	}
-	return err
-}
-
 // ParseForm parses the raw query.
 // For POST requests, it also parses the request body as a form.
 // ParseMultipartForm calls ParseForm automatically.
@@ -687,9 +617,10 @@ func (r *Request) ParseForm() (err os.Error) {
 		return
 	}
 
-	r.Form = make(Values)
 	if r.URL != nil {
-		err = parseQuery(r.Form, r.URL.RawQuery)
+		r.Form, err = url.ParseQuery(r.URL.RawQuery)
+	} else {
+		r.Form = make(url.Values) // TODO: remove when nil maps work.
 	}
 	if r.Method == "POST" {
 		if r.Body == nil {
@@ -709,9 +640,16 @@ func (r *Request) ParseForm() (err os.Error) {
 			if int64(len(b)) > maxFormSize {
 				return os.NewError("http: POST too large")
 			}
-			e = parseQuery(r.Form, string(b))
+			var newValues url.Values
+			newValues, e = url.ParseQuery(string(b))
 			if err == nil {
 				err = e
+			}
+			// Copy values into r.Form. TODO: make this smoother.
+			for k, vs := range newValues {
+				for _, value := range vs {
+					r.Form.Add(k, value)
+				}
 			}
 		case "multipart/form-data":
 			// handled by ParseMultipartForm

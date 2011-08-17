@@ -15,6 +15,7 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"url"
 )
 
 var serverAddr string
@@ -155,9 +156,9 @@ func TestHTTP(t *testing.T) {
 		t.Error("Get: unexpected success")
 		return
 	}
-	urlerr, ok := err.(*http.URLError)
+	urlerr, ok := err.(*url.Error)
 	if !ok {
-		t.Errorf("Get: not URLError %#v", err)
+		t.Errorf("Get: not url.Error %#v", err)
 		return
 	}
 	if urlerr.Error != io.ErrUnexpectedEOF {
