@@ -17,8 +17,8 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"old/template"
 	"os"
+	"template"
 )
 
 func main() {
@@ -135,181 +135,180 @@ func main() {
 }
 `
 
-func parse(s string) *template.Template {
-	t := template.New(nil)
-	t.SetDelims("〈", "〉")
-	if err := t.Parse(s); err != nil {
-		panic(s)
+func parse(name, s string) *template.Template {
+	t, err := template.New(name).Parse(s)
+	if err != nil {
+		panic(fmt.Sprintf("%q: %s", name, err))
 	}
 	return t
 }
 
-var recv = parse(`
-	〈# Send n, receive it one way or another into x, check that they match.〉
+var recv = parse("recv", `
+	{{/*  Send n, receive it one way or another into x, check that they match. */}}
 	c <- n
-	〈.section Maybe〉
+	{{with .Maybe}}
 	x = <-c
-	〈.or〉
+	{{else}}
 	select {
-	〈# Blocking or non-blocking, before the receive.〉
-	〈# The compiler implements two-case select where one is default with custom code,〉
-	〈# so test the default branch both before and after the send.〉
-	〈.section MaybeDefault〉
+	{{/*  Blocking or non-blocking, before the receive. */}}
+	{{/*  The compiler implements two-case select where one is default with custom code, */}}
+	{{/*  so test the default branch both before and after the send. */}}
+	{{with .MaybeDefault}}
 	default:
 		panic("nonblock")
-	〈.end〉
-	〈# Receive from c.  Different cases are direct, indirect, :=, interface, and map assignment.〉
-	〈.section Maybe〉
+	{{end}}
+	{{/*  Receive from c.  Different cases are direct, indirect, :=, interface, and map assignment. */}}
+	{{with .Maybe}}
 	case x = <-c:
-	〈.or〉〈.section Maybe〉
+	{{else}}{{with .Maybe}}
 	case *f(&x) = <-c:
-	〈.or〉〈.section Maybe〉
+	{{else}}{{with .Maybe}}
 	case y := <-c:
 		x = y
-	〈.or〉〈.section Maybe〉
+	{{else}}{{with .Maybe}}
 	case i = <-c:
 		x = i.(int)
-	〈.or〉
+	{{else}}
 	case m[13] = <-c:
 		x = m[13]
-	〈.end〉〈.end〉〈.end〉〈.end〉
-	〈# Blocking or non-blocking again, after the receive.〉
-	〈.section MaybeDefault〉
+	{{end}}{{end}}{{end}}{{end}}
+	{{/*  Blocking or non-blocking again, after the receive. */}}
+	{{with .MaybeDefault}}
 	default:
 		panic("nonblock")
-	〈.end〉
-	〈# Dummy send, receive to keep compiler from optimizing select.〉
-	〈.section Maybe〉
+	{{end}}
+	{{/*  Dummy send, receive to keep compiler from optimizing select. */}}
+	{{with .Maybe}}
 	case dummy <- 1:
 		panic("dummy send")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case <-dummy:
 		panic("dummy receive")
-	〈.end〉
-	〈# Nil channel send, receive to keep compiler from optimizing select.〉
-	〈.section Maybe〉
+	{{end}}
+	{{/*  Nil channel send, receive to keep compiler from optimizing select. */}}
+	{{with .Maybe}}
 	case nilch <- 1:
 		panic("nilch send")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case <-nilch:
 		panic("nilch recv")
-	〈.end〉
+	{{end}}
 	}
-	〈.end〉
+	{{end}}
 	if x != n {
 		die(x)
 	}
 	n++
 `)
 
-var recvOrder = parse(`
-	〈# Send n, receive it one way or another into x, check that they match.〉
-	〈# Check order of operations along the way by calling functions that check〉
-	〈# that the argument sequence is strictly increasing.〉
+var recvOrder = parse("recvOrder", `
+	{{/*  Send n, receive it one way or another into x, check that they match. */}}
+	{{/*  Check order of operations along the way by calling functions that check */}}
+	{{/*  that the argument sequence is strictly increasing. */}}
 	order = 0
 	c <- n
-	〈.section Maybe〉
-	〈# Outside of select, left-to-right rule applies.〉
-	〈# (Inside select, assignment waits until case is chosen,〉
-	〈# so right hand side happens before anything on left hand side.〉
+	{{with .Maybe}}
+	{{/*  Outside of select, left-to-right rule applies. */}}
+	{{/*  (Inside select, assignment waits until case is chosen, */}}
+	{{/*  so right hand side happens before anything on left hand side. */}}
 	*fp(&x, 1) = <-fc(c, 2)
-	〈.or〉〈.section Maybe〉
+	{{else}}{{with .Maybe}}
 	m[fn(13, 1)] = <-fc(c, 2)
 	x = m[13]
-	〈.or〉
+	{{else}}
 	select {
-	〈# Blocking or non-blocking, before the receive.〉
-	〈# The compiler implements two-case select where one is default with custom code,〉
-	〈# so test the default branch both before and after the send.〉
-	〈.section MaybeDefault〉
+	{{/*  Blocking or non-blocking, before the receive. */}}
+	{{/*  The compiler implements two-case select where one is default with custom code, */}}
+	{{/*  so test the default branch both before and after the send. */}}
+	{{with .MaybeDefault}}
 	default:
 		panic("nonblock")
-	〈.end〉
-	〈# Receive from c.  Different cases are direct, indirect, :=, interface, and map assignment.〉
-	〈.section Maybe〉
+	{{end}}
+	{{/*  Receive from c.  Different cases are direct, indirect, :=, interface, and map assignment. */}}
+	{{with .Maybe}}
 	case *fp(&x, 100) = <-fc(c, 1):
-	〈.or〉〈.section Maybe〉
+	{{else}}{{with .Maybe}}
 	case y := <-fc(c, 1):
 		x = y
-	〈.or〉〈.section Maybe〉
+	{{else}}{{with .Maybe}}
 	case i = <-fc(c, 1):
 		x = i.(int)
-	〈.or〉
+	{{else}}
 	case m[fn(13, 100)] = <-fc(c, 1):
 		x = m[13]
-	〈.end〉〈.end〉〈.end〉
-	〈# Blocking or non-blocking again, after the receive.〉
-	〈.section MaybeDefault〉
+	{{end}}{{end}}{{end}}
+	{{/*  Blocking or non-blocking again, after the receive. */}}
+	{{with .MaybeDefault}}
 	default:
 		panic("nonblock")
-	〈.end〉
-	〈# Dummy send, receive to keep compiler from optimizing select.〉
-	〈.section Maybe〉
+	{{end}}
+	{{/*  Dummy send, receive to keep compiler from optimizing select. */}}
+	{{with .Maybe}}
 	case fc(dummy, 2) <- fn(1, 3):
 		panic("dummy send")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case <-fc(dummy, 4):
 		panic("dummy receive")
-	〈.end〉
-	〈# Nil channel send, receive to keep compiler from optimizing select.〉
-	〈.section Maybe〉
+	{{end}}
+	{{/*  Nil channel send, receive to keep compiler from optimizing select. */}}
+	{{with .Maybe}}
 	case fc(nilch, 5) <- fn(1, 6):
 		panic("nilch send")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case <-fc(nilch, 7):
 		panic("nilch recv")
-	〈.end〉
+	{{end}}
 	}
-	〈.end〉〈.end〉
+	{{end}}{{end}}
 	if x != n {
 		die(x)
 	}
 	n++
 `)
 
-var send = parse(`
-	〈# Send n one way or another, receive it into x, check that they match.〉
-	〈.section Maybe〉
+var send = parse("send", `
+	{{/*  Send n one way or another, receive it into x, check that they match. */}}
+	{{with .Maybe}}
 	c <- n
-	〈.or〉
+	{{else}}
 	select {
-	〈# Blocking or non-blocking, before the receive (same reason as in recv).〉
-	〈.section MaybeDefault〉
+	{{/*  Blocking or non-blocking, before the receive (same reason as in recv). */}}
+	{{with .MaybeDefault}}
 	default:
 		panic("nonblock")
-	〈.end〉
-	〈# Send c <- n.  No real special cases here, because no values come back〉
-	〈# from the send operation.〉
+	{{end}}
+	{{/*  Send c <- n.  No real special cases here, because no values come back */}}
+	{{/*  from the send operation. */}}
 	case c <- n:
-	〈# Blocking or non-blocking.〉
-	〈.section MaybeDefault〉
+	{{/*  Blocking or non-blocking. */}}
+	{{with .MaybeDefault}}
 	default:
 		panic("nonblock")
-	〈.end〉
-	〈# Dummy send, receive to keep compiler from optimizing select.〉
-	〈.section Maybe〉
+	{{end}}
+	{{/*  Dummy send, receive to keep compiler from optimizing select. */}}
+	{{with .Maybe}}
 	case dummy <- 1:
 		panic("dummy send")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case <-dummy:
 		panic("dummy receive")
-	〈.end〉
-	〈# Nil channel send, receive to keep compiler from optimizing select.〉
-	〈.section Maybe〉
+	{{end}}
+	{{/*  Nil channel send, receive to keep compiler from optimizing select. */}}
+	{{with .Maybe}}
 	case nilch <- 1:
 		panic("nilch send")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case <-nilch:
 		panic("nilch recv")
-	〈.end〉
+	{{end}}
 	}
-	〈.end〉
+	{{end}}
 	x = <-c
 	if x != n {
 		die(x)
@@ -317,48 +316,48 @@ var send = parse(`
 	n++
 `)
 
-var sendOrder = parse(`
-	〈# Send n one way or another, receive it into x, check that they match.〉
-	〈# Check order of operations along the way by calling functions that check〉
-	〈# that the argument sequence is strictly increasing.〉
+var sendOrder = parse("sendOrder", `
+	{{/*  Send n one way or another, receive it into x, check that they match. */}}
+	{{/*  Check order of operations along the way by calling functions that check */}}
+	{{/*  that the argument sequence is strictly increasing. */}}
 	order = 0
-	〈.section Maybe〉
+	{{with .Maybe}}
 	fc(c, 1) <- fn(n, 2)
-	〈.or〉
+	{{else}}
 	select {
-	〈# Blocking or non-blocking, before the receive (same reason as in recv).〉
-	〈.section MaybeDefault〉
+	{{/*  Blocking or non-blocking, before the receive (same reason as in recv). */}}
+	{{with .MaybeDefault}}
 	default:
 		panic("nonblock")
-	〈.end〉
-	〈# Send c <- n.  No real special cases here, because no values come back〉
-	〈# from the send operation.〉
+	{{end}}
+	{{/*  Send c <- n.  No real special cases here, because no values come back */}}
+	{{/*  from the send operation. */}}
 	case fc(c, 1) <- fn(n, 2):
-	〈# Blocking or non-blocking.〉
-	〈.section MaybeDefault〉
+	{{/*  Blocking or non-blocking. */}}
+	{{with .MaybeDefault}}
 	default:
 		panic("nonblock")
-	〈.end〉
-	〈# Dummy send, receive to keep compiler from optimizing select.〉
-	〈.section Maybe〉
+	{{end}}
+	{{/*  Dummy send, receive to keep compiler from optimizing select. */}}
+	{{with .Maybe}}
 	case fc(dummy, 3) <- fn(1, 4):
 		panic("dummy send")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case <-fc(dummy, 5):
 		panic("dummy receive")
-	〈.end〉
-	〈# Nil channel send, receive to keep compiler from optimizing select.〉
-	〈.section Maybe〉
+	{{end}}
+	{{/*  Nil channel send, receive to keep compiler from optimizing select. */}}
+	{{with .Maybe}}
 	case fc(nilch, 6) <- fn(1, 7):
 		panic("nilch send")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case <-fc(nilch, 8):
 		panic("nilch recv")
-	〈.end〉
+	{{end}}
 	}
-	〈.end〉
+	{{end}}
 	x = <-c
 	if x != n {
 		die(x)
@@ -366,49 +365,49 @@ var sendOrder = parse(`
 	n++
 `)
 
-var nonblock = parse(`
+var nonblock = parse("nonblock", `
 	x = n
-	〈# Test various combinations of non-blocking operations.〉
-	〈# Receive assignments must not edit or even attempt to compute the address of the lhs.〉
+	{{/*  Test various combinations of non-blocking operations. */}}
+	{{/*  Receive assignments must not edit or even attempt to compute the address of the lhs. */}}
 	select {
-	〈.section MaybeDefault〉
+	{{with .MaybeDefault}}
 	default:
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case dummy <- 1:
 		panic("dummy <- 1")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case nilch <- 1:
 		panic("nilch <- 1")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case <-dummy:
 		panic("<-dummy")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case x = <-dummy:
 		panic("<-dummy x")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case **(**int)(nil) = <-dummy:
 		panic("<-dummy (and didn't crash saving result!)")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case <-nilch:
 		panic("<-nilch")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case x = <-nilch:
 		panic("<-nilch x")
-	〈.end〉
-	〈.section Maybe〉
+	{{end}}
+	{{with .Maybe}}
 	case **(**int)(nil) = <-nilch:
 		panic("<-nilch (and didn't crash saving result!)")
-	〈.end〉
-	〈.section MustDefault〉
+	{{end}}
+	{{with .MustDefault}}
 	default:
-	〈.end〉
+	{{end}}
 	}
 	if x != n {
 		die(x)
