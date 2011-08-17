@@ -3,9 +3,9 @@ package main
 import (
 	"http"
 	"io/ioutil"
+	"old/template"
 	"os"
 	"regexp"
-	"template"
 )
 
 type Page struct {

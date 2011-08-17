@@ -131,6 +131,7 @@ DIRS=\
 	net/dict\
 	net/textproto\
 	netchan\
+	old/template\
 	os\
 	os/signal\
 	os/user\
@@ -156,7 +157,6 @@ DIRS=\
 	syscall\
 	syslog\
 	tabwriter\
-	template\
 	testing\
 	testing/iotest\
 	testing/quick\

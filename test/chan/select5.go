@@ -17,8 +17,8 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"old/template"
 	"os"
-	"template"
 )
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 		}
 		fmt.Fprintln(out, `}`)
 	}
-	
+
 	do(recv)
 	do(send)
 	do(recvOrder)
@@ -54,8 +54,8 @@ func run(t *template.Template, a interface{}, out io.Writer) {
 	}
 }
 
-type arg struct{
-	def bool
+type arg struct {
+	def    bool
 	nreset int
 }
 
@@ -466,7 +466,7 @@ func next() bool {
 	}
 
 	// increment last choice sequence
-	cp = len(choices)-1
+	cp = len(choices) - 1
 	for cp >= 0 && choices[cp].i == choices[cp].n-1 {
 		cp--
 	}
@@ -479,4 +479,3 @@ func next() bool {
 	cp = 0
 	return true
 }
-

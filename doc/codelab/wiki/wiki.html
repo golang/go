@@ -7,7 +7,7 @@ Covered in this codelab:
 <ul>
 <li>Creating a data structure with load and save methods</li>
 <li>Using the <code>http</code> package to build web applications
-<li>Using the <code>template</code> package to process HTML templates</li>
+<li>Using the <code>old/template</code> package to process HTML templates</li>
 <li>Using the <code>regexp</code> package to validate user input</li>
 <li>Using closures</li>
 </ul>
@@ -366,25 +366,27 @@ This function will work fine, but all that hard-coded HTML is ugly.
 Of course, there is a better way.
 </p>
  
-<h2>The <code>template</code> package</h2>
+<h2>The <code>old/template</code> package</h2>
 
 <p>
-The <code>template</code> package is part of the Go standard library.  We can
-use <code>template</code> to keep the HTML in a separate file, allowing
+The <code>old/template</code> package is part of the Go standard library.
+(A new template package is coming; this code lab will be updated soon.)
+We can
+use <code>old/template</code> to keep the HTML in a separate file, allowing
 us to change the layout of our edit page without modifying the underlying Go
 code.
 </p>
 
 <p>
-First, we must add <code>template</code> to the list of imports:
+First, we must add <code>old/template</code> to the list of imports:
 </p>
 
 <pre>
 import (
 	"http"
 	"io/ioutil"
+	<b>"old/template"</b>
 	"os"
-	<b>"template"</b>
 )
 </pre>
 

@@ -1,8 +1,8 @@
 package main
 
 import (
+	"old/template"
 	"os"
-	"template"
 	"io/ioutil"
 )
 
