@@ -3,8 +3,8 @@ package main
 import (
 	"http"
 	"io/ioutil"
+	"old/template"
 	"os"
-	"template"
 )
 
 type Page struct {
