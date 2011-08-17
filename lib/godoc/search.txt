@@ -17,7 +17,7 @@ DID YOU MEAN
 PACKAGE-LEVEL DECLARATIONS
 
 {{range .}}package {{.Pak.Name}}
-{{range $File := .Files}}{{range .Groups}}{{range .Infos}}	{{srcLink $File.File.Path}}:{{infoLine .}}{{end}}
+{{range $file := .Files}}{{range .Groups}}{{range .Infos}}	{{srcLink $file.File.Path}}:{{infoLine .}}{{end}}
 {{end}}{{end}}{{/* .Files */}}
 {{end}}{{end}}{{/* .Decls */}}{{/*
 
@@ -27,7 +27,7 @@ PACKAGE-LEVEL DECLARATIONS
 LOCAL DECLARATIONS AND USES
 
 {{range .}}package {{.Pak.Name}}
-{{range $File := .Files}}{{range .Groups}}{{range .Infos}}	{{srcLink $File.File.Path}}:{{infoLine .}}
+{{range $file := .Files}}{{range .Groups}}{{range .Infos}}	{{srcLink $file.File.Path}}:{{infoLine .}}
 {{end}}{{end}}{{end}}{{/* .Files */}}
 {{end}}{{end}}{{/* .Others */}}{{end}}{{/* .Hit */}}{{/*
 
