@@ -51,16 +51,6 @@ func url(f *ast.File) bool {
 			ident.Name = "url_"
 			return
 		}
-		// Find declared identifiers called url that might be confused.
-		// TODO: Why does gofix not walk the Names in a ValueSpec?
-		// TODO: Just a bug; fix later as it will have consequences.
-		if valSpec, ok := n.(*ast.ValueSpec); ok {
-			for _, ident := range valSpec.Names {
-				if ident.Name == "url" {
-					ident.Name = "url_"
-				}
-			}
-		}
 		// Parameter and result names.
 		if fn, ok := n.(*ast.FuncType); ok {
 			fixed = urlDoFields(fn.Params) || fixed

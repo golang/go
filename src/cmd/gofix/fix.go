@@ -71,17 +71,21 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 		walkBeforeAfter(*n, before, after)
 	case **ast.FuncType:
 		walkBeforeAfter(*n, before, after)
+	case **ast.Ident:
+		walkBeforeAfter(*n, before, after)
 
 	// pointers to slices
-	case *[]ast.Stmt:
+	case *[]ast.Decl:
 		walkBeforeAfter(*n, before, after)
 	case *[]ast.Expr:
 		walkBeforeAfter(*n, before, after)
-	case *[]ast.Decl:
+	case *[]*ast.File:
+		walkBeforeAfter(*n, before, after)
+	case *[]*ast.Ident:
 		walkBeforeAfter(*n, before, after)
 	case *[]ast.Spec:
 		walkBeforeAfter(*n, before, after)
-	case *[]*ast.File:
+	case *[]ast.Stmt:
 		walkBeforeAfter(*n, before, after)
 
 	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
@@ -212,6 +216,7 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 	case *ast.ValueSpec:
 		walkBeforeAfter(&n.Type, before, after)
 		walkBeforeAfter(&n.Values, before, after)
+		walkBeforeAfter(&n.Names, before, after)
 	case *ast.TypeSpec:
 		walkBeforeAfter(&n.Type, before, after)
 
@@ -242,6 +247,10 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 			walkBeforeAfter(&n[i], before, after)
 		}
 	case []ast.Expr:
+		for i := range n {
+			walkBeforeAfter(&n[i], before, after)
+		}
+	case []*ast.Ident:
 		for i := range n {
 			walkBeforeAfter(&n[i], before, after)
 		}
