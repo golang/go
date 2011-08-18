@@ -36,9 +36,9 @@ if exists("b:did_ftplugin")
     finish
 endif
 
-command! -buffer -nargs=? Drop call s:SwitchImport(0, '', <f-args>)
-command! -buffer -nargs=1 Import call s:SwitchImport(1, '', <f-args>)
-command! -buffer -nargs=* ImportAs call s:SwitchImport(1, <f-args>)
+command! -buffer -nargs=? -complete=customlist,go#complete#Package Drop call s:SwitchImport(0, '', <f-args>)
+command! -buffer -nargs=1 -complete=customlist,go#complete#Package Import call s:SwitchImport(1, '', <f-args>)
+command! -buffer -nargs=* -complete=customlist,go#complete#Package ImportAs call s:SwitchImport(1, <f-args>)
 map <buffer> <LocalLeader>f :Import fmt<CR>
 map <buffer> <LocalLeader>F :Drop fmt<CR>
 

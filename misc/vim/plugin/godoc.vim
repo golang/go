@@ -11,8 +11,6 @@ let g:loaded_godoc = 1
 
 let s:buf_nr = -1
 let s:last_word = ''
-let s:goos = $GOOS
-let s:goarch = $GOARCH
 
 function! s:GodocView()
   if !bufexists(s:buf_nr)
@@ -81,43 +79,7 @@ function! s:Godoc(...)
   call s:GodocWord(word)
 endfunction
 
-function! s:GodocComplete(ArgLead, CmdLine, CursorPos)
-  if len($GOROOT) == 0
-    return []
-  endif
-  if len(s:goos) == 0
-    if exists('g:godoc_goos')
-      let s:goos = g:godoc_goos
-    elseif has('win32') || has('win64')
-      let s:goos = 'windows'
-    elseif has('macunix')
-      let s:goos = 'darwin'
-    else
-      let s:goos = '*'
-    endif
-  endif
-  if len(s:goarch) == 0
-    if exists('g:godoc_goarch')
-      let s:goarch = g:godoc_goarch
-    else
-      let s:goarch = g:godoc_goarch
-    endif
-  endif
-  let ret = {}
-  let root = expand($GOROOT.'/pkg/'.s:goos.'_'.s:goarch)
-  for i in split(globpath(root, a:ArgLead.'*'), "\n")
-    if isdirectory(i)
-      let i .= '/'
-    elseif i !~ '\.a$'
-      continue
-    endif
-    let i = substitute(substitute(i[len(root)+1:], '[\\]', '/', 'g'), '\.a$', '', 'g')
-    let ret[i] = i
-  endfor
-  return sort(keys(ret))
-endfunction
-
-command! -nargs=* -range -complete=customlist,s:GodocComplete Godoc :call s:Godoc(<q-args>)
+command! -nargs=* -range -complete=customlist,go#complete#Package Godoc :call s:Godoc(<q-args>)
 nnoremap <silent> <Plug>(godoc-keyword) :<C-u>call <SID>Godoc('')<CR>
 
 " vim:ts=4:sw=4:et
