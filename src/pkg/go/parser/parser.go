@@ -587,6 +587,7 @@ func (p *parser) parseStructType() *ast.StructType {
 	}
 	rbrace := p.expect(token.RBRACE)
 
+	// TODO(gri): store struct scope in AST
 	return &ast.StructType{pos, &ast.FieldList{lbrace, list, rbrace}, false}
 }
 
@@ -799,6 +800,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	}
 	rbrace := p.expect(token.RBRACE)
 
+	// TODO(gri): store interface scope in AST
 	return &ast.InterfaceType{pos, &ast.FieldList{lbrace, list, rbrace}, false}
 }
 
@@ -1434,14 +1436,14 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 	case token.ARROW:
 		// send statement
 		arrow := p.pos
-		p.next()
+		p.next() // consume "<-"
 		y := p.parseRhs()
 		return &ast.SendStmt{x[0], arrow, y}, false
 
 	case token.INC, token.DEC:
 		// increment or decrement
 		s := &ast.IncDecStmt{x[0], p.pos, p.tok}
-		p.next()
+		p.next() // consume "++" or "--"
 		return s, false
 	}
 
@@ -1589,7 +1591,7 @@ func (p *parser) parseTypeList() (list []ast.Expr) {
 	return
 }
 
-func (p *parser) parseCaseClause(varName string) *ast.CaseClause {
+func (p *parser) parseCaseClause(exprSwitch bool) *ast.CaseClause {
 	if p.trace {
 		defer un(trace(p, "CaseClause"))
 	}
@@ -1598,12 +1600,10 @@ func (p *parser) parseCaseClause(varName string) *ast.CaseClause {
 	var list []ast.Expr
 	if p.tok == token.CASE {
 		p.next()
-		if varName != "" {
-			// type switch
-			list = p.parseTypeList()
-		} else {
-			// expression switch
+		if exprSwitch {
 			list = p.parseRhsList()
+		} else {
+			list = p.parseTypeList()
 		}
 	} else {
 		p.expect(token.DEFAULT)
@@ -1611,31 +1611,21 @@ func (p *parser) parseCaseClause(varName string) *ast.CaseClause {
 
 	colon := p.expect(token.COLON)
 	p.openScope()
-	// If we have a type switch declaring a variable in its TypeSwitchGuard,
-	// declare that variable in each of the TypeCaseClauses.
-	if varName != "" && varName != "_" {
-		ident := &ast.Ident{Name: varName} // dummy identifier
-		p.declare(nil, nil, p.topScope, ast.Var, ident)
-	}
 	body := p.parseStmtList()
 	p.closeScope()
 
 	return &ast.CaseClause{pos, list, colon, body}
 }
 
-func isTypeSwitchAssert(x ast.Expr) bool {
-	a, ok := x.(*ast.TypeAssertExpr)
-	return ok && a.Type == nil
-}
-
-func isTypeSwitchGuard(s ast.Stmt) bool {
-	switch t := s.(type) {
-	case *ast.ExprStmt:
-		// x.(nil)
-		return isTypeSwitchAssert(t.X)
-	case *ast.AssignStmt:
-		// v := x.(nil)
-		return len(t.Lhs) == 1 && t.Tok == token.DEFINE && len(t.Rhs) == 1 && isTypeSwitchAssert(t.Rhs[0])
+func isExprSwitch(s ast.Stmt) bool {
+	if s == nil {
+		return true
+	}
+	if e, ok := s.(*ast.ExprStmt); ok {
+		if a, ok := e.X.(*ast.TypeAssertExpr); ok {
+			return a.Type != nil // regular type assertion
+		}
+		return true
 	}
 	return false
 }
@@ -1650,65 +1640,39 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	defer p.closeScope()
 
 	var s1, s2 ast.Stmt
-	var scope *ast.Scope // scope for variable declared in TypeSwitchGuard, if any
 	if p.tok != token.LBRACE {
 		prevLev := p.exprLev
 		p.exprLev = -1
 		if p.tok != token.SEMICOLON {
 			s2, _ = p.parseSimpleStmt(basic)
-			scope = p.topScope
 		}
 		if p.tok == token.SEMICOLON {
 			p.next()
 			s1 = s2
 			s2 = nil
 			if p.tok != token.LBRACE {
-				// A TypeSwitchGuard may declare a variable in addition
-				// to the variable declared in the initial SimpleStmt.
-				// Put it into an extra scope to avoid redeclaration
-				// errors, as in:
-				//
-				//	switch t := 0; t := x.(T) { ... }
-				//
-				// (this code is still not valid Go because the first t
-				// will never be used - but the extra scope is needed
-				// for the correct error message).
-				//
-				// If we don't have a type switch, s2 must be an expression.
-				// Having the extra (empty) scope here won't affect it.
-				p.openScope()
 				s2, _ = p.parseSimpleStmt(basic)
-				scope = p.topScope
-				p.closeScope()
 			}
 		}
 		p.exprLev = prevLev
 	}
 
-	// If varName != "", we have a type switch. If varName != "_" it
-	// is the name of the variable declared by the TypeSwitchGuard.
-	varName := ""
-	if isTypeSwitchGuard(s2) {
-		varName = "_"
-		// If s2 declared a variable, there is exactly one.
-		for varName = range scope.Objects {
-		}
-	}
-
+	exprSwitch := isExprSwitch(s2)
 	lbrace := p.expect(token.LBRACE)
 	var list []ast.Stmt
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
-		list = append(list, p.parseCaseClause(varName))
+		list = append(list, p.parseCaseClause(exprSwitch))
 	}
 	rbrace := p.expect(token.RBRACE)
 	p.expectSemi()
 	body := &ast.BlockStmt{lbrace, list, rbrace}
 
-	if varName != "" {
-		return &ast.TypeSwitchStmt{pos, s1, s2, body}
+	if exprSwitch {
+		return &ast.SwitchStmt{pos, s1, p.makeExpr(s2), body}
 	}
-
-	return &ast.SwitchStmt{pos, s1, p.makeExpr(s2), body}
+	// type switch
+	// TODO(gri): do all the checks!
+	return &ast.TypeSwitchStmt{pos, s1, s2, body}
 }
 
 func (p *parser) parseCommClause() *ast.CommClause {
@@ -2037,12 +2001,14 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
 		defer un(trace(p, "Receiver"))
 	}
 
+	pos := p.pos
 	par := p.parseParameters(scope, false)
 
 	// must have exactly one receiver
 	if par.NumFields() != 1 {
-		p.errorExpected(par.Opening, "exactly one receiver")
-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{par.Opening, par.Closing + 1}}}
+		p.errorExpected(pos, "exactly one receiver")
+		// TODO determine a better range for BadExpr below
+		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{pos, pos}}}
 		return par
 	}
 
