@@ -12,40 +12,44 @@ import (
 	"unicode"
 )
 
-func validMediaTypeOrDisposition(s string) bool {
+func checkMediaTypeDisposition(s string) os.Error {
 	typ, rest := consumeToken(s)
 	if typ == "" {
-		return false
+		return os.NewError("mime: no media type")
 	}
 	if rest == "" {
-		return true
+		return nil
 	}
 	if !strings.HasPrefix(rest, "/") {
-		return false
+		return os.NewError("mime: expected slash after first token")
 	}
 	subtype, rest := consumeToken(rest[1:])
 	if subtype == "" {
-		return false
+		return os.NewError("mime: expected token after slash")
 	}
-	return rest == ""
+	if rest != "" {
+		return os.NewError("mime: unexpected content after media subtype")
+	}
+	return nil
 }
 
 // ParseMediaType parses a media type value and any optional
 // parameters, per RFC 1521.  Media types are the values in
 // Content-Type and Content-Disposition headers (RFC 2183).
 // On success, ParseMediaType returns the media type converted
-// to lowercase and trimmed of white space. The returned params
-// is always a non-nil map. Params maps from the lowercase
+// to lowercase and trimmed of white space and a non-nil map.
+// The returned map, params, maps from the lowercase
 // attribute to the attribute value with its case preserved.
-// On error, it returns an empty string and a nil params.
-func ParseMediaType(v string) (mediatype string, params map[string]string) {
+func ParseMediaType(v string) (mediatype string, params map[string]string, err os.Error) {
 	i := strings.Index(v, ";")
 	if i == -1 {
 		i = len(v)
 	}
 	mediatype = strings.TrimSpace(strings.ToLower(v[0:i]))
-	if !validMediaTypeOrDisposition(mediatype) {
-		return "", nil
+
+	err = checkMediaTypeDisposition(mediatype)
+	if err != nil {
+		return
 	}
 
 	params = make(map[string]string)
@@ -69,7 +73,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string) {
 				return
 			}
 			// Parse error.
-			return "", nil
+			return "", nil, os.NewError("mime: invalid media parameter")
 		}
 
 		pmap := params
@@ -86,7 +90,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string) {
 		}
 		if _, exists := pmap[key]; exists {
 			// Duplicate parameter name is bogus.
-			return "", nil
+			return "", nil, os.NewError("mime: duplicate parameter name")
 		}
 		pmap[key] = value
 		v = rest

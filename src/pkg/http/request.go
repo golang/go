@@ -234,8 +234,8 @@ func (r *Request) multipartReader() (*multipart.Reader, os.Error) {
 	if v == "" {
 		return nil, ErrNotMultipart
 	}
-	d, params := mime.ParseMediaType(v)
-	if d != "multipart/form-data" {
+	d, params, err := mime.ParseMediaType(v)
+	if err != nil || d != "multipart/form-data" {
 		return nil, ErrNotMultipart
 	}
 	boundary, ok := params["boundary"]
@@ -625,8 +625,9 @@ func (r *Request) ParseForm() (err os.Error) {
 			return os.NewError("missing form body")
 		}
 		ct := r.Header.Get("Content-Type")
-		switch strings.SplitN(ct, ";", 2)[0] {
-		case "text/plain", "application/x-www-form-urlencoded", "":
+		ct, _, err := mime.ParseMediaType(ct)
+		switch {
+		case ct == "text/plain" || ct == "application/x-www-form-urlencoded" || ct == "":
 			const maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
 			b, e := ioutil.ReadAll(io.LimitReader(r.Body, maxFormSize+1))
 			if e != nil {
@@ -652,8 +653,13 @@ func (r *Request) ParseForm() (err os.Error) {
 					r.Form.Add(k, value)
 				}
 			}
-		case "multipart/form-data":
-			// handled by ParseMultipartForm
+		case ct == "multipart/form-data":
+			// handled by ParseMultipartForm (which is calling us, or should be)
+			// TODO(bradfitz): there are too many possible
+			// orders to call too many functions here.
+			// Clean this up and write more tests.
+			// request_test.go contains the start of this,
+			// in TestRequestMultipartCallOrder.
 		default:
 			return &badStringError{"unknown Content-Type", ct}
 		}

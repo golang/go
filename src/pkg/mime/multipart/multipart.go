@@ -69,8 +69,9 @@ func (p *Part) FileName() string {
 
 func (p *Part) parseContentDisposition() {
 	v := p.Header.Get("Content-Disposition")
-	p.disposition, p.dispositionParams = mime.ParseMediaType(v)
-	if p.dispositionParams == nil {
+	var err os.Error
+	p.disposition, p.dispositionParams, err = mime.ParseMediaType(v)
+	if err != nil {
 		p.dispositionParams = emptyParams
 	}
 }
