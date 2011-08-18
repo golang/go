@@ -146,26 +146,26 @@ func parse(name, s string) *template.Template {
 var recv = parse("recv", `
 	{{/*  Send n, receive it one way or another into x, check that they match. */}}
 	c <- n
-	{{with .Maybe}}
+	{{if .Maybe}}
 	x = <-c
 	{{else}}
 	select {
 	{{/*  Blocking or non-blocking, before the receive. */}}
 	{{/*  The compiler implements two-case select where one is default with custom code, */}}
 	{{/*  so test the default branch both before and after the send. */}}
-	{{with .MaybeDefault}}
+	{{if .MaybeDefault}}
 	default:
 		panic("nonblock")
 	{{end}}
 	{{/*  Receive from c.  Different cases are direct, indirect, :=, interface, and map assignment. */}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case x = <-c:
-	{{else}}{{with .Maybe}}
+	{{else}}{{if .Maybe}}
 	case *f(&x) = <-c:
-	{{else}}{{with .Maybe}}
+	{{else}}{{if .Maybe}}
 	case y := <-c:
 		x = y
-	{{else}}{{with .Maybe}}
+	{{else}}{{if .Maybe}}
 	case i = <-c:
 		x = i.(int)
 	{{else}}
@@ -173,25 +173,25 @@ var recv = parse("recv", `
 		x = m[13]
 	{{end}}{{end}}{{end}}{{end}}
 	{{/*  Blocking or non-blocking again, after the receive. */}}
-	{{with .MaybeDefault}}
+	{{if .MaybeDefault}}
 	default:
 		panic("nonblock")
 	{{end}}
 	{{/*  Dummy send, receive to keep compiler from optimizing select. */}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case dummy <- 1:
 		panic("dummy send")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case <-dummy:
 		panic("dummy receive")
 	{{end}}
 	{{/*  Nil channel send, receive to keep compiler from optimizing select. */}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case nilch <- 1:
 		panic("nilch send")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case <-nilch:
 		panic("nilch recv")
 	{{end}}
@@ -209,12 +209,12 @@ var recvOrder = parse("recvOrder", `
 	{{/*  that the argument sequence is strictly increasing. */}}
 	order = 0
 	c <- n
-	{{with .Maybe}}
+	{{if .Maybe}}
 	{{/*  Outside of select, left-to-right rule applies. */}}
 	{{/*  (Inside select, assignment waits until case is chosen, */}}
 	{{/*  so right hand side happens before anything on left hand side. */}}
 	*fp(&x, 1) = <-fc(c, 2)
-	{{else}}{{with .Maybe}}
+	{{else}}{{if .Maybe}}
 	m[fn(13, 1)] = <-fc(c, 2)
 	x = m[13]
 	{{else}}
@@ -222,17 +222,17 @@ var recvOrder = parse("recvOrder", `
 	{{/*  Blocking or non-blocking, before the receive. */}}
 	{{/*  The compiler implements two-case select where one is default with custom code, */}}
 	{{/*  so test the default branch both before and after the send. */}}
-	{{with .MaybeDefault}}
+	{{if .MaybeDefault}}
 	default:
 		panic("nonblock")
 	{{end}}
 	{{/*  Receive from c.  Different cases are direct, indirect, :=, interface, and map assignment. */}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case *fp(&x, 100) = <-fc(c, 1):
-	{{else}}{{with .Maybe}}
+	{{else}}{{if .Maybe}}
 	case y := <-fc(c, 1):
 		x = y
-	{{else}}{{with .Maybe}}
+	{{else}}{{if .Maybe}}
 	case i = <-fc(c, 1):
 		x = i.(int)
 	{{else}}
@@ -240,25 +240,25 @@ var recvOrder = parse("recvOrder", `
 		x = m[13]
 	{{end}}{{end}}{{end}}
 	{{/*  Blocking or non-blocking again, after the receive. */}}
-	{{with .MaybeDefault}}
+	{{if .MaybeDefault}}
 	default:
 		panic("nonblock")
 	{{end}}
 	{{/*  Dummy send, receive to keep compiler from optimizing select. */}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case fc(dummy, 2) <- fn(1, 3):
 		panic("dummy send")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case <-fc(dummy, 4):
 		panic("dummy receive")
 	{{end}}
 	{{/*  Nil channel send, receive to keep compiler from optimizing select. */}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case fc(nilch, 5) <- fn(1, 6):
 		panic("nilch send")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case <-fc(nilch, 7):
 		panic("nilch recv")
 	{{end}}
@@ -272,12 +272,12 @@ var recvOrder = parse("recvOrder", `
 
 var send = parse("send", `
 	{{/*  Send n one way or another, receive it into x, check that they match. */}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	c <- n
 	{{else}}
 	select {
 	{{/*  Blocking or non-blocking, before the receive (same reason as in recv). */}}
-	{{with .MaybeDefault}}
+	{{if .MaybeDefault}}
 	default:
 		panic("nonblock")
 	{{end}}
@@ -285,25 +285,25 @@ var send = parse("send", `
 	{{/*  from the send operation. */}}
 	case c <- n:
 	{{/*  Blocking or non-blocking. */}}
-	{{with .MaybeDefault}}
+	{{if .MaybeDefault}}
 	default:
 		panic("nonblock")
 	{{end}}
 	{{/*  Dummy send, receive to keep compiler from optimizing select. */}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case dummy <- 1:
 		panic("dummy send")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case <-dummy:
 		panic("dummy receive")
 	{{end}}
 	{{/*  Nil channel send, receive to keep compiler from optimizing select. */}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case nilch <- 1:
 		panic("nilch send")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case <-nilch:
 		panic("nilch recv")
 	{{end}}
@@ -321,12 +321,12 @@ var sendOrder = parse("sendOrder", `
 	{{/*  Check order of operations along the way by calling functions that check */}}
 	{{/*  that the argument sequence is strictly increasing. */}}
 	order = 0
-	{{with .Maybe}}
+	{{if .Maybe}}
 	fc(c, 1) <- fn(n, 2)
 	{{else}}
 	select {
 	{{/*  Blocking or non-blocking, before the receive (same reason as in recv). */}}
-	{{with .MaybeDefault}}
+	{{if .MaybeDefault}}
 	default:
 		panic("nonblock")
 	{{end}}
@@ -334,25 +334,25 @@ var sendOrder = parse("sendOrder", `
 	{{/*  from the send operation. */}}
 	case fc(c, 1) <- fn(n, 2):
 	{{/*  Blocking or non-blocking. */}}
-	{{with .MaybeDefault}}
+	{{if .MaybeDefault}}
 	default:
 		panic("nonblock")
 	{{end}}
 	{{/*  Dummy send, receive to keep compiler from optimizing select. */}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case fc(dummy, 3) <- fn(1, 4):
 		panic("dummy send")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case <-fc(dummy, 5):
 		panic("dummy receive")
 	{{end}}
 	{{/*  Nil channel send, receive to keep compiler from optimizing select. */}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case fc(nilch, 6) <- fn(1, 7):
 		panic("nilch send")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case <-fc(nilch, 8):
 		panic("nilch recv")
 	{{end}}
@@ -370,42 +370,42 @@ var nonblock = parse("nonblock", `
 	{{/*  Test various combinations of non-blocking operations. */}}
 	{{/*  Receive assignments must not edit or even attempt to compute the address of the lhs. */}}
 	select {
-	{{with .MaybeDefault}}
+	{{if .MaybeDefault}}
 	default:
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case dummy <- 1:
 		panic("dummy <- 1")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case nilch <- 1:
 		panic("nilch <- 1")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case <-dummy:
 		panic("<-dummy")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case x = <-dummy:
 		panic("<-dummy x")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case **(**int)(nil) = <-dummy:
 		panic("<-dummy (and didn't crash saving result!)")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case <-nilch:
 		panic("<-nilch")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case x = <-nilch:
 		panic("<-nilch x")
 	{{end}}
-	{{with .Maybe}}
+	{{if .Maybe}}
 	case **(**int)(nil) = <-nilch:
 		panic("<-nilch (and didn't crash saving result!)")
 	{{end}}
-	{{with .MustDefault}}
+	{{if .MustDefault}}
 	default:
 	{{end}}
 	}
