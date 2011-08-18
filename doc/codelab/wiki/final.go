@@ -3,9 +3,9 @@ package main
 import (
 	"http"
 	"io/ioutil"
-	"old/template"
 	"os"
 	"regexp"
+	"template"
 )
 
 type Page struct {
@@ -59,7 +59,8 @@ var templates = make(map[string]*template.Template)
 
 func init() {
 	for _, tmpl := range []string{"edit", "view"} {
-		templates[tmpl] = template.MustParseFile(tmpl+".html", nil)
+		t := template.Must(template.ParseFile(tmpl+".html"))
+		templates[tmpl] = t
 	}
 }
 

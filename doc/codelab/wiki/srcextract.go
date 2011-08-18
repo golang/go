@@ -8,7 +8,7 @@ import (
 	"go/ast"
 	"go/token"
 	"log"
-	"old/template"
+	"template"
 	"os"
 )
 

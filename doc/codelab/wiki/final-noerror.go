@@ -3,8 +3,8 @@ package main
 import (
 	"http"
 	"io/ioutil"
-	"old/template"
 	"os"
+	"template"
 )
 
 type Page struct {
@@ -34,14 +34,14 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		p = &Page{Title: title}
 	}
-	t, _ := template.ParseFile("edit.html", nil)
+	t, _ := template.ParseFile("edit.html")
 	t.Execute(w, p)
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, _ := loadPage(title)
-	t, _ := template.ParseFile("view.html", nil)
+	t, _ := template.ParseFile("view.html")
 	t.Execute(w, p)
 }
 
