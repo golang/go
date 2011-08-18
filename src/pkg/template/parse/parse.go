@@ -173,7 +173,7 @@ func (t *Tree) itemList(toEOF bool) (list *ListNode, next Node) {
 	for t.peek().typ != itemEOF {
 		n := t.textOrAction()
 		switch n.Type() {
-		case NodeEnd, NodeElse:
+		case nodeEnd, nodeElse:
 			return list, n
 		}
 		list.append(n)
@@ -278,10 +278,10 @@ func (t *Tree) parseControl(context string) (lineNum int, pipe *PipeNode, list, 
 	var next Node
 	list, next = t.itemList(false)
 	switch next.Type() {
-	case NodeEnd: //done
-	case NodeElse:
+	case nodeEnd: //done
+	case nodeElse:
 		elseList, next = t.itemList(false)
-		if next.Type() != NodeEnd {
+		if next.Type() != nodeEnd {
 			t.errorf("expected end; found %s", next)
 		}
 		elseList = elseList
