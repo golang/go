@@ -619,8 +619,6 @@ func (r *Request) ParseForm() (err os.Error) {
 
 	if r.URL != nil {
 		r.Form, err = url.ParseQuery(r.URL.RawQuery)
-	} else {
-		r.Form = make(url.Values) // TODO: remove when nil maps work.
 	}
 	if r.Method == "POST" {
 		if r.Body == nil {
@@ -644,6 +642,9 @@ func (r *Request) ParseForm() (err os.Error) {
 			newValues, e = url.ParseQuery(string(b))
 			if err == nil {
 				err = e
+			}
+			if r.Form == nil {
+				r.Form = make(url.Values)
 			}
 			// Copy values into r.Form. TODO: make this smoother.
 			for k, vs := range newValues {
