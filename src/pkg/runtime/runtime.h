@@ -359,6 +359,7 @@ enum {
 struct Defer
 {
 	int32	siz;
+	bool	nofree;
 	byte*	argp;  // where args were copied from
 	byte*	pc;
 	byte*	fn;

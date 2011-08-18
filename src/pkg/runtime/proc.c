@@ -1153,7 +1153,8 @@ runtime·deferreturn(uintptr arg0)
 	runtime·memmove(argp, d->args, d->siz);
 	g->defer = d->link;
 	fn = d->fn;
-	runtime·free(d);
+	if(!d->nofree)
+		runtime·free(d);
 	runtime·jmpdefer(fn, argp);
 }
 
@@ -1165,7 +1166,8 @@ rundefer(void)
 	while((d = g->defer) != nil) {
 		g->defer = d->link;
 		reflect·call(d->fn, d->args, d->siz);
-		runtime·free(d);
+		if(!d->nofree)
+			runtime·free(d);
 	}
 }
 
@@ -1245,7 +1247,8 @@ runtime·panic(Eface e)
 			runtime·mcall(recovery);
 			runtime·throw("recovery failed"); // mcall should not return
 		}
-		runtime·free(d);
+		if(!d->nofree)
+			runtime·free(d);
 	}
 
 	// ran out of deferred calls - old-school panic now
@@ -1280,7 +1283,8 @@ recovery(G *gp)
 	else
 		gp->sched.sp = (byte*)d->argp - 2*sizeof(uintptr);
 	gp->sched.pc = d->pc;
-	runtime·free(d);
+	if(!d->nofree)
+		runtime·free(d);
 	runtime·gogo(&gp->sched, 1);
 }
 
