@@ -9,6 +9,7 @@
 void
 runtime·initsig(int32 queue)
 {
+	runtime·siginit();
 }
 
 void

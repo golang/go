@@ -61,8 +61,42 @@ TEXT runtime·setlasterror(SB),7,$0
 
 // Windows runs the ctrl handler in a new thread.
 TEXT runtime·ctrlhandler(SB),7,$0
-	// TODO
-	RET
+	PUSHQ	BP
+	MOVQ	SP, BP
+	PUSHQ	BX
+	PUSHQ	SI
+	PUSHQ	DI
+	PUSHQ	0x58(GS)
+	MOVQ	SP, BX
+
+	// setup dummy m, g
+	SUBQ	$(m_gostack+8), SP	// at least space for m_gostack
+	LEAQ	m_tls(SP), CX
+	MOVQ	CX, 0x58(GS)
+	MOVQ	SP, m(CX)
+	MOVQ	SP, DX
+	SUBQ	$16, SP			// space for g_stack{guard,base}
+	MOVQ	SP, g(CX)
+	MOVQ	SP, m_g0(DX)
+	LEAQ	-8192(SP), CX
+	MOVQ	CX, g_stackguard(SP)
+	MOVQ	BX, g_stackbase(SP)
+
+	PUSHQ	16(BP)
+	CALL	runtime·ctrlhandler1(SB)
+	POPQ	CX
+
+	get_tls(CX)
+	MOVQ	g(CX), CX
+	MOVQ	g_stackbase(CX), SP
+	POPQ	0x58(GS)
+	POPQ	DI
+	POPQ	SI
+	POPQ	BX
+	POPQ	BP
+	MOVQ	0(SP), CX
+	ADDQ	$16, SP
+	JMP	CX
 	
 TEXT runtime·callbackasm(SB),7,$0
 	// TODO
