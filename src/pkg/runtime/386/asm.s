@@ -432,17 +432,17 @@ TEXT runtime·cgocallback(SB),7,$12
 	PUSHL	(g_sched+gobuf_sp)(SI)
 	MOVL	SP, (g_sched+gobuf_sp)(SI)
 
-	// Switch to m->curg stack and call runtime.cgocallback
+	// Switch to m->curg stack and call runtime.cgocallbackg
 	// with the three arguments.  Because we are taking over
 	// the execution of m->curg but *not* resuming what had
 	// been running, we need to save that information (m->curg->gobuf)
 	// so that we can restore it when we're done. 
 	// We can restore m->curg->gobuf.sp easily, because calling
-	// runtime.cgocallback leaves SP unchanged upon return.
+	// runtime.cgocallbackg leaves SP unchanged upon return.
 	// To save m->curg->gobuf.pc, we push it onto the stack.
 	// This has the added benefit that it looks to the traceback
-	// routine like cgocallback is going to return to that
-	// PC (because we defined cgocallback to have
+	// routine like cgocallbackg is going to return to that
+	// PC (because we defined cgocallbackg to have
 	// a frame size of 12, the same amount that we use below),
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.

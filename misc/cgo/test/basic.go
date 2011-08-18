@@ -48,6 +48,10 @@ struct ibv_async_event {
 struct ibv_context {
 	xxpthread_mutex_t mutex;
 };
+
+int add(int x, int y) {
+	return x+y;
+};
 */
 import "C"
 import (
@@ -131,4 +135,12 @@ var (
 
 type Context struct {
 	ctx *C.struct_ibv_context
+}
+
+func benchCgoCall(b *testing.B) {
+	const x = C.int(2)
+	const y = C.int(3)
+	for i := 0; i < b.N; i++ {
+		C.add(x, y)
+	}
 }
