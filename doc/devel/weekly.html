@@ -14,6 +14,69 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-08-17">2011-08-17</h2>
+
+<pre>
+This weekly contains some package re-shuffling. Users of the http and
+template packages may be affected.
+
+This weekly replaces the template package with exp/template.
+The original template package is still available as old/template.
+The old/template package is deprecated and will be removed at some point
+in the future. The Go tree has been updated to use the new template package.
+We encourage users of the old template package to switch to the new one.
+Code that uses template or exp/template will need to change
+its import lines to "old/template" or "template", respectively.
+
+The http package's URL parsing and query escaping code (such as ParseURL and
+URLEscape) has been moved to the new url package, with several simplifications
+to the names. Client code can be updated automatically with gofix.
+
+* asn1: support unmarshalling structs with int32 members (thanks Dave Cheney).
+* build: allow builds without cgo or hg,
+	support versioning without hg (thanks Gustavo Niemeyer).
+* builtin: add documentation for builtins.
+* cgo: omit duplicate symbols in writeDefs (thanks Julian Phillips).
+* misc: add support for OpenBSD.
+* doc/codewalk: new Markov chain codewalk.
+* exp/norm: added trie lookup code and associated tests,
+	generate trie struct in triegen.go for better encapsulation,
+	implementation of decomposition and composing functionality.
+* exp/template/html: new experimental package for auto-escaping HTML templates.
+* exp/template: don't panic on range of nil interface,
+	rename Parse*File and Parse*Files for clarity,
+	support field syntax on maps (thanks Gustavo Niemeyer), and
+	many other fixes and changes.
+* gc: implement nil chan and nil map support.
+* go/parser: range clause and type literal fixes.
+* godoc: show all top-level decls for (fake) package builtin.
+* goinstall: really report all newly-installed public packages.
+* html: parse more malformed tags.
+* http: fix ParseMultipartForm after MultipartReader error,
+	fix side effects in DefaultTransport's RoundTrip method (thanks Dave Grijalva).
+* json: fix []unmarshaler case.
+* ld: make addaddrplus4 static (thanks Lucio De Re).
+* syscall: move multicast address handling to the net package.
+* net: Plan 9 support (thanks Fazlul Shahriar),
+	add SetTimeout to Listener interface (thanks Aleksandar Dezelin),
+	add multicast stubs for OpenBSD,
+	return correct local address for an accepted TCP connection (thanks Mikio Hara).
+* reflect: panic on Invalid Interface call (thanks Gustavo Niemeyer).
+* rpc: implement ServeRequest to synchronously serve a single request,
+	make Server.Mutex unexported.
+* runtime: better checks for syscall.NewCallback parameter (thanks Alex Brainman),
+	correct SEH installation during callbacks (thanks Alex Brainman),
+	fix GC bitmap corruption,
+	fix pseudo-randomness on some selects (thanks Gustavo Niemeyer).
+* syscall: make LazyDLL/LazyProc.Mutex unexported.
+* test: allow multiple patterns in errchk,
+	new nil semantics.
+* time: take fractional seconds even if not in the format string.
+* url: new package.
+* utf8: rename some internal constants to remove leading underscores.
+* xml: escape string chardata in xml.Marshal.
+</pre>
+
 <h2 id="2011-08-10">2011-08-10</h2>
 
 <pre>
