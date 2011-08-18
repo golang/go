@@ -3,9 +3,9 @@ package main
 import (
 	"http"
 	"io/ioutil"
-	"old/template"
 	"os"
 	"regexp"
+	"template"
 )
 
 type Page struct {
@@ -68,7 +68,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	t, err := template.ParseFile(tmpl+".html", nil)
+	t, err := template.ParseFile(tmpl+".html")
 	if err != nil {
 		http.Error(w, err.String(), http.StatusInternalServerError)
 		return

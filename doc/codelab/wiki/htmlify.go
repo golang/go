@@ -1,12 +1,12 @@
 package main
 
 import (
-	"old/template"
+	"template"
 	"os"
 	"io/ioutil"
 )
 
 func main() {
 	b, _ := ioutil.ReadAll(os.Stdin)
-	template.HTMLFormatter(os.Stdout, "", b)
+	template.HTMLEscape(os.Stdout, b)
 }

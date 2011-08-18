@@ -7,7 +7,7 @@ Covered in this codelab:
 <ul>
 <li>Creating a data structure with load and save methods</li>
 <li>Using the <code>http</code> package to build web applications
-<li>Using the <code>old/template</code> package to process HTML templates</li>
+<li>Using the <code>template</code> package to process HTML templates</li>
 <li>Using the <code>regexp</code> package to validate user input</li>
 <li>Using closures</li>
 </ul>
@@ -366,27 +366,27 @@ This function will work fine, but all that hard-coded HTML is ugly.
 Of course, there is a better way.
 </p>
  
-<h2>The <code>old/template</code> package</h2>
+<h2>The <code>template</code> package</h2>
 
 <p>
-The <code>old/template</code> package is part of the Go standard library.
+The <code>template</code> package is part of the Go standard library.
 (A new template package is coming; this code lab will be updated soon.)
 We can
-use <code>old/template</code> to keep the HTML in a separate file, allowing
+use <code>template</code> to keep the HTML in a separate file, allowing
 us to change the layout of our edit page without modifying the underlying Go
 code.
 </p>
 
 <p>
-First, we must add <code>old/template</code> to the list of imports:
+First, we must add <code>template</code> to the list of imports:
 </p>
 
 <pre>
 import (
 	"http"
 	"io/ioutil"
-	<b>"old/template"</b>
 	"os"
+	<b>"template"</b>
 )
 </pre>
 
@@ -414,19 +414,21 @@ The function <code>template.ParseFile</code> will read the contents of
 </p>
 
 <p>
-The method <code>t.Execute</code> replaces all occurrences of 
-<code>{Title}</code> and <code>{Body}</code> with the values of 
-<code>p.Title</code> and <code>p.Body</code>, and writes the resultant
-HTML to the <code>http.ResponseWriter</code>.
+The method <code>t.Execute</code> executes the template, writing the
+generated HTML to the <code>http.ResponseWriter</code>.
+The <code>.Title</code> and <code>.Body</code> dotted identifiers refer to
+<code>p.Title</code> and <code>p.Body</code>.
 </p>
 
 <p>
-Note that we've used <code>{Body|html}</code> in the above template.  
-The <code>|html</code> part asks the template engine to pass the value
-<code>Body</code> through the <code>html</code> formatter before outputting it,
-which escapes HTML characters (such as replacing <code>&gt;</code> with 
-<code>&amp;gt;</code>). 
-This will prevent user data from corrupting the form HTML. 
+Template directives are enclosed in double curly braces.
+The <code>printf "%s" .Body</code> instruction is a function call
+that outputs <code>.Body</code> as a string instead of a stream of bytes,
+the same as a call to <code>fmt.Printf</code>.
+The <code>|html</code> part of each directive pipes the value through the
+<code>html</code> formatter before outputting it, which escapes HTML
+characters (such as replacing <code>&gt;</code> with <code>&amp;gt;</code>),
+preventing user data from corrupting the form HTML. 
 </p>
 
 <p>
@@ -572,10 +574,10 @@ our <code>*Template</code> values, keyed by <code>string</code>
 <p>
 Then we create an <code>init</code> function, which will be called before
 <code>main</code> at program initialization. The function
-<code>template.MustParseFile</code> is a convenience wrapper around
-<code>ParseFile</code> that does not return an error code; instead, it panics
-if an error is encountered. A panic is appropriate here; if the templates can't
-be loaded the only sensible thing to do is exit the program.
+<code>template.Must</code> is a convenience wrapper that panics when passed a
+non-nil <code>os.Error</code> value, and otherwise returns the
+<code>*Template</code> unaltered. A panic is appropriate here; if the templates
+can't be loaded the only sensible thing to do is exit the program.
 </p>
 
 <pre>
@@ -618,10 +620,9 @@ Then we can create a global variable to store our validation regexp:
 <p>
 The function <code>regexp.MustCompile</code> will parse and compile the 
 regular expression, and return a <code>regexp.Regexp</code>. 
-<code>MustCompile</code>, like <code>template.MustParseFile</code>,
-is distinct from <code>Compile</code> in that it will panic if 
-the expression compilation fails, while <code>Compile</code> returns an 
-<code>os.Error</code> as a second parameter. 
+<code>MustCompile</code> is distinct from <code>Compile</code> in that it will
+panic if the expression compilation fails, while <code>Compile</code> returns
+an <code>os.Error</code> as a second parameter. 
 </p>
 
 <p>
