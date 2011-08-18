@@ -14,6 +14,7 @@ GOFILES=\
 	httpserver.go\
 	main.go\
 	netdial.go\
+	netudpgroup.go\
 	oserrorstring.go\
 	osopen.go\
 	procattr.go\

@@ -169,17 +169,18 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err os.Error) {
 	return &UDPConn{*l.plan9Conn()}, nil
 }
 
-// JoinGroup joins the IPv4 multicast group named by addr.
-// The UDPConn must use the "udp4" network.
-func (c *UDPConn) JoinGroup(addr IP) os.Error {
+// JoinGroup joins the IP multicast group named by addr on ifi,
+// which specifies the interface to join.  JoinGroup uses the
+// default multicast interface if ifi is nil.
+func (c *UDPConn) JoinGroup(ifi *Interface, addr IP) os.Error {
 	if !c.ok() {
 		return os.EINVAL
 	}
 	return os.EPLAN9
 }
 
-// LeaveGroup exits the IPv4 multicast group named by addr.
-func (c *UDPConn) LeaveGroup(addr IP) os.Error {
+// LeaveGroup exits the IP multicast group named by addr on ifi.
+func (c *UDPConn) LeaveGroup(ifi *Interface, addr IP) os.Error {
 	if !c.ok() {
 		return os.EINVAL
 	}
