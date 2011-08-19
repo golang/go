@@ -10,5 +10,6 @@ GOFILES=\
 	node.go\
 	parse.go\
 	set.go\
+	walk.go\
 
 include ../../../Make.pkg
