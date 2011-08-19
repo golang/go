@@ -18,11 +18,27 @@ func whatis(x interface{}) string {
 		return "Reader1"
 	case io.Reader: // ERROR "duplicate"
 		return "Reader2"
-	case interface { r(); w() }:
+	case interface {
+		r()
+		w()
+	}:
 		return "rw"
-	case interface { w(); r() }:	// ERROR "duplicate"
+	case interface {
+		w()
+		r()
+	}: // ERROR "duplicate"
 		return "wr"
-	
+
 	}
 	return ""
+}
+
+func notused(x interface{}) {
+	// The first t is in a different scope than the 2nd t; it cannot
+	// be accessed (=> declared and not used error); but it is legal
+	// to declare it.
+	switch t := 0; t := x.(type) { // ERROR "declared and not used"
+	case int:
+		_ = t // this is using the t of "t := x.(type)"
+	}
 }
