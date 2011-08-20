@@ -250,8 +250,8 @@ func main() {
 		fsHttp = NewHttpZipFS(rc, *goroot)
 	}
 
-	initHandlers()
 	readTemplates()
+	initHandlers()
 
 	if *httpAddr != "" {
 		// HTTP server mode.

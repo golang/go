@@ -540,7 +540,19 @@ func readTemplate(name string) *template.Template {
 			path = defaultpath
 		}
 	}
-	return template.Must(template.New(name).Funcs(fmap).ParseFile(path))
+
+	// use underlying file system fs to read the template file
+	// (cannot use template ParseFile functions directly)
+	data, err := fs.ReadFile(path)
+	if err != nil {
+		log.Fatal("readTemplate: ", err)
+	}
+	// be explicit with errors (for app engine use)
+	t, err := template.New(name).Funcs(fmap).Parse(string(data))
+	if err != nil {
+		log.Fatal("readTemplate: ", err)
+	}
+	return t
 }
 
 var (
