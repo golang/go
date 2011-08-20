@@ -13,7 +13,6 @@
 package main
 
 import (
-	"container/vector"
 	"fmt"
 	"http"
 	"io"
@@ -183,17 +182,17 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
 		serveError(w, r, relpath, err)
 		return
 	}
-	var v vector.Vector
+	var v []interface{}
 	for _, fi := range dir {
 		name := fi.Name()
 		if fi.IsDirectory() {
-			v.Push(&elem{name + "/", ""})
+			v = append(v, &elem{name + "/", ""})
 		} else if strings.HasSuffix(name, ".xml") {
 			cw, err := loadCodewalk(abspath + "/" + name)
 			if err != nil {
 				continue
 			}
-			v.Push(&elem{name[0 : len(name)-len(".xml")], cw.Title})
+			v = append(v, &elem{name[0 : len(name)-len(".xml")], cw.Title})
 		}
 	}
 

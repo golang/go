@@ -39,7 +39,7 @@
 package main
 
 import (
-	"alt/archive/zip"
+	"archive/zip"
 	"http"
 	"log"
 	"os"
