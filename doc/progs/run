@@ -35,6 +35,7 @@ for i in \
 	sieve1.go \
 	server1.go \
 	strings.go \
+	eff_qr.go \
 ; do
 	$GC $i
 done
