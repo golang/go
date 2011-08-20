@@ -39,7 +39,6 @@ package main
 
 import (
 	"bytes"
-	"container/vector"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -53,47 +52,61 @@ import (
 )
 
 // ----------------------------------------------------------------------------
+// InterfaceSlice is a helper type for sorting interface
+// slices according to some slice-specific sort criteria.
+
+type Comparer func(x, y interface{}) bool
+
+type InterfaceSlice struct {
+	slice []interface{}
+	less  Comparer
+}
+
+func (p *InterfaceSlice) Len() int           { return len(p.slice) }
+func (p *InterfaceSlice) Less(i, j int) bool { return p.less(p.slice[i], p.slice[j]) }
+func (p *InterfaceSlice) Swap(i, j int)      { p.slice[i], p.slice[j] = p.slice[j], p.slice[i] }
+
+// ----------------------------------------------------------------------------
 // RunList
 
-// A RunList is a vector of entries that can be sorted according to some
+// A RunList is a list of entries that can be sorted according to some
 // criteria. A RunList may be compressed by grouping "runs" of entries
 // which are equal (according to the sort critera) into a new RunList of
 // runs. For instance, a RunList containing pairs (x, y) may be compressed
 // into a RunList containing pair runs (x, {y}) where each run consists of
 // a list of y's with the same x.
-type RunList struct {
-	vector.Vector
-	less func(x, y interface{}) bool
-}
+type RunList []interface{}
 
-func (h *RunList) Less(i, j int) bool { return h.less(h.At(i), h.At(j)) }
-
-func (h *RunList) sort(less func(x, y interface{}) bool) {
-	h.less = less
-	sort.Sort(h)
+func (h RunList) sort(less Comparer) {
+	sort.Sort(&InterfaceSlice{h, less})
 }
 
 // Compress entries which are the same according to a sort criteria
 // (specified by less) into "runs".
-func (h *RunList) reduce(less func(x, y interface{}) bool, newRun func(h *RunList, i, j int) interface{}) *RunList {
+func (h RunList) reduce(less Comparer, newRun func(h RunList) interface{}) RunList {
+	if len(h) == 0 {
+		return nil
+	}
+	// len(h) > 0
+
 	// create runs of entries with equal values
 	h.sort(less)
 
 	// for each run, make a new run object and collect them in a new RunList
 	var hh RunList
-	i := 0
-	for j := 0; j < h.Len(); j++ {
-		if less(h.At(i), h.At(j)) {
-			hh.Push(newRun(h, i, j))
-			i = j // start a new run
+	i, x := 0, h[0]
+	for j, y := range h {
+		if less(x, y) {
+			hh = append(hh, newRun(h[i:j]))
+			i, x = j, h[j] // start a new run
 		}
 	}
 	// add final run, if any
-	if i < h.Len() {
-		hh.Push(newRun(h, i, h.Len()))
+	if i < len(h) {
+		hh = append(hh, newRun(h[i:]))
 	}
 
-	return &hh
+	return hh
 }
 
 // ----------------------------------------------------------------------------
@@ -178,14 +191,12 @@ func (f *KindRun) Swap(i, j int)      { f.Infos[i], f.Infos[j] = f.Infos[j], f.I
 // FileRun contents are sorted by Kind for the reduction into KindRuns.
 func lessKind(x, y interface{}) bool { return x.(SpotInfo).Kind() < y.(SpotInfo).Kind() }
 
-// newKindRun allocates a new KindRun from the SpotInfo run [i, j) in h.
-func newKindRun(h *RunList, i, j int) interface{} {
-	kind := h.At(i).(SpotInfo).Kind()
-	infos := make([]SpotInfo, j-i)
-	k := 0
-	for ; i < j; i++ {
-		infos[k] = h.At(i).(SpotInfo)
-		k++
+// newKindRun allocates a new KindRun from the SpotInfo run h.
+func newKindRun(h RunList) interface{} {
+	kind := h[0].(SpotInfo).Kind()
+	infos := make([]SpotInfo, len(h))
+	for i, x := range h {
+		infos[i] = x.(SpotInfo)
 	}
 	run := &KindRun{kind, infos}
 
@@ -248,24 +259,21 @@ type FileRun struct {
 // Spots are sorted by path for the reduction into FileRuns.
 func lessSpot(x, y interface{}) bool { return x.(Spot).File.Path < y.(Spot).File.Path }
 
-// newFileRun allocates a new FileRun from the Spot run [i, j) in h.
-func newFileRun(h0 *RunList, i, j int) interface{} {
-	file := h0.At(i).(Spot).File
+// newFileRun allocates a new FileRun from the Spot run h.
+func newFileRun(h RunList) interface{} {
+	file := h[0].(Spot).File
 
 	// reduce the list of Spots into a list of KindRuns
-	var h1 RunList
-	h1.Vector.Resize(j-i, 0)
-	k := 0
-	for ; i < j; i++ {
-		h1.Set(k, h0.At(i).(Spot).Info)
-		k++
+	h1 := make(RunList, len(h))
+	for i, x := range h {
+		h1[i] = x.(Spot).Info
 	}
 	h2 := h1.reduce(lessKind, newKindRun)
 
 	// create the FileRun
-	groups := make([]*KindRun, h2.Len())
-	for i := 0; i < h2.Len(); i++ {
-		groups[i] = h2.At(i).(*KindRun)
+	groups := make([]*KindRun, len(h2))
+	for i, x := range h2 {
+		groups[i] = x.(*KindRun)
 	}
 	return &FileRun{file, groups}
 }
@@ -289,14 +297,12 @@ func lessFileRun(x, y interface{}) bool {
 	return x.(*FileRun).File.Pak.less(&y.(*FileRun).File.Pak)
 }
 
-// newPakRun allocates a new PakRun from the *FileRun run [i, j) in h.
-func newPakRun(h *RunList, i, j int) interface{} {
-	pak := h.At(i).(*FileRun).File.Pak
-	files := make([]*FileRun, j-i)
-	k := 0
-	for ; i < j; i++ {
-		files[k] = h.At(i).(*FileRun)
-		k++
+// newPakRun allocates a new PakRun from the *FileRun run h.
+func newPakRun(h RunList) interface{} {
+	pak := h[0].(*FileRun).File.Pak
+	files := make([]*FileRun, len(h))
+	for i, x := range h {
+		files[i] = x.(*FileRun)
 	}
 	run := &PakRun{pak, files}
 	sort.Sort(run) // files were sorted by package; sort them by file now
@@ -312,7 +318,7 @@ type HitList []*PakRun
 // PakRuns are sorted by package.
 func lessPakRun(x, y interface{}) bool { return x.(*PakRun).Pak.less(&y.(*PakRun).Pak) }
 
-func reduce(h0 *RunList) HitList {
+func reduce(h0 RunList) HitList {
 	// reduce a list of Spots into a list of FileRuns
 	h1 := h0.reduce(lessSpot, newFileRun)
 	// reduce a list of FileRuns into a list of PakRuns
@@ -320,28 +326,18 @@ func reduce(h0 *RunList) HitList {
 	// sort the list of PakRuns by package
 	h2.sort(lessPakRun)
 	// create a HitList
-	h := make(HitList, h2.Len())
-	for i := 0; i < h2.Len(); i++ {
-		h[i] = h2.At(i).(*PakRun)
+	h := make(HitList, len(h2))
+	for i, p := range h2 {
+		h[i] = p.(*PakRun)
 	}
 	return h
 }
 
 func (h HitList) filter(pakname string) HitList {
-	// determine number of matching packages (most of the time just one)
-	n := 0
+	var hh HitList
 	for _, p := range h {
 		if p.Pak.Name == pakname {
-			n++
-		}
-	}
-	// create filtered HitList
-	hh := make(HitList, n)
-	i := 0
-	for _, p := range h {
-		if p.Pak.Name == pakname {
-			hh[i] = p
-			i++
+			hh = append(hh, p)
 		}
 	}
 	return hh
@@ -365,34 +361,27 @@ type AltWords struct {
 // wordPairs are sorted by their canonical spelling.
 func lessWordPair(x, y interface{}) bool { return x.(*wordPair).canon < y.(*wordPair).canon }
 
-// newAltWords allocates a new AltWords from the *wordPair run [i, j) in h.
-func newAltWords(h *RunList, i, j int) interface{} {
-	canon := h.At(i).(*wordPair).canon
-	alts := make([]string, j-i)
-	k := 0
-	for ; i < j; i++ {
-		alts[k] = h.At(i).(*wordPair).alt
-		k++
+// newAltWords allocates a new AltWords from the *wordPair run h.
+func newAltWords(h RunList) interface{} {
+	canon := h[0].(*wordPair).canon
+	alts := make([]string, len(h))
+	for i, x := range h {
+		alts[i] = x.(*wordPair).alt
 	}
 	return &AltWords{canon, alts}
 }
 
 func (a *AltWords) filter(s string) *AltWords {
-	if len(a.Alts) == 1 && a.Alts[0] == s {
-		// there are no different alternatives
-		return nil
-	}
-
-	// make a new AltWords with the current spelling removed
-	alts := make([]string, len(a.Alts))
-	i := 0
+	var alts []string
 	for _, w := range a.Alts {
 		if w != s {
-			alts[i] = w
-			i++
+			alts = append(alts, w)
 		}
 	}
-	return &AltWords{a.Canon, alts[0:i]}
+	if len(alts) > 0 {
+		return &AltWords{a.Canon, alts}
+	}
+	return nil
 }
 
 // ----------------------------------------------------------------------------
@@ -424,7 +413,7 @@ type Indexer struct {
 	fset     *token.FileSet          // file set for all indexed files
 	sources  bytes.Buffer            // concatenated sources
 	words    map[string]*IndexResult // RunLists of Spots
-	snippets vector.Vector           // vector of *Snippets, indexed by snippet indices
+	snippets []*Snippet              // indices are stored in SpotInfos
 	current  *token.File             // last file added to file set
 	file     *File                   // AST for current file
 	decl     ast.Decl                // AST for current decl
@@ -432,8 +421,8 @@ type Indexer struct {
 }
 
 func (x *Indexer) addSnippet(s *Snippet) int {
-	index := x.snippets.Len()
-	x.snippets.Push(s)
+	index := len(x.snippets)
+	x.snippets = append(x.snippets, s)
 	return index
 }
 
@@ -454,12 +443,12 @@ func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 		if kind == Use || x.decl == nil {
 			// not a declaration or no snippet required
 			info := makeSpotInfo(kind, x.current.Line(id.Pos()), false)
-			lists.Others.Push(Spot{x.file, info})
+			lists.Others = append(lists.Others, Spot{x.file, info})
 		} else {
 			// a declaration with snippet
 			index := x.addSnippet(NewSnippet(x.fset, x.decl, id))
 			info := makeSpotInfo(kind, index, true)
-			lists.Decls.Push(Spot{x.file, info})
+			lists.Decls = append(lists.Decls, Spot{x.file, info})
 		}
 
 		x.stats.Spots++
@@ -782,13 +771,13 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
 	words := make(map[string]*LookupResult)
 	var wlist RunList
 	for w, h := range x.words {
-		decls := reduce(&h.Decls)
-		others := reduce(&h.Others)
+		decls := reduce(h.Decls)
+		others := reduce(h.Others)
 		words[w] = &LookupResult{
 			Decls:  decls,
 			Others: others,
 		}
-		wlist.Push(&wordPair{canonical(w), w})
+		wlist = append(wlist, &wordPair{canonical(w), w})
 	}
 	x.stats.Words = len(words)
 
@@ -798,15 +787,9 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
 
 	// convert alist into a map of alternative spellings
 	alts := make(map[string]*AltWords)
-	for i := 0; i < alist.Len(); i++ {
-		a := alist.At(i).(*AltWords)
+	for i := 0; i < len(alist); i++ {
+		a := alist[i].(*AltWords)
 		alts[a.Canon] = a
-	}
-
-	// convert snippet vector into a list
-	snippets := make([]*Snippet, x.snippets.Len())
-	for i := 0; i < x.snippets.Len(); i++ {
-		snippets[i] = x.snippets.At(i).(*Snippet)
 	}
 
 	// create text index
@@ -815,7 +798,7 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
 		suffixes = suffixarray.New(x.sources.Bytes())
 	}
 
-	return &Index{x.fset, suffixes, words, alts, snippets, x.stats}
+	return &Index{x.fset, suffixes, words, alts, x.snippets, x.stats}
 }
 
 // Stats() returns index statistics.
