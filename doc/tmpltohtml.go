@@ -21,7 +21,6 @@
 package main
 
 import (
-	"exp/template"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -29,6 +28,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"template"
 )
 
 func Usage() {
