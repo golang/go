@@ -8,4 +8,11 @@ TARG=tmpltohtml
 GOFILES=\
 	tmpltohtml.go\
 
+go_tutorial.html: go_tutorial.tmpl tmpltohtml
+	makehtml go_tutorial.tmpl
+
+effective_go.html: effective_go.tmpl tmpltohtml
+	makehtml effective_go.tmpl
+
+
 include ../src/Make.cmd

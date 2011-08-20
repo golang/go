@@ -14,4 +14,4 @@ then
 	exit 1
 fi
 
-make && ./tmpltohtml $TMPL > $HTML
+make tmpltohtml && ./tmpltohtml $TMPL > $HTML

@@ -2919,55 +2919,7 @@ for instance, a URL, saving you typing the URL into the phone's tiny keyboard.
 Here's the complete program.
 An explanation follows.
 </p>
-<pre><!--{{code "progs/eff_qr.go"}}
--->package main
-
-import (
-    &#34;flag&#34;
-    &#34;http&#34;
-    &#34;log&#34;
-    &#34;template&#34;
-)
-
-var addr = flag.String(&#34;addr&#34;, &#34;:1718&#34;, &#34;http service address&#34;) // Q=17, R=18
-
-var templ = template.Must(template.New(&#34;qr&#34;).Parse(templateStr))
-
-func main() {
-    flag.Parse()
-    http.Handle(&#34;/&#34;, http.HandlerFunc(QR))
-    err := http.ListenAndServe(*addr, nil)
-    if err != nil {
-        log.Fatal(&#34;ListenAndServe:&#34;, err)
-    }
-}
-
-func QR(w http.ResponseWriter, req *http.Request) {
-    templ.Execute(w, req.FormValue(&#34;s&#34;))
-}
-
-const templateStr = `
-&lt;html&gt;
-&lt;head&gt;
-&lt;title&gt;QR Link Generator&lt;/title&gt;
-&lt;/head&gt;
-&lt;body&gt;
-{{if .}}
-&lt;img src=&#34;http://chart.apis.google.com/chart?chs=300x300&amp;amp;cht=qr&amp;amp;choe=UTF-8&amp;amp;chl={{urlquery .}}&#34;
-/&gt;
-&lt;br&gt;
-{{html .}}
-&lt;br&gt;
-&lt;br&gt;
-{{end}}
-&lt;form action=&#34;/&#34; name=f method=&#34;GET&#34;&gt;&lt;input maxLength=1024 size=70
-name=s value=&#34;&#34; title=&#34;Text to QR Encode&#34;&gt;&lt;input type=submit
-value=&#34;Show QR&#34; name=qr&gt;
-&lt;/form&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-`
-</pre>
+{{code "progs/eff_qr.go"}}
 <p>
 The pieces up to <code>main</code> should be easy to follow.
 The one flag sets a default HTTP port for our server.  The template
@@ -2993,12 +2945,13 @@ from data items passed to <code>templ.Execute</code>, in this case the
 form value.  
 Within the template text (<code>templateStr</code>),
 double-brace-delimited pieces denote template actions.
-The piece from the <code></code> executes only if the value of the current data item, called <code>.</code>,
+The piece from the <code>{{if .}}</code>
+to <code>{{end}}</code> executes only if the value of the current data item, called <code>.</code>,
 is non-empty.
 That is, when the string is empty, this piece of the template is suppressed.
 </p>
 <p>
-The snippet <code>0</code> says to process the data with the function
+The snippet <code>{{urlquery .}}</code> says to process the data with the function
 <code>urlquery</code>, which sanitizes the query string
 for safe display on the web page.
 </p>
