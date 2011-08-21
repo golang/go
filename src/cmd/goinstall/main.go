@@ -182,6 +182,12 @@ func install(pkg, parent string) {
 		visit[pkg] = done
 	}()
 
+	// Don't allow trailing '/'
+	if _, f := filepath.Split(pkg); f == "" {
+		errorf("%s should not have trailing '/'\n", pkg)
+		return
+	}
+
 	// Check whether package is local or remote.
 	// If remote, download or update it.
 	tree, pkg, err := build.FindTree(pkg)
