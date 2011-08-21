@@ -112,7 +112,7 @@ functions=$(getFunctions)
 
 # Write file to compile
 file="/tmp/$USER.try"
-rm -f "file.go"
+rm -f "$file.go"
 (
 cat <<'!'
 package main
