@@ -2993,12 +2993,13 @@ from data items passed to <code>templ.Execute</code>, in this case the
 form value.  
 Within the template text (<code>templateStr</code>),
 double-brace-delimited pieces denote template actions.
-The piece from the <code></code> executes only if the value of the current data item, called <code>.</code>,
+The piece from the <code>{{if .}}</code>
+to <code>{{end}}</code> executes only if the value of the current data item, called <code>.</code> (dot),
 is non-empty.
 That is, when the string is empty, this piece of the template is suppressed.
 </p>
 <p>
-The snippet <code>0</code> says to process the data with the function
+The snippet <code>{{urlquery .}}</code> says to process the data with the function
 <code>urlquery</code>, which sanitizes the query string
 for safe display on the web page.
 </p>
