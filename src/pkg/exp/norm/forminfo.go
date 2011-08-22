@@ -77,7 +77,7 @@ func decompBoundary(f *formInfo, info runeInfo) bool {
 }
 
 func compBoundaryBefore(f *formInfo, info runeInfo) bool {
-	if info.ccc == 0 && info.flags.isYesC() {
+	if info.ccc == 0 && !info.flags.combinesBackward() {
 		return true
 	}
 	// We assume that the CCC of the first character in a decomposition
@@ -89,8 +89,6 @@ func compBoundaryBefore(f *formInfo, info runeInfo) bool {
 func compBoundaryAfter(f *formInfo, info runeInfo) bool {
 	// This misses values where the last char in a decomposition is a
 	// boundary such as Hangul with JamoT.
-	// TODO(mpvl): verify this does not lead to segments that do
-	// not fit in the reorderBuffer.
 	return info.flags.isInert()
 }
 

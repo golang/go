@@ -108,10 +108,9 @@ func (rb *reorderBuffer) insertString(src string, info runeInfo) bool {
 		return rb.decomposeHangul(uint32(rune))
 	}
 	pos := rb.nbyte
-	dcomp := rb.f.decomposeString(src)
-	dn := len(dcomp)
-	if dn != 0 {
-		for i := 0; i < dn; i += int(info.size) {
+	if info.flags.hasDecomposition() {
+		dcomp := rb.f.decomposeString(src)
+		for i := 0; i < len(dcomp); i += int(info.size) {
 			info = rb.f.info(dcomp[i:])
 			if !rb.insertOrdered(info) {
 				return false
@@ -259,11 +258,10 @@ func (rb *reorderBuffer) decomposeHangul(rune uint32) bool {
 
 // combineHangul algorithmically combines Jamo character components into Hangul.
 // See http://unicode.org/reports/tr15/#Hangul for details on combining Hangul.
-func (rb *reorderBuffer) combineHangul() {
-	k := 1
+func (rb *reorderBuffer) combineHangul(s, i, k int) {
 	b := rb.rune[:]
 	bn := rb.nrune
-	for s, i := 0, 1; i < bn; i++ {
+	for ; i < bn; i++ {
 		cccB := b[k-1].ccc
 		cccC := b[i].ccc
 		if cccB == 0 {
@@ -312,7 +310,7 @@ func (rb *reorderBuffer) compose() {
 		if isJamoVT(rb.bytesAt(i)) {
 			// Redo from start in Hangul mode. Necessary to support
 			// U+320E..U+321E in NFKC mode.
-			rb.combineHangul()
+			rb.combineHangul(s, i, k)
 			return
 		}
 		ii := b[i]
