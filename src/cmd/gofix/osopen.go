@@ -31,6 +31,7 @@ func osopen(f *ast.File) bool {
 		// Rename O_CREAT to O_CREATE.
 		if expr, ok := n.(ast.Expr); ok && isPkgDot(expr, "os", "O_CREAT") {
 			expr.(*ast.SelectorExpr).Sel.Name = "O_CREATE"
+			fixed = true
 			return
 		}
 
