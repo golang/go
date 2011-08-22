@@ -344,6 +344,8 @@ const (
 	// If set, comments that are not associated with a specific
 	// AST node (as Doc or Comment) are excluded.
 	FilterUnassociatedComments
+	// If set, duplicate import declarations are excluded.
+	FilterImportDuplicates
 )
 
 // separator is an empty //-style comment that is interspersed between
@@ -459,6 +461,32 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 		}
 	}
 
+	// Collect import specs from all package files.
+	var imports []*ImportSpec
+	if mode&FilterImportDuplicates != 0 {
+		seen := make(map[string]bool)
+		for _, f := range pkg.Files {
+			for _, imp := range f.Imports {
+				path := imp.Path.Value
+				if !seen[path] {
+					//TODO: consider handling cases where:
+					// - 2 imports exist with the same import path but
+					//   have different local names (one should probably 
+					//   keep both of them)
+					// - 2 imports exist but only one has a comment
+					// - 2 imports exist and they both have (possibly
+					//   different) comments
+					seen[path] = true
+					imports = append(imports, imp)
+				}
+			}
+		}
+	} else {
+		for _, f := range pkg.Files {
+			imports = append(imports, f.Imports...)
+		}
+	}
+
 	// Collect comments from all package files.
 	var comments []*CommentGroup
 	if mode&FilterUnassociatedComments == 0 {
@@ -469,7 +497,6 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 		}
 	}
 
-	// TODO(gri) need to compute pkgScope and unresolved identifiers!
-	// TODO(gri) need to compute imports!
-	return &File{doc, pos, NewIdent(pkg.Name), decls, nil, nil, nil, comments}
+	// TODO(gri) need to compute unresolved identifiers!
+	return &File{doc, pos, NewIdent(pkg.Name), decls, pkg.Scope, imports, nil, comments}
 }
