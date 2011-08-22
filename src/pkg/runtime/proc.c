@@ -128,7 +128,7 @@ Sched runtime·sched;
 int32 runtime·gomaxprocs;
 bool runtime·singleproc;
 
-// An m that is waiting for notewakeup(&m->havenextg).  This may be
+// An m that is waiting for notewakeup(&m->havenextg).  This may
 // only be accessed while the scheduler lock is held.  This is used to
 // minimize the number of times we call notewakeup while the scheduler
 // lock is held, since the m will normally move quickly to lock the
