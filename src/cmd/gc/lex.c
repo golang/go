@@ -400,8 +400,8 @@ findpkg(Strlit *name)
 	}
 
 	// local imports should be canonicalized already.
-	// don't want to see "container/../container/vector"
-	// as different from "container/vector".
+	// don't want to see "encoding/../encoding/base64"
+	// as different from "encoding/base64".
 	q = mal(name->len+1);
 	memmove(q, name->s, name->len);
 	q[name->len] = '\0';
