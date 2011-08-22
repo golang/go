@@ -154,6 +154,7 @@ func (deb *debugger) dump(format string, args ...interface{}) {
 }
 
 // Debug prints a human-readable representation of the gob data read from r.
+// It is a no-op unless debugging was enabled when the package was built.
 func Debug(r io.Reader) {
 	err := debug(r)
 	if err != nil {
