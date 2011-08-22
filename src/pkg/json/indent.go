@@ -59,6 +59,7 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) os.Error {
 	needIndent := false
 	depth := 0
 	for _, c := range src {
+		scan.bytes++
 		v := scan.step(&scan, int(c))
 		if v == scanSkipSpace {
 			continue
