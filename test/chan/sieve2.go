@@ -13,7 +13,6 @@ package main
 import (
 	"container/heap"
 	"container/ring"
-	"container/vector"
 )
 
 // Return a chan of odd numbers, starting from 5.
@@ -47,13 +46,28 @@ type PeekCh struct {
 	ch   chan int
 }
 
-// Heap of PeekCh, sorting by head values.
-type PeekChHeap struct {
-	*vector.Vector
-}
+// Heap of PeekCh, sorting by head values, satisfies Heap interface.
+type PeekChHeap []*PeekCh
 
 func (h *PeekChHeap) Less(i, j int) bool {
-	return h.At(i).(*PeekCh).head < h.At(j).(*PeekCh).head
+	return (*h)[i].head < (*h)[j].head
+}
+
+func (h *PeekChHeap) Swap(i, j int) {
+	(*h)[i], (*h)[j] = (*h)[j], (*h)[i]
+}
+
+func (h *PeekChHeap) Len() int {
+	return len(*h)
+}
+
+func (h *PeekChHeap) Pop() (v interface{}) {
+	*h, v = (*h)[:h.Len()-1], (*h)[h.Len()-1]
+	return
+}
+
+func (h *PeekChHeap) Push(v interface{}) {
+	*h = append(*h, v.(*PeekCh))
 }
 
 // Return a channel to serve as a sending proxy to 'out'.
@@ -108,26 +122,26 @@ func Sieve() chan int {
 
 	// Merge channels of multiples of 'primes' into 'composites'.
 	go func() {
-		h := &PeekChHeap{new(vector.Vector)}
+		var h PeekChHeap
 		min := 15
 		for {
 			m := multiples(<-primes)
 			head := <-m
 			for min < head {
 				composites <- min
-				minchan := heap.Pop(h).(*PeekCh)
+				minchan := heap.Pop(&h).(*PeekCh)
 				min = minchan.head
 				minchan.head = <-minchan.ch
-				heap.Push(h, minchan)
+				heap.Push(&h, minchan)
 			}
 			for min == head {
-				minchan := heap.Pop(h).(*PeekCh)
+				minchan := heap.Pop(&h).(*PeekCh)
 				min = minchan.head
 				minchan.head = <-minchan.ch
-				heap.Push(h, minchan)
+				heap.Push(&h, minchan)
 			}
 			composites <- head
-			heap.Push(h, &PeekCh{<-m, m})
+			heap.Push(&h, &PeekCh{<-m, m})
 		}
 	}()
 
