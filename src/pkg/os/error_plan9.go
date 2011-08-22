@@ -48,6 +48,7 @@ var (
 	EPERM   = Eperm
 	EISDIR  = syscall.EISDIR
 
+	EBADF        = NewError("bad file descriptor")
 	ENAMETOOLONG = NewError("file name too long")
 	ERANGE       = NewError("math result not representable")
 	EPIPE        = NewError("Broken Pipe")

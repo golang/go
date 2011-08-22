@@ -189,29 +189,7 @@ endif
 
 ifeq ($(GOOS),plan9)
 NOPLAN9BUILD=\
-	crypto/tls\
-	exp/gui/x11\
-	expvar\
-	http\
-	http/cgi\
-	http/fcgi\
-	http/httptest\
-	http/pprof\
-	http/spdy\
-	mail\
-	mime/multipart\
-	net\
-	net/dict\
-	net/textproto\
-	netchan\
 	os/signal\
-	rpc\
-	rpc/jsonrpc\
-	smtp\
-	syslog\
-	websocket\
-	../cmd/godoc\
-	../cmd/goinstall\
 
 DIRS:=$(filter-out $(NOPLAN9BUILD),$(DIRS))
 endif
