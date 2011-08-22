@@ -65,7 +65,7 @@ type Type interface {
 	Name() string
 
 	// PkgPath returns the type's package path.
-	// The package path is a full package import path like "container/vector".
+	// The package path is a full package import path like "encoding/base64".
 	// PkgPath returns an empty string for unnamed types.
 	PkgPath() string
 
@@ -75,7 +75,7 @@ type Type interface {
 
 	// String returns a string representation of the type.
 	// The string representation may use shortened package names
-	// (e.g., vector instead of "container/vector") and is not
+	// (e.g., base64 instead of "encoding/base64") and is not
 	// guaranteed to be unique among types.  To test for equality,
 	// compare the Types directly.
 	String() string

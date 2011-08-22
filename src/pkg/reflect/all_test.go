@@ -6,7 +6,7 @@ package reflect_test
 
 import (
 	"bytes"
-	"container/vector"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -1322,8 +1322,8 @@ func TestFieldByName(t *testing.T) {
 }
 
 func TestImportPath(t *testing.T) {
-	if path := TypeOf(vector.Vector{}).PkgPath(); path != "container/vector" {
-		t.Errorf("TypeOf(vector.Vector{}).PkgPath() = %q, want \"container/vector\"", path)
+	if path := TypeOf(&base64.Encoding{}).Elem().PkgPath(); path != "encoding/base64" {
+		t.Errorf(`TypeOf(&base64.Encoding{}).Elem().PkgPath() = %q, want "encoding/base64"`, path)
 	}
 }
 
