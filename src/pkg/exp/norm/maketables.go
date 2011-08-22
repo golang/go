@@ -515,9 +515,13 @@ func completeCharFields(form int) {
 			f.quickCheck[MComposed] = QCNo
 		case (i & 0xffff00) == JamoLBase:
 			f.quickCheck[MComposed] = QCYes
-			if JamoVBase <= i && i < JamoVEnd {
+			if JamoLBase <= i && i < JamoLEnd {
+				f.combinesForward = true
+			}
+			if JamoVBase <= i && i < JamoTEnd {
 				f.quickCheck[MComposed] = QCMaybe
 				f.combinesBackward = true
+				f.combinesForward = true
 			}
 			if JamoTBase <= i && i < JamoTEnd {
 				f.quickCheck[MComposed] = QCMaybe
@@ -562,7 +566,7 @@ func makeEntry(f *FormInfo) uint16 {
 	case QCMaybe:
 		e |= 0x6
 	default:
-		log.Fatalf("Illegal quickcheck value %d.", f.quickCheck[MComposed])
+		log.Fatalf("Illegal quickcheck value %v.", f.quickCheck[MComposed])
 	}
 	return e
 }
