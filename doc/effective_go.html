@@ -1622,11 +1622,12 @@ enumerator.  Since <code>iota</code> can be part of an expression and
 expressions can be implicitly repeated, it is easy to build intricate
 sets of values.
 </p>
-<pre>
-type ByteSize float64
+<pre><!--{{code "progs/eff_bytesize.go" `/^type ByteSize/` `/^\)/`}}
+-->type ByteSize float64
+
 const (
-    _ = iota  // ignore first value by assigning to blank identifier
-    KB ByteSize = 1&lt;&lt;(10*iota)
+    _           = iota // ignore first value by assigning to blank identifier
+    KB ByteSize = 1 &lt;&lt; (10 * iota)
     MB
     GB
     TB
@@ -1641,27 +1642,27 @@ The ability to attach a method such as <code>String</code> to a
 type makes it possible for such values to format themselves
 automatically for printing, even as part of a general type.
 </p>
-<pre>
-func (b ByteSize) String() string {
+<pre><!--{{code "progs/eff_bytesize.go" `/^func.*ByteSize.*String/` `/^}/`}}
+-->func (b ByteSize) String() string {
     switch {
     case b &gt;= YB:
-        return fmt.Sprintf("%.2fYB", float64(b/YB))
+        return fmt.Sprintf(&#34;%.2fYB&#34;, float64(b/YB))
     case b &gt;= ZB:
-        return fmt.Sprintf("%.2fZB", float64(b/ZB))
+        return fmt.Sprintf(&#34;%.2fZB&#34;, float64(b/ZB))
     case b &gt;= EB:
-        return fmt.Sprintf("%.2fEB", float64(b/EB))
+        return fmt.Sprintf(&#34;%.2fEB&#34;, float64(b/EB))
     case b &gt;= PB:
-        return fmt.Sprintf("%.2fPB", float64(b/PB))
+        return fmt.Sprintf(&#34;%.2fPB&#34;, float64(b/PB))
     case b &gt;= TB:
-        return fmt.Sprintf("%.2fTB", float64(b/TB))
+        return fmt.Sprintf(&#34;%.2fTB&#34;, float64(b/TB))
     case b &gt;= GB:
-        return fmt.Sprintf("%.2fGB", float64(b/GB))
+        return fmt.Sprintf(&#34;%.2fGB&#34;, float64(b/GB))
     case b &gt;= MB:
-        return fmt.Sprintf("%.2fMB", float64(b/MB))
+        return fmt.Sprintf(&#34;%.2fMB&#34;, float64(b/MB))
     case b &gt;= KB:
-        return fmt.Sprintf("%.2fKB", float64(b/KB))
+        return fmt.Sprintf(&#34;%.2fKB&#34;, float64(b/KB))
     }
-    return fmt.Sprintf("%.2fB", float64(b))
+    return fmt.Sprintf(&#34;%.2fB&#34;, float64(b))
 }
 </pre>
 <p>
@@ -1812,8 +1813,8 @@ by the routines in package <code>sort</code> if it implements
 and it could also have a custom formatter.
 In this contrived example <code>Sequence</code> satisfies both.
 </p>
-<pre>
-type Sequence []int
+<pre><!--{{code "progs/eff_sequence.go" `/^type/` "$"}}
+-->type Sequence []int
 
 // Methods required by sort.Interface.
 func (s Sequence) Len() int {
@@ -1829,14 +1830,14 @@ func (s Sequence) Swap(i, j int) {
 // Method for printing - sorts the elements before printing.
 func (s Sequence) String() string {
     sort.Sort(s)
-    str := "["
+    str := &#34;[&#34;
     for i, elem := range s {
         if i &gt; 0 {
-            str += " "
+            str += &#34; &#34;
         }
         str += fmt.Sprint(elem)
     }
-    return str + "]"
+    return str + &#34;]&#34;
 }
 </pre>
 

@@ -1622,48 +1622,13 @@ enumerator.  Since <code>iota</code> can be part of an expression and
 expressions can be implicitly repeated, it is easy to build intricate
 sets of values.
 </p>
-<pre>
-type ByteSize float64
-const (
-    _ = iota  // ignore first value by assigning to blank identifier
-    KB ByteSize = 1&lt;&lt;(10*iota)
-    MB
-    GB
-    TB
-    PB
-    EB
-    ZB
-    YB
-)
-</pre>
+{{code "progs/eff_bytesize.go" `/^type ByteSize/` `/^\)/`}}
 <p>
 The ability to attach a method such as <code>String</code> to a
 type makes it possible for such values to format themselves
 automatically for printing, even as part of a general type.
 </p>
-<pre>
-func (b ByteSize) String() string {
-    switch {
-    case b &gt;= YB:
-        return fmt.Sprintf("%.2fYB", float64(b/YB))
-    case b &gt;= ZB:
-        return fmt.Sprintf("%.2fZB", float64(b/ZB))
-    case b &gt;= EB:
-        return fmt.Sprintf("%.2fEB", float64(b/EB))
-    case b &gt;= PB:
-        return fmt.Sprintf("%.2fPB", float64(b/PB))
-    case b &gt;= TB:
-        return fmt.Sprintf("%.2fTB", float64(b/TB))
-    case b &gt;= GB:
-        return fmt.Sprintf("%.2fGB", float64(b/GB))
-    case b &gt;= MB:
-        return fmt.Sprintf("%.2fMB", float64(b/MB))
-    case b &gt;= KB:
-        return fmt.Sprintf("%.2fKB", float64(b/KB))
-    }
-    return fmt.Sprintf("%.2fB", float64(b))
-}
-</pre>
+{{code "progs/eff_bytesize.go" `/^func.*ByteSize.*String/` `/^}/`}}
 <p>
 (The <code>float64</code> conversions prevent <code>Sprintf</code> 
 from recurring back through the <code>String</code> method for 
@@ -1812,33 +1777,7 @@ by the routines in package <code>sort</code> if it implements
 and it could also have a custom formatter.
 In this contrived example <code>Sequence</code> satisfies both.
 </p>
-<pre>
-type Sequence []int
-
-// Methods required by sort.Interface.
-func (s Sequence) Len() int {
-    return len(s)
-}
-func (s Sequence) Less(i, j int) bool {
-    return s[i] &lt; s[j]
-}
-func (s Sequence) Swap(i, j int) {
-    s[i], s[j] = s[j], s[i]
-}
-
-// Method for printing - sorts the elements before printing.
-func (s Sequence) String() string {
-    sort.Sort(s)
-    str := "["
-    for i, elem := range s {
-        if i &gt; 0 {
-            str += " "
-        }
-        str += fmt.Sprint(elem)
-    }
-    return str + "]"
-}
-</pre>
+{{code "progs/eff_sequence.go" `/^type/` "$"}}
 
 <h3 id="conversions">Conversions</h3>
 

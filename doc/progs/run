@@ -35,7 +35,9 @@ for i in \
 	sieve1.go \
 	server1.go \
 	strings.go \
+	eff_bytesize.go\
 	eff_qr.go \
+	eff_sequence.go\
 ; do
 	$GC $i
 done
@@ -82,5 +84,8 @@ testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
 # server hangs; don't run it, just compile it
 $GC server.go
 testit server1 "" ""
+
+testit eff_bytesize "" "1.00YB 9.09TB"
+testit eff_sequence "" "[-1 2 6 16 44]"
 
 rm -f $O.out *.$O
