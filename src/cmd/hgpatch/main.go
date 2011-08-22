@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"container/vector"
 	"exec"
 	"flag"
 	"fmt"
@@ -242,15 +241,17 @@ func chk(err os.Error) {
 // Undo log
 type undo func() os.Error
 
-var undoLog vector.Vector // vector of undo
+var undoLog []undo
 
-func undoRevert(name string) { undoLog.Push(undo(func() os.Error { return hgRevert(name) })) }
+func undoRevert(name string) {
+	undoLog = append(undoLog, undo(func() os.Error { return hgRevert(name) }))
+}
 
-func undoRm(name string) { undoLog.Push(undo(func() os.Error { return os.Remove(name) })) }
+func undoRm(name string) { undoLog = append(undoLog, undo(func() os.Error { return os.Remove(name) })) }
 
 func runUndo() {
-	for i := undoLog.Len() - 1; i >= 0; i-- {
-		if err := undoLog.At(i).(undo)(); err != nil {
+	for i := len(undoLog) - 1; i >= 0; i-- {
+		if err := undoLog[i](); err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", err)
 		}
 	}
