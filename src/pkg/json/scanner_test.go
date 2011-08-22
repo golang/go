@@ -7,7 +7,9 @@ package json
 import (
 	"bytes"
 	"math"
+	"os"
 	"rand"
+	"reflect"
 	"testing"
 )
 
@@ -133,6 +135,29 @@ func TestIndentBig(t *testing.T) {
 		t.Error("Compact(Indent(jsonBig)) != jsonBig")
 		diff(t, b1, jsonBig)
 		return
+	}
+}
+
+type indentErrorTest struct {
+	in  string
+	err os.Error
+}
+
+var indentErrorTests = []indentErrorTest{
+	{`{"X": "foo", "Y"}`, &SyntaxError{"invalid character '}' after object key", 17}},
+	{`{"X": "foo" "Y": "bar"}`, &SyntaxError{"invalid character '\"' after object key:value pair", 13}},
+}
+
+func TestIdentErrors(t *testing.T) {
+	for i, tt := range indentErrorTests {
+		slice := make([]uint8, 0)
+		buf := bytes.NewBuffer(slice)
+		if err := Indent(buf, []uint8(tt.in), "", ""); err != nil {
+			if !reflect.DeepEqual(err, tt.err) {
+				t.Errorf("#%d: Indent: %#v", i, err)
+				continue
+			}
+		}
 	}
 }
 
