@@ -56,4 +56,27 @@ func f() {
 }
 `,
 	},
+	{
+		Name: "osopen.1",
+		In: `package main
+
+import (
+	"os"
+)
+
+func f() {
+	_ = os.O_CREAT
+}
+`,
+		Out: `package main
+
+import (
+	"os"
+)
+
+func f() {
+	_ = os.O_CREATE
+}
+`,
+	},
 }
