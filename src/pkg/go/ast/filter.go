@@ -9,164 +9,34 @@ import "go/token"
 // ----------------------------------------------------------------------------
 // Export filtering
 
-func identListExports(list []*Ident) []*Ident {
-	j := 0
-	for _, x := range list {
-		if x.IsExported() {
-			list[j] = x
-			j++
-		}
-	}
-	return list[0:j]
+// exportFilter is a special filter function to extract exported nodes.
+func exportFilter(name string) bool {
+	return IsExported(name)
 }
 
-func fieldListExports(fields *FieldList) (removedFields bool) {
-	if fields == nil {
-		return
-	}
-	list := fields.List
-	j := 0
-	for _, f := range list {
-		exported := false
-		if len(f.Names) == 0 {
-			// anonymous field
-			// (Note that a non-exported anonymous field
-			// may still refer to a type with exported
-			// fields, so this is not absolutely correct.
-			// However, this cannot be done w/o complete
-			// type information.)
-			name := fieldName(f.Type)
-			exported = name != nil && name.IsExported()
-		} else {
-			n := len(f.Names)
-			f.Names = identListExports(f.Names)
-			if len(f.Names) < n {
-				removedFields = true
-			}
-			exported = len(f.Names) > 0
-		}
-		if exported {
-			typeExports(f.Type)
-			list[j] = f
-			j++
-		}
-	}
-	if j < len(list) {
-		removedFields = true
-	}
-	fields.List = list[0:j]
-	return
-}
-
-func paramListExports(fields *FieldList) {
-	if fields == nil {
-		return
-	}
-	for _, f := range fields.List {
-		typeExports(f.Type)
-	}
-}
-
-func typeExports(typ Expr) {
-	switch t := typ.(type) {
-	case *ArrayType:
-		typeExports(t.Elt)
-	case *StructType:
-		if fieldListExports(t.Fields) {
-			t.Incomplete = true
-		}
-	case *FuncType:
-		paramListExports(t.Params)
-		paramListExports(t.Results)
-	case *InterfaceType:
-		if fieldListExports(t.Methods) {
-			t.Incomplete = true
-		}
-	case *MapType:
-		typeExports(t.Key)
-		typeExports(t.Value)
-	case *ChanType:
-		typeExports(t.Value)
-	}
-}
-
-func specExports(spec Spec) bool {
-	switch s := spec.(type) {
-	case *ValueSpec:
-		s.Names = identListExports(s.Names)
-		if len(s.Names) > 0 {
-			typeExports(s.Type)
-			return true
-		}
-	case *TypeSpec:
-		if s.Name.IsExported() {
-			typeExports(s.Type)
-			return true
-		}
-	}
-	return false
-}
-
-func specListExports(list []Spec) []Spec {
-	j := 0
-	for _, s := range list {
-		if specExports(s) {
-			list[j] = s
-			j++
-		}
-	}
-	return list[0:j]
-}
-
-func declExports(decl Decl) bool {
-	switch d := decl.(type) {
-	case *GenDecl:
-		d.Specs = specListExports(d.Specs)
-		return len(d.Specs) > 0
-	case *FuncDecl:
-		d.Body = nil // strip body
-		return d.Name.IsExported()
-	}
-	return false
-}
-
-// FileExports trims the AST for a Go source file in place such that only
-// exported nodes remain: all top-level identifiers which are not exported
+// FileExports trims the AST for a Go source file in place such that
+// only exported nodes remain: all top-level identifiers which are not exported
 // and their associated information (such as type, initial value, or function
 // body) are removed. Non-exported fields and methods of exported types are
 // stripped, and the function bodies of exported functions are set to nil.
 // The File.Comments list is not changed.
 //
-// FileExports returns true if there is an exported declaration; it returns
-// false otherwise.
+// FileExports returns true if there are exported declarationa;
+// it returns false otherwise.
 //
 func FileExports(src *File) bool {
-	j := 0
-	for _, d := range src.Decls {
-		if declExports(d) {
-			src.Decls[j] = d
-			j++
-		}
-	}
-	src.Decls = src.Decls[0:j]
-	return j > 0
+	return FilterFile(src, exportFilter)
 }
 
-// PackageExports trims the AST for a Go package in place such that only
-// exported nodes remain. The pkg.Files list is not changed, so that file
-// names and top-level package comments don't get lost.
+// PackageExports trims the AST for a Go package in place such that
+// only exported nodes remain. The pkg.Files list is not changed, so that
+// file names and top-level package comments don't get lost.
 //
-// PackageExports returns true if there is an exported declaration; it
-// returns false otherwise.
+// PackageExports returns true if there are exported declarations;
+// it returns false otherwise.
 //
 func PackageExports(pkg *Package) bool {
-	hasExports := false
-	for _, f := range pkg.Files {
-		if FileExports(f) {
-			hasExports = true
-		}
-	}
-	return hasExports
+	return FilterPackage(pkg, exportFilter)
 }
 
 // ----------------------------------------------------------------------------
@@ -385,38 +255,6 @@ func FilterPackage(pkg *Package, f Filter) bool {
 		}
 	}
 	return hasDecls
-}
-
-// exportFilter is a special filter function to extract exported nodes.
-func exportFilter(name string) bool {
-	return IsExported(name)
-}
-
-// TODO(gri): Remove the FileExports and PackageExports (above).
-
-// FilterFileExports trims the AST for a Go source file in place such that
-// only exported nodes remain: all top-level identifiers which are not exported
-// and their associated information (such as type, initial value, or function
-// body) are removed. Non-exported fields and methods of exported types are
-// stripped, and the function bodies of exported functions are set to nil.
-// The File.Comments list is not changed.
-//
-// FilterFileExports returns true if there are exported declarationa;
-// it returns false otherwise.
-//
-func FilterFileExports(src *File) bool {
-	return FilterFile(src, exportFilter)
-}
-
-// FilterPackageExports trims the AST for a Go package in place such that
-// only exported nodes remain. The pkg.Files list is not changed, so that
-// file names and top-level package comments don't get lost.
-//
-// FilterPackageExports returns true if there are exported declarations;
-// it returns false otherwise.
-//
-func FilterPackageExports(pkg *Package) bool {
-	return FilterPackage(pkg, exportFilter)
 }
 
 // ----------------------------------------------------------------------------
