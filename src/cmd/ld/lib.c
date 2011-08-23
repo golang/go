@@ -295,19 +295,33 @@ nextar(Biobuf *bp, int off, struct ar_hdr *a)
 {
 	int r;
 	int32 arsize;
+	char *buf;
 
 	if (off&01)
 		off++;
 	Bseek(bp, off, 0);
-	r = Bread(bp, a, SAR_HDR);
-	if(r != SAR_HDR)
-		return 0;
-	if(strncmp(a->fmag, ARFMAG, sizeof(a->fmag)))
+	buf = Brdline(bp, '\n');
+	r = Blinelen(bp);
+	if(buf == nil) {
+		if(r == 0)
+			return 0;
+		return -1;
+	}
+	if(r == SAR_HDR) {
+		memmove(a, buf, SAR_HDR);
+	} else if (r == SAR_HDR-SARNAME+16) {	// old Plan 9
+		memset(a->name, ' ', sizeof a->name);
+		memmove(a, buf, 16);
+		memmove((char*)a+SARNAME, buf+16, SAR_HDR-SARNAME);
+	} else {	// unexpected
+		return -1;
+	}
+	if(strncmp(a->fmag, ARFMAG, sizeof a->fmag))
 		return -1;
 	arsize = strtol(a->size, 0, 0);
 	if (arsize&1)
 		arsize++;
-	return arsize + SAR_HDR;
+	return arsize + r;
 }
 
 void
@@ -1332,7 +1346,7 @@ Yconv(Fmt *fp)
 		fmtprint(fp, "<nil>");
 	} else {
 		fmtstrinit(&fmt);
-		fmtprint(&fmt, "%s @0x%08x [%d]", s->name, s->value, s->size);
+		fmtprint(&fmt, "%s @0x%08llx [%lld]", s->name, (vlong)s->value, (vlong)s->size);
 		for (i = 0; i < s->size; i++) {
 			if (!(i%8)) fmtprint(&fmt,  "\n\t0x%04x ", i);
 			fmtprint(&fmt, "%02x ", s->p[i]);
