@@ -2954,8 +2954,7 @@ const templateStr = `
 &lt;/head&gt;
 &lt;body&gt;
 {{if .}}
-&lt;img src=&#34;http://chart.apis.google.com/chart?chs=300x300&amp;amp;cht=qr&amp;amp;choe=UTF-8&amp;amp;chl={{urlquery .}}&#34;
-/&gt;
+&lt;img src=&#34;http://chart.apis.google.com/chart?chs=300x300&amp;cht=qr&amp;choe=UTF-8&amp;chl={{urlquery .}}&#34; /&gt;
 &lt;br&gt;
 {{html .}}
 &lt;br&gt;
@@ -2994,7 +2993,7 @@ from data items passed to <code>templ.Execute</code>, in this case the
 form value.  
 Within the template text (<code>templateStr</code>),
 double-brace-delimited pieces denote template actions.
-The piece from the <code>{{if .}}</code>
+The piece from <code>{{if .}}</code>
 to <code>{{end}}</code> executes only if the value of the current data item, called <code>.</code> (dot),
 is non-empty.
 That is, when the string is empty, this piece of the template is suppressed.
