@@ -31,8 +31,7 @@ const templateStr = `
 </head>
 <body>
 {{if .}}
-<img src="http://chart.apis.google.com/chart?chs=300x300&amp;cht=qr&amp;choe=UTF-8&amp;chl={{urlquery .}}"
-/>
+<img src="http://chart.apis.google.com/chart?chs=300x300&cht=qr&choe=UTF-8&chl={{urlquery .}}" />
 <br>
 {{html .}}
 <br>
