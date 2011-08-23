@@ -135,7 +135,7 @@ func declExports(decl Decl) bool {
 // and their associated information (such as type, initial value, or function
 // body) are removed. Non-exported fields and methods of exported types are
 // stripped, and the function bodies of exported functions are set to nil.
-// The File.comments list is not changed.
+// The File.Comments list is not changed.
 //
 // FileExports returns true if there is an exported declaration; it returns
 // false otherwise.
@@ -224,7 +224,9 @@ func filterFieldList(fields *FieldList, filter Filter) (removedFields bool) {
 			keepField = len(f.Names) > 0
 		}
 		if keepField {
-			filterType(f.Type, filter)
+			if filter == exportFilter {
+				filterType(f.Type, filter)
+			}
 			list[j] = f
 			j++
 		}
@@ -286,15 +288,19 @@ func filterSpec(spec Spec, f Filter) bool {
 	case *ValueSpec:
 		s.Names = filterIdentList(s.Names, f)
 		if len(s.Names) > 0 {
-			filterType(s.Type, f)
+			if f == exportFilter {
+				filterType(s.Type, f)
+			}
 			return true
 		}
 	case *TypeSpec:
 		if f(s.Name.Name) {
-			filterType(s.Type, f)
+			if f == exportFilter {
+				filterType(s.Type, f)
+			}
 			return true
 		}
-		if f != IsExported {
+		if f != exportFilter {
 			// For general filtering (not just exports),
 			// filter type even if name is not filtered
 			// out.
@@ -330,7 +336,9 @@ func FilterDecl(decl Decl, f Filter) bool {
 		d.Specs = filterSpecList(d.Specs, f)
 		return len(d.Specs) > 0
 	case *FuncDecl:
-		d.Body = nil // strip body
+		if f == exportFilter {
+			d.Body = nil // strip body
+		}
 		return f(d.Name.Name)
 	}
 	return false
@@ -339,15 +347,12 @@ func FilterDecl(decl Decl, f Filter) bool {
 // FilterFile trims the AST for a Go file in place by removing all
 // names from top-level declarations (including struct field and
 // interface method names, but not from parameter lists) that don't
-// pass through the filter f. Function bodies are set to nil.
-// If the declaration is empty afterwards, the declaration is
-// removed from the AST. The File.comments list is not changed.
+// pass through the filter f. If the declaration is empty afterwards,
+// the declaration is removed from the AST. The File.Comments list
+// is not changed.
 //
 // FilterFile returns true if there are any top-level declarations
 // left after filtering; it returns false otherwise.
-//
-// To trim an AST such that only exported nodes remain, call
-// FilterFile with IsExported as filter function.
 //
 func FilterFile(src *File, f Filter) bool {
 	j := 0
@@ -361,19 +366,16 @@ func FilterFile(src *File, f Filter) bool {
 	return j > 0
 }
 
-// FilterPackage trims the AST for a Go package in place by removing all
-// names from top-level declarations (including struct field and
+// FilterPackage trims the AST for a Go package in place by removing
+// all names from top-level declarations (including struct field and
 // interface method names, but not from parameter lists) that don't
-// pass through the filter f. Function bodies are set to nil.
-// If the declaration is empty afterwards, the declaration is
-// removed from the AST. The pkg.Files list is not changed, so
-// that file names and top-level package comments don't get lost.
+// pass through the filter f. If the declaration is empty afterwards,
+// the declaration is removed from the AST. The pkg.Files list is not
+// changed, so that file names and top-level package comments don't get
+// lost.
 //
 // FilterPackage returns true if there are any top-level declarations
 // left after filtering; it returns false otherwise.
-//
-// To trim an AST such that only exported nodes remain, call
-// FilterPackage with IsExported as filter function.
 //
 func FilterPackage(pkg *Package, f Filter) bool {
 	hasDecls := false
@@ -383,6 +385,38 @@ func FilterPackage(pkg *Package, f Filter) bool {
 		}
 	}
 	return hasDecls
+}
+
+// exportFilter is a special filter function to extract exported nodes.
+func exportFilter(name string) bool {
+	return IsExported(name)
+}
+
+// TODO(gri): Remove the FileExports and PackageExports (above).
+
+// FilterFileExports trims the AST for a Go source file in place such that
+// only exported nodes remain: all top-level identifiers which are not exported
+// and their associated information (such as type, initial value, or function
+// body) are removed. Non-exported fields and methods of exported types are
+// stripped, and the function bodies of exported functions are set to nil.
+// The File.Comments list is not changed.
+//
+// FilterFileExports returns true if there are exported declarationa;
+// it returns false otherwise.
+//
+func FilterFileExports(src *File) bool {
+	return FilterFile(src, exportFilter)
+}
+
+// FilterPackageExports trims the AST for a Go package in place such that
+// only exported nodes remain. The pkg.Files list is not changed, so that
+// file names and top-level package comments don't get lost.
+//
+// FilterPackageExports returns true if there are exported declarations;
+// it returns false otherwise.
+//
+func FilterPackageExports(pkg *Package) bool {
+	return FilterPackage(pkg, exportFilter)
 }
 
 // ----------------------------------------------------------------------------

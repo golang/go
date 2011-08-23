@@ -26,7 +26,7 @@ import (
 
 // For a short test run, limit the number of files to a few.
 // Set to a large value to test all files under GOROOT.
-const maxFiles = 10
+const maxFiles = 10000
 
 type visitor struct {
 	t *testing.T
@@ -72,7 +72,7 @@ func (v *visitor) VisitFile(path string, f *os.FileInfo) {
 	}
 
 	b1 := ast.FileExports(f1)
-	b2 := ast.FilterFile(f2, ast.IsExported)
+	b2 := ast.FilterFileExports(f2)
 	if b1 != b2 {
 		v.t.Errorf("filtering failed (a): %s", path)
 		return
