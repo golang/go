@@ -42,6 +42,15 @@ GOFILES_linux=\
 	sockcmsg_unix.go\
 	syscall_unix.go\
 
+GOFILES_openbsd=\
+	bpf_bsd.go\
+	exec_unix.go\
+	route_bsd.go\
+	route_openbsd.go\
+	sockcmsg_unix.go\
+	syscall_bsd.go\
+	syscall_unix.go\
+
 GOFILES_windows=\
 	exec_windows.go\
 	zerrors_windows.go\

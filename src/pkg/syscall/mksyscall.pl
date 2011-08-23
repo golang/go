@@ -25,6 +25,7 @@ my $cmdline = "mksyscall.pl " . join(' ', @ARGV);
 my $errors = 0;
 my $_32bit = "";
 my $plan9 = 0;
+my $openbsd = 0;
 
 if($ARGV[0] eq "-b32") {
 	$_32bit = "big-endian";
@@ -35,6 +36,10 @@ if($ARGV[0] eq "-b32") {
 }
 if($ARGV[0] eq "-plan9") {
 	$plan9 = 1;
+	shift;
+}
+if($ARGV[0] eq "-openbsd") {
+	$openbsd = 1;
 	shift;
 }
 
@@ -115,6 +120,8 @@ while(<>) {
 			$text .= "\n";
 			push @args, "uintptr(_p$n)", "uintptr(len($name))";
 			$n++;
+		} elsif($type eq "int64" && $openbsd) {
+			push @args, "0", "uintptr($name)";
 		} elsif($type eq "int64" && $_32bit ne "") {
 			if($_32bit eq "big-endian") {
 				push @args, "uintptr($name>>32)", "uintptr($name)";
