@@ -211,7 +211,7 @@ class PackagePage(webapp.RequestHandler):
             q = Package.all()
             s = '{"packages": ['
             sep = ''
-            for r in q.fetch(1000):
+            for r in q:
                 s += '%s\n\t{"path": "%s", "last_install": "%s", "count": "%s"}' % (sep, r.path, r.last_install, r.count)
                 sep = ','
             s += '\n]}\n'
