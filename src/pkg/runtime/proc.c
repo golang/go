@@ -1604,7 +1604,7 @@ os·setenv_c(String k, String v)
 	runtime·memmove(arg[1], v.str, v.len);
 	arg[1][v.len] = 0;
 
-	runtime·asmcgocall(libcgo_setenv, arg);
+	runtime·asmcgocall((void*)libcgo_setenv, arg);
 	runtime·free(arg[0]);
 	runtime·free(arg[1]);
 }
