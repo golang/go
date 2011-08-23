@@ -105,7 +105,7 @@ runtime·makechan_c(ChanType *t, int64 hint)
 	// allocate memory in one call
 	c = (Hchan*)runtime·mal(n + hint*elem->size);
 	if(runtime·destroylock)
-		runtime·addfinalizer(c, destroychan, 0);
+		runtime·addfinalizer(c, (void*)destroychan, 0);
 
 	c->elemsize = elem->size;
 	c->elemalg = &runtime·algarray[elem->alg];
