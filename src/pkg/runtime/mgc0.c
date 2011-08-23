@@ -697,6 +697,7 @@ runfinq(void)
 		if(f == nil) {
 			fingwait = 1;
 			g->status = Gwaiting;
+			g->waitreason = "finalizer wait";
 			runtime·gosched();
 			continue;
 		}

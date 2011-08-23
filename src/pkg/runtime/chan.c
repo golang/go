@@ -171,6 +171,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
 			return;
 		}
 		g->status = Gwaiting;
+		g->waitreason = "chan send (nil chan)";
 		runtime·gosched();
 		return;  // not reached
 	}
@@ -217,6 +218,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
 	mysg.selgen = NOSELGEN;
 	g->param = nil;
 	g->status = Gwaiting;
+	g->waitreason = "chan send";
 	enqueue(&c->sendq, &mysg);
 	runtime·unlock(c);
 	runtime·gosched();
@@ -244,6 +246,7 @@ asynch:
 		mysg.elem = nil;
 		mysg.selgen = NOSELGEN;
 		g->status = Gwaiting;
+		g->waitreason = "chan send";
 		enqueue(&c->sendq, &mysg);
 		runtime·unlock(c);
 		runtime·gosched();
@@ -293,6 +296,7 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 			return;
 		}
 		g->status = Gwaiting;
+		g->waitreason = "chan receive (nil chan)";
 		runtime·gosched();
 		return;  // not reached
 	}
@@ -332,6 +336,7 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
 	mysg.selgen = NOSELGEN;
 	g->param = nil;
 	g->status = Gwaiting;
+	g->waitreason = "chan receive";
 	enqueue(&c->recvq, &mysg);
 	runtime·unlock(c);
 	runtime·gosched();
@@ -363,6 +368,7 @@ asynch:
 		mysg.elem = nil;
 		mysg.selgen = NOSELGEN;
 		g->status = Gwaiting;
+		g->waitreason = "chan receive";
 		enqueue(&c->recvq, &mysg);
 		runtime·unlock(c);
 		runtime·gosched();
@@ -780,6 +786,7 @@ void
 runtime·block(void)
 {
 	g->status = Gwaiting;	// forever
+	g->waitreason = "select (no cases)";
 	runtime·gosched();
 }
 
@@ -912,6 +919,7 @@ loop:
 
 	g->param = nil;
 	g->status = Gwaiting;
+	g->waitreason = "select";
 	selunlock(sel);
 	runtime·gosched();
 

@@ -250,6 +250,40 @@ runtime·goexit(void)
 }
 
 void
+runtime·goroutineheader(G *g)
+{
+	int8 *status;
+
+	switch(g->status) {
+	case Gidle:
+		status = "idle";
+		break;
+	case Grunnable:
+		status = "runnable";
+		break;
+	case Grunning:
+		status = "running";
+		break;
+	case Gsyscall:
+		status = "syscall";
+		break;
+	case Gwaiting:
+		if(g->waitreason)
+			status = g->waitreason;
+		else
+			status = "waiting";
+		break;
+	case Gmoribund:
+		status = "moribund";
+		break;
+	default:
+		status = "???";
+		break;
+	}
+	runtime·printf("goroutine %d [%s]:\n", g->goid, status);
+}
+
+void
 runtime·tracebackothers(G *me)
 {
 	G *g;
@@ -257,7 +291,8 @@ runtime·tracebackothers(G *me)
 	for(g = runtime·allg; g != nil; g = g->alllink) {
 		if(g == me || g->status == Gdead)
 			continue;
-		runtime·printf("\ngoroutine %d [%d]:\n", g->goid, g->status);
+		runtime·printf("\n");
+		runtime·goroutineheader(g);
 		runtime·traceback(g->sched.pc, g->sched.sp, 0, g);
 	}
 }
@@ -1073,15 +1108,18 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 	schedlock();
 
 	if((newg = gfget()) != nil){
-		newg->status = Gwaiting;
 		if(newg->stackguard - StackGuard != newg->stack0)
 			runtime·throw("invalid stack in newg");
 	} else {
 		newg = runtime·malg(StackMin);
-		newg->status = Gwaiting;
-		newg->alllink = runtime·allg;
-		runtime·allg = newg;
+		if(runtime·lastg == nil)
+			runtime·allg = newg;
+		else
+			runtime·lastg->alllink = newg;
+		runtime·lastg = newg;
 	}
+	newg->status = Gwaiting;
+	newg->waitreason = "new goroutine";
 
 	sp = newg->stackbase;
 	sp -= siz;

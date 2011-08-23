@@ -129,6 +129,7 @@ runtime·semacquire(uint32 volatile *addr)
 		// (we set nwait above), so go to sleep.
 		semqueue(root, addr, &s);
 		g->status = Gwaiting;
+		g->waitreason = "semacquire";
 		runtime·unlock(root);
 		runtime·gosched();
 		if(cansemacquire(addr))
