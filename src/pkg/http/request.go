@@ -608,19 +608,63 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	return req, nil
 }
 
-// ParseForm parses the raw query.
-// For POST requests, it also parses the request body as a form.
+// MaxBytesReader is similar to io.LimitReader, but is intended for
+// limiting the size of incoming request bodies. In contrast to
+// io.LimitReader, MaxBytesReader is a ReadCloser, returns a non-EOF
+// error if the body is too large, and also takes care of closing the
+// underlying io.ReadCloser connection (if applicable, usually a TCP
+// connection) when the limit is hit.  This prevents clients from
+// accidentally or maliciously sending a large request and wasting
+// server resources.
+func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
+	return &maxBytesReader{w: w, r: r, n: n}
+}
+
+type maxBytesReader struct {
+	w       ResponseWriter
+	r       io.ReadCloser // underlying reader
+	n       int64         // max bytes remaining
+	stopped bool
+}
+
+func (l *maxBytesReader) Read(p []byte) (n int, err os.Error) {
+	if l.n <= 0 {
+		if !l.stopped {
+			l.stopped = true
+			if res, ok := l.w.(*response); ok {
+				res.requestTooLarge()
+			}
+		}
+		return 0, os.NewError("http: request body too large")
+	}
+	if int64(len(p)) > l.n {
+		p = p[:l.n]
+	}
+	n, err = l.r.Read(p)
+	l.n -= int64(n)
+	return
+}
+
+func (l *maxBytesReader) Close() os.Error {
+	return l.r.Close()
+}
+
+// ParseForm parses the raw query from the URL.
+//
+// For POST or PUT requests, it also parses the request body as a form.
+// If the request Body's size has not already been limited by MaxBytesReader,
+// the size is capped at 10MB.
+//
 // ParseMultipartForm calls ParseForm automatically.
 // It is idempotent.
 func (r *Request) ParseForm() (err os.Error) {
 	if r.Form != nil {
 		return
 	}
-
 	if r.URL != nil {
 		r.Form, err = url.ParseQuery(r.URL.RawQuery)
 	}
-	if r.Method == "POST" {
+	if r.Method == "POST" || r.Method == "PUT" {
 		if r.Body == nil {
 			return os.NewError("missing form body")
 		}
@@ -628,8 +672,13 @@ func (r *Request) ParseForm() (err os.Error) {
 		ct, _, err := mime.ParseMediaType(ct)
 		switch {
 		case ct == "text/plain" || ct == "application/x-www-form-urlencoded" || ct == "":
-			const maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
-			b, e := ioutil.ReadAll(io.LimitReader(r.Body, maxFormSize+1))
+			var reader io.Reader = r.Body
+			maxFormSize := int64((1 << 63) - 1)
+			if _, ok := r.Body.(*maxBytesReader); !ok {
+				maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
+				reader = io.LimitReader(r.Body, maxFormSize+1)
+			}
+			b, e := ioutil.ReadAll(reader)
 			if e != nil {
 				if err == nil {
 					err = e

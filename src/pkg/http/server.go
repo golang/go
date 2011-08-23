@@ -122,6 +122,25 @@ type response struct {
 	// "Connection: keep-alive" response header and a
 	// Content-Length.
 	closeAfterReply bool
+
+	// requestBodyLimitHit is set by requestTooLarge when
+	// maxBytesReader hits its max size. It is checked in
+	// WriteHeader, to make sure we don't consume the the
+	// remaining request body to try to advance to the next HTTP
+	// request. Instead, when this is set, we stop doing
+	// subsequent requests on this connection and stop reading
+	// input from it.
+	requestBodyLimitHit bool
+}
+
+// requestTooLarge is called by maxBytesReader when too much input has
+// been read from the client.
+func (r *response) requestTooLarge() {
+	r.closeAfterReply = true
+	r.requestBodyLimitHit = true
+	if !r.wroteHeader {
+		r.Header().Set("Connection", "close")
+	}
 }
 
 type writerOnly struct {
@@ -257,7 +276,7 @@ func (w *response) WriteHeader(code int) {
 
 	// Per RFC 2616, we should consume the request body before
 	// replying, if the handler hasn't already done so.
-	if w.req.ContentLength != 0 {
+	if w.req.ContentLength != 0 && !w.requestBodyLimitHit {
 		ecr, isExpecter := w.req.Body.(*expectContinueReader)
 		if !isExpecter || ecr.resp.wroteContinue {
 			w.req.Body.Close()
@@ -543,7 +562,11 @@ func (w *response) finishRequest() {
 		io.WriteString(w.conn.buf, "\r\n")
 	}
 	w.conn.buf.Flush()
-	w.req.Body.Close()
+	// Close the body, unless we're about to close the whole TCP connection
+	// anyway.
+	if !w.closeAfterReply {
+		w.req.Body.Close()
+	}
 	if w.req.MultipartForm != nil {
 		w.req.MultipartForm.RemoveAll()
 	}

@@ -896,6 +896,60 @@ func TestRequestLimit(t *testing.T) {
 	}
 }
 
+type neverEnding byte
+
+func (b neverEnding) Read(p []byte) (n int, err os.Error) {
+	for i := range p {
+		p[i] = byte(b)
+	}
+	return len(p), nil
+}
+
+type countReader struct {
+	r io.Reader
+	n *int64
+}
+
+func (cr countReader) Read(p []byte) (n int, err os.Error) {
+	n, err = cr.r.Read(p)
+	*cr.n += int64(n)
+	return
+}
+
+func TestRequestBodyLimit(t *testing.T) {
+	const limit = 1 << 20
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		r.Body = MaxBytesReader(w, r.Body, limit)
+		n, err := io.Copy(ioutil.Discard, r.Body)
+		if err == nil {
+			t.Errorf("expected error from io.Copy")
+		}
+		if n != limit {
+			t.Errorf("io.Copy = %d, want %d", n, limit)
+		}
+	}))
+	defer ts.Close()
+
+	nWritten := int64(0)
+	req, _ := NewRequest("POST", ts.URL, io.LimitReader(countReader{neverEnding('a'), &nWritten}, limit*200))
+
+	// Send the POST, but don't care it succeeds or not.  The
+	// remote side is going to reply and then close the TCP
+	// connection, and HTTP doesn't really define if that's
+	// allowed or not.  Some HTTP clients will get the response
+	// and some (like ours, currently) will complain that the
+	// request write failed, without reading the response.
+	//
+	// But that's okay, since what we're really testing is that
+	// the remote side hung up on us before we wrote too much.
+	_, _ = DefaultClient.Do(req)
+
+	if nWritten > limit*2 {
+		t.Errorf("handler restricted the request body to %d bytes, but client managed to write %d",
+			limit, nWritten)
+	}
+}
+
 type errorListener struct {
 	errs []os.Error
 }

@@ -478,6 +478,8 @@ type body struct {
 	r       *bufio.Reader // underlying wire-format reader for the trailer
 	closing bool          // is the connection to be closed after reading body?
 	closed  bool
+
+	res *response // response writer for server requests, else nil
 }
 
 // ErrBodyReadAfterClose is returned when reading a Request Body after
@@ -503,6 +505,15 @@ func (b *body) Close() os.Error {
 	if b.hdr == nil && b.closing {
 		// no trailer and closing the connection next.
 		// no point in reading to EOF.
+		return nil
+	}
+
+	// In a server request, don't continue reading from the client
+	// if we've already hit the maximum body size set by the
+	// handler. If this is set, that also means the TCP connection
+	// is about to be closed, so getting to the next HTTP request
+	// in the stream is not necessary.
+	if b.res != nil && b.res.requestBodyLimitHit {
 		return nil
 	}
 
