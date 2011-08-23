@@ -34,10 +34,7 @@
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
 
-char *elfstrdat;
-int elfstrsize;
-int maxelfstr;
-int elftextsh;
+static int maxelfstr;
 
 int
 putelfstr(char *s)
