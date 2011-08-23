@@ -123,27 +123,30 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 		else if(pcbuf != nil)
 			pcbuf[n++] = pc;
 		else {
-			// Print during crash.
-			//	main+0xf /home/rsc/go/src/runtime/x.go:23
-			//		main(0x1, 0x2, 0x3)
-			runtime·printf("%S", f->name);
-			if(pc > f->entry)
-				runtime·printf("+%p", (uintptr)(pc - f->entry));
-			tracepc = pc;	// back up to CALL instruction for funcline.
-			if(n > 0 && pc > f->entry && !waspanic)
-				tracepc--;
-			runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
-			runtime·printf("\t%S(", f->name);
-			for(i = 0; i < f->args; i++) {
-				if(i != 0)
-					runtime·prints(", ");
-				runtime·printhex(((uintptr*)fp)[i]);
-				if(i >= 4) {
-					runtime·prints(", ...");
-					break;
+			if(showframe(f)) {
+				// Print during crash.
+				//	main(0x1, 0x2, 0x3)
+				//		/home/rsc/go/src/runtime/x.go:23 +0xf
+				//		
+				tracepc = pc;	// back up to CALL instruction for funcline.
+				if(n > 0 && pc > f->entry && !waspanic)
+					tracepc--;
+				runtime·printf("%S(", f->name);
+				for(i = 0; i < f->args; i++) {
+					if(i != 0)
+						runtime·prints(", ");
+					runtime·printhex(((uintptr*)fp)[i]);
+					if(i >= 4) {
+						runtime·prints(", ...");
+						break;
+					}
 				}
+				runtime·prints(")\n");
+				runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
+				if(pc > f->entry)
+					runtime·printf(" +%p", (uintptr)(pc - f->entry));
+				runtime·printf("\n");
 			}
-			runtime·prints(")\n");
 			n++;
 		}
 		
@@ -189,14 +192,16 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 		fp = nil;
 	}
 	
-	if(pcbuf == nil && (pc = g->gopc) != 0 && (f = runtime·findfunc(pc)) != nil) {
-		runtime·printf("----- goroutine created by -----\n%S", f->name);
-		if(pc > f->entry)
-			runtime·printf("+%p", (uintptr)(pc - f->entry));
+	// Show what created goroutine, except main goroutine (goid 1).
+	if(pcbuf == nil && (pc = g->gopc) != 0 && (f = runtime·findfunc(pc)) != nil && g->goid != 1) {
+		runtime·printf("created by %S\n", f->name);
 		tracepc = pc;	// back up to CALL instruction for funcline.
 		if(n > 0 && pc > f->entry)
 			tracepc--;
-		runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
+		runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
+		if(pc > f->entry)
+			runtime·printf(" +%p", (uintptr)(pc - f->entry));
+		runtime·printf("\n");
 	}
 		
 	return n;

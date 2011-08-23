@@ -199,6 +199,7 @@ struct	G
 	int16	status;
 	int32	goid;
 	uint32	selgen;		// valid sudog pointer
+	int8*	waitreason;	// if status==Gwaiting
 	G*	schedlink;
 	bool	readyonstop;
 	bool	ispanic;
@@ -384,6 +385,7 @@ struct Panic
 extern	Alg	runtime·algarray[Amax];
 extern	String	runtime·emptystring;
 G*	runtime·allg;
+G*	runtime·lastg;
 M*	runtime·allm;
 extern	int32	runtime·gomaxprocs;
 extern	bool	runtime·singleproc;
@@ -434,6 +436,7 @@ String	runtime·gostringnocopy(byte*);
 String	runtime·gostringw(uint16*);
 void	runtime·initsig(int32);
 int32	runtime·gotraceback(void);
+void	runtime·goroutineheader(G*);
 void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
 void	runtime·tracebackothers(G*);
 int32	runtime·write(int32, void*, int32);
@@ -631,6 +634,7 @@ void	runtime·chansend(ChanType*, Hchan*, void*, bool*);
 void	runtime·chanrecv(ChanType*, Hchan*, void*, bool*, bool*);
 int32	runtime·chanlen(Hchan*);
 int32	runtime·chancap(Hchan*);
+bool	runtime·showframe(Func*);
 
 void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);
 

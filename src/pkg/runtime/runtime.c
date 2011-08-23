@@ -51,12 +51,15 @@ runtime·dopanic(int32 unused)
 	static bool didothers;
 
 	if(g->sig != 0)
-		runtime·printf("\n[signal %x code=%p addr=%p pc=%p]\n",
+		runtime·printf("[signal %x code=%p addr=%p pc=%p]\n",
 			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
 
-	runtime·printf("\n");
 	if(runtime·gotraceback()){
-		runtime·traceback(runtime·getcallerpc(&unused), runtime·getcallersp(&unused), 0, g);
+		if(g != m->g0) {
+			runtime·printf("\n");
+			runtime·goroutineheader(g);
+			runtime·traceback(runtime·getcallerpc(&unused), runtime·getcallersp(&unused), 0, g);
+		}
 		if(!didothers) {
 			didothers = true;
 			runtime·tracebackothers(g);
@@ -703,7 +706,13 @@ runtime·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool r
 void
 runtime·Callers(int32 skip, Slice pc, int32 retn)
 {
-	retn = runtime·callers(skip, (uintptr*)pc.array, pc.len);
+	// runtime.callers uses pc.array==nil as a signal
+	// to print a stack trace.  Pick off 0-length pc here
+	// so that we don't let a nil pc slice get to it.
+	if(pc.len == 0)
+		retn = 0;
+	else
+		retn = runtime·callers(skip, (uintptr*)pc.array, pc.len);
 	FLUSH(&retn);
 }
 

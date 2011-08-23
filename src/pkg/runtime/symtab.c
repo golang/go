@@ -464,3 +464,40 @@ runtime·findfunc(uintptr addr)
 	runtime·prints("findfunc unreachable\n");
 	return nil;
 }
+
+static bool
+hasprefix(String s, int8 *p)
+{
+	int32 i;
+	
+	for(i=0; i<s.len; i++) {
+		if(p[i] == 0)
+			return 1;
+		if(p[i] != s.str[i])
+			return 0;
+	}
+	return p[i] == 0;
+}
+
+static bool
+contains(String s, int8 *p)
+{
+	int32 i;
+	
+	if(p[0] == 0)
+		return 1;
+	for(i=0; i<s.len; i++) {
+		if(s.str[i] != p[0])
+			continue;
+		if(hasprefix((String){s.str + i, s.len - i}, p))
+			return 1;
+	}
+	return 0;
+}
+
+bool
+showframe(Func *f)
+{
+	// return 1;  // for debugging - show all frames
+	return contains(f->name, ".") && !hasprefix(f->name, "runtime.");
+}

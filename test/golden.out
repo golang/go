@@ -4,18 +4,14 @@
 =========== ./cmp2.go
 panic: runtime error: comparing uncomparable type []int
 
-
 =========== ./cmp3.go
 panic: runtime error: comparing uncomparable type []int
-
 
 =========== ./cmp4.go
 panic: runtime error: hash of unhashable type []int
 
-
 =========== ./cmp5.go
 panic: runtime error: hash of unhashable type []int
-
 
 =========== ./deferprint.go
 printing: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
@@ -115,10 +111,8 @@ PASS
 =========== interface/fail.go
 panic: interface conversion: *main.S is not main.I: missing method Foo
 
-
 =========== interface/returntype.go
 panic: interface conversion: *main.S is not main.I2: missing method Name
-
 
 == nilptr/
 
@@ -154,11 +148,9 @@ M
 =========== fixedbugs/bug113.go
 panic: interface conversion: interface is int, not int32
 
-
 =========== fixedbugs/bug148.go
 2 3
 panic: interface conversion: interface is main.T, not main.T
-
 
 =========== fixedbugs/bug328.go
 0x0
