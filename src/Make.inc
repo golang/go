@@ -33,6 +33,7 @@ GOOS_LIST=\
 	darwin\
 	freebsd\
 	linux\
+	openbsd\
 	plan9\
 	windows\
 
