@@ -83,6 +83,28 @@ includes_FreeBSD='
 #include <netinet/ip_mroute.h>
 '
 
+includes_OpenBSD='
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/event.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
+#include <sys/sysctl.h>
+#include <sys/termios.h>
+#include <sys/ttycom.h>
+#include <sys/wait.h>
+#include <net/bpf.h>
+#include <net/if.h>
+#include <net/if_types.h>
+#include <net/route.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/ip_mroute.h>
+#include <netinet/if_ether.h>
+#include <net/if_bridge.h>
+'
+
 includes='
 #include <sys/types.h>
 #include <fcntl.h>
@@ -120,7 +142,7 @@ done
 	# it encounters while processing the input
 	echo "${!indirect} $includes" | $GCC -x c - -E -dM $ccflags |
 	awk '
-		$1 != "#define" || $2 ~ /\(/ {next}
+		$1 != "#define" || $2 ~ /\(/ || $3 == "" {next}
 
 		$2 ~ /^E([ABCD]X|[BIS]P|[SD]I|S|FL)$/ {next}  # 386 registers
 		$2 ~ /^(SIGEV_|SIGSTKSZ|SIGRT(MIN|MAX))/ {next}
