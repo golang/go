@@ -1562,3 +1562,28 @@ func TestTagGet(t *testing.T) {
 		}
 	}
 }
+
+func TestBytes(t *testing.T) {
+	type B []byte
+	x := B{1, 2, 3, 4}
+	y := ValueOf(x).Bytes()
+	if !bytes.Equal(x, y) {
+		t.Fatalf("ValueOf(%v).Bytes() = %v", x, y)
+	}
+	if &x[0] != &y[0] {
+		t.Errorf("ValueOf(%p).Bytes() = %p", &x[0], &y[0])
+	}
+}
+
+func TestSetBytes(t *testing.T) {
+	type B []byte
+	var x B
+	y := []byte{1, 2, 3, 4}
+	ValueOf(&x).Elem().SetBytes(y)
+	if !bytes.Equal(x, y) {
+		t.Fatalf("ValueOf(%v).Bytes() = %v", x, y)
+	}
+	if &x[0] != &y[0] {
+		t.Errorf("ValueOf(%p).Bytes() = %p", &x[0], &y[0])
+	}
+}
