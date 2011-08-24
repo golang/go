@@ -646,7 +646,7 @@ func (z nat) scan(r io.RuneScanner, base int) (nat, int, os.Error) {
 					}
 				}
 			case os.EOF:
-				return z, 10, nil
+				return z.make(0), 10, nil
 			default:
 				return z, 10, err
 			}

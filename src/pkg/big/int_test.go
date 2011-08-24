@@ -301,6 +301,9 @@ func TestGetString(t *testing.T) {
 func TestSetString(t *testing.T) {
 	tmp := new(Int)
 	for i, test := range stringTests {
+		// initialize to a non-zero value so that issues with parsing
+		// 0 are detected
+		tmp.SetInt64(1234567890)
 		n1, ok1 := new(Int).SetString(test.in, test.base)
 		n2, ok2 := tmp.SetString(test.in, test.base)
 		expected := NewInt(test.val)
