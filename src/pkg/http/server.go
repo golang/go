@@ -565,14 +565,18 @@ func (c *conn) serve() {
 	for {
 		w, err := c.readRequest()
 		if err != nil {
+			msg := "400 Bad Request"
 			if err == errTooLarge {
 				// Their HTTP client may or may not be
 				// able to read this if we're
 				// responding to them and hanging up
 				// while they're still writing their
 				// request.  Undefined behavior.
-				fmt.Fprintf(c.rwc, "HTTP/1.1 400 Request Too Large\r\n\r\n")
+				msg = "400 Request Too Large"
+			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+				break // Don't reply
 			}
+			fmt.Fprintf(c.rwc, "HTTP/1.1 %s\r\n\r\n", msg)
 			break
 		}
 
