@@ -398,6 +398,18 @@ func (v Value) Bool() bool {
 	return *(*bool)(unsafe.Pointer(&iv.word))
 }
 
+// Bytes returns v's underlying value.
+// It panics if v's underlying value is not a slice of bytes.
+func (v Value) Bytes() []byte {
+	iv := v.internal()
+	iv.mustBe(Slice)
+	typ := iv.typ.toType()
+	if typ.Elem().Kind() != Uint8 {
+		panic("reflect.Value.Bytes of non-byte slice")
+	}
+	return *(*[]byte)(iv.addr)
+}
+
 // CanAddr returns true if the value's address can be obtained with Addr.
 // Such values are called addressable.  A value is addressable if it is
 // an element of a slice, an element of an addressable array,
@@ -1222,6 +1234,19 @@ func (v Value) SetBool(x bool) {
 	iv.mustBeAssignable()
 	iv.mustBe(Bool)
 	*(*bool)(iv.addr) = x
+}
+
+// SetBytes sets v's underlying value.
+// It panics if v's underlying value is not a slice of bytes.
+func (v Value) SetBytes(x []byte) {
+	iv := v.internal()
+	iv.mustBeAssignable()
+	iv.mustBe(Slice)
+	typ := iv.typ.toType()
+	if typ.Elem().Kind() != Uint8 {
+		panic("reflect.Value.SetBytes of non-byte slice")
+	}
+	*(*[]byte)(iv.addr) = x
 }
 
 // SetComplex sets v's underlying value to x.
