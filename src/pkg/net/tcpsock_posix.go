@@ -23,7 +23,7 @@ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
 }
 
 func (a *TCPAddr) family() int {
-	if a == nil || len(a.IP) <= 4 {
+	if a == nil || len(a.IP) <= IPv4len {
 		return syscall.AF_INET
 	}
 	if a.IP.To4() != nil {

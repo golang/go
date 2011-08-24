@@ -113,7 +113,7 @@ func convertRR_A(records []dnsRR) []IP {
 func convertRR_AAAA(records []dnsRR) []IP {
 	addrs := make([]IP, len(records))
 	for i, rr := range records {
-		a := make(IP, 16)
+		a := make(IP, IPv6len)
 		copy(a, rr.(*dnsRR_AAAA).AAAA[:])
 		addrs[i] = a
 	}
