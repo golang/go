@@ -25,7 +25,7 @@ func sockaddrToIP(sa syscall.Sockaddr) Addr {
 }
 
 func (a *IPAddr) family() int {
-	if a == nil || len(a.IP) <= 4 {
+	if a == nil || len(a.IP) <= IPv4len {
 		return syscall.AF_INET
 	}
 	if a.IP.To4() != nil {
@@ -158,7 +158,7 @@ func (c *IPConn) ReadFromIP(b []byte) (n int, addr *IPAddr, err os.Error) {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
 		addr = &IPAddr{sa.Addr[0:]}
-		if len(b) >= 4 { // discard ipv4 header
+		if len(b) >= IPv4len { // discard ipv4 header
 			hsize := (int(b[0]) & 0xf) * 4
 			copy(b, b[hsize:])
 			n -= hsize
