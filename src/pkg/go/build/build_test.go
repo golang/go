@@ -7,44 +7,83 @@ package build
 import (
 	"exec"
 	"path/filepath"
+	"reflect"
+	"runtime"
+	"sort"
 	"testing"
 )
 
-var buildPkgs = []string{
-	"go/build/pkgtest",
-	"go/build/cmdtest",
-	"go/build/cgotest",
+func sortstr(x []string) []string {
+	sort.Strings(x)
+	return x
+}
+
+var buildPkgs = []struct {
+	dir  string
+	info *DirInfo
+}{
+	{
+		"go/build/pkgtest",
+		&DirInfo{
+			GoFiles:      []string{"pkgtest.go"},
+			SFiles:       []string{"sqrt_" + runtime.GOARCH + ".s"},
+			PkgName:      "pkgtest",
+			TestGoFiles:  sortstr([]string{"sqrt_test.go", "sqrt_" + runtime.GOARCH + "_test.go"}),
+			XTestGoFiles: []string{"xsqrt_test.go"},
+		},
+	},
+	{
+		"go/build/cmdtest",
+		&DirInfo{
+			GoFiles: []string{"main.go"},
+			PkgName: "main",
+			Imports: []string{"go/build/pkgtest"},
+		},
+	},
+	{
+		"go/build/cgotest",
+		&DirInfo{
+			CgoFiles: []string{"cgotest.go"},
+			CFiles:   []string{"cgotest.c"},
+			Imports:  []string{"C", "unsafe"},
+			PkgName:  "cgotest",
+		},
+	},
 }
 
 const cmdtestOutput = "3"
 
 func TestBuild(t *testing.T) {
-	for _, pkg := range buildPkgs {
+	for _, tt := range buildPkgs {
 		tree := Path[0] // Goroot
-		dir := filepath.Join(tree.SrcDir(), pkg)
+		dir := filepath.Join(tree.SrcDir(), tt.dir)
 
 		info, err := ScanDir(dir, true)
 		if err != nil {
-			t.Error("ScanDir:", err)
+			t.Errorf("ScanDir(%#q): %v", tt.dir, err)
+			continue
+		}
+		if !reflect.DeepEqual(info, tt.info) {
+			t.Errorf("ScanDir(%#q) = %#v, want %#v\n", tt.dir, info, tt.info)
 			continue
 		}
 
-		s, err := Build(tree, pkg, info)
+		s, err := Build(tree, tt.dir, info)
 		if err != nil {
-			t.Error("Build:", err)
+			t.Errorf("Build(%#q): %v", tt.dir, err)
 			continue
 		}
 
 		if err := s.Run(); err != nil {
-			t.Error("Run:", err)
+			t.Errorf("Run(%#q): %v", tt.dir, err)
 			continue
 		}
 
-		if pkg == "go/build/cmdtest" {
+		if tt.dir == "go/build/cmdtest" {
 			bin := s.Output[0]
 			b, err := exec.Command(bin).CombinedOutput()
 			if err != nil {
-				t.Errorf("exec: %s: %v", bin, err)
+				t.Errorf("exec %s: %v", bin, err)
 				continue
 			}
 			if string(b) != cmdtestOutput {
@@ -52,6 +91,7 @@ func TestBuild(t *testing.T) {
 			}
 		}
 
+		// Deferred because cmdtest depends on pkgtest.
 		defer func(s *Script) {
 			if err := s.Nuke(); err != nil {
 				t.Errorf("nuking: %v", err)

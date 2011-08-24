@@ -55,7 +55,7 @@ var tests = []GoodFileTest{
 
 func TestGoodOSArch(t *testing.T) {
 	for _, test := range tests {
-		if goodOSArch(test.name) != test.result {
+		if DefaultContext.goodOSArch(test.name) != test.result {
 			t.Fatalf("goodOSArch(%q) != %v", test.name, test.result)
 		}
 	}
