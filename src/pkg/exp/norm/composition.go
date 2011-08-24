@@ -12,16 +12,14 @@ const (
 	maxNFCExpansion   = 3  // NFC(0x1D160)
 	maxNFKCExpansion  = 18 // NFKC(0xFDFA)
 
-	maxRuneSizeInDecomp = 4
-	// Need to multiply by 2 as we don't reuse byte buffer space for recombining.
-	maxByteBufferSize = 2 * maxRuneSizeInDecomp * maxCombiningChars // 256
+	maxByteBufferSize = utf8.UTFMax * maxCombiningChars // 128
 )
 
 // reorderBuffer is used to normalize a single segment.  Characters inserted with
-// insert() are decomposed and reordered based on CCC. The compose() method can
+// insert are decomposed and reordered based on CCC. The compose method can
 // be used to recombine characters.  Note that the byte buffer does not hold
 // the UTF-8 characters in order.  Only the rune array is maintained in sorted
-// order. flush() writes the resulting segment to a byte array.
+// order. flush writes the resulting segment to a byte array.
 type reorderBuffer struct {
 	rune  [maxCombiningChars]runeInfo // Per character info.
 	byte  [maxByteBufferSize]byte     // UTF-8 buffer. Referenced by runeInfo.pos.
@@ -68,7 +66,7 @@ func (rb *reorderBuffer) insertOrdered(info runeInfo) bool {
 	}
 	rb.nrune += 1
 	pos := uint8(rb.nbyte)
-	rb.nbyte += info.size
+	rb.nbyte += utf8.UTFMax
 	info.pos = pos
 	b[n] = info
 	return true
@@ -81,17 +79,20 @@ func (rb *reorderBuffer) insert(src []byte, info runeInfo) bool {
 		rune, _ := utf8.DecodeRune(src)
 		return rb.decomposeHangul(uint32(rune))
 	}
-	pos := rb.nbyte
 	if info.flags.hasDecomposition() {
 		dcomp := rb.f.decompose(src)
-		for i := 0; i < len(dcomp); i += int(info.size) {
+		for i := 0; i < len(dcomp); {
 			info = rb.f.info(dcomp[i:])
+			pos := rb.nbyte
 			if !rb.insertOrdered(info) {
 				return false
 			}
+			end := i + int(info.size)
+			copy(rb.byte[pos:], dcomp[i:end])
+			i = end
 		}
-		copy(rb.byte[pos:], dcomp)
 	} else {
+		pos := rb.nbyte
 		if !rb.insertOrdered(info) {
 			return false
 		}
@@ -107,21 +108,23 @@ func (rb *reorderBuffer) insertString(src string, info runeInfo) bool {
 		rune, _ := utf8.DecodeRuneInString(src)
 		return rb.decomposeHangul(uint32(rune))
 	}
-	pos := rb.nbyte
 	if info.flags.hasDecomposition() {
 		dcomp := rb.f.decomposeString(src)
-		for i := 0; i < len(dcomp); i += int(info.size) {
+		for i := 0; i < len(dcomp); {
 			info = rb.f.info(dcomp[i:])
+			pos := rb.nbyte
 			if !rb.insertOrdered(info) {
 				return false
 			}
+			end := i + int(info.size)
+			copy(rb.byte[pos:], dcomp[i:end])
+			i = end
 		}
-		copy(rb.byte[pos:], dcomp)
 	} else {
+		copy(rb.byte[rb.nbyte:], src[:info.size])
 		if !rb.insertOrdered(info) {
 			return false
 		}
-		copy(rb.byte[pos:], src[:info.size])
 	}
 	return true
 }
@@ -130,17 +133,16 @@ func (rb *reorderBuffer) insertString(src string, info runeInfo) bool {
 func (rb *reorderBuffer) appendRune(rune uint32) {
 	bn := rb.nbyte
 	sz := utf8.EncodeRune(rb.byte[bn:], int(rune))
-	rb.nbyte += uint8(sz)
+	rb.nbyte += utf8.UTFMax
 	rb.rune[rb.nrune] = runeInfo{bn, uint8(sz), 0, 0}
 	rb.nrune++
 }
 
 // assignRune sets a rune at position pos. It is used for Hangul and recomposition.
 func (rb *reorderBuffer) assignRune(pos int, rune uint32) {
-	bn := rb.nbyte
+	bn := rb.rune[pos].pos
 	sz := utf8.EncodeRune(rb.byte[bn:], int(rune))
 	rb.rune[pos] = runeInfo{bn, uint8(sz), 0, 0}
-	rb.nbyte += uint8(sz)
 }
 
 // runeAt returns the rune at position n. It is used for Hangul and recomposition.
