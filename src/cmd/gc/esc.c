@@ -12,7 +12,7 @@
 //
 // Flag -s disables the old codepaths and switches on the code here:
 //
-// First escfunc, escstmt and escexpr recurse over the ast of each
+// First escfunc, esc and escassign recurse over the ast of each
 // function to dig out flow(dst,src) edges between any
 // pointer-containing nodes and store them in dst->escflowsrc.  For
 // variables assigned to a variable in an outer scope or used as a
@@ -32,11 +32,11 @@
 #include "go.h"
 
 static void escfunc(Node *func);
-static void escstmtlist(NodeList *stmts);
-static void escstmt(Node *stmt);
-static void escexpr(Node *dst, Node *expr);
-static void escexprcall(Node *dst, Node *callexpr);
-static void escflows(Node* dst, Node* src);
+static void esclist(NodeList *l);
+static void esc(Node *n);
+static void escassign(Node *dst, Node *src);
+static void esccall(Node*);
+static void escflows(Node *dst, Node *src);
 static void escflood(Node *dst);
 static void escwalk(int level, Node *dst, Node *src);
 static void esctag(Node *func);
@@ -48,7 +48,7 @@ static void esctag(Node *func);
 // flow to.
 static Node	theSink;
 
-static NodeList* dsts;		// all dst nodes
+static NodeList*	dsts;		// all dst nodes
 static int	loopdepth;	// for detecting nested loop scopes
 static int	pdepth;		// for debug printing in recursions.
 static int	floodgen;	// loop prevention in flood/walk
@@ -76,7 +76,7 @@ escapes(void)
 
 	// visit the updstream of each dst, mark address nodes with
 	// addrescapes, mark parameters unsafe
-	for (l = dsts; l; l=l->next)
+	for(l = dsts; l; l=l->next)
 		escflood(l->n);
 
 	// for all top level functions, tag the typenodes corresponding to the param nodes
@@ -115,53 +115,59 @@ escfunc(Node *func)
 
 	// walk will take the address of cvar->closure later and assign it to cvar.
 	// handle that here by linking a fake oaddr node directly to the closure.
-	for (ll=curfn->cvars; ll; ll=ll->next) {
+	for(ll=curfn->cvars; ll; ll=ll->next) {
 		if(ll->n->op == OXXX)  // see dcl.c:398
 			continue;
 
 		n = nod(OADDR, ll->n->closure, N);
 		n->lineno = ll->n->lineno;
 		typecheck(&n, Erv);
-		escexpr(curfn, n);
+		escassign(curfn, n);
 	}
 
-	escstmtlist(curfn->nbody);
+	esclist(curfn->nbody);
 	curfn = savefn;
 	loopdepth = saveld;
 }
 
 static void
-escstmtlist(NodeList* stmts)
+esclist(NodeList *l)
 {
-	for(; stmts; stmts=stmts->next)
-		escstmt(stmts->n);
+	for(; l; l=l->next)
+		esc(l->n);
 }
 
 static void
-escstmt(Node *stmt)
+esc(Node *n)
 {
-	int cl, cr, lno;
-	NodeList *ll, *lr;
-	Node *dst;
+	int lno;
+	NodeList *ll, *lr, *l;
 
-	if(stmt == N)
+	if(n == N)
 		return;
 
-	lno = setlineno(stmt);
+	lno = setlineno(n);
 
-	if(stmt->typecheck == 0 && stmt->op != ODCL) {	 // TODO something with OAS2
-		dump("escstmt missing typecheck", stmt);
-		fatal("missing typecheck.");
-	}
+	if(n->op == OFOR)
+		loopdepth++;
 
-	// Common to almost all statements, and nil if n/a.
-	escstmtlist(stmt->ninit);
+	esclist(n->ninit);
+	esclist(n->list);
+	esclist(n->rlist);
+	esc(n->ntest);
+	esc(n->nincr);
+	esclist(n->nbody);
+	esc(n->left);
+	esc(n->right);
+
+	if(n->op == OFOR)
+		loopdepth--;
 
 	if(debug['m'] > 1)
-		print("%L:[%d] %#S statement: %#N\n", lineno, loopdepth,
-		      (curfn && curfn->nname) ? curfn->nname->sym : S, stmt);
+		print("%L:[%d] %#S esc: %#N\n", lineno, loopdepth,
+		      (curfn && curfn->nname) ? curfn->nname->sym : S, n);
 
-	switch(stmt->op) {
+	switch(n->op) {
 	case ODCL:
 	case ODCLFIELD:
 		// a declaration ties the node to the current
@@ -170,182 +176,135 @@ escstmt(Node *stmt)
 		// escflood to avoid storing redundant information
 		// What does have to happen here is note if the name
 		// is declared inside a looping scope.
-		stmt->left->escloopdepth = loopdepth;
+		if(n->left)
+			n->left->escloopdepth = loopdepth;
 		break;
 
 	case OLABEL:  // TODO: new loop/scope only if there are backjumps to it.
 		loopdepth++;
 		break;
 
-	case OBLOCK:
-		escstmtlist(stmt->list);
-		break;
-
-	case OFOR:
-		if(stmt->ntest != N) {
-			escstmtlist(stmt->ntest->ninit);
-			escexpr(N, stmt->ntest);
-		}
-		escstmt(stmt->nincr);
-		loopdepth++;
-		escstmtlist(stmt->nbody);
-		loopdepth--;
-		break;
-
 	case ORANGE:		//  for	 <list> = range <right> { <nbody> }
-		switch(stmt->type->etype) {
-		case TSTRING:	// never flows
-			escexpr(stmt->list->n, N);
-			if(stmt->list->next)
-				escexpr(stmt->list->next->n, N);
-			escexpr(N, stmt->right);
-			break;
+		switch(n->type->etype) {
 		case TARRAY:	// i, v = range sliceorarray
-			escexpr(stmt->list->n, N);
-			if(stmt->list->next)
-				escexpr(stmt->list->next->n, stmt->right);
+			if(n->list->next)
+				escassign(n->list->next->n, n->right);
 			break;
 		case TMAP:	// k [, v] = range map
-			escexpr(stmt->list->n, stmt->right);
-			if(stmt->list->next)
-				escexpr(stmt->list->next->n, stmt->right);
+			escassign(n->list->n, n->right);
+			if(n->list->next)
+				escassign(n->list->next->n, n->right);
 			break;
 		case TCHAN:	// v = range chan
-			escexpr(stmt->list->n, stmt->right);
+			escassign(n->list->n, n->right);
 			break;
 		}
 		loopdepth++;
-		escstmtlist(stmt->nbody);
+		esclist(n->nbody);
 		loopdepth--;
 		break;
 
-	case OIF:
-		escexpr(N, stmt->ntest);
-		escstmtlist(stmt->nbody);
-		escstmtlist(stmt->nelse);
-		break;
-
-	case OSELECT:
-		for(ll=stmt->list; ll; ll=ll->next) {  // cases
-			escstmt(ll->n->left);
-			escstmtlist(ll->n->nbody);
-		}
-		break;
-
-	case OSELRECV2:	  // v, ok := <-ch  ntest:ok
-		escexpr(N, stmt->ntest);
-		// fallthrough
 	case OSELRECV:	  // v := <-ch	 left: v  right->op = ORECV
-		escexpr(N, stmt->left);
-		escexpr(stmt->left, stmt->right);
+		escassign(n->left, n->right);
 		break;
 
 	case OSWITCH:
-		if(stmt->ntest && stmt->ntest->op == OTYPESW) {
-			for(ll=stmt->list; ll; ll=ll->next) {  // cases
+		if(n->ntest && n->ntest->op == OTYPESW) {
+			for(ll=n->list; ll; ll=ll->next) {  // cases
 				// ntest->right is the argument of the .(type),
 				// ll->n->nname is the variable per case
-				escexpr(ll->n->nname, stmt->ntest->right);
-				escstmtlist(ll->n->nbody);
+				escassign(ll->n->nname, n->ntest->right);
+				esclist(ll->n->nbody);
 			}
 		} else {
-			escexpr(N, stmt->ntest);
-			for(ll=stmt->list; ll; ll=ll->next) {  // cases
+			escassign(N, n->ntest);
+			for(ll=n->list; ll; ll=ll->next) {  // cases
 				for(lr=ll->n->list; lr; lr=lr->next)
-					escexpr(N, lr->n);
-				escstmtlist(ll->n->nbody);
+					escassign(N, lr->n);
+				esclist(ll->n->nbody);
 			}
 		}
 		break;
 
 	case OAS:
 	case OASOP:
-		escexpr(stmt->left, stmt->right);
+		escassign(n->left, n->right);
 		break;
 
-		// escape analysis happens after typecheck, so the
-		// OAS2xxx have already been substituted.
 	case OAS2:	// x,y = a,b
-		cl = count(stmt->list);
-		cr = count(stmt->rlist);
-		if(cl > 1 && cr == 1) {
-			for(ll=stmt->list; ll; ll=ll->next)
-				escexpr(ll->n, stmt->rlist->n);
-		} else {
-			if(cl != cr)
-				fatal("escstmt: bad OAS2: %N", stmt);
-			for(ll=stmt->list, lr=stmt->rlist; ll; ll=ll->next, lr=lr->next)
-				escexpr(ll->n, lr->n);
-		}
+		if(count(n->list) == count(n->rlist))
+			for(ll=n->list, lr=n->rlist; ll; ll=ll->next, lr=lr->next)
+				escassign(ll->n, lr->n);
 		break;
 
 	case OAS2RECV:		// v, ok = <-ch
 	case OAS2MAPR:		// v, ok = m[k]
 	case OAS2DOTTYPE:	// v, ok = x.(type)
-		escexpr(stmt->list->n, stmt->rlist->n);
-		escexpr(stmt->list->next->n, N);
-		break;
-
-	case OAS2MAPW:		// m[k] = x, ok.. stmt->list->n is the INDEXMAP, k is handled in escexpr(dst...)
-		escexpr(stmt->list->n, stmt->rlist->n);
-		escexpr(N, stmt->rlist->next->n);
-		break;
-
-	case ORECV:		// unary <-ch as statement
-		escexpr(N, stmt->left);
+	case OAS2MAPW:		// m[k] = x, ok
+		escassign(n->list->n, n->rlist->n);
 		break;
 
 	case OSEND:		// ch <- x
-		escexpr(&theSink, stmt->right);	 // for now. TODO escexpr(stmt->left, stmt->right);
+		escassign(&theSink, n->right);	 // TODO: treat as *ch = x ?
 		break;
 
-	case OCOPY:	// todo: treat as *dst=*src instead of as dst=src
-		escexpr(stmt->left, stmt->right);
-		break;
-
-	case OAS2FUNC:	// x,y,z = f()
-		for(ll = stmt->list; ll; ll=ll->next)
-			escexpr(ll->n, N);
-		escexpr(N, stmt->rlist->n);
-		break;
-
-	case OCALLINTER:
-	case OCALLFUNC:
-	case OCALLMETH:
-		escexpr(N, stmt);
-		break;
-
-	case OPROC:
 	case ODEFER:
-		// stmt->left is a (pseud)ocall, stmt->left->left is
-		// the function being called.  if this defer is at
-		// loopdepth >1, everything leaks.  TODO this is
-		// overly conservative, it's enough if it leaks to a
-		// fake node at the function's top level
-		dst = &theSink;
-		if (stmt->op == ODEFER && loopdepth <= 1)
-			dst = nil;
-		escexpr(dst, stmt->left->left);
-		for(ll=stmt->left->list; ll; ll=ll->next)
-			escexpr(dst, ll->n);
+		if(loopdepth == 1)  // top level
+			break;
+		// arguments leak out of scope
+		// TODO: leak to a dummy node instead
+		// fallthrough
+	case OPROC:
+		// go f(x) - f and x escape
+		escassign(&theSink, n->left->left);
+		for(ll=n->left->list; ll; ll=ll->next)
+			escassign(&theSink, ll->n);
 		break;
 
 	case ORETURN:
-		for(ll=stmt->list; ll; ll=ll->next)
-			escexpr(&theSink, ll->n);
-		break;
-
-	case OCLOSE:
-	case OPRINT:
-	case OPRINTN:
-		escexpr(N, stmt->left);
-		for(ll=stmt->list; ll; ll=ll->next)
-			escexpr(N, ll->n);
+		for(ll=n->list; ll; ll=ll->next)
+			escassign(&theSink, ll->n);
 		break;
 
 	case OPANIC:
 		// Argument could leak through recover.
-		escexpr(&theSink, stmt->left);
+		escassign(&theSink, n->left);
+		break;
+
+	case OCOPY:
+		// left leaks to right, but the return value is harmless
+		// TODO: treat as *dst = *src, rather than as dst = src
+		escassign(n->left, n->right);
+		break;
+
+	case OAPPEND:
+		// See TODO for OCOPY
+		for(ll=n->list->next; ll; ll=ll->next)
+			escassign(n->list->n, ll->n);
+		break;
+
+	case OCALLMETH:
+	case OCALLFUNC:
+	case OCALLINTER:
+		esccall(n);
+		break;
+	
+	case OCONV:
+	case OCONVNOP:
+	case OCONVIFACE:
+		escassign(n, n->left);
+		break;
+	
+	case OARRAYLIT:
+	case OSTRUCTLIT:
+		for(l=n->list; l; l=l->next)
+			escassign(n, l->n->right);
+		break;
+	case OMAPLIT:
+		for(l=n->list; l; l=l->next) {
+			escassign(n, l->n->left);
+			escassign(n, l->n->right);
+		}
 		break;
 	}
 
@@ -357,87 +316,82 @@ escstmt(Node *stmt)
 // evaluated in curfn.	For expr==nil, dst must still be examined for
 // evaluations inside it (e.g *f(x) = y)
 static void
-escexpr(Node *dst, Node *expr)
+escassign(Node *dst, Node *src)
 {
 	int lno;
 	NodeList *ll;
 
-	if(isblank(dst)) dst = N;
+	if(isblank(dst) || dst == N || src == N || src->op == ONONAME || src->op == OXXX)
+		return;
+
+	if(debug['m'] > 1)
+		print("%L:[%d] %#S escassign: %hN = %hN\n", lineno, loopdepth,
+		      (curfn && curfn->nname) ? curfn->nname->sym : S, dst, src);
 
 	// the lhs of an assignment needs recursive analysis too
 	// these are the only interesting cases
 	// todo:check channel case
-	if(dst) {
-		setlineno(dst);
+	setlineno(dst);
 
-		switch(dst->op) {
-		case OINDEX:
-		case OSLICE:
-			escexpr(N, dst->right);
-
-			// slice:  "dst[x] = src"  is like *(underlying array)[x] = src
-			// TODO maybe this never occurs b/c of OSLICEARR and it's inserted OADDR
-			if(!isfixedarray(dst->left->type))
-				goto doref;
-
-			// fallthrough;	 treat "dst[x] = src" as "dst = src"
-		case ODOT:	      // treat "dst.x  = src" as "dst = src"
-			escexpr(dst->left, expr);
-			return;
-
-		case OINDEXMAP:
-			escexpr(&theSink, dst->right);	// map key is put in map
-			// fallthrough
-		case OIND:
-		case ODOTPTR:
-		case OSLICEARR:	 // ->left  is the OADDR of the array
-		doref:
-			escexpr(N, dst->left);
-			// assignment to dereferences: for now we lose track
-			escexpr(&theSink, expr);
-			return;
-		}
-
-	}
-
-	if(expr == N || expr->op == ONONAME || expr->op == OXXX)
+	switch(dst->op) {
+	case OINDEX:
+	case OSLICE:
+		// slice:  "dst[x] = src"  is like *(underlying array)[x] = src
+		// TODO maybe this never occurs b/c of OSLICEARR and it's inserted OADDR
+		if(!isfixedarray(dst->left->type))
+			goto doref;
+		// fallthrough;	 treat "dst[x] = src" as "dst = src"
+	case ODOT:	      // treat "dst.x  = src" as "dst = src"
+		escassign(dst->left, src);
 		return;
-
-	if(expr->typecheck == 0 && expr->op != OKEY) {
-		dump("escexpr missing typecheck", expr);
-		fatal("Missing typecheck.");
+	case OINDEXMAP:
+		escassign(&theSink, dst->right);	// map key is put in map
+		// fallthrough
+	case OIND:
+	case ODOTPTR:
+	case OSLICEARR:	 // ->left  is the OADDR of the array
+	doref:
+		// assignment to dereferences: for now we lose track
+		escassign(&theSink, src);
+		return;
 	}
 
-	lno = setlineno(expr);
+	if(src->typecheck == 0 && src->op != OKEY) {
+		dump("escassign missing typecheck", src);
+		fatal("escassign");
+	}
+
+	lno = setlineno(src);
 	pdepth++;
 
-	if(debug['m'] > 1)
-		print("%L:[%d] %#S \t%hN %.*s<= %hN\n", lineno, loopdepth,
-		      (curfn && curfn->nname) ? curfn->nname->sym : S, dst,
-		      2*pdepth, ".\t.\t.\t.\t.\t", expr);
-
-
-	switch(expr->op) {
+	switch(src->op) {
 	case OADDR:	// dst = &x
 	case OIND:	// dst = *x
 	case ODOTPTR:	// dst = (*x).f
-		// restart the recursion at x to figure out where it came from
-		escexpr(expr->left, expr->left);
-		// fallthrough
 	case ONAME:
 	case OPARAM:
 		// loopdepth was set in the defining statement or function header
-		escflows(dst, expr);
+		escflows(dst, src);
+		break;
+
+	case OCONV:
+	case OCONVIFACE:
+	case OCONVNOP:
+	case ODOT:
+	case ODOTTYPE:
+	case ODOTTYPE2:
+		// Conversions, field access, slice all preserve the input value.
+		escassign(dst, src->left);
 		break;
 
 	case OARRAYLIT:
 	case OSTRUCTLIT:
 	case OMAPLIT:
-		expr->escloopdepth = loopdepth;
-		escflows(dst, expr);
-		for(ll=expr->list; ll; ll=ll->next) {
-			escexpr(expr, ll->n->left);
-			escexpr(expr, ll->n->right);
+		src->escloopdepth = loopdepth;
+		escflows(dst, src);
+		for(ll=src->list; ll; ll=ll->next) {
+			escassign(src, ll->n->left);
+			escassign(src, ll->n->right);
 		}
 		break;
 
@@ -445,54 +399,21 @@ escexpr(Node *dst, Node *expr)
 	case OMAKEMAP:
 	case OMAKESLICE:
 	case ONEW:
-		expr->curfn = curfn;  // should have been done in parse, but patch it up here.
-		expr->escloopdepth = loopdepth;
-		escflows(dst, expr);
-		// first arg is type, all others need checking
-		for(ll=expr->list->next; ll; ll=ll->next)
-			escexpr(N, ll->n);
+		src->curfn = curfn;  // should have been done in parse, but patch it up here.
+		src->escloopdepth = loopdepth;
+		escflows(dst, src);
 		break;
 
 	case OCLOSURE:
-		expr->curfn = curfn;  // should have been done in parse, but patch it up here.
-		expr->escloopdepth = loopdepth;
-		escflows(dst, expr);
-		escfunc(expr);
+		src->curfn = curfn;  // should have been done in parse, but patch it up here.
+		src->escloopdepth = loopdepth;
+		escflows(dst, src);
+		escfunc(src);
 		break;
 
 	// end of the leaf cases. no calls to escflows() in the cases below.
-
-
-	case OCONV:	// unaries that pass the value through
-	case OCONVIFACE:
-	case OCONVNOP:
-	case ODOTTYPE:
-	case ODOTTYPE2:
-	case ORECV:	// leaks the whole channel
-	case ODOTMETH:	// expr->right is just the field or method name
-	case ODOTINTER:
-	case ODOT:
-		escexpr(dst, expr->left);
-		break;
-
-	case OCOPY:
-		// left leaks to right, but the return value is harmless
-		// TODO: treat as *dst = *src, rather than as dst = src
-		escexpr(expr->left, expr->right);
-		break;
-
 	case OAPPEND:
-		// See TODO for OCOPY
-		escexpr(dst, expr->list->n);
-		for(ll=expr->list->next; ll; ll=ll->next)
-			escexpr(expr->list->n, ll->n);
-		break;
-
-	case OCALLMETH:
-	case OCALLFUNC:
-	case OCALLINTER:
-		// Moved to separate function to isolate the hair.
-		escexprcall(dst, expr);
+		escassign(dst, src->list->n);
 		break;
 
 	case OSLICEARR:	 // like an implicit OIND to the underlying buffer, but typecheck has inserted an OADDR
@@ -501,13 +422,7 @@ escexpr(Node *dst, Node *expr)
 	case OINDEX:
 	case OINDEXMAP:
 		// the big thing flows, the keys just need checking
-		escexpr(dst, expr->left);
-		escexpr(N, expr->right);  // expr->right is the OKEY
-		break;
-
-	default: // all other harmless leaf, unary or binary cases end up here
-		escexpr(N, expr->left);
-		escexpr(N, expr->right);
+		escassign(dst, src->left);
 		break;
 	}
 
@@ -516,132 +431,105 @@ escexpr(Node *dst, Node *expr)
 }
 
 
-// This is a bit messier than fortunate, pulled out of escexpr's big
+// This is a bit messier than fortunate, pulled out of escassign's big
 // switch for clarity.	We either have the paramnodes, which may be
 // connected to other things throug flows or we have the parameter type
 // nodes, which may be marked 'n(ofloworescape)'. Navigating the ast is slightly
 // different for methods vs plain functions and for imported vs
 // this-package
 static void
-escexprcall(Node *dst, Node *expr)
+esccall(Node *n)
 {
 	NodeList *ll, *lr;
-	Node *fn;
-	Type *t, *fntype, *thisarg, *inargs;
+	Node *a, *fn;
+	Type *t, *fntype;
 
-	fn = nil;
-	fntype = nil;
+	fn = N;
+	fntype = T;
+	switch(n->op) {
+	default:
+		fatal("esccall");
 
-	switch(expr->op) {
 	case OCALLFUNC:
-		fn = expr->left;
-		escexpr(N, fn);
+		fn = n->left;
 		fntype = fn->type;
 		break;
 
 	case OCALLMETH:
-		fn = expr->left->right;	 // ODOTxx name
-		fn = fn->sym->def;	 // resolve to definition if we have it
+		fn = n->left->right->sym->def;
 		if(fn)
 			fntype = fn->type;
 		else
-			fntype = expr->left->type;
+			fntype = n->left->type;
 		break;
 
 	case OCALLINTER:
+		fntype = n->left->type;
 		break;
-
-	default:
-		fatal("escexprcall called with non-call expression");
 	}
 
-	if(fn && fn->ntype) {
-		if(debug['m'] > 2)
-			print("escexprcall: have param nodes: %N\n", fn->ntype);
-
-		if(expr->op == OCALLMETH) {
-			if(debug['m'] > 2)
-				print("escexprcall: this: %N\n",fn->ntype->left->left);
-			escexpr(fn->ntype->left->left, expr->left->left);
+	ll = n->list;
+	if(n->list != nil && n->list->next == nil) {
+		a = n->list->n;
+		if(a->type->etype == TSTRUCT && a->type->funarg) {
+			// f(g()).
+			// Since f's arguments are g's results and
+			// all function results escape, we're done.
+			ll = nil;
 		}
+	}
+			
+	if(fn && fn->ntype) {
+		// Local function.  Incorporate into flow graph.
 
-		// lr->n is the dclfield, ->left is the ONAME param node
-		for(ll=expr->list, lr=fn->ntype->list; ll && lr; ll=ll->next) {
-			if(debug['m'] > 2)
-				print("escexprcall: field param: %N\n", lr->n->left);
+		// Receiver.
+		if(n->op != OCALLFUNC)
+			escassign(fn->ntype->left->left, n->left->left);
+
+		for(ll=n->list, lr=fn->ntype->list; ll && lr; ll=ll->next) {
 			if (lr->n->left)
-				escexpr(lr->n->left, ll->n);
-			else
-				escexpr(&theSink, ll->n);
+				escassign(lr->n->left, ll->n);
+			else 
+				escassign(&theSink, ll->n);
 			if(lr->n->left && !lr->n->left->isddd)
 				lr=lr->next;
 		}
 		return;
 	}
 
-	if(fntype) {
-		if(debug['m'] > 2)
-			print("escexprcall: have param types: %T\n", fntype);
-
-		if(expr->op == OCALLMETH) {
-			thisarg = getthisx(fntype);
-			t = thisarg->type;
-			if(debug['m'] > 2)
-				print("escexprcall: this: %T\n", t);
-			if(!t->note || strcmp(t->note->s, safetag->s) != 0)
-				escexpr(&theSink, expr->left->left);
-			else
-				escexpr(N, expr->left->left);
-		}
-
-		inargs = getinargx(fntype);
-		for(ll=expr->list, t=inargs->type; ll; ll=ll->next) {
-			if(debug['m'] > 2)
-				print("escexprcall: field type: %T\n", t);
-			if(!t->note || strcmp(t->note->s, safetag->s))
-				escexpr(&theSink, ll->n);
-			else
-				escexpr(N, ll->n);
-			if(t->down)
-				t=t->down;
-		}
-
-		return;
+	// Imported function.  Use the escape tags.
+	if(n->op != OCALLFUNC) {
+		t = getthisx(fntype)->type;
+		if(!t->note || strcmp(t->note->s, safetag->s) != 0)
+			escassign(&theSink, n->left->left);
 	}
-
-	// fallthrough if we don't have enough information:
-	// can only assume all parameters are unsafe
-	// OCALLINTER always ends up here
-
-	if(debug['m']>1 && expr->op != OCALLINTER) {
-		// dump("escexprcall", expr);
-		print("escexprcall: %O, no nodes, no types: %N\n", expr->op, fn);
+	for(t=getinargx(fntype)->type; ll; ll=ll->next) {
+		if(!t->note || strcmp(t->note->s, safetag->s) != 0)
+			escassign(&theSink, ll->n);
+		if(t->down)
+			t = t->down;
 	}
-
-	escexpr(&theSink,  expr->left->left);  // the this argument
-	for(ll=expr->list; ll; ll=ll->next)
-		escexpr(&theSink, ll->n);
 }
 
 // Store the link src->dst in dst, throwing out some quick wins.
 static void
-escflows(Node* dst, Node* src)
+escflows(Node *dst, Node *src)
 {
 	if(dst == nil || src == nil || dst == src)
 		return;
 
 	// Don't bother building a graph for scalars.
-	if (src->type && !haspointers(src->type))
+	if(src->type && !haspointers(src->type))
 		return;
 
 	if(debug['m']>2)
 		print("%L::flows:: %hN <- %hN\n", lineno, dst, src);
 
 	// Assignments to global variables get lumped into theSink.
-	if (dst->op == ONAME && dst->class == PEXTERN)
+	if(dst->op == ONAME && dst->class == PEXTERN)
 		dst = &theSink;
 
-	if (dst->escflowsrc == nil) {
+	if(dst->escflowsrc == nil) {
 		dsts = list(dsts, dst);
 		dstcount++;
 	}
@@ -677,7 +565,7 @@ escflood(Node *dst)
 		      (dst->curfn && dst->curfn->nname) ? dst->curfn->nname->sym : S,
 		      dst->escloopdepth);
 
-	for (l = dst->escflowsrc; l; l=l->next) {
+	for(l = dst->escflowsrc; l; l=l->next) {
 		floodgen++;
 		escwalk(0, dst, l->n);
 	}
@@ -686,10 +574,10 @@ escflood(Node *dst)
 static void
 escwalk(int level, Node *dst, Node *src)
 {
-	NodeList* ll;
+	NodeList *ll;
 	int leaks;
 
-	if (src->escfloodgen == floodgen)
+	if(src->escfloodgen == floodgen)
 		return;
 	src->escfloodgen = floodgen;
 
@@ -704,7 +592,7 @@ escwalk(int level, Node *dst, Node *src)
 
 	switch(src->op) {
 	case ONAME:
-		if (src->class == PPARAM && leaks && src->esc == EscNone) {
+		if(src->class == PPARAM && leaks && src->esc == EscNone) {
 			src->esc = EscScope;
 			if(debug['m'])
 				print("%L:leaking param: %hN\n", src->lineno, src);
@@ -712,7 +600,7 @@ escwalk(int level, Node *dst, Node *src)
 		break;
 
 	case OADDR:
-		if (leaks)
+		if(leaks)
 			addrescapes(src->left);
 		escwalk(level-1, dst, src->left);
 		break;
@@ -727,7 +615,7 @@ escwalk(int level, Node *dst, Node *src)
 		escwalk(level+1, dst, src->left);
 	}
 
-	for (ll=src->escflowsrc; ll; ll=ll->next)
+	for(ll=src->escflowsrc; ll; ll=ll->next)
 		escwalk(level, dst, ll->n);
 
 	pdepth--;
@@ -748,7 +636,7 @@ esctag(Node *func)
 
 		switch (ll->n->esc) {
 		case EscNone:	// not touched by escflood
-			if (haspointers(ll->n->type)) // don't bother tagging for scalars
+			if(haspointers(ll->n->type)) // don't bother tagging for scalars
 				ll->n->paramfld->note = safetag;
 		case EscHeap:	// touched by escflood, moved to heap
 		case EscScope:	// touched by escflood, value leaves scope
