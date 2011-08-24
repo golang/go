@@ -235,24 +235,24 @@ main(int argc, char *argv[])
 	if(debug['f'])
 		frame(1);
 
-	// Process top-level declarations in four phases.
+	// Process top-level declarations in phases.
 	// Phase 1: const, type, and names and types of funcs.
 	//   This will gather all the information about types
 	//   and methods but doesn't depend on any of it.
-	// Phase 2: Variable assignments.
-	//   To check interface assignments, depends on phase 1.
-	// Phase 3: Type check function bodies.
-	// Phase 4: Compile function bodies.
 	defercheckwidth();
 	for(l=xtop; l; l=l->next)
 		if(l->n->op != ODCL && l->n->op != OAS)
 			typecheck(&l->n, Etop);
+
+	// Phase 2: Variable assignments.
+	//   To check interface assignments, depends on phase 1.
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCL || l->n->op == OAS)
 			typecheck(&l->n, Etop);
 	resumetypecopy();
 	resumecheckwidth();
 
+	// Phase 3: Type check function bodies.
 	for(l=xtop; l; l=l->next) {
 		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE) {
 			curfn = l->n;
@@ -268,6 +268,11 @@ main(int argc, char *argv[])
 	if(nsavederrors+nerrors)
 		errorexit();
 
+	// Phase 3b: escape analysis.
+	if(debug['s'])
+		escapes();
+
+	// Phase 4: Compile function bodies.
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
 			funccompile(l->n, 0);
@@ -275,6 +280,7 @@ main(int argc, char *argv[])
 	if(nsavederrors+nerrors == 0)
 		fninit(xtop);
 
+	// Phase 4b: Compile all closures.
 	while(closures) {
 		l = closures;
 		closures = nil;
@@ -283,6 +289,7 @@ main(int argc, char *argv[])
 		}
 	}
 
+	// Phase 5: check external declarations.
 	for(l=externdcl; l; l=l->next)
 		if(l->n->op == ONAME)
 			typecheck(&l->n, Erv);
@@ -1739,7 +1746,6 @@ lexfini(void)
 	}
 	
 	nodfp = nod(ONAME, N, N);
-	nodfp->noescape = 1;
 	nodfp->type = types[TINT32];
 	nodfp->xoffset = 0;
 	nodfp->class = PPARAM;

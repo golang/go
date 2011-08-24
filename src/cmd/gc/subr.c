@@ -1094,8 +1094,8 @@ Jconv(Fmt *fp)
 
 	if(n->class != 0) {
 		s = "";
-		if (n->class & PHEAP) s = ",heap";
-		if ((n->class & ~PHEAP) < nelem(classnames))
+		if(n->class & PHEAP) s = ",heap";
+		if((n->class & ~PHEAP) < nelem(classnames))
 			fmtprint(fp, " class(%s%s)", classnames[n->class&~PHEAP], s);
 		else
 			fmtprint(fp, " class(%d?%s)", n->class&~PHEAP, s);
@@ -1107,8 +1107,29 @@ Jconv(Fmt *fp)
 	if(n->funcdepth != 0)
 		fmtprint(fp, " f(%d)", n->funcdepth);
 
-	if(n->noescape != 0)
-		fmtprint(fp, " ne(%d)", n->noescape);
+	switch(n->esc) {
+	case EscUnknown:
+		break;
+	case EscHeap:
+		fmtprint(fp, " esc(h)");
+		break;
+	case EscScope:
+		fmtprint(fp, " esc(s)");
+		break;
+	case EscNone:
+		fmtprint(fp, " esc(no)");
+		break;
+	case EscNever:
+		if(!c)
+			fmtprint(fp, " esc(N)");
+		break;
+	default:
+		fmtprint(fp, " esc(%d)", n->esc);
+		break;
+	}
+
+	if(n->escloopdepth)
+		fmtprint(fp, " ld(%d)", n->escloopdepth);
 
 	if(!c && n->typecheck != 0)
 		fmtprint(fp, " tc(%d)", n->typecheck);
@@ -1523,7 +1544,7 @@ Nconv(Fmt *fp)
 
 	switch(n->op) {
 	default:
-		if (fp->flags & FmtShort)
+		if(fp->flags & FmtShort)
 			fmtprint(fp, "%O%hJ", n->op, n);
 		else
 			fmtprint(fp, "%O%J", n->op, n);
@@ -1532,13 +1553,13 @@ Nconv(Fmt *fp)
 	case ONAME:
 	case ONONAME:
 		if(n->sym == S) {
-			if (fp->flags & FmtShort)
+			if(fp->flags & FmtShort)
 				fmtprint(fp, "%O%hJ", n->op, n);
 			else
 				fmtprint(fp, "%O%J", n->op, n);
 			break;
 		}
-		if (fp->flags & FmtShort)
+		if(fp->flags & FmtShort)
 			fmtprint(fp, "%O-%S%hJ", n->op, n->sym, n);
 		else
 			fmtprint(fp, "%O-%S%J", n->op, n->sym, n);
@@ -3176,7 +3197,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 	int isddd;
 	Val v;
 
-	if(debug['r'])
+	if(0 && debug['r'])
 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
 			rcvr, method, newnam);
 
@@ -3453,7 +3474,7 @@ listsort(NodeList** l, int(*f)(Node*, Node*))
 	listsort(&l1, f);
 	listsort(&l2, f);
 
-	if ((*f)(l1->n, l2->n) < 0) {
+	if((*f)(l1->n, l2->n) < 0) {
 		*l = l1;
 	} else {
 		*l = l2;
@@ -3469,7 +3490,7 @@ listsort(NodeList** l, int(*f)(Node*, Node*))
 		
 		// l1 is last one from l1 that is < l2
 		le = l1->next;		// le is the rest of l1, first one that is >= l2
-		if (le != nil)
+		if(le != nil)
 			le->end = (*l)->end;
 
 		(*l)->end = l1;		// cut *l at l1

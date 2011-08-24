@@ -155,7 +155,6 @@ struct	Type
 {
 	uchar	etype;
 	uchar	chan;
-	uchar	recur;		// to detect loops
 	uchar	trecur;		// to detect loops
 	uchar	printed;
 	uchar	embedded;	// TFIELD embedded type
@@ -203,6 +202,15 @@ struct	Type
 };
 #define	T	((Type*)0)
 
+enum
+{
+	EscUnknown,
+	EscHeap,
+	EscScope,
+	EscNone,
+	EscNever,
+};
+
 struct	Node
 {
 	uchar	op;
@@ -215,7 +223,7 @@ struct	Node
 	uchar	embedded;	// ODCLFIELD embedded type
 	uchar	colas;		// OAS resulting from :=
 	uchar	diag;		// already printed error about this
-	uchar	noescape;	// ONAME never move to heap
+	uchar	esc;		// EscXXX
 	uchar	funcdepth;
 	uchar	builtin;	// built-in name, like len or close
 	uchar	walkdef;
@@ -266,6 +274,7 @@ struct	Node
 	Node*	defn;
 	Node*	pack;	// real package for import . names
 	Node*	curfn;	// function for local variables
+	Type*	paramfld; // TFIELD for this PPARAM
 
 	// ONAME func param with PHEAP
 	Node*	heapaddr;	// temp holding heap address of param
@@ -278,6 +287,11 @@ struct	Node
 
 	// OPACK
 	Pkg*	pkg;
+
+	// Escape analysis.
+	NodeList* escflowsrc;	// flow(this, src)
+	int	escloopdepth;	// -1: global, 0: not set, function top level:1, increased inside function for every loop or label to mark scopes
+	int	escfloodgen;	// increased for every flood to detect loops
 
 	Sym*	sym;		// various
 	int32	vargen;		// unique name for OTYPE/ONAME
@@ -374,7 +388,6 @@ enum
 	OADDR,
 	OANDAND,
 	OAPPEND,
-	OARRAY,
 	OARRAYBYTESTR, OARRAYRUNESTR,
 	OSTRARRAYBYTE, OSTRARRAYRUNE,
 	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECV, OAS2MAPR, OAS2DOTTYPE, OASOP,
@@ -444,6 +457,7 @@ enum
 
 	// misc
 	ODDD,
+	ODDDARG,
 
 	// for back ends
 	OCMP, ODEC, OEXTEND, OINC, OREGISTER, OINDREG,
@@ -911,6 +925,11 @@ Node*	typenod(Type *t);
 NodeList*	variter(NodeList *vl, Node *t, NodeList *el);
 
 /*
+ *	esc.c
+ */
+void	escapes(void);
+
+/*
  *	export.c
  */
 void	autoexport(Node *n, int ctxt);
@@ -927,6 +946,7 @@ Type*	pkgtype(Sym *s);
 /*
  *	gen.c
  */
+void	addrescapes(Node *n);
 void	allocparams(void);
 void	cgen_as(Node *nl, Node *nr);
 void	cgen_callmeth(Node *n, int proc);
@@ -1050,6 +1070,7 @@ void	dumptypestructs(void);
 Type*	methodfunc(Type *f, Type*);
 Node*	typename(Type *t);
 Sym*	typesym(Type *t);
+int	haspointers(Type *t);
 
 /*
  *	select.c

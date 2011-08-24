@@ -11,7 +11,7 @@
 
 static void	cgen_dcl(Node *n);
 static void	cgen_proc(Node *n, int proc);
-static void checkgoto(Node*, Node*);
+static void	checkgoto(Node*, Node*);
 
 static Label *labellist;
 static Label *lastlabel;
@@ -55,7 +55,7 @@ allocparams(void)
 		}
 		if(n->op != ONAME || n->class != PAUTO)
 			continue;
-		if (n->xoffset != BADWIDTH)
+		if(n->xoffset != BADWIDTH)
 			continue;
 		if(n->type == T)
 			continue;
@@ -70,6 +70,96 @@ allocparams(void)
 		n->xoffset = -stksize;
 	}
 	lineno = lno;
+}
+
+/*
+ * the address of n has been taken and might be used after
+ * the current function returns.  mark any local vars
+ * as needing to move to the heap.
+ */
+void
+addrescapes(Node *n)
+{
+	char buf[100];
+	switch(n->op) {
+	default:
+		// probably a type error already.
+		// dump("addrescapes", n);
+		break;
+
+	case ONAME:
+		if(n == nodfp)
+			break;
+
+		// if this is a tmpname (PAUTO), it was tagged by tmpname as not escaping.
+		// on PPARAM it means something different.
+		if(n->class == PAUTO && n->esc == EscNever)
+			break;
+
+		if(!debug['s'] && n->esc != EscUnknown)
+			fatal("without escape analysis, only PAUTO's should have esc: %N", n);
+
+		switch(n->class) {
+		case PPARAMREF:
+			addrescapes(n->defn);
+			break;
+		case PPARAM:
+		case PPARAMOUT:
+			// if func param, need separate temporary
+			// to hold heap pointer.
+			// the function type has already been checked
+			// (we're in the function body)
+			// so the param already has a valid xoffset.
+
+			// expression to refer to stack copy
+			n->stackparam = nod(OPARAM, n, N);
+			n->stackparam->type = n->type;
+			n->stackparam->addable = 1;
+			if(n->xoffset == BADWIDTH)
+				fatal("addrescapes before param assignment");
+			n->stackparam->xoffset = n->xoffset;
+			// fallthrough
+		case PAUTO:
+
+			n->class |= PHEAP;
+			n->addable = 0;
+			n->ullman = 2;
+			n->xoffset = 0;
+
+			// create stack variable to hold pointer to heap
+			n->heapaddr = nod(ONAME, N, N);
+			n->heapaddr->type = ptrto(n->type);
+			snprint(buf, sizeof buf, "&%S", n->sym);
+			n->heapaddr->sym = lookup(buf);
+			n->heapaddr->class = PHEAP-1;	// defer tempname to allocparams
+			n->heapaddr->ullman = 1;
+			n->curfn->dcl = list(n->curfn->dcl, n->heapaddr);
+
+			if(debug['s'])
+				n->esc = EscHeap;
+
+			if(debug['m'])
+				print("%L: moved to heap: %hN\n", n->lineno, n);
+
+			break;
+		}
+		break;
+
+	case OIND:
+	case ODOTPTR:
+		break;
+
+	case ODOT:
+	case OINDEX:
+		// ODOTPTR has already been introduced,
+		// so these are the non-pointer ODOT and OINDEX.
+		// In &x[0], if x is a slice, then x does not
+		// escape--the pointer inside x does, but that
+		// is always a heap pointer anyway.
+		if(!isslice(n->left->type))
+			addrescapes(n->left);
+		break;
+	}
 }
 
 void
@@ -753,7 +843,7 @@ tempname(Node *nn, Type *t)
 	if(stksize < 0)
 		fatal("tempname not during code generation");
 
-	if (curfn == N)
+	if(curfn == N)
 		fatal("no curfn for tempname");
 
 	if(t == T) {
@@ -772,7 +862,7 @@ tempname(Node *nn, Type *t)
 	n->class = PAUTO;
 	n->addable = 1;
 	n->ullman = 1;
-	n->noescape = 1;
+	n->esc = EscNever;
 	n->curfn = curfn;
 	curfn->dcl = list(curfn->dcl, n);
 

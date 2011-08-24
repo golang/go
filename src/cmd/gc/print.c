@@ -139,6 +139,10 @@ exprfmt(Fmt *f, Node *n, int prec)
 		fmtprint(f, "(%#N)", n->left);
 		break;
 
+	case ODDDARG:
+		fmtprint(f, "... argument");
+		break;
+
 	case OREGISTER:
 		fmtprint(f, "%R", n->val.u.reg);
 		break;
