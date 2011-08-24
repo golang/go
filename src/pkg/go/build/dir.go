@@ -7,25 +7,57 @@ package build
 import (
 	"go/parser"
 	"go/token"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"runtime"
 )
 
+// A Context specifies the supporting context for a build.
+type Context struct {
+	GOARCH string // target architecture
+	GOOS   string // target operating system
+	// TODO(rsc,adg): GOPATH
+}
+
+// The DefaultContext is the default Context for builds.
+// It uses the GOARCH and GOOS environment variables
+// if set, or else the compiled code's GOARCH and GOOS.
+var DefaultContext = Context{
+	envOr("GOARCH", runtime.GOARCH),
+	envOr("GOOS", runtime.GOOS),
+}
+
+func envOr(name, def string) string {
+	s := os.Getenv(name)
+	if s == "" {
+		return def
+	}
+	return s
+}
+
 type DirInfo struct {
-	GoFiles  []string // .go files in dir (excluding CgoFiles)
-	CgoFiles []string // .go files that import "C"
-	CFiles   []string // .c files in dir
-	SFiles   []string // .s files in dir
-	Imports  []string // All packages imported by goFiles
-	PkgName  string   // Name of package in dir
+	GoFiles      []string // .go files in dir (excluding CgoFiles)
+	CgoFiles     []string // .go files that import "C"
+	CFiles       []string // .c files in dir
+	SFiles       []string // .s files in dir
+	Imports      []string // All packages imported by goFiles
+	PkgName      string   // Name of package in dir
+	TestGoFiles  []string // _test.go files in package
+	XTestGoFiles []string // _test.go files outside package
 }
 
 func (d *DirInfo) IsCommand() bool {
 	return d.PkgName == "main"
+}
+
+// ScanDir calls DefaultContext.ScanDir.
+func ScanDir(dir string, allowMain bool) (info *DirInfo, err os.Error) {
+	return DefaultContext.ScanDir(dir, allowMain)
 }
 
 // ScanDir returns a structure with details about the Go content found
@@ -36,14 +68,8 @@ func (d *DirInfo) IsCommand() bool {
 //	- files ending in _test.go
 // 	- files starting with _ or .
 //
-// Only files that satisfy the goodOSArch function are included.
-func ScanDir(dir string, allowMain bool) (info *DirInfo, err os.Error) {
-	f, err := os.Open(dir)
-	if err != nil {
-		return nil, err
-	}
-	dirs, err := f.Readdir(-1)
-	f.Close()
+func (ctxt *Context) ScanDir(dir string, allowMain bool) (info *DirInfo, err os.Error) {
+	dirs, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -51,21 +77,19 @@ func ScanDir(dir string, allowMain bool) (info *DirInfo, err os.Error) {
 	var di DirInfo
 	imported := make(map[string]bool)
 	fset := token.NewFileSet()
-	for i := range dirs {
-		d := &dirs[i]
+	for _, d := range dirs {
 		if strings.HasPrefix(d.Name, "_") ||
 			strings.HasPrefix(d.Name, ".") {
 			continue
 		}
-		if !goodOSArch(d.Name) {
+		if !ctxt.goodOSArch(d.Name) {
 			continue
 		}
 
+		isTest := false
 		switch filepath.Ext(d.Name) {
 		case ".go":
-			if strings.HasSuffix(d.Name, "_test.go") {
-				continue
-			}
+			isTest = strings.HasSuffix(d.Name, "_test.go")
 		case ".c":
 			di.CFiles = append(di.CFiles, d.Name)
 			continue
@@ -81,21 +105,24 @@ func ScanDir(dir string, allowMain bool) (info *DirInfo, err os.Error) {
 		if err != nil {
 			return nil, err
 		}
-		s := string(pf.Name.Name)
-		if s == "main" && !allowMain {
+		pkg := string(pf.Name.Name)
+		if pkg == "main" && !allowMain {
 			continue
 		}
-		if s == "documentation" {
+		if pkg == "documentation" {
 			continue
+		}
+		if isTest && strings.HasSuffix(pkg, "_test") {
+			pkg = pkg[:len(pkg)-len("_test")]
 		}
 		if di.PkgName == "" {
-			di.PkgName = s
-		} else if di.PkgName != s {
+			di.PkgName = pkg
+		} else if di.PkgName != pkg {
 			// Only if all files in the directory are in package main
 			// do we return PkgName=="main".
 			// A mix of main and another package reverts
 			// to the original (allowMain=false) behaviour.
-			if s == "main" || di.PkgName == "main" {
+			if pkg == "main" || di.PkgName == "main" {
 				return ScanDir(dir, false)
 			}
 			return nil, os.NewError("multiple package names in " + dir)
@@ -109,11 +136,20 @@ func ScanDir(dir string, allowMain bool) (info *DirInfo, err os.Error) {
 			}
 			imported[path] = true
 			if path == "C" {
+				if isTest {
+					return nil, os.NewError("use of cgo in test " + filename)
+				}
 				isCgo = true
 			}
 		}
 		if isCgo {
 			di.CgoFiles = append(di.CgoFiles, d.Name)
+		} else if isTest {
+			if pkg == string(pf.Name.Name) {
+				di.TestGoFiles = append(di.TestGoFiles, d.Name)
+			} else {
+				di.XTestGoFiles = append(di.XTestGoFiles, d.Name)
+			}
 		} else {
 			di.GoFiles = append(di.GoFiles, d.Name)
 		}
@@ -124,49 +160,51 @@ func ScanDir(dir string, allowMain bool) (info *DirInfo, err os.Error) {
 		di.Imports[i] = p
 		i++
 	}
+	// File name lists are sorted because ioutil.ReadDir sorts.
+	sort.Strings(di.Imports)
 	return &di, nil
 }
 
-// goodOSArch returns false if the filename contains a $GOOS or $GOARCH
+// goodOSArch returns false if the name contains a $GOOS or $GOARCH
 // suffix which does not match the current system.
-// The recognized filename formats are:
+// The recognized name formats are:
 //
 //     name_$(GOOS).*
 //     name_$(GOARCH).*
 //     name_$(GOOS)_$(GOARCH).*
+//     name_$(GOOS)_test.*
+//     name_$(GOARCH)_test.*
+//     name_$(GOOS)_$(GOARCH)_test.*
 //
-func goodOSArch(filename string) bool {
-	if dot := strings.Index(filename, "."); dot != -1 {
-		filename = filename[:dot]
+func (ctxt *Context) goodOSArch(name string) bool {
+	if dot := strings.Index(name, "."); dot != -1 {
+		name = name[:dot]
 	}
-	l := strings.Split(filename, "_")
+	l := strings.Split(name, "_")
+	if n := len(l); n > 0 && l[n-1] == "test" {
+		l = l[:n-1]
+	}
 	n := len(l)
-	if n == 0 {
-		return true
+	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
+		return l[n-2] == ctxt.GOOS && l[n-1] == ctxt.GOARCH
 	}
-	if good, known := goodOS[l[n-1]]; known {
-		return good
+	if n >= 1 && knownOS[l[n-1]] {
+		return l[n-1] == ctxt.GOOS
 	}
-	if good, known := goodArch[l[n-1]]; known {
-		if !good || n < 2 {
-			return false
-		}
-		good, known = goodOS[l[n-2]]
-		return good || !known
+	if n >= 1 && knownArch[l[n-1]] {
+		return l[n-1] == ctxt.GOARCH
 	}
 	return true
 }
 
-var goodOS = make(map[string]bool)
-var goodArch = make(map[string]bool)
+var knownOS = make(map[string]bool)
+var knownArch = make(map[string]bool)
 
 func init() {
-	goodOS = make(map[string]bool)
-	goodArch = make(map[string]bool)
 	for _, v := range strings.Fields(goosList) {
-		goodOS[v] = v == runtime.GOOS
+		knownOS[v] = true
 	}
 	for _, v := range strings.Fields(goarchList) {
-		goodArch[v] = v == runtime.GOARCH
+		knownArch[v] = true
 	}
 }

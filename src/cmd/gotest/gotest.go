@@ -9,12 +9,13 @@ import (
 	"exec"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -159,17 +160,19 @@ func setEnvironment() {
 }
 
 // getTestFileNames gets the set of files we're looking at.
-// If gotest has no arguments, it scans for file names matching "[^.]*_test.go".
+// If gotest has no arguments, it scans the current directory
+// for test files.
 func getTestFileNames() {
 	names := fileNames
 	if len(names) == 0 {
-		var err os.Error
-		names, err = filepath.Glob("[^.]*_test.go")
+		info, err := build.ScanDir(".", true)
 		if err != nil {
-			Fatalf("Glob pattern error: %s", err)
+			Fatalf("scanning directory: %v", err)
 		}
+		names = append(info.TestGoFiles, info.XTestGoFiles...)
+		sort.Strings(names)
 		if len(names) == 0 {
-			Fatalf(`no test files found: no match for "[^.]*_test.go"`)
+			Fatalf("no test files found in current directory")
 		}
 	}
 	for _, n := range names {
