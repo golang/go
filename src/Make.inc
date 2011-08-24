@@ -118,7 +118,10 @@ HOST_AR?=ar
 HOST_EXTRA_CFLAGS?=-ggdb -O2
 HOST_EXTRA_LDFLAGS?=
 
-HOST_CFLAGS=-I"$(GOROOT)/include" $(HOST_EXTRA_CFLAGS)
+# The -fno-common here is not necessary, but some compilers
+# on OS X seem to set it by default.  Setting it here keeps the build
+# working in that non-standard context.
+HOST_CFLAGS=-fno-common -I"$(GOROOT)/include" $(HOST_EXTRA_CFLAGS)
 HOST_LDFLAGS=$(HOST_EXTRA_LDFLAGS)
 PWD=$(shell pwd)
 

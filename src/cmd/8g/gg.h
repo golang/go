@@ -5,12 +5,12 @@
 #include <u.h>
 #include <libc.h>
 
-#include "../gc/go.h"
-#include "../8l/8.out.h"
-
 #ifndef	EXTERN
 #define	EXTERN	extern
 #endif
+
+#include "../gc/go.h"
+#include "../8l/8.out.h"
 
 typedef	struct	Addr	Addr;
 
@@ -54,15 +54,12 @@ enum
 	Fpop2 = 1<<2,
 };
 
-EXTERN	Biobuf*	bout;
 EXTERN	int32	dynloc;
 EXTERN	uchar	reg[D_NONE];
 EXTERN	int32	pcloc;		// instruction counter
 EXTERN	Strlit	emptystring;
 extern	char*	anames[];
-EXTERN	Hist*	hist;
 EXTERN	Prog	zprog;
-EXTERN	Node*	curfn;
 EXTERN	Node*	newproc;
 EXTERN	Node*	deferproc;
 EXTERN	Node*	deferreturn;
