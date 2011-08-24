@@ -29,8 +29,6 @@
 // THE SOFTWARE.
 
 #include "gg.h"
-#undef	EXTERN
-#define	EXTERN
 #include "opt.h"
 
 #define	NREGVAR	32	/* 16 general + 16 floating */

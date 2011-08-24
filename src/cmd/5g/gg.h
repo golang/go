@@ -5,12 +5,12 @@
 #include <u.h>
 #include <libc.h>
 
+#ifndef	EXTERN
+#define	EXTERN	extern
+#endif
+
 #include "../gc/go.h"
 #include "../5l/5.out.h"
-
-#ifndef	EXTERN
-#define EXTERN	extern
-#endif
 
 typedef	struct	Addr	Addr;
 
@@ -51,22 +51,19 @@ struct	Prog
 #define REGALLOC_F0 (REGALLOC_RMAX+1)
 #define REGALLOC_FMAX (REGALLOC_F0 + FREGEXT)
 
-EXTERN	Biobuf*	bout;
 EXTERN	int32	dynloc;
 EXTERN	uchar	reg[REGALLOC_FMAX+1];
 EXTERN	int32	pcloc;		// instruction counter
 EXTERN	Strlit	emptystring;
 extern	char*	anames[];
-EXTERN	Hist*	hist;
 EXTERN	Prog	zprog;
-EXTERN	Node*	curfn;
 EXTERN	Node*	newproc;
 EXTERN	Node*	deferproc;
 EXTERN	Node*	deferreturn;
 EXTERN	Node*	panicindex;
 EXTERN	Node*	panicslice;
 EXTERN	Node*	throwreturn;
-EXTERN	long	unmappedzero;
+extern	long	unmappedzero;
 EXTERN	int	maxstksize;
 
 /*
