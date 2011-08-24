@@ -137,7 +137,7 @@ var bufreaders = []bufReader{
 }
 
 var bufsizes = []int{
-	1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+	2, 3, 4, 5, 6, 7, 8, 9, 10,
 	23, 32, 46, 64, 93, 128, 1024, 4096,
 }
 
@@ -695,5 +695,73 @@ func TestLinesAfterRead(t *testing.T) {
 	line, isPrefix, err := l.ReadLine()
 	if err != os.EOF {
 		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
+	}
+}
+
+type readLineResult struct {
+	line     []byte
+	isPrefix bool
+	err      os.Error
+}
+
+var readLineNewlinesTests = []struct {
+	input   string
+	bufSize int
+	expect  []readLineResult
+}{
+	{"h\r\nb\r\n", 2, []readLineResult{
+		{[]byte("h"), true, nil},
+		{nil, false, nil},
+		{[]byte("b"), true, nil},
+		{nil, false, nil},
+		{nil, false, os.EOF},
+	}},
+	{"hello\r\nworld\r\n", 6, []readLineResult{
+		{[]byte("hello"), true, nil},
+		{nil, false, nil},
+		{[]byte("world"), true, nil},
+		{nil, false, nil},
+		{nil, false, os.EOF},
+	}},
+	{"hello\rworld\r", 6, []readLineResult{
+		{[]byte("hello"), true, nil},
+		{[]byte("\rworld"), true, nil},
+		{[]byte("\r"), false, nil},
+		{nil, false, os.EOF},
+	}},
+	{"h\ri\r\n\r", 2, []readLineResult{
+		{[]byte("h"), true, nil},
+		{[]byte("\ri"), true, nil},
+		{nil, false, nil},
+		{[]byte("\r"), false, nil},
+		{nil, false, os.EOF},
+	}},
+}
+
+func TestReadLineNewlines(t *testing.T) {
+	for _, e := range readLineNewlinesTests {
+		testReadLineNewlines(t, e.input, e.bufSize, e.expect)
+	}
+}
+
+func testReadLineNewlines(t *testing.T, input string, bufSize int, expect []readLineResult) {
+	b, err := NewReaderSize(strings.NewReader(input), bufSize)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, e := range expect {
+		line, isPrefix, err := b.ReadLine()
+		if bytes.Compare(line, e.line) != 0 {
+			t.Errorf("%q call %d, line == %q, want %q", input, i, line, e.line)
+			return
+		}
+		if isPrefix != e.isPrefix {
+			t.Errorf("%q call %d, isPrefix == %v, want %v", input, i, isPrefix, e.isPrefix)
+			return
+		}
+		if err != e.err {
+			t.Errorf("%q call %d, err == %v, want %v", input, i, err, e.err)
+			return
+		}
 	}
 }
