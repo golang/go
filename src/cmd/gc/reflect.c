@@ -528,7 +528,7 @@ typestruct(Type *t)
 	return pkglookup(name, typepkg);
 }
 
-static int
+int
 haspointers(Type *t)
 {
 	Type *t1;

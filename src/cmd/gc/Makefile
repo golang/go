@@ -22,6 +22,7 @@ OFILES=\
 	closure.$O\
 	const.$O\
 	dcl.$O\
+	esc.$O\
 	export.$O\
 	gen.$O\
 	init.$O\

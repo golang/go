@@ -820,6 +820,10 @@ stotype(NodeList *l, int et, Type **t, int funarg)
 		f->width = BADWIDTH;
 		f->isddd = n->isddd;
 
+		// esc.c needs to find f given a PPARAM to add the tag.
+		if(funarg && n->left && n->left->class == PPARAM)
+			n->left->paramfld = f;
+
 		if(left != N && left->op == ONAME) {
 			f->nname = left;
 			f->embedded = n->embedded;
