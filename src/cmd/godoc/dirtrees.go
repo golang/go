@@ -117,7 +117,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 			// though the directory doesn't contain any real package files - was bug)
 			if synopses[0] == "" {
 				// no "optimal" package synopsis yet; continue to collect synopses
-				file, err := parser.ParseFile(fset, filepath.Join(path, d.Name()), nil,
+				file, err := parseFile(fset, filepath.Join(path, d.Name()),
 					parser.ParseComments|parser.PackageClauseOnly)
 				if err == nil {
 					hasPkgFiles = true

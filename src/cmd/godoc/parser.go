@@ -17,18 +17,18 @@ import (
 	"path/filepath"
 )
 
+func parseFile(fset *token.FileSet, filename string, mode uint) (*ast.File, os.Error) {
+	src, err := fs.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return parser.ParseFile(fset, filename, src, mode)
+}
+
 func parseFiles(fset *token.FileSet, filenames []string) (pkgs map[string]*ast.Package, first os.Error) {
 	pkgs = make(map[string]*ast.Package)
 	for _, filename := range filenames {
-		src, err := fs.ReadFile(filename)
-		if err != nil {
-			if first == nil {
-				first = err
-			}
-			continue
-		}
-
-		file, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
+		file, err := parseFile(fset, filename, parser.ParseComments)
 		if err != nil {
 			if first == nil {
 				first = err
