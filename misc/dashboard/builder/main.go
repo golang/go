@@ -479,7 +479,7 @@ func commitPoll(key string) {
 		return
 	}
 
-	const N = 20 // how many revisions to grab
+	const N = 50 // how many revisions to grab
 
 	data, _, err := runLog(nil, "", goroot, "hg", "log",
 		"--encoding=utf-8",
@@ -507,12 +507,12 @@ func commitPoll(key string) {
 	// Non-empty parent has form 1234:hashhashhash; we want full hash.
 	for i := range logs {
 		l := &logs[i]
-		log.Printf("hg log: %s < %s\n", l.Hash, l.Parent)
 		if l.Parent == "" && i+1 < len(logs) {
 			l.Parent = logs[i+1].Hash
 		} else if l.Parent != "" {
 			l.Parent, _ = fullHash(l.Parent)
 		}
+		log.Printf("hg log: %s < %s\n", l.Hash, l.Parent)
 		if l.Parent == "" {
 			// Can't create node without parent.
 			continue
