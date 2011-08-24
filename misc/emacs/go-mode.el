@@ -7,7 +7,6 @@
 ;;; To do:
 
 ;; * Indentation is *almost* identical to gofmt
-;; ** We think struct literal keys are labels and outdent them
 ;; ** We disagree on the indentation of function literals in arguments
 ;; ** There are bugs with the close brace of struct literals
 ;; * Highlight identifiers according to their syntactic context: type,
@@ -401,7 +400,8 @@ indented one level."
                 (setq first nil))))
 
           ;; case, default, and labels are outdented 1 level
-          (when (looking-at "\\<case\\>\\|\\<default\\>\\|\\w+\\s *:\\(\\S.\\|$\\)")
+          ;; assume that labels are alone on the line
+          (when (looking-at "\\<case\\>\\|\\<default\\>\\|\\w+\\s *:\\s *$")
             (decf indent tab-width))
 
           ;; Continuation lines are indented 1 level
