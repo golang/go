@@ -54,11 +54,11 @@ type Reader struct {
 }
 
 // NewReaderSize creates a new Reader whose buffer has the specified size,
-// which must be greater than zero.  If the argument io.Reader is already a
+// which must be greater than one.  If the argument io.Reader is already a
 // Reader with large enough size, it returns the underlying Reader.
 // It returns the Reader and any error.
 func NewReaderSize(rd io.Reader, size int) (*Reader, os.Error) {
-	if size <= 0 {
+	if size <= 1 {
 		return nil, BufSizeError(size)
 	}
 	// Is it already a Reader?
@@ -298,6 +298,17 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
 func (b *Reader) ReadLine() (line []byte, isPrefix bool, err os.Error) {
 	line, err = b.ReadSlice('\n')
 	if err == ErrBufferFull {
+		// Handle the case where "\r\n" straddles the buffer.
+		if len(line) > 0 && line[len(line)-1] == '\r' {
+			// Put the '\r' back on buf and drop it from line.
+			// Let the next call to ReadLine check for "\r\n".
+			if b.r == 0 {
+				// should be unreachable
+				panic("bufio: tried to rewind past start of buffer")
+			}
+			b.r--
+			line = line[:len(line)-1]
+		}
 		return line, true, nil
 	}
 
@@ -307,10 +318,11 @@ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err os.Error) {
 	err = nil
 
 	if line[len(line)-1] == '\n' {
-		line = line[:len(line)-1]
-	}
-	if len(line) > 0 && line[len(line)-1] == '\r' {
-		line = line[:len(line)-1]
+		drop := 1
+		if len(line) > 1 && line[len(line)-2] == '\r' {
+			drop = 2
+		}
+		line = line[:len(line)-drop]
 	}
 	return
 }
