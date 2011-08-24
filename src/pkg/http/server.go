@@ -491,55 +491,6 @@ func (w *response) Write(data []byte) (n int, err os.Error) {
 	return m + n, err
 }
 
-// If this is an error reply (4xx or 5xx)
-// and the handler wrote some data explaining the error,
-// some browsers (i.e., Chrome, Internet Explorer)
-// will show their own error instead unless the error is
-// long enough.  The minimum lengths used in those
-// browsers are in the 256-512 range.
-// Pad to 1024 bytes.
-func errorKludge(w *response) {
-	const min = 1024
-
-	// Is this an error?
-	if kind := w.status / 100; kind != 4 && kind != 5 {
-		return
-	}
-
-	// Did the handler supply any info?  Enough?
-	if w.written == 0 || w.written >= min {
-		return
-	}
-
-	// Is it a broken browser?
-	var msg string
-	switch agent := w.req.UserAgent(); {
-	case strings.Contains(agent, "MSIE"):
-		msg = "Internet Explorer"
-	case strings.Contains(agent, "Chrome/"):
-		msg = "Chrome"
-	default:
-		return
-	}
-	msg += " would ignore this error page if this text weren't here.\n"
-
-	// Is it text?  ("Content-Type" is always in the map)
-	baseType := strings.SplitN(w.header.Get("Content-Type"), ";", 2)[0]
-	switch baseType {
-	case "text/html":
-		io.WriteString(w, "<!-- ")
-		for w.written < min {
-			io.WriteString(w, msg)
-		}
-		io.WriteString(w, " -->")
-	case "text/plain":
-		io.WriteString(w, "\n")
-		for w.written < min {
-			io.WriteString(w, msg)
-		}
-	}
-}
-
 func (w *response) finishRequest() {
 	// If this was an HTTP/1.0 request with keep-alive and we sent a Content-Length
 	// back, we can make this a keep-alive response ...
@@ -555,7 +506,6 @@ func (w *response) finishRequest() {
 	if w.needSniff {
 		w.sniff()
 	}
-	errorKludge(w)
 	if w.chunking {
 		io.WriteString(w.conn.buf, "0\r\n")
 		// trailer key/value pairs, followed by blank line
