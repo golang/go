@@ -944,7 +944,7 @@ func TestRequestBodyLimit(t *testing.T) {
 	// the remote side hung up on us before we wrote too much.
 	_, _ = DefaultClient.Do(req)
 
-	if nWritten > limit*2 {
+	if nWritten > limit*100 {
 		t.Errorf("handler restricted the request body to %d bytes, but client managed to write %d",
 			limit, nWritten)
 	}
