@@ -1359,6 +1359,20 @@ var powSC = []float64{
 	NaN(),           // pow(NaN, NaN)
 }
 
+var vfpow10SC = []int{
+	MinInt32,
+	MaxInt32,
+	-325,
+	309,
+}
+
+var pow10SC = []float64{
+	0,      // pow10(MinInt32)
+	Inf(1), // pow10(MaxInt32)
+	0,      // pow10(-325)
+	Inf(1), // pow10(309)
+}
+
 var vfsignbitSC = []float64{
 	Inf(-1),
 	Copysign(0, -1),
@@ -2143,6 +2157,14 @@ func TestPow(t *testing.T) {
 	}
 }
 
+func TestPow10(t *testing.T) {
+	for i := 0; i < len(vfpow10SC); i++ {
+		if f := Pow10(vfpow10SC[i]); !alike(pow10SC[i], f) {
+			t.Errorf("Pow10(%d) = %g, want %g", vfpow10SC[i], f, pow10SC[i])
+		}
+	}
+}
+
 func TestRemainder(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Remainder(10, vf[i]); remainder[i] != f {
@@ -2656,6 +2678,18 @@ func BenchmarkPowInt(b *testing.B) {
 func BenchmarkPowFrac(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Pow(2.5, 1.5)
+	}
+}
+
+func BenchmarkPow10Pos(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Pow10(300)
+	}
+}
+
+func BenchmarkPow10Neg(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Pow10(-300)
 	}
 }
 
