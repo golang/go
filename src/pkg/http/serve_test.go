@@ -891,8 +891,8 @@ func TestRequestLimit(t *testing.T) {
 		// we do support it (at least currently), so we expect a response below.
 		t.Fatalf("Do: %v", err)
 	}
-	if res.StatusCode != 400 {
-		t.Fatalf("expected 400 response status; got: %d %s", res.StatusCode, res.Status)
+	if res.StatusCode != 413 {
+		t.Fatalf("expected 413 response status; got: %d %s", res.StatusCode, res.Status)
 	}
 }
 
