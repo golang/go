@@ -549,6 +549,8 @@ genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
 	Prog *p;
 	Type *f;
 
+	USED(iface);
+
 	e = method->sym;
 	for(d=0; d<nelem(dotlist); d++) {
 		c = adddot1(e, rcvr, d, nil, 0);
