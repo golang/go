@@ -613,3 +613,89 @@ func foo92(x *int) [2]*int {  // ERROR "leaking param: NAME-x"
 	return [2]*int{ x, nil }
 }
 
+// does not leak c
+func foo93(c chan *int) *int {
+	for v := range c {
+		return v
+	}
+	return nil
+}
+
+// does not leak m
+func foo94(m map[*int]*int, b bool) *int {
+	for k, v := range m {
+		if b {
+			return k
+		}
+		return v
+	}
+	return nil
+}
+
+// does leak x
+func foo95(m map[*int]*int, x *int) {  // ERROR "leaking param: NAME-x"
+	m[x] = x
+}
+
+// does not leak m
+func foo96(m []*int) *int {
+	return m[0]
+}
+
+// does leak m
+func foo97(m [1]*int) *int {  // ERROR "leaking param: NAME-m"
+	return m[0]
+}
+
+// does not leak m
+func foo98(m map[int]*int) *int {
+	return m[0]
+}
+
+// does leak m
+func foo99(m *[1]*int) []*int {  // ERROR "leaking param: NAME-m"
+	return m[:]
+}
+
+// does not leak m
+func foo100(m []*int) *int {
+	for _, v := range m {
+		return v
+	}
+	return nil
+}
+
+// does leak m
+func foo101(m [1]*int) *int {  // ERROR "leaking param: NAME-m"
+	for _, v := range m {
+		return v
+	}
+	return nil
+}
+
+// does leak x
+func foo102(m []*int, x *int) {  // ERROR "leaking param: NAME-x"
+	m[0] = x
+}
+
+// does not leak x
+func foo103(m [1]*int, x *int) {
+	m[0] = x
+}
+
+var y []*int
+
+// does not leak x
+func foo104(x []*int) {
+	copy(y, x)
+}
+
+// does not leak x
+func foo105(x []*int) {
+	_ = append(y, x...)
+}
+
+// does leak x
+func foo106(x *int) {  // ERROR "leaking param: NAME-x"
+	_ = append(y, x)
+}

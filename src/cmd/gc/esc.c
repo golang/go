@@ -148,7 +148,7 @@ esc(Node *n)
 
 	lno = setlineno(n);
 
-	if(n->op == OFOR)
+	if(n->op == OFOR || n->op == ORANGE)
 		loopdepth++;
 
 	esclist(n->ninit);
@@ -160,7 +160,7 @@ esc(Node *n)
 	esc(n->left);
 	esc(n->right);
 
-	if(n->op == OFOR)
+	if(n->op == OFOR || n->op == ORANGE)
 		loopdepth--;
 
 	if(debug['m'] > 1)
@@ -169,13 +169,7 @@ esc(Node *n)
 
 	switch(n->op) {
 	case ODCL:
-	case ODCLFIELD:
-		// a declaration ties the node to the current
-		// function, but we already have that edge in
-		// curfn->dcl and will follow it explicitly in
-		// escflood to avoid storing redundant information
-		// What does have to happen here is note if the name
-		// is declared inside a looping scope.
+		// Record loop depth at declaration.
 		if(n->left)
 			n->left->escloopdepth = loopdepth;
 		break;
@@ -184,28 +178,10 @@ esc(Node *n)
 		loopdepth++;
 		break;
 
-	case ORANGE:		//  for	 <list> = range <right> { <nbody> }
-		switch(n->type->etype) {
-		case TARRAY:	// i, v = range sliceorarray
-			if(n->list->next)
-				escassign(n->list->next->n, n->right);
-			break;
-		case TMAP:	// k [, v] = range map
-			escassign(n->list->n, n->right);
-			if(n->list->next)
-				escassign(n->list->next->n, n->right);
-			break;
-		case TCHAN:	// v = range chan
-			escassign(n->list->n, n->right);
-			break;
-		}
-		loopdepth++;
-		esclist(n->nbody);
-		loopdepth--;
-		break;
-
-	case OSELRECV:	  // v := <-ch	 left: v  right->op = ORECV
-		escassign(n->left, n->right);
+	case ORANGE:
+		// Everything but fixed array is a dereference.
+		if(isfixedarray(n->type))
+			escassign(n->list->next->n, n->right);
 		break;
 
 	case OSWITCH:
@@ -214,13 +190,6 @@ esc(Node *n)
 				// ntest->right is the argument of the .(type),
 				// ll->n->nname is the variable per case
 				escassign(ll->n->nname, n->ntest->right);
-				esclist(ll->n->nbody);
-			}
-		} else {
-			escassign(N, n->ntest);
-			for(ll=n->list; ll; ll=ll->next) {  // cases
-				for(lr=ll->n->list; lr; lr=lr->next)
-					escassign(N, lr->n);
 				esclist(ll->n->nbody);
 			}
 		}
@@ -245,7 +214,7 @@ esc(Node *n)
 		break;
 
 	case OSEND:		// ch <- x
-		escassign(&theSink, n->right);	 // TODO: treat as *ch = x ?
+		escassign(&theSink, n->right);
 		break;
 
 	case ODEFER:
@@ -271,16 +240,10 @@ esc(Node *n)
 		escassign(&theSink, n->left);
 		break;
 
-	case OCOPY:
-		// left leaks to right, but the return value is harmless
-		// TODO: treat as *dst = *src, rather than as dst = src
-		escassign(n->left, n->right);
-		break;
-
 	case OAPPEND:
-		// See TODO for OCOPY
-		for(ll=n->list->next; ll; ll=ll->next)
-			escassign(n->list->n, ll->n);
+		if(!n->isddd)
+			for(ll=n->list->next; ll; ll=ll->next)
+				escassign(&theSink, ll->n);  // lose track of assign to dereference
 		break;
 
 	case OCALLMETH:
@@ -328,32 +291,47 @@ escassign(Node *dst, Node *src)
 		print("%L:[%d] %#S escassign: %hN = %hN\n", lineno, loopdepth,
 		      (curfn && curfn->nname) ? curfn->nname->sym : S, dst, src);
 
-	// the lhs of an assignment needs recursive analysis too
-	// these are the only interesting cases
-	// todo:check channel case
 	setlineno(dst);
-
+	
+	// Analyze lhs of assignment.
+	// Replace dst with theSink if we can't track it.
 	switch(dst->op) {
-	case OINDEX:
-	case OSLICE:
-		// slice:  "dst[x] = src"  is like *(underlying array)[x] = src
-		// TODO maybe this never occurs b/c of OSLICEARR and it's inserted OADDR
-		if(!isfixedarray(dst->left->type))
-			goto doref;
-		// fallthrough;	 treat "dst[x] = src" as "dst = src"
+	default:
+		dump("dst", dst);
+		fatal("escassign: unexpected dst");
+
+	case OARRAYLIT:
+	case OCLOSURE:
+	case OCONV:
+	case OCONVIFACE:
+	case OCONVNOP:
+	case OMAPLIT:
+	case OSTRUCTLIT:
+		break;
+
+	case ONAME:
+		if(dst->class == PEXTERN)
+			dst = &theSink;
+		break;
 	case ODOT:	      // treat "dst.x  = src" as "dst = src"
 		escassign(dst->left, src);
 		return;
-	case OINDEXMAP:
-		escassign(&theSink, dst->right);	// map key is put in map
-		// fallthrough
+	case OINDEX:
+		if(isfixedarray(dst->left->type)) {
+			escassign(dst->left, src);
+			return;
+		}
+		dst = &theSink;  // lose track of dereference
+		break;
 	case OIND:
 	case ODOTPTR:
-	case OSLICEARR:	 // ->left  is the OADDR of the array
-	doref:
-		// assignment to dereferences: for now we lose track
-		escassign(&theSink, src);
-		return;
+		dst = &theSink;  // lose track of dereference
+		break;
+	case OINDEXMAP:
+		// lose track of key and value
+		escassign(&theSink, dst->right);
+		dst = &theSink;
+		break;
 	}
 
 	if(src->typecheck == 0 && src->op != OKEY) {
@@ -380,8 +358,21 @@ escassign(Node *dst, Node *src)
 	case ODOT:
 	case ODOTTYPE:
 	case ODOTTYPE2:
+	case OSLICE:
+	case OSLICEARR:
 		// Conversions, field access, slice all preserve the input value.
 		escassign(dst, src->left);
+		break;
+
+	case OAPPEND:
+		// Append returns first argument.
+		escassign(dst, src->list->n);
+		break;
+	
+	case OINDEX:
+		// Index of array preserves input value.
+		if(isfixedarray(src->left->type))
+			escassign(dst, src->left);
 		break;
 
 	case OARRAYLIT:
@@ -409,20 +400,6 @@ escassign(Node *dst, Node *src)
 		src->escloopdepth = loopdepth;
 		escflows(dst, src);
 		escfunc(src);
-		break;
-
-	// end of the leaf cases. no calls to escflows() in the cases below.
-	case OAPPEND:
-		escassign(dst, src->list->n);
-		break;
-
-	case OSLICEARR:	 // like an implicit OIND to the underlying buffer, but typecheck has inserted an OADDR
-	case OSLICESTR:
-	case OSLICE:
-	case OINDEX:
-	case OINDEXMAP:
-		// the big thing flows, the keys just need checking
-		escassign(dst, src->left);
 		break;
 	}
 
@@ -524,10 +501,6 @@ escflows(Node *dst, Node *src)
 
 	if(debug['m']>2)
 		print("%L::flows:: %hN <- %hN\n", lineno, dst, src);
-
-	// Assignments to global variables get lumped into theSink.
-	if(dst->op == ONAME && dst->class == PEXTERN)
-		dst = &theSink;
 
 	if(dst->escflowsrc == nil) {
 		dsts = list(dsts, dst);
