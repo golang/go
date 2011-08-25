@@ -331,11 +331,11 @@ there is another mailing list, <a href="http://groups.google.com/group/golang-ch
 that receives a message summarizing each checkin to the Go repository.
 </p>
 
-<h2 id="environment">Environment variables</h2>
+<h2 id="environment">Optional environment variables</h2>
 
 <p>
 The Go compilation environment can be customized by environment variables.
-None are required by the build, but you may wish to set them
+<i>None are required by the build</i>, but you may wish to set them
 to override the defaults.
 </p>
 
@@ -442,10 +442,9 @@ to override the defaults.
 </dt>
 <dd>
 	The ARM architecture version the run-time libraries should target.
-	ARMv6 cores have more efficient synchronization primitives. Setting
-	<code>$GOARM</code> to 5 will compile the run-time libraries using
-	just SWP instructions that work on older architectures as well.
-	Running v6 code on an older core will cause an illegal instruction trap.
+	Setting <code>$GOARM</code> to 5 causes the linker to emit calls
+	to a software floating point implementation instead of using
+	hardware floating point support.
 </dd>
 </dl>
 
@@ -469,6 +468,6 @@ something like this:
 
 <pre>
 export GOROOT=$HOME/go
-export GOARCH=386
+export GOARCH=amd64
 export GOOS=linux
 </pre>
