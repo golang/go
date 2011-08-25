@@ -7,6 +7,8 @@
  * mainly statements and control flow.
  */
 
+#include <u.h>
+#include <libc.h>
 #include "go.h"
 
 static void	cgen_dcl(Node *n);

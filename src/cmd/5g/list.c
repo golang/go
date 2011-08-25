@@ -28,6 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include <u.h>
+#include <libc.h>
 #include "gg.h"
 
 // TODO(kaib): make 5g/list.c congruent with 5l/list.c

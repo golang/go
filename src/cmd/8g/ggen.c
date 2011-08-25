@@ -4,6 +4,8 @@
 
 #undef	EXTERN
 #define	EXTERN
+#include <u.h>
+#include <libc.h>
 #include "gg.h"
 #include "opt.h"
 

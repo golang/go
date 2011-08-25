@@ -18,7 +18,9 @@
  */
 
 %{
+#include <u.h>
 #include <stdio.h>	/* if we don't, bison will, and go.h re-#defines getc */
+#include <libc.h>
 #include "go.h"
 
 static void fixlbrace(int);

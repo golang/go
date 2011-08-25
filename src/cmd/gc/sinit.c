@@ -6,6 +6,8 @@
  * static initialization
  */
 
+#include	<u.h>
+#include	<libc.h>
 #include	"go.h"
 
 static NodeList *initlist;
