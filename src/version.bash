@@ -6,7 +6,7 @@
 GOROOT=$(dirname $0)/..
 
 # If a version file created by -save is available, use it
-if [ -f "$GOROOT/VERSION" ]; then
+if [ -f "$GOROOT/VERSION" -a "$1" != "-save" ]; then
 	cat $GOROOT/VERSION
 	exit 0
 fi
