@@ -29,6 +29,8 @@
 // THE SOFTWARE.
 
 
+#include <u.h>
+#include <libc.h>
 #include "gg.h"
 #include "opt.h"
 

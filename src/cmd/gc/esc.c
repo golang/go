@@ -29,6 +29,8 @@
 // unsafe with -m, more detailed analysis output with -mm
 //
 
+#include <u.h>
+#include <libc.h>
 #include "go.h"
 
 static void escfunc(Node *func);

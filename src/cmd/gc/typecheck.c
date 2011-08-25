@@ -10,6 +10,8 @@
  * rewrites n->op to be more specific in some cases.
  */
 
+#include <u.h>
+#include <libc.h>
 #include "go.h"
 
 static void	implicitstar(Node**);

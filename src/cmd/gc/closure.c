@@ -6,6 +6,8 @@
  * function literals aka closures
  */
 
+#include <u.h>
+#include <libc.h>
 #include "go.h"
 
 void

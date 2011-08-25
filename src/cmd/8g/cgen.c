@@ -5,6 +5,8 @@
 // TODO(rsc):
 //	assume CLD?
 
+#include <u.h>
+#include <libc.h>
 #include "gg.h"
 
 void
