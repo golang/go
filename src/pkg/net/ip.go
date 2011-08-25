@@ -214,10 +214,10 @@ func allFF(b []byte) bool {
 // Mask returns the result of masking the IP address ip with mask.
 func (ip IP) Mask(mask IPMask) IP {
 	n := len(ip)
-	if len(mask) == 16 && len(ip) == 4 && allFF(mask[:12]) {
+	if len(mask) == IPv6len && len(ip) == IPv4len && allFF(mask[:12]) {
 		mask = mask[12:]
 	}
-	if len(mask) == 4 && len(ip) == 16 && bytesEqual(ip[:12], v4InV6Prefix) {
+	if len(mask) == IPv4len && len(ip) == IPv6len && bytesEqual(ip[:12], v4InV6Prefix) {
 		ip = ip[12:]
 	}
 	if n != len(mask) {
@@ -276,7 +276,7 @@ func (ip IP) String() string {
 	}
 
 	// If IPv4, use dotted notation.
-	if p4 := p.To4(); len(p4) == 4 {
+	if p4 := p.To4(); len(p4) == IPv4len {
 		return itod(uint(p4[0])) + "." +
 			itod(uint(p4[1])) + "." +
 			itod(uint(p4[2])) + "." +
@@ -289,9 +289,9 @@ func (ip IP) String() string {
 	// Find longest run of zeros.
 	e0 := -1
 	e1 := -1
-	for i := 0; i < 16; i += 2 {
+	for i := 0; i < IPv6len; i += 2 {
 		j := i
-		for j < 16 && p[j] == 0 && p[j+1] == 0 {
+		for j < IPv6len && p[j] == 0 && p[j+1] == 0 {
 			j += 2
 		}
 		if j > i && j-i > e1-e0 {
@@ -307,11 +307,11 @@ func (ip IP) String() string {
 
 	// Print with possible :: in place of run of zeros
 	var s string
-	for i := 0; i < 16; i += 2 {
+	for i := 0; i < IPv6len; i += 2 {
 		if i == e0 {
 			s += "::"
 			i = e1
-			if i >= 16 {
+			if i >= IPv6len {
 				break
 			}
 		} else if i > 0 {
@@ -329,10 +329,10 @@ func (ip IP) Equal(x IP) bool {
 	if len(ip) == len(x) {
 		return bytesEqual(ip, x)
 	}
-	if len(ip) == 4 && len(x) == 16 {
+	if len(ip) == IPv4len && len(x) == IPv6len {
 		return bytesEqual(x[0:12], v4InV6Prefix) && bytesEqual(ip, x[12:])
 	}
-	if len(ip) == 16 && len(x) == 4 {
+	if len(ip) == IPv6len && len(x) == IPv4len {
 		return bytesEqual(ip[0:12], v4InV6Prefix) && bytesEqual(ip[12:], x)
 	}
 	return false
@@ -386,12 +386,12 @@ func simpleMaskLength(mask IPMask) int {
 // as an IP address.
 func (mask IPMask) String() string {
 	switch len(mask) {
-	case 4:
+	case IPv4len:
 		n := simpleMaskLength(mask)
 		if n >= 0 {
 			return itod(uint(n + (IPv6len-IPv4len)*8))
 		}
-	case 16:
+	case IPv6len:
 		n := simpleMaskLength(mask)
 		if n >= 12*8 {
 			return itod(uint(n - 12*8))
@@ -440,7 +440,7 @@ func parseIPv4(s string) IP {
 //	* The last 32 bits can be in IPv4 form.
 // Thus, ::ffff:1.2.3.4 is the IPv4 address 1.2.3.4.
 func parseIPv6(s string) IP {
-	p := make(IP, 16)
+	p := make(IP, IPv6len)
 	ellipsis := -1 // position of ellipsis in p
 	i := 0         // index in string s
 
@@ -482,7 +482,7 @@ func parseIPv6(s string) IP {
 			p[j+2] = p4[14]
 			p[j+3] = p4[15]
 			i = len(s)
-			j += 4
+			j += IPv4len
 			break
 		}
 
@@ -577,10 +577,10 @@ func ParseCIDR(s string) (ip IP, mask IPMask, err os.Error) {
 		return nil, nil, &ParseError{"CIDR address", s}
 	}
 	ipstr, maskstr := s[:i], s[i+1:]
-	iplen := 4
+	iplen := IPv4len
 	ip = parseIPv4(ipstr)
 	if ip == nil {
-		iplen = 16
+		iplen = IPv6len
 		ip = parseIPv6(ipstr)
 	}
 	nn, i, ok := dtoi(maskstr, 0)
@@ -588,12 +588,12 @@ func ParseCIDR(s string) (ip IP, mask IPMask, err os.Error) {
 		return nil, nil, &ParseError{"CIDR address", s}
 	}
 	n := uint(nn)
-	if iplen == 4 {
+	if iplen == IPv4len {
 		v4mask := ^uint32(0xffffffff >> n)
 		mask = IPv4Mask(byte(v4mask>>24), byte(v4mask>>16), byte(v4mask>>8), byte(v4mask))
 	} else {
-		mask = make(IPMask, 16)
-		for i := 0; i < 16; i++ {
+		mask = make(IPMask, IPv6len)
+		for i := 0; i < IPv6len; i++ {
 			if n >= 8 {
 				mask[i] = 0xff
 				n -= 8
