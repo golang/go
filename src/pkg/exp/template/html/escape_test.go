@@ -293,6 +293,18 @@ func TestEscapeText(t *testing.T) {
 			context{state: stateURL, delim: delimDoubleQuote},
 		},
 		{
+			`<img alt="1">`,
+			context{state: stateText},
+		},
+		{
+			`<img alt="1>"`,
+			context{state: stateTag},
+		},
+		{
+			`<img alt="1>">`,
+			context{state: stateText},
+		},
+		{
 			`<input checked type="checkbox"`,
 			context{state: stateTag},
 		},
