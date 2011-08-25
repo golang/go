@@ -337,6 +337,9 @@ cover(void)
 uvlong
 rgetzero(Map *map, char *reg)
 {
+	USED(map);
+	USED(reg);
+
 	return 0;
 }
 

@@ -1532,6 +1532,8 @@ arwrite(int fd, Armember *bp)
 int
 page(Arfile *ap)
 {
+	USED(ap);
+
 	sysfatal("page");
 	return 1;
 }

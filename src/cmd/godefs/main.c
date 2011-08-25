@@ -98,7 +98,10 @@ waitfor(int pid)
 int
 spawn(char *prog, char **argv)
 {
-	int pid = fork();
+	int pid;
+	
+	USED(prog);
+	pid = fork();
 	if(pid < 0)
 		sysfatal("fork: %r");
 	if(pid == 0) {

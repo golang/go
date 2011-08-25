@@ -29,6 +29,7 @@ THE SOFTWARE.
 int
 exitcode(char *s)
 {
+	USED(s);
 	return 1;
 }
 

@@ -115,6 +115,8 @@ dumpdcl(char *st)
 	Sym *s, *d;
 	int i;
 
+	USED(st);
+
 	i = 0;
 	for(d=dclstack; d!=S; d=d->link) {
 		i++;

@@ -1201,6 +1201,8 @@ makenewvar(Type *t, NodeList **init, Node **nstar)
 static Node*
 ascompatee1(int op, Node *l, Node *r, NodeList **init)
 {
+	USED(op);
+
 	return convas(nod(OAS, l, r), init);
 }
 
@@ -1256,6 +1258,8 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 	Iter saver;
 	int ucount;
 	NodeList *nn, *mm;
+
+	USED(op);
 
 	/*
 	 * check assign type list to
