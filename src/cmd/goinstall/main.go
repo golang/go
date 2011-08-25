@@ -71,6 +71,13 @@ func errorf(format string, args ...interface{}) {
 	logf(format, args...)
 }
 
+func terrorf(tree *build.Tree, format string, args ...interface{}) {
+	if tree != nil && tree.Goroot && os.Getenv("GOPATH") == "" {
+		format = strings.TrimRight(format, "\n") + " ($GOPATH not set)\n"
+	}
+	errorf(format, args...)
+}
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
@@ -156,7 +163,7 @@ func logPackage(pkg string, tree *build.Tree) (logged bool) {
 	name := filepath.Join(tree.Path, logfile)
 	fout, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		logf("%s\n", err)
+		terrorf(tree, "package log: %s\n", err)
 		return false
 	}
 	fmt.Fprintf(fout, "%s\n", pkg)
@@ -215,7 +222,7 @@ func install(pkg, parent string) {
 		}
 	}
 	if err != nil {
-		errorf("%s: %v\n", pkg, err)
+		terrorf(tree, "%s: %v\n", pkg, err)
 		return
 	}
 	dir := filepath.Join(tree.SrcDir(), pkg)
@@ -223,11 +230,11 @@ func install(pkg, parent string) {
 	// Install prerequisites.
 	dirInfo, err := build.ScanDir(dir, parent == "")
 	if err != nil {
-		errorf("%s: %v\n", pkg, err)
+		terrorf(tree, "%s: %v\n", pkg, err)
 		return
 	}
 	if len(dirInfo.GoFiles)+len(dirInfo.CgoFiles) == 0 {
-		errorf("%s: package has no files\n", pkg)
+		terrorf(tree, "%s: package has no files\n", pkg)
 		return
 	}
 	for _, p := range dirInfo.Imports {
@@ -243,13 +250,13 @@ func install(pkg, parent string) {
 	if *useMake {
 		err := domake(dir, pkg, tree, dirInfo.IsCommand())
 		if err != nil {
-			errorf("%s: install: %v\n", pkg, err)
+			terrorf(tree, "%s: install: %v\n", pkg, err)
 			return
 		}
 	} else {
 		script, err := build.Build(tree, pkg, dirInfo)
 		if err != nil {
-			errorf("%s: install: %v\n", pkg, err)
+			terrorf(tree, "%s: install: %v\n", pkg, err)
 			return
 		}
 		if *nuke {
@@ -263,7 +270,7 @@ func install(pkg, parent string) {
 			if script.Stale() {
 				printf("%s: install\n", pkg)
 				if err := script.Run(); err != nil {
-					errorf("%s: install: %v\n", pkg, err)
+					terrorf(tree, "%s: install: %v\n", pkg, err)
 					return
 				}
 			} else {
