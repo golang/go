@@ -84,6 +84,7 @@ gbranch(int as, Type *t)
 {
 	Prog *p;
 
+	USED(t);
 	p = prog(as);
 	p->to.type = D_BRANCH;
 	p->to.branch = P;
@@ -1957,5 +1958,9 @@ sudoclean(void)
 int
 sudoaddable(int as, Node *n, Addr *a)
 {
+	USED(as);
+	USED(n);
+	USED(a);
+
 	return 0;
 }
