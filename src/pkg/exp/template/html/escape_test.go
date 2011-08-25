@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"strings"
 	"template"
-	"template/parse"
 	"testing"
 )
 
@@ -87,6 +86,11 @@ func TestEscape(t *testing.T) {
 			`<a href="{{"'a<b'"}}">`,
 			`<a href="'a%3Cb'">`,
 		},
+		{
+			"multipleAttrs",
+			"<a b=1 c={{.H}}>",
+			"<a b=1 c=&lt;Hello&gt;>",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -147,15 +151,11 @@ func TestErrors(t *testing.T) {
 			"{{if .Cond}}\n{{else}}\n<a{{end}}",
 			"z:1: {{if}} branches",
 		},
-		/*
-			TODO: Should the error really be non-empty? Both branches close the tag...
-
+		{
 			// Missing quote in the else branch.
-			{
-				`{{if .Cond}}<a href="foo">{{else}}<a href="bar>{{end}}`,
-				"z:1: {{if}} branches",
-			},
-		*/
+			`{{if .Cond}}<a href="foo">{{else}}<a href="bar>{{end}}`,
+			"z:1: {{if}} branches",
+		},
 		{
 			// Different kind of attribute: href implies a URL.
 			"<a {{if .Cond}}href='{{else}}title='{{end}}{{.X}}'>",
@@ -171,11 +171,15 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			"{{range .Items}}<a{{end}}",
-			"z:1: {{range}} branches",
+			`z:1: on range loop re-entry: "<" in attribute name: "<a"`,
 		},
 		{
 			"\n{{range .Items}} x='<a{{end}}",
-			"z:2: {{range}} branches",
+			"z:2: on range loop re-entry: {{range}} branches",
+		},
+		{
+			"<a b=1 c={{.H}}",
+			"z ends in a non-text context: {stateAttr delimSpaceOrTagEnd",
 		},
 	}
 
@@ -237,12 +241,36 @@ func TestEscapeText(t *testing.T) {
 			context{state: stateURL, delim: delimSpaceOrTagEnd},
 		},
 		{
+			`<a href=x`,
+			context{state: stateURL, delim: delimSpaceOrTagEnd},
+		},
+		{
+			`<a href=x `,
+			context{state: stateTag},
+		},
+		{
+			`<a href=>`,
+			context{state: stateText},
+		},
+		{
+			`<a href=x>`,
+			context{state: stateText},
+		},
+		{
 			`<a href ='`,
 			context{state: stateURL, delim: delimSingleQuote},
 		},
 		{
+			`<a href=''`,
+			context{state: stateTag},
+		},
+		{
 			`<a href= "`,
 			context{state: stateURL, delim: delimDoubleQuote},
+		},
+		{
+			`<a href=""`,
+			context{state: stateTag},
 		},
 		{
 			`<a title="`,
@@ -256,20 +284,29 @@ func TestEscapeText(t *testing.T) {
 			`<a Href='/`,
 			context{state: stateURL, delim: delimSingleQuote},
 		},
+		{
+			`<a href='"`,
+			context{state: stateURL, delim: delimSingleQuote},
+		},
+		{
+			`<a href="'`,
+			context{state: stateURL, delim: delimDoubleQuote},
+		},
+		{
+			`<input checked type="checkbox"`,
+			context{state: stateTag},
+		},
 	}
 
 	for _, tc := range testCases {
-		n := &parse.TextNode{
-			NodeType: parse.NodeText,
-			Text:     []byte(tc.input),
-		}
-		c := escapeText(context{}, n)
+		b := []byte(tc.input)
+		c := escapeText(context{}, b)
 		if !tc.output.eq(c) {
 			t.Errorf("input %q: want context %v got %v", tc.input, tc.output, c)
 			continue
 		}
-		if tc.input != string(n.Text) {
-			t.Errorf("input %q: text node was modified: want %q got %q", tc.input, tc.input, n.Text)
+		if tc.input != string(b) {
+			t.Errorf("input %q: text node was modified: want %q got %q", tc.input, tc.input, b)
 			continue
 		}
 	}
