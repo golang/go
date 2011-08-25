@@ -18,6 +18,7 @@ import (
 )
 
 func f() {
+	var _ http.URL
 	http.ParseURL(a)
 	http.ParseURLReference(a)
 	http.ParseQuery(a)
@@ -33,6 +34,7 @@ func f() {
 import "url"
 
 func f() {
+	var _ url.URL
 	url.Parse(a)
 	url.ParseWithReference(a)
 	url.ParseQuery(a)
