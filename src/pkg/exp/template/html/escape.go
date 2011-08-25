@@ -23,6 +23,9 @@ func Escape(t *template.Template) (*template.Template, os.Error) {
 	if c.errStr != "" {
 		return nil, fmt.Errorf("%s:%d: %s", t.Name(), c.errLine, c.errStr)
 	}
+	if c.state != stateText {
+		return nil, fmt.Errorf("%s ends in a non-text context: %v", t.Name(), c)
+	}
 	return t, nil
 }
 
@@ -38,7 +41,7 @@ func escape(c context, n parse.Node) context {
 	case *parse.RangeNode:
 		return escapeBranch(c, &n.BranchNode, "range")
 	case *parse.TextNode:
-		return escapeText(c, n)
+		return escapeText(c, n.Text)
 	case *parse.WithNode:
 		return escapeBranch(c, &n.BranchNode, "with")
 	}
@@ -91,11 +94,19 @@ func join(a, b context, line int, nodeName string) context {
 // escapeBranch escapes a branch template node: "if", "range" and "with".
 func escapeBranch(c context, n *parse.BranchNode, nodeName string) context {
 	c0 := escapeList(c, n.List)
-	if nodeName == "range" {
+	if nodeName == "range" && c0.state != stateError {
 		// The "true" branch of a "range" node can execute multiple times.
 		// We check that executing n.List once results in the same context
 		// as executing n.List twice.
 		c0 = join(c0, escapeList(c0, n.List), n.Line, nodeName)
+		if c0.state == stateError {
+			// Make clear that this is a problem on loop re-entry
+			// since developers tend to overlook that branch when
+			// debugging templates.
+			c0.errLine = n.Line
+			c0.errStr = "on range loop re-entry: " + c0.errStr
+			return c0
+		}
 	}
 	c1 := escapeList(c, n.ElseList)
 	return join(c0, c1, n.Line, nodeName)
@@ -112,10 +123,40 @@ func escapeList(c context, n *parse.ListNode) context {
 	return c
 }
 
+// delimEnds maps each delim to a string of characters that terminate it.
+var delimEnds = [...]string{
+	delimDoubleQuote: `"`,
+	delimSingleQuote: "'",
+	// Determined empirically by running the below in various browsers.
+	// var div = document.createElement("DIV");
+	// for (var i = 0; i < 0x10000; ++i) {
+	//   div.innerHTML = "<span title=x" + String.fromCharCode(i) + "-bar>";
+	//   if (div.getElementsByTagName("SPAN")[0].title.indexOf("bar") < 0)
+	//     document.write("<p>U+" + i.toString(16));
+	// }
+	delimSpaceOrTagEnd: " \t\n\f\r>",
+}
+
 // escapeText escapes a text template node.
-func escapeText(c context, n *parse.TextNode) context {
-	for s := n.Text; len(s) > 0; {
-		c, s = transitionFunc[c.state](c, s)
+func escapeText(c context, s []byte) context {
+	for len(s) > 0 {
+		if c.delim == delimNone {
+			c, s = transitionFunc[c.state](c, s)
+			continue
+		}
+
+		i := bytes.IndexAny(s, delimEnds[c.delim])
+		if i == -1 {
+			// Remain inside the attribute.
+			// TODO: Recurse to take into account grammars for
+			// JS, CSS, URIs embedded in attrs once implemented.
+			return c
+		}
+		if c.delim != delimSpaceOrTagEnd {
+			// Consume any quote.
+			i++
+		}
+		c, s = context{state: stateTag}, s[i:]
 	}
 	return c
 }
@@ -157,15 +198,15 @@ func tText(c context, s []byte) (context, []byte) {
 
 // tTag is the context transition function for the tag state.
 func tTag(c context, s []byte) (context, []byte) {
-	// Skip to the end tag, if there is one.
-	i := bytes.IndexByte(s, '>')
-	if i != -1 {
-		return context{state: stateText}, s[i+1:]
+	// Find the attribute name.
+	attrStart := eatWhiteSpace(s, 0)
+	i, err := eatAttrName(s, attrStart)
+	if err != nil {
+		return context{
+			state:  stateError,
+			errStr: err.String(),
+		}, nil
 	}
-
-	// Otherwise, find the attribute name.
-	i = eatWhiteSpace(s, 0)
-	attrStart, i := i, eatAttrName(s, i)
 	if i == len(s) {
 		return context{state: stateTag}, nil
 	}
@@ -174,37 +215,44 @@ func tTag(c context, s []byte) (context, []byte) {
 		state = stateURL
 	}
 
-	// Consume the "=".
+	// Look for the start of the value.
 	i = eatWhiteSpace(s, i)
-	if i == len(s) || s[i] != '=' {
+	if i == len(s) {
 		return context{state: stateTag}, s[i:]
 	}
+	if s[i] == '>' {
+		return context{state: stateText}, s[i+1:]
+	} else if s[i] != '=' {
+		// Possible due to a valueless attribute or '/' in "<input />".
+		return context{state: stateTag}, s[i:]
+	}
+	// Consume the "=".
 	i = eatWhiteSpace(s, i+1)
 
-	// Find the delimiter.
-	if i == len(s) {
-		return context{state: state, delim: delimSpaceOrTagEnd}, nil
-	}
-	switch s[i] {
-	case '\'':
-		return context{state: state, delim: delimSingleQuote}, s[i+1:]
-	case '"':
-		return context{state: state, delim: delimDoubleQuote}, s[i+1:]
+	// Find the attribute delimiter.
+	if i < len(s) {
+		switch s[i] {
+		case '\'':
+			return context{state: state, delim: delimSingleQuote}, s[i+1:]
+		case '"':
+			return context{state: state, delim: delimDoubleQuote}, s[i+1:]
+		}
 	}
 
-	// TODO: This shouldn't be an error: `<a b=1 c={{.X}}` should be valid.
-	return context{state: stateError}, nil
+	return context{state: state, delim: delimSpaceOrTagEnd}, s[i:]
 }
 
 // tAttr is the context transition function for the attribute state.
 func tAttr(c context, s []byte) (context, []byte) {
-	// TODO: look for the delimiter.
 	return c, nil
 }
 
 // tURL is the context transition function for the URL state.
 func tURL(c context, s []byte) (context, []byte) {
-	// TODO: look for the delimiter.
+	// TODO: Look for query and fragment boundaries within a URL so we
+	// can %-encode actions in the query and fragment parts, HTML escape
+	// actions elsewhere, and filter any actions at the start that might
+	// inject a dangerous protocol such as "javascript:".
 	return c, nil
 }
 
@@ -214,16 +262,24 @@ func tError(c context, s []byte) (context, []byte) {
 }
 
 // eatAttrName returns the largest j such that s[i:j] is an attribute name.
-func eatAttrName(s []byte, i int) int {
+// It returns an error if s[i:] does not look like it begins with an
+// attribute name, such as encountering a quote mark without a preceding
+// equals sign.
+func eatAttrName(s []byte, i int) (int, os.Error) {
 	for j := i; j < len(s); j++ {
 		switch s[j] {
-		case ' ', '\n', '\r', '\t', '=':
-			return j
+		case ' ', '\t', '\n', '\f', '\r', '=', '>':
+			return j, nil
+		case '\'', '"', '<':
+			// These result in a parse warning in HTML5 and are
+			// indicative of serious problems if seen in an attr
+			// name in a template.
+			return 0, fmt.Errorf("%q in attribute name: %.32q", s[j:j+1], s)
 		default:
 			// No-op.
 		}
 	}
-	return len(s)
+	return len(s), nil
 }
 
 // eatTagName returns the largest j such that s[i:j] is a tag name.
@@ -248,7 +304,7 @@ func eatTagName(s []byte, i int) int {
 func eatWhiteSpace(s []byte, i int) int {
 	for j := i; j < len(s); j++ {
 		switch s[j] {
-		case ' ', '\n', '\r', '\t':
+		case ' ', '\t', '\n', '\f', '\r':
 			// No-op.
 		default:
 			return j
