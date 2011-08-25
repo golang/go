@@ -386,6 +386,8 @@ addtohistogram(uvlong pc, uvlong callerpc, uvlong sp)
 {
 	int h;
 	PC *x;
+	
+	USED(sp);
 
 	h = (pc + callerpc*101) % Ncounters;
 	for(x = counters[h]; x != NULL; x = x->next) {
@@ -437,6 +439,8 @@ uvlong nextpc;
 void
 xptrace(Map *map, uvlong pc, uvlong sp, Symbol *sym)
 {
+	USED(map);
+
 	char buf[1024];
 	if(sym == nil){
 		fprint(2, "syms\n");

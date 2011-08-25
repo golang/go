@@ -807,6 +807,8 @@ ptraceerr:
 static int
 ptracesegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 {
+	USED(seg);
+
 	return ptracerw(isr ? PTRACE_PEEKDATA : PTRACE_POKEDATA, PTRACE_PEEKDATA,
 		isr, map->pid, addr, v, n);
 }
@@ -937,6 +939,8 @@ ptraceregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
 {
 	int laddr;
 	uvlong u;
+	
+	USED(seg);
 
 	if((laddr = go2linux(addr)) < 0){
 		if(isr){

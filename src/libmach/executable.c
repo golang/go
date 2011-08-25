@@ -502,6 +502,8 @@ commonllp64(int unused, Fhdr *fp, ExecHdr *hp)
 	int32 pgsize;
 	uvlong entry;
 
+	USED(unused);
+
 	hswal(&hp->e, sizeof(Exec)/sizeof(int32), beswal);
 	if(!(hp->e.exechdr.magic & HDR_MAGIC))
 		return 0;
@@ -542,6 +544,10 @@ commonllp64(int unused, Fhdr *fp, ExecHdr *hp)
 static int
 mipsboot(int fd, Fhdr *fp, ExecHdr *hp)
 {
+	USED(fd);
+	USED(fp);
+	USED(hp);
+
 abort();
 #ifdef unused
 	USED(fd);
@@ -573,6 +579,10 @@ abort();
 static int
 mips4kboot(int fd, Fhdr *fp, ExecHdr *hp)
 {
+	USED(fd);
+	USED(fp);
+	USED(hp);
+
 abort();
 #ifdef unused
 	USED(fd);
@@ -604,6 +614,10 @@ abort();
 static int
 sparcboot(int fd, Fhdr *fp, ExecHdr *hp)
 {
+	USED(fd);
+	USED(fp);
+	USED(hp);
+
 abort();
 #ifdef unused
 	USED(fd);
@@ -624,6 +638,10 @@ abort();
 static int
 nextboot(int fd, Fhdr *fp, ExecHdr *hp)
 {
+	USED(fd);
+	USED(fp);
+	USED(hp);
+
 abort();
 #ifdef unused
 	USED(fd);
@@ -645,7 +663,6 @@ abort();
 static int
 elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
 {
-
 	uvlong (*swav)(uvlong);
 	uint32 (*swal)(uint32);
 	ushort (*swab)(ushort);

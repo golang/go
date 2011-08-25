@@ -129,6 +129,8 @@ makeclosure(Node *func, NodeList **init, int nowrap)
 	static int closgen;
 	char *p;
 
+	USED(init);
+
 	/*
 	 * wrap body in external function
 	 * with extra closure parameters.

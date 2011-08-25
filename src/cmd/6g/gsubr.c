@@ -79,6 +79,8 @@ Prog*
 gbranch(int as, Type *t)
 {
 	Prog *p;
+	
+	USED(t);
 
 	p = prog(as);
 	p->to.type = D_BRANCH;

@@ -537,6 +537,8 @@ genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
 	int c, d, o, mov, add, loaded;
 	Prog *p;
 	Type *f;
+	
+	USED(iface);
 
 	if(debug['r'])
 		print("genembedtramp %T %T %S\n", rcvr, method, newnam);

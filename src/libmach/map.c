@@ -137,6 +137,8 @@ int
 fdrw(Map *map, Seg *s, uvlong addr, void *v, uint n, int isread)
 {
 	int tot, m;
+	
+	USED(map);
 
 	for(tot=0; tot<n; tot+=m){
 		if(isread)
