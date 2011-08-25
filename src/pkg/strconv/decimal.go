@@ -14,9 +14,10 @@ package strconv
 type decimal struct {
 	// TODO(rsc): Can make d[] a bit smaller and add
 	// truncated bool;
-	d  [2000]byte // digits
-	nd int        // number of digits used
-	dp int        // decimal point
+	d   [2000]byte // digits
+	nd  int        // number of digits used
+	dp  int        // decimal point
+	neg bool
 }
 
 func (a *decimal) String() string {
@@ -266,8 +267,7 @@ func leftShift(a *decimal, k uint) {
 }
 
 // Binary shift left (k > 0) or right (k < 0).
-// Returns receiver for convenience.
-func (a *decimal) Shift(k int) *decimal {
+func (a *decimal) Shift(k int) {
 	switch {
 	case a.nd == 0:
 		// nothing to do: a == 0
@@ -284,7 +284,6 @@ func (a *decimal) Shift(k int) *decimal {
 		}
 		rightShift(a, uint(-k))
 	}
-	return a
 }
 
 // If we chop a at nd digits, should we round up?
