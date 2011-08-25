@@ -230,40 +230,6 @@ func (ip IP) Mask(mask IPMask) IP {
 	return out
 }
 
-// Convert i to decimal string.
-func itod(i uint) string {
-	if i == 0 {
-		return "0"
-	}
-
-	// Assemble decimal in reverse order.
-	var b [32]byte
-	bp := len(b)
-	for ; i > 0; i /= 10 {
-		bp--
-		b[bp] = byte(i%10) + '0'
-	}
-
-	return string(b[bp:])
-}
-
-// Convert i to hexadecimal string.
-func itox(i uint) string {
-	if i == 0 {
-		return "0"
-	}
-
-	// Assemble hexadecimal in reverse order.
-	var b [32]byte
-	bp := len(b)
-	for ; i > 0; i /= 16 {
-		bp--
-		b[bp] = "0123456789abcdef"[byte(i%16)]
-	}
-
-	return string(b[bp:])
-}
-
 // String returns the string form of the IP address ip.
 // If the address is an IPv4 address, the string representation
 // is dotted decimal ("74.125.19.99").  Otherwise the representation
@@ -317,7 +283,7 @@ func (ip IP) String() string {
 		} else if i > 0 {
 			s += ":"
 		}
-		s += itox((uint(p[i]) << 8) | uint(p[i+1]))
+		s += itox((uint(p[i])<<8)|uint(p[i+1]), 1)
 	}
 	return s
 }
