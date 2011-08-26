@@ -5,7 +5,6 @@
 package websocket
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"http"
@@ -13,6 +12,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"testing"
 	"url"
@@ -23,31 +23,38 @@ var once sync.Once
 
 func echoServer(ws *Conn) { io.Copy(ws, ws) }
 
+type Count struct {
+	S string
+	N int
+}
+
+func countServer(ws *Conn) {
+	for {
+		var count Count
+		err := JSON.Receive(ws, &count)
+		if err != nil {
+			return
+		}
+		count.N++
+		count.S = strings.Repeat(count.S, count.N)
+		err = JSON.Send(ws, count)
+		if err != nil {
+			return
+		}
+	}
+}
+
 func startServer() {
 	http.Handle("/echo", Handler(echoServer))
-	http.Handle("/echoDraft75", Draft75Handler(echoServer))
+	http.Handle("/count", Handler(countServer))
 	server := httptest.NewServer(nil)
 	serverAddr = server.Listener.Addr().String()
 	log.Print("Test WebSocket server listening on ", serverAddr)
 }
 
-// Test the getChallengeResponse function with values from section
-// 5.1 of the specification steps 18, 26, and 43 from
-// http://www.whatwg.org/specs/web-socket-protocol/
-func TestChallenge(t *testing.T) {
-	var part1 uint32 = 777007543
-	var part2 uint32 = 114997259
-	key3 := []byte{0x47, 0x30, 0x22, 0x2D, 0x5A, 0x3F, 0x47, 0x58}
-	expected := []byte("0st3Rl&q-2ZU^weu")
-
-	response, err := getChallengeResponse(part1, part2, key3)
-	if err != nil {
-		t.Errorf("getChallengeResponse: returned error %v", err)
-		return
-	}
-	if !bytes.Equal(expected, response) {
-		t.Errorf("getChallengeResponse: expected %q got %q", expected, response)
-	}
+func newConfig(t *testing.T, path string) *Config {
+	config, _ := NewConfig(fmt.Sprintf("ws://%s%s", serverAddr, path), "http://localhost")
+	return config
 }
 
 func TestEcho(t *testing.T) {
@@ -58,19 +65,18 @@ func TestEcho(t *testing.T) {
 	if err != nil {
 		t.Fatal("dialing", err)
 	}
-	ws, err := newClient("/echo", "localhost", "http://localhost",
-		"ws://localhost/echo", "", client, handshake)
+	conn, err := NewClient(newConfig(t, "/echo"), client)
 	if err != nil {
 		t.Errorf("WebSocket handshake error: %v", err)
 		return
 	}
 
 	msg := []byte("hello, world\n")
-	if _, err := ws.Write(msg); err != nil {
+	if _, err := conn.Write(msg); err != nil {
 		t.Errorf("Write: %v", err)
 	}
 	var actual_msg = make([]byte, 512)
-	n, err := ws.Read(actual_msg)
+	n, err := conn.Read(actual_msg)
 	if err != nil {
 		t.Errorf("Read: %v", err)
 	}
@@ -78,10 +84,10 @@ func TestEcho(t *testing.T) {
 	if !bytes.Equal(msg, actual_msg) {
 		t.Errorf("Echo: expected %q got %q", msg, actual_msg)
 	}
-	ws.Close()
+	conn.Close()
 }
 
-func TestEchoDraft75(t *testing.T) {
+func TestCount(t *testing.T) {
 	once.Do(startServer)
 
 	// websocket.Dial()
@@ -89,27 +95,39 @@ func TestEchoDraft75(t *testing.T) {
 	if err != nil {
 		t.Fatal("dialing", err)
 	}
-	ws, err := newClient("/echoDraft75", "localhost", "http://localhost",
-		"ws://localhost/echoDraft75", "", client, draft75handshake)
+	conn, err := NewClient(newConfig(t, "/count"), client)
 	if err != nil {
-		t.Errorf("WebSocket handshake: %v", err)
+		t.Errorf("WebSocket handshake error: %v", err)
 		return
 	}
 
-	msg := []byte("hello, world\n")
-	if _, err := ws.Write(msg); err != nil {
-		t.Errorf("Write: error %v", err)
+	var count Count
+	count.S = "hello"
+	if err := JSON.Send(conn, count); err != nil {
+		t.Errorf("Write: %v", err)
 	}
-	var actual_msg = make([]byte, 512)
-	n, err := ws.Read(actual_msg)
-	if err != nil {
-		t.Errorf("Read: error %v", err)
+	if err := JSON.Receive(conn, &count); err != nil {
+		t.Errorf("Read: %v", err)
 	}
-	actual_msg = actual_msg[0:n]
-	if !bytes.Equal(msg, actual_msg) {
-		t.Errorf("Echo: expected %q got %q", msg, actual_msg)
+	if count.N != 1 {
+		t.Errorf("count: expected 1 got %q", 1, count.N)
 	}
-	ws.Close()
+	if count.S != "hello" {
+		t.Errorf("count: expected %q got %q", "hello", count.S)
+	}
+	if err := JSON.Send(conn, count); err != nil {
+		t.Errorf("Write: %v", err)
+	}
+	if err := JSON.Receive(conn, &count); err != nil {
+		t.Errorf("Read: %v", err)
+	}
+	if count.N != 2 {
+		t.Errorf("count: expected 1 got %q", 2, count.N)
+	}
+	if count.S != "hellohello" {
+		t.Errorf("count: expected %q got %q", "hellohello", count.S)
+	}
+	conn.Close()
 }
 
 func TestWithQuery(t *testing.T) {
@@ -120,8 +138,13 @@ func TestWithQuery(t *testing.T) {
 		t.Fatal("dialing", err)
 	}
 
-	ws, err := newClient("/echo?q=v", "localhost", "http://localhost",
-		"ws://localhost/echo?q=v", "", client, handshake)
+	config := newConfig(t, "/echo")
+	config.Location, err = url.ParseRequest(fmt.Sprintf("ws://%s/echo?q=v", serverAddr))
+	if err != nil {
+		t.Fatal("location url", err)
+	}
+
+	ws, err := NewClient(config, client)
 	if err != nil {
 		t.Errorf("WebSocket handshake: %v", err)
 		return
@@ -137,8 +160,10 @@ func TestWithProtocol(t *testing.T) {
 		t.Fatal("dialing", err)
 	}
 
-	ws, err := newClient("/echo", "localhost", "http://localhost",
-		"ws://localhost/echo", "test", client, handshake)
+	config := newConfig(t, "/echo")
+	config.Protocol = append(config.Protocol, "test")
+
+	ws, err := NewClient(config, client)
 	if err != nil {
 		t.Errorf("WebSocket handshake: %v", err)
 		return
@@ -167,27 +192,15 @@ func TestHTTP(t *testing.T) {
 	}
 }
 
-func TestHTTPDraft75(t *testing.T) {
-	once.Do(startServer)
-
-	r, err := http.Get(fmt.Sprintf("http://%s/echoDraft75", serverAddr))
-	if err != nil {
-		t.Errorf("Get: error %#v", err)
-		return
-	}
-	if r.StatusCode != http.StatusBadRequest {
-		t.Errorf("Get: got status %d", r.StatusCode)
-	}
-}
-
 func TestTrailingSpaces(t *testing.T) {
 	// http://code.google.com/p/go/issues/detail?id=955
 	// The last runs of this create keys with trailing spaces that should not be
 	// generated by the client.
 	once.Do(startServer)
+	config := newConfig(t, "/echo")
 	for i := 0; i < 30; i++ {
 		// body
-		ws, err := Dial(fmt.Sprintf("ws://%s/echo", serverAddr), "", "http://localhost/")
+		ws, err := DialConfig(config)
 		if err != nil {
 			t.Error("Dial failed:", err.String())
 			break
@@ -206,19 +219,18 @@ func TestSmallBuffer(t *testing.T) {
 	if err != nil {
 		t.Fatal("dialing", err)
 	}
-	ws, err := newClient("/echo", "localhost", "http://localhost",
-		"ws://localhost/echo", "", client, handshake)
+	conn, err := NewClient(newConfig(t, "/echo"), client)
 	if err != nil {
 		t.Errorf("WebSocket handshake error: %v", err)
 		return
 	}
 
 	msg := []byte("hello, world\n")
-	if _, err := ws.Write(msg); err != nil {
+	if _, err := conn.Write(msg); err != nil {
 		t.Errorf("Write: %v", err)
 	}
 	var small_msg = make([]byte, 8)
-	n, err := ws.Read(small_msg)
+	n, err := conn.Read(small_msg)
 	if err != nil {
 		t.Errorf("Read: %v", err)
 	}
@@ -226,7 +238,7 @@ func TestSmallBuffer(t *testing.T) {
 		t.Errorf("Echo: expected %q got %q", msg[:len(small_msg)], small_msg)
 	}
 	var second_msg = make([]byte, len(msg))
-	n, err = ws.Read(second_msg)
+	n, err = conn.Read(second_msg)
 	if err != nil {
 		t.Errorf("Read: %v", err)
 	}
@@ -234,38 +246,5 @@ func TestSmallBuffer(t *testing.T) {
 	if !bytes.Equal(msg[len(small_msg):], second_msg) {
 		t.Errorf("Echo: expected %q got %q", msg[len(small_msg):], second_msg)
 	}
-	ws.Close()
-
-}
-
-func testSkipLengthFrame(t *testing.T) {
-	b := []byte{'\x80', '\x01', 'x', 0, 'h', 'e', 'l', 'l', 'o', '\xff'}
-	buf := bytes.NewBuffer(b)
-	br := bufio.NewReader(buf)
-	bw := bufio.NewWriter(buf)
-	ws := newConn("http://127.0.0.1/", "ws://127.0.0.1/", "", bufio.NewReadWriter(br, bw), nil)
-	msg := make([]byte, 5)
-	n, err := ws.Read(msg)
-	if err != nil {
-		t.Errorf("Read: %v", err)
-	}
-	if !bytes.Equal(b[4:8], msg[0:n]) {
-		t.Errorf("Read: expected %q got %q", msg[4:8], msg[0:n])
-	}
-}
-
-func testSkipNoUTF8Frame(t *testing.T) {
-	b := []byte{'\x01', 'n', '\xff', 0, 'h', 'e', 'l', 'l', 'o', '\xff'}
-	buf := bytes.NewBuffer(b)
-	br := bufio.NewReader(buf)
-	bw := bufio.NewWriter(buf)
-	ws := newConn("http://127.0.0.1/", "ws://127.0.0.1/", "", bufio.NewReadWriter(br, bw), nil)
-	msg := make([]byte, 5)
-	n, err := ws.Read(msg)
-	if err != nil {
-		t.Errorf("Read: %v", err)
-	}
-	if !bytes.Equal(b[4:8], msg[0:n]) {
-		t.Errorf("Read: expected %q got %q", msg[4:8], msg[0:n])
-	}
+	conn.Close()
 }
