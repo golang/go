@@ -88,7 +88,10 @@ span1(Sym *s)
 						loop++;
 						q->back ^= 2;
 					}
-					s->p[q->pc+1] = v;
+					if(q->as == AJCXZL)
+						s->p[q->pc+2] = v;
+					else
+						s->p[q->pc+1] = v;
 				} else {
 					bp = s->p + q->pc + q->mark - 4;
 					*bp++ = v;
@@ -1467,6 +1470,8 @@ found:
 		if(p->back & 1) {
 			v = q->pc - (p->pc + 2);
 			if(v >= -128) {
+				if(p->as == AJCXZL)
+					*andptr++ = 0x67;
 				*andptr++ = op;
 				*andptr++ = v;
 			} else if(t[2] == Zloop) {
@@ -1490,6 +1495,8 @@ found:
 		p->forwd = q->comefrom;
 		q->comefrom = p;
 		if(p->back & 2)	{ // short
+			if(p->as == AJCXZL)
+				*andptr++ = 0x67;
 			*andptr++ = op;
 			*andptr++ = 0;
 		} else if(t[2] == Zloop) {

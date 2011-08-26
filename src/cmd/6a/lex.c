@@ -456,8 +456,8 @@ struct
 	"JGT",		LTYPER,	AJGT,
 	"JG",		LTYPER,	AJGT,	/* alternate */
 	"JNLE",		LTYPER,	AJGT,	/* alternate */
-
-	"JCXZ",		LTYPER,	AJCXZ,
+	"JCXZL",	LTYPER,	AJCXZL,
+	"JCXZQ",	LTYPER,	AJCXZQ,
 	"JMP",		LTYPEC,	AJMP,
 	"LAHF",		LTYPE0,	ALAHF,
 	"LARL",		LTYPE3,	ALARL,
