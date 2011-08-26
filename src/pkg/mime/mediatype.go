@@ -21,39 +21,40 @@ func FormatMediaType(t, sub string, param map[string]string) string {
 	if !(IsToken(t) && IsToken(sub)) {
 		return ""
 	}
-	var buffer bytes.Buffer
-	buffer.WriteString(strings.ToLower(t))
-	buffer.WriteByte('/')
-	buffer.WriteString(strings.ToLower(sub))
+	var b bytes.Buffer
+	b.WriteString(strings.ToLower(t))
+	b.WriteByte('/')
+	b.WriteString(strings.ToLower(sub))
 
 	for attribute, value := range param {
-		buffer.WriteByte(';')
+		b.WriteByte(';')
+		b.WriteByte(' ')
 		if !IsToken(attribute) {
 			return ""
 		}
-		buffer.WriteString(strings.ToLower(attribute))
-		buffer.WriteByte('=')
+		b.WriteString(strings.ToLower(attribute))
+		b.WriteByte('=')
 		if IsToken(value) {
-			buffer.WriteString(value)
+			b.WriteString(value)
 			continue
 		}
 
-		buffer.WriteByte('"')
+		b.WriteByte('"')
 		offset := 0
 		for index, character := range value {
 			if character == '"' || character == '\r' {
-				buffer.WriteString(value[offset:index])
+				b.WriteString(value[offset:index])
 				offset = index
-				buffer.WriteByte('\\')
+				b.WriteByte('\\')
 			}
 			if character&0x80 != 0 {
 				return ""
 			}
 		}
-		buffer.WriteString(value[offset:])
-		buffer.WriteByte('"')
+		b.WriteString(value[offset:])
+		b.WriteByte('"')
 	}
-	return buffer.String()
+	return b.String()
 }
 
 func checkMediaTypeDisposition(s string) os.Error {
