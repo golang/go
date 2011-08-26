@@ -437,3 +437,27 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
 
 // Size returns the size of the section in bytes.
 func (s *SectionReader) Size() int64 { return s.limit - s.base }
+
+// TeeReader returns a Reader that writes to w what it reads from r.
+// All reads from r performed through it are matched with
+// corresponding writes to w.  There is no internal buffering -
+// the write must complete before the read completes.
+// Any error encountered while writing is reported as a read error.
+func TeeReader(r Reader, w Writer) Reader {
+	return &teeReader{r, w}
+}
+
+type teeReader struct {
+	r Reader
+	w Writer
+}
+
+func (t *teeReader) Read(p []byte) (n int, err os.Error) {
+	n, err = t.r.Read(p)
+	if n > 0 {
+		if n, err := t.w.Write(p[:n]); err != nil {
+			return n, err
+		}
+	}
+	return
+}

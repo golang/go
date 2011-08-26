@@ -177,3 +177,30 @@ func testReadAtLeast(t *testing.T, rb ReadWriter) {
 		t.Errorf("expected to have read 1 bytes, got %v", n)
 	}
 }
+
+func TestTeeReader(t *testing.T) {
+	src := []byte("hello, world")
+	dst := make([]byte, len(src))
+	rb := bytes.NewBuffer(src)
+	wb := new(bytes.Buffer)
+	r := TeeReader(rb, wb)
+	if n, err := ReadFull(r, dst); err != nil || n != len(src) {
+		t.Fatalf("ReadFull(r, dst) = %d, %v; want %d, nil", n, err, len(src))
+	}
+	if !bytes.Equal(dst, src) {
+		t.Errorf("bytes read = %q want %q", dst, src)
+	}
+	if !bytes.Equal(wb.Bytes(), src) {
+		t.Errorf("bytes written = %q want %q", wb.Bytes(), src)
+	}
+	if n, err := r.Read(dst); n != 0 || err != os.EOF {
+		t.Errorf("r.Read at EOF = %d, %v want 0, EOF", n, err)
+	}
+	rb = bytes.NewBuffer(src)
+	pr, pw := Pipe()
+	pr.Close()
+	r = TeeReader(rb, pw)
+	if n, err := ReadFull(r, dst); n != 0 || err != os.EPIPE {
+		t.Errorf("closed tee: ReadFull(r, dst) = %d, %v; want 0, EPIPE", n, err)
+	}
+}
