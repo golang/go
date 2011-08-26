@@ -199,6 +199,8 @@ func ParseNetlinkRouteAttr(msg *NetlinkMessage) ([]NetlinkRouteAttr, int) {
 		buf = msg.Data[SizeofIfInfomsg:]
 	case RTM_NEWADDR:
 		buf = msg.Data[SizeofIfAddrmsg:]
+	case RTM_NEWROUTE:
+		buf = msg.Data[SizeofRtmsg:]
 	default:
 		return nil, EINVAL
 	}
