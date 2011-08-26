@@ -130,7 +130,7 @@ Dconv(Fmt *fp)
 		if(fp->flags & FmtLong) {
 			d1 = a->offset;
 			d2 = a->offset2;
-			snprint(str, sizeof(str), "$%ud-%ud", (ulong)d1, (ulong)d2);
+			snprint(str, sizeof(str), "$%lud-%lud", (ulong)d1, (ulong)d2);
 			break;
 		}
 		snprint(str, sizeof(str), "$%d", a->offset);
