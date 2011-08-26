@@ -13,27 +13,27 @@ GOFILES=\
 	time.go\
 
 GOFILES_freebsd=\
-	sys_posix.go\
+	sys_unix.go\
 	zoneinfo_posix.go\
 	zoneinfo_unix.go\
 
 GOFILES_darwin=\
-	sys_posix.go\
+	sys_unix.go\
 	zoneinfo_posix.go\
 	zoneinfo_unix.go\
 
 GOFILES_linux=\
-	sys_posix.go\
+	sys_unix.go\
 	zoneinfo_posix.go\
 	zoneinfo_unix.go\
 
 GOFILES_openbsd=\
-	sys_posix.go\
+	sys_unix.go\
 	zoneinfo_posix.go\
 	zoneinfo_unix.go\
 
 GOFILES_windows=\
-	sys_posix.go\
+	sys_windows.go\
 	zoneinfo_windows.go\
 
 GOFILES_plan9=\

@@ -230,7 +230,6 @@ NOBENCH+=\
 ifeq ($(GOOS),windows)
 NOTEST+=os/signal    # no signals
 NOTEST+=syslog       # no network
-NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
 endif
 
 TEST=\
