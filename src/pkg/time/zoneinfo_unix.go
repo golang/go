@@ -185,6 +185,11 @@ func readinfofile(name string) ([]zonetime, bool) {
 	return parseinfo(buf)
 }
 
+func setupTestingZone() {
+	os.Setenv("TZ", "America/Los_Angeles")
+	setupZone()
+}
+
 func setupZone() {
 	// consult $TZ to find the time zone to use.
 	// no $TZ means use the system default /etc/localtime.

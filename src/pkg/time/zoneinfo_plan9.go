@@ -57,3 +57,19 @@ func setupZone() {
 	}
 	zones = parseZones(t)
 }
+
+func setupTestingZone() {
+	f, err := os.Open("/adm/timezone/US_Pacific")
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	l, _ := f.Seek(0, 2)
+	f.Seek(0, 0)
+	buf := make([]byte, l)
+	_, err := f.Read(buf)
+	if err != nil {
+		return
+	}
+	zones = parseZones(buf)
+}

@@ -10,14 +10,13 @@ import (
 )
 
 func sysSleep(t int64) os.Error {
-	err := syscall.Sleep(t)
-	if err != nil {
-		return os.NewSyscallError("sleep", err)
+	errno := syscall.Sleep(t)
+	if errno != 0 && errno != syscall.EINTR {
+		return os.NewSyscallError("sleep", errno)
 	}
 	return nil
 }
 
 // for testing: whatever interrupts a sleep
 func interrupt() {
-	// cannot predict pid, don't want to kill group
 }

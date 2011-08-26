@@ -5,20 +5,12 @@
 package time_test
 
 import (
-	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"testing/quick"
 	. "time"
 )
-
-func init() {
-	// Force US Pacific time for daylight-savings
-	// tests below (localtests).  Needs to be set
-	// before the first call into the time library.
-	os.Setenv("TZ", "America/Los_Angeles")
-}
 
 // We should be in PST/PDT, but if the time zone files are missing we
 // won't be. The purpose of this test is to at least explain why some of

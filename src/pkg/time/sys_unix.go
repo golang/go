@@ -16,3 +16,8 @@ func sysSleep(t int64) os.Error {
 	}
 	return nil
 }
+
+// for testing: whatever interrupts a sleep
+func interrupt() {
+	syscall.Kill(os.Getpid(), syscall.SIGCHLD)
+}
