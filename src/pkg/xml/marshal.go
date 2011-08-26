@@ -39,10 +39,10 @@ type printer struct {
 // Marshal handles a pointer by marshalling the value it points at or, if the
 // pointer is nil, by writing nothing.  Marshal handles an interface value by
 // marshalling the value it contains or, if the interface value is nil, by
-// writing nothing.  Marshal handles all other data by writing a single XML
-// element containing the data.
+// writing nothing.  Marshal handles all other data by writing one or more XML
+// elements containing the data.
 //
-// The name of that XML element is taken from, in order of preference:
+// The name for the XML elements is taken from, in order of preference:
 //     - the tag on an XMLName field, if the data is a struct
 //     - the value of an XMLName field of type xml.Name
 //     - the tag of the struct field used to obtain the data
@@ -57,6 +57,31 @@ type printer struct {
 //        not as an XML element.
 //     - a field with tag "innerxml" is written verbatim,
 //        not subject to the usual marshalling procedure.
+//
+// If a field uses a tag "a>b>c", then the element c will be nested inside
+// parent elements a and b.  Fields that appear next to each other that name
+// the same parent will be enclosed in one XML element.  For example:
+//
+//	type Result struct {
+//		XMLName   xml.Name `xml:"result"`
+//		FirstName string   `xml:"person>name>first"`
+//		LastName  string   `xml:"person>name>last"`
+//		Age       int      `xml:"person>age"`
+//	}
+//
+//	xml.Marshal(w, &Result{FirstName: "John", LastName: "Doe", Age: 42})
+//
+// would be marshalled as:
+//
+//	<result>
+//		<person>
+//			<name>
+//				<first>John</first>
+//				<last>Doe</last>
+//			</name>
+//			<age>42</age>
+//		</person>
+//	</result>
 //
 // Marshal will return an error if asked to marshal a channel, function, or map.
 func Marshal(w io.Writer, v interface{}) (err os.Error) {
@@ -170,22 +195,25 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
 		bytes := val.Interface().([]byte)
 		Escape(p, bytes)
 	case reflect.Struct:
+		s := parentStack{printer: p}
 		for i, n := 0, val.NumField(); i < n; i++ {
 			if f := typ.Field(i); f.Name != "XMLName" && f.PkgPath == "" {
 				name := f.Name
+				vf := val.Field(i)
 				switch tag := f.Tag.Get("xml"); tag {
 				case "":
+					s.trim(nil)
 				case "chardata":
 					if tk := f.Type.Kind(); tk == reflect.String {
-						Escape(p, []byte(val.Field(i).String()))
+						Escape(p, []byte(vf.String()))
 					} else if tk == reflect.Slice {
-						if elem, ok := val.Field(i).Interface().([]byte); ok {
+						if elem, ok := vf.Interface().([]byte); ok {
 							Escape(p, elem)
 						}
 					}
 					continue
 				case "innerxml":
-					iface := val.Field(i).Interface()
+					iface := vf.Interface()
 					switch raw := iface.(type) {
 					case []byte:
 						p.Write(raw)
@@ -197,14 +225,28 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
 				case "attr":
 					continue
 				default:
-					name = tag
+					parents := strings.Split(tag, ">")
+					if len(parents) == 1 {
+						parents, name = nil, tag
+					} else {
+						parents, name = parents[:len(parents)-1], parents[len(parents)-1]
+						if parents[0] == "" {
+							parents[0] = f.Name
+						}
+					}
+
+					s.trim(parents)
+					if !(vf.Kind() == reflect.Ptr || vf.Kind() == reflect.Interface) || !vf.IsNil() {
+						s.push(parents[len(s.stack):])
+					}
 				}
 
-				if err := p.marshalValue(val.Field(i), name); err != nil {
+				if err := p.marshalValue(vf, name); err != nil {
 					return err
 				}
 			}
 		}
+		s.trim(nil)
 	default:
 		return &UnsupportedTypeError{typ}
 	}
@@ -215,6 +257,41 @@ func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
 	p.WriteByte('>')
 
 	return nil
+}
+
+type parentStack struct {
+	*printer
+	stack []string
+}
+
+// trim updates the XML context to match the longest common prefix of the stack
+// and the given parents.  A closing tag will be written for every parent
+// popped.  Passing a zero slice or nil will close all the elements.
+func (s *parentStack) trim(parents []string) {
+	split := 0
+	for ; split < len(parents) && split < len(s.stack); split++ {
+		if parents[split] != s.stack[split] {
+			break
+		}
+	}
+
+	for i := len(s.stack) - 1; i >= split; i-- {
+		s.WriteString("</")
+		s.WriteString(s.stack[i])
+		s.WriteByte('>')
+	}
+
+	s.stack = parents[:split]
+}
+
+// push adds parent elements to the stack and writes open tags.
+func (s *parentStack) push(parents []string) {
+	for i := 0; i < len(parents); i++ {
+		s.WriteString("<")
+		s.WriteString(parents[i])
+		s.WriteByte('>')
+	}
+	s.stack = append(s.stack, parents...)
 }
 
 // A MarshalXMLError is returned when Marshal or MarshalIndent encounter a type
