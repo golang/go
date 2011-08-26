@@ -18,6 +18,7 @@ GOFILES=\
 	parser.go\
 	snippet.go\
 	spec.go\
+	throttle.go\
 	utils.go\
 	zip.go\
 

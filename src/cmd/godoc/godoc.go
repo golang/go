@@ -63,8 +63,9 @@ var (
 	templateDir    = flag.String("templates", "", "directory containing alternate template files")
 
 	// search index
-	indexEnabled = flag.Bool("index", false, "enable search index")
-	maxResults   = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
+	indexEnabled  = flag.Bool("index", false, "enable search index")
+	maxResults    = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
+	indexThrottle = flag.Float64("index_throttle", 0.75, "index throttle value; 0.0 = no time allocated, 1.0 = full throttle")
 
 	// file system mapping
 	fs         FileSystem      // the underlying file system for godoc
@@ -1148,7 +1149,7 @@ func indexer() {
 				log.Printf("updating index...")
 			}
 			start := time.Nanoseconds()
-			index := NewIndex(fsDirnames(), *maxResults > 0)
+			index := NewIndex(fsDirnames(), *maxResults > 0, *indexThrottle)
 			stop := time.Nanoseconds()
 			searchIndex.set(index)
 			if *verbose {
