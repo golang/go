@@ -180,22 +180,21 @@ func (d *decoder) flushBits() {
 // decode decodes the raw data of an image.
 // It reads from d.buf and writes the strip with ymin <= y < ymax into dst.
 func (d *decoder) decode(dst image.Image, ymin, ymax int) os.Error {
-	spp := len(d.features[tBitsPerSample]) // samples per pixel
 	d.off = 0
-	width := dst.Bounds().Dx()
 
 	// Apply horizontal predictor if necessary.
 	// In this case, p contains the color difference to the preceding pixel.
 	// See page 64-65 of the spec.
 	if d.firstVal(tPredictor) == prHorizontal && d.firstVal(tBitsPerSample) == 8 {
+		var off int
+		spp := len(d.features[tBitsPerSample]) // samples per pixel
 		for y := ymin; y < ymax; y++ {
-			d.off += spp
-			for x := 0; x < (width-1)*spp; x++ {
-				d.buf[d.off] += d.buf[d.off-spp]
-				d.off++
+			off += spp
+			for x := 0; x < (dst.Bounds().Dx()-1)*spp; x++ {
+				d.buf[off] += d.buf[off-spp]
+				off++
 			}
 		}
-		d.off = 0
 	}
 
 	switch d.mode {
@@ -224,28 +223,32 @@ func (d *decoder) decode(dst image.Image, ymin, ymax int) os.Error {
 		}
 	case mRGB:
 		img := dst.(*image.RGBA)
-		for y := ymin; y < ymax; y++ {
-			for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-				img.SetRGBA(x, y, image.RGBAColor{d.buf[d.off], d.buf[d.off+1], d.buf[d.off+2], 0xff})
-				d.off += spp
-			}
+		min := (ymin-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*4
+		max := (ymax-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*4
+		var off int
+		for i := min; i < max; i += 4 {
+			img.Pix[i+0] = d.buf[off+0]
+			img.Pix[i+1] = d.buf[off+1]
+			img.Pix[i+2] = d.buf[off+2]
+			img.Pix[i+3] = 0xff
+			off += 3
 		}
 	case mNRGBA:
 		img := dst.(*image.NRGBA)
-		for y := ymin; y < ymax; y++ {
-			for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-				img.SetNRGBA(x, y, image.NRGBAColor{d.buf[d.off], d.buf[d.off+1], d.buf[d.off+2], d.buf[d.off+3]})
-				d.off += spp
-			}
+		min := (ymin-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*4
+		max := (ymax-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*4
+		if len(d.buf) != max-min {
+			return FormatError("short data strip")
 		}
+		copy(img.Pix[min:max], d.buf)
 	case mRGBA:
 		img := dst.(*image.RGBA)
-		for y := ymin; y < ymax; y++ {
-			for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
-				img.SetRGBA(x, y, image.RGBAColor{d.buf[d.off], d.buf[d.off+1], d.buf[d.off+2], d.buf[d.off+3]})
-				d.off += spp
-			}
+		min := (ymin-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*4
+		max := (ymax-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*4
+		if len(d.buf) != max-min {
+			return FormatError("short data strip")
 		}
+		copy(img.Pix[min:max], d.buf)
 	}
 
 	return nil
@@ -309,6 +312,9 @@ func newDecoder(r io.Reader) (*decoder, os.Error) {
 		// RGB images normally have 3 samples per pixel.
 		// If there are more, ExtraSamples (p. 31-32 of the spec)
 		// gives their meaning (usually an alpha channel).
+		//
+		// This implementation does not support extra samples
+		// of an unspecified type.
 		switch len(d.features[tBitsPerSample]) {
 		case 3:
 			d.mode = mRGB
@@ -320,8 +326,7 @@ func newDecoder(r io.Reader) (*decoder, os.Error) {
 				d.mode = mNRGBA
 				d.config.ColorModel = image.NRGBAColorModel
 			default:
-				// The extra sample is discarded.
-				d.mode = mRGB
+				return nil, FormatError("wrong number of samples for RGB")
 			}
 		default:
 			return nil, FormatError("wrong number of samples for RGB")
