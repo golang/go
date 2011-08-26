@@ -448,19 +448,19 @@ TEXT runtime·asmcgocall(SB),7,$0
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
 
 	// Now on a scheduling stack (a pthread-created stack).
-	SUBQ	$32, SP
+	SUBQ	$48, SP
 	ANDQ	$~15, SP	// alignment for gcc ABI
-	MOVQ	DI, 16(SP)	// save g
-	MOVQ	DX, 8(SP)	// save SP
+	MOVQ	DI, 32(SP)	// save g
+	MOVQ	DX, 24(SP)	// save SP
 	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
 	MOVQ	BX, CX		// CX = first argument in Win64
 	CALL	AX
 
 	// Restore registers, g, stack pointer.
 	get_tls(CX)
-	MOVQ	16(SP), DI
+	MOVQ	32(SP), DI
 	MOVQ	DI, g(CX)
-	MOVQ	8(SP), SP
+	MOVQ	24(SP), SP
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
