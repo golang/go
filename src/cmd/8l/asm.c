@@ -41,6 +41,7 @@
 
 char linuxdynld[] = "/lib/ld-linux.so.2";
 char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+char openbsddynld[] = "/usr/libexec/ld.so";
 
 int32
 entryvalue(void)
@@ -956,6 +957,9 @@ asmb(void)
 				case Hfreebsd:
 					interpreter = freebsddynld;
 					break;
+				case Hopenbsd:
+					interpreter = openbsddynld;
+					break;
 				}
 			}
 			elfinterp(sh, startva, interpreter);
@@ -1122,7 +1126,10 @@ asmb(void)
 		eh->ident[EI_VERSION] = EV_CURRENT;
 		switch(HEADTYPE) {
 		case Hfreebsd:
-			eh->ident[EI_OSABI] = 9;
+			eh->ident[EI_OSABI] = ELFOSABI_FREEBSD;
+			break;
+		case Hopenbsd:
+			eh->ident[EI_OSABI] = ELFOSABI_OPENBSD;
 			break;
 		}
 
