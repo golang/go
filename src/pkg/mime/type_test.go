@@ -8,7 +8,7 @@ import "testing"
 
 var typeTests = map[string]string{
 	".t1":  "application/test",
-	".t2":  "text/test;charset=utf-8",
+	".t2":  "text/test; charset=utf-8",
 	".png": "image/png",
 }
 
@@ -25,7 +25,7 @@ func TestTypeByExtension(t *testing.T) {
 }
 
 func TestCustomExtension(t *testing.T) {
-	custom := "text/xml;charset=iso-8859-1"
+	custom := "text/xml; charset=iso-8859-1"
 	if error := AddExtensionType(".xml", custom); error != nil {
 		t.Fatalf("error %s for AddExtension(%s)", error, custom)
 	}

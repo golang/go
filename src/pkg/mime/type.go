@@ -20,15 +20,15 @@ var typeFiles = []string{
 }
 
 var mimeTypes = map[string]string{
-	".css":  "text/css;charset=utf-8",
+	".css":  "text/css; charset=utf-8",
 	".gif":  "image/gif",
-	".htm":  "text/html;charset=utf-8",
-	".html": "text/html;charset=utf-8",
+	".htm":  "text/html; charset=utf-8",
+	".html": "text/html; charset=utf-8",
 	".jpg":  "image/jpeg",
 	".js":   "application/x-javascript",
 	".pdf":  "application/pdf",
 	".png":  "image/png",
-	".xml":  "text/xml;charset=utf-8",
+	".xml":  "text/xml; charset=utf-8",
 }
 
 var mimeLock sync.RWMutex
