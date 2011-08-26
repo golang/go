@@ -4,6 +4,10 @@
 
 package pkgtest
 
-func Foo() {}
+import "os"
+
+func Foo() os.Error {
+	return nil
+}
 
 func Sqrt(x float64) float64
