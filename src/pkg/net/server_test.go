@@ -115,7 +115,9 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 }
 
 func TestTCPServer(t *testing.T) {
-	doTest(t, "tcp", "", "127.0.0.1")
+	if syscall.OS != "openbsd" {
+		doTest(t, "tcp", "", "127.0.0.1")
+	}
 	doTest(t, "tcp", "0.0.0.0", "127.0.0.1")
 	doTest(t, "tcp", "127.0.0.1", "127.0.0.1")
 	doTest(t, "tcp4", "", "127.0.0.1")

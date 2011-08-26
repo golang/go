@@ -12,6 +12,11 @@ import (
 	"syscall"
 )
 
+// BUG(rsc): On OpenBSD, listening on the "tcp" network does not listen for
+// both IPv4 and IPv6 connections. This is due to the fact that IPv4 traffic
+// will not be routed to an IPv6 socket - two separate sockets are required
+// if both AFs are to be supported. See inet6(4) on OpenBSD for details.
+
 func sockaddrToTCP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
