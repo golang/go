@@ -1056,9 +1056,10 @@ found:
 
 	case Zbr:
 	case Zjmp:
+	case Zloop:
 		q = p->pcond;
 		if(q == nil) {
-			diag("jmp/branch without target");
+			diag("jmp/branch/loop without target");
 			errorexit();
 		}
 		if(q->as == ATEXT) {
@@ -1086,6 +1087,8 @@ found:
 			if(v >= -128) {
 				*andptr++ = op;
 				*andptr++ = v;
+			} else if(t[2] == Zloop) {
+				diag("loop too far: %P", p);
 			} else {
 				v -= 5-2;
 				if(t[2] == Zbr) {
@@ -1107,6 +1110,8 @@ found:
 		if(p->back & 2)	{ // short
 			*andptr++ = op;
 			*andptr++ = 0;
+		} else if(t[2] == Zloop) {
+			diag("loop too far: %P", p);
 		} else {
 			if(t[2] == Zbr)
 				*andptr++ = 0x0f;
@@ -1130,19 +1135,6 @@ found:
 		r->siz = 4;
 		r->add = p->to.offset;
 		put4(0);
-		break;
-
-	case Zloop:
-		q = p->pcond;
-		if(q == nil) {
-			diag("loop without target");
-			errorexit();
-		}
-		v = q->pc - p->pc - 2;
-		if(v < -128 && v > 127)
-			diag("loop too far: %P", p);
-		*andptr++ = op;
-		*andptr++ = v;
 		break;
 
 	case Zbyte:
