@@ -349,7 +349,7 @@ const (
 	IPPROTO_IPV6 = 0x29
 	IPV6_V6ONLY  = 0x1b
 
-	SOMAXCONN = 5
+	SOMAXCONN = 0x7fffffff
 
 	TCP_NODELAY = 1
 
