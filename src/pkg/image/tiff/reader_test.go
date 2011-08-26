@@ -5,9 +5,15 @@
 package tiff
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 )
+
+// Read makes *buffer implements io.Reader, so that we can pass one to Decode.
+func (*buffer) Read([]byte) (int, os.Error) {
+	panic("unimplemented")
+}
 
 // TestNoRPS tries to decode an image that has no RowsPerStrip tag.
 // The tag is mandatory according to the spec but some software omits
@@ -21,5 +27,24 @@ func TestNoRPS(t *testing.T) {
 	_, err = Decode(f)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+const filename = "testdata/video-001-uncompressed.tiff"
+
+// BenchmarkDecode benchmarks the decoding of an image.
+func BenchmarkDecode(b *testing.B) {
+	b.StopTimer()
+	contents, err := ioutil.ReadFile(filename)
+	if err != nil {
+		panic(err)
+	}
+	r := &buffer{buf: contents}
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := Decode(r)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
