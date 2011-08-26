@@ -11,6 +11,20 @@ CGOFILES=\
 
 CGO_OFILES=\
 	c-life.o\
+	
+ifeq ($(GOOS),windows)
+ifeq ($(GOARCH),amd64)
+CGO_OFILES+=\
+	lib64_libmingwex_a-wassert.o\
+	lib64_libmingw32_a-mingw_helpers.o\
+
+lib64_libmingwex_a-wassert.o:
+	ar -x /mingw/x86_64-w64-mingw32/lib/libmingwex.a lib64_libmingwex_a-wassert.o
+
+lib64_libmingw32_a-mingw_helpers.o:
+	ar -x /mingw/x86_64-w64-mingw32/lib/libmingw32.a  lib64_libmingw32_a-mingw_helpers.o
+endif
+endif
 
 CLEANFILES+=life
 
