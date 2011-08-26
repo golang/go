@@ -54,6 +54,10 @@ type Transport struct {
 	// If Dial is nil, net.Dial is used.
 	Dial func(net, addr string) (c net.Conn, err os.Error)
 
+	// TLSClientConfig specifies the TLS configuration to use with
+	// tls.Client. If nil, the default configuration is used.
+	TLSClientConfig *tls.Config
+
 	DisableKeepAlives  bool
 	DisableCompression bool
 
@@ -338,7 +342,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
 
 	if cm.targetScheme == "https" {
 		// Initiate TLS and check remote host name against certificate.
-		conn = tls.Client(conn, nil)
+		conn = tls.Client(conn, t.TLSClientConfig)
 		if err = conn.(*tls.Conn).Handshake(); err != nil {
 			return nil, err
 		}
