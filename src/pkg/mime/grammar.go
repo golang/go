@@ -22,6 +22,15 @@ func IsTokenChar(rune int) bool {
 	return rune > 0x20 && rune < 0x7f && !isTSpecial(rune)
 }
 
+// IsToken returns true if s is a 'token' as as defined by RFC 1521
+// and RFC 2045.
+func IsToken(s string) bool {
+	if s == "" {
+		return false
+	}
+	return strings.IndexFunc(s, isNotTokenChar) < 0
+}
+
 // IsQText returns true if rune is in 'qtext' as defined by RFC 822.
 func IsQText(rune int) bool {
 	// CHAR        =  <any ASCII character>        ; (  0-177,  0.-127.)

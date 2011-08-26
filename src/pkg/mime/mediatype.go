@@ -12,6 +12,50 @@ import (
 	"unicode"
 )
 
+// FormatMediaType serializes type t, subtype sub and the paramaters
+// param as a media type conform RFC 2045 and RFC 2616.
+// The type, subtype, and parameter names are written in lower-case.
+// When any of the arguments result in a standard violation then
+// FormatMediaType returns the empty string.
+func FormatMediaType(t, sub string, param map[string]string) string {
+	if !(IsToken(t) && IsToken(sub)) {
+		return ""
+	}
+	var buffer bytes.Buffer
+	buffer.WriteString(strings.ToLower(t))
+	buffer.WriteByte('/')
+	buffer.WriteString(strings.ToLower(sub))
+
+	for attribute, value := range param {
+		buffer.WriteByte(';')
+		if !IsToken(attribute) {
+			return ""
+		}
+		buffer.WriteString(strings.ToLower(attribute))
+		buffer.WriteByte('=')
+		if IsToken(value) {
+			buffer.WriteString(value)
+			continue
+		}
+
+		buffer.WriteByte('"')
+		offset := 0
+		for index, character := range value {
+			if character == '"' || character == '\r' {
+				buffer.WriteString(value[offset:index])
+				offset = index
+				buffer.WriteByte('\\')
+			}
+			if character&0x80 != 0 {
+				return ""
+			}
+		}
+		buffer.WriteString(value[offset:])
+		buffer.WriteByte('"')
+	}
+	return buffer.String()
+}
+
 func checkMediaTypeDisposition(s string) os.Error {
 	typ, rest := consumeToken(s)
 	if typ == "" {
