@@ -2,145 +2,239 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package websocket implements a client and server for the Web Socket protocol.
-// The protocol is defined at http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol
+// Package websocket implements a client and server for the WebSocket protocol.
+// The protocol is defined at http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol
 package websocket
-
-// TODO(ukai):
-//   better logging.
 
 import (
 	"bufio"
-	"crypto/md5"
-	"encoding/binary"
+	"crypto/tls"
 	"http"
 	"io"
+	"io/ioutil"
+	"json"
 	"net"
 	"os"
+	"url"
 )
-
-// WebSocketAddr is an implementation of net.Addr for Web Sockets.
-type WebSocketAddr string
-
-// Network returns the network type for a Web Socket, "websocket".
-func (addr WebSocketAddr) Network() string { return "websocket" }
-
-// String returns the network address for a Web Socket.
-func (addr WebSocketAddr) String() string { return string(addr) }
 
 const (
-	stateFrameByte = iota
-	stateFrameLength
-	stateFrameData
-	stateFrameTextData
+	ProtocolVersionHixie75 = -75
+	ProtocolVersionHixie76 = -76
+	ProtocolVersionHybi00  = 0
+	ProtocolVersionHybi    = 8
+
+	ContinuationFrame = 0
+	TextFrame         = 1
+	BinaryFrame       = 2
+	CloseFrame        = 8
+	PingFrame         = 9
+	PongFrame         = 10
+	UnknownFrame      = 255
 )
 
-// Conn is a channel to communicate to a Web Socket.
-// It implements the net.Conn interface.
+// WebSocket protocol errors.
+type ProtocolError struct {
+	ErrorString string
+}
+
+func (err ProtocolError) String() string { return err.ErrorString }
+
+var (
+	ErrBadProtocolVersion   = ProtocolError{"bad protocol version"}
+	ErrBadScheme            = ProtocolError{"bad scheme"}
+	ErrBadStatus            = ProtocolError{"bad status"}
+	ErrBadUpgrade           = ProtocolError{"missing or bad upgrade"}
+	ErrBadWebSocketOrigin   = ProtocolError{"missing or bad WebSocket-Origin"}
+	ErrBadWebSocketLocation = ProtocolError{"missing or bad WebSocket-Location"}
+	ErrBadWebSocketProtocol = ProtocolError{"missing or bad WebSocket-Protocol"}
+	ErrBadWebSocketVersion  = ProtocolError{"missing or bad WebSocket Version"}
+	ErrChallengeResponse    = ProtocolError{"mismatch challenge/response"}
+	ErrBadFrame             = ProtocolError{"bad frame"}
+	ErrBadFrameBoundary     = ProtocolError{"not on frame boundary"}
+	ErrNotWebSocket         = ProtocolError{"not websocket protocol"}
+	ErrBadRequestMethod     = ProtocolError{"bad method"}
+	ErrNotSupported         = ProtocolError{"not supported"}
+)
+
+// WebSocketAddr is an implementation of net.Addr for WebSocket.
+type WebSocketAddr struct {
+	*url.URL
+}
+
+// Network returns the network type for a WebSocket, "websocket".
+func (addr WebSocketAddr) Network() string { return "websocket" }
+
+// String returns the network address for a WebSocket.
+func (addr WebSocketAddr) String() string { return addr.String() }
+
+// Config is a WebSocket configuration
+type Config struct {
+	// A WebSocket server address.
+	Location *url.URL
+
+	// A Websocket client origin.
+	Origin *url.URL
+
+	// WebSocket subprotocols.
+	Protocol []string
+
+	// WebSocket protocol version.
+	Version int
+
+	// TLS config for secure WebSocket (wss).
+	TlsConfig *tls.Config
+
+	handshakeData map[string]string
+}
+
+// serverHandshaker is an interface to handle WebSocket server side handshake.
+type serverHandshaker interface {
+	// ReadHandshake reads handshake request message from client.
+	// Returns http response code and error if any.
+	ReadHandshake(buf *bufio.Reader, req *http.Request) (code int, err os.Error)
+
+	// AcceptHandshake accepts the client handshake request and sends
+	// handshake response back to client.
+	AcceptHandshake(buf *bufio.Writer) (err os.Error)
+
+	// NewServerConn creates a new WebSocket connection.
+	NewServerConn(buf *bufio.ReadWriter, rwc io.ReadWriteCloser, request *http.Request) (conn *Conn)
+}
+
+// frameReader is an interface to read a WebSocket frame.
+type frameReader interface {
+	// Reader is to read payload of the frame.
+	io.Reader
+
+	// PayloadType returns payload type.
+	PayloadType() byte
+
+	// HeaderReader returns a reader to read header of the frame.
+	HeaderReader() io.Reader
+
+	// TrailerReader returns a reader to read trailer of the frame.
+	// If it returns nil, there is no trailer in the frame.
+	TrailerReader() io.Reader
+
+	// Len returns total length of the frame, including header and trailer.
+	Len() int
+}
+
+// frameReaderFactory is an interface to creates new frame reader.
+type frameReaderFactory interface {
+	NewFrameReader() (r frameReader, err os.Error)
+}
+
+// frameWriter is an interface to write a WebSocket frame.
+type frameWriter interface {
+	// Writer is to write playload of the frame.
+	io.WriteCloser
+}
+
+// frameWriterFactory is an interface to create new frame writer.
+type frameWriterFactory interface {
+	NewFrameWriter(payloadType byte) (w frameWriter, err os.Error)
+}
+
+type frameHandler interface {
+	HandleFrame(frame frameReader) (r frameReader, err os.Error)
+	WriteClose(status int) (err os.Error)
+}
+
+// Conn represents a WebSocket connection.
 type Conn struct {
-	// The origin URI for the Web Socket.
-	Origin string
-	// The location URI for the Web Socket.
-	Location string
-	// The subprotocol for the Web Socket.
-	Protocol string
-	// The initial http Request (for the Server side only).
-	Request *http.Request
+	config  *Config
+	request *http.Request
 
 	buf *bufio.ReadWriter
 	rwc io.ReadWriteCloser
 
-	// It holds text data in previous Read() that failed with small buffer.
-	data    []byte
-	reading bool
+	frameReaderFactory
+	frameReader
+
+	frameWriterFactory
+
+	frameHandler
+	PayloadType        byte
+	defaultCloseStatus int
 }
 
-// newConn creates a new Web Socket.
-func newConn(origin, location, protocol string, buf *bufio.ReadWriter, rwc io.ReadWriteCloser) *Conn {
-	if buf == nil {
-		br := bufio.NewReader(rwc)
-		bw := bufio.NewWriter(rwc)
-		buf = bufio.NewReadWriter(br, bw)
-	}
-	ws := &Conn{Origin: origin, Location: location, Protocol: protocol, buf: buf, rwc: rwc}
-	return ws
-}
-
-// Read implements the io.Reader interface for a Conn.
+// Read implements the io.Reader interface:
+// it reads data of a frame from the WebSocket connection.
+// if msg is not large enough for the frame data, it fills the msg and next Read
+// will read the rest of the frame data.
+// it reads Text frame or Binary frame.
 func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
-Frame:
-	for !ws.reading && len(ws.data) == 0 {
-		// Beginning of frame, possibly.
-		b, err := ws.buf.ReadByte()
+again:
+	if ws.frameReader == nil {
+		frame, err := ws.frameReaderFactory.NewFrameReader()
 		if err != nil {
 			return 0, err
 		}
-		if b&0x80 == 0x80 {
-			// Skip length frame.
-			length := 0
-			for {
-				c, err := ws.buf.ReadByte()
-				if err != nil {
-					return 0, err
-				}
-				length = length*128 + int(c&0x7f)
-				if c&0x80 == 0 {
-					break
-				}
-			}
-			for length > 0 {
-				_, err := ws.buf.ReadByte()
-				if err != nil {
-					return 0, err
-				}
-			}
-			continue Frame
+		ws.frameReader, err = ws.frameHandler.HandleFrame(frame)
+		if err != nil {
+			return 0, err
 		}
-		// In text mode
-		if b != 0 {
-			// Skip this frame
-			for {
-				c, err := ws.buf.ReadByte()
-				if err != nil {
-					return 0, err
-				}
-				if c == '\xff' {
-					break
-				}
-			}
-			continue Frame
-		}
-		ws.reading = true
-	}
-	if len(ws.data) == 0 {
-		ws.data, err = ws.buf.ReadSlice('\xff')
-		if err == nil {
-			ws.reading = false
-			ws.data = ws.data[:len(ws.data)-1] // trim \xff
+		if ws.frameReader == nil {
+			goto again
 		}
 	}
-	n = copy(msg, ws.data)
-	ws.data = ws.data[n:]
+	n, err = ws.frameReader.Read(msg)
+	if err == os.EOF {
+		if trailer := ws.frameReader.TrailerReader(); trailer != nil {
+			io.Copy(ioutil.Discard, trailer)
+		}
+		ws.frameReader = nil
+		goto again
+	}
 	return n, err
 }
 
-// Write implements the io.Writer interface for a Conn.
+// Write implements the io.Writer interface:
+// it writes data as a frame to the WebSocket connection.
 func (ws *Conn) Write(msg []byte) (n int, err os.Error) {
-	ws.buf.WriteByte(0)
-	ws.buf.Write(msg)
-	ws.buf.WriteByte(0xff)
-	err = ws.buf.Flush()
-	return len(msg), err
+	w, err := ws.frameWriterFactory.NewFrameWriter(ws.PayloadType)
+	if err != nil {
+		return 0, err
+	}
+	n, err = w.Write(msg)
+	w.Close()
+	if err != nil {
+		return n, err
+	}
+	return n, err
 }
 
-// Close implements the io.Closer interface for a Conn.
-func (ws *Conn) Close() os.Error { return ws.rwc.Close() }
+// Close implements the io.Closer interface.
+func (ws *Conn) Close() os.Error {
+	err := ws.frameHandler.WriteClose(ws.defaultCloseStatus)
+	if err != nil {
+		return err
+	}
+	return ws.rwc.Close()
+}
 
-// LocalAddr returns the WebSocket Origin for the connection.
-func (ws *Conn) LocalAddr() net.Addr { return WebSocketAddr(ws.Origin) }
+func (ws *Conn) IsClientConn() bool { return ws.request == nil }
+func (ws *Conn) IsServerConn() bool { return ws.request != nil }
 
-// RemoteAddr returns the WebSocket locations for the connection.
-func (ws *Conn) RemoteAddr() net.Addr { return WebSocketAddr(ws.Location) }
+// LocalAddr returns the WebSocket Origin for the connection for client, or
+// the WebSocket location for server.
+func (ws *Conn) LocalAddr() net.Addr {
+	if ws.IsClientConn() {
+		return WebSocketAddr{ws.config.Origin}
+	}
+	return WebSocketAddr{ws.config.Location}
+}
+
+// RemoteAddr returns the WebSocket location for the connection for client, or
+// the Websocket Origin for server.
+func (ws *Conn) RemoteAddr() net.Addr {
+	if ws.IsClientConn() {
+		return WebSocketAddr{ws.config.Location}
+	}
+	return WebSocketAddr{ws.config.Origin}
+}
 
 // SetTimeout sets the connection's network timeout in nanoseconds.
 func (ws *Conn) SetTimeout(nsec int64) os.Error {
@@ -166,27 +260,139 @@ func (ws *Conn) SetWriteTimeout(nsec int64) os.Error {
 	return os.EINVAL
 }
 
-// getChallengeResponse computes the expected response from the
-// challenge as described in section 5.1 Opening Handshake steps 42 to
-// 43 of http://www.whatwg.org/specs/web-socket-protocol/
-func getChallengeResponse(number1, number2 uint32, key3 []byte) (expected []byte, err os.Error) {
-	// 41. Let /challenge/ be the concatenation of /number_1/, expressed
-	// a big-endian 32 bit integer, /number_2/, expressed in a big-
-	// endian 32 bit integer, and the eight bytes of /key_3/ in the
-	// order they were sent to the wire.
-	challenge := make([]byte, 16)
-	binary.BigEndian.PutUint32(challenge[0:], number1)
-	binary.BigEndian.PutUint32(challenge[4:], number2)
-	copy(challenge[8:], key3)
+// Config returns the WebSocket config.
+func (ws *Conn) Config() *Config { return ws.config }
 
-	// 42. Let /expected/ be the MD5 fingerprint of /challenge/ as a big-
-	// endian 128 bit string.
-	h := md5.New()
-	if _, err = h.Write(challenge); err != nil {
-		return
-	}
-	expected = h.Sum()
-	return
+// Request returns the http request upgraded to the WebSocket.
+// It is nil for client side.
+func (ws *Conn) Request() *http.Request { return ws.request }
+
+// Codec represents a symmetric pair of functions that implement a codec.
+type Codec struct {
+	Marshal   func(v interface{}) (data []byte, payloadType byte, err os.Error)
+	Unmarshal func(data []byte, payloadType byte, v interface{}) (err os.Error)
 }
 
-var _ net.Conn = (*Conn)(nil) // compile-time check that *Conn implements net.Conn.
+// Send sends v marshaled by cd.Marshal as single frame to ws.
+func (cd Codec) Send(ws *Conn, v interface{}) (err os.Error) {
+	if err != nil {
+		return err
+	}
+	data, payloadType, err := cd.Marshal(v)
+	if err != nil {
+		return err
+	}
+	w, err := ws.frameWriterFactory.NewFrameWriter(payloadType)
+	_, err = w.Write(data)
+	w.Close()
+	return err
+}
+
+// Receive receives single frame from ws, unmarshaled by cd.Unmarshal and stores in v.
+func (cd Codec) Receive(ws *Conn, v interface{}) (err os.Error) {
+	if ws.frameReader != nil {
+		_, err = io.Copy(ioutil.Discard, ws.frameReader)
+		if err != nil {
+			return err
+		}
+		ws.frameReader = nil
+	}
+again:
+	frame, err := ws.frameReaderFactory.NewFrameReader()
+	if err != nil {
+		return err
+	}
+	frame, err = ws.frameHandler.HandleFrame(frame)
+	if err != nil {
+		return err
+	}
+	if frame == nil {
+		goto again
+	}
+	payloadType := frame.PayloadType()
+	data, err := ioutil.ReadAll(frame)
+	if err != nil {
+		return err
+	}
+	return cd.Unmarshal(data, payloadType, v)
+}
+
+func marshal(v interface{}) (msg []byte, payloadType byte, err os.Error) {
+	switch data := v.(type) {
+	case string:
+		return []byte(data), TextFrame, nil
+	case []byte:
+		return data, BinaryFrame, nil
+	}
+	return nil, UnknownFrame, ErrNotSupported
+}
+
+func unmarshal(msg []byte, payloadType byte, v interface{}) (err os.Error) {
+	switch data := v.(type) {
+	case *string:
+		*data = string(msg)
+		return nil
+	case *[]byte:
+		*data = msg
+		return nil
+	}
+	return ErrNotSupported
+}
+
+/*
+Message is a codec to send/receive text/binary data in a frame on WebSocket connection.
+To send/receive text frame, use string type.
+To send/receive binary frame, use []byte type.
+
+Trivial usage:
+
+	import "websocket"
+
+	// receive text frame
+	var message string
+	websocket.Message.Receive(ws, &message)
+
+	// send text frame
+	message = "hello"
+	websocket.Message.Send(ws, message)
+
+	// receive binary frame
+	var data []byte
+	websocket.Message.Receive(ws, &data)
+
+	// send binary frame
+	data = []byte{0, 1, 2}
+	websocket.Message.Send(ws, data)
+
+*/
+var Message = Codec{marshal, unmarshal}
+
+func jsonMarshal(v interface{}) (msg []byte, payloadType byte, err os.Error) {
+	msg, err = json.Marshal(v)
+	return msg, TextFrame, err
+}
+
+func jsonUnmarshal(msg []byte, payloadType byte, v interface{}) (err os.Error) {
+	return json.Unmarshal(msg, v)
+}
+
+/*
+JSON is a codec to send/receive JSON data in a frame from a WebSocket connection.
+
+Trival usage:
+
+	import "websocket"
+
+	type T struct {
+		Msg string
+		Count int
+	}
+
+	// receive JSON type T
+	var data T
+	websocket.JSON.Receive(ws, &data)
+
+	// send JSON type T
+	websocket.JSON.Send(ws, data)
+*/
+var JSON = Codec{jsonMarshal, jsonUnmarshal}
