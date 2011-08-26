@@ -431,7 +431,6 @@ hard:
 	if(nr->ullman >= nl->ullman || nl->addable) {
 		mgen(nr, &n2, N);
 		nr = &n2;
-		nr = &n2;
 	} else {
 		tempname(&n2, nr->type);
 		cgen(nr, &n2);

@@ -825,7 +825,7 @@ regalloc(Node *n, Type *t, Node *o)
 
 		fprint(2, "registers allocated at\n");
 		for(i=D_AX; i<=D_DI; i++)
-			fprint(2, "\t%R\t%#ux\n", i, regpc[i]);
+			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
 		yyerror("out of fixed registers");
 		goto err;
 
@@ -835,7 +835,6 @@ regalloc(Node *n, Type *t, Node *o)
 		goto out;
 	}
 	yyerror("regalloc: unknown type %T", t);
-	i = 0;
 
 err:
 	nodreg(n, t, 0);
@@ -845,7 +844,7 @@ out:
 	if (i == D_SP)
 		print("alloc SP\n");
 	if(reg[i] == 0) {
-		regpc[i] = (ulong)__builtin_return_address(0);
+		regpc[i] = (ulong)getcallerpc(&n);
 		if(i == D_AX || i == D_CX || i == D_DX || i == D_SP) {
 			dump("regalloc-o", o);
 			fatal("regalloc %R", i);

@@ -682,7 +682,6 @@ agen(Node *n, Node *res)
 		break;
 
 	case ODOT:
-		t = nl->type;
 		agen(nl, res);
 		if(n->xoffset != 0) {
 			nodconst(&n1, types[tptr], n->xoffset);
@@ -800,9 +799,6 @@ bgen(Node *n, int true, Prog *to)
 	if(n->ninit != nil)
 		genlist(n->ninit);
 
-	nl = n->left;
-	nr = n->right;
-
 	if(n->type == T) {
 		convlit(&n, types[TBOOL]);
 		if(n->type == T)
@@ -815,7 +811,6 @@ bgen(Node *n, int true, Prog *to)
 		patch(gins(AEND, N, N), to);
 		return;
 	}
-	nl = N;
 	nr = N;
 
 	switch(n->op) {
