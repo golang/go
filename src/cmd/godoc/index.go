@@ -736,8 +736,9 @@ func canonical(w string) string { return strings.ToLower(w) }
 // NewIndex creates a new index for the .go files
 // in the directories given by dirnames.
 //
-func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
+func NewIndex(dirnames <-chan string, fulltextIndex bool, throttle float64) *Index {
 	var x Indexer
+	th := NewThrottle(throttle, 0.1e9) // run at least 0.1s at a time
 
 	// initialize Indexer
 	x.fset = token.NewFileSet()
@@ -753,6 +754,7 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
 			if !f.IsDirectory() {
 				x.visitFile(dirname, f, fulltextIndex)
 			}
+			th.Throttle()
 		}
 	}
 
@@ -778,6 +780,7 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool) *Index {
 			Others: others,
 		}
 		wlist = append(wlist, &wordPair{canonical(w), w})
+		th.Throttle()
 	}
 	x.stats.Words = len(words)
 
