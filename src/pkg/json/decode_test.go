@@ -262,7 +262,8 @@ type All struct {
 	Float32 float32
 	Float64 float64
 
-	Foo string `json:"bar"`
+	Foo  string `json:"bar"`
+	Foo2 string `json:"bar2,dummyopt"`
 
 	PBool    *bool
 	PInt     *int
@@ -331,6 +332,7 @@ var allValue = All{
 	Float32: 14.1,
 	Float64: 15.1,
 	Foo:     "foo",
+	Foo2:    "foo2",
 	String:  "16",
 	Map: map[string]Small{
 		"17": {Tag: "tag17"},
@@ -391,6 +393,7 @@ var allValueIndent = `{
 	"Float32": 14.1,
 	"Float64": 15.1,
 	"bar": "foo",
+	"bar2": "foo2",
 	"PBool": null,
 	"PInt": null,
 	"PInt8": null,
@@ -481,6 +484,7 @@ var pallValueIndent = `{
 	"Float32": 0,
 	"Float64": 0,
 	"bar": "",
+	"bar2": "",
 	"PBool": true,
 	"PInt": 2,
 	"PInt8": 3,
