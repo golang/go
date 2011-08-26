@@ -28,6 +28,8 @@ var buildPkgs = []struct {
 			GoFiles:      []string{"pkgtest.go"},
 			SFiles:       []string{"sqrt_" + runtime.GOARCH + ".s"},
 			PkgName:      "pkgtest",
+			Imports:      []string{"os"},
+			TestImports:  []string{"fmt", "pkgtest"},
 			TestGoFiles:  sortstr([]string{"sqrt_test.go", "sqrt_" + runtime.GOARCH + "_test.go"}),
 			XTestGoFiles: []string{"xsqrt_test.go"},
 		},

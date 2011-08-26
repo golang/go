@@ -45,7 +45,8 @@ type DirInfo struct {
 	CgoFiles     []string // .go files that import "C"
 	CFiles       []string // .c files in dir
 	SFiles       []string // .s files in dir
-	Imports      []string // All packages imported by goFiles
+	Imports      []string // All packages imported by GoFiles
+	TestImports  []string // All packages imported by (X)TestGoFiles
 	PkgName      string   // Name of package in dir
 	TestGoFiles  []string // _test.go files in package
 	XTestGoFiles []string // _test.go files outside package
@@ -76,6 +77,7 @@ func (ctxt *Context) ScanDir(dir string, allowMain bool) (info *DirInfo, err os.
 
 	var di DirInfo
 	imported := make(map[string]bool)
+	testImported := make(map[string]bool)
 	fset := token.NewFileSet()
 	for _, d := range dirs {
 		if strings.HasPrefix(d.Name, "_") ||
@@ -134,7 +136,11 @@ func (ctxt *Context) ScanDir(dir string, allowMain bool) (info *DirInfo, err os.
 			if err != nil {
 				log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
 			}
-			imported[path] = true
+			if isTest {
+				testImported[path] = true
+			} else {
+				imported[path] = true
+			}
 			if path == "C" {
 				if isTest {
 					return nil, os.NewError("use of cgo in test " + filename)
@@ -160,8 +166,15 @@ func (ctxt *Context) ScanDir(dir string, allowMain bool) (info *DirInfo, err os.
 		di.Imports[i] = p
 		i++
 	}
+	di.TestImports = make([]string, len(testImported))
+	i = 0
+	for p := range testImported {
+		di.TestImports[i] = p
+		i++
+	}
 	// File name lists are sorted because ioutil.ReadDir sorts.
 	sort.Strings(di.Imports)
+	sort.Strings(di.TestImports)
 	return &di, nil
 }
 
