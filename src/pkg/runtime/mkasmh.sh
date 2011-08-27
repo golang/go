@@ -96,6 +96,7 @@ awk '
 /^aggr G$/ { aggr="g" }
 /^aggr M$/ { aggr = "m" }
 /^aggr Gobuf$/ { aggr = "gobuf" }
+/^aggr WinCall$/ { aggr = "wincall" }
 /^}/ { aggr = "" }
 
 #	Gobuf 24 sched;

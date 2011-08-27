@@ -94,7 +94,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
 {
 	Defer d;
 
-	if(!runtime·iscgo)
+	if(!runtime·iscgo && !Windows)
 		runtime·throw("cgocall unavailable");
 
 	if(fn == 0)

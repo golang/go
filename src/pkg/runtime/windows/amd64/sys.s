@@ -4,46 +4,57 @@
 
 #include "amd64/asm.h"
 
-// void *stdcall_raw(void *fn, uintptr nargs, void *args)
-TEXT runtime·stdcall_raw(SB),7,$8
-	MOVQ	fn+0(FP), AX
-	MOVQ	nargs+8(FP), CX
-	MOVQ	args+16(FP), R11
+#define maxargs 12
 
-	// Switch to m->g0 if needed.
-	get_tls(DI)
-	MOVQ	m(DI), DX
-	MOVQ	g(DI), SI
-	MOVQ	SI, 0(SP)		// save g
-	MOVQ	SP, m_gostack(DX)	// save SP
-	MOVQ	m_g0(DX), SI
-	CMPQ	g(DI), SI
-	JEQ 3(PC)
-	MOVQ	(g_sched+gobuf_sp)(SI), SP
-	ANDQ	$~15, SP
-	MOVQ	SI, g(DI)
-	
-	SUBQ	$0x60, SP
-	
-	// Copy args to new stack.
+// void runtime·asmstdcall(void *c);
+TEXT runtime·asmstdcall(SB),7,$0
+	// asmcgocall will put first argument into CX.
+	PUSHQ	CX			// save for later
+	MOVQ	wincall_fn(CX), AX
+	MOVQ	wincall_args(CX), SI
+	MOVQ	wincall_n(CX), CX
+
+	// SetLastError(0).
+	MOVQ	0x30(GS), DI
+	MOVL	$0, 0x68(DI)
+
+	SUBQ	$(maxargs*8), SP	// room for args
+
+	// Fast version, do not store args on the stack.
+	CMPL	CX, $4
+	JLE	loadregs
+
+	// Check we have enough room for args.
+	CMPL	CX, $maxargs
+	JLE	2(PC)
+	INT	$3			// not enough room -> crash
+
+	// Copy args to the stack.
 	MOVQ	SP, DI
-	MOVQ	R11, SI
 	CLD
 	REP; MOVSQ
-	MOVQ	0(R11), CX
-	MOVQ	8(R11), DX
-	MOVQ	16(R11), R8
-	MOVQ	24(R11), R9
+	MOVQ	SP, SI
+
+loadregs:
+	// Load first 4 args into correspondent registers.
+	MOVQ	0(SI), CX
+	MOVQ	8(SI), DX
+	MOVQ	16(SI), R8
+	MOVQ	24(SI), R9
 
 	// Call stdcall function.
 	CALL	AX
-	
-	// Restore original SP, g.
-	get_tls(DI)
-	MOVQ	m(DI), DX
-	MOVQ	m_gostack(DX), SP	// restore SP
-	MOVQ	0(SP), SI		// restore g
-	MOVQ	SI, g(DI)
+
+	ADDQ	$(maxargs*8), SP
+
+	// Return result.
+	POPQ	CX
+	MOVQ	AX, wincall_r(CX)
+
+	// GetLastError().
+	MOVQ	0x30(GS), DI
+	MOVL	0x68(DI), AX
+	MOVQ	AX, wincall_err(CX)
 
 	RET
 
@@ -70,7 +81,7 @@ TEXT runtime·ctrlhandler(SB),7,$0
 	MOVQ	SP, BX
 
 	// setup dummy m, g
-	SUBQ	$(m_gostack+8), SP	// at least space for m_gostack
+	SUBQ	$(m_fflag+4), SP	// at least space for m_fflag
 	LEAQ	m_tls(SP), CX
 	MOVQ	CX, 0x58(GS)
 	MOVQ	SP, m(CX)

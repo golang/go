@@ -6,6 +6,7 @@
 #include "type.h"
 #include "defs.h"
 #include "os.h"
+#include "cgocall.h"
 
 #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
 #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
@@ -221,34 +222,27 @@ runtime·gettime(int64 *sec, int32 *usec)
 void *
 runtime·stdcall(void *fn, int32 count, ...)
 {
-	return runtime·stdcall_raw(fn, count, (uintptr*)&count + 1);
+	WinCall c;
+
+	c.fn = fn;
+	c.n = count;
+	c.args = (uintptr*)&count + 1;
+	runtime·asmcgocall(runtime·asmstdcall, &c);
+	return (void*)c.r;
 }
 
 uintptr
 runtime·syscall(void *fn, uintptr nargs, void *args, uintptr *err)
 {
-	G *oldlock;
-	uintptr ret;
+	WinCall c;
 
-	/*
-	 * Lock g to m to ensure we stay on the same stack if we do a callback.
-	 */
-	oldlock = m->lockedg;
-	m->lockedg = g;
-	g->lockedm = m;
-
-	runtime·entersyscall();
-	runtime·setlasterror(0);
-	ret = (uintptr)runtime·stdcall_raw(fn, nargs, args);
+	c.fn = fn;
+	c.n = nargs;
+	c.args = args;
+	runtime·cgocall(runtime·asmstdcall, &c);
 	if(err)
-		*err = runtime·getlasterror();
-	runtime·exitsyscall();
-
-	m->lockedg = oldlock;
-	if(oldlock == nil)
-		g->lockedm = nil;
-
-	return ret;
+		*err = c.err;
+	return c.r;
 }
 
 uint32

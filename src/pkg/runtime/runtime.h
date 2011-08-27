@@ -70,6 +70,7 @@ typedef	struct	Hmap		Hmap;
 typedef	struct	Hchan		Hchan;
 typedef	struct	Complex64	Complex64;
 typedef	struct	Complex128	Complex128;
+typedef	struct	WinCall		WinCall;
 
 /*
  * per-cpu declaration.
@@ -250,11 +251,6 @@ struct	M
 	uint32	freglo[16];	// D[i] lsb and F[i]
 	uint32	freghi[16];	// D[i] msb and F[i+16]
 	uint32	fflag;		// floating point compare flags
-#ifdef __WINDOWS__
-#ifdef _64BIT	
-	void*	gostack;
-#endif
-#endif
 };
 
 struct	Stktop
@@ -304,6 +300,15 @@ struct	Func
 	int32	frame;	// stack frame size
 	int32	args;	// number of 32-bit in/out args
 	int32	locals;	// number of 32-bit locals
+};
+
+struct	WinCall
+{
+	void	(*fn)(void*);
+	uintptr	n;	// number of parameters
+	void*	args;	// parameters
+	uintptr	r;	// return value
+	uintptr	err;	// error number
 };
 
 #ifdef __WINDOWS__

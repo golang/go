@@ -4,44 +4,34 @@
 
 #include "386/asm.h"
 
-// void *stdcall_raw(void *fn, int32 count, uintptr *args)
-TEXT runtime·stdcall_raw(SB),7,$0
-	// Copy arguments from stack.
-	MOVL	fn+0(FP), AX
-	MOVL	count+4(FP), CX		// words
-	MOVL	args+8(FP), BP
+// void runtime·asmstdcall(void *c);
+TEXT runtime·asmstdcall(SB),7,$0
+	MOVL	c+0(FP), DX
 
-	// Switch to m->g0 if needed.
-	get_tls(DI)
-	MOVL	m(DI), DX
-	MOVL	m_g0(DX), SI
-	CMPL	g(DI), SI
-	MOVL	SP, BX
-	JEQ	2(PC)
-	MOVL	(g_sched+gobuf_sp)(SI), SP
-	PUSHL	BX
-	PUSHL	g(DI)
-	MOVL	SI, g(DI)
+	// SetLastError(0).
+	MOVL	$0, 0x34(FS)
 
-	// Copy args to new stack.
+	// Copy args to the stack.
+	MOVL	wincall_n(DX), CX	// words
 	MOVL	CX, BX
 	SALL	$2, BX
 	SUBL	BX, SP			// room for args
 	MOVL	SP, DI
-	MOVL	BP, SI
+	MOVL	wincall_args(DX), SI
 	CLD
 	REP; MOVSL
 
 	// Call stdcall function.
+	MOVL	wincall_fn(DX), AX
 	CALL	AX
 
-	// Restore original SP, g.
-	get_tls(DI)
-	POPL	g(DI)
-	POPL	SP
+	// Return result.
+	MOVL	c+0(FP), DX
+	MOVL	AX, wincall_r(DX)
 
-	// Someday the convention will be D is always cleared.
-	CLD
+	// GetLastError().
+	MOVL	0x34(FS), BX
+	MOVL	BX, wincall_err(DX)
 
 	RET
 
