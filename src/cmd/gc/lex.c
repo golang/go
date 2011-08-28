@@ -78,13 +78,17 @@ usage(void)
 	print("flags:\n");
 	// -A is allow use of "any" type, for bootstrapping
 	print("  -I DIR search for packages in DIR\n");
+	print("  -L show full path in file:line prints\n");
+	print("  -N disable optimizer\n");
+	print("  -S print the assembly language\n");
+	print("  -V print the compiler version\n");
 	print("  -d print declarations\n");
 	print("  -e no limit on number of errors printed\n");
 	print("  -f print stack frame structure\n");
 	print("  -h panic on an error\n");
+	print("  -m print about moves to heap\n");
 	print("  -o file specify output file\n");
-	print("  -S print the assembly language\n");
-	print("  -V print the compiler version\n");
+	print("  -s disable escape analysis\n");
 	print("  -u disable package unsafe\n");
 	print("  -w print the parse tree after typing\n");
 	print("  -x print lex tokens\n");
@@ -273,7 +277,7 @@ main(int argc, char *argv[])
 		errorexit();
 
 	// Phase 3b: escape analysis.
-	if(debug['s'])
+	if(!debug['s'])
 		escapes();
 
 	// Phase 4: Compile function bodies.

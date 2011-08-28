@@ -211,6 +211,18 @@ enum
 
 struct	Node
 {
+	// Tree structure.
+	// Generic recursive walks should follow these fields.
+	Node*	left;
+	Node*	right;
+	Node*	ntest;
+	Node*	nincr;
+	NodeList*	ninit;
+	NodeList*	nbody;
+	NodeList*	nelse;
+	NodeList*	list;
+	NodeList*	rlist;
+
 	uchar	op;
 	uchar	ullman;		// sethi/ullman number
 	uchar	addable;	// type of addressability - 0 is not addressable
@@ -236,25 +248,9 @@ struct	Node
 	uchar	implicit;	// don't show in printout
 
 	// most nodes
-	Node*	left;
-	Node*	right;
 	Type*	type;
 	Type*	realtype;	// as determined by typecheck
-	NodeList*	list;
-	NodeList*	rlist;
 	Node*	orig;		// original form, for printing, and tracking copies of ONAMEs
-
-	// for-body
-	NodeList*	ninit;
-	Node*	ntest;
-	Node*	nincr;
-	NodeList*	nbody;
-
-	// if-body
-	NodeList*	nelse;
-
-	// cases
-	Node*	ncase;
 
 	// func
 	Node*	nname;
@@ -289,7 +285,6 @@ struct	Node
 	// Escape analysis.
 	NodeList* escflowsrc;	// flow(this, src)
 	int	escloopdepth;	// -1: global, 0: not set, function top level:1, increased inside function for every loop or label to mark scopes
-	int	escfloodgen;	// increased for every flood to detect loops
 
 	Sym*	sym;		// various
 	int32	vargen;		// unique name for OTYPE/ONAME
@@ -299,9 +294,25 @@ struct	Node
 	int32	stkdelta;	// offset added by stack frame compaction phase.
 	int32	ostk;
 	int32	iota;
+	uint32	walkgen;
 };
 #define	N	((Node*)0)
-EXTERN	int32	walkgen;
+
+/*
+ * Every node has a walkgen field.
+ * If you want to do a traversal of a node graph that
+ * might contain duplicates and want to avoid
+ * visiting the same nodes twice, increment walkgen
+ * before starting.  Then before processing a node, do
+ *
+ *	if(n->walkgen == walkgen)
+ *		return;
+ *	n->walkgen = walkgen;
+ *
+ * Such a walk cannot call another such walk recursively,
+ * because of the use of the global walkgen.
+ */
+EXTERN	uint32	walkgen;
 
 struct	NodeList
 {
@@ -1189,6 +1200,7 @@ uint32	typehash(Type *t);
 void	ullmancalc(Node *n);
 void	umagic(Magic *m);
 void	warn(char *fmt, ...);
+void	warnl(int line, char *fmt, ...);
 void	yyerror(char *fmt, ...);
 void	yyerrorl(int line, char *fmt, ...);
 

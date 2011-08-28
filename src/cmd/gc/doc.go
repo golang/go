@@ -39,8 +39,6 @@ Flags:
 		show entire file path when printing line numbers in errors
 	-I dir1 -I dir2
 		add dir1 and dir2 to the list of paths to check for imported packages
-	-N
-		disable optimization
 	-S
 		write assembly language text to standard output
 	-u

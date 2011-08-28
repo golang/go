@@ -13,7 +13,7 @@ static	Node*	makenewvar(Type*, NodeList**, Node**);
 static	Node*	ascompatee1(int, Node*, Node*, NodeList**);
 static	NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
 static	NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
-static	NodeList*	ascompatte(int, int, Type**, NodeList*, int, NodeList**);
+static	NodeList*	ascompatte(int, Node*, int, Type**, NodeList*, int, NodeList**);
 static	Node*	convas(Node*, NodeList**);
 static	void	heapmoves(void);
 static	NodeList*	paramstoheap(Type **argin, int out);
@@ -289,7 +289,7 @@ walkstmt(Node **np)
 			n->list = reorder3(ll);
 			break;
 		}
-		ll = ascompatte(n->op, 0, getoutarg(curfn->type), n->list, 1, &n->ninit);
+		ll = ascompatte(n->op, nil, 0, getoutarg(curfn->type), n->list, 1, &n->ninit);
 		n->list = ll;
 		break;
 
@@ -484,7 +484,7 @@ walkexpr(Node **np, NodeList **init)
 			goto ret;
 		walkexpr(&n->left, init);
 		walkexprlist(n->list, init);
-		ll = ascompatte(n->op, n->isddd, getinarg(t), n->list, 0, init);
+		ll = ascompatte(n->op, n, n->isddd, getinarg(t), n->list, 0, init);
 		n->list = reorder1(ll);
 		goto ret;
 
@@ -501,7 +501,7 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&n->left, init);
 		walkexprlist(n->list, init);
 
-		ll = ascompatte(n->op, n->isddd, getinarg(t), n->list, 0, init);
+		ll = ascompatte(n->op, n, n->isddd, getinarg(t), n->list, 0, init);
 		n->list = reorder1(ll);
 		goto ret;
 
@@ -511,8 +511,8 @@ walkexpr(Node **np, NodeList **init)
 			goto ret;
 		walkexpr(&n->left, init);
 		walkexprlist(n->list, init);
-		ll = ascompatte(n->op, 0, getthis(t), list1(n->left->left), 0, init);
-		lr = ascompatte(n->op, n->isddd, getinarg(t), n->list, 0, init);
+		ll = ascompatte(n->op, n, 0, getthis(t), list1(n->left->left), 0, init);
+		lr = ascompatte(n->op, n, n->isddd, getinarg(t), n->list, 0, init);
 		ll = concat(ll, lr);
 		n->left->left = N;
 		ullmancalc(n->left);
@@ -977,7 +977,16 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case ONEW:
-		n = callnew(n->type->type);
+		if(n->esc == EscNone && n->type->type->width < (1<<16)) {
+			r = nod(OXXX, N, N);
+			tempname(r, n->type->type);
+			*init = list(*init, nod(OAS, r, N));  // zero temp
+			r = nod(OADDR, r, N);
+			typecheck(&r, Erv);
+			n = r;
+		} else {
+			n = callnew(n->type->type);
+		}
 		goto ret;
 
 	case OCMPSTR:
@@ -1315,21 +1324,27 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
  * package all the arguments that match a ... T parameter into a []T.
  */
 static NodeList*
-mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
+mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init, int esc)
 {
 	Node *a, *n;
 	Type *tslice;
-
+	
 	tslice = typ(TARRAY);
 	tslice->type = l->type->type;
 	tslice->bound = -1;
 
-	n = nod(OCOMPLIT, N, typenod(tslice));
-	n->list = lr0;
-	typecheck(&n, Erv);
-	if(n->type == T)
-		fatal("mkdotargslice: typecheck failed");
-	walkexpr(&n, init);
+	if(count(lr0) == 0) {
+		n = nodnil();
+		n->type = tslice;
+	} else {
+		n = nod(OCOMPLIT, N, typenod(tslice));
+		n->list = lr0;
+		n->esc = esc;
+		typecheck(&n, Erv);
+		if(n->type == T)
+			fatal("mkdotargslice: typecheck failed");
+		walkexpr(&n, init);
+	}
 
 	a = nod(OAS, nodarg(l, fp), n);
 	nn = list(nn, convas(a, init));
@@ -1393,8 +1408,9 @@ dumpnodetypes(NodeList *l, char *what)
  *	func(expr-list)
  */
 static NodeList*
-ascompatte(int op, int isddd, Type **nl, NodeList *lr, int fp, NodeList **init)
+ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeList **init)
 {
+	int esc;
 	Type *l, *ll;
 	Node *r, *a;
 	NodeList *nn, *lr0, *alist;
@@ -1458,7 +1474,10 @@ loop:
 		// normal case -- make a slice of all
 		// remaining arguments and pass it to
 		// the ddd parameter.
-		nn = mkdotargslice(lr, nn, l, fp, init);
+		esc = EscUnknown;
+		if(call->right)
+			esc = call->right->esc;
+		nn = mkdotargslice(lr, nn, l, fp, init, esc);
 		goto ret;
 	}
 

@@ -538,7 +538,7 @@ reswitch:
 			goto error;
 		// top&Eindir means this is &x in *&x.  (or the arg to built-in print)
 		// n->etype means code generator flagged it as non-escaping.
-		if(!(top & Eindir) && !n->etype && !debug['s'])
+		if(debug['s'] && !(top & Eindir) && !n->etype)
 			addrescapes(n->left);
 		n->type = ptrto(t);
 		goto ret;
@@ -1607,7 +1607,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
 		if(!eqtype(rcvr, tt)) {
 			if(rcvr->etype == tptr && eqtype(rcvr->type, tt)) {
 				checklvalue(n->left, "call pointer method on");
-				if(!debug['s'])
+				if(debug['s'])
 					addrescapes(n->left);
 				n->left = nod(OADDR, n->left, N);
 				n->left->implicit = 1;
