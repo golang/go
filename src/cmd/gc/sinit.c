@@ -410,7 +410,6 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 	dowidth(t);
 
 	if(ctxt != 0) {
-
 		// put everything into static array
 		vstat = staticname(t, ctxt);
 		arraylit(ctxt, 1, n, vstat, init);
@@ -457,9 +456,15 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 	vauto = nod(OXXX, N, N);
 	tempname(vauto, ptrto(t));
 
-	// set auto to point at new heap (3 assign)
-	a = nod(ONEW, N, N);
-	a->list = list1(typenod(t));
+	// set auto to point at new temp or heap (3 assign)
+	if(n->esc == EscNone) {
+		a = nod(OXXX, N, N);
+		tempname(a, t);
+		a = nod(OADDR, a, N);
+	} else {
+		a = nod(ONEW, N, N);
+		a->list = list1(typenod(t));
+	}
 	a = nod(OAS, vauto, a);
 	typecheck(&a, Etop);
 	walkexpr(&a, init);

@@ -212,6 +212,16 @@ warn(char *fmt, ...)
 }
 
 void
+warnl(int line, char *fmt, ...)
+{
+	va_list arg;
+
+	va_start(arg, fmt);
+	adderr(line, fmt, arg);
+	va_end(arg);
+}
+
+void
 fatal(char *fmt, ...)
 {
 	va_list arg;
@@ -485,6 +495,7 @@ nod(int op, Node *nleft, Node *nright)
 	n->lineno = parserline();
 	n->xoffset = BADWIDTH;
 	n->orig = n;
+	n->curfn = curfn;
 	return n;
 }
 

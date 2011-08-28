@@ -98,7 +98,7 @@ addrescapes(Node *n)
 		if(n->class == PAUTO && n->esc == EscNever)
 			break;
 
-		if(!debug['s'] && n->esc != EscUnknown)
+		if(debug['s'] && n->esc != EscUnknown)
 			fatal("without escape analysis, only PAUTO's should have esc: %N", n);
 
 		switch(n->class) {
@@ -121,8 +121,8 @@ addrescapes(Node *n)
 				fatal("addrescapes before param assignment");
 			n->stackparam->xoffset = n->xoffset;
 			// fallthrough
-		case PAUTO:
 
+		case PAUTO:
 			n->class |= PHEAP;
 			n->addable = 0;
 			n->ullman = 2;
@@ -136,10 +136,8 @@ addrescapes(Node *n)
 			n->heapaddr->class = PHEAP-1;	// defer tempname to allocparams
 			n->heapaddr->ullman = 1;
 			n->curfn->dcl = list(n->curfn->dcl, n->heapaddr);
-
-			if(debug['s'])
+			if(!debug['s'])
 				n->esc = EscHeap;
-
 			if(debug['m'])
 				print("%L: moved to heap: %hN\n", n->lineno, n);
 

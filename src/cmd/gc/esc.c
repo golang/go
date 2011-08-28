@@ -2,22 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 //
-// The base version before this file existed, active with debug['s']
-// == 0, assumes any node that has a reference to it created at some
-// point, may flow to the global scope except
-//   - if its address is dereferenced immediately with only CONVNOPs in
-//     between the * and the &
-//   - if it is for a closure variable and the closure executed at the
-//     place it's defined
-//
-// Flag -s disables the old codepaths and switches on the code here:
+// Escape analysis.
 //
 // First escfunc, esc and escassign recurse over the ast of each
 // function to dig out flow(dst,src) edges between any
 // pointer-containing nodes and store them in dst->escflowsrc.  For
 // variables assigned to a variable in an outer scope or used as a
 // return value, they store a flow(theSink, src) edge to a fake node
-// 'the Sink'.	For variables referenced in closures, an edge
+// 'the Sink'.  For variables referenced in closures, an edge
 // flow(closure, &var) is recorded and the flow of a closure itself to
 // an outer scope is tracked the same way as other variables.
 //
@@ -25,9 +17,16 @@
 // variables of it can reach an & node as escaping and all function
 // parameters it can reach as leaking.
 //
-// Watch the variables moved to the heap and parameters tagged as
-// unsafe with -m, more detailed analysis output with -mm
+// If a value's address is taken but the address does not escape,
+// then the value can stay on the stack.  If the value new(T) does
+// not escape, then new(T) can be rewritten into a stack allocation.
+// The same is true of slice literals.
 //
+// If escape analysis is disabled (-s), this code is not used.
+// Instead, the compiler assumes that any value whose address
+// is taken without being immediately dereferenced
+// needs to be moved to the heap, and new(T) and slice
+// literals are always real allocations.
 
 #include <u.h>
 #include <libc.h>
@@ -53,9 +52,9 @@ static Node	theSink;
 static NodeList*	dsts;		// all dst nodes
 static int	loopdepth;	// for detecting nested loop scopes
 static int	pdepth;		// for debug printing in recursions.
-static int	floodgen;	// loop prevention in flood/walk
 static Strlit*	safetag;	// gets slapped on safe parameters' field types for export
 static int	dstcount, edgecount;	// diagnostic
+static NodeList*	noesc;	// list of possible non-escaping nodes, for printing
 
 void
 escapes(void)
@@ -85,7 +84,16 @@ escapes(void)
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
 			esctag(l->n);
+
+	if(debug['m']) {
+		for(l=noesc; l; l=l->next)
+			if(l->n->esc == EscNone)
+				warnl(l->n->lineno, "%S %#N does not escape",
+					(l->n->curfn && l->n->curfn->nname) ? l->n->curfn->nname->sym : S,
+					l->n);
+	}
 }
+
 
 static void
 escfunc(Node *func)
@@ -109,7 +117,10 @@ escfunc(Node *func)
 			ll->n->escloopdepth = loopdepth;
 			break;
 		case PPARAM:
+			if(ll->n->type && !haspointers(ll->n->type))
+				break;
 			ll->n->esc = EscNone;	// prime for escflood later
+			noesc = list(noesc, ll->n);
 			ll->n->escloopdepth = loopdepth;
 			break;
 		}
@@ -143,7 +154,7 @@ static void
 esc(Node *n)
 {
 	int lno;
-	NodeList *ll, *lr, *l;
+	NodeList *ll, *lr;
 
 	if(n == N)
 		return;
@@ -153,14 +164,15 @@ esc(Node *n)
 	if(n->op == OFOR || n->op == ORANGE)
 		loopdepth++;
 
-	esclist(n->ninit);
-	esclist(n->list);
-	esclist(n->rlist);
-	esc(n->ntest);
-	esc(n->nincr);
-	esclist(n->nbody);
 	esc(n->left);
 	esc(n->right);
+	esc(n->ntest);
+	esc(n->nincr);
+	esclist(n->ninit);
+	esclist(n->nbody);
+	esclist(n->nelse);
+	esclist(n->list);
+	esclist(n->rlist);
 
 	if(n->op == OFOR || n->op == ORANGE)
 		loopdepth--;
@@ -182,7 +194,7 @@ esc(Node *n)
 
 	case ORANGE:
 		// Everything but fixed array is a dereference.
-		if(isfixedarray(n->type))
+		if(isfixedarray(n->type) && n->list->next)
 			escassign(n->list->next->n, n->right);
 		break;
 
@@ -192,7 +204,6 @@ esc(Node *n)
 				// ntest->right is the argument of the .(type),
 				// ll->n->nname is the variable per case
 				escassign(ll->n->nname, n->ntest->right);
-				esclist(ll->n->nbody);
 			}
 		}
 		break;
@@ -253,23 +264,54 @@ esc(Node *n)
 	case OCALLINTER:
 		esccall(n);
 		break;
-	
+
 	case OCONV:
 	case OCONVNOP:
 	case OCONVIFACE:
 		escassign(n, n->left);
 		break;
-	
+
 	case OARRAYLIT:
-	case OSTRUCTLIT:
-		for(l=n->list; l; l=l->next)
-			escassign(n, l->n->right);
-		break;
-	case OMAPLIT:
-		for(l=n->list; l; l=l->next) {
-			escassign(n, l->n->left);
-			escassign(n, l->n->right);
+		if(isslice(n->type)) {
+			n->esc = EscNone;  // until proven otherwise
+			noesc = list(noesc, n);
+			n->escloopdepth = loopdepth;
+			// Values make it to memory, lose track.
+			for(ll=n->list; ll; ll=ll->next)
+				escassign(&theSink, ll->n->right);
+		} else {
+			// Link values to array.
+			for(ll=n->list; ll; ll=ll->next)
+				escassign(n, ll->n->right);
 		}
+		break;
+
+	case OSTRUCTLIT:
+		// Link values to struct.
+		for(ll=n->list; ll; ll=ll->next)
+			escassign(n, ll->n->right);
+		break;
+
+	case OMAPLIT:
+		n->esc = EscNone;  // until proven otherwise
+		noesc = list(noesc, n);
+		n->escloopdepth = loopdepth;
+		// Keys and values make it to memory, lose track.
+		for(ll=n->list; ll; ll=ll->next) {
+			escassign(&theSink, ll->n->left);
+			escassign(&theSink, ll->n->right);
+		}
+		break;
+	
+	case OADDR:
+	case OCLOSURE:
+	case OMAKECHAN:
+	case OMAKEMAP:
+	case OMAKESLICE:
+	case ONEW:
+		n->escloopdepth = loopdepth;
+		n->esc = EscNone;  // until proven otherwise
+		noesc = list(noesc, n);
 		break;
 	}
 
@@ -284,7 +326,6 @@ static void
 escassign(Node *dst, Node *src)
 {
 	int lno;
-	NodeList *ll;
 
 	if(isblank(dst) || dst == N || src == N || src->op == ONONAME || src->op == OXXX)
 		return;
@@ -336,11 +377,6 @@ escassign(Node *dst, Node *src)
 		break;
 	}
 
-	if(src->typecheck == 0 && src->op != OKEY) {
-		dump("escassign missing typecheck", src);
-		fatal("escassign");
-	}
-
 	lno = setlineno(src);
 	pdepth++;
 
@@ -350,6 +386,10 @@ escassign(Node *dst, Node *src)
 	case ODOTPTR:	// dst = (*x).f
 	case ONAME:
 	case OPARAM:
+	case ODDDARG:
+	case OARRAYLIT:
+	case OMAPLIT:
+	case OSTRUCTLIT:
 		// loopdepth was set in the defining statement or function header
 		escflows(dst, src);
 		break;
@@ -377,32 +417,39 @@ escassign(Node *dst, Node *src)
 			escassign(dst, src->left);
 		break;
 
-	case OARRAYLIT:
-	case OSTRUCTLIT:
-	case OMAPLIT:
-		src->escloopdepth = loopdepth;
-		escflows(dst, src);
-		for(ll=src->list; ll; ll=ll->next) {
-			escassign(src, ll->n->left);
-			escassign(src, ll->n->right);
-		}
-		break;
-
 	case OMAKECHAN:
 	case OMAKEMAP:
 	case OMAKESLICE:
 	case ONEW:
-		src->curfn = curfn;  // should have been done in parse, but patch it up here.
-		src->escloopdepth = loopdepth;
 		escflows(dst, src);
 		break;
 
 	case OCLOSURE:
-		src->curfn = curfn;  // should have been done in parse, but patch it up here.
-		src->escloopdepth = loopdepth;
 		escflows(dst, src);
 		escfunc(src);
 		break;
+
+	case OADD:
+	case OSUB:
+	case OOR:
+	case OXOR:
+	case OMUL:
+	case ODIV:
+	case OMOD:
+	case OLSH:
+	case ORSH:
+	case OAND:
+	case OANDNOT:
+	case OPLUS:
+	case OMINUS:
+	case OCOM:
+		// Might be pointer arithmetic, in which case
+		// the operands flow into the result.
+		// TODO(rsc): Decide what the story is here.  This is unsettling.
+		escassign(dst, src->left);
+		escassign(dst, src->right);
+		break;
+
 	}
 
 	pdepth--;
@@ -420,7 +467,7 @@ static void
 esccall(Node *n)
 {
 	NodeList *ll, *lr;
-	Node *a, *fn;
+	Node *a, *fn, *src;
 	Type *t, *fntype;
 
 	fn = N;
@@ -458,21 +505,32 @@ esccall(Node *n)
 		}
 	}
 			
-	if(fn && fn->ntype) {
+	if(fn && fn->op == ONAME && fn->class == PFUNC && fn->ntype) {
 		// Local function.  Incorporate into flow graph.
 
 		// Receiver.
 		if(n->op != OCALLFUNC)
 			escassign(fn->ntype->left->left, n->left->left);
 
-		for(ll=n->list, lr=fn->ntype->list; ll && lr; ll=ll->next) {
-			if (lr->n->left)
-				escassign(lr->n->left, ll->n);
-			else 
-				escassign(&theSink, ll->n);
-			if(lr->n->left && !lr->n->left->isddd)
-				lr=lr->next;
+		for(lr=fn->ntype->list; ll && lr; ll=ll->next, lr=lr->next) {
+			src = ll->n;
+			if(lr->n->isddd && !n->isddd) {
+				// Introduce ODDDARG node to represent ... allocation.
+				src = nod(ODDDARG, N, N);
+				src->escloopdepth = loopdepth;
+				src->lineno = n->lineno;
+				src->esc = EscNone;  // until we find otherwise
+				noesc = list(noesc, src);
+				n->right = src;
+			}
+			if(lr->n->left != N)
+				escassign(lr->n->left, src);
+			if(src != ll->n)
+				break;
 		}
+		// "..." arguments are untracked
+		for(; ll; ll=ll->next)
+			escassign(&theSink, ll->n);
 		return;
 	}
 
@@ -483,11 +541,25 @@ esccall(Node *n)
 			escassign(&theSink, n->left->left);
 	}
 	for(t=getinargx(fntype)->type; ll; ll=ll->next) {
+		src = ll->n;
+		if(t->isddd && !n->isddd) {
+			// Introduce ODDDARG node to represent ... allocation.
+			src = nod(ODDDARG, N, N);
+			src->escloopdepth = loopdepth;
+			src->lineno = n->lineno;
+			src->esc = EscNone;  // until we find otherwise
+			noesc = list(noesc, src);
+			n->right = src;
+		}
 		if(!t->note || strcmp(t->note->s, safetag->s) != 0)
-			escassign(&theSink, ll->n);
-		if(t->down)
-			t = t->down;
+			escassign(&theSink, src);
+		if(src != ll->n)
+			break;
+		t = t->down;
 	}
+	// "..." arguments are untracked
+	for(; ll; ll=ll->next)
+		escassign(&theSink, ll->n);
 }
 
 // Store the link src->dst in dst, throwing out some quick wins.
@@ -536,12 +608,12 @@ escflood(Node *dst)
 	}
 
 	if(debug['m']>1)
-		print("\nescflood:%d: dst %hN scope:%#S[%d]\n", floodgen, dst,
+		print("\nescflood:%d: dst %hN scope:%#S[%d]\n", walkgen, dst,
 		      (dst->curfn && dst->curfn->nname) ? dst->curfn->nname->sym : S,
 		      dst->escloopdepth);
 
 	for(l = dst->escflowsrc; l; l=l->next) {
-		floodgen++;
+		walkgen++;
 		escwalk(0, dst, l->n);
 	}
 }
@@ -552,9 +624,9 @@ escwalk(int level, Node *dst, Node *src)
 	NodeList *ll;
 	int leaks;
 
-	if(src->escfloodgen == floodgen)
+	if(src->walkgen == walkgen)
 		return;
-	src->escfloodgen = floodgen;
+	src->walkgen = walkgen;
 
 	if(debug['m']>1)
 		print("escwalk: level:%d depth:%d %.*s %hN scope:%#S[%d]\n",
@@ -570,19 +642,42 @@ escwalk(int level, Node *dst, Node *src)
 		if(src->class == PPARAM && leaks && src->esc == EscNone) {
 			src->esc = EscScope;
 			if(debug['m'])
-				print("%L:leaking param: %hN\n", src->lineno, src);
+				warnl(src->lineno, "leaking param: %hN", src);
 		}
 		break;
 
 	case OADDR:
-		if(leaks)
+		if(leaks) {
+			src->esc = EscHeap;
 			addrescapes(src->left);
+			if(debug['m'])
+				warnl(src->lineno, "%#N escapes to heap", src);
+		}
 		escwalk(level-1, dst, src->left);
+		break;
+
+	case OARRAYLIT:
+		if(isfixedarray(src->type))
+			break;
+		// fall through
+	case ODDDARG:
+	case OMAKECHAN:
+	case OMAKEMAP:
+	case OMAKESLICE:
+	case OMAPLIT:
+	case ONEW:
+	case OCLOSURE:
+		if(leaks) {
+			src->esc = EscHeap;
+			if(debug['m'])
+				warnl(src->lineno, "%#N escapes to heap", src);
+		}
 		break;
 
 	case OINDEX:
 		if(isfixedarray(src->type))
 			break;
+		// fall through
 	case OSLICE:
 	case ODOTPTR:
 	case OINDEXMAP:
@@ -616,8 +711,6 @@ esctag(Node *func)
 		case EscHeap:	// touched by escflood, moved to heap
 		case EscScope:	// touched by escflood, value leaves scope
 			break;
-		default:
-			fatal("messed up escape tagging: %N::%N", curfn, ll->n);
 		}
 	}
 
