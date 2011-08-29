@@ -38,7 +38,8 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
 	if e != 0 {
 		return nil, NewSyscallError("wait", e)
 	}
-	if options&WSTOPPED == 0 {
+	// With WNOHANG pid is 0 if child has not exited.
+	if pid1 != 0 && options&WSTOPPED == 0 {
 		p.done = true
 	}
 	w = new(Waitmsg)
