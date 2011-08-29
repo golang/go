@@ -182,3 +182,27 @@ os·sigpipe(void)
 	sigaction(SIGPIPE, SIG_DFL, false);
 	runtime·raisesigpipe();
 }
+
+#define AT_NULL		0
+#define AT_SYSINFO	32
+extern uint32 runtime·_vdso;
+
+#pragma textflag 7
+void runtime·linux_setup_vdso(int32 argc, void *argv_list)
+{
+	byte **argv = &argv_list;
+	byte **envp;
+	uint32 *auxv;
+
+	// skip envp to get to ELF auxiliary vector.
+	for(envp = &argv[argc+1]; *envp != nil; envp++)
+		;
+	envp++;
+	
+	for(auxv=(uint32*)envp; auxv[0] != AT_NULL; auxv += 2) {
+		if(auxv[0] == AT_SYSINFO) {
+			runtime·_vdso = auxv[1];
+			break;
+		}
+	}		
+}

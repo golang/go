@@ -285,6 +285,8 @@ oclass(Adr *a)
 				}
 				return Yxxx;
 			}
+			//if(a->type == D_INDIR+D_ADDR)
+			//	print("*Ycol\n");
 			return Ycol;
 		}
 		return Ym;
@@ -1141,6 +1143,18 @@ found:
 		r->type = D_PCREL;
 		r->siz = 4;
 		r->add = p->to.offset;
+		put4(0);
+		break;
+	
+	case Zcallind:
+		*andptr++ = op;
+		*andptr++ = o->op[z+1];
+		r = addrel(cursym);
+		r->off = p->pc + andptr - and;
+		r->type = D_ADDR;
+		r->siz = 4;
+		r->add = p->to.offset;
+		r->sym = p->to.sym;
 		put4(0);
 		break;
 

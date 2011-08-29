@@ -260,6 +260,7 @@ uchar	yloop[] =
 uchar	ycall[] =
 {
 	Ynone,	Yml,	Zo_m,	2,
+	Ynone,	Ycol,	Zcallind,	2,
 	Ynone,	Ybr,	Zcall,	0,
 	Ynone,	Yi32,	Zcallcon,	1,
 	0
@@ -383,7 +384,7 @@ Optab optab[] =
 	{ ABTSL,	yml_rl,	Pm, 0xab },
 	{ ABTSW,	yml_rl,	Pq, 0xab },
 	{ ABYTE,	ybyte,	Px, 1 },
-	{ ACALL,	ycall,	Px, 0xff,(02),0xe8 },
+	{ ACALL,	ycall,	Px, 0xff,(02),0xff,(0x15),0xe8 },
 	{ ACLC,		ynone,	Px, 0xf8 },
 	{ ACLD,		ynone,	Px, 0xfc },
 	{ ACLI,		ynone,	Px, 0xfa },

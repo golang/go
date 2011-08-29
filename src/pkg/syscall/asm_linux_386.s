@@ -17,7 +17,7 @@ TEXT	·Syscall(SB),7,$0
 	MOVL	16(SP), DX
 	MOVL	$0, SI
 	MOVL	$0,  DI
-	INT	$0x80
+	CALL	*runtime·_vdso(SB)
 	CMPL	AX, $0xfffff001
 	JLS	ok
 	MOVL	$-1, 20(SP)	// r1
@@ -43,7 +43,7 @@ TEXT	·Syscall6(SB),7,$0
 	MOVL	20(SP), SI
 	MOVL	24(SP), DI
 	MOVL	28(SP), BP
-	INT	$0x80
+	CALL	*runtime·_vdso(SB)
 	CMPL	AX, $0xfffff001
 	JLS	ok6
 	MOVL	$-1, 32(SP)	// r1
@@ -67,7 +67,7 @@ TEXT ·RawSyscall(SB),7,$0
 	MOVL	16(SP), DX
 	MOVL	$0, SI
 	MOVL	$0,  DI
-	INT	$0x80
+	CALL	*runtime·_vdso(SB)
 	CMPL	AX, $0xfffff001
 	JLS	ok1
 	MOVL	$-1, 20(SP)	// r1
@@ -90,7 +90,7 @@ TEXT	·RawSyscall6(SB),7,$0
 	MOVL	20(SP), SI
 	MOVL	24(SP), DI
 	MOVL	28(SP), BP
-	INT	$0x80
+	CALL	*runtime·_vdso(SB)
 	CMPL	AX, $0xfffff001
 	JLS	ok2
 	MOVL	$-1, 32(SP)	// r1
@@ -116,7 +116,7 @@ TEXT ·socketcall(SB),7,$0
 	MOVL	$0, DX
 	MOVL	$0, SI
 	MOVL	$0,  DI
-	INT	$0x80
+	CALL	*runtime·_vdso(SB)
 	CMPL	AX, $0xfffff001
 	JLS	oksock
 	MOVL	$-1, 32(SP)	// n
@@ -139,7 +139,7 @@ TEXT ·rawsocketcall(SB),7,$0
 	MOVL	$0, DX
 	MOVL	$0, SI
 	MOVL	$0,  DI
-	INT	$0x80
+	CALL	*runtime·_vdso(SB)
 	CMPL	AX, $0xfffff001
 	JLS	oksock1
 	MOVL	$-1, 32(SP)	// n
@@ -165,7 +165,7 @@ TEXT ·Seek(SB),7,$0
 	MOVL	8(SP), DX	// offset-low
 	LEAL	20(SP), SI	// result pointer
 	MOVL	16(SP),  DI	// whence
-	INT	$0x80
+	CALL	*runtime·_vdso(SB)
 	CMPL	AX, $0xfffff001
 	JLS	okseek
 	MOVL	$-1, 20(SP)	// newoffset low
