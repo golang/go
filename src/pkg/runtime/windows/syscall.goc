@@ -20,6 +20,10 @@ func NewCallback(fn Eface) (code uintptr) {
 	code = (uintptr)runtime·compilecallback(fn, true);
 }
 
+func NewCallbackCDecl(fn Eface) (code uintptr) {
+	code = (uintptr)runtime·compilecallback(fn, false);
+}
+
 func Syscall(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
 	USED(a2);
 	USED(a3);
