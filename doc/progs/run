@@ -15,7 +15,7 @@ fi
 rm -f *.$O
 
 if [ "$GOOS" = "windows" ];then
-	$GC -o file.8 file_windows.go
+	$GC -o file.$O file_windows.go
 else
 	$GC file.go
 fi
