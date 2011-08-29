@@ -774,3 +774,9 @@ func foo118(unknown func(*int)) {  // ERROR "unknown does not escape"
 	x := 1 // ERROR "moved to heap: NAME-x"
 	unknown(&x) // ERROR "&x escapes to heap"
 }
+
+func external(*int)
+
+func foo119(x *int) {  // ERROR "leaking param: NAME-x"
+	external(x)
+}
