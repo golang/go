@@ -21,8 +21,8 @@ const (
 )
 
 // An IP is a single IP address, an array of bytes.
-// Functions in this package accept either 4-byte (IP v4)
-// or 16-byte (IP v6) arrays as input.  Unless otherwise
+// Functions in this package accept either 4-byte (IPv4)
+// or 16-byte (IPv6) arrays as input.  Unless otherwise
 // specified, functions in this package always return
 // IP addresses in 16-byte form using the canonical
 // embedding.
@@ -51,17 +51,14 @@ func IPv4(a, b, c, d byte) IP {
 
 var v4InV6Prefix = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff}
 
-// IPv4Mask returns the IP mask (in 16-byte form) of the
+// IPv4Mask returns the IP mask (in 4-byte form) of the
 // IPv4 mask a.b.c.d.
 func IPv4Mask(a, b, c, d byte) IPMask {
-	p := make(IPMask, IPv6len)
-	for i := 0; i < 12; i++ {
-		p[i] = 0xff
-	}
-	p[12] = a
-	p[13] = b
-	p[14] = c
-	p[15] = d
+	p := make(IPMask, IPv4len)
+	p[0] = a
+	p[1] = b
+	p[2] = c
+	p[3] = d
 	return p
 }
 
@@ -213,13 +210,13 @@ func allFF(b []byte) bool {
 
 // Mask returns the result of masking the IP address ip with mask.
 func (ip IP) Mask(mask IPMask) IP {
-	n := len(ip)
 	if len(mask) == IPv6len && len(ip) == IPv4len && allFF(mask[:12]) {
 		mask = mask[12:]
 	}
 	if len(mask) == IPv4len && len(ip) == IPv6len && bytesEqual(ip[:12], v4InV6Prefix) {
 		ip = ip[12:]
 	}
+	n := len(ip)
 	if n != len(mask) {
 		return nil
 	}
@@ -238,7 +235,7 @@ func (ip IP) String() string {
 	p := ip
 
 	if len(ip) == 0 {
-		return ""
+		return "<nil>"
 	}
 
 	// If IPv4, use dotted notation.
@@ -345,25 +342,27 @@ func simpleMaskLength(mask IPMask) int {
 	return n
 }
 
-// String returns the string representation of mask.
-// If the mask is in the canonical form--ones followed by zeros--the
-// string representation is just the decimal number of ones.
-// If the mask is in a non-canonical form, it is formatted
-// as an IP address.
-func (mask IPMask) String() string {
-	switch len(mask) {
-	case IPv4len:
-		n := simpleMaskLength(mask)
-		if n >= 0 {
-			return itod(uint(n + (IPv6len-IPv4len)*8))
-		}
-	case IPv6len:
-		n := simpleMaskLength(mask)
-		if n >= 12*8 {
-			return itod(uint(n - 12*8))
-		}
+// Size returns the number of leading ones and total bits in the mask.
+// If the mask is not in the canonical form--ones followed by zeros--then
+// Size returns 0, 0.
+func (m IPMask) Size() (ones, bits int) {
+	ones, bits = simpleMaskLength(m), len(m)*8
+	if ones == -1 {
+		return 0, 0
 	}
-	return IP(mask).String()
+	return
+}
+
+// String returns the hexadecimal form of m, with no punctuation.
+func (m IPMask) String() string {
+	s := ""
+	for _, b := range m {
+		s += itox(uint(b), 2)
+	}
+	if len(s) == 0 {
+		return "<nil>"
+	}
+	return s
 }
 
 // Parse IPv4 address (d.d.d.d).
@@ -535,7 +534,7 @@ func ParseIP(s string) IP {
 }
 
 // ParseCIDR parses s as a CIDR notation IP address and mask,
-// like "192.168.100.1/24", "2001:DB8::/48", as defined in
+// like "192.168.100.1/24" or "2001:DB8::/48", as defined in
 // RFC 4632 and RFC 4291.
 func ParseCIDR(s string) (ip IP, mask IPMask, err os.Error) {
 	i := byteIndex(s, '/')
@@ -571,8 +570,12 @@ func ParseCIDR(s string) (ip IP, mask IPMask, err os.Error) {
 		}
 	}
 	// address must not have any bits not in mask
-	for i := range ip {
-		if ip[i]&^mask[i] != 0 {
+	mip := ip
+	if iplen == IPv4len {
+		mip = ip[12:]
+	}
+	for i := range mip {
+		if mip[i]&^mask[i] != 0 {
 			return nil, nil, &ParseError{"CIDR address", s}
 		}
 	}
