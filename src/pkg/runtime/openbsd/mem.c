@@ -3,6 +3,11 @@
 #include "os.h"
 #include "malloc.h"
 
+enum
+{
+	ENOMEM = 12,
+};
+
 void*
 runtime·SysAlloc(uintptr n)
 {
@@ -33,19 +38,20 @@ runtime·SysFree(void *v, uintptr n)
 void*
 runtime·SysReserve(void *v, uintptr n)
 {
+	void *p;
+
 	// On 64-bit, people with ulimit -v set complain if we reserve too
 	// much address space.  Instead, assume that the reservation is okay
 	// and check the assumption in SysMap.
 	if(sizeof(void*) == 8)
 		return v;
-	
-	return runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
-}
 
-enum
-{
-	ENOMEM = 12,
-};
+	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+	if (p == ((void *)-ENOMEM))
+		return nil;
+	else
+		return p;
+}
 
 void
 runtime·SysMap(void *v, uintptr n)
