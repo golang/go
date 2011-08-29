@@ -163,3 +163,6 @@ int	Yconv(Fmt*);
 void	listinit(void);
 
 void	zaddr(Biobuf*, Addr*, int);
+
+#pragma	varargck	type	"D"	Addr*
+#pragma	varargck	type	"M"	Addr*

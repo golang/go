@@ -844,7 +844,6 @@ mkvar(Reg *r, Adr *a)
 
 	// mark registers used
 	t = a->type;
-	n = D_NONE;
 
 	flag = 0;
 	switch(t) {

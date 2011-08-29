@@ -47,6 +47,9 @@ peep(void)
 	Reg *r, *r1, *r2;
 	Prog *p, *p1;
 	int t;
+
+	p1 = nil;
+	USED(p1);		// ... in unreachable code...
 /*
  * complete R structure
  */
@@ -117,12 +120,14 @@ loop1:
 			}
 			break;
 
+#ifdef	NOTDEF
 			if(p->scond == C_SCOND_NONE)
 			if(regtyp(&p->to))
 			if(isdconst(&p->from)) {
 				constprop(&p->from, &p->to, r->s1);
 			}
 			break;
+#endif
 		}
 	}
 	if(t)
@@ -130,6 +135,7 @@ loop1:
 
 return;
 
+#ifdef	NOTDEF
 	for(r=firstr; r!=R; r=r->link) {
 		p = r->prog;
 		switch(p->as) {
@@ -257,6 +263,7 @@ return;
 //	}
 
 	predicate();
+#endif
 }
 
 Reg*
@@ -1161,7 +1168,6 @@ copyu(Prog *p, Adr *v, Adr *s)
 				return 3;
 		return 0;
 	}
-	return 0;
 }
 
 /*
