@@ -32,6 +32,9 @@ import const
 # numbers in an hg repo. When inserting a new commit, the parent commit must be
 # given and this is used to generate the new commit number. In order to create
 # the first Commit object, a special command (/init) is used.
+#
+# N.B. user is a StringProperty, so it must be type 'unicode'.
+# desc is a BlobProperty, so it must be type 'string'.  [sic]
 class Commit(db.Model):
     num = db.IntegerProperty() # internal, monotonic counter.
     node = db.StringProperty() # Hg hash
@@ -199,7 +202,7 @@ class Init(DashboardHandler):
         commit.num = 0
         commit.node = node
         commit.parentnode = ''
-        commit.user = self.request.get('user').encode('utf8')
+        commit.user = self.request.get('user')
         commit.date = date
         commit.desc = self.request.get('desc').encode('utf8')
 
@@ -233,7 +236,7 @@ class CommitHandler(DashboardHandler):
 
         node = self.request.get('node')
         date = parseDate(self.request.get('date'))
-        user = self.request.get('user').encode('utf8')
+        user = self.request.get('user')
         desc = self.request.get('desc').encode('utf8')
         parenthash = self.request.get('parent')
 
@@ -276,7 +279,7 @@ class CommitHandler(DashboardHandler):
                 n.parentnode = parenthash
                 n.user = user
                 n.date = date
-                n.desc = desc
+                n.desc = desc.encode('utf8')
                 n.put()
             db.run_in_transaction(add_commit)
             n = nodeByHash(node)
@@ -294,7 +297,7 @@ class Build(webapp.RequestHandler):
             return
 
         builder = self.request.get('builder')
-        log = self.request.get('log').encode('utf-8')
+        log = self.request.get('log').encode('utf8')
 
         loghash = ''
         if len(log) > 0:
