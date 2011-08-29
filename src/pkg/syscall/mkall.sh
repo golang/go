@@ -166,6 +166,12 @@ plan9_386)
 	mksysnum="./mksysnum_plan9.sh /n/sources/plan9/sys/src/libc/9syscall/sys.h"
 	mktypes="godefs -gsyscall -f -m32"
 	;;
+openbsd_386)
+	mkerrors="$mkerrors -f -m32"
+	mksyscall="./mksyscall.pl -l32 -openbsd"
+	mksysnum="curl -s 'http://www.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_openbsd.pl"
+	mktypes="godefs -gsyscall -f-m32"
+	;;
 openbsd_amd64)
 	mkerrors="$mkerrors -f -m64"
 	mksyscall="./mksyscall.pl -openbsd"
