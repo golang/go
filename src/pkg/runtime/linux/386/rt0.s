@@ -5,5 +5,13 @@
 // Darwin and Linux use the same linkage to main
 
 TEXT _rt0_386_linux(SB),7,$0
-	JMP	_rt0_386(SB)
+	CALL	runtime·linux_setup_vdso(SB)
+	JMP		_rt0_386(SB)
+
+TEXT _fallback_vdso(SB),7,$0
+	INT	$0x80
+	RET
+
+DATA	runtime·_vdso(SB)/4, $_fallback_vdso(SB)
+GLOBL	runtime·_vdso(SB), $4
 

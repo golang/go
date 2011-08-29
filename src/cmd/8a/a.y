@@ -210,6 +210,13 @@ spec3:	/* JMP/CALL */
 		$$.from = nullgen;
 		$$.to = $1;
 	}
+|	'*' nam
+	{
+		$$.from = nullgen;
+		$$.to = $2;
+		$$.to.index = $2.type;
+		$$.to.type = D_INDIR+D_ADDR;
+	}
 
 spec4:	/* NOP */
 	nonnon

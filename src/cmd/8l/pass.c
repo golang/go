@@ -307,9 +307,12 @@ patch(void)
 					p->from.offset = 0;
 				}
 			}
-			if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
+			if((p->as == ACALL && p->to.type != D_BRANCH) || (p->as == AJMP && p->to.type != D_BRANCH)) {
 				s = p->to.sym;
-				if(s) {
+				if(p->to.type == D_INDIR+D_ADDR) {
+					 /* skip check if this is an indirect call (CALL *symbol(SB)) */
+					 continue;
+				} else if(s) {
 					if(debug['c'])
 						Bprint(&bso, "%s calls %s\n", TNAME, s->name);
 					if((s->type&~SSUB) != STEXT) {

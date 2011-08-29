@@ -182,7 +182,11 @@ relocsym(Sym *s)
 			o = symaddr(r->sym) + r->add;
 			break;
 		case D_PCREL:
-			o = symaddr(r->sym) + r->add - (s->value + r->off + r->siz);
+			// r->sym can be null when CALL $(constant) is transformed from absoulte PC to relative PC call.
+			o = 0;
+			if(r->sym)
+				o += symaddr(r->sym);
+			o += r->add - (s->value + r->off + r->siz);
 			break;
 		case D_SIZE:
 			o = r->sym->size + r->add;

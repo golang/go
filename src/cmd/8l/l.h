@@ -209,6 +209,7 @@ enum
 	Zbr,
 	Zcall,
 	Zcallcon,
+	Zcallind,
 	Zib_,
 	Zib_rp,
 	Zibo_m,
