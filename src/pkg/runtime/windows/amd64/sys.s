@@ -105,25 +105,21 @@ TEXT runtime·ctrlhandler(SB),7,$0
 	POPQ	SI
 	POPQ	BX
 	POPQ	BP
-	MOVQ	0(SP), CX
-	ADDQ	$16, SP
-	JMP	CX
+	RET
 	
 TEXT runtime·callbackasm(SB),7,$0
 	// TODO
 	RET
 
-// void tstart(M *newm);
-TEXT runtime·tstart(SB),7,$0
-	MOVQ	newm+8(SP), CX		// m
+// uint32 tstart_stdcall(M *newm);
+TEXT runtime·tstart_stdcall(SB),7,$0
+	// CX contains first arg newm
 	MOVQ	m_g0(CX), DX		// g
-
-	MOVQ	SP, DI			// remember stack
 
 	// Layout new m scheduler stack on os stack.
 	MOVQ	SP, AX
 	MOVQ	AX, g_stackbase(DX)
-	SUBQ	$(64*1024), AX	// stack size
+	SUBQ	$(64*1024), AX		// stack size
 	MOVQ	AX, g_stackguard(DX)
 
 	// Set up tls.
@@ -135,32 +131,10 @@ TEXT runtime·tstart(SB),7,$0
 	// Someday the convention will be D is always cleared.
 	CLD
 
-	PUSHQ	DI			// original stack
-
-	CALL	runtime·stackcheck(SB)		// clobbers AX,CX
-
+	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
 	CALL	runtime·mstart(SB)
 
-	POPQ	DI			// original stack
-	MOVQ	DI, SP
-	
-	RET
-
-// uint32 tstart_stdcall(M *newm);
-TEXT runtime·tstart_stdcall(SB),7,$0
-	MOVQ CX, BX // stdcall first arg in RCX
-
-	PUSHQ	BX
-	CALL	runtime·tstart+0(SB)
-	POPQ	BX
-
-	// Adjust stack for stdcall to return properly.
-	MOVQ	(SP), AX		// save return address
-	ADDQ	$8, SP			// remove single parameter
-	MOVQ	AX, (SP)		// restore return address
-
 	XORL	AX, AX			// return 0 == success
-
 	RET
 
 TEXT runtime·notok(SB),7,$0
@@ -172,4 +146,3 @@ TEXT runtime·notok(SB),7,$0
 TEXT runtime·settls(SB),7,$0
 	MOVQ	DI, 0x58(GS)
 	RET
-
