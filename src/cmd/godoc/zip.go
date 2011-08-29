@@ -183,9 +183,10 @@ func (z zipList) lookup(name string) (index int, exact bool) {
 	i := sort.Search(len(z), func(i int) bool {
 		return name <= z[i].Name
 	})
-	if i < 0 {
+	if i >= len(z) {
 		return -1, false
 	}
+	// 0 <= i < len(z)
 	if z[i].Name == name {
 		return i, true
 	}
@@ -196,9 +197,10 @@ func (z zipList) lookup(name string) (index int, exact bool) {
 	j := sort.Search(len(z), func(i int) bool {
 		return name <= z[i].Name
 	})
-	if j < 0 {
+	if j >= len(z) {
 		return -1, false
 	}
+	// 0 <= j < len(z)
 	if strings.HasPrefix(z[j].Name, name) {
 		return i + j, false
 	}
