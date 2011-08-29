@@ -496,7 +496,7 @@ contains(String s, int8 *p)
 }
 
 bool
-showframe(Func *f)
+runtime·showframe(Func *f)
 {
 	// return 1;  // for debugging - show all frames
 	return contains(f->name, ".") && !hasprefix(f->name, "runtime.");
