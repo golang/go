@@ -121,7 +121,14 @@ while(<>) {
 			push @args, "uintptr(_p$n)", "uintptr(len($name))";
 			$n++;
 		} elsif($type eq "int64" && $openbsd) {
-			push @args, "0", "uintptr($name)";
+			push @args, "0";
+			if($_32bit eq "big-endian") {
+				push @args, "uintptr($name>>32)", "uintptr($name)";
+			} elsif($_32bit eq "little-endian") {
+				push @args, "uintptr($name)", "uintptr($name>>32)";
+			} else {
+				push @args, "uintptr($name)";
+			}
 		} elsif($type eq "int64" && $_32bit ne "") {
 			if($_32bit eq "big-endian") {
 				push @args, "uintptr($name>>32)", "uintptr($name)";
