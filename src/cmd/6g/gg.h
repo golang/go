@@ -153,3 +153,5 @@ void	listinit(void);
 
 void	zaddr(Biobuf*, Addr*, int, int);
 
+#pragma	varargck	type	"D"	Addr*
+#pragma	varargck	type	"lD"	Addr*

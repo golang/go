@@ -993,7 +993,6 @@ loop:
 		if(p->from.dval == p0->from.dval)
 		if(p->from.index == p0->from.index) {
 			excise(r);
-			t++;
 			goto loop;
 		}
 		break;

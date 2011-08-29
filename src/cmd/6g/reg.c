@@ -179,7 +179,6 @@ regopt(Prog *firstp)
 	r1 = R;
 	firstr = R;
 	lastr = R;
-	nvar = 0;
 
 	/*
 	 * control flow is more complicated in generated go code

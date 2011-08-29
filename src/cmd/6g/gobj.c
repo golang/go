@@ -623,7 +623,6 @@ out:
 		// but 6l has a bug, and it can't handle
 		// JMP instructions too close to the top of
 		// a new function.
-		p = pc;
 		gins(ANOP, N, N);
 	}
 
