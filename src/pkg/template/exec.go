@@ -196,23 +196,25 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	val, _ := indirect(s.evalPipeline(dot, r.Pipe))
 	// mark top of stack before any variables in the body are pushed.
 	mark := s.mark()
+	oneIteration := func(index, elem reflect.Value) {
+		// Set top var (lexically the second if there are two) to the element.
+		if len(r.Pipe.Decl) > 0 {
+			s.setVar(1, elem)
+		}
+		// Set next var (lexically the first if there are two) to the index.
+		if len(r.Pipe.Decl) > 1 {
+			s.setVar(2, index)
+		}
+		s.walk(elem, r.List)
+		s.pop(mark)
+	}
 	switch val.Kind() {
 	case reflect.Array, reflect.Slice:
 		if val.Len() == 0 {
 			break
 		}
 		for i := 0; i < val.Len(); i++ {
-			elem := val.Index(i)
-			// Set top var (lexically the second if there are two) to the element.
-			if len(r.Pipe.Decl) > 0 {
-				s.setVar(1, elem)
-			}
-			// Set next var (lexically the first if there are two) to the index.
-			if len(r.Pipe.Decl) > 1 {
-				s.setVar(2, reflect.ValueOf(i))
-			}
-			s.walk(elem, r.List)
-			s.pop(mark)
+			oneIteration(reflect.ValueOf(i), val.Index(i))
 		}
 		return
 	case reflect.Map:
@@ -220,17 +222,23 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			break
 		}
 		for _, key := range val.MapKeys() {
-			elem := val.MapIndex(key)
-			// Set top var (lexically the second if there are two) to the element.
-			if len(r.Pipe.Decl) > 0 {
-				s.setVar(1, elem)
+			oneIteration(key, val.MapIndex(key))
+		}
+		return
+	case reflect.Chan:
+		if val.IsNil() {
+			break
+		}
+		i := 0
+		for ; ; i++ {
+			elem, ok := val.Recv()
+			if !ok {
+				break
 			}
-			// Set next var (lexically the first if there are two) to the key.
-			if len(r.Pipe.Decl) > 1 {
-				s.setVar(2, key)
-			}
-			s.walk(elem, r.List)
-			s.pop(mark)
+			oneIteration(reflect.ValueOf(i), elem)
+		}
+		if i == 0 {
+			break
 		}
 		return
 	case reflect.Invalid:
