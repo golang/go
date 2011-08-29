@@ -49,28 +49,61 @@ var ipstringtests = []struct {
 	out string
 }{
 	// cf. RFC 5952 (A Recommendation for IPv6 Address Text Representation)
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1},
-		"2001:db8::123:12:1"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1},
-		"2001:db8::1"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1},
-		"2001:db8:0:1:0:1:0:1"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0},
-		"2001:db8:1:0:1:0:1:0"},
-	{IP{0x20, 0x1, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1},
-		"2001::1:0:0:1"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0},
-		"2001:db8:0:0:1::"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1},
-		"2001:db8::1:0:0:1"},
-	{IP{0x20, 0x1, 0xD, 0xB8, 0, 0, 0, 0, 0, 0xA, 0, 0xB, 0, 0xC, 0, 0xD},
-		"2001:db8::a:b:c:d"},
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1}, "2001:db8::123:12:1"},
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1}, "2001:db8::1"},
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1}, "2001:db8:0:1:0:1:0:1"},
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0}, "2001:db8:1:0:1:0:1:0"},
+	{IP{0x20, 0x1, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1}, "2001::1:0:0:1"},
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0}, "2001:db8:0:0:1::"},
+	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1}, "2001:db8::1:0:0:1"},
+	{IP{0x20, 0x1, 0xD, 0xB8, 0, 0, 0, 0, 0, 0xA, 0, 0xB, 0, 0xC, 0, 0xD}, "2001:db8::a:b:c:d"},
+	{nil, "<nil>"},
 }
 
 func TestIPString(t *testing.T) {
 	for _, tt := range ipstringtests {
 		if out := tt.in.String(); out != tt.out {
 			t.Errorf("IP.String(%v) = %#q, want %#q", tt.in, out, tt.out)
+		}
+	}
+}
+
+var ipmasktests = []struct {
+	in   IP
+	mask IPMask
+	out  IP
+}{
+	{IPv4(192, 168, 1, 127), IPv4Mask(255, 255, 255, 128), IPv4(192, 168, 1, 0)},
+	{IPv4(192, 168, 1, 127), IPMask(ParseIP("255.255.255.192")), IPv4(192, 168, 1, 64)},
+	{IPv4(192, 168, 1, 127), IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffe0")), IPv4(192, 168, 1, 96)},
+	{IPv4(192, 168, 1, 127), IPv4Mask(255, 0, 255, 0), IPv4(192, 0, 1, 0)},
+	{ParseIP("2001:db8::1"), IPMask(ParseIP("ffff:ff80::")), ParseIP("2001:d80::")},
+	{ParseIP("2001:db8::1"), IPMask(ParseIP("f0f0:0f0f::")), ParseIP("2000:d08::")},
+}
+
+func TestIPMask(t *testing.T) {
+	for _, tt := range ipmasktests {
+		if out := tt.in.Mask(tt.mask); out == nil || !tt.out.Equal(out) {
+			t.Errorf("IP(%v).Mask(%v) = %v, want %v", tt.in, tt.mask, out, tt.out)
+		}
+	}
+}
+
+var ipmaskstringtests = []struct {
+	in  IPMask
+	out string
+}{
+	{IPv4Mask(255, 255, 255, 240), "fffffff0"},
+	{IPv4Mask(255, 0, 128, 0), "ff008000"},
+	{IPMask(ParseIP("ffff:ff80::")), "ffffff80000000000000000000000000"},
+	{IPMask(ParseIP("ef00:ff80::cafe:0")), "ef00ff800000000000000000cafe0000"},
+	{nil, "<nil>"},
+}
+
+func TestIPMaskString(t *testing.T) {
+	for _, tt := range ipmaskstringtests {
+		if out := tt.in.String(); out != tt.out {
+			t.Errorf("IPMask.String(%v) = %q, want %q", tt.in, out, tt.out)
 		}
 	}
 }
@@ -101,7 +134,7 @@ var parsecidrtests = []struct {
 
 func TestParseCIDR(t *testing.T) {
 	for _, tt := range parsecidrtests {
-		if ip, mask, err := ParseCIDR(tt.in); !isEqual(ip, tt.ip) || !isEqual(mask, tt.mask) || !reflect.DeepEqual(err, tt.err) {
+		if ip, mask, err := ParseCIDR(tt.in); !tt.ip.Equal(ip) || !isEqual(mask, tt.mask) || !reflect.DeepEqual(err, tt.err) {
 			t.Errorf("ParseCIDR(%q) = %v, %v, %v; want %v, %v, %v", tt.in, ip, mask, err, tt.ip, tt.mask, tt.err)
 		}
 	}
