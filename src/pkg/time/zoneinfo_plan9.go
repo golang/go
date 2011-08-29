@@ -67,9 +67,9 @@ func setupTestingZone() {
 	l, _ := f.Seek(0, 2)
 	f.Seek(0, 0)
 	buf := make([]byte, l)
-	_, err := f.Read(buf)
+	_, err = f.Read(buf)
 	if err != nil {
 		return
 	}
-	zones = parseZones(buf)
+	zones = parseZones(string(buf))
 }
