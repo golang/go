@@ -24,6 +24,10 @@ type writerTest struct {
 }
 
 var writerTests = []*writerTest{
+	// The writer test file was produced with this command:
+	// tar (GNU tar) 1.26
+	//   ln -s small.txt link.txt
+	//   tar -b 1 --format=ustar -c -f writer.tar small.txt small2.txt link.txt
 	&writerTest{
 		file: "testdata/writer.tar",
 		entries: []*writerTestEntry{
@@ -54,6 +58,21 @@ var writerTests = []*writerTest{
 					Gname:    "eng",
 				},
 				contents: "Google.com\n",
+			},
+			&writerTestEntry{
+				header: &Header{
+					Name:     "link.txt",
+					Mode:     0777,
+					Uid:      1000,
+					Gid:      1000,
+					Size:     0,
+					Mtime:    1314603082,
+					Typeflag: '2',
+					Linkname: "small.txt",
+					Uname:    "strings",
+					Gname:    "strings",
+				},
+				// no contents
 			},
 		},
 	},
