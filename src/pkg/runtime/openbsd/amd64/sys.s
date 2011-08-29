@@ -55,10 +55,10 @@ TEXT runtime·rfork_thread(SB),7,$0
 	// It shouldn't return.  If it does, exit
 	MOVL	$302, AX		// sys_threxit
 	SYSCALL
-	JMP	-3(PC)  // keep exiting
+	JMP	-3(PC)			// keep exiting
 
-TEXT runtime·sys_sched_yield(SB),7,$0
-	MOVL $298, AX
+TEXT runtime·osyield(SB),7,$0
+	MOVL $298, AX			// sys_sched_yield
 	SYSCALL
 	RET
 
@@ -123,11 +123,11 @@ TEXT runtime·gettime(SB),7,$32
 	MOVL	$116, AX		// sys_gettimeofday
 	SYSCALL
 
-	MOVQ	8(SP), BX	// sec
+	MOVQ	8(SP), BX		// sec
 	MOVQ	sec+0(FP), DI
 	MOVQ	BX, (DI)
 
-	MOVL	16(SP), BX	// usec
+	MOVL	16(SP), BX		// usec
 	MOVQ	usec+8(FP), DI
 	MOVL	BX, (DI)
 	RET

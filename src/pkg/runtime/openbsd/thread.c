@@ -9,19 +9,20 @@
 extern SigTab runtime·sigtab[];
 
 extern int64 runtime·rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
-extern void runtime·sys_sched_yield(void);
+
+enum
+{
+	ENOTSUP = 91,
+};
 
 // Basic spinlocks using CAS. We can improve on these later.
 static void
 lock(Lock *l)
 {
-	uint32 v;
-	int32 ret;
-
 	for(;;) {
 		if(runtime·cas(&l->key, 0, 1))
 			return;
-		runtime·sys_sched_yield();
+		runtime·osyield();
 	}
 }
 
@@ -29,7 +30,6 @@ static void
 unlock(Lock *l)
 {
 	uint32 v;
-	int32 ret;
 
 	for (;;) {
 		v = l->key;
@@ -103,8 +103,8 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 
 	if((ret = runtime·rfork_thread(flags, stk, m, g, fn)) < 0) {
 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount() - 1, -ret);
-		runtime·printf("runtime: is kern.rthreads disabled?\n");
-
+		if (ret == -ENOTSUP)
+			runtime·printf("runtime: is kern.rthreads disabled?\n");
 		runtime·throw("runtime.newosproc");
 	}
 }
