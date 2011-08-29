@@ -66,6 +66,7 @@ static	int	adotout(int, Fhdr*, ExecHdr*);
 static	int	elfdotout(int, Fhdr*, ExecHdr*);
 static	int	machdotout(int, Fhdr*, ExecHdr*);
 static	int	armdotout(int, Fhdr*, ExecHdr*);
+static	int	pedotout(int, Fhdr*, ExecHdr*);
 static	void	setsym(Fhdr*, vlong, int32, vlong, int32, vlong, int32);
 static	void	setdata(Fhdr*, uvlong, int32, vlong, int32);
 static	void	settext(Fhdr*, uvlong, uvlong, int32, vlong);
@@ -312,6 +313,15 @@ ExecTable exectab[] =
 		sizeof(Exec),
 		beswal,
 		common },
+	{ 0x4d5a9000,    /* see dosstub[] in pe.c */
+		"windows PE executable",
+		nil,
+		FWINPE,
+		0,
+		&mi386,
+		sizeof(Exec), /* TODO */
+		nil,
+		pedotout },
 	{ 0 },
 };
 
@@ -1246,6 +1256,164 @@ armdotout(int fd, Fhdr *fp, ExecHdr *hp)
 		fp->hdrsz = 0;		/* header stripped */
 		fp->dataddr = kbase+fp->txtsz;
 	}
+	return 1;
+}
+
+/*
+ * Structures needed to parse PE image.
+ */
+typedef struct {
+	uint16 Machine;
+	uint16 NumberOfSections;
+	uint32 TimeDateStamp;
+	uint32 PointerToSymbolTable;
+	uint32 NumberOfSymbols;
+	uint16 SizeOfOptionalHeader;
+	uint16 Characteristics;
+} IMAGE_FILE_HEADER;
+
+typedef struct {
+	uint8  Name[8];
+	uint32 VirtualSize;
+	uint32 VirtualAddress;
+	uint32 SizeOfRawData;
+	uint32 PointerToRawData;
+	uint32 PointerToRelocations;
+	uint32 PointerToLineNumbers;
+	uint16 NumberOfRelocations;
+	uint16 NumberOfLineNumbers;
+	uint32 Characteristics;
+} IMAGE_SECTION_HEADER;
+
+typedef struct {
+	uint32 VirtualAddress;
+	uint32 Size;
+} IMAGE_DATA_DIRECTORY;
+
+typedef struct {
+	uint16 Magic;
+	uint8  MajorLinkerVersion;
+	uint8  MinorLinkerVersion;
+	uint32 SizeOfCode;
+	uint32 SizeOfInitializedData;
+	uint32 SizeOfUninitializedData;
+	uint32 AddressOfEntryPoint;
+	uint32 BaseOfCode;
+	uint32 BaseOfData;
+	uint32 ImageBase;
+	uint32 SectionAlignment;
+	uint32 FileAlignment;
+	uint16 MajorOperatingSystemVersion;
+	uint16 MinorOperatingSystemVersion;
+	uint16 MajorImageVersion;
+	uint16 MinorImageVersion;
+	uint16 MajorSubsystemVersion;
+	uint16 MinorSubsystemVersion;
+	uint32 Win32VersionValue;
+	uint32 SizeOfImage;
+	uint32 SizeOfHeaders;
+	uint32 CheckSum;
+	uint16 Subsystem;
+	uint16 DllCharacteristics;
+	uint32 SizeOfStackReserve;
+	uint32 SizeOfStackCommit;
+	uint32 SizeOfHeapReserve;
+	uint32 SizeOfHeapCommit;
+	uint32 LoaderFlags;
+	uint32 NumberOfRvaAndSizes;
+	IMAGE_DATA_DIRECTORY DataDirectory[16];
+} IMAGE_OPTIONAL_HEADER;
+
+static int
+match8(void *buf, char *cmp)
+{
+	return strncmp((char*)buf, cmp, 8) == 0;
+}
+
+/* TODO(czaplinski): 64b windows? */
+/*
+ * Read from Windows PE/COFF .exe file image.
+ */
+static int
+pedotout(int fd, Fhdr *fp, ExecHdr *hp)
+{
+	uint32 start, magic;
+	uint32 symtab, esymtab;
+	IMAGE_FILE_HEADER fh;
+	IMAGE_SECTION_HEADER sh;
+	IMAGE_OPTIONAL_HEADER oh;
+	uint8 sym[18];
+	uint32 *valp;
+	int i;
+
+	USED(hp);
+	seek(fd, 0x3c, 0);
+	if (readn(fd, &start, sizeof(start)) != sizeof(start)) {
+		werrstr("crippled PE MSDOS header");
+		return 0;
+	}
+	start = leswal(start);
+
+	seek(fd, start, 0);
+	if (readn(fd, &magic, sizeof(magic)) != sizeof(magic)) {
+		werrstr("no PE magic number found");
+		return 0;
+	}
+	if (beswal(magic) != 0x50450000) {  /* "PE\0\0" */
+		werrstr("incorrect PE magic number");
+		return 0;
+	}
+
+	if (readn(fd, &fh, sizeof(fh)) != sizeof(fh)) {
+		werrstr("crippled PE File Header");
+		return 0;
+	}
+	if (fh.PointerToSymbolTable == 0) {
+		werrstr("zero pointer to COFF symbol table");
+		return 0;
+	}
+
+	if (readn(fd, &oh, sizeof(oh)) != sizeof(oh)) {
+		werrstr("crippled PE Optional Header");
+		return 0;
+	}
+
+	seek(fd, start+sizeof(magic)+sizeof(fh)+leswab(fh.SizeOfOptionalHeader), 0);
+	fp->txtaddr = fp->dataddr = 0;
+	for (i=0; i<leswab(fh.NumberOfSections); i++) {
+		if (readn(fd, &sh, sizeof(sh)) != sizeof(sh)) {
+			werrstr("could not read Section Header %d", i+1);
+			return 0;
+		}
+		if (match8(sh.Name, ".text"))
+			settext(fp, leswal(sh.VirtualAddress), leswal(oh.AddressOfEntryPoint), leswal(sh.VirtualSize), leswal(sh.PointerToRawData));
+		if (match8(sh.Name, ".data"))
+			setdata(fp, leswal(sh.VirtualAddress), leswal(sh.SizeOfRawData), leswal(sh.PointerToRawData), leswal(sh.VirtualSize)-leswal(sh.SizeOfRawData));
+	}
+	if (fp->txtaddr==0 || fp->dataddr==0) {
+		werrstr("no .text or .data");
+		return 0;
+	}
+
+	seek(fd, leswal(fh.PointerToSymbolTable), 0);
+	symtab = esymtab = 0;
+	for (i=0; i<leswal(fh.NumberOfSymbols); i++) {
+		if (readn(fd, &sym, sizeof(sym)) != sizeof(sym)) {
+			werrstr("crippled COFF symbol %d", i);
+			return 0;
+		}
+		valp = (uint32 *)&sym[8];
+		if (match8(sym, "symtab"))
+			symtab = leswal(*valp);
+		if (match8(sym, "esymtab"))
+			esymtab = leswal(*valp);
+	}
+	if (symtab==0 || esymtab==0) {
+		werrstr("no symtab or esymtab in COFF symbol table");
+		return 0;
+	}
+	setsym(fp, symtab, esymtab-symtab, 0, 0, 0, 0);
+
 	return 1;
 }
 
