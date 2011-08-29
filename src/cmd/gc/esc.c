@@ -505,7 +505,7 @@ esccall(Node *n)
 		}
 	}
 			
-	if(fn && fn->op == ONAME && fn->class == PFUNC && fn->ntype) {
+	if(fn && fn->op == ONAME && fn->class == PFUNC && fn->defn && fn->defn->nbody && fn->ntype) {
 		// Local function.  Incorporate into flow graph.
 
 		// Receiver.
@@ -696,6 +696,10 @@ esctag(Node *func)
 {
 	Node *savefn;
 	NodeList *ll;
+	
+	// External functions must be assumed unsafe.
+	if(func->nbody == nil)
+		return;
 
 	savefn = curfn;
 	curfn = func;
