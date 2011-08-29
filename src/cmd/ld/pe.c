@@ -32,6 +32,11 @@ static char dosstub[] =
 	0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
+// Note: currently only up to 8 chars plus \0.
+static char *symlabels[] = {
+	"symtab", "esymtab", "pclntab", "epclntab"
+};
+
 static Sym *rsrcsym;
 
 static char symnames[256]; 
@@ -44,6 +49,7 @@ static int pe64;
 static int nsect;
 static int nextsectoff;
 static int nextfileoff;
+static int textsect;
 
 static IMAGE_FILE_HEADER fh;
 static IMAGE_OPTIONAL_HEADER oh;
@@ -449,20 +455,29 @@ addsymtable(void)
 {
 	IMAGE_SECTION_HEADER *h;
 	int i, size;
+	Sym *s;
 	
-	if(nextsymoff == 0)
-		return;
-	
-	size  = nextsymoff + 4 + 18;
+	fh.NumberOfSymbols = sizeof(symlabels)/sizeof(symlabels[0]);
+	size = nextsymoff + 4 + 18*fh.NumberOfSymbols;
 	h = addpesection(".symtab", size, size);
 	h->Characteristics = IMAGE_SCN_MEM_READ|
 		IMAGE_SCN_MEM_DISCARDABLE;
 	chksectoff(h, cpos());
 	fh.PointerToSymbolTable = cpos();
-	fh.NumberOfSymbols = 1;
-	strnput("", 18); // one empty symbol
-	// put symbol string table
-	lputl(size);
+	
+	// put COFF symbol table
+	for (i=0; i<fh.NumberOfSymbols; i++) {
+		s = rlookup(symlabels[i], 0);
+		strnput(s->name, 8);
+		lputl(datoff(s->value));
+		wputl(textsect);
+		wputl(0x0308);  // "array of structs"
+		cput(2);        // storage class: external
+		cput(0);        // no aux entries
+	}
+
+	// put COFF string table
+	lputl(nextsymoff + 4);
 	for (i=0; i<nextsymoff; i++)
 		cput(symnames[i]);
 	strnput("", h->SizeOfRawData - size);
@@ -532,6 +547,7 @@ asmbpe(void)
 		IMAGE_SCN_CNT_INITIALIZED_DATA|
 		IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ;
 	chksectseg(t, &segtext);
+	textsect = nsect;
 
 	d = addpesection(".data", segdata.len, segdata.filelen);
 	d->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|

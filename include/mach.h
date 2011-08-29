@@ -142,6 +142,7 @@ enum
 	FAMD64B,		/* 6.out bootable */
 	FPOWER64,		/* 9.out */
 	FPOWER64B,		/* 9.out bootable */
+	FWINPE,			/* windows PE executable */
 
 	ANONE = 0,		/* dissembler types */
 	AMIPS,
