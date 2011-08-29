@@ -14,7 +14,6 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
-	"strings"
 	"unicode"
 	"utf8"
 )
@@ -58,6 +57,12 @@ import (
 //   // the field is skipped if empty.
 //   // Note the leading comma.
 //   Field int `json:",omitempty"`
+//
+// The "string" option signals that a field is stored as JSON inside a
+// JSON-encoded string.  This extra level of encoding is sometimes
+// used when communicating with JavaScript programs:
+//
+//    Int64String int64 `json:",string"`
 //
 // The key name will be used if it's a non-empty string consisting of
 // only Unicode letters, digits, dollar signs, hyphens, and underscores.
@@ -221,6 +226,12 @@ func isEmptyValue(v reflect.Value) bool {
 }
 
 func (e *encodeState) reflectValue(v reflect.Value) {
+	e.reflectValueQuoted(v, false)
+}
+
+// reflectValueQuoted writes the value in v to the output.
+// If quoted is true, the serialization is wrapped in a JSON string.
+func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
 	if !v.IsValid() {
 		e.WriteString("null")
 		return
@@ -238,26 +249,39 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 		return
 	}
 
+	writeString := (*encodeState).WriteString
+	if quoted {
+		writeString = (*encodeState).string
+	}
+
 	switch v.Kind() {
 	case reflect.Bool:
 		x := v.Bool()
 		if x {
-			e.WriteString("true")
+			writeString(e, "true")
 		} else {
-			e.WriteString("false")
+			writeString(e, "false")
 		}
 
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		e.WriteString(strconv.Itoa64(v.Int()))
+		writeString(e, strconv.Itoa64(v.Int()))
 
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		e.WriteString(strconv.Uitoa64(v.Uint()))
+		writeString(e, strconv.Uitoa64(v.Uint()))
 
 	case reflect.Float32, reflect.Float64:
-		e.WriteString(strconv.FtoaN(v.Float(), 'g', -1, v.Type().Bits()))
+		writeString(e, strconv.FtoaN(v.Float(), 'g', -1, v.Type().Bits()))
 
 	case reflect.String:
-		e.string(v.String())
+		if quoted {
+			sb, err := Marshal(v.String())
+			if err != nil {
+				e.error(err)
+			}
+			e.string(string(sb))
+		} else {
+			e.string(v.String())
+		}
 
 	case reflect.Struct:
 		e.WriteByte('{')
@@ -269,17 +293,14 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 			if f.PkgPath != "" {
 				continue
 			}
-			tag, omitEmpty := f.Name, false
+			tag, omitEmpty, quoted := f.Name, false, false
 			if tv := f.Tag.Get("json"); tv != "" {
-				ss := strings.SplitN(tv, ",", 2)
-				if isValidTag(ss[0]) {
-					tag = ss[0]
+				name, opts := parseTag(tv)
+				if isValidTag(name) {
+					tag = name
 				}
-				if len(ss) > 1 {
-					// Currently the only option is omitempty,
-					// so parsing is trivial.
-					omitEmpty = ss[1] == "omitempty"
-				}
+				omitEmpty = opts.Contains("omitempty")
+				quoted = opts.Contains("string")
 			}
 			fieldValue := v.Field(i)
 			if omitEmpty && isEmptyValue(fieldValue) {
@@ -292,7 +313,7 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 			}
 			e.string(tag)
 			e.WriteByte(':')
-			e.reflectValue(fieldValue)
+			e.reflectValueQuoted(fieldValue, quoted)
 		}
 		e.WriteByte('}')
 
@@ -380,7 +401,8 @@ func (sv stringValues) Swap(i, j int)      { sv[i], sv[j] = sv[j], sv[i] }
 func (sv stringValues) Less(i, j int) bool { return sv.get(i) < sv.get(j) }
 func (sv stringValues) get(i int) string   { return sv[i].String() }
 
-func (e *encodeState) string(s string) {
+func (e *encodeState) string(s string) (int, os.Error) {
+	len0 := e.Len()
 	e.WriteByte('"')
 	start := 0
 	for i := 0; i < len(s); {
@@ -425,4 +447,5 @@ func (e *encodeState) string(s string) {
 		e.WriteString(s[start:])
 	}
 	e.WriteByte('"')
+	return e.Len() - len0, nil
 }
