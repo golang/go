@@ -134,7 +134,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 	tw.numeric(s.next(12), hdr.Mtime)      // 136:148
 	s.next(8)                              // chksum (148:156)
 	s.next(1)[0] = hdr.Typeflag            // 156:157
-	s.next(100)                            // linkname (157:257)
+	tw.cString(s.next(100), hdr.Linkname)  // linkname (157:257)
 	copy(s.next(8), []byte("ustar\x0000")) // 257:265
 	tw.cString(s.next(32), hdr.Uname)      // 265:297
 	tw.cString(s.next(32), hdr.Gname)      // 297:329
