@@ -11,5 +11,6 @@ GOFILES=\
 	indent.go\
 	scanner.go\
 	stream.go\
+	tags.go\
 
 include ../../Make.pkg
