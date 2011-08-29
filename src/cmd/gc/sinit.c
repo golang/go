@@ -529,6 +529,7 @@ maplit(int ctxt, Node *n, Node *var, NodeList **init)
 	Node *vstat, *index, *value;
 	Sym *syma, *symb;
 
+USED(ctxt);
 ctxt = 0;
 
 	// make the map var
@@ -552,7 +553,6 @@ ctxt = 0;
 			b++;
 	}
 
-	t = T;
 	if(b != 0) {
 		// build type [count]struct { a Tindex, b Tvalue }
 		t = n->type;

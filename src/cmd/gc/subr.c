@@ -29,7 +29,7 @@ errorexit(void)
 	flusherrors();
 	if(outfile)
 		remove(outfile);
-	exit(1);
+	exits("error");
 }
 
 extern int yychar;
@@ -108,7 +108,7 @@ hcrash(void)
 	if(debug['h']) {
 		flusherrors();
 		if(outfile)
-			unlink(outfile);
+			remove(outfile);
 		*(volatile int*)0 = 0;
 	}
 }
@@ -2840,10 +2840,12 @@ setmaxarg(Type *t)
 		maxarg = w;
 }
 
-/* unicode-aware case-insensitive strcmp */
+/*
+ * unicode-aware case-insensitive strcmp
+ */
 
 static int
-cistrcmp(char *p, char *q)
+ucistrcmp(char *p, char *q)
 {
 	Rune rp, rq;
 
@@ -2885,7 +2887,7 @@ lookdot0(Sym *s, Type *t, Type **save, int ignorecase)
 	c = 0;
 	if(u->etype == TSTRUCT || u->etype == TINTER) {
 		for(f=u->type; f!=T; f=f->down)
-			if(f->sym == s || (ignorecase && cistrcmp(f->sym->name, s->name) == 0)) {
+			if(f->sym == s || (ignorecase && ucistrcmp(f->sym->name, s->name) == 0)) {
 				if(save)
 					*save = f;
 				c++;
@@ -2894,7 +2896,7 @@ lookdot0(Sym *s, Type *t, Type **save, int ignorecase)
 	u = methtype(t);
 	if(u != T) {
 		for(f=u->method; f!=T; f=f->down)
-			if(f->embedded == 0 && (f->sym == s || (ignorecase && cistrcmp(f->sym->name, s->name) == 0))) {
+			if(f->embedded == 0 && (f->sym == s || (ignorecase && ucistrcmp(f->sym->name, s->name) == 0))) {
 				if(save)
 					*save = f;
 				c++;

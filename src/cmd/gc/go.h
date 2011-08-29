@@ -1308,3 +1308,23 @@ void	zname(Biobuf *b, Sym *s, int t);
 void	data(void);
 void	text(void);
 
+#pragma	varargck	type	"A"	int
+#pragma	varargck	type	"B"	Mpint*
+#pragma	varargck	type	"D"	Addr*
+#pragma	varargck	type	"lD"	Addr*
+#pragma	varargck	type	"E"	int
+#pragma	varargck	type	"F"	Mpflt*
+#pragma	varargck	type	"J"	Node*
+#pragma	varargck	type	"L"	int
+#pragma	varargck	type	"L"	uint
+#pragma	varargck	type	"N"	Node*
+#pragma	varargck	type	"O"	uint
+#pragma	varargck	type	"P"	Prog*
+#pragma	varargck	type	"Q"	Bits
+#pragma	varargck	type	"R"	int
+#pragma	varargck	type	"S"	Sym*
+#pragma	varargck	type	"lS"	Sym*
+#pragma	varargck	type	"T"	Type*
+#pragma	varargck	type	"lT"	Type*
+#pragma	varargck	type	"Y"	char*
+#pragma	varargck	type	"Z"	Strlit*

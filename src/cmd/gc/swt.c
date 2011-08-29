@@ -867,9 +867,9 @@ typecheckswitch(Node *n)
 						yyerror("case %+N in %T switch", ll->n, t);
 					break;
 				case Etype:	// type switch
-					if(ll->n->op == OLITERAL && istype(ll->n->type, TNIL))
+					if(ll->n->op == OLITERAL && istype(ll->n->type, TNIL)) {
 						;
-					else if(ll->n->op != OTYPE && ll->n->type != T) {
+					} else if(ll->n->op != OTYPE && ll->n->type != T) {
 						yyerror("%#N is not a type", ll->n);
 						// reset to original type
 						ll->n = n->ntest->right;

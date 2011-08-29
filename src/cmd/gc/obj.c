@@ -270,7 +270,7 @@ stringsym(char *s, int len)
 		tmp.lit.len = len;
 		memmove(tmp.lit.s, s, len);
 		tmp.lit.s[len] = '\0';
-		snprint(namebuf, sizeof(namebuf), "\"%Z\"", &tmp);
+		snprint(namebuf, sizeof(namebuf), "\"%Z\"", &tmp.lit);
 		pkg = gostringpkg;
 	}
 	sym = pkglookup(namebuf, pkg);

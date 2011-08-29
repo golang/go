@@ -380,14 +380,11 @@ walkexpr(Node **np, NodeList **init)
 		fatal("missed typecheck");
 	}
 
-	t = T;
-	et = Txxx;
-
 	switch(n->op) {
 	default:
 		dump("walk", n);
 		fatal("walkexpr: switch 1 unknown op %N", n);
-		goto ret;
+		break;
 
 	case OTYPE:
 	case ONONAME:
@@ -1364,7 +1361,6 @@ dumptypes(Type **nl, char *what)
 
 	fmtstrinit(&fmt);
 	fmtprint(&fmt, "\t");
-	l = structfirst(&savel, nl);
 	first = 1;
 	for(l = structfirst(&savel, nl); l != T; l = structnext(&savel)) {
 		if(first)
@@ -1745,7 +1741,7 @@ out:
  * then it is done first. otherwise must
  * make temp variables
  */
-NodeList*
+static NodeList*
 reorder1(NodeList *all)
 {
 	Node *f, *a, *n;
@@ -1871,7 +1867,7 @@ vmatch1(Node *l, Node *r)
 	return 0;
 }
 
-NodeList*
+static NodeList*
 reorder3(NodeList *all)
 {
 	Node *n1, *n2, *q;

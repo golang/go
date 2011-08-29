@@ -38,7 +38,7 @@ static	NodeList*	typecheckdefstack;
 /*
  * resolve ONONAME to definition, if any.
  */
-Node*
+static Node*
 resolve(Node *n)
 {
 	Node *r;
@@ -724,7 +724,7 @@ reswitch:
 		}
 		defaultlit(&n->right, t->type);
 		r = n->right;
-		if((t = r->type) == T)
+		if(r->type == T)
 			goto error;
 		r = assignconv(r, l->type->type, "send");
 		// TODO: more aggressive
@@ -1073,7 +1073,7 @@ reswitch:
 			goto error;
 		if((n->op = convertop(t, n->type, &why)) == 0) {
 			yyerror("cannot convert %+N to type %T%s", n->left, n->type, why);
-			op = OCONV;
+			n->op = OCONV;
 		}
 		switch(n->op) {
 		case OCONVNOP:
@@ -2443,7 +2443,7 @@ getforwtype(Node *n)
 {
 	Node *f1, *f2;
 
-	for(f1=f2=n; ; n=n->ntype) {
+	for(f2=n; ; n=n->ntype) {
 		if((n = resolve(n)) == N || n->op != OTYPE)
 			return T;
 

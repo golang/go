@@ -155,7 +155,7 @@ Qconv(Fmt *fp)
 		else {
 			fmtprint(fp, var[i].sym->name);
 			if(var[i].offset != 0)
-				fmtprint(fp, "%+d", var[i].offset);
+				fmtprint(fp, "%+lld", (vlong)var[i].offset);
 		}
 		bits.b[i/32] &= ~(1L << (i%32));
 	}
