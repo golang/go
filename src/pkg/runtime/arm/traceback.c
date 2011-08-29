@@ -117,7 +117,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr 
 		else if(pcbuf != nil)
 			pcbuf[n++] = pc;
 		else {
-			if(showframe(f)) {
+			if(runtime·showframe(f)) {
 				// Print during crash.
 				//	main(0x1, 0x2, 0x3)
 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
