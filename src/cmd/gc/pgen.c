@@ -117,7 +117,7 @@ compile(Node *fn)
 	oldstksize = stksize;
 	compactframe(ptxt);
 	if(0)
-		print("compactframe: %ld to %ld\n", oldstksize, stksize);
+		print("compactframe: %lld to %lld\n", oldstksize, (vlong)stksize);
 
 	defframe(ptxt);
 

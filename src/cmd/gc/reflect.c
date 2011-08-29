@@ -586,7 +586,6 @@ dcommontype(Sym *s, int ot, Type *t)
 
 	dowidth(t);
 	
-	sptr = nil;
 	if(t->sym != nil && !isptr[t->etype])
 		sptr = dtypesym(ptrto(t));
 	else

@@ -730,7 +730,6 @@ stotype(NodeList *l, int et, Type **t, int funarg)
 	for(; l; l=l->next) {
 		n = l->n;
 		lineno = n->lineno;
-		note = nil;
 
 		if(n->op != ODCLFIELD)
 			fatal("stotype: oops %N\n", n);
@@ -1140,8 +1139,6 @@ addmethod(Sym *sf, Type *t, int local)
 {
 	Type *f, *d, *pa;
 	Node *n;
-
-	pa = nil;
 
 	// get field sym
 	if(sf == S)

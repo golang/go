@@ -113,8 +113,6 @@ walkrange(Node *n)
 	}
 
 	v1 = n->list->n;
-	hv1 = N;
-
 	v2 = N;
 	if(n->list->next)
 		v2 = n->list->next->n;

@@ -65,7 +65,7 @@ yy_isalnum(int c)
 #define isalpha use_yy_isalpha_instead_of_isalpha
 #define isalnum use_yy_isalnum_instead_of_isalnum
 
-#define	DBG	if(!debug['x']);else print
+#define	DBG	if(!debug['x']){}else print
 enum
 {
 	EOF		= -1,
@@ -92,7 +92,7 @@ usage(void)
 	print("  -u disable package unsafe\n");
 	print("  -w print the parse tree after typing\n");
 	print("  -x print lex tokens\n");
-	exit(0);
+	exits(0);
 }
 
 void
@@ -115,9 +115,11 @@ main(int argc, char *argv[])
 	int i, c;
 	NodeList *l;
 	char *p;
-	
+
+#ifdef	SIGBUS	
 	signal(SIGBUS, fault);
 	signal(SIGSEGV, fault);
+#endif
 
 	localpkg = mkpkg(strlit(""));
 	localpkg->prefix = "\"\"";
@@ -163,7 +165,7 @@ main(int argc, char *argv[])
 
 	case 'V':
 		print("%cg version %s\n", thechar, getgoversion());
-		exit(0);
+		exits(0);
 	} ARGEND
 
 	if(argc < 1)
@@ -311,7 +313,7 @@ main(int argc, char *argv[])
 		errorexit();
 
 	flusherrors();
-	exit(0);
+	exits(0);
 	return 0;
 }
 
@@ -681,7 +683,6 @@ l0:
 			ep = lexbuf+sizeof lexbuf;
 			*cp++ = c;
 			c = c1;
-			c1 = 0;
 			goto casedot;
 		}
 		if(c1 == '.') {
@@ -1072,7 +1073,6 @@ talph:
 	return s->lexical;
 
 tnum:
-	c1 = 0;
 	cp = lexbuf;
 	ep = lexbuf+sizeof lexbuf;
 	if(c != '0') {

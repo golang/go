@@ -59,7 +59,6 @@ closurebody(NodeList *body)
 		body = list1(nod(OEMPTY, N, N));
 
 	func = curfn;
-	l = func->dcl;
 	func->nbody = body;
 	funcbody(func);
 

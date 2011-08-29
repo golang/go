@@ -317,7 +317,6 @@ gen(Node *n)
 	if(n == N)
 		goto ret;
 
-	p3 = pc;	// save pc for loop labels
 	if(n->ninit)
 		genlist(n->ninit);
 
@@ -576,7 +575,7 @@ cgen_callmeth(Node *n, int proc)
 /*
  * generate code to start new proc running call n.
  */
-void
+static void
 cgen_proc(Node *n, int proc)
 {
 	switch(n->left->op) {
