@@ -14,7 +14,6 @@
 #include <sys/time.h>
 #include <sys/unistd.h>
 #include <sys/signal.h>
-#include <machine/mcontext.h>
 #include <errno.h>
 #include <signal.h>
 
@@ -97,7 +96,8 @@ typedef stack_t $StackT;
 typedef struct timeval $Timeval;
 typedef struct itimerval $Itimerval;
 
-// This is a hack to avoid pulling in machine/fpu.h and struct fxsave64.
+// This is a hack to avoid pulling in machine/fpu.h.
 typedef void $sfxsave64;
+typedef void $usavefpu;
 
 typedef struct sigcontext $Sigcontext;
