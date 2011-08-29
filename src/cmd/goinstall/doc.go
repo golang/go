@@ -94,8 +94,11 @@ attempt to fetch updates.  The -u flag changes this behavior,
 causing goinstall to update all remote packages encountered during
 the installation.
 
-When downloading or updating, goinstall first looks for a tag or branch
-named "release".  If there is one, it uses that version of the code.
+When downloading or updating, goinstall looks for a tag with the "go." prefix
+that corresponds to the local Go version. For Go "release.r58" it looks for a
+tag named "go.r58". For "weekly.2011-06-03" it looks for "go.weekly.2011-06-03".
+If the specific "go.X" tag is not found, it chooses the closest earlier version.
+If an appropriate tag is found, goinstall uses that version of the code.
 Otherwise it uses the default version selected by the version control
 system, typically HEAD for git, tip for Mercurial.
 
