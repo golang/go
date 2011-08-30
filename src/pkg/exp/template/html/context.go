@@ -18,13 +18,14 @@ import (
 type context struct {
 	state   state
 	delim   delim
+	urlPart urlPart
 	errLine int
 	errStr  string
 }
 
 // eq returns whether two contexts are equal.
 func (c context) eq(d context) bool {
-	return c.state == d.state && c.delim == d.delim && c.errLine == d.errLine && c.errStr == d.errStr
+	return c.state == d.state && c.delim == d.delim && c.urlPart == d.urlPart && c.errLine == d.errLine && c.errStr == d.errStr
 }
 
 // state describes a high-level HTML parser state.
@@ -96,4 +97,37 @@ func (d delim) String() string {
 		return delimNames[d]
 	}
 	return fmt.Sprintf("illegal delim %d", d)
+}
+
+// urlPart identifies a part in an RFC 3986 hierarchical URL to allow different
+// encoding strategies.
+type urlPart uint8
+
+const (
+	// urlPartNone occurs when not in a URL, or possibly at the start:
+	// ^ in "^http://auth/path?k=v#frag".
+	urlPartNone urlPart = iota
+	// urlPartPreQuery occurs in the scheme, authority, or path; between the
+	// ^s in "h^ttp://auth/path^?k=v#frag".
+	urlPartPreQuery
+	// urlPartQueryOrFrag occurs in the query portion between the ^s in
+	// "http://auth/path?^k=v#frag^".
+	urlPartQueryOrFrag
+	// urlPartUnknown occurs due to joining of contexts both before and after
+	// the query separator.
+	urlPartUnknown
+)
+
+var urlPartNames = [...]string{
+	urlPartNone:        "urlPartNone",
+	urlPartPreQuery:    "urlPartPreQuery",
+	urlPartQueryOrFrag: "urlPartQueryOrFrag",
+	urlPartUnknown:     "urlPartUnknown",
+}
+
+func (u urlPart) String() string {
+	if int(u) < len(urlPartNames) {
+		return urlPartNames[u]
+	}
+	return fmt.Sprintf("illegal urlPart %d", u)
 }
