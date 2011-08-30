@@ -31,6 +31,7 @@ GOFILES=\
 CLEANFILES+=version.go version_*.go
 
 OFILES_windows=\
+	callback.$O\
 	syscall.$O\
 
 # 386-specific object files
