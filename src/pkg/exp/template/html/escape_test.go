@@ -83,13 +83,63 @@ func TestEscape(t *testing.T) {
 			// in the obsolete "mark" rule in an appendix in RFC 3986 so can be
 			// safely encoded.
 			"constant",
-			`<a href="{{"'a<b'"}}">`,
-			`<a href="'a%3Cb'">`,
+			`<a href="/search?q={{"'a<b'"}}">`,
+			`<a href="/search?q='a%3Cb'">`,
 		},
 		{
 			"multipleAttrs",
 			"<a b=1 c={{.H}}>",
 			"<a b=1 c=&lt;Hello&gt;>",
+		},
+		{
+			"urlStartRel",
+			`<a href='{{"/foo/bar?a=b&c=d"}}'>`,
+			`<a href='/foo/bar?a=b&amp;c=d'>`,
+		},
+		{
+			"urlStartAbsOk",
+			`<a href='{{"http://example.com/foo/bar?a=b&c=d"}}'>`,
+			`<a href='http://example.com/foo/bar?a=b&amp;c=d'>`,
+		},
+		{
+			"protocolRelativeURLStart",
+			`<a href='{{"//example.com:8000/foo/bar?a=b&c=d"}}'>`,
+			`<a href='//example.com:8000/foo/bar?a=b&amp;c=d'>`,
+		},
+		{
+			"pathRelativeURLStart",
+			`<a href="{{"/javascript:80/foo/bar"}}">`,
+			`<a href="/javascript:80/foo/bar">`,
+		},
+		{
+			"dangerousURLStart",
+			`<a href='{{"javascript:alert(%22pwned%22)"}}'>`,
+			`<a href='#ZgotmplZ'>`,
+		},
+		{
+			"urlPath",
+			`<a href='http://{{"javascript:80"}}/foo'>`,
+			`<a href='http://javascript:80/foo'>`,
+		},
+		{
+			"urlQuery",
+			`<a href='/search?q={{.H}}'>`,
+			`<a href='/search?q=%3CHello%3E'>`,
+		},
+		{
+			"urlFragment",
+			`<a href='/faq#{{.H}}'>`,
+			`<a href='/faq#%3CHello%3E'>`,
+		},
+		{
+			"urlBranch",
+			`<a href="{{if .F}}/foo?a=b{{else}}/bar{{end}}">`,
+			`<a href="/bar">`,
+		},
+		{
+			"urlBranchConflictMoot",
+			`<a href="{{if .T}}/foo?a={{else}}/bar#{{end}}{{.C}}">`,
+			`<a href="/foo?a=%3CCincinatti%3E">`,
 		},
 	}
 
@@ -181,6 +231,10 @@ func TestErrors(t *testing.T) {
 			"<a b=1 c={{.H}}",
 			"z ends in a non-text context: {stateAttr delimSpaceOrTagEnd",
 		},
+		{
+			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
+			"z:1: (action: [(command: [F=[H]])]) appears in an ambiguous URL context",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -242,7 +296,7 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			`<a href=x`,
-			context{state: stateURL, delim: delimSpaceOrTagEnd},
+			context{state: stateURL, delim: delimSpaceOrTagEnd, urlPart: urlPartPreQuery},
 		},
 		{
 			`<a href=x `,
@@ -278,19 +332,35 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			`<a HREF='http:`,
-			context{state: stateURL, delim: delimSingleQuote},
+			context{state: stateURL, delim: delimSingleQuote, urlPart: urlPartPreQuery},
 		},
 		{
 			`<a Href='/`,
-			context{state: stateURL, delim: delimSingleQuote},
+			context{state: stateURL, delim: delimSingleQuote, urlPart: urlPartPreQuery},
 		},
 		{
 			`<a href='"`,
-			context{state: stateURL, delim: delimSingleQuote},
+			context{state: stateURL, delim: delimSingleQuote, urlPart: urlPartPreQuery},
 		},
 		{
 			`<a href="'`,
-			context{state: stateURL, delim: delimDoubleQuote},
+			context{state: stateURL, delim: delimDoubleQuote, urlPart: urlPartPreQuery},
+		},
+		{
+			`<a href='&apos;`,
+			context{state: stateURL, delim: delimSingleQuote, urlPart: urlPartPreQuery},
+		},
+		{
+			`<a href="&quot;`,
+			context{state: stateURL, delim: delimDoubleQuote, urlPart: urlPartPreQuery},
+		},
+		{
+			`<a href="&#34;`,
+			context{state: stateURL, delim: delimDoubleQuote, urlPart: urlPartPreQuery},
+		},
+		{
+			`<a href=&quot;`,
+			context{state: stateURL, delim: delimSpaceOrTagEnd, urlPart: urlPartPreQuery},
 		},
 		{
 			`<img alt="1">`,

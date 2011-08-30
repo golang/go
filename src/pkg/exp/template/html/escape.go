@@ -10,6 +10,7 @@ package html
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"os"
 	"strings"
 	"template"
@@ -26,7 +27,13 @@ func Escape(t *template.Template) (*template.Template, os.Error) {
 	if c.state != stateText {
 		return nil, fmt.Errorf("%s ends in a non-text context: %v", t.Name(), c)
 	}
+	t.Funcs(funcMap)
 	return t, nil
+}
+
+// funcMap maps command names to functions that render their inputs safe.
+var funcMap = template.FuncMap{
+	"exp_template_html_urlfilter": urlFilter,
 }
 
 // escape escapes a template node.
@@ -53,7 +60,22 @@ func escape(c context, n parse.Node) context {
 func escapeAction(c context, n *parse.ActionNode) context {
 	sanitizer := "html"
 	if c.state == stateURL {
-		sanitizer = "urlquery"
+		switch c.urlPart {
+		case urlPartNone:
+			sanitizer = "exp_template_html_urlfilter"
+		case urlPartQueryOrFrag:
+			sanitizer = "urlquery"
+		case urlPartPreQuery:
+			// The default "html" works here.
+		case urlPartUnknown:
+			return context{
+				state:   stateError,
+				errLine: n.Line,
+				errStr:  fmt.Sprintf("%s appears in an ambiguous URL context", n),
+			}
+		default:
+			panic(c.urlPart.String())
+		}
 	}
 	// If the pipe already ends with the sanitizer, do not interfere.
 	if m := len(n.Pipe.Cmds); m != 0 {
@@ -84,6 +106,15 @@ func join(a, b context, line int, nodeName string) context {
 	if a.eq(b) {
 		return a
 	}
+
+	c := a
+	c.urlPart = b.urlPart
+	if c.eq(b) {
+		// The contexts differ only by urlPart.
+		c.urlPart = urlPartUnknown
+		return c
+	}
+
 	return context{
 		state:   stateError,
 		errLine: line,
@@ -148,8 +179,15 @@ func escapeText(c context, s []byte) context {
 		i := bytes.IndexAny(s, delimEnds[c.delim])
 		if i == -1 {
 			// Remain inside the attribute.
-			// TODO: Recurse to take into account grammars for
-			// JS, CSS, URIs embedded in attrs once implemented.
+			// Decode the value so non-HTML rules can easily handle
+			//     <button onclick="alert(&quot;Hi!&quot;)">
+			// without having to entity decode token boundaries.
+			d := c.delim
+			c.delim = delimNone
+			c = escapeText(c, []byte(html.UnescapeString(string(s))))
+			if c.state != stateError {
+				c.delim = d
+			}
 			return c
 		}
 		if c.delim != delimSpaceOrTagEnd {
@@ -249,10 +287,11 @@ func tAttr(c context, s []byte) (context, []byte) {
 
 // tURL is the context transition function for the URL state.
 func tURL(c context, s []byte) (context, []byte) {
-	// TODO: Look for query and fragment boundaries within a URL so we
-	// can %-encode actions in the query and fragment parts, HTML escape
-	// actions elsewhere, and filter any actions at the start that might
-	// inject a dangerous protocol such as "javascript:".
+	if bytes.IndexAny(s, "#?") >= 0 {
+		c.urlPart = urlPartQueryOrFrag
+	} else if c.urlPart == urlPartNone {
+		c.urlPart = urlPartPreQuery
+	}
 	return c, nil
 }
 
@@ -337,4 +376,29 @@ var urlAttr = map[string]bool{
 	"profile":    true,
 	"src":        true,
 	"usemap":     true,
+}
+
+// urlFilter returns the HTML equivalent of its input unless it contains an
+// unsafe protocol in which case it defangs the entire URL.
+func urlFilter(args ...interface{}) string {
+	ok := false
+	var s string
+	if len(args) == 1 {
+		s, ok = args[0].(string)
+	}
+	if !ok {
+		s = fmt.Sprint(args...)
+	}
+	i := strings.IndexRune(s, ':')
+	if i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
+		protocol := strings.ToLower(s[:i])
+		if protocol != "http" && protocol != "https" && protocol != "mailto" {
+			// Return a value that someone investigating a bug
+			// report can put into a search engine.
+			return "#ZgotmplZ"
+		}
+	}
+	// TODO: Once we handle <style>#id { background: url({{.Img}}) }</style>
+	// we will need to stop this from HTML escaping and pipeline sanitizers.
+	return template.HTMLEscapeString(s)
 }
