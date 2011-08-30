@@ -106,9 +106,80 @@ TEXT runtime·ctrlhandler(SB),7,$0
 	POPQ	BX
 	POPQ	BP
 	RET
-	
+
+// Continuation of thunk function created for each callback by ../thread.c compilecallback,
+// runs on Windows stack (not Go stack).
+// Thunk code designed to have minimal size for it is copied many (up to thousands) times.
+//
+// thunk:
+//	MOVQ	$fn, AX
+//	PUSHQ	AX
+//	MOVQ	$argsize, AX
+//	PUSHQ	AX
+//	MOVQ	$runtime·callbackasm, AX
+//	JMP	AX
 TEXT runtime·callbackasm(SB),7,$0
-	// TODO
+	// Construct args vector for cgocallback().
+	// By windows/amd64 calling convention first 4 args are in CX, DX, R8, R9
+	// args from the 5th on are on the stack.
+	// In any case, even if function has 0,1,2,3,4 args, there is reserved
+	// but uninitialized "shadow space" for the first 4 args.
+	// The values are in registers.
+  	MOVQ	CX, (24+0)(SP)
+  	MOVQ	DX, (24+8)(SP)
+  	MOVQ	R8, (24+16)(SP)
+  	MOVQ	R9, (24+24)(SP)
+	// 6l does not accept writing POPQs here issuing a warning "unbalanced PUSH/POP"
+  	MOVQ	0(SP), DX	// POPQ DX
+  	MOVQ	8(SP), AX	// POPQ AX
+	ADDQ	$16, SP
+
+	// preserve whatever's at the memory location that
+	// the callback will use to store the return value
+	LEAQ	8(SP), CX       // args vector, skip return address
+	PUSHQ	0(CX)(DX*1)     // store 8 bytes from just after the args array
+	ADDQ	$8, DX          // extend argsize by size of return value
+
+	// DI SI BP BX R12 R13 R14 R15 registers and DF flag are preserved
+	// as required by windows callback convention.
+	// 6l does not allow writing many PUSHQs here issuing a warning "nosplit stack overflow"
+	// the warning has no sense as this code uses os thread stack
+	PUSHFQ
+	SUBQ	$64, SP
+	MOVQ	DI, 56(SP)
+	MOVQ	SI, 48(SP)
+	MOVQ	BP, 40(SP)
+	MOVQ	BX, 32(SP)
+	MOVQ	R12, 24(SP)
+	MOVQ	R13, 16(SP)
+	MOVQ	R14, 8(SP)
+	MOVQ	R15, 0(SP)
+
+	// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+	PUSHQ	DX    // uintptr framesize
+	PUSHQ	CX    // void *frame
+	PUSHQ	AX    // void (*fn)(void*)
+	CLD
+	CALL  runtime·cgocallback(SB)
+	POPQ	AX
+	POPQ	CX
+	POPQ	DX
+
+	// restore registers as required for windows callback
+	// 6l does not allow writing many POPs here issuing a warning "nosplit stack overflow"
+	MOVQ	0(SP), R15
+	MOVQ	8(SP), R14
+	MOVQ	16(SP), R13
+	MOVQ	24(SP), R12
+	MOVQ	32(SP), BX
+	MOVQ	40(SP), BP
+	MOVQ	48(SP), SI
+	MOVQ	56(SP), DI
+	ADDQ	$64, SP
+	POPFQ
+
+	MOVL	-8(CX)(DX*1), AX  // return value
+	POPQ	-8(CX)(DX*1)      // restore bytes just after the args
 	RET
 
 // uint32 tstart_stdcall(M *newm);
