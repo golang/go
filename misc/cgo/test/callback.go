@@ -65,7 +65,7 @@ func testCallbackPanic(t *testing.T) {
 func testCallbackPanicLoop(t *testing.T) {
 	// Make sure we don't blow out m->g0 stack.
 	for i := 0; i < 100000; i++ {
-		TestCallbackPanic(t)
+		testCallbackPanic(t)
 	}
 }
 

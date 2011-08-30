@@ -80,6 +80,8 @@ runtime·gobytes(byte *p, int32 n)
 	Slice sl;
 
 	sl.array = runtime·mallocgc(n, FlagNoPointers, 1, 0);
+	sl.len = n;
+	sl.cap = n;
 	runtime·memmove(sl.array, p, n);
 	return sl;
 }
