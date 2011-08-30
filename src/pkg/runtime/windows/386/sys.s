@@ -12,6 +12,7 @@ TEXT runtime·asmstdcall(SB),7,$0
 	MOVL	$0, 0x34(FS)
 
 	// Copy args to the stack.
+	MOVL	SP, BP
 	MOVL	wincall_n(DX), CX	// words
 	MOVL	CX, BX
 	SALL	$2, BX
@@ -21,9 +22,11 @@ TEXT runtime·asmstdcall(SB),7,$0
 	CLD
 	REP; MOVSL
 
-	// Call stdcall function.
+	// Call stdcall or cdecl function.
+	// DI SI BP BX are preserved, SP is not
 	MOVL	wincall_fn(DX), AX
 	CALL	AX
+	MOVL	BP, SP
 
 	// Return result.
 	MOVL	c+0(FP), DX
