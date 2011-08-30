@@ -471,7 +471,6 @@ esccall(Node *n)
 	Type *t, *fntype;
 
 	fn = N;
-	fntype = T;
 	switch(n->op) {
 	default:
 		fatal("esccall");
