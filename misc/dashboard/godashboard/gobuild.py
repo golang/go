@@ -279,7 +279,7 @@ class CommitHandler(DashboardHandler):
                 n.parentnode = parenthash
                 n.user = user
                 n.date = date
-                n.desc = desc.encode('utf8')
+                n.desc = desc
                 n.put()
             db.run_in_transaction(add_commit)
             n = nodeByHash(node)
