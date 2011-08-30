@@ -667,6 +667,7 @@ struct	Magic
 };
 
 typedef struct	Prog Prog;
+#pragma incomplete Prog
 
 struct	Label
 {
