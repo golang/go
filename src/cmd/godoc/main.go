@@ -54,6 +54,9 @@ var (
 	// (with e.g.: zip -r go.zip $GOROOT -i \*.go -i \*.html -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh -i favicon.ico)
 	zipfile = flag.String("zip", "", "zip file providing the file system to serve; disabled if empty")
 
+	// file-based index
+	writeIndex = flag.Bool("write_index", false, "write index to a file; the file name must be specified with -index_files")
+
 	// periodic sync
 	syncCmd   = flag.String("sync", "", "sync command; disabled if empty")
 	syncMin   = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0")
@@ -221,8 +224,8 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	// Check usage: either server and no args, or command line and args
-	if (*httpAddr != "") != (flag.NArg() == 0) {
+	// Check usage: either server and no args, command line and args, or index creation mode
+	if (*httpAddr != "") != (flag.NArg() == 0) && !*writeIndex {
 		usage()
 	}
 
@@ -252,6 +255,39 @@ func main() {
 
 	readTemplates()
 	initHandlers()
+
+	if (*indexEnabled || *writeIndex) && *indexFiles != "" && *maxResults > 0 {
+		log.Println("warning: no support for full-text index yet (setting -maxresults to 0)")
+		*maxResults = 0
+	}
+
+	if *writeIndex {
+		if *indexFiles == "" {
+			log.Fatal("no index files specified")
+		}
+
+		log.Println("initialize file systems")
+		*verbose = true // want to see what happens
+		initFSTree()
+		initDirTrees()
+
+		*indexThrottle = 1
+		updateIndex()
+
+		log.Println("writing index file", *indexFiles)
+		f, err := os.Create(*indexFiles)
+		if err != nil {
+			log.Fatal(err)
+		}
+		index, _ := searchIndex.get()
+		err = index.(*Index).Write(f)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Println("done")
+		return
+	}
 
 	if *httpAddr != "" {
 		// HTTP server mode.
@@ -304,9 +340,11 @@ func main() {
 			}()
 		}
 
-		// Start indexing goroutine.
+		// Initialize search index.
 		if *indexEnabled {
-			go indexer()
+			if err := initIndex(); err != nil {
+				log.Fatalf("error initializing index: %s", err)
+			}
 		}
 
 		// Start http server.
