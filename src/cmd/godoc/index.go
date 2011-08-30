@@ -43,7 +43,9 @@ import (
 	"go/parser"
 	"go/token"
 	"go/scanner"
+	"gob"
 	"index/suffixarray"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -802,6 +804,37 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool, throttle float64) *Ind
 	}
 
 	return &Index{x.fset, suffixes, words, alts, x.snippets, x.stats}
+}
+
+type FileIndex struct {
+	Words    map[string]*LookupResult
+	Alts     map[string]*AltWords
+	Snippets []*Snippet
+}
+
+// Write writes the index x to w.
+func (x *Index) Write(w io.Writer) os.Error {
+	if x.suffixes != nil {
+		panic("no support for writing full text index yet")
+	}
+	fx := FileIndex{
+		x.words,
+		x.alts,
+		x.snippets,
+	}
+	return gob.NewEncoder(w).Encode(fx)
+}
+
+// Read reads the index from r into x; x must not be nil.
+func (x *Index) Read(r io.Reader) os.Error {
+	var fx FileIndex
+	if err := gob.NewDecoder(r).Decode(&fx); err != nil {
+		return err
+	}
+	x.words = fx.Words
+	x.alts = fx.Alts
+	x.snippets = fx.Snippets
+	return nil
 }
 
 // Stats() returns index statistics.

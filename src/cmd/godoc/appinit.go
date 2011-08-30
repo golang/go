@@ -23,11 +23,12 @@
 //		strings		// never version of the strings package
 //		...		//
 //	app.yaml		// app engine control file
-//	go.zip			// zip file containing the file system to serve
+//	godoc.zip		// .zip file containing the file system to serve
 //	godoc			// contains godoc sources
 //		appinit.go	// this file instead of godoc/main.go
 //		appconfig.go	// godoc for app engine configuration
 //		...		//
+//	index.split.*		// index file(s) containing the search index to serve
 //
 // To run app the engine emulator locally:
 //
@@ -43,6 +44,7 @@ import (
 	"http"
 	"log"
 	"os"
+	"path"
 )
 
 func serveError(w http.ResponseWriter, r *http.Request, relpath string, err os.Error) {
@@ -53,7 +55,16 @@ func serveError(w http.ResponseWriter, r *http.Request, relpath string, err os.E
 
 func init() {
 	log.Println("initializing godoc ...")
+	log.Printf(".zip file   = %s", zipFilename)
+	log.Printf(".zip GOROOT = %s", zipGoroot)
+	log.Printf("index files = %s", indexFilenames)
+
+	// initialize flags for app engine
 	*goroot = path.Join("/", zipGoroot) // fsHttp paths are relative to '/'
+	*indexEnabled = true
+	*indexFiles = indexFilenames
+	*maxResults = 0      // save space for now
+	*indexThrottle = 0.3 // in case *indexFiles is empty (and thus the indexer is run)
 
 	// read .zip file and set up file systems
 	const zipfile = zipFilename
@@ -65,8 +76,8 @@ func init() {
 	fsHttp = NewHttpZipFS(rc, *goroot)
 
 	// initialize http handlers
-	initHandlers()
 	readTemplates()
+	initHandlers()
 	registerPublicHandlers(http.DefaultServeMux)
 
 	// initialize default directory tree with corresponding timestamp.
@@ -75,12 +86,12 @@ func init() {
 	// initialize directory trees for user-defined file systems (-path flag).
 	initDirTrees()
 
-	// create search index
-	// TODO(gri) Disabled for now as it takes too long. Find a solution for this.
-	/*
-		*indexEnabled = true
-		go indexer()
-	*/
+	// initialize search index
+	if *indexEnabled {
+		if err := initIndex(); err != nil {
+			log.Fatalf("error initializing index: %s", err)
+		}
+	}
 
 	log.Println("godoc initialization complete")
 }

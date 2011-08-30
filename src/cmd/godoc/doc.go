@@ -50,11 +50,17 @@ The flags are:
 	-index
 		enable identifier and full text search index
 		(no search box is shown if -index is not set)
+	-index_files=""
+		glob pattern specifying index files; if not empty,
+		the index is read from these files in sorted order
 	-index_throttle=0.75
 		index throttle value; a value of 0 means no time is allocated
 		to the indexer (the indexer will never finish), a value of 1.0
 		means that index creation is running at full throttle (other
 		goroutines may get no time while the index is built)
+	-write_index=false
+		write index to a file; the file name must be specified with
+		-index_files
 	-maxresults=10000
 		maximum number of full text search results shown
 		(no full text index is built if maxresults <= 0)
