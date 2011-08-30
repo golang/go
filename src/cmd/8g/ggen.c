@@ -484,8 +484,8 @@ void
 dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 {
 	int check;
-	Node n1, t1, t2, n4, nz;
-	Type *t;
+	Node n1, t1, t2, t3, t4, n4, nz;
+	Type *t, *t0;
 	Prog *p1, *p2, *p3;
 
 	// Have to be careful about handling
@@ -497,6 +497,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 	// For int32 and int64, use explicit test.
 	// Could use int64 hw for int32.
 	t = nl->type;
+	t0 = t;
 	check = 0;
 	if(issigned[t->etype]) {
 		check = 1;
@@ -515,8 +516,18 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 
 	tempname(&t1, t);
 	tempname(&t2, t);
-	cgen(nl, &t1);
-	cgen(nr, &t2);
+	if(t0 != t) {
+		tempname(&t3, t0);
+		tempname(&t4, t0);
+		cgen(nl, &t3);
+		cgen(nr, &t4);
+		// Convert.
+		gmove(&t3, &t1);
+		gmove(&t4, &t2);
+	} else {
+		cgen(nl, &t1);
+		cgen(nr, &t2);
+	}
 
 	if(!samereg(ax, res) && !samereg(dx, res))
 		regalloc(&n1, t, res);
