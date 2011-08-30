@@ -336,9 +336,16 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
 				}
 			}
 		case cbP8:
-			paletted := m.(*image.Paletted)
-			offset := (y - b.Min.Y) * paletted.Stride
-			copy(cr[0][1:], paletted.Pix[offset:offset+b.Dx()])
+			if p, _ := m.(*image.Paletted); p != nil {
+				offset := (y - b.Min.Y) * p.Stride
+				copy(cr[0][1:], p.Pix[offset:offset+b.Dx()])
+			} else {
+				pi := m.(image.PalettedImage)
+				for x := b.Min.X; x < b.Max.X; x++ {
+					cr[0][i] = pi.ColorIndexAt(x, y)
+					i += 1
+				}
+			}
 		case cbTCA8:
 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
 			for x := b.Min.X; x < b.Max.X; x++ {
@@ -432,7 +439,12 @@ func Encode(w io.Writer, m image.Image) os.Error {
 	var e encoder
 	e.w = w
 	e.m = m
-	pal, _ := m.(*image.Paletted)
+
+	var pal image.PalettedColorModel
+	// cbP8 encoding needs PalettedImage's ColorIndexAt method.
+	if _, ok := m.(image.PalettedImage); ok {
+		pal, _ = m.ColorModel().(image.PalettedColorModel)
+	}
 	if pal != nil {
 		e.cb = cbP8
 	} else {
@@ -459,8 +471,8 @@ func Encode(w io.Writer, m image.Image) os.Error {
 	_, e.err = io.WriteString(w, pngHeader)
 	e.writeIHDR()
 	if pal != nil {
-		e.writePLTE(pal.Palette)
-		e.maybeWritetRNS(pal.Palette)
+		e.writePLTE(pal)
+		e.maybeWritetRNS(pal)
 	}
 	e.writeIDATs()
 	e.writeIEND()

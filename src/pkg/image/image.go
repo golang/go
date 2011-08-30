@@ -24,6 +24,17 @@ type Image interface {
 	At(x, y int) Color
 }
 
+// PalettedImage is an image whose colors may come from a limited palette.
+// If m is a PalettedImage and m.ColorModel() returns a PalettedColorModel p,
+// then m.At(x, y) should be equivalent to p[m.ColorIndexAt(x, y)]. If m's
+// color model is not a PalettedColorModel, then ColorIndexAt's behavior is
+// undefined.
+type PalettedImage interface {
+	// ColorIndexAt returns the palette index of the pixel at (x, y).
+	ColorIndexAt(x, y int) uint8
+	Image
+}
+
 // RGBA is an in-memory image of RGBAColor values.
 type RGBA struct {
 	// Pix holds the image's pixels, in R, G, B, A order. The pixel at
@@ -741,6 +752,9 @@ func (p PalettedColorModel) Index(c Color) int {
 		dr, dg, db := diff(cr, vr), diff(cg, vg), diff(cb, vb)
 		ssd := (dr * dr) + (dg * dg) + (db * db)
 		if ssd < bestSSD {
+			if ssd == 0 {
+				return i
+			}
 			ret, bestSSD = i, ssd
 		}
 	}
