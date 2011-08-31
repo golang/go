@@ -18,7 +18,7 @@ x_cgo_malloc(void *p)
 
 void (*_cgo_malloc)(void*) = x_cgo_malloc;
 
-/* Stub for calling from Go */
+/* Stub for calling free from Go */
 static void
 x_cgo_free(void *p)
 {

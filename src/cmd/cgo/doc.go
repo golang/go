@@ -72,7 +72,7 @@ the pointer to the first element explicitly: C.f(&x[0]).
 A few special functions convert between Go and C types
 by making copies of the data.  In pseudo-Go definitions:
 
-	// Go string to C string
+	// Go string to C string - result is not garbage collected
 	func C.CString(string) *C.char
 
 	// C string to Go string
