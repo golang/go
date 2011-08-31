@@ -204,6 +204,7 @@ type FlagSet struct {
 	Usage func()
 
 	name          string
+	parsed        bool
 	actual        map[string]*Flag
 	formal        map[string]*Flag
 	args          []string // arguments after flags
@@ -318,10 +319,15 @@ func defaultUsage(f *FlagSet) {
 	f.PrintDefaults()
 }
 
+// NOTE: Usage is not just defaultUsage(commandLine)
+// because it serves (via godoc flag Usage) as the example
+// for how to write your own usage function.
+
 // Usage prints to standard error a usage message documenting all defined command-line flags.
 // The function is a variable that may be changed to point to a custom function.
 var Usage = func() {
-	defaultUsage(commandLine)
+	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	PrintDefaults()
 }
 
 // NFlag returns the number of flags that have been set.
@@ -660,6 +666,7 @@ func (f *FlagSet) parseOne() (bool, os.Error) {
 // are defined and before flags are accessed by the program.
 // The return value will be ErrHelp if -help was set but not defined.
 func (f *FlagSet) Parse(arguments []string) os.Error {
+	f.parsed = true
 	f.args = arguments
 	for {
 		seen, err := f.parseOne()
@@ -681,11 +688,21 @@ func (f *FlagSet) Parse(arguments []string) os.Error {
 	return nil
 }
 
+// Parsed reports whether f.Parse has been called.
+func (f *FlagSet) Parsed() bool {
+	return f.parsed
+}
+
 // Parse parses the command-line flags from os.Args[1:].  Must be called
 // after all flags are defined and before flags are accessed by the program.
 func Parse() {
 	// Ignore errors; commandLine is set for ExitOnError.
 	commandLine.Parse(os.Args[1:])
+}
+
+// Parsed returns true if the command-line flags have been parsed.
+func Parsed() bool {
+	return commandLine.Parsed()
 }
 
 // The default set of command-line flags, parsed from os.Args.
