@@ -31,10 +31,6 @@ dumpobj(void)
 
 	outhist(bout);
 
-	// add nil plist w AEND to catch
-	// auto-generated trampolines, data
-	newplist();
-
 	dumpglobls();
 	dumptypestructs();
 	dumpdata();
@@ -279,8 +275,7 @@ stringsym(char *s, int len)
 	if(sym->flags & SymUniq)
 		return sym;
 	sym->flags |= SymUniq;
-	
-	data();
+
 	off = 0;
 	
 	// string header
@@ -297,7 +292,6 @@ stringsym(char *s, int len)
 	off = duint8(sym, off, 0);  // terminating NUL for runtime
 	off = (off+widthptr-1)&~(widthptr-1);  // round to pointer alignment
 	ggloblsym(sym, off, 1);
-	text();
-	
+
 	return sym;	
 }

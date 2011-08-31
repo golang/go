@@ -153,7 +153,7 @@ typecheck(Node **np, int top)
 	}
 
 	if(n->typecheck == 2) {
-		yyerror("typechecking loop");
+		yyerror("typechecking loop involving %#N", n);
 		lineno = lno;
 		return n;
 	}
@@ -2103,6 +2103,7 @@ typecheckcomplit(Node **np)
 					yyerror("implicit assignment of unexported field '%s' in %T literal", s->name, t);
 				ll->n = assignconv(ll->n, f->type, "field value");
 				ll->n = nod(OKEY, newname(f->sym), ll->n);
+				ll->n->left->type = f;
 				ll->n->left->typecheck = 1;
 				f = f->down;
 			}
@@ -2132,14 +2133,15 @@ typecheckcomplit(Node **np)
 				// before we do the lookup.
 				if(s->pkg != localpkg)
 					s = lookup(s->name);
-				l->left = newname(s);
-				l->left->typecheck = 1;
 				f = lookdot1(s, t, t->type, 0);
 				typecheck(&l->right, Erv);
 				if(f == nil) {
 					yyerror("unknown %T field '%s' in struct literal", t, s->name);
 					continue;
 				}
+				l->left = newname(s);
+				l->left->typecheck = 1;
+				l->left->type = f;
 				s = f->sym;
 				fielddup(newname(s), hash, nhash);
 				l->right = assignconv(l->right, f->type, "field value");
