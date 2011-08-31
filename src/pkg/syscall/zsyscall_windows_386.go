@@ -141,9 +141,8 @@ func FreeLibrary(handle Handle) (errno int) {
 	return
 }
 
-func GetProcAddress(module Handle, procname string) (proc Handle, errno int) {
-	r0, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
-	proc = Handle(r0)
+func GetProcAddress(module Handle, procname string) (proc uintptr, errno int) {
+	proc, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
 	if proc == 0 {
 		if e1 != 0 {
 			errno = int(e1)

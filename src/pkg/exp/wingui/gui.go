@@ -25,13 +25,12 @@ func abortErrNo(funcname string, err int) {
 // global vars
 
 var (
-	mh uint32
-	bh uint32
+	mh syscall.Handle
+	bh syscall.Handle
 )
 
 // WinProc called by windows to notify us of all windows events we might be interested in.
-func WndProc(hwnd, msg uint32, wparam, lparam int32) uintptr {
-	var rc int32
+func WndProc(hwnd syscall.Handle, msg uint32, wparam, lparam uintptr) (rc uintptr) {
 	switch msg {
 	case WM_CREATE:
 		var e int
@@ -49,7 +48,7 @@ func WndProc(hwnd, msg uint32, wparam, lparam int32) uintptr {
 		fmt.Printf("button handle is %x\n", bh)
 		rc = DefWindowProc(hwnd, msg, wparam, lparam)
 	case WM_COMMAND:
-		switch uint32(lparam) {
+		switch syscall.Handle(lparam) {
 		case bh:
 			e := PostMessage(hwnd, WM_CLOSE, 0, 0)
 			if e != 0 {
@@ -66,7 +65,7 @@ func WndProc(hwnd, msg uint32, wparam, lparam int32) uintptr {
 		rc = DefWindowProc(hwnd, msg, wparam, lparam)
 	}
 	//fmt.Printf("WndProc(0x%08x, %d, 0x%08x, 0x%08x) (%d)\n", hwnd, msg, wparam, lparam, rc)
-	return uintptr(rc)
+	return
 }
 
 func rungui() int {
