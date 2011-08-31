@@ -158,7 +158,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	GetLastError() (lasterrno int)
 //sys	LoadLibrary(libname string) (handle Handle, errno int) = LoadLibraryW
 //sys	FreeLibrary(handle Handle) (errno int)
-//sys	GetProcAddress(module Handle, procname string) (proc Handle, errno int)
+//sys	GetProcAddress(module Handle, procname string) (proc uintptr, errno int)
 //sys	GetVersion() (ver uint32, errno int)
 //sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
