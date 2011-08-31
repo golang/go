@@ -242,8 +242,13 @@ func (p *Pak) less(q *Pak) bool {
 
 // A File describes a Go file.
 type File struct {
-	Path string // complete file name
-	Pak  Pak    // the package to which the file belongs
+	Name string // directory-local file name
+	Pak  *Pak   // the package to which the file belongs
+}
+
+// Path returns the file path of f.
+func (f *File) Path() string {
+	return filepath.Join(f.Pak.Path, f.Name)
 }
 
 // A Spot describes a single occurrence of a word.
@@ -258,8 +263,15 @@ type FileRun struct {
 	Groups []*KindRun
 }
 
-// Spots are sorted by path for the reduction into FileRuns.
-func lessSpot(x, y interface{}) bool { return x.(Spot).File.Path < y.(Spot).File.Path }
+// Spots are sorted by file path for the reduction into FileRuns.
+func lessSpot(x, y interface{}) bool {
+	fx := x.(Spot).File
+	fy := y.(Spot).File
+	// same as "return fx.Path() < fy.Path()" but w/o computing the file path first
+	px := fx.Pak.Path
+	py := fy.Pak.Path
+	return px < py || px == py && fx.Name < fy.Name
+}
 
 // newFileRun allocates a new FileRun from the Spot run h.
 func newFileRun(h RunList) interface{} {
@@ -285,18 +297,18 @@ func newFileRun(h RunList) interface{} {
 
 // A PakRun describes a run of *FileRuns of a package.
 type PakRun struct {
-	Pak   Pak
+	Pak   *Pak
 	Files []*FileRun
 }
 
 // Sorting support for files within a PakRun.
 func (p *PakRun) Len() int           { return len(p.Files) }
-func (p *PakRun) Less(i, j int) bool { return p.Files[i].File.Path < p.Files[j].File.Path }
+func (p *PakRun) Less(i, j int) bool { return p.Files[i].File.Name < p.Files[j].File.Name }
 func (p *PakRun) Swap(i, j int)      { p.Files[i], p.Files[j] = p.Files[j], p.Files[i] }
 
 // FileRuns are sorted by package for the reduction into PakRuns.
 func lessFileRun(x, y interface{}) bool {
-	return x.(*FileRun).File.Pak.less(&y.(*FileRun).File.Pak)
+	return x.(*FileRun).File.Pak.less(y.(*FileRun).File.Pak)
 }
 
 // newPakRun allocates a new PakRun from the *FileRun run h.
@@ -318,7 +330,7 @@ func newPakRun(h RunList) interface{} {
 type HitList []*PakRun
 
 // PakRuns are sorted by package.
-func lessPakRun(x, y interface{}) bool { return x.(*PakRun).Pak.less(&y.(*PakRun).Pak) }
+func lessPakRun(x, y interface{}) bool { return x.(*PakRun).Pak.less(y.(*PakRun).Pak) }
 
 func reduce(h0 RunList) HitList {
 	// reduce a list of Spots into a list of FileRuns
@@ -414,12 +426,27 @@ type Statistics struct {
 type Indexer struct {
 	fset     *token.FileSet          // file set for all indexed files
 	sources  bytes.Buffer            // concatenated sources
+	packages map[string]*Pak         // map of canonicalized *Paks
 	words    map[string]*IndexResult // RunLists of Spots
 	snippets []*Snippet              // indices are stored in SpotInfos
 	current  *token.File             // last file added to file set
 	file     *File                   // AST for current file
 	decl     ast.Decl                // AST for current decl
 	stats    Statistics
+}
+
+func (x *Indexer) lookupPackage(path, name string) *Pak {
+	// In the source directory tree, more than one package may
+	// live in the same directory. For the packages map, construct
+	// a key that includes both the directory path and the package
+	// name.
+	key := path + ":" + name
+	pak := x.packages[key]
+	if pak == nil {
+		pak = &Pak{path, name}
+		x.packages[key] = pak
+	}
+	return pak
 }
 
 func (x *Indexer) addSnippet(s *Snippet) int {
@@ -704,9 +731,8 @@ func (x *Indexer) visitFile(dirname string, f FileInfo, fulltextIndex bool) {
 	if fast != nil {
 		// we've got a Go file to index
 		x.current = file
-		dir, _ := filepath.Split(filename)
-		pak := Pak{dir, fast.Name.Name}
-		x.file = &File{filename, pak}
+		pak := x.lookupPackage(dirname, fast.Name.Name)
+		x.file = &File{f.Name(), pak}
 		ast.Walk(x, fast)
 	}
 
@@ -743,8 +769,10 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool, throttle float64) *Ind
 	th := NewThrottle(throttle, 0.1e9) // run at least 0.1s at a time
 
 	// initialize Indexer
+	// (use some reasonably sized maps to start)
 	x.fset = token.NewFileSet()
-	x.words = make(map[string]*IndexResult)
+	x.packages = make(map[string]*Pak, 256)
+	x.words = make(map[string]*IndexResult, 8192)
 
 	// index all files in the directories given by dirnames
 	for dirname := range dirnames {
