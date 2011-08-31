@@ -196,13 +196,14 @@ getchar_skipping_comments(void)
 }
 
 /*
- * Read and return a token.  Tokens are delimited by whitespace or by
- * [(),{}].  The latter are all returned as single characters.
+ * Read and return a token.  Tokens are string or character literals
+ * or else delimited by whitespace or by [(),{}].
+ * The latter are all returned as single characters.
  */
 static char *
 read_token(void)
 {
-	int c;
+	int c, q;
 	char *buf;
 	unsigned int alc, off;
 	const char* delims = "(),{}";
@@ -217,7 +218,26 @@ read_token(void)
 	alc = 16;
 	buf = xmalloc(alc + 1);
 	off = 0;
-	if (strchr(delims, c) != NULL) {
+	if(c == '"' || c == '\'') {
+		q = c;
+		buf[off] = c;
+		++off;
+		while (1) {
+			if (off+2 >= alc) { // room for c and maybe next char
+				alc *= 2;
+				buf = xrealloc(buf, alc + 1);
+			}
+			c = getchar_no_eof();
+			buf[off] = c;
+			++off;
+			if(c == q)
+				break;
+			if(c == '\\') {
+				buf[off] = getchar_no_eof();
+				++off;
+			}
+		}
+	} else if (strchr(delims, c) != NULL) {
 		buf[off] = c;
 		++off;
 	} else {
