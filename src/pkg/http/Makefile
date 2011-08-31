@@ -10,6 +10,7 @@ GOFILES=\
 	client.go\
 	cookie.go\
 	dump.go\
+	filetransport.go\
 	fs.go\
 	header.go\
 	lex.go\
