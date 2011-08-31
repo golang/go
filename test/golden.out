@@ -42,9 +42,6 @@ hello, world
 =========== ./sigchld.go
 survived SIGCHLD
 
-=========== ./sinit.go
-FAIL
-
 =========== ./turing.go
 Hello World!
 

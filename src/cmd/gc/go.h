@@ -200,6 +200,27 @@ struct	Type
 };
 #define	T	((Type*)0)
 
+typedef struct InitEntry InitEntry;
+typedef struct InitPlan InitPlan;
+
+struct InitEntry
+{
+	vlong xoffset;  // struct, array only
+	Node *key;  // map only
+	Node *expr;
+};
+
+struct InitPlan
+{
+	vlong lit;  // bytes of initialized non-zero literals
+	vlong zero;  // bytes of zeros
+	vlong expr;  // bytes of run-time computed expressions
+
+	InitEntry *e;
+	int len;
+	int cap;
+};
+
 enum
 {
 	EscUnknown,
@@ -239,8 +260,8 @@ struct	Node
 	uchar	walkdef;
 	uchar	typecheck;
 	uchar	local;
+	uchar	dodata;
 	uchar	initorder;
-	uchar	dodata;		// compile literal assignment as data statement
 	uchar	used;
 	uchar	isddd;
 	uchar	pun;		// don't registerize variable ONAME
@@ -281,6 +302,9 @@ struct	Node
 
 	// OPACK
 	Pkg*	pkg;
+	
+	// OARRAYLIT, OMAPLIT, OSTRUCTLIT.
+	InitPlan*	initplan;
 
 	// Escape analysis.
 	NodeList* escflowsrc;	// flow(this, src)
@@ -1306,8 +1330,6 @@ Prog*	unpatch(Prog*);
 void	zfile(Biobuf *b, char *p, int n);
 void	zhist(Biobuf *b, int line, vlong offset);
 void	zname(Biobuf *b, Sym *s, int t);
-void	data(void);
-void	text(void);
 
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"B"	Mpint*

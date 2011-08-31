@@ -52,6 +52,10 @@ clearp(Prog *p)
 	pcloc++;
 }
 
+static int ddumped;
+static Prog *dfirst;
+static Prog *dpc;
+
 /*
  * generate and return proc with p->as = as,
  * linked into program.  pc is next instruction.
@@ -61,10 +65,22 @@ prog(int as)
 {
 	Prog *p;
 
-	p = pc;
-	pc = mal(sizeof(*pc));
-
-	clearp(pc);
+	if(as == ADATA || as == AGLOBL) {
+		if(ddumped)
+			fatal("already dumped data");
+		if(dpc == nil) {
+			dpc = mal(sizeof(*dpc));
+			dfirst = dpc;
+		}
+		p = dpc;
+		dpc = mal(sizeof(*dpc));
+		p->link = dpc;
+	} else {
+		p = pc;
+		pc = mal(sizeof(*pc));
+		clearp(pc);
+		p->link = pc;
+	}
 
 	if(lineno == 0) {
 		if(debug['K'])
@@ -73,8 +89,19 @@ prog(int as)
 
 	p->as = as;
 	p->lineno = lineno;
-	p->link = pc;
 	return p;
+}
+
+void
+dumpdata(void)
+{
+	ddumped = 1;
+	if(dfirst == nil)
+		return;
+	newplist();
+	*pc = *dfirst;
+	pc = dpc;
+	clearp(pc);
 }
 
 /*

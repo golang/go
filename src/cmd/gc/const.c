@@ -1101,7 +1101,7 @@ cmpslit(Node *l, Node *r)
 int
 smallintconst(Node *n)
 {
-	if(n->op == OLITERAL && n->type != T)
+	if(n->op == OLITERAL && n->val.ctype == CTINT && n->type != T)
 	switch(simtype[n->type->etype]) {
 	case TINT8:
 	case TUINT8:
@@ -1112,6 +1112,7 @@ smallintconst(Node *n)
 	case TBOOL:
 	case TPTR32:
 		return 1;
+	case TIDEAL:
 	case TINT64:
 	case TUINT64:
 		if(mpcmpfixfix(n->val.u.xval, minintval[TINT32]) < 0

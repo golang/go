@@ -162,12 +162,6 @@ void	complexgen(Node*, Node*);
 void	complexbool(int, Node*, Node*, int, Prog*);
 
 /*
- * gobj.c
- */
-void	data(void);
-void	text(void);
-
-/*
  * list.c
  */
 int	Aconv(Fmt*);
