@@ -77,6 +77,19 @@ elf64phdr(ElfPhdr *e)
 void
 elf32phdr(ElfPhdr *e)
 {
+	int frag;
+	
+	if(e->type == PT_LOAD) {
+		// Correct ELF loaders will do this implicitly,
+		// but buggy ELF loaders like the one in some
+		// versions of QEMU won't.
+		frag = e->vaddr&(e->align-1);
+		e->off -= frag;
+		e->vaddr -= frag;
+		e->paddr -= frag;
+		e->filesz += frag;
+		e->memsz += frag;
+	}
 	LPUT(e->type);
 	LPUT(e->off);
 	LPUT(e->vaddr);

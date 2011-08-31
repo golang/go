@@ -248,6 +248,7 @@ runtime·mallocinit(void)
 	byte *p;
 	uintptr arena_size, bitmap_size;
 	extern byte end[];
+	byte *want;
 
 	runtime·InitSizes();
 
@@ -307,9 +308,13 @@ runtime·mallocinit(void)
 		// not as an absolute requirement.  If we ask for the end
 		// of the data segment but the operating system requires
 		// a little more space before we can start allocating, it will
-		// give out a slightly higher pointer.  That's fine.  
-		// Run with what we get back.
-		p = runtime·SysReserve(end, bitmap_size + arena_size);
+		// give out a slightly higher pointer.  Except QEMU, which
+		// is buggy, as usual: it won't adjust the pointer upward.
+		// So adjust it upward a little bit ourselves: 1/4 MB to get
+		// away from the running binary image and then round up
+		// to a MB boundary.
+		want = (byte*)(((uintptr)end + (1<<18) + (1<<20) - 1)&~((1<<20)-1));
+		p = runtime·SysReserve(want, bitmap_size + arena_size);
 		if(p == nil)
 			runtime·throw("runtime: cannot reserve arena virtual address space");
 	}
