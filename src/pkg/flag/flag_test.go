@@ -98,6 +98,9 @@ func TestUsage(t *testing.T) {
 }
 
 func testParse(f *FlagSet, t *testing.T) {
+	if f.Parsed() {
+		t.Error("f.Parse() = true before Parse")
+	}
 	boolFlag := f.Bool("bool", false, "bool value")
 	bool2Flag := f.Bool("bool2", false, "bool2 value")
 	intFlag := f.Int("int", 0, "int value")
@@ -120,6 +123,9 @@ func testParse(f *FlagSet, t *testing.T) {
 	}
 	if err := f.Parse(args); err != nil {
 		t.Fatal(err)
+	}
+	if !f.Parsed() {
+		t.Error("f.Parse() = false after Parse")
 	}
 	if *boolFlag != true {
 		t.Error("bool flag should be true, is ", *boolFlag)
