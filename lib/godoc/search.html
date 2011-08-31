@@ -26,7 +26,7 @@
 			{{range .Files}}
 				{{$src_html := srcLink .File.Path | html}}
 				{{range .Groups}}
-					{{range .Infos}}
+					{{range .}}
 						<a href="/{{$src_html}}?h={{$query_url}}#L{{infoLine .}}">{{$src_html}}:{{infoLine .}}</a>
 						{{infoSnippet_html .}}
 					{{end}}
@@ -46,10 +46,10 @@
 				{{range .Groups}}
 					<tr>
 					<td width="25"></td>
-					<th align="left" valign="top">{{infoKind_html .Kind}}</th>
+					<th align="left" valign="top">{{index . 0 | infoKind_html}}</th>
 					<td align="left" width="4"></td>
 					<td>
-					{{range .Infos}}
+					{{range .}}
 						<a href="/{{$src_html}}?h={{$query_url}}#L{{infoLine .}}">{{infoLine .}}</a>
 					{{end}}
 					</td>
