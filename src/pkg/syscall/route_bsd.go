@@ -72,9 +72,52 @@ type RouteMessage struct {
 	Data   []byte
 }
 
-func (m *RouteMessage) sockaddr() (sas []Sockaddr) {
-	// TODO: implement this in the near future
-	return nil
+const rtaRtMask = RTA_DST | RTA_GATEWAY | RTA_NETMASK | RTA_GENMASK
+
+func (m *RouteMessage) sockaddr() []Sockaddr {
+	var (
+		af  int
+		sas [4]Sockaddr
+	)
+
+	buf := m.Data[:]
+	for i := uint(0); i < RTAX_MAX; i++ {
+		if m.Header.Addrs&rtaRtMask&(1<<i) == 0 {
+			continue
+		}
+		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
+		switch i {
+		case RTAX_DST, RTAX_GATEWAY:
+			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+			if e != 0 {
+				return nil
+			}
+			if i == RTAX_DST {
+				af = int(rsa.Family)
+			}
+			sas[i] = sa
+		case RTAX_NETMASK, RTAX_GENMASK:
+			switch af {
+			case AF_INET:
+				rsa4 := (*RawSockaddrInet4)(unsafe.Pointer(&buf[0]))
+				sa := new(SockaddrInet4)
+				for j := 0; rsa4.Len > 0 && j < int(rsa4.Len)-int(unsafe.Offsetof(rsa4.Addr)); j++ {
+					sa.Addr[j] = rsa4.Addr[j]
+				}
+				sas[i] = sa
+			case AF_INET6:
+				rsa6 := (*RawSockaddrInet6)(unsafe.Pointer(&buf[0]))
+				sa := new(SockaddrInet6)
+				for j := 0; rsa6.Len > 0 && j < int(rsa6.Len)-int(unsafe.Offsetof(rsa6.Addr)); j++ {
+					sa.Addr[j] = rsa6.Addr[j]
+				}
+				sas[i] = sa
+			}
+		}
+		buf = buf[rsaAlignOf(int(rsa.Len)):]
+	}
+
+	return sas[:]
 }
 
 // InterfaceMessage represents a routing message containing
