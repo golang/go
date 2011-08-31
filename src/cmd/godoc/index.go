@@ -7,7 +7,7 @@
 //
 // Algorithm for identifier index:
 // - traverse all .go files of the file tree specified by root
-// - for each word (identifier) encountered, collect all occurrences (spots)
+// - for each identifier (word) encountered, collect all occurrences (spots)
 //   into a list; this produces a list of spots for each word
 // - reduce the lists: from a list of spots to a list of FileRuns,
 //   and from a list of FileRuns into a list of PakRuns
@@ -179,28 +179,25 @@ func (x SpotInfo) IsIndex() bool  { return x&1 != 0 }
 const removeDuplicates = true
 
 // A KindRun is a run of SpotInfos of the same kind in a given file.
-type KindRun struct {
-	Kind  SpotKind
-	Infos []SpotInfo
-}
+// The kind (3 bits) is stored in each SpotInfo element; to find the
+// kind of a KindRun, look at any of it's elements.
+type KindRun []SpotInfo
 
 // KindRuns are sorted by line number or index. Since the isIndex bit
 // is always the same for all infos in one list we can compare lori's.
-func (f *KindRun) Len() int           { return len(f.Infos) }
-func (f *KindRun) Less(i, j int) bool { return f.Infos[i].Lori() < f.Infos[j].Lori() }
-func (f *KindRun) Swap(i, j int)      { f.Infos[i], f.Infos[j] = f.Infos[j], f.Infos[i] }
+func (k KindRun) Len() int           { return len(k) }
+func (k KindRun) Less(i, j int) bool { return k[i].Lori() < k[j].Lori() }
+func (k KindRun) Swap(i, j int)      { k[i], k[j] = k[j], k[i] }
 
 // FileRun contents are sorted by Kind for the reduction into KindRuns.
 func lessKind(x, y interface{}) bool { return x.(SpotInfo).Kind() < y.(SpotInfo).Kind() }
 
 // newKindRun allocates a new KindRun from the SpotInfo run h.
 func newKindRun(h RunList) interface{} {
-	kind := h[0].(SpotInfo).Kind()
-	infos := make([]SpotInfo, len(h))
+	run := make(KindRun, len(h))
 	for i, x := range h {
-		infos[i] = x.(SpotInfo)
+		run[i] = x.(SpotInfo)
 	}
-	run := &KindRun{kind, infos}
 
 	// Spots were sorted by file and kind to create this run.
 	// Within this run, sort them by line number or index.
@@ -212,15 +209,15 @@ func newKindRun(h RunList) interface{} {
 		// bit is always the same for all infos in one
 		// list we can simply compare the entire info.
 		k := 0
-		var prev SpotInfo
-		for i, x := range infos {
-			if x != prev || i == 0 {
-				infos[k] = x
+		prev := SpotInfo(1<<32 - 1) // an unlikely value
+		for _, x := range run {
+			if x != prev {
+				run[k] = x
 				k++
 				prev = x
 			}
 		}
-		run.Infos = infos[0:k]
+		run = run[0:k]
 	}
 
 	return run
@@ -260,7 +257,7 @@ type Spot struct {
 // A FileRun is a list of KindRuns belonging to the same file.
 type FileRun struct {
 	File   *File
-	Groups []*KindRun
+	Groups []KindRun
 }
 
 // Spots are sorted by file path for the reduction into FileRuns.
@@ -285,9 +282,9 @@ func newFileRun(h RunList) interface{} {
 	h2 := h1.reduce(lessKind, newKindRun)
 
 	// create the FileRun
-	groups := make([]*KindRun, len(h2))
+	groups := make([]KindRun, len(h2))
 	for i, x := range h2 {
-		groups[i] = x.(*KindRun)
+		groups[i] = x.(KindRun)
 	}
 	return &FileRun{file, groups}
 }

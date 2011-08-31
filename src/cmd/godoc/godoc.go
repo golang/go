@@ -406,8 +406,8 @@ var infoKinds = [nKinds]string{
 	Use:           "use",
 }
 
-func infoKind_htmlFunc(kind SpotKind) string {
-	return infoKinds[kind] // infoKind entries are html-escaped
+func infoKind_htmlFunc(info SpotInfo) string {
+	return infoKinds[info.Kind()] // infoKind entries are html-escaped
 }
 
 func infoLineFunc(info SpotInfo) int {
