@@ -6,23 +6,26 @@
 enum
 {
 	ENOMEM = 12,
+	_PAGE_SIZE = 4096,
 };
 
 static int32
 addrspace_free(void *v, uintptr n)
 {
-	uintptr page_size = 4096;
+	int32 errval;
+	uintptr chunk;
 	uintptr off;
-	int8 one_byte;
+	static byte vec[4096];
 
-	for(off = 0; off < n; off += page_size) {
-		int32 errval = runtime·mincore((int8 *)v + off, page_size, (void *)&one_byte);
+	for(off = 0; off < n; off += chunk) {
+		chunk = _PAGE_SIZE * sizeof vec;
+		if(chunk > (n - off))
+			chunk = n - off;
+		errval = runtime·mincore((int8*)v + off, chunk, vec);
 		// errval is 0 if success, or -(error_code) if error.
 		if (errval == 0 || errval != -ENOMEM)
 			return 0;
 	}
-	USED(v);
-	USED(n);
 	return 1;
 }
 
@@ -72,7 +75,7 @@ runtime·SysReserve(void *v, uintptr n)
 		return v;
 	
 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
-	if(p < (void*)4096) {
+	if((uintptr)p < 4096 || -(uintptr)p < 4096) {
 		return nil;
 	}
 	return p;
