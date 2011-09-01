@@ -3446,8 +3446,13 @@ list1(Node *n)
 
 	if(n == nil)
 		return nil;
-	if(n->op == OBLOCK && n->ninit == nil)
-		return n->list;
+	if(n->op == OBLOCK && n->ninit == nil) {
+		// Flatten list and steal storage.
+		// Poison pointer to catch errant uses.
+		l = n->list;
+		n->list = (NodeList*)1;
+		return l;
+	}
 	l = mal(sizeof *l);
 	l->n = n;
 	l->end = l;

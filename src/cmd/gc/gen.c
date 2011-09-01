@@ -287,7 +287,7 @@ stmtlabel(Node *n)
 	if(n->sym != S)
 	if((lab = n->sym->label) != L)
 	if(lab->def != N)
-	if(lab->def->right == n)
+	if(lab->def->defn == n)
 		return lab;
 	return L;
 }
@@ -355,13 +355,13 @@ gen(Node *n)
 		if(lab->labelpc == P)
 			lab->labelpc = pc;
 
-		if(n->right) {
-			switch(n->right->op) {
+		if(n->defn) {
+			switch(n->defn->op) {
 			case OFOR:
 			case OSWITCH:
 			case OSELECT:
 				// so stmtlabel can find the label
-				n->right->sym = lab->sym;
+				n->defn->sym = lab->sym;
 			}
 		}
 		break;
