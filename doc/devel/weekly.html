@@ -14,6 +14,152 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-09-01">2011-09-01</h2>
+
+<pre>
+This weekly contains performance improvements and bug fixes.
+
+The gc compiler now does escape analysis, which improves program performance
+by placing variables on the call stack instead of the heap when it is safe to
+do so.
+
+The container/vector package is deprecated and will be removed at some point
+in the future.
+
+Other changes:
+* archive/tar: support symlinks. (thanks Mike Rosset)
+* big: fix nat.scan bug. (thanks Evan Shaw)
+* bufio: handle a "\r\n" that straddles the buffer.
+	add openbsd.
+	avoid redundant bss declarations.
+	fix unused parameters.
+	fix windows/amd64 build with newest mingw-w64. (thanks Hector Chu)
+* bytes: clarify that NewBuffer is not for beginners.
+* cgo: explain how to free something.
+	fix GoBytes. (thanks Gustavo Niemeyer)
+	fixes callback for windows amd64. (thanks Wei Guangjing)
+	note that CString result must be freed. (thanks Gustavo Niemeyer)
+* cov: remove tautological #defines. (thanks Lucio De Re)
+* dashboard: yet another utf-8 fix.
+* doc/codelab/wiki: fix Makefile.
+* doc/progs: fix windows/amd64. (thanks Jaroslavas Počepko)
+* doc/tmpltohtml: update to new template package.
+* doc: emphasize that environment variables are optional.
+* effective_go: convert to use tmpltohtml.
+* exp/norm: reduced the size of the byte buffer used by reorderBuffer by half by reusing space when combining.
+	a few minor fixes to support the implementation of norm.
+	added implementation for []byte versions of methods.
+* exp/template/html: add some tests for ">" attributes.
+	added handling for URL attributes.
+	differentiate URL-valued attributes (such as href).
+	reworked escapeText to recognize attr boundaries.
+* exp/template: moved from exp to the main tree.
+* exp/wingui: made compatible with windows/amd64. (thanks Jaroslavas Počepko)
+* flag: add Parsed, restore Usage.
+* gc: add openbsd.
+	escape analysis.
+	fix build on Plan 9. (thanks Lucio De Re)
+	fix div bug.
+	fix pc/line table. (thanks Julian Phillips)
+	fix some spurious leaks.
+	make static initialization more static.
+	remove JCXZ; add JCXZW, JCXZL, and JCXZQ instructions. (thanks Jaroslavas Počepko)
+	shuffle #includes.
+	simplify escape analysis recursion.
+	tweak and enable escape analysis.
+* go/ast cleanup: base File/PackageExports on FilterFile/FilterPackage code.
+	adjustments to filter function.
+	fix ast.MergePackageFiles to collect infos about imports. (thanks Sebastien Binet)
+	generalize ast.FilterFile.
+* go/build: add test support & use in gotest.
+	separate test imports out when scanning. (thanks Gustavo Niemeyer)
+* go/parser: fix type switch scoping.
+	fix type switch scoping.
+* gob: explain that Debug isn't useful unless it's compiled in.
+* gobuilder: increase log limit.
+* godashboard: fix utf-8 in user names.
+* godoc: first step towards reducing index size.
+	add dummy playground.js to silence godoc warning at start-up.
+	added systematic throttling to indexing goroutine.
+	fix bug in zip.go.
+	support for reading/writing (splitted) index files.
+	use virtual file system when generating package synopses.
+* gofix: forgot to rename the URL type.
+	osopen: fixed=true when changing O_CREAT. (thanks Tarmigan Casebolt)
+* goinstall: error out with paths that end with '/'. (thanks Tarmigan Casebolt)
+	report lack of $GOPATH on errors. (thanks Gustavo Niemeyer)
+	select the tag that is closest to runtime.Version.
+* gotry: add missing $. (thanks Tarmigan Casebolt)
+* http: add MaxBytesReader to limit request body size.
+	add file protocol transport.
+	adjust test threshold for larger suse buffers.
+	delete error kludge.
+	on invalid request, send 400 response.
+	return 413 instead of 400 when the request body is too large. (thanks Dave Cheney)
+	support setting Transport's TLS client config.
+* image/tiff: add a decode benchmark. (thanks Benny Siegert)
+	decoder optimization. (thanks Benny Siegert)
+* image: add PalettedImage interface, and make image/png recognize it. (thanks Jaroslavas Počepko)
+* io: add TeeReader. (thanks Hector Chu)
+* json: add struct tag option to wrap literals in strings.
+	calculate Offset for Indent correctly. (thanks Jeff Hodges)
+	fix decode bug with struct tag names with ,opts being ignored.
+* ld: handle Plan 9 ar format. (thanks Lucio De Re)
+	remove duplicate bss definitions.
+* libmach: support reading symbols from Windows .exe for nm. (thanks Mateusz Czapliński)
+* math: fix Pow10 loop. (thanks Volker Dobler)
+* mime: ParseMediaType returns os.Error now, not a nil map.
+	media type formatter. (thanks Pascal S. de Kloe)
+	text charset defaults. (thanks Pascal S. de Kloe)
+* misc/dashboard: remove limit for json package list.
+* misc/emacs: refine label detection.
+* net: add ParseMAC function. (thanks Paul Borman)
+	change the internal form of IPMask for IPv4. (thanks Mikio Hara)
+	disable "tcp" test on openbsd.
+	fix windows build. (thanks Alex Brainman)
+	join and leave a IPv6 group address, on a specific interface. (thanks Mikio Hara)
+	make use of IPv4len, IPv6len. (thanks Mikio Hara)
+	move internal string manipulation routines to parse.go. (thanks Mikio Hara)
+* os: disable Hostname test on OpenBSD.
+	fix WNOHANG Waitmsg. (thanks Gustavo Niemeyer)
+* reflect: add Value.Bytes, Value.SetBytes methods.
+* rpc: add benchmark for async rpc calls.
+* runtime: add openbsd 386 defs.h.
+	add runtime support for openbsd 386.
+	add runtime· prefix to showframe.
+	ctrlhandler for windows amd64. (thanks Wei Guangjing)
+	fix stack cleanup on windows/amd64. (thanks Hector Chu)
+	fix void warnings.
+	go interface to cdecl calbacks. (thanks Jaroslavas Počepko)
+	handle string + char literals in goc2c.
+	make arm work on Ubuntu Natty qemu.
+	openbsd thread tweaks.
+	simplify stack traces.
+	speed up cgo calls. (thanks Alex Brainman)
+	use cgo runtime functions to call windows syscalls. (thanks Alex Brainman)
+	windows/amd64 callbacks fixed and syscall fixed to allow using it in callbacks. (thanks Jaroslavas Počepko)
+* strconv: put decimal on stack.
+* spec: update section on Implementation Differences.
+* syscall: SOMAXCONN should be 0x7fffffff at winsock2. (thanks Yasuhiro Matsumoto)
+	add openbsd 386.
+	handle RTM_NEWROUTE in ParseNetlinkRouteAttr on Linux. (thanks Albert Strasheim)
+	handle routing entry in ParseRoutingSockaddr on BSD variants. (thanks Mikio Hara)
+	openbsd amd64 syscall support.
+	use the vdso page on linux x86 for faster syscalls instead of int $0x80. (thanks Yuval Pavel Zholkover)
+* template/parse: give if, range, and with a common representation.
+* template: grammar fix for template documentation. (thanks Bill Neubauer)
+	range over channel.
+	remove else and end nodes from public view.
+* test: put GOROOT/bin before all others in run.
+* time: fix Plan 9 build. (thanks Fazlul Shahriar)
+	fix zone during windows test.
+* type switches: test for pathological case.
+* version.bash: update VERSION on -save if already present. (thanks Gustavo Niemeyer)
+* websocket: implements new version of WebSocket protocol. (thanks Fumitoshi Ukai)
+* windows/386: clean stack after syscall. (thanks Jaroslavas Počepko)
+* xml: marshal "parent>child" tags correctly. (thanks Ross Light)
+</pre>
+
 <h2 id="2011-08-17">2011-08-17</h2>
 
 <pre>
