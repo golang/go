@@ -811,7 +811,7 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
 		buf = malloc(sh[ep->shstrndx].size);
 		if (buf == 0)
 			goto done;
-		memset(buf, 0, sizeof buf);
+		memset(buf, 0, sh[ep->shstrndx].size);
 		seek(fd, sh[ep->shstrndx].offset, 0);
 		i = read(fd, buf, sh[ep->shstrndx].size);
 		USED(i);	// shut up ubuntu gcc
@@ -989,7 +989,7 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
 		buf = malloc(sh[ep->shstrndx].size);
 		if (buf == 0)
 			goto done;
-		memset(buf, 0, sizeof buf);
+		memset(buf, 0, sh[ep->shstrndx].size);
 		seek(fd, sh[ep->shstrndx].offset, 0);
 		i = read(fd, buf, sh[ep->shstrndx].size);
 		USED(i);	// shut up ubuntu gcc
