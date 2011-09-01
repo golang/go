@@ -13,6 +13,11 @@ Darwin)
 	exit 0
 esac
 
+if [[ ! -d /usr/local/bin ]]; then
+	echo 1>&2 'sudo.bash: problem with /usr/local/bin; cannot install tools.'
+	exit 2
+fi
+
 for i in prof cov
 do
 	sudo cp "$GOROOT"/src/cmd/$i/6$i /usr/local/bin/6$i
