@@ -1496,7 +1496,7 @@ non_dcl_stmt:
 	{
 		NodeList *l;
 
-		$1->right = $4;
+		$1->defn = $4;
 		l = list1($1);
 		if($4)
 			l = list(l, $4);

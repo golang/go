@@ -286,7 +286,7 @@ struct	Node
 
 	// ONAME
 	Node*	ntype;
-	Node*	defn;
+	Node*	defn;	// ONAME: initializing assignment; OLABEL: labeled statement
 	Node*	pack;	// real package for import . names
 	Node*	curfn;	// function for local variables
 	Type*	paramfld; // TFIELD for this PPARAM

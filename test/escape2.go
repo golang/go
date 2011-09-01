@@ -780,3 +780,208 @@ func external(*int)
 func foo119(x *int) {  // ERROR "leaking param: NAME-x"
 	external(x)
 }
+
+func foo120() {
+	// formerly exponential time analysis
+L1:
+L2:
+L3:
+L4:
+L5:
+L6:
+L7:
+L8:
+L9:
+L10:
+L11:
+L12:
+L13:
+L14:
+L15:
+L16:
+L17:
+L18:
+L19:
+L20:
+L21:
+L22:
+L23:
+L24:
+L25:
+L26:
+L27:
+L28:
+L29:
+L30:
+L31:
+L32:
+L33:
+L34:
+L35:
+L36:
+L37:
+L38:
+L39:
+L40:
+L41:
+L42:
+L43:
+L44:
+L45:
+L46:
+L47:
+L48:
+L49:
+L50:
+L51:
+L52:
+L53:
+L54:
+L55:
+L56:
+L57:
+L58:
+L59:
+L60:
+L61:
+L62:
+L63:
+L64:
+L65:
+L66:
+L67:
+L68:
+L69:
+L70:
+L71:
+L72:
+L73:
+L74:
+L75:
+L76:
+L77:
+L78:
+L79:
+L80:
+L81:
+L82:
+L83:
+L84:
+L85:
+L86:
+L87:
+L88:
+L89:
+L90:
+L91:
+L92:
+L93:
+L94:
+L95:
+L96:
+L97:
+L98:
+L99:
+L100:
+	// use the labels to silence compiler errors
+	goto L1
+	goto L2
+	goto L3
+	goto L4
+	goto L5
+	goto L6
+	goto L7
+	goto L8
+	goto L9
+	goto L10
+	goto L11
+	goto L12
+	goto L13
+	goto L14
+	goto L15
+	goto L16
+	goto L17
+	goto L18
+	goto L19
+	goto L20
+	goto L21
+	goto L22
+	goto L23
+	goto L24
+	goto L25
+	goto L26
+	goto L27
+	goto L28
+	goto L29
+	goto L30
+	goto L31
+	goto L32
+	goto L33
+	goto L34
+	goto L35
+	goto L36
+	goto L37
+	goto L38
+	goto L39
+	goto L40
+	goto L41
+	goto L42
+	goto L43
+	goto L44
+	goto L45
+	goto L46
+	goto L47
+	goto L48
+	goto L49
+	goto L50
+	goto L51
+	goto L52
+	goto L53
+	goto L54
+	goto L55
+	goto L56
+	goto L57
+	goto L58
+	goto L59
+	goto L60
+	goto L61
+	goto L62
+	goto L63
+	goto L64
+	goto L65
+	goto L66
+	goto L67
+	goto L68
+	goto L69
+	goto L70
+	goto L71
+	goto L72
+	goto L73
+	goto L74
+	goto L75
+	goto L76
+	goto L77
+	goto L78
+	goto L79
+	goto L80
+	goto L81
+	goto L82
+	goto L83
+	goto L84
+	goto L85
+	goto L86
+	goto L87
+	goto L88
+	goto L89
+	goto L90
+	goto L91
+	goto L92
+	goto L93
+	goto L94
+	goto L95
+	goto L96
+	goto L97
+	goto L98
+	goto L99
+	goto L100
+}
