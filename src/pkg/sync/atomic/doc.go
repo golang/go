@@ -22,6 +22,10 @@
 //
 package atomic
 
+import (
+	"unsafe"
+)
+
 // BUG(rsc): On ARM, the 64-bit functions use instructions unavailable before ARM 11.
 //
 // On x86-32, the 64-bit functions use instructions unavailable before the Pentium.
@@ -61,6 +65,12 @@ func LoadInt32(addr *int32) (val int32)
 
 // LoadUint32 atomically loads *addr.
 func LoadUint32(addr *uint32) (val uint32)
+
+// LoadUintptr atomically loads *addr.
+func LoadUintptr(addr *uintptr) (val uintptr)
+
+// LoadPointer atomically loads *addr.
+func LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer)
 
 // Helper for ARM.  Linker will discard on other systems
 func panic64() {

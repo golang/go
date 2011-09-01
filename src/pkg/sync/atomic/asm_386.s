@@ -94,3 +94,9 @@ TEXT ·LoadUint32(SB),7,$0
 	MOVL	0(AX), AX
 	MOVL	AX, ret+4(FP)
 	RET
+
+TEXT ·LoadUintptr(SB),7,$0
+	JMP	·LoadUint32(SB)
+
+TEXT ·LoadPointer(SB),7,$0
+	JMP	·LoadUint32(SB)

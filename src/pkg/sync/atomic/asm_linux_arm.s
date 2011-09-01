@@ -96,3 +96,9 @@ loadloop1:
 	BCC	loadloop1
 	MOVW	R1, val+4(FP)
 	RET
+
+TEXT ·LoadUintptr(SB),7,$0
+	B	·LoadUint32(SB)
+
+TEXT ·LoadPointer(SB),7,$0
+	B	·LoadUint32(SB)
