@@ -348,6 +348,50 @@ func TestLoadUint32(t *testing.T) {
 	}
 }
 
+func TestLoadUintptr(t *testing.T) {
+	var x struct {
+		before uintptr
+		i      uintptr
+		after  uintptr
+	}
+	var m uint64 = magic64
+	magicptr := uintptr(m)
+	x.before = magicptr
+	x.after = magicptr
+	for delta := uintptr(1); delta+delta > delta; delta += delta {
+		k := LoadUintptr(&x.i)
+		if k != x.i {
+			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
+		}
+		x.i += delta
+	}
+	if x.before != magicptr || x.after != magicptr {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
+	}
+}
+
+func TestLoadPointer(t *testing.T) {
+	var x struct {
+		before uintptr
+		i      unsafe.Pointer
+		after  uintptr
+	}
+	var m uint64 = magic64
+	magicptr := uintptr(m)
+	x.before = magicptr
+	x.after = magicptr
+	for delta := uintptr(1); delta+delta > delta; delta += delta {
+		k := LoadPointer(&x.i)
+		if k != x.i {
+			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
+		}
+		x.i = unsafe.Pointer(uintptr(x.i) + delta)
+	}
+	if x.before != magicptr || x.after != magicptr {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
+	}
+}
+
 // Tests of correct behavior, with contention.
 // (Is the function atomic?)
 //
@@ -578,8 +622,8 @@ func TestHammer64(t *testing.T) {
 	}
 }
 
-func hammerLoadInt32(t *testing.T, uval *uint32) {
-	val := (*int32)(unsafe.Pointer(uval))
+func hammerLoadInt32(t *testing.T, valp unsafe.Pointer) {
+	val := (*int32)(valp)
 	for {
 		v := LoadInt32(val)
 		vlo := v & ((1 << 16) - 1)
@@ -597,7 +641,8 @@ func hammerLoadInt32(t *testing.T, uval *uint32) {
 	}
 }
 
-func hammerLoadUint32(t *testing.T, val *uint32) {
+func hammerLoadUint32(t *testing.T, valp unsafe.Pointer) {
+	val := (*uint32)(valp)
 	for {
 		v := LoadUint32(val)
 		vlo := v & ((1 << 16) - 1)
@@ -615,8 +660,40 @@ func hammerLoadUint32(t *testing.T, val *uint32) {
 	}
 }
 
+func hammerLoadUintptr(t *testing.T, valp unsafe.Pointer) {
+	val := (*uintptr)(valp)
+	var test64 uint64 = 1 << 50
+	arch32 := uintptr(test64) == 0
+	for {
+		v := LoadUintptr(val)
+		new := v
+		if arch32 {
+			vlo := v & ((1 << 16) - 1)
+			vhi := v >> 16
+			if vlo != vhi {
+				t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
+			}
+			new = v + 1 + 1<<16
+			if vlo == 1e4 {
+				new = 0
+			}
+		} else {
+			vlo := v & ((1 << 32) - 1)
+			vhi := v >> 32
+			if vlo != vhi {
+				t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
+			}
+			inc := uint64(1 + 1<<32)
+			new = v + uintptr(inc)
+		}
+		if CompareAndSwapUintptr(val, v, new) {
+			break
+		}
+	}
+}
+
 func TestHammerLoad(t *testing.T) {
-	tests := [...]func(*testing.T, *uint32){hammerLoadInt32, hammerLoadUint32}
+	tests := [...]func(*testing.T, unsafe.Pointer){hammerLoadInt32, hammerLoadUint32, hammerLoadUintptr}
 	n := 100000
 	if testing.Short() {
 		n = 10000
@@ -625,11 +702,11 @@ func TestHammerLoad(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(procs))
 	for _, tt := range tests {
 		c := make(chan int)
-		var val uint32
+		var val uint64
 		for p := 0; p < procs; p++ {
 			go func() {
 				for i := 0; i < n; i++ {
-					tt(t, &val)
+					tt(t, unsafe.Pointer(&val))
 				}
 				c <- 1
 			}()
