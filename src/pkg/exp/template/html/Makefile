@@ -8,5 +8,6 @@ TARG=exp/template/html
 GOFILES=\
 	context.go\
 	escape.go\
+	js.go\
 
 include ../../../../Make.pkg
