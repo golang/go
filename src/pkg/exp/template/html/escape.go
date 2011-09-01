@@ -33,7 +33,10 @@ func Escape(t *template.Template) (*template.Template, os.Error) {
 
 // funcMap maps command names to functions that render their inputs safe.
 var funcMap = template.FuncMap{
-	"exp_template_html_urlfilter": urlFilter,
+	"exp_template_html_urlfilter":       urlFilter,
+	"exp_template_html_jsvalescaper":    jsValEscaper,
+	"exp_template_html_jsstrescaper":    jsStrEscaper,
+	"exp_template_html_jsregexpescaper": jsRegexpEscaper,
 }
 
 // escape escapes a template node.
@@ -58,15 +61,16 @@ func escape(c context, n parse.Node) context {
 
 // escapeAction escapes an action template node.
 func escapeAction(c context, n *parse.ActionNode) context {
-	sanitizer := "html"
-	if c.state == stateURL {
+	s := make([]string, 0, 2)
+	switch c.state {
+	case stateURL:
 		switch c.urlPart {
 		case urlPartNone:
-			sanitizer = "exp_template_html_urlfilter"
+			s = append(s, "exp_template_html_urlfilter")
 		case urlPartQueryOrFrag:
-			sanitizer = "urlquery"
+			s = append(s, "urlquery")
 		case urlPartPreQuery:
-			// The default "html" works here.
+			s = append(s, "html")
 		case urlPartUnknown:
 			return context{
 				state:   stateError,
@@ -76,21 +80,94 @@ func escapeAction(c context, n *parse.ActionNode) context {
 		default:
 			panic(c.urlPart.String())
 		}
+	case stateJS:
+		s = append(s, "exp_template_html_jsvalescaper")
+		if c.delim != delimNone {
+			s = append(s, "html")
+		}
+	case stateJSDqStr, stateJSSqStr:
+		s = append(s, "exp_template_html_jsstrescaper")
+	case stateJSRegexp:
+		s = append(s, "exp_template_html_jsregexpescaper")
+	case stateJSBlockCmt, stateJSLineCmt:
+		return context{
+			state:   stateError,
+			errLine: n.Line,
+			errStr:  fmt.Sprintf("%s appears inside a comment", n),
+		}
+	default:
+		s = append(s, "html")
 	}
-	// If the pipe already ends with the sanitizer, do not interfere.
-	if m := len(n.Pipe.Cmds); m != 0 {
-		if last := n.Pipe.Cmds[m-1]; len(last.Args) != 0 {
-			if i, ok := last.Args[0].(*parse.IdentifierNode); ok && i.Ident == sanitizer {
-				return c
+	ensurePipelineContains(n.Pipe, s)
+	return c
+}
+
+// ensurePipelineContains ensures that the pipeline has commands with
+// the identifiers in s in order.
+// If the pipeline already has some of the sanitizers, do not interfere.
+// For example, if p is (.X | html) and s is ["escapeJSVal", "html"] then it
+// has one matching, "html", and one to insert, "escapeJSVal", to produce
+// (.X | escapeJSVal | html).
+func ensurePipelineContains(p *parse.PipeNode, s []string) {
+	if len(s) == 0 {
+		return
+	}
+	n := len(p.Cmds)
+	// Find the identifiers at the end of the command chain.
+	idents := p.Cmds
+	for i := n - 1; i >= 0; i-- {
+		if cmd := p.Cmds[i]; len(cmd.Args) != 0 {
+			if _, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
+				continue
+			}
+		}
+		idents = p.Cmds[i+1:]
+	}
+	dups := 0
+	for _, id := range idents {
+		if s[dups] == (id.Args[0].(*parse.IdentifierNode)).Ident {
+			dups++
+			if dups == len(s) {
+				return
 			}
 		}
 	}
-	// Otherwise, append the sanitizer.
-	n.Pipe.Cmds = append(n.Pipe.Cmds, &parse.CommandNode{
+	newCmds := make([]*parse.CommandNode, n-len(idents), n+len(s)-dups)
+	copy(newCmds, p.Cmds)
+	// Merge existing identifier commands with the sanitizers needed.
+	for _, id := range idents {
+		i := indexOfStr((id.Args[0].(*parse.IdentifierNode)).Ident, s)
+		if i != -1 {
+			for _, name := range s[:i] {
+				newCmds = append(newCmds, newIdentCmd(name))
+			}
+			s = s[i+1:]
+		}
+		newCmds = append(newCmds, id)
+	}
+	// Create any remaining sanitizers.
+	for _, name := range s {
+		newCmds = append(newCmds, newIdentCmd(name))
+	}
+	p.Cmds = newCmds
+}
+
+// indexOfStr is the least i such that strs[i] == s or -1 if s is not in strs.
+func indexOfStr(s string, strs []string) int {
+	for i, t := range strs {
+		if s == t {
+			return i
+		}
+	}
+	return -1
+}
+
+// newIdentCmd produces a command containing a single identifier node.
+func newIdentCmd(identifier string) *parse.CommandNode {
+	return &parse.CommandNode{
 		NodeType: parse.NodeCommand,
-		Args:     []parse.Node{parse.NewIdentifier(sanitizer)},
-	})
-	return c
+		Args:     []parse.Node{parse.NewIdentifier(identifier)},
+	}
 }
 
 // join joins the two contexts of a branch template node. The result is an
@@ -203,11 +280,17 @@ func escapeText(c context, s []byte) context {
 // A transition function takes a context and template text input, and returns
 // the updated context and any unconsumed text.
 var transitionFunc = [...]func(context, []byte) (context, []byte){
-	stateText:  tText,
-	stateTag:   tTag,
-	stateURL:   tURL,
-	stateAttr:  tAttr,
-	stateError: tError,
+	stateText:       tText,
+	stateTag:        tTag,
+	stateURL:        tURL,
+	stateJS:         tJS,
+	stateJSDqStr:    tJSStr,
+	stateJSSqStr:    tJSStr,
+	stateJSRegexp:   tJSRegexp,
+	stateJSBlockCmt: tJSBlockCmt,
+	stateJSLineCmt:  tJSLineCmt,
+	stateAttr:       tAttr,
+	stateError:      tError,
 }
 
 // tText is the context transition function for the text state.
@@ -249,8 +332,11 @@ func tTag(c context, s []byte) (context, []byte) {
 		return context{state: stateTag}, nil
 	}
 	state := stateAttr
-	if urlAttr[strings.ToLower(string(s[attrStart:i]))] {
+	canonAttrName := strings.ToLower(string(s[attrStart:i]))
+	if urlAttr[canonAttrName] {
 		state = stateURL
+	} else if strings.HasPrefix(canonAttrName, "on") {
+		state = stateJS
 	}
 
 	// Look for the start of the value.
@@ -268,16 +354,17 @@ func tTag(c context, s []byte) (context, []byte) {
 	i = eatWhiteSpace(s, i+1)
 
 	// Find the attribute delimiter.
+	delim := delimSpaceOrTagEnd
 	if i < len(s) {
 		switch s[i] {
 		case '\'':
-			return context{state: state, delim: delimSingleQuote}, s[i+1:]
+			delim, i = delimSingleQuote, i+1
 		case '"':
-			return context{state: state, delim: delimDoubleQuote}, s[i+1:]
+			delim, i = delimDoubleQuote, i+1
 		}
 	}
 
-	return context{state: state, delim: delimSpaceOrTagEnd}, s[i:]
+	return context{state: state, delim: delim}, s[i:]
 }
 
 // tAttr is the context transition function for the attribute state.
@@ -293,6 +380,154 @@ func tURL(c context, s []byte) (context, []byte) {
 		c.urlPart = urlPartPreQuery
 	}
 	return c, nil
+}
+
+// tJS is the context transition function for the JS state.
+func tJS(c context, s []byte) (context, []byte) {
+	// TODO: delegate to tSpecialTagEnd to find any </script> once that CL
+	// has been merged.
+
+	i := bytes.IndexAny(s, `"'/`)
+	if i == -1 {
+		// Entire input is non string, comment, regexp tokens.
+		c.jsCtx = nextJSCtx(s, c.jsCtx)
+		return c, nil
+	}
+	c.jsCtx = nextJSCtx(s[:i], c.jsCtx)
+	switch s[i] {
+	case '"':
+		c.state, c.jsCtx = stateJSDqStr, jsCtxRegexp
+	case '\'':
+		c.state, c.jsCtx = stateJSSqStr, jsCtxRegexp
+	case '/':
+		switch {
+		case i+1 < len(s) && s[i+1] == '/':
+			c.state = stateJSLineCmt
+		case i+1 < len(s) && s[i+1] == '*':
+			c.state = stateJSBlockCmt
+		case c.jsCtx == jsCtxRegexp:
+			c.state = stateJSRegexp
+		default:
+			c.jsCtx = jsCtxRegexp
+		}
+	default:
+		panic("unreachable")
+	}
+	return c, s[i+1:]
+}
+
+// tJSStr is the context transition function for the JS string states.
+func tJSStr(c context, s []byte) (context, []byte) {
+	// TODO: delegate to tSpecialTagEnd to find any </script> once that CL
+	// has been merged.
+
+	quoteAndEsc := `\"`
+	if c.state == stateJSSqStr {
+		quoteAndEsc = `\'`
+	}
+
+	b := s
+	for {
+		i := bytes.IndexAny(b, quoteAndEsc)
+		if i == -1 {
+			return c, nil
+		}
+		if b[i] == '\\' {
+			i++
+			if i == len(b) {
+				return context{
+					state:  stateError,
+					errStr: fmt.Sprintf("unfinished escape sequence in JS string: %q", s),
+				}, nil
+			}
+		} else {
+			c.state, c.jsCtx = stateJS, jsCtxDivOp
+			return c, b[i+1:]
+		}
+		b = b[i+1:]
+	}
+	panic("unreachable")
+}
+
+// tJSRegexp is the context transition function for the /RegExp/ literal state.
+func tJSRegexp(c context, s []byte) (context, []byte) {
+	// TODO: delegate to tSpecialTagEnd to find any </script> once that CL
+	// has been merged.
+
+	b := s
+	inCharset := false
+	for {
+		i := bytes.IndexAny(b, `/[\]`)
+		if i == -1 {
+			break
+		}
+		switch b[i] {
+		case '/':
+			if !inCharset {
+				c.state, c.jsCtx = stateJS, jsCtxDivOp
+				return c, b[i+1:]
+			}
+		case '\\':
+			i++
+			if i == len(b) {
+				return context{
+					state:  stateError,
+					errStr: fmt.Sprintf("unfinished escape sequence in JS regexp: %q", s),
+				}, nil
+			}
+		case '[':
+			inCharset = true
+		case ']':
+			inCharset = false
+		default:
+			panic("unreachable")
+		}
+		b = b[i+1:]
+	}
+
+	if inCharset {
+		// This can be fixed by making context richer if interpolation
+		// into charsets is desired.
+		return context{
+			state:  stateError,
+			errStr: fmt.Sprintf("unfinished JS regexp charset: %q", s),
+		}, nil
+	}
+
+	return c, nil
+}
+
+var blockCommentEnd = []byte("*/")
+
+// tJSBlockCmt is the context transition function for the JS /*comment*/ state.
+func tJSBlockCmt(c context, s []byte) (context, []byte) {
+	// TODO: delegate to tSpecialTagEnd to find any </script> once that CL
+	// has been merged.
+
+	i := bytes.Index(s, blockCommentEnd)
+	if i == -1 {
+		return c, nil
+	}
+	c.state = stateJS
+	return c, s[i+2:]
+}
+
+// tJSLineCmt is the context transition function for the JS //comment state.
+func tJSLineCmt(c context, s []byte) (context, []byte) {
+	// TODO: delegate to tSpecialTagEnd to find any </script> once that CL
+	// has been merged.
+
+	i := bytes.IndexAny(s, "\r\n\u2028\u2029")
+	if i == -1 {
+		return c, nil
+	}
+	c.state = stateJS
+	// Per section 7.4 of EcmaScript 5 : http://es5.github.com/#x7.4
+	// "However, the LineTerminator at the end of the line is not
+	// considered to be part of the single-line comment; it is recognised
+	// separately by the lexical grammar and becomes part of the stream of
+	// input elements for the syntactic grammar."
+	return c, s[i:]
 }
 
 // tError is the context transition function for the error state.

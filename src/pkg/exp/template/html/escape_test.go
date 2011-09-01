@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"strings"
 	"template"
+	"template/parse"
 	"testing"
 )
 
@@ -16,6 +17,8 @@ func TestEscape(t *testing.T) {
 		F, T    bool
 		C, G, H string
 		A, E    []string
+		N       int
+		Z       *int
 	}{
 		F: false,
 		T: true,
@@ -24,9 +27,11 @@ func TestEscape(t *testing.T) {
 		H: "<Hello>",
 		A: []string{"<a>", "<b>"},
 		E: []string{},
+		N: 42,
+		Z: nil,
 	}
 
-	var testCases = []struct {
+	tests := []struct {
 		name   string
 		input  string
 		output string
@@ -141,29 +146,71 @@ func TestEscape(t *testing.T) {
 			`<a href="{{if .T}}/foo?a={{else}}/bar#{{end}}{{.C}}">`,
 			`<a href="/foo?a=%3CCincinatti%3E">`,
 		},
+		{
+			"jsStrValue",
+			"<button onclick='alert({{.H}})'>",
+			`<button onclick='alert(&#34;\u003cHello\u003e&#34;)'>`,
+		},
+		{
+			"jsNumericValue",
+			"<button onclick='alert({{.N}})'>",
+			`<button onclick='alert( 42 )'>`,
+		},
+		{
+			"jsBoolValue",
+			"<button onclick='alert({{.T}})'>",
+			`<button onclick='alert( true )'>`,
+		},
+		{
+			"jsNilValue",
+			"<button onclick='alert(typeof{{.Z}})'>",
+			`<button onclick='alert(typeof null )'>`,
+		},
+		{
+			"jsObjValue",
+			"<button onclick='alert({{.A}})'>",
+			`<button onclick='alert([&#34;\u003ca\u003e&#34;,&#34;\u003cb\u003e&#34;])'>`,
+		},
+		{
+			"jsObjValueNotOverEscaped",
+			"<button onclick='alert({{.A | html}})'>",
+			`<button onclick='alert([&#34;\u003ca\u003e&#34;,&#34;\u003cb\u003e&#34;])'>`,
+		},
+		{
+			"jsStr",
+			"<button onclick='alert(&quot;{{.H}}&quot;)'>",
+			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
+		},
+		{
+			"jsStrNotUnderEscaped",
+			"<button onclick='alert({{.C | urlquery}})'>",
+			// URL escaped, then quoted for JS.
+			`<button onclick='alert(&#34;%3CCincinatti%3E&#34;)'>`,
+		},
+		{
+			"jsRe",
+			"<button onclick='alert(&quot;{{.H}}&quot;)'>",
+			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
+		},
 	}
 
-	for _, tc := range testCases {
-		tmpl, err := template.New(tc.name).Parse(tc.input)
-		if err != nil {
-			t.Errorf("%s: template parsing failed: %s", tc.name, err)
-			continue
-		}
-		Escape(tmpl)
+	for _, test := range tests {
+		tmpl := template.Must(template.New(test.name).Parse(test.input))
+		tmpl, err := Escape(tmpl)
 		b := new(bytes.Buffer)
 		if err = tmpl.Execute(b, data); err != nil {
-			t.Errorf("%s: template execution failed: %s", tc.name, err)
+			t.Errorf("%s: template execution failed: %s", test.name, err)
 			continue
 		}
-		if w, g := tc.output, b.String(); w != g {
-			t.Errorf("%s: escaped output: want %q got %q", tc.name, w, g)
+		if w, g := test.output, b.String(); w != g {
+			t.Errorf("%s: escaped output: want\n\t%q\ngot\n\t%q", test.name, w, g)
 			continue
 		}
 	}
 }
 
 func TestErrors(t *testing.T) {
-	var testCases = []struct {
+	tests := []struct {
 		input string
 		err   string
 	}{
@@ -235,33 +282,53 @@ func TestErrors(t *testing.T) {
 			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
 			"z:1: (action: [(command: [F=[H]])]) appears in an ambiguous URL context",
 		},
+		{
+			`<a onclick="alert('Hello \`,
+			`unfinished escape sequence in JS string: "Hello \\"`,
+		},
+		{
+			`<a onclick='alert("Hello\, World\`,
+			`unfinished escape sequence in JS string: "Hello\\, World\\"`,
+		},
+		{
+			`<a onclick='alert(/x+\`,
+			`unfinished escape sequence in JS regexp: "x+\\"`,
+		},
+		{
+			`<a onclick="/foo[\]/`,
+			`unfinished JS regexp charset: "foo[\\]/"`,
+		},
+		{
+			`<a onclick="/* alert({{.X}} */">`,
+			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
+		},
+		{
+			`<a onclick="// alert({{.X}}">`,
+			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
+		},
 	}
 
-	for _, tc := range testCases {
-		tmpl, err := template.New("z").Parse(tc.input)
-		if err != nil {
-			t.Errorf("input=%q: template parsing failed: %s", tc.input, err)
-			continue
-		}
+	for _, test := range tests {
+		tmpl := template.Must(template.New("z").Parse(test.input))
 		var got string
 		if _, err := Escape(tmpl); err != nil {
 			got = err.String()
 		}
-		if tc.err == "" {
+		if test.err == "" {
 			if got != "" {
-				t.Errorf("input=%q: unexpected error %q", tc.input, got)
+				t.Errorf("input=%q: unexpected error %q", test.input, got)
 			}
 			continue
 		}
-		if strings.Index(got, tc.err) == -1 {
-			t.Errorf("input=%q: error %q does not contain expected string %q", tc.input, got, tc.err)
+		if strings.Index(got, test.err) == -1 {
+			t.Errorf("input=%q: error %q does not contain expected string %q", test.input, got, test.err)
 			continue
 		}
 	}
 }
 
 func TestEscapeText(t *testing.T) {
-	var testCases = []struct {
+	tests := []struct {
 		input  string
 		output context
 	}{
@@ -378,18 +445,173 @@ func TestEscapeText(t *testing.T) {
 			`<input checked type="checkbox"`,
 			context{state: stateTag},
 		},
+		{
+			`<a onclick="`,
+			context{state: stateJS, delim: delimDoubleQuote},
+		},
+		{
+			`<a onclick="//foo`,
+			context{state: stateJSLineCmt, delim: delimDoubleQuote},
+		},
+		{
+			"<a onclick='//\n",
+			context{state: stateJS, delim: delimSingleQuote},
+		},
+		{
+			"<a onclick='//\r\n",
+			context{state: stateJS, delim: delimSingleQuote},
+		},
+		{
+			"<a onclick='//\u2028",
+			context{state: stateJS, delim: delimSingleQuote},
+		},
+		{
+			`<a onclick="/*`,
+			context{state: stateJSBlockCmt, delim: delimDoubleQuote},
+		},
+		{
+			`<a onkeypress="&quot;`,
+			context{state: stateJSDqStr, delim: delimDoubleQuote},
+		},
+		{
+			`<a onclick='&quot;foo&quot;`,
+			context{state: stateJS, delim: delimSingleQuote, jsCtx: jsCtxDivOp},
+		},
+		{
+			`<a onclick=&#39;foo&#39;`,
+			context{state: stateJS, delim: delimSpaceOrTagEnd, jsCtx: jsCtxDivOp},
+		},
+		{
+			`<a onclick=&#39;foo`,
+			context{state: stateJSSqStr, delim: delimSpaceOrTagEnd},
+		},
+		{
+			`<a onclick="&quot;foo'`,
+			context{state: stateJSDqStr, delim: delimDoubleQuote},
+		},
+		{
+			`<a onclick="'foo&quot;`,
+			context{state: stateJSSqStr, delim: delimDoubleQuote},
+		},
+		{
+			`<A ONCLICK="'`,
+			context{state: stateJSSqStr, delim: delimDoubleQuote},
+		},
+		{
+			`<a onclick="/`,
+			context{state: stateJSRegexp, delim: delimDoubleQuote},
+		},
+		{
+			`<a onclick="'foo'`,
+			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
+		},
+		{
+			`<a onclick="'foo\'`,
+			context{state: stateJSSqStr, delim: delimDoubleQuote},
+		},
+		{
+			`<a onclick="'foo\'`,
+			context{state: stateJSSqStr, delim: delimDoubleQuote},
+		},
+		{
+			`<a onclick="/foo/`,
+			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
+		},
+		{
+			`<a onclick="1 /foo`,
+			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
+		},
+		{
+			`<a onclick="1 /*c*/ /foo`,
+			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
+		},
+		{
+			`<a onclick="/foo[/]`,
+			context{state: stateJSRegexp, delim: delimDoubleQuote},
+		},
+		{
+			`<a onclick="/foo\/`,
+			context{state: stateJSRegexp, delim: delimDoubleQuote},
+		},
 	}
 
-	for _, tc := range testCases {
-		b := []byte(tc.input)
+	for _, test := range tests {
+		b := []byte(test.input)
 		c := escapeText(context{}, b)
-		if !tc.output.eq(c) {
-			t.Errorf("input %q: want context %v got %v", tc.input, tc.output, c)
+		if !test.output.eq(c) {
+			t.Errorf("input %q: want context\n\t%v\ngot\n\t%v", test.input, test.output, c)
 			continue
 		}
-		if tc.input != string(b) {
-			t.Errorf("input %q: text node was modified: want %q got %q", tc.input, tc.input, b)
+		if test.input != string(b) {
+			t.Errorf("input %q: text node was modified: want %q got %q", test.input, test.input, b)
 			continue
+		}
+	}
+}
+
+func TestEnsurePipelineContains(t *testing.T) {
+	tests := []struct {
+		input, output string
+		ids           []string
+	}{
+		{
+			"{{.X}}",
+			"[(command: [F=[X]])]",
+			[]string{},
+		},
+		{
+			"{{.X | html}}",
+			"[(command: [F=[X]]) (command: [I=html])]",
+			[]string{},
+		},
+		{
+			"{{.X}}",
+			"[(command: [F=[X]]) (command: [I=html])]",
+			[]string{"html"},
+		},
+		{
+			"{{.X | html}}",
+			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
+			[]string{"urlquery"},
+		},
+		{
+			"{{.X | html | urlquery}}",
+			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
+			[]string{"urlquery"},
+		},
+		{
+			"{{.X | html | urlquery}}",
+			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
+			[]string{"html", "urlquery"},
+		},
+		{
+			"{{.X | html | urlquery}}",
+			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
+			[]string{"html"},
+		},
+		{
+			"{{.X | urlquery}}",
+			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
+			[]string{"html", "urlquery"},
+		},
+		{
+			"{{.X | html | print}}",
+			"[(command: [F=[X]]) (command: [I=urlquery]) (command: [I=html]) (command: [I=print])]",
+			[]string{"urlquery", "html"},
+		},
+	}
+	for _, test := range tests {
+		tmpl := template.Must(template.New("test").Parse(test.input))
+		action, ok := (tmpl.Tree.Root.Nodes[0].(*parse.ActionNode))
+		if !ok {
+			t.Errorf("First node is not an action: %s", test.input)
+			continue
+		}
+		pipe := action.Pipe
+		ensurePipelineContains(pipe, test.ids)
+		got := pipe.String()
+		if got != test.output {
+			t.Errorf("%s, %v: want\n\t%s\ngot\n\t%s", test.input, test.ids, test.output, got)
 		}
 	}
 }

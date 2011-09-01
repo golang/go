@@ -19,13 +19,14 @@ type context struct {
 	state   state
 	delim   delim
 	urlPart urlPart
+	jsCtx   jsCtx
 	errLine int
 	errStr  string
 }
 
 // eq returns whether two contexts are equal.
 func (c context) eq(d context) bool {
-	return c.state == d.state && c.delim == d.delim && c.urlPart == d.urlPart && c.errLine == d.errLine && c.errStr == d.errStr
+	return c.state == d.state && c.delim == d.delim && c.urlPart == d.urlPart && c.jsCtx == d.jsCtx && c.errLine == d.errLine && c.errStr == d.errStr
 }
 
 // state describes a high-level HTML parser state.
@@ -50,17 +51,35 @@ const (
 	stateAttr
 	// stateURL occurs inside an HTML attribute whose content is a URL.
 	stateURL
+	// stateJS occurs inside an event handler or script element.
+	stateJS
+	// stateJSDqStr occurs inside a JavaScript double quoted string.
+	stateJSDqStr
+	// stateJSSqStr occurs inside a JavaScript single quoted string.
+	stateJSSqStr
+	// stateJSRegexp occurs inside a JavaScript regexp literal.
+	stateJSRegexp
+	// stateJSBlockCmt occurs inside a JavaScript /* block comment */.
+	stateJSBlockCmt
+	// stateJSLineCmt occurs inside a JavaScript // line comment.
+	stateJSLineCmt
 	// stateError is an infectious error state outside any valid
 	// HTML/CSS/JS construct.
 	stateError
 )
 
 var stateNames = [...]string{
-	stateText:  "stateText",
-	stateTag:   "stateTag",
-	stateAttr:  "stateAttr",
-	stateURL:   "stateURL",
-	stateError: "stateError",
+	stateText:       "stateText",
+	stateTag:        "stateTag",
+	stateAttr:       "stateAttr",
+	stateURL:        "stateURL",
+	stateJS:         "stateJS",
+	stateJSDqStr:    "stateJSDqStr",
+	stateJSSqStr:    "stateJSSqStr",
+	stateJSRegexp:   "stateJSRegexp",
+	stateJSBlockCmt: "stateJSBlockCmt",
+	stateJSLineCmt:  "stateJSLineCmt",
+	stateError:      "stateError",
 }
 
 func (s state) String() string {
@@ -130,4 +149,25 @@ func (u urlPart) String() string {
 		return urlPartNames[u]
 	}
 	return fmt.Sprintf("illegal urlPart %d", u)
+}
+
+// jsCtx determines whether a '/' starts a regular expression literal or a
+// division operator.
+type jsCtx uint8
+
+const (
+	// jsCtxRegexp occurs where a '/' would start a regexp literal.
+	jsCtxRegexp jsCtx = iota
+	// jsCtxDivOp occurs where a '/' would start a division operator.
+	jsCtxDivOp
+)
+
+func (c jsCtx) String() string {
+	switch c {
+	case jsCtxRegexp:
+		return "jsCtxRegexp"
+	case jsCtxDivOp:
+		return "jsCtxDivOp"
+	}
+	return fmt.Sprintf("illegal jsCtx %d", c)
 }
