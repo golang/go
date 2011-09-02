@@ -696,6 +696,7 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 	if(n->esc == EscNone) {
 		a = nod(OXXX, N, N);
 		tempname(a, t);
+		*init = list(*init, nod(OAS, a, N));  // zero new temp
 		a = nod(OADDR, a, N);
 	} else {
 		a = nod(ONEW, N, N);
