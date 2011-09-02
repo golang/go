@@ -179,7 +179,6 @@ func jsStrEscaper(args ...interface{}) string {
 	for i, r := range s {
 		var repl string
 		switch r {
-		// All cases must appear in the IndexAny call above.
 		case 0:
 			repl = `\0`
 		case '\t':
@@ -222,7 +221,7 @@ func jsStrEscaper(args ...interface{}) string {
 		b.WriteString(repl)
 		written = i + utf8.RuneLen(r)
 	}
-	if b.Len() == 0 {
+	if written == 0 {
 		return s
 	}
 	b.WriteString(s[written:])
@@ -247,7 +246,6 @@ func jsRegexpEscaper(args ...interface{}) string {
 	for i, r := range s {
 		var repl string
 		switch r {
-		// All cases must appear in the IndexAny call above.
 		case 0:
 			repl = `\0`
 		case '\t':
@@ -316,7 +314,7 @@ func jsRegexpEscaper(args ...interface{}) string {
 		b.WriteString(repl)
 		written = i + utf8.RuneLen(r)
 	}
-	if b.Len() == 0 {
+	if written == 0 {
 		return s
 	}
 	b.WriteString(s[written:])

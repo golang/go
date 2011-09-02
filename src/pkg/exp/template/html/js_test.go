@@ -46,7 +46,7 @@ func TestNextJsCtx(t *testing.T) {
 		{jsCtxRegexp, "+"},
 		{jsCtxRegexp, "-"},
 		// An incr/decr op precedes a div operator.
-		// This is not airtight.  In (g = ++/h/i) a regexp follows a
+		// This is not airtight. In (g = ++/h/i) a regexp follows a
 		// pre-increment operator, but in practice devs do not try to
 		// increment or decrement regular expressions.
 		// (g++/h/i) where ++ is a postfix operator on g is much more
@@ -66,7 +66,7 @@ func TestNextJsCtx(t *testing.T) {
 		{jsCtxRegexp, "return\n"},
 		{jsCtxRegexp, "return\u2028"},
 		// Identifiers can be divided and cannot validly be preceded by
-		// a regular expressions.  Semicolon insertion cannot happen
+		// a regular expressions. Semicolon insertion cannot happen
 		// between an identifier and a regular expression on a new line
 		// because the one token lookahead for semicolon insertion has
 		// to conclude that it could be a div binary op and treat it as
@@ -136,7 +136,7 @@ func TestJSValEscaper(t *testing.T) {
 		{"", `""`},
 		{"foo", `"foo"`},
 		// Newlines.
-		// {"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`}, // TODO: FAILING.  Maybe fix in json package.
+		// {"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`}, // TODO: FAILING. Maybe fix in json package.
 		// "\v" == "v" on IE 6 so use "\x0b" instead.
 		{"\t\x0b", `"\u0009\u000b"`},
 		{struct{ X, Y int }{1, 2}, `{"X":1,"Y":2}`},
@@ -205,6 +205,10 @@ func TestJSStrEscaper(t *testing.T) {
 		{"+ADw-script+AD4-alert(1)+ADw-/script+AD4-",
 			`\x2bADw-script\x2bAD4-alert(1)\x2bADw-\/script\x2bAD4-`,
 		},
+		// Invalid UTF-8 sequence
+		{"foo\xA0bar", "foo\xA0bar"},
+		// Invalid unicode scalar value.
+		{"foo\xed\xa0\x80bar", "foo\xed\xa0\x80bar"},
 	}
 
 	for _, test := range tests {
