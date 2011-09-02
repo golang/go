@@ -248,6 +248,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("%s: %s\n", *zipfile, err)
 		}
+		defer rc.Close()                  // be nice (e.g., -writeIndex mode)
 		*goroot = path.Join("/", *goroot) // fsHttp paths are relative to '/'
 		fs = NewZipFS(rc)
 		fsHttp = NewHttpZipFS(rc, *goroot)
@@ -262,8 +263,9 @@ func main() {
 	}
 
 	if *writeIndex {
+		// Write search index and exit.
 		if *indexFiles == "" {
-			log.Fatal("no index files specified")
+			log.Fatal("no index file specified")
 		}
 
 		log.Println("initialize file systems")
@@ -342,9 +344,7 @@ func main() {
 
 		// Initialize search index.
 		if *indexEnabled {
-			if err := initIndex(); err != nil {
-				log.Fatalf("error initializing index: %s", err)
-			}
+			go indexer()
 		}
 
 		// Start http server.
