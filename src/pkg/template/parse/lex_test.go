@@ -184,6 +184,20 @@ var lexTests = []lexTest{
 		tLeft,
 		{itemError, `bad number syntax: "3k"`},
 	}},
+
+	// Fixed bugs
+	// Many elements in an action blew the lookahead until
+	// we made lexInsideAction not loop.
+	{"long pipeline deadlock", "{{|||||}}", []item{
+		tLeft,
+		tPipe,
+		tPipe,
+		tPipe,
+		tPipe,
+		tPipe,
+		tRight,
+		tEOF,
+	}},
 }
 
 // collect gathers the emitted items into a slice.

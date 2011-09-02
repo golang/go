@@ -278,53 +278,51 @@ func lexInsideAction(l *lexer) stateFn {
 	// Either number, quoted string, or identifier.
 	// Spaces separate and are ignored.
 	// Pipe symbols separate and are emitted.
-	for {
-		if strings.HasPrefix(l.input[l.pos:], rightDelim) {
-			return lexRightDelim
-		}
-		switch r := l.next(); {
-		case r == eof || r == '\n':
-			return l.errorf("unclosed action")
-		case isSpace(r):
-			l.ignore()
-		case r == ':':
-			if l.next() != '=' {
-				return l.errorf("expected :=")
-			}
-			l.emit(itemColonEquals)
-		case r == '|':
-			l.emit(itemPipe)
-		case r == '"':
-			return lexQuote
-		case r == '`':
-			return lexRawQuote
-		case r == '$':
-			return lexIdentifier
-		case r == '\'':
-			return lexChar
-		case r == '.':
-			// special look-ahead for ".field" so we don't break l.backup().
-			if l.pos < len(l.input) {
-				r := l.input[l.pos]
-				if r < '0' || '9' < r {
-					return lexIdentifier // itemDot comes from the keyword table.
-				}
-			}
-			fallthrough // '.' can start a number.
-		case r == '+' || r == '-' || ('0' <= r && r <= '9'):
-			l.backup()
-			return lexNumber
-		case isAlphaNumeric(r):
-			l.backup()
-			return lexIdentifier
-		case r <= unicode.MaxASCII && unicode.IsPrint(r):
-			l.emit(itemChar)
-			return lexInsideAction
-		default:
-			return l.errorf("unrecognized character in action: %#U", r)
-		}
+	if strings.HasPrefix(l.input[l.pos:], rightDelim) {
+		return lexRightDelim
 	}
-	return nil
+	switch r := l.next(); {
+	case r == eof || r == '\n':
+		return l.errorf("unclosed action")
+	case isSpace(r):
+		l.ignore()
+	case r == ':':
+		if l.next() != '=' {
+			return l.errorf("expected :=")
+		}
+		l.emit(itemColonEquals)
+	case r == '|':
+		l.emit(itemPipe)
+	case r == '"':
+		return lexQuote
+	case r == '`':
+		return lexRawQuote
+	case r == '$':
+		return lexIdentifier
+	case r == '\'':
+		return lexChar
+	case r == '.':
+		// special look-ahead for ".field" so we don't break l.backup().
+		if l.pos < len(l.input) {
+			r := l.input[l.pos]
+			if r < '0' || '9' < r {
+				return lexIdentifier // itemDot comes from the keyword table.
+			}
+		}
+		fallthrough // '.' can start a number.
+	case r == '+' || r == '-' || ('0' <= r && r <= '9'):
+		l.backup()
+		return lexNumber
+	case isAlphaNumeric(r):
+		l.backup()
+		return lexIdentifier
+	case r <= unicode.MaxASCII && unicode.IsPrint(r):
+		l.emit(itemChar)
+		return lexInsideAction
+	default:
+		return l.errorf("unrecognized character in action: %#U", r)
+	}
+	return lexInsideAction
 }
 
 // lexIdentifier scans an alphanumeric or field.
