@@ -88,9 +88,7 @@ func init() {
 
 	// initialize search index
 	if *indexEnabled {
-		if err := initIndex(); err != nil {
-			log.Fatalf("error initializing index: %s", err)
-		}
+		go indexer()
 	}
 
 	log.Println("godoc initialization complete")

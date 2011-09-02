@@ -1065,11 +1065,7 @@ func lookup(query string) (result SearchResult) {
 	if *indexEnabled {
 		if _, ts := fsModified.get(); timestamp < ts {
 			// The index is older than the latest file system change under godoc's observation.
-			if *indexFiles != "" {
-				result.Alert = "Index not automatically updated: result may be inaccurate"
-			} else {
-				result.Alert = "Indexing in progress: result may be inaccurate"
-			}
+			result.Alert = "Indexing in progress: result may be inaccurate"
 		}
 	} else {
 		result.Alert = "Search index disabled: no results available"
@@ -1145,6 +1141,29 @@ func fsDirnames() <-chan string {
 	return c
 }
 
+func readIndex(filenames string) os.Error {
+	matches, err := filepath.Glob(filenames)
+	if err != nil {
+		return err
+	}
+	sort.Strings(matches) // make sure files are in the right order
+	files := make([]io.Reader, 0, len(matches))
+	for _, filename := range matches {
+		f, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		files = append(files, f)
+	}
+	x := new(Index)
+	if err := x.Read(io.MultiReader(files...)); err != nil {
+		return err
+	}
+	searchIndex.set(x)
+	return nil
+}
+
 func updateIndex() {
 	if *verbose {
 		log.Printf("updating index...")
@@ -1165,6 +1184,14 @@ func updateIndex() {
 }
 
 func indexer() {
+	// initialize the index from disk if possible
+	if *indexFiles != "" {
+		if err := readIndex(*indexFiles); err != nil {
+			log.Printf("error reading index: %s", err)
+		}
+	}
+
+	// repeatedly update the index when it goes out of date
 	for {
 		if !indexUpToDate() {
 			// index possibly out of date - make a new one
@@ -1177,34 +1204,4 @@ func indexer() {
 		}
 		time.Sleep(delay)
 	}
-}
-
-func initIndex() os.Error {
-	if *indexFiles == "" {
-		// run periodic indexer
-		go indexer()
-		return nil
-	}
-
-	// get search index from files
-	matches, err := filepath.Glob(*indexFiles)
-	if err != nil {
-		return err
-	}
-	sort.Strings(matches) // make sure files are in the right order
-	files := make([]io.Reader, 0, len(matches))
-	for _, filename := range matches {
-		f, err := os.Open(filename)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		files = append(files, f)
-	}
-	x := new(Index)
-	if err := x.Read(io.MultiReader(files...)); err != nil {
-		return err
-	}
-	searchIndex.set(x)
-	return nil
 }
