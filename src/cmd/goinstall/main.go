@@ -20,8 +20,8 @@ import (
 )
 
 func usage() {
-	fmt.Fprint(os.Stderr, "usage: goinstall importpath...\n")
-	fmt.Fprintf(os.Stderr, "\tgoinstall -a\n")
+	fmt.Fprintln(os.Stderr, "usage: goinstall [flags] importpath...")
+	fmt.Fprintln(os.Stderr, "       goinstall [flags] -a")
 	flag.PrintDefaults()
 	os.Exit(2)
 }
