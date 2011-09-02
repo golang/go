@@ -9,6 +9,7 @@ GOFILES=\
 	composition.go\
 	forminfo.go\
 	normalize.go\
+	readwriter.go\
 	tables.go\
 	trie.go\
 

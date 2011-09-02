@@ -32,8 +32,10 @@ var tests = []trietest{
 	{0, []byte{t2}},
 	{0, []byte{t3, tx}},
 	{0, []byte{t4, tx, tx}},
-	{0, []byte{t5, tx, tx, tx}},
-	{0, []byte{t6, tx, tx, tx, tx}},
+
+	// we only support UTF-8 up to utf8.UTFMax bytes (4 bytes)
+	{1, []byte{t5, tx, tx, tx, tx}},
+	{1, []byte{t6, tx, tx, tx, tx, tx}},
 }
 
 func mkUtf8(rune int) ([]byte, int) {
