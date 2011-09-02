@@ -2788,8 +2788,7 @@ copyexpr(Node *n, Type *t, NodeList **init)
 {
 	Node *a, *l;
 	
-	l = nod(OXXX, N, N);
-	tempname(l, t);
+	l = temp(t);
 	a = nod(OAS, l, n);
 	typecheck(&a, Etop);
 	walkexpr(&a, init);

@@ -689,13 +689,11 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 	}
 
 	// make new auto *array (3 declare)
-	vauto = nod(OXXX, N, N);
-	tempname(vauto, ptrto(t));
+	vauto = temp(ptrto(t));
 
 	// set auto to point at new temp or heap (3 assign)
 	if(n->esc == EscNone) {
-		a = nod(OXXX, N, N);
-		tempname(a, t);
+		a = temp(t);
 		*init = list(*init, nod(OAS, a, N));  // zero new temp
 		a = nod(OADDR, a, N);
 	} else {
@@ -859,8 +857,7 @@ ctxt = 0;
 		// for i = 0; i < len(vstat); i++ {
 		//	map[vstat[i].a] = vstat[i].b
 		// }
-		index = nod(OXXX, N, N);
-		tempname(index, types[TINT]);
+		index = temp(types[TINT]);
 
 		a = nod(OINDEX, vstat, index);
 		a->etype = 1;	// no bounds checking

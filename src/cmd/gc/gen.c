@@ -877,3 +877,13 @@ tempname(Node *nn, Type *t)
 
 	*nn = *n;
 }
+
+Node*
+temp(Type *t)
+{
+	Node *n;
+	
+	n = nod(OXXX, N, N);
+	tempname(n, t);
+	return n;
+}

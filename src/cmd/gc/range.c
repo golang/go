@@ -123,8 +123,7 @@ walkrange(Node *n)
 		// no need to make a potentially expensive copy.
 		ha = a;
 	} else {
-		ha = nod(OXXX, N, N);
-		tempname(ha, a->type);
+		ha = temp(a->type);
 		init = list(init, nod(OAS, ha, a));
 	}
 
@@ -133,17 +132,14 @@ walkrange(Node *n)
 		fatal("walkrange");
 
 	case TARRAY:
-		hv1 = nod(OXXX, N, n);
-		tempname(hv1, types[TINT]);
-		hn = nod(OXXX, N, N);
-		tempname(hn, types[TINT]);
+		hv1 = temp(types[TINT]);
+		hn = temp(types[TINT]);
 		hp = nil;
 
 		init = list(init, nod(OAS, hv1, N));
 		init = list(init, nod(OAS, hn, nod(OLEN, ha, N)));
 		if(v2) {
-			hp = nod(OXXX, N, N);
-			tempname(hp, ptrto(n->type->type));
+			hp = temp(ptrto(n->type->type));
 			tmp = nod(OINDEX, ha, nodintconst(0));
 			tmp->etype = 1;	// no bounds check
 			init = list(init, nod(OAS, hp, nod(OADDR, tmp, N)));
@@ -168,8 +164,7 @@ walkrange(Node *n)
 		th = typ(TARRAY);
 		th->type = ptrto(types[TUINT8]);
 		th->bound = (sizeof(struct Hiter) + widthptr - 1) / widthptr;
-		hit = nod(OXXX, N, N);
-		tempname(hit, th);
+		hit = temp(th);
 
 		fn = syslook("mapiterinit", 1);
 		argtype(fn, t->down);
@@ -200,10 +195,8 @@ walkrange(Node *n)
 		break;
 
 	case TCHAN:
-		hv1 = nod(OXXX, N, n);
-		tempname(hv1, t->type);
-		hb = nod(OXXX, N, N);
-		tempname(hb, types[TBOOL]);
+		hv1 = temp(t->type);
+		hb = temp(types[TBOOL]);
 
 		n->ntest = nod(ONE, hb, nodbool(0));
 		a = nod(OAS2RECV, N, N);
@@ -215,18 +208,15 @@ walkrange(Node *n)
 		break;
 
 	case TSTRING:
-		ohv1 = nod(OXXX, N, N);
-		tempname(ohv1, types[TINT]);
+		ohv1 = temp(types[TINT]);
 
-		hv1 = nod(OXXX, N, N);
-		tempname(hv1, types[TINT]);
+		hv1 = temp(types[TINT]);
 		init = list(init, nod(OAS, hv1, N));
 
 		if(v2 == N)
 			a = nod(OAS, hv1, mkcall("stringiter", types[TINT], nil, ha, hv1));
 		else {
-			hv2 = nod(OXXX, N, N);
-			tempname(hv2, types[TINT]);
+			hv2 = temp(types[TINT]);
 			a = nod(OAS2, N, N);
 			a->list = list(list1(hv1), hv2);
 			fn = syslook("stringiter2", 0);

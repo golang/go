@@ -562,8 +562,7 @@ walkexpr(Node **np, NodeList **init)
 		// and map index has an implicit one.
 		lpost = nil;
 		if(l->op == OINDEXMAP) {
-			var = nod(OXXX, N, N);
-			tempname(var, l->type);
+			var = temp(l->type);
 			n->list->n = var;
 			a = nod(OAS, l, var);
 			typecheck(&a, Etop);
@@ -571,8 +570,7 @@ walkexpr(Node **np, NodeList **init)
 		}
 		l = n->list->next->n;
 		if(l->op == OINDEXMAP) {
-			var = nod(OXXX, N, N);
-			tempname(var, l->type);
+			var = temp(l->type);
 			n->list->next->n = var;
 			a = nod(OAS, l, var);
 			typecheck(&a, Etop);
@@ -975,8 +973,7 @@ walkexpr(Node **np, NodeList **init)
 
 	case ONEW:
 		if(n->esc == EscNone && n->type->type->width < (1<<16)) {
-			r = nod(OXXX, N, N);
-			tempname(r, n->type->type);
+			r = temp(n->type->type);
 			*init = list(*init, nod(OAS, r, N));  // zero temp
 			r = nod(OADDR, r, N);
 			typecheck(&r, Erv);
@@ -1164,8 +1161,7 @@ walkexpr(Node **np, NodeList **init)
 	case OARRAYLIT:
 	case OMAPLIT:
 	case OSTRUCTLIT:
-		nvar = nod(OXXX, N, N);
-		tempname(nvar, n->type);
+		nvar = temp(n->type);
 		anylit(0, n, nvar, init);
 		n = nvar;
 		goto ret;
@@ -1194,8 +1190,7 @@ makenewvar(Type *t, NodeList **init, Node **nstar)
 {
 	Node *nvar, *nas;
 
-	nvar = nod(OXXX, N, N);
-	tempname(nvar, t);
+	nvar = temp(t);
 	nas = nod(OAS, nvar, callnew(t->type));
 	typecheck(&nas, Etop);
 	walkexpr(&nas, init);
@@ -1291,8 +1286,7 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 		// deferred until all the return arguments
 		// have been pulled from the output arguments
 		if(fncall(l, r->type)) {
-			tmp = nod(OXXX, N, N);
-			tempname(tmp, r->type);
+			tmp = temp(r->type);
 			typecheck(&tmp, Erv);
 			a = nod(OAS, l, tmp);
 			a = convas(a, init);
@@ -1434,8 +1428,7 @@ ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeL
 		// copy into temporaries.
 		alist = nil;
 		for(l=structfirst(&savel, &r->type); l; l=structnext(&savel)) {
-			a = nod(OXXX, N, N);
-			tempname(a, l->type);
+			a = temp(l->type);
 			alist = list(alist, a);
 		}
 		a = nod(OAS2, N, N);
@@ -1778,8 +1771,7 @@ reorder1(NodeList *all)
 		}
 
 		// make assignment of fncall to tempname
-		a = nod(OXXX, N, N);
-		tempname(a, n->right->type);
+		a = temp(n->right->type);
 		a = nod(OAS, a, n->right);
 		g = list(g, a);
 
@@ -1882,8 +1874,7 @@ reorder3(NodeList *all)
 			if(c2 > c1) {
 				if(vmatch1(n1->left, n2->right)) {
 					// delay assignment to n1->left
-					q = nod(OXXX, N, N);
-					tempname(q, n1->right->type);
+					q = temp(n1->right->type);
 					q = nod(OAS, n1->left, q);
 					n1->left = q->right;
 					r = list(r, q);
@@ -2146,8 +2137,7 @@ append(Node *n, NodeList **init)
 
 	l = nil;
 
-	ns = nod(OXXX, N, N);             // var s
-	tempname(ns, nsrc->type);
+	ns = temp(nsrc->type);
 	l = list(l, nod(OAS, ns, nsrc));  // s = src
 
 	na = nodintconst(argc);         // const argc
@@ -2164,8 +2154,7 @@ append(Node *n, NodeList **init)
 					       conv(na, types[TINT64]))));
 	l = list(l, nx);
 
-	nn = nod(OXXX, N, N);                            // var n
-	tempname(nn, types[TINT]);
+	nn = temp(types[TINT]);
 	l = list(l, nod(OAS, nn, nod(OLEN, ns, N)));     // n = len(s)
 
 	nx = nod(OSLICE, ns, nod(OKEY, N, nod(OADD, nn, na)));   // ...s[:n+argc]
