@@ -515,8 +515,7 @@ exprswitch(Node *sw)
 	exprname = N;
 	cas = nil;
 	if(arg != Strue && arg != Sfalse) {
-		exprname = nod(OXXX, N, N);
-		tempname(exprname, sw->ntest->type);
+		exprname = temp(sw->ntest->type);
 		cas = list1(nod(OAS, exprname, sw->ntest));
 		typechecklist(cas, Etop);
 	}
@@ -673,20 +672,17 @@ typeswitch(Node *sw)
 	 * predeclare temporary variables
 	 * and the boolean var
 	 */
-	facename = nod(OXXX, N, N);
-	tempname(facename, sw->ntest->right->type);
+	facename = temp(sw->ntest->right->type);
 	a = nod(OAS, facename, sw->ntest->right);
 	typecheck(&a, Etop);
 	cas = list(cas, a);
 
 	casebody(sw, facename);
 
-	boolname = nod(OXXX, N, N);
-	tempname(boolname, types[TBOOL]);
+	boolname = temp(types[TBOOL]);
 	typecheck(&boolname, Erv);
 
-	hashname = nod(OXXX, N, N);
-	tempname(hashname, types[TUINT32]);
+	hashname = temp(types[TUINT32]);
 	typecheck(&hashname, Erv);
 
 	t = sw->ntest->right->type;

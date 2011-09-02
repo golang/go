@@ -194,8 +194,7 @@ walkselect(Node *sel)
 					n->ntest->etype = 1;  // pointer does not escape
 					typecheck(&n->ntest, Erv);
 				} else {
-					tmp = nod(OXXX, N, N);
-					tempname(tmp, types[TBOOL]);
+					tmp = temp(types[TBOOL]);
 					a = nod(OADDR, tmp, N);
 					a->etype = 1;  // pointer does not escape
 					typecheck(&a, Erv);
@@ -215,8 +214,7 @@ walkselect(Node *sel)
 				n->left->etype = 1;  // pointer does not escape
 				typecheck(&n->left, Erv);
 			} else {
-				tmp = nod(OXXX, N, N);
-				tempname(tmp, ch->type->type);
+				tmp = temp(ch->type->type);
 				a = nod(OADDR, tmp, N);
 				a->etype = 1;  // pointer does not escape
 				typecheck(&a, Erv);
@@ -287,8 +285,7 @@ walkselect(Node *sel)
 
 	// generate sel-struct
 	setlineno(sel);
-	var = nod(OXXX, N, N);
-	tempname(var, ptrto(types[TUINT8]));
+	var = temp(ptrto(types[TUINT8]));
 	r = nod(OAS, var, mkcall("newselect", var->type, nil, nodintconst(sel->xoffset)));
 	typecheck(&r, Etop);
 	init = list(init, r);

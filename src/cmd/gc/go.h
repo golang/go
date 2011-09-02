@@ -991,6 +991,7 @@ void	gen(Node *n);
 void	genlist(NodeList *l);
 Node*	sysfunc(char *name);
 void	tempname(Node *n, Type *t);
+Node*	temp(Type*);
 
 /*
  *	init.c
