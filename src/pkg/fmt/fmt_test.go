@@ -5,6 +5,7 @@
 package fmt_test
 
 import (
+	"bytes"
 	. "fmt"
 	"io"
 	"math"
@@ -504,11 +505,38 @@ func TestCountMallocs(t *testing.T) {
 	runtime.UpdateMemStats()
 	mallocs = 0 - runtime.MemStats.Mallocs
 	for i := 0; i < 100; i++ {
+		Sprintf("%s", "hello")
+	}
+	runtime.UpdateMemStats()
+	mallocs += runtime.MemStats.Mallocs
+	Printf("mallocs per Sprintf(\"%%s\"): %d\n", mallocs/100)
+	runtime.UpdateMemStats()
+	mallocs = 0 - runtime.MemStats.Mallocs
+	for i := 0; i < 100; i++ {
 		Sprintf("%x %x", i, i)
 	}
 	runtime.UpdateMemStats()
 	mallocs += runtime.MemStats.Mallocs
 	Printf("mallocs per Sprintf(\"%%x %%x\"): %d\n", mallocs/100)
+	buf := new(bytes.Buffer)
+	runtime.UpdateMemStats()
+	mallocs = 0 - runtime.MemStats.Mallocs
+	for i := 0; i < 100; i++ {
+		buf.Reset()
+		Fprintf(buf, "%x %x %x", i, i, i)
+	}
+	runtime.UpdateMemStats()
+	mallocs += runtime.MemStats.Mallocs
+	Printf("mallocs per Fprintf(buf, \"%%x %%x %%x\"): %d\n", mallocs/100)
+	runtime.UpdateMemStats()
+	mallocs = 0 - runtime.MemStats.Mallocs
+	for i := 0; i < 100; i++ {
+		buf.Reset()
+		Fprintf(buf, "%s", "hello")
+	}
+	runtime.UpdateMemStats()
+	mallocs += runtime.MemStats.Mallocs
+	Printf("mallocs per Fprintf(buf, \"%%s\"): %d\n", mallocs/100)
 }
 
 type flagPrinter struct{}
