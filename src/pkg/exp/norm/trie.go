@@ -86,16 +86,6 @@ func (t *trie) lookup(s []byte) (v uint16, sz int) {
 		}
 		o = uint16(i)<<6 + uint16(c3)&maskx
 		return t.values[o], 4
-	case c0 < t6:
-		if len(s) < 5 {
-			return 0, 0
-		}
-		return 0, 5
-	case c0 < te:
-		if len(s) < 6 {
-			return 0, 0
-		}
-		return 0, 6
 	}
 	// Illegal rune
 	return 0, 1
@@ -162,16 +152,6 @@ func (t *trie) lookupString(s string) (v uint16, sz int) {
 		}
 		o = uint16(i)<<6 + uint16(c3)&maskx
 		return t.values[o], 4
-	case c0 < t6:
-		if len(s) < 5 {
-			return 0, 0
-		}
-		return 0, 5
-	case c0 < te:
-		if len(s) < 6 {
-			return 0, 0
-		}
-		return 0, 6
 	}
 	// Illegal rune
 	return 0, 1

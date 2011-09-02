@@ -7,12 +7,13 @@ package norm
 import "utf8"
 
 const (
-	maxCombiningChars = 30 + 2 // +2 to hold CGJ and Hangul overflow.
+	maxCombiningChars = 30
+	maxBufferSize     = maxCombiningChars + 2 // +1 to hold starter +1 to hold CGJ
 	maxBackRunes      = maxCombiningChars - 1
 	maxNFCExpansion   = 3  // NFC(0x1D160)
 	maxNFKCExpansion  = 18 // NFKC(0xFDFA)
 
-	maxByteBufferSize = utf8.UTFMax * maxCombiningChars // 128
+	maxByteBufferSize = utf8.UTFMax * maxBufferSize // 128
 )
 
 // reorderBuffer is used to normalize a single segment.  Characters inserted with
@@ -21,10 +22,10 @@ const (
 // the UTF-8 characters in order.  Only the rune array is maintained in sorted
 // order. flush writes the resulting segment to a byte array.
 type reorderBuffer struct {
-	rune  [maxCombiningChars]runeInfo // Per character info.
-	byte  [maxByteBufferSize]byte     // UTF-8 buffer. Referenced by runeInfo.pos.
-	nrune int                         // Number of runeInfos.
-	nbyte uint8                       // Number or bytes.
+	rune  [maxBufferSize]runeInfo // Per character info.
+	byte  [maxByteBufferSize]byte // UTF-8 buffer. Referenced by runeInfo.pos.
+	nrune int                     // Number of runeInfos.
+	nbyte uint8                   // Number or bytes.
 	f     formInfo
 }
 
@@ -47,10 +48,10 @@ func (rb *reorderBuffer) flush(out []byte) []byte {
 
 // insertOrdered inserts a rune in the buffer, ordered by Canonical Combining Class.
 // It returns false if the buffer is not large enough to hold the rune.
-// It is used internally by insert.
+// It is used internally by insert and insertString only.
 func (rb *reorderBuffer) insertOrdered(info runeInfo) bool {
 	n := rb.nrune
-	if n >= maxCombiningChars {
+	if n >= maxCombiningChars+1 {
 		return false
 	}
 	b := rb.rune[:]
@@ -92,6 +93,7 @@ func (rb *reorderBuffer) insert(src []byte, info runeInfo) bool {
 			i = end
 		}
 	} else {
+		// insertOrder changes nbyte
 		pos := rb.nbyte
 		if !rb.insertOrdered(info) {
 			return false
@@ -121,10 +123,12 @@ func (rb *reorderBuffer) insertString(src string, info runeInfo) bool {
 			i = end
 		}
 	} else {
-		copy(rb.byte[rb.nbyte:], src[:info.size])
+		// insertOrder changes nbyte
+		pos := rb.nbyte
 		if !rb.insertOrdered(info) {
 			return false
 		}
+		copy(rb.byte[pos:], src[:info.size])
 	}
 	return true
 }
@@ -305,9 +309,12 @@ func (rb *reorderBuffer) compose() {
 	//  blocked from S if and only if there is some character B between S
 	//  and C, and either B is a starter or it has the same or higher
 	//  combining class as C."
+	bn := rb.nrune
+	if bn == 0 {
+		return
+	}
 	k := 1
 	b := rb.rune[:]
-	bn := rb.nrune
 	for s, i := 0, 1; i < bn; i++ {
 		if isJamoVT(rb.bytesAt(i)) {
 			// Redo from start in Hangul mode. Necessary to support

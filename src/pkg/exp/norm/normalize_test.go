@@ -53,9 +53,7 @@ var decomposeSegmentTests = []PositionTest{
 	{"\u00C0", 2, "A\u0300"},
 	{"\u00C0b", 2, "A\u0300"},
 	// long
-	{strings.Repeat("\u0300", 32), 64, strings.Repeat("\u0300", 32)},
-	// overflow
-	{strings.Repeat("\u0300", 33), 64, strings.Repeat("\u0300", 32)},
+	{strings.Repeat("\u0300", 31), 62, strings.Repeat("\u0300", 31)},
 	// ends with incomplete UTF-8 encoding
 	{"\xCC", 0, ""},
 	{"\u0300\xCC", 2, "\u0300"},
@@ -86,6 +84,10 @@ var firstBoundaryTests = []PositionTest{
 	{"\u110B\u1173\u11B7", 0, ""},
 	{"\u1161\u110B\u1173\u11B7", 3, ""},
 	{"\u1173\u11B7\u1103\u1161", 6, ""},
+	// too many combining characters.
+	{strings.Repeat("\u0300", maxCombiningChars-1), -1, ""},
+	{strings.Repeat("\u0300", maxCombiningChars), 60, ""},
+	{strings.Repeat("\u0300", maxCombiningChars+1), 60, ""},
 }
 
 func firstBoundary(rb *reorderBuffer, s string) int {
@@ -105,6 +107,7 @@ var decomposeToLastTests = []PositionTest{
 	{"a", 0, "a"},
 	{"a\u0301a", 3, "a"},
 	{"a\u0301\u03B9", 3, "\u03B9"},
+	{"a\u0327", 0, "a\u0327"},
 	// illegal runes
 	{"\xFF", 1, ""},
 	{"aa\xFF", 3, ""},
@@ -123,7 +126,7 @@ var decomposeToLastTests = []PositionTest{
 	{"a\u00C0", 1, "A\u0300"},
 	// decomposing
 	{"a\u0300\uFDC0", 3, "\u0645\u062C\u064A"},
-	{"\uFDC0" + strings.Repeat("\u0300", 28), 0, "\u0645\u062C\u064A" + strings.Repeat("\u0300", 28)},
+	{"\uFDC0" + strings.Repeat("\u0300", 26), 0, "\u0645\u062C\u064A" + strings.Repeat("\u0300", 26)},
 	// Hangul
 	{"a\u1103", 1, "\u1103"},
 	{"a\u110B", 1, "\u110B"},
@@ -138,7 +141,7 @@ var decomposeToLastTests = []PositionTest{
 	{"다음음", 6, "\u110B\u1173\u11B7"},
 	{"음다다", 6, "\u1103\u1161"},
 	// buffer overflow
-	{"a" + strings.Repeat("\u0300", 35), 9, strings.Repeat("\u0300", 31)},
+	{"a" + strings.Repeat("\u0300", 30), 3, strings.Repeat("\u0300", 29)},
 	{"\uFDFA" + strings.Repeat("\u0300", 14), 3, strings.Repeat("\u0300", 14)},
 	// weird UTF-8
 	{"a\u0300\u11B7", 0, "a\u0300\u11B7"},
@@ -165,13 +168,21 @@ var lastBoundaryTests = []PositionTest{
 	{"a\xff\u0300", 1, ""},
 	{"\xc0\x80\x80", 3, ""},
 	{"\xc0\x80\x80\u0300", 3, ""},
-	{"\xc0", 1, ""},
+	// ends with incomplete UTF-8 encoding
+	{"\xCC", -1, ""},
+	{"\xE0\x80", -1, ""},
+	{"\xF0\x80\x80", -1, ""},
+	{"a\xCC", 0, ""},
+	{"\x80\xCC", 1, ""},
+	{"\xCC\xCC", 1, ""},
 	// ends with combining characters
 	{"a\u0300\u0301", 0, ""},
 	{"aaaa\u0300\u0301", 3, ""},
 	{"\u0300a\u0300\u0301", 2, ""},
 	{"\u00C0", 0, ""},
 	{"a\u00C0", 1, ""},
+	// decomposition may recombine
+	{"\u0226", 0, ""},
 	// no boundary
 	{"", -1, ""},
 	{"\u0300\u0301", -1, ""},
@@ -183,16 +194,18 @@ var lastBoundaryTests = []PositionTest{
 	{"다", 0, ""},
 	{"\u1103\u1161\u110B\u1173\u11B7", 6, ""},
 	{"\u110B\u1173\u11B7\u1103\u1161", 9, ""},
-	// ends with incomplete UTF-8 encoding
-	{"\xCC", 1, ""},
+	// too many combining characters.
+	{strings.Repeat("\u0300", maxCombiningChars-1), -1, ""},
+	{strings.Repeat("\u0300", maxCombiningChars), 60, ""},
+	{strings.Repeat("\u0300", maxCombiningChars+1), 62, ""},
 }
 
-func lastBoundary(rb *reorderBuffer, s string) int {
+func lastBoundaryF(rb *reorderBuffer, s string) int {
 	return rb.f.form.LastBoundary([]byte(s))
 }
 
 func TestLastBoundary(t *testing.T) {
-	runPosTests(t, "TestLastBoundary", NFC, lastBoundary, lastBoundaryTests)
+	runPosTests(t, "TestLastBoundary", NFC, lastBoundaryF, lastBoundaryTests)
 }
 
 var quickSpanTests = []PositionTest{
@@ -342,8 +355,26 @@ func runAppendTests(t *testing.T, name string, f Form, fn appendFunc, tests []Ap
 	for i, test := range tests {
 		out := []byte(test.left)
 		out = fn(f, out, test.right)
-		if string(out) != test.out {
-			t.Errorf("%s:%d: result is %X; want %X", name, i, []int(string(out)), []int(test.out))
+		outs := string(out)
+		if len(outs) != len(test.out) {
+			t.Errorf("%s:%d: length is %d; want %d", name, i, len(outs), len(test.out))
+		}
+		if outs != test.out {
+			// Find first rune that differs and show context.
+			ir := []int(outs)
+			ig := []int(test.out)
+			for j := 0; j < len(ir) && j < len(ig); j++ {
+				if ir[j] == ig[j] {
+					continue
+				}
+				if j -= 3; j < 0 {
+					j = 0
+				}
+				for e := j + 7; j < e && j < len(ir) && j < len(ig); j++ {
+					t.Errorf("%s:%d: runeAt(%d) = %U; want %U", name, i, j, ir[j], ig[j])
+				}
+				break
+			}
 		}
 	}
 }
@@ -357,10 +388,14 @@ var appendTests = []AppendTest{
 	// segment split across buffers
 	{"", "a\u0300b", "\u00E0b"},
 	{"a", "\u0300b", "\u00E0b"},
+	{"a", "\u0300\u0316", "\u00E0\u0316"},
+	{"a", "\u0316\u0300", "\u00E0\u0316"},
 	{"a", "\u0300a\u0300", "\u00E0\u00E0"},
 	{"a", "\u0300a\u0300a\u0300", "\u00E0\u00E0\u00E0"},
 	{"a", "\u0300aaa\u0300aaa\u0300", "\u00E0aa\u00E0aa\u00E0"},
-	{"a\u0300", "\u0316", "\u00E0\u0316"},
+	{"a\u0300", "\u0327", "\u00E0\u0327"},
+	{"a\u0327", "\u0300", "\u00E0\u0327"},
+	{"a\u0316", "\u0300", "\u00E0\u0316"},
 	{"\u0041\u0307", "\u0304", "\u01E0"},
 	// Hangul
 	{"", "\u110B\u1173", "\uC73C"},
@@ -378,10 +413,12 @@ var appendTests = []AppendTest{
 	{"a\xCC", "\x80a\u0300", "\u00E0\u00E0"},
 	{"a\xCC", "\x80\x80", "\u00E0\x80"},
 	{"a\xCC", "\x80\xCC", "\u00E0\xCC"},
+	{"a\u0316\xCC", "\x80a\u0316\u0300", "\u00E0\u0316\u00E0\u0316"},
 	// ending in incomplete UTF-8 encoding
 	{"", "\xCC", "\xCC"},
 	{"a", "\xCC", "a\xCC"},
 	{"a", "b\xCC", "ab\xCC"},
+	{"\u0226", "\xCC", "\u0226\xCC"},
 	// illegal runes
 	{"", "\x80", "\x80"},
 	{"", "\x80\x80\x80", "\x80\x80\x80"},
@@ -394,12 +431,16 @@ var appendTests = []AppendTest{
 	{"", strings.Repeat("\x80", 33), strings.Repeat("\x80", 33)},
 	{strings.Repeat("\x80", 33), "", strings.Repeat("\x80", 33)},
 	{strings.Repeat("\x80", 33), strings.Repeat("\x80", 33), strings.Repeat("\x80", 66)},
-	{"", strings.Repeat("\u0300", 33), strings.Repeat("\u0300", 33)},
+	// overflow of combining characters
 	{strings.Repeat("\u0300", 33), "", strings.Repeat("\u0300", 33)},
-	{strings.Repeat("\u0300", 33), strings.Repeat("\u0300", 33), strings.Repeat("\u0300", 66)},
 	// weird UTF-8
+	{"\u00E0\xE1", "\x86", "\u00E0\xE1\x86"},
 	{"a\u0300\u11B7", "\u0300", "\u00E0\u11B7\u0300"},
 	{"a\u0300\u11B7\u0300", "\u0300", "\u00E0\u11B7\u0300\u0300"},
+	{"\u0300", "\xF8\x80\x80\x80\x80\u0300", "\u0300\xF8\x80\x80\x80\x80\u0300"},
+	{"\u0300", "\xFC\x80\x80\x80\x80\x80\u0300", "\u0300\xFC\x80\x80\x80\x80\x80\u0300"},
+	{"\xF8\x80\x80\x80\x80\u0300", "\u0300", "\xF8\x80\x80\x80\x80\u0300\u0300"},
+	{"\xFC\x80\x80\x80\x80\x80\u0300", "\u0300", "\xFC\x80\x80\x80\x80\x80\u0300\u0300"},
 }
 
 func appendF(f Form, out []byte, s string) []byte {

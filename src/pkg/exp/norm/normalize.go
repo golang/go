@@ -98,7 +98,7 @@ func (f Form) IsNormalString(s string) bool {
 // have been dropped.
 func patchTail(rb *reorderBuffer, buf []byte) ([]byte, int) {
 	info, p := lastRuneStart(&rb.f, buf)
-	if p == -1 {
+	if p == -1 || info.size == 0 {
 		return buf, 0
 	}
 	end := p + int(info.size)
@@ -129,7 +129,10 @@ func (f Form) Append(out []byte, src ...byte) []byte {
 	}
 	fd := formTable[f]
 	rb := &reorderBuffer{f: *fd}
+	return doAppend(rb, out, src)
+}
 
+func doAppend(rb *reorderBuffer, out, src []byte) []byte {
 	doMerge := len(out) > 0
 	p := 0
 	if !utf8.RuneStart(src[0]) {
@@ -145,20 +148,24 @@ func (f Form) Append(out []byte, src ...byte) []byte {
 			out = decomposeToLastBoundary(rb, buf) // force decomposition
 		}
 	}
+	fd := &rb.f
 	if doMerge {
 		var info runeInfo
-		if p < len(src[p:]) {
+		if p < len(src) {
 			info = fd.info(src[p:])
 			if p == 0 && !fd.boundaryBefore(fd, info) {
 				out = decomposeToLastBoundary(rb, out)
 			}
 		}
-		if info.size == 0 {
+		if info.size == 0 || fd.boundaryBefore(fd, info) {
 			if fd.composing {
 				rb.compose()
 			}
-			// Append incomplete UTF-8 encoding.
-			return append(rb.flush(out), src[p:]...)
+			out = rb.flush(out)
+			if info.size == 0 {
+				// Append incomplete UTF-8 encoding.
+				return append(out, src[p:]...)
+			}
 		}
 	}
 	if rb.nrune == 0 {
@@ -249,8 +256,11 @@ func (f Form) FirstBoundary(b []byte) int {
 	}
 	fd := formTable[f]
 	info := fd.info(b[i:])
-	for info.size != 0 && !fd.boundaryBefore(fd, info) {
+	for n := 0; info.size != 0 && !fd.boundaryBefore(fd, info); {
 		i += int(info.size)
+		if n++; n >= maxCombiningChars {
+			return i
+		}
 		if i >= len(b) {
 			if !fd.boundaryAfter(fd, info) {
 				return -1
@@ -274,29 +284,42 @@ func (f Form) FirstBoundaryInString(s string) (i int, ok bool) {
 // LastBoundary returns the position i of the last boundary in b
 // or -1 if b contains no boundary.
 func (f Form) LastBoundary(b []byte) int {
-	fd := formTable[f]
+	return lastBoundary(formTable[f], b)
+}
+
+func lastBoundary(fd *formInfo, b []byte) int {
 	i := len(b)
-	if i == 0 {
+	info, p := lastRuneStart(fd, b)
+	if p == -1 {
 		return -1
 	}
-	info, p := lastRuneStart(fd, b)
-	if int(info.size) != len(b)-p {
-		if p != -1 {
+	if info.size == 0 { // ends with incomplete rune
+		if p == 0 { // starts wtih incomplete rune
+			return -1
+		}
+		i = p
+		info, p = lastRuneStart(fd, b[:i])
+		if p == -1 { // incomplete UTF-8 encoding or non-starter bytes without a starter
 			return i
 		}
-		return -1
+	}
+	if p+int(info.size) != i { // trailing non-starter bytes: illegal UTF-8
+		return i
 	}
 	if fd.boundaryAfter(fd, info) {
 		return i
 	}
 	i = p
-	for i >= 0 && !fd.boundaryBefore(fd, info) {
+	for n := 0; i >= 0 && !fd.boundaryBefore(fd, info); {
 		info, p = lastRuneStart(fd, b[:i])
-		if int(info.size) != i-p {
-			if p != -1 {
-				return i
+		if n++; n >= maxCombiningChars {
+			return len(b)
+		}
+		if p+int(info.size) != i {
+			if p == -1 { // no boundary found
+				return -1
 			}
-			return -1
+			return i // boundary after an illegal UTF-8 encoding
 		}
 		i = p
 	}
@@ -349,12 +372,13 @@ func lastRuneStart(fd *formInfo, buf []byte) (runeInfo, int) {
 // decomposeToLastBoundary finds an open segment at the end of the buffer
 // and scans it into rb. Returns the buffer minus the last segment.
 func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
-	info, i := lastRuneStart(&rb.f, buf)
+	fd := &rb.f
+	info, i := lastRuneStart(fd, buf)
 	if int(info.size) != len(buf)-i {
 		// illegal trailing continuation bytes
 		return buf
 	}
-	if rb.f.boundaryAfter(&rb.f, info) {
+	if rb.f.boundaryAfter(fd, info) {
 		return buf
 	}
 	var add [maxBackRunes]runeInfo // stores runeInfo in reverse order
@@ -362,8 +386,8 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
 	padd := 1
 	n := 1
 	p := len(buf) - int(info.size)
-	for ; p >= 0 && !rb.f.boundaryBefore(&rb.f, info); p -= int(info.size) {
-		info, i = lastRuneStart(&rb.f, buf[:p])
+	for ; p >= 0 && !rb.f.boundaryBefore(fd, info); p -= int(info.size) {
+		info, i = lastRuneStart(fd, buf[:p])
 		if int(info.size) != p-i {
 			break
 		}
