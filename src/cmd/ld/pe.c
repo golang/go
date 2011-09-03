@@ -525,6 +525,48 @@ addpersrc(void)
 	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h->VirtualSize;
 }
 
+static void
+addexcept(IMAGE_SECTION_HEADER *text)
+{
+	IMAGE_SECTION_HEADER *pdata, *xdata;
+	vlong startoff;
+	uvlong n;
+	Sym *sym;
+
+	if(thechar != '6')
+		return;
+
+	// write unwind info
+	sym = lookup("runtime.sigtramp", 0);
+	startoff = cpos();
+	lputl(9);	// version=1, flags=UNW_FLAG_EHANDLER, rest 0
+	lputl(sym->value - PEBASE);
+	lputl(0);
+
+	n = cpos() - startoff;
+	xdata = addpesection(".xdata", n, n);
+	xdata->Characteristics = IMAGE_SCN_MEM_READ|
+		IMAGE_SCN_CNT_INITIALIZED_DATA;
+	chksectoff(xdata, startoff);
+	strnput("", xdata->SizeOfRawData - n);
+
+	// write a function table entry for the whole text segment
+	startoff = cpos();
+	lputl(text->VirtualAddress);
+	lputl(text->VirtualAddress + text->VirtualSize);
+	lputl(xdata->VirtualAddress);
+
+	n = cpos() - startoff;
+	pdata = addpesection(".pdata", n, n);
+	pdata->Characteristics = IMAGE_SCN_MEM_READ|
+		IMAGE_SCN_CNT_INITIALIZED_DATA;
+	chksectoff(pdata, startoff);
+	strnput("", pdata->SizeOfRawData - n);
+
+	dd[IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress = pdata->VirtualAddress;
+	dd[IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size = pdata->VirtualSize;
+}
+
 void
 asmbpe(void)
 {
@@ -562,7 +604,8 @@ asmbpe(void)
 	addexports();
 	addsymtable();
 	addpersrc();
-	
+	addexcept(t);
+
 	fh.NumberOfSections = nsect;
 	fh.TimeDateStamp = time(0);
 	fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED|
@@ -599,8 +642,16 @@ asmbpe(void)
 		set(Subsystem, IMAGE_SUBSYSTEM_WINDOWS_GUI);
 	else
 		set(Subsystem, IMAGE_SUBSYSTEM_WINDOWS_CUI);
-	set(SizeOfStackReserve, 0x0040000);
-	set(SizeOfStackCommit, 0x00001000);
+
+	// Disable stack growth as we don't want Windows to
+	// fiddle with the thread stack limits, which we set
+	// ourselves to circumvent the stack checks in the
+	// Windows exception dispatcher.
+	// Commit size must be strictly less than reserve
+	// size otherwise reserve will be rounded up to a
+	// larger size, as verified with VMMap.
+	set(SizeOfStackReserve, 0x00010000);
+	set(SizeOfStackCommit, 0x0000ffff);
 	set(SizeOfHeapReserve, 0x00100000);
 	set(SizeOfHeapCommit, 0x00001000);
 	set(NumberOfRvaAndSizes, 16);
