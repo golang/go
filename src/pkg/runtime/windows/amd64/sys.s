@@ -70,6 +70,36 @@ TEXT runtime·setlasterror(SB),7,$0
 	MOVL	AX, 0x68(CX)
 	RET
 
+TEXT runtime·sigtramp(SB),7,$56
+	// CX: exception record
+	// R8: context
+
+	// unwinding?
+	TESTL	$6, 4(CX)		// exception flags
+	MOVL	$1, AX
+	JNZ	sigdone
+
+	// copy arguments for call to sighandler
+	MOVQ	CX, 0(SP)
+	MOVQ	R8, 8(SP)
+	get_tls(CX)
+	MOVQ	g(CX), CX
+	MOVQ	CX, 16(SP)
+
+	MOVQ	BX, 24(SP)
+	MOVQ	BP, 32(SP)
+	MOVQ	SI, 40(SP)
+	MOVQ	DI, 48(SP)
+
+	CALL	runtime·sighandler(SB)
+
+	MOVQ	24(SP), BX
+	MOVQ	32(SP), BP
+	MOVQ	40(SP), SI
+	MOVQ	48(SP), DI
+sigdone:
+	RET
+
 // Windows runs the ctrl handler in a new thread.
 TEXT runtime·ctrlhandler(SB),7,$0
 	PUSHQ	BP
@@ -182,6 +212,13 @@ TEXT runtime·callbackasm(SB),7,$0
 	POPQ	-8(CX)(DX*1)      // restore bytes just after the args
 	RET
 
+TEXT runtime·setstacklimits(SB),7,$0
+	MOVQ	0x30(GS), CX
+	MOVQ	$0, 0x10(CX)
+	MOVQ	$0xffffffffffff, AX
+	MOVQ	AX, 0x08(CX)
+	RET
+
 // uint32 tstart_stdcall(M *newm);
 TEXT runtime·tstart_stdcall(SB),7,$0
 	// CX contains first arg newm
@@ -202,6 +239,7 @@ TEXT runtime·tstart_stdcall(SB),7,$0
 	// Someday the convention will be D is always cleared.
 	CLD
 
+	CALL	runtime·setstacklimits(SB)
 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
 	CALL	runtime·mstart(SB)
 
@@ -215,5 +253,6 @@ TEXT runtime·notok(SB),7,$0
 
 // set tls base to DI
 TEXT runtime·settls(SB),7,$0
+	CALL	runtime·setstacklimits(SB)
 	MOVQ	DI, 0x58(GS)
 	RET

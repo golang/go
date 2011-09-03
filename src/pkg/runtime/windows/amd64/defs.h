@@ -1,4 +1,4 @@
-// g:\opensource\go\bin\godefs.exe -f -m64 defs.c
+// c:\go\bin\godefs.exe -f -m64 defs.c
 
 // MACHINE GENERATED - DO NOT EDIT.
 
@@ -36,5 +36,61 @@ struct ExceptionRecord {
 	uint32 NumberParameters;
 	byte pad_godefs_0[4];
 	uint64 ExceptionInformation[15];
+};
+
+typedef struct M128a M128a;
+struct M128a {
+	uint64 Low;
+	int64 High;
+};
+
+typedef struct Context Context;
+struct Context {
+	uint64 P1Home;
+	uint64 P2Home;
+	uint64 P3Home;
+	uint64 P4Home;
+	uint64 P5Home;
+	uint64 P6Home;
+	uint32 ContextFlags;
+	uint32 MxCsr;
+	uint16 SegCs;
+	uint16 SegDs;
+	uint16 SegEs;
+	uint16 SegFs;
+	uint16 SegGs;
+	uint16 SegSs;
+	uint32 EFlags;
+	uint64 Dr0;
+	uint64 Dr1;
+	uint64 Dr2;
+	uint64 Dr3;
+	uint64 Dr6;
+	uint64 Dr7;
+	uint64 Rax;
+	uint64 Rcx;
+	uint64 Rdx;
+	uint64 Rbx;
+	uint64 Rsp;
+	uint64 Rbp;
+	uint64 Rsi;
+	uint64 Rdi;
+	uint64 R8;
+	uint64 R9;
+	uint64 R10;
+	uint64 R11;
+	uint64 R12;
+	uint64 R13;
+	uint64 R14;
+	uint64 R15;
+	uint64 Rip;
+	byte Pad_godefs_0[512];
+	M128a VectorRegister[26];
+	uint64 VectorControl;
+	uint64 DebugControl;
+	uint64 LastBranchToRip;
+	uint64 LastBranchFromRip;
+	uint64 LastExceptionToRip;
+	uint64 LastExceptionFromRip;
 };
 #pragma pack off

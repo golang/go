@@ -33,5 +33,10 @@ enum {
 };
 
 typedef EXCEPTION_RECORD $ExceptionRecord;
+#ifdef _X86_
 typedef FLOATING_SAVE_AREA $FloatingSaveArea;
+#endif
+#ifdef _AMD64_
+typedef M128A $M128a;
+#endif
 typedef CONTEXT $Context;
