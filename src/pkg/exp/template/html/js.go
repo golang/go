@@ -166,53 +166,43 @@ func jsValEscaper(args ...interface{}) string {
 // JavaScript source, in JavaScript embedded in an HTML5 <script> element,
 // or in an HTML5 event handler attribute such as onclick.
 func jsStrEscaper(args ...interface{}) string {
-	ok := false
-	var s string
+	return replace(stringify(args...), jsStrReplacementTable)
+}
+
+// jsRegexpEscaper behaves like jsStrEscaper but escapes regular expression
+// specials so the result is treated literally when included in a regular
+// expression literal. /foo{{.X}}bar/ matches the string "foo" followed by
+// the literal text of {{.X}} followed by the string "bar".
+func jsRegexpEscaper(args ...interface{}) string {
+	return replace(stringify(args...), jsRegexpReplacementTable)
+}
+
+// stringify is an optimized form of fmt.Sprint.
+func stringify(args ...interface{}) string {
 	if len(args) == 1 {
-		s, ok = args[0].(string)
+		if s, ok := args[0].(string); ok {
+			return s
+		}
 	}
-	if !ok {
-		s = fmt.Sprint(args...)
-	}
+	return fmt.Sprint(args...)
+}
+
+// replace replaces each rune r of s with replacementTable[r], provided that
+// r < len(replacementTable). If replacementTable[r] is the empty string then
+// no replacement is made.
+// It also replaces the runes '\u2028' and '\u2029' with the strings
+// `\u2028` and `\u2029`. Note the different quotes used.
+func replace(s string, replacementTable []string) string {
 	var b bytes.Buffer
 	written := 0
 	for i, r := range s {
 		var repl string
-		switch r {
-		case 0:
-			repl = `\0`
-		case '\t':
-			repl = `\t`
-		case '\n':
-			repl = `\n`
-		case '\v':
-			// "\v" == "v" on IE 6.
-			repl = `\x0b`
-		case '\f':
-			repl = `\f`
-		case '\r':
-			repl = `\r`
-		// Encode HTML specials as hex so the output can be embedded
-		// in HTML attributes without further encoding.
-		case '"':
-			repl = `\x22`
-		case '&':
-			repl = `\x26`
-		case '\'':
-			repl = `\x27`
-		case '+':
-			repl = `\x2b`
-		case '/':
-			repl = `\/`
-		case '<':
-			repl = `\x3c`
-		case '>':
-			repl = `\x3e`
-		case '\\':
-			repl = `\\`
-		case '\u2028':
+		switch {
+		case r < len(replacementTable) && replacementTable[r] != "":
+			repl = replacementTable[r]
+		case r == '\u2028':
 			repl = `\u2028`
-		case '\u2029':
+		case r == '\u2029':
 			repl = `\u2029`
 		default:
 			continue
@@ -228,97 +218,55 @@ func jsStrEscaper(args ...interface{}) string {
 	return b.String()
 }
 
-// jsRegexpEscaper behaves like jsStrEscaper but escapes regular expression
-// specials so the result is treated literally when included in a regular
-// expression literal. /foo{{.X}}bar/ matches the string "foo" followed by
-// the literal text of {{.X}} followed by the string "bar".
-func jsRegexpEscaper(args ...interface{}) string {
-	ok := false
-	var s string
-	if len(args) == 1 {
-		s, ok = args[0].(string)
-	}
-	if !ok {
-		s = fmt.Sprint(args...)
-	}
-	var b bytes.Buffer
-	written := 0
-	for i, r := range s {
-		var repl string
-		switch r {
-		case 0:
-			repl = `\0`
-		case '\t':
-			repl = `\t`
-		case '\n':
-			repl = `\n`
-		case '\v':
-			// "\v" == "v" on IE 6.
-			repl = `\x0b`
-		case '\f':
-			repl = `\f`
-		case '\r':
-			repl = `\r`
-		// Encode HTML specials as hex so the output can be embedded
-		// in HTML attributes without further encoding.
-		case '"':
-			repl = `\x22`
-		case '$':
-			repl = `\$`
-		case '&':
-			repl = `\x26`
-		case '\'':
-			repl = `\x27`
-		case '(':
-			repl = `\(`
-		case ')':
-			repl = `\)`
-		case '*':
-			repl = `\*`
-		case '+':
-			repl = `\x2b`
-		case '-':
-			repl = `\-`
-		case '.':
-			repl = `\.`
-		case '/':
-			repl = `\/`
-		case '<':
-			repl = `\x3c`
-		case '>':
-			repl = `\x3e`
-		case '?':
-			repl = `\?`
-		case '[':
-			repl = `\[`
-		case '\\':
-			repl = `\\`
-		case ']':
-			repl = `\]`
-		case '^':
-			repl = `\^`
-		case '{':
-			repl = `\{`
-		case '|':
-			repl = `\|`
-		case '}':
-			repl = `\}`
-		case '\u2028':
-			repl = `\u2028`
-		case '\u2029':
-			repl = `\u2029`
-		default:
-			continue
-		}
-		b.WriteString(s[written:i])
-		b.WriteString(repl)
-		written = i + utf8.RuneLen(r)
-	}
-	if written == 0 {
-		return s
-	}
-	b.WriteString(s[written:])
-	return b.String()
+var jsStrReplacementTable = []string{
+	0:    `\0`,
+	'\t': `\t`,
+	'\n': `\n`,
+	'\v': `\x0b`, // "\v" == "v" on IE 6.
+	'\f': `\f`,
+	'\r': `\r`,
+	// Encode HTML specials as hex so the output can be embedded
+	// in HTML attributes without further encoding.
+	'"':  `\x22`,
+	'&':  `\x26`,
+	'\'': `\x27`,
+	'+':  `\x2b`,
+	'/':  `\/`,
+	'<':  `\x3c`,
+	'>':  `\x3e`,
+	'\\': `\\`,
+}
+
+var jsRegexpReplacementTable = []string{
+	0:    `\0`,
+	'\t': `\t`,
+	'\n': `\n`,
+	'\v': `\x0b`, // "\v" == "v" on IE 6.
+	'\f': `\f`,
+	'\r': `\r`,
+	// Encode HTML specials as hex so the output can be embedded
+	// in HTML attributes without further encoding.
+	'"':  `\x22`,
+	'$':  `\$`,
+	'&':  `\x26`,
+	'\'': `\x27`,
+	'(':  `\(`,
+	')':  `\)`,
+	'*':  `\*`,
+	'+':  `\x2b`,
+	'-':  `\-`,
+	'.':  `\.`,
+	'/':  `\/`,
+	'<':  `\x3c`,
+	'>':  `\x3e`,
+	'?':  `\?`,
+	'[':  `\[`,
+	'\\': `\\`,
+	']':  `\]`,
+	'^':  `\^`,
+	'{':  `\{`,
+	'|':  `\|`,
+	'}':  `\}`,
 }
 
 // isJSIdentPart is true if the given rune is a JS identifier part.
