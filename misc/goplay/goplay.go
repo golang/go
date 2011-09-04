@@ -256,7 +256,7 @@ function compileUpdate() {
 </head>
 <body>
 <table width="100%"><tr><td width="60%" valign="top">
-<textarea autofocus="true" id="edit" spellcheck="false" onkeydown="keyHandler(event);" onkeyup="autocompile();">{{html .}}</textarea>
+<textarea autofocus="true" id="edit" spellcheck="false" onkeydown="keyHandler(event);" onkeyup="autocompile();">{{printf "%s" . |html}}</textarea>
 <div class="hints">
 (Shift-Enter to compile and run.)&nbsp;&nbsp;&nbsp;&nbsp;
 <input type="checkbox" id="autocompile" value="checked" /> Compile and run after each keystroke
