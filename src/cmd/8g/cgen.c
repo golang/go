@@ -1136,14 +1136,19 @@ sgen(Node *n, Node *res, int32 w)
 		dump("r", n);
 		dump("res", res);
 	}
-	if(w == 0)
-		return;
-	if(n->ullman >= UINF && res->ullman >= UINF) {
+	if(n->ullman >= UINF && res->ullman >= UINF)
 		fatal("sgen UINF");
-	}
 
 	if(w < 0)
 		fatal("sgen copy %d", w);
+
+	if(w == 0) {
+		// evaluate side effects only.
+		tempname(&tdst, types[tptr]);
+		agen(res, &tdst);
+		agen(n, &tdst);
+		return;
+	}
 
 	// offset on the stack
 	osrc = stkof(n);

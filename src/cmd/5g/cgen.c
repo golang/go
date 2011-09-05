@@ -1201,14 +1201,21 @@ sgen(Node *n, Node *res, int32 w)
 		dump("r", n);
 		dump("res", res);
 	}
-	if(w == 0)
-		return;
 	if(w < 0)
 		fatal("sgen copy %d", w);
 	if(n->ullman >= UINF && res->ullman >= UINF)
 		fatal("sgen UINF");
 	if(n->type == T)
 		fatal("sgen: missing type");
+
+	if(w == 0) {
+		// evaluate side effects only.
+		regalloc(&dst, types[tptr], N);
+		agen(res, &dst);
+		agen(n, &dst);
+		regfree(&dst);
+		return;
+	}
 
 	// determine alignment.
 	// want to avoid unaligned access, so have to use
