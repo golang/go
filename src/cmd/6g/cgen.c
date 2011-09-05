@@ -1029,11 +1029,9 @@ sgen(Node *n, Node *ns, int32 w)
 		dump("r", n);
 		dump("res", ns);
 	}
-	if(w == 0)
-		return;
-	if(n->ullman >= UINF && ns->ullman >= UINF) {
+
+	if(n->ullman >= UINF && ns->ullman >= UINF)
 		fatal("sgen UINF");
-	}
 
 	if(w < 0)
 		fatal("sgen copy %d", w);
@@ -1041,6 +1039,15 @@ sgen(Node *n, Node *ns, int32 w)
 	if(w == 16)
 		if(componentgen(n, ns))
 			return;
+	
+	if(w == 0) {
+		// evaluate side effects only
+		regalloc(&nodr, types[tptr], N);
+		agen(ns, &nodr);
+		agen(n, &nodr);
+		regfree(&nodr);
+		return;
+	}
 
 	// offset on the stack
 	osrc = stkof(n);
