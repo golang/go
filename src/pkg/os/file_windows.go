@@ -39,8 +39,8 @@ func NewFile(fd syscall.Handle, name string) *File {
 
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
-	stat         syscall.Stat_t
-	usefirststat bool
+	data     syscall.Win32finddata
+	needdata bool
 }
 
 const DevNull = "NUL"
@@ -64,12 +64,11 @@ func openFile(name string, flag int, perm uint32) (file *File, err Error) {
 
 func openDir(name string) (file *File, err Error) {
 	d := new(dirInfo)
-	r, e := syscall.FindFirstFile(syscall.StringToUTF16Ptr(name+"\\*"), &d.stat.Windata)
+	r, e := syscall.FindFirstFile(syscall.StringToUTF16Ptr(name+`\*`), &d.data)
 	if e != 0 {
 		return nil, &PathError{"open", name, Errno(e)}
 	}
 	f := NewFile(r, name)
-	d.usefirststat = true
 	f.dirinfo = d
 	return f, nil
 }
@@ -128,28 +127,6 @@ func (file *File) Close() Error {
 	return err
 }
 
-func (file *File) statFile(name string) (fi *FileInfo, err Error) {
-	var stat syscall.ByHandleFileInformation
-	e := syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &stat)
-	if e != 0 {
-		return nil, &PathError{"stat", file.name, Errno(e)}
-	}
-	return fileInfoFromByHandleInfo(new(FileInfo), file.name, &stat), nil
-}
-
-// Stat returns the FileInfo structure describing file.
-// It returns the FileInfo and an error, if any.
-func (file *File) Stat() (fi *FileInfo, err Error) {
-	if file == nil || file.fd < 0 {
-		return nil, EINVAL
-	}
-	if file.isdir() {
-		// I don't know any better way to do that for directory
-		return Stat(file.name)
-	}
-	return file.statFile(file.name)
-}
-
 // Readdir reads the contents of the directory associated with file and
 // returns an array of up to n FileInfo structures, as would be returned
 // by Lstat, in directory order. Subsequent calls on the same file will yield
@@ -172,7 +149,6 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
 	if !file.isdir() {
 		return nil, &PathError{"Readdir", file.name, ENOTDIR}
 	}
-	di := file.dirinfo
 	wantAll := n <= 0
 	size := n
 	if wantAll {
@@ -180,11 +156,10 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
 		size = 100
 	}
 	fi = make([]FileInfo, 0, size) // Empty with room to grow.
+	d := &file.dirinfo.data
 	for n != 0 {
-		if di.usefirststat {
-			di.usefirststat = false
-		} else {
-			e := syscall.FindNextFile(syscall.Handle(file.fd), &di.stat.Windata)
+		if file.dirinfo.needdata {
+			e := syscall.FindNextFile(syscall.Handle(file.fd), d)
 			if e != 0 {
 				if e == syscall.ERROR_NO_MORE_FILES {
 					break
@@ -198,7 +173,8 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
 			}
 		}
 		var f FileInfo
-		fileInfoFromWin32finddata(&f, &di.stat.Windata)
+		setFileInfo(&f, string(syscall.UTF16ToString(d.FileName[0:])), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
+		file.dirinfo.needdata = true
 		if f.Name == "." || f.Name == ".." { // Useless names
 			continue
 		}

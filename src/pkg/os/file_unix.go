@@ -94,6 +94,39 @@ func (file *File) Stat() (fi *FileInfo, err Error) {
 	return fileInfoFromStat(file.name, new(FileInfo), &stat, &stat), nil
 }
 
+// Stat returns a FileInfo structure describing the named file and an error, if any.
+// If name names a valid symbolic link, the returned FileInfo describes
+// the file pointed at by the link and has fi.FollowedSymlink set to true.
+// If name names an invalid symbolic link, the returned FileInfo describes
+// the link itself and has fi.FollowedSymlink set to false.
+func Stat(name string) (fi *FileInfo, err Error) {
+	var lstat, stat syscall.Stat_t
+	e := syscall.Lstat(name, &lstat)
+	if iserror(e) {
+		return nil, &PathError{"stat", name, Errno(e)}
+	}
+	statp := &lstat
+	if lstat.Mode&syscall.S_IFMT == syscall.S_IFLNK {
+		e := syscall.Stat(name, &stat)
+		if !iserror(e) {
+			statp = &stat
+		}
+	}
+	return fileInfoFromStat(name, new(FileInfo), &lstat, statp), nil
+}
+
+// Lstat returns the FileInfo structure describing the named file and an
+// error, if any.  If the file is a symbolic link, the returned FileInfo
+// describes the symbolic link.  Lstat makes no attempt to follow the link.
+func Lstat(name string) (fi *FileInfo, err Error) {
+	var stat syscall.Stat_t
+	e := syscall.Lstat(name, &stat)
+	if iserror(e) {
+		return nil, &PathError{"lstat", name, Errno(e)}
+	}
+	return fileInfoFromStat(name, new(FileInfo), &stat, &stat), nil
+}
+
 // Readdir reads the contents of the directory associated with file and
 // returns an array of up to n FileInfo structures, as would be returned
 // by Lstat, in directory order. Subsequent calls on the same file will yield

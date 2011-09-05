@@ -4,24 +4,76 @@
 
 package os
 
-import "syscall"
+import (
+	"unsafe"
+	"syscall"
+)
 
-func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
-	return fileInfoFromWin32finddata(fi, &stat.Windata)
+// Stat returns the FileInfo structure describing file.
+// It returns the FileInfo and an error, if any.
+func (file *File) Stat() (fi *FileInfo, err Error) {
+	if file == nil || file.fd < 0 {
+		return nil, EINVAL
+	}
+	if file.isdir() {
+		// I don't know any better way to do that for directory
+		return Stat(file.name)
+	}
+	var d syscall.ByHandleFileInformation
+	e := syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &d)
+	if e != 0 {
+		return nil, &PathError{"GetFileInformationByHandle", file.name, Errno(e)}
+	}
+	return setFileInfo(new(FileInfo), basename(file.name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
 }
 
-func fileInfoFromWin32finddata(fi *FileInfo, d *syscall.Win32finddata) *FileInfo {
-	return setFileInfo(fi, string(syscall.UTF16ToString(d.FileName[0:])), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
+// Stat returns a FileInfo structure describing the named file and an error, if any.
+// If name names a valid symbolic link, the returned FileInfo describes
+// the file pointed at by the link and has fi.FollowedSymlink set to true.
+// If name names an invalid symbolic link, the returned FileInfo describes
+// the link itself and has fi.FollowedSymlink set to false.
+func Stat(name string) (fi *FileInfo, err Error) {
+	if len(name) == 0 {
+		return nil, &PathError{"Stat", name, Errno(syscall.ERROR_PATH_NOT_FOUND)}
+	}
+	var d syscall.Win32FileAttributeData
+	e := syscall.GetFileAttributesEx(syscall.StringToUTF16Ptr(name), syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&d)))
+	if e != 0 {
+		return nil, &PathError{"GetFileAttributesEx", name, Errno(e)}
+	}
+	return setFileInfo(new(FileInfo), basename(name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
 }
 
-func fileInfoFromByHandleInfo(fi *FileInfo, name string, d *syscall.ByHandleFileInformation) *FileInfo {
-	for i := len(name) - 1; i >= 0; i-- {
+// Lstat returns the FileInfo structure describing the named file and an
+// error, if any.  If the file is a symbolic link, the returned FileInfo
+// describes the symbolic link.  Lstat makes no attempt to follow the link.
+func Lstat(name string) (fi *FileInfo, err Error) {
+	// No links on Windows
+	return Stat(name)
+}
+
+// basename removes trailing slashes and the leading
+// directory name and drive letter from path name.
+func basename(name string) string {
+	// Remove drive letter
+	if len(name) == 2 && name[1] == ':' {
+		name = "."
+	} else if len(name) > 2 && name[1] == ':' {
+		name = name[2:]
+	}
+	i := len(name) - 1
+	// Remove trailing slashes
+	for ; i > 0 && (name[i] == '/' || name[i] == '\\'); i-- {
+		name = name[:i]
+	}
+	// Remove leading directory name
+	for i--; i >= 0; i-- {
 		if name[i] == '/' || name[i] == '\\' {
 			name = name[i+1:]
 			break
 		}
 	}
-	return setFileInfo(fi, name, d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
+	return name
 }
 
 func setFileInfo(fi *FileInfo, name string, fa, sizehi, sizelo uint32, ctime, atime, wtime syscall.Filetime) *FileInfo {

@@ -66,6 +66,7 @@ var (
 	procSetFileTime                = modkernel32.NewProc("SetFileTime")
 	procGetFileAttributesW         = modkernel32.NewProc("GetFileAttributesW")
 	procSetFileAttributesW         = modkernel32.NewProc("SetFileAttributesW")
+	procGetFileAttributesExW       = modkernel32.NewProc("GetFileAttributesExW")
 	procGetCommandLineW            = modkernel32.NewProc("GetCommandLineW")
 	procCommandLineToArgvW         = modshell32.NewProc("CommandLineToArgvW")
 	procLocalFree                  = modkernel32.NewProc("LocalFree")
@@ -142,7 +143,8 @@ func FreeLibrary(handle Handle) (errno int) {
 }
 
 func GetProcAddress(module Handle, procname string) (proc uintptr, errno int) {
-	proc, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
+	r0, _, e1 := Syscall(procGetProcAddress.Addr(), 2, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
+	proc = uintptr(r0)
 	if proc == 0 {
 		if e1 != 0 {
 			errno = int(e1)
@@ -835,6 +837,20 @@ func GetFileAttributes(name *uint16) (attrs uint32, errno int) {
 
 func SetFileAttributes(name *uint16, attrs uint32) (errno int) {
 	r1, _, e1 := Syscall(procSetFileAttributesW.Addr(), 2, uintptr(unsafe.Pointer(name)), uintptr(attrs), 0)
+	if int(r1) == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func GetFileAttributesEx(name *uint16, level uint32, info *byte) (errno int) {
+	r1, _, e1 := Syscall(procGetFileAttributesExW.Addr(), 3, uintptr(unsafe.Pointer(name)), uintptr(level), uintptr(unsafe.Pointer(info)))
 	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
