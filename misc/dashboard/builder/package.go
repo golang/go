@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"go/doc"
 	"go/parser"
 	"go/token"
@@ -17,6 +18,10 @@ import (
 const MaxCommentLength = 500 // App Engine won't store more in a StringProperty.
 
 func (b *Builder) buildPackages(workpath string, hash string) os.Error {
+	logdir := filepath.Join(*buildroot, "log")
+	if err := os.Mkdir(logdir, 0755); err != nil {
+		return err
+	}
 	pkgs, err := packages()
 	if err != nil {
 		return err
@@ -44,15 +49,32 @@ func (b *Builder) buildPackages(workpath string, hash string) os.Error {
 		}
 
 		// get doc comment from package source
-		info, err := packageComment(p, filepath.Join(goroot, "src", "pkg", p))
-		if err != nil {
-			log.Printf("packageComment %v: %v", p, err)
+		var info string
+		pkgPath := filepath.Join(goroot, "src", "pkg", p)
+		if _, err := os.Stat(pkgPath); err == nil {
+			info, err = packageComment(p, pkgPath)
+			if err != nil {
+				log.Printf("packageComment %v: %v", p, err)
+			}
 		}
 
 		// update dashboard with build state + info
 		err = b.updatePackage(p, code == 0, buildLog, info)
 		if err != nil {
 			log.Printf("updatePackage %v: %v", p, err)
+		}
+
+		if code == 0 {
+			log.Println("Build succeeded:", p)
+		} else {
+			log.Println("Build failed:", p)
+			fn := filepath.Join(logdir, strings.Replace(p, "/", "_", -1))
+			if f, err := os.Create(fn); err != nil {
+				log.Printf("creating %s: %v", fn, err)
+			} else {
+				fmt.Fprint(f, buildLog)
+				f.Close()
+			}
 		}
 	}
 	return nil
@@ -61,6 +83,7 @@ func (b *Builder) buildPackages(workpath string, hash string) os.Error {
 func isGoFile(fi *os.FileInfo) bool {
 	return fi.IsRegular() && // exclude directories
 		!strings.HasPrefix(fi.Name, ".") && // ignore .files
+		!strings.HasSuffix(fi.Name, "_test.go") && // ignore tests
 		filepath.Ext(fi.Name) == ".go"
 }
 
@@ -74,10 +97,13 @@ func packageComment(pkg, pkgpath string) (info string, err os.Error) {
 		if name == "main" {
 			continue
 		}
-		if info != "" {
-			return "", os.NewError("multiple non-main package docs")
-		}
 		pdoc := doc.NewPackageDoc(pkgs[name], pkg)
+		if pdoc.Doc == "" {
+			continue
+		}
+		if info != "" {
+			return "", os.NewError("multiple packages with docs")
+		}
 		info = pdoc.Doc
 	}
 	// grab only first paragraph
