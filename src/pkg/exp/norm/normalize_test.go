@@ -220,6 +220,11 @@ var quickSpanTests = []PositionTest{
 	// incorrectly ordered combining characters
 	{"\u0300\u0316", 0, ""},
 	{"\u0300\u0316cd", 0, ""},
+	// have a maximum number of combining characters.
+	{strings.Repeat("\u035D", 30) + "\u035B", 62, ""},
+	{"a" + strings.Repeat("\u035D", 30) + "\u035B", 63, ""},
+	{"Ɵ" + strings.Repeat("\u035D", 30) + "\u035B", 64, ""},
+	{"aa" + strings.Repeat("\u035D", 30) + "\u035B", 64, ""},
 }
 
 var quickSpanNFDTests = []PositionTest{

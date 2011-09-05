@@ -198,12 +198,16 @@ func (f Form) QuickSpan(b []byte) int {
 func quickSpan(fd *formInfo, b []byte) int {
 	var lastCC uint8
 	var lastSegStart int
-	i := 0
+	var i, nc int
 	for i < len(b) {
 		if b[i] < utf8.RuneSelf {
-			lastSegStart = i
-			i++
+			// Keep the loop tight for ASCII processing, as this is where
+			// most of the time is spent for this case.
+			for i++; i < len(b) && b[i] < utf8.RuneSelf; i++ {
+			}
+			lastSegStart = i - 1
 			lastCC = 0
+			nc = 0
 			continue
 		}
 		info := fd.info(b[i:])
@@ -212,9 +216,6 @@ func quickSpan(fd *formInfo, b []byte) int {
 			return len(b)
 		}
 		cc := info.ccc
-		if lastCC > cc && cc != 0 {
-			return lastSegStart
-		}
 		if fd.composing {
 			if !info.flags.isYesC() {
 				break
@@ -224,8 +225,20 @@ func quickSpan(fd *formInfo, b []byte) int {
 				break
 			}
 		}
-		if !fd.composing && cc == 0 {
+		if cc == 0 {
 			lastSegStart = i
+			nc = 0
+		} else {
+			if nc >= maxCombiningChars {
+				lastSegStart = i
+				lastCC = cc
+				nc = 1
+			} else {
+				if lastCC > cc {
+					return lastSegStart
+				}
+				nc++
+			}
 		}
 		lastCC = cc
 		i += int(info.size)
