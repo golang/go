@@ -110,7 +110,7 @@ func TestCount(t *testing.T) {
 		t.Errorf("Read: %v", err)
 	}
 	if count.N != 1 {
-		t.Errorf("count: expected 1 got %q", 1, count.N)
+		t.Errorf("count: expected %d got %d", 1, count.N)
 	}
 	if count.S != "hello" {
 		t.Errorf("count: expected %q got %q", "hello", count.S)
@@ -122,7 +122,7 @@ func TestCount(t *testing.T) {
 		t.Errorf("Read: %v", err)
 	}
 	if count.N != 2 {
-		t.Errorf("count: expected 1 got %q", 2, count.N)
+		t.Errorf("count: expected %d got %d", 2, count.N)
 	}
 	if count.S != "hellohello" {
 		t.Errorf("count: expected %q got %q", "hellohello", count.S)
