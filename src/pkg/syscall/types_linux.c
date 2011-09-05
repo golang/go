@@ -212,7 +212,7 @@ enum {
 	$SizeofRtAttr = sizeof(struct rtattr),
 	$SizeofIfInfomsg = sizeof(struct ifinfomsg),
 	$SizeofIfAddrmsg = sizeof(struct ifaddrmsg),
-	$SizeofRtmsg = sizeof(struct rtmsg),
+	$SizeofRtMsg = sizeof(struct rtmsg),
 	$SizeofRtNexthop = sizeof(struct rtnexthop),
 };
 

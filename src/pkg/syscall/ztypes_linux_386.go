@@ -98,7 +98,7 @@ const (
 	SizeofRtAttr            = 0x4
 	SizeofIfInfomsg         = 0x10
 	SizeofIfAddrmsg         = 0x8
-	SizeofRtmsg             = 0xc
+	SizeofRtMsg             = 0xc
 	SizeofRtNexthop         = 0x8
 	SizeofSockFilter        = 0x8
 	SizeofSockFprog         = 0x8
