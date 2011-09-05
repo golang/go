@@ -29,7 +29,7 @@ TEXT runtime·write(SB),7,$-4
 
 TEXT runtime·raisesigpipe(SB),7,$12
 	MOVL	$299, AX		// sys_getthrid
-	INT	$80
+	INT	$0x80
 	MOVL	$0, 0(SP)
 	MOVL	AX, 4(SP)		// arg 1 - pid
 	MOVL	$13, 8(SP)		// arg 2 - signum == SIGPIPE
