@@ -207,6 +207,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	SetFileTime(handle Handle, ctime *Filetime, atime *Filetime, wtime *Filetime) (errno int)
 //sys	GetFileAttributes(name *uint16) (attrs uint32, errno int) [failretval==INVALID_FILE_ATTRIBUTES] = kernel32.GetFileAttributesW
 //sys	SetFileAttributes(name *uint16, attrs uint32) (errno int) = kernel32.SetFileAttributesW
+//sys	GetFileAttributesEx(name *uint16, level uint32, info *byte) (errno int) = kernel32.GetFileAttributesExW
 //sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
 //sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) [failretval==nil] = shell32.CommandLineToArgvW
 //sys	LocalFree(hmem Handle) (handle Handle, errno int) [failretval!=0]
@@ -352,39 +353,6 @@ var (
 func getStdHandle(h int) (fd Handle) {
 	r, _ := GetStdHandle(h)
 	return r
-}
-
-func Stat(path string, stat *Stat_t) (errno int) {
-	if len(path) == 0 {
-		return ERROR_PATH_NOT_FOUND
-	}
-	// Remove trailing slash.
-	if path[len(path)-1] == '/' || path[len(path)-1] == '\\' {
-		// Check if we're given root directory ("\" or "c:\").
-		if len(path) == 1 || (len(path) == 3 && path[1] == ':') {
-			// TODO(brainman): Perhaps should fetch other fields, not just FileAttributes.
-			stat.Windata = Win32finddata{}
-			a, e := GetFileAttributes(StringToUTF16Ptr(path))
-			if e != 0 {
-				return e
-			}
-			stat.Windata.FileAttributes = a
-			return 0
-		}
-		path = path[:len(path)-1]
-	}
-	h, e := FindFirstFile(StringToUTF16Ptr(path), &stat.Windata)
-	if e != 0 {
-		return e
-	}
-	defer FindClose(h)
-	stat.Mode = 0
-	return 0
-}
-
-func Lstat(path string, stat *Stat_t) (errno int) {
-	// no links on windows, just call Stat
-	return Stat(path, stat)
 }
 
 const ImplementsGetwd = true

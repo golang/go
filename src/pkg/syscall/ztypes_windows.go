@@ -244,6 +244,20 @@ type ByHandleFileInformation struct {
 	FileIndexLow       uint32
 }
 
+const (
+	GetFileExInfoStandard = 0
+	GetFileExMaxInfoLevel = 1
+)
+
+type Win32FileAttributeData struct {
+	FileAttributes uint32
+	CreationTime   Filetime
+	LastAccessTime Filetime
+	LastWriteTime  Filetime
+	FileSizeHigh   uint32
+	FileSizeLow    uint32
+}
+
 // ShowWindow constants
 const (
 	// winuser.h
@@ -289,12 +303,6 @@ type ProcessInformation struct {
 	Thread    Handle
 	ProcessId uint32
 	ThreadId  uint32
-}
-
-// Invented values to support what package os expects.
-type Stat_t struct {
-	Windata Win32finddata
-	Mode    uint32
 }
 
 type Systemtime struct {
