@@ -59,6 +59,57 @@ func TestPseudoRandomSend(t *testing.T) {
 	t.Errorf("Want pseudo random, got %d zeros and %d ones", n0, n1)
 }
 
+func TestMultiConsumer(t *testing.T) {
+	const nwork = 23
+	const niter = 271828
+
+	pn := []int{2, 3, 7, 11, 13, 17, 19, 23, 27, 31}
+
+	q := make(chan int, nwork*3)
+	r := make(chan int, nwork*3)
+
+	// workers
+	var wg sync.WaitGroup
+	for i := 0; i < nwork; i++ {
+		wg.Add(1)
+		go func(w int) {
+			for v := range q {
+				// mess with the fifo-ish nature of range
+				if pn[w%len(pn)] == v {
+					runtime.Gosched()
+				}
+				r <- v
+			}
+			wg.Done()
+		}(i)
+	}
+
+	// feeder & closer
+	expect := 0
+	go func() {
+		for i := 0; i < niter; i++ {
+			v := pn[i%len(pn)]
+			expect += v
+			q <- v
+		}
+		close(q)  // no more work
+		wg.Wait() // workers done
+		close(r)  // ... so there can be no more results
+	}()
+
+	// consume & check
+	n := 0
+	s := 0
+	for v := range r {
+		n++
+		s += v
+	}
+	if n != niter || s != expect {
+		t.Errorf("Expected sum %d (got %d) from %d iter (saw %d)",
+			expect, s, niter, n)
+	}
+}
+
 func BenchmarkSelectUncontended(b *testing.B) {
 	const CallsPerSched = 1000
 	procs := runtime.GOMAXPROCS(-1)
