@@ -610,9 +610,6 @@ func (p *parser) tryVarType(isParam bool) ast.Expr {
 			p.error(pos, "'...' parameter is missing type")
 			typ = &ast.BadExpr{pos, p.pos}
 		}
-		if p.tok != token.RPAREN {
-			p.error(pos, "can use '...' with last parameter type only")
-		}
 		return &ast.Ellipsis{pos, typ}
 	}
 	return p.tryIdentOrType(false)
@@ -635,21 +632,21 @@ func (p *parser) parseVarList(isParam bool) (list []ast.Expr, typ ast.Expr) {
 	}
 
 	// a list of identifiers looks like a list of type names
-	for {
-		// parseVarType accepts any type (including parenthesized ones)
-		// even though the syntax does not permit them here: we
-		// accept them all for more robust parsing and complain
-		// afterwards
-		list = append(list, p.parseVarType(isParam))
+	//
+	// parse/tryVarType accepts any type (including parenthesized
+	// ones) even though the syntax does not permit them here: we
+	// accept them all for more robust parsing and complain later
+	for typ := p.parseVarType(isParam); typ != nil; {
+		list = append(list, typ)
 		if p.tok != token.COMMA {
 			break
 		}
 		p.next()
+		typ = p.tryVarType(isParam) // maybe nil as in: func f(int,) {}
 	}
 
 	// if we had a list of identifiers, it must be followed by a type
-	typ = p.tryVarType(isParam)
-	if typ != nil {
+	if typ = p.tryVarType(isParam); typ != nil {
 		p.resolve(typ)
 	}
 
