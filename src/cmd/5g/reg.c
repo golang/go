@@ -114,19 +114,19 @@ setaddrs(Bits bit)
 {
 	int i, n;
 	Var *v;
-	Sym *s;
+	Node *node;
 
 	while(bany(&bit)) {
 		// convert each bit to a variable
 		i = bnum(bit);
-		s = var[i].sym;
+		node = var[i].node;
 		n = var[i].name;
 		bit.b[i/32] &= ~(1L<<(i%32));
 
 		// disable all pieces of that variable
 		for(i=0; i<nvar; i++) {
 			v = var+i;
-			if(v->sym == s && v->name == n)
+			if(v->node == node && v->name == n)
 				v->addr = 2;
 		}
 	}
@@ -204,7 +204,7 @@ regopt(Prog *firstp)
 	nvar = NREGVAR;
 	memset(var, 0, NREGVAR*sizeof var[0]);
 	for(i=0; i<NREGVAR; i++)
-		var[i].sym = lookup(regname[i]);
+		var[i].node = newname(lookup(regname[i]));
 
 	regbits = RtoB(REGSP)|RtoB(REGLINK)|RtoB(REGPC);
 	for(z=0; z<BITS; z++) {
@@ -752,9 +752,9 @@ addmove(Reg *r, int bn, int rn, int f)
 	v = var + bn;
 
 	a = &p1->to;
-	a->sym = v->sym;
 	a->name = v->name;
 	a->node = v->node;
+	a->sym = v->node->sym;
 	a->offset = v->offset;
 	a->etype = v->etype;
 	a->type = D_OREG;
@@ -840,7 +840,7 @@ mkvar(Reg *r, Adr *a)
 	int i, t, n, et, z, w, flag;
 	int32 o;
 	Bits bit;
-	Sym *s;
+	Node *node;
 
 	// mark registers used
 	t = a->type;
@@ -910,10 +910,11 @@ mkvar(Reg *r, Adr *a)
 		break;
 	}
 
-	s = a->sym;
-	if(s == S)
+	node = a->node;
+	if(node == N || node->op != ONAME || node->orig != N)
 		goto none;
-	if(s->name[0] == '.')
+	node = node->orig;
+	if(node->sym->name[0] == '.')
 		goto none;
 	et = a->etype;
 	o = a->offset;
@@ -921,7 +922,7 @@ mkvar(Reg *r, Adr *a)
 
 	for(i=0; i<nvar; i++) {
 		v = var+i;
-		if(v->sym == s && v->name == n) {
+		if(v->node == node && v->name == n) {
 			if(v->offset == o)
 			if(v->etype == et)
 			if(v->width == w)
@@ -945,7 +946,7 @@ mkvar(Reg *r, Adr *a)
 	}
 
 	if(nvar >= NVAR) {
-		if(debug['w'] > 1 && s)
+		if(debug['w'] > 1 && node)
 			fatal("variable not optimized: %D", a);
 		goto none;
 	}
@@ -954,17 +955,16 @@ mkvar(Reg *r, Adr *a)
 	nvar++;
 //print("var %d %E %D %S\n", i, et, a, s);
 	v = var+i;
-	v->sym = s;
 	v->offset = o;
 	v->name = n;
 //	v->gotype = a->gotype;
 	v->etype = et;
 	v->width = w;
 	v->addr = flag;		// funny punning
-	v->node = a->node;
+	v->node = node;
 	
 	if(debug['R'])
-		print("bit=%2d et=%2d w=%d+%d %S %D flag=%d\n", i, et, o, w, s, a, v->addr);
+		print("bit=%2d et=%2d w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
 
 	bit = blsh(i);
 	if(n == D_EXTERN || n == D_STATIC)

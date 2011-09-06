@@ -1156,9 +1156,6 @@ Jconv(Fmt *fp)
 	if(n->implicit != 0)
 		fmtprint(fp, " implicit(%d)", n->implicit);
 
-	if(!c && n->pun != 0)
-		fmtprint(fp, " pun(%d)", n->pun);
-
 	if(!c && n->used != 0)
 		fmtprint(fp, " used(%d)", n->used);
 	return 0;

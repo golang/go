@@ -264,7 +264,6 @@ struct	Node
 	uchar	initorder;
 	uchar	used;
 	uchar	isddd;
-	uchar	pun;		// don't registerize variable ONAME
 	uchar	readonly;
 	uchar	implicit;	// don't show in printout
 
@@ -608,7 +607,6 @@ typedef	struct	Var	Var;
 struct	Var
 {
 	vlong	offset;
-	Sym*	sym;
 	Sym*	gotype;
 	Node*	node;
 	int	width;
@@ -981,7 +979,6 @@ Type*	pkgtype(Sym *s);
  *	gen.c
  */
 void	addrescapes(Node *n);
-void	allocparams(void);
 void	cgen_as(Node *nl, Node *nr);
 void	cgen_callmeth(Node *n, int proc);
 void	clearlabels(void);
