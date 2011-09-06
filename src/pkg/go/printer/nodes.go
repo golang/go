@@ -269,6 +269,7 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
 	p.print(fields.Opening, token.LPAREN)
 	if len(fields.List) > 0 {
+		ws := indent
 		var prevLine, line int
 		for i, par := range fields.List {
 			if i > 0 {
@@ -278,18 +279,29 @@ func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
 				} else {
 					line = p.fset.Position(par.Type.Pos()).Line
 				}
-				if 0 < prevLine && prevLine < line && p.linebreak(line, 0, ignore, true) {
+				if 0 < prevLine && prevLine < line && p.linebreak(line, 0, ws, true) {
+					ws = ignore
 					*multiLine = true
 				} else {
 					p.print(blank)
 				}
 			}
 			if len(par.Names) > 0 {
-				p.identList(par.Names, false, multiLine)
+				// Very subtle: If we indented before (ws == ignore), identList
+				// won't indent again. If we didn't (ws == indent), identList will
+				// indent if the identList spans multiple lines, and it will outdent
+				// again at the end (and still ws == indent). Thus, a subsequent indent
+				// by a linebreak call after a type, or in the next multi-line identList
+				// will do the right thing.
+				p.identList(par.Names, ws == indent, multiLine)
 				p.print(blank)
 			}
 			p.expr(par.Type, multiLine)
 			prevLine = p.fset.Position(par.Type.Pos()).Line
+		}
+		if ws == ignore {
+			// unindent if we indented
+			p.print(unindent)
 		}
 	}
 	p.print(fields.Closing, token.RPAREN)
