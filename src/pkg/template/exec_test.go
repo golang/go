@@ -416,6 +416,11 @@ var execTests = []execTest{
 	{"bug4", "{{if .Empty0}}non-nil{{else}}nil{{end}}", "nil", tVal, true},
 	// Stringer.
 	{"bug5", "{{.Str}}", "foozle", tVal, true},
+	// Args need to be indirected and dereferenced sometimes.
+	{"bug6a", "{{vfunc .V0 .V1}}", "vfunc", tVal, true},
+	{"bug6b", "{{vfunc .V0 .V0}}", "vfunc", tVal, true},
+	{"bug6c", "{{vfunc .V1 .V0}}", "vfunc", tVal, true},
+	{"bug6d", "{{vfunc .V1 .V1}}", "vfunc", tVal, true},
 }
 
 func zeroArgs() string {
@@ -441,12 +446,18 @@ func count(n int) chan string {
 	return c
 }
 
+// vfunc takes a *V and a V
+func vfunc(V, *V) string {
+	return "vfunc"
+}
+
 func testExecute(execTests []execTest, set *Set, t *testing.T) {
 	b := new(bytes.Buffer)
 	funcs := FuncMap{
 		"count":    count,
 		"oneArg":   oneArg,
 		"typeOf":   typeOf,
+		"vfunc":    vfunc,
 		"zeroArgs": zeroArgs,
 	}
 	for _, test := range execTests {
