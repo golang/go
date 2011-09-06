@@ -11,11 +11,6 @@ import (
 	"testing"
 )
 
-// TODO(rsc):
-//	test Unescape
-//	test Escape
-//	test Parse
-
 type URLTest struct {
 	in        string
 	out       *URL
@@ -694,5 +689,62 @@ func TestQueryValues(t *testing.T) {
 	v.Del("bar")
 	if g, e := v.Get("bar"), ""; g != e {
 		t.Errorf("second Get(bar) = %q, want %q", g, e)
+	}
+}
+
+type parseTest struct {
+	query string
+	out   Values
+}
+
+var parseTests = []parseTest{
+	{
+		query: "a=1&b=2",
+		out:   Values{"a": []string{"1"}, "b": []string{"2"}},
+	},
+	{
+		query: "a=1&a=2&a=banana",
+		out:   Values{"a": []string{"1", "2", "banana"}},
+	},
+	{
+		query: "ascii=%3Ckey%3A+0x90%3E",
+		out:   Values{"ascii": []string{"<key: 0x90>"}},
+	},
+	{
+		query: "a=1;b=2",
+		out:   Values{"a": []string{"1"}, "b": []string{"2"}},
+	},
+	{
+		query: "a=1&a=2;a=banana",
+		out:   Values{"a": []string{"1", "2", "banana"}},
+	},
+}
+
+func TestParseQuery(t *testing.T) {
+	for i, test := range parseTests {
+		form, err := ParseQuery(test.query)
+		if err != nil {
+			t.Errorf("test %d: Unexpected error: %v", i, err)
+			continue
+		}
+		if len(form) != len(test.out) {
+			t.Errorf("test %d: len(form) = %d, want %d", i, len(form), len(test.out))
+		}
+		for k, evs := range test.out {
+			vs, ok := form[k]
+			if !ok {
+				t.Errorf("test %d: Missing key %q", i, k)
+				continue
+			}
+			if len(vs) != len(evs) {
+				t.Errorf("test %d: len(form[%q]) = %d, want %d", i, k, len(vs), len(evs))
+				continue
+			}
+			for j, ev := range evs {
+				if v := vs[j]; v != ev {
+					t.Errorf("test %d: form[%q][%d] = %q, want %q", i, k, j, v, ev)
+				}
+			}
+		}
 	}
 }
