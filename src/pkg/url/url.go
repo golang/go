@@ -532,20 +532,28 @@ func ParseQuery(query string) (m Values, err os.Error) {
 }
 
 func parseQuery(m Values, query string) (err os.Error) {
-	for _, kv := range strings.Split(query, "&") {
-		if len(kv) == 0 {
+	for query != "" {
+		key := query
+		if i := strings.IndexAny(key, "&;"); i >= 0 {
+			key, query = key[:i], key[i+1:]
+		} else {
+			query = ""
+		}
+		if key == "" {
 			continue
 		}
-		kvPair := strings.SplitN(kv, "=", 2)
-
-		var key, value string
-		var e os.Error
-		key, e = QueryUnescape(kvPair[0])
-		if e == nil && len(kvPair) > 1 {
-			value, e = QueryUnescape(kvPair[1])
+		value := ""
+		if i := strings.Index(key, "="); i >= 0 {
+			key, value = key[:i], key[i+1:]
 		}
-		if e != nil {
-			err = e
+		key, err1 := QueryUnescape(key)
+		if err1 != nil {
+			err = err1
+			continue
+		}
+		value, err1 = QueryUnescape(value)
+		if err1 != nil {
+			err = err1
 			continue
 		}
 		m[key] = append(m[key], value)
