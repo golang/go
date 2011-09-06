@@ -81,7 +81,7 @@ var wincleantests = []PathTest{
 func TestClean(t *testing.T) {
 	tests := cleantests
 	if runtime.GOOS == "windows" {
-		for i, _ := range tests {
+		for i := range tests {
 			tests[i].result = filepath.FromSlash(tests[i].result)
 		}
 		tests = append(tests, wincleantests...)
