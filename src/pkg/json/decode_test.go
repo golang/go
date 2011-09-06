@@ -42,7 +42,7 @@ var (
 	um0, um1 unmarshaler // target2 of unmarshaling
 	ump      = &um1
 	umtrue   = unmarshaler{true}
-	umslice  = []unmarshaler{unmarshaler{true}}
+	umslice  = []unmarshaler{{true}}
 	umslicep = new([]unmarshaler)
 	umstruct = ustruct{unmarshaler{true}}
 )

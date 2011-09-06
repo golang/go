@@ -32,13 +32,13 @@ import (
 var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
 
 var osDefaultInheritEnv = map[string][]string{
-	"darwin":  []string{"DYLD_LIBRARY_PATH"},
-	"freebsd": []string{"LD_LIBRARY_PATH"},
-	"hpux":    []string{"LD_LIBRARY_PATH", "SHLIB_PATH"},
-	"irix":    []string{"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"},
-	"linux":   []string{"LD_LIBRARY_PATH"},
-	"solaris": []string{"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"},
-	"windows": []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"},
+	"darwin":  {"DYLD_LIBRARY_PATH"},
+	"freebsd": {"LD_LIBRARY_PATH"},
+	"hpux":    {"LD_LIBRARY_PATH", "SHLIB_PATH"},
+	"irix":    {"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"},
+	"linux":   {"LD_LIBRARY_PATH"},
+	"solaris": {"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"},
+	"windows": {"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"},
 }
 
 // Handler runs an executable in a subprocess with a CGI environment.

@@ -31,7 +31,7 @@ var verifyTests = []verifyTest{
 		dnsName:       "www.google.com",
 
 		expectedChains: [][]string{
-			[]string{"Google", "Thawte", "VeriSign"},
+			{"Google", "Thawte", "VeriSign"},
 		},
 	},
 	{
@@ -68,7 +68,7 @@ var verifyTests = []verifyTest{
 		dnsName:       "www.google.com",
 
 		expectedChains: [][]string{
-			[]string{"Google", "Thawte", "VeriSign"},
+			{"Google", "Thawte", "VeriSign"},
 		},
 	},
 	{
@@ -78,7 +78,7 @@ var verifyTests = []verifyTest{
 		currentTime:   1302726541,
 
 		expectedChains: [][]string{
-			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
+			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
 		},
 	},
 	{
@@ -88,8 +88,8 @@ var verifyTests = []verifyTest{
 		currentTime:   1302726541,
 
 		expectedChains: [][]string{
-			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
-			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority", "StartCom Certification Authority"},
+			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
+			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority", "StartCom Certification Authority"},
 		},
 	},
 }

@@ -53,13 +53,13 @@ var streamTests = []struct {
 	{"two records", typeStdin, 300, make([]byte, 66000),
 		bytes.Join([][]byte{
 			// header for the first record
-			[]byte{1, typeStdin, 0x01, 0x2C, 0xFF, 0xFF, 1, 0},
+			{1, typeStdin, 0x01, 0x2C, 0xFF, 0xFF, 1, 0},
 			make([]byte, 65536),
 			// header for the second
-			[]byte{1, typeStdin, 0x01, 0x2C, 0x01, 0xD1, 7, 0},
+			{1, typeStdin, 0x01, 0x2C, 0x01, 0xD1, 7, 0},
 			make([]byte, 472),
 			// header for the empty record
-			[]byte{1, typeStdin, 0x01, 0x2C, 0, 0, 0, 0},
+			{1, typeStdin, 0x01, 0x2C, 0, 0, 0, 0},
 		},
 			nil),
 	},

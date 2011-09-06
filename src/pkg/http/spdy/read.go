@@ -214,7 +214,7 @@ func (f *Framer) readSynStreamFrame(h ControlFrameHeader, frame *SynStreamFrame)
 	}
 	// Remove this condition when we bump Version to 3.
 	if Version >= 3 {
-		for h, _ := range frame.Headers {
+		for h := range frame.Headers {
 			if invalidReqHeaders[h] {
 				return &Error{InvalidHeaderPresent, frame.StreamId}
 			}
@@ -247,7 +247,7 @@ func (f *Framer) readSynReplyFrame(h ControlFrameHeader, frame *SynReplyFrame) o
 	}
 	// Remove this condition when we bump Version to 3.
 	if Version >= 3 {
-		for h, _ := range frame.Headers {
+		for h := range frame.Headers {
 			if invalidRespHeaders[h] {
 				return &Error{InvalidHeaderPresent, frame.StreamId}
 			}
@@ -287,7 +287,7 @@ func (f *Framer) readHeadersFrame(h ControlFrameHeader, frame *HeadersFrame) os.
 		} else {
 			invalidHeaders = invalidRespHeaders
 		}
-		for h, _ := range frame.Headers {
+		for h := range frame.Headers {
 			if invalidHeaders[h] {
 				return &Error{InvalidHeaderPresent, frame.StreamId}
 			}
