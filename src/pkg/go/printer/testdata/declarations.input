@@ -755,3 +755,79 @@ func _(x int,	// comment
 	y float,	// comment
 	z bool) {
 }
+
+
+// properly indent multi-line signatures
+func ManageStatus(in <-chan *Status, req <-chan Request,
+stat chan<- *TargetInfo,
+TargetHistorySize int) {
+}
+
+func MultiLineSignature0(
+a, b, c int,
+) {}
+
+func MultiLineSignature1(
+a, b, c int,
+u, v, w float,
+) {}
+
+func MultiLineSignature2(
+a, b,
+c int,
+) {}
+
+func MultiLineSignature3(
+a, b,
+c int, u, v,
+w float,
+		x ...int) {}
+
+func MultiLineSignature4(
+a, b, c int,
+u, v,
+w float,
+		x ...int) {}
+
+func MultiLineSignature5(
+a, b, c int,
+u, v, w float,
+p, q,
+r string,
+		x ...int) {}
+
+// make sure it also works for methods in interfaces
+type _ interface {
+MultiLineSignature0(
+a, b, c int,
+)
+
+MultiLineSignature1(
+a, b, c int,
+u, v, w float,
+)
+
+MultiLineSignature2(
+a, b,
+c int,
+)
+
+MultiLineSignature3(
+a, b,
+c int, u, v,
+w float,
+		x ...int)
+
+MultiLineSignature4(
+a, b, c int,
+u, v,
+w float,
+		x ...int)
+
+MultiLineSignature5(
+a, b, c int,
+u, v, w float,
+p, q,
+r string,
+		x ...int)
+}

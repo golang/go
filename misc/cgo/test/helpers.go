@@ -16,7 +16,7 @@ import (
 const greeting = "hello, world"
 
 type testPair struct {
-	Name string
+	Name      string
 	Got, Want interface{}
 }
 
