@@ -98,19 +98,19 @@ setaddrs(Bits bit)
 {
 	int i, n;
 	Var *v;
-	Sym *s;
+	Node *node;
 
 	while(bany(&bit)) {
 		// convert each bit to a variable
 		i = bnum(bit);
-		s = var[i].sym;
+		node = var[i].node;
 		n = var[i].name;
 		bit.b[i/32] &= ~(1L<<(i%32));
 
 		// disable all pieces of that variable
 		for(i=0; i<nvar; i++) {
 			v = var+i;
-			if(v->sym == s && v->name == n)
+			if(v->node == node && v->name == n)
 				v->addr = 2;
 		}
 	}
@@ -155,7 +155,7 @@ regopt(Prog *firstp)
 	nvar = NREGVAR;
 	memset(var, 0, NREGVAR*sizeof var[0]);
 	for(i=0; i<NREGVAR; i++)
-		var[i].sym = lookup(regname[i]);
+		var[i].node = newname(lookup(regname[i]));
 
 	regbits = RtoB(D_SP);
 	for(z=0; z<BITS; z++) {
@@ -725,12 +725,12 @@ addmove(Reg *r, int bn, int rn, int f)
 	v = var + bn;
 
 	a = &p1->to;
-	a->sym = v->sym;
 	a->offset = v->offset;
 	a->etype = v->etype;
 	a->type = v->name;
 	a->gotype = v->gotype;
 	a->node = v->node;
+	a->sym = v->node->sym;
 
 	// need to clean this up with wptr and
 	// some of the defaults
@@ -810,7 +810,7 @@ mkvar(Reg *r, Adr *a)
 	int i, t, n, et, z, w, flag, regu;
 	int32 o;
 	Bits bit;
-	Sym *s;
+	Node *node;
 
 	/*
 	 * mark registers used
@@ -847,10 +847,11 @@ mkvar(Reg *r, Adr *a)
 		break;
 	}
 
-	s = a->sym;
-	if(s == S)
+	node = a->node;
+	if(node == N || node->op != ONAME || node->orig != N)
 		goto none;
-	if(s->name[0] == '.')
+	node = node->orig;
+	if(node->sym->name[0] == '.')
 		goto none;
 	et = a->etype;
 	o = a->offset;
@@ -859,7 +860,7 @@ mkvar(Reg *r, Adr *a)
 	flag = 0;
 	for(i=0; i<nvar; i++) {
 		v = var+i;
-		if(v->sym == s && v->name == n) {
+		if(v->node == node && v->name == n) {
 			if(v->offset == o)
 			if(v->etype == et)
 			if(v->width == w)
@@ -868,7 +869,7 @@ mkvar(Reg *r, Adr *a)
 			// if they overlap, disable both
 			if(overlap(v->offset, v->width, o, w)) {
 				if(debug['R'])
-					print("disable %s\n", v->sym->name);
+					print("disable %s\n", node->sym->name);
 				v->addr = 1;
 				flag = 1;
 			}
@@ -882,7 +883,7 @@ mkvar(Reg *r, Adr *a)
 	}
 
 	if(nvar >= NVAR) {
-		if(debug['w'] > 1 && s)
+		if(debug['w'] > 1 && node != N)
 			fatal("variable not optimized: %D", a);
 		goto none;
 	}
@@ -890,17 +891,16 @@ mkvar(Reg *r, Adr *a)
 	i = nvar;
 	nvar++;
 	v = var+i;
-	v->sym = s;
 	v->offset = o;
 	v->name = n;
 	v->gotype = a->gotype;
 	v->etype = et;
 	v->width = w;
 	v->addr = flag;		// funny punning
-	v->node = a->node;
+	v->node = node;
 
 	if(debug['R'])
-		print("bit=%2d et=%2d w=%d+%d %S %D flag=%d\n", i, et, o, w, s, a, v->addr);
+		print("bit=%2d et=%2d w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
 	ostats.nvar++;
 
 	bit = blsh(i);

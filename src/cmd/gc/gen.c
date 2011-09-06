@@ -28,52 +28,6 @@ sysfunc(char *name)
 	return n;
 }
 
-void
-allocparams(void)
-{
-	NodeList *l;
-	Node *n;
-	uint32 w;
-	Sym *s;
-	int lno;
-
-	if(stksize < 0)
-		fatal("allocparams not during code generation");
-
-	/*
-	 * allocate (set xoffset) the stack
-	 * slots for all automatics.
-	 * allocated starting at -w down.
-	 */
-	lno = lineno;
-	for(l=curfn->dcl; l; l=l->next) {
-		n = l->n;
-		if(n->op == ONAME && n->class == PHEAP-1) {
-			// heap address variable; finish the job
-			// started in addrescapes.
-			s = n->sym;
-			tempname(n, n->type);
-			n->sym = s;
-		}
-		if(n->op != ONAME || n->class != PAUTO)
-			continue;
-		if(n->xoffset != BADWIDTH)
-			continue;
-		if(n->type == T)
-			continue;
-		dowidth(n->type);
-		w = n->type->width;
-		if(w >= MAXWIDTH)
-			fatal("bad width");
-		stksize += w;
-		stksize = rnd(stksize, n->type->align);
-		if(thechar == '5')
-			stksize = rnd(stksize, widthptr);
-		n->xoffset = -stksize;
-	}
-	lineno = lno;
-}
-
 /*
  * the address of n has been taken and might be used after
  * the current function returns.  mark any local vars
@@ -83,6 +37,8 @@ void
 addrescapes(Node *n)
 {
 	char buf[100];
+	Node *oldfn;
+
 	switch(n->op) {
 	default:
 		// probably a type error already.
@@ -129,18 +85,17 @@ addrescapes(Node *n)
 			n->xoffset = 0;
 
 			// create stack variable to hold pointer to heap
-			n->heapaddr = nod(ONAME, N, N);
-			n->heapaddr->type = ptrto(n->type);
+			oldfn = curfn;
+			curfn = n->curfn;
+			n->heapaddr = temp(ptrto(n->type));
 			snprint(buf, sizeof buf, "&%S", n->sym);
 			n->heapaddr->sym = lookup(buf);
-			n->heapaddr->class = PHEAP-1;	// defer tempname to allocparams
-			n->heapaddr->ullman = 1;
-			n->curfn->dcl = list(n->curfn->dcl, n->heapaddr);
+			n->heapaddr->orig->sym = n->heapaddr->sym;
 			if(!debug['s'])
 				n->esc = EscHeap;
 			if(debug['m'])
 				print("%L: moved to heap: %hN\n", n->lineno, n);
-
+			curfn = oldfn;
 			break;
 		}
 		break;
@@ -687,15 +642,12 @@ cgen_as(Node *nl, Node *nr)
 	Type *tl;
 	int iszer;
 
-	if(nl == N)
-		return;
-
 	if(debug['g']) {
 		dump("cgen_as", nl);
 		dump("cgen_as = ", nr);
 	}
 
-	if(isblank(nl)) {
+	if(nl == N || isblank(nl)) {
 		cgen_discard(nr);
 		return;
 	}
@@ -837,10 +789,6 @@ tempname(Node *nn, Type *t)
 {
 	Node *n;
 	Sym *s;
-	uint32 w;
-
-	if(stksize < 0)
-		fatal("tempname not during code generation");
 
 	if(curfn == N)
 		fatal("no curfn for tempname");
@@ -866,15 +814,7 @@ tempname(Node *nn, Type *t)
 	curfn->dcl = list(curfn->dcl, n);
 
 	dowidth(t);
-	w = t->width;
-	stksize += w;
-	stksize = rnd(stksize, t->align);
-	if(thechar == '5')
-		stksize = rnd(stksize, widthptr);
-	n->xoffset = -stksize;
-
-	//	print("\ttmpname (%d): %N\n", stksize, n);
-
+	n->xoffset = 0;
 	*nn = *n;
 }
 

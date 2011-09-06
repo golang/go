@@ -192,7 +192,7 @@ declare(Node *n, int ctxt)
 		n->curfn = curfn;
 	}
 	if(ctxt == PAUTO)
-		n->xoffset = BADWIDTH;
+		n->xoffset = 0;
 
 	if(s->block == block)
 		redeclare(s, "in this block");

@@ -7,7 +7,7 @@
 #include	"gg.h"
 #include	"opt.h"
 
-static void compactframe(Prog* p);
+static void allocauto(Prog* p);
 
 void
 compile(Node *fn)
@@ -59,8 +59,6 @@ compile(Node *fn)
 	walk(curfn);
 	if(nerrors != 0)
 		goto ret;
-
-	allocparams();
 
 	continpc = P;
 	breakpc = P;
@@ -115,9 +113,9 @@ compile(Node *fn)
 	}
 
 	oldstksize = stksize;
-	compactframe(ptxt);
+	allocauto(ptxt);
 	if(0)
-		print("compactframe: %lld to %lld\n", oldstksize, (vlong)stksize);
+		print("allocauto: %lld to %lld\n", oldstksize, (vlong)stksize);
 
 	defframe(ptxt);
 
@@ -147,13 +145,13 @@ cmpstackvar(Node *a, Node *b)
 
 // TODO(lvd) find out where the PAUTO/OLITERAL nodes come from.
 static void
-compactframe(Prog* ptxt)
+allocauto(Prog* ptxt)
 {
 	NodeList *ll;
 	Node* n;
 	vlong w;
 
-	if (stksize == 0)
+	if(curfn->dcl == nil)
 		return;
 
 	// Mark the PAUTO's unused.
@@ -190,6 +188,7 @@ compactframe(Prog* ptxt)
 		if (n->class != PAUTO || n->op != ONAME)
 			continue;
 
+		dowidth(n->type);
 		w = n->type->width;
 		if(w >= MAXWIDTH || w < 0)
 			fatal("bad width");
