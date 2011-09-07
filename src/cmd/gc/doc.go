@@ -35,6 +35,9 @@ Flags:
 		output file, default file.6 for 6g, etc.
 	-e
 		normally the compiler quits after 10 errors; -e prints all errors
+	-p path
+		assume that path is the eventual import path for this code,
+		and diagnose any attempt to import a package that depends on it.
 	-L
 		show entire file path when printing line numbers in errors
 	-I dir1 -I dir2

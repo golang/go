@@ -243,11 +243,11 @@ import_package:
 			importpkg->name = $2->name;
 			pkglookup($2->name, nil)->npkg++;
 		} else if(strcmp(importpkg->name, $2->name) != 0)
-			yyerror("conflicting names %s and %s for package %Z", importpkg->name, $2->name, importpkg->path);
+			yyerror("conflicting names %s and %s for package \"%Z\"", importpkg->name, $2->name, importpkg->path);
 		importpkg->direct = 1;
 		
 		if(safemode && !curio.importsafe)
-			yyerror("cannot import unsafe package %Z", importpkg->path);
+			yyerror("cannot import unsafe package \"%Z\"", importpkg->path);
 	}
 
 import_safety:
@@ -1686,7 +1686,11 @@ hidden_import:
 			p->name = $2->name;
 			pkglookup($2->name, nil)->npkg++;
 		} else if(strcmp(p->name, $2->name) != 0)
-			yyerror("conflicting names %s and %s for package %Z", p->name, $2->name, p->path);
+			yyerror("conflicting names %s and %s for package \"%Z\"", p->name, $2->name, p->path);
+		if(!incannedimport && myimportpath != nil && strcmp($3.u.sval->s, myimportpath) == 0) {
+			yyerror("import \"%Z\": package depends on \"%Z\" (import cycle)", importpkg->path, $3.u.sval);
+			errorexit();
+		}
 	}
 |	LVAR hidden_pkg_importsym hidden_type ';'
 	{

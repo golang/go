@@ -773,6 +773,7 @@ EXTERN	Pkg*	phash[128];
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	runtimeimport;
 extern	char*	unsafeimport;
+EXTERN	char*	myimportpath;
 EXTERN	Idir*	idirs;
 
 EXTERN	Type*	types[NTYPE];
