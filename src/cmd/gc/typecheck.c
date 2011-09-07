@@ -1031,7 +1031,6 @@ reswitch:
 		}
 		n->left = args->n;
 		n->right = args->next->n;
-		args = nil;
 		n->list = nil;
 		n->type = types[TINT];
 		typecheck(&n->left, Erv);
