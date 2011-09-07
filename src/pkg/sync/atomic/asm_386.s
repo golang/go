@@ -18,6 +18,9 @@ TEXT ·CompareAndSwapUint32(SB),7,$0
 TEXT ·CompareAndSwapUintptr(SB),7,$0
 	JMP	·CompareAndSwapUint32(SB)
 
+TEXT ·CompareAndSwapPointer(SB),7,$0
+	JMP	·CompareAndSwapUint32(SB)
+
 TEXT ·CompareAndSwapInt64(SB),7,$0
 	JMP	·CompareAndSwapUint64(SB)
 
@@ -100,3 +103,18 @@ TEXT ·LoadUintptr(SB),7,$0
 
 TEXT ·LoadPointer(SB),7,$0
 	JMP	·LoadUint32(SB)
+
+TEXT ·StoreInt32(SB),7,$0
+	JMP	·StoreUint32(SB)
+
+TEXT ·StoreUint32(SB),7,$0
+	MOVL	addrptr+0(FP), BP
+	MOVL	val+4(FP), AX
+	XCHGL	AX, 0(BP)
+	RET
+
+TEXT ·StoreUintptr(SB),7,$0
+	JMP	·StoreUint32(SB)
+
+TEXT ·StorePointer(SB),7,$0
+	JMP	·StoreUint32(SB)

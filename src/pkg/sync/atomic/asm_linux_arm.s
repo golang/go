@@ -50,6 +50,9 @@ cascheck:
 TEXT ·CompareAndSwapUintptr(SB),7,$0
 	B	·CompareAndSwapUint32(SB)
 
+TEXT ·CompareAndSwapPointer(SB),7,$0
+	B	·CompareAndSwapUint32(SB)
+
 TEXT ·AddInt32(SB),7,$0
 	B	·AddUint32(SB)
 
@@ -102,3 +105,21 @@ TEXT ·LoadUintptr(SB),7,$0
 
 TEXT ·LoadPointer(SB),7,$0
 	B	·LoadUint32(SB)
+
+TEXT ·StoreInt32(SB),7,$0
+	B	·StoreUint32(SB)
+
+TEXT ·StoreUint32(SB),7,$0
+	MOVW	addrptr+0(FP), R2
+	MOVW	val+4(FP), R1
+storeloop1:
+	MOVW	0(R2), R0
+	BL	cas<>(SB)
+	BCC	storeloop1
+	RET
+
+TEXT ·StoreUintptr(SB),7,$0
+	B	·StoreUint32(SB)
+
+TEXT ·StorePointer(SB),7,$0
+	B	·StoreUint32(SB)
