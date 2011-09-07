@@ -489,6 +489,16 @@ func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
 		// The current row for y is the previous row for y+1.
 		pr, cr = cr, pr
 	}
+
+	// Check for EOF, to verify the zlib checksum.
+	n, err := r.Read(pr[:1])
+	if err != os.EOF {
+		return nil, FormatError(err.String())
+	}
+	if n != 0 {
+		return nil, FormatError("too much pixel data")
+	}
+
 	return img, nil
 }
 

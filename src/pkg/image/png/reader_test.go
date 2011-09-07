@@ -10,6 +10,7 @@ import (
 	"image"
 	"io"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -41,7 +42,7 @@ var filenamesShort = []string{
 	"basn6a16",
 }
 
-func readPng(filename string) (image.Image, os.Error) {
+func readPNG(filename string) (image.Image, os.Error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -183,7 +184,7 @@ func TestReader(t *testing.T) {
 	}
 	for _, fn := range names {
 		// Read the .png file.
-		img, err := readPng("testdata/pngsuite/" + fn + ".png")
+		img, err := readPNG("testdata/pngsuite/" + fn + ".png")
 		if err != nil {
 			t.Error(fn, err)
 			continue
@@ -236,6 +237,32 @@ func TestReader(t *testing.T) {
 				t.Errorf("%s: Mismatch\n%sversus\n%s\n", fn, ps, ss)
 				break
 			}
+		}
+	}
+}
+
+var readerErrors = []struct {
+	file string
+	err  string
+}{
+	{"invalid-zlib.png", "zlib checksum error"},
+	{"invalid-crc32.png", "invalid checksum"},
+	{"invalid-noend.png", "unexpected EOF"},
+	{"invalid-trunc.png", "unexpected EOF"},
+}
+
+func TestReaderError(t *testing.T) {
+	for _, tt := range readerErrors {
+		img, err := readPNG("testdata/" + tt.file)
+		if err == nil {
+			t.Errorf("decoding %s: missing error", tt.file)
+			continue
+		}
+		if !strings.Contains(err.String(), tt.err) {
+			t.Errorf("decoding %s: %s, want %s", tt.file, err, tt.err)
+		}
+		if img != nil {
+			t.Errorf("decoding %s: have image + error")
 		}
 	}
 }
