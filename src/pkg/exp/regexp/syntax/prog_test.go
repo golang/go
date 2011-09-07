@@ -77,6 +77,16 @@ var compileTests = []struct {
   5*	alt -> 1, 3
   6	match
 `},
+	{"A[Aa]", `  0	fail
+  1*	rune "A" -> 2
+  2	rune "A"/i -> 3
+  3	match
+`},
+	{"(?:(?:^).)", `  0	fail
+  1*	empty 4 -> 2
+  2	rune "\x00\t\v\U0010ffff" -> 3
+  3	match
+`},
 }
 
 func TestCompile(t *testing.T) {

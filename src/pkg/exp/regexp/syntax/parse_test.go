@@ -162,6 +162,18 @@ var parseTests = []struct {
 	// Factoring.
 	{`abc|abd|aef|bcx|bcy`, `alt{cat{lit{a}alt{cat{lit{b}cc{0x63-0x64}}str{ef}}}cat{str{bc}cc{0x78-0x79}}}`},
 	{`ax+y|ax+z|ay+w`, `cat{lit{a}alt{cat{plus{lit{x}}cc{0x79-0x7a}}cat{plus{lit{y}}lit{w}}}}`},
+
+	// Bug fixes.
+	{`(?:.)`, `dot{}`},
+	{`(?:x|(?:xa))`, `cat{lit{x}alt{emp{}lit{a}}}`},
+	{`(?:.|(?:.a))`, `cat{dot{}alt{emp{}lit{a}}}`},
+	{`(?:A(?:A|a))`, `cat{lit{A}litfold{A}}`},
+	{`(?:A|a)`, `litfold{A}`},
+	{`A|(?:A|a)`, `litfold{A}`},
+	{`(?s).`, `dot{}`},
+	{`(?-s).`, `dnl{}`},
+	{`(?:(?:^).)`, `cat{bol{}dot{}}`},
+	{`(?-s)(?:(?:^).)`, `cat{bol{}dnl{}}`},
 }
 
 const testFlags = MatchNL | PerlX | UnicodeGroups

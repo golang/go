@@ -3,6 +3,7 @@ package syntax
 import (
 	"bytes"
 	"strconv"
+	"unicode"
 )
 
 // Compiled program.
@@ -40,6 +41,41 @@ const (
 	EmptyWordBoundary
 	EmptyNoWordBoundary
 )
+
+// EmptyOpContext returns the zero-width assertions
+// satisfied at the position between the runes r1 and r2.
+// Passing r1 == -1 indicates that the position is
+// at the beginning of the text.
+// Passing r2 == -1 indicates that the position is
+// at the end of the text.
+func EmptyOpContext(r1, r2 int) EmptyOp {
+	var op EmptyOp
+	if r1 < 0 {
+		op |= EmptyBeginText | EmptyBeginLine
+	}
+	if r1 == '\n' {
+		op |= EmptyBeginLine
+	}
+	if r2 < 0 {
+		op |= EmptyEndText
+	}
+	if r2 == '\n' {
+		op |= EmptyEndLine
+	}
+	if IsWordChar(r1) != IsWordChar(r2) {
+		op |= EmptyWordBoundary
+	} else {
+		op |= EmptyNoWordBoundary
+	}
+	return op
+}
+
+// IsWordChar reports whether r is consider a ``word character''
+// during the evaluation of the \b and \B zero-width assertions.
+// These assertions are ASCII-only: the word characters are [A-Za-z0-9_].
+func IsWordChar(r int) bool {
+	return 'A' <= r && r <= 'Z' || 'a' <= r && r <= 'z' || '0' <= r && r <= '9' || r == '_'
+}
 
 // An Inst is a single instruction in a regular expression program.
 type Inst struct {
@@ -79,7 +115,7 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
 
 	// Have prefix; gather characters.
 	var buf bytes.Buffer
-	for i.Op == InstRune && len(i.Rune) == 1 {
+	for i.Op == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
 		buf.WriteRune(i.Rune[0])
 		i = p.skipNop(i.Out)
 	}
@@ -116,9 +152,19 @@ func (i *Inst) MatchRune(r int) bool {
 	rune := i.Rune
 
 	// Special case: single-rune slice is from literal string, not char class.
-	// TODO: Case folding.
 	if len(rune) == 1 {
-		return r == rune[0]
+		r0 := rune[0]
+		if r == r0 {
+			return true
+		}
+		if Flags(i.Arg)&FoldCase != 0 {
+			for r1 := unicode.SimpleFold(r0); r1 != r0; r1 = unicode.SimpleFold(r1) {
+				if r == r1 {
+					return true
+				}
+			}
+		}
+		return false
 	}
 
 	// Peek at the first few pairs.
@@ -232,6 +278,10 @@ func dumpInst(b *bytes.Buffer, i *Inst) {
 			// shouldn't happen
 			bw(b, "rune <nil>")
 		}
-		bw(b, "rune ", strconv.QuoteToASCII(string(i.Rune)), " -> ", u32(i.Out))
+		bw(b, "rune ", strconv.QuoteToASCII(string(i.Rune)))
+		if Flags(i.Arg)&FoldCase != 0 {
+			bw(b, "/i")
+		}
+		bw(b, " -> ", u32(i.Out))
 	}
 }
