@@ -34,12 +34,13 @@ var parseiptests = []struct {
 	{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
 	{"2001:4860:0:2001::68", IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01, 0, 0, 0, 0, 0, 0, 0x00, 0x68}},
 	{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
+	{"", nil},
 }
 
 func TestParseIP(t *testing.T) {
 	for _, tt := range parseiptests {
 		if out := ParseIP(tt.in); !isEqual(out, tt.out) {
-			t.Errorf("ParseIP(%#q) = %v, want %v", tt.in, out, tt.out)
+			t.Errorf("ParseIP(%q) = %v, want %v", tt.in, out, tt.out)
 		}
 	}
 }
@@ -63,7 +64,7 @@ var ipstringtests = []struct {
 func TestIPString(t *testing.T) {
 	for _, tt := range ipstringtests {
 		if out := tt.in.String(); out != tt.out {
-			t.Errorf("IP.String(%v) = %#q, want %#q", tt.in, out, tt.out)
+			t.Errorf("IP.String(%v) = %q, want %q", tt.in, out, tt.out)
 		}
 	}
 }
@@ -109,33 +110,153 @@ func TestIPMaskString(t *testing.T) {
 }
 
 var parsecidrtests = []struct {
-	in   string
-	ip   IP
-	mask IPMask
-	err  os.Error
+	in  string
+	ip  IP
+	net *IPNet
+	err os.Error
 }{
-	{"135.104.0.0/32", IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 255), nil},
-	{"0.0.0.0/24", IPv4(0, 0, 0, 0), IPv4Mask(255, 255, 255, 0), nil},
-	{"135.104.0.0/24", IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 0), nil},
-	{"135.104.0.1/32", IPv4(135, 104, 0, 1), IPv4Mask(255, 255, 255, 255), nil},
-	{"135.104.0.1/24", nil, nil, &ParseError{"CIDR address", "135.104.0.1/24"}},
-	{"::1/128", ParseIP("::1"), IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")), nil},
-	{"abcd:2345::/127", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe")), nil},
-	{"abcd:2345::/65", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff:8000::")), nil},
-	{"abcd:2345::/64", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff::")), nil},
-	{"abcd:2345::/63", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:fffe::")), nil},
-	{"abcd:2345::/33", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:8000::")), nil},
-	{"abcd:2345::/32", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff::")), nil},
-	{"abcd:2344::/31", ParseIP("abcd:2344::"), IPMask(ParseIP("ffff:fffe::")), nil},
-	{"abcd:2300::/24", ParseIP("abcd:2300::"), IPMask(ParseIP("ffff:ff00::")), nil},
-	{"abcd:2345::/24", nil, nil, &ParseError{"CIDR address", "abcd:2345::/24"}},
-	{"2001:DB8::/48", ParseIP("2001:DB8::"), IPMask(ParseIP("ffff:ffff:ffff::")), nil},
+	{"135.104.0.0/32", IPv4(135, 104, 0, 0), &IPNet{IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 255)}, nil},
+	{"0.0.0.0/24", IPv4(0, 0, 0, 0), &IPNet{IPv4(0, 0, 0, 0), IPv4Mask(255, 255, 255, 0)}, nil},
+	{"135.104.0.0/24", IPv4(135, 104, 0, 0), &IPNet{IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 0)}, nil},
+	{"135.104.0.1/32", IPv4(135, 104, 0, 1), &IPNet{IPv4(135, 104, 0, 1), IPv4Mask(255, 255, 255, 255)}, nil},
+	{"135.104.0.1/24", IPv4(135, 104, 0, 1), &IPNet{IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 0)}, nil},
+	{"::1/128", ParseIP("::1"), &IPNet{ParseIP("::1"), IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"))}, nil},
+	{"abcd:2345::/127", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"))}, nil},
+	{"abcd:2345::/65", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff:8000::"))}, nil},
+	{"abcd:2345::/64", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff::"))}, nil},
+	{"abcd:2345::/63", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:fffe::"))}, nil},
+	{"abcd:2345::/33", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:8000::"))}, nil},
+	{"abcd:2345::/32", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff::"))}, nil},
+	{"abcd:2344::/31", ParseIP("abcd:2344::"), &IPNet{ParseIP("abcd:2344::"), IPMask(ParseIP("ffff:fffe::"))}, nil},
+	{"abcd:2300::/24", ParseIP("abcd:2300::"), &IPNet{ParseIP("abcd:2300::"), IPMask(ParseIP("ffff:ff00::"))}, nil},
+	{"abcd:2345::/24", ParseIP("abcd:2345::"), &IPNet{ParseIP("abcd:2300::"), IPMask(ParseIP("ffff:ff00::"))}, nil},
+	{"2001:DB8::/48", ParseIP("2001:DB8::"), &IPNet{ParseIP("2001:DB8::"), IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
+	{"2001:DB8::1/48", ParseIP("2001:DB8::1"), &IPNet{ParseIP("2001:DB8::"), IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
+	{"192.168.1.1/255.255.255.0", nil, nil, &ParseError{"CIDR address", "192.168.1.1/255.255.255.0"}},
+	{"192.168.1.1/35", nil, nil, &ParseError{"CIDR address", "192.168.1.1/35"}},
+	{"2001:db8::1/-1", nil, nil, &ParseError{"CIDR address", "2001:db8::1/-1"}},
+	{"", nil, nil, &ParseError{"CIDR address", ""}},
 }
 
 func TestParseCIDR(t *testing.T) {
 	for _, tt := range parsecidrtests {
-		if ip, mask, err := ParseCIDR(tt.in); !tt.ip.Equal(ip) || !isEqual(mask, tt.mask) || !reflect.DeepEqual(err, tt.err) {
-			t.Errorf("ParseCIDR(%q) = %v, %v, %v; want %v, %v, %v", tt.in, ip, mask, err, tt.ip, tt.mask, tt.err)
+		ip, net, err := ParseCIDR(tt.in)
+		if !reflect.DeepEqual(err, tt.err) {
+			t.Errorf("ParseCIDR(%q) = %v, %v; want %v, %v", tt.in, ip, net, tt.ip, tt.net)
+		}
+		if err == nil && (!tt.ip.Equal(ip) || !tt.net.IP.Equal(net.IP) || !isEqual(net.Mask, tt.net.Mask)) {
+			t.Errorf("ParseCIDR(%q) = %v, {%v, %v}; want %v {%v, %v}", tt.in, ip, net.IP, net.Mask, tt.ip, tt.net.IP, tt.net.Mask)
+		}
+	}
+}
+
+var ipnetcontainstests = []struct {
+	ip  IP
+	net *IPNet
+	ok  bool
+}{
+	{IPv4(172, 16, 1, 1), &IPNet{IPv4(172, 16, 0, 0), CIDRMask(12, 32)}, true},
+	{IPv4(172, 24, 0, 1), &IPNet{IPv4(172, 16, 0, 0), CIDRMask(13, 32)}, false},
+	{IPv4(192, 168, 0, 3), &IPNet{IPv4(192, 168, 0, 0), IPv4Mask(0, 0, 255, 252)}, true},
+	{IPv4(192, 168, 0, 4), &IPNet{IPv4(192, 168, 0, 0), IPv4Mask(0, 255, 0, 252)}, false},
+	{ParseIP("2001:db8:1:2::1"), &IPNet{ParseIP("2001:db8:1::"), CIDRMask(47, 128)}, true},
+	{ParseIP("2001:db8:1:2::1"), &IPNet{ParseIP("2001:db8:2::"), CIDRMask(47, 128)}, false},
+	{ParseIP("2001:db8:1:2::1"), &IPNet{ParseIP("2001:db8:1::"), IPMask(ParseIP("ffff:0:ffff::"))}, true},
+	{ParseIP("2001:db8:1:2::1"), &IPNet{ParseIP("2001:db8:1::"), IPMask(ParseIP("0:0:0:ffff::"))}, false},
+}
+
+func TestIPNetContains(t *testing.T) {
+	for _, tt := range ipnetcontainstests {
+		if ok := tt.net.Contains(tt.ip); ok != tt.ok {
+			t.Errorf("IPNet(%v).Contains(%v) = %v, want %v", tt.net, tt.ip, ok, tt.ok)
+		}
+	}
+}
+
+var ipnetstringtests = []struct {
+	in  *IPNet
+	out string
+}{
+	{&IPNet{IPv4(192, 168, 1, 0), CIDRMask(26, 32)}, "192.168.1.0/26"},
+	{&IPNet{IPv4(192, 168, 1, 0), IPv4Mask(255, 0, 255, 0)}, "192.168.1.0/ff00ff00"},
+	{&IPNet{ParseIP("2001:db8::"), CIDRMask(55, 128)}, "2001:db8::/55"},
+	{&IPNet{ParseIP("2001:db8::"), IPMask(ParseIP("8000:f123:0:cafe::"))}, "2001:db8::/8000f1230000cafe0000000000000000"},
+}
+
+func TestIPNetString(t *testing.T) {
+	for _, tt := range ipnetstringtests {
+		if out := tt.in.String(); out != tt.out {
+			t.Errorf("IPNet.String(%v) = %q, want %q", tt.in, out, tt.out)
+		}
+	}
+}
+
+var cidrmasktests = []struct {
+	ones int
+	bits int
+	out  IPMask
+}{
+	{0, 32, IPv4Mask(0, 0, 0, 0)},
+	{12, 32, IPv4Mask(255, 240, 0, 0)},
+	{24, 32, IPv4Mask(255, 255, 255, 0)},
+	{32, 32, IPv4Mask(255, 255, 255, 255)},
+	{0, 128, IPMask{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+	{4, 128, IPMask{0xf0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+	{48, 128, IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+	{128, 128, IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
+	{33, 32, nil},
+	{32, 33, nil},
+	{-1, 128, nil},
+	{128, -1, nil},
+}
+
+func TestCIDRMask(t *testing.T) {
+	for _, tt := range cidrmasktests {
+		if out := CIDRMask(tt.ones, tt.bits); !isEqual(out, tt.out) {
+			t.Errorf("CIDRMask(%v, %v) = %v, want %v", tt.ones, tt.bits, out, tt.out)
+		}
+	}
+}
+
+var (
+	v4addr         = IP{192, 168, 0, 1}
+	v4mappedv6addr = IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 168, 0, 1}
+	v6addr         = IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1}
+	v4mask         = IPMask{255, 255, 255, 0}
+	v4mappedv6mask = IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 255, 255, 255, 0}
+	v6mask         = IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0}
+	badaddr        = IP{192, 168, 0}
+	badmask        = IPMask{255, 255, 0}
+	v4maskzero     = IPMask{0, 0, 0, 0}
+)
+
+var networknumberandmasktests = []struct {
+	in  IPNet
+	out IPNet
+}{
+	{IPNet{v4addr, v4mask}, IPNet{v4addr, v4mask}},
+	{IPNet{v4addr, v4mappedv6mask}, IPNet{v4addr, v4mask}},
+	{IPNet{v4mappedv6addr, v4mappedv6mask}, IPNet{v4addr, v4mask}},
+	{IPNet{v4mappedv6addr, v6mask}, IPNet{v4addr, v4maskzero}},
+	{IPNet{v4addr, v6mask}, IPNet{v4addr, v4maskzero}},
+	{IPNet{v6addr, v6mask}, IPNet{v6addr, v6mask}},
+	{IPNet{v6addr, v4mappedv6mask}, IPNet{v6addr, v4mappedv6mask}},
+	{in: IPNet{v6addr, v4mask}},
+	{in: IPNet{v4addr, badmask}},
+	{in: IPNet{v4mappedv6addr, badmask}},
+	{in: IPNet{v6addr, badmask}},
+	{in: IPNet{badaddr, v4mask}},
+	{in: IPNet{badaddr, v4mappedv6mask}},
+	{in: IPNet{badaddr, v6mask}},
+	{in: IPNet{badaddr, badmask}},
+}
+
+func TestNetworkNumberAndMask(t *testing.T) {
+	for _, tt := range networknumberandmasktests {
+		ip, m := networkNumberAndMask(&tt.in)
+		out := &IPNet{ip, m}
+		if !reflect.DeepEqual(&tt.out, out) {
+			t.Errorf("networkNumberAndMask(%v) = %v; want %v", tt.in, out, &tt.out)
 		}
 	}
 }
@@ -191,10 +312,10 @@ var ipaftests = []struct {
 func TestIPAddrFamily(t *testing.T) {
 	for _, tt := range ipaftests {
 		if af := tt.in.To4() != nil; af != tt.af4 {
-			t.Errorf("verifying IPv4 address family for %#q = %v, want %v", tt.in, af, tt.af4)
+			t.Errorf("verifying IPv4 address family for %q = %v, want %v", tt.in, af, tt.af4)
 		}
 		if af := len(tt.in) == IPv6len && tt.in.To4() == nil; af != tt.af6 {
-			t.Errorf("verifying IPv6 address family for %#q = %v, want %v", tt.in, af, tt.af6)
+			t.Errorf("verifying IPv6 address family for %q = %v, want %v", tt.in, af, tt.af6)
 		}
 	}
 }
@@ -242,7 +363,7 @@ func name(f interface{}) string {
 func TestIPAddrScope(t *testing.T) {
 	for _, tt := range ipscopetests {
 		if ok := tt.scope(tt.in); ok != tt.ok {
-			t.Errorf("%s(%#q) = %v, want %v", name(tt.scope), tt.in, ok, tt.ok)
+			t.Errorf("%s(%q) = %v, want %v", name(tt.scope), tt.in, ok, tt.ok)
 		}
 	}
 }
