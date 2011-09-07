@@ -307,6 +307,8 @@ extern int nanosleep(const struct timespec *rqtp, struct timespec *rmtp);
 extern int fork(void);
 extern int pread(int fd, void *buf, int n, int off);
 extern int pwrite(int fd, void *buf, int n, int off);
+#undef  getwd
+#define getwd(s, ns) getcwd(s, ns)
 #undef  lseek
 #define lseek(fd, n, base) _lseeki64(fd, n, base)
 #define mkdir(path, perm) mkdir(path)
