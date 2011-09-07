@@ -164,10 +164,14 @@ func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
 	}
 }
 
+func (v fileVisitor) Error(path string, err os.Error) {
+	v <- err
+}
+
 func walkDir(path string) {
 	v := make(fileVisitor)
 	go func() {
-		filepath.Walk(path, v, v)
+		filepath.Walk(path, v)
 		close(v)
 	}()
 	for err := range v {
