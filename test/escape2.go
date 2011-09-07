@@ -127,6 +127,10 @@ func (b *Bar) AlsoNoLeak() *int { // ERROR "b does not escape"
 	return b.ii
 }
 
+func goLeak(b *Bar) {  // ERROR "leaking param: NAME-b"
+	go b.NoLeak()
+}
+
 type Bar2 struct {
 	i  [12]int
 	ii []int
@@ -393,6 +397,10 @@ func foo63(m M) { // ERROR "m does not escape"
 
 func foo64(m M) { // ERROR "leaking param: NAME-m"
 	m.M()
+}
+
+func foo64b(m M) { // ERROR "leaking param: NAME-m"
+	defer m.M()
 }
 
 type MV int
