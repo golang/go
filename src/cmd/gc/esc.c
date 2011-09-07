@@ -398,6 +398,8 @@ escassign(Node *dst, Node *src)
 	case OCONVIFACE:
 	case OCONVNOP:
 	case ODOT:
+	case ODOTMETH:	// treat recv.meth as a value with recv in it, only happens in ODEFER and OPROC
+			// iface.method already leaks iface in esccall, no need to put in extra ODOTINTER edge here
 	case ODOTTYPE:
 	case ODOTTYPE2:
 	case OSLICE:
