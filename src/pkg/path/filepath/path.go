@@ -255,14 +255,14 @@ func Abs(path string) (string, os.Error) {
 }
 
 // Visitor methods are invoked for corresponding file tree entries
-// visited by Walk.
+// visited by Walk. The parameter path is the full path of f relative
+// to root.
 type Visitor interface {
 	VisitDir(path string, f *os.FileInfo) bool
 	VisitFile(path string, f *os.FileInfo)
-	Error(path string, err os.Error)
 }
 
-func walk(path string, f *os.FileInfo, v Visitor) {
+func walk(path string, f *os.FileInfo, v Visitor, errors chan<- os.Error) {
 	if !f.IsDirectory() {
 		v.VisitFile(path, f)
 		return
@@ -274,11 +274,13 @@ func walk(path string, f *os.FileInfo, v Visitor) {
 
 	list, err := readDir(path)
 	if err != nil {
-		v.Error(path, err)
+		if errors != nil {
+			errors <- err
+		}
 	}
 
 	for _, e := range list {
-		walk(Join(path, e.Name), e, v)
+		walk(Join(path, e.Name), e, v, errors)
 	}
 }
 
@@ -314,14 +316,18 @@ func (f fileInfoList) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
 // v.VisitFile for each directory or file in the tree, including root.
 // If v.VisitDir returns false, Walk skips the directory's entries;
 // otherwise it invokes itself for each directory entry in sorted order.
-// Walk calls v.Error if an error happens while reading a directory.
-func Walk(root string, v Visitor) {
+// An error reading a directory does not abort the Walk.
+// If errors != nil, Walk sends each directory read error
+// to the channel.  Otherwise Walk discards the error.
+func Walk(root string, v Visitor, errors chan<- os.Error) {
 	f, err := os.Lstat(root)
 	if err != nil {
-		v.Error(root, err)
+		if errors != nil {
+			errors <- err
+		}
 		return // can't progress
 	}
-	walk(root, f, v)
+	walk(root, f, v, errors)
 }
 
 // Base returns the last element of path.

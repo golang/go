@@ -299,30 +299,30 @@ func mark(name string) {
 	})
 }
 
-type TestVisitor chan os.Error
+type TestVisitor struct{}
 
-func (v TestVisitor) VisitDir(path string, f *os.FileInfo) bool {
+func (v *TestVisitor) VisitDir(path string, f *os.FileInfo) bool {
 	mark(f.Name)
 	return true
 }
 
-func (v TestVisitor) VisitFile(path string, f *os.FileInfo) {
+func (v *TestVisitor) VisitFile(path string, f *os.FileInfo) {
 	mark(f.Name)
-}
-
-func (v TestVisitor) Error(path string, err os.Error) {
-	v <- err
 }
 
 func TestWalk(t *testing.T) {
 	makeTree(t)
 
-	v := make(TestVisitor, 64)
+	// 1) ignore error handling, expect none
+	v := &TestVisitor{}
+	filepath.Walk(tree.name, v, nil)
+	checkMarks(t)
 
-	// 1) no errors expected.
-	filepath.Walk(tree.name, v)
+	// 2) handle errors, expect none
+	errors := make(chan os.Error, 64)
+	filepath.Walk(tree.name, v, errors)
 	select {
-	case err := <-v:
+	case err := <-errors:
 		t.Errorf("no error expected, found: %s", err)
 	default:
 		// ok
@@ -343,13 +343,14 @@ func TestWalk(t *testing.T) {
 		tree.entries[1].mark--
 		tree.entries[3].mark--
 
-		// 2) expect two errors
+		// 3) handle errors, expect two
+		errors = make(chan os.Error, 64)
 		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0)
-		filepath.Walk(tree.name, v)
+		filepath.Walk(tree.name, v, errors)
 	Loop:
 		for i := 1; i <= 2; i++ {
 			select {
-			case <-v:
+			case <-errors:
 				// ok
 			default:
 				t.Errorf("%d. error expected, none found", i)
@@ -357,7 +358,7 @@ func TestWalk(t *testing.T) {
 			}
 		}
 		select {
-		case err := <-v:
+		case err := <-errors:
 			t.Errorf("only two errors expected, found 3rd: %v", err)
 		default:
 			// ok
