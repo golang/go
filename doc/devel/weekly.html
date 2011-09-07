@@ -14,6 +14,49 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-09-06">2011-09-06</h2>
+
+<pre>
+This weekly snapshot consists of improvements and bug fixes, including fixes
+for issues introduced by escape analysis changes in the gc compiler.
+
+* build: clear execute bit from Go files (thanks Mike Rosset),
+	error out if problem with sudo.bash /usr/local/bin (thanks Mike Rosset).
+* exp/norm: add Reader and Writer,
+	performance improvements of quickSpan.
+* exp/regexp: bug fixes and RE2 tests.
+* exp/template/html: string replacement refactoring,
+	tweaks to js{,_test}.go.
+* gc: add -p flag to catch import cycles earlier,
+	fix label recursion bugs,
+	fix zero-length struct eval,
+	zero stack-allocated slice backing arrays,
+* gc, ld: fix Windows file paths (thanks Hector Chu).
+* go/parser: accept corner cases of signature syntax.
+* gobuilder: ignore _test.go files when looking for docs, more logging.
+* godoc: minor tweaks for App Engine use.
+* gofix: do not convert url in field names (thanks Gustavo Niemeyer).
+* gofmt: indent multi-line signatures.
+* gopprof: regexp fixes (thanks Hector Chu).
+* image/png: check zlib checksum during Decode.
+* libmach: fix incorrect use of memset (thanks Dave Cheney).
+* misc/goplay: fix template output.
+* net: ParseCIDR returns IPNet instead of IPMask (thanks Mikio Hara),
+	sync CIDRMask code, doc.
+* os: use GetFileAttributesEx to implement Stat on windows (thanks Alex Brainman).
+* runtime: fix openbsd 386 raisesigpipe,
+	implement exception handling on windows/amd64 (thanks Hector Chu),
+	test for concurrent channel consumers (thanks Christopher Wedgwood).
+* sort: use heapsort to bail out quicksort (thanks Ziad Hatahet).
+* sync/atomic: add LoadUintptr, add Store functions.
+* syscall: update routing message attributes handling (thanks Mikio Hara).
+* template: fix deadlock,
+	indirect or dereference function arguments if necessary,
+	slightly simplify the test for assignability of arguments.
+* url: handle ; in ParseQuery.
+* websocket: fix incorrect prints found by govet (thanks Robert Hencke).
+</pre>
+
 <h2 id="2011-09-01">2011-09-01</h2>
 
 <pre>
