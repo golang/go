@@ -405,7 +405,7 @@ importdot(Pkg *opkg, Node *pack)
 	}
 	if(n == 0) {
 		// can't possibly be used - there were no symbols
-		yyerrorl(pack->lineno, "imported and not used: %Z", opkg->path);
+		yyerrorl(pack->lineno, "imported and not used: \"%Z\"", opkg->path);
 	}
 }
 

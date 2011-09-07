@@ -88,6 +88,7 @@ usage(void)
 	print("  -h panic on an error\n");
 	print("  -m print about moves to heap\n");
 	print("  -o file specify output file\n");
+	print("  -p assumed import path for this code\n");
 	print("  -s disable escape analysis\n");
 	print("  -u disable package unsafe\n");
 	print("  -w print the parse tree after typing\n");
@@ -153,6 +154,10 @@ main(int argc, char *argv[])
 
 	case 'o':
 		outfile = EARGF(usage());
+		break;
+	
+	case 'p':
+		myimportpath = EARGF(usage());
 		break;
 
 	case 'I':
@@ -479,6 +484,11 @@ importfile(Val *f, int line)
 		errorexit();
 	}
 
+	if(myimportpath != nil && strcmp(f->u.sval->s, myimportpath) == 0) {
+		yyerror("import \"%Z\" while compiling that package (import cycle)", f->u.sval);
+		errorexit();
+	}
+
 	if(strcmp(f->u.sval->s, "unsafe") == 0) {
 		if(safemode) {
 			yyerror("cannot import package unsafe");
@@ -500,14 +510,14 @@ importfile(Val *f, int line)
 	}
 
 	if(!findpkg(path)) {
-		yyerror("can't find import: %Z", f->u.sval);
+		yyerror("can't find import: \"%Z\"", f->u.sval);
 		errorexit();
 	}
 	importpkg = mkpkg(path);
 
 	imp = Bopen(namebuf, OREAD);
 	if(imp == nil) {
-		yyerror("can't open import: %Z: %r", f->u.sval);
+		yyerror("can't open import: \"%Z\": %r", f->u.sval);
 		errorexit();
 	}
 	file = strdup(namebuf);
@@ -564,7 +574,7 @@ importfile(Val *f, int line)
 			continue;
 		return;
 	}
-	yyerror("no import in: %Z", f->u.sval);
+	yyerror("no import in \"%Z\"", f->u.sval);
 	unimportfile();
 }
 
@@ -1938,7 +1948,7 @@ mkpackage(char* pkgname)
 					// errors if a conflicting top-level name is
 					// introduced by a different file.
 					if(!s->def->used && !nsyntaxerrors)
-						yyerrorl(s->def->lineno, "imported and not used: %Z", s->def->pkg->path);
+						yyerrorl(s->def->lineno, "imported and not used: \"%Z\"", s->def->pkg->path);
 					s->def = N;
 					continue;
 				}
@@ -1946,7 +1956,7 @@ mkpackage(char* pkgname)
 					// throw away top-level name left over
 					// from previous import . "x"
 					if(s->def->pack != N && !s->def->pack->used && !nsyntaxerrors) {
-						yyerrorl(s->def->pack->lineno, "imported and not used: %Z", s->def->pack->pkg->path);
+						yyerrorl(s->def->pack->lineno, "imported and not used: \"%Z\"", s->def->pack->pkg->path);
 						s->def->pack->used = 1;
 					}
 					s->def = N;
