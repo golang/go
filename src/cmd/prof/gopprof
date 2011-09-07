@@ -1241,7 +1241,7 @@ sub Disassemble {
   while (<OBJDUMP>) {
     s/\r//g;         # turn windows-looking lines into unix-looking lines
     chop;
-    if (m|\s*([^:\s]+):(\d+)\s*$|) {
+    if (m|\s*(.+):(\d+)\s*$|) {
       # Location line of the form:
       #   <filename>:<linenumber>
       $filename = $1;
@@ -4485,7 +4485,7 @@ sub MapSymbolsWithNM {
 
 sub ShortFunctionName {
   my $function = shift;
-  while ($function =~ s/\([^()]*\)(\s*const)?//g) { }   # Argument types
+  while ($function =~ s/(?<!\.)\([^()]*\)(\s*const)?//g) { }   # Argument types
   while ($function =~ s/<[^<>]*>//g)  { }    # Remove template arguments
   $function =~ s/^.*\s+(\w+::)/$1/;          # Remove leading type
   return $function;
@@ -4494,7 +4494,7 @@ sub ShortFunctionName {
 # Trim overly long symbols found in disassembler output
 sub CleanDisassembly {
   my $d = shift;
-  while ($d =~ s/\([^()%]*\)(\s*const)?//g) { } # Argument types, not (%rax)
+  while ($d =~ s/(?<!\.)\([^()%]*\)(\s*const)?//g) { } # Argument types, not (%rax)
   while ($d =~ s/(\w+)<[^<>]*>/$1/g)  { }       # Remove template arguments
   return $d;
 }
