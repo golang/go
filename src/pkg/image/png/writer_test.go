@@ -56,13 +56,13 @@ func TestWriter(t *testing.T) {
 	for _, fn := range names {
 		qfn := "testdata/pngsuite/" + fn + ".png"
 		// Read the image.
-		m0, err := readPng(qfn)
+		m0, err := readPNG(qfn)
 		if err != nil {
 			t.Error(fn, err)
 			continue
 		}
 		// Read the image again, encode it, and decode it.
-		m1, err := readPng(qfn)
+		m1, err := readPNG(qfn)
 		if err != nil {
 			t.Error(fn, err)
 			return
