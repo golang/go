@@ -104,34 +104,30 @@ func doFile(name string, reader io.Reader) {
 // Visitor for filepath.Walk - trivial.  Just calls doFile on each file.
 // TODO: if govet becomes richer, might want to process
 // a directory (package) at a time.
-type fileVisitor chan os.Error
+type V struct{}
 
-func (v fileVisitor) VisitDir(path string, f *os.FileInfo) bool {
+func (v V) VisitDir(path string, f *os.FileInfo) bool {
 	return true
 }
 
-func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
+func (v V) VisitFile(path string, f *os.FileInfo) {
 	if strings.HasSuffix(path, ".go") {
 		doFile(path, nil)
 	}
 }
 
-func (v fileVisitor) Error(path string, err os.Error) {
-	v <- err
-}
-
 // walkDir recursively walks the tree looking for .go files.
 func walkDir(root string) {
-	v := make(fileVisitor)
+	errors := make(chan os.Error)
 	done := make(chan bool)
 	go func() {
-		for e := range v {
+		for e := range errors {
 			errorf("walk error: %s", e)
 		}
 		done <- true
 	}()
-	filepath.Walk(root, v)
-	close(v)
+	filepath.Walk(root, V{}, errors)
+	close(errors)
 	<-done
 }
 

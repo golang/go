@@ -200,7 +200,7 @@ func report(err os.Error) {
 func walkDir(path string) {
 	v := make(fileVisitor)
 	go func() {
-		filepath.Walk(path, v)
+		filepath.Walk(path, v, v)
 		close(v)
 	}()
 	for err := range v {
@@ -223,10 +223,6 @@ func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
 			v <- err
 		}
 	}
-}
-
-func (v fileVisitor) Error(path string, err os.Error) {
-	v <- err
 }
 
 func isGoFile(f *os.FileInfo) bool {
