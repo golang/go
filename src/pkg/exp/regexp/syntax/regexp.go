@@ -282,3 +282,17 @@ func escape(b *bytes.Buffer, r int, force bool) {
 		b.WriteString(`}`)
 	}
 }
+
+// MaxCap walks the regexp to find the maximum capture index.
+func (re *Regexp) MaxCap() int {
+	m := 0
+	if re.Op == OpCapture {
+		m = re.Cap
+	}
+	for _, sub := range re.Sub {
+		if n := sub.MaxCap(); m < n {
+			m = n
+		}
+	}
+	return m
+}

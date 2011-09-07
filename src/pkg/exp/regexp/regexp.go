@@ -84,6 +84,7 @@ type Regexp struct {
 	prefixComplete bool           // prefix is the entire regexp
 	prefixRune     int            // first rune in prefix
 	cond           syntax.EmptyOp // empty-width conditions required at start of match
+	numSubexp      int
 
 	// cache of machines for running regexp
 	mu      sync.Mutex
@@ -102,13 +103,16 @@ func Compile(expr string) (*Regexp, os.Error) {
 	if err != nil {
 		return nil, err
 	}
+	maxCap := re.MaxCap()
+	re = re.Simplify()
 	prog, err := syntax.Compile(re)
 	if err != nil {
 		return nil, err
 	}
 	regexp := &Regexp{
-		expr: expr,
-		prog: prog,
+		expr:      expr,
+		prog:      prog,
+		numSubexp: maxCap,
 	}
 	regexp.prefix, regexp.prefixComplete = prog.Prefix()
 	if regexp.prefix != "" {
@@ -161,9 +165,7 @@ func MustCompile(str string) *Regexp {
 
 // NumSubexp returns the number of parenthesized subexpressions in this Regexp.
 func (re *Regexp) NumSubexp() int {
-	// NumCap/2 because captures count ( and ) separately.
-	// -1 because NumCap counts $0 but NumSubexp does not.
-	return re.prog.NumCap/2 - 1
+	return re.numSubexp
 }
 
 const endOfText = -1
@@ -175,6 +177,7 @@ type input interface {
 	canCheckPrefix() bool               // can we look ahead without losing info?
 	hasPrefix(re *Regexp) bool
 	index(re *Regexp, pos int) int
+	context(pos int) syntax.EmptyOp
 }
 
 // inputString scans a string.
@@ -205,6 +208,17 @@ func (i *inputString) index(re *Regexp, pos int) int {
 	return strings.Index(i.str[pos:], re.prefix)
 }
 
+func (i *inputString) context(pos int) syntax.EmptyOp {
+	r1, r2 := -1, -1
+	if pos > 0 && pos <= len(i.str) {
+		r1, _ = utf8.DecodeLastRuneInString(i.str[:pos])
+	}
+	if pos < len(i.str) {
+		r2, _ = utf8.DecodeRuneInString(i.str[pos:])
+	}
+	return syntax.EmptyOpContext(r1, r2)
+}
+
 // inputBytes scans a byte slice.
 type inputBytes struct {
 	str []byte
@@ -231,6 +245,17 @@ func (i *inputBytes) hasPrefix(re *Regexp) bool {
 
 func (i *inputBytes) index(re *Regexp, pos int) int {
 	return bytes.Index(i.str[pos:], re.prefixBytes)
+}
+
+func (i *inputBytes) context(pos int) syntax.EmptyOp {
+	r1, r2 := -1, -1
+	if pos > 0 && pos <= len(i.str) {
+		r1, _ = utf8.DecodeLastRune(i.str[:pos])
+	}
+	if pos < len(i.str) {
+		r2, _ = utf8.DecodeRune(i.str[pos:])
+	}
+	return syntax.EmptyOpContext(r1, r2)
 }
 
 // inputReader scans a RuneReader.
@@ -268,6 +293,10 @@ func (i *inputReader) hasPrefix(re *Regexp) bool {
 
 func (i *inputReader) index(re *Regexp, pos int) int {
 	return -1
+}
+
+func (i *inputReader) context(pos int) syntax.EmptyOp {
+	return 0
 }
 
 // LiteralPrefix returns a literal string that must begin any match
@@ -458,6 +487,23 @@ func QuoteMeta(s string) string {
 	return string(b[0:j])
 }
 
+// The number of capture values in the program may correspond
+// to fewer capturing expressions than are in the regexp.
+// For example, "(a){0}" turns into an empty program, so the
+// maximum capture in the program is 0 but we need to return
+// an expression for \1.  Pad appends -1s to the slice a as needed.
+func (re *Regexp) pad(a []int) []int {
+	if a == nil {
+		// No match.
+		return nil
+	}
+	n := (1 + re.numSubexp) * 2
+	for len(a) < n {
+		a = append(a, -1)
+	}
+	return a
+}
+
 // Find matches in slice b if b is non-nil, otherwise find matches in string s.
 func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 	var end int
@@ -505,7 +551,7 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
 		prevMatchEnd = matches[1]
 
 		if accept {
-			deliver(matches)
+			deliver(re.pad(matches))
 			i++
 		}
 	}
@@ -580,9 +626,9 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
 	if a == nil {
 		return nil
 	}
-	ret := make([][]byte, len(a)/2)
+	ret := make([][]byte, 1+re.numSubexp)
 	for i := range ret {
-		if a[2*i] >= 0 {
+		if 2*i < len(a) && a[2*i] >= 0 {
 			ret[i] = b[a[2*i]:a[2*i+1]]
 		}
 	}
@@ -595,7 +641,7 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
 // in the package comment.
 // A return value of nil indicates no match.
 func (re *Regexp) FindSubmatchIndex(b []byte) []int {
-	return re.doExecute(newInputBytes(b), 0, re.prog.NumCap)
+	return re.pad(re.doExecute(newInputBytes(b), 0, re.prog.NumCap))
 }
 
 // FindStringSubmatch returns a slice of strings holding the text of the
@@ -608,9 +654,9 @@ func (re *Regexp) FindStringSubmatch(s string) []string {
 	if a == nil {
 		return nil
 	}
-	ret := make([]string, len(a)/2)
+	ret := make([]string, 1+re.numSubexp)
 	for i := range ret {
-		if a[2*i] >= 0 {
+		if 2*i < len(a) && a[2*i] >= 0 {
 			ret[i] = s[a[2*i]:a[2*i+1]]
 		}
 	}
@@ -623,7 +669,7 @@ func (re *Regexp) FindStringSubmatch(s string) []string {
 // 'Index' descriptions in the package comment.
 // A return value of nil indicates no match.
 func (re *Regexp) FindStringSubmatchIndex(s string) []int {
-	return re.doExecute(newInputString(s), 0, re.prog.NumCap)
+	return re.pad(re.doExecute(newInputString(s), 0, re.prog.NumCap))
 }
 
 // FindReaderSubmatchIndex returns a slice holding the index pairs
@@ -632,7 +678,7 @@ func (re *Regexp) FindStringSubmatchIndex(s string) []int {
 // by the 'Submatch' and 'Index' descriptions in the package comment.  A
 // return value of nil indicates no match.
 func (re *Regexp) FindReaderSubmatchIndex(r io.RuneReader) []int {
-	return re.doExecute(newInputReader(r), 0, re.prog.NumCap)
+	return re.pad(re.doExecute(newInputReader(r), 0, re.prog.NumCap))
 }
 
 const startSize = 10 // The size at which to start a slice in the 'All' routines.

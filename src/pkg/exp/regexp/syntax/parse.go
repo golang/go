@@ -419,8 +419,7 @@ func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
 		// used or marked for reuse, and the slice space has been reused
 		// for out (len(out) <= start).
 		//
-		// Invariant: sub[start:i] consists of regexps that all begin
-		// with str as modified by strflags.
+		// Invariant: sub[start:i] consists of regexps that all begin with ifirst.
 		var ifirst *Regexp
 		if i < len(sub) {
 			ifirst = p.leadingRegexp(sub[i])
@@ -441,7 +440,6 @@ func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
 		} else {
 			// Construct factored form: prefix(suffix1|suffix2|...)
 			prefix := first
-
 			for j := start; j < i; j++ {
 				reuse := j != start // prefix came from sub[start] 
 				sub[j] = p.removeLeadingRegexp(sub[j], reuse)
@@ -605,8 +603,10 @@ func (p *parser) removeLeadingRegexp(re *Regexp, reuse bool) *Regexp {
 		}
 		return re
 	}
-	re.Op = OpEmptyMatch
-	return re
+	if reuse {
+		p.reuse(re)
+	}
+	return p.newRegexp(OpEmptyMatch)
 }
 
 func literalRegexp(s string, flags Flags) *Regexp {
@@ -1053,18 +1053,18 @@ func mergeCharClass(dst, src *Regexp) {
 	case OpCharClass:
 		// src is simpler, so either literal or char class
 		if src.Op == OpLiteral {
-			dst.Rune = appendRange(dst.Rune, src.Rune[0], src.Rune[0])
+			dst.Rune = appendLiteral(dst.Rune, src.Rune[0], src.Flags)
 		} else {
 			dst.Rune = appendClass(dst.Rune, src.Rune)
 		}
 	case OpLiteral:
 		// both literal
-		if src.Rune[0] == dst.Rune[0] {
+		if src.Rune[0] == dst.Rune[0] && src.Flags == dst.Flags {
 			break
 		}
 		dst.Op = OpCharClass
-		dst.Rune = append(dst.Rune, dst.Rune[0])
-		dst.Rune = appendRange(dst.Rune, src.Rune[0], src.Rune[0])
+		dst.Rune = appendLiteral(dst.Rune[:0], dst.Rune[0], dst.Flags)
+		dst.Rune = appendLiteral(dst.Rune, src.Rune[0], src.Flags)
 	}
 }
 
@@ -1542,6 +1542,14 @@ func cleanClass(rp *[]int) []int {
 	}
 
 	return r[:w]
+}
+
+// appendLiteral returns the result of appending the literal x to the class r.
+func appendLiteral(r []int, x int, flags Flags) []int {
+	if flags&FoldCase != 0 {
+		return appendFoldedRange(r, x, x)
+	}
+	return appendRange(r, x, x)
 }
 
 // appendRange returns the result of appending the range lo-hi to the class r.

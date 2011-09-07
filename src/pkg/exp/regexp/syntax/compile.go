@@ -75,6 +75,7 @@ type compiler struct {
 }
 
 // Compile compiles the regexp into a program to be executed.
+// The regexp should have been simplified already (returned from re.Simplify).
 func Compile(re *Regexp) (*Prog, os.Error) {
 	var c compiler
 	c.init()
@@ -90,7 +91,7 @@ func (c *compiler) init() {
 	c.inst(InstFail)
 }
 
-var anyRuneNotNL = []int{0, '\n' - 1, '\n' - 1, unicode.MaxRune}
+var anyRuneNotNL = []int{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
 var anyRune = []int{0, unicode.MaxRune}
 
 func (c *compiler) compile(re *Regexp) frag {
@@ -105,7 +106,7 @@ func (c *compiler) compile(re *Regexp) frag {
 		}
 		var f frag
 		for j := range re.Rune {
-			f1 := c.rune(re.Rune[j : j+1])
+			f1 := c.rune(re.Rune[j:j+1], re.Flags)
 			if j == 0 {
 				f = f1
 			} else {
@@ -114,11 +115,11 @@ func (c *compiler) compile(re *Regexp) frag {
 		}
 		return f
 	case OpCharClass:
-		return c.rune(re.Rune)
+		return c.rune(re.Rune, re.Flags)
 	case OpAnyCharNotNL:
-		return c.rune(anyRuneNotNL)
+		return c.rune(anyRuneNotNL, 0)
 	case OpAnyChar:
-		return c.rune(anyRune)
+		return c.rune(anyRune, 0)
 	case OpBeginLine:
 		return c.empty(EmptyBeginLine)
 	case OpEndLine:
@@ -261,9 +262,16 @@ func (c *compiler) empty(op EmptyOp) frag {
 	return f
 }
 
-func (c *compiler) rune(rune []int) frag {
+func (c *compiler) rune(rune []int, flags Flags) frag {
 	f := c.inst(InstRune)
-	c.p.Inst[f.i].Rune = rune
+	i := &c.p.Inst[f.i]
+	i.Rune = rune
+	flags &= FoldCase // only relevant flag is FoldCase
+	if len(rune) != 1 || unicode.SimpleFold(rune[0]) == rune[0] {
+		// and sometimes not even that
+		flags &^= FoldCase
+	}
+	i.Arg = uint32(flags)
 	f.out = patchList(f.i << 1)
 	return f
 }

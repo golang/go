@@ -90,23 +90,12 @@ func (m *machine) match(i input, pos int) bool {
 	if rune != endOfText {
 		rune1, width1 = i.step(pos + width)
 	}
-	// TODO: Let caller specify the initial flag setting.
-	// For now assume pos == 0 is beginning of text and
-	// pos != 0 is not even beginning of line.
-	// TODO: Word boundary.
 	var flag syntax.EmptyOp
 	if pos == 0 {
-		flag = syntax.EmptyBeginText | syntax.EmptyBeginLine
+		flag = syntax.EmptyOpContext(-1, rune)
+	} else {
+		flag = i.context(pos)
 	}
-
-	// Update flag using lookahead rune.
-	if rune1 == '\n' {
-		flag |= syntax.EmptyEndLine
-	}
-	if rune1 == endOfText {
-		flag |= syntax.EmptyEndText
-	}
-
 	for {
 		if len(runq.dense) == 0 {
 			if startCond&syntax.EmptyBeginText != 0 && pos != 0 {
@@ -134,17 +123,7 @@ func (m *machine) match(i input, pos int) bool {
 			}
 			m.add(runq, uint32(m.p.Start), pos, m.matchcap, flag)
 		}
-		// TODO: word boundary
-		flag = 0
-		if rune == '\n' {
-			flag |= syntax.EmptyBeginLine
-		}
-		if rune1 == '\n' {
-			flag |= syntax.EmptyEndLine
-		}
-		if rune1 == endOfText {
-			flag |= syntax.EmptyEndText
-		}
+		flag = syntax.EmptyOpContext(rune, rune1)
 		m.step(runq, nextq, pos, pos+width, rune, flag)
 		if width == 0 {
 			break
