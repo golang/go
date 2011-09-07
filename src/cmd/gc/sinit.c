@@ -1260,6 +1260,8 @@ addvalue(InitPlan *p, vlong xoffset, Node *key, Node *n)
 	InitPlan *q;
 	InitEntry *e;
 
+	USED(key);
+
 	// special case: zero can be dropped entirely
 	if(iszero(n)) {
 		p->zero += n->type->width;
