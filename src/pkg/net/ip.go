@@ -22,10 +22,7 @@ const (
 
 // An IP is a single IP address, an array of bytes.
 // Functions in this package accept either 4-byte (IPv4)
-// or 16-byte (IPv6) arrays as input.  Unless otherwise
-// specified, functions in this package always return
-// IP addresses in 16-byte form using the canonical
-// embedding.
+// or 16-byte (IPv6) arrays as input.
 //
 // Note that in this documentation, referring to an
 // IP address as an IPv4 address or an IPv6 address
@@ -36,6 +33,12 @@ type IP []byte
 
 // An IP mask is an IP address.
 type IPMask []byte
+
+// An IPNet represents an IP network.
+type IPNet struct {
+	IP   IP     // network number
+	Mask IPMask // network mask
+}
 
 // IPv4 returns the IP address (in 16-byte form) of the
 // IPv4 address a.b.c.d.
@@ -60,6 +63,30 @@ func IPv4Mask(a, b, c, d byte) IPMask {
 	p[2] = c
 	p[3] = d
 	return p
+}
+
+// CIDRMask returns an IPMask of size bits with the first n bits
+// set to to 1. nil is returned if the mask is impossible.
+func CIDRMask(ones, bits int) IPMask {
+	if bits != 8*IPv4len && bits != 8*IPv6len {
+		return nil
+	}
+	if ones < 0 || ones > bits {
+		return nil
+	}
+	l := bits / 8
+	m := make(IPMask, l)
+	n := uint(ones)
+	for i := 0; i < l; i++ {
+		if n >= 8 {
+			m[i] = 0xff
+			n -= 8
+			continue
+		}
+		m[i] = ^byte(0xff >> n)
+		n = 0
+	}
+	return m
 }
 
 // Well-known IPv4 addresses
@@ -365,6 +392,65 @@ func (m IPMask) String() string {
 	return s
 }
 
+func networkNumberAndMask(n *IPNet) (ip IP, m IPMask) {
+	if ip = n.IP.To4(); ip == nil {
+		ip = n.IP
+		if len(ip) != IPv6len {
+			return nil, nil
+		}
+	}
+	m = n.Mask
+	switch len(m) {
+	case IPv4len:
+		if len(ip) != IPv4len {
+			return nil, nil
+		}
+	case IPv6len:
+		if len(ip) == IPv4len {
+			m = m[12:]
+		}
+	default:
+		return nil, nil
+	}
+	return
+}
+
+// Contains reports whether the network includes ip.
+func (n *IPNet) Contains(ip IP) bool {
+	nn, m := networkNumberAndMask(n)
+	if x := ip.To4(); x != nil {
+		ip = x
+	}
+	l := len(ip)
+	if l != len(nn) {
+		return false
+	}
+	for i := 0; i < l; i++ {
+		if nn[i]&m[i] != ip[i]&m[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// String returns the CIDR notation of n like "192.168.100.1/24"
+// or "2001:DB8::/48" as defined in RFC 4632 and RFC 4291.
+// If the mask is not in the canonical form, it returns the
+// string which consists of an IP address, followed by a slash
+// character and a mask expressed as hexadecimal form with no
+// punctuation like "192.168.100.1/c000ff00".
+func (n *IPNet) String() string {
+	nn, m := networkNumberAndMask(n)
+	if nn == nil || m == nil {
+		return "<nil>"
+	}
+	l := simpleMaskLength(m)
+	if l == -1 {
+		return nn.String() + "/" + m.String()
+	}
+	return nn.String() + "/" + itod(uint(l))
+}
+
 // Parse IPv4 address (d.d.d.d).
 func parseIPv4(s string) IP {
 	var p [IPv4len]byte
@@ -536,48 +622,26 @@ func ParseIP(s string) IP {
 // ParseCIDR parses s as a CIDR notation IP address and mask,
 // like "192.168.100.1/24" or "2001:DB8::/48", as defined in
 // RFC 4632 and RFC 4291.
-func ParseCIDR(s string) (ip IP, mask IPMask, err os.Error) {
+//
+// It returns the IP address and the network implied by the IP
+// and mask.  For example, ParseCIDR("192.168.100.1/16") returns
+// the IP address 192.168.100.1 and the network 192.168.0.0/16.
+func ParseCIDR(s string) (IP, *IPNet, os.Error) {
 	i := byteIndex(s, '/')
 	if i < 0 {
 		return nil, nil, &ParseError{"CIDR address", s}
 	}
 	ipstr, maskstr := s[:i], s[i+1:]
 	iplen := IPv4len
-	ip = parseIPv4(ipstr)
+	ip := parseIPv4(ipstr)
 	if ip == nil {
 		iplen = IPv6len
 		ip = parseIPv6(ipstr)
 	}
-	nn, i, ok := dtoi(maskstr, 0)
-	if ip == nil || !ok || i != len(maskstr) || nn < 0 || nn > 8*iplen {
+	n, i, ok := dtoi(maskstr, 0)
+	if ip == nil || !ok || i != len(maskstr) || n < 0 || n > 8*iplen {
 		return nil, nil, &ParseError{"CIDR address", s}
 	}
-	n := uint(nn)
-	if iplen == IPv4len {
-		v4mask := ^uint32(0xffffffff >> n)
-		mask = IPv4Mask(byte(v4mask>>24), byte(v4mask>>16), byte(v4mask>>8), byte(v4mask))
-	} else {
-		mask = make(IPMask, IPv6len)
-		for i := 0; i < IPv6len; i++ {
-			if n >= 8 {
-				mask[i] = 0xff
-				n -= 8
-				continue
-			}
-			mask[i] = ^byte(0xff >> n)
-			n = 0
-
-		}
-	}
-	// address must not have any bits not in mask
-	mip := ip
-	if iplen == IPv4len {
-		mip = ip[12:]
-	}
-	for i := range mip {
-		if mip[i]&^mask[i] != 0 {
-			return nil, nil, &ParseError{"CIDR address", s}
-		}
-	}
-	return ip, mask, nil
+	m := CIDRMask(n, 8*iplen)
+	return ip, &IPNet{ip.Mask(m), m}, nil
 }
