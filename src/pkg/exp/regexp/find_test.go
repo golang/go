@@ -98,6 +98,15 @@ var findTests = []FindTest{
 	{`\B`, "x y", nil},
 	{`\B`, "xx yy", build(2, 1, 1, 4, 4)},
 
+	// RE2 tests
+	{`[^\S\s]`, "abcd", nil},
+	{`[^\S[:space:]]`, "abcd", nil},
+	{`[^\D\d]`, "abcd", nil},
+	{`[^\D[:digit:]]`, "abcd", nil},
+	{`(?i)\W`, "x", nil},
+	{`(?i)\W`, "k", nil},
+	{`(?i)\W`, "s", nil},
+
 	// can backslash-escape any punctuation
 	{`\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~`,
 		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, build(1, 0, 31)},
