@@ -128,6 +128,11 @@ func (m *machine) match(i input, pos int) bool {
 		if width == 0 {
 			break
 		}
+		if len(m.matchcap) == 0 && m.matched {
+			// Found a match and not paying attention
+			// to where it is, so any match will do.
+			break
+		}
 		pos += width
 		rune, width = rune1, width1
 		if rune != endOfText {
@@ -155,37 +160,37 @@ func (m *machine) clear(q *queue) {
 // which starts at position pos and ends at nextPos.
 // nextCond gives the setting for the empty-width flags after c.
 func (m *machine) step(runq, nextq *queue, pos, nextPos, c int, nextCond syntax.EmptyOp) {
+	longest := m.re.longest
 	for j := 0; j < len(runq.dense); j++ {
 		d := &runq.dense[j]
 		t := d.t
 		if t == nil {
 			continue
 		}
-		/*
-			 * If we support leftmost-longest matching:
-				if longest && matched && match[0] < t.cap[0] {
-					m.free(t)
-					continue
-				}
-		*/
-
+		if longest && m.matched && len(t.cap) > 0 && m.matchcap[0] < t.cap[0] {
+			m.free(t)
+			continue
+		}
 		i := t.inst
 		switch i.Op {
 		default:
 			panic("bad inst")
 
 		case syntax.InstMatch:
-			if len(t.cap) > 0 {
+			if len(t.cap) > 0 && (!longest || !m.matched || m.matchcap[1] < pos) {
 				t.cap[1] = pos
 				copy(m.matchcap, t.cap)
 			}
-			m.matched = true
-			for _, d := range runq.dense[j+1:] {
-				if d.t != nil {
-					m.free(d.t)
+			if !longest {
+				// First-match mode: cut off all lower-priority threads.
+				for _, d := range runq.dense[j+1:] {
+					if d.t != nil {
+						m.free(d.t)
+					}
 				}
+				runq.dense = runq.dense[:0]
 			}
-			runq.dense = runq.dense[:0]
+			m.matched = true
 
 		case syntax.InstRune:
 			if i.MatchRune(c) {

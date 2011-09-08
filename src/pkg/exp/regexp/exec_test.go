@@ -164,29 +164,29 @@ func TestRE2(t *testing.T) {
 				continue
 			}
 			res := strings.Split(line, ";")
-			if len(res) != 2 {
-				t.Fatalf("re2.txt:%d: have %d test results, want 2", lineno, len(res))
+			if len(res) != len(run) {
+				t.Fatalf("re2.txt:%d: have %d test results, want %d", lineno, len(res), len(run))
 			}
-			// res[0] is full match
-			// res[1] is partial match
-			// Run partial match first; don't bother with full if partial fails.
-			have := re.FindStringSubmatchIndex(text)
-			want := parseResult(t, lineno, res[1])
-			if !same(have, want) {
-				t.Errorf("re2.txt:%d: %#q.FindSubmatchIndex(%#q) = %v, want %v", lineno, re, text, have, want)
-				if nfail++; nfail >= 100 {
-					t.Fatalf("stopping after %d errors", nfail)
+			for i := range res {
+				have, suffix := run[i](re, refull, text)
+				want := parseResult(t, lineno, res[i])
+				if !same(have, want) {
+					t.Errorf("re2.txt:%d: %#q%s.FindSubmatchIndex(%#q) = %v, want %v", lineno, re, suffix, text, have, want)
+					if nfail++; nfail >= 100 {
+						t.Fatalf("stopping after %d errors", nfail)
+					}
+					continue
 				}
-				continue
-			}
-			have = refull.FindStringSubmatchIndex(text)
-			want = parseResult(t, lineno, res[0])
-			if !same(have, want) {
-				t.Errorf("re2.txt:%d: %#q.FindSubmatchIndex(%#q) = %v, want %v", lineno, refull, text, have, want)
-				if nfail++; nfail >= 100 {
-					t.Fatalf("stopping after %d errors", nfail)
+				b, suffix := match[i](re, refull, text)
+				if b != (want != nil) {
+					t.Errorf("re2.txt:%d: %#q%s.MatchString(%#q) = %v, want %v", lineno, re, suffix, text, b, !b)
+					if nfail++; nfail >= 100 {
+						t.Fatalf("stopping after %d errors", nfail)
+					}
+					continue
 				}
 			}
+
 		default:
 			t.Fatalf("re2.txt:%d: out of sync: %s\n", lineno, line)
 		}
@@ -195,6 +195,60 @@ func TestRE2(t *testing.T) {
 		t.Fatalf("re2.txt:%d: out of sync: have %d strings left at EOF", lineno, len(input))
 	}
 	t.Logf("%d cases tested", ncase)
+}
+
+var run = []func(*Regexp, *Regexp, string) ([]int, string){
+	runFull,
+	runPartial,
+	runFullLongest,
+	runPartialLongest,
+}
+
+func runFull(re, refull *Regexp, text string) ([]int, string) {
+	refull.longest = false
+	return refull.FindStringSubmatchIndex(text), "[full]"
+}
+
+func runPartial(re, refull *Regexp, text string) ([]int, string) {
+	re.longest = false
+	return re.FindStringSubmatchIndex(text), ""
+}
+
+func runFullLongest(re, refull *Regexp, text string) ([]int, string) {
+	refull.longest = true
+	return refull.FindStringSubmatchIndex(text), "[full,longest]"
+}
+
+func runPartialLongest(re, refull *Regexp, text string) ([]int, string) {
+	re.longest = true
+	return re.FindStringSubmatchIndex(text), "[longest]"
+}
+
+var match = []func(*Regexp, *Regexp, string) (bool, string){
+	matchFull,
+	matchPartial,
+	matchFullLongest,
+	matchPartialLongest,
+}
+
+func matchFull(re, refull *Regexp, text string) (bool, string) {
+	refull.longest = false
+	return refull.MatchString(text), "[full]"
+}
+
+func matchPartial(re, refull *Regexp, text string) (bool, string) {
+	re.longest = false
+	return re.MatchString(text), ""
+}
+
+func matchFullLongest(re, refull *Regexp, text string) (bool, string) {
+	refull.longest = true
+	return refull.MatchString(text), "[full,longest]"
+}
+
+func matchPartialLongest(re, refull *Regexp, text string) (bool, string) {
+	re.longest = true
+	return re.MatchString(text), "[longest]"
 }
 
 func isSingleBytes(s string) bool {
