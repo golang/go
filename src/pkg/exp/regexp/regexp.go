@@ -85,6 +85,7 @@ type Regexp struct {
 	prefixRune     int            // first rune in prefix
 	cond           syntax.EmptyOp // empty-width conditions required at start of match
 	numSubexp      int
+	longest        bool
 
 	// cache of machines for running regexp
 	mu      sync.Mutex
