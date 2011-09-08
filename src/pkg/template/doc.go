@@ -294,7 +294,7 @@ This defines two templates, T1 and T2, and a third T3 that invokes the other two
 when it is executed.
 
 The second way to build a template set is to use Set's Add method to add a
-parsed template to a set.  A template may be bound at most one set.  If it's
+parsed template to a set.  A template may be bound to at most one set.  If it's
 necessary to have a template in multiple sets, the template definition must be
 parsed multiple times to create distinct *Template values.
 
