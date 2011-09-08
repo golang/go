@@ -70,6 +70,15 @@ TEXT ·LoadUint32(SB),7,$0
 	MOVL	AX, ret+8(FP)
 	RET
 
+TEXT ·LoadInt64(SB),7,$0
+	JMP	·LoadUint64(SB)
+
+TEXT ·LoadUint64(SB),7,$0
+	MOVQ	addrptr+0(FP), AX
+	MOVQ	0(AX), AX
+	MOVQ	AX, ret+8(FP)
+	RET
+
 TEXT ·LoadUintptr(SB),7,$0
 	JMP	·LoadPointer(SB)
 
@@ -86,6 +95,15 @@ TEXT ·StoreUint32(SB),7,$0
 	MOVQ	addrptr+0(FP), BP
 	MOVL	val+8(FP), AX
 	XCHGL	AX, 0(BP)
+	RET
+
+TEXT ·StoreInt64(SB),7,$0
+	JMP	·StoreUint64(SB)
+
+TEXT ·StoreUint64(SB),7,$0
+	MOVQ	addrptr+0(FP), BP
+	MOVQ	val+8(FP), AX
+	XCHGQ	AX, 0(BP)
 	RET
 
 TEXT ·StoreUintptr(SB),7,$0

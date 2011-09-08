@@ -79,6 +79,30 @@ add64loop:
 	MOVW	R5, rethi+16(FP)
 	RET
 
+TEXT ·armLoadUint64(SB),7,$0
+	BL	fastCheck64<>(SB)
+	MOVW	addrptr+0(FP), R1
+load64loop:
+	LDREXD	(R1), R2	// loads R2 and R3
+	STREXD	R2, (R1), R0	// stores R2 and R3
+	CMP	$0, R0
+	BNE	load64loop
+	MOVW	R2, vallo+4(FP)
+	MOVW	R3, valhi+8(FP)
+	RET
+
+TEXT ·armStoreUint64(SB),7,$0
+	BL	fastCheck64<>(SB)
+	MOVW	addrptr+0(FP), R1
+	MOVW	vallo+4(FP), R2
+	MOVW	valhi+8(FP), R3
+store64loop:
+	LDREXD	(R1), R4	// loads R4 and R5
+	STREXD	R2, (R1), R0	// stores R2 and R3
+	CMP	$0, R0
+	BNE	store64loop
+	RET
+
 // Check for broken 64-bit LDREXD as found in QEMU.
 // LDREXD followed by immediate STREXD should succeed.
 // If it fails, try a few times just to be sure (maybe our thread got
