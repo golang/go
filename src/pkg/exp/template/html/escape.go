@@ -33,11 +33,23 @@ func Escape(t *template.Template) (*template.Template, os.Error) {
 
 // funcMap maps command names to functions that render their inputs safe.
 var funcMap = template.FuncMap{
-	"exp_template_html_urlfilter":       urlFilter,
-	"exp_template_html_jsvalescaper":    jsValEscaper,
-	"exp_template_html_jsstrescaper":    jsStrEscaper,
+	"exp_template_html_cssescaper":      cssEscaper,
+	"exp_template_html_cssvaluefilter":  cssValueFilter,
 	"exp_template_html_jsregexpescaper": jsRegexpEscaper,
+	"exp_template_html_jsstrescaper":    jsStrEscaper,
+	"exp_template_html_jsvalescaper":    jsValEscaper,
+	"exp_template_html_nospaceescaper":  htmlNospaceEscaper,
+	"exp_template_html_urlescaper":      urlEscaper,
+	"exp_template_html_urlfilter":       urlFilter,
+	"exp_template_html_urlnormalizer":   urlNormalizer,
 }
+
+// filterFailsafe is an innocuous word that is emitted in place of unsafe values
+// by sanitizer functions.  It is not a keyword in any programming language,
+// contains no special characters, is not empty, and when it appears in output
+// it is distinct enough that a developer can find the source of the problem
+// via a search engine.
+const filterFailsafe = "ZgotmplZ"
 
 // escape escapes a template node.
 func escape(c context, n parse.Node) context {
@@ -61,16 +73,22 @@ func escape(c context, n parse.Node) context {
 
 // escapeAction escapes an action template node.
 func escapeAction(c context, n *parse.ActionNode) context {
-	s := make([]string, 0, 2)
+	s := make([]string, 0, 3)
 	switch c.state {
-	case stateURL:
+	case stateURL, stateCSSDqStr, stateCSSSqStr, stateCSSDqURL, stateCSSSqURL, stateCSSURL:
 		switch c.urlPart {
 		case urlPartNone:
 			s = append(s, "exp_template_html_urlfilter")
-		case urlPartQueryOrFrag:
-			s = append(s, "urlquery")
+			fallthrough
 		case urlPartPreQuery:
-			s = append(s, "html")
+			switch c.state {
+			case stateCSSDqStr, stateCSSSqStr:
+				s = append(s, "exp_template_html_cssescaper")
+			case stateCSSDqURL, stateCSSSqURL, stateCSSURL:
+				s = append(s, "exp_template_html_urlnormalizer")
+			}
+		case urlPartQueryOrFrag:
+			s = append(s, "exp_template_html_urlescaper")
 		case urlPartUnknown:
 			return context{
 				state:   stateError,
@@ -82,19 +100,26 @@ func escapeAction(c context, n *parse.ActionNode) context {
 		}
 	case stateJS:
 		s = append(s, "exp_template_html_jsvalescaper")
-		if c.delim != delimNone {
-			s = append(s, "html")
-		}
 	case stateJSDqStr, stateJSSqStr:
 		s = append(s, "exp_template_html_jsstrescaper")
 	case stateJSRegexp:
 		s = append(s, "exp_template_html_jsregexpescaper")
-	case stateJSBlockCmt, stateJSLineCmt:
+	case stateJSBlockCmt, stateJSLineCmt, stateCSSBlockCmt, stateCSSLineCmt:
 		return context{
 			state:   stateError,
 			errLine: n.Line,
 			errStr:  fmt.Sprintf("%s appears inside a comment", n),
 		}
+	case stateCSS:
+		s = append(s, "exp_template_html_cssvaluefilter")
+	case stateText:
+		s = append(s, "html")
+	}
+	switch c.delim {
+	case delimNone:
+		// No extra-escaping needed for raw text content.
+	case delimSpaceOrTagEnd:
+		s = append(s, "exp_template_html_nospaceescaper")
 	default:
 		s = append(s, "html")
 	}
@@ -280,17 +305,25 @@ func escapeText(c context, s []byte) context {
 // A transition function takes a context and template text input, and returns
 // the updated context and any unconsumed text.
 var transitionFunc = [...]func(context, []byte) (context, []byte){
-	stateText:       tText,
-	stateTag:        tTag,
-	stateURL:        tURL,
-	stateJS:         tJS,
-	stateJSDqStr:    tJSStr,
-	stateJSSqStr:    tJSStr,
-	stateJSRegexp:   tJSRegexp,
-	stateJSBlockCmt: tJSBlockCmt,
-	stateJSLineCmt:  tJSLineCmt,
-	stateAttr:       tAttr,
-	stateError:      tError,
+	stateText:        tText,
+	stateTag:         tTag,
+	stateAttr:        tAttr,
+	stateURL:         tURL,
+	stateJS:          tJS,
+	stateJSDqStr:     tJSStr,
+	stateJSSqStr:     tJSStr,
+	stateJSRegexp:    tJSRegexp,
+	stateJSBlockCmt:  tBlockCmt,
+	stateJSLineCmt:   tLineCmt,
+	stateCSS:         tCSS,
+	stateCSSDqStr:    tCSSStr,
+	stateCSSSqStr:    tCSSStr,
+	stateCSSDqURL:    tCSSStr,
+	stateCSSSqURL:    tCSSStr,
+	stateCSSURL:      tCSSStr,
+	stateCSSBlockCmt: tBlockCmt,
+	stateCSSLineCmt:  tLineCmt,
+	stateError:       tError,
 }
 
 // tText is the context transition function for the text state.
@@ -337,6 +370,8 @@ func tTag(c context, s []byte) (context, []byte) {
 		state = stateURL
 	} else if strings.HasPrefix(canonAttrName, "on") {
 		state = stateJS
+	} else if canonAttrName == "style" {
+		state = stateCSS
 	}
 
 	// Look for the start of the value.
@@ -376,7 +411,7 @@ func tAttr(c context, s []byte) (context, []byte) {
 func tURL(c context, s []byte) (context, []byte) {
 	if bytes.IndexAny(s, "#?") >= 0 {
 		c.urlPart = urlPartQueryOrFrag
-	} else if c.urlPart == urlPartNone {
+	} else if len(s) != 0 && c.urlPart == urlPartNone {
 		c.urlPart = urlPartPreQuery
 	}
 	return c, nil
@@ -499,35 +534,174 @@ func tJSRegexp(c context, s []byte) (context, []byte) {
 
 var blockCommentEnd = []byte("*/")
 
-// tJSBlockCmt is the context transition function for the JS /*comment*/ state.
-func tJSBlockCmt(c context, s []byte) (context, []byte) {
-	// TODO: delegate to tSpecialTagEnd to find any </script> once that CL
-	// has been merged.
-
+// tBlockCmt is the context transition function for /*comment*/ states.
+func tBlockCmt(c context, s []byte) (context, []byte) {
+	// TODO: look for </script or </style end tags.
 	i := bytes.Index(s, blockCommentEnd)
 	if i == -1 {
 		return c, nil
 	}
-	c.state = stateJS
+	switch c.state {
+	case stateJSBlockCmt:
+		c.state = stateJS
+	case stateCSSBlockCmt:
+		c.state = stateCSS
+	default:
+		panic(c.state.String())
+	}
 	return c, s[i+2:]
 }
 
-// tJSLineCmt is the context transition function for the JS //comment state.
-func tJSLineCmt(c context, s []byte) (context, []byte) {
-	// TODO: delegate to tSpecialTagEnd to find any </script> once that CL
-	// has been merged.
+// tLineCmt is the context transition function for //comment states.
+func tLineCmt(c context, s []byte) (context, []byte) {
+	// TODO: look for </script or </style end tags.
+	var lineTerminators string
+	var endState state
+	switch c.state {
+	case stateJSLineCmt:
+		lineTerminators, endState = "\n\r\u2028\u2029", stateJS
+	case stateCSSLineCmt:
+		lineTerminators, endState = "\n\f\r", stateCSS
+		// Line comments are not part of any published CSS standard but
+		// are supported by the 4 major browsers.
+		// This defines line comments as
+		//     LINECOMMENT ::= "//" [^\n\f\d]*
+		// since http://www.w3.org/TR/css3-syntax/#SUBTOK-nl defines
+		// newlines:
+		//     nl ::= #xA | #xD #xA | #xD | #xC
+	default:
+		panic(c.state.String())
+	}
 
-	i := bytes.IndexAny(s, "\r\n\u2028\u2029")
+	i := bytes.IndexAny(s, lineTerminators)
 	if i == -1 {
 		return c, nil
 	}
-	c.state = stateJS
+	c.state = endState
 	// Per section 7.4 of EcmaScript 5 : http://es5.github.com/#x7.4
 	// "However, the LineTerminator at the end of the line is not
 	// considered to be part of the single-line comment; it is recognised
 	// separately by the lexical grammar and becomes part of the stream of
 	// input elements for the syntactic grammar."
 	return c, s[i:]
+}
+
+// tCSS is the context transition function for the CSS state.
+func tCSS(c context, s []byte) (context, []byte) {
+	// TODO: look for </style
+
+	// CSS quoted strings are almost never used except for:
+	// (1) URLs as in background: "/foo.png"
+	// (2) Multiword font-names as in font-family: "Times New Roman"
+	// (3) List separators in content values as in inline-lists:
+	//    <style>
+	//    ul.inlineList { list-style: none; padding:0 }
+	//    ul.inlineList > li { display: inline }
+	//    ul.inlineList > li:before { content: ", " }
+	//    ul.inlineList > li:first-child:before { content: "" }
+	//    </style>
+	//    <ul class=inlineList><li>One<li>Two<li>Three</ul>
+	// (4) Attribute value selectors as in a[href="http://example.com/"]
+	//
+	// We conservatively treat all strings as URLs, but make some
+	// allowances to avoid confusion.
+	//
+	// In (1), our conservative assumption is justified.
+	// In (2), valid font names do not contain ':', '?', or '#', so our
+	// conservative assumption is fine since we will never transition past
+	// urlPartPreQuery.
+	// In (3), our protocol heuristic should not be tripped, and there
+	// should not be non-space content after a '?' or '#', so as long as
+	// we only %-encode RFC 3986 reserved characters we are ok.
+	// In (4), we should URL escape for URL attributes, and for others we
+	// have the attribute name available if our conservative assumption
+	// proves problematic for real code.
+
+	for {
+		i := bytes.IndexAny(s, `("'/`)
+		if i == -1 {
+			return c, nil
+		}
+		switch s[i] {
+		case '(':
+			// Look for url to the left.
+			p := bytes.TrimRight(s[:i], "\t\n\f\r ")
+			if endsWithCSSKeyword(p, "url") {
+				q := bytes.TrimLeft(s[i+1:], "\t\n\f\r ")
+				switch {
+				case len(q) != 0 && q[0] == '"':
+					c.state, s = stateCSSDqURL, q[1:]
+				case len(q) != 0 && q[0] == '\'':
+					c.state, s = stateCSSSqURL, q[1:]
+
+				default:
+					c.state, s = stateCSSURL, q
+				}
+				return c, s
+			}
+		case '/':
+			if i+1 < len(s) {
+				switch s[i+1] {
+				case '/':
+					c.state = stateCSSLineCmt
+					return c, s[i+2:]
+				case '*':
+					c.state = stateCSSBlockCmt
+					return c, s[i+2:]
+				}
+			}
+		case '"':
+			c.state = stateCSSDqStr
+			return c, s[i+1:]
+		case '\'':
+			c.state = stateCSSSqStr
+			return c, s[i+1:]
+		}
+		s = s[i+1:]
+	}
+	panic("unreachable")
+}
+
+// tCSSStr is the context transition function for the CSS string and URL states.
+func tCSSStr(c context, s []byte) (context, []byte) {
+	// TODO: look for </style
+
+	var endAndEsc string
+	switch c.state {
+	case stateCSSDqStr, stateCSSDqURL:
+		endAndEsc = `\"`
+	case stateCSSSqStr, stateCSSSqURL:
+		endAndEsc = `\'`
+	case stateCSSURL:
+		// Unquoted URLs end with a newline or close parenthesis.
+		// The below includes the wc (whitespace character) and nl.
+		endAndEsc = "\\\t\n\f\r )"
+	default:
+		panic(c.state.String())
+	}
+
+	b := s
+	for {
+		i := bytes.IndexAny(b, endAndEsc)
+		if i == -1 {
+			return tURL(c, decodeCSS(b))
+		}
+		if b[i] == '\\' {
+			i++
+			if i == len(b) {
+				return context{
+					state:  stateError,
+					errStr: fmt.Sprintf("unfinished escape sequence in CSS string: %q", s),
+				}, nil
+			}
+		} else {
+			c.state = stateCSS
+			return c, b[i+1:]
+		}
+		c, _ = tURL(c, decodeCSS(b[:i+1]))
+		b = b[i+1:]
+	}
+	panic("unreachable")
 }
 
 // tError is the context transition function for the error state.
@@ -611,29 +785,4 @@ var urlAttr = map[string]bool{
 	"profile":    true,
 	"src":        true,
 	"usemap":     true,
-}
-
-// urlFilter returns the HTML equivalent of its input unless it contains an
-// unsafe protocol in which case it defangs the entire URL.
-func urlFilter(args ...interface{}) string {
-	ok := false
-	var s string
-	if len(args) == 1 {
-		s, ok = args[0].(string)
-	}
-	if !ok {
-		s = fmt.Sprint(args...)
-	}
-	i := strings.IndexRune(s, ':')
-	if i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
-		protocol := strings.ToLower(s[:i])
-		if protocol != "http" && protocol != "https" && protocol != "mailto" {
-			// Return a value that someone investigating a bug
-			// report can put into a search engine.
-			return "#ZgotmplZ"
-		}
-	}
-	// TODO: Once we handle <style>#id { background: url({{.Img}}) }</style>
-	// we will need to stop this from HTML escaping and pipeline sanitizers.
-	return template.HTMLEscapeString(s)
 }

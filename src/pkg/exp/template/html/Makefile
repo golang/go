@@ -7,7 +7,10 @@ include ../../../../Make.inc
 TARG=exp/template/html
 GOFILES=\
 	context.go\
+	css.go\
 	escape.go\
+	html.go\
 	js.go\
+	url.go\
 
 include ../../../../Make.pkg
