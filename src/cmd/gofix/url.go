@@ -27,6 +27,7 @@ func init() {
 }
 
 var urlRenames = []struct{ in, out string }{
+	{"URL", "URL"},
 	{"ParseURL", "Parse"},
 	{"ParseURLReference", "ParseWithReference"},
 	{"ParseQuery", "ParseQuery"},
