@@ -344,6 +344,8 @@ func reduce(h0 RunList) HitList {
 	return h
 }
 
+// filter returns a new HitList created by filtering
+// all PakRuns from h that have a matching pakname.
 func (h HitList) filter(pakname string) HitList {
 	var hh HitList
 	for _, p := range h {
@@ -867,7 +869,7 @@ func (x *Index) Stats() Statistics {
 	return x.stats
 }
 
-func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
+func (x *Index) lookupWord(w string) (match *LookupResult, alt *AltWords) {
 	match = x.words[w]
 	alt = x.alts[canonical(w)]
 	// remove current spelling from alternatives
@@ -891,9 +893,10 @@ func isIdentifier(s string) bool {
 }
 
 // For a given query, which is either a single identifier or a qualified
-// identifier, Lookup returns a LookupResult, and a list of alternative
-// spellings, if any. If the query syntax is wrong, an error is reported.
-func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, err os.Error) {
+// identifier, Lookup returns a list of packages, a LookupResult, and a
+// list of alternative spellings, if any. Any and all results may be nil.
+// If the query syntax is wrong, an error is reported.
+func (x *Index) Lookup(query string) (paks HitList, match *LookupResult, alt *AltWords, err os.Error) {
 	ss := strings.Split(query, ".")
 
 	// check query syntax
@@ -904,15 +907,23 @@ func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, err os
 		}
 	}
 
+	// handle simple and qualified identifiers
 	switch len(ss) {
 	case 1:
-		match, alt = x.LookupWord(ss[0])
+		ident := ss[0]
+		match, alt = x.lookupWord(ident)
+		if match != nil {
+			// found a match - filter packages with same name
+			// for the list of packages called ident, if any
+			paks = match.Others.filter(ident)
+		}
 
 	case 2:
-		pakname := ss[0]
-		match, alt = x.LookupWord(ss[1])
+		pakname, ident := ss[0], ss[1]
+		match, alt = x.lookupWord(ident)
 		if match != nil {
 			// found a match - filter by package name
+			// (no paks - package names are not qualified)
 			decls := match.Decls.filter(pakname)
 			others := match.Others.filter(pakname)
 			match = &LookupResult{decls, others}

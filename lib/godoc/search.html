@@ -17,6 +17,17 @@
 	{{end}}
 	</p>
 {{end}}
+{{with .Pak}}
+	<h2 id="Packages">Package {{html $.Query}}</h2>
+	<p>
+	<table class="layout">
+	{{range .}}
+		{{$pkg_html := pkgLink .Pak.Path | html}}
+		<tr><td><a href="/{{$pkg_html}}">{{$pkg_html}}</a></td></tr>
+	{{end}}
+	</table>
+	</p>
+{{end}}
 {{with .Hit}}
 	{{with .Decls}}
 		<h2 id="Global">Package-level declarations</h2>
