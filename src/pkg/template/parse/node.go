@@ -35,8 +35,8 @@ const (
 	NodeBool                       // A boolean constant.
 	NodeCommand                    // An element of a pipeline.
 	NodeDot                        // The cursor, dot.
-	NodeElse                       // An else action.
-	NodeEnd                        // An end action.
+	nodeElse                       // An else action. Not added to tree.
+	nodeEnd                        // An end action. Not added to tree.
 	NodeField                      // A field or method name.
 	NodeIdentifier                 // An identifier; always a function name.
 	NodeIf                         // An if action.
@@ -356,36 +356,37 @@ func (s *StringNode) String() string {
 	return fmt.Sprintf("S=%#q", s.Text)
 }
 
-// EndNode represents an {{end}} action. It is represented by a nil pointer.
-type EndNode bool
+// endNode represents an {{end}} action. It is represented by a nil pointer.
+// It does not appear in the final parse tree.
+type endNode bool
 
-func newEnd() *EndNode {
+func newEnd() *endNode {
 	return nil
 }
 
-func (e *EndNode) Type() NodeType {
-	return NodeEnd
+func (e *endNode) Type() NodeType {
+	return nodeEnd
 }
 
-func (e *EndNode) String() string {
+func (e *endNode) String() string {
 	return "{{end}}"
 }
 
-// ElseNode represents an {{else}} action.
-type ElseNode struct {
+// elseNode represents an {{else}} action. Does not appear in the final tree.
+type elseNode struct {
 	NodeType
 	Line int // The line number in the input.
 }
 
-func newElse(line int) *ElseNode {
-	return &ElseNode{NodeType: NodeElse, Line: line}
+func newElse(line int) *elseNode {
+	return &elseNode{NodeType: nodeElse, Line: line}
 }
 
-func (e *ElseNode) Type() NodeType {
-	return NodeElse
+func (e *elseNode) Type() NodeType {
+	return nodeElse
 }
 
-func (e *ElseNode) String() string {
+func (e *elseNode) String() string {
 	return "{{else}}"
 }
 

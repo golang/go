@@ -37,7 +37,7 @@ func Set(text string, funcs ...map[string]interface{}) (tree map[string]*Tree, e
 		if end == nil {
 			t.errorf("unexpected EOF in %s", context)
 		}
-		if end.Type() != NodeEnd {
+		if end.Type() != nodeEnd {
 			t.errorf("unexpected %s in %s", end, context)
 		}
 		t.stopParse()
