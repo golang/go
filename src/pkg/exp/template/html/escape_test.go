@@ -82,14 +82,9 @@ func TestEscape(t *testing.T) {
 			"true",
 		},
 		{
-			// TODO: Make sure the URL escaper escapes single quotes so it can
-			// be embedded in single quoted URI attributes and CSS url(...)
-			// constructs. Single quotes are reserved in URLs, but are only used
-			// in the obsolete "mark" rule in an appendix in RFC 3986 so can be
-			// safely encoded.
 			"constant",
 			`<a href="/search?q={{"'a<b'"}}">`,
-			`<a href="/search?q='a%3Cb'">`,
+			`<a href="/search?q=%27a%3cb%27">`,
 		},
 		{
 			"multipleAttrs",
@@ -122,6 +117,11 @@ func TestEscape(t *testing.T) {
 			`<a href='#ZgotmplZ'>`,
 		},
 		{
+			"nonHierURL",
+			`<a href={{"mailto:Muhammed \"The Greatest\" Ali <m.ali@example.com>"}}>`,
+			`<a href=mailto:Muhammed&#32;&#34;The&#32;Greatest&#34;&#32;Ali&#32;&lt;m.ali@example.com&gt;>`,
+		},
+		{
 			"urlPath",
 			`<a href='http://{{"javascript:80"}}/foo'>`,
 			`<a href='http://javascript:80/foo'>`,
@@ -129,12 +129,12 @@ func TestEscape(t *testing.T) {
 		{
 			"urlQuery",
 			`<a href='/search?q={{.H}}'>`,
-			`<a href='/search?q=%3CHello%3E'>`,
+			`<a href='/search?q=%3cHello%3e'>`,
 		},
 		{
 			"urlFragment",
 			`<a href='/faq#{{.H}}'>`,
-			`<a href='/faq#%3CHello%3E'>`,
+			`<a href='/faq#%3cHello%3e'>`,
 		},
 		{
 			"urlBranch",
@@ -144,7 +144,7 @@ func TestEscape(t *testing.T) {
 		{
 			"urlBranchConflictMoot",
 			`<a href="{{if .T}}/foo?a={{else}}/bar#{{end}}{{.C}}">`,
-			`<a href="/foo?a=%3CCincinatti%3E">`,
+			`<a href="/foo?a=%3cCincinatti%3e">`,
 		},
 		{
 			"jsStrValue",
@@ -191,6 +191,138 @@ func TestEscape(t *testing.T) {
 			"jsRe",
 			"<button onclick='alert(&quot;{{.H}}&quot;)'>",
 			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
+		},
+		{
+			"styleBidiKeywordPassed",
+			`<p style="dir: {{"ltr"}}">`,
+			`<p style="dir: ltr">`,
+		},
+		{
+			"styleBidiPropNamePassed",
+			`<p style="border-{{"left"}}: 0; border-{{"right"}}: 1in">`,
+			`<p style="border-left: 0; border-right: 1in">`,
+		},
+		{
+			"styleExpressionBlocked",
+			`<p style="width: {{"expression(alert(1337))"}}">`,
+			`<p style="width: ZgotmplZ">`,
+		},
+		{
+			"styleTagSelectorPassed",
+			`<style>{{"p"}} { color: pink }</style>`,
+			`<style>p { color: pink }</style>`,
+		},
+		{
+			"styleIDPassed",
+			`<style>p{{"#my-ID"}} { font: Arial }`,
+			`<style>p#my-ID { font: Arial }`,
+		},
+		{
+			"styleClassPassed",
+			`<style>p{{".my_class"}} { font: Arial }`,
+			`<style>p.my_class { font: Arial }`,
+		},
+		{
+			"styleQuantityPassed",
+			`<a style="left: {{"2em"}}; top: {{0}}">`,
+			`<a style="left: 2em; top: 0">`,
+		},
+		{
+			"stylePctPassed",
+			`<table style=width:{{"100%"}}>`,
+			`<table style=width:100%>`,
+		},
+		{
+			"styleColorPassed",
+			`<p style="color: {{"#8ff"}}; background: {{"#000"}}">`,
+			`<p style="color: #8ff; background: #000">`,
+		},
+		{
+			"styleObfuscatedExpressionBlocked",
+			`<p style="width: {{"  e\78preS\0Sio/**/n(alert(1337))"}}">`,
+			`<p style="width: ZgotmplZ">`,
+		},
+		{
+			"styleMozBindingBlocked",
+			`<p style="{{"-moz-binding(alert(1337))"}}: ...">`,
+			`<p style="ZgotmplZ: ...">`,
+		},
+		{
+			"styleObfuscatedMozBindingBlocked",
+			`<p style="{{"  -mo\7a-B\0I/**/nding(alert(1337))"}}: ...">`,
+			`<p style="ZgotmplZ: ...">`,
+		},
+		{
+			"styleFontNameString",
+			`<p style='font-family: "{{"Times New Roman"}}"'>`,
+			`<p style='font-family: "Times New Roman"'>`,
+		},
+		{
+			"styleFontNameString",
+			`<p style='font-family: "{{"Times New Roman"}}", "{{"sans-serif"}}"'>`,
+			`<p style='font-family: "Times New Roman", "sans-serif"'>`,
+		},
+		{
+			"styleFontNameUnquoted",
+			`<p style='font-family: {{"Times New Roman"}}'>`,
+			`<p style='font-family: Times New Roman'>`,
+		},
+		{
+			"styleURLQueryEncoded",
+			`<p style="background: url(/img?name={{"O'Reilly Animal(1)<2>.png"}})">`,
+			`<p style="background: url(/img?name=O%27Reilly%20Animal%281%29%3c2%3e.png)">`,
+		},
+		{
+			"styleQuotedURLQueryEncoded",
+			`<p style="background: url('/img?name={{"O'Reilly Animal(1)<2>.png"}}')">`,
+			`<p style="background: url('/img?name=O%27Reilly%20Animal%281%29%3c2%3e.png')">`,
+		},
+		{
+			"styleStrQueryEncoded",
+			`<p style="background: '/img?name={{"O'Reilly Animal(1)<2>.png"}}'">`,
+			`<p style="background: '/img?name=O%27Reilly%20Animal%281%29%3c2%3e.png'">`,
+		},
+		{
+			"styleURLBadProtocolBlocked",
+			`<a style="background: url('{{"javascript:alert(1337)"}}')">`,
+			`<a style="background: url('#ZgotmplZ')">`,
+		},
+		{
+			"styleStrBadProtocolBlocked",
+			`<a style="background: '{{"javascript:alert(1337)"}}'">`,
+			`<a style="background: '#ZgotmplZ'">`,
+		},
+		{
+			"styleURLGoodProtocolPassed",
+			`<a style="background: url('{{"http://oreilly.com/O'Reilly Animals(1)<2>;{}.html"}}')">`,
+			`<a style="background: url('http://oreilly.com/O%27Reilly%20Animals%281%29%3c2%3e;%7b%7d.html')">`,
+		},
+		{
+			"styleStrGoodProtocolPassed",
+			`<a style="background: '{{"http://oreilly.com/O'Reilly Animals(1)<2>;{}.html"}}'">`,
+			`<a style="background: 'http\3a\2f\2foreilly.com\2fO\27Reilly Animals\28 1\29\3c 2\3e\3b\7b\7d.html'">`,
+		},
+		{
+			"styleURLMixedCase",
+			`<p style="background: URL(#{{.H}})">`,
+			`<p style="background: URL(#%3cHello%3e)">`,
+		},
+		{
+			"stylePropertyPairPassed",
+			`<a style='{{"color: red"}}'>`,
+			`<a style='color: red'>`,
+		},
+		{
+			"styleStrSpecialsEncoded",
+			`<a style="font-family: '{{"/**/'\";:// \\"}}', &quot;{{"/**/'\";:// \\"}}&quot;">`,
+			`<a style="font-family: '\2f**\2f\27\22\3b\3a\2f\2f \\', &quot;\2f**\2f\27\22\3b\3a\2f\2f \\&quot;">`,
+		},
+		{
+			"styleURLSpecialsEncoded",
+			// TODO: Find out what IE does with url(/*foo*/bar)
+			// FF, Chrome, and Safari seem to treat it as a URL.
+			`<a style="border-image: url({{"/**/'\";:// \\"}}), url(&quot;{{"/**/'\";:// \\"}}&quot;), url('{{"/**/'\";:// \\"}}'), 'http://www.example.com/?q={{"/**/'\";:// \\"}}''">`,
+			`<a style="border-image: url(/**/%27%22;://%20%5c), url(&quot;/**/%27%22;://%20%5c&quot;), url('/**/%27%22;://%20%5c'), 'http://www.example.com/?q=%2f%2a%2a%2f%27%22%3b%3a%2f%2f%20%5c''">`,
 		},
 	}
 
@@ -299,11 +431,19 @@ func TestErrors(t *testing.T) {
 			`unfinished JS regexp charset: "foo[\\]/"`,
 		},
 		{
-			`<a onclick="/* alert({{.X}} */">`,
+			`<a onclick="/* alert({{.X}}) */">`,
 			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
 		},
 		{
-			`<a onclick="// alert({{.X}}">`,
+			`<a onclick="// alert({{.X}})">`,
+			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
+		},
+		{
+			`<a style="/* color: {{.X}} */">`,
+			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
+		},
+		{
+			`<a style="// color: {{.X}}">`,
 			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
 		},
 	}
@@ -532,6 +672,98 @@ func TestEscapeText(t *testing.T) {
 		{
 			`<a onclick="/foo\/`,
 			context{state: stateJSRegexp, delim: delimDoubleQuote},
+		},
+		{
+			`<a onclick="/foo/`,
+			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
+		},
+		{
+			`<input checked style="`,
+			context{state: stateCSS, delim: delimDoubleQuote},
+		},
+		{
+			`<a style="//`,
+			context{state: stateCSSLineCmt, delim: delimDoubleQuote},
+		},
+		{
+			`<a style="//</script>`,
+			context{state: stateCSSLineCmt, delim: delimDoubleQuote},
+		},
+		{
+			"<a style='//\n",
+			context{state: stateCSS, delim: delimSingleQuote},
+		},
+		{
+			"<a style='//\r",
+			context{state: stateCSS, delim: delimSingleQuote},
+		},
+		{
+			`<a style="/*`,
+			context{state: stateCSSBlockCmt, delim: delimDoubleQuote},
+		},
+		{
+			`<a style="/*/`,
+			context{state: stateCSSBlockCmt, delim: delimDoubleQuote},
+		},
+		{
+			`<a style="/**/`,
+			context{state: stateCSS, delim: delimDoubleQuote},
+		},
+		{
+			`<a style="background: '`,
+			context{state: stateCSSSqStr, delim: delimDoubleQuote},
+		},
+		{
+			`<a style="background: &quot;`,
+			context{state: stateCSSDqStr, delim: delimDoubleQuote},
+		},
+		{
+			`<a style="background: '/foo?img=`,
+			context{state: stateCSSSqStr, delim: delimDoubleQuote, urlPart: urlPartQueryOrFrag},
+		},
+		{
+			`<a style="background: '/`,
+			context{state: stateCSSSqStr, delim: delimDoubleQuote, urlPart: urlPartPreQuery},
+		},
+		{
+			`<a style="background: url(&#x22;/`,
+			context{state: stateCSSDqURL, delim: delimDoubleQuote, urlPart: urlPartPreQuery},
+		},
+		{
+			`<a style="background: url('/`,
+			context{state: stateCSSSqURL, delim: delimDoubleQuote, urlPart: urlPartPreQuery},
+		},
+		{
+			`<a style="background: url('/)`,
+			context{state: stateCSSSqURL, delim: delimDoubleQuote, urlPart: urlPartPreQuery},
+		},
+		{
+			`<a style="background: url('/ `,
+			context{state: stateCSSSqURL, delim: delimDoubleQuote, urlPart: urlPartPreQuery},
+		},
+		{
+			`<a style="background: url(/`,
+			context{state: stateCSSURL, delim: delimDoubleQuote, urlPart: urlPartPreQuery},
+		},
+		{
+			`<a style="background: url( `,
+			context{state: stateCSSURL, delim: delimDoubleQuote},
+		},
+		{
+			`<a style="background: url( /image?name=`,
+			context{state: stateCSSURL, delim: delimDoubleQuote, urlPart: urlPartQueryOrFrag},
+		},
+		{
+			`<a style="background: url(x)`,
+			context{state: stateCSS, delim: delimDoubleQuote},
+		},
+		{
+			`<a style="background: url('x'`,
+			context{state: stateCSS, delim: delimDoubleQuote},
+		},
+		{
+			`<a style="background: url( x `,
+			context{state: stateCSS, delim: delimDoubleQuote},
 		},
 	}
 

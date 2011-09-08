@@ -63,23 +63,47 @@ const (
 	stateJSBlockCmt
 	// stateJSLineCmt occurs inside a JavaScript // line comment.
 	stateJSLineCmt
+	// stateCSS occurs inside a <style> element or style attribute.
+	stateCSS
+	// stateCSSDqStr occurs inside a CSS double quoted string.
+	stateCSSDqStr
+	// stateCSSSqStr occurs inside a CSS single quoted string.
+	stateCSSSqStr
+	// stateCSSDqURL occurs inside a CSS double quoted url("...").
+	stateCSSDqURL
+	// stateCSSSqURL occurs inside a CSS single quoted url('...').
+	stateCSSSqURL
+	// stateCSSURL occurs inside a CSS unquoted url(...).
+	stateCSSURL
+	// stateCSSBlockCmt occurs inside a CSS /* block comment */.
+	stateCSSBlockCmt
+	// stateCSSLineCmt occurs inside a CSS // line comment.
+	stateCSSLineCmt
 	// stateError is an infectious error state outside any valid
 	// HTML/CSS/JS construct.
 	stateError
 )
 
 var stateNames = [...]string{
-	stateText:       "stateText",
-	stateTag:        "stateTag",
-	stateAttr:       "stateAttr",
-	stateURL:        "stateURL",
-	stateJS:         "stateJS",
-	stateJSDqStr:    "stateJSDqStr",
-	stateJSSqStr:    "stateJSSqStr",
-	stateJSRegexp:   "stateJSRegexp",
-	stateJSBlockCmt: "stateJSBlockCmt",
-	stateJSLineCmt:  "stateJSLineCmt",
-	stateError:      "stateError",
+	stateText:        "stateText",
+	stateTag:         "stateTag",
+	stateAttr:        "stateAttr",
+	stateURL:         "stateURL",
+	stateJS:          "stateJS",
+	stateJSDqStr:     "stateJSDqStr",
+	stateJSSqStr:     "stateJSSqStr",
+	stateJSRegexp:    "stateJSRegexp",
+	stateJSBlockCmt:  "stateJSBlockCmt",
+	stateJSLineCmt:   "stateJSLineCmt",
+	stateCSS:         "stateCSS",
+	stateCSSDqStr:    "stateCSSDqStr",
+	stateCSSSqStr:    "stateCSSSqStr",
+	stateCSSDqURL:    "stateCSSDqURL",
+	stateCSSSqURL:    "stateCSSSqURL",
+	stateCSSURL:      "stateCSSURL",
+	stateCSSBlockCmt: "stateCSSBlockCmt",
+	stateCSSLineCmt:  "stateCSSLineCmt",
+	stateError:       "stateError",
 }
 
 func (s state) String() string {
@@ -132,8 +156,8 @@ const (
 	// urlPartQueryOrFrag occurs in the query portion between the ^s in
 	// "http://auth/path?^k=v#frag^".
 	urlPartQueryOrFrag
-	// urlPartUnknown occurs due to joining of contexts both before and after
-	// the query separator.
+	// urlPartUnknown occurs due to joining of contexts both before and
+	// after the query separator.
 	urlPartUnknown
 )
 
