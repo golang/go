@@ -220,7 +220,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	FlushViewOfFile(addr uintptr, length uintptr) (errno int)
 //sys	VirtualLock(addr uintptr, length uintptr) (errno int)
 //sys	VirtualUnlock(addr uintptr, length uintptr) (errno int)
-//sys	TransmitFile(s Handle, handle Handle, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (errno int) = wsock32.TransmitFile
+//sys	TransmitFile(s Handle, handle Handle, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (errno int) = mswsock.TransmitFile
 
 // syscall interface implementation for other packages
 
@@ -480,20 +480,20 @@ func Chmod(path string, mode uint32) (errno int) {
 
 // net api calls
 
-//sys	WSAStartup(verreq uint32, data *WSAData) (sockerrno int) = wsock32.WSAStartup
-//sys	WSACleanup() (errno int) [failretval==-1] = wsock32.WSACleanup
+//sys	WSAStartup(verreq uint32, data *WSAData) (sockerrno int) = ws2_32.WSAStartup
+//sys	WSACleanup() (errno int) [failretval==-1] = ws2_32.WSACleanup
 //sys	WSAIoctl(s Handle, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *Overlapped, completionRoutine uintptr) (errno int) [failretval==-1] = ws2_32.WSAIoctl
-//sys	socket(af int32, typ int32, protocol int32) (handle Handle, errno int) [failretval==InvalidHandle] = wsock32.socket
-//sys	Setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (errno int) [failretval==-1] = wsock32.setsockopt
-//sys	bind(s Handle, name uintptr, namelen int32) (errno int) [failretval==-1] = wsock32.bind
-//sys	connect(s Handle, name uintptr, namelen int32) (errno int) [failretval==-1] = wsock32.connect
-//sys	getsockname(s Handle, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval==-1] = wsock32.getsockname
-//sys	getpeername(s Handle, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval==-1] = wsock32.getpeername
-//sys	listen(s Handle, backlog int32) (errno int) [failretval==-1] = wsock32.listen
-//sys	shutdown(s Handle, how int32) (errno int) [failretval==-1] = wsock32.shutdown
-//sys	Closesocket(s Handle) (errno int) [failretval==-1] = wsock32.closesocket
-//sys	AcceptEx(ls Handle, as Handle, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (errno int) = wsock32.AcceptEx
-//sys	GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) = wsock32.GetAcceptExSockaddrs
+//sys	socket(af int32, typ int32, protocol int32) (handle Handle, errno int) [failretval==InvalidHandle] = ws2_32.socket
+//sys	Setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (errno int) [failretval==-1] = ws2_32.setsockopt
+//sys	bind(s Handle, name uintptr, namelen int32) (errno int) [failretval==-1] = ws2_32.bind
+//sys	connect(s Handle, name uintptr, namelen int32) (errno int) [failretval==-1] = ws2_32.connect
+//sys	getsockname(s Handle, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval==-1] = ws2_32.getsockname
+//sys	getpeername(s Handle, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval==-1] = ws2_32.getpeername
+//sys	listen(s Handle, backlog int32) (errno int) [failretval==-1] = ws2_32.listen
+//sys	shutdown(s Handle, how int32) (errno int) [failretval==-1] = ws2_32.shutdown
+//sys	Closesocket(s Handle) (errno int) [failretval==-1] = ws2_32.closesocket
+//sys	AcceptEx(ls Handle, as Handle, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (errno int) = mswsock.AcceptEx
+//sys	GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) = mswsock.GetAcceptExSockaddrs
 //sys	WSARecv(s Handle, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSARecv
 //sys	WSASend(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSASend
 //sys	WSARecvFrom(s Handle, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32,  from *RawSockaddrAny, fromlen *int32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSARecvFrom
@@ -697,8 +697,8 @@ type Linger struct {
 }
 
 const (
-	IP_ADD_MEMBERSHIP = iota
-	IP_DROP_MEMBERSHIP
+	IP_ADD_MEMBERSHIP  = 0xc
+	IP_DROP_MEMBERSHIP = 0xd
 )
 
 type IPMreq struct {
@@ -711,8 +711,10 @@ type IPv6Mreq struct {
 	Interface uint32
 }
 
-func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (errno int)        { return EWINDOWS }
-func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (errno int)     { return EWINDOWS }
+func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (errno int) { return EWINDOWS }
+func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (errno int) {
+	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))
+}
 func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (errno int) { return EWINDOWS }
 func BindToDevice(fd Handle, device string) (errno int)                        { return EWINDOWS }
 
