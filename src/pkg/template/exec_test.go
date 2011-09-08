@@ -391,6 +391,8 @@ var execTests = []execTest{
 	{"range $x $y MSIone", "{{range $x, $y := .MSIone}}<{{$x}}={{$y}}>{{end}}", "<one=1>", tVal, true},
 	{"range $x PSI", "{{range $x := .PSI}}<{{$x}}>{{end}}", "<21><22><23>", tVal, true},
 	{"declare in range", "{{range $x := .PSI}}<{{$foo:=$x}}{{$x}}>{{end}}", "<21><22><23>", tVal, true},
+	{"range count", `{{range $i, $x := count 5}}[{{$i}}]{{$x}}{{end}}`, "[0]a[1]b[2]c[3]d[4]e", tVal, true},
+	{"range nil count", `{{range $i, $x := count 0}}{{else}}empty{{end}}`, "empty", tVal, true},
 
 	// Cute examples.
 	{"or as if true", `{{or .SI "slice is empty"}}`, "[3 4 5]", tVal, true},
@@ -424,9 +426,29 @@ func oneArg(a string) string {
 	return "oneArg=" + a
 }
 
+// count returns a channel that will deliver n sequential 1-letter strings starting at "a"
+func count(n int) chan string {
+	if n == 0 {
+		return nil
+	}
+	c := make(chan string)
+	go func() {
+		for i := 0; i < n; i++ {
+			c <- "abcdefghijklmnop"[i : i+1]
+		}
+		close(c)
+	}()
+	return c
+}
+
 func testExecute(execTests []execTest, set *Set, t *testing.T) {
 	b := new(bytes.Buffer)
-	funcs := FuncMap{"zeroArgs": zeroArgs, "oneArg": oneArg, "typeOf": typeOf}
+	funcs := FuncMap{
+		"count":    count,
+		"oneArg":   oneArg,
+		"typeOf":   typeOf,
+		"zeroArgs": zeroArgs,
+	}
 	for _, test := range execTests {
 		tmpl := New(test.name).Funcs(funcs)
 		_, err := tmpl.ParseInSet(test.input, set)
