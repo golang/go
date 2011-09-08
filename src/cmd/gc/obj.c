@@ -127,6 +127,7 @@ static void
 outhist(Biobuf *b)
 {
 	Hist *h;
+	int i, depth = 0;
 	char *p, ds[] = {'c', ':', '/', 0};
 
 	for(h = hist; h != H; h = h->link) {
@@ -156,13 +157,21 @@ outhist(Biobuf *b)
 					outzfile(b, p+1);
 				} else {
 					// relative name, like dir/file.go
-					if(h->offset == 0 && pathname && pathname[0] == '/') {
+					if(h->offset >= 0 && pathname && pathname[0] == '/') {
 						zfile(b, "/", 1);	// leading "/"
 						outzfile(b, pathname+1);
 					}
 					outzfile(b, p);
 				}
 			}
+			if(h->offset > 0) {
+				//line directive
+				depth++;
+			}
+		} else if(depth > 0) {
+			for(i = 0; i < depth; i++)
+				zhist(b, h->line, h->offset);
+			depth = 0;
 		}
 		zhist(b, h->line, h->offset);
 	}
