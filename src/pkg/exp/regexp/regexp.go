@@ -58,6 +58,7 @@ import (
 	"exp/regexp/syntax"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"utf8"
@@ -195,9 +196,27 @@ func (re *Regexp) put(z *machine) {
 func MustCompile(str string) *Regexp {
 	regexp, error := Compile(str)
 	if error != nil {
-		panic(`regexp: compiling "` + str + `": ` + error.String())
+		panic(`regexp: Compile(` + quote(str) + `): ` + error.String())
 	}
 	return regexp
+}
+
+// MustCompilePOSIX is like CompilePOSIX but panics if the expression cannot be parsed.
+// It simplifies safe initialization of global variables holding compiled regular
+// expressions.
+func MustCompilePOSIX(str string) *Regexp {
+	regexp, error := CompilePOSIX(str)
+	if error != nil {
+		panic(`regexp: CompilePOSIX(` + quote(str) + `): ` + error.String())
+	}
+	return regexp
+}
+
+func quote(s string) string {
+	if strconv.CanBackquote(s) {
+		return "`" + s + "`"
+	}
+	return strconv.Quote(s)
 }
 
 // NumSubexp returns the number of parenthesized subexpressions in this Regexp.

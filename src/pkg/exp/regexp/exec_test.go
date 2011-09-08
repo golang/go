@@ -351,7 +351,7 @@ func TestFowler(t *testing.T) {
 	}
 }
 
-var notab = MustCompile(`[^\t]+`)
+var notab = MustCompilePOSIX(`[^\t]+`)
 
 func testFowler(t *testing.T, file string) {
 	f, err := os.Open(file)
