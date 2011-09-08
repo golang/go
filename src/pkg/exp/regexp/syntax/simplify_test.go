@@ -18,7 +18,7 @@ var simplifyTests = []struct {
 	{`(ab)*`, `(ab)*`},
 	{`(ab)+`, `(ab)+`},
 	{`(ab)?`, `(ab)?`},
-	{`.`, `.`},
+	{`.`, `(?s:.)`},
 	{`^`, `^`},
 	{`$`, `$`},
 	{`[ac]`, `[ac]`},
@@ -97,22 +97,22 @@ var simplifyTests = []struct {
 	{`[^[:cntrl:][:^cntrl:]]`, `[^\x00-\x{10FFFF}]`},
 
 	// Full character classes
-	{`[[:cntrl:][:^cntrl:]]`, `.`},
+	{`[[:cntrl:][:^cntrl:]]`, `(?s:.)`},
 
 	// Unicode case folding.
 	{`(?i)A`, `(?i:A)`},
-	{`(?i)a`, `(?i:a)`},
+	{`(?i)a`, `(?i:A)`},
 	{`(?i)[A]`, `(?i:A)`},
 	{`(?i)[a]`, `(?i:A)`},
 	{`(?i)K`, `(?i:K)`},
-	{`(?i)k`, `(?i:k)`},
-	{`(?i)\x{212a}`, "(?i:\u212A)"},
+	{`(?i)k`, `(?i:K)`},
+	{`(?i)\x{212a}`, "(?i:K)"},
 	{`(?i)[K]`, "[Kk\u212A]"},
 	{`(?i)[k]`, "[Kk\u212A]"},
 	{`(?i)[\x{212a}]`, "[Kk\u212A]"},
 	{`(?i)[a-z]`, "[A-Za-z\u017F\u212A]"},
 	{`(?i)[\x00-\x{FFFD}]`, "[\\x00-\uFFFD]"},
-	{`(?i)[\x00-\x{10FFFF}]`, `.`},
+	{`(?i)[\x00-\x{10FFFF}]`, `(?s:.)`},
 
 	// Empty string as a regular expression.
 	// The empty string must be preserved inside parens in order

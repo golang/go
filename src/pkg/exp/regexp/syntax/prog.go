@@ -57,7 +57,7 @@ func EmptyOpContext(r1, r2 int) EmptyOp {
 		op |= EmptyBeginLine
 	}
 	if r2 < 0 {
-		op |= EmptyEndText
+		op |= EmptyEndText | EmptyEndLine
 	}
 	if r2 == '\n' {
 		op |= EmptyEndLine

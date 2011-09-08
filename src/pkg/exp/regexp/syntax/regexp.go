@@ -164,9 +164,9 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 		}
 		b.WriteRune(']')
 	case OpAnyCharNotNL:
-		b.WriteString(`[^\n]`)
+		b.WriteString(`(?-s:.)`)
 	case OpAnyChar:
-		b.WriteRune('.')
+		b.WriteString(`(?s:.)`)
 	case OpBeginLine:
 		b.WriteRune('^')
 	case OpEndLine:
@@ -174,7 +174,11 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 	case OpBeginText:
 		b.WriteString(`\A`)
 	case OpEndText:
-		b.WriteString(`\z`)
+		if re.Flags&WasDollar != 0 {
+			b.WriteString(`(?-m:$)`)
+		} else {
+			b.WriteString(`\z`)
+		}
 	case OpWordBoundary:
 		b.WriteString(`\b`)
 	case OpNoWordBoundary:
@@ -192,7 +196,7 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 		}
 		b.WriteRune(')')
 	case OpStar, OpPlus, OpQuest, OpRepeat:
-		if sub := re.Sub[0]; sub.Op > OpCapture {
+		if sub := re.Sub[0]; sub.Op > OpCapture || sub.Op == OpLiteral && len(sub.Rune) > 1 {
 			b.WriteString(`(?:`)
 			writeRegexp(b, sub)
 			b.WriteString(`)`)
@@ -216,6 +220,9 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 				}
 			}
 			b.WriteRune('}')
+		}
+		if re.Flags&NonGreedy != 0 {
+			b.WriteRune('?')
 		}
 	case OpConcat:
 		for _, sub := range re.Sub {
