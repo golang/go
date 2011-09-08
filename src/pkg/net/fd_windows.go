@@ -23,7 +23,7 @@ var initErr os.Error
 
 func init() {
 	var d syscall.WSAData
-	e := syscall.WSAStartup(uint32(0x101), &d)
+	e := syscall.WSAStartup(uint32(0x202), &d)
 	if e != 0 {
 		initErr = os.NewSyscallError("WSAStartup", e)
 	}
