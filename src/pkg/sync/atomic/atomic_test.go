@@ -885,9 +885,9 @@ func TestHammerStoreLoad(t *testing.T) {
 
 func TestStoreLoadSeqCst(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
-	N := int32(1e6)
+	N := int32(1e3)
 	if testing.Short() {
-		N = int32(1e5)
+		N = int32(1e2)
 	}
 	c := make(chan bool, 2)
 	X := [2]int32{}
