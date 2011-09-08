@@ -11,10 +11,12 @@ import (
 	"unicode"
 )
 
-var parseTests = []struct {
+type parseTest struct {
 	Regexp string
 	Dump   string
-}{
+}
+
+var parseTests = []parseTest{
 	// Base cases
 	{`a`, `lit{a}`},
 	{`a.`, `cat{lit{a}dot{}}`},
@@ -38,6 +40,12 @@ var parseTests = []struct {
 	{`a{2}?`, `nrep{2,2 lit{a}}`},
 	{`a{2,3}?`, `nrep{2,3 lit{a}}`},
 	{`a{2,}?`, `nrep{2,-1 lit{a}}`},
+	// Malformed { } are treated as literals.
+	{`x{1001`, `str{x{1001}`},
+	{`x{9876543210`, `str{x{9876543210}`},
+	{`x{9876543210,`, `str{x{9876543210,}`},
+	{`x{2,1`, `str{x{2,1}`},
+	{`x{1,9876543210`, `str{x{1,9876543210}`},
 	{``, `emp{}`},
 	{`|`, `emp{}`}, // alt{emp{}emp{}} but got factored
 	{`|x|`, `alt{emp{}lit{x}emp{}}`},
@@ -101,6 +109,8 @@ var parseTests = []struct {
 	{`\p{Lu}`, mkCharClass(unicode.IsUpper)},
 	{`[\p{Lu}]`, mkCharClass(unicode.IsUpper)},
 	{`(?i)[\p{Lu}]`, mkCharClass(isUpperFold)},
+	{`\p{Any}`, `dot{}`},
+	{`\p{^Any}`, `cc{}`},
 
 	// Hex, octal.
 	{`[\012-\234]\141`, `cat{cc{0xa-0x9c}lit{a}}`},
@@ -174,14 +184,80 @@ var parseTests = []struct {
 	{`(?-s).`, `dnl{}`},
 	{`(?:(?:^).)`, `cat{bol{}dot{}}`},
 	{`(?-s)(?:(?:^).)`, `cat{bol{}dnl{}}`},
+
+	// RE2 prefix_tests
+	{`abc|abd`, `cat{str{ab}cc{0x63-0x64}}`},
+	{`a(?:b)c|abd`, `cat{str{ab}cc{0x63-0x64}}`},
+	{`abc|abd|aef|bcx|bcy`,
+		`alt{cat{lit{a}alt{cat{lit{b}cc{0x63-0x64}}str{ef}}}` +
+			`cat{str{bc}cc{0x78-0x79}}}`},
+	{`abc|x|abd`, `alt{str{abc}lit{x}str{abd}}`},
+	{`(?i)abc|ABD`, `cat{strfold{AB}cc{0x43-0x44 0x63-0x64}}`},
+	{`[ab]c|[ab]d`, `cat{cc{0x61-0x62}cc{0x63-0x64}}`},
+	{`(?:xx|yy)c|(?:xx|yy)d`,
+		`cat{alt{str{xx}str{yy}}cc{0x63-0x64}}`},
+	{`x{2}|x{2}[0-9]`,
+		`cat{rep{2,2 lit{x}}alt{emp{}cc{0x30-0x39}}}`},
+	{`x{2}y|x{2}[0-9]y`,
+		`cat{rep{2,2 lit{x}}alt{lit{y}cat{cc{0x30-0x39}lit{y}}}}`},
 }
 
 const testFlags = MatchNL | PerlX | UnicodeGroups
 
+func TestParseSimple(t *testing.T) {
+	testParseDump(t, parseTests, testFlags)
+}
+
+var foldcaseTests = []parseTest{
+	{`AbCdE`, `strfold{ABCDE}`},
+	{`[Aa]`, `litfold{A}`},
+	{`a`, `litfold{A}`},
+
+	// 0x17F is an old English long s (looks like an f) and folds to s.
+	// 0x212A is the Kelvin symbol and folds to k.
+	{`A[F-g]`, `cat{litfold{A}cc{0x41-0x7a 0x17f 0x212a}}`}, // [Aa][A-z...]
+	{`[[:upper:]]`, `cc{0x41-0x5a 0x61-0x7a 0x17f 0x212a}`},
+	{`[[:lower:]]`, `cc{0x41-0x5a 0x61-0x7a 0x17f 0x212a}`},
+}
+
+func TestParseFoldCase(t *testing.T) {
+	testParseDump(t, foldcaseTests, FoldCase)
+}
+
+var literalTests = []parseTest{
+	{"(|)^$.[*+?]{5,10},\\", "str{(|)^$.[*+?]{5,10},\\}"},
+}
+
+func TestParseLiteral(t *testing.T) {
+	testParseDump(t, literalTests, Literal)
+}
+
+var matchnlTests = []parseTest{
+	{`.`, `dot{}`},
+	{"\n", "lit{\n}"},
+	{`[^a]`, `cc{0x0-0x60 0x62-0x10ffff}`},
+	{`[a\n]`, `cc{0xa 0x61}`},
+}
+
+func TestParseMatchNL(t *testing.T) {
+	testParseDump(t, matchnlTests, MatchNL)
+}
+
+var nomatchnlTests = []parseTest{
+	{`.`, `dnl{}`},
+	{"\n", "lit{\n}"},
+	{`[^a]`, `cc{0x0-0x9 0xb-0x60 0x62-0x10ffff}`},
+	{`[a\n]`, `cc{0xa 0x61}`},
+}
+
+func TestParseNoMatchNL(t *testing.T) {
+	testParseDump(t, nomatchnlTests, 0)
+}
+
 // Test Parse -> Dump.
-func TestParseDump(t *testing.T) {
-	for _, tt := range parseTests {
-		re, err := Parse(tt.Regexp, testFlags)
+func testParseDump(t *testing.T, tests []parseTest, flags Flags) {
+	for _, tt := range tests {
+		re, err := Parse(tt.Regexp, flags)
 		if err != nil {
 			t.Errorf("Parse(%#q): %v", tt.Regexp, err)
 			continue
@@ -358,5 +434,117 @@ func TestAppendRangeCollapse(t *testing.T) {
 	}
 	if string(r) != "AZaz" {
 		t.Errorf("appendRange interlaced A-Z a-z = %s, want AZaz", string(r))
+	}
+}
+
+var invalidRegexps = []string{
+	`(`,
+	`)`,
+	`(a`,
+	`(a|b|`,
+	`(a|b`,
+	`[a-z`,
+	`([a-z)`,
+	`x{1001}`,
+	`x{9876543210}`,
+	`x{2,1}`,
+	`x{1,9876543210}`,
+	"\xff", // Invalid UTF-8
+	"[\xff]",
+	"[\\\xff]",
+	"\\\xff",
+	`(?P<name>a`,
+	`(?P<name>`,
+	`(?P<name`,
+	`(?P<x y>a)`,
+	`(?P<>a)`,
+	`[a-Z]`,
+	`(?i)[a-Z]`,
+	`a{100000}`,
+	`a{100000,}`,
+}
+
+var onlyPerl = []string{
+	`[a-b-c]`,
+	`\Qabc\E`,
+	`\Q*+?{[\E`,
+	`\Q\\E`,
+	`\Q\\\E`,
+	`\Q\\\\E`,
+	`\Q\\\\\E`,
+	`(?:a)`,
+	`(?P<name>a)`,
+}
+
+var onlyPOSIX = []string{
+	"a++",
+	"a**",
+	"a?*",
+	"a+*",
+	"a{1}*",
+}
+
+func TestParseInvalidRegexps(t *testing.T) {
+	for _, regexp := range invalidRegexps {
+		if re, err := Parse(regexp, Perl); err == nil {
+			t.Errorf("Parse(%#q, Perl) = %s, should have failed", regexp, dump(re))
+		}
+		if re, err := Parse(regexp, POSIX); err == nil {
+			t.Errorf("Parse(%#q, POSIX) = %s, should have failed", regexp, dump(re))
+		}
+	}
+	for _, regexp := range onlyPerl {
+		if _, err := Parse(regexp, Perl); err != nil {
+			t.Errorf("Parse(%#q, Perl): %v", regexp, err)
+		}
+		if re, err := Parse(regexp, POSIX); err == nil {
+			t.Errorf("Parse(%#q, POSIX) = %s, should have failed", regexp, dump(re))
+		}
+	}
+	for _, regexp := range onlyPOSIX {
+		if re, err := Parse(regexp, Perl); err == nil {
+			t.Errorf("Parse(%#q, Perl) = %s, should have failed", regexp, dump(re))
+		}
+		if _, err := Parse(regexp, POSIX); err != nil {
+			t.Errorf("Parse(%#q, POSIX): %v", regexp, err)
+		}
+	}
+}
+
+func TestToStringEquivalentParse(t *testing.T) {
+	for _, tt := range parseTests {
+		re, err := Parse(tt.Regexp, testFlags)
+		if err != nil {
+			t.Errorf("Parse(%#q): %v", tt.Regexp, err)
+			continue
+		}
+		d := dump(re)
+		if d != tt.Dump {
+			t.Errorf("Parse(%#q).Dump() = %#q want %#q", tt.Regexp, d, tt.Dump)
+			continue
+		}
+
+		s := re.String()
+		if s != tt.Regexp {
+			// If ToString didn't return the original regexp,
+			// it must have found one with fewer parens.
+			// Unfortunately we can't check the length here, because
+			// ToString produces "\\{" for a literal brace,
+			// but "{" is a shorter equivalent in some contexts.
+			nre, err := Parse(s, testFlags)
+			if err != nil {
+				t.Errorf("Parse(%#q.String() = %#q): %v", tt.Regexp, t, err)
+				continue
+			}
+			nd := dump(nre)
+			if d != nd {
+				t.Errorf("Parse(%#q) -> %#q; %#q vs %#q", tt.Regexp, s, d, nd)
+			}
+
+			ns := nre.String()
+			if s != ns {
+				t.Errorf("Parse(%#q) -> %#q -> %#q", tt.Regexp, s, ns)
+			}
+		}
 	}
 }
