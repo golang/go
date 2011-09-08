@@ -46,7 +46,7 @@ func Remove(name string) Error {
 	// both errors will be ENOTDIR, so it's okay to
 	// use the error from unlink.
 	// For windows syscall.ENOTDIR is set
-	// to syscall.ERROR_DIRECTORY, hopefully it should
+	// to syscall.ERROR_PATH_NOT_FOUND, hopefully it should
 	// do the trick.
 	if e1 != syscall.ENOTDIR {
 		e = e1

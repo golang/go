@@ -76,7 +76,7 @@ done
 # These are go errors that will be mapped directly to windows errors
 goerrors='
 ENOENT:ERROR_FILE_NOT_FOUND
-ENOTDIR:ERROR_DIRECTORY
+ENOTDIR:ERROR_PATH_NOT_FOUND
 '
 
 # Pull out just the error names for later.

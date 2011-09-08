@@ -6,7 +6,7 @@ package syscall
 // Go names for Windows errors.
 const (
 	ENOENT  = ERROR_FILE_NOT_FOUND
-	ENOTDIR = ERROR_DIRECTORY
+	ENOTDIR = ERROR_PATH_NOT_FOUND
 )
 
 // Windows reserves errors >= 1<<29 for application use.

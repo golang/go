@@ -92,15 +92,6 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
 	if e == nil {
 		return r, nil
 	}
-	// Imitating Unix behavior by replacing syscall.ERROR_PATH_NOT_FOUND with
-	// os.ENOTDIR. Not sure if we should go into that.
-	if e2, ok := e.(*PathError); ok {
-		if e3, ok := e2.Error.(Errno); ok {
-			if e3 == Errno(syscall.ERROR_PATH_NOT_FOUND) {
-				return nil, &PathError{"open", name, ENOTDIR}
-			}
-		}
-	}
 	return nil, e
 }
 
