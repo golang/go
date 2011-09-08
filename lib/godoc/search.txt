@@ -1,33 +1,39 @@
 QUERY
 	{{.Query}}
-{{with .Alert}}
-{{.}}
+
+{{with .Alert}}{{.}}
 {{end}}{{/* .Alert */}}{{/*
 
 ---------------------------------------
 
-*/}}{{with .Alt}}
-DID YOU MEAN
+*/}}{{with .Alt}}DID YOU MEAN
+
 {{range .Alts}}	{{.}}
-{{end}}{{end}}{{/* .Alts */}}{{/*
+{{end}}{{end}}{{/* .Alt */}}{{/*
 
 ---------------------------------------
 
-*/}}{{with .Hit}}{{with .Decls}}
-PACKAGE-LEVEL DECLARATIONS
+*/}}{{with .Pak}}PACKAGE {{$.Query}}
+
+{{range .}}{{.Pak.Path}}
+{{end}}
+{{end}}{{/* .Pak */}}{{/*
+
+---------------------------------------
+
+*/}}{{with .Hit}}{{with .Decls}}PACKAGE-LEVEL DECLARATIONS
 
 {{range .}}package {{.Pak.Name}}
-{{range $file := .Files}}{{range .Groups}}{{range .Infos}}	{{srcLink $file.File.Path}}:{{infoLine .}}{{end}}
+{{range $file := .Files}}{{range .Groups}}{{range .}}	{{srcLink $file.File.Path}}:{{infoLine .}}{{end}}
 {{end}}{{end}}{{/* .Files */}}
 {{end}}{{end}}{{/* .Decls */}}{{/*
 
 ---------------------------------------
 
-*/}}{{with .Others}}
-LOCAL DECLARATIONS AND USES
+*/}}{{with .Others}}LOCAL DECLARATIONS AND USES
 
 {{range .}}package {{.Pak.Name}}
-{{range $file := .Files}}{{range .Groups}}{{range .Infos}}	{{srcLink $file.File.Path}}:{{infoLine .}}
+{{range $file := .Files}}{{range .Groups}}{{range .}}	{{srcLink $file.File.Path}}:{{infoLine .}}
 {{end}}{{end}}{{end}}{{/* .Files */}}
 {{end}}{{end}}{{/* .Others */}}{{end}}{{/* .Hit */}}{{/*
 

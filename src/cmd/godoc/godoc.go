@@ -1016,6 +1016,7 @@ type SearchResult struct {
 	Alert string // error or warning message
 
 	// identifier matches
+	Pak HitList       // packages matching Query
 	Hit *LookupResult // identifier matches of Query
 	Alt *AltWords     // alternative identifiers to look for
 
@@ -1034,7 +1035,7 @@ func lookup(query string) (result SearchResult) {
 
 		// identifier search
 		var err os.Error
-		result.Hit, result.Alt, err = index.Lookup(query)
+		result.Pak, result.Hit, result.Alt, err = index.Lookup(query)
 		if err != nil && *maxResults <= 0 {
 			// ignore the error if full text search is enabled
 			// since the query may be a valid regular expression
