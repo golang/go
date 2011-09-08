@@ -63,7 +63,7 @@
 			{{end}}
 			{{range .Factories}}
 				{{$name_html := html .Name}}
-				<h3 id="{{$tname_html}}.{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+				<h3 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
 				<p><code>{{node_html .Decl $.FSet}}</code></p>
 				{{comment_html .Doc}}
 			{{end}}
