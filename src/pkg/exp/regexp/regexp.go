@@ -97,10 +97,45 @@ func (re *Regexp) String() string {
 	return re.expr
 }
 
-// Compile parses a regular expression and returns, if successful, a Regexp
-// object that can be used to match against text.
+// Compile parses a regular expression and returns, if successful,
+// a Regexp object that can be used to match against text.
+//
+// When matching against text, the regexp returns a match that
+// begins as early as possible in the input (leftmost), and among those
+// it chooses the one that a backtracking search would have found first.
+// This so-called leftmost-first matching is the same semantics
+// that Perl, Python, and other implementations use, although this
+// package implements it without the expense of backtracking.
+// For POSIX leftmost-longest matching, see CompilePOSIX.
 func Compile(expr string) (*Regexp, os.Error) {
-	re, err := syntax.Parse(expr, syntax.Perl)
+	return compile(expr, syntax.Perl, false)
+}
+
+// CompilePOSIX is like Compile but restricts the regular expression
+// to POSIX ERE (egrep) syntax and changes the match semantics to
+// leftmost-longest.
+//
+// That is, when matching against text, the regexp returns a match that
+// begins as early as possible in the input (leftmost), and among those
+// it chooses a match that is as long as possible.
+// This so-called leftmost-longest matching is the same semantics
+// that early regular expression implementations used and that POSIX
+// specifies.
+//
+// However, there can be multiple leftmost-longest matches, with different
+// submatch choices, and here this package diverges from POSIX.
+// Among the possible leftmost-longest matches, this package chooses
+// the one that a backtracking search would have found first, while POSIX
+// specifies that the match be chosen to maximize the length of the first
+// subexpression, then the second, and so on from left to right.
+// The POSIX rule is computationally prohibitive and not even well-defined.
+// See http://swtch.com/~rsc/regexp/regexp2.html#posix for details.
+func CompilePOSIX(expr string) (*Regexp, os.Error) {
+	return compile(expr, syntax.POSIX, true)
+}
+
+func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, os.Error) {
+	re, err := syntax.Parse(expr, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +149,8 @@ func Compile(expr string) (*Regexp, os.Error) {
 		expr:      expr,
 		prog:      prog,
 		numSubexp: maxCap,
+		cond:      prog.StartCond(),
+		longest:   longest,
 	}
 	regexp.prefix, regexp.prefixComplete = prog.Prefix()
 	if regexp.prefix != "" {
@@ -122,7 +159,6 @@ func Compile(expr string) (*Regexp, os.Error) {
 		regexp.prefixBytes = []byte(regexp.prefix)
 		regexp.prefixRune, _ = utf8.DecodeRuneInString(regexp.prefix)
 	}
-	regexp.cond = prog.StartCond()
 	return regexp, nil
 }
 
