@@ -14,6 +14,81 @@ hg pull
 hg update release.r<i>NN</i>
 </pre>
 
+<h2 id="r60">r60 (released 2011/09/07)</h2>
+
+<p>
+The r60 release corresponds to 
+<code><a href="weekly.html#2011-08-17">weekly.2011-08-17</a></code>.
+This section highlights the most significant changes in this release.
+For a more detailed summary, see the
+<a href="weekly.html#2011-08-17">weekly release notes</a>.
+For complete information, see the
+<a href="http://code.google.com/p/go/source/list?r=release-branch.r60">Mercurial change list</a>.
+</p>
+
+<h3 id="r60.lang">Language</h3>
+
+<p>
+An "else" block is now required to have braces except if the body of the "else"
+is another "if". Since gofmt always puts those braces in anyway,
+gofmt-formatted programs will not be affected.
+To fix other programs, run gofmt.
+</p>
+
+<h3 id="r60.pkg">Packages</h3>
+
+<p>
+<a href="/pkg/http/">Package http</a>'s URL parsing and query escaping code
+(such as <code>ParseURL</code> and <code>URLEscape</code>) has been moved to
+the new <a href="/pkg/url/">url package</a>, with several simplifications to
+the names. Client code can be updated automatically with gofix.
+</p>
+
+<p>
+<a href="/pkg/image/">Package image</a> has had significant changes made to the
+<code>Pix</code> field of struct types such as
+<a href="/pkg/image/#RGBA">image.RGBA</a> and
+<a href="/pkg/image/#NRGBA">image.NRGBA</a>.
+The <a href="/pkg/image/#Image">image.Image</a> interface type has not changed,
+though, and you should not need to change your code if you don't explicitly
+refer to <code>Pix</code> fields. For example, if you decode a number of images
+using the <a href="/pkg/image/jpeg/">image/jpeg</a> package, compose them using
+<a href="/pkg/image/draw/">image/draw</a>, and then encode the result using
+<a href="/pkg/img/png">image/png</a>, then your code should still work as
+before.
+If your code <i>does</i> refer to <code>Pix</code> fields see the 
+<a href="/doc/devel/weekly.html#2011-07-19">weekly.2011-07-19</a>
+snapshot notes for how to update your code.
+</p>
+
+<p>
+<a href="/pkg/template/">Package template</a> has been replaced with a new
+templating package (formerly <code>exp/template</code>). The original template
+package is still available as <a href="/pkg/old/template/">old/template</a>.
+The <code>old/template</code> package is deprecated and will be removed.
+The Go tree has been updated to use the new template package. We encourage
+users of the old template package to switch to the new one. Code that uses
+<code>template</code> or <code>exp/template</code> will need to change its
+import lines to <code>"old/template"</code> or <code>"template"</code>,
+respectively.
+</p>
+
+<h3 id="r60.cmd">Tools</h3>
+
+<p>
+<a href="/cmd/goinstall/">Goinstall</a> now uses a new tag selection scheme.
+When downloading or updating, goinstall looks for a tag or branch with the
+<code>"go."</code> prefix that corresponds to the local Go version. For Go
+<code>release.r58</code> it looks for <code>go.r58</code>. For
+<code>weekly.2011-06-03</code> it looks for <code>go.weekly.2011-06-03</code>.
+If the specific <code>go.X</code> tag or branch is not found, it chooses the
+closest earlier version. If an appropriate tag or branch is found, goinstall
+uses that version of the code. Otherwise it uses the default version selected
+by the version control system. Library authors are encouraged to use the
+appropriate tag or branch names in their repositories to make their libraries
+more accessible.
+</p>
+
 <h2 id="r59">r59 (released 2011/08/01)</h2>
 
 <p>
@@ -323,7 +398,7 @@ Remember that gofix will handle the bulk of the rewrites
 necessary for these changes to package APIs.
 </p>
 
-<h3 id="r57.tool">Tools</h3>
+<h3 id="r57.cmd">Tools</h3>
 
 <p><a href="/cmd/gofix/">Gofix</a>, a new command, is described above.</p>
 
