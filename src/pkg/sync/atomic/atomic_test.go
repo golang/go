@@ -379,6 +379,54 @@ func TestLoadUint32(t *testing.T) {
 	}
 }
 
+func TestLoadInt64(t *testing.T) {
+	if test64err != nil {
+		t.Logf("Skipping 64-bit tests: %v", test64err)
+		return
+	}
+	var x struct {
+		before int64
+		i      int64
+		after  int64
+	}
+	x.before = magic64
+	x.after = magic64
+	for delta := int64(1); delta+delta > delta; delta += delta {
+		k := LoadInt64(&x.i)
+		if k != x.i {
+			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
+		}
+		x.i += delta
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
+	}
+}
+
+func TestLoadUint64(t *testing.T) {
+	if test64err != nil {
+		t.Logf("Skipping 64-bit tests: %v", test64err)
+		return
+	}
+	var x struct {
+		before uint64
+		i      uint64
+		after  uint64
+	}
+	x.before = magic64
+	x.after = magic64
+	for delta := uint64(1); delta+delta > delta; delta += delta {
+		k := LoadUint64(&x.i)
+		if k != x.i {
+			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
+		}
+		x.i += delta
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
+	}
+}
+
 func TestLoadUintptr(t *testing.T) {
 	var x struct {
 		before uintptr
@@ -462,6 +510,56 @@ func TestStoreUint32(t *testing.T) {
 	}
 	if x.before != magic32 || x.after != magic32 {
 		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
+	}
+}
+
+func TestStoreInt64(t *testing.T) {
+	if test64err != nil {
+		t.Logf("Skipping 64-bit tests: %v", test64err)
+		return
+	}
+	var x struct {
+		before int64
+		i      int64
+		after  int64
+	}
+	x.before = magic64
+	x.after = magic64
+	v := int64(0)
+	for delta := int64(1); delta+delta > delta; delta += delta {
+		StoreInt64(&x.i, v)
+		if x.i != v {
+			t.Fatalf("delta=%d i=%d v=%d", delta, x.i, v)
+		}
+		v += delta
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
+	}
+}
+
+func TestStoreUint64(t *testing.T) {
+	if test64err != nil {
+		t.Logf("Skipping 64-bit tests: %v", test64err)
+		return
+	}
+	var x struct {
+		before uint64
+		i      uint64
+		after  uint64
+	}
+	x.before = magic64
+	x.after = magic64
+	v := uint64(0)
+	for delta := uint64(1); delta+delta > delta; delta += delta {
+		StoreUint64(&x.i, v)
+		if x.i != v {
+			t.Fatalf("delta=%d i=%d v=%d", delta, x.i, v)
+		}
+		v += delta
+	}
+	if x.before != magic64 || x.after != magic64 {
+		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
 	}
 }
 
@@ -777,7 +875,7 @@ func hammerStoreLoadInt32(t *testing.T, valp unsafe.Pointer) {
 	vlo := v & ((1 << 16) - 1)
 	vhi := v >> 16
 	if vlo != vhi {
-		t.Fatalf("LoadInt32: %#x != %#x", vlo, vhi)
+		t.Fatalf("Int32: %#x != %#x", vlo, vhi)
 	}
 	new := v + 1 + 1<<16
 	if vlo == 1e4 {
@@ -792,13 +890,37 @@ func hammerStoreLoadUint32(t *testing.T, valp unsafe.Pointer) {
 	vlo := v & ((1 << 16) - 1)
 	vhi := v >> 16
 	if vlo != vhi {
-		t.Fatalf("LoadUint32: %#x != %#x", vlo, vhi)
+		t.Fatalf("Uint32: %#x != %#x", vlo, vhi)
 	}
 	new := v + 1 + 1<<16
 	if vlo == 1e4 {
 		new = 0
 	}
 	StoreUint32(val, new)
+}
+
+func hammerStoreLoadInt64(t *testing.T, valp unsafe.Pointer) {
+	val := (*int64)(valp)
+	v := LoadInt64(val)
+	vlo := v & ((1 << 32) - 1)
+	vhi := v >> 32
+	if vlo != vhi {
+		t.Fatalf("Int64: %#x != %#x", vlo, vhi)
+	}
+	new := v + 1 + 1<<32
+	StoreInt64(val, new)
+}
+
+func hammerStoreLoadUint64(t *testing.T, valp unsafe.Pointer) {
+	val := (*uint64)(valp)
+	v := LoadUint64(val)
+	vlo := v & ((1 << 32) - 1)
+	vhi := v >> 32
+	if vlo != vhi {
+		t.Fatalf("Uint64: %#x != %#x", vlo, vhi)
+	}
+	new := v + 1 + 1<<32
+	StoreUint64(val, new)
 }
 
 func hammerStoreLoadUintptr(t *testing.T, valp unsafe.Pointer) {
@@ -811,7 +933,7 @@ func hammerStoreLoadUintptr(t *testing.T, valp unsafe.Pointer) {
 		vlo := v & ((1 << 16) - 1)
 		vhi := v >> 16
 		if vlo != vhi {
-			t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
+			t.Fatalf("Uintptr: %#x != %#x", vlo, vhi)
 		}
 		new = v + 1 + 1<<16
 		if vlo == 1e4 {
@@ -821,7 +943,7 @@ func hammerStoreLoadUintptr(t *testing.T, valp unsafe.Pointer) {
 		vlo := v & ((1 << 32) - 1)
 		vhi := v >> 32
 		if vlo != vhi {
-			t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
+			t.Fatalf("Uintptr: %#x != %#x", vlo, vhi)
 		}
 		inc := uint64(1 + 1<<32)
 		new = v + uintptr(inc)
@@ -839,7 +961,7 @@ func hammerStoreLoadPointer(t *testing.T, valp unsafe.Pointer) {
 		vlo := v & ((1 << 16) - 1)
 		vhi := v >> 16
 		if vlo != vhi {
-			t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
+			t.Fatalf("Pointer: %#x != %#x", vlo, vhi)
 		}
 		new = v + 1 + 1<<16
 		if vlo == 1e4 {
@@ -849,7 +971,7 @@ func hammerStoreLoadPointer(t *testing.T, valp unsafe.Pointer) {
 		vlo := v & ((1 << 32) - 1)
 		vhi := v >> 32
 		if vlo != vhi {
-			t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
+			t.Fatalf("Pointer: %#x != %#x", vlo, vhi)
 		}
 		inc := uint64(1 + 1<<32)
 		new = v + uintptr(inc)
@@ -858,8 +980,12 @@ func hammerStoreLoadPointer(t *testing.T, valp unsafe.Pointer) {
 }
 
 func TestHammerStoreLoad(t *testing.T) {
-	tests := [...]func(*testing.T, unsafe.Pointer){hammerStoreLoadInt32, hammerStoreLoadUint32,
-		hammerStoreLoadUintptr, hammerStoreLoadPointer}
+	var tests []func(*testing.T, unsafe.Pointer)
+	tests = append(tests, hammerStoreLoadInt32, hammerStoreLoadUint32,
+		hammerStoreLoadUintptr, hammerStoreLoadPointer)
+	if test64err == nil {
+		tests = append(tests, hammerStoreLoadInt64, hammerStoreLoadUint64)
+	}
 	n := int(1e6)
 	if testing.Short() {
 		n = int(1e4)
@@ -883,7 +1009,7 @@ func TestHammerStoreLoad(t *testing.T) {
 	}
 }
 
-func TestStoreLoadSeqCst(t *testing.T) {
+func TestStoreLoadSeqCst32(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
 	N := int32(1e3)
 	if testing.Short() {
@@ -898,13 +1024,13 @@ func TestStoreLoadSeqCst(t *testing.T) {
 			for i := int32(1); i < N; i++ {
 				StoreInt32(&X[me], i)
 				my := LoadInt32(&X[he])
-				ack[me][i%3] = my
-				for w := 1; ack[he][i%3] == -1; w++ {
+				StoreInt32(&ack[me][i%3], my)
+				for w := 1; LoadInt32(&ack[he][i%3]) == -1; w++ {
 					if w%1000 == 0 {
 						runtime.Gosched()
 					}
 				}
-				his := ack[he][i%3]
+				his := LoadInt32(&ack[he][i%3])
 				if (my != i && my != i-1) || (his != i && his != i-1) {
 					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
 				}
@@ -912,6 +1038,135 @@ func TestStoreLoadSeqCst(t *testing.T) {
 					t.Fatalf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
 				}
 				ack[me][(i-1)%3] = -1
+			}
+			c <- true
+		}(p)
+	}
+	<-c
+	<-c
+}
+
+func TestStoreLoadSeqCst64(t *testing.T) {
+	if test64err != nil {
+		t.Logf("Skipping 64-bit tests: %v", test64err)
+		return
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+	N := int64(1e3)
+	if testing.Short() {
+		N = int64(1e2)
+	}
+	c := make(chan bool, 2)
+	X := [2]int64{}
+	ack := [2][3]int64{{-1, -1, -1}, {-1, -1, -1}}
+	for p := 0; p < 2; p++ {
+		go func(me int) {
+			he := 1 - me
+			for i := int64(1); i < N; i++ {
+				StoreInt64(&X[me], i)
+				my := LoadInt64(&X[he])
+				StoreInt64(&ack[me][i%3], my)
+				for w := 1; LoadInt64(&ack[he][i%3]) == -1; w++ {
+					if w%1000 == 0 {
+						runtime.Gosched()
+					}
+				}
+				his := LoadInt64(&ack[he][i%3])
+				if (my != i && my != i-1) || (his != i && his != i-1) {
+					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
+				}
+				if my != i && his != i {
+					t.Fatalf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
+				}
+				ack[me][(i-1)%3] = -1
+			}
+			c <- true
+		}(p)
+	}
+	<-c
+	<-c
+}
+
+func TestStoreLoadRelAcq32(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+	N := int32(1e3)
+	if testing.Short() {
+		N = int32(1e2)
+	}
+	c := make(chan bool, 2)
+	type Data struct {
+		signal int32
+		pad1   [128]int8
+		data1  int32
+		pad2   [128]int8
+		data2  float32
+	}
+	var X Data
+	for p := int32(0); p < 2; p++ {
+		go func(p int32) {
+			for i := int32(1); i < N; i++ {
+				if (i+p)%2 == 0 {
+					X.data1 = i
+					X.data2 = float32(i)
+					StoreInt32(&X.signal, i)
+				} else {
+					for w := 1; LoadInt32(&X.signal) != i; w++ {
+						if w%1000 == 0 {
+							runtime.Gosched()
+						}
+					}
+					d1 := X.data1
+					d2 := X.data2
+					if d1 != i || d2 != float32(i) {
+						t.Fatalf("incorrect data: %d/%d (%d)", d1, d2, i)
+					}
+				}
+			}
+			c <- true
+		}(p)
+	}
+	<-c
+	<-c
+}
+
+func TestStoreLoadRelAcq64(t *testing.T) {
+	if test64err != nil {
+		t.Logf("Skipping 64-bit tests: %v", test64err)
+		return
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+	N := int64(1e3)
+	if testing.Short() {
+		N = int64(1e2)
+	}
+	c := make(chan bool, 2)
+	type Data struct {
+		signal int64
+		pad1   [128]int8
+		data1  int64
+		pad2   [128]int8
+		data2  float64
+	}
+	var X Data
+	for p := int64(0); p < 2; p++ {
+		go func(p int64) {
+			for i := int64(1); i < N; i++ {
+				if (i+p)%2 == 0 {
+					X.data1 = i
+					X.data2 = float64(i)
+					StoreInt64(&X.signal, i)
+				} else {
+					for w := 1; LoadInt64(&X.signal) != i; w++ {
+						if w%1000 == 0 {
+							runtime.Gosched()
+						}
+					}
+					d1 := X.data1
+					d2 := X.data2
+					if d1 != i || d2 != float64(i) {
+						t.Fatalf("incorrect data: %d/%d (%d)", d1, d2, i)
+					}
+				}
 			}
 			c <- true
 		}(p)

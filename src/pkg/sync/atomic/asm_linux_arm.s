@@ -100,6 +100,12 @@ loadloop1:
 	MOVW	R1, val+4(FP)
 	RET
 
+TEXT ·LoadInt64(SB),7,$0
+	B	·armLoadUint64(SB)
+
+TEXT ·LoadUint64(SB),7,$0
+	B	·armLoadUint64(SB)
+
 TEXT ·LoadUintptr(SB),7,$0
 	B	·LoadUint32(SB)
 
@@ -117,6 +123,12 @@ storeloop1:
 	BL	cas<>(SB)
 	BCC	storeloop1
 	RET
+
+TEXT ·StoreInt64(SB),7,$0
+	B	·armStoreUint64(SB)
+
+TEXT ·StoreUint64(SB),7,$0
+	B	·armStoreUint64(SB)
 
 TEXT ·StoreUintptr(SB),7,$0
 	B	·StoreUint32(SB)
