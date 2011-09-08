@@ -11,3 +11,9 @@ GOFILES=\
 	make.go\
 
 include ../../Make.cmd
+
+test:
+	gotest
+
+testshort:
+	gotest -test.short
