@@ -946,18 +946,20 @@ def CommandLineCL(ui, repo, pats, opts, defaultcc=None):
 # which expands the syntax @clnumber to mean the files
 # in that CL.
 original_match = None
-def ReplacementForCmdutilMatch(repo, pats=None, opts=None, globbed=False, default='relpath'):
+global_repo = None
+def ReplacementForCmdutilMatch(ctx, pats=None, opts=None, globbed=False, default='relpath'):
 	taken = []
 	files = []
 	pats = pats or []
 	opts = opts or {}
+	
 	for p in pats:
 		if p.startswith('@'):
 			taken.append(p)
 			clname = p[1:]
 			if not GoodCLName(clname):
 				raise util.Abort("invalid CL name " + clname)
-			cl, err = LoadCL(repo.ui, repo, clname, web=False)
+			cl, err = LoadCL(global_repo.ui, global_repo, clname, web=False)
 			if err != '':
 				raise util.Abort("loading CL " + clname + ": " + err)
 			if not cl.files:
@@ -966,10 +968,9 @@ def ReplacementForCmdutilMatch(repo, pats=None, opts=None, globbed=False, defaul
 	pats = Sub(pats, taken) + ['path:'+f for f in files]
 
 	# work-around for http://selenic.com/hg/rev/785bbc8634f8
-	if hgversion >= '1.9' and not hasattr(repo, 'match'):
-		repo = repo[None]
-
-	return original_match(repo, pats=pats, opts=opts, globbed=globbed, default=default)
+	if hgversion >= '1.9' and not hasattr(ctx, 'match'):
+		ctx = ctx[None]
+	return original_match(ctx, pats=pats, opts=opts, globbed=globbed, default=default)
 
 def RelativePath(path, cwd):
 	n = len(cwd)
@@ -1616,6 +1617,8 @@ def pending(ui, repo, *pats, **opts):
 def reposetup(ui, repo):
 	global original_match
 	if original_match is None:
+		global global_repo
+		global_repo = repo
 		start_status_thread()
 		original_match = scmutil.match
 		scmutil.match = ReplacementForCmdutilMatch
