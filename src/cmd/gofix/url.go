@@ -46,7 +46,12 @@ func url(f *ast.File) bool {
 	fixed := false
 
 	// Update URL code.
+	var skip interface{}
 	urlWalk := func(n interface{}) {
+		if n == skip {
+			skip = nil
+			return
+		}
 		// Is it an identifier?
 		if ident, ok := n.(*ast.Ident); ok && ident.Name == "url" {
 			ident.Name = "url_"
@@ -57,6 +62,12 @@ func url(f *ast.File) bool {
 			fixed = urlDoFields(fn.Params) || fixed
 			fixed = urlDoFields(fn.Results) || fixed
 		}
+		// U{url: ...} is likely a struct field.
+		if kv, ok := n.(*ast.KeyValueExpr); ok {
+			if ident, ok := kv.Key.(*ast.Ident); ok && ident.Name == "url" {
+				skip = ident
+			}
+		}
 	}
 
 	// Fix up URL code and add import, at most once.
@@ -64,7 +75,7 @@ func url(f *ast.File) bool {
 		if fixed {
 			return
 		}
-		walk(f, urlWalk)
+		walkBeforeAfter(f, urlWalk, nop)
 		addImport(f, "url")
 		fixed = true
 	}
