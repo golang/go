@@ -10,6 +10,9 @@
 // A call to ValueOf returns a Value representing the run-time data.
 // Zero takes a Type and returns a Value representing a zero value
 // for that type.
+//
+// See "The Laws of Reflection" for an introduction to reflection in Go:
+// http://blog.golang.org/2011/09/laws-of-reflection.html
 package reflect
 
 import (

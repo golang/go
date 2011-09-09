@@ -137,5 +137,8 @@ one may run godoc as follows:
 
 	godoc -http=:6060 -zip=go.zip -goroot=$HOME/go
 
+
+See "Godoc: documenting Go code" for how to write good comments for godoc:
+http://blog.golang.org/2011/03/godoc-documenting-go-code.html
 */
 package documentation
