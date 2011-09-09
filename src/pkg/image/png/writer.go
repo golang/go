@@ -160,10 +160,6 @@ func (e *encoder) maybeWritetRNS(p image.PalettedColorModel) {
 //
 // This method should only be called from writeIDATs (via writeImage).
 // No other code should treat an encoder as an io.Writer.
-//
-// Note that, because the zlib Reader may involve an io.Pipe, e.Write calls may
-// occur on a separate go-routine than the e.writeIDATs call, and care should be
-// taken that e's state (such as its tmp buffer) is not modified concurrently.
 func (e *encoder) Write(b []byte) (int, os.Error) {
 	e.writeChunk(b, "IDAT")
 	if e.err != nil {
