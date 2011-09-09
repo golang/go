@@ -9,13 +9,14 @@ QUERY
 */}}{{with .Alt}}DID YOU MEAN
 
 {{range .Alts}}	{{.}}
-{{end}}{{end}}{{/* .Alt */}}{{/*
+{{end}}
+{{end}}{{/* .Alt */}}{{/*
 
 ---------------------------------------
 
 */}}{{with .Pak}}PACKAGE {{$.Query}}
 
-{{range .}}{{.Pak.Path}}
+{{range .}}	{{pkgLink .Pak.Path}}
 {{end}}
 {{end}}{{/* .Pak */}}{{/*
 
