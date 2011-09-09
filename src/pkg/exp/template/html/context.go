@@ -20,13 +20,20 @@ type context struct {
 	delim   delim
 	urlPart urlPart
 	jsCtx   jsCtx
+	element element
 	errLine int
 	errStr  string
 }
 
 // eq returns whether two contexts are equal.
 func (c context) eq(d context) bool {
-	return c.state == d.state && c.delim == d.delim && c.urlPart == d.urlPart && c.jsCtx == d.jsCtx && c.errLine == d.errLine && c.errStr == d.errStr
+	return c.state == d.state &&
+		c.delim == d.delim &&
+		c.urlPart == d.urlPart &&
+		c.jsCtx == d.jsCtx &&
+		c.element == d.element &&
+		c.errLine == d.errLine &&
+		c.errStr == d.errStr
 }
 
 // state describes a high-level HTML parser state.
@@ -47,6 +54,11 @@ const (
 	stateText state = iota
 	// stateTag occurs before an HTML attribute or the end of a tag.
 	stateTag
+	// stateComment occurs inside an <!-- HTML comment -->.
+	stateComment
+	// stateRCDATA occurs inside an RCDATA element (<textarea> or <title>)
+	// as described at http://dev.w3.org/html5/spec/syntax.html#elements-0
+	stateRCDATA
 	// stateAttr occurs inside an HTML attribute whose content is text.
 	stateAttr
 	// stateURL occurs inside an HTML attribute whose content is a URL.
@@ -87,6 +99,8 @@ const (
 var stateNames = [...]string{
 	stateText:        "stateText",
 	stateTag:         "stateTag",
+	stateComment:     "stateComment",
+	stateRCDATA:      "stateRCDATA",
 	stateAttr:        "stateAttr",
 	stateURL:         "stateURL",
 	stateJS:          "stateJS",
@@ -194,4 +208,39 @@ func (c jsCtx) String() string {
 		return "jsCtxDivOp"
 	}
 	return fmt.Sprintf("illegal jsCtx %d", c)
+}
+
+// element identifies the HTML element when inside a start tag or special body.
+// Certain HTML element (for example <script> and <style>) have bodies that are
+// treated differently from stateText so the element type is necessary to
+// transition into the correct context at the end of a tag and to identify the
+// end delimiter for the body.
+type element uint8
+
+const (
+	// elementNone occurs outside a special tag or special element body.
+	elementNone element = iota
+	// elementScript corresponds to the raw text <script> element.
+	elementScript
+	// elementStyle corresponds to the raw text <style> element.
+	elementStyle
+	// elementTextarea corresponds to the RCDATA <textarea> element.
+	elementTextarea
+	// elementTitle corresponds to the RCDATA <title> element.
+	elementTitle
+)
+
+var elementNames = [...]string{
+	elementNone:     "elementNone",
+	elementScript:   "elementScript",
+	elementStyle:    "elementStyle",
+	elementTextarea: "elementTextarea",
+	elementTitle:    "elementTitle",
+}
+
+func (e element) String() string {
+	if int(e) < len(elementNames) {
+		return elementNames[e]
+	}
+	return fmt.Sprintf("illegal element %d", e)
 }

@@ -172,6 +172,11 @@ func TestEscape(t *testing.T) {
 			`<button onclick='alert([&#34;\u003ca\u003e&#34;,&#34;\u003cb\u003e&#34;])'>`,
 		},
 		{
+			"jsObjValueScript",
+			"<script>alert({{.A}})</script>",
+			`<script>alert(["\u003ca\u003e","\u003cb\u003e"])</script>`,
+		},
+		{
 			"jsObjValueNotOverEscaped",
 			"<button onclick='alert({{.A | html}})'>",
 			`<button onclick='alert([&#34;\u003ca\u003e&#34;,&#34;\u003cb\u003e&#34;])'>`,
@@ -214,13 +219,13 @@ func TestEscape(t *testing.T) {
 		},
 		{
 			"styleIDPassed",
-			`<style>p{{"#my-ID"}} { font: Arial }`,
-			`<style>p#my-ID { font: Arial }`,
+			`<style>p{{"#my-ID"}} { font: Arial }</style>`,
+			`<style>p#my-ID { font: Arial }</style>`,
 		},
 		{
 			"styleClassPassed",
-			`<style>p{{".my_class"}} { font: Arial }`,
-			`<style>p.my_class { font: Arial }`,
+			`<style>p{{".my_class"}} { font: Arial }</style>`,
+			`<style>p.my_class { font: Arial }</style>`,
 		},
 		{
 			"styleQuantityPassed",
@@ -303,6 +308,16 @@ func TestEscape(t *testing.T) {
 			`<a style="background: 'http\3a\2f\2foreilly.com\2fO\27Reilly Animals\28 1\29\3c 2\3e\3b\7b\7d.html'">`,
 		},
 		{
+			"styleURLEncodedForHTMLInAttr",
+			`<a style="background: url('{{"/search?img=foo&size=icon"}}')">`,
+			`<a style="background: url('/search?img=foo&amp;size=icon')">`,
+		},
+		{
+			"styleURLNotEncodedForHTMLInCdata",
+			`<style>body { background: url('{{"/search?img=foo&size=icon"}}') }</style>`,
+			`<style>body { background: url('/search?img=foo&size=icon') }</style>`,
+		},
+		{
 			"styleURLMixedCase",
 			`<p style="background: URL(#{{.H}})">`,
 			`<p style="background: URL(#%3cHello%3e)">`,
@@ -324,13 +339,19 @@ func TestEscape(t *testing.T) {
 			`<a style="border-image: url({{"/**/'\";:// \\"}}), url(&quot;{{"/**/'\";:// \\"}}&quot;), url('{{"/**/'\";:// \\"}}'), 'http://www.example.com/?q={{"/**/'\";:// \\"}}''">`,
 			`<a style="border-image: url(/**/%27%22;://%20%5c), url(&quot;/**/%27%22;://%20%5c&quot;), url('/**/%27%22;://%20%5c'), 'http://www.example.com/?q=%2f%2a%2a%2f%27%22%3b%3a%2f%2f%20%5c''">`,
 		},
+		{
+			"comment",
+			"<b>Hello, <!-- name of world -->{{.C}}</b>",
+			// TODO: Elide comment.
+			"<b>Hello, <!-- name of world -->&lt;Cincinatti&gt;</b>",
+		},
 	}
 
 	for _, test := range tests {
 		tmpl := template.Must(template.New(test.name).Parse(test.input))
-		tmpl, err := Escape(tmpl)
+		tmpl = template.Must(Escape(tmpl))
 		b := new(bytes.Buffer)
-		if err = tmpl.Execute(b, data); err != nil {
+		if err := tmpl.Execute(b, data); err != nil {
 			t.Errorf("%s: template execution failed: %s", test.name, err)
 			continue
 		}
@@ -411,6 +432,10 @@ func TestErrors(t *testing.T) {
 			"z ends in a non-text context: {stateAttr delimSpaceOrTagEnd",
 		},
 		{
+			"<script>foo();",
+			"z ends in a non-text context: {stateJS",
+		},
+		{
 			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
 			"z:1: (action: [(command: [F=[H]])]) appears in an ambiguous URL context",
 		},
@@ -445,6 +470,10 @@ func TestErrors(t *testing.T) {
 		{
 			`<a style="// color: {{.X}}">`,
 			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
+		},
+		{
+			"<!-- {{.H}} -->",
+			"z:1: (action: [(command: [F=[H]])]) appears inside a comment",
 		},
 	}
 
@@ -764,6 +793,94 @@ func TestEscapeText(t *testing.T) {
 		{
 			`<a style="background: url( x `,
 			context{state: stateCSS, delim: delimDoubleQuote},
+		},
+		{
+			`<!-- foo`,
+			context{state: stateComment},
+		},
+		{
+			`<!-->`,
+			context{state: stateComment},
+		},
+		{
+			`<!--->`,
+			context{state: stateComment},
+		},
+		{
+			`<!-- foo -->`,
+			context{state: stateText},
+		},
+		{
+			`<script`,
+			context{state: stateTag, element: elementScript},
+		},
+		{
+			`<script `,
+			context{state: stateTag, element: elementScript},
+		},
+		{
+			`<script src="foo.js" `,
+			context{state: stateTag, element: elementScript},
+		},
+		{
+			`<script src='foo.js' `,
+			context{state: stateTag, element: elementScript},
+		},
+		{
+			`<script type=text/javascript `,
+			context{state: stateTag, element: elementScript},
+		},
+		{
+			`<script>foo`,
+			context{state: stateJS, jsCtx: jsCtxDivOp, element: elementScript},
+		},
+		{
+			`<script>foo</script>`,
+			context{state: stateText},
+		},
+		{
+			`<script>foo</script><!--`,
+			context{state: stateComment},
+		},
+		{
+			`<script>document.write("<p>foo</p>");`,
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			`<script>document.write("<p>foo<\/script>");`,
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			`<script>document.write("<script>alert(1)</script>");`,
+			context{state: stateText},
+		},
+		{
+			`<Script>`,
+			context{state: stateJS, element: elementScript},
+		},
+		{
+			`<SCRIPT>foo`,
+			context{state: stateJS, jsCtx: jsCtxDivOp, element: elementScript},
+		},
+		{
+			`<textarea>value`,
+			context{state: stateRCDATA, element: elementTextarea},
+		},
+		{
+			`<textarea>value</TEXTAREA>`,
+			context{state: stateText},
+		},
+		{
+			`<textarea name=html><b`,
+			context{state: stateRCDATA, element: elementTextarea},
+		},
+		{
+			`<title>value`,
+			context{state: stateRCDATA, element: elementTitle},
+		},
+		{
+			`<style>value`,
+			context{state: stateCSS, element: elementStyle},
 		},
 	}
 
