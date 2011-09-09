@@ -95,5 +95,8 @@ process of using cgo.  See $GOROOT/misc/cgo/stdio and
 $GOROOT/misc/cgo/gmp for examples.
 
 Cgo does not yet work with gccgo.
+
+See "C? Go? Cgo!" for an introduction to using cgo:
+http://blog.golang.org/2011/03/c-go-cgo.html
 */
 package documentation
