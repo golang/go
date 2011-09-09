@@ -115,6 +115,8 @@ panic: interface conversion: *main.S is not main.I2: missing method Name
 
 == syntax/
 
+== dwarf/
+
 == fixedbugs/
 
 =========== fixedbugs/bug027.go

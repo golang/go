@@ -1578,13 +1578,16 @@ addhistfile(char *zentry)
 		histfile[histfilesize++] = "<eof>";
 
 	fname = decodez(zentry);
+//	print("addhistfile %d: %s\n", histfilesize, fname);
 	if (fname == 0)
 		return -1;
+
 	// Don't fill with duplicates (check only top one).
 	if (strcmp(fname, histfile[histfilesize-1]) == 0) {
 		free(fname);
 		return histfilesize - 1;
 	}
+
 	histfile[histfilesize++] = fname;
 	return histfilesize - 1;
 }
@@ -1608,11 +1611,13 @@ finddebugruntimepath(void)
 }
 
 // Go's runtime C sources are sane, and Go sources nest only 1 level,
-// so 16 should be plenty.
+// so a handful would be plenty, if it weren't for the fact that line
+// directives can push an unlimited number of them.
 static struct {
 	int file;
 	vlong line;
-} includestack[16];
+} *includestack;
+static int includestacksize;
 static int includetop;
 static vlong absline;
 
@@ -1629,17 +1634,15 @@ static Linehist *linehist;
 static void
 checknesting(void)
 {
-	int i;
-
 	if (includetop < 0) {
 		diag("dwarf: corrupt z stack");
 		errorexit();
 	}
-	if (includetop >= nelem(includestack)) {
-		diag("dwarf: nesting too deep");
-		for (i = 0; i < nelem(includestack); i++)
-			diag("\t%s", histfile[includestack[i].file]);
-		errorexit();
+	if (includetop >= includestacksize) {
+		includestacksize += 1;
+		includestacksize <<= 2;
+//		print("checknesting: growing to %d\n", includestacksize);
+		includestack = realloc(includestack, includestacksize * sizeof *includestack);	       
 	}
 }
 
@@ -1669,6 +1672,7 @@ inithist(Auto *a)
 	// Clear the history.
 	clearhistfile();
 	includetop = 0;
+	checknesting();
 	includestack[includetop].file = 0;
 	includestack[includetop].line = -1;
 	absline = 0;
@@ -1682,10 +1686,10 @@ inithist(Auto *a)
 	for (; a; a = a->link) {
 		if (a->type == D_FILE) {  // 'z'
 			int f = addhistfile(a->asym->name);
-			if (f < 0) {	   // pop file
+			if (f < 0) {	// pop file
 				includetop--;
 				checknesting();
-			} else if(f != includestack[includetop].file) { // pushed a new file
+			} else {	// pushed a file (potentially same)
 				includestack[includetop].line += a->aoffset - absline;
 				includetop++;
 				checknesting();
