@@ -41,9 +41,12 @@ func Clean(path string) string {
 	vol := VolumeName(path)
 	path = path[len(vol):]
 	if path == "" {
+		if len(vol) > 1 && vol[1] != ':' {
+			// should be UNC
+			return FromSlash(vol)
+		}
 		return vol + "."
 	}
-
 	rooted := os.IsPathSeparator(path[0])
 
 	// Invariants:
@@ -144,8 +147,9 @@ func SplitList(path string) []string {
 // If there is no Separator in path, Split returns an empty dir
 // and file set to path.
 func Split(path string) (dir, file string) {
+	vol := VolumeName(path)
 	i := len(path) - 1
-	for i >= 0 && !os.IsPathSeparator(path[i]) {
+	for i >= len(vol) && !os.IsPathSeparator(path[i]) {
 		i--
 	}
 	return path[:i+1], path[i+1:]

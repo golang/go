@@ -73,9 +73,17 @@ var wincleantests = []PathTest{
 	{`c:\abc`, `c:\abc`},
 	{`c:abc\..\..\.\.\..\def`, `c:..\..\def`},
 	{`c:\abc\def\..\..`, `c:\`},
+	{`c:\..\abc`, `c:\abc`},
 	{`c:..\abc`, `c:..\abc`},
 	{`\`, `\`},
 	{`/`, `\`},
+	{`\\i\..\c$`, `\c$`},
+	{`\\i\..\i\c$`, `\i\c$`},
+	{`\\i\..\I\c$`, `\I\c$`},
+	{`\\host\share\foo\..\bar`, `\\host\share\bar`},
+	{`//host/share/foo/../baz`, `\\host\share\baz`},
+	{`\\a\b\..\c`, `\\a\b\c`},
+	{`\\a\b`, `\\a\b`},
 }
 
 func TestClean(t *testing.T) {
@@ -146,9 +154,25 @@ var unixsplittests = []SplitTest{
 	{"/", "/", ""},
 }
 
+var winsplittests = []SplitTest{
+	{`c:`, `c:`, ``},
+	{`c:/`, `c:/`, ``},
+	{`c:/foo`, `c:/`, `foo`},
+	{`c:/foo/bar`, `c:/foo/`, `bar`},
+	{`//host/share`, `//host/share`, ``},
+	{`//host/share/`, `//host/share/`, ``},
+	{`//host/share/foo`, `//host/share/`, `foo`},
+	{`\\host\share`, `\\host\share`, ``},
+	{`\\host\share\`, `\\host\share\`, ``},
+	{`\\host\share\foo`, `\\host\share\`, `foo`},
+}
+
 func TestSplit(t *testing.T) {
 	var splittests []SplitTest
 	splittests = unixsplittests
+	if runtime.GOOS == "windows" {
+		splittests = append(splittests, winsplittests...)
+	}
 	for _, test := range splittests {
 		if d, f := filepath.Split(test.path); d != test.dir || f != test.file {
 			t.Errorf("Split(%q) = %q, %q, want %q, %q", test.path, d, f, test.dir, test.file)
@@ -186,6 +210,8 @@ var winjointests = []JoinTest{
 	{[]string{`C:\Windows\`, ``}, `C:\Windows`},
 	{[]string{`C:\`, `Windows`}, `C:\Windows`},
 	{[]string{`C:`, `Windows`}, `C:\Windows`},
+	{[]string{`\\host\share`, `foo`}, `\\host\share\foo`},
+	{[]string{`//host/share`, `foo/bar`}, `\\host\share\foo\bar`},
 }
 
 // join takes a []string and passes it to Join.
@@ -422,6 +448,8 @@ var winisabstests = []IsAbsTest{
 	{`\`, false},
 	{`\Windows`, false},
 	{`c:a\b`, false},
+	{`\\host\share\foo`, true},
+	{`//host/share/foo/bar`, true},
 }
 
 func TestIsAbs(t *testing.T) {
@@ -571,6 +599,46 @@ func TestAbs(t *testing.T) {
 		}
 		if filepath.IsAbs(path) && abspath != filepath.Clean(path) {
 			t.Errorf("Abs(%q)=%q, isn't clean", path, abspath)
+		}
+	}
+}
+
+type VolumeNameTest struct {
+	path string
+	vol  string
+}
+
+var volumenametests = []VolumeNameTest{
+	{`c:/foo/bar`, `c:`},
+	{`c:`, `c:`},
+	{``, ``},
+	{`\\\host`, ``},
+	{`\\\host\`, ``},
+	{`\\\host\share`, ``},
+	{`\\\host\\share`, ``},
+	{`\\host`, ``},
+	{`//host`, ``},
+	{`\\host\`, ``},
+	{`//host/`, ``},
+	{`\\host\share`, `\\host\share`},
+	{`//host/share`, `//host/share`},
+	{`\\host\share\`, `\\host\share`},
+	{`//host/share/`, `//host/share`},
+	{`\\host\share\foo`, `\\host\share`},
+	{`//host/share/foo`, `//host/share`},
+	{`\\host\share\\foo\\\bar\\\\baz`, `\\host\share`},
+	{`//host/share//foo///bar////baz`, `//host/share`},
+	{`\\host\share\foo\..\bar`, `\\host\share`},
+	{`//host/share/foo/../bar`, `//host/share`},
+}
+
+func TestVolumeName(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	for _, v := range volumenametests {
+		if vol := filepath.VolumeName(v.path); vol != v.vol {
+			t.Errorf("VolumeName(%q)=%q, want %q", v.path, vol, v.vol)
 		}
 	}
 }
