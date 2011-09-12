@@ -12,13 +12,11 @@ import (
 	"testing"
 )
 
-func runTest(t *testing.T, dirname, in, out, flags string) {
-	in = filepath.Join(dirname, in)
-	out = filepath.Join(dirname, out)
-
+func runTest(t *testing.T, in, out, flags string) {
 	// process flags
 	*simplifyAST = false
 	*rewriteRule = ""
+	stdin := false
 	for _, flag := range strings.Split(flags, " ") {
 		elts := strings.SplitN(flag, "=", 2)
 		name := elts[0]
@@ -33,6 +31,9 @@ func runTest(t *testing.T, dirname, in, out, flags string) {
 			*rewriteRule = value
 		case "-s":
 			*simplifyAST = true
+		case "-stdin":
+			// fake flag - pretend input is from stdin
+			stdin = true
 		default:
 			t.Errorf("unrecognized flag name: %s", name)
 		}
@@ -43,7 +44,7 @@ func runTest(t *testing.T, dirname, in, out, flags string) {
 	initRewrite()
 
 	var buf bytes.Buffer
-	err := processFile(in, nil, &buf)
+	err := processFile(in, nil, &buf, stdin)
 	if err != nil {
 		t.Error(err)
 		return
@@ -57,23 +58,43 @@ func runTest(t *testing.T, dirname, in, out, flags string) {
 
 	if got := buf.Bytes(); bytes.Compare(got, expected) != 0 {
 		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
+		d, err := diff(expected, got)
+		if err == nil {
+			t.Errorf("%s", d)
+		}
 		ioutil.WriteFile(in+".gofmt", got, 0666)
 	}
 }
 
 // TODO(gri) Add more test cases!
 var tests = []struct {
-	dirname, in, out, flags string
+	in, flags string
 }{
-	{".", "gofmt.go", "gofmt.go", ""},
-	{".", "gofmt_test.go", "gofmt_test.go", ""},
-	{"testdata", "composites.input", "composites.golden", "-s"},
-	{"testdata", "rewrite1.input", "rewrite1.golden", "-r=Foo->Bar"},
-	{"testdata", "rewrite2.input", "rewrite2.golden", "-r=int->bool"},
+	{"gofmt.go", ""},
+	{"gofmt_test.go", ""},
+	{"testdata/composites.input", "-s"},
+	{"testdata/rewrite1.input", "-r=Foo->Bar"},
+	{"testdata/rewrite2.input", "-r=int->bool"},
+	{"testdata/stdin*.input", "-stdin"},
 }
 
 func TestRewrite(t *testing.T) {
 	for _, test := range tests {
-		runTest(t, test.dirname, test.in, test.out, test.flags)
+		match, err := filepath.Glob(test.in)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		for _, in := range match {
+			out := in
+			if strings.HasSuffix(in, ".input") {
+				out = in[:len(in)-len(".input")] + ".golden"
+			}
+			runTest(t, in, out, test.flags)
+			if in != out {
+				// Check idempotence.
+				runTest(t, out, out, test.flags)
+			}
+		}
 	}
 }
