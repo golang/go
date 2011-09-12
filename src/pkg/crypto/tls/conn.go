@@ -470,6 +470,19 @@ Again:
 	if n > maxCiphertext {
 		return c.sendAlert(alertRecordOverflow)
 	}
+	if !c.haveVers {
+		// First message, be extra suspicious:
+		// this might not be a TLS client.
+		// Bail out before reading a full 'body', if possible.
+		// The current max version is 3.1. 
+		// If the version is >= 16.0, it's probably not real.
+		// Similarly, a clientHello message encodes in
+		// well under a kilobyte.  If the length is >= 12 kB,
+		// it's probably not real.
+		if (typ != recordTypeAlert && typ != want) || vers >= 0x1000 || n >= 0x3000 {
+			return c.sendAlert(alertUnexpectedMessage)
+		}
+	}
 	if err := b.readFromUntil(c.conn, recordHeaderLen+n); err != nil {
 		if err == os.EOF {
 			err = io.ErrUnexpectedEOF

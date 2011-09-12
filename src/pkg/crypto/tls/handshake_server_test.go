@@ -142,6 +142,52 @@ func TestHandshakeServerAES(t *testing.T) {
 	testServerScript(t, "AES", aesServerScript, aesConfig)
 }
 
+func TestUnexpectedTLS(t *testing.T) {
+	l, err := Listen("tcp", "127.0.0.1:0", testConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch := make(chan os.Error, 1)
+	done := make(chan bool)
+	go func() {
+		// Simulate HTTP client trying to do unencrypted HTTP on TLS port.
+		c, err := net.Dial("tcp", l.Addr().String())
+		if err != nil {
+			ch <- err
+			<-done
+			return
+		}
+		defer func() {
+			<-done
+			c.Close()
+		}()
+		_, err = c.Write([]byte("GET / HTTP/1.0\r\nHost: www.google.com\r\n\r\n"))
+		if err != nil {
+			ch <- err
+			return
+		}
+		ch <- nil
+	}()
+
+	c, err := l.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, 100)
+	n, err := c.Read(buf)
+	if n > 0 || err == nil {
+		t.Errorf("TLS Read = %d, %v, want error", n, err)
+	}
+	t.Logf("%d, %v", n, err)
+
+	err = <-ch
+	done <- true
+	if err != nil {
+		t.Errorf("TLS Write: %v", err)
+	}
+
+}
+
 var serve = flag.Bool("serve", false, "run a TLS server on :10443")
 
 func TestRunServer(t *testing.T) {
