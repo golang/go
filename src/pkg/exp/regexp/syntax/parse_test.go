@@ -482,6 +482,7 @@ var onlyPOSIX = []string{
 	"a?*",
 	"a+*",
 	"a{1}*",
+	".{1}{2}.{3}",
 }
 
 func TestParseInvalidRegexps(t *testing.T) {
