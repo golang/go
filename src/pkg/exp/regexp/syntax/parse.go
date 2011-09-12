@@ -218,30 +218,31 @@ func (p *parser) op(op Op) *Regexp {
 	return p.push(re)
 }
 
-// repeat replaces the top stack element with itself repeated
-// according to op.
-func (p *parser) repeat(op Op, min, max int, whole, opstr, t, lastRepeat string) (string, string, os.Error) {
+// repeat replaces the top stack element with itself repeated according to op, min, max.
+// before is the regexp suffix starting at the repetition operator.
+// after is the regexp suffix following after the repetition operator.
+// repeat returns an updated 'after' and an error, if any.
+func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (string, os.Error) {
 	flags := p.flags
 	if p.flags&PerlX != 0 {
-		if len(t) > 0 && t[0] == '?' {
-			t = t[1:]
-			opstr = whole[:len(opstr)+1]
+		if len(after) > 0 && after[0] == '?' {
+			after = after[1:]
 			flags ^= NonGreedy
 		}
 		if lastRepeat != "" {
 			// In Perl it is not allowed to stack repetition operators:
 			// a** is a syntax error, not a doubled star, and a++ means
 			// something else entirely, which we don't support!
-			return "", "", &Error{ErrInvalidRepeatOp, lastRepeat[:len(lastRepeat)-len(t)]}
+			return "", &Error{ErrInvalidRepeatOp, lastRepeat[:len(lastRepeat)-len(after)]}
 		}
 	}
 	n := len(p.stack)
 	if n == 0 {
-		return "", "", &Error{ErrMissingRepeatArgument, opstr}
+		return "", &Error{ErrMissingRepeatArgument, before[:len(before)-len(after)]}
 	}
 	sub := p.stack[n-1]
 	if sub.Op >= opPseudo {
-		return "", "", &Error{ErrMissingRepeatArgument, opstr}
+		return "", &Error{ErrMissingRepeatArgument, before[:len(before)-len(after)]}
 	}
 	re := p.newRegexp(op)
 	re.Min = min
@@ -250,7 +251,7 @@ func (p *parser) repeat(op Op, min, max int, whole, opstr, t, lastRepeat string)
 	re.Sub = re.Sub0[:1]
 	re.Sub[0] = sub
 	p.stack[n-1] = re
-	return t, opstr, nil
+	return after, nil
 }
 
 // concat replaces the top of the stack (above the topmost '|' or '(') with its concatenation.
@@ -726,6 +727,7 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 				return nil, err
 			}
 		case '*', '+', '?':
+			before := t
 			switch t[0] {
 			case '*':
 				op = OpStar
@@ -734,26 +736,31 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 			case '?':
 				op = OpQuest
 			}
-			if t, repeat, err = p.repeat(op, min, max, t, t[:1], t[1:], lastRepeat); err != nil {
+			after := t[1:]
+			if after, err = p.repeat(op, min, max, before, after, lastRepeat); err != nil {
 				return nil, err
 			}
+			repeat = before
+			t = after
 		case '{':
 			op = OpRepeat
-			min, max, tt, ok := p.parseRepeat(t)
+			before := t
+			min, max, after, ok := p.parseRepeat(t)
 			if !ok {
 				// If the repeat cannot be parsed, { is a literal.
 				p.literal('{')
 				t = t[1:]
 				break
 			}
-			opstr := t[:len(t)-len(tt)]
 			if min < 0 || min > 1000 || max > 1000 || max >= 0 && min > max {
 				// Numbers were too big, or max is present and min > max.
-				return nil, &Error{ErrInvalidRepeatSize, opstr}
+				return nil, &Error{ErrInvalidRepeatSize, before[:len(before)-len(after)]}
 			}
-			if t, repeat, err = p.repeat(op, min, max, t, opstr, tt, lastRepeat); err != nil {
+			if after, err = p.repeat(op, min, max, before, after, lastRepeat); err != nil {
 				return nil, err
 			}
+			repeat = before
+			t = after
 		case '\\':
 			if p.flags&PerlX != 0 && len(t) >= 2 {
 				switch t[1] {
