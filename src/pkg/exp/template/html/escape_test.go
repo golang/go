@@ -644,6 +644,14 @@ func TestEscapeText(t *testing.T) {
 			context{state: stateJSBlockCmt, delim: delimDoubleQuote},
 		},
 		{
+			`<a onclick="/*/`,
+			context{state: stateJSBlockCmt, delim: delimDoubleQuote},
+		},
+		{
+			`<a onclick="/**/`,
+			context{state: stateJS, delim: delimDoubleQuote},
+		},
+		{
 			`<a onkeypress="&quot;`,
 			context{state: stateJSDqStr, delim: delimDoubleQuote},
 		},
