@@ -259,8 +259,7 @@ func Abs(path string) (string, os.Error) {
 }
 
 // Visitor methods are invoked for corresponding file tree entries
-// visited by Walk. The parameter path is the full path of f relative
-// to root.
+// visited by Walk. The provided path parameter begins with root.
 type Visitor interface {
 	VisitDir(path string, f *os.FileInfo) bool
 	VisitFile(path string, f *os.FileInfo)
