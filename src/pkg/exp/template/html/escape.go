@@ -487,9 +487,9 @@ func tJS(c context, s []byte) (context, []byte) {
 	case '/':
 		switch {
 		case i+1 < len(s) && s[i+1] == '/':
-			c.state = stateJSLineCmt
+			c.state, i = stateJSLineCmt, i+1
 		case i+1 < len(s) && s[i+1] == '*':
-			c.state = stateJSBlockCmt
+			c.state, i = stateJSBlockCmt, i+1
 		case c.jsCtx == jsCtxRegexp:
 			c.state = stateJSRegexp
 		default:
