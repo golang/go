@@ -65,9 +65,6 @@ type WebSocketAddr struct {
 // Network returns the network type for a WebSocket, "websocket".
 func (addr WebSocketAddr) Network() string { return "websocket" }
 
-// String returns the network address for a WebSocket.
-func (addr WebSocketAddr) String() string { return addr.String() }
-
 // Config is a WebSocket configuration
 type Config struct {
 	// A WebSocket server address.

@@ -87,6 +87,31 @@ func TestEcho(t *testing.T) {
 	conn.Close()
 }
 
+func TestAddr(t *testing.T) {
+	once.Do(startServer)
+
+	// websocket.Dial()
+	client, err := net.Dial("tcp", serverAddr)
+	if err != nil {
+		t.Fatal("dialing", err)
+	}
+	conn, err := NewClient(newConfig(t, "/echo"), client)
+	if err != nil {
+		t.Errorf("WebSocket handshake error: %v", err)
+		return
+	}
+
+	ra := conn.RemoteAddr().String()
+	if !strings.HasPrefix(ra, "ws://") || !strings.HasSuffix(ra, "/echo") {
+		t.Errorf("Bad remote addr: %v", ra)
+	}
+	la := conn.LocalAddr().String()
+	if !strings.HasPrefix(la, "http://") {
+		t.Errorf("Bad local addr: %v", la)
+	}
+	conn.Close()
+}
+
 func TestCount(t *testing.T) {
 	once.Do(startServer)
 
