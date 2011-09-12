@@ -30,31 +30,31 @@ type TimeTest struct {
 }
 
 var utctests = []TimeTest{
-	{0, Time{1970, 1, 1, 0, 0, 0, 0, Thursday, 0, "UTC"}},
-	{1221681866, Time{2008, 9, 17, 20, 4, 26, 0, Wednesday, 0, "UTC"}},
-	{-1221681866, Time{1931, 4, 16, 3, 55, 34, 0, Thursday, 0, "UTC"}},
-	{-11644473600, Time{1601, 1, 1, 0, 0, 0, 0, Monday, 0, "UTC"}},
-	{599529660, Time{1988, 12, 31, 0, 1, 0, 0, Saturday, 0, "UTC"}},
-	{978220860, Time{2000, 12, 31, 0, 1, 0, 0, Sunday, 0, "UTC"}},
-	{1e18, Time{31688740476, 10, 23, 1, 46, 40, 0, Friday, 0, "UTC"}},
-	{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, 0, Tuesday, 0, "UTC"}},
-	{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, 0, Sunday, 0, "UTC"}},
-	{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, 0, Sunday, 0, "UTC"}},
+	{0, Time{1970, 1, 1, 0, 0, 0, 0, 0, "UTC"}},
+	{1221681866, Time{2008, 9, 17, 20, 4, 26, 0, 0, "UTC"}},
+	{-1221681866, Time{1931, 4, 16, 3, 55, 34, 0, 0, "UTC"}},
+	{-11644473600, Time{1601, 1, 1, 0, 0, 0, 0, 0, "UTC"}},
+	{599529660, Time{1988, 12, 31, 0, 1, 0, 0, 0, "UTC"}},
+	{978220860, Time{2000, 12, 31, 0, 1, 0, 0, 0, "UTC"}},
+	{1e18, Time{31688740476, 10, 23, 1, 46, 40, 0, 0, "UTC"}},
+	{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, 0, 0, "UTC"}},
+	{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, 0, 0, "UTC"}},
+	{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, 0, 0, "UTC"}},
 }
 
 var nanoutctests = []TimeTest{
-	{0, Time{1970, 1, 1, 0, 0, 0, 1e8, Thursday, 0, "UTC"}},
-	{1221681866, Time{2008, 9, 17, 20, 4, 26, 2e8, Wednesday, 0, "UTC"}},
+	{0, Time{1970, 1, 1, 0, 0, 0, 1e8, 0, "UTC"}},
+	{1221681866, Time{2008, 9, 17, 20, 4, 26, 2e8, 0, "UTC"}},
 }
 
 var localtests = []TimeTest{
-	{0, Time{1969, 12, 31, 16, 0, 0, 0, Wednesday, -8 * 60 * 60, "PST"}},
-	{1221681866, Time{2008, 9, 17, 13, 4, 26, 0, Wednesday, -7 * 60 * 60, "PDT"}},
+	{0, Time{1969, 12, 31, 16, 0, 0, 0, -8 * 60 * 60, "PST"}},
+	{1221681866, Time{2008, 9, 17, 13, 4, 26, 0, -7 * 60 * 60, "PDT"}},
 }
 
 var nanolocaltests = []TimeTest{
-	{0, Time{1969, 12, 31, 16, 0, 0, 1e8, Wednesday, -8 * 60 * 60, "PST"}},
-	{1221681866, Time{2008, 9, 17, 13, 4, 26, 3e8, Wednesday, -7 * 60 * 60, "PDT"}},
+	{0, Time{1969, 12, 31, 16, 0, 0, 1e8, -8 * 60 * 60, "PST"}},
+	{1221681866, Time{2008, 9, 17, 13, 4, 26, 3e8, -7 * 60 * 60, "PDT"}},
 }
 
 func same(t, u *Time) bool {
@@ -65,7 +65,7 @@ func same(t, u *Time) bool {
 		t.Minute == u.Minute &&
 		t.Second == u.Second &&
 		t.Nanosecond == u.Nanosecond &&
-		t.Weekday == u.Weekday &&
+		t.Weekday() == u.Weekday() &&
 		t.ZoneOffset == u.ZoneOffset &&
 		t.Zone == u.Zone
 }
@@ -173,9 +173,9 @@ type TimeFormatTest struct {
 }
 
 var rfc3339Formats = []TimeFormatTest{
-	{Time{2008, 9, 17, 20, 4, 26, 0, Wednesday, 0, "UTC"}, "2008-09-17T20:04:26Z"},
-	{Time{1994, 9, 17, 20, 4, 26, 0, Wednesday, -18000, "EST"}, "1994-09-17T20:04:26-05:00"},
-	{Time{2000, 12, 26, 1, 15, 6, 0, Wednesday, 15600, "OTO"}, "2000-12-26T01:15:06+04:20"},
+	{Time{2008, 9, 17, 20, 4, 26, 0, 0, "UTC"}, "2008-09-17T20:04:26Z"},
+	{Time{1994, 9, 17, 20, 4, 26, 0, -18000, "EST"}, "1994-09-17T20:04:26-05:00"},
+	{Time{2000, 12, 26, 1, 15, 6, 0, 15600, "OTO"}, "2000-12-26T01:15:06+04:20"},
 }
 
 func TestRFC3339Conversion(t *testing.T) {
@@ -323,8 +323,8 @@ func checkTime(time *Time, test *ParseTest, t *testing.T) {
 	if test.hasTZ && time.ZoneOffset != -28800 {
 		t.Errorf("%s: bad tz offset: %d not %d", test.name, time.ZoneOffset, -28800)
 	}
-	if test.hasWD && time.Weekday != 4 {
-		t.Errorf("%s: bad weekday: %d not %d", test.name, time.Weekday, 4)
+	if test.hasWD && time.Weekday() != 4 {
+		t.Errorf("%s: bad weekday: %d not %d", test.name, time.Weekday(), 4)
 	}
 }
 
@@ -450,11 +450,11 @@ func Test12AMIsMidnight(t *testing.T) {
 // Check that a time without a Zone still produces a (numeric) time zone
 // when formatted with MST as a requested zone.
 func TestMissingZone(t *testing.T) {
-	time, err := Parse(RubyDate, "Tue Feb 02 16:10:03 -0500 2006")
+	time, err := Parse(RubyDate, "Thu Feb 02 16:10:03 -0500 2006")
 	if err != nil {
 		t.Fatal("error parsing date:", err)
 	}
-	expect := "Tue Feb  2 16:10:03 -0500 2006" // -0500 not EST
+	expect := "Thu Feb  2 16:10:03 -0500 2006" // -0500 not EST
 	str := time.Format(UnixDate)               // uses MST as its time zone
 	if str != expect {
 		t.Errorf("expected %q got %q", expect, str)
