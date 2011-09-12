@@ -57,7 +57,7 @@ static void fixlbrace(int);
 %type	<node>	compound_stmt dotname embed expr complitexpr
 %type	<node>	expr_or_type
 %type	<node>	fndcl fnliteral
-%type	<node>	for_body for_header for_stmt if_header if_stmt non_dcl_stmt
+%type	<node>	for_body for_header for_stmt if_header if_stmt else non_dcl_stmt
 %type	<node>	interfacedcl keyval labelname name
 %type	<node>	name_or_type non_expr_type
 %type	<node>	new_name dcl_name oexpr typedclname
@@ -640,6 +640,7 @@ if_header:
 		$$->ntest = $3;
 	}
 
+/* IF cond body (ELSE IF cond body)* (ELSE block)? */
 if_stmt:
 	LIF
 	{
@@ -652,9 +653,27 @@ if_stmt:
 	}
 	loop_body
 	{
+		$3->nbody = $5;
+	}
+	else
+	{
+		popdcl();
 		$$ = $3;
-		$$->nbody = $5;
-		// no popdcl; maybe there's an LELSE
+		if($7 != N)
+			$$->nelse = list1($7);
+	}
+
+else:
+	{
+		$$ = N;
+	}
+|	LELSE if_stmt
+	{
+		$$ = $2;
+	}
+|	LELSE compound_stmt
+	{
+		$$ = $2;
 	}
 
 switch_stmt:
@@ -1474,19 +1493,6 @@ non_dcl_stmt:
 |	switch_stmt
 |	select_stmt
 |	if_stmt
-	{
-		popdcl();
-		$$ = $1;
-	}
-|	if_stmt LELSE stmt
-	{
-		if($3->op != OIF && $3->op != OBLOCK)
-			yyerror("missing { } after else");
-
-		popdcl();
-		$$ = $1;
-		$$->nelse = list1($3);
-	}
 |	labelname ':'
 	{
 		$1 = nod(OLABEL, $1, N);
