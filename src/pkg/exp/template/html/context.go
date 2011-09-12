@@ -198,6 +198,8 @@ const (
 	jsCtxRegexp jsCtx = iota
 	// jsCtxDivOp occurs where a '/' would start a division operator.
 	jsCtxDivOp
+	// jsCtxUnknown occurs where a '/' is ambiguous due to context joining.
+	jsCtxUnknown
 )
 
 func (c jsCtx) String() string {
@@ -206,6 +208,8 @@ func (c jsCtx) String() string {
 		return "jsCtxRegexp"
 	case jsCtxDivOp:
 		return "jsCtxDivOp"
+	case jsCtxUnknown:
+		return "jsCtxUnknown"
 	}
 	return fmt.Sprintf("illegal jsCtx %d", c)
 }
