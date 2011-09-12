@@ -18,7 +18,7 @@ import (
 	"io"
 	"log"
 	"os"
-	"regexp"
+	"exp/regexp"
 	"sort"
 	"strconv"
 	"strings"

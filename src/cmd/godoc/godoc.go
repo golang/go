@@ -19,7 +19,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
+	"exp/regexp"
 	"runtime"
 	"sort"
 	"strings"
