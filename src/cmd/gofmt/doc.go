@@ -53,6 +53,12 @@ In the pattern, single-character lowercase identifiers serve as
 wildcards matching arbitrary sub-expressions; those expressions
 will be substituted for the same identifiers in the replacement.
 
+When gofmt reads from standard input, it accepts either a full Go program
+or a program fragment.  A program fragment must be a syntactically
+valid declaration list, statement list, or expression.  When formatting
+such a fragment, gofmt preserves leading indentation as well as leading
+and trailing spaces, so that individual sections of a Go program can be
+formatted by piping them through gofmt.
 
 Examples
 
