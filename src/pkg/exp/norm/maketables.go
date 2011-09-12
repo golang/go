@@ -518,7 +518,7 @@ func completeCharFields(form int) {
 			if JamoLBase <= i && i < JamoLEnd {
 				f.combinesForward = true
 			}
-			if JamoVBase <= i && i < JamoTEnd {
+			if JamoVBase <= i && i < JamoVEnd {
 				f.quickCheck[MComposed] = QCMaybe
 				f.combinesBackward = true
 				f.combinesForward = true
