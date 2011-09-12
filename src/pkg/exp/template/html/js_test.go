@@ -224,7 +224,7 @@ func TestJSRegexpEscaper(t *testing.T) {
 		x   interface{}
 		esc string
 	}{
-		{"", ``},
+		{"", `(?:)`},
 		{"foo", `foo`},
 		{"\u0000", `\0`},
 		{"\t", `\t`},

@@ -174,7 +174,12 @@ func jsStrEscaper(args ...interface{}) string {
 // expression literal. /foo{{.X}}bar/ matches the string "foo" followed by
 // the literal text of {{.X}} followed by the string "bar".
 func jsRegexpEscaper(args ...interface{}) string {
-	return replace(stringify(args...), jsRegexpReplacementTable)
+	s := replace(stringify(args...), jsRegexpReplacementTable)
+	if s == "" {
+		// /{{.X}}/ should not produce a line comment when .X == "".
+		return "(?:)"
+	}
+	return s
 }
 
 // stringify is an optimized form of fmt.Sprint.
