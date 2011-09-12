@@ -203,6 +203,13 @@ func TestEscape(t *testing.T) {
 			`<script>alert(/(?:)/.test(""));</script>`,
 		},
 		{
+			"jsReAmbigOk",
+			`<script>{{if true}}var x = 1{{end}}</script>`,
+			// The {if} ends in an ambiguous jsCtx but there is
+			// no slash following so we shouldn't care.
+			`<script>var x = 1</script>`,
+		},
+		{
 			"styleBidiKeywordPassed",
 			`<p style="dir: {{"ltr"}}">`,
 			`<p style="dir: ltr">`,
@@ -479,6 +486,15 @@ func TestErrors(t *testing.T) {
 		{
 			"<!-- {{.H}} -->",
 			"z:1: (action: [(command: [F=[H]])]) appears inside a comment",
+		},
+		{
+			// It is ambiguous whether 1.5 should be 1\.5 or 1.5.
+			// Either `var x = 1/- 1.5 /i.test(x)`
+			// where `i.test(x)` is a method call of reference i,
+			// or `/-1\.5/i.test(x)` which is a method call on a
+			// case insensitive regular expression.
+			`<script>{{if false}}var x = 1{{end}}/-{{"1.5"}}/i.test(x)</script>`,
+			`: '/' could start div or regexp: "/-"`,
 		},
 	}
 

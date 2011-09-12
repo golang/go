@@ -217,6 +217,14 @@ func join(a, b context, line int, nodeName string) context {
 		return c
 	}
 
+	c = a
+	c.jsCtx = b.jsCtx
+	if c.eq(b) {
+		// The contexts differ only by jsCtx.
+		c.jsCtx = jsCtxUnknown
+		return c
+	}
+
 	return context{
 		state:   stateError,
 		errLine: line,
@@ -492,8 +500,13 @@ func tJS(c context, s []byte) (context, []byte) {
 			c.state, i = stateJSBlockCmt, i+1
 		case c.jsCtx == jsCtxRegexp:
 			c.state = stateJSRegexp
-		default:
+		case c.jsCtx == jsCtxDivOp:
 			c.jsCtx = jsCtxRegexp
+		default:
+			return context{
+				state:  stateError,
+				errStr: fmt.Sprintf("'/' could start div or regexp: %.32q", s[i:]),
+			}, nil
 		}
 	default:
 		panic("unreachable")
