@@ -194,8 +194,13 @@ func TestEscape(t *testing.T) {
 		},
 		{
 			"jsRe",
-			"<button onclick='alert(&quot;{{.H}}&quot;)'>",
-			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
+			`<button onclick='alert(/{{"foo+bar"}}/.test(""))'>`,
+			`<button onclick='alert(/foo\x2bbar/.test(""))'>`,
+		},
+		{
+			"jsReBlank",
+			`<script>alert(/{{""}}/.test(""));</script>`,
+			`<script>alert(/(?:)/.test(""));</script>`,
 		},
 		{
 			"styleBidiKeywordPassed",
