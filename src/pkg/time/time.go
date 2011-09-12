@@ -22,7 +22,6 @@ type Time struct {
 	Month, Day           int    // Jan-2 is 1, 2
 	Hour, Minute, Second int    // 15:04:05 is 15, 4, 5.
 	Nanosecond           int    // Fractional second.
-	Weekday              int    // Sunday, Monday, ...
 	ZoneOffset           int    // seconds east of UTC, e.g. -7*60*60 for -0700
 	Zone                 string // e.g., "MST"
 }
@@ -62,12 +61,6 @@ func SecondsToUTC(sec int64) *Time {
 	t.Hour = int(sec / 3600)
 	t.Minute = int((sec / 60) % 60)
 	t.Second = int(sec % 60)
-
-	// Day 0 = January 1, 1970 was a Thursday
-	t.Weekday = int((day + Thursday) % 7)
-	if t.Weekday < 0 {
-		t.Weekday += 7
-	}
 
 	// Change day from 0 = 1970 to 0 = 2001,
 	// to make leap year calculations easier
@@ -227,4 +220,20 @@ func (t *Time) Seconds() int64 {
 // parsed Time value.
 func (t *Time) Nanoseconds() int64 {
 	return t.Seconds()*1e9 + int64(t.Nanosecond)
+}
+
+// Weekday returns the time's day of the week. Sunday is day 0.
+func (t *Time) Weekday() int {
+	sec := t.Seconds() + int64(t.ZoneOffset)
+	day := sec / secondsPerDay
+	sec -= day * secondsPerDay
+	if sec < 0 {
+		day--
+	}
+	// Day 0 = January 1, 1970 was a Thursday
+	weekday := int((day + Thursday) % 7)
+	if weekday < 0 {
+		weekday += 7
+	}
+	return weekday
 }

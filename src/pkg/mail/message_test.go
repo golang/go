@@ -94,7 +94,6 @@ func TestDateParsing(t *testing.T) {
 				Hour:       9,
 				Minute:     55,
 				Second:     6,
-				Weekday:    5, // Fri
 				ZoneOffset: -6 * 60 * 60,
 			},
 		},

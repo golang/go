@@ -296,9 +296,9 @@ func (t *Time) Format(layout string) string {
 		case stdZeroMonth:
 			p = zeroPad(t.Month)
 		case stdWeekDay:
-			p = shortDayNames[t.Weekday]
+			p = shortDayNames[t.Weekday()]
 		case stdLongWeekDay:
-			p = longDayNames[t.Weekday]
+			p = longDayNames[t.Weekday()]
 		case stdDay:
 			p = strconv.Itoa(t.Day)
 		case stdUnderDay:
@@ -485,7 +485,8 @@ func skip(value, prefix string) (string, os.Error) {
 // (such as having the wrong day of the week), the returned value will also
 // be inconsistent.  In any case, the elements of the returned time will be
 // sane: hours in 0..23, minutes in 0..59, day of month in 1..31, etc.
-// Years must be in the range 0000..9999.
+// Years must be in the range 0000..9999. The day of the week is checked
+// for syntax but it is otherwise ignored.
 func Parse(alayout, avalue string) (*Time, os.Error) {
 	var t Time
 	rangeErrString := "" // set if a value is out of range
@@ -538,9 +539,10 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 				rangeErrString = "month"
 			}
 		case stdWeekDay:
-			t.Weekday, value, err = lookup(shortDayNames, value)
+			// Ignore weekday except for error checking.
+			_, value, err = lookup(shortDayNames, value)
 		case stdLongWeekDay:
-			t.Weekday, value, err = lookup(longDayNames, value)
+			_, value, err = lookup(longDayNames, value)
 		case stdDay, stdUnderDay, stdZeroDay:
 			if std == stdUnderDay && len(value) > 0 && value[0] == ' ' {
 				value = value[1:]
