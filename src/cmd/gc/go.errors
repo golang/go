@@ -67,4 +67,7 @@ static struct {
 	
 	% loadsys package imports LFUNC LNAME '(' ')' '{' LFUNC LNAME
 	"nested func not allowed",
+
+	% loadsys package imports LFUNC LNAME '(' ')' '{' LIF if_header loop_body LELSE ';'
+	"else must be followed by if or statement block"
 };
