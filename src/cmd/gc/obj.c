@@ -127,7 +127,6 @@ static void
 outhist(Biobuf *b)
 {
 	Hist *h;
-	int i, depth = 0;
 	char *p, ds[] = {'c', ':', '/', 0};
 
 	for(h = hist; h != H; h = h->link) {
@@ -164,14 +163,7 @@ outhist(Biobuf *b)
 					outzfile(b, p);
 				}
 			}
-			if(h->offset > 0) {
-				//line directive
-				depth++;
-			}
-		} else if(depth > 0) {
-			for(i = 0; i < depth; i++)
-				zhist(b, h->line, h->offset);
-			depth = 0;
+		
 		}
 		zhist(b, h->line, h->offset);
 	}
