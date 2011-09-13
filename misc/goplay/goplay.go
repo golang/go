@@ -145,7 +145,7 @@ func run(cmd ...string) ([]byte, os.Error) {
 var frontPage = template.Must(template.New("frontPage").Parse(frontPageText)) // HTML template
 var output = template.Must(template.New("output").Parse(outputText))          // HTML template
 
-var outputText = `<pre>{{html .}}</pre>`
+var outputText = `<pre>{{printf "%s" . |html}}</pre>`
 
 var frontPageText = `<!doctype html>
 <html>
