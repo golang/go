@@ -4,6 +4,9 @@
 
 // Package json implements encoding and decoding of JSON objects as defined in
 // RFC 4627.
+//
+// See "JSON and Go" for an introduction to this package:
+// http://blog.golang.org/2011/01/json-and-go.html
 package json
 
 import (

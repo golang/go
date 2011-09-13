@@ -221,6 +221,9 @@ In summary, a gob stream looks like
 
 where * signifies zero or more repetitions and the type id of a value must
 be predefined or be defined before the value in the stream.
+
+See "Gobs of data" for a design discussion of the gob wire format:
+http://blog.golang.org/2011/03/gobs-of-data.html
 */
 package gob
 
