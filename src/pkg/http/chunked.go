@@ -5,11 +5,11 @@
 package http
 
 import (
+	"bufio"
 	"io"
 	"log"
 	"os"
 	"strconv"
-	"bufio"
 )
 
 // NewChunkedWriter returns a new writer that translates writes into HTTP
