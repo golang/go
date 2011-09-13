@@ -70,7 +70,15 @@ func (z *zone) populate(bias, biasdelta int32, d *syscall.Systemtime, name []uin
 // Pre-calculate cutoff time in seconds since the Unix epoch, if data is supplied in "absolute" format.
 func (z *zone) preCalculateAbsSec() {
 	if z.year != 0 {
-		z.abssec = (&Time{z.year, int(z.month), int(z.day), int(z.hour), int(z.minute), int(z.second), 0, 0, ""}).Seconds()
+		t := &Time{
+			Year:   z.year,
+			Month:  int(z.month),
+			Day:    int(z.day),
+			Hour:   int(z.hour),
+			Minute: int(z.minute),
+			Second: int(z.second),
+		}
+		z.abssec = t.Seconds()
 		// Time given is in "local" time. Adjust it for "utc".
 		z.abssec -= int64(z.prev.offset)
 	}
@@ -83,9 +91,16 @@ func (z *zone) cutoffSeconds(year int64) int64 {
 	// z.dayofweek is appropriate weekday (Sunday=0 to Saturday=6)
 	// z.day is week within the month (1 to 5, where 5 is last week of the month)
 	// z.hour, z.minute and z.second are absolute time
-	t := &Time{year, int(z.month), 1, int(z.hour), int(z.minute), int(z.second), 0, 0, ""}
+	t := &Time{
+		Year:   year,
+		Month:  int(z.month),
+		Day:    1,
+		Hour:   int(z.hour),
+		Minute: int(z.minute),
+		Second: int(z.second),
+	}
 	t = SecondsToUTC(t.Seconds())
-	i := int(z.dayofweek) - t.Weekday
+	i := int(z.dayofweek) - t.Weekday()
 	if i < 0 {
 		i += 7
 	}
