@@ -25,6 +25,10 @@ maketesttables: maketesttables.go triegen.go
 	$(GC) maketesttables.go triegen.go
 	$(LD) -o maketesttables maketesttables.$O
 
+normregtest: normregtest.go
+	$(GC) normregtest.go
+	$(LD) -o normregtest normregtest.$O
+
 tables:	maketables
 	./maketables > tables.go
 	gofmt -w tables.go
@@ -39,7 +43,10 @@ testshort: maketables maketesttables
 
 # Downloads from www.unicode.org, so not part
 # of standard test scripts.
-test: testtables
+test: testtables regtest
 
 testtables: maketables
 	./maketables -test -tables=
+
+regtest: normregtest
+	./normregtest
