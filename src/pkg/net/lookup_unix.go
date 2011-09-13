@@ -72,16 +72,29 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.
 
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
 func LookupMX(name string) (mx []*MX, err os.Error) {
-	_, rr, err := lookup(name, dnsTypeMX)
+	_, records, err := lookup(name, dnsTypeMX)
 	if err != nil {
 		return
 	}
-	mx = make([]*MX, len(rr))
-	for i := range rr {
-		r := rr[i].(*dnsRR_MX)
+	mx = make([]*MX, len(records))
+	for i, rr := range records {
+		r := rr.(*dnsRR_MX)
 		mx[i] = &MX{r.Mx, r.Pref}
 	}
 	byPref(mx).sort()
+	return
+}
+
+// LookupTXT returns the DNS TXT records for the given domain name.
+func LookupTXT(name string) (txt []string, err os.Error) {
+	_, records, err := lookup(name, dnsTypeTXT)
+	if err != nil {
+		return
+	}
+	txt = make([]string, len(records))
+	for i, r := range records {
+		txt[i] = r.(*dnsRR_TXT).Txt
+	}
 	return
 }
 

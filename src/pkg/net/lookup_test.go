@@ -42,6 +42,24 @@ func TestGmailMX(t *testing.T) {
 	}
 }
 
+func TestGmailTXT(t *testing.T) {
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Logf("LookupTXT is not implemented on Windows or Plan 9")
+		return
+	}
+	if testing.Short() || avoidMacFirewall {
+		t.Logf("skipping test to avoid external network")
+		return
+	}
+	txt, err := LookupTXT("gmail.com")
+	if err != nil {
+		t.Errorf("failed: %s", err)
+	}
+	if len(txt) == 0 || len(txt[0]) == 0 {
+		t.Errorf("no results")
+	}
+}
+
 func TestGoogleDNSAddr(t *testing.T) {
 	if testing.Short() || avoidMacFirewall {
 		t.Logf("skipping test to avoid external network")
