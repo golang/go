@@ -6,6 +6,7 @@ include ../../../../Make.inc
 
 TARG=exp/template/html
 GOFILES=\
+	clone.go\
 	context.go\
 	css.go\
 	escape.go\
