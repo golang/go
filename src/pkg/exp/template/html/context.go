@@ -36,6 +36,29 @@ func (c context) eq(d context) bool {
 		c.errStr == d.errStr
 }
 
+// mangle produces an identifier that includes a suffix that distinguishes it
+// from template names mangled with different contexts.
+func (c context) mangle(templateName string) string {
+	// The mangled name for the default context is the input templateName.
+	if c.state == stateText {
+		return templateName
+	}
+	s := templateName + "$htmltemplate_" + c.state.String()
+	if c.delim != 0 {
+		s += "_" + c.delim.String()
+	}
+	if c.urlPart != 0 {
+		s += "_" + c.urlPart.String()
+	}
+	if c.jsCtx != 0 {
+		s += "_" + c.jsCtx.String()
+	}
+	if c.element != 0 {
+		s += "_" + c.element.String()
+	}
+	return s
+}
+
 // state describes a high-level HTML parser state.
 //
 // It bounds the top of the element stack, and by extension the HTML insertion

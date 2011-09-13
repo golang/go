@@ -6,6 +6,7 @@ package html
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"template"
 	"template/parse"
@@ -374,6 +375,128 @@ func TestEscape(t *testing.T) {
 	}
 }
 
+func TestEscapeSet(t *testing.T) {
+	type dataItem struct {
+		Children []*dataItem
+		X        string
+	}
+
+	data := dataItem{
+		Children: []*dataItem{
+			&dataItem{X: "foo"},
+			&dataItem{X: "<bar>"},
+			&dataItem{
+				Children: []*dataItem{
+					&dataItem{X: "baz"},
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		inputs map[string]string
+		want   string
+	}{
+		// The trivial set.
+		{
+			map[string]string{
+				"main": ``,
+			},
+			``,
+		},
+		// A template called in the start context.
+		{
+			map[string]string{
+				"main": `Hello, {{template "helper"}}!`,
+				// Not a valid top level HTML template.
+				// "<b" is not a full tag.
+				"helper": `{{"<World>"}}`,
+			},
+			`Hello, &lt;World&gt;!`,
+		},
+		// A template called in a context other than the start.
+		{
+			map[string]string{
+				"main": `<a onclick='a = {{template "helper"}};'>`,
+				// Not a valid top level HTML template.
+				// "<b" is not a full tag.
+				"helper": `{{"<a>"}}<b`,
+			},
+			`<a onclick='a = &#34;\u003ca\u003e&#34;<b;'>`,
+		},
+		// A recursive template that ends in its start context.
+		{
+			map[string]string{
+				"main": `{{range .Children}}{{template "main" .}}{{else}}{{.X}} {{end}}`,
+			},
+			`foo &lt;bar&gt; baz `,
+		},
+		// A recursive helper template that ends in its start context.
+		{
+			map[string]string{
+				"main":   `{{template "helper" .}}`,
+				"helper": `{{if .Children}}<ul>{{range .Children}}<li>{{template "main" .}}</li>{{end}}</ul>{{else}}{{.X}}{{end}}`,
+			},
+			`<ul><li>foo</li><li>&lt;bar&gt;</li><li><ul><li>baz</li></ul></li></ul>`,
+		},
+		// Co-recursive templates that end in its start context.
+		{
+			map[string]string{
+				"main":   `<blockquote>{{range .Children}}{{template "helper" .}}{{end}}</blockquote>`,
+				"helper": `{{if .Children}}{{template "main" .}}{{else}}{{.X}}<br>{{end}}`,
+			},
+			`<blockquote>foo<br>&lt;bar&gt;<br><blockquote>baz<br></blockquote></blockquote>`,
+		},
+		// A template that is called in two different contexts.
+		{
+			map[string]string{
+				"main":   `<button onclick="title='{{template "helper"}}'; ...">{{template "helper"}}</button>`,
+				"helper": `{{11}} of {{"<100>"}}`,
+			},
+			`<button onclick="title='11 of \x3c100\x3e'; ...">11 of &lt;100&gt;</button>`,
+		},
+		// A non-recursive template that ends in a different context.
+		// helper starts in jsCtxRegexp and ends in jsCtxDivOp.
+		{
+			map[string]string{
+				"main":   `<script>var x={{template "helper"}}/{{"42"}};</script>`,
+				"helper": "{{126}}",
+			},
+			`<script>var x= 126 /"42";</script>`,
+		},
+		// A recursive template that ends in a different context.
+		/*
+			{
+				map[string]string{
+					"main":   `<a href="/foo{{template "helper" .}}">`,
+					"helper": `{{if .Children}}{{range .Children}}{{template "helper" .}}{{end}}{{else}}?x={{.X}}{{end}}`,
+				},
+				`<a href="/foo?x=foo?x=%3cbar%3e?x=baz">`,
+			},
+		*/
+	}
+	for _, test := range tests {
+		var s template.Set
+		for name, src := range test.inputs {
+			s.Add(template.Must(template.New(name).Parse(src)))
+		}
+		if _, err := EscapeSet(&s, "main"); err != nil {
+			t.Errorf("%s for input:\n%v", err, test.inputs)
+			continue
+		}
+		var b bytes.Buffer
+
+		if err := s.Execute(&b, "main", data); err != nil {
+			t.Errorf("%q executing %v", err.String(), s.Template("main"))
+			continue
+		}
+		if got := b.String(); test.want != got {
+			t.Errorf("want\n\t%q\ngot\n\t%q", test.want, got)
+		}
+	}
+
+}
+
 func TestErrors(t *testing.T) {
 	tests := []struct {
 		input string
@@ -496,12 +619,40 @@ func TestErrors(t *testing.T) {
 			`<script>{{if false}}var x = 1{{end}}/-{{"1.5"}}/i.test(x)</script>`,
 			`: '/' could start div or regexp: "/-"`,
 		},
+		{
+			`{{template "foo"}}`,
+			"z:1: no such template foo",
+		},
+		{
+			`{{define "z"}}<div{{template "y"}}>{{end}}` +
+				// Illegal starting in stateTag but not in stateText.
+				`{{define "y"}} foo<b{{end}}`,
+			`z:0: "<" in attribute name: " foo<b"`,
+		},
+		{
+			`{{define "z"}}<script>reverseList = [{{template "t"}}]</script>{{end}}` +
+				// Missing " after recursive call.
+				`{{define "t"}}{{if .Tail}}{{template "t" .Tail}}{{end}}{{.Head}}",{{end}}`,
+			`: cannot compute output context for template t$htmltemplate_stateJS_elementScript`,
+		},
 	}
 
 	for _, test := range tests {
-		tmpl := template.Must(template.New("z").Parse(test.input))
+		var err os.Error
+		if strings.HasPrefix(test.input, "{{define") {
+			var s template.Set
+			_, err = s.Parse(test.input)
+			if err != nil {
+				t.Errorf("Failed to parse %q: %s", test.input, err)
+				continue
+			}
+			_, err = EscapeSet(&s, "z")
+		} else {
+			tmpl := template.Must(template.New("z").Parse(test.input))
+			_, err = Escape(tmpl)
+		}
 		var got string
-		if _, err := Escape(tmpl); err != nil {
+		if err != nil {
 			got = err.String()
 		}
 		if test.err == "" {
@@ -716,6 +867,10 @@ func TestEscapeText(t *testing.T) {
 			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
 		},
 		{
+			`<script>/foo/ /=`,
+			context{state: stateJS, element: elementScript},
+		},
+		{
 			`<a onclick="1 /foo`,
 			context{state: stateJS, delim: delimDoubleQuote, jsCtx: jsCtxDivOp},
 		},
@@ -914,8 +1069,8 @@ func TestEscapeText(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		b := []byte(test.input)
-		c := escapeText(context{}, b)
+		b, e := []byte(test.input), escaper{}
+		c := e.escapeText(context{}, b)
 		if !test.output.eq(c) {
 			t.Errorf("input %q: want context\n\t%v\ngot\n\t%v", test.input, test.output, c)
 			continue
