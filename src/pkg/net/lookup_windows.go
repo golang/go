@@ -110,6 +110,10 @@ func LookupMX(name string) (mx []*MX, err os.Error) {
 	return mx, nil
 }
 
+func LookupTXT(name string) (txt []string, err os.Error) {
+	return nil, os.NewError("net.LookupTXT is not implemented on Windows")
+}
+
 func LookupAddr(addr string) (name []string, err os.Error) {
 	arpa, err := reverseaddr(addr)
 	if err != nil {

@@ -204,6 +204,11 @@ func LookupMX(name string) (mx []*MX, err os.Error) {
 	return
 }
 
+// LookupTXT returns the DNS TXT records for the given domain name.
+func LookupTXT(name string) (txt []string, err os.Error) {
+	return nil, os.NewError("net.LookupTXT is not implemented on Plan 9")
+}
+
 // LookupAddr performs a reverse lookup for the given address, returning a list
 // of names mapping to that address.
 func LookupAddr(addr string) (name []string, err os.Error) {
