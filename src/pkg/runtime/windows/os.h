@@ -12,7 +12,6 @@ extern void *runtime·GetProcAddress;
 #pragma	varargck	type		runtime·stdcall	uintptr
 void runtime·asmstdcall(void *c);
 void *runtime·stdcall(void *fn, int32 count, ...);
-uintptr runtime·syscall(void *fn, uintptr nargs, void *args, uintptr *err);
 
 uintptr runtime·getlasterror(void);
 void runtime·setlasterror(uintptr err);

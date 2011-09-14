@@ -307,7 +307,8 @@ struct	WinCall
 	void	(*fn)(void*);
 	uintptr	n;	// number of parameters
 	void*	args;	// parameters
-	uintptr	r;	// return value
+	uintptr	r1;	// return values
+	uintptr	r2;
 	uintptr	err;	// error number
 };
 

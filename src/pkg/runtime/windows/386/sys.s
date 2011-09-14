@@ -6,35 +6,35 @@
 
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),7,$0
-	MOVL	c+0(FP), DX
+	MOVL	c+0(FP), BX
 
 	// SetLastError(0).
 	MOVL	$0, 0x34(FS)
 
 	// Copy args to the stack.
 	MOVL	SP, BP
-	MOVL	wincall_n(DX), CX	// words
-	MOVL	CX, BX
-	SALL	$2, BX
-	SUBL	BX, SP			// room for args
+	MOVL	wincall_n(BX), CX	// words
+	MOVL	CX, AX
+	SALL	$2, AX
+	SUBL	AX, SP			// room for args
 	MOVL	SP, DI
-	MOVL	wincall_args(DX), SI
+	MOVL	wincall_args(BX), SI
 	CLD
 	REP; MOVSL
 
 	// Call stdcall or cdecl function.
 	// DI SI BP BX are preserved, SP is not
-	MOVL	wincall_fn(DX), AX
-	CALL	AX
+	CALL	wincall_fn(BX)
 	MOVL	BP, SP
 
 	// Return result.
-	MOVL	c+0(FP), DX
-	MOVL	AX, wincall_r(DX)
+	MOVL	c+0(FP), BX
+	MOVL	AX, wincall_r1(BX)
+	MOVL	DX, wincall_r2(BX)
 
 	// GetLastError().
-	MOVL	0x34(FS), BX
-	MOVL	BX, wincall_err(DX)
+	MOVL	0x34(FS), AX
+	MOVL	AX, wincall_err(BX)
 
 	RET
 
