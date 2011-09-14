@@ -391,11 +391,6 @@ func (d *decodeState) array(v reflect.Value) {
 	}
 }
 
-// matchName returns true if key should be written to a field named name.
-func matchName(key, name string) bool {
-	return strings.ToLower(key) == strings.ToLower(name)
-}
-
 // object consumes an object from d.data[d.off-1:], decoding into the value v.
 // the first byte of the object ('{') has been read already.
 func (d *decodeState) object(v reflect.Value) {
@@ -485,24 +480,31 @@ func (d *decodeState) object(v reflect.Value) {
 			var f reflect.StructField
 			var ok bool
 			st := sv.Type()
-			// First try for field with that tag.
-			if isValidTag(key) {
-				for i := 0; i < sv.NumField(); i++ {
-					f = st.Field(i)
-					tagName, _ := parseTag(f.Tag.Get("json"))
-					if tagName == key {
-						ok = true
-						break
-					}
+			for i := 0; i < sv.NumField(); i++ {
+				sf := st.Field(i)
+				tag := sf.Tag.Get("json")
+				if tag == "-" {
+					// Pretend this field doesn't exist.
+					continue
 				}
-			}
-			if !ok {
-				// Second, exact match.
-				f, ok = st.FieldByName(key)
-			}
-			if !ok {
-				// Third, case-insensitive match.
-				f, ok = st.FieldByNameFunc(func(s string) bool { return matchName(key, s) })
+				// First, tag match
+				tagName, _ := parseTag(tag)
+				if tagName == key {
+					f = sf
+					ok = true
+					break // no better match possible
+				}
+				// Second, exact field name match
+				if sf.Name == key {
+					f = sf
+					ok = true
+				}
+				// Third, case-insensitive field name match,
+				// but only if a better match hasn't already been seen
+				if !ok && strings.ToLower(sf.Name) == strings.ToLower(key) {
+					f = sf
+					ok = true
+				}
 			}
 
 			// Extract value; name must be exported.

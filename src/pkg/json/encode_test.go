@@ -13,6 +13,7 @@ import (
 type Optionals struct {
 	Sr string `json:"sr"`
 	So string `json:"so,omitempty"`
+	Sw string `json:"-"`
 
 	Ir int `json:"omitempty"` // actually named omitempty, not an option
 	Io int `json:"io,omitempty"`
@@ -33,6 +34,7 @@ var optionalsExpected = `{
 
 func TestOmitEmpty(t *testing.T) {
 	var o Optionals
+	o.Sw = "something"
 	o.Mr = map[string]interface{}{}
 	o.Mo = map[string]interface{}{}
 
