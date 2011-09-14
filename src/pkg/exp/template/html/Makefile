@@ -9,6 +9,7 @@ GOFILES=\
 	clone.go\
 	context.go\
 	css.go\
+	doc.go\
 	escape.go\
 	html.go\
 	js.go\

@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package html is a specialization of template that automates the
-// construction of safe HTML output.
-// INCOMPLETE.
 package html
 
 import (
