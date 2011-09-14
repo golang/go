@@ -12,6 +12,7 @@ GOFILES=\
 	escape.go\
 	html.go\
 	js.go\
+	transition.go\
 	url.go\
 
 include ../../../../Make.pkg
