@@ -25,7 +25,7 @@ func fillAlpha(alpha int) image.Image {
 }
 
 func vgradGreen(alpha int) image.Image {
-	m := image.NewRGBA(16, 16)
+	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
 	for y := 0; y < 16; y++ {
 		for x := 0; x < 16; x++ {
 			m.Set(x, y, image.RGBAColor{0, uint8(y * alpha / 15), 0, uint8(alpha)})
@@ -35,7 +35,7 @@ func vgradGreen(alpha int) image.Image {
 }
 
 func vgradAlpha(alpha int) image.Image {
-	m := image.NewAlpha(16, 16)
+	m := image.NewAlpha(image.Rect(0, 0, 16, 16))
 	for y := 0; y < 16; y++ {
 		for x := 0; x < 16; x++ {
 			m.Set(x, y, image.AlphaColor{uint8(y * alpha / 15)})
@@ -45,7 +45,7 @@ func vgradAlpha(alpha int) image.Image {
 }
 
 func vgradGreenNRGBA(alpha int) image.Image {
-	m := image.NewNRGBA(16, 16)
+	m := image.NewNRGBA(image.Rect(0, 0, 16, 16))
 	for y := 0; y < 16; y++ {
 		for x := 0; x < 16; x++ {
 			m.Set(x, y, image.RGBAColor{0, uint8(y * 0x11), 0, uint8(alpha)})
@@ -73,7 +73,7 @@ func vgradCr() image.Image {
 }
 
 func hgradRed(alpha int) Image {
-	m := image.NewRGBA(16, 16)
+	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
 	for y := 0; y < 16; y++ {
 		for x := 0; x < 16; x++ {
 			m.Set(x, y, image.RGBAColor{uint8(x * alpha / 15), 0, 0, uint8(alpha)})
@@ -83,7 +83,7 @@ func hgradRed(alpha int) Image {
 }
 
 func gradYellow(alpha int) Image {
-	m := image.NewRGBA(16, 16)
+	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
 	for y := 0; y < 16; y++ {
 		for x := 0; x < 16; x++ {
 			m.Set(x, y, image.RGBAColor{uint8(x * alpha / 15), uint8(y * alpha / 15), 0, uint8(alpha)})
@@ -163,7 +163,7 @@ func makeGolden(dst image.Image, r image.Rectangle, src image.Image, sp image.Po
 	if mask != nil {
 		mb = mask.Bounds()
 	}
-	golden := image.NewRGBA(b.Max.X, b.Max.Y)
+	golden := image.NewRGBA(image.Rect(0, 0, b.Max.X, b.Max.Y))
 	for y := r.Min.Y; y < r.Max.Y; y++ {
 		sy := y + sp.Y - r.Min.Y
 		my := y + mp.Y - r.Min.Y
@@ -281,8 +281,8 @@ func TestDrawOverlap(t *testing.T) {
 
 // TestNonZeroSrcPt checks drawing with a non-zero src point parameter.
 func TestNonZeroSrcPt(t *testing.T) {
-	a := image.NewRGBA(1, 1)
-	b := image.NewRGBA(2, 2)
+	a := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	b := image.NewRGBA(image.Rect(0, 0, 2, 2))
 	b.Set(0, 0, image.RGBAColor{0, 0, 0, 5})
 	b.Set(1, 0, image.RGBAColor{0, 0, 5, 5})
 	b.Set(0, 1, image.RGBAColor{0, 5, 0, 5})
@@ -310,7 +310,7 @@ func TestFill(t *testing.T) {
 		image.Rect(20, 20, 29, 29),
 	}
 	for _, r := range rr {
-		m := image.NewRGBA(40, 30).SubImage(r).(*image.RGBA)
+		m := image.NewRGBA(image.Rect(0, 0, 40, 30)).SubImage(r).(*image.RGBA)
 		b := m.Bounds()
 		c := image.RGBAColor{11, 0, 0, 255}
 		src := &image.ColorImage{c}

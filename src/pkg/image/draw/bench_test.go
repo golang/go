@@ -24,7 +24,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
 	var dst Image
 	switch dcm {
 	case image.RGBAColorModel:
-		dst1 := image.NewRGBA(dstw, dsth)
+		dst1 := image.NewRGBA(image.Rect(0, 0, dstw, dsth))
 		for y := 0; y < dsth; y++ {
 			for x := 0; x < dstw; x++ {
 				dst1.SetRGBA(x, y, image.RGBAColor{
@@ -37,7 +37,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
 		}
 		dst = dst1
 	case image.RGBA64ColorModel:
-		dst1 := image.NewRGBA64(dstw, dsth)
+		dst1 := image.NewRGBA64(image.Rect(0, 0, dstw, dsth))
 		for y := 0; y < dsth; y++ {
 			for x := 0; x < dstw; x++ {
 				dst1.SetRGBA64(x, y, image.RGBA64Color{
@@ -58,7 +58,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
 	case nil:
 		src = &image.ColorImage{image.RGBAColor{0x11, 0x22, 0x33, 0xff}}
 	case image.RGBAColorModel:
-		src1 := image.NewRGBA(srcw, srch)
+		src1 := image.NewRGBA(image.Rect(0, 0, srcw, srch))
 		for y := 0; y < srch; y++ {
 			for x := 0; x < srcw; x++ {
 				src1.SetRGBA(x, y, image.RGBAColor{
@@ -71,7 +71,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
 		}
 		src = src1
 	case image.RGBA64ColorModel:
-		src1 := image.NewRGBA64(srcw, srch)
+		src1 := image.NewRGBA64(image.Rect(0, 0, srcw, srch))
 		for y := 0; y < srch; y++ {
 			for x := 0; x < srcw; x++ {
 				src1.SetRGBA64(x, y, image.RGBA64Color{
@@ -84,7 +84,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
 		}
 		src = src1
 	case image.NRGBAColorModel:
-		src1 := image.NewNRGBA(srcw, srch)
+		src1 := image.NewNRGBA(image.Rect(0, 0, srcw, srch))
 		for y := 0; y < srch; y++ {
 			for x := 0; x < srcw; x++ {
 				src1.SetNRGBA(x, y, image.NRGBAColor{
@@ -123,7 +123,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
 	case nil:
 		// No-op.
 	case image.AlphaColorModel:
-		mask1 := image.NewAlpha(srcw, srch)
+		mask1 := image.NewAlpha(image.Rect(0, 0, srcw, srch))
 		for y := 0; y < srch; y++ {
 			for x := 0; x < srcw; x++ {
 				a := uint8((23*x + 29*y) % 0x100)
