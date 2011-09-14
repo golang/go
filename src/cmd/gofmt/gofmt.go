@@ -149,32 +149,18 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) os.Er
 	return err
 }
 
-type fileVisitor chan os.Error
-
-func (v fileVisitor) VisitDir(path string, f *os.FileInfo) bool {
-	return true
-}
-
-func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
-	if isGoFile(f) {
-		v <- nil // synchronize error handler
-		if err := processFile(path, nil, os.Stdout, false); err != nil {
-			v <- err
-		}
+func visitFile(path string, f *os.FileInfo, err os.Error) os.Error {
+	if err == nil && isGoFile(f) {
+		err = processFile(path, nil, os.Stdout, false)
 	}
+	if err != nil {
+		report(err)
+	}
+	return nil
 }
 
 func walkDir(path string) {
-	v := make(fileVisitor)
-	go func() {
-		filepath.Walk(path, v, v)
-		close(v)
-	}()
-	for err := range v {
-		if err != nil {
-			report(err)
-		}
-	}
+	filepath.Walk(path, visitFile)
 }
 
 func main() {
