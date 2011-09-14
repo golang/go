@@ -57,13 +57,13 @@ var (
 	ErrNotSupported         = ProtocolError{"not supported"}
 )
 
-// WebSocketAddr is an implementation of net.Addr for WebSocket.
-type WebSocketAddr struct {
+// Addr is an implementation of net.Addr for WebSocket.
+type Addr struct {
 	*url.URL
 }
 
 // Network returns the network type for a WebSocket, "websocket".
-func (addr WebSocketAddr) Network() string { return "websocket" }
+func (addr *Addr) Network() string { return "websocket" }
 
 // Config is a WebSocket configuration
 type Config struct {
@@ -219,18 +219,18 @@ func (ws *Conn) IsServerConn() bool { return ws.request != nil }
 // the WebSocket location for server.
 func (ws *Conn) LocalAddr() net.Addr {
 	if ws.IsClientConn() {
-		return WebSocketAddr{ws.config.Origin}
+		return &Addr{ws.config.Origin}
 	}
-	return WebSocketAddr{ws.config.Location}
+	return &Addr{ws.config.Location}
 }
 
 // RemoteAddr returns the WebSocket location for the connection for client, or
 // the Websocket Origin for server.
 func (ws *Conn) RemoteAddr() net.Addr {
 	if ws.IsClientConn() {
-		return WebSocketAddr{ws.config.Location}
+		return &Addr{ws.config.Location}
 	}
-	return WebSocketAddr{ws.config.Origin}
+	return &Addr{ws.config.Origin}
 }
 
 // SetTimeout sets the connection's network timeout in nanoseconds.
