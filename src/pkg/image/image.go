@@ -118,9 +118,10 @@ func (p *RGBA) Opaque() bool {
 }
 
 // NewRGBA returns a new RGBA with the given width and height.
-func NewRGBA(w, h int) *RGBA {
+func NewRGBA(r Rectangle) *RGBA {
+	w, h := r.Dx(), r.Dy()
 	buf := make([]uint8, 4*w*h)
-	return &RGBA{buf, 4 * w, Rectangle{ZP, Point{w, h}}}
+	return &RGBA{buf, 4 * w, r}
 }
 
 // RGBA64 is an in-memory image of RGBA64Color values.
@@ -219,9 +220,10 @@ func (p *RGBA64) Opaque() bool {
 }
 
 // NewRGBA64 returns a new RGBA64 with the given width and height.
-func NewRGBA64(w, h int) *RGBA64 {
+func NewRGBA64(r Rectangle) *RGBA64 {
+	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 8*w*h)
-	return &RGBA64{pix, 8 * w, Rectangle{ZP, Point{w, h}}}
+	return &RGBA64{pix, 8 * w, r}
 }
 
 // NRGBA is an in-memory image of NRGBAColor values.
@@ -307,9 +309,10 @@ func (p *NRGBA) Opaque() bool {
 }
 
 // NewNRGBA returns a new NRGBA with the given width and height.
-func NewNRGBA(w, h int) *NRGBA {
+func NewNRGBA(r Rectangle) *NRGBA {
+	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 4*w*h)
-	return &NRGBA{pix, 4 * w, Rectangle{ZP, Point{w, h}}}
+	return &NRGBA{pix, 4 * w, r}
 }
 
 // NRGBA64 is an in-memory image of NRGBA64Color values.
@@ -408,9 +411,10 @@ func (p *NRGBA64) Opaque() bool {
 }
 
 // NewNRGBA64 returns a new NRGBA64 with the given width and height.
-func NewNRGBA64(w, h int) *NRGBA64 {
+func NewNRGBA64(r Rectangle) *NRGBA64 {
+	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 8*w*h)
-	return &NRGBA64{pix, 8 * w, Rectangle{ZP, Point{w, h}}}
+	return &NRGBA64{pix, 8 * w, r}
 }
 
 // Alpha is an in-memory image of AlphaColor values.
@@ -489,9 +493,10 @@ func (p *Alpha) Opaque() bool {
 }
 
 // NewAlpha returns a new Alpha with the given width and height.
-func NewAlpha(w, h int) *Alpha {
+func NewAlpha(r Rectangle) *Alpha {
+	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 1*w*h)
-	return &Alpha{pix, 1 * w, Rectangle{ZP, Point{w, h}}}
+	return &Alpha{pix, 1 * w, r}
 }
 
 // Alpha16 is an in-memory image of Alpha16Color values.
@@ -573,9 +578,10 @@ func (p *Alpha16) Opaque() bool {
 }
 
 // NewAlpha16 returns a new Alpha16 with the given width and height.
-func NewAlpha16(w, h int) *Alpha16 {
+func NewAlpha16(r Rectangle) *Alpha16 {
+	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 2*w*h)
-	return &Alpha16{pix, 2 * w, Rectangle{ZP, Point{w, h}}}
+	return &Alpha16{pix, 2 * w, r}
 }
 
 // Gray is an in-memory image of GrayColor values.
@@ -641,9 +647,10 @@ func (p *Gray) Opaque() bool {
 }
 
 // NewGray returns a new Gray with the given width and height.
-func NewGray(w, h int) *Gray {
+func NewGray(r Rectangle) *Gray {
+	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 1*w*h)
-	return &Gray{pix, 1 * w, Rectangle{ZP, Point{w, h}}}
+	return &Gray{pix, 1 * w, r}
 }
 
 // Gray16 is an in-memory image of Gray16Color values.
@@ -712,9 +719,10 @@ func (p *Gray16) Opaque() bool {
 }
 
 // NewGray16 returns a new Gray16 with the given width and height.
-func NewGray16(w, h int) *Gray16 {
+func NewGray16(r Rectangle) *Gray16 {
+	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 2*w*h)
-	return &Gray16{pix, 2 * w, Rectangle{ZP, Point{w, h}}}
+	return &Gray16{pix, 2 * w, r}
 }
 
 // A PalettedColorModel represents a fixed palette of at most 256 colors.
@@ -858,7 +866,8 @@ func (p *Paletted) Opaque() bool {
 }
 
 // NewPaletted returns a new Paletted with the given width, height and palette.
-func NewPaletted(w, h int, m PalettedColorModel) *Paletted {
+func NewPaletted(r Rectangle, m PalettedColorModel) *Paletted {
+	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 1*w*h)
-	return &Paletted{pix, 1 * w, Rectangle{ZP, Point{w, h}}, m}
+	return &Paletted{pix, 1 * w, r, m}
 }

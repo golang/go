@@ -334,10 +334,7 @@ func (d *decoder) newImageFromDescriptor() (*image.Paletted, os.Error) {
 	width := int(d.tmp[4]) + int(d.tmp[5])<<8
 	height := int(d.tmp[6]) + int(d.tmp[7])<<8
 	d.imageFields = d.tmp[8]
-	m := image.NewPaletted(width, height, nil)
-	// Overwrite the rectangle to take account of left and top.
-	m.Rect = image.Rect(left, top, left+width, top+height)
-	return m, nil
+	return image.NewPaletted(image.Rect(left, top, left+width, top+height), nil), nil
 }
 
 func (d *decoder) readBlock() (int, os.Error) {

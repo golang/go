@@ -82,7 +82,7 @@ func TestWriter(t *testing.T) {
 }
 
 func TestSubImage(t *testing.T) {
-	m0 := image.NewRGBA(256, 256)
+	m0 := image.NewRGBA(image.Rect(0, 0, 256, 256))
 	for y := 0; y < 256; y++ {
 		for x := 0; x < 256; x++ {
 			m0.Set(x, y, image.RGBAColor{uint8(x), uint8(y), 0, 255})
@@ -103,7 +103,7 @@ func TestSubImage(t *testing.T) {
 
 func BenchmarkEncodePaletted(b *testing.B) {
 	b.StopTimer()
-	img := image.NewPaletted(640, 480,
+	img := image.NewPaletted(image.Rect(0, 0, 640, 480),
 		[]image.Color{
 			image.RGBAColor{0, 0, 0, 255},
 			image.RGBAColor{255, 255, 255, 255},
@@ -117,7 +117,7 @@ func BenchmarkEncodePaletted(b *testing.B) {
 
 func BenchmarkEncodeRGBOpaque(b *testing.B) {
 	b.StopTimer()
-	img := image.NewRGBA(640, 480)
+	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
 	// Set all pixels to 0xFF alpha to force opaque mode.
 	bo := img.Bounds()
 	for y := bo.Min.Y; y < bo.Max.Y; y++ {
@@ -137,7 +137,7 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
 
 func BenchmarkEncodeRGBA(b *testing.B) {
 	b.StopTimer()
-	img := image.NewRGBA(640, 480)
+	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
 	if img.Opaque() {
 		panic("expected image to not be opaque")
 	}

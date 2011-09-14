@@ -28,7 +28,7 @@ func readUint32(b []byte) uint32 {
 // decodePaletted reads an 8 bit-per-pixel BMP image from r.
 func decodePaletted(r io.Reader, c image.Config) (image.Image, os.Error) {
 	var tmp [4]byte
-	paletted := image.NewPaletted(c.Width, c.Height, c.ColorModel.(image.PalettedColorModel))
+	paletted := image.NewPaletted(image.Rect(0, 0, c.Width, c.Height), c.ColorModel.(image.PalettedColorModel))
 	// BMP images are stored bottom-up rather than top-down.
 	for y := c.Height - 1; y >= 0; y-- {
 		p := paletted.Pix[y*paletted.Stride : y*paletted.Stride+c.Width]
@@ -49,7 +49,7 @@ func decodePaletted(r io.Reader, c image.Config) (image.Image, os.Error) {
 
 // decodeRGBA reads a 24 bit-per-pixel BMP image from r.
 func decodeRGBA(r io.Reader, c image.Config) (image.Image, os.Error) {
-	rgba := image.NewRGBA(c.Width, c.Height)
+	rgba := image.NewRGBA(image.Rect(0, 0, c.Width, c.Height))
 	// There are 3 bytes per pixel, and each row is 4-byte aligned.
 	b := make([]byte, (3*c.Width+3)&^3)
 	// BMP images are stored bottom-up rather than top-down.

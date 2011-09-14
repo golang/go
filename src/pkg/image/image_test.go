@@ -23,15 +23,15 @@ func cmp(t *testing.T, cm ColorModel, c0, c1 Color) bool {
 
 func TestImage(t *testing.T) {
 	testImage := []image{
-		NewRGBA(10, 10),
-		NewRGBA64(10, 10),
-		NewNRGBA(10, 10),
-		NewNRGBA64(10, 10),
-		NewAlpha(10, 10),
-		NewAlpha16(10, 10),
-		NewGray(10, 10),
-		NewGray16(10, 10),
-		NewPaletted(10, 10, PalettedColorModel{
+		NewRGBA(Rect(0, 0, 10, 10)),
+		NewRGBA64(Rect(0, 0, 10, 10)),
+		NewNRGBA(Rect(0, 0, 10, 10)),
+		NewNRGBA64(Rect(0, 0, 10, 10)),
+		NewAlpha(Rect(0, 0, 10, 10)),
+		NewAlpha16(Rect(0, 0, 10, 10)),
+		NewGray(Rect(0, 0, 10, 10)),
+		NewGray16(Rect(0, 0, 10, 10)),
+		NewPaletted(Rect(0, 0, 10, 10), PalettedColorModel{
 			Transparent,
 			Opaque,
 		}),
@@ -96,10 +96,10 @@ func Test16BitsPerColorChannel(t *testing.T) {
 		}
 	}
 	testImage := []image{
-		NewRGBA64(10, 10),
-		NewNRGBA64(10, 10),
-		NewAlpha16(10, 10),
-		NewGray16(10, 10),
+		NewRGBA64(Rect(0, 0, 10, 10)),
+		NewNRGBA64(Rect(0, 0, 10, 10)),
+		NewAlpha16(Rect(0, 0, 10, 10)),
+		NewGray16(Rect(0, 0, 10, 10)),
 	}
 	for _, m := range testImage {
 		m.Set(1, 2, NRGBA64Color{0xffff, 0xffff, 0xffff, 0x1357}) // Non-premultiplied alpha.

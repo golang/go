@@ -618,7 +618,7 @@ func NewWindowDisplay(display string) (gui.Window, os.Error) {
 		return nil, err
 	}
 
-	c.img = image.NewRGBA(windowWidth, windowHeight)
+	c.img = image.NewRGBA(image.Rect(0, 0, windowWidth, windowHeight))
 	c.eventc = make(chan interface{}, 16)
 	c.flush = make(chan bool, 1)
 	go c.readSocket()

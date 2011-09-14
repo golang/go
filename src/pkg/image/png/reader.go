@@ -314,40 +314,40 @@ func (d *decoder) decode() (image.Image, os.Error) {
 	switch d.cb {
 	case cbG1, cbG2, cbG4, cbG8:
 		bitsPerPixel = d.depth
-		gray = image.NewGray(d.width, d.height)
+		gray = image.NewGray(image.Rect(0, 0, d.width, d.height))
 		img = gray
 	case cbGA8:
 		bitsPerPixel = 16
-		nrgba = image.NewNRGBA(d.width, d.height)
+		nrgba = image.NewNRGBA(image.Rect(0, 0, d.width, d.height))
 		img = nrgba
 	case cbTC8:
 		bitsPerPixel = 24
-		rgba = image.NewRGBA(d.width, d.height)
+		rgba = image.NewRGBA(image.Rect(0, 0, d.width, d.height))
 		img = rgba
 	case cbP1, cbP2, cbP4, cbP8:
 		bitsPerPixel = d.depth
-		paletted = image.NewPaletted(d.width, d.height, d.palette)
+		paletted = image.NewPaletted(image.Rect(0, 0, d.width, d.height), d.palette)
 		img = paletted
 		maxPalette = uint8(len(d.palette) - 1)
 	case cbTCA8:
 		bitsPerPixel = 32
-		nrgba = image.NewNRGBA(d.width, d.height)
+		nrgba = image.NewNRGBA(image.Rect(0, 0, d.width, d.height))
 		img = nrgba
 	case cbG16:
 		bitsPerPixel = 16
-		gray16 = image.NewGray16(d.width, d.height)
+		gray16 = image.NewGray16(image.Rect(0, 0, d.width, d.height))
 		img = gray16
 	case cbGA16:
 		bitsPerPixel = 32
-		nrgba64 = image.NewNRGBA64(d.width, d.height)
+		nrgba64 = image.NewNRGBA64(image.Rect(0, 0, d.width, d.height))
 		img = nrgba64
 	case cbTC16:
 		bitsPerPixel = 48
-		rgba64 = image.NewRGBA64(d.width, d.height)
+		rgba64 = image.NewRGBA64(image.Rect(0, 0, d.width, d.height))
 		img = rgba64
 	case cbTCA16:
 		bitsPerPixel = 64
-		nrgba64 = image.NewNRGBA64(d.width, d.height)
+		nrgba64 = image.NewNRGBA64(image.Rect(0, 0, d.width, d.height))
 		img = nrgba64
 	}
 	bytesPerPixel := (bitsPerPixel + 7) / 8
