@@ -143,9 +143,9 @@ var clipTests = []clipTest{
 }
 
 func TestClip(t *testing.T) {
-	dst0 := image.NewRGBA(100, 100)
-	src0 := image.NewRGBA(100, 100)
-	mask0 := image.NewRGBA(100, 100)
+	dst0 := image.NewRGBA(image.Rect(0, 0, 100, 100))
+	src0 := image.NewRGBA(image.Rect(0, 0, 100, 100))
+	mask0 := image.NewRGBA(image.Rect(0, 0, 100, 100))
 	for _, c := range clipTests {
 		dst := dst0.SubImage(c.dr).(*image.RGBA)
 		src := src0.SubImage(c.sr).(*image.RGBA)
