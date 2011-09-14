@@ -558,7 +558,7 @@ Reading:
 			}
 			have := re.FindStringSubmatchIndex(text)
 			if (len(have) > 0) != match {
-				t.Errorf("%s:%d: %#q.Match(%#q) = %v, but %#q.FindSubmatchIndex(%#q) = %v", file, lineno, pattern, text, match, text, have)
+				t.Errorf("%s:%d: %#q.Match(%#q) = %v, but %#q.FindSubmatchIndex(%#q) = %v", file, lineno, pattern, text, match, pattern, text, have)
 				continue Testing
 			}
 			if len(have) > len(pos) {

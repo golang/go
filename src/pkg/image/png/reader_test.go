@@ -262,7 +262,7 @@ func TestReaderError(t *testing.T) {
 			t.Errorf("decoding %s: %s, want %s", tt.file, err, tt.err)
 		}
 		if img != nil {
-			t.Errorf("decoding %s: have image + error")
+			t.Errorf("decoding %s: have image + error", tt.file)
 		}
 	}
 }
