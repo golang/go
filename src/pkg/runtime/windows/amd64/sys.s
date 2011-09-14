@@ -49,7 +49,7 @@ loadregs:
 
 	// Return result.
 	POPQ	CX
-	MOVQ	AX, wincall_r(CX)
+	MOVQ	AX, wincall_r1(CX)
 
 	// GetLastError().
 	MOVQ	0x30(GS), DI

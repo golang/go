@@ -5,15 +5,28 @@
 package syscall
 #include "runtime.h"
 #include "os.h"
+#include "cgocall.h"
 
 func loadlibraryex(filename uintptr) (handle uintptr) {
 	uintptr args[3] = { filename };
-	handle = runtime·syscall(runtime·LoadLibraryEx, 3, args, nil);
+	WinCall c;
+
+	c.fn = runtime·LoadLibraryEx;
+	c.n = 3;
+	c.args = &args[0];
+	runtime·cgocall(runtime·asmstdcall, &c);
+	handle = c.r1;
 }
 
 func getprocaddress(handle uintptr, procname uintptr) (proc uintptr) {
+	WinCall c;
+
 	USED(procname);
-	proc = runtime·syscall(runtime·GetProcAddress, 2, &handle, nil);
+	c.fn = runtime·GetProcAddress;
+	c.n = 2;
+	c.args = &handle;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	proc = c.r1;
 }
 
 func NewCallback(fn Eface) (code uintptr) {
@@ -25,23 +38,39 @@ func NewCallbackCDecl(fn Eface) (code uintptr) {
 }
 
 func Syscall(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	WinCall c;
+
 	USED(a2);
 	USED(a3);
-	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
-	r2 = 0;
+	c.fn = (void*)fn;
+	c.n = nargs;
+	c.args = &a1;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
 }
 
 func Syscall6(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	WinCall c;
+
 	USED(a2);
 	USED(a3);
 	USED(a4);
 	USED(a5);
 	USED(a6);
-	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
-	r2 = 0;
+	c.fn = (void*)fn;
+	c.n = nargs;
+	c.args = &a1;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
 }
 
 func Syscall9(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	WinCall c;
+
 	USED(a2);
 	USED(a3);
 	USED(a4);
@@ -50,11 +79,18 @@ func Syscall9(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 
 	USED(a7);
 	USED(a8);
 	USED(a9);
-	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
-	r2 = 0;
+	c.fn = (void*)fn;
+	c.n = nargs;
+	c.args = &a1;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
 }
 
 func Syscall12(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	WinCall c;
+
 	USED(a2);
 	USED(a3);
 	USED(a4);
@@ -66,6 +102,11 @@ func Syscall12(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4
 	USED(a10);
 	USED(a11);
 	USED(a12);
-	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
-	r2 = 0;
+	c.fn = (void*)fn;
+	c.n = nargs;
+	c.args = &a1;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
 }

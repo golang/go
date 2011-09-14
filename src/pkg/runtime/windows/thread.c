@@ -6,7 +6,6 @@
 #include "type.h"
 #include "defs.h"
 #include "os.h"
-#include "cgocall.h"
 
 #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
 #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
@@ -228,21 +227,7 @@ runtime·stdcall(void *fn, int32 count, ...)
 	c.n = count;
 	c.args = (uintptr*)&count + 1;
 	runtime·asmcgocall(runtime·asmstdcall, &c);
-	return (void*)c.r;
-}
-
-uintptr
-runtime·syscall(void *fn, uintptr nargs, void *args, uintptr *err)
-{
-	WinCall c;
-
-	c.fn = fn;
-	c.n = nargs;
-	c.args = args;
-	runtime·cgocall(runtime·asmstdcall, &c);
-	if(err)
-		*err = c.err;
-	return c.r;
+	return (void*)c.r1;
 }
 
 uint32
