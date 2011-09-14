@@ -90,7 +90,7 @@ func TestWriter(t *testing.T) {
 
 func BenchmarkEncodeRGBOpaque(b *testing.B) {
 	b.StopTimer()
-	img := image.NewRGBA(640, 480)
+	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
 	// Set all pixels to 0xFF alpha to force opaque mode.
 	bo := img.Bounds()
 	rnd := rand.New(rand.NewSource(123))
