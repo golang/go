@@ -6,6 +6,7 @@ include ../../Make.inc
 
 TARG=template
 GOFILES=\
+	doc.go\
 	exec.go\
 	funcs.go\
 	helper.go\
