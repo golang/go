@@ -178,6 +178,9 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	default:
 		s = append(s, "html")
 	}
+	if _, ok := e.actionNodeEdits[n]; ok {
+		panic(fmt.Sprintf("node %s shared between templates", n))
+	}
 	e.actionNodeEdits[n] = s
 	return c
 }
@@ -294,7 +297,10 @@ func (e *escaper) escapeBranch(c context, n *parse.BranchNode, nodeName string) 
 		// The "true" branch of a "range" node can execute multiple times.
 		// We check that executing n.List once results in the same context
 		// as executing n.List twice.
+		ae, te := e.actionNodeEdits, e.templateNodeEdits
+		e.actionNodeEdits, e.templateNodeEdits = make(map[*parse.ActionNode][]string), make(map[*parse.TemplateNode]string)
 		c0 = join(c0, e.escapeList(c0, n.List), n.Line, nodeName)
+		e.actionNodeEdits, e.templateNodeEdits = ae, te
 		if c0.state == stateError {
 			// Make clear that this is a problem on loop re-entry
 			// since developers tend to overlook that branch when
@@ -323,6 +329,9 @@ func (e *escaper) escapeList(c context, n *parse.ListNode) context {
 func (e *escaper) escapeTemplate(c context, n *parse.TemplateNode) context {
 	c, name := e.escapeTree(c, n.Name, n.Line)
 	if name != n.Name {
+		if _, ok := e.templateNodeEdits[n]; ok {
+			panic(fmt.Sprintf("node %s shared between templates", n))
+		}
 		e.templateNodeEdits[n] = name
 	}
 	return c
