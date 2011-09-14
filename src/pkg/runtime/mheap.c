@@ -101,6 +101,7 @@ HaveSpan:
 		runtime·throw("MHeap_AllocLocked - bad npages");
 	runtime·MSpanList_Remove(s);
 	s->state = MSpanInUse;
+	mstats.heap_idle -= s->npages<<PageShift;
 
 	if(s->npages > npage) {
 		// Trim extra and put it back in the heap.
@@ -276,6 +277,7 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
 		runtime·printf("MHeap_FreeLocked - span %p ptr %p state %d ref %d\n", s, s->start<<PageShift, s->state, s->ref);
 		runtime·throw("MHeap_FreeLocked - invalid free");
 	}
+	mstats.heap_idle += s->npages<<PageShift;
 	s->state = MSpanFree;
 	runtime·MSpanList_Remove(s);
 	sp = (uintptr*)(s->start<<PageShift);
