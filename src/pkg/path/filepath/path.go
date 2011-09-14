@@ -258,37 +258,61 @@ func Abs(path string) (string, os.Error) {
 	return Join(wd, path), nil
 }
 
-// Visitor methods are invoked for corresponding file tree entries
-// visited by Walk. The provided path parameter begins with root.
-type Visitor interface {
-	VisitDir(path string, f *os.FileInfo) bool
-	VisitFile(path string, f *os.FileInfo)
-}
+// SkipDir is used as a return value from WalkFuncs to indicate that
+// the directory named in the call is to be skipped. It is not returned
+// as an error by any function.
+var SkipDir = os.NewError("skip this directory")
 
-func walk(path string, f *os.FileInfo, v Visitor, errors chan<- os.Error) {
-	if !f.IsDirectory() {
-		v.VisitFile(path, f)
-		return
+// WalkFunc is the type of the function called for each file or directory
+// visited by Walk.  If there was a problem walking to the file or directory
+// named by path, the incoming error will describe the problem and the
+// function can decide how to handle that error (and Walk will not descend
+// into that directory).  If an error is returned, processing stops.  The
+// sole exception is that if path is a directory and the function returns the
+// special value SkipDir, the contents of the directory are skipped
+// and processing continues as usual on the next file.
+type WalkFunc func(path string, info *os.FileInfo, err os.Error) os.Error
+
+// walk recursively descends path, calling w.
+func walk(path string, info *os.FileInfo, walkFn WalkFunc) os.Error {
+	err := walkFn(path, info, nil)
+	if err != nil {
+		if info.IsDirectory() && err == SkipDir {
+			return nil
+		}
+		return err
 	}
 
-	if !v.VisitDir(path, f) {
-		return // skip directory entries
+	if !info.IsDirectory() {
+		return nil
 	}
 
 	list, err := readDir(path)
 	if err != nil {
-		if errors != nil {
-			errors <- err
-		}
+		return walkFn(path, info, err)
 	}
 
-	for _, e := range list {
-		walk(Join(path, e.Name), e, v, errors)
+	for _, fileInfo := range list {
+		if err = walk(Join(path, fileInfo.Name), fileInfo, walkFn); err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+// Walk walks the file tree rooted at root, calling walkFn for each file or
+// directory in the tree, including root. All errors that arise visiting files
+// and directories are filtered by walkFn.
+func Walk(root string, walkFn WalkFunc) os.Error {
+	info, err := os.Lstat(root)
+	if err != nil {
+		return walkFn(root, nil, err)
+	}
+	return walk(root, info, walkFn)
 }
 
 // readDir reads the directory named by dirname and returns
-// a list of sorted directory entries.
+// a sorted list of directory entries.
 // Copied from io/ioutil to avoid the circular import.
 func readDir(dirname string) ([]*os.FileInfo, os.Error) {
 	f, err := os.Open(dirname)
@@ -314,24 +338,6 @@ type fileInfoList []*os.FileInfo
 func (f fileInfoList) Len() int           { return len(f) }
 func (f fileInfoList) Less(i, j int) bool { return f[i].Name < f[j].Name }
 func (f fileInfoList) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
-
-// Walk walks the file tree rooted at root, calling v.VisitDir or
-// v.VisitFile for each directory or file in the tree, including root.
-// If v.VisitDir returns false, Walk skips the directory's entries;
-// otherwise it invokes itself for each directory entry in sorted order.
-// An error reading a directory does not abort the Walk.
-// If errors != nil, Walk sends each directory read error
-// to the channel.  Otherwise Walk discards the error.
-func Walk(root string, v Visitor, errors chan<- os.Error) {
-	f, err := os.Lstat(root)
-	if err != nil {
-		if errors != nil {
-			errors <- err
-		}
-		return // can't progress
-	}
-	walk(root, f, v, errors)
-}
 
 // Base returns the last element of path.
 // Trailing path separators are removed before extracting the last element.

@@ -198,31 +198,17 @@ func report(err os.Error) {
 }
 
 func walkDir(path string) {
-	v := make(fileVisitor)
-	go func() {
-		filepath.Walk(path, v, v)
-		close(v)
-	}()
-	for err := range v {
-		if err != nil {
-			report(err)
-		}
-	}
+	filepath.Walk(path, visitFile)
 }
 
-type fileVisitor chan os.Error
-
-func (v fileVisitor) VisitDir(path string, f *os.FileInfo) bool {
-	return true
-}
-
-func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
-	if isGoFile(f) {
-		v <- nil // synchronize error handler
-		if err := processFile(path, false); err != nil {
-			v <- err
-		}
+func visitFile(path string, f *os.FileInfo, err os.Error) os.Error {
+	if err == nil && isGoFile(f) {
+		err = processFile(path, false)
 	}
+	if err != nil {
+		report(err)
+	}
+	return nil
 }
 
 func isGoFile(f *os.FileInfo) bool {
