@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"tabwriter"
 )
 
@@ -55,12 +54,17 @@ const (
 	noExtraLinebreak
 )
 
+// local error wrapper so we can distinguish os.Errors we want to return
+// as errors from genuine panics (which we don't want to return as errors)
+type osError struct {
+	err os.Error
+}
+
 type printer struct {
 	// Configuration (does not change after initialization)
 	output io.Writer
 	Config
-	fset   *token.FileSet
-	errors chan os.Error
+	fset *token.FileSet
 
 	// Current state
 	written int         // number of bytes written
@@ -95,7 +99,6 @@ func (p *printer) init(output io.Writer, cfg *Config, fset *token.FileSet, nodeS
 	p.output = output
 	p.Config = *cfg
 	p.fset = fset
-	p.errors = make(chan os.Error)
 	p.wsbuf = make([]whiteSpace, 0, 16) // whitespace sequences are short
 	p.nodeSizes = nodeSizes
 }
@@ -143,8 +146,7 @@ func (p *printer) write0(data []byte) {
 		n, err := p.output.Write(data)
 		p.written += n
 		if err != nil {
-			p.errors <- err
-			runtime.Goexit()
+			panic(osError{err})
 		}
 	}
 }
@@ -923,7 +925,7 @@ type Config struct {
 }
 
 // fprint implements Fprint and takes a nodesSizes map for setting up the printer state.
-func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{}, nodeSizes map[ast.Node]int) (int, os.Error) {
+func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{}, nodeSizes map[ast.Node]int) (written int, err os.Error) {
 	// redirect output through a trimmer to eliminate trailing whitespace
 	// (Input to a tabwriter must be untrimmed since trailing tabs provide
 	// formatting information. The tabwriter could provide trimming
@@ -950,47 +952,50 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
 		output = tw
 	}
 
-	// setup printer and print node
+	// setup printer
 	var p printer
 	p.init(output, cfg, fset, nodeSizes)
-	go func() {
-		switch n := node.(type) {
-		case ast.Expr:
-			p.useNodeComments = true
-			p.expr(n, ignoreMultiLine)
-		case ast.Stmt:
-			p.useNodeComments = true
-			// A labeled statement will un-indent to position the
-			// label. Set indent to 1 so we don't get indent "underflow".
-			if _, labeledStmt := n.(*ast.LabeledStmt); labeledStmt {
-				p.indent = 1
-			}
-			p.stmt(n, false, ignoreMultiLine)
-		case ast.Decl:
-			p.useNodeComments = true
-			p.decl(n, ignoreMultiLine)
-		case ast.Spec:
-			p.useNodeComments = true
-			p.spec(n, 1, false, ignoreMultiLine)
-		case *ast.File:
-			p.comments = n.Comments
-			p.useNodeComments = n.Comments == nil
-			p.file(n)
-		default:
-			p.errors <- fmt.Errorf("printer.Fprint: unsupported node type %T", n)
-			runtime.Goexit()
+	defer func() {
+		written = p.written
+		if e := recover(); e != nil {
+			err = e.(osError).err // re-panics if it's not a local osError
 		}
-		p.flush(token.Position{Offset: infinity, Line: infinity}, token.EOF)
-		p.errors <- nil // no errors
 	}()
-	err := <-p.errors // wait for completion of goroutine
+
+	// print node
+	switch n := node.(type) {
+	case ast.Expr:
+		p.useNodeComments = true
+		p.expr(n, ignoreMultiLine)
+	case ast.Stmt:
+		p.useNodeComments = true
+		// A labeled statement will un-indent to position the
+		// label. Set indent to 1 so we don't get indent "underflow".
+		if _, labeledStmt := n.(*ast.LabeledStmt); labeledStmt {
+			p.indent = 1
+		}
+		p.stmt(n, false, ignoreMultiLine)
+	case ast.Decl:
+		p.useNodeComments = true
+		p.decl(n, ignoreMultiLine)
+	case ast.Spec:
+		p.useNodeComments = true
+		p.spec(n, 1, false, ignoreMultiLine)
+	case *ast.File:
+		p.comments = n.Comments
+		p.useNodeComments = n.Comments == nil
+		p.file(n)
+	default:
+		panic(osError{fmt.Errorf("printer.Fprint: unsupported node type %T", n)})
+	}
+	p.flush(token.Position{Offset: infinity, Line: infinity}, token.EOF)
 
 	// flush tabwriter, if any
 	if tw != nil {
 		tw.Flush() // ignore errors
 	}
 
-	return p.written, err
+	return
 }
 
 // Fprint "pretty-prints" an AST node to output and returns the number
