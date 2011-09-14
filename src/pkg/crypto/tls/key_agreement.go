@@ -24,7 +24,7 @@ func (ka rsaKeyAgreement) generateServerKeyExchange(config *Config, clientHello 
 	return nil, nil
 }
 
-func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg) ([]byte, os.Error) {
+func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg, version uint16) ([]byte, os.Error) {
 	preMasterSecret := make([]byte, 48)
 	_, err := io.ReadFull(config.rand(), preMasterSecret[2:])
 	if err != nil {
@@ -34,11 +34,15 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKe
 	if len(ckx.ciphertext) < 2 {
 		return nil, os.NewError("bad ClientKeyExchange")
 	}
-	ciphertextLen := int(ckx.ciphertext[0])<<8 | int(ckx.ciphertext[1])
-	if ciphertextLen != len(ckx.ciphertext)-2 {
-		return nil, os.NewError("bad ClientKeyExchange")
+
+	ciphertext := ckx.ciphertext
+	if version != versionSSL30 {
+		ciphertextLen := int(ckx.ciphertext[0])<<8 | int(ckx.ciphertext[1])
+		if ciphertextLen != len(ckx.ciphertext)-2 {
+			return nil, os.NewError("bad ClientKeyExchange")
+		}
+		ciphertext = ckx.ciphertext[2:]
 	}
-	ciphertext := ckx.ciphertext[2:]
 
 	err = rsa.DecryptPKCS1v15SessionKey(config.rand(), config.Certificates[0].PrivateKey, ciphertext, preMasterSecret)
 	if err != nil {
@@ -159,7 +163,7 @@ Curve:
 	return skx, nil
 }
 
-func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg) ([]byte, os.Error) {
+func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg, version uint16) ([]byte, os.Error) {
 	if len(ckx.ciphertext) == 0 || int(ckx.ciphertext[0]) != len(ckx.ciphertext)-1 {
 		return nil, os.NewError("bad ClientKeyExchange")
 	}

@@ -14,13 +14,13 @@ import (
 var tests = []interface{}{
 	&clientHelloMsg{},
 	&serverHelloMsg{},
+	&finishedMsg{},
 
 	&certificateMsg{},
 	&certificateRequestMsg{},
 	&certificateVerifyMsg{},
 	&certificateStatusMsg{},
 	&clientKeyExchangeMsg{},
-	&finishedMsg{},
 	&nextProtoMsg{},
 }
 
@@ -59,11 +59,12 @@ func TestMarshalUnmarshal(t *testing.T) {
 				break
 			}
 
-			if i >= 2 {
-				// The first two message types (ClientHello and
-				// ServerHello) are allowed to have parsable
-				// prefixes because the extension data is
-				// optional.
+			if i >= 3 {
+				// The first three message types (ClientHello,
+				// ServerHello and Finished) are allowed to
+				// have parsable prefixes because the extension
+				// data is optional and the length of the
+				// Finished varies across versions.
 				for j := 0; j < len(marshaled); j++ {
 					if m2.unmarshal(marshaled[0:j]) {
 						t.Errorf("#%d unmarshaled a prefix of length %d of %#v", i, j, m1)

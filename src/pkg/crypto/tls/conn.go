@@ -11,7 +11,6 @@ import (
 	"crypto/cipher"
 	"crypto/subtle"
 	"crypto/x509"
-	"hash"
 	"io"
 	"net"
 	"os"
@@ -108,18 +107,20 @@ func (c *Conn) SetWriteTimeout(nsec int64) os.Error {
 // connection, either sending or receiving.
 type halfConn struct {
 	sync.Mutex
-	cipher interface{} // cipher algorithm
-	mac    hash.Hash   // MAC algorithm
-	seq    [8]byte     // 64-bit sequence number
-	bfree  *block      // list of free blocks
+	version uint16      // protocol version
+	cipher  interface{} // cipher algorithm
+	mac     macFunction
+	seq     [8]byte // 64-bit sequence number
+	bfree   *block  // list of free blocks
 
 	nextCipher interface{} // next encryption state
-	nextMac    hash.Hash   // next MAC algorithm
+	nextMac    macFunction // next MAC algorithm
 }
 
 // prepareCipherSpec sets the encryption and MAC states
 // that a subsequent changeCipherSpec will use.
-func (hc *halfConn) prepareCipherSpec(cipher interface{}, mac hash.Hash) {
+func (hc *halfConn) prepareCipherSpec(version uint16, cipher interface{}, mac macFunction) {
+	hc.version = version
 	hc.nextCipher = cipher
 	hc.nextMac = mac
 }
@@ -197,6 +198,22 @@ func removePadding(payload []byte) ([]byte, byte) {
 	return payload[:len(payload)-int(toRemove)], good
 }
 
+// removePaddingSSL30 is a replacement for removePadding in the case that the
+// protocol version is SSLv3. In this version, the contents of the padding
+// are random and cannot be checked.
+func removePaddingSSL30(payload []byte) ([]byte, byte) {
+	if len(payload) < 1 {
+		return payload, 0
+	}
+
+	paddingLen := int(payload[len(payload)-1]) + 1
+	if paddingLen > len(payload) {
+		return payload, 0
+	}
+
+	return payload[:len(payload)-paddingLen], 255
+}
+
 func roundUp(a, b int) int {
 	return a + (b-a%b)%b
 }
@@ -226,7 +243,11 @@ func (hc *halfConn) decrypt(b *block) (bool, alert) {
 			}
 
 			c.CryptBlocks(payload, payload)
-			payload, paddingGood = removePadding(payload)
+			if hc.version == versionSSL30 {
+				payload, paddingGood = removePaddingSSL30(payload)
+			} else {
+				payload, paddingGood = removePadding(payload)
+			}
 			b.resize(recordHeaderLen + len(payload))
 
 			// note that we still have a timing side-channel in the
@@ -256,13 +277,10 @@ func (hc *halfConn) decrypt(b *block) (bool, alert) {
 		b.data[4] = byte(n)
 		b.resize(recordHeaderLen + n)
 		remoteMAC := payload[n:]
-
-		hc.mac.Reset()
-		hc.mac.Write(hc.seq[0:])
+		localMAC := hc.mac.MAC(hc.seq[0:], b.data)
 		hc.incSeq()
-		hc.mac.Write(b.data)
 
-		if subtle.ConstantTimeCompare(hc.mac.Sum(), remoteMAC) != 1 || paddingGood != 255 {
+		if subtle.ConstantTimeCompare(localMAC, remoteMAC) != 1 || paddingGood != 255 {
 			return false, alertBadRecordMAC
 		}
 	}
@@ -291,11 +309,9 @@ func padToBlockSize(payload []byte, blockSize int) (prefix, finalBlock []byte) {
 func (hc *halfConn) encrypt(b *block) (bool, alert) {
 	// mac
 	if hc.mac != nil {
-		hc.mac.Reset()
-		hc.mac.Write(hc.seq[0:])
+		mac := hc.mac.MAC(hc.seq[0:], b.data)
 		hc.incSeq()
-		hc.mac.Write(b.data)
-		mac := hc.mac.Sum()
+
 		n := len(b.data)
 		b.resize(n + len(mac))
 		copy(b.data[n:], mac)

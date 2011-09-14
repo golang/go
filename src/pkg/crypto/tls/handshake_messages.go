@@ -676,9 +676,9 @@ func (m *finishedMsg) marshal() (x []byte) {
 		return m.raw
 	}
 
-	x = make([]byte, 16)
+	x = make([]byte, 4+len(m.verifyData))
 	x[0] = typeFinished
-	x[3] = 12
+	x[3] = byte(len(m.verifyData))
 	copy(x[4:], m.verifyData)
 	m.raw = x
 	return
@@ -686,7 +686,7 @@ func (m *finishedMsg) marshal() (x []byte) {
 
 func (m *finishedMsg) unmarshal(data []byte) bool {
 	m.raw = data
-	if len(data) != 4+12 {
+	if len(data) < 4 {
 		return false
 	}
 	m.verifyData = data[4:]

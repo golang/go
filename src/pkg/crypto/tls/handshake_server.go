@@ -30,7 +30,7 @@ func (c *Conn) serverHandshake() os.Error {
 	c.vers = vers
 	c.haveVers = true
 
-	finishedHash := newFinishedHash()
+	finishedHash := newFinishedHash(vers)
 	finishedHash.Write(clientHello.marshal())
 
 	hello := new(serverHelloMsg)
@@ -128,7 +128,6 @@ FindCipherSuite:
 	}
 
 	keyAgreement := suite.ka()
-
 	skx, err := keyAgreement.generateServerKeyExchange(config, clientHello, hello)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
@@ -235,18 +234,18 @@ FindCipherSuite:
 		finishedHash.Write(certVerify.marshal())
 	}
 
-	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, ckx)
+	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, ckx, c.vers)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
 		return err
 	}
 
 	masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
-		keysFromPreMasterSecret10(preMasterSecret, clientHello.random, hello.random, suite.macLen, suite.keyLen, suite.ivLen)
+		keysFromPreMasterSecret(c.vers, preMasterSecret, clientHello.random, hello.random, suite.macLen, suite.keyLen, suite.ivLen)
 
 	clientCipher := suite.cipher(clientKey, clientIV, true /* for reading */ )
-	clientHash := suite.mac(clientMAC)
-	c.in.prepareCipherSpec(clientCipher, clientHash)
+	clientHash := suite.mac(c.vers, clientMAC)
+	c.in.prepareCipherSpec(c.vers, clientCipher, clientHash)
 	c.readRecord(recordTypeChangeCipherSpec)
 	if err := c.error(); err != nil {
 		return err
@@ -283,8 +282,8 @@ FindCipherSuite:
 	finishedHash.Write(clientFinished.marshal())
 
 	serverCipher := suite.cipher(serverKey, serverIV, false /* not for reading */ )
-	serverHash := suite.mac(serverMAC)
-	c.out.prepareCipherSpec(serverCipher, serverHash)
+	serverHash := suite.mac(c.vers, serverMAC)
+	c.out.prepareCipherSpec(c.vers, serverCipher, serverHash)
 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
 
 	finished := new(finishedMsg)

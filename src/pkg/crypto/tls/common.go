@@ -20,8 +20,11 @@ const (
 	recordHeaderLen = 5            // record header length
 	maxHandshake    = 65536        // maximum handshake we support (protocol max is 16 MB)
 
-	minVersion = 0x0301 // minimum supported version - TLS 1.0
-	maxVersion = 0x0301 // maximum supported version - TLS 1.0
+	versionSSL30 = 0x0300
+	versionTLS10 = 0x0301
+
+	minVersion = versionSSL30
+	maxVersion = versionTLS10
 )
 
 // TLS record types.

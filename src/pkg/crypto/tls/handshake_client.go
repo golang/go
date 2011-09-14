@@ -14,7 +14,7 @@ import (
 )
 
 func (c *Conn) clientHandshake() os.Error {
-	finishedHash := newFinishedHash()
+	finishedHash := newFinishedHash(versionTLS10)
 
 	if c.config == nil {
 		c.config = defaultConfig()
@@ -247,11 +247,11 @@ func (c *Conn) clientHandshake() os.Error {
 	}
 
 	masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
-		keysFromPreMasterSecret10(preMasterSecret, hello.random, serverHello.random, suite.macLen, suite.keyLen, suite.ivLen)
+		keysFromPreMasterSecret(c.vers, preMasterSecret, hello.random, serverHello.random, suite.macLen, suite.keyLen, suite.ivLen)
 
 	clientCipher := suite.cipher(clientKey, clientIV, false /* not for reading */ )
-	clientHash := suite.mac(clientMAC)
-	c.out.prepareCipherSpec(clientCipher, clientHash)
+	clientHash := suite.mac(c.vers, clientMAC)
+	c.out.prepareCipherSpec(c.vers, clientCipher, clientHash)
 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
 
 	if serverHello.nextProtoNeg {
@@ -271,8 +271,8 @@ func (c *Conn) clientHandshake() os.Error {
 	c.writeRecord(recordTypeHandshake, finished.marshal())
 
 	serverCipher := suite.cipher(serverKey, serverIV, true /* for reading */ )
-	serverHash := suite.mac(serverMAC)
-	c.in.prepareCipherSpec(serverCipher, serverHash)
+	serverHash := suite.mac(c.vers, serverMAC)
+	c.in.prepareCipherSpec(c.vers, serverCipher, serverHash)
 	c.readRecord(recordTypeChangeCipherSpec)
 	if c.err != nil {
 		return c.err
