@@ -227,6 +227,9 @@ func TestNoSectionOverlaps(t *testing.T) {
 	}
 	for i, si := range f.Sections {
 		sih := si.SectionHeader
+		if sih.Type == SHT_NOBITS {
+			continue
+		}
 		for j, sj := range f.Sections {
 			sjh := sj.SectionHeader
 			if i == j || sjh.Type == SHT_NOBITS || sih.Offset == sjh.Offset && sih.Size == 0 {
