@@ -12,6 +12,7 @@ GOFILES=\
 	httpfs.go\
 	httpheaders.go\
 	httpserver.go\
+	imagenew.go\
 	main.go\
 	netdial.go\
 	netudpgroup.go\

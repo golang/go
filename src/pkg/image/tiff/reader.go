@@ -378,13 +378,13 @@ func Decode(r io.Reader) (img image.Image, err os.Error) {
 
 	switch d.mode {
 	case mGray, mGrayInvert:
-		img = image.NewGray(d.config.Width, d.config.Height)
+		img = image.NewGray(image.Rect(0, 0, d.config.Width, d.config.Height))
 	case mPaletted:
-		img = image.NewPaletted(d.config.Width, d.config.Height, d.palette)
+		img = image.NewPaletted(image.Rect(0, 0, d.config.Width, d.config.Height), d.palette)
 	case mNRGBA:
-		img = image.NewNRGBA(d.config.Width, d.config.Height)
+		img = image.NewNRGBA(image.Rect(0, 0, d.config.Width, d.config.Height))
 	case mRGB, mRGBA:
-		img = image.NewRGBA(d.config.Width, d.config.Height)
+		img = image.NewRGBA(image.Rect(0, 0, d.config.Width, d.config.Height))
 	}
 
 	for i := 0; i < numStrips; i++ {
