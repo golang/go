@@ -15,6 +15,7 @@ import (
 type T struct {
 	X string
 	Y int
+	Z int `json:"-"`
 }
 
 type tx struct {
@@ -67,6 +68,9 @@ var unmarshalTests = []unmarshalTest{
 	{"null", new(interface{}), nil, nil},
 	{`{"X": [1,2,3], "Y": 4}`, new(T), T{Y: 4}, &UnmarshalTypeError{"array", reflect.TypeOf("")}},
 	{`{"x": 1}`, new(tx), tx{}, &UnmarshalFieldError{"x", txType, txType.Field(0)}},
+
+	// Z has a "-" tag.
+	{`{"Y": 1, "Z": 2}`, new(T), T{Y: 1}, nil},
 
 	// syntax errors
 	{`{"X": "foo", "Y"}`, nil, nil, &SyntaxError{"invalid character '}' after object key", 17}},
