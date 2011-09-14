@@ -18,6 +18,7 @@ func testClientScript(t *testing.T, name string, clientScript [][]byte, config *
 	go func() {
 		cli.Write([]byte("hello\n"))
 		cli.Close()
+		c.Close()
 	}()
 
 	defer c.Close()

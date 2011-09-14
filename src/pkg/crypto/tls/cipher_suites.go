@@ -9,6 +9,7 @@ import (
 	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/rc4"
+	"crypto/sha1"
 	"crypto/x509"
 	"hash"
 	"os"
@@ -23,7 +24,7 @@ type keyAgreement interface {
 	// ServerKeyExchange message, generateServerKeyExchange can return nil,
 	// nil.
 	generateServerKeyExchange(*Config, *clientHelloMsg, *serverHelloMsg) (*serverKeyExchangeMsg, os.Error)
-	processClientKeyExchange(*Config, *clientKeyExchangeMsg) ([]byte, os.Error)
+	processClientKeyExchange(*Config, *clientKeyExchangeMsg, uint16) ([]byte, os.Error)
 
 	// On the client side, the next two methods are called in order.
 
@@ -46,14 +47,14 @@ type cipherSuite struct {
 	// and point format that we can handle.
 	elliptic bool
 	cipher   func(key, iv []byte, isRead bool) interface{}
-	mac      func(macKey []byte) hash.Hash
+	mac      func(version uint16, macKey []byte) macFunction
 }
 
 var cipherSuites = map[uint16]*cipherSuite{
-	TLS_RSA_WITH_RC4_128_SHA:           &cipherSuite{16, 20, 0, rsaKA, false, cipherRC4, hmacSHA1},
-	TLS_RSA_WITH_AES_128_CBC_SHA:       &cipherSuite{16, 20, 16, rsaKA, false, cipherAES, hmacSHA1},
-	TLS_ECDHE_RSA_WITH_RC4_128_SHA:     &cipherSuite{16, 20, 0, ecdheRSAKA, true, cipherRC4, hmacSHA1},
-	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA: &cipherSuite{16, 20, 16, ecdheRSAKA, true, cipherAES, hmacSHA1},
+	TLS_RSA_WITH_RC4_128_SHA:           &cipherSuite{16, 20, 0, rsaKA, false, cipherRC4, macSHA1},
+	TLS_RSA_WITH_AES_128_CBC_SHA:       &cipherSuite{16, 20, 16, rsaKA, false, cipherAES, macSHA1},
+	TLS_ECDHE_RSA_WITH_RC4_128_SHA:     &cipherSuite{16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1},
+	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA: &cipherSuite{16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1},
 }
 
 func cipherRC4(key, iv []byte, isRead bool) interface{} {
@@ -69,8 +70,75 @@ func cipherAES(key, iv []byte, isRead bool) interface{} {
 	return cipher.NewCBCEncrypter(block, iv)
 }
 
-func hmacSHA1(key []byte) hash.Hash {
-	return hmac.NewSHA1(key)
+// macSHA1 returns a macFunction for the given protocol version.
+func macSHA1(version uint16, key []byte) macFunction {
+	if version == versionSSL30 {
+		mac := ssl30MAC{
+			h:   sha1.New(),
+			key: make([]byte, len(key)),
+		}
+		copy(mac.key, key)
+		return mac
+	}
+	return tls10MAC{hmac.NewSHA1(key)}
+}
+
+type macFunction interface {
+	Size() int
+	MAC(seq, data []byte) []byte
+}
+
+// ssl30MAC implements the SSLv3 MAC function, as defined in
+// www.mozilla.org/projects/security/pki/nss/ssl/draft302.txt section 5.2.3.1
+type ssl30MAC struct {
+	h   hash.Hash
+	key []byte
+}
+
+func (s ssl30MAC) Size() int {
+	return s.h.Size()
+}
+
+var ssl30Pad1 = [48]byte{0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36}
+
+var ssl30Pad2 = [48]byte{0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c}
+
+func (s ssl30MAC) MAC(seq, record []byte) []byte {
+	padLength := 48
+	if s.h.Size() == 20 {
+		padLength = 40
+	}
+
+	s.h.Reset()
+	s.h.Write(s.key)
+	s.h.Write(ssl30Pad1[:padLength])
+	s.h.Write(seq)
+	s.h.Write(record[:1])
+	s.h.Write(record[3:5])
+	s.h.Write(record[recordHeaderLen:])
+	digest := s.h.Sum()
+
+	s.h.Reset()
+	s.h.Write(s.key)
+	s.h.Write(ssl30Pad2[:padLength])
+	s.h.Write(digest)
+	return s.h.Sum()
+}
+
+// tls10MAC implements the TLS 1.0 MAC function. RFC 2246, section 6.2.3.
+type tls10MAC struct {
+	h hash.Hash
+}
+
+func (s tls10MAC) Size() int {
+	return s.h.Size()
+}
+
+func (s tls10MAC) MAC(seq, record []byte) []byte {
+	s.h.Reset()
+	s.h.Write(seq)
+	s.h.Write(record)
+	return s.h.Sum()
 }
 
 func rsaKA() keyAgreement {
