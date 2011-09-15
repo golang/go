@@ -45,12 +45,10 @@ var buildPkgs = []struct {
 	{
 		"go/build/cgotest",
 		&DirInfo{
-			CgoFiles:     []string{"cgotest.go"},
-			CFiles:       []string{"cgotest.c"},
-			Imports:      []string{"C", "unsafe"},
-			Package:      "cgotest",
-			CgoLDFLAGS:   []string{"-lregexp"},
-			CgoPkgConfig: []string{"cairo", "moscow"},
+			CgoFiles: []string{"cgotest.go"},
+			CFiles:   []string{"cgotest.c"},
+			Imports:  []string{"C", "unsafe"},
+			Package:  "cgotest",
 		},
 	},
 }
@@ -58,24 +56,16 @@ var buildPkgs = []struct {
 const cmdtestOutput = "3"
 
 func TestBuild(t *testing.T) {
-	var ctxt = Context{GOOS: "darwin", GOARCH: "amd64"}
 	for _, tt := range buildPkgs {
 		tree := Path[0] // Goroot
 		dir := filepath.Join(tree.SrcDir(), tt.dir)
-		info, err := ctxt.ScanDir(dir)
+		info, err := ScanDir(dir)
 		if err != nil {
 			t.Errorf("ScanDir(%#q): %v", tt.dir, err)
 			continue
 		}
 		if !reflect.DeepEqual(info, tt.info) {
 			t.Errorf("ScanDir(%#q) = %#v, want %#v\n", tt.dir, info, tt.info)
-			continue
-		}
-
-		if tt.dir == "go/build/cgotest" {
-			// Don't actually run cgo.
-			// Among other things our test depends
-			// on pkg-config, which is not present on all systems.
 			continue
 		}
 
