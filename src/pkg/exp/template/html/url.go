@@ -13,7 +13,10 @@ import (
 // urlFilter returns the HTML equivalent of its input unless it contains an
 // unsafe protocol in which case it defangs the entire URL.
 func urlFilter(args ...interface{}) string {
-	s := stringify(args...)
+	s, t := stringify(args...)
+	if t == contentTypeURL {
+		return urlProcessor(true, s)
+	}
 	i := strings.IndexRune(s, ':')
 	if i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
 		protocol := strings.ToLower(s[:i])
@@ -36,7 +39,7 @@ func urlEscaper(args ...interface{}) string {
 
 // urlEscaper normalizes URL content so it can be embedded in a quote-delimited
 // string or parenthesis delimited url(...).
-// The normalizer does not encode all HTML specials.  Specifically, it does not
+// The normalizer does not encode all HTML specials. Specifically, it does not
 // encode '&' so correct embedding in an HTML attribute requires escaping of
 // '&' to '&amp;'.
 func urlNormalizer(args ...interface{}) string {
@@ -46,7 +49,10 @@ func urlNormalizer(args ...interface{}) string {
 // urlProcessor normalizes (when norm is true) or escapes its input to produce
 // a valid hierarchical or opaque URL part.
 func urlProcessor(norm bool, args ...interface{}) string {
-	s := stringify(args...)
+	s, t := stringify(args...)
+	if t == contentTypeURL {
+		norm = true
+	}
 	var b bytes.Buffer
 	written := 0
 	// The byte loop below assumes that all URLs use UTF-8 as the

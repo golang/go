@@ -6,6 +6,7 @@ package html
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strings"
 	"template"
@@ -20,6 +21,7 @@ func TestEscape(t *testing.T) {
 		A, E    []string
 		N       int
 		Z       *int
+		W       HTML
 	}{
 		F: false,
 		T: true,
@@ -30,6 +32,7 @@ func TestEscape(t *testing.T) {
 		E: []string{},
 		N: 42,
 		Z: nil,
+		W: HTML(`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`),
 	}
 
 	tests := []struct {
@@ -358,11 +361,47 @@ func TestEscape(t *testing.T) {
 			// TODO: Elide comment.
 			"<b>Hello, <!-- name of world -->&lt;Cincinatti&gt;</b>",
 		},
+		{
+			"typed HTML in text",
+			`{{.W}}`,
+			`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`,
+		},
+		{
+			"typed HTML in attribute",
+			`<div title="{{.W}}">`,
+			`<div title="&iexcl;Hello, O&#39;World!">`,
+		},
+		{
+			"typed HTML in script",
+			`<button onclick="alert({{.W}})">`,
+			`<button onclick="alert(&#34;&amp;iexcl;\u003cb class=\&#34;foo\&#34;\u003eHello\u003c/b\u003e, \u003ctextarea\u003eO&#39;World\u003c/textarea\u003e!&#34;)">`,
+		},
+		{
+			"typed HTML in RCDATA",
+			`<textarea>{{.W}}</textarea>`,
+			`<textarea>&iexcl;&lt;b class=&#34;foo&#34;&gt;Hello&lt;/b&gt;, &lt;textarea&gt;O&#39;World&lt;/textarea&gt;!</textarea>`,
+		},
+		{
+			"range in textarea",
+			"<textarea>{{range .A}}{{.}}{{end}}</textarea>",
+			"<textarea>&lt;a&gt;&lt;b&gt;</textarea>",
+		},
+		{
+			"auditable exemption from escaping",
+			"{{range .A}}{{. | noescape}}{{end}}",
+			"<a><b>",
+		},
 	}
 
 	for _, test := range tests {
-		tmpl := template.Must(template.New(test.name).Parse(test.input))
-		tmpl = template.Must(Escape(tmpl))
+		tmpl := template.New(test.name)
+		// TODO: Move noescape into template/func.go
+		tmpl.Funcs(template.FuncMap{
+			"noescape": func(a ...interface{}) string {
+				return fmt.Sprint(a...)
+			},
+		})
+		tmpl = template.Must(Escape(template.Must(tmpl.Parse(test.input))))
 		b := new(bytes.Buffer)
 		if err := tmpl.Execute(b, data); err != nil {
 			t.Errorf("%s: template execution failed: %s", test.name, err)

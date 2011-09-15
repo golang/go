@@ -313,11 +313,8 @@ plain text string in the appropriate context.
 When a data value is not plain text, you can make sure it is not over-escaped
 by marking it with its type.
 
-A value that implements interface TypedStringer can carry known-safe content.
-
-  type safeHTML struct{}
-  func (s safeHTML) String() string { return `<b>World</b>` }
-  func (s safeHTML) ContentType() ContentType { return ContentTypeHTML }
+Types HTML, JS, URL, and others from content.go can carry safe content that is
+exempted from escaping.
 
 The template
 
@@ -325,7 +322,7 @@ The template
 
 can be invoked with
 
-  tmpl.Execute(out, safeHTML{})
+  tmpl.Execute(out, HTML(`<b>World</b>`))
 
 to produce
 
@@ -335,35 +332,7 @@ instead of the
 
   Hello, &lt;b&gt;World&lt;b&gt;!
 
-which would have been produced if {{.}} did not implement TypedStringer.
-
-ContentTypeHTML attaches to a well-formed HTML DocumentFragment.
-Do not use it for HTML from a third-party, or HTML with unclosed tags or
-comments. The outputs of a sound HTML sanitizer and a template escaped by
-this package are examples of ContentTypeHTML.
-
-ContentTypeCSS attaches to a well-formed safe content that matches:
-(1) The CSS3 stylesheet production, for example `p { color: purple }`
-(2) The CSS3 rule production, for example `a[href=~"https:"].foo#bar`
-(3) CSS3 declaration productions, for example `color: red; margin: 2px`
-(4) The CSS3 value production, for example `rgba(0, 0, 255, 127)`
-
-ContentTypeJS attaches to a well-formed JavaScript (EcmaScript5) Expression
-production, for example `(x + y * z())`. Template authors are responsible
-for ensuring that typed expressions do not break the intended precedence and
-that there is no statement/expression ambiguity as when passing an expression
-like "{ foo: bar() }\n['foo']()" which is both a valid Expression and a valid
-Program with a very different meaning.
-
-ContentTypeJSStr attaches to a snippet of \-escaped characters that could be
-quoted to form a JavaScript string literal. For example, foo\nbar with quotes
-around it makes a valid JavaScript string literal.
-
-ContentTypeURL attaches to a URL fragment from a trusted source.
-A URL like `javascript:checkThatFormNotEditedBeforeLeavingPage()`
-from a trusted source should go in the page, but by default dynamic
-`javascript:` URLs are filtered out since they are a frequently
-successfully exploited injection vector.
+that would have been produced if {{.}} was a regular string.
 
 
 Security Model

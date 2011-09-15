@@ -146,7 +146,7 @@ func skipCSSSpace(c []byte) []byte {
 
 // cssEscaper escapes HTML and CSS special characters using \<hex>+ escapes.
 func cssEscaper(args ...interface{}) string {
-	s := stringify(args...)
+	s, _ := stringify(args...)
 	var b bytes.Buffer
 	written := 0
 	for i, r := range s {
@@ -218,7 +218,11 @@ var mozBindingBytes = []byte("mozbinding")
 // It filters out unsafe values, such as those that affect token boundaries,
 // and anything that might execute scripts.
 func cssValueFilter(args ...interface{}) string {
-	s, id := decodeCSS([]byte(stringify(args...))), make([]byte, 0, 64)
+	s, t := stringify(args...)
+	if t == contentTypeCSS {
+		return s
+	}
+	b, id := decodeCSS([]byte(s)), make([]byte, 0, 64)
 
 	// CSS3 error handling is specified as honoring string boundaries per
 	// http://www.w3.org/TR/css3-syntax/#error-handling :
@@ -231,14 +235,14 @@ func cssValueFilter(args ...interface{}) string {
 	// So we need to make sure that values do not have mismatched bracket
 	// or quote characters to prevent the browser from restarting parsing
 	// inside a string that might embed JavaScript source.
-	for i, c := range s {
+	for i, c := range b {
 		switch c {
 		case 0, '"', '\'', '(', ')', '/', ';', '@', '[', '\\', ']', '`', '{', '}':
 			return filterFailsafe
 		case '-':
 			// Disallow <!-- or -->.
 			// -- should not appear in valid identifiers.
-			if i != 0 && '-' == s[i-1] {
+			if i != 0 && '-' == b[i-1] {
 				return filterFailsafe
 			}
 		default:
@@ -251,5 +255,5 @@ func cssValueFilter(args ...interface{}) string {
 	if bytes.Index(id, expressionBytes) != -1 || bytes.Index(id, mozBindingBytes) != -1 {
 		return filterFailsafe
 	}
-	return string(s)
+	return string(b)
 }

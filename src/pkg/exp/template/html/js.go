@@ -123,6 +123,17 @@ func jsValEscaper(args ...interface{}) string {
 	var a interface{}
 	if len(args) == 1 {
 		a = args[0]
+		switch t := a.(type) {
+		case JS:
+			return string(t)
+		case JSStr:
+			// TODO: normalize quotes.
+			return `"` + string(t) + `"`
+		case json.Marshaler:
+			// Do not treat as a Stringer.
+		case fmt.Stringer:
+			a = t.String()
+		}
 	} else {
 		a = fmt.Sprint(args...)
 	}
@@ -166,7 +177,11 @@ func jsValEscaper(args ...interface{}) string {
 // JavaScript source, in JavaScript embedded in an HTML5 <script> element,
 // or in an HTML5 event handler attribute such as onclick.
 func jsStrEscaper(args ...interface{}) string {
-	return replace(stringify(args...), jsStrReplacementTable)
+	s, t := stringify(args...)
+	if t == contentTypeJSStr {
+		return replace(s, jsStrNormReplacementTable)
+	}
+	return replace(s, jsStrReplacementTable)
 }
 
 // jsRegexpEscaper behaves like jsStrEscaper but escapes regular expression
@@ -174,7 +189,8 @@ func jsStrEscaper(args ...interface{}) string {
 // expression literal. /foo{{.X}}bar/ matches the string "foo" followed by
 // the literal text of {{.X}} followed by the string "bar".
 func jsRegexpEscaper(args ...interface{}) string {
-	s := replace(stringify(args...), jsRegexpReplacementTable)
+	s, _ := stringify(args...)
+	s = replace(s, jsRegexpReplacementTable)
 	if s == "" {
 		// /{{.X}}/ should not produce a line comment when .X == "".
 		return "(?:)"
@@ -182,21 +198,11 @@ func jsRegexpEscaper(args ...interface{}) string {
 	return s
 }
 
-// stringify is an optimized form of fmt.Sprint.
-func stringify(args ...interface{}) string {
-	if len(args) == 1 {
-		if s, ok := args[0].(string); ok {
-			return s
-		}
-	}
-	return fmt.Sprint(args...)
-}
-
 // replace replaces each rune r of s with replacementTable[r], provided that
 // r < len(replacementTable). If replacementTable[r] is the empty string then
 // no replacement is made.
-// It also replaces the runes '\u2028' and '\u2029' with the strings
-// `\u2028` and `\u2029`. Note the different quotes used.
+// It also replaces runes U+2028 and U+2029 with the raw strings `\u2028` and
+// `\u2029`.
 func replace(s string, replacementTable []string) string {
 	var b bytes.Buffer
 	written := 0
@@ -240,6 +246,26 @@ var jsStrReplacementTable = []string{
 	'<':  `\x3c`,
 	'>':  `\x3e`,
 	'\\': `\\`,
+}
+
+// jsStrNormReplacementTable is like jsStrReplacementTable but does not
+// overencode existing escapes since this table has no entry for `\`.
+var jsStrNormReplacementTable = []string{
+	0:    `\0`,
+	'\t': `\t`,
+	'\n': `\n`,
+	'\v': `\x0b`, // "\v" == "v" on IE 6.
+	'\f': `\f`,
+	'\r': `\r`,
+	// Encode HTML specials as hex so the output can be embedded
+	// in HTML attributes without further encoding.
+	'"':  `\x22`,
+	'&':  `\x26`,
+	'\'': `\x27`,
+	'+':  `\x2b`,
+	'/':  `\/`,
+	'<':  `\x3c`,
+	'>':  `\x3e`,
 }
 
 var jsRegexpReplacementTable = []string{
