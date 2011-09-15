@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // BUG(rsc): To let callers manage exposure to denial of service
@@ -182,6 +183,10 @@ func (r *Reader) readCodeLine(expectCode int) (code int, continued bool, message
 	if err != nil {
 		return
 	}
+	return parseCodeLine(line, expectCode)
+}
+
+func parseCodeLine(line string, expectCode int) (code int, continued bool, message string, err os.Error) {
 	if len(line) < 4 || line[3] != ' ' && line[3] != '-' {
 		err = ProtocolError("short response: " + line)
 		return
@@ -224,15 +229,20 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err os.
 	return
 }
 
-// ReadResponse reads a multi-line response of the form
+// ReadResponse reads a multi-line response of the form:
+//
 //	code-message line 1
 //	code-message line 2
 //	...
 //	code message line n
-// where code is a 3-digit status code. Each line should have the same code.
-// The response is terminated by a line that uses a space between the code and
-// the message line rather than a dash. Each line in message is separated by
-// a newline (\n).
+//
+// where code is a 3-digit status code. The first line starts with the
+// code and a hyphen. The response is terminated by a line that starts
+// with the same code followed by a space. Each line in message is
+// separated by a newline (\n).
+//
+// See page 36 of RFC 959 (http://www.ietf.org/rfc/rfc959.txt) for
+// details.
 //
 // If the prefix of the status does not match the digits in expectCode,
 // ReadResponse returns with err set to &Error{code, message}.
@@ -244,11 +254,18 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err os.
 func (r *Reader) ReadResponse(expectCode int) (code int, message string, err os.Error) {
 	code, continued, message, err := r.readCodeLine(expectCode)
 	for err == nil && continued {
+		line, err := r.ReadLine()
+		if err != nil {
+			return
+		}
+
 		var code2 int
 		var moreMessage string
-		code2, continued, moreMessage, err = r.readCodeLine(expectCode)
-		if code != code2 {
-			err = ProtocolError("status code mismatch: " + strconv.Itoa(code) + ", " + strconv.Itoa(code2))
+		code2, continued, moreMessage, err = parseCodeLine(line, expectCode)
+		if err != nil || code2 != code {
+			message += "\n" + strings.TrimRight(line, "\r\n")
+			continued = true
+			continue
 		}
 		message += "\n" + moreMessage
 	}
