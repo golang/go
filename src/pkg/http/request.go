@@ -273,10 +273,12 @@ func (req *Request) Write(w io.Writer) os.Error {
 }
 
 // WriteProxy is like Write but writes the request in the form
-// expected by an HTTP proxy.  It includes the scheme and host
-// name in the URI instead of using a separate Host: header line.
-// If req.RawURL is non-empty, WriteProxy uses it unchanged
-// instead of URL but still omits the Host: header.
+// expected by an HTTP proxy.  In particular, WriteProxy writes the
+// initial Request-URI line of the request with an absolute URI, per
+// section 5.1.2 of RFC 2616, including the scheme and host.  If
+// req.RawURL is non-empty, WriteProxy uses it unchanged.  In either
+// case, WriteProxy also writes a Host header, using either req.Host
+// or req.URL.Host.
 func (req *Request) WriteProxy(w io.Writer) os.Error {
 	return req.write(w, true)
 }
