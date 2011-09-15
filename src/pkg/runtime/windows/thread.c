@@ -40,14 +40,12 @@ extern void *runtime·WaitForSingleObject;
 extern void *runtime·WriteFile;
 
 static int64 timerfreq;
-static void destroylock(Lock *l);
 
 void
 runtime·osinit(void)
 {
 	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
-	runtime·destroylock = destroylock;
 }
 
 void
@@ -120,22 +118,50 @@ initevent(void **pevent)
 	}
 }
 
+#define LOCK_HELD ((M*)-1)
+
 static void
 eventlock(Lock *l)
 {
 	// Allocate event if needed.
-	if(l->event == 0)
-		initevent(&l->event);
+	if(m->event == nil)
+		initevent(&m->event);
 
-	if(runtime·xadd(&l->key, 1) > 1)	// someone else has it; wait
-		runtime·stdcall(runtime·WaitForSingleObject, 2, l->event, (uintptr)-1);
+	for(;;) {
+		m->nextwaitm = runtime·atomicloadp(&l->waitm);
+		if(m->nextwaitm == nil) {
+			if(runtime·casp(&l->waitm, nil, LOCK_HELD))
+				return;
+		// Someone else has it.
+		// l->waitm points to a linked list of M's waiting
+		// for this lock, chained through m->nextwaitm.
+		// Queue this M.
+		} else if(runtime·casp(&l->waitm, m->nextwaitm, m))
+			break;
+	}
+
+	// Wait.
+	runtime·stdcall(runtime·WaitForSingleObject, 2, m->event, (uintptr)-1);
 }
 
 static void
 eventunlock(Lock *l)
 {
-	if(runtime·xadd(&l->key, -1) > 0)	// someone else is waiting
-		runtime·stdcall(runtime·SetEvent, 1, l->event);
+	M *mp;
+
+	for(;;) {
+		mp = runtime·atomicloadp(&l->waitm);
+		if(mp == LOCK_HELD) {
+			if(runtime·casp(&l->waitm, LOCK_HELD, nil))
+				return;
+		// Other M's are waiting for the lock.
+		// Dequeue a M.
+		} else if(runtime·casp(&l->waitm, mp, mp->nextwaitm))
+			break;
+	}
+
+	// Wake that M.
+	runtime·stdcall(runtime·SetEvent, 1, mp->event);
 }
 
 void
@@ -156,17 +182,10 @@ runtime·unlock(Lock *l)
 	eventunlock(l);
 }
 
-static void
-destroylock(Lock *l)
-{
-	if(l->event != 0)
-		runtime·stdcall(runtime·CloseHandle, 1, l->event);
-}
-
 void
 runtime·noteclear(Note *n)
 {
-	n->lock.key = 0;	// memset(n, 0, sizeof *n)
+	n->lock.waitm = nil;
 	eventlock(&n->lock);
 }
 

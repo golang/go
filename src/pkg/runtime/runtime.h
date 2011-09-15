@@ -119,10 +119,10 @@ enum
  */
 struct	Lock
 {
-	uint32	key;
 #ifdef __WINDOWS__
-	void*	event;
+	M*	waitm;	// linked list of waiting M's
 #else
+	uint32	key;
 	uint32	sema;	// for OS X
 #endif
 };
@@ -251,6 +251,11 @@ struct	M
 	uint32	freglo[16];	// D[i] lsb and F[i]
 	uint32	freghi[16];	// D[i] msb and F[i+16]
 	uint32	fflag;		// floating point compare flags
+
+#ifdef __WINDOWS__
+	void*	event;		// event for signalling
+	M*	nextwaitm;	// next M waiting for lock
+#endif
 };
 
 struct	Stktop

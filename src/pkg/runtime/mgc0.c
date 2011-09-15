@@ -603,8 +603,6 @@ runtime·gc(int32 force)
 
 	m->gcing = 1;
 	runtime·stoptheworld();
-	if(runtime·mheap.Lock.key != 0)
-		runtime·throw("runtime·mheap locked during gc");
 
 	cachestats();
 	heap0 = mstats.heap_alloc;
