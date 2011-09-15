@@ -19,7 +19,6 @@ that will be passed to Execute.
 
 If successful, set will now be injection-safe. Otherwise, the returned set will
 be nil and an error, described below, will explain the problem.
-If an error is returned, do not use the original set; it is insecure.
 
 The template names do not need to include helper templates but should include
 all names x used thus:

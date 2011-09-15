@@ -1148,3 +1148,32 @@ func TestEnsurePipelineContains(t *testing.T) {
 		}
 	}
 }
+
+func expectExecuteFailure(t *testing.T, b *bytes.Buffer) {
+	if x := recover(); x != nil {
+		if b.Len() != 0 {
+			t.Errorf("output on buffer: %q", b.String())
+		}
+	} else {
+		t.Errorf("unescaped template executed")
+	}
+}
+
+func TestEscapeErrorsNotIgnorable(t *testing.T) {
+	var b bytes.Buffer
+	tmpl := template.Must(template.New("dangerous").Parse("<a"))
+	Escape(tmpl)
+	defer expectExecuteFailure(t, &b)
+	tmpl.Execute(&b, nil)
+}
+
+func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
+	s, err := (&template.Set{}).Parse(`{{define "t"}}<a{{end}}`)
+	if err != nil {
+		t.Error("failed to parse set: %q", err)
+	}
+	EscapeSet(s, "t")
+	var b bytes.Buffer
+	defer expectExecuteFailure(t, &b)
+	s.Execute(&b, "t", nil)
+}
