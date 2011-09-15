@@ -138,3 +138,56 @@ func TestReadMIMEHeader(t *testing.T) {
 		t.Fatalf("ReadMIMEHeader: %v, %v; want %v", m, err, want)
 	}
 }
+
+type readResponseTest struct {
+	in       string
+	inCode   int
+	wantCode int
+	wantMsg  string
+}
+
+var readResponseTests = []readResponseTest{
+	{"230-Anonymous access granted, restrictions apply\n" +
+		"Read the file README.txt,\n" +
+		"230  please",
+		23,
+		230,
+		"Anonymous access granted, restrictions apply\nRead the file README.txt,\n please",
+	},
+
+	{"230 Anonymous access granted, restrictions apply\n",
+		23,
+		230,
+		"Anonymous access granted, restrictions apply",
+	},
+
+	{"400-A\n400-B\n400 C",
+		4,
+		400,
+		"A\nB\nC",
+	},
+
+	{"400-A\r\n400-B\r\n400 C\r\n",
+		4,
+		400,
+		"A\nB\nC",
+	},
+}
+
+// See http://www.ietf.org/rfc/rfc959.txt page 36.
+func TestRFC959Lines(t *testing.T) {
+	for i, tt := range readResponseTests {
+		r := reader(tt.in + "\nFOLLOWING DATA")
+		code, msg, err := r.ReadResponse(tt.inCode)
+		if err != nil {
+			t.Errorf("#%d: ReadResponse: %v", i, err)
+			continue
+		}
+		if code != tt.wantCode {
+			t.Errorf("#%d: code=%d, want %d", i, code, tt.wantCode)
+		}
+		if msg != tt.wantMsg {
+			t.Errorf("%#d: msg=%q, want %q", i, msg, tt.wantMsg)
+		}
+	}
+}
