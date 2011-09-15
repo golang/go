@@ -9,6 +9,4 @@ GOFILES=\
 	match.go\
 	path.go\
 
-GOFILES+=$(GOFILES_$(GOOS))
-
 include ../../Make.pkg

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build darwin freebsd linux openbsd
+
 // Parse "zoneinfo" time zone file.
 // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.
 // See tzfile(5), http://en.wikipedia.org/wiki/Zoneinfo,

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build darwin freebsd openbsd
+
 // BSD system call wrappers shared by *BSD based systems
 // including OS X (Darwin) and FreeBSD.  Like the other
 // syscall_*.go files it is compiled as Go code but also
