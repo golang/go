@@ -257,11 +257,6 @@ func main() {
 	readTemplates()
 	initHandlers()
 
-	if (*indexEnabled || *writeIndex) && *indexFiles != "" && *maxResults > 0 {
-		log.Println("warning: no support for full-text index yet (setting -maxresults to 0)")
-		*maxResults = 0
-	}
-
 	if *writeIndex {
 		// Write search index and exit.
 		if *indexFiles == "" {

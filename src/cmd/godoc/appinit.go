@@ -4,8 +4,9 @@
 
 // To run godoc under app engine, substitute main.go with
 // this file (appinit.go), provide a .zip file containing
-// the file system to serve, and adjust the configuration
-// parameters in appconfig.go accordingly.
+// the file system to serve, the index file (or files)
+// containing the pre-computed search index and adjust
+// the configuration parameters in appconfig.go accordingly.
 //
 // The current app engine SDK may be based on an older Go
 // release version. To correct for version skew, copy newer
@@ -17,7 +18,7 @@
 //
 // The directory structure should look as follows:
 //
-// godoc			// directory containing the app engine app
+// godoc-app			// directory containing the app engine app
 //      alt			// alternative packages directory to
 //				//	correct for version skew
 //		strings		// never version of the strings package
@@ -32,9 +33,8 @@
 //
 // To run app the engine emulator locally:
 //
-//	dev_appserver.py -a 0 godoc
+//	dev_appserver.py -a 0 godoc-app
 //
-// godoc is the top-level "goroot" directory.
 // The godoc home page is served at: <hostname>:8080 and localhost:8080.
 
 package main
@@ -63,7 +63,7 @@ func init() {
 	*goroot = path.Join("/", zipGoroot) // fsHttp paths are relative to '/'
 	*indexEnabled = true
 	*indexFiles = indexFilenames
-	*maxResults = 0      // save space for now
+	*maxResults = 100    // reduce latency by limiting the number of fulltext search results
 	*indexThrottle = 0.3 // in case *indexFiles is empty (and thus the indexer is run)
 
 	// read .zip file and set up file systems
@@ -72,6 +72,7 @@ func init() {
 	if err != nil {
 		log.Fatalf("%s: %s\n", zipfile, err)
 	}
+	// rc is never closed (app running forever)
 	fs = NewZipFS(rc)
 	fsHttp = NewHttpZipFS(rc, *goroot)
 

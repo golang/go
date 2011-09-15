@@ -833,7 +833,8 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool, throttle float64) *Ind
 	return &Index{x.fset, suffixes, words, alts, x.snippets, x.stats}
 }
 
-type FileIndex struct {
+type fileIndex struct {
+	Sources  []byte
 	Words    map[string]*LookupResult
 	Alts     map[string]*AltWords
 	Snippets []*Snippet
@@ -841,22 +842,37 @@ type FileIndex struct {
 
 // Write writes the index x to w.
 func (x *Index) Write(w io.Writer) os.Error {
+	var sources []byte
 	if x.suffixes != nil {
-		panic("no support for writing full text index yet")
+		// fulltext index present
+		sources = x.suffixes.Bytes()
 	}
-	fx := FileIndex{
+	fx := fileIndex{
+		sources, // indicates if fulltext index is present or not
 		x.words,
 		x.alts,
 		x.snippets,
 	}
-	return gob.NewEncoder(w).Encode(fx)
+	err := gob.NewEncoder(w).Encode(fx)
+	if err == nil && sources != nil {
+		err = x.fset.Write(w)
+	}
+	return err
 }
 
 // Read reads the index from r into x; x must not be nil.
 func (x *Index) Read(r io.Reader) os.Error {
-	var fx FileIndex
+	var fx fileIndex
 	if err := gob.NewDecoder(r).Decode(&fx); err != nil {
 		return err
+	}
+	if fx.Sources != nil {
+		// fulltext index is present
+		x.fset = token.NewFileSet()
+		if err := x.fset.Read(r); err != nil {
+			return err
+		}
+		x.suffixes = suffixarray.New(fx.Sources)
 	}
 	x.words = fx.Words
 	x.alts = fx.Alts
