@@ -37,6 +37,7 @@ var osDefaultInheritEnv = map[string][]string{
 	"hpux":    {"LD_LIBRARY_PATH", "SHLIB_PATH"},
 	"irix":    {"LD_LIBRARY_PATH", "LD_LIBRARYN32_PATH", "LD_LIBRARY64_PATH"},
 	"linux":   {"LD_LIBRARY_PATH"},
+	"openbsd": {"LD_LIBRARY_PATH"},
 	"solaris": {"LD_LIBRARY_PATH", "LD_LIBRARY_PATH_32", "LD_LIBRARY_PATH_64"},
 	"windows": {"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"},
 }
