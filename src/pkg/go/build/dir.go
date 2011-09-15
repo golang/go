@@ -150,32 +150,37 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err os.Error) {
 			continue
 		}
 
-		isTest := false
-		switch path.Ext(d.Name) {
-		case ".go":
-			isTest = strings.HasSuffix(d.Name, "_test.go")
+		ext := path.Ext(d.Name)
+		switch ext {
+		case ".go", ".c", ".s":
+			// tentatively okay
+		default:
+			// skip
+			continue
+		}
+
+		// Look for +build comments to accept or reject the file.
+		filename, data, err := ctxt.readFile(dir, d.Name)
+		if err != nil {
+			return nil, err
+		}
+		if !ctxt.shouldBuild(data) {
+			continue
+		}
+
+		// Going to save the file.  For non-Go files, can stop here.
+		switch ext {
 		case ".c":
 			di.CFiles = append(di.CFiles, d.Name)
 			continue
 		case ".s":
 			di.SFiles = append(di.SFiles, d.Name)
 			continue
-		default:
-			continue
 		}
 
-		filename, data, err := ctxt.readFile(dir, d.Name)
-		if err != nil {
-			return nil, err
-		}
 		pf, err := parser.ParseFile(fset, filename, data, parser.ImportsOnly|parser.ParseComments)
 		if err != nil {
 			return nil, err
-		}
-
-		// Skip if the //build comments don't match.
-		if !ctxt.shouldBuild(pf) {
-			continue
 		}
 
 		pkg := string(pf.Name.Name)
@@ -185,6 +190,8 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err os.Error) {
 		if pkg == "documentation" {
 			continue
 		}
+
+		isTest := strings.HasSuffix(d.Name, "_test.go")
 		if isTest && strings.HasSuffix(pkg, "_test") {
 			pkg = pkg[:len(pkg)-len("_test")]
 		}
@@ -279,24 +286,61 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err os.Error) {
 	return &di, nil
 }
 
-// okayBuild reports whether it is okay to build this Go file,
-// based on the //build comments leading up to the package clause.
+var slashslash = []byte("//")
+var plusBuild = []byte("+build")
+
+// shouldBuild reports whether it is okay to use this file,
+// The rule is that in the file's leading run of // comments
+// and blank lines, which must be followed by a blank line
+// (to avoid including a Go package clause doc comment),
+// lines beginning with '// +build' are taken as build directives.
 //
 // The file is accepted only if each such line lists something
 // matching the file.  For example:
 //
-//	//build windows linux
+//	// +build windows linux
 //
 // marks the file as applicable only on Windows and Linux.
-func (ctxt *Context) shouldBuild(pf *ast.File) bool {
-	for _, com := range pf.Comments {
-		if com.Pos() >= pf.Package {
+//
+func (ctxt *Context) shouldBuild(content []byte) bool {
+	// Pass 1. Identify leading run of // comments and blank lines,
+	// which must be followed by a blank line.
+	end := 0
+	p := content
+	for len(p) > 0 {
+		line := p
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line, p = line[:i], p[i+1:]
+		} else {
+			p = p[len(p):]
+		}
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 { // Blank line
+			end = cap(content) - cap(line) // &line[0] - &content[0]
+			continue
+		}
+		if !bytes.HasPrefix(line, slashslash) { // Not comment line
 			break
 		}
-		for _, c := range com.List {
-			if strings.HasPrefix(c.Text, "//build") {
-				f := strings.Fields(c.Text)
-				if f[0] == "//build" {
+	}
+	content = content[:end]
+
+	// Pass 2.  Process each line in the run.
+	p = content
+	for len(p) > 0 {
+		line := p
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line, p = line[:i], p[i+1:]
+		} else {
+			p = p[len(p):]
+		}
+		line = bytes.TrimSpace(line)
+		if bytes.HasPrefix(line, slashslash) {
+			line = bytes.TrimSpace(line[len(slashslash):])
+			if len(line) > 0 && line[0] == '+' {
+				// Looks like a comment +line.
+				f := strings.Fields(string(line))
+				if f[0] == "+build" {
 					ok := false
 					for _, tok := range f[1:] {
 						if ctxt.matchOSArch(tok) {
