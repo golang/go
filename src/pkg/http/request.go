@@ -610,14 +610,14 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	return req, nil
 }
 
-// MaxBytesReader is similar to io.LimitReader, but is intended for
+// MaxBytesReader is similar to io.LimitReader but is intended for
 // limiting the size of incoming request bodies. In contrast to
-// io.LimitReader, MaxBytesReader is a ReadCloser, returns a non-EOF
-// error if the body is too large, and also takes care of closing the
-// underlying io.ReadCloser connection (if applicable, usually a TCP
-// connection) when the limit is hit.  This prevents clients from
-// accidentally or maliciously sending a large request and wasting
-// server resources.
+// io.LimitReader, MaxBytesReader's result is a ReadCloser, returns a
+// non-EOF error for a Read beyond the limit, and Closes the
+// underlying reader when its Close method is called.
+//
+// MaxBytesReader prevents clients from accidentally or maliciously
+// sending a large request and wasting server resources.
 func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
 	return &maxBytesReader{w: w, r: r, n: n}
 }
@@ -675,7 +675,7 @@ func (r *Request) ParseForm() (err os.Error) {
 		switch {
 		case ct == "text/plain" || ct == "application/x-www-form-urlencoded" || ct == "":
 			var reader io.Reader = r.Body
-			maxFormSize := int64((1 << 63) - 1)
+			maxFormSize := int64(1<<63 - 1)
 			if _, ok := r.Body.(*maxBytesReader); !ok {
 				maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
 				reader = io.LimitReader(r.Body, maxFormSize+1)
