@@ -13,7 +13,7 @@ import (
 	"go/token"
 	"io/ioutil"
 	"os"
-	"path/filepath"
+	"path/filepath" // use for file system paths
 	"regexp"
 	"runtime"
 	"strings"
@@ -190,7 +190,7 @@ func install(pkg, parent string) {
 	}()
 
 	// Don't allow trailing '/'
-	if _, f := filepath.Split(pkg); f == "" {
+	if strings.HasSuffix(pkg, "/") {
 		errorf("%s should not have trailing '/'\n", pkg)
 		return
 	}
@@ -225,16 +225,17 @@ func install(pkg, parent string) {
 		terrorf(tree, "%s: %v\n", pkg, err)
 		return
 	}
-	dir := filepath.Join(tree.SrcDir(), pkg)
+	dir := filepath.Join(tree.SrcDir(), filepath.FromSlash(pkg))
 
 	// Install prerequisites.
-	dirInfo, err := build.ScanDir(dir, parent == "")
+	dirInfo, err := build.ScanDir(dir)
 	if err != nil {
 		terrorf(tree, "%s: %v\n", pkg, err)
 		return
 	}
-	if len(dirInfo.GoFiles)+len(dirInfo.CgoFiles) == 0 {
-		terrorf(tree, "%s: package has no files\n", pkg)
+	// We reserve package main to identify commands.
+	if parent != "" && dirInfo.Package == "main" {
+		terrorf(tree, "%s: found only package main in %s; cannot import", pkg, dir)
 		return
 	}
 	for _, p := range dirInfo.Imports {

@@ -27,7 +27,7 @@ var buildPkgs = []struct {
 		&DirInfo{
 			GoFiles:      []string{"pkgtest.go"},
 			SFiles:       []string{"sqrt_" + runtime.GOARCH + ".s"},
-			PkgName:      "pkgtest",
+			Package:      "pkgtest",
 			Imports:      []string{"os"},
 			TestImports:  []string{"fmt", "pkgtest"},
 			TestGoFiles:  sortstr([]string{"sqrt_test.go", "sqrt_" + runtime.GOARCH + "_test.go"}),
@@ -38,17 +38,19 @@ var buildPkgs = []struct {
 		"go/build/cmdtest",
 		&DirInfo{
 			GoFiles: []string{"main.go"},
-			PkgName: "main",
+			Package: "main",
 			Imports: []string{"go/build/pkgtest"},
 		},
 	},
 	{
 		"go/build/cgotest",
 		&DirInfo{
-			CgoFiles: []string{"cgotest.go"},
-			CFiles:   []string{"cgotest.c"},
-			Imports:  []string{"C", "unsafe"},
-			PkgName:  "cgotest",
+			CgoFiles:     []string{"cgotest.go"},
+			CFiles:       []string{"cgotest.c"},
+			Imports:      []string{"C", "unsafe"},
+			Package:      "cgotest",
+			CgoLDFLAGS:   []string{"-lregexp"},
+			CgoPkgConfig: []string{"cairo", "moscow"},
 		},
 	},
 }
@@ -56,17 +58,24 @@ var buildPkgs = []struct {
 const cmdtestOutput = "3"
 
 func TestBuild(t *testing.T) {
+	var ctxt = Context{GOOS: "darwin", GOARCH: "amd64"}
 	for _, tt := range buildPkgs {
 		tree := Path[0] // Goroot
 		dir := filepath.Join(tree.SrcDir(), tt.dir)
-
-		info, err := ScanDir(dir, true)
+		info, err := ctxt.ScanDir(dir)
 		if err != nil {
 			t.Errorf("ScanDir(%#q): %v", tt.dir, err)
 			continue
 		}
 		if !reflect.DeepEqual(info, tt.info) {
 			t.Errorf("ScanDir(%#q) = %#v, want %#v\n", tt.dir, info, tt.info)
+			continue
+		}
+
+		if tt.dir == "go/build/cgotest" {
+			// Don't actually run cgo.
+			// Among other things our test depends
+			// on pkg-config, which is not present on all systems.
 			continue
 		}
 
