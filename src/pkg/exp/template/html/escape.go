@@ -28,10 +28,10 @@ func Escape(t *template.Template) (*template.Template, os.Error) {
 
 // EscapeSet rewrites the template set to guarantee that the output of any of
 // the named templates is properly escaped.
-// Names should include the names of all templates that might be called but
-// need not include helper templates only called by top-level templates.
-// If nil is returned, then the templates have been modified.  Otherwise no
-// changes were made.
+// Names should include the names of all templates that might be Executed but
+// need not include helper templates.
+// If no error is returned, then the named templates have been modified. 
+// Otherwise the named templates have been rendered unusable.
 func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
 	if len(names) == 0 {
 		// TODO: Maybe add a method to Set to enumerate template names
@@ -48,11 +48,20 @@ func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
 	}
 	for _, name := range names {
 		c, _ := e.escapeTree(context{}, name, 0)
+		var err os.Error
 		if c.errStr != "" {
-			return nil, fmt.Errorf("%s:%d: %s", name, c.errLine, c.errStr)
+			err = fmt.Errorf("%s:%d: %s", name, c.errLine, c.errStr)
+		} else if c.state != stateText {
+			err = fmt.Errorf("%s ends in a non-text context: %v", name, c)
 		}
-		if c.state != stateText {
-			return nil, fmt.Errorf("%s ends in a non-text context: %v", name, c)
+		if err != nil {
+			// Prevent execution of unsafe templates.
+			for _, name := range names {
+				if t := s.Template(name); t != nil {
+					t.Tree = nil
+				}
+			}
+			return nil, err
 		}
 	}
 	e.commit()
