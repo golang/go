@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build darwin freebsd linux openbsd
+
 package net
 
 import (
@@ -52,7 +54,7 @@ func LookupCNAME(name string) (cname string, err os.Error) {
 // LookupSRV tries to resolve an SRV query of the given service,
 // protocol, and domain name, as specified in RFC 2782. In most cases
 // the proto argument can be the same as the corresponding
-// Addr.Network(). The returned records are sorted by priority 
+// Addr.Network(). The returned records are sorted by priority
 // and randomized by weight within a priority.
 func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.Error) {
 	target := "_" + service + "._" + proto + "." + name

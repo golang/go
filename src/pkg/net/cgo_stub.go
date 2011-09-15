@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build openbsd
+
 // Stub cgo routines for systems that do not use cgo to do network lookups.
 
 package net
