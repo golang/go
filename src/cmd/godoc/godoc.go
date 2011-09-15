@@ -23,6 +23,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"template"
 	"time"
 )
@@ -815,6 +816,41 @@ type httpHandler struct {
 	isPkg   bool   // true if this handler serves real package documentation (as opposed to command documentation)
 }
 
+// fsReadDir implements ReadDir for the go/build package.
+func fsReadDir(dir string) ([]*os.FileInfo, os.Error) {
+	fi, err := fs.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert []FileInfo to []*os.FileInfo.
+	osfi := make([]*os.FileInfo, len(fi))
+	for i, f := range fi {
+		mode := uint32(syscall.S_IFREG)
+		if f.IsDirectory() {
+			mode = syscall.S_IFDIR
+		}
+		osfi[i] = &os.FileInfo{Name: f.Name(), Size: f.Size(), Mtime_ns: f.Mtime_ns(), Mode: mode}
+	}
+	return osfi, nil
+}
+
+// fsReadFile implements ReadFile for the go/build package.
+func fsReadFile(dir, name string) (path string, data []byte, err os.Error) {
+	path = filepath.Join(dir, name)
+	data, err = fs.ReadFile(path)
+	return
+}
+
+func inList(name string, list []string) bool {
+	for _, l := range list {
+		if name == l {
+			return true
+		}
+	}
+	return false
+}
+
 // getPageInfo returns the PageInfo for a package directory abspath. If the
 // parameter genAST is set, an AST containing only the package exports is
 // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
@@ -824,11 +860,40 @@ type httpHandler struct {
 // PageInfo.Err is set to the respective error but the error is not logged.
 //
 func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInfoMode) PageInfo {
+	var pkgFiles []string
+
+	// If we're showing the default package, restrict to the ones
+	// that would be used when building the package on this
+	// system.  This makes sure that if there are separate
+	// implementations for, say, Windows vs Unix, we don't
+	// jumble them all together.
+	if pkgname == "" {
+		// Note: Uses current binary's GOOS/GOARCH.
+		// To use different pair, such as if we allowed the user
+		// to choose, set ctxt.GOOS and ctxt.GOARCH before
+		// calling ctxt.ScanDir.
+		ctxt := build.DefaultContext
+		ctxt.ReadDir = fsReadDir
+		ctxt.ReadFile = fsReadFile
+		dir, err := ctxt.ScanDir(abspath)
+		if err == nil {
+			pkgFiles = append(dir.GoFiles, dir.CgoFiles...)
+		}
+	}
+
 	// filter function to select the desired .go files
 	filter := func(d FileInfo) bool {
+		// Only Go files.
+		if !isPkgFile(d) {
+			return false
+		}
 		// If we are looking at cmd documentation, only accept
 		// the special fakePkgFile containing the documentation.
-		return isPkgFile(d) && (h.isPkg || d.Name() == fakePkgFile)
+		if !h.isPkg {
+			return d.Name() == fakePkgFile
+		}
+		// Also restrict file list to pkgFiles.
+		return pkgFiles == nil || inList(d.Name(), pkgFiles)
 	}
 
 	// get package ASTs
