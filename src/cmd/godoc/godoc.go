@@ -23,7 +23,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"syscall"
 	"template"
 	"time"
 )
@@ -826,9 +825,9 @@ func fsReadDir(dir string) ([]*os.FileInfo, os.Error) {
 	// Convert []FileInfo to []*os.FileInfo.
 	osfi := make([]*os.FileInfo, len(fi))
 	for i, f := range fi {
-		mode := uint32(syscall.S_IFREG)
+		mode := uint32(S_IFREG)
 		if f.IsDirectory() {
-			mode = syscall.S_IFDIR
+			mode = S_IFDIR
 		}
 		osfi[i] = &os.FileInfo{Name: f.Name(), Size: f.Size(), Mtime_ns: f.Mtime_ns(), Mode: mode}
 	}
