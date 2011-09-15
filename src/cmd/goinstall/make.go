@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"go/build"
 	"os"
-	"path/filepath"
+	"path" // use for import paths
 	"strings"
 	"template"
 )
@@ -44,10 +44,10 @@ func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, os.Err
 	targDir := tree.PkgDir()
 	if isCmd {
 		// use the last part of the package name for targ
-		_, targ = filepath.Split(pkg)
+		_, targ = path.Split(pkg)
 		targDir = tree.BinDir()
 	}
-	dirInfo, err := build.ScanDir(dir, isCmd)
+	dirInfo, err := build.ScanDir(dir)
 	if err != nil {
 		return nil, err
 	}

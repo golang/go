@@ -6,6 +6,9 @@ package cgotest
 
 /*
 char* greeting = "hello, world";
+#cgo darwin/amd64 LDFLAGS: -lregexp
+#cgo linux CFLAGS: -m32
+#cgo pkg-config: cairo moscow
 */
 // #include "cgotest.h"
 import "C"

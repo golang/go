@@ -165,7 +165,7 @@ func setEnvironment() {
 func getTestFileNames() {
 	names := fileNames
 	if len(names) == 0 {
-		info, err := build.ScanDir(".", true)
+		info, err := build.ScanDir(".")
 		if err != nil {
 			Fatalf("scanning directory: %v", err)
 		}
