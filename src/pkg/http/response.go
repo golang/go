@@ -41,6 +41,10 @@ type Response struct {
 	Header Header
 
 	// Body represents the response body.
+	//
+	// The http Client and Transport guarantee that Body is always
+	// non-nil, even on responses without a body or responses with
+	// a zero-lengthed body.
 	Body io.ReadCloser
 
 	// ContentLength records the length of the associated content.  The

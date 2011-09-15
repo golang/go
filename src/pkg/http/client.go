@@ -76,7 +76,12 @@ type readClose struct {
 // Do sends an HTTP request and returns an HTTP response, following
 // policy (e.g. redirects, cookies, auth) as configured on the client.
 //
-// Callers should close resp.Body when done reading from it.
+// A non-nil response always contains a non-nil resp.Body.
+//
+// Callers should close resp.Body when done reading from it. If
+// resp.Body is not closed, the Client's underlying RoundTripper
+// (typically Transport) may not be able to re-use a persistent TCP
+// connection to the server for a subsequent "keep-alive" request.
 //
 // Generally Get, Post, or PostForm will be used instead of Do.
 func (c *Client) Do(req *Request) (resp *Response, err os.Error) {
