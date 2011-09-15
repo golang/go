@@ -70,15 +70,28 @@ func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
 
 // funcMap maps command names to functions that render their inputs safe.
 var funcMap = template.FuncMap{
+	"exp_template_html_attrescaper":     attrEscaper,
 	"exp_template_html_cssescaper":      cssEscaper,
 	"exp_template_html_cssvaluefilter":  cssValueFilter,
+	"exp_template_html_htmlescaper":     htmlEscaper,
 	"exp_template_html_jsregexpescaper": jsRegexpEscaper,
 	"exp_template_html_jsstrescaper":    jsStrEscaper,
 	"exp_template_html_jsvalescaper":    jsValEscaper,
 	"exp_template_html_nospaceescaper":  htmlNospaceEscaper,
+	"exp_template_html_rcdataescaper":   rcdataEscaper,
 	"exp_template_html_urlescaper":      urlEscaper,
 	"exp_template_html_urlfilter":       urlFilter,
 	"exp_template_html_urlnormalizer":   urlNormalizer,
+}
+
+// equivEscapers matches contextual escapers to equivalent template builtins.
+var equivEscapers = map[string]string{
+	"exp_template_html_attrescaper":    "html",
+	"exp_template_html_htmlescaper":    "html",
+	"exp_template_html_nospaceescaper": "html",
+	"exp_template_html_rcdataescaper":  "html",
+	"exp_template_html_urlescaper":     "urlquery",
+	"exp_template_html_urlnormalizer":  "urlquery",
 }
 
 // escaper collects type inferences about templates and changes needed to make
@@ -103,7 +116,7 @@ type escaper struct {
 }
 
 // filterFailsafe is an innocuous word that is emitted in place of unsafe values
-// by sanitizer functions.  It is not a keyword in any programming language,
+// by sanitizer functions. It is not a keyword in any programming language,
 // contains no special characters, is not empty, and when it appears in output
 // it is distinct enough that a developer can find the source of the problem
 // via a search engine.
@@ -174,7 +187,9 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	case stateCSS:
 		s = append(s, "exp_template_html_cssvaluefilter")
 	case stateText:
-		s = append(s, "html")
+		s = append(s, "exp_template_html_htmlescaper")
+	case stateRCDATA:
+		s = append(s, "exp_template_html_rcdataescaper")
 	}
 	switch c.delim {
 	case delimNone:
@@ -182,7 +197,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	case delimSpaceOrTagEnd:
 		s = append(s, "exp_template_html_nospaceescaper")
 	default:
-		s = append(s, "html")
+		s = append(s, "exp_template_html_attrescaper")
 	}
 	if _, ok := e.actionNodeEdits[n]; ok {
 		panic(fmt.Sprintf("node %s shared between templates", n))
@@ -206,7 +221,10 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	idents := p.Cmds
 	for i := n - 1; i >= 0; i-- {
 		if cmd := p.Cmds[i]; len(cmd.Args) != 0 {
-			if _, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
+			if id, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
+				if id.Ident == "noescape" {
+					return
+				}
 				continue
 			}
 		}
@@ -214,7 +232,7 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	}
 	dups := 0
 	for _, id := range idents {
-		if s[dups] == (id.Args[0].(*parse.IdentifierNode)).Ident {
+		if escFnsEq(s[dups], (id.Args[0].(*parse.IdentifierNode)).Ident) {
 			dups++
 			if dups == len(s) {
 				return
@@ -225,7 +243,7 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	copy(newCmds, p.Cmds)
 	// Merge existing identifier commands with the sanitizers needed.
 	for _, id := range idents {
-		i := indexOfStr((id.Args[0].(*parse.IdentifierNode)).Ident, s)
+		i := indexOfStr((id.Args[0].(*parse.IdentifierNode)).Ident, s, escFnsEq)
 		if i != -1 {
 			for _, name := range s[:i] {
 				newCmds = append(newCmds, newIdentCmd(name))
@@ -241,14 +259,25 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	p.Cmds = newCmds
 }
 
-// indexOfStr is the least i such that strs[i] == s or -1 if s is not in strs.
-func indexOfStr(s string, strs []string) int {
+// indexOfStr is the first i such that eq(s, strs[i]) or -1 if s was not found.
+func indexOfStr(s string, strs []string, eq func(a, b string) bool) int {
 	for i, t := range strs {
-		if s == t {
+		if eq(s, t) {
 			return i
 		}
 	}
 	return -1
+}
+
+// escFnsEq returns whether the two escaping functions are equivalent.
+func escFnsEq(a, b string) bool {
+	if e := equivEscapers[a]; e != "" {
+		a = e
+	}
+	if e := equivEscapers[b]; e != "" {
+		b = e
+	}
+	return a == b
 }
 
 // newIdentCmd produces a command containing a single identifier node.
