@@ -180,7 +180,8 @@ func (f *flagVar) Set(value string) bool {
 }
 
 func TestUserDefined(t *testing.T) {
-	flags := NewFlagSet("test", ContinueOnError)
+	var flags FlagSet
+	flags.Init("test", ContinueOnError)
 	var v flagVar
 	flags.Var(&v, "v", "usage")
 	if err := flags.Parse([]string{"-v", "1", "-v", "2", "-v=3"}); err != nil {

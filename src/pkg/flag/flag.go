@@ -286,6 +286,9 @@ func (f *FlagSet) Set(name, value string) bool {
 	if !ok {
 		return false
 	}
+	if f.actual == nil {
+		f.actual = make(map[string]*Flag)
+	}
 	f.actual[name] = flag
 	return true
 }
@@ -559,6 +562,9 @@ func (f *FlagSet) Var(value Value, name string, usage string) {
 		fmt.Fprintf(os.Stderr, "%s flag redefined: %s\n", f.name, name)
 		panic("flag redefinition") // Happens only if flags are declared with identical names
 	}
+	if f.formal == nil {
+		f.formal = make(map[string]*Flag)
+	}
 	f.formal[name] = flag
 }
 
@@ -586,6 +592,8 @@ func (f *FlagSet) failf(format string, a ...interface{}) os.Error {
 func (f *FlagSet) usage() {
 	if f == commandLine {
 		Usage()
+	} else if f.Usage == nil {
+		defaultUsage(f)
 	} else {
 		f.Usage()
 	}
@@ -657,6 +665,9 @@ func (f *FlagSet) parseOne() (bool, os.Error) {
 			return false, f.failf("invalid value %q for flag: -%s", value, name)
 		}
 	}
+	if f.actual == nil {
+		f.actual = make(map[string]*Flag)
+	}
 	f.actual[name] = flag
 	return true, nil
 }
@@ -713,10 +724,15 @@ var commandLine = NewFlagSet(os.Args[0], ExitOnError)
 func NewFlagSet(name string, errorHandling ErrorHandling) *FlagSet {
 	f := &FlagSet{
 		name:          name,
-		actual:        make(map[string]*Flag),
-		formal:        make(map[string]*Flag),
 		errorHandling: errorHandling,
 	}
-	f.Usage = func() { defaultUsage(f) }
 	return f
+}
+
+// Init sets the name and error handling property for a flag set.
+// By default, the zero FlagSet uses an empty name and the
+// ContinueOnError error handling policy.
+func (f *FlagSet) Init(name string, errorHandling ErrorHandling) {
+	f.name = name
+	f.errorHandling = errorHandling
 }
