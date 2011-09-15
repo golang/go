@@ -213,7 +213,33 @@ func (a *index) at(i int) []byte    { return a.data[a.sa[i]:] }
 
 func testConstruction(t *testing.T, tc *testCase, x *Index) {
 	if !sort.IsSorted((*index)(x)) {
-		t.Errorf("testConstruction failed %s", tc.name)
+		t.Errorf("failed testConstruction %s", tc.name)
+	}
+}
+
+func equal(x, y *Index) bool {
+	if !bytes.Equal(x.data, y.data) {
+		return false
+	}
+	for i, j := range x.sa {
+		if j != y.sa[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func testSaveRestore(t *testing.T, tc *testCase, x *Index) {
+	var buf bytes.Buffer
+	if err := x.Write(&buf); err != nil {
+		t.Errorf("failed writing index %s (%s)", tc.name, err)
+	}
+	var y Index
+	if err := y.Read(&buf); err != nil {
+		t.Errorf("failed reading index %s (%s)", tc.name, err)
+	}
+	if !equal(x, &y) {
+		t.Errorf("restored index doesn't match saved index %s", tc.name)
 	}
 }
 
@@ -221,6 +247,7 @@ func TestIndex(t *testing.T) {
 	for _, tc := range testCases {
 		x := New([]byte(tc.source))
 		testConstruction(t, &tc, x)
+		testSaveRestore(t, &tc, x)
 		testLookups(t, &tc, x, 0)
 		testLookups(t, &tc, x, 1)
 		testLookups(t, &tc, x, 10)
