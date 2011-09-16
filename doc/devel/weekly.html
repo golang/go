@@ -14,6 +14,73 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-09-16">2011-09-16</h2>
+
+<pre>
+This weekly snapshot includes changes to the image, path/filepath, and time
+packages. Code that uses these packages may need to be updated.
+
+The image package's NewX functions (NewRGBA, NewNRGBA, etc) have been changed
+to take a Rectangle argument instead of a width and height.
+Gofix can make these changes automatically.
+
+The path/filepath package's Walk function has been changed to take a WalkFunc
+function value instead of a Visitor interface value. WalkFunc is like the
+Visitor's VisitDir and VisitFile methods except it handles both files and
+directories:
+	func(path string, info *os.FileInfo, err os.Error) os.Error
+To skip walking a directory (like returning false from VisitDir) the WalkFunc
+must return SkipDir.
+
+The time package's Time struct's Weekday field has been changed to a method.
+The value is calculated on demand, avoiding the need to re-parse
+programmatically-constructed Time values to find the correct weekday.
+
+There are no gofixes for the filepath or time API changes, but instances of the
+old APIs will be caught by the compiler. The Weekday one is easy to update by
+hand. The Walk one may take more consideration, but will have fewer instances
+to fix.
+
+* build: add build comments to core packages.
+* codereview: Mercurial 1.9 fix for hg diff @nnn.
+* crypto/tls: handle non-TLS more robustly,
+	support SSLv3.
+* debug/elf: permit another case of SHT_NOBITS section overlap in test.
+* exm/template/html: more work on this auto-escaping HTML template package.
+* exp/norm: added regression test tool for the standard Unicode test set.
+* exp/regexp/syntax: fix invalid input parser crash,
+	import all RE2 parse tests + fix bugs.
+* exp/regexp: add MustCompilePOSIX, CompilePOSIX, leftmost-longest matching.
+* flag: make zero FlagSet useful.
+* gc: clean up if grammar.
+* go/build: handle cgo, // +build comments.
+* go/printer: use panic/defer instead of goroutine for handling errors.
+* go/token: support to serialize file sets.
+* godoc, suffixarray: switch to exp/regexp.
+* godoc: show packages matching a query at the top,
+	support for complete index serialization,
+	use go/build to find files in a package.
+* gofmt: accept program fragments on standard input, add else test.
+* http/cgi: add openbsd environment configuration.
+* http: document that Response.Body is non-nil.
+* image/png: don't use a goroutine to decode, to permit decode during init.
+* json: if a field's tag is "-", ignore the field for encoding and decoding.
+* ld: grow dwarf includestack on demand.
+* net, syscall: implement SetsockoptIPMReq(), and
+	move to winsock v2.2 for multicast support (thanks Paul Lalonde).
+* net: add a LookupTXT function.
+* os: os.RemoveAll to check for wboth error codes on Windows (thanks Jaroslavas Počepko).
+* path/filepath: fix Visitor doc (thanks Gustavo Niemeyer),
+	make UNC file names work (thanks Yasuhiro Matsumoto).
+* runtime: optimizations to channels on Windows (thanks Hector Chu),
+	syscall to return both AX and DX for windows/386 (thanks Alex Brainman).
+* sync/atomic: add 64-bit Load and Store.
+* syscall: add route flags for linux (thanks Mikio Hara).
+* test: add test for inheriting private method from anonymous field.
+* websocket: fix infinite recursion in Addr.String() (thanks Tarmigan Casebolt),
+	rename websocket.WebSocketAddr to *websocket.Addr.
+</pre>
+
 <h2 id="2011-09-07">2011-09-07</h2>
 
 <pre>
