@@ -4,9 +4,44 @@
 
 package norm
 
+type valueRange struct {
+	value  uint16 // header: value:stride
+	lo, hi byte   // header: lo:n
+}
+
 type trie struct {
-	index  []uint8
-	values []uint16
+	index        []uint8
+	values       []uint16
+	sparse       []valueRange
+	sparseOffset []uint16
+	cutoff       uint8 // indices >= cutoff are sparse
+}
+
+// lookupValue determines the type of block n and looks up the value for b.
+// For n < t.cutoff, the block is a simple lookup table. Otherwise, the block
+// is a list of ranges with an accompanying value. Given a matching range r,
+// the value for b is by r.value + (b - r.lo) * stride.
+func (t *trie) lookupValue(n uint8, b byte) uint16 {
+	if n < t.cutoff {
+		return t.values[uint16(n)<<6+uint16(b&maskx)]
+	}
+	offset := t.sparseOffset[n-t.cutoff]
+	header := t.sparse[offset]
+	lo := offset + 1
+	hi := lo + uint16(header.lo)
+	for lo < hi {
+		m := lo + (hi-lo)/2
+		r := t.sparse[m]
+		if r.lo <= b && b <= r.hi {
+			return r.value + uint16(b-r.lo)*header.value
+		}
+		if b < r.lo {
+			hi = m
+		} else {
+			lo = m + 1
+		}
+	}
+	return 0
 }
 
 const (
@@ -44,8 +79,7 @@ func (t *trie) lookup(s []byte) (v uint16, sz int) {
 		if c1 < tx || t2 <= c1 {
 			return 0, 1
 		}
-		o := uint16(i)<<6 + uint16(c1)&maskx
-		return t.values[o], 2
+		return t.lookupValue(i, c1), 2
 	case c0 < t4:
 		if len(s) < 3 {
 			return 0, 0
@@ -61,8 +95,7 @@ func (t *trie) lookup(s []byte) (v uint16, sz int) {
 		if c2 < tx || t2 <= c2 {
 			return 0, 2
 		}
-		o = uint16(i)<<6 + uint16(c2)&maskx
-		return t.values[o], 3
+		return t.lookupValue(i, c2), 3
 	case c0 < t5:
 		if len(s) < 4 {
 			return 0, 0
@@ -84,8 +117,7 @@ func (t *trie) lookup(s []byte) (v uint16, sz int) {
 		if c3 < tx || t2 <= c3 {
 			return 0, 3
 		}
-		o = uint16(i)<<6 + uint16(c3)&maskx
-		return t.values[o], 4
+		return t.lookupValue(i, c3), 4
 	}
 	// Illegal rune
 	return 0, 1
@@ -110,8 +142,7 @@ func (t *trie) lookupString(s string) (v uint16, sz int) {
 		if c1 < tx || t2 <= c1 {
 			return 0, 1
 		}
-		o := uint16(i)<<6 + uint16(c1)&maskx
-		return t.values[o], 2
+		return t.lookupValue(i, c1), 2
 	case c0 < t4:
 		if len(s) < 3 {
 			return 0, 0
@@ -127,8 +158,7 @@ func (t *trie) lookupString(s string) (v uint16, sz int) {
 		if c2 < tx || t2 <= c2 {
 			return 0, 2
 		}
-		o = uint16(i)<<6 + uint16(c2)&maskx
-		return t.values[o], 3
+		return t.lookupValue(i, c2), 3
 	case c0 < t5:
 		if len(s) < 4 {
 			return 0, 0
@@ -150,8 +180,7 @@ func (t *trie) lookupString(s string) (v uint16, sz int) {
 		if c3 < tx || t2 <= c3 {
 			return 0, 3
 		}
-		o = uint16(i)<<6 + uint16(c3)&maskx
-		return t.values[o], 4
+		return t.lookupValue(i, c3), 4
 	}
 	// Illegal rune
 	return 0, 1
@@ -168,19 +197,16 @@ func (t *trie) lookupUnsafe(s []byte) uint16 {
 		return 0
 	}
 	i := t.index[c0]
-	o := uint16(i)<<6 + uint16(s[1])&maskx
 	if c0 < t3 {
-		return t.values[o]
+		return t.lookupValue(i, s[1])
 	}
-	i = t.index[o]
-	o = uint16(i)<<6 + uint16(s[2])&maskx
+	i = t.index[uint16(i)<<6+uint16(s[1])&maskx]
 	if c0 < t4 {
-		return t.values[o]
+		return t.lookupValue(i, s[2])
 	}
-	i = t.index[o]
-	o = uint16(i)<<6 + uint16(s[3])&maskx
+	i = t.index[uint16(i)<<6+uint16(s[2])&maskx]
 	if c0 < t5 {
-		return t.values[o]
+		return t.lookupValue(i, s[3])
 	}
 	return 0
 }
@@ -196,19 +222,16 @@ func (t *trie) lookupStringUnsafe(s string) uint16 {
 		return 0
 	}
 	i := t.index[c0]
-	o := uint16(i)<<6 + uint16(s[1])&maskx
 	if c0 < t3 {
-		return t.values[o]
+		return t.lookupValue(i, s[1])
 	}
-	i = t.index[o]
-	o = uint16(i)<<6 + uint16(s[2])&maskx
+	i = t.index[uint16(i)<<6+uint16(s[1])&maskx]
 	if c0 < t4 {
-		return t.values[o]
+		return t.lookupValue(i, s[2])
 	}
-	i = t.index[o]
-	o = uint16(i)<<6 + uint16(s[3])&maskx
+	i = t.index[uint16(i)<<6+uint16(s[2])&maskx]
 	if c0 < t5 {
-		return t.values[o]
+		return t.lookupValue(i, s[3])
 	}
 	return 0
 }
