@@ -115,8 +115,7 @@ func (t Test) Name() string {
 }
 
 var partRe = regexp.MustCompile(`@Part(\d) # (.*)\n`) // TODO: using $ iso \n does not work
-// TODO: the following regexp does not work: `^(?:([\dA-F ]+);){5} # (.*)\n`
-var testRe = regexp.MustCompile(`^(?:([\dA-F ]+);)(?:([\dA-F ]+);)(?:([\dA-F ]+);)(?:([\dA-F ]+);)(?:([\dA-F ]+);) # (.*)\n`)
+var testRe = regexp.MustCompile(`^` + strings.Repeat(`([\dA-F ]+);`, 5) + ` # (.*)\n`)
 
 var counter int
 
