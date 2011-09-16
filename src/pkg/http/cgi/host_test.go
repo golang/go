@@ -447,3 +447,32 @@ func TestDirWindows(t *testing.T) {
 	}
 	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
+
+func TestEnvOverride(t *testing.T) {
+	cgifile, _ := filepath.Abs("testdata/test.cgi")
+
+	var perl string
+	var err os.Error
+	perl, err = exec.LookPath("perl")
+	if err != nil {
+		return
+	}
+	perl, _ = filepath.Abs(perl)
+
+	cwd, _ := os.Getwd()
+	h := &Handler{
+		Path: perl,
+		Root: "/test.cgi",
+		Dir:  cwd,
+		Args: []string{cgifile},
+		Env: []string{
+			"SCRIPT_FILENAME=" + cgifile,
+			"REQUEST_URI=/foo/bar"},
+	}
+	expectedMap := map[string]string{
+		"cwd": cwd,
+		"env-SCRIPT_FILENAME": cgifile,
+		"env-REQUEST_URI":     "/foo/bar",
+	}
+	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
+}
