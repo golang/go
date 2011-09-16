@@ -603,11 +603,11 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			"<a b=1 c={{.H}}",
-			"z ends in a non-text context: {stateAttr delimSpaceOrTagEnd",
+			"z: ends in a non-text context: {stateAttr delimSpaceOrTagEnd",
 		},
 		{
 			"<script>foo();",
-			"z ends in a non-text context: {stateJS",
+			"z: ends in a non-text context: {stateJS",
 		},
 		{
 			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
@@ -656,7 +656,7 @@ func TestErrors(t *testing.T) {
 			// or `/-1\.5/i.test(x)` which is a method call on a
 			// case insensitive regular expression.
 			`<script>{{if false}}var x = 1{{end}}/-{{"1.5"}}/i.test(x)</script>`,
-			`: '/' could start div or regexp: "/-"`,
+			`'/' could start div or regexp: "/-"`,
 		},
 		{
 			`{{template "foo"}}`,
@@ -666,7 +666,7 @@ func TestErrors(t *testing.T) {
 			`{{define "z"}}<div{{template "y"}}>{{end}}` +
 				// Illegal starting in stateTag but not in stateText.
 				`{{define "y"}} foo<b{{end}}`,
-			`z:0: "<" in attribute name: " foo<b"`,
+			`"<" in attribute name: " foo<b"`,
 		},
 		{
 			`{{define "z"}}<script>reverseList = [{{template "t"}}]</script>{{end}}` +
@@ -701,7 +701,7 @@ func TestErrors(t *testing.T) {
 			continue
 		}
 		if strings.Index(got, test.err) == -1 {
-			t.Errorf("input=%q: error %q does not contain expected string %q", test.input, got, test.err)
+			t.Errorf("input=%q: error\n\t%q\ndoes not contain expected string\n\t%q", test.input, got, test.err)
 			continue
 		}
 	}

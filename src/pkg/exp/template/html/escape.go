@@ -36,7 +36,7 @@ func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
 	if len(names) == 0 {
 		// TODO: Maybe add a method to Set to enumerate template names
 		// and use those instead.
-		return nil, os.NewError("must specify names of top level templates")
+		return nil, &Error{ErrNoNames, "", 0, "must specify names of top level templates"}
 	}
 	e := escaper{
 		s,
@@ -49,10 +49,10 @@ func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
 	for _, name := range names {
 		c, _ := e.escapeTree(context{}, name, 0)
 		var err os.Error
-		if c.errStr != "" {
-			err = fmt.Errorf("%s:%d: %s", name, c.errLine, c.errStr)
+		if c.err != nil {
+			err, c.err.Name = c.err, name
 		} else if c.state != stateText {
-			err = fmt.Errorf("%s ends in a non-text context: %v", name, c)
+			err = &Error{ErrEndContext, name, 0, fmt.Sprintf("ends in a non-text context: %v", c)}
 		}
 		if err != nil {
 			// Prevent execution of unsafe templates.
@@ -163,9 +163,8 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 			s = append(s, "exp_template_html_urlescaper")
 		case urlPartUnknown:
 			return context{
-				state:   stateError,
-				errLine: n.Line,
-				errStr:  fmt.Sprintf("%s appears in an ambiguous URL context", n),
+				state: stateError,
+				err:   errorf(ErrAmbigContext, n.Line, "%s appears in an ambiguous URL context", n),
 			}
 		default:
 			panic(c.urlPart.String())
@@ -180,9 +179,8 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		s = append(s, "exp_template_html_jsregexpescaper")
 	case stateComment, stateJSBlockCmt, stateJSLineCmt, stateCSSBlockCmt, stateCSSLineCmt:
 		return context{
-			state:   stateError,
-			errLine: n.Line,
-			errStr:  fmt.Sprintf("%s appears inside a comment", n),
+			state: stateError,
+			err:   errorf(ErrInsideComment, n.Line, "%s appears inside a comment", n),
 		}
 	case stateCSS:
 		s = append(s, "exp_template_html_cssvaluefilter")
@@ -319,9 +317,8 @@ func join(a, b context, line int, nodeName string) context {
 	}
 
 	return context{
-		state:   stateError,
-		errLine: line,
-		errStr:  fmt.Sprintf("{{%s}} branches end in different contexts: %v, %v", nodeName, a, b),
+		state: stateError,
+		err:   errorf(ErrBranchEnd, line, "{{%s}} branches end in different contexts: %v, %v", nodeName, a, b),
 	}
 }
 
@@ -340,8 +337,8 @@ func (e *escaper) escapeBranch(c context, n *parse.BranchNode, nodeName string) 
 			// Make clear that this is a problem on loop re-entry
 			// since developers tend to overlook that branch when
 			// debugging templates.
-			c0.errLine = n.Line
-			c0.errStr = "on range loop re-entry: " + c0.errStr
+			c0.err.Line = n.Line
+			c0.err.Description = "on range loop re-entry: " + c0.err.Description
 			return c0
 		}
 	}
@@ -386,9 +383,8 @@ func (e *escaper) escapeTree(c context, name string, line int) (context, string)
 	t := e.template(name)
 	if t == nil {
 		return context{
-			state:   stateError,
-			errStr:  fmt.Sprintf("no such template %s", name),
-			errLine: line,
+			state: stateError,
+			err:   errorf(ErrNoSuchTemplate, line, "no such template %s", name),
 		}, dname
 	}
 	if dname != name {
@@ -428,8 +424,7 @@ func (e *escaper) computeOutCtx(c context, t *template.Template) context {
 		d = context{
 			state: stateError,
 			// TODO: Find the first node with a line in t.Tree.Root
-			errLine: 0,
-			errStr:  fmt.Sprintf("cannot compute output context for template %s", n),
+			err: errorf(ErrOutputContext, 0, "cannot compute output context for template %s", n),
 		}
 		// TODO: If necessary, compute a fixed point by assuming d
 		// as the input context, and recursing to escapeList with a 
