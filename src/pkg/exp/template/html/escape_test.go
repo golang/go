@@ -503,6 +503,14 @@ func TestEscapeSet(t *testing.T) {
 			},
 			`<script>var x= 126 /"42";</script>`,
 		},
+		// A recursive template that ends in a similar context.
+		{
+			map[string]string{
+				"main":      `<script>var x=[{{template "countdown" 4}}];</script>`,
+				"countdown": `{{.}}{{if .}},{{template "countdown" . | pred}}{{end}}`,
+			},
+			`<script>var x=[ 4 , 3 , 2 , 1 , 0 ];</script>`,
+		},
 		// A recursive template that ends in a different context.
 		/*
 			{
@@ -514,11 +522,26 @@ func TestEscapeSet(t *testing.T) {
 			},
 		*/
 	}
+
+	// pred is a template function that returns the predecessor of a
+	// natural number for testing recursive templates.
+	fns := template.FuncMap{"pred": func(a ...interface{}) (interface{}, os.Error) {
+		if len(a) == 1 {
+			if i, _ := a[0].(int); i > 0 {
+				return i - 1, nil
+			}
+		}
+		return nil, fmt.Errorf("undefined pred(%v)", a)
+	}}
+
 	for _, test := range tests {
 		var s template.Set
 		for name, src := range test.inputs {
-			s.Add(template.Must(template.New(name).Parse(src)))
+			t := template.New(name)
+			t.Funcs(fns)
+			s.Add(template.Must(t.Parse(src)))
 		}
+		s.Funcs(fns)
 		if _, err := EscapeSet(&s, "main"); err != nil {
 			t.Errorf("%s for input:\n%v", err, test.inputs)
 			continue

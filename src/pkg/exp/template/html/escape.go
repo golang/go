@@ -38,14 +38,7 @@ func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
 		// and use those instead.
 		return nil, &Error{ErrNoNames, "", 0, "must specify names of top level templates"}
 	}
-	e := escaper{
-		s,
-		map[string]context{},
-		map[string]*template.Template{},
-		map[string]bool{},
-		map[*parse.ActionNode][]string{},
-		map[*parse.TemplateNode]string{},
-	}
+	e := newEscaper(s)
 	for _, name := range names {
 		c, _ := e.escapeTree(context{}, name, 0)
 		var err os.Error
@@ -113,6 +106,18 @@ type escaper struct {
 	// contexts.
 	actionNodeEdits   map[*parse.ActionNode][]string
 	templateNodeEdits map[*parse.TemplateNode]string
+}
+
+// newEscaper creates a blank escaper for the given set.
+func newEscaper(s *template.Set) *escaper {
+	return &escaper{
+		s,
+		map[string]context{},
+		map[string]*template.Template{},
+		map[string]bool{},
+		map[*parse.ActionNode][]string{},
+		map[*parse.TemplateNode]string{},
+	}
 }
 
 // filterFailsafe is an innocuous word that is emitted in place of unsafe values
@@ -197,10 +202,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	default:
 		s = append(s, "exp_template_html_attrescaper")
 	}
-	if _, ok := e.actionNodeEdits[n]; ok {
-		panic(fmt.Sprintf("node %s shared between templates", n))
-	}
-	e.actionNodeEdits[n] = s
+	e.editActionNode(n, s)
 	return c
 }
 
@@ -329,10 +331,8 @@ func (e *escaper) escapeBranch(c context, n *parse.BranchNode, nodeName string) 
 		// The "true" branch of a "range" node can execute multiple times.
 		// We check that executing n.List once results in the same context
 		// as executing n.List twice.
-		ae, te := e.actionNodeEdits, e.templateNodeEdits
-		e.actionNodeEdits, e.templateNodeEdits = make(map[*parse.ActionNode][]string), make(map[*parse.TemplateNode]string)
-		c0 = join(c0, e.escapeList(c0, n.List), n.Line, nodeName)
-		e.actionNodeEdits, e.templateNodeEdits = ae, te
+		c1, _ := e.escapeListConditionally(c0, n.List, nil)
+		c0 = join(c0, c1, n.Line, nodeName)
 		if c0.state == stateError {
 			// Make clear that this is a problem on loop re-entry
 			// since developers tend to overlook that branch when
@@ -357,14 +357,44 @@ func (e *escaper) escapeList(c context, n *parse.ListNode) context {
 	return c
 }
 
+// escapeListConditionally escapes a list node but only preserves edits and
+// inferences in e if the inferences and output context satisfy filter.
+// It returns the best guess at an output context, and the result of the filter
+// which is the same as whether e was updated.
+func (e *escaper) escapeListConditionally(c context, n *parse.ListNode, filter func(*escaper, context) bool) (context, bool) {
+	e1 := newEscaper(e.set)
+	// Make type inferences available to f.
+	for k, v := range e.output {
+		e1.output[k] = v
+	}
+	c = e1.escapeList(c, n)
+	ok := filter != nil && filter(e1, c)
+	if ok {
+		// Copy inferences and edits from e1 back into e.
+		for k, v := range e1.output {
+			e.output[k] = v
+		}
+		for k, v := range e1.derived {
+			e.derived[k] = v
+		}
+		for k, v := range e1.called {
+			e.called[k] = v
+		}
+		for k, v := range e1.actionNodeEdits {
+			e.editActionNode(k, v)
+		}
+		for k, v := range e1.templateNodeEdits {
+			e.editTemplateNode(k, v)
+		}
+	}
+	return c, ok
+}
+
 // escapeTemplate escapes a {{template}} call node.
 func (e *escaper) escapeTemplate(c context, n *parse.TemplateNode) context {
 	c, name := e.escapeTree(c, n.Name, n.Line)
 	if name != n.Name {
-		if _, ok := e.templateNodeEdits[n]; ok {
-			panic(fmt.Sprintf("node %s shared between templates", n))
-		}
-		e.templateNodeEdits[n] = name
+		e.editTemplateNode(n, name)
 	}
 	return c
 }
@@ -404,37 +434,48 @@ func (e *escaper) escapeTree(c context, name string, line int) (context, string)
 // computeOutCtx takes a template and its start context and computes the output
 // context while storing any inferences in e.
 func (e *escaper) computeOutCtx(c context, t *template.Template) context {
-	n := t.Name()
-	// We need to assume an output context so that recursive template calls
-	// do not infinitely recurse, but instead take the fast path out of
-	// escapeTree.
-	// Naively assume that the input context is the same as the output.
-	// This is true >90% of the time, and does not matter if the template
-	// is not reentrant.
-	e.output[n] = c
-	// Start with a fresh called map so e.called[n] below is true iff t is
-	// reentrant.
-	called := e.called
-	e.called = make(map[string]bool)
 	// Propagate context over the body.
-	d := e.escapeList(c, t.Tree.Root)
-	// If t was called, then our assumption above that e.output[n] = c
-	// was incorporated into d, so we have to check that assumption.
-	if e.called[n] && d.state != stateError && !c.eq(d) {
-		d = context{
+	c1, ok := e.escapeTemplateBody(c, t)
+	if !ok {
+		// Look for a fixed point by assuming c1 as the output context.
+		if c2, ok2 := e.escapeTemplateBody(c1, t); ok2 {
+			c1, ok = c2, true
+		}
+		// Use c1 as the error context if neither assumption worked.
+	}
+	if !ok && c1.state != stateError {
+		return context{
 			state: stateError,
 			// TODO: Find the first node with a line in t.Tree.Root
-			err: errorf(ErrOutputContext, 0, "cannot compute output context for template %s", n),
+			err: errorf(ErrOutputContext, 0, "cannot compute output context for template %s", t.Name()),
 		}
-		// TODO: If necessary, compute a fixed point by assuming d
-		// as the input context, and recursing to escapeList with a 
-		// different escaper and seeing if starting at d ends in d.
 	}
-	for k, v := range e.called {
-		called[k] = v
+	return c1
+}
+
+// escapeTemplateBody escapes the given template assuming the given output
+// context, and returns the best guess at the output context and whether the
+// assumption was correct.
+func (e *escaper) escapeTemplateBody(c context, t *template.Template) (context, bool) {
+	filter := func(e1 *escaper, c1 context) bool {
+		if c1.state == stateError {
+			// Do not update the input escaper, e.
+			return false
+		}
+		if !e1.called[t.Name()] {
+			// If t is not recursively called, then c1 is an
+			// accurate output context.
+			return true
+		}
+		// c1 is accurate if it matches our assumed output context.
+		return c.eq(c1)
 	}
-	e.called = called
-	return d
+	// We need to assume an output context so that recursive template calls
+	// take the fast path out of escapeTree instead of infinitely recursing.
+	// Naively assuming that the input context is the same as the output
+	// works >90% of the time.
+	e.output[t.Name()] = c
+	return e.escapeListConditionally(c, t.Tree.Root, filter)
 }
 
 // delimEnds maps each delim to a string of characters that terminate it.
@@ -482,6 +523,22 @@ func (e *escaper) escapeText(c context, s []byte) context {
 		c, s = context{state: stateTag, element: c.element}, s[i:]
 	}
 	return c
+}
+
+// editActionNode records a change to an action pipeline for later commit.
+func (e *escaper) editActionNode(n *parse.ActionNode, cmds []string) {
+	if _, ok := e.actionNodeEdits[n]; ok {
+		panic(fmt.Sprintf("node %s shared between templates", n))
+	}
+	e.actionNodeEdits[n] = cmds
+}
+
+// editTemplateNode records a change to a {{template}} callee for later commit.
+func (e *escaper) editTemplateNode(n *parse.TemplateNode, callee string) {
+	if _, ok := e.templateNodeEdits[n]; ok {
+		panic(fmt.Sprintf("node %s shared between templates", n))
+	}
+	e.templateNodeEdits[n] = callee
 }
 
 // commit applies changes to actions and template calls needed to contextually
