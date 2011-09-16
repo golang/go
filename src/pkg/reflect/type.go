@@ -716,7 +716,7 @@ type StructTag string
 // Get returns the value associated with key in the tag string.
 // If there is no such key in the tag, Get returns the empty string.
 // If the tag does not have the conventional format, the value
-// returned by Get is unspecified, 
+// returned by Get is unspecified.
 func (tag StructTag) Get(key string) string {
 	for tag != "" {
 		// skip leading space
