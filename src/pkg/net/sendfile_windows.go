@@ -54,7 +54,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err os.Error, handled bool)
 	defer c.decref()
 
 	var o sendfileOp
-	o.Init(c)
+	o.Init(c, 'w')
 	o.n = uint32(n)
 	o.src = f.Fd()
 	done, err := iosrv.ExecIO(&o, 0)
