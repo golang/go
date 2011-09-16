@@ -6,10 +6,11 @@ package html
 
 import (
 	"bytes"
-	"fmt"
-	"os"
 	"strings"
 )
+
+// TODO: ensure transition error messages contain template name and ideally
+// line info.
 
 // transitionFunc is the array of context transition functions for text nodes.
 // A transition function takes a context and template text input, and returns
@@ -82,8 +83,8 @@ func tTag(c context, s []byte) (context, []byte) {
 	i, err := eatAttrName(s, attrStart)
 	if err != nil {
 		return context{
-			state:  stateError,
-			errStr: err.String(),
+			state: stateError,
+			err:   err,
 		}, nil
 	}
 	if i == len(s) {
@@ -204,8 +205,8 @@ func tJS(c context, s []byte) (context, []byte) {
 			c.jsCtx = jsCtxRegexp
 		default:
 			return context{
-				state:  stateError,
-				errStr: fmt.Sprintf("'/' could start div or regexp: %.32q", s[i:]),
+				state: stateError,
+				err:   errorf(ErrSlashAmbig, 0, "'/' could start div or regexp: %.32q", s[i:]),
 			}, nil
 		}
 	default:
@@ -235,8 +236,8 @@ func tJSStr(c context, s []byte) (context, []byte) {
 			i++
 			if i == len(b) {
 				return context{
-					state:  stateError,
-					errStr: fmt.Sprintf("unfinished escape sequence in JS string: %q", s),
+					state: stateError,
+					err:   errorf(ErrPartialEscape, 0, "unfinished escape sequence in JS string: %q", s),
 				}, nil
 			}
 		} else {
@@ -271,8 +272,8 @@ func tJSRegexp(c context, s []byte) (context, []byte) {
 			i++
 			if i == len(b) {
 				return context{
-					state:  stateError,
-					errStr: fmt.Sprintf("unfinished escape sequence in JS regexp: %q", s),
+					state: stateError,
+					err:   errorf(ErrPartialEscape, 0, "unfinished escape sequence in JS regexp: %q", s),
 				}, nil
 			}
 		case '[':
@@ -289,8 +290,8 @@ func tJSRegexp(c context, s []byte) (context, []byte) {
 		// This can be fixed by making context richer if interpolation
 		// into charsets is desired.
 		return context{
-			state:  stateError,
-			errStr: fmt.Sprintf("unfinished JS regexp charset: %q", s),
+			state: stateError,
+			err:   errorf(ErrPartialCharset, 0, "unfinished JS regexp charset: %q", s),
 		}, nil
 	}
 
@@ -463,8 +464,8 @@ func tCSSStr(c context, s []byte) (context, []byte) {
 			i++
 			if i == len(b) {
 				return context{
-					state:  stateError,
-					errStr: fmt.Sprintf("unfinished escape sequence in CSS string: %q", s),
+					state: stateError,
+					err:   errorf(ErrPartialEscape, 0, "unfinished escape sequence in CSS string: %q", s),
 				}, nil
 			}
 		} else {
@@ -486,7 +487,7 @@ func tError(c context, s []byte) (context, []byte) {
 // It returns an error if s[i:] does not look like it begins with an
 // attribute name, such as encountering a quote mark without a preceding
 // equals sign.
-func eatAttrName(s []byte, i int) (int, os.Error) {
+func eatAttrName(s []byte, i int) (int, *Error) {
 	for j := i; j < len(s); j++ {
 		switch s[j] {
 		case ' ', '\t', '\n', '\f', '\r', '=', '>':
@@ -495,7 +496,7 @@ func eatAttrName(s []byte, i int) (int, os.Error) {
 			// These result in a parse warning in HTML5 and are
 			// indicative of serious problems if seen in an attr
 			// name in a template.
-			return 0, fmt.Errorf("%q in attribute name: %.32q", s[j:j+1], s)
+			return -1, errorf(ErrBadHTML, 0, "%q in attribute name: %.32q", s[j:j+1], s)
 		default:
 			// No-op.
 		}

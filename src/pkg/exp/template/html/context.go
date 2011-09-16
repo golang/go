@@ -21,8 +21,7 @@ type context struct {
 	urlPart urlPart
 	jsCtx   jsCtx
 	element element
-	errLine int
-	errStr  string
+	err     *Error
 }
 
 // eq returns whether two contexts are equal.
@@ -32,8 +31,7 @@ func (c context) eq(d context) bool {
 		c.urlPart == d.urlPart &&
 		c.jsCtx == d.jsCtx &&
 		c.element == d.element &&
-		c.errLine == d.errLine &&
-		c.errStr == d.errStr
+		c.err == d.err
 }
 
 // mangle produces an identifier that includes a suffix that distinguishes it

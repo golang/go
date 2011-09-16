@@ -11,6 +11,7 @@ GOFILES=\
 	context.go\
 	css.go\
 	doc.go\
+	error.go\
 	escape.go\
 	html.go\
 	js.go\
