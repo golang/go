@@ -22,9 +22,6 @@ func TestCPUProfile(t *testing.T) {
 	case "plan9":
 		// unimplemented
 		return
-	case "windows":
-		// unimplemented
-		return
 	}
 
 	buf := make([]byte, 100000)
