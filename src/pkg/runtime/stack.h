@@ -58,7 +58,7 @@ enum {
 	// purposes like signal handling. Used on Windows because
 	// it does not use a separate stack.
 #ifdef __WINDOWS__
-	StackSystem = 2048,
+	StackSystem = 512 * sizeof(uintptr),
 #else
 	StackSystem = 0,
 #endif
