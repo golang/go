@@ -210,7 +210,8 @@ func ParseTemplateFiles(filenames ...string) (*Set, os.Error) {
 }
 
 // ParseTemplateGlob creates a set by parsing the files matched
-// by the pattern, each of which defines a single template. Each
+// by the pattern, each of which defines a single template. The pattern
+// is processed by filepath.Glob and must match at least one file. Each
 // template will be named the base name of its file.
 // Unlike with ParseGlob, each file should be a stand-alone template
 // definition suitable for Template.Parse (not Set.Parse); that is, the
@@ -224,6 +225,9 @@ func ParseTemplateGlob(pattern string) (*Set, os.Error) {
 	filenames, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, err
+	}
+	if len(filenames) == 0 {
+		return nil, fmt.Errorf("pattern matches no files: %#q", pattern)
 	}
 	for _, filename := range filenames {
 		t, err := ParseFile(filename)

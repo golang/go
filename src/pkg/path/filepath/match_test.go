@@ -124,6 +124,16 @@ func TestGlob(t *testing.T) {
 			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
 		}
 	}
+	for _, pattern := range []string{"no_match", "../*/no_match"} {
+		matches, err := Glob(pattern)
+		if err != nil {
+			t.Errorf("Glob error for %q: %s", pattern, err)
+			continue
+		}
+		if len(matches) != 0 {
+			t.Errorf("Glob(%#q) = %#v want []", pattern, matches)
+		}
+	}
 }
 
 func TestGlobError(t *testing.T) {

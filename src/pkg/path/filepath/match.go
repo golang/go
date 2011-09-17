@@ -215,7 +215,7 @@ func getEsc(chunk string) (r int, nchunk string, err os.Error) {
 func Glob(pattern string) (matches []string, err os.Error) {
 	if !hasMeta(pattern) {
 		if _, err = os.Stat(pattern); err != nil {
-			return
+			return nil, nil
 		}
 		return []string{pattern}, nil
 	}
