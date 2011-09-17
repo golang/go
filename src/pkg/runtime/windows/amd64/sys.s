@@ -100,31 +100,51 @@ TEXT runtime·sigtramp(SB),7,$56
 sigdone:
 	RET
 
-// Windows runs the ctrl handler in a new thread.
-TEXT runtime·ctrlhandler(SB),7,$0
+TEXT runtime·ctrlhandler(SB),7,$8
+	MOVQ	CX, 16(SP)		// spill
+	MOVQ	$runtime·ctrlhandler1(SB), CX
+	MOVQ	CX, 0(SP)
+	CALL	runtime·externalthreadhandler(SB)
+	RET
+
+TEXT runtime·profileloop(SB),7,$8
+	MOVQ	$runtime·profileloop1(SB), CX
+	MOVQ	CX, 0(SP)
+	CALL	runtime·externalthreadhandler(SB)
+	RET
+
+TEXT runtime·externalthreadhandler(SB),7,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
 	PUSHQ	BX
 	PUSHQ	SI
 	PUSHQ	DI
 	PUSHQ	0x58(GS)
-	MOVQ	SP, BX
+	MOVQ	SP, DX
 
 	// setup dummy m, g
-	SUBQ	$(m_fflag+4), SP	// at least space for m_fflag
+	SUBQ	$m_end, SP		// space for M
+	MOVQ	SP, 0(SP)
+	MOVQ	$m_end, 8(SP)
+	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+
 	LEAQ	m_tls(SP), CX
 	MOVQ	CX, 0x58(GS)
 	MOVQ	SP, m(CX)
-	MOVQ	SP, DX
-	SUBQ	$16, SP			// space for g_stack{guard,base}
+	MOVQ	SP, BX
+	SUBQ	$g_end, SP		// space for G
 	MOVQ	SP, g(CX)
-	MOVQ	SP, m_g0(DX)
+	MOVQ	SP, m_g0(BX)
+
+	MOVQ	SP, 0(SP)
+	MOVQ	$g_end, 8(SP)
+	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
 	LEAQ	-8192(SP), CX
 	MOVQ	CX, g_stackguard(SP)
-	MOVQ	BX, g_stackbase(SP)
+	MOVQ	DX, g_stackbase(SP)
 
-	PUSHQ	16(BP)
-	CALL	runtime·ctrlhandler1(SB)
+	PUSHQ	32(BP)			// arg for handler
+	CALL	16(BP)
 	POPQ	CX
 
 	get_tls(CX)

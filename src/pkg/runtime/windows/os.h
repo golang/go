@@ -13,8 +13,8 @@ extern void *runtime·GetProcAddress;
 void runtime·asmstdcall(void *c);
 void *runtime·stdcall(void *fn, int32 count, ...);
 
-uintptr runtime·getlasterror(void);
-void runtime·setlasterror(uintptr err);
+uint32 runtime·getlasterror(void);
+void runtime·setlasterror(uint32 err);
 
 // Function to be called by windows CreateThread
 // to start new os thread.
