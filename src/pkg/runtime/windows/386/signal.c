@@ -90,9 +90,7 @@ runtime·sighandler(ExceptionRecord *info, void *frame, Context *r)
 }
 
 void
-runtime·resetcpuprofiler(int32 hz)
+runtime·dosigprof(Context *r, G *gp)
 {
-	// TODO: Enable profiling interrupts.
-	
-	m->profilehz = hz;
+	runtime·sigprof((uint8*)r->Eip, (uint8*)r->Esp, nil, gp);
 }

@@ -212,6 +212,7 @@ struct	G
 	uintptr	sigcode1;
 	uintptr	sigpc;
 	uintptr	gopc;	// pc of go statement that created this goroutine
+	uintptr	end[];
 };
 struct	M
 {
@@ -253,9 +254,11 @@ struct	M
 	uint32	fflag;		// floating point compare flags
 
 #ifdef __WINDOWS__
+	void*	thread;		// thread handle
 	void*	event;		// event for signalling
 	M*	nextwaitm;	// next M waiting for lock
 #endif
+	uintptr	end[];
 };
 
 struct	Stktop

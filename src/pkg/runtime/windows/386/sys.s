@@ -96,31 +96,52 @@ TEXT runtime·sigtramp1(SB),0,$16-40
 sigdone:
 	RET
 
-// Windows runs the ctrl handler in a new thread.
 TEXT runtime·ctrlhandler(SB),7,$0
+	PUSHL	$runtime·ctrlhandler1(SB)
+	CALL	runtime·externalthreadhandler(SB)
+	MOVL	4(SP), CX
+	ADDL	$12, SP
+	JMP	CX
+
+TEXT runtime·profileloop(SB),7,$0
+	PUSHL	$runtime·profileloop1(SB)
+	CALL	runtime·externalthreadhandler(SB)
+	MOVL	4(SP), CX
+	ADDL	$12, SP
+	JMP	CX
+
+TEXT runtime·externalthreadhandler(SB),7,$0
 	PUSHL	BP
 	MOVL	SP, BP
 	PUSHL	BX
 	PUSHL	SI
 	PUSHL	DI
 	PUSHL	0x2c(FS)
-	MOVL	SP, BX
+	MOVL	SP, DX
 
 	// setup dummy m, g
-	SUBL	$(m_fflag+4), SP	// at least space for m_fflag
+	SUBL	$m_end, SP		// space for M
+	MOVL	SP, 0(SP)
+	MOVL	$m_end, 4(SP)
+	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
+
 	LEAL	m_tls(SP), CX
 	MOVL	CX, 0x2c(FS)
 	MOVL	SP, m(CX)
-	MOVL	SP, DX
-	SUBL	$8, SP			// space for g_stack{guard,base}
+	MOVL	SP, BX
+	SUBL	$g_end, SP		// space for G
 	MOVL	SP, g(CX)
-	MOVL	SP, m_g0(DX)
+	MOVL	SP, m_g0(BX)
+
+	MOVL	SP, 0(SP)
+	MOVL	$g_end, 4(SP)
+	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
 	LEAL	-4096(SP), CX
 	MOVL	CX, g_stackguard(SP)
-	MOVL	BX, g_stackbase(SP)
+	MOVL	DX, g_stackbase(SP)
 
-	PUSHL	8(BP)
-	CALL	runtime·ctrlhandler1(SB)
+	PUSHL	16(BP)			// arg for handler
+	CALL	8(BP)
 	POPL	CX
 
 	get_tls(CX)
@@ -131,9 +152,7 @@ TEXT runtime·ctrlhandler(SB),7,$0
 	POPL	SI
 	POPL	BX
 	POPL	BP
-	MOVL	0(SP), CX
-	ADDL	$8, SP
-	JMP	CX
+	RET
 
 // Called from dynamic function created by ../thread.c compilecallback,
 // running on Windows stack (not Go stack).
