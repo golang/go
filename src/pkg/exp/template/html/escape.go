@@ -100,12 +100,12 @@ type escaper struct {
 	derived map[string]*template.Template
 	// called[templateName] is a set of called mangled template names.
 	called map[string]bool
-	// actionNodeEdits and templateNodeEdits are the accumulated edits to
-	// apply during commit. Such edits are not applied immediately in case
-	// a template set executes a given template in different escaping
-	// contexts.
+	// xxxNodeEdits are the accumulated edits to apply during commit.
+	// Such edits are not applied immediately in case a template set
+	// executes a given template in different escaping contexts.
 	actionNodeEdits   map[*parse.ActionNode][]string
 	templateNodeEdits map[*parse.TemplateNode]string
+	textNodeEdits     map[*parse.TextNode][]byte
 }
 
 // newEscaper creates a blank escaper for the given set.
@@ -117,6 +117,7 @@ func newEscaper(s *template.Set) *escaper {
 		map[string]bool{},
 		map[*parse.ActionNode][]string{},
 		map[*parse.TemplateNode]string{},
+		map[*parse.TextNode][]byte{},
 	}
 }
 
@@ -141,7 +142,7 @@ func (e *escaper) escape(c context, n parse.Node) context {
 	case *parse.TemplateNode:
 		return e.escapeTemplate(c, n)
 	case *parse.TextNode:
-		return e.escapeText(c, n.Text)
+		return e.escapeText(c, n)
 	case *parse.WithNode:
 		return e.escapeBranch(c, &n.BranchNode, "with")
 	}
@@ -386,6 +387,9 @@ func (e *escaper) escapeListConditionally(c context, n *parse.ListNode, filter f
 		for k, v := range e1.templateNodeEdits {
 			e.editTemplateNode(k, v)
 		}
+		for k, v := range e1.textNodeEdits {
+			e.editTextNode(k, v)
+		}
 	}
 	return c, ok
 }
@@ -493,36 +497,55 @@ var delimEnds = [...]string{
 }
 
 // escapeText escapes a text template node.
-func (e *escaper) escapeText(c context, s []byte) context {
+func (e *escaper) escapeText(c context, n *parse.TextNode) context {
+	s, written := n.Text, 0
+	var b bytes.Buffer
 	for len(s) > 0 {
-		if c.delim == delimNone {
-			c, s = transitionFunc[c.state](c, s)
-			continue
-		}
-
-		i := bytes.IndexAny(s, delimEnds[c.delim])
-		if i == -1 {
-			// Remain inside the attribute.
-			// Decode the value so non-HTML rules can easily handle
-			//     <button onclick="alert(&quot;Hi!&quot;)">
-			// without having to entity decode token boundaries.
-			d := c.delim
-			c.delim = delimNone
-			c = e.escapeText(c, []byte(html.UnescapeString(string(s))))
-			if c.state != stateError {
-				c.delim = d
+		c1, s1 := contextAfterText(c, s)
+		if c.state == c1.state && (c.state == stateText || c.state == stateRCDATA) {
+			i0, i1 := len(n.Text)-len(s), len(n.Text)-len(s1)
+			for i := i0; i < i1; i++ {
+				if n.Text[i] == '<' {
+					b.Write(n.Text[written:i])
+					b.WriteString("&lt;")
+					written = i + 1
+				}
 			}
-			return c
 		}
-		if c.delim != delimSpaceOrTagEnd {
-			// Consume any quote.
-			i++
-		}
-		// On exiting an attribute, we discard all state information
-		// except the state and element.
-		c, s = context{state: stateTag, element: c.element}, s[i:]
+		c, s = c1, s1
+	}
+	if written != 0 && c.state != stateError {
+		b.Write(n.Text[written:])
+		e.editTextNode(n, b.Bytes())
 	}
 	return c
+}
+
+// contextAfterText starts in context c, consumes some tokens from the front of
+// s, then returns the context after those tokens and the unprocessed suffix.
+func contextAfterText(c context, s []byte) (context, []byte) {
+	if c.delim == delimNone {
+		return transitionFunc[c.state](c, s)
+	}
+
+	i := bytes.IndexAny(s, delimEnds[c.delim])
+	if i == -1 {
+		// Remain inside the attribute.
+		// Decode the value so non-HTML rules can easily handle
+		//     <button onclick="alert(&quot;Hi!&quot;)">
+		// without having to entity decode token boundaries.
+		for u := []byte(html.UnescapeString(string(s))); len(u) != 0; {
+			c, u = transitionFunc[c.state](c, u)
+		}
+		return c, nil
+	}
+	if c.delim != delimSpaceOrTagEnd {
+		// Consume any quote.
+		i++
+	}
+	// On exiting an attribute, we discard all state information
+	// except the state and element.
+	return context{state: stateTag, element: c.element}, s[i:]
 }
 
 // editActionNode records a change to an action pipeline for later commit.
@@ -541,6 +564,14 @@ func (e *escaper) editTemplateNode(n *parse.TemplateNode, callee string) {
 	e.templateNodeEdits[n] = callee
 }
 
+// editTextNode records a change to a text node for later commit.
+func (e *escaper) editTextNode(n *parse.TextNode, text []byte) {
+	if _, ok := e.textNodeEdits[n]; ok {
+		panic(fmt.Sprintf("node %s shared between templates", n))
+	}
+	e.textNodeEdits[n] = text
+}
+
 // commit applies changes to actions and template calls needed to contextually
 // autoescape content and adds any derived templates to the set.
 func (e *escaper) commit() {
@@ -555,6 +586,9 @@ func (e *escaper) commit() {
 	}
 	for n, name := range e.templateNodeEdits {
 		n.Name = name
+	}
+	for n, s := range e.textNodeEdits {
+		n.Text = s
 	}
 }
 
