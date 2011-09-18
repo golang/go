@@ -121,6 +121,11 @@ func TestEscape(t *testing.T) {
 			`<a href='#ZgotmplZ'>`,
 		},
 		{
+			"dangerousURLStart2",
+			`<a href='  {{"javascript:alert(%22pwned%22)"}}'>`,
+			`<a href='  #ZgotmplZ'>`,
+		},
+		{
 			"nonHierURL",
 			`<a href={{"mailto:Muhammed \"The Greatest\" Ali <m.ali@example.com>"}}>`,
 			`<a href=mailto:Muhammed&#32;&#34;The&#32;Greatest&#34;&#32;Ali&#32;&lt;m.ali@example.com&gt;>`,
