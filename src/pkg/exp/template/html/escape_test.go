@@ -396,6 +396,21 @@ func TestEscape(t *testing.T) {
 			"{{range .A}}{{. | noescape}}{{end}}",
 			"<a><b>",
 		},
+		{
+			"No tag injection",
+			`{{"10$"}}<{{"script src,evil.org/pwnd.js"}}...`,
+			`10$&lt;script src,evil.org/pwnd.js...`,
+		},
+		{
+			"No comment injection",
+			`<{{"!--"}}`,
+			`&lt;!--`,
+		},
+		{
+			"No RCDATA end tag injection",
+			`<textarea><{{"/textarea "}}...</textarea>`,
+			`<textarea>&lt;/textarea ...</textarea>`,
+		},
 	}
 
 	for _, test := range tests {
@@ -1136,8 +1151,8 @@ func TestEscapeText(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		b, e := []byte(test.input), escaper{}
-		c := e.escapeText(context{}, b)
+		b, e := []byte(test.input), newEscaper(nil)
+		c := e.escapeText(context{}, &parse.TextNode{parse.NodeText, b})
 		if !test.output.eq(c) {
 			t.Errorf("input %q: want context\n\t%v\ngot\n\t%v", test.input, test.output, c)
 			continue
