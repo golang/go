@@ -169,7 +169,9 @@ func tAttr(c context, s []byte) (context, []byte) {
 func tURL(c context, s []byte) (context, []byte) {
 	if bytes.IndexAny(s, "#?") >= 0 {
 		c.urlPart = urlPartQueryOrFrag
-	} else if len(s) != 0 && c.urlPart == urlPartNone {
+	} else if len(s) != eatWhiteSpace(s, 0) && c.urlPart == urlPartNone {
+		// HTML5 uses "Valid URL potentially surrounded by spaces" for
+		// attrs: http://www.w3.org/TR/html5/index.html#attributes-1
 		c.urlPart = urlPartPreQuery
 	}
 	return c, nil
