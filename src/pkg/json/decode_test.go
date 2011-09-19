@@ -265,6 +265,8 @@ type All struct {
 	Foo  string `json:"bar"`
 	Foo2 string `json:"bar2,dummyopt"`
 
+	IntStr int64 `json:",string"`
+
 	PBool    *bool
 	PInt     *int
 	PInt8    *int8
@@ -333,6 +335,7 @@ var allValue = All{
 	Float64: 15.1,
 	Foo:     "foo",
 	Foo2:    "foo2",
+	IntStr:  42,
 	String:  "16",
 	Map: map[string]Small{
 		"17": {Tag: "tag17"},
@@ -394,6 +397,7 @@ var allValueIndent = `{
 	"Float64": 15.1,
 	"bar": "foo",
 	"bar2": "foo2",
+	"IntStr": "42",
 	"PBool": null,
 	"PInt": null,
 	"PInt8": null,
@@ -485,6 +489,7 @@ var pallValueIndent = `{
 	"Float64": 0,
 	"bar": "",
 	"bar2": "",
+        "IntStr": "0",
 	"PBool": true,
 	"PInt": 2,
 	"PInt8": 3,

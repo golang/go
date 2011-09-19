@@ -5,6 +5,8 @@
 package json
 
 import (
+	"bytes"
+	"reflect"
 	"testing"
 )
 
@@ -40,5 +42,41 @@ func TestOmitEmpty(t *testing.T) {
 	}
 	if got := string(got); got != optionalsExpected {
 		t.Errorf(" got: %s\nwant: %s\n", got, optionalsExpected)
+	}
+}
+
+type StringTag struct {
+	BoolStr bool   `json:",string"`
+	IntStr  int64  `json:",string"`
+	StrStr  string `json:",string"`
+}
+
+var stringTagExpected = `{
+ "BoolStr": "true",
+ "IntStr": "42",
+ "StrStr": "\"xzbit\""
+}`
+
+func TestStringTag(t *testing.T) {
+	var s StringTag
+	s.BoolStr = true
+	s.IntStr = 42
+	s.StrStr = "xzbit"
+	got, err := MarshalIndent(&s, "", " ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(got); got != stringTagExpected {
+		t.Fatalf(" got: %s\nwant: %s\n", got, stringTagExpected)
+	}
+
+	// Verify that it round-trips.
+	var s2 StringTag
+	err = NewDecoder(bytes.NewBuffer(got)).Decode(&s2)
+	if err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if !reflect.DeepEqual(s, s2) {
+		t.Fatalf("decode didn't match.\nsource: %#v\nEncoded as:\n%s\ndecode: %#v", s, string(got), s2)
 	}
 }
