@@ -26,8 +26,16 @@ import (
 // Marshal uses, allocating maps, slices, and pointers as necessary,
 // with the following additional rules:
 //
-// To unmarshal JSON into a nil interface value, the
-// type stored in the interface value is one of:
+// To unmarshal JSON into a pointer, Unmarshal first handles the case of
+// the JSON being the JSON literal null.  In that case, Unmarshal sets
+// the pointer to nil.  Otherwise, Unmarshal unmarshals the JSON into
+// the value pointed at by the pointer.  If the pointer is nil, Unmarshal
+// allocates a new value for it to point to.
+//
+// To unmarshal JSON into an interface value, Unmarshal unmarshals
+// the JSON into the concrete value contained in the interface value.
+// If the interface value is nil, that is, has no concrete value stored in it,
+// Unmarshal stores one of these in the interface value:
 //
 //	bool, for JSON booleans
 //	float64, for JSON numbers
@@ -35,12 +43,6 @@ import (
 //	[]interface{}, for JSON arrays
 //	map[string]interface{}, for JSON objects
 //	nil for JSON null
-//
-// To unmarshal JSON into a pointer, Unmarshal first handles the case of
-// the JSON being the JSON literal null.  In that case, Unmarshal sets
-// the pointer to nil.  Otherwise, Unmarshal unmarshals the JSON into
-// the value pointed at by the pointer.  If the pointer is nil, Unmarshal
-// allocates a new value for it to point to.
 //
 // If a JSON value is not appropriate for a given target type,
 // or if a JSON number overflows the target type, Unmarshal
