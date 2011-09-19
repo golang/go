@@ -133,6 +133,9 @@ complexgen(Node *n, Node *res)
 		dump("\ncomplexgen-n", n);
 		dump("complexgen-res", res);
 	}
+	
+	while(n->op == OCONVNOP)
+		n = n->left;
 
 	// pick off float/complex opcodes
 	switch(n->op) {
