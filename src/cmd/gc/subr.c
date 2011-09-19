@@ -548,9 +548,13 @@ maptype(Type *key, Type *val)
 {
 	Type *t;
 
-
-	if(key != nil && key->etype != TANY && algtype(key) == ANOEQ) {
-		if(key->etype == TFORW) {
+	if(key != nil) {
+		switch(key->etype) {
+		case TARRAY:
+		case TSTRUCT:
+			yyerror("invalid map key type %T", key);
+			break;
+		case TFORW:
 			// map[key] used during definition of key.
 			// postpone check until key is fully defined.
 			// if there are multiple uses of map[key]
@@ -559,8 +563,8 @@ maptype(Type *key, Type *val)
 			// good enough.
 			if(key->maplineno == 0)
 				key->maplineno = lineno;
-		} else
-			yyerror("invalid map key type %T", key);
+			break;
+		}
 	}
 	t = typ(TMAP);
 	t->down = key;
