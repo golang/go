@@ -105,4 +105,16 @@ func main() {
 		println("opcode x", ce, Ce)
 		panic("fail")
 	}
+	
+	r32 := real(complex64(ce))
+	if r32 != float32(real(Ce)) {
+		println("real(complex64(ce))", r32, real(Ce))
+		panic("fail")
+	}
+	
+	r64 := real(complex128(ce))
+	if r64 != real(Ce) {
+		println("real(complex128(ce))", r64, real(Ce))
+		panic("fail")
+	}
 }
