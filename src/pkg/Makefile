@@ -33,6 +33,7 @@ DIRS=\
 	crypto\
 	crypto/aes\
 	crypto/blowfish\
+	crypto/bcrypt\
 	crypto/cast5\
 	crypto/cipher\
 	crypto/des\
