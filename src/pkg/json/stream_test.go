@@ -120,3 +120,28 @@ func TestRawMessage(t *testing.T) {
 		t.Fatalf("Marshal: have %#q want %#q", b, msg)
 	}
 }
+
+func TestNullRawMessage(t *testing.T) {
+	// TODO(rsc): Should not need the * in *RawMessage
+	var data struct {
+		X  float64
+		Id *RawMessage
+		Y  float32
+	}
+	data.Id = new(RawMessage)
+	const msg = `{"X":0.1,"Id":null,"Y":0.2}`
+	err := Unmarshal([]byte(msg), &data)
+	if err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if data.Id != nil {
+		t.Fatalf("Raw mismatch: have non-nil, want nil")
+	}
+	b, err := Marshal(&data)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if string(b) != msg {
+		t.Fatalf("Marshal: have %#q want %#q", b, msg)
+	}
+}
