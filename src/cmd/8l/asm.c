@@ -417,7 +417,7 @@ adddynsym(Sym *s)
 		return;
 	
 	if(s->dynimpname == nil)
-		diag("adddynsym: no dynamic name for %s", s->name, *(int32*)0);
+		diag("adddynsym: no dynamic name for %s", s->name);
 
 	if(iself) {
 		s->dynid = nelfsym++;
