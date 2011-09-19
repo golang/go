@@ -31,12 +31,28 @@ func (k KeySizeError) String() string {
 // NewCipher creates and returns a Cipher.
 // The key argument should be the Blowfish key, 4 to 56 bytes.
 func NewCipher(key []byte) (*Cipher, os.Error) {
+	var result Cipher
 	k := len(key)
 	if k < 4 || k > 56 {
 		return nil, KeySizeError(k)
 	}
+	initCipher(key, &result)
+	ExpandKey(key, &result)
+	return &result, nil
+}
+
+// NewSaltedCipher creates a returns a Cipher that folds a salt into its key
+// schedule. For most purposes, NewCipher, instead of NewSaltedCipher, is
+// sufficient and desirable. For bcrypt compatiblity, the key can be over 56
+// bytes.
+func NewSaltedCipher(key, salt []byte) (*Cipher, os.Error) {
 	var result Cipher
-	expandKey(key, &result)
+	k := len(key)
+	if k < 4 {
+		return nil, KeySizeError(k)
+	}
+	initCipher(key, &result)
+	expandKeyWithSalt(key, salt, &result)
 	return &result, nil
 }
 
@@ -76,4 +92,12 @@ func (c *Cipher) Reset() {
 	zero(c.s1[0:])
 	zero(c.s2[0:])
 	zero(c.s3[0:])
+}
+
+func initCipher(key []byte, c *Cipher) {
+	copy(c.p[0:], p[0:])
+	copy(c.s0[0:], s0[0:])
+	copy(c.s1[0:], s1[0:])
+	copy(c.s2[0:], s2[0:])
+	copy(c.s3[0:], s3[0:])
 }

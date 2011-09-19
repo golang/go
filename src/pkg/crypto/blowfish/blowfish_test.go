@@ -190,3 +190,21 @@ func TestCipherDecrypt(t *testing.T) {
 		}
 	}
 }
+
+func TestSaltedCipherKeyLength(t *testing.T) {
+	var key []byte
+	for i := 0; i < 4; i++ {
+		_, err := NewSaltedCipher(key, []byte{'a'})
+		if err != KeySizeError(i) {
+			t.Errorf("NewSaltedCipher with short key, gave error %#v, expected %#v", err, KeySizeError(i))
+		}
+		key = append(key, 'a')
+	}
+
+	// A 57-byte key. One over the typical blowfish restriction.
+	key = []byte("012345678901234567890123456789012345678901234567890123456")
+	_, err := NewSaltedCipher(key, []byte{'a'})
+	if err != nil {
+		t.Errorf("NewSaltedCipher with long key, gave error %#v", err)
+	}
+}
