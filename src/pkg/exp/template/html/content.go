@@ -19,10 +19,14 @@ type (
 	CSS string
 
 	// HTML encapsulates a known safe HTML document fragment.
-	// Should not be used for HTML from a third-party, or HTML with
+	// It should not be used for HTML from a third-party, or HTML with
 	// unclosed tags or comments. The outputs of a sound HTML sanitizer
 	// and a template escaped by this package are fine for use with HTML.
 	HTML string
+
+	// HTMLAttr encapsulates an HTML attribute from a trusted source,
+	// for example: ` dir="ltr"`.
+	HTMLAttr string
 
 	// JS encapsulates a known safe EcmaScript5 Expression, or example,
 	// `(x + y * z())`. 
@@ -56,6 +60,7 @@ const (
 	contentTypePlain contentType = iota
 	contentTypeCSS
 	contentTypeHTML
+	contentTypeHTMLAttr
 	contentTypeJS
 	contentTypeJSStr
 	contentTypeURL
@@ -71,6 +76,8 @@ func stringify(args ...interface{}) (string, contentType) {
 			return string(s), contentTypeCSS
 		case HTML:
 			return string(s), contentTypeHTML
+		case HTMLAttr:
+			return string(s), contentTypeHTMLAttr
 		case JS:
 			return string(s), contentTypeJS
 		case JSStr:

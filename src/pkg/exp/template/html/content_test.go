@@ -16,6 +16,7 @@ func TestTypedContent(t *testing.T) {
 		`<b> "foo%" O'Reilly &bar;`,
 		CSS(`a[href =~ "//example.com"]#foo`),
 		HTML(`Hello, <b>World</b> &amp;tc!`),
+		HTMLAttr(` dir="ltr"`),
 		JS(`c && alert("Hello, World!");`),
 		JSStr(`Hello, World & O'Reilly\x21`),
 		URL(`greeting=H%69&addressee=(World)`),
@@ -38,6 +39,7 @@ func TestTypedContent(t *testing.T) {
 				`ZgotmplZ`,
 				`ZgotmplZ`,
 				`ZgotmplZ`,
+				`ZgotmplZ`,
 			},
 		},
 		{
@@ -46,6 +48,7 @@ func TestTypedContent(t *testing.T) {
 				`ZgotmplZ`,
 				// Allowed and HTML escaped.
 				`a[href =~ &#34;//example.com&#34;]#foo`,
+				`ZgotmplZ`,
 				`ZgotmplZ`,
 				`ZgotmplZ`,
 				`ZgotmplZ`,
@@ -59,9 +62,23 @@ func TestTypedContent(t *testing.T) {
 				`a[href =~ &#34;//example.com&#34;]#foo`,
 				// Not escaped.
 				`Hello, <b>World</b> &amp;tc!`,
+				` dir=&#34;ltr&#34;`,
 				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
 				`Hello, World &amp; O&#39;Reilly\x21`,
 				`greeting=H%69&amp;addressee=(World)`,
+			},
+		},
+		{
+			`<a{{.}}>`,
+			[]string{
+				`ZgotmplZ`,
+				`ZgotmplZ`,
+				`ZgotmplZ`,
+				// Allowed and HTML escaped.
+				` dir="ltr"`,
+				`ZgotmplZ`,
+				`ZgotmplZ`,
+				`ZgotmplZ`,
 			},
 		},
 		{
@@ -71,6 +88,7 @@ func TestTypedContent(t *testing.T) {
 				`a[href&#32;&#61;~&#32;&#34;//example.com&#34;]#foo`,
 				// Tags stripped, spaces escaped, entity not re-escaped.
 				`Hello,&#32;World&#32;&amp;tc!`,
+				`&#32;dir&#61;&#34;ltr&#34;`,
 				`c&#32;&amp;&amp;&#32;alert(&#34;Hello,&#32;World!&#34;);`,
 				`Hello,&#32;World&#32;&amp;&#32;O&#39;Reilly\x21`,
 				`greeting&#61;H%69&amp;addressee&#61;(World)`,
@@ -83,6 +101,7 @@ func TestTypedContent(t *testing.T) {
 				`a[href =~ &#34;//example.com&#34;]#foo`,
 				// Tags stripped, entity not re-escaped.
 				`Hello, World &amp;tc!`,
+				` dir=&#34;ltr&#34;`,
 				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
 				`Hello, World &amp; O&#39;Reilly\x21`,
 				`greeting=H%69&amp;addressee=(World)`,
@@ -95,6 +114,7 @@ func TestTypedContent(t *testing.T) {
 				`a[href =~ &#34;//example.com&#34;]#foo`,
 				// Angle brackets escaped to prevent injection of close tags, entity not re-escaped.
 				`Hello, &lt;b&gt;World&lt;/b&gt; &amp;tc!`,
+				` dir=&#34;ltr&#34;`,
 				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
 				`Hello, World &amp; O&#39;Reilly\x21`,
 				`greeting=H%69&amp;addressee=(World)`,
@@ -106,6 +126,7 @@ func TestTypedContent(t *testing.T) {
 				`"\u003cb\u003e \"foo%\" O'Reilly &bar;"`,
 				`"a[href =~ \"//example.com\"]#foo"`,
 				`"Hello, \u003cb\u003eWorld\u003c/b\u003e &amp;tc!"`,
+				`" dir=\"ltr\""`,
 				// Not escaped.
 				`c && alert("Hello, World!");`,
 				// Escape sequence not over-escaped.
@@ -119,6 +140,7 @@ func TestTypedContent(t *testing.T) {
 				`&#34;\u003cb\u003e \&#34;foo%\&#34; O&#39;Reilly &amp;bar;&#34;`,
 				`&#34;a[href =~ \&#34;//example.com\&#34;]#foo&#34;`,
 				`&#34;Hello, \u003cb\u003eWorld\u003c/b\u003e &amp;amp;tc!&#34;`,
+				`&#34; dir=\&#34;ltr\&#34;&#34;`,
 				// Not JS escaped but HTML escaped.
 				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
 				// Escape sequence not over-escaped.
@@ -132,6 +154,7 @@ func TestTypedContent(t *testing.T) {
 				`\x3cb\x3e \x22foo%\x22 O\x27Reilly \x26bar;`,
 				`a[href =~ \x22\/\/example.com\x22]#foo`,
 				`Hello, \x3cb\x3eWorld\x3c\/b\x3e \x26amp;tc!`,
+				` dir=\x22ltr\x22`,
 				`c \x26\x26 alert(\x22Hello, World!\x22);`,
 				// Escape sequence not over-escaped.
 				`Hello, World \x26 O\x27Reilly\x21`,
@@ -144,6 +167,7 @@ func TestTypedContent(t *testing.T) {
 				`\x3cb\x3e \x22foo%\x22 O\x27Reilly \x26bar;`,
 				`a[href =~ \x22\/\/example.com\x22]#foo`,
 				`Hello, \x3cb\x3eWorld\x3c\/b\x3e \x26amp;tc!`,
+				` dir=\x22ltr\x22`,
 				`c \x26\x26 alert(\x22Hello, World!\x22);`,
 				// Escape sequence not over-escaped.
 				`Hello, World \x26 O\x27Reilly\x21`,
@@ -156,6 +180,7 @@ func TestTypedContent(t *testing.T) {
 				`%3cb%3e%20%22foo%25%22%20O%27Reilly%20%26bar%3b`,
 				`a%5bhref%20%3d~%20%22%2f%2fexample.com%22%5d%23foo`,
 				`Hello%2c%20%3cb%3eWorld%3c%2fb%3e%20%26amp%3btc%21`,
+				`%20dir%3d%22ltr%22`,
 				`c%20%26%26%20alert%28%22Hello%2c%20World%21%22%29%3b`,
 				`Hello%2c%20World%20%26%20O%27Reilly%5cx21`,
 				// Quotes and parens are escaped but %69 is not over-escaped. HTML escaping is done.
@@ -168,6 +193,7 @@ func TestTypedContent(t *testing.T) {
 				`%3cb%3e%20%22foo%25%22%20O%27Reilly%20%26bar%3b`,
 				`a%5bhref%20%3d~%20%22%2f%2fexample.com%22%5d%23foo`,
 				`Hello%2c%20%3cb%3eWorld%3c%2fb%3e%20%26amp%3btc%21`,
+				`%20dir%3d%22ltr%22`,
 				`c%20%26%26%20alert%28%22Hello%2c%20World%21%22%29%3b`,
 				`Hello%2c%20World%20%26%20O%27Reilly%5cx21`,
 				// Quotes and parens are escaped but %69 is not over-escaped. HTML escaping is not done.

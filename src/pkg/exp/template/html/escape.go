@@ -66,6 +66,7 @@ var funcMap = template.FuncMap{
 	"exp_template_html_attrescaper":     attrEscaper,
 	"exp_template_html_cssescaper":      cssEscaper,
 	"exp_template_html_cssvaluefilter":  cssValueFilter,
+	"exp_template_html_htmlnamefilter":  htmlNameFilter,
 	"exp_template_html_htmlescaper":     htmlEscaper,
 	"exp_template_html_jsregexpescaper": jsRegexpEscaper,
 	"exp_template_html_jsstrescaper":    jsStrEscaper,
@@ -151,8 +152,11 @@ func (e *escaper) escape(c context, n parse.Node) context {
 
 // escapeAction escapes an action template node.
 func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+	c = nudge(c)
 	s := make([]string, 0, 3)
 	switch c.state {
+	case stateError:
+		return c
 	case stateURL, stateCSSDqStr, stateCSSSqStr, stateCSSDqURL, stateCSSSqURL, stateCSSURL:
 		switch c.urlPart {
 		case urlPartNone:
@@ -194,6 +198,13 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		s = append(s, "exp_template_html_htmlescaper")
 	case stateRCDATA:
 		s = append(s, "exp_template_html_rcdataescaper")
+	case stateAttr:
+		// Handled below in delim check.
+	case stateAttrName, stateTag:
+		c.state = stateAttrName
+		s = append(s, "exp_template_html_htmlnamefilter")
+	default:
+		panic("unexpected state " + c.state.String())
 	}
 	switch c.delim {
 	case delimNone:
@@ -289,6 +300,33 @@ func newIdentCmd(identifier string) *parse.CommandNode {
 	}
 }
 
+// nudge returns the context that would result from following empty string
+// transitions from the input context.
+// For example, parsing:
+//     `<a href=`
+// will end in context{stateBeforeValue, attrURL}, but parsing one extra rune:
+//     `<a href=x`
+// will end in context{stateURL, delimSpaceOrTagEnd, ...}.
+// There are two transitions that happen when the 'x' is seen:
+// (1) Transition from a before-value state to a start-of-value state without
+//     consuming any character.
+// (2) Consume 'x' and transition past the first value character.
+// In this case, nudging produces the context after (1) happens.
+func nudge(c context) context {
+	switch c.state {
+	case stateTag:
+		// In `<foo {{.}}`, the action should emit an attribute.
+		c.state = stateAttrName
+	case stateBeforeValue:
+		// In `<foo bar={{.}}`, the action is an undelimited value.
+		c.state, c.delim, c.attr = attrStartStates[c.attr], delimSpaceOrTagEnd, attrNone
+	case stateAfterName:
+		// In `<foo bar {{.}}`, the action is an attribute name.
+		c.state, c.attr = stateAttrName, attrNone
+	}
+	return c
+}
+
 // join joins the two contexts of a branch template node. The result is an
 // error context if either of the input contexts are error contexts, or if the
 // the input contexts differ.
@@ -317,6 +355,17 @@ func join(a, b context, line int, nodeName string) context {
 		// The contexts differ only by jsCtx.
 		c.jsCtx = jsCtxUnknown
 		return c
+	}
+
+	// Allow a nudged context to join with an unnudged one.
+	// This means that
+	//   <p title={{if .C}}{{.}}{{end}}
+	// ends in an unquoted value state even though the else branch
+	// ends in stateBeforeValue.
+	if c, d := nudge(a), nudge(b); !(c.eq(a) && d.eq(b)) {
+		if e := join(c, d, line, nodeName); e.state != stateError {
+			return e
+		}
 	}
 
 	return context{

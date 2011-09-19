@@ -20,6 +20,7 @@ type context struct {
 	delim   delim
 	urlPart urlPart
 	jsCtx   jsCtx
+	attr    attr
 	element element
 	err     *Error
 }
@@ -30,6 +31,7 @@ func (c context) eq(d context) bool {
 		c.delim == d.delim &&
 		c.urlPart == d.urlPart &&
 		c.jsCtx == d.jsCtx &&
+		c.attr == d.attr &&
 		c.element == d.element &&
 		c.err == d.err
 }
@@ -50,6 +52,9 @@ func (c context) mangle(templateName string) string {
 	}
 	if c.jsCtx != 0 {
 		s += "_" + c.jsCtx.String()
+	}
+	if c.attr != 0 {
+		s += "_" + c.attr.String()
 	}
 	if c.element != 0 {
 		s += "_" + c.element.String()
@@ -75,6 +80,15 @@ const (
 	stateText state = iota
 	// stateTag occurs before an HTML attribute or the end of a tag.
 	stateTag
+	// stateAttrName occurs inside an attribute name.
+	// It occurs between the ^'s in ` ^name^ = value`.
+	stateAttrName
+	// stateAfterName occurs after an attr name has ended but before any
+	// equals sign. It occurs between the ^'s in ` name^ ^= value`.
+	stateAfterName
+	// stateBeforeValue occurs after the equals sign but before the value.
+	// It occurs between the ^'s in ` name =^ ^value`.
+	stateBeforeValue
 	// stateComment occurs inside an <!-- HTML comment -->.
 	stateComment
 	// stateRCDATA occurs inside an RCDATA element (<textarea> or <title>)
@@ -120,6 +134,9 @@ const (
 var stateNames = [...]string{
 	stateText:        "stateText",
 	stateTag:         "stateTag",
+	stateAttrName:    "stateAttrName",
+	stateAfterName:   "stateAfterName",
+	stateBeforeValue: "stateBeforeValue",
 	stateComment:     "stateComment",
 	stateRCDATA:      "stateRCDATA",
 	stateAttr:        "stateAttr",
@@ -145,7 +162,7 @@ func (s state) String() string {
 	if int(s) < len(stateNames) {
 		return stateNames[s]
 	}
-	return fmt.Sprintf("illegal state %d", s)
+	return fmt.Sprintf("illegal state %d", int(s))
 }
 
 // delim is the delimiter that will end the current HTML attribute.
@@ -174,7 +191,7 @@ func (d delim) String() string {
 	if int(d) < len(delimNames) {
 		return delimNames[d]
 	}
-	return fmt.Sprintf("illegal delim %d", d)
+	return fmt.Sprintf("illegal delim %d", int(d))
 }
 
 // urlPart identifies a part in an RFC 3986 hierarchical URL to allow different
@@ -207,7 +224,7 @@ func (u urlPart) String() string {
 	if int(u) < len(urlPartNames) {
 		return urlPartNames[u]
 	}
-	return fmt.Sprintf("illegal urlPart %d", u)
+	return fmt.Sprintf("illegal urlPart %d", int(u))
 }
 
 // jsCtx determines whether a '/' starts a regular expression literal or a
@@ -232,7 +249,7 @@ func (c jsCtx) String() string {
 	case jsCtxUnknown:
 		return "jsCtxUnknown"
 	}
-	return fmt.Sprintf("illegal jsCtx %d", c)
+	return fmt.Sprintf("illegal jsCtx %d", int(c))
 }
 
 // element identifies the HTML element when inside a start tag or special body.
@@ -267,5 +284,33 @@ func (e element) String() string {
 	if int(e) < len(elementNames) {
 		return elementNames[e]
 	}
-	return fmt.Sprintf("illegal element %d", e)
+	return fmt.Sprintf("illegal element %d", int(e))
+}
+
+// attr identifies the most recent HTML attribute when inside a start tag.
+type attr uint8
+
+const (
+	// attrNone corresponds to a normal attribute or no attribute.
+	attrNone attr = iota
+	// attrScript corresponds to an event handler attribute.
+	attrScript
+	// attrStyle corresponds to the style attribute whose value is CSS.
+	attrStyle
+	// attrURL corresponds to an attribute whose value is a URL.
+	attrURL
+)
+
+var attrNames = [...]string{
+	attrNone:   "attrNone",
+	attrScript: "attrScript",
+	attrStyle:  "attrStyle",
+	attrURL:    "attrURL",
+}
+
+func (a attr) String() string {
+	if int(a) < len(attrNames) {
+		return attrNames[a]
+	}
+	return fmt.Sprintf("illegal attr %d", int(a))
 }

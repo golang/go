@@ -18,6 +18,9 @@ import (
 var transitionFunc = [...]func(context, []byte) (context, []byte){
 	stateText:        tText,
 	stateTag:         tTag,
+	stateAttrName:    tAttrName,
+	stateAfterName:   tAfterName,
+	stateBeforeValue: tBeforeValue,
 	stateComment:     tComment,
 	stateRCDATA:      tSpecialTagEnd,
 	stateAttr:        tAttr,
@@ -79,54 +82,90 @@ var elementContentType = [...]state{
 // tTag is the context transition function for the tag state.
 func tTag(c context, s []byte) (context, []byte) {
 	// Find the attribute name.
-	attrStart := eatWhiteSpace(s, 0)
-	i, err := eatAttrName(s, attrStart)
-	if err != nil {
-		return context{
-			state: stateError,
-			err:   err,
-		}, nil
-	}
+	i := eatWhiteSpace(s, 0)
 	if i == len(s) {
 		return c, nil
 	}
-	state := stateAttr
-	canonAttrName := strings.ToLower(string(s[attrStart:i]))
-	if urlAttr[canonAttrName] {
-		state = stateURL
-	} else if strings.HasPrefix(canonAttrName, "on") {
-		state = stateJS
-	} else if canonAttrName == "style" {
-		state = stateCSS
-	}
-
-	// Look for the start of the value.
-	i = eatWhiteSpace(s, i)
-	if i == len(s) {
-		return c, s[i:]
-	}
 	if s[i] == '>' {
-		state = elementContentType[c.element]
-		return context{state: state, element: c.element}, s[i+1:]
-	} else if s[i] != '=' {
-		// Possible due to a valueless attribute or '/' in "<input />".
-		return c, s[i:]
+		return context{
+			state:   elementContentType[c.element],
+			element: c.element,
+		}, s[i+1:]
 	}
-	// Consume the "=".
-	i = eatWhiteSpace(s, i+1)
-
-	// Find the attribute delimiter.
-	delim := delimSpaceOrTagEnd
-	if i < len(s) {
-		switch s[i] {
-		case '\'':
-			delim, i = delimSingleQuote, i+1
-		case '"':
-			delim, i = delimDoubleQuote, i+1
+	j, err := eatAttrName(s, i)
+	if err != nil {
+		return context{state: stateError, err: err}, nil
+	}
+	state, attr := stateTag, attrNone
+	if i != j {
+		canonAttrName := strings.ToLower(string(s[i:j]))
+		if urlAttr[canonAttrName] {
+			attr = attrURL
+		} else if strings.HasPrefix(canonAttrName, "on") {
+			attr = attrScript
+		} else if canonAttrName == "style" {
+			attr = attrStyle
+		}
+		if j == len(s) {
+			state = stateAttrName
+		} else {
+			state = stateAfterName
 		}
 	}
+	return context{state: state, element: c.element, attr: attr}, s[j:]
+}
 
-	return context{state: state, delim: delim, element: c.element}, s[i:]
+// tAttrName is the context transition function for stateAttrName.
+func tAttrName(c context, s []byte) (context, []byte) {
+	i, err := eatAttrName(s, 0)
+	if err != nil {
+		return context{state: stateError, err: err}, nil
+	} else if i == len(s) {
+		return c, nil
+	}
+	c.state = stateAfterName
+	return c, s[i:]
+}
+
+// tAfterName is the context transition function for stateAfterName.
+func tAfterName(c context, s []byte) (context, []byte) {
+	// Look for the start of the value.
+	i := eatWhiteSpace(s, 0)
+	if i == len(s) {
+		return c, nil
+	} else if s[i] != '=' {
+		// Occurs due to tag ending '>', and valueless attribute.
+		c.state = stateTag
+		return c, s[i:]
+	}
+	c.state = stateBeforeValue
+	// Consume the "=".
+	return c, s[i+1:]
+}
+
+var attrStartStates = [...]state{
+	attrNone:   stateAttr,
+	attrScript: stateJS,
+	attrStyle:  stateCSS,
+	attrURL:    stateURL,
+}
+
+// tBeforeValue is the context transition function for stateBeforeValue.
+func tBeforeValue(c context, s []byte) (context, []byte) {
+	i := eatWhiteSpace(s, 0)
+	if i == len(s) {
+		return c, nil
+	}
+	// Find the attribute delimiter.
+	delim := delimSpaceOrTagEnd
+	switch s[i] {
+	case '\'':
+		delim, i = delimSingleQuote, i+1
+	case '"':
+		delim, i = delimDoubleQuote, i+1
+	}
+	c.state, c.delim, c.attr = attrStartStates[c.attr], delim, attrNone
+	return c, s[i:]
 }
 
 // tComment is the context transition function for stateComment.
