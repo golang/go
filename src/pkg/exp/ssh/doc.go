@@ -58,7 +58,7 @@ the case of a shell, the type is "session" and ServerShell may be used to
 present a simple terminal interface.
 
 	if channel.ChannelType() != "session" {
-		c.Reject(RejectUnknownChannelType, "unknown channel type")
+		c.Reject(UnknownChannelType, "unknown channel type")
 		return
 	}
 	channel.Accept()
