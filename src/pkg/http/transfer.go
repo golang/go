@@ -19,6 +19,7 @@ import (
 // sanitizes them without changing the user object and provides methods for
 // writing the respective header, body and trailer in wire format.
 type transferWriter struct {
+	Method           string
 	Body             io.Reader
 	BodyCloser       io.Closer
 	ResponseToHEAD   bool
@@ -38,7 +39,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err os.Error) {
 		if rr.ContentLength != 0 && rr.Body == nil {
 			return nil, fmt.Errorf("http: Request.ContentLength=%d with nil Body", rr.ContentLength)
 		}
-
+		t.Method = rr.Method
 		t.Body = rr.Body
 		t.BodyCloser = rr.Body
 		t.ContentLength = rr.ContentLength
@@ -69,6 +70,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err os.Error) {
 			}
 		}
 	case *Response:
+		t.Method = rr.Request.Method
 		t.Body = rr.Body
 		t.BodyCloser = rr.Body
 		t.ContentLength = rr.ContentLength
@@ -110,6 +112,27 @@ func noBodyExpected(requestMethod string) bool {
 	return requestMethod == "HEAD"
 }
 
+func (t *transferWriter) shouldSendContentLength() bool {
+	if chunked(t.TransferEncoding) {
+		return false
+	}
+	if t.ContentLength > 0 {
+		return true
+	}
+	if t.ResponseToHEAD {
+		return true
+	}
+	// Many servers expect a Content-Length for these methods
+	if t.Method == "POST" || t.Method == "PUT" {
+		return true
+	}
+	if t.ContentLength == 0 && isIdentity(t.TransferEncoding) {
+		return true
+	}
+
+	return false
+}
+
 func (t *transferWriter) WriteHeader(w io.Writer) (err os.Error) {
 	if t.Close {
 		_, err = io.WriteString(w, "Connection: close\r\n")
@@ -121,14 +144,14 @@ func (t *transferWriter) WriteHeader(w io.Writer) (err os.Error) {
 	// Write Content-Length and/or Transfer-Encoding whose values are a
 	// function of the sanitized field triple (Body, ContentLength,
 	// TransferEncoding)
-	if chunked(t.TransferEncoding) {
-		_, err = io.WriteString(w, "Transfer-Encoding: chunked\r\n")
+	if t.shouldSendContentLength() {
+		io.WriteString(w, "Content-Length: ")
+		_, err = io.WriteString(w, strconv.Itoa64(t.ContentLength)+"\r\n")
 		if err != nil {
 			return
 		}
-	} else if t.ContentLength > 0 || t.ResponseToHEAD || (t.ContentLength == 0 && isIdentity(t.TransferEncoding)) {
-		io.WriteString(w, "Content-Length: ")
-		_, err = io.WriteString(w, strconv.Itoa64(t.ContentLength)+"\r\n")
+	} else if chunked(t.TransferEncoding) {
+		_, err = io.WriteString(w, "Transfer-Encoding: chunked\r\n")
 		if err != nil {
 			return
 		}

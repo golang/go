@@ -246,14 +246,19 @@ var reqWriteTests = []reqWriteTest{
 
 		Body: func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
 
+		// RFC 2616 Section 14.13 says Content-Length should be specified
+		// unless body is prohibited by the request method.
+		// Also, nginx expects it for POST and PUT.
 		WantWrite: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
 			"User-Agent: Go http package\r\n" +
+			"Content-Length: 0\r\n" +
 			"\r\n",
 
 		WantProxy: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
 			"User-Agent: Go http package\r\n" +
+			"Content-Length: 0\r\n" +
 			"\r\n",
 	},
 
