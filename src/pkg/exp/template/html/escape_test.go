@@ -411,6 +411,51 @@ func TestEscape(t *testing.T) {
 			`<textarea><{{"/textarea "}}...</textarea>`,
 			`<textarea>&lt;/textarea ...</textarea>`,
 		},
+		{
+			"optional attrs",
+			`<img class="{{"iconClass"}}"` +
+				`{{if .T}} id="{{"<iconId>"}}"{{end}}` +
+				// Double quotes inside if/else.
+				` src=` +
+				`{{if .T}}"?{{"<iconPath>"}}"` +
+				`{{else}}"images/cleardot.gif"{{end}}` +
+				// Missing space before title, but it is not a
+				// part of the src attribute.
+				`{{if .T}}title="{{"<title>"}}"{{end}}` +
+				// Quotes outside if/else.
+				` alt="` +
+				`{{if .T}}{{"<alt>"}}` +
+				`{{else}}{{if .F}}{{"<title>"}}{{end}}` +
+				`{{end}}"` +
+				`>`,
+			`<img class="iconClass" id="&lt;iconId&gt;" src="?%3ciconPath%3e"title="&lt;title&gt;" alt="&lt;alt&gt;">`,
+		},
+		{
+			"conditional valueless attr name",
+			`<input{{if .T}} checked{{end}} name=n>`,
+			`<input checked name=n>`,
+		},
+		{
+			"conditional dynamic valueless attr name 1",
+			`<input{{if .T}} {{"checked"}}{{end}} name=n>`,
+			`<input checked name=n>`,
+		},
+		{
+			"conditional dynamic valueless attr name 2",
+			`<input {{if .T}}{{"checked"}} {{end}}name=n>`,
+			`<input checked name=n>`,
+		},
+		{
+			"dynamic attribute name",
+			`<img on{{"load"}}="alert({{"loaded"}})">`,
+			// Treated as JS since quotes are inserted.
+			`<img onload="alert(&#34;loaded&#34;)">`,
+		},
+		{
+			"dynamic element name",
+			`<h{{3}}><table><t{{"head"}}>...</h{{3}}>`,
+			`<h3><table><thead>...</h3>`,
+		},
 	}
 
 	for _, test := range tests {
@@ -781,8 +826,24 @@ func TestEscapeText(t *testing.T) {
 			context{state: stateText},
 		},
 		{
+			`<a href`,
+			context{state: stateAttrName, attr: attrURL},
+		},
+		{
+			`<a on`,
+			context{state: stateAttrName, attr: attrScript},
+		},
+		{
+			`<a href `,
+			context{state: stateAfterName, attr: attrURL},
+		},
+		{
+			`<a style  =  `,
+			context{state: stateBeforeValue, attr: attrStyle},
+		},
+		{
 			`<a href=`,
-			context{state: stateURL, delim: delimSpaceOrTagEnd},
+			context{state: stateBeforeValue, attr: attrURL},
 		},
 		{
 			`<a href=x`,

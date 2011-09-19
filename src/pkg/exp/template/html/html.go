@@ -205,3 +205,22 @@ func stripTags(html string) string {
 	}
 	return b.String()
 }
+
+// htmlNameFilter accepts valid parts of an HTML attribute or tag name or
+// a known-safe HTML attribute.
+func htmlNameFilter(args ...interface{}) string {
+	s, t := stringify(args...)
+	if t == contentTypeHTMLAttr {
+		return s
+	}
+	for _, r := range s {
+		switch {
+		case '0' <= r && r <= '9':
+		case 'A' <= r && r <= 'Z':
+		case 'a' <= r && r <= 'z':
+		default:
+			return filterFailsafe
+		}
+	}
+	return s
+}
