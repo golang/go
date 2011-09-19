@@ -44,7 +44,7 @@ func DumpRequest(req *Request, body bool) (dump []byte, err os.Error) {
 			return
 		}
 	}
-	err = req.Write(&b)
+	err = req.dumpWrite(&b)
 	req.Body = save
 	if err != nil {
 		return

@@ -64,8 +64,15 @@ func (e *badStringError) String() string { return fmt.Sprintf("%s %q", e.what, e
 
 // Headers that Request.Write handles itself and should be skipped.
 var reqWriteExcludeHeader = map[string]bool{
-	"Host":              true,
+	"Host":              true, // not in Header map anyway
 	"User-Agent":        true,
+	"Content-Length":    true,
+	"Transfer-Encoding": true,
+	"Trailer":           true,
+}
+
+var reqWriteExcludeHeaderDump = map[string]bool{
+	"Host":              true, // not in Header map anyway
 	"Content-Length":    true,
 	"Transfer-Encoding": true,
 	"Trailer":           true,
@@ -281,6 +288,53 @@ func (req *Request) Write(w io.Writer) os.Error {
 // or req.URL.Host.
 func (req *Request) WriteProxy(w io.Writer) os.Error {
 	return req.write(w, true)
+}
+
+func (req *Request) dumpWrite(w io.Writer) os.Error {
+	urlStr := req.RawURL
+	if urlStr == "" {
+		urlStr = valueOrDefault(req.URL.EncodedPath(), "/")
+		if req.URL.RawQuery != "" {
+			urlStr += "?" + req.URL.RawQuery
+		}
+	}
+
+	bw := bufio.NewWriter(w)
+	fmt.Fprintf(bw, "%s %s HTTP/%d.%d\r\n", valueOrDefault(req.Method, "GET"), urlStr,
+		req.ProtoMajor, req.ProtoMinor)
+
+	host := req.Host
+	if host == "" && req.URL != nil {
+		host = req.URL.Host
+	}
+	if host != "" {
+		fmt.Fprintf(bw, "Host: %s\r\n", host)
+	}
+
+	// Process Body,ContentLength,Close,Trailer
+	tw, err := newTransferWriter(req)
+	if err != nil {
+		return err
+	}
+	err = tw.WriteHeader(bw)
+	if err != nil {
+		return err
+	}
+
+	err = req.Header.WriteSubset(bw, reqWriteExcludeHeaderDump)
+	if err != nil {
+		return err
+	}
+
+	io.WriteString(bw, "\r\n")
+
+	// Write body and trailer
+	err = tw.WriteBody(bw)
+	if err != nil {
+		return err
+	}
+	bw.Flush()
+	return nil
 }
 
 func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
