@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 )
 
@@ -122,6 +123,8 @@ var fset = token.NewFileSet()
 
 var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
 
+var goarch, goos string
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
@@ -162,13 +165,17 @@ func main() {
 
 	goFiles := args[i:]
 
-	arch := os.Getenv("GOARCH")
-	if arch == "" {
-		fatalf("$GOARCH is not set")
+	goarch = runtime.GOARCH
+	if s := os.Getenv("GOARCH"); s != "" {
+		goarch = s
 	}
-	ptrSize := ptrSizeMap[arch]
+	goos = runtime.GOOS
+	if s := os.Getenv("GOOS"); s != "" {
+		goos = s
+	}
+	ptrSize := ptrSizeMap[goarch]
 	if ptrSize == 0 {
-		fatalf("unknown $GOARCH %q", arch)
+		fatalf("unknown $GOARCH %q", goarch)
 	}
 
 	// Clear locale variables so gcc emits English errors [sic].

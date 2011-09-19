@@ -20,7 +20,6 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"unicode"
@@ -91,9 +90,9 @@ NextLine:
 		case 2:
 			k = kf[1]
 			switch kf[0] {
-			case runtime.GOOS:
-			case runtime.GOARCH:
-			case runtime.GOOS + "/" + runtime.GOARCH:
+			case goos:
+			case goarch:
+			case goos + "/" + goarch:
 			default:
 				continue NextLine
 			}
@@ -688,7 +687,7 @@ func (p *Package) gccName() (ret string) {
 
 // gccMachine returns the gcc -m flag to use, either "-m32" or "-m64".
 func (p *Package) gccMachine() []string {
-	switch runtime.GOARCH {
+	switch goarch {
 	case "amd64":
 		return []string{"-m64"}
 	case "386":
