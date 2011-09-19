@@ -68,7 +68,10 @@ the destination variable must be able to represent the value or the decode
 operation will fail.
 
 Structs, arrays and slices are also supported.  Strings and arrays of bytes are
-supported with a special, efficient representation (see below).
+supported with a special, efficient representation (see below).  When a slice is
+decoded, if the existing slice has capacity the slice will be extended in place;
+if not, a new array is allocated.  Regardless, the length of the resuling slice
+reports the number of elements decoded.
 
 Functions and channels cannot be sent in a gob.  Attempting
 to encode a value that contains one will fail.

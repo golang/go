@@ -385,19 +385,29 @@ func decComplex128(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	*(*complex128)(p) = complex(real, imag)
 }
 
-// decUint8Array decodes byte array and stores through p a slice header
+// decUint8Slice decodes a byte slice and stores through p a slice header
 // describing the data.
-// uint8 arrays are encoded as an unsigned count followed by the raw bytes.
-func decUint8Array(i *decInstr, state *decoderState, p unsafe.Pointer) {
+// uint8 slices are encoded as an unsigned count followed by the raw bytes.
+func decUint8Slice(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new([]uint8))
 		}
 		p = *(*unsafe.Pointer)(p)
 	}
-	b := make([]uint8, state.decodeUint())
-	state.b.Read(b)
-	*(*[]uint8)(p) = b
+	n := int(state.decodeUint())
+	if n < 0 {
+		errorf("negative length decoding []byte")
+	}
+	slice := (*[]uint8)(p)
+	if cap(*slice) < n {
+		*slice = make([]uint8, n)
+	} else {
+		*slice = (*slice)[0:n]
+	}
+	if _, err := state.b.Read(*slice); err != nil {
+		errorf("error decoding []byte: %s", err)
+	}
 }
 
 // decString decodes byte array and stores through p a string header
@@ -653,12 +663,15 @@ func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintpt
 		}
 		p = *(*uintptr)(up)
 	}
-	// Allocate storage for the slice elements, that is, the underlying array.
+	// Allocate storage for the slice elements, that is, the underlying array,
+	// if the existing slice does not have the capacity.
 	// Always write a header at p.
 	hdrp := (*reflect.SliceHeader)(unsafe.Pointer(p))
-	hdrp.Data = uintptr(unsafe.NewArray(atyp.Elem(), n))
+	if hdrp.Cap < n {
+		hdrp.Data = uintptr(unsafe.NewArray(atyp.Elem(), n))
+		hdrp.Cap = n
+	}
 	hdrp.Len = n
-	hdrp.Cap = n
 	dec.decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, n, elemIndir, ovfl)
 }
 
@@ -842,7 +855,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 		case reflect.Slice:
 			name = "element of " + name
 			if t.Elem().Kind() == reflect.Uint8 {
-				op = decUint8Array
+				op = decUint8Slice
 				break
 			}
 			var elemId typeId
