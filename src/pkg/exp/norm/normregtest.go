@@ -114,8 +114,8 @@ func (t Test) Name() string {
 	return fmt.Sprintf("%s:%d", part[t.partnr].name, t.number)
 }
 
-var partRe = regexp.MustCompile(`@Part(\d) # (.*)\n`) // TODO: using $ iso \n does not work
-var testRe = regexp.MustCompile(`^` + strings.Repeat(`([\dA-F ]+);`, 5) + ` # (.*)\n`)
+var partRe = regexp.MustCompile(`@Part(\d) # (.*)\n$`)
+var testRe = regexp.MustCompile(`^` + strings.Repeat(`([\dA-F ]+);`, 5) + ` # (.*)\n?$`)
 
 var counter int
 
