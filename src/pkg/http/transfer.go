@@ -7,6 +7,7 @@ package http
 import (
 	"bytes"
 	"bufio"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -21,7 +22,7 @@ type transferWriter struct {
 	Body             io.Reader
 	BodyCloser       io.Closer
 	ResponseToHEAD   bool
-	ContentLength    int64
+	ContentLength    int64 // -1 means unknown, 0 means exactly none
 	Close            bool
 	TransferEncoding []string
 	Trailer          Header
@@ -34,6 +35,10 @@ func newTransferWriter(r interface{}) (t *transferWriter, err os.Error) {
 	atLeastHTTP11 := false
 	switch rr := r.(type) {
 	case *Request:
+		if rr.ContentLength != 0 && rr.Body == nil {
+			return nil, fmt.Errorf("http: Request.ContentLength=%d with nil Body", rr.ContentLength)
+		}
+
 		t.Body = rr.Body
 		t.BodyCloser = rr.Body
 		t.ContentLength = rr.ContentLength
@@ -154,6 +159,8 @@ func (t *transferWriter) WriteHeader(w io.Writer) (err os.Error) {
 }
 
 func (t *transferWriter) WriteBody(w io.Writer) (err os.Error) {
+	var ncopy int64
+
 	// Write body
 	if t.Body != nil {
 		if chunked(t.TransferEncoding) {
@@ -163,9 +170,14 @@ func (t *transferWriter) WriteBody(w io.Writer) (err os.Error) {
 				err = cw.Close()
 			}
 		} else if t.ContentLength == -1 {
-			_, err = io.Copy(w, t.Body)
+			ncopy, err = io.Copy(w, t.Body)
 		} else {
-			_, err = io.Copy(w, io.LimitReader(t.Body, t.ContentLength))
+			ncopy, err = io.Copy(w, io.LimitReader(t.Body, t.ContentLength))
+			nextra, err := io.Copy(ioutil.Discard, t.Body)
+			if err != nil {
+				return err
+			}
+			ncopy += nextra
 		}
 		if err != nil {
 			return err
@@ -173,6 +185,11 @@ func (t *transferWriter) WriteBody(w io.Writer) (err os.Error) {
 		if err = t.BodyCloser.Close(); err != nil {
 			return err
 		}
+	}
+
+	if t.ContentLength != -1 && t.ContentLength != ncopy {
+		return fmt.Errorf("http: Request.ContentLength=%d with Body length %d",
+			t.ContentLength, ncopy)
 	}
 
 	// TODO(petar): Place trailer writer code here.

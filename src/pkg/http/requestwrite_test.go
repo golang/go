@@ -16,10 +16,11 @@ import (
 )
 
 type reqWriteTest struct {
-	Req      Request
-	Body     interface{} // optional []byte or func() io.ReadCloser to populate Req.Body
-	Raw      string
-	RawProxy string
+	Req       Request
+	Body      interface{} // optional []byte or func() io.ReadCloser to populate Req.Body
+	Raw       string
+	RawProxy  string
+	WantError os.Error
 }
 
 var reqWriteTests = []reqWriteTest{
@@ -78,6 +79,8 @@ var reqWriteTests = []reqWriteTest{
 			"Accept-Language: en-us,en;q=0.5\r\n" +
 			"Keep-Alive: 300\r\n" +
 			"Proxy-Connection: keep-alive\r\n\r\n",
+
+		nil,
 	},
 	// HTTP/1.1 => chunked coding; body; empty trailer
 	{
@@ -107,6 +110,8 @@ var reqWriteTests = []reqWriteTest{
 			"User-Agent: Go http package\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			chunk("abcdef") + chunk(""),
+
+		nil,
 	},
 	// HTTP/1.1 POST => chunked coding; body; empty trailer
 	{
@@ -139,6 +144,8 @@ var reqWriteTests = []reqWriteTest{
 			"Connection: close\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			chunk("abcdef") + chunk(""),
+
+		nil,
 	},
 
 	// HTTP/1.1 POST with Content-Length, no chunking
@@ -174,6 +181,8 @@ var reqWriteTests = []reqWriteTest{
 			"Content-Length: 6\r\n" +
 			"\r\n" +
 			"abcdef",
+
+		nil,
 	},
 
 	// HTTP/1.1 POST with Content-Length in headers
@@ -203,6 +212,8 @@ var reqWriteTests = []reqWriteTest{
 			"Content-Length: 6\r\n" +
 			"\r\n" +
 			"abcdef",
+
+		nil,
 	},
 
 	// default to HTTP/1.1
@@ -225,6 +236,8 @@ var reqWriteTests = []reqWriteTest{
 			"Host: www.google.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"\r\n",
+
+		nil,
 	},
 
 	// Request with a 0 ContentLength and a 0 byte body.
@@ -249,6 +262,8 @@ var reqWriteTests = []reqWriteTest{
 			"Host: example.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"\r\n",
+
+		nil,
 	},
 
 	// Request with a 0 ContentLength and a 1 byte body.
@@ -275,6 +290,74 @@ var reqWriteTests = []reqWriteTest{
 			"User-Agent: Go http package\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			chunk("x") + chunk(""),
+
+		nil,
+	},
+
+	// Request with a ContentLength of 10 but a 5 byte body.
+	{
+		Request{
+			Method:        "POST",
+			RawURL:        "/",
+			Host:          "example.com",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 10, // but we're going to send only 5 bytes
+		},
+
+		[]byte("12345"),
+
+		"", // ignored
+		"", // ignored
+
+		os.NewError("http: Request.ContentLength=10 with Body length 5"),
+	},
+
+	// Request with a ContentLength of 4 but an 8 byte body.
+	{
+		Request{
+			Method:        "POST",
+			RawURL:        "/",
+			Host:          "example.com",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 4, // but we're going to try to send 8 bytes
+		},
+
+		[]byte("12345678"),
+
+		"", // ignored
+		"", // ignored
+
+		os.NewError("http: Request.ContentLength=4 with Body length 8"),
+	},
+
+	// Request with a 5 ContentLength and nil body.
+	{
+		Request{
+			Method:        "POST",
+			RawURL:        "/",
+			Host:          "example.com",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 5, // but we'll omit the body
+		},
+
+		nil, // missing body
+
+		"POST / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"Content-Length: 5\r\n\r\n" +
+			"",
+
+		"POST / HTTP/1.1\r\n" +
+			"Host: example.com\r\n" +
+			"User-Agent: Go http package\r\n" +
+			"Content-Length: 5\r\n\r\n" +
+			"",
+
+		os.NewError("http: Request.ContentLength=5 with nil Body"),
 	},
 }
 
@@ -298,10 +381,14 @@ func TestRequestWrite(t *testing.T) {
 		}
 		var braw bytes.Buffer
 		err := tt.Req.Write(&braw)
-		if err != nil {
-			t.Errorf("error writing #%d: %s", i, err)
+		if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.WantError); g != e {
+			t.Errorf("writing #%d, err = %q, want %q", i, g, e)
 			continue
 		}
+		if err != nil {
+			continue
+		}
+
 		sraw := braw.String()
 		if sraw != tt.Raw {
 			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, tt.Raw, sraw)
