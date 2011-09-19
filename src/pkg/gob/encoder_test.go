@@ -575,6 +575,56 @@ func TestGobMapInterfaceEncode(t *testing.T) {
 	enc := NewEncoder(buf)
 	err := enc.Encode(m)
 	if err != nil {
-		t.Errorf("gob.Encode map: %s", err)
+		t.Errorf("encode map: %s", err)
+	}
+}
+
+func TestSliceReusesMemory(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	// Bytes
+	{
+		x := []byte("abcd")
+		enc := NewEncoder(buf)
+		err := enc.Encode(x)
+		if err != nil {
+			t.Errorf("bytes: encode: %s", err)
+		}
+		// Decode into y, which is big enough.
+		y := []byte("ABCDE")
+		addr := &y[0]
+		dec := NewDecoder(buf)
+		err = dec.Decode(&y)
+		if err != nil {
+			t.Fatal("bytes: decode:", err)
+		}
+		if !bytes.Equal(x, y) {
+			t.Errorf("bytes: expected %q got %q\n", x, y)
+		}
+		if addr != &y[0] {
+			t.Errorf("bytes: unnecessary reallocation")
+		}
+	}
+	// general slice
+	{
+		x := []int("abcd")
+		enc := NewEncoder(buf)
+		err := enc.Encode(x)
+		if err != nil {
+			t.Errorf("ints: encode: %s", err)
+		}
+		// Decode into y, which is big enough.
+		y := []int("ABCDE")
+		addr := &y[0]
+		dec := NewDecoder(buf)
+		err = dec.Decode(&y)
+		if err != nil {
+			t.Fatal("ints: decode:", err)
+		}
+		if !reflect.DeepEqual(x, y) {
+			t.Errorf("ints: expected %q got %q\n", x, y)
+		}
+		if addr != &y[0] {
+			t.Errorf("ints: unnecessary reallocation")
+		}
 	}
 }

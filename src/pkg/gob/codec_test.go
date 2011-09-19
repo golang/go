@@ -544,7 +544,7 @@ func TestScalarDecInstructions(t *testing.T) {
 		var data struct {
 			a []byte
 		}
-		instr := &decInstr{decUint8Array, 6, 0, 0, ovfl}
+		instr := &decInstr{decUint8Slice, 6, 0, 0, ovfl}
 		state := newDecodeStateFromData(bytesResult)
 		execDec("bytes", instr, state, t, unsafe.Pointer(&data))
 		if string(data.a) != "hello" {
