@@ -486,7 +486,7 @@ func (d *decodeState) object(v reflect.Value) {
 			if isValidTag(key) {
 				for i := 0; i < sv.NumField(); i++ {
 					f = st.Field(i)
-					if f.Tag.Get("json") == key {
+					if tagName(f.Tag.Get("json")) == key {
 						ok = true
 						break
 					}
@@ -917,4 +917,14 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 		}
 	}
 	return b[0:w], true
+}
+
+// tagName extracts the field name part out of the "json" struct tag
+// value. The json struct tag format is an optional name, followed by
+// zero or more ",option" values.
+func tagName(v string) string {
+	if idx := strings.Index(v, ","); idx != -1 {
+		return v[:idx]
+	}
+	return v
 }
