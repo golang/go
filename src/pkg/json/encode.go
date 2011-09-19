@@ -24,8 +24,11 @@ import (
 // Marshal returns the JSON encoding of v.
 //
 // Marshal traverses the value v recursively.
-// If an encountered value implements the Marshaler interface,
-// Marshal calls its MarshalJSON method to produce JSON.
+// If an encountered value implements the Marshaler interface
+// and is not a nil pointer, Marshal calls its MarshalJSON method
+// to produce JSON.  The nil pointer exception is not strictly necessary
+// but mimics a similar, necessary exception in the behavior of
+// UnmarshalJSON.
 //
 // Otherwise, Marshal uses the following type-dependent default encodings:
 //
@@ -245,7 +248,7 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
 		return
 	}
 
-	if j, ok := v.Interface().(Marshaler); ok {
+	if j, ok := v.Interface().(Marshaler); ok && (v.Kind() != reflect.Ptr || !v.IsNil()) {
 		b, err := j.MarshalJSON()
 		if err == nil {
 			// copy JSON into buffer, checking validity.

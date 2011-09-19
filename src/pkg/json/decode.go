@@ -22,16 +22,11 @@ import (
 // Unmarshal parses the JSON-encoded data and stores the result
 // in the value pointed to by v.
 //
-// Unmarshal traverses the value v recursively.
-// If an encountered value implements the Unmarshaler interface,
-// Unmarshal calls its UnmarshalJSON method with a well-formed
-// JSON encoding.
-//
-// Otherwise, Unmarshal uses the inverse of the encodings that
+// Unmarshal uses the inverse of the encodings that
 // Marshal uses, allocating maps, slices, and pointers as necessary,
 // with the following additional rules:
 //
-// To unmarshal a JSON value into a nil interface value, the
+// To unmarshal JSON into a nil interface value, the
 // type stored in the interface value is one of:
 //
 //	bool, for JSON booleans
@@ -40,6 +35,12 @@ import (
 //	[]interface{}, for JSON arrays
 //	map[string]interface{}, for JSON objects
 //	nil for JSON null
+//
+// To unmarshal JSON into a pointer, Unmarshal first handles the case of
+// the JSON being the JSON literal null.  In that case, Unmarshal sets
+// the pointer to nil.  Otherwise, Unmarshal unmarshals the JSON into
+// the value pointed at by the pointer.  If the pointer is nil, Unmarshal
+// allocates a new value for it to point to.
 //
 // If a JSON value is not appropriate for a given target type,
 // or if a JSON number overflows the target type, Unmarshal
@@ -250,8 +251,8 @@ func (d *decodeState) value(v reflect.Value) {
 // indirect walks down v allocating pointers as needed,
 // until it gets to a non-pointer.
 // if it encounters an Unmarshaler, indirect stops and returns that.
-// if wantptr is true, indirect stops at the last pointer.
-func (d *decodeState) indirect(v reflect.Value, wantptr bool) (Unmarshaler, reflect.Value) {
+// if decodingNull is true, indirect stops at the last pointer so it can be set to nil.
+func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler, reflect.Value) {
 	// If v is a named type and is addressable,
 	// start with its address, so that if the type has pointer methods,
 	// we find them.
@@ -277,7 +278,7 @@ func (d *decodeState) indirect(v reflect.Value, wantptr bool) (Unmarshaler, refl
 			break
 		}
 
-		if pv.Elem().Kind() != reflect.Ptr && wantptr && pv.CanSet() && !isUnmarshaler {
+		if pv.Elem().Kind() != reflect.Ptr && decodingNull && pv.CanSet() {
 			return nil, pv
 		}
 		if pv.IsNil() {
