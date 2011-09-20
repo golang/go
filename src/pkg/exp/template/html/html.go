@@ -165,43 +165,44 @@ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 // For example, `<b>&iexcl;Hi!</b> <script>...</script>` -> `&iexcl;Hi! `.
 func stripTags(html string) string {
 	var b bytes.Buffer
-	s, c := []byte(html), context{}
+	s, c, i := []byte(html), context{}, 0
 	// Using the transition funcs helps us avoid mangling
 	// `<div title="1>2">` or `I <3 Ponies!`.
-	for len(s) > 0 {
+	for i != len(s) {
 		if c.delim == delimNone {
-			d, t := transitionFunc[c.state](c, s)
+			d, nread := transitionFunc[c.state](c, s[i:])
+			i1 := i + nread
 			if c.state == stateText || c.state == stateRCDATA {
-				i := len(s) - len(t)
 				// Emit text up to the start of the tag or comment.
+				j := i1
 				if d.state != c.state {
-					for j := i - 1; j >= 0; j-- {
-						if s[j] == '<' {
-							i = j
+					for j1 := j - 1; j1 >= i; j1-- {
+						if s[j1] == '<' {
+							j = j1
 							break
 						}
 					}
 				}
-				b.Write(s[:i])
+				b.Write(s[i:j])
 			}
-			c, s = d, t
+			c, i = d, i1
 			continue
 		}
-		i := bytes.IndexAny(s, delimEnds[c.delim])
-		if i == -1 {
+		i1 := i + bytes.IndexAny(s[i:], delimEnds[c.delim])
+		if i1 < i {
 			break
 		}
 		if c.delim != delimSpaceOrTagEnd {
 			// Consume any quote.
-			i++
+			i1++
 		}
-		c, s = context{state: stateTag, element: c.element}, s[i:]
+		c, i = context{state: stateTag, element: c.element}, i1
 	}
 	if c.state == stateText {
 		if b.Len() == 0 {
 			return html
 		}
-		b.Write(s)
+		b.Write(s[i:])
 	}
 	return b.String()
 }

@@ -14,8 +14,9 @@ import (
 
 // transitionFunc is the array of context transition functions for text nodes.
 // A transition function takes a context and template text input, and returns
-// the updated context and any unconsumed text.
-var transitionFunc = [...]func(context, []byte) (context, []byte){
+// the updated context and the number of bytes consumed from the front of the
+// input.
+var transitionFunc = [...]func(context, []byte) (context, int){
 	stateText:        tText,
 	stateTag:         tTag,
 	stateAttrName:    tAttrName,
@@ -46,27 +47,28 @@ var commentStart = []byte("<!--")
 var commentEnd = []byte("-->")
 
 // tText is the context transition function for the text state.
-func tText(c context, s []byte) (context, []byte) {
+func tText(c context, s []byte) (context, int) {
+	k := 0
 	for {
-		i := bytes.IndexByte(s, '<')
-		if i == -1 || i+1 == len(s) {
-			return c, nil
+		i := k + bytes.IndexByte(s[k:], '<')
+		if i < k || i+1 == len(s) {
+			return c, len(s)
 		} else if i+4 <= len(s) && bytes.Equal(commentStart, s[i:i+4]) {
-			return context{state: stateHTMLCmt}, s[i+4:]
+			return context{state: stateHTMLCmt}, i + 4
 		}
 		i++
 		if s[i] == '/' {
 			if i+1 == len(s) {
-				return c, nil
+				return c, len(s)
 			}
 			i++
 		}
 		j, e := eatTagName(s, i)
 		if j != i {
 			// We've found an HTML tag.
-			return context{state: stateTag, element: e}, s[j:]
+			return context{state: stateTag, element: e}, j
 		}
-		s = s[j:]
+		k = j
 	}
 	panic("unreachable")
 }
@@ -80,21 +82,21 @@ var elementContentType = [...]state{
 }
 
 // tTag is the context transition function for the tag state.
-func tTag(c context, s []byte) (context, []byte) {
+func tTag(c context, s []byte) (context, int) {
 	// Find the attribute name.
 	i := eatWhiteSpace(s, 0)
 	if i == len(s) {
-		return c, nil
+		return c, len(s)
 	}
 	if s[i] == '>' {
 		return context{
 			state:   elementContentType[c.element],
 			element: c.element,
-		}, s[i+1:]
+		}, i + 1
 	}
 	j, err := eatAttrName(s, i)
 	if err != nil {
-		return context{state: stateError, err: err}, nil
+		return context{state: stateError, err: err}, len(s)
 	}
 	state, attr := stateTag, attrNone
 	if i != j {
@@ -112,35 +114,35 @@ func tTag(c context, s []byte) (context, []byte) {
 			state = stateAfterName
 		}
 	}
-	return context{state: state, element: c.element, attr: attr}, s[j:]
+	return context{state: state, element: c.element, attr: attr}, j
 }
 
 // tAttrName is the context transition function for stateAttrName.
-func tAttrName(c context, s []byte) (context, []byte) {
+func tAttrName(c context, s []byte) (context, int) {
 	i, err := eatAttrName(s, 0)
 	if err != nil {
-		return context{state: stateError, err: err}, nil
+		return context{state: stateError, err: err}, len(s)
 	} else if i == len(s) {
-		return c, nil
+		return c, len(s)
 	}
 	c.state = stateAfterName
-	return c, s[i:]
+	return c, i
 }
 
 // tAfterName is the context transition function for stateAfterName.
-func tAfterName(c context, s []byte) (context, []byte) {
+func tAfterName(c context, s []byte) (context, int) {
 	// Look for the start of the value.
 	i := eatWhiteSpace(s, 0)
 	if i == len(s) {
-		return c, nil
+		return c, len(s)
 	} else if s[i] != '=' {
 		// Occurs due to tag ending '>', and valueless attribute.
 		c.state = stateTag
-		return c, s[i:]
+		return c, i
 	}
 	c.state = stateBeforeValue
 	// Consume the "=".
-	return c, s[i+1:]
+	return c, i + 1
 }
 
 var attrStartStates = [...]state{
@@ -151,10 +153,10 @@ var attrStartStates = [...]state{
 }
 
 // tBeforeValue is the context transition function for stateBeforeValue.
-func tBeforeValue(c context, s []byte) (context, []byte) {
+func tBeforeValue(c context, s []byte) (context, int) {
 	i := eatWhiteSpace(s, 0)
 	if i == len(s) {
-		return c, nil
+		return c, len(s)
 	}
 	// Find the attribute delimiter.
 	delim := delimSpaceOrTagEnd
@@ -165,16 +167,16 @@ func tBeforeValue(c context, s []byte) (context, []byte) {
 		delim, i = delimDoubleQuote, i+1
 	}
 	c.state, c.delim, c.attr = attrStartStates[c.attr], delim, attrNone
-	return c, s[i:]
+	return c, i
 }
 
 // tHTMLCmt is the context transition function for stateHTMLCmt.
-func tHTMLCmt(c context, s []byte) (context, []byte) {
+func tHTMLCmt(c context, s []byte) (context, int) {
 	i := bytes.Index(s, commentEnd)
 	if i != -1 {
-		return context{}, s[i+3:]
+		return context{}, i + 3
 	}
-	return c, nil
+	return c, len(s)
 }
 
 // specialTagEndMarkers maps element types to the character sequence that
@@ -188,24 +190,24 @@ var specialTagEndMarkers = [...]string{
 
 // tSpecialTagEnd is the context transition function for raw text and RCDATA
 // element states.
-func tSpecialTagEnd(c context, s []byte) (context, []byte) {
+func tSpecialTagEnd(c context, s []byte) (context, int) {
 	if c.element != elementNone {
 		end := specialTagEndMarkers[c.element]
 		i := strings.Index(strings.ToLower(string(s)), end)
 		if i != -1 {
-			return context{state: stateTag}, s[i+len(end):]
+			return context{state: stateTag}, i + len(end)
 		}
 	}
-	return c, nil
+	return c, len(s)
 }
 
 // tAttr is the context transition function for the attribute state.
-func tAttr(c context, s []byte) (context, []byte) {
-	return c, nil
+func tAttr(c context, s []byte) (context, int) {
+	return c, len(s)
 }
 
 // tURL is the context transition function for the URL state.
-func tURL(c context, s []byte) (context, []byte) {
+func tURL(c context, s []byte) (context, int) {
 	if bytes.IndexAny(s, "#?") >= 0 {
 		c.urlPart = urlPartQueryOrFrag
 	} else if len(s) != eatWhiteSpace(s, 0) && c.urlPart == urlPartNone {
@@ -213,20 +215,20 @@ func tURL(c context, s []byte) (context, []byte) {
 		// attrs: http://www.w3.org/TR/html5/index.html#attributes-1
 		c.urlPart = urlPartPreQuery
 	}
-	return c, nil
+	return c, len(s)
 }
 
 // tJS is the context transition function for the JS state.
-func tJS(c context, s []byte) (context, []byte) {
-	if d, t := tSpecialTagEnd(c, s); t != nil {
-		return d, t
+func tJS(c context, s []byte) (context, int) {
+	if d, i := tSpecialTagEnd(c, s); i != len(s) {
+		return d, i
 	}
 
 	i := bytes.IndexAny(s, `"'/`)
 	if i == -1 {
 		// Entire input is non string, comment, regexp tokens.
 		c.jsCtx = nextJSCtx(s, c.jsCtx)
-		return c, nil
+		return c, len(s)
 	}
 	c.jsCtx = nextJSCtx(s[:i], c.jsCtx)
 	switch s[i] {
@@ -248,18 +250,18 @@ func tJS(c context, s []byte) (context, []byte) {
 			return context{
 				state: stateError,
 				err:   errorf(ErrSlashAmbig, 0, "'/' could start div or regexp: %.32q", s[i:]),
-			}, nil
+			}, len(s)
 		}
 	default:
 		panic("unreachable")
 	}
-	return c, s[i+1:]
+	return c, i + 1
 }
 
 // tJSStr is the context transition function for the JS string states.
-func tJSStr(c context, s []byte) (context, []byte) {
-	if d, t := tSpecialTagEnd(c, s); t != nil {
-		return d, t
+func tJSStr(c context, s []byte) (context, int) {
+	if d, i := tSpecialTagEnd(c, s); i != len(s) {
+		return d, i
 	}
 
 	quoteAndEsc := `\"`
@@ -267,55 +269,54 @@ func tJSStr(c context, s []byte) (context, []byte) {
 		quoteAndEsc = `\'`
 	}
 
-	b := s
+	k := 0
 	for {
-		i := bytes.IndexAny(b, quoteAndEsc)
-		if i == -1 {
-			return c, nil
+		i := k + bytes.IndexAny(s[k:], quoteAndEsc)
+		if i < k {
+			return c, len(s)
 		}
-		if b[i] == '\\' {
+		if s[i] == '\\' {
 			i++
-			if i == len(b) {
+			if i == len(s) {
 				return context{
 					state: stateError,
 					err:   errorf(ErrPartialEscape, 0, "unfinished escape sequence in JS string: %q", s),
-				}, nil
+				}, len(s)
 			}
 		} else {
 			c.state, c.jsCtx = stateJS, jsCtxDivOp
-			return c, b[i+1:]
+			return c, i + 1
 		}
-		b = b[i+1:]
+		k = i + 1
 	}
 	panic("unreachable")
 }
 
 // tJSRegexp is the context transition function for the /RegExp/ literal state.
-func tJSRegexp(c context, s []byte) (context, []byte) {
-	if d, t := tSpecialTagEnd(c, s); t != nil {
-		return d, t
+func tJSRegexp(c context, s []byte) (context, int) {
+	if d, i := tSpecialTagEnd(c, s); i != len(s) {
+		return d, i
 	}
 
-	b := s
-	inCharset := false
+	k, inCharset := 0, false
 	for {
-		i := bytes.IndexAny(b, `/[\]`)
-		if i == -1 {
+		i := k + bytes.IndexAny(s[k:], `\/[]`)
+		if i < k {
 			break
 		}
-		switch b[i] {
+		switch s[i] {
 		case '/':
 			if !inCharset {
 				c.state, c.jsCtx = stateJS, jsCtxDivOp
-				return c, b[i+1:]
+				return c, i + 1
 			}
 		case '\\':
 			i++
-			if i == len(b) {
+			if i == len(s) {
 				return context{
 					state: stateError,
 					err:   errorf(ErrPartialEscape, 0, "unfinished escape sequence in JS regexp: %q", s),
-				}, nil
+				}, len(s)
 			}
 		case '[':
 			inCharset = true
@@ -324,7 +325,7 @@ func tJSRegexp(c context, s []byte) (context, []byte) {
 		default:
 			panic("unreachable")
 		}
-		b = b[i+1:]
+		k = i + 1
 	}
 
 	if inCharset {
@@ -333,22 +334,22 @@ func tJSRegexp(c context, s []byte) (context, []byte) {
 		return context{
 			state: stateError,
 			err:   errorf(ErrPartialCharset, 0, "unfinished JS regexp charset: %q", s),
-		}, nil
+		}, len(s)
 	}
 
-	return c, nil
+	return c, len(s)
 }
 
 var blockCommentEnd = []byte("*/")
 
 // tBlockCmt is the context transition function for /*comment*/ states.
-func tBlockCmt(c context, s []byte) (context, []byte) {
-	if d, t := tSpecialTagEnd(c, s); t != nil {
-		return d, t
+func tBlockCmt(c context, s []byte) (context, int) {
+	if d, i := tSpecialTagEnd(c, s); i != len(s) {
+		return d, i
 	}
 	i := bytes.Index(s, blockCommentEnd)
 	if i == -1 {
-		return c, nil
+		return c, len(s)
 	}
 	switch c.state {
 	case stateJSBlockCmt:
@@ -358,13 +359,13 @@ func tBlockCmt(c context, s []byte) (context, []byte) {
 	default:
 		panic(c.state.String())
 	}
-	return c, s[i+2:]
+	return c, i + 2
 }
 
 // tLineCmt is the context transition function for //comment states.
-func tLineCmt(c context, s []byte) (context, []byte) {
-	if d, t := tSpecialTagEnd(c, s); t != nil {
-		return d, t
+func tLineCmt(c context, s []byte) (context, int) {
+	if d, i := tSpecialTagEnd(c, s); i != len(s) {
+		return d, i
 	}
 	var lineTerminators string
 	var endState state
@@ -386,21 +387,21 @@ func tLineCmt(c context, s []byte) (context, []byte) {
 
 	i := bytes.IndexAny(s, lineTerminators)
 	if i == -1 {
-		return c, nil
+		return c, len(s)
 	}
 	c.state = endState
 	// Per section 7.4 of EcmaScript 5 : http://es5.github.com/#x7.4
 	// "However, the LineTerminator at the end of the line is not
-	// considered to be part of the single-line comment; it is recognised
-	// separately by the lexical grammar and becomes part of the stream of
-	// input elements for the syntactic grammar."
-	return c, s[i:]
+	// considered to be part of the single-line comment; it is
+	// recognized separately by the lexical grammar and becomes part
+	// of the stream of input elements for the syntactic grammar."
+	return c, i
 }
 
 // tCSS is the context transition function for the CSS state.
-func tCSS(c context, s []byte) (context, []byte) {
-	if d, t := tSpecialTagEnd(c, s); t != nil {
-		return d, t
+func tCSS(c context, s []byte) (context, int) {
+	if d, i := tSpecialTagEnd(c, s); i != len(s) {
+		return d, i
 	}
 
 	// CSS quoted strings are almost never used except for:
@@ -430,55 +431,55 @@ func tCSS(c context, s []byte) (context, []byte) {
 	// have the attribute name available if our conservative assumption
 	// proves problematic for real code.
 
+	k := 0
 	for {
-		i := bytes.IndexAny(s, `("'/`)
-		if i == -1 {
-			return c, nil
+		i := k + bytes.IndexAny(s[k:], `("'/`)
+		if i < k {
+			return c, len(s)
 		}
 		switch s[i] {
 		case '(':
 			// Look for url to the left.
 			p := bytes.TrimRight(s[:i], "\t\n\f\r ")
 			if endsWithCSSKeyword(p, "url") {
-				q := bytes.TrimLeft(s[i+1:], "\t\n\f\r ")
+				j := len(s) - len(bytes.TrimLeft(s[i+1:], "\t\n\f\r "))
 				switch {
-				case len(q) != 0 && q[0] == '"':
-					c.state, s = stateCSSDqURL, q[1:]
-				case len(q) != 0 && q[0] == '\'':
-					c.state, s = stateCSSSqURL, q[1:]
-
+				case j != len(s) && s[j] == '"':
+					c.state, j = stateCSSDqURL, j+1
+				case j != len(s) && s[j] == '\'':
+					c.state, j = stateCSSSqURL, j+1
 				default:
-					c.state, s = stateCSSURL, q
+					c.state = stateCSSURL
 				}
-				return c, s
+				return c, j
 			}
 		case '/':
 			if i+1 < len(s) {
 				switch s[i+1] {
 				case '/':
 					c.state = stateCSSLineCmt
-					return c, s[i+2:]
+					return c, i + 2
 				case '*':
 					c.state = stateCSSBlockCmt
-					return c, s[i+2:]
+					return c, i + 2
 				}
 			}
 		case '"':
 			c.state = stateCSSDqStr
-			return c, s[i+1:]
+			return c, i + 1
 		case '\'':
 			c.state = stateCSSSqStr
-			return c, s[i+1:]
+			return c, i + 1
 		}
-		s = s[i+1:]
+		k = i + 1
 	}
 	panic("unreachable")
 }
 
 // tCSSStr is the context transition function for the CSS string and URL states.
-func tCSSStr(c context, s []byte) (context, []byte) {
-	if d, t := tSpecialTagEnd(c, s); t != nil {
-		return d, t
+func tCSSStr(c context, s []byte) (context, int) {
+	if d, i := tSpecialTagEnd(c, s); i != len(s) {
+		return d, i
 	}
 
 	var endAndEsc string
@@ -495,33 +496,34 @@ func tCSSStr(c context, s []byte) (context, []byte) {
 		panic(c.state.String())
 	}
 
-	b := s
+	k := 0
 	for {
-		i := bytes.IndexAny(b, endAndEsc)
-		if i == -1 {
-			return tURL(c, decodeCSS(b))
+		i := k + bytes.IndexAny(s[k:], endAndEsc)
+		if i < k {
+			c, nread := tURL(c, decodeCSS(s[k:]))
+			return c, k + nread
 		}
-		if b[i] == '\\' {
+		if s[i] == '\\' {
 			i++
-			if i == len(b) {
+			if i == len(s) {
 				return context{
 					state: stateError,
 					err:   errorf(ErrPartialEscape, 0, "unfinished escape sequence in CSS string: %q", s),
-				}, nil
+				}, len(s)
 			}
 		} else {
 			c.state = stateCSS
-			return c, b[i+1:]
+			return c, i + 1
 		}
-		c, _ = tURL(c, decodeCSS(b[:i+1]))
-		b = b[i+1:]
+		c, _ = tURL(c, decodeCSS(s[:i+1]))
+		k = i + 1
 	}
 	panic("unreachable")
 }
 
 // tError is the context transition function for the error state.
-func tError(c context, s []byte) (context, []byte) {
-	return c, nil
+func tError(c context, s []byte) (context, int) {
+	return c, len(s)
 }
 
 // eatAttrName returns the largest j such that s[i:j] is an attribute name.
