@@ -1444,6 +1444,8 @@ func (v Value) String() string {
 	case String:
 		return *(*string)(iv.addr)
 	}
+	// If you call String on a reflect.Value of other type, it's better to
+	// print something than to panic. Useful in debugging.
 	return "<" + iv.typ.String() + " Value>"
 }
 
