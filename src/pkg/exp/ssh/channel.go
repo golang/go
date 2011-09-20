@@ -97,7 +97,7 @@ func (c *channel) Accept() os.Error {
 		MyWindow:      c.myWindow,
 		MaxPacketSize: c.maxPacketSize,
 	}
-	return c.serverConn.out.writePacket(marshal(msgChannelOpenConfirm, confirm))
+	return c.serverConn.writePacket(marshal(msgChannelOpenConfirm, confirm))
 }
 
 func (c *channel) Reject(reason RejectionReason, message string) os.Error {
@@ -114,7 +114,7 @@ func (c *channel) Reject(reason RejectionReason, message string) os.Error {
 		Message:  message,
 		Language: "en",
 	}
-	return c.serverConn.out.writePacket(marshal(msgChannelOpenFailure, reject))
+	return c.serverConn.writePacket(marshal(msgChannelOpenFailure, reject))
 }
 
 func (c *channel) handlePacket(packet interface{}) {
@@ -180,7 +180,7 @@ func (c *channel) Read(data []byte) (n int, err os.Error) {
 			PeersId:         c.theirId,
 			AdditionalBytes: uint32(len(c.pendingData)) - c.myWindow,
 		})
-		if err := c.serverConn.out.writePacket(packet); err != nil {
+		if err := c.serverConn.writePacket(packet); err != nil {
 			return 0, err
 		}
 	}
@@ -254,7 +254,7 @@ func (c *channel) Write(data []byte) (n int, err os.Error) {
 		copy(packet[9:], todo)
 
 		c.serverConn.lock.Lock()
-		if err = c.serverConn.out.writePacket(packet); err != nil {
+		if err = c.serverConn.writePacket(packet); err != nil {
 			c.serverConn.lock.Unlock()
 			return
 		}
@@ -283,7 +283,7 @@ func (c *channel) Close() os.Error {
 	closeMsg := channelCloseMsg{
 		PeersId: c.theirId,
 	}
-	return c.serverConn.out.writePacket(marshal(msgChannelClose, closeMsg))
+	return c.serverConn.writePacket(marshal(msgChannelClose, closeMsg))
 }
 
 func (c *channel) AckRequest(ok bool) os.Error {
@@ -298,12 +298,12 @@ func (c *channel) AckRequest(ok bool) os.Error {
 		ack := channelRequestSuccessMsg{
 			PeersId: c.theirId,
 		}
-		return c.serverConn.out.writePacket(marshal(msgChannelSuccess, ack))
+		return c.serverConn.writePacket(marshal(msgChannelSuccess, ack))
 	} else {
 		ack := channelRequestFailureMsg{
 			PeersId: c.theirId,
 		}
-		return c.serverConn.out.writePacket(marshal(msgChannelFailure, ack))
+		return c.serverConn.writePacket(marshal(msgChannelFailure, ack))
 	}
 	panic("unreachable")
 }

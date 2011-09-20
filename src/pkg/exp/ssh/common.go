@@ -50,7 +50,7 @@ func findCommonAlgorithm(clientAlgos []string, serverAlgos []string) (commonAlgo
 	return
 }
 
-func findAgreedAlgorithms(clientToServer, serverToClient *halfConnection, clientKexInit, serverKexInit *kexInitMsg) (kexAlgo, hostKeyAlgo string, ok bool) {
+func findAgreedAlgorithms(clientToServer, serverToClient *transport, clientKexInit, serverKexInit *kexInitMsg) (kexAlgo, hostKeyAlgo string, ok bool) {
 	kexAlgo, ok = findCommonAlgorithm(clientKexInit.KexAlgos, serverKexInit.KexAlgos)
 	if !ok {
 		return

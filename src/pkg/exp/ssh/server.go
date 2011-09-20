@@ -129,7 +129,7 @@ const maxCachedPubKeys = 16
 type ServerConnection struct {
 	Server *Server
 
-	in, out *halfConnection
+	*transport
 
 	channels   map[uint32]*channel
 	nextChanId uint32
@@ -174,7 +174,7 @@ type handshakeMagics struct {
 // kexDH performs Diffie-Hellman key agreement on a ServerConnection. The
 // returned values are given the same names as in RFC 4253, section 8.
 func (s *ServerConnection) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handshakeMagics, hostKeyAlgo string) (H, K []byte, err os.Error) {
-	packet, err := s.in.readPacket()
+	packet, err := s.readPacket()
 	if err != nil {
 		return
 	}
@@ -241,7 +241,7 @@ func (s *ServerConnection) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *h
 	}
 	packet = marshal(msgKexDHReply, kexDHReply)
 
-	err = s.out.writePacket(packet)
+	err = s.writePacket(packet)
 	return
 }
 
@@ -292,14 +292,30 @@ func buildDataSignedForAuth(sessionId []byte, req userAuthRequestMsg, algo, pubK
 // Handshake performs an SSH transport and client authentication on the given ServerConnection.
 func (s *ServerConnection) Handshake(conn net.Conn) os.Error {
 	var magics handshakeMagics
-	inBuf := bufio.NewReader(conn)
-
-	_, err := conn.Write(serverVersion)
-	if err != nil {
-		return err
+	s.transport = &transport{
+		reader: reader{
+			Reader: bufio.NewReader(conn),
+		},
+		writer: writer{
+			Writer: bufio.NewWriter(conn),
+			rand:   rand.Reader,
+		},
+		Close: func() os.Error {
+			return conn.Close()
+		},
 	}
 
+	if _, err := conn.Write(serverVersion); err != nil {
+		return err
+	}
 	magics.serverVersion = serverVersion[:len(serverVersion)-2]
+
+	version, ok := readVersion(s.transport)
+	if !ok {
+		return os.NewError("failed to read version string from client")
+	}
+	magics.clientVersion = version
+
 	serverKexInit := kexInitMsg{
 		KexAlgos:                supportedKexAlgos,
 		ServerHostKeyAlgos:      supportedHostKeyAlgos,
@@ -313,28 +329,15 @@ func (s *ServerConnection) Handshake(conn net.Conn) os.Error {
 	kexInitPacket := marshal(msgKexInit, serverKexInit)
 	magics.serverKexInit = kexInitPacket
 
-	var out halfConnection
-	out.out = conn
-	out.rand = rand.Reader
-	s.out = &out
-	err = out.writePacket(kexInitPacket)
+	if err := s.writePacket(kexInitPacket); err != nil {
+		return err
+	}
+
+	packet, err := s.readPacket()
 	if err != nil {
 		return err
 	}
 
-	version, ok := readVersion(inBuf)
-	if !ok {
-		return os.NewError("failed to read version string from client")
-	}
-	magics.clientVersion = version
-
-	var in halfConnection
-	in.in = inBuf
-	s.in = &in
-	packet, err := in.readPacket()
-	if err != nil {
-		return err
-	}
 	magics.clientKexInit = packet
 
 	var clientKexInit kexInitMsg
@@ -342,7 +345,7 @@ func (s *ServerConnection) Handshake(conn net.Conn) os.Error {
 		return err
 	}
 
-	kexAlgo, hostKeyAlgo, ok := findAgreedAlgorithms(&in, &out, &clientKexInit, &serverKexInit)
+	kexAlgo, hostKeyAlgo, ok := findAgreedAlgorithms(s.transport, s.transport, &clientKexInit, &serverKexInit)
 	if !ok {
 		return os.NewError("ssh: no common algorithms")
 	}
@@ -350,7 +353,7 @@ func (s *ServerConnection) Handshake(conn net.Conn) os.Error {
 	if clientKexInit.FirstKexFollows && kexAlgo != clientKexInit.KexAlgos[0] {
 		// The client sent a Kex message for the wrong algorithm,
 		// which we have to ignore.
-		_, err := in.readPacket()
+		_, err := s.readPacket()
 		if err != nil {
 			return err
 		}
@@ -372,23 +375,23 @@ func (s *ServerConnection) Handshake(conn net.Conn) os.Error {
 	}
 
 	packet = []byte{msgNewKeys}
-	if err = out.writePacket(packet); err != nil {
+	if err = s.writePacket(packet); err != nil {
 		return err
 	}
-	if err = out.setupKeys(serverKeys, K, H, H, hashFunc); err != nil {
+	if err = s.transport.writer.setupKeys(serverKeys, K, H, H, hashFunc); err != nil {
 		return err
 	}
 
-	if packet, err = in.readPacket(); err != nil {
+	if packet, err = s.readPacket(); err != nil {
 		return err
 	}
 	if packet[0] != msgNewKeys {
 		return UnexpectedMessageError{msgNewKeys, packet[0]}
 	}
 
-	in.setupKeys(clientKeys, K, H, H, hashFunc)
+	s.transport.reader.setupKeys(clientKeys, K, H, H, hashFunc)
 
-	packet, err = in.readPacket()
+	packet, err = s.readPacket()
 	if err != nil {
 		return err
 	}
@@ -405,7 +408,7 @@ func (s *ServerConnection) Handshake(conn net.Conn) os.Error {
 		Service: serviceUserAuth,
 	}
 	packet = marshal(msgServiceAccept, serviceAccept)
-	if err = out.writePacket(packet); err != nil {
+	if err = s.writePacket(packet); err != nil {
 		return err
 	}
 
@@ -455,7 +458,7 @@ func (s *ServerConnection) authenticate(H []byte) os.Error {
 
 userAuthLoop:
 	for {
-		if packet, err = s.in.readPacket(); err != nil {
+		if packet, err = s.readPacket(); err != nil {
 			return err
 		}
 		if err = unmarshal(&userAuthReq, packet, msgUserAuthRequest); err != nil {
@@ -519,7 +522,7 @@ userAuthLoop:
 						Algo:   algo,
 						PubKey: string(pubKey),
 					}
-					if err = s.out.writePacket(marshal(msgUserAuthPubKeyOk, okMsg)); err != nil {
+					if err = s.writePacket(marshal(msgUserAuthPubKeyOk, okMsg)); err != nil {
 						return err
 					}
 					continue userAuthLoop
@@ -571,13 +574,13 @@ userAuthLoop:
 			return os.NewError("ssh: no authentication methods configured but NoClientAuth is also false")
 		}
 
-		if err = s.out.writePacket(marshal(msgUserAuthFailure, failureMsg)); err != nil {
+		if err = s.writePacket(marshal(msgUserAuthFailure, failureMsg)); err != nil {
 			return err
 		}
 	}
 
 	packet = []byte{msgUserAuthSuccess}
-	if err = s.out.writePacket(packet); err != nil {
+	if err = s.writePacket(packet); err != nil {
 		return err
 	}
 
@@ -594,7 +597,7 @@ func (s *ServerConnection) Accept() (Channel, os.Error) {
 	}
 
 	for {
-		packet, err := s.in.readPacket()
+		packet, err := s.readPacket()
 		if err != nil {
 
 			s.lock.Lock()
@@ -697,7 +700,7 @@ func (s *ServerConnection) Accept() (Channel, os.Error) {
 			}
 
 			if request.WantReply {
-				if err := s.out.writePacket([]byte{msgRequestFailure}); err != nil {
+				if err := s.writePacket([]byte{msgRequestFailure}); err != nil {
 					return nil, err
 				}
 			}
