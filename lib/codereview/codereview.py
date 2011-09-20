@@ -849,6 +849,18 @@ def EditCL(ui, repo, cl):
 	s = cl.EditorText()
 	while True:
 		s = ui.edit(s, ui.username())
+		
+		# We can't trust Mercurial + Python not to die before making the change,
+		# so, by popular demand, just scribble the most recent CL edit into
+		# $(hg root)/last-change so that if Mercurial does die, people
+		# can look there for their work.
+		try:
+			f = open(repo.root+"/last-change", "w")
+			f.write(s)
+			f.close()
+		except:
+			pass
+
 		clx, line, err = ParseCL(s, cl.name)
 		if err != '':
 			if not promptyesno(ui, "error parsing change list: line %d: %s\nre-edit (y/n)?" % (line, err)):

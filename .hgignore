@@ -61,6 +61,7 @@ test/run.out
 test/times.out
 test/garbage/*.out
 goinstall.log
+last-change
 
 syntax:regexp
 ^bin/
