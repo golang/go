@@ -14,6 +14,6 @@
 package main
 
 func main() {
-	len("foo")	// ERROR "len"
+	len("foo")	// ERROR "len|value computed is not used"
 }
 
