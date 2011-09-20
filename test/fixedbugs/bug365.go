@@ -12,7 +12,7 @@
 package main
 
 type S struct {
-	err os.Error  // ERROR "undefined"
+	err os.Error  // ERROR "undefined|expected package"
 	Num int
 }
 

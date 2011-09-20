@@ -13,7 +13,7 @@ import (
 	"os"
 )
 
-func echo(fd io.ReadWriterCloser) { // ERROR "undefined: io.ReadWriterCloser"
+func echo(fd io.ReadWriterCloser) { // ERROR "undefined.*io.ReadWriterCloser"
 	var buf [1024]byte
 	for {
 		n, err := fd.Read(buf)
