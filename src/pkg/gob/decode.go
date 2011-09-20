@@ -467,20 +467,17 @@ func allocate(rtyp reflect.Type, p uintptr, indir int) uintptr {
 // decodeSingle decodes a top-level value that is not a struct and stores it through p.
 // Such values are preceded by a zero, making them have the memory layout of a
 // struct field (although with an illegal field number).
-func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, p uintptr) (err os.Error) {
-	indir := ut.indir
-	if ut.isGobDecoder {
-		indir = int(ut.decIndir)
-	}
-	p = allocate(ut.base, p, indir)
+func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uintptr) (err os.Error) {
 	state := dec.newDecoderState(&dec.buf)
 	state.fieldnum = singletonField
-	basep := p
 	delta := int(state.decodeUint())
 	if delta != 0 {
 		errorf("decode: corrupted data: non-zero delta for singleton")
 	}
 	instr := &engine.instr[singletonField]
+	if instr.indir != ut.indir {
+		return os.NewError("gob: internal error: inconsistent indirection")
+	}
 	ptr := unsafe.Pointer(basep) // offset will be zero
 	if instr.indir > 1 {
 		ptr = decIndirect(ptr, instr.indir)
@@ -1069,10 +1066,7 @@ func (dec *Decoder) typeString(remoteId typeId) string {
 // compileSingle compiles the decoder engine for a non-struct top-level value, including
 // GobDecoders.
 func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *decEngine, err os.Error) {
-	rt := ut.base
-	if ut.isGobDecoder {
-		rt = ut.user
-	}
+	rt := ut.user
 	engine = new(decEngine)
 	engine.instr = make([]decInstr, 1) // one item
 	name := rt.String()                // best we can do
@@ -1202,7 +1196,7 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) {
 		dec.decodeIgnoredValue(wireId)
 		return
 	}
-	// Dereference down to the underlying struct type.
+	// Dereference down to the underlying type.
 	ut := userType(val.Type())
 	base := ut.base
 	var enginePtr **decEngine
