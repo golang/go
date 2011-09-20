@@ -14,10 +14,10 @@ func main() {
 	i := 42
 	a := []*int{&i, &i, &i, &i}
 	x := a[0]
-	goto start  // ERROR "goto start jumps into block"
+	goto start  // ERROR "jumps into block"
 	z := 1
 	_ = z
-	for _, x = range a {
+	for _, x = range a {	// GCCGO_ERROR "block"
 	start:
 		fmt.Sprint(*x)
 	}
