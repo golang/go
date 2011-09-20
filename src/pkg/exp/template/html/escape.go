@@ -64,6 +64,7 @@ func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
 // funcMap maps command names to functions that render their inputs safe.
 var funcMap = template.FuncMap{
 	"exp_template_html_attrescaper":     attrEscaper,
+	"exp_template_html_commentescaper":  commentEscaper,
 	"exp_template_html_cssescaper":      cssEscaper,
 	"exp_template_html_cssvaluefilter":  cssValueFilter,
 	"exp_template_html_htmlnamefilter":  htmlNameFilter,
@@ -200,12 +201,10 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		s = append(s, "exp_template_html_htmlnamefilter")
 	default:
 		if isComment(c.state) {
-			return context{
-				state: stateError,
-				err:   errorf(ErrInsideComment, n.Line, "%s appears inside a comment", n),
-			}
+			s = append(s, "exp_template_html_commentescaper")
+		} else {
+			panic("unexpected state " + c.state.String())
 		}
-		panic("unexpected state " + c.state.String())
 	}
 	switch c.delim {
 	case delimNone:

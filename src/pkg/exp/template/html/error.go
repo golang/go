@@ -100,19 +100,6 @@ const (
 	// produce a valid JavaScript Program.
 	ErrEndContext
 
-	// ErrInsideComment: "... appears inside a comment"
-	// Example:
-	//  <!-- {{.X}} -->
-	//  <script>/* {{.X}} */</script>
-	//  <style>/* {{.X}} */</style>
-	//
-	// Discussion:
-	//  {{.X}} appears inside a comment. There is no escaping convention for
-	//  comments. To use IE conditional comments, inject the  whole comment
-	//  as an HTML, JS, or CSS value (see content.go).
-	//  To comment out code, break the {{...}}.
-	ErrInsideComment
-
 	// ErrNoNames: "must specify names of top level templates"
 	// 
 	//   EscapeSet does not assume that all templates in a set produce HTML.
