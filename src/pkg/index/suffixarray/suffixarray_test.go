@@ -7,6 +7,7 @@ package suffixarray
 import (
 	"bytes"
 	"exp/regexp"
+	"rand"
 	"sort"
 	"strings"
 	"testing"
@@ -253,5 +254,23 @@ func TestIndex(t *testing.T) {
 		testLookups(t, &tc, x, 10)
 		testLookups(t, &tc, x, 2e9)
 		testLookups(t, &tc, x, -1)
+	}
+}
+
+func BenchmarkSaveRestore(b *testing.B) {
+	b.StopTimer()
+	r := rand.New(rand.NewSource(0x5a77a1)) // guarantee always same sequence
+	data := make([]byte, 10<<20)            // 10MB index data
+	for i := range data {
+		data[i] = byte(r.Intn(256))
+	}
+	x := New(data)
+	testSaveRestore(nil, nil, x)                    // verify correctness
+	buf := bytes.NewBuffer(make([]byte, len(data))) // avoid frequent growing
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		x.Write(buf)
+		var y Index
+		y.Read(buf)
 	}
 }

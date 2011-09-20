@@ -18,8 +18,8 @@ package suffixarray
 
 import (
 	"bytes"
-	"encoding/binary"
 	"exp/regexp"
+	"gob"
 	"io"
 	"os"
 	"sort"
@@ -37,13 +37,18 @@ func New(data []byte) *Index {
 	return &Index{data, qsufsort(data)}
 }
 
+// Read and Write slice the data into successive portions of length gobN,
+// so gob can allocate smaller buffers for its I/O.
+const gobN = 1 << 16 // slightly better than say 1 << 20 (BenchmarkSaveRestore)
+
 // Read reads the index from r into x; x must not be nil.
 func (x *Index) Read(r io.Reader) os.Error {
-	var n int32
-	if err := binary.Read(r, binary.LittleEndian, &n); err != nil {
+	d := gob.NewDecoder(r)
+	var n int
+	if err := d.Decode(&n); err != nil {
 		return err
 	}
-	if 2*n < int32(cap(x.data)) || int32(cap(x.data)) < n {
+	if 2*n < cap(x.data) || cap(x.data) < n {
 		// new data is significantly smaller or larger then
 		// existing buffers - allocate new ones
 		x.data = make([]byte, n)
@@ -53,28 +58,51 @@ func (x *Index) Read(r io.Reader) os.Error {
 		x.data = x.data[0:n]
 		x.sa = x.sa[0:n]
 	}
-
-	if err := binary.Read(r, binary.LittleEndian, x.data); err != nil {
-		return err
+	for i := 0; i < n; {
+		j := i + gobN
+		if j > n {
+			j = n
+		}
+		// data holds next piece of x.data; its length is updated by Decode
+		data := x.data[i:j]
+		if err := d.Decode(&data); err != nil {
+			return err
+		}
+		if len(data) != j-i {
+			return os.NewError("suffixarray.Read: inconsistent data format")
+		}
+		// sa holds next piece of x.data; its length is updated by Decode
+		sa := x.sa[i:j]
+		if err := d.Decode(&sa); err != nil {
+			return err
+		}
+		if len(sa) != j-i {
+			return os.NewError("suffixarray.Read: inconsistent data format")
+		}
+		i = j
 	}
-	if err := binary.Read(r, binary.LittleEndian, x.sa); err != nil {
-		return err
-	}
-
 	return nil
 }
 
 // Write writes the index x to w.
 func (x *Index) Write(w io.Writer) os.Error {
-	n := int32(len(x.data))
-	if err := binary.Write(w, binary.LittleEndian, n); err != nil {
+	e := gob.NewEncoder(w)
+	n := len(x.data)
+	if err := e.Encode(n); err != nil {
 		return err
 	}
-	if err := binary.Write(w, binary.LittleEndian, x.data); err != nil {
-		return err
-	}
-	if err := binary.Write(w, binary.LittleEndian, x.sa); err != nil {
-		return err
+	for i := 0; i < n; {
+		j := i + gobN
+		if j > n {
+			j = n
+		}
+		if err := e.Encode(x.data[i:j]); err != nil {
+			return err
+		}
+		if err := e.Encode(x.sa[i:j]); err != nil {
+			return err
+		}
+		i = j
 	}
 	return nil
 }
