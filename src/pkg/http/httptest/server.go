@@ -23,6 +23,10 @@ type Server struct {
 	URL      string // base URL of form http://ipaddr:port with no trailing slash
 	Listener net.Listener
 	TLS      *tls.Config // nil if not using using TLS
+
+	// Config may be changed after calling NewUnstartedServer and
+	// before Start or StartTLS.
+	Config *http.Server
 }
 
 // historyListener keeps track of all connections that it's ever
@@ -41,6 +45,13 @@ func (hs *historyListener) Accept() (c net.Conn, err os.Error) {
 }
 
 func newLocalListener() net.Listener {
+	if *serve != "" {
+		l, err := net.Listen("tcp", *serve)
+		if err != nil {
+			panic(fmt.Sprintf("httptest: failed to listen on %v: %v", *serve, err))
+		}
+		return l
+	}
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		if l, err = net.Listen("tcp6", "[::1]:0"); err != nil {
@@ -59,51 +70,66 @@ var serve = flag.String("httptest.serve", "", "if non-empty, httptest.NewServer 
 // NewServer starts and returns a new Server.
 // The caller should call Close when finished, to shut it down.
 func NewServer(handler http.Handler) *Server {
-	ts := new(Server)
-	var l net.Listener
-	if *serve != "" {
-		var err os.Error
-		l, err = net.Listen("tcp", *serve)
-		if err != nil {
-			panic(fmt.Sprintf("httptest: failed to listen on %v: %v", *serve, err))
-		}
-	} else {
-		l = newLocalListener()
-	}
-	ts.Listener = &historyListener{l, make([]net.Conn, 0)}
-	ts.URL = "http://" + l.Addr().String()
-	server := &http.Server{Handler: handler}
-	go server.Serve(ts.Listener)
-	if *serve != "" {
-		fmt.Println(os.Stderr, "httptest: serving on", ts.URL)
-		select {}
-	}
+	ts := NewUnstartedServer(handler)
+	ts.Start()
 	return ts
 }
 
-// NewTLSServer starts and returns a new Server using TLS.
+// NewUnstartedServer returns a new Server but doesn't start it.
+//
+// After changing its configuration, the caller should call Start or
+// StartTLS.
+//
 // The caller should call Close when finished, to shut it down.
-func NewTLSServer(handler http.Handler) *Server {
-	l := newLocalListener()
-	ts := new(Server)
+func NewUnstartedServer(handler http.Handler) *Server {
+	return &Server{
+		Listener: newLocalListener(),
+		Config:   &http.Server{Handler: handler},
+	}
+}
 
+// Start starts a server from NewUnstartedServer.
+func (s *Server) Start() {
+	if s.URL != "" {
+		panic("Server already started")
+	}
+	s.Listener = &historyListener{s.Listener, make([]net.Conn, 0)}
+	s.URL = "http://" + s.Listener.Addr().String()
+	go s.Config.Serve(s.Listener)
+	if *serve != "" {
+		fmt.Println(os.Stderr, "httptest: serving on", s.URL)
+		select {}
+	}
+}
+
+// StartTLS starts TLS on a server from NewUnstartedServer.
+func (s *Server) StartTLS() {
+	if s.URL != "" {
+		panic("Server already started")
+	}
 	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
 	if err != nil {
 		panic(fmt.Sprintf("httptest: NewTLSServer: %v", err))
 	}
 
-	ts.TLS = &tls.Config{
+	s.TLS = &tls.Config{
 		Rand:         rand.Reader,
 		Time:         time.Seconds,
 		NextProtos:   []string{"http/1.1"},
 		Certificates: []tls.Certificate{cert},
 	}
-	tlsListener := tls.NewListener(l, ts.TLS)
+	tlsListener := tls.NewListener(s.Listener, s.TLS)
 
-	ts.Listener = &historyListener{tlsListener, make([]net.Conn, 0)}
-	ts.URL = "https://" + l.Addr().String()
-	server := &http.Server{Handler: handler}
-	go server.Serve(ts.Listener)
+	s.Listener = &historyListener{tlsListener, make([]net.Conn, 0)}
+	s.URL = "https://" + s.Listener.Addr().String()
+	go s.Config.Serve(s.Listener)
+}
+
+// NewTLSServer starts and returns a new Server using TLS.
+// The caller should call Close when finished, to shut it down.
+func NewTLSServer(handler http.Handler) *Server {
+	ts := NewUnstartedServer(handler)
+	ts.StartTLS()
 	return ts
 }
 
