@@ -178,13 +178,6 @@ func (srv *Server) newConn(rwc net.Conn) (c *conn, err os.Error) {
 	br := bufio.NewReader(c.lr)
 	bw := bufio.NewWriter(rwc)
 	c.buf = bufio.NewReadWriter(br, bw)
-
-	if tlsConn, ok := rwc.(*tls.Conn); ok {
-		tlsConn.Handshake()
-		c.tlsState = new(tls.ConnectionState)
-		*c.tlsState = tlsConn.ConnectionState()
-	}
-
 	return c, nil
 }
 
@@ -561,6 +554,12 @@ func (c *conn) serve() {
 		buf.Write(debug.Stack())
 		log.Print(buf.String())
 	}()
+
+	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
+		tlsConn.Handshake()
+		c.tlsState = new(tls.ConnectionState)
+		*c.tlsState = tlsConn.ConnectionState()
+	}
 
 	for {
 		w, err := c.readRequest()

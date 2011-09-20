@@ -545,6 +545,19 @@ func TestTLSServer(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
+
+	// Connect an idle TCP connection to this server before we run
+	// our real tests.  This idle connection used to block forever
+	// in the TLS handshake, preventing future connections from
+	// being accepted. It may prevent future accidental blocking
+	// in newConn.
+	idleConn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer idleConn.Close()
+	time.AfterFunc(10e9, func() { t.Fatalf("Timeout") })
+
 	if !strings.HasPrefix(ts.URL, "https://") {
 		t.Fatalf("expected test TLS server to start with https://, got %q", ts.URL)
 	}
