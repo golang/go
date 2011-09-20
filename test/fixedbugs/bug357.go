@@ -15,8 +15,9 @@ func bla1() bool {
 
 func bla5() bool {
 	_ = 1
-	false  // ERROR "false not used"
+	false  // ERROR "false not used|value computed is not used"
 	_ = 2
+	return false
 }
 
 func main() {

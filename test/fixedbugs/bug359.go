@@ -16,11 +16,11 @@ type Painting struct {
 }
 
 func (p Painting) Foo() {
-	for e := p.fragments; e.Front() != nil; {  // ERROR "unexported field"
+	for e := p.fragments; e.Front() != nil; {  // ERROR "unexported field|hidden field"
 	}
 }
 
 // from comment 4 of issue 1910
 type Foo interface {
-	Run(a int) (a int)  // ERROR "a redeclared"
+	Run(a int) (a int)  // ERROR "a redeclared|redefinition|previous"
 }
