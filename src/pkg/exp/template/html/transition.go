@@ -21,7 +21,7 @@ var transitionFunc = [...]func(context, []byte) (context, []byte){
 	stateAttrName:    tAttrName,
 	stateAfterName:   tAfterName,
 	stateBeforeValue: tBeforeValue,
-	stateComment:     tComment,
+	stateHTMLCmt:     tHTMLCmt,
 	stateRCDATA:      tSpecialTagEnd,
 	stateAttr:        tAttr,
 	stateURL:         tURL,
@@ -52,7 +52,7 @@ func tText(c context, s []byte) (context, []byte) {
 		if i == -1 || i+1 == len(s) {
 			return c, nil
 		} else if i+4 <= len(s) && bytes.Equal(commentStart, s[i:i+4]) {
-			return context{state: stateComment}, s[i+4:]
+			return context{state: stateHTMLCmt}, s[i+4:]
 		}
 		i++
 		if s[i] == '/' {
@@ -168,8 +168,8 @@ func tBeforeValue(c context, s []byte) (context, []byte) {
 	return c, s[i:]
 }
 
-// tComment is the context transition function for stateComment.
-func tComment(c context, s []byte) (context, []byte) {
+// tHTMLCmt is the context transition function for stateHTMLCmt.
+func tHTMLCmt(c context, s []byte) (context, []byte) {
 	i := bytes.Index(s, commentEnd)
 	if i != -1 {
 		return context{}, s[i+3:]

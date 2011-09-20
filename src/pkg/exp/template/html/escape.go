@@ -187,11 +187,6 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		s = append(s, "exp_template_html_jsstrescaper")
 	case stateJSRegexp:
 		s = append(s, "exp_template_html_jsregexpescaper")
-	case stateComment, stateJSBlockCmt, stateJSLineCmt, stateCSSBlockCmt, stateCSSLineCmt:
-		return context{
-			state: stateError,
-			err:   errorf(ErrInsideComment, n.Line, "%s appears inside a comment", n),
-		}
 	case stateCSS:
 		s = append(s, "exp_template_html_cssvaluefilter")
 	case stateText:
@@ -204,6 +199,12 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		c.state = stateAttrName
 		s = append(s, "exp_template_html_htmlnamefilter")
 	default:
+		if isComment(c.state) {
+			return context{
+				state: stateError,
+				err:   errorf(ErrInsideComment, n.Line, "%s appears inside a comment", n),
+			}
+		}
 		panic("unexpected state " + c.state.String())
 	}
 	switch c.delim {

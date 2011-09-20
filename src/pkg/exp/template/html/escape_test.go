@@ -1123,15 +1123,15 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			`<!-- foo`,
-			context{state: stateComment},
+			context{state: stateHTMLCmt},
 		},
 		{
 			`<!-->`,
-			context{state: stateComment},
+			context{state: stateHTMLCmt},
 		},
 		{
 			`<!--->`,
-			context{state: stateComment},
+			context{state: stateHTMLCmt},
 		},
 		{
 			`<!-- foo -->`,
@@ -1167,7 +1167,7 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			`<script>foo</script><!--`,
-			context{state: stateComment},
+			context{state: stateHTMLCmt},
 		},
 		{
 			`<script>document.write("<p>foo</p>");`,
