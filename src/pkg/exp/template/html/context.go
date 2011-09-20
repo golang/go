@@ -89,8 +89,8 @@ const (
 	// stateBeforeValue occurs after the equals sign but before the value.
 	// It occurs between the ^'s in ` name =^ ^value`.
 	stateBeforeValue
-	// stateComment occurs inside an <!-- HTML comment -->.
-	stateComment
+	// stateHTMLCmt occurs inside an <!-- HTML comment -->.
+	stateHTMLCmt
 	// stateRCDATA occurs inside an RCDATA element (<textarea> or <title>)
 	// as described at http://dev.w3.org/html5/spec/syntax.html#elements-0
 	stateRCDATA
@@ -137,7 +137,7 @@ var stateNames = [...]string{
 	stateAttrName:    "stateAttrName",
 	stateAfterName:   "stateAfterName",
 	stateBeforeValue: "stateBeforeValue",
-	stateComment:     "stateComment",
+	stateHTMLCmt:     "stateHTMLCmt",
 	stateRCDATA:      "stateRCDATA",
 	stateAttr:        "stateAttr",
 	stateURL:         "stateURL",
@@ -163,6 +163,16 @@ func (s state) String() string {
 		return stateNames[s]
 	}
 	return fmt.Sprintf("illegal state %d", int(s))
+}
+
+// isComment is true for any state that contains content meant for template
+// authors & maintainers, not for end-users or machines.
+func isComment(s state) bool {
+	switch s {
+	case stateHTMLCmt, stateJSBlockCmt, stateJSLineCmt, stateCSSBlockCmt, stateCSSLineCmt:
+		return true
+	}
+	return false
 }
 
 // delim is the delimiter that will end the current HTML attribute.
