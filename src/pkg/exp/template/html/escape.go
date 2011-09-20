@@ -547,22 +547,22 @@ var delimEnds = [...]string{
 
 // escapeText escapes a text template node.
 func (e *escaper) escapeText(c context, n *parse.TextNode) context {
-	s, written := n.Text, 0
-	var b bytes.Buffer
-	for len(s) > 0 {
-		c1, s1 := contextAfterText(c, s)
+	s, written, i, b := n.Text, 0, 0, new(bytes.Buffer)
+	for i != len(s) {
+		c1, nread := contextAfterText(c, s[i:])
+		i1 := i + nread
 		if c.state == c1.state && (c.state == stateText || c.state == stateRCDATA) {
-			i0, i1 := len(n.Text)-len(s), len(n.Text)-len(s1)
-			for i := i0; i < i1; i++ {
-				if n.Text[i] == '<' {
-					b.Write(n.Text[written:i])
+			for j := i; j < i1; j++ {
+				if s[j] == '<' {
+					b.Write(s[written:j])
 					b.WriteString("&lt;")
-					written = i + 1
+					written = j + 1
 				}
 			}
 		}
-		c, s = c1, s1
+		c, i = c1, i1
 	}
+
 	if written != 0 && c.state != stateError {
 		b.Write(n.Text[written:])
 		e.editTextNode(n, b.Bytes())
@@ -572,7 +572,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 
 // contextAfterText starts in context c, consumes some tokens from the front of
 // s, then returns the context after those tokens and the unprocessed suffix.
-func contextAfterText(c context, s []byte) (context, []byte) {
+func contextAfterText(c context, s []byte) (context, int) {
 	if c.delim == delimNone {
 		return transitionFunc[c.state](c, s)
 	}
@@ -584,9 +584,10 @@ func contextAfterText(c context, s []byte) (context, []byte) {
 		//     <button onclick="alert(&quot;Hi!&quot;)">
 		// without having to entity decode token boundaries.
 		for u := []byte(html.UnescapeString(string(s))); len(u) != 0; {
-			c, u = transitionFunc[c.state](c, u)
+			c1, i1 := transitionFunc[c.state](c, u)
+			c, u = c1, u[i1:]
 		}
-		return c, nil
+		return c, len(s)
 	}
 	if c.delim != delimSpaceOrTagEnd {
 		// Consume any quote.
@@ -594,7 +595,7 @@ func contextAfterText(c context, s []byte) (context, []byte) {
 	}
 	// On exiting an attribute, we discard all state information
 	// except the state and element.
-	return context{state: stateTag, element: c.element}, s[i:]
+	return context{state: stateTag, element: c.element}, i
 }
 
 // editActionNode records a change to an action pipeline for later commit.
