@@ -424,7 +424,7 @@ func TestGobEncoderNonStructSingleton(t *testing.T) {
 		t.Fatal("decode error:", err)
 	}
 	if x != 1234 {
-		t.Errorf("expected 1234 got %c", x)
+		t.Errorf("expected 1234 got %d", x)
 	}
 }
 
@@ -486,5 +486,42 @@ func TestGobEncoderIgnoreNilEncoder(t *testing.T) {
 	}
 	if x.G != nil {
 		t.Errorf("expected x.G = nil, got %v", x.G)
+	}
+}
+
+type gobDecoderBug0 struct {
+	foo, bar string
+}
+
+func (br *gobDecoderBug0) String() string {
+	return br.foo + "-" + br.bar
+}
+
+func (br *gobDecoderBug0) GobEncode() ([]byte, os.Error) {
+	return []byte(br.String()), nil
+}
+
+func (br *gobDecoderBug0) GobDecode(b []byte) os.Error {
+	br.foo = "foo"
+	br.bar = "bar"
+	return nil
+}
+
+// This was a bug: the receiver has a different indirection level
+// than the variable.
+func TestGobEncoderExtraIndirect(t *testing.T) {
+	gdb := &gobDecoderBug0{"foo", "bar"}
+	buf := new(bytes.Buffer)
+	e := NewEncoder(buf)
+	if err := e.Encode(gdb); err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	d := NewDecoder(buf)
+	var got *gobDecoderBug0
+	if err := d.Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.foo != gdb.foo || got.bar != gdb.bar {
+		t.Errorf("got = %q, want %q", got, gdb)
 	}
 }
