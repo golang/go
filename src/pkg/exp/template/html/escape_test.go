@@ -361,10 +361,93 @@ func TestEscape(t *testing.T) {
 			`<a style="border-image: url(/**/%27%22;://%20%5c), url(&quot;/**/%27%22;://%20%5c&quot;), url('/**/%27%22;://%20%5c'), 'http://www.example.com/?q=%2f%2a%2a%2f%27%22%3b%3a%2f%2f%20%5c''">`,
 		},
 		{
-			"comment",
+			"HTML comment",
 			"<b>Hello, <!-- name of world -->{{.C}}</b>",
 			// TODO: Elide comment.
 			"<b>Hello, <!-- name of world -->&lt;Cincinatti&gt;</b>",
+		},
+		{
+			"Split HTML comment",
+			"<b>Hello, <!-- name of {{if .T}}city -->{{.C}}{{else}}world -->{{.W}}{{end}}</b>",
+			"<b>Hello, <!-- name of city -->&lt;Cincinatti&gt;</b>",
+		},
+		{
+			"JS line comment",
+			"<script>for (;;) { if (c()) break// foo not a label\n" +
+				"foo({{.T}});}</script>",
+			"<script>for (;;) { if (c()) break// foo not a label\n" +
+				"foo( true );}</script>",
+		},
+		{
+			"JS multiline block comment",
+			"<script>for (;;) { if (c()) break/* foo not a label\n" +
+				" */foo({{.T}});}</script>",
+			// Newline separates break from call. If newline
+			// removed, then break will consume label leaving
+			// code invalid.
+			"<script>for (;;) { if (c()) break/* foo not a label\n" +
+				" */foo( true );}</script>",
+		},
+		{
+			"JS single-line block comment",
+			"<script>for (;;) {\n" +
+				"if (c()) break/* foo a label */foo;" +
+				"x({{.T}});}</script>",
+			// Newline separates break from call. If newline
+			// removed, then break will consume label leaving
+			// code invalid.
+			"<script>for (;;) {\n" +
+				"if (c()) break/* foo a label */foo;" +
+				"x( true );}</script>",
+		},
+		{
+			"JS block comment flush with mathematical division",
+			"<script>var a/*b*//c\nd</script>",
+			"<script>var a/*b*//c\nd</script>",
+		},
+		{
+			"JS mixed comments",
+			"<script>var a/*b*///c\nd</script>",
+			"<script>var a/*b*///c\nd</script>",
+		},
+		{
+			"CSS comments",
+			"<style>p// paragraph\n" +
+				`{border: 1px/* color */{{"#00f"}}}</style>`,
+			"<style>p// paragraph\n" +
+				"{border: 1px/* color */#00f}</style>",
+		},
+		{
+			"JS attr block comment",
+			`<a onclick="f(&quot;&quot;); /* alert({{.H}}) */">`,
+			// Attribute comment tests should pass if the comments
+			// are successfully elided.
+			`<a onclick="f(&quot;&quot;); /* alert() */">`,
+		},
+		{
+			"JS attr line comment",
+			`<a onclick="// alert({{.G}})">`,
+			`<a onclick="// alert()">`,
+		},
+		{
+			"CSS attr block comment",
+			`<a style="/* color: {{.H}} */">`,
+			`<a style="/* color:  */">`,
+		},
+		{
+			"CSS attr line comment",
+			`<a style="// color: {{.G}}">`,
+			`<a style="// color: ">`,
+		},
+		{
+			"HTML substitution commented out",
+			"<p><!-- {{.H}} --></p>",
+			"<p><!--  --></p>",
+		},
+		{
+			"Comment ends flush with start",
+			"<!--{{.}}--><script>/*{{.}}*///{{.}}\n</script><style>/*{{.}}*///{{.}}\n</style><a onclick='/*{{.}}*///{{.}}' style='/*{{.}}*///{{.}}'>",
+			"<!----><script>/**///\n</script><style>/**///\n</style><a onclick='/**///' style='/**///'>",
 		},
 		{
 			"typed HTML in text",
@@ -716,26 +799,6 @@ func TestErrors(t *testing.T) {
 		{
 			`<a onclick="/foo[\]/`,
 			`unfinished JS regexp charset: "foo[\\]/"`,
-		},
-		{
-			`<a onclick="/* alert({{.X}}) */">`,
-			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
-		},
-		{
-			`<a onclick="// alert({{.X}})">`,
-			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
-		},
-		{
-			`<a style="/* color: {{.X}} */">`,
-			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
-		},
-		{
-			`<a style="// color: {{.X}}">`,
-			`z:1: (action: [(command: [F=[X]])]) appears inside a comment`,
-		},
-		{
-			"<!-- {{.H}} -->",
-			"z:1: (action: [(command: [F=[H]])]) appears inside a comment",
 		},
 		{
 			// It is ambiguous whether 1.5 should be 1\.5 or 1.5.

@@ -224,3 +224,13 @@ func htmlNameFilter(args ...interface{}) string {
 	}
 	return s
 }
+
+// commentEscaper returns the empty string regardless of input.
+// Comment content does not correspond to any parsed structure or
+// human-readable content, so the simplest and most secure policy is to drop
+// content interpolated into comments.
+// This approach is equally valid whether or not static comment content is
+// removed from the template.
+func commentEscaper(args ...interface{}) string {
+	return ""
+}
