@@ -149,7 +149,7 @@ func getPathFilter() func(string) bool {
 // readDirList reads a file containing a newline-separated list
 // of directory paths and returns the list of paths.
 func readDirList(filename string) ([]string, os.Error) {
-	contents, err := fs.ReadFile(filename)
+	contents, err := ReadFile(fs, filename)
 	if err != nil {
 		return nil, err
 	}
@@ -546,7 +546,7 @@ func readTemplate(name string) *template.Template {
 
 	// use underlying file system fs to read the template file
 	// (cannot use template ParseFile functions directly)
-	data, err := fs.ReadFile(path)
+	data, err := ReadFile(fs, path)
 	if err != nil {
 		log.Fatal("readTemplate: ", err)
 	}
@@ -636,7 +636,7 @@ func extractString(src []byte, rx *regexp.Regexp) (s string) {
 
 func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	// get HTML body contents
-	src, err := fs.ReadFile(abspath)
+	src, err := ReadFile(fs, abspath)
 	if err != nil {
 		log.Printf("ReadFile: %s", err)
 		serveError(w, r, relpath, err)
@@ -685,7 +685,7 @@ func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
 }
 
 func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, title string) {
-	src, err := fs.ReadFile(abspath)
+	src, err := ReadFile(fs, abspath)
 	if err != nil {
 		log.Printf("ReadFile: %s", err)
 		serveError(w, r, relpath, err)
@@ -837,7 +837,7 @@ func fsReadDir(dir string) ([]*os.FileInfo, os.Error) {
 // fsReadFile implements ReadFile for the go/build package.
 func fsReadFile(dir, name string) (path string, data []byte, err os.Error) {
 	path = filepath.Join(dir, name)
-	data, err = fs.ReadFile(path)
+	data, err = ReadFile(fs, path)
 	return
 }
 

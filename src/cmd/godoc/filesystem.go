@@ -31,7 +31,16 @@ type FileSystem interface {
 	Lstat(path string) (FileInfo, os.Error)
 	Stat(path string) (FileInfo, os.Error)
 	ReadDir(path string) ([]FileInfo, os.Error)
-	ReadFile(path string) ([]byte, os.Error)
+}
+
+// ReadFile reads the file named by path from fs and returns the contents.
+func ReadFile(fs FileSystem, path string) ([]byte, os.Error) {
+	rc, err := fs.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	return ioutil.ReadAll(rc)
 }
 
 // ----------------------------------------------------------------------------
@@ -97,8 +106,4 @@ func (osFS) ReadDir(path string) ([]FileInfo, os.Error) {
 		l1[i] = osFI{e}
 	}
 	return l1, nil
-}
-
-func (osFS) ReadFile(path string) ([]byte, os.Error) {
-	return ioutil.ReadFile(path)
 }
