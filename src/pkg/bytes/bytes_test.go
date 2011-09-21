@@ -829,8 +829,14 @@ var ReplaceTests = []ReplaceTest{
 
 func TestReplace(t *testing.T) {
 	for _, tt := range ReplaceTests {
-		if s := string(Replace([]byte(tt.in), []byte(tt.old), []byte(tt.new), tt.n)); s != tt.out {
+		in := append([]byte(tt.in), []byte("<spare>")...)
+		in = in[:len(tt.in)]
+		out := Replace(in, []byte(tt.old), []byte(tt.new), tt.n)
+		if s := string(out); s != tt.out {
 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
+		}
+		if cap(in) == cap(out) && &in[:1][0] == &out[:1][0] {
+			t.Errorf("Replace(%q, %q, %q, %d) didn't copy", tt.in, tt.old, tt.new, tt.n)
 		}
 	}
 }

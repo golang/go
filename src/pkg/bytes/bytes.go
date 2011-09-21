@@ -572,13 +572,18 @@ func Runes(s []byte) []int {
 // non-overlapping instances of old replaced by new.
 // If n < 0, there is no limit on the number of replacements.
 func Replace(s, old, new []byte, n int) []byte {
-	if n == 0 {
-		return s // avoid allocation
+	m := 0
+	if n != 0 {
+		// Compute number of replacements.
+		m = Count(s, old)
 	}
-	// Compute number of replacements.
-	if m := Count(s, old); m == 0 {
-		return s // avoid allocation
-	} else if n <= 0 || m < n {
+	if m == 0 {
+		// Nothing to do. Just copy.
+		t := make([]byte, len(s))
+		copy(t, s)
+		return t
+	}
+	if n < 0 || m < n {
 		n = m
 	}
 
