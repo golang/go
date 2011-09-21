@@ -59,15 +59,14 @@ func (state *encoderState) encodeUint(x uint64) {
 		}
 		return
 	}
-	var n, m int
-	m = uint64Size
-	for n = 1; x > 0; n++ {
-		state.buf[m] = uint8(x)
+	i := uint64Size
+	for x > 0 {
+		state.buf[i] = uint8(x)
 		x >>= 8
-		m--
+		i--
 	}
-	state.buf[m] = uint8(-(n - 1))
-	n, err := state.b.Write(state.buf[m : uint64Size+1])
+	state.buf[i] = uint8(i - uint64Size) // = loop count, negated
+	_, err := state.b.Write(state.buf[i : uint64Size+1])
 	if err != nil {
 		error(err)
 	}
