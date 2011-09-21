@@ -367,6 +367,26 @@ func TestEscape(t *testing.T) {
 			"<b>Hello, <!-- name of world -->&lt;Cincinatti&gt;</b>",
 		},
 		{
+			"HTML comment not first < in text node.",
+			"<<!-- -->!--",
+			"&lt;<!-- -->!--",
+		},
+		{
+			"HTML normalization 1",
+			"a < b",
+			"a &lt; b",
+		},
+		{
+			"HTML normalization 2",
+			"a << b",
+			"a &lt;&lt; b",
+		},
+		{
+			"HTML normalization 3",
+			"a<<!-- --><!-- -->b",
+			"a&lt;<!-- --><!-- -->b",
+		},
+		{
 			"Split HTML comment",
 			"<b>Hello, <!-- name of {{if .T}}city -->{{.C}}{{else}}world -->{{.W}}{{end}}</b>",
 			"<b>Hello, <!-- name of city -->&lt;Cincinatti&gt;</b>",
