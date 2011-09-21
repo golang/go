@@ -18,7 +18,7 @@ import (
 )
 
 func parseFile(fset *token.FileSet, filename string, mode uint) (*ast.File, os.Error) {
-	src, err := fs.ReadFile(filename)
+	src, err := ReadFile(fs, filename)
 	if err != nil {
 		return nil, err
 	}

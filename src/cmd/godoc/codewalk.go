@@ -129,7 +129,7 @@ func loadCodewalk(filename string) (*Codewalk, os.Error) {
 			i = len(st.Src)
 		}
 		filename := st.Src[0:i]
-		data, err := fs.ReadFile(absolutePath(filename, *goroot))
+		data, err := ReadFile(fs, absolutePath(filename, *goroot))
 		if err != nil {
 			st.Err = err
 			continue
@@ -208,7 +208,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
 // the usual godoc HTML wrapper.
 func codewalkFileprint(w http.ResponseWriter, r *http.Request, f string) {
 	abspath := absolutePath(f, *goroot)
-	data, err := fs.ReadFile(abspath)
+	data, err := ReadFile(fs, abspath)
 	if err != nil {
 		log.Print(err)
 		serveError(w, r, f, err)

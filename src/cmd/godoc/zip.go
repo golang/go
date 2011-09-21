@@ -22,7 +22,6 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -151,14 +150,6 @@ func (fs *zipFS) ReadDir(abspath string) ([]FileInfo, os.Error) {
 	}
 
 	return list, nil
-}
-
-func (fs *zipFS) ReadFile(abspath string) ([]byte, os.Error) {
-	rc, err := fs.Open(abspath)
-	if err != nil {
-		return nil, err
-	}
-	return ioutil.ReadAll(rc)
 }
 
 func NewZipFS(rc *zip.ReadCloser) FileSystem {
