@@ -551,8 +551,17 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 	for i != len(s) {
 		c1, nread := contextAfterText(c, s[i:])
 		i1 := i + nread
-		if c.state == c1.state && (c.state == stateText || c.state == stateRCDATA) {
-			for j := i; j < i1; j++ {
+		if c.state == stateText || c.state == stateRCDATA {
+			end := i1
+			if c1.state != c.state {
+				for j := end - 1; j >= i; j-- {
+					if s[j] == '<' {
+						end = j
+						break
+					}
+				}
+			}
+			for j := i; j < end; j++ {
 				if s[j] == '<' {
 					b.Write(s[written:j])
 					b.WriteString("&lt;")
