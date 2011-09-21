@@ -70,13 +70,12 @@ func decodeUintReader(r io.Reader, buf []byte) (x uint64, width int, err os.Erro
 	if b <= 0x7f {
 		return uint64(b), width, nil
 	}
-	nb := -int(int8(b))
-	if nb > uint64Size {
+	n := -int(int8(b))
+	if n > uint64Size {
 		err = errBadUint
 		return
 	}
-	var n int
-	n, err = io.ReadFull(r, buf[0:nb])
+	width, err = io.ReadFull(r, buf[0:n])
 	if err != nil {
 		if err == os.EOF {
 			err = io.ErrUnexpectedEOF
@@ -84,11 +83,10 @@ func decodeUintReader(r io.Reader, buf []byte) (x uint64, width int, err os.Erro
 		return
 	}
 	// Could check that the high byte is zero but it's not worth it.
-	for i := 0; i < n; i++ {
-		x <<= 8
-		x |= uint64(buf[i])
-		width++
+	for _, b := range buf[0:width] {
+		x = x<<8 | uint64(b)
 	}
+	width++ // +1 for length byte
 	return
 }
 
@@ -102,19 +100,18 @@ func (state *decoderState) decodeUint() (x uint64) {
 	if b <= 0x7f {
 		return uint64(b)
 	}
-	nb := -int(int8(b))
-	if nb > uint64Size {
+	n := -int(int8(b))
+	if n > uint64Size {
 		error(errBadUint)
 	}
-	n, err := state.b.Read(state.buf[0:nb])
+	width, err := state.b.Read(state.buf[0:n])
 	if err != nil {
 		error(err)
 	}
 	// Don't need to check error; it's safe to loop regardless.
 	// Could check that the high byte is zero but it's not worth it.
-	for i := 0; i < n; i++ {
-		x <<= 8
-		x |= uint64(state.buf[i])
+	for _, b := range state.buf[0:width] {
+		x = x<<8 | uint64(b)
 	}
 	return x
 }
