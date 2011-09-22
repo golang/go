@@ -568,12 +568,43 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 					written = j + 1
 				}
 			}
+		} else if isComment(c.state) && c.delim == delimNone {
+			switch c.state {
+			case stateJSBlockCmt:
+				// http://es5.github.com/#x7.4:
+				// "Comments behave like white space and are
+				// discarded except that, if a MultiLineComment
+				// contains a line terminator character, then
+				// the entire comment is considered to be a
+				// LineTerminator for purposes of parsing by
+				// the syntactic grammar."
+				if bytes.IndexAny(s[written:i1], "\n\r\u2028\u2029") != -1 {
+					b.WriteByte('\n')
+				} else {
+					b.WriteByte(' ')
+				}
+			case stateCSSBlockCmt:
+				b.WriteByte(' ')
+			}
+			written = i1
+		}
+		if c.state != c1.state && isComment(c1.state) && c1.delim == delimNone {
+			// Preserve the portion between written and the comment start.
+			cs := i1 - 2
+			if c1.state == stateHTMLCmt {
+				// "<!--" instead of "/*" or "//"
+				cs -= 2
+			}
+			b.Write(s[written:cs])
+			written = i1
 		}
 		c, i = c1, i1
 	}
 
 	if written != 0 && c.state != stateError {
-		b.Write(n.Text[written:])
+		if !isComment(c.state) || c.delim != delimNone {
+			b.Write(n.Text[written:])
+		}
 		e.editTextNode(n, b.Bytes())
 	}
 	return c

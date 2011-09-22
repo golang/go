@@ -363,13 +363,12 @@ func TestEscape(t *testing.T) {
 		{
 			"HTML comment",
 			"<b>Hello, <!-- name of world -->{{.C}}</b>",
-			// TODO: Elide comment.
-			"<b>Hello, <!-- name of world -->&lt;Cincinatti&gt;</b>",
+			"<b>Hello, &lt;Cincinatti&gt;</b>",
 		},
 		{
 			"HTML comment not first < in text node.",
 			"<<!-- -->!--",
-			"&lt;<!-- -->!--",
+			"&lt;!--",
 		},
 		{
 			"HTML normalization 1",
@@ -384,18 +383,18 @@ func TestEscape(t *testing.T) {
 		{
 			"HTML normalization 3",
 			"a<<!-- --><!-- -->b",
-			"a&lt;<!-- --><!-- -->b",
+			"a&lt;b",
 		},
 		{
 			"Split HTML comment",
 			"<b>Hello, <!-- name of {{if .T}}city -->{{.C}}{{else}}world -->{{.W}}{{end}}</b>",
-			"<b>Hello, <!-- name of city -->&lt;Cincinatti&gt;</b>",
+			"<b>Hello, &lt;Cincinatti&gt;</b>",
 		},
 		{
 			"JS line comment",
 			"<script>for (;;) { if (c()) break// foo not a label\n" +
 				"foo({{.T}});}</script>",
-			"<script>for (;;) { if (c()) break// foo not a label\n" +
+			"<script>for (;;) { if (c()) break\n" +
 				"foo( true );}</script>",
 		},
 		{
@@ -405,8 +404,8 @@ func TestEscape(t *testing.T) {
 			// Newline separates break from call. If newline
 			// removed, then break will consume label leaving
 			// code invalid.
-			"<script>for (;;) { if (c()) break/* foo not a label\n" +
-				" */foo( true );}</script>",
+			"<script>for (;;) { if (c()) break\n" +
+				"foo( true );}</script>",
 		},
 		{
 			"JS single-line block comment",
@@ -417,25 +416,25 @@ func TestEscape(t *testing.T) {
 			// removed, then break will consume label leaving
 			// code invalid.
 			"<script>for (;;) {\n" +
-				"if (c()) break/* foo a label */foo;" +
+				"if (c()) break foo;" +
 				"x( true );}</script>",
 		},
 		{
 			"JS block comment flush with mathematical division",
 			"<script>var a/*b*//c\nd</script>",
-			"<script>var a/*b*//c\nd</script>",
+			"<script>var a /c\nd</script>",
 		},
 		{
 			"JS mixed comments",
 			"<script>var a/*b*///c\nd</script>",
-			"<script>var a/*b*///c\nd</script>",
+			"<script>var a \nd</script>",
 		},
 		{
 			"CSS comments",
 			"<style>p// paragraph\n" +
 				`{border: 1px/* color */{{"#00f"}}}</style>`,
-			"<style>p// paragraph\n" +
-				"{border: 1px/* color */#00f}</style>",
+			"<style>p\n" +
+				"{border: 1px #00f}</style>",
 		},
 		{
 			"JS attr block comment",
@@ -462,12 +461,12 @@ func TestEscape(t *testing.T) {
 		{
 			"HTML substitution commented out",
 			"<p><!-- {{.H}} --></p>",
-			"<p><!--  --></p>",
+			"<p></p>",
 		},
 		{
 			"Comment ends flush with start",
 			"<!--{{.}}--><script>/*{{.}}*///{{.}}\n</script><style>/*{{.}}*///{{.}}\n</style><a onclick='/*{{.}}*///{{.}}' style='/*{{.}}*///{{.}}'>",
-			"<!----><script>/**///\n</script><style>/**///\n</style><a onclick='/**///' style='/**///'>",
+			"<script> \n</script><style> \n</style><a onclick='/**///' style='/**///'>",
 		},
 		{
 			"typed HTML in text",
