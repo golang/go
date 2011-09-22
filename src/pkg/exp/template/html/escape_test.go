@@ -814,7 +814,7 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			`<a onclick='alert(/x+\`,
-			`unfinished escape sequence in JS regexp: "x+\\"`,
+			`unfinished escape sequence in JS string: "x+\\"`,
 		},
 		{
 			`<a onclick="/foo[\]/`,

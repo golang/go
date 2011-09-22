@@ -59,6 +59,7 @@ func TestStripTags(t *testing.T) {
 		{`Foo<script type="text/javascript">alert(1337)</script>Bar`, "FooBar"},
 		{`Foo<div title="1>2">Bar`, "FooBar"},
 		{`I <3 Ponies!`, `I <3 Ponies!`},
+		{`<script>foo()</script>`, ``},
 	}
 
 	for _, test := range tests {

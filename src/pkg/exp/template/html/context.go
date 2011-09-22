@@ -175,6 +175,15 @@ func isComment(s state) bool {
 	return false
 }
 
+// isInTag return whether s occurs solely inside an HTML tag.
+func isInTag(s state) bool {
+	switch s {
+	case stateTag, stateAttrName, stateAfterName, stateBeforeValue, stateAttr:
+		return true
+	}
+	return false
+}
+
 // delim is the delimiter that will end the current HTML attribute.
 type delim uint8
 

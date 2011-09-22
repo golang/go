@@ -583,7 +583,14 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 // s, then returns the context after those tokens and the unprocessed suffix.
 func contextAfterText(c context, s []byte) (context, int) {
 	if c.delim == delimNone {
-		return transitionFunc[c.state](c, s)
+		c1, i := tSpecialTagEnd(c, s)
+		if i == 0 {
+			// A special end tag (`</script>`) has been seen and
+			// all content preceding it has been consumed.
+			return c1, 0
+		}
+		// Consider all content up to any end tag.
+		return transitionFunc[c.state](c, s[:i])
 	}
 
 	i := bytes.IndexAny(s, delimEnds[c.delim])
