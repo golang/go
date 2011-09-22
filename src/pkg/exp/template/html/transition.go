@@ -27,9 +27,9 @@ var transitionFunc = [...]func(context, []byte) (context, int){
 	stateAttr:        tAttr,
 	stateURL:         tURL,
 	stateJS:          tJS,
-	stateJSDqStr:     tJSStr,
-	stateJSSqStr:     tJSStr,
-	stateJSRegexp:    tJSRegexp,
+	stateJSDqStr:     tJSDelimited,
+	stateJSSqStr:     tJSDelimited,
+	stateJSRegexp:    tJSDelimited,
 	stateJSBlockCmt:  tBlockCmt,
 	stateJSLineCmt:   tLineCmt,
 	stateCSS:         tCSS,
@@ -57,14 +57,18 @@ func tText(c context, s []byte) (context, int) {
 			return context{state: stateHTMLCmt}, i + 4
 		}
 		i++
+		end := false
 		if s[i] == '/' {
 			if i+1 == len(s) {
 				return c, len(s)
 			}
-			i++
+			end, i = true, i+1
 		}
 		j, e := eatTagName(s, i)
 		if j != i {
+			if end {
+				e = elementNone
+			}
 			// We've found an HTML tag.
 			return context{state: stateTag, element: e}, j
 		}
@@ -122,10 +126,9 @@ func tAttrName(c context, s []byte) (context, int) {
 	i, err := eatAttrName(s, 0)
 	if err != nil {
 		return context{state: stateError, err: err}, len(s)
-	} else if i == len(s) {
-		return c, len(s)
+	} else if i != len(s) {
+		c.state = stateAfterName
 	}
-	c.state = stateAfterName
 	return c, i
 }
 
@@ -172,8 +175,7 @@ func tBeforeValue(c context, s []byte) (context, int) {
 
 // tHTMLCmt is the context transition function for stateHTMLCmt.
 func tHTMLCmt(c context, s []byte) (context, int) {
-	i := bytes.Index(s, commentEnd)
-	if i != -1 {
+	if i := bytes.Index(s, commentEnd); i != -1 {
 		return context{}, i + 3
 	}
 	return c, len(s)
@@ -192,10 +194,8 @@ var specialTagEndMarkers = [...]string{
 // element states.
 func tSpecialTagEnd(c context, s []byte) (context, int) {
 	if c.element != elementNone {
-		end := specialTagEndMarkers[c.element]
-		i := strings.Index(strings.ToLower(string(s)), end)
-		if i != -1 {
-			return context{state: stateTag}, i + len(end)
+		if i := strings.Index(strings.ToLower(string(s)), specialTagEndMarkers[c.element]); i != -1 {
+			return context{}, i
 		}
 	}
 	return c, len(s)
@@ -220,10 +220,6 @@ func tURL(c context, s []byte) (context, int) {
 
 // tJS is the context transition function for the JS state.
 func tJS(c context, s []byte) (context, int) {
-	if d, i := tSpecialTagEnd(c, s); i != len(s) {
-		return d, i
-	}
-
 	i := bytes.IndexAny(s, `"'/`)
 	if i == -1 {
 		// Entire input is non string, comment, regexp tokens.
@@ -258,24 +254,25 @@ func tJS(c context, s []byte) (context, int) {
 	return c, i + 1
 }
 
-// tJSStr is the context transition function for the JS string states.
-func tJSStr(c context, s []byte) (context, int) {
-	if d, i := tSpecialTagEnd(c, s); i != len(s) {
-		return d, i
+// tJSDelimited is the context transition function for the JS string and regexp
+// states.
+func tJSDelimited(c context, s []byte) (context, int) {
+	specials := `\"`
+	switch c.state {
+	case stateJSSqStr:
+		specials = `\'`
+	case stateJSRegexp:
+		specials = `\/[]`
 	}
 
-	quoteAndEsc := `\"`
-	if c.state == stateJSSqStr {
-		quoteAndEsc = `\'`
-	}
-
-	k := 0
+	k, inCharset := 0, false
 	for {
-		i := k + bytes.IndexAny(s[k:], quoteAndEsc)
+		i := k + bytes.IndexAny(s[k:], specials)
 		if i < k {
-			return c, len(s)
+			break
 		}
-		if s[i] == '\\' {
+		switch s[i] {
+		case '\\':
 			i++
 			if i == len(s) {
 				return context{
@@ -283,47 +280,16 @@ func tJSStr(c context, s []byte) (context, int) {
 					err:   errorf(ErrPartialEscape, 0, "unfinished escape sequence in JS string: %q", s),
 				}, len(s)
 			}
-		} else {
-			c.state, c.jsCtx = stateJS, jsCtxDivOp
-			return c, i + 1
-		}
-		k = i + 1
-	}
-	panic("unreachable")
-}
-
-// tJSRegexp is the context transition function for the /RegExp/ literal state.
-func tJSRegexp(c context, s []byte) (context, int) {
-	if d, i := tSpecialTagEnd(c, s); i != len(s) {
-		return d, i
-	}
-
-	k, inCharset := 0, false
-	for {
-		i := k + bytes.IndexAny(s[k:], `\/[]`)
-		if i < k {
-			break
-		}
-		switch s[i] {
-		case '/':
-			if !inCharset {
-				c.state, c.jsCtx = stateJS, jsCtxDivOp
-				return c, i + 1
-			}
-		case '\\':
-			i++
-			if i == len(s) {
-				return context{
-					state: stateError,
-					err:   errorf(ErrPartialEscape, 0, "unfinished escape sequence in JS regexp: %q", s),
-				}, len(s)
-			}
 		case '[':
 			inCharset = true
 		case ']':
 			inCharset = false
 		default:
-			panic("unreachable")
+			// end delimiter
+			if !inCharset {
+				c.state, c.jsCtx = stateJS, jsCtxDivOp
+				return c, i + 1
+			}
 		}
 		k = i + 1
 	}
@@ -344,9 +310,6 @@ var blockCommentEnd = []byte("*/")
 
 // tBlockCmt is the context transition function for /*comment*/ states.
 func tBlockCmt(c context, s []byte) (context, int) {
-	if d, i := tSpecialTagEnd(c, s); i != len(s) {
-		return d, i
-	}
 	i := bytes.Index(s, blockCommentEnd)
 	if i == -1 {
 		return c, len(s)
@@ -364,9 +327,6 @@ func tBlockCmt(c context, s []byte) (context, int) {
 
 // tLineCmt is the context transition function for //comment states.
 func tLineCmt(c context, s []byte) (context, int) {
-	if d, i := tSpecialTagEnd(c, s); i != len(s) {
-		return d, i
-	}
 	var lineTerminators string
 	var endState state
 	switch c.state {
@@ -400,10 +360,6 @@ func tLineCmt(c context, s []byte) (context, int) {
 
 // tCSS is the context transition function for the CSS state.
 func tCSS(c context, s []byte) (context, int) {
-	if d, i := tSpecialTagEnd(c, s); i != len(s) {
-		return d, i
-	}
-
 	// CSS quoted strings are almost never used except for:
 	// (1) URLs as in background: "/foo.png"
 	// (2) Multiword font-names as in font-family: "Times New Roman"
@@ -478,10 +434,6 @@ func tCSS(c context, s []byte) (context, int) {
 
 // tCSSStr is the context transition function for the CSS string and URL states.
 func tCSSStr(c context, s []byte) (context, int) {
-	if d, i := tSpecialTagEnd(c, s); i != len(s) {
-		return d, i
-	}
-
 	var endAndEsc string
 	switch c.state {
 	case stateCSSDqStr, stateCSSDqURL:

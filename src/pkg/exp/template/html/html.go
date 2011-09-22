@@ -165,12 +165,17 @@ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 // For example, `<b>&iexcl;Hi!</b> <script>...</script>` -> `&iexcl;Hi! `.
 func stripTags(html string) string {
 	var b bytes.Buffer
-	s, c, i := []byte(html), context{}, 0
+	s, c, i, allText := []byte(html), context{}, 0, true
 	// Using the transition funcs helps us avoid mangling
 	// `<div title="1>2">` or `I <3 Ponies!`.
 	for i != len(s) {
 		if c.delim == delimNone {
-			d, nread := transitionFunc[c.state](c, s[i:])
+			st := c.state
+			// Use RCDATA instead of parsing into JS or CSS styles.
+			if c.element != elementNone && !isInTag(st) {
+				st = stateRCDATA
+			}
+			d, nread := transitionFunc[st](c, s[i:])
 			i1 := i + nread
 			if c.state == stateText || c.state == stateRCDATA {
 				// Emit text up to the start of the tag or comment.
@@ -184,6 +189,8 @@ func stripTags(html string) string {
 					}
 				}
 				b.Write(s[i:j])
+			} else {
+				allText = false
 			}
 			c, i = d, i1
 			continue
@@ -198,10 +205,9 @@ func stripTags(html string) string {
 		}
 		c, i = context{state: stateTag, element: c.element}, i1
 	}
-	if c.state == stateText {
-		if b.Len() == 0 {
-			return html
-		}
+	if allText {
+		return html
+	} else if c.state == stateText || c.state == stateRCDATA {
 		b.Write(s[i:])
 	}
 	return b.String()
