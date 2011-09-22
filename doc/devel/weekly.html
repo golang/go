@@ -14,6 +14,45 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-09-21">2011-09-21</h2>
+
+<pre>
+This weekly contains several improvements, bug fixes, and new packages.
+
+* archive/tar: document Header fields and Type flags (thanks Mike Rosset).
+* bytes: fix Replace so it actually copies (thanks Gustavo Niemeyer).
+* cgo: use GOARCH from the environment (thanks Jaroslavas Počepko).
+* codereview: save CL messages in $(hg root)/last-change.
+* crypto/bcrypt: new package (thanks Jeff Hodges).
+* crypto/blowfish: exposing the blowfish key schedule (thanks Jeff Hodges).
+* doc: link to golang-france.
+* doc: when configuring gold for gccgo, use --enable-gold=default.
+* exp/norm: changed trie to produce smaller tables.
+* exp/ssh: new package,
+	refactor halfConnection to transport (thanks Dave Cheney).
+* exp/template/html: more fixes and improvements.
+* filepath: fix Glob to return no error on nonmatching patterns.
+* gc: disallow invalid map keys,
+	handle complex CONVNOP.
+* gob: allocation fixes.
+* godoc: simplify internal FileSystem interface.
+* http/cgi: clean up environment (thanks Yasuhiro Matsumoto).
+* http: always include Content-Length header, even for 0 (thanks Dave Grijalva),
+	check explicit wrong Request.ContentLength values,
+	fix TLS handshake blocking server accept loop,
+	prevent DumpRequest from adding implicit headers.
+* httptest: add NewUnstartedServer.
+* json: clearer Unmarshal doc,
+	skip nil in UnmarshalJSON and (for symmetry) MarshalJSON.
+* net: use /etc/hosts first when looking up IP addresses (thanks Andrey Mirtchovski).
+* reflect: add comment about the doubled semantics of Value.String.
+* runtime: implement pprof support for windows (thanks Hector Chu),
+	increase stack system space on windows/amd64 (thanks Hector Chu).
+* suffixarray: generate less garbage during construction (thanks Eric Eisner),
+	improved serialization code using gob instead of encoding/binary.
+* sync/atomic: replace MFENCE with LOCK XADD.
+</pre>
+
 <h2 id="2011-09-16">2011-09-16</h2>
 
 <pre>
