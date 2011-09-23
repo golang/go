@@ -103,42 +103,29 @@ func linkFlags(rawFlags uint32) Flags {
 // for a specific interface.
 func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
 	var (
-		tab   []byte
-		e     int
-		err   os.Error
-		ifat4 []Addr
-		ifat6 []Addr
-		msgs4 []syscall.NetlinkMessage
-		msgs6 []syscall.NetlinkMessage
+		tab  []byte
+		e    int
+		err  os.Error
+		ifat []Addr
+		msgs []syscall.NetlinkMessage
 	)
 
-	tab, e = syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_INET)
+	tab, e = syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
 	if e != 0 {
 		return nil, os.NewSyscallError("netlink rib", e)
 	}
-	msgs4, e = syscall.ParseNetlinkMessage(tab)
+
+	msgs, e = syscall.ParseNetlinkMessage(tab)
 	if e != 0 {
 		return nil, os.NewSyscallError("netlink message", e)
 	}
-	ifat4, err = addrTable(msgs4, ifindex)
+
+	ifat, err = addrTable(msgs, ifindex)
 	if err != nil {
 		return nil, err
 	}
 
-	tab, e = syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_INET6)
-	if e != 0 {
-		return nil, os.NewSyscallError("netlink rib", e)
-	}
-	msgs6, e = syscall.ParseNetlinkMessage(tab)
-	if e != 0 {
-		return nil, os.NewSyscallError("netlink message", e)
-	}
-	ifat6, err = addrTable(msgs6, ifindex)
-	if err != nil {
-		return nil, err
-	}
-
-	return append(ifat4, ifat6...), nil
+	return ifat, nil
 }
 
 func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, os.Error) {

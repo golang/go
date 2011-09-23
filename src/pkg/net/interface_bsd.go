@@ -150,7 +150,6 @@ func newAddr(m *syscall.InterfaceAddrMessage) ([]Addr, os.Error) {
 	}
 
 	for _, s := range sas {
-
 		switch v := s.(type) {
 		case *syscall.SockaddrInet4:
 			ifa := &IPAddr{IP: IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])}
