@@ -117,6 +117,7 @@ typedef struct ip_mreq $IPMreq;
 typedef struct ipv6_mreq $IPv6Mreq;
 typedef struct msghdr $Msghdr;
 typedef struct cmsghdr $Cmsghdr;
+typedef struct in_pktinfo $Inet4Pktinfo;
 typedef struct in6_pktinfo $Inet6Pktinfo;
 typedef struct ucred $Ucred;
 
@@ -132,6 +133,7 @@ enum {
 	$SizeofIPv6Mreq = sizeof(struct ipv6_mreq),
 	$SizeofMsghdr = sizeof(struct msghdr),
 	$SizeofCmsghdr = sizeof(struct cmsghdr),
+	$SizeofInet4Pktinfo = sizeof(struct in_pktinfo),
 	$SizeofInet6Pktinfo = sizeof(struct in6_pktinfo),
 	$SizeofUcred = sizeof(struct ucred),
 };
