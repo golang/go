@@ -257,6 +257,30 @@ func TestIndex(t *testing.T) {
 	}
 }
 
+// Of all possible inputs, the random bytes have the least amount of substring
+// repetition, and the repeated bytes have the most. For most algorithms,
+// the running time of every input will be between these two.
+func benchmarkNew(b *testing.B, random bool) {
+	b.StopTimer()
+	data := make([]byte, 1e6)
+	if random {
+		for i := range data {
+			data[i] = byte(rand.Intn(256))
+		}
+	}
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		New(data)
+	}
+}
+
+func BenchmarkNewIndexRandom(b *testing.B) {
+	benchmarkNew(b, true)
+}
+func BenchmarkNewIndexRepeat(b *testing.B) {
+	benchmarkNew(b, false)
+}
+
 func BenchmarkSaveRestore(b *testing.B) {
 	b.StopTimer()
 	r := rand.New(rand.NewSource(0x5a77a1)) // guarantee always same sequence
