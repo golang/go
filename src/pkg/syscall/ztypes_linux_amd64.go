@@ -23,6 +23,7 @@ const (
 	SizeofIPv6Mreq          = 0x14
 	SizeofMsghdr            = 0x38
 	SizeofCmsghdr           = 0x10
+	SizeofInet4Pktinfo      = 0xc
 	SizeofInet6Pktinfo      = 0x14
 	SizeofUcred             = 0xc
 	IFA_UNSPEC              = 0
@@ -328,6 +329,12 @@ type Cmsghdr struct {
 	Len   uint64
 	Level int32
 	Type  int32
+}
+
+type Inet4Pktinfo struct {
+	Ifindex  int32
+	Spec_dst [4]byte /* in_addr */
+	Addr     [4]byte /* in_addr */
 }
 
 type Inet6Pktinfo struct {
