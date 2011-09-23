@@ -352,6 +352,7 @@ var (
 
 func getStdHandle(h int) (fd Handle) {
 	r, _ := GetStdHandle(h)
+	CloseOnExec(r)
 	return r
 }
 
