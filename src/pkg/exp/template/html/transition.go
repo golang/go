@@ -105,12 +105,17 @@ func tTag(c context, s []byte) (context, int) {
 	state, attr := stateTag, attrNone
 	if i != j {
 		canonAttrName := strings.ToLower(string(s[i:j]))
-		if urlAttr[canonAttrName] {
+		switch attrType[canonAttrName] {
+		case contentTypeURL:
 			attr = attrURL
-		} else if strings.HasPrefix(canonAttrName, "on") {
-			attr = attrScript
-		} else if canonAttrName == "style" {
+		case contentTypeCSS:
 			attr = attrStyle
+		case contentTypeJS:
+			attr = attrScript
+		default:
+			if strings.HasPrefix(canonAttrName, "on") {
+				attr = attrScript
+			}
 		}
 		if j == len(s) {
 			state = stateAttrName
@@ -531,30 +536,4 @@ func eatWhiteSpace(s []byte, i int) int {
 		}
 	}
 	return len(s)
-}
-
-// urlAttr is the set of attribute names whose values are URLs.
-// It consists of all "%URI"-typed attributes from
-// http://www.w3.org/TR/html4/index/attributes.html
-// as well as those attributes defined at
-// http://dev.w3.org/html5/spec/index.html#attributes-1
-// whose Value column in that table matches
-// "Valid [non-empty] URL potentially surrounded by spaces".
-var urlAttr = map[string]bool{
-	"action":     true,
-	"archive":    true,
-	"background": true,
-	"cite":       true,
-	"classid":    true,
-	"codebase":   true,
-	"data":       true,
-	"formaction": true,
-	"href":       true,
-	"icon":       true,
-	"longdesc":   true,
-	"manifest":   true,
-	"poster":     true,
-	"profile":    true,
-	"src":        true,
-	"usemap":     true,
 }
