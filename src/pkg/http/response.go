@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"url"
 )
 
 var respExcludeHeader = map[string]bool{
@@ -75,6 +76,23 @@ type Response struct {
 // Cookies parses and returns the cookies set in the Set-Cookie headers.
 func (r *Response) Cookies() []*Cookie {
 	return readSetCookies(r.Header)
+}
+
+var ErrNoLocation = os.NewError("http: no Location header in response")
+
+// Location returns the URL of the response's "Location" header,
+// if present.  Relative redirects are resolved relative to
+// the Response's Request.  ErrNoLocation is returned if no
+// Location header is present.
+func (r *Response) Location() (*url.URL, os.Error) {
+	lv := r.Header.Get("Location")
+	if lv == "" {
+		return nil, ErrNoLocation
+	}
+	if r.Request != nil && r.Request.URL != nil {
+		return r.Request.URL.Parse(lv)
+	}
+	return url.Parse(lv)
 }
 
 // ReadResponse reads and returns an HTTP response from r.  The

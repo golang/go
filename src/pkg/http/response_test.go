@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"reflect"
 	"testing"
+	"url"
 )
 
 type respTest struct {
@@ -392,6 +393,55 @@ func diff(t *testing.T, prefix string, have, want interface{}) {
 		wf := wv.Field(i).Interface()
 		if !reflect.DeepEqual(hf, wf) {
 			t.Errorf("%s: %s = %v want %v", prefix, hv.Type().Field(i).Name, hf, wf)
+		}
+	}
+}
+
+type responseLocationTest struct {
+	location string // Response's Location header or ""
+	requrl   string // Response.Request.URL or ""
+	want     string
+	wantErr  os.Error
+}
+
+var responseLocationTests = []responseLocationTest{
+	{"/foo", "http://bar.com/baz", "http://bar.com/foo", nil},
+	{"http://foo.com/", "http://bar.com/baz", "http://foo.com/", nil},
+	{"", "http://bar.com/baz", "", ErrNoLocation},
+}
+
+func TestLocationResponse(t *testing.T) {
+	for i, tt := range responseLocationTests {
+		res := new(Response)
+		res.Header = make(Header)
+		res.Header.Set("Location", tt.location)
+		if tt.requrl != "" {
+			res.Request = &Request{}
+			var err os.Error
+			res.Request.URL, err = url.Parse(tt.requrl)
+			if err != nil {
+				t.Fatalf("bad test URL %q: %v", tt.requrl, err)
+			}
+		}
+
+		got, err := res.Location()
+		if tt.wantErr != nil {
+			if err == nil {
+				t.Errorf("%d. err=nil; want %q", i, tt.wantErr)
+				continue
+			}
+			if g, e := err.String(), tt.wantErr.String(); g != e {
+				t.Errorf("%d. err=%q; want %q", i, g, e)
+				continue
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%d. err=%q", i, err)
+			continue
+		}
+		if g, e := got.String(), tt.want; g != e {
+			t.Errorf("%d. Location=%q; want %q", i, g, e)
 		}
 	}
 }
