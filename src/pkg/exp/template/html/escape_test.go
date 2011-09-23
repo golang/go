@@ -554,9 +554,49 @@ func TestEscape(t *testing.T) {
 			`<img onload="alert(&#34;loaded&#34;)">`,
 		},
 		{
+			"bad dynamic attribute name 1",
+			// Allow checked, selected, disabled, but not JS or
+			// CSS attributes.
+			`<input {{"onchange"}}="{{"doEvil()"}}">`,
+			`<input ZgotmplZ="doEvil()">`,
+		},
+		{
+			"bad dynamic attribute name 2",
+			`<div {{"sTyle"}}="{{"color: expression(alert(1337))"}}">`,
+			`<div ZgotmplZ="color: expression(alert(1337))">`,
+		},
+		{
+			"bad dynamic attribute name 3",
+			// Allow title or alt, but not a URL.
+			`<img {{"src"}}="{{"javascript:doEvil()"}}">`,
+			`<img ZgotmplZ="javascript:doEvil()">`,
+		},
+		{
+			"bad dynamic attribute name 4",
+			// Structure preservation requires values to associate
+			// with a consistent attribute.
+			`<input checked {{""}}="Whose value am I?">`,
+			`<input checked ZgotmplZ="Whose value am I?">`,
+		},
+		{
 			"dynamic element name",
 			`<h{{3}}><table><t{{"head"}}>...</h{{3}}>`,
 			`<h3><table><thead>...</h3>`,
+		},
+		{
+			"bad dynamic element name",
+			// Dynamic element names are typically used to switch
+			// between (thead, tfoot, tbody), (ul, ol), (th, td),
+			// and other replaceable sets.
+			// We do not currently easily support (ul, ol).
+			// If we do change to support that, this test should
+			// catch failures to filter out special tag names which
+			// would violate the structure preservation property --
+			// if any special tag name could be substituted, then
+			// the content could be raw text/RCDATA for some inputs
+			// and regular HTML content for others.
+			`<{{"script"}}>{{"doEvil()"}}</{{"script"}}>`,
+			`&lt;script>doEvil()&lt;/script>`,
 		},
 	}
 

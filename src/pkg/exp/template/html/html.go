@@ -7,6 +7,7 @@ package html
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"utf8"
 )
 
@@ -220,10 +221,23 @@ func htmlNameFilter(args ...interface{}) string {
 	if t == contentTypeHTMLAttr {
 		return s
 	}
+	if len(s) == 0 {
+		// Avoid violation of structure preservation.
+		// <input checked {{.K}}={{.V}}>.
+		// Without this, if .K is empty then .V is the value of
+		// checked, but otherwise .V is the value of the attribute
+		// named .K.
+		return filterFailsafe
+	}
+	s = strings.ToLower(s)
+	if t := attrType[s]; t != contentTypePlain && attrType["on"+s] != contentTypeJS {
+		// TODO: Split attr and element name part filters so we can whitelist
+		// attributes.
+		return filterFailsafe
+	}
 	for _, r := range s {
 		switch {
 		case '0' <= r && r <= '9':
-		case 'A' <= r && r <= 'Z':
 		case 'a' <= r && r <= 'z':
 		default:
 			return filterFailsafe

@@ -64,6 +64,10 @@ const (
 	contentTypeJS
 	contentTypeJSStr
 	contentTypeURL
+	// contentTypeUnsafe is used in attr.go for values that affect how
+	// embedded content and network messages are formed, vetted,
+	// or interpreted; or which credentials network messages carry.
+	contentTypeUnsafe
 )
 
 // stringify converts its arguments to a string and the type of the content.
