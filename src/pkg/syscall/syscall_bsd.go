@@ -363,11 +363,23 @@ func Socketpair(domain, typ, proto int) (fd [2]int, errno int) {
 	return
 }
 
+func GetsockoptByte(fd, level, opt int) (value byte, errno int) {
+	var n byte
+	vallen := _Socklen(1)
+	errno = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), &vallen)
+	return n, errno
+}
+
 func GetsockoptInt(fd, level, opt int) (value, errno int) {
 	var n int32
 	vallen := _Socklen(4)
 	errno = getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), &vallen)
 	return int(n), errno
+}
+
+func SetsockoptByte(fd, level, opt int, value byte) (errno int) {
+	var n = byte(value)
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 1)
 }
 
 func SetsockoptInt(fd, level, opt int, value int) (errno int) {
