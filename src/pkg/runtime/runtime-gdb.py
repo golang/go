@@ -187,6 +187,8 @@ def lookup_type(name):
 
 def iface_dtype(obj):
 	"Decode type of the data field of an eface or iface struct."
+        # known issue: dtype_name decoded from runtime.commonType is "nested.Foo"
+        # but the dwarf table lists it as "full/path/to/nested.Foo"
 
 	if is_iface(obj):
 		go_type_ptr = obj['tab']['_type']
@@ -198,12 +200,29 @@ def iface_dtype(obj):
 	ct = gdb.lookup_type("struct runtime.commonType").pointer()
 	dynamic_go_type = go_type_ptr['ptr'].cast(ct).dereference()
 	dtype_name = dynamic_go_type['string'].dereference()['str'].string()
-	type_size = int(dynamic_go_type['size'])
-	uintptr_size = int(dynamic_go_type['size'].type.sizeof)  # size is itself an uintptr
+
 	dynamic_gdb_type = lookup_type(dtype_name)
-	if type_size > uintptr_size:
-		dynamic_gdb_type = dynamic_gdb_type.pointer()
+        if dynamic_gdb_type:
+		type_size = int(dynamic_go_type['size'])
+                uintptr_size = int(dynamic_go_type['size'].type.sizeof)  # size is itself an uintptr
+		if type_size > uintptr_size:
+			dynamic_gdb_type = dynamic_gdb_type.pointer()
+
 	return dynamic_gdb_type
+
+def iface_dtype_name(obj):
+	"Decode type name of the data field of an eface or iface struct."
+
+	if is_iface(obj):
+		go_type_ptr = obj['tab']['_type']
+	elif is_eface(obj):
+		go_type_ptr = obj['_type']
+	else:
+		return
+
+	ct = gdb.lookup_type("struct runtime.commonType").pointer()
+	dynamic_go_type = go_type_ptr['ptr'].cast(ct).dereference()
+	return dynamic_go_type['string'].dereference()['str'].string()
 
 
 class IfacePrinter:
@@ -224,6 +243,10 @@ class IfacePrinter:
 			dtype = iface_dtype(self.val)
 		except:
 			return "<bad dynamic type>"
+
+                if not dtype:  # trouble looking up, print something reasonable
+			return "(%s)%s" % (iface_dtype_name(self.val), self.val['data'])
+
 		try:
 			return self.val['data'].cast(dtype).dereference()
 		except:
