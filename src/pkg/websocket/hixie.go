@@ -235,6 +235,8 @@ func (handler *hixiFrameHandler) HandleFrame(frame frameReader) (r frameReader, 
 }
 
 func (handler *hixiFrameHandler) WriteClose(_ int) (err os.Error) {
+	handler.conn.wio.Lock()
+	defer handler.conn.wio.Unlock()
 	closingFrame := []byte{'\xff', '\x00'}
 	handler.conn.buf.Write(closingFrame)
 	return handler.conn.buf.Flush()

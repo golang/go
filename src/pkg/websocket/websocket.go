@@ -15,6 +15,7 @@ import (
 	"json"
 	"net"
 	"os"
+	"sync"
 	"url"
 )
 
@@ -147,9 +148,11 @@ type Conn struct {
 	buf *bufio.ReadWriter
 	rwc io.ReadWriteCloser
 
+	rio sync.Mutex
 	frameReaderFactory
 	frameReader
 
+	wio sync.Mutex
 	frameWriterFactory
 
 	frameHandler
@@ -163,6 +166,8 @@ type Conn struct {
 // will read the rest of the frame data.
 // it reads Text frame or Binary frame.
 func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
+	ws.rio.Lock()
+	defer ws.rio.Unlock()
 again:
 	if ws.frameReader == nil {
 		frame, err := ws.frameReaderFactory.NewFrameReader()
@@ -191,6 +196,8 @@ again:
 // Write implements the io.Writer interface:
 // it writes data as a frame to the WebSocket connection.
 func (ws *Conn) Write(msg []byte) (n int, err os.Error) {
+	ws.wio.Lock()
+	defer ws.wio.Unlock()
 	w, err := ws.frameWriterFactory.NewFrameWriter(ws.PayloadType)
 	if err != nil {
 		return 0, err
@@ -279,6 +286,8 @@ func (cd Codec) Send(ws *Conn, v interface{}) (err os.Error) {
 	if err != nil {
 		return err
 	}
+	ws.wio.Lock()
+	defer ws.wio.Unlock()
 	w, err := ws.frameWriterFactory.NewFrameWriter(payloadType)
 	_, err = w.Write(data)
 	w.Close()
@@ -287,6 +296,8 @@ func (cd Codec) Send(ws *Conn, v interface{}) (err os.Error) {
 
 // Receive receives single frame from ws, unmarshaled by cd.Unmarshal and stores in v.
 func (cd Codec) Receive(ws *Conn, v interface{}) (err os.Error) {
+	ws.rio.Lock()
+	defer ws.rio.Unlock()
 	if ws.frameReader != nil {
 		_, err = io.Copy(ioutil.Discard, ws.frameReader)
 		if err != nil {
