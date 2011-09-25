@@ -69,7 +69,7 @@ func (w *Writer) Close() (err os.Error) {
 		write(w, uint16(len(h.Comment)))
 		write(w, uint16(0)) // disk number start
 		write(w, uint16(0)) // internal file attributes
-		write(w, uint32(0)) // external file attributes
+		write(w, h.ExternalAttrs)
 		write(w, h.offset)
 		writeBytes(w, []byte(h.Name))
 		writeBytes(w, h.Extra)
@@ -115,7 +115,7 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, os.Error) {
 	}
 
 	fh.Flags |= 0x8 // we will write a data descriptor
-	fh.CreatorVersion = 0x14
+	fh.CreatorVersion = fh.CreatorVersion&0xff00 | 0x14
 	fh.ReaderVersion = 0x14
 
 	fw := &fileWriter{

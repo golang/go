@@ -238,7 +238,7 @@ func readDirectoryHeader(f *File, r io.Reader) os.Error {
 	commentLen := int(c.Uint16(b[32:34]))
 	// startDiskNumber := c.Uint16(b[34:36])    // Unused
 	// internalAttributes := c.Uint16(b[36:38]) // Unused
-	// externalAttributes := c.Uint32(b[38:42]) // Unused
+	f.ExternalAttrs = c.Uint32(b[38:42])
 	f.headerOffset = int64(c.Uint32(b[42:46]))
 	d := make([]byte, filenameLen+extraLen+commentLen)
 	if _, err := io.ReadFull(r, d); err != nil {
