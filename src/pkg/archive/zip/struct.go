@@ -28,6 +28,9 @@ const (
 	directoryHeaderLen       = 46 // + filename + extra + comment
 	directoryEndLen          = 22 // + comment
 	dataDescriptorLen        = 12
+
+	// Constants for the first byte in CreatorVersion
+	creatorUnix = 3
 )
 
 type FileHeader struct {
@@ -42,6 +45,7 @@ type FileHeader struct {
 	CompressedSize   uint32
 	UncompressedSize uint32
 	Extra            []byte
+	ExternalAttrs    uint32 // Meaning depends on CreatorVersion
 	Comment          string
 }
 
@@ -88,4 +92,19 @@ func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
 func (h *FileHeader) Mtime_ns() int64 {
 	t := msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
 	return t.Seconds() * 1e9
+}
+
+// Mode returns the permission and mode bits for the FileHeader.
+// An error is returned in case the information is not available.
+func (h *FileHeader) Mode() (mode uint32, err os.Error) {
+	if h.CreatorVersion>>8 == creatorUnix {
+		return h.ExternalAttrs >> 16, nil
+	}
+	return 0, os.NewError("file mode not available")
+}
+
+// SetMode changes the permission and mode bits for the FileHeader.
+func (h *FileHeader) SetMode(mode uint32) {
+	h.CreatorVersion = h.CreatorVersion&0xff | creatorUnix<<8
+	h.ExternalAttrs = mode << 16
 }

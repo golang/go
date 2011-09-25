@@ -26,6 +26,7 @@ type ZipTestFile struct {
 	Content []byte // if blank, will attempt to compare against File
 	File    string // name of file to compare to (relative to testdata/)
 	Mtime   string // modified time in format "mm-dd-yy hh:mm:ss"
+	Mode    uint32
 }
 
 // Caution: The Mtime values found for the test files should correspond to
@@ -47,11 +48,13 @@ var tests = []ZipTest{
 				Name:    "test.txt",
 				Content: []byte("This is a test text file.\n"),
 				Mtime:   "09-05-10 12:12:02",
+				Mode:    0x81a4,
 			},
 			{
 				Name:  "gophercolor16x16.png",
 				File:  "gophercolor16x16.png",
 				Mtime: "09-05-10 15:52:58",
+				Mode:  0x81a4,
 			},
 		},
 	},
@@ -162,6 +165,8 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
 		t.Errorf("%s: mtime=%s (%d); want %s (%d)", f.Name, time.SecondsToUTC(got), got, mtime, want)
 	}
 
+	testFileMode(t, f, ft.Mode)
+
 	size0 := f.UncompressedSize
 
 	var b bytes.Buffer
@@ -200,6 +205,19 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
 			t.Errorf("%s: content[%d]=%q want %q", f.Name, i, b, c[i])
 			return
 		}
+	}
+}
+
+func testFileMode(t *testing.T, f *File, want uint32) {
+	mode, err := f.Mode()
+	if want == 0 {
+		if err == nil {
+			t.Errorf("%s mode: got %v, want none", f.Name, mode)
+		}
+	} else if err != nil {
+		t.Errorf("%s mode: %s", f.Name, err)
+	} else if mode != want {
+		t.Errorf("%s mode: want 0x%x, got 0x%x", f.Name, want, mode)
 	}
 }
 

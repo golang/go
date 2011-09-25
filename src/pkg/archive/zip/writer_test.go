@@ -13,19 +13,45 @@ import (
 
 // TODO(adg): a more sophisticated test suite
 
-const testString = "Rabbits, guinea pigs, gophers, marsupial rats, and quolls."
+type WriteTest struct {
+	Name   string
+	Data   []byte
+	Method uint16
+	Mode   uint32
+}
+
+var writeTests = []WriteTest{
+	WriteTest{
+		Name:   "foo",
+		Data:   []byte("Rabbits, guinea pigs, gophers, marsupial rats, and quolls."),
+		Method: Store,
+	},
+	WriteTest{
+		Name:   "bar",
+		Data:   nil, // large data set in the test
+		Method: Deflate,
+		Mode:   0x81ed,
+	},
+}
 
 func TestWriter(t *testing.T) {
 	largeData := make([]byte, 1<<17)
 	for i := range largeData {
 		largeData[i] = byte(rand.Int())
 	}
+	writeTests[1].Data = largeData
+	defer func() {
+		writeTests[1].Data = nil
+	}()
 
 	// write a zip file
 	buf := new(bytes.Buffer)
 	w := NewWriter(buf)
-	testCreate(t, w, "foo", []byte(testString), Store)
-	testCreate(t, w, "bar", largeData, Deflate)
+
+	for _, wt := range writeTests {
+		testCreate(t, w, &wt)
+	}
+
 	if err := w.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -35,26 +61,34 @@ func TestWriter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	testReadFile(t, r.File[0], []byte(testString))
-	testReadFile(t, r.File[1], largeData)
+	for i, wt := range writeTests {
+		testReadFile(t, r.File[i], &wt)
+	}
 }
 
-func testCreate(t *testing.T, w *Writer, name string, data []byte, method uint16) {
+func testCreate(t *testing.T, w *Writer, wt *WriteTest) {
 	header := &FileHeader{
-		Name:   name,
-		Method: method,
+		Name:   wt.Name,
+		Method: wt.Method,
+	}
+	if wt.Mode != 0 {
+		header.SetMode(wt.Mode)
 	}
 	f, err := w.CreateHeader(header)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = f.Write(data)
+	_, err = f.Write(wt.Data)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func testReadFile(t *testing.T, f *File, data []byte) {
+func testReadFile(t *testing.T, f *File, wt *WriteTest) {
+	if f.Name != wt.Name {
+		t.Fatal("File name: got %q, want %q", f.Name, wt.Name)
+	}
+	testFileMode(t, f, wt.Mode)
 	rc, err := f.Open()
 	if err != nil {
 		t.Fatal("opening:", err)
@@ -67,7 +101,7 @@ func testReadFile(t *testing.T, f *File, data []byte) {
 	if err != nil {
 		t.Fatal("closing:", err)
 	}
-	if !bytes.Equal(b, data) {
-		t.Errorf("File contents %q, want %q", b, data)
+	if !bytes.Equal(b, wt.Data) {
+		t.Errorf("File contents %q, want %q", b, wt.Data)
 	}
 }
