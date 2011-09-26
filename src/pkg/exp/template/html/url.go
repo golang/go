@@ -21,13 +21,9 @@ func urlFilter(args ...interface{}) string {
 	if i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
 		protocol := strings.ToLower(s[:i])
 		if protocol != "http" && protocol != "https" && protocol != "mailto" {
-			// Return a value that someone investigating a bug
-			// report can put into a search engine.
 			return "#" + filterFailsafe
 		}
 	}
-	// TODO: Once we handle <style>#id { background: url({{.Img}}) }</style>
-	// we will need to stop this from HTML escaping and pipeline sanitizers.
 	return s
 }
 
