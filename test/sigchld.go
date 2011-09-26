@@ -1,3 +1,4 @@
+// [ "$GOOS" = windows ] ||
 // $G $D/$F.go && $L $F.$A && ./$A.out
 
 // Copyright 2009 The Go Authors. All rights reserved.
