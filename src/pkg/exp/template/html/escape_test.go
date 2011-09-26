@@ -7,6 +7,7 @@ package html
 import (
 	"bytes"
 	"fmt"
+	"json"
 	"os"
 	"strings"
 	"template"
@@ -14,11 +15,25 @@ import (
 	"testing"
 )
 
+type badMarshaler struct{}
+
+func (x *badMarshaler) MarshalJSON() ([]byte, os.Error) {
+	// Keys in valid JSON must be double quoted as must all strings.
+	return []byte("{ foo: 'not quite valid JSON' }"), nil
+}
+
+type goodMarshaler struct{}
+
+func (x *goodMarshaler) MarshalJSON() ([]byte, os.Error) {
+	return []byte(`{ "<foo>": "O'Reilly" }`), nil
+}
+
 func TestEscape(t *testing.T) {
 	var data = struct {
 		F, T    bool
 		C, G, H string
 		A, E    []string
+		B, M    json.Marshaler
 		N       int
 		Z       *int
 		W       HTML
@@ -31,6 +46,8 @@ func TestEscape(t *testing.T) {
 		A: []string{"<a>", "<b>"},
 		E: []string{},
 		N: 42,
+		B: &badMarshaler{},
+		M: &goodMarshaler{},
 		Z: nil,
 		W: HTML(`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`),
 	}
@@ -196,6 +213,16 @@ func TestEscape(t *testing.T) {
 			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
 		},
 		{
+			"badMarshaller",
+			`<button onclick='alert(1/{{.B}}in numbers)'>`,
+			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *html.badMarshaler: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
+		},
+		{
+			"jsMarshaller",
+			`<button onclick='alert({{.M}})'>`,
+			`<button onclick='alert({&#34;&lt;foo&gt;&#34;:&#34;O&#39;Reilly&#34;})'>`,
+		},
+		{
 			"jsStrNotUnderEscaped",
 			"<button onclick='alert({{.C | urlquery}})'>",
 			// URL escaped, then quoted for JS.
@@ -355,8 +382,6 @@ func TestEscape(t *testing.T) {
 		},
 		{
 			"styleURLSpecialsEncoded",
-			// TODO: Find out what IE does with url(/*foo*/bar)
-			// FF, Chrome, and Safari seem to treat it as a URL.
 			`<a style="border-image: url({{"/**/'\";:// \\"}}), url(&quot;{{"/**/'\";:// \\"}}&quot;), url('{{"/**/'\";:// \\"}}'), 'http://www.example.com/?q={{"/**/'\";:// \\"}}''">`,
 			`<a style="border-image: url(/**/%27%22;://%20%5c), url(&quot;/**/%27%22;://%20%5c&quot;), url('/**/%27%22;://%20%5c'), 'http://www.example.com/?q=%2f%2a%2a%2f%27%22%3b%3a%2f%2f%20%5c''">`,
 		},

@@ -136,12 +136,13 @@ func TestJSValEscaper(t *testing.T) {
 		{"", `""`},
 		{"foo", `"foo"`},
 		// Newlines.
-		// {"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`}, // TODO: FAILING. Maybe fix in json package.
+		{"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`},
 		// "\v" == "v" on IE 6 so use "\x0b" instead.
 		{"\t\x0b", `"\u0009\u000b"`},
 		{struct{ X, Y int }{1, 2}, `{"X":1,"Y":2}`},
 		{[]interface{}{}, "[]"},
 		{[]interface{}{42, "foo", nil}, `[42,"foo",null]`},
+		{[]string{"<!--", "</script>", "-->"}, `["\u003c!--","\u003c/script\u003e","--\u003e"]`},
 		{"<!--", `"\u003c!--"`},
 		{"-->", `"--\u003e"`},
 		{"<![CDATA[", `"\u003c![CDATA["`},
@@ -328,6 +329,50 @@ func TestEscapersOnLower7AndSelectHighCodepoints(t *testing.T) {
 			t.Errorf("%s rune-wise: want\n\t%q\ngot\n\t%q", test.name, test.escaped, s)
 			continue
 		}
+	}
+}
+
+func BenchmarkJSValEscaperWithNum(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		jsValEscaper(3.141592654)
+	}
+}
+
+func BenchmarkJSValEscaperWithStr(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		jsValEscaper("The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>")
+	}
+}
+
+func BenchmarkJSValEscaperWithStrNoSpecials(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		jsValEscaper("The quick, brown fox jumps over the lazy dog")
+	}
+}
+
+func BenchmarkJSValEscaperWithObj(b *testing.B) {
+	o := struct {
+		S string
+		N int
+	}{
+		"The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>\u2028",
+		42,
+	}
+	for i := 0; i < b.N; i++ {
+		jsValEscaper(o)
+	}
+}
+
+func BenchmarkJSValEscaperWithObjNoSpecials(b *testing.B) {
+	o := struct {
+		S string
+		N int
+	}{
+		"The quick, brown fox jumps over the lazy dog",
+		42,
+	}
+	for i := 0; i < b.N; i++ {
+		jsValEscaper(o)
 	}
 }
 
