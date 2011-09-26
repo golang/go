@@ -18,10 +18,10 @@ package suffixarray
 
 import (
 	"bytes"
-	"exp/regexp"
 	"gob"
 	"io"
 	"os"
+	"regexp"
 	"sort"
 )
 

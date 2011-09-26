@@ -1,6 +1,6 @@
 package regexp
 
-import "exp/regexp/syntax"
+import "regexp/syntax"
 
 // A queue is a 'sparse array' holding pending threads of execution.
 // See http://research.swtch.com/2008/03/using-uninitialized-memory-for-fun-and.html

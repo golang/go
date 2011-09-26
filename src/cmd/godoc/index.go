@@ -48,7 +48,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"exp/regexp"
+	"regexp"
 	"sort"
 	"strings"
 )

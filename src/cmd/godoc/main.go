@@ -40,7 +40,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"exp/regexp"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"

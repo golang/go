@@ -15,7 +15,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"io"
-	"exp/regexp"
+	"regexp"
 	"strconv"
 	"template"
 )

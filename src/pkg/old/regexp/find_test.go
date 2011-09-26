@@ -58,8 +58,8 @@ var findTests = []FindTest{
 	{`(([^xyz]*)(d))`, "abcd", build(1, 0, 4, 0, 4, 0, 3, 3, 4)},
 	{`((a|b|c)*(d))`, "abcd", build(1, 0, 4, 0, 4, 2, 3, 3, 4)},
 	{`(((a|b|c)*)(d))`, "abcd", build(1, 0, 4, 0, 4, 0, 3, 2, 3, 3, 4)},
-	{`\a\f\n\r\t\v`, "\a\f\n\r\t\v", build(1, 0, 6)},
-	{`[\a\f\n\r\t\v]+`, "\a\f\n\r\t\v", build(1, 0, 6)},
+	{`\a\b\f\n\r\t\v`, "\a\b\f\n\r\t\v", build(1, 0, 7)},
+	{`[\a\b\f\n\r\t\v]+`, "\a\b\f\n\r\t\v", build(1, 0, 7)},
 
 	{`a*(|(b))c*`, "aacc", build(1, 0, 4, 2, 2, -1, -1)},
 	{`(.*).*`, "ab", build(1, 0, 2, 0, 2)},
@@ -80,32 +80,6 @@ var findTests = []FindTest{
 	{`data`, "daXY data", build(1, 5, 9)},
 	{`da(.)a$`, "daXY data", build(1, 5, 9, 7, 8)},
 	{`zx+`, "zzx", build(1, 1, 3)},
-	{`ab$`, "abcab", build(1, 3, 5)},
-	{`(aa)*$`, "a", build(1, 1, 1, -1, -1)},
-	{`(?:.|(?:.a))`, "", nil},
-	{`(?:A(?:A|a))`, "Aa", build(1, 0, 2)},
-	{`(?:A|(?:A|a))`, "a", build(1, 0, 1)},
-	{`(a){0}`, "", build(1, 0, 0, -1, -1)},
-	{`(?-s)(?:(?:^).)`, "\n", nil},
-	{`(?s)(?:(?:^).)`, "\n", build(1, 0, 1)},
-	{`(?:(?:^).)`, "\n", nil},
-	{`\b`, "x", build(2, 0, 0, 1, 1)},
-	{`\b`, "xx", build(2, 0, 0, 2, 2)},
-	{`\b`, "x y", build(4, 0, 0, 1, 1, 2, 2, 3, 3)},
-	{`\b`, "xx yy", build(4, 0, 0, 2, 2, 3, 3, 5, 5)},
-	{`\B`, "x", nil},
-	{`\B`, "xx", build(1, 1, 1)},
-	{`\B`, "x y", nil},
-	{`\B`, "xx yy", build(2, 1, 1, 4, 4)},
-
-	// RE2 tests
-	{`[^\S\s]`, "abcd", nil},
-	{`[^\S[:space:]]`, "abcd", nil},
-	{`[^\D\d]`, "abcd", nil},
-	{`[^\D[:digit:]]`, "abcd", nil},
-	{`(?i)\W`, "x", nil},
-	{`(?i)\W`, "k", nil},
-	{`(?i)\W`, "s", nil},
 
 	// can backslash-escape any punctuation
 	{`\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~`,
@@ -235,7 +209,7 @@ func TestFindAll(t *testing.T) {
 		case test.matches == nil && result != nil:
 			t.Errorf("expected no match; got one: %s", test)
 		case test.matches != nil && result == nil:
-			t.Fatalf("expected match; got none: %s", test)
+			t.Errorf("expected match; got none: %s", test)
 		case test.matches != nil && result != nil:
 			if len(test.matches) != len(result) {
 				t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
