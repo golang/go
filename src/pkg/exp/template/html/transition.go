@@ -100,25 +100,29 @@ func tTag(c context, s []byte) (context, int) {
 		return context{state: stateError, err: err}, len(s)
 	}
 	state, attr := stateTag, attrNone
-	if i != j {
-		canonAttrName := strings.ToLower(string(s[i:j]))
-		switch attrType[canonAttrName] {
-		case contentTypeURL:
-			attr = attrURL
-		case contentTypeCSS:
-			attr = attrStyle
-		case contentTypeJS:
+	if i == j {
+		return context{
+			state: stateError,
+			err:   errorf(ErrBadHTML, 0, "expected space, attr name, or end of tag, but got %q", s[i:]),
+		}, len(s)
+	}
+	canonAttrName := strings.ToLower(string(s[i:j]))
+	switch attrType[canonAttrName] {
+	case contentTypeURL:
+		attr = attrURL
+	case contentTypeCSS:
+		attr = attrStyle
+	case contentTypeJS:
+		attr = attrScript
+	default:
+		if strings.HasPrefix(canonAttrName, "on") {
 			attr = attrScript
-		default:
-			if strings.HasPrefix(canonAttrName, "on") {
-				attr = attrScript
-			}
 		}
-		if j == len(s) {
-			state = stateAttrName
-		} else {
-			state = stateAfterName
-		}
+	}
+	if j == len(s) {
+		state = stateAttrName
+	} else {
+		state = stateAfterName
 	}
 	return context{state: state, element: c.element, attr: attr}, j
 }
