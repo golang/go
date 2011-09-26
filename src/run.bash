@@ -93,7 +93,6 @@ done
 ./timing.sh -test
 ) || exit $?
 
-[ "$GOHOSTOS" == windows ] ||
 (xcd ../test
 ./run
 ) || exit $?
