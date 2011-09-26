@@ -168,6 +168,7 @@ var unquotetests = []unQuoteTest{
 	{"`\\xFF`", `\xFF`},
 	{"`\\377`", `\377`},
 	{"`\\`", `\`},
+	{"`\n`", "\n"},
 	{"`	`", `	`},
 	{"` `", ` `},
 }
@@ -189,6 +190,9 @@ var misquoted = []string{
 	"`\"",
 	`"\'"`,
 	`'\"'`,
+	"\"\n\"",
+	"\"\\n\n\"",
+	"'\n'",
 }
 
 func TestUnquote(t *testing.T) {
@@ -209,5 +213,17 @@ func TestUnquote(t *testing.T) {
 		if out, err := Unquote(s); out != "" || err != os.EINVAL {
 			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", os.EINVAL)
 		}
+	}
+}
+
+func BenchmarkUnquoteEasy(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Unquote(`"Give me a rock, paper and scissors and I will move the world."`)
+	}
+}
+
+func BenchmarkUnquoteHard(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Unquote(`"\x47ive me a \x72ock, \x70aper and \x73cissors and \x49 will move the world."`)
 	}
 }

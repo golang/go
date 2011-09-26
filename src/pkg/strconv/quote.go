@@ -288,6 +288,22 @@ func Unquote(s string) (t string, err os.Error) {
 	if quote != '"' && quote != '\'' {
 		return "", os.EINVAL
 	}
+	if strings.Index(s, "\n") >= 0 {
+		return "", os.EINVAL
+	}
+
+	// Is it trivial?  Avoid allocation.
+	if strings.Index(s, `\`) < 0 && strings.IndexRune(s, int(quote)) < 0 {
+		switch quote {
+		case '"':
+			return s, nil
+		case '\'':
+			r, size := utf8.DecodeRuneInString(s)
+			if size == len(s) && (r != utf8.RuneError || size != 1) {
+				return s, nil
+			}
+		}
+	}
 
 	var buf bytes.Buffer
 	for len(s) > 0 {
