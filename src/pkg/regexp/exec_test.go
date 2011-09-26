@@ -7,11 +7,11 @@ package regexp
 import (
 	"bufio"
 	"compress/bzip2"
-	"exp/regexp/syntax"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp/syntax"
 	"strconv"
 	"strings"
 	"testing"

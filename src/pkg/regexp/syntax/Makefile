@@ -2,9 +2,9 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../../../Make.inc
+include ../../../Make.inc
 
-TARG=exp/regexp/syntax
+TARG=regexp/syntax
 GOFILES=\
 	compile.go\
 	parse.go\
@@ -13,4 +13,4 @@ GOFILES=\
 	regexp.go\
 	simplify.go\
 
-include ../../../../Make.pkg
+include ../../../Make.pkg

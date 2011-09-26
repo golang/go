@@ -24,13 +24,13 @@ var good_re = []string{
 	`[a-z]`,
 	`[a-abc-c\-\]\[]`,
 	`[a-z]+`,
+	`[]`,
 	`[abc]`,
 	`[^1234]`,
 	`[^\n]`,
 	`\!\\`,
 }
 
-/*
 type stringError struct {
 	re  string
 	err os.Error
@@ -51,7 +51,6 @@ var bad_re = []stringError{
 	{`a??`, ErrBadClosure},
 	{`\x`, ErrBadBackslash},
 }
-*/
 
 func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
 	re, err := Compile(expr)
@@ -67,13 +66,11 @@ func TestGoodCompile(t *testing.T) {
 	}
 }
 
-/*
 func TestBadCompile(t *testing.T) {
 	for i := 0; i < len(bad_re); i++ {
 		compileTest(t, bad_re[i].re, bad_re[i].err)
 	}
 }
-*/
 
 func matchTest(t *testing.T, test *FindTest) {
 	re := compileTest(t, test.pat, nil)
@@ -243,7 +240,7 @@ var metaTests = []MetaTest{
 	{`foo`, `foo`, `foo`, true},
 	{`foo\.\$`, `foo\\\.\\\$`, `foo.$`, true}, // has meta but no operator
 	{`foo.\$`, `foo\.\\\$`, `foo`, false},     // has escaped operators and real operators
-	{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[\{\]\}\\\|,<\.>/\?~`, `!@#`, false},
+	{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[{\]}\\\|,<\.>/\?~`, `!@#`, false},
 }
 
 func TestQuoteMeta(t *testing.T) {

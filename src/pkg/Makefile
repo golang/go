@@ -82,8 +82,6 @@ DIRS=\
 	exp/gui\
 	exp/gui/x11\
 	exp/norm\
-	exp/regexp\
-	exp/regexp/syntax\
 	exp/template/html\
 	expvar\
 	flag\
@@ -131,6 +129,7 @@ DIRS=\
 	net/dict\
 	net/textproto\
 	netchan\
+	old/regexp\
 	old/template\
 	os\
 	os/signal\
@@ -141,6 +140,7 @@ DIRS=\
 	rand\
 	reflect\
 	regexp\
+	regexp/syntax\
 	rpc\
 	rpc/jsonrpc\
 	runtime\
