@@ -111,8 +111,6 @@ panic: interface conversion: *main.S is not main.I: missing method Foo
 =========== interface/returntype.go
 panic: interface conversion: *main.S is not main.I2: missing method Name
 
-== nilptr/
-
 == syntax/
 
 == dwarf/
