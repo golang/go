@@ -279,5 +279,4 @@ func main() {
 			<-sync
 		}
 	}
-	print("PASS\n")
 }

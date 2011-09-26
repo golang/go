@@ -127,4 +127,44 @@ func main() {
 		istrue(z == x)
 		isfalse(z == y)
 	}
+	
+	shouldPanic(p1)
+	shouldPanic(p2)
+	shouldPanic(p3)
+	shouldPanic(p4)
+}
+
+func p1() {
+	var a []int
+	var ia interface{} = a
+	use(ia == ia)
+}
+
+func p2() {
+	var b []int
+	var ib interface{} = b
+	use(ib == ib)
+}
+
+func p3() {
+	var a []int
+	var ia interface{} = a
+	var m = make(map[interface{}] int)
+	m[ia] = 1
+}
+
+func p4() {
+	var b []int
+	var ib interface{} = b
+	var m = make(map[interface{}] int)
+	m[ib] = 1
+}
+
+func shouldPanic(f func()) {
+	defer func() {
+		if recover() == nil {
+			panic("function should panic")
+		}
+	}()
+	f()
 }

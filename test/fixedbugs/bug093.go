@@ -10,7 +10,6 @@ type S struct {
 }
 
 func (p *S) M() {
-	print("M\n");
 }
 
 type I interface {
