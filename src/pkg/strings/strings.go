@@ -584,7 +584,8 @@ func Replace(s, old, new string, n int) string {
 	return string(t[0:w])
 }
 
-// EqualFold returns true if s and t are equal under Unicode case-folding.
+// EqualFold reports whether s and t, interpreted as UTF-8 strings,
+// are equal under Unicode case-folding.
 func EqualFold(s, t string) bool {
 	for s != "" && t != "" {
 		// Extract first rune from each string.

@@ -862,3 +862,31 @@ func TestTitle(t *testing.T) {
 		}
 	}
 }
+
+var EqualFoldTests = []struct {
+	s, t string
+	out  bool
+}{
+	{"abc", "abc", true},
+	{"ABcd", "ABcd", true},
+	{"123abc", "123ABC", true},
+	{"αβδ", "ΑΒΔ", true},
+	{"abc", "xyz", false},
+	{"abc", "XYZ", false},
+	{"abcdefghijk", "abcdefghijX", false},
+	{"abcdefghijk", "abcdefghij\u212A", true},
+	{"abcdefghijK", "abcdefghij\u212A", true},
+	{"abcdefghijkz", "abcdefghij\u212Ay", false},
+	{"abcdefghijKz", "abcdefghij\u212Ay", false},
+}
+
+func TestEqualFold(t *testing.T) {
+	for _, tt := range EqualFoldTests {
+		if out := EqualFold([]byte(tt.s), []byte(tt.t)); out != tt.out {
+			t.Errorf("EqualFold(%#q, %#q) = %v, want %v", tt.s, tt.t, out, tt.out)
+		}
+		if out := EqualFold([]byte(tt.t), []byte(tt.s)); out != tt.out {
+			t.Errorf("EqualFold(%#q, %#q) = %v, want %v", tt.t, tt.s, out, tt.out)
+		}
+	}
+}
