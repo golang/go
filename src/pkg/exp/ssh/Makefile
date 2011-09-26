@@ -6,11 +6,11 @@ include ../../../Make.inc
 
 TARG=exp/ssh
 GOFILES=\
+	channel.go\
 	common.go\
 	messages.go\
-	server.go\
 	transport.go\
-        channel.go\
-        server_shell.go\
+	server.go\
+	server_shell.go\
 
 include ../../../Make.pkg
