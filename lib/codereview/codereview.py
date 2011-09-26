@@ -38,7 +38,7 @@ For example, if change 123456 contains the files x.go and y.go,
 "hg diff @123456" is equivalent to"hg diff x.go y.go".
 '''
 
-from mercurial import cmdutil, commands, hg, util, error, match
+from mercurial import cmdutil, commands, hg, util, error, match, discovery
 from mercurial.node import nullrev, hex, nullid, short
 import os, re, time
 import stat
@@ -71,9 +71,12 @@ except:
 
 try:
 	from mercurial.discovery import findcommonincoming
+	from mercurial.discovery import findoutgoing
 except:
 	def findcommonincoming(repo, remote):
 		return repo.findcommonincoming(remote)
+	def findoutgoing(repo, remote):
+		return repo.findoutgoing(remote)
 
 # in Mercurial 1.9 the cmdutil.match and cmdutil.revpair moved to scmutil
 if hgversion >= '1.9':
@@ -1738,6 +1741,11 @@ def submit(ui, repo, *pats, **opts):
 		return "dry run; not submitted"
 
 	set_status("pushing " + cl.name + " to remote server")
+
+	other = getremote(ui, repo, opts)
+	if findoutgoing(repo, other):
+		raise util.Abort("local repository corrupt or out-of-phase with remote: found outgoing changes")
+
 	m = match.exact(repo.root, repo.getcwd(), cl.files)
 	node = repo.commit(ustr(opts['message']), ustr(userline), opts.get('date'), m)
 	if not node:
@@ -1758,7 +1766,6 @@ def submit(ui, repo, *pats, **opts):
 		# push changes to remote.
 		# if it works, we're committed.
 		# if not, roll back
-		other = getremote(ui, repo, opts)
 		r = repo.push(other, False, None)
 		if r == 0:
 			raise util.Abort("local repository out of date; must sync before submit")
@@ -3130,6 +3137,7 @@ class MercurialVCS(VersionControlSystem):
 		super(MercurialVCS, self).__init__(options)
 		self.ui = ui
 		self.repo = repo
+		self.status = None
 		# Absolute path to repository (we can be in a subdir)
 		self.repo_dir = os.path.normpath(repo.root)
 		# Compute the subdir
@@ -3188,6 +3196,33 @@ class MercurialVCS(VersionControlSystem):
 				unknown_files.append(fn)
 		return unknown_files
 
+	def get_hg_status(self, rev, path):
+		# We'd like to use 'hg status -C path', but that is buggy
+		# (see http://mercurial.selenic.com/bts/issue3023).
+		# Instead, run 'hg status -C' without a path
+		# and skim the output for the path we want.
+		if self.status is None:
+			if use_hg_shell:
+				out = RunShell(["hg", "status", "-C", "--rev", rev])
+			else:
+				fui = FakeMercurialUI()
+				ret = commands.status(fui, self.repo, *[], **{'rev': [rev], 'copies': True})
+				if ret:
+					raise util.Abort(ret)
+				out = fui.output
+			self.status = out.splitlines()
+		for i in range(len(self.status)):
+			# line is
+			#	A path
+			#	M path
+			# etc
+			line = self.status[i]
+			if line[2:] == path:
+				if i+1 < len(self.status) and self.status[i+1][:2] == '  ':
+					return self.status[i:i+2]
+				return self.status[i:i+1]
+		raise util.Abort("no status for " + path)
+	
 	def GetBaseFile(self, filename):
 		set_status("inspecting " + filename)
 		# "hg status" and "hg cat" both take a path relative to the current subdir
@@ -3197,20 +3232,7 @@ class MercurialVCS(VersionControlSystem):
 		new_content = None
 		is_binary = False
 		oldrelpath = relpath = self._GetRelPath(filename)
-		# "hg status -C" returns two lines for moved/copied files, one otherwise
-		if use_hg_shell:
-			out = RunShell(["hg", "status", "-C", "--rev", self.base_rev, relpath])
-		else:
-			fui = FakeMercurialUI()
-			ret = commands.status(fui, self.repo, *[relpath], **{'rev': [self.base_rev], 'copies': True})
-			if ret:
-				raise util.Abort(ret)
-			out = fui.output
-		out = out.splitlines()
-		# HACK: strip error message about missing file/directory if it isn't in
-		# the working copy
-		if out[0].startswith('%s: ' % relpath):
-			out = out[1:]
+		out = self.get_hg_status(self.base_rev, relpath)
 		status, what = out[0].split(' ', 1)
 		if len(out) > 1 and status == "A" and what == relpath:
 			oldrelpath = out[1].strip()
