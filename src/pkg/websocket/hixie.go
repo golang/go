@@ -10,7 +10,6 @@ package websocket
 import (
 	"bufio"
 	"bytes"
-	"container/vector"
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
@@ -348,16 +347,17 @@ func hixie76ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) 
 	bw.WriteString("GET " + config.Location.RawPath + " HTTP/1.1\r\n")
 
 	// Step 6-14. push request headers in fields.
-	var fields vector.StringVector
-	fields.Push("Upgrade: WebSocket\r\n")
-	fields.Push("Connection: Upgrade\r\n")
-	fields.Push("Host: " + config.Location.Host + "\r\n")
-	fields.Push("Origin: " + config.Origin.String() + "\r\n")
+	fields := []string{
+		"Upgrade: WebSocket\r\n",
+		"Connection: Upgrade\r\n",
+		"Host: " + config.Location.Host + "\r\n",
+		"Origin: " + config.Origin.String() + "\r\n",
+	}
 	if len(config.Protocol) > 0 {
 		if len(config.Protocol) != 1 {
 			return ErrBadWebSocketProtocol
 		}
-		fields.Push("Sec-WebSocket-Protocol: " + config.Protocol[0] + "\r\n")
+		fields = append(fields, "Sec-WebSocket-Protocol: "+config.Protocol[0]+"\r\n")
 	}
 	// TODO(ukai): Step 15. send cookie if any.
 
@@ -378,8 +378,8 @@ func hixie76ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) 
 		}
 		number2 = uint32(n)
 	}
-	fields.Push("Sec-WebSocket-Key1: " + key1 + "\r\n")
-	fields.Push("Sec-WebSocket-Key2: " + key2 + "\r\n")
+	fields = append(fields, "Sec-WebSocket-Key1: "+key1+"\r\n")
+	fields = append(fields, "Sec-WebSocket-Key2: "+key2+"\r\n")
 
 	// Step 24. shuffle fields and send them out.
 	for i := 1; i < len(fields); i++ {
