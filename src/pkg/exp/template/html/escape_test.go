@@ -884,6 +884,26 @@ func TestErrors(t *testing.T) {
 				`{{define "t"}}{{if .Tail}}{{template "t" .Tail}}{{end}}{{.Head}}",{{end}}`,
 			`: cannot compute output context for template t$htmltemplate_stateJS_elementScript`,
 		},
+		{
+			`<input type=button value=onclick=>`,
+			`exp/template/html:z: "=" in unquoted attr: "onclick="`,
+		},
+		{
+			`<input type=button value= onclick=>`,
+			`exp/template/html:z: "=" in unquoted attr: "onclick="`,
+		},
+		{
+			`<input type=button value= 1+1=2>`,
+			`exp/template/html:z: "=" in unquoted attr: "1+1=2"`,
+		},
+		{
+			"<a class=`foo>",
+			"exp/template/html:z: \"`\" in unquoted attr: \"`foo\"",
+		},
+		{
+			`<a style=font:'Arial'>`,
+			`exp/template/html:z: "'" in unquoted attr: "font:'Arial'"`,
+		},
 	}
 
 	for _, test := range tests {

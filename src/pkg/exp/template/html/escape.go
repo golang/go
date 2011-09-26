@@ -626,6 +626,24 @@ func contextAfterText(c context, s []byte) (context, int) {
 
 	i := bytes.IndexAny(s, delimEnds[c.delim])
 	if i == -1 {
+		i = len(s)
+	}
+	if c.delim == delimSpaceOrTagEnd {
+		// http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state
+		// lists the runes below as error characters.
+		// Error out because HTML parsers may differ on whether
+		// "<a id= onclick=f("     ends inside id's or onchange's value,
+		// "<a class=`foo "        ends inside a value,
+		// "<a style=font:'Arial'" needs open-quote fixup.
+		// IE treats '`' as a quotation character.
+		if j := bytes.IndexAny(s[:i], "\"'<=`"); j >= 0 {
+			return context{
+				state: stateError,
+				err:   errorf(ErrBadHTML, 0, "%q in unquoted attr: %q", s[j:j+1], s[:i]),
+			}, len(s)
+		}
+	}
+	if i == len(s) {
 		// Remain inside the attribute.
 		// Decode the value so non-HTML rules can easily handle
 		//     <button onclick="alert(&quot;Hi!&quot;)">
