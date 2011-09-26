@@ -82,5 +82,4 @@ func main() {
 	// However, the result of the bug linked to at the top is that we'll
 	// end up panicking with: "throw: bad g->status in ready".
 	recver(cmux)
-	print("PASS\n")
 }

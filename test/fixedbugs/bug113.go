@@ -1,4 +1,4 @@
-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should not succeed)
+// $G $D/$F.go && $L $F.$A && ./$A.out
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -21,8 +21,24 @@ func main() {
 	if foo2(v2) != 1 {
 		panic(2)
 	}
+	
+	shouldPanic(p1)
+}
+
+func p1() {
+	var i I
+	i = 1
 	var v3 = i.(int32) // This type conversion should fail at runtime.
 	if foo2(v3) != 1 {
 		panic(3)
 	}
+}
+
+func shouldPanic(f func()) {
+	defer func() {
+		if recover() == nil {
+			panic("function should panic")
+		}
+	}()
+	f()
 }

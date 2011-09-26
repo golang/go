@@ -1,4 +1,4 @@
-// $G $D/$F.go && $L $F.$A && ! ./$A.out
+// $G $D/$F.go && $L $F.$A && ./$A.out
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -13,6 +13,10 @@ type I interface {
 }
 
 func main() {
+	shouldPanic(p1)
+}
+
+func p1() {
 	var s *S
 	var i I
 	var e interface {}
@@ -21,6 +25,14 @@ func main() {
 	_ = i
 }
 
-// hide S down here to avoid static warning
 type S struct {
+}
+
+func shouldPanic(f func()) {
+	defer func() {
+		if recover() == nil {
+			panic("function should panic")
+		}
+	}()
+	f()
 }
