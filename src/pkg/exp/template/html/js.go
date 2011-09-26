@@ -140,19 +140,6 @@ func jsValEscaper(args ...interface{}) string {
 	// TODO: detect cycles before calling Marshal which loops infinitely on
 	// cyclic data. This may be an unnacceptable DoS risk.
 
-	// TODO: make sure that json.Marshal escapes codepoints U+2028 & U+2029
-	// so it falls within the subset of JSON which is valid JS and maybe
-	// post-process to prevent it from containing
-	// "<!--", "-->", "<![CDATA[", "]]>", or "</script"
-	// in case custom marshallers produce output containing those.
-
-	// TODO: Maybe abbreviate \u00ab to \xab to produce more compact output.
-
-	// TODO: JSON allows arbitrary unicode codepoints, but EcmaScript
-	// defines a SourceCharacter as either a UTF-16 or UCS-2 code-unit.
-	// Determine whether supplemental codepoints in UTF-8 encoded JS inside
-	// string literals are properly interpreted by major interpreters.
-
 	b, err := json.Marshal(a)
 	if err != nil {
 		// Put a space before comment so that if it is flush against
@@ -163,12 +150,50 @@ func jsValEscaper(args ...interface{}) string {
 		//          second line of error message */null
 		return fmt.Sprintf(" /* %s */null ", strings.Replace(err.String(), "*/", "* /", -1))
 	}
-	if len(b) != 0 {
-		first, _ := utf8.DecodeRune(b)
-		last, _ := utf8.DecodeLastRune(b)
-		if isJSIdentPart(first) || isJSIdentPart(last) {
-			return " " + string(b) + " "
+
+	// TODO: maybe post-process output to prevent it from containing
+	// "<!--", "-->", "<![CDATA[", "]]>", or "</script"
+	// in case custom marshallers produce output containing those.
+
+	// TODO: Maybe abbreviate \u00ab to \xab to produce more compact output.
+	if len(b) == 0 {
+		// In, `x=y/{{.}}*z` a json.Marshaler that produces "" should
+		// not cause the output `x=y/*z`.
+		return " null "
+	}
+	first, _ := utf8.DecodeRune(b)
+	last, _ := utf8.DecodeLastRune(b)
+	var buf bytes.Buffer
+	// Prevent IdentifierNames and NumericLiterals from running into
+	// keywords: in, instanceof, typeof, void
+	pad := isJSIdentPart(first) || isJSIdentPart(last)
+	if pad {
+		buf.WriteByte(' ')
+	}
+	written := 0
+	// Make sure that json.Marshal escapes codepoints U+2028 & U+2029
+	// so it falls within the subset of JSON which is valid JS.
+	for i := 0; i < len(b); {
+		rune, n := utf8.DecodeRune(b[i:])
+		repl := ""
+		if rune == 0x2028 {
+			repl = `\u2028`
+		} else if rune == 0x2029 {
+			repl = `\u2029`
 		}
+		if repl != "" {
+			buf.Write(b[written:i])
+			buf.WriteString(repl)
+			written = i + n
+		}
+		i += n
+	}
+	if buf.Len() != 0 {
+		buf.Write(b[written:])
+		if pad {
+			buf.WriteByte(' ')
+		}
+		b = buf.Bytes()
 	}
 	return string(b)
 }
