@@ -904,6 +904,10 @@ func TestErrors(t *testing.T) {
 			`<a style=font:'Arial'>`,
 			`exp/template/html:z: "'" in unquoted attr: "font:'Arial'"`,
 		},
+		{
+			`<a=foo>`,
+			`: expected space, attr name, or end of tag, but got "=foo>"`,
+		},
 	}
 
 	for _, test := range tests {

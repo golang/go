@@ -598,6 +598,9 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 			b.Write(s[written:cs])
 			written = i1
 		}
+		if i == i1 && c.state == c1.state {
+			panic(fmt.Sprintf("infinite loop from %v to %v on %q..%q", c, c1, s[:i], s[i:]))
+		}
 		c, i = c1, i1
 	}
 
