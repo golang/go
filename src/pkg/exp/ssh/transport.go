@@ -10,10 +10,13 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/subtle"
 	"hash"
 	"io"
+	"net"
 	"os"
+	"sync"
 )
 
 const (
@@ -29,7 +32,8 @@ type transport struct {
 	macAlgo         string
 	compressionAlgo string
 
-	Close func() os.Error
+	Close      func() os.Error
+	RemoteAddr func() net.Addr
 }
 
 // reader represents the incoming connection state.
@@ -40,6 +44,7 @@ type reader struct {
 
 // writer represnts the outgoing connection state.
 type writer struct {
+	*sync.Mutex // protects writer.Writer from concurrent writes
 	*bufio.Writer
 	paddingMultiple int
 	rand            io.Reader
@@ -126,6 +131,9 @@ func (t *transport) readPacket() ([]byte, os.Error) {
 
 // Encrypt and send a packet of data to the remote peer.
 func (w *writer) writePacket(packet []byte) os.Error {
+	w.Mutex.Lock()
+	defer w.Mutex.Unlock()
+
 	paddingLength := paddingMultiple - (5+len(packet))%paddingMultiple
 	if paddingLength < 4 {
 		paddingLength += paddingMultiple
@@ -188,6 +196,31 @@ func (w *writer) writePacket(packet []byte) os.Error {
 	}
 	w.seqNum++
 	return err
+}
+
+// Send a message to the remote peer
+func (t *transport) sendMessage(typ uint8, msg interface{}) os.Error {
+	packet := marshal(typ, msg)
+	return t.writePacket(packet)
+}
+
+func newTransport(conn net.Conn) *transport {
+	return &transport{
+		reader: reader{
+			Reader: bufio.NewReader(conn),
+		},
+		writer: writer{
+			Writer: bufio.NewWriter(conn),
+			rand:   rand.Reader,
+			Mutex:  new(sync.Mutex),
+		},
+		Close: func() os.Error {
+			return conn.Close()
+		},
+		RemoteAddr: func() net.Addr {
+			return conn.RemoteAddr()
+		},
+	}
 }
 
 type direction struct {

@@ -6,7 +6,6 @@ package ssh
 
 import (
 	"big"
-	"bufio"
 	"bytes"
 	"crypto"
 	"crypto/rand"
@@ -18,12 +17,6 @@ import (
 	"os"
 	"sync"
 )
-
-var supportedKexAlgos = []string{kexAlgoDH14SHA1}
-var supportedHostKeyAlgos = []string{hostAlgoRSA}
-var supportedCiphers = []string{cipherAES128CTR}
-var supportedMACs = []string{macSHA196}
-var supportedCompressions = []string{compressionNone}
 
 // Server represents an SSH server. A Server may have several ServerConnections.
 type Server struct {
@@ -144,31 +137,6 @@ type ServerConnection struct {
 	// before attempting to authenticate with it, we end up with duplicate
 	// queries for public key validity.
 	cachedPubKeys []cachedPubKey
-}
-
-// dhGroup is a multiplicative group suitable for implementing Diffie-Hellman key agreement.
-type dhGroup struct {
-	g, p *big.Int
-}
-
-// dhGroup14 is the group called diffie-hellman-group14-sha1 in RFC 4253 and
-// Oakley Group 14 in RFC 3526.
-var dhGroup14 *dhGroup
-
-var dhGroup14Once sync.Once
-
-func initDHGroup14() {
-	p, _ := new(big.Int).SetString("FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36CE3BE39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF6955817183995497CEA956AE515D2261898FA051015728E5A8AACAA68FFFFFFFFFFFFFFFF", 16)
-
-	dhGroup14 = &dhGroup{
-		g: new(big.Int).SetInt64(2),
-		p: p,
-	}
-}
-
-type handshakeMagics struct {
-	clientVersion, serverVersion []byte
-	clientKexInit, serverKexInit []byte
 }
 
 // kexDH performs Diffie-Hellman key agreement on a ServerConnection. The
@@ -292,18 +260,7 @@ func buildDataSignedForAuth(sessionId []byte, req userAuthRequestMsg, algo, pubK
 // Handshake performs an SSH transport and client authentication on the given ServerConnection.
 func (s *ServerConnection) Handshake(conn net.Conn) os.Error {
 	var magics handshakeMagics
-	s.transport = &transport{
-		reader: reader{
-			Reader: bufio.NewReader(conn),
-		},
-		writer: writer{
-			Writer: bufio.NewWriter(conn),
-			rand:   rand.Reader,
-		},
-		Close: func() os.Error {
-			return conn.Close()
-		},
-	}
+	s.transport = newTransport(conn)
 
 	if _, err := conn.Write(serverVersion); err != nil {
 		return err
@@ -612,19 +569,14 @@ func (s *ServerConnection) Accept() (Channel, os.Error) {
 			return nil, err
 		}
 
-		switch packet[0] {
-		case msgChannelOpen:
-			var chanOpen channelOpenMsg
-			if err := unmarshal(&chanOpen, packet, msgChannelOpen); err != nil {
-				return nil, err
-			}
-
+		switch msg := decode(packet).(type) {
+		case *channelOpenMsg:
 			c := new(channel)
-			c.chanType = chanOpen.ChanType
-			c.theirId = chanOpen.PeersId
-			c.theirWindow = chanOpen.PeersWindow
-			c.maxPacketSize = chanOpen.MaxPacketSize
-			c.extraData = chanOpen.TypeSpecificData
+			c.chanType = msg.ChanType
+			c.theirId = msg.PeersId
+			c.theirWindow = msg.PeersWindow
+			c.maxPacketSize = msg.MaxPacketSize
+			c.extraData = msg.TypeSpecificData
 			c.myWindow = defaultWindowSize
 			c.serverConn = s
 			c.cond = sync.NewCond(&c.lock)
@@ -637,74 +589,53 @@ func (s *ServerConnection) Accept() (Channel, os.Error) {
 			s.lock.Unlock()
 			return c, nil
 
-		case msgChannelRequest:
-			var chanRequest channelRequestMsg
-			if err := unmarshal(&chanRequest, packet, msgChannelRequest); err != nil {
-				return nil, err
-			}
-
+		case *channelRequestMsg:
 			s.lock.Lock()
-			c, ok := s.channels[chanRequest.PeersId]
+			c, ok := s.channels[msg.PeersId]
 			if !ok {
 				continue
 			}
-			c.handlePacket(&chanRequest)
+			c.handlePacket(msg)
 			s.lock.Unlock()
 
-		case msgChannelData:
-			if len(packet) < 5 {
-				return nil, ParseError{msgChannelData}
-			}
-			chanId := uint32(packet[1])<<24 | uint32(packet[2])<<16 | uint32(packet[3])<<8 | uint32(packet[4])
-
+		case *channelData:
 			s.lock.Lock()
-			c, ok := s.channels[chanId]
+			c, ok := s.channels[msg.PeersId]
 			if !ok {
 				continue
 			}
-			c.handleData(packet[9:])
+			c.handleData(msg.Payload)
 			s.lock.Unlock()
 
-		case msgChannelEOF:
-			var eofMsg channelEOFMsg
-			if err := unmarshal(&eofMsg, packet, msgChannelEOF); err != nil {
-				return nil, err
-			}
-
+		case *channelEOFMsg:
 			s.lock.Lock()
-			c, ok := s.channels[eofMsg.PeersId]
+			c, ok := s.channels[msg.PeersId]
 			if !ok {
 				continue
 			}
-			c.handlePacket(&eofMsg)
+			c.handlePacket(msg)
 			s.lock.Unlock()
 
-		case msgChannelClose:
-			var closeMsg channelCloseMsg
-			if err := unmarshal(&closeMsg, packet, msgChannelClose); err != nil {
-				return nil, err
-			}
-
+		case *channelCloseMsg:
 			s.lock.Lock()
-			c, ok := s.channels[closeMsg.PeersId]
+			c, ok := s.channels[msg.PeersId]
 			if !ok {
 				continue
 			}
-			c.handlePacket(&closeMsg)
+			c.handlePacket(msg)
 			s.lock.Unlock()
 
-		case msgGlobalRequest:
-			var request globalRequestMsg
-			if err := unmarshal(&request, packet, msgGlobalRequest); err != nil {
-				return nil, err
-			}
-
-			if request.WantReply {
+		case *globalRequestMsg:
+			if msg.WantReply {
 				if err := s.writePacket([]byte{msgRequestFailure}); err != nil {
 					return nil, err
 				}
 			}
 
+		case UnexpectedMessageError:
+			return nil, msg
+		case *disconnectMsg:
+			return nil, os.EOF
 		default:
 			// Unknown message. Ignore.
 		}

@@ -59,6 +59,13 @@ const (
 // in this file. The only wrinkle is that a final member of type []byte with a
 // tag of "rest" receives the remainder of a packet when unmarshaling.
 
+// See RFC 4253, section 11.1.
+type disconnectMsg struct {
+	Reason   uint32
+	Message  string
+	Language string
+}
+
 // See RFC 4253, section 7.1.
 type kexInitMsg struct {
 	Cookie                  [16]byte
@@ -135,6 +142,12 @@ type channelOpenFailureMsg struct {
 	Reason   uint32
 	Message  string
 	Language string
+}
+
+// See RFC 4254, section 5.2.
+type channelData struct {
+	PeersId uint32
+	Payload []byte "rest"
 }
 
 type channelRequestMsg struct {
@@ -555,3 +568,60 @@ func marshalString(to []byte, s []byte) []byte {
 }
 
 var bigIntType = reflect.TypeOf((*big.Int)(nil))
+
+// Decode a packet into it's corresponding message.
+func decode(packet []byte) interface{} {
+	var msg interface{}
+	switch packet[0] {
+	case msgDisconnect:
+		msg = new(disconnectMsg)
+	case msgServiceRequest:
+		msg = new(serviceRequestMsg)
+	case msgServiceAccept:
+		msg = new(serviceAcceptMsg)
+	case msgKexInit:
+		msg = new(kexInitMsg)
+	case msgKexDHInit:
+		msg = new(kexDHInitMsg)
+	case msgKexDHReply:
+		msg = new(kexDHReplyMsg)
+	case msgUserAuthRequest:
+		msg = new(userAuthRequestMsg)
+	case msgUserAuthFailure:
+		msg = new(userAuthFailureMsg)
+	case msgUserAuthPubKeyOk:
+		msg = new(userAuthPubKeyOkMsg)
+	case msgGlobalRequest:
+		msg = new(globalRequestMsg)
+	case msgRequestSuccess:
+		msg = new(channelRequestSuccessMsg)
+	case msgRequestFailure:
+		msg = new(channelRequestFailureMsg)
+	case msgChannelOpen:
+		msg = new(channelOpenMsg)
+	case msgChannelOpenConfirm:
+		msg = new(channelOpenConfirmMsg)
+	case msgChannelOpenFailure:
+		msg = new(channelOpenFailureMsg)
+	case msgChannelWindowAdjust:
+		msg = new(windowAdjustMsg)
+	case msgChannelData:
+		msg = new(channelData)
+	case msgChannelEOF:
+		msg = new(channelEOFMsg)
+	case msgChannelClose:
+		msg = new(channelCloseMsg)
+	case msgChannelRequest:
+		msg = new(channelRequestMsg)
+	case msgChannelSuccess:
+		msg = new(channelRequestSuccessMsg)
+	case msgChannelFailure:
+		msg = new(channelRequestFailureMsg)
+	default:
+		return UnexpectedMessageError{0, packet[0]}
+	}
+	if err := unmarshal(msg, packet, packet[0]); err != nil {
+		return err
+	}
+	return msg
+}
