@@ -628,3 +628,13 @@ func TestSliceReusesMemory(t *testing.T) {
 		}
 	}
 }
+
+// Used to crash: negative count in recvMessage.
+func TestBadCount(t *testing.T) {
+	b := []byte{0xfb, 0xa5, 0x82, 0x2f, 0xca, 0x1}
+	if err := NewDecoder(bytes.NewBuffer(b)).Decode(nil); err == nil {
+		t.Error("expected error from bad count")
+	} else if err.String() != errBadCount.String() {
+		t.Error("expected bad count error; got", err)
+	}
+}
