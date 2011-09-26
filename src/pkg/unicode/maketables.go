@@ -77,7 +77,7 @@ func open(url string) *reader {
 		}
 		return &reader{bufio.NewReader(fd), fd, nil}
 	}
-	resp, err := http.Get(*dataURL)
+	resp, err := http.Get(url)
 	if err != nil {
 		logger.Fatal(err)
 	}
