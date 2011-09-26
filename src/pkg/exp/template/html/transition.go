@@ -9,9 +9,6 @@ import (
 	"strings"
 )
 
-// TODO: ensure transition error messages contain template name and ideally
-// line info.
-
 // transitionFunc is the array of context transition functions for text nodes.
 // A transition function takes a context and template text input, and returns
 // the updated context and the number of bytes consumed from the front of the
