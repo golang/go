@@ -295,7 +295,7 @@ func TestBaseMult(t *testing.T) {
 		}
 		x, y := p224.ScalarBaseMult(k.Bytes())
 		if fmt.Sprintf("%x", x) != e.x || fmt.Sprintf("%x", y) != e.y {
-			t.Errorf("%d: bad output for k=%s: got (%x, %s), want (%s, %s)", i, e.k, x, y, e.x, e.y)
+			t.Errorf("%d: bad output for k=%s: got (%x, %s), want (%x, %s)", i, e.k, x, y, e.x, e.y)
 		}
 		if testing.Short() && i > 5 {
 			break
