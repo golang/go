@@ -28,7 +28,7 @@ import (
 // Index implements a suffix array for fast substring search.
 type Index struct {
 	data []byte
-	sa   []int32 // suffix array for data; len(sa) == len(data)
+	sa   []int // suffix array for data; len(sa) == len(data)
 }
 
 // New creates a new Index for data.
@@ -52,7 +52,7 @@ func (x *Index) Read(r io.Reader) os.Error {
 		// new data is significantly smaller or larger then
 		// existing buffers - allocate new ones
 		x.data = make([]byte, n)
-		x.sa = make([]int32, n)
+		x.sa = make([]int, n)
 	} else {
 		// re-use existing buffers
 		x.data = x.data[0:n]
@@ -120,7 +120,7 @@ func (x *Index) at(i int) []byte {
 
 // lookupAll returns a slice into the matching region of the index.
 // The runtime is O(log(N)*len(s)).
-func (x *Index) lookupAll(s []byte) []int32 {
+func (x *Index) lookupAll(s []byte) []int {
 	// find matching suffix index range [i:j]
 	// find the first index where s would be the prefix
 	i := sort.Search(len(x.sa), func(i int) bool { return bytes.Compare(x.at(i), s) >= 0 })
@@ -144,9 +144,7 @@ func (x *Index) Lookup(s []byte, n int) (result []int) {
 		// 0 <= n <= len(matches)
 		if n > 0 {
 			result = make([]int, n)
-			for i, x := range matches[0:n] {
-				result[i] = int(x)
-			}
+			copy(result, matches)
 		}
 	}
 	return
