@@ -86,7 +86,7 @@ func testCreate(t *testing.T, w *Writer, wt *WriteTest) {
 
 func testReadFile(t *testing.T, f *File, wt *WriteTest) {
 	if f.Name != wt.Name {
-		t.Fatal("File name: got %q, want %q", f.Name, wt.Name)
+		t.Fatalf("File name: got %q, want %q", f.Name, wt.Name)
 	}
 	testFileMode(t, f, wt.Mode)
 	rc, err := f.Open()
