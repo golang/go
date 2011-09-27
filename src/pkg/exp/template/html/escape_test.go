@@ -891,7 +891,7 @@ func TestErrors(t *testing.T) {
 			// or `/-1\.5/i.test(x)` which is a method call on a
 			// case insensitive regular expression.
 			`<script>{{if false}}var x = 1{{end}}/-{{"1.5"}}/i.test(x)</script>`,
-			`'/' could start div or regexp: "/-"`,
+			`'/' could start a division or regexp: "/-"`,
 		},
 		{
 			`{{template "foo"}}`,

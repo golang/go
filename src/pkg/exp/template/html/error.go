@@ -40,7 +40,7 @@ const (
 	// OK indicates the lack of an error.
 	OK ErrorCode = iota
 
-	// ErrorAmbigContext: "... appears in an ambiguous URL context"
+	// ErrAmbigContext: "... appears in an ambiguous URL context"
 	// Example:
 	//   <a href="
 	//      {{if .C}}
@@ -57,7 +57,18 @@ const (
 	//   <a href="{{if .C}}/path/{{.X}}{{else}}/search?q={{.X}}">
 	ErrAmbigContext
 
-	// TODO: document
+	// ErrBadHTML: "expected space, attr name, or end of tag, but got ...",
+	//   "... in unquoted attr", "... in attribute name"
+	// Example:
+	//   <a href = /search?q=foo>
+	//   <href=foo>
+	//   <form na<e=...>
+	//   <option selected<
+	// Discussion:
+	//   This is often due to a typo in an HTML element, but some runes
+	//   are banned in tag names, attribute names, and unquoted attribute
+	//   values because they can tickle parser ambiguities.
+	//   Quoting all attributes is the best policy.
 	ErrBadHTML
 
 	// ErrBranchEnd: "{{if}} branches end in different contexts"
@@ -115,8 +126,8 @@ const (
 
 	// ErrNoSuchTemplate: "no such template ..."
 	// Examples:
-	//    {{define "main"}}<div {{template "attrs"}}>{{end}}
-	//    {{define "attrs"}}href="{{.URL}}"{{end}}
+	//   {{define "main"}}<div {{template "attrs"}}>{{end}}
+	//   {{define "attrs"}}href="{{.URL}}"{{end}}
 	// Discussion:
 	//   EscapeSet looks through template calls to compute the context.
 	//   Here the {{.URL}} in "attrs" must be treated as a URL when called
@@ -124,7 +135,16 @@ const (
 	//   EscapeSet(&set, "main") is called, this error will arise.
 	ErrNoSuchTemplate
 
-	// TODO: document
+	// ErrOutputContext: "cannot compute output context for template ..."
+	// Examples:
+	//   {{define "t"}}{{if .T}}{{template "t" .T}}{{end}}{{.H}}",{{end}}
+	// Discussion:
+	//   A recursive template does not end in the same context in which it
+	//   starts, and a reliable output context cannot be computed.
+	//   Look for typos in the named template.
+	//   If the template should not be called in the named start context,
+	//   look for calls to that template in unexpected contexts.
+	//   Maybe refactor recursive templates to not be recursive.
 	ErrOutputContext
 
 	// ErrPartialCharset: "unfinished JS regexp charset in ..."
@@ -161,7 +181,19 @@ const (
 	//     <p class=foo<p class=bar
 	ErrRangeLoopReentry
 
-	// TODO: document
+	// ErrSlashAmbig: '/' could start a division or regexp.
+	// Example:
+	//   <script>
+	//     {{if .C}}var x = 1{{end}}
+	//     /-{{.N}}/i.test(x) ? doThis : doThat();
+	//   </script>
+	// Discussion:
+	//   The example above could produce `var x = 1/-2/i.test(s)...`
+	//   in which the first '/' is a mathematical division operator or it
+	//   could produce `/-2/i.test(s)` in which the first '/' starts a
+	//   regexp literal.
+	//   Look for missing semicolons inside branches, and maybe add
+	//   parentheses to make it clear which interpretation you intend.
 	ErrSlashAmbig
 )
 

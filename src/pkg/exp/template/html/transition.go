@@ -251,7 +251,7 @@ func tJS(c context, s []byte) (context, int) {
 		default:
 			return context{
 				state: stateError,
-				err:   errorf(ErrSlashAmbig, 0, "'/' could start div or regexp: %.32q", s[i:]),
+				err:   errorf(ErrSlashAmbig, 0, "'/' could start a division or regexp: %.32q", s[i:]),
 			}, len(s)
 		}
 	default:
