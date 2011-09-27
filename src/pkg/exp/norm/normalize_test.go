@@ -485,19 +485,15 @@ func BenchmarkNormalizeAsciiNFKD(b *testing.B) {
 
 func doTextBenchmark(b *testing.B, s string) {
 	b.StopTimer()
-	in := make([]byte, len(s))
-	for i := range s {
-		in[i] = s[i]
-	}
-	// Using copy(in, s) makes many tests much slower!?
 	b.SetBytes(int64(len(s)) * 4)
-	var buf = make([]byte, 2*len(in))
+	in := []byte(s)
+	var buf = make([]byte, 0, 2*len(in))
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		buf = NFC.Append(buf[0:0], in...)
-		buf = NFD.Append(buf[0:0], in...)
-		buf = NFKC.Append(buf[0:0], in...)
-		buf = NFKD.Append(buf[0:0], in...)
+		NFC.Append(buf, in...)
+		NFD.Append(buf, in...)
+		NFKC.Append(buf, in...)
+		NFKD.Append(buf, in...)
 	}
 }
 
