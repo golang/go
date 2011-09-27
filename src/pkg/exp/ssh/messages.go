@@ -57,7 +57,7 @@ const (
 // These structures mirror the wire format of the corresponding SSH messages.
 // They are marshaled using reflection with the marshal and unmarshal functions
 // in this file. The only wrinkle is that a final member of type []byte with a
-// tag of "rest" receives the remainder of a packet when unmarshaling.
+// ssh tag of "rest" receives the remainder of a packet when unmarshaling.
 
 // See RFC 4253, section 11.1.
 type disconnectMsg struct {
@@ -109,7 +109,7 @@ type userAuthRequestMsg struct {
 	User    string
 	Service string
 	Method  string
-	Payload []byte "rest"
+	Payload []byte `ssh:"rest"`
 }
 
 // See RFC 4252, section 5.1
@@ -124,7 +124,7 @@ type channelOpenMsg struct {
 	PeersId          uint32
 	PeersWindow      uint32
 	MaxPacketSize    uint32
-	TypeSpecificData []byte "rest"
+	TypeSpecificData []byte `ssh:"rest"`
 }
 
 // See RFC 4254, section 5.1.
@@ -133,7 +133,7 @@ type channelOpenConfirmMsg struct {
 	MyId             uint32
 	MyWindow         uint32
 	MaxPacketSize    uint32
-	TypeSpecificData []byte "rest"
+	TypeSpecificData []byte `ssh:"rest"`
 }
 
 // See RFC 4254, section 5.1.
@@ -147,14 +147,14 @@ type channelOpenFailureMsg struct {
 // See RFC 4254, section 5.2.
 type channelData struct {
 	PeersId uint32
-	Payload []byte "rest"
+	Payload []byte `ssh:"rest"`
 }
 
 type channelRequestMsg struct {
 	PeersId             uint32
 	Request             string
 	WantReply           bool
-	RequestSpecificData []byte "rest"
+	RequestSpecificData []byte `ssh:"rest"`
 }
 
 // See RFC 4254, section 5.4.
@@ -246,7 +246,7 @@ func unmarshal(out interface{}, packet []byte, expectedType uint8) os.Error {
 		case reflect.Slice:
 			switch t.Elem().Kind() {
 			case reflect.Uint8:
-				if structType.Field(i).Tag == "rest" {
+				if structType.Field(i).Tag.Get("ssh") == "rest" {
 					field.Set(reflect.ValueOf(packet))
 					packet = nil
 				} else {
@@ -328,7 +328,7 @@ func marshal(msgType uint8, msg interface{}) []byte {
 			switch t.Elem().Kind() {
 			case reflect.Uint8:
 				length := field.Len()
-				if structType.Field(i).Tag != "rest" {
+				if structType.Field(i).Tag.Get("ssh") != "rest" {
 					out = append(out, byte(length>>24))
 					out = append(out, byte(length>>16))
 					out = append(out, byte(length>>8))
