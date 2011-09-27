@@ -1024,7 +1024,8 @@ syncsend:
 	selunlock(sel);
 	if(debug)
 		runtime·printf("syncsend: sel=%p c=%p o=%d\n", sel, c, o);
-	c->elemalg->copy(c->elemsize, sg->elem, cas->sg.elem);
+	if(sg->elem != nil)
+		c->elemalg->copy(c->elemsize, sg->elem, cas->sg.elem);
 	gp = sg->g;
 	gp->param = sg;
 	runtime·ready(gp);
