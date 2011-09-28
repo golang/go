@@ -7,6 +7,7 @@ include ../../Make.inc
 TARG=strings
 GOFILES=\
 	reader.go\
+	replace.go\
 	strings.go\
 
 include ../../Make.pkg
