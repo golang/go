@@ -504,7 +504,7 @@ func (d *decodeState) object(v reflect.Value) {
 				}
 				// Third, case-insensitive field name match,
 				// but only if a better match hasn't already been seen
-				if !ok && strings.ToLower(sf.Name) == strings.ToLower(key) {
+				if !ok && strings.EqualFold(sf.Name, key) {
 					f = sf
 					ok = true
 				}
