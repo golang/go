@@ -247,7 +247,11 @@ func newInputString(str string) *inputString {
 
 func (i *inputString) step(pos int) (int, int) {
 	if pos < len(i.str) {
-		return utf8.DecodeRuneInString(i.str[pos:len(i.str)])
+		c := i.str[pos]
+		if c < utf8.RuneSelf {
+			return int(c), 1
+		}
+		return utf8.DecodeRuneInString(i.str[pos:])
 	}
 	return endOfText, 0
 }
@@ -286,7 +290,11 @@ func newInputBytes(str []byte) *inputBytes {
 
 func (i *inputBytes) step(pos int) (int, int) {
 	if pos < len(i.str) {
-		return utf8.DecodeRune(i.str[pos:len(i.str)])
+		c := i.str[pos]
+		if c < utf8.RuneSelf {
+			return int(c), 1
+		}
+		return utf8.DecodeRune(i.str[pos:])
 	}
 	return endOfText, 0
 }

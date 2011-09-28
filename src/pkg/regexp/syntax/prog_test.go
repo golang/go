@@ -9,7 +9,7 @@ var compileTests = []struct {
 	Prog   string
 }{
 	{"a", `  0	fail
-  1*	rune "a" -> 2
+  1*	rune1 "a" -> 2
   2	match
 `},
 	{"[A-M][n-z]", `  0	fail
@@ -22,69 +22,69 @@ var compileTests = []struct {
   2	match
 `},
 	{"a?", `  0	fail
-  1	rune "a" -> 3
+  1	rune1 "a" -> 3
   2*	alt -> 1, 3
   3	match
 `},
 	{"a??", `  0	fail
-  1	rune "a" -> 3
+  1	rune1 "a" -> 3
   2*	alt -> 3, 1
   3	match
 `},
 	{"a+", `  0	fail
-  1*	rune "a" -> 2
+  1*	rune1 "a" -> 2
   2	alt -> 1, 3
   3	match
 `},
 	{"a+?", `  0	fail
-  1*	rune "a" -> 2
+  1*	rune1 "a" -> 2
   2	alt -> 3, 1
   3	match
 `},
 	{"a*", `  0	fail
-  1	rune "a" -> 2
+  1	rune1 "a" -> 2
   2*	alt -> 1, 3
   3	match
 `},
 	{"a*?", `  0	fail
-  1	rune "a" -> 2
+  1	rune1 "a" -> 2
   2*	alt -> 3, 1
   3	match
 `},
 	{"a+b+", `  0	fail
-  1*	rune "a" -> 2
+  1*	rune1 "a" -> 2
   2	alt -> 1, 3
-  3	rune "b" -> 4
+  3	rune1 "b" -> 4
   4	alt -> 3, 5
   5	match
 `},
 	{"(a+)(b+)", `  0	fail
   1*	cap 2 -> 2
-  2	rune "a" -> 3
+  2	rune1 "a" -> 3
   3	alt -> 2, 4
   4	cap 3 -> 5
   5	cap 4 -> 6
-  6	rune "b" -> 7
+  6	rune1 "b" -> 7
   7	alt -> 6, 8
   8	cap 5 -> 9
   9	match
 `},
 	{"a+|b+", `  0	fail
-  1	rune "a" -> 2
+  1	rune1 "a" -> 2
   2	alt -> 1, 6
-  3	rune "b" -> 4
+  3	rune1 "b" -> 4
   4	alt -> 3, 6
   5*	alt -> 1, 3
   6	match
 `},
 	{"A[Aa]", `  0	fail
-  1*	rune "A" -> 2
+  1*	rune1 "A" -> 2
   2	rune "A"/i -> 3
   3	match
 `},
 	{"(?:(?:^).)", `  0	fail
   1*	empty 4 -> 2
-  2	rune "\x00\t\v\U0010ffff" -> 3
+  2	anynotnl -> 3
   3	match
 `},
 }
