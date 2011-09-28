@@ -230,7 +230,7 @@ func htmlNameFilter(args ...interface{}) string {
 		return filterFailsafe
 	}
 	s = strings.ToLower(s)
-	if t := attrType[s]; t != contentTypePlain && attrType["on"+s] != contentTypeJS {
+	if t := attrType(s); t != contentTypePlain {
 		// TODO: Split attr and element name part filters so we can whitelist
 		// attributes.
 		return filterFailsafe
