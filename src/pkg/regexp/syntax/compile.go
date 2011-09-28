@@ -273,5 +273,16 @@ func (c *compiler) rune(rune []int, flags Flags) frag {
 	}
 	i.Arg = uint32(flags)
 	f.out = patchList(f.i << 1)
+
+	// Special cases for exec machine.
+	switch {
+	case flags&FoldCase == 0 && (len(rune) == 1 || len(rune) == 2 && rune[0] == rune[1]):
+		i.Op = InstRune1
+	case len(rune) == 2 && rune[0] == 0 && rune[1] == unicode.MaxRune:
+		i.Op = InstRuneAny
+	case len(rune) == 4 && rune[0] == 0 && rune[1] == '\n'-1 && rune[2] == '\n'+1 && rune[3] == unicode.MaxRune:
+		i.Op = InstRuneAnyNotNL
+	}
+
 	return f
 }

@@ -9,8 +9,10 @@ import (
 	"compress/bzip2"
 	"fmt"
 	"io"
+	old "old/regexp"
 	"os"
 	"path/filepath"
+	"rand"
 	"regexp/syntax"
 	"strconv"
 	"strings"
@@ -647,3 +649,86 @@ func parseFowlerResult(s string) (ok, compiled, matched bool, pos []int) {
 	pos = x
 	return
 }
+
+var text []byte
+
+func makeText(n int) []byte {
+	if len(text) >= n {
+		return text[:n]
+	}
+	text = make([]byte, n)
+	for i := range text {
+		if rand.Intn(30) == 0 {
+			text[i] = '\n'
+		} else {
+			text[i] = byte(rand.Intn(0x7E+1-0x20) + 0x20)
+		}
+	}
+	return text
+}
+
+func benchmark(b *testing.B, re string, n int) {
+	r := MustCompile(re)
+	t := makeText(n)
+	b.ResetTimer()
+	b.SetBytes(int64(n))
+	for i := 0; i < b.N; i++ {
+		if r.Match(t) {
+			panic("match!")
+		}
+	}
+}
+
+func benchold(b *testing.B, re string, n int) {
+	r := old.MustCompile(re)
+	t := makeText(n)
+	b.ResetTimer()
+	b.SetBytes(int64(n))
+	for i := 0; i < b.N; i++ {
+		if r.Match(t) {
+			panic("match!")
+		}
+	}
+}
+
+const (
+	easy0  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ$"
+	easy1  = "A[AB]B[BC]C[CD]D[DE]E[EF]F[FG]G[GH]H[HI]I[IJ]J$"
+	medium = "[XYZ]ABCDEFGHIJKLMNOPQRSTUVWXYZ$"
+	hard   = "[ -~]*ABCDEFGHIJKLMNOPQRSTUVWXYZ$"
+	parens = "([ -~])*(A)(B)(C)(D)(E)(F)(G)(H)(I)(J)(K)(L)(M)" +
+		"(N)(O)(P)(Q)(R)(S)(T)(U)(V)(W)(X)(Y)(Z)$"
+)
+
+func BenchmarkMatchEasy0_1K(b *testing.B)       { benchmark(b, easy0, 1<<10) }
+func BenchmarkMatchEasy0_1K_Old(b *testing.B)   { benchold(b, easy0, 1<<10) }
+func BenchmarkMatchEasy0_1M(b *testing.B)       { benchmark(b, easy0, 1<<20) }
+func BenchmarkMatchEasy0_1M_Old(b *testing.B)   { benchold(b, easy0, 1<<20) }
+func BenchmarkMatchEasy0_32K(b *testing.B)      { benchmark(b, easy0, 32<<10) }
+func BenchmarkMatchEasy0_32K_Old(b *testing.B)  { benchold(b, easy0, 32<<10) }
+func BenchmarkMatchEasy0_32M(b *testing.B)      { benchmark(b, easy0, 32<<20) }
+func BenchmarkMatchEasy0_32M_Old(b *testing.B)  { benchold(b, easy0, 32<<20) }
+func BenchmarkMatchEasy1_1K(b *testing.B)       { benchmark(b, easy1, 1<<10) }
+func BenchmarkMatchEasy1_1K_Old(b *testing.B)   { benchold(b, easy1, 1<<10) }
+func BenchmarkMatchEasy1_1M(b *testing.B)       { benchmark(b, easy1, 1<<20) }
+func BenchmarkMatchEasy1_1M_Old(b *testing.B)   { benchold(b, easy1, 1<<20) }
+func BenchmarkMatchEasy1_32K(b *testing.B)      { benchmark(b, easy1, 32<<10) }
+func BenchmarkMatchEasy1_32K_Old(b *testing.B)  { benchold(b, easy1, 32<<10) }
+func BenchmarkMatchEasy1_32M(b *testing.B)      { benchmark(b, easy1, 32<<20) }
+func BenchmarkMatchEasy1_32M_Old(b *testing.B)  { benchold(b, easy1, 32<<20) }
+func BenchmarkMatchMedium_1K(b *testing.B)      { benchmark(b, medium, 1<<10) }
+func BenchmarkMatchMedium_1K_Old(b *testing.B)  { benchold(b, medium, 1<<10) }
+func BenchmarkMatchMedium_1M(b *testing.B)      { benchmark(b, medium, 1<<20) }
+func BenchmarkMatchMedium_1M_Old(b *testing.B)  { benchold(b, medium, 1<<20) }
+func BenchmarkMatchMedium_32K(b *testing.B)     { benchmark(b, medium, 32<<10) }
+func BenchmarkMatchMedium_32K_Old(b *testing.B) { benchold(b, medium, 32<<10) }
+func BenchmarkMatchMedium_32M(b *testing.B)     { benchmark(b, medium, 32<<20) }
+func BenchmarkMatchMedium_32M_Old(b *testing.B) { benchold(b, medium, 32<<20) }
+func BenchmarkMatchHard_1K(b *testing.B)        { benchmark(b, hard, 1<<10) }
+func BenchmarkMatchHard_1K_Old(b *testing.B)    { benchold(b, hard, 1<<10) }
+func BenchmarkMatchHard_1M(b *testing.B)        { benchmark(b, hard, 1<<20) }
+func BenchmarkMatchHard_1M_Old(b *testing.B)    { benchold(b, hard, 1<<20) }
+func BenchmarkMatchHard_32K(b *testing.B)       { benchmark(b, hard, 32<<10) }
+func BenchmarkMatchHard_32K_Old(b *testing.B)   { benchold(b, hard, 32<<10) }
+func BenchmarkMatchHard_32M(b *testing.B)       { benchmark(b, hard, 32<<20) }
+func BenchmarkMatchHard_32M_Old(b *testing.B)   { benchold(b, hard, 32<<20) }

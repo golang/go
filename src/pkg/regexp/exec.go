@@ -50,6 +50,13 @@ func progMachine(p *syntax.Prog) *machine {
 	return m
 }
 
+func (m *machine) init(ncap int) {
+	for _, t := range m.pool {
+		t.cap = t.cap[:ncap]
+	}
+	m.matchcap = m.matchcap[:ncap]
+}
+
 // alloc allocates a new thread with the given instruction.
 // It uses the free pool if possible.
 func (m *machine) alloc(i *syntax.Inst) *thread {
@@ -59,9 +66,8 @@ func (m *machine) alloc(i *syntax.Inst) *thread {
 		m.pool = m.pool[:n-1]
 	} else {
 		t = new(thread)
-		t.cap = make([]int, cap(m.matchcap))
+		t.cap = make([]int, len(m.matchcap), cap(m.matchcap))
 	}
-	t.cap = t.cap[:len(m.matchcap)]
 	t.inst = i
 	return t
 }
@@ -121,7 +127,7 @@ func (m *machine) match(i input, pos int) bool {
 			if len(m.matchcap) > 0 {
 				m.matchcap[0] = pos
 			}
-			m.add(runq, uint32(m.p.Start), pos, m.matchcap, flag)
+			m.add(runq, uint32(m.p.Start), pos, m.matchcap, flag, nil)
 		}
 		flag = syntax.EmptyOpContext(rune, rune1)
 		m.step(runq, nextq, pos, pos+width, rune, flag)
@@ -148,7 +154,8 @@ func (m *machine) match(i input, pos int) bool {
 func (m *machine) clear(q *queue) {
 	for _, d := range q.dense {
 		if d.t != nil {
-			m.free(d.t)
+			// m.free(d.t)
+			m.pool = append(m.pool, d.t)
 		}
 	}
 	q.dense = q.dense[:0]
@@ -168,10 +175,12 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos, c int, nextCond syntax.
 			continue
 		}
 		if longest && m.matched && len(t.cap) > 0 && m.matchcap[0] < t.cap[0] {
-			m.free(t)
+			// m.free(t)
+			m.pool = append(m.pool, t)
 			continue
 		}
 		i := t.inst
+		add := false
 		switch i.Op {
 		default:
 			panic("bad inst")
@@ -185,7 +194,8 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos, c int, nextCond syntax.
 				// First-match mode: cut off all lower-priority threads.
 				for _, d := range runq.dense[j+1:] {
 					if d.t != nil {
-						m.free(d.t)
+						// m.free(d.t)
+						m.pool = append(m.pool, d.t)
 					}
 				}
 				runq.dense = runq.dense[:0]
@@ -193,11 +203,21 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos, c int, nextCond syntax.
 			m.matched = true
 
 		case syntax.InstRune:
-			if i.MatchRune(c) {
-				m.add(nextq, i.Out, nextPos, t.cap, nextCond)
-			}
+			add = i.MatchRune(c)
+		case syntax.InstRune1:
+			add = c == i.Rune[0]
+		case syntax.InstRuneAny:
+			add = true
+		case syntax.InstRuneAnyNotNL:
+			add = c != '\n'
 		}
-		m.free(t)
+		if add {
+			t = m.add(nextq, i.Out, nextPos, t.cap, nextCond, t)
+		}
+		if t != nil {
+			// m.free(t)
+			m.pool = append(m.pool, t)
+		}
 	}
 	runq.dense = runq.dense[:0]
 }
@@ -206,12 +226,12 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos, c int, nextCond syntax.
 // It also recursively adds an entry for all instructions reachable from pc by following
 // empty-width conditions satisfied by cond.  pos gives the current position
 // in the input.
-func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.EmptyOp) {
+func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.EmptyOp, t *thread) *thread {
 	if pc == 0 {
-		return
+		return t
 	}
 	if j := q.sparse[pc]; j < uint32(len(q.dense)) && q.dense[j].pc == pc {
-		return
+		return t
 	}
 
 	j := len(q.dense)
@@ -228,30 +248,36 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
 	case syntax.InstFail:
 		// nothing
 	case syntax.InstAlt, syntax.InstAltMatch:
-		m.add(q, i.Out, pos, cap, cond)
-		m.add(q, i.Arg, pos, cap, cond)
+		t = m.add(q, i.Out, pos, cap, cond, t)
+		t = m.add(q, i.Arg, pos, cap, cond, t)
 	case syntax.InstEmptyWidth:
 		if syntax.EmptyOp(i.Arg)&^cond == 0 {
-			m.add(q, i.Out, pos, cap, cond)
+			t = m.add(q, i.Out, pos, cap, cond, t)
 		}
 	case syntax.InstNop:
-		m.add(q, i.Out, pos, cap, cond)
+		t = m.add(q, i.Out, pos, cap, cond, t)
 	case syntax.InstCapture:
 		if int(i.Arg) < len(cap) {
 			opos := cap[i.Arg]
 			cap[i.Arg] = pos
-			m.add(q, i.Out, pos, cap, cond)
+			m.add(q, i.Out, pos, cap, cond, nil)
 			cap[i.Arg] = opos
 		} else {
-			m.add(q, i.Out, pos, cap, cond)
+			t = m.add(q, i.Out, pos, cap, cond, t)
 		}
-	case syntax.InstMatch, syntax.InstRune:
-		t := m.alloc(i)
-		if len(t.cap) > 0 {
+	case syntax.InstMatch, syntax.InstRune, syntax.InstRune1, syntax.InstRuneAny, syntax.InstRuneAnyNotNL:
+		if t == nil {
+			t = m.alloc(i)
+		} else {
+			t.inst = i
+		}
+		if len(cap) > 0 && &t.cap[0] != &cap[0] {
 			copy(t.cap, cap)
 		}
 		d.t = t
+		t = nil
 	}
+	return t
 }
 
 // empty is a non-nil 0-element slice,
@@ -263,7 +289,7 @@ var empty = make([]int, 0)
 // the position of its subexpressions.
 func (re *Regexp) doExecute(i input, pos int, ncap int) []int {
 	m := re.get()
-	m.matchcap = m.matchcap[:ncap]
+	m.init(ncap)
 	if !m.match(i, pos) {
 		re.put(m)
 		return nil

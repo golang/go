@@ -28,6 +28,9 @@ const (
 	InstFail
 	InstNop
 	InstRune
+	InstRune1
+	InstRuneAny
+	InstRuneAnyNotNL
 )
 
 // An EmptyOp specifies a kind or mixture of zero-width assertions.
@@ -102,6 +105,16 @@ func (p *Prog) skipNop(pc uint32) *Inst {
 	return i
 }
 
+// op returns i.Op but merges all the Rune special cases into InstRune
+func (i *Inst) op() InstOp {
+	op := i.Op
+	switch op {
+	case InstRune1, InstRuneAny, InstRuneAnyNotNL:
+		op = InstRune
+	}
+	return op
+}
+
 // Prefix returns a literal string that all matches for the
 // regexp must start with.  Complete is true if the prefix
 // is the entire match.
@@ -109,13 +122,13 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
 	i := p.skipNop(uint32(p.Start))
 
 	// Avoid allocation of buffer if prefix is empty.
-	if i.Op != InstRune || len(i.Rune) != 1 {
+	if i.op() != InstRune || len(i.Rune) != 1 {
 		return "", i.Op == InstMatch
 	}
 
 	// Have prefix; gather characters.
 	var buf bytes.Buffer
-	for i.Op == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
+	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
 		buf.WriteRune(i.Rune[0])
 		i = p.skipNop(i.Out)
 	}
@@ -283,5 +296,11 @@ func dumpInst(b *bytes.Buffer, i *Inst) {
 			bw(b, "/i")
 		}
 		bw(b, " -> ", u32(i.Out))
+	case InstRune1:
+		bw(b, "rune1 ", strconv.QuoteToASCII(string(i.Rune)), " -> ", u32(i.Out))
+	case InstRuneAny:
+		bw(b, "any -> ", u32(i.Out))
+	case InstRuneAnyNotNL:
+		bw(b, "anynotnl -> ", u32(i.Out))
 	}
 }
