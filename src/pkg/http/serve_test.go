@@ -987,6 +987,38 @@ func TestRequestBodyLimit(t *testing.T) {
 	}
 }
 
+// TestClientWriteShutdown tests that if the client shuts down the write
+// side of their TCP connection, the server doesn't send a 400 Bad Request.
+func TestClientWriteShutdown(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	defer ts.Close()
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	err = conn.(*net.TCPConn).CloseWrite()
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	donec := make(chan bool)
+	go func() {
+		defer close(donec)
+		bs, err := ioutil.ReadAll(conn)
+		if err != nil {
+			t.Fatalf("ReadAll: %v", err)
+		}
+		got := string(bs)
+		if got != "" {
+			t.Errorf("read %q from server; want nothing", got)
+		}
+	}()
+	select {
+	case <-donec:
+	case <-time.After(10e9):
+		t.Fatalf("timeout")
+	}
+}
+
 type errorListener struct {
 	errs []os.Error
 }
