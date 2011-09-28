@@ -100,6 +100,24 @@ func (c *TCPConn) Close() os.Error {
 	return err
 }
 
+// CloseRead shuts down the reading side of the TCP connection.
+// Most callers should just use Close.
+func (c *TCPConn) CloseRead() os.Error {
+	if !c.ok() {
+		return os.EINVAL
+	}
+	return c.fd.CloseRead()
+}
+
+// CloseWrite shuts down the writing side of the TCP connection.
+// Most callers should just use Close.
+func (c *TCPConn) CloseWrite() os.Error {
+	if !c.ok() {
+		return os.EINVAL
+	}
+	return c.fd.CloseWrite()
+}
+
 // LocalAddr returns the local network address, a *TCPAddr.
 func (c *TCPConn) LocalAddr() Addr {
 	if !c.ok() {

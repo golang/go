@@ -358,6 +358,22 @@ func (fd *netFD) Close() os.Error {
 	return nil
 }
 
+func (fd *netFD) CloseRead() os.Error {
+	if fd == nil || fd.sysfile == nil {
+		return os.EINVAL
+	}
+	syscall.Shutdown(fd.sysfd, syscall.SHUT_RD)
+	return nil
+}
+
+func (fd *netFD) CloseWrite() os.Error {
+	if fd == nil || fd.sysfile == nil {
+		return os.EINVAL
+	}
+	syscall.Shutdown(fd.sysfd, syscall.SHUT_WR)
+	return nil
+}
+
 func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 	if fd == nil {
 		return 0, os.EINVAL

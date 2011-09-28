@@ -312,6 +312,22 @@ func (fd *netFD) Close() os.Error {
 	return nil
 }
 
+func (fd *netFD) CloseRead() os.Error {
+	if fd == nil || fd.sysfd == syscall.InvalidHandle {
+		return os.EINVAL
+	}
+	syscall.Shutdown(fd.sysfd, syscall.SHUT_RD)
+	return nil
+}
+
+func (fd *netFD) CloseWrite() os.Error {
+	if fd == nil || fd.sysfd == syscall.InvalidHandle {
+		return os.EINVAL
+	}
+	syscall.Shutdown(fd.sysfd, syscall.SHUT_WR)
+	return nil
+}
+
 // Read from network.
 
 type readOp struct {

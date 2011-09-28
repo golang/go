@@ -6,6 +6,7 @@ package net
 
 import (
 	"flag"
+	"os"
 	"regexp"
 	"testing"
 )
@@ -117,5 +118,48 @@ func TestReverseAddress(t *testing.T) {
 		if a != tt.Reverse {
 			t.Errorf("#%d: expected %q, got %q (reverse address)", i, tt.Reverse, a)
 		}
+	}
+}
+
+func TestShutdown(t *testing.T) {
+	l, err := Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		if l, err = Listen("tcp6", "[::1]:0"); err != nil {
+			t.Fatalf("ListenTCP on :0: %v", err)
+		}
+	}
+
+	go func() {
+		c, err := l.Accept()
+		if err != nil {
+			t.Fatalf("Accept: %v", err)
+		}
+		var buf [10]byte
+		n, err := c.Read(buf[:])
+		if n != 0 || err != os.EOF {
+			t.Fatalf("server Read = %d, %v; want 0, os.EOF", n, err)
+		}
+		c.Write([]byte("response"))
+		c.Close()
+	}()
+
+	c, err := Dial("tcp", l.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer c.Close()
+
+	err = c.(*TCPConn).CloseWrite()
+	if err != nil {
+		t.Fatalf("CloseWrite: %v", err)
+	}
+	var buf [10]byte
+	n, err := c.Read(buf[:])
+	if err != nil {
+		t.Fatalf("client Read: %d, %v", n, err)
+	}
+	got := string(buf[:n])
+	if got != "response" {
+		t.Errorf("read = %q, want \"response\"", got)
 	}
 }
