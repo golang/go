@@ -153,6 +153,10 @@ func (e *escaper) escape(c context, n parse.Node) context {
 
 // escapeAction escapes an action template node.
 func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+	if len(n.Pipe.Decl) != 0 {
+		// A local variable assignment, not an interpolation.
+		return c
+	}
 	c = nudge(c)
 	s := make([]string, 0, 3)
 	switch c.state {

@@ -68,8 +68,18 @@ func TestEscape(t *testing.T) {
 			"&lt;Goodbye&gt;!",
 		},
 		{
-			"overescaping",
+			"overescaping1",
 			"Hello, {{.C | html}}!",
+			"Hello, &lt;Cincinatti&gt;!",
+		},
+		{
+			"overescaping2",
+			"Hello, {{html .C}}!",
+			"Hello, &lt;Cincinatti&gt;!",
+		},
+		{
+			"overescaping3",
+			"{{with .C}}{{$msg := .}}Hello, {{$msg}}!{{end}}",
 			"Hello, &lt;Cincinatti&gt;!",
 		},
 		{
