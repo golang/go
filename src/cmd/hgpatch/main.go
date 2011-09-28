@@ -268,9 +268,10 @@ func hgRoot() (string, os.Error) {
 
 // hgIncoming returns true if hg sync will pull in changes.
 func hgIncoming() bool {
-	// hg -q incoming exits 0 when there is nothing incoming, 1 otherwise.
-	_, err := run([]string{"hg", "-q", "incoming"}, nil)
-	return err == nil
+	// Cannot trust hg's exit code on Windows,
+	// so look at whether hg prints any output.
+	out, _ := run([]string{"hg", "-q", "incoming"}, nil)
+	return len(out) > 0
 }
 
 // hgModified returns a list of the modified files in the
