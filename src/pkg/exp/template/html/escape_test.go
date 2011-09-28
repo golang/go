@@ -421,6 +421,16 @@ func TestEscape(t *testing.T) {
 			"a&lt;b",
 		},
 		{
+			"HTML doctype not normalized",
+			"<!DOCTYPE html>Hello, World!",
+			"<!DOCTYPE html>Hello, World!",
+		},
+		{
+			"No doctype injection",
+			`<!{{"DOCTYPE"}}`,
+			"&lt;!DOCTYPE",
+		},
+		{
 			"Split HTML comment",
 			"<b>Hello, <!-- name of {{if .T}}city -->{{.C}}{{else}}world -->{{.W}}{{end}}</b>",
 			"<b>Hello, &lt;Cincinatti&gt;</b>",

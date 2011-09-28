@@ -549,6 +549,8 @@ var delimEnds = [...]string{
 	delimSpaceOrTagEnd: " \t\n\f\r>",
 }
 
+var doctypeBytes = []byte("<!DOCTYPE")
+
 // escapeText escapes a text template node.
 func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 	s, written, i, b := n.Text, 0, 0, new(bytes.Buffer)
@@ -566,7 +568,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 				}
 			}
 			for j := i; j < end; j++ {
-				if s[j] == '<' {
+				if s[j] == '<' && !bytes.HasPrefix(s[j:], doctypeBytes) {
 					b.Write(s[written:j])
 					b.WriteString("&lt;")
 					written = j + 1
