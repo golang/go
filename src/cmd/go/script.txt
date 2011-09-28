@@ -1,0 +1,352 @@
+---  go help
+usage: go command [arguments]
+
+go manages Go source code.
+
+The commands are:
+
+    build       compile and install packages and dependencies
+    clean       remove intermediate objects
+    fix         run gofix on packages
+    fmt         run gofmt -w on packages
+    get         download and install packages and dependencies
+    install     install packages and dependencies
+    list        list packages
+    test        test packages
+    version     print Go version
+    vet         run govet on packages
+
+Use "go help [command]" for more information about a command.
+
+Additional help topics:
+
+    gopath      GOPATH environment variable
+    importpath  description of import paths
+    remote      remote import path syntax
+
+Use "go help [topic]" for more information about that topic.
+
+---
+
+---  go help build
+usage: go build [-n] [-v] [importpath...]
+
+Build compiles the packages named by the import paths,
+along with their dependencies, but it does not install the results.
+
+The -n flag prints the commands but does not run them.
+The -v flag prints the commands.
+
+For more about import paths, see 'go help importpath'.
+
+See also: go install, go get, go clean.
+---
+
+---  go help clean
+usage: go clean [-nuke] [importpath...]
+
+Clean removes intermediate object files generated during
+the compilation of the packages named by the import paths,
+but by default it does not remove the installed package binaries.
+
+The -nuke flag causes clean to remove the installed package binaries too.
+
+TODO: Clean does not clean dependencies of the packages.
+
+For more about import paths, see 'go help importpath'.
+---
+
+---  go help install
+usage: go install [-n] [-v] [importpath...]
+
+Install compiles and installs the packages named by the import paths,
+along with their dependencies.
+
+The -n flag prints the commands but does not run them.
+The -v flag prints the commands.
+
+For more about import paths, see 'go help importpath'.
+
+See also: go build, go get, go clean.
+---
+
+---  go help fix
+usage: go fix [importpath...]
+
+Fix runs the gofix command on the packages named by the import paths.
+
+For more about gofix, see 'godoc gofix'.
+For more about import paths, see 'go help importpath'.
+
+To run gofix with specific options, run gofix itself.
+
+See also: go fmt, go vet.
+---
+
+---  go help fmt
+usage: go fmt [importpath...]
+
+Fmt runs the command 'gofmt -w' on the packages named by the import paths.
+
+For more about gofmt, see 'godoc gofmt'.
+For more about import paths, see 'go help importpath'.
+
+To run gofmt with specific options, run gofmt itself.
+
+See also: go fix, go vet.
+---
+
+---  go help get
+usage: go get [importpath...]
+
+Get downloads and installs the packages named by the import paths,
+along with their dependencies.
+
+After downloading the code, 'go get' looks for a tag beginning
+with "go." that corresponds to the local Go version.
+For Go "release.r58" it looks for a tag named "go.r58".
+For "weekly.2011-06-03" it looks for "go.weekly.2011-06-03".
+If the specific "go.X" tag is not found, it uses the latest earlier
+version it can find.  Otherwise, it uses the default version for
+the version control system: HEAD for git, tip for Mercurial,
+and so on.
+
+TODO: Explain versions better.
+
+For more about import paths, see 'go help importpath'.
+
+For more about how 'go get' finds source code to
+download, see 'go help remote'.
+
+See also: go build, go install, go clean.
+---
+
+---  go help list
+usage: go list [-f format] [-json] [importpath...]
+
+List lists the packages named by the import paths.
+
+The default output shows the package name and file system location:
+
+    books /home/you/src/google-api-go-client.googlecode.com/hg/books/v1
+    oauth /home/you/src/goauth2.googlecode.com/hg/oauth
+    sqlite /home/you/src/gosqlite.googlecode.com/hg/sqlite
+
+The -f flag specifies an alternate format for the list,
+using the syntax of package template.  The default output
+is equivalent to -f '{{.Name}} {{.Dir}}'  The struct
+being passed to the template is:
+
+    type Package struct {
+        Name string         // package name
+        Doc string          // package documentation string
+        GoFiles []string    // names of Go source files in package
+        ImportPath string   // import path denoting package
+        Imports []string    // import paths used by this package
+        Deps []string       // all (recursively) imported dependencies
+        Dir string          // directory containing package sources
+        Version string      // version of installed package
+    }
+
+The -json flag causes the package data to be printed in JSON format.
+
+For more about import paths, see 'go help importpath'.
+---
+
+---  go help test
+usage: go test [importpath...]
+
+Test runs gotest to test the packages named by the import paths.
+It prints a summary of the test results in the format:
+
+	test archive/tar
+	FAIL archive/zip
+	test compress/gzip
+	...
+
+followed by gotest output for each failed package.
+
+For more about import paths, see 'go help importpath'.
+
+See also: go build, go compile, go vet.
+---
+
+---  go help version
+usage: go version
+
+Version prints the Go version, as reported by runtime.Version.
+---
+
+---  go help vet
+usage: go vet [importpath...]
+
+Vet runs the govet command on the packages named by the import paths.
+
+For more about govet, see 'godoc govet'.
+For more about import paths, see 'go help importpath'.
+
+To run govet with specific options, run govet itself.
+
+See also: go fmt, go fix.
+---
+
+---  go help gopath
+The GOPATH environment variable lists places to look for Go code.
+On Unix, the value is a colon-separated string.
+On Windows, the value is a semicolon-separated string.
+On Plan 9, the value is a list.
+
+GOPATH must be set to build and install packages outside the
+standard Go tree.
+
+Each directory listed in GOPATH must have a prescribed structure:
+
+The src/ directory holds source code.  The path below 'src'
+determines the import path or executable name.
+
+The pkg/ directory holds installed package objects.
+As in the Go tree, each target operating system and
+architecture pair has its own subdirectory of pkg
+(pkg/GOOS_GOARCH).
+
+If DIR is a directory listed in the GOPATH, a package with
+source in DIR/src/foo/bar can be imported as "foo/bar" and
+has its compiled form installed to "DIR/pkg/GOOS_GOARCH/foo/bar.a".
+
+The bin/ directory holds compiled commands.
+Each command is named for its source directory, but only
+the final element, not the entire path.  That is, the
+command with source in DIR/src/foo/quux is installed into
+DIR/bin/quux, not DIR/bin/foo/quux.  The foo/ is stripped
+so that you can add DIR/bin to your PATH to get at the
+installed commands.
+
+Here's an example directory layout:
+
+    GOPATH=/home/user/gocode
+
+    /home/user/gocode/
+        src/
+            foo/
+                bar/               (go code in package bar)
+                    x.go
+                quux/              (go code in package main)
+                    y.go
+        bin/
+            quux                   (installed command)
+		pkg/
+		    linux_amd64/
+		        foo/
+		            bar.a          (installed package object)
+
+Go searches each directory listed in GOPATH to find source code,
+but new packages are always downloaded into the first directory 
+in the list.
+---
+
+---  go help importpath
+Many commands apply to a set of packages named by import paths:
+
+	go action [importpath...]
+
+An import path that is a rooted path or that begins with
+a . or .. element is interpreted as a file system path and
+denotes the package in that directory.
+
+Otherwise, the import path P denotes the package found in
+the directory DIR/src/P for some DIR listed in the GOPATH
+environment variable (see 'go help gopath'). 
+
+If no import paths are given, the action applies to the
+package in the current directory.
+
+The special import path "all" expands to all package directories
+found in all the GOPATH trees.  For example, 'go list all' 
+lists all the packages on the local system.
+
+An import path can also name a package to be downloaded from
+a remote repository.  Run 'go help remote' for details.
+
+Every package in a program must have a unique import path.
+By convention, this is arranged by starting each path with a
+unique prefix that belongs to you.  For example, paths used
+internally at Google all begin with 'google', and paths
+denoting remote repositories begin with the path to the code,
+such as 'project.googlecode.com/'.
+---
+
+---  go help remote
+An import path (see 'go help importpath') denotes a package
+stored in the local file system.  Certain import paths also
+describe how to obtain the source code for the package using
+a revision control system.
+
+A few common code hosting sites have special syntax:
+
+	BitBucket (Mercurial)
+
+		import "bitbucket.org/user/project"
+		import "bitbucket.org/user/project/sub/directory"
+
+	GitHub (Git)
+
+		import "github.com/user/project"
+		import "github.com/user/project/sub/directory"
+
+	Google Code Project Hosting (Git, Mercurial, Subversion)
+
+		import "project.googlecode.com/git"
+		import "project.googlecode.com/git/sub/directory"
+
+		import "project.googlecode.com/hg"
+		import "project.googlecode.com/hg/sub/directory"
+
+		import "project.googlecode.com/svn/trunk"
+		import "project.googlecode.com/svn/trunk/sub/directory"
+
+	Launchpad (Bazaar)
+
+		import "launchpad.net/project"
+		import "launchpad.net/project/series"
+		import "launchpad.net/project/series/sub/directory"
+
+		import "launchpad.net/~user/project/branch"
+		import "launchpad.net/~user/project/branch/sub/directory"
+
+For code hosted on other servers, an import path of the form
+
+	repository.vcs/path
+
+specifies the given repository, with or without the .vcs suffix,
+using the named version control system, and then the path inside
+that repository.  The supported version control systems are:
+
+	Bazaar      .bzr
+	Git         .git
+	Mercurial   .hg
+	Subversion  .svn
+
+For example,
+
+	import "example.org/user/foo.hg"
+
+denotes the root directory of the Mercurial repository at
+example.org/user/foo or foo.hg, and
+
+	import "example.org/repo.git/foo/bar"
+
+denotes the foo/bar directory of the Git repository at
+example.com/repo or repo.git.
+
+When a version control system supports multiple protocols,
+each is tried in turn when downloading.  For example, a Git
+download tries git://, then https://, then http://.
+
+New downloaded packages are written to the first directory
+listed in the GOPATH environment variable (see 'go help gopath').
+
+The go command attempts to download the version of the
+package appropriate for the Go release being used.
+Run 'go help install' for more.
+---
+
