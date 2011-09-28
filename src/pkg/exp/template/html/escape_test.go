@@ -1400,6 +1400,66 @@ func TestEscapeText(t *testing.T) {
 			`<style>value`,
 			context{state: stateCSS, element: elementStyle},
 		},
+		{
+			`<a xlink:href`,
+			context{state: stateAttrName, attr: attrURL},
+		},
+		{
+			`<a xmlns`,
+			context{state: stateAttrName, attr: attrURL},
+		},
+		{
+			`<a xmlns:foo`,
+			context{state: stateAttrName, attr: attrURL},
+		},
+		{
+			`<a xmlnsxyz`,
+			context{state: stateAttrName},
+		},
+		{
+			`<a data-url`,
+			context{state: stateAttrName, attr: attrURL},
+		},
+		{
+			`<a data-iconUri`,
+			context{state: stateAttrName, attr: attrURL},
+		},
+		{
+			`<a data-urlItem`,
+			context{state: stateAttrName, attr: attrURL},
+		},
+		{
+			`<a g:`,
+			context{state: stateAttrName},
+		},
+		{
+			`<a g:url`,
+			context{state: stateAttrName, attr: attrURL},
+		},
+		{
+			`<a g:iconUri`,
+			context{state: stateAttrName, attr: attrURL},
+		},
+		{
+			`<a g:urlItem`,
+			context{state: stateAttrName, attr: attrURL},
+		},
+		{
+			`<a g:value`,
+			context{state: stateAttrName},
+		},
+		{
+			`<a svg:style='`,
+			context{state: stateCSS, delim: delimSingleQuote},
+		},
+		{
+			`<svg:font-face`,
+			context{state: stateTag},
+		},
+		{
+			`<svg:a svg:onclick="`,
+			context{state: stateJS, delim: delimDoubleQuote},
+		},
 	}
 
 	for _, test := range tests {

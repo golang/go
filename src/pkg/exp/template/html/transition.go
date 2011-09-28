@@ -106,18 +106,13 @@ func tTag(c context, s []byte) (context, int) {
 			err:   errorf(ErrBadHTML, 0, "expected space, attr name, or end of tag, but got %q", s[i:]),
 		}, len(s)
 	}
-	canonAttrName := strings.ToLower(string(s[i:j]))
-	switch attrType[canonAttrName] {
+	switch attrType(string(s[i:j])) {
 	case contentTypeURL:
 		attr = attrURL
 	case contentTypeCSS:
 		attr = attrStyle
 	case contentTypeJS:
 		attr = attrScript
-	default:
-		if strings.HasPrefix(canonAttrName, "on") {
-			attr = attrScript
-		}
 	}
 	if j == len(s) {
 		state = stateAttrName
@@ -512,16 +507,34 @@ var elementNameMap = map[string]element{
 	"title":    elementTitle,
 }
 
+// asciiAlpha returns whether c is an ASCII letter.
+func asciiAlpha(c byte) bool {
+	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
+}
+
+// asciiAlphaNum returns whether c is an ASCII letter or digit.
+func asciiAlphaNum(c byte) bool {
+	return asciiAlpha(c) || '0' <= c && c <= '9'
+}
+
 // eatTagName returns the largest j such that s[i:j] is a tag name and the tag type.
 func eatTagName(s []byte, i int) (int, element) {
-	j := i
-	for ; j < len(s); j++ {
+	if i == len(s) || !asciiAlpha(s[i]) {
+		return i, elementNone
+	}
+	j := i + 1
+	for j < len(s) {
 		x := s[j]
-		if !(('a' <= x && x <= 'z') ||
-			('A' <= x && x <= 'Z') ||
-			('0' <= x && x <= '9' && i != j)) {
-			break
+		if asciiAlphaNum(x) {
+			j++
+			continue
 		}
+		// Allow "x-y" or "x:y" but not "x-", "-y", or "x--y".
+		if (x == ':' || x == '-') && j+1 < len(s) && asciiAlphaNum(s[j+1]) {
+			j += 2
+			continue
+		}
+		break
 	}
 	return j, elementNameMap[strings.ToLower(string(s[i:j]))]
 }
