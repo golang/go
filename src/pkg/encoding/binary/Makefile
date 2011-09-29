@@ -7,5 +7,6 @@ include ../../../Make.inc
 TARG=encoding/binary
 GOFILES=\
 	binary.go\
+        varint.go\
 
 include ../../../Make.pkg
