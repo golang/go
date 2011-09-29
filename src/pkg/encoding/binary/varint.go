@@ -37,27 +37,15 @@ const (
 )
 
 // PutUvarint encodes a uint64 into buf and returns the number of bytes written.
-// If the buffer is too small, the result is the negated number of bytes required
-// (that is, -PutUvarint(nil, x) is the number of bytes required to encode x).
 func PutUvarint(buf []byte, x uint64) int {
-	var i int
-	for i = range buf {
-		if x < 0x80 {
-			buf[i] = byte(x)
-			return i + 1
-		}
+	i := 0
+	for x >= 0x80 {
 		buf[i] = byte(x) | 0x80
 		x >>= 7
-	}
-	// buffer too small; compute number of bytes required
-	for x >= 0x4000 {
-		x >>= 2 * 7
-		i += 2
-	}
-	if x >= 0x80 {
 		i++
 	}
-	return -(i + 1)
+	buf[i] = byte(x)
+	return i + 1
 }
 
 // Uvarint decodes a uint64 from buf and returns that value and the
@@ -85,8 +73,6 @@ func Uvarint(buf []byte) (uint64, int) {
 }
 
 // PutVarint encodes an int64 into buf and returns the number of bytes written.
-// If the buffer is too small, the result is the negated number of bytes required
-// (that is, -PutVarint(nil, x) is the number of bytes required to encode x).
 func PutVarint(buf []byte, x int64) int {
 	ux := uint64(x) << 1
 	if x < 0 {
@@ -115,7 +101,7 @@ func Varint(buf []byte) (int64, int) {
 // WriteUvarint encodes x and writes the result to w.
 func WriteUvarint(w io.Writer, x uint64) os.Error {
 	var buf [MaxVarintLen64]byte
-	n := PutUvarint(buf[:], x) // won't fail
+	n := PutUvarint(buf[:], x)
 	_, err := w.Write(buf[0:n])
 	return err
 }
