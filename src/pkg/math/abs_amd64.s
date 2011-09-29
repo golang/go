@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// func Fabs(x float64) float64
-TEXT ·Fabs(SB),7,$0
+// func Abs(x float64) float64
+TEXT ·Abs(SB),7,$0
 	MOVQ   $(1<<63), BX
 	MOVQ   BX, X0 // movsd $(-0.0), x0
 	MOVSD  x+0(FP), X1

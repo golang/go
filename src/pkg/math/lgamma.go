@@ -206,7 +206,7 @@ func Lgamma(x float64) (lgamma float64, sign int) {
 			lgamma = Inf(1) // -integer
 			return
 		}
-		nadj = Log(Pi / Fabs(t*x))
+		nadj = Log(Pi / Abs(t*x))
 		if t < 0 {
 			sign = -1
 		}
@@ -319,7 +319,7 @@ func sinPi(x float64) float64 {
 	z := Floor(x)
 	var n int
 	if z != x { // inexact
-		x = Fmod(x, 2)
+		x = Mod(x, 2)
 		n = int(x * 4)
 	} else {
 		if x >= Two53 { // x must be even

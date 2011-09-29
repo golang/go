@@ -14,6 +14,7 @@ GOFILES=\
 	httpserver.go\
 	imagenew.go\
 	main.go\
+	math.go\
 	netdial.go\
 	netudpgroup.go\
 	oserrorstring.go\

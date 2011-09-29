@@ -50,7 +50,7 @@ import "math"
 // Asin returns the inverse sine of x.
 func Asin(x complex128) complex128 {
 	if imag(x) == 0 {
-		if math.Fabs(real(x)) > 1 {
+		if math.Abs(real(x)) > 1 {
 			return complex(math.Pi/2, 0) // DOMAIN error
 		}
 		return complex(math.Asin(real(x)), 0)
@@ -67,7 +67,7 @@ func Asin(x complex128) complex128 {
 func Asinh(x complex128) complex128 {
 	// TODO check range
 	if imag(x) == 0 {
-		if math.Fabs(real(x)) > 1 {
+		if math.Abs(real(x)) > 1 {
 			return complex(math.Pi/2, 0) // DOMAIN error
 		}
 		return complex(math.Asinh(real(x)), 0)

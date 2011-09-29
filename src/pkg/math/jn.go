@@ -197,7 +197,7 @@ func Jn(n int, x float64) float64 {
 
 			tmp := float64(n)
 			v := 2 / x
-			tmp = tmp * Log(Fabs(v*tmp))
+			tmp = tmp * Log(Abs(v*tmp))
 			if tmp < 7.09782712893383973096e+02 {
 				for i := n - 1; i > 0; i-- {
 					di := float64(i + i)

@@ -127,7 +127,7 @@ func Gamma(x float64) float64 {
 	case x < -170.5674972726612 || x > 171.61447887182298:
 		return Inf(1)
 	}
-	q := Fabs(x)
+	q := Abs(x)
 	p := Floor(q)
 	if q > 33 {
 		if x >= 0 {
@@ -146,7 +146,7 @@ func Gamma(x float64) float64 {
 		if z == 0 {
 			return Inf(signgam)
 		}
-		z = Pi / (Fabs(z) * stirling(q))
+		z = Pi / (Abs(z) * stirling(q))
 		return float64(signgam) * z
 	}
 

@@ -4,18 +4,18 @@
 
 package math
 
-// Fabs returns the absolute value of x.
+// Abs returns the absolute value of x.
 //
 // Special cases are:
-//	Fabs(+Inf) = +Inf
-//	Fabs(-Inf) = +Inf
-//	Fabs(NaN) = NaN
-func Fabs(x float64) float64 {
+//	Abs(+Inf) = +Inf
+//	Abs(-Inf) = +Inf
+//	Abs(NaN) = NaN
+func Abs(x float64) float64 {
 	switch {
 	case x < 0:
 		return -x
 	case x == 0:
-		return 0 // return correctly fabs(-0)
+		return 0 // return correctly abs(-0)
 	}
 	return x
 }

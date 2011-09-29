@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package math
-
-func Fmod(x, y float64) float64
+// func Abs(x float64) float64
+TEXT ·Abs(SB),7,$0
+	FMOVD   x+0(FP), F0  // F0=x
+	FABS                 // F0=|x|
+	FMOVDP  F0, r+8(FP)
+	RET
