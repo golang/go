@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"sync"
 	"unicode"
 	"utf8"
 )
@@ -78,34 +79,37 @@ type pp struct {
 }
 
 // A cache holds a set of reusable objects.
-// The buffered channel holds the currently available objects.
+// The slice is a stack (LIFO).
 // If more are needed, the cache creates them by calling new.
 type cache struct {
-	saved chan interface{}
+	mu    sync.Mutex
+	saved []interface{}
 	new   func() interface{}
 }
 
 func (c *cache) put(x interface{}) {
-	select {
-	case c.saved <- x:
-		// saved in cache
-	default:
-		// discard
+	c.mu.Lock()
+	if len(c.saved) < cap(c.saved) {
+		c.saved = append(c.saved, x)
 	}
+	c.mu.Unlock()
 }
 
 func (c *cache) get() interface{} {
-	select {
-	case x := <-c.saved:
-		return x // reused from cache
-	default:
+	c.mu.Lock()
+	n := len(c.saved)
+	if n == 0 {
+		c.mu.Unlock()
 		return c.new()
 	}
-	panic("not reached")
+	x := c.saved[n-1]
+	c.saved = c.saved[0 : n-1]
+	c.mu.Unlock()
+	return x
 }
 
 func newCache(f func() interface{}) *cache {
-	return &cache{make(chan interface{}, 100), f}
+	return &cache{saved: make([]interface{}, 0, 100), new: f}
 }
 
 var ppFree = newCache(func() interface{} { return new(pp) })
