@@ -11,7 +11,8 @@ import (
 )
 
 func testConstant(t *testing.T, w uint, max int) {
-	n := -PutUvarint(nil, 1<<w-1)
+	var buf [MaxVarintLen64]byte
+	n := PutUvarint(buf[:], 1<<w-1)
 	if n != max {
 		t.Errorf("MaxVarintLen%d = %d; want %d", w, max, n)
 	}
@@ -121,18 +122,6 @@ func TestUvarint(t *testing.T) {
 }
 
 func TestBufferTooSmall(t *testing.T) {
-	for i := 0; i < 10; i++ {
-		buf := make([]byte, i)
-		x := uint64(1) << (uint(i) * 7)
-		n0 := -i
-		if i == 0 {
-			n0 = -1 // encoding 0 takes one byte
-		}
-		if n := PutUvarint(buf, x); n != n0 {
-			t.Errorf("PutUvarint([%d]byte, %d): got n = %d; want %d", len(buf), x, n, n0)
-		}
-	}
-
 	buf := []byte{0x80, 0x80, 0x80, 0x80}
 	for i := 0; i <= len(buf); i++ {
 		buf := buf[0:i]
