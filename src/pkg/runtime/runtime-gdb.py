@@ -122,8 +122,8 @@ class ChanTypePrinter:
 		return str(self.val.type)
 
 	def children(self):
-		# see chan.c chanbuf()
-		et = [x.type for x in self.val['free'].type.target().fields() if x.name == 'elem'][0]
+		# see chan.c chanbuf().  et is the type stolen from hchan<T>::recvq->first->elem
+		et = [x.type for x in self.val['recvq']['first'].type.target().fields() if x.name == 'elem'][0]
                 ptr = (self.val.address + 1).cast(et.pointer())
                 for i in range(self.val["qcount"]):
 			j = (self.val["recvx"] + i) % self.val["dataqsiz"]
