@@ -104,6 +104,10 @@ func NopCloser(r io.Reader) io.ReadCloser {
 
 type devNull int
 
+// devNull implements ReaderFrom as an optimization so io.Copy to
+// ioutil.Discard can avoid doing unnecessary work.
+var _ io.ReaderFrom = devNull(0)
+
 func (devNull) Write(p []byte) (int, os.Error) {
 	return len(p), nil
 }
