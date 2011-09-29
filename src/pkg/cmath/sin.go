@@ -122,7 +122,7 @@ func Cosh(x complex128) complex128 {
 
 // calculate sinh and cosh
 func sinhcosh(x float64) (sh, ch float64) {
-	if math.Fabs(x) <= 0.5 {
+	if math.Abs(x) <= 0.5 {
 		return math.Sinh(x), math.Cosh(x)
 	}
 	e := math.Exp(x)

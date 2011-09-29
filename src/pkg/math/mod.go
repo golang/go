@@ -8,14 +8,14 @@ package math
 	Floating-point mod function.
 */
 
-// Fmod returns the floating-point remainder of x/y.
+// Mod returns the floating-point remainder of x/y.
 // The magnitude of the result is less than y and its
 // sign agrees with that of x.
 //
 // Special cases are:
-//	if x is not finite, Fmod returns NaN
-//	if y is 0 or NaN, Fmod returns NaN
-func Fmod(x, y float64) float64 {
+//	if x is not finite, Mod returns NaN
+//	if y is 0 or NaN, Mod returns NaN
+func Mod(x, y float64) float64 {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us.
 	if y == 0 || x > MaxFloat64 || x < -MaxFloat64 || x != x || y != y { // y == 0 || IsInf(x, 0) || IsNaN(x) || IsNan(y)

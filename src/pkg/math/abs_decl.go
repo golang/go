@@ -4,6 +4,4 @@
 
 package math
 
-func Fdim(x, y float64) float64
-func Fmax(x, y float64) float64
-func Fmin(x, y float64) float64
+func Abs(x float64) float64

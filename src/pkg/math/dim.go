@@ -4,24 +4,24 @@
 
 package math
 
-// Fdim returns the maximum of x-y or 0.
-func Fdim(x, y float64) float64 {
+// Dim returns the maximum of x-y or 0.
+func Dim(x, y float64) float64 {
 	if x > y {
 		return x - y
 	}
 	return 0
 }
 
-// Fmax returns the larger of x or y.
-func Fmax(x, y float64) float64 {
+// Max returns the larger of x or y.
+func Max(x, y float64) float64 {
 	if x > y {
 		return x
 	}
 	return y
 }
 
-// Fmin returns the smaller of x or y.
-func Fmin(x, y float64) float64 {
+// Min returns the smaller of x or y.
+func Min(x, y float64) float64 {
 	if x < y {
 		return x
 	}

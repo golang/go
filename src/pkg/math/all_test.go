@@ -1584,7 +1584,7 @@ func TestAcos(t *testing.T) {
 
 func TestAcosh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := 1 + Fabs(vf[i])
+		a := 1 + Abs(vf[i])
 		if f := Acosh(a); !veryclose(acosh[i], f) {
 			t.Errorf("Acosh(%g) = %g, want %g", a, f, acosh[i])
 		}
@@ -1818,23 +1818,23 @@ func testExp2(t *testing.T, Exp2 func(float64) float64, name string) {
 	}
 }
 
-func TestFabs(t *testing.T) {
+func TestAbs(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Fabs(vf[i]); fabs[i] != f {
-			t.Errorf("Fabs(%g) = %g, want %g", vf[i], f, fabs[i])
+		if f := Abs(vf[i]); fabs[i] != f {
+			t.Errorf("Abs(%g) = %g, want %g", vf[i], f, fabs[i])
 		}
 	}
 	for i := 0; i < len(vffabsSC); i++ {
-		if f := Fabs(vffabsSC[i]); !alike(fabsSC[i], f) {
-			t.Errorf("Fabs(%g) = %g, want %g", vffabsSC[i], f, fabsSC[i])
+		if f := Abs(vffabsSC[i]); !alike(fabsSC[i], f) {
+			t.Errorf("Abs(%g) = %g, want %g", vffabsSC[i], f, fabsSC[i])
 		}
 	}
 }
 
-func TestFdim(t *testing.T) {
+func TestDim(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Fdim(vf[i], 0); fdim[i] != f {
-			t.Errorf("Fdim(%g, %g) = %g, want %g", vf[i], 0.0, f, fdim[i])
+		if f := Dim(vf[i], 0); fdim[i] != f {
+			t.Errorf("Dim(%g, %g) = %g, want %g", vf[i], 0.0, f, fdim[i])
 		}
 	}
 }
@@ -1852,31 +1852,31 @@ func TestFloor(t *testing.T) {
 	}
 }
 
-func TestFmax(t *testing.T) {
+func TestMax(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Fmax(vf[i], ceil[i]); ceil[i] != f {
-			t.Errorf("Fmax(%g, %g) = %g, want %g", vf[i], ceil[i], f, ceil[i])
+		if f := Max(vf[i], ceil[i]); ceil[i] != f {
+			t.Errorf("Max(%g, %g) = %g, want %g", vf[i], ceil[i], f, ceil[i])
 		}
 	}
 }
 
-func TestFmin(t *testing.T) {
+func TestMin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Fmin(vf[i], floor[i]); floor[i] != f {
-			t.Errorf("Fmin(%g, %g) = %g, want %g", vf[i], floor[i], f, floor[i])
+		if f := Min(vf[i], floor[i]); floor[i] != f {
+			t.Errorf("Min(%g, %g) = %g, want %g", vf[i], floor[i], f, floor[i])
 		}
 	}
 }
 
-func TestFmod(t *testing.T) {
+func TestMod(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Fmod(10, vf[i]); fmod[i] != f {
-			t.Errorf("Fmod(10, %g) = %g, want %g", vf[i], f, fmod[i])
+		if f := Mod(10, vf[i]); fmod[i] != f {
+			t.Errorf("Mod(10, %g) = %g, want %g", vf[i], f, fmod[i])
 		}
 	}
 	for i := 0; i < len(vffmodSC); i++ {
-		if f := Fmod(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
-			t.Errorf("Fmod(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
+		if f := Mod(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
+			t.Errorf("Mod(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
 		}
 	}
 }
@@ -1914,7 +1914,7 @@ func TestGamma(t *testing.T) {
 
 func TestHypot(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(1e200 * tanh[i] * Sqrt(2))
+		a := Abs(1e200 * tanh[i] * Sqrt(2))
 		if f := Hypot(1e200*tanh[i], 1e200*tanh[i]); !veryclose(a, f) {
 			t.Errorf("Hypot(%g, %g) = %g, want %g", 1e200*tanh[i], 1e200*tanh[i], f, a)
 		}
@@ -2033,7 +2033,7 @@ func TestLgamma(t *testing.T) {
 
 func TestLog(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(vf[i])
+		a := Abs(vf[i])
 		if f := Log(a); log[i] != f {
 			t.Errorf("Log(%g) = %g, want %g", a, f, log[i])
 		}
@@ -2068,7 +2068,7 @@ func TestLogb(t *testing.T) {
 
 func TestLog10(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(vf[i])
+		a := Abs(vf[i])
 		if f := Log10(a); !veryclose(log10[i], f) {
 			t.Errorf("Log10(%g) = %g, want %g", a, f, log10[i])
 		}
@@ -2103,7 +2103,7 @@ func TestLog1p(t *testing.T) {
 
 func TestLog2(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(vf[i])
+		a := Abs(vf[i])
 		if f := Log2(a); !veryclose(log2[i], f) {
 			t.Errorf("Log2(%g) = %g, want %g", a, f, log2[i])
 		}
@@ -2226,11 +2226,11 @@ func TestSinh(t *testing.T) {
 
 func TestSqrt(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(vf[i])
+		a := Abs(vf[i])
 		if f := SqrtGo(a); sqrt[i] != f {
 			t.Errorf("SqrtGo(%g) = %g, want %g", a, f, sqrt[i])
 		}
-		a = Fabs(vf[i])
+		a = Abs(vf[i])
 		if f := Sqrt(a); sqrt[i] != f {
 			t.Errorf("Sqrt(%g) = %g, want %g", a, f, sqrt[i])
 		}
@@ -2297,7 +2297,7 @@ func TestTrunc(t *testing.T) {
 
 func TestY0(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(vf[i])
+		a := Abs(vf[i])
 		if f := Y0(a); !close(y0[i], f) {
 			t.Errorf("Y0(%g) = %g, want %g", a, f, y0[i])
 		}
@@ -2311,7 +2311,7 @@ func TestY0(t *testing.T) {
 
 func TestY1(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(vf[i])
+		a := Abs(vf[i])
 		if f := Y1(a); !soclose(y1[i], f, 2e-14) {
 			t.Errorf("Y1(%g) = %g, want %g", a, f, y1[i])
 		}
@@ -2325,7 +2325,7 @@ func TestY1(t *testing.T) {
 
 func TestYn(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(vf[i])
+		a := Abs(vf[i])
 		if f := Yn(2, a); !close(y2[i], f) {
 			t.Errorf("Yn(2, %g) = %g, want %g", a, f, y2[i])
 		}
@@ -2531,15 +2531,15 @@ func BenchmarkExp2Go(b *testing.B) {
 	}
 }
 
-func BenchmarkFabs(b *testing.B) {
+func BenchmarkAbs(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Fabs(.5)
+		Abs(.5)
 	}
 }
 
-func BenchmarkFdim(b *testing.B) {
+func BenchmarkDim(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Fdim(10, 3)
+		Dim(10, 3)
 	}
 }
 
@@ -2549,21 +2549,21 @@ func BenchmarkFloor(b *testing.B) {
 	}
 }
 
-func BenchmarkFmax(b *testing.B) {
+func BenchmarkMax(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Fmax(10, 3)
+		Max(10, 3)
 	}
 }
 
-func BenchmarkFmin(b *testing.B) {
+func BenchmarkMin(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Fmin(10, 3)
+		Min(10, 3)
 	}
 }
 
-func BenchmarkFmod(b *testing.B) {
+func BenchmarkMod(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Fmod(10, 3)
+		Mod(10, 3)
 	}
 }
 

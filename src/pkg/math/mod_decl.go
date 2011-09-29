@@ -4,4 +4,4 @@
 
 package math
 
-func Fabs(x float64) float64
+func Mod(x, y float64) float64

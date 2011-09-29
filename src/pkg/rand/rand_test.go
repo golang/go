@@ -30,11 +30,11 @@ func max(a, b float64) float64 {
 }
 
 func nearEqual(a, b, closeEnough, maxError float64) bool {
-	absDiff := math.Fabs(a - b)
+	absDiff := math.Abs(a - b)
 	if absDiff < closeEnough { // Necessary when one value is zero and one value is close to zero.
 		return true
 	}
-	return absDiff/max(math.Fabs(a), math.Fabs(b)) < maxError
+	return absDiff/max(math.Abs(a), math.Abs(b)) < maxError
 }
 
 var testSeeds = []int64{1, 1754801282, 1698661970, 1550503961}

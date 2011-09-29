@@ -260,10 +260,10 @@ func genValue(n int) interface{} {
 }
 
 func genString(stddev float64) string {
-	n := int(math.Fabs(rand.NormFloat64()*stddev + stddev/2))
+	n := int(math.Abs(rand.NormFloat64()*stddev + stddev/2))
 	c := make([]int, n)
 	for i := range c {
-		f := math.Fabs(rand.NormFloat64()*64 + 32)
+		f := math.Abs(rand.NormFloat64()*64 + 32)
 		if f > 0x10ffff {
 			f = 0x10ffff
 		}
@@ -273,7 +273,7 @@ func genString(stddev float64) string {
 }
 
 func genArray(n int) []interface{} {
-	f := int(math.Fabs(rand.NormFloat64()) * math.Fmin(10, float64(n/2)))
+	f := int(math.Abs(rand.NormFloat64()) * math.Min(10, float64(n/2)))
 	if f > n {
 		f = n
 	}
@@ -288,7 +288,7 @@ func genArray(n int) []interface{} {
 }
 
 func genMap(n int) map[string]interface{} {
-	f := int(math.Fabs(rand.NormFloat64()) * math.Fmin(10, float64(n/2)))
+	f := int(math.Abs(rand.NormFloat64()) * math.Min(10, float64(n/2)))
 	if f > n {
 		f = n
 	}

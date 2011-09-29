@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// func Fabs(x float64) float64
-TEXT ·Fabs(SB),7,$0
-	FMOVD   x+0(FP), F0  // F0=x
-	FABS                 // F0=|x|
-	FMOVDP  F0, r+8(FP)
-	RET
+package math
+
+func Dim(x, y float64) float64
+func Max(x, y float64) float64
+func Min(x, y float64) float64

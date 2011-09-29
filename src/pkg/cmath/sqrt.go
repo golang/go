@@ -76,7 +76,7 @@ func Sqrt(x complex128) complex128 {
 	b := imag(x)
 	var scale float64
 	// Rescale to avoid internal overflow or underflow.
-	if math.Fabs(a) > 4 || math.Fabs(b) > 4 {
+	if math.Abs(a) > 4 || math.Abs(b) > 4 {
 		a *= 0.25
 		b *= 0.25
 		scale = 2
@@ -89,11 +89,11 @@ func Sqrt(x complex128) complex128 {
 	var t float64
 	if a > 0 {
 		t = math.Sqrt(0.5*r + 0.5*a)
-		r = scale * math.Fabs((0.5*b)/t)
+		r = scale * math.Abs((0.5*b)/t)
 		t *= scale
 	} else {
 		r = math.Sqrt(0.5*r - 0.5*a)
-		t = scale * math.Fabs((0.5*b)/r)
+		t = scale * math.Abs((0.5*b)/r)
 		r *= scale
 	}
 	if b < 0 {

@@ -58,7 +58,7 @@ import "math"
 // Tan returns the tangent of x.
 func Tan(x complex128) complex128 {
 	d := math.Cos(2*real(x)) + math.Cosh(2*imag(x))
-	if math.Fabs(d) < 0.25 {
+	if math.Abs(d) < 0.25 {
 		d = tanSeries(x)
 	}
 	if d == 0 {
@@ -109,8 +109,8 @@ func reducePi(x float64) float64 {
 // Taylor series expansion for cosh(2y) - cos(2x)
 func tanSeries(z complex128) float64 {
 	const MACHEP = 1.0 / (1 << 53)
-	x := math.Fabs(2 * real(z))
-	y := math.Fabs(2 * imag(z))
+	x := math.Abs(2 * real(z))
+	y := math.Abs(2 * imag(z))
 	x = reducePi(x)
 	x = x * x
 	y = y * y
@@ -139,7 +139,7 @@ func tanSeries(z complex128) float64 {
 		t = y2 - x2
 		t /= f
 		d += t
-		if math.Fabs(t/d) <= MACHEP {
+		if math.Abs(t/d) <= MACHEP {
 			break
 		}
 	}
@@ -174,7 +174,7 @@ func tanSeries(z complex128) float64 {
 // Cot returns the cotangent of x.
 func Cot(x complex128) complex128 {
 	d := math.Cosh(2*imag(x)) - math.Cos(2*real(x))
-	if math.Fabs(d) < 0.25 {
+	if math.Abs(d) < 0.25 {
 		d = tanSeries(x)
 	}
 	if d == 0 {

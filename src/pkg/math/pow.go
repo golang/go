@@ -66,7 +66,7 @@ func Pow(x, y float64) float64 {
 		switch {
 		case x == -1:
 			return 1
-		case (Fabs(x) < 1) == IsInf(y, 1):
+		case (Abs(x) < 1) == IsInf(y, 1):
 			return 0
 		default:
 			return Inf(1)

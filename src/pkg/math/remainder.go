@@ -24,7 +24,7 @@ package math
 //      precision arithmetic, where [x/y] is the (infinite bit)
 //      integer nearest x/y (in half way cases, choose the even one).
 // Method :
-//      Based on fmod() returning  x - [x/y]chopped * y  exactly.
+//      Based on Mod() returning  x - [x/y]chopped * y  exactly.
 
 // Remainder returns the IEEE 754 floating-point remainder of x/y.
 //
@@ -60,7 +60,7 @@ func Remainder(x, y float64) float64 {
 		return 0
 	}
 	if y <= HalfMax {
-		x = Fmod(x, y+y) // now x < 2y
+		x = Mod(x, y+y) // now x < 2y
 	}
 	if y < Tiny {
 		if x+x > y {
