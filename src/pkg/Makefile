@@ -82,6 +82,8 @@ DIRS=\
 	exp/gui\
 	exp/gui/x11\
 	exp/norm\
+	exp/sql\
+	exp/sql/driver\
 	exp/template/html\
 	expvar\
 	flag\
@@ -202,6 +204,7 @@ NOTEST+=\
 	crypto/x509/pkix\
 	exp/gui\
 	exp/gui/x11\
+	exp/sql/driver\
 	go/ast\
 	go/doc\
 	go/token\
