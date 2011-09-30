@@ -18,7 +18,7 @@ package suffixarray
 
 import (
 	"bytes"
-	"gob"
+	"encoding/binary"
 	"io"
 	"os"
 	"regexp"
@@ -37,17 +37,76 @@ func New(data []byte) *Index {
 	return &Index{data, qsufsort(data)}
 }
 
-// Read and Write slice the data into successive portions of length gobN,
-// so gob can allocate smaller buffers for its I/O.
-const gobN = 1 << 16 // slightly better than say 1 << 20 (BenchmarkSaveRestore)
+// writeInt writes an int x to w using buf to buffer the write.
+func writeInt(w io.Writer, buf []byte, x int) os.Error {
+	binary.PutVarint(buf, int64(x))
+	_, err := w.Write(buf[0:binary.MaxVarintLen64])
+	return err
+}
+
+// readInt reads an int x from r using buf to buffer the read and returns x.
+func readInt(r io.Reader, buf []byte) (int, os.Error) {
+	_, err := io.ReadFull(r, buf[0:binary.MaxVarintLen64]) // ok to continue with error
+	x, _ := binary.Varint(buf)
+	return int(x), err
+}
+
+// writeSlice writes data[:n] to w and returns n.
+// It uses buf to buffer the write.
+func writeSlice(w io.Writer, buf []byte, data []int) (n int, err os.Error) {
+	// encode as many elements as fit into buf
+	p := binary.MaxVarintLen64
+	for ; n < len(data) && p+binary.MaxVarintLen64 <= len(buf); n++ {
+		p += binary.PutUvarint(buf[p:], uint64(data[n]))
+	}
+
+	// update buffer size
+	binary.PutVarint(buf, int64(p))
+
+	// write buffer
+	_, err = w.Write(buf[0:p])
+	return
+}
+
+// readSlice reads data[:n] from r and returns n.
+// It uses buf to buffer the read.
+func readSlice(r io.Reader, buf []byte, data []int) (n int, err os.Error) {
+	// read buffer size
+	var size int
+	size, err = readInt(r, buf)
+	if err != nil {
+		return
+	}
+
+	// read buffer w/o the size
+	if _, err = io.ReadFull(r, buf[binary.MaxVarintLen64:size]); err != nil {
+		return
+	}
+
+	// decode as many elements as present in buf
+	for p := binary.MaxVarintLen64; p < size; n++ {
+		x, w := binary.Uvarint(buf[p:])
+		data[n] = int(x)
+		p += w
+	}
+
+	return
+}
+
+const bufSize = 16 << 10 // reasonable for BenchmarkSaveRestore
 
 // Read reads the index from r into x; x must not be nil.
 func (x *Index) Read(r io.Reader) os.Error {
-	d := gob.NewDecoder(r)
-	var n int
-	if err := d.Decode(&n); err != nil {
+	// buffer for all reads
+	buf := make([]byte, bufSize)
+
+	// read length
+	n, err := readInt(r, buf)
+	if err != nil {
 		return err
 	}
+
+	// allocate space
 	if 2*n < cap(x.data) || cap(x.data) < n {
 		// new data is significantly smaller or larger then
 		// existing buffers - allocate new ones
@@ -58,51 +117,45 @@ func (x *Index) Read(r io.Reader) os.Error {
 		x.data = x.data[0:n]
 		x.sa = x.sa[0:n]
 	}
-	for i := 0; i < n; {
-		j := i + gobN
-		if j > n {
-			j = n
-		}
-		// data holds next piece of x.data; its length is updated by Decode
-		data := x.data[i:j]
-		if err := d.Decode(&data); err != nil {
+
+	// read data
+	if _, err := io.ReadFull(r, x.data); err != nil {
+		return err
+	}
+
+	// read index
+	for sa := x.sa; len(sa) > 0; {
+		n, err := readSlice(r, buf, sa)
+		if err != nil {
 			return err
 		}
-		if len(data) != j-i {
-			return os.NewError("suffixarray.Read: inconsistent data format")
-		}
-		// sa holds next piece of x.data; its length is updated by Decode
-		sa := x.sa[i:j]
-		if err := d.Decode(&sa); err != nil {
-			return err
-		}
-		if len(sa) != j-i {
-			return os.NewError("suffixarray.Read: inconsistent data format")
-		}
-		i = j
+		sa = sa[n:]
 	}
 	return nil
 }
 
 // Write writes the index x to w.
 func (x *Index) Write(w io.Writer) os.Error {
-	e := gob.NewEncoder(w)
-	n := len(x.data)
-	if err := e.Encode(n); err != nil {
+	// buffer for all writes
+	buf := make([]byte, bufSize)
+
+	// write length
+	if err := writeInt(w, buf, len(x.data)); err != nil {
 		return err
 	}
-	for i := 0; i < n; {
-		j := i + gobN
-		if j > n {
-			j = n
-		}
-		if err := e.Encode(x.data[i:j]); err != nil {
+
+	// write data
+	if _, err := w.Write(x.data); err != nil {
+		return err
+	}
+
+	// write index
+	for sa := x.sa; len(sa) > 0; {
+		n, err := writeSlice(w, buf, sa)
+		if err != nil {
 			return err
 		}
-		if err := e.Encode(x.sa[i:j]); err != nil {
-			return err
-		}
-		i = j
+		sa = sa[n:]
 	}
 	return nil
 }
