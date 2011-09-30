@@ -607,6 +607,7 @@ runtime·helpgc(void)
 	M *m;
 	int32 n, max;
 
+return 0;  // broken on linux/386
 	// Figure out how many CPUs to use.
 	// Limited by gomaxprocs, number of actual CPUs, and MaxGcproc.
 	max = runtime·gomaxprocs;
