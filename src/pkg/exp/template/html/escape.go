@@ -262,17 +262,52 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 		i := indexOfStr((id.Args[0].(*parse.IdentifierNode)).Ident, s, escFnsEq)
 		if i != -1 {
 			for _, name := range s[:i] {
-				newCmds = append(newCmds, newIdentCmd(name))
+				newCmds = appendCmd(newCmds, newIdentCmd(name))
 			}
 			s = s[i+1:]
 		}
-		newCmds = append(newCmds, id)
+		newCmds = appendCmd(newCmds, id)
 	}
 	// Create any remaining sanitizers.
 	for _, name := range s {
-		newCmds = append(newCmds, newIdentCmd(name))
+		newCmds = appendCmd(newCmds, newIdentCmd(name))
 	}
 	p.Cmds = newCmds
+}
+
+// redundantFuncs[a][b] implies that funcMap[b](funcMap[a](x)) == funcMap[a](x)
+// for all x.
+var redundantFuncs = map[string]map[string]bool{
+	"exp_template_html_commentescaper": {
+		"exp_template_html_attrescaper":    true,
+		"exp_template_html_nospaceescaper": true,
+		"exp_template_html_htmlescaper":    true,
+	},
+	"exp_template_html_cssescaper": {
+		"exp_template_html_attrescaper": true,
+	},
+	"exp_template_html_jsregexpescaper": {
+		"exp_template_html_attrescaper": true,
+	},
+	"exp_template_html_jsstrescaper": {
+		"exp_template_html_attrescaper": true,
+	},
+	"exp_template_html_urlescaper": {
+		"exp_template_html_urlnormalizer": true,
+	},
+}
+
+// appendCmd appends the given command to the end of the command pipeline
+// unless it is redundant with the last command.
+func appendCmd(cmds []*parse.CommandNode, cmd *parse.CommandNode) []*parse.CommandNode {
+	if n := len(cmds); n != 0 {
+		last, ok := cmds[n-1].Args[0].(*parse.IdentifierNode)
+		next, _ := cmd.Args[0].(*parse.IdentifierNode)
+		if ok && redundantFuncs[last.Ident][next.Ident] {
+			return cmds
+		}
+	}
+	return append(cmds, cmd)
 }
 
 // indexOfStr is the first i such that eq(s, strs[i]) or -1 if s was not found.
