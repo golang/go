@@ -31,6 +31,20 @@ enum {
 // Types
 #pragma pack on
 
+typedef struct SystemInfo SystemInfo;
+struct SystemInfo {
+	byte Pad_godefs_0[4];
+	uint32 dwPageSize;
+	void *lpMinimumApplicationAddress;
+	void *lpMaximumApplicationAddress;
+	uint64 dwActiveProcessorMask;
+	uint32 dwNumberOfProcessors;
+	uint32 dwProcessorType;
+	uint32 dwAllocationGranularity;
+	uint16 wProcessorLevel;
+	uint16 wProcessorRevision;
+};
+
 typedef struct ExceptionRecord ExceptionRecord;
 struct ExceptionRecord {
 	uint32 ExceptionCode;
