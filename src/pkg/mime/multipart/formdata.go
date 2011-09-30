@@ -47,7 +47,7 @@ func (r *Reader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
 
 		if filename == "" {
 			// value, store as string in memory
-			n, err := io.Copyn(&b, p, maxValueBytes)
+			n, err := io.CopyN(&b, p, maxValueBytes)
 			if err != nil && err != os.EOF {
 				return nil, err
 			}
@@ -64,7 +64,7 @@ func (r *Reader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
 			Filename: filename,
 			Header:   p.Header,
 		}
-		n, err := io.Copyn(&b, p, maxMemory+1)
+		n, err := io.CopyN(&b, p, maxMemory+1)
 		if err != nil && err != os.EOF {
 			return nil, err
 		}

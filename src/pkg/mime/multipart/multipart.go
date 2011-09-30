@@ -146,7 +146,7 @@ func (bp *Part) Read(p []byte) (n int, err os.Error) {
 		return 0, io.ErrUnexpectedEOF
 	}
 	if nCopy > 0 {
-		if _, err := io.Copyn(bp.buffer, bp.mr.bufReader, int64(nCopy)); err != nil {
+		if _, err := io.CopyN(bp.buffer, bp.mr.bufReader, int64(nCopy)); err != nil {
 			return 0, err
 		}
 	}

@@ -13,6 +13,7 @@ GOFILES=\
 	httpheaders.go\
 	httpserver.go\
 	imagenew.go\
+	iocopyn.go\
 	main.go\
 	math.go\
 	netdial.go\

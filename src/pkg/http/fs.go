@@ -219,7 +219,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	w.WriteHeader(code)
 
 	if r.Method != "HEAD" {
-		io.Copyn(w, f, size)
+		io.CopyN(w, f, size)
 	}
 }
 
