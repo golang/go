@@ -57,7 +57,7 @@ typedef	struct	String		String;
 typedef	struct	Usema		Usema;
 typedef	struct	SigTab		SigTab;
 typedef	struct	MCache		MCache;
-typedef struct	FixAlloc	FixAlloc;
+typedef	struct	FixAlloc	FixAlloc;
 typedef	struct	Iface		Iface;
 typedef	struct	Itab		Itab;
 typedef	struct	Eface		Eface;
@@ -238,6 +238,7 @@ struct	M
 	int32	waitnextg;
 	int32	dying;
 	int32	profilehz;
+	int32	helpgc;
 	uint32	fastrand;
 	uint64	ncgocall;
 	Note	havenextg;
@@ -406,6 +407,7 @@ extern	bool	runtime·singleproc;
 extern	uint32	runtime·panicking;
 extern	int32	runtime·gcwaiting;		// gc is waiting to run
 int8*	runtime·goos;
+int32	runtime·ncpu;
 extern	bool	runtime·iscgo;
 extern	void	(*runtime·destroylock)(Lock*);
 
@@ -515,6 +517,7 @@ void	runtime·startpanic(void);
 void	runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp);
 void	runtime·resetcpuprofiler(int32);
 void	runtime·setcpuprofilerate(void(*)(uintptr*, int32), int32);
+void	runtime·usleep(uint32);
 
 #pragma	varargck	argpos	runtime·printf	1
 #pragma	varargck	type	"d"	int32
@@ -534,7 +537,7 @@ void	runtime·setcpuprofilerate(void(*)(uintptr*, int32), int32);
 // TODO(rsc): Remove. These are only temporary,
 // for the mark and sweep collector.
 void	runtime·stoptheworld(void);
-void	runtime·starttheworld(void);
+void	runtime·starttheworld(bool);
 
 /*
  * mutual exclusion locks.  in the uncontended case,

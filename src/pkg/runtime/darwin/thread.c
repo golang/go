@@ -148,6 +148,20 @@ runtime·osinit(void)
 	if(!runtime·iscgo)
 		runtime·bsdthread_register();
 	runtime·destroylock = destroylock;
+
+	// Use sysctl to fetch hw.ncpu.
+	uint32 mib[2];
+	uint32 out;
+	int32 ret;
+	uintptr nout;
+
+	mib[0] = 6;
+	mib[1] = 3;
+	nout = sizeof out;
+	out = 0;
+	ret = runtime·sysctl(mib, 2, (byte*)&out, &nout, nil, 0);
+	if(ret >= 0)
+		runtime·ncpu = out;
 }
 
 void

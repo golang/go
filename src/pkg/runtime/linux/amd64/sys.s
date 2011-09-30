@@ -50,6 +50,24 @@ TEXT runtime·read(SB),7,$0-24
 	SYSCALL
 	RET
 
+TEXT runtime·usleep(SB),7,$16
+	MOVL	$0, DX
+	MOVL	usec+0(FP), AX
+	MOVL	$1000000, CX
+	DIVL	CX
+	MOVQ	AX, 0(SP)
+	MOVQ	DX, 8(SP)
+
+	// select(0, 0, 0, 0, &tv)
+	MOVL	$0, DI
+	MOVL	$0, SI
+	MOVL	$0, DX
+	MOVL	$0, R10
+	MOVQ	SP, R8
+	MOVL	$23, AX
+	SYSCALL
+	RET
+
 TEXT runtime·raisesigpipe(SB),7,$12
 	MOVL	$186, AX	// syscall - gettid
 	SYSCALL
@@ -195,10 +213,10 @@ TEXT runtime·clone(SB),7,$0
 	CMPQ	AX, $0
 	JEQ	2(PC)
 	RET
-	
+
 	// In child, on new stack.
 	MOVQ	SI, SP
-	
+
 	// Initialize m->procid to Linux tid
 	MOVL	$186, AX	// gettid
 	SYSCALL

@@ -51,7 +51,7 @@ vprintf(int8 *s, byte *base)
 	uintptr arg, narg;
 	byte *v;
 
-//	lock(&debuglock);
+	//runtime·lock(&debuglock);
 
 	lp = p = s;
 	arg = 0;
@@ -152,7 +152,7 @@ vprintf(int8 *s, byte *base)
 	if(p > lp)
 		runtime·write(2, lp, p-lp);
 
-//	unlock(&debuglock);
+	//runtime·unlock(&debuglock);
 }
 
 #pragma textflag 7
@@ -348,4 +348,4 @@ runtime·typestring(Eface e, String s)
 	s = *e.type->string;
 	FLUSH(&s);
 }
-	
+

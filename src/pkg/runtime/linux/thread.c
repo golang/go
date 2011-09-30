@@ -8,7 +8,6 @@
 #include "stack.h"
 
 extern SigTab runtime·sigtab[];
-static int32 proccount;
 
 int32 runtime·open(uint8*, int32, int32);
 int32 runtime·close(int32);
@@ -136,13 +135,10 @@ futexlock(Lock *l)
 	// its wakeup call.
 	wait = v;
 
-	if(proccount == 0)
-		proccount = getproccount();
-
 	// On uniprocessor's, no point spinning.
 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
 	spin = 0;
-	if(proccount > 1)
+	if(runtime·ncpu > 1)
 		spin = ACTIVE_SPIN;
 
 	for(;;) {
@@ -276,6 +272,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 void
 runtime·osinit(void)
 {
+	runtime·ncpu = getproccount();
 }
 
 void

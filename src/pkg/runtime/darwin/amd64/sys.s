@@ -81,11 +81,11 @@ TEXT runtime·sigaction(SB),7,$0
 
 TEXT runtime·sigtramp(SB),7,$64
 	get_tls(BX)
-	
+
 	// save g
 	MOVQ	g(BX), R10
 	MOVQ	R10, 48(SP)
-	
+
 	// g = m->gsignal
 	MOVQ	m(BX), BP
 	MOVQ	m_gsignal(BP), BP
@@ -146,6 +146,24 @@ TEXT runtime·sigaltstack(SB),7,$0
 	CALL	runtime·notok(SB)
 	RET
 
+TEXT runtime·usleep(SB),7,$16
+	MOVL	$0, DX
+	MOVL	usec+0(FP), AX
+	MOVL	$1000000, CX
+	DIVL	CX
+	MOVQ	AX, 0(SP)  // sec
+	MOVL	DX, 8(SP)  // usec
+
+	// select(0, 0, 0, 0, &tv)
+	MOVL	$0, DI
+	MOVL	$0, SI
+	MOVL	$0, DX
+	MOVL	$0, R10
+	MOVQ	SP, R8
+	MOVL	$(0x2000000+23), AX
+	SYSCALL
+	RET
+
 // void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
 TEXT runtime·bsdthread_create(SB),7,$0
 	// Set up arguments to bsdthread_create system call.
@@ -189,7 +207,7 @@ TEXT runtime·bsdthread_start(SB),7,$0
 	POPQ	SI
 	POPQ	CX
 	POPQ	DX
-	
+
 	get_tls(BX)
 	MOVQ	CX, m(BX)
 	MOVQ	SI, m_procid(CX)	// thread port is m->procid
@@ -292,4 +310,19 @@ TEXT runtime·settls(SB),7,$32
 
 	MOVL	$(0x3000000+3), AX	// thread_fast_set_cthread_self - machdep call #3
 	SYSCALL
+	RET
+
+TEXT runtime·sysctl(SB),7,$0
+	MOVQ	8(SP), DI
+	MOVL	16(SP), SI
+	MOVQ	24(SP), DX
+	MOVQ	32(SP), R10
+	MOVQ	40(SP), R8
+	MOVQ	48(SP), R9
+	MOVL	$(0x2000000+202), AX	// syscall entry
+	SYSCALL
+	JCC 3(PC)
+	NEGL	AX
+	RET
+	MOVL	$0, AX
 	RET
