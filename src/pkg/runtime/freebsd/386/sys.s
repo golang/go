@@ -174,6 +174,10 @@ TEXT runtime·sigaltstack(SB),7,$0
 	CALL	runtime·notok(SB)
 	RET
 
+// TODO: Implement usleep
+TEXT runtime·usleep(SB),7,$0
+	RET
+
 /*
 descriptor entry format for system call
 is the native machine format, ugly as it is:

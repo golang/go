@@ -169,6 +169,10 @@ TEXT runtime·sigaltstack(SB),7,$-8
 	CALL	runtime·notok(SB)
 	RET
 
+// TODO: Implement usleep
+TEXT runtime·usleep(SB),7,$0
+	RET
+
 // set tls base to DI
 TEXT runtime·settls(SB),7,$8
 	ADDQ	$16, DI	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m

@@ -199,3 +199,9 @@ runtime·sigpanic(void)
 	}
 	runtime·panicstring(runtime·sigtab[g->sig].name);
 }
+
+// TODO: fill this in properly.
+void
+runtime·osyield(void)
+{
+}
