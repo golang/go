@@ -496,3 +496,9 @@ runtime·sigpanic(void)
 	}
 	runtime·panicstring(runtime·sigtab[g->sig].name);
 }
+
+// TODO(rsc): place holder to fix build.
+void
+runtime·osyield(void)
+{
+}
