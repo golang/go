@@ -15,6 +15,7 @@ static void unwindstack(G*, byte*);
 static void schedule(G*);
 static void acquireproc(void);
 static void releaseproc(void);
+static M *startm(void);
 
 typedef struct Sched Sched;
 
@@ -323,6 +324,9 @@ mcommoninit(M *m)
 	m->fastrand = 0x49f6428aUL + m->id;
 	m->stackalloc = runtime·malloc(sizeof(*m->stackalloc));
 	runtime·FixAlloc_Init(m->stackalloc, FixedStack, runtime·SysAlloc, nil, nil);
+
+	if(m->mcache == nil)
+		m->mcache = runtime·allocmcache();
 }
 
 // Try to increment mcpu.  Report whether succeeded.
@@ -422,7 +426,7 @@ mget(G *g)
 	M *m;
 
 	// if g has its own m, use it.
-	if((m = g->lockedm) != nil)
+	if(g && (m = g->lockedm) != nil)
 		return m;
 
 	// otherwise use general m pool.
@@ -507,6 +511,7 @@ nextgandunlock(void)
 	G *gp;
 	uint32 v;
 
+top:
 	if(atomic_mcpu(runtime·sched.atomic) >= maxgomaxprocs)
 		runtime·throw("negative mcpu");
 
@@ -584,10 +589,47 @@ nextgandunlock(void)
 	schedunlock();
 
 	runtime·notesleep(&m->havenextg);
+	if(m->helpgc) {
+		runtime·gchelper();
+		m->helpgc = 0;
+		runtime·lock(&runtime·sched);
+		goto top;
+	}
 	if((gp = m->nextg) == nil)
 		runtime·throw("bad m->nextg in nextgoroutine");
 	m->nextg = nil;
 	return gp;
+}
+
+int32
+runtime·helpgc(void)
+{
+	M *m;
+	int32 n, max;
+
+	// Figure out how many CPUs to use.
+	// Limited by gomaxprocs, number of actual CPUs, and MaxGcproc.
+	max = runtime·gomaxprocs;
+	if(max > runtime·ncpu)
+		max = runtime·ncpu;
+	if(max > MaxGcproc)
+		max = MaxGcproc;
+
+
+	// We're going to use one CPU no matter what.
+	// Figure out the max number of additional CPUs.
+	max--;
+
+	runtime·lock(&runtime·sched);
+	n = 0;
+	while(n < max && (m = mget(nil)) != nil) {
+		n++;
+		m->helpgc = 1;
+		m->waitnextg = 0;
+		runtime·notewakeup(&m->havenextg);
+	}
+	runtime·unlock(&runtime·sched);
+	return n;
 }
 
 void
@@ -626,15 +668,28 @@ runtime·stoptheworld(void)
 	schedunlock();
 }
 
-// TODO(rsc): Remove. This is only temporary,
-// for the mark and sweep collector.
 void
-runtime·starttheworld(void)
+runtime·starttheworld(bool extra)
 {
+	M *m;
+
 	schedlock();
 	runtime·gcwaiting = 0;
 	setmcpumax(runtime·gomaxprocs);
 	matchmg();
+	if(extra && canaddmcpu()) {
+		// Start a new m that will (we hope) be idle
+		// and so available to help when the next
+		// garbage collection happens.
+		// canaddmcpu above did mcpu++
+		// (necessary, because m will be doing various
+		// initialization work so is definitely running),
+		// but m is not running a specific goroutine,
+		// so set the helpgc flag as a signal to m's
+		// first schedule(nil) to mcpu--.
+		m = startm();
+		m->helpgc = 1;
+	}
 	schedunlock();
 }
 
@@ -644,8 +699,6 @@ runtime·mstart(void)
 {
 	if(g != m->g0)
 		runtime·throw("bad runtime·mstart");
-	if(m->mcache == nil)
-		m->mcache = runtime·allocmcache();
 
 	// Record top of stack for use by mcall.
 	// Once we call schedule we're never coming back,
@@ -677,44 +730,53 @@ struct CgoThreadStart
 static void
 matchmg(void)
 {
-	G *g;
+	G *gp;
+	M *mp;
 
 	if(m->mallocing || m->gcing)
 		return;
 
 	while(haveg() && canaddmcpu()) {
-		g = gget();
-		if(g == nil)
+		gp = gget();
+		if(gp == nil)
 			runtime·throw("gget inconsistency");
 
-		// Find the m that will run g.
-		M *m;
-		if((m = mget(g)) == nil){
-			m = runtime·malloc(sizeof(M));
-			mcommoninit(m);
-
-			if(runtime·iscgo) {
-				CgoThreadStart ts;
-
-				if(libcgo_thread_start == nil)
-					runtime·throw("libcgo_thread_start missing");
-				// pthread_create will make us a stack.
-				m->g0 = runtime·malg(-1);
-				ts.m = m;
-				ts.g = m->g0;
-				ts.fn = runtime·mstart;
-				runtime·asmcgocall(libcgo_thread_start, &ts);
-			} else {
-				if(Windows)
-					// windows will layout sched stack on os stack
-					m->g0 = runtime·malg(-1);
-				else
-					m->g0 = runtime·malg(8192);
-				runtime·newosproc(m, m->g0, m->g0->stackbase, runtime·mstart);
-			}
-		}
-		mnextg(m, g);
+		// Find the m that will run gp.
+		if((mp = mget(gp)) == nil)
+			mp = startm();
+		mnextg(mp, gp);
 	}
+}
+
+static M*
+startm(void)
+{
+	M *m;
+
+	m = runtime·malloc(sizeof(M));
+	mcommoninit(m);
+
+	if(runtime·iscgo) {
+		CgoThreadStart ts;
+
+		if(libcgo_thread_start == nil)
+			runtime·throw("libcgo_thread_start missing");
+		// pthread_create will make us a stack.
+		m->g0 = runtime·malg(-1);
+		ts.m = m;
+		ts.g = m->g0;
+		ts.fn = runtime·mstart;
+		runtime·asmcgocall(libcgo_thread_start, &ts);
+	} else {
+		if(Windows)
+			// windows will layout sched stack on os stack
+			m->g0 = runtime·malg(-1);
+		else
+			m->g0 = runtime·malg(8192);
+		runtime·newosproc(m, m->g0, m->g0->stackbase, runtime·mstart);
+	}
+
+	return m;
 }
 
 // One round of scheduler: find a goroutine and run it.
@@ -767,6 +829,12 @@ schedule(G *gp)
 			gp->readyonstop = 0;
 			readylocked(gp);
 		}
+	} else if(m->helpgc) {
+		// atomic { mcpu-- }
+		v = runtime·xadd(&runtime·sched.atomic, -1<<mcpuShift);
+		if(atomic_mcpu(v) > maxgomaxprocs)
+			runtime·throw("negative mcpu in scheduler");
+		m->helpgc = 0;
 	}
 
 	// Find (or wait for) g to run.  Unlocks runtime·sched.
@@ -1097,7 +1165,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
 //printf("newproc1 %p %p narg=%d nret=%d\n", fn, argp, narg, nret);
 	siz = narg + nret;
 	siz = (siz+7) & ~7;
-	
+
 	// We could instead create a secondary stack frame
 	// and make it look like goexit was on the original but
 	// the call to the actual goroutine function was split.

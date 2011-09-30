@@ -73,10 +73,6 @@ func parseDir(dirpath string) map[string]*ast.Package {
 }
 
 func main() {
-	runtime.GOMAXPROCS(4)
-	go func() {}()
-	go func() {}()
-	go func() {}()
 	st := &runtime.MemStats
 	packages = append(packages, packages...)
 	packages = append(packages, packages...)
@@ -132,7 +128,6 @@ func main() {
 	}
 }
 
-
 var packages = []string{
 	"archive/tar",
 	"asn1",
@@ -148,7 +143,6 @@ var packages = []string{
 	"container/ring",
 	"container/vector",
 	"crypto/aes",
-	"crypto/block",
 	"crypto/blowfish",
 	"crypto/hmac",
 	"crypto/md4",
@@ -167,7 +161,6 @@ var packages = []string{
 	"debug/macho",
 	"debug/elf",
 	"debug/gosym",
-	"debug/proc",
 	"ebnf",
 	"encoding/ascii85",
 	"encoding/base64",
@@ -177,9 +170,6 @@ var packages = []string{
 	"encoding/pem",
 	"exec",
 	"exp/datafmt",
-	"exp/draw",
-	"exp/eval",
-	"exp/iterable",
 	"expvar",
 	"flag",
 	"fmt",

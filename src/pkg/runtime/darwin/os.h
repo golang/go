@@ -18,6 +18,7 @@ uint32	runtime·mach_task_self(void);
 uint32	runtime·mach_task_self(void);
 uint32	runtime·mach_thread_self(void);
 uint32	runtime·mach_thread_self(void);
+int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
 
 struct Sigaction;
 void	runtime·sigaction(uintptr, struct Sigaction*, struct Sigaction*);

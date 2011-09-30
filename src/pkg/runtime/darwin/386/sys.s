@@ -97,7 +97,7 @@ TEXT runtime·sigtramp(SB),7,$40
 	// save g
 	MOVL	g(CX), DI
 	MOVL	DI, 20(SP)
-	
+
 	// g = m->gsignal
 	MOVL	m(CX), BP
 	MOVL	m_gsignal(BP), BP
@@ -111,7 +111,7 @@ TEXT runtime·sigtramp(SB),7,$40
 	MOVL	context+16(FP), BX
 	MOVL	BX, 8(SP)
 	MOVL	DI, 12(SP)
-	
+
 	MOVL	handler+0(FP), BX
 	CALL	BX
 
@@ -136,6 +136,26 @@ TEXT runtime·sigaltstack(SB),7,$0
 	INT	$0x80
 	JAE	2(PC)
 	CALL	runtime·notok(SB)
+	RET
+
+TEXT runtime·usleep(SB),7,$32
+	MOVL	$0, DX
+	MOVL	usec+0(FP), AX
+	MOVL	$1000000, CX
+	DIVL	CX
+	MOVL	AX, 24(SP)  // sec
+	MOVL	DX, 28(SP)  // usec
+
+	// select(0, 0, 0, 0, &tv)
+	MOVL	$0, 0(SP)  // "return PC" - ignored
+	MOVL	$0, 4(SP)
+	MOVL	$0, 8(SP)
+	MOVL	$0, 12(SP)
+	MOVL	$0, 16(SP)
+	LEAL	24(SP), AX
+	MOVL	AX, 20(SP)
+	MOVL	$93, AX
+	INT	$0x80
 	RET
 
 // void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
@@ -308,4 +328,13 @@ TEXT runtime·setldt(SB),7,$32
 
 	XORL	AX, AX
 	MOVW	GS, AX
+	RET
+
+TEXT runtime·sysctl(SB),7,$0
+	MOVL	$202, AX
+	INT	$0x80
+	JAE	3(PC)
+	NEGL	AX
+	RET
+	MOVL	$0, AX
 	RET

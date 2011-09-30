@@ -33,6 +33,7 @@
 #define SYS_gettid (SYS_BASE + 224)
 #define SYS_tkill (SYS_BASE + 238)
 #define SYS_sched_yield (SYS_BASE + 158)
+#define SYS_select (SYS_BASE + 82)
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 #define SYS_ARM_cacheflush (ARM_BASE + 2)
@@ -254,7 +255,7 @@ TEXT runtime·sigtramp(SB),7,$24
 	// save g
 	MOVW	g, R3
 	MOVW	g, 20(R13)
-	
+
 	// g = m->gsignal
 	MOVW	m_gsignal(m), g
 
@@ -265,7 +266,7 @@ TEXT runtime·sigtramp(SB),7,$24
 	MOVW	R3, 16(R13)
 
 	BL	runtime·sighandler(SB)
-	
+
 	// restore g
 	MOVW	20(R13), g
 
@@ -282,6 +283,23 @@ TEXT runtime·rt_sigaction(SB),7,$0
 
 TEXT runtime·sigreturn(SB),7,$0
 	MOVW	$SYS_rt_sigreturn, R7
+	SWI	$0
+	RET
+
+TEXT runtime·usleep(SB),7,$12
+	MOVW	usec+0(FP), R0
+	MOVW	R0, R1
+	MOVW	$1000000, R2
+	DIV	R1, R0
+	MOD	R2, R0
+	MOVW	R1, 4(SP)
+	MOVW	R2, 8(SP)
+	MOVW	$0, R0
+	MOVW	$0, R1
+	MOVW	$0, R2
+	MOVW	$0, R3
+	MOVW	$4(SP), R4
+	MOVW	$SYS_select, R7
 	SWI	$0
 	RET
 

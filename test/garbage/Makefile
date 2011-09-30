@@ -18,7 +18,7 @@ all: $(addsuffix .out, $(ALL))
 	$(LD) -o $@ $*.$O
 
 %.bench: %.out
-	./$*.out
+	time ./$*.out
 
 bench: $(addsuffix .bench, $(ALL))
 

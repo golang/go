@@ -52,6 +52,25 @@ TEXT runtime·read(SB),7,$0
 	CALL	*runtime·_vdso(SB)
 	RET
 
+TEXT runtime·usleep(SB),7,$28
+	MOVL	$0, DX
+	MOVL	usec+0(FP), AX
+	MOVL	$1000000, CX
+	DIVL	CX
+	MOVL	AX, 20(SP)
+	MOVL	DX, 24(SP)
+
+	// select(0, 0, 0, 0, &tv)
+	MOVL	$0, 0(SP)
+	MOVL	$0, 4(SP)
+	MOVL	$0, 8(SP)
+	MOVL	$0, 12(SP)
+	LEAL	20(SP), AX
+	MOVL	AX, 16(SP)
+	MOVL	$82, AX
+	SYSCALL
+	RET
+
 TEXT runtime·raisesigpipe(SB),7,$12
 	MOVL	$224, AX	// syscall - gettid
 	CALL	*runtime·_vdso(SB)
@@ -105,16 +124,16 @@ TEXT runtime·rt_sigaction(SB),7,$0
 
 TEXT runtime·sigtramp(SB),7,$44
 	get_tls(CX)
-	
+
 	// save g
 	MOVL	g(CX), DI
 	MOVL	DI, 20(SP)
-	
+
 	// g = m->gsignal
 	MOVL	m(CX), BX
 	MOVL	m_gsignal(BX), BX
 	MOVL	BX, g(CX)
-	
+
 	// copy arguments for call to sighandler
 	MOVL	sig+0(FP), BX
 	MOVL	BX, 0(SP)
@@ -125,12 +144,12 @@ TEXT runtime·sigtramp(SB),7,$44
 	MOVL	DI, 12(SP)
 
 	CALL	runtime·sighandler(SB)
-	
+
 	// restore g
 	get_tls(CX)
 	MOVL	20(SP), BX
 	MOVL	BX, g(CX)
-	
+
 	RET
 
 TEXT runtime·sigignore(SB),7,$0
@@ -202,7 +221,7 @@ TEXT runtime·clone(SB),7,$0
 	MOVL	$1234, 12(CX)
 
 	// cannot use CALL *runtime·_vdso(SB) here, because
-	// the stack changes during the system call (after 
+	// the stack changes during the system call (after
 	// CALL *runtime·_vdso(SB), the child is still using
 	// the parent's stack when executing its RET instruction).
 	INT	$0x80
