@@ -19,7 +19,7 @@ type Buffer struct {
 	WriterTo   // conflicts with and hides bytes.Buffer's WriterTo.
 }
 
-// Simple tests, primarily to verify the ReadFrom and WriteTo callouts inside Copy and Copyn.
+// Simple tests, primarily to verify the ReadFrom and WriteTo callouts inside Copy and CopyN.
 
 func TestCopy(t *testing.T) {
 	rb := new(Buffer)
@@ -51,33 +51,33 @@ func TestCopyWriteTo(t *testing.T) {
 	}
 }
 
-func TestCopyn(t *testing.T) {
+func TestCopyN(t *testing.T) {
 	rb := new(Buffer)
 	wb := new(Buffer)
 	rb.WriteString("hello, world.")
-	Copyn(wb, rb, 5)
+	CopyN(wb, rb, 5)
 	if wb.String() != "hello" {
-		t.Errorf("Copyn did not work properly")
+		t.Errorf("CopyN did not work properly")
 	}
 }
 
-func TestCopynReadFrom(t *testing.T) {
+func TestCopyNReadFrom(t *testing.T) {
 	rb := new(Buffer)
 	wb := new(bytes.Buffer) // implements ReadFrom.
 	rb.WriteString("hello")
-	Copyn(wb, rb, 5)
+	CopyN(wb, rb, 5)
 	if wb.String() != "hello" {
-		t.Errorf("Copyn did not work properly")
+		t.Errorf("CopyN did not work properly")
 	}
 }
 
-func TestCopynWriteTo(t *testing.T) {
+func TestCopyNWriteTo(t *testing.T) {
 	rb := new(bytes.Buffer) // implements WriteTo.
 	wb := new(Buffer)
 	rb.WriteString("hello, world.")
-	Copyn(wb, rb, 5)
+	CopyN(wb, rb, 5)
 	if wb.String() != "hello" {
-		t.Errorf("Copyn did not work properly")
+		t.Errorf("CopyN did not work properly")
 	}
 }
 
@@ -89,30 +89,30 @@ func (w *noReadFrom) Write(p []byte) (n int, err os.Error) {
 	return w.w.Write(p)
 }
 
-func TestCopynEOF(t *testing.T) {
+func TestCopyNEOF(t *testing.T) {
 	// Test that EOF behavior is the same regardless of whether
-	// argument to Copyn has ReadFrom.
+	// argument to CopyN has ReadFrom.
 
 	b := new(bytes.Buffer)
 
-	n, err := Copyn(&noReadFrom{b}, strings.NewReader("foo"), 3)
+	n, err := CopyN(&noReadFrom{b}, strings.NewReader("foo"), 3)
 	if n != 3 || err != nil {
-		t.Errorf("Copyn(noReadFrom, foo, 3) = %d, %v; want 3, nil", n, err)
+		t.Errorf("CopyN(noReadFrom, foo, 3) = %d, %v; want 3, nil", n, err)
 	}
 
-	n, err = Copyn(&noReadFrom{b}, strings.NewReader("foo"), 4)
+	n, err = CopyN(&noReadFrom{b}, strings.NewReader("foo"), 4)
 	if n != 3 || err != os.EOF {
-		t.Errorf("Copyn(noReadFrom, foo, 4) = %d, %v; want 3, EOF", n, err)
+		t.Errorf("CopyN(noReadFrom, foo, 4) = %d, %v; want 3, EOF", n, err)
 	}
 
-	n, err = Copyn(b, strings.NewReader("foo"), 3) // b has read from
+	n, err = CopyN(b, strings.NewReader("foo"), 3) // b has read from
 	if n != 3 || err != nil {
-		t.Errorf("Copyn(bytes.Buffer, foo, 3) = %d, %v; want 3, nil", n, err)
+		t.Errorf("CopyN(bytes.Buffer, foo, 3) = %d, %v; want 3, nil", n, err)
 	}
 
-	n, err = Copyn(b, strings.NewReader("foo"), 4) // b has read from
+	n, err = CopyN(b, strings.NewReader("foo"), 4) // b has read from
 	if n != 3 || err != os.EOF {
-		t.Errorf("Copyn(bytes.Buffer, foo, 4) = %d, %v; want 3, EOF", n, err)
+		t.Errorf("CopyN(bytes.Buffer, foo, 4) = %d, %v; want 3, EOF", n, err)
 	}
 }
 

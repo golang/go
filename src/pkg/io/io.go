@@ -256,15 +256,15 @@ func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
 	return ReadAtLeast(r, buf, len(buf))
 }
 
-// Copyn copies n bytes (or until an error) from src to dst.
+// CopyN copies n bytes (or until an error) from src to dst.
 // It returns the number of bytes copied and the earliest
 // error encountered while copying.  Because Read can
 // return the full amount requested as well as an error
-// (including os.EOF), so can Copyn.
+// (including os.EOF), so can CopyN.
 //
 // If dst implements the ReaderFrom interface,
 // the copy is implemented by calling dst.ReadFrom(src).
-func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
+func CopyN(dst Writer, src Reader, n int64) (written int64, err os.Error) {
 	// If the writer has a ReadFrom method, use it to do the copy.
 	// Avoids a buffer allocation and a copy.
 	if rt, ok := dst.(ReaderFrom); ok {

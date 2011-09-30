@@ -94,7 +94,7 @@ func (tr *Reader) skipUnread() {
 			return
 		}
 	}
-	_, tr.err = io.Copyn(ioutil.Discard, tr.r, nr)
+	_, tr.err = io.CopyN(ioutil.Discard, tr.r, nr)
 }
 
 func (tr *Reader) verifyChecksum(header []byte) bool {

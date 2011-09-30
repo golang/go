@@ -474,7 +474,7 @@ func TestTransportGzip(t *testing.T) {
 		gz, _ := gzip.NewWriter(w)
 		gz.Write([]byte(testString))
 		if req.FormValue("body") == "large" {
-			io.Copyn(gz, rand.Reader, nRandBytes)
+			io.CopyN(gz, rand.Reader, nRandBytes)
 		}
 		gz.Close()
 	}))
