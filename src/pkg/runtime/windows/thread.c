@@ -17,6 +17,7 @@
 #pragma dynimport runtime·GetEnvironmentStringsW GetEnvironmentStringsW "kernel32.dll"
 #pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
 #pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
+#pragma dynimport runtime·GetSystemInfo GetSystemInfo "kernel32.dll"
 #pragma dynimport runtime·GetThreadContext GetThreadContext "kernel32.dll"
 #pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
 #pragma dynimport runtime·QueryPerformanceCounter QueryPerformanceCounter "kernel32.dll"
@@ -26,6 +27,7 @@
 #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
 #pragma dynimport runtime·SetThreadPriority SetThreadPriority "kernel32.dll"
 #pragma dynimport runtime·SetWaitableTimer SetWaitableTimer "kernel32.dll"
+#pragma dynimport runtime·Sleep Sleep "kernel32.dll"
 #pragma dynimport runtime·SuspendThread SuspendThread "kernel32.dll"
 #pragma dynimport runtime·timeBeginPeriod timeBeginPeriod "winmm.dll"
 #pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
@@ -41,6 +43,7 @@ extern void *runtime·FreeEnvironmentStringsW;
 extern void *runtime·GetEnvironmentStringsW;
 extern void *runtime·GetProcAddress;
 extern void *runtime·GetStdHandle;
+extern void *runtime·GetSystemInfo;
 extern void *runtime·GetThreadContext;
 extern void *runtime·LoadLibraryEx;
 extern void *runtime·QueryPerformanceCounter;
@@ -50,12 +53,22 @@ extern void *runtime·SetConsoleCtrlHandler;
 extern void *runtime·SetEvent;
 extern void *runtime·SetThreadPriority;
 extern void *runtime·SetWaitableTimer;
+extern void *runtime·Sleep;
 extern void *runtime·SuspendThread;
 extern void *runtime·timeBeginPeriod;
 extern void *runtime·WaitForSingleObject;
 extern void *runtime·WriteFile;
 
 static int64 timerfreq;
+
+static int32
+getproccount(void)
+{
+	SystemInfo info;
+
+	runtime·stdcall(runtime·GetSystemInfo, 1, &info);
+	return info.dwNumberOfProcessors;
+}
 
 void
 runtime·osinit(void)
@@ -67,6 +80,7 @@ runtime·osinit(void)
 	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
 	runtime·stdcall(runtime·timeBeginPeriod, 1, (uintptr)1);
+	runtime·ncpu = getproccount();
 }
 
 void
@@ -124,6 +138,21 @@ runtime·write(int32 fd, void *buf, int32 n)
 	}
 	runtime·stdcall(runtime·WriteFile, 5, handle, buf, (uintptr)n, &written, (uintptr)0);
 	return written;
+}
+
+void
+runtime·osyield(void)
+{
+	runtime·stdcall(runtime·Sleep, 1, (uintptr)0);
+}
+
+void
+runtime·usleep(uint32 us)
+{
+	us /= 1000;
+	if(us == 0)
+		us = 1;
+	runtime·stdcall(runtime·Sleep, 1, (uintptr)us);
 }
 
 // Thread-safe allocation of an event.

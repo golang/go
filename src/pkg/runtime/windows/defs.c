@@ -38,6 +38,7 @@ enum {
 	$EXCEPTION_INT_OVERFLOW = STATUS_INTEGER_OVERFLOW,
 };
 
+typedef SYSTEM_INFO $SystemInfo;
 typedef EXCEPTION_RECORD $ExceptionRecord;
 #ifdef _X86_
 typedef FLOATING_SAVE_AREA $FloatingSaveArea;
