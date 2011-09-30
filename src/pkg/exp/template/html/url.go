@@ -10,15 +10,14 @@ import (
 	"strings"
 )
 
-// urlFilter returns the HTML equivalent of its input unless it contains an
-// unsafe protocol in which case it defangs the entire URL.
+// urlFilter returns its input unless it contains an unsafe protocol in which
+// case it defangs the entire URL.
 func urlFilter(args ...interface{}) string {
 	s, t := stringify(args...)
 	if t == contentTypeURL {
-		return urlProcessor(true, s)
+		return s
 	}
-	i := strings.IndexRune(s, ':')
-	if i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
+	if i := strings.IndexRune(s, ':'); i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
 		protocol := strings.ToLower(s[:i])
 		if protocol != "http" && protocol != "https" && protocol != "mailto" {
 			return "#" + filterFailsafe

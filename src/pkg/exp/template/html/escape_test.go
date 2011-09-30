@@ -155,7 +155,7 @@ func TestEscape(t *testing.T) {
 		{
 			"nonHierURL",
 			`<a href={{"mailto:Muhammed \"The Greatest\" Ali <m.ali@example.com>"}}>`,
-			`<a href=mailto:Muhammed&#32;&#34;The&#32;Greatest&#34;&#32;Ali&#32;&lt;m.ali@example.com&gt;>`,
+			`<a href=mailto:Muhammed%20%22The%20Greatest%22%20Ali%20%3cm.ali@example.com%3e>`,
 		},
 		{
 			"urlPath",
@@ -352,8 +352,14 @@ func TestEscape(t *testing.T) {
 		},
 		{
 			"styleStrBadProtocolBlocked",
-			`<a style="background: '{{"javascript:alert(1337)"}}'">`,
+			`<a style="background: '{{"vbscript:alert(1337)"}}'">`,
 			`<a style="background: '#ZgotmplZ'">`,
+		},
+		{
+			"styleStrEncodedProtocolEncoded",
+			`<a style="background: '{{"javascript\\3a alert(1337)"}}'">`,
+			// The CSS string 'javascript\\3a alert(1337)' does not contains a colon.
+			`<a style="background: 'javascript\\3a alert\28 1337\29 '">`,
 		},
 		{
 			"styleURLGoodProtocolPassed",

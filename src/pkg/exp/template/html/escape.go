@@ -171,7 +171,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 			switch c.state {
 			case stateCSSDqStr, stateCSSSqStr:
 				s = append(s, "exp_template_html_cssescaper")
-			case stateCSSDqURL, stateCSSSqURL, stateCSSURL:
+			default:
 				s = append(s, "exp_template_html_urlnormalizer")
 			}
 		case urlPartQueryOrFrag:
