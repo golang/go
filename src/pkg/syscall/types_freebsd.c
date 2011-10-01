@@ -116,6 +116,7 @@ typedef socklen_t $_Socklen;
 typedef struct linger $Linger;
 typedef struct iovec $Iovec;
 typedef struct ip_mreq $IPMreq;
+typedef struct ip_mreqn $IPMreqn;
 typedef struct ipv6_mreq $IPv6Mreq;
 typedef struct msghdr $Msghdr;
 typedef struct cmsghdr $Cmsghdr;
@@ -129,6 +130,7 @@ enum {
 	$SizeofSockaddrDatalink = sizeof(struct sockaddr_dl),
 	$SizeofLinger = sizeof(struct linger),
 	$SizeofIPMreq = sizeof(struct ip_mreq),
+	$SizeofIPMreqn = sizeof(struct ip_mreqn),
 	$SizeofIPv6Mreq = sizeof(struct ipv6_mreq),
 	$SizeofMsghdr = sizeof(struct msghdr),
 	$SizeofCmsghdr = sizeof(struct cmsghdr),

@@ -33,6 +33,7 @@ const (
 	SizeofSockaddrDatalink = 0x36
 	SizeofLinger           = 0x8
 	SizeofIPMreq           = 0x8
+	SizeofIPMreqn          = 0xc
 	SizeofIPv6Mreq         = 0x14
 	SizeofMsghdr           = 0x1c
 	SizeofCmsghdr          = 0xc
@@ -225,6 +226,12 @@ type Iovec struct {
 type IPMreq struct {
 	Multiaddr [4]byte /* in_addr */
 	Interface [4]byte /* in_addr */
+}
+
+type IPMreqn struct {
+	Multiaddr [4]byte /* in_addr */
+	Address   [4]byte /* in_addr */
+	Ifindex   int32
 }
 
 type IPv6Mreq struct {
