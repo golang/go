@@ -87,7 +87,7 @@ struct hash_iter {
 	struct hash_iter_sub {
 		struct hash_entry *e;		/* pointer into subtable */
 		struct hash_entry *start;	/* start of subtable */
-		struct hash_entry *end;		/* end of subtable */
+		struct hash_entry *last;		/* last entry in subtable */
 	} subtable_state[4];	/* Should be large enough unless the hashing is
 				   so bad that many distinct data values hash
 				   to the same hash value.  */

@@ -54,7 +54,7 @@ struct hash_subtable {
 	uint8 datasize;      /* bytes of client data in an entry */
 	uint8 max_probes;    /* max number of probes when searching */
 	int16 limit_bytes;	   /* max_probes * (datasize+sizeof (hash_hash_t)) */
-	struct hash_entry *end;      /* points just past end of entry[] */
+	struct hash_entry *last;      /* points to last element of entry[] */
 	struct hash_entry entry[1];  /* 2**power+max_probes-1 elements of elemsize bytes */
 };
 
@@ -101,7 +101,7 @@ hash_subtable_new (Hmap *h, int32 power, int32 used)
 	st->datasize = h->datasize;
 	st->max_probes = max_probes;
 	st->limit_bytes = limit_bytes;
-	st->end = HASH_OFFSET (st->entry, bytes);
+	st->last = HASH_OFFSET (st->entry, bytes) - 1;
 	memset (st->entry, HASH_NIL_MEMSET, bytes);
 	return (st);
 }
@@ -160,7 +160,7 @@ hash_remove_n (struct hash_subtable *st, struct hash_entry *dst_e, int32 n)
 {
 	int32 elemsize = st->datasize + offsetof (struct hash_entry, data[0]);
 	struct hash_entry *src_e = HASH_OFFSET (dst_e, n * elemsize);
-	struct hash_entry *end_e = st->end;
+	struct hash_entry *last_e = st->last;
 	int32 shift = HASH_BITS - (st->power + st->used);
 	int32 index_mask = (((hash_hash_t)1) << st->power) - 1;
 	int32 dst_i = (((byte *) dst_e) - ((byte *) st->entry)) / elemsize;
@@ -170,10 +170,10 @@ hash_remove_n (struct hash_subtable *st, struct hash_entry *dst_e, int32 n)
 	int32 bytes;
 
 	while (dst_e != src_e) {
-		if (src_e != end_e) {
+		if (src_e <= last_e) {
 			struct hash_entry *cp_e = src_e;
 			int32 save_dst_i = dst_i;
-			while (cp_e != end_e && (hash = cp_e->hash) != HASH_NIL &&
+			while (cp_e <= last_e && (hash = cp_e->hash) != HASH_NIL &&
 			     ((hash >> shift) & index_mask) <= dst_i) {
 				cp_e = HASH_OFFSET (cp_e, elemsize);
 				dst_i++;
@@ -183,7 +183,7 @@ hash_remove_n (struct hash_subtable *st, struct hash_entry *dst_e, int32 n)
 			dst_e = HASH_OFFSET (dst_e, bytes);
 			src_e = cp_e;
 			src_i += dst_i - save_dst_i;
-			if (src_e != end_e && (hash = src_e->hash) != HASH_NIL) {
+			if (src_e <= last_e && (hash = src_e->hash) != HASH_NIL) {
 				skip = ((hash >> shift) & index_mask) - dst_i;
 			} else {
 				skip = src_i - dst_i;
@@ -224,7 +224,7 @@ hash_conv (Hmap *h,
 	}
 
 	de = e;
-	while (e != st->end &&
+	while (e <= st->last &&
 	    (e_hash = e->hash) != HASH_NIL &&
 	    (e_hash & HASH_MASK) != HASH_SUBHASH) {
 		struct hash_entry *target_e = HASH_OFFSET (st->entry, ((e_hash >> shift) & index_mask) * elemsize);
@@ -235,14 +235,14 @@ hash_conv (Hmap *h,
 			de = target_e;
 		}
 		if ((hash & prefix_mask) == current ||
-		   (ne != st->end && (e_hash = ne->hash) != HASH_NIL &&
+		   (ne <= st->last && (e_hash = ne->hash) != HASH_NIL &&
 		   (e_hash & prefix_mask) == current)) {
 			struct hash_subtable *new_st = hash_subtable_new (h, 1, HASH_USED (new_flags));
 			int32 rc = hash_insert_internal (&new_st, new_flags, e->hash, h, e->data, &dummy_result);
 			assert (rc == 0);
 			memcpy(dummy_result, e->data, h->datasize);
 			e = ne;
-			while (e != st->end && (e_hash = e->hash) != HASH_NIL && (e_hash & prefix_mask) == current) {
+			while (e <= st->last && (e_hash = e->hash) != HASH_NIL && (e_hash & prefix_mask) == current) {
 				assert ((e_hash & HASH_MASK) != HASH_SUBHASH);
 				rc = hash_insert_internal (&new_st, new_flags, e_hash, h, e->data, &dummy_result);
 				assert (rc == 0);
@@ -271,13 +271,13 @@ hash_grow (Hmap *h, struct hash_subtable **pst, int32 flags)
 	struct hash_subtable *old_st = *pst;
 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
 	*pst = hash_subtable_new (h, old_st->power + 1, HASH_USED (flags));
-	struct hash_entry *end_e = old_st->end;
+	struct hash_entry *last_e = old_st->last;
 	struct hash_entry *e;
 	void *dummy_result;
 	int32 used = 0;
 
 	flags |= HASH_REHASH;
-	for (e = old_st->entry; e != end_e; e = HASH_OFFSET (e, elemsize)) {
+	for (e = old_st->entry; e <= last_e; e = HASH_OFFSET (e, elemsize)) {
 		hash_hash_t hash = e->hash;
 		if (hash != HASH_NIL) {
 			int32 rc = hash_insert_internal (pst, flags, e->hash, h, e->data, &dummy_result);
@@ -428,13 +428,13 @@ hash_insert_internal (struct hash_subtable **pst, int32 flags, hash_hash_t hash,
 			ins_e_hash = 0;
 			/* move ins_e to point at the end of the contiguous block, but
 			   stop if any element can't be moved by one up */
-			while (ins_e != st->end && (ins_e_hash = ins_e->hash) != HASH_NIL &&
+			while (ins_e <= st->last && (ins_e_hash = ins_e->hash) != HASH_NIL &&
 			       ins_i + 1 - ((ins_e_hash >> shift) & index_mask) < st->max_probes &&
 			       (ins_e_hash & HASH_MASK) != HASH_SUBHASH) {
 				ins_e = HASH_OFFSET (ins_e, elemsize);
 				ins_i++;
 			}
-			if (e == end_e || ins_e == st->end || ins_e_hash != HASH_NIL) {
+			if (e == end_e || ins_e > st->last || ins_e_hash != HASH_NIL) {
 				e = end_e;    /* can't insert; must grow or convert to subtable */
 			} else {	      /* make space for element */
 				memmove (HASH_OFFSET (e, elemsize), e, ((byte *) ins_e) - (byte *) e);
@@ -477,17 +477,17 @@ iter_restart (struct hash_iter *it, struct hash_subtable *st, int32 used)
 	struct hash_entry *e;
 	hash_hash_t e_hash;
 	struct hash_iter_sub *sub = &it->subtable_state[it->i];
-	struct hash_entry *end;
+	struct hash_entry *last;
 
 	for (;;) {
 		int32 shift = HASH_BITS - (st->power + used);
 		int32 index_mask = (1 << st->power) - 1;
 		int32 i = (last_hash >> shift) & index_mask;
 
-		end = st->end;
+		last = st->last;
 		e = HASH_OFFSET (st->entry, i * elemsize);
 		sub->start = st->entry;
-		sub->end = end;
+		sub->last = last;
 
 		if ((e->hash & HASH_MASK) != HASH_SUBHASH) {
 			break;
@@ -497,7 +497,7 @@ iter_restart (struct hash_iter *it, struct hash_subtable *st, int32 used)
 		used += st->power;
 		st = *(struct hash_subtable **)e->data;
 	}
-	while (e != end && ((e_hash = e->hash) == HASH_NIL || e_hash <= last_hash)) {
+	while (e <= last && ((e_hash = e->hash) == HASH_NIL || e_hash <= last_hash)) {
 		e = HASH_OFFSET (e, elemsize);
 	}
 	sub->e = e;
@@ -509,7 +509,7 @@ hash_next (struct hash_iter *it)
 	int32 elemsize = it->elemsize;
 	struct hash_iter_sub *sub = &it->subtable_state[it->i];
 	struct hash_entry *e = sub->e;
-	struct hash_entry *end = sub->end;
+	struct hash_entry *last = sub->last;
 	hash_hash_t e_hash = 0;
 
 	if (it->changes != it->h->changes) {    /* hash table's structure changed; recompute */
@@ -518,7 +518,7 @@ hash_next (struct hash_iter *it)
 		iter_restart (it, it->h->st, 0);
 		sub = &it->subtable_state[it->i];
 		e = sub->e;
-		end = sub->end;
+		last = sub->last;
 	}
 	if (e != sub->start && it->last_hash != HASH_OFFSET (e, -elemsize)->hash) {
 		struct hash_entry *start = HASH_OFFSET (e, -(elemsize * it->h->max_probes));
@@ -531,16 +531,16 @@ hash_next (struct hash_iter *it)
 			e = pe;
 			pe = HASH_OFFSET (pe, -elemsize);
 		}
-		while (e != end && ((e_hash = e->hash) == HASH_NIL || e_hash <= last_hash)) {
+		while (e <= last && ((e_hash = e->hash) == HASH_NIL || e_hash <= last_hash)) {
 			e = HASH_OFFSET (e, elemsize);
 		}
 	}
 
 	for (;;) {
-		while (e != end && (e_hash = e->hash) == HASH_NIL) {
+		while (e <= last && (e_hash = e->hash) == HASH_NIL) {
 			e = HASH_OFFSET (e, elemsize);
 		}
-		if (e == end) {
+		if (e > last) {
 			if (it->i == 0) {
 				it->last_hash = HASH_OFFSET (e, -elemsize)->hash;
 				sub->e = e;
@@ -549,7 +549,7 @@ hash_next (struct hash_iter *it)
 				it->i--;
 				sub = &it->subtable_state[it->i];
 				e = sub->e;
-				end = sub->end;
+				last = sub->last;
 			}
 		} else if ((e_hash & HASH_MASK) != HASH_SUBHASH) {
 			it->last_hash = e->hash;
@@ -565,7 +565,7 @@ hash_next (struct hash_iter *it)
 			sub = &it->subtable_state[it->i];
 			sub->e = e = st->entry;
 			sub->start = st->entry;
-			sub->end = end = st->end;
+			sub->last = last = st->last;
 		}
 	}
 }
@@ -580,7 +580,7 @@ hash_iter_init (Hmap *h, struct hash_iter *it)
 	it->last_hash = 0;
 	it->subtable_state[0].e = h->st->entry;
 	it->subtable_state[0].start = h->st->entry;
-	it->subtable_state[0].end = h->st->end;
+	it->subtable_state[0].last = h->st->last;
 }
 
 static void
@@ -588,11 +588,11 @@ clean_st (struct hash_subtable *st, int32 *slots, int32 *used)
 {
 	int32 elemsize = st->datasize + offsetof (struct hash_entry, data[0]);
 	struct hash_entry *e = st->entry;
-	struct hash_entry *end = st->end;
-	int32 lslots = (((byte *) end) - (byte *) e) / elemsize;
+	struct hash_entry *last = st->last;
+	int32 lslots = (((byte *) (last+1)) - (byte *) e) / elemsize;
 	int32 lused = 0;
 
-	while (e != end) {
+	while (e <= last) {
 		hash_hash_t hash = e->hash;
 		if ((hash & HASH_MASK) == HASH_SUBHASH) {
 			clean_st (*(struct hash_subtable **)e->data, slots, used);
@@ -627,7 +627,7 @@ hash_visit_internal (struct hash_subtable *st,
 	int32 shift = HASH_BITS - (used + st->power);
 	int32 i = 0;
 
-	while (e != st->end) {
+	while (e <= st->last) {
 		int32 index = ((e->hash >> (shift - 1)) >> 1) & ((1 << st->power) - 1);
 		if ((e->hash & HASH_MASK) == HASH_SUBHASH) {
 			  (*data_visit) (arg, level, e->data);

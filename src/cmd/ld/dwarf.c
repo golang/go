@@ -1356,7 +1356,7 @@ synthesizemaptypes(DWDie *die)
 				getattr(keytype, DW_AT_name)->data,
 				getattr(valtype, DW_AT_name)->data));
 		copychildren(dwhs, hash_subtable);
-		substitutetype(dwhs, "end", defptrto(dwhe));
+		substitutetype(dwhs, "last", defptrto(dwhe));
 		substitutetype(dwhs, "entry", dwhe);  // todo: []hash_entry with dynamic size
 		newattr(dwhs, DW_AT_byte_size, DW_CLS_CONSTANT,
 			getattr(hash_subtable, DW_AT_byte_size)->value, nil);
