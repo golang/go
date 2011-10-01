@@ -100,6 +100,22 @@ TEXT runtime·write(SB),7,$-8
 	SYSCALL
 	RET
 
+TEXT runtime·usleep(SB),7,$16
+	MOVL	$0, DX
+	MOVL	usec+0(FP), AX
+	MOVL	$1000000, CX
+	DIVL	CX
+	MOVQ	AX, 0(SP)		// tv_sec
+	MOVL	$1000, AX
+	MULL	DX
+	MOVQ	AX, 8(SP)		// tv_nsec
+
+	MOVQ	SP, DI			// arg 1 - rqtp
+	MOVQ	$0, SI			// arg 2 - rmtp
+	MOVL	$240, AX		// sys_nanosleep
+	SYSCALL
+	RET
+
 TEXT runtime·raisesigpipe(SB),7,$16
 	MOVL	$299, AX		// sys_getthrid
 	SYSCALL

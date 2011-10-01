@@ -27,6 +27,24 @@ TEXT runtime·write(SB),7,$-4
 	INT	$0x80
 	RET
 
+TEXT runtime·usleep(SB),7,$20
+	MOVL	$0, DX
+	MOVL	usec+0(FP), AX
+	MOVL	$1000000, CX
+	DIVL	CX
+	MOVL	AX, 12(SP)		// tv_sec
+	MOVL	$1000, AX
+	MULL	DX
+	MOVL	AX, 16(SP)		// tv_nsec
+
+	MOVL	$0, 0(SP)
+	LEAL	12(SP), AX
+	MOVL	AX, 4(SP)		// arg 1 - rqtp
+	MOVL	$0, 8(SP)		// arg 2 - rmtp
+	MOVL	$240, AX		// sys_nanosleep
+	INT	$0x80
+	RET
+
 TEXT runtime·raisesigpipe(SB),7,$12
 	MOVL	$299, AX		// sys_getthrid
 	INT	$0x80
