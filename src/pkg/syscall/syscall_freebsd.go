@@ -71,6 +71,17 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno
 	return -1, ENOSYS
 }
 
+func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, int) {
+	var value IPMreqn
+	vallen := _Socklen(SizeofIPMreqn)
+	errno := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
+	return &value, errno
+}
+
+func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (errno int) {
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+}
+
 /*
  * Exposed directly
  */
