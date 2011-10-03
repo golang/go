@@ -85,10 +85,10 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, os.Error) {
 	return p, nil
 }
 
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+
 func escapeQuotes(s string) string {
-	s = strings.Replace(s, "\\", "\\\\", -1)
-	s = strings.Replace(s, "\"", "\\\"", -1)
-	return s
+	return quoteEscaper.Replace(s)
 }
 
 // CreateFormFile is a convenience wrapper around CreatePart. It creates

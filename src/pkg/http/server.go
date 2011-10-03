@@ -752,13 +752,16 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
 	}
 }
 
+var htmlReplacer = strings.NewReplacer(
+	"&", "&amp;",
+	"<", "&lt;",
+	">", "&gt;",
+	`"`, "&quot;",
+	"'", "&apos;",
+)
+
 func htmlEscape(s string) string {
-	s = strings.Replace(s, "&", "&amp;", -1)
-	s = strings.Replace(s, "<", "&lt;", -1)
-	s = strings.Replace(s, ">", "&gt;", -1)
-	s = strings.Replace(s, "\"", "&quot;", -1)
-	s = strings.Replace(s, "'", "&apos;", -1)
-	return s
+	return htmlReplacer.Replace(s)
 }
 
 // Redirect to a fixed URL
