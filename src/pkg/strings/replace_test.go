@@ -41,14 +41,21 @@ var capitalLetters = NewReplacer("a", "A", "b", "B")
 var blankToXReplacer = NewReplacer("", "X", "o", "O")
 
 var ReplacerTests = []ReplacerTest{
+	// byte->string
 	{htmlEscaper, "No changes", "No changes"},
 	{htmlEscaper, "I <3 escaping & stuff", "I &lt;3 escaping &amp; stuff"},
 	{htmlEscaper, "&&&", "&amp;&amp;&amp;"},
+
+	// generic
 	{replacer, "fooaaabar", "foo3[aaa]b1[a]r"},
 	{replacer, "long, longerst, longer", "short, most long, medium"},
 	{replacer, "XiX", "YiY"},
+
+	// byte->byte
 	{capitalLetters, "brad", "BrAd"},
 	{capitalLetters, Repeat("a", (32<<10)+123), Repeat("A", (32<<10)+123)},
+
+	// hitting "" special case
 	{blankToXReplacer, "oo", "XOXOX"},
 }
 
@@ -84,7 +91,9 @@ type pickAlgorithmTest struct {
 
 var pickAlgorithmTests = []pickAlgorithmTest{
 	{capitalLetters, "*strings.byteReplacer"},
-	{NewReplacer("a", "A", "b", "Bb"), "*strings.genericReplacer"},
+	{NewReplacer("12", "123"), "*strings.genericReplacer"},
+	{NewReplacer("1", "12"), "*strings.byteStringReplacer"},
+	{htmlEscaper, "*strings.byteStringReplacer"},
 }
 
 func TestPickAlgorithm(t *testing.T) {
@@ -115,6 +124,27 @@ func BenchmarkByteByteMatch(b *testing.B) {
 	str := Repeat("a", 100) + Repeat("b", 100)
 	for i := 0; i < b.N; i++ {
 		capitalLetters.Replace(str)
+	}
+}
+
+func BenchmarkByteStringMatch(b *testing.B) {
+	str := "<" + Repeat("a", 99) + Repeat("b", 99) + ">"
+	for i := 0; i < b.N; i++ {
+		htmlEscaper.Replace(str)
+	}
+}
+
+func BenchmarkHTMLEscapeNew(b *testing.B) {
+	str := "I <3 to escape HTML & other text too."
+	for i := 0; i < b.N; i++ {
+		htmlEscaper.Replace(str)
+	}
+}
+
+func BenchmarkHTMLEscapeOld(b *testing.B) {
+	str := "I <3 to escape HTML & other text too."
+	for i := 0; i < b.N; i++ {
+		oldhtmlEscape(str)
 	}
 }
 

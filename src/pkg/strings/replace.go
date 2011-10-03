@@ -36,8 +36,12 @@ func NewReplacer(oldnew ...string) *Replacer {
 		panic("strings.NewReplacer: odd argument count")
 	}
 
-	var bb byteReplacer
-	var gen genericReplacer
+	// Possible implementations.
+	var (
+		bb  byteReplacer
+		bs  byteStringReplacer
+		gen genericReplacer
+	)
 
 	allOldBytes, allNewBytes := true, true
 	for len(oldnew) > 0 {
@@ -49,7 +53,17 @@ func NewReplacer(oldnew ...string) *Replacer {
 		if len(new) != 1 {
 			allNewBytes = false
 		}
+
+		// generic
 		gen.p = append(gen.p, pair{old, new})
+
+		// byte -> string
+		if allOldBytes {
+			bs.old.set(old[0])
+			bs.new[old[0]] = []byte(new)
+		}
+
+		// byte -> byte
 		if allOldBytes && allNewBytes {
 			bb.old.set(old[0])
 			bb.new[old[0]] = new[0]
@@ -58,6 +72,9 @@ func NewReplacer(oldnew ...string) *Replacer {
 
 	if allOldBytes && allNewBytes {
 		return &Replacer{r: &bb}
+	}
+	if allOldBytes {
+		return &Replacer{r: &bs}
 	}
 	return &Replacer{r: &gen}
 }
@@ -176,6 +193,7 @@ func (r *byteReplacer) Replace(s string) string {
 }
 
 func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err os.Error) {
+	// TODO(bradfitz): use io.WriteString with slices of s, avoiding allocation.
 	bufsize := 32 << 10
 	if len(s) < bufsize {
 		bufsize = len(s)
@@ -192,6 +210,94 @@ func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err os.Error) 
 		}
 		wn, err := w.Write(buf[:ncopy])
 		n += wn
+		if err != nil {
+			return n, err
+		}
+	}
+	return n, nil
+}
+
+// byteStringReplacer is the implementation that's used when all the
+// "old" values are single ASCII bytes but the "new" values vary in
+// size.
+type byteStringReplacer struct {
+	// old has a bit set for each old byte that should be replaced.
+	old byteBitmap
+
+	// replacement string, indexed by old byte. only valid if
+	// corresponding old bit is set.
+	new [256][]byte
+}
+
+func (r *byteStringReplacer) Replace(s string) string {
+	newSize := 0
+	anyChanges := false
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if r.old[b>>5]&uint32(1<<(b&31)) != 0 {
+			anyChanges = true
+			newSize += len(r.new[b])
+		} else {
+			newSize++
+		}
+	}
+	if !anyChanges {
+		return s
+	}
+	buf := make([]byte, newSize)
+	bi := buf
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if r.old[b>>5]&uint32(1<<(b&31)) != 0 {
+			n := copy(bi[:], r.new[b])
+			bi = bi[n:]
+		} else {
+			bi[0] = b
+			bi = bi[1:]
+		}
+	}
+	return string(buf)
+}
+
+// WriteString maintains one buffer that's at most 32KB.  The bytes in
+// s are enumerated and the buffer is filled.  If it reaches its
+// capacity or a byte has a replacement, the buffer is flushed to w.
+func (r *byteStringReplacer) WriteString(w io.Writer, s string) (n int, err os.Error) {
+	// TODO(bradfitz): use io.WriteString with slices of s instead.
+	bufsize := 32 << 10
+	if len(s) < bufsize {
+		bufsize = len(s)
+	}
+	buf := make([]byte, bufsize)
+	bi := buf[:0]
+
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		var new []byte
+		if r.old[b>>5]&uint32(1<<(b&31)) != 0 {
+			new = r.new[b]
+		} else {
+			bi = append(bi, b)
+		}
+		if len(bi) == cap(bi) || (len(bi) > 0 && len(new) > 0) {
+			nw, err := w.Write(bi)
+			n += nw
+			if err != nil {
+				return n, err
+			}
+			bi = buf[:0]
+		}
+		if len(new) > 0 {
+			nw, err := w.Write(new)
+			n += nw
+			if err != nil {
+				return n, err
+			}
+		}
+	}
+	if len(bi) > 0 {
+		nw, err := w.Write(bi)
+		n += nw
 		if err != nil {
 			return n, err
 		}

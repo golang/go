@@ -47,6 +47,8 @@ func (h Header) Write(w io.Writer) os.Error {
 	return h.WriteSubset(w, nil)
 }
 
+var headerNewlineToSpace = strings.NewReplacer("\n", " ", "\r", " ")
+
 // WriteSubset writes a header in wire format.
 // If exclude is not nil, keys where exclude[key] == true are not written.
 func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) os.Error {
@@ -59,8 +61,7 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) os.Error {
 	sort.Strings(keys)
 	for _, k := range keys {
 		for _, v := range h[k] {
-			v = strings.Replace(v, "\n", " ", -1)
-			v = strings.Replace(v, "\r", " ", -1)
+			v = headerNewlineToSpace.Replace(v)
 			v = strings.TrimSpace(v)
 			if _, err := fmt.Fprintf(w, "%s: %s\r\n", k, v); err != nil {
 				return err
