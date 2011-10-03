@@ -512,6 +512,7 @@ nodarg(Type *t, int fp)
 		fatal("nodarg: offset not computed for %T", t);
 	n->xoffset = t->width;
 	n->addable = 1;
+	n->orig = t->nname;
 
 fp:
 	switch(fp) {
@@ -1263,6 +1264,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		a->sym = n->left->sym;
 		a->type = D_OREG;
 		a->name = D_PARAM;
+		a->node = n->left->orig;
 		break;
 
 	case ONAME:
@@ -1275,6 +1277,9 @@ naddr(Node *n, Addr *a, int canemitcode)
 		}
 		a->offset = n->xoffset;
 		a->sym = n->sym;
+		a->node = n->orig;
+		//if(a->node >= (Node*)&n)
+		//	fatal("stack node");
 		if(a->sym == S)
 			a->sym = lookup(".noname");
 		if(n->method) {
@@ -1293,8 +1298,6 @@ naddr(Node *n, Addr *a, int canemitcode)
 			break;
 		case PAUTO:
 			a->name = D_AUTO;
-			if (n->sym)
-				a->node = n->orig;
 			break;
 		case PPARAM:
 		case PPARAMOUT:

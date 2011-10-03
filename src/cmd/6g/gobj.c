@@ -310,6 +310,7 @@ datastring(char *s, int len, Addr *a)
 	sym = stringsym(s, len);
 	a->type = D_EXTERN;
 	a->sym = sym;
+	a->node = sym->def;
 	a->offset = widthptr+4;  // skip header
 	a->etype = TINT32;
 }
@@ -326,6 +327,7 @@ datagostring(Strlit *sval, Addr *a)
 	sym = stringsym(sval->s, sval->len);
 	a->type = D_EXTERN;
 	a->sym = sym;
+	a->node = sym->def;
 	a->offset = 0;  // header
 	a->etype = TINT32;
 }

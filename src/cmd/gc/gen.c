@@ -805,6 +805,7 @@ tempname(Node *nn, Type *t)
 	s = lookup(namebuf);
 	n = nod(ONAME, N, N);
 	n->sym = s;
+	s->def = n;
 	n->type = t;
 	n->class = PAUTO;
 	n->addable = 1;

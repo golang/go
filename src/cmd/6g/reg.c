@@ -89,8 +89,8 @@ setoutvar(void)
 			ovar.b[z] |= bit.b[z];
 		t = structnext(&save);
 	}
-//if(bany(b))
-//print("ovars = %Q\n", &ovar);
+//if(bany(&ovar))
+//print("ovars = %Q\n", ovar);
 }
 
 static void
@@ -968,11 +968,14 @@ mkvar(Reg *r, Adr *a)
 		n = t;
 		break;
 	}
+
 	node = a->node;
-	if(node == N || node->op != ONAME || node->orig != N)
+	if(node == N || node->op != ONAME || node->orig == N)
 		goto none;
 	node = node->orig;
-	if(node->sym->name[0] == '.')
+	if(node->orig != node)
+		fatal("%D: bad node", a);
+	if(node->sym == S || node->sym->name[0] == '.')
 		goto none;
 	et = a->etype;
 	o = a->offset;
@@ -1622,7 +1625,7 @@ dumpone(Reg *r)
 		if(bany(&r->refahead))
 			print(" ra:%Q ", r->refahead);
 		if(bany(&r->calbehind))
-			print("cb:%Q ", r->calbehind);
+			print(" cb:%Q ", r->calbehind);
 		if(bany(&r->calahead))
 			print(" ca:%Q ", r->calahead);
 		if(bany(&r->regdiff))
