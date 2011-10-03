@@ -5,12 +5,17 @@
 package strings_test
 
 import (
+	"bytes"
+	"fmt"
+	"log"
 	. "strings"
 	"testing"
 )
 
+var _ = log.Printf
+
 type ReplacerTest struct {
-	m   *Replacer
+	r   *Replacer
 	in  string
 	out string
 }
@@ -31,6 +36,10 @@ var replacer = NewReplacer("aaa", "3[aaa]", "aa", "2[aa]", "a", "1[a]", "i", "i"
 	"longerst", "most long", "longer", "medium", "long", "short",
 	"X", "Y", "Y", "Z")
 
+var capitalLetters = NewReplacer("a", "A", "b", "B")
+
+var blankToXReplacer = NewReplacer("", "X", "o", "O")
+
 var ReplacerTests = []ReplacerTest{
 	{htmlEscaper, "No changes", "No changes"},
 	{htmlEscaper, "I <3 escaping & stuff", "I &lt;3 escaping &amp; stuff"},
@@ -38,38 +47,98 @@ var ReplacerTests = []ReplacerTest{
 	{replacer, "fooaaabar", "foo3[aaa]b1[a]r"},
 	{replacer, "long, longerst, longer", "short, most long, medium"},
 	{replacer, "XiX", "YiY"},
+	{capitalLetters, "brad", "BrAd"},
+	{capitalLetters, Repeat("a", (32<<10)+123), Repeat("A", (32<<10)+123)},
+	{blankToXReplacer, "oo", "XOXOX"},
 }
 
 func TestReplacer(t *testing.T) {
 	for i, tt := range ReplacerTests {
-		if s := tt.m.Replace(tt.in); s != tt.out {
+		if s := tt.r.Replace(tt.in); s != tt.out {
 			t.Errorf("%d. Replace(%q) = %q, want %q", i, tt.in, s, tt.out)
+		}
+		var buf bytes.Buffer
+		n, err := tt.r.WriteString(&buf, tt.in)
+		if err != nil {
+			t.Errorf("%d. WriteString: %v", i, err)
+			continue
+		}
+		got := buf.String()
+		if got != tt.out {
+			t.Errorf("%d. WriteString(%q) wrote %q, want %q", i, tt.in, got, tt.out)
+			continue
+		}
+		if n != len(tt.out) {
+			t.Errorf("%d. WriteString(%q) wrote correct string but reported %d bytes; want %d (%q)",
+				i, tt.in, n, len(tt.out), tt.out)
 		}
 	}
 }
 
-var slowReplacer = NewReplacer("&&", "&amp;", "<<", "&lt;", ">>", "&gt;", "\"\"", "&quot;", "''", "&apos;")
+// pickAlgorithmTest is a test that verifies that given input for a
+// Replacer that we pick the correct algorithm.
+type pickAlgorithmTest struct {
+	r    *Replacer
+	want string // name of algorithm
+}
 
-func BenchmarkReplacerSingleByte(b *testing.B) {
-	str := "I <3 benchmarking html & other stuff too >:D"
-	n := 0
-	for i := 0; i < b.N; i++ {
-		n += len(htmlEscaper.Replace(str))
+var pickAlgorithmTests = []pickAlgorithmTest{
+	{capitalLetters, "*strings.byteReplacer"},
+	{NewReplacer("a", "A", "b", "Bb"), "*strings.genericReplacer"},
+}
+
+func TestPickAlgorithm(t *testing.T) {
+	for i, tt := range pickAlgorithmTests {
+		got := fmt.Sprintf("%T", tt.r.Replacer())
+		if got != tt.want {
+			t.Errorf("%d. algorithm = %s, want %s", i, got, tt.want)
+		}
 	}
 }
 
-func BenchmarkReplaceMap(b *testing.B) {
-	str := "I <<3 benchmarking html && other stuff too >>:D"
-	n := 0
+func BenchmarkGenericMatch(b *testing.B) {
+	str := Repeat("A", 100) + Repeat("B", 100)
+	generic := NewReplacer("a", "A", "b", "B", "12", "123") // varying lengths forces generic
 	for i := 0; i < b.N; i++ {
-		n += len(slowReplacer.Replace(str))
+		generic.Replace(str)
 	}
 }
 
-func BenchmarkOldHTTPHTMLReplace(b *testing.B) {
-	str := "I <3 benchmarking html & other stuff too >:D"
-	n := 0
+func BenchmarkByteByteNoMatch(b *testing.B) {
+	str := Repeat("A", 100) + Repeat("B", 100)
 	for i := 0; i < b.N; i++ {
-		n += len(oldhtmlEscape(str))
+		capitalLetters.Replace(str)
+	}
+}
+
+func BenchmarkByteByteMatch(b *testing.B) {
+	str := Repeat("a", 100) + Repeat("b", 100)
+	for i := 0; i < b.N; i++ {
+		capitalLetters.Replace(str)
+	}
+}
+
+// BenchmarkByteByteReplaces compares byteByteImpl against multiple Replaces.
+func BenchmarkByteByteReplaces(b *testing.B) {
+	str := Repeat("a", 100) + Repeat("b", 100)
+	for i := 0; i < b.N; i++ {
+		Replace(Replace(str, "a", "A", -1), "b", "B", -1)
+	}
+}
+
+// BenchmarkByteByteMap compares byteByteImpl against Map.
+func BenchmarkByteByteMap(b *testing.B) {
+	str := Repeat("a", 100) + Repeat("b", 100)
+	fn := func(r int) int {
+		switch r {
+		case 'a':
+			return int('A')
+		case 'b':
+			return int('B')
+		}
+		return r
+	}
+	for i := 0; i < b.N; i++ {
+		Map(fn, str)
 	}
 }

@@ -207,17 +207,16 @@ func readCookies(h Header, filter string) []*Cookie {
 	return cookies
 }
 
+var cookieNameSanitizer = strings.NewReplacer("\n", "-", "\r", "-")
+
 func sanitizeName(n string) string {
-	n = strings.Replace(n, "\n", "-", -1)
-	n = strings.Replace(n, "\r", "-", -1)
-	return n
+	return cookieNameSanitizer.Replace(n)
 }
 
+var cookieValueSanitizer = strings.NewReplacer("\n", " ", "\r", " ", ";", " ")
+
 func sanitizeValue(v string) string {
-	v = strings.Replace(v, "\n", " ", -1)
-	v = strings.Replace(v, "\r", " ", -1)
-	v = strings.Replace(v, ";", " ", -1)
-	return v
+	return cookieValueSanitizer.Replace(v)
 }
 
 func unquoteCookieValue(v string) string {
