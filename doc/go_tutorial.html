@@ -95,7 +95,7 @@ Here's how to compile and run our program.  With <code>6g</code>, say,
 <pre>
 $ 6g helloworld.go  # compile; object goes into helloworld.6
 $ 6l helloworld.6   # link; output goes into 6.out
-$ 6.out
+$ ./6.out
 Hello, world; or Καλημέρα κόσμε; or こんにちは 世界
 $
 </pre>
@@ -544,13 +544,12 @@ composite literal, as is done here in the <code>return</code> statement from <co
 <p>
 We can use the factory to construct some familiar, exported variables of type <code>*File</code>:
 <p>
-<pre><!--{{code "progs/file.go" `/var/` `/^.$/`}}
+<pre><!--{{code "progs/file.go" `/var/` `/^\)/`}}
 -->var (
     Stdin  = newFile(syscall.Stdin, &#34;/dev/stdin&#34;)
     Stdout = newFile(syscall.Stdout, &#34;/dev/stdout&#34;)
     Stderr = newFile(syscall.Stderr, &#34;/dev/stderr&#34;)
 )
-
 </pre>
 <p>
 The <code>newFile</code> function was not exported because it's internal. The proper,
