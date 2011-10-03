@@ -267,6 +267,7 @@ stringsym(char *s, int len)
 	if(sym->flags & SymUniq)
 		return sym;
 	sym->flags |= SymUniq;
+	sym->def = newname(sym);
 
 	off = 0;
 	

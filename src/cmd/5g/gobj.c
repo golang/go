@@ -307,6 +307,7 @@ datastring(char *s, int len, Addr *a)
 	a->offset = widthptr+4;  // skip header
 	a->reg = NREG;
 	a->sym = sym;
+	a->node = sym->def;
 }
 
 /*
@@ -325,6 +326,7 @@ datagostring(Strlit *sval, Addr *a)
 	a->offset = 0;  // header
 	a->reg = NREG;
 	a->sym = sym;
+	a->node = sym->def;
 }
 
 void
