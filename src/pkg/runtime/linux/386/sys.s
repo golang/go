@@ -52,23 +52,22 @@ TEXT runtime·read(SB),7,$0
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·usleep(SB),7,$28
+TEXT runtime·usleep(SB),7,$8
 	MOVL	$0, DX
 	MOVL	usec+0(FP), AX
 	MOVL	$1000000, CX
 	DIVL	CX
-	MOVL	AX, 20(SP)
-	MOVL	DX, 24(SP)
+	MOVL	AX, 0(SP)
+	MOVL	DX, 4(SP)
 
 	// select(0, 0, 0, 0, &tv)
-	MOVL	$0, 0(SP)
-	MOVL	$0, 4(SP)
-	MOVL	$0, 8(SP)
-	MOVL	$0, 12(SP)
-	LEAL	20(SP), AX
-	MOVL	AX, 16(SP)
-	MOVL	$82, AX
-	SYSCALL
+	MOVL	$142, AX
+	MOVL	$0, BX
+	MOVL	$0, CX
+	MOVL	$0, DX
+	MOVL	$0, SI
+	LEAL	0(SP), DI
+	CALL	*runtime·_vdso(SB)
 	RET
 
 TEXT runtime·raisesigpipe(SB),7,$12
