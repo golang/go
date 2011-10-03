@@ -91,8 +91,8 @@ class MapTypePrinter:
 
 	def traverse_hash(self, stab):
 		ptr = stab['entry'].address
-		end = stab['end']
-		while ptr < end:
+		last = stab['last']
+		while ptr <= last:
 			v = ptr.dereference()
 			ptr = ptr + 1
 			if v['hash'] == 0: continue
