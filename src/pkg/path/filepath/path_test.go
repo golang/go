@@ -572,10 +572,11 @@ var abstests = []string{
 	"pkg/../../AUTHORS",
 	"Make.pkg",
 	"pkg/Makefile",
-
-	// Already absolute
+	".",
 	"$GOROOT/src/Make.pkg",
 	"$GOROOT/src/../src/Make.pkg",
+	"$GOROOT/misc/cgo",
+	"$GOROOT",
 }
 
 func TestAbs(t *testing.T) {
@@ -589,13 +590,14 @@ func TestAbs(t *testing.T) {
 	os.Chdir(cwd)
 	for _, path := range abstests {
 		path = strings.Replace(path, "$GOROOT", goroot, -1)
-		abspath, err := filepath.Abs(path)
-		if err != nil {
-			t.Errorf("Abs(%q) error: %v", path, err)
-		}
 		info, err := os.Stat(path)
 		if err != nil {
 			t.Errorf("%s: %s", path, err)
+		}
+
+		abspath, err := filepath.Abs(path)
+		if err != nil {
+			t.Errorf("Abs(%q) error: %v", path, err)
 		}
 		absinfo, err := os.Stat(abspath)
 		if err != nil || absinfo.Ino != info.Ino {
@@ -606,6 +608,77 @@ func TestAbs(t *testing.T) {
 		}
 		if filepath.IsAbs(path) && abspath != filepath.Clean(path) {
 			t.Errorf("Abs(%q)=%q, isn't clean", path, abspath)
+		}
+	}
+}
+
+type RelTests struct {
+	root, path, want string
+}
+
+var reltests = []RelTests{
+	{"a/b", "a/b", "."},
+	{"a/b/.", "a/b", "."},
+	{"a/b", "a/b/.", "."},
+	{"./a/b", "a/b", "."},
+	{"a/b", "./a/b", "."},
+	{"ab/cd", "ab/cde", "../cde"},
+	{"ab/cd", "ab/c", "../c"},
+	{"a/b", "a/b/c/d", "c/d"},
+	{"a/b", "a/b/../c", "../c"},
+	{"a/b/../c", "a/b", "../b"},
+	{"a/b/c", "a/c/d", "../../c/d"},
+	{"a/b", "c/d", "../../c/d"},
+	{"../../a/b", "../../a/b/c/d", "c/d"},
+	{"/a/b", "/a/b", "."},
+	{"/a/b/.", "/a/b", "."},
+	{"/a/b", "/a/b/.", "."},
+	{"/ab/cd", "/ab/cde", "../cde"},
+	{"/ab/cd", "/ab/c", "../c"},
+	{"/a/b", "/a/b/c/d", "c/d"},
+	{"/a/b", "/a/b/../c", "../c"},
+	{"/a/b/../c", "/a/b", "../b"},
+	{"/a/b/c", "/a/c/d", "../../c/d"},
+	{"/a/b", "/c/d", "../../c/d"},
+	{"/../../a/b", "/../../a/b/c/d", "c/d"},
+	{".", "a/b", "a/b"},
+	{".", "..", ".."},
+
+	// can't do purely lexically
+	{"..", ".", "err"},
+	{"..", "a", "err"},
+	{"../..", "..", "err"},
+	{"a", "/a", "err"},
+	{"/a", "a", "err"},
+}
+
+var winreltests = []RelTests{
+	{`C:a\b\c`, `C:a/b/d`, `..\d`},
+	{`C:\`, `D:\`, `err`},
+	{`C:`, `D:`, `err`},
+}
+
+func TestRel(t *testing.T) {
+	tests := append([]RelTests{}, reltests...)
+	if runtime.GOOS == "windows" {
+		for i := range tests {
+			tests[i].want = filepath.FromSlash(tests[i].want)
+		}
+		tests = append(tests, winreltests...)
+	}
+	for _, test := range tests {
+		got, err := filepath.Rel(test.root, test.path)
+		if test.want == "err" {
+			if err == nil {
+				t.Errorf("Rel(%q, %q)=%q, want error", test.root, test.path, got)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("Rel(%q, %q): want %q, got error: %s", test.root, test.path, test.want, err)
+		}
+		if got != test.want {
+			t.Errorf("Rel(%q, %q)=%q, want %q", test.root, test.path, got, test.want)
 		}
 	}
 }
