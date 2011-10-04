@@ -236,7 +236,7 @@ func splitQuoted(s string) (r []string, err os.Error) {
 	return args, err
 }
 
-var safeBytes = []byte("+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz")
+var safeBytes = []byte(`+-.,/0123456789:=ABCDEFGHIJKLMNOPQRSTUVWXYZ\_abcdefghijklmnopqrstuvwxyz`)
 
 func safeName(s string) bool {
 	if s == "" {
