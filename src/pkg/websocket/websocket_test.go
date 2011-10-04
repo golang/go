@@ -227,7 +227,7 @@ func TestTrailingSpaces(t *testing.T) {
 		// body
 		ws, err := DialConfig(config)
 		if err != nil {
-			t.Error("Dial failed:", err.String())
+			t.Errorf("Dial #%d failed: %v", i, err)
 			break
 		}
 		ws.Close()
