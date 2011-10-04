@@ -14,6 +14,7 @@ import (
 	"hash"
 	"hash/crc32"
 	"image"
+	"image/color"
 	"io"
 	"os"
 )
@@ -79,7 +80,7 @@ type decoder struct {
 	crc           hash.Hash32
 	width, height int
 	depth         int
-	palette       image.PalettedColorModel
+	palette       color.Palette
 	cb            int
 	stage         int
 	idatLength    uint32
@@ -200,9 +201,9 @@ func (d *decoder) parsePLTE(length uint32) os.Error {
 	d.crc.Write(d.tmp[:n])
 	switch d.cb {
 	case cbP1, cbP2, cbP4, cbP8:
-		d.palette = image.PalettedColorModel(make([]image.Color, np))
+		d.palette = color.Palette(make([]color.Color, np))
 		for i := 0; i < np; i++ {
-			d.palette[i] = image.RGBAColor{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
+			d.palette[i] = color.RGBA{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
 		}
 	case cbTC8, cbTCA8, cbTC16, cbTCA16:
 		// As per the PNG spec, a PLTE chunk is optional (and for practical purposes,
@@ -232,8 +233,8 @@ func (d *decoder) parsetRNS(length uint32) os.Error {
 			return FormatError("bad tRNS length")
 		}
 		for i := 0; i < n; i++ {
-			rgba := d.palette[i].(image.RGBAColor)
-			d.palette[i] = image.RGBAColor{rgba.R, rgba.G, rgba.B, d.tmp[i]}
+			rgba := d.palette[i].(color.RGBA)
+			d.palette[i] = color.RGBA{rgba.R, rgba.G, rgba.B, d.tmp[i]}
 		}
 	case cbGA8, cbGA16, cbTCA8, cbTCA16:
 		return FormatError("tRNS, color type mismatch")
@@ -402,7 +403,7 @@ func (d *decoder) decode() (image.Image, os.Error) {
 			for x := 0; x < d.width; x += 8 {
 				b := cdat[x/8]
 				for x2 := 0; x2 < 8 && x+x2 < d.width; x2++ {
-					gray.SetGray(x+x2, y, image.GrayColor{(b >> 7) * 0xff})
+					gray.SetGray(x+x2, y, color.Gray{(b >> 7) * 0xff})
 					b <<= 1
 				}
 			}
@@ -410,7 +411,7 @@ func (d *decoder) decode() (image.Image, os.Error) {
 			for x := 0; x < d.width; x += 4 {
 				b := cdat[x/4]
 				for x2 := 0; x2 < 4 && x+x2 < d.width; x2++ {
-					gray.SetGray(x+x2, y, image.GrayColor{(b >> 6) * 0x55})
+					gray.SetGray(x+x2, y, color.Gray{(b >> 6) * 0x55})
 					b <<= 2
 				}
 			}
@@ -418,22 +419,22 @@ func (d *decoder) decode() (image.Image, os.Error) {
 			for x := 0; x < d.width; x += 2 {
 				b := cdat[x/2]
 				for x2 := 0; x2 < 2 && x+x2 < d.width; x2++ {
-					gray.SetGray(x+x2, y, image.GrayColor{(b >> 4) * 0x11})
+					gray.SetGray(x+x2, y, color.Gray{(b >> 4) * 0x11})
 					b <<= 4
 				}
 			}
 		case cbG8:
 			for x := 0; x < d.width; x++ {
-				gray.SetGray(x, y, image.GrayColor{cdat[x]})
+				gray.SetGray(x, y, color.Gray{cdat[x]})
 			}
 		case cbGA8:
 			for x := 0; x < d.width; x++ {
 				ycol := cdat[2*x+0]
-				nrgba.SetNRGBA(x, y, image.NRGBAColor{ycol, ycol, ycol, cdat[2*x+1]})
+				nrgba.SetNRGBA(x, y, color.NRGBA{ycol, ycol, ycol, cdat[2*x+1]})
 			}
 		case cbTC8:
 			for x := 0; x < d.width; x++ {
-				rgba.SetRGBA(x, y, image.RGBAColor{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
+				rgba.SetRGBA(x, y, color.RGBA{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
 			}
 		case cbP1:
 			for x := 0; x < d.width; x += 8 {
@@ -480,25 +481,25 @@ func (d *decoder) decode() (image.Image, os.Error) {
 			}
 		case cbTCA8:
 			for x := 0; x < d.width; x++ {
-				nrgba.SetNRGBA(x, y, image.NRGBAColor{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
+				nrgba.SetNRGBA(x, y, color.NRGBA{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
 			}
 		case cbG16:
 			for x := 0; x < d.width; x++ {
 				ycol := uint16(cdat[2*x+0])<<8 | uint16(cdat[2*x+1])
-				gray16.SetGray16(x, y, image.Gray16Color{ycol})
+				gray16.SetGray16(x, y, color.Gray16{ycol})
 			}
 		case cbGA16:
 			for x := 0; x < d.width; x++ {
 				ycol := uint16(cdat[4*x+0])<<8 | uint16(cdat[4*x+1])
 				acol := uint16(cdat[4*x+2])<<8 | uint16(cdat[4*x+3])
-				nrgba64.SetNRGBA64(x, y, image.NRGBA64Color{ycol, ycol, ycol, acol})
+				nrgba64.SetNRGBA64(x, y, color.NRGBA64{ycol, ycol, ycol, acol})
 			}
 		case cbTC16:
 			for x := 0; x < d.width; x++ {
 				rcol := uint16(cdat[6*x+0])<<8 | uint16(cdat[6*x+1])
 				gcol := uint16(cdat[6*x+2])<<8 | uint16(cdat[6*x+3])
 				bcol := uint16(cdat[6*x+4])<<8 | uint16(cdat[6*x+5])
-				rgba64.SetRGBA64(x, y, image.RGBA64Color{rcol, gcol, bcol, 0xffff})
+				rgba64.SetRGBA64(x, y, color.RGBA64{rcol, gcol, bcol, 0xffff})
 			}
 		case cbTCA16:
 			for x := 0; x < d.width; x++ {
@@ -506,7 +507,7 @@ func (d *decoder) decode() (image.Image, os.Error) {
 				gcol := uint16(cdat[8*x+2])<<8 | uint16(cdat[8*x+3])
 				bcol := uint16(cdat[8*x+4])<<8 | uint16(cdat[8*x+5])
 				acol := uint16(cdat[8*x+6])<<8 | uint16(cdat[8*x+7])
-				nrgba64.SetNRGBA64(x, y, image.NRGBA64Color{rcol, gcol, bcol, acol})
+				nrgba64.SetNRGBA64(x, y, color.NRGBA64{rcol, gcol, bcol, acol})
 			}
 		}
 
@@ -669,26 +670,26 @@ func DecodeConfig(r io.Reader) (image.Config, os.Error) {
 			break
 		}
 	}
-	var cm image.ColorModel
+	var cm color.Model
 	switch d.cb {
 	case cbG1, cbG2, cbG4, cbG8:
-		cm = image.GrayColorModel
+		cm = color.GrayModel
 	case cbGA8:
-		cm = image.NRGBAColorModel
+		cm = color.NRGBAModel
 	case cbTC8:
-		cm = image.RGBAColorModel
+		cm = color.RGBAModel
 	case cbP1, cbP2, cbP4, cbP8:
 		cm = d.palette
 	case cbTCA8:
-		cm = image.NRGBAColorModel
+		cm = color.NRGBAModel
 	case cbG16:
-		cm = image.Gray16ColorModel
+		cm = color.Gray16Model
 	case cbGA16:
-		cm = image.NRGBA64ColorModel
+		cm = color.NRGBA64Model
 	case cbTC16:
-		cm = image.RGBA64ColorModel
+		cm = color.RGBA64Model
 	case cbTCA16:
-		cm = image.NRGBA64ColorModel
+		cm = color.NRGBA64Model
 	}
 	return image.Config{cm, d.width, d.height}, nil
 }

@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"fmt"
 	"image"
+	"image/color"
 	"io"
 	"os"
 	"strings"
@@ -58,12 +59,12 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 	cm := png.ColorModel()
 	var bitdepth int
 	switch cm {
-	case image.RGBAColorModel, image.NRGBAColorModel, image.AlphaColorModel, image.GrayColorModel:
+	case color.RGBAModel, color.NRGBAModel, color.AlphaModel, color.GrayModel:
 		bitdepth = 8
 	default:
 		bitdepth = 16
 	}
-	cpm, _ := cm.(image.PalettedColorModel)
+	cpm, _ := cm.(color.Palette)
 	var paletted *image.Paletted
 	if cpm != nil {
 		switch {
@@ -83,11 +84,11 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 	io.WriteString(w, "#SNG: from "+filename+".png\nIHDR {\n")
 	fmt.Fprintf(w, "    width: %d; height: %d; bitdepth: %d;\n", bounds.Dx(), bounds.Dy(), bitdepth)
 	switch {
-	case cm == image.RGBAColorModel, cm == image.RGBA64ColorModel:
+	case cm == color.RGBAModel, cm == color.RGBA64Model:
 		io.WriteString(w, "    using color;\n")
-	case cm == image.NRGBAColorModel, cm == image.NRGBA64ColorModel:
+	case cm == color.NRGBAModel, cm == color.NRGBA64Model:
 		io.WriteString(w, "    using color alpha;\n")
-	case cm == image.GrayColorModel, cm == image.Gray16ColorModel:
+	case cm == color.GrayModel, cm == color.Gray16Model:
 		io.WriteString(w, "    using grayscale;\n")
 	case cpm != nil:
 		io.WriteString(w, "    using color palette;\n")
@@ -130,34 +131,34 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 	io.WriteString(w, "IMAGE {\n    pixels hex\n")
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		switch {
-		case cm == image.GrayColorModel:
+		case cm == color.GrayModel:
 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
-				gray := png.At(x, y).(image.GrayColor)
+				gray := png.At(x, y).(color.Gray)
 				fmt.Fprintf(w, "%02x", gray.Y)
 			}
-		case cm == image.Gray16ColorModel:
+		case cm == color.Gray16Model:
 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
-				gray16 := png.At(x, y).(image.Gray16Color)
+				gray16 := png.At(x, y).(color.Gray16)
 				fmt.Fprintf(w, "%04x ", gray16.Y)
 			}
-		case cm == image.RGBAColorModel:
+		case cm == color.RGBAModel:
 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
-				rgba := png.At(x, y).(image.RGBAColor)
+				rgba := png.At(x, y).(color.RGBA)
 				fmt.Fprintf(w, "%02x%02x%02x ", rgba.R, rgba.G, rgba.B)
 			}
-		case cm == image.RGBA64ColorModel:
+		case cm == color.RGBA64Model:
 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
-				rgba64 := png.At(x, y).(image.RGBA64Color)
+				rgba64 := png.At(x, y).(color.RGBA64)
 				fmt.Fprintf(w, "%04x%04x%04x ", rgba64.R, rgba64.G, rgba64.B)
 			}
-		case cm == image.NRGBAColorModel:
+		case cm == color.NRGBAModel:
 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
-				nrgba := png.At(x, y).(image.NRGBAColor)
+				nrgba := png.At(x, y).(color.NRGBA)
 				fmt.Fprintf(w, "%02x%02x%02x%02x ", nrgba.R, nrgba.G, nrgba.B, nrgba.A)
 			}
-		case cm == image.NRGBA64ColorModel:
+		case cm == color.NRGBA64Model:
 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
-				nrgba64 := png.At(x, y).(image.NRGBA64Color)
+				nrgba64 := png.At(x, y).(color.NRGBA64)
 				fmt.Fprintf(w, "%04x%04x%04x%04x ", nrgba64.R, nrgba64.G, nrgba64.B, nrgba64.A)
 			}
 		case cpm != nil:
@@ -193,7 +194,7 @@ func TestReader(t *testing.T) {
 		if fn == "basn4a16" {
 			// basn4a16.sng is gray + alpha but sng() will produce true color + alpha
 			// so we just check a single random pixel.
-			c := img.At(2, 1).(image.NRGBA64Color)
+			c := img.At(2, 1).(color.NRGBA64)
 			if c.R != 0x11a7 || c.G != 0x11a7 || c.B != 0x11a7 || c.A != 0x1085 {
 				t.Error(fn, fmt.Errorf("wrong pixel value at (2, 1): %x", c))
 			}

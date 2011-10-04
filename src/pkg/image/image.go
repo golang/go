@@ -8,23 +8,27 @@
 // http://blog.golang.org/2011/09/go-image-package.html
 package image
 
+import (
+	"image/color"
+)
+
 // Config holds an image's color model and dimensions.
 type Config struct {
-	ColorModel    ColorModel
+	ColorModel    color.Model
 	Width, Height int
 }
 
-// Image is a finite rectangular grid of Colors drawn from a ColorModel.
+// Image is a finite rectangular grid of Colors drawn from a color model.
 type Image interface {
-	// ColorModel returns the Image's ColorModel.
-	ColorModel() ColorModel
+	// ColorModel returns the Image's color model.
+	ColorModel() color.Model
 	// Bounds returns the domain for which At can return non-zero color.
 	// The bounds do not necessarily contain the point (0, 0).
 	Bounds() Rectangle
 	// At returns the color of the pixel at (x, y).
 	// At(Bounds().Min.X, Bounds().Min.Y) returns the upper-left pixel of the grid.
 	// At(Bounds().Max.X-1, Bounds().Max.Y-1) returns the lower-right one.
-	At(x, y int) Color
+	At(x, y int) color.Color
 }
 
 // PalettedImage is an image whose colors may come from a limited palette.
@@ -49,31 +53,31 @@ type RGBA struct {
 	Rect Rectangle
 }
 
-func (p *RGBA) ColorModel() ColorModel { return RGBAColorModel }
+func (p *RGBA) ColorModel() color.Model { return color.RGBAModel }
 
 func (p *RGBA) Bounds() Rectangle { return p.Rect }
 
-func (p *RGBA) At(x, y int) Color {
+func (p *RGBA) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
-		return RGBAColor{}
+		return color.RGBA{}
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
-	return RGBAColor{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
+	return color.RGBA{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
 }
 
-func (p *RGBA) Set(x, y int, c Color) {
+func (p *RGBA) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
-	c1 := toRGBAColor(c).(RGBAColor)
+	c1 := color.RGBAModel.Convert(c).(color.RGBA)
 	p.Pix[i+0] = c1.R
 	p.Pix[i+1] = c1.G
 	p.Pix[i+2] = c1.B
 	p.Pix[i+3] = c1.A
 }
 
-func (p *RGBA) SetRGBA(x, y int, c RGBAColor) {
+func (p *RGBA) SetRGBA(x, y int, c color.RGBA) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
@@ -138,16 +142,16 @@ type RGBA64 struct {
 	Rect Rectangle
 }
 
-func (p *RGBA64) ColorModel() ColorModel { return RGBA64ColorModel }
+func (p *RGBA64) ColorModel() color.Model { return color.RGBA64Model }
 
 func (p *RGBA64) Bounds() Rectangle { return p.Rect }
 
-func (p *RGBA64) At(x, y int) Color {
+func (p *RGBA64) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
-		return RGBA64Color{}
+		return color.RGBA64{}
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
-	return RGBA64Color{
+	return color.RGBA64{
 		uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1]),
 		uint16(p.Pix[i+2])<<8 | uint16(p.Pix[i+3]),
 		uint16(p.Pix[i+4])<<8 | uint16(p.Pix[i+5]),
@@ -155,12 +159,12 @@ func (p *RGBA64) At(x, y int) Color {
 	}
 }
 
-func (p *RGBA64) Set(x, y int, c Color) {
+func (p *RGBA64) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
-	c1 := toRGBA64Color(c).(RGBA64Color)
+	c1 := color.RGBA64Model.Convert(c).(color.RGBA64)
 	p.Pix[i+0] = uint8(c1.R >> 8)
 	p.Pix[i+1] = uint8(c1.R)
 	p.Pix[i+2] = uint8(c1.G >> 8)
@@ -171,7 +175,7 @@ func (p *RGBA64) Set(x, y int, c Color) {
 	p.Pix[i+7] = uint8(c1.A)
 }
 
-func (p *RGBA64) SetRGBA64(x, y int, c RGBA64Color) {
+func (p *RGBA64) SetRGBA64(x, y int, c color.RGBA64) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
@@ -240,31 +244,31 @@ type NRGBA struct {
 	Rect Rectangle
 }
 
-func (p *NRGBA) ColorModel() ColorModel { return NRGBAColorModel }
+func (p *NRGBA) ColorModel() color.Model { return color.NRGBAModel }
 
 func (p *NRGBA) Bounds() Rectangle { return p.Rect }
 
-func (p *NRGBA) At(x, y int) Color {
+func (p *NRGBA) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
-		return NRGBAColor{}
+		return color.NRGBA{}
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
-	return NRGBAColor{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
+	return color.NRGBA{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
 }
 
-func (p *NRGBA) Set(x, y int, c Color) {
+func (p *NRGBA) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
-	c1 := toNRGBAColor(c).(NRGBAColor)
+	c1 := color.NRGBAModel.Convert(c).(color.NRGBA)
 	p.Pix[i+0] = c1.R
 	p.Pix[i+1] = c1.G
 	p.Pix[i+2] = c1.B
 	p.Pix[i+3] = c1.A
 }
 
-func (p *NRGBA) SetNRGBA(x, y int, c NRGBAColor) {
+func (p *NRGBA) SetNRGBA(x, y int, c color.NRGBA) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
@@ -329,16 +333,16 @@ type NRGBA64 struct {
 	Rect Rectangle
 }
 
-func (p *NRGBA64) ColorModel() ColorModel { return NRGBA64ColorModel }
+func (p *NRGBA64) ColorModel() color.Model { return color.NRGBA64Model }
 
 func (p *NRGBA64) Bounds() Rectangle { return p.Rect }
 
-func (p *NRGBA64) At(x, y int) Color {
+func (p *NRGBA64) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
-		return NRGBA64Color{}
+		return color.NRGBA64{}
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
-	return NRGBA64Color{
+	return color.NRGBA64{
 		uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1]),
 		uint16(p.Pix[i+2])<<8 | uint16(p.Pix[i+3]),
 		uint16(p.Pix[i+4])<<8 | uint16(p.Pix[i+5]),
@@ -346,12 +350,12 @@ func (p *NRGBA64) At(x, y int) Color {
 	}
 }
 
-func (p *NRGBA64) Set(x, y int, c Color) {
+func (p *NRGBA64) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
-	c1 := toNRGBA64Color(c).(NRGBA64Color)
+	c1 := color.NRGBA64Model.Convert(c).(color.NRGBA64)
 	p.Pix[i+0] = uint8(c1.R >> 8)
 	p.Pix[i+1] = uint8(c1.R)
 	p.Pix[i+2] = uint8(c1.G >> 8)
@@ -362,7 +366,7 @@ func (p *NRGBA64) Set(x, y int, c Color) {
 	p.Pix[i+7] = uint8(c1.A)
 }
 
-func (p *NRGBA64) SetNRGBA64(x, y int, c NRGBA64Color) {
+func (p *NRGBA64) SetNRGBA64(x, y int, c color.NRGBA64) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
@@ -431,27 +435,27 @@ type Alpha struct {
 	Rect Rectangle
 }
 
-func (p *Alpha) ColorModel() ColorModel { return AlphaColorModel }
+func (p *Alpha) ColorModel() color.Model { return color.AlphaModel }
 
 func (p *Alpha) Bounds() Rectangle { return p.Rect }
 
-func (p *Alpha) At(x, y int) Color {
+func (p *Alpha) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
-		return AlphaColor{}
+		return color.Alpha{}
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
-	return AlphaColor{p.Pix[i]}
+	return color.Alpha{p.Pix[i]}
 }
 
-func (p *Alpha) Set(x, y int, c Color) {
+func (p *Alpha) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
-	p.Pix[i] = toAlphaColor(c).(AlphaColor).A
+	p.Pix[i] = color.AlphaModel.Convert(c).(color.Alpha).A
 }
 
-func (p *Alpha) SetAlpha(x, y int, c AlphaColor) {
+func (p *Alpha) SetAlpha(x, y int, c color.Alpha) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
@@ -513,29 +517,29 @@ type Alpha16 struct {
 	Rect Rectangle
 }
 
-func (p *Alpha16) ColorModel() ColorModel { return Alpha16ColorModel }
+func (p *Alpha16) ColorModel() color.Model { return color.Alpha16Model }
 
 func (p *Alpha16) Bounds() Rectangle { return p.Rect }
 
-func (p *Alpha16) At(x, y int) Color {
+func (p *Alpha16) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
-		return Alpha16Color{}
+		return color.Alpha16{}
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
-	return Alpha16Color{uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1])}
+	return color.Alpha16{uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1])}
 }
 
-func (p *Alpha16) Set(x, y int, c Color) {
+func (p *Alpha16) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
-	c1 := toAlpha16Color(c).(Alpha16Color)
+	c1 := color.Alpha16Model.Convert(c).(color.Alpha16)
 	p.Pix[i+0] = uint8(c1.A >> 8)
 	p.Pix[i+1] = uint8(c1.A)
 }
 
-func (p *Alpha16) SetAlpha16(x, y int, c Alpha16Color) {
+func (p *Alpha16) SetAlpha16(x, y int, c color.Alpha16) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
@@ -598,27 +602,27 @@ type Gray struct {
 	Rect Rectangle
 }
 
-func (p *Gray) ColorModel() ColorModel { return GrayColorModel }
+func (p *Gray) ColorModel() color.Model { return color.GrayModel }
 
 func (p *Gray) Bounds() Rectangle { return p.Rect }
 
-func (p *Gray) At(x, y int) Color {
+func (p *Gray) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
-		return GrayColor{}
+		return color.Gray{}
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
-	return GrayColor{p.Pix[i]}
+	return color.Gray{p.Pix[i]}
 }
 
-func (p *Gray) Set(x, y int, c Color) {
+func (p *Gray) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
-	p.Pix[i] = toGrayColor(c).(GrayColor).Y
+	p.Pix[i] = color.GrayModel.Convert(c).(color.Gray).Y
 }
 
-func (p *Gray) SetGray(x, y int, c GrayColor) {
+func (p *Gray) SetGray(x, y int, c color.Gray) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
@@ -667,29 +671,29 @@ type Gray16 struct {
 	Rect Rectangle
 }
 
-func (p *Gray16) ColorModel() ColorModel { return Gray16ColorModel }
+func (p *Gray16) ColorModel() color.Model { return color.Gray16Model }
 
 func (p *Gray16) Bounds() Rectangle { return p.Rect }
 
-func (p *Gray16) At(x, y int) Color {
+func (p *Gray16) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
-		return Gray16Color{}
+		return color.Gray16{}
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
-	return Gray16Color{uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1])}
+	return color.Gray16{uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1])}
 }
 
-func (p *Gray16) Set(x, y int, c Color) {
+func (p *Gray16) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
 	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
-	c1 := toGray16Color(c).(Gray16Color)
+	c1 := color.Gray16Model.Convert(c).(color.Gray16)
 	p.Pix[i+0] = uint8(c1.Y >> 8)
 	p.Pix[i+1] = uint8(c1.Y)
 }
 
-func (p *Gray16) SetGray16(x, y int, c Gray16Color) {
+func (p *Gray16) SetGray16(x, y int, c color.Gray16) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
@@ -728,50 +732,6 @@ func NewGray16(r Rectangle) *Gray16 {
 	return &Gray16{pix, 2 * w, r}
 }
 
-// A PalettedColorModel represents a fixed palette of at most 256 colors.
-type PalettedColorModel []Color
-
-func diff(a, b uint32) uint32 {
-	if a > b {
-		return a - b
-	}
-	return b - a
-}
-
-// Convert returns the palette color closest to c in Euclidean R,G,B space.
-func (p PalettedColorModel) Convert(c Color) Color {
-	if len(p) == 0 {
-		return nil
-	}
-	return p[p.Index(c)]
-}
-
-// Index returns the index of the palette color closest to c in Euclidean
-// R,G,B space.
-func (p PalettedColorModel) Index(c Color) int {
-	cr, cg, cb, _ := c.RGBA()
-	// Shift by 1 bit to avoid potential uint32 overflow in sum-squared-difference.
-	cr >>= 1
-	cg >>= 1
-	cb >>= 1
-	ret, bestSSD := 0, uint32(1<<32-1)
-	for i, v := range p {
-		vr, vg, vb, _ := v.RGBA()
-		vr >>= 1
-		vg >>= 1
-		vb >>= 1
-		dr, dg, db := diff(cr, vr), diff(cg, vg), diff(cb, vb)
-		ssd := (dr * dr) + (dg * dg) + (db * db)
-		if ssd < bestSSD {
-			if ssd == 0 {
-				return i
-			}
-			ret, bestSSD = i, ssd
-		}
-	}
-	return ret
-}
-
 // Paletted is an in-memory image of uint8 indices into a given palette.
 type Paletted struct {
 	// Pix holds the image's pixels, as palette indices. The pixel at
@@ -782,14 +742,14 @@ type Paletted struct {
 	// Rect is the image's bounds.
 	Rect Rectangle
 	// Palette is the image's palette.
-	Palette PalettedColorModel
+	Palette color.Palette
 }
 
-func (p *Paletted) ColorModel() ColorModel { return p.Palette }
+func (p *Paletted) ColorModel() color.Model { return p.Palette }
 
 func (p *Paletted) Bounds() Rectangle { return p.Rect }
 
-func (p *Paletted) At(x, y int) Color {
+func (p *Paletted) At(x, y int) color.Color {
 	if len(p.Palette) == 0 {
 		return nil
 	}
@@ -800,7 +760,7 @@ func (p *Paletted) At(x, y int) Color {
 	return p.Palette[p.Pix[i]]
 }
 
-func (p *Paletted) Set(x, y int, c Color) {
+func (p *Paletted) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
@@ -869,8 +829,8 @@ func (p *Paletted) Opaque() bool {
 }
 
 // NewPaletted returns a new Paletted with the given width, height and palette.
-func NewPaletted(r Rectangle, m PalettedColorModel) *Paletted {
+func NewPaletted(r Rectangle, p color.Palette) *Paletted {
 	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 1*w*h)
-	return &Paletted{pix, 1 * w, r, m}
+	return &Paletted{pix, 1 * w, r, p}
 }

@@ -7,6 +7,7 @@ package jpeg
 import (
 	"bytes"
 	"image"
+	"image/color"
 	"image/png"
 	"io/ioutil"
 	"rand"
@@ -96,7 +97,7 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
 	rnd := rand.New(rand.NewSource(123))
 	for y := bo.Min.Y; y < bo.Max.Y; y++ {
 		for x := bo.Min.X; x < bo.Max.X; x++ {
-			img.Set(x, y, image.RGBAColor{
+			img.Set(x, y, color.RGBA{
 				uint8(rnd.Intn(256)),
 				uint8(rnd.Intn(256)),
 				uint8(rnd.Intn(256)),

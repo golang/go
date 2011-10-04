@@ -12,6 +12,7 @@ import (
 	"compress/zlib"
 	"encoding/binary"
 	"image"
+	"image/color"
 	"io"
 	"io/ioutil"
 	"os"
@@ -45,7 +46,7 @@ type decoder struct {
 	config    image.Config
 	mode      imageMode
 	features  map[int][]uint
-	palette   []image.Color
+	palette   []color.Color
 
 	buf   []byte
 	off   int    // Current offset in buf.
@@ -129,9 +130,9 @@ func (d *decoder) parseIFD(p []byte) os.Error {
 		if len(val)%3 != 0 || numcolors <= 0 || numcolors > 256 {
 			return FormatError("bad ColorMap length")
 		}
-		d.palette = make([]image.Color, numcolors)
+		d.palette = make([]color.Color, numcolors)
 		for i := 0; i < numcolors; i++ {
-			d.palette[i] = image.RGBA64Color{
+			d.palette[i] = color.RGBA64{
 				uint16(val[i]),
 				uint16(val[i+numcolors]),
 				uint16(val[i+2*numcolors]),
@@ -208,7 +209,7 @@ func (d *decoder) decode(dst image.Image, ymin, ymax int) os.Error {
 				if d.mode == mGrayInvert {
 					v = 0xff - v
 				}
-				img.SetGray(x, y, image.GrayColor{v})
+				img.SetGray(x, y, color.Gray{v})
 			}
 			d.flushBits()
 		}
@@ -308,7 +309,7 @@ func newDecoder(r io.Reader) (*decoder, os.Error) {
 				return nil, UnsupportedError("non-8-bit RGB image")
 			}
 		}
-		d.config.ColorModel = image.RGBAColorModel
+		d.config.ColorModel = color.RGBAModel
 		// RGB images normally have 3 samples per pixel.
 		// If there are more, ExtraSamples (p. 31-32 of the spec)
 		// gives their meaning (usually an alpha channel).
@@ -324,7 +325,7 @@ func newDecoder(r io.Reader) (*decoder, os.Error) {
 				d.mode = mRGBA
 			case 2:
 				d.mode = mNRGBA
-				d.config.ColorModel = image.NRGBAColorModel
+				d.config.ColorModel = color.NRGBAModel
 			default:
 				return nil, FormatError("wrong number of samples for RGB")
 			}
@@ -333,13 +334,13 @@ func newDecoder(r io.Reader) (*decoder, os.Error) {
 		}
 	case pPaletted:
 		d.mode = mPaletted
-		d.config.ColorModel = image.PalettedColorModel(d.palette)
+		d.config.ColorModel = color.Palette(d.palette)
 	case pWhiteIsZero:
 		d.mode = mGrayInvert
-		d.config.ColorModel = image.GrayColorModel
+		d.config.ColorModel = color.GrayModel
 	case pBlackIsZero:
 		d.mode = mGray
-		d.config.ColorModel = image.GrayColorModel
+		d.config.ColorModel = color.GrayModel
 	default:
 		return nil, UnsupportedError("color model")
 	}

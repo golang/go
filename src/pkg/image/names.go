@@ -4,43 +4,47 @@
 
 package image
 
-var (
-	// Black is an opaque black ColorImage.
-	Black = NewColorImage(Gray16Color{0})
-	// White is an opaque white ColorImage.
-	White = NewColorImage(Gray16Color{0xffff})
-	// Transparent is a fully transparent ColorImage.
-	Transparent = NewColorImage(Alpha16Color{0})
-	// Opaque is a fully opaque ColorImage.
-	Opaque = NewColorImage(Alpha16Color{0xffff})
+import (
+	"image/color"
 )
 
-// A ColorImage is an infinite-sized Image of uniform Color.
-// It implements both the Color and Image interfaces.
-type ColorImage struct {
-	C Color
+var (
+	// Black is an opaque black uniform image.
+	Black = NewUniform(color.Black)
+	// White is an opaque white uniform image.
+	White = NewUniform(color.White)
+	// Transparent is a fully transparent uniform image.
+	Transparent = NewUniform(color.Transparent)
+	// Opaque is a fully opaque uniform image.
+	Opaque = NewUniform(color.Opaque)
+)
+
+// Uniform is an infinite-sized Image of uniform color.
+// It implements both the color.Color and Image interfaces.
+type Uniform struct {
+	C color.Color
 }
 
-func (c *ColorImage) RGBA() (r, g, b, a uint32) {
+func (c *Uniform) RGBA() (r, g, b, a uint32) {
 	return c.C.RGBA()
 }
 
-func (c *ColorImage) ColorModel() ColorModel {
-	return ColorModelFunc(func(Color) Color { return c.C })
+func (c *Uniform) ColorModel() color.Model {
+	return color.ModelFunc(func(color.Color) color.Color { return c.C })
 }
 
-func (c *ColorImage) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
+func (c *Uniform) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
 
-func (c *ColorImage) At(x, y int) Color { return c.C }
+func (c *Uniform) At(x, y int) color.Color { return c.C }
 
 // Opaque scans the entire image and returns whether or not it is fully opaque.
-func (c *ColorImage) Opaque() bool {
+func (c *Uniform) Opaque() bool {
 	_, _, _, a := c.C.RGBA()
 	return a == 0xffff
 }
 
-func NewColorImage(c Color) *ColorImage {
-	return &ColorImage{c}
+func NewUniform(c color.Color) *Uniform {
+	return &Uniform{c}
 }
 
 // A Tiled is an infinite-sized Image that repeats another Image in both
@@ -51,13 +55,13 @@ type Tiled struct {
 	Offset Point
 }
 
-func (t *Tiled) ColorModel() ColorModel {
+func (t *Tiled) ColorModel() color.Model {
 	return t.I.ColorModel()
 }
 
 func (t *Tiled) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
 
-func (t *Tiled) At(x, y int) Color {
+func (t *Tiled) At(x, y int) color.Color {
 	p := Point{x, y}.Add(t.Offset).Mod(t.I.Bounds())
 	return t.I.At(p.X, p.Y)
 }
