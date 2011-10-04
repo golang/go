@@ -252,6 +252,9 @@ var parseTests = []ParseTest{
 	// Amount of white space should not matter.
 	{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true, 1, 0},
 	{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true, 1, 0},
+	// Case should not matter
+	{"ANSIC", ANSIC, "THU FEB 4 21:00:57 2010", false, true, 1, 0},
+	{"ANSIC", ANSIC, "thu feb 4 21:00:57 2010", false, true, 1, 0},
 	// Fractional seconds.
 	{"millisecond", "Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 21:00:57.012 2010", false, true, 1, 3},
 	{"microsecond", "Mon Jan _2 15:04:05.000000 2006", "Thu Feb  4 21:00:57.012345 2010", false, true, 1, 6},
