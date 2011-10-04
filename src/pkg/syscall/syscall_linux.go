@@ -190,6 +190,10 @@ func Sleep(nsec int64) (errno int) {
 	return err
 }
 
+func Mkfifo(path string, mode uint32) (errno int) {
+	return Mknod(path, mode|S_IFIFO, 0)
+}
+
 // For testing: clients can set this flag to force
 // creation of IPv6 sockets to return EAFNOSUPPORT.
 var SocketDisableIPv6 bool
