@@ -6,29 +6,30 @@ package draw
 
 import (
 	"image"
+	"image/color"
 	"image/ycbcr"
 	"testing"
 )
 
-func eq(c0, c1 image.Color) bool {
+func eq(c0, c1 color.Color) bool {
 	r0, g0, b0, a0 := c0.RGBA()
 	r1, g1, b1, a1 := c1.RGBA()
 	return r0 == r1 && g0 == g1 && b0 == b1 && a0 == a1
 }
 
 func fillBlue(alpha int) image.Image {
-	return image.NewColorImage(image.RGBAColor{0, 0, uint8(alpha), uint8(alpha)})
+	return image.NewUniform(color.RGBA{0, 0, uint8(alpha), uint8(alpha)})
 }
 
 func fillAlpha(alpha int) image.Image {
-	return image.NewColorImage(image.AlphaColor{uint8(alpha)})
+	return image.NewUniform(color.Alpha{uint8(alpha)})
 }
 
 func vgradGreen(alpha int) image.Image {
 	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
 	for y := 0; y < 16; y++ {
 		for x := 0; x < 16; x++ {
-			m.Set(x, y, image.RGBAColor{0, uint8(y * alpha / 15), 0, uint8(alpha)})
+			m.Set(x, y, color.RGBA{0, uint8(y * alpha / 15), 0, uint8(alpha)})
 		}
 	}
 	return m
@@ -38,7 +39,7 @@ func vgradAlpha(alpha int) image.Image {
 	m := image.NewAlpha(image.Rect(0, 0, 16, 16))
 	for y := 0; y < 16; y++ {
 		for x := 0; x < 16; x++ {
-			m.Set(x, y, image.AlphaColor{uint8(y * alpha / 15)})
+			m.Set(x, y, color.Alpha{uint8(y * alpha / 15)})
 		}
 	}
 	return m
@@ -48,7 +49,7 @@ func vgradGreenNRGBA(alpha int) image.Image {
 	m := image.NewNRGBA(image.Rect(0, 0, 16, 16))
 	for y := 0; y < 16; y++ {
 		for x := 0; x < 16; x++ {
-			m.Set(x, y, image.RGBAColor{0, uint8(y * 0x11), 0, uint8(alpha)})
+			m.Set(x, y, color.RGBA{0, uint8(y * 0x11), 0, uint8(alpha)})
 		}
 	}
 	return m
@@ -76,7 +77,7 @@ func hgradRed(alpha int) Image {
 	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
 	for y := 0; y < 16; y++ {
 		for x := 0; x < 16; x++ {
-			m.Set(x, y, image.RGBAColor{uint8(x * alpha / 15), 0, 0, uint8(alpha)})
+			m.Set(x, y, color.RGBA{uint8(x * alpha / 15), 0, 0, uint8(alpha)})
 		}
 	}
 	return m
@@ -86,7 +87,7 @@ func gradYellow(alpha int) Image {
 	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
 	for y := 0; y < 16; y++ {
 		for x := 0; x < 16; x++ {
-			m.Set(x, y, image.RGBAColor{uint8(x * alpha / 15), uint8(y * alpha / 15), 0, uint8(alpha)})
+			m.Set(x, y, color.RGBA{uint8(x * alpha / 15), uint8(y * alpha / 15), 0, uint8(alpha)})
 		}
 	}
 	return m
@@ -97,61 +98,61 @@ type drawTest struct {
 	src      image.Image
 	mask     image.Image
 	op       Op
-	expected image.Color
+	expected color.Color
 }
 
 var drawTests = []drawTest{
 	// Uniform mask (0% opaque).
-	{"nop", vgradGreen(255), fillAlpha(0), Over, image.RGBAColor{136, 0, 0, 255}},
-	{"clear", vgradGreen(255), fillAlpha(0), Src, image.RGBAColor{0, 0, 0, 0}},
+	{"nop", vgradGreen(255), fillAlpha(0), Over, color.RGBA{136, 0, 0, 255}},
+	{"clear", vgradGreen(255), fillAlpha(0), Src, color.RGBA{0, 0, 0, 0}},
 	// Uniform mask (100%, 75%, nil) and uniform source.
 	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
 	// The source pixel is {0, 0, 90, 90}.
-	{"fill", fillBlue(90), fillAlpha(255), Over, image.RGBAColor{88, 0, 90, 255}},
-	{"fillSrc", fillBlue(90), fillAlpha(255), Src, image.RGBAColor{0, 0, 90, 90}},
-	{"fillAlpha", fillBlue(90), fillAlpha(192), Over, image.RGBAColor{100, 0, 68, 255}},
-	{"fillAlphaSrc", fillBlue(90), fillAlpha(192), Src, image.RGBAColor{0, 0, 68, 68}},
-	{"fillNil", fillBlue(90), nil, Over, image.RGBAColor{88, 0, 90, 255}},
-	{"fillNilSrc", fillBlue(90), nil, Src, image.RGBAColor{0, 0, 90, 90}},
+	{"fill", fillBlue(90), fillAlpha(255), Over, color.RGBA{88, 0, 90, 255}},
+	{"fillSrc", fillBlue(90), fillAlpha(255), Src, color.RGBA{0, 0, 90, 90}},
+	{"fillAlpha", fillBlue(90), fillAlpha(192), Over, color.RGBA{100, 0, 68, 255}},
+	{"fillAlphaSrc", fillBlue(90), fillAlpha(192), Src, color.RGBA{0, 0, 68, 68}},
+	{"fillNil", fillBlue(90), nil, Over, color.RGBA{88, 0, 90, 255}},
+	{"fillNilSrc", fillBlue(90), nil, Src, color.RGBA{0, 0, 90, 90}},
 	// Uniform mask (100%, 75%, nil) and variable source.
 	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
 	// The source pixel is {0, 48, 0, 90}.
-	{"copy", vgradGreen(90), fillAlpha(255), Over, image.RGBAColor{88, 48, 0, 255}},
-	{"copySrc", vgradGreen(90), fillAlpha(255), Src, image.RGBAColor{0, 48, 0, 90}},
-	{"copyAlpha", vgradGreen(90), fillAlpha(192), Over, image.RGBAColor{100, 36, 0, 255}},
-	{"copyAlphaSrc", vgradGreen(90), fillAlpha(192), Src, image.RGBAColor{0, 36, 0, 68}},
-	{"copyNil", vgradGreen(90), nil, Over, image.RGBAColor{88, 48, 0, 255}},
-	{"copyNilSrc", vgradGreen(90), nil, Src, image.RGBAColor{0, 48, 0, 90}},
+	{"copy", vgradGreen(90), fillAlpha(255), Over, color.RGBA{88, 48, 0, 255}},
+	{"copySrc", vgradGreen(90), fillAlpha(255), Src, color.RGBA{0, 48, 0, 90}},
+	{"copyAlpha", vgradGreen(90), fillAlpha(192), Over, color.RGBA{100, 36, 0, 255}},
+	{"copyAlphaSrc", vgradGreen(90), fillAlpha(192), Src, color.RGBA{0, 36, 0, 68}},
+	{"copyNil", vgradGreen(90), nil, Over, color.RGBA{88, 48, 0, 255}},
+	{"copyNilSrc", vgradGreen(90), nil, Src, color.RGBA{0, 48, 0, 90}},
 	// Uniform mask (100%, 75%, nil) and variable NRGBA source.
 	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
 	// The source pixel is {0, 136, 0, 90} in NRGBA-space, which is {0, 48, 0, 90} in RGBA-space.
 	// The result pixel is different than in the "copy*" test cases because of rounding errors.
-	{"nrgba", vgradGreenNRGBA(90), fillAlpha(255), Over, image.RGBAColor{88, 46, 0, 255}},
-	{"nrgbaSrc", vgradGreenNRGBA(90), fillAlpha(255), Src, image.RGBAColor{0, 46, 0, 90}},
-	{"nrgbaAlpha", vgradGreenNRGBA(90), fillAlpha(192), Over, image.RGBAColor{100, 34, 0, 255}},
-	{"nrgbaAlphaSrc", vgradGreenNRGBA(90), fillAlpha(192), Src, image.RGBAColor{0, 34, 0, 68}},
-	{"nrgbaNil", vgradGreenNRGBA(90), nil, Over, image.RGBAColor{88, 46, 0, 255}},
-	{"nrgbaNilSrc", vgradGreenNRGBA(90), nil, Src, image.RGBAColor{0, 46, 0, 90}},
+	{"nrgba", vgradGreenNRGBA(90), fillAlpha(255), Over, color.RGBA{88, 46, 0, 255}},
+	{"nrgbaSrc", vgradGreenNRGBA(90), fillAlpha(255), Src, color.RGBA{0, 46, 0, 90}},
+	{"nrgbaAlpha", vgradGreenNRGBA(90), fillAlpha(192), Over, color.RGBA{100, 34, 0, 255}},
+	{"nrgbaAlphaSrc", vgradGreenNRGBA(90), fillAlpha(192), Src, color.RGBA{0, 34, 0, 68}},
+	{"nrgbaNil", vgradGreenNRGBA(90), nil, Over, color.RGBA{88, 46, 0, 255}},
+	{"nrgbaNilSrc", vgradGreenNRGBA(90), nil, Src, color.RGBA{0, 46, 0, 90}},
 	// Uniform mask (100%, 75%, nil) and variable YCbCr source.
 	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
 	// The source pixel is {0, 0, 136} in YCbCr-space, which is {11, 38, 0, 255} in RGB-space.
-	{"ycbcr", vgradCr(), fillAlpha(255), Over, image.RGBAColor{11, 38, 0, 255}},
-	{"ycbcrSrc", vgradCr(), fillAlpha(255), Src, image.RGBAColor{11, 38, 0, 255}},
-	{"ycbcrAlpha", vgradCr(), fillAlpha(192), Over, image.RGBAColor{42, 28, 0, 255}},
-	{"ycbcrAlphaSrc", vgradCr(), fillAlpha(192), Src, image.RGBAColor{8, 28, 0, 192}},
-	{"ycbcrNil", vgradCr(), nil, Over, image.RGBAColor{11, 38, 0, 255}},
-	{"ycbcrNilSrc", vgradCr(), nil, Src, image.RGBAColor{11, 38, 0, 255}},
+	{"ycbcr", vgradCr(), fillAlpha(255), Over, color.RGBA{11, 38, 0, 255}},
+	{"ycbcrSrc", vgradCr(), fillAlpha(255), Src, color.RGBA{11, 38, 0, 255}},
+	{"ycbcrAlpha", vgradCr(), fillAlpha(192), Over, color.RGBA{42, 28, 0, 255}},
+	{"ycbcrAlphaSrc", vgradCr(), fillAlpha(192), Src, color.RGBA{8, 28, 0, 192}},
+	{"ycbcrNil", vgradCr(), nil, Over, color.RGBA{11, 38, 0, 255}},
+	{"ycbcrNilSrc", vgradCr(), nil, Src, color.RGBA{11, 38, 0, 255}},
 	// Variable mask and variable source.
 	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
 	// The source pixel is {0, 0, 255, 255}.
 	// The mask pixel's alpha is 102, or 40%.
-	{"generic", fillBlue(255), vgradAlpha(192), Over, image.RGBAColor{81, 0, 102, 255}},
-	{"genericSrc", fillBlue(255), vgradAlpha(192), Src, image.RGBAColor{0, 0, 102, 102}},
+	{"generic", fillBlue(255), vgradAlpha(192), Over, color.RGBA{81, 0, 102, 255}},
+	{"genericSrc", fillBlue(255), vgradAlpha(192), Src, color.RGBA{0, 0, 102, 102}},
 }
 
 func makeGolden(dst image.Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) image.Image {
@@ -191,7 +192,7 @@ func makeGolden(dst image.Image, r image.Rectangle, src image.Image, sp image.Po
 				_, _, _, ma = mask.At(mx, my).RGBA()
 			}
 			a := M - (sa * ma / M)
-			golden.Set(x, y, image.RGBA64Color{
+			golden.Set(x, y, color.RGBA64{
 				uint16((dr*a + sr*ma) / M),
 				uint16((dg*a + sg*ma) / M),
 				uint16((db*a + sb*ma) / M),
@@ -283,13 +284,13 @@ func TestDrawOverlap(t *testing.T) {
 func TestNonZeroSrcPt(t *testing.T) {
 	a := image.NewRGBA(image.Rect(0, 0, 1, 1))
 	b := image.NewRGBA(image.Rect(0, 0, 2, 2))
-	b.Set(0, 0, image.RGBAColor{0, 0, 0, 5})
-	b.Set(1, 0, image.RGBAColor{0, 0, 5, 5})
-	b.Set(0, 1, image.RGBAColor{0, 5, 0, 5})
-	b.Set(1, 1, image.RGBAColor{5, 0, 0, 5})
+	b.Set(0, 0, color.RGBA{0, 0, 0, 5})
+	b.Set(1, 0, color.RGBA{0, 0, 5, 5})
+	b.Set(0, 1, color.RGBA{0, 5, 0, 5})
+	b.Set(1, 1, color.RGBA{5, 0, 0, 5})
 	Draw(a, image.Rect(0, 0, 1, 1), b, image.Pt(1, 1), Over)
-	if !eq(image.RGBAColor{5, 0, 0, 5}, a.At(0, 0)) {
-		t.Errorf("non-zero src pt: want %v got %v", image.RGBAColor{5, 0, 0, 5}, a.At(0, 0))
+	if !eq(color.RGBA{5, 0, 0, 5}, a.At(0, 0)) {
+		t.Errorf("non-zero src pt: want %v got %v", color.RGBA{5, 0, 0, 5}, a.At(0, 0))
 	}
 }
 
@@ -312,8 +313,8 @@ func TestFill(t *testing.T) {
 	for _, r := range rr {
 		m := image.NewRGBA(image.Rect(0, 0, 40, 30)).SubImage(r).(*image.RGBA)
 		b := m.Bounds()
-		c := image.RGBAColor{11, 0, 0, 255}
-		src := &image.ColorImage{c}
+		c := color.RGBA{11, 0, 0, 255}
+		src := &image.Uniform{c}
 		check := func(desc string) {
 			for y := b.Min.Y; y < b.Max.Y; y++ {
 				for x := b.Min.X; x < b.Max.X; x++ {
@@ -332,22 +333,22 @@ func TestFill(t *testing.T) {
 		}
 		check("pixel")
 		// Draw 1 row at a time.
-		c = image.RGBAColor{0, 22, 0, 255}
-		src = &image.ColorImage{c}
+		c = color.RGBA{0, 22, 0, 255}
+		src = &image.Uniform{c}
 		for y := b.Min.Y; y < b.Max.Y; y++ {
 			DrawMask(m, image.Rect(b.Min.X, y, b.Max.X, y+1), src, image.ZP, nil, image.ZP, Src)
 		}
 		check("row")
 		// Draw 1 column at a time.
-		c = image.RGBAColor{0, 0, 33, 255}
-		src = &image.ColorImage{c}
+		c = color.RGBA{0, 0, 33, 255}
+		src = &image.Uniform{c}
 		for x := b.Min.X; x < b.Max.X; x++ {
 			DrawMask(m, image.Rect(x, b.Min.Y, x+1, b.Max.Y), src, image.ZP, nil, image.ZP, Src)
 		}
 		check("column")
 		// Draw the whole image at once.
-		c = image.RGBAColor{44, 55, 66, 77}
-		src = &image.ColorImage{c}
+		c = color.RGBA{44, 55, 66, 77}
+		src = &image.Uniform{c}
 		DrawMask(m, b, src, image.ZP, nil, image.ZP, Src)
 		check("whole")
 	}

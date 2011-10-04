@@ -26,8 +26,7 @@ func f() {
 	image.NewAlpha16(1, 2)
 	image.NewGray(1, 2)
 	image.NewGray16(1, 2)
-	var m image.PalettedColorModel
-	image.NewPaletted(1, 2, m)
+	image.NewPaletted(1, 2, nil)
 }
 `,
 		Out: `package main
@@ -45,8 +44,7 @@ func f() {
 	image.NewAlpha16(image.Rect(0, 0, 1, 2))
 	image.NewGray(image.Rect(0, 0, 1, 2))
 	image.NewGray16(image.Rect(0, 0, 1, 2))
-	var m image.PalettedColorModel
-	image.NewPaletted(image.Rect(0, 0, 1, 2), m)
+	image.NewPaletted(image.Rect(0, 0, 1, 2), nil)
 }
 `,
 	},

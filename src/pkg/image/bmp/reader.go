@@ -8,6 +8,7 @@
 package bmp
 
 import (
+	"image/color"
 	"image"
 	"io"
 	"os"
@@ -28,7 +29,7 @@ func readUint32(b []byte) uint32 {
 // decodePaletted reads an 8 bit-per-pixel BMP image from r.
 func decodePaletted(r io.Reader, c image.Config) (image.Image, os.Error) {
 	var tmp [4]byte
-	paletted := image.NewPaletted(image.Rect(0, 0, c.Width, c.Height), c.ColorModel.(image.PalettedColorModel))
+	paletted := image.NewPaletted(image.Rect(0, 0, c.Width, c.Height), c.ColorModel.(color.Palette))
 	// BMP images are stored bottom-up rather than top-down.
 	for y := c.Height - 1; y >= 0; y-- {
 		p := paletted.Pix[y*paletted.Stride : y*paletted.Stride+c.Width]
@@ -77,7 +78,7 @@ func Decode(r io.Reader) (image.Image, os.Error) {
 	if err != nil {
 		return nil, err
 	}
-	if c.ColorModel == image.RGBAColorModel {
+	if c.ColorModel == color.RGBAModel {
 		return decodeRGBA(r, c)
 	}
 	return decodePaletted(r, c)
@@ -128,11 +129,11 @@ func DecodeConfig(r io.Reader) (config image.Config, err os.Error) {
 		if err != nil {
 			return
 		}
-		pcm := make(image.PalettedColorModel, 256)
+		pcm := make(color.Palette, 256)
 		for i := range pcm {
 			// BMP images are stored in BGR order rather than RGB order.
 			// Every 4th byte is padding.
-			pcm[i] = image.RGBAColor{b[4*i+2], b[4*i+1], b[4*i+0], 0xFF}
+			pcm[i] = color.RGBA{b[4*i+2], b[4*i+1], b[4*i+0], 0xFF}
 		}
 		return image.Config{pcm, width, height}, nil
 	case 24:
@@ -140,7 +141,7 @@ func DecodeConfig(r io.Reader) (config image.Config, err os.Error) {
 			err = ErrUnsupported
 			return
 		}
-		return image.Config{image.RGBAColorModel, width, height}, nil
+		return image.Config{color.RGBAModel, width, height}, nil
 	}
 	err = ErrUnsupported
 	return

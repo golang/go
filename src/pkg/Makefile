@@ -112,6 +112,7 @@ DIRS=\
 	http/spdy\
 	image\
 	image/bmp\
+	image/color\
 	image/draw\
 	image/gif\
 	image/jpeg\
@@ -212,6 +213,7 @@ NOTEST+=\
 	http/pprof\
 	http/httptest\
 	image/bmp\
+	image/color\
 	image/gif\
 	net/dict\
 	rand\

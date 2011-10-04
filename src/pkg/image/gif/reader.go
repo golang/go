@@ -12,6 +12,7 @@ import (
 	"compress/lzw"
 	"fmt"
 	"image"
+	"image/color"
 	"io"
 	"os"
 )
@@ -76,7 +77,7 @@ type decoder struct {
 
 	// Computed.
 	pixelSize      uint
-	globalColorMap image.PalettedColorModel
+	globalColorMap color.Palette
 
 	// Used when decoding.
 	delay []int
@@ -235,7 +236,7 @@ func (d *decoder) readHeaderAndScreenDescriptor() os.Error {
 	return nil
 }
 
-func (d *decoder) readColorMap() (image.PalettedColorModel, os.Error) {
+func (d *decoder) readColorMap() (color.Palette, os.Error) {
 	if d.pixelSize > 8 {
 		return nil, fmt.Errorf("gif: can't handle %d bits per pixel", d.pixelSize)
 	}
@@ -248,10 +249,10 @@ func (d *decoder) readColorMap() (image.PalettedColorModel, os.Error) {
 	if err != nil {
 		return nil, fmt.Errorf("gif: short read on color map: %s", err)
 	}
-	colorMap := make(image.PalettedColorModel, numColors)
+	colorMap := make(color.Palette, numColors)
 	j := 0
 	for i := range colorMap {
-		colorMap[i] = image.RGBAColor{d.tmp[j+0], d.tmp[j+1], d.tmp[j+2], 0xFF}
+		colorMap[i] = color.RGBA{d.tmp[j+0], d.tmp[j+1], d.tmp[j+2], 0xFF}
 		j += 3
 	}
 	return colorMap, nil
@@ -319,9 +320,9 @@ func (d *decoder) readGraphicControl() os.Error {
 	return nil
 }
 
-func (d *decoder) setTransparency(colorMap image.PalettedColorModel) {
+func (d *decoder) setTransparency(colorMap color.Palette) {
 	if int(d.transparentIndex) < len(colorMap) {
-		colorMap[d.transparentIndex] = image.RGBAColor{}
+		colorMap[d.transparentIndex] = color.RGBA{}
 	}
 }
 

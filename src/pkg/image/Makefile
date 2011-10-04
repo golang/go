@@ -6,7 +6,6 @@ include ../../Make.inc
 
 TARG=image
 GOFILES=\
-	color.go\
 	format.go\
 	geom.go\
 	image.go\

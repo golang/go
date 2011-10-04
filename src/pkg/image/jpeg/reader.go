@@ -10,6 +10,7 @@ package jpeg
 import (
 	"bufio"
 	"image"
+	"image/color"
 	"image/ycbcr"
 	"io"
 	"os"
@@ -464,7 +465,7 @@ func DecodeConfig(r io.Reader) (image.Config, os.Error) {
 	}
 	switch d.nComp {
 	case nGrayComponent:
-		return image.Config{image.GrayColorModel, d.width, d.height}, nil
+		return image.Config{color.GrayModel, d.width, d.height}, nil
 	case nColorComponent:
 		return image.Config{ycbcr.YCbCrColorModel, d.width, d.height}, nil
 	}
