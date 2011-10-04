@@ -232,9 +232,27 @@ var longMonthNames = []string{
 	"December",
 }
 
+// match returns true if s1 and s2 match ignoring case.
+// It is assumed s1 and s2 are the same length.
+func match(s1, s2 string) bool {
+	for i := 0; i < len(s1); i++ {
+		c1 := s1[i]
+		c2 := s2[i]
+		if c1 != c2 {
+			// Switch to lower-case; 'a'-'A' is known to be a single bit.
+			c1 |= 'a' - 'A'
+			c2 |= 'a' - 'A'
+			if c1 != c2 || c1 < 'a' || c1 > 'z' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func lookup(tab []string, val string) (int, string, os.Error) {
 	for i, v := range tab {
-		if len(val) >= len(v) && val[0:len(v)] == v {
+		if len(val) >= len(v) && match(val[0:len(v)], v) {
 			return i, val[len(v):], nil
 		}
 	}
