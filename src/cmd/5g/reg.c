@@ -42,6 +42,9 @@
 	int	noreturn(Prog *p);
 static	int	first	= 0;
 
+static	void	fixjmp(Prog*);
+
+
 Reg*
 rega(void)
 {
@@ -171,6 +174,8 @@ regopt(Prog *firstp)
 	if(first == 0) {
 		fmtinstall('Q', Qconv);
 	}
+	
+	fixjmp(firstp);
 
 	first++;
 	if(debug['K']) {
@@ -1159,10 +1164,12 @@ loopit(Reg *r, int32 nr)
 		r1 = rpo2r[i];
 		me = r1->rpo;
 		d = -1;
-		if(r1->p1 != R && r1->p1->rpo < me)
+		// rpo2r[r->rpo] == r protects against considering dead code,
+		// which has r->rpo == 0.
+		if(r1->p1 != R && rpo2r[r1->p1->rpo] == r1->p1 && r1->p1->rpo < me)
 			d = r1->p1->rpo;
 		for(r1 = r1->p2; r1 != nil; r1 = r1->p2link)
-			if(r1->rpo < me)
+			if(rpo2r[r1->rpo] == r1 && r1->rpo < me)
 				d = rpolca(idom, d, r1->rpo);
 		idom[i] = d;
 	}
@@ -1606,5 +1613,125 @@ dumpit(char *str, Reg *r0)
 //				print(" %.4ud", r1->prog->loc);
 //			print("\n");
 //		}
+	}
+}
+
+/*
+ * the code generator depends on being able to write out JMP (B)
+ * instructions that it can jump to now but fill in later.
+ * the linker will resolve them nicely, but they make the code
+ * longer and more difficult to follow during debugging.
+ * remove them.
+ */
+
+/* what instruction does a JMP to p eventually land on? */
+static Prog*
+chasejmp(Prog *p, int *jmploop)
+{
+	int n;
+
+	n = 0;
+	while(p != P && p->as == AB && p->to.type == D_BRANCH) {
+		if(++n > 10) {
+			*jmploop = 1;
+			break;
+		}
+		p = p->to.branch;
+	}
+	return p;
+}
+
+/*
+ * reuse reg pointer for mark/sweep state.
+ * leave reg==nil at end because alive==nil.
+ */
+#define alive ((void*)0)
+#define dead ((void*)1)
+
+/* mark all code reachable from firstp as alive */
+static void
+mark(Prog *firstp)
+{
+	Prog *p;
+	
+	for(p=firstp; p; p=p->link) {
+		if(p->regp != dead)
+			break;
+		p->regp = alive;
+		if(p->as != ABL && p->to.type == D_BRANCH && p->to.branch)
+			mark(p->to.branch);
+		if(p->as == AB || p->as == ARET || (p->as == ABL && noreturn(p)))
+			break;
+	}
+}
+
+static void
+fixjmp(Prog *firstp)
+{
+	int jmploop;
+	Prog *p, *last;
+	
+	if(debug['R'] && debug['v'])
+		print("\nfixjmp\n");
+
+	// pass 1: resolve jump to B, mark all code as dead.
+	jmploop = 0;
+	for(p=firstp; p; p=p->link) {
+		if(debug['R'] && debug['v'])
+			print("%P\n", p);
+		if(p->as != ABL && p->to.type == D_BRANCH && p->to.branch && p->to.branch->as == AB) {
+			p->to.branch = chasejmp(p->to.branch, &jmploop);
+			if(debug['R'] && debug['v'])
+				print("->%P\n", p);
+		}
+		p->regp = dead;
+	}
+	if(debug['R'] && debug['v'])
+		print("\n");
+
+	// pass 2: mark all reachable code alive
+	mark(firstp);
+	
+	// pass 3: delete dead code (mostly JMPs).
+	last = nil;
+	for(p=firstp; p; p=p->link) {
+		if(p->regp == dead) {
+			if(p->link == P && p->as == ARET && last && last->as != ARET) {
+				// This is the final ARET, and the code so far doesn't have one.
+				// Let it stay.
+			} else {
+				if(debug['R'] && debug['v'])
+					print("del %P\n", p);
+				continue;
+			}
+		}
+		if(last)
+			last->link = p;
+		last = p;
+	}
+	last->link = P;
+	
+	// pass 4: elide JMP to next instruction.
+	// only safe if there are no jumps to JMPs anymore.
+	if(!jmploop) {
+		last = nil;
+		for(p=firstp; p; p=p->link) {
+			if(p->as == AB && p->to.type == D_BRANCH && p->to.branch == p->link) {
+				if(debug['R'] && debug['v'])
+					print("del %P\n", p);
+				continue;
+			}
+			if(last)
+				last->link = p;
+			last = p;
+		}
+		last->link = P;
+	}
+	
+	if(debug['R'] && debug['v']) {
+		print("\n");
+		for(p=firstp; p; p=p->link)
+			print("%P\n", p);
+		print("\n");
 	}
 }
