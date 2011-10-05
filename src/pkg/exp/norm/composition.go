@@ -27,6 +27,26 @@ type reorderBuffer struct {
 	nrune int                     // Number of runeInfos.
 	nbyte uint8                   // Number or bytes.
 	f     formInfo
+
+	src       input
+	nsrc      int
+	srcBytes  inputBytes
+	srcString inputString
+	tmpBytes  inputBytes
+}
+
+func (rb *reorderBuffer) init(f Form, src []byte) {
+	rb.f = *formTable[f]
+	rb.srcBytes = inputBytes(src)
+	rb.src = &rb.srcBytes
+	rb.nsrc = len(src)
+}
+
+func (rb *reorderBuffer) initString(f Form, src string) {
+	rb.f = *formTable[f]
+	rb.srcString = inputString(src)
+	rb.src = &rb.srcString
+	rb.nsrc = len(src)
 }
 
 // reset discards all characters from the buffer.
@@ -75,15 +95,17 @@ func (rb *reorderBuffer) insertOrdered(info runeInfo) bool {
 
 // insert inserts the given rune in the buffer ordered by CCC.
 // It returns true if the buffer was large enough to hold the decomposed rune.
-func (rb *reorderBuffer) insert(src []byte, info runeInfo) bool {
-	if info.size == 3 && isHangul(src) {
-		rune, _ := utf8.DecodeRune(src)
-		return rb.decomposeHangul(uint32(rune))
+func (rb *reorderBuffer) insert(src input, i int, info runeInfo) bool {
+	if info.size == 3 {
+		if rune := src.hangul(i); rune != 0 {
+			return rb.decomposeHangul(uint32(rune))
+		}
 	}
 	if info.flags.hasDecomposition() {
-		dcomp := rb.f.decompose(src)
+		dcomp := rb.f.decompose(src, i)
+		rb.tmpBytes = inputBytes(dcomp)
 		for i := 0; i < len(dcomp); {
-			info = rb.f.info(dcomp[i:])
+			info = rb.f.info(&rb.tmpBytes, i)
 			pos := rb.nbyte
 			if !rb.insertOrdered(info) {
 				return false
@@ -98,37 +120,7 @@ func (rb *reorderBuffer) insert(src []byte, info runeInfo) bool {
 		if !rb.insertOrdered(info) {
 			return false
 		}
-		copy(rb.byte[pos:], src[:info.size])
-	}
-	return true
-}
-
-// insertString inserts the given rune in the buffer ordered by CCC.
-// It returns true if the buffer was large enough to hold the decomposed rune.
-func (rb *reorderBuffer) insertString(src string, info runeInfo) bool {
-	if info.size == 3 && isHangulString(src) {
-		rune, _ := utf8.DecodeRuneInString(src)
-		return rb.decomposeHangul(uint32(rune))
-	}
-	if info.flags.hasDecomposition() {
-		dcomp := rb.f.decomposeString(src)
-		for i := 0; i < len(dcomp); {
-			info = rb.f.info(dcomp[i:])
-			pos := rb.nbyte
-			if !rb.insertOrdered(info) {
-				return false
-			}
-			end := i + int(info.size)
-			copy(rb.byte[pos:], dcomp[i:end])
-			i = end
-		}
-	} else {
-		// insertOrder changes nbyte
-		pos := rb.nbyte
-		if !rb.insertOrdered(info) {
-			return false
-		}
-		copy(rb.byte[pos:], src[:info.size])
+		src.copySlice(rb.byte[pos:], i, i+int(info.size))
 	}
 	return true
 }

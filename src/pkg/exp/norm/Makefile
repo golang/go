@@ -7,6 +7,7 @@ include ../../../Make.inc
 TARG=exp/norm
 GOFILES=\
 	composition.go\
+	input.go\
 	forminfo.go\
 	normalize.go\
 	readwriter.go\

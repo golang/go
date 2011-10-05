@@ -15,21 +15,19 @@ type TestCase struct {
 type insertFunc func(rb *reorderBuffer, rune int) bool
 
 func insert(rb *reorderBuffer, rune int) bool {
-	b := []byte(string(rune))
-	return rb.insert(b, rb.f.info(b))
+	src := inputString(string(rune))
+	return rb.insert(src, 0, rb.f.info(src, 0))
 }
 
-func insertString(rb *reorderBuffer, rune int) bool {
-	s := string(rune)
-	return rb.insertString(s, rb.f.infoString(s))
-}
-
-func runTests(t *testing.T, name string, rb *reorderBuffer, f insertFunc, tests []TestCase) {
+func runTests(t *testing.T, name string, fm Form, f insertFunc, tests []TestCase) {
+	rb := reorderBuffer{}
+	rb.init(fm, nil)
 	for i, test := range tests {
 		rb.reset()
 		for j, rune := range test.in {
 			b := []byte(string(rune))
-			if !rb.insert(b, rb.f.info(b)) {
+			src := inputBytes(b)
+			if !rb.insert(src, 0, rb.f.info(src, 0)) {
 				t.Errorf("%s:%d: insert failed for rune %d", name, i, j)
 			}
 		}
@@ -50,7 +48,8 @@ func runTests(t *testing.T, name string, rb *reorderBuffer, f insertFunc, tests 
 }
 
 func TestFlush(t *testing.T) {
-	rb := &reorderBuffer{f: *formTable[NFC]}
+	rb := reorderBuffer{}
+	rb.init(NFC, nil)
 	out := make([]byte, 0)
 
 	out = rb.flush(out)
@@ -59,7 +58,7 @@ func TestFlush(t *testing.T) {
 	}
 
 	for _, r := range []int("world!") {
-		insert(rb, r)
+		insert(&rb, r)
 	}
 
 	out = []byte("Hello ")
@@ -88,13 +87,7 @@ var insertTests = []TestCase{
 }
 
 func TestInsert(t *testing.T) {
-	rb := &reorderBuffer{f: *formTable[NFD]}
-	runTests(t, "TestInsert", rb, insert, insertTests)
-}
-
-func TestInsertString(t *testing.T) {
-	rb := &reorderBuffer{f: *formTable[NFD]}
-	runTests(t, "TestInsertString", rb, insertString, insertTests)
+	runTests(t, "TestInsert", NFD, insert, insertTests)
 }
 
 var decompositionNFDTest = []TestCase{
@@ -113,11 +106,8 @@ var decompositionNFKDTest = []TestCase{
 }
 
 func TestDecomposition(t *testing.T) {
-	rb := &reorderBuffer{}
-	rb.f = *formTable[NFD]
-	runTests(t, "TestDecompositionNFD", rb, insert, decompositionNFDTest)
-	rb.f = *formTable[NFKD]
-	runTests(t, "TestDecompositionNFKD", rb, insert, decompositionNFKDTest)
+	runTests(t, "TestDecompositionNFD", NFD, insert, decompositionNFDTest)
+	runTests(t, "TestDecompositionNFKD", NFKD, insert, decompositionNFKDTest)
 }
 
 var compositionTest = []TestCase{
@@ -133,6 +123,5 @@ var compositionTest = []TestCase{
 }
 
 func TestComposition(t *testing.T) {
-	rb := &reorderBuffer{f: *formTable[NFC]}
-	runTests(t, "TestComposition", rb, insert, compositionTest)
+	runTests(t, "TestComposition", NFC, insert, compositionTest)
 }

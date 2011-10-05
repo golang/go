@@ -15,10 +15,8 @@ type runeInfo struct {
 
 // functions dispatchable per form
 type boundaryFunc func(f *formInfo, info runeInfo) bool
-type lookupFunc func(b []byte) runeInfo
-type lookupFuncString func(s string) runeInfo
-type decompFunc func(b []byte) []byte
-type decompFuncString func(s string) []byte
+type lookupFunc func(b input, i int) runeInfo
+type decompFunc func(b input, i int) []byte
 
 // formInfo holds Form-specific functions and tables.
 type formInfo struct {
@@ -26,12 +24,10 @@ type formInfo struct {
 
 	composing, compatibility bool // form type
 
-	decompose       decompFunc
-	decomposeString decompFuncString
-	info            lookupFunc
-	infoString      lookupFuncString
-	boundaryBefore  boundaryFunc
-	boundaryAfter   boundaryFunc
+	decompose      decompFunc
+	info           lookupFunc
+	boundaryBefore boundaryFunc
+	boundaryAfter  boundaryFunc
 }
 
 var formTable []*formInfo
@@ -46,14 +42,10 @@ func init() {
 		if Form(i) == NFKD || Form(i) == NFKC {
 			f.compatibility = true
 			f.decompose = decomposeNFKC
-			f.decomposeString = decomposeStringNFKC
 			f.info = lookupInfoNFKC
-			f.infoString = lookupInfoStringNFKC
 		} else {
 			f.decompose = decomposeNFC
-			f.decomposeString = decomposeStringNFC
 			f.info = lookupInfoNFC
-			f.infoString = lookupInfoStringNFC
 		}
 		if Form(i) == NFC || Form(i) == NFKC {
 			f.composing = true
@@ -123,29 +115,15 @@ func (r runeInfo) isInert() bool {
 // array of UTF-8 decomposition sequences. The first byte is the number
 // of bytes in the decomposition (excluding this length byte). The actual
 // sequence starts at the offset+1.
-func decomposeNFC(b []byte) []byte {
-	p := nfcDecompTrie.lookupUnsafe(b)
+func decomposeNFC(s input, i int) []byte {
+	p := s.decomposeNFC(i)
 	n := decomps[p]
 	p++
 	return decomps[p : p+uint16(n)]
 }
 
-func decomposeNFKC(b []byte) []byte {
-	p := nfkcDecompTrie.lookupUnsafe(b)
-	n := decomps[p]
-	p++
-	return decomps[p : p+uint16(n)]
-}
-
-func decomposeStringNFC(s string) []byte {
-	p := nfcDecompTrie.lookupStringUnsafe(s)
-	n := decomps[p]
-	p++
-	return decomps[p : p+uint16(n)]
-}
-
-func decomposeStringNFKC(s string) []byte {
-	p := nfkcDecompTrie.lookupStringUnsafe(s)
+func decomposeNFKC(s input, i int) []byte {
+	p := s.decomposeNFKC(i)
 	n := decomps[p]
 	p++
 	return decomps[p : p+uint16(n)]
@@ -168,22 +146,12 @@ func combine(a, b uint32) uint32 {
 //    0..7   CCC value.
 //    8..11  qcInfo for NFC/NFD
 //   12..15  qcInfo for NFKC/NFKD
-func lookupInfoNFC(b []byte) runeInfo {
-	v, sz := charInfoTrie.lookup(b)
+func lookupInfoNFC(b input, i int) runeInfo {
+	v, sz := b.charinfo(i)
 	return runeInfo{0, uint8(sz), uint8(v), qcInfo(v >> 8)}
 }
 
-func lookupInfoStringNFC(s string) runeInfo {
-	v, sz := charInfoTrie.lookupString(s)
-	return runeInfo{0, uint8(sz), uint8(v), qcInfo(v >> 8)}
-}
-
-func lookupInfoNFKC(b []byte) runeInfo {
-	v, sz := charInfoTrie.lookup(b)
-	return runeInfo{0, uint8(sz), uint8(v), qcInfo(v >> 12)}
-}
-
-func lookupInfoStringNFKC(s string) runeInfo {
-	v, sz := charInfoTrie.lookupString(s)
+func lookupInfoNFKC(b input, i int) runeInfo {
+	v, sz := b.charinfo(i)
 	return runeInfo{0, uint8(sz), uint8(v), qcInfo(v >> 12)}
 }
