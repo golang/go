@@ -15,6 +15,30 @@ enum
 	ENOTSUP = 91,
 };
 
+// From OpenBSD's <sys/sysctl.h>
+#define	CTL_HW	6
+#define	HW_NCPU	3
+
+static int32
+getncpu(void)
+{
+	uint32 mib[2];
+	uint32 out;
+	int32 ret;
+	uintptr nout;
+
+	// Fetch hw.ncpu via sysctl.
+	mib[0] = CTL_HW;
+	mib[1] = HW_NCPU;
+	nout = sizeof out;
+	out = 0;
+	ret = runtime·sysctl(mib, 2, (byte*)&out, &nout, nil, 0);
+	if(ret >= 0)
+		return out;
+	else
+		return 1;
+}
+
 // Basic spinlocks using CAS. We can improve on these later.
 static void
 lock(Lock *l)
@@ -80,10 +104,10 @@ runtime·notewakeup(Note *n)
 }
 
 // From OpenBSD's sys/param.h
-#define RFPROC		(1<<4)  /* change child (else changes curproc) */
-#define RFMEM		(1<<5)  /* share `address space' */
-#define RFNOWAIT	(1<<6)  /* parent need not wait() on child */
-#define RFTHREAD	(1<<13) /* create a thread, not a process */
+#define	RFPROC		(1<<4)	/* change child (else changes curproc) */
+#define	RFMEM		(1<<5)	/* share `address space' */
+#define	RFNOWAIT	(1<<6)	/* parent need not wait() on child */
+#define	RFTHREAD	(1<<13)	/* create a thread, not a process */
 
 void
 runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
@@ -112,6 +136,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 void
 runtime·osinit(void)
 {
+	runtime·ncpu = getncpu();
 }
 
 void

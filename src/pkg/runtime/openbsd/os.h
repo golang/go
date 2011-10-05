@@ -8,5 +8,6 @@ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
 void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
 void	runtime·setitimerval(int32, Itimerval*, Itimerval*);
 void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
 
 void	runtime·raisesigpipe(void);
