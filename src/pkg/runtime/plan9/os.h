@@ -2,9 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-extern int32 runtime·write(int32 fd, void* buffer, int32 nbytes);
-extern void runtime·exits(int8* msg);
-extern int32 runtime·brk_(void*);
+// Plan 9-specific system calls
+int32	runtime·open(uint8 *file, int32 mode);
+int32	runtime·read(int32 fd, void *buf, int32 nbytes);
+int32	runtime·close(int32 fd);
+void	runtime·exits(int8* msg);
+int32	runtime·brk_(void*);
+int32	runtime·sleep(int32 ms);
+int32	runtime·rfork(int32 flags, void *stk, M *m, G *g, void (*fn)(void));
+int32	runtime·plan9_semacquire(uint32 *addr, int32 block);
+int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);
 
 /* open */
 enum
@@ -52,6 +59,3 @@ struct Tos {
 	/* top of stack is here */
 };
 
-extern int32 runtime·rfork(int32 flags, void *stk, M *m, G *g, void (*fn)(void));
-extern int32 runtime·plan9_semacquire(uint32 *addr, int32 block);
-extern int32 runtime·plan9_semrelease(uint32 *addr, int32 count);
