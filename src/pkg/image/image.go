@@ -3,6 +3,9 @@
 // license that can be found in the LICENSE file.
 
 // Package image implements a basic 2-D image library.
+//
+// See "The Go image package" for an introduction to this package:
+// http://blog.golang.org/2011/09/go-image-package.html
 package image
 
 // Config holds an image's color model and dimensions.
