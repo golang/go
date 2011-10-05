@@ -11,8 +11,8 @@ import (
 )
 
 func testConstant(t *testing.T, w uint, max int) {
-	var buf [MaxVarintLen64]byte
-	n := PutUvarint(buf[:], 1<<w-1)
+	buf := make([]byte, MaxVarintLen64)
+	n := PutUvarint(buf, 1<<w-1)
 	if n != max {
 		t.Errorf("MaxVarintLen%d = %d; want %d", w, max, n)
 	}
@@ -25,7 +25,7 @@ func TestConstants(t *testing.T) {
 }
 
 func testVarint(t *testing.T, x int64) {
-	var buf1 [10]byte
+	buf1 := make([]byte, MaxVarintLen64)
 	n := PutVarint(buf1[:], x)
 	y, m := Varint(buf1[0:n])
 	if x != y {
@@ -53,7 +53,7 @@ func testVarint(t *testing.T, x int64) {
 }
 
 func testUvarint(t *testing.T, x uint64) {
-	var buf1 [10]byte
+	buf1 := make([]byte, MaxVarintLen64)
 	n := PutUvarint(buf1[:], x)
 	y, m := Uvarint(buf1[0:n])
 	if x != y {
@@ -160,5 +160,23 @@ func TestNonCanonicalZero(t *testing.T) {
 	if x != 0 || n != 4 {
 		t.Errorf("Uvarint(%v): got x = %d, n = %d; want 0, 4", buf, x, n)
 
+	}
+}
+
+func BenchmarkPutUvarint32(b *testing.B) {
+	buf := make([]byte, MaxVarintLen32)
+	for i := 0; i < b.N; i++ {
+		for j := uint(0); j < MaxVarintLen32; j++ {
+			PutUvarint(buf, 1<<(j*7))
+		}
+	}
+}
+
+func BenchmarkPutUvarint64(b *testing.B) {
+	buf := make([]byte, MaxVarintLen64)
+	for i := 0; i < b.N; i++ {
+		for j := uint(0); j < MaxVarintLen64; j++ {
+			PutUvarint(buf, 1<<(j*7))
+		}
 	}
 }
