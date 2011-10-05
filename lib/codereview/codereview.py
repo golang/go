@@ -69,15 +69,6 @@ except:
 	from mercurial.version import version as v
 	hgversion = v.get_version()
 
-try:
-	from mercurial.discovery import findcommonincoming
-	from mercurial.discovery import findoutgoing
-except:
-	def findcommonincoming(repo, remote):
-		return repo.findcommonincoming(remote)
-	def findoutgoing(repo, remote):
-		return repo.findoutgoing(remote)
-
 # in Mercurial 1.9 the cmdutil.match and cmdutil.revpair moved to scmutil
 if hgversion >= '1.9':
     from mercurial import scmutil
@@ -115,6 +106,22 @@ def promptyesno(ui, msg):
 		return ui.promptchoice(msg, ["&yes", "&no"], 0) == 0
 	except AttributeError:
 		return ui.prompt(msg, ["&yes", "&no"], "y") != "n"
+
+def incoming(repo, other):
+	fui = FakeMercurialUI()
+	ret = commands.incoming(fui, repo, *[other.path], **{'bundle': '', 'force': False})
+	if ret and ret != 1:
+		raise util.Abort(ret)
+	out = fui.output
+	return out
+
+def outgoing(repo):
+	fui = FakeMercurialUI()
+	ret = commands.outgoing(fui, repo, *[], **{})
+	if ret and ret != 1:
+		raise util.Abort(ret)
+	out = fui.output
+	return out
 
 # To experiment with Mercurial in the python interpreter:
 #    >>> repo = hg.repository(ui.ui(), path = ".")
@@ -813,10 +820,6 @@ def getremote(ui, repo, opts):
 		os.environ['http_proxy'] = proxy
 	return other
 
-def Incoming(ui, repo, opts):
-	_, incoming, _ = findcommonincoming(repo, getremote(ui, repo, opts))
-	return incoming
-
 desc_re = '^(.+: |(tag )?(release|weekly)\.|fix build|undo CL)'
 
 desc_msg = '''Your CL description appears not to use the standard form.
@@ -964,6 +967,7 @@ def CommandLineCL(ui, repo, pats, opts, defaultcc=None):
 # in that CL.
 original_match = None
 global_repo = None
+global_ui = None
 def ReplacementForCmdutilMatch(ctx, pats=None, opts=None, globbed=False, default='relpath'):
 	taken = []
 	files = []
@@ -1634,8 +1638,9 @@ def pending(ui, repo, *pats, **opts):
 def reposetup(ui, repo):
 	global original_match
 	if original_match is None:
-		global global_repo
+		global global_repo, global_ui
 		global_repo = repo
+		global_ui = ui
 		start_status_thread()
 		original_match = scmutil.match
 		scmutil.match = ReplacementForCmdutilMatch
@@ -1678,8 +1683,9 @@ def submit(ui, repo, *pats, **opts):
 	# We already called this on startup but sometimes Mercurial forgets.
 	set_mercurial_encoding_to_utf8()
 
+	other = getremote(ui, repo, opts)
 	repo.ui.quiet = True
-	if not opts["no_incoming"] and Incoming(ui, repo, opts):
+	if not opts["no_incoming"] and incoming(repo, other):
 		return "local repository out of date; must sync before submit"
 
 	cl, err = CommandLineCL(ui, repo, pats, opts, defaultcc=defaultcc)
@@ -1745,7 +1751,7 @@ def submit(ui, repo, *pats, **opts):
 	set_status("pushing " + cl.name + " to remote server")
 
 	other = getremote(ui, repo, opts)
-	if findoutgoing(repo, other):
+	if outgoing(repo):
 		raise util.Abort("local repository corrupt or out-of-phase with remote: found outgoing changes")
 
 	m = match.exact(repo.root, repo.getcwd(), cl.files)
@@ -3122,6 +3128,7 @@ class VersionControlSystem(object):
 			return False
 		return not mimetype.startswith("text/")
 
+
 class FakeMercurialUI(object):
 	def __init__(self):
 		self.quiet = True
@@ -3129,6 +3136,19 @@ class FakeMercurialUI(object):
 	
 	def write(self, *args, **opts):
 		self.output += ' '.join(args)
+	def copy(self):
+		return self
+	def status(self, *args, **opts):
+		pass
+	
+	def readconfig(self, *args, **opts):
+		pass
+	def expandpath(self, *args, **opts):
+		return global_ui.expandpath(*args, **opts)
+	def configitems(self, *args, **opts):
+		return global_ui.configitems(*args, **opts)
+	def config(self, *args, **opts):
+		return global_ui.config(*args, **opts)
 
 use_hg_shell = False	# set to True to shell out to hg always; slower
 
