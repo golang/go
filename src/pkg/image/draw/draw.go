@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package draw provides image composition functions
-// in the style of the Plan 9 graphics library
-// (see http://plan9.bell-labs.com/magic/man2html/2/draw)
-// and the X Render extension.
+// Package draw provides image composition functions.
+//
+// See "The Go image/draw package" for an introduction to this package:
+// http://blog.golang.org/2011/09/go-imagedraw-package.html
 package draw
 
 import (
