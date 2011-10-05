@@ -20,10 +20,13 @@ import (
 )
 
 const (
-	ProtocolVersionHixie75 = -75
-	ProtocolVersionHixie76 = -76
-	ProtocolVersionHybi00  = 0
-	ProtocolVersionHybi    = 8
+	ProtocolVersionHixie75   = -75
+	ProtocolVersionHixie76   = -76
+	ProtocolVersionHybi00    = 0
+	ProtocolVersionHybi08    = 8
+	ProtocolVersionHybi13    = 13
+	ProtocolVersionHybi      = ProtocolVersionHybi13
+	SupportedProtocolVersion = "13, 8"
 
 	ContinuationFrame = 0
 	TextFrame         = 1
@@ -39,23 +42,23 @@ type ProtocolError struct {
 	ErrorString string
 }
 
-func (err ProtocolError) String() string { return err.ErrorString }
+func (err *ProtocolError) String() string { return err.ErrorString }
 
 var (
-	ErrBadProtocolVersion   = ProtocolError{"bad protocol version"}
-	ErrBadScheme            = ProtocolError{"bad scheme"}
-	ErrBadStatus            = ProtocolError{"bad status"}
-	ErrBadUpgrade           = ProtocolError{"missing or bad upgrade"}
-	ErrBadWebSocketOrigin   = ProtocolError{"missing or bad WebSocket-Origin"}
-	ErrBadWebSocketLocation = ProtocolError{"missing or bad WebSocket-Location"}
-	ErrBadWebSocketProtocol = ProtocolError{"missing or bad WebSocket-Protocol"}
-	ErrBadWebSocketVersion  = ProtocolError{"missing or bad WebSocket Version"}
-	ErrChallengeResponse    = ProtocolError{"mismatch challenge/response"}
-	ErrBadFrame             = ProtocolError{"bad frame"}
-	ErrBadFrameBoundary     = ProtocolError{"not on frame boundary"}
-	ErrNotWebSocket         = ProtocolError{"not websocket protocol"}
-	ErrBadRequestMethod     = ProtocolError{"bad method"}
-	ErrNotSupported         = ProtocolError{"not supported"}
+	ErrBadProtocolVersion   = &ProtocolError{"bad protocol version"}
+	ErrBadScheme            = &ProtocolError{"bad scheme"}
+	ErrBadStatus            = &ProtocolError{"bad status"}
+	ErrBadUpgrade           = &ProtocolError{"missing or bad upgrade"}
+	ErrBadWebSocketOrigin   = &ProtocolError{"missing or bad WebSocket-Origin"}
+	ErrBadWebSocketLocation = &ProtocolError{"missing or bad WebSocket-Location"}
+	ErrBadWebSocketProtocol = &ProtocolError{"missing or bad WebSocket-Protocol"}
+	ErrBadWebSocketVersion  = &ProtocolError{"missing or bad WebSocket Version"}
+	ErrChallengeResponse    = &ProtocolError{"mismatch challenge/response"}
+	ErrBadFrame             = &ProtocolError{"bad frame"}
+	ErrBadFrameBoundary     = &ProtocolError{"not on frame boundary"}
+	ErrNotWebSocket         = &ProtocolError{"not websocket protocol"}
+	ErrBadRequestMethod     = &ProtocolError{"bad method"}
+	ErrNotSupported         = &ProtocolError{"not supported"}
 )
 
 // Addr is an implementation of net.Addr for WebSocket.
