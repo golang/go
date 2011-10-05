@@ -56,15 +56,15 @@ func (f Form) String(s string) string {
 
 // IsNormal returns true if b == f(b).
 func (f Form) IsNormal(b []byte) bool {
-	fd := formTable[f]
-	bp := quickSpan(fd, b)
+	rb := reorderBuffer{}
+	rb.init(f, b)
+	bp := quickSpan(&rb, 0)
 	if bp == len(b) {
 		return true
 	}
-	rb := reorderBuffer{f: *fd}
 	for bp < len(b) {
-		decomposeSegment(&rb, b[bp:])
-		if fd.composing {
+		decomposeSegment(&rb, bp)
+		if rb.f.composing {
 			rb.compose()
 		}
 		for i := 0; i < rb.nrune; i++ {
@@ -82,14 +82,42 @@ func (f Form) IsNormal(b []byte) bool {
 			}
 		}
 		rb.reset()
-		bp += quickSpan(fd, b[bp:])
+		bp = quickSpan(&rb, bp)
 	}
 	return true
 }
 
 // IsNormalString returns true if s == f(s).
 func (f Form) IsNormalString(s string) bool {
-	panic("not implemented")
+	rb := reorderBuffer{}
+	rb.initString(f, s)
+	bp := quickSpan(&rb, 0)
+	if bp == len(s) {
+		return true
+	}
+	for bp < len(s) {
+		decomposeSegment(&rb, bp)
+		if rb.f.composing {
+			rb.compose()
+		}
+		for i := 0; i < rb.nrune; i++ {
+			info := rb.rune[i]
+			if bp+int(info.size) > len(s) {
+				return false
+			}
+			p := info.pos
+			pe := p + info.size
+			for ; p < pe; p++ {
+				if s[bp] != rb.byte[p] {
+					return false
+				}
+				bp++
+			}
+		}
+		rb.reset()
+		bp = quickSpan(&rb, bp)
+	}
+	return true
 }
 
 // patchTail fixes a case where a rune may be incorrectly normalized
@@ -113,12 +141,12 @@ func patchTail(rb *reorderBuffer, buf []byte) ([]byte, int) {
 	return buf, 0
 }
 
-func appendQuick(f *formInfo, dst, src []byte) ([]byte, int) {
-	if len(src) == 0 {
-		return dst, 0
+func appendQuick(rb *reorderBuffer, dst []byte, i int) ([]byte, int) {
+	if rb.nsrc == i {
+		return dst, i
 	}
-	end := quickSpan(f, src)
-	return append(dst, src[:end]...), end
+	end := quickSpan(rb, i)
+	return rb.src.appendSlice(dst, i, end), end
 }
 
 // Append returns f(append(out, b...)).
@@ -127,22 +155,21 @@ func (f Form) Append(out []byte, src ...byte) []byte {
 	if len(src) == 0 {
 		return out
 	}
-	fd := formTable[f]
-	rb := &reorderBuffer{f: *fd}
-	return doAppend(rb, out, src)
+	rb := reorderBuffer{}
+	rb.init(f, src)
+	return doAppend(&rb, out)
 }
 
-func doAppend(rb *reorderBuffer, out, src []byte) []byte {
+func doAppend(rb *reorderBuffer, out []byte) []byte {
+	src, n := rb.src, rb.nsrc
 	doMerge := len(out) > 0
 	p := 0
-	if !utf8.RuneStart(src[0]) {
+	if p = src.skipNonStarter(); p > 0 {
 		// Move leading non-starters to destination.
-		for p++; p < len(src) && !utf8.RuneStart(src[p]); p++ {
-		}
-		out = append(out, src[:p]...)
+		out = src.appendSlice(out, 0, p)
 		buf, ndropped := patchTail(rb, out)
 		if ndropped > 0 {
-			out = append(buf, src[p-ndropped:p]...)
+			out = src.appendSlice(buf, p-ndropped, p)
 			doMerge = false // no need to merge, ends with illegal UTF-8
 		} else {
 			out = decomposeToLastBoundary(rb, buf) // force decomposition
@@ -151,8 +178,8 @@ func doAppend(rb *reorderBuffer, out, src []byte) []byte {
 	fd := &rb.f
 	if doMerge {
 		var info runeInfo
-		if p < len(src) {
-			info = fd.info(src[p:])
+		if p < n {
+			info = fd.info(src, p)
 			if p == 0 && !fd.boundaryBefore(fd, info) {
 				out = decomposeToLastBoundary(rb, out)
 			}
@@ -164,59 +191,63 @@ func doAppend(rb *reorderBuffer, out, src []byte) []byte {
 			out = rb.flush(out)
 			if info.size == 0 {
 				// Append incomplete UTF-8 encoding.
-				return append(out, src[p:]...)
+				return src.appendSlice(out, p, n)
 			}
 		}
 	}
 	if rb.nrune == 0 {
-		src = src[p:]
-		out, p = appendQuick(fd, out, src)
+		out, p = appendQuick(rb, out, p)
 	}
-	for n := 0; p < len(src); p += n {
-		p += decomposeSegment(rb, src[p:])
+	for p < n {
+		p = decomposeSegment(rb, p)
 		if fd.composing {
 			rb.compose()
 		}
 		out = rb.flush(out)
-		out, n = appendQuick(fd, out, src[p:])
+		out, p = appendQuick(rb, out, p)
 	}
 	return out
 }
 
 // AppendString returns f(append(out, []byte(s))).
 // The buffer out must be nil, empty, or equal to f(out).
-func (f Form) AppendString(out []byte, s string) []byte {
-	panic("not implemented")
+func (f Form) AppendString(out []byte, src string) []byte {
+	if len(src) == 0 {
+		return out
+	}
+	rb := reorderBuffer{}
+	rb.initString(f, src)
+	return doAppend(&rb, out)
 }
 
 // QuickSpan returns a boundary n such that b[0:n] == f(b[0:n]).
 // It is not guaranteed to return the largest such n.
 func (f Form) QuickSpan(b []byte) int {
-	return quickSpan(formTable[f], b)
+	rb := reorderBuffer{}
+	rb.init(f, b)
+	return quickSpan(&rb, 0)
 }
 
-func quickSpan(fd *formInfo, b []byte) int {
+func quickSpan(rb *reorderBuffer, i int) int {
 	var lastCC uint8
-	var lastSegStart int
-	var i, nc int
-	for i < len(b) {
-		if b[i] < utf8.RuneSelf {
-			// Keep the loop tight for ASCII processing, as this is where
-			// most of the time is spent for this case.
-			for i++; i < len(b) && b[i] < utf8.RuneSelf; i++ {
-			}
+	var nc int
+	lastSegStart := i
+	src, n := rb.src, rb.nsrc
+	for i < n {
+		if j := src.skipASCII(i); i != j {
+			i = j
 			lastSegStart = i - 1
 			lastCC = 0
 			nc = 0
 			continue
 		}
-		info := fd.info(b[i:])
+		info := rb.f.info(src, i)
 		if info.size == 0 {
 			// include incomplete runes
-			return len(b)
+			return n
 		}
 		cc := info.ccc
-		if fd.composing {
+		if rb.f.composing {
 			if !info.flags.isYesC() {
 				break
 			}
@@ -243,10 +274,10 @@ func quickSpan(fd *formInfo, b []byte) int {
 		lastCC = cc
 		i += int(info.size)
 	}
-	if i == len(b) {
-		return len(b)
+	if i == n {
+		return n
 	}
-	if fd.composing {
+	if rb.f.composing {
 		return lastSegStart
 	}
 	return i
@@ -255,32 +286,39 @@ func quickSpan(fd *formInfo, b []byte) int {
 // QuickSpanString returns a boundary n such that b[0:n] == f(s[0:n]).
 // It is not guaranteed to return the largest such n.
 func (f Form) QuickSpanString(s string) int {
-	panic("not implemented")
+	rb := reorderBuffer{}
+	rb.initString(f, s)
+	return quickSpan(&rb, 0)
 }
 
 // FirstBoundary returns the position i of the first boundary in b
 // or -1 if b contains no boundary.
 func (f Form) FirstBoundary(b []byte) int {
-	i := 0
-	for ; i < len(b) && !utf8.RuneStart(b[i]); i++ {
-	}
-	if i >= len(b) {
+	rb := reorderBuffer{}
+	rb.init(f, b)
+	return firstBoundary(&rb)
+}
+
+func firstBoundary(rb *reorderBuffer) int {
+	src, nsrc := rb.src, rb.nsrc
+	i := src.skipNonStarter()
+	if i >= nsrc {
 		return -1
 	}
-	fd := formTable[f]
-	info := fd.info(b[i:])
+	fd := &rb.f
+	info := fd.info(src, i)
 	for n := 0; info.size != 0 && !fd.boundaryBefore(fd, info); {
 		i += int(info.size)
 		if n++; n >= maxCombiningChars {
 			return i
 		}
-		if i >= len(b) {
+		if i >= nsrc {
 			if !fd.boundaryAfter(fd, info) {
 				return -1
 			}
-			return len(b)
+			return nsrc
 		}
-		info = fd.info(b[i:])
+		info = fd.info(src, i)
 	}
 	if info.size == 0 {
 		return -1
@@ -290,8 +328,10 @@ func (f Form) FirstBoundary(b []byte) int {
 
 // FirstBoundaryInString returns the position i of the first boundary in s
 // or -1 if s contains no boundary.
-func (f Form) FirstBoundaryInString(s string) (i int, ok bool) {
-	panic("not implemented")
+func (f Form) FirstBoundaryInString(s string) int {
+	rb := reorderBuffer{}
+	rb.initString(f, s)
+	return firstBoundary(&rb)
 }
 
 // LastBoundary returns the position i of the last boundary in b
@@ -349,19 +389,18 @@ func (f Form) LastBoundaryInString(s string) int {
 // It returns the number of bytes consumed from src.
 // TODO(mpvl): consider inserting U+034f (Combining Grapheme Joiner)
 // when we detect a sequence of 30+ non-starter chars.
-func decomposeSegment(rb *reorderBuffer, src []byte) int {
+func decomposeSegment(rb *reorderBuffer, sp int) int {
 	// Force one character to be consumed.
-	info := rb.f.info(src)
+	info := rb.f.info(rb.src, sp)
 	if info.size == 0 {
 		return 0
 	}
-	sp := 0
-	for rb.insert(src[sp:], info) {
+	for rb.insert(rb.src, sp, info) {
 		sp += int(info.size)
-		if sp >= len(src) {
+		if sp >= rb.nsrc {
 			break
 		}
-		info = rb.f.info(src[sp:])
+		info = rb.f.info(rb.src, sp)
 		bound := rb.f.boundaryBefore(&rb.f, info)
 		if bound || info.size == 0 {
 			break
@@ -379,7 +418,7 @@ func lastRuneStart(fd *formInfo, buf []byte) (runeInfo, int) {
 	if p < 0 {
 		return runeInfo{0, 0, 0, 0}, -1
 	}
-	return fd.info(buf[p:]), p
+	return fd.info(inputBytes(buf), p), p
 }
 
 // decomposeToLastBoundary finds an open segment at the end of the buffer
@@ -406,9 +445,9 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
 		}
 		// Check that decomposition doesn't result in overflow.
 		if info.flags.hasDecomposition() {
-			dcomp := rb.f.decompose(buf[p-int(info.size):])
+			dcomp := rb.f.decompose(inputBytes(buf), p-int(info.size))
 			for i := 0; i < len(dcomp); {
-				inf := rb.f.info(dcomp[i:])
+				inf := rb.f.info(inputBytes(dcomp), i)
 				i += int(inf.size)
 				n++
 			}
@@ -424,7 +463,7 @@ func decomposeToLastBoundary(rb *reorderBuffer, buf []byte) []byte {
 	pp := p
 	for padd--; padd >= 0; padd-- {
 		info = add[padd]
-		rb.insert(buf[pp:], info)
+		rb.insert(inputBytes(buf), pp, info)
 		pp += int(info.size)
 	}
 	return buf[:p]
