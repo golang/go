@@ -355,7 +355,7 @@ indented one level."
 
   (save-excursion
     (back-to-indentation)
-    (let ((cs (go-mode-cs)))
+    (let ((cs (go-mode-cs)) (case-fold-search nil))
       ;; Treat comments and strings differently only if the beginning
       ;; of the line is contained within them
       (when (and cs (= (point) (car cs)))
