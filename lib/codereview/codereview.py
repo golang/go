@@ -185,7 +185,9 @@ set_mercurial_encoding_to_utf8()
 # encoding for all of Python to 'utf-8', not 'ascii'.
 def default_to_utf8():
 	import sys
+	stdout, __stdout__ = sys.stdout, sys.__stdout__
 	reload(sys)  # site.py deleted setdefaultencoding; get it back
+	sys.stdout, sys.__stdout__ = stdout, __stdout__
 	sys.setdefaultencoding('utf-8')
 
 default_to_utf8()
@@ -3216,7 +3218,7 @@ class MercurialVCS(VersionControlSystem):
 			#	A path
 			#	M path
 			# etc
-			line = self.status[i]
+			line = self.status[i].replace('\\', '/')
 			if line[2:] == path:
 				if i+1 < len(self.status) and self.status[i+1][:2] == '  ':
 					return self.status[i:i+2]
