@@ -26,7 +26,7 @@ func (e *DialError) String() string {
 // NewConfig creates a new WebSocket config for client connection.
 func NewConfig(server, origin string) (config *Config, err os.Error) {
 	config = new(Config)
-	config.Version = ProtocolVersionHybi
+	config.Version = ProtocolVersionHybi13
 	config.Location, err = url.ParseRequest(server)
 	if err != nil {
 		return
@@ -47,7 +47,7 @@ func NewClient(config *Config, rwc io.ReadWriteCloser) (ws *Conn, err os.Error) 
 		err = hixie75ClientHandshake(config, br, bw)
 	case ProtocolVersionHixie76, ProtocolVersionHybi00:
 		err = hixie76ClientHandshake(config, br, bw)
-	case ProtocolVersionHybi:
+	case ProtocolVersionHybi08, ProtocolVersionHybi13:
 		err = hybiClientHandshake(config, br, bw)
 	default:
 		err = ErrBadProtocolVersion
@@ -59,7 +59,7 @@ func NewClient(config *Config, rwc io.ReadWriteCloser) (ws *Conn, err os.Error) 
 	switch config.Version {
 	case ProtocolVersionHixie75, ProtocolVersionHixie76, ProtocolVersionHybi00:
 		ws = newHixieClientConn(config, buf, rwc)
-	case ProtocolVersionHybi:
+	case ProtocolVersionHybi08, ProtocolVersionHybi13:
 		ws = newHybiClientConn(config, buf, rwc)
 	}
 	return

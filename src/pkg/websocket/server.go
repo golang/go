@@ -16,6 +16,13 @@ func newServerConn(rwc io.ReadWriteCloser, buf *bufio.ReadWriter, req *http.Requ
 	config := new(Config)
 	var hs serverHandshaker = &hybiServerHandshaker{Config: config}
 	code, err := hs.ReadHandshake(buf.Reader, req)
+	if err == ErrBadWebSocketVersion {
+		fmt.Fprintf(buf, "HTTP/1.1 %03d %s\r\n", code, http.StatusText(code))
+		fmt.Fprintf(buf, "Sec-WebSocket-Version: %s\r\n", SupportedProtocolVersion)
+		buf.WriteString("\r\n")
+		buf.WriteString(err.String())
+		return
+	}
 	if err != nil {
 		hs = &hixie76ServerHandshaker{Config: config}
 		code, err = hs.ReadHandshake(buf.Reader, req)

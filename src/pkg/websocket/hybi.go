@@ -5,7 +5,7 @@
 package websocket
 
 // This file implements a protocol of hybi draft.
-// http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10
+// http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-17
 
 import (
 	"bufio"
@@ -26,13 +26,17 @@ import (
 const (
 	websocketGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
-	closeStatusNormal          = 1000
-	closeStatusGoingAway       = 1001
-	closeStatusProtocolError   = 1002
-	closeStatusUnsupportedData = 1003
-	closeStatusFrameTooLarge   = 1004
-	closeStatusNoStatusRcvd    = 1005
-	closeStatusAbnormalClosure = 1006
+	closeStatusNormal            = 1000
+	closeStatusGoingAway         = 1001
+	closeStatusProtocolError     = 1002
+	closeStatusUnsupportedData   = 1003
+	closeStatusFrameTooLarge     = 1004
+	closeStatusNoStatusRcvd      = 1005
+	closeStatusAbnormalClosure   = 1006
+	closeStatusBadMessageData    = 1007
+	closeStatusPolicyViolation   = 1008
+	closeStatusTooBigData        = 1009
+	closeStatusExtensionMismatch = 1010
 
 	maxControlFramePayloadLength = 125
 )
@@ -101,8 +105,8 @@ type hybiFrameReaderFactory struct {
 }
 
 // NewFrameReader reads a frame header from the connection, and creates new reader for the frame.
-// See Section 4.2 Base Frameing protocol for detail.
-// http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10#section-4.2
+// See Section 5.2 Base Frameing protocol for detail.
+// http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-17#section-5.2
 func (buf hybiFrameReaderFactory) NewFrameReader() (frame frameReader, err os.Error) {
 	hybiFrame := new(hybiFrameReader)
 	frame = hybiFrame
@@ -258,6 +262,12 @@ func (handler *hybiFrameHandler) HandleFrame(frame frameReader) (r frameReader, 
 			handler.WriteClose(closeStatusProtocolError)
 			return nil, os.EOF
 		}
+	} else {
+		// The server MUST NOT mask all frames.
+		if frame.(*hybiFrameReader).header.MaskingKey != nil {
+			handler.WriteClose(closeStatusProtocolError)
+			return nil, os.EOF
+		}
 	}
 	if header := frame.HeaderReader(); header != nil {
 		io.Copy(ioutil.Discard, header)
@@ -366,9 +376,18 @@ func getNonceAccept(nonce []byte) (expected []byte, err os.Error) {
 	return
 }
 
-// Client handhake described in draft-ietf-hybi-thewebsocket-protocol-09
+func isHybiVersion(version int) bool {
+	switch version {
+	case ProtocolVersionHybi08, ProtocolVersionHybi13:
+		return true
+	default:
+	}
+	return false
+}
+
+// Client handhake described in draft-ietf-hybi-thewebsocket-protocol-17
 func hybiClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) (err os.Error) {
-	if config.Version != ProtocolVersionHybi {
+	if !isHybiVersion(config.Version) {
 		panic("wrong protocol version.")
 	}
 
@@ -382,7 +401,11 @@ func hybiClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) (er
 		nonce = []byte(config.handshakeData["key"])
 	}
 	bw.WriteString("Sec-WebSocket-Key: " + string(nonce) + "\r\n")
-	bw.WriteString("Sec-WebSocket-Origin: " + strings.ToLower(config.Origin.String()) + "\r\n")
+	if config.Version == ProtocolVersionHybi13 {
+		bw.WriteString("Origin: " + strings.ToLower(config.Origin.String()) + "\r\n")
+	} else if config.Version == ProtocolVersionHybi08 {
+		bw.WriteString("Sec-WebSocket-Origin: " + strings.ToLower(config.Origin.String()) + "\r\n")
+	}
 	bw.WriteString("Sec-WebSocket-Version: " + fmt.Sprintf("%d", config.Version) + "\r\n")
 	if len(config.Protocol) > 0 {
 		bw.WriteString("Sec-WebSocket-Protocol: " + strings.Join(config.Protocol, ", ") + "\r\n")
@@ -446,7 +469,7 @@ type hybiServerHandshaker struct {
 }
 
 func (c *hybiServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Request) (code int, err os.Error) {
-	c.Version = ProtocolVersionHybi
+	c.Version = ProtocolVersionHybi13
 	if req.Method != "GET" {
 		return http.StatusMethodNotAllowed, ErrBadRequestMethod
 	}
@@ -462,12 +485,20 @@ func (c *hybiServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Reques
 		return http.StatusBadRequest, ErrChallengeResponse
 	}
 	version := req.Header.Get("Sec-Websocket-Version")
-	if version != fmt.Sprintf("%d", c.Version) {
+	var origin string
+	switch version {
+	case "13":
+		c.Version = ProtocolVersionHybi13
+		origin = req.Header.Get("Origin")
+	case "8":
+		c.Version = ProtocolVersionHybi08
+		origin = req.Header.Get("Sec-Websocket-Origin")
+	default:
 		return http.StatusBadRequest, ErrBadWebSocketVersion
 	}
-	c.Origin, err = url.ParseRequest(req.Header.Get("Sec-Websocket-Origin"))
+	c.Origin, err = url.ParseRequest(origin)
 	if err != nil {
-		return http.StatusBadRequest, err
+		return http.StatusForbidden, err
 	}
 	var scheme string
 	if req.TLS != nil {
