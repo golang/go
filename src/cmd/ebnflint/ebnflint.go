@@ -98,12 +98,12 @@ func main() {
 		src = extractEBNF(src)
 	}
 
-	grammar, err := ebnf.Parse(fset, filename, src)
+	grammar, err := ebnf.Parse(filename, bytes.NewBuffer(src))
 	if err != nil {
 		report(err)
 	}
 
-	if err = ebnf.Verify(fset, grammar, *start); err != nil {
+	if err = ebnf.Verify(grammar, *start); err != nil {
 		report(err)
 	}
 }

@@ -23,12 +23,38 @@
 package ebnf
 
 import (
-	"go/scanner"
-	"go/token"
+	"fmt"
 	"os"
+	"scanner"
 	"unicode"
 	"utf8"
 )
+
+// ----------------------------------------------------------------------------
+// Error handling
+
+type errorList []os.Error
+
+func (list errorList) Error() os.Error {
+	if len(list) == 0 {
+		return nil
+	}
+	return list
+}
+
+func (list errorList) String() string {
+	switch len(list) {
+	case 0:
+		return "no errors"
+	case 1:
+		return list[0].String()
+	}
+	return fmt.Sprintf("%s (and %d more errors)", list[0], len(list)-1)
+}
+
+func newError(pos scanner.Position, msg string) os.Error {
+	return os.NewError(fmt.Sprintf("%s: %s", pos, msg))
+}
 
 // ----------------------------------------------------------------------------
 // Internal representation
@@ -37,7 +63,7 @@ type (
 	// An Expression node represents a production expression.
 	Expression interface {
 		// Pos is the position of the first character of the syntactic construct
-		Pos() token.Pos
+		Pos() scanner.Position
 	}
 
 	// An Alternative node represents a non-empty list of alternative expressions.
@@ -48,13 +74,13 @@ type (
 
 	// A Name node represents a production name.
 	Name struct {
-		StringPos token.Pos
+		StringPos scanner.Position
 		String    string
 	}
 
 	// A Token node represents a literal.
 	Token struct {
-		StringPos token.Pos
+		StringPos scanner.Position
 		String    string
 	}
 
@@ -65,26 +91,20 @@ type (
 
 	// A Group node represents a grouped expression.
 	Group struct {
-		Lparen token.Pos
+		Lparen scanner.Position
 		Body   Expression // (body)
 	}
 
 	// An Option node represents an optional expression.
 	Option struct {
-		Lbrack token.Pos
+		Lbrack scanner.Position
 		Body   Expression // [body]
 	}
 
 	// A Repetition node represents a repeated expression.
 	Repetition struct {
-		Lbrace token.Pos
+		Lbrace scanner.Position
 		Body   Expression // {body}
-	}
-
-	// A Bad node stands for pieces of source code that lead to a parse error.
-	Bad struct {
-		TokPos token.Pos
-		Error  string // parser error message
 	}
 
 	// A Production node represents an EBNF production.
@@ -93,22 +113,28 @@ type (
 		Expr Expression
 	}
 
+	// A Bad node stands for pieces of source code that lead to a parse error.
+	Bad struct {
+		TokPos scanner.Position
+		Error  string // parser error message
+	}
+
 	// A Grammar is a set of EBNF productions. The map
 	// is indexed by production name.
 	//
 	Grammar map[string]*Production
 )
 
-func (x Alternative) Pos() token.Pos { return x[0].Pos() } // the parser always generates non-empty Alternative
-func (x Sequence) Pos() token.Pos    { return x[0].Pos() } // the parser always generates non-empty Sequences
-func (x *Name) Pos() token.Pos       { return x.StringPos }
-func (x *Token) Pos() token.Pos      { return x.StringPos }
-func (x *Range) Pos() token.Pos      { return x.Begin.Pos() }
-func (x *Group) Pos() token.Pos      { return x.Lparen }
-func (x *Option) Pos() token.Pos     { return x.Lbrack }
-func (x *Repetition) Pos() token.Pos { return x.Lbrace }
-func (x *Bad) Pos() token.Pos        { return x.TokPos }
-func (x *Production) Pos() token.Pos { return x.Name.Pos() }
+func (x Alternative) Pos() scanner.Position { return x[0].Pos() } // the parser always generates non-empty Alternative
+func (x Sequence) Pos() scanner.Position    { return x[0].Pos() } // the parser always generates non-empty Sequences
+func (x *Name) Pos() scanner.Position       { return x.StringPos }
+func (x *Token) Pos() scanner.Position      { return x.StringPos }
+func (x *Range) Pos() scanner.Position      { return x.Begin.Pos() }
+func (x *Group) Pos() scanner.Position      { return x.Lparen }
+func (x *Option) Pos() scanner.Position     { return x.Lbrack }
+func (x *Repetition) Pos() scanner.Position { return x.Lbrace }
+func (x *Production) Pos() scanner.Position { return x.Name.Pos() }
+func (x *Bad) Pos() scanner.Position        { return x.TokPos }
 
 // ----------------------------------------------------------------------------
 // Grammar verification
@@ -119,15 +145,14 @@ func isLexical(name string) bool {
 }
 
 type verifier struct {
-	fset *token.FileSet
-	scanner.ErrorVector
+	errors   errorList
 	worklist []*Production
 	reached  Grammar // set of productions reached from (and including) the root production
 	grammar  Grammar
 }
 
-func (v *verifier) error(pos token.Pos, msg string) {
-	v.Error(v.fset.Position(pos), msg)
+func (v *verifier) error(pos scanner.Position, msg string) {
+	v.errors = append(v.errors, newError(pos, msg))
 }
 
 func (v *verifier) push(prod *Production) {
@@ -187,24 +212,23 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
 		v.verifyExpr(x.Body, lexical)
 	case *Repetition:
 		v.verifyExpr(x.Body, lexical)
+	case *Bad:
+		v.error(x.Pos(), x.Error)
 	default:
-		panic("unreachable")
+		panic(fmt.Sprintf("internal error: unexpected type %T", expr))
 	}
 }
 
-func (v *verifier) verify(fset *token.FileSet, grammar Grammar, start string) {
+func (v *verifier) verify(grammar Grammar, start string) {
 	// find root production
 	root, found := grammar[start]
 	if !found {
-		// token.NoPos doesn't require a file set;
-		// ok to set v.fset only afterwards
-		v.error(token.NoPos, "no start production "+start)
+		var noPos scanner.Position
+		v.error(noPos, "no start production "+start)
 		return
 	}
 
 	// initialize verifier
-	v.fset = fset
-	v.ErrorVector.Reset()
 	v.worklist = v.worklist[0:0]
 	v.reached = make(Grammar)
 	v.grammar = grammar
@@ -238,8 +262,8 @@ func (v *verifier) verify(fset *token.FileSet, grammar Grammar, start string) {
 //
 // Position information is interpreted relative to the file set fset.
 //
-func Verify(fset *token.FileSet, grammar Grammar, start string) os.Error {
+func Verify(grammar Grammar, start string) os.Error {
 	var v verifier
-	v.verify(fset, grammar, start)
-	return v.GetError(scanner.Sorted)
+	v.verify(grammar, start)
+	return v.errors.Error()
 }

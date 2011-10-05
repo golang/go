@@ -5,12 +5,9 @@
 package ebnf
 
 import (
-	"go/token"
-	"io/ioutil"
+	"bytes"
 	"testing"
 )
-
-var fset = token.NewFileSet()
 
 var goodGrammars = []string{
 	`Program = .`,
@@ -46,18 +43,19 @@ var badGrammars = []string{
 	`Program = {} .`,
 }
 
-func checkGood(t *testing.T, filename string, src []byte) {
-	grammar, err := Parse(fset, filename, src)
+func checkGood(t *testing.T, src string) {
+	grammar, err := Parse("", bytes.NewBuffer([]byte(src)))
 	if err != nil {
 		t.Errorf("Parse(%s) failed: %v", src, err)
+		return
 	}
-	if err = Verify(fset, grammar, "Program"); err != nil {
+	if err = Verify(grammar, "Program"); err != nil {
 		t.Errorf("Verify(%s) failed: %v", src, err)
 	}
 }
 
-func checkBad(t *testing.T, filename string, src []byte) {
-	_, err := Parse(fset, filename, src)
+func checkBad(t *testing.T, src string) {
+	_, err := Parse("", bytes.NewBuffer([]byte(src)))
 	if err == nil {
 		t.Errorf("Parse(%s) should have failed", src)
 	}
@@ -65,23 +63,9 @@ func checkBad(t *testing.T, filename string, src []byte) {
 
 func TestGrammars(t *testing.T) {
 	for _, src := range goodGrammars {
-		checkGood(t, "", []byte(src))
+		checkGood(t, src)
 	}
 	for _, src := range badGrammars {
-		checkBad(t, "", []byte(src))
-	}
-}
-
-var files = []string{
-// TODO(gri) add some test files
-}
-
-func TestFiles(t *testing.T) {
-	for _, filename := range files {
-		src, err := ioutil.ReadFile(filename)
-		if err != nil {
-			t.Fatal(err)
-		}
-		checkGood(t, filename, src)
+		checkBad(t, src)
 	}
 }
