@@ -26,7 +26,7 @@ runtime·SysAlloc(uintptr nbytes)
 	bl = ((uintptr)bloc + Round) & ~Round;
 	if(runtime·brk_((void*)(bl + nbytes)) < 0) {
 		runtime·unlock(&memlock);
-		return (void*)-1;
+		return nil;
 	}
 	bloc = (byte*)bl + nbytes;
 	runtime·unlock(&memlock);

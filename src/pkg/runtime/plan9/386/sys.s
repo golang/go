@@ -14,9 +14,21 @@ TEXT runtime·open(SB),7,$0
 	INT     $64
 	RET
 
+// TODO(ality): remove use of deprecated system calls
+
+TEXT runtime·read(SB),7,$0
+	MOVL	$15, AX
+	INT		$64
+	RET
+
 TEXT runtime·write(SB),7,$0
-	MOVL    $20, AX
-	INT     $64
+	MOVL	$20, AX
+	INT		$64
+	RET
+
+TEXT runtime·close(SB),7,$0
+	MOVL	$4, AX
+	INT		$64
 	RET
 
 TEXT runtime·exits(SB),7,$0
@@ -26,6 +38,11 @@ TEXT runtime·exits(SB),7,$0
 
 TEXT runtime·brk_(SB),7,$0
 	MOVL    $24, AX
+	INT     $64
+	RET
+
+TEXT runtime·sleep(SB),7,$0
+	MOVL    $17, AX
 	INT     $64
 	RET
 
