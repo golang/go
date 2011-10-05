@@ -379,12 +379,6 @@ func lastBoundary(fd *formInfo, b []byte) int {
 	return i
 }
 
-// LastBoundaryInString returns the position i of the last boundary in s
-// or -1 if s contains no boundary.
-func (f Form) LastBoundaryInString(s string) int {
-	panic("not implemented")
-}
-
 // decomposeSegment scans the first segment in src into rb.
 // It returns the number of bytes consumed from src.
 // TODO(mpvl): consider inserting U+034f (Combining Grapheme Joiner)
