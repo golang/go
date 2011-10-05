@@ -638,3 +638,28 @@ func TestBadCount(t *testing.T) {
 		t.Error("expected bad count error; got", err)
 	}
 }
+
+// Verify that sequential Decoders built on a single input will
+// succeed if the input implements ReadByte and there is no
+// type information in the stream.
+func TestSequentialDecoder(t *testing.T) {
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+	const count = 10
+	for i := 0; i < count; i++ {
+		s := fmt.Sprintf("%d", i)
+		if err := enc.Encode(s); err != nil {
+			t.Error("encoder fail:", err)
+		}
+	}
+	for i := 0; i < count; i++ {
+		dec := NewDecoder(b)
+		var s string
+		if err := dec.Decode(&s); err != nil {
+			t.Fatal("decoder fail:", err)
+		}
+		if s != fmt.Sprintf("%d", i) {
+			t.Fatalf("decode expected %d got %s", i, s)
+		}
+	}
+}
