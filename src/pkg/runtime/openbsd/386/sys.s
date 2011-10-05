@@ -269,4 +269,22 @@ TEXT runtime·osyield(SB),7,$-4
 	INT	$0x80
 	RET
 
+TEXT runtime·sysctl(SB),7,$28
+	LEAL	arg0+0(FP), SI
+	LEAL	4(SP), DI
+	CLD
+	MOVSL				// arg 1 - name
+	MOVSL				// arg 2 - namelen
+	MOVSL				// arg 3 - oldp
+	MOVSL				// arg 4 - oldlenp
+	MOVSL				// arg 5 - newp
+	MOVSL				// arg 6 - newlen
+	MOVL	$202, AX		// sys___sysctl
+	INT	$0x80
+	JCC	3(PC)
+	NEGL	AX
+	RET
+	MOVL	$0, AX
+	RET
+
 GLOBL runtime·tlsoffset(SB),$4
