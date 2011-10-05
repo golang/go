@@ -607,7 +607,7 @@ doelf(void)
 		/* define dynamic elf table */
 		s = lookup(".dynamic", 0);
 		s->reachable = 1;
-		s->type = SELFROSECT;
+		s->type = SELFSECT; // writable
 
 		/*
 		 * .dynamic table
@@ -626,6 +626,8 @@ doelf(void)
 		elfwritedynent(s, DT_PLTREL, DT_REL);
 		elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rel.plt", 0));
 		elfwritedynentsym(s, DT_JMPREL, lookup(".rel.plt", 0));
+
+		elfwritedynent(s, DT_DEBUG, 0);
 
 		// Do not write DT_NULL.  elfdynhash will finish it.
 	}
