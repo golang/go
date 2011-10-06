@@ -5,7 +5,7 @@
 /*
  * Apple still insists on underscore prefixes for C function names.
  */
-#if defined(__APPLE__) || defined(_WIN32)
+#if defined(__APPLE__)
 #define EXT(s) _##s
 #else
 #define EXT(s) s
