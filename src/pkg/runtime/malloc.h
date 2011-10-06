@@ -407,7 +407,7 @@ enum
 
 void	runtime·MProf_Malloc(void*, uintptr);
 void	runtime·MProf_Free(void*, uintptr);
-int32	runtime·helpgc(void);
+int32	runtime·helpgc(bool*);
 void	runtime·gchelper(void);
 
 // Malloc profiling settings.
