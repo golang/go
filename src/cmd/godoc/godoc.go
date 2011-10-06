@@ -458,6 +458,28 @@ func comment_htmlFunc(comment string) string {
 	return buf.String()
 }
 
+func example_htmlFunc(name string, examples []*doc.Example, fset *token.FileSet) string {
+	var buf bytes.Buffer
+	for _, eg := range examples {
+		if eg.Name != name {
+			continue
+		}
+
+		// print code, unindent and remove surrounding braces
+		code := node_htmlFunc(eg.Body, fset)
+		code = strings.Replace(code, "\n    ", "\n", -1)
+		code = code[2 : len(code)-2]
+
+		err := exampleHTML.Execute(&buf, struct {
+			Code, Output string
+		}{code, eg.Output})
+		if err != nil {
+			log.Print(err)
+		}
+	}
+	return buf.String()
+}
+
 func pkgLinkFunc(path string) string {
 	relpath := relativeURL(path)
 	// because of the irregular mapping under goroot
@@ -531,6 +553,9 @@ var fmap = template.FuncMap{
 	"pkgLink":     pkgLinkFunc,
 	"srcLink":     relativeURL,
 	"posLink_url": posLink_urlFunc,
+
+	// formatting of Examples
+	"example_html": example_htmlFunc,
 }
 
 func readTemplate(name string) *template.Template {
@@ -563,6 +588,7 @@ var (
 	codewalkdirHTML,
 	dirlistHTML,
 	errorHTML,
+	exampleHTML,
 	godocHTML,
 	packageHTML,
 	packageText,
@@ -576,6 +602,7 @@ func readTemplates() {
 	codewalkdirHTML = readTemplate("codewalkdir.html")
 	dirlistHTML = readTemplate("dirlist.html")
 	errorHTML = readTemplate("error.html")
+	exampleHTML = readTemplate("example.html")
 	godocHTML = readTemplate("godoc.html")
 	packageHTML = readTemplate("package.html")
 	packageText = readTemplate("package.txt")
@@ -794,15 +821,16 @@ const (
 )
 
 type PageInfo struct {
-	Dirname string          // directory containing the package
-	PList   []string        // list of package names found
-	FSet    *token.FileSet  // corresponding file set
-	PAst    *ast.File       // nil if no single AST with package exports
-	PDoc    *doc.PackageDoc // nil if no single package documentation
-	Dirs    *DirList        // nil if no directory information
-	DirTime int64           // directory time stamp in seconds since epoch
-	IsPkg   bool            // false if this is not documenting a real package
-	Err     os.Error        // directory read error or nil
+	Dirname  string          // directory containing the package
+	PList    []string        // list of package names found
+	FSet     *token.FileSet  // corresponding file set
+	PAst     *ast.File       // nil if no single AST with package exports
+	PDoc     *doc.PackageDoc // nil if no single package documentation
+	Examples []*doc.Example  // nil if no example code
+	Dirs     *DirList        // nil if no directory information
+	DirTime  int64           // directory time stamp in seconds since epoch
+	IsPkg    bool            // false if this is not documenting a real package
+	Err      os.Error        // directory read error or nil
 }
 
 func (info *PageInfo) IsEmpty() bool {
@@ -958,6 +986,19 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		plist = plist[0:i]
 	}
 
+	// get examples from *_test.go files
+	var examples []*doc.Example
+	filter = func(d FileInfo) bool {
+		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
+	}
+	if testpkgs, err := parseDir(fset, abspath, filter); err != nil {
+		log.Println("parsing test files:", err)
+	} else {
+		for _, testpkg := range testpkgs {
+			examples = append(examples, doc.Examples(testpkg)...)
+		}
+	}
+
 	// compute package documentation
 	var past *ast.File
 	var pdoc *doc.PackageDoc
@@ -1014,7 +1055,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		timestamp = time.Seconds()
 	}
 
-	return PageInfo{abspath, plist, fset, past, pdoc, dir.listing(true), timestamp, h.isPkg, nil}
+	return PageInfo{abspath, plist, fset, past, pdoc, examples, dir.listing(true), timestamp, h.isPkg, nil}
 }
 
 func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

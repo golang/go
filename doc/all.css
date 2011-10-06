@@ -202,3 +202,12 @@ sup.new {
   font-size: 8px;
   line-height: 0;
 }
+.example .expanded {
+  display: none;
+}
+.exampleVisible .collapsed {
+  display: none;
+}
+.exampleHeading {
+  cursor: pointer;
+}
