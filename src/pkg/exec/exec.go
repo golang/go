@@ -63,6 +63,11 @@ type Cmd struct {
 	Stdout io.Writer
 	Stderr io.Writer
 
+	// ExtraFiles specifies additional open files to be inherited by the
+	// new process. It does not include standard input, standard output, or
+	// standard error. If non-nil, entry i becomes file descriptor 3+i.
+	ExtraFiles []*os.File
+
 	// SysProcAttr holds optional, operating system-specific attributes.
 	// Run passes it to os.StartProcess as the os.ProcAttr's Sys field.
 	SysProcAttr *syscall.SysProcAttr
@@ -224,6 +229,7 @@ func (c *Cmd) Start() os.Error {
 		}
 		c.childFiles = append(c.childFiles, fd)
 	}
+	c.childFiles = append(c.childFiles, c.ExtraFiles...)
 
 	var err os.Error
 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
