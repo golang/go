@@ -14,6 +14,102 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-10-06">2011-10-06</h2>
+
+<pre>
+This weekly snapshot includes changes to the io, image, and math packages that
+may require changes to client code.
+
+The io package's Copyn function has been renamed to CopyN.
+
+The math package's Fabs, Fdim, Fmax, Fmin and Fmod functions
+have been renamed to Abs, Dim, Max, Min, and Mod.
+
+Parts of the image package have been moved to the new image/color package.
+The spin-off renames some types. The new names are simply better:
+	image.Color              -> color.Color
+	image.ColorModel         -> color.Model
+	image.ColorModelFunc     -> color.ModelFunc
+	image.PalettedColorModel -> color.Palette
+	image.RGBAColor          -> color.RGBA
+	image.RGBAColorModel     -> color.RGBAModel
+	image.RGBA64Color        -> color.RGBA64
+	image.RGBA64ColorModel   -> color.RGBA64Model
+(similarly for NRGBAColor, GrayColorModel, etc)
+The image.ColorImage type stays in the image package, but is renamed:
+	image.ColorImage -> image.Uniform
+The image.Image implementations (image.RGBA, image.RGBA64, image.NRGBA,
+image.Alpha, etc) do not change their name, and gain a nice symmetry:
+an image.RGBA is an image of color.RGBA, etc.
+The image.Black, image.Opaque uniform images remain unchanged (although their
+type is renamed from image.ColorImage to image.Uniform).
+The corresponding color types (color.Black, color.Opaque, etc) are new.
+Nothing in the image/ycbcr is renamed yet. The ycbcr.YCbCrColor and
+ycbcr.YCbCrImage types will eventually migrate to color.YCbCr and image.YCbCr,
+at a later date.
+
+* 5g/6g/8g: fix loop finding bug, fix -f(), registerize variables again.
+* 5l/6l/8l: add a DT_DEBUG dynamic tag to a dynamic ELF binary.
+* archive/zip: read and write unix file modes (thanks Gustavo Niemeyer).
+* build: clear execute bit from source files (thanks Mikio Hara).
+* bytes: add EqualFold.
+* cgo: allow Windows path characters in flag directives (thanks Joe Poirier),
+	support for mingw-w64 4.5.1 and newer (thanks Wei Guangjing).
+* codereview: extra repo sanity check,
+	fix for Mercurial 1.9.2,
+	fix hg change in Windows console (thanks Yasuhiro Matsumoto).
+* crypto/elliptic: use %x consistently in error print.
+* doc/spec: remove notes about gccgo limitations, now fixed.
+* doc: add 'Debugging Go code with GDB' tutorial,
+	fix memory model read visibility bug.
+* encoding/binary: PutX functions require buffer of sufficient size,
+	added benchmarks, support for varint encoding.
+* exec: add Command.ExtraFiles.
+* exp/sql{,/driver}: new database packages.
+* exp/ssh: move common code to common.go (thanks Dave Cheney).
+* exp/template/html: work continues.
+* fmt: replace channel cache with slice.
+* gc: limit helper threads based on ncpu.
+* go/doc, godoc, gotest: support for reading example documentation.
+* go: documentation and skeleton implementation of new command.
+* gob: protect against invalid message length,
+	allow sequential decoders on the same input stream.
+* hgpatch: do not use hg exit status (thanks Yasuhiro Matsumoto).
+* http: add Location method to Response,
+	don't send a 400 Bad Request after a client shutdown.
+* index/suffixarray: 4.5x faster index serialization (to memory).
+* io/ioutil: add a comment on why devNull is a ReaderFrom.
+* json: use strings.EqualFold instead of strings.ToLower.
+* misc/emacs: fix indent bug.
+* net: add shutdown: TCPConn.CloseWrite and CloseRead.
+* net: use AF_UNSPEC instead of individual address family (thanks Mikio Hara).
+* path/filepath: added Rel as the complement of Abs (thanks Gustavo Niemeyer).
+* pkg/syscall: add Mkfifo for linux platforms.
+* regexp: move to old/regexp, replace with exp/regexp, speedups.
+* runtime/gdb: fix pretty printing of channels,
+	gracefully handle not being able to find types.
+* runtime: check for nil value pointer in select syncsend case,
+	faster finalizers,
+	fix malloc sampling bug,
+	fix map memory leak,
+	fix spurious deadlock reporting,
+	fix usleep on linux/386 and re-enable parallel gc (thanks Hector Chu),
+	parallelize garbage collector mark + sweep.
+* strconv: faster Unquote in common case.
+* strings: add EqualFold, Replacer, NewReplacer.
+* suffixarray: add benchmarks for construction (thanks Eric Eisner).
+* syscall: add GetsockoptByte, SetsockoptByte for openbsd (thanks Mikio Hara),
+	add IPv4 ancillary data for linux (thanks Mikio Hara),
+	mark stdin, stdout, stderr non-inheritable by child processes (thanks Alex Brainman),
+	mksyscall_windows.pl creates non-syscall packages (thanks Jaroslavas Počepko),
+	update multicast socket options (thanks Mikio Hara).
+* testing: support for running tests in parallel (thanks Miki Tebeka).
+* time: make month/day name comparisons case insenstive.
+* unicode: fix make tables.
+* vim: Send GoFmt errors to a location list (thanks Paul Sbarra).
+* websocket: add hybi-13 support, add mutex to make websocket full-duplex.
+</pre>
+
 <h2 id="2011-09-21">2011-09-21</h2>
 
 <pre>
