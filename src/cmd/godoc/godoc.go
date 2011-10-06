@@ -816,9 +816,29 @@ const builtinPkgPath = "builtin/"
 type PageInfoMode uint
 
 const (
-	exportsOnly PageInfoMode = 1 << iota // only keep exported stuff
-	genDoc                               // generate documentation
+	noFiltering PageInfoMode = 1 << iota // do not filter exports
+	showSource                           // show source code, do not extract documentation
+	noHtml                               // show result in textual form, do not generate HTML
 )
+
+// modeNames defines names for each PageInfoMode flag.
+var modeNames = map[string]PageInfoMode{
+	"all":  noFiltering,
+	"src":  showSource,
+	"text": noHtml,
+}
+
+// getPageInfoMode computes the PageInfoMode flags by analyzing the request
+// URL form value "m". It is value is a comma-separated list of mode names
+// as defined by modeNames (e.g.: m=src,text).
+func getPageInfoMode(r *http.Request) (mode PageInfoMode) {
+	for _, k := range strings.Split(r.FormValue("m"), ",") {
+		if m, found := modeNames[strings.TrimSpace(k)]; found {
+			mode |= m
+		}
+	}
+	return
+}
 
 type PageInfo struct {
 	Dirname  string          // directory containing the package
@@ -876,6 +896,16 @@ func inList(name string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func stripFunctionBodies(pkg *ast.Package) {
+	for _, f := range pkg.Files {
+		for _, d := range f.Decls {
+			if f, ok := d.(*ast.FuncDecl); ok {
+				f.Body = nil
+			}
+		}
+	}
 }
 
 // getPageInfo returns the PageInfo for a package directory abspath. If the
@@ -1003,10 +1033,11 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 	var past *ast.File
 	var pdoc *doc.PackageDoc
 	if pkg != nil {
-		if mode&exportsOnly != 0 {
+		if mode&noFiltering == 0 {
 			ast.PackageExports(pkg)
 		}
-		if mode&genDoc != 0 {
+		stripFunctionBodies(pkg)
+		if mode&showSource == 0 {
 			pdoc = doc.NewPackageDoc(pkg, path.Clean(relpath)) // no trailing '/' in importpath
 		} else {
 			past = ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments)
@@ -1065,12 +1096,9 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	relpath := r.URL.Path[len(h.pattern):]
 	abspath := absolutePath(relpath, h.fsRoot)
-	var mode PageInfoMode
-	if relpath != builtinPkgPath {
-		mode = exportsOnly
-	}
-	if r.FormValue("m") != "src" {
-		mode |= genDoc
+	mode := getPageInfoMode(r)
+	if relpath == builtinPkgPath {
+		mode = noFiltering
 	}
 	info := h.getPageInfo(abspath, relpath, r.FormValue("p"), mode)
 	if info.Err != nil {
@@ -1079,7 +1107,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.FormValue("f") == "text" {
+	if mode&noHtml != 0 {
 		contents := applyTemplate(packageText, "packageText", info)
 		serveText(w, contents)
 		return
@@ -1184,7 +1212,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.FormValue("q"))
 	result := lookup(query)
 
-	if r.FormValue("f") == "text" {
+	if getPageInfoMode(r)&noHtml != 0 {
 		contents := applyTemplate(searchText, "searchText", result)
 		serveText(w, contents)
 		return

@@ -389,11 +389,10 @@ func main() {
 	var mode PageInfoMode
 	if *srcMode {
 		// only filter exports if we don't have explicit command-line filter arguments
-		if flag.NArg() == 1 {
-			mode |= exportsOnly
+		if flag.NArg() > 1 {
+			mode |= noFiltering
 		}
-	} else {
-		mode = exportsOnly | genDoc
+		mode |= showSource
 	}
 	// TODO(gri): Provide a mechanism (flag?) to select a package
 	//            if there are multiple packages in a directory.
