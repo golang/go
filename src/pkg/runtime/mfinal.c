@@ -3,12 +3,17 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "arch.h"
 #include "malloc.h"
 
-// Lock to protect finalizer data structures.
-// Cannot reuse mheap.Lock because the finalizer
-// maintenance requires allocation.
-static Lock finlock;
+enum { debug = 0 };
+
+typedef struct Fin Fin;
+struct Fin
+{
+	void (*fn)(void*);
+	int32 nret;
+};
 
 // Finalizer hash table.  Direct hash, linear scan, at most 3/4 full.
 // Table size is power of 3 so that hash can be key % max.
@@ -20,15 +25,24 @@ static Lock finlock;
 typedef struct Fintab Fintab;
 struct Fintab
 {
+	Lock;
 	void **key;
-	Finalizer **val;
+	Fin *val;
 	int32 nkey;	// number of non-nil entries in key
 	int32 ndead;	// number of dead (-1) entries in key
 	int32 max;	// size of key, val allocations
 };
 
+#define TABSZ 17
+#define TAB(p) (&fintab[((uintptr)(p)>>3)%TABSZ])
+
+static struct {
+	Fintab;
+	uint8 pad[CacheLineSize - sizeof(Fintab)];	
+} fintab[TABSZ];
+
 static void
-addfintab(Fintab *t, void *k, Finalizer *v)
+addfintab(Fintab *t, void *k, void (*fn)(void*), int32 nret)
 {
 	int32 i, j;
 
@@ -51,29 +65,31 @@ addfintab(Fintab *t, void *k, Finalizer *v)
 
 ret:
 	t->key[i] = k;
-	t->val[i] = v;
+	t->val[i].fn = fn;
+	t->val[i].nret = nret;
 }
 
-static Finalizer*
-lookfintab(Fintab *t, void *k, bool del)
+static bool
+lookfintab(Fintab *t, void *k, bool del, Fin *f)
 {
 	int32 i, j;
-	Finalizer *v;
 
 	if(t->max == 0)
-		return nil;
+		return false;
 	i = (uintptr)k % (uintptr)t->max;
 	for(j=0; j<t->max; j++) {
 		if(t->key[i] == nil)
-			return nil;
+			return false;
 		if(t->key[i] == k) {
-			v = t->val[i];
+			if(f)
+				*f = t->val[i];
 			if(del) {
 				t->key[i] = (void*)-1;
-				t->val[i] = nil;
+				t->val[i].fn = nil;
+				t->val[i].nret = 0;
 				t->ndead++;
 			}
-			return v;
+			return true;
 		}
 		if(++i == t->max)
 			i = 0;
@@ -81,88 +97,100 @@ lookfintab(Fintab *t, void *k, bool del)
 
 	// cannot happen - table is known to be non-full
 	runtime·throw("finalizer table inconsistent");
-	return nil;
+	return false;
 }
 
-static Fintab fintab;
-
-// add finalizer; caller is responsible for making sure not already in table
-void
-runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
+static void
+resizefintab(Fintab *tab)
 {
 	Fintab newtab;
+	void *k;
 	int32 i;
-	byte *base;
-	Finalizer *e;
+
+	runtime·memclr((byte*)&newtab, sizeof newtab);
+	newtab.max = tab->max;
+	if(newtab.max == 0)
+		newtab.max = 3*3*3;
+	else if(tab->ndead < tab->nkey/2) {
+		// grow table if not many dead values.
+		// otherwise just rehash into table of same size.
+		newtab.max *= 3;
+	}
 	
-	e = nil;
-	if(f != nil) {
-		e = runtime·mal(sizeof *e);
-		e->fn = f;
-		e->nret = nret;
+	newtab.key = runtime·mallocgc(newtab.max*sizeof newtab.key[0], FlagNoPointers, 0, 1);
+	newtab.val = runtime·mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
+	
+	for(i=0; i<tab->max; i++) {
+		k = tab->key[i];
+		if(k != nil && k != (void*)-1)
+			addfintab(&newtab, k, tab->val[i].fn, tab->val[i].nret);
 	}
+	
+	runtime·free(tab->key);
+	runtime·free(tab->val);
+	
+	tab->key = newtab.key;
+	tab->val = newtab.val;
+	tab->nkey = newtab.nkey;
+	tab->ndead = newtab.ndead;
+	tab->max = newtab.max;
+}
 
-	runtime·lock(&finlock);
-	if(!runtime·mlookup(p, &base, nil, nil) || p != base) {
-		runtime·unlock(&finlock);
-		runtime·throw("addfinalizer on invalid pointer");
+bool
+runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
+{
+	Fintab *tab;
+	byte *base;
+	
+	if(debug) {
+		if(!runtime·mlookup(p, &base, nil, nil) || p != base)
+			runtime·throw("addfinalizer on invalid pointer");
 	}
+	
+	tab = TAB(p);
+	runtime·lock(tab);
 	if(f == nil) {
-		lookfintab(&fintab, p, 1);
-		runtime·unlock(&finlock);
-		return;
+		if(lookfintab(tab, p, true, nil))
+			runtime·setblockspecial(p, false);
+		runtime·unlock(tab);
+		return true;
 	}
 
-	if(lookfintab(&fintab, p, 0)) {
-		runtime·unlock(&finlock);
-		runtime·throw("double finalizer");
+	if(lookfintab(tab, p, false, nil)) {
+		runtime·unlock(tab);
+		return false;
 	}
-	runtime·setblockspecial(p);
 
-	if(fintab.nkey >= fintab.max/2+fintab.max/4) {
+	if(tab->nkey >= tab->max/2+tab->max/4) {
 		// keep table at most 3/4 full:
 		// allocate new table and rehash.
-
-		runtime·memclr((byte*)&newtab, sizeof newtab);
-		newtab.max = fintab.max;
-		if(newtab.max == 0)
-			newtab.max = 3*3*3;
-		else if(fintab.ndead < fintab.nkey/2) {
-			// grow table if not many dead values.
-			// otherwise just rehash into table of same size.
-			newtab.max *= 3;
-		}
-
-		newtab.key = runtime·mallocgc(newtab.max*sizeof newtab.key[0], FlagNoPointers, 0, 1);
-		newtab.val = runtime·mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
-
-		for(i=0; i<fintab.max; i++) {
-			void *k;
-
-			k = fintab.key[i];
-			if(k != nil && k != (void*)-1)
-				addfintab(&newtab, k, fintab.val[i]);
-		}
-		runtime·free(fintab.key);
-		runtime·free(fintab.val);
-		fintab = newtab;
+		resizefintab(tab);
 	}
 
-	addfintab(&fintab, p, e);
-	runtime·unlock(&finlock);
+	addfintab(tab, p, f, nret);
+	runtime·setblockspecial(p, true);
+	runtime·unlock(tab);
+	return true;
 }
 
 // get finalizer; if del, delete finalizer.
-// caller is responsible for updating RefHasFinalizer bit.
-Finalizer*
-runtime·getfinalizer(void *p, bool del)
+// caller is responsible for updating RefHasFinalizer (special) bit.
+bool
+runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret)
 {
-	Finalizer *f;
+	Fintab *tab;
+	bool res;
+	Fin f;
 	
-	runtime·lock(&finlock);
-	f = lookfintab(&fintab, p, del);
-	runtime·unlock(&finlock);
-	return f;
+	tab = TAB(p);
+	runtime·lock(tab);
+	res = lookfintab(tab, p, del, &f);
+	runtime·unlock(tab);
+	if(res==false)
+		return false;
+	*fn = f.fn;
+	*nret = f.nret;
+	return true;
 }
 
 void
@@ -170,12 +198,15 @@ runtime·walkfintab(void (*fn)(void*))
 {
 	void **key;
 	void **ekey;
+	int32 i;
 
-	runtime·lock(&finlock);
-	key = fintab.key;
-	ekey = key + fintab.max;
-	for(; key < ekey; key++)
-		if(*key != nil && *key != ((void*)-1))
-			fn(*key);
-	runtime·unlock(&finlock);
+	for(i=0; i<TABSZ; i++) {
+		runtime·lock(&fintab[i]);
+		key = fintab[i].key;
+		ekey = key + fintab[i].max;
+		for(; key < ekey; key++)
+			if(*key != nil && *key != ((void*)-1))
+				fn(*key);
+		runtime·unlock(&fintab[i]);
+	}
 }

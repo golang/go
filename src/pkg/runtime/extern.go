@@ -131,8 +131,8 @@ func Semrelease(s *uint32)
 // The argument x must be a pointer to an object allocated by
 // calling new or by taking the address of a composite literal.
 // The argument f must be a function that takes a single argument
-// of x's type and returns no arguments.  If either of these is not
-// true, SetFinalizer aborts the program.
+// of x's type and can have arbitrary ignored return values.
+// If either of these is not true, SetFinalizer aborts the program.
 //
 // Finalizers are run in dependency order: if A points at B, both have
 // finalizers, and they are otherwise unreachable, only the finalizer
@@ -156,9 +156,6 @@ func Semrelease(s *uint32)
 // A single goroutine runs all finalizers for a program, sequentially.
 // If a finalizer must run for a long time, it should do so by starting
 // a new goroutine.
-//
-// TODO(rsc): allow f to have (ignored) return values
-//
 func SetFinalizer(x, f interface{})
 
 func getgoroot() string

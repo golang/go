@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "arch.h"
 #include "malloc.h"
 
 static uintptr isclosureentry(uintptr);

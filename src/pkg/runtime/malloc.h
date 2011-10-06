@@ -362,11 +362,11 @@ struct MHeap
 
 	// central free lists for small size classes.
 	// the union makes sure that the MCentrals are
-	// spaced 64 bytes apart, so that each MCentral.Lock
+	// spaced CacheLineSize bytes apart, so that each MCentral.Lock
 	// gets its own cache line.
 	union {
 		MCentral;
-		byte pad[64];
+		byte pad[CacheLineSize];
 	} central[NumSizeClasses];
 
 	FixAlloc spanalloc;	// allocator for Span*
@@ -394,7 +394,7 @@ int32	runtime·checking;
 void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
 void	runtime·unmarkspan(void *v, uintptr size);
 bool	runtime·blockspecial(void*);
-void	runtime·setblockspecial(void*);
+void	runtime·setblockspecial(void*, bool);
 void	runtime·purgecachedstats(M*);
 
 enum
@@ -419,13 +419,5 @@ enum {
 };
 extern int32 runtime·malloc_profile;
 
-typedef struct Finalizer Finalizer;
-struct Finalizer
-{
-	Finalizer *next;	// for use by caller of getfinalizer
-	void (*fn)(void*);
-	void *arg;
-	int32 nret;
-};
-
-Finalizer*	runtime·getfinalizer(void*, bool);
+bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret);
+void	runtime·walkfintab(void (*fn)(void*));
