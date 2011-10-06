@@ -602,9 +602,9 @@ top:
 }
 
 int32
-runtime·helpgc(void)
+runtime·helpgc(bool *extra)
 {
-	M *m;
+	M *mp;
 	int32 n, max;
 
 	// Figure out how many CPUs to use.
@@ -621,13 +621,15 @@ runtime·helpgc(void)
 
 	runtime·lock(&runtime·sched);
 	n = 0;
-	while(n < max && (m = mget(nil)) != nil) {
+	while(n < max && (mp = mget(nil)) != nil) {
 		n++;
-		m->helpgc = 1;
-		m->waitnextg = 0;
-		runtime·notewakeup(&m->havenextg);
+		mp->helpgc = 1;
+		mp->waitnextg = 0;
+		runtime·notewakeup(&mp->havenextg);
 	}
 	runtime·unlock(&runtime·sched);
+	if(extra)
+		*extra = n != max;
 	return n;
 }
 
@@ -685,9 +687,10 @@ runtime·starttheworld(bool extra)
 		// initialization work so is definitely running),
 		// but m is not running a specific goroutine,
 		// so set the helpgc flag as a signal to m's
-		// first schedule(nil) to mcpu--.
+		// first schedule(nil) to mcpu-- and grunning--.
 		m = startm();
 		m->helpgc = 1;
+		runtime·sched.grunning++;
 	}
 	schedunlock();
 }
@@ -833,6 +836,8 @@ schedule(G *gp)
 		v = runtime·xadd(&runtime·sched.atomic, -1<<mcpuShift);
 		if(atomic_mcpu(v) > maxgomaxprocs)
 			runtime·throw("negative mcpu in scheduler");
+		// Compensate for increment in starttheworld().
+		runtime·sched.grunning--;
 		m->helpgc = 0;
 	}
 

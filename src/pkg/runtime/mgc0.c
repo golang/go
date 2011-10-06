@@ -916,10 +916,11 @@ runtime·gc(int32 force)
 	runtime·lock(&work.markgate);
 	runtime·lock(&work.sweepgate);
 
+	extra = false;
 	work.nproc = 1;
 	if(runtime·gomaxprocs > 1 && runtime·ncpu > 1) {
 		runtime·noteclear(&work.alldone);
-		work.nproc += runtime·helpgc();
+		work.nproc += runtime·helpgc(&extra);
 	}
 	work.nwait = 0;
 	work.ndone = 0;
@@ -984,7 +985,6 @@ runtime·gc(int32 force)
 	// coordinate.  This lazy approach works out in practice:
 	// we don't mind if the first couple gc rounds don't have quite
 	// the maximum number of procs.
-	extra = work.nproc < runtime·gomaxprocs && work.nproc < runtime·ncpu && work.nproc < MaxGcproc;
 	runtime·starttheworld(extra);
 
 	// give the queued finalizers, if any, a chance to run
@@ -1008,7 +1008,7 @@ runtime·UpdateMemStats(void)
 	cachestats();
 	m->gcing = 0;
 	runtime·semrelease(&gcsema);
-	runtime·starttheworld(0);
+	runtime·starttheworld(false);
 }
 
 static void
