@@ -14,6 +14,8 @@ import (
 type Template struct {
 	name string
 	*parse.Tree
+	leftDelim  string
+	rightDelim string
 	// We use two maps, one for parsing and one for execution.
 	// This separation makes the API cleaner since it doesn't
 	// expose reflection to the client.
@@ -38,6 +40,16 @@ func New(name string) *Template {
 	}
 }
 
+// Delims sets the action delimiters, to be used in a subsequent
+// parse, to the specified strings.
+// An empty delimiter stands for the corresponding default: {{ or }}.
+// The return value is the template, so calls can be chained.
+func (t *Template) Delims(left, right string) *Template {
+	t.leftDelim = left
+	t.rightDelim = right
+	return t
+}
+
 // Funcs adds the elements of the argument map to the template's function
 // map.  It panics if a value in the map is not a function with appropriate
 // return type.
@@ -51,7 +63,7 @@ func (t *Template) Funcs(funcMap FuncMap) *Template {
 // Parse parses the template definition string to construct an internal
 // representation of the template for execution.
 func (t *Template) Parse(s string) (tmpl *Template, err os.Error) {
-	t.Tree, err = parse.New(t.name).Parse(s, t.parseFuncs, builtins)
+	t.Tree, err = parse.New(t.name).Parse(s, t.leftDelim, t.rightDelim, t.parseFuncs, builtins)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +79,7 @@ func (t *Template) ParseInSet(s string, set *Set) (tmpl *Template, err os.Error)
 	if set != nil {
 		setFuncs = set.parseFuncs
 	}
-	t.Tree, err = parse.New(t.name).Parse(s, t.parseFuncs, setFuncs, builtins)
+	t.Tree, err = parse.New(t.name).Parse(s, t.leftDelim, t.rightDelim, t.parseFuncs, setFuncs, builtins)
 	if err != nil {
 		return nil, err
 	}

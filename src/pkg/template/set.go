@@ -17,6 +17,8 @@ import (
 // A template may be a member of multiple sets.
 type Set struct {
 	tmpl       map[string]*Template
+	leftDelim  string
+	rightDelim string
 	parseFuncs FuncMap
 	execFuncs  map[string]reflect.Value
 }
@@ -27,6 +29,16 @@ func (s *Set) init() {
 		s.parseFuncs = make(FuncMap)
 		s.execFuncs = make(map[string]reflect.Value)
 	}
+}
+
+// Delims sets the action delimiters, to be used in a subsequent
+// parse, to the specified strings.
+// An empty delimiter stands for the corresponding default: {{ or }}.
+// The return value is the set, so calls can be chained.
+func (s *Set) Delims(left, right string) *Set {
+	s.leftDelim = left
+	s.rightDelim = right
+	return s
 }
 
 // Funcs adds the elements of the argument map to the set's function map.  It
@@ -93,7 +105,7 @@ func (s *Set) Execute(wr io.Writer, name string, data interface{}) os.Error {
 // to the set.  If a template is redefined, the element in the set is
 // overwritten with the new definition.
 func (s *Set) Parse(text string) (*Set, os.Error) {
-	trees, err := parse.Set(text, s.parseFuncs, builtins)
+	trees, err := parse.Set(text, s.leftDelim, s.rightDelim, s.parseFuncs, builtins)
 	if err != nil {
 		return nil, err
 	}

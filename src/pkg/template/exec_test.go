@@ -493,6 +493,43 @@ func TestExecute(t *testing.T) {
 	testExecute(execTests, nil, t)
 }
 
+var delimPairs = []string{
+	"", "", // default
+	"{{", "}}", // same as default
+	"<<", ">>", // distinct
+	"|", "|", // same
+	"(日)", "(本)", // peculiar
+}
+
+func TestDelims(t *testing.T) {
+	const hello = "Hello, world"
+	var value = struct{ Str string }{hello}
+	for i := 0; i < len(delimPairs); i += 2 {
+		text := ".Str"
+		left := delimPairs[i+0]
+		right := delimPairs[i+1]
+		if left == "" { // default case
+			text = "{{" + text
+		}
+		if right == "" { // default case
+			text = text + "}}"
+		}
+		text = left + text + right
+		tmpl, err := New("delims").Delims(left, right).Parse(text)
+		if err != nil {
+			t.Fatalf("delim %q text %q parse err %s", left, text, err)
+		}
+		var b = new(bytes.Buffer)
+		err = tmpl.Execute(b, value)
+		if err != nil {
+			t.Fatalf("delim %q exec err %s", left, err)
+		}
+		if b.String() != hello {
+			t.Error("expected %q got %q", hello, b.String())
+		}
+	}
+}
+
 // Check that an error from a method flows back to the top.
 func TestExecuteError(t *testing.T) {
 	b := new(bytes.Buffer)
@@ -538,18 +575,19 @@ type Tree struct {
 	Left, Right *Tree
 }
 
+// Use different delimiters to test Set.Delims.
 const treeTemplate = `
-	{{define "tree"}}
+	(define "tree")
 	[
-		{{.Val}}
-		{{with .Left}}
-			{{template "tree" .}}
-		{{end}}
-		{{with .Right}}
-			{{template "tree" .}}
-		{{end}}
+		(.Val)
+		(with .Left)
+			(template "tree" .)
+		(end)
+		(with .Right)
+			(template "tree" .)
+		(end)
 	]
-	{{end}}
+	(end)
 `
 
 func TestTree(t *testing.T) {
@@ -590,7 +628,7 @@ func TestTree(t *testing.T) {
 		},
 	}
 	set := new(Set)
-	_, err := set.Parse(treeTemplate)
+	_, err := set.Delims("(", ")").Parse(treeTemplate)
 	if err != nil {
 		t.Fatal("parse error:", err)
 	}
