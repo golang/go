@@ -7,6 +7,7 @@
 
 package runtime
 #include "runtime.h"
+#include "arch.h"
 #include "malloc.h"
 #include "defs.h"
 #include "type.h"

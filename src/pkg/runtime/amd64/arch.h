@@ -1,3 +1,4 @@
 enum {
-	thechar = '6'
+	thechar = '6',
+	CacheLineSize = 64
 };

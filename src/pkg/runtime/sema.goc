@@ -19,6 +19,7 @@
 
 package runtime
 #include "runtime.h"
+#include "arch.h"
 
 typedef struct Sema Sema;
 struct Sema
@@ -45,11 +46,7 @@ struct SemaRoot
 static union
 {
 	SemaRoot;
-	// Modern processors tend to have 64-byte cache lines,
-	// potentially with 128-byte effective cache line size for reading.
-	// While there are hypothetical architectures
-	// with 16-4096 byte cache lines, 128 looks like a good compromise.
-	uint8 pad[128];
+	uint8 pad[CacheLineSize];
 } semtable[SEMTABLESZ];
 
 static SemaRoot*

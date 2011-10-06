@@ -5,6 +5,7 @@
 // Garbage collector.
 
 #include "runtime.h"
+#include "arch.h"
 #include "malloc.h"
 #include "stack.h"
 
@@ -67,12 +68,33 @@ struct Workbuf
 	byte *obj[512-2];
 };
 
+typedef struct Finalizer Finalizer;
+struct Finalizer
+{
+	void (*fn)(void*);
+	void *arg;
+	int32 nret;
+};
+
+typedef struct FinBlock FinBlock;
+struct FinBlock
+{
+	FinBlock *alllink;
+	FinBlock *next;
+	int32 cnt;
+	int32 cap;
+	Finalizer fin[1];
+};
+
 extern byte data[];
 extern byte etext[];
 extern byte end[];
 
 static G *fing;
-static Finalizer *finq;
+static FinBlock *finq; // list of finalizers that are to be executed
+static FinBlock *finc; // cache of free blocks
+static FinBlock *allfin; // list of all blocks
+static Lock finlock;
 static int32 fingwait;
 
 static void runfinq(void);
@@ -651,6 +673,7 @@ static void
 mark(void (*scan)(byte*, int64))
 {
 	G *gp;
+	FinBlock *fb;
 
 	// mark data+bss.
 	// skip runtime·mheap itself, which has no interesting pointers
@@ -685,11 +708,50 @@ mark(void (*scan)(byte*, int64))
 	else
 		runtime·walkfintab(markfin);
 
+	for(fb=allfin; fb; fb=fb->alllink)
+		scanblock((byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]));
+
 	// in multiproc mode, join in the queued work.
 	scan(nil, 0);
 }
 
-// Sweep frees or calls finalizers for blocks not marked in the mark phase.
+static bool
+handlespecial(byte *p, uintptr size)
+{
+	void (*fn)(void*);
+	int32 nret;
+	FinBlock *block;
+	Finalizer *f;
+	
+	if(!runtime·getfinalizer(p, true, &fn, &nret)) {
+		runtime·setblockspecial(p, false);
+		runtime·MProf_Free(p, size);
+		return false;
+	}
+
+	runtime·lock(&finlock);
+	if(finq == nil || finq->cnt == finq->cap) {
+		if(finc == nil) {
+			finc = runtime·SysAlloc(PageSize);
+			finc->cap = (PageSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
+			finc->alllink = allfin;
+			allfin = finc;
+		}
+		block = finc;
+		finc = block->next;
+		block->next = finq;
+		finq = block;
+	}
+	f = &finq->fin[finq->cnt];
+	finq->cnt++;
+	f->fn = fn;
+	f->nret = nret;
+	f->arg = p;
+	runtime·unlock(&finlock); 
+	return true;
+}
+
+// Sweep frees or collects finalizers for blocks not marked in the mark phase.
 // It clears the mark bits in preparation for the next GC round.
 static void
 sweep(void)
@@ -699,7 +761,6 @@ sweep(void)
 	uintptr size;
 	byte *p;
 	MCache *c;
-	Finalizer *f;
 	byte *arena_start;
 
 	arena_start = runtime·mheap.arena_start;
@@ -750,21 +811,12 @@ sweep(void)
 				continue;
 			}
 
+			// Special means it has a finalizer or is being profiled.
+			// In DebugMark mode, the bit has been coopted so
+			// we have to assume all blocks are special.
 			if(DebugMark || (bits & bitSpecial) != 0) {
-				// Special means it has a finalizer or is being profiled.
-				// In DebugMark mode, the bit has been coopted so
-				// we have to assume all blocks are special.
-				f = runtime·getfinalizer(p, 1);
-				if(f != nil) {
-					f->arg = p;
-					for(;;) {
-						f->next = finq;
-						if(runtime·casp(&finq, f->next, f))
-							break;
-					}
+				if(handlespecial(p, size))
 					continue;
-				}
-				runtime·MProf_Free(p, size);
 			}
 
 			// Mark freed; restore block boundary bit.
@@ -864,7 +916,6 @@ runtime·gc(int32 force)
 	int64 t0, t1, t2, t3;
 	uint64 heap0, heap1, obj0, obj1;
 	byte *p;
-	Finalizer *fp;
 	bool extra;
 
 	// The gc is turned off (via enablegc) until
@@ -945,8 +996,7 @@ runtime·gc(int32 force)
 	m->gcing = 0;
 
 	m->locks++;	// disable gc during the mallocs in newproc
-	fp = finq;
-	if(fp != nil) {
+	if(finq != nil) {
 		// kick off or wake up goroutine to run queued finalizers
 		if(fing == nil)
 			fing = runtime·newproc1((byte*)runfinq, nil, 0, 0, runtime·gc);
@@ -987,8 +1037,8 @@ runtime·gc(int32 force)
 	// the maximum number of procs.
 	runtime·starttheworld(extra);
 
-	// give the queued finalizers, if any, a chance to run
-	if(fp != nil)
+	// give the queued finalizers, if any, a chance to run	
+	if(finq != nil)	
 		runtime·gosched();
 
 	if(gctrace > 1 && !force)
@@ -1014,9 +1064,13 @@ runtime·UpdateMemStats(void)
 static void
 runfinq(void)
 {
-	Finalizer *f, *next;
+	Finalizer *f;
+	FinBlock *fb, *next;
 	byte *frame;
+	uint32 framesz, framecap, i;
 
+	frame = nil;
+	framecap = 0;
 	for(;;) {
 		// There's no need for a lock in this section
 		// because it only conflicts with the garbage
@@ -1024,25 +1078,34 @@ runfinq(void)
 		// runs when everyone else is stopped, and
 		// runfinq only stops at the gosched() or
 		// during the calls in the for loop.
-		f = finq;
+		fb = finq;
 		finq = nil;
-		if(f == nil) {
+		if(fb == nil) {
 			fingwait = 1;
 			g->status = Gwaiting;
 			g->waitreason = "finalizer wait";
 			runtime·gosched();
 			continue;
 		}
-		for(; f; f=next) {
-			next = f->next;
-			frame = runtime·mal(sizeof(uintptr) + f->nret);
-			*(void**)frame = f->arg;
-			reflect·call((byte*)f->fn, frame, sizeof(uintptr) + f->nret);
-			runtime·free(frame);
-			f->fn = nil;
-			f->arg = nil;
-			f->next = nil;
-			runtime·free(f);
+		for(; fb; fb=next) {
+			next = fb->next;
+			for(i=0; i<fb->cnt; i++) {
+				f = &fb->fin[i];
+				framesz = sizeof(uintptr) + f->nret;
+				if(framecap < framesz) {
+					runtime·free(frame);
+					frame = runtime·mal(framesz);
+					framecap = framesz;
+				}
+				*(void**)frame = f->arg;
+				runtime·setblockspecial(f->arg, false);
+				reflect·call((byte*)f->fn, frame, sizeof(uintptr) + f->nret);
+				f->fn = nil;
+				f->arg = nil;
+			}
+			fb->cnt = 0;
+			fb->next = finc;
+			finc = fb;
 		}
 		runtime·gc(1);	// trigger another gc to clean up the finalized objects, if possible
 	}
@@ -1203,7 +1266,7 @@ runtime·blockspecial(void *v)
 }
 
 void
-runtime·setblockspecial(void *v)
+runtime·setblockspecial(void *v, bool s)
 {
 	uintptr *b, off, shift, bits, obits;
 
@@ -1216,7 +1279,10 @@ runtime·setblockspecial(void *v)
 
 	for(;;) {
 		obits = *b;
-		bits = obits | (bitSpecial<<shift);
+		if(s)
+			bits = obits | (bitSpecial<<shift);
+		else
+			bits = obits & ~(bitSpecial<<shift);
 		if(runtime·singleproc) {
 			*b = bits;
 			break;

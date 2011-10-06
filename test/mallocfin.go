@@ -47,18 +47,28 @@ func finalB(b *B) {
 	nfinal++
 }
 
+func nofinalB(b *B) {
+	panic("nofinalB run")
+}
+
 func main() {
 	runtime.GOMAXPROCS(4)
 	for i = 0; i < N; i++ {
 		b := &B{i}
 		a := &A{b, i}
+		c := new(B)
+		runtime.SetFinalizer(c, nofinalB)
 		runtime.SetFinalizer(b, finalB)
 		runtime.SetFinalizer(a, finalA)
+		runtime.SetFinalizer(c, nil)
 	}
 	for i := 0; i < N; i++ {
 		runtime.GC()
 		runtime.Gosched()
 		time.Sleep(1e6)
+		if nfinal >= N*8/10 {
+			break
+		}
 	}
 	if nfinal < N*8/10 {
 		println("not enough finalizing:", nfinal, "/", N)
