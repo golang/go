@@ -172,13 +172,19 @@ func tRunner(t *T, test *InternalTest) {
 
 // An internal function but exported because it is cross-package; part of the implementation
 // of gotest.
-func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTest, benchmarks []InternalBenchmark) {
+func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
 	flag.Parse()
 	parseCpuList()
 
 	before()
 	startAlarm()
-	RunTests(matchString, tests)
+	testOk := RunTests(matchString, tests)
+	exampleOk := RunExamples(examples)
+	if !testOk || !exampleOk {
+		fmt.Fprintln(os.Stderr, "FAIL")
+		os.Exit(1)
+	}
+	fmt.Fprintln(os.Stderr, "PASS")
 	stopAlarm()
 	RunBenchmarks(matchString, benchmarks)
 	after()
@@ -194,15 +200,13 @@ func report(t *T) {
 	}
 }
 
-func RunTests(matchString func(pat, str string) (bool, os.Error), tests []InternalTest) {
+func RunTests(matchString func(pat, str string) (bool, os.Error), tests []InternalTest) (ok bool) {
+	ok = true
 	if len(tests) == 0 {
 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
 		return
 	}
-
-	ok := true
 	ch := make(chan *T)
-
 	for _, procs := range cpuList {
 		runtime.GOMAXPROCS(procs)
 
@@ -250,12 +254,7 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
 			running--
 		}
 	}
-
-	if !ok {
-		println("FAIL")
-		os.Exit(1)
-	}
-	println("PASS")
+	return
 }
 
 // before runs before all testing.

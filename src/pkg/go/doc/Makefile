@@ -8,5 +8,6 @@ TARG=go/doc
 GOFILES=\
 	comment.go\
 	doc.go\
+	example.go\
 
 include ../../../Make.pkg

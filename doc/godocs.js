@@ -24,6 +24,7 @@ function godocs_onload() {
   godocs_bindSearchEvents();
   godocs_generateTOC();
   godocs_addTopLinks();
+  godocs_bindExampleToggles();
 }
 
 function godocs_bindSearchEvents() {
@@ -186,5 +187,26 @@ function godocs_addTopLinks() {
     var textNode = document.createTextNode('[Top]');
     link.appendChild(textNode);
     headers[i].appendChild(span);
+  }
+}
+
+function godocs_bindExampleToggles() {
+  var examples = document.getElementsByClassName("example");
+  for (var i = 0; i < examples.length; i++) {
+    var eg = examples[i];
+    console.log(eg);
+    godocs_bindExampleToggle(eg);
+  }
+}
+function godocs_bindExampleToggle(eg) {
+  var heading = eg.getElementsByClassName("exampleHeading");
+  for (var i = 0; i < heading.length; i++) {
+    bindEvent(heading[i], "click", function() {
+      if (eg.className == "example") {
+        eg.className = "exampleVisible";
+      } else {
+        eg.className = "example";
+      }
+    });
   }
 }

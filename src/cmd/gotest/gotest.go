@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
+	"go/doc"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -68,6 +69,12 @@ type File struct {
 	astFile    *ast.File
 	tests      []string // The names of the TestXXXs.
 	benchmarks []string // The names of the BenchmarkXXXs.
+	examples   []example
+}
+
+type example struct {
+	name   string // The name of the example function (ExampleXXX).
+	output string // The expected output (stdout/stderr) of the function.
 }
 
 func main() {
@@ -190,7 +197,7 @@ func parseFiles() {
 	fileSet := token.NewFileSet()
 	for _, f := range files {
 		// Report declaration errors so we can abort if the files are incorrect Go.
-		file, err := parser.ParseFile(fileSet, f.name, nil, parser.DeclarationErrors)
+		file, err := parser.ParseFile(fileSet, f.name, nil, parser.DeclarationErrors|parser.ParseComments)
 		if err != nil {
 			Fatalf("parse error: %s", err)
 		}
@@ -219,6 +226,11 @@ func getTestNames() {
 				f.tests = append(f.tests, name)
 			} else if isTest(name, "Benchmark") {
 				f.benchmarks = append(f.benchmarks, name)
+			} else if isTest(name, "Example") {
+				f.examples = append(f.examples, example{
+					name:   name,
+					output: doc.CommentText(n.Doc),
+				})
 			}
 			// TODO: worth checking the signature? Probably not.
 		}
@@ -405,6 +417,15 @@ func writeTestmainGo() {
 	}
 	fmt.Fprintln(b, "}")
 
+	// Examples.
+	fmt.Fprintf(b, "var examples = []testing.InternalExample{")
+	for _, f := range files {
+		for _, eg := range f.examples {
+			fmt.Fprintf(b, "\t{%q, %s.%s, %q},\n", eg.name, f.pkg, eg.name, eg.output)
+		}
+	}
+	fmt.Fprintln(b, "}")
+
 	// Body.
 	fmt.Fprintln(b, testBody)
 }
@@ -434,5 +455,5 @@ func matchString(pat, str string) (result bool, err __os__.Error) {
 }
 
 func main() {
-	testing.Main(matchString, tests, benchmarks)
+	testing.Main(matchString, tests, benchmarks, examples)
 }`
