@@ -194,7 +194,6 @@ function godocs_bindExampleToggles() {
   var examples = document.getElementsByClassName("example");
   for (var i = 0; i < examples.length; i++) {
     var eg = examples[i];
-    console.log(eg);
     godocs_bindExampleToggle(eg);
   }
 }
