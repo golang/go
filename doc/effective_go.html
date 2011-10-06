@@ -1871,7 +1871,7 @@ do create a new value.)
 It's an idiom in Go programs to convert the
 type of an expression to access a different
 set of methods. As an example, we could use the existing
-type <code>sort.IntArray</code> to reduce the entire example
+type <code>sort.IntSlice</code> to reduce the entire example
 to this:
 </p>
 <pre>
@@ -1879,14 +1879,14 @@ type Sequence []int
 
 // Method for printing - sorts the elements before printing
 func (s Sequence) String() string {
-    sort.IntArray(s).Sort()
+    sort.IntSlice(s).Sort()
     return fmt.Sprint([]int(s))
 }
 </pre>
 <p>
 Now, instead of having <code>Sequence</code> implement multiple
 interfaces (sorting and printing), we're using the ability of a data item to be
-converted to multiple types (<code>Sequence</code>, <code>sort.IntArray</code>
+converted to multiple types (<code>Sequence</code>, <code>sort.IntSlice</code>
 and <code>[]int</code>), each of which does some part of the job.
 That's more unusual in practice but can be effective.
 </p>
@@ -2081,8 +2081,8 @@ func ArgServer(w http.ResponseWriter, req *http.Request) {
 <p>
 <code>ArgServer</code> now has same signature as <code>HandlerFunc</code>,
 so it can be converted to that type to access its methods,
-just as we converted <code>Sequence</code> to <code>IntArray</code>
-to access <code>IntArray.Sort</code>.
+just as we converted <code>Sequence</code> to <code>IntSlice</code>
+to access <code>IntSlice.Sort</code>.
 The code to set it up is concise:
 </p>
 <pre>
