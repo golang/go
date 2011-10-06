@@ -18,8 +18,7 @@ func exportFilter(name string) bool {
 // only exported nodes remain: all top-level identifiers which are not exported
 // and their associated information (such as type, initial value, or function
 // body) are removed. Non-exported fields and methods of exported types are
-// stripped, and the function bodies of exported functions are set to nil.
-// The File.Comments list is not changed.
+// stripped. The File.Comments list is not changed.
 //
 // FileExports returns true if there are exported declarationa;
 // it returns false otherwise.
@@ -206,9 +205,6 @@ func FilterDecl(decl Decl, f Filter) bool {
 		d.Specs = filterSpecList(d.Specs, f)
 		return len(d.Specs) > 0
 	case *FuncDecl:
-		if f == exportFilter {
-			d.Body = nil // strip body
-		}
 		return f(d.Name.Name)
 	}
 	return false
