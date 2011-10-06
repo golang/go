@@ -222,7 +222,7 @@ func TestLex(t *testing.T) {
 	}
 }
 
-// Some easy cases from above, but with delimiters are $$ and @@
+// Some easy cases from above, but with delimiters $$ and @@
 var lexDelimTests = []lexTest{
 	{"punctuation", "$$,@%{{}}@@", []item{
 		tLeftDelim,

@@ -507,14 +507,21 @@ func TestDelims(t *testing.T) {
 	for i := 0; i < len(delimPairs); i += 2 {
 		text := ".Str"
 		left := delimPairs[i+0]
+		trueLeft := left
 		right := delimPairs[i+1]
+		trueRight := right
 		if left == "" { // default case
-			text = "{{" + text
+			trueLeft = "{{"
 		}
 		if right == "" { // default case
-			text = text + "}}"
+			trueRight = "}}"
 		}
-		text = left + text + right
+		text = trueLeft + text + trueRight
+		// Now add a comment
+		text += trueLeft + "/*comment*/" + trueRight
+		// Now add  an action containing a string.
+		text += trueLeft + `"` + trueLeft + `"` + trueRight
+		// At this point text looks like `{{.Str}}{{/*comment*/}}{{"{{"}}`.
 		tmpl, err := New("delims").Delims(left, right).Parse(text)
 		if err != nil {
 			t.Fatalf("delim %q text %q parse err %s", left, text, err)
@@ -524,8 +531,8 @@ func TestDelims(t *testing.T) {
 		if err != nil {
 			t.Fatalf("delim %q exec err %s", left, err)
 		}
-		if b.String() != hello {
-			t.Error("expected %q got %q", hello, b.String())
+		if b.String() != hello+trueLeft {
+			t.Error("expected %q got %q", hello+trueLeft, b.String())
 		}
 	}
 }

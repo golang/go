@@ -230,8 +230,8 @@ func lex(name, input, left, right string) *lexer {
 const (
 	leftDelim    = "{{"
 	rightDelim   = "}}"
-	leftComment  = "{{/*"
-	rightComment = "*/}}"
+	leftComment  = "/*"
+	rightComment = "*/"
 )
 
 // lexText scans until an opening action delimiter, "{{".
@@ -257,7 +257,7 @@ func lexText(l *lexer) stateFn {
 
 // lexLeftDelim scans the left delimiter, which is known to be present.
 func lexLeftDelim(l *lexer) stateFn {
-	if strings.HasPrefix(l.input[l.pos:], leftComment) {
+	if strings.HasPrefix(l.input[l.pos:], l.leftDelim+leftComment) {
 		return lexComment
 	}
 	l.pos += len(l.leftDelim)
@@ -267,11 +267,11 @@ func lexLeftDelim(l *lexer) stateFn {
 
 // lexComment scans a comment. The left comment marker is known to be present.
 func lexComment(l *lexer) stateFn {
-	i := strings.Index(l.input[l.pos:], rightComment)
+	i := strings.Index(l.input[l.pos:], rightComment+l.rightDelim)
 	if i < 0 {
 		return l.errorf("unclosed comment")
 	}
-	l.pos += i + len(rightComment)
+	l.pos += i + len(rightComment) + len(l.rightDelim)
 	l.ignore()
 	return lexText
 }
