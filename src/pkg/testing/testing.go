@@ -44,8 +44,8 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -65,6 +65,7 @@ var (
 	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
 	timeout        = flag.Int64("test.timeout", 0, "if > 0, sets time limit for tests in seconds")
 	cpuListStr     = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
+	parallel       = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
 
 	cpuList []int
 )
@@ -92,9 +93,12 @@ func tabify(s string) string {
 // T is a type passed to Test functions to manage test state and support formatted test logs.
 // Logs are accumulated during execution and dumped to standard error when done.
 type T struct {
-	errors string
-	failed bool
-	ch     chan *T
+	name          string    // Name of test.
+	errors        string    // Error string from test.
+	failed        bool      // Test has failed.
+	ch            chan *T   // Output for serial tests.
+	startParallel chan bool // Parallel tests will wait on this.
+	ns            int64     // Duration of test in nanoseconds.
 }
 
 // Fail marks the Test function as having failed but continues execution.
@@ -145,6 +149,13 @@ func (t *T) Fatalf(format string, args ...interface{}) {
 	t.FailNow()
 }
 
+// Parallel signals that this test is to be run in parallel with (and only with) 
+// other parallel tests in this CPU group.
+func (t *T) Parallel() {
+	t.ch <- nil       // Release main testing loop
+	<-t.startParallel // Wait for serial tests to finish
+}
+
 // An internal type but exported because it is cross-package; part of the implementation
 // of gotest.
 type InternalTest struct {
@@ -153,7 +164,9 @@ type InternalTest struct {
 }
 
 func tRunner(t *T, test *InternalTest) {
+	t.ns = time.Nanoseconds()
 	test.F(t)
+	t.ns = time.Nanoseconds() - t.ns
 	t.ch <- t
 }
 
@@ -171,50 +184,73 @@ func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTe
 	after()
 }
 
-func RunTests(matchString func(pat, str string) (bool, os.Error), tests []InternalTest) {
-	ok := true
-	if len(tests) == 0 {
-		println("testing: warning: no tests to run")
+func report(t *T) {
+	tstr := fmt.Sprintf("(%.2f seconds)", float64(t.ns)/1e9)
+	format := "--- %s: %s %s\n%s"
+	if t.failed {
+		fmt.Fprintf(os.Stderr, format, "FAIL", t.name, tstr, t.errors)
+	} else if *chatty {
+		fmt.Fprintf(os.Stderr, format, "PASS", t.name, tstr, t.errors)
 	}
-	for i := 0; i < len(tests); i++ {
-		matched, err := matchString(*match, tests[i].Name)
-		if err != nil {
-			println("invalid regexp for -test.run:", err.String())
-			os.Exit(1)
-		}
-		if !matched {
-			continue
-		}
-		for _, procs := range cpuList {
-			runtime.GOMAXPROCS(procs)
+}
+
+func RunTests(matchString func(pat, str string) (bool, os.Error), tests []InternalTest) {
+	if len(tests) == 0 {
+		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+		return
+	}
+
+	ok := true
+	ch := make(chan *T)
+
+	for _, procs := range cpuList {
+		runtime.GOMAXPROCS(procs)
+
+		numParallel := 0
+		startParallel := make(chan bool)
+
+		for i := 0; i < len(tests); i++ {
+			matched, err := matchString(*match, tests[i].Name)
+			if err != nil {
+				println("invalid regexp for -test.run:", err.String())
+				os.Exit(1)
+			}
+			if !matched {
+				continue
+			}
 			testName := tests[i].Name
 			if procs != 1 {
 				testName = fmt.Sprintf("%s-%d", tests[i].Name, procs)
 			}
+			t := &T{ch: ch, name: testName, startParallel: startParallel}
 			if *chatty {
-				println("=== RUN ", testName)
+				println("=== RUN", t.name)
 			}
-			ns := -time.Nanoseconds()
-			t := new(T)
-			t.ch = make(chan *T)
 			go tRunner(t, &tests[i])
-			<-t.ch
-			ns += time.Nanoseconds()
-			tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
-			if p := runtime.GOMAXPROCS(-1); t.failed == false && p != procs {
-				t.failed = true
-				t.errors = fmt.Sprintf("%s left GOMAXPROCS set to %d\n", testName, p)
+			out := <-t.ch
+			if out == nil { // Parallel run.
+				numParallel++
+				continue
 			}
-			if t.failed {
-				println("--- FAIL:", testName, tstr)
-				print(t.errors)
-				ok = false
-			} else if *chatty {
-				println("--- PASS:", testName, tstr)
-				print(t.errors)
+			report(t)
+			ok = ok && !out.failed
+		}
+
+		running := 0
+		for numParallel+running > 0 {
+			if running < *parallel && numParallel > 0 {
+				startParallel <- true
+				running++
+				numParallel--
+				continue
 			}
+			t := <-ch
+			report(t)
+			ok = ok && !t.failed
+			running--
 		}
 	}
+
 	if !ok {
 		println("FAIL")
 		os.Exit(1)

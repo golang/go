@@ -28,6 +28,7 @@ var usageMessage = `Usage of %s:
   -cpuprofile="": passes -test.cpuprofile to test
   -memprofile="": passes -test.memprofile to test
   -memprofilerate=0: passes -test.memprofilerate to test
+  -parallel=0: passes -test.parallel to test
   -run="": passes -test.run to test
   -short=false: passes -test.short to test
   -timeout=0: passes -test.timeout to test
@@ -63,6 +64,7 @@ var flagDefn = []*flagSpec{
 	&flagSpec{name: "cpuprofile", passToTest: true},
 	&flagSpec{name: "memprofile", passToTest: true},
 	&flagSpec{name: "memprofilerate", passToTest: true},
+	&flagSpec{name: "parallel", passToTest: true},
 	&flagSpec{name: "run", passToTest: true},
 	&flagSpec{name: "short", isBool: true, passToTest: true},
 	&flagSpec{name: "timeout", passToTest: true},
