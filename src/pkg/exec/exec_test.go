@@ -9,8 +9,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"testing"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -139,6 +141,39 @@ func TestPipes(t *testing.T) {
 	check("Wait", err)
 }
 
+func TestExtraFiles(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Logf("no operating system support; skipping")
+		return
+	}
+	tf, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("TempFile: %v", err)
+	}
+	defer os.Remove(tf.Name())
+	defer tf.Close()
+
+	const text = "Hello, fd 3!"
+	_, err = tf.Write([]byte(text))
+	if err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	_, err = tf.Seek(0, os.SEEK_SET)
+	if err != nil {
+		t.Fatalf("Seek: %v", err)
+	}
+
+	c := helperCommand("read3")
+	c.ExtraFiles = []*os.File{tf}
+	bs, err := c.CombinedOutput()
+	if err != nil {
+		t.Fatalf("CombinedOutput: %v", err)
+	}
+	if string(bs) != text {
+		t.Errorf("got %q; want %q", string(bs), text)
+	}
+}
+
 // TestHelperProcess isn't a real test. It's used as a helper process
 // for TestParameterRun.
 func TestHelperProcess(*testing.T) {
@@ -204,6 +239,14 @@ func TestHelperProcess(*testing.T) {
 				os.Exit(1)
 			}
 		}
+	case "read3": // read fd 3
+		fd3 := os.NewFile(3, "fd3")
+		bs, err := ioutil.ReadAll(fd3)
+		if err != nil {
+			fmt.Printf("ReadAll from fd 3: %v", err)
+			os.Exit(1)
+		}
+		os.Stderr.Write(bs)
 	case "exit":
 		n, _ := strconv.Atoi(args[0])
 		os.Exit(n)
