@@ -145,10 +145,11 @@ func (t *Tree) atEOF() bool {
 }
 
 // Parse parses the template definition string to construct an internal
-// representation of the template for execution.
-func (t *Tree) Parse(s string, funcs ...map[string]interface{}) (tree *Tree, err os.Error) {
+// representation of the template for execution. If either action delimiter
+// string is empty, the default ("{{" or "}}") is used.
+func (t *Tree) Parse(s, leftDelim, rightDelim string, funcs ...map[string]interface{}) (tree *Tree, err os.Error) {
 	defer t.recover(&err)
-	t.startParse(funcs, lex(t.Name, s))
+	t.startParse(funcs, lex(t.Name, s, leftDelim, rightDelim))
 	t.parse(true)
 	t.stopParse()
 	return t, nil

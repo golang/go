@@ -201,8 +201,8 @@ var lexTests = []lexTest{
 }
 
 // collect gathers the emitted items into a slice.
-func collect(t *lexTest) (items []item) {
-	l := lex(t.name, t.input)
+func collect(t *lexTest, left, right string) (items []item) {
+	l := lex(t.name, t.input, left, right)
 	for {
 		item := l.nextItem()
 		items = append(items, item)
@@ -215,7 +215,41 @@ func collect(t *lexTest) (items []item) {
 
 func TestLex(t *testing.T) {
 	for _, test := range lexTests {
-		items := collect(&test)
+		items := collect(&test, "", "")
+		if !reflect.DeepEqual(items, test.items) {
+			t.Errorf("%s: got\n\t%v\nexpected\n\t%v", test.name, items, test.items)
+		}
+	}
+}
+
+// Some easy cases from above, but with delimiters are $$ and @@
+var lexDelimTests = []lexTest{
+	{"punctuation", "$$,@%{{}}@@", []item{
+		tLeftDelim,
+		{itemChar, ","},
+		{itemChar, "@"},
+		{itemChar, "%"},
+		{itemChar, "{"},
+		{itemChar, "{"},
+		{itemChar, "}"},
+		{itemChar, "}"},
+		tRightDelim,
+		tEOF,
+	}},
+	{"empty action", `$$@@`, []item{tLeftDelim, tRightDelim, tEOF}},
+	{"for", `$$for @@`, []item{tLeftDelim, tFor, tRightDelim, tEOF}},
+	{"quote", `$$"abc \n\t\" "@@`, []item{tLeftDelim, tQuote, tRightDelim, tEOF}},
+	{"raw quote", "$$" + raw + "@@", []item{tLeftDelim, tRawQuote, tRightDelim, tEOF}},
+}
+
+var (
+	tLeftDelim  = item{itemLeftDelim, "$$"}
+	tRightDelim = item{itemRightDelim, "@@"}
+)
+
+func TestDelims(t *testing.T) {
+	for _, test := range lexDelimTests {
+		items := collect(&test, "$$", "@@")
 		if !reflect.DeepEqual(items, test.items) {
 			t.Errorf("%s: got\n\t%v\nexpected\n\t%v", test.name, items, test.items)
 		}

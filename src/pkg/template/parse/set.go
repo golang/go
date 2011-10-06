@@ -13,10 +13,10 @@ import (
 // Set returns a slice of Trees created by parsing the template set
 // definition in the argument string. If an error is encountered,
 // parsing stops and an empty slice is returned with the error.
-func Set(text string, funcs ...map[string]interface{}) (tree map[string]*Tree, err os.Error) {
+func Set(text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (tree map[string]*Tree, err os.Error) {
 	tree = make(map[string]*Tree)
 	defer (*Tree)(nil).recover(&err)
-	lex := lex("set", text)
+	lex := lex("set", text, leftDelim, rightDelim)
 	const context = "define clause"
 	for {
 		t := New("set") // name will be updated once we know it.
