@@ -387,6 +387,9 @@ func main() {
 	}
 
 	var mode PageInfoMode
+	if relpath == builtinPkgPath {
+		mode = noFiltering
+	}
 	if *srcMode {
 		// only filter exports if we don't have explicit command-line filter arguments
 		if flag.NArg() > 1 {
