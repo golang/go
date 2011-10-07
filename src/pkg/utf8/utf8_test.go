@@ -274,6 +274,35 @@ func TestRuneCount(t *testing.T) {
 	}
 }
 
+type ValidTest struct {
+	in  string
+	out bool
+}
+
+var validTests = []ValidTest{
+	{"", true},
+	{"a", true},
+	{"abc", true},
+	{"Ж", true},
+	{"ЖЖ", true},
+	{"брэд-ЛГТМ", true},
+	{"☺☻☹", true},
+	{string([]byte{66, 250}), false},
+	{string([]byte{66, 250, 67}), false},
+	{"a\uFFFDb", true},
+}
+
+func TestValid(t *testing.T) {
+	for i, tt := range validTests {
+		if Valid([]byte(tt.in)) != tt.out {
+			t.Errorf("%d. Valid(%q) = %v; want %v", i, tt.in, !tt.out, tt.out)
+		}
+		if ValidString(tt.in) != tt.out {
+			t.Errorf("%d. ValidString(%q) = %v; want %v", i, tt.in, !tt.out, tt.out)
+		}
+	}
+}
+
 func BenchmarkRuneCountTenASCIIChars(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		RuneCountInString("0123456789")
