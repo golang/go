@@ -86,9 +86,11 @@ func searchFiles(a []*File, x int) int {
 }
 
 func (s *FileSet) file(p Pos) *File {
+	// common case: p is in last file touched
 	if f := s.last; f != nil && f.base <= int(p) && int(p) <= f.base+f.size {
 		return f
 	}
+	// p is not in last file touched - search all files
 	if i := searchFiles(s.files, int(p)); i >= 0 {
 		f := s.files[i]
 		// f.base <= int(p) by definition of searchFiles
@@ -123,10 +125,6 @@ func (f *File) position(p Pos) (pos Position) {
 // Position converts a Pos in the fileset into a general Position.
 func (s *FileSet) Position(p Pos) (pos Position) {
 	if p != NoPos {
-		// TODO(gri) consider optimizing the case where p
-		//           is in the last file added, or perhaps
-		//           looked at - will eliminate one level
-		//           of search
 		s.mutex.RLock()
 		if f := s.file(p); f != nil {
 			pos = f.position(p)
