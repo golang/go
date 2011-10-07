@@ -110,6 +110,7 @@ func (t *T) Failed() bool { return t.failed }
 // FailNow marks the Test function as having failed and stops its execution.
 // Execution will continue at the next Test.
 func (t *T) FailNow() {
+	t.ns = time.Nanoseconds() - t.ns
 	t.Fail()
 	t.ch <- t
 	runtime.Goexit()
