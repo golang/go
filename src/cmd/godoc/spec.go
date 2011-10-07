@@ -2,118 +2,103 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+package main
+
 // This file contains the mechanism to "linkify" html source
 // text containing EBNF sections (as found in go_spec.html).
 // The result is the input source text with the EBNF sections
 // modified such that identifiers are linked to the respective
 // definitions.
 
-package main
-
 import (
 	"bytes"
 	"fmt"
-	"go/scanner"
-	"go/token"
 	"io"
+	"scanner"
 )
 
 type ebnfParser struct {
-	out     io.Writer   // parser output
-	src     []byte      // parser source
-	file    *token.File // for position information
+	out     io.Writer // parser output
+	src     []byte    // parser input
 	scanner scanner.Scanner
-	prev    int         // offset of previous token
-	pos     token.Pos   // token position
-	tok     token.Token // one token look-ahead
-	lit     string      // token literal
+	prev    int    // offset of previous token
+	pos     int    // offset of current token
+	tok     int    // one token look-ahead
+	lit     string // token literal
 }
 
 func (p *ebnfParser) flush() {
-	offs := p.file.Offset(p.pos)
-	p.out.Write(p.src[p.prev:offs])
-	p.prev = offs
+	p.out.Write(p.src[p.prev:p.pos])
+	p.prev = p.pos
 }
 
 func (p *ebnfParser) next() {
-	if p.pos.IsValid() {
-		p.flush()
-	}
-	p.pos, p.tok, p.lit = p.scanner.Scan()
-	if p.tok.IsKeyword() {
-		// TODO Should keyword mapping always happen outside scanner?
-		//      Or should there be a flag to scanner to enable keyword mapping?
-		p.tok = token.IDENT
-	}
+	p.tok = p.scanner.Scan()
+	p.pos = p.scanner.Position.Offset
+	p.lit = p.scanner.TokenText()
 }
 
-func (p *ebnfParser) Error(pos token.Position, msg string) {
-	fmt.Fprintf(p.out, `<span class="alert">error: %s</span>`, msg)
+func (p *ebnfParser) printf(format string, args ...interface{}) {
+	p.flush()
+	fmt.Fprintf(p.out, format, args...)
 }
 
-func (p *ebnfParser) errorExpected(pos token.Pos, msg string) {
-	msg = "expected " + msg
-	if pos == p.pos {
-		// the error happened at the current position;
-		// make the error message more specific
-		msg += ", found '" + p.tok.String() + "'"
-		if p.tok.IsLiteral() {
-			msg += " " + p.lit
-		}
-	}
-	p.Error(p.file.Position(pos), msg)
+func (p *ebnfParser) errorExpected(msg string) {
+	p.printf(`<span class="highlight">error: expected %s, found %s</span>`, msg, scanner.TokenString(p.tok))
 }
 
-func (p *ebnfParser) expect(tok token.Token) token.Pos {
-	pos := p.pos
+func (p *ebnfParser) expect(tok int) {
 	if p.tok != tok {
-		p.errorExpected(pos, "'"+tok.String()+"'")
+		p.errorExpected(scanner.TokenString(tok))
 	}
 	p.next() // make progress in any case
-	return pos
 }
 
 func (p *ebnfParser) parseIdentifier(def bool) {
-	name := p.lit
-	p.expect(token.IDENT)
-	if def {
-		fmt.Fprintf(p.out, `<a id="%s">%s</a>`, name, name)
+	if p.tok == scanner.Ident {
+		name := p.lit
+		if def {
+			p.printf(`<a id="%s">%s</a>`, name, name)
+		} else {
+			p.printf(`<a href="#%s" class="noline">%s</a>`, name, name)
+		}
+		p.prev += len(name) // skip identifier when printing next time
+		p.next()
 	} else {
-		fmt.Fprintf(p.out, `<a href="#%s" class="noline">%s</a>`, name, name)
+		p.expect(scanner.Ident)
 	}
-	p.prev += len(name) // skip identifier when calling flush
 }
 
 func (p *ebnfParser) parseTerm() bool {
 	switch p.tok {
-	case token.IDENT:
+	case scanner.Ident:
 		p.parseIdentifier(false)
 
-	case token.STRING:
+	case scanner.String:
 		p.next()
-		const ellipsis = "…" // U+2026, the horizontal ellipsis character
-		if p.tok == token.ILLEGAL && p.lit == ellipsis {
+		const ellipsis = '…' // U+2026, the horizontal ellipsis character
+		if p.tok == ellipsis {
 			p.next()
-			p.expect(token.STRING)
+			p.expect(scanner.String)
 		}
 
-	case token.LPAREN:
+	case '(':
 		p.next()
 		p.parseExpression()
-		p.expect(token.RPAREN)
+		p.expect(')')
 
-	case token.LBRACK:
+	case '[':
 		p.next()
 		p.parseExpression()
-		p.expect(token.RBRACK)
+		p.expect(']')
 
-	case token.LBRACE:
+	case '{':
 		p.next()
 		p.parseExpression()
-		p.expect(token.RBRACE)
+		p.expect('}')
 
 	default:
-		return false
+		return false // no term found
 	}
 
 	return true
@@ -121,7 +106,7 @@ func (p *ebnfParser) parseTerm() bool {
 
 func (p *ebnfParser) parseSequence() {
 	if !p.parseTerm() {
-		p.errorExpected(p.pos, "term")
+		p.errorExpected("term")
 	}
 	for p.parseTerm() {
 	}
@@ -130,7 +115,7 @@ func (p *ebnfParser) parseSequence() {
 func (p *ebnfParser) parseExpression() {
 	for {
 		p.parseSequence()
-		if p.tok != token.OR {
+		if p.tok != '|' {
 			break
 		}
 		p.next()
@@ -139,23 +124,22 @@ func (p *ebnfParser) parseExpression() {
 
 func (p *ebnfParser) parseProduction() {
 	p.parseIdentifier(true)
-	p.expect(token.ASSIGN)
-	if p.tok != token.PERIOD {
+	p.expect('=')
+	if p.tok != '.' {
 		p.parseExpression()
 	}
-	p.expect(token.PERIOD)
+	p.expect('.')
 }
 
-func (p *ebnfParser) parse(fset *token.FileSet, out io.Writer, src []byte) {
+func (p *ebnfParser) parse(out io.Writer, src []byte) {
 	// initialize ebnfParser
 	p.out = out
 	p.src = src
-	p.file = fset.AddFile("", fset.Base(), len(src))
-	p.scanner.Init(p.file, src, p, scanner.AllowIllegalChars)
+	p.scanner.Init(bytes.NewBuffer(src))
 	p.next() // initializes pos, tok, lit
 
 	// process source
-	for p.tok != token.EOF {
+	for p.tok != scanner.EOF {
 		p.parseProduction()
 	}
 	p.flush()
@@ -167,32 +151,29 @@ var (
 	closeTag = []byte(`</pre>`)
 )
 
-func linkify(out io.Writer, src []byte) {
-	fset := token.NewFileSet()
+func Linkify(out io.Writer, src []byte) {
 	for len(src) > 0 {
-		n := len(src)
-
 		// i: beginning of EBNF text (or end of source)
 		i := bytes.Index(src, openTag)
 		if i < 0 {
-			i = n - len(openTag)
+			i = len(src) - len(openTag)
 		}
 		i += len(openTag)
 
 		// j: end of EBNF text (or end of source)
-		j := bytes.Index(src[i:n], closeTag) // close marker
+		j := bytes.Index(src[i:], closeTag) // close marker
 		if j < 0 {
-			j = n - i
+			j = len(src) - i
 		}
 		j += i
 
 		// write text before EBNF
 		out.Write(src[0:i])
-		// parse and write EBNF
+		// process EBNF
 		var p ebnfParser
-		p.parse(fset, out, src[i:j])
+		p.parse(out, src[i:j])
 
 		// advance
-		src = src[j:n]
+		src = src[j:]
 	}
 }
