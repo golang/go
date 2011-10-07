@@ -354,3 +354,40 @@ func RuneCountInString(s string) (n int) {
 // an encoded rune.  Second and subsequent bytes always have the top
 // two bits set to 10.
 func RuneStart(b byte) bool { return b&0xC0 != 0x80 }
+
+// Valid reports whether p consists entirely of valid UTF-8-encoded runes.
+func Valid(p []byte) bool {
+	i := 0
+	for i < len(p) {
+		if p[i] < RuneSelf {
+			i++
+		} else {
+			_, size := DecodeRune(p[i:])
+			if size == 1 {
+				// All valid runes of size of 1 (those
+				// below RuneSelf) were handled above.
+				// This must be a RuneError.
+				return false
+			}
+			i += size
+		}
+	}
+	return true
+}
+
+// ValidString reports whether s consists entirely of valid UTF-8-encoded runes.
+func ValidString(s string) bool {
+	for i, r := range s {
+		if r == RuneError {
+			// The RuneError value can be an error
+			// sentinel value (if it's size 1) or the same
+			// value encoded properly. Decode it to see if
+			// it's the 1 byte sentinel value.
+			_, size := DecodeRuneInString(s[i:])
+			if size == 1 {
+				return false
+			}
+		}
+	}
+	return true
+}
