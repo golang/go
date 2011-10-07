@@ -811,7 +811,7 @@ const fakePkgName = "documentation"
 
 // Fake relative package path for built-ins. Documentation for all globals
 // (not just exported ones) will be shown for packages in this directory.
-const builtinPkgPath = "builtin/"
+const builtinPkgPath = "builtin"
 
 type PageInfoMode uint
 
@@ -1094,7 +1094,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	relpath := r.URL.Path[len(h.pattern):]
+	relpath := path.Clean(r.URL.Path[len(h.pattern):])
 	abspath := absolutePath(relpath, h.fsRoot)
 	mode := getPageInfoMode(r)
 	if relpath == builtinPkgPath {
@@ -1123,7 +1123,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			title = "Package " + info.PDoc.PackageName
 		case info.PDoc.PackageName == fakePkgName:
 			// assume that the directory name is the command name
-			_, pkgname := path.Split(path.Clean(relpath))
+			_, pkgname := path.Split(relpath)
 			title = "Command " + pkgname
 		default:
 			title = "Command " + info.PDoc.PackageName
