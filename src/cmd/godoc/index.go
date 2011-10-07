@@ -38,6 +38,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"go/ast"
 	"go/parser"
@@ -840,6 +841,14 @@ type fileIndex struct {
 	Fulltext bool
 }
 
+func (x *fileIndex) Write(w io.Writer) os.Error {
+	return gob.NewEncoder(w).Encode(x)
+}
+
+func (x *fileIndex) Read(r io.Reader) os.Error {
+	return gob.NewDecoder(r).Decode(x)
+}
+
 // Write writes the index x to w.
 func (x *Index) Write(w io.Writer) os.Error {
 	fulltext := false
@@ -852,7 +861,7 @@ func (x *Index) Write(w io.Writer) os.Error {
 		x.snippets,
 		fulltext,
 	}
-	if err := gob.NewEncoder(w).Encode(fx); err != nil {
+	if err := fx.Write(w); err != nil {
 		return err
 	}
 	if fulltext {
@@ -867,9 +876,14 @@ func (x *Index) Write(w io.Writer) os.Error {
 }
 
 // Read reads the index from r into x; x must not be nil.
+// If r does not also implement io.ByteReader, it will be wrapped in a bufio.Reader.
 func (x *Index) Read(r io.Reader) os.Error {
+	// We use the ability to read bytes as a plausible surrogate for buffering.
+	if _, ok := r.(io.ByteReader); !ok {
+		r = bufio.NewReader(r)
+	}
 	var fx fileIndex
-	if err := gob.NewDecoder(r).Decode(&fx); err != nil {
+	if err := fx.Read(r); err != nil {
 		return err
 	}
 	x.words = fx.Words
