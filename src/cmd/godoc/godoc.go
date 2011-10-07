@@ -680,7 +680,7 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 	// if it's the language spec, add tags to EBNF productions
 	if strings.HasSuffix(abspath, "go_spec.html") {
 		var buf bytes.Buffer
-		linkify(&buf, src)
+		Linkify(&buf, src)
 		src = buf.Bytes()
 	}
 
