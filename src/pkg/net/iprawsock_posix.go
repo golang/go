@@ -305,3 +305,8 @@ func (c *IPConn) BindToDevice(device string) os.Error {
 	defer c.fd.decref()
 	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
 }
+
+// File returns a copy of the underlying os.File, set to blocking mode.
+// It is the caller's responsibility to close f when finished.
+// Closing c does not affect f, and closing f does not affect c.
+func (c *IPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
