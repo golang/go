@@ -78,8 +78,6 @@ static void fixlbrace(int);
 %type	<node>	indcl interfacetype structtype ptrtype
 %type	<node>	recvchantype non_recvchantype othertype fnret_type fntype
 
-%type	<val>	hidden_tag
-
 %type	<sym>	hidden_importsym hidden_pkg_importsym
 
 %type	<node>	hidden_constant hidden_literal hidden_dcl
@@ -993,6 +991,16 @@ onew_name:
 
 sym:
 	LNAME
+|	hidden_importsym
+
+hidden_importsym:
+	'@' LLITERAL '.' LNAME
+	{
+		if($2.u.sval->len == 0)
+			$$ = pkglookup($4->name, importpkg);
+		else
+			$$ = pkglookup($4->name, mkpkg($2.u.sval));
+	}
 
 name:
 	sym	%prec NotParen
@@ -1826,12 +1834,12 @@ hidden_opt_sym:
 	}
 
 hidden_dcl:
-	hidden_opt_sym hidden_type hidden_tag
+	hidden_opt_sym hidden_type oliteral
 	{
 		$$ = nod(ODCLFIELD, $1, typenod($2));
 		$$->val = $3;
 	}
-|	hidden_opt_sym LDDD hidden_type hidden_tag
+|	hidden_opt_sym LDDD hidden_type oliteral
 	{
 		Type *t;
 		
@@ -1844,12 +1852,12 @@ hidden_dcl:
 	}
 
 hidden_structdcl:
-	sym hidden_type hidden_tag
+	sym hidden_type oliteral
 	{
 		$$ = nod(ODCLFIELD, newname($1), typenod($2));
 		$$->val = $3;
 	}
-|	'?' hidden_type hidden_tag
+|	'?' hidden_type oliteral
 	{
 		Sym *s;
 
@@ -1863,21 +1871,8 @@ hidden_structdcl:
 		$$->val = $3;
 	}
 
-hidden_tag:
-	{
-		$$.ctype = CTxxx;
-	}
-|	':' LLITERAL	// extra colon avoids conflict with "" looking like beginning of "".typename
-	{
-		$$ = $2;
-	}
-
 hidden_interfacedcl:
 	sym '(' ohidden_funarg_list ')' ohidden_funres
-	{
-		$$ = nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
-	}
-|	hidden_importsym '(' ohidden_funarg_list ')' ohidden_funres
 	{
 		$$ = nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
 	}
@@ -1929,18 +1924,6 @@ hidden_constant:
 |	'(' hidden_literal '+' hidden_literal ')'
 	{
 		$$ = nodcplxlit($2->val, $4->val);
-	}
-
-hidden_importsym:
-	LLITERAL '.' sym
-	{
-		Pkg *p;
-
-		if($1.u.sval->len == 0)
-			p = importpkg;
-		else
-			p = mkpkg($1.u.sval);
-		$$ = pkglookup($3->name, p);
 	}
 
 hidden_pkg_importsym:

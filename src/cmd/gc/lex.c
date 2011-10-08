@@ -198,6 +198,7 @@ main(int argc, char *argv[])
 	fmtinstall('J', Jconv);		// all the node flags
 	fmtinstall('S', Sconv);		// sym pointer
 	fmtinstall('T', Tconv);		// type pointer
+	fmtinstall('V', Vconv);		// Val pointer
 	fmtinstall('N', Nconv);		// node pointer
 	fmtinstall('Z', Zconv);		// escaped string
 	fmtinstall('L', Lconv);		// line number

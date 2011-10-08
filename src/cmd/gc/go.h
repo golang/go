@@ -375,10 +375,10 @@ EXTERN	Sym*	dclstack;
 
 struct	Pkg
 {
-	char*	name;
-	Strlit*	path;
+	char*	name;		// package name
+	Strlit*	path;		// string literal used in import statement
 	Sym*	pathsym;
-	char*	prefix;
+	char*	prefix;		// escaped path for use in symbol table
 	Pkg*	link;
 	char	exported;	// import line written in export data
 	char	direct;	// imported directly
@@ -1130,7 +1130,7 @@ int	Nconv(Fmt *fp);
 int	Oconv(Fmt *fp);
 int	Sconv(Fmt *fp);
 int	Tconv(Fmt *fp);
-int	Tpretty(Fmt *fp, Type *t);
+int	Vconv(Fmt *fp);
 int	Zconv(Fmt *fp);
 Node*	adddot(Node *n);
 int	adddot1(Sym *s, Type *t, int d, Type **save, int ignorecase);
@@ -1348,5 +1348,6 @@ void	zname(Biobuf *b, Sym *s, int t);
 #pragma	varargck	type	"lS"	Sym*
 #pragma	varargck	type	"T"	Type*
 #pragma	varargck	type	"lT"	Type*
+#pragma	varargck	type	"V"	Val*
 #pragma	varargck	type	"Y"	char*
 #pragma	varargck	type	"Z"	Strlit*

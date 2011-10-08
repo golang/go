@@ -88,7 +88,7 @@ escapes(void)
 	if(debug['m']) {
 		for(l=noesc; l; l=l->next)
 			if(l->n->esc == EscNone)
-				warnl(l->n->lineno, "%S %#N does not escape",
+				warnl(l->n->lineno, "%S %#hN does not escape",
 					(l->n->curfn && l->n->curfn->nname) ? l->n->curfn->nname->sym : S,
 					l->n);
 	}
@@ -643,7 +643,7 @@ escwalk(int level, Node *dst, Node *src)
 		if(src->class == PPARAM && leaks && src->esc == EscNone) {
 			src->esc = EscScope;
 			if(debug['m'])
-				warnl(src->lineno, "leaking param: %hN", src);
+				warnl(src->lineno, "leaking param: %#hN", src);
 		}
 		break;
 
@@ -652,7 +652,7 @@ escwalk(int level, Node *dst, Node *src)
 			src->esc = EscHeap;
 			addrescapes(src->left);
 			if(debug['m'])
-				warnl(src->lineno, "%#N escapes to heap", src);
+				warnl(src->lineno, "%#hN escapes to heap", src);
 		}
 		escwalk(level-1, dst, src->left);
 		break;
@@ -671,7 +671,7 @@ escwalk(int level, Node *dst, Node *src)
 		if(leaks) {
 			src->esc = EscHeap;
 			if(debug['m'])
-				warnl(src->lineno, "%#N escapes to heap", src);
+				warnl(src->lineno, "%#hN escapes to heap", src);
 		}
 		break;
 

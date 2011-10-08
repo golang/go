@@ -7,7 +7,7 @@
 #include	"go.h"
 #include	"y.tab.h"
 
-static	void dumpsym(Sym*);
+static	void	dumpsym(Sym*);
 static	void	dumpexporttype(Sym*);
 static	void	dumpexportvar(Sym*);
 static	void	dumpexportconst(Sym*);

@@ -22,31 +22,31 @@
 
 
 /*
- * format a string into the output buffer
- * designed for formats which themselves call fmt,
- * but ignore any width flags
+ * Format a string into the output buffer.
+ * Designed for formats which themselves call fmt.
+ * Flags, precision and width are preserved.
  */
 int
 fmtvprint(Fmt *f, char *fmt, va_list args)
 {
 	va_list va;
-	int n;
+	int n, w, p;
+	unsigned long fl;
 
-	f->flags = 0;
-	f->width = 0;
-	f->prec = 0;
-	VA_COPY(va,f->args);
+	w = f->width;
+	p = f->prec;
+	fl = f->flags;
+	VA_COPY(va, f->args);
 	VA_END(f->args);
-	VA_COPY(f->args,args);
+	VA_COPY(f->args, args);
 	n = dofmt(f, fmt);
-	f->flags = 0;
-	f->width = 0;
-	f->prec = 0;
 	VA_END(f->args);
-	VA_COPY(f->args,va);
+	VA_COPY(f->args, va);
 	VA_END(va);
+	f->width = w;
+	f->prec = p;
+	f->flags = fl;
 	if(n >= 0)
 		return 0;
 	return n;
 }
-
