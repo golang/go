@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"io"
 	"io/ioutil"
+	"strings"
 	"sync"
 	"time"
 )
@@ -101,6 +102,10 @@ type ConnectionState struct {
 	NegotiatedProtocol         string
 	NegotiatedProtocolIsMutual bool
 
+	// ServerName contains the server name indicated by the client, if any.
+	// (Only valid for server connections.)
+	ServerName string
+
 	// the certificate chain that was presented by the other side
 	PeerCertificates []*x509.Certificate
 	// the verified certificate chains built from PeerCertificates.
@@ -123,6 +128,14 @@ type Config struct {
 	// to present to the other side of the connection.
 	// Server configurations must include at least one certificate.
 	Certificates []Certificate
+
+	// NameToCertificate maps from a certificate name to an element of
+	// Certificates. Note that a certificate name can be of the form
+	// '*.example.com' and so doesn't have to be a domain name as such.
+	// See Config.BuildNameToCertificate
+	// The nil value causes the first element of Certificates to be used
+	// for all connections.
+	NameToCertificate map[string]*Certificate
 
 	// RootCAs defines the set of root certificate authorities
 	// that clients use when verifying server certificates.
@@ -177,6 +190,59 @@ func (c *Config) cipherSuites() []uint16 {
 		s = defaultCipherSuites()
 	}
 	return s
+}
+
+// getCertificateForName returns the best certificate for the given name,
+// defaulting to the first element of c.Certificates if there are no good
+// options.
+func (c *Config) getCertificateForName(name string) *Certificate {
+	if len(c.Certificates) == 1 || c.NameToCertificate == nil {
+		// There's only one choice, so no point doing any work.
+		return &c.Certificates[0]
+	}
+
+	name = strings.ToLower(name)
+	for len(name) > 0 && name[len(name)-1] == '.' {
+		name = name[:len(name)-1]
+	}
+
+	if cert, ok := c.NameToCertificate[name]; ok {
+		return cert
+	}
+
+	// try replacing labels in the name with wildcards until we get a
+	// match.
+	labels := strings.Split(name, ".")
+	for i := range labels {
+		labels[i] = "*"
+		candidate := strings.Join(labels, ".")
+		if cert, ok := c.NameToCertificate[candidate]; ok {
+			return cert
+		}
+	}
+
+	// If nothing matches, return the first certificate.
+	return &c.Certificates[0]
+}
+
+// BuildNameToCertificate parses c.Certificates and builds c.NameToCertificate
+// from the CommonName and SubjectAlternateName fields of each of the leaf
+// certificates.
+func (c *Config) BuildNameToCertificate() {
+	c.NameToCertificate = make(map[string]*Certificate)
+	for i := range c.Certificates {
+		cert := &c.Certificates[i]
+		x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			continue
+		}
+		if len(x509Cert.Subject.CommonName) > 0 {
+			c.NameToCertificate[x509Cert.Subject.CommonName] = cert
+		}
+		for _, san := range x509Cert.DNSNames {
+			c.NameToCertificate[san] = cert
+		}
+	}
 }
 
 // A Certificate is a chain of one or more certificates, leaf first.
