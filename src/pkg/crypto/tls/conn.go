@@ -36,6 +36,8 @@ type Conn struct {
 	// verifiedChains contains the certificate chains that we built, as
 	// opposed to the ones presented by the server.
 	verifiedChains [][]*x509.Certificate
+	// serverName contains the server name indicated by the client, if any.
+	serverName string
 
 	clientProtocol         string
 	clientProtocolFallback bool
@@ -798,6 +800,7 @@ func (c *Conn) ConnectionState() ConnectionState {
 		state.CipherSuite = c.cipherSuite
 		state.PeerCertificates = c.peerCertificates
 		state.VerifiedChains = c.verifiedChains
+		state.ServerName = c.serverName
 	}
 
 	return state
