@@ -343,7 +343,7 @@ class Build(webapp.RequestHandler):
 
         c = getBrokenCommit(node, builder)
         if c is not None and not c.fail_notification_sent:
-            notifyBroken(c, builder)
+            notifyBroken(c, builder, log)
 
         self.response.set_status(200)
 
@@ -388,7 +388,7 @@ def nodeBefore(c):
 def nodeAfter(c):
     return Commit.all().filter('parenthash', c.node).get()
 
-def notifyBroken(c, builder):
+def notifyBroken(c, builder, log):
     def send():
         n = Commit.get(c.key())
         if n is None:
@@ -399,7 +399,10 @@ def notifyBroken(c, builder):
         n.fail_notification_sent = True
         return n.put()
     if not db.run_in_transaction(send):
-	return
+        return
+
+    # get last 100 lines of the build log
+    log = '\n'.join(log.split('\n')[-100:])
 
     subject = const.mail_fail_subject % (builder, c.desc.split('\n')[0])
     path = os.path.join(os.path.dirname(__file__), 'fail-notify.txt')
@@ -408,7 +411,8 @@ def notifyBroken(c, builder):
         "node": c.node,
         "user": c.user,
         "desc": c.desc,
-        "loghash": logHash(c, builder)
+        "loghash": logHash(c, builder),
+        "log": log,
     })
     mail.send_mail(
         sender=const.mail_from,
