@@ -21,31 +21,19 @@
 #include "fmtdef.h"
 
 /*
- * format a string into the output buffer
- * designed for formats which themselves call fmt,
- * but ignore any width flags
+ * Format a string into the output buffer.
+ * Designed for formats which themselves call fmt.
+ * Flags, precision and width are preserved.
  */
 int
 fmtprint(Fmt *f, char *fmt, ...)
 {
-	va_list va;
 	int n;
+	va_list va;
 
-	f->flags = 0;
-	f->width = 0;
-	f->prec = 0;
-	VA_COPY(va, f->args);
-	VA_END(f->args);
-	va_start(f->args, fmt);
-	n = dofmt(f, fmt);
-	va_end(f->args);
-	f->flags = 0;
-	f->width = 0;
-	f->prec = 0;
-	VA_COPY(f->args,va);
-	VA_END(va);
-	if(n >= 0)
-		return 0;
+	va_start(va, fmt);
+	n = fmtvprint(f, fmt, va);
+	va_end(va);
 	return n;
 }
 

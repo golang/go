@@ -768,6 +768,10 @@ dodump(Node *n, int dep)
 		dodump(n->right, dep+1);
 		break;
 
+	case OLITERAL:
+		print("%N v(%V)\n", n, &n->val);
+		break;
+
 	case OTYPE:
 		print("%O %S type=%T\n", n->op, n->sym, n->type);
 		if(n->type == T && n->ntype) {
@@ -870,11 +874,38 @@ dump(char *s, Node *n)
 	dodump(n, 1);
 }
 
+int
+Vconv(Fmt *fp)
+{
+	Val *v;
+
+	v = va_arg(fp->args, Val*);
+ 
+	switch(v->ctype) {
+	case CTINT:
+		return fmtprint(fp,  "%B", v->u.xval);
+	case CTFLT:
+		return fmtprint(fp,  "%g", mpgetflt(v->u.fval));
+	case CTCPLX:
+		return fmtprint(fp,  "(%g+%gi)",
+				mpgetflt(&v->u.cval->real),
+				mpgetflt(&v->u.cval->imag));
+	case CTSTR:
+		return fmtprint(fp,  "\"%Z\"", v->u.sval);
+	case CTBOOL:
+		return fmtprint(fp,  "%d", v->u.bval);
+	case CTNIL:
+		return fmtprint(fp,  "nil");
+	}
+	return fmtprint(fp,  "<%d>", v->ctype);
+}
+
 static char*
 goopnames[] =
 {
 	[OADDR]		= "&",
 	[OADD]		= "+",
+	[OADDSTR]	= "+",
 	[OANDAND]	= "&&",
 	[OANDNOT]	= "&^",
 	[OAND]		= "&",
@@ -1165,44 +1196,42 @@ Jconv(Fmt *fp)
 	return 0;
 }
 
+// Flags for %S
+// 'h' FmtShort -> just print the name
+// '#' FmtSharp -> qualify with package prefix or @"path", depending on global flag packagequotes.
+//    (automatic when global flag exporting is set)
+// 'l' FmtLong  -> qualify with package name or "path" (automatic when global flag 
+//    longsymnames is set (by typehash) or sym is not in localpkg)
 int
 Sconv(Fmt *fp)
 {
 	Sym *s;
 
 	s = va_arg(fp->args, Sym*);
-	if(s == S) {
-		fmtstrcpy(fp, "<S>");
-		return 0;
-	}
+	if(s == S)
+		return fmtstrcpy(fp, "<S>");
 
 	if(fp->flags & FmtShort)
 		goto shrt;
 
 	if(exporting || (fp->flags & FmtSharp)) {
 		if(packagequotes)
-			fmtprint(fp, "\"%Z\"", s->pkg->path);
+			return fmtprint(fp, "@\"%Z\".%s", s->pkg->path, s->name);
 		else
-			fmtprint(fp, "%s", s->pkg->prefix);
-		fmtprint(fp, ".%s", s->name);
-		return 0;
+			return fmtprint(fp, "%s.%s", s->pkg->prefix, s->name);
 	}
 
 	if(s->pkg && s->pkg != localpkg || longsymnames || (fp->flags & FmtLong)) {
 		// This one is for the user.  If the package name
 		// was used by multiple packages, give the full
 		// import path to disambiguate.
-		if(erroring && pkglookup(s->pkg->name, nil)->npkg > 1) {
-			fmtprint(fp, "\"%Z\".%s", s->pkg->path, s->name);
-			return 0;
-		}
-		fmtprint(fp, "%s.%s", s->pkg->name, s->name);
-		return 0;
+		if(erroring && pkglookup(s->pkg->name, nil)->npkg > 1)
+			return fmtprint(fp, "\"%Z\".%s", s->pkg->path, s->name);
+		return fmtprint(fp, "%s.%s", s->pkg->name, s->name);
 	}
 
 shrt:
-	fmtstrcpy(fp, s->name);
-	return 0;
+	return fmtstrcpy(fp, s->name);
 }
 
 static char*
@@ -1231,7 +1260,11 @@ basicnames[] =
 	[TBLANK]	= "blank",
 };
 
-int
+// Global flag exporting 
+// Global flag noargnames
+// 'h' FmtShort
+// 'l' FmtLong
+static int
 Tpretty(Fmt *fp, Type *t)
 {
 	Type *t1;
@@ -1255,9 +1288,7 @@ Tpretty(Fmt *fp, Type *t)
 				fmtprint(fp, "%hS", s);
 			else
 				fmtprint(fp, "%S", s);
-			if(s->pkg != localpkg)
-				return 0;
-			if(t->vargen)
+			if(s->pkg == localpkg && t->vargen)
 				fmtprint(fp, "·%d", t->vargen);
 			return 0;
 		}
@@ -1401,8 +1432,6 @@ Tpretty(Fmt *fp, Type *t)
 			fmtprint(fp, "%T", t->type);
 		if(t->note) {
 			fmtprint(fp, " ");
-			if(exporting)
-				fmtprint(fp, ":");
 			fmtprint(fp, "\"%Z\"", t->note);
 		}
 		return 0;
@@ -1416,115 +1445,58 @@ Tpretty(Fmt *fp, Type *t)
 	
 	case TUNSAFEPTR:
 		if(exporting)
-			return fmtprint(fp, "\"unsafe\".Pointer");
+			return fmtprint(fp, "@\"unsafe\".Pointer");
 		return fmtprint(fp, "unsafe.Pointer");
+	default:
+		if(exporting)
+			fatal("missing %E case during export", t->etype);
+		// Don't know how to handle - fall back to detailed prints.
+		return fmtprint(fp, "%E <%S> %T", t->etype, t->sym, t->type);
 	}
 
-	// Don't know how to handle - fall back to detailed prints.
+	fatal("not reached");
 	return -1;
 }
 
+// %T flags:
+//  '#'   FmtSharp   -> 'exporting' mode global flag, affects Tpretty and Sconv
+//  '-'   FmtLeft    -> 'noargnames' global flag, affects Tpretty
+//  'h'   FmtShort   -> handled by Tpretty
+//  'l'   FmtLong    -> handled by Tpretty
 int
 Tconv(Fmt *fp)
 {
-	Type *t, *t1;
-	int r, et, sharp, minus;
-
-	sharp = (fp->flags & FmtSharp);
-	minus = (fp->flags & FmtLeft);
-	fp->flags &= ~(FmtSharp|FmtLeft);
+	Type *t;
+	int r,sharp, minus, sf;
 
 	t = va_arg(fp->args, Type*);
 	if(t == T)
 		return fmtstrcpy(fp, "<T>");
 
+	if(t->trecur > 4) {
+		return fmtstrcpy(fp, "...");
+	}
+
 	t->trecur++;
-	if(t->trecur > 5) {
-		fmtprint(fp, "...");
-		goto out;
-	}
 
-	if(!debug['t']) {
-		if(sharp)
-			exporting++;
-		if(minus)
-			noargnames++;
-		r = Tpretty(fp, t);
-		if(sharp)
-			exporting--;
-		if(minus)
-			noargnames--;
-		if(r >= 0) {
-			t->trecur--;
-			return 0;
-		}
-	}
+	sharp = (fp->flags & FmtSharp);
+	minus = (fp->flags & FmtLeft);
+	sf = fp->flags;
+	fp->flags &= ~(FmtSharp|FmtLeft);
 
-	if(sharp || exporting)
-		fatal("missing %E case during export", t->etype);
+	if(sharp)
+		exporting++;
+	if(minus)
+		noargnames++;
+	r = Tpretty(fp, t);
+	if(sharp)
+		exporting--;
+	if(minus)
+		noargnames--;
 
-	et = t->etype;
-	fmtprint(fp, "%E ", et);
-	if(t->sym != S)
-		fmtprint(fp, "<%S>", t->sym);
-
-	switch(et) {
-	default:
-		if(t->type != T)
-			fmtprint(fp, " %T", t->type);
-		break;
-
-	case TFIELD:
-		fmtprint(fp, "%T", t->type);
-		break;
-
-	case TFUNC:
-		if(fp->flags & FmtLong)
-			fmtprint(fp, "%d%d%d(%lT,%lT)%lT",
-				t->thistuple, t->intuple, t->outtuple,
-				t->type, t->type->down->down, t->type->down);
-		else
-			fmtprint(fp, "%d%d%d(%T,%T)%T",
-				t->thistuple, t->intuple, t->outtuple,
-				t->type, t->type->down->down, t->type->down);
-		break;
-
-	case TINTER:
-		fmtprint(fp, "{");
-		if(fp->flags & FmtLong)
-			for(t1=t->type; t1!=T; t1=t1->down)
-				fmtprint(fp, "%lT;", t1);
-		fmtprint(fp, "}");
-		break;
-
-	case TSTRUCT:
-		fmtprint(fp, "{");
-		if(fp->flags & FmtLong)
-			for(t1=t->type; t1!=T; t1=t1->down)
-				fmtprint(fp, "%lT;", t1);
-		fmtprint(fp, "}");
-		break;
-
-	case TMAP:
-		fmtprint(fp, "[%T]%T", t->down, t->type);
-		break;
-
-	case TARRAY:
-		if(t->bound >= 0)
-			fmtprint(fp, "[%d]%T", t->bound, t->type);
-		else
-			fmtprint(fp, "[]%T", t->type);
-		break;
-
-	case TPTR32:
-	case TPTR64:
-		fmtprint(fp, "%T", t->type);
-		break;
-	}
-
-out:
+	fp->flags = sf;
 	t->trecur--;
-	return 0;
+	return r;
 }
 
 int
@@ -1541,11 +1513,11 @@ Nconv(Fmt *fp)
 
 	if(fp->flags & FmtSign) {
 		if(n->type == T)
-			fmtprint(fp, "%#N", n);
+			fmtprint(fp, "%#hN", n);
 		else if(n->type->etype == TNIL)
 			fmtprint(fp, "nil");
 		else
-			fmtprint(fp, "%#N (type %T)", n, n->type);
+			fmtprint(fp, "%#hN (type %T)", n, n->type);
 		goto out;
 	}
 

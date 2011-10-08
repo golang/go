@@ -142,6 +142,34 @@ func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, e
 	return
 }
 
+// Declare inserts a named object of the given kind in scope.
+func (p *gcParser) declare(scope *ast.Scope, kind ast.ObjKind, name string) *ast.Object {
+	// a type may have been declared before - if it exists
+	// already in the respective package scope, return that
+	// type
+	if kind == ast.Typ {
+		if obj := scope.Lookup(name); obj != nil {
+			assert(obj.Kind == ast.Typ)
+			return obj
+		}
+	}
+
+	// any other object must be a newly declared object -
+	// create it and insert it into the package scope
+	obj := ast.NewObj(kind, name)
+	if scope.Insert(obj) != nil {
+		p.errorf("already declared: %v %s", kind, obj.Name)
+	}
+
+	// a new type object is a named type and may be referred
+	// to before the underlying type is known - set it up
+	if kind == ast.Typ {
+		obj.Type = &Name{Obj: obj}
+	}
+
+	return obj
+}
+
 // ----------------------------------------------------------------------------
 // Error handling
 
@@ -245,38 +273,14 @@ func (p *gcParser) parseDotIdent() string {
 	return ident
 }
 
-// ExportedName = ImportPath "." dotIdentifier .
+// ExportedName = "@" ImportPath "." dotIdentifier .
 //
-func (p *gcParser) parseExportedName(kind ast.ObjKind) *ast.Object {
+func (p *gcParser) parseExportedName() (*ast.Object, string) {
+	p.expect('@')
 	pkg := p.parsePkgId()
 	p.expect('.')
 	name := p.parseDotIdent()
-
-	// a type may have been declared before - if it exists
-	// already in the respective package scope, return that
-	// type
-	scope := pkg.Data.(*ast.Scope)
-	if kind == ast.Typ {
-		if obj := scope.Lookup(name); obj != nil {
-			assert(obj.Kind == ast.Typ)
-			return obj
-		}
-	}
-
-	// any other object must be a newly declared object -
-	// create it and insert it into the package scope
-	obj := ast.NewObj(kind, name)
-	if scope.Insert(obj) != nil {
-		p.errorf("already declared: %s", obj.Name)
-	}
-
-	// a new type object is a named type and may be referred
-	// to before the underlying type is known - set it up
-	if kind == ast.Typ {
-		obj.Type = &Name{Obj: obj}
-	}
-
-	return obj
+	return pkg, name
 }
 
 // ----------------------------------------------------------------------------
@@ -333,7 +337,7 @@ func (p *gcParser) parseName() (name string) {
 	return
 }
 
-// Field = Name Type [ ":" string_lit ] .
+// Field = Name Type [ string_lit ] .
 //
 func (p *gcParser) parseField() (fld *ast.Object, tag string) {
 	name := p.parseName()
@@ -344,8 +348,7 @@ func (p *gcParser) parseField() (fld *ast.Object, tag string) {
 			p.errorf("anonymous field expected")
 		}
 	}
-	if p.tok == ':' {
-		p.next()
+	if p.tok == scanner.String {
 		tag = p.expect(scanner.String)
 	}
 	fld = ast.NewObj(ast.Var, name)
@@ -380,7 +383,7 @@ func (p *gcParser) parseStructType() Type {
 	return &Struct{Fields: fields, Tags: tags}
 }
 
-// Parameter = ( identifier | "?" ) [ "..." ] Type [ ":" string_lit ] .
+// Parameter = ( identifier | "?" ) [ "..." ] Type [ string_lit ] .
 //
 func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
 	name := p.parseName()
@@ -393,8 +396,7 @@ func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
 	}
 	ptyp := p.parseType()
 	// ignore argument tag
-	if p.tok == ':' {
-		p.next()
+	if p.tok == scanner.String {
 		p.expect(scanner.String)
 	}
 	par = ast.NewObj(ast.Var, name)
@@ -439,7 +441,7 @@ func (p *gcParser) parseSignature() *Func {
 	// optional result type
 	var results []*ast.Object
 	switch p.tok {
-	case scanner.Ident, scanner.String, '[', '*', '<':
+	case scanner.Ident, '[', '*', '<', '@':
 		// single, unnamed result
 		result := ast.NewObj(ast.Var, "_")
 		result.Type = p.parseType()
@@ -456,16 +458,13 @@ func (p *gcParser) parseSignature() *Func {
 	return &Func{Params: params, Results: results, IsVariadic: isVariadic}
 }
 
-// MethodSpec = identifier Signature .
+// MethodSpec = ( identifier | ExportedName )  Signature .
 //
 func (p *gcParser) parseMethodSpec() *ast.Object {
 	if p.tok == scanner.Ident {
 		p.expect(scanner.Ident)
 	} else {
-		// TODO(gri) should this be parseExportedName here?
-		p.parsePkgId()
-		p.expect('.')
-		p.parseDotIdent()
+		p.parseExportedName()
 	}
 	p.parseSignature()
 
@@ -547,9 +546,10 @@ func (p *gcParser) parseType() Type {
 		case "chan":
 			return p.parseChanType()
 		}
-	case scanner.String:
+	case '@':
 		// TypeName
-		return p.parseExportedName(ast.Typ).Type.(Type)
+		pkg, name := p.parseExportedName()
+		return p.declare(pkg.Data.(*ast.Scope), ast.Typ, name).Type.(Type)
 	case '[':
 		p.next() // look ahead
 		if p.tok == ']' {
@@ -643,7 +643,8 @@ func (p *gcParser) parseNumber() Const {
 //
 func (p *gcParser) parseConstDecl() {
 	p.expectKeyword("const")
-	obj := p.parseExportedName(ast.Con)
+	pkg, name := p.parseExportedName()
+	obj := p.declare(pkg.Data.(*ast.Scope), ast.Con, name)
 	var x Const
 	var typ Type
 	if p.tok != '=' {
@@ -693,7 +694,8 @@ func (p *gcParser) parseConstDecl() {
 //
 func (p *gcParser) parseTypeDecl() {
 	p.expectKeyword("type")
-	obj := p.parseExportedName(ast.Typ)
+	pkg, name := p.parseExportedName()
+	obj := p.declare(pkg.Data.(*ast.Scope), ast.Typ, name)
 
 	// The type object may have been imported before and thus already
 	// have a type associated with it. We still need to parse the type
@@ -712,20 +714,39 @@ func (p *gcParser) parseTypeDecl() {
 //
 func (p *gcParser) parseVarDecl() {
 	p.expectKeyword("var")
-	obj := p.parseExportedName(ast.Var)
+	pkg, name := p.parseExportedName()
+	obj := p.declare(pkg.Data.(*ast.Scope), ast.Var, name)
 	obj.Type = p.parseType()
 }
 
-// FuncDecl = "func" ExportedName Signature .
+// FuncBody = "{" ... "}" .
+// 
+func (p *gcParser) parseFuncBody() {
+	p.expect('{')
+	for i := 1; i > 0; p.next() {
+		switch p.tok {
+		case '{':
+			i++
+		case '}':
+			i--
+		}
+	}
+}
+
+// FuncDecl = "func" ExportedName Signature [ FuncBody ] .
 //
 func (p *gcParser) parseFuncDecl() {
 	// "func" already consumed
-	obj := p.parseExportedName(ast.Fun)
+	pkg, name := p.parseExportedName()
+	obj := p.declare(pkg.Data.(*ast.Scope), ast.Fun, name)
 	obj.Type = p.parseSignature()
+	if p.tok == '{' {
+		p.parseFuncBody()
+	}
 }
 
 // MethodDecl = "func" Receiver identifier Signature .
-// Receiver   = "(" ( identifier | "?" ) [ "*" ] ExportedName ")" .
+// Receiver   = "(" ( identifier | "?" ) [ "*" ] ExportedName ")" [ FuncBody ].
 //
 func (p *gcParser) parseMethodDecl() {
 	// "func" already consumed
@@ -734,6 +755,9 @@ func (p *gcParser) parseMethodDecl() {
 	p.expect(')')
 	p.expect(scanner.Ident)
 	p.parseSignature()
+	if p.tok == '{' {
+		p.parseFuncBody()
+	}
 }
 
 // Decl = [ ImportDecl | ConstDecl | TypeDecl | VarDecl | FuncDecl | MethodDecl ] "\n" .

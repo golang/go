@@ -22,10 +22,21 @@ exprlistfmt(Fmt *f, NodeList *l)
 }
 
 void
+stmtlistfmt(Fmt *f, NodeList *l)
+{
+	for(; l; l=l->next) {
+		fmtprint(f, " %#N", l->n);
+		if(l->next)
+			fmtprint(f, ";");
+	}
+}
+
+void
 exprfmt(Fmt *f, Node *n, int prec)
 {
 	int nprec;
 	char *p;
+	NodeList *l;
 
 	nprec = 0;
 	if(n == nil) {
@@ -107,6 +118,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OGE:
 	case OGT:
 	case ONE:
+	case OCMPSTR:
 		nprec = 4;
 		break;
 
@@ -269,6 +281,8 @@ exprfmt(Fmt *f, Node *n, int prec)
 		break;
 
 	case OADD:
+	case OADDSTR:
+	case OAND:
 	case OANDAND:
 	case OANDNOT:
 	case ODIV:
@@ -292,6 +306,12 @@ exprfmt(Fmt *f, Node *n, int prec)
 		exprfmt(f, n->right, nprec+1);
 		break;
 
+	case OCMPSTR:
+		exprfmt(f, n->left, nprec);
+		fmtprint(f, " %#O ", n->etype);
+		exprfmt(f, n->right, nprec+1);
+		break;
+
 	case OADDR:
 	case OCOM:
 	case OIND:
@@ -306,7 +326,13 @@ exprfmt(Fmt *f, Node *n, int prec)
 		break;
 
 	case OCLOSURE:
-		fmtprint(f, "func literal");
+		if(f->flags & FmtShort) {
+			fmtprint(f, "func literal", n->type);
+		} else {
+			fmtprint(f, "func %hhT {", n->type);
+			stmtlistfmt(f, n->nbody);
+			fmtprint(f, " }");
+		}
 		break;
 
 	case OCOMPLIT:
@@ -314,18 +340,18 @@ exprfmt(Fmt *f, Node *n, int prec)
 		break;
 	
 	case OARRAYLIT:
-		if(isslice(n->type))
-			fmtprint(f, "slice literal");
-		else
-			fmtprint(f, "array literal");
-		break;
-	
 	case OMAPLIT:
-		fmtprint(f, "map literal");
-		break;
-	
 	case OSTRUCTLIT:
-		fmtprint(f, "struct literal");
+		if(f->flags & FmtShort) {
+			fmtprint(f, "%#hhT literal", n->type);
+		} else {
+			fmtprint(f, "%#hhT{", n->type);
+			for (l=n->list; l; l=l->next) {
+				fmtprint(f, " %#N:%#N", l->n->left, l->n->right);
+				if (l->next) fmtprint(f, ",");
+			}
+			fmtprint(f, " }");
+		}
 		break;
 
 	case OXDOT:
@@ -478,6 +504,119 @@ exprfmt(Fmt *f, Node *n, int prec)
 
 	case ODEFER:
 		fmtprint(f, "defer %#N", n->left);
+		break;
+
+	case OIF:
+		if (n->ninit && n->ninit->next) {
+			fmtprint(f, "{");
+			stmtlistfmt(f, n->ninit);
+			fmtprint(f, "; ");
+		}
+		fmtstrcpy(f, "if ");
+		if (n->ninit && !n->ninit->next)
+			fmtprint(f, "%#N; ", n->ninit->n);
+		fmtprint(f, "%#N {", n->ntest);
+		stmtlistfmt(f, n->nbody);
+		if (n->nelse) {
+			fmtprint(f, "} else {");
+			stmtlistfmt(f, n->nelse);
+		}
+		fmtprint(f, "}");
+		if (n->ninit && n->ninit->next)
+			fmtprint(f, "}");
+		break;
+
+	case OFOR:
+		if (n->ninit && n->ninit->next) {
+			fmtprint(f, "{");
+			stmtlistfmt(f, n->ninit);
+			fmtprint(f, "; ");
+		}
+		fmtstrcpy(f, "for");
+		if (n->ninit && !n->ninit->next)
+			fmtprint(f, " %#N;", n->ninit->n);
+		else if (n->ntest || n->nincr)
+			fmtstrcpy(f, " ;");
+		if (n->ntest)
+			fmtprint(f, "%#N", n->ntest);
+		if (n->nincr)
+			fmtprint(f, "; %#N", n->nincr);
+		else if (n->ninit && !n->ninit->next)
+			fmtstrcpy(f, " ;");
+		fmtstrcpy(f, " {");
+		stmtlistfmt(f, n->nbody);
+		fmtprint(f, "}");
+		if (n->ninit && n->ninit->next)
+			fmtprint(f, "}");
+		break;
+	
+	case ORANGE:
+		if (n->ninit) {
+			fmtprint(f, "{");
+			stmtlistfmt(f, n->ninit);
+			fmtprint(f, "; ");
+		}
+		fmtprint(f, "for ");
+		exprlistfmt(f, n->list);
+		fmtprint(f, " = range %#N {", n->right);
+		stmtlistfmt(f, n->nbody);
+		fmtprint(f, "}");
+		if (n->ninit)
+			fmtprint(f, "}");
+		break;
+
+	case OSWITCH:
+		if (n->ninit && n->ninit->next) {
+			fmtprint(f, "{");
+			stmtlistfmt(f, n->ninit);
+			fmtprint(f, "; ");
+		}
+		fmtstrcpy(f, "select");
+		if (n->ninit && !n->ninit->next)
+			fmtprint(f, " %#N;", n->ninit->n);
+		if (n->ntest)
+			fmtprint(f, "%#N", n->ntest);
+		fmtstrcpy(f, " {");
+		for(l=n->list; l; l=l->next) {
+			if (l->n->list) {
+				fmtprint(f, " case ");
+				exprlistfmt(f, l->n->list);
+			} else {
+				fmtprint(f, " default");
+			}
+			fmtstrcpy(f, ":");
+			stmtlistfmt(f, l->n->nbody);
+			if (l->next)
+				fmtprint(f, ";");
+		}
+		fmtprint(f, " }");
+		if (n->ninit)
+			fmtprint(f, "}");
+		break;
+
+
+	case OSELECT:
+		if (n->ninit) {
+			fmtprint(f, "{");
+			stmtlistfmt(f, n->ninit);
+			fmtprint(f, "; ");
+		}
+		fmtstrcpy(f, "select {");
+		for(l=n->list; l; l=l->next) {
+			if (l->n->list) {
+				fmtprint(f, " case ");
+				exprlistfmt(f, l->n->list);
+			} else {
+				fmtprint(f, " default");
+			}
+			fmtstrcpy(f, ":");
+			stmtlistfmt(f, l->n->nbody);
+			if (l->next)
+				fmtprint(f, ";");
+		}
+		fmtprint(f, " }");
+		if (n->ninit)
+			fmtprint(f, "}");
 		break;
 	}
 
