@@ -269,6 +269,16 @@ TEXT runtime·osyield(SB),7,$-4
 	INT	$0x80
 	RET
 
+TEXT runtime·thrsleep(SB),7,$-4
+	MOVL	$300, AX		// sys_thrsleep
+	INT	$0x80
+	RET
+
+TEXT runtime·thrwakeup(SB),7,$-4
+	MOVL	$301, AX		// sys_thrwakeup
+	INT	$0x80
+	RET
+
 TEXT runtime·sysctl(SB),7,$28
 	LEAL	arg0+0(FP), SI
 	LEAL	4(SP), DI

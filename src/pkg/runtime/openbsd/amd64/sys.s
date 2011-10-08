@@ -62,19 +62,19 @@ TEXT runtime·osyield(SB),7,$0
 	SYSCALL
 	RET
 
-TEXT runtime·sys_thrsleep(SB),7,$0
-	MOVQ 8(SP), DI
-	MOVL 16(SP), SI
-	MOVQ 24(SP), DX
-	MOVQ 32(SP), R10
-	MOVL $300, AX
+TEXT runtime·thrsleep(SB),7,$0
+	MOVQ	8(SP), DI		// arg 1 - ident
+	MOVL	16(SP), SI		// arg 2 - clock_id
+	MOVQ	24(SP), DX		// arg 3 - tp
+	MOVQ	32(SP), R10		// arg 4 - lock
+	MOVL	$300, AX		// sys_thrsleep
 	SYSCALL
 	RET
 
-TEXT runtime·sys_thrwakeup(SB),7,$0
-	MOVQ 8(SP), DI
-	MOVL 16(SP), SI
-	MOVL $301, AX
+TEXT runtime·thrwakeup(SB),7,$0
+	MOVQ	8(SP), DI		// arg 1 - ident
+	MOVL	16(SP), SI		// arg 2 - n
+	MOVL	$301, AX		// sys_thrwakeup
 	SYSCALL
 	RET
 

@@ -6,14 +6,25 @@
 #include "os.h"
 #include "stack.h"
 
+enum
+{
+	MUTEX_UNLOCKED = 0,
+	MUTEX_LOCKED = 1,
+	MUTEX_SLEEPING = 2,
+
+	ACTIVE_SPIN = 4,
+	ACTIVE_SPIN_CNT = 30,
+	PASSIVE_SPIN = 1,
+
+	ESRCH = 3,
+	ENOTSUP = 91,
+};
+
 extern SigTab runtime·sigtab[];
 
 extern int64 runtime·rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
-
-enum
-{
-	ENOTSUP = 91,
-};
+extern int32 runtime·thrsleep(void *, void *, void*, void *);
+extern int32 runtime·thrwakeup(void *, int32);
 
 // From OpenBSD's <sys/sysctl.h>
 #define	CTL_HW	6
@@ -39,28 +50,86 @@ getncpu(void)
 		return 1;
 }
 
-// Basic spinlocks using CAS. We can improve on these later.
+// Possible lock states are MUTEX_UNLOCKED, MUTEX_LOCKED and MUTEX_SLEEPING.
+// MUTEX_SLEEPING means that there is potentially at least one sleeping thread.
+// Note that there can be spinning threads during all states - they do not
+// affect the mutex's state.
 static void
 lock(Lock *l)
 {
+	uint32 i, v, wait, spin;
+	int32 ret;
+
+	// Speculative grab for lock.
+	v = runtime·xchg(&l->key, MUTEX_LOCKED);
+	if(v == MUTEX_UNLOCKED)
+		return;
+
+	// If we ever change the lock from MUTEX_SLEEPING to some other value,
+	// we must be careful to change it back to MUTEX_SLEEPING before
+	// returning, to ensure that the sleeping thread gets its wakeup call.
+	wait = v;
+
+	// No point spinning unless there are multiple processors.
+	spin = 0;
+	if(runtime·ncpu > 1)
+		spin = ACTIVE_SPIN;
+
 	for(;;) {
-		if(runtime·cas(&l->key, 0, 1))
+		// Try for lock, spinning.
+		for(i = 0; i < spin; i++) {
+			while(l->key == MUTEX_UNLOCKED)
+				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
+					return;
+			runtime·procyield(ACTIVE_SPIN_CNT);
+		}
+
+		// Try for lock, rescheduling.
+		for(i = 0; i < PASSIVE_SPIN; i++) {
+			while(l->key == MUTEX_UNLOCKED)
+				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
+					return;
+			runtime·osyield();
+		}
+
+		// Grab a lock on sema and sleep - sema will be unlocked by
+		// thrsleep() and we'll get woken by another thread.
+		// Note that thrsleep unlocks on a _spinlock_lock_t which is
+		// an int on amd64, so we need to be careful here.
+		while (!runtime·cas(&l->sema, MUTEX_UNLOCKED, MUTEX_LOCKED))
+			runtime·osyield();
+		v = runtime·xchg(&l->key, MUTEX_SLEEPING);
+		if(v == MUTEX_UNLOCKED) {
+			l->sema = MUTEX_UNLOCKED;
 			return;
-		runtime·osyield();
+		}
+		wait = v;
+		ret = runtime·thrsleep(&l->key, 0, 0, &l->sema);
+		if (ret != 0) {
+			runtime·printf("thrsleep addr=%p sema=%d ret=%d\n",
+				&l->key, l->sema, ret);
+			l->sema = MUTEX_UNLOCKED;
+		}
 	}
 }
 
 static void
 unlock(Lock *l)
 {
-	uint32 v;
+	uint32 v, ret;
 
-	for (;;) {
-		v = l->key;
-		if((v&1) == 0)
-			runtime·throw("unlock of unlocked lock");
-		if(runtime·cas(&l->key, v, 0))
-			break;
+	while (!runtime·cas(&l->sema, MUTEX_UNLOCKED, MUTEX_LOCKED))
+		runtime·osyield();
+	v = runtime·xchg(&l->key, MUTEX_UNLOCKED);
+	l->sema = MUTEX_UNLOCKED;
+	if(v == MUTEX_UNLOCKED)
+		runtime·throw("unlock of unlocked lock");
+	if(v == MUTEX_SLEEPING) {
+		ret = runtime·thrwakeup(&l->key, 0);
+		if (ret != 0 && ret != ESRCH) {
+			runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n",
+				&l->key, l->sema, ret);
+		}
 	}
 }
 

@@ -114,6 +114,8 @@ struct Itimerval {
 
 typedef void sfxsave64;
 
+typedef void usavefpu;
+
 typedef struct Sigcontext Sigcontext;
 struct Sigcontext {
 	int64 sc_rdi;
