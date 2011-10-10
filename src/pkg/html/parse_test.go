@@ -134,7 +134,7 @@ func TestParser(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			actual, err := dump(doc)
+			got, err := dump(doc)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -147,9 +147,24 @@ func TestParser(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			expected := string(b)
-			if actual != expected {
-				t.Errorf("%s test #%d %q, actual vs expected:\n----\n%s----\n%s----", filename, i, text, actual, expected)
+			if want := string(b); got != want {
+				t.Errorf("%s test #%d %q, got vs want:\n----\n%s----\n%s----", filename, i, text, got, want)
+			}
+			// Check that rendering and re-parsing results in an identical tree.
+			pr, pw := io.Pipe()
+			go func() {
+				pw.CloseWithError(Render(pw, doc))
+			}()
+			doc1, err := Parse(pr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got1, err := dump(doc1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != got1 {
+				t.Errorf("%s test #%d %q, got vs got1:\n----\n%s----\n%s----", filename, i, text, got, got1)
 			}
 		}
 	}

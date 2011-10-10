@@ -12,6 +12,7 @@ GOFILES=\
 	escape.go\
 	node.go\
 	parse.go\
+	render.go\
 	token.go\
 
 include ../../Make.pkg
