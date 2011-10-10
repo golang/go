@@ -20,10 +20,15 @@ type Encoder struct {
 	sent       map[reflect.Type]typeId // which types we've already sent
 	countState *encoderState           // stage for writing counts
 	freeList   *encoderState           // list of free encoderStates; avoids reallocation
-	buf        []byte                  // for collecting the output.
 	byteBuf    bytes.Buffer            // buffer for top-level encoderState
 	err        os.Error
 }
+
+// Before we encode a message, we reserve space at the head of the
+// buffer in which to encode its length. This means we can use the
+// buffer to assemble the message without another allocation.
+const maxLength = 9 // Maximum size of an encoded length.
+var spaceForLength = make([]byte, maxLength)
 
 // NewEncoder returns a new encoder that will transmit on the io.Writer.
 func NewEncoder(w io.Writer) *Encoder {
@@ -61,20 +66,22 @@ func (enc *Encoder) setError(err os.Error) {
 
 // writeMessage sends the data item preceded by a unsigned count of its length.
 func (enc *Encoder) writeMessage(w io.Writer, b *bytes.Buffer) {
-	enc.countState.encodeUint(uint64(b.Len()))
-	// Build the buffer.
-	countLen := enc.countState.b.Len()
-	total := countLen + b.Len()
-	if total > len(enc.buf) {
-		enc.buf = make([]byte, total+1000) // extra for growth
-	}
-	// Place the length before the data.
-	// TODO(r): avoid the extra copy here.
-	enc.countState.b.Read(enc.buf[0:countLen])
-	// Now the data.
-	b.Read(enc.buf[countLen:total])
+	// Space has been reserved for the length at the head of the message.
+	// This is a little dirty: we grab the slice from the bytes.Buffer and massage
+	// it by hand.
+	message := b.Bytes()
+	messageLen := len(message) - maxLength
+	// Encode the length.
+	enc.countState.b.Reset()
+	enc.countState.encodeUint(uint64(messageLen))
+	// Copy the length to be a prefix of the message.
+	offset := maxLength - enc.countState.b.Len()
+	copy(message[offset:], enc.countState.b.Bytes())
 	// Write the data.
-	_, err := w.Write(enc.buf[0:total])
+	_, err := w.Write(message[offset:])
+	// Drain the buffer and restore the space at the front for the count of the next message.
+	b.Reset()
+	b.Write(spaceForLength)
 	if err != nil {
 		enc.setError(err)
 	}
@@ -224,6 +231,7 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
 
 	enc.err = nil
 	enc.byteBuf.Reset()
+	enc.byteBuf.Write(spaceForLength)
 	state := enc.newEncoderState(&enc.byteBuf)
 
 	enc.sendTypeDescriptor(enc.writer(), state, ut)

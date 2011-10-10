@@ -453,6 +453,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
 	// should be written to b, before the encoded value.
 	enc.pushWriter(b)
 	data := new(bytes.Buffer)
+	data.Write(spaceForLength)
 	enc.encode(data, iv.Elem(), ut)
 	if enc.err != nil {
 		error(enc.err)
