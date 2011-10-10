@@ -96,7 +96,7 @@ With <code>gccgo</code> it looks a little more traditional.
 <p>
 <pre>
 $ gccgo helloworld.go
-$ a.out
+$ ./a.out
 Hello, world; or Καλημέρα κόσμε; or こんにちは 世界
 $
 </pre>
@@ -547,7 +547,7 @@ Now we can compile and run the program. On Unix, this would be the result:
 $ 6g file.go                       # compile file package
 $ 6g helloworld3.go                # compile main package
 $ 6l -o helloworld3 helloworld3.6  # link - no need to mention "file"
-$ helloworld3
+$ ./helloworld3
 hello, world
 can't open file; err=No such file or directory
 $
