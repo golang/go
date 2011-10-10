@@ -6,6 +6,7 @@ package html
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"utf8"
 )
@@ -184,10 +185,12 @@ func unescape(b []byte) []byte {
 
 const escapedChars = `&'<>"`
 
-func escape(buf *bytes.Buffer, s string) {
+func escape(w writer, s string) os.Error {
 	i := strings.IndexAny(s, escapedChars)
 	for i != -1 {
-		buf.WriteString(s[0:i])
+		if _, err := w.WriteString(s[:i]); err != nil {
+			return err
+		}
 		var esc string
 		switch s[i] {
 		case '&':
@@ -204,10 +207,13 @@ func escape(buf *bytes.Buffer, s string) {
 			panic("unrecognized escape character")
 		}
 		s = s[i+1:]
-		buf.WriteString(esc)
+		if _, err := w.WriteString(esc); err != nil {
+			return err
+		}
 		i = strings.IndexAny(s, escapedChars)
 	}
-	buf.WriteString(s)
+	_, err := w.WriteString(s)
+	return err
 }
 
 // EscapeString escapes special characters like "<" to become "&lt;". It
