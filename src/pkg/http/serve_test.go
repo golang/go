@@ -356,18 +356,17 @@ func TestIdentityResponse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error writing: %v", err)
 	}
-	// The next ReadAll will hang for a failing test, so use a Timer instead
-	// to fail more traditionally
-	timer := time.AfterFunc(2e9, func() {
-		t.Fatalf("Timeout expired in ReadAll.")
+
+	// The ReadAll will hang for a failing test, so use a Timer to
+	// fail explicitly.
+	goTimeout(t, 2e9, func() {
+		got, _ := ioutil.ReadAll(conn)
+		expectedSuffix := "\r\n\r\ntoo short"
+		if !strings.HasSuffix(string(got), expectedSuffix) {
+			t.Errorf("Expected output to end with %q; got response body %q",
+				expectedSuffix, string(got))
+		}
 	})
-	defer timer.Stop()
-	got, _ := ioutil.ReadAll(conn)
-	expectedSuffix := "\r\n\r\ntoo short"
-	if !strings.HasSuffix(string(got), expectedSuffix) {
-		t.Fatalf("Expected output to end with %q; got response body %q",
-			expectedSuffix, string(got))
-	}
 }
 
 func testTcpConnectionCloses(t *testing.T, req string, h Handler) {
@@ -549,14 +548,13 @@ func TestTLSHandshakeTimeout(t *testing.T) {
 		t.Fatalf("Dial: %v", err)
 	}
 	defer conn.Close()
-	timer := time.AfterFunc(10e9, func() { t.Fatalf("Timeout") })
-	defer timer.Stop()
-
-	var buf [1]byte
-	n, err := conn.Read(buf[:])
-	if err == nil || n != 0 {
-		t.Errorf("Read = %d, %v; want an error and no bytes", n, err)
-	}
+	goTimeout(t, 10e9, func() {
+		var buf [1]byte
+		n, err := conn.Read(buf[:])
+		if err == nil || n != 0 {
+			t.Errorf("Read = %d, %v; want an error and no bytes", n, err)
+		}
+	})
 }
 
 func TestTLSServer(t *testing.T) {
@@ -580,25 +578,29 @@ func TestTLSServer(t *testing.T) {
 		t.Fatalf("Dial: %v", err)
 	}
 	defer idleConn.Close()
-	time.AfterFunc(10e9, func() { t.Fatalf("Timeout") })
-
-	if !strings.HasPrefix(ts.URL, "https://") {
-		t.Fatalf("expected test TLS server to start with https://, got %q", ts.URL)
-	}
-	res, err := Get(ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res == nil {
-		t.Fatalf("got nil Response")
-	}
-	defer res.Body.Close()
-	if res.Header.Get("X-TLS-Set") != "true" {
-		t.Errorf("expected X-TLS-Set response header")
-	}
-	if res.Header.Get("X-TLS-HandshakeComplete") != "true" {
-		t.Errorf("expected X-TLS-HandshakeComplete header")
-	}
+	goTimeout(t, 10e9, func() {
+		if !strings.HasPrefix(ts.URL, "https://") {
+			t.Errorf("expected test TLS server to start with https://, got %q", ts.URL)
+			return
+		}
+		res, err := Get(ts.URL)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if res == nil {
+			t.Errorf("got nil Response")
+			return
+		}
+		defer res.Body.Close()
+		if res.Header.Get("X-TLS-Set") != "true" {
+			t.Errorf("expected X-TLS-Set response header")
+			return
+		}
+		if res.Header.Get("X-TLS-HandshakeComplete") != "true" {
+			t.Errorf("expected X-TLS-HandshakeComplete header")
+		}
+	})
 }
 
 type serverExpectTest struct {
@@ -1017,6 +1019,21 @@ func TestClientWriteShutdown(t *testing.T) {
 	case <-time.After(10e9):
 		t.Fatalf("timeout")
 	}
+}
+
+// goTimeout runs f, failing t if f takes more than ns to complete.
+func goTimeout(t *testing.T, ns int64, f func()) {
+	ch := make(chan bool, 2)
+	timer := time.AfterFunc(ns, func() {
+		t.Errorf("Timeout expired after %d ns", ns)
+		ch <- true
+	})
+	defer timer.Stop()
+	go func() {
+		defer func() { ch <- true }()
+		f()
+	}()
+	<-ch
 }
 
 type errorListener struct {
