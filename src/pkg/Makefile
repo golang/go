@@ -29,7 +29,6 @@ DIRS=\
 	container/heap\
 	container/list\
 	container/ring\
-	container/vector\
 	crypto\
 	crypto/aes\
 	crypto/blowfish\
@@ -228,7 +227,6 @@ NOTEST+=\
 	../cmd/hgpatch\
 
 NOBENCH+=\
-	container/vector\
 
 # Disable tests that windows cannot run yet.
 ifeq ($(GOOS),windows)
