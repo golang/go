@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=http/spdy
+TARG=exp/spdy
 GOFILES=\
 	read.go\
 	types.go\

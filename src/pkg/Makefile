@@ -81,6 +81,7 @@ DIRS=\
 	exp/gui\
 	exp/gui/x11\
 	exp/norm\
+	exp/spdy\
 	exp/sql\
 	exp/sql/driver\
 	exp/template/html\
@@ -108,7 +109,6 @@ DIRS=\
 	http/fcgi\
 	http/pprof\
 	http/httptest\
-	http/spdy\
 	image\
 	image/bmp\
 	image/color\
