@@ -11,8 +11,22 @@ import (
 	"sync"
 )
 
-var hostentLock sync.Mutex
-var serventLock sync.Mutex
+var (
+	protoentLock sync.Mutex
+	hostentLock  sync.Mutex
+	serventLock  sync.Mutex
+)
+
+// lookupProtocol looks up IP protocol name and returns correspondent protocol number.
+func lookupProtocol(name string) (proto int, err os.Error) {
+	protoentLock.Lock()
+	defer protoentLock.Unlock()
+	p, e := syscall.GetProtoByName(name)
+	if e != 0 {
+		return 0, os.NewSyscallError("GetProtoByName", e)
+	}
+	return int(p.Proto), nil
+}
 
 func LookupHost(name string) (addrs []string, err os.Error) {
 	ips, err := LookupIP(name)

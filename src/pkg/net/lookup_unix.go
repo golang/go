@@ -8,7 +8,49 @@ package net
 
 import (
 	"os"
+	"sync"
 )
+
+var (
+	protocols         map[string]int
+	onceReadProtocols sync.Once
+)
+
+// readProtocols loads contents of /etc/protocols into protocols map
+// for quick access.
+func readProtocols() {
+	protocols = make(map[string]int)
+	if file, err := open("/etc/protocols"); err == nil {
+		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+			// tcp    6   TCP    # transmission control protocol
+			if i := byteIndex(line, '#'); i >= 0 {
+				line = line[0:i]
+			}
+			f := getFields(line)
+			if len(f) < 2 {
+				continue
+			}
+			if proto, _, ok := dtoi(f[1], 0); ok {
+				protocols[f[0]] = proto
+				for _, alias := range f[2:] {
+					protocols[alias] = proto
+				}
+			}
+		}
+		file.close()
+	}
+}
+
+// lookupProtocol looks up IP protocol name in /etc/protocols and
+// returns correspondent protocol number.
+func lookupProtocol(name string) (proto int, err os.Error) {
+	onceReadProtocols.Do(readProtocols)
+	proto, found := protocols[name]
+	if !found {
+		return 0, os.NewError("unknown IP protocol specified: " + name)
+	}
+	return
+}
 
 // LookupHost looks up the given host using the local resolver.
 // It returns an array of that host's addresses.

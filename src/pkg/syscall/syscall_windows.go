@@ -502,6 +502,7 @@ func Chmod(path string, mode uint32) (errno int) {
 //sys	GetHostByName(name string) (h *Hostent, errno int) [failretval==nil] = ws2_32.gethostbyname
 //sys	GetServByName(name string, proto string) (s *Servent, errno int) [failretval==nil] = ws2_32.getservbyname
 //sys	Ntohs(netshort uint16) (u uint16) = ws2_32.ntohs
+//sys	GetProtoByName(name string) (p *Protoent, errno int) [failretval==nil] = ws2_32.getprotobyname
 //sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) = dnsapi.DnsQuery_W
 //sys	DnsRecordListFree(rl *DNSRecord, freetype uint32) = dnsapi.DnsRecordListFree
 //sys	GetIfEntry(pIfRow *MibIfRow) (errcode int) = iphlpapi.GetIfEntry
