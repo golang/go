@@ -6,7 +6,6 @@ package template
 
 import (
 	"bytes"
-	"container/vector"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -42,7 +41,7 @@ type S struct {
 	Empty         []*T
 	Emptystring   string
 	Null          []*T
-	Vec           *vector.Vector
+	Vec           []interface{}
 	True          bool
 	False         bool
 	Mp            map[string]string
@@ -497,9 +496,7 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
 	s.Pdata = []*T{&t1, &t2}
 	s.Empty = []*T{}
 	s.Null = nil
-	s.Vec = new(vector.Vector)
-	s.Vec.Push("elt1")
-	s.Vec.Push("elt2")
+	s.Vec = []interface{}{"elt1", "elt2"}
 	s.True = true
 	s.False = false
 	s.Mp = make(map[string]string)
