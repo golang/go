@@ -26,6 +26,18 @@ signature,
 
 	func BenchmarkXXX(b *testing.B) { ... }
 
+Example functions may also be written. They are similar to test functions but,
+instead of using *testing.T to report success or failure, their output to
+os.Stdout and os.Stderr is compared against their doc comment.
+
+	// The output of this example function.
+	func ExampleXXX() {
+		fmt.Println("The output of this example function.")
+	}
+
+Multiple example functions may be provided for a given name XXX if they are
+discriminated by a distinct suffix starting with "_", such as ExampleXXX_2.
+
 See the documentation of the testing package for more information.
 
 By default, gotest needs no arguments.  It compiles all the .go files

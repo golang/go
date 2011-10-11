@@ -41,9 +41,9 @@ func Examples(pkg *ast.Package) []*Example {
 	return examples
 }
 
-// isTest tells whether name looks like a test (or benchmark, according to prefix).
-// It is a Test (say) if there is a character after Test that is not a lower-case letter.
-// We don't want Testiness.
+// isTest tells whether name looks like a test, example, or benchmark.
+// It is a Test (say) if there is a character after Test that is not a
+// lower-case letter. (We don't want Testiness.)
 func isTest(name, prefix string) bool {
 	if !strings.HasPrefix(name, prefix) {
 		return false
