@@ -103,9 +103,20 @@ struct sockaddr_any {
 	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
 };
 
+// copied from /usr/include/linux/un.h 
+struct my_sockaddr_un {
+	sa_family_t sun_family;
+#ifdef __ARM_EABI__
+	// on ARM char is by default unsigned
+	signed char sun_path[108];
+#else
+	char sun_path[108];
+#endif
+};
+
 typedef struct sockaddr_in $RawSockaddrInet4;
 typedef struct sockaddr_in6 $RawSockaddrInet6;
-typedef struct sockaddr_un $RawSockaddrUnix;
+typedef struct my_sockaddr_un $RawSockaddrUnix;
 typedef struct sockaddr_ll $RawSockaddrLinklayer;
 typedef struct sockaddr_nl $RawSockaddrNetlink;
 typedef struct sockaddr $RawSockaddr;
@@ -251,7 +262,11 @@ enum {
 // Ptrace
 
 // Register structures
-typedef struct user_regs_struct $PtraceRegs;
+#ifdef __ARM_EABI__
+	typedef struct user_regs $PtraceRegs;
+#else
+	typedef struct user_regs_struct $PtraceRegs;
+#endif
 
 // Misc
 
@@ -263,6 +278,11 @@ typedef struct ustat $Ustat_t;
 // The real epoll_event is a union, and godefs doesn't handle it well.
 struct my_epoll_event {
 	uint32_t events;
+#ifdef __ARM_EABI__
+	// padding is not specified in linux/eventpoll.h but added to conform to the
+	// alignment requirements of EABI
+	int32_t padFd;
+#endif
 	int32_t fd;
 	int32_t pad;
 };
