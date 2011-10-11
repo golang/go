@@ -1041,8 +1041,8 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		if mode&noFiltering == 0 {
 			ast.PackageExports(pkg)
 		}
-		stripFunctionBodies(pkg)
 		if mode&showSource == 0 {
+			stripFunctionBodies(pkg)
 			pdoc = doc.NewPackageDoc(pkg, path.Clean(relpath)) // no trailing '/' in importpath
 		} else {
 			past = ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments)
