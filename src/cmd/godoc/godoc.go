@@ -458,10 +458,15 @@ func comment_htmlFunc(comment string) string {
 	return buf.String()
 }
 
-func example_htmlFunc(name string, examples []*doc.Example, fset *token.FileSet) string {
+func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
 	var buf bytes.Buffer
 	for _, eg := range examples {
-		if eg.Name != name {
+		// accept Foo or Foo_.* for funcName == Foo
+		name := eg.Name
+		if i := strings.Index(name, "_"); i >= 0 {
+			name = name[:i]
+		}
+		if name != funcName {
 			continue
 		}
 
