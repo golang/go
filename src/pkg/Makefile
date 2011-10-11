@@ -167,7 +167,6 @@ DIRS=\
 	testing/quick\
 	testing/script\
 	time\
-	try\
 	unicode\
 	url\
 	utf16\
@@ -221,7 +220,6 @@ NOTEST+=\
 	syscall\
 	testing\
 	testing/iotest\
-	try\
 	../cmd/cgo\
 	../cmd/ebnflint\
 	../cmd/godoc\

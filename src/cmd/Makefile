@@ -18,7 +18,6 @@ DIRS=\
 	gc\
 	godefs\
 	gopack\
-	gotry\
 	nm\
 	prof\
 	
