@@ -122,7 +122,7 @@
 
 	An analogous set of functions scans formatted text to yield
 	values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
-	Fscanf and Fscanln read from a specified os.Reader; Sscan,
+	Fscanf and Fscanln read from a specified io.Reader; Sscan,
 	Sscanf and Sscanln read from an argument string.  Scanln,
 	Fscanln and Sscanln stop scanning at a newline and require that
 	the items be followed by one; Sscanf, Fscanf and Sscanf require
