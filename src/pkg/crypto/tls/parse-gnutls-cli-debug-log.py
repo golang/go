@@ -35,6 +35,8 @@ for line in sys.stdin.readlines():
                 bs = line.split()
                 for b in bs:
                         currentBlock.append(int(b, 16))
+	elif line.startswith("|<7>| RB-PEEK: Read 1 bytes"):
+		currentBlock = currentBlock[:-1]
 
 if len(currentBlock) > 0:
         blocks.append(currentBlock)

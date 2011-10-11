@@ -7,6 +7,7 @@ package tls
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/des"
 	"crypto/hmac"
 	"crypto/rc4"
 	"crypto/sha1"
@@ -51,15 +52,25 @@ type cipherSuite struct {
 }
 
 var cipherSuites = map[uint16]*cipherSuite{
-	TLS_RSA_WITH_RC4_128_SHA:           &cipherSuite{16, 20, 0, rsaKA, false, cipherRC4, macSHA1},
-	TLS_RSA_WITH_AES_128_CBC_SHA:       &cipherSuite{16, 20, 16, rsaKA, false, cipherAES, macSHA1},
-	TLS_ECDHE_RSA_WITH_RC4_128_SHA:     &cipherSuite{16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1},
-	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA: &cipherSuite{16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1},
+	TLS_RSA_WITH_RC4_128_SHA:            &cipherSuite{16, 20, 0, rsaKA, false, cipherRC4, macSHA1},
+	TLS_RSA_WITH_3DES_EDE_CBC_SHA:       &cipherSuite{24, 20, 8, rsaKA, false, cipher3DES, macSHA1},
+	TLS_RSA_WITH_AES_128_CBC_SHA:        &cipherSuite{16, 20, 16, rsaKA, false, cipherAES, macSHA1},
+	TLS_ECDHE_RSA_WITH_RC4_128_SHA:      &cipherSuite{16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1},
+	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA: &cipherSuite{24, 20, 8, ecdheRSAKA, true, cipher3DES, macSHA1},
+	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:  &cipherSuite{16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1},
 }
 
 func cipherRC4(key, iv []byte, isRead bool) interface{} {
 	cipher, _ := rc4.NewCipher(key)
 	return cipher
+}
+
+func cipher3DES(key, iv []byte, isRead bool) interface{} {
+	block, _ := des.NewTripleDESCipher(key)
+	if isRead {
+		return cipher.NewCBCDecrypter(block, iv)
+	}
+	return cipher.NewCBCEncrypter(block, iv)
 }
 
 func cipherAES(key, iv []byte, isRead bool) interface{} {
@@ -163,8 +174,10 @@ func mutualCipherSuite(have []uint16, want uint16) (suite *cipherSuite, id uint1
 // A list of the possible cipher suite ids. Taken from
 // http://www.iana.org/assignments/tls-parameters/tls-parameters.xml
 const (
-	TLS_RSA_WITH_RC4_128_SHA           uint16 = 0x0005
-	TLS_RSA_WITH_AES_128_CBC_SHA       uint16 = 0x002f
-	TLS_ECDHE_RSA_WITH_RC4_128_SHA     uint16 = 0xc011
-	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA uint16 = 0xc013
+	TLS_RSA_WITH_RC4_128_SHA            uint16 = 0x0005
+	TLS_RSA_WITH_3DES_EDE_CBC_SHA       uint16 = 0x000a
+	TLS_RSA_WITH_AES_128_CBC_SHA        uint16 = 0x002f
+	TLS_ECDHE_RSA_WITH_RC4_128_SHA      uint16 = 0xc011
+	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA uint16 = 0xc012
+	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA  uint16 = 0xc013
 )
