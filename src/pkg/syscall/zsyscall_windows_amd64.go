@@ -101,6 +101,7 @@ var (
 	procgethostbyname              = modws2_32.NewProc("gethostbyname")
 	procgetservbyname              = modws2_32.NewProc("getservbyname")
 	procntohs                      = modws2_32.NewProc("ntohs")
+	procgetprotobyname             = modws2_32.NewProc("getprotobyname")
 	procDnsQuery_W                 = moddnsapi.NewProc("DnsQuery_W")
 	procDnsRecordListFree          = moddnsapi.NewProc("DnsRecordListFree")
 	procGetIfEntry                 = modiphlpapi.NewProc("GetIfEntry")
@@ -1311,6 +1312,21 @@ func GetServByName(name string, proto string) (s *Servent, errno int) {
 func Ntohs(netshort uint16) (u uint16) {
 	r0, _, _ := Syscall(procntohs.Addr(), 1, uintptr(netshort), 0, 0)
 	u = uint16(r0)
+	return
+}
+
+func GetProtoByName(name string) (p *Protoent, errno int) {
+	r0, _, e1 := Syscall(procgetprotobyname.Addr(), 1, uintptr(unsafe.Pointer(StringBytePtr(name))), 0, 0)
+	p = (*Protoent)(unsafe.Pointer(r0))
+	if p == nil {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
 	return
 }
 

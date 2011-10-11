@@ -10,11 +10,8 @@ package net
 
 import (
 	"os"
-	"sync"
 	"syscall"
 )
-
-var onceReadProtocols sync.Once
 
 func sockaddrToIP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {
@@ -209,33 +206,7 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
 	return c.WriteToIP(b, a)
 }
 
-var protocols map[string]int
-
-func readProtocols() {
-	protocols = make(map[string]int)
-	if file, err := open("/etc/protocols"); err == nil {
-		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
-			// tcp    6   TCP    # transmission control protocol
-			if i := byteIndex(line, '#'); i >= 0 {
-				line = line[0:i]
-			}
-			f := getFields(line)
-			if len(f) < 2 {
-				continue
-			}
-			if proto, _, ok := dtoi(f[1], 0); ok {
-				protocols[f[0]] = proto
-				for _, alias := range f[2:] {
-					protocols[alias] = proto
-				}
-			}
-		}
-		file.close()
-	}
-}
-
 func splitNetProto(netProto string) (net string, proto int, err os.Error) {
-	onceReadProtocols.Do(readProtocols)
 	i := last(netProto, ':')
 	if i < 0 { // no colon
 		return "", 0, os.NewError("no IP protocol specified")
@@ -244,13 +215,12 @@ func splitNetProto(netProto string) (net string, proto int, err os.Error) {
 	protostr := netProto[i+1:]
 	proto, i, ok := dtoi(protostr, 0)
 	if !ok || i != len(protostr) {
-		// lookup by name
-		proto, ok = protocols[protostr]
-		if ok {
-			return
+		proto, err = lookupProtocol(protostr)
+		if err != nil {
+			return "", 0, err
 		}
 	}
-	return
+	return net, proto, nil
 }
 
 // DialIP connects to the remote address raddr on the network net,

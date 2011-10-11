@@ -411,6 +411,12 @@ type Hostent struct {
 	AddrList **byte
 }
 
+type Protoent struct {
+	Name    *byte
+	Aliases **byte
+	Proto   uint16
+}
+
 const (
 	DNS_TYPE_A       = 0x0001
 	DNS_TYPE_NS      = 0x0002
