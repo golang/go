@@ -597,6 +597,7 @@ handoff(Workbuf *b)
 static void
 scanstack(void (*scanblock)(byte*, int64), G *gp)
 {
+	M *mp;
 	int32 n;
 	Stktop *stk;
 	byte *sp, *guard;
@@ -607,8 +608,8 @@ scanstack(void (*scanblock)(byte*, int64), G *gp)
 	if(gp == g) {
 		// Scanning our own stack: start at &gp.
 		sp = (byte*)&gp;
-	} else if(gp->m != nil && gp->m->helpgc) {
-		// Gc helper scans its own stack.
+	} else if((mp = gp->m) != nil && mp->helpgc) {
+		// gchelper's stack is in active use and has no interesting pointers.
 		return;
 	} else {
 		// Scanning another goroutine's stack.
