@@ -2,11 +2,6 @@
 
 // MACHINE GENERATED - DO NOT EDIT.
 
-// Manual corrections: TODO(rsc): need to fix godefs
-//	remove duplicate PtraceRegs type
-//	change RawSockaddrUnix field to Path [108]int8 (was uint8)
-//	add padding to EpollEvent
-
 package syscall
 
 // Constants
@@ -61,7 +56,7 @@ const (
 	IFLA_LINKINFO           = 0x12
 	IFLA_NET_NS_PID         = 0x13
 	IFLA_IFALIAS            = 0x14
-	IFLA_MAX                = 0x14
+	IFLA_MAX                = 0x1c
 	RT_SCOPE_UNIVERSE       = 0
 	RT_SCOPE_SITE           = 0xc8
 	RT_SCOPE_LINK           = 0xfd
@@ -239,7 +234,8 @@ type Statfs_t struct {
 	Fsid         [8]byte /* __fsid_t */
 	Namelen      int32
 	Frsize       int32
-	Spare        [5]int32
+	Flags        int32
+	Spare        [4]int32
 	Pad_godefs_0 [4]byte
 }
 
@@ -443,7 +439,9 @@ type InotifyEvent struct {
 	Len    uint32
 }
 
-type PtraceRegs struct{}
+type PtraceRegs struct {
+	Uregs [18]uint32
+}
 
 type FdSet struct {
 	Bits [32]int32
