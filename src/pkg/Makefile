@@ -130,7 +130,7 @@ DIRS=\
 	net\
 	net/dict\
 	net/textproto\
-	netchan\
+	old/netchan\
 	old/regexp\
 	old/template\
 	os\
