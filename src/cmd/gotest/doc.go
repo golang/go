@@ -66,7 +66,7 @@ Usage:
 	6.out [-test.v] [-test.run pattern] [-test.bench pattern] \
 		[-test.cpuprofile=cpu.out] \
 		[-test.memprofile=mem.out] [-test.memprofilerate=1] \
-		[-test.parallel=0] \
+		[-test.parallel=$GOMAXPROCS] \
 		[-test.timeout=10] [-test.short] \
 		[-test.benchtime=3] [-test.cpu=1,2,3,4]
 
@@ -100,8 +100,9 @@ Use -test.run or -test.bench to limit profiling to a particular test
 or benchmark.
 
 The -test.parallel flag allows parallel execution of Test functions
-that call test.Parallel.  The value of the flag is the maximum number
-of tests to run simultaneously; by default, parallelism is disabled.
+that call test.Parallel.  The value of the flag is the maximum
+number of tests to run simultaneously; by default, it is set to the
+value of GOMAXPROCS.
 
 The -test.short flag tells long-running tests to shorten their run
 time.  It is off by default but set by all.bash so installations of
