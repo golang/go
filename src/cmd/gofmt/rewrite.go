@@ -85,7 +85,8 @@ func setValue(x, y reflect.Value) {
 	}
 	defer func() {
 		if x := recover(); x != nil {
-			if s, ok := x.(string); ok && strings.HasPrefix(s, "type mismatch") {
+			if s, ok := x.(string); ok &&
+				(strings.Contains(s, "type mismatch") || strings.Contains(s, "not assignable")) {
 				// x cannot be set to y - ignore this rewrite
 				return
 			}
