@@ -41,6 +41,10 @@ fi
 gomake testshort
 ) || exit $?
 
+(xcd pkg/runtime;
+gotest -short -cpu=1,2,4
+) || exit $?
+
 (xcd pkg/sync;
 GOMAXPROCS=10 gomake testshort
 ) || exit $?
