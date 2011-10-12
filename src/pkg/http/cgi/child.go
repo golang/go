@@ -93,20 +93,20 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
 	if r.Host != "" {
 		// Hostname is provided, so we can reasonably construct a URL,
 		// even if we have to assume 'http' for the scheme.
-		r.RawURL = "http://" + r.Host + params["REQUEST_URI"]
-		url, err := url.Parse(r.RawURL)
+		rawurl := "http://" + r.Host + params["REQUEST_URI"]
+		url, err := url.Parse(rawurl)
 		if err != nil {
-			return nil, os.NewError("cgi: failed to parse host and REQUEST_URI into a URL: " + r.RawURL)
+			return nil, os.NewError("cgi: failed to parse host and REQUEST_URI into a URL: " + rawurl)
 		}
 		r.URL = url
 	}
 	// Fallback logic if we don't have a Host header or the URL
 	// failed to parse
 	if r.URL == nil {
-		r.RawURL = params["REQUEST_URI"]
-		url, err := url.Parse(r.RawURL)
+		uriStr := params["REQUEST_URI"]
+		url, err := url.Parse(uriStr)
 		if err != nil {
-			return nil, os.NewError("cgi: failed to parse REQUEST_URI into a URL: " + r.RawURL)
+			return nil, os.NewError("cgi: failed to parse REQUEST_URI into a URL: " + uriStr)
 		}
 		r.URL = url
 	}

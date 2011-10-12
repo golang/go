@@ -49,9 +49,6 @@ func TestRequest(t *testing.T) {
 	if g, e := req.Header.Get("Foo-Bar"), "baz"; e != g {
 		t.Errorf("expected Foo-Bar %q; got %q", e, g)
 	}
-	if g, e := req.RawURL, "http://example.com/path?a=b"; e != g {
-		t.Errorf("expected RawURL %q; got %q", e, g)
-	}
 	if g, e := req.URL.String(), "http://example.com/path?a=b"; e != g {
 		t.Errorf("expected URL %q; got %q", e, g)
 	}
@@ -80,9 +77,6 @@ func TestRequestWithoutHost(t *testing.T) {
 	req, err := RequestFromMap(env)
 	if err != nil {
 		t.Fatalf("RequestFromMap: %v", err)
-	}
-	if g, e := req.RawURL, "/path?a=b"; e != g {
-		t.Errorf("expected RawURL %q; got %q", e, g)
 	}
 	if req.URL == nil {
 		t.Fatalf("unexpected nil URL")

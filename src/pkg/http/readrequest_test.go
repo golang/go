@@ -40,7 +40,6 @@ var reqTests = []reqTest{
 
 		&Request{
 			Method: "GET",
-			RawURL: "http://www.techcrunch.com/",
 			URL: &url.URL{
 				Raw:          "http://www.techcrunch.com/",
 				Scheme:       "http",
@@ -83,7 +82,6 @@ var reqTests = []reqTest{
 
 		&Request{
 			Method: "GET",
-			RawURL: "/",
 			URL: &url.URL{
 				Raw:     "/",
 				Path:    "/",
@@ -110,7 +108,6 @@ var reqTests = []reqTest{
 
 		&Request{
 			Method: "GET",
-			RawURL: "//user@host/is/actually/a/path/",
 			URL: &url.URL{
 				Raw:          "//user@host/is/actually/a/path/",
 				Scheme:       "",

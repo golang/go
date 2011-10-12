@@ -78,7 +78,7 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
 		fetch := func(n int) string {
 			req := new(Request)
 			var err os.Error
-			req.URL, err = url.Parse(ts.URL + fmt.Sprintf("?close=%v", connectionClose))
+			req.URL, err = url.Parse(ts.URL + fmt.Sprintf("/?close=%v", connectionClose))
 			if err != nil {
 				t.Fatalf("URL parse error: %v", err)
 			}
@@ -362,32 +362,6 @@ func TestTransportHeadChunkedResponse(t *testing.T) {
 	}
 }
 
-func TestTransportNilURL(t *testing.T) {
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		fmt.Fprintf(w, "Hi")
-	}))
-	defer ts.Close()
-
-	req := new(Request)
-	req.URL = nil // what we're actually testing
-	req.Method = "GET"
-	req.RawURL = ts.URL
-	req.Proto = "HTTP/1.1"
-	req.ProtoMajor = 1
-	req.ProtoMinor = 1
-	req.Header = make(Header)
-
-	tr := &Transport{}
-	res, err := tr.RoundTrip(req)
-	if err != nil {
-		t.Fatalf("unexpected RoundTrip error: %v", err)
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	if g, e := string(body), "Hi"; g != e {
-		t.Fatalf("Expected response body of %q; got %q", e, g)
-	}
-}
-
 var roundTripTests = []struct {
 	accept       string
 	expectAccept string
@@ -484,7 +458,7 @@ func TestTransportGzip(t *testing.T) {
 		c := &Client{Transport: &Transport{}}
 
 		// First fetch something large, but only read some of it.
-		res, err := c.Get(ts.URL + "?body=large&chunked=" + chunked)
+		res, err := c.Get(ts.URL + "/?body=large&chunked=" + chunked)
 		if err != nil {
 			t.Fatalf("large get: %v", err)
 		}
@@ -504,7 +478,7 @@ func TestTransportGzip(t *testing.T) {
 		}
 
 		// Then something small.
-		res, err = c.Get(ts.URL + "?chunked=" + chunked)
+		res, err = c.Get(ts.URL + "/?chunked=" + chunked)
 		if err != nil {
 			t.Fatal(err)
 		}
