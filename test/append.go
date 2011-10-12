@@ -63,6 +63,11 @@ var tests = []struct {
 	{"byte i", append([]byte{0, 1, 2}, []byte{3}...), []byte{0, 1, 2, 3}},
 	{"byte j", append([]byte{0, 1, 2}, []byte{3, 4, 5}...), []byte{0, 1, 2, 3, 4, 5}},
 
+	{"bytestr a", append([]byte{}, "0"...), []byte("0")},
+	{"bytestr b", append([]byte{}, "0123"...), []byte("0123")},
+
+	{"bytestr c", append([]byte("012"), "3"...), []byte("0123")},
+	{"bytestr d", append([]byte("012"), "345"...), []byte("012345")},
 
 	{"int16 a", append([]int16{}), []int16{}},
 	{"int16 b", append([]int16{}, 0), []int16{0}},

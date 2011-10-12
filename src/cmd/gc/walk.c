@@ -121,7 +121,7 @@ static int
 paramoutheap(Node *fn)
 {
 	NodeList *l;
-	
+
 	for(l=fn->dcl; l; l=l->next) {
 		switch(l->n->class) {
 		case PPARAMOUT|PHEAP:
@@ -409,7 +409,7 @@ walkexpr(Node **np, NodeList **init)
 	case OLEN:
 	case OCAP:
 		walkexpr(&n->left, init);
-		
+
 		// replace len(*[10]int) with 10.
 		// delayed until now to preserve side effects.
 		t = n->left->type;
@@ -421,7 +421,7 @@ walkexpr(Node **np, NodeList **init)
 			n->typecheck = 1;
 		}
 		goto ret;
-	
+
 	case OLSH:
 	case ORSH:
 	case OAND:
@@ -440,7 +440,7 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&n->left, init);
 		walkexpr(&n->right, init);
 		goto ret;
-	
+
 	case OANDAND:
 	case OOROR:
 		walkexpr(&n->left, init);
@@ -553,7 +553,7 @@ walkexpr(Node **np, NodeList **init)
 		walkexprlistsafe(n->list, init);
 		walkexpr(&r, init);
 		l = n->list->n;
-		
+
 		// all the really hard stuff - explicit function calls and so on -
 		// is gone, but map assignments remain.
 		// if there are map assignments here, assign via
@@ -648,7 +648,7 @@ walkexpr(Node **np, NodeList **init)
 		if(n->op == ODOTTYPE2)
 			*p++ = '2';
 		*p = '\0';
-	
+
 		fn = syslook(buf, 1);
 		ll = list1(typename(n->type));
 		ll = list(ll, n->left);
@@ -679,7 +679,7 @@ walkexpr(Node **np, NodeList **init)
 		else
 			*p++ = 'I';
 		*p = '\0';
-		
+
 		fn = syslook(buf, 1);
 		ll = nil;
 		if(!isinter(n->left->type))
@@ -894,7 +894,7 @@ walkexpr(Node **np, NodeList **init)
 		}
 		if(v1 >= 0 && v2 >= 0 && v1 > v2)
 			yyerror("inverted slice range");
-		
+
 		if(n->op == OSLICEARR)
 			goto slicearray;
 
@@ -925,7 +925,7 @@ walkexpr(Node **np, NodeList **init)
 				l,
 				nodintconst(t->type->width));
 		}
-		n->etype = et;  // preserve no-typecheck flag from OSLICE to the slice* call.
+		n->etype = et;	// preserve no-typecheck flag from OSLICE to the slice* call.
 		goto ret;
 
 	slicearray:
@@ -1054,10 +1054,14 @@ walkexpr(Node **np, NodeList **init)
 				l);
 		}
 		goto ret;
-	
+
 	case OAPPEND:
-		if(n->isddd)
-			n = appendslice(n, init);
+		if(n->isddd) {
+			if(istype(n->type->type, TUINT8) && istype(n->list->next->n->type, TSTRING))
+				n = mkcall("appendstr", n->type, init, typename(n->type), n->list->n, n->list->next->n);
+			else
+				n = appendslice(n, init);
+		}
 		else
 			n = append(n, init);
 		goto ret;
@@ -1319,7 +1323,7 @@ mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init, int
 {
 	Node *a, *n;
 	Type *tslice;
-	
+
 	tslice = typ(TARRAY);
 	tslice->type = l->type->type;
 	tslice->bound = -1;
@@ -1413,7 +1417,7 @@ ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeL
 	if(lr)
 		r = lr->n;
 	nn = nil;
-	
+
 	// f(g()) where g has multiple return values
 	if(r != N && lr->next == nil && r->type->etype == TSTRUCT && r->type->funarg) {
 		// optimization - can do block copy
@@ -1423,7 +1427,7 @@ ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeL
 			nn = list1(convas(nod(OAS, a, r), init));
 			goto ret;
 		}
-		
+
 		// conversions involved.
 		// copy into temporaries.
 		alist = nil;
@@ -1714,10 +1718,10 @@ convas(Node *n, NodeList **init)
 			n->left->left, n->left->right, n->right);
 		goto out;
 	}
-	
+
 	if(eqtype(lt, rt))
 		goto out;
-	
+
 	n->right = assignconv(n->right, lt, "assignment");
 	walkexpr(&n->right, init);
 
@@ -1952,7 +1956,7 @@ heapmoves(void)
 {
 	NodeList *nn;
 	int32 lno;
-	
+
 	lno = lineno;
 	lineno = curfn->lineno;
 	nn = paramstoheap(getthis(curfn->type), 0);
@@ -2060,7 +2064,7 @@ addstr(Node *n, NodeList **init)
 	Node *r, *cat, *typstr;
 	NodeList *in, *args;
 	int i, count;
-	
+
 	count = 0;
 	for(r=n; r->op == OADDSTR; r=r->left)
 		count++;	// r->right
@@ -2089,7 +2093,7 @@ addstr(Node *n, NodeList **init)
 	typecheck(&r, Erv);
 	walkexpr(&r, init);
 	r->type = n->type;
-	
+
 	return r;
 }
 
@@ -2097,7 +2101,7 @@ static Node*
 appendslice(Node *n, NodeList **init)
 {
 	Node *f;
-	
+
 	f = syslook("appendslice", 1);
 	argtype(f, n->type);
 	argtype(f, n->type->type);
@@ -2111,7 +2115,7 @@ appendslice(Node *n, NodeList **init)
 //     s := src
 //     const argc = len(args) - 1
 //     if cap(s) - len(s) < argc {
-//          s = growslice(s, argc) 
+//	    s = growslice(s, argc)
 //     }
 //     n := len(s)
 //     s = s[:n+argc]
@@ -2140,13 +2144,13 @@ append(Node *n, NodeList **init)
 	ns = temp(nsrc->type);
 	l = list(l, nod(OAS, ns, nsrc));  // s = src
 
-	na = nodintconst(argc);         // const argc
-	nx = nod(OIF, N, N);            // if cap(s) - len(s) < argc
+	na = nodintconst(argc);		// const argc
+	nx = nod(OIF, N, N);		// if cap(s) - len(s) < argc
 	nx->ntest = nod(OLT, nod(OSUB, nod(OCAP, ns, N), nod(OLEN, ns, N)), na);
 
-	fn = syslook("growslice", 1);   //   growslice(<type>, old []T, n int64) (ret []T)
-	argtype(fn, ns->type->type);    // 1 old []any 
-	argtype(fn, ns->type->type);    // 2 ret []any
+	fn = syslook("growslice", 1);	//   growslice(<type>, old []T, n int64) (ret []T)
+	argtype(fn, ns->type->type);	// 1 old []any
+	argtype(fn, ns->type->type);	// 2 ret []any
 
 	nx->nbody = list1(nod(OAS, ns, mkcall1(fn,  ns->type, &nx->ninit,
 					       typename(ns->type),
@@ -2155,16 +2159,16 @@ append(Node *n, NodeList **init)
 	l = list(l, nx);
 
 	nn = temp(types[TINT]);
-	l = list(l, nod(OAS, nn, nod(OLEN, ns, N)));     // n = len(s)
+	l = list(l, nod(OAS, nn, nod(OLEN, ns, N)));	 // n = len(s)
 
-	nx = nod(OSLICE, ns, nod(OKEY, N, nod(OADD, nn, na)));   // ...s[:n+argc]
-	nx->etype = 1;  // disable bounds check
-	l = list(l, nod(OAS, ns, nx));                  // s = s[:n+argc]
+	nx = nod(OSLICE, ns, nod(OKEY, N, nod(OADD, nn, na)));	 // ...s[:n+argc]
+	nx->etype = 1;	// disable bounds check
+	l = list(l, nod(OAS, ns, nx));			// s = s[:n+argc]
 
-	for (a = n->list->next;  a != nil; a = a->next) {
-		nx = nod(OINDEX, ns, nn);               // s[n] ...
-		nx->etype = 1;  // disable bounds check
-		l = list(l, nod(OAS, nx, a->n));        // s[n] = arg
+	for (a = n->list->next;	 a != nil; a = a->next) {
+		nx = nod(OINDEX, ns, nn);		// s[n] ...
+		nx->etype = 1;	// disable bounds check
+		l = list(l, nod(OAS, nx, a->n));	// s[n] = arg
 		if (a->next != nil)
 			l = list(l, nod(OAS, nn, nod(OADD, nn, nodintconst(1))));  // n = n + 1
 	}

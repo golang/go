@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of August 31, 2011 -->
+<!-- subtitle Version of September 29, 2011 -->
 
 <!--
 TODO
@@ -4658,6 +4658,10 @@ The values <code>x</code> are passed to a parameter of type <code>...T</code>
 where <code>T</code> is the <a href="#Slice_types">element type</a> of
 <code>S</code> and the respective
 <a href="#Passing_arguments_to_..._parameters">parameter passing rules</a> apply.
+As a special case, <code>append</code> also accepts a first argument
+assignable to type <code>[]byte</code> with a second argument of
+string type followed by <code>...</code>. This form appends the
+bytes of the string.
 </p>
 
 <pre class="grammar">
@@ -4668,7 +4672,7 @@ append(s S, x ...T) S  // T is the element type of S
 If the capacity of <code>s</code> is not large enough to fit the additional
 values, <code>append</code> allocates a new, sufficiently large slice that fits
 both the existing slice elements and the additional values. Thus, the returned
-slice may refer to a different underlying array. 
+slice may refer to a different underlying array.
 </p>
 
 <pre>
@@ -4679,6 +4683,9 @@ s3 := append(s2, s0...)    // append a slice              s3 == []int{0, 0, 2, 3
 
 var t []interface{}
 t = append(t, 42, 3.1415, "foo")                          t == []interface{}{42, 3.1415, "foo"}
+
+var b []byte
+b = append(b, "bar"...)    // append string contents      b == []byte{'b', 'a', 'r' }
 </pre>
 
 <p>
