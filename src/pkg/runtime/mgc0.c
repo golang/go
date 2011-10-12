@@ -501,7 +501,7 @@ putempty(Workbuf *b)
 
 	runtime·lock(&work.emu);
 	b->next = work.empty;
-	work.empty = b->next;
+	work.empty = b;
 	runtime·unlock(&work.emu);
 }
 
