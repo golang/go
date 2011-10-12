@@ -312,20 +312,23 @@ func (fd *netFD) Close() os.Error {
 	return nil
 }
 
-func (fd *netFD) CloseRead() os.Error {
+func (fd *netFD) shutdown(how int) os.Error {
 	if fd == nil || fd.sysfd == syscall.InvalidHandle {
 		return os.EINVAL
 	}
-	syscall.Shutdown(fd.sysfd, syscall.SHUT_RD)
+	errno := syscall.Shutdown(fd.sysfd, how)
+	if errno != 0 {
+		return &OpError{"shutdown", fd.net, fd.laddr, os.Errno(errno)}
+	}
 	return nil
 }
 
+func (fd *netFD) CloseRead() os.Error {
+	return fd.shutdown(syscall.SHUT_RD)
+}
+
 func (fd *netFD) CloseWrite() os.Error {
-	if fd == nil || fd.sysfd == syscall.InvalidHandle {
-		return os.EINVAL
-	}
-	syscall.Shutdown(fd.sysfd, syscall.SHUT_WR)
-	return nil
+	return fd.shutdown(syscall.SHUT_WR)
 }
 
 // Read from network.
