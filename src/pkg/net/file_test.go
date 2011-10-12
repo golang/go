@@ -73,7 +73,7 @@ func TestFileListener(t *testing.T) {
 	}
 }
 
-func testFilePacketConn(t *testing.T, pcf packetConnFile) {
+func testFilePacketConn(t *testing.T, pcf packetConnFile, listen bool) {
 	f, err := pcf.File()
 	if err != nil {
 		t.Fatalf("File failed: %v", err)
@@ -84,6 +84,11 @@ func testFilePacketConn(t *testing.T, pcf packetConnFile) {
 	}
 	if !reflect.DeepEqual(pcf.LocalAddr(), c.LocalAddr()) {
 		t.Fatalf("LocalAddrs not equal: %#v != %#v", pcf.LocalAddr(), c.LocalAddr())
+	}
+	if listen {
+		if _, err := c.WriteTo([]byte{}, c.LocalAddr()); err != nil {
+			t.Fatalf("WriteTo failed: %v", err)
+		}
 	}
 	if err := c.Close(); err != nil {
 		t.Fatalf("Close failed: %v", err)
@@ -98,7 +103,7 @@ func testFilePacketConnListen(t *testing.T, net, laddr string) {
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 	}
-	testFilePacketConn(t, l.(packetConnFile))
+	testFilePacketConn(t, l.(packetConnFile), true)
 	if err := l.Close(); err != nil {
 		t.Fatalf("Close failed: %v", err)
 	}
@@ -109,7 +114,7 @@ func testFilePacketConnDial(t *testing.T, net, raddr string) {
 	if err != nil {
 		t.Fatalf("Dial failed: %v", err)
 	}
-	testFilePacketConn(t, c.(packetConnFile))
+	testFilePacketConn(t, c.(packetConnFile), false)
 	if err := c.Close(); err != nil {
 		t.Fatalf("Close failed: %v", err)
 	}

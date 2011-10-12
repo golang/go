@@ -22,6 +22,7 @@ func newFileFD(f *os.File) (nfd *netFD, err os.Error) {
 		return nil, os.NewSyscallError("getsockopt", errno)
 	}
 
+	family := syscall.AF_UNSPEC
 	toAddr := sockaddrToTCP
 	sa, _ := syscall.Getsockname(fd)
 	switch sa.(type) {
@@ -29,18 +30,21 @@ func newFileFD(f *os.File) (nfd *netFD, err os.Error) {
 		closesocket(fd)
 		return nil, os.EINVAL
 	case *syscall.SockaddrInet4:
+		family = syscall.AF_INET
 		if proto == syscall.SOCK_DGRAM {
 			toAddr = sockaddrToUDP
 		} else if proto == syscall.SOCK_RAW {
 			toAddr = sockaddrToIP
 		}
 	case *syscall.SockaddrInet6:
+		family = syscall.AF_INET6
 		if proto == syscall.SOCK_DGRAM {
 			toAddr = sockaddrToUDP
 		} else if proto == syscall.SOCK_RAW {
 			toAddr = sockaddrToIP
 		}
 	case *syscall.SockaddrUnix:
+		family = syscall.AF_UNIX
 		toAddr = sockaddrToUnix
 		if proto == syscall.SOCK_DGRAM {
 			toAddr = sockaddrToUnixgram
@@ -52,7 +56,7 @@ func newFileFD(f *os.File) (nfd *netFD, err os.Error) {
 	sa, _ = syscall.Getpeername(fd)
 	raddr := toAddr(sa)
 
-	if nfd, err = newFD(fd, 0, proto, laddr.Network()); err != nil {
+	if nfd, err = newFD(fd, family, proto, laddr.Network()); err != nil {
 		return nil, err
 	}
 	nfd.setAddr(laddr, raddr)
