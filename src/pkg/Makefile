@@ -68,7 +68,6 @@ DIRS=\
 	debug/elf\
 	debug/gosym\
 	debug/pe\
-	ebnf\
 	encoding/ascii85\
 	encoding/base32\
 	encoding/base64\
@@ -78,6 +77,8 @@ DIRS=\
 	encoding/pem\
 	exec\
 	exp/datafmt\
+	exp/ebnf\
+	exp/ebnflint\
 	exp/gui\
 	exp/gui/x11\
 	exp/norm\
@@ -173,7 +174,6 @@ DIRS=\
 	websocket\
 	xml\
 	../cmd/cgo\
-	../cmd/ebnflint\
 	../cmd/godoc\
 	../cmd/gofix\
 	../cmd/gofmt\
@@ -201,6 +201,7 @@ NOTEST+=\
 	crypto\
 	crypto/openpgp/error\
 	crypto/x509/pkix\
+	exp/ebnflint\
 	exp/gui\
 	exp/gui/x11\
 	exp/sql/driver\
@@ -220,7 +221,6 @@ NOTEST+=\
 	testing\
 	testing/iotest\
 	../cmd/cgo\
-	../cmd/ebnflint\
 	../cmd/godoc\
 	../cmd/gotest\
 	../cmd/goyacc\
