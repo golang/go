@@ -829,7 +829,7 @@ var ReplaceTests = []ReplaceTest{
 
 func TestReplace(t *testing.T) {
 	for _, tt := range ReplaceTests {
-		in := append([]byte(tt.in), []byte("<spare>")...)
+		in := append([]byte(tt.in), "<spare>"...)
 		in = in[:len(tt.in)]
 		out := Replace(in, []byte(tt.old), []byte(tt.new), tt.n)
 		if s := string(out); s != tt.out {

@@ -280,7 +280,7 @@ func PerformanceTest() {
 	success := make(chan bool, 1)
 	go func() {
 		buf := bytes.Repeat([]byte("\u035D"), 1024*1024)
-		buf = append(buf, []byte("\u035B")...)
+		buf = append(buf, "\u035B"...)
 		norm.NFC.Append(nil, buf...)
 		success <- true
 	}()

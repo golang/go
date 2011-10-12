@@ -175,7 +175,7 @@ func TestNextValueBig(t *testing.T) {
 		t.Errorf("invalid rest: %d", len(rest))
 	}
 
-	item, rest, err = nextValue(append(jsonBig, []byte("HELLO WORLD")...), &scan)
+	item, rest, err = nextValue(append(jsonBig, "HELLO WORLD"...), &scan)
 	if err != nil {
 		t.Fatalf("nextValue extra: %s", err)
 	}
