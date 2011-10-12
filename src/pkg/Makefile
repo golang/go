@@ -76,7 +76,6 @@ DIRS=\
 	encoding/hex\
 	encoding/pem\
 	exec\
-	exp/datafmt\
 	exp/ebnf\
 	exp/ebnflint\
 	exp/gui\
