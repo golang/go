@@ -47,3 +47,8 @@ for dir in $dirs; do (
 ) done > $TMP
 
 mv $TMP $OUT
+
+if (egrep -v '^(exp|old)/' $OUT | egrep -q " (exp|old)/"); then
+	echo "$0: $OUT contains dependencies to exp or old packages"
+        exit 1
+fi
