@@ -2615,7 +2615,6 @@ sub RemoveUninterestingFrames {
                       'mal',
                       'runtime.new',
                       'makeslice1',
-                      'runtime.gostringsize',
                       'runtime.malloc',
                       'unsafe.New',
                       'runtime.mallocgc',

@@ -35,16 +35,18 @@ runtime·findnullw(uint16 *s)
 
 uint32 runtime·maxstring = 256;
 
-String
-runtime·gostringsize(int32 l)
+static String
+gostringsize(int32 l)
 {
 	String s;
 	uint32 ms;
 
 	if(l == 0)
 		return runtime·emptystring;
-	s.str = runtime·mal(l+1);	// leave room for NUL for C runtime (e.g., callers of getenv)
+	// leave room for NUL for C runtime (e.g., callers of getenv)
+	s.str = runtime·mallocgc(l+1, FlagNoPointers, 1, 0);
 	s.len = l;
+	s.str[l] = 0;
 	for(;;) {
 		ms = runtime·maxstring;
 		if((uint32)l <= ms || runtime·cas(&runtime·maxstring, ms, (uint32)l))
@@ -60,7 +62,7 @@ runtime·gostring(byte *str)
 	String s;
 
 	l = runtime·findnull(str);
-	s = runtime·gostringsize(l);
+	s = gostringsize(l);
 	runtime·memmove(s.str, str, l);
 	return s;
 }
@@ -70,7 +72,7 @@ runtime·gostringn(byte *str, int32 l)
 {
 	String s;
 
-	s = runtime·gostringsize(l);
+	s = gostringsize(l);
 	runtime·memmove(s.str, str, l);
 	return s;
 }
@@ -100,18 +102,23 @@ runtime·gostringnocopy(byte *str)
 String
 runtime·gostringw(uint16 *str)
 {
-	int32 n, i;
+	int32 n1, n2, i;
 	byte buf[8];
 	String s;
 
-	n = 0;
+	n1 = 0;
 	for(i=0; str[i]; i++)
-		n += runtime·runetochar(buf, str[i]);
-	s = runtime·gostringsize(n+4);
-	n = 0;
-	for(i=0; str[i]; i++)
-		n += runtime·runetochar(s.str+n, str[i]);
-	s.len = n;
+		n1 += runtime·runetochar(buf, str[i]);
+	s = gostringsize(n1+4);
+	n2 = 0;
+	for(i=0; str[i]; i++) {
+		// check for race
+		if(n2 >= n1)
+			break;
+		n2 += runtime·runetochar(s.str+n2, str[i]);
+	}
+	s.len = n2;
+	s.str[s.len] = 0;
 	return s;
 }
 
@@ -125,7 +132,7 @@ runtime·catstring(String s1, String s2)
 	if(s2.len == 0)
 		return s1;
 
-	s3 = runtime·gostringsize(s1.len + s2.len);
+	s3 = gostringsize(s1.len + s2.len);
 	runtime·memmove(s3.str, s1.str, s1.len);
 	runtime·memmove(s3.str+s1.len, s2.str, s2.len);
 	return s3;
@@ -144,7 +151,7 @@ concatstring(int32 n, String *s)
 		l += s[i].len;
 	}
 	
-	out = runtime·gostringsize(l);
+	out = gostringsize(l);
 	l = 0;
 	for(i=0; i<n; i++) {
 		runtime·memmove(out.str+l, s[i].str, s[i].len);
@@ -254,17 +261,18 @@ func slicestring1(si String, lindex int32) (so String) {
 }
 
 func intstring(v int64) (s String) {
-	s = runtime·gostringsize(8);
+	s = gostringsize(8);
 	s.len = runtime·runetochar(s.str, v);
+	s.str[s.len] = 0;
 }
 
 func slicebytetostring(b Slice) (s String) {
-	s = runtime·gostringsize(b.len);
+	s = gostringsize(b.len);
 	runtime·memmove(s.str, b.array, s.len);
 }
 
 func stringtoslicebyte(s String) (b Slice) {
-	b.array = runtime·mallocgc(s.len, FlagNoPointers, 1, 1);
+	b.array = runtime·mallocgc(s.len, FlagNoPointers, 1, 0);
 	b.len = s.len;
 	b.cap = s.len;
 	runtime·memmove(b.array, s.str, s.len);
@@ -281,7 +289,7 @@ func sliceinttostring(b Slice) (s String) {
 		siz1 += runtime·runetochar(dum, a[i]);
 	}
 
-	s = runtime·gostringsize(siz1+4);
+	s = gostringsize(siz1+4);
 	siz2 = 0;
 	for(i=0; i<b.len; i++) {
 		// check for race
@@ -290,6 +298,7 @@ func sliceinttostring(b Slice) (s String) {
 		siz2 += runtime·runetochar(s.str+siz2, a[i]);
 	}
 	s.len = siz2;
+	s.str[s.len] = 0;
 }
 
 func stringtosliceint(s String) (b Slice) {
@@ -307,7 +316,7 @@ func stringtosliceint(s String) (b Slice) {
 		n++;
 	}
 
-	b.array = runtime·mallocgc(n*sizeof(r[0]), FlagNoPointers, 1, 1);
+	b.array = runtime·mallocgc(n*sizeof(r[0]), FlagNoPointers, 1, 0);
 	b.len = n;
 	b.cap = n;
 	p = s.str;
