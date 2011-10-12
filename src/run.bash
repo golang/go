@@ -45,7 +45,7 @@ gomake testshort
 GOMAXPROCS=10 gomake testshort
 ) || exit $?
 
-(xcd cmd/ebnflint
+(xcd pkg/exp/ebnflint
 time gomake test
 ) || exit $?
 

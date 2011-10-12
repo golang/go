@@ -6,7 +6,7 @@ package main
 
 import (
 	"bytes"
-	"ebnf"
+	"exp/ebnf"
 	"flag"
 	"fmt"
 	"go/scanner"

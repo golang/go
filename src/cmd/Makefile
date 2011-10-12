@@ -38,7 +38,6 @@ CLEANDIRS=\
 	8g\
 	8l\
 	cgo\
-	ebnflint\
 	godoc\
 	gofix\
 	gofmt\
