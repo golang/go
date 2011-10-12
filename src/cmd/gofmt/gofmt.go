@@ -107,7 +107,11 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) os.Er
 	}
 
 	if rewrite != nil {
-		file = rewrite(file)
+		if adjust == nil {
+			file = rewrite(file)
+		} else {
+			fmt.Fprintf(os.Stderr, "warning: rewrite ignored for incomplete programs\n")
+		}
 	}
 
 	if *simplifyAST {
@@ -119,7 +123,10 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) os.Er
 	if err != nil {
 		return err
 	}
-	res := adjust(src, buf.Bytes())
+	res := buf.Bytes()
+	if adjust != nil {
+		res = adjust(src, res)
+	}
 
 	if !bytes.Equal(src, res) {
 		// formatting has changed
@@ -252,8 +259,7 @@ func parse(filename string, src []byte, stdin bool) (*ast.File, func(orig, src [
 	// Try as whole source file.
 	file, err := parser.ParseFile(fset, filename, src, parserMode)
 	if err == nil {
-		adjust := func(orig, src []byte) []byte { return src }
-		return file, adjust, nil
+		return file, nil, nil
 	}
 	// If the error is that the source file didn't begin with a
 	// package line and this is standard input, fall through to
@@ -318,7 +324,10 @@ func cutSpace(b []byte) (before, middle, after []byte) {
 	for j > 0 && (b[j-1] == ' ' || b[j-1] == '\t' || b[j-1] == '\n') {
 		j--
 	}
-	return b[:i], b[i:j], b[j:]
+	if i <= j {
+		return b[:i], b[i:j], b[j:]
+	}
+	return nil, nil, b[j:]
 }
 
 // matchSpace reformats src to use the same space context as orig.
