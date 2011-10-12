@@ -32,7 +32,6 @@ var reqWriteTests = []reqWriteTest{
 	{
 		Req: Request{
 			Method: "GET",
-			RawURL: "http://www.techcrunch.com/",
 			URL: &url.URL{
 				Raw:          "http://www.techcrunch.com/",
 				Scheme:       "http",
@@ -188,7 +187,7 @@ var reqWriteTests = []reqWriteTest{
 	{
 		Req: Request{
 			Method: "POST",
-			RawURL: "http://example.com/",
+			URL:    mustParseURL("http://example.com/"),
 			Host:   "example.com",
 			Header: Header{
 				"Content-Length": []string{"10"}, // ignored
@@ -198,14 +197,14 @@ var reqWriteTests = []reqWriteTest{
 
 		Body: []byte("abcdef"),
 
-		WantWrite: "POST http://example.com/ HTTP/1.1\r\n" +
+		WantWrite: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"Content-Length: 6\r\n" +
 			"\r\n" +
 			"abcdef",
 
-		WantProxy: "POST http://example.com/ HTTP/1.1\r\n" +
+		WantProxy: "POST / HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"Content-Length: 6\r\n" +
@@ -217,17 +216,11 @@ var reqWriteTests = []reqWriteTest{
 	{
 		Req: Request{
 			Method: "GET",
-			RawURL: "/search",
+			URL:    mustParseURL("/search"),
 			Host:   "www.google.com",
 		},
 
 		WantWrite: "GET /search HTTP/1.1\r\n" +
-			"Host: www.google.com\r\n" +
-			"User-Agent: Go http package\r\n" +
-			"\r\n",
-
-		// Looks weird but RawURL overrides what WriteProxy would choose.
-		WantProxy: "GET /search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"\r\n",
@@ -237,7 +230,7 @@ var reqWriteTests = []reqWriteTest{
 	{
 		Req: Request{
 			Method:        "POST",
-			RawURL:        "/",
+			URL:           mustParseURL("/"),
 			Host:          "example.com",
 			ProtoMajor:    1,
 			ProtoMinor:    1,
@@ -266,7 +259,7 @@ var reqWriteTests = []reqWriteTest{
 	{
 		Req: Request{
 			Method:        "POST",
-			RawURL:        "/",
+			URL:           mustParseURL("/"),
 			Host:          "example.com",
 			ProtoMajor:    1,
 			ProtoMinor:    1,
@@ -292,7 +285,7 @@ var reqWriteTests = []reqWriteTest{
 	{
 		Req: Request{
 			Method:        "POST",
-			RawURL:        "/",
+			URL:           mustParseURL("/"),
 			Host:          "example.com",
 			ProtoMajor:    1,
 			ProtoMinor:    1,
@@ -306,7 +299,7 @@ var reqWriteTests = []reqWriteTest{
 	{
 		Req: Request{
 			Method:        "POST",
-			RawURL:        "/",
+			URL:           mustParseURL("/"),
 			Host:          "example.com",
 			ProtoMajor:    1,
 			ProtoMinor:    1,
@@ -320,7 +313,7 @@ var reqWriteTests = []reqWriteTest{
 	{
 		Req: Request{
 			Method:        "POST",
-			RawURL:        "/",
+			URL:           mustParseURL("/"),
 			Host:          "example.com",
 			ProtoMajor:    1,
 			ProtoMinor:    1,
@@ -334,7 +327,7 @@ var reqWriteTests = []reqWriteTest{
 	{
 		Req: Request{
 			Method:     "GET",
-			RawURL:     "/foo",
+			URL:        mustParseURL("/foo"),
 			ProtoMajor: 1,
 			ProtoMinor: 0,
 			Header: Header{
@@ -349,7 +342,10 @@ var reqWriteTests = []reqWriteTest{
 		// .. but we can't call Request.Write on it, due to its lack of Host header.
 		// TODO(bradfitz): there might be an argument to allow this, but for now I'd
 		// rather let HTTP/1.0 continue to die.
-		WantError: os.NewError("http: Request.Write on Request with no Host or URL set"),
+		WantWrite: "GET /foo HTTP/1.1\r\n" +
+			"Host: \r\n" +
+			"User-Agent: Go http package\r\n" +
+			"X-Foo: X-Bar\r\n\r\n",
 	},
 }
 
@@ -463,4 +459,12 @@ func TestRequestWriteClosesBody(t *testing.T) {
 
 func chunk(s string) string {
 	return fmt.Sprintf("%x\r\n%s\r\n", len(s), s)
+}
+
+func mustParseURL(s string) *url.URL {
+	u, err := url.Parse(s)
+	if err != nil {
+		panic(fmt.Sprintf("Error parsing URL %q: %v", s, err))
+	}
+	return u
 }

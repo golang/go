@@ -63,13 +63,13 @@ Sec-WebSocket-Protocol: chat
 	}
 	req, err := http.ReadRequest(bufio.NewReader(b))
 	if err != nil {
-		t.Errorf("read request: %v", err)
+		t.Fatalf("read request: %v", err)
 	}
 	if req.Method != "GET" {
 		t.Errorf("request method expected GET, but got %q", req.Method)
 	}
-	if req.RawURL != "/chat" {
-		t.Errorf("request path expected /chat, but got %q", req.RawURL)
+	if req.URL.Path != "/chat" {
+		t.Errorf("request path expected /chat, but got %q", req.URL.Path)
 	}
 	if req.Proto != "HTTP/1.1" {
 		t.Errorf("request proto expected HTTP/1.1, but got %q", req.Proto)
@@ -125,13 +125,13 @@ Sec-WebSocket-Protocol: chat
 	}
 	req, err := http.ReadRequest(bufio.NewReader(b))
 	if err != nil {
-		t.Errorf("read request: %v", err)
+		t.Fatalf("read request: %v", err)
 	}
 	if req.Method != "GET" {
 		t.Errorf("request method expected GET, but got %q", req.Method)
 	}
-	if req.RawURL != "/chat" {
-		t.Errorf("request path expected /demo, but got %q", req.RawURL)
+	if req.URL.Path != "/chat" {
+		t.Errorf("request path expected /demo, but got %q", req.URL.Path)
 	}
 	if req.Proto != "HTTP/1.1" {
 		t.Errorf("request proto expected HTTP/1.1, but got %q", req.Proto)

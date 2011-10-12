@@ -103,9 +103,7 @@ func ProxyURL(fixedURL *url.URL) func(*Request) (*url.URL, os.Error) {
 // RoundTrip implements the RoundTripper interface.
 func (t *Transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
 	if req.URL == nil {
-		if req.URL, err = url.Parse(req.RawURL); err != nil {
-			return
-		}
+		return nil, os.NewError("http: nil Request.URL")
 	}
 	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
 		t.lk.Lock()
@@ -315,7 +313,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
 	case cm.targetScheme == "https":
 		connectReq := &Request{
 			Method: "CONNECT",
-			RawURL: cm.targetAddr,
+			URL:    &url.URL{RawPath: cm.targetAddr},
 			Host:   cm.targetAddr,
 			Header: make(Header),
 		}

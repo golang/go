@@ -322,7 +322,6 @@ func (h *Handler) handleInternalRedirect(rw http.ResponseWriter, req *http.Reque
 	newReq := &http.Request{
 		Method:     "GET",
 		URL:        url,
-		RawURL:     path,
 		Proto:      "HTTP/1.1",
 		ProtoMajor: 1,
 		ProtoMinor: 1,

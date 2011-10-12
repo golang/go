@@ -80,9 +80,8 @@ var reqWriteExcludeHeaderDump = map[string]bool{
 
 // A Request represents a parsed HTTP request header.
 type Request struct {
-	Method string   // GET, POST, PUT, etc.
-	RawURL string   // The raw URL given in the request.
-	URL    *url.URL // Parsed URL.
+	Method string // GET, POST, PUT, etc.
+	URL    *url.URL
 
 	// The protocol version for incoming requests.
 	// Outgoing requests always use HTTP/1.1.
@@ -265,7 +264,7 @@ const defaultUserAgent = "Go http package"
 // Write writes an HTTP/1.1 request -- header and body -- in wire format.
 // This method consults the following fields of req:
 //	Host
-//	RawURL, if non-empty, or else URL
+//	URL
 //	Method (defaults to "GET")
 //	Header
 //	ContentLength
@@ -282,21 +281,18 @@ func (req *Request) Write(w io.Writer) os.Error {
 // WriteProxy is like Write but writes the request in the form
 // expected by an HTTP proxy.  In particular, WriteProxy writes the
 // initial Request-URI line of the request with an absolute URI, per
-// section 5.1.2 of RFC 2616, including the scheme and host.  If
-// req.RawURL is non-empty, WriteProxy uses it unchanged.  In either
-// case, WriteProxy also writes a Host header, using either req.Host
-// or req.URL.Host.
+// section 5.1.2 of RFC 2616, including the scheme and host. In
+// either case, WriteProxy also writes a Host header, using either
+// req.Host or req.URL.Host.
 func (req *Request) WriteProxy(w io.Writer) os.Error {
 	return req.write(w, true)
 }
 
 func (req *Request) dumpWrite(w io.Writer) os.Error {
-	urlStr := req.RawURL
-	if urlStr == "" {
-		urlStr = valueOrDefault(req.URL.EncodedPath(), "/")
-		if req.URL.RawQuery != "" {
-			urlStr += "?" + req.URL.RawQuery
-		}
+	// TODO(bradfitz): RawPath here?
+	urlStr := valueOrDefault(req.URL.EncodedPath(), "/")
+	if req.URL.RawQuery != "" {
+		urlStr += "?" + req.URL.RawQuery
 	}
 
 	bw := bufio.NewWriter(w)
@@ -346,9 +342,12 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 		host = req.URL.Host
 	}
 
-	urlStr := req.RawURL
+	urlStr := req.URL.RawPath
+	if strings.HasPrefix(urlStr, "?") {
+		urlStr = "/" + urlStr // Issue 2344
+	}
 	if urlStr == "" {
-		urlStr = valueOrDefault(req.URL.EncodedPath(), "/")
+		urlStr = valueOrDefault(req.URL.RawPath, valueOrDefault(req.URL.EncodedPath(), "/"))
 		if req.URL.RawQuery != "" {
 			urlStr += "?" + req.URL.RawQuery
 		}
@@ -359,6 +358,7 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 			urlStr = req.URL.Scheme + "://" + host + urlStr
 		}
 	}
+	// TODO(bradfitz): escape at least newlines in urlStr?
 
 	bw := bufio.NewWriter(w)
 	fmt.Fprintf(bw, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), urlStr)
@@ -598,13 +598,14 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	if f = strings.SplitN(s, " ", 3); len(f) < 3 {
 		return nil, &badStringError{"malformed HTTP request", s}
 	}
-	req.Method, req.RawURL, req.Proto = f[0], f[1], f[2]
+	var rawurl string
+	req.Method, rawurl, req.Proto = f[0], f[1], f[2]
 	var ok bool
 	if req.ProtoMajor, req.ProtoMinor, ok = ParseHTTPVersion(req.Proto); !ok {
 		return nil, &badStringError{"malformed HTTP version", req.Proto}
 	}
 
-	if req.URL, err = url.ParseRequest(req.RawURL); err != nil {
+	if req.URL, err = url.ParseRequest(rawurl); err != nil {
 		return nil, err
 	}
 
