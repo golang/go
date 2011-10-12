@@ -190,7 +190,7 @@ func Sprintf(format string, a ...interface{}) string {
 }
 
 // Errorf formats according to a format specifier and returns the string 
-// converted to an os.ErrorString, which satisfies the os.Error interface.
+// as a value that satisfies os.Error.
 func Errorf(format string, a ...interface{}) os.Error {
 	return os.NewError(Sprintf(format, a...))
 }
