@@ -420,14 +420,14 @@ var lines = []string{
 
 func TestSemis(t *testing.T) {
 	for _, line := range lines {
-		checkSemi(t, line, AllowIllegalChars|InsertSemis)
-		checkSemi(t, line, AllowIllegalChars|InsertSemis|ScanComments)
+		checkSemi(t, line, InsertSemis)
+		checkSemi(t, line, InsertSemis|ScanComments)
 
 		// if the input ended in newlines, the input must tokenize the
 		// same with or without those newlines
 		for i := len(line) - 1; i >= 0 && line[i] == '\n'; i-- {
-			checkSemi(t, line[0:i], AllowIllegalChars|InsertSemis)
-			checkSemi(t, line[0:i], AllowIllegalChars|InsertSemis|ScanComments)
+			checkSemi(t, line[0:i], InsertSemis)
+			checkSemi(t, line[0:i], InsertSemis|ScanComments)
 		}
 	}
 }
@@ -522,27 +522,6 @@ func TestInit(t *testing.T) {
 	_, tok, _ = s.Scan() // go
 	if tok != token.GO {
 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO)
-	}
-
-	if s.ErrorCount != 0 {
-		t.Errorf("found %d errors", s.ErrorCount)
-	}
-}
-
-func TestIllegalChars(t *testing.T) {
-	var s Scanner
-
-	const src = "*?*$*@*"
-	file := fset.AddFile("", fset.Base(), len(src))
-	s.Init(file, []byte(src), &testErrorHandler{t}, AllowIllegalChars)
-	for offs, ch := range src {
-		pos, tok, lit := s.Scan()
-		if poffs := file.Offset(pos); poffs != offs {
-			t.Errorf("bad position for %s: got %d, expected %d", lit, poffs, offs)
-		}
-		if tok == token.ILLEGAL && lit != string(ch) {
-			t.Errorf("bad token: got %s, expected %s", lit, string(ch))
-		}
 	}
 
 	if s.ErrorCount != 0 {
