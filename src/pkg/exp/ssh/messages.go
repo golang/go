@@ -323,7 +323,7 @@ func marshal(msgType uint8, msg interface{}) []byte {
 			out = append(out, byte(len(s)>>16))
 			out = append(out, byte(len(s)>>8))
 			out = append(out, byte(len(s)))
-			out = append(out, []byte(s)...)
+			out = append(out, s...)
 		case reflect.Slice:
 			switch t.Elem().Kind() {
 			case reflect.Uint8:
@@ -354,7 +354,7 @@ func marshal(msgType uint8, msg interface{}) []byte {
 					if j != 0 {
 						out = append(out, ',')
 					}
-					out = append(out, []byte(field.Index(j).String())...)
+					out = append(out, field.Index(j).String()...)
 				}
 			default:
 				panic("slice of unknown type")

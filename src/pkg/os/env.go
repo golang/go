@@ -16,9 +16,9 @@ func Expand(s string, mapping func(string) string) string {
 	i := 0
 	for j := 0; j < len(s); j++ {
 		if s[j] == '$' && j+1 < len(s) {
-			buf = append(buf, []byte(s[i:j])...)
+			buf = append(buf, s[i:j]...)
 			name, w := getShellName(s[j+1:])
-			buf = append(buf, []byte(mapping(name))...)
+			buf = append(buf, mapping(name)...)
 			j += w
 			i = j + 1
 		}

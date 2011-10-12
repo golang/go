@@ -295,6 +295,6 @@ func pstring(b []byte, s string) []byte {
 		panic(NewError("string too long"))
 	}
 	b = pbit16(b, uint16(len(s)))
-	b = append(b, []byte(s)...)
+	b = append(b, s...)
 	return b
 }
