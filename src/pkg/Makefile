@@ -95,7 +95,6 @@ DIRS=\
 	go/printer\
 	go/scanner\
 	go/token\
-	go/typechecker\
 	go/types\
 	gob\
 	hash\
