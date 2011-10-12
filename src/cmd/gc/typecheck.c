@@ -1008,6 +1008,10 @@ reswitch:
 				yyerror("too many arguments to append");
 				goto error;
 			}
+			if(istype(t->type, TUINT8) &&  istype(args->next->n->type, TSTRING)) {
+				defaultlit(&args->next->n, types[TSTRING]);
+				goto ret;
+			}
 			args->next->n = assignconv(args->next->n, t->orig, "append");
 			goto ret;
 		}
@@ -1039,7 +1043,7 @@ reswitch:
 			goto error;
 		defaultlit(&n->left, T);
 		defaultlit(&n->right, T);
-		
+
 		// copy([]byte, string)
 		if(isslice(n->left->type) && n->right->type->etype == TSTRING) {
 			if(n->left->type->type == types[TUINT8])
@@ -1047,7 +1051,7 @@ reswitch:
 			yyerror("arguments to copy have different element types: %lT and string", n->left->type);
 			goto error;
 		}
-			       
+
 		if(!isslice(n->left->type) || !isslice(n->right->type)) {
 			if(!isslice(n->left->type) && !isslice(n->right->type))
 				yyerror("arguments to copy must be slices; have %lT, %lT", n->left->type, n->right->type);

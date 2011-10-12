@@ -11,7 +11,6 @@ static	int32	debug	= 0;
 
 static	void	makeslice1(SliceType*, int32, int32, Slice*);
 static	void	growslice1(SliceType*, Slice, int32, Slice *);
-static	void	appendslice1(SliceType*, Slice, Slice, Slice*);
 	void	runtime·slicecopy(Slice to, Slice fm, uintptr width, int32 ret);
 
 // see also unsafe·NewArray
@@ -29,13 +28,13 @@ runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
 	if(debug) {
 		runtime·printf("makeslice(%S, %D, %D); ret=",
 			*t->string, len, cap);
- 		runtime·printslice(ret);
+		runtime·printslice(ret);
 	}
 }
 
 static void
 makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
-{	
+{
 	uintptr size;
 
 	size = cap*t->elem->size;
@@ -53,12 +52,6 @@ makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
 void
 runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
 {
-	appendslice1(t, x, y, &ret);
-}
-
-static void
-appendslice1(SliceType *t, Slice x, Slice y, Slice *ret)
-{
 	int32 m;
 	uintptr w;
 
@@ -68,14 +61,38 @@ appendslice1(SliceType *t, Slice x, Slice y, Slice *ret)
 		runtime·throw("append: slice overflow");
 
 	if(m > x.cap)
-		growslice1(t, x, m, ret);
+		growslice1(t, x, m, &ret);
 	else
-		*ret = x;
+		ret = x;
 
 	w = t->elem->size;
-	runtime·memmove(ret->array + ret->len*w, y.array, y.len*w);
-	ret->len += y.len;
+	runtime·memmove(ret.array + ret.len*w, y.array, y.len*w);
+	ret.len += y.len;
+	FLUSH(&ret);
 }
+
+
+// appendstr([]byte, string) []byte
+void
+runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
+{
+	int32 m;
+
+	m = x.len+y.len;
+
+	if(m < x.len)
+		runtime·throw("append: slice overflow");
+
+	if(m > x.cap)
+		growslice1(t, x, m, &ret);
+	else
+		ret = x;
+
+	runtime·memmove(ret.array + ret.len, y.str, y.len);
+	ret.len += y.len;
+	FLUSH(&ret);
+}
+
 
 // growslice(type *Type, x, []T, n int64) []T
 void
@@ -97,9 +114,9 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
 
 	if(debug) {
 		runtime·printf("growslice(%S,", *t->string);
- 		runtime·printslice(old);
+		runtime·printslice(old);
 		runtime·printf(", new cap=%D) =", cap);
- 		runtime·printslice(ret);
+		runtime·printslice(ret);
 	}
 }
 
@@ -308,11 +325,11 @@ runtime·slicestringcopy(Slice to, String fm, int32 ret)
 		ret = 0;
 		goto out;
 	}
-	
+
 	ret = fm.len;
 	if(to.len < ret)
 		ret = to.len;
-	
+
 	runtime·memmove(to.array, fm.str, ret);
 
 out:
