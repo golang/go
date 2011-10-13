@@ -984,6 +984,10 @@ reswitch:
 			yyerror("invalid operation: %#N (non-chan type %T)", n, t);
 			goto error;
 		}
+		if(!(t->chan & Csend)) {
+			yyerror("invalid operation: %#N (cannot close receive-only channel)", n);
+			goto error;
+		}
 		ok |= Etop;
 		goto ret;
 

@@ -48,4 +48,8 @@ func main() {
 	case x := <-cs: // ERROR "receive"
 		_ = x
 	}
+	
+	close(c)
+	close(cs)
+	close(cr)  // ERROR "receive"
 }
