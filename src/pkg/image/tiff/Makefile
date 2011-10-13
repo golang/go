@@ -7,6 +7,7 @@ include ../../../Make.inc
 TARG=image/tiff
 GOFILES=\
 	buffer.go\
+	compress.go\
 	consts.go\
 	reader.go\
 
