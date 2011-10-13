@@ -10,7 +10,7 @@ if [ ! -f env.bash ]; then
 fi
 . ./env.bash
 
-if ld --version 2>&1 | grep 'gold.*2\.20' >/dev/null; then
+if ld --version 2>&1 | grep 'gold.* 2\.20' >/dev/null; then
 	echo 'ERROR: Your system has gold 2.20 installed.'
 	echo 'This version is shipped by Ubuntu even though'
 	echo 'it is known not to work on Ubuntu.'
