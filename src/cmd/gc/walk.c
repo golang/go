@@ -1686,7 +1686,7 @@ callnew(Type *t)
 	dowidth(t);
 	fn = syslook("new", 1);
 	argtype(fn, t);
-	return mkcall1(fn, ptrto(t), nil, nodintconst(t->width));
+	return mkcall1(fn, ptrto(t), nil, typename(t));
 }
 
 static Node*

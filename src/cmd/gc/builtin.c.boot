@@ -1,7 +1,7 @@
 char *runtimeimport =
 	"package runtime\n"
 	"import runtime \"runtime\"\n"
-	"func @\"\".new (? int32) *any\n"
+	"func @\"\".new (typ *uint8) *any\n"
 	"func @\"\".panicindex ()\n"
 	"func @\"\".panicslice ()\n"
 	"func @\"\".throwreturn ()\n"

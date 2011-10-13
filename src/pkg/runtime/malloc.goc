@@ -393,8 +393,10 @@ runtime·mal(uintptr n)
 	return runtime·mallocgc(n, 0, 1, 1);
 }
 
-func new(n uint32) (ret *uint8) {
-	ret = runtime·mal(n);
+func new(typ *Type) (ret *uint8) {
+	uint32 flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
+	ret = runtime·mallocgc(typ->size, flag, 1, 1);
+	FLUSH(&ret);
 }
 
 void*
