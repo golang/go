@@ -9,14 +9,15 @@ package http_test
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	. "http"
 	"http/httptest"
 	"io"
 	"io/ioutil"
 	"log"
-	"os"
 	"net"
+	"os"
 	"reflect"
 	"strings"
 	"syscall"
@@ -583,7 +584,13 @@ func TestTLSServer(t *testing.T) {
 			t.Errorf("expected test TLS server to start with https://, got %q", ts.URL)
 			return
 		}
-		res, err := Get(ts.URL)
+		noVerifyTransport := &Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
+		client := &Client{Transport: noVerifyTransport}
+		res, err := client.Get(ts.URL)
 		if err != nil {
 			t.Error(err)
 			return

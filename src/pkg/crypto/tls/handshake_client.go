@@ -97,11 +97,9 @@ func (c *Conn) clientHandshake() os.Error {
 		certs[i] = cert
 	}
 
-	// If we don't have a root CA set configured then anything is accepted.
-	// TODO(rsc): Find certificates for OS X 10.6.
-	if c.config.RootCAs != nil {
+	if !c.config.InsecureSkipVerify {
 		opts := x509.VerifyOptions{
-			Roots:         c.config.RootCAs,
+			Roots:         c.config.rootCAs(),
 			CurrentTime:   c.config.time(),
 			DNSName:       c.config.ServerName,
 			Intermediates: x509.NewCertPool(),
