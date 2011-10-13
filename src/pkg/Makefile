@@ -78,6 +78,7 @@ DIRS=\
 	exec\
 	exp/ebnf\
 	exp/ebnflint\
+	exp/gotype\
 	exp/gui\
 	exp/gui/x11\
 	exp/norm\
@@ -177,7 +178,6 @@ DIRS=\
 	../cmd/gofmt\
 	../cmd/goinstall\
 	../cmd/gotest\
-	../cmd/gotype\
 	../cmd/govet\
 	../cmd/goyacc\
 	../cmd/hgpatch\
