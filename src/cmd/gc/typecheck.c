@@ -532,6 +532,9 @@ reswitch:
 		default:
 			checklvalue(n->left, "take the address of");
 		}
+		for(l=n->left; l->op == ODOT; l=l->left)
+			l->addrtaken = 1;
+		l->addrtaken = 1;
 		defaultlit(&n->left, T);
 		l = n->left;
 		if((t = l->type) == T)
