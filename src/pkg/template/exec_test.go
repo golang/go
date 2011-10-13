@@ -532,7 +532,7 @@ func TestDelims(t *testing.T) {
 			t.Fatalf("delim %q exec err %s", left, err)
 		}
 		if b.String() != hello+trueLeft {
-			t.Error("expected %q got %q", hello+trueLeft, b.String())
+			t.Errorf("expected %q got %q", hello+trueLeft, b.String())
 		}
 	}
 }
