@@ -43,7 +43,6 @@ CLEANDIRS=\
 	gofmt\
 	goinstall\
 	gotest\
-	gotype\
 	goyacc\
 	hgpatch\
 
