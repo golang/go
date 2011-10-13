@@ -145,7 +145,7 @@ func (db *fakeDB) createTable(name string, columnNames, columnTypes []string) os
 	}
 	if len(columnNames) != len(columnTypes) {
 		return fmt.Errorf("create table of %q len(names) != len(types): %d vs %d",
-			len(columnNames), len(columnTypes))
+			name, len(columnNames), len(columnTypes))
 	}
 	db.tables[name] = &table{colname: columnNames, coltype: columnTypes}
 	return nil

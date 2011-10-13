@@ -85,7 +85,7 @@ func TestStatementQueryRow(t *testing.T) {
 		if err := stmt.QueryRow(tt.name).Scan(&age); err != nil {
 			t.Errorf("%d: on %q, QueryRow/Scan: %v", n, tt.name, err)
 		} else if age != tt.want {
-			t.Errorf("%d: age=%d, want %d", age, tt.want)
+			t.Errorf("%d: age=%d, want %d", n, age, tt.want)
 		}
 	}
 

@@ -1570,7 +1570,7 @@ func TestEscapeErrorsNotIgnorable(t *testing.T) {
 func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
 	s, err := (&template.Set{}).Parse(`{{define "t"}}<a{{end}}`)
 	if err != nil {
-		t.Error("failed to parse set: %q", err)
+		t.Errorf("failed to parse set: %q", err)
 	}
 	EscapeSet(s, "t")
 	var b bytes.Buffer
