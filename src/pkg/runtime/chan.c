@@ -1052,6 +1052,9 @@ runtime·closechan(Hchan *c)
 	SudoG *sg;
 	G* gp;
 
+	if(c == nil)
+		runtime·panicstring("close of nil channel");
+
 	if(runtime·gcwaiting)
 		runtime·gosched();
 

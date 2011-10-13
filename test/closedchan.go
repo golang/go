@@ -327,4 +327,15 @@ func main() {
 			testclosed(mk(closedasync()))
 		}
 	}
+	
+	var ch chan int	
+	shouldPanic(func() {
+		close(ch)
+	})
+	
+	ch = make(chan int)
+	close(ch)
+	shouldPanic(func() {
+		close(ch)
+	})
 }
