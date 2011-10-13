@@ -9,7 +9,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"io"
-	"io/ioutil"
 	"strings"
 	"sync"
 	"time"
@@ -155,6 +154,14 @@ type Config struct {
 	// anything more than self-signed.
 	AuthenticateClient bool
 
+	// InsecureSkipVerify controls whether a client verifies the
+	// server's certificate chain and host name.
+	// If InsecureSkipVerify is true, TLS accepts any certificate
+	// presented by the server and any host name in that certificate.
+	// In this mode, TLS is susceptible to man-in-the-middle attacks.
+	// This should be used only for testing.
+	InsecureSkipVerify bool
+
 	// CipherSuites is a list of supported cipher suites. If CipherSuites
 	// is nil, TLS uses a list of suites supported by the implementation.
 	CipherSuites []uint16
@@ -284,15 +291,6 @@ func defaultConfig() *Config {
 	return &emptyConfig
 }
 
-// Possible certificate files; stop after finding one.
-// On OS X we should really be using the Directory Services keychain
-// but that requires a lot of Mach goo to get at.  Instead we use
-// the same root set that curl uses.
-var certFiles = []string{
-	"/etc/ssl/certs/ca-certificates.crt", // Linux etc
-	"/usr/share/curl/curl-ca-bundle.crt", // OS X
-}
-
 var once sync.Once
 
 func defaultRoots() *x509.CertPool {
@@ -310,21 +308,10 @@ func initDefaults() {
 	initDefaultCipherSuites()
 }
 
-var varDefaultRoots *x509.CertPool
-
-func initDefaultRoots() {
-	roots := x509.NewCertPool()
-	for _, file := range certFiles {
-		data, err := ioutil.ReadFile(file)
-		if err == nil {
-			roots.AppendCertsFromPEM(data)
-			break
-		}
-	}
-	varDefaultRoots = roots
-}
-
-var varDefaultCipherSuites []uint16
+var (
+	varDefaultRoots        *x509.CertPool
+	varDefaultCipherSuites []uint16
+)
 
 func initDefaultCipherSuites() {
 	varDefaultCipherSuites = make([]uint16, len(cipherSuites))

@@ -38,6 +38,7 @@ func init() {
 	testConfig.Certificates[0].Certificate = [][]byte{testCertificate}
 	testConfig.Certificates[0].PrivateKey = testPrivateKey
 	testConfig.CipherSuites = []uint16{TLS_RSA_WITH_RC4_128_SHA}
+	testConfig.InsecureSkipVerify = true
 }
 
 func testClientHelloFailure(t *testing.T, m handshakeMessage, expected os.Error) {

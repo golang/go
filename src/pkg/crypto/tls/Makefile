@@ -17,4 +17,22 @@ GOFILES=\
 	prf.go\
 	tls.go\
 
+ifeq ($(CGO_ENABLED),1)
+CGOFILES_darwin=\
+	root_darwin.go
+else
+GOFILES_darwin+=root_stub.go
+endif
+
+GOFILES_freebsd+=root_unix.go
+GOFILES_linux+=root_unix.go
+GOFILES_openbsd+=root_unix.go
+GOFILES_plan9+=root_stub.go
+GOFILES_windows+=root_stub.go
+
+GOFILES+=$(GOFILES_$(GOOS))
+ifneq ($(CGOFILES_$(GOOS)),)
+CGOFILES+=$(CGOFILES_$(GOOS))
+endif
+
 include ../../../Make.pkg
