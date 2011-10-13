@@ -412,6 +412,8 @@ func Decode(r io.Reader) (img image.Image, err os.Error) {
 			}
 			d.buf, err = ioutil.ReadAll(r)
 			r.Close()
+		case cPackBits:
+			d.buf, err = unpackBits(io.NewSectionReader(d.r, offset, n))
 		default:
 			err = UnsupportedError("compression")
 		}
