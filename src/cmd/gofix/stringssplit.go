@@ -18,10 +18,6 @@ http://codereview.appspot.com/4661051
 `,
 }
 
-func init() {
-	register(stringssplitFix)
-}
-
 func stringssplit(f *ast.File) bool {
 	if !imports(f, "bytes") && !imports(f, "strings") {
 		return false

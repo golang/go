@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(procattrTests)
+	addTestCases(procattrTests, procattr)
 }
 
 var procattrTests = []testCase{

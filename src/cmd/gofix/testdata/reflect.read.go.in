@@ -244,7 +244,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 
 	switch v := val.(type) {
 	default:
-		return os.ErrorString("unknown type " + v.Type().String())
+		return os.NewError("unknown type " + v.Type().String())
 
 	case *reflect.SliceValue:
 		typ := v.Type().(*reflect.SliceType)
@@ -483,7 +483,7 @@ Loop:
 	case nil:
 		// Probably a comment, handled below
 	default:
-		return os.ErrorString("cannot happen: unknown type " + t.Type().String())
+		return os.NewError("cannot happen: unknown type " + t.Type().String())
 	case *reflect.IntValue:
 		if !getInt64() {
 			return err

@@ -35,12 +35,6 @@ http://codereview.appspot.com/4244055
 `,
 }
 
-func init() {
-	register(netdialFix)
-	register(tlsdialFix)
-	register(netlookupFix)
-}
-
 func netdial(f *ast.File) bool {
 	if !imports(f, "net") {
 		return false

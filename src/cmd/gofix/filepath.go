@@ -8,15 +8,13 @@ import (
 	"go/ast"
 )
 
-func init() {
-	register(fix{
-		"filepath",
-		filepathFunc,
-		`Adapt code from filepath.[List]SeparatorString to string(filepath.[List]Separator).
+var filepathFix = fix{
+	"filepath",
+	filepathFunc,
+	`Adapt code from filepath.[List]SeparatorString to string(filepath.[List]Separator).
 
 http://codereview.appspot.com/4527090
 `,
-	})
 }
 
 func filepathFunc(f *ast.File) (fixed bool) {

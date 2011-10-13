@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(httpHeadersTests)
+	addTestCases(httpHeadersTests, httpheaders)
 }
 
 var httpHeadersTests = []testCase{

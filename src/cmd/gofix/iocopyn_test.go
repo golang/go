@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(ioCopyNTests)
+	addTestCases(ioCopyNTests, ioCopyN)
 }
 
 var ioCopyNTests = []testCase{

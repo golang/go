@@ -17,10 +17,6 @@ http://codereview.appspot.com/4964073
 `,
 }
 
-func init() {
-	register(imagenewFix)
-}
-
 var imagenewFuncs = map[string]bool{
 	"NewRGBA":    true,
 	"NewRGBA64":  true,

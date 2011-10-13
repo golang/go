@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(oserrorstringTests)
+	addTestCases(oserrorstringTests, oserrorstring)
 }
 
 var oserrorstringTests = []testCase{

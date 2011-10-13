@@ -22,7 +22,15 @@ type testCase struct {
 
 var testCases []testCase
 
-func addTestCases(t []testCase) {
+func addTestCases(t []testCase, fn func(*ast.File) bool) {
+	// Fill in fn to avoid repetition in definitions.
+	if fn != nil {
+		for i := range t {
+			if t[i].Fn == nil {
+				t[i].Fn = fn
+			}
+		}
+	}
 	testCases = append(testCases, t...)
 }
 

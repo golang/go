@@ -17,10 +17,6 @@ http://codereview.appspot.com/4607052
 `,
 }
 
-func init() {
-	register(oserrorstringFix)
-}
-
 func oserrorstring(f *ast.File) bool {
 	if !imports(f, "os") {
 		return false

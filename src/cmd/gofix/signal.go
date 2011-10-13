@@ -9,15 +9,13 @@ import (
 	"strings"
 )
 
-func init() {
-	register(fix{
-		"signal",
-		signal,
-		`Adapt code to types moved from os/signal to signal.
+var signalFix = fix{
+	"signal",
+	signal,
+	`Adapt code to types moved from os/signal to signal.
 
 http://codereview.appspot.com/4437091
 `,
-	})
 }
 
 func signal(f *ast.File) (fixed bool) {

@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	addTestCases(reflectTests())
+	addTestCases(reflectTests(), reflectFn)
 }
 
 func reflectTests() []testCase {

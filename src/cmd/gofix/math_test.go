@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(mathTests)
+	addTestCases(mathTests, math)
 }
 
 var mathTests = []testCase{

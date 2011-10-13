@@ -17,10 +17,6 @@ http://codereview.appspot.com/4620049/
 `,
 }
 
-func init() {
-	register(httpHeadersFix)
-}
-
 func httpheaders(f *ast.File) bool {
 	if !imports(f, "http") {
 		return false

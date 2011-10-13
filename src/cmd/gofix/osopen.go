@@ -17,10 +17,6 @@ http://codereview.appspot.com/4357052
 `,
 }
 
-func init() {
-	register(osopenFix)
-}
-
 func osopen(f *ast.File) bool {
 	if !imports(f, "os") {
 		return false

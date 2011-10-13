@@ -18,10 +18,6 @@ http://codereview.appspot.com/4629047  http FileSystem interface
 `,
 }
 
-func init() {
-	register(httpFileSystemFix)
-}
-
 func httpfs(f *ast.File) bool {
 	if !imports(f, "http") {
 		return false

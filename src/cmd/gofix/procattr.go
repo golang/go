@@ -18,10 +18,6 @@ http://codereview.appspot.com/4253052
 `,
 }
 
-func init() {
-	register(procattrFix)
-}
-
 func procattr(f *ast.File) bool {
 	if !imports(f, "os") && !imports(f, "syscall") {
 		return false

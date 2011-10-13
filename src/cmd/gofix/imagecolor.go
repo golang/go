@@ -8,15 +8,13 @@ import (
 	"go/ast"
 )
 
-func init() {
-	register(fix{
-		"color",
-		color,
-		`Adapt code to types moved from image to color.
+var imagecolorFix = fix{
+	"imagecolor",
+	imagecolor,
+	`Adapt code to types moved from image to color.
 
 http://codereview.appspot.com/5132048
 `,
-	})
 }
 
 var colorRenames = []struct{ in, out string }{
@@ -44,7 +42,7 @@ var colorRenames = []struct{ in, out string }{
 	{"Gray16ColorModel", "Gray16Model"},
 }
 
-func color(f *ast.File) (fixed bool) {
+func imagecolor(f *ast.File) (fixed bool) {
 	if !imports(f, "image") {
 		return
 	}

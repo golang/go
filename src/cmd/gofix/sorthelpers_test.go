@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(sorthelpersTests)
+	addTestCases(sorthelpersTests, sorthelpers)
 }
 
 var sorthelpersTests = []testCase{
