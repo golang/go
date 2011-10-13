@@ -71,7 +71,6 @@ struct Sched {
 
 	volatile uint32 atomic;	// atomic scheduling word (see below)
 
-	int32 predawn;		// running initialization, don't run new g's.
 	int32 profilehz;	// cpu profiling rate
 
 	Note	stopped;	// one g can set waitstop and wait here for m's to stop
@@ -202,8 +201,8 @@ runtime·schedinit(void)
 	}
 	setmcpumax(runtime·gomaxprocs);
 	runtime·singleproc = runtime·gomaxprocs == 1;
-	runtime·sched.predawn = 1;
 
+	mstats.enablegc = 1;
 	m->nomemprof--;
 }
 
@@ -225,22 +224,6 @@ schedunlock(void)
 	runtime·unlock(&runtime·sched);
 	if(m != nil)
 		runtime·notewakeup(&m->havenextg);
-}
-
-// Called after main·init_function; main·main will be called on return.
-void
-runtime·initdone(void)
-{
-	// Let's go.
-	runtime·sched.predawn = 0;
-	mstats.enablegc = 1;
-
-	// If main·init_function started other goroutines,
-	// kick off new m's to handle them, like ready
-	// would have, had it not been pre-dawn.
-	schedlock();
-	matchmg();
-	schedunlock();
 }
 
 void
@@ -467,8 +450,7 @@ readylocked(G *g)
 	g->status = Grunnable;
 
 	gput(g);
-	if(!runtime·sched.predawn)
-		matchmg();
+	matchmg();
 }
 
 static void
@@ -793,9 +775,6 @@ schedule(G *gp)
 
 	schedlock();
 	if(gp != nil) {
-		if(runtime·sched.predawn)
-			runtime·throw("init rescheduling");
-
 		// Just finished running gp.
 		gp->m = nil;
 		runtime·sched.grunning--;
@@ -893,9 +872,6 @@ runtime·entersyscall(void)
 {
 	uint32 v;
 
-	if(runtime·sched.predawn)
-		return;
-
 	// Leave SP around for gc and traceback.
 	runtime·gosave(&g->sched);
 	g->gcsp = g->sched.sp;
@@ -946,9 +922,6 @@ void
 runtime·exitsyscall(void)
 {
 	uint32 v;
-
-	if(runtime·sched.predawn)
-		return;
 
 	// Fast path.
 	// If we can do the mcpu++ bookkeeping and
@@ -1513,8 +1486,6 @@ runtime·Gosched(void)
 void
 runtime·LockOSThread(void)
 {
-	if(runtime·sched.predawn)
-		runtime·throw("cannot wire during init");
 	m->lockedg = g;
 	g->lockedm = m;
 }
