@@ -63,7 +63,6 @@ TEXT _rt0_arm(SB),7,$-4
 
 TEXT runtime·mainstart(SB),7,$4
 	BL	main·init(SB)
-	BL	runtime·initdone(SB)
 	EOR	R0, R0
 	MOVW	R0, 0(R13)
 	BL	main·main(SB)

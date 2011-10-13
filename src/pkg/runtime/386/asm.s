@@ -92,7 +92,6 @@ ok:
 
 TEXT runtime·mainstart(SB),7,$0
 	CALL	main·init(SB)
-	CALL	runtime·initdone(SB)
 	CALL	main·main(SB)
 	PUSHL	$0
 	CALL	runtime·exit(SB)

@@ -5109,12 +5109,6 @@ unspecified results  if <code>A</code>'s initializer calls a function defined
 in another package that refers to <code>B</code>.
 </p>
 <p>
-Initialization code may contain "go" statements, but the functions
-they invoke do not begin execution until initialization of the entire
-program is complete. Therefore, all initialization code is run in a single
-goroutine.
-</p>
-<p>
 An <code>init</code> function cannot be referred to from anywhere
 in a program. In particular, <code>init</code> cannot be called explicitly,
 nor can a pointer to <code>init</code> be assigned to a function variable.
