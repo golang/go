@@ -85,6 +85,7 @@ DIRS=\
 	exp/sql\
 	exp/sql/driver\
 	exp/template/html\
+	exp/types\
 	expvar\
 	flag\
 	fmt\
@@ -95,7 +96,6 @@ DIRS=\
 	go/printer\
 	go/scanner\
 	go/token\
-	go/types\
 	gob\
 	hash\
 	hash/adler32\
