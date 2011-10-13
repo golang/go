@@ -64,21 +64,37 @@ var (
 // popUntil([]string{"html, "table"}, "table") would return true and leave:
 // ["html", "body", "font"]
 func (p *parser) popUntil(stopTags []string, matchTags ...string) bool {
+	if i := p.indexOfElementInScope(stopTags, matchTags...); i != -1 {
+		p.oe = p.oe[:i]
+		return true
+	}
+	return false
+}
+
+// indexOfElementInScope returns the index in p.oe of the highest element
+// whose tag is in matchTags that is in scope according to stopTags.
+// If no matching element is in scope, it returns -1.
+func (p *parser) indexOfElementInScope(stopTags []string, matchTags ...string) int {
 	for i := len(p.oe) - 1; i >= 0; i-- {
 		tag := p.oe[i].Data
 		for _, t := range matchTags {
 			if t == tag {
-				p.oe = p.oe[:i]
-				return true
+				return i
 			}
 		}
 		for _, t := range stopTags {
 			if t == tag {
-				return false
+				return -1
 			}
 		}
 	}
-	return false
+	return -1
+}
+
+// elementInScope is like popUntil, except that it doesn't modify the stack of
+// open elements.
+func (p *parser) elementInScope(stopTags []string, matchTags ...string) bool {
+	return p.indexOfElementInScope(stopTags, matchTags...) != -1
 }
 
 // addChild adds a child node n to the top element, and pushes n onto the stack
@@ -365,7 +381,6 @@ func afterHeadIM(p *parser) (insertionMode, bool) {
 
 // Section 11.2.5.4.7.
 func inBodyIM(p *parser) (insertionMode, bool) {
-	var endP bool
 	switch p.tok.Type {
 	case TextToken:
 		p.reconstructActiveFormattingElements()
@@ -374,15 +389,10 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 	case StartTagToken:
 		switch p.tok.Data {
 		case "address", "article", "aside", "blockquote", "center", "details", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "menu", "nav", "ol", "p", "section", "summary", "ul":
-			// TODO: Do the proper "does the stack of open elements has a p element in button scope" algorithm in section 11.2.3.2.
-			n := p.top()
-			if n.Type == ElementNode && n.Data == "p" {
-				endP = true
-			} else {
-				p.addElement(p.tok.Data, p.tok.Attr)
-			}
+			p.popUntil(buttonScopeStopTags, "p")
+			p.addElement(p.tok.Data, p.tok.Attr)
 		case "h1", "h2", "h3", "h4", "h5", "h6":
-			// TODO: auto-insert </p> if necessary.
+			p.popUntil(buttonScopeStopTags, "p")
 			switch n := p.top(); n.Data {
 			case "h1", "h2", "h3", "h4", "h5", "h6":
 				p.oe.pop()
@@ -399,6 +409,11 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 		case "b", "big", "code", "em", "font", "i", "s", "small", "strike", "strong", "tt", "u":
 			p.reconstructActiveFormattingElements()
 			p.addFormattingElement(p.tok.Data, p.tok.Attr)
+		case "applet", "marquee", "object":
+			p.reconstructActiveFormattingElements()
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.afe = append(p.afe, &scopeMarker)
+			p.framesetOK = false
 		case "area", "br", "embed", "img", "input", "keygen", "wbr":
 			p.reconstructActiveFormattingElements()
 			p.addElement(p.tok.Data, p.tok.Attr)
@@ -406,12 +421,12 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 			p.acknowledgeSelfClosingTag()
 			p.framesetOK = false
 		case "table":
-			// TODO: auto-insert </p> if necessary, depending on quirks mode.
+			p.popUntil(buttonScopeStopTags, "p") // TODO: skip this step in quirks mode.
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.framesetOK = false
 			return inTableIM, true
 		case "hr":
-			// TODO: auto-insert </p> if necessary.
+			p.popUntil(buttonScopeStopTags, "p")
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
@@ -425,6 +440,11 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 		case "body":
 			// TODO: autoclose the stack of open elements.
 			return afterBodyIM, true
+		case "p":
+			if !p.elementInScope(buttonScopeStopTags, "p") {
+				p.addElement("p", nil)
+			}
+			p.popUntil(buttonScopeStopTags, "p")
 		case "a", "b", "big", "code", "em", "font", "i", "nobr", "s", "small", "strike", "strong", "tt", "u":
 			p.inBodyEndTagFormatting(p.tok.Data)
 		default:
@@ -434,14 +454,8 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 			}
 		}
 	}
-	if endP {
-		// TODO: do the proper algorithm.
-		n := p.oe.pop()
-		if n.Type != ElementNode || n.Data != "p" {
-			panic("unreachable")
-		}
-	}
-	return inBodyIM, !endP
+
+	return inBodyIM, true
 }
 
 func (p *parser) inBodyEndTagFormatting(tag string) {
