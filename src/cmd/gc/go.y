@@ -1546,6 +1546,18 @@ non_dcl_stmt:
 	{
 		$$ = nod(ORETURN, N, N);
 		$$->list = $2;
+		if($$->list == nil) {
+			NodeList *l;
+			
+			for(l=curfn->dcl; l; l=l->next) {
+				if(l->n->class == PPARAM)
+					continue;
+				if(l->n->class != PPARAMOUT)
+					break;
+				if(l->n->sym->def != l->n)
+					yyerror("%s is shadowed during return", l->n->sym->name);
+			}
+		}
 	}
 
 stmt_list:
