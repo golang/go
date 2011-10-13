@@ -100,7 +100,7 @@ func Parse(r io.Reader) (f func(out, in []byte), err os.Error) {
 		}
 		return f, nil
 	case 2:
-		_, err := io.ReadFull(r, buf[:8])
+		_, err = io.ReadFull(r, buf[:8])
 		if err != nil {
 			return
 		}
@@ -109,7 +109,7 @@ func Parse(r io.Reader) (f func(out, in []byte), err os.Error) {
 		}
 		return f, nil
 	case 3:
-		_, err := io.ReadFull(r, buf[:9])
+		_, err = io.ReadFull(r, buf[:9])
 		if err != nil {
 			return
 		}
