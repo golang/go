@@ -17,10 +17,6 @@ http://codereview.appspot.com/4815074
 `,
 }
 
-func init() {
-	register(netudpgroupFix)
-}
-
 func netudpgroup(f *ast.File) bool {
 	if !imports(f, "net") {
 		return false

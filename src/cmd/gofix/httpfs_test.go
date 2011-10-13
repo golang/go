@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(httpFileSystemTests)
+	addTestCases(httpFileSystemTests, httpfs)
 }
 
 var httpFileSystemTests = []testCase{

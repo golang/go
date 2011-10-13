@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(filepathTests)
+	addTestCases(filepathTests, filepathFunc)
 }
 
 var filepathTests = []testCase{

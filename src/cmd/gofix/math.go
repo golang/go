@@ -22,10 +22,6 @@ http://codereview.appspot.com/5158043
 `,
 }
 
-func init() {
-	register(mathFix)
-}
-
 var mathRenames = []struct{ in, out string }{
 	{"Fabs", "Abs"},
 	{"Fdim", "Dim"},

@@ -26,10 +26,33 @@ func (f fixlist) Len() int           { return len(f) }
 func (f fixlist) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
 func (f fixlist) Less(i, j int) bool { return f[i].name < f[j].name }
 
-var fixes fixlist
-
-func register(f fix) {
-	fixes = append(fixes, f)
+var fixes = fixlist{
+	// NOTE: This list must be in chronological order,
+	// so that code using APIs that changed multiple times
+	// can be updated in the correct order.
+	// Add new fixes to bottom of list.  Do not sort.
+	httpserverFix,
+	procattrFix,
+	netdialFix,
+	netlookupFix,
+	tlsdialFix,
+	osopenFix,
+	reflectFix,
+	httpFinalURLFix,
+	httpHeadersFix,
+	oserrorstringFix,
+	sortsliceFix,
+	filepathFix,
+	httpFileSystemFix,
+	stringssplitFix,
+	signalFix,
+	sorthelpersFix,
+	urlFix,
+	netudpgroupFix,
+	imagenewFix,
+	mathFix,
+	ioCopyNFix,
+	imagecolorFix,
 }
 
 // walk traverses the AST x, calling visit(y) for each node y in the tree but

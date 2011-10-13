@@ -8,13 +8,11 @@ import (
 	"go/ast"
 )
 
-func init() {
-	register(fix{
-		"sorthelpers",
-		sorthelpers,
-		`Adapt code from sort.Sort[Ints|Float64s|Strings] to sort.[Ints|Float64s|Strings].
+var sorthelpersFix = fix{
+	"sorthelpers",
+	sorthelpers,
+	`Adapt code from sort.Sort[Ints|Float64s|Strings] to sort.[Ints|Float64s|Strings].
 `,
-	})
 }
 
 func sorthelpers(f *ast.File) (fixed bool) {

@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(httpfinalurlTests)
+	addTestCases(httpfinalurlTests, httpfinalurl)
 }
 
 var httpfinalurlTests = []testCase{

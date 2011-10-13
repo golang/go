@@ -17,10 +17,6 @@ http://codereview.appspot.com/5157045
 `,
 }
 
-func init() {
-	register(ioCopyNFix)
-}
-
 func ioCopyN(f *ast.File) bool {
 	if !imports(f, "io") {
 		return false

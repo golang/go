@@ -17,10 +17,6 @@ http://codereview.appspot.com/4535056/
 `,
 }
 
-func init() {
-	register(httpFinalURLFix)
-}
-
 func httpfinalurl(f *ast.File) bool {
 	if !imports(f, "http") {
 		return false

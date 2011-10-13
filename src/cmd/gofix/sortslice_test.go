@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(sortsliceTests)
+	addTestCases(sortsliceTests, sortslice)
 }
 
 var sortsliceTests = []testCase{

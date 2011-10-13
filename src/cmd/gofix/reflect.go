@@ -25,10 +25,6 @@ http://codereview.appspot.com/4433066
 `,
 }
 
-func init() {
-	register(reflectFix)
-}
-
 // The reflect API change dropped the concrete types *reflect.ArrayType etc.
 // Any type assertions prior to method calls can be deleted:
 //	x.(*reflect.ArrayType).Len() -> x.Len()

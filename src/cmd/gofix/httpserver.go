@@ -22,10 +22,6 @@ http://codereview.appspot.com/4248075  RemoteAddr, UsingTLS
 `,
 }
 
-func init() {
-	register(httpserverFix)
-}
-
 func httpserver(f *ast.File) bool {
 	if !imports(f, "http") {
 		return false

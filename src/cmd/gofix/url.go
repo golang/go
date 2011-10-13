@@ -22,10 +22,6 @@ http://codereview.appspot.com/4893043
 `,
 }
 
-func init() {
-	register(urlFix)
-}
-
 var urlRenames = []struct{ in, out string }{
 	{"URL", "URL"},
 	{"ParseURL", "Parse"},

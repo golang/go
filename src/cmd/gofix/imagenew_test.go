@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(imagenewTests)
+	addTestCases(imagenewTests, imagenew)
 }
 
 var imagenewTests = []testCase{

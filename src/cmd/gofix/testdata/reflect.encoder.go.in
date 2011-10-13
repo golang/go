@@ -50,7 +50,7 @@ func (enc *Encoder) popWriter() {
 }
 
 func (enc *Encoder) badType(rt reflect.Type) {
-	enc.setError(os.ErrorString("gob: can't encode type " + rt.String()))
+	enc.setError(os.NewError("gob: can't encode type " + rt.String()))
 }
 
 func (enc *Encoder) setError(err os.Error) {

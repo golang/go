@@ -1,12 +1,13 @@
 package main
 
 func init() {
-	addTestCases(netdialTests)
+	addTestCases(netdialTests, nil)
 }
 
 var netdialTests = []testCase{
 	{
 		Name: "netdial.0",
+		Fn:   netdial,
 		In: `package main
 
 import "net"
@@ -29,6 +30,7 @@ func f() {
 
 	{
 		Name: "netlookup.0",
+		Fn:   netlookup,
 		In: `package main
 
 import "net"

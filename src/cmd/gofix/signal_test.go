@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(signalTests)
+	addTestCases(signalTests, signal)
 }
 
 var signalTests = []testCase{

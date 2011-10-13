@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(netudpgroupTests)
+	addTestCases(netudpgroupTests, netudpgroup)
 }
 
 var netudpgroupTests = []testCase{

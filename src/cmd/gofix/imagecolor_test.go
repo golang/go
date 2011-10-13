@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(colorTests)
+	addTestCases(colorTests, imagecolor)
 }
 
 var colorTests = []testCase{

@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(osopenTests)
+	addTestCases(osopenTests, osopen)
 }
 
 var osopenTests = []testCase{

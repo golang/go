@@ -5,7 +5,7 @@
 package main
 
 func init() {
-	addTestCases(stringssplitTests)
+	addTestCases(stringssplitTests, stringssplit)
 }
 
 var stringssplitTests = []testCase{
