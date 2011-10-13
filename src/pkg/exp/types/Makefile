@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=go/types
+TARG=exp/types
 GOFILES=\
 	check.go\
 	const.go\
