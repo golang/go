@@ -39,7 +39,7 @@ var tests = []struct {
 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/token"), "scanner"},
 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/scanner"), "scanner"},
 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/parser"), "parser"},
-	{filepath.Join(runtime.GOROOT(), "src/pkg/go/types"), "types"},
+	{filepath.Join(runtime.GOROOT(), "src/pkg/exp/types"), "types"},
 }
 
 func Test(t *testing.T) {
