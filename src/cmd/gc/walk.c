@@ -124,8 +124,9 @@ paramoutheap(Node *fn)
 
 	for(l=fn->dcl; l; l=l->next) {
 		switch(l->n->class) {
+		case PPARAMOUT:
 		case PPARAMOUT|PHEAP:
-			return 1;
+			return l->n->addrtaken;
 		case PAUTO:
 		case PAUTO|PHEAP:
 			// stop early - parameters are over
@@ -285,6 +286,9 @@ walkstmt(Node **np)
 				n->list = concat(list1(f), ascompatet(n->op, rl, &f->type, 0, &n->ninit));
 				break;
 			}
+
+			// move function calls out, to make reorder3's job easier.
+			walkexprlistsafe(n->list, &n->ninit);
 			ll = ascompatee(n->op, rl, n->list, &n->ninit);
 			n->list = reorder3(ll);
 			break;
@@ -1308,10 +1312,11 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 	}
 
 	if(ll != nil || r != T)
-		yyerror("assignment count mismatch: %d = %d",
+		yyerror("ascompatet: assignment count mismatch: %d = %d",
 			count(nl), structcount(*nr));
+
 	if(ucount)
-		fatal("reorder2: too many function calls evaluating parameters");
+		fatal("ascompatet: too many function calls evaluating parameters");
 	return concat(nn, mm);
 }
 
@@ -1790,28 +1795,242 @@ reorder1(NodeList *all)
 	return concat(g, r);
 }
 
+static void reorder3save(Node**, NodeList*, NodeList*, NodeList**);
+static int aliased(Node*, NodeList*, NodeList*);
+
 /*
  * from ascompat[ee]
  *	a,b = c,d
  * simultaneous assignment. there cannot
  * be later use of an earlier lvalue.
+ *
+ * function calls have been removed.
  */
+static NodeList*
+reorder3(NodeList *all)
+{
+	NodeList *list, *early;
+	Node *l;
 
+	// If a needed expression may be affected by an
+	// earlier assignment, make an early copy of that
+	// expression and use the copy instead.
+	early = nil;
+	for(list=all; list; list=list->next) {
+		l = list->n->left;
+
+		// Save subexpressions needed on left side.
+		// Drill through non-dereferences.
+		for(;;) {
+			if(l->op == ODOT || l->op == OPAREN) {
+				l = l->left;
+				continue;
+			}
+			if(l->op == OINDEX && isfixedarray(l->left->type)) {
+				reorder3save(&l->right, all, list, &early);
+				l = l->left;
+				continue;
+			}
+			break;
+		}
+		switch(l->op) {
+		default:
+			fatal("reorder3 unexpected lvalue %#O", l->op);
+		case ONAME:
+			break;
+		case OINDEX:
+			reorder3save(&l->left, all, list, &early);
+			reorder3save(&l->right, all, list, &early);
+			break;
+		case OIND:
+		case ODOTPTR:
+			reorder3save(&l->left, all, list, &early);
+		}
+
+		// Save expression on right side.
+		reorder3save(&list->n->right, all, list, &early);
+	}
+
+	return concat(early, all);
+}
+
+static int vmatch2(Node*, Node*);
+static int varexpr(Node*);
+
+/*
+ * if the evaluation of *np would be affected by the 
+ * assignments in all up to but not including stop,
+ * copy into a temporary during *early and
+ * replace *np with that temp.
+ */
+static void
+reorder3save(Node **np, NodeList *all, NodeList *stop, NodeList **early)
+{
+	Node *n, *q;
+
+	n = *np;
+	if(!aliased(n, all, stop))
+		return;
+	
+	q = temp(n->type);
+	q = nod(OAS, q, n);
+	q->typecheck = 1;
+	*early = list(*early, q);
+	*np = q->left;
+}
+
+/*
+ * what's the outer value that a write to n affects?
+ * outer value means containing struct or array.
+ */
+static Node*
+outervalue(Node *n)
+{	
+	for(;;) {
+		if(n->op == ODOT || n->op == OPAREN) {
+			n = n->left;
+			continue;
+		}
+		if(n->op == OINDEX && isfixedarray(n->left->type)) {
+			n = n->left;
+			continue;
+		}
+		break;
+	}
+	return n;
+}
+
+/*
+ * Is it possible that the computation of n might be
+ * affected by writes in as up to but not including stop?
+ */
+static int
+aliased(Node *n, NodeList *all, NodeList *stop)
+{
+	int memwrite, varwrite;
+	Node *a;
+	NodeList *l;
+
+	if(n == N)
+		return 0;
+
+	// Look for obvious aliasing: a variable being assigned
+	// during the all list and appearing in n.
+	// Also record whether there are any writes to main memory.
+	// Also record whether there are any writes to variables
+	// whose addresses have been taken.
+	memwrite = 0;
+	varwrite = 0;
+	for(l=all; l!=stop; l=l->next) {
+		a = outervalue(l->n->left);
+		if(a->op != ONAME) {
+			memwrite = 1;
+			continue;
+		}
+		switch(n->class) {
+		default:
+			varwrite = 1;
+			continue;
+		case PAUTO:
+		case PPARAM:
+		case PPARAMOUT:
+			if(n->addrtaken) {
+				varwrite = 1;
+				continue;
+			}
+			if(vmatch2(a, n)) {
+				// Direct hit.
+				return 1;
+			}
+		}
+	}
+
+	// The variables being written do not appear in n.
+	// However, n might refer to computed addresses
+	// that are being written.
+	
+	// If no computed addresses are affected by the writes, no aliasing.
+	if(!memwrite && !varwrite)
+		return 0;
+
+	// If n does not refer to computed addresses
+	// (that is, if n only refers to variables whose addresses
+	// have not been taken), no aliasing.
+	if(varexpr(n))
+		return 0;
+
+	// Otherwise, both the writes and n refer to computed memory addresses.
+	// Assume that they might conflict.
+	return 1;
+}
+
+/*
+ * does the evaluation of n only refer to variables
+ * whose addresses have not been taken?
+ * (and no other memory)
+ */
+static int
+varexpr(Node *n)
+{
+	if(n == N)
+		return 1;
+
+	switch(n->op) {
+	case OLITERAL:	
+		return 1;
+	case ONAME:
+		switch(n->class) {
+		case PAUTO:
+		case PPARAM:
+		case PPARAMOUT:
+			if(!n->addrtaken)
+				return 1;
+		}
+		return 0;
+
+	case OADD:
+	case OSUB:
+	case OOR:
+	case OXOR:
+	case OMUL:
+	case ODIV:
+	case OMOD:
+	case OLSH:
+	case ORSH:
+	case OAND:
+	case OANDNOT:
+	case OPLUS:
+	case OMINUS:
+	case OCOM:
+	case OPAREN:
+	case OANDAND:
+	case OOROR:
+	case ODOT:  // but not ODOTPTR
+	case OCONV:
+	case OCONVNOP:
+	case OCONVIFACE:
+	case ODOTTYPE:
+		return varexpr(n->left) && varexpr(n->right);
+	}
+
+	// Be conservative.
+	return 0;
+}
+
+/*
+ * is the name l mentioned in r?
+ */
 static int
 vmatch2(Node *l, Node *r)
 {
 	NodeList *ll;
 
-	/*
-	 * isolate all right sides
-	 */
 	if(r == N)
 		return 0;
 	switch(r->op) {
 	case ONAME:
 		// match each right given left
-		if(l == r)
-			return 1;
+		return l == r;
 	case OLITERAL:
 		return 0;
 	}
@@ -1825,6 +2044,10 @@ vmatch2(Node *l, Node *r)
 	return 0;
 }
 
+/*
+ * is any name mentioned in l also mentioned in r?
+ * called by sinit.c
+ */
 int
 vmatch1(Node *l, Node *r)
 {
@@ -1861,33 +2084,6 @@ vmatch1(Node *l, Node *r)
 		if(vmatch1(ll->n, r))
 			return 1;
 	return 0;
-}
-
-static NodeList*
-reorder3(NodeList *all)
-{
-	Node *n1, *n2, *q;
-	int c1, c2;
-	NodeList *l1, *l2, *r;
-
-	r = nil;
-	for(l1=all, c1=0; l1; l1=l1->next, c1++) {
-		n1 = l1->n;
-		for(l2=all, c2=0; l2; l2=l2->next, c2++) {
-			n2 = l2->n;
-			if(c2 > c1) {
-				if(vmatch1(n1->left, n2->right)) {
-					// delay assignment to n1->left
-					q = temp(n1->right->type);
-					q = nod(OAS, n1->left, q);
-					n1->left = q->right;
-					r = list(r, q);
-					break;
-				}
-			}
-		}
-	}
-	return concat(all, r);
 }
 
 /*

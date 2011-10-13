@@ -1155,6 +1155,9 @@ Jconv(Fmt *fp)
 	if(n->funcdepth != 0)
 		fmtprint(fp, " f(%d)", n->funcdepth);
 
+	if(n->addrtaken != 0)
+		fmtprint(fp, " addrtaken(1)");
+
 	switch(n->esc) {
 	case EscUnknown:
 		break;

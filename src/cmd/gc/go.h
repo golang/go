@@ -266,6 +266,7 @@ struct	Node
 	uchar	isddd;
 	uchar	readonly;
 	uchar	implicit;	// don't show in printout
+	uchar	addrtaken;	// address taken, even if not moved to heap
 
 	// most nodes
 	Type*	type;
