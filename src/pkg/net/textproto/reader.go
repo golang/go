@@ -256,7 +256,7 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err os.
 	for err == nil && continued {
 		line, err := r.ReadLine()
 		if err != nil {
-			return
+			return 0, "", err
 		}
 
 		var code2 int

@@ -391,12 +391,13 @@ func checkPixmapFormats(r io.Reader, b []byte, n int) (agree bool, err os.Error)
 // checkDepths checks that we have an agreeable X Depth (i.e. one that has an agreeable X VisualType).
 func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err os.Error) {
 	for i := 0; i < n; i++ {
-		depth, err := readU16LE(r, b)
+		var depth, visualsLen uint16
+		depth, err = readU16LE(r, b)
 		if err != nil {
 			return
 		}
 		depth &= 0xff
-		visualsLen, err := readU16LE(r, b)
+		visualsLen, err = readU16LE(r, b)
 		if err != nil {
 			return
 		}
@@ -408,11 +409,11 @@ func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err o
 		for j := 0; j < int(visualsLen); j++ {
 			// Read 24 bytes: visual(4), class(1), bits per rgb value(1), colormap entries(2),
 			// red mask(4), green mask(4), blue mask(4), padding(4).
-			v, err := readU32LE(r, b)
-			_, err = readU32LE(r, b)
-			rm, err := readU32LE(r, b)
-			gm, err := readU32LE(r, b)
-			bm, err := readU32LE(r, b)
+			v, _ := readU32LE(r, b)
+			_, _ = readU32LE(r, b)
+			rm, _ := readU32LE(r, b)
+			gm, _ := readU32LE(r, b)
+			bm, _ := readU32LE(r, b)
 			_, err = readU32LE(r, b)
 			if err != nil {
 				return
@@ -428,7 +429,8 @@ func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err o
 // checkScreens checks that we have an agreeable X Screen.
 func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err os.Error) {
 	for i := 0; i < n; i++ {
-		root0, err := readU32LE(r, b)
+		var root0, visual0, x uint32
+		root0, err = readU32LE(r, b)
 		if err != nil {
 			return
 		}
@@ -438,17 +440,18 @@ func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err os.Err
 		if err != nil {
 			return
 		}
-		visual0, err := readU32LE(r, b)
+		visual0, err = readU32LE(r, b)
 		if err != nil {
 			return
 		}
 		// Next 4 bytes: backing stores, save unders, root depth, allowed depths length.
-		x, err := readU32LE(r, b)
+		x, err = readU32LE(r, b)
 		if err != nil {
 			return
 		}
 		nDepths := int(x >> 24)
-		agree, err := checkDepths(r, b, nDepths, visual0)
+		var agree bool
+		agree, err = checkDepths(r, b, nDepths, visual0)
 		if err != nil {
 			return
 		}

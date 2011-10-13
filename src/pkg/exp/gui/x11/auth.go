@@ -65,23 +65,25 @@ func readAuth(displayStr string) (name, data string, err os.Error) {
 		return
 	}
 	for {
-		family, err := readU16BE(br, b[0:2])
+		var family uint16
+		var addr, disp, name0, data0 string
+		family, err = readU16BE(br, b[0:2])
 		if err != nil {
 			return
 		}
-		addr, err := readStr(br, b[0:])
+		addr, err = readStr(br, b[0:])
 		if err != nil {
 			return
 		}
-		disp, err := readStr(br, b[0:])
+		disp, err = readStr(br, b[0:])
 		if err != nil {
 			return
 		}
-		name0, err := readStr(br, b[0:])
+		name0, err = readStr(br, b[0:])
 		if err != nil {
 			return
 		}
-		data0, err := readStr(br, b[0:])
+		data0, err = readStr(br, b[0:])
 		if err != nil {
 			return
 		}
