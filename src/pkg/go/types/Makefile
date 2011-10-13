@@ -14,3 +14,5 @@ GOFILES=\
 	universe.go\
 
 include ../../../Make.pkg
+
+CLEANFILES+=testdata/exports.[$(OS)]
