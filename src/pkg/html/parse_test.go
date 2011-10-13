@@ -149,6 +149,7 @@ func TestParser(t *testing.T) {
 			}
 			if want := string(b); got != want {
 				t.Errorf("%s test #%d %q, got vs want:\n----\n%s----\n%s----", filename, i, text, got, want)
+				continue
 			}
 			// Check that rendering and re-parsing results in an identical tree.
 			pr, pw := io.Pipe()
@@ -165,6 +166,7 @@ func TestParser(t *testing.T) {
 			}
 			if got != got1 {
 				t.Errorf("%s test #%d %q, got vs got1:\n----\n%s----\n%s----", filename, i, text, got, got1)
+				continue
 			}
 		}
 	}
