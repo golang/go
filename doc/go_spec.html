@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of September 29, 2011 -->
+<!-- subtitle Version of October 13, 2011 -->
 
 <!--
 TODO
@@ -3730,14 +3730,32 @@ x, _ = f()  // ignore second value returned by f()
 In the second form, the number of operands on the left must equal the number
 of expressions on the right, each of which must be single-valued, and the
 <i>n</i>th expression on the right is assigned to the <i>n</i>th
-operand on the left.
-The expressions on the right are evaluated before assigning to
-any of the operands on the left, but otherwise the evaluation
-order is unspecified beyond <a href="#Order_of_evaluation">the usual rules</a>.
+operand on the left.  The assignment proceeds in two phases.
+First, the operands of <a href="#Indexes">index expressions</a>
+and <a href="#Address_operators">pointer indirections</a>
+(including implicit pointer indirections in <a href="#Selectors">selectors</a>)
+on the left and the expressions on the right are all
+<a href="#Order_of_evaluation">evaluated in the usual order</a>.
+Second, the assignments are carried out in left-to-right order.
 </p>
 
 <pre>
 a, b = b, a  // exchange a and b
+
+x := []int{1, 2, 3}
+i := 0
+i, x[i] = 1, 2   // set i = 1, x[0] = 2
+
+i = 0
+x[i], i = 2, 1  // set x[0] = 2, i = 1
+
+x[0], x[0] = 1, 2  // set x[0] = 1, then x[0] = 2 (so x[0] = 2 at end)
+
+x[1], x[3] = 4, 5 // set x[1] = 4, then panic setting x[3] = 5.
+
+type Point struct { x, y int }
+var p *Point
+x[2], p.x = 6, 7  // set x[2] = 6, then panic setting p.x = 7
 </pre>
 
 <p>
