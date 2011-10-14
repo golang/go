@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"flag"
 	"os"
-	"runtime"
 	"testing"
 )
 
@@ -65,7 +64,7 @@ var dsthost = flag.String("dsthost", "127.0.0.1", "Destination for the ICMP ECHO
 
 // test (raw) IP socket using ICMP
 func TestICMP(t *testing.T) {
-	if runtime.GOOS != "windows" && os.Getuid() != 0 {
+	if os.Getuid() != 0 {
 		t.Logf("test disabled; must be root")
 		return
 	}
