@@ -205,14 +205,11 @@ func (z *Tokenizer) readByte() byte {
 	return x
 }
 
-func (z *Tokenizer) savePendingAttr() {
-	if z.pendingAttr[0].start != z.pendingAttr[0].end {
-		z.attr = append(z.attr, z.pendingAttr)
-	}
-}
-
 // skipWhiteSpace skips past any white space.
 func (z *Tokenizer) skipWhiteSpace() {
+	if z.err != nil {
+		return
+	}
 	for {
 		c := z.readByte()
 		if z.err != nil {
@@ -332,135 +329,132 @@ func (z *Tokenizer) nextTag() {
 		z.tt, z.err = ErrorToken, os.NewError("html: TODO: handle malformed tags")
 		return
 	}
-	// Read the tag name, and attribute key/value pairs.
-	if z.readTagName() {
-		for z.readTagAttrKey() && z.readTagAttrVal() {
-			z.savePendingAttr()
+	// Read the tag name and attribute key/value pairs.
+	z.readTagName()
+	for {
+		if z.skipWhiteSpace(); z.err != nil {
+			break
+		}
+		c := z.readByte()
+		if z.err != nil || c == '>' {
+			break
+		}
+		z.raw.end--
+		z.readTagAttrKey()
+		z.readTagAttrVal()
+		// Save pendingAttr if it has a non-empty key.
+		if z.pendingAttr[0].start != z.pendingAttr[0].end {
+			z.attr = append(z.attr, z.pendingAttr)
 		}
 	}
-	// If we didn't get a final ">", assume that it's a text token.
-	// TODO: this isn't right: html5lib treats "<p x=1" as a tag with one attribute.
-	if z.err != nil {
-		z.tt = TextToken
-		z.data = z.raw
-		z.attr = z.attr[:0]
-		return
-	}
 	// Check for a self-closing token.
-	if z.tt == StartTagToken && z.buf[z.raw.end-2] == '/' {
+	if z.err == nil && z.tt == StartTagToken && z.buf[z.raw.end-2] == '/' {
 		z.tt = SelfClosingTagToken
 	}
 }
 
-// readTagName sets z.data to the "p" in "<p a=1>" and returns whether the tag
-// may have attributes.
-func (z *Tokenizer) readTagName() (more bool) {
+// readTagName sets z.data to the "p" in "<p k=v>".
+func (z *Tokenizer) readTagName() {
 	for {
 		c := z.readByte()
 		if z.err != nil {
-			return false
+			z.data.end = z.raw.end
+			return
 		}
 		switch c {
-		case ' ', '\n', '\t', '\f', '/':
+		case ' ', '\n', '\r', '\t', '\f':
 			z.data.end = z.raw.end - 1
-			return true
-		case '>':
-			// We cannot have a self-closing token, since the case above catches
-			// the "/" in "<p/>".
-			z.data.end = z.raw.end - len(">")
-			return false
+			return
+		case '/', '>':
+			z.raw.end--
+			z.data.end = z.raw.end
+			return
 		}
 	}
-	panic("unreachable")
 }
 
-// readTagAttrKey sets z.pendingAttr[0] to the "a" in "<p a=1>" and returns
-// whether the tag may have an attribute value.
-func (z *Tokenizer) readTagAttrKey() (more bool) {
-	if z.skipWhiteSpace(); z.err != nil {
-		return false
-	}
+// readTagAttrKey sets z.pendingAttr[0] to the "k" in "<p k=v>".
+// Precondition: z.err == nil.
+func (z *Tokenizer) readTagAttrKey() {
 	z.pendingAttr[0].start = z.raw.end
-	z.pendingAttr[0].end = z.raw.end
-	z.pendingAttr[1].start = z.raw.end
-	z.pendingAttr[1].end = z.raw.end
 	for {
 		c := z.readByte()
 		if z.err != nil {
-			return false
+			z.pendingAttr[0].end = z.raw.end
+			return
 		}
 		switch c {
 		case ' ', '\n', '\r', '\t', '\f', '/':
 			z.pendingAttr[0].end = z.raw.end - 1
-			return true
-		case '=':
+			return
+		case '=', '>':
 			z.raw.end--
 			z.pendingAttr[0].end = z.raw.end
-			return true
-		case '>':
-			z.pendingAttr[0].end = z.raw.end - 1
-			z.savePendingAttr()
-			return false
+			return
 		}
 	}
-	panic("unreachable")
 }
 
-// readTagAttrVal sets z.pendingAttr[1] to the "1" in "<p a=1>" and returns
-// whether the tag may have more attributes.
-func (z *Tokenizer) readTagAttrVal() (more bool) {
+// readTagAttrVal sets z.pendingAttr[1] to the "v" in "<p k=v>".
+func (z *Tokenizer) readTagAttrVal() {
+	z.pendingAttr[1].start = z.raw.end
+	z.pendingAttr[1].end = z.raw.end
 	if z.skipWhiteSpace(); z.err != nil {
-		return false
+		return
 	}
-	for {
-		c := z.readByte()
-		if z.err != nil {
-			return false
-		}
-		if c == '=' {
-			break
-		}
+	c := z.readByte()
+	if z.err != nil {
+		return
+	}
+	if c != '=' {
 		z.raw.end--
-		return true
+		return
 	}
 	if z.skipWhiteSpace(); z.err != nil {
-		return false
+		return
 	}
+	quote := z.readByte()
+	if z.err != nil {
+		return
+	}
+	switch quote {
+	case '>':
+		z.raw.end--
+		return
 
-	const delimAnyWhiteSpace = 1
-loop:
-	for delim := byte(0); ; {
-		c := z.readByte()
-		if z.err != nil {
-			return false
+	case '\'', '"':
+		z.pendingAttr[1].start = z.raw.end
+		for {
+			c := z.readByte()
+			if z.err != nil {
+				z.pendingAttr[1].end = z.raw.end
+				return
+			}
+			if c == quote {
+				z.pendingAttr[1].end = z.raw.end - 1
+				return
+			}
 		}
-		if delim == 0 {
+
+	default:
+		z.pendingAttr[1].start = z.raw.end - 1
+		for {
+			c := z.readByte()
+			if z.err != nil {
+				z.pendingAttr[1].end = z.raw.end
+				return
+			}
 			switch c {
-			case '\'', '"':
-				delim = c
-			default:
-				delim = delimAnyWhiteSpace
+			case ' ', '\n', '\r', '\t', '\f':
+				z.pendingAttr[1].end = z.raw.end - 1
+				return
+			case '>':
 				z.raw.end--
+				z.pendingAttr[1].end = z.raw.end
+				return
 			}
-			z.pendingAttr[1].start = z.raw.end
-			continue
-		}
-		switch c {
-		case '/', '>':
-			z.raw.end--
-			z.pendingAttr[1].end = z.raw.end
-			break loop
-		case ' ', '\n', '\r', '\t', '\f':
-			if delim != delimAnyWhiteSpace {
-				continue
-			}
-			fallthrough
-		case delim:
-			z.pendingAttr[1].end = z.raw.end - 1
-			break loop
 		}
 	}
-	return true
 }
 
 // nextText reads all text up until an '<'.

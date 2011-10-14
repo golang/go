@@ -52,21 +52,38 @@ var tokenTests = []tokenTest{
 		`<p </p>`,
 		`<p <="" p="">`,
 	},
-	/*
-		// TODO: re-enable these tests when they work. This input/output matches html5lib's behavior.
-		{
-			"malformed tag #2",
-			`<p id=0</p>`,
-			`<p id="0&lt;/p">`,
-		},
-		{
-			"malformed tag #3",
-			`<p id="0</p>`,
-			`<p id="0&lt;/p&gt;">`,
-		},
-	*/
+	{
+		"malformed tag #2",
+		`<p id`,
+		`<p id="">`,
+	},
+	{
+		"malformed tag #3",
+		`<p id=`,
+		`<p id="">`,
+	},
 	{
 		"malformed tag #4",
+		`<p id=>`,
+		`<p id="">`,
+	},
+	{
+		"malformed tag #5",
+		`<p id=0`,
+		`<p id="0">`,
+	},
+	{
+		"malformed tag #6",
+		`<p id=0</p>`,
+		`<p id="0&lt;/p">`,
+	},
+	{
+		"malformed tag #7",
+		`<p id="0</p>`,
+		`<p id="0&lt;/p&gt;">`,
+	},
+	{
+		"malformed tag #8",
 		`<p id="0"</p>`,
 		`<p id="0" <="" p="">`,
 	},
