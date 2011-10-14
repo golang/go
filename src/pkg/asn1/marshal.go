@@ -464,11 +464,15 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 
 	if v.Type() == rawValueType {
 		rv := v.Interface().(RawValue)
-		err = marshalTagAndLength(out, tagAndLength{rv.Class, rv.Tag, len(rv.Bytes), rv.IsCompound})
-		if err != nil {
-			return
+		if len(rv.FullBytes) != 0 {
+			_, err = out.Write(rv.FullBytes)
+		} else {
+			err = marshalTagAndLength(out, tagAndLength{rv.Class, rv.Tag, len(rv.Bytes), rv.IsCompound})
+			if err != nil {
+				return
+			}
+			_, err = out.Write(rv.Bytes)
 		}
-		_, err = out.Write(rv.Bytes)
 		return
 	}
 

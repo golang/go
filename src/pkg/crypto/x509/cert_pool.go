@@ -5,9 +5,7 @@
 package x509
 
 import (
-	"crypto/x509/pkix"
 	"encoding/pem"
-	"strings"
 )
 
 // Roots is a set of certificates.
@@ -26,10 +24,6 @@ func NewCertPool() *CertPool {
 	}
 }
 
-func nameToKey(name *pkix.Name) string {
-	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
-}
-
 // findVerifiedParents attempts to find certificates in s which have signed the
 // given certificate. If no such certificate can be found or the signature
 // doesn't match, it returns nil.
@@ -40,7 +34,7 @@ func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int) {
 		candidates = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
 	}
 	if len(candidates) == 0 {
-		candidates = s.byName[nameToKey(&cert.Issuer)]
+		candidates = s.byName[string(cert.RawIssuer)]
 	}
 
 	for _, c := range candidates {
@@ -72,7 +66,7 @@ func (s *CertPool) AddCert(cert *Certificate) {
 		keyId := string(cert.SubjectKeyId)
 		s.bySubjectKeyId[keyId] = append(s.bySubjectKeyId[keyId], n)
 	}
-	name := nameToKey(&cert.Subject)
+	name := string(cert.RawSubject)
 	s.byName[name] = append(s.byName[name], n)
 }
 

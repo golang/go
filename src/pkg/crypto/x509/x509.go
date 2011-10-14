@@ -138,9 +138,9 @@ type tbsCertificate struct {
 	Version            int `asn1:"optional,explicit,default:1,tag:0"`
 	SerialNumber       *big.Int
 	SignatureAlgorithm pkix.AlgorithmIdentifier
-	Issuer             pkix.RDNSequence
+	Issuer             asn1.RawValue
 	Validity           validity
-	Subject            pkix.RDNSequence
+	Subject            asn1.RawValue
 	PublicKey          publicKeyInfo
 	UniqueId           asn1.BitString   `asn1:"optional,tag:1"`
 	SubjectUniqueId    asn1.BitString   `asn1:"optional,tag:2"`
@@ -339,6 +339,8 @@ type Certificate struct {
 	Raw                     []byte // Complete ASN.1 DER content (certificate, signature algorithm and signature).
 	RawTBSCertificate       []byte // Certificate part of raw ASN.1 DER content.
 	RawSubjectPublicKeyInfo []byte // DER encoded SubjectPublicKeyInfo.
+	RawSubject              []byte // DER encoded Subject
+	RawIssuer               []byte // DER encoded Issuer
 
 	Signature          []byte
 	SignatureAlgorithm SignatureAlgorithm
@@ -556,6 +558,8 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 	out.Raw = in.Raw
 	out.RawTBSCertificate = in.TBSCertificate.Raw
 	out.RawSubjectPublicKeyInfo = in.TBSCertificate.PublicKey.Raw
+	out.RawSubject = in.TBSCertificate.Subject.FullBytes
+	out.RawIssuer = in.TBSCertificate.Issuer.FullBytes
 
 	out.Signature = in.SignatureValue.RightAlign()
 	out.SignatureAlgorithm =
@@ -575,8 +579,18 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 
 	out.Version = in.TBSCertificate.Version + 1
 	out.SerialNumber = in.TBSCertificate.SerialNumber
-	out.Issuer.FillFromRDNSequence(&in.TBSCertificate.Issuer)
-	out.Subject.FillFromRDNSequence(&in.TBSCertificate.Subject)
+
+	var issuer, subject pkix.RDNSequence
+	if _, err := asn1.Unmarshal(in.TBSCertificate.Subject.FullBytes, &subject); err != nil {
+		return nil, err
+	}
+	if _, err := asn1.Unmarshal(in.TBSCertificate.Issuer.FullBytes, &issuer); err != nil {
+		return nil, err
+	}
+
+	out.Issuer.FillFromRDNSequence(&issuer)
+	out.Subject.FillFromRDNSequence(&subject)
+
 	out.NotBefore = in.TBSCertificate.Validity.NotBefore
 	out.NotAfter = in.TBSCertificate.Validity.NotAfter
 
@@ -968,14 +982,23 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
 		return
 	}
 
+	asn1Issuer, err := asn1.Marshal(parent.Issuer.ToRDNSequence())
+	if err != nil {
+		return
+	}
+	asn1Subject, err := asn1.Marshal(parent.Subject.ToRDNSequence())
+	if err != nil {
+		return
+	}
+
 	encodedPublicKey := asn1.BitString{BitLength: len(asn1PublicKey) * 8, Bytes: asn1PublicKey}
 	c := tbsCertificate{
 		Version:            2,
 		SerialNumber:       template.SerialNumber,
 		SignatureAlgorithm: pkix.AlgorithmIdentifier{Algorithm: oidSHA1WithRSA},
-		Issuer:             parent.Subject.ToRDNSequence(),
+		Issuer:             asn1.RawValue{FullBytes: asn1Issuer},
 		Validity:           validity{template.NotBefore, template.NotAfter},
-		Subject:            template.Subject.ToRDNSequence(),
+		Subject:            asn1.RawValue{FullBytes: asn1Subject},
 		PublicKey:          publicKeyInfo{nil, pkix.AlgorithmIdentifier{Algorithm: oidRSA}, encodedPublicKey},
 		Extensions:         extensions,
 	}

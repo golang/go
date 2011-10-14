@@ -43,6 +43,8 @@ type Name struct {
 	Locality, Province                        []string
 	StreetAddress, PostalCode                 []string
 	SerialNumber, CommonName                  string
+
+	Names []AttributeTypeAndValue
 }
 
 func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
@@ -51,6 +53,7 @@ func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
 			continue
 		}
 		atv := rdn[0]
+		n.Names = append(n.Names, atv)
 		value, ok := atv.Value.(string)
 		if !ok {
 			continue
