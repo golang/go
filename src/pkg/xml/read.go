@@ -321,10 +321,9 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 
 			// Save
 			v := sv.FieldByIndex(f.Index)
-			if _, ok := v.Interface().(Name); !ok {
-				return UnmarshalError(sv.Type().String() + " field XMLName does not have type xml.Name")
+			if _, ok := v.Interface().(Name); ok {
+				v.Set(reflect.ValueOf(start.Name))
 			}
-			v.Set(reflect.ValueOf(start.Name))
 		}
 
 		// Assign attributes.
