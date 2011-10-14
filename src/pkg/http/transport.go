@@ -489,12 +489,24 @@ func (pc *persistConn) expectingResponse() bool {
 	return pc.numExpectedResponses > 0
 }
 
+var remoteSideClosedFunc func(os.Error) bool // or nil to use default
+
+func remoteSideClosed(err os.Error) bool {
+	if err == os.EOF || err == os.EINVAL {
+		return true
+	}
+	if remoteSideClosedFunc != nil {
+		return remoteSideClosedFunc(err)
+	}
+	return false
+}
+
 func (pc *persistConn) readLoop() {
 	alive := true
 	for alive {
 		pb, err := pc.br.Peek(1)
 		if err != nil {
-			if (err == os.EOF || err == os.EINVAL) && !pc.expectingResponse() {
+			if remoteSideClosed(err) && !pc.expectingResponse() {
 				// Remote side closed on us.  (We probably hit their
 				// max idle timeout)
 				pc.close()
