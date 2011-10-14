@@ -617,3 +617,11 @@ type MibIfRow struct {
 	DescrLen        uint32
 	Descr           [MAXLEN_IFDESCR]byte
 }
+
+type CertContext struct {
+	EncodingType uint32
+	EncodedCert  uintptr
+	Length       uint32
+	CertInfo     uintptr
+	Store        Handle
+}

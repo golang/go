@@ -221,6 +221,9 @@ func NewCallback(fn interface{}) uintptr
 //sys	VirtualLock(addr uintptr, length uintptr) (errno int)
 //sys	VirtualUnlock(addr uintptr, length uintptr) (errno int)
 //sys	TransmitFile(s Handle, handle Handle, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (errno int) = mswsock.TransmitFile
+//sys	CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, errno int) = crypt32.CertOpenSystemStoreW
+//sys	CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext) = crypt32.CertEnumCertificatesInStore
+//sys	CertCloseStore(store Handle, flags uint32) (errno int) = crypt32.CertCloseStore
 
 // syscall interface implementation for other packages
 
