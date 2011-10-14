@@ -533,3 +533,52 @@ func TestHybiClientReadWithMasking(t *testing.T) {
 		t.Errorf("read 1st frame, expect %q, but got %q", os.EOF, err)
 	}
 }
+
+// Test the hybiServerHandshaker supports firefox implementation and
+// checks Connection request header include (but it's not necessary 
+// equal to) "upgrade"   
+func TestHybiServerFirefoxHandshake(t *testing.T) {
+	config := new(Config)
+	handshaker := &hybiServerHandshaker{Config: config}
+	br := bufio.NewReader(strings.NewReader(`GET /chat HTTP/1.1
+Host: server.example.com
+Upgrade: websocket
+Connection: keep-alive, upgrade
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+Origin: http://example.com
+Sec-WebSocket-Protocol: chat, superchat
+Sec-WebSocket-Version: 13
+
+`))
+	req, err := http.ReadRequest(br)
+	if err != nil {
+		t.Fatal("request", err)
+	}
+	code, err := handshaker.ReadHandshake(br, req)
+	if err != nil {
+		t.Errorf("handshake failed: %v", err)
+	}
+	if code != http.StatusSwitchingProtocols {
+		t.Errorf("status expected %q but got %q", http.StatusSwitchingProtocols, code)
+	}
+	b := bytes.NewBuffer([]byte{})
+	bw := bufio.NewWriter(b)
+
+	config.Protocol = []string{"chat"}
+
+	err = handshaker.AcceptHandshake(bw)
+	if err != nil {
+		t.Errorf("handshake response failed: %v", err)
+	}
+	expectedResponse := strings.Join([]string{
+		"HTTP/1.1 101 Switching Protocols",
+		"Upgrade: websocket",
+		"Connection: Upgrade",
+		"Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=",
+		"Sec-WebSocket-Protocol: chat",
+		"", ""}, "\r\n")
+
+	if b.String() != expectedResponse {
+		t.Errorf("handshake expected %q but got %q", expectedResponse, b.String())
+	}
+}
