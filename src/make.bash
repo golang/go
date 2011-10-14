@@ -69,7 +69,7 @@ fi
 (
 	cd "$GOROOT"/src/pkg;
 	bash deps.bash	# do this here so clean.bash will work in the pkg directory
-)
+) || exit 1
 bash "$GOROOT"/src/clean.bash
 
 # pkg builds libcgo and the Go programs in cmd.
