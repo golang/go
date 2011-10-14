@@ -151,7 +151,7 @@ func (S *Scanner) interpretLineComment(text []byte) {
 					filename = filepath.Join(S.dir, filename)
 				}
 				// update scanner position
-				S.file.AddLineInfo(S.lineOffset, filename, line-1) // -1 since comment applies to next line
+				S.file.AddLineInfo(S.lineOffset+len(text)+1, filename, line) // +len(text)+1 since comment applies to next line
 			}
 		}
 	}
