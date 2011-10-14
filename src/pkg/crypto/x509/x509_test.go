@@ -6,6 +6,7 @@ package x509
 
 import (
 	"asn1"
+	"bytes"
 	"big"
 	"crypto/dsa"
 	"crypto/rand"
@@ -33,6 +34,40 @@ func TestParsePKCS1PrivateKey(t *testing.T) {
 		t.Errorf("got:%+v want:%+v", priv, rsaPrivateKey)
 	}
 }
+
+func TestParsePKIXPublicKey(t *testing.T) {
+	block, _ := pem.Decode([]byte(pemPublicKey))
+	pub, err := ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		t.Errorf("Failed to parse RSA public key: %s", err)
+		return
+	}
+	rsaPub, ok := pub.(*rsa.PublicKey)
+	if !ok {
+		t.Errorf("Value returned from ParsePKIXPublicKey was not an RSA public key")
+		return
+	}
+
+	pubBytes2, err := MarshalPKIXPublicKey(rsaPub)
+	if err != nil {
+		t.Errorf("Failed to marshal RSA public key for the second time: %s", err)
+		return
+	}
+	if !bytes.Equal(pubBytes2, block.Bytes) {
+		t.Errorf("Reserialization of public key didn't match. got %x, want %x", pubBytes2, block.Bytes)
+	}
+}
+
+var pemPublicKey = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3VoPN9PKUjKFLMwOge6+
+wnDi8sbETGIx2FKXGgqtAKpzmem53kRGEQg8WeqRmp12wgp74TGpkEXsGae7RS1k
+enJCnma4fii+noGH7R0qKgHvPrI2Bwa9hzsH8tHxpyM3qrXslOmD45EH9SxIDUBJ
+FehNdaPbLP1gFyahKMsdfxFJLUvbUycuZSJ2ZnIgeVxwm4qbSvZInL9Iu4FzuPtg
+fINKcbbovy1qq4KvPIrXzhbY3PWDc6btxCf3SE0JdE1MCPThntB62/bLMSQ7xdDR
+FF53oIpvxe/SCOymfWq/LW849Ytv3Xwod0+wzAP8STXG4HSELS4UedPYeHJJJYcZ
++QIDAQAB
+-----END PUBLIC KEY-----
+`
 
 var pemPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
 MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
