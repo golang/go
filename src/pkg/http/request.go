@@ -275,7 +275,7 @@ const defaultUserAgent = "Go http package"
 // hasn't been set to "identity", Write adds "Transfer-Encoding:
 // chunked" to the header. Body is closed after it is sent.
 func (req *Request) Write(w io.Writer) os.Error {
-	return req.write(w, false)
+	return req.write(w, false, nil)
 }
 
 // WriteProxy is like Write but writes the request in the form
@@ -285,7 +285,7 @@ func (req *Request) Write(w io.Writer) os.Error {
 // either case, WriteProxy also writes a Host header, using either
 // req.Host or req.URL.Host.
 func (req *Request) WriteProxy(w io.Writer) os.Error {
-	return req.write(w, true)
+	return req.write(w, true, nil)
 }
 
 func (req *Request) dumpWrite(w io.Writer) os.Error {
@@ -333,7 +333,8 @@ func (req *Request) dumpWrite(w io.Writer) os.Error {
 	return nil
 }
 
-func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
+// extraHeaders may be nil
+func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) os.Error {
 	host := req.Host
 	if host == "" {
 		if req.URL == nil {
@@ -392,6 +393,13 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
 	err = req.Header.WriteSubset(bw, reqWriteExcludeHeader)
 	if err != nil {
 		return err
+	}
+
+	if extraHeaders != nil {
+		err = extraHeaders.Write(bw)
+		if err != nil {
+			return err
+		}
 	}
 
 	io.WriteString(bw, "\r\n")

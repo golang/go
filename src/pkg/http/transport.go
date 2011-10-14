@@ -100,10 +100,27 @@ func ProxyURL(fixedURL *url.URL) func(*Request) (*url.URL, os.Error) {
 	}
 }
 
+// transportRequest is a wrapper around a *Request that adds
+// optional extra headers to write.
+type transportRequest struct {
+	*Request        // original request, not to be mutated
+	extra    Header // extra headers to write, or nil
+}
+
+func (tr *transportRequest) extraHeaders() Header {
+	if tr.extra == nil {
+		tr.extra = make(Header)
+	}
+	return tr.extra
+}
+
 // RoundTrip implements the RoundTripper interface.
 func (t *Transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
 	if req.URL == nil {
 		return nil, os.NewError("http: nil Request.URL")
+	}
+	if req.Header == nil {
+		return nil, os.NewError("http: nil Request.Header")
 	}
 	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
 		t.lk.Lock()
@@ -117,8 +134,8 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
 		}
 		return rt.RoundTrip(req)
 	}
-
-	cm, err := t.connectMethodForRequest(req)
+	treq := &transportRequest{Request: req}
+	cm, err := t.connectMethodForRequest(treq)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +149,7 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
 		return nil, err
 	}
 
-	return pconn.roundTrip(req)
+	return pconn.roundTrip(treq)
 }
 
 // RegisterProtocol registers a new protocol with scheme.
@@ -185,14 +202,14 @@ func getenvEitherCase(k string) string {
 	return os.Getenv(strings.ToLower(k))
 }
 
-func (t *Transport) connectMethodForRequest(req *Request) (*connectMethod, os.Error) {
+func (t *Transport) connectMethodForRequest(treq *transportRequest) (*connectMethod, os.Error) {
 	cm := &connectMethod{
-		targetScheme: req.URL.Scheme,
-		targetAddr:   canonicalAddr(req.URL),
+		targetScheme: treq.URL.Scheme,
+		targetAddr:   canonicalAddr(treq.URL),
 	}
 	if t.Proxy != nil {
 		var err os.Error
-		cm.proxyURL, err = t.Proxy(req)
+		cm.proxyURL, err = t.Proxy(treq.Request)
 		if err != nil {
 			return nil, err
 		}
@@ -295,19 +312,15 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
 		conn:     conn,
 		reqch:    make(chan requestAndChan, 50),
 	}
-	newClientConnFunc := NewClientConn
 
 	switch {
 	case cm.proxyURL == nil:
 		// Do nothing.
 	case cm.targetScheme == "http":
-		newClientConnFunc = NewProxyClientConn
+		pconn.isProxy = true
 		if pa != "" {
-			pconn.mutateRequestFunc = func(req *Request) {
-				if req.Header == nil {
-					req.Header = make(Header)
-				}
-				req.Header.Set("Proxy-Authorization", pa)
+			pconn.mutateHeaderFunc = func(h Header) {
+				h.Set("Proxy-Authorization", pa)
 			}
 		}
 	case cm.targetScheme == "https":
@@ -351,7 +364,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
 	}
 
 	pconn.br = bufio.NewReader(pconn.conn)
-	pconn.cc = newClientConnFunc(conn, pconn.br)
+	pconn.cc = NewClientConn(conn, pconn.br)
 	go pconn.readLoop()
 	return pconn, nil
 }
@@ -447,30 +460,21 @@ func (cm *connectMethod) tlsHost() string {
 	return h
 }
 
-type readResult struct {
-	res *Response // either res or err will be set
-	err os.Error
-}
-
-type writeRequest struct {
-	// Set by client (in pc.roundTrip)
-	req   *Request
-	resch chan *readResult
-
-	// Set by writeLoop if an error writing headers.
-	writeErr os.Error
-}
-
 // persistConn wraps a connection, usually a persistent one
 // (but may be used for non-keep-alive requests as well)
 type persistConn struct {
-	t                 *Transport
-	cacheKey          string // its connectMethod.String()
-	conn              net.Conn
-	cc                *ClientConn
-	br                *bufio.Reader
-	reqch             chan requestAndChan // written by roundTrip(); read by readLoop()
-	mutateRequestFunc func(*Request)      // nil or func to modify each outbound request
+	t        *Transport
+	cacheKey string // its connectMethod.String()
+	conn     net.Conn
+	cc       *ClientConn
+	br       *bufio.Reader
+	reqch    chan requestAndChan // written by roundTrip(); read by readLoop()
+	isProxy  bool
+
+	// mutateHeaderFunc is an optional func to modify extra
+	// headers on each outbound request before it's written. (the
+	// original Request given to RoundTrip is not modified)
+	mutateHeaderFunc func(Header)
 
 	lk                   sync.Mutex // guards numExpectedResponses and broken
 	numExpectedResponses int
@@ -525,9 +529,6 @@ func (pc *persistConn) readLoop() {
 			resp, err := ReadResponse(buf, forReq)
 			if err != nil || resp.ContentLength == 0 {
 				return resp, err
-			}
-			if rc.addedGzip {
-				forReq.Header.Del("Accept-Encoding")
 			}
 			if rc.addedGzip && resp.Header.Get("Content-Encoding") == "gzip" {
 				resp.Header.Del("Content-Encoding")
@@ -604,9 +605,9 @@ type requestAndChan struct {
 	addedGzip bool
 }
 
-func (pc *persistConn) roundTrip(req *Request) (resp *Response, err os.Error) {
-	if pc.mutateRequestFunc != nil {
-		pc.mutateRequestFunc(req)
+func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err os.Error) {
+	if pc.mutateHeaderFunc != nil {
+		pc.mutateHeaderFunc(req.extraHeaders())
 	}
 
 	// Ask for a compressed version if the caller didn't set their
@@ -616,24 +617,28 @@ func (pc *persistConn) roundTrip(req *Request) (resp *Response, err os.Error) {
 	requestedGzip := false
 	if !pc.t.DisableCompression && req.Header.Get("Accept-Encoding") == "" {
 		// Request gzip only, not deflate. Deflate is ambiguous and 
-		// as universally supported anyway.
+		// not as universally supported anyway.
 		// See: http://www.gzip.org/zlib/zlib_faq.html#faq38
 		requestedGzip = true
-		req.Header.Set("Accept-Encoding", "gzip")
+		req.extraHeaders().Set("Accept-Encoding", "gzip")
 	}
 
 	pc.lk.Lock()
 	pc.numExpectedResponses++
 	pc.lk.Unlock()
 
-	err = pc.cc.Write(req)
+	pc.cc.writeReq = func(r *Request, w io.Writer) os.Error {
+		return r.write(w, pc.isProxy, req.extra)
+	}
+
+	err = pc.cc.Write(req.Request)
 	if err != nil {
 		pc.close()
 		return
 	}
 
 	ch := make(chan responseAndError, 1)
-	pc.reqch <- requestAndChan{req, ch, requestedGzip}
+	pc.reqch <- requestAndChan{req.Request, ch, requestedGzip}
 	re := <-ch
 	pc.lk.Lock()
 	pc.numExpectedResponses--
@@ -648,7 +653,7 @@ func (pc *persistConn) close() {
 	pc.broken = true
 	pc.cc.Close()
 	pc.conn.Close()
-	pc.mutateRequestFunc = nil
+	pc.mutateHeaderFunc = nil
 }
 
 var portMap = map[string]string{
