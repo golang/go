@@ -476,7 +476,7 @@ func (c *hybiServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Reques
 	// HTTP version can be safely ignored.
 
 	if strings.ToLower(req.Header.Get("Upgrade")) != "websocket" ||
-		strings.ToLower(req.Header.Get("Connection")) != "upgrade" {
+		!strings.Contains(strings.ToLower(req.Header.Get("Connection")), "upgrade") {
 		return http.StatusBadRequest, ErrNotWebSocket
 	}
 
