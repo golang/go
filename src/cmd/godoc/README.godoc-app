@@ -4,16 +4,14 @@ license that can be found in the LICENSE file.
 
 godoc on appengine
 ------------------
-(documentation in progress)
 
 Prerequisites
 -------------
 
-* Go appengine SDK 1.5.3 - 2011-08-17
+* Go appengine SDK 1.5.5 - 2011-10-11
   http://code.google.com/appengine/downloads.html#Google_App_Engine_SDK_for_Go
 
-* go_appengine_sdk_darwin_amd64-1.5.3.zip
-  Go sources at tip under $GOROOT
+* Go sources at tip under $GOROOT
 
 
 Directory structure
@@ -26,20 +24,9 @@ Directory structure
   app-engine release and version of godoc):
 
 	alt/
-		archive/
-		go/
-			ast/
-			doc/
-			parser/
-			...
-		http/
+		encoding/binary/
+		go/*
 		index/suffixarray/
-		mime/
-		path/filepath/
-		sort/
-		strings/
-		template/
-		url/
 	app.yaml
 	godoc.zip
 	godoc/
@@ -49,9 +36,9 @@ Directory structure
   For instance:
 
 	application: godoc-app
-	version: 1-5-4
+	version: 1-5-5
 	runtime: go
-	api_version: 2
+	api_version: 3
 
 	handlers:
 	- url: /.*
@@ -68,17 +55,26 @@ Directory structure
 
 * The alt/ directory contains up-to-date copies of Go packages that a tip-based
   godoc is dependent on but which do not yet exist in the current app-engine SDK.
+  At the time of this writing (10/14/2011) this is the entire go directory tree
+  (for the missing FileSet serialization code in go/token) as well as the
+  index/suffixarray package (for the missing suffix array serialization code).
+  The latest (alt/)index/suffixarray package internally requires the latest
+  version of encoding/binary, which is why it also needs to be present under
+  alt/.
 
 
-Configuring godoc
------------------
+Configuring and running godoc
+-----------------------------
 
-Run
+To configure godoc, run
 
 	bash setup-godoc-app.bash
 
 to create the godoc.zip, index.split.*, and godoc/appconfig.go files
 based on $GOROOT and $APPDIR. See the script for details on usage.
 
+To run godoc locally, using the app-engine emulator, run
 
- 
+	<path to google_appengine>/dev_appserver.py $APPDIR
+
+godoc should come up at http://localhost:8080 .
