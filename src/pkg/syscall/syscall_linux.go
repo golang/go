@@ -784,6 +784,16 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 	return origlen - len(buf), count, names
 }
 
+//sys	mount(source string, target string, fstype string, flags uint32, data *byte) (errno int)
+func Mount(source string, target string, fstype string, flags uint32, data string) (errno int) {
+	// Certain file systems get rather angry and EINVAL if you give
+	// them an empty string of data, rather than NULL.
+	if data == "" {
+		return mount(source, target, fstype, flags, nil)
+	}
+	return mount(source, target, fstype, flags, StringBytePtr(data))
+}
+
 // Sendto
 // Recvfrom
 // Socketpair
@@ -834,7 +844,6 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 //sys	Mkdirat(dirfd int, path string, mode uint32) (errno int)
 //sys	Mknod(path string, mode uint32, dev int) (errno int)
 //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (errno int)
-//sys	Mount(source string, target string, fstype string, flags int, data string) (errno int)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (errno int)
 //sys	Pause() (errno int)
 //sys	PivotRoot(newroot string, putold string) (errno int) = SYS_PIVOT_ROOT
