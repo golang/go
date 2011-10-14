@@ -42,9 +42,13 @@ for i in \
 	$GC $i
 done
 
+# Write to temporary file to avoid mingw bash bug.
+TMPFILE="/tmp/gotest3"
+
 function testit {
 	$LD $1.$O
-	x=$(echo $(./$O.out $2 2>&1))  # extra echo canonicalizes
+	./$O.out $2 2>&1 >"$TMPFILE" || true
+	x=$(echo $(cat "$TMPFILE")) # extra echo canonicalizes
 	if [ "$x" != "$3" ]
 	then
 		echo $1 failed: '"'$x'"' is not '"'$3'"'
@@ -53,7 +57,8 @@ function testit {
 
 function testitpipe {
 	$LD $1.$O
-	x=$(echo $(./$O.out | $2 2>&1))  # extra echo canonicalizes
+	./$O.out | $2 2>&1 >"$TMPFILE" || true
+	x=$(echo $(cat "$TMPFILE")) # extra echo canonicalizes
 	if [ "$x" != "$3" ]
 	then
 		echo $1 failed: '"'$x'"' is not '"'$3'"'
@@ -88,4 +93,4 @@ testit server1 "" ""
 testit eff_bytesize "" "1.00YB 9.09TB"
 testit eff_sequence "" "[-1 2 6 16 44]"
 
-rm -f $O.out *.$O
+rm -f $O.out $O.out.exe *.$O "$TMPFILE"
