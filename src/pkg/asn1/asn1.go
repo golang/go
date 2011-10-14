@@ -516,6 +516,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				result, err = parseIA5String(innerBytes)
 			case tagT61String:
 				result, err = parseT61String(innerBytes)
+			case tagUTF8String:
+				result, err = parseUTF8String(innerBytes)
 			case tagInteger:
 				result, err = parseInt64(innerBytes)
 			case tagBitString:
