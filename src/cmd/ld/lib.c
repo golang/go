@@ -70,7 +70,12 @@ libinit(void)
 	// add goroot to the end of the libdir list.
 	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
 
+	// Unix doesn't like it when we write to a running (or, sometimes,
+	// recently run) binary, so remove the output file before writing it.
+	// On Windows 7, remove() can force the following create() to fail.
+#ifndef _WIN32
 	remove(outfile);
+#endif
 	cout = create(outfile, 1, 0775);
 	if(cout < 0) {
 		diag("cannot create %s", outfile);
