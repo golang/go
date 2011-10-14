@@ -56,9 +56,10 @@ type RoundTripper interface {
 	// higher-level protocol details such as redirects,
 	// authentication, or cookies.
 	//
-	// RoundTrip may modify the request. The request Headers field is
-	// guaranteed to be initialized.
-	RoundTrip(req *Request) (resp *Response, err os.Error)
+	// RoundTrip should not modify the request, except for
+	// consuming the Body.  The request's URL and Header fields
+	// are guaranteed to be initialized.
+	RoundTrip(*Request) (*Response, os.Error)
 }
 
 // Given a string of the form "host", "host:port", or "[ipv6::address]:port",
@@ -96,9 +97,13 @@ func send(req *Request, t RoundTripper) (resp *Response, err os.Error) {
 	if t == nil {
 		t = DefaultTransport
 		if t == nil {
-			err = os.NewError("no http.Client.Transport or http.DefaultTransport")
+			err = os.NewError("http: no Client.Transport or DefaultTransport")
 			return
 		}
+	}
+
+	if req.URL == nil {
+		return nil, os.NewError("http: nil Request.URL")
 	}
 
 	// Most the callers of send (Get, Post, et al) don't need

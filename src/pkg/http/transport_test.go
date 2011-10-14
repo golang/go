@@ -372,7 +372,8 @@ var roundTripTests = []struct {
 	// Requests with other accept-encoding should pass through unmodified
 	{"foo", "foo", false},
 	// Requests with accept-encoding == gzip should be passed through
-	{"gzip", "gzip", true}}
+	{"gzip", "gzip", true},
+}
 
 // Test that the modification made to the Request by the RoundTripper is cleaned up
 func TestRoundTripGzip(t *testing.T) {
@@ -380,7 +381,8 @@ func TestRoundTripGzip(t *testing.T) {
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
 		accept := req.Header.Get("Accept-Encoding")
 		if expect := req.FormValue("expect_accept"); accept != expect {
-			t.Errorf("Accept-Encoding = %q, want %q", accept, expect)
+			t.Errorf("in handler, test %v: Accept-Encoding = %q, want %q",
+				req.FormValue("testnum"), accept, expect)
 		}
 		if accept == "gzip" {
 			rw.Header().Set("Content-Encoding", "gzip")
@@ -396,8 +398,10 @@ func TestRoundTripGzip(t *testing.T) {
 
 	for i, test := range roundTripTests {
 		// Test basic request (no accept-encoding)
-		req, _ := NewRequest("GET", ts.URL+"?expect_accept="+test.expectAccept, nil)
-		req.Header.Set("Accept-Encoding", test.accept)
+		req, _ := NewRequest("GET", fmt.Sprintf("%s/?testnum=%d&expect_accept=%s", ts.URL, i, test.expectAccept), nil)
+		if test.accept != "" {
+			req.Header.Set("Accept-Encoding", test.accept)
+		}
 		res, err := DefaultTransport.RoundTrip(req)
 		var body []byte
 		if test.compressed {
@@ -409,16 +413,16 @@ func TestRoundTripGzip(t *testing.T) {
 		}
 		if err != nil {
 			t.Errorf("%d. Error: %q", i, err)
-		} else {
-			if g, e := string(body), responseBody; g != e {
-				t.Errorf("%d. body = %q; want %q", i, g, e)
-			}
-			if g, e := req.Header.Get("Accept-Encoding"), test.accept; g != e {
-				t.Errorf("%d. Accept-Encoding = %q; want %q", i, g, e)
-			}
-			if g, e := res.Header.Get("Content-Encoding"), test.accept; g != e {
-				t.Errorf("%d. Content-Encoding = %q; want %q", i, g, e)
-			}
+			continue
+		}
+		if g, e := string(body), responseBody; g != e {
+			t.Errorf("%d. body = %q; want %q", i, g, e)
+		}
+		if g, e := req.Header.Get("Accept-Encoding"), test.accept; g != e {
+			t.Errorf("%d. Accept-Encoding = %q; want %q (it was mutated, in violation of RoundTrip contract)", i, g, e)
+		}
+		if g, e := res.Header.Get("Content-Encoding"), test.accept; g != e {
+			t.Errorf("%d. Content-Encoding = %q; want %q", i, g, e)
 		}
 	}
 
