@@ -43,6 +43,9 @@ func loadStore(roots *x509.CertPool, name string) {
 }
 
 func initDefaultRoots() {
+	// TODO(brainman): To be fixed
+	return
+
 	roots := x509.NewCertPool()
 
 	// Roots
