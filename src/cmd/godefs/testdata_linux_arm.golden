@@ -1,4 +1,4 @@
-// ./godefs -g test -f-m32 testdata.c
+// ./godefs -g test testdata.c
 
 // MACHINE GENERATED - DO NOT EDIT.
 

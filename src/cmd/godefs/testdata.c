@@ -39,3 +39,14 @@ struct T5 {
 typedef struct T5 T5;
 typedef struct T4 $T4;
 typedef T5 $T5;
+
+// Test constants and enumerations are printed correctly. clang/2.9 with 
+// -O2 and above causes Bprint to print %#llx values incorrectly.
+enum {
+	$sizeofPtr = sizeof(void*),
+	$sizeofShort = sizeof(short),
+	$sizeofInt = sizeof(int),
+	$sizeofLong = sizeof(long),
+	$sizeofLongLong = sizeof(long long),
+};
+
