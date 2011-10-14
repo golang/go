@@ -2,42 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// To run godoc under app engine, substitute main.go with
-// this file (appinit.go), provide a .zip file containing
-// the file system to serve, the index file (or files)
-// containing the pre-computed search index and adjust
-// the configuration parameters in appconfig.go accordingly.
-//
-// The current app engine SDK may be based on an older Go
-// release version. To correct for version skew, copy newer
-// packages into the alt directory (e.g. alt/strings) and
-// adjust the imports in the godoc source files (e.g. from
-// `import "strings"` to `import "alt/strings"`). Both old
-// and new packages may be used simultaneously as long as
-// there is no package global state that needs to be shared.
-//
-// The directory structure should look as follows:
-//
-// godoc-app			// directory containing the app engine app
-//      alt			// alternative packages directory to
-//				//	correct for version skew
-//		strings		// never version of the strings package
-//		...		//
-//	app.yaml		// app engine control file
-//	godoc.zip		// .zip file containing the file system to serve
-//	godoc			// contains godoc sources
-//		appinit.go	// this file instead of godoc/main.go
-//		appconfig.go	// godoc for app engine configuration
-//		...		//
-//	index.split.*		// index file(s) containing the search index to serve
-//
-// To run app the engine emulator locally:
-//
-//	dev_appserver.py -a 0 godoc-app
-//
-// The godoc home page is served at: <hostname>:8080 and localhost:8080.
-
 package main
+
+// This file replaces main.go when running godoc under app-engine.
+// See README.godoc-app for details.
 
 import (
 	"archive/zip"

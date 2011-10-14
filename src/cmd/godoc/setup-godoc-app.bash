@@ -72,7 +72,7 @@ cleanup() {
 
 makeZipfile() {
 	echo "*** make $APPDIR/$ZIPFILE"
-	zip -q -r $APPDIR/$ZIPFILE $GOROOT -i \*.go -i \*.html -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh -i favicon.ico
+	zip -q -r $APPDIR/$ZIPFILE $GOROOT -i \*.go -i \*.html -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh -i \*.ico
 }
 
 makeIndexfile() {
