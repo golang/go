@@ -17,35 +17,31 @@ func loadStore(roots *x509.CertPool, name string) {
 		return
 	}
 
-	var prev *syscall.CertContext
+	var cert *syscall.CertContext
 	for {
-		cur := syscall.CertEnumCertificatesInStore(store, prev)
-		if cur == nil {
+		cert = syscall.CertEnumCertificatesInStore(store, cert)
+		if cert == nil {
 			break
 		}
 
-		var buf []byte
-		hdrp := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-		hdrp.Data = cur.EncodedCert
-		hdrp.Len = int(cur.Length)
-		hdrp.Cap = int(cur.Length)
+		var asn1Slice []byte
+		hdrp := (*reflect.SliceHeader)(unsafe.Pointer(&asn1Slice))
+		hdrp.Data = cert.EncodedCert
+		hdrp.Len = int(cert.Length)
+		hdrp.Cap = int(cert.Length)
 
-		cert, err := x509.ParseCertificate(buf)
-		if err != nil {
-			continue
+		buf := make([]byte, len(asn1Slice))
+		copy(buf, asn1Slice)
+
+		if cert, err := x509.ParseCertificate(buf); err == nil {
+			roots.AddCert(cert)
 		}
-
-		roots.AddCert(cert)
-		prev = cur
 	}
 
 	syscall.CertCloseStore(store, 0)
 }
 
 func initDefaultRoots() {
-	// TODO(brainman): To be fixed
-	return
-
 	roots := x509.NewCertPool()
 
 	// Roots
