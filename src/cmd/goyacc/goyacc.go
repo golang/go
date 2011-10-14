@@ -506,19 +506,20 @@ outer:
 		// non-literals
 		c := tokset[i].name[0]
 		if c != ' ' && c != '$' {
-			fmt.Fprintf(ftable, "const\t%v\t= %v\n", tokset[i].name, tokset[i].value)
+			fmt.Fprintf(ftable, "const %v = %v\n", tokset[i].name, tokset[i].value)
 		}
 	}
 
 	// put out names of token names
-	fmt.Fprintf(ftable, "var\t%sToknames\t =[]string {\n", prefix)
+	ftable.WriteRune('\n')
+	fmt.Fprintf(ftable, "var %sToknames = []string{\n", prefix)
 	for i := TOKSTART; i <= ntokens; i++ {
 		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name)
 	}
 	fmt.Fprintf(ftable, "}\n")
 
 	// put out names of state names
-	fmt.Fprintf(ftable, "var\t%sStatenames\t =[]string {\n", prefix)
+	fmt.Fprintf(ftable, "var %sStatenames = []string{", prefix)
 	//	for i:=TOKSTART; i<=ntokens; i++ {
 	//		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name);
 	//	}
@@ -595,7 +596,7 @@ outer:
 				break
 			}
 			levprd[nprod] |= ACTFLAG
-			fmt.Fprintf(fcode, "\ncase %v:", nprod)
+			fmt.Fprintf(fcode, "\n\tcase %v:", nprod)
 			cpyact(curprod, mem)
 
 			// action within rule...
@@ -652,8 +653,8 @@ outer:
 			if tempty != nontrst[curprod[0]-NTBASE].value {
 				errorf("default action causes potential type clash")
 			}
-			fmt.Fprintf(fcode, "\ncase %v:", nprod)
-			fmt.Fprintf(fcode, "\n\t%sVAL.%v = %sS[%spt-0].%v;",
+			fmt.Fprintf(fcode, "\n\tcase %v:", nprod)
+			fmt.Fprintf(fcode, "\n\t\t%sVAL.%v = %sS[%spt-0].%v",
 				prefix, typeset[tempty], prefix, prefix, typeset[tempty])
 		}
 		moreprod()
@@ -671,9 +672,10 @@ outer:
 
 	fmt.Fprintf(fcode, "\n\t}")
 
-	fmt.Fprintf(ftable, "const	%sEofCode	= 1\n", prefix)
-	fmt.Fprintf(ftable, "const	%sErrCode	= 2\n", prefix)
-	fmt.Fprintf(ftable, "const	%sMaxDepth	= %v\n", prefix, stacksize)
+	ftable.WriteRune('\n')
+	fmt.Fprintf(ftable, "const %sEofCode = 1\n", prefix)
+	fmt.Fprintf(ftable, "const %sErrCode = 2\n", prefix)
+	fmt.Fprintf(ftable, "const %sMaxDepth = %v\n", prefix, stacksize)
 
 	//
 	// copy any postfix code
@@ -1039,7 +1041,7 @@ func cpyunion() {
 	if !lflag {
 		fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
 	}
-	fmt.Fprintf(ftable, "type\t%sSymType\tstruct", prefix)
+	fmt.Fprintf(ftable, "type %sSymType struct", prefix)
 
 	level := 0
 
@@ -1055,7 +1057,7 @@ out:
 			lineno++
 		case '{':
 			if level == 0 {
-				fmt.Fprintf(ftable, "\n\tyys\tint;")
+				fmt.Fprintf(ftable, "\n\tyys int")
 			}
 			level++
 		case '}':
@@ -1065,7 +1067,7 @@ out:
 			}
 		}
 	}
-	fmt.Fprintf(ftable, "\n")
+	fmt.Fprintf(ftable, "\n\n")
 }
 
 //
@@ -1163,7 +1165,7 @@ func dumpprod(curprod []int, max int) {
 func cpyact(curprod []int, max int) {
 
 	if !lflag {
-		fmt.Fprintf(fcode, "\n//line %v:%v\n", infile, lineno)
+		fmt.Fprintf(fcode, "\n\t\t//line %v:%v\n\t\t", infile, lineno)
 	}
 
 	lno := lineno
@@ -1177,14 +1179,13 @@ loop:
 		switch c {
 		case ';':
 			if brac == 0 {
-				ftable.WriteRune(c)
+				fcode.WriteRune(c)
 				return
 			}
 
 		case '{':
 			if brac == 0 {
 			}
-			ftable.WriteRune('\t')
 			brac++
 
 		case '$':
@@ -1345,7 +1346,9 @@ loop:
 			errorf("action does not terminate")
 
 		case '\n':
+			fmt.Fprint(fcode, "\n\t")
 			lineno++
+			continue loop
 		}
 
 		fcode.WriteRune(c)
@@ -2072,7 +2075,7 @@ func output() {
 	var c, u, v int
 
 	fmt.Fprintf(ftable, "\n//line yacctab:1\n")
-	fmt.Fprintf(ftable, "var\t%sExca = []int {\n", prefix)
+	fmt.Fprintf(ftable, "var %sExca = []int{\n", prefix)
 
 	noset := mkset()
 
@@ -2145,10 +2148,12 @@ func output() {
 	}
 
 	fmt.Fprintf(ftable, "}\n")
-	fmt.Fprintf(ftable, "const\t%sNprod\t= %v\n", prefix, nprod)
-	fmt.Fprintf(ftable, "const\t%sPrivate\t= %v\n", prefix, PRIVATE)
-	fmt.Fprintf(ftable, "var\t%sTokenNames []string\n", prefix)
-	fmt.Fprintf(ftable, "var\t%sStates []string\n", prefix)
+	ftable.WriteRune('\n')
+	fmt.Fprintf(ftable, "const %sNprod = %v\n", prefix, nprod)
+	fmt.Fprintf(ftable, "const %sPrivate = %v\n", prefix, PRIVATE)
+	ftable.WriteRune('\n')
+	fmt.Fprintf(ftable, "var %sTokenNames []string\n", prefix)
+	fmt.Fprintf(ftable, "var %sStates []string\n", prefix)
 }
 
 //
@@ -2264,7 +2269,7 @@ func wract(i int) {
 				continue
 			}
 			if flag == 0 {
-				fmt.Fprintf(ftable, "-1, %v,\n", i)
+				fmt.Fprintf(ftable, "\t-1, %v,\n", i)
 			}
 			flag++
 			fmt.Fprintf(ftable, "\t%v, %v,\n", p, p1)
@@ -2723,7 +2728,8 @@ nextn:
 // write out the optimized parser
 //
 func aoutput() {
-	fmt.Fprintf(ftable, "const\t%sLast\t= %v\n", prefix, maxa+1)
+	ftable.WriteRune('\n')
+	fmt.Fprintf(ftable, "const %sLast = %v\n\n", prefix, maxa+1)
 	arout("Act", amem, maxa+1)
 	arout("Pact", indgo, nstate)
 	arout("Pgo", pgo, nnonter+1)
@@ -2805,7 +2811,7 @@ func others() {
 	arout("Tok2", temp1, c+1)
 
 	// table 3 has everything else
-	fmt.Fprintf(ftable, "var\t%sTok3\t= []int {\n", prefix)
+	fmt.Fprintf(ftable, "var %sTok3 = []int{\n\t", prefix)
 	c = 0
 	for i = 1; i <= ntokens; i++ {
 		j = tokset[i].value
@@ -2816,13 +2822,19 @@ func others() {
 			continue
 		}
 
-		fmt.Fprintf(ftable, "%4d,%4d,", j, i)
+		if c%5 != 0 {
+			ftable.WriteRune(' ')
+		}
+		fmt.Fprintf(ftable, "%d, %d,", j, i)
 		c++
 		if c%5 == 0 {
-			ftable.WriteRune('\n')
+			fmt.Fprint(ftable, "\n\t")
 		}
 	}
-	fmt.Fprintf(ftable, "%4d,\n };\n", 0)
+	if c%5 != 0 {
+		ftable.WriteRune(' ')
+	}
+	fmt.Fprintf(ftable, "%d,\n}\n", 0)
 
 	// copy parser text
 	c = getrune(finput)
@@ -2842,15 +2854,16 @@ func others() {
 
 func arout(s string, v []int, n int) {
 	s = prefix + s
-	fmt.Fprintf(ftable, "var\t%v\t= []int {\n", s)
+	fmt.Fprintf(ftable, "var %v = []int{\n", s)
 	for i := 0; i < n; i++ {
 		if i%10 == 0 {
-			ftable.WriteRune('\n')
+			fmt.Fprintf(ftable, "\n\t")
+		} else {
+			ftable.WriteRune(' ')
 		}
-		fmt.Fprintf(ftable, "%4d", v[i])
-		ftable.WriteRune(',')
+		fmt.Fprintf(ftable, "%d,", v[i])
 	}
-	fmt.Fprintf(ftable, "\n};\n")
+	fmt.Fprintf(ftable, "\n}\n")
 }
 
 //
@@ -3286,7 +3299,7 @@ $$default:
 
 	$$nt := $$n
 	$$pt := $$p
-	_ = $$pt		// guard against "declared and not used"
+	_ = $$pt // guard against "declared and not used"
 
 	$$p -= $$R2[$$n]
 	$$VAL = $$S[$$p+1]

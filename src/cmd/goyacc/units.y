@@ -64,15 +64,13 @@ var retnode2 Node
 var retnode Node
 var sym string
 var vflag bool
-
 %}
 
-%union
-{
-	node	Node
-	vvar	*Var
-	numb	int
-	vval	float64
+%union {
+	node Node
+	vvar *Var
+	numb int
+	vval float64
 }
 
 %type	<node>	prog expr expr0 expr1 expr2 expr3 expr4
@@ -85,7 +83,6 @@ prog:
 	':' VAR expr
 	{
 		var f int
-
 		f = int($2.node.dim[0])
 		$2.node = $3
 		$2.node.dim[0] = 1
@@ -98,26 +95,23 @@ prog:
 |	':' VAR '#'
 	{
 		var f, i int
-
-		for i=1; i<Ndim; i++ {
+		for i = 1; i < Ndim; i++ {
 			if fund[i] == nil {
 				break
 			}
 		}
 		if i >= Ndim {
 			Error("too many dimensions")
-			i = Ndim-1
+			i = Ndim - 1
 		}
 		fund[i] = $2
-
 		f = int($2.node.dim[0])
 		$2.node = one
 		$2.node.dim[0] = 1
 		$2.node.dim[i] = 1
 		if f != 0 {
 			Errorf("redefinition of %v", $2.name)
-		} else
-		if vflag {
+		} else if vflag {
 			fmt.Printf("%v\t#\n", $2.name)
 		}
 	}
@@ -171,8 +165,7 @@ expr2:
 |	expr2 '^' expr1
 	{
 		var i int
-
-		for i=1; i<Ndim; i++ {
+		for i = 1; i < Ndim; i++ {
 			if $3.dim[i] != 0 {
 				Error("exponent has units")
 				$$ = $1
@@ -689,7 +682,6 @@ func pname() float64 {
 
 	return 0
 }
-
 
 // careful multiplication
 // exponents (log) are checked before multiply
