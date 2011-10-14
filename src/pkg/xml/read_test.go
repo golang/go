@@ -369,3 +369,25 @@ var attrStruct = AttrTest{
 		Bool: true,
 	},
 }
+
+// test data for TestUnmarshalWithoutNameType
+
+const OK = "OK"
+const withoutNameTypeData = `
+<?xml version="1.0" charset="utf-8"?>
+<Test3 attr="OK" />`
+
+type TestThree struct {
+	XMLName bool   `xml:"Test3"` // XMLName field without an xml.Name type 
+	Attr    string `xml:"attr"`
+}
+
+func TestUnmarshalWithoutNameType(t *testing.T) {
+	var x TestThree
+	if err := Unmarshal(StringReader(withoutNameTypeData), &x); err != nil {
+		t.Fatalf("Unmarshal: %s", err)
+	}
+	if x.Attr != OK {
+		t.Fatalf("have %v\nwant %v", x.Attr, OK)
+	}
+}
