@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"os"
 	"strings"
@@ -209,6 +210,10 @@ func chainToDebugString(chain []*Certificate) string {
 		chainStr += nameToKey(&cert.Subject)
 	}
 	return chainStr
+}
+
+func nameToKey(name *pkix.Name) string {
+	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
 }
 
 const verisignRoot = `-----BEGIN CERTIFICATE-----
