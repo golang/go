@@ -53,6 +53,7 @@ GOFILES_openbsd=\
 
 GOFILES_windows=\
 	exec_windows.go\
+	dll_windows.go\
 	zerrors_windows.go\
 	ztypes_windows.go\
 

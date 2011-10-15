@@ -19,7 +19,7 @@
 #pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
 #pragma dynimport runtime·GetSystemInfo GetSystemInfo "kernel32.dll"
 #pragma dynimport runtime·GetThreadContext GetThreadContext "kernel32.dll"
-#pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
+#pragma dynimport runtime·LoadLibrary LoadLibraryW "kernel32.dll"
 #pragma dynimport runtime·QueryPerformanceCounter QueryPerformanceCounter "kernel32.dll"
 #pragma dynimport runtime·QueryPerformanceFrequency QueryPerformanceFrequency "kernel32.dll"
 #pragma dynimport runtime·ResumeThread ResumeThread "kernel32.dll"
@@ -45,7 +45,7 @@ extern void *runtime·GetProcAddress;
 extern void *runtime·GetStdHandle;
 extern void *runtime·GetSystemInfo;
 extern void *runtime·GetThreadContext;
-extern void *runtime·LoadLibraryEx;
+extern void *runtime·LoadLibrary;
 extern void *runtime·QueryPerformanceCounter;
 extern void *runtime·QueryPerformanceFrequency;
 extern void *runtime·ResumeThread;
