@@ -692,7 +692,41 @@ func TestServerExpect(t *testing.T) {
 	}
 }
 
-func TestServerConsumesRequestBody(t *testing.T) {
+// Under a ~256KB (maxPostHandlerReadBytes) threshold, the server
+// should consume client request bodies that a handler didn't read.
+func TestServerUnreadRequestBodyLittle(t *testing.T) {
+	conn := new(testConn)
+	body := strings.Repeat("x", 100<<10)
+	conn.readBuf.Write([]byte(fmt.Sprintf(
+		"POST / HTTP/1.1\r\n"+
+			"Host: test\r\n"+
+			"Content-Length: %d\r\n"+
+			"\r\n", len(body))))
+	conn.readBuf.Write([]byte(body))
+
+	done := make(chan bool)
+
+	ls := &oneConnListener{conn}
+	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		defer close(done)
+		if conn.readBuf.Len() < len(body)/2 {
+			t.Errorf("on request, read buffer length is %d; expected about 100 KB", conn.readBuf.Len())
+		}
+		rw.WriteHeader(200)
+		if g, e := conn.readBuf.Len(), 0; g != e {
+			t.Errorf("after WriteHeader, read buffer length is %d; want %d", g, e)
+		}
+		if c := rw.Header().Get("Connection"); c != "" {
+			t.Errorf(`Connection header = %q; want ""`, c)
+		}
+	}))
+	<-done
+}
+
+// Over a ~256KB (maxPostHandlerReadBytes) threshold, the server
+// should ignore client request bodies that a handler didn't read
+// and close the connection.
+func TestServerUnreadRequestBodyLarge(t *testing.T) {
 	conn := new(testConn)
 	body := strings.Repeat("x", 1<<20)
 	conn.readBuf.Write([]byte(fmt.Sprintf(
@@ -706,14 +740,17 @@ func TestServerConsumesRequestBody(t *testing.T) {
 
 	ls := &oneConnListener{conn}
 	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		defer close(done)
 		if conn.readBuf.Len() < len(body)/2 {
 			t.Errorf("on request, read buffer length is %d; expected about 1MB", conn.readBuf.Len())
 		}
 		rw.WriteHeader(200)
-		if g, e := conn.readBuf.Len(), 0; g != e {
-			t.Errorf("after WriteHeader, read buffer length is %d; want %d", g, e)
+		if conn.readBuf.Len() < len(body)/2 {
+			t.Errorf("post-WriteHeader, read buffer length is %d; expected about 1MB", conn.readBuf.Len())
 		}
-		done <- true
+		if c := rw.Header().Get("Connection"); c != "close" {
+			t.Errorf(`Connection header = %q; want "close"`, c)
+		}
 	}))
 	<-done
 }
