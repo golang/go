@@ -15,3 +15,4 @@ units: goyacc units.y
 	$(GC) y.go
 	$(LD) -o units y.$O
 
+CLEANFILES += units y.go y.output
