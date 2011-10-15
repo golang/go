@@ -87,51 +87,88 @@ var tokenTests = []tokenTest{
 		`<p id="0"</p>`,
 		`<p id="0" <="" p="">`,
 	},
+	// DOCTYPE tests.
+	{
+		"Proper DOCTYPE",
+		"<!DOCTYPE html>",
+		"<!DOCTYPE html>",
+	},
+	{
+		"DOCTYPE with no space",
+		"<!doctypehtml>",
+		"<!DOCTYPE html>",
+	},
+	{
+		"DOCTYPE with two spaces",
+		"<!doctype  html>",
+		"<!DOCTYPE html>",
+	},
+	{
+		"looks like DOCTYPE but isn't",
+		"<!DOCUMENT html>",
+		"<!--DOCUMENT html-->",
+	},
+	{
+		"DOCTYPE at EOF",
+		"<!DOCtype",
+		"<!DOCTYPE >",
+	},
+	// XML processing instructions.
+	{
+		"XML processing instruction",
+		"<?xml?>",
+		"<!--?xml?-->",
+	},
 	// Comments.
 	{
 		"comment0",
 		"abc<b><!-- skipme --></b>def",
-		"abc$<b>$</b>$def",
+		"abc$<b>$<!-- skipme -->$</b>$def",
 	},
 	{
 		"comment1",
 		"a<!-->z",
-		"a$z",
+		"a$<!---->$z",
 	},
 	{
 		"comment2",
 		"a<!--->z",
-		"a$z",
+		"a$<!---->$z",
 	},
 	{
 		"comment3",
 		"a<!--x>-->z",
-		"a$z",
+		"a$<!--x>-->$z",
 	},
 	{
 		"comment4",
 		"a<!--x->-->z",
-		"a$z",
+		"a$<!--x->-->$z",
 	},
 	{
 		"comment5",
 		"a<!>z",
-		"a$&lt;!&gt;z",
+		"a$<!---->$z",
 	},
 	{
 		"comment6",
 		"a<!->z",
-		"a$&lt;!-&gt;z",
+		"a$<!----->$z",
 	},
 	{
 		"comment7",
 		"a<!---<>z",
-		"a$&lt;!---&lt;&gt;z",
+		"a$<!---<>z-->",
 	},
 	{
 		"comment8",
 		"a<!--z",
-		"a$&lt;!--z",
+		"a$<!--z-->",
+	},
+	{
+		"comment9",
+		"a<!--x--!>z",
+		"a$<!--x-->$z",
 	},
 	// An attribute with a backslash.
 	{
@@ -229,6 +266,7 @@ func TestTokenizer(t *testing.T) {
 loop:
 	for _, tt := range tokenTests {
 		z := NewTokenizer(bytes.NewBuffer([]byte(tt.html)))
+		z.ReturnComments = true
 		for i, s := range strings.Split(tt.golden, "$") {
 			if z.Next() == ErrorToken {
 				t.Errorf("%s token %d: want %q got error %v", tt.desc, i, s, z.Error())

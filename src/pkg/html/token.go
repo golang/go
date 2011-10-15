@@ -100,9 +100,9 @@ func (t Token) String() string {
 	case SelfClosingTagToken:
 		return "<" + t.tagString() + "/>"
 	case CommentToken:
-		return "<!--" + EscapeString(t.Data) + "-->"
+		return "<!--" + t.Data + "-->"
 	case DoctypeToken:
-		return "<!DOCTYPE " + EscapeString(t.Data) + ">"
+		return "<!DOCTYPE " + t.Data + ">"
 	}
 	return "Invalid(" + strconv.Itoa(int(t.Type)) + ")"
 }
@@ -227,30 +227,62 @@ func (z *Tokenizer) skipWhiteSpace() {
 
 // nextComment reads the next token starting with "<!--".
 // The opening "<!--" has already been consumed.
-// Pre-condition: z.tt == TextToken && z.err == nil &&
+// Pre-condition: z.tt == CommentToken && z.err == nil &&
 //   z.raw.start + 4 <= z.raw.end.
 func (z *Tokenizer) nextComment() {
-	// <!--> is a valid comment.
+	z.data.start = z.raw.end
+	defer func() {
+		if z.data.end < z.data.start {
+			// It's a comment with no data, like <!-->.
+			z.data.end = z.data.start
+		}
+	}()
 	for dashCount := 2; ; {
 		c := z.readByte()
 		if z.err != nil {
-			z.data = z.raw
+			z.data.end = z.raw.end
 			return
 		}
 		switch c {
 		case '-':
 			dashCount++
+			continue
 		case '>':
 			if dashCount >= 2 {
-				z.tt = CommentToken
-				// TODO: adjust z.data to be only the "x" in "<!--x-->".
-				// Note that "<!>" is also a valid HTML5 comment.
-				z.data = z.raw
+				z.data.end = z.raw.end - len("-->")
 				return
 			}
-			dashCount = 0
-		default:
-			dashCount = 0
+		case '!':
+			if dashCount >= 2 {
+				c = z.readByte()
+				if z.err != nil {
+					z.data.end = z.raw.end
+					return
+				}
+				if c == '>' {
+					z.data.end = z.raw.end - len("--!>")
+					return
+				}
+			}
+		}
+		dashCount = 0
+	}
+}
+
+// nextBogusComment reads text until the next ">" and treats it as a comment.
+// Pre-condition: z.err == nil && z.raw.end is before the first comment byte.
+func (z *Tokenizer) nextBogusComment() {
+	z.tt = CommentToken
+	z.data.start = z.raw.end
+	for {
+		c := z.readByte()
+		if z.err != nil {
+			z.data.end = z.raw.end
+			return
+		}
+		if c == '>' {
+			z.data.end = z.raw.end - len(">")
+			return
 		}
 	}
 }
@@ -258,13 +290,15 @@ func (z *Tokenizer) nextComment() {
 // nextMarkupDeclaration reads the next token starting with "<!".
 // It might be a "<!--comment-->", a "<!DOCTYPE foo>", or "<!malformed text".
 // The opening "<!" has already been consumed.
-// Pre-condition: z.tt == TextToken && z.err == nil &&
-//   z.raw.start + 2 <= z.raw.end.
+// Pre-condition: z.err == nil && z.raw.start + 2 <= z.raw.end.
 func (z *Tokenizer) nextMarkupDeclaration() {
+	z.tt = CommentToken
+	z.data.start = z.raw.end
 	var c [2]byte
 	for i := 0; i < 2; i++ {
 		c[i] = z.readByte()
 		if z.err != nil {
+			z.data.end = z.raw.end
 			return
 		}
 	}
@@ -273,27 +307,35 @@ func (z *Tokenizer) nextMarkupDeclaration() {
 		return
 	}
 	z.raw.end -= 2
-	const s = "DOCTYPE "
-	for i := 0; ; i++ {
+	const s = "DOCTYPE"
+	for i := 0; i < len(s); i++ {
 		c := z.readByte()
 		if z.err != nil {
-			z.data = z.raw
+			z.data.end = z.raw.end
 			return
 		}
-		// Capitalize c.
-		if 'a' <= c && c <= 'z' {
-			c = 'A' + (c - 'a')
+		if c != s[i] && c != s[i]+('a'-'A') {
+			// Back up to read the fragment of "DOCTYPE" again.
+			z.raw.end = z.data.start
+			z.nextBogusComment()
+			return
 		}
-		if i < len(s) && c != s[i] {
-			z.nextText()
+	}
+	z.tt = DoctypeToken
+	if z.skipWhiteSpace(); z.err != nil {
+		z.data.start = z.raw.end
+		z.data.end = z.raw.end
+		return
+	}
+	z.data.start = z.raw.end
+	for {
+		c := z.readByte()
+		if z.err != nil {
+			z.data.end = z.raw.end
 			return
 		}
 		if c == '>' {
-			if i >= len(s) {
-				z.tt = DoctypeToken
-				z.data.start = z.raw.start + len("<!DOCTYPE ")
-				z.data.end = z.raw.end - len(">")
-			}
+			z.data.end = z.raw.end - len(">")
 			return
 		}
 	}
@@ -311,8 +353,18 @@ func (z *Tokenizer) nextTag() {
 		return
 	}
 	switch {
-	// TODO: check that the "</" is followed by something in A-Za-z.
 	case c == '/':
+		// Check that the "</" is followed by something in A-Za-z.
+		c = z.readByte()
+		if z.err != nil {
+			z.data = z.raw
+			return
+		}
+		z.raw.end--
+		if !('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
+			z.nextBogusComment()
+			return
+		}
 		z.tt = EndTagToken
 		z.data.start += len("</")
 	// Lower-cased characters are more common in tag names, so we check for them first.
@@ -323,7 +375,8 @@ func (z *Tokenizer) nextTag() {
 		z.nextMarkupDeclaration()
 		return
 	case c == '?':
-		z.tt, z.err = ErrorToken, os.NewError("html: TODO: implement XML processing instructions")
+		z.raw.end--
+		z.nextBogusComment()
 		return
 	default:
 		z.tt, z.err = ErrorToken, os.NewError("html: TODO: handle malformed tags")
