@@ -16,6 +16,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -135,11 +136,11 @@ type response struct {
 
 // requestTooLarge is called by maxBytesReader when too much input has
 // been read from the client.
-func (r *response) requestTooLarge() {
-	r.closeAfterReply = true
-	r.requestBodyLimitHit = true
-	if !r.wroteHeader {
-		r.Header().Set("Connection", "close")
+func (w *response) requestTooLarge() {
+	w.closeAfterReply = true
+	w.requestBodyLimitHit = true
+	if !w.wroteHeader {
+		w.Header().Set("Connection", "close")
 	}
 }
 
@@ -147,21 +148,21 @@ type writerOnly struct {
 	io.Writer
 }
 
-func (r *response) ReadFrom(src io.Reader) (n int64, err os.Error) {
-	// Flush before checking r.chunking, as Flush will call
+func (w *response) ReadFrom(src io.Reader) (n int64, err os.Error) {
+	// Flush before checking w.chunking, as Flush will call
 	// WriteHeader if it hasn't been called yet, and WriteHeader
-	// is what sets r.chunking.
-	r.Flush()
-	if !r.chunking && r.bodyAllowed() && !r.needSniff {
-		if rf, ok := r.conn.rwc.(io.ReaderFrom); ok {
+	// is what sets w.chunking.
+	w.Flush()
+	if !w.chunking && w.bodyAllowed() && !w.needSniff {
+		if rf, ok := w.conn.rwc.(io.ReaderFrom); ok {
 			n, err = rf.ReadFrom(src)
-			r.written += n
+			w.written += n
 			return
 		}
 	}
 	// Fall back to default io.Copy implementation.
-	// Use wrapper to hide r.ReadFrom from io.Copy.
-	return io.Copy(writerOnly{r}, src)
+	// Use wrapper to hide w.ReadFrom from io.Copy.
+	return io.Copy(writerOnly{w}, src)
 }
 
 // noLimit is an effective infinite upper bound for io.LimitedReader
@@ -257,6 +258,17 @@ func (w *response) Header() Header {
 	return w.header
 }
 
+// maxPostHandlerReadBytes is the max number of Request.Body bytes not
+// consumed by a handler that the server will read from the a client
+// in order to keep a connection alive.  If there are more bytes than
+// this then the server to be paranoid instead sends a "Connection:
+// close" response.
+//
+// This number is approximately what a typical machine's TCP buffer
+// size is anyway.  (if we have the bytes on the machine, we might as
+// well read them)
+const maxPostHandlerReadBytes = 256 << 10
+
 func (w *response) WriteHeader(code int) {
 	if w.conn.hijacked {
 		log.Print("http: response.WriteHeader on hijacked connection")
@@ -266,18 +278,54 @@ func (w *response) WriteHeader(code int) {
 		log.Print("http: multiple response.WriteHeader calls")
 		return
 	}
+	w.wroteHeader = true
+	w.status = code
 
-	// Per RFC 2616, we should consume the request body before
-	// replying, if the handler hasn't already done so.
-	if w.req.ContentLength != 0 && !w.requestBodyLimitHit {
-		ecr, isExpecter := w.req.Body.(*expectContinueReader)
-		if !isExpecter || ecr.resp.wroteContinue {
-			w.req.Body.Close()
+	// Check for a explicit (and valid) Content-Length header.
+	var hasCL bool
+	var contentLength int64
+	if clenStr := w.header.Get("Content-Length"); clenStr != "" {
+		var err os.Error
+		contentLength, err = strconv.Atoi64(clenStr)
+		if err == nil {
+			hasCL = true
+		} else {
+			log.Printf("http: invalid Content-Length of %q sent", clenStr)
+			w.header.Del("Content-Length")
 		}
 	}
 
-	w.wroteHeader = true
-	w.status = code
+	if w.req.wantsHttp10KeepAlive() && (w.req.Method == "HEAD" || hasCL) {
+		_, connectionHeaderSet := w.header["Connection"]
+		if !connectionHeaderSet {
+			w.header.Set("Connection", "keep-alive")
+		}
+	} else if !w.req.ProtoAtLeast(1, 1) {
+		// Client did not ask to keep connection alive.
+		w.closeAfterReply = true
+	}
+
+	if w.header.Get("Connection") == "close" {
+		w.closeAfterReply = true
+	}
+
+	// Per RFC 2616, we should consume the request body before
+	// replying, if the handler hasn't already done so.  But we
+	// don't want to do an unbounded amount of reading here for
+	// DoS reasons, so we only try up to a threshold.
+	if w.req.ContentLength != 0 && !w.closeAfterReply {
+		ecr, isExpecter := w.req.Body.(*expectContinueReader)
+		if !isExpecter || ecr.resp.wroteContinue {
+			n, _ := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
+			if n >= maxPostHandlerReadBytes {
+				w.requestTooLarge()
+				w.header.Set("Connection", "close")
+			} else {
+				w.req.Body.Close()
+			}
+		}
+	}
+
 	if code == StatusNotModified {
 		// Must not have body.
 		for _, header := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {
@@ -298,20 +346,6 @@ func (w *response) WriteHeader(code int) {
 
 	if _, ok := w.header["Date"]; !ok {
 		w.Header().Set("Date", time.UTC().Format(TimeFormat))
-	}
-
-	// Check for a explicit (and valid) Content-Length header.
-	var hasCL bool
-	var contentLength int64
-	if clenStr := w.header.Get("Content-Length"); clenStr != "" {
-		var err os.Error
-		contentLength, err = strconv.Atoi64(clenStr)
-		if err == nil {
-			hasCL = true
-		} else {
-			log.Printf("http: invalid Content-Length of %q sent", clenStr)
-			w.header.Del("Content-Length")
-		}
 	}
 
 	te := w.header.Get("Transfer-Encoding")
@@ -344,20 +378,6 @@ func (w *response) WriteHeader(code int) {
 		// signal EOF by closing connection.
 		w.closeAfterReply = true
 		w.header.Del("Transfer-Encoding") // in case already set
-	}
-
-	if w.req.wantsHttp10KeepAlive() && (w.req.Method == "HEAD" || hasCL) {
-		_, connectionHeaderSet := w.header["Connection"]
-		if !connectionHeaderSet {
-			w.header.Set("Connection", "keep-alive")
-		}
-	} else if !w.req.ProtoAtLeast(1, 1) {
-		// Client did not ask to keep connection alive.
-		w.closeAfterReply = true
-	}
-
-	if w.header.Get("Connection") == "close" {
-		w.closeAfterReply = true
 	}
 
 	// Cannot use Content-Length with non-identity Transfer-Encoding.
