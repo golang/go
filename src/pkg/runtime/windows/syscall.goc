@@ -7,18 +7,21 @@ package syscall
 #include "os.h"
 #include "cgocall.h"
 
-func loadlibraryex(filename uintptr) (handle uintptr) {
-	uintptr args[3] = { filename };
+func loadlibrary(filename *uint16) (handle uintptr, err uintptr) {
 	WinCall c;
 
-	c.fn = runtime·LoadLibraryEx;
-	c.n = 3;
-	c.args = &args[0];
+	c.fn = runtime·LoadLibrary;
+	c.n = 1;
+	c.args = &filename;
 	runtime·cgocall(runtime·asmstdcall, &c);
 	handle = c.r1;
+	if(handle == 0)
+		err = c.err;
+	else
+		err = 0;
 }
 
-func getprocaddress(handle uintptr, procname uintptr) (proc uintptr) {
+func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err uintptr) {
 	WinCall c;
 
 	USED(procname);
@@ -27,6 +30,10 @@ func getprocaddress(handle uintptr, procname uintptr) (proc uintptr) {
 	c.args = &handle;
 	runtime·cgocall(runtime·asmstdcall, &c);
 	proc = c.r1;
+	if(proc == 0)
+		err = c.err;
+	else
+		err = 0;
 }
 
 func NewCallback(fn Eface) (code uintptr) {
