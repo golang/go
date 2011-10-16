@@ -220,7 +220,8 @@ runtime·allocmcache(void)
 	rate = runtime·MemProfileRate;
 	if(rate > 0x3fffffff)	// make 2*rate not overflow
 		rate = 0x3fffffff;
-	c->next_sample = runtime·fastrand1() % (2*rate);
+	if(rate != 0)
+		c->next_sample = runtime·fastrand1() % (2*rate);
 
 	return c;
 }
