@@ -21,6 +21,11 @@ type tokenTest struct {
 }
 
 var tokenTests = []tokenTest{
+	{
+		"empty",
+		"",
+		"",
+	},
 	// A single text node. The tokenizer should not break text nodes on whitespace,
 	// nor should it normalize whitespace within a text node.
 	{
@@ -40,6 +45,81 @@ var tokenTests = []tokenTest{
 		"tags",
 		"<a>b<c/>d</e>",
 		"<a>$b$<c/>$d$</e>",
+	},
+	// Angle brackets that aren't a tag.
+	{
+		"not a tag #0",
+		"<",
+		"&lt;",
+	},
+	{
+		"not a tag #1",
+		"</",
+		"&lt;/",
+	},
+	/*
+		// TODO: re-enable these tests when we tokenize them correctly.
+		{
+			"not a tag #2",
+			"</>",
+			"",
+		},
+		{
+			"not a tag #3",
+			"a</>b",
+			"a$b",
+		},
+	*/
+	{
+		"not a tag #4",
+		"</ >",
+		"<!-- -->",
+	},
+	{
+		"not a tag #5",
+		"a < b",
+		"a &lt; b",
+	},
+	{
+		"not a tag #6",
+		"<.>",
+		"&lt;.&gt;",
+	},
+	{
+		"not a tag #7",
+		"a<<<b>>>c",
+		"a&lt;&lt;$<b>$&gt;&gt;c",
+	},
+	{
+		"not a tag #8",
+		"if x<0 and y < 0 then x*y>0",
+		"if x&lt;0 and y &lt; 0 then x*y&gt;0",
+	},
+	// EOF in a tag name.
+	{
+		"tag name eof #0",
+		"<a",
+		"",
+	},
+	{
+		"tag name eof #1",
+		"<a ",
+		"",
+	},
+	{
+		"tag name eof #2",
+		"a<b",
+		"a",
+	},
+	{
+		"tag name eof #3",
+		"<a><b",
+		"<a>",
+	},
+	{
+		"tag name eof #4",
+		`<a x`,
+		`<a x="">`,
 	},
 	// Some malformed tags that are missing a '>'.
 	{
@@ -257,8 +337,8 @@ var tokenTests = []tokenTest{
 	},
 	{
 		"Attributes with a solitary single quote",
-		"<p id=can't><p id=won't>",
-		"<p id=\"can&apos;t\">$<p id=\"won&apos;t\">",
+		`<p id=can't><p id=won't>`,
+		`<p id="can&apos;t">$<p id="won&apos;t">`,
 	},
 }
 
@@ -267,15 +347,17 @@ loop:
 	for _, tt := range tokenTests {
 		z := NewTokenizer(bytes.NewBuffer([]byte(tt.html)))
 		z.ReturnComments = true
-		for i, s := range strings.Split(tt.golden, "$") {
-			if z.Next() == ErrorToken {
-				t.Errorf("%s token %d: want %q got error %v", tt.desc, i, s, z.Error())
-				continue loop
-			}
-			actual := z.Token().String()
-			if s != actual {
-				t.Errorf("%s token %d: want %q got %q", tt.desc, i, s, actual)
-				continue loop
+		if tt.golden != "" {
+			for i, s := range strings.Split(tt.golden, "$") {
+				if z.Next() == ErrorToken {
+					t.Errorf("%s token %d: want %q got error %v", tt.desc, i, s, z.Error())
+					continue loop
+				}
+				actual := z.Token().String()
+				if s != actual {
+					t.Errorf("%s token %d: want %q got %q", tt.desc, i, s, actual)
+					continue loop
+				}
 			}
 		}
 		z.Next()
