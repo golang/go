@@ -379,15 +379,16 @@ func (z *Tokenizer) nextTag() {
 		z.nextBogusComment()
 		return
 	default:
-		z.tt, z.err = ErrorToken, os.NewError("html: TODO: handle malformed tags")
+		z.nextText()
 		return
 	}
 	// Read the tag name and attribute key/value pairs.
 	z.readTagName()
+	if z.skipWhiteSpace(); z.err != nil {
+		z.tt = ErrorToken
+		return
+	}
 	for {
-		if z.skipWhiteSpace(); z.err != nil {
-			break
-		}
 		c := z.readByte()
 		if z.err != nil || c == '>' {
 			break
@@ -398,6 +399,9 @@ func (z *Tokenizer) nextTag() {
 		// Save pendingAttr if it has a non-empty key.
 		if z.pendingAttr[0].start != z.pendingAttr[0].end {
 			z.attr = append(z.attr, z.pendingAttr)
+		}
+		if z.skipWhiteSpace(); z.err != nil {
+			break
 		}
 	}
 	// Check for a self-closing token.
@@ -510,21 +514,40 @@ func (z *Tokenizer) readTagAttrVal() {
 	}
 }
 
-// nextText reads all text up until an '<'.
-// Pre-condition: z.tt == TextToken && z.err == nil && z.raw.start + 1 <= z.raw.end.
+// nextText reads all text up until a start tag "<a", end tag "</a", comment
+// "<!" or XML processing instruction "<?".
+// Pre-condition: z.tt == TextToken && z.err == nil &&
+//   z.raw.start + 1 <= z.raw.end.
 func (z *Tokenizer) nextText() {
 	for {
 		c := z.readByte()
 		if z.err != nil {
-			z.data = z.raw
-			return
+			break
 		}
-		if c == '<' {
-			z.raw.end--
-			z.data = z.raw
-			return
+		if c != '<' {
+			continue
+		}
+		c = z.readByte()
+		if z.err != nil {
+			break
+		}
+		if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '!' || c == '?' {
+			z.raw.end -= 2
+			break
+		}
+		if c != '/' {
+			continue
+		}
+		c = z.readByte()
+		if z.err != nil {
+			break
+		}
+		if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
+			z.raw.end -= 3
+			break
 		}
 	}
+	z.data = z.raw
 }
 
 // Next scans the next token and returns its type.
