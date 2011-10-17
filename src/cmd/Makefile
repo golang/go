@@ -48,6 +48,7 @@ CLEANDIRS=\
 
 install: $(patsubst %,%.install,$(DIRS))
 clean: $(patsubst %,%.clean,$(CLEANDIRS))
+nuke: $(patsubst %,%.nuke,$(CLEANDIRS))
 
 %.install:
 	@echo
@@ -61,6 +62,9 @@ $(O)a.install $(O)c.install $(O)g.install: $(O)l.install
 
 %.clean:
 	$(MAKE) -C $* clean
+
+%.nuke:
+	$(MAKE) -C $* nuke
 
 echo-dirs:
 	@echo $(DIRS)
