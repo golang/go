@@ -267,7 +267,7 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
 	}
 
 	if r.TrimLeadingSpace {
-		for unicode.IsSpace(rune) {
+		for rune != '\n' && unicode.IsSpace(rune) {
 			rune, err = r.readRune()
 			if err != nil {
 				return false, 0, err
@@ -355,7 +355,7 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
 		c := r.column
 		rune, err = r.readRune()
 		if r.TrimLeadingSpace {
-			for unicode.IsSpace(rune) {
+			for rune != '\n' && unicode.IsSpace(rune) {
 				rune, err = r.readRune()
 				if err != nil {
 					break
