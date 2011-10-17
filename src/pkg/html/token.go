@@ -225,11 +225,9 @@ func (z *Tokenizer) skipWhiteSpace() {
 	}
 }
 
-// nextComment reads the next token starting with "<!--".
-// The opening "<!--" has already been consumed.
-// Pre-condition: z.tt == CommentToken && z.err == nil &&
-//   z.raw.start + 4 <= z.raw.end.
-func (z *Tokenizer) nextComment() {
+// readComment reads the next comment token starting with "<!--". The opening
+// "<!--" has already been consumed.
+func (z *Tokenizer) readComment() {
 	z.data.start = z.raw.end
 	defer func() {
 		if z.data.end < z.data.start {
@@ -269,10 +267,8 @@ func (z *Tokenizer) nextComment() {
 	}
 }
 
-// nextBogusComment reads text until the next ">" and treats it as a comment.
-// Pre-condition: z.err == nil && z.raw.end is before the first comment byte.
-func (z *Tokenizer) nextBogusComment() {
-	z.tt = CommentToken
+// readUntilCloseAngle reads until the next ">".
+func (z *Tokenizer) readUntilCloseAngle() {
 	z.data.start = z.raw.end
 	for {
 		c := z.readByte()
@@ -287,24 +283,22 @@ func (z *Tokenizer) nextBogusComment() {
 	}
 }
 
-// nextMarkupDeclaration reads the next token starting with "<!".
-// It might be a "<!--comment-->", a "<!DOCTYPE foo>", or "<!malformed text".
-// The opening "<!" has already been consumed.
-// Pre-condition: z.err == nil && z.raw.start + 2 <= z.raw.end.
-func (z *Tokenizer) nextMarkupDeclaration() {
-	z.tt = CommentToken
+// readMarkupDeclaration reads the next token starting with "<!". It might be
+// a "<!--comment-->", a "<!DOCTYPE foo>", or "<!a bogus comment". The opening
+// "<!" has already been consumed.
+func (z *Tokenizer) readMarkupDeclaration() TokenType {
 	z.data.start = z.raw.end
 	var c [2]byte
 	for i := 0; i < 2; i++ {
 		c[i] = z.readByte()
 		if z.err != nil {
 			z.data.end = z.raw.end
-			return
+			return CommentToken
 		}
 	}
 	if c[0] == '-' && c[1] == '-' {
-		z.nextComment()
-		return
+		z.readComment()
+		return CommentToken
 	}
 	z.raw.end -= 2
 	const s = "DOCTYPE"
@@ -312,81 +306,33 @@ func (z *Tokenizer) nextMarkupDeclaration() {
 		c := z.readByte()
 		if z.err != nil {
 			z.data.end = z.raw.end
-			return
+			return CommentToken
 		}
 		if c != s[i] && c != s[i]+('a'-'A') {
 			// Back up to read the fragment of "DOCTYPE" again.
 			z.raw.end = z.data.start
-			z.nextBogusComment()
-			return
+			z.readUntilCloseAngle()
+			return CommentToken
 		}
 	}
-	z.tt = DoctypeToken
 	if z.skipWhiteSpace(); z.err != nil {
 		z.data.start = z.raw.end
 		z.data.end = z.raw.end
-		return
+		return DoctypeToken
 	}
-	z.data.start = z.raw.end
-	for {
-		c := z.readByte()
-		if z.err != nil {
-			z.data.end = z.raw.end
-			return
-		}
-		if c == '>' {
-			z.data.end = z.raw.end - len(">")
-			return
-		}
-	}
+	z.readUntilCloseAngle()
+	return DoctypeToken
 }
 
-// nextTag reads the next token starting with "<". It might be a "<startTag>",
-// an "</endTag>", a "<!markup declaration>", or "<malformed text".
-// The opening "<" has already been consumed.
-// Pre-condition: z.tt == TextToken && z.err == nil &&
-//   z.raw.start + 1 <= z.raw.end.
-func (z *Tokenizer) nextTag() {
-	c := z.readByte()
-	if z.err != nil {
-		z.data = z.raw
-		return
-	}
-	switch {
-	case c == '/':
-		// Check that the "</" is followed by something in A-Za-z.
-		c = z.readByte()
-		if z.err != nil {
-			z.data = z.raw
-			return
-		}
-		z.raw.end--
-		if !('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
-			z.nextBogusComment()
-			return
-		}
-		z.tt = EndTagToken
-		z.data.start += len("</")
-	// Lower-cased characters are more common in tag names, so we check for them first.
-	case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z':
-		z.tt = StartTagToken
-		z.data.start += len("<")
-	case c == '!':
-		z.nextMarkupDeclaration()
-		return
-	case c == '?':
-		z.raw.end--
-		z.nextBogusComment()
-		return
-	default:
-		z.nextText()
-		return
-	}
+// readStartTag reads the next start tag token. The opening "<a" has already
+// been consumed, where 'a' means anything in [A-Za-z].
+func (z *Tokenizer) readStartTag() TokenType {
+	z.attr = z.attr[:0]
+	z.nAttrReturned = 0
 	// Read the tag name and attribute key/value pairs.
 	z.readTagName()
 	if z.skipWhiteSpace(); z.err != nil {
-		z.tt = ErrorToken
-		return
+		return ErrorToken
 	}
 	for {
 		c := z.readByte()
@@ -404,14 +350,31 @@ func (z *Tokenizer) nextTag() {
 			break
 		}
 	}
-	// Check for a self-closing token.
-	if z.err == nil && z.tt == StartTagToken && z.buf[z.raw.end-2] == '/' {
-		z.tt = SelfClosingTagToken
+	if z.err == nil && z.buf[z.raw.end-2] == '/' {
+		return SelfClosingTagToken
+	}
+	return StartTagToken
+}
+
+// readEndTag reads the next end tag token. The opening "</a" has already
+// been consumed, where 'a' means anything in [A-Za-z].
+func (z *Tokenizer) readEndTag() {
+	z.attr = z.attr[:0]
+	z.nAttrReturned = 0
+	z.readTagName()
+	for {
+		c := z.readByte()
+		if z.err != nil || c == '>' {
+			return
+		}
 	}
 }
 
-// readTagName sets z.data to the "p" in "<p k=v>".
+// readTagName sets z.data to the "div" in "<div k=v>". The reader (z.raw.end)
+// is positioned such that the first byte of the tag name (the "d" in "<div")
+// has already been consumed.
 func (z *Tokenizer) readTagName() {
+	z.data.start = z.raw.end - 1
 	for {
 		c := z.readByte()
 		if z.err != nil {
@@ -430,7 +393,7 @@ func (z *Tokenizer) readTagName() {
 	}
 }
 
-// readTagAttrKey sets z.pendingAttr[0] to the "k" in "<p k=v>".
+// readTagAttrKey sets z.pendingAttr[0] to the "k" in "<div k=v>".
 // Precondition: z.err == nil.
 func (z *Tokenizer) readTagAttrKey() {
 	z.pendingAttr[0].start = z.raw.end
@@ -452,7 +415,7 @@ func (z *Tokenizer) readTagAttrKey() {
 	}
 }
 
-// readTagAttrVal sets z.pendingAttr[1] to the "v" in "<p k=v>".
+// readTagAttrVal sets z.pendingAttr[1] to the "v" in "<div k=v>".
 func (z *Tokenizer) readTagAttrVal() {
 	z.pendingAttr[1].start = z.raw.end
 	z.pendingAttr[1].end = z.raw.end
@@ -514,69 +477,100 @@ func (z *Tokenizer) readTagAttrVal() {
 	}
 }
 
-// nextText reads all text up until a start tag "<a", end tag "</a", comment
-// "<!" or XML processing instruction "<?".
-// Pre-condition: z.tt == TextToken && z.err == nil &&
-//   z.raw.start + 1 <= z.raw.end.
-func (z *Tokenizer) nextText() {
+// next scans the next token and returns its type.
+func (z *Tokenizer) next() TokenType {
+	if z.err != nil {
+		return ErrorToken
+	}
+	z.raw.start = z.raw.end
+	z.data.start = z.raw.end
+	z.data.end = z.raw.end
+
+loop:
 	for {
 		c := z.readByte()
 		if z.err != nil {
-			break
+			break loop
 		}
 		if c != '<' {
-			continue
+			continue loop
 		}
+
+		// Check if the '<' we have just read is part of a tag, comment
+		// or doctype. If not, it's part of the accumulated text token.
 		c = z.readByte()
 		if z.err != nil {
-			break
+			break loop
 		}
-		if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '!' || c == '?' {
-			z.raw.end -= 2
-			break
-		}
-		if c != '/' {
+		var tokenType TokenType
+		switch {
+		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z':
+			tokenType = StartTagToken
+		case c == '/':
+			tokenType = EndTagToken
+		case c == '!' || c == '?':
+			// We use CommentToken to mean any of "<!--actual comments-->",
+			// "<!DOCTYPE declarations>" and "<?xml processing instructions?>".
+			tokenType = CommentToken
+		default:
 			continue
 		}
-		c = z.readByte()
-		if z.err != nil {
-			break
+
+		// We have a non-text token, but we might have accumulated some text
+		// before that. If so, we return the text first, and return the non-
+		// text token on the subsequent call to Next.
+		if x := z.raw.end - len("<a"); z.raw.start < x {
+			z.raw.end = x
+			z.data.end = x
+			return TextToken
 		}
-		if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
-			z.raw.end -= 3
-			break
+		switch tokenType {
+		case StartTagToken:
+			return z.readStartTag()
+		case EndTagToken:
+			c = z.readByte()
+			if z.err != nil {
+				break loop
+			}
+			if c == '>' {
+				// "</>" does not generate a token at all.
+				// Reset the tokenizer state and start again.
+				z.raw.start = z.raw.end
+				z.data.start = z.raw.end
+				z.data.end = z.raw.end
+				continue loop
+			}
+			if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
+				z.readEndTag()
+				return EndTagToken
+			}
+			z.raw.end--
+			z.readUntilCloseAngle()
+			return CommentToken
+		case CommentToken:
+			if c == '!' {
+				return z.readMarkupDeclaration()
+			}
+			z.raw.end--
+			z.readUntilCloseAngle()
+			return CommentToken
 		}
 	}
-	z.data = z.raw
+	if z.raw.start < z.raw.end {
+		z.data.end = z.raw.end
+		return TextToken
+	}
+	return ErrorToken
 }
 
 // Next scans the next token and returns its type.
 func (z *Tokenizer) Next() TokenType {
 	for {
-		if z.err != nil {
-			z.tt = ErrorToken
-			return z.tt
-		}
-		z.raw.start = z.raw.end
-		z.data.start = z.raw.end
-		z.data.end = z.raw.end
-		z.attr = z.attr[:0]
-		z.nAttrReturned = 0
-
-		c := z.readByte()
-		if z.err != nil {
-			z.tt = ErrorToken
-			return z.tt
-		}
-		// We assume that the next token is text unless proven otherwise.
-		z.tt = TextToken
-		if c != '<' {
-			z.nextText()
-		} else {
-			z.nextTag()
-			if z.tt == CommentToken && !z.ReturnComments {
-				continue
-			}
+		z.tt = z.next()
+		// TODO: remove the ReturnComments option. A tokenizer should
+		// always return comment tags.
+		if z.tt == CommentToken && !z.ReturnComments {
+			continue
 		}
 		return z.tt
 	}
@@ -606,12 +600,14 @@ func (z *Tokenizer) Text() []byte {
 // `<IMG SRC="foo">`) and whether the tag has attributes.
 // The contents of the returned slice may change on the next call to Next.
 func (z *Tokenizer) TagName() (name []byte, hasAttr bool) {
-	switch z.tt {
-	case StartTagToken, EndTagToken, SelfClosingTagToken:
-		s := z.buf[z.data.start:z.data.end]
-		z.data.start = z.raw.end
-		z.data.end = z.raw.end
-		return lower(s), z.nAttrReturned < len(z.attr)
+	if z.data.start < z.data.end {
+		switch z.tt {
+		case StartTagToken, EndTagToken, SelfClosingTagToken:
+			s := z.buf[z.data.start:z.data.end]
+			z.data.start = z.raw.end
+			z.data.end = z.raw.end
+			return lower(s), z.nAttrReturned < len(z.attr)
+		}
 	}
 	return nil, false
 }
@@ -622,7 +618,7 @@ func (z *Tokenizer) TagName() (name []byte, hasAttr bool) {
 func (z *Tokenizer) TagAttr() (key, val []byte, moreAttr bool) {
 	if z.nAttrReturned < len(z.attr) {
 		switch z.tt {
-		case StartTagToken, EndTagToken, SelfClosingTagToken:
+		case StartTagToken, SelfClosingTagToken:
 			x := z.attr[z.nAttrReturned]
 			z.nAttrReturned++
 			key = z.buf[x[0].start:x[0].end]
@@ -640,7 +636,7 @@ func (z *Tokenizer) Token() Token {
 	switch z.tt {
 	case TextToken, CommentToken, DoctypeToken:
 		t.Data = string(z.Text())
-	case StartTagToken, EndTagToken, SelfClosingTagToken:
+	case StartTagToken, SelfClosingTagToken:
 		var attr []Attribute
 		name, moreAttr := z.TagName()
 		for moreAttr {
@@ -650,6 +646,9 @@ func (z *Tokenizer) Token() Token {
 		}
 		t.Data = string(name)
 		t.Attr = attr
+	case EndTagToken:
+		name, _ := z.TagName()
+		t.Data = string(name)
 	}
 	return t
 }
