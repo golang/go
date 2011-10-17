@@ -1159,9 +1159,10 @@ map [string] interface {}
 The number of map elements is called its length.
 For a map <code>m</code>, it can be discovered using the
 built-in function <a href="#Length_and_capacity"><code>len(m)</code></a>
-and may change during execution. Elements may be added and removed
-during execution using special forms of <a href="#Assignments">assignment</a>;
-and they may be accessed with <a href="#Indexes">index</a> expressions.
+and may change during execution. Elements may be added during execution
+using <a href="#Assignments">assignments</a> and retrieved with
+<a href="#Indexes">index</a> expressions; they may be removed with the
+<a href="#Deletion_of_map_elements"><code>delete</code></a> built-in function.
 </p>
 <p>
 A new, empty map value is made using the built-in
@@ -2429,21 +2430,6 @@ where the result of the index expression is a pair of values with types
 <code>true</code> if the key <code>x</code> is present in the map, and
 <code>false</code> otherwise. The value of <code>v</code> is the value
 <code>a[x]</code> as in the single-result form.
-</p>
-
-<p>
-Similarly, if an assignment to a map element has the special form
-</p>
-
-<pre>
-a[x] = v, ok
-</pre>
-
-<p>
-and boolean <code>ok</code> has the value <code>false</code>,
-the entry for key <code>x</code> is deleted from the map; if
-<code>ok</code> is <code>true</code>, the construct acts like
-a regular assignment to an element of the map.
 </p>
 
 <p>
@@ -4737,6 +4723,27 @@ n1 := copy(s, a[0:])            // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
 n2 := copy(s, s[2:])            // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
 n3 := copy(b, "Hello, World!")  // n3 == 5, b == []byte("Hello")
 </pre>
+
+
+<h3 id="Deletion_of_map_elements">Deletion of map elements</h3>
+
+<p>
+The built-in function <code>delete</code> removes the element with key
+<code>k</code> from a <a href="#Map_types">map</a> <code>m</code>. The
+type of <code>k</code> must be <a href="#Assignability">assignable</a>
+to the key type of <code>m</code>.
+</p>
+
+<pre class="grammar">
+delete(m, k)  // remove element m[k] from map m
+</pre>
+
+<p>
+If the element <code>m[k]</code> does not exist, <code>delete</code> is
+a no-op. Calling <code>delete</code> with a nil map causes a
+<a href="#Run_time_panics">run-time panic</a>.
+</p>
+
 
 <h3 id="Complex_numbers">Assembling and disassembling complex numbers</h3>
 
