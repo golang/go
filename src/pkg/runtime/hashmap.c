@@ -506,20 +506,27 @@ iter_restart (struct hash_iter *it, struct hash_subtable *st, int32 used)
 static void *
 hash_next (struct hash_iter *it)
 {
-	int32 elemsize = it->elemsize;
-	struct hash_iter_sub *sub = &it->subtable_state[it->i];
-	struct hash_entry *e = sub->e;
-	struct hash_entry *last = sub->last;
-	hash_hash_t e_hash = 0;
+	int32 elemsize;
+	struct hash_iter_sub *sub;
+	struct hash_entry *e;
+	struct hash_entry *last;
+	hash_hash_t e_hash;
 
 	if (it->changes != it->h->changes) {    /* hash table's structure changed; recompute */
+		if (~it->last_hash == 0)
+			return (0);
 		it->changes = it->h->changes;
 		it->i = 0;
 		iter_restart (it, it->h->st, 0);
-		sub = &it->subtable_state[it->i];
-		e = sub->e;
-		last = sub->last;
 	}
+	elemsize = it->elemsize;
+
+Again:
+	e_hash = 0;
+	sub = &it->subtable_state[it->i];
+	e = sub->e;
+	last = sub->last;
+
 	if (e != sub->start && it->last_hash != HASH_OFFSET (e, -elemsize)->hash) {
 		struct hash_entry *start = HASH_OFFSET (e, -(elemsize * it->h->max_probes));
 		struct hash_entry *pe = HASH_OFFSET (e, -elemsize);
@@ -542,8 +549,20 @@ hash_next (struct hash_iter *it)
 		}
 		if (e > last) {
 			if (it->i == 0) {
-				it->last_hash = HASH_OFFSET (e, -elemsize)->hash;
-				sub->e = e;
+				if(!it->cycled) {
+					// Wrap to zero and iterate up until it->cycle.
+					it->cycled = true;
+					it->last_hash = 0;
+					it->subtable_state[0].e = it->h->st->entry;
+					it->subtable_state[0].start = it->h->st->entry;
+					it->subtable_state[0].last = it->h->st->last;
+					goto Again;
+				}
+				// Set last_hash to impossible value and
+				// break it->changes, so that check at top of
+				// hash_next will be used if we get called again.
+				it->last_hash = ~(uintptr_t)0;
+				it->changes--;
 				return (0);
 			} else {
 				it->i--;
@@ -552,6 +571,15 @@ hash_next (struct hash_iter *it)
 				last = sub->last;
 			}
 		} else if ((e_hash & HASH_MASK) != HASH_SUBHASH) {
+			if(it->cycled && e->hash > it->cycle) {
+				// Already returned this.
+				// Set last_hash to impossible value and
+				// break it->changes, so that check at top of
+				// hash_next will be used if we get called again.
+				it->last_hash = ~(uintptr_t)0;
+				it->changes--;
+				return (0);
+			}
 			it->last_hash = e->hash;
 			sub->e = HASH_OFFSET (e, elemsize);
 			return (e->data);
@@ -581,6 +609,17 @@ hash_iter_init (Hmap *h, struct hash_iter *it)
 	it->subtable_state[0].e = h->st->entry;
 	it->subtable_state[0].start = h->st->entry;
 	it->subtable_state[0].last = h->st->last;
+	
+	// fastrand1 returns 31 useful bits.
+	// We don't care about not having a bottom bit but we
+	// do want top bits.
+	if(sizeof(void*) == 8)
+		it->cycle = (uint64)runtime·fastrand1()<<33 | (uint64)runtime·fastrand1()<<2;
+	else
+		it->cycle = runtime·fastrand1()<<1;
+	it->cycled = false;
+	it->last_hash = it->cycle;
+	iter_restart(it, it->h->st, 0);
 }
 
 static void
