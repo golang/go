@@ -132,7 +132,9 @@ func TestPostFormRequestFormat(t *testing.T) {
 	if tr.req.Close {
 		t.Error("got Close true, want false")
 	}
+	// Depending on map iteration, body can be either of these.
 	expectedBody := "foo=bar&foo=bar2&bar=baz"
+	expectedBody1 := "bar=baz&foo=bar&foo=bar2"
 	if g, e := tr.req.ContentLength, int64(len(expectedBody)); g != e {
 		t.Errorf("got ContentLength %d, want %d", g, e)
 	}
@@ -140,8 +142,8 @@ func TestPostFormRequestFormat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadAll on req.Body: %v", err)
 	}
-	if g := string(bodyb); g != expectedBody {
-		t.Errorf("got body %q, want %q", g, expectedBody)
+	if g := string(bodyb); g != expectedBody && g != expectedBody1 {
+		t.Errorf("got body %q, want %q or %q", g, expectedBody, expectedBody1)
 	}
 }
 
