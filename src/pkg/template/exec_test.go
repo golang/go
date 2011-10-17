@@ -231,7 +231,7 @@ var execTests = []execTest{
 	{"dot complex", "<{{.}}>", "<(16.2-17i)>", 16.2 - 17i, true},
 	{"dot string", "<{{.}}>", "<hello>", "hello", true},
 	{"dot slice", "<{{.}}>", "<[-1 -2 -3]>", []int{-1, -2, -3}, true},
-	{"dot map", "<{{.}}>", "<map[two:22 one:11]>", map[string]int{"one": 11, "two": 22}, true},
+	{"dot map", "<{{.}}>", "<map[two:22]>", map[string]int{"two": 22}, true},
 	{"dot struct", "<{{.}}>", "<{7 seven}>", struct {
 		a int
 		b string
