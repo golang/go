@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of October 13, 2011 -->
+<!-- subtitle Version of October 17, 2011 -->
 
 <!--
 TODO
@@ -1784,15 +1784,17 @@ of the expression list.
 <p>
 If the type is absent and the corresponding expression evaluates to an
 untyped <a href="#Constants">constant</a>, the type of the declared variable
-is <code>bool</code>, <code>int</code>, <code>float64</code>, or <code>string</code>
-respectively, depending on whether the value is a boolean, integer,
-floating-point, or string constant:
+is <code>bool</code>, <code>int</code>, <code>float64</code>,
+<code>complex128</code>, or <code>string</code> respectively, depending on
+whether the value is a boolean, integer, floating-point, complex, or string
+constant:
 </p>
 
 <pre>
 var b = true    // t has type bool
 var i = 0       // i has type int
 var f = 3.0     // f has type float64
+var c = 1i      // c has type complex128
 var s = "OMDB"  // s has type string
 </pre>
 
