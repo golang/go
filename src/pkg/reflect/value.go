@@ -876,14 +876,7 @@ func (v Value) CanInterface() bool {
 	if iv.kind == Invalid {
 		panic(&ValueError{"reflect.Value.CanInterface", iv.kind})
 	}
-	// TODO(rsc): Check flagRO too.  Decide what to do about asking for
-	// interface for a value obtained via an unexported field.
-	// If the field were of a known type, say chan int or *sync.Mutex,
-	// the caller could interfere with the data after getting the
-	// interface.  But fmt.Print depends on being able to look.
-	// Now that reflect is more efficient the special cases in fmt
-	// might be less important.
-	return v.InternalMethod == 0
+	return v.InternalMethod == 0 && iv.flag&flagRO == 0
 }
 
 // Interface returns v's value as an interface{}.
@@ -891,22 +884,28 @@ func (v Value) CanInterface() bool {
 // (as opposed to Type.Method), Interface cannot return an
 // interface value, so it panics.
 func (v Value) Interface() interface{} {
-	return v.internal().Interface()
+	return valueInterface(v, true)
 }
 
-func (iv internalValue) Interface() interface{} {
+func valueInterface(v Value, safe bool) interface{} {
+	iv := v.internal()
+	return iv.valueInterface(safe)
+}
+
+func (iv internalValue) valueInterface(safe bool) interface{} {
 	if iv.kind == 0 {
 		panic(&ValueError{"reflect.Value.Interface", iv.kind})
 	}
 	if iv.method {
 		panic("reflect.Value.Interface: cannot create interface value for method with bound receiver")
 	}
-	/*
-		if v.flag()&noExport != 0 {
-			panic("reflect.Value.Interface: cannot return value obtained from unexported struct field")
-		}
-	*/
 
+	if safe && iv.flag&flagRO != 0 {
+		// Do not allow access to unexported values via Interface,
+		// because they might be pointers that should not be 
+		// writable or methods or function that should not be callable.
+		panic("reflect.Value.Interface: cannot return value obtained from unexported field or method")
+	}
 	if iv.kind == Interface {
 		// Special case: return the element inside the interface.
 		// Won't recurse further because an interface cannot contain an interface.
@@ -1758,7 +1757,7 @@ func convertForAssignment(what string, addr unsafe.Pointer, dst Type, iv interna
 		if addr == nil {
 			addr = unsafe.Pointer(new(interface{}))
 		}
-		x := iv.Interface()
+		x := iv.valueInterface(false)
 		if dst.NumMethod() == 0 {
 			*(*interface{})(addr) = x
 		} else {
