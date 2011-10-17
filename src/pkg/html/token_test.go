@@ -57,19 +57,16 @@ var tokenTests = []tokenTest{
 		"</",
 		"&lt;/",
 	},
-	/*
-		// TODO: re-enable these tests when we tokenize them correctly.
-		{
-			"not a tag #2",
-			"</>",
-			"",
-		},
-		{
-			"not a tag #3",
-			"a</>b",
-			"a$b",
-		},
-	*/
+	{
+		"not a tag #2",
+		"</>",
+		"",
+	},
+	{
+		"not a tag #3",
+		"a</>b",
+		"a$b",
+	},
 	{
 		"not a tag #4",
 		"</ >",
@@ -77,21 +74,31 @@ var tokenTests = []tokenTest{
 	},
 	{
 		"not a tag #5",
+		"</.",
+		"<!--.-->",
+	},
+	{
+		"not a tag #6",
+		"</.>",
+		"<!--.-->",
+	},
+	{
+		"not a tag #7",
 		"a < b",
 		"a &lt; b",
 	},
 	{
-		"not a tag #6",
+		"not a tag #8",
 		"<.>",
 		"&lt;.&gt;",
 	},
 	{
-		"not a tag #7",
+		"not a tag #9",
 		"a<<<b>>>c",
 		"a&lt;&lt;$<b>$&gt;&gt;c",
 	},
 	{
-		"not a tag #8",
+		"not a tag #10",
 		"if x<0 and y < 0 then x*y>0",
 		"if x&lt;0 and y &lt; 0 then x*y&gt;0",
 	},
@@ -345,7 +352,7 @@ var tokenTests = []tokenTest{
 func TestTokenizer(t *testing.T) {
 loop:
 	for _, tt := range tokenTests {
-		z := NewTokenizer(bytes.NewBuffer([]byte(tt.html)))
+		z := NewTokenizer(strings.NewReader(tt.html))
 		z.ReturnComments = true
 		if tt.golden != "" {
 			for i, s := range strings.Split(tt.golden, "$") {
