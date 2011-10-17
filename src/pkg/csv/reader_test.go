@@ -127,10 +127,9 @@ field"`,
 		Output:     [][]string{{`a""b`, `c`}},
 	},
 	{
-		Name:   "BadDoubleQuotes",
-		Input:  `a""b,c`,
-		Output: [][]string{{`a""b`, `c`}},
-		Error:  `bare " in non-quoted-field`, Line: 1, Column: 1,
+		Name:  "BadDoubleQuotes",
+		Input: `a""b,c`,
+		Error: `bare " in non-quoted-field`, Line: 1, Column: 1,
 	},
 	{
 		Name:             "TrimQuote",
@@ -230,6 +229,23 @@ x,,,
 			{"x", "", "", ""},
 			{"", "", "", ""},
 		},
+	},
+	{
+		Name:             "Issue 2366",
+		TrailingComma:    true,
+		TrimLeadingSpace: true,
+		Input:            "a,b,\nc,d,e",
+		Output: [][]string{
+			{"a", "b", ""},
+			{"c", "d", "e"},
+		},
+	},
+	{
+		Name:             "Issue 2366a",
+		TrailingComma:    false,
+		TrimLeadingSpace: true,
+		Input:            "a,b,\nc,d,e",
+		Error:            "extra delimiter at end of line",
 	},
 }
 
