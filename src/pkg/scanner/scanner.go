@@ -164,9 +164,12 @@ type Scanner struct {
 	// for values ch > ' '). The field may be changed at any time.
 	Whitespace uint64
 
-	// Current token position. The Offset, Line, and Column fields
-	// are set by Scan(); the Filename field is left untouched by the
-	// Scanner.
+	// Start position of most recently scanned token; set by Scan.
+	// Calling Init or Next invalidates the position (Line == 0).
+	// The Filename field is always left untouched by the Scanner.
+	// If an error is reported (via Error) and Position is invalid,
+	// the scanner is not inside a token. Call Pos to obtain an error
+	// position in that case.
 	Position
 }
 
@@ -201,6 +204,7 @@ func (s *Scanner) Init(src io.Reader) *Scanner {
 	s.ErrorCount = 0
 	s.Mode = GoTokens
 	s.Whitespace = GoWhitespace
+	s.Line = 0 // invalidate token position
 
 	return s
 }
@@ -302,6 +306,7 @@ func (s *Scanner) next() int {
 // get the current position.
 func (s *Scanner) Next() int {
 	s.tokPos = -1 // don't collect token text
+	s.Line = 0    // invalidate token position
 	ch := s.Peek()
 	s.ch = s.next()
 	return ch
@@ -323,7 +328,11 @@ func (s *Scanner) error(msg string) {
 		s.Error(s, msg)
 		return
 	}
-	fmt.Fprintf(os.Stderr, "%s: %s\n", s.Position, msg)
+	pos := s.Position
+	if !pos.IsValid() {
+		pos = s.Pos()
+	}
+	fmt.Fprintf(os.Stderr, "%s: %s\n", pos, msg)
 }
 
 func (s *Scanner) scanIdentifier() int {
@@ -520,6 +529,7 @@ func (s *Scanner) Scan() int {
 
 	// reset token text position
 	s.tokPos = -1
+	s.Line = 0
 
 redo:
 	// skip white space
