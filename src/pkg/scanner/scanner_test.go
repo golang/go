@@ -100,11 +100,8 @@ var tokenList = []token{
 	{Ident, "_abc_123_"},
 	{Ident, "_äöü"},
 	{Ident, "_本"},
-	// TODO for unknown reasons these fail when checking the literals
-	/*
-		token{Ident, "äöü"},
-		token{Ident, "本"},
-	*/
+	{Ident, "äöü"},
+	{Ident, "本"},
 	{Ident, "a۰۱۸"},
 	{Ident, "foo६४"},
 	{Ident, "bar９８７６"},
@@ -365,14 +362,14 @@ func TestScanNext(t *testing.T) {
 	checkTok(t, s, 1, s.Scan(), Ident, "if")
 	checkTok(t, s, 1, s.Scan(), Ident, "a")
 	checkTok(t, s, 1, s.Scan(), '=', "=")
-	checkTok(t, s, 1, s.Next(), '=', "")
-	checkTok(t, s, 1, s.Next(), ' ', "")
-	checkTok(t, s, 1, s.Next(), 'b', "")
+	checkTok(t, s, 0, s.Next(), '=', "")
+	checkTok(t, s, 0, s.Next(), ' ', "")
+	checkTok(t, s, 0, s.Next(), 'b', "")
 	checkTok(t, s, 1, s.Scan(), Ident, "cd")
 	checkTok(t, s, 1, s.Scan(), '{', "{")
 	checkTok(t, s, 2, s.Scan(), Ident, "a")
 	checkTok(t, s, 2, s.Scan(), '+', "+")
-	checkTok(t, s, 2, s.Next(), '=', "")
+	checkTok(t, s, 0, s.Next(), '=', "")
 	checkTok(t, s, 2, s.Scan(), Ident, "c")
 	checkTok(t, s, 3, s.Scan(), '}', "}")
 	checkTok(t, s, 3, s.Scan(), -1, "")
