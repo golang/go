@@ -4085,7 +4085,8 @@ a single byte in the string.
 </li>
 
 <li>
-The iteration order over maps is not specified.
+The iteration order over maps is not specified
+and is not guaranteed to be the same from one iteration to the next.
 If map entries that have not yet been reached are deleted during iteration,
 the corresponding iteration values will not be produced. If map entries are
 inserted during iteration, the behavior is implementation-dependent, but the

@@ -82,7 +82,9 @@ struct hash_iter {
 	int32	elemsize;	/* size of elements in table */
 	int32	changes;	/* number of changes observed last time */
 	int32	i;		/* stack pointer in subtable_state */
+	bool cycled;		/* have reached the end and wrapped to 0 */
 	hash_hash_t last_hash;	/* last hash value returned */
+	hash_hash_t cycle;	/* hash value where we started */
 	struct Hmap *h;		/* the hash table */
 	struct hash_iter_sub {
 		struct hash_entry *e;		/* pointer into subtable */
