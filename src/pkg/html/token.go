@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // A TokenType is the type of a Token.
@@ -144,6 +145,13 @@ type Tokenizer struct {
 	pendingAttr   [2]span
 	attr          [][2]span
 	nAttrReturned int
+	// rawTag is the "script" in "</script>" that closes the next token. If
+	// non-empty, the subsequent call to Next will return a raw or RCDATA text
+	// token: one that treats "<p>" as text instead of an element.
+	// rawTag's contents are lower-cased.
+	rawTag string
+	// textIsRaw is whether the current text token's data is not escaped.
+	textIsRaw bool
 }
 
 // Error returns the error associated with the most recent ErrorToken token.
@@ -223,6 +231,54 @@ func (z *Tokenizer) skipWhiteSpace() {
 			return
 		}
 	}
+}
+
+// readRawOrRCDATA reads until the next "</foo>", where "foo" is z.rawTag and
+// is typically something like "script" or "textarea".
+func (z *Tokenizer) readRawOrRCDATA() {
+loop:
+	for {
+		c := z.readByte()
+		if z.err != nil {
+			break loop
+		}
+		if c != '<' {
+			continue loop
+		}
+		c = z.readByte()
+		if z.err != nil {
+			break loop
+		}
+		if c != '/' {
+			continue loop
+		}
+		for i := 0; i < len(z.rawTag); i++ {
+			c = z.readByte()
+			if z.err != nil {
+				break loop
+			}
+			if c != z.rawTag[i] && c != z.rawTag[i]-('a'-'A') {
+				continue loop
+			}
+		}
+		c = z.readByte()
+		if z.err != nil {
+			break loop
+		}
+		switch c {
+		case ' ', '\n', '\r', '\t', '\f', '/', '>':
+			// The 3 is 2 for the leading "</" plus 1 for the trailing character c.
+			z.raw.end -= 3 + len(z.rawTag)
+			break loop
+		case '<':
+			// Step back one, to catch "</foo</foo>".
+			z.raw.end--
+		}
+	}
+	z.data.end = z.raw.end
+	// A textarea's or title's RCDATA can contain escaped entities.
+	z.textIsRaw = z.rawTag != "textarea" && z.rawTag != "title"
+	z.rawTag = ""
 }
 
 // readComment reads the next comment token starting with "<!--". The opening
@@ -350,6 +406,19 @@ func (z *Tokenizer) readStartTag() TokenType {
 			break
 		}
 	}
+	// Any "<noembed>", "<noframes>", "<noscript>", "<script>", "<style>",
+	// "<textarea>" or "<title>" tag flags the tokenizer's next token as raw.
+	// The tag name lengths of these special cases ranges in [5, 8].
+	if x := z.data.end - z.data.start; 5 <= x && x <= 8 {
+		switch z.buf[z.data.start] {
+		case 'n', 's', 't', 'N', 'S', 'T':
+			switch s := strings.ToLower(string(z.buf[z.data.start:z.data.end])); s {
+			case "noembed", "noframes", "noscript", "script", "style", "textarea", "title":
+				z.rawTag = s
+			}
+		}
+	}
+	// Look for a self-closing token like "<br/>".
 	if z.err == nil && z.buf[z.raw.end-2] == '/' {
 		return SelfClosingTagToken
 	}
@@ -485,6 +554,11 @@ func (z *Tokenizer) next() TokenType {
 	z.raw.start = z.raw.end
 	z.data.start = z.raw.end
 	z.data.end = z.raw.end
+	if z.rawTag != "" {
+		z.readRawOrRCDATA()
+		return TextToken
+	}
+	z.textIsRaw = false
 
 loop:
 	for {
@@ -591,7 +665,10 @@ func (z *Tokenizer) Text() []byte {
 		s := z.buf[z.data.start:z.data.end]
 		z.data.start = z.raw.end
 		z.data.end = z.raw.end
-		return unescape(s)
+		if !z.textIsRaw {
+			s = unescape(s)
+		}
+		return s
 	}
 	return nil
 }

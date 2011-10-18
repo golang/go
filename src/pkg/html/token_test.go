@@ -174,6 +174,77 @@ var tokenTests = []tokenTest{
 		`<p id="0"</p>`,
 		`<p id="0" <="" p="">`,
 	},
+	// Raw text and RCDATA.
+	{
+		"basic raw text",
+		"<script><a></b></script>",
+		"<script>$&lt;a&gt;&lt;/b&gt;$</script>",
+	},
+	{
+		"unfinished script end tag",
+		"<SCRIPT>a</SCR",
+		"<script>$a&lt;/SCR",
+	},
+	{
+		"broken script end tag",
+		"<SCRIPT>a</SCR ipt>",
+		"<script>$a&lt;/SCR ipt&gt;",
+	},
+	{
+		"EOF in script end tag",
+		"<SCRIPT>a</SCRipt",
+		"<script>$a&lt;/SCRipt",
+	},
+	{
+		"scriptx end tag",
+		"<SCRIPT>a</SCRiptx",
+		"<script>$a&lt;/SCRiptx",
+	},
+	{
+		"' ' completes script end tag",
+		"<SCRIPT>a</SCRipt ",
+		"<script>$a$</script>",
+	},
+	{
+		"'>' completes script end tag",
+		"<SCRIPT>a</SCRipt>",
+		"<script>$a$</script>",
+	},
+	{
+		"self-closing script end tag",
+		"<SCRIPT>a</SCRipt/>",
+		"<script>$a$</script>",
+	},
+	{
+		"nested script tag",
+		"<SCRIPT>a</SCRipt<script>",
+		"<script>$a&lt;/SCRipt&lt;script&gt;",
+	},
+	{
+		"script end tag after unfinished",
+		"<SCRIPT>a</SCRipt</script>",
+		"<script>$a&lt;/SCRipt$</script>",
+	},
+	{
+		"script/style mismatched tags",
+		"<script>a</style>",
+		"<script>$a&lt;/style&gt;",
+	},
+	{
+		"style element with entity",
+		"<style>&apos;",
+		"<style>$&amp;apos;",
+	},
+	{
+		"textarea with tag",
+		"<textarea><div></textarea>",
+		"<textarea>$&lt;div&gt;$</textarea>",
+	},
+	{
+		"title with tag and entity",
+		"<title><b>K&amp;R C</b></title>",
+		"<title>$&lt;b&gt;K&amp;R C&lt;/b&gt;$</title>",
+	},
 	// DOCTYPE tests.
 	{
 		"Proper DOCTYPE",
