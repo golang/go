@@ -516,6 +516,7 @@ haspointers(Type *t)
 	case TUINT32:
 	case TINT64:
 	case TUINT64:
+	case TUINTPTR:
 	case TFLOAT32:
 	case TFLOAT64:
 	case TBOOL:
@@ -533,7 +534,6 @@ haspointers(Type *t)
 	case TPTR32:
 	case TPTR64:
 	case TUNSAFEPTR:
-	case TUINTPTR:
 	case TINTER:
 	case TCHAN:
 	case TMAP:

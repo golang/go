@@ -1424,11 +1424,17 @@ func (v Value) Slice(beg, end int) Value {
 		typ = iv.typ.toType()
 		base = (*SliceHeader)(iv.addr).Data
 	}
-	s := new(SliceHeader)
+
+	// Declare slice so that gc can see the base pointer in it.
+	var x []byte
+
+	// Reinterpret as *SliceHeader to edit.
+	s := (*SliceHeader)(unsafe.Pointer(&x))
 	s.Data = base + uintptr(beg)*typ.Elem().Size()
 	s.Len = end - beg
-	s.Cap = cap - beg
-	return valueFromAddr(iv.flag&flagRO, typ, unsafe.Pointer(s))
+	s.Cap = end - beg
+
+	return valueFromAddr(iv.flag&flagRO, typ, unsafe.Pointer(&x))
 }
 
 // String returns the string v's underlying value, as a string.
@@ -1654,12 +1660,17 @@ func MakeSlice(typ Type, len, cap int) Value {
 	if typ.Kind() != Slice {
 		panic("reflect: MakeSlice of non-slice type")
 	}
-	s := &SliceHeader{
-		Data: uintptr(unsafe.NewArray(typ.Elem(), cap)),
-		Len:  len,
-		Cap:  cap,
-	}
-	return valueFromAddr(0, typ, unsafe.Pointer(s))
+
+	// Declare slice so that gc can see the base pointer in it.
+	var x []byte
+
+	// Reinterpret as *SliceHeader to edit.
+	s := (*SliceHeader)(unsafe.Pointer(&x))
+	s.Data = uintptr(unsafe.NewArray(typ.Elem(), cap))
+	s.Len = len
+	s.Cap = cap
+
+	return valueFromAddr(0, typ, unsafe.Pointer(&x))
 }
 
 // MakeChan creates a new channel with the specified type and buffer size.
