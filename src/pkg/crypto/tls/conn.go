@@ -658,7 +658,9 @@ func (c *Conn) readHandshake() (interface{}, os.Error) {
 		if c.err != nil {
 			return nil, c.err
 		}
-		c.readRecord(recordTypeHandshake)
+		if err := c.readRecord(recordTypeHandshake); err != nil {
+			return nil, err
+		}
 	}
 
 	data := c.hand.Bytes()
@@ -671,7 +673,9 @@ func (c *Conn) readHandshake() (interface{}, os.Error) {
 		if c.err != nil {
 			return nil, c.err
 		}
-		c.readRecord(recordTypeHandshake)
+		if err := c.readRecord(recordTypeHandshake); err != nil {
+			return nil, err
+		}
 	}
 	data = c.hand.Next(4 + n)
 	var m handshakeMessage
@@ -762,10 +766,18 @@ func (c *Conn) Read(b []byte) (n int, err os.Error) {
 
 // Close closes the connection.
 func (c *Conn) Close() os.Error {
-	if err := c.Handshake(); err != nil {
+	var alertErr os.Error
+
+	c.handshakeMutex.Lock()
+	defer c.handshakeMutex.Unlock()
+	if c.handshakeComplete {
+		alertErr = c.sendAlert(alertCloseNotify)
+	}
+
+	if err := c.conn.Close(); err != nil {
 		return err
 	}
-	return c.sendAlert(alertCloseNotify)
+	return alertErr
 }
 
 // Handshake runs the client or server handshake

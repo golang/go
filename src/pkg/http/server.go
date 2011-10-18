@@ -578,7 +578,10 @@ func (c *conn) serve() {
 	}()
 
 	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
-		tlsConn.Handshake()
+		if err := tlsConn.Handshake(); err != nil {
+			c.close()
+			return
+		}
 		c.tlsState = new(tls.ConnectionState)
 		*c.tlsState = tlsConn.ConnectionState()
 	}

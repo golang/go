@@ -536,10 +536,6 @@ func TestHeadResponses(t *testing.T) {
 }
 
 func TestTLSHandshakeTimeout(t *testing.T) {
-	if true {
-		t.Logf("Skipping broken test; issue 2281")
-		return
-	}
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
 	ts.Config.ReadTimeout = 250e6
 	ts.StartTLS()
