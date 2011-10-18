@@ -1040,7 +1040,7 @@ reswitch:
 				yyerror("too many arguments to append");
 				goto error;
 			}
-			if(istype(t->type, TUINT8) &&  istype(args->next->n->type, TSTRING)) {
+			if(istype(t->type, TUINT8) && istype(args->next->n->type, TSTRING)) {
 				defaultlit(&args->next->n, types[TSTRING]);
 				goto ret;
 			}
@@ -1078,7 +1078,7 @@ reswitch:
 
 		// copy([]byte, string)
 		if(isslice(n->left->type) && n->right->type->etype == TSTRING) {
-			if(n->left->type->type == types[TUINT8])
+			if(eqtype(n->left->type->type, bytetype))
 				goto ret;
 			yyerror("arguments to copy have different element types: %lT and string", n->left->type);
 			goto error;
