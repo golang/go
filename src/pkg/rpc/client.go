@@ -85,7 +85,8 @@ func (client *Client) send(c *Call) {
 	client.request.Seq = c.seq
 	client.request.ServiceMethod = c.ServiceMethod
 	if err := client.codec.WriteRequest(&client.request, c.Args); err != nil {
-		panic("rpc: client encode error: " + err.String())
+		c.Error = err
+		c.done()
 	}
 }
 
@@ -251,10 +252,10 @@ func (client *Client) Close() os.Error {
 // the same Call object.  If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
 func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
-	c := new(Call)
-	c.ServiceMethod = serviceMethod
-	c.Args = args
-	c.Reply = reply
+	call := new(Call)
+	call.ServiceMethod = serviceMethod
+	call.Args = args
+	call.Reply = reply
 	if done == nil {
 		done = make(chan *Call, 10) // buffered.
 	} else {
@@ -266,14 +267,14 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 			log.Panic("rpc: done channel is unbuffered")
 		}
 	}
-	c.Done = done
+	call.Done = done
 	if client.shutdown {
-		c.Error = ErrShutdown
-		c.done()
-		return c
+		call.Error = ErrShutdown
+		call.done()
+		return call
 	}
-	client.send(c)
-	return c
+	client.send(call)
+	return call
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
