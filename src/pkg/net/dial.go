@@ -59,10 +59,10 @@ func Dial(net, addr string) (c Conn, err os.Error) {
 	case *IPAddr:
 		c, err = DialIP(net, nil, ra)
 	default:
-		err = UnknownNetworkError(net)
+		err = &OpError{"dial", net + " " + addr, nil, UnknownNetworkError(net)}
 	}
 	if err != nil {
-		return nil, &OpError{"dial", net + " " + addr, nil, err}
+		return nil, err
 	}
 	return
 }
