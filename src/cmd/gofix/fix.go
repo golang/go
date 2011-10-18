@@ -53,6 +53,7 @@ var fixes = fixlist{
 	mathFix,
 	ioCopyNFix,
 	imagecolorFix,
+	mapdeleteFix,
 }
 
 // walk traverses the AST x, calling visit(y) for each node y in the tree but
