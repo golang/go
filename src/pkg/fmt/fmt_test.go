@@ -349,8 +349,8 @@ var fmttests = []struct {
 	{"%#v", make(chan int), "(chan int)(0xPTR)"},
 	{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
 	{"%#v", 1000000000, "1000000000"},
-	{"%#v", map[string]int{"a": 1, "b": 2}, `map[string] int{"a":1, "b":2}`},
-	{"%#v", map[string]B{"a": {1, 2}, "b": {3, 4}}, `map[string] fmt_test.B{"a":fmt_test.B{I:1, j:2}, "b":fmt_test.B{I:3, j:4}}`},
+	{"%#v", map[string]int{"a": 1}, `map[string] int{"a":1}`},
+	{"%#v", map[string]B{"a": {1, 2}}, `map[string] fmt_test.B{"a":fmt_test.B{I:1, j:2}}`},
 	{"%#v", []string{"a", "b"}, `[]string{"a", "b"}`},
 
 	// slices with other formats
