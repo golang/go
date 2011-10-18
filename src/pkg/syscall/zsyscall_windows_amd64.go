@@ -45,6 +45,7 @@ var (
 	procGetTimeZoneInformation      = modkernel32.NewProc("GetTimeZoneInformation")
 	procCreateIoCompletionPort      = modkernel32.NewProc("CreateIoCompletionPort")
 	procGetQueuedCompletionStatus   = modkernel32.NewProc("GetQueuedCompletionStatus")
+	procPostQueuedCompletionStatus  = modkernel32.NewProc("PostQueuedCompletionStatus")
 	procCancelIo                    = modkernel32.NewProc("CancelIo")
 	procCreateProcessW              = modkernel32.NewProc("CreateProcessW")
 	procOpenProcess                 = modkernel32.NewProc("OpenProcess")
@@ -81,6 +82,7 @@ var (
 	procVirtualLock                 = modkernel32.NewProc("VirtualLock")
 	procVirtualUnlock               = modkernel32.NewProc("VirtualUnlock")
 	procTransmitFile                = modmswsock.NewProc("TransmitFile")
+	procReadDirectoryChangesW       = modkernel32.NewProc("ReadDirectoryChangesW")
 	procCertOpenSystemStoreW        = modcrypt32.NewProc("CertOpenSystemStoreW")
 	procCertEnumCertificatesInStore = modcrypt32.NewProc("CertEnumCertificatesInStore")
 	procCertCloseStore              = modcrypt32.NewProc("CertCloseStore")
@@ -508,6 +510,20 @@ func CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, thre
 
 func GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (errno int) {
 	r1, _, e1 := Syscall6(procGetQueuedCompletionStatus.Addr(), 5, uintptr(cphandle), uintptr(unsafe.Pointer(qty)), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(overlapped)), uintptr(timeout), 0)
+	if int(r1) == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) (errno int) {
+	r1, _, e1 := Syscall6(procPostQueuedCompletionStatus.Addr(), 4, uintptr(cphandle), uintptr(qty), uintptr(key), uintptr(unsafe.Pointer(overlapped)), 0, 0)
 	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)
@@ -1035,6 +1051,26 @@ func VirtualUnlock(addr uintptr, length uintptr) (errno int) {
 
 func TransmitFile(s Handle, handle Handle, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (errno int) {
 	r1, _, e1 := Syscall9(procTransmitFile.Addr(), 7, uintptr(s), uintptr(handle), uintptr(bytesToWrite), uintptr(bytsPerSend), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(transmitFileBuf)), uintptr(flags), 0, 0)
+	if int(r1) == 0 {
+		if e1 != 0 {
+			errno = int(e1)
+		} else {
+			errno = EINVAL
+		}
+	} else {
+		errno = 0
+	}
+	return
+}
+
+func ReadDirectoryChanges(handle Handle, buf *byte, buflen uint32, watchSubTree bool, mask uint32, retlen *uint32, overlapped *Overlapped, completionRoutine uintptr) (errno int) {
+	var _p0 uint32
+	if watchSubTree {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := Syscall9(procReadDirectoryChangesW.Addr(), 8, uintptr(handle), uintptr(unsafe.Pointer(buf)), uintptr(buflen), uintptr(_p0), uintptr(mask), uintptr(unsafe.Pointer(retlen)), uintptr(unsafe.Pointer(overlapped)), uintptr(completionRoutine), 0)
 	if int(r1) == 0 {
 		if e1 != 0 {
 			errno = int(e1)

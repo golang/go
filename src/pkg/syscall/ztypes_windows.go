@@ -4,6 +4,7 @@ const (
 	// Windows errors.
 	ERROR_FILE_NOT_FOUND      = 2
 	ERROR_PATH_NOT_FOUND      = 3
+	ERROR_ACCESS_DENIED       = 5
 	ERROR_NO_MORE_FILES       = 18
 	ERROR_BROKEN_PIPE         = 109
 	ERROR_BUFFER_OVERFLOW     = 111
@@ -54,6 +55,7 @@ const (
 	GENERIC_EXECUTE = 0x20000000
 	GENERIC_ALL     = 0x10000000
 
+	FILE_LIST_DIRECTORY   = 0x00000001
 	FILE_APPEND_DATA      = 0x00000004
 	FILE_WRITE_ATTRIBUTES = 0x00000100
 
@@ -74,6 +76,9 @@ const (
 	OPEN_EXISTING     = 3
 	OPEN_ALWAYS       = 4
 	TRUNCATE_EXISTING = 5
+
+	FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+	FILE_FLAG_OVERLAPPED       = 0x40000000
 
 	HANDLE_FLAG_INHERIT    = 0x00000001
 	STARTF_USESTDHANDLES   = 0x00000100
@@ -134,6 +139,24 @@ const (
 )
 
 const (
+	FILE_NOTIFY_CHANGE_FILE_NAME = 1 << iota
+	FILE_NOTIFY_CHANGE_DIR_NAME
+	FILE_NOTIFY_CHANGE_ATTRIBUTES
+	FILE_NOTIFY_CHANGE_SIZE
+	FILE_NOTIFY_CHANGE_LAST_WRITE
+	FILE_NOTIFY_CHANGE_LAST_ACCESS
+	FILE_NOTIFY_CHANGE_CREATION
+)
+
+const (
+	FILE_ACTION_ADDED = iota + 1
+	FILE_ACTION_REMOVED
+	FILE_ACTION_MODIFIED
+	FILE_ACTION_RENAMED_OLD_NAME
+	FILE_ACTION_RENAMED_NEW_NAME
+)
+
+const (
 	// wincrypt.h
 	PROV_RSA_FULL                    = 1
 	PROV_RSA_SIG                     = 2
@@ -189,6 +212,13 @@ type Overlapped struct {
 	Offset       uint32
 	OffsetHigh   uint32
 	HEvent       Handle
+}
+
+type FileNotifyInformation struct {
+	NextEntryOffset uint32
+	Action          uint32
+	FileNameLength  uint32
+	FileName        uint16
 }
 
 type Filetime struct {

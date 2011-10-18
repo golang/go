@@ -114,6 +114,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) [failretval==0xffffffff]
 //sys	CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, threadcnt uint32) (handle Handle, errno int)
 //sys	GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (errno int)
+//sys	PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) (errno int)
 //sys	CancelIo(s Handle) (errno int)
 //sys	CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (errno int) = CreateProcessW
 //sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, errno int)
@@ -150,6 +151,7 @@ func NewCallback(fn interface{}) uintptr
 //sys	VirtualLock(addr uintptr, length uintptr) (errno int)
 //sys	VirtualUnlock(addr uintptr, length uintptr) (errno int)
 //sys	TransmitFile(s Handle, handle Handle, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (errno int) = mswsock.TransmitFile
+//sys	ReadDirectoryChanges(handle Handle, buf *byte, buflen uint32, watchSubTree bool, mask uint32, retlen *uint32, overlapped *Overlapped, completionRoutine uintptr) (errno int) = kernel32.ReadDirectoryChangesW
 //sys	CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, errno int) = crypt32.CertOpenSystemStoreW
 //sys	CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext) = crypt32.CertEnumCertificatesInStore
 //sys	CertCloseStore(store Handle, flags uint32) (errno int) = crypt32.CertCloseStore
