@@ -80,13 +80,13 @@ func dumpLevel(w io.Writer, n *Node, level int) os.Error {
 	case DocumentNode:
 		return os.NewError("unexpected DocumentNode")
 	case ElementNode:
-		fmt.Fprintf(w, "<%s>", EscapeString(n.Data))
+		fmt.Fprintf(w, "<%s>", n.Data)
 	case TextNode:
-		fmt.Fprintf(w, "%q", EscapeString(n.Data))
+		fmt.Fprintf(w, "%q", n.Data)
 	case CommentNode:
 		return os.NewError("COMMENT")
 	case DoctypeNode:
-		fmt.Fprintf(w, "<!DOCTYPE %s>", EscapeString(n.Data))
+		fmt.Fprintf(w, "<!DOCTYPE %s>", n.Data)
 	case scopeMarkerNode:
 		return os.NewError("unexpected scopeMarkerNode")
 	default:
@@ -123,7 +123,7 @@ func TestParser(t *testing.T) {
 		rc := make(chan io.Reader)
 		go readDat(filename, rc)
 		// TODO(nigeltao): Process all test cases, not just a subset.
-		for i := 0; i < 26; i++ {
+		for i := 0; i < 27; i++ {
 			// Parse the #data section.
 			b, err := ioutil.ReadAll(<-rc)
 			if err != nil {

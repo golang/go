@@ -29,6 +29,9 @@ type parser struct {
 	head, form *Node
 	// Other parsing state flags (section 11.2.3.5).
 	scripting, framesetOK bool
+	// originalIM is the insertion mode to go back to after completing a text
+	// or inTableText insertion mode.
+	originalIM insertionMode
 }
 
 func (p *parser) top() *Node {
@@ -214,10 +217,21 @@ type insertionMode func(*parser) (insertionMode, bool)
 // Section 11.2.3.1, "using the rules for".
 func useTheRulesFor(p *parser, actual, delegate insertionMode) (insertionMode, bool) {
 	im, consumed := delegate(p)
+	// TODO: do we need to update p.originalMode if it equals delegate?
 	if im != delegate {
 		return im, consumed
 	}
 	return actual, consumed
+}
+
+// setOriginalIM sets the insertion mode to return to after completing a text or
+// inTableText insertion mode.
+// Section 11.2.3.1, "using the rules for".
+func (p *parser) setOriginalIM(im insertionMode) {
+	if p.originalIM != nil {
+		panic("html: bad parser state: originalIM was set twice")
+	}
+	p.originalIM = im
 }
 
 // Section 11.2.5.4.1.
@@ -318,8 +332,10 @@ func inHeadIM(p *parser) (insertionMode, bool) {
 		switch p.tok.Data {
 		case "meta":
 			// TODO.
-		case "script":
-			// TODO.
+		case "script", "title":
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.setOriginalIM(inHeadIM)
+			return textIM, true
 		default:
 			implied = true
 		}
@@ -572,6 +588,20 @@ func (p *parser) inBodyEndTagFormatting(tag string) {
 		p.oe.remove(formattingElement)
 		p.oe.insert(p.oe.index(furthestBlock)+1, clone)
 	}
+}
+
+// Section 11.2.5.4.8.
+func textIM(p *parser) (insertionMode, bool) {
+	switch p.tok.Type {
+	case TextToken:
+		p.addText(p.tok.Data)
+		return textIM, true
+	case EndTagToken:
+		p.oe.pop()
+	}
+	o := p.originalIM
+	p.originalIM = nil
+	return o, p.tok.Type == EndTagToken
 }
 
 // Section 11.2.5.4.9.

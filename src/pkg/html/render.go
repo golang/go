@@ -74,17 +74,6 @@ func render(w writer, n *Node) os.Error {
 		return os.NewError("html: unknown node type")
 	}
 
-	// TODO: figure out what to do with <script>, <style>, <noembed>,
-	// <noframes> and <noscript> elements. A tentative plan:
-	// 1. render the <xxx> opening tag as normal.
-	// 2. maybe error out if any child is not a text node.
-	// 3. render the text nodes (without escaping??).
-	// 4. maybe error out if `</xxx` is a case-insensitive substring of the
-	// concatenation of the children's data.
-	// 5. maybe error out if the concatenation of the children's data contains an
-	// unbalanced escaping text span start ("<!--") not followed by an end ("-->").
-	// 6. render the closing tag as normal.
-
 	// Render the <xxx> opening tag.
 	if err := w.WriteByte('<'); err != nil {
 		return err
@@ -121,9 +110,30 @@ func render(w writer, n *Node) os.Error {
 	}
 
 	// Render any child nodes.
-	for _, c := range n.Child {
-		if err := render(w, c); err != nil {
-			return err
+	switch n.Data {
+	case "noembed", "noframes", "noscript", "script", "style":
+		for _, c := range n.Child {
+			if c.Type != TextNode {
+				return fmt.Errorf("html: raw text element <%s> has non-text child node", n.Data)
+			}
+			if _, err := w.WriteString(c.Data); err != nil {
+				return err
+			}
+		}
+	case "textarea", "title":
+		for _, c := range n.Child {
+			if c.Type != TextNode {
+				return fmt.Errorf("html: RCDATA element <%s> has non-text child node", n.Data)
+			}
+			if err := render(w, c); err != nil {
+				return err
+			}
+		}
+	default:
+		for _, c := range n.Child {
+			if err := render(w, c); err != nil {
+				return err
+			}
 		}
 	}
 
