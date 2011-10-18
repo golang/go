@@ -62,6 +62,8 @@ var dialErrorTests = []DialErrorTest{
 	},
 }
 
+var duplicateErrorPattern = `dial (.*) dial (.*)`
+
 func TestDialError(t *testing.T) {
 	if !*runErrorTest {
 		t.Logf("test disabled; use --run_error_test to enable")
@@ -80,6 +82,10 @@ func TestDialError(t *testing.T) {
 		match, _ := regexp.MatchString(tt.Pattern, s)
 		if !match {
 			t.Errorf("#%d: %q, want match for %#q", i, s, tt.Pattern)
+		}
+		match, _ = regexp.MatchString(duplicateErrorPattern, s)
+		if match {
+			t.Errorf("#%d: %q, duplicate error return from Dial", i, s)
 		}
 	}
 }
