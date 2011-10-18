@@ -12,20 +12,20 @@ package main
 import "reflect"
 
 type T struct {
-	f float32
-	g float32
+	F float32
+	G float32
 
-	s string
-	t string
+	S string
+	T string
 
-	u uint32
-	v uint32
+	U uint32
+	V uint32
 
-	w uint32
-	x uint32
+	W uint32
+	X uint32
 
-	y uint32
-	z uint32
+	Y uint32
+	Z uint32
 }
 
 func add(s, t string) string {
@@ -40,16 +40,16 @@ func assert(b bool) {
 
 func main() {
 	var x T
-	x.f = 1.0
-	x.g = x.f
-	x.s = add("abc", "def")
-	x.t = add("abc", "def")
-	x.u = 1
-	x.v = 2
-	x.w = 1 << 28
-	x.x = 2 << 28
-	x.y = 0x12345678
-	x.z = x.y
+	x.F = 1.0
+	x.G = x.F
+	x.S = add("abc", "def")
+	x.T = add("abc", "def")
+	x.U = 1
+	x.V = 2
+	x.W = 1 << 28
+	x.X = 2 << 28
+	x.Y = 0x12345678
+	x.Z = x.Y
 
 	// check mem and string
 	v := reflect.ValueOf(x)

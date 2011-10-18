@@ -104,7 +104,7 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) (b bool
 		return true
 	default:
 		// Normal equality suffices
-		return v1.Interface() == v2.Interface()
+		return valueInterface(v1, false) == valueInterface(v2, false)
 	}
 
 	panic("Not reached")
