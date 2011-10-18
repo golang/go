@@ -405,7 +405,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
 	var type0, type1 gobType
 	defer func() {
 		if err != nil {
-			types[rt] = nil, false
+			delete(types, rt)
 		}
 	}()
 	// Install the top-level type before the subtypes (e.g. struct before

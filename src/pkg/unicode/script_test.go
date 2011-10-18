@@ -206,7 +206,7 @@ func TestScripts(t *testing.T) {
 		if !Is(Scripts[test.script], test.rune) {
 			t.Errorf("IsScript(%U, %s) = false, want true", test.rune, test.script)
 		}
-		notTested[test.script] = false, false
+		delete(notTested, test.script)
 	}
 	for _, test := range outTest {
 		if Is(Scripts[test.script], test.rune) {
@@ -230,7 +230,7 @@ func TestCategories(t *testing.T) {
 		if !Is(Categories[test.script], test.rune) {
 			t.Errorf("IsCategory(%U, %s) = false, want true", test.rune, test.script)
 		}
-		notTested[test.script] = false, false
+		delete(notTested, test.script)
 	}
 	for k := range notTested {
 		t.Error("category not tested:", k)
@@ -249,7 +249,7 @@ func TestProperties(t *testing.T) {
 		if !Is(Properties[test.script], test.rune) {
 			t.Errorf("IsCategory(%U, %s) = false, want true", test.rune, test.script)
 		}
-		notTested[test.script] = false, false
+		delete(notTested, test.script)
 	}
 	for k := range notTested {
 		t.Error("property not tested:", k)

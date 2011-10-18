@@ -105,7 +105,7 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
 		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); e != 0 {
 			print("Epoll delete fd=", fd, ": ", os.Errno(e).String(), "\n")
 		}
-		p.events[fd] = 0, false
+		delete(p.events, fd)
 	}
 }
 

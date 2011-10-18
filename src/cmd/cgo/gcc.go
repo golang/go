@@ -588,7 +588,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 				n.Const = strconv.Itoa64(n.Type.EnumValues[k])
 				// Remove injected enum to ensure the value will deep-compare
 				// equally in future loads of the same constant.
-				n.Type.EnumValues[k] = 0, false
+				delete(n.Type.EnumValues, k)
 			} else if n.Kind == "const" && i < len(enumVal) {
 				n.Const = strconv.Itoa64(enumVal[i])
 			}

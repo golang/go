@@ -266,7 +266,7 @@ func (t *Transport) getIdleConn(cm *connectMethod) (pconn *persistConn) {
 		}
 		if len(pconns) == 1 {
 			pconn = pconns[0]
-			t.idleConn[key] = nil, false
+			delete(t.idleConn, key)
 		} else {
 			// 2 or more cached connections; pop last
 			// TODO: queue?

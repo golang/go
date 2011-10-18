@@ -314,7 +314,7 @@ func (exp *Exporter) addClient(conn io.ReadWriter) *expClient {
 // delClient forgets the client existed
 func (exp *Exporter) delClient(client *expClient) {
 	exp.mu.Lock()
-	exp.clients[client] = false, false
+	delete(exp.clients, client)
 	exp.mu.Unlock()
 }
 
@@ -388,7 +388,7 @@ func (exp *Exporter) Hangup(name string) os.Error {
 	exp.mu.Lock()
 	chDir, ok := exp.names[name]
 	if ok {
-		exp.names[name] = nil, false
+		delete(exp.names, name)
 	}
 	// TODO drop all instances of channel from client sets
 	exp.mu.Unlock()

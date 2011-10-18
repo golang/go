@@ -107,7 +107,7 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) os.Error {
 		c.mutex.Unlock()
 		return os.NewError("invalid sequence number in response")
 	}
-	c.pending[r.Seq] = nil, false
+	delete(c.pending, r.Seq)
 	c.mutex.Unlock()
 
 	if b == nil {

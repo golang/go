@@ -150,7 +150,7 @@ func maptest() {
 		m[2] = 3
 	})
 	shouldPanic(func() {
-		m[2] = 0, false
+		delete(m, 2)
 	})
 }
 

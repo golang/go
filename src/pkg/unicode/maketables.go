@@ -1152,7 +1152,7 @@ func foldExceptions(class []int) map[int]bool {
 
 	// Remove class itself.
 	for _, r := range class {
-		m[r] = false, false
+		delete(m, r)
 	}
 
 	// What's left is the exceptions.

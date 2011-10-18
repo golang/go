@@ -131,7 +131,7 @@ func (w *Watcher) RemoveWatch(path string) os.Error {
 	if success == -1 {
 		return os.NewSyscallError("inotify_rm_watch", errno)
 	}
-	w.watches[path] = nil, false
+	delete(w.watches, path)
 	return nil
 }
 
