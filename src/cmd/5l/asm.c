@@ -632,8 +632,8 @@ asmb(void)
 		a += elfwritehdr();
 		a += elfwritephdrs();
 		a += elfwriteshdrs();
-		cflush();
-		if(a+elfwriteinterp() > ELFRESERVE)	
+		a += elfwriteinterp();
+		if(a > ELFRESERVE)	
 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
 		break;
 	}
