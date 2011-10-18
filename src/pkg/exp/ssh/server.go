@@ -260,7 +260,7 @@ func buildDataSignedForAuth(sessionId []byte, req userAuthRequestMsg, algo, pubK
 // Handshake performs an SSH transport and client authentication on the given ServerConnection.
 func (s *ServerConnection) Handshake(conn net.Conn) os.Error {
 	var magics handshakeMagics
-	s.transport = newTransport(conn)
+	s.transport = newTransport(conn, rand.Reader)
 
 	if _, err := conn.Write(serverVersion); err != nil {
 		return err
@@ -302,7 +302,7 @@ func (s *ServerConnection) Handshake(conn net.Conn) os.Error {
 		return err
 	}
 
-	kexAlgo, hostKeyAlgo, ok := findAgreedAlgorithms(s.transport, s.transport, &clientKexInit, &serverKexInit)
+	kexAlgo, hostKeyAlgo, ok := findAgreedAlgorithms(s.transport, &clientKexInit, &serverKexInit)
 	if !ok {
 		return os.NewError("ssh: no common algorithms")
 	}

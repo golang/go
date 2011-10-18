@@ -340,7 +340,8 @@ func (ss *ServerShell) ReadLine() (line string, err os.Error) {
 		// ss.remainder is a slice at the beginning of ss.inBuf
 		// containing a partial key sequence
 		readBuf := ss.inBuf[len(ss.remainder):]
-		n, err := ss.c.Read(readBuf)
+		var n int
+		n, err = ss.c.Read(readBuf)
 		if err == nil {
 			ss.remainder = ss.inBuf[:n+len(ss.remainder)]
 			rest := ss.remainder

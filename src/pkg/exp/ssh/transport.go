@@ -10,7 +10,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/subtle"
 	"hash"
 	"io"
@@ -23,17 +22,33 @@ const (
 	paddingMultiple = 16 // TODO(dfc) does this need to be configurable?
 )
 
+// filteredConn reduces the set of methods exposed when embeddeding
+// a net.Conn inside ssh.transport.
+// TODO(dfc) suggestions for a better name will be warmly received.
+type filteredConn interface {
+	// Close closes the connection.
+	Close() os.Error
+
+	// LocalAddr returns the local network address.
+	LocalAddr() net.Addr
+
+	// RemoteAddr returns the remote network address.
+	RemoteAddr() net.Addr
+}
+
+// Types implementing packetWriter provide the ability to send packets to
+// an SSH peer.
+type packetWriter interface {
+	// Encrypt and send a packet of data to the remote peer.
+	writePacket(packet []byte) os.Error
+}
+
 // transport represents the SSH connection to the remote peer.
 type transport struct {
 	reader
 	writer
 
-	cipherAlgo      string
-	macAlgo         string
-	compressionAlgo string
-
-	Close      func() os.Error
-	RemoteAddr func() net.Addr
+	filteredConn
 }
 
 // reader represents the incoming connection state.
@@ -57,6 +72,10 @@ type common struct {
 	seqNum uint32
 	mac    hash.Hash
 	cipher cipher.Stream
+
+	cipherAlgo      string
+	macAlgo         string
+	compressionAlgo string
 }
 
 // Read and decrypt a single packet from the remote peer.
@@ -204,22 +223,17 @@ func (t *transport) sendMessage(typ uint8, msg interface{}) os.Error {
 	return t.writePacket(packet)
 }
 
-func newTransport(conn net.Conn) *transport {
+func newTransport(conn net.Conn, rand io.Reader) *transport {
 	return &transport{
 		reader: reader{
 			Reader: bufio.NewReader(conn),
 		},
 		writer: writer{
 			Writer: bufio.NewWriter(conn),
-			rand:   rand.Reader,
+			rand:   rand,
 			Mutex:  new(sync.Mutex),
 		},
-		Close: func() os.Error {
-			return conn.Close()
-		},
-		RemoteAddr: func() net.Addr {
-			return conn.RemoteAddr()
-		},
+		filteredConn: conn,
 	}
 }
 
