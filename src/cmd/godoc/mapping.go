@@ -139,13 +139,18 @@ func (m *Mapping) Fprint(w io.Writer) {
 	}
 }
 
+// splitFirst splits a path at the first path separator and returns
+// the path's head (the top-most directory specified by the path) and
+// its tail (the rest of the path). If there is no path separator,
+// splitFirst returns path as head, and the the empty string as tail.
+// Specifically, splitFirst("foo") == splitFirst("foo/").
+//
 func splitFirst(path string) (head, tail string) {
-	i := strings.Index(path, string(filepath.Separator))
-	if i > 0 {
+	if i := strings.Index(path, string(filepath.Separator)); i > 0 {
 		// 0 < i < len(path)
 		return path[0:i], path[i+1:]
 	}
-	return "", path
+	return path, ""
 }
 
 // ToAbsolute maps a slash-separated relative path to an absolute filesystem
@@ -156,20 +161,14 @@ func (m *Mapping) ToAbsolute(spath string) string {
 	fpath := filepath.FromSlash(spath)
 	prefix, tail := splitFirst(fpath)
 	for _, e := range m.list {
-		switch {
-		case e.prefix == prefix:
-			// use tail
-		case e.prefix == "":
-			tail = fpath
-		default:
-			continue // no match
-		}
-		abspath := filepath.Join(e.path, tail)
-		if _, err := fs.Stat(abspath); err == nil {
-			return abspath
+		if e.prefix == prefix {
+			// found potential mapping
+			abspath := filepath.Join(e.path, tail)
+			if _, err := fs.Stat(abspath); err == nil {
+				return abspath
+			}
 		}
 	}
-
 	return "" // no match
 }
 
