@@ -163,7 +163,7 @@ func (z *Int) Binomial(n, k int64) *Int {
 
 // Quo sets z to the quotient x/y for y != 0 and returns z.
 // If y == 0, a division-by-zero run-time panic occurs.
-// See QuoRem for more details.
+// Quo implements truncated division (like Go); see QuoRem for more details.
 func (z *Int) Quo(x, y *Int) *Int {
 	z.abs, _ = z.abs.div(nil, x.abs, y.abs)
 	z.neg = len(z.abs) > 0 && x.neg != y.neg // 0 has no sign
@@ -172,7 +172,7 @@ func (z *Int) Quo(x, y *Int) *Int {
 
 // Rem sets z to the remainder x%y for y != 0 and returns z.
 // If y == 0, a division-by-zero run-time panic occurs.
-// See QuoRem for more details.
+// Rem implements truncated modulus (like Go); see QuoRem for more details.
 func (z *Int) Rem(x, y *Int) *Int {
 	_, z.abs = nat(nil).div(z.abs, x.abs, y.abs)
 	z.neg = len(z.abs) > 0 && x.neg // 0 has no sign
@@ -198,7 +198,7 @@ func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
 
 // Div sets z to the quotient x/y for y != 0 and returns z.
 // If y == 0, a division-by-zero run-time panic occurs.
-// See DivMod for more details.
+// Div implements Euclidean division (unlike Go); see DivMod for more details.
 func (z *Int) Div(x, y *Int) *Int {
 	y_neg := y.neg // z may be an alias for y
 	var r Int
@@ -215,7 +215,7 @@ func (z *Int) Div(x, y *Int) *Int {
 
 // Mod sets z to the modulus x%y for y != 0 and returns z.
 // If y == 0, a division-by-zero run-time panic occurs.
-// See DivMod for more details.
+// Mod implements Euclidean modulus (unlike Go); see DivMod for more details.
 func (z *Int) Mod(x, y *Int) *Int {
 	y0 := y // save y
 	if z == y || alias(z.abs, y.abs) {
