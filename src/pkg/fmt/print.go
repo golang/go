@@ -74,8 +74,11 @@ type pp struct {
 	n         int
 	panicking bool
 	buf       bytes.Buffer
-	runeBuf   [utf8.UTFMax]byte
-	fmt       fmt
+	// value holds the current item, as a reflect.Value, and will be
+	// the zero Value if the item has not been reflected.
+	value   reflect.Value
+	runeBuf [utf8.UTFMax]byte
+	fmt     fmt
 }
 
 // A cache holds a set of reusable objects.
@@ -129,6 +132,7 @@ func (p *pp) free() {
 		return
 	}
 	p.buf.Reset()
+	p.value = reflect.Value{}
 	ppFree.put(p)
 }
 
@@ -290,7 +294,7 @@ func (p *pp) unknownType(v interface{}) {
 	p.buf.WriteByte('?')
 }
 
-func (p *pp) badVerb(verb int, val interface{}, val1 reflect.Value) {
+func (p *pp) badVerb(verb int, val interface{}) {
 	p.add('%')
 	p.add('!')
 	p.add(verb)
@@ -300,22 +304,22 @@ func (p *pp) badVerb(verb int, val interface{}, val1 reflect.Value) {
 		p.buf.WriteString(reflect.TypeOf(val).String())
 		p.add('=')
 		p.printField(val, 'v', false, false, 0)
-	case val1.IsValid():
-		p.buf.WriteString(val1.Type().String())
+	case p.value.IsValid():
+		p.buf.WriteString(p.value.Type().String())
 		p.add('=')
-		p.printValue(val1, 'v', false, false, 0)
+		p.printValue(p.value, 'v', false, false, 0)
 	default:
 		p.buf.Write(nilAngleBytes)
 	}
 	p.add(')')
 }
 
-func (p *pp) fmtBool(v bool, verb int, value interface{}, value1 reflect.Value) {
+func (p *pp) fmtBool(v bool, verb int, value interface{}) {
 	switch verb {
 	case 't', 'v':
 		p.fmt.fmt_boolean(v)
 	default:
-		p.badVerb(verb, value, value1)
+		p.badVerb(verb, value)
 	}
 }
 
@@ -329,7 +333,7 @@ func (p *pp) fmtC(c int64) {
 	p.fmt.pad(p.runeBuf[0:w])
 }
 
-func (p *pp) fmtInt64(v int64, verb int, value interface{}, value1 reflect.Value) {
+func (p *pp) fmtInt64(v int64, verb int, value interface{}) {
 	switch verb {
 	case 'b':
 		p.fmt.integer(v, 2, signed, ldigits)
@@ -343,7 +347,7 @@ func (p *pp) fmtInt64(v int64, verb int, value interface{}, value1 reflect.Value
 		if 0 <= v && v <= unicode.MaxRune {
 			p.fmt.fmt_qc(v)
 		} else {
-			p.badVerb(verb, value, value1)
+			p.badVerb(verb, value)
 		}
 	case 'x':
 		p.fmt.integer(v, 16, signed, ldigits)
@@ -352,7 +356,7 @@ func (p *pp) fmtInt64(v int64, verb int, value interface{}, value1 reflect.Value
 	case 'X':
 		p.fmt.integer(v, 16, signed, udigits)
 	default:
-		p.badVerb(verb, value, value1)
+		p.badVerb(verb, value)
 	}
 }
 
@@ -387,7 +391,7 @@ func (p *pp) fmtUnicode(v int64) {
 	p.fmt.sharp = sharp
 }
 
-func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}, value1 reflect.Value) {
+func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}) {
 	switch verb {
 	case 'b':
 		p.fmt.integer(int64(v), 2, unsigned, ldigits)
@@ -407,7 +411,7 @@ func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}, val
 		if 0 <= v && v <= unicode.MaxRune {
 			p.fmt.fmt_qc(int64(v))
 		} else {
-			p.badVerb(verb, value, value1)
+			p.badVerb(verb, value)
 		}
 	case 'x':
 		p.fmt.integer(int64(v), 16, unsigned, ldigits)
@@ -416,11 +420,11 @@ func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}, val
 	case 'U':
 		p.fmtUnicode(int64(v))
 	default:
-		p.badVerb(verb, value, value1)
+		p.badVerb(verb, value)
 	}
 }
 
-func (p *pp) fmtFloat32(v float32, verb int, value interface{}, value1 reflect.Value) {
+func (p *pp) fmtFloat32(v float32, verb int, value interface{}) {
 	switch verb {
 	case 'b':
 		p.fmt.fmt_fb32(v)
@@ -435,11 +439,11 @@ func (p *pp) fmtFloat32(v float32, verb int, value interface{}, value1 reflect.V
 	case 'G':
 		p.fmt.fmt_G32(v)
 	default:
-		p.badVerb(verb, value, value1)
+		p.badVerb(verb, value)
 	}
 }
 
-func (p *pp) fmtFloat64(v float64, verb int, value interface{}, value1 reflect.Value) {
+func (p *pp) fmtFloat64(v float64, verb int, value interface{}) {
 	switch verb {
 	case 'b':
 		p.fmt.fmt_fb64(v)
@@ -454,33 +458,33 @@ func (p *pp) fmtFloat64(v float64, verb int, value interface{}, value1 reflect.V
 	case 'G':
 		p.fmt.fmt_G64(v)
 	default:
-		p.badVerb(verb, value, value1)
+		p.badVerb(verb, value)
 	}
 }
 
-func (p *pp) fmtComplex64(v complex64, verb int, value interface{}, value1 reflect.Value) {
+func (p *pp) fmtComplex64(v complex64, verb int, value interface{}) {
 	switch verb {
 	case 'e', 'E', 'f', 'F', 'g', 'G':
 		p.fmt.fmt_c64(v, verb)
 	case 'v':
 		p.fmt.fmt_c64(v, 'g')
 	default:
-		p.badVerb(verb, value, value1)
+		p.badVerb(verb, value)
 	}
 }
 
-func (p *pp) fmtComplex128(v complex128, verb int, value interface{}, value1 reflect.Value) {
+func (p *pp) fmtComplex128(v complex128, verb int, value interface{}) {
 	switch verb {
 	case 'e', 'E', 'f', 'F', 'g', 'G':
 		p.fmt.fmt_c128(v, verb)
 	case 'v':
 		p.fmt.fmt_c128(v, 'g')
 	default:
-		p.badVerb(verb, value, value1)
+		p.badVerb(verb, value)
 	}
 }
 
-func (p *pp) fmtString(v string, verb int, goSyntax bool, value interface{}, value1 reflect.Value) {
+func (p *pp) fmtString(v string, verb int, goSyntax bool, value interface{}) {
 	switch verb {
 	case 'v':
 		if goSyntax {
@@ -497,11 +501,11 @@ func (p *pp) fmtString(v string, verb int, goSyntax bool, value interface{}, val
 	case 'q':
 		p.fmt.fmt_q(v)
 	default:
-		p.badVerb(verb, value, value1)
+		p.badVerb(verb, value)
 	}
 }
 
-func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interface{}, value1 reflect.Value) {
+func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interface{}) {
 	if verb == 'v' || verb == 'd' {
 		if goSyntax {
 			p.buf.Write(bytesBytes)
@@ -536,7 +540,7 @@ func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interf
 	case 'q':
 		p.fmt.fmt_q(s)
 	default:
-		p.badVerb(verb, value, value1)
+		p.badVerb(verb, value)
 	}
 }
 
@@ -546,7 +550,7 @@ func (p *pp) fmtPointer(field interface{}, value reflect.Value, verb int, goSynt
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
 		u = value.Pointer()
 	default:
-		p.badVerb(verb, field, value)
+		p.badVerb(verb, field)
 		return
 	}
 	if goSyntax {
@@ -619,7 +623,7 @@ func (p *pp) handleMethods(field interface{}, verb int, plus, goSyntax bool, dep
 			handled = true
 			defer p.catchPanic(field, verb)
 			// Print the result of GoString unadorned.
-			p.fmtString(stringer.GoString(), 's', false, field, reflect.Value{})
+			p.fmtString(stringer.GoString(), 's', false, field)
 			return
 		}
 	} else {
@@ -641,7 +645,7 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth 
 		if verb == 'T' || verb == 'v' {
 			p.buf.Write(nilAngleBytes)
 		} else {
-			p.badVerb(verb, field, reflect.Value{})
+			p.badVerb(verb, field)
 		}
 		return false
 	}
@@ -664,58 +668,58 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth 
 	// Some types can be done without reflection.
 	switch f := field.(type) {
 	case bool:
-		p.fmtBool(f, verb, field, reflect.Value{})
+		p.fmtBool(f, verb, field)
 		return false
 	case float32:
-		p.fmtFloat32(f, verb, field, reflect.Value{})
+		p.fmtFloat32(f, verb, field)
 		return false
 	case float64:
-		p.fmtFloat64(f, verb, field, reflect.Value{})
+		p.fmtFloat64(f, verb, field)
 		return false
 	case complex64:
-		p.fmtComplex64(complex64(f), verb, field, reflect.Value{})
+		p.fmtComplex64(complex64(f), verb, field)
 		return false
 	case complex128:
-		p.fmtComplex128(f, verb, field, reflect.Value{})
+		p.fmtComplex128(f, verb, field)
 		return false
 	case int:
-		p.fmtInt64(int64(f), verb, field, reflect.Value{})
+		p.fmtInt64(int64(f), verb, field)
 		return false
 	case int8:
-		p.fmtInt64(int64(f), verb, field, reflect.Value{})
+		p.fmtInt64(int64(f), verb, field)
 		return false
 	case int16:
-		p.fmtInt64(int64(f), verb, field, reflect.Value{})
+		p.fmtInt64(int64(f), verb, field)
 		return false
 	case int32:
-		p.fmtInt64(int64(f), verb, field, reflect.Value{})
+		p.fmtInt64(int64(f), verb, field)
 		return false
 	case int64:
-		p.fmtInt64(f, verb, field, reflect.Value{})
+		p.fmtInt64(f, verb, field)
 		return false
 	case uint:
-		p.fmtUint64(uint64(f), verb, goSyntax, field, reflect.Value{})
+		p.fmtUint64(uint64(f), verb, goSyntax, field)
 		return false
 	case uint8:
-		p.fmtUint64(uint64(f), verb, goSyntax, field, reflect.Value{})
+		p.fmtUint64(uint64(f), verb, goSyntax, field)
 		return false
 	case uint16:
-		p.fmtUint64(uint64(f), verb, goSyntax, field, reflect.Value{})
+		p.fmtUint64(uint64(f), verb, goSyntax, field)
 		return false
 	case uint32:
-		p.fmtUint64(uint64(f), verb, goSyntax, field, reflect.Value{})
+		p.fmtUint64(uint64(f), verb, goSyntax, field)
 		return false
 	case uint64:
-		p.fmtUint64(f, verb, goSyntax, field, reflect.Value{})
+		p.fmtUint64(f, verb, goSyntax, field)
 		return false
 	case uintptr:
-		p.fmtUint64(uint64(f), verb, goSyntax, field, reflect.Value{})
+		p.fmtUint64(uint64(f), verb, goSyntax, field)
 		return false
 	case string:
-		p.fmtString(f, verb, goSyntax, field, reflect.Value{})
+		p.fmtString(f, verb, goSyntax, field)
 		return verb == 's' || verb == 'v'
 	case []byte:
-		p.fmtBytes(f, verb, goSyntax, depth, field, reflect.Value{})
+		p.fmtBytes(f, verb, goSyntax, depth, field)
 		return verb == 's'
 	}
 
@@ -729,7 +733,7 @@ func (p *pp) printValue(value reflect.Value, verb int, plus, goSyntax bool, dept
 		if verb == 'T' || verb == 'v' {
 			p.buf.Write(nilAngleBytes)
 		} else {
-			p.badVerb(verb, nil, value)
+			p.badVerb(verb, nil)
 		}
 		return false
 	}
@@ -761,28 +765,30 @@ func (p *pp) printValue(value reflect.Value, verb int, plus, goSyntax bool, dept
 // printReflectValue is the fallback for both printField and printValue.
 // It uses reflect to print the value.
 func (p *pp) printReflectValue(value reflect.Value, verb int, plus, goSyntax bool, depth int) (wasString bool) {
+	oldValue := p.value
+	p.value = value
 BigSwitch:
 	switch f := value; f.Kind() {
 	case reflect.Bool:
-		p.fmtBool(f.Bool(), verb, nil, value)
+		p.fmtBool(f.Bool(), verb, nil)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		p.fmtInt64(f.Int(), verb, nil, value)
+		p.fmtInt64(f.Int(), verb, nil)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		p.fmtUint64(uint64(f.Uint()), verb, goSyntax, nil, value)
+		p.fmtUint64(uint64(f.Uint()), verb, goSyntax, nil)
 	case reflect.Float32, reflect.Float64:
 		if f.Type().Size() == 4 {
-			p.fmtFloat32(float32(f.Float()), verb, nil, value)
+			p.fmtFloat32(float32(f.Float()), verb, nil)
 		} else {
-			p.fmtFloat64(float64(f.Float()), verb, nil, value)
+			p.fmtFloat64(float64(f.Float()), verb, nil)
 		}
 	case reflect.Complex64, reflect.Complex128:
 		if f.Type().Size() == 8 {
-			p.fmtComplex64(complex64(f.Complex()), verb, nil, value)
+			p.fmtComplex64(complex64(f.Complex()), verb, nil)
 		} else {
-			p.fmtComplex128(complex128(f.Complex()), verb, nil, value)
+			p.fmtComplex128(complex128(f.Complex()), verb, nil)
 		}
 	case reflect.String:
-		p.fmtString(f.String(), verb, goSyntax, nil, value)
+		p.fmtString(f.String(), verb, goSyntax, nil)
 	case reflect.Map:
 		if goSyntax {
 			p.buf.WriteString(f.Type().String())
@@ -842,7 +848,7 @@ BigSwitch:
 				p.buf.Write(nilAngleBytes)
 			}
 		} else {
-			return p.printValue(value, verb, plus, goSyntax, depth+1)
+			wasString = p.printValue(value, verb, plus, goSyntax, depth+1)
 		}
 	case reflect.Array, reflect.Slice:
 		// Byte slices are special.
@@ -858,8 +864,9 @@ BigSwitch:
 			for i := range bytes {
 				bytes[i] = byte(f.Index(i).Uint())
 			}
-			p.fmtBytes(bytes, verb, goSyntax, depth, nil, value)
-			return verb == 's'
+			p.fmtBytes(bytes, verb, goSyntax, depth, nil)
+			wasString = verb == 's'
+			break
 		}
 		if goSyntax {
 			p.buf.WriteString(value.Type().String())
@@ -921,7 +928,8 @@ BigSwitch:
 	default:
 		p.unknownType(f)
 	}
-	return false
+	p.value = oldValue
+	return wasString
 }
 
 // intFromArg gets the fieldnumth element of a. On return, isInt reports whether the argument has type int.
