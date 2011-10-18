@@ -100,9 +100,13 @@ func TestDecodeCSS(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		got := string(decodeCSS([]byte(test.css)))
-		if got != test.want {
-			t.Errorf("%q: want\n\t%q\nbut got\n\t%q", test.css, test.want, got)
+		got1 := string(decodeCSS([]byte(test.css)))
+		if got1 != test.want {
+			t.Errorf("%q: want\n\t%q\nbut got\n\t%q", test.css, test.want, got1)
+		}
+		recoded := cssEscaper(got1)
+		if got2 := string(decodeCSS([]byte(recoded))); got2 != test.want {
+			t.Errorf("%q: escape & decode not dual for %q", test.css, recoded)
 		}
 	}
 }
@@ -156,7 +160,7 @@ func TestCSSEscaper(t *testing.T) {
 		"\u00A0\u0100\u2028\u2029\ufeff\U0001D11E")
 
 	want := ("\\0\x01\x02\x03\x04\x05\x06\x07" +
-		"\x08\\9\\a\x0b\\c\\d\x0E\x0F" +
+		"\x08\\9 \\a\x0b\\c \\d\x0E\x0F" +
 		"\x10\x11\x12\x13\x14\x15\x16\x17" +
 		"\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f" +
 		` !\22#$%\26\27\28\29*\2b,-.\2f ` +
