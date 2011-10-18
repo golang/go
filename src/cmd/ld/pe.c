@@ -620,7 +620,7 @@ asmbpe(void)
 		set(Magic, 0x10b);	// PE32
 		oh.BaseOfData = d->VirtualAddress;
 	}
-	set(MajorLinkerVersion, 1);
+	set(MajorLinkerVersion, 3);
 	set(MinorLinkerVersion, 0);
 	set(SizeOfCode, t->SizeOfRawData);
 	set(SizeOfInitializedData, d->SizeOfRawData);
