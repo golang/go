@@ -330,3 +330,43 @@ func TestRatGobEncoding(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue2379(t *testing.T) {
+	// 1) no aliasing
+	q := NewRat(3, 2)
+	x := new(Rat)
+	x.SetFrac(NewInt(3), NewInt(2))
+	if x.Cmp(q) != 0 {
+		t.Errorf("1) got %s want %s", x, q)
+	}
+
+	// 2) aliasing of numerator
+	x = NewRat(2, 3)
+	x.SetFrac(NewInt(3), x.Num())
+	if x.Cmp(q) != 0 {
+		t.Errorf("2) got %s want %s", x, q)
+	}
+
+	// 3) aliasing of denominator
+	x = NewRat(2, 3)
+	x.SetFrac(x.Denom(), NewInt(2))
+	if x.Cmp(q) != 0 {
+		t.Errorf("3) got %s want %s", x, q)
+	}
+
+	// 4) aliasing of numerator and denominator
+	x = NewRat(2, 3)
+	x.SetFrac(x.Denom(), x.Num())
+	if x.Cmp(q) != 0 {
+		t.Errorf("4) got %s want %s", x, q)
+	}
+
+	// 5) numerator and denominator are the same
+	q = NewRat(1, 1)
+	x = new(Rat)
+	n := NewInt(7)
+	x.SetFrac(n, n)
+	if x.Cmp(q) != 0 {
+		t.Errorf("5) got %s want %s", x, q)
+	}
+}
