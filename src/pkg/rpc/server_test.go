@@ -467,6 +467,32 @@ func TestCountMallocsOverHTTP(t *testing.T) {
 	fmt.Printf("mallocs per HTTP rpc round trip: %d\n", countMallocs(dialHTTP, t))
 }
 
+type writeCrasher struct{}
+
+func (writeCrasher) Close() os.Error {
+	return nil
+}
+
+func (writeCrasher) Read(p []byte) (int, os.Error) {
+	return 0, os.EOF
+}
+
+func (writeCrasher) Write(p []byte) (int, os.Error) {
+	return 0, os.NewError("fake write failure")
+}
+
+func TestClientWriteError(t *testing.T) {
+	c := NewClient(writeCrasher{})
+	res := false
+	err := c.Call("foo", 1, &res)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.String() != "fake write failure" {
+		t.Error("unexpected value of error:", err)
+	}
+}
+
 func benchmarkEndToEnd(dial func() (*Client, os.Error), b *testing.B) {
 	b.StopTimer()
 	once.Do(startServer)
