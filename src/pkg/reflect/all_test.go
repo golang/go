@@ -887,7 +887,7 @@ func TestMap(t *testing.T) {
 		if i >= len(keys) {
 			t.Errorf("Missing key #%d %q", i, k)
 		} else if kv := keys[i]; kv.String() != k {
-			t.Errorf("Keys[%q] = %d, want %d", i, kv.Int(), k)
+			t.Errorf("Keys[%q] = %q, want %q", i, kv.String(), k)
 		}
 		i++
 
