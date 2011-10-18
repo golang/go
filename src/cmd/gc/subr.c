@@ -1280,12 +1280,18 @@ Tpretty(Fmt *fp, Type *t)
 		debug['r'] = 1;
 		return 0;
 	}
+	
+	if(noargnames) {
+		// called from typesym
+		if(t == bytetype)
+			t = types[bytetype->etype];
+	}
 
 	if(t->etype != TFIELD
 	&& t->sym != S
 	&& !(fp->flags&FmtLong)) {
 		s = t->sym;
-		if(t == types[t->etype] && t->etype != TUNSAFEPTR)
+		if((t == types[t->etype] && t->etype != TUNSAFEPTR) || t == bytetype)
 			return fmtprint(fp, "%s", s->name);
 		if(exporting) {
 			if(fp->flags & FmtShort)
@@ -1859,8 +1865,19 @@ eqtype(Type *t1, Type *t2)
 {
 	if(t1 == t2)
 		return 1;
-	if(t1 == T || t2 == T || t1->etype != t2->etype || t1->sym || t2->sym)
+	if(t1 == T || t2 == T || t1->etype != t2->etype)
 		return 0;
+	if(t1->sym || t2->sym) {
+		// Special case: we keep byte and uint8 separate
+		// for error messages.  Treat them as equal.
+		switch(t1->etype) {
+		case TUINT8:
+			if((t1 == types[TUINT8] || t1 == bytetype) && (t2 == types[TUINT8] || t2 == bytetype))
+				return 1;
+			break;
+		}
+		return 0;
+	}
 
 	switch(t1->etype) {
 	case TINTER:
@@ -2088,24 +2105,20 @@ convertop(Type *src, Type *dst, char **why)
 	if(isint[src->etype] && dst->etype == TSTRING)
 		return ORUNESTR;
 
-	if(isslice(src) && src->sym == nil &&  src->type == types[src->type->etype] && dst->etype == TSTRING) {
-		switch(src->type->etype) {
-		case TUINT8:
+	if(isslice(src) && src->sym == nil && dst->etype == TSTRING) {
+		if(eqtype(src->type, bytetype))
 			return OARRAYBYTESTR;
-		case TINT:
+		if(eqtype(src->type, types[TINT]))
 			return OARRAYRUNESTR;
-		}
 	}
 	
 	// 7. src is a string and dst is []byte or []int.
 	// String to slice.
-	if(src->etype == TSTRING && isslice(dst) && dst->sym == nil && dst->type == types[dst->type->etype]) {
-		switch(dst->type->etype) {
-		case TUINT8:
+	if(src->etype == TSTRING && isslice(dst) && dst->sym == nil) {
+		if(eqtype(dst->type, bytetype))
 			return OSTRARRAYBYTE;
-		case TINT:
+		if(eqtype(dst->type, types[TINT]))
 			return OSTRARRAYRUNE;
-		}
 	}
 	
 	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.

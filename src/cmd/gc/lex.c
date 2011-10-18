@@ -19,6 +19,7 @@ int yyprev;
 int yylast;
 
 static void	lexinit(void);
+static void	lexinit1(void);
 static void	lexfini(void);
 static void	yytinit(void);
 static int	getc(void);
@@ -211,6 +212,7 @@ main(int argc, char *argv[])
 
 	lexinit();
 	typeinit();
+	lexinit1();
 	yytinit();
 
 	blockgen = 1;
@@ -1588,7 +1590,6 @@ static	struct
 	"complex128",	LNAME,		TCOMPLEX128,	OXXX,
 
 	"bool",		LNAME,		TBOOL,		OXXX,
-	"byte",		LNAME,		TUINT8,		OXXX,
 	"string",	LNAME,		TSTRING,	OXXX,
 
 	"any",		LNAME,		TANY,		OXXX,
@@ -1707,6 +1708,21 @@ lexinit(void)
 }
 
 static void
+lexinit1(void)
+{
+	Sym *s, *s1;
+
+	// byte alias
+	s = lookup("byte");
+	s->lexical = LNAME;
+	bytetype = typ(TUINT8);
+	bytetype->sym = s;
+	s1 = pkglookup("byte", builtinpkg);
+	s1->lexical = LNAME;
+	s1->def = typenod(bytetype);
+}
+
+static void
 lexfini(void)
 {
 	Sym *s;
@@ -1741,6 +1757,10 @@ lexfini(void)
 
 	// there's only so much table-driven we can handle.
 	// these are special cases.
+	s = lookup("byte");
+	if(s->def == N)
+		s->def = typenod(bytetype);
+
 	types[TNIL] = typ(TNIL);
 	s = lookup("nil");
 	if(s->def == N) {
