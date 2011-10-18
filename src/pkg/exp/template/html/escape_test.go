@@ -394,7 +394,7 @@ func TestEscape(t *testing.T) {
 		{
 			"styleStrSpecialsEncoded",
 			`<a style="font-family: '{{"/**/'\";:// \\"}}', &quot;{{"/**/'\";:// \\"}}&quot;">`,
-			`<a style="font-family: '\2f**\2f\27\22\3b\3a\2f\2f \\', &quot;\2f**\2f\27\22\3b\3a\2f\2f \\&quot;">`,
+			`<a style="font-family: '\2f**\2f\27\22\3b\3a\2f\2f  \\', &quot;\2f**\2f\27\22\3b\3a\2f\2f  \\&quot;">`,
 		},
 		{
 			"styleURLSpecialsEncoded",
