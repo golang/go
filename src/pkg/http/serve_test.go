@@ -864,6 +864,14 @@ func TestZeroLengthPostAndResponse(t *testing.T) {
 }
 
 func TestHandlerPanic(t *testing.T) {
+	testHandlerPanic(t, false)
+}
+
+func TestHandlerPanicWithHijack(t *testing.T) {
+	testHandlerPanic(t, true)
+}
+
+func testHandlerPanic(t *testing.T, withHijack bool) {
 	// Unlike the other tests that set the log output to ioutil.Discard
 	// to quiet the output, this test uses a pipe.  The pipe serves three
 	// purposes:
@@ -884,7 +892,14 @@ func TestHandlerPanic(t *testing.T) {
 	log.SetOutput(pw)
 	defer log.SetOutput(os.Stderr)
 
-	ts := httptest.NewServer(HandlerFunc(func(ResponseWriter, *Request) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if withHijack {
+			rwc, _, err := w.(Hijacker).Hijack()
+			if err != nil {
+				t.Logf("unexpected error: %v", err)
+			}
+			defer rwc.Close()
+		}
 		panic("intentional death for testing")
 	}))
 	defer ts.Close()
