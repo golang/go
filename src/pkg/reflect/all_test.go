@@ -877,19 +877,20 @@ func TestMap(t *testing.T) {
 		t.Errorf("Len = %d, want %d", n, len(m))
 	}
 	keys := mv.MapKeys()
-	i := 0
 	newmap := MakeMap(mv.Type())
 	for k, v := range m {
 		// Check that returned Keys match keys in range.
-		// These aren't required to be in the same order,
-		// but they are in this implementation, which makes
-		// the test easier.
-		if i >= len(keys) {
-			t.Errorf("Missing key #%d %q", i, k)
-		} else if kv := keys[i]; kv.String() != k {
-			t.Errorf("Keys[%q] = %q, want %q", i, kv.String(), k)
+		// These aren't required to be in the same order.
+		seen := false
+		for _, kv := range keys {
+			if kv.String() == k {
+				seen = true
+				break
+			}
 		}
-		i++
+		if !seen {
+			t.Errorf("Missing key %q", k)
+		}
 
 		// Check that value lookup is correct.
 		vv := mv.MapIndex(ValueOf(k))
