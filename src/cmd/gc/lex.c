@@ -1624,6 +1624,7 @@ static	struct
 	"close",	LNAME,		Txxx,		OCLOSE,
 	"complex",	LNAME,		Txxx,		OCOMPLEX,
 	"copy",		LNAME,		Txxx,		OCOPY,
+	"delete",		LNAME,		Txxx,		ODELETE,
 	"imag",		LNAME,		Txxx,		OIMAG,
 	"len",		LNAME,		Txxx,		OLEN,
 	"make",		LNAME,		Txxx,		OMAKE,

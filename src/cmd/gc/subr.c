@@ -923,6 +923,7 @@ goopnames[] =
 	[OCOPY]		= "copy",
 	[ODEC]		= "--",
 	[ODEFER]	= "defer",
+	[ODELETE]	= "delete",
 	[ODIV]		= "/",
 	[OEQ]		= "==",
 	[OFALL]		= "fallthrough",

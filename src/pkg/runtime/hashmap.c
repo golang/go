@@ -1028,6 +1028,28 @@ runtime·mapassign2(MapType *t, Hmap *h, ...)
 	}
 }
 
+// mapdelete(mapType *type, hmap *map[any]any, key any)
+#pragma textflag 7
+void
+runtime·mapdelete(MapType *t, Hmap *h, ...)
+{
+	byte *ak;
+
+	if(h == nil)
+		runtime·panicstring("deletion of entry in nil map");
+
+	ak = (byte*)&h + h->ko2;
+	runtime·mapassign(t, h, ak, nil);
+
+	if(debug) {
+		runtime·prints("mapdelete: map=");
+		runtime·printpointer(h);
+		runtime·prints("; key=");
+		h->keyalg->print(h->keysize, ak);
+		runtime·prints("\n");
+	}
+}
+
 // For reflect:
 //	func mapassign(t type h map, key, val iword, pres bool)
 // where an iword is the same word an interface value would use:
