@@ -9,6 +9,7 @@
 static	Node*	walkprint(Node*, NodeList**, int);
 static	Node*	conv(Node*, Type*);
 static	Node*	mapfn(char*, Type*);
+static	Node*	mapfndel(char*, Type*);
 static	Node*	makenewvar(Type*, NodeList**, Node**);
 static	Node*	ascompatee1(int, Node*, Node*, NodeList**);
 static	NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
@@ -173,6 +174,7 @@ walkstmt(Node **np)
 	case OCALLINTER:
 	case OCALL:
 	case OCALLFUNC:
+	case ODELETE:
 	case OSEND:
 	case ORECV:
 	case OPRINT:
@@ -609,6 +611,21 @@ walkexpr(Node **np, NodeList **init)
 		n->rlist = list1(r);
 		n->op = OAS2FUNC;
 		goto as2func;
+
+	case ODELETE:
+		*init = concat(*init, n->ninit);
+		n->ninit = nil;
+		l = n->list->n;
+		r = n->list->next->n;
+		if(n->right != N) {
+			// TODO: Remove once two-element map assigment is gone.
+			l = safeexpr(l, init);
+			r = safeexpr(r, init);
+			safeexpr(n->right, init);  // cause side effects from n->right
+		}
+		t = l->type;
+		n = mkcall1(mapfndel("mapdelete", t), t->down, init, typename(t), l, r);
+		goto ret;
 
 	case OAS2MAPW:
 		// map[] = a,b - mapassign2
@@ -2251,6 +2268,20 @@ mapfn(char *name, Type *t)
 	argtype(fn, t->type);
 	argtype(fn, t->down);
 	argtype(fn, t->type);
+	return fn;
+}
+
+static Node*
+mapfndel(char *name, Type *t)
+{
+	Node *fn;
+
+	if(t->etype != TMAP)
+		fatal("mapfn %T", t);
+	fn = syslook(name, 1);
+	argtype(fn, t->down);
+	argtype(fn, t->type);
+	argtype(fn, t->down);
 	return fn;
 }
 

@@ -64,6 +64,7 @@ char *runtimeimport =
 	"func @\"\".mapassign1 (mapType *uint8, hmap map[any] any, key any, val any)\n"
 	"func @\"\".mapassign2 (mapType *uint8, hmap map[any] any, key any, val any, pres bool)\n"
 	"func @\"\".mapiterinit (mapType *uint8, hmap map[any] any, hiter *any)\n"
+	"func @\"\".mapdelete (mapType *uint8, hmap map[any] any, key any)\n"
 	"func @\"\".mapiternext (hiter *any)\n"
 	"func @\"\".mapiter1 (hiter *any) any\n"
 	"func @\"\".mapiter2 (hiter *any) (key any, val any)\n"

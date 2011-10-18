@@ -991,6 +991,31 @@ reswitch:
 		ok |= Etop;
 		goto ret;
 
+	case ODELETE:
+		args = n->list;
+		if(args == nil) {
+			yyerror("missing arguments to delete");
+			goto error;
+		}
+		if(args->next == nil) {
+			yyerror("missing second (key) argument to delete");
+			goto error;
+		}
+		if(args->next->next != nil) {
+			yyerror("too many arguments to delete");
+			goto error;
+		}
+		ok |= Etop;
+		typechecklist(args, Erv);
+		l = args->n;
+		r = args->next->n;
+		if(l->type != T && l->type->etype != TMAP) {
+			yyerror("first argument to delete must be map; have %lT", l->type);
+			goto error;
+		}
+		args->next->n = assignconv(r, l->type->down, "delete");
+		goto ret;
+
 	case OAPPEND:
 		ok |= Erv;
 		args = n->list;
@@ -2284,7 +2309,7 @@ typecheckas2(Node *n)
 {
 	int cl, cr;
 	NodeList *ll, *lr;
-	Node *l, *r;
+	Node *l, *r, *rr;
 	Iter s;
 	Type *t;
 
@@ -2325,8 +2350,14 @@ typecheckas2(Node *n)
 			goto out;
 		n->op = OAS2MAPW;
 		n->rlist->n = assignconv(r, l->type, "assignment");
-		r = n->rlist->next->n;
-		n->rlist->next->n = assignconv(r, types[TBOOL], "assignment");
+		rr = n->rlist->next->n;
+		n->rlist->next->n = assignconv(rr, types[TBOOL], "assignment");
+		if(isconst(rr, CTBOOL) && !rr->val.u.bval) {
+			n->op = ODELETE;
+			n->list = list(list1(l->left), l->right);
+			n->right = n->rlist->n;
+			n->rlist = nil;
+		}
 		goto out;
 	}
 
