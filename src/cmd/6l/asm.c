@@ -703,7 +703,7 @@ asmb(void)
 {
 	int32 magic;
 	int a, dynsym;
-	vlong vl, startva, symo, machlink;
+	vlong vl, startva, symo, dwarfoff, machlink;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
@@ -738,8 +738,19 @@ asmb(void)
 	datblk(segdata.vaddr, segdata.filelen);
 
 	machlink = 0;
-	if(HEADTYPE == Hdarwin)
+	if(HEADTYPE == Hdarwin) {
+		if(debug['v'])
+			Bprint(&bso, "%5.2f dwarf\n", cputime());
+
+		dwarfoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND);
+		cseek(dwarfoff);
+
+		segdwarf.fileoff = cpos();
+		dwarfemitdebugsections();
+		segdwarf.filelen = cpos() - segdwarf.fileoff;
+
 		machlink = domacholink();
+	}
 
 	switch(HEADTYPE) {
 	default:
@@ -811,7 +822,6 @@ asmb(void)
 				dwarfemitdebugsections();
 			}
 			break;
-		case Hdarwin:
 		case Hwindows:
 			if(debug['v'])
 			       Bprint(&bso, "%5.2f dwarf\n", cputime());

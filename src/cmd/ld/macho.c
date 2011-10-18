@@ -505,7 +505,7 @@ domacholink(void)
 	size = s1->size + s2->size + s3->size + s4->size;
 
 	if(size > 0) {
-		linkoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND);
+		linkoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND) + rnd(segdwarf.filelen, INITRND);
 		cseek(linkoff);
 
 		cwrite(s1->p, s1->size);
