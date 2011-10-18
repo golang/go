@@ -57,6 +57,7 @@ function godocs_bindSearchEvents() {
  * links.  "Decorates" the element with id=="nav" with this table of contents.
  */
 function godocs_generateTOC() {
+  if (document.getElementById('manual-nav')) { return; }
   var navbar = document.getElementById('nav');
   if (!navbar) { return; }
 

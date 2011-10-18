@@ -3,10 +3,47 @@
 	Use of this source code is governed by a BSD-style
 	license that can be found in the LICENSE file.
 -->
+<!-- Table of contents; must be named manual-nav to turn off auto nav. -->
+<div id="manual-nav">
+{{with .PDoc}}
+	<dl>
+	<dd><a href="#Overview">Overview</a></dd>
+	{{if .Consts}}
+		<dd><a href="#Constants">Constants</a></dd>
+	{{end}}
+	{{if .Vars}}
+		<dd><a href="#Variables">Variables</a></dd>
+	{{end}}
+	{{range .Funcs}}
+		{{$name_html := html .Name}}
+		<dd><a href="#{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
+	{{end}}
+	{{range .Types}}
+		{{$tname := printf "%s" .Type.Name}}
+		{{$tname_html := node_html .Type.Name $.FSet}}
+		<dd><a href="#{{$tname_html}}">type {{$tname_html}}</a></dd>
+		{{range .Factories}}
+			{{$name_html := html .Name}}
+			<dd>&nbsp; &nbsp; <a href="#{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
+		{{end}}
+		{{range .Methods}}
+			{{$name_html := html .Name}}
+			<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
+		{{end}}
+	{{end}}
+	{{if .Bugs}}
+		<dd><a href="#Bugs">Bugs</a></dd>
+	{{end}}
+	</dl>
+{{end}}
+</div>
+
+<!-- Main page -->		
 {{with .PAst}}
 	<pre>{{node_html . $.FSet}}</pre>
 {{end}}
 {{with .PDoc}}
+	<h2 id="Overview">Overview</h2>
 	<!-- PackageName is printed as title by the top-level template -->
 	{{if $.IsPkg}}
 		<p><code>import "{{html .ImportPath}}"</code></p>
@@ -38,47 +75,43 @@
 			<pre>{{node_html .Decl $.FSet}}</pre>
 		{{end}}
 	{{end}}
-	{{with .Funcs}}
-		{{range .}}
-			{{/* Name is a string - no need for FSet */}}
+	{{range .Funcs}}
+		{{/* Name is a string - no need for FSet */}}
+		{{$name_html := html .Name}}
+		<h2 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h2>
+		<p><code>{{node_html .Decl $.FSet}}</code></p>
+		{{comment_html .Doc}}
+		{{example_html .Name $.Examples $.FSet}}
+	{{end}}
+	{{range .Types}}
+		{{$tname := printf "%s" .Type.Name}}
+		{{$tname_html := node_html .Type.Name $.FSet}}
+		<h2 id="{{$tname_html}}">type <a href="/{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
+		{{comment_html .Doc}}
+		<p><pre>{{node_html .Decl $.FSet}}</pre></p>
+		{{example_html $tname $.Examples $.FSet}}
+		{{range .Consts}}
+			{{comment_html .Doc}}
+			<pre>{{node_html .Decl $.FSet}}</pre>
+		{{end}}
+		{{range .Vars}}
+			{{comment_html .Doc}}
+			<pre>{{node_html .Decl $.FSet}}</pre>
+		{{end}}
+		{{range .Factories}}
 			{{$name_html := html .Name}}
-			<h2 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h2>
+			<h3 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
 			<p><code>{{node_html .Decl $.FSet}}</code></p>
 			{{comment_html .Doc}}
 			{{example_html .Name $.Examples $.FSet}}
 		{{end}}
-	{{end}}
-	{{with .Types}}
-		{{range .}}
-			{{$tname := printf "%s" .Type.Name}}
-			{{$tname_html := node_html .Type.Name $.FSet}}
-			<h2 id="{{$tname_html}}">type <a href="/{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
+		{{range .Methods}}
+			{{$name_html := html .Name}}
+			<h3 id="{{$tname_html}}.{{$name_html}}">func ({{node_html .Recv $.FSet}}) <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+			<p><code>{{node_html .Decl $.FSet}}</code></p>
 			{{comment_html .Doc}}
-			<p><pre>{{node_html .Decl $.FSet}}</pre></p>
-			{{example_html $tname $.Examples $.FSet}}
-			{{range .Consts}}
-				{{comment_html .Doc}}
-				<pre>{{node_html .Decl $.FSet}}</pre>
-			{{end}}
-			{{range .Vars}}
-				{{comment_html .Doc}}
-				<pre>{{node_html .Decl $.FSet}}</pre>
-			{{end}}
-			{{range .Factories}}
-				{{$name_html := html .Name}}
-				<h3 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
-				<p><code>{{node_html .Decl $.FSet}}</code></p>
-				{{comment_html .Doc}}
-				{{example_html .Name $.Examples $.FSet}}
-			{{end}}
-			{{range .Methods}}
-				{{$name_html := html .Name}}
-				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{node_html .Recv $.FSet}}) <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
-				<p><code>{{node_html .Decl $.FSet}}</code></p>
-				{{comment_html .Doc}}
-				{{$name := printf "%s_%s" $tname .Name}}
-				{{example_html $name $.Examples $.FSet}}
-			{{end}}
+			{{$name := printf "%s_%s" $tname .Name}}
+			{{example_html $name $.Examples $.FSet}}
 		{{end}}
 	{{end}}
 	{{with .Bugs}}
