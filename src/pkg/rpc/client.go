@@ -104,7 +104,7 @@ func (client *Client) input() {
 		seq := response.Seq
 		client.mutex.Lock()
 		c := client.pending[seq]
-		client.pending[seq] = c, false
+		delete(client.pending, seq)
 		client.mutex.Unlock()
 
 		if response.Error == "" {

@@ -87,6 +87,6 @@ func (m *mmapper) Munmap(data []byte) (errno int) {
 	if errno := m.munmap(uintptr(unsafe.Pointer(&b[0])), uintptr(len(b))); errno != 0 {
 		return errno
 	}
-	m.active[p] = nil, false
+	delete(m.active, p)
 	return 0
 }

@@ -256,8 +256,8 @@ func (imp *Importer) Hangup(name string) os.Error {
 	if nc == nil {
 		return os.NewError("netchan import: hangup: no such channel: " + name)
 	}
-	imp.names[name] = nil, false
-	imp.chans[nc.id] = nil, false
+	delete(imp.names, name)
+	delete(imp.chans, nc.id)
 	nc.close()
 	return nil
 }

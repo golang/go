@@ -65,7 +65,7 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 			return reflect.Value{}
 		}
 		for k := range m {
-			m[k] = reflect.Value{}, false
+			delete(m, k)
 		}
 		val = apply(f, val)
 		if match(m, pat, val) {

@@ -108,7 +108,7 @@ func (s *sequencer) End(id uint) {
 	}
 	c, ok := s.wait[id]
 	if ok {
-		s.wait[id] = nil, false
+		delete(s.wait, id)
 	}
 	s.mu.Unlock()
 	if ok {

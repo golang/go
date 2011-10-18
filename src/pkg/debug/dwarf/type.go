@@ -579,6 +579,6 @@ Error:
 	// If the parse fails, take the type out of the cache
 	// so that the next call with this offset doesn't hit
 	// the cache and return success.
-	d.typeCache[off] = nil, false
+	delete(d.typeCache, off)
 	return nil, err
 }

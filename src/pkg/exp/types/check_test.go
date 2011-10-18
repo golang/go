@@ -154,7 +154,7 @@ func eliminate(t *testing.T, expected map[token.Pos]string, errors os.Error) {
 				continue
 			}
 			// we have a match - eliminate this error
-			expected[pos] = "", false
+			delete(expected, pos)
 		} else {
 			// To keep in mind when analyzing failed test output:
 			// If the same error position occurs multiple times in errors,

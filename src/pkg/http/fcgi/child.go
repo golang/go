@@ -194,7 +194,7 @@ func (c *child) serve() {
 		case typeData:
 			// If the filter role is implemented, read the data stream here.
 		case typeAbortRequest:
-			requests[rec.h.Id] = nil, false
+			delete(requests, rec.h.Id)
 			c.conn.writeEndRequest(rec.h.Id, 0, statusRequestComplete)
 			if !req.keepConn {
 				// connection will close upon return

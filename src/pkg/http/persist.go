@@ -165,7 +165,7 @@ func (sc *ServerConn) Write(req *Request, resp *Response) os.Error {
 	// Retrieve the pipeline ID of this request/response pair
 	sc.lk.Lock()
 	id, ok := sc.pipereq[req]
-	sc.pipereq[req] = 0, false
+	delete(sc.pipereq, req)
 	if !ok {
 		sc.lk.Unlock()
 		return ErrPipeline
@@ -353,7 +353,7 @@ func (cc *ClientConn) readUsing(req *Request, readRes func(*bufio.Reader, *Reque
 	// Retrieve the pipeline ID of this request/response pair
 	cc.lk.Lock()
 	id, ok := cc.pipereq[req]
-	cc.pipereq[req] = 0, false
+	delete(cc.pipereq, req)
 	if !ok {
 		cc.lk.Unlock()
 		return nil, ErrPipeline

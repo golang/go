@@ -39,5 +39,5 @@ func (h MIMEHeader) Get(key string) string {
 
 // Del deletes the values associated with key.
 func (h MIMEHeader) Del(key string) {
-	h[CanonicalMIMEHeaderKey(key)] = nil, false
+	delete(h, CanonicalMIMEHeaderKey(key))
 }

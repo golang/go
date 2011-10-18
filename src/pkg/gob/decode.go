@@ -1154,7 +1154,7 @@ func (dec *Decoder) getDecEnginePtr(remoteId typeId, ut *userTypeInfo) (enginePt
 		decoderMap[remoteId] = enginePtr
 		*enginePtr, err = dec.compileDec(remoteId, ut)
 		if err != nil {
-			decoderMap[remoteId] = nil, false
+			delete(decoderMap, remoteId)
 		}
 	}
 	return
@@ -1179,7 +1179,7 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
 			*enginePtr, err = dec.compileIgnoreSingle(wireId)
 		}
 		if err != nil {
-			dec.ignorerCache[wireId] = nil, false
+			delete(dec.ignorerCache, wireId)
 		}
 	}
 	return

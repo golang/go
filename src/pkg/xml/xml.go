@@ -390,7 +390,11 @@ func (p *Parser) popElement(t *EndElement) bool {
 	// translations that were associated with the element we just closed.
 	for p.stk != nil && p.stk.kind != stkStart {
 		s := p.pop()
-		p.ns[s.name.Local] = s.name.Space, s.ok
+		if s.ok {
+			p.ns[s.name.Local] = s.name.Space
+		} else {
+			delete(p.ns, s.name.Local)
+		}
 	}
 
 	return true

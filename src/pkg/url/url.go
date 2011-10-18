@@ -517,7 +517,7 @@ func (v Values) Add(key, value string) {
 
 // Del deletes the values associated with key.
 func (v Values) Del(key string) {
-	v[key] = nil, false
+	delete(v, key)
 }
 
 // ParseQuery parses the URL-encoded query string and returns

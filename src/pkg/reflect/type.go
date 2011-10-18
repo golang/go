@@ -876,7 +876,7 @@ L:
 		fd = inf
 	}
 
-	mark[t] = false, false
+	delete(mark, t)
 	return
 }
 

@@ -81,6 +81,7 @@ func init() {
 	defFun("close")
 	defFun("complex")
 	defFun("copy")
+	defFun("delete")
 	defFun("imag")
 	defFun("len")
 	defFun("make")

@@ -366,7 +366,7 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, os.Erro
 		return nil, nil
 	}
 
-	header["Transfer-Encoding"] = nil, false
+	delete(header, "Transfer-Encoding")
 
 	// Head responses have no bodies, so the transfer encoding
 	// should be ignored.
@@ -399,7 +399,7 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, os.Erro
 		// Chunked encoding trumps Content-Length. See RFC 2616
 		// Section 4.4. Currently len(te) > 0 implies chunked
 		// encoding.
-		header["Content-Length"] = nil, false
+		delete(header, "Content-Length")
 		return te, nil
 	}
 

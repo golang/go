@@ -152,7 +152,7 @@ func (s *pollServer) LookupFD(fd int, mode int) *netFD {
 	if !ok {
 		return nil
 	}
-	s.pending[key] = nil, false
+	delete(s.pending, key)
 	return netfd
 }
 
@@ -195,7 +195,7 @@ func (s *pollServer) CheckDeadlines() {
 		}
 		if t > 0 {
 			if t <= now {
-				s.pending[key] = nil, false
+				delete(s.pending, key)
 				if mode == 'r' {
 					s.poll.DelFD(fd.sysfd, mode)
 					fd.rdeadline = -1
