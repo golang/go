@@ -20,7 +20,7 @@ $(TARG): _go_.$O
 	$(LD) $(LDIMPORTS) -o $@ _go_.$O
 
 _go_.$O: $(GOFILES) $(PREREQ)
-	$(GC) $(GCIMPORTS) -o $@ $(GOFILES)
+	$(GC) $(GCFLAGS) $(GCIMPORTS) -o $@ $(GOFILES)
 
 install: $(TARGDIR)/$(TARG)
 
@@ -44,7 +44,7 @@ _test/main.a: _gotest_.$O
 	gopack grc $@ _gotest_.$O
 
 _gotest_.$O: $(GOFILES) $(GOTESTFILES)
-	$(GC) $(GCIMPORTS) -o $@ $(GOFILES) $(GOTESTFILES)
+	$(GC) $(GCFLAGS) $(GCIMPORTS) -o $@ $(GOFILES) $(GOTESTFILES)
 
 importpath:
 	echo main

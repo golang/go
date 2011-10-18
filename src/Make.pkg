@@ -83,10 +83,10 @@ $(TARGDIR)/$(TARG).a: _obj/$(TARG).a
 	cp _obj/$(TARG).a "$@"
 
 _go_.$O: $(GOFILES) $(PREREQ)
-	$(GC) $(GCIMPORTS) -p $(TARG) -o $@ $(GOFILES)
+	$(GC) $(GCFLAGS) $(GCIMPORTS) -p $(TARG) -o $@ $(GOFILES)
 
 _gotest_.$O: $(GOFILES) $(GOTESTFILES) $(PREREQ)
-	$(GC) $(GCIMPORTS) -p $(TARG) -o $@ $(GOFILES) $(GOTESTFILES)
+	$(GC) $(GCFLAGS) $(GCIMPORTS) -p $(TARG) -o $@ $(GOFILES) $(GOTESTFILES)
 
 _obj/$(TARG).a: _go_.$O $(OFILES)
 	@mkdir -p _obj/$(dir)
