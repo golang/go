@@ -157,12 +157,21 @@ func LookupCNAME(name string) (cname string, err os.Error) {
 }
 
 // LookupSRV tries to resolve an SRV query of the given service,
-// protocol, and domain name, as specified in RFC 2782. In most cases
-// the proto argument can be the same as the corresponding
-// Addr.Network(). The returned records are sorted by priority 
-// and randomized by weight within a priority.
+// protocol, and domain name.  The proto is "tcp" or "udp".
+// The returned records are sorted by priority and randomized
+// by weight within a priority.
+//
+// LookupSRV constructs the DNS name to look up following RFC 2782.
+// That is, it looks up _service._proto.name.  To accommodate services
+// publishing SRV records under non-standard names, if both service
+// and proto are empty strings, LookupSRV looks up name directly.
 func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.Error) {
-	target := "_" + service + "._" + proto + "." + name
+	var target string
+	if service == "" && proto == "" {
+		target = name
+	} else {
+		target = "_" + service + "._" + proto + "." + name
+	}
 	lines, err := queryDNS(target, "srv")
 	if err != nil {
 		return
