@@ -16,6 +16,7 @@ GOFILES=\
 	imagenew.go\
 	iocopyn.go\
 	main.go\
+	mapdelete.go\
 	math.go\
 	netdial.go\
 	netudpgroup.go\
