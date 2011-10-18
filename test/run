@@ -23,7 +23,7 @@ Xarm)
 	exit 1
 esac
 
-export G=${A}g
+export G="${A}g ${GCFLAGS}"
 export L=${A}l
 export GOTRACEBACK=0
 export LANG=C
