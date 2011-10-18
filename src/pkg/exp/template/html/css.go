@@ -144,6 +144,15 @@ func skipCSSSpace(c []byte) []byte {
 	return c
 }
 
+// isCSSSpace returns whether b is a CSS space char as defined in wc.
+func isCSSSpace(b byte) bool {
+	switch b {
+	case '\t', '\n', '\f', '\r', ' ':
+		return true
+	}
+	return false
+}
+
 // cssEscaper escapes HTML and CSS special characters using \<hex>+ escapes.
 func cssEscaper(args ...interface{}) string {
 	s, _ := stringify(args...)
@@ -198,7 +207,7 @@ func cssEscaper(args ...interface{}) string {
 		b.WriteString(s[written:i])
 		b.WriteString(repl)
 		written = i + utf8.RuneLen(r)
-		if repl != `\\` && (written == len(s) || isHex(s[written])) {
+		if repl != `\\` && (written == len(s) || isHex(s[written]) || isCSSSpace(s[written])) {
 			b.WriteByte(' ')
 		}
 	}
