@@ -129,6 +129,7 @@ EXTERN	int	havedynamic;
 EXTERN	Segment	segtext;
 EXTERN	Segment	segdata;
 EXTERN	Segment	segsym;
+EXTERN	Segment segdwarf;
 
 void	addlib(char *src, char *obj);
 void	addlibpath(char *srcref, char *objref, char *file, char *pkg);

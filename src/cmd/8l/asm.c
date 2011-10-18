@@ -660,7 +660,7 @@ asmb(void)
 {
 	int32 v, magic;
 	int a, dynsym;
-	uint32 symo, startva, machlink;
+	uint32 symo, startva, dwarfoff, machlink;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
@@ -691,8 +691,19 @@ asmb(void)
 	datblk(segdata.vaddr, segdata.filelen);
 
 	machlink = 0;
-	if(HEADTYPE == Hdarwin)
+	if(HEADTYPE == Hdarwin) {
+		if(debug['v'])
+			Bprint(&bso, "%5.2f dwarf\n", cputime());
+
+		dwarfoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND);
+		cseek(dwarfoff);
+
+		segdwarf.fileoff = cpos();
+		dwarfemitdebugsections();
+		segdwarf.filelen = cpos() - segdwarf.fileoff;
+
 		machlink = domacholink();
+	}
 
 	if(iself) {
 		/* index of elf text section; needed by asmelfsym, double-checked below */
@@ -772,7 +783,6 @@ asmb(void)
 				cflush();
 			}
 			break;
-		case Hdarwin:
 		case Hwindows:
 			if(debug['v'])
 				Bprint(&bso, "%5.2f dwarf\n", cputime());
