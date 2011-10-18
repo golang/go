@@ -356,7 +356,7 @@ regalloc(Node *n, Type *t, Node *o)
 {
 	int i, et, fixfree, floatfree;
 
-	if(debug['r']) {
+	if(0 && debug['r']) {
 		fixfree = 0;
 		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
 			if(reg[i] == 0)
@@ -429,7 +429,7 @@ regfree(Node *n)
 {
 	int i, fixfree, floatfree;
 
-	if(debug['r']) {
+	if(0 && debug['r']) {
 		fixfree = 0;
 		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
 			if(reg[i] == 0)
