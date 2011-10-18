@@ -27,9 +27,13 @@ func NewRat(a, b int64) *Rat {
 
 // SetFrac sets z to a/b and returns z.
 func (z *Rat) SetFrac(a, b *Int) *Rat {
-	z.a.Set(a)
 	z.a.neg = a.neg != b.neg
-	z.b = z.b.set(b.abs)
+	babs := b.abs
+	if &z.a == b || alias(z.a.abs, babs) {
+		babs = nat(nil).set(babs) // make a copy
+	}
+	z.a.abs = z.a.abs.set(a.abs)
+	z.b = z.b.set(babs)
 	return z.norm()
 }
 
