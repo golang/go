@@ -7,11 +7,13 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
 	"go/ast"
 	"go/parser"
+	"go/printer"
 	"go/token"
 	"os"
 	"path/filepath"
@@ -43,7 +45,9 @@ func Usage() {
 // File is a wrapper for the state of a file used in the parser.
 // The parse tree walkers are all methods of this type.
 type File struct {
-	file *token.File
+	fset *token.FileSet
+	file *ast.File
+	b    bytes.Buffer // for use by methods
 }
 
 func main() {
@@ -97,7 +101,7 @@ func doFile(name string, reader io.Reader) {
 		errorf("%s: %s", name, err)
 		return
 	}
-	file := &File{fs.File(parsedFile.Pos())}
+	file := &File{fset: fs, file: parsedFile}
 	file.checkFile(name, parsedFile)
 }
 
@@ -154,13 +158,13 @@ func (f *File) Badf(pos token.Pos, format string, args ...interface{}) {
 
 // Warn reports an error but does not set the exit code.
 func (f *File) Warn(pos token.Pos, args ...interface{}) {
-	loc := f.file.Position(pos).String() + ": "
+	loc := f.fset.Position(pos).String() + ": "
 	fmt.Fprint(os.Stderr, loc+fmt.Sprintln(args...))
 }
 
 // Warnf reports a formatted error but does not set the exit code.
 func (f *File) Warnf(pos token.Pos, format string, args ...interface{}) {
-	loc := f.file.Position(pos).String() + ": "
+	loc := f.fset.Position(pos).String() + ": "
 	fmt.Fprintf(os.Stderr, loc+format+"\n", args...)
 }
 
@@ -177,8 +181,180 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		f.checkCallExpr(n)
 	case *ast.Field:
 		f.checkFieldTag(n)
+	case *ast.FuncDecl:
+		f.checkMethodDecl(n)
+	case *ast.InterfaceType:
+		f.checkInterfaceType(n)
 	}
 	return f
+}
+
+// checkMethodDecl checks for canonical method signatures
+// in method declarations.
+func (f *File) checkMethodDecl(d *ast.FuncDecl) {
+	if d.Recv == nil {
+		// not a method
+		return
+	}
+
+	f.checkMethod(d.Name, d.Type)
+}
+
+// checkInterfaceType checks for canonical method signatures
+// in interface definitions.
+func (f *File) checkInterfaceType(t *ast.InterfaceType) {
+	for _, field := range t.Methods.List {
+		for _, id := range field.Names {
+			f.checkMethod(id, field.Type.(*ast.FuncType))
+		}
+	}
+}
+
+type MethodSig struct {
+	args    []string
+	results []string
+}
+
+// canonicalMethods lists the input and output types for Go methods
+// that are checked using dynamic interface checks.  Because the
+// checks are dynamic, such methods would not cause a compile error
+// if they have the wrong signature: instead the dynamic check would
+// fail, sometimes mysteriously.  If a method is found with a name listed
+// here but not the input/output types listed here, govet complains.
+//
+// A few of the canonical methods have very common names.
+// For example, a type might implement a Scan method that
+// has nothing to do with fmt.Scanner, but we still want to check
+// the methods that are intended to implement fmt.Scanner.
+// To do that, the arguments that have a + prefix are treated as
+// signals that the canonical meaning is intended: if a Scan
+// method doesn't have a fmt.ScanState as its first argument,
+// we let it go.  But if it does have a fmt.ScanState, then the
+// rest has to match.
+var canonicalMethods = map[string]MethodSig{
+	// "Flush": {{}, {"os.Error"}}, // http.Flusher and jpeg.writer conflict
+	"Format":        {[]string{"=fmt.State", "int"}, []string{}},                // fmt.Formatter
+	"GobDecode":     {[]string{"[]byte"}, []string{"os.Error"}},                 // gob.GobDecoder
+	"GobEncode":     {[]string{}, []string{"[]byte", "os.Error"}},               // gob.GobEncoder
+	"MarshalJSON":   {[]string{}, []string{"[]byte", "os.Error"}},               // json.Marshaler
+	"MarshalXML":    {[]string{}, []string{"[]byte", "os.Error"}},               // xml.Marshaler
+	"Peek":          {[]string{"=int"}, []string{"[]byte", "os.Error"}},         // image.reader (matching bufio.Reader)
+	"ReadByte":      {[]string{}, []string{"byte", "os.Error"}},                 // io.ByteReader
+	"ReadFrom":      {[]string{"=io.Reader"}, []string{"int64", "os.Error"}},    // io.ReaderFrom
+	"ReadRune":      {[]string{}, []string{"int", "int", "os.Error"}},           // io.RuneReader
+	"Scan":          {[]string{"=fmt.ScanState", "int"}, []string{"os.Error"}},  // fmt.Scanner
+	"Seek":          {[]string{"=int64", "int"}, []string{"int64", "os.Error"}}, // io.Seeker
+	"UnmarshalJSON": {[]string{"[]byte"}, []string{"os.Error"}},                 // json.Unmarshaler
+	"UnreadByte":    {[]string{}, []string{"os.Error"}},
+	"UnreadRune":    {[]string{}, []string{"os.Error"}},
+	"WriteByte":     {[]string{"byte"}, []string{"os.Error"}},                // jpeg.writer (matching bufio.Writer)
+	"WriteTo":       {[]string{"=io.Writer"}, []string{"int64", "os.Error"}}, // io.WriterTo
+}
+
+func (f *File) checkMethod(id *ast.Ident, t *ast.FuncType) {
+	// Expected input/output.
+	expect, ok := canonicalMethods[id.Name]
+	if !ok {
+		return
+	}
+
+	// Actual input/output
+	args := typeFlatten(t.Params.List)
+	var results []ast.Expr
+	if t.Results != nil {
+		results = typeFlatten(t.Results.List)
+	}
+
+	// Do the =s (if any) all match?
+	if !f.matchParams(expect.args, args, "=") || !f.matchParams(expect.results, results, "=") {
+		return
+	}
+
+	// Everything must match.
+	if !f.matchParams(expect.args, args, "") || !f.matchParams(expect.results, results, "") {
+		expectFmt := id.Name + "(" + argjoin(expect.args) + ")"
+		if len(expect.results) == 1 {
+			expectFmt += " " + argjoin(expect.results)
+		} else if len(expect.results) > 1 {
+			expectFmt += " (" + argjoin(expect.results) + ")"
+		}
+
+		f.b.Reset()
+		if err := printer.Fprint(&f.b, f.fset, t); err != nil {
+			fmt.Fprintf(&f.b, "<%s>", err)
+		}
+		actual := f.b.String()
+		if strings.HasPrefix(actual, "func(") {
+			actual = actual[4:]
+		}
+		actual = id.Name + actual
+
+		f.Warnf(id.Pos(), "method %s should have signature %s", actual, expectFmt)
+	}
+}
+
+func argjoin(x []string) string {
+	y := make([]string, len(x))
+	for i, s := range x {
+		if s[0] == '=' {
+			s = s[1:]
+		}
+		y[i] = s
+	}
+	return strings.Join(y, ", ")
+}
+
+// Turn parameter list into slice of types
+// (in the ast, types are Exprs).
+// Have to handle f(int, bool) and f(x, y, z int)
+// so not a simple 1-to-1 conversion.
+func typeFlatten(l []*ast.Field) []ast.Expr {
+	var t []ast.Expr
+	for _, f := range l {
+		if len(f.Names) == 0 {
+			t = append(t, f.Type)
+			continue
+		}
+		for _ = range f.Names {
+			t = append(t, f.Type)
+		}
+	}
+	return t
+}
+
+// Does each type in expect with the given prefix match the corresponding type in actual?
+func (f *File) matchParams(expect []string, actual []ast.Expr, prefix string) bool {
+	for i, x := range expect {
+		if !strings.HasPrefix(x, prefix) {
+			continue
+		}
+		if i >= len(actual) {
+			return false
+		}
+		if !f.matchParamType(x, actual[i]) {
+			return false
+		}
+	}
+	if prefix == "" && len(actual) > len(expect) {
+		return false
+	}
+	return true
+}
+
+// Does this one type match?
+func (f *File) matchParamType(expect string, actual ast.Expr) bool {
+	if strings.HasPrefix(expect, "=") {
+		expect = expect[1:]
+	}
+	// Strip package name if we're in that package.
+	if n := len(f.file.Name.Name); len(expect) > n && expect[:n] == f.file.Name.Name && expect[n] == '.' {
+		expect = expect[n+1:]
+	}
+
+	// Overkill but easy.
+	f.b.Reset()
+	printer.Fprint(&f.b, f.fset, actual)
+	return f.b.String() == expect
 }
 
 // checkField checks a struct field tag.
@@ -382,6 +558,13 @@ func BadFunctionUsedInTests() {
 
 type BadTypeUsedInTests struct {
 	X int "hello" // ERROR "struct field tag"
+}
+
+func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, int[)] os.Error"
+}
+
+type BadInterfaceUsedInTests interface {
+	ReadByte() byte // ERROR "method ReadByte[(][)] byte should have signature ReadByte[(][)] [(]byte, os.Error[)]"
 }
 
 // printf is used by the test.
