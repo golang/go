@@ -88,6 +88,10 @@ type S struct {
 	G G // a struct field that GoStrings
 }
 
+type SI struct {
+	I interface{}
+}
+
 // A type with a String method with pointer receiver for testing %p
 type P int
 
@@ -352,6 +356,7 @@ var fmttests = []struct {
 	{"%#v", map[string]int{"a": 1}, `map[string] int{"a":1}`},
 	{"%#v", map[string]B{"a": {1, 2}}, `map[string] fmt_test.B{"a":fmt_test.B{I:1, j:2}}`},
 	{"%#v", []string{"a", "b"}, `[]string{"a", "b"}`},
+	{"%#v", SI{}, `fmt_test.SI{I:interface { }(nil)}`},
 
 	// slices with other formats
 	{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},

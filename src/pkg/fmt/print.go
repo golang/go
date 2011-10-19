@@ -842,7 +842,7 @@ BigSwitch:
 		value := f.Elem()
 		if !value.IsValid() {
 			if goSyntax {
-				p.buf.WriteString(value.Type().String())
+				p.buf.WriteString(f.Type().String())
 				p.buf.Write(nilParenBytes)
 			} else {
 				p.buf.Write(nilAngleBytes)
