@@ -289,9 +289,10 @@ func (p *gcParser) parseExportedName() (*ast.Object, string) {
 // BasicType = identifier .
 //
 func (p *gcParser) parseBasicType() Type {
-	obj := Universe.Lookup(p.expect(scanner.Ident))
+	id := p.expect(scanner.Ident)
+	obj := Universe.Lookup(id)
 	if obj == nil || obj.Kind != ast.Typ {
-		p.errorf("not a basic type: %s", obj.Name)
+		p.errorf("not a basic type: %s", id)
 	}
 	return obj.Type.(Type)
 }
