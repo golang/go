@@ -14,6 +14,137 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-10-18">2011-10-18</h2>
+
+<pre>
+This weekly snapshot includes some language and package changes that may
+require code changes. Please read these notes carefully, as there are many
+changes and your code will likely be affected.
+
+The syntax for map deletion has been changed. Code that looks like:
+	m[x] = 0, false
+should be written as:
+	delete(m, x)
+The compiler still accepts m[x] = 0, false for now; even so, you can use gofix
+to rewrite such assignments into delete(m, x).
+
+The Go compiler will reject a return statement without arguments when any of
+the result variables has been shadowed. Code rejected as a result of this
+change is likely to be buggy.
+
+Receive-only channels (<-chan T) cannot be closed.
+The compiler will diagnose such attempts.
+
+The first element of a map iteration is chosen at random. Code that depends on
+iteration order will need to be updated.
+
+Goroutines may be run during program initialization.
+
+A string may be appended to a byte slice. This code is now legal:
+	var b []byte
+	var s string
+	b = append(b, s...)
+
+The gotry command and its associated try package have been deleted.
+It was a fun experiment that - in the end - didn't carry its weight.
+
+The gotype tool has been moved to exp/gotype and its associated go/types
+package has been moved to exp/types. The deprecated go/typechecker package has
+been deleted.
+
+The enbflint tool has been moved to pkg/exp/ebnflint and its associated ebnf
+package has been moved to pkg/exp/ebnf.
+
+The netchan package has been moved to old/netchan.
+
+The http/spdy package has been moved to exp/spdy.
+
+The exp/datafmt package has been deleted.
+
+The container/vector package has been deleted. Slices are better:
+	http://code.google.com/p/go-wiki/wiki/SliceTricks
+
+Other changes:
+* 5l/6l/8l: correct ELFRESERVE diagnostic (thanks Anthony Martin).
+* 6l/8l: support OS X code signing (thanks Mikkel Krautz).
+* asn1: accept UTF8 strings as ASN.1 ANY values.
+* big: handle aliasing correctly for Rat.SetFrac.
+* build: add missing nuke target (thanks Anthony Martin),
+	catch future accidental dependencies to exp or old packages,
+	more robustly detect gold 2.20 (thanks Christopher Wedgwood),
+	pass $GCFLAGS to compiler,
+	stop on failed deps.bash.
+* crypto/tls: add 3DES ciphersuites,
+	add server side SNI support,
+	fetch root CA from Windows store (thanks Mikkel Krautz),
+	fetch root certificates using Mac OS API (thanks Mikkel Krautz),
+	fix broken looping code in windows root CA fetcher (thanks Mikkel Krautz),
+	more Unix root certificate locations.
+* crypto/x509: add code for dealing with PKIX public keys,
+	keep the raw Subject and Issuer.
+* csv: fix overly aggressive TrimLeadingSpace.
+* exp/ssh: general cleanups for client support (thanks Dave Cheney).
+* exp/template/html: fix bug in cssEscaper.
+* exp/terminal: split terminal handling from exp/ssh.
+* exp/winfsnotify: filesystem watcher for Windows (thanks Hector Chu).
+* fmt: fix test relying on map iteration order.
+* gc: changes to export format in preparation for inlining,
+	pass FlagNoPointers to runtime.new,
+	preserve uint8 and byte distinction in errors and import data,
+	stricter multiple assignment + test,
+	treat uintptr as potentially containing a pointer.
+* go/scanner: remove AllowIllegalChars mode.
+* go/token: document deserialization property.
+* gob: avoid one copy for every message written.
+* godefs: add enum/const testdata (thanks Dave Cheney).
+* godoc: generate package toc in template, not in JavaScript,
+	show "unexported" declarations when executing "godoc builtin",
+	show correct source name with -path.
+* gofix: make fix order explicit, add mapdelete.
+* gofmt: fix //line handling,
+	disallow rewrites for incomplete programs.
+* gotest: avoid conflicts with the name of the tested package (thanks Esko Luontola),
+	test example code.
+* goyacc: clean up after units (thanks Anthony Martin),
+	make more gofmt-compliant.
+* html: add a Render function, various bug fixes and improvements,
+	parser improvements (thanks Andrew Balholm).
+* http: DoS protection: cap non-Handler Request.Body reads,
+	RoundTrippers shouldn't mutate Request,
+	avoid panic caused by nil URL (thanks Anthony Martin),
+	fix read timeouts and closing,
+	remove Request.RawURL.
+* image/tiff: implement PackBits decoding (thanks Benny Siegert).
+* ld: fix "cannot create 8.out.exe" (thanks Jaroslavas Počepko).
+* misc/emacs: add a "godoc" command, like M-x man (thanks Evan Martin).
+* misc/swig: delete binaries (thanks Anthony Martin).
+* misc/windows: automated toolchain packager (thanks Joe Poirier).
+* net/windows: implement ip protocol name to number resolver (thanks Alex Brainman).
+* net: add File method to IPConn (thanks Mikio Hara),
+	allow LookupSRV on non-standard DNS names,
+	fix "unexpected socket family" error from WriteToUDP (thanks Albert Strasheim),
+	fix socket leak in case of Dial failure (thanks Chris Farmiloe),
+	remove duplicate error information in Dial (thanks Andrey Mirtchovski),
+	return error from CloseRead and CloseWrite (thanks Albert Strasheim),
+	skip ICMP test on Windows too unless uid 0.
+* reflect: disallow Interface method on Value obtained via unexported name,
+	make unsafe use of SliceHeader gc-friendly.
+* rpc: don't panic on write error.
+* runtime: faster strings,
+	fix crash if user sets MemProfileRate=0,
+	fix crash when returning from syscall during gc (thanks Hector Chu),
+	fix memory leak in parallel garbage collector.
+* scanner: invalidate scanner.Position when no token is present.
+* spec: define order of multiple assignment.
+* syscall/windows: dll function load and calling changes (thanks Alex Brainman).
+* syscall: add #ifdefs to fix the manual corrections in ztypes_linux_arm.go (thanks Dave Cheney),
+	adjust Mount to accomodate stricter FS implementations.
+* testing: fix time reported for failing tests.
+* utf8: add Valid and ValidString.
+* websocket: tweak hybi ReadHandshake to support Firefox (thanks Luca Greco).
+* xml: match Marshal's XMLName behavior in Unmarshal (thanks Chris Farmiloe).
+</pre>
+
 <h2 id="2011-10-06">2011-10-06</h2>
 
 <pre>
