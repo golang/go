@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// HTTP client implementation. See RFC 2616.
+// 
+// This is the low-level Transport implementation of RoundTripper.
+// The high-level interface is in client.go.
+
 package http
 
 import (

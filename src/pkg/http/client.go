@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Primitive HTTP client. See RFC 2616.
+// HTTP client. See RFC 2616.
+// 
+// This is the high-level Client interface.
+// The low-level implementation is in transport.go.
 
 package http
 
