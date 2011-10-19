@@ -85,7 +85,7 @@ syn match       goType              /\<func\>/
 syn match       goDeclaration       /^func\>/
 
 " Predefined functions and values
-syn keyword     goBuiltins          append cap close complex copy imag len
+syn keyword     goBuiltins          append cap close complex copy delete imag len
 syn keyword     goBuiltins          make new panic print println real recover
 syn keyword     goConstants         iota true false nil
 
