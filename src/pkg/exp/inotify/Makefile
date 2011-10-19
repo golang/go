@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=os/inotify
+TARG=exp/inotify
 
 GOFILES_linux=\
 	inotify_linux.go\
