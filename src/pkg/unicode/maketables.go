@@ -269,22 +269,29 @@ func (char *Char) letterValue(s string, cas string) int {
 }
 
 func allCategories() []string {
-	a := make([]string, len(category))
-	i := 0
+	a := make([]string, 0, len(category))
 	for k := range category {
-		a[i] = k
-		i++
+		a = append(a, k)
 	}
+	sort.Strings(a)
 	return a
 }
 
 func all(scripts map[string][]Script) []string {
-	a := make([]string, len(scripts))
-	i := 0
+	a := make([]string, 0, len(scripts))
 	for k := range scripts {
-		a[i] = k
-		i++
+		a = append(a, k)
 	}
+	sort.Strings(a)
+	return a
+}
+
+func allCatFold(m map[string]map[int]bool) []string {
+	a := make([]string, 0, len(m))
+	for k := range m {
+		a = append(a, k)
+	}
+	sort.Strings(a)
 	return a
 }
 
@@ -411,7 +418,7 @@ func printCategories() {
 	if *tablelist == "all" {
 		fmt.Println("// Categories is the set of Unicode data tables.")
 		fmt.Println("var Categories = map[string] *RangeTable {")
-		for k := range category {
+		for _, k := range allCategories() {
 			fmt.Printf("\t%q: %s,\n", k, k)
 		}
 		fmt.Print("}\n\n")
@@ -724,7 +731,7 @@ func printScriptOrProperty(doProps bool) {
 			fmt.Println("// Scripts is the set of Unicode script tables.")
 			fmt.Println("var Scripts = map[string] *RangeTable{")
 		}
-		for k := range table {
+		for _, k := range all(table) {
 			fmt.Printf("\t%q: %s,\n", k, k)
 		}
 		fmt.Print("}\n\n")
@@ -1247,11 +1254,12 @@ func printCatFold(name string, m map[string]map[int]bool) {
 
 	fmt.Print(comment[name])
 	fmt.Printf("var %s = map[string]*RangeTable{\n", name)
-	for name := range m {
+	for _, name := range allCatFold(m) {
 		fmt.Printf("\t%q: fold%s,\n", name, name)
 	}
 	fmt.Printf("}\n\n")
-	for name, class := range m {
+	for _, name := range allCatFold(m) {
+		class := m[name]
 		dumpRange(
 			fmt.Sprintf("var fold%s = &RangeTable{\n", name),
 			func(code int) bool { return class[code] })
