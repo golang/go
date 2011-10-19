@@ -928,11 +928,11 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
 		return
 	}
 
-	asn1Issuer, err := asn1.Marshal(parent.Issuer.ToRDNSequence())
+	asn1Issuer, err := asn1.Marshal(parent.Subject.ToRDNSequence())
 	if err != nil {
 		return
 	}
-	asn1Subject, err := asn1.Marshal(parent.Subject.ToRDNSequence())
+	asn1Subject, err := asn1.Marshal(template.Subject.ToRDNSequence())
 	if err != nil {
 		return
 	}
