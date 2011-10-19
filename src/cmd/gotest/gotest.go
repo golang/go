@@ -153,8 +153,12 @@ func setEnvironment() {
 	if gc == "" {
 		gc = O + "g"
 	}
-	XGC = []string{gc, "-I", "_test", "-o", "_xtest_." + O}
-	GC = []string{gc, "-I", "_test", "_testmain.go"}
+	var gcflags []string
+	if gf := strings.TrimSpace(os.Getenv("GCFLAGS")); gf != "" {
+		gcflags = strings.Fields(gf)
+	}
+	XGC = append([]string{gc, "-I", "_test", "-o", "_xtest_." + O}, gcflags...)
+	GC = append(append([]string{gc, "-I", "_test"}, gcflags...), "_testmain.go")
 	gl := os.Getenv("GL")
 	if gl == "" {
 		gl = O + "l"
