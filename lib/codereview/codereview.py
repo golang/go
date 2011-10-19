@@ -230,6 +230,7 @@ class CL(object):
 		self.copied_from = None	# None means current user
 		self.mailed = False
 		self.private = False
+		self.lgtm = []
 
 	def DiskText(self):
 		cl = self
@@ -282,6 +283,8 @@ class CL(object):
 		if cl.copied_from:
 			s += "\tAuthor: " + cl.copied_from + "\n"
 		s += "\tReviewer: " + JoinComma(cl.reviewer) + "\n"
+		for (who, line) in cl.lgtm:
+			s += "\t\t" + who + ": " + line + "\n"
 		s += "\tCC: " + JoinComma(cl.cc) + "\n"
 		s += "\tFiles:\n"
 		for f in cl.files:
@@ -554,6 +557,13 @@ def LoadCL(ui, repo, name, web=True):
 		cl.url = server_url_base + name
 		cl.web = True
 		cl.private = d.get('private', False) != False
+		cl.lgtm = []
+		for m in d.get('messages', []):
+			if m.get('approval', False) == True:
+				who = re.sub('@.*', '', m.get('sender', ''))
+				text = re.sub("\n(.|\n)*", '', m.get('text', ''))
+				cl.lgtm.append((who, text))
+
 	set_status("loaded CL " + name)
 	return cl, ''
 
