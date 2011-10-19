@@ -105,6 +105,105 @@ const (
 	SizeofSockFilter        = 0x8
 	SizeofSockFprog         = 0x8
 	SizeofInotifyEvent      = 0x10
+	VINTR                   = 0
+	VQUIT                   = 0x1
+	VERASE                  = 0x2
+	VKILL                   = 0x3
+	VEOF                    = 0x4
+	VTIME                   = 0x5
+	VMIN                    = 0x6
+	VSWTC                   = 0x7
+	VSTART                  = 0x8
+	VSTOP                   = 0x9
+	VSUSP                   = 0xa
+	VEOL                    = 0xb
+	VREPRINT                = 0xc
+	VDISCARD                = 0xd
+	VWERASE                 = 0xe
+	VLNEXT                  = 0xf
+	VEOL2                   = 0x10
+	IGNBRK                  = 0x1
+	BRKINT                  = 0x2
+	IGNPAR                  = 0x4
+	PARMRK                  = 0x8
+	INPCK                   = 0x10
+	ISTRIP                  = 0x20
+	INLCR                   = 0x40
+	IGNCR                   = 0x80
+	ICRNL                   = 0x100
+	IUCLC                   = 0x200
+	IXON                    = 0x400
+	IXANY                   = 0x800
+	IXOFF                   = 0x1000
+	IMAXBEL                 = 0x2000
+	IUTF8                   = 0x4000
+	OPOST                   = 0x1
+	OLCUC                   = 0x2
+	ONLCR                   = 0x4
+	OCRNL                   = 0x8
+	ONOCR                   = 0x10
+	ONLRET                  = 0x20
+	OFILL                   = 0x40
+	OFDEL                   = 0x80
+	B0                      = 0
+	B50                     = 0x1
+	B75                     = 0x2
+	B110                    = 0x3
+	B134                    = 0x4
+	B150                    = 0x5
+	B200                    = 0x6
+	B300                    = 0x7
+	B600                    = 0x8
+	B1200                   = 0x9
+	B1800                   = 0xa
+	B2400                   = 0xb
+	B4800                   = 0xc
+	B9600                   = 0xd
+	B19200                  = 0xe
+	B38400                  = 0xf
+	CSIZE                   = 0x30
+	CS5                     = 0
+	CS6                     = 0x10
+	CS7                     = 0x20
+	CS8                     = 0x30
+	CSTOPB                  = 0x40
+	CREAD                   = 0x80
+	PARENB                  = 0x100
+	PARODD                  = 0x200
+	HUPCL                   = 0x400
+	CLOCAL                  = 0x800
+	B57600                  = 0x1001
+	B115200                 = 0x1002
+	B230400                 = 0x1003
+	B460800                 = 0x1004
+	B500000                 = 0x1005
+	B576000                 = 0x1006
+	B921600                 = 0x1007
+	B1000000                = 0x1008
+	B1152000                = 0x1009
+	B1500000                = 0x100a
+	B2000000                = 0x100b
+	B2500000                = 0x100c
+	B3000000                = 0x100d
+	B3500000                = 0x100e
+	B4000000                = 0x100f
+	ISIG                    = 0x1
+	ICANON                  = 0x2
+	XCASE                   = 0x4
+	ECHO                    = 0x8
+	ECHOE                   = 0x10
+	ECHOK                   = 0x20
+	ECHONL                  = 0x40
+	NOFLSH                  = 0x80
+	TOSTOP                  = 0x100
+	ECHOCTL                 = 0x200
+	ECHOPRT                 = 0x400
+	ECHOKE                  = 0x800
+	FLUSHO                  = 0x1000
+	PENDIN                  = 0x4000
+	IEXTEN                  = 0x8000
+	TCGETS                  = 0x5401
+	TCSETS                  = 0x5402
 )
 
 // Types
@@ -485,4 +584,16 @@ type EpollEvent struct {
 	PadFd  int32
 	Fd     int32
 	Pad    int32
+}
+
+type Termios struct {
+	Iflag        uint32
+	Oflag        uint32
+	Cflag        uint32
+	Lflag        uint32
+	Line         uint8
+	Cc           [32]uint8
+	Pad_godefs_0 [3]byte
+	Ispeed       uint32
+	Ospeed       uint32
 }
