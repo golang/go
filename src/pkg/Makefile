@@ -203,9 +203,7 @@ NOTEST+=\
 	exp/gui\
 	exp/gui/x11\
 	exp/sql/driver\
-	go/ast\
 	go/doc\
-	go/token\
 	hash\
 	http/pprof\
 	http/httptest\

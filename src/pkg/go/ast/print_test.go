@@ -41,10 +41,10 @@ var tests = []struct {
 		4  }`},
 
 	// structs
-	{struct{ x, y int }{42, 991},
-		`0  struct { x int; y int } {
-		1  .  x: 42
-		2  .  y: 991
+	{struct{ X, Y int }{42, 991},
+		`0  struct { X int; Y int } {
+		1  .  X: 42
+		2  .  Y: 991
 		3  }`},
 }
 
