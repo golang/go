@@ -84,7 +84,7 @@ func dumpLevel(w io.Writer, n *Node, level int) os.Error {
 	case TextNode:
 		fmt.Fprintf(w, "%q", n.Data)
 	case CommentNode:
-		return os.NewError("COMMENT")
+		fmt.Fprintf(w, "<!-- %s -->", n.Data)
 	case DoctypeNode:
 		fmt.Fprintf(w, "<!DOCTYPE %s>", n.Data)
 	case scopeMarkerNode:
@@ -123,7 +123,7 @@ func TestParser(t *testing.T) {
 		rc := make(chan io.Reader)
 		go readDat(filename, rc)
 		// TODO(nigeltao): Process all test cases, not just a subset.
-		for i := 0; i < 27; i++ {
+		for i := 0; i < 29; i++ {
 			// Parse the #data section.
 			b, err := ioutil.ReadAll(<-rc)
 			if err != nil {
