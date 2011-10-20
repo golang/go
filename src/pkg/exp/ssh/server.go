@@ -267,9 +267,9 @@ func (s *ServerConnection) Handshake(conn net.Conn) os.Error {
 	}
 	magics.serverVersion = serverVersion[:len(serverVersion)-2]
 
-	version, ok := readVersion(s.transport)
-	if !ok {
-		return os.NewError("failed to read version string from client")
+	version, err := readVersion(s.transport)
+	if err != nil {
+		return err
 	}
 	magics.clientVersion = version
 

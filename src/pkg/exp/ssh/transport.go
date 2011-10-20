@@ -332,16 +332,15 @@ func (t truncatingMAC) Size() int {
 const maxVersionStringBytes = 1024
 
 // Read version string as specified by RFC 4253, section 4.2.
-func readVersion(r io.Reader) (versionString []byte, ok bool) {
-	versionString = make([]byte, 0, 64)
-	seenCR := false
-
+func readVersion(r io.Reader) ([]byte, os.Error) {
+	versionString := make([]byte, 0, 64)
+	var ok, seenCR bool
 	var buf [1]byte
 forEachByte:
 	for len(versionString) < maxVersionStringBytes {
 		_, err := io.ReadFull(r, buf[:])
 		if err != nil {
-			return
+			return nil, err
 		}
 		b := buf[0]
 
@@ -360,10 +359,10 @@ forEachByte:
 		versionString = append(versionString, b)
 	}
 
-	if ok {
-		// We need to remove the CR from versionString
-		versionString = versionString[:len(versionString)-1]
+	if !ok {
+		return nil, os.NewError("failed to read version string")
 	}
 
-	return
+	// We need to remove the CR from versionString
+	return versionString[:len(versionString)-1], nil
 }
