@@ -70,15 +70,11 @@ func TestNotifyEvents(t *testing.T) {
 	if _, err = file.WriteString("hello, world"); err != nil {
 		t.Fatalf("failed to write to test file: %s", err)
 	}
-	if err = file.Sync(); err != nil {
-		t.Fatalf("failed to sync test file: %s", err)
-	}
-	expect(t, watcher.Event, testFile, FS_MODIFY)
-	expect(t, watcher.Event, testFile, FS_MODIFY)
-
 	if err = file.Close(); err != nil {
 		t.Fatalf("failed to close test file: %s", err)
 	}
+	expect(t, watcher.Event, testFile, FS_MODIFY)
+	expect(t, watcher.Event, testFile, FS_MODIFY)
 
 	if err = os.Rename(testFile, testFile2); err != nil {
 		t.Fatalf("failed to rename test file: %s", err)
