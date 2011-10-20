@@ -30,9 +30,6 @@ type writer interface {
 // would become a tree containing <html>, <head> and <body> elements. Another
 // example is that the programmatic equivalent of "a<head>b</head>c" becomes
 // "<html><head><head/><body>abc</body></html>".
-//
-// Comment nodes are elided from the output, analogous to Parse skipping over
-// any <!--comment--> input.
 func Render(w io.Writer, n *Node) os.Error {
 	if x, ok := w.(writer); ok {
 		return render(x, n)
@@ -61,6 +58,15 @@ func render(w writer, n *Node) os.Error {
 	case ElementNode:
 		// No-op.
 	case CommentNode:
+		if _, err := w.WriteString("<!--"); err != nil {
+			return err
+		}
+		if _, err := w.WriteString(n.Data); err != nil {
+			return err
+		}
+		if _, err := w.WriteString("-->"); err != nil {
+			return err
+		}
 		return nil
 	case DoctypeNode:
 		if _, err := w.WriteString("<!DOCTYPE "); err != nil {
