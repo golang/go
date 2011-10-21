@@ -14,10 +14,10 @@ import (
 )
 
 // A Rat represents a quotient a/b of arbitrary precision.
-// The zero value for a Rat, 0/0, is not a legal Rat.
+// The zero value for a Rat represents the value 0.
 type Rat struct {
 	a Int
-	b nat
+	b nat // len(b) == 0 acts like b == 1
 }
 
 // NewRat creates a new Rat with numerator a and denominator b.
@@ -29,8 +29,11 @@ func NewRat(a, b int64) *Rat {
 func (z *Rat) SetFrac(a, b *Int) *Rat {
 	z.a.neg = a.neg != b.neg
 	babs := b.abs
+	if len(babs) == 0 {
+		panic("division by zero")
+	}
 	if &z.a == b || alias(z.a.abs, babs) {
-		babs = nat(nil).set(babs) // make a copy
+		babs = nat{}.set(babs) // make a copy
 	}
 	z.a.abs = z.a.abs.set(a.abs)
 	z.b = z.b.set(babs)
@@ -40,6 +43,9 @@ func (z *Rat) SetFrac(a, b *Int) *Rat {
 // SetFrac64 sets z to a/b and returns z.
 func (z *Rat) SetFrac64(a, b int64) *Rat {
 	z.a.SetInt64(a)
+	if b == 0 {
+		panic("division by zero")
+	}
 	if b < 0 {
 		b = -b
 		z.a.neg = !z.a.neg
@@ -51,14 +57,14 @@ func (z *Rat) SetFrac64(a, b int64) *Rat {
 // SetInt sets z to x (by making a copy of x) and returns z.
 func (z *Rat) SetInt(x *Int) *Rat {
 	z.a.Set(x)
-	z.b = z.b.setWord(1)
+	z.b = z.b.make(0)
 	return z
 }
 
 // SetInt64 sets z to x and returns z.
 func (z *Rat) SetInt64(x int64) *Rat {
 	z.a.SetInt64(x)
-	z.b = z.b.setWord(1)
+	z.b = z.b.make(0)
 	return z
 }
 
@@ -91,7 +97,15 @@ func (z *Rat) Inv(x *Rat) *Rat {
 		panic("division by zero")
 	}
 	z.Set(x)
-	z.a.abs, z.b = z.b, z.a.abs // sign doesn't change
+	a := z.b
+	if len(a) == 0 {
+		a = a.setWord(1) // materialize numerator
+	}
+	b := z.a.abs
+	if b.cmp(natOne) == 0 {
+		b = b.make(0) // normalize denominator
+	}
+	z.a.abs, z.b = a, b // sign doesn't change
 	return z
 }
 
@@ -107,21 +121,24 @@ func (x *Rat) Sign() int {
 
 // IsInt returns true if the denominator of x is 1.
 func (x *Rat) IsInt() bool {
-	return len(x.b) == 1 && x.b[0] == 1
+	return len(x.b) == 0 || x.b.cmp(natOne) == 0
 }
 
-// Num returns the numerator of z; it may be <= 0.
-// The result is a reference to z's numerator; it
-// may change if a new value is assigned to z.
-func (z *Rat) Num() *Int {
-	return &z.a
+// Num returns the numerator of x; it may be <= 0.
+// The result is a reference to x's numerator; it
+// may change if a new value is assigned to x.
+func (x *Rat) Num() *Int {
+	return &x.a
 }
 
-// Denom returns the denominator of z; it is always > 0.
-// The result is a reference to z's denominator; it
-// may change if a new value is assigned to z.
-func (z *Rat) Denom() *Int {
-	return &Int{false, z.b}
+// Denom returns the denominator of x; it is always > 0.
+// The result is a reference to x's denominator; it
+// may change if a new value is assigned to x.
+func (x *Rat) Denom() *Int {
+	if len(x.b) == 0 {
+		return &Int{abs: nat{1}}
+	}
+	return &Int{abs: x.b}
 }
 
 func gcd(x, y nat) nat {
@@ -139,24 +156,47 @@ func gcd(x, y nat) nat {
 }
 
 func (z *Rat) norm() *Rat {
-	f := gcd(z.a.abs, z.b)
-	if len(z.a.abs) == 0 {
-		// z == 0
-		z.a.neg = false // normalize sign
-		z.b = z.b.setWord(1)
-		return z
-	}
-	if f.cmp(natOne) != 0 {
-		z.a.abs, _ = z.a.abs.div(nil, z.a.abs, f)
-		z.b, _ = z.b.div(nil, z.b, f)
+	switch {
+	case len(z.a.abs) == 0:
+		// z == 0 - normalize sign and denominator
+		z.a.neg = false
+		z.b = z.b.make(0)
+	case len(z.b) == 0:
+		// z is normalized int - nothing to do
+	case z.b.cmp(natOne) == 0:
+		// z is int - normalize denominator
+		z.b = z.b.make(0)
+	default:
+		if f := gcd(z.a.abs, z.b); f.cmp(natOne) != 0 {
+			z.a.abs, _ = z.a.abs.div(nil, z.a.abs, f)
+			z.b, _ = z.b.div(nil, z.b, f)
+		}
 	}
 	return z
 }
 
-func mulNat(x *Int, y nat) *Int {
+// mulDenom sets z to the denominator product x*y (by taking into
+// account that 0 values for x or y must be interpreted as 1) and
+// returns z.
+func mulDenom(z, x, y nat) nat {
+	switch {
+	case len(x) == 0:
+		return z.set(y)
+	case len(y) == 0:
+		return z.set(x)
+	}
+	return z.mul(x, y)
+}
+
+// scaleDenom computes x*f.
+// If f == 0 (zero value of denominator), the result is (a copy of) x.
+func scaleDenom(x *Int, f nat) *Int {
 	var z Int
-	z.abs = z.abs.mul(x.abs, y)
-	z.neg = len(z.abs) > 0 && x.neg
+	if len(f) == 0 {
+		return z.Set(x)
+	}
+	z.abs = z.abs.mul(x.abs, f)
+	z.neg = x.neg
 	return &z
 }
 
@@ -167,31 +207,31 @@ func mulNat(x *Int, y nat) *Int {
 //   +1 if x >  y
 //
 func (x *Rat) Cmp(y *Rat) int {
-	return mulNat(&x.a, y.b).Cmp(mulNat(&y.a, x.b))
+	return scaleDenom(&x.a, y.b).Cmp(scaleDenom(&y.a, x.b))
 }
 
 // Add sets z to the sum x+y and returns z.
 func (z *Rat) Add(x, y *Rat) *Rat {
-	a1 := mulNat(&x.a, y.b)
-	a2 := mulNat(&y.a, x.b)
+	a1 := scaleDenom(&x.a, y.b)
+	a2 := scaleDenom(&y.a, x.b)
 	z.a.Add(a1, a2)
-	z.b = z.b.mul(x.b, y.b)
+	z.b = mulDenom(z.b, x.b, y.b)
 	return z.norm()
 }
 
 // Sub sets z to the difference x-y and returns z.
 func (z *Rat) Sub(x, y *Rat) *Rat {
-	a1 := mulNat(&x.a, y.b)
-	a2 := mulNat(&y.a, x.b)
+	a1 := scaleDenom(&x.a, y.b)
+	a2 := scaleDenom(&y.a, x.b)
 	z.a.Sub(a1, a2)
-	z.b = z.b.mul(x.b, y.b)
+	z.b = mulDenom(z.b, x.b, y.b)
 	return z.norm()
 }
 
 // Mul sets z to the product x*y and returns z.
 func (z *Rat) Mul(x, y *Rat) *Rat {
 	z.a.Mul(&x.a, &y.a)
-	z.b = z.b.mul(x.b, y.b)
+	z.b = mulDenom(z.b, x.b, y.b)
 	return z.norm()
 }
 
@@ -201,8 +241,8 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
 	if len(y.a.abs) == 0 {
 		panic("division by zero")
 	}
-	a := mulNat(&x.a, y.b)
-	b := mulNat(&y.a, x.b)
+	a := scaleDenom(&x.a, y.b)
+	b := scaleDenom(&y.a, x.b)
 	z.a.abs = a.abs
 	z.b = b.abs
 	z.a.neg = a.neg != b.neg
@@ -281,7 +321,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		z.norm()
 	} else {
 		z.a.abs = z.a.abs.mul(z.a.abs, powTen)
-		z.b = z.b.setWord(1)
+		z.b = z.b.make(0)
 	}
 
 	return z, true
@@ -289,7 +329,11 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 
 // String returns a string representation of z in the form "a/b" (even if b == 1).
 func (z *Rat) String() string {
-	return z.a.String() + "/" + z.b.decimalString()
+	s := "/1"
+	if len(z.b) != 0 {
+		s = "/" + z.b.decimalString()
+	}
+	return z.a.String() + s
 }
 
 // RatString returns a string representation of z in the form "a/b" if b != 1,
@@ -311,6 +355,7 @@ func (z *Rat) FloatString(prec int) string {
 		}
 		return s
 	}
+	// z.b != 0
 
 	q, r := nat{}.div(nat{}, z.a.abs, z.b)
 

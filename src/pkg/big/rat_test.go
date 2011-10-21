@@ -11,6 +11,46 @@ import (
 	"testing"
 )
 
+func TestZeroRat(t *testing.T) {
+	var x, y, z Rat
+	y.SetFrac64(0, 42)
+
+	if x.Cmp(&y) != 0 {
+		t.Errorf("x and y should be both equal and zero")
+	}
+
+	if s := x.String(); s != "0/1" {
+		t.Errorf("got x = %s, want 0/1", s)
+	}
+
+	if s := x.RatString(); s != "0" {
+		t.Errorf("got x = %s, want 0", s)
+	}
+
+	z.Add(&x, &y)
+	if s := z.RatString(); s != "0" {
+		t.Errorf("got x+y = %s, want 0", s)
+	}
+
+	z.Sub(&x, &y)
+	if s := z.RatString(); s != "0" {
+		t.Errorf("got x-y = %s, want 0", s)
+	}
+
+	z.Mul(&x, &y)
+	if s := z.RatString(); s != "0" {
+		t.Errorf("got x*y = %s, want 0", s)
+	}
+
+	// check for division by zero
+	defer func() {
+		if s := recover(); s == nil || s.(string) != "division by zero" {
+			panic(s)
+		}
+	}()
+	z.Quo(&x, &y)
+}
+
 var setStringTests = []struct {
 	in, out string
 	ok      bool
@@ -174,7 +214,7 @@ func TestIsInt(t *testing.T) {
 }
 
 func TestRatAbs(t *testing.T) {
-	zero := NewRat(0, 1)
+	zero := new(Rat)
 	for _, a := range setStringTests {
 		x, ok := new(Rat).SetString(a.in)
 		if !ok {
@@ -192,7 +232,7 @@ func TestRatAbs(t *testing.T) {
 }
 
 func TestRatNeg(t *testing.T) {
-	zero := NewRat(0, 1)
+	zero := new(Rat)
 	for _, a := range setStringTests {
 		x, ok := new(Rat).SetString(a.in)
 		if !ok {
@@ -207,7 +247,7 @@ func TestRatNeg(t *testing.T) {
 }
 
 func TestRatInv(t *testing.T) {
-	zero := NewRat(0, 1)
+	zero := new(Rat)
 	for _, a := range setStringTests {
 		x, ok := new(Rat).SetString(a.in)
 		if !ok {

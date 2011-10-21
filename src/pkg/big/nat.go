@@ -35,7 +35,7 @@ import (
 // During arithmetic operations, denormalized values may occur but are
 // always normalized before returning the final result. The normalized
 // representation of 0 is the empty or nil slice (length = 0).
-
+//
 type nat []Word
 
 var (
@@ -447,10 +447,10 @@ func (z nat) mulRange(a, b uint64) nat {
 	case a == b:
 		return z.setUint64(a)
 	case a+1 == b:
-		return z.mul(nat(nil).setUint64(a), nat(nil).setUint64(b))
+		return z.mul(nat{}.setUint64(a), nat{}.setUint64(b))
 	}
 	m := (a + b) / 2
-	return z.mul(nat(nil).mulRange(a, m), nat(nil).mulRange(m+1, b))
+	return z.mul(nat{}.mulRange(a, m), nat{}.mulRange(m+1, b))
 }
 
 // q = (x-r)/y, with 0 <= r < y
@@ -588,7 +588,6 @@ func (x nat) bitLen() int {
 
 // MaxBase is the largest number base accepted for string conversions.
 const MaxBase = 'z' - 'a' + 10 + 1 // = hexValue('z') + 1
-
 
 func hexValue(ch int) Word {
 	d := MaxBase + 1 // illegal base
@@ -786,7 +785,7 @@ func (x nat) string(charset string) string {
 	}
 
 	// preserve x, create local copy for use in repeated divisions
-	q := nat(nil).set(x)
+	q := nat{}.set(x)
 	var r Word
 
 	// convert
@@ -1192,11 +1191,11 @@ func (n nat) probablyPrime(reps int) bool {
 		return false
 	}
 
-	nm1 := nat(nil).sub(n, natOne)
+	nm1 := nat{}.sub(n, natOne)
 	// 1<<k * q = nm1;
 	q, k := nm1.powersOfTwoDecompose()
 
-	nm3 := nat(nil).sub(nm1, natTwo)
+	nm3 := nat{}.sub(nm1, natTwo)
 	rand := rand.New(rand.NewSource(int64(n[0])))
 
 	var x, y, quotient nat
