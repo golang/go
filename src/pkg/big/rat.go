@@ -13,8 +13,8 @@ import (
 	"strings"
 )
 
-// A Rat represents a quotient a/b of arbitrary precision. The zero value for
-// a Rat, 0/0, is not a legal Rat.
+// A Rat represents a quotient a/b of arbitrary precision.
+// The zero value for a Rat, 0/0, is not a legal Rat.
 type Rat struct {
 	a Int
 	b nat
@@ -59,6 +59,39 @@ func (z *Rat) SetInt(x *Int) *Rat {
 func (z *Rat) SetInt64(x int64) *Rat {
 	z.a.SetInt64(x)
 	z.b = z.b.setWord(1)
+	return z
+}
+
+// Set sets z to x (by making a copy of x) and returns z.
+func (z *Rat) Set(x *Rat) *Rat {
+	if z != x {
+		z.a.Set(&x.a)
+		z.b = z.b.set(x.b)
+	}
+	return z
+}
+
+// Abs sets z to |x| (the absolute value of x) and returns z.
+func (z *Rat) Abs(x *Rat) *Rat {
+	z.Set(x)
+	z.a.neg = false
+	return z
+}
+
+// Neg sets z to -x and returns z.
+func (z *Rat) Neg(x *Rat) *Rat {
+	z.Set(x)
+	z.a.neg = len(z.a.abs) > 0 && !z.a.neg // 0 has no sign
+	return z
+}
+
+// Inv sets z to 1/x and returns z.
+func (z *Rat) Inv(x *Rat) *Rat {
+	if len(x.a.abs) == 0 {
+		panic("division by zero")
+	}
+	z.Set(x)
+	z.a.abs, z.b = z.b, z.a.abs // sign doesn't change
 	return z
 }
 
@@ -133,15 +166,8 @@ func mulNat(x *Int, y nat) *Int {
 //    0 if x == y
 //   +1 if x >  y
 //
-func (x *Rat) Cmp(y *Rat) (r int) {
+func (x *Rat) Cmp(y *Rat) int {
 	return mulNat(&x.a, y.b).Cmp(mulNat(&y.a, x.b))
-}
-
-// Abs sets z to |x| (the absolute value of x) and returns z.
-func (z *Rat) Abs(x *Rat) *Rat {
-	z.a.Abs(&x.a)
-	z.b = z.b.set(x.b)
-	return z
 }
 
 // Add sets z to the sum x+y and returns z.
@@ -183,20 +209,6 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
 	return z.norm()
 }
 
-// Neg sets z to -x (by making a copy of x if necessary) and returns z.
-func (z *Rat) Neg(x *Rat) *Rat {
-	z.a.Neg(&x.a)
-	z.b = z.b.set(x.b)
-	return z
-}
-
-// Set sets z to x (by making a copy of x if necessary) and returns z.
-func (z *Rat) Set(x *Rat) *Rat {
-	z.a.Set(&x.a)
-	z.b = z.b.set(x.b)
-	return z
-}
-
 func ratTok(ch int) bool {
 	return strings.IndexRune("+-/0123456789.eE", ch) >= 0
 }
@@ -219,23 +231,23 @@ func (z *Rat) Scan(s fmt.ScanState, ch int) os.Error {
 
 // SetString sets z to the value of s and returns z and a boolean indicating
 // success. s can be given as a fraction "a/b" or as a floating-point number
-// optionally followed by an exponent. If the operation failed, the value of z
-// is undefined.
+// optionally followed by an exponent. If the operation failed, the value of
+// z is undefined but the returned value is nil.
 func (z *Rat) SetString(s string) (*Rat, bool) {
 	if len(s) == 0 {
-		return z, false
+		return nil, false
 	}
 
 	// check for a quotient
 	sep := strings.Index(s, "/")
 	if sep >= 0 {
 		if _, ok := z.a.SetString(s[0:sep], 10); !ok {
-			return z, false
+			return nil, false
 		}
 		s = s[sep+1:]
 		var err os.Error
 		if z.b, _, err = z.b.scan(strings.NewReader(s), 10); err != nil {
-			return z, false
+			return nil, false
 		}
 		return z.norm(), true
 	}
@@ -248,10 +260,10 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	if e >= 0 {
 		if e < sep {
 			// The E must come after the decimal point.
-			return z, false
+			return nil, false
 		}
 		if _, ok := exp.SetString(s[e+1:], 10); !ok {
-			return z, false
+			return nil, false
 		}
 		s = s[0:e]
 	}
@@ -261,7 +273,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	}
 
 	if _, ok := z.a.SetString(s, 10); !ok {
-		return z, false
+		return nil, false
 	}
 	powTen := nat{}.expNN(natTen, exp.abs, nil)
 	if exp.neg {

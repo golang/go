@@ -311,7 +311,16 @@ func TestSetString(t *testing.T) {
 			t.Errorf("#%d (input '%s') ok incorrect (should be %t)", i, test.in, test.ok)
 			continue
 		}
-		if !ok1 || !ok2 {
+		if !ok1 {
+			if n1 != nil {
+				t.Errorf("#%d (input '%s') n1 != nil", i, test.in)
+			}
+			continue
+		}
+		if !ok2 {
+			if n2 != nil {
+				t.Errorf("#%d (input '%s') n2 != nil", i, test.in)
+			}
 			continue
 		}
 
