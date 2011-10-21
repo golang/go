@@ -107,6 +107,10 @@ func flag(i int) (f *flagSpec, value string, extra bool) {
 	if strings.HasPrefix(arg, "--") { // reduce two minuses to one
 		arg = arg[1:]
 	}
+	switch arg {
+	case "-?", "-h", "-help":
+		usage()
+	}
 	if arg == "" || arg[0] != '-' {
 		return
 	}
