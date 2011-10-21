@@ -7,6 +7,7 @@
 package http_test
 
 import (
+	"crypto/tls"
 	"fmt"
 	. "http"
 	"http/httptest"
@@ -290,5 +291,28 @@ func TestClientWrites(t *testing.T) {
 	}
 	if writes != 1 {
 		t.Errorf("Post request did %d Write calls, want 1", writes)
+	}
+}
+
+func TestClientInsecureTransport(t *testing.T) {
+	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Write([]byte("Hello"))
+	}))
+	defer ts.Close()
+
+	// TODO(bradfitz): add tests for skipping hostname checks too?
+	// would require a new cert for testing, and probably
+	// redundant with these tests.
+	for _, insecure := range []bool{true, false} {
+		tr := &Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: insecure,
+			},
+		}
+		c := &Client{Transport: tr}
+		_, err := c.Get(ts.URL)
+		if (err == nil) != insecure {
+			t.Errorf("insecure=%v: got unexpected err=%v", insecure, err)
+		}
 	}
 }
