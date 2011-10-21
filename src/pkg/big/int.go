@@ -58,22 +58,24 @@ func NewInt(x int64) *Int {
 
 // Set sets z to x and returns z.
 func (z *Int) Set(x *Int) *Int {
-	z.abs = z.abs.set(x.abs)
-	z.neg = x.neg
+	if z != x {
+		z.abs = z.abs.set(x.abs)
+		z.neg = x.neg
+	}
 	return z
 }
 
 // Abs sets z to |x| (the absolute value of x) and returns z.
 func (z *Int) Abs(x *Int) *Int {
-	z.abs = z.abs.set(x.abs)
+	z.Set(x)
 	z.neg = false
 	return z
 }
 
 // Neg sets z to -x and returns z.
 func (z *Int) Neg(x *Int) *Int {
-	z.abs = z.abs.set(x.abs)
-	z.neg = len(z.abs) > 0 && !x.neg // 0 has no sign
+	z.Set(x)
+	z.neg = len(z.abs) > 0 && !z.neg // 0 has no sign
 	return z
 }
 
@@ -422,8 +424,8 @@ func (x *Int) Format(s fmt.State, ch int) {
 // scan sets z to the integer value corresponding to the longest possible prefix
 // read from r representing a signed integer number in a given conversion base.
 // It returns z, the actual conversion base used, and an error, if any. In the
-// error case, the value of z is undefined. The syntax follows the syntax of
-// integer literals in Go.
+// error case, the value of z is undefined but the returned value is nil. The
+// syntax follows the syntax of integer literals in Go.
 //
 // The base argument must be 0 or a value from 2 through MaxBase. If the base
 // is 0, the string prefix determines the actual conversion base. A prefix of
@@ -434,7 +436,7 @@ func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, os.Error) {
 	// determine sign
 	ch, _, err := r.ReadRune()
 	if err != nil {
-		return z, 0, err
+		return nil, 0, err
 	}
 	neg := false
 	switch ch {
@@ -448,7 +450,7 @@ func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, os.Error) {
 	// determine mantissa
 	z.abs, base, err = z.abs.scan(r, base)
 	if err != nil {
-		return z, base, err
+		return nil, base, err
 	}
 	z.neg = len(z.abs) > 0 && neg // 0 has no sign
 
@@ -497,7 +499,7 @@ func (x *Int) Int64() int64 {
 
 // SetString sets z to the value of s, interpreted in the given base,
 // and returns z and a boolean indicating success. If SetString fails,
-// the value of z is undefined.
+// the value of z is undefined but the returned value is nil.
 //
 // The base argument must be 0 or a value from 2 through MaxBase. If the base
 // is 0, the string prefix determines the actual conversion base. A prefix of
@@ -508,10 +510,13 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 	r := strings.NewReader(s)
 	_, _, err := z.scan(r, base)
 	if err != nil {
-		return z, false
+		return nil, false
 	}
 	_, _, err = r.ReadRune()
-	return z, err == os.EOF // err == os.EOF => scan consumed all of s
+	if err != os.EOF {
+		return nil, false
+	}
+	return z, true // err == os.EOF => scan consumed all of s
 }
 
 // SetBytes interprets buf as the bytes of a big-endian unsigned

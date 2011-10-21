@@ -50,8 +50,14 @@ func TestRatSetString(t *testing.T) {
 	for i, test := range setStringTests {
 		x, ok := new(Rat).SetString(test.in)
 
-		if ok != test.ok || ok && x.RatString() != test.out {
-			t.Errorf("#%d got %s want %s", i, x.RatString(), test.out)
+		if ok {
+			if !test.ok {
+				t.Errorf("#%d SetString(%q) expected failure", i, test.in)
+			} else if x.RatString() != test.out {
+				t.Errorf("#%d SetString(%q) got %s want %s", i, test.in, x.RatString(), test.out)
+			}
+		} else if x != nil {
+			t.Errorf("#%d SetString(%q) got %p want nil", i, test.in, x)
 		}
 	}
 }
@@ -113,8 +119,10 @@ func TestFloatString(t *testing.T) {
 func TestRatSign(t *testing.T) {
 	zero := NewRat(0, 1)
 	for _, a := range setStringTests {
-		var x Rat
-		x.SetString(a.in)
+		x, ok := new(Rat).SetString(a.in)
+		if !ok {
+			continue
+		}
 		s := x.Sign()
 		e := x.Cmp(zero)
 		if s != e {
@@ -153,12 +161,14 @@ func TestRatCmp(t *testing.T) {
 func TestIsInt(t *testing.T) {
 	one := NewInt(1)
 	for _, a := range setStringTests {
-		var x Rat
-		x.SetString(a.in)
+		x, ok := new(Rat).SetString(a.in)
+		if !ok {
+			continue
+		}
 		i := x.IsInt()
 		e := x.Denom().Cmp(one) == 0
 		if i != e {
-			t.Errorf("got %v; want %v for z = %v", i, e, &x)
+			t.Errorf("got IsInt(%v) == %v; want %v", x, i, e)
 		}
 	}
 }
@@ -166,16 +176,50 @@ func TestIsInt(t *testing.T) {
 func TestRatAbs(t *testing.T) {
 	zero := NewRat(0, 1)
 	for _, a := range setStringTests {
-		var z Rat
-		z.SetString(a.in)
-		var e Rat
-		e.Set(&z)
-		if e.Cmp(zero) < 0 {
-			e.Sub(zero, &e)
+		x, ok := new(Rat).SetString(a.in)
+		if !ok {
+			continue
 		}
-		z.Abs(&z)
-		if z.Cmp(&e) != 0 {
-			t.Errorf("got z = %v; want %v", &z, &e)
+		e := new(Rat).Set(x)
+		if e.Cmp(zero) < 0 {
+			e.Sub(zero, e)
+		}
+		z := new(Rat).Abs(x)
+		if z.Cmp(e) != 0 {
+			t.Errorf("got Abs(%v) = %v; want %v", x, z, e)
+		}
+	}
+}
+
+func TestRatNeg(t *testing.T) {
+	zero := NewRat(0, 1)
+	for _, a := range setStringTests {
+		x, ok := new(Rat).SetString(a.in)
+		if !ok {
+			continue
+		}
+		e := new(Rat).Sub(zero, x)
+		z := new(Rat).Neg(x)
+		if z.Cmp(e) != 0 {
+			t.Errorf("got Neg(%v) = %v; want %v", x, z, e)
+		}
+	}
+}
+
+func TestRatInv(t *testing.T) {
+	zero := NewRat(0, 1)
+	for _, a := range setStringTests {
+		x, ok := new(Rat).SetString(a.in)
+		if !ok {
+			continue
+		}
+		if x.Cmp(zero) == 0 {
+			continue // avoid division by zero
+		}
+		e := new(Rat).SetFrac(x.Denom(), x.Num())
+		z := new(Rat).Inv(x)
+		if z.Cmp(e) != 0 {
+			t.Errorf("got Inv(%v) = %v; want %v", x, z, e)
 		}
 	}
 }
@@ -186,10 +230,10 @@ type ratBinArg struct {
 }
 
 func testRatBin(t *testing.T, i int, name string, f ratBinFun, a ratBinArg) {
-	x, _ := NewRat(0, 1).SetString(a.x)
-	y, _ := NewRat(0, 1).SetString(a.y)
-	z, _ := NewRat(0, 1).SetString(a.z)
-	out := f(NewRat(0, 1), x, y)
+	x, _ := new(Rat).SetString(a.x)
+	y, _ := new(Rat).SetString(a.y)
+	z, _ := new(Rat).SetString(a.z)
+	out := f(new(Rat), x, y)
 
 	if out.Cmp(z) != 0 {
 		t.Errorf("%s #%d got %s want %s", name, i, out, z)
