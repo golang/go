@@ -68,7 +68,7 @@ type channel struct {
 	weClosed    bool
 	dead        bool
 
-	serverConn            *ServerConnection
+	serverConn            *ServerConn
 	myId, theirId         uint32
 	myWindow, theirWindow uint32
 	maxPacketSize         uint32
