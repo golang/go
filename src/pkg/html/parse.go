@@ -234,6 +234,41 @@ func (p *parser) setOriginalIM(im insertionMode) {
 	p.originalIM = im
 }
 
+// Section 11.2.3.1, "reset the insertion mode".
+func (p *parser) resetInsertionMode() insertionMode {
+	for i := len(p.oe) - 1; i >= 0; i-- {
+		n := p.oe[i]
+		if i == 0 {
+			// TODO: set n to the context element, for HTML fragment parsing.
+		}
+		switch n.Data {
+		case "select":
+			return inSelectIM
+		case "td", "th":
+			return inCellIM
+		case "tr":
+			return inRowIM
+		case "tbody", "thead", "tfoot":
+			return inTableBodyIM
+		case "caption":
+			// TODO: return inCaptionIM
+		case "colgroup":
+			// TODO: return inColumnGroupIM
+		case "table":
+			return inTableIM
+		case "head":
+			return inBodyIM
+		case "body":
+			return inBodyIM
+		case "frameset":
+			// TODO: return inFramesetIM
+		case "html":
+			return beforeHeadIM
+		}
+	}
+	return inBodyIM
+}
+
 // Section 11.2.5.4.1.
 func initialIM(p *parser) (insertionMode, bool) {
 	switch p.tok.Type {
@@ -478,6 +513,12 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
 			p.framesetOK = false
+		case "select":
+			p.reconstructActiveFormattingElements()
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.framesetOK = false
+			// TODO: detect <select> inside a table.
+			return inSelectIM, true
 		default:
 			// TODO.
 			p.addElement(p.tok.Data, p.tok.Attr)
@@ -671,8 +712,7 @@ func inTableIM(p *parser) (insertionMode, bool) {
 		switch p.tok.Data {
 		case "table":
 			if p.popUntil(tableScopeStopTags, "table") {
-				// TODO: "reset the insertion mode appropriately" as per 11.2.3.1.
-				return inBodyIM, false
+				return p.resetInsertionMode(), true
 			}
 			// Ignore the token.
 			return inTableIM, true
@@ -831,6 +871,68 @@ func inCellIM(p *parser) (insertionMode, bool) {
 		}
 	}
 	return useTheRulesFor(p, inCellIM, inBodyIM)
+}
+
+// Section 11.2.5.4.16.
+func inSelectIM(p *parser) (insertionMode, bool) {
+	endSelect := false
+	switch p.tok.Type {
+	case ErrorToken:
+		// TODO.
+	case TextToken:
+		p.addText(p.tok.Data)
+	case StartTagToken:
+		switch p.tok.Data {
+		case "html":
+			// TODO.
+		case "option":
+			if p.top().Data == "option" {
+				p.oe.pop()
+			}
+			p.addElement(p.tok.Data, p.tok.Attr)
+		case "optgroup":
+			// TODO.
+		case "select":
+			endSelect = true
+		case "input", "keygen", "textarea":
+			// TODO.
+		case "script":
+			// TODO.
+		default:
+			// Ignore the token.
+		}
+	case EndTagToken:
+		switch p.tok.Data {
+		case "option":
+			// TODO.
+		case "optgroup":
+			// TODO.
+		case "select":
+			endSelect = true
+		default:
+			// Ignore the token.
+		}
+	case CommentToken:
+		p.doc.Add(&Node{
+			Type: CommentNode,
+			Data: p.tok.Data,
+		})
+	}
+	if endSelect {
+		for i := len(p.oe) - 1; i >= 0; i-- {
+			switch p.oe[i].Data {
+			case "select":
+				p.oe = p.oe[:i]
+				return p.resetInsertionMode(), true
+			case "option", "optgroup":
+				continue
+			default:
+				// Ignore the token.
+				return inSelectIM, true
+			}
+		}
+	}
+	return inSelectIM, true
 }
 
 // Section 11.2.5.4.18.
