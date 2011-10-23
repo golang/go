@@ -32,6 +32,9 @@ type parser struct {
 	// originalIM is the insertion mode to go back to after completing a text
 	// or inTableText insertion mode.
 	originalIM insertionMode
+	// fosterParenting is whether new elements should be inserted according to
+	// the foster parenting rules (section 11.2.5.3).
+	fosterParenting bool
 }
 
 func (p *parser) top() *Node {
@@ -103,9 +106,53 @@ func (p *parser) elementInScope(stopTags []string, matchTags ...string) bool {
 // addChild adds a child node n to the top element, and pushes n onto the stack
 // of open elements if it is an element node.
 func (p *parser) addChild(n *Node) {
-	p.top().Add(n)
+	if p.fosterParenting {
+		p.fosterParent(n)
+	} else {
+		p.top().Add(n)
+	}
+
 	if n.Type == ElementNode {
 		p.oe = append(p.oe, n)
+	}
+}
+
+// fosterParent adds a child node according to the foster parenting rules.
+// Section 11.2.5.3, "foster parenting".
+func (p *parser) fosterParent(n *Node) {
+	var table, parent *Node
+	var i int
+	for i = len(p.oe) - 1; i >= 0; i-- {
+		if p.oe[i].Data == "table" {
+			table = p.oe[i]
+			break
+		}
+	}
+
+	if table == nil {
+		// The foster parent is the html element.
+		parent = p.oe[0]
+	} else {
+		parent = table.Parent
+	}
+	if parent == nil {
+		parent = p.oe[i-1]
+	}
+
+	var child *Node
+	for i, child = range parent.Child {
+		if child == table {
+			break
+		}
+	}
+
+	if i == len(parent.Child) {
+		parent.Add(n)
+	} else {
+		// Insert n into parent.Child at index i.
+		parent.Child = append(parent.Child[:i+1], parent.Child[i:]...)
+		parent.Child[i] = n
+		n.Parent = parent
 	}
 }
 
@@ -170,9 +217,9 @@ func (p *parser) reconstructActiveFormattingElements() {
 	}
 	for {
 		i++
-		n = p.afe[i]
-		p.addChild(n.clone())
-		p.afe[i] = n
+		clone := p.afe[i].clone()
+		p.addChild(clone)
+		p.afe[i] = clone
 		if i == len(p.afe)-1 {
 			break
 		}
@@ -536,10 +583,7 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 		case "a", "b", "big", "code", "em", "font", "i", "nobr", "s", "small", "strike", "strong", "tt", "u":
 			p.inBodyEndTagFormatting(p.tok.Data)
 		default:
-			// TODO: any other end tag
-			if p.tok.Data == p.top().Data {
-				p.oe.pop()
-			}
+			p.inBodyEndTagOther(p.tok.Data)
 		}
 	case CommentToken:
 		p.addChild(&Node{
@@ -573,6 +617,7 @@ func (p *parser) inBodyEndTagFormatting(tag string) {
 			}
 		}
 		if formattingElement == nil {
+			p.inBodyEndTagOther(tag)
 			return
 		}
 		feIndex := p.oe.index(formattingElement)
@@ -645,8 +690,7 @@ func (p *parser) inBodyEndTagFormatting(tag string) {
 		}
 		switch commonAncestor.Data {
 		case "table", "tbody", "tfoot", "thead", "tr":
-			// TODO: fix up misnested table nodes; find the foster parent.
-			fallthrough
+			p.fosterParent(lastNode)
 		default:
 			commonAncestor.Add(lastNode)
 		}
@@ -667,6 +711,19 @@ func (p *parser) inBodyEndTagFormatting(tag string) {
 	}
 }
 
+// inBodyEndTagOther performs the "any other end tag" algorithm for inBodyIM.
+func (p *parser) inBodyEndTagOther(tag string) {
+	for i := len(p.oe) - 1; i >= 0; i-- {
+		if p.oe[i].Data == tag {
+			p.oe = p.oe[:i]
+			break
+		}
+		if isSpecialElement[p.oe[i].Data] {
+			break
+		}
+	}
+}
+
 // Section 11.2.5.4.8.
 func textIM(p *parser) (insertionMode, bool) {
 	switch p.tok.Type {
@@ -683,12 +740,6 @@ func textIM(p *parser) (insertionMode, bool) {
 
 // Section 11.2.5.4.9.
 func inTableIM(p *parser) (insertionMode, bool) {
-	var (
-		add      bool
-		data     string
-		attr     []Attribute
-		consumed bool
-	)
 	switch p.tok.Type {
 	case ErrorToken:
 		// Stop parsing.
@@ -698,13 +749,19 @@ func inTableIM(p *parser) (insertionMode, bool) {
 	case StartTagToken:
 		switch p.tok.Data {
 		case "tbody", "tfoot", "thead":
-			add = true
-			data = p.tok.Data
-			attr = p.tok.Attr
-			consumed = true
+			p.clearStackToTableContext()
+			p.addElement(p.tok.Data, p.tok.Attr)
+			return inTableBodyIM, true
 		case "td", "th", "tr":
-			add = true
-			data = "tbody"
+			p.clearStackToTableContext()
+			p.addElement("tbody", nil)
+			return inTableBodyIM, false
+		case "table":
+			if p.popUntil(tableScopeStopTags, "table") {
+				return p.resetInsertionMode(), false
+			}
+			// Ignore the token.
+			return inTableIM, true
 		default:
 			// TODO.
 		}
@@ -727,13 +784,23 @@ func inTableIM(p *parser) (insertionMode, bool) {
 		})
 		return inTableIM, true
 	}
-	if add {
-		// TODO: clear the stack back to a table context.
-		p.addElement(data, attr)
-		return inTableBodyIM, consumed
+
+	switch p.top().Data {
+	case "table", "tbody", "tfoot", "thead", "tr":
+		p.fosterParenting = true
+		defer func() { p.fosterParenting = false }()
 	}
-	// TODO: return useTheRulesFor(inTableIM, inBodyIM, p) unless etc. etc. foster parenting.
-	return inTableIM, true
+
+	return useTheRulesFor(p, inTableIM, inBodyIM)
+}
+
+func (p *parser) clearStackToTableContext() {
+	for i := len(p.oe) - 1; i >= 0; i-- {
+		if x := p.oe[i].Data; x == "table" || x == "html" {
+			p.oe = p.oe[:i+1]
+			return
+		}
+	}
 }
 
 // Section 11.2.5.4.13.
