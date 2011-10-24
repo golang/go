@@ -11,33 +11,35 @@ protocol is a remote shell and this is specifically implemented.  However,
 the multiplexed nature of SSH is exposed to users that wish to support
 others.
 
-An SSH server is represented by a Server, which manages a number of
-ServerConnections and handles authentication.
+An SSH server is represented by a ServerConfig, which holds certificate
+details and handles authentication of ServerConns.
 
-	var s Server
-	s.PubKeyCallback = pubKeyAuth
-	s.PasswordCallback = passwordAuth
+	config := new(ServerConfig)
+	config.PubKeyCallback = pubKeyAuth
+	config.PasswordCallback = passwordAuth
 
 	pemBytes, err := ioutil.ReadFile("id_rsa")
 	if err != nil {
 		panic("Failed to load private key")
 	}
-	err = s.SetRSAPrivateKey(pemBytes)
+	err = config.SetRSAPrivateKey(pemBytes)
 	if err != nil {
 		panic("Failed to parse private key")
 	}
 
-Once a Server has been set up, connections can be attached.
+Once a ServerConfig has been configured, connections can be accepted.
 
-	var sConn ServerConnection
-	sConn.Server = &s
+	listener := Listen("tcp", "0.0.0.0:2022", config)
+	sConn, err := listener.Accept()
+	if err != nil {
+		panic("failed to accept incoming connection")
+	}
 	err = sConn.Handshake(conn)
 	if err != nil {
 		panic("failed to handshake")
 	}
 
 An SSH connection multiplexes several channels, which must be accepted themselves:
-
 
 	for {
 		channel, err := sConn.Accept()
@@ -85,17 +87,19 @@ authentication method is supported.
 	}
 	client, err := Dial("yourserver.com:22", config)
 
-Each ClientConn can support multiple channels, represented by ClientChan. Each
-channel should be of a type specified in rfc4250, 4.9.1.
+Each ClientConn can support multiple interactive sessions, represented by a Session. 
 
-	ch, err := client.OpenChan("session")
+	session, err := client.NewSession()
 
-Once the ClientChan is opened, you can execute a single command on the remote side 
+Once a Session is created, you can execute a single command on the remote side 
 using the Exec method.
 
-	cmd, err := ch.Exec("/usr/bin/whoami")
-	reader := bufio.NewReader(cmd.Stdin)
+	if err := session.Exec("/usr/bin/whoami"); err != nil {
+		panic("Failed to exec: " + err.String())
+	}
+	reader := bufio.NewReader(session.Stdin)
 	line, _, _ := reader.ReadLine()
 	fmt.Println(line)
+	session.Close()
 */
 package ssh
