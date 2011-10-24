@@ -4,8 +4,6 @@
 
 // HTTP Request reading and parsing.
 
-// Package http implements parsing of HTTP requests, replies, and URLs and
-// provides an extensible HTTP server and a basic HTTP client.
 package http
 
 import (
