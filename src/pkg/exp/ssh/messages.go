@@ -154,7 +154,7 @@ type channelData struct {
 type channelExtendedData struct {
 	PeersId  uint32
 	Datatype uint32
-	Data     string
+	Payload  []byte `ssh:"rest"`
 }
 
 type channelRequestMsg struct {

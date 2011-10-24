@@ -13,5 +13,6 @@ GOFILES=\
 	transport.go\
 	server.go\
 	server_shell.go\
+	session.go\
 
 include ../../../Make.pkg
