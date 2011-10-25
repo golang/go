@@ -1067,7 +1067,6 @@ func Parse(r io.Reader) (*Node, os.Error) {
 		scripting:  true,
 		framesetOK: true,
 	}
-	p.tokenizer.ReturnComments = true
 	// Iterate until EOF. Any other error will cause an early return.
 	im, consumed := initialIM, true
 	for {
