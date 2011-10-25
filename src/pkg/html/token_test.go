@@ -424,7 +424,6 @@ func TestTokenizer(t *testing.T) {
 loop:
 	for _, tt := range tokenTests {
 		z := NewTokenizer(strings.NewReader(tt.html))
-		z.ReturnComments = true
 		if tt.golden != "" {
 			for i, s := range strings.Split(tt.golden, "$") {
 				if z.Next() == ErrorToken {

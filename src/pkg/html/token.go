@@ -116,10 +116,6 @@ type span struct {
 
 // A Tokenizer returns a stream of HTML Tokens.
 type Tokenizer struct {
-	// If ReturnComments is set, Next returns comment tokens;
-	// otherwise it skips over comments (default).
-	ReturnComments bool
-
 	// r is the source of the HTML text.
 	r io.Reader
 	// tt is the TokenType of the current token.
@@ -546,17 +542,19 @@ func (z *Tokenizer) readTagAttrVal() {
 	}
 }
 
-// next scans the next token and returns its type.
-func (z *Tokenizer) next() TokenType {
+// Next scans the next token and returns its type.
+func (z *Tokenizer) Next() TokenType {
 	if z.err != nil {
-		return ErrorToken
+		z.tt = ErrorToken
+		return z.tt
 	}
 	z.raw.start = z.raw.end
 	z.data.start = z.raw.end
 	z.data.end = z.raw.end
 	if z.rawTag != "" {
 		z.readRawOrRCDATA()
-		return TextToken
+		z.tt = TextToken
+		return z.tt
 	}
 	z.textIsRaw = false
 
@@ -596,11 +594,13 @@ loop:
 		if x := z.raw.end - len("<a"); z.raw.start < x {
 			z.raw.end = x
 			z.data.end = x
-			return TextToken
+			z.tt = TextToken
+			return z.tt
 		}
 		switch tokenType {
 		case StartTagToken:
-			return z.readStartTag()
+			z.tt = z.readStartTag()
+			return z.tt
 		case EndTagToken:
 			c = z.readByte()
 			if z.err != nil {
@@ -616,39 +616,31 @@ loop:
 			}
 			if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
 				z.readEndTag()
-				return EndTagToken
+				z.tt = EndTagToken
+				return z.tt
 			}
 			z.raw.end--
 			z.readUntilCloseAngle()
-			return CommentToken
+			z.tt = CommentToken
+			return z.tt
 		case CommentToken:
 			if c == '!' {
-				return z.readMarkupDeclaration()
+				z.tt = z.readMarkupDeclaration()
+				return z.tt
 			}
 			z.raw.end--
 			z.readUntilCloseAngle()
-			return CommentToken
+			z.tt = CommentToken
+			return z.tt
 		}
 	}
 	if z.raw.start < z.raw.end {
 		z.data.end = z.raw.end
-		return TextToken
-	}
-	return ErrorToken
-}
-
-// Next scans the next token and returns its type.
-func (z *Tokenizer) Next() TokenType {
-	for {
-		z.tt = z.next()
-		// TODO: remove the ReturnComments option. A tokenizer should
-		// always return comment tags.
-		if z.tt == CommentToken && !z.ReturnComments {
-			continue
-		}
+		z.tt = TextToken
 		return z.tt
 	}
-	panic("unreachable")
+	z.tt = ErrorToken
+	return z.tt
 }
 
 // Raw returns the unmodified text of the current token. Calling Next, Token,
