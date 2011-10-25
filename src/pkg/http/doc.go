@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package http provides HTTP client and server implementaions.
+Package http provides HTTP client and server implementations.
 
 Get, Head, Post, and PostForm make HTTP requests:
 
