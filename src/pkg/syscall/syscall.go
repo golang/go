@@ -26,5 +26,5 @@ func StringByteSlice(s string) []byte {
 func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }
 
 // Single-word zero for use when we need a valid pointer to 0 bytes.
-// See mksyscall.sh.
+// See mksyscall.pl.
 var _zero uintptr
