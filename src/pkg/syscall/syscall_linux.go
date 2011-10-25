@@ -784,8 +784,8 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 	return origlen - len(buf), count, names
 }
 
-//sys	mount(source string, target string, fstype string, flags uint32, data *byte) (errno int)
-func Mount(source string, target string, fstype string, flags uint32, data string) (errno int) {
+//sys	mount(source string, target string, fstype string, flags uintptr, data *byte) (errno int)
+func Mount(source string, target string, fstype string, flags uintptr, data string) (errno int) {
 	// Certain file systems get rather angry and EINVAL if you give
 	// them an empty string of data, rather than NULL.
 	if data == "" {
