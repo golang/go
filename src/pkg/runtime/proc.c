@@ -128,6 +128,8 @@ Sched runtime·sched;
 int32 runtime·gomaxprocs;
 bool runtime·singleproc;
 
+static bool canaddmcpu(void);
+
 // An m that is waiting for notewakeup(&m->havenextg).  This may
 // only be accessed while the scheduler lock is held.  This is used to
 // minimize the number of times we call notewakeup while the scheduler
@@ -201,6 +203,10 @@ runtime·schedinit(void)
 	}
 	setmcpumax(runtime·gomaxprocs);
 	runtime·singleproc = runtime·gomaxprocs == 1;
+
+	canaddmcpu();	// mcpu++ to account for bootstrap m
+	m->helpgc = 1;	// flag to tell schedule() to mcpu--
+	runtime·sched.grunning++;
 
 	mstats.enablegc = 1;
 	m->nomemprof--;
@@ -811,6 +817,7 @@ schedule(G *gp)
 			readylocked(gp);
 		}
 	} else if(m->helpgc) {
+		// Bootstrap m or new m started by starttheworld.
 		// atomic { mcpu-- }
 		v = runtime·xadd(&runtime·sched.atomic, -1<<mcpuShift);
 		if(atomic_mcpu(v) > maxgomaxprocs)
@@ -818,6 +825,10 @@ schedule(G *gp)
 		// Compensate for increment in starttheworld().
 		runtime·sched.grunning--;
 		m->helpgc = 0;
+	} else if(m->nextg != nil) {
+		// New m started by matchmg.
+	} else {
+		runtime·throw("invalid m state in scheduler");
 	}
 
 	// Find (or wait for) g to run.  Unlocks runtime·sched.
