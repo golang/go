@@ -278,7 +278,7 @@ func stringtoslicebyte(s String) (b Slice) {
 	runtime·memmove(b.array, s.str, s.len);
 }
 
-func sliceinttostring(b Slice) (s String) {
+func slicerunetostring(b Slice) (s String) {
 	int32 siz1, siz2, i;
 	int32 *a;
 	byte dum[8];
@@ -301,13 +301,13 @@ func sliceinttostring(b Slice) (s String) {
 	s.str[s.len] = 0;
 }
 
-func stringtosliceint(s String) (b Slice) {
+func stringtoslicerune(s String) (b Slice) {
 	int32 n;
 	int32 dum, *r;
 	uint8 *p, *ep;
 
 	// two passes.
-	// unlike sliceinttostring, no race because strings are immutable.
+	// unlike slicerunetostring, no race because strings are immutable.
 	p = s.str;
 	ep = s.str+s.len;
 	n = 0;

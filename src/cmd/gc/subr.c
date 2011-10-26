@@ -1285,13 +1285,15 @@ Tpretty(Fmt *fp, Type *t)
 		// called from typesym
 		if(t == bytetype)
 			t = types[bytetype->etype];
+		if(t == runetype)
+			t = types[runetype->etype];
 	}
 
 	if(t->etype != TFIELD
 	&& t->sym != S
 	&& !(fp->flags&FmtLong)) {
 		s = t->sym;
-		if((t == types[t->etype] && t->etype != TUNSAFEPTR) || t == bytetype)
+		if((t == types[t->etype] && t->etype != TUNSAFEPTR) || t == bytetype || t == runetype)
 			return fmtprint(fp, "%s", s->name);
 		if(exporting) {
 			if(fp->flags & FmtShort)
@@ -1875,6 +1877,11 @@ eqtype(Type *t1, Type *t2)
 			if((t1 == types[TUINT8] || t1 == bytetype) && (t2 == types[TUINT8] || t2 == bytetype))
 				return 1;
 			break;
+		case TINT:
+		case TINT32:
+			if((t1 == types[runetype->etype] || t1 == runetype) && (t2 == types[runetype->etype] || t2 == runetype))
+				return 1;
+			break;
 		}
 		return 0;
 	}
@@ -2100,7 +2107,7 @@ convertop(Type *src, Type *dst, char **why)
 		return OCONV;
 	}
 
-	// 6. src is an integer or has type []byte or []int
+	// 6. src is an integer or has type []byte or []rune
 	// and dst is a string type.
 	if(isint[src->etype] && dst->etype == TSTRING)
 		return ORUNESTR;
@@ -2108,16 +2115,16 @@ convertop(Type *src, Type *dst, char **why)
 	if(isslice(src) && src->sym == nil && dst->etype == TSTRING) {
 		if(eqtype(src->type, bytetype))
 			return OARRAYBYTESTR;
-		if(eqtype(src->type, types[TINT]))
+		if(eqtype(src->type, runetype))
 			return OARRAYRUNESTR;
 	}
 	
-	// 7. src is a string and dst is []byte or []int.
+	// 7. src is a string and dst is []byte or []rune.
 	// String to slice.
 	if(src->etype == TSTRING && isslice(dst) && dst->sym == nil) {
 		if(eqtype(dst->type, bytetype))
 			return OSTRARRAYBYTE;
-		if(eqtype(dst->type, types[TINT]))
+		if(eqtype(dst->type, runetype))
 			return OSTRARRAYRUNE;
 	}
 	

@@ -44,6 +44,8 @@ OFILES=\
 	walk.$O\
 	y1.tab.$O\
 
+HOST_CFLAGS+=-DGOEXPERIMENT='"$(GOEXPERIMENT)"' 
+
 NOINSTALL=1
 include ../../Make.clib
 

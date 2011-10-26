@@ -94,7 +94,7 @@ dumpprereq(Type *t)
 	if(t == T)
 		return;
 
-	if(t->printed || t == types[t->etype] || t == bytetype)
+	if(t->printed || t == types[t->etype] || t == bytetype || t == runetype)
 		return;
 	t->printed = 1;
 

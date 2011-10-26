@@ -785,6 +785,7 @@ EXTERN	Type*	types[NTYPE];
 EXTERN	Type*	idealstring;
 EXTERN	Type*	idealbool;
 EXTERN	Type*	bytetype;
+EXTERN	Type*	runetype;
 EXTERN	uchar	simtype[NTYPE];
 EXTERN	uchar	isptr[NTYPE];
 EXTERN	uchar	isforw[NTYPE];
@@ -840,6 +841,7 @@ EXTERN	Node*	nblank;
 
 extern	int	thechar;
 extern	char*	thestring;
+
 EXTERN	char*	hunk;
 EXTERN	int32	nhunk;
 EXTERN	int32	thunk;
@@ -853,6 +855,8 @@ EXTERN	int	typecheckok;
 EXTERN	int	packagequotes;
 EXTERN	int	longsymnames;
 EXTERN	int	compiling_runtime;
+
+EXTERN	int	rune32;
 
 /*
  *	y.tab.c
@@ -1009,6 +1013,7 @@ Node*	renameinit(Node *n);
 void	cannedimports(char *file, char *cp);
 void	importfile(Val *f, int line);
 char*	lexname(int lex);
+char*	expstring(void);
 void	mkpackage(char* pkgname);
 void	unimportfile(void);
 int32	yylex(void);

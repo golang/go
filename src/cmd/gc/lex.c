@@ -30,6 +30,60 @@ static void	addidir(char*);
 static int	getlinepragma(void);
 static char *goos, *goarch, *goroot;
 
+// Compiler experiments.
+// These are controlled by the GCEXPERIMENT environment
+// variable recorded when the compiler is built.
+static struct {
+	char *name;
+	int *val;
+} exper[] = {
+	{"rune32", &rune32},
+};
+
+static void
+addexp(char *s)
+{
+	int i;
+	
+	for(i=0; i<nelem(exper); i++) {
+		if(strcmp(exper[i].name, s) == 0) {
+			*exper[i].val = 1;
+			return;
+		}
+	}
+	
+	print("unknown experiment %s\n", s);
+	exits("unknown experiment");
+}
+
+static void
+setexp(void)
+{
+	char *f[20];
+	int i, nf;
+	
+	// The makefile #defines GOEXPERIMENT for us.
+	nf = getfields(GOEXPERIMENT, f, nelem(f), 1, ",");
+	for(i=0; i<nf; i++)
+		addexp(f[i]);
+}
+
+char*
+expstring(void)
+{
+	int i;
+	static char buf[512];
+
+	strcpy(buf, "X");
+	for(i=0; i<nelem(exper); i++)
+		if(*exper[i].val)
+			seprint(buf+strlen(buf), buf+sizeof buf, ",%s", exper[i].name);
+	if(strlen(buf) == 1)
+		strcpy(buf, "X,none");
+	buf[1] = ':';
+	return buf;
+}
+
 // Our own isdigit, isspace, isalpha, isalnum that take care 
 // of EOF and other out of range arguments.
 static int
@@ -94,7 +148,7 @@ usage(void)
 	print("  -u disable package unsafe\n");
 	print("  -w print the parse tree after typing\n");
 	print("  -x print lex tokens\n");
-	exits(0);
+	exits("usage");
 }
 
 void
@@ -144,6 +198,8 @@ main(int argc, char *argv[])
 	goroot = getgoroot();
 	goos = getgoos();
 	goarch = thestring;
+	
+	setexp();
 
 	outfile = nil;
 	ARGBEGIN {
@@ -170,7 +226,10 @@ main(int argc, char *argv[])
 		break;
 
 	case 'V':
-		print("%cg version %s\n", thechar, getgoversion());
+		p = expstring();
+		if(strcmp(p, "X:none") == 0)
+			p = "";
+		print("%cg version %s%s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
 		exits(0);
 	} ARGEND
 
@@ -540,7 +599,7 @@ importfile(Val *f, int line)
 			yyerror("import %s: not a go object file", file);
 			errorexit();
 		}
-		q = smprint("%s %s %s", getgoos(), thestring, getgoversion());
+		q = smprint("%s %s %s %s", getgoos(), thestring, getgoversion(), expstring());
 		if(strcmp(p+10, q) != 0) {
 			yyerror("import %s: object is [%s] expected [%s]", file, p+10, q);
 			errorexit();
@@ -1720,6 +1779,18 @@ lexinit1(void)
 	s1 = pkglookup("byte", builtinpkg);
 	s1->lexical = LNAME;
 	s1->def = typenod(bytetype);
+
+	// rune alias
+	s = lookup("rune");
+	s->lexical = LNAME;
+	if(rune32)
+		runetype = typ(TINT32);
+	else
+		runetype = typ(TINT);
+	runetype->sym = s;
+	s1 = pkglookup("rune", builtinpkg);
+	s1->lexical = LNAME;
+	s1->def = typenod(runetype);
 }
 
 static void
@@ -1760,6 +1831,10 @@ lexfini(void)
 	s = lookup("byte");
 	if(s->def == N)
 		s->def = typenod(bytetype);
+
+	s = lookup("rune");
+	if(s->def == N)
+		s->def = typenod(runetype);
 
 	types[TNIL] = typ(TNIL);
 	s = lookup("nil");

@@ -23,7 +23,7 @@ dumpobj(void)
 		errorexit();
 	}
 
-	Bprint(bout, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+	Bprint(bout, "go object %s %s %s %s\n", getgoos(), thestring, getgoversion(), expstring());
 	Bprint(bout, "  exports automatically generated from\n");
 	Bprint(bout, "  %s in package \"%s\"\n", curio.infile, localpkg->name);
 	dumpexport();

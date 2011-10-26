@@ -1151,8 +1151,8 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OARRAYRUNESTR:
-		// sliceinttostring([]int) string;
-		n = mkcall("sliceinttostring", n->type, init, n->left);
+		// slicerunetostring([]rune) string;
+		n = mkcall("slicerunetostring", n->type, init, n->left);
 		goto ret;
 
 	case OSTRARRAYBYTE:
@@ -1161,8 +1161,8 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OSTRARRAYRUNE:
-		// stringtosliceint(string) []int
-		n = mkcall("stringtosliceint", n->type, init, n->left);
+		// stringtoslicerune(string) []rune
+		n = mkcall("stringtoslicerune", n->type, init, n->left);
 		goto ret;
 
 	case OCMPIFACE:
