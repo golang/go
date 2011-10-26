@@ -444,7 +444,7 @@ func TestFields(t *testing.T) {
 }
 
 func TestFieldsFunc(t *testing.T) {
-	pred := func(c int) bool { return c == 'X' }
+	pred := func(c rune) bool { return c == 'X' }
 	var fieldsFuncTests = []FieldsTest{
 		{"", []string{}},
 		{"XX", []string{}},
@@ -514,24 +514,24 @@ func runStringTests(t *testing.T, f func([]byte) []byte, funcName string, testCa
 	}
 }
 
-func tenRunes(rune int) string {
-	r := make([]int, 10)
-	for i := range r {
-		r[i] = rune
+func tenRunes(r rune) string {
+	runes := make([]rune, 10)
+	for i := range runes {
+		runes[i] = r
 	}
-	return string(r)
+	return string(runes)
 }
 
 // User-defined self-inverse mapping function
-func rot13(rune int) int {
-	step := 13
-	if rune >= 'a' && rune <= 'z' {
-		return ((rune - 'a' + step) % 26) + 'a'
+func rot13(r rune) rune {
+	const step = 13
+	if r >= 'a' && r <= 'z' {
+		return ((r - 'a' + step) % 26) + 'a'
 	}
-	if rune >= 'A' && rune <= 'Z' {
-		return ((rune - 'A' + step) % 26) + 'A'
+	if r >= 'A' && r <= 'Z' {
+		return ((r - 'A' + step) % 26) + 'A'
 	}
-	return rune
+	return r
 }
 
 func TestMap(t *testing.T) {
@@ -539,7 +539,7 @@ func TestMap(t *testing.T) {
 	a := tenRunes('a')
 
 	// 1.  Grow.  This triggers two reallocations in Map.
-	maxRune := func(rune int) int { return unicode.MaxRune }
+	maxRune := func(r rune) rune { return unicode.MaxRune }
 	m := Map(maxRune, []byte(a))
 	expect := tenRunes(unicode.MaxRune)
 	if string(m) != expect {
@@ -547,7 +547,7 @@ func TestMap(t *testing.T) {
 	}
 
 	// 2. Shrink
-	minRune := func(rune int) int { return 'a' }
+	minRune := func(r rune) rune { return 'a' }
 	m = Map(minRune, []byte(tenRunes(unicode.MaxRune)))
 	expect = a
 	if string(m) != expect {
@@ -569,9 +569,9 @@ func TestMap(t *testing.T) {
 	}
 
 	// 5. Drop
-	dropNotLatin := func(rune int) int {
-		if unicode.Is(unicode.Latin, rune) {
-			return rune
+	dropNotLatin := func(r rune) rune {
+		if unicode.Is(unicode.Latin, r) {
+			return r
 		}
 		return -1
 	}
@@ -615,7 +615,7 @@ func TestRepeat(t *testing.T) {
 	}
 }
 
-func runesEqual(a, b []int) bool {
+func runesEqual(a, b []rune) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -629,18 +629,18 @@ func runesEqual(a, b []int) bool {
 
 type RunesTest struct {
 	in    string
-	out   []int
+	out   []rune
 	lossy bool
 }
 
 var RunesTests = []RunesTest{
-	{"", []int{}, false},
-	{" ", []int{32}, false},
-	{"ABC", []int{65, 66, 67}, false},
-	{"abc", []int{97, 98, 99}, false},
-	{"\u65e5\u672c\u8a9e", []int{26085, 26412, 35486}, false},
-	{"ab\x80c", []int{97, 98, 0xFFFD, 99}, true},
-	{"ab\xc0c", []int{97, 98, 0xFFFD, 99}, true},
+	{"", []rune{}, false},
+	{" ", []rune{32}, false},
+	{"ABC", []rune{65, 66, 67}, false},
+	{"abc", []rune{97, 98, 99}, false},
+	{"\u65e5\u672c\u8a9e", []rune{26085, 26412, 35486}, false},
+	{"ab\x80c", []rune{97, 98, 0xFFFD, 99}, true},
+	{"ab\xc0c", []rune{97, 98, 0xFFFD, 99}, true},
 }
 
 func TestRunes(t *testing.T) {
@@ -711,7 +711,7 @@ func TestTrim(t *testing.T) {
 }
 
 type predicate struct {
-	f    func(r int) bool
+	f    func(r rune) bool
 	name string
 }
 
@@ -719,7 +719,7 @@ var isSpace = predicate{unicode.IsSpace, "IsSpace"}
 var isDigit = predicate{unicode.IsDigit, "IsDigit"}
 var isUpper = predicate{unicode.IsUpper, "IsUpper"}
 var isValidRune = predicate{
-	func(r int) bool {
+	func(r rune) bool {
 		return r != utf8.RuneError
 	},
 	"IsValidRune",
@@ -732,7 +732,7 @@ type TrimFuncTest struct {
 
 func not(p predicate) predicate {
 	return predicate{
-		func(r int) bool {
+		func(r rune) bool {
 			return !p.f(r)
 		},
 		"not " + p.name,

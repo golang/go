@@ -188,7 +188,7 @@ func (b *Buffer) WriteByte(c byte) os.Error {
 // code point r to the buffer, returning its length and
 // an error, which is always nil but is included
 // to match bufio.Writer's WriteRune.
-func (b *Buffer) WriteRune(r int) (n int, err os.Error) {
+func (b *Buffer) WriteRune(r rune) (n int, err os.Error) {
 	if r < utf8.RuneSelf {
 		b.WriteByte(byte(r))
 		return 1, nil
@@ -255,7 +255,7 @@ func (b *Buffer) ReadByte() (c byte, err os.Error) {
 // If no bytes are available, the error returned is os.EOF.
 // If the bytes are an erroneous UTF-8 encoding, it
 // consumes one byte and returns U+FFFD, 1.
-func (b *Buffer) ReadRune() (r int, size int, err os.Error) {
+func (b *Buffer) ReadRune() (r rune, size int, err os.Error) {
 	b.lastRead = opInvalid
 	if b.off >= len(b.buf) {
 		// Buffer is empty, reset to recover space.
@@ -266,7 +266,7 @@ func (b *Buffer) ReadRune() (r int, size int, err os.Error) {
 	c := b.buf[b.off]
 	if c < utf8.RuneSelf {
 		b.off++
-		return int(c), 1, nil
+		return rune(c), 1, nil
 	}
 	r, n := utf8.DecodeRune(b.buf[b.off:])
 	b.off += n

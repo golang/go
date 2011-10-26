@@ -21,11 +21,12 @@ func explode(s string, n int) []string {
 		n = l
 	}
 	a := make([]string, n)
-	var size, rune int
+	var size int
+	var ch rune
 	i, cur := 0, 0
 	for ; i+1 < n; i++ {
-		rune, size = utf8.DecodeRuneInString(s[cur:])
-		a[i] = string(rune)
+		ch, size = utf8.DecodeRuneInString(s[cur:])
+		a[i] = string(ch)
 		cur += size
 	}
 	// add the rest, if there is any
@@ -117,11 +118,11 @@ func LastIndex(s, sep string) int {
 }
 
 // IndexRune returns the index of the first instance of the Unicode code point
-// rune, or -1 if rune is not present in s.
-func IndexRune(s string, rune int) int {
+// r, or -1 if rune is not present in s.
+func IndexRune(s string, r rune) int {
 	switch {
-	case rune < 0x80:
-		b := byte(rune)
+	case r < 0x80:
+		b := byte(r)
 		for i := 0; i < len(s); i++ {
 			if s[i] == b {
 				return i
@@ -129,7 +130,7 @@ func IndexRune(s string, rune int) int {
 		}
 	default:
 		for i, c := range s {
-			if c == rune {
+			if c == r {
 				return i
 			}
 		}
@@ -241,7 +242,7 @@ func Fields(s string) []string {
 // FieldsFunc splits the string s at each run of Unicode code points c satisfying f(c)
 // and returns an array of slices of s. If all code points in s satisfy f(c) or the
 // string is empty, an empty slice is returned.
-func FieldsFunc(s string, f func(int) bool) []string {
+func FieldsFunc(s string, f func(rune) bool) []string {
 	// First count the fields.
 	n := 0
 	inField := false
@@ -310,7 +311,7 @@ func HasSuffix(s, suffix string) bool {
 // Map returns a copy of the string s with all its characters modified
 // according to the mapping function. If mapping returns a negative value, the character is
 // dropped from the string with no replacement.
-func Map(mapping func(rune int) int, s string) string {
+func Map(mapping func(rune) rune, s string) string {
 	// In the worst case, the string can grow when mapped, making
 	// things unpleasant.  But it's so rare we barge in assuming it's
 	// fine.  It could also shrink but that falls out naturally.
@@ -321,18 +322,18 @@ func Map(mapping func(rune int) int, s string) string {
 	var b []byte
 
 	for i, c := range s {
-		rune := mapping(c)
+		r := mapping(c)
 		if b == nil {
-			if rune == c {
+			if r == c {
 				continue
 			}
 			b = make([]byte, maxbytes)
 			nbytes = copy(b, s[:i])
 		}
-		if rune >= 0 {
+		if r >= 0 {
 			wid := 1
-			if rune >= utf8.RuneSelf {
-				wid = utf8.RuneLen(rune)
+			if r >= utf8.RuneSelf {
+				wid = utf8.RuneLen(r)
 			}
 			if nbytes+wid > maxbytes {
 				// Grow the buffer.
@@ -341,7 +342,7 @@ func Map(mapping func(rune int) int, s string) string {
 				copy(nb, b[0:nbytes])
 				b = nb
 			}
-			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], rune)
+			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], r)
 		}
 	}
 	if b == nil {
@@ -375,44 +376,44 @@ func ToTitle(s string) string { return Map(unicode.ToTitle, s) }
 // ToUpperSpecial returns a copy of the string s with all Unicode letters mapped to their
 // upper case, giving priority to the special casing rules.
 func ToUpperSpecial(_case unicode.SpecialCase, s string) string {
-	return Map(func(r int) int { return _case.ToUpper(r) }, s)
+	return Map(func(r rune) rune { return _case.ToUpper(r) }, s)
 }
 
 // ToLowerSpecial returns a copy of the string s with all Unicode letters mapped to their
 // lower case, giving priority to the special casing rules.
 func ToLowerSpecial(_case unicode.SpecialCase, s string) string {
-	return Map(func(r int) int { return _case.ToLower(r) }, s)
+	return Map(func(r rune) rune { return _case.ToLower(r) }, s)
 }
 
 // ToTitleSpecial returns a copy of the string s with all Unicode letters mapped to their
 // title case, giving priority to the special casing rules.
 func ToTitleSpecial(_case unicode.SpecialCase, s string) string {
-	return Map(func(r int) int { return _case.ToTitle(r) }, s)
+	return Map(func(r rune) rune { return _case.ToTitle(r) }, s)
 }
 
 // isSeparator reports whether the rune could mark a word boundary.
 // TODO: update when package unicode captures more of the properties.
-func isSeparator(rune int) bool {
+func isSeparator(r rune) bool {
 	// ASCII alphanumerics and underscore are not separators
-	if rune <= 0x7F {
+	if r <= 0x7F {
 		switch {
-		case '0' <= rune && rune <= '9':
+		case '0' <= r && r <= '9':
 			return false
-		case 'a' <= rune && rune <= 'z':
+		case 'a' <= r && r <= 'z':
 			return false
-		case 'A' <= rune && rune <= 'Z':
+		case 'A' <= r && r <= 'Z':
 			return false
-		case rune == '_':
+		case r == '_':
 			return false
 		}
 		return true
 	}
 	// Letters and digits are not separators
-	if unicode.IsLetter(rune) || unicode.IsDigit(rune) {
+	if unicode.IsLetter(r) || unicode.IsDigit(r) {
 		return false
 	}
 	// Otherwise, all we can do for now is treat spaces as separators.
-	return unicode.IsSpace(rune)
+	return unicode.IsSpace(r)
 }
 
 // BUG(r): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
@@ -423,9 +424,9 @@ func Title(s string) string {
 	// Use a closure here to remember state.
 	// Hackish but effective. Depends on Map scanning in order and calling
 	// the closure once per rune.
-	prev := ' '
+	prev := rune(' ')
 	return Map(
-		func(r int) int {
+		func(r rune) rune {
 			if isSeparator(prev) {
 				prev = r
 				return unicode.ToTitle(r)
@@ -438,7 +439,7 @@ func Title(s string) string {
 
 // TrimLeftFunc returns a slice of the string s with all leading
 // Unicode code points c satisfying f(c) removed.
-func TrimLeftFunc(s string, f func(r int) bool) string {
+func TrimLeftFunc(s string, f func(rune) bool) string {
 	i := indexFunc(s, f, false)
 	if i == -1 {
 		return ""
@@ -448,7 +449,7 @@ func TrimLeftFunc(s string, f func(r int) bool) string {
 
 // TrimRightFunc returns a slice of the string s with all trailing
 // Unicode code points c satisfying f(c) removed.
-func TrimRightFunc(s string, f func(r int) bool) string {
+func TrimRightFunc(s string, f func(rune) bool) string {
 	i := lastIndexFunc(s, f, false)
 	if i >= 0 && s[i] >= utf8.RuneSelf {
 		_, wid := utf8.DecodeRuneInString(s[i:])
@@ -461,34 +462,34 @@ func TrimRightFunc(s string, f func(r int) bool) string {
 
 // TrimFunc returns a slice of the string s with all leading
 // and trailing Unicode code points c satisfying f(c) removed.
-func TrimFunc(s string, f func(r int) bool) string {
+func TrimFunc(s string, f func(rune) bool) string {
 	return TrimRightFunc(TrimLeftFunc(s, f), f)
 }
 
 // IndexFunc returns the index into s of the first Unicode
 // code point satisfying f(c), or -1 if none do.
-func IndexFunc(s string, f func(r int) bool) int {
+func IndexFunc(s string, f func(rune) bool) int {
 	return indexFunc(s, f, true)
 }
 
 // LastIndexFunc returns the index into s of the last
 // Unicode code point satisfying f(c), or -1 if none do.
-func LastIndexFunc(s string, f func(r int) bool) int {
+func LastIndexFunc(s string, f func(rune) bool) int {
 	return lastIndexFunc(s, f, true)
 }
 
 // indexFunc is the same as IndexFunc except that if
 // truth==false, the sense of the predicate function is
 // inverted.
-func indexFunc(s string, f func(r int) bool, truth bool) int {
+func indexFunc(s string, f func(rune) bool, truth bool) int {
 	start := 0
 	for start < len(s) {
 		wid := 1
-		rune := int(s[start])
-		if rune >= utf8.RuneSelf {
-			rune, wid = utf8.DecodeRuneInString(s[start:])
+		r := rune(s[start])
+		if r >= utf8.RuneSelf {
+			r, wid = utf8.DecodeRuneInString(s[start:])
 		}
-		if f(rune) == truth {
+		if f(r) == truth {
 			return start
 		}
 		start += wid
@@ -499,19 +500,19 @@ func indexFunc(s string, f func(r int) bool, truth bool) int {
 // lastIndexFunc is the same as LastIndexFunc except that if
 // truth==false, the sense of the predicate function is
 // inverted.
-func lastIndexFunc(s string, f func(r int) bool, truth bool) int {
+func lastIndexFunc(s string, f func(rune) bool, truth bool) int {
 	for i := len(s); i > 0; {
-		rune, size := utf8.DecodeLastRuneInString(s[0:i])
+		r, size := utf8.DecodeLastRuneInString(s[0:i])
 		i -= size
-		if f(rune) == truth {
+		if f(r) == truth {
 			return i
 		}
 	}
 	return -1
 }
 
-func makeCutsetFunc(cutset string) func(rune int) bool {
-	return func(rune int) bool { return IndexRune(cutset, rune) != -1 }
+func makeCutsetFunc(cutset string) func(rune) bool {
+	return func(r rune) bool { return IndexRune(cutset, r) != -1 }
 }
 
 // Trim returns a slice of the string s with all leading and
@@ -589,15 +590,15 @@ func Replace(s, old, new string, n int) string {
 func EqualFold(s, t string) bool {
 	for s != "" && t != "" {
 		// Extract first rune from each string.
-		var sr, tr int
+		var sr, tr rune
 		if s[0] < utf8.RuneSelf {
-			sr, s = int(s[0]), s[1:]
+			sr, s = rune(s[0]), s[1:]
 		} else {
 			r, size := utf8.DecodeRuneInString(s)
 			sr, s = r, s[size:]
 		}
 		if t[0] < utf8.RuneSelf {
-			tr, t = int(t[0]), t[1:]
+			tr, t = rune(t[0]), t[1:]
 		} else {
 			r, size := utf8.DecodeRuneInString(t)
 			tr, t = r, t[size:]
