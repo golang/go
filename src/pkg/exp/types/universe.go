@@ -54,6 +54,7 @@ func init() {
 
 	Bool = defType("bool")
 	defType("byte") // TODO(gri) should be an alias for uint8
+	defType("rune") // TODO(gri) should be an alias for int
 	defType("complex64")
 	Complex128 = defType("complex128")
 	defType("float32")
