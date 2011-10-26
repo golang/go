@@ -46,7 +46,7 @@ func isPkgDir(fi FileInfo) bool {
 func firstSentence(s string) string {
 	i := -1 // index+1 of first terminator (punctuation ending a sentence)
 	j := -1 // index+1 of first terminator followed by white space
-	prev := 'A'
+	prev := rune('A')
 	for k, ch := range s {
 		k1 := k + 1
 		if ch == '.' || ch == '!' || ch == '?' {

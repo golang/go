@@ -93,7 +93,7 @@ const (
 	skipComment
 )
 
-var tokenString = map[int]string{
+var tokenString = map[rune]string{
 	EOF:       "EOF",
 	Ident:     "Ident",
 	Int:       "Int",
@@ -105,7 +105,7 @@ var tokenString = map[int]string{
 }
 
 // TokenString returns a (visible) string for a token or Unicode character.
-func TokenString(tok int) string {
+func TokenString(tok rune) string {
 	if s, found := tokenString[tok]; found {
 		return s
 	}
@@ -144,7 +144,7 @@ type Scanner struct {
 	tokEnd int          // token text tail end (srcBuf index)
 
 	// One character look-ahead
-	ch int // character before current srcPos
+	ch rune // character before current srcPos
 
 	// Error is called for each error encountered. If no Error
 	// function is set, the error is reported to os.Stderr.
@@ -218,8 +218,8 @@ func (s *Scanner) Init(src io.Reader) *Scanner {
 // that only a minimal amount of work needs to be done in the common ASCII
 // case (one test to check for both ASCII and end-of-buffer, and one test
 // to check for newlines).
-func (s *Scanner) next() int {
-	ch, width := int(s.srcBuf[s.srcPos]), 1
+func (s *Scanner) next() rune {
+	ch, width := rune(s.srcBuf[s.srcPos]), 1
 
 	if ch >= utf8.RuneSelf {
 		// uncommon case: not ASCII or not enough bytes
@@ -264,7 +264,7 @@ func (s *Scanner) next() int {
 			}
 		}
 		// at least one byte
-		ch = int(s.srcBuf[s.srcPos])
+		ch = rune(s.srcBuf[s.srcPos])
 		if ch >= utf8.RuneSelf {
 			// uncommon case: not ASCII
 			ch, width = utf8.DecodeRune(s.srcBuf[s.srcPos:s.srcEnd])
@@ -304,7 +304,7 @@ func (s *Scanner) next() int {
 // it prints an error message to os.Stderr. Next does not
 // update the Scanner's Position field; use Pos() to
 // get the current position.
-func (s *Scanner) Next() int {
+func (s *Scanner) Next() rune {
 	s.tokPos = -1 // don't collect token text
 	s.Line = 0    // invalidate token position
 	ch := s.Peek()
@@ -315,7 +315,7 @@ func (s *Scanner) Next() int {
 // Peek returns the next Unicode character in the source without advancing
 // the scanner. It returns EOF if the scanner's position is at the last
 // character of the source.
-func (s *Scanner) Peek() int {
+func (s *Scanner) Peek() rune {
 	if s.ch < 0 {
 		s.ch = s.next()
 	}
@@ -335,7 +335,7 @@ func (s *Scanner) error(msg string) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", pos, msg)
 }
 
-func (s *Scanner) scanIdentifier() int {
+func (s *Scanner) scanIdentifier() rune {
 	ch := s.next() // read character after first '_' or letter
 	for ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch) {
 		ch = s.next()
@@ -343,35 +343,35 @@ func (s *Scanner) scanIdentifier() int {
 	return ch
 }
 
-func digitVal(ch int) int {
+func digitVal(ch rune) int {
 	switch {
 	case '0' <= ch && ch <= '9':
-		return ch - '0'
+		return int(ch - '0')
 	case 'a' <= ch && ch <= 'f':
-		return ch - 'a' + 10
+		return int(ch - 'a' + 10)
 	case 'A' <= ch && ch <= 'F':
-		return ch - 'A' + 10
+		return int(ch - 'A' + 10)
 	}
 	return 16 // larger than any legal digit val
 }
 
-func isDecimal(ch int) bool { return '0' <= ch && ch <= '9' }
+func isDecimal(ch rune) bool { return '0' <= ch && ch <= '9' }
 
-func (s *Scanner) scanMantissa(ch int) int {
+func (s *Scanner) scanMantissa(ch rune) rune {
 	for isDecimal(ch) {
 		ch = s.next()
 	}
 	return ch
 }
 
-func (s *Scanner) scanFraction(ch int) int {
+func (s *Scanner) scanFraction(ch rune) rune {
 	if ch == '.' {
 		ch = s.scanMantissa(s.next())
 	}
 	return ch
 }
 
-func (s *Scanner) scanExponent(ch int) int {
+func (s *Scanner) scanExponent(ch rune) rune {
 	if ch == 'e' || ch == 'E' {
 		ch = s.next()
 		if ch == '-' || ch == '+' {
@@ -382,7 +382,7 @@ func (s *Scanner) scanExponent(ch int) int {
 	return ch
 }
 
-func (s *Scanner) scanNumber(ch int) (int, int) {
+func (s *Scanner) scanNumber(ch rune) (rune, rune) {
 	// isDecimal(ch)
 	if ch == '0' {
 		// int or float
@@ -426,7 +426,7 @@ func (s *Scanner) scanNumber(ch int) (int, int) {
 	return Int, ch
 }
 
-func (s *Scanner) scanDigits(ch, base, n int) int {
+func (s *Scanner) scanDigits(ch rune, base, n int) rune {
 	for n > 0 && digitVal(ch) < base {
 		ch = s.next()
 		n--
@@ -437,7 +437,7 @@ func (s *Scanner) scanDigits(ch, base, n int) int {
 	return ch
 }
 
-func (s *Scanner) scanEscape(quote int) int {
+func (s *Scanner) scanEscape(quote rune) rune {
 	ch := s.next() // read character after '/'
 	switch ch {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
@@ -457,7 +457,7 @@ func (s *Scanner) scanEscape(quote int) int {
 	return ch
 }
 
-func (s *Scanner) scanString(quote int) (n int) {
+func (s *Scanner) scanString(quote rune) (n int) {
 	ch := s.next() // read character after quote
 	for ch != quote {
 		if ch == '\n' || ch < 0 {
@@ -491,7 +491,7 @@ func (s *Scanner) scanChar() {
 	}
 }
 
-func (s *Scanner) scanComment(ch int) int {
+func (s *Scanner) scanComment(ch rune) rune {
 	// ch == '/' || ch == '*'
 	if ch == '/' {
 		// line comment
@@ -524,7 +524,7 @@ func (s *Scanner) scanComment(ch int) int {
 // It returns EOF at the end of the source. It reports scanner errors (read and
 // token errors) by calling s.Error, if not nil; otherwise it prints an error
 // message to os.Stderr.
-func (s *Scanner) Scan() int {
+func (s *Scanner) Scan() rune {
 	ch := s.Peek()
 
 	// reset token text position

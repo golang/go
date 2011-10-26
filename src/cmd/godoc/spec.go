@@ -23,7 +23,7 @@ type ebnfParser struct {
 	scanner scanner.Scanner
 	prev    int    // offset of previous token
 	pos     int    // offset of current token
-	tok     int    // one token look-ahead
+	tok     rune   // one token look-ahead
 	lit     string // token literal
 }
 
@@ -47,7 +47,7 @@ func (p *ebnfParser) errorExpected(msg string) {
 	p.printf(`<span class="highlight">error: expected %s, found %s</span>`, msg, scanner.TokenString(p.tok))
 }
 
-func (p *ebnfParser) expect(tok int) {
+func (p *ebnfParser) expect(tok rune) {
 	if p.tok != tok {
 		p.errorExpected(scanner.TokenString(tok))
 	}
