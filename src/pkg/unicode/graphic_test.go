@@ -13,7 +13,7 @@ import (
 // in the Latin-1 range through the property table.
 
 func TestIsControlLatin1(t *testing.T) {
-	for i := 0; i <= MaxLatin1; i++ {
+	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsControl(i)
 		want := false
 		switch {
@@ -29,7 +29,7 @@ func TestIsControlLatin1(t *testing.T) {
 }
 
 func TestIsLetterLatin1(t *testing.T) {
-	for i := 0; i <= MaxLatin1; i++ {
+	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsLetter(i)
 		want := Is(Letter, i)
 		if got != want {
@@ -39,7 +39,7 @@ func TestIsLetterLatin1(t *testing.T) {
 }
 
 func TestIsUpperLatin1(t *testing.T) {
-	for i := 0; i <= MaxLatin1; i++ {
+	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsUpper(i)
 		want := Is(Upper, i)
 		if got != want {
@@ -49,7 +49,7 @@ func TestIsUpperLatin1(t *testing.T) {
 }
 
 func TestIsLowerLatin1(t *testing.T) {
-	for i := 0; i <= MaxLatin1; i++ {
+	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsLower(i)
 		want := Is(Lower, i)
 		if got != want {
@@ -59,7 +59,7 @@ func TestIsLowerLatin1(t *testing.T) {
 }
 
 func TestNumberLatin1(t *testing.T) {
-	for i := 0; i <= MaxLatin1; i++ {
+	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsNumber(i)
 		want := Is(Number, i)
 		if got != want {
@@ -69,7 +69,7 @@ func TestNumberLatin1(t *testing.T) {
 }
 
 func TestIsPrintLatin1(t *testing.T) {
-	for i := 0; i <= MaxLatin1; i++ {
+	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsPrint(i)
 		want := IsOneOf(PrintRanges, i)
 		if i == ' ' {
@@ -82,7 +82,7 @@ func TestIsPrintLatin1(t *testing.T) {
 }
 
 func TestIsGraphicLatin1(t *testing.T) {
-	for i := 0; i <= MaxLatin1; i++ {
+	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsGraphic(i)
 		want := IsOneOf(GraphicRanges, i)
 		if got != want {
@@ -92,7 +92,7 @@ func TestIsGraphicLatin1(t *testing.T) {
 }
 
 func TestIsPunctLatin1(t *testing.T) {
-	for i := 0; i <= MaxLatin1; i++ {
+	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsPunct(i)
 		want := Is(Punct, i)
 		if got != want {
@@ -102,7 +102,7 @@ func TestIsPunctLatin1(t *testing.T) {
 }
 
 func TestIsSpaceLatin1(t *testing.T) {
-	for i := 0; i <= MaxLatin1; i++ {
+	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsSpace(i)
 		want := Is(White_Space, i)
 		if got != want {
@@ -112,7 +112,7 @@ func TestIsSpaceLatin1(t *testing.T) {
 }
 
 func TestIsSymbolLatin1(t *testing.T) {
-	for i := 0; i <= MaxLatin1; i++ {
+	for i := rune(0); i <= MaxLatin1; i++ {
 		got := IsSymbol(i)
 		want := Is(Symbol, i)
 		if got != want {

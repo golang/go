@@ -31,13 +31,13 @@ var PrintRanges = []*RangeTable{
 // IsGraphic reports whether the rune is defined as a Graphic by Unicode.
 // Such characters include letters, marks, numbers, punctuation, symbols, and
 // spaces, from categories L, M, N, P, S, Zs.
-func IsGraphic(rune int) bool {
+func IsGraphic(r rune) bool {
 	// We cast to uint32 to avoid the extra test for negative,
 	// and in the index we cast to uint8 to avoid the range check.
-	if uint32(rune) <= MaxLatin1 {
-		return properties[uint8(rune)]&pg != 0
+	if uint32(r) <= MaxLatin1 {
+		return properties[uint8(r)]&pg != 0
 	}
-	return IsOneOf(GraphicRanges, rune)
+	return IsOneOf(GraphicRanges, r)
 }
 
 // IsPrint reports whether the rune is defined as printable by Go. Such
@@ -45,18 +45,18 @@ func IsGraphic(rune int) bool {
 // ASCII space character, from categories L, M, N, P, S and the ASCII space
 // character.  This categorization is the same as IsGraphic except that the
 // only spacing character is ASCII space, U+0020.
-func IsPrint(rune int) bool {
-	if uint32(rune) <= MaxLatin1 {
-		return properties[uint8(rune)]&pp != 0
+func IsPrint(r rune) bool {
+	if uint32(r) <= MaxLatin1 {
+		return properties[uint8(r)]&pp != 0
 	}
-	return IsOneOf(PrintRanges, rune)
+	return IsOneOf(PrintRanges, r)
 }
 
 // IsOneOf reports whether the rune is a member of one of the ranges.
 // The rune is known to be above Latin-1.
-func IsOneOf(set []*RangeTable, rune int) bool {
+func IsOneOf(set []*RangeTable, r rune) bool {
 	for _, inside := range set {
-		if Is(inside, rune) {
+		if Is(inside, r) {
 			return true
 		}
 	}
@@ -66,43 +66,43 @@ func IsOneOf(set []*RangeTable, rune int) bool {
 // IsControl reports whether the rune is a control character.
 // The C (Other) Unicode category includes more code points
 // such as surrogates; use Is(C, rune) to test for them.
-func IsControl(rune int) bool {
-	if uint32(rune) <= MaxLatin1 {
-		return properties[uint8(rune)]&pC != 0
+func IsControl(r rune) bool {
+	if uint32(r) <= MaxLatin1 {
+		return properties[uint8(r)]&pC != 0
 	}
 	// All control characters are < Latin1Max.
 	return false
 }
 
 // IsLetter reports whether the rune is a letter (category L).
-func IsLetter(rune int) bool {
-	if uint32(rune) <= MaxLatin1 {
-		return properties[uint8(rune)]&(pLu|pLl) != 0
+func IsLetter(r rune) bool {
+	if uint32(r) <= MaxLatin1 {
+		return properties[uint8(r)]&(pLu|pLl) != 0
 	}
-	return Is(Letter, rune)
+	return Is(Letter, r)
 }
 
 // IsMark reports whether the rune is a mark character (category M).
-func IsMark(rune int) bool {
+func IsMark(r rune) bool {
 	// There are no mark characters in Latin-1.
-	return Is(Mark, rune)
+	return Is(Mark, r)
 }
 
 // IsNumber reports whether the rune is a number (category N).
-func IsNumber(rune int) bool {
-	if uint32(rune) <= MaxLatin1 {
-		return properties[uint8(rune)]&pN != 0
+func IsNumber(r rune) bool {
+	if uint32(r) <= MaxLatin1 {
+		return properties[uint8(r)]&pN != 0
 	}
-	return Is(Number, rune)
+	return Is(Number, r)
 }
 
 // IsPunct reports whether the rune is a Unicode punctuation character
 // (category P).
-func IsPunct(rune int) bool {
-	if uint32(rune) <= MaxLatin1 {
-		return properties[uint8(rune)]&pP != 0
+func IsPunct(r rune) bool {
+	if uint32(r) <= MaxLatin1 {
+		return properties[uint8(r)]&pP != 0
 	}
-	return Is(Punct, rune)
+	return Is(Punct, r)
 }
 
 // IsSpace reports whether the rune is a space character as defined
@@ -111,22 +111,22 @@ func IsPunct(rune int) bool {
 //	'\t', '\n', '\v', '\f', '\r', ' ', U+0085 (NEL), U+00A0 (NBSP).
 // Other definitions of spacing characters are set by category
 // Z and property Pattern_White_Space.
-func IsSpace(rune int) bool {
+func IsSpace(r rune) bool {
 	// This property isn't the same as Z; special-case it.
-	if uint32(rune) <= MaxLatin1 {
-		switch rune {
+	if uint32(r) <= MaxLatin1 {
+		switch r {
 		case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0:
 			return true
 		}
 		return false
 	}
-	return Is(White_Space, rune)
+	return Is(White_Space, r)
 }
 
 // IsSymbol reports whether the rune is a symbolic character.
-func IsSymbol(rune int) bool {
-	if uint32(rune) <= MaxLatin1 {
-		return properties[uint8(rune)]&pS != 0
+func IsSymbol(r rune) bool {
+	if uint32(r) <= MaxLatin1 {
+		return properties[uint8(r)]&pS != 0
 	}
-	return Is(Symbol, rune)
+	return Is(Symbol, r)
 }
