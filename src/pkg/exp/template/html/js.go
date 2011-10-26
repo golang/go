@@ -85,7 +85,7 @@ func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
 		// Look for an IdentifierName and see if it is a keyword that
 		// can precede a regular expression.
 		j := n
-		for j > 0 && isJSIdentPart(int(s[j-1])) {
+		for j > 0 && isJSIdentPart(rune(s[j-1])) {
 			j--
 		}
 		if regexpPrecederKeywords[string(s[j:])] {
@@ -234,7 +234,7 @@ func replace(s string, replacementTable []string) string {
 	for i, r := range s {
 		var repl string
 		switch {
-		case r < len(replacementTable) && replacementTable[r] != "":
+		case int(r) < len(replacementTable) && replacementTable[r] != "":
 			repl = replacementTable[r]
 		case r == '\u2028':
 			repl = `\u2028`
@@ -329,17 +329,17 @@ var jsRegexpReplacementTable = []string{
 // It does not handle all the non-Latin letters, joiners, and combining marks,
 // but it does handle every codepoint that can occur in a numeric literal or
 // a keyword.
-func isJSIdentPart(rune int) bool {
+func isJSIdentPart(r rune) bool {
 	switch {
-	case '$' == rune:
+	case r == '$':
 		return true
-	case '0' <= rune && rune <= '9':
+	case '0' <= r && r <= '9':
 		return true
-	case 'A' <= rune && rune <= 'Z':
+	case 'A' <= r && r <= 'Z':
 		return true
-	case '_' == rune:
+	case r == '_':
 		return true
-	case 'a' <= rune && rune <= 'z':
+	case 'a' <= r && r <= 'z':
 		return true
 	}
 	return false
