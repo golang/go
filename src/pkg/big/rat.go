@@ -249,13 +249,13 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
 	return z.norm()
 }
 
-func ratTok(ch int) bool {
+func ratTok(ch rune) bool {
 	return strings.IndexRune("+-/0123456789.eE", ch) >= 0
 }
 
 // Scan is a support routine for fmt.Scanner. It accepts the formats
 // 'e', 'E', 'f', 'F', 'g', 'G', and 'v'. All formats are equivalent.
-func (z *Rat) Scan(s fmt.ScanState, ch int) os.Error {
+func (z *Rat) Scan(s fmt.ScanState, ch rune) os.Error {
 	tok, err := s.Token(true, ratTok)
 	if err != nil {
 		return err

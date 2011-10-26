@@ -231,7 +231,7 @@ var natScanTests = []struct {
 	x    nat    // expected nat
 	b    int    // expected base
 	ok   bool   // expected success
-	next int    // next character (or 0, if at EOF)
+	next rune   // next character (or 0, if at EOF)
 }{
 	// error: illegal base
 	{base: -1},
