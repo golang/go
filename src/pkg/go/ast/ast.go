@@ -752,6 +752,7 @@ type (
 		Name    *Ident        // local package name (including "."); or nil
 		Path    *BasicLit     // import path
 		Comment *CommentGroup // line comments; or nil
+		EndPos  token.Pos     // end of spec (overrides Path.Pos if nonzero)
 	}
 
 	// A ValueSpec node represents a constant or variable declaration
@@ -785,7 +786,13 @@ func (s *ImportSpec) Pos() token.Pos {
 func (s *ValueSpec) Pos() token.Pos { return s.Names[0].Pos() }
 func (s *TypeSpec) Pos() token.Pos  { return s.Name.Pos() }
 
-func (s *ImportSpec) End() token.Pos { return s.Path.End() }
+func (s *ImportSpec) End() token.Pos {
+	if s.EndPos != 0 {
+		return s.EndPos
+	}
+	return s.Path.End()
+}
+
 func (s *ValueSpec) End() token.Pos {
 	if n := len(s.Values); n > 0 {
 		return s.Values[n-1].End()

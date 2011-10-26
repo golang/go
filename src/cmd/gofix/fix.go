@@ -19,7 +19,7 @@ type fix struct {
 	desc string
 }
 
-// main runs sort.Sort(fixes) after init process is done.
+// main runs sort.Sort(fixes) before printing list of fixes.
 type fixlist []fix
 
 func (f fixlist) Len() int           { return len(f) }
@@ -316,6 +316,20 @@ func importPath(s *ast.ImportSpec) string {
 	return ""
 }
 
+// declImports reports whether gen contains an import of path.
+func declImports(gen *ast.GenDecl, path string) bool {
+	if gen.Tok != token.IMPORT {
+		return false
+	}
+	for _, spec := range gen.Specs {
+		impspec := spec.(*ast.ImportSpec)
+		if importPath(impspec) == path {
+			return true
+		}
+	}
+	return false
+}
+
 // isPkgDot returns true if t is the expression "pkg.name"
 // where pkg is an imported identifier.
 func isPkgDot(t ast.Expr, pkg, name string) bool {
@@ -486,12 +500,18 @@ func addImport(f *ast.File, path string) {
 	var impdecl *ast.GenDecl
 
 	// Find an import decl to add to.
-	for _, decl := range f.Decls {
+	var lastImport int = -1
+	for i, decl := range f.Decls {
 		gen, ok := decl.(*ast.GenDecl)
 
 		if ok && gen.Tok == token.IMPORT {
-			impdecl = gen
-			break
+			lastImport = i
+			// Do not add to import "C", to avoid disrupting the
+			// association with its doc comment, breaking cgo.
+			if !declImports(gen, "C") {
+				impdecl = gen
+				break
+			}
 		}
 	}
 
@@ -501,8 +521,8 @@ func addImport(f *ast.File, path string) {
 			Tok: token.IMPORT,
 		}
 		f.Decls = append(f.Decls, nil)
-		copy(f.Decls[1:], f.Decls)
-		f.Decls[0] = impdecl
+		copy(f.Decls[lastImport+2:], f.Decls[lastImport+1:])
+		f.Decls[lastImport+1] = impdecl
 	}
 
 	// Ensure the import decl has parentheses, if needed.
@@ -540,7 +560,6 @@ func deleteImport(f *ast.File, path string) {
 		}
 		for j, spec := range gen.Specs {
 			impspec := spec.(*ast.ImportSpec)
-
 			if oldImport != impspec {
 				continue
 			}
@@ -558,7 +577,13 @@ func deleteImport(f *ast.File, path string) {
 			} else if len(gen.Specs) == 1 {
 				gen.Lparen = token.NoPos // drop parens
 			}
-
+			if j > 0 {
+				// We deleted an entry but now there will be
+				// a blank line-sized hole where the import was.
+				// Close the hole by making the previous
+				// import appear to "end" where this one did.
+				gen.Specs[j-1].(*ast.ImportSpec).EndPos = impspec.End()
+			}
 			break
 		}
 	}
