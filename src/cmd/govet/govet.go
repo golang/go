@@ -233,7 +233,7 @@ type MethodSig struct {
 // rest has to match.
 var canonicalMethods = map[string]MethodSig{
 	// "Flush": {{}, {"os.Error"}}, // http.Flusher and jpeg.writer conflict
-	"Format":        {[]string{"=fmt.State", "int"}, []string{}},                // fmt.Formatter
+	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},               // fmt.Formatter
 	"GobDecode":     {[]string{"[]byte"}, []string{"os.Error"}},                 // gob.GobDecoder
 	"GobEncode":     {[]string{}, []string{"[]byte", "os.Error"}},               // gob.GobEncoder
 	"MarshalJSON":   {[]string{}, []string{"[]byte", "os.Error"}},               // json.Marshaler
@@ -241,8 +241,8 @@ var canonicalMethods = map[string]MethodSig{
 	"Peek":          {[]string{"=int"}, []string{"[]byte", "os.Error"}},         // image.reader (matching bufio.Reader)
 	"ReadByte":      {[]string{}, []string{"byte", "os.Error"}},                 // io.ByteReader
 	"ReadFrom":      {[]string{"=io.Reader"}, []string{"int64", "os.Error"}},    // io.ReaderFrom
-	"ReadRune":      {[]string{}, []string{"int", "int", "os.Error"}},           // io.RuneReader
-	"Scan":          {[]string{"=fmt.ScanState", "int"}, []string{"os.Error"}},  // fmt.Scanner
+	"ReadRune":      {[]string{}, []string{"rune", "int", "os.Error"}},          // io.RuneReader
+	"Scan":          {[]string{"=fmt.ScanState", "rune"}, []string{"os.Error"}}, // fmt.Scanner
 	"Seek":          {[]string{"=int64", "int"}, []string{"int64", "os.Error"}}, // io.Seeker
 	"UnmarshalJSON": {[]string{"[]byte"}, []string{"os.Error"}},                 // json.Unmarshaler
 	"UnreadByte":    {[]string{}, []string{"os.Error"}},
@@ -560,7 +560,7 @@ type BadTypeUsedInTests struct {
 	X int "hello" // ERROR "struct field tag"
 }
 
-func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, int[)] os.Error"
+func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, rune[)] os.Error"
 }
 
 type BadInterfaceUsedInTests interface {
