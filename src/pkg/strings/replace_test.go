@@ -159,12 +159,12 @@ func BenchmarkByteByteReplaces(b *testing.B) {
 // BenchmarkByteByteMap compares byteByteImpl against Map.
 func BenchmarkByteByteMap(b *testing.B) {
 	str := Repeat("a", 100) + Repeat("b", 100)
-	fn := func(r int) int {
+	fn := func(r rune) rune {
 		switch r {
 		case 'a':
-			return int('A')
+			return 'A'
 		case 'b':
-			return int('B')
+			return 'B'
 		}
 		return r
 	}

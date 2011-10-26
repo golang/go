@@ -60,16 +60,16 @@ func (r *Reader) UnreadByte() os.Error {
 // If no bytes are available, the error returned is os.EOF.
 // If the bytes are an erroneous UTF-8 encoding, it
 // consumes one byte and returns U+FFFD, 1.
-func (r *Reader) ReadRune() (rune int, size int, err os.Error) {
+func (r *Reader) ReadRune() (ch rune, size int, err os.Error) {
 	if r.i >= len(r.s) {
 		return 0, 0, os.EOF
 	}
 	r.prevRune = r.i
 	if c := r.s[r.i]; c < utf8.RuneSelf {
 		r.i++
-		return int(c), 1, nil
+		return rune(c), 1, nil
 	}
-	rune, size = utf8.DecodeRuneInString(r.s[r.i:])
+	ch, size = utf8.DecodeRuneInString(r.s[r.i:])
 	r.i += size
 	return
 }

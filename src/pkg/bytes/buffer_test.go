@@ -264,7 +264,7 @@ func TestRuneIO(t *testing.T) {
 	b := make([]byte, utf8.UTFMax*NRune)
 	var buf Buffer
 	n := 0
-	for r := 0; r < NRune; r++ {
+	for r := rune(0); r < NRune; r++ {
 		size := utf8.EncodeRune(b[n:], r)
 		nbytes, err := buf.WriteRune(r)
 		if err != nil {
@@ -284,7 +284,7 @@ func TestRuneIO(t *testing.T) {
 
 	p := make([]byte, utf8.UTFMax)
 	// Read it back with ReadRune
-	for r := 0; r < NRune; r++ {
+	for r := rune(0); r < NRune; r++ {
 		size := utf8.EncodeRune(p, r)
 		nr, nbytes, err := buf.ReadRune()
 		if nr != r || nbytes != size || err != nil {
@@ -295,7 +295,7 @@ func TestRuneIO(t *testing.T) {
 	// Check that UnreadRune works
 	buf.Reset()
 	buf.Write(b)
-	for r := 0; r < NRune; r++ {
+	for r := rune(0); r < NRune; r++ {
 		r1, size, _ := buf.ReadRune()
 		if err := buf.UnreadRune(); err != nil {
 			t.Fatalf("UnreadRune(%U) got error %q", r, err)
