@@ -71,7 +71,7 @@ func (p *Package) ParseFlags(f *File, srcfile string) {
 NextLine:
 	for _, line := range linesIn {
 		l := strings.TrimSpace(line)
-		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(int(l[4])) {
+		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(rune(l[4])) {
 			linesOut = append(linesOut, line)
 			continue
 		}
@@ -193,28 +193,28 @@ func pkgConfig(packages []string) (cflags, ldflags []string, err os.Error) {
 //
 func splitQuoted(s string) (r []string, err os.Error) {
 	var args []string
-	arg := make([]int, len(s))
+	arg := make([]rune, len(s))
 	escaped := false
 	quoted := false
-	quote := 0
+	quote := rune(0)
 	i := 0
-	for _, rune := range s {
+	for _, r := range s {
 		switch {
 		case escaped:
 			escaped = false
-		case rune == '\\':
+		case r == '\\':
 			escaped = true
 			continue
 		case quote != 0:
-			if rune == quote {
+			if r == quote {
 				quote = 0
 				continue
 			}
-		case rune == '"' || rune == '\'':
+		case r == '"' || r == '\'':
 			quoted = true
-			quote = rune
+			quote = r
 			continue
-		case unicode.IsSpace(rune):
+		case unicode.IsSpace(r):
 			if quoted || i > 0 {
 				quoted = false
 				args = append(args, string(arg[:i]))
@@ -222,7 +222,7 @@ func splitQuoted(s string) (r []string, err os.Error) {
 			}
 			continue
 		}
-		arg[i] = rune
+		arg[i] = r
 		i++
 	}
 	if quoted || i > 0 {

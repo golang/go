@@ -14,7 +14,7 @@ const N = 11 + 1 // length of a board row (+1 for newline)
 // The board must be surrounded by 2 illegal fields in each direction
 // so that move() doesn't need to check the board boundaries. Periods
 // represent illegal fields, ● are pegs, and ○ are holes.
-var board = []int(
+var board = []rune(
 	`...........
 ...........
 ....●●●....
@@ -27,7 +27,6 @@ var board = []int(
 ...........
 ...........
 `)
-
 
 // center is the position of the center hole if there is a single one;
 // otherwise it is -1.
@@ -46,7 +45,6 @@ func init() {
 	}
 }
 
-
 var moves int // number of times move is called
 
 // move tests if there is a peg at position pos that can jump over another peg
@@ -63,14 +61,12 @@ func move(pos, dir int) bool {
 	return false
 }
 
-
 // unmove reverts a previously executed valid move.
 func unmove(pos, dir int) {
 	board[pos] = '●'
 	board[pos+dir] = '●'
 	board[pos+2*dir] = '○'
 }
-
 
 // solve tries to find a sequence of moves such that there is only one peg left
 // at the end; if center is >= 0, that last peg must be in the center position.
@@ -109,7 +105,6 @@ func solve() bool {
 	// no solution found for this board
 	return false
 }
-
 
 func main() {
 	if !solve() {

@@ -9,7 +9,7 @@ package main
 import "utf8"
 
 func main() {
-	var chars [6] int
+	var chars [6]rune
 	chars[0] = 'a'
 	chars[1] = 'b'
 	chars[2] = 'c'
@@ -21,16 +21,22 @@ func main() {
 		s += string(chars[i])
 	}
 	var l = len(s)
-	for w, i, j := 0,0,0; i < l; i += w {
-		var r int
+	for w, i, j := 0, 0, 0; i < l; i += w {
+		var r rune
 		r, w = utf8.DecodeRuneInString(s[i:len(s)])
-		if w == 0 { panic("zero width in string") }
-		if r != chars[j] { panic("wrong value from string") }
+		if w == 0 {
+			panic("zero width in string")
+		}
+		if r != chars[j] {
+			panic("wrong value from string")
+		}
 		j++
 	}
 	// encoded as bytes:  'a' 'b' 'c' e6 97 a5 e6 9c ac e8 aa 9e
 	const L = 12
-	if L != l { panic("wrong length constructing array") }
+	if L != l {
+		panic("wrong length constructing array")
+	}
 	a := make([]byte, L)
 	a[0] = 'a'
 	a[1] = 'b'
@@ -44,11 +50,15 @@ func main() {
 	a[9] = 0xe8
 	a[10] = 0xaa
 	a[11] = 0x9e
-	for w, i, j := 0,0,0; i < L; i += w {
-		var r int
+	for w, i, j := 0, 0, 0; i < L; i += w {
+		var r rune
 		r, w = utf8.DecodeRune(a[i:L])
-		if w == 0 { panic("zero width in bytes") }
-		if r != chars[j] { panic("wrong value from bytes") }
+		if w == 0 {
+			panic("zero width in bytes")
+		}
+		if r != chars[j] {
+			panic("wrong value from bytes")
+		}
 		j++
 	}
 }

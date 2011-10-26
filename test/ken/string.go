@@ -95,7 +95,7 @@ func main() {
 	}
 
 	/* create string with int array */
-	var z2 [3]int
+	var z2 [3]rune
 	z2[0] = 'a'
 	z2[1] = '\u1234'
 	z2[2] = 'c'

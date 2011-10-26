@@ -461,10 +461,10 @@ func safeName(s string) bool {
 //
 func splitQuoted(s string) (r []string, err os.Error) {
 	var args []string
-	arg := make([]int, len(s))
+	arg := make([]rune, len(s))
 	escaped := false
 	quoted := false
-	quote := 0
+	quote := rune(0)
 	i := 0
 	for _, rune := range s {
 		switch {

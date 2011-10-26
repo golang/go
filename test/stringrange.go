@@ -14,23 +14,24 @@ import (
 
 func main() {
 	s := "\000\123\x00\xca\xFE\u0123\ubabe\U0000babe\U0010FFFFx"
-	expect := []int{ 0, 0123, 0, 0xFFFD, 0xFFFD, 0x123, 0xbabe, 0xbabe, 0x10FFFF, 'x' }
+	expect := []rune{0, 0123, 0, 0xFFFD, 0xFFFD, 0x123, 0xbabe, 0xbabe, 0x10FFFF, 'x'}
 	offset := 0
-	var i, c int
+	var i int
+	var c rune
 	ok := true
 	cnum := 0
 	for i, c = range s {
-		rune, size := utf8.DecodeRuneInString(s[i:len(s)])  // check it another way
+		r, size := utf8.DecodeRuneInString(s[i:len(s)]) // check it another way
 		if i != offset {
 			fmt.Printf("unexpected offset %d not %d\n", i, offset)
 			ok = false
 		}
-		if rune != expect[cnum] {
-			fmt.Printf("unexpected rune %d from DecodeRuneInString: %x not %x\n", i, rune, expect[cnum])
+		if r != expect[cnum] {
+			fmt.Printf("unexpected rune %d from DecodeRuneInString: %x not %x\n", i, r, expect[cnum])
 			ok = false
 		}
 		if c != expect[cnum] {
-			fmt.Printf("unexpected rune %d from range: %x not %x\n", i, rune, expect[cnum])
+			fmt.Printf("unexpected rune %d from range: %x not %x\n", i, r, expect[cnum])
 			ok = false
 		}
 		offset += size

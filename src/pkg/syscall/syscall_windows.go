@@ -56,7 +56,7 @@ func main() {
 
 // StringToUTF16 returns the UTF-16 encoding of the UTF-8 string s,
 // with a terminating NUL added.
-func StringToUTF16(s string) []uint16 { return utf16.Encode([]int(s + "\x00")) }
+func StringToUTF16(s string) []uint16 { return utf16.Encode([]rune(s + "\x00")) }
 
 // UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,
 // with a terminating NUL removed.
