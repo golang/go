@@ -443,7 +443,7 @@ func inHeadIM(p *parser) (insertionMode, bool) {
 		switch p.tok.Data {
 		case "meta":
 			// TODO.
-		case "script", "title":
+		case "script", "title", "noscript", "noframes", "style":
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.setOriginalIM(inHeadIM)
 			return textIM, true
@@ -763,6 +763,8 @@ func (p *parser) inBodyEndTagOther(tag string) {
 // Section 11.2.5.4.8.
 func textIM(p *parser) (insertionMode, bool) {
 	switch p.tok.Type {
+	case ErrorToken:
+		p.oe.pop()
 	case TextToken:
 		p.addText(p.tok.Data)
 		return textIM, true
