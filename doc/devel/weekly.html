@@ -14,6 +14,26 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-10-26">2011-10-26 (new rune type)</h2>
+
+<pre>
+This snapshot introduces the rune type, an alias for int that
+should be used for Unicode code points.
+
+A future release of Go (after Go 1) will change rune to be an
+alias for int32 instead of int.  Using rune consistently is the way
+to make your code build both before and after this change.
+
+To test your code for rune safety, you can rebuild the Go tree with
+
+	GOEXPERIMENT=rune32 ./all.bash
+
+which builds a compiler in which rune is an alias for int32 instead of int.
+
+Also, run govet on your code to identify methods that might need to have their
+signatures updated.
+</pre>
+
 <h2 id="2011-10-25">2011-10-25</h2>
 
 <pre>
