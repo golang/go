@@ -40,7 +40,7 @@ func TestNotifyEvents(t *testing.T) {
 	// Add a watch for testDir
 	os.RemoveAll(testDir)
 	if err = os.Mkdir(testDir, 0777); err != nil {
-		t.Fatalf("Failed to create test directory", err)
+		t.Fatalf("Failed to create test directory: %s", err)
 	}
 	defer os.RemoveAll(testDir)
 	err = watcher.AddWatch(testDir, mask)
