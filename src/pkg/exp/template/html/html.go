@@ -139,7 +139,7 @@ var htmlNospaceNormReplacementTable = []string{
 func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 	written, b := 0, new(bytes.Buffer)
 	for i, r := range s {
-		if r < len(replacementTable) {
+		if int(r) < len(replacementTable) {
 			if repl := replacementTable[r]; len(repl) != 0 {
 				b.WriteString(s[written:i])
 				b.WriteString(repl)

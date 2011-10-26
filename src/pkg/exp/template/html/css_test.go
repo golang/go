@@ -35,7 +35,7 @@ func TestEndsWithCSSKeyword(t *testing.T) {
 
 func TestIsCSSNmchar(t *testing.T) {
 	tests := []struct {
-		rune int
+		rune rune
 		want bool
 	}{
 		{0, false},
@@ -114,11 +114,11 @@ func TestDecodeCSS(t *testing.T) {
 func TestHexDecode(t *testing.T) {
 	for i := 0; i < 0x200000; i += 101 /* coprime with 16 */ {
 		s := strconv.Itob(i, 16)
-		if got := hexDecode([]byte(s)); got != i {
+		if got := int(hexDecode([]byte(s))); got != i {
 			t.Errorf("%s: want %d but got %d", s, i, got)
 		}
 		s = strings.ToUpper(s)
-		if got := hexDecode([]byte(s)); got != i {
+		if got := int(hexDecode([]byte(s))); got != i {
 			t.Errorf("%s: want %d but got %d", s, i, got)
 		}
 	}
