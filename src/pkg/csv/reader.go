@@ -101,8 +101,8 @@ var (
 //
 // If TrimLeadingSpace is true, leading white space in a field is ignored.
 type Reader struct {
-	Comma            int  // Field delimiter (set to ',' by NewReader)
-	Comment          int  // Comment character for start of line
+	Comma            rune // Field delimiter (set to ',' by NewReader)
+	Comment          rune // Comment character for start of line
 	FieldsPerRecord  int  // Number of expected fields per record
 	LazyQuotes       bool // Allow lazy quotes
 	TrailingComma    bool // Allow trailing comma
@@ -173,23 +173,23 @@ func (r *Reader) ReadAll() (records [][]string, err os.Error) {
 // readRune reads one rune from r, folding \r\n to \n and keeping track
 // of how far into the line we have read.  r.column will point to the start
 // of this rune, not the end of this rune.
-func (r *Reader) readRune() (int, os.Error) {
-	rune, _, err := r.r.ReadRune()
+func (r *Reader) readRune() (rune, os.Error) {
+	r1, _, err := r.r.ReadRune()
 
 	// Handle \r\n here.  We make the simplifying assumption that
 	// anytime \r is followed by \n that it can be folded to \n.
 	// We will not detect files which contain both \r\n and bare \n.
-	if rune == '\r' {
-		rune, _, err = r.r.ReadRune()
+	if r1 == '\r' {
+		r1, _, err = r.r.ReadRune()
 		if err == nil {
-			if rune != '\n' {
+			if r1 != '\n' {
 				r.r.UnreadRune()
-				rune = '\r'
+				r1 = '\r'
 			}
 		}
 	}
 	r.column++
-	return rune, err
+	return r1, err
 }
 
 // unreadRune puts the last rune read from r back.
@@ -199,13 +199,13 @@ func (r *Reader) unreadRune() {
 }
 
 // skip reads runes up to and including the rune delim or until error.
-func (r *Reader) skip(delim int) os.Error {
+func (r *Reader) skip(delim rune) os.Error {
 	for {
-		rune, err := r.readRune()
+		r1, err := r.readRune()
 		if err != nil {
 			return err
 		}
-		if rune == delim {
+		if r1 == delim {
 			return nil
 		}
 	}
@@ -224,12 +224,12 @@ func (r *Reader) parseRecord() (fields []string, err os.Error) {
 	// If we are support comments and it is the comment character
 	// then skip to the end of line.
 
-	rune, _, err := r.r.ReadRune()
+	r1, _, err := r.r.ReadRune()
 	if err != nil {
 		return nil, err
 	}
 
-	if r.Comment != 0 && rune == r.Comment {
+	if r.Comment != 0 && r1 == r.Comment {
 		return nil, r.skip('\n')
 	}
 	r.r.UnreadRune()
@@ -252,10 +252,10 @@ func (r *Reader) parseRecord() (fields []string, err os.Error) {
 // parseField parses the next field in the record.  The read field is
 // located in r.field.  Delim is the first character not part of the field
 // (r.Comma or '\n').
-func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
+func (r *Reader) parseField() (haveField bool, delim rune, err os.Error) {
 	r.field.Reset()
 
-	rune, err := r.readRune()
+	r1, err := r.readRune()
 	if err != nil {
 		// If we have EOF and are not at the start of a line
 		// then we return the empty field.  We have already
@@ -267,30 +267,30 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
 	}
 
 	if r.TrimLeadingSpace {
-		for rune != '\n' && unicode.IsSpace(rune) {
-			rune, err = r.readRune()
+		for r1 != '\n' && unicode.IsSpace(r1) {
+			r1, err = r.readRune()
 			if err != nil {
 				return false, 0, err
 			}
 		}
 	}
 
-	switch rune {
+	switch r1 {
 	case r.Comma:
 		// will check below
 
 	case '\n':
 		// We are a trailing empty field or a blank line
 		if r.column == 0 {
-			return false, rune, nil
+			return false, r1, nil
 		}
-		return true, rune, nil
+		return true, r1, nil
 
 	case '"':
 		// quoted field
 	Quoted:
 		for {
-			rune, err = r.readRune()
+			r1, err = r.readRune()
 			if err != nil {
 				if err == os.EOF {
 					if r.LazyQuotes {
@@ -300,16 +300,16 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
 				}
 				return false, 0, err
 			}
-			switch rune {
+			switch r1 {
 			case '"':
-				rune, err = r.readRune()
-				if err != nil || rune == r.Comma {
+				r1, err = r.readRune()
+				if err != nil || r1 == r.Comma {
 					break Quoted
 				}
-				if rune == '\n' {
-					return true, rune, nil
+				if r1 == '\n' {
+					return true, r1, nil
 				}
-				if rune != '"' {
+				if r1 != '"' {
 					if !r.LazyQuotes {
 						r.column--
 						return false, 0, r.error(ErrQuote)
@@ -321,21 +321,21 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
 				r.line++
 				r.column = -1
 			}
-			r.field.WriteRune(rune)
+			r.field.WriteRune(r1)
 		}
 
 	default:
 		// unquoted field
 		for {
-			r.field.WriteRune(rune)
-			rune, err = r.readRune()
-			if err != nil || rune == r.Comma {
+			r.field.WriteRune(r1)
+			r1, err = r.readRune()
+			if err != nil || r1 == r.Comma {
 				break
 			}
-			if rune == '\n' {
-				return true, rune, nil
+			if r1 == '\n' {
+				return true, r1, nil
 			}
-			if !r.LazyQuotes && rune == '"' {
+			if !r.LazyQuotes && r1 == '"' {
 				return false, 0, r.error(ErrBareQuote)
 			}
 		}
@@ -353,20 +353,20 @@ func (r *Reader) parseField() (haveField bool, delim int, err os.Error) {
 		// are at the end of the line (being mindful
 		// of trimming spaces).
 		c := r.column
-		rune, err = r.readRune()
+		r1, err = r.readRune()
 		if r.TrimLeadingSpace {
-			for rune != '\n' && unicode.IsSpace(rune) {
-				rune, err = r.readRune()
+			for r1 != '\n' && unicode.IsSpace(r1) {
+				r1, err = r.readRune()
 				if err != nil {
 					break
 				}
 			}
 		}
-		if err == os.EOF || rune == '\n' {
+		if err == os.EOF || r1 == '\n' {
 			r.column = c // report the comma
 			return false, 0, r.error(ErrTrailingComma)
 		}
 		r.unreadRune()
 	}
-	return true, rune, nil
+	return true, r1, nil
 }

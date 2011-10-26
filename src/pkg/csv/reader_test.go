@@ -17,8 +17,8 @@ var readTests = []struct {
 	UseFieldsPerRecord bool // false (default) means FieldsPerRecord is -1
 
 	// These fields are copied into the Reader
-	Comma            int
-	Comment          int
+	Comma            rune
+	Comment          rune
 	FieldsPerRecord  int
 	LazyQuotes       bool
 	TrailingComma    bool

@@ -176,7 +176,7 @@ func (s *scanner) popParseState() {
 	}
 }
 
-func isSpace(c int) bool {
+func isSpace(c rune) bool {
 	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
 }
 

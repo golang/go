@@ -960,13 +960,13 @@ Input:
 // Decide whether the given rune is in the XML Character Range, per
 // the Char production of http://www.xml.com/axml/testaxml.htm,
 // Section 2.2 Characters.
-func isInCharacterRange(rune int) (inrange bool) {
-	return rune == 0x09 ||
-		rune == 0x0A ||
-		rune == 0x0D ||
-		rune >= 0x20 && rune <= 0xDF77 ||
-		rune >= 0xE000 && rune <= 0xFFFD ||
-		rune >= 0x10000 && rune <= 0x10FFFF
+func isInCharacterRange(r rune) (inrange bool) {
+	return r == 0x09 ||
+		r == 0x0A ||
+		r == 0x0D ||
+		r >= 0x20 && r <= 0xDF77 ||
+		r >= 0xE000 && r <= 0xFFFD ||
+		r >= 0x10000 && r <= 0x10FFFF
 }
 
 // Get name space name: name with a : stuck in the middle.
@@ -1690,7 +1690,7 @@ func procInstEncoding(s string) string {
 	if v[0] != '\'' && v[0] != '"' {
 		return ""
 	}
-	idx = strings.IndexRune(v[1:], int(v[0]))
+	idx = strings.IndexRune(v[1:], rune(v[0]))
 	if idx == -1 {
 		return ""
 	}
