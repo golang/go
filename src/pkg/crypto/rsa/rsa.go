@@ -116,15 +116,7 @@ func GenerateKey(random io.Reader, bits int) (priv *PrivateKey, err os.Error) {
 // [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
 func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (priv *PrivateKey, err os.Error) {
 	priv = new(PrivateKey)
-	// Smaller public exponents lead to faster public key
-	// operations. Since the exponent must be coprime to
-	// (p-1)(q-1), the smallest possible value is 3. Some have
-	// suggested that a larger exponent (often 2**16+1) be used
-	// since previous implementation bugs[1] were avoided when this
-	// was the case. However, there are no current reasons not to use
-	// small exponents.
-	// [1] http://marc.info/?l=cryptography&m=115694833312008&w=2
-	priv.E = 3
+	priv.E = 65537
 
 	if nprimes < 2 {
 		return nil, os.NewError("rsa.GenerateMultiPrimeKey: nprimes must be >= 2")
