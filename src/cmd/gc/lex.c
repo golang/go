@@ -229,7 +229,7 @@ main(int argc, char *argv[])
 		p = expstring();
 		if(strcmp(p, "X:none") == 0)
 			p = "";
-		print("%cg version %s%s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
+		print("%cg version %s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
 		exits(0);
 	} ARGEND
 
