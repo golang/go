@@ -3,17 +3,17 @@
 
 package syntax
 
-var code1 = []int{ /* \d */
+var code1 = []rune{ /* \d */
 	0x30, 0x39,
 }
 
-var code2 = []int{ /* \s */
+var code2 = []rune{ /* \s */
 	0x9, 0xa,
 	0xc, 0xd,
 	0x20, 0x20,
 }
 
-var code3 = []int{ /* \w */
+var code3 = []rune{ /* \w */
 	0x30, 0x39,
 	0x41, 0x5a,
 	0x5f, 0x5f,
@@ -28,71 +28,71 @@ var perlGroup = map[string]charGroup{
 	`\w`: {+1, code3},
 	`\W`: {-1, code3},
 }
-var code4 = []int{ /* [:alnum:] */
+var code4 = []rune{ /* [:alnum:] */
 	0x30, 0x39,
 	0x41, 0x5a,
 	0x61, 0x7a,
 }
 
-var code5 = []int{ /* [:alpha:] */
+var code5 = []rune{ /* [:alpha:] */
 	0x41, 0x5a,
 	0x61, 0x7a,
 }
 
-var code6 = []int{ /* [:ascii:] */
+var code6 = []rune{ /* [:ascii:] */
 	0x0, 0x7f,
 }
 
-var code7 = []int{ /* [:blank:] */
+var code7 = []rune{ /* [:blank:] */
 	0x9, 0x9,
 	0x20, 0x20,
 }
 
-var code8 = []int{ /* [:cntrl:] */
+var code8 = []rune{ /* [:cntrl:] */
 	0x0, 0x1f,
 	0x7f, 0x7f,
 }
 
-var code9 = []int{ /* [:digit:] */
+var code9 = []rune{ /* [:digit:] */
 	0x30, 0x39,
 }
 
-var code10 = []int{ /* [:graph:] */
+var code10 = []rune{ /* [:graph:] */
 	0x21, 0x7e,
 }
 
-var code11 = []int{ /* [:lower:] */
+var code11 = []rune{ /* [:lower:] */
 	0x61, 0x7a,
 }
 
-var code12 = []int{ /* [:print:] */
+var code12 = []rune{ /* [:print:] */
 	0x20, 0x7e,
 }
 
-var code13 = []int{ /* [:punct:] */
+var code13 = []rune{ /* [:punct:] */
 	0x21, 0x2f,
 	0x3a, 0x40,
 	0x5b, 0x60,
 	0x7b, 0x7e,
 }
 
-var code14 = []int{ /* [:space:] */
+var code14 = []rune{ /* [:space:] */
 	0x9, 0xd,
 	0x20, 0x20,
 }
 
-var code15 = []int{ /* [:upper:] */
+var code15 = []rune{ /* [:upper:] */
 	0x41, 0x5a,
 }
 
-var code16 = []int{ /* [:word:] */
+var code16 = []rune{ /* [:word:] */
 	0x30, 0x39,
 	0x41, 0x5a,
 	0x5f, 0x5f,
 	0x61, 0x7a,
 }
 
-var code17 = []int{ /* [:xdigit:] */
+var code17 = []rune{ /* [:xdigit:] */
 	0x30, 0x39,
 	0x41, 0x46,
 	0x61, 0x66,

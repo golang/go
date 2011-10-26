@@ -91,8 +91,8 @@ func (c *compiler) init() {
 	c.inst(InstFail)
 }
 
-var anyRuneNotNL = []int{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
-var anyRune = []int{0, unicode.MaxRune}
+var anyRuneNotNL = []rune{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
+var anyRune = []rune{0, unicode.MaxRune}
 
 func (c *compiler) compile(re *Regexp) frag {
 	switch re.Op {
@@ -262,12 +262,12 @@ func (c *compiler) empty(op EmptyOp) frag {
 	return f
 }
 
-func (c *compiler) rune(rune []int, flags Flags) frag {
+func (c *compiler) rune(r []rune, flags Flags) frag {
 	f := c.inst(InstRune)
 	i := &c.p.Inst[f.i]
-	i.Rune = rune
+	i.Rune = r
 	flags &= FoldCase // only relevant flag is FoldCase
-	if len(rune) != 1 || unicode.SimpleFold(rune[0]) == rune[0] {
+	if len(r) != 1 || unicode.SimpleFold(r[0]) == r[0] {
 		// and sometimes not even that
 		flags &^= FoldCase
 	}
@@ -276,11 +276,11 @@ func (c *compiler) rune(rune []int, flags Flags) frag {
 
 	// Special cases for exec machine.
 	switch {
-	case flags&FoldCase == 0 && (len(rune) == 1 || len(rune) == 2 && rune[0] == rune[1]):
+	case flags&FoldCase == 0 && (len(r) == 1 || len(r) == 2 && r[0] == r[1]):
 		i.Op = InstRune1
-	case len(rune) == 2 && rune[0] == 0 && rune[1] == unicode.MaxRune:
+	case len(r) == 2 && r[0] == 0 && r[1] == unicode.MaxRune:
 		i.Op = InstRuneAny
-	case len(rune) == 4 && rune[0] == 0 && rune[1] == '\n'-1 && rune[2] == '\n'+1 && rune[3] == unicode.MaxRune:
+	case len(r) == 4 && r[0] == 0 && r[1] == '\n'-1 && r[2] == '\n'+1 && r[3] == unicode.MaxRune:
 		i.Op = InstRuneAnyNotNL
 	}
 

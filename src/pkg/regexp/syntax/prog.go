@@ -51,7 +51,7 @@ const (
 // at the beginning of the text.
 // Passing r2 == -1 indicates that the position is
 // at the end of the text.
-func EmptyOpContext(r1, r2 int) EmptyOp {
+func EmptyOpContext(r1, r2 rune) EmptyOp {
 	var op EmptyOp
 	if r1 < 0 {
 		op |= EmptyBeginText | EmptyBeginLine
@@ -76,7 +76,7 @@ func EmptyOpContext(r1, r2 int) EmptyOp {
 // IsWordChar reports whether r is consider a ``word character''
 // during the evaluation of the \b and \B zero-width assertions.
 // These assertions are ASCII-only: the word characters are [A-Za-z0-9_].
-func IsWordChar(r int) bool {
+func IsWordChar(r rune) bool {
 	return 'A' <= r && r <= 'Z' || 'a' <= r && r <= 'z' || '0' <= r && r <= '9' || r == '_'
 }
 
@@ -85,7 +85,7 @@ type Inst struct {
 	Op   InstOp
 	Out  uint32 // all but InstMatch, InstFail
 	Arg  uint32 // InstAlt, InstAltMatch, InstCapture, InstEmptyWidth
-	Rune []int
+	Rune []rune
 }
 
 func (p *Prog) String() string {
@@ -161,7 +161,7 @@ Loop:
 
 // MatchRune returns true if the instruction matches (and consumes) r.
 // It should only be called when i.Op == InstRune.
-func (i *Inst) MatchRune(r int) bool {
+func (i *Inst) MatchRune(r rune) bool {
 	rune := i.Rune
 
 	// Special case: single-rune slice is from literal string, not char class.
@@ -210,17 +210,17 @@ func (i *Inst) MatchRune(r int) bool {
 
 // As per re2's Prog::IsWordChar. Determines whether rune is an ASCII word char.
 // Since we act on runes, it would be easy to support Unicode here.
-func wordRune(rune int) bool {
-	return rune == '_' ||
-		('A' <= rune && rune <= 'Z') ||
-		('a' <= rune && rune <= 'z') ||
-		('0' <= rune && rune <= '9')
+func wordRune(r rune) bool {
+	return r == '_' ||
+		('A' <= r && r <= 'Z') ||
+		('a' <= r && r <= 'z') ||
+		('0' <= r && r <= '9')
 }
 
 // MatchEmptyWidth returns true if the instruction matches
 // an empty string between the runes before and after.
 // It should only be called when i.Op == InstEmptyWidth.
-func (i *Inst) MatchEmptyWidth(before int, after int) bool {
+func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
 	switch EmptyOp(i.Arg) {
 	case EmptyBeginLine:
 		return before == '\n' || before == -1

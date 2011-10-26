@@ -371,10 +371,10 @@ func dumpRegexp(b *bytes.Buffer, re *Regexp) {
 	b.WriteByte('}')
 }
 
-func mkCharClass(f func(int) bool) string {
+func mkCharClass(f func(rune) bool) string {
 	re := &Regexp{Op: OpCharClass}
-	lo := -1
-	for i := 0; i <= unicode.MaxRune; i++ {
+	lo := rune(-1)
+	for i := rune(0); i <= unicode.MaxRune; i++ {
 		if f(i) {
 			if lo < 0 {
 				lo = i
@@ -392,12 +392,12 @@ func mkCharClass(f func(int) bool) string {
 	return dump(re)
 }
 
-func isUpperFold(rune int) bool {
-	if unicode.IsUpper(rune) {
+func isUpperFold(r rune) bool {
+	if unicode.IsUpper(r) {
 		return true
 	}
-	c := unicode.SimpleFold(rune)
-	for c != rune {
+	c := unicode.SimpleFold(r)
+	for c != r {
 		if unicode.IsUpper(c) {
 			return true
 		}
@@ -407,8 +407,8 @@ func isUpperFold(rune int) bool {
 }
 
 func TestFoldConstants(t *testing.T) {
-	last := -1
-	for i := 0; i <= unicode.MaxRune; i++ {
+	last := rune(-1)
+	for i := rune(0); i <= unicode.MaxRune; i++ {
 		if unicode.SimpleFold(i) == i {
 			continue
 		}
@@ -427,8 +427,8 @@ func TestAppendRangeCollapse(t *testing.T) {
 	// into the earlier ones (it looks back two ranges), so that
 	// the slice never grows very large.
 	// Note that we are not calling cleanClass.
-	var r []int
-	for i := 'A'; i <= 'Z'; i++ {
+	var r []rune
+	for i := rune('A'); i <= 'Z'; i++ {
 		r = appendRange(r, i, i)
 		r = appendRange(r, i+'a'-'A', i+'a'-'A')
 	}

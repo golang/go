@@ -57,7 +57,7 @@ sub ComputeClass($) {
 
 sub PrintClass($$@) {
   my ($cname, $name, @ranges) = @_;
-  print "var code$cname = []int{  /* $name */\n";
+  print "var code$cname = []rune{  /* $name */\n";
   for (my $i=0; $i<@ranges; $i++) {
     my @a = @{$ranges[$i]};
     printf "\t0x%x, 0x%x,\n", $a[0], $a[1];
