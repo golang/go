@@ -304,7 +304,7 @@ void	gpseudo(int, Sym*, Node*);
 int	swcmp(const void*, const void*);
 void	doswit(Node*);
 void	swit1(C1*, int, int32, Node*);
-void	cas(void);
+void	newcase(void);
 void	bitload(Node*, Node*, Node*, Node*, Node*);
 void	bitstore(Node*, Node*, Node*, Node*, Node*);
 int	mulcon(Node*, Node*);
