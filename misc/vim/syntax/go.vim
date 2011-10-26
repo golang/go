@@ -68,7 +68,7 @@ hi def link     goRepeat            Repeat
 
 " Predefined types
 syn keyword     goType              chan map bool string
-syn keyword     goSignedInts        int int8 int16 int32 int64
+syn keyword     goSignedInts        int int8 int16 int32 int64 rune
 syn keyword     goUnsignedInts      byte uint uint8 uint16 uint32 uint64 uintptr
 syn keyword     goFloats            float32 float64
 syn keyword     goComplexes         complex64 complex128
