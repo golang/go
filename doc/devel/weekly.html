@@ -14,6 +14,33 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-10-25">2011-10-25</h2>
+
+<pre>
+* big: make SetString return nil if an error occurs,
+	new Rat.Inv method,
+	usable zero Rat values without need for explicit initialization.
+* codereview: show LGTMs in hg p.
+* crypto/x509: fix names in certificate generation.
+* exp/ssh: add experimental ssh client,
+	introduce Session to replace Cmd for interactive commands,
+	server cleanups (thanks Dave Cheney).
+* exp/types: fix crash in parseBasicType on unknown type.
+* fmt: don't panic formatting nil interfaces (thanks Gustavo Niemeyer).
+* go/ast, go/token: actually run tests; fix go/ast test.
+* gotest: explicit -help flag, use $GCFLAGS like make does.
+* govet: check canonical dynamic method signatures.
+* html: improved parsing (thanks Andrew Balholm),
+	parse <select> tags, parse and render comment nodes,
+	remove the Tokenizer.ReturnComments option.
+* http: Transport: with TLS InsecureSkipVerify, skip hostname check.
+* misc/vim: add highlighting for delete (thanks Dave Cheney).
+* net: do not set SO_REUSEADDR for windows (thanks Alex Brainman).
+* os/inotify: move to exp/inotify (thanks Mikio Hara).
+* runtime: include bootstrap m in mcpu accounting (thanks Hector Chu).
+* syscall: use uintptr for Mount flags.
+</pre>
+
 <h2 id="2011-10-18">2011-10-18</h2>
 
 <pre>
