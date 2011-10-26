@@ -279,7 +279,7 @@ func JSEscape(w io.Writer, b []byte) {
 	for i := 0; i < len(b); i++ {
 		c := b[i]
 
-		if !jsIsSpecial(int(c)) {
+		if !jsIsSpecial(rune(c)) {
 			// fast path: nothing to do
 			continue
 		}
@@ -307,12 +307,12 @@ func JSEscape(w io.Writer, b []byte) {
 			}
 		} else {
 			// Unicode rune.
-			rune, size := utf8.DecodeRune(b[i:])
-			if unicode.IsPrint(rune) {
+			r, size := utf8.DecodeRune(b[i:])
+			if unicode.IsPrint(r) {
 				w.Write(b[i : i+size])
 			} else {
 				// TODO(dsymonds): Do this without fmt?
-				fmt.Fprintf(w, "\\u%04X", rune)
+				fmt.Fprintf(w, "\\u%04X", r)
 			}
 			i += size - 1
 		}
@@ -332,12 +332,12 @@ func JSEscapeString(s string) string {
 	return b.String()
 }
 
-func jsIsSpecial(rune int) bool {
-	switch rune {
+func jsIsSpecial(r rune) bool {
+	switch r {
 	case '\\', '\'', '"', '<', '>':
 		return true
 	}
-	return rune < ' ' || utf8.RuneSelf <= rune
+	return r < ' ' || utf8.RuneSelf <= r
 }
 
 // JSEscaper returns the escaped JavaScript equivalent of the textual

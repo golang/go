@@ -131,21 +131,21 @@ type lexer struct {
 }
 
 // next returns the next rune in the input.
-func (l *lexer) next() (rune int) {
+func (l *lexer) next() (r rune) {
 	if l.pos >= len(l.input) {
 		l.width = 0
 		return eof
 	}
-	rune, l.width = utf8.DecodeRuneInString(l.input[l.pos:])
+	r, l.width = utf8.DecodeRuneInString(l.input[l.pos:])
 	l.pos += l.width
-	return rune
+	return r
 }
 
 // peek returns but does not consume the next rune in the input.
-func (l *lexer) peek() int {
-	rune := l.next()
+func (l *lexer) peek() rune {
+	r := l.next()
 	l.backup()
-	return rune
+	return r
 }
 
 // backup steps back one rune. Can only be called once per call of next.
@@ -468,7 +468,7 @@ Loop:
 }
 
 // isSpace reports whether r is a space character.
-func isSpace(r int) bool {
+func isSpace(r rune) bool {
 	switch r {
 	case ' ', '\t', '\n', '\r':
 		return true
@@ -477,6 +477,6 @@ func isSpace(r int) bool {
 }
 
 // isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
-func isAlphaNumeric(r int) bool {
+func isAlphaNumeric(r rune) bool {
 	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }

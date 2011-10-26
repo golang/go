@@ -644,7 +644,7 @@ func TestTree(t *testing.T) {
 	if err != nil {
 		t.Fatal("exec error:", err)
 	}
-	stripSpace := func(r int) int {
+	stripSpace := func(r rune) rune {
 		if r == '\t' || r == '\n' {
 			return -1
 		}
