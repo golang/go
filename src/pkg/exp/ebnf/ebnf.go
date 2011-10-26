@@ -163,7 +163,7 @@ func (v *verifier) push(prod *Production) {
 	}
 }
 
-func (v *verifier) verifyChar(x *Token) int {
+func (v *verifier) verifyChar(x *Token) rune {
 	s := x.String
 	if utf8.RuneCountInString(s) != 1 {
 		v.error(x.Pos(), "single char expected, found "+s)

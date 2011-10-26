@@ -15,7 +15,7 @@ type parser struct {
 	errors  errorList
 	scanner scanner.Scanner
 	pos     scanner.Position // token position
-	tok     int              // one token look-ahead
+	tok     rune             // one token look-ahead
 	lit     string           // token literal
 }
 
@@ -42,7 +42,7 @@ func (p *parser) errorExpected(pos scanner.Position, msg string) {
 	p.error(pos, msg)
 }
 
-func (p *parser) expect(tok int) scanner.Position {
+func (p *parser) expect(tok rune) scanner.Position {
 	pos := p.pos
 	if p.tok != tok {
 		p.errorExpected(pos, scanner.TokenString(tok))

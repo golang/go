@@ -71,7 +71,7 @@ func findPkg(path string) (filename, id string) {
 // object/archive file and populates its scope with the results.
 type gcParser struct {
 	scanner scanner.Scanner
-	tok     int                    // current token
+	tok     rune                   // current token
 	lit     string                 // literal string; only valid for Ident, Int, String tokens
 	id      string                 // package id of imported package
 	imports map[string]*ast.Object // package id -> package object
@@ -195,7 +195,7 @@ func (p *gcParser) errorf(format string, args ...interface{}) {
 	p.error(fmt.Sprintf(format, args...))
 }
 
-func (p *gcParser) expect(tok int) string {
+func (p *gcParser) expect(tok rune) string {
 	lit := p.lit
 	if p.tok != tok {
 		p.errorf("expected %q, got %q (%q)", scanner.TokenString(tok), scanner.TokenString(p.tok), lit)
@@ -205,9 +205,9 @@ func (p *gcParser) expect(tok int) string {
 }
 
 func (p *gcParser) expectSpecial(tok string) {
-	sep := 'x' // not white space
+	sep := rune('x') // not white space
 	i := 0
-	for i < len(tok) && p.tok == int(tok[i]) && sep > ' ' {
+	for i < len(tok) && p.tok == rune(tok[i]) && sep > ' ' {
 		sep = p.scanner.Peek() // if sep <= ' ', there is white space before the next token
 		p.next()
 		i++
@@ -260,7 +260,7 @@ func (p *gcParser) parsePkgId() *ast.Object {
 func (p *gcParser) parseDotIdent() string {
 	ident := ""
 	if p.tok != scanner.Int {
-		sep := 'x' // not white space
+		sep := rune('x') // not white space
 		for (p.tok == scanner.Ident || p.tok == scanner.Int || p.tok == '·') && sep > ' ' {
 			ident += p.lit
 			sep = p.scanner.Peek() // if sep <= ' ', there is white space before the next token

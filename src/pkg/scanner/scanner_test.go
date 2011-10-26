@@ -64,7 +64,7 @@ func TestNext(t *testing.T) {
 }
 
 type token struct {
-	tok  int
+	tok  rune
 	text string
 }
 
@@ -233,7 +233,7 @@ func makeSource(pattern string) *bytes.Buffer {
 	return &buf
 }
 
-func checkTok(t *testing.T, s *Scanner, line, got, want int, text string) {
+func checkTok(t *testing.T, s *Scanner, line int, got, want rune, text string) {
 	if got != want {
 		t.Fatalf("tok = %s, want %s for %q", TokenString(got), TokenString(want), text)
 	}
@@ -329,7 +329,7 @@ func TestScanZeroMode(t *testing.T) {
 	}
 }
 
-func testScanSelectedMode(t *testing.T, mode uint, class int) {
+func testScanSelectedMode(t *testing.T, mode uint, class rune) {
 	src := makeSource("%s\n")
 	s := new(Scanner).Init(src)
 	s.Mode = mode
@@ -398,7 +398,7 @@ func TestScanWhitespace(t *testing.T) {
 	}
 }
 
-func testError(t *testing.T, src, pos, msg string, tok int) {
+func testError(t *testing.T, src, pos, msg string, tok rune) {
 	s := new(Scanner).Init(bytes.NewBufferString(src))
 	errorCalled := false
 	s.Error = func(s *Scanner, m string) {
@@ -463,7 +463,7 @@ func checkPos(t *testing.T, got, want Position) {
 	}
 }
 
-func checkNextPos(t *testing.T, s *Scanner, offset, line, column, char int) {
+func checkNextPos(t *testing.T, s *Scanner, offset, line, column int, char rune) {
 	if ch := s.Next(); ch != char {
 		t.Errorf("ch = %s, want %s", TokenString(ch), TokenString(char))
 	}
@@ -471,7 +471,7 @@ func checkNextPos(t *testing.T, s *Scanner, offset, line, column, char int) {
 	checkPos(t, s.Pos(), want)
 }
 
-func checkScanPos(t *testing.T, s *Scanner, offset, line, column, char int) {
+func checkScanPos(t *testing.T, s *Scanner, offset, line, column int, char rune) {
 	want := Position{Offset: offset, Line: line, Column: column}
 	checkPos(t, s.Pos(), want)
 	if ch := s.Scan(); ch != char {
