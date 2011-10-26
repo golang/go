@@ -24,6 +24,9 @@ func TestReverseProxy(t *testing.T) {
 		if r.Header.Get("X-Forwarded-For") == "" {
 			t.Errorf("didn't get X-Forwarded-For header")
 		}
+		if c := r.Header.Get("Connection"); c != "" {
+			t.Errorf("handler got Connection header value %q", c)
+		}
 		if g, e := r.Host, "some-name"; g != e {
 			t.Errorf("backend got Host header %q, want %q", g, e)
 		}
@@ -43,6 +46,8 @@ func TestReverseProxy(t *testing.T) {
 
 	getReq, _ := NewRequest("GET", frontend.URL, nil)
 	getReq.Host = "some-name"
+	getReq.Header.Set("Connection", "close")
+	getReq.Close = true
 	res, err := DefaultClient.Do(getReq)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
