@@ -90,15 +90,15 @@ func (m *machine) match(i input, pos int) bool {
 		m.matchcap[i] = -1
 	}
 	runq, nextq := &m.q0, &m.q1
-	rune, rune1 := endOfText, endOfText
+	r, r1 := endOfText, endOfText
 	width, width1 := 0, 0
-	rune, width = i.step(pos)
-	if rune != endOfText {
-		rune1, width1 = i.step(pos + width)
+	r, width = i.step(pos)
+	if r != endOfText {
+		r1, width1 = i.step(pos + width)
 	}
 	var flag syntax.EmptyOp
 	if pos == 0 {
-		flag = syntax.EmptyOpContext(-1, rune)
+		flag = syntax.EmptyOpContext(-1, r)
 	} else {
 		flag = i.context(pos)
 	}
@@ -112,15 +112,15 @@ func (m *machine) match(i input, pos int) bool {
 				// Have match; finished exploring alternatives.
 				break
 			}
-			if len(m.re.prefix) > 0 && rune1 != m.re.prefixRune && i.canCheckPrefix() {
+			if len(m.re.prefix) > 0 && r1 != m.re.prefixRune && i.canCheckPrefix() {
 				// Match requires literal prefix; fast search for it.
 				advance := i.index(m.re, pos)
 				if advance < 0 {
 					break
 				}
 				pos += advance
-				rune, width = i.step(pos)
-				rune1, width1 = i.step(pos + width)
+				r, width = i.step(pos)
+				r1, width1 = i.step(pos + width)
 			}
 		}
 		if !m.matched {
@@ -129,8 +129,8 @@ func (m *machine) match(i input, pos int) bool {
 			}
 			m.add(runq, uint32(m.p.Start), pos, m.matchcap, flag, nil)
 		}
-		flag = syntax.EmptyOpContext(rune, rune1)
-		m.step(runq, nextq, pos, pos+width, rune, flag)
+		flag = syntax.EmptyOpContext(r, r1)
+		m.step(runq, nextq, pos, pos+width, r, flag)
 		if width == 0 {
 			break
 		}
@@ -140,9 +140,9 @@ func (m *machine) match(i input, pos int) bool {
 			break
 		}
 		pos += width
-		rune, width = rune1, width1
-		if rune != endOfText {
-			rune1, width1 = i.step(pos + width)
+		r, width = r1, width1
+		if r != endOfText {
+			r1, width1 = i.step(pos + width)
 		}
 		runq, nextq = nextq, runq
 	}
@@ -166,7 +166,7 @@ func (m *machine) clear(q *queue) {
 // The step processes the rune c (which may be endOfText),
 // which starts at position pos and ends at nextPos.
 // nextCond gives the setting for the empty-width flags after c.
-func (m *machine) step(runq, nextq *queue, pos, nextPos, c int, nextCond syntax.EmptyOp) {
+func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond syntax.EmptyOp) {
 	longest := m.re.longest
 	for j := 0; j < len(runq.dense); j++ {
 		d := &runq.dense[j]

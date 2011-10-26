@@ -82,7 +82,7 @@ type parser struct {
 	free        *Regexp
 	numCap      int // number of capturing groups seen
 	wholeRegexp string
-	tmpClass    []int // temporary char class work space
+	tmpClass    []rune // temporary char class work space
 }
 
 func (p *parser) newRegexp(op Op) *Regexp {
@@ -149,7 +149,7 @@ func (p *parser) push(re *Regexp) *Regexp {
 // If r >= 0 and there's a node left over, maybeConcat uses it
 // to push r with the given flags.
 // maybeConcat reports whether r was pushed.
-func (p *parser) maybeConcat(r int, flags Flags) bool {
+func (p *parser) maybeConcat(r rune, flags Flags) bool {
 	n := len(p.stack)
 	if n < 2 {
 		return false
@@ -178,7 +178,7 @@ func (p *parser) maybeConcat(r int, flags Flags) bool {
 }
 
 // newLiteral returns a new OpLiteral Regexp with the given flags
-func (p *parser) newLiteral(r int, flags Flags) *Regexp {
+func (p *parser) newLiteral(r rune, flags Flags) *Regexp {
 	re := p.newRegexp(OpLiteral)
 	re.Flags = flags
 	if flags&FoldCase != 0 {
@@ -190,7 +190,7 @@ func (p *parser) newLiteral(r int, flags Flags) *Regexp {
 }
 
 // minFoldRune returns the minimum rune fold-equivalent to r.
-func minFoldRune(r int) int {
+func minFoldRune(r rune) rune {
 	if r < minFold || r > maxFold {
 		return r
 	}
@@ -206,7 +206,7 @@ func minFoldRune(r int) int {
 
 // literal pushes a literal regexp for the rune r on the stack
 // and returns that regexp.
-func (p *parser) literal(r int) {
+func (p *parser) literal(r rune) {
 	p.push(p.newLiteral(r, p.flags))
 }
 
@@ -369,7 +369,7 @@ func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
 	}
 
 	// Round 1: Factor out common literal prefixes.
-	var str []int
+	var str []rune
 	var strflags Flags
 	start := 0
 	out := sub[:0]
@@ -380,7 +380,7 @@ func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
 		//
 		// Invariant: sub[start:i] consists of regexps that all begin
 		// with str as modified by strflags.
-		var istr []int
+		var istr []rune
 		var iflags Flags
 		if i < len(sub) {
 			istr, iflags = p.leadingString(sub[i])
@@ -543,7 +543,7 @@ func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
 
 // leadingString returns the leading literal string that re begins with.
 // The string refers to storage in re or its children.
-func (p *parser) leadingString(re *Regexp) ([]int, Flags) {
+func (p *parser) leadingString(re *Regexp) ([]rune, Flags) {
 	if re.Op == OpConcat && len(re.Sub) > 0 {
 		re = re.Sub[0]
 	}
@@ -639,7 +639,7 @@ func literalRegexp(s string, flags Flags) *Regexp {
 	for _, c := range s {
 		if len(re.Rune) >= cap(re.Rune) {
 			// string is too long to fit in Rune0.  let Go handle it
-			re.Rune = []int(s)
+			re.Rune = []rune(s)
 			break
 		}
 		re.Rune = append(re.Rune, c)
@@ -662,7 +662,7 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 	var (
 		p          parser
 		err        os.Error
-		c          int
+		c          rune
 		op         Op
 		lastRepeat string
 		min, max   int
@@ -935,7 +935,7 @@ func (p *parser) parsePerlFlags(s string) (rest string, err os.Error) {
 	}
 
 	// Non-capturing group.  Might also twiddle Perl flags.
-	var c int
+	var c rune
 	t = t[2:] // skip (?
 	flags := p.flags
 	sign := +1
@@ -1049,7 +1049,7 @@ func isCharClass(re *Regexp) bool {
 }
 
 // does re match r?
-func matchRune(re *Regexp, r int) bool {
+func matchRune(re *Regexp, r rune) bool {
 	switch re.Op {
 	case OpLiteral:
 		return len(re.Rune) == 1 && re.Rune[0] == r
@@ -1186,7 +1186,7 @@ func (p *parser) parseRightParen() os.Error {
 
 // parseEscape parses an escape sequence at the beginning of s
 // and returns the rune.
-func (p *parser) parseEscape(s string) (r int, rest string, err os.Error) {
+func (p *parser) parseEscape(s string) (r rune, rest string, err os.Error) {
 	t := s[1:]
 	if t == "" {
 		return 0, "", &Error{ErrTrailingBackslash, ""}
@@ -1221,7 +1221,7 @@ Switch:
 			if t == "" || t[0] < '0' || t[0] > '7' {
 				break
 			}
-			r = r*8 + int(t[0]) - '0'
+			r = r*8 + rune(t[0]) - '0'
 			t = t[1:]
 		}
 		return r, t, nil
@@ -1302,7 +1302,7 @@ Switch:
 
 // parseClassChar parses a character class character at the beginning of s
 // and returns it.
-func (p *parser) parseClassChar(s, wholeClass string) (r int, rest string, err os.Error) {
+func (p *parser) parseClassChar(s, wholeClass string) (r rune, rest string, err os.Error) {
 	if s == "" {
 		return 0, "", &Error{Code: ErrMissingBracket, Expr: wholeClass}
 	}
@@ -1318,13 +1318,13 @@ func (p *parser) parseClassChar(s, wholeClass string) (r int, rest string, err o
 
 type charGroup struct {
 	sign  int
-	class []int
+	class []rune
 }
 
 // parsePerlClassEscape parses a leading Perl character class escape like \d
 // from the beginning of s.  If one is present, it appends the characters to r
 // and returns the new slice r and the remainder of the string.
-func (p *parser) parsePerlClassEscape(s string, r []int) (out []int, rest string) {
+func (p *parser) parsePerlClassEscape(s string, r []rune) (out []rune, rest string) {
 	if p.flags&PerlX == 0 || len(s) < 2 || s[0] != '\\' {
 		return
 	}
@@ -1338,7 +1338,7 @@ func (p *parser) parsePerlClassEscape(s string, r []int) (out []int, rest string
 // parseNamedClass parses a leading POSIX named character class like [:alnum:]
 // from the beginning of s.  If one is present, it appends the characters to r
 // and returns the new slice r and the remainder of the string.
-func (p *parser) parseNamedClass(s string, r []int) (out []int, rest string, err os.Error) {
+func (p *parser) parseNamedClass(s string, r []rune) (out []rune, rest string, err os.Error) {
 	if len(s) < 2 || s[0] != '[' || s[1] != ':' {
 		return
 	}
@@ -1356,7 +1356,7 @@ func (p *parser) parseNamedClass(s string, r []int) (out []int, rest string, err
 	return p.appendGroup(r, g), s, nil
 }
 
-func (p *parser) appendGroup(r []int, g charGroup) []int {
+func (p *parser) appendGroup(r []rune, g charGroup) []rune {
 	if p.flags&FoldCase == 0 {
 		if g.sign < 0 {
 			r = appendNegatedClass(r, g.class)
@@ -1401,7 +1401,7 @@ func unicodeTable(name string) (*unicode.RangeTable, *unicode.RangeTable) {
 // parseUnicodeClass parses a leading Unicode character class like \p{Han}
 // from the beginning of s.  If one is present, it appends the characters to r
 // and returns the new slice r and the remainder of the string.
-func (p *parser) parseUnicodeClass(s string, r []int) (out []int, rest string, err os.Error) {
+func (p *parser) parseUnicodeClass(s string, r []rune) (out []rune, rest string, err os.Error) {
 	if p.flags&UnicodeGroups == 0 || len(s) < 2 || s[0] != '\\' || s[1] != 'p' && s[1] != 'P' {
 		return
 	}
@@ -1533,7 +1533,7 @@ func (p *parser) parseClass(s string) (rest string, err os.Error) {
 
 		// Single character or simple range.
 		rng := t
-		var lo, hi int
+		var lo, hi rune
 		if lo, t, err = p.parseClassChar(t, s); err != nil {
 			return "", err
 		}
@@ -1570,7 +1570,7 @@ func (p *parser) parseClass(s string) (rest string, err os.Error) {
 
 // cleanClass sorts the ranges (pairs of elements of r),
 // merges them, and eliminates duplicates.
-func cleanClass(rp *[]int) []int {
+func cleanClass(rp *[]rune) []rune {
 
 	// Sort by lo increasing, hi decreasing to break ties.
 	sort.Sort(ranges{rp})
@@ -1601,7 +1601,7 @@ func cleanClass(rp *[]int) []int {
 }
 
 // appendLiteral returns the result of appending the literal x to the class r.
-func appendLiteral(r []int, x int, flags Flags) []int {
+func appendLiteral(r []rune, x rune, flags Flags) []rune {
 	if flags&FoldCase != 0 {
 		return appendFoldedRange(r, x, x)
 	}
@@ -1609,7 +1609,7 @@ func appendLiteral(r []int, x int, flags Flags) []int {
 }
 
 // appendRange returns the result of appending the range lo-hi to the class r.
-func appendRange(r []int, lo, hi int) []int {
+func appendRange(r []rune, lo, hi rune) []rune {
 	// Expand last range or next to last range if it overlaps or abuts.
 	// Checking two ranges helps when appending case-folded
 	// alphabets, so that one range can be expanding A-Z and the
@@ -1642,7 +1642,7 @@ const (
 
 // appendFoldedRange returns the result of appending the range lo-hi
 // and its case folding-equivalent runes to the class r.
-func appendFoldedRange(r []int, lo, hi int) []int {
+func appendFoldedRange(r []rune, lo, hi rune) []rune {
 	// Optimizations.
 	if lo <= minFold && hi >= maxFold {
 		// Range is full: folding can't add more.
@@ -1677,7 +1677,7 @@ func appendFoldedRange(r []int, lo, hi int) []int {
 
 // appendClass returns the result of appending the class x to the class r.
 // It assume x is clean.
-func appendClass(r []int, x []int) []int {
+func appendClass(r []rune, x []rune) []rune {
 	for i := 0; i < len(x); i += 2 {
 		r = appendRange(r, x[i], x[i+1])
 	}
@@ -1685,7 +1685,7 @@ func appendClass(r []int, x []int) []int {
 }
 
 // appendFolded returns the result of appending the case folding of the class x to the class r.
-func appendFoldedClass(r []int, x []int) []int {
+func appendFoldedClass(r []rune, x []rune) []rune {
 	for i := 0; i < len(x); i += 2 {
 		r = appendFoldedRange(r, x[i], x[i+1])
 	}
@@ -1694,8 +1694,8 @@ func appendFoldedClass(r []int, x []int) []int {
 
 // appendNegatedClass returns the result of appending the negation of the class x to the class r.
 // It assumes x is clean.
-func appendNegatedClass(r []int, x []int) []int {
-	nextLo := 0
+func appendNegatedClass(r []rune, x []rune) []rune {
+	nextLo := rune('\u0000')
 	for i := 0; i < len(x); i += 2 {
 		lo, hi := x[i], x[i+1]
 		if nextLo <= lo-1 {
@@ -1710,9 +1710,9 @@ func appendNegatedClass(r []int, x []int) []int {
 }
 
 // appendTable returns the result of appending x to the class r.
-func appendTable(r []int, x *unicode.RangeTable) []int {
+func appendTable(r []rune, x *unicode.RangeTable) []rune {
 	for _, xr := range x.R16 {
-		lo, hi, stride := int(xr.Lo), int(xr.Hi), int(xr.Stride)
+		lo, hi, stride := rune(xr.Lo), rune(xr.Hi), rune(xr.Stride)
 		if stride == 1 {
 			r = appendRange(r, lo, hi)
 			continue
@@ -1722,7 +1722,7 @@ func appendTable(r []int, x *unicode.RangeTable) []int {
 		}
 	}
 	for _, xr := range x.R32 {
-		lo, hi, stride := int(xr.Lo), int(xr.Hi), int(xr.Stride)
+		lo, hi, stride := rune(xr.Lo), rune(xr.Hi), rune(xr.Stride)
 		if stride == 1 {
 			r = appendRange(r, lo, hi)
 			continue
@@ -1735,10 +1735,10 @@ func appendTable(r []int, x *unicode.RangeTable) []int {
 }
 
 // appendNegatedTable returns the result of appending the negation of x to the class r.
-func appendNegatedTable(r []int, x *unicode.RangeTable) []int {
-	nextLo := 0 // lo end of next class to add
+func appendNegatedTable(r []rune, x *unicode.RangeTable) []rune {
+	nextLo := rune('\u0000') // lo end of next class to add
 	for _, xr := range x.R16 {
-		lo, hi, stride := int(xr.Lo), int(xr.Hi), int(xr.Stride)
+		lo, hi, stride := rune(xr.Lo), rune(xr.Hi), rune(xr.Stride)
 		if stride == 1 {
 			if nextLo <= lo-1 {
 				r = appendRange(r, nextLo, lo-1)
@@ -1754,7 +1754,7 @@ func appendNegatedTable(r []int, x *unicode.RangeTable) []int {
 		}
 	}
 	for _, xr := range x.R32 {
-		lo, hi, stride := int(xr.Lo), int(xr.Hi), int(xr.Stride)
+		lo, hi, stride := rune(xr.Lo), rune(xr.Hi), rune(xr.Stride)
 		if stride == 1 {
 			if nextLo <= lo-1 {
 				r = appendRange(r, nextLo, lo-1)
@@ -1777,9 +1777,9 @@ func appendNegatedTable(r []int, x *unicode.RangeTable) []int {
 
 // negateClass overwrites r and returns r's negation.
 // It assumes the class r is already clean.
-func negateClass(r []int) []int {
-	nextLo := 0 // lo end of next class to add
-	w := 0      // write index
+func negateClass(r []rune) []rune {
+	nextLo := rune('\u0000') // lo end of next class to add
+	w := 0                   // write index
 	for i := 0; i < len(r); i += 2 {
 		lo, hi := r[i], r[i+1]
 		if nextLo <= lo-1 {
@@ -1801,9 +1801,9 @@ func negateClass(r []int) []int {
 // ranges implements sort.Interface on a []rune.
 // The choice of receiver type definition is strange
 // but avoids an allocation since we already have
-// a *[]int.
+// a *[]rune.
 type ranges struct {
-	p *[]int
+	p *[]rune
 }
 
 func (ra ranges) Less(i, j int) bool {
@@ -1835,7 +1835,7 @@ func checkUTF8(s string) os.Error {
 	return nil
 }
 
-func nextRune(s string) (c int, t string, err os.Error) {
+func nextRune(s string) (c rune, t string, err os.Error) {
 	c, size := utf8.DecodeRuneInString(s)
 	if c == utf8.RuneError && size == 1 {
 		return 0, "", &Error{Code: ErrInvalidUTF8, Expr: s}
@@ -1843,11 +1843,11 @@ func nextRune(s string) (c int, t string, err os.Error) {
 	return c, s[size:], nil
 }
 
-func isalnum(c int) bool {
+func isalnum(c rune) bool {
 	return '0' <= c && c <= '9' || 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
 }
 
-func unhex(c int) int {
+func unhex(c rune) rune {
 	if '0' <= c && c <= '9' {
 		return c - '0'
 	}

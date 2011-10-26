@@ -83,7 +83,7 @@ type Regexp struct {
 	prefix         string         // required prefix in unanchored matches
 	prefixBytes    []byte         // prefix, as a []byte
 	prefixComplete bool           // prefix is the entire regexp
-	prefixRune     int            // first rune in prefix
+	prefixRune     rune           // first rune in prefix
 	cond           syntax.EmptyOp // empty-width conditions required at start of match
 	numSubexp      int
 	longest        bool
@@ -224,13 +224,13 @@ func (re *Regexp) NumSubexp() int {
 	return re.numSubexp
 }
 
-const endOfText = -1
+const endOfText rune = -1
 
 // input abstracts different representations of the input text. It provides
 // one-character lookahead.
 type input interface {
-	step(pos int) (rune int, width int) // advance one rune
-	canCheckPrefix() bool               // can we look ahead without losing info?
+	step(pos int) (r rune, width int) // advance one rune
+	canCheckPrefix() bool             // can we look ahead without losing info?
 	hasPrefix(re *Regexp) bool
 	index(re *Regexp, pos int) int
 	context(pos int) syntax.EmptyOp
@@ -245,11 +245,11 @@ func newInputString(str string) *inputString {
 	return &inputString{str: str}
 }
 
-func (i *inputString) step(pos int) (int, int) {
+func (i *inputString) step(pos int) (rune, int) {
 	if pos < len(i.str) {
 		c := i.str[pos]
 		if c < utf8.RuneSelf {
-			return int(c), 1
+			return rune(c), 1
 		}
 		return utf8.DecodeRuneInString(i.str[pos:])
 	}
@@ -269,7 +269,7 @@ func (i *inputString) index(re *Regexp, pos int) int {
 }
 
 func (i *inputString) context(pos int) syntax.EmptyOp {
-	r1, r2 := -1, -1
+	r1, r2 := endOfText, endOfText
 	if pos > 0 && pos <= len(i.str) {
 		r1, _ = utf8.DecodeLastRuneInString(i.str[:pos])
 	}
@@ -288,11 +288,11 @@ func newInputBytes(str []byte) *inputBytes {
 	return &inputBytes{str: str}
 }
 
-func (i *inputBytes) step(pos int) (int, int) {
+func (i *inputBytes) step(pos int) (rune, int) {
 	if pos < len(i.str) {
 		c := i.str[pos]
 		if c < utf8.RuneSelf {
-			return int(c), 1
+			return rune(c), 1
 		}
 		return utf8.DecodeRune(i.str[pos:])
 	}
@@ -312,7 +312,7 @@ func (i *inputBytes) index(re *Regexp, pos int) int {
 }
 
 func (i *inputBytes) context(pos int) syntax.EmptyOp {
-	r1, r2 := -1, -1
+	r1, r2 := endOfText, endOfText
 	if pos > 0 && pos <= len(i.str) {
 		r1, _ = utf8.DecodeLastRune(i.str[:pos])
 	}
@@ -333,7 +333,7 @@ func newInputReader(r io.RuneReader) *inputReader {
 	return &inputReader{r: r}
 }
 
-func (i *inputReader) step(pos int) (int, int) {
+func (i *inputReader) step(pos int) (rune, int) {
 	if !i.atEOT && pos != i.pos {
 		return endOfText, 0
 
