@@ -1278,6 +1278,7 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool, multiLine *bool) {
 		}
 		p.expr(s.Path, multiLine)
 		p.setComment(s.Comment)
+		p.print(s.EndPos)
 
 	case *ast.ValueSpec:
 		if n != 1 {

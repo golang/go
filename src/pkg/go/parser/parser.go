@@ -1909,7 +1909,7 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
 	p.expectSemi() // call before accessing p.linecomment
 
 	// collect imports
-	spec := &ast.ImportSpec{doc, ident, path, p.lineComment}
+	spec := &ast.ImportSpec{doc, ident, path, p.lineComment, token.NoPos}
 	p.imports = append(p.imports, spec)
 
 	return spec
