@@ -302,7 +302,7 @@ func (x *Int) String() string {
 	return x.abs.decimalString()
 }
 
-func charset(ch int) string {
+func charset(ch rune) string {
 	switch ch {
 	case 'b':
 		return lowercaseDigits[0:2]
@@ -339,7 +339,7 @@ func writeMultiple(s fmt.State, text string, count int) {
 // output field width, space or zero padding, and left or
 // right justification.
 //
-func (x *Int) Format(s fmt.State, ch int) {
+func (x *Int) Format(s fmt.State, ch rune) {
 	cs := charset(ch)
 
 	// special cases
@@ -460,7 +460,7 @@ func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, os.Error) {
 // Scan is a support routine for fmt.Scanner; it sets z to the value of
 // the scanned number. It accepts the formats 'b' (binary), 'o' (octal),
 // 'd' (decimal), 'x' (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
-func (z *Int) Scan(s fmt.ScanState, ch int) os.Error {
+func (z *Int) Scan(s fmt.ScanState, ch rune) os.Error {
 	s.SkipSpace() // skip leading space characters
 	base := 0
 	switch ch {

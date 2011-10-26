@@ -589,15 +589,15 @@ func (x nat) bitLen() int {
 // MaxBase is the largest number base accepted for string conversions.
 const MaxBase = 'z' - 'a' + 10 + 1 // = hexValue('z') + 1
 
-func hexValue(ch int) Word {
+func hexValue(ch rune) Word {
 	d := MaxBase + 1 // illegal base
 	switch {
 	case '0' <= ch && ch <= '9':
-		d = ch - '0'
+		d = int(ch - '0')
 	case 'a' <= ch && ch <= 'z':
-		d = ch - 'a' + 10
+		d = int(ch - 'a' + 10)
 	case 'A' <= ch && ch <= 'Z':
-		d = ch - 'A' + 10
+		d = int(ch - 'A' + 10)
 	}
 	return Word(d)
 }
