@@ -10,7 +10,7 @@ import (
 )
 
 type T struct {
-	rune   int
+	rune   rune
 	script string
 }
 

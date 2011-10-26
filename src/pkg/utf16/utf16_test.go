@@ -5,7 +5,6 @@
 package utf16_test
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"unicode"
@@ -13,15 +12,15 @@ import (
 )
 
 type encodeTest struct {
-	in  []int
+	in  []rune
 	out []uint16
 }
 
 var encodeTests = []encodeTest{
-	{[]int{1, 2, 3, 4}, []uint16{1, 2, 3, 4}},
-	{[]int{0xffff, 0x10000, 0x10001, 0x12345, 0x10ffff},
+	{[]rune{1, 2, 3, 4}, []uint16{1, 2, 3, 4}},
+	{[]rune{0xffff, 0x10000, 0x10001, 0x12345, 0x10ffff},
 		[]uint16{0xffff, 0xd800, 0xdc00, 0xd800, 0xdc01, 0xd808, 0xdf45, 0xdbff, 0xdfff}},
-	{[]int{'a', 'b', 0xd7ff, 0xd800, 0xdfff, 0xe000, 0x110000, -1},
+	{[]rune{'a', 'b', 0xd7ff, 0xd800, 0xdfff, 0xe000, 0x110000, -1},
 		[]uint16{'a', 'b', 0xd7ff, 0xfffd, 0xfffd, 0xe000, 0xfffd, 0xfffd}},
 }
 
@@ -29,7 +28,7 @@ func TestEncode(t *testing.T) {
 	for _, tt := range encodeTests {
 		out := Encode(tt.in)
 		if !reflect.DeepEqual(out, tt.out) {
-			t.Errorf("Encode(%v) = %v; want %v", hex(tt.in), hex16(out), hex16(tt.out))
+			t.Errorf("Encode(%x) = %x; want %x", tt.in, out, tt.out)
 		}
 	}
 }
@@ -53,7 +52,7 @@ func TestEncodeRune(t *testing.T) {
 					t.Errorf("#%d: ran out of tt.out", i)
 					break
 				}
-				if r1 != int(tt.out[j]) || r2 != int(tt.out[j+1]) {
+				if r1 != rune(tt.out[j]) || r2 != rune(tt.out[j+1]) {
 					t.Errorf("EncodeRune(%#x) = %#x, %#x; want %#x, %#x", r, r1, r2, tt.out[j], tt.out[j+1])
 				}
 				j += 2
@@ -71,48 +70,22 @@ func TestEncodeRune(t *testing.T) {
 
 type decodeTest struct {
 	in  []uint16
-	out []int
+	out []rune
 }
 
 var decodeTests = []decodeTest{
-	{[]uint16{1, 2, 3, 4}, []int{1, 2, 3, 4}},
+	{[]uint16{1, 2, 3, 4}, []rune{1, 2, 3, 4}},
 	{[]uint16{0xffff, 0xd800, 0xdc00, 0xd800, 0xdc01, 0xd808, 0xdf45, 0xdbff, 0xdfff},
-		[]int{0xffff, 0x10000, 0x10001, 0x12345, 0x10ffff}},
-	{[]uint16{0xd800, 'a'}, []int{0xfffd, 'a'}},
-	{[]uint16{0xdfff}, []int{0xfffd}},
+		[]rune{0xffff, 0x10000, 0x10001, 0x12345, 0x10ffff}},
+	{[]uint16{0xd800, 'a'}, []rune{0xfffd, 'a'}},
+	{[]uint16{0xdfff}, []rune{0xfffd}},
 }
 
 func TestDecode(t *testing.T) {
 	for _, tt := range decodeTests {
 		out := Decode(tt.in)
 		if !reflect.DeepEqual(out, tt.out) {
-			t.Errorf("Decode(%v) = %v; want %v", hex16(tt.in), hex(out), hex(tt.out))
+			t.Errorf("Decode(%x) = %x; want %x", tt.in, out, tt.out)
 		}
 	}
-}
-
-type hex []int
-
-func (h hex) Format(f fmt.State, c int) {
-	fmt.Fprint(f, "[")
-	for i, v := range h {
-		if i > 0 {
-			fmt.Fprint(f, " ")
-		}
-		fmt.Fprintf(f, "%x", v)
-	}
-	fmt.Fprint(f, "]")
-}
-
-type hex16 []uint16
-
-func (h hex16) Format(f fmt.State, c int) {
-	fmt.Fprint(f, "[")
-	for i, v := range h {
-		if i > 0 {
-			fmt.Fprint(f, " ")
-		}
-		fmt.Fprintf(f, "%x", v)
-	}
-	fmt.Fprint(f, "]")
 }

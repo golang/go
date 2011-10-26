@@ -101,10 +101,10 @@ func (s *String) Slice(i, j int) string {
 
 // At returns the rune with index i in the String.  The sequence of runes is the same
 // as iterating over the contents with a "for range" clause.
-func (s *String) At(i int) int {
+func (s *String) At(i int) rune {
 	// ASCII is easy.  Let the compiler catch the indexing error if there is one.
 	if i < s.nonASCII {
-		return int(s.str[i])
+		return rune(s.str[i])
 	}
 
 	// Now we do need to know the index is valid.
@@ -112,35 +112,35 @@ func (s *String) At(i int) int {
 		panic(outOfRange)
 	}
 
-	var rune int
+	var r rune
 
 	// Five easy common cases: within 1 spot of bytePos/runePos, or the beginning, or the end.
 	// With these cases, all scans from beginning or end work in O(1) time per rune.
 	switch {
 
 	case i == s.runePos-1: // backing up one rune
-		rune, s.width = DecodeLastRuneInString(s.str[0:s.bytePos])
+		r, s.width = DecodeLastRuneInString(s.str[0:s.bytePos])
 		s.runePos = i
 		s.bytePos -= s.width
-		return rune
+		return r
 	case i == s.runePos+1: // moving ahead one rune
 		s.runePos = i
 		s.bytePos += s.width
 		fallthrough
 	case i == s.runePos:
-		rune, s.width = DecodeRuneInString(s.str[s.bytePos:])
-		return rune
+		r, s.width = DecodeRuneInString(s.str[s.bytePos:])
+		return r
 	case i == 0: // start of string
-		rune, s.width = DecodeRuneInString(s.str)
+		r, s.width = DecodeRuneInString(s.str)
 		s.runePos = 0
 		s.bytePos = 0
-		return rune
+		return r
 
 	case i == s.numRunes-1: // last rune in string
-		rune, s.width = DecodeLastRuneInString(s.str)
+		r, s.width = DecodeLastRuneInString(s.str)
 		s.runePos = i
 		s.bytePos = len(s.str) - s.width
-		return rune
+		return r
 	}
 
 	// We need to do a linear scan.  There are three places to start from:
@@ -173,7 +173,7 @@ func (s *String) At(i int) int {
 	if forward {
 		// TODO: Is it much faster to use a range loop for this scan?
 		for {
-			rune, s.width = DecodeRuneInString(s.str[s.bytePos:])
+			r, s.width = DecodeRuneInString(s.str[s.bytePos:])
 			if s.runePos == i {
 				break
 			}
@@ -182,7 +182,7 @@ func (s *String) At(i int) int {
 		}
 	} else {
 		for {
-			rune, s.width = DecodeLastRuneInString(s.str[0:s.bytePos])
+			r, s.width = DecodeLastRuneInString(s.str[0:s.bytePos])
 			s.runePos--
 			s.bytePos -= s.width
 			if s.runePos == i {
@@ -190,7 +190,7 @@ func (s *String) At(i int) int {
 			}
 		}
 	}
-	return rune
+	return r
 }
 
 // We want the panic in At(i) to satisfy os.Error, because that's what

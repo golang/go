@@ -20,16 +20,16 @@ const (
 
 // IsSurrogate returns true if the specified Unicode code point
 // can appear in a surrogate pair.
-func IsSurrogate(rune int) bool {
-	return surr1 <= rune && rune < surr3
+func IsSurrogate(r rune) bool {
+	return surr1 <= r && r < surr3
 }
 
 // DecodeRune returns the UTF-16 decoding of a surrogate pair.
 // If the pair is not a valid UTF-16 surrogate pair, DecodeRune returns
 // the Unicode replacement code point U+FFFD.
-func DecodeRune(r1, r2 int) int {
+func DecodeRune(r1, r2 rune) rune {
 	if surr1 <= r1 && r1 < surr2 && surr2 <= r2 && r2 < surr3 {
-		return (int(r1)-surr1)<<10 | (int(r2) - surr2) + 0x10000
+		return (rune(r1)-surr1)<<10 | (rune(r2) - surr2) + 0x10000
 	}
 	return unicode.ReplacementChar
 }
@@ -37,16 +37,16 @@ func DecodeRune(r1, r2 int) int {
 // EncodeRune returns the UTF-16 surrogate pair r1, r2 for the given rune.
 // If the rune is not a valid Unicode code point or does not need encoding,
 // EncodeRune returns U+FFFD, U+FFFD.
-func EncodeRune(rune int) (r1, r2 int) {
-	if rune < surrSelf || rune > unicode.MaxRune || IsSurrogate(rune) {
+func EncodeRune(r rune) (r1, r2 rune) {
+	if r < surrSelf || r > unicode.MaxRune || IsSurrogate(r) {
 		return unicode.ReplacementChar, unicode.ReplacementChar
 	}
-	rune -= surrSelf
-	return surr1 + (rune>>10)&0x3ff, surr2 + rune&0x3ff
+	r -= surrSelf
+	return surr1 + (r>>10)&0x3ff, surr2 + r&0x3ff
 }
 
 // Encode returns the UTF-16 encoding of the Unicode code point sequence s.
-func Encode(s []int) []uint16 {
+func Encode(s []rune) []uint16 {
 	n := len(s)
 	for _, v := range s {
 		if v >= surrSelf {
@@ -76,15 +76,15 @@ func Encode(s []int) []uint16 {
 
 // Decode returns the Unicode code point sequence represented
 // by the UTF-16 encoding s.
-func Decode(s []uint16) []int {
-	a := make([]int, len(s))
+func Decode(s []uint16) []rune {
+	a := make([]rune, len(s))
 	n := 0
 	for i := 0; i < len(s); i++ {
 		switch r := s[i]; {
 		case surr1 <= r && r < surr2 && i+1 < len(s) &&
 			surr2 <= s[i+1] && s[i+1] < surr3:
 			// valid surrogate sequence
-			a[n] = DecodeRune(int(r), int(s[i+1]))
+			a[n] = DecodeRune(rune(r), rune(s[i+1]))
 			i++
 			n++
 		case surr1 <= r && r < surr3:
@@ -93,7 +93,7 @@ func Decode(s []uint16) []int {
 			n++
 		default:
 			// normal rune
-			a[n] = int(r)
+			a[n] = rune(r)
 			n++
 		}
 	}

@@ -34,7 +34,7 @@ const (
 	rune4Max = 1<<21 - 1
 )
 
-func decodeRuneInternal(p []byte) (rune, size int, short bool) {
+func decodeRuneInternal(p []byte) (r rune, size int, short bool) {
 	n := len(p)
 	if n < 1 {
 		return RuneError, 0, true
@@ -43,7 +43,7 @@ func decodeRuneInternal(p []byte) (rune, size int, short bool) {
 
 	// 1-byte, 7-bit sequence?
 	if c0 < tx {
-		return int(c0), 1, false
+		return rune(c0), 1, false
 	}
 
 	// unexpected continuation byte?
@@ -62,11 +62,11 @@ func decodeRuneInternal(p []byte) (rune, size int, short bool) {
 
 	// 2-byte, 11-bit sequence?
 	if c0 < t3 {
-		rune = int(c0&mask2)<<6 | int(c1&maskx)
-		if rune <= rune1Max {
+		r = rune(c0&mask2)<<6 | rune(c1&maskx)
+		if r <= rune1Max {
 			return RuneError, 1, false
 		}
-		return rune, 2, false
+		return r, 2, false
 	}
 
 	// need second continuation byte
@@ -80,11 +80,11 @@ func decodeRuneInternal(p []byte) (rune, size int, short bool) {
 
 	// 3-byte, 16-bit sequence?
 	if c0 < t4 {
-		rune = int(c0&mask3)<<12 | int(c1&maskx)<<6 | int(c2&maskx)
-		if rune <= rune2Max {
+		r = rune(c0&mask3)<<12 | rune(c1&maskx)<<6 | rune(c2&maskx)
+		if r <= rune2Max {
 			return RuneError, 1, false
 		}
-		return rune, 3, false
+		return r, 3, false
 	}
 
 	// need third continuation byte
@@ -98,18 +98,18 @@ func decodeRuneInternal(p []byte) (rune, size int, short bool) {
 
 	// 4-byte, 21-bit sequence?
 	if c0 < t5 {
-		rune = int(c0&mask4)<<18 | int(c1&maskx)<<12 | int(c2&maskx)<<6 | int(c3&maskx)
-		if rune <= rune3Max {
+		r = rune(c0&mask4)<<18 | rune(c1&maskx)<<12 | rune(c2&maskx)<<6 | rune(c3&maskx)
+		if r <= rune3Max {
 			return RuneError, 1, false
 		}
-		return rune, 4, false
+		return r, 4, false
 	}
 
 	// error
 	return RuneError, 1, false
 }
 
-func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
+func decodeRuneInStringInternal(s string) (r rune, size int, short bool) {
 	n := len(s)
 	if n < 1 {
 		return RuneError, 0, true
@@ -118,7 +118,7 @@ func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
 
 	// 1-byte, 7-bit sequence?
 	if c0 < tx {
-		return int(c0), 1, false
+		return rune(c0), 1, false
 	}
 
 	// unexpected continuation byte?
@@ -137,11 +137,11 @@ func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
 
 	// 2-byte, 11-bit sequence?
 	if c0 < t3 {
-		rune = int(c0&mask2)<<6 | int(c1&maskx)
-		if rune <= rune1Max {
+		r = rune(c0&mask2)<<6 | rune(c1&maskx)
+		if r <= rune1Max {
 			return RuneError, 1, false
 		}
-		return rune, 2, false
+		return r, 2, false
 	}
 
 	// need second continuation byte
@@ -155,11 +155,11 @@ func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
 
 	// 3-byte, 16-bit sequence?
 	if c0 < t4 {
-		rune = int(c0&mask3)<<12 | int(c1&maskx)<<6 | int(c2&maskx)
-		if rune <= rune2Max {
+		r = rune(c0&mask3)<<12 | rune(c1&maskx)<<6 | rune(c2&maskx)
+		if r <= rune2Max {
 			return RuneError, 1, false
 		}
-		return rune, 3, false
+		return r, 3, false
 	}
 
 	// need third continuation byte
@@ -173,11 +173,11 @@ func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
 
 	// 4-byte, 21-bit sequence?
 	if c0 < t5 {
-		rune = int(c0&mask4)<<18 | int(c1&maskx)<<12 | int(c2&maskx)<<6 | int(c3&maskx)
-		if rune <= rune3Max {
+		r = rune(c0&mask4)<<18 | rune(c1&maskx)<<12 | rune(c2&maskx)<<6 | rune(c3&maskx)
+		if r <= rune3Max {
 			return RuneError, 1, false
 		}
-		return rune, 4, false
+		return r, 4, false
 	}
 
 	// error
@@ -198,28 +198,28 @@ func FullRuneInString(s string) bool {
 }
 
 // DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and its width in bytes.
-func DecodeRune(p []byte) (rune, size int) {
-	rune, size, _ = decodeRuneInternal(p)
+func DecodeRune(p []byte) (r rune, size int) {
+	r, size, _ = decodeRuneInternal(p)
 	return
 }
 
 // DecodeRuneInString is like DecodeRune but its input is a string.
-func DecodeRuneInString(s string) (rune, size int) {
-	rune, size, _ = decodeRuneInStringInternal(s)
+func DecodeRuneInString(s string) (r rune, size int) {
+	r, size, _ = decodeRuneInStringInternal(s)
 	return
 }
 
 // DecodeLastRune unpacks the last UTF-8 encoding in p
 // and returns the rune and its width in bytes.
-func DecodeLastRune(p []byte) (rune, size int) {
+func DecodeLastRune(p []byte) (r rune, size int) {
 	end := len(p)
 	if end == 0 {
 		return RuneError, 0
 	}
 	start := end - 1
-	rune = int(p[start])
-	if rune < RuneSelf {
-		return rune, 1
+	r = rune(p[start])
+	if r < RuneSelf {
+		return r, 1
 	}
 	// guard against O(n^2) behavior when traversing
 	// backwards through strings with long sequences of
@@ -236,23 +236,23 @@ func DecodeLastRune(p []byte) (rune, size int) {
 	if start < 0 {
 		start = 0
 	}
-	rune, size = DecodeRune(p[start:end])
+	r, size = DecodeRune(p[start:end])
 	if start+size != end {
 		return RuneError, 1
 	}
-	return rune, size
+	return r, size
 }
 
 // DecodeLastRuneInString is like DecodeLastRune but its input is a string.
-func DecodeLastRuneInString(s string) (rune, size int) {
+func DecodeLastRuneInString(s string) (r rune, size int) {
 	end := len(s)
 	if end == 0 {
 		return RuneError, 0
 	}
 	start := end - 1
-	rune = int(s[start])
-	if rune < RuneSelf {
-		return rune, 1
+	r = rune(s[start])
+	if r < RuneSelf {
+		return r, 1
 	}
 	// guard against O(n^2) behavior when traversing
 	// backwards through strings with long sequences of
@@ -269,23 +269,23 @@ func DecodeLastRuneInString(s string) (rune, size int) {
 	if start < 0 {
 		start = 0
 	}
-	rune, size = DecodeRuneInString(s[start:end])
+	r, size = DecodeRuneInString(s[start:end])
 	if start+size != end {
 		return RuneError, 1
 	}
-	return rune, size
+	return r, size
 }
 
 // RuneLen returns the number of bytes required to encode the rune.
-func RuneLen(rune int) int {
+func RuneLen(r rune) int {
 	switch {
-	case rune <= rune1Max:
+	case r <= rune1Max:
 		return 1
-	case rune <= rune2Max:
+	case r <= rune2Max:
 		return 2
-	case rune <= rune3Max:
+	case r <= rune3Max:
 		return 3
-	case rune <= rune4Max:
+	case r <= rune4Max:
 		return 4
 	}
 	return -1
@@ -293,26 +293,24 @@ func RuneLen(rune int) int {
 
 // EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
 // It returns the number of bytes written.
-func EncodeRune(p []byte, rune int) int {
+func EncodeRune(p []byte, r rune) int {
 	// Negative values are erroneous.  Making it unsigned addresses the problem.
-	r := uint(rune)
-
-	if r <= rune1Max {
+	if uint32(r) <= rune1Max {
 		p[0] = byte(r)
 		return 1
 	}
 
-	if r <= rune2Max {
+	if uint32(r) <= rune2Max {
 		p[0] = t2 | byte(r>>6)
 		p[1] = tx | byte(r)&maskx
 		return 2
 	}
 
-	if r > unicode.MaxRune {
+	if uint32(r) > unicode.MaxRune {
 		r = RuneError
 	}
 
-	if r <= rune3Max {
+	if uint32(r) <= rune3Max {
 		p[0] = t3 | byte(r>>12)
 		p[1] = tx | byte(r>>6)&maskx
 		p[2] = tx | byte(r)&maskx

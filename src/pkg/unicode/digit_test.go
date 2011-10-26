@@ -9,7 +9,7 @@ import (
 	. "unicode"
 )
 
-var testDigit = []int{
+var testDigit = []rune{
 	0x0030,
 	0x0039,
 	0x0661,
@@ -68,7 +68,7 @@ var testDigit = []int{
 	0x1D7CE,
 }
 
-var testLetter = []int{
+var testLetter = []rune{
 	0x0041,
 	0x0061,
 	0x00AA,
@@ -118,7 +118,7 @@ func TestDigit(t *testing.T) {
 
 // Test that the special case in IsDigit agrees with the table
 func TestDigitOptimization(t *testing.T) {
-	for i := 0; i <= MaxLatin1; i++ {
+	for i := rune(0); i <= MaxLatin1; i++ {
 		if Is(Digit, i) != IsDigit(i) {
 			t.Errorf("IsDigit(U+%04X) disagrees with Is(Digit)", i)
 		}

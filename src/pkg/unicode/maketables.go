@@ -155,13 +155,13 @@ var fieldName = []string{
 // This contains only the properties we're interested in.
 type Char struct {
 	field     []string // debugging only; could be deleted if we take out char.dump()
-	codePoint uint32   // if zero, this index is not a valid code point.
+	codePoint rune     // if zero, this index is not a valid code point.
 	category  string
-	upperCase int
-	lowerCase int
-	titleCase int
-	foldCase  int // simple case folding
-	caseOrbit int // next in simple case folding orbit
+	upperCase rune
+	lowerCase rune
+	titleCase rune
+	foldCase  rune // simple case folding
+	caseOrbit rune // next in simple case folding orbit
 }
 
 // Scripts.txt has form:
@@ -178,7 +178,7 @@ var chars = make([]Char, MaxChar+1)
 var scripts = make(map[string][]Script)
 var props = make(map[string][]Script) // a property looks like a script; can share the format
 
-var lastChar uint32 = 0
+var lastChar rune = 0
 
 // In UnicodeData.txt, some ranges are marked like this:
 //	3400;<CJK Ideograph Extension A, First>;Lo;0;L;;;;;N;;;;;
@@ -202,7 +202,7 @@ func parseCategory(line string) (state State) {
 	if err != nil {
 		logger.Fatalf("%.5s...: %s", line, err)
 	}
-	lastChar = uint32(point)
+	lastChar = rune(point)
 	if point == 0 {
 		return // not interesting and we use 0 as unset
 	}
@@ -256,7 +256,7 @@ func (char *Char) letter(u, l, t string) {
 	char.titleCase = char.letterValue(t, "T")
 }
 
-func (char *Char) letterValue(s string, cas string) int {
+func (char *Char) letterValue(s string, cas string) rune {
 	if s == "" {
 		return 0
 	}
@@ -265,7 +265,7 @@ func (char *Char) letterValue(s string, cas string) int {
 		char.dump(cas)
 		logger.Fatalf("%U: bad letter(%s): %s", char.codePoint, s, err)
 	}
-	return int(v)
+	return rune(v)
 }
 
 func allCategories() []string {
@@ -286,7 +286,7 @@ func all(scripts map[string][]Script) []string {
 	return a
 }
 
-func allCatFold(m map[string]map[int]bool) []string {
+func allCatFold(m map[string]map[rune]bool) []string {
 	a := make([]string, 0, len(m))
 	for k := range m {
 		a = append(a, k)
@@ -308,7 +308,7 @@ func version() string {
 	return "Unknown"
 }
 
-func categoryOp(code int, class uint8) bool {
+func categoryOp(code rune, class uint8) bool {
 	category := chars[code].category
 	return len(category) > 0 && category[0] == class
 }
@@ -318,7 +318,7 @@ func loadChars() {
 		flag.Set("data", *url+"UnicodeData.txt")
 	}
 	input := open(*dataURL)
-	var first uint32 = 0
+	var first rune = 0
 	for {
 		line, err := input.ReadString('\n')
 		if err != nil {
@@ -384,7 +384,7 @@ func loadCasefold() {
 		if err != nil {
 			logger.Fatalf("CaseFolding.txt %.5s...: %s", line, err)
 		}
-		chars[p1].foldCase = int(p2)
+		chars[p1].foldCase = rune(p2)
 	}
 	input.close()
 }
@@ -477,12 +477,12 @@ func printCategories() {
 			decl := fmt.Sprintf("var _%s = &RangeTable{\n", name)
 			dumpRange(
 				decl,
-				func(code int) bool { return categoryOp(code, name[0]) })
+				func(code rune) bool { return categoryOp(code, name[0]) })
 			continue
 		}
 		dumpRange(
 			fmt.Sprintf("var _%s = &RangeTable{\n", name),
-			func(code int) bool { return chars[code].category == name })
+			func(code rune) bool { return chars[code].category == name })
 	}
 	decl.Sort()
 	fmt.Println("var (")
@@ -492,23 +492,23 @@ func printCategories() {
 	fmt.Print(")\n\n")
 }
 
-type Op func(code int) bool
+type Op func(code rune) bool
 
 const format = "\t\t{0x%04x, 0x%04x, %d},\n"
 
 func dumpRange(header string, inCategory Op) {
 	fmt.Print(header)
-	next := 0
+	next := rune(0)
 	fmt.Print("\tR16: []Range16{\n")
 	// one Range for each iteration
 	count := &range16Count
 	size := 16
 	for {
 		// look for start of range
-		for next < len(chars) && !inCategory(next) {
+		for next < rune(len(chars)) && !inCategory(next) {
 			next++
 		}
-		if next >= len(chars) {
+		if next >= rune(len(chars)) {
 			// no characters remain
 			break
 		}
@@ -516,14 +516,14 @@ func dumpRange(header string, inCategory Op) {
 		// start of range
 		lo := next
 		hi := next
-		stride := 1
+		stride := rune(1)
 		// accept lo
 		next++
 		// look for another character to set the stride
-		for next < len(chars) && !inCategory(next) {
+		for next < rune(len(chars)) && !inCategory(next) {
 			next++
 		}
-		if next >= len(chars) {
+		if next >= rune(len(chars)) {
 			// no more characters
 			fmt.Printf(format, lo, hi, stride)
 			break
@@ -531,7 +531,7 @@ func dumpRange(header string, inCategory Op) {
 		// set stride
 		stride = next - lo
 		// check for length of run. next points to first jump in stride
-		for i := next; i < len(chars); i++ {
+		for i := next; i < rune(len(chars)); i++ {
 			if inCategory(i) == (((i - lo) % stride) == 0) {
 				// accept
 				if inCategory(i) {
@@ -584,11 +584,11 @@ func fullCategoryTest(list []string) {
 			logger.Fatalf("unknown table %q", name)
 		}
 		if len(name) == 1 {
-			verifyRange(name, func(code int) bool { return categoryOp(code, name[0]) }, r)
+			verifyRange(name, func(code rune) bool { return categoryOp(code, name[0]) }, r)
 		} else {
 			verifyRange(
 				name,
-				func(code int) bool { return chars[code].category == name },
+				func(code rune) bool { return chars[code].category == name },
 				r)
 		}
 	}
@@ -596,7 +596,8 @@ func fullCategoryTest(list []string) {
 
 func verifyRange(name string, inCategory Op, table *unicode.RangeTable) {
 	count := 0
-	for i := range chars {
+	for j := range chars {
+		i := rune(j)
 		web := inCategory(i)
 		pkg := unicode.Is(table, i)
 		if web != pkg {
@@ -668,7 +669,7 @@ func fullScriptTest(list []string, installed map[string]*unicode.RangeTable, scr
 		}
 		for _, script := range scripts[name] {
 			for r := script.lo; r <= script.hi; r++ {
-				if !unicode.Is(installed[name], int(r)) {
+				if !unicode.Is(installed[name], rune(r)) {
 					fmt.Fprintf(os.Stderr, "%U: not in script %s\n", r, name)
 				}
 			}
@@ -778,11 +779,11 @@ const (
 )
 
 type caseState struct {
-	point        int
+	point        rune
 	_case        int
-	deltaToUpper int
-	deltaToLower int
-	deltaToTitle int
+	deltaToUpper rune
+	deltaToLower rune
+	deltaToTitle rune
 }
 
 // Is d a continuation of the state of c?
@@ -873,10 +874,10 @@ func (c *caseState) isLowerUpper() bool {
 	return true
 }
 
-func getCaseState(i int) (c *caseState) {
+func getCaseState(i rune) (c *caseState) {
 	c = &caseState{point: i, _case: CaseNone}
 	ch := &chars[i]
-	switch int(ch.codePoint) {
+	switch ch.codePoint {
 	case 0:
 		c._case = CaseMissing // Will get NUL wrong but that doesn't matter
 		return
@@ -930,7 +931,7 @@ func printCases() {
 	var startState *caseState    // the start of a run; nil for not active
 	var prevState = &caseState{} // the state of the previous character
 	for i := range chars {
-		state := getCaseState(i)
+		state := getCaseState(rune(i))
 		if state.adjacent(prevState) {
 			prevState = state
 			continue
@@ -970,15 +971,16 @@ func printCaseRange(lo, hi *caseState) {
 }
 
 // If the cased value in the Char is 0, it means use the rune itself.
-func caseIt(rune, cased int) int {
+func caseIt(r, cased rune) rune {
 	if cased == 0 {
-		return rune
+		return r
 	}
 	return cased
 }
 
 func fullCaseTest() {
-	for i, c := range chars {
+	for j, c := range chars {
+		i := rune(j)
 		lower := unicode.ToLower(i)
 		want := caseIt(i, c.lowerCase)
 		if lower != want {
@@ -1033,10 +1035,17 @@ func printLatinProperties() {
 	fmt.Printf("}\n\n")
 }
 
+type runeSlice []rune
+
+func (p runeSlice) Len() int           { return len(p) }
+func (p runeSlice) Less(i, j int) bool { return p[i] < p[j] }
+func (p runeSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
 func printCasefold() {
 	// Build list of case-folding groups attached to each canonical folded char (typically lower case).
-	var caseOrbit = make([][]int, MaxChar+1)
-	for i := range chars {
+	var caseOrbit = make([][]rune, MaxChar+1)
+	for j := range chars {
+		i := rune(j)
 		c := &chars[i]
 		if c.foldCase == 0 {
 			continue
@@ -1049,7 +1058,8 @@ func printCasefold() {
 	}
 
 	// Insert explicit 1-element groups when assuming [lower, upper] would be wrong.
-	for i := range chars {
+	for j := range chars {
+		i := rune(j)
 		c := &chars[i]
 		f := c.foldCase
 		if f == 0 {
@@ -1058,7 +1068,7 @@ func printCasefold() {
 		orb := caseOrbit[f]
 		if orb == nil && (c.upperCase != 0 && c.upperCase != i || c.lowerCase != 0 && c.lowerCase != i) {
 			// Default assumption of [upper, lower] is wrong.
-			caseOrbit[i] = []int{i}
+			caseOrbit[i] = []rune{i}
 		}
 	}
 
@@ -1074,7 +1084,7 @@ func printCasefold() {
 		if orb == nil {
 			continue
 		}
-		sort.Ints(orb)
+		sort.Sort(runeSlice(orb))
 		c := orb[len(orb)-1]
 		for _, d := range orb {
 			chars[c].caseOrbit = d
@@ -1087,14 +1097,14 @@ func printCasefold() {
 	// Tables of category and script folding exceptions: code points
 	// that must be added when interpreting a particular category/script
 	// in a case-folding context.
-	cat := make(map[string]map[int]bool)
+	cat := make(map[string]map[rune]bool)
 	for name := range category {
 		if x := foldExceptions(inCategory(name)); len(x) > 0 {
 			cat[name] = x
 		}
 	}
 
-	scr := make(map[string]map[int]bool)
+	scr := make(map[string]map[rune]bool)
 	for name := range scripts {
 		if x := foldExceptions(inScript(name)); len(x) > 0 {
 			cat[name] = x
@@ -1106,9 +1116,10 @@ func printCasefold() {
 }
 
 // inCategory returns a list of all the runes in the category.
-func inCategory(name string) []int {
-	var x []int
-	for i := range chars {
+func inCategory(name string) []rune {
+	var x []rune
+	for j := range chars {
+		i := rune(j)
 		c := &chars[i]
 		if c.category == name || len(name) == 1 && len(c.category) > 1 && c.category[0] == name[0] {
 			x = append(x, i)
@@ -1118,11 +1129,11 @@ func inCategory(name string) []int {
 }
 
 // inScript returns a list of all the runes in the script.
-func inScript(name string) []int {
-	var x []int
+func inScript(name string) []rune {
+	var x []rune
 	for _, s := range scripts[name] {
 		for c := s.lo; c <= s.hi; c++ {
-			x = append(x, int(c))
+			x = append(x, rune(c))
 		}
 	}
 	return x
@@ -1130,9 +1141,9 @@ func inScript(name string) []int {
 
 // foldExceptions returns a list of all the runes fold-equivalent
 // to runes in class but not in class themselves.
-func foldExceptions(class []int) map[int]bool {
+func foldExceptions(class []rune) map[rune]bool {
 	// Create map containing class and all fold-equivalent chars.
-	m := make(map[int]bool)
+	m := make(map[rune]bool)
 	for _, r := range class {
 		c := &chars[r]
 		if c.caseOrbit == 0 {
@@ -1180,7 +1191,8 @@ var comment = map[string]string{
 
 func printCaseOrbit() {
 	if *test {
-		for i := range chars {
+		for j := range chars {
+			i := rune(j)
 			c := &chars[i]
 			f := c.caseOrbit
 			if f == 0 {
@@ -1210,7 +1222,7 @@ func printCaseOrbit() {
 	fmt.Printf("}\n\n")
 }
 
-func printCatFold(name string, m map[string]map[int]bool) {
+func printCatFold(name string, m map[string]map[rune]bool) {
 	if *test {
 		var pkgMap map[string]*unicode.RangeTable
 		if name == "FoldCategory" {
@@ -1230,7 +1242,7 @@ func printCatFold(name string, m map[string]map[int]bool) {
 			}
 			n := 0
 			for _, r := range t.R16 {
-				for c := int(r.Lo); c <= int(r.Hi); c += int(r.Stride) {
+				for c := rune(r.Lo); c <= rune(r.Hi); c += rune(r.Stride) {
 					if !v[c] {
 						fmt.Fprintf(os.Stderr, "unicode.%s[%q] contains %#U, should not\n", name, k, c)
 					}
@@ -1238,7 +1250,7 @@ func printCatFold(name string, m map[string]map[int]bool) {
 				}
 			}
 			for _, r := range t.R32 {
-				for c := int(r.Lo); c <= int(r.Hi); c += int(r.Stride) {
+				for c := rune(r.Lo); c <= rune(r.Hi); c += rune(r.Stride) {
 					if !v[c] {
 						fmt.Fprintf(os.Stderr, "unicode.%s[%q] contains %#U, should not\n", name, k, c)
 					}
@@ -1262,7 +1274,7 @@ func printCatFold(name string, m map[string]map[int]bool) {
 		class := m[name]
 		dumpRange(
 			fmt.Sprintf("var fold%s = &RangeTable{\n", name),
-			func(code int) bool { return class[code] })
+			func(code rune) bool { return class[code] })
 	}
 }
 

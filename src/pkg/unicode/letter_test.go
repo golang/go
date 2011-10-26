@@ -9,7 +9,7 @@ import (
 	. "unicode"
 )
 
-var upperTest = []int{
+var upperTest = []rune{
 	0x41,
 	0xc0,
 	0xd8,
@@ -33,7 +33,7 @@ var upperTest = []int{
 	0x1d7ca,
 }
 
-var notupperTest = []int{
+var notupperTest = []rune{
 	0x40,
 	0x5b,
 	0x61,
@@ -46,7 +46,7 @@ var notupperTest = []int{
 	0x10000,
 }
 
-var letterTest = []int{
+var letterTest = []rune{
 	0x41,
 	0x61,
 	0xaa,
@@ -82,7 +82,7 @@ var letterTest = []int{
 	0x2fa1d,
 }
 
-var notletterTest = []int{
+var notletterTest = []rune{
 	0x20,
 	0x35,
 	0x375,
@@ -94,7 +94,7 @@ var notletterTest = []int{
 }
 
 // Contains all the special cased Latin-1 chars.
-var spaceTest = []int{
+var spaceTest = []rune{
 	0x09,
 	0x0a,
 	0x0b,
@@ -108,7 +108,8 @@ var spaceTest = []int{
 }
 
 type caseT struct {
-	cas, in, out int
+	cas     int
+	in, out rune
 }
 
 var caseTest = []caseT{
@@ -327,7 +328,7 @@ func TestIsSpace(t *testing.T) {
 // Check that the optimizations for IsLetter etc. agree with the tables.
 // We only need to check the Latin-1 range.
 func TestLetterOptimizations(t *testing.T) {
-	for i := 0; i <= MaxLatin1; i++ {
+	for i := rune(0); i <= MaxLatin1; i++ {
 		if Is(Letter, i) != IsLetter(i) {
 			t.Errorf("IsLetter(U+%04X) disagrees with Is(Letter)", i)
 		}
@@ -356,8 +357,8 @@ func TestLetterOptimizations(t *testing.T) {
 }
 
 func TestTurkishCase(t *testing.T) {
-	lower := []int("abcçdefgğhıijklmnoöprsştuüvyz")
-	upper := []int("ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ")
+	lower := []rune("abcçdefgğhıijklmnoöprsştuüvyz")
+	upper := []rune("ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ")
 	for i, l := range lower {
 		u := upper[i]
 		if TurkishCase.ToLower(l) != l {
@@ -416,13 +417,13 @@ var simpleFoldTests = []string{
 
 func TestSimpleFold(t *testing.T) {
 	for _, tt := range simpleFoldTests {
-		cycle := []int(tt)
-		rune := cycle[len(cycle)-1]
+		cycle := []rune(tt)
+		r := cycle[len(cycle)-1]
 		for _, out := range cycle {
-			if r := SimpleFold(rune); r != out {
-				t.Errorf("SimpleFold(%#U) = %#U, want %#U", rune, r, out)
+			if r := SimpleFold(r); r != out {
+				t.Errorf("SimpleFold(%#U) = %#U, want %#U", r, r, out)
 			}
-			rune = out
+			r = out
 		}
 	}
 }

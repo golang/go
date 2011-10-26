@@ -12,7 +12,7 @@ import (
 
 func TestScanForwards(t *testing.T) {
 	for _, s := range testStrings {
-		runes := []int(s)
+		runes := []rune(s)
 		str := NewString(s)
 		if str.RuneCount() != len(runes) {
 			t.Errorf("%s: expected %d runes; got %d", s, len(runes), str.RuneCount())
@@ -29,7 +29,7 @@ func TestScanForwards(t *testing.T) {
 
 func TestScanBackwards(t *testing.T) {
 	for _, s := range testStrings {
-		runes := []int(s)
+		runes := []rune(s)
 		str := NewString(s)
 		if str.RuneCount() != len(runes) {
 			t.Errorf("%s: expected %d runes; got %d", s, len(runes), str.RuneCount())
@@ -57,7 +57,7 @@ func TestRandomAccess(t *testing.T) {
 		if len(s) == 0 {
 			continue
 		}
-		runes := []int(s)
+		runes := []rune(s)
 		str := NewString(s)
 		if str.RuneCount() != len(runes) {
 			t.Errorf("%s: expected %d runes; got %d", s, len(runes), str.RuneCount())
@@ -79,7 +79,7 @@ func TestRandomSliceAccess(t *testing.T) {
 		if len(s) == 0 || s[0] == '\x80' { // the bad-UTF-8 string fools this simple test
 			continue
 		}
-		runes := []int(s)
+		runes := []rune(s)
 		str := NewString(s)
 		if str.RuneCount() != len(runes) {
 			t.Errorf("%s: expected %d runes; got %d", s, len(runes), str.RuneCount())
