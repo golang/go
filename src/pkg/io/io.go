@@ -194,7 +194,7 @@ type ByteScanner interface {
 // and returns the rune and its size in bytes. If no character is
 // available, err will be set.
 type RuneReader interface {
-	ReadRune() (rune int, size int, err os.Error)
+	ReadRune() (r rune, size int, err os.Error)
 }
 
 // RuneScanner is the interface that adds the UnreadRune method to the
