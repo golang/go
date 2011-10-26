@@ -612,6 +612,43 @@ qcmd(char *arname, int count, char **files)
 }
 
 /*
+ *	does the object header line p match the last one we saw?
+ *	update *lastp if it gets more specific.
+ */
+int
+matchhdr(char *p, char **lastp)
+{
+	int n;
+	char *last;
+	
+	// no information?
+	last = *lastp;
+	if(last == nil) {
+		*lastp = strdup(p);
+		return 1;
+	}
+
+	// identical match?
+	if(strcmp(last, p) == 0)
+		return 1;
+
+	// last has extra fields
+	n = strlen(p);
+	if(n < strlen(last) && last[n] == ' ')
+		return 1;
+
+	// p has extra fields - save in last
+	n = strlen(last);
+	if(n < strlen(p) && p[n] == ' ') {
+		free(last);
+		*lastp = strdup(p);
+		return 1;
+	}
+	
+	return 0;
+}	
+
+/*
  *	extract the symbol references from an object file
  */
 void
@@ -670,18 +707,23 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 		return;
 	}
 	
-	if ((lastobj >= 0 && obj != lastobj) || (objhdr != nil && strcmp(p, objhdr) != 0)) {
-		fprint(2, "gopack: inconsistent object file %s\n", file);
+	if (!matchhdr(p, &objhdr)) {
+		fprint(2, "gopack: inconsistent object file %s: [%s] vs [%s]\n", file, p, objhdr);
 		errors++;
 		allobj = 0;
 		free(p);
 		return;
 	}
+	free(p);
+
+	// Old check.  Should be impossible since objhdrs match, but keep the check anyway.
+	if (lastobj >= 0 && obj != lastobj) {
+		fprint(2, "gopack: inconsistent object file %s\n", file);
+		errors++;
+		allobj = 0;
+		return;
+	}
 	lastobj = obj;
-	if(objhdr == nil)
-		objhdr = p;
-	else
-		free(p);
 		
 	if (!readar(b, obj, offset+size, 0)) {
 		fprint(2, "gopack: invalid symbol reference in file %s\n", file);

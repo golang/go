@@ -2469,7 +2469,7 @@ stringtoarraylit(Node **np)
 		while(p < ep)
 			l = list(l, nod(OKEY, nodintconst(i++), nodintconst((uchar)*p++)));
 	} else {
-		// utf-8 []int
+		// utf-8 []rune
 		while(p < ep) {
 			p += chartorune(&r, p);
 			l = list(l, nod(OKEY, nodintconst(i++), nodintconst(r)));

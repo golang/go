@@ -47,11 +47,11 @@ func slicestring(string, int, int) string
 func slicestring1(string, int) string
 func intstring(int64) string
 func slicebytetostring([]byte) string
-func sliceinttostring([]int) string
+func slicerunetostring([]rune) string
 func stringtoslicebyte(string) []byte
-func stringtosliceint(string) []int
+func stringtoslicerune(string) []rune
 func stringiter(string, int) int
-func stringiter2(string, int) (retk int, retv int)
+func stringiter2(string, int) (retk int, retv rune)
 func slicecopy(to any, fr any, wid uint32) int
 func slicestringcopy(to any, fr any) int
 

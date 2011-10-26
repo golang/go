@@ -692,7 +692,7 @@ dtypesym(Type *t)
 		tbase = t->type;
 	dupok = tbase->sym == S;
 
-	if(compiling_runtime && (tbase == types[tbase->etype] || tbase == bytetype))	// int, float, etc
+	if(compiling_runtime && (tbase == types[tbase->etype] || tbase == bytetype || tbase == runetype))	// int, float, etc
 		goto ok;
 
 	// named types from other files are defined only by those files

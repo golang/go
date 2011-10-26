@@ -54,7 +54,7 @@ typecheckrange(Node *n)
 
 	case TSTRING:
 		t1 = types[TINT];
-		t2 = types[TINT];
+		t2 = runetype;
 		break;
 	}
 
@@ -216,7 +216,7 @@ walkrange(Node *n)
 		if(v2 == N)
 			a = nod(OAS, hv1, mkcall("stringiter", types[TINT], nil, ha, hv1));
 		else {
-			hv2 = temp(types[TINT]);
+			hv2 = temp(runetype);
 			a = nod(OAS2, N, N);
 			a->list = list(list1(hv1), hv2);
 			fn = syslook("stringiter2", 0);

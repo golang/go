@@ -46,6 +46,7 @@ static int	cout = -1;
 char*	goroot;
 char*	goarch;
 char*	goos;
+char*	theline;
 
 void
 Lflag(char *arg)
@@ -478,11 +479,30 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
 		diag("%s: not an object file", pn);
 		return;
 	}
-	t = smprint("%s %s %s", getgoos(), thestring, getgoversion());
-	if(strcmp(line+10, t) != 0 && !debug['f']) {
+	
+	// First, check that the basic goos, string, and version match.
+	t = smprint("%s %s %s ", getgoos(), thestring, getgoversion());
+	line[n] = ' ';
+	if(strncmp(line+10, t, strlen(t)) != 0 && !debug['f']) {
+		line[n] = '\0';
 		diag("%s: object is [%s] expected [%s]", pn, line+10, t);
 		free(t);
 		return;
+	}
+	
+	// Second, check that longer lines match each other exactly,
+	// so that the Go compiler and write additional information
+	// that must be the same from run to run.
+	line[n] = '\0';
+	if(n-10 > strlen(t)) {
+		if(theline == nil)
+			theline = strdup(line+10);
+		else if(strcmp(theline, line+10) != 0) {
+			line[n] = '\0';
+			diag("%s: object is [%s] expected [%s]", pn, line+10, theline);
+			free(t);
+			return;
+		}
 	}
 	free(t);
 	line[n] = '\n';
