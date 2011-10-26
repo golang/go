@@ -576,6 +576,24 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 			p.framesetOK = false
 			// TODO: detect <select> inside a table.
 			return inSelectIM, true
+		case "li":
+			p.framesetOK = false
+			for i := len(p.oe) - 1; i >= 0; i-- {
+				node := p.oe[i]
+				switch node.Data {
+				case "li":
+					p.popUntil(listItemScopeStopTags, "li")
+				case "address", "div", "p":
+					continue
+				default:
+					if !isSpecialElement[node.Data] {
+						continue
+					}
+				}
+				break
+			}
+			p.popUntil(buttonScopeStopTags, "p")
+			p.addElement("li", p.tok.Attr)
 		default:
 			// TODO.
 			p.addElement(p.tok.Data, p.tok.Attr)
@@ -592,6 +610,8 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 			p.popUntil(buttonScopeStopTags, "p")
 		case "a", "b", "big", "code", "em", "font", "i", "nobr", "s", "small", "strike", "strong", "tt", "u":
 			p.inBodyEndTagFormatting(p.tok.Data)
+		case "address", "article", "aside", "blockquote", "button", "center", "details", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "listing", "menu", "nav", "ol", "pre", "section", "summary", "ul":
+			p.popUntil(defaultScopeStopTags, p.tok.Data)
 		default:
 			p.inBodyEndTagOther(p.tok.Data)
 		}
