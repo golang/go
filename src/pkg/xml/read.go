@@ -206,7 +206,7 @@ func fieldName(original string) string {
 	}
 
 	return strings.Map(
-		func(x int) int {
+		func(x rune) rune {
 			if x == '_' || unicode.IsDigit(x) || unicode.IsLetter(x) {
 				return unicode.ToLower(x)
 			}

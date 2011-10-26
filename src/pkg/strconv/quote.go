@@ -18,32 +18,32 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
 	var buf bytes.Buffer
 	buf.WriteByte(quote)
 	for width := 0; len(s) > 0; s = s[width:] {
-		rune := int(s[0])
+		r := rune(s[0])
 		width = 1
-		if rune >= utf8.RuneSelf {
-			rune, width = utf8.DecodeRuneInString(s)
+		if r >= utf8.RuneSelf {
+			r, width = utf8.DecodeRuneInString(s)
 		}
-		if width == 1 && rune == utf8.RuneError {
+		if width == 1 && r == utf8.RuneError {
 			buf.WriteString(`\x`)
 			buf.WriteByte(lowerhex[s[0]>>4])
 			buf.WriteByte(lowerhex[s[0]&0xF])
 			continue
 		}
-		if rune == int(quote) || rune == '\\' { // always backslashed
+		if r == rune(quote) || r == '\\' { // always backslashed
 			buf.WriteByte('\\')
-			buf.WriteByte(byte(rune))
+			buf.WriteByte(byte(r))
 			continue
 		}
 		if ASCIIonly {
-			if rune <= unicode.MaxASCII && unicode.IsPrint(rune) {
-				buf.WriteRune(rune)
+			if r <= unicode.MaxASCII && unicode.IsPrint(r) {
+				buf.WriteRune(r)
 				continue
 			}
-		} else if unicode.IsPrint(rune) {
-			buf.WriteRune(rune)
+		} else if unicode.IsPrint(r) {
+			buf.WriteRune(r)
 			continue
 		}
-		switch rune {
+		switch r {
 		case '\a':
 			buf.WriteString(`\a`)
 		case '\b':
@@ -60,22 +60,22 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
 			buf.WriteString(`\v`)
 		default:
 			switch {
-			case rune < ' ':
+			case r < ' ':
 				buf.WriteString(`\x`)
 				buf.WriteByte(lowerhex[s[0]>>4])
 				buf.WriteByte(lowerhex[s[0]&0xF])
-			case rune > unicode.MaxRune:
-				rune = 0xFFFD
+			case r > unicode.MaxRune:
+				r = 0xFFFD
 				fallthrough
-			case rune < 0x10000:
+			case r < 0x10000:
 				buf.WriteString(`\u`)
 				for s := 12; s >= 0; s -= 4 {
-					buf.WriteByte(lowerhex[rune>>uint(s)&0xF])
+					buf.WriteByte(lowerhex[r>>uint(s)&0xF])
 				}
 			default:
 				buf.WriteString(`\U`)
 				for s := 28; s >= 0; s -= 4 {
-					buf.WriteByte(lowerhex[rune>>uint(s)&0xF])
+					buf.WriteByte(lowerhex[r>>uint(s)&0xF])
 				}
 			}
 		}
@@ -130,8 +130,8 @@ func CanBackquote(s string) bool {
 	return true
 }
 
-func unhex(b byte) (v int, ok bool) {
-	c := int(b)
+func unhex(b byte) (v rune, ok bool) {
+	c := rune(b)
 	switch {
 	case '0' <= c && c <= '9':
 		return c - '0', true
@@ -157,7 +157,7 @@ func unhex(b byte) (v int, ok bool) {
 // If set to a single quote, it permits the sequence \' and disallows unescaped '.
 // If set to a double quote, it permits \" and disallows unescaped ".
 // If set to zero, it does not permit either escape and allows both quote characters to appear unescaped.
-func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, err os.Error) {
+func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string, err os.Error) {
 	// easy cases
 	switch c := s[0]; {
 	case c == quote && (quote == '\'' || quote == '"'):
@@ -167,7 +167,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 		r, size := utf8.DecodeRuneInString(s)
 		return r, true, s[size:], nil
 	case c != '\\':
-		return int(s[0]), false, s[1:], nil
+		return rune(s[0]), false, s[1:], nil
 	}
 
 	// hard case: c is backslash
@@ -203,7 +203,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 		case 'U':
 			n = 8
 		}
-		v := 0
+		var v rune
 		if len(s) < n {
 			err = os.EINVAL
 			return
@@ -229,13 +229,13 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 		value = v
 		multibyte = true
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		v := int(c) - '0'
+		v := rune(c) - '0'
 		if len(s) < 2 {
 			err = os.EINVAL
 			return
 		}
 		for j := 0; j < 2; j++ { // one digit already; two more
-			x := int(s[j]) - '0'
+			x := rune(s[j]) - '0'
 			if x < 0 || x > 7 {
 				return
 			}
@@ -254,7 +254,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 			err = os.EINVAL
 			return
 		}
-		value = int(c)
+		value = rune(c)
 	default:
 		err = os.EINVAL
 		return
@@ -293,7 +293,7 @@ func Unquote(s string) (t string, err os.Error) {
 	}
 
 	// Is it trivial?  Avoid allocation.
-	if strings.Index(s, `\`) < 0 && strings.IndexRune(s, int(quote)) < 0 {
+	if strings.Index(s, `\`) < 0 && strings.IndexRune(s, rune(quote)) < 0 {
 		switch quote {
 		case '"':
 			return s, nil

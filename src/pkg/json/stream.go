@@ -115,7 +115,7 @@ Input:
 
 func nonSpace(b []byte) bool {
 	for _, c := range b {
-		if !isSpace(int(c)) {
+		if !isSpace(rune(c)) {
 			return true
 		}
 	}

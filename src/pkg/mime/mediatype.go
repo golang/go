@@ -199,8 +199,8 @@ func decode2231Enc(v string) string {
 	return encv
 }
 
-func isNotTokenChar(rune int) bool {
-	return !IsTokenChar(rune)
+func isNotTokenChar(r rune) bool {
+	return !IsTokenChar(r)
 }
 
 // consumeToken consumes a token from the beginning of provided
@@ -228,24 +228,25 @@ func consumeValue(v string) (value, rest string) {
 		return consumeToken(v)
 	}
 
-	leadQuote := int(v[0])
+	leadQuote := rune(v[0])
 
 	// parse a quoted-string
 	rest = v[1:] // consume the leading quote
 	buffer := new(bytes.Buffer)
-	var idx, rune int
+	var idx int
+	var r rune
 	var nextIsLiteral bool
-	for idx, rune = range rest {
+	for idx, r = range rest {
 		switch {
 		case nextIsLiteral:
-			buffer.WriteRune(rune)
+			buffer.WriteRune(r)
 			nextIsLiteral = false
-		case rune == leadQuote:
+		case r == leadQuote:
 			return buffer.String(), rest[idx+1:]
-		case rune == '\\':
+		case r == '\\':
 			nextIsLiteral = true
-		case rune != '\r' && rune != '\n':
-			buffer.WriteRune(rune)
+		case r != '\r' && r != '\n':
+			buffer.WriteRune(r)
 		default:
 			return "", v
 		}

@@ -243,7 +243,7 @@ func TestHTMLEscape(t *testing.T) {
 	}
 }
 
-func noSpace(c int) int {
+func noSpace(c rune) rune {
 	if isSpace(c) {
 		return -1
 	}

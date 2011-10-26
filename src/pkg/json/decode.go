@@ -805,15 +805,15 @@ func (d *decodeState) literalInterface() interface{} {
 
 // getu4 decodes \uXXXX from the beginning of s, returning the hex value,
 // or it returns -1.
-func getu4(s []byte) int {
+func getu4(s []byte) rune {
 	if len(s) < 6 || s[0] != '\\' || s[1] != 'u' {
 		return -1
 	}
-	rune, err := strconv.Btoui64(string(s[2:6]), 16)
+	r, err := strconv.Btoui64(string(s[2:6]), 16)
 	if err != nil {
 		return -1
 	}
-	return int(rune)
+	return rune(r)
 }
 
 // unquote converts a quoted JSON string literal s into an actual string t.
@@ -843,8 +843,8 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 			r++
 			continue
 		}
-		rune, size := utf8.DecodeRune(s[r:])
-		if rune == utf8.RuneError && size == 1 {
+		rr, size := utf8.DecodeRune(s[r:])
+		if rr == utf8.RuneError && size == 1 {
 			break
 		}
 		r += size
@@ -899,23 +899,23 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 				w++
 			case 'u':
 				r--
-				rune := getu4(s[r:])
-				if rune < 0 {
+				rr := getu4(s[r:])
+				if rr < 0 {
 					return
 				}
 				r += 6
-				if utf16.IsSurrogate(rune) {
-					rune1 := getu4(s[r:])
-					if dec := utf16.DecodeRune(rune, rune1); dec != unicode.ReplacementChar {
+				if utf16.IsSurrogate(rr) {
+					rr1 := getu4(s[r:])
+					if dec := utf16.DecodeRune(rr, rr1); dec != unicode.ReplacementChar {
 						// A valid pair; consume.
 						r += 6
 						w += utf8.EncodeRune(b[w:], dec)
 						break
 					}
 					// Invalid surrogate; fall back to replacement rune.
-					rune = unicode.ReplacementChar
+					rr = unicode.ReplacementChar
 				}
-				w += utf8.EncodeRune(b[w:], rune)
+				w += utf8.EncodeRune(b[w:], rr)
 			}
 
 		// Quote, control characters are invalid.
@@ -930,9 +930,9 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 
 		// Coerce to well-formed UTF-8.
 		default:
-			rune, size := utf8.DecodeRune(s[r:])
+			rr, size := utf8.DecodeRune(s[r:])
 			r += size
-			w += utf8.EncodeRune(b[w:], rune)
+			w += utf8.EncodeRune(b[w:], rr)
 		}
 	}
 	return b[0:w], true

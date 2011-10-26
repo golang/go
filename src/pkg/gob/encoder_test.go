@@ -606,14 +606,14 @@ func TestSliceReusesMemory(t *testing.T) {
 	}
 	// general slice
 	{
-		x := []int("abcd")
+		x := []rune("abcd")
 		enc := NewEncoder(buf)
 		err := enc.Encode(x)
 		if err != nil {
 			t.Errorf("ints: encode: %s", err)
 		}
 		// Decode into y, which is big enough.
-		y := []int("ABCDE")
+		y := []rune("ABCDE")
 		addr := &y[0]
 		dec := NewDecoder(buf)
 		err = dec.Decode(&y)

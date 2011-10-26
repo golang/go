@@ -454,7 +454,7 @@ func decodeRFC2047Word(s string) (string, os.Error) {
 	case "iso-8859-1":
 		b := new(bytes.Buffer)
 		for _, c := range dec {
-			b.WriteRune(int(c))
+			b.WriteRune(rune(c))
 		}
 		return b.String(), nil
 	case "utf-8":

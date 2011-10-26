@@ -23,7 +23,7 @@ import (
 //
 // If UseCRLF is true, the Writer ends each record with \r\n instead of \n.
 type Writer struct {
-	Comma   int  // Field delimiter (set to to ',' by NewWriter)
+	Comma   rune // Field delimiter (set to to ',' by NewWriter)
 	UseCRLF bool // True to use \r\n as the line terminator
 	w       *bufio.Writer
 }
@@ -58,8 +58,8 @@ func (w *Writer) Write(record []string) (err os.Error) {
 			return
 		}
 
-		for _, rune := range field {
-			switch rune {
+		for _, r1 := range field {
+			switch r1 {
 			case '"':
 				_, err = w.w.WriteString(`""`)
 			case '\r':
@@ -73,7 +73,7 @@ func (w *Writer) Write(record []string) (err os.Error) {
 					err = w.w.WriteByte('\n')
 				}
 			default:
-				_, err = w.w.WriteRune(rune)
+				_, err = w.w.WriteRune(r1)
 			}
 			if err != nil {
 				return
@@ -117,6 +117,6 @@ func (w *Writer) fieldNeedsQuotes(field string) bool {
 		return true
 	}
 
-	rune, _ := utf8.DecodeRuneInString(field)
-	return unicode.IsSpace(rune)
+	r1, _ := utf8.DecodeRuneInString(field)
+	return unicode.IsSpace(r1)
 }
