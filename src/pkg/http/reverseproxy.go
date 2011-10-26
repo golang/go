@@ -69,14 +69,6 @@ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
 	return &ReverseProxy{Director: director}
 }
 
-func copyHeader(dst, src Header) {
-	for k, vv := range src {
-		for _, v := range vv {
-			dst.Add(k, v)
-		}
-	}
-}
-
 func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
 	transport := p.Transport
 	if transport == nil {
@@ -92,16 +84,6 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
 	outreq.ProtoMinor = 1
 	outreq.Close = false
 
-	// Remove the connection header to the backend.  We want a
-	// persistent connection, regardless of what the client sent
-	// to us.  This is modifying the same underlying map from req
-	// (shallow copied above) so we only copy it if necessary.
-	if outreq.Header.Get("Connection") != "" {
-		outreq.Header = make(Header)
-		copyHeader(outreq.Header, req.Header)
-		outreq.Header.Del("Connection")
-	}
-
 	if clientIp, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
 		outreq.Header.Set("X-Forwarded-For", clientIp)
 	}
@@ -113,7 +95,12 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
 		return
 	}
 
-	copyHeader(rw.Header(), res.Header)
+	hdr := rw.Header()
+	for k, vv := range res.Header {
+		for _, v := range vv {
+			hdr.Add(k, v)
+		}
+	}
 
 	rw.WriteHeader(res.StatusCode)
 
