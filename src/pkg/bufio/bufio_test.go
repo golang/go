@@ -195,14 +195,14 @@ func readRuneSegments(t *testing.T, segments []string) {
 	want := strings.Join(segments, "")
 	r := NewReader(&StringReader{data: segments})
 	for {
-		rune, _, err := r.ReadRune()
+		r, _, err := r.ReadRune()
 		if err != nil {
 			if err != os.EOF {
 				return
 			}
 			break
 		}
-		got += string(rune)
+		got += string(r)
 	}
 	if got != want {
 		t.Errorf("segments=%v got=%s want=%s", segments, got, want)
@@ -233,24 +233,24 @@ func TestUnreadRune(t *testing.T) {
 	r := NewReader(&StringReader{data: segments})
 	// Normal execution.
 	for {
-		rune, _, err := r.ReadRune()
+		r1, _, err := r.ReadRune()
 		if err != nil {
 			if err != os.EOF {
 				t.Error("unexpected EOF")
 			}
 			break
 		}
-		got += string(rune)
+		got += string(r1)
 		// Put it back and read it again
 		if err = r.UnreadRune(); err != nil {
 			t.Error("unexpected error on UnreadRune:", err)
 		}
-		rune1, _, err := r.ReadRune()
+		r2, _, err := r.ReadRune()
 		if err != nil {
 			t.Error("unexpected error reading after unreading:", err)
 		}
-		if rune != rune1 {
-			t.Errorf("incorrect rune after unread: got %c wanted %c", rune1, rune)
+		if r1 != r2 {
+			t.Errorf("incorrect rune after unread: got %c wanted %c", r1, r2)
 		}
 	}
 	if got != data {
@@ -339,25 +339,25 @@ func TestReadWriteRune(t *testing.T) {
 	w := NewWriter(byteBuf)
 	// Write the runes out using WriteRune
 	buf := make([]byte, utf8.UTFMax)
-	for rune := 0; rune < NRune; rune++ {
-		size := utf8.EncodeRune(buf, rune)
-		nbytes, err := w.WriteRune(rune)
+	for r := rune(0); r < NRune; r++ {
+		size := utf8.EncodeRune(buf, r)
+		nbytes, err := w.WriteRune(r)
 		if err != nil {
-			t.Fatalf("WriteRune(0x%x) error: %s", rune, err)
+			t.Fatalf("WriteRune(0x%x) error: %s", r, err)
 		}
 		if nbytes != size {
-			t.Fatalf("WriteRune(0x%x) expected %d, got %d", rune, size, nbytes)
+			t.Fatalf("WriteRune(0x%x) expected %d, got %d", r, size, nbytes)
 		}
 	}
 	w.Flush()
 
 	r := NewReader(byteBuf)
 	// Read them back with ReadRune
-	for rune := 0; rune < NRune; rune++ {
-		size := utf8.EncodeRune(buf, rune)
+	for r1 := rune(0); r1 < NRune; r1++ {
+		size := utf8.EncodeRune(buf, r1)
 		nr, nbytes, err := r.ReadRune()
-		if nr != rune || nbytes != size || err != nil {
-			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r, nr, nbytes, r, size, err)
+		if nr != r1 || nbytes != size || err != nil {
+			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r1, nr, nbytes, r1, size, err)
 		}
 	}
 }

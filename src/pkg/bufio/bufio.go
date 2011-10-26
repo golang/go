@@ -208,7 +208,7 @@ func (b *Reader) UnreadByte() os.Error {
 
 // ReadRune reads a single UTF-8 encoded Unicode character and returns the
 // rune and its size in bytes.
-func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
+func (b *Reader) ReadRune() (r rune, size int, err os.Error) {
 	for b.r+utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) && b.err == nil {
 		b.fill()
 	}
@@ -216,14 +216,14 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
 	if b.r == b.w {
 		return 0, 0, b.readErr()
 	}
-	rune, size = int(b.buf[b.r]), 1
-	if rune >= 0x80 {
-		rune, size = utf8.DecodeRune(b.buf[b.r:b.w])
+	r, size = rune(b.buf[b.r]), 1
+	if r >= 0x80 {
+		r, size = utf8.DecodeRune(b.buf[b.r:b.w])
 	}
 	b.r += size
 	b.lastByte = int(b.buf[b.r-1])
 	b.lastRuneSize = size
-	return rune, size, nil
+	return r, size, nil
 }
 
 // UnreadRune unreads the last rune.  If the most recent read operation on
@@ -497,9 +497,9 @@ func (b *Writer) WriteByte(c byte) os.Error {
 
 // WriteRune writes a single Unicode code point, returning
 // the number of bytes written and any error.
-func (b *Writer) WriteRune(rune int) (size int, err os.Error) {
-	if rune < utf8.RuneSelf {
-		err = b.WriteByte(byte(rune))
+func (b *Writer) WriteRune(r rune) (size int, err os.Error) {
+	if r < utf8.RuneSelf {
+		err = b.WriteByte(byte(r))
 		if err != nil {
 			return 0, err
 		}
@@ -516,10 +516,10 @@ func (b *Writer) WriteRune(rune int) (size int, err os.Error) {
 		n = b.Available()
 		if n < utf8.UTFMax {
 			// Can only happen if buffer is silly small.
-			return b.WriteString(string(rune))
+			return b.WriteString(string(r))
 		}
 	}
-	size = utf8.EncodeRune(b.buf[b.n:], rune)
+	size = utf8.EncodeRune(b.buf[b.n:], r)
 	b.n += size
 	return size, nil
 }
