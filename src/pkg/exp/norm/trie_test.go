@@ -73,15 +73,15 @@ var tests = []trietest{
 	{1, []byte{t6, tx, tx, tx, tx, tx}},
 }
 
-func mkUtf8(rune int) ([]byte, int) {
+func mkUTF8(r rune) ([]byte, int) {
 	var b [utf8.UTFMax]byte
-	sz := utf8.EncodeRune(b[:], rune)
+	sz := utf8.EncodeRune(b[:], r)
 	return b[:sz], sz
 }
 
 func TestLookup(t *testing.T) {
 	for i, tt := range testRunes {
-		b, szg := mkUtf8(tt)
+		b, szg := mkUTF8(tt)
 		v, szt := testdata.lookup(b)
 		if int(v) != i {
 			t.Errorf("lookup(%U): found value %#x, expected %#x", tt, v, i)
@@ -103,7 +103,7 @@ func TestLookup(t *testing.T) {
 
 func TestLookupUnsafe(t *testing.T) {
 	for i, tt := range testRunes {
-		b, _ := mkUtf8(tt)
+		b, _ := mkUTF8(tt)
 		v := testdata.lookupUnsafe(b)
 		if int(v) != i {
 			t.Errorf("lookupUnsafe(%U): found value %#x, expected %#x", i, v, i)
@@ -113,7 +113,7 @@ func TestLookupUnsafe(t *testing.T) {
 
 func TestLookupString(t *testing.T) {
 	for i, tt := range testRunes {
-		b, szg := mkUtf8(tt)
+		b, szg := mkUTF8(tt)
 		v, szt := testdata.lookupString(string(b))
 		if int(v) != i {
 			t.Errorf("lookup(%U): found value %#x, expected %#x", i, v, i)
@@ -135,7 +135,7 @@ func TestLookupString(t *testing.T) {
 
 func TestLookupStringUnsafe(t *testing.T) {
 	for i, tt := range testRunes {
-		b, _ := mkUtf8(tt)
+		b, _ := mkUTF8(tt)
 		v := testdata.lookupStringUnsafe(string(b))
 		if int(v) != i {
 			t.Errorf("lookupUnsafe(%U): found value %#x, expected %#x", i, v, i)
