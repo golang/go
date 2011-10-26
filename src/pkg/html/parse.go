@@ -52,6 +52,11 @@ var (
 	tableScopeStopTags    = []string{"html", "table"}
 )
 
+// stopTags for use in clearStackToContext.
+var (
+	tableRowContextStopTags = []string{"tr", "html"}
+)
+
 // popUntil pops the stack of open elements at the highest element whose tag
 // is in matchTags, provided there is no higher element in stopTags. It returns
 // whether or not there was such an element. If there was not, popUntil leaves
@@ -144,6 +149,11 @@ func (p *parser) fosterParent(n *Node) {
 		if child == table {
 			break
 		}
+	}
+
+	if i > 0 && parent.Child[i-1].Type == TextNode && n.Type == TextNode {
+		parent.Child[i-1].Data += n.Data
+		return
 	}
 
 	if i == len(parent.Child) {
@@ -749,11 +759,11 @@ func inTableIM(p *parser) (insertionMode, bool) {
 	case StartTagToken:
 		switch p.tok.Data {
 		case "tbody", "tfoot", "thead":
-			p.clearStackToTableContext()
+			p.clearStackToContext(tableScopeStopTags)
 			p.addElement(p.tok.Data, p.tok.Attr)
 			return inTableBodyIM, true
 		case "td", "th", "tr":
-			p.clearStackToTableContext()
+			p.clearStackToContext(tableScopeStopTags)
 			p.addElement("tbody", nil)
 			return inTableBodyIM, false
 		case "table":
@@ -794,11 +804,15 @@ func inTableIM(p *parser) (insertionMode, bool) {
 	return useTheRulesFor(p, inTableIM, inBodyIM)
 }
 
-func (p *parser) clearStackToTableContext() {
+// clearStackToContext pops elements off the stack of open elements
+// until an element listed in stopTags is found.
+func (p *parser) clearStackToContext(stopTags []string) {
 	for i := len(p.oe) - 1; i >= 0; i-- {
-		if x := p.oe[i].Data; x == "table" || x == "html" {
-			p.oe = p.oe[:i+1]
-			return
+		for _, tag := range stopTags {
+			if p.oe[i].Data == tag {
+				p.oe = p.oe[:i+1]
+				return
+			}
 		}
 	}
 }
@@ -877,7 +891,12 @@ func inRowIM(p *parser) (insertionMode, bool) {
 	case EndTagToken:
 		switch p.tok.Data {
 		case "tr":
-			// TODO.
+			if !p.elementInScope(tableScopeStopTags, "tr") {
+				return inRowIM, true
+			}
+			p.clearStackToContext(tableRowContextStopTags)
+			p.oe.pop()
+			return inTableBodyIM, true
 		case "table":
 			if p.popUntil(tableScopeStopTags, "tr") {
 				return inTableBodyIM, false
