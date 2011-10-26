@@ -32,7 +32,7 @@ type ScanState interface {
 	// If invoked during Scanln, Fscanln, or Sscanln, ReadRune() will
 	// return EOF after returning the first '\n' or when reading beyond
 	// the specified width.
-	ReadRune() (rune int, size int, err os.Error)
+	ReadRune() (r rune, size int, err os.Error)
 	// UnreadRune causes the next call to ReadRune to return the same rune.
 	UnreadRune() os.Error
 	// SkipSpace skips space in the input. Newlines are treated as space 
@@ -47,7 +47,7 @@ type ScanState interface {
 	// EOF.  The returned slice points to shared data that may be overwritten
 	// by the next call to Token, a call to a Scan function using the ScanState
 	// as input, or when the calling Scan method returns.
-	Token(skipSpace bool, f func(int) bool) (token []byte, err os.Error)
+	Token(skipSpace bool, f func(rune) bool) (token []byte, err os.Error)
 	// Width returns the value of the width option and whether it has been set.
 	// The unit is Unicode code points.
 	Width() (wid int, ok bool)
@@ -62,7 +62,7 @@ type ScanState interface {
 // receiver, which must be a pointer to be useful.  The Scan method is called
 // for any argument to Scan, Scanf, or Scanln that implements it.
 type Scanner interface {
-	Scan(state ScanState, verb int) os.Error
+	Scan(state ScanState, verb rune) os.Error
 }
 
 // Scan scans text read from standard input, storing successive
@@ -149,8 +149,8 @@ const eof = -1
 type ss struct {
 	rr       io.RuneReader // where to read input
 	buf      bytes.Buffer  // token accumulator
-	peekRune int           // one-rune lookahead
-	prevRune int           // last rune returned by ReadRune
+	peekRune rune          // one-rune lookahead
+	prevRune rune          // last rune returned by ReadRune
 	count    int           // runes consumed so far.
 	atEOF    bool          // already read EOF
 	ssave
@@ -174,12 +174,12 @@ func (s *ss) Read(buf []byte) (n int, err os.Error) {
 	return 0, os.NewError("ScanState's Read should not be called. Use ReadRune")
 }
 
-func (s *ss) ReadRune() (rune int, size int, err os.Error) {
+func (s *ss) ReadRune() (r rune, size int, err os.Error) {
 	if s.peekRune >= 0 {
 		s.count++
-		rune = s.peekRune
-		size = utf8.RuneLen(rune)
-		s.prevRune = rune
+		r = s.peekRune
+		size = utf8.RuneLen(r)
+		s.prevRune = r
 		s.peekRune = -1
 		return
 	}
@@ -188,10 +188,10 @@ func (s *ss) ReadRune() (rune int, size int, err os.Error) {
 		return
 	}
 
-	rune, size, err = s.rr.ReadRune()
+	r, size, err = s.rr.ReadRune()
 	if err == nil {
 		s.count++
-		s.prevRune = rune
+		s.prevRune = r
 	} else if err == os.EOF {
 		s.atEOF = true
 	}
@@ -207,8 +207,8 @@ func (s *ss) Width() (wid int, ok bool) {
 
 // The public method returns an error; this private one panics.
 // If getRune reaches EOF, the return value is EOF (-1).
-func (s *ss) getRune() (rune int) {
-	rune, _, err := s.ReadRune()
+func (s *ss) getRune() (r rune) {
+	r, _, err := s.ReadRune()
 	if err != nil {
 		if err == os.EOF {
 			return eof
@@ -221,9 +221,9 @@ func (s *ss) getRune() (rune int) {
 // mustReadRune turns os.EOF into a panic(io.ErrUnexpectedEOF).
 // It is called in cases such as string scanning where an EOF is a
 // syntax error.
-func (s *ss) mustReadRune() (rune int) {
-	rune = s.getRune()
-	if rune == eof {
+func (s *ss) mustReadRune() (r rune) {
+	r = s.getRune()
+	if r == eof {
 		s.error(io.ErrUnexpectedEOF)
 	}
 	return
@@ -248,7 +248,7 @@ func (s *ss) errorString(err string) {
 	panic(scanError{os.NewError(err)})
 }
 
-func (s *ss) Token(skipSpace bool, f func(int) bool) (tok []byte, err os.Error) {
+func (s *ss) Token(skipSpace bool, f func(rune) bool) (tok []byte, err os.Error) {
 	defer func() {
 		if e := recover(); e != nil {
 			if se, ok := e.(scanError); ok {
@@ -267,7 +267,7 @@ func (s *ss) Token(skipSpace bool, f func(int) bool) (tok []byte, err os.Error) 
 }
 
 // notSpace is the default scanning function used in Token.
-func notSpace(r int) bool {
+func notSpace(r rune) bool {
 	return !unicode.IsSpace(r)
 }
 
@@ -308,13 +308,13 @@ func (r *readRune) unread(buf []byte) {
 
 // ReadRune returns the next UTF-8 encoded code point from the
 // io.Reader inside r.
-func (r *readRune) ReadRune() (rune int, size int, err os.Error) {
+func (r *readRune) ReadRune() (rr rune, size int, err os.Error) {
 	r.buf[0], err = r.readByte()
 	if err != nil {
 		return 0, 0, err
 	}
 	if r.buf[0] < utf8.RuneSelf { // fast check for common ASCII case
-		rune = int(r.buf[0])
+		rr = rune(r.buf[0])
 		return
 	}
 	var n int
@@ -328,7 +328,7 @@ func (r *readRune) ReadRune() (rune int, size int, err os.Error) {
 			return
 		}
 	}
-	rune, size = utf8.DecodeRune(r.buf[0:n])
+	rr, size = utf8.DecodeRune(r.buf[0:n])
 	if size < n { // an error
 		r.unread(r.buf[size:n])
 	}
@@ -387,11 +387,11 @@ func (s *ss) free(old ssave) {
 // skipSpace skips spaces and maybe newlines.
 func (s *ss) skipSpace(stopAtNewline bool) {
 	for {
-		rune := s.getRune()
-		if rune == eof {
+		r := s.getRune()
+		if r == eof {
 			return
 		}
-		if rune == '\n' {
+		if r == '\n' {
 			if stopAtNewline {
 				break
 			}
@@ -401,7 +401,7 @@ func (s *ss) skipSpace(stopAtNewline bool) {
 			s.errorString("unexpected newline")
 			return
 		}
-		if !unicode.IsSpace(rune) {
+		if !unicode.IsSpace(r) {
 			s.UnreadRune()
 			break
 		}
@@ -411,21 +411,21 @@ func (s *ss) skipSpace(stopAtNewline bool) {
 // token returns the next space-delimited string from the input.  It
 // skips white space.  For Scanln, it stops at newlines.  For Scan,
 // newlines are treated as spaces.
-func (s *ss) token(skipSpace bool, f func(int) bool) []byte {
+func (s *ss) token(skipSpace bool, f func(rune) bool) []byte {
 	if skipSpace {
 		s.skipSpace(false)
 	}
 	// read until white space or newline
 	for {
-		rune := s.getRune()
-		if rune == eof {
+		r := s.getRune()
+		if r == eof {
 			break
 		}
-		if !f(rune) {
+		if !f(r) {
 			s.UnreadRune()
 			break
 		}
-		s.buf.WriteRune(rune)
+		s.buf.WriteRune(r)
 	}
 	return s.buf.Bytes()
 }
@@ -441,17 +441,17 @@ var boolError = os.NewError("syntax error scanning boolean")
 // consume reads the next rune in the input and reports whether it is in the ok string.
 // If accept is true, it puts the character into the input token.
 func (s *ss) consume(ok string, accept bool) bool {
-	rune := s.getRune()
-	if rune == eof {
+	r := s.getRune()
+	if r == eof {
 		return false
 	}
-	if strings.IndexRune(ok, rune) >= 0 {
+	if strings.IndexRune(ok, r) >= 0 {
 		if accept {
-			s.buf.WriteRune(rune)
+			s.buf.WriteRune(r)
 		}
 		return true
 	}
-	if rune != eof && accept {
+	if r != eof && accept {
 		s.UnreadRune()
 	}
 	return false
@@ -459,16 +459,16 @@ func (s *ss) consume(ok string, accept bool) bool {
 
 // peek reports whether the next character is in the ok string, without consuming it.
 func (s *ss) peek(ok string) bool {
-	rune := s.getRune()
-	if rune != eof {
+	r := s.getRune()
+	if r != eof {
 		s.UnreadRune()
 	}
-	return strings.IndexRune(ok, rune) >= 0
+	return strings.IndexRune(ok, r) >= 0
 }
 
 func (s *ss) notEOF() {
 	// Guarantee there is data to be read.
-	if rune := s.getRune(); rune == eof {
+	if r := s.getRune(); r == eof {
 		panic(os.EOF)
 	}
 	s.UnreadRune()
@@ -481,7 +481,7 @@ func (s *ss) accept(ok string) bool {
 }
 
 // okVerb verifies that the verb is present in the list, setting s.err appropriately if not.
-func (s *ss) okVerb(verb int, okVerbs, typ string) bool {
+func (s *ss) okVerb(verb rune, okVerbs, typ string) bool {
 	for _, v := range okVerbs {
 		if v == verb {
 			return true
@@ -492,7 +492,7 @@ func (s *ss) okVerb(verb int, okVerbs, typ string) bool {
 }
 
 // scanBool returns the value of the boolean represented by the next token.
-func (s *ss) scanBool(verb int) bool {
+func (s *ss) scanBool(verb rune) bool {
 	s.skipSpace(false)
 	s.notEOF()
 	if !s.okVerb(verb, "tv", "boolean") {
@@ -530,7 +530,7 @@ const (
 )
 
 // getBase returns the numeric base represented by the verb and its digit string.
-func (s *ss) getBase(verb int) (base int, digits string) {
+func (s *ss) getBase(verb rune) (base int, digits string) {
 	s.okVerb(verb, "bdoUxXv", "integer") // sets s.err
 	base = 10
 	digits = decimalDigits
@@ -564,13 +564,13 @@ func (s *ss) scanNumber(digits string, haveDigits bool) string {
 // scanRune returns the next rune value in the input.
 func (s *ss) scanRune(bitSize int) int64 {
 	s.notEOF()
-	rune := int64(s.getRune())
+	r := int64(s.getRune())
 	n := uint(bitSize)
-	x := (rune << (64 - n)) >> (64 - n)
-	if x != rune {
-		s.errorString("overflow on character value " + string(rune))
+	x := (r << (64 - n)) >> (64 - n)
+	if x != r {
+		s.errorString("overflow on character value " + string(r))
 	}
-	return rune
+	return r
 }
 
 // scanBasePrefix reports whether the integer begins with a 0 or 0x,
@@ -593,7 +593,7 @@ func (s *ss) scanBasePrefix() (base int, digits string, found bool) {
 
 // scanInt returns the value of the integer represented by the next
 // token, checking for overflow.  Any error is stored in s.err.
-func (s *ss) scanInt(verb int, bitSize int) int64 {
+func (s *ss) scanInt(verb rune, bitSize int) int64 {
 	if verb == 'c' {
 		return s.scanRune(bitSize)
 	}
@@ -626,7 +626,7 @@ func (s *ss) scanInt(verb int, bitSize int) int64 {
 
 // scanUint returns the value of the unsigned integer represented
 // by the next token, checking for overflow.  Any error is stored in s.err.
-func (s *ss) scanUint(verb int, bitSize int) uint64 {
+func (s *ss) scanUint(verb rune, bitSize int) uint64 {
 	if verb == 'c' {
 		return uint64(s.scanRune(bitSize))
 	}
@@ -747,7 +747,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
 // The atof argument is a type-specific reader for the underlying type.
 // If we're reading complex64, atof will parse float32s and convert them
 // to float64's to avoid reproducing this code for each complex type.
-func (s *ss) scanComplex(verb int, n int) complex128 {
+func (s *ss) scanComplex(verb rune, n int) complex128 {
 	if !s.okVerb(verb, floatVerbs, "complex") {
 		return 0
 	}
@@ -761,7 +761,7 @@ func (s *ss) scanComplex(verb int, n int) complex128 {
 
 // convertString returns the string represented by the next input characters.
 // The format of the input is determined by the verb.
-func (s *ss) convertString(verb int) (str string) {
+func (s *ss) convertString(verb rune) (str string) {
 	if !s.okVerb(verb, "svqx", "string") {
 		return ""
 	}
@@ -786,26 +786,26 @@ func (s *ss) quotedString() string {
 	case '`':
 		// Back-quoted: Anything goes until EOF or back quote.
 		for {
-			rune := s.mustReadRune()
-			if rune == quote {
+			r := s.mustReadRune()
+			if r == quote {
 				break
 			}
-			s.buf.WriteRune(rune)
+			s.buf.WriteRune(r)
 		}
 		return s.buf.String()
 	case '"':
 		// Double-quoted: Include the quotes and let strconv.Unquote do the backslash escapes.
 		s.buf.WriteRune(quote)
 		for {
-			rune := s.mustReadRune()
-			s.buf.WriteRune(rune)
-			if rune == '\\' {
+			r := s.mustReadRune()
+			s.buf.WriteRune(r)
+			if r == '\\' {
 				// In a legal backslash escape, no matter how long, only the character
 				// immediately after the escape can itself be a backslash or quote.
 				// Thus we only need to protect the first character after the backslash.
-				rune := s.mustReadRune()
-				s.buf.WriteRune(rune)
-			} else if rune == '"' {
+				r := s.mustReadRune()
+				s.buf.WriteRune(r)
+			} else if r == '"' {
 				break
 			}
 		}
@@ -821,7 +821,8 @@ func (s *ss) quotedString() string {
 }
 
 // hexDigit returns the value of the hexadecimal digit
-func (s *ss) hexDigit(digit int) int {
+func (s *ss) hexDigit(d rune) int {
+	digit := int(d)
 	switch digit {
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		return digit - '0'
@@ -871,7 +872,7 @@ const floatVerbs = "beEfFgGv"
 const hugeWid = 1 << 30
 
 // scanOne scans a single value, deriving the scanner from the type of the argument.
-func (s *ss) scanOne(verb int, field interface{}) {
+func (s *ss) scanOne(verb rune, field interface{}) {
 	s.buf.Reset()
 	var err os.Error
 	// If the parameter has its own Scan method, use that.
@@ -997,11 +998,11 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err os.Error) {
 	// Check for newline if required.
 	if !s.nlIsSpace {
 		for {
-			rune := s.getRune()
-			if rune == '\n' || rune == eof {
+			r := s.getRune()
+			if r == '\n' || r == eof {
 				break
 			}
-			if !unicode.IsSpace(rune) {
+			if !unicode.IsSpace(r) {
 				s.errorString("Scan: expected newline")
 				break
 			}

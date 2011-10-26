@@ -51,7 +51,7 @@ type State interface {
 // The implementation of Format may call Sprintf or Fprintf(f) etc.
 // to generate its output.
 type Formatter interface {
-	Format(f State, c int)
+	Format(f State, c rune)
 }
 
 // Stringer is implemented by any value that has a String method,
@@ -159,7 +159,7 @@ func (p *pp) Flag(b int) bool {
 	return false
 }
 
-func (p *pp) add(c int) {
+func (p *pp) add(c rune) {
 	p.buf.WriteRune(c)
 }
 
@@ -297,7 +297,7 @@ func (p *pp) unknownType(v interface{}) {
 	p.buf.WriteByte('?')
 }
 
-func (p *pp) badVerb(verb int) {
+func (p *pp) badVerb(verb rune) {
 	p.add('%')
 	p.add('!')
 	p.add(verb)
@@ -317,7 +317,7 @@ func (p *pp) badVerb(verb int) {
 	p.add(')')
 }
 
-func (p *pp) fmtBool(v bool, verb int) {
+func (p *pp) fmtBool(v bool, verb rune) {
 	switch verb {
 	case 't', 'v':
 		p.fmt.fmt_boolean(v)
@@ -328,15 +328,15 @@ func (p *pp) fmtBool(v bool, verb int) {
 
 // fmtC formats a rune for the 'c' format.
 func (p *pp) fmtC(c int64) {
-	rune := int(c) // Check for overflow.
-	if int64(rune) != c {
-		rune = utf8.RuneError
+	r := rune(c) // Check for overflow.
+	if int64(r) != c {
+		r = utf8.RuneError
 	}
-	w := utf8.EncodeRune(p.runeBuf[0:utf8.UTFMax], rune)
+	w := utf8.EncodeRune(p.runeBuf[0:utf8.UTFMax], r)
 	p.fmt.pad(p.runeBuf[0:w])
 }
 
-func (p *pp) fmtInt64(v int64, verb int) {
+func (p *pp) fmtInt64(v int64, verb rune) {
 	switch verb {
 	case 'b':
 		p.fmt.integer(v, 2, signed, ldigits)
@@ -394,7 +394,7 @@ func (p *pp) fmtUnicode(v int64) {
 	p.fmt.sharp = sharp
 }
 
-func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool) {
+func (p *pp) fmtUint64(v uint64, verb rune, goSyntax bool) {
 	switch verb {
 	case 'b':
 		p.fmt.integer(int64(v), 2, unsigned, ldigits)
@@ -427,7 +427,7 @@ func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool) {
 	}
 }
 
-func (p *pp) fmtFloat32(v float32, verb int) {
+func (p *pp) fmtFloat32(v float32, verb rune) {
 	switch verb {
 	case 'b':
 		p.fmt.fmt_fb32(v)
@@ -446,7 +446,7 @@ func (p *pp) fmtFloat32(v float32, verb int) {
 	}
 }
 
-func (p *pp) fmtFloat64(v float64, verb int) {
+func (p *pp) fmtFloat64(v float64, verb rune) {
 	switch verb {
 	case 'b':
 		p.fmt.fmt_fb64(v)
@@ -465,7 +465,7 @@ func (p *pp) fmtFloat64(v float64, verb int) {
 	}
 }
 
-func (p *pp) fmtComplex64(v complex64, verb int) {
+func (p *pp) fmtComplex64(v complex64, verb rune) {
 	switch verb {
 	case 'e', 'E', 'f', 'F', 'g', 'G':
 		p.fmt.fmt_c64(v, verb)
@@ -476,7 +476,7 @@ func (p *pp) fmtComplex64(v complex64, verb int) {
 	}
 }
 
-func (p *pp) fmtComplex128(v complex128, verb int) {
+func (p *pp) fmtComplex128(v complex128, verb rune) {
 	switch verb {
 	case 'e', 'E', 'f', 'F', 'g', 'G':
 		p.fmt.fmt_c128(v, verb)
@@ -487,7 +487,7 @@ func (p *pp) fmtComplex128(v complex128, verb int) {
 	}
 }
 
-func (p *pp) fmtString(v string, verb int, goSyntax bool) {
+func (p *pp) fmtString(v string, verb rune, goSyntax bool) {
 	switch verb {
 	case 'v':
 		if goSyntax {
@@ -508,7 +508,7 @@ func (p *pp) fmtString(v string, verb int, goSyntax bool) {
 	}
 }
 
-func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int) {
+func (p *pp) fmtBytes(v []byte, verb rune, goSyntax bool, depth int) {
 	if verb == 'v' || verb == 'd' {
 		if goSyntax {
 			p.buf.Write(bytesBytes)
@@ -547,7 +547,7 @@ func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int) {
 	}
 }
 
-func (p *pp) fmtPointer(value reflect.Value, verb int, goSyntax bool) {
+func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
 	var u uintptr
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
@@ -579,7 +579,7 @@ var (
 	uintptrBits = reflect.TypeOf(uintptr(0)).Bits()
 )
 
-func (p *pp) catchPanic(field interface{}, verb int) {
+func (p *pp) catchPanic(field interface{}, verb rune) {
 	if err := recover(); err != nil {
 		// If it's a nil pointer, just say "<nil>". The likeliest causes are a
 		// Stringer that fails to guard against nil or a nil pointer for a
@@ -604,7 +604,7 @@ func (p *pp) catchPanic(field interface{}, verb int) {
 	}
 }
 
-func (p *pp) handleMethods(verb int, plus, goSyntax bool, depth int) (wasString, handled bool) {
+func (p *pp) handleMethods(verb rune, plus, goSyntax bool, depth int) (wasString, handled bool) {
 	// Is it a Formatter?
 	if formatter, ok := p.field.(Formatter); ok {
 		handled = true
@@ -643,7 +643,7 @@ func (p *pp) handleMethods(verb int, plus, goSyntax bool, depth int) (wasString,
 	return
 }
 
-func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth int) (wasString bool) {
+func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth int) (wasString bool) {
 	if field == nil {
 		if verb == 'T' || verb == 'v' {
 			p.buf.Write(nilAngleBytes)
@@ -719,7 +719,7 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth 
 }
 
 // printValue is like printField but starts with a reflect value, not an interface{} value.
-func (p *pp) printValue(value reflect.Value, verb int, plus, goSyntax bool, depth int) (wasString bool) {
+func (p *pp) printValue(value reflect.Value, verb rune, plus, goSyntax bool, depth int) (wasString bool) {
 	if !value.IsValid() {
 		if verb == 'T' || verb == 'v' {
 			p.buf.Write(nilAngleBytes)
@@ -755,7 +755,7 @@ func (p *pp) printValue(value reflect.Value, verb int, plus, goSyntax bool, dept
 
 // printReflectValue is the fallback for both printField and printValue.
 // It uses reflect to print the value.
-func (p *pp) printReflectValue(value reflect.Value, verb int, plus, goSyntax bool, depth int) (wasString bool) {
+func (p *pp) printReflectValue(value reflect.Value, verb rune, plus, goSyntax bool, depth int) (wasString bool) {
 	oldValue := p.value
 	p.value = value
 BigSwitch:
