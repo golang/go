@@ -28,13 +28,13 @@ func runPosTests(t *testing.T, name string, f Form, fn positionFunc, tests []Pos
 		if pos != test.pos {
 			t.Errorf("%s:%d: position is %d; want %d", name, i, pos, test.pos)
 		}
-		runes := []int(test.buffer)
+		runes := []rune(test.buffer)
 		if rb.nrune != len(runes) {
 			t.Errorf("%s:%d: reorder buffer lenght is %d; want %d", name, i, rb.nrune, len(runes))
 			continue
 		}
 		for j, want := range runes {
-			found := int(rb.runeAt(j))
+			found := rune(rb.runeAt(j))
 			if found != want {
 				t.Errorf("%s:%d: rune at %d is %U; want %U", name, i, j, found, want)
 			}
@@ -385,8 +385,8 @@ func runAppendTests(t *testing.T, name string, f Form, fn appendFunc, tests []Ap
 		}
 		if outs != test.out {
 			// Find first rune that differs and show context.
-			ir := []int(outs)
-			ig := []int(test.out)
+			ir := []rune(outs)
+			ig := []rune(test.out)
 			for j := 0; j < len(ir) && j < len(ig); j++ {
 				if ir[j] == ig[j] {
 					continue

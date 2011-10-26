@@ -4,7 +4,7 @@
 
 package norm
 
-var testRunes = []int{1, 12, 127, 128, 256, 2047, 2048, 2457, 65535, 65536, 65793, 1114111, 512, 513, 514, 528, 533}
+var testRunes = []rune{1, 12, 127, 128, 256, 2047, 2048, 2457, 65535, 65536, 65793, 1114111, 512, 513, 514, 528, 533}
 
 // testdataValues: 192 entries, 384 bytes
 // Block 2 is the null block.

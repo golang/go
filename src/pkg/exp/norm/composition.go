@@ -126,26 +126,26 @@ func (rb *reorderBuffer) insert(src input, i int, info runeInfo) bool {
 }
 
 // appendRune inserts a rune at the end of the buffer. It is used for Hangul.
-func (rb *reorderBuffer) appendRune(rune uint32) {
+func (rb *reorderBuffer) appendRune(r uint32) {
 	bn := rb.nbyte
-	sz := utf8.EncodeRune(rb.byte[bn:], int(rune))
+	sz := utf8.EncodeRune(rb.byte[bn:], rune(r))
 	rb.nbyte += utf8.UTFMax
 	rb.rune[rb.nrune] = runeInfo{bn, uint8(sz), 0, 0}
 	rb.nrune++
 }
 
 // assignRune sets a rune at position pos. It is used for Hangul and recomposition.
-func (rb *reorderBuffer) assignRune(pos int, rune uint32) {
+func (rb *reorderBuffer) assignRune(pos int, r uint32) {
 	bn := rb.rune[pos].pos
-	sz := utf8.EncodeRune(rb.byte[bn:], int(rune))
+	sz := utf8.EncodeRune(rb.byte[bn:], rune(r))
 	rb.rune[pos] = runeInfo{bn, uint8(sz), 0, 0}
 }
 
 // runeAt returns the rune at position n. It is used for Hangul and recomposition.
 func (rb *reorderBuffer) runeAt(n int) uint32 {
 	inf := rb.rune[n]
-	rune, _ := utf8.DecodeRune(rb.byte[inf.pos : inf.pos+inf.size])
-	return uint32(rune)
+	r, _ := utf8.DecodeRune(rb.byte[inf.pos : inf.pos+inf.size])
+	return uint32(r)
 }
 
 // bytesAt returns the UTF-8 encoding of the rune at position n.
@@ -237,17 +237,17 @@ func isHangulWithoutJamoT(b []byte) bool {
 // decomposeHangul algorithmically decomposes a Hangul rune into
 // its Jamo components.
 // See http://unicode.org/reports/tr15/#Hangul for details on decomposing Hangul.
-func (rb *reorderBuffer) decomposeHangul(rune uint32) bool {
+func (rb *reorderBuffer) decomposeHangul(r uint32) bool {
 	b := rb.rune[:]
 	n := rb.nrune
 	if n+3 > len(b) {
 		return false
 	}
-	rune -= hangulBase
-	x := rune % jamoTCount
-	rune /= jamoTCount
-	rb.appendRune(jamoLBase + rune/jamoVCount)
-	rb.appendRune(jamoVBase + rune%jamoVCount)
+	r -= hangulBase
+	x := r % jamoTCount
+	r /= jamoTCount
+	rb.appendRune(jamoLBase + r/jamoVCount)
+	rb.appendRune(jamoVBase + r%jamoVCount)
 	if x != 0 {
 		rb.appendRune(jamoTBase + x)
 	}

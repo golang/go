@@ -119,7 +119,7 @@ const (
 // This contains only the properties we're interested in.
 type Char struct {
 	name          string
-	codePoint     int   // if zero, this index is not a valid code point.
+	codePoint     rune  // if zero, this index is not a valid code point.
 	ccc           uint8 // canonical combining class
 	excludeInComp bool  // from CompositionExclusions.txt
 	compatDecomp  bool  // it has a compatibility expansion
@@ -160,7 +160,7 @@ const (
 	SMissing
 )
 
-var lastChar int = 0
+var lastChar = rune('\u0000')
 
 func (c Char) isValid() bool {
 	return c.codePoint != 0 && c.state != SMissing
@@ -193,7 +193,7 @@ func (f FormInfo) String() string {
 	return buf.String()
 }
 
-type Decomposition []int
+type Decomposition []rune
 
 func (d Decomposition) String() string {
 	return fmt.Sprintf("%.4X", d)
@@ -220,7 +220,7 @@ func openReader(file string) (input io.ReadCloser) {
 	return
 }
 
-func parseDecomposition(s string, skipfirst bool) (a []int, e os.Error) {
+func parseDecomposition(s string, skipfirst bool) (a []rune, e os.Error) {
 	decomp := strings.Split(s, " ")
 	if len(decomp) > 0 && skipfirst {
 		decomp = decomp[1:]
@@ -230,7 +230,7 @@ func parseDecomposition(s string, skipfirst bool) (a []int, e os.Error) {
 		if err != nil {
 			return a, err
 		}
-		a = append(a, int(point))
+		a = append(a, rune(point))
 	}
 	return a, nil
 }
@@ -260,7 +260,7 @@ func parseCharacter(line string) {
 		state = SLast
 	}
 	firstChar := lastChar + 1
-	lastChar = int(point)
+	lastChar = rune(point)
 	if state != SLast {
 		firstChar = lastChar
 	}
@@ -370,8 +370,8 @@ func loadCompositionExclusions() {
 // hasCompatDecomp returns true if any of the recursive
 // decompositions contains a compatibility expansion.
 // In this case, the character may not occur in NFK*.
-func hasCompatDecomp(rune int) bool {
-	c := &chars[rune]
+func hasCompatDecomp(r rune) bool {
+	c := &chars[r]
 	if c.compatDecomp {
 		return true
 	}
@@ -396,19 +396,19 @@ const (
 	JamoTEnd  = 0x11C3
 )
 
-func isHangul(rune int) bool {
-	return HangulBase <= rune && rune < HangulEnd
+func isHangul(r rune) bool {
+	return HangulBase <= r && r < HangulEnd
 }
 
-func ccc(rune int) uint8 {
-	return chars[rune].ccc
+func ccc(r rune) uint8 {
+	return chars[r].ccc
 }
 
 // Insert a rune in a buffer, ordered by Canonical Combining Class.
-func insertOrdered(b Decomposition, rune int) Decomposition {
+func insertOrdered(b Decomposition, r rune) Decomposition {
 	n := len(b)
 	b = append(b, 0)
-	cc := ccc(rune)
+	cc := ccc(r)
 	if cc > 0 {
 		// Use bubble sort.
 		for ; n > 0; n-- {
@@ -418,18 +418,18 @@ func insertOrdered(b Decomposition, rune int) Decomposition {
 			b[n] = b[n-1]
 		}
 	}
-	b[n] = rune
+	b[n] = r
 	return b
 }
 
 // Recursively decompose.
-func decomposeRecursive(form int, rune int, d Decomposition) Decomposition {
-	if isHangul(rune) {
+func decomposeRecursive(form int, r rune, d Decomposition) Decomposition {
+	if isHangul(r) {
 		return d
 	}
-	dcomp := chars[rune].forms[form].decomp
+	dcomp := chars[r].forms[form].decomp
 	if len(dcomp) == 0 {
-		return insertOrdered(d, rune)
+		return insertOrdered(d, r)
 	}
 	for _, c := range dcomp {
 		d = decomposeRecursive(form, c, d)
@@ -475,8 +475,8 @@ func completeCharFields(form int) {
 			f.isOneWay = f.isOneWay || hasCompatDecomp(c.codePoint)
 		}
 
-		for _, rune := range f.decomp {
-			chars[rune].forms[form].inDecomp = true
+		for _, r := range f.decomp {
+			chars[r].forms[form].inDecomp = true
 		}
 	}
 
@@ -505,7 +505,7 @@ func completeCharFields(form int) {
 		switch {
 		case len(f.decomp) > 0:
 			f.quickCheck[MDecomposed] = QCNo
-		case isHangul(i):
+		case isHangul(rune(i)):
 			f.quickCheck[MDecomposed] = QCNo
 		default:
 			f.quickCheck[MDecomposed] = QCYes
@@ -588,7 +588,7 @@ func printCharInfoTables() int {
 	for i, char := range chars {
 		v := makeCharInfo(char)
 		if v != 0 {
-			t.insert(i, v)
+			t.insert(rune(i), v)
 		}
 	}
 	return t.printTables("charInfo")
@@ -606,7 +606,7 @@ func printDecompositionTables() int {
 	for _, c := range chars {
 		for f := 0; f < 2; f++ {
 			d := c.forms[f].expandedDecomp
-			s := string([]int(d))
+			s := string([]rune(d))
 			if _, ok := positionMap[s]; !ok {
 				p := decompositions.Len()
 				decompositions.WriteByte(uint8(len(s)))
@@ -624,7 +624,7 @@ func printDecompositionTables() int {
 	for i, c := range chars {
 		d := c.forms[FCanonical].expandedDecomp
 		if len(d) != 0 {
-			nfcT.insert(i, positionMap[string([]int(d))])
+			nfcT.insert(rune(i), positionMap[string([]rune(d))])
 			if ccc(c.codePoint) != ccc(d[0]) {
 				// We assume the lead ccc of a decomposition is !=0 in this case.
 				if ccc(d[0]) == 0 {
@@ -634,7 +634,7 @@ func printDecompositionTables() int {
 		}
 		d = c.forms[FCompatibility].expandedDecomp
 		if len(d) != 0 {
-			nfkcT.insert(i, positionMap[string([]int(d))])
+			nfkcT.insert(rune(i), positionMap[string([]rune(d))])
 			if ccc(c.codePoint) != ccc(d[0]) {
 				// We assume the lead ccc of a decomposition is !=0 in this case.
 				if ccc(d[0]) == 0 {
@@ -752,7 +752,7 @@ func verifyComputed() {
 	for i, c := range chars {
 		for _, f := range c.forms {
 			isNo := (f.quickCheck[MDecomposed] == QCNo)
-			if (len(f.decomp) > 0) != isNo && !isHangul(i) {
+			if (len(f.decomp) > 0) != isNo && !isHangul(rune(i)) {
 				log.Fatalf("%U: NF*D must be no if rune decomposes", i)
 			}
 

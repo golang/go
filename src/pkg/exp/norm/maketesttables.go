@@ -16,7 +16,7 @@ func main() {
 
 // We take the smallest, largest and an arbitrary value for each 
 // of the UTF-8 sequence lengths.
-var testRunes = []int{
+var testRunes = []rune{
 	0x01, 0x0C, 0x7F, // 1-byte sequences
 	0x80, 0x100, 0x7FF, // 2-byte sequences
 	0x800, 0x999, 0xFFFF, // 3-byte sequences
