@@ -36,7 +36,7 @@ var good3 int = 1e9
 var good4 float64 = 1e20
 
 // explicit conversion of string is okay
-var _ = []int("abc")
+var _ = []rune("abc")
 var _ = []byte("abc")
 
 // implicit is not
@@ -47,20 +47,20 @@ var _ []byte = "abc" // ERROR "cannot use|incompatible|invalid"
 type Tstring string
 
 var ss Tstring = "abc"
-var _ = []int(ss)
+var _ = []rune(ss)
 var _ = []byte(ss)
 
 // implicit is still not
-var _ []int = ss  // ERROR "cannot use|incompatible|invalid"
+var _ []rune = ss // ERROR "cannot use|incompatible|invalid"
 var _ []byte = ss // ERROR "cannot use|incompatible|invalid"
 
 // named slice is not
-type Tint []int
+type Trune []rune
 type Tbyte []byte
 
-var _ = Tint("abc")  // ERROR "convert|incompatible|invalid"
+var _ = Trune("abc") // ERROR "convert|incompatible|invalid"
 var _ = Tbyte("abc") // ERROR "convert|incompatible|invalid"
 
 // implicit is still not
-var _ Tint = "abc"  // ERROR "cannot use|incompatible|invalid"
+var _ Trune = "abc" // ERROR "cannot use|incompatible|invalid"
 var _ Tbyte = "abc" // ERROR "cannot use|incompatible|invalid"

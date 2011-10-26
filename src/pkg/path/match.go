@@ -136,7 +136,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
 					chunk = chunk[1:]
 					break
 				}
-				var lo, hi int
+				var lo, hi rune
 				if lo, chunk, err = getEsc(chunk); err != nil {
 					return
 				}
@@ -183,7 +183,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
 }
 
 // getEsc gets a possibly-escaped character from chunk, for a character class.
-func getEsc(chunk string) (r int, nchunk string, err os.Error) {
+func getEsc(chunk string) (r rune, nchunk string, err os.Error) {
 	if len(chunk) == 0 || chunk[0] == '-' || chunk[0] == ']' {
 		err = ErrBadPattern
 		return

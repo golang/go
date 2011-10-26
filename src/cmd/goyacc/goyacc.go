@@ -813,7 +813,8 @@ func defin(nt int, s string) int {
 var peekline = 0
 
 func gettok() int {
-	var i, match, c int
+	var i int
+	var match, c rune
 
 	tokname = ""
 	for {
@@ -919,25 +920,25 @@ func gettok() int {
 
 		getword(c)
 		// find a reserved word
-		for c = 0; c < len(resrv); c++ {
-			if tokname == resrv[c].name {
+		for i := range resrv {
+			if tokname == resrv[i].name {
 				if tokflag {
 					fmt.Printf(">>> %%%v %v %v\n", tokname,
-						resrv[c].value-PRIVATE, lineno)
+						resrv[i].value-PRIVATE, lineno)
 				}
-				return resrv[c].value
+				return resrv[i].value
 			}
 		}
 		errorf("invalid escape, or illegal reserved word: %v", tokname)
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		numbval = c - '0'
+		numbval = int(c - '0')
 		for {
 			c = getrune(finput)
 			if !isdigit(c) {
 				break
 			}
-			numbval = numbval*10 + c - '0'
+			numbval = numbval*10 + int(c-'0')
 		}
 		ungetrune(finput, c)
 		if tokflag {
@@ -953,7 +954,7 @@ func gettok() int {
 		if tokflag {
 			fmt.Printf(">>> OPERATOR %v %v\n", string(c), lineno)
 		}
-		return c
+		return int(c)
 	}
 
 	// look ahead to distinguish IDENTIFIER from IDENTCOLON
@@ -982,7 +983,7 @@ func gettok() int {
 	return IDENTIFIER
 }
 
-func getword(c int) {
+func getword(c rune) {
 	tokname = ""
 	for isword(c) || isdigit(c) || c == '_' || c == '.' || c == '$' {
 		tokname += string(c)
@@ -1107,7 +1108,7 @@ func cpycode() {
 // skipcom is called after reading a '/'
 //
 func skipcom() int {
-	var c int
+	var c rune
 
 	c = getrune(finput)
 	if c == '/' {
@@ -1221,7 +1222,7 @@ loop:
 			j := 0
 			if isdigit(c) {
 				for isdigit(c) {
-					j = j*10 + c - '0'
+					j = j*10 + int(c-'0')
 					c = getrune(finput)
 				}
 				ungetrune(finput, c)
@@ -2837,10 +2838,10 @@ func others() {
 	fmt.Fprintf(ftable, "%d,\n}\n", 0)
 
 	// copy parser text
-	c = getrune(finput)
-	for c != EOF {
-		ftable.WriteRune(c)
-		c = getrune(finput)
+	ch := getrune(finput)
+	for ch != EOF {
+		ftable.WriteRune(ch)
+		ch = getrune(finput)
 	}
 
 	// copy yaccpar
@@ -2976,11 +2977,11 @@ func prlook(p Lkset) {
 //
 // utility routines
 //
-var peekrune int
+var peekrune rune
 
-func isdigit(c int) bool { return c >= '0' && c <= '9' }
+func isdigit(c rune) bool { return c >= '0' && c <= '9' }
 
-func isword(c int) bool {
+func isword(c rune) bool {
 	return c >= 0xa0 || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
@@ -3010,8 +3011,8 @@ func putrune(f *bufio.Writer, c int) {
 	}
 }
 
-func getrune(f *bufio.Reader) int {
-	var r int
+func getrune(f *bufio.Reader) rune {
+	var r rune
 
 	if peekrune != 0 {
 		if peekrune == EOF {
@@ -3033,7 +3034,7 @@ func getrune(f *bufio.Reader) int {
 	return c
 }
 
-func ungetrune(f *bufio.Reader, c int) {
+func ungetrune(f *bufio.Reader, c rune) {
 	if f != finput {
 		panic("ungetc - not finput")
 	}

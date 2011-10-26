@@ -35,14 +35,14 @@ func assert(a, b, c string) {
 }
 
 const (
-	gx1 = "aä本☺"
-	gx2 = "aä\xFF\xFF本☺"
+	gx1    = "aä本☺"
+	gx2    = "aä\xFF\xFF本☺"
 	gx2fix = "aä\uFFFD\uFFFD本☺"
 )
 
 var (
-	gr1 = []int(gx1)
-	gr2 = []int(gx2)
+	gr1 = []rune(gx1)
+	gr2 = []rune(gx2)
 	gb1 = []byte(gx1)
 	gb2 = []byte(gx2)
 )
@@ -93,26 +93,26 @@ func main() {
 
 	// test large runes. perhaps not the most logical place for this test.
 	var r int32
-	r = 0x10ffff;	// largest rune value
+	r = 0x10ffff // largest rune value
 	s = string(r)
 	assert(s, "\xf4\x8f\xbf\xbf", "largest rune")
 	r = 0x10ffff + 1
 	s = string(r)
 	assert(s, "\xef\xbf\xbd", "too-large rune")
 
-	assert(string(gr1), gx1, "global ->[]int")
-	assert(string(gr2), gx2fix, "global invalid ->[]int")
+	assert(string(gr1), gx1, "global ->[]rune")
+	assert(string(gr2), gx2fix, "global invalid ->[]rune")
 	assert(string(gb1), gx1, "->[]byte")
 	assert(string(gb2), gx2, "global invalid ->[]byte")
 
 	var (
-		r1 = []int(gx1)
-		r2 = []int(gx2)
+		r1 = []rune(gx1)
+		r2 = []rune(gx2)
 		b1 = []byte(gx1)
 		b2 = []byte(gx2)
 	)
-	assert(string(r1), gx1, "->[]int")
-	assert(string(r2), gx2fix, "invalid ->[]int")
+	assert(string(r1), gx1, "->[]rune")
+	assert(string(r2), gx2fix, "invalid ->[]rune")
 	assert(string(b1), gx1, "->[]byte")
 	assert(string(b2), gx2, "invalid ->[]byte")
 

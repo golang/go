@@ -123,9 +123,9 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 		return s, true
 	case reflect.String:
 		numChars := rand.Intn(complexSize)
-		codePoints := make([]int, numChars)
+		codePoints := make([]rune, numChars)
 		for i := 0; i < numChars; i++ {
-			codePoints[i] = rand.Intn(0x10ffff)
+			codePoints[i] = rune(rand.Intn(0x10ffff))
 		}
 		return reflect.ValueOf(string(codePoints)), true
 	case reflect.Struct:

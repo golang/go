@@ -100,7 +100,7 @@ func makeCmdLine(args []string) string {
 // Last bytes are two UCS-2 NULs, or four NUL bytes.
 func createEnvBlock(envv []string) *uint16 {
 	if len(envv) == 0 {
-		return &utf16.Encode([]int("\x00\x00"))[0]
+		return &utf16.Encode([]rune("\x00\x00"))[0]
 	}
 	length := 0
 	for _, s := range envv {
@@ -118,7 +118,7 @@ func createEnvBlock(envv []string) *uint16 {
 	}
 	copy(b[i:i+1], []byte{0})
 
-	return &utf16.Encode([]int(string(b)))[0]
+	return &utf16.Encode([]rune(string(b)))[0]
 }
 
 func CloseOnExec(fd Handle) {

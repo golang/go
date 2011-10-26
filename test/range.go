@@ -172,7 +172,7 @@ func makestring() string {
 }
 
 func teststring() {
-	s := 0
+	var s rune
 	nmake = 0
 	for _, v := range makestring() {
 		s += v
@@ -208,7 +208,7 @@ func teststring1() {
 
 func makemap() map[int]int {
 	nmake++
-	return map[int]int{0:'a', 1:'b', 2:'c', 3:'d', 4:'☺'}
+	return map[int]int{0: 'a', 1: 'b', 2: 'c', 3: 'd', 4: '☺'}
 }
 
 func testmap() {

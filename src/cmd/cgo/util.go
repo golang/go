@@ -102,7 +102,7 @@ func creat(name string) *os.File {
 	return f
 }
 
-func slashToUnderscore(c int) int {
+func slashToUnderscore(c rune) rune {
 	if c == '/' || c == '\\' || c == ':' {
 		c = '_'
 	}
