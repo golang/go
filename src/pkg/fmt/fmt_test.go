@@ -73,7 +73,7 @@ type C struct {
 
 type F int
 
-func (f F) Format(s State, c int) {
+func (f F) Format(s State, c rune) {
 	Fprintf(s, "<%c=F(%d)>", c, int(f))
 }
 
@@ -546,7 +546,7 @@ func TestCountMallocs(t *testing.T) {
 
 type flagPrinter struct{}
 
-func (*flagPrinter) Format(f State, c int) {
+func (*flagPrinter) Format(f State, c rune) {
 	s := "%"
 	for i := 0; i < 128; i++ {
 		if f.Flag(i) {
@@ -746,7 +746,7 @@ type PanicF struct {
 }
 
 // Value receiver.
-func (p PanicF) Format(f State, c int) {
+func (p PanicF) Format(f State, c rune) {
 	panic(p.message)
 }
 

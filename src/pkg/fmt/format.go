@@ -242,8 +242,8 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 	}
 
 	// If we want a quoted char for %#U, move the data up to make room.
-	if f.unicode && f.uniQuote && a >= 0 && a <= unicode.MaxRune && unicode.IsPrint(int(a)) {
-		runeWidth := utf8.RuneLen(int(a))
+	if f.unicode && f.uniQuote && a >= 0 && a <= unicode.MaxRune && unicode.IsPrint(rune(a)) {
+		runeWidth := utf8.RuneLen(rune(a))
 		width := 1 + 1 + runeWidth + 1 // space, quote, rune, quote
 		copy(buf[i-width:], buf[i:])   // guaranteed to have enough room.
 		i -= width
@@ -253,7 +253,7 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 		j++
 		buf[j] = '\''
 		j++
-		utf8.EncodeRune(buf[j:], int(a))
+		utf8.EncodeRune(buf[j:], rune(a))
 		j += runeWidth
 		buf[j] = '\''
 	}
@@ -400,7 +400,7 @@ func (f *fmt) fmt_G32(v float32) { f.plusSpace(strconv.Ftoa32(v, 'G', doPrec(f, 
 func (f *fmt) fmt_fb32(v float32) { f.padString(strconv.Ftoa32(v, 'b', 0)) }
 
 // fmt_c64 formats a complex64 according to the verb.
-func (f *fmt) fmt_c64(v complex64, verb int) {
+func (f *fmt) fmt_c64(v complex64, verb rune) {
 	f.buf.WriteByte('(')
 	r := real(v)
 	for i := 0; ; i++ {
@@ -426,7 +426,7 @@ func (f *fmt) fmt_c64(v complex64, verb int) {
 }
 
 // fmt_c128 formats a complex128 according to the verb.
-func (f *fmt) fmt_c128(v complex128, verb int) {
+func (f *fmt) fmt_c128(v complex128, verb rune) {
 	f.buf.WriteByte('(')
 	r := real(v)
 	for i := 0; ; i++ {

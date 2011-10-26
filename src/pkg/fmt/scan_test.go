@@ -87,8 +87,8 @@ type FloatTest struct {
 // Xs accepts any non-empty run of the verb character
 type Xs string
 
-func (x *Xs) Scan(state ScanState, verb int) os.Error {
-	tok, err := state.Token(true, func(r int) bool { return r == verb })
+func (x *Xs) Scan(state ScanState, verb rune) os.Error {
+	tok, err := state.Token(true, func(r rune) bool { return r == verb })
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ type IntString struct {
 	s string
 }
 
-func (s *IntString) Scan(state ScanState, verb int) os.Error {
+func (s *IntString) Scan(state ScanState, verb rune) os.Error {
 	if _, err := Fscan(state, &s.i); err != nil {
 		return err
 	}
@@ -749,8 +749,8 @@ type TwoLines string
 
 // Attempt to read two lines into the object.  Scanln should prevent this
 // because it stops at newline; Scan and Scanf should be fine.
-func (t *TwoLines) Scan(state ScanState, verb int) os.Error {
-	chars := make([]int, 0, 100)
+func (t *TwoLines) Scan(state ScanState, verb rune) os.Error {
+	chars := make([]rune, 0, 100)
 	for nlCount := 0; nlCount < 2; {
 		c, _, err := state.ReadRune()
 		if err != nil {
@@ -812,7 +812,7 @@ type RecursiveInt struct {
 	next *RecursiveInt
 }
 
-func (r *RecursiveInt) Scan(state ScanState, verb int) (err os.Error) {
+func (r *RecursiveInt) Scan(state ScanState, verb rune) (err os.Error) {
 	_, err = Fscan(state, &r.i)
 	if err != nil {
 		return
@@ -838,8 +838,7 @@ func scanInts(r *RecursiveInt, b *bytes.Buffer) (err os.Error) {
 	if err != nil {
 		return
 	}
-	var c int
-	c, _, err = b.ReadRune()
+	c, _, err := b.ReadRune()
 	if err != nil {
 		if err == os.EOF {
 			err = nil
