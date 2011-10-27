@@ -11,6 +11,7 @@ import (
 	"exec"
 	"fmt"
 	"http"
+	"json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -56,12 +57,6 @@ type vcs struct {
 	defaultHosts  []host
 }
 
-type host struct {
-	pattern  *regexp.Regexp
-	protocol string
-	suffix   string
-}
-
 var hg = vcs{
 	name:      "Mercurial",
 	cmd:       "hg",
@@ -75,10 +70,6 @@ var hg = vcs{
 	check:     "identify",
 	protocols: []string{"https", "http"},
 	suffix:    ".hg",
-	defaultHosts: []host{
-		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/hg)(/[a-z0-9A-Z_.\-/]*)?$`), "https", ""},
-		{regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http", ""},
-	},
 }
 
 var git = vcs{
@@ -94,10 +85,6 @@ var git = vcs{
 	check:     "ls-remote",
 	protocols: []string{"git", "https", "http"},
 	suffix:    ".git",
-	defaultHosts: []host{
-		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/git)(/[a-z0-9A-Z_.\-/]*)?$`), "https", ""},
-		{regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`), "http", ".git"},
-	},
 }
 
 var svn = vcs{
@@ -110,9 +97,6 @@ var svn = vcs{
 	check:     "info",
 	protocols: []string{"https", "http", "svn"},
 	suffix:    ".svn",
-	defaultHosts: []host{
-		{regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/svn)(/[a-z0-9A-Z_.\-/]*)?$`), "https", ""},
-	},
 }
 
 var bzr = vcs{
@@ -130,30 +114,110 @@ var bzr = vcs{
 	check:         "info",
 	protocols:     []string{"https", "http", "bzr"},
 	suffix:        ".bzr",
-	defaultHosts: []host{
-		{regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`), "https", ""},
-	},
 }
 
 var vcsList = []*vcs{&git, &hg, &bzr, &svn}
+
+type host struct {
+	pattern *regexp.Regexp
+	getVcs  func(repo, path string) (*vcsMatch, os.Error)
+}
+
+var knownHosts = []host{
+	{
+		regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/(svn|git|hg))(/[a-z0-9A-Z_.\-/]*)?$`),
+		googleVcs,
+	},
+	{
+		regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`),
+		githubVcs,
+	},
+	{
+		regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`),
+		bitbucketVcs,
+	},
+	{
+		regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A-Z_.\-]+)?|~[a-z0-9A-Z_.\-]+/(\+junk|[a-z0-9A-Z_.\-]+)/[a-z0-9A-Z_.\-]+))(/[a-z0-9A-Z_.\-/]+)?$`),
+		launchpadVcs,
+	},
+}
 
 type vcsMatch struct {
 	*vcs
 	prefix, repo string
 }
 
+func googleVcs(repo, path string) (*vcsMatch, os.Error) {
+	parts := strings.SplitN(repo, "/", 2)
+	url := "https://" + repo
+	switch parts[1] {
+	case "svn":
+		return &vcsMatch{&svn, repo, url}, nil
+	case "git":
+		return &vcsMatch{&git, repo, url}, nil
+	case "hg":
+		return &vcsMatch{&hg, repo, url}, nil
+	}
+	return nil, os.NewError("unsupported googlecode vcs: " + parts[1])
+}
+
+func githubVcs(repo, path string) (*vcsMatch, os.Error) {
+	if strings.HasSuffix(repo, ".git") {
+		return nil, os.NewError("path must not include .git suffix")
+	}
+	return &vcsMatch{&git, repo, "http://" + repo + ".git"}, nil
+}
+
+func bitbucketVcs(repo, path string) (*vcsMatch, os.Error) {
+	const bitbucketApiUrl = "https://api.bitbucket.org/1.0/repositories/"
+
+	if strings.HasSuffix(repo, ".git") {
+		return nil, os.NewError("path must not include .git suffix")
+	}
+
+	parts := strings.SplitN(repo, "/", 2)
+
+	// Ask the bitbucket API what kind of repository this is.
+	r, err := http.Get(bitbucketApiUrl + parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("error querying BitBucket API: %v", err)
+	}
+	defer r.Body.Close()
+
+	// Did we get a useful response?
+	if r.StatusCode != 200 {
+		return nil, fmt.Errorf("error querying BitBucket API: %v", r.Status)
+	}
+
+	var response struct {
+		Vcs string `json:"scm"`
+	}
+	err = json.NewDecoder(r.Body).Decode(&response)
+	if err != nil {
+		return nil, fmt.Errorf("error querying BitBucket API: %v", err)
+	}
+
+	// Now we should be able to construct a vcsMatch structure
+	switch response.Vcs {
+	case "git":
+		return &vcsMatch{&git, repo, "http://" + repo + ".git"}, nil
+	case "hg":
+		return &vcsMatch{&hg, repo, "http://" + repo}, nil
+	}
+
+	return nil, os.NewError("unsupported bitbucket vcs: " + response.Vcs)
+}
+
+func launchpadVcs(repo, path string) (*vcsMatch, os.Error) {
+	return &vcsMatch{&bzr, repo, "https://" + repo}, nil
+}
+
 // findPublicRepo checks whether pkg is located at one of
 // the supported code hosting sites and, if so, returns a match.
 func findPublicRepo(pkg string) (*vcsMatch, os.Error) {
-	for _, v := range vcsList {
-		for _, host := range v.defaultHosts {
-			if hm := host.pattern.FindStringSubmatch(pkg); hm != nil {
-				if host.suffix != "" && strings.HasSuffix(hm[1], host.suffix) {
-					return nil, os.NewError("repository " + pkg + " should not have " + v.suffix + " suffix")
-				}
-				repo := host.protocol + "://" + hm[1] + host.suffix
-				return &vcsMatch{v, hm[1], repo}, nil
-			}
+	for _, host := range knownHosts {
+		if hm := host.pattern.FindStringSubmatch(pkg); hm != nil {
+			return host.getVcs(hm[1], hm[2])
 		}
 	}
 	return nil, nil
