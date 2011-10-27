@@ -11,12 +11,9 @@ Unzip and place 7za.exe in msys' bin directory.
 
 Packaging
 =========
-1) have a go tree at $GOROOT
-2) make sure $GOBIN=$GOROOT\bin is empty
-3) select appropriate version "hg up -r ..."
-4) build go "cd $GOROOT/src; ./all.bash"
-5) create Windows packages "cd $GOROOT/misc/windows; ./package.bash"
-
-
-
-
+- have a go tree at $GOROOT
+- make sure $GOBIN=$GOROOT\bin or is empty
+- make sure $GOARCH=386 or $GOARCH=amd64
+- select appropriate version "hg up -r ..."
+- build go "cd $GOROOT/src; ./all.bash"
+- create Windows packages "cd $GOROOT/misc/windows; ./package.bash"
