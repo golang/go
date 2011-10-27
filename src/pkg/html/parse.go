@@ -7,6 +7,7 @@ package html
 import (
 	"io"
 	"os"
+	"strings"
 )
 
 // A parser implements the HTML5 parsing algorithm:
@@ -430,6 +431,8 @@ func beforeHeadIM(p *parser) (insertionMode, bool) {
 	return inHeadIM, !implied
 }
 
+const whitespace = " \t\r\n\f"
+
 // Section 11.2.5.4.4.
 func inHeadIM(p *parser) (insertionMode, bool) {
 	var (
@@ -437,7 +440,18 @@ func inHeadIM(p *parser) (insertionMode, bool) {
 		implied bool
 	)
 	switch p.tok.Type {
-	case ErrorToken, TextToken:
+	case ErrorToken:
+		implied = true
+	case TextToken:
+		s := strings.TrimLeft(p.tok.Data, whitespace)
+		if len(s) < len(p.tok.Data) {
+			// Add the initial whitespace to the current node.
+			p.addText(p.tok.Data[:len(p.tok.Data)-len(s)])
+			if s == "" {
+				return inHeadIM, true
+			}
+			p.tok.Data = s
+		}
 		implied = true
 	case StartTagToken:
 		switch p.tok.Data {
@@ -469,7 +483,7 @@ func inHeadIM(p *parser) (insertionMode, bool) {
 		}
 		return afterHeadIM, !implied
 	}
-	return inHeadIM, !implied
+	return inHeadIM, true
 }
 
 // Section 11.2.5.4.6.
