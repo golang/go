@@ -434,7 +434,9 @@ func (p *parser) parseLhsList() []ast.Expr {
 	switch p.tok {
 	case token.DEFINE:
 		// lhs of a short variable declaration
-		p.shortVarDecl(p.makeIdentList(list))
+		// but doesn't enter scope until later:
+		// caller must call p.shortVarDecl(p.makeIdentList(list))
+		// at appropriate time.
 	case token.COLON:
 		// lhs of a label declaration or a communication clause of a select
 		// statement (parseLhsList is not called when parsing the case clause
@@ -1398,6 +1400,9 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 		} else {
 			y = p.parseRhsList()
 		}
+		if tok == token.DEFINE {
+			p.shortVarDecl(p.makeIdentList(x))
+		}
 		return &ast.AssignStmt{x, pos, tok, y}, isRange
 	}
 
@@ -1722,6 +1727,9 @@ func (p *parser) parseCommClause() *ast.CommClause {
 				}
 				p.next()
 				rhs = p.parseRhs()
+				if tok == token.DEFINE && lhs != nil {
+					p.shortVarDecl(p.makeIdentList(lhs))
+				}
 			} else {
 				// rhs must be single receive operation
 				if len(lhs) > 1 {
