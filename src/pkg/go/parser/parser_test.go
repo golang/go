@@ -5,6 +5,7 @@
 package parser
 
 import (
+	"go/ast"
 	"go/token"
 	"os"
 	"testing"
@@ -131,6 +132,49 @@ func TestParse4(t *testing.T) {
 	for filename := range pkg.Files {
 		if !nameFilter(filename) {
 			t.Errorf("unexpected package file: %s", filename)
+		}
+	}
+}
+
+func TestColonEqualsScope(t *testing.T) {
+	f, err := ParseFile(fset, "", `package p; func f() { x, y, z := x, y, z }`, 0)
+	if err != nil {
+		t.Errorf("parse: %s", err)
+	}
+
+	// RHS refers to undefined globals; LHS does not.
+	as := f.Decls[0].(*ast.FuncDecl).Body.List[0].(*ast.AssignStmt)
+	for _, v := range as.Rhs {
+		id := v.(*ast.Ident)
+		if id.Obj != nil {
+			t.Errorf("rhs %s has Obj, should not", id.Name)
+		}
+	}
+	for _, v := range as.Lhs {
+		id := v.(*ast.Ident)
+		if id.Obj == nil {
+			t.Errorf("lhs %s does not have Obj, should", id.Name)
+		}
+	}
+}
+
+func TestVarScope(t *testing.T) {
+	f, err := ParseFile(fset, "", `package p; func f() { var x, y, z = x, y, z }`, 0)
+	if err != nil {
+		t.Errorf("parse: %s", err)
+	}
+
+	// RHS refers to undefined globals; LHS does not.
+	as := f.Decls[0].(*ast.FuncDecl).Body.List[0].(*ast.DeclStmt).Decl.(*ast.GenDecl).Specs[0].(*ast.ValueSpec)
+	for _, v := range as.Values {
+		id := v.(*ast.Ident)
+		if id.Obj != nil {
+			t.Errorf("rhs %s has Obj, should not", id.Name)
+		}
+	}
+	for _, id := range as.Names {
+		if id.Obj == nil {
+			t.Errorf("lhs %s does not have Obj, should", id.Name)
 		}
 	}
 }
