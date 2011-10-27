@@ -36,9 +36,9 @@ cp -a ../../pkg go/pkg
 cp -a ../../bin go/bin
 
 echo "%%%%% Starting zip packaging %%%%%" 1>&2
-7za a -tzip -mx=9 gowin386"_"$ver.zip "go/" >/dev/null
+7za a -tzip -mx=9 gowin$GOARCH"_"$ver.zip "go/" >/dev/null
 
 echo "%%%%% Starting installer packaging %%%%%" 1>&2
-"$ISCC" //dAppName=Go //dAppVersion=386"_"$ver //dAppNameLower=go installer.iss  >/dev/null
+"$ISCC" //dAppName=Go //dAppVersion=$GOARCH"_"$ver //dAppNameLower=go installer.iss  >/dev/null
 
 
