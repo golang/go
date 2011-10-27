@@ -5149,10 +5149,20 @@ func main() { … }
 <p>
 Program execution begins by initializing the main package and then
 invoking the function <code>main</code>.
-</p>
-<p>
 When the function <code>main</code> returns, the program exits.
 It does not wait for other (non-<code>main</code>) goroutines to complete.
+</p>
+
+<p>
+Package initialization&mdash;variable initialization and the invocation of 
+<code>init</code> functions&mdash;happens in a single goroutine,
+sequentially, one package at a time.
+An <code>init</code> function may launch other goroutines, which can run
+concurrently with the initialization code. However, initialization
+always sequences
+the <code>init</code> functions: it will not start the next
+<code>init</code> until
+the previous one has returned.
 </p>
 
 <h2 id="Run_time_panics">Run-time panics</h2>
