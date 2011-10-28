@@ -439,7 +439,7 @@ loop:
 		}
 		z.Next()
 		if z.Error() != os.EOF {
-			t.Errorf("%s: want EOF got %q", tt.desc, z.Token().String())
+			t.Errorf("%s: want EOF got %q", tt.desc, z.Error())
 		}
 	}
 }
