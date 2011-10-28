@@ -4,9 +4,9 @@
 
 package pkgtest
 
-import "os"
+import "bytes"
 
-func Foo() os.Error {
+func Foo() *bytes.Buffer {
 	return nil
 }
 
