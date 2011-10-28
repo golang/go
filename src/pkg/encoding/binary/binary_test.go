@@ -99,7 +99,7 @@ var little = []byte{
 var src = []byte{1, 2, 3, 4, 5, 6, 7, 8}
 var res = []int32{0x01020304, 0x05060708}
 
-func checkResult(t *testing.T, dir string, order, err os.Error, have, want interface{}) {
+func checkResult(t *testing.T, dir string, order ByteOrder, err os.Error, have, want interface{}) {
 	if err != nil {
 		t.Errorf("%v %v: %v", dir, order, err)
 		return
