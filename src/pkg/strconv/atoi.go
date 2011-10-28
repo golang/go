@@ -6,9 +6,16 @@ package strconv
 
 import "os"
 
+// ErrRange indicates that a value is out of range for the target type.
+var ErrRange = os.NewError("value out of range")
+
+// ErrSyntax indicates that a value does not have the right syntax for the target type.
+var ErrSyntax = os.NewError("invalid syntax")
+
+// A NumError records a failed conversion.
 type NumError struct {
-	Num   string
-	Error os.Error
+	Num   string   // the input
+	Error os.Error // the reason the conversion failed (ErrRange, ErrSyntax)
 }
 
 func (e *NumError) String() string { return `parsing "` + e.Num + `": ` + e.Error.String() }
@@ -38,15 +45,15 @@ func cutoff64(base int) uint64 {
 //
 // The errors that Btoui64 returns have concrete type *NumError
 // and include err.Num = s.  If s is empty or contains invalid
-// digits, err.Error = os.EINVAL; if the value corresponding
-// to s cannot be represented by a uint64, err.Error = os.ERANGE.
+// digits, err.Error = ErrSyntax; if the value corresponding
+// to s cannot be represented by a uint64, err.Error = ErrRange.
 func Btoui64(s string, b int) (n uint64, err os.Error) {
 	var cutoff uint64
 
 	s0 := s
 	switch {
 	case len(s) < 1:
-		err = os.EINVAL
+		err = ErrSyntax
 		goto Error
 
 	case 2 <= b && b <= 36:
@@ -59,7 +66,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 			b = 16
 			s = s[2:]
 			if len(s) < 1 {
-				err = os.EINVAL
+				err = ErrSyntax
 				goto Error
 			}
 		case s[0] == '0':
@@ -88,19 +95,19 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 			v = d - 'A' + 10
 		default:
 			n = 0
-			err = os.EINVAL
+			err = ErrSyntax
 			goto Error
 		}
 		if int(v) >= b {
 			n = 0
-			err = os.EINVAL
+			err = ErrSyntax
 			goto Error
 		}
 
 		if n >= cutoff {
 			// n*b overflows
 			n = 1<<64 - 1
-			err = os.ERANGE
+			err = ErrRange
 			goto Error
 		}
 		n *= uint64(b)
@@ -109,7 +116,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 		if n1 < n {
 			// n+v overflows
 			n = 1<<64 - 1
-			err = os.ERANGE
+			err = ErrRange
 			goto Error
 		}
 		n = n1
@@ -124,8 +131,8 @@ Error:
 // Atoui64 interprets a string s as a decimal number and
 // returns the corresponding value n.
 //
-// Atoui64 returns err == os.EINVAL if s is empty or contains invalid digits.
-// It returns err == os.ERANGE if s cannot be represented by a uint64.
+// Atoui64 returns err.Error = ErrSyntax if s is empty or contains invalid digits.
+// It returns err.Error = ErrRange if s cannot be represented by a uint64.
 func Atoui64(s string) (n uint64, err os.Error) {
 	return Btoui64(s, 10)
 }
@@ -135,7 +142,7 @@ func Atoui64(s string) (n uint64, err os.Error) {
 func Btoi64(s string, base int) (i int64, err os.Error) {
 	// Empty string bad.
 	if len(s) == 0 {
-		return 0, &NumError{s, os.EINVAL}
+		return 0, &NumError{s, ErrSyntax}
 	}
 
 	// Pick off leading sign.
@@ -151,15 +158,15 @@ func Btoi64(s string, base int) (i int64, err os.Error) {
 	// Convert unsigned and check range.
 	var un uint64
 	un, err = Btoui64(s, base)
-	if err != nil && err.(*NumError).Error != os.ERANGE {
+	if err != nil && err.(*NumError).Error != ErrRange {
 		err.(*NumError).Num = s0
 		return 0, err
 	}
 	if !neg && un >= 1<<63 {
-		return 1<<63 - 1, &NumError{s0, os.ERANGE}
+		return 1<<63 - 1, &NumError{s0, ErrRange}
 	}
 	if neg && un > 1<<63 {
-		return -1 << 63, &NumError{s0, os.ERANGE}
+		return -1 << 63, &NumError{s0, ErrRange}
 	}
 	n := int64(un)
 	if neg {
@@ -175,12 +182,12 @@ func Atoi64(s string) (i int64, err os.Error) { return Btoi64(s, 10) }
 // Atoui is like Atoui64 but returns its result as a uint.
 func Atoui(s string) (i uint, err os.Error) {
 	i1, e1 := Atoui64(s)
-	if e1 != nil && e1.(*NumError).Error != os.ERANGE {
+	if e1 != nil && e1.(*NumError).Error != ErrRange {
 		return 0, e1
 	}
 	i = uint(i1)
 	if uint64(i) != i1 {
-		return ^uint(0), &NumError{s, os.ERANGE}
+		return ^uint(0), &NumError{s, ErrRange}
 	}
 	return i, nil
 }
@@ -188,15 +195,15 @@ func Atoui(s string) (i uint, err os.Error) {
 // Atoi is like Atoi64 but returns its result as an int.
 func Atoi(s string) (i int, err os.Error) {
 	i1, e1 := Atoi64(s)
-	if e1 != nil && e1.(*NumError).Error != os.ERANGE {
+	if e1 != nil && e1.(*NumError).Error != ErrRange {
 		return 0, e1
 	}
 	i = int(i1)
 	if int64(i) != i1 {
 		if i1 < 0 {
-			return -1 << (IntSize - 1), &NumError{s, os.ERANGE}
+			return -1 << (IntSize - 1), &NumError{s, ErrRange}
 		}
-		return 1<<(IntSize-1) - 1, &NumError{s, os.ERANGE}
+		return 1<<(IntSize-1) - 1, &NumError{s, ErrRange}
 	}
 	return i, nil
 }

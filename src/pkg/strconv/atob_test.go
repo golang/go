@@ -17,8 +17,8 @@ type atobTest struct {
 }
 
 var atobtests = []atobTest{
-	{"", false, os.EINVAL},
-	{"asdf", false, os.EINVAL},
+	{"", false, ErrSyntax},
+	{"asdf", false, ErrSyntax},
 	{"0", false, nil},
 	{"f", false, nil},
 	{"F", false, nil},
