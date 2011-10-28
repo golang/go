@@ -16,7 +16,7 @@ func Atob(str string) (value bool, err os.Error) {
 	case "0", "f", "F", "false", "FALSE", "False":
 		return false, nil
 	}
-	return false, &NumError{str, os.EINVAL}
+	return false, &NumError{str, ErrSyntax}
 }
 
 // Btoa returns "true" or "false" according to the value of the boolean argument

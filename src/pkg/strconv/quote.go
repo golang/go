@@ -161,7 +161,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 	// easy cases
 	switch c := s[0]; {
 	case c == quote && (quote == '\'' || quote == '"'):
-		err = os.EINVAL
+		err = ErrSyntax
 		return
 	case c >= utf8.RuneSelf:
 		r, size := utf8.DecodeRuneInString(s)
@@ -172,7 +172,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 
 	// hard case: c is backslash
 	if len(s) <= 1 {
-		err = os.EINVAL
+		err = ErrSyntax
 		return
 	}
 	c := s[1]
@@ -205,13 +205,13 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 		}
 		var v rune
 		if len(s) < n {
-			err = os.EINVAL
+			err = ErrSyntax
 			return
 		}
 		for j := 0; j < n; j++ {
 			x, ok := unhex(s[j])
 			if !ok {
-				err = os.EINVAL
+				err = ErrSyntax
 				return
 			}
 			v = v<<4 | x
@@ -223,7 +223,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 			break
 		}
 		if v > unicode.MaxRune {
-			err = os.EINVAL
+			err = ErrSyntax
 			return
 		}
 		value = v
@@ -231,7 +231,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 	case '0', '1', '2', '3', '4', '5', '6', '7':
 		v := rune(c) - '0'
 		if len(s) < 2 {
-			err = os.EINVAL
+			err = ErrSyntax
 			return
 		}
 		for j := 0; j < 2; j++ { // one digit already; two more
@@ -243,7 +243,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 		}
 		s = s[2:]
 		if v > 255 {
-			err = os.EINVAL
+			err = ErrSyntax
 			return
 		}
 		value = v
@@ -251,12 +251,12 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 		value = '\\'
 	case '\'', '"':
 		if c != quote {
-			err = os.EINVAL
+			err = ErrSyntax
 			return
 		}
 		value = rune(c)
 	default:
-		err = os.EINVAL
+		err = ErrSyntax
 		return
 	}
 	tail = s
@@ -271,25 +271,25 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 func Unquote(s string) (t string, err os.Error) {
 	n := len(s)
 	if n < 2 {
-		return "", os.EINVAL
+		return "", ErrSyntax
 	}
 	quote := s[0]
 	if quote != s[n-1] {
-		return "", os.EINVAL
+		return "", ErrSyntax
 	}
 	s = s[1 : n-1]
 
 	if quote == '`' {
 		if strings.Contains(s, "`") {
-			return "", os.EINVAL
+			return "", ErrSyntax
 		}
 		return s, nil
 	}
 	if quote != '"' && quote != '\'' {
-		return "", os.EINVAL
+		return "", ErrSyntax
 	}
 	if strings.Index(s, "\n") >= 0 {
-		return "", os.EINVAL
+		return "", ErrSyntax
 	}
 
 	// Is it trivial?  Avoid allocation.
@@ -319,7 +319,7 @@ func Unquote(s string) (t string, err os.Error) {
 		}
 		if quote == '\'' && len(s) != 0 {
 			// single-quoted must be single character
-			return "", os.EINVAL
+			return "", ErrSyntax
 		}
 	}
 	return buf.String(), nil

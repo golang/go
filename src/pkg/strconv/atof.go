@@ -350,11 +350,11 @@ func (d *decimal) atof32() (f float32, ok bool) {
 // The errors that Atof32 returns have concrete type *NumError
 // and include err.Num = s.
 //
-// If s is not syntactically well-formed, Atof32 returns err.Error = os.EINVAL.
+// If s is not syntactically well-formed, Atof32 returns err.Error = ErrSyntax.
 //
 // If s is syntactically well-formed but is more than 1/2 ULP
 // away from the largest floating point number of the given size,
-// Atof32 returns f = ±Inf, err.Error = os.ERANGE.
+// Atof32 returns f = ±Inf, err.Error = ErrRange.
 func Atof32(s string) (f float32, err os.Error) {
 	if val, ok := special(s); ok {
 		return float32(val), nil
@@ -362,7 +362,7 @@ func Atof32(s string) (f float32, err os.Error) {
 
 	var d decimal
 	if !d.set(s) {
-		return 0, &NumError{s, os.EINVAL}
+		return 0, &NumError{s, ErrSyntax}
 	}
 	if optimize {
 		if f, ok := d.atof32(); ok {
@@ -372,7 +372,7 @@ func Atof32(s string) (f float32, err os.Error) {
 	b, ovf := d.floatBits(&float32info)
 	f = math.Float32frombits(uint32(b))
 	if ovf {
-		err = &NumError{s, os.ERANGE}
+		err = &NumError{s, ErrRange}
 	}
 	return f, err
 }
@@ -387,7 +387,7 @@ func Atof64(s string) (f float64, err os.Error) {
 
 	var d decimal
 	if !d.set(s) {
-		return 0, &NumError{s, os.EINVAL}
+		return 0, &NumError{s, ErrSyntax}
 	}
 	if optimize {
 		if f, ok := d.atof64(); ok {
@@ -397,7 +397,7 @@ func Atof64(s string) (f float64, err os.Error) {
 	b, ovf := d.floatBits(&float64info)
 	f = math.Float64frombits(b)
 	if ovf {
-		err = &NumError{s, os.ERANGE}
+		err = &NumError{s, ErrRange}
 	}
 	return f, err
 }

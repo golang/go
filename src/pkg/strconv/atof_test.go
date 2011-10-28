@@ -18,11 +18,11 @@ type atofTest struct {
 }
 
 var atoftests = []atofTest{
-	{"", "0", os.EINVAL},
+	{"", "0", ErrSyntax},
 	{"1", "1", nil},
 	{"+1", "1", nil},
-	{"1x", "0", os.EINVAL},
-	{"1.1.", "0", os.EINVAL},
+	{"1x", "0", ErrSyntax},
+	{"1.1.", "0", ErrSyntax},
 	{"1e23", "1e+23", nil},
 	{"1E23", "1e+23", nil},
 	{"100000000000000000000000", "1e+23", nil},
@@ -56,28 +56,28 @@ var atoftests = []atofTest{
 	{"1.7976931348623157e308", "1.7976931348623157e+308", nil},
 	{"-1.7976931348623157e308", "-1.7976931348623157e+308", nil},
 	// next float64 - too large
-	{"1.7976931348623159e308", "+Inf", os.ERANGE},
-	{"-1.7976931348623159e308", "-Inf", os.ERANGE},
+	{"1.7976931348623159e308", "+Inf", ErrRange},
+	{"-1.7976931348623159e308", "-Inf", ErrRange},
 	// the border is ...158079
 	// borderline - okay
 	{"1.7976931348623158e308", "1.7976931348623157e+308", nil},
 	{"-1.7976931348623158e308", "-1.7976931348623157e+308", nil},
 	// borderline - too large
-	{"1.797693134862315808e308", "+Inf", os.ERANGE},
-	{"-1.797693134862315808e308", "-Inf", os.ERANGE},
+	{"1.797693134862315808e308", "+Inf", ErrRange},
+	{"-1.797693134862315808e308", "-Inf", ErrRange},
 
 	// a little too large
 	{"1e308", "1e+308", nil},
-	{"2e308", "+Inf", os.ERANGE},
-	{"1e309", "+Inf", os.ERANGE},
+	{"2e308", "+Inf", ErrRange},
+	{"1e309", "+Inf", ErrRange},
 
 	// way too large
-	{"1e310", "+Inf", os.ERANGE},
-	{"-1e310", "-Inf", os.ERANGE},
-	{"1e400", "+Inf", os.ERANGE},
-	{"-1e400", "-Inf", os.ERANGE},
-	{"1e400000", "+Inf", os.ERANGE},
-	{"-1e400000", "-Inf", os.ERANGE},
+	{"1e310", "+Inf", ErrRange},
+	{"-1e310", "-Inf", ErrRange},
+	{"1e400", "+Inf", ErrRange},
+	{"-1e400", "-Inf", ErrRange},
+	{"1e400000", "+Inf", ErrRange},
+	{"-1e400000", "-Inf", ErrRange},
 
 	// denormalized
 	{"1e-305", "1e-305", nil},
@@ -99,14 +99,14 @@ var atoftests = []atofTest{
 
 	// try to overflow exponent
 	{"1e-4294967296", "0", nil},
-	{"1e+4294967296", "+Inf", os.ERANGE},
+	{"1e+4294967296", "+Inf", ErrRange},
 	{"1e-18446744073709551616", "0", nil},
-	{"1e+18446744073709551616", "+Inf", os.ERANGE},
+	{"1e+18446744073709551616", "+Inf", ErrRange},
 
 	// Parse errors
-	{"1e", "0", os.EINVAL},
-	{"1e-", "0", os.EINVAL},
-	{".e-1", "0", os.EINVAL},
+	{"1e", "0", ErrSyntax},
+	{"1e-", "0", ErrSyntax},
+	{".e-1", "0", ErrSyntax},
 
 	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
 	{"2.2250738585072012e-308", "2.2250738585072014e-308", nil},

@@ -5,7 +5,6 @@
 package strconv_test
 
 import (
-	"os"
 	. "strconv"
 	"testing"
 )
@@ -210,8 +209,8 @@ func TestUnquote(t *testing.T) {
 	}
 
 	for _, s := range misquoted {
-		if out, err := Unquote(s); out != "" || err != os.EINVAL {
-			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", os.EINVAL)
+		if out, err := Unquote(s); out != "" || err != ErrSyntax {
+			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", ErrSyntax)
 		}
 	}
 }
