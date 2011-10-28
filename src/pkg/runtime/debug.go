@@ -10,7 +10,6 @@ func Breakpoint()
 // LockOSThread wires the calling goroutine to its current operating system thread.
 // Until the calling goroutine exits or calls UnlockOSThread, it will always
 // execute in that thread, and no other goroutine can.
-// LockOSThread cannot be used during init functions.
 func LockOSThread()
 
 // UnlockOSThread unwires the calling goroutine from its fixed operating system thread.

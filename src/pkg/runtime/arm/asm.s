@@ -43,7 +43,7 @@ TEXT _rt0_arm(SB),7,$-4
 	BL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	MOVW	$runtime·mainstart(SB), R0
+	MOVW	$runtime·main(SB), R0
 	MOVW.W	R0, -4(R13)
 	MOVW	$8, R0
 	MOVW.W	R0, -4(R13)
@@ -59,20 +59,6 @@ TEXT _rt0_arm(SB),7,$-4
 	MOVW	$1000, R1
 	MOVW	R0, (R1)	// fail hard
 	B	runtime·_dep_dummy(SB)	// Never reached
-
-
-TEXT runtime·mainstart(SB),7,$4
-	BL	main·init(SB)
-	EOR	R0, R0
-	MOVW	R0, 0(R13)
-	BL	main·main(SB)
-	MOVW	$0, R0
-	MOVW	R0, 4(SP)
-	BL	runtime·exit(SB)
-	MOVW	$1234, R0
-	MOVW	$1001, R1
-	MOVW	R0, (R1)	// fail hard
-	RET
 
 // TODO(kaib): remove these once i actually understand how the linker removes symbols
 // pull in dummy dependencies

@@ -637,6 +637,8 @@ String	runtime·signame(int32 sig);
 int32	runtime·gomaxprocsfunc(int32 n);
 void	runtime·procyield(uint32);
 void	runtime·osyield(void);
+void	runtime·LockOSThread(void);
+void	runtime·UnlockOSThread(void);
 
 void	runtime·mapassign(MapType*, Hmap*, byte*, byte*);
 void	runtime·mapaccess(MapType*, Hmap*, byte*, byte*, bool*);
