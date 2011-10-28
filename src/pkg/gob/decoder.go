@@ -64,7 +64,7 @@ func (dec *Decoder) recvType(id typeId) {
 	dec.wireType[id] = wire
 }
 
-var errBadCount = gobError{os.NewError("invalid message length")}
+var errBadCount = os.NewError("invalid message length")
 
 // recvMessage reads the next count-delimited item from the input. It is the converse
 // of Encoder.writeMessage. It returns false on EOF or other error reading the message.
