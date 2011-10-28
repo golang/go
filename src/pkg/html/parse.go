@@ -756,6 +756,10 @@ func (p *parser) inBodyEndTagFormatting(tag string) {
 		furthestBlock.Add(clone)
 
 		// Step 14. Fix up the list of active formatting elements.
+		if oldLoc := p.afe.index(formattingElement); oldLoc != -1 && oldLoc < bookmark {
+			// Move the bookmark with the rest of the list.
+			bookmark--
+		}
 		p.afe.remove(formattingElement)
 		p.afe.insert(bookmark, clone)
 
