@@ -314,27 +314,27 @@ func TestMarshal(t *testing.T) {
 }
 
 var marshalErrorTests = []struct {
-	Value      interface{}
-	ExpectErr  string
-	ExpectKind reflect.Kind
+	Value interface{}
+	Err   string
+	Kind  reflect.Kind
 }{
 	{
-		Value:      make(chan bool),
-		ExpectErr:  "xml: unsupported type: chan bool",
-		ExpectKind: reflect.Chan,
+		Value: make(chan bool),
+		Err:   "xml: unsupported type: chan bool",
+		Kind:  reflect.Chan,
 	},
 	{
 		Value: map[string]string{
 			"question": "What do you get when you multiply six by nine?",
 			"answer":   "42",
 		},
-		ExpectErr:  "xml: unsupported type: map[string] string",
-		ExpectKind: reflect.Map,
+		Err:  "xml: unsupported type: map[string] string",
+		Kind: reflect.Map,
 	},
 	{
-		Value:      map[*Ship]bool{nil: false},
-		ExpectErr:  "xml: unsupported type: map[*xml.Ship] bool",
-		ExpectKind: reflect.Map,
+		Value: map[*Ship]bool{nil: false},
+		Err:   "xml: unsupported type: map[*xml.Ship] bool",
+		Kind:  reflect.Map,
 	},
 }
 
@@ -342,14 +342,11 @@ func TestMarshalErrors(t *testing.T) {
 	for idx, test := range marshalErrorTests {
 		buf := bytes.NewBuffer(nil)
 		err := Marshal(buf, test.Value)
-		if got, want := err, test.ExpectErr; got == nil {
-			t.Errorf("#%d: want error %s", idx, want)
-			continue
-		} else if got.String() != want {
-			t.Errorf("#%d: marshal(%#v) = [error] %q, want %q", idx, test.Value, got, want)
+		if err == nil || err.String() != test.Err {
+			t.Errorf("#%d: marshal(%#v) = [error] %q, want %q", idx, test.Value, err, test.Err)
 		}
-		if got, want := err.(*UnsupportedTypeError).Type.Kind(), test.ExpectKind; got != want {
-			t.Errorf("#%d: marshal(%#v) = [error kind] %s, want %s", idx, test.Value, got, want)
+		if kind := err.(*UnsupportedTypeError).Type.Kind(); kind != test.Kind {
+			t.Errorf("#%d: marshal(%#v) = [error kind] %s, want %s", idx, test.Value, kind, test.Kind)
 		}
 	}
 }
