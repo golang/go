@@ -630,12 +630,23 @@ func (p *pp) handleMethods(verb rune, plus, goSyntax bool, depth int) (wasString
 			return
 		}
 	} else {
-		// Is it a Stringer?
-		if stringer, ok := p.field.(Stringer); ok {
+		// Is it an error or Stringer?
+		// The duplication in the bodies is necessary:
+		// setting wasString and handled and deferring catchPanic
+		// must happen before calling the method.
+		switch v := p.field.(type) {
+		case os.Error:
 			wasString = false
 			handled = true
 			defer p.catchPanic(p.field, verb)
-			p.printField(stringer.String(), verb, plus, false, depth)
+			p.printField(v.String(), verb, plus, false, depth)
+			return
+
+		case Stringer:
+			wasString = false
+			handled = true
+			defer p.catchPanic(p.field, verb)
+			p.printField(v.String(), verb, plus, false, depth)
 			return
 		}
 	}
