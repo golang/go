@@ -72,6 +72,9 @@ struct Sched {
 	volatile uint32 atomic;	// atomic scheduling word (see below)
 
 	int32 profilehz;	// cpu profiling rate
+	
+	bool init;  // running initialization
+	bool lockmain;  // init called runtime.LockOSThread
 
 	Note	stopped;	// one g can set waitstop and wait here for m's to stop
 };
@@ -171,11 +174,7 @@ setmcpumax(uint32 n)
 //	make & queue new G
 //	call runtime·mstart
 //
-// The new G does:
-//
-//	call main·init_function
-//	call initdone
-//	call main·main
+// The new G calls runtime·main.
 void
 runtime·schedinit(void)
 {
@@ -210,6 +209,32 @@ runtime·schedinit(void)
 
 	mstats.enablegc = 1;
 	m->nomemprof--;
+}
+
+extern void main·init(void);
+extern void main·main(void);
+
+// The main goroutine.
+void
+runtime·main(void)
+{
+	// Lock the main goroutine onto this, the main OS thread,
+	// during initialization.  Most programs won't care, but a few
+	// do require certain calls to be made by the main thread.
+	// Those can arrange for main.main to run in the main thread
+	// by calling runtime.LockOSThread during initialization
+	// to preserve the lock.
+	runtime·LockOSThread();
+	runtime·sched.init = true;
+	main·init();
+	runtime·sched.init = false;
+	if(!runtime·sched.lockmain)
+		runtime·UnlockOSThread();
+
+	main·main();
+	runtime·exit(0);
+	for(;;)
+		*(int32*)runtime·main = 0;
 }
 
 // Lock the scheduler.
@@ -1494,13 +1519,6 @@ runtime·Gosched(void)
 	runtime·gosched();
 }
 
-void
-runtime·LockOSThread(void)
-{
-	m->lockedg = g;
-	g->lockedm = m;
-}
-
 // delete when scheduler is stronger
 int32
 runtime·gomaxprocsfunc(int32 n)
@@ -1541,8 +1559,23 @@ runtime·gomaxprocsfunc(int32 n)
 }
 
 void
+runtime·LockOSThread(void)
+{
+	if(m == &runtime·m0 && runtime·sched.init) {
+		runtime·sched.lockmain = true;
+		return;
+	}
+	m->lockedg = g;
+	g->lockedm = m;
+}
+
+void
 runtime·UnlockOSThread(void)
 {
+	if(m == &runtime·m0 && runtime·sched.init) {
+		runtime·sched.lockmain = false;
+		return;
+	}
 	m->lockedg = nil;
 	g->lockedm = nil;
 }

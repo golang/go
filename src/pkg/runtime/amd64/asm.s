@@ -60,7 +60,7 @@ ok:
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	PUSHQ	$runtime·mainstart(SB)		// entry
+	PUSHQ	$runtime·main(SB)		// entry
 	PUSHQ	$0			// arg size
 	CALL	runtime·newproc(SB)
 	POPQ	AX
@@ -70,15 +70,6 @@ ok:
 	CALL	runtime·mstart(SB)
 
 	CALL	runtime·notok(SB)		// never returns
-	RET
-
-TEXT runtime·mainstart(SB),7,$0
-	CALL	main·init(SB)
-	CALL	main·main(SB)
-	PUSHQ	$0
-	CALL	runtime·exit(SB)
-	POPQ	AX
-	CALL	runtime·notok(SB)
 	RET
 
 TEXT runtime·breakpoint(SB),7,$0

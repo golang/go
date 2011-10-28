@@ -78,7 +78,7 @@ ok:
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	PUSHL	$runtime·mainstart(SB)	// entry
+	PUSHL	$runtime·main(SB)	// entry
 	PUSHL	$0	// arg size
 	CALL	runtime·newproc(SB)
 	POPL	AX
@@ -87,15 +87,6 @@ ok:
 	// start this M
 	CALL	runtime·mstart(SB)
 
-	INT $3
-	RET
-
-TEXT runtime·mainstart(SB),7,$0
-	CALL	main·init(SB)
-	CALL	main·main(SB)
-	PUSHL	$0
-	CALL	runtime·exit(SB)
-	POPL	AX
 	INT $3
 	RET
 
