@@ -9,12 +9,9 @@ package main
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"strings"
 )
-
-type Error interface {
-	String() string
-}
 
 type ErrorTest struct {
 	name string
@@ -164,7 +161,7 @@ var errorTests = []ErrorTest{
 func error(fn func()) (error string) {
 	defer func() {
 		if e := recover(); e != nil {
-			error = e.(Error).String()
+			error = e.(runtime.Error).String()
 		}
 	}()
 	fn()

@@ -12,11 +12,11 @@
 package main
 
 type S struct {
-	err os.Error  // ERROR "undefined|expected package"
+	err foo.Bar // ERROR "undefined|expected package"
 	Num int
 }
 
 func main() {
 	s := S{}
-	_ = s.Num  // no error here please
+	_ = s.Num // no error here please
 }
