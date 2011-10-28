@@ -98,7 +98,7 @@ var tVal = &T{
 	Empty3:            []int{7, 8},
 	Empty4:            &U{"UinEmpty"},
 	NonEmptyInterface: new(T),
-	Str:               os.NewError("foozle"),
+	Str:               bytes.NewBuffer([]byte("foozle")),
 	PI:                newInt(23),
 	PSI:               newIntSlice(21, 22, 23),
 	Tmpl:              Must(New("x").Parse("test template")), // "x" is the value of .X
