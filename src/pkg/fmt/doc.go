@@ -89,10 +89,14 @@
 	If an operand implements interface Formatter, that interface
 	can be used for fine control of formatting.
 
-	If an operand implements method String() string that method
+	Next, if an operand implements the error interface, the Error method
 	will be used to convert the object to a string, which will then
-	be formatted as required by the verb (if any). To avoid
-	recursion in cases such as
+	be formatted as required by the verb (if any).
+
+	Finally, if an operand implements method String() string that method
+	will be used to convert the object to a string, which will then
+	be formatted as required by the verb (if any).
+	To avoid recursion in cases such as
 		type X int
 		func (x X) String() string { return Sprintf("%d", x) }
 	cast the value before recurring:
