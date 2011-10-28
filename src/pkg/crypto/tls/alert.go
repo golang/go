@@ -71,3 +71,7 @@ func (e alert) String() string {
 	}
 	return "alert(" + strconv.Itoa(int(e)) + ")"
 }
+
+func (e alert) Error() string {
+	return e.String()
+}
