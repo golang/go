@@ -96,7 +96,7 @@ func myatof32(s string) (f float32, ok bool) {
 func TestFp(t *testing.T) {
 	f, err := os.Open("testfp.txt")
 	if err != nil {
-		t.Fatal("testfp: open testfp.txt:", err.String())
+		t.Fatal("testfp: open testfp.txt:", err)
 	}
 	defer f.Close()
 

@@ -92,7 +92,7 @@ func (p ErrorList) String() string {
 	case 1:
 		return p[0].String()
 	}
-	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p)-1)
+	return fmt.Sprintf("%s (and %d more errors)", p[0], len(p)-1)
 }
 
 // These constants control the construction of the ErrorList

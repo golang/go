@@ -149,7 +149,7 @@ func (p *printer) print(x reflect.Value) {
 		p.print(x.Elem())
 
 	case reflect.Map:
-		p.printf("%s (len = %d) {\n", x.Type().String(), x.Len())
+		p.printf("%s (len = %d) {\n", x.Type(), x.Len())
 		p.indent++
 		for _, key := range x.MapKeys() {
 			p.print(key)
@@ -178,7 +178,7 @@ func (p *printer) print(x reflect.Value) {
 			p.printf("%#q", s)
 			return
 		}
-		p.printf("%s (len = %d) {\n", x.Type().String(), x.Len())
+		p.printf("%s (len = %d) {\n", x.Type(), x.Len())
 		p.indent++
 		for i, n := 0, x.Len(); i < n; i++ {
 			p.printf("%d: ", i)
@@ -189,7 +189,7 @@ func (p *printer) print(x reflect.Value) {
 		p.printf("}")
 
 	case reflect.Struct:
-		p.printf("%s {\n", x.Type().String())
+		p.printf("%s {\n", x.Type())
 		p.indent++
 		t := x.Type()
 		for i, n := 0, t.NumField(); i < n; i++ {

@@ -881,7 +881,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 		}
 	}
 	if op == nil {
-		errorf("decode can't handle type %s", rt.String())
+		errorf("decode can't handle type %s", rt)
 	}
 	return &op, indir
 }
@@ -1110,7 +1110,7 @@ func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEn
 		wireStruct = wire.StructT
 	}
 	if wireStruct == nil {
-		errorf("type mismatch in decoder: want struct type %s; got non-struct", rt.String())
+		errorf("type mismatch in decoder: want struct type %s; got non-struct", rt)
 	}
 	engine = new(decEngine)
 	engine.instr = make([]decInstr, len(wireStruct.Field))
