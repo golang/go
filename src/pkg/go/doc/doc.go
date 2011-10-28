@@ -175,8 +175,6 @@ func setFunc(table map[string]*ast.FuncDecl, f *ast.FuncDecl) {
 }
 
 func (doc *docReader) addFunc(fun *ast.FuncDecl) {
-	name := fun.Name.Name
-
 	// determine if it should be associated with a type
 	if fun.Recv != nil {
 		// method
@@ -205,19 +203,6 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 			typ := doc.lookupTypeDoc(tname)
 			if typ != nil {
 				// named and exported result type
-
-				// Work-around for failure of heuristic: In package os
-				// too many functions are considered factory functions
-				// for the Error type. Eliminate manually for now as
-				// this appears to be the only important case in the
-				// current library where the heuristic fails.
-				if doc.pkgName == "os" && tname == "Error" &&
-					name != "NewError" && name != "NewSyscallError" {
-					// not a factory function for os.Error
-					setFunc(doc.funcs, fun) // treat as ordinary function
-					return
-				}
-
 				setFunc(typ.factories, fun)
 				return
 			}
