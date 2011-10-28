@@ -37,14 +37,14 @@ testLoop:
 			t.Errorf("#%d got response %s, expected %s", i, resp, test.responses[0])
 		}
 		if err != nil {
-			t.Errorf("#%d error: %s", i, err.String())
+			t.Errorf("#%d error: %s", i, err)
 		}
 		for j := range test.challenges {
 			challenge := []byte(test.challenges[j])
 			expected := []byte(test.responses[j+1])
 			resp, err := test.auth.Next(challenge, true)
 			if err != nil {
-				t.Errorf("#%d error: %s", i, err.String())
+				t.Errorf("#%d error: %s", i, err)
 				continue testLoop
 			}
 			if !bytes.Equal(resp, expected) {
@@ -74,13 +74,13 @@ func TestBasic(t *testing.T) {
 	c := &Client{Text: textproto.NewConn(fake)}
 
 	if err := c.helo(); err != nil {
-		t.Fatalf("HELO failed: %s", err.String())
+		t.Fatalf("HELO failed: %s", err)
 	}
 	if err := c.ehlo(); err == nil {
 		t.Fatalf("Expected first EHLO to fail")
 	}
 	if err := c.ehlo(); err != nil {
-		t.Fatalf("Second EHLO failed: %s", err.String())
+		t.Fatalf("Second EHLO failed: %s", err)
 	}
 
 	if ok, args := c.Extension("aUtH"); !ok || args != "LOGIN PLAIN" {
@@ -105,14 +105,14 @@ func TestBasic(t *testing.T) {
 	c.tls = true
 	c.serverName = "smtp.google.com"
 	if err := c.Auth(PlainAuth("", "user", "pass", "smtp.google.com")); err != nil {
-		t.Fatalf("AUTH failed: %s", err.String())
+		t.Fatalf("AUTH failed: %s", err)
 	}
 
 	if err := c.Mail("user@gmail.com"); err != nil {
-		t.Fatalf("MAIL failed: %s", err.String())
+		t.Fatalf("MAIL failed: %s", err)
 	}
 	if err := c.Rcpt("golang-nuts@googlegroups.com"); err != nil {
-		t.Fatalf("RCPT failed: %s", err.String())
+		t.Fatalf("RCPT failed: %s", err)
 	}
 	msg := `From: user@gmail.com
 To: golang-nuts@googlegroups.com
@@ -123,17 +123,17 @@ Line 1
 Goodbye.`
 	w, err := c.Data()
 	if err != nil {
-		t.Fatalf("DATA failed: %s", err.String())
+		t.Fatalf("DATA failed: %s", err)
 	}
 	if _, err := w.Write([]byte(msg)); err != nil {
-		t.Fatalf("Data write failed: %s", err.String())
+		t.Fatalf("Data write failed: %s", err)
 	}
 	if err := w.Close(); err != nil {
-		t.Fatalf("Bad data response: %s", err.String())
+		t.Fatalf("Bad data response: %s", err)
 	}
 
 	if err := c.Quit(); err != nil {
-		t.Fatalf("QUIT failed: %s", err.String())
+		t.Fatalf("QUIT failed: %s", err)
 	}
 
 	bcmdbuf.Flush()

@@ -102,7 +102,7 @@ func (v *Map) String() string {
 		if !first {
 			fmt.Fprintf(b, ", ")
 		}
-		fmt.Fprintf(b, "\"%s\": %v", key, val.String())
+		fmt.Fprintf(b, "\"%s\": %v", key, val)
 		first = false
 	}
 	fmt.Fprintf(b, "}")

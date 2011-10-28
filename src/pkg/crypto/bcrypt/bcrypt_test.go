@@ -86,7 +86,7 @@ func TestInvalidHashErrors(t *testing.T) {
 			t.Errorf("%s: Should have returned an error", name)
 		}
 		if err != nil && err != expected {
-			t.Errorf("%s gave err %v but should have given %v", name, err.String(), expected.String())
+			t.Errorf("%s gave err %v but should have given %v", name, err, expected)
 		}
 	}
 	for _, iht := range invalidTests {

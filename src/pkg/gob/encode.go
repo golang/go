@@ -610,7 +610,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
 		}
 	}
 	if op == nil {
-		errorf("can't happen: encode type %s", rt.String())
+		errorf("can't happen: encode type %s", rt)
 	}
 	return &op, indir
 }
