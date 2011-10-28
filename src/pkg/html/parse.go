@@ -675,6 +675,10 @@ func (p *parser) inBodyEndTagFormatting(tag string) {
 			p.afe.remove(formattingElement)
 			return
 		}
+		if !p.elementInScope(defaultScopeStopTags, tag) {
+			// Ignore the tag.
+			return
+		}
 
 		// Steps 5-6. Find the furthest block.
 		var furthestBlock *Node
