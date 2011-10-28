@@ -41,21 +41,21 @@ func (b SignatureError) String() string {
 	return "OpenPGP signature invalid: " + string(b)
 }
 
-type keyIncorrect int
+type keyIncorrectError int
 
-func (ki keyIncorrect) String() string {
+func (ki keyIncorrectError) String() string {
 	return "the given key was incorrect"
 }
 
-var KeyIncorrectError = keyIncorrect(0)
+var KeyIncorrectError = keyIncorrectError(0)
 
-type unknownIssuer int
+type unknownIssuerError int
 
-func (unknownIssuer) String() string {
+func (unknownIssuerError) String() string {
 	return "signature make by unknown entity"
 }
 
-var UnknownIssuerError = unknownIssuer(0)
+var UnknownIssuerError = unknownIssuerError(0)
 
 type UnknownPacketTypeError uint8
 
