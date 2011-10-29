@@ -581,75 +581,89 @@ func (s *ServerConn) Accept() (Channel, os.Error) {
 			return nil, err
 		}
 
-		switch msg := decode(packet).(type) {
-		case *channelOpenMsg:
-			c := new(channel)
-			c.chanType = msg.ChanType
-			c.theirId = msg.PeersId
-			c.theirWindow = msg.PeersWindow
-			c.maxPacketSize = msg.MaxPacketSize
-			c.extraData = msg.TypeSpecificData
-			c.myWindow = defaultWindowSize
-			c.serverConn = s
-			c.cond = sync.NewCond(&c.lock)
-			c.pendingData = make([]byte, c.myWindow)
-
+		switch packet[0] {
+		case msgChannelData:
+			if len(packet) < 9 {
+				// malformed data packet
+				return nil, ParseError{msgChannelData}
+			}
+			peersId := uint32(packet[1])<<24 | uint32(packet[2])<<16 | uint32(packet[3])<<8 | uint32(packet[4])
 			s.lock.Lock()
-			c.myId = s.nextChanId
-			s.nextChanId++
-			s.channels[c.myId] = c
-			s.lock.Unlock()
-			return c, nil
-
-		case *channelRequestMsg:
-			s.lock.Lock()
-			c, ok := s.channels[msg.PeersId]
+			c, ok := s.channels[peersId]
 			if !ok {
+				s.lock.Unlock()
 				continue
 			}
-			c.handlePacket(msg)
-			s.lock.Unlock()
-
-		case *channelData:
-			s.lock.Lock()
-			c, ok := s.channels[msg.PeersId]
-			if !ok {
-				continue
+			if length := int(packet[5])<<24 | int(packet[6])<<16 | int(packet[7])<<8 | int(packet[8]); length > 0 {
+				packet = packet[9:]
+				c.handleData(packet[:length])
 			}
-			c.handleData(msg.Payload)
 			s.lock.Unlock()
-
-		case *channelEOFMsg:
-			s.lock.Lock()
-			c, ok := s.channels[msg.PeersId]
-			if !ok {
-				continue
-			}
-			c.handlePacket(msg)
-			s.lock.Unlock()
-
-		case *channelCloseMsg:
-			s.lock.Lock()
-			c, ok := s.channels[msg.PeersId]
-			if !ok {
-				continue
-			}
-			c.handlePacket(msg)
-			s.lock.Unlock()
-
-		case *globalRequestMsg:
-			if msg.WantReply {
-				if err := s.writePacket([]byte{msgRequestFailure}); err != nil {
-					return nil, err
-				}
-			}
-
-		case UnexpectedMessageError:
-			return nil, msg
-		case *disconnectMsg:
-			return nil, os.EOF
 		default:
-			// Unknown message. Ignore.
+			switch msg := decode(packet).(type) {
+			case *channelOpenMsg:
+				c := new(channel)
+				c.chanType = msg.ChanType
+				c.theirId = msg.PeersId
+				c.theirWindow = msg.PeersWindow
+				c.maxPacketSize = msg.MaxPacketSize
+				c.extraData = msg.TypeSpecificData
+				c.myWindow = defaultWindowSize
+				c.serverConn = s
+				c.cond = sync.NewCond(&c.lock)
+				c.pendingData = make([]byte, c.myWindow)
+
+				s.lock.Lock()
+				c.myId = s.nextChanId
+				s.nextChanId++
+				s.channels[c.myId] = c
+				s.lock.Unlock()
+				return c, nil
+
+			case *channelRequestMsg:
+				s.lock.Lock()
+				c, ok := s.channels[msg.PeersId]
+				if !ok {
+					s.lock.Unlock()
+					continue
+				}
+				c.handlePacket(msg)
+				s.lock.Unlock()
+
+			case *channelEOFMsg:
+				s.lock.Lock()
+				c, ok := s.channels[msg.PeersId]
+				if !ok {
+					s.lock.Unlock()
+					continue
+				}
+				c.handlePacket(msg)
+				s.lock.Unlock()
+
+			case *channelCloseMsg:
+				s.lock.Lock()
+				c, ok := s.channels[msg.PeersId]
+				if !ok {
+					s.lock.Unlock()
+					continue
+				}
+				c.handlePacket(msg)
+				s.lock.Unlock()
+
+			case *globalRequestMsg:
+				if msg.WantReply {
+					if err := s.writePacket([]byte{msgRequestFailure}); err != nil {
+						return nil, err
+					}
+				}
+
+			case UnexpectedMessageError:
+				return nil, msg
+			case *disconnectMsg:
+				return nil, os.EOF
+			default:
+				// Unknown message. Ignore.
+			}
 		}
 	}
 
