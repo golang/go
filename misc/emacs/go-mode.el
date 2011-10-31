@@ -7,6 +7,7 @@
 ;;; To do:
 
 ;; * Indentation is *almost* identical to gofmt
+;; ** We think struct literal keys are labels and outdent them
 ;; ** We disagree on the indentation of function literals in arguments
 ;; ** There are bugs with the close brace of struct literals
 ;; * Highlight identifiers according to their syntactic context: type,
@@ -87,7 +88,7 @@ some syntax analysis.")
       (,(concat "\\<type\\>\\s *\\w+\\s *" type-name) 1 font-lock-type-face)
       ;; Arrays/slices/map value type
       ;; XXX Wrong.  Marks 0 in expression "foo[0] * x"
-;;      (,(concat "]" type-name) 1 font-lock-type-face)
+      ;;      (,(concat "]" type-name) 1 font-lock-type-face)
       ;; Map key type
       (,(concat "\\<map\\s *\\[" type-name) 1 font-lock-type-face)
       ;; Channel value type
@@ -355,7 +356,7 @@ indented one level."
 
   (save-excursion
     (back-to-indentation)
-    (let ((cs (go-mode-cs)) (case-fold-search nil))
+    (let ((cs (go-mode-cs)))
       ;; Treat comments and strings differently only if the beginning
       ;; of the line is contained within them
       (when (and cs (= (point) (car cs)))
@@ -400,8 +401,7 @@ indented one level."
                 (setq first nil))))
 
           ;; case, default, and labels are outdented 1 level
-          ;; assume that labels are alone on the line
-          (when (looking-at "\\<case\\>\\|\\<default\\>\\|\\w+\\s *:\\s *$")
+          (when (looking-at "\\<case\\>\\|\\<default\\>\\|\\w+\\s *:\\(\\S.\\|$\\)")
             (decf indent tab-width))
 
           ;; Continuation lines are indented 1 level
@@ -500,47 +500,49 @@ Useful for development work."
 
 ;;;###autoload
 (defun gofmt ()
- "Pipe the current buffer through the external tool `gofmt`.
+  "Pipe the current buffer through the external tool `gofmt`.
 Replace the current buffer on success; display errors on failure."
 
- (interactive)
- (let ((srcbuf (current-buffer)))
-   (with-temp-buffer
-     (let ((outbuf (current-buffer))
-           (errbuf (get-buffer-create "*Gofmt Errors*"))
-           (coding-system-for-read 'utf-8)    ;; use utf-8 with subprocesses
-           (coding-system-for-write 'utf-8))
-       (with-current-buffer errbuf (erase-buffer))
-       (with-current-buffer srcbuf
-         (save-restriction
-           (let (deactivate-mark)
-             (widen)
-             (if (= 0 (shell-command-on-region (point-min) (point-max) "gofmt"
-                                               outbuf nil errbuf))
-                 ;; gofmt succeeded: replace the current buffer with outbuf,
-                 ;; restore the mark and point, and discard errbuf.
-                 (let ((old-mark (mark t)) (old-point (point)))
-                   (erase-buffer)
-                   (insert-buffer-substring outbuf)
-                   (goto-char (min old-point (point-max)))
-                   (if old-mark (push-mark (min old-mark (point-max)) t))
-                   (kill-buffer errbuf))
+  (interactive)
+  (let ((currconf (current-window-configuration)))
+    (let ((srcbuf (current-buffer)))
+      (with-temp-buffer
+	(let ((outbuf (current-buffer))
+	      (errbuf (get-buffer-create "*Gofmt Errors*"))
+	      (coding-system-for-read 'utf-8)    ;; use utf-8 with subprocesses
+	      (coding-system-for-write 'utf-8))
+	  (with-current-buffer errbuf (erase-buffer))
+	  (with-current-buffer srcbuf
+	    (save-restriction
+	      (let (deactivate-mark)
+		(widen)
+		(if (= 0 (shell-command-on-region (point-min) (point-max) "gofmt"
+						  outbuf nil errbuf))
+		    ;; restore window config
+		    ;; gofmt succeeded: replace the current buffer with outbuf,
+		    ;; restore the mark and point, and discard errbuf.
+		    (let ((old-mark (mark t)) (old-point (point)))
+		      (set-window-configuration currconf)
+		      (erase-buffer)
+		      (insert-buffer-substring outbuf)
+		      (goto-char (min old-point (point-max)))
+		      (if old-mark (push-mark (min old-mark (point-max)) t))
+		      (kill-buffer errbuf))
 
-               ;; gofmt failed: display the errors
-               (display-buffer errbuf)))))
+		  ;; gofmt failed: display the errors
+		  (display-buffer errbuf)))))
 
-       ;; Collapse any window opened on outbuf if shell-command-on-region
-       ;; displayed it.
-       (delete-windows-on outbuf)))))
+	  ;; Collapse any window opened on outbuf if shell-command-on-region
+	  ;; displayed it.
+	  (delete-windows-on outbuf))))))
 
 ;;;###autoload
 (defun gofmt-before-save ()
- "Add this to .emacs to run gofmt on the current buffer when saving:
+  "Add this to .emacs to run gofmt on the current buffer when saving:
  (add-hook 'before-save-hook #'gofmt-before-save)"
 
- (interactive)
- (when (eq major-mode 'go-mode) (gofmt)))
-
+  (interactive)
+  (when (eq major-mode 'go-mode) (gofmt)))
 
 (defun godoc-read-query ()
   "Read a godoc query from the minibuffer."
