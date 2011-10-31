@@ -1709,7 +1709,7 @@ func TestCopysign(t *testing.T) {
 
 func TestCos(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Cos(vf[i]); !close(cos[i], f) {
+		if f := Cos(vf[i]); !veryclose(cos[i], f) {
 			t.Errorf("Cos(%g) = %g, want %g", vf[i], f, cos[i])
 		}
 	}
@@ -2192,7 +2192,7 @@ func TestSignbit(t *testing.T) {
 }
 func TestSin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Sin(vf[i]); !close(sin[i], f) {
+		if f := Sin(vf[i]); !veryclose(sin[i], f) {
 			t.Errorf("Sin(%g) = %g, want %g", vf[i], f, sin[i])
 		}
 	}
@@ -2205,7 +2205,7 @@ func TestSin(t *testing.T) {
 
 func TestSincos(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if s, c := Sincos(vf[i]); !close(sin[i], s) || !close(cos[i], c) {
+		if s, c := Sincos(vf[i]); !veryclose(sin[i], s) || !veryclose(cos[i], c) {
 			t.Errorf("Sincos(%g) = %g, %g want %g, %g", vf[i], s, c, sin[i], cos[i])
 		}
 	}
