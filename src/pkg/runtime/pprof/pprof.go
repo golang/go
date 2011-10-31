@@ -17,6 +17,9 @@ import (
 	"sync"
 )
 
+// BUG(rsc): CPU profiling is broken on OS X, due to an Apple kernel bug.
+// For details, see http://code.google.com/p/go/source/detail?r=35b716c94225.
+
 // WriteHeapProfile writes a pprof-formatted heap profile to w.
 // If a write to w returns an error, WriteHeapProfile returns that error.
 // Otherwise, WriteHeapProfile returns nil.
