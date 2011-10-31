@@ -97,7 +97,7 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err os.Error) {
 		line: 1,
 		vars: []variable{{"$", value}},
 	}
-	if t.Root == nil {
+	if t.Tree == nil || t.Root == nil {
 		state.errorf("must be parsed before execution")
 	}
 	state.walk(value, t.Root)
