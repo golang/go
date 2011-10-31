@@ -6,6 +6,7 @@ package net
 
 import (
 	"os"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -41,11 +42,17 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
 }
 
 func TestTimeoutUDP(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		return
+	}
 	testTimeout(t, "udp", "127.0.0.1:53", false)
 	testTimeout(t, "udp", "127.0.0.1:53", true)
 }
 
 func TestTimeoutTCP(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		return
+	}
 	// set up a listener that won't talk back
 	listening := make(chan string)
 	done := make(chan int)

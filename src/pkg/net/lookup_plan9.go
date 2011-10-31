@@ -49,7 +49,7 @@ func queryCS(net, host, service string) (res []string, err os.Error) {
 
 func queryCS1(net string, ip IP, port int) (clone, dest string, err os.Error) {
 	ips := "*"
-	if !ip.IsUnspecified() {
+	if len(ip) != 0 && !ip.IsUnspecified() {
 		ips = ip.String()
 	}
 	lines, err := queryCS(net, ips, itoa(port))
@@ -215,7 +215,16 @@ func LookupMX(name string) (mx []*MX, err os.Error) {
 
 // LookupTXT returns the DNS TXT records for the given domain name.
 func LookupTXT(name string) (txt []string, err os.Error) {
-	return nil, os.NewError("net.LookupTXT is not implemented on Plan 9")
+	lines, err := queryDNS(name, "txt")
+	if err != nil {
+		return
+	}
+	for _, line := range lines {
+		if i := byteIndex(line, '\t'); i >= 0 {
+			txt = append(txt, line[i+1:])
+		}
+	}
+	return
 }
 
 // LookupAddr performs a reverse lookup for the given address, returning a list
