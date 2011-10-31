@@ -764,7 +764,7 @@ func verifyComputed() {
 	}
 }
 
-var qcRe = regexp.MustCompile(`^([0-9A-F\.]+) *; (NF.*_QC); ([YNM]) #.*$`)
+var qcRe = regexp.MustCompile(`([0-9A-F\.]+) *; (NF.*_QC); ([YNM]) #.*`)
 
 // Use values in DerivedNormalizationProps.txt to compare against the
 // values we computed.
