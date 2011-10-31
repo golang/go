@@ -245,6 +245,10 @@ func Await(w *Waitmsg) (err Error) {
 	w.Time[1] = uint32(atoi(f[2]))
 	w.Time[2] = uint32(atoi(f[3]))
 	w.Msg = cstring(f[4])
+	if w.Msg == "''" {
+		// await() returns '' for no error
+		w.Msg = ""
+	}
 	return
 }
 
