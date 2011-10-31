@@ -28,7 +28,7 @@ type Optionals struct {
 var optionalsExpected = `{
  "sr": "",
  "omitempty": 0,
- "slr": [],
+ "slr": null,
  "mr": {}
 }`
 

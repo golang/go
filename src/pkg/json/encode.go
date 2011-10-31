@@ -352,7 +352,15 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
 		}
 		e.WriteByte('}')
 
-	case reflect.Array, reflect.Slice:
+	case reflect.Slice:
+		if v.IsNil() {
+			e.WriteString("null")
+			break
+		}
+		// Slices can be marshalled as nil, but otherwise are handled
+		// as arrays.
+		fallthrough
+	case reflect.Array:
 		if v.Type() == byteSliceType {
 			e.WriteByte('"')
 			s := v.Interface().([]byte)
