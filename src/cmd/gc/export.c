@@ -8,7 +8,7 @@
 #include	"y.tab.h"
 
 static	void	dumpsym(Sym*);
-static	void	dumpexporttype(Sym*);
+static	void	dumpexporttype(Type*);
 static	void	dumpexportvar(Sym*);
 static	void	dumpexportconst(Sym*);
 
@@ -89,25 +89,7 @@ dumppkg(Pkg *p)
 }
 
 static void
-dumpprereq(Type *t)
-{
-	if(t == T)
-		return;
 
-	if(t->printed || t == types[t->etype] || t == bytetype || t == runetype)
-		return;
-	t->printed = 1;
-
-	if(t->sym != S) {
-		dumppkg(t->sym->pkg);
-		if(t->etype != TFIELD)
-			dumpsym(t->sym);
-	}
-	dumpprereq(t->type);
-	dumpprereq(t->down);
-}
-
-static void
 dumpexportconst(Sym *s)
 {
 	Node *n;
@@ -119,37 +101,12 @@ dumpexportconst(Sym *s)
 		fatal("dumpexportconst: oconst nil: %S", s);
 
 	t = n->type;	// may or may not be specified
-	if(t != T)
-		dumpprereq(t);
+	dumpexporttype(t);
 
-	Bprint(bout, "\t");
-	Bprint(bout, "const %#S", s);
 	if(t != T && !isideal(t))
-		Bprint(bout, " %#T", t);
-	Bprint(bout, " = ");
-
-	switch(n->val.ctype) {
-	default:
-		fatal("dumpexportconst: unknown ctype: %S %d", s, n->val.ctype);
-	case CTINT:
-		Bprint(bout, "%B\n", n->val.u.xval);
-		break;
-	case CTBOOL:
-		if(n->val.u.bval)
-			Bprint(bout, "true\n");
-		else
-			Bprint(bout, "false\n");
-		break;
-	case CTFLT:
-		Bprint(bout, "%F\n", n->val.u.fval);
-		break;
-	case CTCPLX:
-		Bprint(bout, "(%F+%F)\n", &n->val.u.cval->real, &n->val.u.cval->imag);
-		break;
-	case CTSTR:
-		Bprint(bout, "\"%Z\"\n", n->val.u.sval);
-		break;
-	}
+		Bprint(bout, "\tconst %#S %#T = %#V\n", s, t, &n->val);
+	else
+		Bprint(bout, "\tconst %#S = %#V\n", s, &n->val);
 }
 
 static void
@@ -166,31 +123,12 @@ dumpexportvar(Sym *s)
 	}
 
 	t = n->type;
-	dumpprereq(t);
+	dumpexporttype(t);
 
-	Bprint(bout, "\t");
 	if(t->etype == TFUNC && n->class == PFUNC)
-		Bprint(bout, "func %#S %#hhT", s, t);
+		Bprint(bout, "\tfunc %#S%#hT\n", s, t);
 	else
-		Bprint(bout, "var %#S %#T", s, t);
-	Bprint(bout, "\n");
-}
-
-static void
-dumpexporttype(Sym *s)
-{
-	Type *t;
-
-	t = s->def->type;
-	dumpprereq(t);
-	Bprint(bout, "\t");
-	switch (t->etype) {
-	case TFORW:
-		yyerror("export of incomplete type %T", t);
-		return;
-	}
-	if(Bprint(bout, "type %#T %l#T\n",  t, t) < 0)
-		fatal("Bprint failed for %T", t);
+		Bprint(bout, "\tvar %#S %#T\n", s, t);
 }
 
 static int
@@ -204,12 +142,50 @@ methcmp(const void *va, const void *vb)
 }
 
 static void
-dumpsym(Sym *s)
+dumpexporttype(Type *t)
 {
-	Type *f, *t;
+	Type *f;
 	Type **m;
 	int i, n;
 
+	if(t == T)
+		return;
+
+	if(t->printed || t == types[t->etype] || t == bytetype || t == runetype)
+		return;
+	t->printed = 1;
+
+	if(t->sym != S && t->etype != TFIELD)
+		dumppkg(t->sym->pkg);
+
+	dumpexporttype(t->type);
+	dumpexporttype(t->down);
+
+	if (t->sym == S || t->etype == TFIELD)
+		return;
+
+	n = 0;
+	for(f=t->method; f!=T; f=f->down) {	
+		dumpexporttype(f);
+		n++;
+	}
+
+	m = mal(n*sizeof m[0]);
+	i = 0;
+	for(f=t->method; f!=T; f=f->down)
+		m[i++] = f;
+	qsort(m, n, sizeof m[0], methcmp);
+
+	Bprint(bout, "\ttype %#S %#lT\n", t->sym, t);
+	for(i=0; i<n; i++) {
+		f = m[i];
+		Bprint(bout, "\tfunc (%#T) %#hS%#hT\n", getthisx(f->type)->type, f->sym, f->type);
+	}
+}
+
+static void
+dumpsym(Sym *s)
+{
 	if(s->flags & SymExported)
 		return;
 	s->flags |= SymExported;
@@ -229,43 +205,15 @@ dumpsym(Sym *s)
 		dumpexportconst(s);
 		break;
 	case OTYPE:
-		t = s->def->type;
-		n = 0;
-		for(f=t->method; f!=T; f=f->down) {	
-			dumpprereq(f);
-			n++;
-		}
-		m = mal(n*sizeof m[0]);
-		i = 0;
-		for(f=t->method; f!=T; f=f->down)
-			m[i++] = f;
-		qsort(m, n, sizeof m[0], methcmp);
-
-		dumpexporttype(s);
-		for(i=0; i<n; i++) {
-			f = m[i];
-			Bprint(bout, "\tfunc (%#T) %hS %#hhT\n",
-				f->type->type->type, f->sym, f->type);
-		}
+		if(s->def->type->etype == TFORW)
+			yyerror("export of incomplete type %S", s);
+		else
+			dumpexporttype(s->def->type);
 		break;
 	case ONAME:
 		dumpexportvar(s);
 		break;
 	}
-}
-
-static void
-dumptype(Type *t)
-{
-	// no need to re-dump type if already exported
-	if(t->printed)
-		return;
-
-	// no need to dump type if it's not ours (was imported)
-	if(t->sym != S && t->sym->def == typenod(t) && !t->local)
-		return;
-
-	Bprint(bout, "type %#T %l#T\n",  t, t);
 }
 
 void
@@ -277,10 +225,7 @@ dumpexport(void)
 
 	lno = lineno;
 
-	packagequotes = 1;
-	Bprint(bout, "\n$$  // exports\n");
-
-	Bprint(bout, "    package %s", localpkg->name);
+	Bprint(bout, "\n$$  // exports\n    package %s", localpkg->name);
 	if(safemode)
 		Bprint(bout, " safe");
 	Bprint(bout, "\n");
@@ -295,15 +240,7 @@ dumpexport(void)
 		dumpsym(l->n->sym);
 	}
 
-	Bprint(bout, "\n$$  // local types\n");
-
-	for(l=typelist; l; l=l->next) {
-		lineno = l->n->lineno;
-		dumptype(l->n->type);
-	}
-
-	Bprint(bout, "\n$$\n");
-	packagequotes = 0;
+	Bprint(bout, "\n$$  // local types\n\n$$\n");   // 6l expects this. (see ld/go.c)
 
 	lineno = lno;
 }
@@ -346,7 +283,7 @@ pkgtype(Sym *s)
 		s->def = typenod(t);
 	}
 	if(s->def->type == T)
-		yyerror("pkgtype %lS", s);
+		yyerror("pkgtype %S", s);
 	return s->def->type;
 }
 
@@ -400,8 +337,7 @@ importvar(Sym *s, Type *t, int ctxt)
 	if(s->def != N && s->def->op == ONAME) {
 		if(eqtype(t, s->def->type))
 			return;
-		yyerror("inconsistent definition for var %S during import\n\t%T\n\t%T",
-			s, s->def->type, t);
+		yyerror("inconsistent definition for var %S during import\n\t%T\n\t%T", s, s->def->type, t);
 	}
 	n = newname(s);
 	n->type = t;

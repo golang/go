@@ -94,7 +94,7 @@ addrescapes(Node *n)
 			if(!debug['s'])
 				n->esc = EscHeap;
 			if(debug['m'])
-				print("%L: moved to heap: %#hN\n", n->lineno, n);
+				print("%L: moved to heap: %N\n", n->lineno, n);
 			curfn = oldfn;
 			break;
 		}

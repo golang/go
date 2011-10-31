@@ -108,7 +108,7 @@ convlit1(Node **np, Type *t, int explicit)
 		if(t != T && t->etype == TIDEAL && n->val.ctype != CTINT)
 			n->val = toint(n->val);
 		if(t != T && !isint[t->etype]) {
-			yyerror("invalid operation: %#N (shift of type %T)", n, t);
+			yyerror("invalid operation: %N (shift of type %T)", n, t);
 			t = T;
 		}
 		n->type = t;
@@ -224,7 +224,7 @@ convlit1(Node **np, Type *t, int explicit)
 
 bad:
 	if(!n->diag) {
-		yyerror("cannot convert %#N to type %T", n, t);
+		yyerror("cannot convert %N to type %T", n, t);
 		n->diag = 1;
 	}
 	if(isideal(n->type)) {
@@ -939,7 +939,7 @@ defaultlit(Node **np, Type *t)
 		defaultlit(&n->left, t);
 		t = n->left->type;
 		if(t != T && !isint[t->etype]) {
-			yyerror("invalid operation: %#N (shift of type %T)", n, t);
+			yyerror("invalid operation: %N (shift of type %T)", n, t);
 			t = T;
 		}
 		n->type = t;
@@ -991,7 +991,7 @@ defaultlit(Node **np, Type *t)
 			n->type = types[TSTRING];
 			break;
 		}
-		yyerror("defaultlit: unknown literal: %#N", n);
+		yyerror("defaultlit: unknown literal: %N", n);
 		break;
 	case CTBOOL:
 		n->type = types[TBOOL];
