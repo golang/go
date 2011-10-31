@@ -456,7 +456,7 @@ var allValueIndent = `{
 	"PSlice": null,
 	"PSliceP": null,
 	"EmptySlice": [],
-	"NilSlice": [],
+	"NilSlice": null,
 	"StringSlice": [
 		"str24",
 		"str25",
@@ -528,8 +528,8 @@ var pallValueIndent = `{
 	},
 	"EmptyMap": null,
 	"NilMap": null,
-	"Slice": [],
-	"SliceP": [],
+	"Slice": null,
+	"SliceP": null,
 	"PSlice": [
 		{
 			"Tag": "tag20"
@@ -547,10 +547,10 @@ var pallValueIndent = `{
 			"Tag": "tag23"
 		}
 	],
-	"EmptySlice": [],
-	"NilSlice": [],
-	"StringSlice": [],
-	"ByteSlice": "",
+	"EmptySlice": null,
+	"NilSlice": null,
+	"StringSlice": null,
+	"ByteSlice": null,
 	"Small": {
 		"Tag": ""
 	},

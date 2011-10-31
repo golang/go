@@ -588,7 +588,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value) {
 		switch v.Kind() {
 		default:
 			d.saveError(&UnmarshalTypeError{"null", v.Type()})
-		case reflect.Interface, reflect.Ptr, reflect.Map:
+		case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
 			v.Set(reflect.Zero(v.Type()))
 		}
 
