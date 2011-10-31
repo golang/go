@@ -1549,8 +1549,8 @@ func TestEnsurePipelineContains(t *testing.T) {
 	}
 }
 
-func expectExecuteFailure(t *testing.T, b *bytes.Buffer) {
-	if x := recover(); x != nil {
+func expectExecuteFailure(t *testing.T, b *bytes.Buffer, err os.Error) {
+	if err != nil {
 		if b.Len() != 0 {
 			t.Errorf("output on buffer: %q", b.String())
 		}
@@ -1563,8 +1563,8 @@ func TestEscapeErrorsNotIgnorable(t *testing.T) {
 	var b bytes.Buffer
 	tmpl := template.Must(template.New("dangerous").Parse("<a"))
 	Escape(tmpl)
-	defer expectExecuteFailure(t, &b)
-	tmpl.Execute(&b, nil)
+	err := tmpl.Execute(&b, nil)
+	expectExecuteFailure(t, &b, err)
 }
 
 func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
@@ -1574,8 +1574,8 @@ func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
 	}
 	EscapeSet(s, "t")
 	var b bytes.Buffer
-	defer expectExecuteFailure(t, &b)
-	s.Execute(&b, "t", nil)
+	err = s.Execute(&b, "t", nil)
+	expectExecuteFailure(t, &b, err)
 }
 
 func TestRedundantFuncs(t *testing.T) {
