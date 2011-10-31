@@ -112,7 +112,7 @@ func TestRatScan(t *testing.T) {
 		_, err := fmt.Fscanf(&buf, "%v", x)
 		if err == nil != test.ok {
 			if test.ok {
-				t.Errorf("#%d error: %s", i, err.String())
+				t.Errorf("#%d error: %s", i, err)
 			} else {
 				t.Errorf("#%d expected error", i)
 			}

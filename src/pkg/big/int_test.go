@@ -536,7 +536,7 @@ func TestScan(t *testing.T) {
 		buf.Reset()
 		buf.WriteString(test.input)
 		if _, err := fmt.Fscanf(&buf, test.format, x); err != nil {
-			t.Errorf("#%d error: %s", i, err.String())
+			t.Errorf("#%d error: %s", i, err)
 		}
 		if x.String() != test.output {
 			t.Errorf("#%d got %s; want %s", i, x.String(), test.output)

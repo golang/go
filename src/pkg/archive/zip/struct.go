@@ -60,10 +60,10 @@ type directoryEnd struct {
 	comment            string
 }
 
-func recoverError(err *os.Error) {
+func recoverError(errp *os.Error) {
 	if e := recover(); e != nil {
-		if osErr, ok := e.(os.Error); ok {
-			*err = osErr
+		if err, ok := e.(os.Error); ok {
+			*errp = err
 			return
 		}
 		panic(e)
