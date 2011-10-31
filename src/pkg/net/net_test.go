@@ -8,6 +8,7 @@ import (
 	"flag"
 	"os"
 	"regexp"
+	"runtime"
 	"testing"
 )
 
@@ -128,6 +129,9 @@ func TestReverseAddress(t *testing.T) {
 }
 
 func TestShutdown(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		return
+	}
 	l, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		if l, err = Listen("tcp6", "[::1]:0"); err != nil {
