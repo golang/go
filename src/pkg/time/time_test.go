@@ -201,6 +201,7 @@ var formatTests = []FormatTest{
 	{"RFC822", RFC822, "04 Feb 09 2100 PST"},
 	{"RFC850", RFC850, "Wednesday, 04-Feb-09 21:00:57 PST"},
 	{"RFC1123", RFC1123, "Wed, 04 Feb 2009 21:00:57 PST"},
+	{"RFC1123Z", RFC1123Z, "Wed, 04 Feb 2009 21:00:57 -0800"},
 	{"RFC3339", RFC3339, "2009-02-04T21:00:57-08:00"},
 	{"Kitchen", Kitchen, "9:00PM"},
 	{"am/pm", "3pm", "9pm"},
@@ -240,6 +241,7 @@ var parseTests = []ParseTest{
 	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010", true, true, 1, 0},
 	{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1, 0},
 	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1, 0},
+	{"RFC1123Z", RFC1123Z, "Thu, 04 Feb 2010 21:00:57 -0800", true, true, 1, 0},
 	{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00", true, false, 1, 0},
 	{"custom: \"2006-01-02 15:04:05-07\"", "2006-01-02 15:04:05-07", "2010-02-04 21:00:57-08", true, false, 1, 0},
 	// Optional fractional seconds.
@@ -248,6 +250,7 @@ var parseTests = []ParseTest{
 	{"RubyDate", RubyDate, "Thu Feb 04 21:00:57.012 -0800 2010", true, true, 1, 3},
 	{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57.0123 PST", true, true, 1, 4},
 	{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57.01234 PST", true, true, 1, 5},
+	{"RFC1123Z", RFC1123Z, "Thu, 04 Feb 2010 21:00:57.01234 -0800", true, true, 1, 5},
 	{"RFC3339", RFC3339, "2010-02-04T21:00:57.012345678-08:00", true, false, 1, 9},
 	// Amount of white space should not matter.
 	{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true, 1, 0},
