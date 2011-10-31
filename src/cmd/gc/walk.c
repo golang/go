@@ -284,7 +284,7 @@ walkstmt(Node **np)
 				// OAS2FUNC in disguise
 				f = n->list->n;
 				if(f->op != OCALLFUNC && f->op != OCALLMETH && f->op != OCALLINTER)
-					fatal("expected return of call, have %#N", f);
+					fatal("expected return of call, have %N", f);
 				n->list = concat(list1(f), ascompatet(n->op, rl, &f->type, 0, &n->ninit));
 				break;
 			}
@@ -2189,7 +2189,7 @@ vmkcall(Node *fn, Type *t, NodeList **init, va_list va)
 	NodeList *args;
 
 	if(fn->type == T || fn->type->etype != TFUNC)
-		fatal("mkcall %#N %T", fn, fn->type);
+		fatal("mkcall %N %T", fn, fn->type);
 
 	args = nil;
 	n = fn->type->intuple;

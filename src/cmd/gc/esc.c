@@ -88,7 +88,7 @@ escapes(void)
 	if(debug['m']) {
 		for(l=noesc; l; l=l->next)
 			if(l->n->esc == EscNone)
-				warnl(l->n->lineno, "%S %#hN does not escape",
+				warnl(l->n->lineno, "%S %hN does not escape",
 					(l->n->curfn && l->n->curfn->nname) ? l->n->curfn->nname->sym : S,
 					l->n);
 	}
@@ -178,7 +178,7 @@ esc(Node *n)
 		loopdepth--;
 
 	if(debug['m'] > 1)
-		print("%L:[%d] %#S esc: %#N\n", lineno, loopdepth,
+		print("%L:[%d] %S esc: %N\n", lineno, loopdepth,
 		      (curfn && curfn->nname) ? curfn->nname->sym : S, n);
 
 	switch(n->op) {
@@ -331,7 +331,7 @@ escassign(Node *dst, Node *src)
 		return;
 
 	if(debug['m'] > 1)
-		print("%L:[%d] %#S escassign: %hN = %hN\n", lineno, loopdepth,
+		print("%L:[%d] %S escassign: %hN = %hN\n", lineno, loopdepth,
 		      (curfn && curfn->nname) ? curfn->nname->sym : S, dst, src);
 
 	setlineno(dst);
@@ -609,7 +609,7 @@ escflood(Node *dst)
 	}
 
 	if(debug['m']>1)
-		print("\nescflood:%d: dst %hN scope:%#S[%d]\n", walkgen, dst,
+		print("\nescflood:%d: dst %hN scope:%S[%d]\n", walkgen, dst,
 		      (dst->curfn && dst->curfn->nname) ? dst->curfn->nname->sym : S,
 		      dst->escloopdepth);
 
@@ -630,7 +630,7 @@ escwalk(int level, Node *dst, Node *src)
 	src->walkgen = walkgen;
 
 	if(debug['m']>1)
-		print("escwalk: level:%d depth:%d %.*s %hN scope:%#S[%d]\n",
+		print("escwalk: level:%d depth:%d %.*s %hN scope:%S[%d]\n",
 		      level, pdepth, pdepth, "\t\t\t\t\t\t\t\t\t\t", src,
 		      (src->curfn && src->curfn->nname) ? src->curfn->nname->sym : S, src->escloopdepth);
 
@@ -643,7 +643,7 @@ escwalk(int level, Node *dst, Node *src)
 		if(src->class == PPARAM && leaks && src->esc == EscNone) {
 			src->esc = EscScope;
 			if(debug['m'])
-				warnl(src->lineno, "leaking param: %#hN", src);
+				warnl(src->lineno, "leaking param: %hN", src);
 		}
 		break;
 
@@ -652,7 +652,7 @@ escwalk(int level, Node *dst, Node *src)
 			src->esc = EscHeap;
 			addrescapes(src->left);
 			if(debug['m'])
-				warnl(src->lineno, "%#hN escapes to heap", src);
+				warnl(src->lineno, "%hN escapes to heap", src);
 		}
 		escwalk(level-1, dst, src->left);
 		break;
@@ -671,7 +671,7 @@ escwalk(int level, Node *dst, Node *src)
 		if(leaks) {
 			src->esc = EscHeap;
 			if(debug['m'])
-				warnl(src->lineno, "%#hN escapes to heap", src);
+				warnl(src->lineno, "%hN escapes to heap", src);
 		}
 		break;
 

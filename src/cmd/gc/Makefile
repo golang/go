@@ -24,6 +24,7 @@ OFILES=\
 	dcl.$O\
 	esc.$O\
 	export.$O\
+	fmt.$O\
 	gen.$O\
 	init.$O\
 	lex.$O\
@@ -32,7 +33,6 @@ OFILES=\
 	mparith2.$O\
 	mparith3.$O\
 	obj.$O\
-	print.$O\
 	range.$O\
 	reflect.$O\
 	select.$O\
@@ -62,7 +62,7 @@ subr.$O: yerr.h
 builtin.c: builtin.c.boot
 	cp builtin.c.boot builtin.c
 
-subr.$O: opnames.h
+fmt.$O: opnames.h
 
 opnames.h:	mkopnames go.h
 	./mkopnames go.h >opnames.h

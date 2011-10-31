@@ -473,7 +473,7 @@ colasdefn(NodeList *left, Node *defn)
 		if(isblank(n))
 			continue;
 		if(!colasname(n)) {
-			yyerror("non-name %#N on left side of :=", n);
+			yyerror("non-name %N on left side of :=", n);
 			nerr++;
 			continue;
 		}
@@ -1086,10 +1086,11 @@ methodsym(Sym *nsym, Type *t0, int iface)
 			suffix = "·i";
 	}
 	if(t0->sym == S && isptr[t0->etype])
-		p = smprint("(%#hT).%s%s", t0, nsym->name, suffix);
+		p = smprint("(%-hT).%s%s", t0, nsym->name, suffix);
 	else
-		p = smprint("%#hT.%s%s", t0, nsym->name, suffix);
+		p = smprint("%-hT.%s%s", t0, nsym->name, suffix);
 	s = pkglookup(p, s->pkg);
+	//print("methodsym:%s -> %+S\n", p, s);
 	free(p);
 	return s;
 

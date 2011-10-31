@@ -846,14 +846,8 @@ EXTERN	char*	hunk;
 EXTERN	int32	nhunk;
 EXTERN	int32	thunk;
 
-EXTERN	int	exporting;
-EXTERN	int	erroring;
-EXTERN	int	noargnames;
-
 EXTERN	int	funcdepth;
 EXTERN	int	typecheckok;
-EXTERN	int	packagequotes;
-EXTERN	int	longsymnames;
 EXTERN	int	compiling_runtime;
 
 EXTERN	int	rune32;
@@ -987,6 +981,13 @@ void	importvar(Sym *s, Type *t, int ctxt);
 Type*	pkgtype(Sym *s);
 
 /*
+ *	fmt.c
+ */
+void	fmtinstallgo(void);
+void	dump(char *s, Node *n);
+void	dumplist(char *s, NodeList *l);
+
+/*
  *	gen.c
  */
 void	addrescapes(Node *n);
@@ -1096,12 +1097,6 @@ void	ieeedtod(uint64 *ieee, double native);
 Sym*	stringsym(char*, int);
 
 /*
- *	print.c
- */
-void	exprfmt(Fmt *f, Node *n, int prec);
-void	exprlistfmt(Fmt *f, NodeList *l);
-
-/*
  *	range.c
  */
 void	typecheckrange(Node *n);
@@ -1134,15 +1129,6 @@ int	stataddr(Node *nam, Node *n);
 /*
  *	subr.c
  */
-int	Econv(Fmt *fp);
-int	Jconv(Fmt *fp);
-int	Lconv(Fmt *fp);
-int	Nconv(Fmt *fp);
-int	Oconv(Fmt *fp);
-int	Sconv(Fmt *fp);
-int	Tconv(Fmt *fp);
-int	Vconv(Fmt *fp);
-int	Zconv(Fmt *fp);
 Node*	adddot(Node *n);
 int	adddot1(Sym *s, Type *t, int d, Type **save, int ignorecase);
 Type*	aindex(Node *b, Type *t);
@@ -1157,8 +1143,6 @@ NodeList*	concat(NodeList *a, NodeList *b);
 int	convertop(Type *src, Type *dst, char **why);
 int	count(NodeList *l);
 int	cplxsubtype(int et);
-void	dump(char *s, Node *n);
-void	dumplist(char *s, NodeList *l);
 int	eqtype(Type *t1, Type *t2);
 int	eqtypenoname(Type *t1, Type *t2);
 void	errorexit(void);
@@ -1347,6 +1331,7 @@ void	zname(Biobuf *b, Sym *s, int t);
 #pragma	varargck	type	"lD"	Addr*
 #pragma	varargck	type	"E"	int
 #pragma	varargck	type	"F"	Mpflt*
+#pragma	varargck	type	"H"	NodeList*
 #pragma	varargck	type	"J"	Node*
 #pragma	varargck	type	"L"	int
 #pragma	varargck	type	"L"	uint

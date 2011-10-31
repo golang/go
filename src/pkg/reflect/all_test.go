@@ -434,7 +434,7 @@ func TestInterfaceGet(t *testing.T) {
 	inter.E = 123.456
 	v1 := ValueOf(&inter)
 	v2 := v1.Elem().Field(0)
-	assert(t, v2.Type().String(), "interface { }")
+	assert(t, v2.Type().String(), "interface {}")
 	i2 := v2.Interface()
 	v3 := ValueOf(i2)
 	assert(t, v3.Type().String(), "float64")
@@ -447,7 +447,7 @@ func TestInterfaceValue(t *testing.T) {
 	inter.E = 123.456
 	v1 := ValueOf(&inter)
 	v2 := v1.Elem().Field(0)
-	assert(t, v2.Type().String(), "interface { }")
+	assert(t, v2.Type().String(), "interface {}")
 	v3 := v2.Elem()
 	assert(t, v3.Type().String(), "float64")
 

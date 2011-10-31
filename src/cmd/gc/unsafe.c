@@ -80,7 +80,7 @@ no:
 	return N;
 
 bad:
-	yyerror("invalid expression %#N", nn);
+	yyerror("invalid expression %N", nn);
 	v = 0;
 	goto ret;
 	

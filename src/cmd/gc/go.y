@@ -426,7 +426,7 @@ simple_stmt:
 			if($1->next != nil)
 				yyerror("argument count mismatch: %d = %d", count($1), 1);
 			else if($1->n->op != ONAME && $1->n->op != OTYPE && $1->n->op != ONONAME)
-				yyerror("invalid variable name %#N in type switch", $1->n);
+				yyerror("invalid variable name %N in type switch", $1->n);
 			else
 				n = $1->n;
 			$$ = nod(OTYPESW, n, $3->n->right);

@@ -592,9 +592,8 @@ dcommontype(Sym *s, int ot, Type *t)
 	if(!haspointers(t))
 		i |= KindNoPointers;
 	ot = duint8(s, ot, i);  // kind
-	longsymnames = 1;
-	p = smprint("%-T", t);
-	longsymnames = 0;
+	p = smprint("%-uT", t);
+	//print("dcommontype: %s\n", p);
 	ot = dgostringptr(s, ot, p);	// string
 	free(p);
 	
@@ -614,8 +613,9 @@ typesym(Type *t)
 	char *p;
 	Sym *s;
 
-	p = smprint("%#-T", t);
+	p = smprint("%-T", t);
 	s = pkglookup(p, typepkg);
+	//print("typesym: %s -> %+S\n", p, s);
 	free(p);
 	return s;
 }
@@ -662,8 +662,9 @@ weaktypesym(Type *t)
 		weak->prefix = "weak.type";  // not weak%2etype
 	}
 	
-	p = smprint("%#-T", t);
+	p = smprint("%-T", t);
 	s = pkglookup(p, weak);
+	//print("weaktypesym: %s -> %+S\n", p, s);
 	free(p);
 	return s;
 }

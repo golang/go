@@ -52,7 +52,7 @@ dumpglobls(void)
 			continue;
 
 		if(n->type == T)
-			fatal("external %#N nil type\n", n);
+			fatal("external %N nil type\n", n);
 		if(n->class == PFUNC)
 			continue;
 		if(n->sym->pkg != localpkg)

@@ -15,7 +15,7 @@ var (
 	_ = sum()
 	_ = sum(1.0, 2.0)
 	_ = sum(1.5)      // ERROR "integer"
-	_ = sum("hello")  // ERROR ".hello. .type string. as type int|incompatible"
+	_ = sum("hello")  // ERROR ".hello. .type ideal string. as type int|incompatible"
 	_ = sum([]int{1}) // ERROR "\[\]int literal.*as type int|incompatible"
 )
 

@@ -12,6 +12,6 @@ func main() {
 	var x interface{}
 	switch t := x.(type) { // GC_ERROR "0 is not a type"
 	case 0:		// GCCGO_ERROR "expected type"
-		t.x = 1 // ERROR "type interface \{ \}|reference to undefined field or method"
+		t.x = 1 // ERROR "type interface \{\}|reference to undefined field or method"
 	}
 }
