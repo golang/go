@@ -313,15 +313,9 @@ nextar(Biobuf *bp, int off, struct ar_hdr *a)
 			return 0;
 		return -1;
 	}
-	if(r == SAR_HDR) {
-		memmove(a, buf, SAR_HDR);
-	} else if (r == SAR_HDR-SARNAME+16) {	// old Plan 9
-		memset(a->name, ' ', sizeof a->name);
-		memmove(a, buf, 16);
-		memmove((char*)a+SARNAME, buf+16, SAR_HDR-SARNAME);
-	} else {	// unexpected
+	if(r != SAR_HDR)
 		return -1;
-	}
+	memmove(a, buf, SAR_HDR);
 	if(strncmp(a->fmag, ARFMAG, sizeof a->fmag))
 		return -1;
 	arsize = strtol(a->size, 0, 0);
