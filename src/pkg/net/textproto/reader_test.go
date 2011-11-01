@@ -139,6 +139,23 @@ func TestReadMIMEHeader(t *testing.T) {
 	}
 }
 
+func TestLargeReadMIMEHeader(t *testing.T) {
+	data := make([]byte, 16*1024)
+	for i := 0; i < len(data); i++ {
+		data[i] = 'x'
+	}
+	sdata := string(data)
+	r := reader("Cookie: " + sdata + "\r\n\n")
+	m, err := r.ReadMIMEHeader()
+	if err != nil {
+		t.Fatalf("ReadMIMEHeader: %v", err)
+	}
+	cookie := m.Get("Cookie")
+	if cookie != sdata {
+		t.Fatalf("ReadMIMEHeader: %v bytes, want %v bytes", len(cookie), len(sdata))
+	}
+}
+
 type readResponseTest struct {
 	in       string
 	inCode   int
