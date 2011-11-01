@@ -239,6 +239,7 @@ esc(Node *n)
 	case OPROC:
 		// go f(x) - f and x escape
 		escassign(&theSink, n->left->left);
+		escassign(&theSink, n->left->right);  // ODDDARG for call
 		for(ll=n->left->list; ll; ll=ll->next)
 			escassign(&theSink, ll->n);
 		break;
