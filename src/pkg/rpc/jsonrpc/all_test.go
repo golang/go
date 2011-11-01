@@ -6,6 +6,7 @@ package jsonrpc
 
 import (
 	"fmt"
+	"io"
 	"json"
 	"net"
 	"os"
@@ -153,4 +154,68 @@ func TestClient(t *testing.T) {
 	} else if err.String() != "divide by zero" {
 		t.Error("Div: expected divide by zero error; got", err)
 	}
+}
+
+func TestMalformedInput(t *testing.T) {
+	cli, srv := net.Pipe()
+	go cli.Write([]byte(`{id:1}`)) // invalid json
+	ServeConn(srv)                 // must return, not loop
+}
+
+func TestUnexpectedError(t *testing.T) {
+	cli, srv := myPipe()
+	go cli.PipeWriter.CloseWithError(os.NewError("unexpected error!")) // reader will get this error
+	ServeConn(srv)                                                     // must return, not loop
+}
+
+// Copied from package net.
+func myPipe() (*pipe, *pipe) {
+	r1, w1 := io.Pipe()
+	r2, w2 := io.Pipe()
+
+	return &pipe{r1, w2}, &pipe{r2, w1}
+}
+
+type pipe struct {
+	*io.PipeReader
+	*io.PipeWriter
+}
+
+type pipeAddr int
+
+func (pipeAddr) Network() string {
+	return "pipe"
+}
+
+func (pipeAddr) String() string {
+	return "pipe"
+}
+
+func (p *pipe) Close() os.Error {
+	err := p.PipeReader.Close()
+	err1 := p.PipeWriter.Close()
+	if err == nil {
+		err = err1
+	}
+	return err
+}
+
+func (p *pipe) LocalAddr() net.Addr {
+	return pipeAddr(0)
+}
+
+func (p *pipe) RemoteAddr() net.Addr {
+	return pipeAddr(0)
+}
+
+func (p *pipe) SetTimeout(nsec int64) os.Error {
+	return os.NewError("net.Pipe does not support timeouts")
+}
+
+func (p *pipe) SetReadTimeout(nsec int64) os.Error {
+	return os.NewError("net.Pipe does not support timeouts")
+}
+
+func (p *pipe) SetWriteTimeout(nsec int64) os.Error {
+	return os.NewError("net.Pipe does not support timeouts")
 }

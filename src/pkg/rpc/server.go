@@ -394,12 +394,12 @@ func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 func (server *Server) ServeCodec(codec ServerCodec) {
 	sending := new(sync.Mutex)
 	for {
-		service, mtype, req, argv, replyv, err := server.readRequest(codec)
+		service, mtype, req, argv, replyv, keepReading, err := server.readRequest(codec)
 		if err != nil {
 			if err != os.EOF {
 				log.Println("rpc:", err)
 			}
-			if err == os.EOF || err == io.ErrUnexpectedEOF {
+			if !keepReading {
 				break
 			}
 			// send a response if we actually managed to read a header.
@@ -418,9 +418,9 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 // It does not close the codec upon completion.
 func (server *Server) ServeRequest(codec ServerCodec) os.Error {
 	sending := new(sync.Mutex)
-	service, mtype, req, argv, replyv, err := server.readRequest(codec)
+	service, mtype, req, argv, replyv, keepReading, err := server.readRequest(codec)
 	if err != nil {
-		if err == os.EOF || err == io.ErrUnexpectedEOF {
+		if !keepReading {
 			return err
 		}
 		// send a response if we actually managed to read a header.
@@ -474,10 +474,10 @@ func (server *Server) freeResponse(resp *Response) {
 	server.respLock.Unlock()
 }
 
-func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *methodType, req *Request, argv, replyv reflect.Value, err os.Error) {
-	service, mtype, req, err = server.readRequestHeader(codec)
+func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *methodType, req *Request, argv, replyv reflect.Value, keepReading bool, err os.Error) {
+	service, mtype, req, keepReading, err = server.readRequestHeader(codec)
 	if err != nil {
-		if err == os.EOF || err == io.ErrUnexpectedEOF {
+		if !keepReading {
 			return
 		}
 		// discard body
@@ -505,7 +505,7 @@ func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *m
 	return
 }
 
-func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mtype *methodType, req *Request, err os.Error) {
+func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mtype *methodType, req *Request, keepReading bool, err os.Error) {
 	// Grab the request header.
 	req = server.getRequest()
 	err = codec.ReadRequestHeader(req)
@@ -517,6 +517,10 @@ func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mt
 		err = os.NewError("rpc: server cannot decode request: " + err.String())
 		return
 	}
+
+	// We read the header successfully.  If we see an error now,
+	// we can still recover and move on to the next request.
+	keepReading = true
 
 	serviceMethod := strings.Split(req.ServiceMethod, ".")
 	if len(serviceMethod) != 2 {
