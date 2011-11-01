@@ -132,7 +132,7 @@ func TestParser(t *testing.T) {
 		rc := make(chan io.Reader)
 		go readDat(filename, rc)
 		// TODO(nigeltao): Process all test cases, not just a subset.
-		for i := 0; i < 77; i++ {
+		for i := 0; i < 78; i++ {
 			// Parse the #data section.
 			b, err := ioutil.ReadAll(<-rc)
 			if err != nil {
@@ -161,8 +161,8 @@ func TestParser(t *testing.T) {
 				continue
 			}
 			// Check that rendering and re-parsing results in an identical tree.
-			if filename == "tests1.dat" && i == 30 {
-				// Test 30 in tests1.dat is such messed-up markup that a correct parse
+			if filename == "tests1.dat" && (i == 30 || i == 77) {
+				// Some tests in tests1.dat have such messed-up markup that a correct parse
 				// results in a non-conforming tree (one <a> element nested inside another).
 				// Therefore when it is rendered and re-parsed, it isn't the same.
 				// So we skip rendering on that test.

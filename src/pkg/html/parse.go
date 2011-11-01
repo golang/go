@@ -126,6 +126,7 @@ func (p *parser) addChild(n *Node) {
 // fosterParent adds a child node according to the foster parenting rules.
 // Section 11.2.5.3, "foster parenting".
 func (p *parser) fosterParent(n *Node) {
+	p.fosterParenting = false
 	var table, parent *Node
 	var i int
 	for i = len(p.oe) - 1; i >= 0; i-- {
@@ -986,7 +987,12 @@ func inCellIM(p *parser) (insertionMode, bool) {
 	case EndTagToken:
 		switch p.tok.Data {
 		case "td", "th":
-			// TODO.
+			if !p.popUntil(tableScopeStopTags, p.tok.Data) {
+				// Ignore the token.
+				return inCellIM, true
+			}
+			p.clearActiveFormattingElements()
+			return inRowIM, true
 		case "body", "caption", "col", "colgroup", "html":
 			// TODO.
 		case "table", "tbody", "tfoot", "thead", "tr":
