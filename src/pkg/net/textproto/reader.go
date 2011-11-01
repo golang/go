@@ -50,8 +50,22 @@ func (r *Reader) ReadLineBytes() ([]byte, os.Error) {
 
 func (r *Reader) readLineSlice() ([]byte, os.Error) {
 	r.closeDot()
-	line, _, err := r.R.ReadLine()
-	return line, err
+	var line []byte
+	for {
+		l, more, err := r.R.ReadLine()
+		if err != nil {
+			return nil, err
+		}
+		// Avoid the copy if the first call produced a full line.
+		if line == nil && !more {
+			return l, nil
+		}
+		line = append(line, l...)
+		if !more {
+			break
+		}
+	}
+	return line, nil
 }
 
 // ReadContinuedLine reads a possibly continued line from r,
