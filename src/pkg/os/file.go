@@ -69,7 +69,7 @@ func (file *File) Read(b []byte) (n int, err Error) {
 	if n < 0 {
 		n = 0
 	}
-	if n == 0 && !iserror(e) {
+	if n == 0 && len(b) > 0 && !iserror(e) {
 		return 0, EOF
 	}
 	if iserror(e) {
