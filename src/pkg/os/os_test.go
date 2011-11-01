@@ -165,6 +165,27 @@ func TestLstat(t *testing.T) {
 	}
 }
 
+// Read with length 0 should not return EOF.
+func TestRead0(t *testing.T) {
+	path := sfdir + "/" + sfname
+	f, err := Open(path)
+	if err != nil {
+		t.Fatal("open failed:", err)
+	}
+	defer f.Close()
+
+	b := make([]byte, 0)
+	n, err := f.Read(b)
+	if n != 0 || err != nil {
+		t.Errorf("Read(0) = %d, %v, want 0, nil", n, err)
+	}
+	b = make([]byte, 100)
+	n, err = f.Read(b)
+	if n <= 0 || err != nil {
+		t.Errorf("Read(100) = %d, %v, want >0, nil", n, err)
+	}
+}
+
 func testReaddirnames(dir string, contents []string, t *testing.T) {
 	file, err := Open(dir)
 	defer file.Close()
