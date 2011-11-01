@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of October 17, 2011 -->
+<!-- subtitle Version of October 25, 2011 -->
 
 <!--
 TODO
@@ -691,7 +691,8 @@ float64     the set of all IEEE-754 64-bit floating-point numbers
 complex64   the set of all complex numbers with float32 real and imaginary parts
 complex128  the set of all complex numbers with float64 real and imaginary parts
 
-byte        familiar alias for uint8
+byte        alias for uint8
+rune        alias for int (will change to int32 in the future)
 </pre>
 
 <p>
@@ -711,7 +712,9 @@ uintptr  an unsigned integer large enough to store the uninterpreted bits of a p
 
 <p>
 To avoid portability issues all numeric types are distinct except
-<code>byte</code>, which is an alias for <code>uint8</code>.
+<code>byte</code>, which is an alias for <code>uint8</code>, and
+<code>rune</code>, which is an alias for <code>int</code> (to become
+<code>int32</code> in a later version of Go).
 Conversions
 are required when different numeric types are mixed in an expression
 or assignment. For instance, <code>int32</code> and <code>int</code>
@@ -1497,7 +1500,7 @@ The following identifiers are implicitly declared in the universe block:
 <pre class="grammar">
 Basic types:
 	bool byte complex64 complex128 float32 float64
-	int8 int16 int32 int64 string uint8 uint16 uint32 uint64
+	int8 int16 int32 int64 rune string uint8 uint16 uint32 uint64
 
 Architecture-specific convenience types:
 	int uint uintptr
@@ -1509,7 +1512,7 @@ Zero value:
 	nil
 
 Functions:
-	append cap close complex copy imag len
+	append cap close complex copy delete imag len
 	make new panic print println real recover
 </pre>
 
@@ -1791,11 +1794,15 @@ constant:
 </p>
 
 <pre>
-var b = true    // t has type bool
-var i = 0       // i has type int
-var f = 3.0     // f has type float64
-var c = 1i      // c has type complex128
-var s = "OMDB"  // s has type string
+var b  = true    // t  has type bool
+var r  = 'a'     // r  has type int
+var i  = 0       // i  has type int
+var f  = 3.0     // f  has type float64
+var c0 = 0i      // c0 has type complex128
+var c1 = 1 + 0i  // c1 has type complex128
+var c2 = 1 + 1i  // c2 has type complex128
+var s1 = "OMDB"  // s1 has type string
+var s2 = `foo`   // s2 has type string
 </pre>
 
 <h3 id="Short_variable_declarations">Short variable declarations</h3>
@@ -3276,11 +3283,11 @@ in any of these cases:
 	</li>
 	<li>
 	<code>x</code> is an integer or has type <code>[]byte</code> or
-	<code>[]int</code> and <code>T</code> is a string type.
+	<code>[]rune</code> and <code>T</code> is a string type.
 	</li>
 	<li>
 	<code>x</code> is a string and <code>T</code> is <code>[]byte</code> or
-	<code>[]int</code>.
+	<code>[]rune</code>.
 	</li>
 </ul>
 
@@ -3354,9 +3361,8 @@ MyString(0x65e5)      // "\u65e5" == "日" == "\xe6\x97\xa5"
 </li>
 
 <li>
-Converting a value of type <code>[]byte</code> (or
-the equivalent <code>[]uint8</code>) to a string type yields a
-string whose successive bytes are the elements of the slice.  If
+Converting a value of type <code>[]byte</code> to a string type yields
+a string whose successive bytes are the elements of the slice.  If
 the slice value is <code>nil</code>, the result is the empty string.
 
 <pre>
@@ -3365,12 +3371,13 @@ string([]byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'})  // "hellø"
 </li>
 
 <li>
-Converting a value of type <code>[]int</code> to a string type yields
-a string that is the concatenation of the individual integers
+Converting a value of type <code>[]rune</code> to a string type yields
+a string that is the concatenation of the individual rune values
 converted to strings.  If the slice value is <code>nil</code>, the
 result is the empty string.
+
 <pre>
-string([]int{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
+string([]rune{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
 </pre>
 </li>
 
@@ -3385,11 +3392,11 @@ If the string is empty, the result is <code>[]byte(nil)</code>.
 </li>
 
 <li>
-Converting a value of a string type to <code>[]int</code> yields a
+Converting a value of a string type to <code>[]rune</code> yields a
 slice containing the individual Unicode code points of the string.
-If the string is empty, the result is <code>[]int(nil)</code>.
+If the string is empty, the result is <code>[]rune(nil)</code>.
 <pre>
-[]int(MyString("白鵬翔"))  // []int{0x767d, 0x9d6c, 0x7fd4}
+[]rune(MyString("白鵬翔"))  // []rune{0x767d, 0x9d6c, 0x7fd4}
 </pre>
 </li>
 </ol>
@@ -4059,7 +4066,7 @@ For each iteration, iteration values are produced as follows:
 Range expression                          1st value          2nd value (if 2nd variable is present)
 
 array or slice  a  [n]E, *[n]E, or []E    index    i  int    a[i]       E
-string          s  string type            index    i  int    see below  int
+string          s  string type            index    i  int    see below  rune
 map             m  map[K]V                key      k  K      m[k]       V
 channel         c  chan E                 element  e  E
 </pre>
@@ -4077,7 +4084,7 @@ or slice itself. For a <code>nil</code> slice, the number of iterations is 0.
 For a string value, the "range" clause iterates over the Unicode code points
 in the string starting at byte index 0.  On successive iterations, the index value will be the
 index of the first byte of successive UTF-8-encoded code points in the string,
-and the second value, of type <code>int</code>, will be the value of
+and the second value, of type <code>rune</code>, will be the value of
 the corresponding code point.  If the iteration encounters an invalid
 UTF-8 sequence, the second value will be <code>0xFFFD</code>,
 the Unicode replacement character, and the next iteration will advance
