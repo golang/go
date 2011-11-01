@@ -160,14 +160,10 @@ func TestParser(t *testing.T) {
 				t.Errorf("%s test #%d %q, got vs want:\n----\n%s----\n%s----", filename, i, text, got, want)
 				continue
 			}
-			// Check that rendering and re-parsing results in an identical tree.
-			if filename == "tests1.dat" && (i == 30 || i == 77) {
-				// Some tests in tests1.dat have such messed-up markup that a correct parse
-				// results in a non-conforming tree (one <a> element nested inside another).
-				// Therefore when it is rendered and re-parsed, it isn't the same.
-				// So we skip rendering on that test.
+			if renderTestBlacklist[text] {
 				continue
 			}
+			// Check that rendering and re-parsing results in an identical tree.
 			pr, pw := io.Pipe()
 			go func() {
 				pw.CloseWithError(Render(pw, doc))
@@ -186,4 +182,16 @@ func TestParser(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Some test input result in parse trees are not 'well-formed' despite
+// following the HTML5 recovery algorithms. Rendering and re-parsing such a
+// tree will not result in an exact clone of that tree. We blacklist such
+// inputs from the render test.
+var renderTestBlacklist = map[string]bool{
+	// The second <a> will be reparented to the first <table>'s parent. This
+	// results in an <a> whose parent is an <a>, which is not 'well-formed'.
+	`<a><table><td><a><table></table><a></tr><a></table><b>X</b>C<a>Y`: true,
+	// The second <a> will be reparented, similar to the case above.
+	`<a href="blah">aba<table><a href="foo">br<tr><td></td></tr>x</table>aoe`: true,
 }
