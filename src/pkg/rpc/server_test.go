@@ -311,8 +311,9 @@ func (codec *CodecEmulator) ReadRequestBody(argv interface{}) os.Error {
 func (codec *CodecEmulator) WriteResponse(resp *Response, reply interface{}) os.Error {
 	if resp.Error != "" {
 		codec.err = os.NewError(resp.Error)
+	} else {
+		*codec.reply = *(reply.(*Reply))
 	}
-	*codec.reply = *(reply.(*Reply))
 	return nil
 }
 
