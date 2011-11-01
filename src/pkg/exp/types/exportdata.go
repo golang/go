@@ -17,7 +17,7 @@ import (
 
 func readGopackHeader(buf *bufio.Reader) (name string, size int, err os.Error) {
 	// See $GOROOT/include/ar.h.
-	hdr := make([]byte, 64+12+6+6+8+10+2)
+	hdr := make([]byte, 16+12+6+6+8+10+2)
 	_, err = io.ReadFull(buf, hdr)
 	if err != nil {
 		return
@@ -25,13 +25,13 @@ func readGopackHeader(buf *bufio.Reader) (name string, size int, err os.Error) {
 	if trace {
 		fmt.Printf("header: %s", hdr)
 	}
-	s := strings.TrimSpace(string(hdr[64+12+6+6+8:][:10]))
+	s := strings.TrimSpace(string(hdr[16+12+6+6+8:][:10]))
 	size, err = strconv.Atoi(s)
 	if err != nil || hdr[len(hdr)-2] != '`' || hdr[len(hdr)-1] != '\n' {
 		err = os.NewError("invalid archive header")
 		return
 	}
-	name = strings.TrimSpace(string(hdr[:64]))
+	name = strings.TrimSpace(string(hdr[:16]))
 	return
 }
 
