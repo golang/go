@@ -191,7 +191,7 @@ token is
 	<li>an
 	    <a href="#Identifiers">identifier</a>
 	</li>
-	
+
 	<li>an
 	    <a href="#Integer_literals">integer</a>,
 	    <a href="#Floating-point_literals">floating-point</a>,
@@ -199,14 +199,14 @@ token is
 	    <a href="#Character_literals">character</a>, or
 	    <a href="#String_literals">string</a> literal
 	</li>
-	
+
 	<li>one of the <a href="#Keywords">keywords</a>
 	    <code>break</code>,
 	    <code>continue</code>,
 	    <code>fallthrough</code>, or
 	    <code>return</code>
 	</li>
-	
+
 	<li>one of the <a href="#Operators_and_Delimiters">operators and delimiters</a>
 	    <code>++</code>,
 	    <code>--</code>,
@@ -1237,7 +1237,7 @@ make(chan int, 100)
 
 <p>
 The capacity, in number of elements, sets the size of the buffer in the channel. If the
-capacity is greater than zero, the channel is asynchronous: communication operations 
+capacity is greater than zero, the channel is asynchronous: communication operations
 succeed without blocking if the buffer is not full (sends) or not empty (receives),
 and elements are received in the order they are sent.
 If the capacity is zero or absent, the communication succeeds only when both a sender and
@@ -4326,7 +4326,7 @@ func complex_f3() (re float64, im float64) {
 func (devnull) Write(p []byte) (n int, _ os.Error) {
 	n = len(p)
 	return
-} 
+}
 </pre>
 	</li>
 </ol>
@@ -4441,7 +4441,7 @@ L1:
 </pre>
 
 <p>
-is erroneous because the label <code>L1</code> is inside 
+is erroneous because the label <code>L1</code> is inside
 the "for" statement's block but the <code>goto</code> is not.
 </p>
 
@@ -4801,7 +4801,7 @@ var rl = real(c64)                 // float32
 
 <p> Two built-in functions, <code>panic</code> and <code>recover</code>,
 assist in reporting and handling <a href="#Run_time_panics">run-time panics</a>
-and program-defined error conditions. 
+and program-defined error conditions.
 </p>
 
 <pre class="grammar">
@@ -4851,7 +4851,7 @@ run-time panics raised by <code>g</code>.
 <pre>
 func protect(g func()) {
 	defer func() {
-		log.Println("done")  // Println executes normally even in there is a panic
+		log.Println("done")  // Println executes normally even if there is a panic
 		if x := recover(); x != nil {
 			log.Printf("run time panic: %v", x)
 		}
@@ -5145,7 +5145,7 @@ A complete program is created by linking a single, unimported package
 called the <i>main package</i> with all the packages it imports, transitively.
 The main package must
 have package name <code>main</code> and
-declare a function <code>main</code> that takes no 
+declare a function <code>main</code> that takes no
 arguments and returns no value.
 </p>
 
@@ -5161,7 +5161,7 @@ It does not wait for other (non-<code>main</code>) goroutines to complete.
 </p>
 
 <p>
-Package initialization&mdash;variable initialization and the invocation of 
+Package initialization&mdash;variable initialization and the invocation of
 <code>init</code> functions&mdash;happens in a single goroutine,
 sequentially, one package at a time.
 An <code>init</code> function may launch other goroutines, which can run
