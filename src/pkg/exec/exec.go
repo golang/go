@@ -203,7 +203,7 @@ func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err os.Error) {
 // status.
 //
 // If the command fails to run or doesn't complete successfully, the
-// error is of type *os.Waitmsg. Other error types may be
+// error is of type *ExitError. Other error types may be
 // returned for I/O problems.
 func (c *Cmd) Run() os.Error {
 	if err := c.Start(); err != nil {
@@ -256,6 +256,15 @@ func (c *Cmd) Start() os.Error {
 	return nil
 }
 
+// An ExitError reports an unsuccessful exit by a command.
+type ExitError struct {
+	*os.Waitmsg
+}
+
+func (e *ExitError) String() string {
+	return e.Waitmsg.String()
+}
+
 // Wait waits for the command to exit.
 // It must have been started by Start.
 //
@@ -264,7 +273,7 @@ func (c *Cmd) Start() os.Error {
 // status.
 //
 // If the command fails to run or doesn't complete successfully, the
-// error is of type *os.Waitmsg. Other error types may be
+// error is of type *ExitError. Other error types may be
 // returned for I/O problems.
 func (c *Cmd) Wait() os.Error {
 	if c.Process == nil {
@@ -290,7 +299,7 @@ func (c *Cmd) Wait() os.Error {
 	if err != nil {
 		return err
 	} else if !msg.Exited() || msg.ExitStatus() != 0 {
-		return msg
+		return &ExitError{msg}
 	}
 
 	return copyError

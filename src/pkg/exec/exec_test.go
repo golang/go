@@ -53,8 +53,8 @@ func TestCatStdin(t *testing.T) {
 func TestCatGoodAndBadFile(t *testing.T) {
 	// Testing combined output and error values.
 	bs, err := helperCommand("cat", "/bogus/file.foo", "exec_test.go").CombinedOutput()
-	if _, ok := err.(*os.Waitmsg); !ok {
-		t.Errorf("expected Waitmsg from cat combined; got %T: %v", err, err)
+	if _, ok := err.(*ExitError); !ok {
+		t.Errorf("expected *ExitError from cat combined; got %T: %v", err, err)
 	}
 	s := string(bs)
 	sp := strings.SplitN(s, "\n", 2)
@@ -81,12 +81,12 @@ func TestNoExistBinary(t *testing.T) {
 func TestExitStatus(t *testing.T) {
 	// Test that exit values are returned correctly
 	err := helperCommand("exit", "42").Run()
-	if werr, ok := err.(*os.Waitmsg); ok {
+	if werr, ok := err.(*ExitError); ok {
 		if s, e := werr.String(), "exit status 42"; s != e {
 			t.Errorf("from exit 42 got exit %q, want %q", s, e)
 		}
 	} else {
-		t.Fatalf("expected Waitmsg from exit 42; got %T: %v", err, err)
+		t.Fatalf("expected *ExitError from exit 42; got %T: %v", err, err)
 	}
 }
 
