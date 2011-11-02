@@ -173,7 +173,7 @@ func tRunner(t *T, test *InternalTest) {
 
 // An internal function but exported because it is cross-package; part of the implementation
 // of gotest.
-func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
+func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
 	flag.Parse()
 	parseCpuList()
 
@@ -201,7 +201,7 @@ func report(t *T) {
 	}
 }
 
-func RunTests(matchString func(pat, str string) (bool, os.Error), tests []InternalTest) (ok bool) {
+func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool) {
 	ok = true
 	if len(tests) == 0 {
 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
@@ -217,7 +217,7 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
 		for i := 0; i < len(tests); i++ {
 			matched, err := matchString(*match, tests[i].Name)
 			if err != nil {
-				println("invalid regexp for -test.run:", err.String())
+				println("invalid regexp for -test.run:", err.Error())
 				os.Exit(1)
 			}
 			if !matched {

@@ -6,7 +6,7 @@ package net
 
 import (
 	"flag"
-	"os"
+	"io"
 	"regexp"
 	"runtime"
 	"testing"
@@ -79,7 +79,7 @@ func TestDialError(t *testing.T) {
 			t.Errorf("#%d: nil error, want match for %#q", i, tt.Pattern)
 			continue
 		}
-		s := e.String()
+		s := e.Error()
 		match, _ := regexp.MatchString(tt.Pattern, s)
 		if !match {
 			t.Errorf("#%d: %q, want match for %#q", i, s, tt.Pattern)
@@ -119,8 +119,8 @@ func TestReverseAddress(t *testing.T) {
 		if len(tt.ErrPrefix) == 0 && e != nil {
 			t.Errorf("#%d: expected <nil>, got %q (error)", i, e)
 		}
-		if e != nil && e.(*DNSError).Error != tt.ErrPrefix {
-			t.Errorf("#%d: expected %q, got %q (mismatched error)", i, tt.ErrPrefix, e.(*DNSError).Error)
+		if e != nil && e.(*DNSError).Err != tt.ErrPrefix {
+			t.Errorf("#%d: expected %q, got %q (mismatched error)", i, tt.ErrPrefix, e.(*DNSError).Err)
 		}
 		if a != tt.Reverse {
 			t.Errorf("#%d: expected %q, got %q (reverse address)", i, tt.Reverse, a)
@@ -146,7 +146,7 @@ func TestShutdown(t *testing.T) {
 		}
 		var buf [10]byte
 		n, err := c.Read(buf[:])
-		if n != 0 || err != os.EOF {
+		if n != 0 || err != io.EOF {
 			t.Fatalf("server Read = %d, %v; want 0, os.EOF", n, err)
 		}
 		c.Write([]byte("response"))

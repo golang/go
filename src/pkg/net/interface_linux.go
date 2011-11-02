@@ -16,7 +16,7 @@ import (
 // If the ifindex is zero, interfaceTable returns mappings of all
 // network interfaces.  Otheriwse it returns a mapping of a specific
 // interface.
-func interfaceTable(ifindex int) ([]Interface, os.Error) {
+func interfaceTable(ifindex int) ([]Interface, error) {
 	var (
 		ift  []Interface
 		tab  []byte
@@ -101,11 +101,11 @@ func linkFlags(rawFlags uint32) Flags {
 // If the ifindex is zero, interfaceAddrTable returns addresses
 // for all network interfaces.  Otherwise it returns addresses
 // for a specific interface.
-func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
+func interfaceAddrTable(ifindex int) ([]Addr, error) {
 	var (
 		tab  []byte
 		e    int
-		err  os.Error
+		err  error
 		ifat []Addr
 		msgs []syscall.NetlinkMessage
 	)
@@ -128,7 +128,7 @@ func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
 	return ifat, nil
 }
 
-func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, os.Error) {
+func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
 	var ifat []Addr
 
 	for _, m := range msgs {
@@ -175,10 +175,10 @@ func newAddr(attrs []syscall.NetlinkRouteAttr, family int) []Addr {
 // If the ifindex is zero, interfaceMulticastAddrTable returns
 // addresses for all network interfaces.  Otherwise it returns
 // addresses for a specific interface.
-func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
+func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
 	var (
 		ifi *Interface
-		err os.Error
+		err error
 	)
 
 	if ifindex > 0 {

@@ -7,7 +7,6 @@ package template
 import (
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"runtime"
 	"strings"
@@ -70,25 +69,25 @@ func (s *state) errorf(format string, args ...interface{}) {
 }
 
 // error terminates processing.
-func (s *state) error(err os.Error) {
+func (s *state) error(err error) {
 	s.errorf("%s", err)
 }
 
 // errRecover is the handler that turns panics into returns from the top
 // level of Parse.
-func errRecover(errp *os.Error) {
+func errRecover(errp *error) {
 	e := recover()
 	if e != nil {
 		if _, ok := e.(runtime.Error); ok {
 			panic(e)
 		}
-		*errp = e.(os.Error)
+		*errp = e.(error)
 	}
 }
 
 // Execute applies a parsed template to the specified data object,
 // writing the output to wr.
-func (t *Template) Execute(wr io.Writer, data interface{}) (err os.Error) {
+func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
 	defer errRecover(&err)
 	value := reflect.ValueOf(data)
 	state := &state{
@@ -446,7 +445,7 @@ func methodByName(receiver reflect.Value, name string) (reflect.Value, bool) {
 }
 
 var (
-	osErrorType     = reflect.TypeOf((*os.Error)(nil)).Elem()
+	osErrorType     = reflect.TypeOf((*error)(nil)).Elem()
 	fmtStringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
 )
 
@@ -495,7 +494,7 @@ func (s *state) evalCall(dot, fun reflect.Value, name string, args []parse.Node,
 	result := fun.Call(argv)
 	// If we have an os.Error that is not nil, stop execution and return that error to the caller.
 	if len(result) == 2 && !result[1].IsNil() {
-		s.errorf("error calling %s: %s", name, result[1].Interface().(os.Error))
+		s.errorf("error calling %s: %s", name, result[1].Interface().(error))
 	}
 	return result[0]
 }

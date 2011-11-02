@@ -5,7 +5,6 @@
 package strconv_test
 
 import (
-	"os"
 	. "strconv"
 	"testing"
 )
@@ -13,7 +12,7 @@ import (
 type atobTest struct {
 	in  string
 	out bool
-	err os.Error
+	err error
 }
 
 var atobtests = []atobTest{
@@ -42,7 +41,7 @@ func TestAtob(t *testing.T) {
 				t.Errorf("%s: expected %s but got nil", test.in, test.err)
 			} else {
 				// NumError assertion must succeed; it's the only thing we return.
-				if test.err != e.(*NumError).Error {
+				if test.err != e.(*NumError).Err {
 					t.Errorf("%s: expected %s but got %s", test.in, test.err, e)
 				}
 			}

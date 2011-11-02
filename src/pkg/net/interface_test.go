@@ -6,7 +6,6 @@ package net
 
 import (
 	"bytes"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -101,11 +100,11 @@ var mactests = []struct {
 	{"0123.4567.89AB.CDEF", HardwareAddr{1, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}, ""},
 }
 
-func match(err os.Error, s string) bool {
+func match(err error, s string) bool {
 	if s == "" {
 		return err == nil
 	}
-	return err != nil && strings.Contains(err.String(), s)
+	return err != nil && strings.Contains(err.Error(), s)
 }
 
 func TestParseMAC(t *testing.T) {

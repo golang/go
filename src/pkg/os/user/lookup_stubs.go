@@ -8,14 +8,13 @@ package user
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 )
 
-func Lookup(username string) (*User, os.Error) {
+func Lookup(username string) (*User, error) {
 	return nil, fmt.Errorf("user: Lookup not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
 }
 
-func LookupId(int) (*User, os.Error) {
+func LookupId(int) (*User, error) {
 	return nil, fmt.Errorf("user: LookupId not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
 }

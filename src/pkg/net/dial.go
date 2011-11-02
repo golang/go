@@ -4,9 +4,7 @@
 
 package net
 
-import "os"
-
-func resolveNetAddr(op, net, addr string) (a Addr, err os.Error) {
+func resolveNetAddr(op, net, addr string) (a Addr, err error) {
 	if addr == "" {
 		return nil, &OpError{op, net, nil, errMissingAddress}
 	}
@@ -44,7 +42,7 @@ func resolveNetAddr(op, net, addr string) (a Addr, err os.Error) {
 //	Dial("tcp", "google.com:80")
 //	Dial("tcp", "[de:ad:be:ef::ca:fe]:80")
 //
-func Dial(net, addr string) (c Conn, err os.Error) {
+func Dial(net, addr string) (c Conn, err error) {
 	addri, err := resolveNetAddr("dial", net, addr)
 	if err != nil {
 		return nil, err
@@ -70,7 +68,7 @@ func Dial(net, addr string) (c Conn, err os.Error) {
 // Listen announces on the local network address laddr.
 // The network string net must be a stream-oriented
 // network: "tcp", "tcp4", "tcp6", or "unix", or "unixpacket".
-func Listen(net, laddr string) (l Listener, err os.Error) {
+func Listen(net, laddr string) (l Listener, err error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 		var la *TCPAddr
@@ -103,7 +101,7 @@ func Listen(net, laddr string) (l Listener, err os.Error) {
 // ListenPacket announces on the local network address laddr.
 // The network string net must be a packet-oriented network:
 // "udp", "udp4", "udp6", or "unixgram".
-func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
+func ListenPacket(net, laddr string) (c PacketConn, err error) {
 	switch net {
 	case "udp", "udp4", "udp6":
 		var la *UDPAddr

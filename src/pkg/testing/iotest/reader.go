@@ -6,8 +6,8 @@
 package iotest
 
 import (
+	"errors"
 	"io"
-	"os"
 )
 
 // OneByteReader returns a Reader that implements
@@ -18,7 +18,7 @@ type oneByteReader struct {
 	r io.Reader
 }
 
-func (r *oneByteReader) Read(p []byte) (int, os.Error) {
+func (r *oneByteReader) Read(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -33,7 +33,7 @@ type halfReader struct {
 	r io.Reader
 }
 
-func (r *halfReader) Read(p []byte) (int, os.Error) {
+func (r *halfReader) Read(p []byte) (int, error) {
 	return r.r.Read(p[0 : (len(p)+1)/2])
 }
 
@@ -48,7 +48,7 @@ type dataErrReader struct {
 	data   []byte
 }
 
-func (r *dataErrReader) Read(p []byte) (n int, err os.Error) {
+func (r *dataErrReader) Read(p []byte) (n int, err error) {
 	// loop because first call needs two reads:
 	// one to get data and a second to look for an error.
 	for {
@@ -66,7 +66,7 @@ func (r *dataErrReader) Read(p []byte) (n int, err os.Error) {
 	return
 }
 
-var ErrTimeout = os.NewError("timeout")
+var ErrTimeout = errors.New("timeout")
 
 // TimeoutReader returns ErrTimeout on the second read
 // with no data.  Subsequent calls to read succeed.
@@ -77,7 +77,7 @@ type timeoutReader struct {
 	count int
 }
 
-func (r *timeoutReader) Read(p []byte) (int, os.Error) {
+func (r *timeoutReader) Read(p []byte) (int, error) {
 	r.count++
 	if r.count == 2 {
 		return 0, ErrTimeout

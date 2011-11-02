@@ -7,19 +7,19 @@
 package url
 
 import (
-	"os"
+	"errors"
 	"strconv"
 	"strings"
 )
 
 // Error reports an error and the operation and URL that caused it.
 type Error struct {
-	Op    string
-	URL   string
-	Error os.Error
+	Op  string
+	URL string
+	Err error
 }
 
-func (e *Error) String() string { return e.Op + " " + e.URL + ": " + e.Error.String() }
+func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
 
 func ishex(c byte) bool {
 	switch {
@@ -57,7 +57,7 @@ const (
 
 type EscapeError string
 
-func (e EscapeError) String() string {
+func (e EscapeError) Error() string {
 	return "invalid URL escape " + strconv.Quote(string(e))
 }
 
@@ -115,13 +115,13 @@ func shouldEscape(c byte, mode encoding) bool {
 // QueryUnescape does the inverse transformation of QueryEscape, converting
 // %AB into the byte 0xAB and '+' into ' ' (space). It returns an error if
 // any % is not followed by two hexadecimal digits.
-func QueryUnescape(s string) (string, os.Error) {
+func QueryUnescape(s string) (string, error) {
 	return unescape(s, encodeQueryComponent)
 }
 
 // unescape unescapes a string; the mode specifies
 // which section of the URL string is being unescaped.
-func unescape(s string, mode encoding) (string, os.Error) {
+func unescape(s string, mode encoding) (string, error) {
 	// Count %, check that they're well-formed.
 	n := 0
 	hasPlus := false
@@ -226,7 +226,7 @@ func escape(s string, mode encoding) string {
 // ``is NOT RECOMMENDED, because the passing of authentication
 // information in clear text (such as URI) has proven to be a
 // security risk in almost every case where it has been used.''
-func UnescapeUserinfo(rawUserinfo string) (user, password string, err os.Error) {
+func UnescapeUserinfo(rawUserinfo string) (user, password string, err error) {
 	u, p := split(rawUserinfo, ':', true)
 	if user, err = unescape(u, encodeUserPassword); err != nil {
 		return "", "", err
@@ -280,7 +280,7 @@ type URL struct {
 // Maybe rawurl is of the form scheme:path.
 // (Scheme must be [a-zA-Z][a-zA-Z0-9+-.]*)
 // If so, return scheme, path; else return "", rawurl.
-func getscheme(rawurl string) (scheme, path string, err os.Error) {
+func getscheme(rawurl string) (scheme, path string, err error) {
 	for i := 0; i < len(rawurl); i++ {
 		c := rawurl[i]
 		switch {
@@ -292,7 +292,7 @@ func getscheme(rawurl string) (scheme, path string, err os.Error) {
 			}
 		case c == ':':
 			if i == 0 {
-				return "", "", os.NewError("missing protocol scheme")
+				return "", "", errors.New("missing protocol scheme")
 			}
 			return rawurl[0:i], rawurl[i+1:], nil
 		default:
@@ -323,7 +323,7 @@ func split(s string, c byte, cutc bool) (string, string) {
 // The string rawurl is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
 // The rawurl may be relative or absolute.
-func Parse(rawurl string) (url *URL, err os.Error) {
+func Parse(rawurl string) (url *URL, err error) {
 	return parse(rawurl, false)
 }
 
@@ -332,7 +332,7 @@ func Parse(rawurl string) (url *URL, err os.Error) {
 // only as an absolute URI or an absolute path.
 // The string rawurl is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
-func ParseRequest(rawurl string) (url *URL, err os.Error) {
+func ParseRequest(rawurl string) (url *URL, err error) {
 	return parse(rawurl, true)
 }
 
@@ -340,14 +340,14 @@ func ParseRequest(rawurl string) (url *URL, err os.Error) {
 // viaRequest is true, the URL is assumed to have arrived via an HTTP request,
 // in which case only absolute URLs or path-absolute relative URLs are allowed.
 // If viaRequest is false, all forms of relative URLs are allowed.
-func parse(rawurl string, viaRequest bool) (url *URL, err os.Error) {
+func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 	var (
 		leadingSlash bool
 		path         string
 	)
 
 	if rawurl == "" {
-		err = os.NewError("empty url")
+		err = errors.New("empty url")
 		goto Error
 	}
 	url = new(URL)
@@ -373,7 +373,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err os.Error) {
 		url.OpaquePath = true
 	} else {
 		if viaRequest && !leadingSlash {
-			err = os.NewError("invalid URI for request")
+			err = errors.New("invalid URI for request")
 			goto Error
 		}
 
@@ -407,7 +407,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err os.Error) {
 
 		if strings.Contains(rawHost, "%") {
 			// Host cannot contain escaped characters.
-			err = os.NewError("hexadecimal escape in host")
+			err = errors.New("hexadecimal escape in host")
 			goto Error
 		}
 		url.Host = rawHost
@@ -424,7 +424,7 @@ Error:
 }
 
 // ParseWithReference is like Parse but allows a trailing #fragment.
-func ParseWithReference(rawurlref string) (url *URL, err os.Error) {
+func ParseWithReference(rawurlref string) (url *URL, err error) {
 	// Cut off #frag.
 	rawurl, frag := split(rawurlref, '#', false)
 	if url, err = Parse(rawurl); err != nil {
@@ -525,13 +525,13 @@ func (v Values) Del(key string) {
 // ParseQuery always returns a non-nil map containing all the
 // valid query parameters found; err describes the first decoding error
 // encountered, if any.
-func ParseQuery(query string) (m Values, err os.Error) {
+func ParseQuery(query string) (m Values, err error) {
 	m = make(Values)
 	err = parseQuery(m, query)
 	return
 }
 
-func parseQuery(m Values, query string) (err os.Error) {
+func parseQuery(m Values, query string) (err error) {
 	for query != "" {
 		key := query
 		if i := strings.IndexAny(key, "&;"); i >= 0 {
@@ -615,7 +615,7 @@ func (url *URL) IsAbs() bool {
 // Parse parses a URL in the context of a base URL.  The URL in ref
 // may be relative or absolute.  Parse returns nil, err on parse
 // failure, otherwise its return value is the same as ResolveReference.
-func (base *URL) Parse(ref string) (*URL, os.Error) {
+func (base *URL) Parse(ref string) (*URL, error) {
 	refurl, err := Parse(ref)
 	if err != nil {
 		return nil, err

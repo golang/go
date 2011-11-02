@@ -8,6 +8,7 @@ package filepath
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"runtime"
 	"sort"
@@ -182,7 +183,7 @@ func Ext(path string) string {
 // EvalSymlinks returns the path name after the evaluation of any symbolic
 // links.
 // If path is relative it will be evaluated relative to the current directory.
-func EvalSymlinks(path string) (string, os.Error) {
+func EvalSymlinks(path string) (string, error) {
 	if runtime.GOOS == "windows" {
 		// Symlinks are not supported under windows.
 		_, err := os.Lstat(path)
@@ -198,7 +199,7 @@ func EvalSymlinks(path string) (string, os.Error) {
 	var b bytes.Buffer
 	for n := 0; path != ""; n++ {
 		if n > maxIter {
-			return "", os.NewError("EvalSymlinks: too many links in " + originalPath)
+			return "", errors.New("EvalSymlinks: too many links in " + originalPath)
 		}
 
 		// find next path component, p
@@ -247,7 +248,7 @@ func EvalSymlinks(path string) (string, os.Error) {
 // If the path is not absolute it will be joined with the current
 // working directory to turn it into an absolute path.  The absolute
 // path name for a given file is not guaranteed to be unique.
-func Abs(path string) (string, os.Error) {
+func Abs(path string) (string, error) {
 	if IsAbs(path) {
 		return Clean(path), nil
 	}
@@ -263,7 +264,7 @@ func Abs(path string) (string, os.Error) {
 // Join(basepath, Rel(basepath, targpath)) is equivalent to targpath itself.
 // An error is returned if targpath can't be made relative to basepath or if
 // knowing the current working directory would be necessary to compute it.
-func Rel(basepath, targpath string) (string, os.Error) {
+func Rel(basepath, targpath string) (string, error) {
 	baseVol := VolumeName(basepath)
 	targVol := VolumeName(targpath)
 	base := Clean(basepath)
@@ -280,7 +281,7 @@ func Rel(basepath, targpath string) (string, os.Error) {
 	baseSlashed := len(base) > 0 && base[0] == Separator
 	targSlashed := len(targ) > 0 && targ[0] == Separator
 	if baseSlashed != targSlashed || baseVol != targVol {
-		return "", os.NewError("Rel: can't make " + targ + " relative to " + base)
+		return "", errors.New("Rel: can't make " + targ + " relative to " + base)
 	}
 	// Position base[b0:bi] and targ[t0:ti] at the first differing elements.
 	bl := len(base)
@@ -306,7 +307,7 @@ func Rel(basepath, targpath string) (string, os.Error) {
 		t0 = ti
 	}
 	if base[b0:bi] == ".." {
-		return "", os.NewError("Rel: can't make " + targ + " relative to " + base)
+		return "", errors.New("Rel: can't make " + targ + " relative to " + base)
 	}
 	if b0 != bl {
 		// Base elements left. Must go up before going down.
@@ -330,7 +331,7 @@ func Rel(basepath, targpath string) (string, os.Error) {
 // SkipDir is used as a return value from WalkFuncs to indicate that
 // the directory named in the call is to be skipped. It is not returned
 // as an error by any function.
-var SkipDir = os.NewError("skip this directory")
+var SkipDir = errors.New("skip this directory")
 
 // WalkFunc is the type of the function called for each file or directory
 // visited by Walk.  If there was a problem walking to the file or directory
@@ -340,10 +341,10 @@ var SkipDir = os.NewError("skip this directory")
 // sole exception is that if path is a directory and the function returns the
 // special value SkipDir, the contents of the directory are skipped
 // and processing continues as usual on the next file.
-type WalkFunc func(path string, info *os.FileInfo, err os.Error) os.Error
+type WalkFunc func(path string, info *os.FileInfo, err error) error
 
 // walk recursively descends path, calling w.
-func walk(path string, info *os.FileInfo, walkFn WalkFunc) os.Error {
+func walk(path string, info *os.FileInfo, walkFn WalkFunc) error {
 	err := walkFn(path, info, nil)
 	if err != nil {
 		if info.IsDirectory() && err == SkipDir {
@@ -374,7 +375,7 @@ func walk(path string, info *os.FileInfo, walkFn WalkFunc) os.Error {
 // and directories are filtered by walkFn. The files are walked in lexical
 // order, which makes the output deterministic but means that for very
 // large directories Walk can be inefficient.
-func Walk(root string, walkFn WalkFunc) os.Error {
+func Walk(root string, walkFn WalkFunc) error {
 	info, err := os.Lstat(root)
 	if err != nil {
 		return walkFn(root, nil, err)
@@ -385,7 +386,7 @@ func Walk(root string, walkFn WalkFunc) os.Error {
 // readDir reads the directory named by dirname and returns
 // a sorted list of directory entries.
 // Copied from io/ioutil to avoid the circular import.
-func readDir(dirname string) ([]*os.FileInfo, os.Error) {
+func readDir(dirname string) ([]*os.FileInfo, error) {
 	f, err := os.Open(dirname)
 	if err != nil {
 		return nil, err

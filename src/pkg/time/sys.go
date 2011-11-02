@@ -29,7 +29,7 @@ func Nanoseconds() int64 {
 // Sleep pauses the current goroutine for at least ns nanoseconds.
 // Higher resolution sleeping may be provided by syscall.Nanosleep 
 // on some operating systems.
-func Sleep(ns int64) os.Error {
+func Sleep(ns int64) error {
 	_, err := sleep(Nanoseconds(), ns)
 	return err
 }
@@ -37,7 +37,7 @@ func Sleep(ns int64) os.Error {
 // sleep takes the current time and a duration,
 // pauses for at least ns nanoseconds, and
 // returns the current time and an error.
-func sleep(t, ns int64) (int64, os.Error) {
+func sleep(t, ns int64) (int64, error) {
 	// TODO(cw): use monotonic-time once it's available
 	end := t + ns
 	for t < end {

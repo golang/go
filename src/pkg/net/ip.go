@@ -12,8 +12,6 @@
 
 package net
 
-import "os"
-
 // IP address lengths (bytes).
 const (
 	IPv4len = 4
@@ -594,7 +592,7 @@ type ParseError struct {
 	Text string
 }
 
-func (e *ParseError) String() string {
+func (e *ParseError) Error() string {
 	return "invalid " + e.Type + ": " + e.Text
 }
 
@@ -627,7 +625,7 @@ func ParseIP(s string) IP {
 // It returns the IP address and the network implied by the IP
 // and mask.  For example, ParseCIDR("192.168.100.1/16") returns
 // the IP address 192.168.100.1 and the network 192.168.0.0/16.
-func ParseCIDR(s string) (IP, *IPNet, os.Error) {
+func ParseCIDR(s string) (IP, *IPNet, error) {
 	i := byteIndex(s, '/')
 	if i < 0 {
 		return nil, nil, &ParseError{"CIDR address", s}

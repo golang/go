@@ -33,7 +33,7 @@ func (o *sendfileOp) Name() string {
 // if handled == false, sendFile performed no work.
 //
 // Note that sendfile for windows does not suppport >2GB file.
-func sendFile(c *netFD, r io.Reader) (written int64, err os.Error, handled bool) {
+func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	var n int64 = 0 // by default, copy until EOF
 
 	lr, ok := r.(*io.LimitedReader)

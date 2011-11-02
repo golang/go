@@ -6,7 +6,7 @@ package strings_test
 
 import (
 	"bytes"
-	"os"
+	"io"
 	"reflect"
 	"strconv"
 	. "strings"
@@ -759,7 +759,7 @@ func TestReadByte(t *testing.T) {
 		var res bytes.Buffer
 		for {
 			b, e := reader.ReadByte()
-			if e == os.EOF {
+			if e == io.EOF {
 				break
 			}
 			if e != nil {
@@ -799,7 +799,7 @@ func TestReadRune(t *testing.T) {
 		res := ""
 		for {
 			r, z, e := reader.ReadRune()
-			if e == os.EOF {
+			if e == io.EOF {
 				break
 			}
 			if e != nil {

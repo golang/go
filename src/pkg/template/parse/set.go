@@ -6,14 +6,13 @@ package parse
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 )
 
 // Set returns a slice of Trees created by parsing the template set
 // definition in the argument string. If an error is encountered,
 // parsing stops and an empty slice is returned with the error.
-func Set(text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (tree map[string]*Tree, err os.Error) {
+func Set(text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (tree map[string]*Tree, err error) {
 	tree = make(map[string]*Tree)
 	defer (*Tree)(nil).recover(&err)
 	lex := lex("set", text, leftDelim, rightDelim)

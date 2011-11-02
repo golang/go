@@ -5,10 +5,10 @@
 package netchan
 
 import (
+	"errors"
 	"io"
 	"log"
 	"net"
-	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -30,7 +30,7 @@ type Importer struct {
 	chanLock sync.Mutex // protects access to channel map
 	names    map[string]*netChan
 	chans    map[int]*netChan
-	errors   chan os.Error
+	errors   chan error
 	maxId    int
 	mu       sync.Mutex // protects remaining fields
 	unacked  int64      // number of unacknowledged sends.
@@ -45,14 +45,14 @@ func NewImporter(conn io.ReadWriter) *Importer {
 	imp.encDec = newEncDec(conn)
 	imp.chans = make(map[int]*netChan)
 	imp.names = make(map[string]*netChan)
-	imp.errors = make(chan os.Error, 10)
+	imp.errors = make(chan error, 10)
 	imp.unacked = 0
 	go imp.run()
 	return imp
 }
 
 // Import imports a set of channels from the given network and address.
-func Import(network, remoteaddr string) (*Importer, os.Error) {
+func Import(network, remoteaddr string) (*Importer, error) {
 	conn, err := net.Dial(network, remoteaddr)
 	if err != nil {
 		return nil, err
@@ -80,12 +80,12 @@ func (imp *Importer) run() {
 	hdr := new(header)
 	hdrValue := reflect.ValueOf(hdr)
 	ackHdr := new(header)
-	err := new(error)
+	err := new(error_)
 	errValue := reflect.ValueOf(err)
 	for {
 		*hdr = header{}
 		if e := imp.decode(hdrValue); e != nil {
-			if e != os.EOF {
+			if e != io.EOF {
 				impLog("header:", e)
 				imp.shutdown()
 			}
@@ -102,7 +102,7 @@ func (imp *Importer) run() {
 			if err.Error != "" {
 				impLog("response error:", err.Error)
 				select {
-				case imp.errors <- os.NewError(err.Error):
+				case imp.errors <- errors.New(err.Error):
 					continue // errors are not acknowledged
 				default:
 					imp.shutdown()
@@ -169,13 +169,13 @@ func (imp *Importer) getChan(id int, errOk bool) *netChan {
 // can be read. Clients of the importer are not required to read the error
 // channel for correct execution. However, if too many errors occur
 // without being read from the error channel, the importer will shut down.
-func (imp *Importer) Errors() chan os.Error {
+func (imp *Importer) Errors() chan error {
 	return imp.errors
 }
 
 // Import imports a channel of the given type, size and specified direction.
 // It is equivalent to ImportNValues with a count of -1, meaning unbounded.
-func (imp *Importer) Import(name string, chT interface{}, dir Dir, size int) os.Error {
+func (imp *Importer) Import(name string, chT interface{}, dir Dir, size int) error {
 	return imp.ImportNValues(name, chT, dir, size, -1)
 }
 
@@ -194,7 +194,7 @@ func (imp *Importer) Import(name string, chT interface{}, dir Dir, size int) os.
 //	err = imp.ImportNValues("name", ch, Recv, 1, 1)
 //	if err != nil { log.Fatal(err) }
 //	fmt.Printf("%+v\n", <-ch)
-func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, size, n int) os.Error {
+func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, size, n int) error {
 	ch, err := checkChan(chT, dir)
 	if err != nil {
 		return err
@@ -203,7 +203,7 @@ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, size, 
 	defer imp.chanLock.Unlock()
 	_, present := imp.names[name]
 	if present {
-		return os.NewError("channel name already being imported:" + name)
+		return errors.New("channel name already being imported:" + name)
 	}
 	if size < 1 {
 		size = 1
@@ -249,12 +249,12 @@ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, size, 
 
 // Hangup disassociates the named channel from the Importer and closes
 // the channel.  Messages in flight for the channel may be dropped.
-func (imp *Importer) Hangup(name string) os.Error {
+func (imp *Importer) Hangup(name string) error {
 	imp.chanLock.Lock()
 	defer imp.chanLock.Unlock()
 	nc := imp.names[name]
 	if nc == nil {
-		return os.NewError("netchan import: hangup: no such channel: " + name)
+		return errors.New("netchan import: hangup: no such channel: " + name)
 	}
 	delete(imp.names, name)
 	delete(imp.chans, nc.id)
@@ -275,11 +275,11 @@ func (imp *Importer) unackedCount() int64 {
 // waits until all the importer's messages have been received.
 // If the timeout (measured in nanoseconds) is positive and Drain takes
 // longer than that to complete, an error is returned.
-func (imp *Importer) Drain(timeout int64) os.Error {
+func (imp *Importer) Drain(timeout int64) error {
 	startTime := time.Nanoseconds()
 	for imp.unackedCount() > 0 {
 		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
-			return os.NewError("timeout")
+			return errors.New("timeout")
 		}
 		time.Sleep(100 * 1e6)
 	}

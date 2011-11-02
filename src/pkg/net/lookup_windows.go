@@ -5,6 +5,7 @@
 package net
 
 import (
+	"errors"
 	"syscall"
 	"unsafe"
 	"os"
@@ -18,7 +19,7 @@ var (
 )
 
 // lookupProtocol looks up IP protocol name and returns correspondent protocol number.
-func lookupProtocol(name string) (proto int, err os.Error) {
+func lookupProtocol(name string) (proto int, err error) {
 	protoentLock.Lock()
 	defer protoentLock.Unlock()
 	p, e := syscall.GetProtoByName(name)
@@ -28,7 +29,7 @@ func lookupProtocol(name string) (proto int, err os.Error) {
 	return int(p.Proto), nil
 }
 
-func LookupHost(name string) (addrs []string, err os.Error) {
+func LookupHost(name string) (addrs []string, err error) {
 	ips, err := LookupIP(name)
 	if err != nil {
 		return
@@ -40,7 +41,7 @@ func LookupHost(name string) (addrs []string, err os.Error) {
 	return
 }
 
-func LookupIP(name string) (addrs []IP, err os.Error) {
+func LookupIP(name string) (addrs []IP, err error) {
 	hostentLock.Lock()
 	defer hostentLock.Unlock()
 	h, e := syscall.GetHostByName(name)
@@ -61,7 +62,7 @@ func LookupIP(name string) (addrs []IP, err os.Error) {
 	return addrs, nil
 }
 
-func LookupPort(network, service string) (port int, err os.Error) {
+func LookupPort(network, service string) (port int, err error) {
 	switch network {
 	case "tcp4", "tcp6":
 		network = "tcp"
@@ -77,7 +78,7 @@ func LookupPort(network, service string) (port int, err os.Error) {
 	return int(syscall.Ntohs(s.Port)), nil
 }
 
-func LookupCNAME(name string) (cname string, err os.Error) {
+func LookupCNAME(name string) (cname string, err error) {
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_CNAME, 0, nil, &r, nil)
 	if int(e) != 0 {
@@ -100,7 +101,7 @@ func LookupCNAME(name string) (cname string, err os.Error) {
 // That is, it looks up _service._proto.name.  To accommodate services
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
-func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.Error) {
+func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
 	var target string
 	if service == "" && proto == "" {
 		target = name
@@ -122,7 +123,7 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.
 	return name, addrs, nil
 }
 
-func LookupMX(name string) (mx []*MX, err os.Error) {
+func LookupMX(name string) (mx []*MX, err error) {
 	var r *syscall.DNSRecord
 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_MX, 0, nil, &r, nil)
 	if int(e) != 0 {
@@ -138,11 +139,11 @@ func LookupMX(name string) (mx []*MX, err os.Error) {
 	return mx, nil
 }
 
-func LookupTXT(name string) (txt []string, err os.Error) {
-	return nil, os.NewError("net.LookupTXT is not implemented on Windows")
+func LookupTXT(name string) (txt []string, err error) {
+	return nil, errors.New("net.LookupTXT is not implemented on Windows")
 }
 
-func LookupAddr(addr string) (name []string, err os.Error) {
+func LookupAddr(addr string) (name []string, err error) {
 	arpa, err := reverseaddr(addr)
 	if err != nil {
 		return nil, err

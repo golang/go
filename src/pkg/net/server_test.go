@@ -55,7 +55,7 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done 
 
 func connect(t *testing.T, network, addr string, isEmpty bool) {
 	var fd Conn
-	var err os.Error
+	var err error
 	if network == "unixgram" {
 		fd, err = DialUnix(network, &UnixAddr{addr + ".local", network}, &UnixAddr{addr, network})
 	} else {

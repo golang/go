@@ -46,7 +46,7 @@ type netFD struct {
 
 type InvalidConnError struct{}
 
-func (e *InvalidConnError) String() string  { return "invalid net.Conn" }
+func (e *InvalidConnError) Error() string   { return "invalid net.Conn" }
 func (e *InvalidConnError) Temporary() bool { return false }
 func (e *InvalidConnError) Timeout() bool   { return false }
 
@@ -126,7 +126,7 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
 
 	wake, err := s.poll.AddFD(intfd, mode, false)
 	if err != nil {
-		panic("pollServer AddFD " + err.String())
+		panic("pollServer AddFD " + err.Error())
 	}
 	if wake {
 		doWakeup = true
@@ -227,7 +227,7 @@ func (s *pollServer) Run() {
 		}
 		fd, mode, err := s.poll.WaitFD(s, t)
 		if err != nil {
-			print("pollServer WaitFD: ", err.String(), "\n")
+			print("pollServer WaitFD: ", err.Error(), "\n")
 			return
 		}
 		if fd < 0 {
@@ -271,12 +271,12 @@ var onceStartServer sync.Once
 func startServer() {
 	p, err := newPollServer()
 	if err != nil {
-		print("Start pollServer: ", err.String(), "\n")
+		print("Start pollServer: ", err.Error(), "\n")
 	}
 	pollserver = p
 }
 
-func newFD(fd, family, proto int, net string) (f *netFD, err os.Error) {
+func newFD(fd, family, proto int, net string) (f *netFD, err error) {
 	onceStartServer.Do(startServer)
 	if e := syscall.SetNonblock(fd, true); e != 0 {
 		return nil, os.Errno(e)
@@ -305,7 +305,7 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.sysfile = os.NewFile(fd.sysfd, fd.net+":"+ls+"->"+rs)
 }
 
-func (fd *netFD) connect(ra syscall.Sockaddr) (err os.Error) {
+func (fd *netFD) connect(ra syscall.Sockaddr) (err error) {
 	e := syscall.Connect(fd.sysfd, ra)
 	if e == syscall.EINPROGRESS {
 		var errno int
@@ -346,7 +346,7 @@ func (fd *netFD) decref() {
 	fd.sysmu.Unlock()
 }
 
-func (fd *netFD) Close() os.Error {
+func (fd *netFD) Close() error {
 	if fd == nil || fd.sysfile == nil {
 		return os.EINVAL
 	}
@@ -358,7 +358,7 @@ func (fd *netFD) Close() os.Error {
 	return nil
 }
 
-func (fd *netFD) shutdown(how int) os.Error {
+func (fd *netFD) shutdown(how int) error {
 	if fd == nil || fd.sysfile == nil {
 		return os.EINVAL
 	}
@@ -369,15 +369,15 @@ func (fd *netFD) shutdown(how int) os.Error {
 	return nil
 }
 
-func (fd *netFD) CloseRead() os.Error {
+func (fd *netFD) CloseRead() error {
 	return fd.shutdown(syscall.SHUT_RD)
 }
 
-func (fd *netFD) CloseWrite() os.Error {
+func (fd *netFD) CloseWrite() error {
 	return fd.shutdown(syscall.SHUT_WR)
 }
 
-func (fd *netFD) Read(p []byte) (n int, err os.Error) {
+func (fd *netFD) Read(p []byte) (n int, err error) {
 	if fd == nil {
 		return 0, os.EINVAL
 	}
@@ -393,7 +393,7 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 	} else {
 		fd.rdeadline = 0
 	}
-	var oserr os.Error
+	var oserr error
 	for {
 		var errno int
 		n, errno = syscall.Read(fd.sysfile.Fd(), p)
@@ -405,7 +405,7 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 			n = 0
 			oserr = os.Errno(errno)
 		} else if n == 0 && errno == 0 && fd.proto != syscall.SOCK_DGRAM {
-			err = os.EOF
+			err = io.EOF
 		}
 		break
 	}
@@ -415,7 +415,7 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 	return
 }
 
-func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
+func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 	if fd == nil || fd.sysfile == nil {
 		return 0, nil, os.EINVAL
 	}
@@ -428,7 +428,7 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
 	} else {
 		fd.rdeadline = 0
 	}
-	var oserr os.Error
+	var oserr error
 	for {
 		var errno int
 		n, sa, errno = syscall.Recvfrom(fd.sysfd, p, 0)
@@ -448,7 +448,7 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
 	return
 }
 
-func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err os.Error) {
+func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
 	if fd == nil || fd.sysfile == nil {
 		return 0, 0, 0, nil, os.EINVAL
 	}
@@ -461,7 +461,7 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 	} else {
 		fd.rdeadline = 0
 	}
-	var oserr os.Error
+	var oserr error
 	for {
 		var errno int
 		n, oobn, flags, sa, errno = syscall.Recvmsg(fd.sysfd, p, oob, 0)
@@ -473,7 +473,7 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 			oserr = os.Errno(errno)
 		}
 		if n == 0 {
-			oserr = os.EOF
+			oserr = io.EOF
 		}
 		break
 	}
@@ -484,7 +484,7 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 	return
 }
 
-func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+func (fd *netFD) Write(p []byte) (n int, err error) {
 	if fd == nil {
 		return 0, os.EINVAL
 	}
@@ -501,7 +501,7 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 		fd.wdeadline = 0
 	}
 	nn := 0
-	var oserr os.Error
+	var oserr error
 
 	for {
 		n, errno := syscall.Write(fd.sysfile.Fd(), p[nn:])
@@ -531,7 +531,7 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 	return nn, err
 }
 
-func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
+func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
 	if fd == nil || fd.sysfile == nil {
 		return 0, os.EINVAL
 	}
@@ -544,7 +544,7 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
 	} else {
 		fd.wdeadline = 0
 	}
-	var oserr os.Error
+	var oserr error
 	for {
 		errno := syscall.Sendto(fd.sysfd, p, 0, sa)
 		if errno == syscall.EAGAIN && fd.wdeadline >= 0 {
@@ -564,7 +564,7 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
 	return
 }
 
-func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err os.Error) {
+func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
 	if fd == nil || fd.sysfile == nil {
 		return 0, 0, os.EINVAL
 	}
@@ -577,7 +577,7 @@ func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 	} else {
 		fd.wdeadline = 0
 	}
-	var oserr os.Error
+	var oserr error
 	for {
 		var errno int
 		errno = syscall.Sendmsg(fd.sysfd, p, oob, sa, 0)
@@ -599,7 +599,7 @@ func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 	return
 }
 
-func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.Error) {
+func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err error) {
 	if fd == nil || fd.sysfile == nil {
 		return nil, os.EINVAL
 	}
@@ -647,7 +647,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 	return nfd, nil
 }
 
-func (fd *netFD) dup() (f *os.File, err os.Error) {
+func (fd *netFD) dup() (f *os.File, err error) {
 	ns, e := syscall.Dup(fd.sysfd)
 	if e != 0 {
 		return nil, &OpError{"dup", fd.net, fd.laddr, os.Errno(e)}

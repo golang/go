@@ -9,6 +9,7 @@
 package net
 
 import (
+	"errors"
 	"os"
 	"syscall"
 )
@@ -33,7 +34,7 @@ func (a *IPAddr) family() int {
 	return syscall.AF_INET6
 }
 
-func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, os.Error) {
+func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
 	return ipToSockaddr(family, a.IP, 0)
 }
 
@@ -57,13 +58,13 @@ func (c *IPConn) ok() bool { return c != nil && c.fd != nil }
 // Implementation of the Conn interface - see Conn for documentation.
 
 // Read implements the net.Conn Read method.
-func (c *IPConn) Read(b []byte) (n int, err os.Error) {
+func (c *IPConn) Read(b []byte) (n int, err error) {
 	n, _, err = c.ReadFrom(b)
 	return
 }
 
 // Write implements the net.Conn Write method.
-func (c *IPConn) Write(b []byte) (n int, err os.Error) {
+func (c *IPConn) Write(b []byte) (n int, err error) {
 	if !c.ok() {
 		return 0, os.EINVAL
 	}
@@ -71,7 +72,7 @@ func (c *IPConn) Write(b []byte) (n int, err os.Error) {
 }
 
 // Close closes the IP connection.
-func (c *IPConn) Close() os.Error {
+func (c *IPConn) Close() error {
 	if !c.ok() {
 		return os.EINVAL
 	}
@@ -97,7 +98,7 @@ func (c *IPConn) RemoteAddr() Addr {
 }
 
 // SetTimeout implements the net.Conn SetTimeout method.
-func (c *IPConn) SetTimeout(nsec int64) os.Error {
+func (c *IPConn) SetTimeout(nsec int64) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
@@ -105,7 +106,7 @@ func (c *IPConn) SetTimeout(nsec int64) os.Error {
 }
 
 // SetReadTimeout implements the net.Conn SetReadTimeout method.
-func (c *IPConn) SetReadTimeout(nsec int64) os.Error {
+func (c *IPConn) SetReadTimeout(nsec int64) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
@@ -113,7 +114,7 @@ func (c *IPConn) SetReadTimeout(nsec int64) os.Error {
 }
 
 // SetWriteTimeout implements the net.Conn SetWriteTimeout method.
-func (c *IPConn) SetWriteTimeout(nsec int64) os.Error {
+func (c *IPConn) SetWriteTimeout(nsec int64) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
@@ -122,7 +123,7 @@ func (c *IPConn) SetWriteTimeout(nsec int64) os.Error {
 
 // SetReadBuffer sets the size of the operating system's
 // receive buffer associated with the connection.
-func (c *IPConn) SetReadBuffer(bytes int) os.Error {
+func (c *IPConn) SetReadBuffer(bytes int) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
@@ -131,7 +132,7 @@ func (c *IPConn) SetReadBuffer(bytes int) os.Error {
 
 // SetWriteBuffer sets the size of the operating system's
 // transmit buffer associated with the connection.
-func (c *IPConn) SetWriteBuffer(bytes int) os.Error {
+func (c *IPConn) SetWriteBuffer(bytes int) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
@@ -147,7 +148,7 @@ func (c *IPConn) SetWriteBuffer(bytes int) os.Error {
 // ReadFromIP can be made to time out and return an error with
 // Timeout() == true after a fixed time limit; see SetTimeout and
 // SetReadTimeout.
-func (c *IPConn) ReadFromIP(b []byte) (n int, addr *IPAddr, err os.Error) {
+func (c *IPConn) ReadFromIP(b []byte) (n int, addr *IPAddr, err error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
 	}
@@ -169,7 +170,7 @@ func (c *IPConn) ReadFromIP(b []byte) (n int, addr *IPAddr, err os.Error) {
 }
 
 // ReadFrom implements the net.PacketConn ReadFrom method.
-func (c *IPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
+func (c *IPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
 	}
@@ -183,19 +184,19 @@ func (c *IPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
 // an error with Timeout() == true after a fixed time limit;
 // see SetTimeout and SetWriteTimeout.
 // On packet-oriented connections, write timeouts are rare.
-func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (n int, err os.Error) {
+func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (n int, err error) {
 	if !c.ok() {
 		return 0, os.EINVAL
 	}
 	sa, err1 := addr.sockaddr(c.fd.family)
 	if err1 != nil {
-		return 0, &OpError{Op: "write", Net: "ip", Addr: addr, Error: err1}
+		return 0, &OpError{Op: "write", Net: "ip", Addr: addr, Err: err1}
 	}
 	return c.fd.WriteTo(b, sa)
 }
 
 // WriteTo implements the net.PacketConn WriteTo method.
-func (c *IPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
+func (c *IPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 	if !c.ok() {
 		return 0, os.EINVAL
 	}
@@ -206,10 +207,10 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
 	return c.WriteToIP(b, a)
 }
 
-func splitNetProto(netProto string) (net string, proto int, err os.Error) {
+func splitNetProto(netProto string) (net string, proto int, err error) {
 	i := last(netProto, ':')
 	if i < 0 { // no colon
-		return "", 0, os.NewError("no IP protocol specified")
+		return "", 0, errors.New("no IP protocol specified")
 	}
 	net = netProto[0:i]
 	protostr := netProto[i+1:]
@@ -225,7 +226,7 @@ func splitNetProto(netProto string) (net string, proto int, err os.Error) {
 
 // DialIP connects to the remote address raddr on the network net,
 // which must be "ip", "ip4", or "ip6".
-func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err os.Error) {
+func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err error) {
 	net, proto, err := splitNetProto(netProto)
 	if err != nil {
 		return
@@ -249,7 +250,7 @@ func DialIP(netProto string, laddr, raddr *IPAddr) (c *IPConn, err os.Error) {
 // local address laddr.  The returned connection c's ReadFrom
 // and WriteTo methods can be used to receive and send IP
 // packets with per-packet addressing.
-func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err os.Error) {
+func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err error) {
 	net, proto, err := splitNetProto(netProto)
 	if err != nil {
 		return
@@ -267,7 +268,7 @@ func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err os.Error) {
 }
 
 // BindToDevice binds an IPConn to a network interface.
-func (c *IPConn) BindToDevice(device string) os.Error {
+func (c *IPConn) BindToDevice(device string) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
@@ -279,4 +280,4 @@ func (c *IPConn) BindToDevice(device string) os.Error {
 // File returns a copy of the underlying os.File, set to blocking mode.
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.
-func (c *IPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
+func (c *IPConn) File() (f *os.File, err error) { return c.fd.dup() }

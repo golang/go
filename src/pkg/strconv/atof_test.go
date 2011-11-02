@@ -5,7 +5,6 @@
 package strconv_test
 
 import (
-	"os"
 	"reflect"
 	. "strconv"
 	"testing"
@@ -14,7 +13,7 @@ import (
 type atofTest struct {
 	in  string
 	out string
-	err os.Error
+	err error
 }
 
 var atoftests = []atofTest{

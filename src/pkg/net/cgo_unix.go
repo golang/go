@@ -18,12 +18,11 @@ package net
 import "C"
 
 import (
-	"os"
 	"syscall"
 	"unsafe"
 )
 
-func cgoLookupHost(name string) (addrs []string, err os.Error, completed bool) {
+func cgoLookupHost(name string) (addrs []string, err error, completed bool) {
 	ip, err, completed := cgoLookupIP(name)
 	for _, p := range ip {
 		addrs = append(addrs, p.String())
@@ -31,7 +30,7 @@ func cgoLookupHost(name string) (addrs []string, err os.Error, completed bool) {
 	return
 }
 
-func cgoLookupPort(net, service string) (port int, err os.Error, completed bool) {
+func cgoLookupPort(net, service string) (port int, err error, completed bool) {
 	var res *C.struct_addrinfo
 	var hints C.struct_addrinfo
 
@@ -78,7 +77,7 @@ func cgoLookupPort(net, service string) (port int, err os.Error, completed bool)
 	return 0, &AddrError{"unknown port", net + "/" + service}, true
 }
 
-func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err os.Error, completed bool) {
+func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err error, completed bool) {
 	var res *C.struct_addrinfo
 	var hints C.struct_addrinfo
 
@@ -98,11 +97,11 @@ func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err os.Error, comp
 		if gerrno == C.EAI_NONAME {
 			str = noSuchHost
 		} else if gerrno == C.EAI_SYSTEM {
-			str = err.String()
+			str = err.Error()
 		} else {
 			str = C.GoString(C.gai_strerror(gerrno))
 		}
-		return nil, "", &DNSError{Error: str, Name: name}, true
+		return nil, "", &DNSError{Err: str, Name: name}, true
 	}
 	defer C.freeaddrinfo(res)
 	if res != nil {
@@ -133,12 +132,12 @@ func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err os.Error, comp
 	return addrs, cname, nil, true
 }
 
-func cgoLookupIP(name string) (addrs []IP, err os.Error, completed bool) {
+func cgoLookupIP(name string) (addrs []IP, err error, completed bool) {
 	addrs, _, err, completed = cgoLookupIPCNAME(name)
 	return
 }
 
-func cgoLookupCNAME(name string) (cname string, err os.Error, completed bool) {
+func cgoLookupCNAME(name string) (cname string, err error, completed bool) {
 	_, cname, err, completed = cgoLookupIPCNAME(name)
 	return
 }

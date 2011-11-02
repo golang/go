@@ -6,10 +6,6 @@
 
 package net
 
-import (
-	"os"
-)
-
 var supportsIPv6, supportsIPv4map = probeIPv6Stack()
 
 func firstFavoriteAddr(filter func(IP) IP, addrs []string) (addr IP) {
@@ -61,14 +57,14 @@ func ipv6only(x IP) IP {
 
 type InvalidAddrError string
 
-func (e InvalidAddrError) String() string  { return string(e) }
+func (e InvalidAddrError) Error() string   { return string(e) }
 func (e InvalidAddrError) Timeout() bool   { return false }
 func (e InvalidAddrError) Temporary() bool { return false }
 
 // SplitHostPort splits a network address of the form
 // "host:port" or "[host]:port" into host and port.
 // The latter form must be used when host contains a colon.
-func SplitHostPort(hostport string) (host, port string, err os.Error) {
+func SplitHostPort(hostport string) (host, port string, err error) {
 	// The port starts after the last colon.
 	i := last(hostport, ':')
 	if i < 0 {
@@ -102,7 +98,7 @@ func JoinHostPort(host, port string) string {
 }
 
 // Convert "host:port" into IP address and port.
-func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
+func hostPortToIP(net, hostport string) (ip IP, iport int, err error) {
 	var (
 		addr IP
 		p, i int

@@ -253,8 +253,8 @@ func (s *Scanner) next() rune {
 					s.lastCharLen = 0
 					return EOF
 				}
-				if err != os.EOF {
-					s.error(err.String())
+				if err != io.EOF {
+					s.error(err.Error())
 				}
 				// If err == EOF, we won't be getting more
 				// bytes; break to avoid infinite loop. If

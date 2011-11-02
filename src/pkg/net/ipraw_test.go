@@ -71,7 +71,7 @@ func TestICMP(t *testing.T) {
 
 	var (
 		laddr *IPAddr
-		err   os.Error
+		err   error
 	)
 	if *srchost != "" {
 		laddr, err = ResolveIPAddr("ip4", *srchost)

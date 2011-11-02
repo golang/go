@@ -9,7 +9,6 @@ package template
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 )
 
@@ -19,7 +18,7 @@ import (
 // and panics if the error is non-nil. It is intended for use in variable initializations
 // such as
 //	var t = template.Must(template.New("name").Parse("text"))
-func Must(t *Template, err os.Error) *Template {
+func Must(t *Template, err error) *Template {
 	if err != nil {
 		panic(err)
 	}
@@ -28,7 +27,7 @@ func Must(t *Template, err os.Error) *Template {
 
 // ParseFile creates a new Template and parses the template definition from
 // the named file.  The template name is the base name of the file.
-func ParseFile(filename string) (*Template, os.Error) {
+func ParseFile(filename string) (*Template, error) {
 	t := New(filepath.Base(filename))
 	return t.ParseFile(filename)
 }
@@ -37,7 +36,7 @@ func ParseFile(filename string) (*Template, os.Error) {
 // definition from the named file. The template name is the base name
 // of the file. It also adds the template to the set. Function bindings are
 // checked against those in the set.
-func parseFileInSet(filename string, set *Set) (*Template, os.Error) {
+func parseFileInSet(filename string, set *Set) (*Template, error) {
 	t := New(filepath.Base(filename))
 	return t.parseFileInSet(filename, set)
 }
@@ -45,7 +44,7 @@ func parseFileInSet(filename string, set *Set) (*Template, os.Error) {
 // ParseFile reads the template definition from a file and parses it to
 // construct an internal representation of the template for execution.
 // The returned template will be nil if an error occurs.
-func (t *Template) ParseFile(filename string) (*Template, os.Error) {
+func (t *Template) ParseFile(filename string) (*Template, error) {
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -57,7 +56,7 @@ func (t *Template) ParseFile(filename string) (*Template, os.Error) {
 // are checked against those in the set and the template is added
 // to the set.
 // The returned template will be nil if an error occurs.
-func (t *Template) parseFileInSet(filename string, set *Set) (*Template, os.Error) {
+func (t *Template) parseFileInSet(filename string, set *Set) (*Template, error) {
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -71,7 +70,7 @@ func (t *Template) parseFileInSet(filename string, set *Set) (*Template, os.Erro
 // and panics if the error is non-nil. It is intended for use in variable initializations
 // such as
 //	var s = template.SetMust(template.ParseSetFiles("file"))
-func SetMust(s *Set, err os.Error) *Set {
+func SetMust(s *Set, err error) *Set {
 	if err != nil {
 		panic(err)
 	}
@@ -81,7 +80,7 @@ func SetMust(s *Set, err os.Error) *Set {
 // ParseFiles parses the named files into a set of named templates.
 // Each file must be parseable by itself.
 // If an error occurs, parsing stops and the returned set is nil.
-func (s *Set) ParseFiles(filenames ...string) (*Set, os.Error) {
+func (s *Set) ParseFiles(filenames ...string) (*Set, error) {
 	for _, filename := range filenames {
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {
@@ -97,7 +96,7 @@ func (s *Set) ParseFiles(filenames ...string) (*Set, os.Error) {
 
 // ParseSetFiles creates a new Set and parses the set definition from the
 // named files. Each file must be individually parseable.
-func ParseSetFiles(filenames ...string) (*Set, os.Error) {
+func ParseSetFiles(filenames ...string) (*Set, error) {
 	s := new(Set)
 	for _, filename := range filenames {
 		b, err := ioutil.ReadFile(filename)
@@ -116,7 +115,7 @@ func ParseSetFiles(filenames ...string) (*Set, os.Error) {
 // pattern.  The pattern is processed by filepath.Glob and must match at
 // least one file.
 // If an error occurs, parsing stops and the returned set is nil.
-func (s *Set) ParseGlob(pattern string) (*Set, os.Error) {
+func (s *Set) ParseGlob(pattern string) (*Set, error) {
 	filenames, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, err
@@ -130,7 +129,7 @@ func (s *Set) ParseGlob(pattern string) (*Set, os.Error) {
 // ParseSetGlob creates a new Set and parses the set definition from the
 // files identified by the pattern. The pattern is processed by filepath.Glob
 // and must match at least one file.
-func ParseSetGlob(pattern string) (*Set, os.Error) {
+func ParseSetGlob(pattern string) (*Set, error) {
 	set, err := new(Set).ParseGlob(pattern)
 	if err != nil {
 		return nil, err
@@ -150,7 +149,7 @@ func ParseSetGlob(pattern string) (*Set, os.Error) {
 // individual templates, which are then added to the set.
 // Each file must be parseable by itself.
 // If an error occurs, parsing stops and the returned set is nil.
-func (s *Set) ParseTemplateFiles(filenames ...string) (*Set, os.Error) {
+func (s *Set) ParseTemplateFiles(filenames ...string) (*Set, error) {
 	for _, filename := range filenames {
 		_, err := parseFileInSet(filename, s)
 		if err != nil {
@@ -170,7 +169,7 @@ func (s *Set) ParseTemplateFiles(filenames ...string) (*Set, os.Error) {
 // individual templates, which are then added to the set.
 // Each file must be parseable by itself.
 // If an error occurs, parsing stops and the returned set is nil.
-func (s *Set) ParseTemplateGlob(pattern string) (*Set, os.Error) {
+func (s *Set) ParseTemplateGlob(pattern string) (*Set, error) {
 	filenames, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, err
@@ -194,7 +193,7 @@ func (s *Set) ParseTemplateGlob(pattern string) (*Set, os.Error) {
 // individual templates, which are then added to the set.
 // Each file must be parseable by itself. Parsing stops if an error is
 // encountered.
-func ParseTemplateFiles(filenames ...string) (*Set, os.Error) {
+func ParseTemplateFiles(filenames ...string) (*Set, error) {
 	set := new(Set)
 	set.init()
 	for _, filename := range filenames {
@@ -220,7 +219,7 @@ func ParseTemplateFiles(filenames ...string) (*Set, os.Error) {
 // individual templates, which are then added to the set.
 // Each file must be parseable by itself. Parsing stops if an error is
 // encountered.
-func ParseTemplateGlob(pattern string) (*Set, os.Error) {
+func ParseTemplateGlob(pattern string) (*Set, error) {
 	set := new(Set)
 	filenames, err := filepath.Glob(pattern)
 	if err != nil {

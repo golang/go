@@ -4,10 +4,7 @@
 
 package iotest
 
-import (
-	"io"
-	"os"
-)
+import "io"
 
 // TruncateWriter returns a Writer that writes to w
 // but stops silently after n bytes.
@@ -20,7 +17,7 @@ type truncateWriter struct {
 	n int64
 }
 
-func (t *truncateWriter) Write(p []byte) (n int, err os.Error) {
+func (t *truncateWriter) Write(p []byte) (n int, err error) {
 	if t.n <= 0 {
 		return len(p), nil
 	}

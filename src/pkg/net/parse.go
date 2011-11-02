@@ -54,7 +54,7 @@ func (f *file) readLine() (s string, ok bool) {
 		if n >= 0 {
 			f.data = f.data[0 : ln+n]
 		}
-		if err == os.EOF {
+		if err == io.EOF {
 			f.atEOF = true
 		}
 	}
@@ -62,7 +62,7 @@ func (f *file) readLine() (s string, ok bool) {
 	return
 }
 
-func open(name string) (*file, os.Error) {
+func open(name string) (*file, error) {
 	fd, err := os.Open(name)
 	if err != nil {
 		return nil, err

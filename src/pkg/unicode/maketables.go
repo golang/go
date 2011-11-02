@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"http"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -322,7 +323,7 @@ func loadChars() {
 	for {
 		line, err := input.ReadString('\n')
 		if err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				break
 			}
 			logger.Fatal(err)
@@ -359,7 +360,7 @@ func loadCasefold() {
 	for {
 		line, err := input.ReadString('\n')
 		if err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				break
 			}
 			logger.Fatal(err)
@@ -698,7 +699,7 @@ func printScriptOrProperty(doProps bool) {
 	for {
 		line, err := input.ReadString('\n')
 		if err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				break
 			}
 			logger.Fatal(err)

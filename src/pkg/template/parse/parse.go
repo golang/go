@@ -8,7 +8,6 @@ package parse
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 	"strconv"
 	"unicode"
@@ -75,7 +74,7 @@ func (t *Tree) errorf(format string, args ...interface{}) {
 }
 
 // error terminates processing.
-func (t *Tree) error(err os.Error) {
+func (t *Tree) error(err error) {
 	t.errorf("%s", err)
 }
 
@@ -94,7 +93,7 @@ func (t *Tree) unexpected(token item, context string) {
 }
 
 // recover is the handler that turns panics into returns from the top level of Parse.
-func (t *Tree) recover(errp *os.Error) {
+func (t *Tree) recover(errp *error) {
 	e := recover()
 	if e != nil {
 		if _, ok := e.(runtime.Error); ok {
@@ -103,7 +102,7 @@ func (t *Tree) recover(errp *os.Error) {
 		if t != nil {
 			t.stopParse()
 		}
-		*errp = e.(os.Error)
+		*errp = e.(error)
 	}
 	return
 }
@@ -147,7 +146,7 @@ func (t *Tree) atEOF() bool {
 // Parse parses the template definition string to construct an internal
 // representation of the template for execution. If either action delimiter
 // string is empty, the default ("{{" or "}}") is used.
-func (t *Tree) Parse(s, leftDelim, rightDelim string, funcs ...map[string]interface{}) (tree *Tree, err os.Error) {
+func (t *Tree) Parse(s, leftDelim, rightDelim string, funcs ...map[string]interface{}) (tree *Tree, err error) {
 	defer t.recover(&err)
 	t.startParse(funcs, lex(t.Name, s, leftDelim, rightDelim))
 	t.parse(true)

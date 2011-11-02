@@ -71,7 +71,7 @@ type ValueError struct {
 	Kind   Kind
 }
 
-func (e *ValueError) String() string {
+func (e *ValueError) Error() string {
 	if e.Kind == 0 {
 		return "reflect: call of " + e.Method + " on zero Value"
 	}

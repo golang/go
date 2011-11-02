@@ -7,7 +7,6 @@ package script
 
 import (
 	"fmt"
-	"os"
 	"rand"
 	"reflect"
 	"strings"
@@ -171,7 +170,7 @@ type ReceivedUnexpected struct {
 	ready []*Event
 }
 
-func (r ReceivedUnexpected) String() string {
+func (r ReceivedUnexpected) Error() string {
 	names := make([]string, len(r.ready))
 	for i, v := range r.ready {
 		names[i] = v.name
@@ -183,7 +182,7 @@ func (r ReceivedUnexpected) String() string {
 // Events.
 type SetupError string
 
-func (s SetupError) String() string { return string(s) }
+func (s SetupError) Error() string { return string(s) }
 
 func NewEvent(name string, predecessors []*Event, action action) *Event {
 	e := &Event{name, false, predecessors, action}
@@ -223,7 +222,7 @@ func NewEvent(name string, predecessors []*Event, action action) *Event {
 // the other. At each receive step, all the receive channels are considered,
 // thus Perform may see a value from a channel that is not in the current ready
 // set and fail.
-func Perform(seed int64, events []*Event) (err os.Error) {
+func Perform(seed int64, events []*Event) (err error) {
 	r := rand.New(rand.NewSource(seed))
 
 	channels, err := getChannels(events)
@@ -269,7 +268,7 @@ Outer:
 }
 
 // getChannels returns all the channels listed in any receive events.
-func getChannels(events []*Event) ([]interface{}, os.Error) {
+func getChannels(events []*Event) ([]interface{}, error) {
 	channels := make([]interface{}, len(events))
 
 	j := 0
@@ -326,7 +325,7 @@ type channelRecv struct {
 }
 
 // readyEvents returns the subset of events that are ready.
-func readyEvents(events []*Event) ([]*Event, os.Error) {
+func readyEvents(events []*Event) ([]*Event, error) {
 	ready := make([]*Event, len(events))
 
 	j := 0

@@ -162,9 +162,9 @@ type stringReader struct {
 	off int
 }
 
-func (r *stringReader) Read(b []byte) (n int, err os.Error) {
+func (r *stringReader) Read(b []byte) (n int, err error) {
 	if r.off >= len(r.s) {
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 	for r.off < len(r.s) && n < len(b) {
 		b[n] = r.s[r.off]
@@ -174,9 +174,9 @@ func (r *stringReader) Read(b []byte) (n int, err os.Error) {
 	return
 }
 
-func (r *stringReader) ReadByte() (b byte, err os.Error) {
+func (r *stringReader) ReadByte() (b byte, err error) {
 	if r.off >= len(r.s) {
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 	b = r.s[r.off]
 	r.off++
@@ -195,7 +195,7 @@ type downCaser struct {
 	r io.ByteReader
 }
 
-func (d *downCaser) ReadByte() (c byte, err os.Error) {
+func (d *downCaser) ReadByte() (c byte, err error) {
 	c, err = d.r.ReadByte()
 	if c >= 'A' && c <= 'Z' {
 		c += 'a' - 'A'
@@ -203,7 +203,7 @@ func (d *downCaser) ReadByte() (c byte, err os.Error) {
 	return
 }
 
-func (d *downCaser) Read(p []byte) (int, os.Error) {
+func (d *downCaser) Read(p []byte) (int, error) {
 	d.t.Fatalf("unexpected Read call on downCaser reader")
 	return 0, os.EINVAL
 }
@@ -211,7 +211,7 @@ func (d *downCaser) Read(p []byte) (int, os.Error) {
 func TestRawTokenAltEncoding(t *testing.T) {
 	sawEncoding := ""
 	p := NewParser(StringReader(testInputAltEncoding))
-	p.CharsetReader = func(charset string, input io.Reader) (io.Reader, os.Error) {
+	p.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
 		sawEncoding = charset
 		if charset != "x-testing-uppercase" {
 			t.Fatalf("unexpected charset %q", charset)
@@ -238,7 +238,7 @@ func TestRawTokenAltEncodingNoConverter(t *testing.T) {
 		t.Fatalf("expected an error on second RawToken call")
 	}
 	const encoding = "x-testing-uppercase"
-	if !strings.Contains(err.String(), encoding) {
+	if !strings.Contains(err.Error(), encoding) {
 		t.Errorf("expected error to contain %q; got error: %v",
 			encoding, err)
 	}
@@ -319,7 +319,7 @@ func TestToken(t *testing.T) {
 func TestSyntax(t *testing.T) {
 	for i := range xmlInput {
 		p := NewParser(StringReader(xmlInput[i]))
-		var err os.Error
+		var err error
 		for _, err = p.Token(); err == nil; _, err = p.Token() {
 		}
 		if _, ok := err.(*SyntaxError); !ok {
@@ -501,7 +501,7 @@ func TestCopyTokenStartElement(t *testing.T) {
 func TestSyntaxErrorLineNum(t *testing.T) {
 	testInput := "<P>Foo<P>\n\n<P>Bar</>\n"
 	p := NewParser(StringReader(testInput))
-	var err os.Error
+	var err error
 	for _, err = p.Token(); err == nil; _, err = p.Token() {
 	}
 	synerr, ok := err.(*SyntaxError)
@@ -516,10 +516,10 @@ func TestSyntaxErrorLineNum(t *testing.T) {
 func TestTrailingRawToken(t *testing.T) {
 	input := `<FOO></FOO>  `
 	p := NewParser(StringReader(input))
-	var err os.Error
+	var err error
 	for _, err = p.RawToken(); err == nil; _, err = p.RawToken() {
 	}
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Fatalf("p.RawToken() = _, %v, want _, os.EOF", err)
 	}
 }
@@ -527,10 +527,10 @@ func TestTrailingRawToken(t *testing.T) {
 func TestTrailingToken(t *testing.T) {
 	input := `<FOO></FOO>  `
 	p := NewParser(StringReader(input))
-	var err os.Error
+	var err error
 	for _, err = p.Token(); err == nil; _, err = p.Token() {
 	}
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Fatalf("p.Token() = _, %v, want _, os.EOF", err)
 	}
 }
@@ -538,10 +538,10 @@ func TestTrailingToken(t *testing.T) {
 func TestEntityInsideCDATA(t *testing.T) {
 	input := `<test><![CDATA[ &val=foo ]]></test>`
 	p := NewParser(StringReader(input))
-	var err os.Error
+	var err error
 	for _, err = p.Token(); err == nil; _, err = p.Token() {
 	}
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Fatalf("p.Token() = _, %v, want _, os.EOF", err)
 	}
 }
@@ -570,7 +570,7 @@ func TestDisallowedCharacters(t *testing.T) {
 
 	for i, tt := range characterTests {
 		p := NewParser(StringReader(tt.in))
-		var err os.Error
+		var err error
 
 		for err == nil {
 			_, err = p.Token()

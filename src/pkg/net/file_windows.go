@@ -9,17 +9,17 @@ import (
 	"syscall"
 )
 
-func FileConn(f *os.File) (c Conn, err os.Error) {
+func FileConn(f *os.File) (c Conn, err error) {
 	// TODO: Implement this
 	return nil, os.NewSyscallError("FileConn", syscall.EWINDOWS)
 }
 
-func FileListener(f *os.File) (l Listener, err os.Error) {
+func FileListener(f *os.File) (l Listener, err error) {
 	// TODO: Implement this
 	return nil, os.NewSyscallError("FileListener", syscall.EWINDOWS)
 }
 
-func FilePacketConn(f *os.File) (c PacketConn, err os.Error) {
+func FilePacketConn(f *os.File) (c PacketConn, err error) {
 	// TODO: Implement this
 	return nil, os.NewSyscallError("FilePacketConn", syscall.EWINDOWS)
 }

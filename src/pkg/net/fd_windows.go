@@ -5,6 +5,7 @@
 package net
 
 import (
+	"io"
 	"os"
 	"runtime"
 	"sync"
@@ -15,11 +16,11 @@ import (
 
 type InvalidConnError struct{}
 
-func (e *InvalidConnError) String() string  { return "invalid net.Conn" }
+func (e *InvalidConnError) Error() string   { return "invalid net.Conn" }
 func (e *InvalidConnError) Temporary() bool { return false }
 func (e *InvalidConnError) Timeout() bool   { return false }
 
-var initErr os.Error
+var initErr error
 
 func init() {
 	var d syscall.WSAData
@@ -151,7 +152,7 @@ func (s *ioSrv) ProcessRemoteIO() {
 // ExecIO executes a single io operation. It either executes it
 // inline, or, if timeouts are employed, passes the request onto
 // a special goroutine and waits for completion or cancels request.
-func (s *ioSrv) ExecIO(oi anOpIface, deadline_delta int64) (n int, err os.Error) {
+func (s *ioSrv) ExecIO(oi anOpIface, deadline_delta int64) (n int, err error) {
 	var e int
 	o := oi.Op()
 	if deadline_delta > 0 {
@@ -249,7 +250,7 @@ func allocFD(fd syscall.Handle, family, proto int, net string) (f *netFD) {
 	return f
 }
 
-func newFD(fd syscall.Handle, family, proto int, net string) (f *netFD, err os.Error) {
+func newFD(fd syscall.Handle, family, proto int, net string) (f *netFD, err error) {
 	if initErr != nil {
 		return nil, initErr
 	}
@@ -266,7 +267,7 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.raddr = raddr
 }
 
-func (fd *netFD) connect(ra syscall.Sockaddr) (err os.Error) {
+func (fd *netFD) connect(ra syscall.Sockaddr) (err error) {
 	e := syscall.Connect(fd.sysfd, ra)
 	if e != 0 {
 		return os.Errno(e)
@@ -300,7 +301,7 @@ func (fd *netFD) decref() {
 	fd.sysmu.Unlock()
 }
 
-func (fd *netFD) Close() os.Error {
+func (fd *netFD) Close() error {
 	if fd == nil || fd.sysfd == syscall.InvalidHandle {
 		return os.EINVAL
 	}
@@ -312,7 +313,7 @@ func (fd *netFD) Close() os.Error {
 	return nil
 }
 
-func (fd *netFD) shutdown(how int) os.Error {
+func (fd *netFD) shutdown(how int) error {
 	if fd == nil || fd.sysfd == syscall.InvalidHandle {
 		return os.EINVAL
 	}
@@ -323,11 +324,11 @@ func (fd *netFD) shutdown(how int) os.Error {
 	return nil
 }
 
-func (fd *netFD) CloseRead() os.Error {
+func (fd *netFD) CloseRead() error {
 	return fd.shutdown(syscall.SHUT_RD)
 }
 
-func (fd *netFD) CloseWrite() os.Error {
+func (fd *netFD) CloseWrite() error {
 	return fd.shutdown(syscall.SHUT_WR)
 }
 
@@ -346,7 +347,7 @@ func (o *readOp) Name() string {
 	return "WSARecv"
 }
 
-func (fd *netFD) Read(buf []byte) (n int, err os.Error) {
+func (fd *netFD) Read(buf []byte) (n int, err error) {
 	if fd == nil {
 		return 0, os.EINVAL
 	}
@@ -361,7 +362,7 @@ func (fd *netFD) Read(buf []byte) (n int, err os.Error) {
 	o.Init(fd, buf, 'r')
 	n, err = iosrv.ExecIO(&o, fd.rdeadline_delta)
 	if err == nil && n == 0 {
-		err = os.EOF
+		err = io.EOF
 	}
 	return
 }
@@ -383,7 +384,7 @@ func (o *readFromOp) Name() string {
 	return "WSARecvFrom"
 }
 
-func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err os.Error) {
+func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
 	if fd == nil {
 		return 0, nil, os.EINVAL
 	}
@@ -423,7 +424,7 @@ func (o *writeOp) Name() string {
 	return "WSASend"
 }
 
-func (fd *netFD) Write(buf []byte) (n int, err os.Error) {
+func (fd *netFD) Write(buf []byte) (n int, err error) {
 	if fd == nil {
 		return 0, os.EINVAL
 	}
@@ -455,7 +456,7 @@ func (o *writeToOp) Name() string {
 	return "WSASendto"
 }
 
-func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (n int, err os.Error) {
+func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (n int, err error) {
 	if fd == nil {
 		return 0, os.EINVAL
 	}
@@ -494,7 +495,7 @@ func (o *acceptOp) Name() string {
 	return "AcceptEx"
 }
 
-func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.Error) {
+func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err error) {
 	if fd == nil || fd.sysfd == syscall.InvalidHandle {
 		return nil, os.EINVAL
 	}
@@ -551,15 +552,15 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 
 // Unimplemented functions.
 
-func (fd *netFD) dup() (f *os.File, err os.Error) {
+func (fd *netFD) dup() (f *os.File, err error) {
 	// TODO: Implement this
 	return nil, os.NewSyscallError("dup", syscall.EWINDOWS)
 }
 
-func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err os.Error) {
+func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
 	return 0, 0, 0, nil, os.EAFNOSUPPORT
 }
 
-func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err os.Error) {
+func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
 	return 0, 0, os.EAFNOSUPPORT
 }

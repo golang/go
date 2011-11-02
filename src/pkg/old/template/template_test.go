@@ -10,7 +10,6 @@ import (
 	"io"
 	"io/ioutil"
 	"json"
-	"os"
 	"strings"
 	"testing"
 )
@@ -462,9 +461,9 @@ var tests = []*Test{
 
 func TestAll(t *testing.T) {
 	// Parse
-	testAll(t, func(test *Test) (*Template, os.Error) { return Parse(test.in, formatters) })
+	testAll(t, func(test *Test) (*Template, error) { return Parse(test.in, formatters) })
 	// ParseFile
-	testAll(t, func(test *Test) (*Template, os.Error) {
+	testAll(t, func(test *Test) (*Template, error) {
 		err := ioutil.WriteFile("_test/test.tmpl", []byte(test.in), 0600)
 		if err != nil {
 			t.Error("unexpected write error:", err)
@@ -473,7 +472,7 @@ func TestAll(t *testing.T) {
 		return ParseFile("_test/test.tmpl", formatters)
 	})
 	// tmpl.ParseFile
-	testAll(t, func(test *Test) (*Template, os.Error) {
+	testAll(t, func(test *Test) (*Template, error) {
 		err := ioutil.WriteFile("_test/test.tmpl", []byte(test.in), 0600)
 		if err != nil {
 			t.Error("unexpected write error:", err)
@@ -484,7 +483,7 @@ func TestAll(t *testing.T) {
 	})
 }
 
-func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
+func testAll(t *testing.T, parseFunc func(*Test) (*Template, error)) {
 	s := new(S)
 	// initialized by hand for clarity.
 	s.Header = "Header"
@@ -530,8 +529,8 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
 		} else {
 			if err == nil {
 				t.Errorf("expected execute error %q, got nil", test.err)
-			} else if err.String() != test.err {
-				t.Errorf("expected execute error %q, got %q", test.err, err.String())
+			} else if err.Error() != test.err {
+				t.Errorf("expected execute error %q, got %q", test.err, err.Error())
 			}
 		}
 		if buf.String() != test.out {
@@ -703,7 +702,7 @@ func TestReferenceToUnexported(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected execute error, got none")
 	}
-	if strings.Index(err.String(), "not exported") < 0 {
+	if strings.Index(err.Error(), "not exported") < 0 {
 		t.Fatal("expected unexported error; got", err)
 	}
 }
@@ -777,8 +776,8 @@ func TestFormatters(t *testing.T) {
 				t.Error("unexpected parse error:", err)
 				continue
 			}
-			if strings.Index(err.String(), c.err) < 0 {
-				t.Errorf("unexpected error: expected %q, got %q", c.err, err.String())
+			if strings.Index(err.Error(), c.err) < 0 {
+				t.Errorf("unexpected error: expected %q, got %q", c.err, err.Error())
 				continue
 			}
 		} else {

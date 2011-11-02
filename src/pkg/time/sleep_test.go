@@ -5,8 +5,8 @@
 package time_test
 
 import (
+	"errors"
 	"fmt"
-	"os"
 	"testing"
 	"sort"
 	. "time"
@@ -136,7 +136,7 @@ func TestAfterQueuing(t *testing.T) {
 	// This test flakes out on some systems,
 	// so we'll try it a few times before declaring it a failure.
 	const attempts = 3
-	err := os.NewError("!=nil")
+	err := errors.New("!=nil")
 	for i := 0; i < attempts && err != nil; i++ {
 		if err = testAfterQueuing(t); err != nil {
 			t.Logf("attempt %v failed: %v", i, err)
@@ -158,7 +158,7 @@ func await(slot int, result chan<- afterResult, ac <-chan int64) {
 	result <- afterResult{slot, <-ac}
 }
 
-func testAfterQueuing(t *testing.T) os.Error {
+func testAfterQueuing(t *testing.T) error {
 	const (
 		Delta = 100 * 1e6
 	)

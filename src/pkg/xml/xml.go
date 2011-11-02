@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 	"unicode"
@@ -31,7 +30,7 @@ type SyntaxError struct {
 	Line int
 }
 
-func (e *SyntaxError) String() string {
+func (e *SyntaxError) Error() string {
 	return "XML syntax error on line " + strconv.Itoa(e.Line) + ": " + e.Msg
 }
 
@@ -168,7 +167,7 @@ type Parser struct {
 	// non-UTF-8 charset into UTF-8. If CharsetReader is nil or
 	// returns an error, parsing stops with an error. One of the
 	// the CharsetReader's result values must be non-nil.
-	CharsetReader func(charset string, input io.Reader) (io.Reader, os.Error)
+	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
 
 	r         io.ByteReader
 	buf       bytes.Buffer
@@ -180,7 +179,7 @@ type Parser struct {
 	nextToken Token
 	nextByte  int
 	ns        map[string]string
-	err       os.Error
+	err       error
 	line      int
 	tmp       [32]byte
 }
@@ -219,7 +218,7 @@ func NewParser(r io.Reader) *Parser {
 // set to the URL identifying its name space when known.
 // If Token encounters an unrecognized name space prefix,
 // it uses the prefix as the Space rather than report an error.
-func (p *Parser) Token() (t Token, err os.Error) {
+func (p *Parser) Token() (t Token, err error) {
 	if p.nextToken != nil {
 		t = p.nextToken
 		p.nextToken = nil
@@ -354,7 +353,7 @@ func (p *Parser) pushNs(local string, url string, ok bool) {
 }
 
 // Creates a SyntaxError with the current line number.
-func (p *Parser) syntaxError(msg string) os.Error {
+func (p *Parser) syntaxError(msg string) error {
 	return &SyntaxError{Msg: msg, Line: p.line}
 }
 
@@ -423,7 +422,7 @@ func (p *Parser) autoClose(t Token) (Token, bool) {
 // RawToken is like Token but does not verify that
 // start and end elements match and does not translate
 // name space prefixes to their corresponding URLs.
-func (p *Parser) RawToken() (Token, os.Error) {
+func (p *Parser) RawToken() (Token, error) {
 	if p.err != nil {
 		return nil, p.err
 	}
@@ -777,7 +776,7 @@ func (p *Parser) savedOffset() int {
 // and return ok==false
 func (p *Parser) mustgetc() (b byte, ok bool) {
 	if b, ok = p.getc(); !ok {
-		if p.err == os.EOF {
+		if p.err == io.EOF {
 			p.err = p.syntaxError("unexpected EOF")
 		}
 	}
@@ -813,7 +812,7 @@ Input:
 		b, ok := p.getc()
 		if !ok {
 			if cdata {
-				if p.err == os.EOF {
+				if p.err == io.EOF {
 					p.err = p.syntaxError("unexpected EOF in CDATA section")
 				}
 				return nil
@@ -855,7 +854,7 @@ Input:
 				var ok bool
 				p.tmp[i], ok = p.getc()
 				if !ok {
-					if p.err == os.EOF {
+					if p.err == io.EOF {
 						p.err = p.syntaxError("unexpected EOF")
 					}
 					return nil
@@ -888,7 +887,7 @@ Input:
 			var text string
 			if i >= 2 && s[0] == '#' {
 				var n uint64
-				var err os.Error
+				var err error
 				if i >= 3 && s[1] == 'x' {
 					n, err = strconv.Btoui64(s[2:], 16)
 				} else {

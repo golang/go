@@ -631,7 +631,7 @@ var deepEqualTests = []DeepEqualTest{
 	{make([]int, 10), make([]int, 10), true},
 	{&[3]int{1, 2, 3}, &[3]int{1, 2, 3}, true},
 	{Basic{1, 0.5}, Basic{1, 0.5}, true},
-	{os.Error(nil), os.Error(nil), true},
+	{error(nil), error(nil), true},
 	{map[int]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, true},
 
 	// Inequalities

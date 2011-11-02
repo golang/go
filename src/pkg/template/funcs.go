@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"strings"
 	"unicode"
@@ -102,7 +101,7 @@ func findFunction(name string, tmpl *Template, set *Set) (reflect.Value, bool) {
 // index returns the result of indexing its first argument by the following
 // arguments.  Thus "index x 1 2 3" is, in Go syntax, x[1][2][3]. Each
 // indexed item must be a map, slice, or array.
-func index(item interface{}, indices ...interface{}) (interface{}, os.Error) {
+func index(item interface{}, indices ...interface{}) (interface{}, error) {
 	v := reflect.ValueOf(item)
 	for _, i := range indices {
 		index := reflect.ValueOf(i)
@@ -144,7 +143,7 @@ func index(item interface{}, indices ...interface{}) (interface{}, os.Error) {
 // Length
 
 // length returns the length of the item, with an error if it has no defined length.
-func length(item interface{}) (int, os.Error) {
+func length(item interface{}) (int, error) {
 	v, isNil := indirect(reflect.ValueOf(item))
 	if isNil {
 		return 0, fmt.Errorf("len of nil pointer")

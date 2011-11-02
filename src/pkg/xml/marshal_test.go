@@ -7,8 +7,6 @@ package xml
 import (
 	"reflect"
 	"testing"
-
-	"os"
 	"bytes"
 	"strings"
 	"strconv"
@@ -39,7 +37,7 @@ type Ship struct {
 
 type RawXML string
 
-func (rx RawXML) MarshalXML() ([]byte, os.Error) {
+func (rx RawXML) MarshalXML() ([]byte, error) {
 	return []byte(rx), nil
 }
 
@@ -342,7 +340,7 @@ func TestMarshalErrors(t *testing.T) {
 	for idx, test := range marshalErrorTests {
 		buf := bytes.NewBuffer(nil)
 		err := Marshal(buf, test.Value)
-		if err == nil || err.String() != test.Err {
+		if err == nil || err.Error() != test.Err {
 			t.Errorf("#%d: marshal(%#v) = [error] %q, want %q", idx, test.Value, err, test.Err)
 		}
 		if kind := err.(*UnsupportedTypeError).Type.Kind(); kind != test.Kind {

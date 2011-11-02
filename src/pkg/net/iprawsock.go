@@ -6,10 +6,6 @@
 
 package net
 
-import (
-	"os"
-)
-
 // IPAddr represents the address of a IP end point.
 type IPAddr struct {
 	IP IP
@@ -29,7 +25,7 @@ func (a *IPAddr) String() string {
 // names to numeric addresses on the network net, which must be
 // "ip", "ip4" or "ip6".  A literal IPv6 host address must be
 // enclosed in square brackets, as in "[::]".
-func ResolveIPAddr(net, addr string) (*IPAddr, os.Error) {
+func ResolveIPAddr(net, addr string) (*IPAddr, error) {
 	ip, err := hostToIP(net, addr)
 	if err != nil {
 		return nil, err
@@ -38,7 +34,7 @@ func ResolveIPAddr(net, addr string) (*IPAddr, os.Error) {
 }
 
 // Convert "host" into IP address.
-func hostToIP(net, host string) (ip IP, err os.Error) {
+func hostToIP(net, host string) (ip IP, err error) {
 	var addr IP
 	// Try as an IP address.
 	addr = ParseIP(host)

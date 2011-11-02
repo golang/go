@@ -8,7 +8,6 @@ package dict
 
 import (
 	"net/textproto"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -20,7 +19,7 @@ type Client struct {
 
 // Dial returns a new client connected to a dictionary server at
 // addr on the given network.
-func Dial(network, addr string) (*Client, os.Error) {
+func Dial(network, addr string) (*Client, error) {
 	text, err := textproto.Dial(network, addr)
 	if err != nil {
 		return nil, err
@@ -34,7 +33,7 @@ func Dial(network, addr string) (*Client, os.Error) {
 }
 
 // Close closes the connection to the dictionary server.
-func (c *Client) Close() os.Error {
+func (c *Client) Close() error {
 	return c.text.Close()
 }
 
@@ -45,7 +44,7 @@ type Dict struct {
 }
 
 // Dicts returns a list of the dictionaries available on the server.
-func (c *Client) Dicts() ([]Dict, os.Error) {
+func (c *Client) Dicts() ([]Dict, error) {
 	id, err := c.text.Cmd("SHOW DB")
 	if err != nil {
 		return nil, err
@@ -93,7 +92,7 @@ type Defn struct {
 // The special dictionary name "!" means to look in all the
 // server's dictionaries in turn, stopping after finding the word
 // in one of them.
-func (c *Client) Define(dict, word string) ([]*Defn, os.Error) {
+func (c *Client) Define(dict, word string) ([]*Defn, error) {
 	id, err := c.text.Cmd("DEFINE %s %q", dict, word)
 	if err != nil {
 		return nil, err
@@ -142,7 +141,7 @@ func (c *Client) Define(dict, word string) ([]*Defn, os.Error) {
 // Fields returns the fields in s.
 // Fields are space separated unquoted words
 // or quoted with single or double quote.
-func fields(s string) ([]string, os.Error) {
+func fields(s string) ([]string, error) {
 	var v []string
 	i := 0
 	for {

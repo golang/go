@@ -5,7 +5,6 @@
 package filepath_test
 
 import (
-	"os"
 	. "path/filepath"
 	"testing"
 	"runtime"
@@ -14,7 +13,7 @@ import (
 type MatchTest struct {
 	pattern, s string
 	match      bool
-	err        os.Error
+	err        error
 }
 
 var matchTests = []MatchTest{
@@ -69,11 +68,11 @@ var matchTests = []MatchTest{
 	{"*x", "xxx", true, nil},
 }
 
-func errp(e os.Error) string {
+func errp(e error) string {
 	if e == nil {
 		return "<nil>"
 	}
-	return e.String()
+	return e.Error()
 }
 
 func TestMatch(t *testing.T) {

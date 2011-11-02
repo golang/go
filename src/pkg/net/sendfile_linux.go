@@ -21,7 +21,7 @@ const maxSendfileSize int = 4 << 20
 // non-EOF error.
 //
 // if handled == false, sendFile performed no work.
-func sendFile(c *netFD, r io.Reader) (written int64, err os.Error, handled bool) {
+func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	var remain int64 = 1 << 62 // by default, copy until EOF
 
 	lr, ok := r.(*io.LimitedReader)

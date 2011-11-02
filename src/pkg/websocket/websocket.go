@@ -42,7 +42,7 @@ type ProtocolError struct {
 	ErrorString string
 }
 
-func (err *ProtocolError) String() string { return err.ErrorString }
+func (err *ProtocolError) Error() string { return err.ErrorString }
 
 var (
 	ErrBadProtocolVersion   = &ProtocolError{"bad protocol version"}
@@ -93,11 +93,11 @@ type Config struct {
 type serverHandshaker interface {
 	// ReadHandshake reads handshake request message from client.
 	// Returns http response code and error if any.
-	ReadHandshake(buf *bufio.Reader, req *http.Request) (code int, err os.Error)
+	ReadHandshake(buf *bufio.Reader, req *http.Request) (code int, err error)
 
 	// AcceptHandshake accepts the client handshake request and sends
 	// handshake response back to client.
-	AcceptHandshake(buf *bufio.Writer) (err os.Error)
+	AcceptHandshake(buf *bufio.Writer) (err error)
 
 	// NewServerConn creates a new WebSocket connection.
 	NewServerConn(buf *bufio.ReadWriter, rwc io.ReadWriteCloser, request *http.Request) (conn *Conn)
@@ -124,7 +124,7 @@ type frameReader interface {
 
 // frameReaderFactory is an interface to creates new frame reader.
 type frameReaderFactory interface {
-	NewFrameReader() (r frameReader, err os.Error)
+	NewFrameReader() (r frameReader, err error)
 }
 
 // frameWriter is an interface to write a WebSocket frame.
@@ -135,12 +135,12 @@ type frameWriter interface {
 
 // frameWriterFactory is an interface to create new frame writer.
 type frameWriterFactory interface {
-	NewFrameWriter(payloadType byte) (w frameWriter, err os.Error)
+	NewFrameWriter(payloadType byte) (w frameWriter, err error)
 }
 
 type frameHandler interface {
-	HandleFrame(frame frameReader) (r frameReader, err os.Error)
-	WriteClose(status int) (err os.Error)
+	HandleFrame(frame frameReader) (r frameReader, err error)
+	WriteClose(status int) (err error)
 }
 
 // Conn represents a WebSocket connection.
@@ -168,7 +168,7 @@ type Conn struct {
 // if msg is not large enough for the frame data, it fills the msg and next Read
 // will read the rest of the frame data.
 // it reads Text frame or Binary frame.
-func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
+func (ws *Conn) Read(msg []byte) (n int, err error) {
 	ws.rio.Lock()
 	defer ws.rio.Unlock()
 again:
@@ -186,7 +186,7 @@ again:
 		}
 	}
 	n, err = ws.frameReader.Read(msg)
-	if err == os.EOF {
+	if err == io.EOF {
 		if trailer := ws.frameReader.TrailerReader(); trailer != nil {
 			io.Copy(ioutil.Discard, trailer)
 		}
@@ -198,7 +198,7 @@ again:
 
 // Write implements the io.Writer interface:
 // it writes data as a frame to the WebSocket connection.
-func (ws *Conn) Write(msg []byte) (n int, err os.Error) {
+func (ws *Conn) Write(msg []byte) (n int, err error) {
 	ws.wio.Lock()
 	defer ws.wio.Unlock()
 	w, err := ws.frameWriterFactory.NewFrameWriter(ws.PayloadType)
@@ -214,7 +214,7 @@ func (ws *Conn) Write(msg []byte) (n int, err os.Error) {
 }
 
 // Close implements the io.Closer interface.
-func (ws *Conn) Close() os.Error {
+func (ws *Conn) Close() error {
 	err := ws.frameHandler.WriteClose(ws.defaultCloseStatus)
 	if err != nil {
 		return err
@@ -244,7 +244,7 @@ func (ws *Conn) RemoteAddr() net.Addr {
 }
 
 // SetTimeout sets the connection's network timeout in nanoseconds.
-func (ws *Conn) SetTimeout(nsec int64) os.Error {
+func (ws *Conn) SetTimeout(nsec int64) error {
 	if conn, ok := ws.rwc.(net.Conn); ok {
 		return conn.SetTimeout(nsec)
 	}
@@ -252,7 +252,7 @@ func (ws *Conn) SetTimeout(nsec int64) os.Error {
 }
 
 // SetReadTimeout sets the connection's network read timeout in nanoseconds.
-func (ws *Conn) SetReadTimeout(nsec int64) os.Error {
+func (ws *Conn) SetReadTimeout(nsec int64) error {
 	if conn, ok := ws.rwc.(net.Conn); ok {
 		return conn.SetReadTimeout(nsec)
 	}
@@ -260,7 +260,7 @@ func (ws *Conn) SetReadTimeout(nsec int64) os.Error {
 }
 
 // SetWriteTimeout sets the connection's network write timeout in nanoseconds.
-func (ws *Conn) SetWriteTimeout(nsec int64) os.Error {
+func (ws *Conn) SetWriteTimeout(nsec int64) error {
 	if conn, ok := ws.rwc.(net.Conn); ok {
 		return conn.SetWriteTimeout(nsec)
 	}
@@ -276,12 +276,12 @@ func (ws *Conn) Request() *http.Request { return ws.request }
 
 // Codec represents a symmetric pair of functions that implement a codec.
 type Codec struct {
-	Marshal   func(v interface{}) (data []byte, payloadType byte, err os.Error)
-	Unmarshal func(data []byte, payloadType byte, v interface{}) (err os.Error)
+	Marshal   func(v interface{}) (data []byte, payloadType byte, err error)
+	Unmarshal func(data []byte, payloadType byte, v interface{}) (err error)
 }
 
 // Send sends v marshaled by cd.Marshal as single frame to ws.
-func (cd Codec) Send(ws *Conn, v interface{}) (err os.Error) {
+func (cd Codec) Send(ws *Conn, v interface{}) (err error) {
 	if err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func (cd Codec) Send(ws *Conn, v interface{}) (err os.Error) {
 }
 
 // Receive receives single frame from ws, unmarshaled by cd.Unmarshal and stores in v.
-func (cd Codec) Receive(ws *Conn, v interface{}) (err os.Error) {
+func (cd Codec) Receive(ws *Conn, v interface{}) (err error) {
 	ws.rio.Lock()
 	defer ws.rio.Unlock()
 	if ws.frameReader != nil {
@@ -328,7 +328,7 @@ again:
 	return cd.Unmarshal(data, payloadType, v)
 }
 
-func marshal(v interface{}) (msg []byte, payloadType byte, err os.Error) {
+func marshal(v interface{}) (msg []byte, payloadType byte, err error) {
 	switch data := v.(type) {
 	case string:
 		return []byte(data), TextFrame, nil
@@ -338,7 +338,7 @@ func marshal(v interface{}) (msg []byte, payloadType byte, err os.Error) {
 	return nil, UnknownFrame, ErrNotSupported
 }
 
-func unmarshal(msg []byte, payloadType byte, v interface{}) (err os.Error) {
+func unmarshal(msg []byte, payloadType byte, v interface{}) (err error) {
 	switch data := v.(type) {
 	case *string:
 		*data = string(msg)
@@ -378,12 +378,12 @@ Trivial usage:
 */
 var Message = Codec{marshal, unmarshal}
 
-func jsonMarshal(v interface{}) (msg []byte, payloadType byte, err os.Error) {
+func jsonMarshal(v interface{}) (msg []byte, payloadType byte, err error) {
 	msg, err = json.Marshal(v)
 	return msg, TextFrame, err
 }
 
-func jsonUnmarshal(msg []byte, payloadType byte, v interface{}) (err os.Error) {
+func jsonUnmarshal(msg []byte, payloadType byte, v interface{}) (err error) {
 	return json.Unmarshal(msg, v)
 }
 

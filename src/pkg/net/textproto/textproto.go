@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 )
 
 // An Error represents a numeric error response from a server.
@@ -36,7 +35,7 @@ type Error struct {
 	Msg  string
 }
 
-func (e *Error) String() string {
+func (e *Error) Error() string {
 	return fmt.Sprintf("%03d %s", e.Code, e.Msg)
 }
 
@@ -44,7 +43,7 @@ func (e *Error) String() string {
 // as an invalid response or a hung-up connection.
 type ProtocolError string
 
-func (p ProtocolError) String() string {
+func (p ProtocolError) Error() string {
 	return string(p)
 }
 
@@ -70,13 +69,13 @@ func NewConn(conn io.ReadWriteCloser) *Conn {
 }
 
 // Close closes the connection.
-func (c *Conn) Close() os.Error {
+func (c *Conn) Close() error {
 	return c.conn.Close()
 }
 
 // Dial connects to the given address on the given network using net.Dial
 // and then returns a new Conn for the connection.
-func Dial(network, addr string) (*Conn, os.Error) {
+func Dial(network, addr string) (*Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
 		return nil, err
@@ -109,7 +108,7 @@ func Dial(network, addr string) (*Conn, os.Error) {
 //	}
 //	return c.ReadCodeLine(250)
 //
-func (c *Conn) Cmd(format string, args ...interface{}) (id uint, err os.Error) {
+func (c *Conn) Cmd(format string, args ...interface{}) (id uint, err error) {
 	id = c.Next()
 	c.StartRequest(id)
 	err = c.PrintfLine(format, args...)

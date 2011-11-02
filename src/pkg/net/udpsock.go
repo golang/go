@@ -6,10 +6,6 @@
 
 package net
 
-import (
-	"os"
-)
-
 // UDPAddr represents the address of a UDP end point.
 type UDPAddr struct {
 	IP   IP
@@ -31,7 +27,7 @@ func (a *UDPAddr) String() string {
 // numeric addresses on the network net, which must be "udp",
 // "udp4" or "udp6".  A literal IPv6 host address must be
 // enclosed in square brackets, as in "[::]:80".
-func ResolveUDPAddr(net, addr string) (*UDPAddr, os.Error) {
+func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
 	ip, port, err := hostPortToIP(net, addr)
 	if err != nil {
 		return nil, err

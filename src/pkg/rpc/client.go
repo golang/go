@@ -6,12 +6,12 @@ package rpc
 
 import (
 	"bufio"
+	"errors"
 	"gob"
 	"http"
 	"io"
 	"log"
 	"net"
-	"os"
 	"sync"
 )
 
@@ -19,18 +19,18 @@ import (
 // the remote side of the RPC connection.
 type ServerError string
 
-func (e ServerError) String() string {
+func (e ServerError) Error() string {
 	return string(e)
 }
 
-var ErrShutdown = os.NewError("connection is shut down")
+var ErrShutdown = errors.New("connection is shut down")
 
 // Call represents an active RPC.
 type Call struct {
 	ServiceMethod string      // The name of the service and method to call.
 	Args          interface{} // The argument to the function (*struct).
 	Reply         interface{} // The reply from the function (*struct).
-	Error         os.Error    // After completion, the error status.
+	Error         error       // After completion, the error status.
 	Done          chan *Call  // Strobes when call is complete; value is the error status.
 	seq           uint64
 }
@@ -58,11 +58,11 @@ type Client struct {
 // argument to force the body of the response to be read and then
 // discarded.
 type ClientCodec interface {
-	WriteRequest(*Request, interface{}) os.Error
-	ReadResponseHeader(*Response) os.Error
-	ReadResponseBody(interface{}) os.Error
+	WriteRequest(*Request, interface{}) error
+	ReadResponseHeader(*Response) error
+	ReadResponseBody(interface{}) error
 
-	Close() os.Error
+	Close() error
 }
 
 func (client *Client) send(c *Call) {
@@ -91,13 +91,13 @@ func (client *Client) send(c *Call) {
 }
 
 func (client *Client) input() {
-	var err os.Error
+	var err error
 	var response Response
 	for err == nil {
 		response = Response{}
 		err = client.codec.ReadResponseHeader(&response)
 		if err != nil {
-			if err == os.EOF && !client.closing {
+			if err == io.EOF && !client.closing {
 				err = io.ErrUnexpectedEOF
 			}
 			break
@@ -111,7 +111,7 @@ func (client *Client) input() {
 		if response.Error == "" {
 			err = client.codec.ReadResponseBody(c.Reply)
 			if err != nil {
-				c.Error = os.NewError("reading body " + err.String())
+				c.Error = errors.New("reading body " + err.Error())
 			}
 		} else {
 			// We've got an error response. Give this to the request;
@@ -120,7 +120,7 @@ func (client *Client) input() {
 			c.Error = ServerError(response.Error)
 			err = client.codec.ReadResponseBody(nil)
 			if err != nil {
-				err = os.NewError("reading error body: " + err.String())
+				err = errors.New("reading error body: " + err.Error())
 			}
 		}
 		c.done()
@@ -133,7 +133,7 @@ func (client *Client) input() {
 		call.done()
 	}
 	client.mutex.Unlock()
-	if err != os.EOF || !client.closing {
+	if err != io.EOF || !client.closing {
 		log.Println("rpc: client protocol error:", err)
 	}
 }
@@ -176,7 +176,7 @@ type gobClientCodec struct {
 	encBuf *bufio.Writer
 }
 
-func (c *gobClientCodec) WriteRequest(r *Request, body interface{}) (err os.Error) {
+func (c *gobClientCodec) WriteRequest(r *Request, body interface{}) (err error) {
 	if err = c.enc.Encode(r); err != nil {
 		return
 	}
@@ -186,28 +186,28 @@ func (c *gobClientCodec) WriteRequest(r *Request, body interface{}) (err os.Erro
 	return c.encBuf.Flush()
 }
 
-func (c *gobClientCodec) ReadResponseHeader(r *Response) os.Error {
+func (c *gobClientCodec) ReadResponseHeader(r *Response) error {
 	return c.dec.Decode(r)
 }
 
-func (c *gobClientCodec) ReadResponseBody(body interface{}) os.Error {
+func (c *gobClientCodec) ReadResponseBody(body interface{}) error {
 	return c.dec.Decode(body)
 }
 
-func (c *gobClientCodec) Close() os.Error {
+func (c *gobClientCodec) Close() error {
 	return c.rwc.Close()
 }
 
 // DialHTTP connects to an HTTP RPC server at the specified network address
 // listening on the default HTTP RPC path.
-func DialHTTP(network, address string) (*Client, os.Error) {
+func DialHTTP(network, address string) (*Client, error) {
 	return DialHTTPPath(network, address, DefaultRPCPath)
 }
 
 // DialHTTPPath connects to an HTTP RPC server 
 // at the specified network address and path.
-func DialHTTPPath(network, address, path string) (*Client, os.Error) {
-	var err os.Error
+func DialHTTPPath(network, address, path string) (*Client, error) {
+	var err error
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		return nil, err
@@ -221,14 +221,14 @@ func DialHTTPPath(network, address, path string) (*Client, os.Error) {
 		return NewClient(conn), nil
 	}
 	if err == nil {
-		err = os.NewError("unexpected HTTP response: " + resp.Status)
+		err = errors.New("unexpected HTTP response: " + resp.Status)
 	}
 	conn.Close()
 	return nil, &net.OpError{"dial-http", network + " " + address, nil, err}
 }
 
 // Dial connects to an RPC server at the specified network address.
-func Dial(network, address string) (*Client, os.Error) {
+func Dial(network, address string) (*Client, error) {
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		return nil, err
@@ -236,7 +236,7 @@ func Dial(network, address string) (*Client, os.Error) {
 	return NewClient(conn), nil
 }
 
-func (client *Client) Close() os.Error {
+func (client *Client) Close() error {
 	client.mutex.Lock()
 	if client.shutdown || client.closing {
 		client.mutex.Unlock()
@@ -278,7 +278,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) os.Error {
+func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
 	if client.shutdown {
 		return ErrShutdown
 	}

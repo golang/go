@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"os"
 	"rand"
 	"reflect"
 	"strings"
@@ -191,7 +190,7 @@ func (c *Config) getMaxCount() (maxCount int) {
 // used, independent of the functions being tested.
 type SetupError string
 
-func (s SetupError) String() string { return string(s) }
+func (s SetupError) Error() string { return string(s) }
 
 // A CheckError is the result of Check finding an error.
 type CheckError struct {
@@ -199,7 +198,7 @@ type CheckError struct {
 	In    []interface{}
 }
 
-func (s *CheckError) String() string {
+func (s *CheckError) Error() string {
 	return fmt.Sprintf("#%d: failed on input %s", s.Count, toString(s.In))
 }
 
@@ -210,7 +209,7 @@ type CheckEqualError struct {
 	Out2 []interface{}
 }
 
-func (s *CheckEqualError) String() string {
+func (s *CheckEqualError) Error() string {
 	return fmt.Sprintf("#%d: failed on input %s. Output 1: %s. Output 2: %s", s.Count, toString(s.In), toString(s.Out1), toString(s.Out2))
 }
 
@@ -229,7 +228,7 @@ func (s *CheckEqualError) String() string {
 // 			t.Error(err)
 // 		}
 // 	}
-func Check(function interface{}, config *Config) (err os.Error) {
+func Check(function interface{}, config *Config) (err error) {
 	if config == nil {
 		config = &defaultConfig
 	}
@@ -272,7 +271,7 @@ func Check(function interface{}, config *Config) (err os.Error) {
 // It calls f and g repeatedly with arbitrary values for each argument.
 // If f and g return different answers, CheckEqual returns a *CheckEqualError
 // describing the input and the outputs.
-func CheckEqual(f, g interface{}, config *Config) (err os.Error) {
+func CheckEqual(f, g interface{}, config *Config) (err error) {
 	if config == nil {
 		config = &defaultConfig
 	}
@@ -317,7 +316,7 @@ func CheckEqual(f, g interface{}, config *Config) (err os.Error) {
 
 // arbitraryValues writes Values to args such that args contains Values
 // suitable for calling f.
-func arbitraryValues(args []reflect.Value, f reflect.Type, config *Config, rand *rand.Rand) (err os.Error) {
+func arbitraryValues(args []reflect.Value, f reflect.Type, config *Config, rand *rand.Rand) (err error) {
 	if config.Values != nil {
 		config.Values(args, rand)
 		return

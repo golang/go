@@ -5,7 +5,6 @@
 package strconv_test
 
 import (
-	"os"
 	"reflect"
 	. "strconv"
 	"testing"
@@ -14,7 +13,7 @@ import (
 type atoui64Test struct {
 	in  string
 	out uint64
-	err os.Error
+	err error
 }
 
 var atoui64tests = []atoui64Test{
@@ -54,7 +53,7 @@ var btoui64tests = []atoui64Test{
 type atoi64Test struct {
 	in  string
 	out int64
-	err os.Error
+	err error
 }
 
 var atoi64tests = []atoi64Test{
@@ -104,7 +103,7 @@ var btoi64tests = []atoi64Test{
 type atoui32Test struct {
 	in  string
 	out uint32
-	err os.Error
+	err error
 }
 
 var atoui32tests = []atoui32Test{
@@ -122,7 +121,7 @@ var atoui32tests = []atoui32Test{
 type atoi32Test struct {
 	in  string
 	out int32
-	err os.Error
+	err error
 }
 
 var atoi32tests = []atoi32Test{

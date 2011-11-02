@@ -6,10 +6,6 @@
 
 package net
 
-import (
-	"os"
-)
-
 // UnixAddr represents the address of a Unix domain socket end point.
 type UnixAddr struct {
 	Name string
@@ -38,7 +34,7 @@ func (a *UnixAddr) toAddr() Addr {
 // ResolveUnixAddr parses addr as a Unix domain socket address.
 // The string net gives the network name, "unix", "unixgram" or
 // "unixpacket".
-func ResolveUnixAddr(net, addr string) (*UnixAddr, os.Error) {
+func ResolveUnixAddr(net, addr string) (*UnixAddr, error) {
 	switch net {
 	case "unix":
 	case "unixpacket":

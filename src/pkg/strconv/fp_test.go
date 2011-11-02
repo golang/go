@@ -7,6 +7,7 @@ package strconv_test
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -105,11 +106,11 @@ func TestFp(t *testing.T) {
 	lineno := 0
 	for {
 		line, err2 := b.ReadString('\n')
-		if err2 == os.EOF {
+		if err2 == io.EOF {
 			break
 		}
 		if err2 != nil {
-			t.Fatal("testfp: read testfp.txt: " + err2.String())
+			t.Fatal("testfp: read testfp.txt: " + err2.Error())
 		}
 		line = line[0 : len(line)-1]
 		lineno++

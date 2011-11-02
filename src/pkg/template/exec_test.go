@@ -159,7 +159,7 @@ func (t *T) MSort(m map[string]int) []string {
 }
 
 // EPERM returns a value and an os.Error according to its argument.
-func (t *T) EPERM(error bool) (bool, os.Error) {
+func (t *T) EPERM(error bool) (bool, error) {
 	if error {
 		return true, os.EPERM
 	}
@@ -548,7 +548,7 @@ func TestExecuteError(t *testing.T) {
 	err = tmpl.Execute(b, tVal)
 	if err == nil {
 		t.Errorf("expected error; got none")
-	} else if !strings.Contains(err.String(), os.EPERM.String()) {
+	} else if !strings.Contains(err.Error(), os.EPERM.Error()) {
 		if *debug {
 			fmt.Printf("test execute error: %s\n", err)
 		}

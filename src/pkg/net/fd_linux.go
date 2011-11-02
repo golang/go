@@ -33,7 +33,7 @@ type pollster struct {
 	ctlEvent syscall.EpollEvent
 }
 
-func newpollster() (p *pollster, err os.Error) {
+func newpollster() (p *pollster, err error) {
 	p = new(pollster)
 	var e int
 
@@ -47,7 +47,7 @@ func newpollster() (p *pollster, err os.Error) {
 	return p, nil
 }
 
-func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, os.Error) {
+func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
 	// pollServer is locked.
 
 	var already bool
@@ -130,7 +130,7 @@ func (p *pollster) DelFD(fd int, mode int) {
 	}
 }
 
-func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err os.Error) {
+func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err error) {
 	for len(p.waitEvents) == 0 {
 		var msec int = -1
 		if nsec > 0 {
@@ -177,6 +177,6 @@ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err os.E
 	return fd, 'r', nil
 }
 
-func (p *pollster) Close() os.Error {
+func (p *pollster) Close() error {
 	return os.NewSyscallError("close", syscall.Close(p.epfd))
 }

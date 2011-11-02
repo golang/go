@@ -14,7 +14,6 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"io"
-	"os"
 	"net"
 	"net/textproto"
 	"strings"
@@ -38,7 +37,7 @@ type Client struct {
 }
 
 // Dial returns a new Client connected to an SMTP server at addr.
-func Dial(addr string) (*Client, os.Error) {
+func Dial(addr string) (*Client, error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -49,7 +48,7 @@ func Dial(addr string) (*Client, os.Error) {
 
 // NewClient returns a new Client using an existing connection and host as a
 // server name to be used when authenticating.
-func NewClient(conn net.Conn, host string) (*Client, os.Error) {
+func NewClient(conn net.Conn, host string) (*Client, error) {
 	text := textproto.NewConn(conn)
 	_, msg, err := text.ReadResponse(220)
 	if err != nil {
@@ -66,7 +65,7 @@ func NewClient(conn net.Conn, host string) (*Client, os.Error) {
 }
 
 // cmd is a convenience function that sends a command and returns the response
-func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, os.Error) {
+func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
 		return 0, "", err
@@ -79,7 +78,7 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 
 // helo sends the HELO greeting to the server. It should be used only when the
 // server does not support ehlo.
-func (c *Client) helo() os.Error {
+func (c *Client) helo() error {
 	c.ext = nil
 	_, _, err := c.cmd(250, "HELO localhost")
 	return err
@@ -87,7 +86,7 @@ func (c *Client) helo() os.Error {
 
 // ehlo sends the EHLO (extended hello) greeting to the server. It
 // should be the preferred greeting for servers that support it.
-func (c *Client) ehlo() os.Error {
+func (c *Client) ehlo() error {
 	_, msg, err := c.cmd(250, "EHLO localhost")
 	if err != nil {
 		return err
@@ -114,7 +113,7 @@ func (c *Client) ehlo() os.Error {
 
 // StartTLS sends the STARTTLS command and encrypts all further communication.
 // Only servers that advertise the STARTTLS extension support this function.
-func (c *Client) StartTLS(config *tls.Config) os.Error {
+func (c *Client) StartTLS(config *tls.Config) error {
 	_, _, err := c.cmd(220, "STARTTLS")
 	if err != nil {
 		return err
@@ -129,7 +128,7 @@ func (c *Client) StartTLS(config *tls.Config) os.Error {
 // If Verify returns nil, the address is valid. A non-nil return
 // does not necessarily indicate an invalid address. Many servers
 // will not verify addresses for security reasons.
-func (c *Client) Verify(addr string) os.Error {
+func (c *Client) Verify(addr string) error {
 	_, _, err := c.cmd(250, "VRFY %s", addr)
 	return err
 }
@@ -137,7 +136,7 @@ func (c *Client) Verify(addr string) os.Error {
 // Auth authenticates a client using the provided authentication mechanism.
 // A failed authentication closes the connection.
 // Only servers that advertise the AUTH extension support this function.
-func (c *Client) Auth(a Auth) os.Error {
+func (c *Client) Auth(a Auth) error {
 	encoding := base64.StdEncoding
 	mech, resp, err := a.Start(&ServerInfo{c.serverName, c.tls, c.auth})
 	if err != nil {
@@ -179,7 +178,7 @@ func (c *Client) Auth(a Auth) os.Error {
 // If the server supports the 8BITMIME extension, Mail adds the BODY=8BITMIME
 // parameter.
 // This initiates a mail transaction and is followed by one or more Rcpt calls.
-func (c *Client) Mail(from string) os.Error {
+func (c *Client) Mail(from string) error {
 	cmdStr := "MAIL FROM:<%s>"
 	if c.ext != nil {
 		if _, ok := c.ext["8BITMIME"]; ok {
@@ -193,7 +192,7 @@ func (c *Client) Mail(from string) os.Error {
 // Rcpt issues a RCPT command to the server using the provided email address.
 // A call to Rcpt must be preceded by a call to Mail and may be followed by
 // a Data call or another Rcpt call.
-func (c *Client) Rcpt(to string) os.Error {
+func (c *Client) Rcpt(to string) error {
 	_, _, err := c.cmd(25, "RCPT TO:<%s>", to)
 	return err
 }
@@ -203,7 +202,7 @@ type dataCloser struct {
 	io.WriteCloser
 }
 
-func (d *dataCloser) Close() os.Error {
+func (d *dataCloser) Close() error {
 	d.WriteCloser.Close()
 	_, _, err := d.c.Text.ReadResponse(250)
 	return err
@@ -213,7 +212,7 @@ func (d *dataCloser) Close() os.Error {
 // can be used to write the data. The caller should close the writer
 // before calling any more methods on c.
 // A call to Data must be preceded by one or more calls to Rcpt.
-func (c *Client) Data() (io.WriteCloser, os.Error) {
+func (c *Client) Data() (io.WriteCloser, error) {
 	_, _, err := c.cmd(354, "DATA")
 	if err != nil {
 		return nil, err
@@ -224,7 +223,7 @@ func (c *Client) Data() (io.WriteCloser, os.Error) {
 // SendMail connects to the server at addr, switches to TLS if possible,
 // authenticates with mechanism a if possible, and then sends an email from
 // address from, to addresses to, with message msg.
-func SendMail(addr string, a Auth, from string, to []string, msg []byte) os.Error {
+func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
 	c, err := Dial(addr)
 	if err != nil {
 		return err
@@ -279,13 +278,13 @@ func (c *Client) Extension(ext string) (bool, string) {
 
 // Reset sends the RSET command to the server, aborting the current mail
 // transaction.
-func (c *Client) Reset() os.Error {
+func (c *Client) Reset() error {
 	_, _, err := c.cmd(250, "RSET")
 	return err
 }
 
 // Quit sends the QUIT command and closes the connection to the server.
-func (c *Client) Quit() os.Error {
+func (c *Client) Quit() error {
 	_, _, err := c.cmd(221, "QUIT")
 	if err != nil {
 		return err

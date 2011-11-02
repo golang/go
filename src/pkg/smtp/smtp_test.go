@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"io"
 	"net/textproto"
-	"os"
 	"strings"
 	"testing"
 )
@@ -59,7 +58,7 @@ type faker struct {
 	io.ReadWriter
 }
 
-func (f faker) Close() os.Error {
+func (f faker) Close() error {
 	return nil
 }
 

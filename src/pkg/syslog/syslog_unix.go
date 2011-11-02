@@ -5,14 +5,14 @@
 package syslog
 
 import (
+	"errors"
 	"net"
-	"os"
 )
 
 // unixSyslog opens a connection to the syslog daemon running on the
 // local machine using a Unix domain socket.
 
-func unixSyslog() (conn serverConn, err os.Error) {
+func unixSyslog() (conn serverConn, err error) {
 	logTypes := []string{"unixgram", "unix"}
 	logPaths := []string{"/dev/log", "/var/run/syslog"}
 	var raddr string
@@ -27,5 +27,5 @@ func unixSyslog() (conn serverConn, err os.Error) {
 			}
 		}
 	}
-	return nil, os.NewError("Unix syslog delivery error")
+	return nil, errors.New("Unix syslog delivery error")
 }

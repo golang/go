@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"os"
 )
 
 // A Writer implements convenience methods for writing
@@ -27,7 +26,7 @@ var crnl = []byte{'\r', '\n'}
 var dotcrnl = []byte{'.', '\r', '\n'}
 
 // PrintfLine writes the formatted output followed by \r\n.
-func (w *Writer) PrintfLine(format string, args ...interface{}) os.Error {
+func (w *Writer) PrintfLine(format string, args ...interface{}) error {
 	w.closeDot()
 	fmt.Fprintf(w.W, format, args...)
 	w.W.Write(crnl)
@@ -64,7 +63,7 @@ const (
 	wstateData             // writing data in middle of line
 )
 
-func (d *dotWriter) Write(b []byte) (n int, err os.Error) {
+func (d *dotWriter) Write(b []byte) (n int, err error) {
 	bw := d.w.W
 	for n < len(b) {
 		c := b[n]
@@ -100,7 +99,7 @@ func (d *dotWriter) Write(b []byte) (n int, err os.Error) {
 	return
 }
 
-func (d *dotWriter) Close() os.Error {
+func (d *dotWriter) Close() error {
 	if d.w.dot == d {
 		d.w.dot = nil
 	}

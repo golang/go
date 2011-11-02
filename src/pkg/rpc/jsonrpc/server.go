@@ -5,9 +5,9 @@
 package jsonrpc
 
 import (
+	"errors"
 	"io"
 	"json"
-	"os"
 	"rpc"
 	"sync"
 )
@@ -64,7 +64,7 @@ type serverResponse struct {
 	Error  interface{}      `json:"error"`
 }
 
-func (c *serverCodec) ReadRequestHeader(r *rpc.Request) os.Error {
+func (c *serverCodec) ReadRequestHeader(r *rpc.Request) error {
 	c.req.reset()
 	if err := c.dec.Decode(&c.req); err != nil {
 		return err
@@ -84,7 +84,7 @@ func (c *serverCodec) ReadRequestHeader(r *rpc.Request) os.Error {
 	return nil
 }
 
-func (c *serverCodec) ReadRequestBody(x interface{}) os.Error {
+func (c *serverCodec) ReadRequestBody(x interface{}) error {
 	if x == nil {
 		return nil
 	}
@@ -99,13 +99,13 @@ func (c *serverCodec) ReadRequestBody(x interface{}) os.Error {
 
 var null = json.RawMessage([]byte("null"))
 
-func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) os.Error {
+func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) error {
 	var resp serverResponse
 	c.mutex.Lock()
 	b, ok := c.pending[r.Seq]
 	if !ok {
 		c.mutex.Unlock()
-		return os.NewError("invalid sequence number in response")
+		return errors.New("invalid sequence number in response")
 	}
 	delete(c.pending, r.Seq)
 	c.mutex.Unlock()
@@ -124,7 +124,7 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) os.Error {
 	return c.enc.Encode(resp)
 }
 
-func (c *serverCodec) Close() os.Error {
+func (c *serverCodec) Close() error {
 	return c.c.Close()
 }
 

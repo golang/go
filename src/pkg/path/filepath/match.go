@@ -5,13 +5,14 @@
 package filepath
 
 import (
+	"errors"
 	"os"
 	"sort"
 	"strings"
 	"utf8"
 )
 
-var ErrBadPattern = os.NewError("syntax error in pattern")
+var ErrBadPattern = errors.New("syntax error in pattern")
 
 // Match returns true if name matches the shell file name pattern.
 // The pattern syntax is:
@@ -34,7 +35,7 @@ var ErrBadPattern = os.NewError("syntax error in pattern")
 // Match requires pattern to match all of name, not just a substring.
 // The only possible error return occurs when the pattern is malformed.
 //
-func Match(pattern, name string) (matched bool, err os.Error) {
+func Match(pattern, name string) (matched bool, err error) {
 Pattern:
 	for len(pattern) > 0 {
 		var star bool
@@ -112,7 +113,7 @@ Scan:
 // matchChunk checks whether chunk matches the beginning of s.
 // If so, it returns the remainder of s (after the match).
 // Chunk is all single-character operators: literals, char classes, and ?.
-func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
+func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 	for len(chunk) > 0 {
 		if len(s) == 0 {
 			return
@@ -183,7 +184,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
 }
 
 // getEsc gets a possibly-escaped character from chunk, for a character class.
-func getEsc(chunk string) (r rune, nchunk string, err os.Error) {
+func getEsc(chunk string) (r rune, nchunk string, err error) {
 	if len(chunk) == 0 || chunk[0] == '-' || chunk[0] == ']' {
 		err = ErrBadPattern
 		return
@@ -212,7 +213,7 @@ func getEsc(chunk string) (r rune, nchunk string, err os.Error) {
 // /usr/*/bin/ed (assuming the Separator is '/').
 // The only possible error return occurs when the pattern is malformed.
 //
-func Glob(pattern string) (matches []string, err os.Error) {
+func Glob(pattern string) (matches []string, err error) {
 	if !hasMeta(pattern) {
 		if _, err = os.Stat(pattern); err != nil {
 			return nil, nil
@@ -253,7 +254,7 @@ func Glob(pattern string) (matches []string, err os.Error) {
 // opened, it returns the existing matches. New matches are
 // added in lexicographical order.
 // The only possible error return occurs when the pattern is malformed.
-func glob(dir, pattern string, matches []string) (m []string, e os.Error) {
+func glob(dir, pattern string, matches []string) (m []string, e error) {
 	m = matches
 	fi, err := os.Stat(dir)
 	if err != nil {

@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"http"
-	"os"
+	"io"
 	"strings"
 	"testing"
 	"url"
@@ -46,7 +46,7 @@ Sec-WebSocket-Protocol: sample
 
 8jKS'y:G*Co,Wxa-`))
 
-	var err os.Error
+	var err error
 	config := new(Config)
 	config.Location, err = url.ParseRequest("ws://example.com/demo")
 	if err != nil {
@@ -195,7 +195,7 @@ func TestHixie76ClosingFrame(t *testing.T) {
 		t.Errorf("Read: expected %q got %q", b[1:6], msg[0:n])
 	}
 	n, err = ws.Read(msg)
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Errorf("read: %v", err)
 	}
 }

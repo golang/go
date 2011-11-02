@@ -8,8 +8,8 @@ package net
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"os"
 )
 
 // A HardwareAddr represents a physical hardware address.
@@ -34,7 +34,7 @@ func (a HardwareAddr) String() string {
 //   01-23-45-67-89-ab-cd-ef
 //   0123.4567.89ab
 //   0123.4567.89ab.cdef
-func ParseMAC(s string) (hw HardwareAddr, err os.Error) {
+func ParseMAC(s string) (hw HardwareAddr, err error) {
 	if len(s) < 14 {
 		goto error
 	}
@@ -80,7 +80,7 @@ func ParseMAC(s string) (hw HardwareAddr, err os.Error) {
 	return hw, nil
 
 error:
-	return nil, os.NewError("invalid MAC address: " + s)
+	return nil, errors.New("invalid MAC address: " + s)
 }
 
 // Interface represents a mapping between network interface name
@@ -129,37 +129,37 @@ func (f Flags) String() string {
 }
 
 // Addrs returns interface addresses for a specific interface.
-func (ifi *Interface) Addrs() ([]Addr, os.Error) {
+func (ifi *Interface) Addrs() ([]Addr, error) {
 	if ifi == nil {
-		return nil, os.NewError("net: invalid interface")
+		return nil, errors.New("net: invalid interface")
 	}
 	return interfaceAddrTable(ifi.Index)
 }
 
 // MulticastAddrs returns multicast, joined group addresses for
 // a specific interface.
-func (ifi *Interface) MulticastAddrs() ([]Addr, os.Error) {
+func (ifi *Interface) MulticastAddrs() ([]Addr, error) {
 	if ifi == nil {
-		return nil, os.NewError("net: invalid interface")
+		return nil, errors.New("net: invalid interface")
 	}
 	return interfaceMulticastAddrTable(ifi.Index)
 }
 
 // Interfaces returns a list of the systems's network interfaces.
-func Interfaces() ([]Interface, os.Error) {
+func Interfaces() ([]Interface, error) {
 	return interfaceTable(0)
 }
 
 // InterfaceAddrs returns a list of the system's network interface
 // addresses.
-func InterfaceAddrs() ([]Addr, os.Error) {
+func InterfaceAddrs() ([]Addr, error) {
 	return interfaceAddrTable(0)
 }
 
 // InterfaceByIndex returns the interface specified by index.
-func InterfaceByIndex(index int) (*Interface, os.Error) {
+func InterfaceByIndex(index int) (*Interface, error) {
 	if index <= 0 {
-		return nil, os.NewError("net: invalid interface index")
+		return nil, errors.New("net: invalid interface index")
 	}
 	ift, err := interfaceTable(index)
 	if err != nil {
@@ -168,13 +168,13 @@ func InterfaceByIndex(index int) (*Interface, os.Error) {
 	for _, ifi := range ift {
 		return &ifi, nil
 	}
-	return nil, os.NewError("net: no such interface")
+	return nil, errors.New("net: no such interface")
 }
 
 // InterfaceByName returns the interface specified by name.
-func InterfaceByName(name string) (*Interface, os.Error) {
+func InterfaceByName(name string) (*Interface, error) {
 	if name == "" {
-		return nil, os.NewError("net: invalid interface name")
+		return nil, errors.New("net: invalid interface name")
 	}
 	ift, err := interfaceTable(0)
 	if err != nil {
@@ -185,5 +185,5 @@ func InterfaceByName(name string) (*Interface, os.Error) {
 			return &ifi, nil
 		}
 	}
-	return nil, os.NewError("net: no such interface")
+	return nil, errors.New("net: no such interface")
 }

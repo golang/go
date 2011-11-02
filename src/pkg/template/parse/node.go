@@ -9,7 +9,6 @@ package parse
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -239,7 +238,7 @@ type NumberNode struct {
 	Text       string     // The original textual representation from the input.
 }
 
-func newNumber(text string, typ itemType) (*NumberNode, os.Error) {
+func newNumber(text string, typ itemType) (*NumberNode, error) {
 	n := &NumberNode{NodeType: NodeNumber, Text: text}
 	switch typ {
 	case itemCharConstant:

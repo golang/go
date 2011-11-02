@@ -211,7 +211,7 @@ func TestHTTP(t *testing.T) {
 		t.Errorf("Get: not url.Error %#v", err)
 		return
 	}
-	if urlerr.Error != io.ErrUnexpectedEOF {
+	if urlerr.Err != io.ErrUnexpectedEOF {
 		t.Errorf("Get: error %#v", err)
 		return
 	}

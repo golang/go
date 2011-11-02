@@ -25,7 +25,7 @@ type DLLError struct {
 	Msg     string
 }
 
-func (e *DLLError) String() string { return e.Msg }
+func (e *DLLError) Error() string { return e.Msg }
 
 // Implemented in ../runtime/windows/syscall.goc.
 func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr)

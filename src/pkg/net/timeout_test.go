@@ -5,7 +5,6 @@
 package net
 
 import (
-	"os"
 	"runtime"
 	"testing"
 	"time"
@@ -22,7 +21,7 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
 	fd.SetReadTimeout(1e8) // 100ms
 	var b [100]byte
 	var n int
-	var err1 os.Error
+	var err1 error
 	if readFrom {
 		n, _, err1 = fd.(PacketConn).ReadFrom(b[0:])
 	} else {

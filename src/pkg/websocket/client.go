@@ -9,22 +9,21 @@ import (
 	"crypto/tls"
 	"io"
 	"net"
-	"os"
 	"url"
 )
 
 // DialError is an error that occurs while dialling a websocket server.
 type DialError struct {
 	*Config
-	Error os.Error
+	Err error
 }
 
-func (e *DialError) String() string {
-	return "websocket.Dial " + e.Config.Location.String() + ": " + e.Error.String()
+func (e *DialError) Error() string {
+	return "websocket.Dial " + e.Config.Location.String() + ": " + e.Err.Error()
 }
 
 // NewConfig creates a new WebSocket config for client connection.
-func NewConfig(server, origin string) (config *Config, err os.Error) {
+func NewConfig(server, origin string) (config *Config, err error) {
 	config = new(Config)
 	config.Version = ProtocolVersionHybi13
 	config.Location, err = url.ParseRequest(server)
@@ -39,7 +38,7 @@ func NewConfig(server, origin string) (config *Config, err os.Error) {
 }
 
 // NewClient creates a new WebSocket client connection over rwc.
-func NewClient(config *Config, rwc io.ReadWriteCloser) (ws *Conn, err os.Error) {
+func NewClient(config *Config, rwc io.ReadWriteCloser) (ws *Conn, err error) {
 	br := bufio.NewReader(rwc)
 	bw := bufio.NewWriter(rwc)
 	switch config.Version {
@@ -96,7 +95,7 @@ A trivial example client:
 		// use msg[0:n]
 	}
 */
-func Dial(url_, protocol, origin string) (ws *Conn, err os.Error) {
+func Dial(url_, protocol, origin string) (ws *Conn, err error) {
 	config, err := NewConfig(url_, origin)
 	if err != nil {
 		return nil, err
@@ -105,7 +104,7 @@ func Dial(url_, protocol, origin string) (ws *Conn, err os.Error) {
 }
 
 // DialConfig opens a new client connection to a WebSocket with a config.
-func DialConfig(config *Config) (ws *Conn, err os.Error) {
+func DialConfig(config *Config) (ws *Conn, err error) {
 	var client net.Conn
 	if config.Location == nil {
 		return nil, &DialError{config, ErrBadWebSocketLocation}

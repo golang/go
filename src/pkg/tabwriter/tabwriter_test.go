@@ -6,7 +6,6 @@ package tabwriter
 
 import (
 	"io"
-	"os"
 	"testing"
 )
 
@@ -18,7 +17,7 @@ func (b *buffer) init(n int) { b.a = make([]byte, n)[0:0] }
 
 func (b *buffer) clear() { b.a = b.a[0:0] }
 
-func (b *buffer) Write(buf []byte) (written int, err os.Error) {
+func (b *buffer) Write(buf []byte) (written int, err error) {
 	n := len(b.a)
 	m := len(buf)
 	if n+m <= cap(b.a) {
