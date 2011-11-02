@@ -37,9 +37,9 @@ type Writer struct {
 }
 
 type serverConn interface {
-	writeBytes(p Priority, prefix string, b []byte) (int, os.Error)
-	writeString(p Priority, prefix string, s string) (int, os.Error)
-	close() os.Error
+	writeBytes(p Priority, prefix string, b []byte) (int, error)
+	writeString(p Priority, prefix string, s string) (int, error)
+	close() error
 }
 
 type netConn struct {
@@ -49,7 +49,7 @@ type netConn struct {
 // New establishes a new connection to the system log daemon.
 // Each write to the returned writer sends a log message with
 // the given priority and prefix.
-func New(priority Priority, prefix string) (w *Writer, err os.Error) {
+func New(priority Priority, prefix string) (w *Writer, err error) {
 	return Dial("", "", priority, prefix)
 }
 
@@ -57,7 +57,7 @@ func New(priority Priority, prefix string) (w *Writer, err os.Error) {
 // to address raddr on the network net.
 // Each write to the returned writer sends a log message with
 // the given priority and prefix.
-func Dial(network, raddr string, priority Priority, prefix string) (w *Writer, err os.Error) {
+func Dial(network, raddr string, priority Priority, prefix string) (w *Writer, err error) {
 	if prefix == "" {
 		prefix = os.Args[0]
 	}
@@ -73,66 +73,66 @@ func Dial(network, raddr string, priority Priority, prefix string) (w *Writer, e
 }
 
 // Write sends a log message to the syslog daemon.
-func (w *Writer) Write(b []byte) (int, os.Error) {
+func (w *Writer) Write(b []byte) (int, error) {
 	if w.priority > LOG_DEBUG || w.priority < LOG_EMERG {
 		return 0, os.EINVAL
 	}
 	return w.conn.writeBytes(w.priority, w.prefix, b)
 }
 
-func (w *Writer) writeString(p Priority, s string) (int, os.Error) {
+func (w *Writer) writeString(p Priority, s string) (int, error) {
 	return w.conn.writeString(p, w.prefix, s)
 }
 
-func (w *Writer) Close() os.Error { return w.conn.close() }
+func (w *Writer) Close() error { return w.conn.close() }
 
 // Emerg logs a message using the LOG_EMERG priority.
-func (w *Writer) Emerg(m string) (err os.Error) {
+func (w *Writer) Emerg(m string) (err error) {
 	_, err = w.writeString(LOG_EMERG, m)
 	return err
 }
 // Crit logs a message using the LOG_CRIT priority.
-func (w *Writer) Crit(m string) (err os.Error) {
+func (w *Writer) Crit(m string) (err error) {
 	_, err = w.writeString(LOG_CRIT, m)
 	return err
 }
 // ERR logs a message using the LOG_ERR priority.
-func (w *Writer) Err(m string) (err os.Error) {
+func (w *Writer) Err(m string) (err error) {
 	_, err = w.writeString(LOG_ERR, m)
 	return err
 }
 
 // Warning logs a message using the LOG_WARNING priority.
-func (w *Writer) Warning(m string) (err os.Error) {
+func (w *Writer) Warning(m string) (err error) {
 	_, err = w.writeString(LOG_WARNING, m)
 	return err
 }
 
 // Notice logs a message using the LOG_NOTICE priority.
-func (w *Writer) Notice(m string) (err os.Error) {
+func (w *Writer) Notice(m string) (err error) {
 	_, err = w.writeString(LOG_NOTICE, m)
 	return err
 }
 // Info logs a message using the LOG_INFO priority.
-func (w *Writer) Info(m string) (err os.Error) {
+func (w *Writer) Info(m string) (err error) {
 	_, err = w.writeString(LOG_INFO, m)
 	return err
 }
 // Debug logs a message using the LOG_DEBUG priority.
-func (w *Writer) Debug(m string) (err os.Error) {
+func (w *Writer) Debug(m string) (err error) {
 	_, err = w.writeString(LOG_DEBUG, m)
 	return err
 }
 
-func (n netConn) writeBytes(p Priority, prefix string, b []byte) (int, os.Error) {
+func (n netConn) writeBytes(p Priority, prefix string, b []byte) (int, error) {
 	return fmt.Fprintf(n.conn, "<%d>%s: %s\n", p, prefix, b)
 }
 
-func (n netConn) writeString(p Priority, prefix string, s string) (int, os.Error) {
+func (n netConn) writeString(p Priority, prefix string, s string) (int, error) {
 	return fmt.Fprintf(n.conn, "<%d>%s: %s\n", p, prefix, s)
 }
 
-func (n netConn) close() os.Error {
+func (n netConn) close() error {
 	return n.conn.Close()
 }
 

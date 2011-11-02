@@ -6,10 +6,7 @@
 
 package net
 
-import (
-	"os"
-	"syscall"
-)
+import "syscall"
 
 // Should we try to use the IPv4 socket interface if we're
 // only dealing with IPv4 sockets?  As long as the host system
@@ -105,12 +102,12 @@ func listenBacklog() int { return syscall.SOMAXCONN }
 // be converted into a syscall.Sockaddr.
 type sockaddr interface {
 	Addr
-	sockaddr(family int) (syscall.Sockaddr, os.Error)
+	sockaddr(family int) (syscall.Sockaddr, error)
 	family() int
 }
 
-func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
-	var oserr os.Error
+func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+	var oserr error
 	var la, ra syscall.Sockaddr
 	family := favoriteAddrFamily(net, raddr, laddr, mode)
 	if laddr != nil {
@@ -137,7 +134,7 @@ Error:
 	return nil, &OpError{mode, net, addr, oserr}
 }
 
-func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, error) {
 	switch family {
 	case syscall.AF_INET:
 		if len(ip) == 0 {

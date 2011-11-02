@@ -1,8 +1,8 @@
 package net
 
 import (
+	"errors"
 	"io"
-	"os"
 )
 
 // Pipe creates a synchronous, in-memory, full duplex
@@ -32,7 +32,7 @@ func (pipeAddr) String() string {
 	return "pipe"
 }
 
-func (p *pipe) Close() os.Error {
+func (p *pipe) Close() error {
 	err := p.PipeReader.Close()
 	err1 := p.PipeWriter.Close()
 	if err == nil {
@@ -49,14 +49,14 @@ func (p *pipe) RemoteAddr() Addr {
 	return pipeAddr(0)
 }
 
-func (p *pipe) SetTimeout(nsec int64) os.Error {
-	return os.NewError("net.Pipe does not support timeouts")
+func (p *pipe) SetTimeout(nsec int64) error {
+	return errors.New("net.Pipe does not support timeouts")
 }
 
-func (p *pipe) SetReadTimeout(nsec int64) os.Error {
-	return os.NewError("net.Pipe does not support timeouts")
+func (p *pipe) SetReadTimeout(nsec int64) error {
+	return errors.New("net.Pipe does not support timeouts")
 }
 
-func (p *pipe) SetWriteTimeout(nsec int64) os.Error {
-	return os.NewError("net.Pipe does not support timeouts")
+func (p *pipe) SetWriteTimeout(nsec int64) error {
+	return errors.New("net.Pipe does not support timeouts")
 }

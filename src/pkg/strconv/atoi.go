@@ -4,21 +4,21 @@
 
 package strconv
 
-import "os"
+import "errors"
 
 // ErrRange indicates that a value is out of range for the target type.
-var ErrRange = os.NewError("value out of range")
+var ErrRange = errors.New("value out of range")
 
 // ErrSyntax indicates that a value does not have the right syntax for the target type.
-var ErrSyntax = os.NewError("invalid syntax")
+var ErrSyntax = errors.New("invalid syntax")
 
 // A NumError records a failed conversion.
 type NumError struct {
-	Num   string   // the input
-	Error os.Error // the reason the conversion failed (ErrRange, ErrSyntax)
+	Num string // the input
+	Err error  // the reason the conversion failed (ErrRange, ErrSyntax)
 }
 
-func (e *NumError) String() string { return `parsing "` + e.Num + `": ` + e.Error.String() }
+func (e *NumError) Error() string { return `parsing "` + e.Num + `": ` + e.Err.Error() }
 
 func computeIntsize() uint {
 	siz := uint(8)
@@ -47,7 +47,7 @@ func cutoff64(base int) uint64 {
 // and include err.Num = s.  If s is empty or contains invalid
 // digits, err.Error = ErrSyntax; if the value corresponding
 // to s cannot be represented by a uint64, err.Error = ErrRange.
-func Btoui64(s string, b int) (n uint64, err os.Error) {
+func Btoui64(s string, b int) (n uint64, err error) {
 	var cutoff uint64
 
 	s0 := s
@@ -76,7 +76,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 		}
 
 	default:
-		err = os.NewError("invalid base " + Itoa(b))
+		err = errors.New("invalid base " + Itoa(b))
 		goto Error
 	}
 
@@ -133,13 +133,13 @@ Error:
 //
 // Atoui64 returns err.Error = ErrSyntax if s is empty or contains invalid digits.
 // It returns err.Error = ErrRange if s cannot be represented by a uint64.
-func Atoui64(s string) (n uint64, err os.Error) {
+func Atoui64(s string) (n uint64, err error) {
 	return Btoui64(s, 10)
 }
 
 // Btoi64 is like Btoui64 but allows signed numbers and
 // returns its result in an int64.
-func Btoi64(s string, base int) (i int64, err os.Error) {
+func Btoi64(s string, base int) (i int64, err error) {
 	// Empty string bad.
 	if len(s) == 0 {
 		return 0, &NumError{s, ErrSyntax}
@@ -158,7 +158,7 @@ func Btoi64(s string, base int) (i int64, err os.Error) {
 	// Convert unsigned and check range.
 	var un uint64
 	un, err = Btoui64(s, base)
-	if err != nil && err.(*NumError).Error != ErrRange {
+	if err != nil && err.(*NumError).Err != ErrRange {
 		err.(*NumError).Num = s0
 		return 0, err
 	}
@@ -177,12 +177,12 @@ func Btoi64(s string, base int) (i int64, err os.Error) {
 
 // Atoi64 is like Atoui64 but allows signed numbers and
 // returns its result in an int64.
-func Atoi64(s string) (i int64, err os.Error) { return Btoi64(s, 10) }
+func Atoi64(s string) (i int64, err error) { return Btoi64(s, 10) }
 
 // Atoui is like Atoui64 but returns its result as a uint.
-func Atoui(s string) (i uint, err os.Error) {
+func Atoui(s string) (i uint, err error) {
 	i1, e1 := Atoui64(s)
-	if e1 != nil && e1.(*NumError).Error != ErrRange {
+	if e1 != nil && e1.(*NumError).Err != ErrRange {
 		return 0, e1
 	}
 	i = uint(i1)
@@ -193,9 +193,9 @@ func Atoui(s string) (i uint, err os.Error) {
 }
 
 // Atoi is like Atoi64 but returns its result as an int.
-func Atoi(s string) (i int, err os.Error) {
+func Atoi(s string) (i int, err error) {
 	i1, e1 := Atoi64(s)
-	if e1 != nil && e1.(*NumError).Error != ErrRange {
+	if e1 != nil && e1.(*NumError).Err != ErrRange {
 		return 0, e1
 	}
 	i = int(i1)

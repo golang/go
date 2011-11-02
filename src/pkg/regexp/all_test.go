@@ -5,7 +5,6 @@
 package regexp
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
@@ -53,10 +52,10 @@ var bad_re = []stringError{
 }
 */
 
-func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
+func compileTest(t *testing.T, expr string, error error) *Regexp {
 	re, err := Compile(expr)
 	if err != error {
-		t.Error("compiling `", expr, "`; unexpected error: ", err.String())
+		t.Error("compiling `", expr, "`; unexpected error: ", err.Error())
 	}
 	return re
 }

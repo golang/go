@@ -156,7 +156,7 @@ func (zi *zoneinfo) pickZone(t *Time) *zone {
 }
 
 var tz zoneinfo
-var initError os.Error
+var initError error
 var onceSetupZone sync.Once
 
 func setupZone() {

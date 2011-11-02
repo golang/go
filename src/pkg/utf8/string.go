@@ -198,14 +198,14 @@ func (s *String) At(i int) rune {
 
 // error is the type of the error returned if a user calls String.At(i) with i out of range.
 // It satisfies os.Error and runtime.Error.
-type error string
+type error_ string
 
-func (err error) String() string {
+func (err error_) String() string {
 	return string(err)
 }
 
-func (err error) RunTimeError() {
+func (err error_) RunTimeError() {
 }
 
-var outOfRange = error("utf8.String: index out of range")
-var sliceOutOfRange = error("utf8.String: slice index out of range")
+var outOfRange = error_("utf8.String: index out of range")
+var sliceOutOfRange = error_("utf8.String: slice index out of range")

@@ -5,7 +5,8 @@
 package strings
 
 import (
-	"os"
+	"errors"
+	"io"
 	"utf8"
 )
 
@@ -23,9 +24,9 @@ func (r *Reader) Len() int {
 	return len(r.s) - r.i
 }
 
-func (r *Reader) Read(b []byte) (n int, err os.Error) {
+func (r *Reader) Read(b []byte) (n int, err error) {
 	if r.i >= len(r.s) {
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 	n = copy(b, r.s[r.i:])
 	r.i += n
@@ -33,9 +34,9 @@ func (r *Reader) Read(b []byte) (n int, err os.Error) {
 	return
 }
 
-func (r *Reader) ReadByte() (b byte, err os.Error) {
+func (r *Reader) ReadByte() (b byte, err error) {
 	if r.i >= len(r.s) {
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 	b = r.s[r.i]
 	r.i++
@@ -46,9 +47,9 @@ func (r *Reader) ReadByte() (b byte, err os.Error) {
 // UnreadByte moves the reading position back by one byte.
 // It is an error to call UnreadByte if nothing has been
 // read yet.
-func (r *Reader) UnreadByte() os.Error {
+func (r *Reader) UnreadByte() error {
 	if r.i <= 0 {
-		return os.NewError("strings.Reader: at beginning of string")
+		return errors.New("strings.Reader: at beginning of string")
 	}
 	r.i--
 	r.prevRune = -1
@@ -60,9 +61,9 @@ func (r *Reader) UnreadByte() os.Error {
 // If no bytes are available, the error returned is os.EOF.
 // If the bytes are an erroneous UTF-8 encoding, it
 // consumes one byte and returns U+FFFD, 1.
-func (r *Reader) ReadRune() (ch rune, size int, err os.Error) {
+func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	if r.i >= len(r.s) {
-		return 0, 0, os.EOF
+		return 0, 0, io.EOF
 	}
 	r.prevRune = r.i
 	if c := r.s[r.i]; c < utf8.RuneSelf {
@@ -77,9 +78,9 @@ func (r *Reader) ReadRune() (ch rune, size int, err os.Error) {
 // UnreadRune causes the next call to ReadRune to return the same rune
 // as the previous call to ReadRune.
 // The last method called on r must have been ReadRune.
-func (r *Reader) UnreadRune() os.Error {
+func (r *Reader) UnreadRune() error {
 	if r.prevRune < 0 {
-		return os.NewError("strings.Reader: previous operation was not ReadRune")
+		return errors.New("strings.Reader: previous operation was not ReadRune")
 	}
 	r.i = r.prevRune
 	r.prevRune = -1

@@ -22,10 +22,10 @@ package netchan
 // BUG: can't use range clause to receive when using ImportNValues to limit the count.
 
 import (
+	"errors"
 	"log"
 	"io"
 	"net"
-	"os"
 	"reflect"
 	"strconv"
 	"sync"
@@ -68,7 +68,7 @@ func newClient(exp *Exporter, conn io.ReadWriter) *expClient {
 }
 
 func (client *expClient) sendError(hdr *header, err string) {
-	error := &error{err}
+	error := &error_{err}
 	expLog("sending error to client:", error.Error)
 	client.encode(hdr, payError, error) // ignore any encode error, hope client gets it
 	client.mu.Lock()
@@ -114,11 +114,11 @@ func (client *expClient) run() {
 	hdrValue := reflect.ValueOf(hdr)
 	req := new(request)
 	reqValue := reflect.ValueOf(req)
-	error := new(error)
+	error := new(error_)
 	for {
 		*hdr = header{}
 		if err := client.decode(hdrValue); err != nil {
-			if err != os.EOF {
+			if err != io.EOF {
 				expLog("error decoding client header:", err)
 			}
 			break
@@ -201,7 +201,7 @@ func (client *expClient) serveRecv(nch *netChan, hdr header, count int64) {
 		client.seqLock.Unlock()
 		if err != nil {
 			expLog("error encoding client response:", err)
-			client.sendError(&hdr, err.String())
+			client.sendError(&hdr, err.Error())
 			break
 		}
 		// Negative count means run forever.
@@ -293,7 +293,7 @@ func NewExporter() *Exporter {
 
 // ListenAndServe exports the exporter's channels through the
 // given network and local address defined as in net.Listen.
-func (exp *Exporter) ListenAndServe(network, localaddr string) os.Error {
+func (exp *Exporter) ListenAndServe(network, localaddr string) error {
 	listener, err := net.Listen(network, localaddr)
 	if err != nil {
 		return err
@@ -324,7 +324,7 @@ func (exp *Exporter) delClient(client *expClient) {
 // waits until all the exporter's messages have been received by a client.
 // If the timeout (measured in nanoseconds) is positive and Drain takes
 // longer than that to complete, an error is returned.
-func (exp *Exporter) Drain(timeout int64) os.Error {
+func (exp *Exporter) Drain(timeout int64) error {
 	// This wrapper function is here so the method's comment will appear in godoc.
 	return exp.clientSet.drain(timeout)
 }
@@ -335,28 +335,28 @@ func (exp *Exporter) Drain(timeout int64) os.Error {
 // dispatched to any client.  If the timeout (measured in nanoseconds) is
 // positive and Sync takes longer than that to complete, an error is
 // returned.
-func (exp *Exporter) Sync(timeout int64) os.Error {
+func (exp *Exporter) Sync(timeout int64) error {
 	// This wrapper function is here so the method's comment will appear in godoc.
 	return exp.clientSet.sync(timeout)
 }
 
-func checkChan(chT interface{}, dir Dir) (reflect.Value, os.Error) {
+func checkChan(chT interface{}, dir Dir) (reflect.Value, error) {
 	chanType := reflect.TypeOf(chT)
 	if chanType.Kind() != reflect.Chan {
-		return reflect.Value{}, os.NewError("not a channel")
+		return reflect.Value{}, errors.New("not a channel")
 	}
 	if dir != Send && dir != Recv {
-		return reflect.Value{}, os.NewError("unknown channel direction")
+		return reflect.Value{}, errors.New("unknown channel direction")
 	}
 	switch chanType.ChanDir() {
 	case reflect.BothDir:
 	case reflect.SendDir:
 		if dir != Recv {
-			return reflect.Value{}, os.NewError("to import/export with Send, must provide <-chan")
+			return reflect.Value{}, errors.New("to import/export with Send, must provide <-chan")
 		}
 	case reflect.RecvDir:
 		if dir != Send {
-			return reflect.Value{}, os.NewError("to import/export with Recv, must provide chan<-")
+			return reflect.Value{}, errors.New("to import/export with Recv, must provide chan<-")
 		}
 	}
 	return reflect.ValueOf(chT), nil
@@ -367,7 +367,7 @@ func checkChan(chT interface{}, dir Dir) (reflect.Value, os.Error) {
 // channel type.
 // Despite the literal signature, the effective signature is
 //	Export(name string, chT chan T, dir Dir)
-func (exp *Exporter) Export(name string, chT interface{}, dir Dir) os.Error {
+func (exp *Exporter) Export(name string, chT interface{}, dir Dir) error {
 	ch, err := checkChan(chT, dir)
 	if err != nil {
 		return err
@@ -376,7 +376,7 @@ func (exp *Exporter) Export(name string, chT interface{}, dir Dir) os.Error {
 	defer exp.mu.Unlock()
 	_, present := exp.names[name]
 	if present {
-		return os.NewError("channel name already being exported:" + name)
+		return errors.New("channel name already being exported:" + name)
 	}
 	exp.names[name] = &chanDir{ch, dir}
 	return nil
@@ -384,7 +384,7 @@ func (exp *Exporter) Export(name string, chT interface{}, dir Dir) os.Error {
 
 // Hangup disassociates the named channel from the Exporter and closes
 // the channel.  Messages in flight for the channel may be dropped.
-func (exp *Exporter) Hangup(name string) os.Error {
+func (exp *Exporter) Hangup(name string) error {
 	exp.mu.Lock()
 	chDir, ok := exp.names[name]
 	if ok {
@@ -393,7 +393,7 @@ func (exp *Exporter) Hangup(name string) os.Error {
 	// TODO drop all instances of channel from client sets
 	exp.mu.Unlock()
 	if !ok {
-		return os.NewError("netchan export: hangup: no such channel: " + name)
+		return errors.New("netchan export: hangup: no such channel: " + name)
 	}
 	chDir.ch.Close()
 	return nil

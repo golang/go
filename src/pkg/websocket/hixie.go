@@ -16,7 +16,6 @@ import (
 	"http"
 	"io"
 	"io/ioutil"
-	"os"
 	"rand"
 	"strconv"
 	"strings"
@@ -42,14 +41,14 @@ func init() {
 }
 
 type byteReader interface {
-	ReadByte() (byte, os.Error)
+	ReadByte() (byte, error)
 }
 
 // readHixieLength reads frame length for frame type 0x80-0xFF
 // as defined in Hixie draft.
 // See section 4.2 Data framing.
 // http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-00#section-4.2
-func readHixieLength(r byteReader) (length int64, lengthFields []byte, err os.Error) {
+func readHixieLength(r byteReader) (length int64, lengthFields []byte, err error) {
 	for {
 		c, err := r.ReadByte()
 		if err != nil {
@@ -74,7 +73,7 @@ type hixieLengthFrameReader struct {
 	length    int
 }
 
-func (frame *hixieLengthFrameReader) Read(msg []byte) (n int, err os.Error) {
+func (frame *hixieLengthFrameReader) Read(msg []byte) (n int, err error) {
 	return frame.reader.Read(msg)
 }
 
@@ -111,10 +110,10 @@ type hixieSentinelFrameReader struct {
 	trailer     *bytes.Buffer
 }
 
-func (frame *hixieSentinelFrameReader) Read(msg []byte) (n int, err os.Error) {
+func (frame *hixieSentinelFrameReader) Read(msg []byte) (n int, err error) {
 	if len(frame.data) == 0 {
 		if frame.seenTrailer {
-			return 0, os.EOF
+			return 0, io.EOF
 		}
 		frame.data, err = frame.reader.ReadSlice('\xff')
 		if err == nil {
@@ -164,7 +163,7 @@ type hixieFrameReaderFactory struct {
 	*bufio.Reader
 }
 
-func (buf hixieFrameReaderFactory) NewFrameReader() (r frameReader, err os.Error) {
+func (buf hixieFrameReaderFactory) NewFrameReader() (r frameReader, err error) {
 	var header []byte
 	var b byte
 	b, err = buf.ReadByte()
@@ -178,7 +177,7 @@ func (buf hixieFrameReaderFactory) NewFrameReader() (r frameReader, err os.Error
 			return nil, err
 		}
 		if length == 0 {
-			return nil, os.EOF
+			return nil, io.EOF
 		}
 		header = append(header, lengthFields...)
 		return &hixieLengthFrameReader{
@@ -197,7 +196,7 @@ type hixiFrameWriter struct {
 	writer *bufio.Writer
 }
 
-func (frame *hixiFrameWriter) Write(msg []byte) (n int, err os.Error) {
+func (frame *hixiFrameWriter) Write(msg []byte) (n int, err error) {
 	frame.writer.WriteByte(0)
 	frame.writer.Write(msg)
 	frame.writer.WriteByte(0xff)
@@ -205,13 +204,13 @@ func (frame *hixiFrameWriter) Write(msg []byte) (n int, err os.Error) {
 	return len(msg), err
 }
 
-func (frame *hixiFrameWriter) Close() os.Error { return nil }
+func (frame *hixiFrameWriter) Close() error { return nil }
 
 type hixiFrameWriterFactory struct {
 	*bufio.Writer
 }
 
-func (buf hixiFrameWriterFactory) NewFrameWriter(payloadType byte) (frame frameWriter, err os.Error) {
+func (buf hixiFrameWriterFactory) NewFrameWriter(payloadType byte) (frame frameWriter, err error) {
 	if payloadType != TextFrame {
 		return nil, ErrNotSupported
 	}
@@ -222,7 +221,7 @@ type hixiFrameHandler struct {
 	conn *Conn
 }
 
-func (handler *hixiFrameHandler) HandleFrame(frame frameReader) (r frameReader, err os.Error) {
+func (handler *hixiFrameHandler) HandleFrame(frame frameReader) (r frameReader, err error) {
 	if header := frame.HeaderReader(); header != nil {
 		io.Copy(ioutil.Discard, header)
 	}
@@ -233,7 +232,7 @@ func (handler *hixiFrameHandler) HandleFrame(frame frameReader) (r frameReader, 
 	return frame, nil
 }
 
-func (handler *hixiFrameHandler) WriteClose(_ int) (err os.Error) {
+func (handler *hixiFrameHandler) WriteClose(_ int) (err error) {
 	handler.conn.wio.Lock()
 	defer handler.conn.wio.Unlock()
 	closingFrame := []byte{'\xff', '\x00'}
@@ -259,7 +258,7 @@ func newHixieConn(config *Config, buf *bufio.ReadWriter, rwc io.ReadWriteCloser,
 // getChallengeResponse computes the expected response from the
 // challenge as described in section 5.1 Opening Handshake steps 42 to
 // 43 of http://www.whatwg.org/specs/web-socket-protocol/
-func getChallengeResponse(number1, number2 uint32, key3 []byte) (expected []byte, err os.Error) {
+func getChallengeResponse(number1, number2 uint32, key3 []byte) (expected []byte, err error) {
 	// 41. Let /challenge/ be the concatenation of /number_1/, expressed
 	// a big-endian 32 bit integer, /number_2/, expressed in a big-
 	// endian 32 bit integer, and the eight bytes of /key_3/ in the
@@ -336,7 +335,7 @@ func generateKey3() (key []byte) {
 // Cilent handhake described in (soon obsolete)
 // draft-ietf-hybi-thewebsocket-protocol-00
 // (draft-hixie-thewebsocket-protocol-76) 
-func hixie76ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) (err os.Error) {
+func hixie76ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) (err error) {
 	switch config.Version {
 	case ProtocolVersionHixie76, ProtocolVersionHybi00:
 	default:
@@ -453,7 +452,7 @@ func hixie76ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) 
 
 // Client Handshake described in (soon obsolete)
 // draft-hixie-thewebsocket-protocol-75.
-func hixie75ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) (err os.Error) {
+func hixie75ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) (err error) {
 	if config.Version != ProtocolVersionHixie75 {
 		panic("wrong protocol version.")
 	}
@@ -521,7 +520,7 @@ type hixie76ServerHandshaker struct {
 	challengeResponse []byte
 }
 
-func (c *hixie76ServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Request) (code int, err os.Error) {
+func (c *hixie76ServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Request) (code int, err error) {
 	c.Version = ProtocolVersionHybi00
 	if req.Method != "GET" {
 		return http.StatusMethodNotAllowed, ErrBadRequestMethod
@@ -598,7 +597,7 @@ func (c *hixie76ServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Req
 	return http.StatusSwitchingProtocols, nil
 }
 
-func (c *hixie76ServerHandshaker) AcceptHandshake(buf *bufio.Writer) (err os.Error) {
+func (c *hixie76ServerHandshaker) AcceptHandshake(buf *bufio.Writer) (err error) {
 	if len(c.Protocol) > 0 {
 		if len(c.Protocol) != 1 {
 			return ErrBadWebSocketProtocol
@@ -632,7 +631,7 @@ type hixie75ServerHandshaker struct {
 	*Config
 }
 
-func (c *hixie75ServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Request) (code int, err os.Error) {
+func (c *hixie75ServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Request) (code int, err error) {
 	c.Version = ProtocolVersionHixie75
 	if req.Method != "GET" || req.Proto != "HTTP/1.1" {
 		return http.StatusMethodNotAllowed, ErrBadRequestMethod
@@ -667,7 +666,7 @@ func (c *hixie75ServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Req
 	return http.StatusSwitchingProtocols, nil
 }
 
-func (c *hixie75ServerHandshaker) AcceptHandshake(buf *bufio.Writer) (err os.Error) {
+func (c *hixie75ServerHandshaker) AcceptHandshake(buf *bufio.Writer) (err error) {
 	if len(c.Protocol) > 0 {
 		if len(c.Protocol) != 1 {
 			return ErrBadWebSocketProtocol

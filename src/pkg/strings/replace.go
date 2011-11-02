@@ -4,10 +4,7 @@
 
 package strings
 
-import (
-	"io"
-	"os"
-)
+import "io"
 
 // A Replacer replaces a list of strings with replacements.
 type Replacer struct {
@@ -17,7 +14,7 @@ type Replacer struct {
 // replacer is the interface that a replacement algorithm needs to implement.
 type replacer interface {
 	Replace(s string) string
-	WriteString(w io.Writer, s string) (n int, err os.Error)
+	WriteString(w io.Writer, s string) (n int, err error)
 }
 
 // byteBitmap represents bytes which are sought for replacement.
@@ -85,7 +82,7 @@ func (r *Replacer) Replace(s string) string {
 }
 
 // WriteString writes s to w with all replacements performed.
-func (r *Replacer) WriteString(w io.Writer, s string) (n int, err os.Error) {
+func (r *Replacer) WriteString(w io.Writer, s string) (n int, err error) {
 	return r.r.WriteString(w, s)
 }
 
@@ -101,7 +98,7 @@ type appendSliceWriter struct {
 	b []byte
 }
 
-func (w *appendSliceWriter) Write(p []byte) (int, os.Error) {
+func (w *appendSliceWriter) Write(p []byte) (int, error) {
 	w.b = append(w.b, p...)
 	return len(p), nil
 }
@@ -114,7 +111,7 @@ func (r *genericReplacer) Replace(s string) string {
 	return string(w.b)
 }
 
-func (r *genericReplacer) WriteString(w io.Writer, s string) (n int, err os.Error) {
+func (r *genericReplacer) WriteString(w io.Writer, s string) (n int, err error) {
 	lastEmpty := false // the last replacement was of the empty string
 Input:
 	// TODO(bradfitz): optimized version
@@ -192,7 +189,7 @@ func (r *byteReplacer) Replace(s string) string {
 	return string(buf)
 }
 
-func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err os.Error) {
+func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
 	// TODO(bradfitz): use io.WriteString with slices of s, avoiding allocation.
 	bufsize := 32 << 10
 	if len(s) < bufsize {
@@ -262,7 +259,7 @@ func (r *byteStringReplacer) Replace(s string) string {
 // WriteString maintains one buffer that's at most 32KB.  The bytes in
 // s are enumerated and the buffer is filled.  If it reaches its
 // capacity or a byte has a replacement, the buffer is flushed to w.
-func (r *byteStringReplacer) WriteString(w io.Writer, s string) (n int, err os.Error) {
+func (r *byteStringReplacer) WriteString(w io.Writer, s string) (n int, err error) {
 	// TODO(bradfitz): use io.WriteString with slices of s instead.
 	bufsize := 32 << 10
 	if len(s) < bufsize {
@@ -310,6 +307,6 @@ var discard io.Writer = devNull(0)
 
 type devNull int
 
-func (devNull) Write(p []byte) (int, os.Error) {
+func (devNull) Write(p []byte) (int, error) {
 	return len(p), nil
 }

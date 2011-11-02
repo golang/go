@@ -11,7 +11,7 @@ import (
 	"syscall"
 )
 
-func newPollServer() (s *pollServer, err os.Error) {
+func newPollServer() (s *pollServer, err error) {
 	s = new(pollServer)
 	s.cr = make(chan *netFD, 1)
 	s.cw = make(chan *netFD, 1)

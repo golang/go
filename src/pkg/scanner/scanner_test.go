@@ -7,7 +7,7 @@ package scanner
 import (
 	"bytes"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 	"testing"
 	"utf8"
@@ -19,13 +19,13 @@ type StringReader struct {
 	step int
 }
 
-func (r *StringReader) Read(p []byte) (n int, err os.Error) {
+func (r *StringReader) Read(p []byte) (n int, err error) {
 	if r.step < len(r.data) {
 		s := r.data[r.step]
 		n = copy(p, s)
 		r.step++
 	} else {
-		err = os.EOF
+		err = io.EOF
 	}
 	return
 }

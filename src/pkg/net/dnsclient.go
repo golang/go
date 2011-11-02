@@ -7,20 +7,19 @@ package net
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"rand"
 	"sort"
 )
 
 // DNSError represents a DNS lookup error.
 type DNSError struct {
-	Error     string // description of the error
+	Err       string // description of the error
 	Name      string // name looked for
 	Server    string // server used
 	IsTimeout bool
 }
 
-func (e *DNSError) String() string {
+func (e *DNSError) Error() string {
 	if e == nil {
 		return "<nil>"
 	}
@@ -28,7 +27,7 @@ func (e *DNSError) String() string {
 	if e.Server != "" {
 		s += " on " + e.Server
 	}
-	s += ": " + e.Error
+	s += ": " + e.Err
 	return s
 }
 
@@ -40,10 +39,10 @@ const noSuchHost = "no such host"
 // reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
 // address addr suitable for rDNS (PTR) record lookup or an error if it fails
 // to parse the IP address.
-func reverseaddr(addr string) (arpa string, err os.Error) {
+func reverseaddr(addr string) (arpa string, err error) {
 	ip := ParseIP(addr)
 	if ip == nil {
-		return "", &DNSError{Error: "unrecognized address", Name: addr}
+		return "", &DNSError{Err: "unrecognized address", Name: addr}
 	}
 	if ip.To4() != nil {
 		return fmt.Sprintf("%d.%d.%d.%d.in-addr.arpa.", ip[15], ip[14], ip[13], ip[12]), nil
@@ -64,18 +63,18 @@ func reverseaddr(addr string) (arpa string, err os.Error) {
 
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
-func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs []dnsRR, err os.Error) {
+func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs []dnsRR, err error) {
 	addrs = make([]dnsRR, 0, len(dns.answer))
 
 	if dns.rcode == dnsRcodeNameError && dns.recursion_available {
-		return "", nil, &DNSError{Error: noSuchHost, Name: name}
+		return "", nil, &DNSError{Err: noSuchHost, Name: name}
 	}
 	if dns.rcode != dnsRcodeSuccess {
 		// None of the error codes make sense
 		// for the query we sent.  If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly.
-		return "", nil, &DNSError{Error: "server misbehaving", Name: name, Server: server}
+		return "", nil, &DNSError{Err: "server misbehaving", Name: name, Server: server}
 	}
 
 	// Look for the name.
@@ -107,12 +106,12 @@ Cname:
 			}
 		}
 		if len(addrs) == 0 {
-			return "", nil, &DNSError{Error: noSuchHost, Name: name, Server: server}
+			return "", nil, &DNSError{Err: noSuchHost, Name: name, Server: server}
 		}
 		return name, addrs, nil
 	}
 
-	return "", nil, &DNSError{Error: "too many redirects", Name: name, Server: server}
+	return "", nil, &DNSError{Err: "too many redirects", Name: name, Server: server}
 }
 
 func isDomainName(s string) bool {

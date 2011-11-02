@@ -4,15 +4,12 @@
 
 package path
 
-import (
-	"os"
-	"testing"
-)
+import "testing"
 
 type MatchTest struct {
 	pattern, s string
 	match      bool
-	err        os.Error
+	err        error
 }
 
 var matchTests = []MatchTest{

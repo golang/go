@@ -7,7 +7,6 @@ package net
 import (
 	"bytes"
 	"io"
-	"os"
 	"testing"
 )
 
@@ -22,7 +21,7 @@ func checkWrite(t *testing.T, w io.Writer, data []byte, c chan int) {
 	c <- 0
 }
 
-func checkRead(t *testing.T, r io.Reader, data []byte, wantErr os.Error) {
+func checkRead(t *testing.T, r io.Reader, data []byte, wantErr error) {
 	buf := make([]byte, len(data)+10)
 	n, err := r.Read(buf)
 	if err != wantErr {
@@ -52,6 +51,6 @@ func TestPipe(t *testing.T) {
 	checkRead(t, srv, []byte("a third line"), nil)
 	<-c
 	go srv.Close()
-	checkRead(t, cli, nil, os.EOF)
+	checkRead(t, cli, nil, io.EOF)
 	cli.Close()
 }

@@ -5,9 +5,9 @@
 package rand
 
 import (
+	"errors"
 	"math"
 	"fmt"
-	"os"
 	"testing"
 )
 
@@ -41,16 +41,16 @@ var testSeeds = []int64{1, 1754801282, 1698661970, 1550503961}
 
 // checkSimilarDistribution returns success if the mean and stddev of the
 // two statsResults are similar.
-func (this *statsResults) checkSimilarDistribution(expected *statsResults) os.Error {
+func (this *statsResults) checkSimilarDistribution(expected *statsResults) error {
 	if !nearEqual(this.mean, expected.mean, expected.closeEnough, expected.maxError) {
 		s := fmt.Sprintf("mean %v != %v (allowed error %v, %v)", this.mean, expected.mean, expected.closeEnough, expected.maxError)
 		fmt.Println(s)
-		return os.NewError(s)
+		return errors.New(s)
 	}
 	if !nearEqual(this.stddev, expected.stddev, 0, expected.maxError) {
 		s := fmt.Sprintf("stddev %v != %v (allowed error %v, %v)", this.stddev, expected.stddev, expected.closeEnough, expected.maxError)
 		fmt.Println(s)
-		return os.NewError(s)
+		return errors.New(s)
 	}
 	return nil
 }
@@ -74,7 +74,7 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
 	actual := getStatsResults(samples)
 	err := actual.checkSimilarDistribution(expected)
 	if err != nil {
-		t.Errorf(err.String())
+		t.Errorf(err.Error())
 	}
 }
 

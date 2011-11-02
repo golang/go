@@ -318,7 +318,7 @@ func checkMarks(t *testing.T, report bool) {
 // Assumes that each node name is unique. Good enough for a test.
 // If clear is true, any incoming error is cleared before return. The errors
 // are always accumulated, though.
-func mark(path string, info *os.FileInfo, err os.Error, errors *[]os.Error, clear bool) os.Error {
+func mark(path string, info *os.FileInfo, err error, errors *[]error, clear bool) error {
 	if err != nil {
 		*errors = append(*errors, err)
 		if clear {
@@ -336,9 +336,9 @@ func mark(path string, info *os.FileInfo, err os.Error, errors *[]os.Error, clea
 
 func TestWalk(t *testing.T) {
 	makeTree(t)
-	errors := make([]os.Error, 0, 10)
+	errors := make([]error, 0, 10)
 	clear := true
-	markFn := func(path string, info *os.FileInfo, err os.Error) os.Error {
+	markFn := func(path string, info *os.FileInfo, err error) error {
 		return mark(path, info, err, &errors, clear)
 	}
 	// Expect no errors.
@@ -523,7 +523,7 @@ func testEvalSymlinks(t *testing.T, tests []EvalSymlinksTest) {
 func TestEvalSymlinks(t *testing.T) {
 	defer os.RemoveAll("test")
 	for _, d := range EvalSymlinksTestDirs {
-		var err os.Error
+		var err error
 		if d.dest == "" {
 			err = os.Mkdir(d.path, 0755)
 		} else {
@@ -582,7 +582,7 @@ var abstests = []string{
 func TestAbs(t *testing.T) {
 	oldwd, err := os.Getwd()
 	if err != nil {
-		t.Fatal("Getwd failed: " + err.String())
+		t.Fatal("Getwd failed: " + err.Error())
 	}
 	defer os.Chdir(oldwd)
 	goroot := os.Getenv("GOROOT")

@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-func sysSleep(t int64) os.Error {
+func sysSleep(t int64) error {
 	err := syscall.Sleep(t)
 	if err != nil {
 		return os.NewSyscallError("sleep", err)

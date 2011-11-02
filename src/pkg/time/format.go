@@ -2,7 +2,7 @@ package time
 
 import (
 	"bytes"
-	"os"
+	"errors"
 	"strconv"
 )
 
@@ -250,7 +250,7 @@ func match(s1, s2 string) bool {
 	return true
 }
 
-func lookup(tab []string, val string) (int, string, os.Error) {
+func lookup(tab []string, val string) (int, string, error) {
 	for i, v := range tab {
 		if len(val) >= len(v) && match(val[0:len(v)], v) {
 			return i, val[len(v):], nil
@@ -413,7 +413,7 @@ func (t *Time) String() string {
 	return t.Format(UnixDate)
 }
 
-var errBad = os.NewError("bad value for field") // placeholder not passed to user
+var errBad = errors.New("bad value for field") // placeholder not passed to user
 
 // ParseError describes a problem parsing a time string.
 type ParseError struct {
@@ -425,7 +425,7 @@ type ParseError struct {
 }
 
 // String is the string representation of a ParseError.
-func (e *ParseError) String() string {
+func (e *ParseError) Error() string {
 	if e.Message == "" {
 		return "parsing time " +
 			strconv.Quote(e.Value) + " as " +
@@ -450,7 +450,7 @@ func isDigit(s string, i int) bool {
 // getnum parses s[0:1] or s[0:2] (fixed forces the latter)
 // as a decimal integer and returns the integer and the
 // remainder of the string.
-func getnum(s string, fixed bool) (int, string, os.Error) {
+func getnum(s string, fixed bool) (int, string, error) {
 	if !isDigit(s, 0) {
 		return 0, s, errBad
 	}
@@ -472,7 +472,7 @@ func cutspace(s string) string {
 
 // skip removes the given prefix from value,
 // treating runs of space characters as equivalent.
-func skip(value, prefix string) (string, os.Error) {
+func skip(value, prefix string) (string, error) {
 	for len(prefix) > 0 {
 		if prefix[0] == ' ' {
 			if len(value) > 0 && value[0] != ' ' {
@@ -505,7 +505,7 @@ func skip(value, prefix string) (string, os.Error) {
 // sane: hours in 0..23, minutes in 0..59, day of month in 1..31, etc.
 // Years must be in the range 0000..9999. The day of the week is checked
 // for syntax but it is otherwise ignored.
-func Parse(alayout, avalue string) (*Time, os.Error) {
+func Parse(alayout, avalue string) (*Time, error) {
 	var t Time
 	rangeErrString := "" // set if a value is out of range
 	amSet := false       // do we need to subtract 12 from the hour for midnight?
@@ -513,7 +513,7 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 	layout, value := alayout, avalue
 	// Each iteration processes one std value.
 	for {
-		var err os.Error
+		var err error
 		prefix, std, suffix := nextStdChunk(layout)
 		value, err = skip(value, prefix)
 		if err != nil {
@@ -730,7 +730,7 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
 	return &t, nil
 }
 
-func (t *Time) parseNanoseconds(value string, nbytes int) (rangErrString string, err os.Error) {
+func (t *Time) parseNanoseconds(value string, nbytes int) (rangErrString string, err error) {
 	if value[0] != '.' {
 		return "", errBad
 	}

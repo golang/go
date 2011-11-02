@@ -9,10 +9,9 @@ import (
 	"fmt"
 	"http"
 	"io"
-	"os"
 )
 
-func newServerConn(rwc io.ReadWriteCloser, buf *bufio.ReadWriter, req *http.Request) (conn *Conn, err os.Error) {
+func newServerConn(rwc io.ReadWriteCloser, buf *bufio.ReadWriter, req *http.Request) (conn *Conn, err error) {
 	config := new(Config)
 	var hs serverHandshaker = &hybiServerHandshaker{Config: config}
 	code, err := hs.ReadHandshake(buf.Reader, req)
@@ -20,7 +19,7 @@ func newServerConn(rwc io.ReadWriteCloser, buf *bufio.ReadWriter, req *http.Requ
 		fmt.Fprintf(buf, "HTTP/1.1 %03d %s\r\n", code, http.StatusText(code))
 		fmt.Fprintf(buf, "Sec-WebSocket-Version: %s\r\n", SupportedProtocolVersion)
 		buf.WriteString("\r\n")
-		buf.WriteString(err.String())
+		buf.WriteString(err.Error())
 		return
 	}
 	if err != nil {
@@ -34,7 +33,7 @@ func newServerConn(rwc io.ReadWriteCloser, buf *bufio.ReadWriter, req *http.Requ
 	if err != nil {
 		fmt.Fprintf(buf, "HTTP/1.1 %03d %s\r\n", code, http.StatusText(code))
 		buf.WriteString("\r\n")
-		buf.WriteString(err.String())
+		buf.WriteString(err.Error())
 		return
 	}
 	config.Protocol = nil
@@ -79,7 +78,7 @@ type Handler func(*Conn)
 func (h Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	rwc, buf, err := w.(http.Hijacker).Hijack()
 	if err != nil {
-		panic("Hijack failed: " + err.String())
+		panic("Hijack failed: " + err.Error())
 		return
 	}
 	// The server should abort the WebSocket connection if it finds

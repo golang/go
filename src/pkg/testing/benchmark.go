@@ -197,7 +197,7 @@ func (r BenchmarkResult) String() string {
 
 // An internal function but exported because it is cross-package; part of the implementation
 // of gotest.
-func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmarks []InternalBenchmark) {
+func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
 	// If no flag was specified, don't run benchmarks.
 	if len(*matchBenchmarks) == 0 {
 		return
@@ -205,7 +205,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
 	for _, Benchmark := range benchmarks {
 		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
 		if err != nil {
-			println("invalid regexp for -test.bench:", err.String())
+			println("invalid regexp for -test.bench:", err.Error())
 			os.Exit(1)
 		}
 		if !matched {

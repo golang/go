@@ -11,7 +11,6 @@ import (
 	"io"
 	"json"
 	"net"
-	"os"
 	"rpc"
 	"sync"
 )
@@ -49,7 +48,7 @@ type clientRequest struct {
 	Id     uint64         `json:"id"`
 }
 
-func (c *clientCodec) WriteRequest(r *rpc.Request, param interface{}) os.Error {
+func (c *clientCodec) WriteRequest(r *rpc.Request, param interface{}) error {
 	c.mutex.Lock()
 	c.pending[r.Seq] = r.ServiceMethod
 	c.mutex.Unlock()
@@ -71,7 +70,7 @@ func (r *clientResponse) reset() {
 	r.Error = nil
 }
 
-func (c *clientCodec) ReadResponseHeader(r *rpc.Response) os.Error {
+func (c *clientCodec) ReadResponseHeader(r *rpc.Response) error {
 	c.resp.reset()
 	if err := c.dec.Decode(&c.resp); err != nil {
 		return err
@@ -97,14 +96,14 @@ func (c *clientCodec) ReadResponseHeader(r *rpc.Response) os.Error {
 	return nil
 }
 
-func (c *clientCodec) ReadResponseBody(x interface{}) os.Error {
+func (c *clientCodec) ReadResponseBody(x interface{}) error {
 	if x == nil {
 		return nil
 	}
 	return json.Unmarshal(*c.resp.Result, x)
 }
 
-func (c *clientCodec) Close() os.Error {
+func (c *clientCodec) Close() error {
 	return c.c.Close()
 }
 
@@ -115,7 +114,7 @@ func NewClient(conn io.ReadWriteCloser) *rpc.Client {
 }
 
 // Dial connects to a JSON-RPC server at the specified network address.
-func Dial(network, address string) (*rpc.Client, os.Error) {
+func Dial(network, address string) (*rpc.Client, error) {
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		return nil, err

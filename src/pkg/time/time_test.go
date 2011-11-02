@@ -387,7 +387,7 @@ func TestParseErrors(t *testing.T) {
 		_, err := Parse(test.format, test.value)
 		if err == nil {
 			t.Errorf("expected error for %q %q", test.format, test.value)
-		} else if strings.Index(err.String(), test.expect) < 0 {
+		} else if strings.Index(err.Error(), test.expect) < 0 {
 			t.Errorf("expected error with %q for %q %q; got %s", test.expect, test.format, test.value, err)
 		}
 	}

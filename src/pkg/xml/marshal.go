@@ -7,7 +7,6 @@ package xml
 import (
 	"bufio"
 	"io"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -23,7 +22,7 @@ const (
 // A Marshaler can produce well-formatted XML representing its internal state.
 // It is used by both Marshal and MarshalIndent.
 type Marshaler interface {
-	MarshalXML() ([]byte, os.Error)
+	MarshalXML() ([]byte, error)
 }
 
 type printer struct {
@@ -84,14 +83,14 @@ type printer struct {
 //	</result>
 //
 // Marshal will return an error if asked to marshal a channel, function, or map.
-func Marshal(w io.Writer, v interface{}) (err os.Error) {
+func Marshal(w io.Writer, v interface{}) (err error) {
 	p := &printer{bufio.NewWriter(w)}
 	err = p.marshalValue(reflect.ValueOf(v), "???")
 	p.Flush()
 	return err
 }
 
-func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
+func (p *printer) marshalValue(val reflect.Value, name string) error {
 	if !val.IsValid() {
 		return nil
 	}
@@ -300,6 +299,6 @@ type UnsupportedTypeError struct {
 	Type reflect.Type
 }
 
-func (e *UnsupportedTypeError) String() string {
+func (e *UnsupportedTypeError) Error() string {
 	return "xml: unsupported type: " + e.Type.String()
 }

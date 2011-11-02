@@ -6,9 +6,9 @@ package xml
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -150,10 +150,10 @@ import (
 // Unmarshal maps an XML element to a pointer by setting the pointer
 // to a freshly allocated value and then mapping the element to that value.
 //
-func Unmarshal(r io.Reader, val interface{}) os.Error {
+func Unmarshal(r io.Reader, val interface{}) error {
 	v := reflect.ValueOf(val)
 	if v.Kind() != reflect.Ptr {
-		return os.NewError("non-pointer passed to Unmarshal")
+		return errors.New("non-pointer passed to Unmarshal")
 	}
 	p := NewParser(r)
 	elem := v.Elem()
@@ -167,7 +167,7 @@ func Unmarshal(r io.Reader, val interface{}) os.Error {
 // An UnmarshalError represents an error in the unmarshalling process.
 type UnmarshalError string
 
-func (e UnmarshalError) String() string { return string(e) }
+func (e UnmarshalError) Error() string { return string(e) }
 
 // A TagPathError represents an error in the unmarshalling process
 // caused by the use of field tags with conflicting paths.
@@ -177,7 +177,7 @@ type TagPathError struct {
 	Field2, Tag2 string
 }
 
-func (e *TagPathError) String() string {
+func (e *TagPathError) Error() string {
 	return fmt.Sprintf("%s field %q with tag %q conflicts with field %q with tag %q", e.Struct, e.Field1, e.Tag1, e.Field2, e.Tag2)
 }
 
@@ -187,10 +187,10 @@ func (e *TagPathError) String() string {
 // but also defers to Unmarshal for some elements.
 // Passing a nil start element indicates that Unmarshal should
 // read the token stream to find the start element.
-func (p *Parser) Unmarshal(val interface{}, start *StartElement) os.Error {
+func (p *Parser) Unmarshal(val interface{}, start *StartElement) error {
 	v := reflect.ValueOf(val)
 	if v.Kind() != reflect.Ptr {
-		return os.NewError("non-pointer passed to Unmarshal")
+		return errors.New("non-pointer passed to Unmarshal")
 	}
 	return p.unmarshal(v.Elem(), start)
 }
@@ -216,7 +216,7 @@ func fieldName(original string) string {
 }
 
 // Unmarshal a single XML element into val.
-func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+func (p *Parser) unmarshal(val reflect.Value, start *StartElement) error {
 	// Find start element if we need it.
 	if start == nil {
 		for {
@@ -253,7 +253,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 
 	switch v := val; v.Kind() {
 	default:
-		return os.NewError("unknown type " + v.Type().String())
+		return errors.New("unknown type " + v.Type().String())
 
 	case reflect.Slice:
 		typ := v.Type()
@@ -482,7 +482,7 @@ Loop:
 	return nil
 }
 
-func copyValue(dst reflect.Value, src []byte) (err os.Error) {
+func copyValue(dst reflect.Value, src []byte) (err error) {
 	// Helper functions for integer and unsigned integer conversions
 	var itmp int64
 	getInt64 := func() bool {
@@ -508,7 +508,7 @@ func copyValue(dst reflect.Value, src []byte) (err os.Error) {
 	case reflect.Invalid:
 		// Probably a comment, handled below
 	default:
-		return os.NewError("cannot happen: unknown type " + t.Type().String())
+		return errors.New("cannot happen: unknown type " + t.Type().String())
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if !getInt64() {
 			return err
@@ -547,7 +547,7 @@ type pathInfo struct {
 // paths map with all paths leading to it ("a", "a>b", and "a>b>c").
 // It is okay for paths to share a common, shorter prefix but not ok
 // for one path to itself be a prefix of another.
-func addFieldPath(sv reflect.Value, paths map[string]pathInfo, path string, fieldIdx []int) os.Error {
+func addFieldPath(sv reflect.Value, paths map[string]pathInfo, path string, fieldIdx []int) error {
 	if info, found := paths[path]; found {
 		return tagError(sv, info.fieldIdx, fieldIdx)
 	}
@@ -570,7 +570,7 @@ func addFieldPath(sv reflect.Value, paths map[string]pathInfo, path string, fiel
 
 }
 
-func tagError(sv reflect.Value, idx1 []int, idx2 []int) os.Error {
+func tagError(sv reflect.Value, idx1 []int, idx2 []int) error {
 	t := sv.Type()
 	f1 := t.FieldByIndex(idx1)
 	f2 := t.FieldByIndex(idx2)
@@ -579,7 +579,7 @@ func tagError(sv reflect.Value, idx1 []int, idx2 []int) os.Error {
 
 // unmarshalPaths walks down an XML structure looking for
 // wanted paths, and calls unmarshal on them.
-func (p *Parser) unmarshalPaths(sv reflect.Value, paths map[string]pathInfo, path string, start *StartElement) os.Error {
+func (p *Parser) unmarshalPaths(sv reflect.Value, paths map[string]pathInfo, path string, start *StartElement) error {
 	if info, _ := paths[path]; info.complete {
 		return p.unmarshal(sv.FieldByIndex(info.fieldIdx), start)
 	}
@@ -611,7 +611,7 @@ func (p *Parser) unmarshalPaths(sv reflect.Value, paths map[string]pathInfo, pat
 // Read tokens until we find the end element.
 // Token is taking care of making sure the
 // end element matches the start element we saw.
-func (p *Parser) Skip() os.Error {
+func (p *Parser) Skip() error {
 	for {
 		tok, err := p.Token()
 		if err != nil {

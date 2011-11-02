@@ -24,7 +24,7 @@ type User struct {
 // a user cannot be found.
 type UnknownUserIdError int
 
-func (e UnknownUserIdError) String() string {
+func (e UnknownUserIdError) Error() string {
 	return "user: unknown userid " + strconv.Itoa(int(e))
 }
 
@@ -32,6 +32,6 @@ func (e UnknownUserIdError) String() string {
 // a user cannot be found.
 type UnknownUserError string
 
-func (e UnknownUserError) String() string {
+func (e UnknownUserError) Error() string {
 	return "user: unknown user " + string(e)
 }

@@ -1,9 +1,6 @@
 package syntax
 
-import (
-	"os"
-	"unicode"
-)
+import "unicode"
 
 // A patchList is a list of instruction pointers that need to be filled in (patched).
 // Because the pointers haven't been filled in yet, we can reuse their storage
@@ -76,7 +73,7 @@ type compiler struct {
 
 // Compile compiles the regexp into a program to be executed.
 // The regexp should have been simplified already (returned from re.Simplify).
-func Compile(re *Regexp) (*Prog, os.Error) {
+func Compile(re *Regexp) (*Prog, error) {
 	var c compiler
 	c.init()
 	f := c.compile(re)

@@ -21,7 +21,7 @@ type pollster struct {
 	kbuf [1]syscall.Kevent_t
 }
 
-func newpollster() (p *pollster, err os.Error) {
+func newpollster() (p *pollster, err error) {
 	p = new(pollster)
 	var e int
 	if p.kq, e = syscall.Kqueue(); e != 0 {
@@ -31,7 +31,7 @@ func newpollster() (p *pollster, err os.Error) {
 	return p, nil
 }
 
-func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, os.Error) {
+func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
 	// pollServer is locked.
 
 	var kmode int
@@ -77,7 +77,7 @@ func (p *pollster) DelFD(fd int, mode int) {
 	syscall.Kevent(p.kq, p.kbuf[:], nil, nil)
 }
 
-func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err os.Error) {
+func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err error) {
 	var t *syscall.Timespec
 	for len(p.events) == 0 {
 		if nsec > 0 {
@@ -113,4 +113,4 @@ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err os.E
 	return fd, mode, nil
 }
 
-func (p *pollster) Close() os.Error { return os.NewSyscallError("close", syscall.Close(p.kq)) }
+func (p *pollster) Close() error { return os.NewSyscallError("close", syscall.Close(p.kq)) }

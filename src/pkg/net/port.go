@@ -8,13 +8,10 @@
 
 package net
 
-import (
-	"os"
-	"sync"
-)
+import "sync"
 
 var services map[string]map[string]int
-var servicesError os.Error
+var servicesError error
 var onceReadServices sync.Once
 
 func readServices() {
@@ -53,7 +50,7 @@ func readServices() {
 }
 
 // goLookupPort is the native Go implementation of LookupPort.
-func goLookupPort(network, service string) (port int, err os.Error) {
+func goLookupPort(network, service string) (port int, err error) {
 	onceReadServices.Do(readServices)
 
 	switch network {

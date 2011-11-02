@@ -5,7 +5,6 @@
 package syntax
 
 import (
-	"os"
 	"sort"
 	"strings"
 	"unicode"
@@ -19,7 +18,7 @@ type Error struct {
 	Expr string
 }
 
-func (e *Error) String() string {
+func (e *Error) Error() string {
 	return "error parsing regexp: " + e.Code.String() + ": `" + e.Expr + "`"
 }
 
@@ -222,7 +221,7 @@ func (p *parser) op(op Op) *Regexp {
 // before is the regexp suffix starting at the repetition operator.
 // after is the regexp suffix following after the repetition operator.
 // repeat returns an updated 'after' and an error, if any.
-func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (string, os.Error) {
+func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (string, error) {
 	flags := p.flags
 	if p.flags&PerlX != 0 {
 		if len(after) > 0 && after[0] == '?' {
@@ -649,7 +648,7 @@ func literalRegexp(s string, flags Flags) *Regexp {
 
 // Parsing.
 
-func Parse(s string, flags Flags) (*Regexp, os.Error) {
+func Parse(s string, flags Flags) (*Regexp, error) {
 	if flags&Literal != 0 {
 		// Trivial parser for literal string.
 		if err := checkUTF8(s); err != nil {
@@ -661,7 +660,7 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
 	// Otherwise, must do real work.
 	var (
 		p          parser
-		err        os.Error
+		err        error
 		c          rune
 		op         Op
 		lastRepeat string
@@ -889,7 +888,7 @@ func (p *parser) parseRepeat(s string) (min, max int, rest string, ok bool) {
 // parsePerlFlags parses a Perl flag setting or non-capturing group or both,
 // like (?i) or (?: or (?i:.  It removes the prefix from s and updates the parse state.
 // The caller must have ensured that s begins with "(?".
-func (p *parser) parsePerlFlags(s string) (rest string, err os.Error) {
+func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 	t := s
 
 	// Check for named captures, first introduced in Python's regexp library.
@@ -1069,7 +1068,7 @@ func matchRune(re *Regexp, r rune) bool {
 }
 
 // parseVerticalBar handles a | in the input.
-func (p *parser) parseVerticalBar() os.Error {
+func (p *parser) parseVerticalBar() error {
 	p.concat()
 
 	// The concatenation we just parsed is on top of the stack.
@@ -1152,7 +1151,7 @@ func (p *parser) swapVerticalBar() bool {
 }
 
 // parseRightParen handles a ) in the input.
-func (p *parser) parseRightParen() os.Error {
+func (p *parser) parseRightParen() error {
 	p.concat()
 	if p.swapVerticalBar() {
 		// pop vertical bar
@@ -1186,7 +1185,7 @@ func (p *parser) parseRightParen() os.Error {
 
 // parseEscape parses an escape sequence at the beginning of s
 // and returns the rune.
-func (p *parser) parseEscape(s string) (r rune, rest string, err os.Error) {
+func (p *parser) parseEscape(s string) (r rune, rest string, err error) {
 	t := s[1:]
 	if t == "" {
 		return 0, "", &Error{ErrTrailingBackslash, ""}
@@ -1302,7 +1301,7 @@ Switch:
 
 // parseClassChar parses a character class character at the beginning of s
 // and returns it.
-func (p *parser) parseClassChar(s, wholeClass string) (r rune, rest string, err os.Error) {
+func (p *parser) parseClassChar(s, wholeClass string) (r rune, rest string, err error) {
 	if s == "" {
 		return 0, "", &Error{Code: ErrMissingBracket, Expr: wholeClass}
 	}
@@ -1338,7 +1337,7 @@ func (p *parser) parsePerlClassEscape(s string, r []rune) (out []rune, rest stri
 // parseNamedClass parses a leading POSIX named character class like [:alnum:]
 // from the beginning of s.  If one is present, it appends the characters to r
 // and returns the new slice r and the remainder of the string.
-func (p *parser) parseNamedClass(s string, r []rune) (out []rune, rest string, err os.Error) {
+func (p *parser) parseNamedClass(s string, r []rune) (out []rune, rest string, err error) {
 	if len(s) < 2 || s[0] != '[' || s[1] != ':' {
 		return
 	}
@@ -1401,7 +1400,7 @@ func unicodeTable(name string) (*unicode.RangeTable, *unicode.RangeTable) {
 // parseUnicodeClass parses a leading Unicode character class like \p{Han}
 // from the beginning of s.  If one is present, it appends the characters to r
 // and returns the new slice r and the remainder of the string.
-func (p *parser) parseUnicodeClass(s string, r []rune) (out []rune, rest string, err os.Error) {
+func (p *parser) parseUnicodeClass(s string, r []rune) (out []rune, rest string, err error) {
 	if p.flags&UnicodeGroups == 0 || len(s) < 2 || s[0] != '\\' || s[1] != 'p' && s[1] != 'P' {
 		return
 	}
@@ -1474,7 +1473,7 @@ func (p *parser) parseUnicodeClass(s string, r []rune) (out []rune, rest string,
 
 // parseClass parses a character class at the beginning of s
 // and pushes it onto the parse stack.
-func (p *parser) parseClass(s string) (rest string, err os.Error) {
+func (p *parser) parseClass(s string) (rest string, err error) {
 	t := s[1:] // chop [
 	re := p.newRegexp(OpCharClass)
 	re.Flags = p.flags
@@ -1824,7 +1823,7 @@ func (ra ranges) Swap(i, j int) {
 	p[i], p[i+1], p[j], p[j+1] = p[j], p[j+1], p[i], p[i+1]
 }
 
-func checkUTF8(s string) os.Error {
+func checkUTF8(s string) error {
 	for s != "" {
 		rune, size := utf8.DecodeRuneInString(s)
 		if rune == utf8.RuneError && size == 1 {
@@ -1835,7 +1834,7 @@ func checkUTF8(s string) os.Error {
 	return nil
 }
 
-func nextRune(s string) (c rune, t string, err os.Error) {
+func nextRune(s string) (c rune, t string, err error) {
 	c, size := utf8.DecodeRuneInString(s)
 	if c == utf8.RuneError && size == 1 {
 		return 0, "", &Error{Code: ErrInvalidUTF8, Expr: s}

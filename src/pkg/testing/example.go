@@ -25,7 +25,7 @@ func RunExamples(examples []InternalExample) (ok bool) {
 	defer func() {
 		os.Stdout, os.Stderr = stdout, stderr
 		if e := recover(); e != nil {
-			if err, ok := e.(os.Error); ok {
+			if err, ok := e.(error); ok {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

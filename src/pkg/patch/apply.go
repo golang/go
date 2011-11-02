@@ -23,7 +23,7 @@ type Op struct {
 // The function readFile should return the contents of the named file.
 // Typically this function will be io.ReadFile.
 //
-func (set *Set) Apply(readFile func(string) ([]byte, os.Error)) ([]Op, os.Error) {
+func (set *Set) Apply(readFile func(string) ([]byte, error)) ([]Op, error) {
 	op := make([]Op, len(set.File))
 
 	for i, f := range set.File {
@@ -36,7 +36,7 @@ func (set *Set) Apply(readFile func(string) ([]byte, os.Error)) ([]Op, os.Error)
 			// Clients assume o.Data == nil means no data diff.
 			// Start with a non-nil data.
 			var old []byte = make([]byte, 0) // not nil
-			var err os.Error
+			var err error
 			if f.Src != "" {
 				old, err = readFile(f.Src)
 				if err != nil {

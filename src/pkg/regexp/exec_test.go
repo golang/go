@@ -104,7 +104,7 @@ func testRE2(t *testing.T, file string) {
 	for {
 		line, err := r.ReadString('\n')
 		if err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				break
 			}
 			t.Fatalf("%s:%d: %v", file, lineno, err)
@@ -141,7 +141,7 @@ func testRE2(t *testing.T, file string) {
 			}
 			re, err = tryCompile(q)
 			if err != nil {
-				if err.String() == "error parsing regexp: invalid escape sequence: `\\C`" {
+				if err.Error() == "error parsing regexp: invalid escape sequence: `\\C`" {
 					// We don't and likely never will support \C; keep going.
 					continue
 				}
@@ -275,7 +275,7 @@ func isSingleBytes(s string) bool {
 	return true
 }
 
-func tryCompile(s string) (re *Regexp, err os.Error) {
+func tryCompile(s string) (re *Regexp, err error) {
 	// Protect against panic during Compile.
 	defer func() {
 		if r := recover(); r != nil {
@@ -370,7 +370,7 @@ Reading:
 		lineno++
 		line, err := b.ReadString('\n')
 		if err != nil {
-			if err != os.EOF {
+			if err != io.EOF {
 				t.Errorf("%s:%d: %v", file, lineno, err)
 			}
 			break Reading
@@ -629,7 +629,7 @@ func parseFowlerResult(s string) (ok, compiled, matched bool, pos []int) {
 			return
 		}
 		var v = -1
-		var err os.Error
+		var err error
 		if s[:i] != "?" {
 			v, err = strconv.Atoi(s[:i])
 			if err != nil {

@@ -7,7 +7,7 @@
 package net
 
 import (
-	"os"
+	"errors"
 	"sync"
 )
 
@@ -43,18 +43,18 @@ func readProtocols() {
 
 // lookupProtocol looks up IP protocol name in /etc/protocols and
 // returns correspondent protocol number.
-func lookupProtocol(name string) (proto int, err os.Error) {
+func lookupProtocol(name string) (proto int, err error) {
 	onceReadProtocols.Do(readProtocols)
 	proto, found := protocols[name]
 	if !found {
-		return 0, os.NewError("unknown IP protocol specified: " + name)
+		return 0, errors.New("unknown IP protocol specified: " + name)
 	}
 	return
 }
 
 // LookupHost looks up the given host using the local resolver.
 // It returns an array of that host's addresses.
-func LookupHost(host string) (addrs []string, err os.Error) {
+func LookupHost(host string) (addrs []string, err error) {
 	addrs, err, ok := cgoLookupHost(host)
 	if !ok {
 		addrs, err = goLookupHost(host)
@@ -64,7 +64,7 @@ func LookupHost(host string) (addrs []string, err os.Error) {
 
 // LookupIP looks up host using the local resolver.
 // It returns an array of that host's IPv4 and IPv6 addresses.
-func LookupIP(host string) (addrs []IP, err os.Error) {
+func LookupIP(host string) (addrs []IP, err error) {
 	addrs, err, ok := cgoLookupIP(host)
 	if !ok {
 		addrs, err = goLookupIP(host)
@@ -73,7 +73,7 @@ func LookupIP(host string) (addrs []IP, err os.Error) {
 }
 
 // LookupPort looks up the port for the given network and service.
-func LookupPort(network, service string) (port int, err os.Error) {
+func LookupPort(network, service string) (port int, err error) {
 	port, err, ok := cgoLookupPort(network, service)
 	if !ok {
 		port, err = goLookupPort(network, service)
@@ -85,7 +85,7 @@ func LookupPort(network, service string) (port int, err os.Error) {
 // Callers that do not care about the canonical name can call
 // LookupHost or LookupIP directly; both take care of resolving
 // the canonical name as part of the lookup.
-func LookupCNAME(name string) (cname string, err os.Error) {
+func LookupCNAME(name string) (cname string, err error) {
 	cname, err, ok := cgoLookupCNAME(name)
 	if !ok {
 		cname, err = goLookupCNAME(name)
@@ -102,7 +102,7 @@ func LookupCNAME(name string) (cname string, err os.Error) {
 // That is, it looks up _service._proto.name.  To accommodate services
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
-func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.Error) {
+func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
 	var target string
 	if service == "" && proto == "" {
 		target = name
@@ -124,7 +124,7 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.
 }
 
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
-func LookupMX(name string) (mx []*MX, err os.Error) {
+func LookupMX(name string) (mx []*MX, err error) {
 	_, records, err := lookup(name, dnsTypeMX)
 	if err != nil {
 		return
@@ -139,7 +139,7 @@ func LookupMX(name string) (mx []*MX, err os.Error) {
 }
 
 // LookupTXT returns the DNS TXT records for the given domain name.
-func LookupTXT(name string) (txt []string, err os.Error) {
+func LookupTXT(name string) (txt []string, err error) {
 	_, records, err := lookup(name, dnsTypeTXT)
 	if err != nil {
 		return
@@ -153,7 +153,7 @@ func LookupTXT(name string) (txt []string, err os.Error) {
 
 // LookupAddr performs a reverse lookup for the given address, returning a list
 // of names mapping to that address.
-func LookupAddr(addr string) (name []string, err os.Error) {
+func LookupAddr(addr string) (name []string, err error) {
 	name = lookupStaticAddr(addr)
 	if len(name) > 0 {
 		return

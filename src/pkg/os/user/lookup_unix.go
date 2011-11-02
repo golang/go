@@ -33,17 +33,17 @@ func init() {
 
 // Lookup looks up a user by username. If the user cannot be found,
 // the returned error is of type UnknownUserError.
-func Lookup(username string) (*User, os.Error) {
+func Lookup(username string) (*User, error) {
 	return lookup(-1, username, true)
 }
 
 // LookupId looks up a user by userid. If the user cannot be found,
 // the returned error is of type UnknownUserIdError.
-func LookupId(uid int) (*User, os.Error) {
+func LookupId(uid int) (*User, error) {
 	return lookup(uid, "", false)
 }
 
-func lookup(uid int, username string, lookupByName bool) (*User, os.Error) {
+func lookup(uid int, username string, lookupByName bool) (*User, error) {
 	var pwd C.struct_passwd
 	var result *C.struct_passwd
 

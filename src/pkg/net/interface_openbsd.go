@@ -6,11 +6,9 @@
 
 package net
 
-import "os"
-
 // If the ifindex is zero, interfaceMulticastAddrTable returns
 // addresses for all network interfaces.  Otherwise it returns
 // addresses for a specific interface.
-func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
+func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
 	return nil, nil
 }

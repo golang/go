@@ -6,7 +6,6 @@ package strconv
 
 import (
 	"bytes"
-	"os"
 	"strings"
 	"unicode"
 	"utf8"
@@ -157,7 +156,7 @@ func unhex(b byte) (v rune, ok bool) {
 // If set to a single quote, it permits the sequence \' and disallows unescaped '.
 // If set to a double quote, it permits \" and disallows unescaped ".
 // If set to zero, it does not permit either escape and allows both quote characters to appear unescaped.
-func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string, err os.Error) {
+func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string, err error) {
 	// easy cases
 	switch c := s[0]; {
 	case c == quote && (quote == '\'' || quote == '"'):
@@ -268,7 +267,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 // that s quotes.  (If s is single-quoted, it would be a Go
 // character literal; Unquote returns the corresponding
 // one-character string.)
-func Unquote(s string) (t string, err os.Error) {
+func Unquote(s string) (t string, err error) {
 	n := len(s)
 	if n < 2 {
 		return "", ErrSyntax

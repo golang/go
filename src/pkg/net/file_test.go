@@ -14,17 +14,17 @@ import (
 
 type listenerFile interface {
 	Listener
-	File() (f *os.File, err os.Error)
+	File() (f *os.File, err error)
 }
 
 type packetConnFile interface {
 	PacketConn
-	File() (f *os.File, err os.Error)
+	File() (f *os.File, err error)
 }
 
 type connFile interface {
 	Conn
-	File() (f *os.File, err os.Error)
+	File() (f *os.File, err error)
 }
 
 func testFileListener(t *testing.T, net, laddr string) {

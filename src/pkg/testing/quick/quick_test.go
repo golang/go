@@ -8,7 +8,6 @@ import (
 	"rand"
 	"reflect"
 	"testing"
-	"os"
 )
 
 func fBool(a bool) bool { return a }
@@ -63,7 +62,7 @@ func fIntptr(a *int) *int {
 	return &b
 }
 
-func reportError(property string, err os.Error, t *testing.T) {
+func reportError(property string, err error, t *testing.T) {
 	if err != nil {
 		t.Errorf("%s: %s", property, err)
 	}

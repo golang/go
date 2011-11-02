@@ -114,12 +114,12 @@ package rpc
 
 import (
 	"bufio"
+	"errors"
 	"gob"
 	"http"
 	"log"
 	"io"
 	"net"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -135,7 +135,7 @@ const (
 
 // Precompute the reflect type for os.Error.  Can't use os.Error directly
 // because Typeof takes an empty interface value.  This is annoying.
-var unusedError *os.Error
+var unusedError *error
 var typeOfOsError = reflect.TypeOf(unusedError).Elem()
 
 type methodType struct {
@@ -215,17 +215,17 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 // suitable methods.
 // The client accesses each method using a string of the form "Type.Method",
 // where Type is the receiver's concrete type.
-func (server *Server) Register(rcvr interface{}) os.Error {
+func (server *Server) Register(rcvr interface{}) error {
 	return server.register(rcvr, "", false)
 }
 
 // RegisterName is like Register but uses the provided name for the type 
 // instead of the receiver's concrete type.
-func (server *Server) RegisterName(name string, rcvr interface{}) os.Error {
+func (server *Server) RegisterName(name string, rcvr interface{}) error {
 	return server.register(rcvr, name, true)
 }
 
-func (server *Server) register(rcvr interface{}, name string, useName bool) os.Error {
+func (server *Server) register(rcvr interface{}, name string, useName bool) error {
 	server.mu.Lock()
 	defer server.mu.Unlock()
 	if server.serviceMap == nil {
@@ -244,10 +244,10 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 	if !isExported(sname) && !useName {
 		s := "rpc Register: type " + sname + " is not exported"
 		log.Print(s)
-		return os.NewError(s)
+		return errors.New(s)
 	}
 	if _, present := server.serviceMap[sname]; present {
-		return os.NewError("rpc: service already defined: " + sname)
+		return errors.New("rpc: service already defined: " + sname)
 	}
 	s.name = sname
 	s.method = make(map[string]*methodType)
@@ -296,7 +296,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
 	if len(s.method) == 0 {
 		s := "rpc Register: type " + sname + " has no exported methods of suitable type"
 		log.Print(s)
-		return os.NewError(s)
+		return errors.New(s)
 	}
 	server.serviceMap[s.name] = s
 	return nil
@@ -343,7 +343,7 @@ func (s *service) call(server *Server, sending *sync.Mutex, mtype *methodType, r
 	errInter := returnValues[0].Interface()
 	errmsg := ""
 	if errInter != nil {
-		errmsg = errInter.(os.Error).String()
+		errmsg = errInter.(error).Error()
 	}
 	server.sendResponse(sending, req, replyv.Interface(), codec, errmsg)
 	server.freeRequest(req)
@@ -356,15 +356,15 @@ type gobServerCodec struct {
 	encBuf *bufio.Writer
 }
 
-func (c *gobServerCodec) ReadRequestHeader(r *Request) os.Error {
+func (c *gobServerCodec) ReadRequestHeader(r *Request) error {
 	return c.dec.Decode(r)
 }
 
-func (c *gobServerCodec) ReadRequestBody(body interface{}) os.Error {
+func (c *gobServerCodec) ReadRequestBody(body interface{}) error {
 	return c.dec.Decode(body)
 }
 
-func (c *gobServerCodec) WriteResponse(r *Response, body interface{}) (err os.Error) {
+func (c *gobServerCodec) WriteResponse(r *Response, body interface{}) (err error) {
 	if err = c.enc.Encode(r); err != nil {
 		return
 	}
@@ -374,7 +374,7 @@ func (c *gobServerCodec) WriteResponse(r *Response, body interface{}) (err os.Er
 	return c.encBuf.Flush()
 }
 
-func (c *gobServerCodec) Close() os.Error {
+func (c *gobServerCodec) Close() error {
 	return c.rwc.Close()
 }
 
@@ -396,7 +396,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	for {
 		service, mtype, req, argv, replyv, keepReading, err := server.readRequest(codec)
 		if err != nil {
-			if err != os.EOF {
+			if err != io.EOF {
 				log.Println("rpc:", err)
 			}
 			if !keepReading {
@@ -404,7 +404,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 			}
 			// send a response if we actually managed to read a header.
 			if req != nil {
-				server.sendResponse(sending, req, invalidRequest, codec, err.String())
+				server.sendResponse(sending, req, invalidRequest, codec, err.Error())
 				server.freeRequest(req)
 			}
 			continue
@@ -416,7 +416,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 
 // ServeRequest is like ServeCodec but synchronously serves a single request.
 // It does not close the codec upon completion.
-func (server *Server) ServeRequest(codec ServerCodec) os.Error {
+func (server *Server) ServeRequest(codec ServerCodec) error {
 	sending := new(sync.Mutex)
 	service, mtype, req, argv, replyv, keepReading, err := server.readRequest(codec)
 	if err != nil {
@@ -425,7 +425,7 @@ func (server *Server) ServeRequest(codec ServerCodec) os.Error {
 		}
 		// send a response if we actually managed to read a header.
 		if req != nil {
-			server.sendResponse(sending, req, invalidRequest, codec, err.String())
+			server.sendResponse(sending, req, invalidRequest, codec, err.Error())
 			server.freeRequest(req)
 		}
 		return err
@@ -474,7 +474,7 @@ func (server *Server) freeResponse(resp *Response) {
 	server.respLock.Unlock()
 }
 
-func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *methodType, req *Request, argv, replyv reflect.Value, keepReading bool, err os.Error) {
+func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *methodType, req *Request, argv, replyv reflect.Value, keepReading bool, err error) {
 	service, mtype, req, keepReading, err = server.readRequestHeader(codec)
 	if err != nil {
 		if !keepReading {
@@ -505,16 +505,16 @@ func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *m
 	return
 }
 
-func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mtype *methodType, req *Request, keepReading bool, err os.Error) {
+func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mtype *methodType, req *Request, keepReading bool, err error) {
 	// Grab the request header.
 	req = server.getRequest()
 	err = codec.ReadRequestHeader(req)
 	if err != nil {
 		req = nil
-		if err == os.EOF || err == io.ErrUnexpectedEOF {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			return
 		}
-		err = os.NewError("rpc: server cannot decode request: " + err.String())
+		err = errors.New("rpc: server cannot decode request: " + err.Error())
 		return
 	}
 
@@ -524,7 +524,7 @@ func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mt
 
 	serviceMethod := strings.Split(req.ServiceMethod, ".")
 	if len(serviceMethod) != 2 {
-		err = os.NewError("rpc: service/method request ill-formed: " + req.ServiceMethod)
+		err = errors.New("rpc: service/method request ill-formed: " + req.ServiceMethod)
 		return
 	}
 	// Look up the request.
@@ -532,12 +532,12 @@ func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mt
 	service = server.serviceMap[serviceMethod[0]]
 	server.mu.Unlock()
 	if service == nil {
-		err = os.NewError("rpc: can't find service " + req.ServiceMethod)
+		err = errors.New("rpc: can't find service " + req.ServiceMethod)
 		return
 	}
 	mtype = service.method[serviceMethod[1]]
 	if mtype == nil {
-		err = os.NewError("rpc: can't find method " + req.ServiceMethod)
+		err = errors.New("rpc: can't find method " + req.ServiceMethod)
 	}
 	return
 }
@@ -549,18 +549,18 @@ func (server *Server) Accept(lis net.Listener) {
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
-			log.Fatal("rpc.Serve: accept:", err.String()) // TODO(r): exit?
+			log.Fatal("rpc.Serve: accept:", err.Error()) // TODO(r): exit?
 		}
 		go server.ServeConn(conn)
 	}
 }
 
 // Register publishes the receiver's methods in the DefaultServer.
-func Register(rcvr interface{}) os.Error { return DefaultServer.Register(rcvr) }
+func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
 
 // RegisterName is like Register but uses the provided name for the type 
 // instead of the receiver's concrete type.
-func RegisterName(name string, rcvr interface{}) os.Error {
+func RegisterName(name string, rcvr interface{}) error {
 	return DefaultServer.RegisterName(name, rcvr)
 }
 
@@ -572,11 +572,11 @@ func RegisterName(name string, rcvr interface{}) os.Error {
 // connection. ReadRequestBody may be called with a nil
 // argument to force the body of the request to be read and discarded.
 type ServerCodec interface {
-	ReadRequestHeader(*Request) os.Error
-	ReadRequestBody(interface{}) os.Error
-	WriteResponse(*Response, interface{}) os.Error
+	ReadRequestHeader(*Request) error
+	ReadRequestBody(interface{}) error
+	WriteResponse(*Response, interface{}) error
 
-	Close() os.Error
+	Close() error
 }
 
 // ServeConn runs the DefaultServer on a single connection.
@@ -596,7 +596,7 @@ func ServeCodec(codec ServerCodec) {
 
 // ServeRequest is like ServeCodec but synchronously serves a single request.
 // It does not close the codec upon completion.
-func ServeRequest(codec ServerCodec) os.Error {
+func ServeRequest(codec ServerCodec) error {
 	return DefaultServer.ServeRequest(codec)
 }
 
@@ -618,7 +618,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	conn, _, err := w.(http.Hijacker).Hijack()
 	if err != nil {
-		log.Print("rpc hijacking ", req.RemoteAddr, ": ", err.String())
+		log.Print("rpc hijacking ", req.RemoteAddr, ": ", err.Error())
 		return
 	}
 	io.WriteString(conn, "HTTP/1.0 "+connected+"\n\n")

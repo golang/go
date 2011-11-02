@@ -11,7 +11,7 @@ import (
 	"syscall"
 )
 
-func sysSleep(t int64) os.Error {
+func sysSleep(t int64) error {
 	errno := syscall.Sleep(t)
 	if errno != 0 && errno != syscall.EINTR {
 		return os.NewSyscallError("sleep", errno)

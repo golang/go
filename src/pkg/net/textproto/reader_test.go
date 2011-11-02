@@ -7,7 +7,6 @@ package textproto
 import (
 	"bufio"
 	"io"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -49,7 +48,7 @@ func TestReadLine(t *testing.T) {
 		t.Fatalf("Line 2: %s, %v", s, err)
 	}
 	s, err = r.ReadLine()
-	if s != "" || err != os.EOF {
+	if s != "" || err != io.EOF {
 		t.Fatalf("EOF: %s, %v", s, err)
 	}
 }
@@ -69,7 +68,7 @@ func TestReadContinuedLine(t *testing.T) {
 		t.Fatalf("Line 3: %s, %v", s, err)
 	}
 	s, err = r.ReadContinuedLine()
-	if s != "" || err != os.EOF {
+	if s != "" || err != io.EOF {
 		t.Fatalf("EOF: %s, %v", s, err)
 	}
 }
@@ -92,7 +91,7 @@ func TestReadCodeLine(t *testing.T) {
 		t.Fatalf("Line 3: wrong error %v\n", err)
 	}
 	code, msg, err = r.ReadCodeLine(1)
-	if code != 0 || msg != "" || err != os.EOF {
+	if code != 0 || msg != "" || err != io.EOF {
 		t.Fatalf("EOF: %d, %s, %v", code, msg, err)
 	}
 }

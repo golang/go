@@ -71,7 +71,6 @@ package regexp
 import (
 	"bytes"
 	"io"
-	"os"
 	"strings"
 	"utf8"
 )
@@ -81,7 +80,7 @@ var debug = false
 // Error is the local type for a parsing error.
 type Error string
 
-func (e Error) String() string {
+func (e Error) Error() string {
 	return string(e)
 }
 
@@ -616,7 +615,7 @@ func (re *Regexp) String() string {
 
 // Compile parses a regular expression and returns, if successful, a Regexp
 // object that can be used to match against text.
-func Compile(str string) (regexp *Regexp, error os.Error) {
+func Compile(str string) (regexp *Regexp, error error) {
 	regexp = new(Regexp)
 	// doParse will panic if there is a parse error.
 	defer func() {
@@ -637,7 +636,7 @@ func Compile(str string) (regexp *Regexp, error os.Error) {
 func MustCompile(str string) *Regexp {
 	regexp, error := Compile(str)
 	if error != nil {
-		panic(`regexp: compiling "` + str + `": ` + error.String())
+		panic(`regexp: compiling "` + str + `": ` + error.Error())
 	}
 	return regexp
 }
@@ -998,7 +997,7 @@ func (re *Regexp) Match(b []byte) bool { return len(re.doExecute(newInputBytes(b
 // MatchReader checks whether a textual regular expression matches the text
 // read by the RuneReader.  More complicated queries need to use Compile and
 // the full Regexp interface.
-func MatchReader(pattern string, r io.RuneReader) (matched bool, error os.Error) {
+func MatchReader(pattern string, r io.RuneReader) (matched bool, error error) {
 	re, err := Compile(pattern)
 	if err != nil {
 		return false, err
@@ -1009,7 +1008,7 @@ func MatchReader(pattern string, r io.RuneReader) (matched bool, error os.Error)
 // MatchString checks whether a textual regular expression
 // matches a string.  More complicated queries need
 // to use Compile and the full Regexp interface.
-func MatchString(pattern string, s string) (matched bool, error os.Error) {
+func MatchString(pattern string, s string) (matched bool, error error) {
 	re, err := Compile(pattern)
 	if err != nil {
 		return false, err
@@ -1020,7 +1019,7 @@ func MatchString(pattern string, s string) (matched bool, error os.Error) {
 // Match checks whether a textual regular expression
 // matches a byte slice.  More complicated queries need
 // to use Compile and the full Regexp interface.
-func Match(pattern string, b []byte) (matched bool, error os.Error) {
+func Match(pattern string, b []byte) (matched bool, error error) {
 	re, err := Compile(pattern)
 	if err != nil {
 		return false, err

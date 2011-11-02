@@ -7,7 +7,6 @@ package template
 import (
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"template/parse"
 )
@@ -66,7 +65,7 @@ func (s *Set) Add(templates ...*Template) *Set {
 }
 
 // add adds the argument template to the set.
-func (s *Set) add(t *Template) os.Error {
+func (s *Set) add(t *Template) error {
 	s.init()
 	if t.set != nil {
 		return fmt.Errorf("template: %q already in a set", t.name)
@@ -92,7 +91,7 @@ func (s *Set) FuncMap() FuncMap {
 
 // Execute applies the named template to the specified data object, writing
 // the output to wr.
-func (s *Set) Execute(wr io.Writer, name string, data interface{}) os.Error {
+func (s *Set) Execute(wr io.Writer, name string, data interface{}) error {
 	tmpl := s.tmpl[name]
 	if tmpl == nil {
 		return fmt.Errorf("template: no template %q in set", name)
@@ -104,7 +103,7 @@ func (s *Set) Execute(wr io.Writer, name string, data interface{}) os.Error {
 // multiple times for a given set, adding the templates defined in the string
 // to the set.  If a template is redefined, the element in the set is
 // overwritten with the new definition.
-func (s *Set) Parse(text string) (*Set, os.Error) {
+func (s *Set) Parse(text string) (*Set, error) {
 	trees, err := parse.Set(text, s.leftDelim, s.rightDelim, s.parseFuncs, builtins)
 	if err != nil {
 		return nil, err

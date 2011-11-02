@@ -12,7 +12,7 @@ import (
 // the open file f.  It is the caller's responsibility to close f when
 // finished.  Closing c does not affect f, and closing f does not
 // affect c.
-func FileConn(f *os.File) (c Conn, err os.Error) {
+func FileConn(f *os.File) (c Conn, err error) {
 	return nil, os.EPLAN9
 }
 
@@ -20,7 +20,7 @@ func FileConn(f *os.File) (c Conn, err os.Error) {
 // to the open file f.  It is the caller's responsibility to close l
 // when finished.  Closing c does not affect l, and closing l does not
 // affect c.
-func FileListener(f *os.File) (l Listener, err os.Error) {
+func FileListener(f *os.File) (l Listener, err error) {
 	return nil, os.EPLAN9
 }
 
@@ -28,6 +28,6 @@ func FileListener(f *os.File) (l Listener, err os.Error) {
 // corresponding to the open file f.  It is the caller's
 // responsibility to close f when finished.  Closing c does not affect
 // f, and closing f does not affect c.
-func FilePacketConn(f *os.File) (c PacketConn, err os.Error) {
+func FilePacketConn(f *os.File) (c PacketConn, err error) {
 	return nil, os.EPLAN9
 }

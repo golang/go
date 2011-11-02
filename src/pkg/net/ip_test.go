@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"reflect"
 	"testing"
-	"os"
 	"runtime"
 )
 
@@ -113,7 +112,7 @@ var parsecidrtests = []struct {
 	in  string
 	ip  IP
 	net *IPNet
-	err os.Error
+	err error
 }{
 	{"135.104.0.0/32", IPv4(135, 104, 0, 0), &IPNet{IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 255)}, nil},
 	{"0.0.0.0/24", IPv4(0, 0, 0, 0), &IPNet{IPv4(0, 0, 0, 0), IPv4Mask(255, 255, 255, 0)}, nil},

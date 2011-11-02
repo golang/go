@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"http"
-	"os"
+	"io"
 	"strings"
 	"testing"
 	"url"
@@ -40,7 +40,7 @@ Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
 Sec-WebSocket-Protocol: chat
 
 `))
-	var err os.Error
+	var err error
 	config := new(Config)
 	config.Location, err = url.ParseRequest("ws://server.example.com/chat")
 	if err != nil {
@@ -102,7 +102,7 @@ Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
 Sec-WebSocket-Protocol: chat
 
 `))
-	var err os.Error
+	var err error
 	config := new(Config)
 	config.Location, err = url.ParseRequest("ws://server.example.com/chat")
 	if err != nil {
@@ -513,8 +513,8 @@ func TestHybiServerReadWithoutMasking(t *testing.T) {
 	// server MUST close the connection upon receiving a non-masked frame.
 	msg := make([]byte, 512)
 	_, err := conn.Read(msg)
-	if err != os.EOF {
-		t.Errorf("read 1st frame, expect %q, but got %q", os.EOF, err)
+	if err != io.EOF {
+		t.Errorf("read 1st frame, expect %q, but got %q", io.EOF, err)
 	}
 }
 
@@ -529,8 +529,8 @@ func TestHybiClientReadWithMasking(t *testing.T) {
 	// client MUST close the connection upon receiving a masked frame.
 	msg := make([]byte, 512)
 	_, err := conn.Read(msg)
-	if err != os.EOF {
-		t.Errorf("read 1st frame, expect %q, but got %q", os.EOF, err)
+	if err != io.EOF {
+		t.Errorf("read 1st frame, expect %q, but got %q", io.EOF, err)
 	}
 }
 

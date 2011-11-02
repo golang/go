@@ -6,7 +6,6 @@ package url
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 )
@@ -306,7 +305,7 @@ func ufmt(u *URL) string {
 		u.Host, u.Path, u.RawQuery, u.Fragment)
 }
 
-func DoTest(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
+func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
 	for _, tt := range tests {
 		u, err := parse(tt.in)
 		if err != nil {
@@ -364,7 +363,7 @@ func TestParseRequest(t *testing.T) {
 	}
 }
 
-func DoTestString(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
+func DoTestString(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
 	for _, tt := range tests {
 		u, err := parse(tt.in)
 		if err != nil {
@@ -392,7 +391,7 @@ func TestURLString(t *testing.T) {
 type EscapeTest struct {
 	in  string
 	out string
-	err os.Error
+	err error
 }
 
 var unescapeTests = []EscapeTest{

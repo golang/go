@@ -5,7 +5,6 @@
 package template
 
 import (
-	"os"
 	"reflect"
 	"template/parse"
 )
@@ -62,7 +61,7 @@ func (t *Template) Funcs(funcMap FuncMap) *Template {
 
 // Parse parses the template definition string to construct an internal
 // representation of the template for execution.
-func (t *Template) Parse(s string) (tmpl *Template, err os.Error) {
+func (t *Template) Parse(s string) (tmpl *Template, err error) {
 	t.Tree, err = parse.New(t.name).Parse(s, t.leftDelim, t.rightDelim, t.parseFuncs, builtins)
 	if err != nil {
 		return nil, err
@@ -74,7 +73,7 @@ func (t *Template) Parse(s string) (tmpl *Template, err os.Error) {
 // representation of the template for execution. It also adds the template
 // to the set.
 // Function bindings are checked against those in the set.
-func (t *Template) ParseInSet(s string, set *Set) (tmpl *Template, err os.Error) {
+func (t *Template) ParseInSet(s string, set *Set) (tmpl *Template, err error) {
 	var setFuncs FuncMap
 	if set != nil {
 		setFuncs = set.parseFuncs
