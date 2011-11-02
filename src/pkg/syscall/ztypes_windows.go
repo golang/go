@@ -530,6 +530,11 @@ type DNSMXData struct {
 	Pad          uint16
 }
 
+type DNSTXTData struct {
+	StringCount uint16
+	StringArray [1]*uint16
+}
+
 type DNSRecord struct {
 	Next     *DNSRecord
 	Name     *uint16
