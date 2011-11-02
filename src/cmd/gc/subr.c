@@ -2967,17 +2967,6 @@ mkpkg(Strlit *path)
 	p->prefix = pathtoprefix(path->s);
 	p->link = phash[h];
 	phash[h] = p;
-	
-	// If the compiler was built with
-	//	GOEXPERIMENT=os.Error
-	// define os.Error as an alias for error.
-	// Terrible and won't last long, but useful for transitions.
-	if(oserror && strcmp(path->s, "os") == 0) {
-		Sym *s;
-		s = pkglookup("Error", p);
-		s->def = typenod(errortype);
-	}
-
 	return p;
 }
 

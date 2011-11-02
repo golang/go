@@ -38,7 +38,6 @@ static struct {
 	int *val;
 } exper[] = {
 	{"rune32", &rune32},
-	{"os.Error", &oserror},
 };
 
 static void
