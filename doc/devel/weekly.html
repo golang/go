@@ -14,6 +14,26 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-11-02">2011-11-02 (new error type)</h2>
+
+<pre>
+This snapshot introduces the built-in error type, defined as
+
+       type error interface {
+               Error() string
+       }
+
+The error type replaces os.Error. Notice that the method name has changed from
+String to Error. Package fmt's Print formats both Stringers and errors:
+in general there is no need to implement both String and Error methods.
+
+Gofix can update most code. If you have split your package across many files,
+it may help to use the -force=error command-line option, which forces gofix to
+apply the error fix even if it is not obvious that a particular file needs it.
+As always, it is a good idea to read and test the changes that gofix made
+before committing them to your version control system.
+</pre>
+
 <h2 id="2011-11-01">2011-11-01</h2>
 
 <pre>
