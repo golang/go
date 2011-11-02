@@ -7,7 +7,6 @@ package io_test
 import (
 	"fmt"
 	. "io"
-	"os"
 	"testing"
 	"time"
 )
@@ -44,7 +43,7 @@ func reader(t *testing.T, r Reader, c chan int) {
 	var buf = make([]byte, 64)
 	for {
 		n, err := r.Read(buf)
-		if err == os.EOF {
+		if err == EOF {
 			c <- 0
 			break
 		}
@@ -84,7 +83,7 @@ func TestPipe2(t *testing.T) {
 
 type pipeReturn struct {
 	n   int
-	err os.Error
+	err error
 }
 
 // Test a large write that requires multiple reads to satisfy.
@@ -106,7 +105,7 @@ func TestPipe3(t *testing.T) {
 	tot := 0
 	for n := 1; n <= 256; n *= 2 {
 		nn, err := r.Read(rdat[tot : tot+n])
-		if err != nil && err != os.EOF {
+		if err != nil && err != EOF {
 			t.Fatalf("read: %v", err)
 		}
 
@@ -116,7 +115,7 @@ func TestPipe3(t *testing.T) {
 			expect = 1
 		} else if n == 256 {
 			expect = 0
-			if err != os.EOF {
+			if err != EOF {
 				t.Fatalf("read at end: %v", err)
 			}
 		}
@@ -142,13 +141,13 @@ func TestPipe3(t *testing.T) {
 // Test read after/before writer close.
 
 type closer interface {
-	CloseWithError(os.Error) os.Error
-	Close() os.Error
+	CloseWithError(error) error
+	Close() error
 }
 
 type pipeTest struct {
 	async          bool
-	err            os.Error
+	err            error
 	closeWithError bool
 }
 
@@ -167,7 +166,7 @@ var pipeTests = []pipeTest{
 
 func delayClose(t *testing.T, cl closer, ch chan int, tt pipeTest) {
 	time.Sleep(1e6) // 1 ms
-	var err os.Error
+	var err error
 	if tt.closeWithError {
 		err = cl.CloseWithError(tt.err)
 	} else {
@@ -193,7 +192,7 @@ func TestPipeReadClose(t *testing.T) {
 		<-c
 		want := tt.err
 		if want == nil {
-			want = os.EOF
+			want = EOF
 		}
 		if err != want {
 			t.Errorf("read from closed pipe: %v want %v", err, want)
@@ -214,8 +213,8 @@ func TestPipeReadClose2(t *testing.T) {
 	go delayClose(t, r, c, pipeTest{})
 	n, err := r.Read(make([]byte, 64))
 	<-c
-	if n != 0 || err != os.EINVAL {
-		t.Errorf("read from closed pipe: %v, %v want %v, %v", n, err, 0, os.EINVAL)
+	if n != 0 || err != ErrClosedPipe {
+		t.Errorf("read from closed pipe: %v, %v want %v, %v", n, err, 0, ErrClosedPipe)
 	}
 }
 
@@ -234,7 +233,7 @@ func TestPipeWriteClose(t *testing.T) {
 		<-c
 		expect := tt.err
 		if expect == nil {
-			expect = os.EPIPE
+			expect = ErrClosedPipe
 		}
 		if err != expect {
 			t.Errorf("write on closed pipe: %v want %v", err, expect)

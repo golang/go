@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 )
@@ -26,7 +25,7 @@ func TestMultiReader(t *testing.T) {
 		buf = make([]byte, 20)
 		tests()
 	}
-	expectRead := func(size int, expected string, eerr os.Error) {
+	expectRead := func(size int, expected string, eerr error) {
 		nread++
 		n, gerr := mr.Read(buf[0:size])
 		if n != len(expected) {
@@ -48,13 +47,13 @@ func TestMultiReader(t *testing.T) {
 		expectRead(2, "fo", nil)
 		expectRead(5, "o ", nil)
 		expectRead(5, "bar", nil)
-		expectRead(5, "", os.EOF)
+		expectRead(5, "", EOF)
 	})
 	withFooBar(func() {
 		expectRead(4, "foo ", nil)
 		expectRead(1, "b", nil)
 		expectRead(3, "ar", nil)
-		expectRead(1, "", os.EOF)
+		expectRead(1, "", EOF)
 	})
 	withFooBar(func() {
 		expectRead(5, "foo ", nil)

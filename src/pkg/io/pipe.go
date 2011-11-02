@@ -7,14 +7,14 @@
 
 package io
 
-import (
-	"os"
-	"sync"
-)
+import "sync"
+
+// ErrClosedPipe is the error used for read or write operations on a closed pipe.
+var ErrClosedPipe = &Error{"io: read/write on closed pipe"}
 
 type pipeResult struct {
 	n   int
-	err os.Error
+	err error
 }
 
 // A pipe is the shared pipe structure underlying PipeReader and PipeWriter.
@@ -25,11 +25,11 @@ type pipe struct {
 	data  []byte     // data remaining in pending write
 	rwait sync.Cond  // waiting reader
 	wwait sync.Cond  // waiting writer
-	rerr  os.Error   // if reader closed, error to give writes
-	werr  os.Error   // if writer closed, error to give reads
+	rerr  error      // if reader closed, error to give writes
+	werr  error      // if writer closed, error to give reads
 }
 
-func (p *pipe) read(b []byte) (n int, err os.Error) {
+func (p *pipe) read(b []byte) (n int, err error) {
 	// One reader at a time.
 	p.rl.Lock()
 	defer p.rl.Unlock()
@@ -38,7 +38,7 @@ func (p *pipe) read(b []byte) (n int, err os.Error) {
 	defer p.l.Unlock()
 	for {
 		if p.rerr != nil {
-			return 0, os.EINVAL
+			return 0, ErrClosedPipe
 		}
 		if p.data != nil {
 			break
@@ -59,7 +59,7 @@ func (p *pipe) read(b []byte) (n int, err os.Error) {
 
 var zero [0]byte
 
-func (p *pipe) write(b []byte) (n int, err os.Error) {
+func (p *pipe) write(b []byte) (n int, err error) {
 	// pipe uses nil to mean not available
 	if b == nil {
 		b = zero[:]
@@ -82,7 +82,7 @@ func (p *pipe) write(b []byte) (n int, err os.Error) {
 			break
 		}
 		if p.werr != nil {
-			err = os.EINVAL
+			err = ErrClosedPipe
 		}
 		p.wwait.Wait()
 	}
@@ -91,9 +91,9 @@ func (p *pipe) write(b []byte) (n int, err os.Error) {
 	return
 }
 
-func (p *pipe) rclose(err os.Error) {
+func (p *pipe) rclose(err error) {
 	if err == nil {
-		err = os.EPIPE
+		err = ErrClosedPipe
 	}
 	p.l.Lock()
 	defer p.l.Unlock()
@@ -102,9 +102,9 @@ func (p *pipe) rclose(err os.Error) {
 	p.wwait.Signal()
 }
 
-func (p *pipe) wclose(err os.Error) {
+func (p *pipe) wclose(err error) {
 	if err == nil {
-		err = os.EOF
+		err = EOF
 	}
 	p.l.Lock()
 	defer p.l.Unlock()
@@ -122,20 +122,20 @@ type PipeReader struct {
 // it reads data from the pipe, blocking until a writer
 // arrives or the write end is closed.
 // If the write end is closed with an error, that error is
-// returned as err; otherwise err is os.EOF.
-func (r *PipeReader) Read(data []byte) (n int, err os.Error) {
+// returned as err; otherwise err is EOF.
+func (r *PipeReader) Read(data []byte) (n int, err error) {
 	return r.p.read(data)
 }
 
 // Close closes the reader; subsequent writes to the
-// write half of the pipe will return the error os.EPIPE.
-func (r *PipeReader) Close() os.Error {
+// write half of the pipe will return the error ErrClosedPipe.
+func (r *PipeReader) Close() error {
 	return r.CloseWithError(nil)
 }
 
 // CloseWithError closes the reader; subsequent writes
 // to the write half of the pipe will return the error err.
-func (r *PipeReader) CloseWithError(err os.Error) os.Error {
+func (r *PipeReader) CloseWithError(err error) error {
 	r.p.rclose(err)
 	return nil
 }
@@ -149,20 +149,20 @@ type PipeWriter struct {
 // it writes data to the pipe, blocking until readers
 // have consumed all the data or the read end is closed.
 // If the read end is closed with an error, that err is
-// returned as err; otherwise err is os.EPIPE.
-func (w *PipeWriter) Write(data []byte) (n int, err os.Error) {
+// returned as err; otherwise err is ErrClosedPipe.
+func (w *PipeWriter) Write(data []byte) (n int, err error) {
 	return w.p.write(data)
 }
 
 // Close closes the writer; subsequent reads from the
-// read half of the pipe will return no bytes and os.EOF.
-func (w *PipeWriter) Close() os.Error {
+// read half of the pipe will return no bytes and EOF.
+func (w *PipeWriter) Close() error {
 	return w.CloseWithError(nil)
 }
 
 // CloseWithError closes the writer; subsequent reads from the
 // read half of the pipe will return no bytes and the error err.
-func (w *PipeWriter) CloseWithError(err os.Error) os.Error {
+func (w *PipeWriter) CloseWithError(err error) error {
 	w.p.wclose(err)
 	return nil
 }

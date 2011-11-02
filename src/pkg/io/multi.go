@@ -4,17 +4,15 @@
 
 package io
 
-import "os"
-
 type multiReader struct {
 	readers []Reader
 }
 
-func (mr *multiReader) Read(p []byte) (n int, err os.Error) {
+func (mr *multiReader) Read(p []byte) (n int, err error) {
 	for len(mr.readers) > 0 {
 		n, err = mr.readers[0].Read(p)
-		if n > 0 || err != os.EOF {
-			if err == os.EOF {
+		if n > 0 || err != EOF {
+			if err == EOF {
 				// Don't return EOF yet. There may be more bytes
 				// in the remaining readers.
 				err = nil
@@ -23,12 +21,12 @@ func (mr *multiReader) Read(p []byte) (n int, err os.Error) {
 		}
 		mr.readers = mr.readers[1:]
 	}
-	return 0, os.EOF
+	return 0, EOF
 }
 
 // MultiReader returns a Reader that's the logical concatenation of
 // the provided input readers.  They're read sequentially.  Once all
-// inputs are drained, Read will return os.EOF.
+// inputs are drained, Read will return EOF.
 func MultiReader(readers ...Reader) Reader {
 	return &multiReader{readers}
 }
@@ -37,7 +35,7 @@ type multiWriter struct {
 	writers []Writer
 }
 
-func (t *multiWriter) Write(p []byte) (n int, err os.Error) {
+func (t *multiWriter) Write(p []byte) (n int, err error) {
 	for _, w := range t.writers {
 		n, err = w.Write(p)
 		if err != nil {
