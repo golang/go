@@ -31,7 +31,7 @@ static int	getlinepragma(void);
 static char *goos, *goarch, *goroot;
 
 // Compiler experiments.
-// These are controlled by the GCEXPERIMENT environment
+// These are controlled by the GOEXPERIMENT environment
 // variable recorded when the compiler is built.
 static struct {
 	char *name;
