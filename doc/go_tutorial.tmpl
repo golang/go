@@ -490,11 +490,13 @@ to see that).  Finally, <code>OpenFile</code> returns two values: a pointer to t
 and the error.  If <code>syscall.Open</code> fails, the file descriptor <code>r</code> will
 be negative and <code>newFile</code> will return <code>nil</code>.
 <p>
-About those errors:  The <code>os</code> library includes a general notion of an error.
+About those errors:  The Go language includes a general notion of an error:
+a pre-defined type <code>error</code> with properties (described below)
+that make it a good basis for representing and handling errors.
 It's a good idea to use its facility in your own interfaces, as we do here, for
 consistent error handling throughout Go code.   In <code>Open</code> we use a
 conversion to translate Unix's integer <code>errno</code> value into the integer type
-<code>os.Errno</code>, which implements <code>os.Error</code>.
+<code>os.Errno</code>, which is an implementation of <code>error</code>
 <p>
 Why <code>OpenFile</code> and not <code>Open</code>? To mimic Go's <code>os</code> package, which
 our exercise is emulating. The <code>os</code> package takes the opportunity
@@ -527,7 +529,7 @@ array, not just for <code>structs</code>.   We'll see an example with arrays lat
 The <code>String</code> method is so called because of a printing convention we'll
 describe later.
 <p>
-The methods use the public variable <code>os.EINVAL</code> to return the (<code>os.Error</code>
+The methods use the public variable <code>os.EINVAL</code> to return the (<code>error</code>
 version of the) Unix error code <code>EINVAL</code>.  The <code>os</code> library defines a standard
 set of such error values.
 <p>
@@ -692,7 +694,7 @@ implements <code>Printf</code>, <code>Fprintf</code>, and so on.
 Within the <code>fmt</code> package, <code>Printf</code> is declared with this signature:
 <p>
 <pre>
-Printf(format string, v ...interface{}) (n int, errno os.Error)
+Printf(format string, v ...interface{}) (n int, errno error)
 </pre>
 <p>
 The token <code>...</code> introduces a variable-length argument list that in C would
@@ -801,6 +803,21 @@ If the value does not satisfy the interface, <code>ok</code> will be false.
 In this snippet the name <code>Stringer</code> follows the convention that we add ''[e]r''
 to interfaces describing simple method sets like this.
 <p>
+A related interface is that defined by the <code>error</code> builtin type, which is just
+<p>
+<pre>
+type error interface {
+    Error() string
+}
+</pre>
+<p>
+Other than the method name (<code>Error</code> vs. <code>String</code>), this looks like
+a <code>Stringer</code>; the different name guarantees that types that implement <code>Stringer</code>
+don't accidentally satisfy the <code>error</code> interface.
+Naturally, <code>Printf</code> and its relatives recognize the <code>error</code> interface,
+just as they do <code>Stringer</code>,
+so it's trivial to print an error as a string.
+<p>
 One last wrinkle.  To complete the suite, besides <code>Printf</code> etc. and <code>Sprintf</code>
 etc., there are also <code>Fprintf</code> etc.  Unlike in C, <code>Fprintf</code>'s first argument is
 not a file.  Instead, it is a variable of type <code>io.Writer</code>, which is an
@@ -808,7 +825,7 @@ interface type defined in the <code>io</code> library:
 <p>
 <pre>
 type Writer interface {
-    Write(p []byte) (n int, err os.Error)
+    Write(p []byte) (n int, err error)
 }
 </pre>
 <p>

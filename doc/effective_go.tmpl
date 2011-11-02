@@ -221,7 +221,7 @@ starts with the name being declared.
 <pre>
 // Compile parses a regular expression and returns, if successful, a Regexp
 // object that can be used to match against text.
-func Compile(str string) (regexp *Regexp, error os.Error) {
+func Compile(str string) (regexp *Regexp, err error) {
 </pre>
 
 <p>
@@ -233,9 +233,9 @@ Since the whole declaration is presented, such a comment can often be perfunctor
 <pre>
 // Error codes returned by failures to parse an expression.
 var (
-    ErrInternal      = os.NewError("regexp: internal error")
-    ErrUnmatchedLpar = os.NewError("regexp: unmatched '('")
-    ErrUnmatchedRpar = os.NewError("regexp: unmatched ')'")
+    ErrInternal      = errors.New("regexp: internal error")
+    ErrUnmatchedLpar = errors.New("regexp: unmatched '('")
+    ErrUnmatchedRpar = errors.New("regexp: unmatched ')'")
     ...
 )
 </pre>
@@ -717,12 +717,12 @@ The signature of <code>*File.Write</code> in package <code>os</code> is:
 </p>
 
 <pre>
-func (file *File) Write(b []byte) (n int, err Error)
+func (file *File) Write(b []byte) (n int, err error)
 </pre>
 
 <p>
 and as the documentation says, it returns the number of bytes
-written and a non-nil <code>Error</code> when <code>n</code>
+written and a non-nil <code>error</code> when <code>n</code>
 <code>!=</code> <code>len(b)</code>.
 This is a common style; see the section on error handling for more examples.
 </p>
@@ -788,7 +788,7 @@ of <code>io.ReadFull</code> that uses them well:
 </p>
 
 <pre>
-func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
+func ReadFull(r Reader, buf []byte) (n int, err error) {
     for len(buf) &gt; 0 &amp;&amp; err == nil {
         var nr int
         nr, err = r.Read(buf)
@@ -812,7 +812,7 @@ canonical examples are unlocking a mutex or closing a file.
 
 <pre>
 // Contents returns the file's contents as a string.
-func Contents(filename string) (string, os.Error) {
+func Contents(filename string) (string, error) {
     f, err := os.Open(filename)
     if err != nil {
         return "", err
@@ -1195,7 +1195,7 @@ limit of how much data to read.  Here is the signature of the
 <code>os</code>:
 </p>
 <pre>
-func (file *File) Read(buf []byte) (n int, err os.Error)
+func (file *File) Read(buf []byte) (n int, err error)
 </pre>
 <p>
 The method returns the number of bytes read and an error value, if
@@ -1211,7 +1211,7 @@ the moment, this snippet would also read the first 32 bytes of the buffer.
 </p>
 <pre>
     var n int
-    var err os.Error
+    var err error
     for i := 0; i &lt; 32; i++ {
         nbytes, e := f.Read(buf[i:i+1])  // Read one byte.
         if nbytes == 0 || e != nil {
@@ -1509,7 +1509,7 @@ for its final argument to specify that an arbitrary number of parameters (of arb
 can appear after the format.
 </p>
 <pre>
-func Printf(format string, v ...interface{}) (n int, errno os.Error) {
+func Printf(format string, v ...interface{}) (n int, err error) {
 </pre>
 <p>
 Within the function <code>Printf</code>, <code>v</code> acts like a variable of type
@@ -1724,7 +1724,7 @@ In fact, we can do even better.  If we modify our function so it looks
 like a standard <code>Write</code> method, like this,
 </p>
 <pre>
-func (p *ByteSlice) Write(data []byte) (n int, err os.Error) {
+func (p *ByteSlice) Write(data []byte) (n int, err error) {
     slice := *p
     // Again as above.
     *p = slice
@@ -2057,11 +2057,11 @@ here are their definitions.
 </p>
 <pre>
 type Reader interface {
-    Read(p []byte) (n int, err os.Error)
+    Read(p []byte) (n int, err error)
 }
 
 type Writer interface {
-    Write(p []byte) (n int, err os.Error)
+    Write(p []byte) (n int, err error)
 }
 </pre>
 <p>
@@ -2123,7 +2123,7 @@ satisfy the <code>io</code> interfaces, we would also need
 to provide forwarding methods, like this:
 </p>
 <pre>
-func (rw *ReadWriter) Read(p []byte) (n int, err os.Error) {
+func (rw *ReadWriter) Read(p []byte) (n int, err error) {
     return rw.reader.Read(p)
 }
 </pre>
@@ -2575,12 +2575,12 @@ the garbage collector for bookkeeping.
 Library routines must often return some sort of error indication to
 the caller.  As mentioned earlier, Go's multivalue return makes it
 easy to return a detailed error description alongside the normal
-return value.  By convention, errors have type <code>os.Error</code>,
-a simple interface.
+return value.  By convention, errors have type <code>error</code>,
+a simple built-in interface.
 </p>
 <pre>
-type Error interface {
-    String() string
+type error interface {
+    Error() string
 }
 </pre>
 <p>
@@ -2595,15 +2595,15 @@ For example, <code>os.Open</code> returns an <code>os.PathError</code>.
 type PathError struct {
     Op string    // "open", "unlink", etc.
     Path string  // The associated file.
-    Error Error  // Returned by the system call.
+    Err error    // Returned by the system call.
 }
 
-func (e *PathError) String() string {
-    return e.Op + " " + e.Path + ": " + e.Error.String()
+func (e *PathError) Error() string {
+    return e.Op + " " + e.Path + ": " + e.Err.Error()
 }
 </pre>
 <p>
-<code>PathError</code>'s <code>String</code> generates
+<code>PathError</code>'s <code>Error</code> generates
 a string like this:
 </p>
 <pre>
@@ -2628,7 +2628,7 @@ is "image: unknown format".
 Callers that care about the precise error details can
 use a type switch or a type assertion to look for specific
 errors and extract details.  For <code>PathErrors</code>
-this might include examining the internal <code>Error</code>
+this might include examining the internal <code>Err</code>
 field for recoverable failures.
 </p>
 
@@ -2638,7 +2638,7 @@ for try := 0; try &lt; 2; try++ {
     if err == nil {
         return
     }
-    if e, ok := err.(*os.PathError); ok &amp;&amp; e.Error == os.ENOSPC {
+    if e, ok := err.(*os.PathError); ok &amp;&amp; e.Err == os.ENOSPC {
         deleteTempFiles()  // Recover some space.
         continue
     }
@@ -2650,9 +2650,9 @@ for try := 0; try &lt; 2; try++ {
 
 <p>
 The usual way to report an error to a caller is to return an
-<code>os.Error</code> as an extra return value.  The canonical
+<code>error</code> as an extra return value.  The canonical
 <code>Read</code> method is a well-known instance; it returns a byte
-count and an <code>os.Error</code>.  But what if the error is
+count and an <code>error</code>.  But what if the error is
 unrecoverable?  Sometimes the program simply cannot continue.
 </p>
 
@@ -2768,14 +2768,14 @@ cleanly by calling <code>panic</code>.  We can use that idea to
 simplify error handling in complex software.  Let's look at an
 idealized excerpt from the <code>regexp</code> package, which reports
 parsing errors by calling <code>panic</code> with a local
-<code>Error</code> type.  Here's the definition of <code>Error</code>,
+error type.  Here's the definition of <code>Error</code>,
 an <code>error</code> method, and the <code>Compile</code> function.
 </p>
 
 <pre>
-// Error is the type of a parse error; it satisfies os.Error.
+// Error is the type of a parse error; it satisfies the error interface.
 type Error string
-func (e Error) String() string {
+func (e Error) Error() string {
     return string(e)
 }
 
@@ -2786,7 +2786,7 @@ func (regexp *Regexp) error(err string) {
 }
 
 // Compile returns a parsed representation of the regular expression.
-func Compile(str string) (regexp *Regexp, err os.Error) {
+func Compile(str string) (regexp *Regexp, err error) {
     regexp = new(Regexp)
     // doParse will panic if there is a parse error.
     defer func() {
@@ -2804,7 +2804,7 @@ If <code>doParse</code> panics, the recovery block will set the
 return value to <code>nil</code>&mdash;deferred functions can modify
 named return values.  It then will then check, in the assignment
 to <code>err</code>, that the problem was a parse error by asserting
-that it has type <code>Error</code>.
+that it has the local type <code>Error</code>.
 If it does not, the type assertion will fail, causing a run-time error
 that continues the stack unwinding as though nothing had interrupted
 it.  This check means that if something unexpected happens, such
@@ -2822,7 +2822,7 @@ the parse stack by hand.
 <p>
 Useful though this pattern is, it should be used only within a package.
 <code>Parse</code> turns its internal <code>panic</code> calls into
-<code>os.Error</code> values; it does not expose <code>panics</code>
+<code>error</code> values; it does not expose <code>panics</code>
 to its client.  That is a good rule to follow.
 </p>
 

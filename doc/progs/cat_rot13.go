@@ -59,14 +59,14 @@ func cat(r reader) {
 	for {
 		switch nr, er := r.Read(buf[:]); {
 		case nr < 0:
-			fmt.Fprintf(os.Stderr, "cat: error reading from %s: %s\n", r.String(), er.String())
+			fmt.Fprintf(os.Stderr, "cat: error reading from %s: %s\n", r, er)
 			os.Exit(1)
 		case nr == 0: // EOF
 			return
 		case nr > 0:
 			nw, ew := file.Stdout.Write(buf[0:nr])
 			if nw != nr {
-				fmt.Fprintf(os.Stderr, "cat: error writing from %s: %s\n", r.String(), ew.String())
+				fmt.Fprintf(os.Stderr, "cat: error writing from %s: %s\n", r, ew)
 				os.Exit(1)
 			}
 		}

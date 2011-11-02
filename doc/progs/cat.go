@@ -17,13 +17,13 @@ func cat(f *file.File) {
 	for {
 		switch nr, er := f.Read(buf[:]); true {
 		case nr < 0:
-			fmt.Fprintf(os.Stderr, "cat: error reading from %s: %s\n", f.String(), er.String())
+			fmt.Fprintf(os.Stderr, "cat: error reading from %s: %s\n", f, er)
 			os.Exit(1)
 		case nr == 0: // EOF
 			return
 		case nr > 0:
 			if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
-				fmt.Fprintf(os.Stderr, "cat: error writing from %s: %s\n", f.String(), ew.String())
+				fmt.Fprintf(os.Stderr, "cat: error writing from %s: %s\n", f, ew)
 				os.Exit(1)
 			}
 		}
