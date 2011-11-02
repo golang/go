@@ -8,15 +8,10 @@ import (
 	"sync"
 )
 
-// An Error can represent any printable error condition.
-type Error interface {
-	String() string
-}
-
 // Errno is the Windows error number.
 type Errno uint64
 
-func (e Errno) String() string { return Errstr(int(e)) }
+func (e Errno) Error() string { return Errstr(int(e)) }
 
 // DLLError describes reasons for DLL load failures.
 type DLLError struct {
@@ -42,7 +37,7 @@ type DLL struct {
 }
 
 // LoadDLL loads DLL file into memory.
-func LoadDLL(name string) (dll *DLL, err Error) {
+func LoadDLL(name string) (dll *DLL, err error) {
 	h, e := loadlibrary(StringToUTF16Ptr(name))
 	if e != 0 {
 		return nil, &DLLError{
@@ -69,7 +64,7 @@ func MustLoadDLL(name string) *DLL {
 
 // FindProc searches DLL d for procedure named name and returns *Proc
 // if found. It returns an error if search fails.
-func (d *DLL) FindProc(name string) (proc *Proc, err Error) {
+func (d *DLL) FindProc(name string) (proc *Proc, err error) {
 	a, e := getprocaddress(uintptr(d.Handle), StringBytePtr(name))
 	if e != 0 {
 		return nil, &DLLError{
@@ -160,7 +155,7 @@ type LazyDLL struct {
 
 // Load loads DLL file d.Name into memory. It returns an error if fails.
 // Load will not try to load DLL, if it is already loaded into memory.
-func (d *LazyDLL) Load() Error {
+func (d *LazyDLL) Load() error {
 	if d.dll == nil {
 		d.mu.Lock()
 		defer d.mu.Unlock()
@@ -211,7 +206,7 @@ type LazyProc struct {
 // Find searches DLL for procedure named p.Name. It returns
 // an error if search fails. Find will not search procedure,
 // if it is already found and loaded into memory.
-func (p *LazyProc) Find() Error {
+func (p *LazyProc) Find() error {
 	if p.proc == nil {
 		p.mu.Lock()
 		defer p.mu.Unlock()
