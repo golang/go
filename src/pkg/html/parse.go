@@ -553,10 +553,13 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 			}
 			p.addElement(p.tok.Data, p.tok.Attr)
 		case "a":
-			if n := p.afe.forTag("a"); n != nil {
-				p.inBodyEndTagFormatting("a")
-				p.oe.remove(n)
-				p.afe.remove(n)
+			for i := len(p.afe) - 1; i >= 0 && p.afe[i].Type != scopeMarkerNode; i-- {
+				if n := p.afe[i]; n.Type == ElementNode && n.Data == "a" {
+					p.inBodyEndTagFormatting("a")
+					p.oe.remove(n)
+					p.afe.remove(n)
+					break
+				}
 			}
 			p.reconstructActiveFormattingElements()
 			p.addFormattingElement(p.tok.Data, p.tok.Attr)
