@@ -148,7 +148,7 @@ func (b *Bar2) NoLeak() int { // ERROR "b does not escape"
 }
 
 func (b *Bar2) Leak() []int { // ERROR "leaking param: b"
-	return b.i[:] // ERROR "&b.i escapes to heap"
+	return b.i[:]  // ERROR "b.i escapes to heap"
 }
 
 func (b *Bar2) AlsoNoLeak() []int { // ERROR "b does not escape"
@@ -156,12 +156,12 @@ func (b *Bar2) AlsoNoLeak() []int { // ERROR "b does not escape"
 }
 
 func (b *Bar2) LeakSelf() { // ERROR "leaking param: b"
-	b.ii = b.i[0:4] // ERROR "&b.i escapes to heap"
+	b.ii = b.i[0:4]  // ERROR "b.i escapes to heap"
 }
 
 func (b *Bar2) LeakSelf2() { // ERROR "leaking param: b"
 	var buf []int
-	buf = b.i[0:] // ERROR "&b.i escapes to heap"
+	buf = b.i[0:]  // ERROR "b.i escapes to heap"
 	b.ii = buf
 }
 
