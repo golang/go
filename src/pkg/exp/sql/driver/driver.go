@@ -24,8 +24,12 @@ import "errors"
 // Driver is the interface that must be implemented by a database
 // driver.
 type Driver interface {
-	// Open returns a new or cached connection to the database.
+	// Open returns a new connection to the database.
 	// The name is a string in a driver-specific format.
+	//
+	// Open may return a cached connection (one previously
+	// closed), but doing so is unnecessary; the sql package
+	// maintains a pool of idle connections for efficient re-use.
 	//
 	// The returned connection is only used by one goroutine at a
 	// time.
@@ -59,8 +63,12 @@ type Conn interface {
 
 	// Close invalidates and potentially stops any current
 	// prepared statements and transactions, marking this
-	// connection as no longer in use.  The driver may cache or
-	// close its underlying connection to its database.
+	// connection as no longer in use.
+	//
+	// Because the sql package maintains a free pool of
+	// connections and only calls Close when there's a surplus of
+	// idle connections, it shouldn't be necessary for drivers to
+	// do their own connection caching.
 	Close() error
 
 	// Begin starts and returns a new transaction.

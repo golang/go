@@ -203,7 +203,6 @@ NOTEST+=\
 	exp/ebnflint\
 	exp/gui\
 	exp/gui/x11\
-	exp/sql/driver\
 	go/doc\
 	hash\
 	http/pprof\
