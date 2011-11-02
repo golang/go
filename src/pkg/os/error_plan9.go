@@ -12,16 +12,16 @@ type SyscallError struct {
 	Err     string
 }
 
-func (e *SyscallError) String() string { return e.Syscall + ": " + e.Err }
+func (e *SyscallError) Error() string { return e.Syscall + ": " + e.Err }
 
 // Note: If the name of the function NewSyscallError changes,
 // pkg/go/doc/doc.go should be adjusted since it hardwires
 // this name in a heuristic.
 
-// NewSyscallError returns, as an Error, a new SyscallError
+// NewSyscallError returns, as an error, a new SyscallError
 // with the given system call name and error details.
 // As a convenience, if err is nil, NewSyscallError returns nil.
-func NewSyscallError(syscall string, err syscall.Error) Error {
+func NewSyscallError(syscall string, err syscall.Error) error {
 	if err == nil {
 		return nil
 	}

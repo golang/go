@@ -9,11 +9,12 @@
 package os
 
 import (
+	"errors"
 	"sync"
 )
 
-// ENOENV is the Error indicating that an environment variable does not exist.
-var ENOENV = NewError("no such environment variable")
+// ENOENV is the error indicating that an environment variable does not exist.
+var ENOENV = errors.New("no such environment variable")
 
 var env map[string]string
 var once sync.Once
@@ -34,7 +35,7 @@ var envLock sync.RWMutex
 
 // Getenverror retrieves the value of the environment variable named by the key.
 // It returns the value and an error, if any.
-func Getenverror(key string) (value string, err Error) {
+func Getenverror(key string) (value string, err error) {
 	once.Do(copyenv)
 
 	if len(key) == 0 {
@@ -59,8 +60,8 @@ func Getenv(key string) string {
 }
 
 // Setenv sets the value of the environment variable named by the key.
-// It returns an Error, if any.
-func Setenv(key, value string) Error {
+// It returns an error, if any.
+func Setenv(key, value string) error {
 	once.Do(copyenv)
 	if len(key) == 0 {
 		return EINVAL

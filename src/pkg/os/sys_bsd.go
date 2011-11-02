@@ -11,7 +11,7 @@ package os
 
 import "syscall"
 
-func Hostname() (name string, err Error) {
+func Hostname() (name string, err error) {
 	var errno int
 	name, errno = syscall.Sysctl("kern.hostname")
 	if errno != 0 {

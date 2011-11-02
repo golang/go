@@ -5,6 +5,7 @@
 package os
 
 import (
+	"io"
 	"runtime"
 	"sync"
 	"syscall"
@@ -47,7 +48,7 @@ const DevNull = "NUL"
 
 func (file *File) isdir() bool { return file != nil && file.dirinfo != nil }
 
-func openFile(name string, flag int, perm uint32) (file *File, err Error) {
+func openFile(name string, flag int, perm uint32) (file *File, err error) {
 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
 	if e != 0 {
 		return nil, &PathError{"open", name, Errno(e)}
@@ -62,7 +63,7 @@ func openFile(name string, flag int, perm uint32) (file *File, err Error) {
 	return NewFile(r, name), nil
 }
 
-func openDir(name string) (file *File, err Error) {
+func openDir(name string) (file *File, err error) {
 	d := new(dirInfo)
 	r, e := syscall.FindFirstFile(syscall.StringToUTF16Ptr(name+`\*`), &d.data)
 	if e != 0 {
@@ -77,8 +78,8 @@ func openDir(name string) (file *File, err Error) {
 // or Create instead.  It opens the named file with specified flag
 // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
 // methods on the returned File can be used for I/O.
-// It returns the File and an Error, if any.
-func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
+// It returns the File and an error, if any.
+func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
 	// TODO(brainman): not sure about my logic of assuming it is dir first, then fall back to file
 	r, e := openDir(name)
 	if e == nil {
@@ -96,8 +97,8 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
 }
 
 // Close closes the File, rendering it unusable for I/O.
-// It returns an Error, if any.
-func (file *File) Close() Error {
+// It returns an error, if any.
+func (file *File) Close() error {
 	if file == nil || file.fd < 0 {
 		return EINVAL
 	}
@@ -107,7 +108,7 @@ func (file *File) Close() Error {
 	} else {
 		e = syscall.CloseHandle(syscall.Handle(file.fd))
 	}
-	var err Error
+	var err error
 	if e != 0 {
 		err = &PathError{"close", file.name, Errno(e)}
 	}
@@ -133,7 +134,7 @@ func (file *File) Close() Error {
 // nil os.Error. If it encounters an error before the end of the
 // directory, Readdir returns the FileInfo read until that point
 // and a non-nil error.
-func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
+func (file *File) Readdir(n int) (fi []FileInfo, err error) {
 	if file == nil || file.fd < 0 {
 		return nil, EINVAL
 	}
@@ -173,7 +174,7 @@ func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
 		fi = append(fi, f)
 	}
 	if !wantAll && len(fi) == 0 {
-		return fi, EOF
+		return fi, io.EOF
 	}
 	return fi, nil
 }
@@ -251,7 +252,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err int) {
 
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
-func Truncate(name string, size int64) Error {
+func Truncate(name string, size int64) error {
 	f, e := OpenFile(name, O_WRONLY|O_CREATE, 0666)
 	if e != nil {
 		return e
@@ -265,8 +266,8 @@ func Truncate(name string, size int64) Error {
 }
 
 // Pipe returns a connected pair of Files; reads from r return bytes written to w.
-// It returns the files and an Error, if any.
-func Pipe() (r *File, w *File, err Error) {
+// It returns the files and an error, if any.
+func Pipe() (r *File, w *File, err error) {
 	var p [2]syscall.Handle
 
 	// See ../syscall/exec.go for description of lock.

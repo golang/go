@@ -7,7 +7,7 @@
 package os
 
 // Hostname returns the host name reported by the kernel.
-func Hostname() (name string, err Error) {
+func Hostname() (name string, err error) {
 	f, err := Open("/proc/sys/kernel/hostname")
 	if err != nil {
 		return "", err

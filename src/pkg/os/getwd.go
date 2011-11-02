@@ -12,7 +12,7 @@ import (
 // current directory.  If the current directory can be
 // reached via multiple paths (due to symbolic links),
 // Getwd may return any one of them.
-func Getwd() (string, Error) {
+func Getwd() (string, error) {
 	// If the operating system provides a Getwd call, use it.
 	if syscall.ImplementsGetwd {
 		s, e := syscall.Getwd()

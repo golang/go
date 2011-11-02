@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
+func (p *Process) Wait(options int) (w *Waitmsg, err error) {
 	s, e := syscall.WaitForSingleObject(syscall.Handle(p.handle), syscall.INFINITE)
 	switch s {
 	case syscall.WAIT_OBJECT_0:
@@ -29,7 +29,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
 }
 
 // Signal sends a signal to the Process.
-func (p *Process) Signal(sig Signal) Error {
+func (p *Process) Signal(sig Signal) error {
 	if p.done {
 		return NewError("os: process already finished")
 	}
@@ -41,7 +41,7 @@ func (p *Process) Signal(sig Signal) Error {
 	return Errno(syscall.EWINDOWS)
 }
 
-func (p *Process) Release() Error {
+func (p *Process) Release() error {
 	if p.handle == -1 {
 		return EINVAL
 	}
@@ -55,7 +55,7 @@ func (p *Process) Release() Error {
 	return nil
 }
 
-func FindProcess(pid int) (p *Process, err Error) {
+func FindProcess(pid int) (p *Process, err error) {
 	const da = syscall.STANDARD_RIGHTS_READ |
 		syscall.PROCESS_QUERY_INFORMATION | syscall.SYNCHRONIZE
 	h, e := syscall.OpenProcess(da, false, uint32(pid))

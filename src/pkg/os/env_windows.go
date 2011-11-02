@@ -12,12 +12,12 @@ import (
 	"unsafe"
 )
 
-// ENOENV is the Error indicating that an environment variable does not exist.
+// ENOENV is the error indicating that an environment variable does not exist.
 var ENOENV = NewError("no such environment variable")
 
 // Getenverror retrieves the value of the environment variable named by the key.
 // It returns the value and an error, if any.
-func Getenverror(key string) (value string, err Error) {
+func Getenverror(key string) (value string, err error) {
 	b := make([]uint16, 100)
 	n, e := syscall.GetEnvironmentVariable(syscall.StringToUTF16Ptr(key), &b[0], uint32(len(b)))
 	if n == 0 && e == syscall.ERROR_ENVVAR_NOT_FOUND {
@@ -44,8 +44,8 @@ func Getenv(key string) string {
 }
 
 // Setenv sets the value of the environment variable named by the key.
-// It returns an Error, if any.
-func Setenv(key, value string) Error {
+// It returns an error, if any.
+func Setenv(key, value string) error {
 	var v *uint16
 	if len(value) > 0 {
 		v = syscall.StringToUTF16Ptr(value)

@@ -52,8 +52,8 @@ const DevNull = "/dev/null"
 // or Create instead.  It opens the named file with specified flag
 // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
 // methods on the returned File can be used for I/O.
-// It returns the File and an Error, if any.
-func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
+// It returns the File and an error, if any.
+func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
 	var (
 		fd     int
 		e      syscall.Error
@@ -108,12 +108,12 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
 }
 
 // Close closes the File, rendering it unusable for I/O.
-// It returns an Error, if any.
-func (file *File) Close() Error {
+// It returns an error, if any.
+func (file *File) Close() error {
 	if file == nil || file.fd < 0 {
 		return Ebadfd
 	}
-	var err Error
+	var err error
 	syscall.ForkLock.RLock()
 	if e := syscall.Close(file.fd); e != nil {
 		err = &PathError{"close", file.name, e}
@@ -128,7 +128,7 @@ func (file *File) Close() Error {
 
 // Stat returns the FileInfo structure describing file.
 // It returns the FileInfo and an error, if any.
-func (f *File) Stat() (fi *FileInfo, err Error) {
+func (f *File) Stat() (fi *FileInfo, err error) {
 	d, err := dirstat(f)
 	if iserror(err) {
 		return nil, err
@@ -138,7 +138,7 @@ func (f *File) Stat() (fi *FileInfo, err Error) {
 
 // Truncate changes the size of the file.
 // It does not change the I/O offset.
-func (f *File) Truncate(size int64) Error {
+func (f *File) Truncate(size int64) error {
 	var d Dir
 	d.Null()
 
@@ -151,7 +151,7 @@ func (f *File) Truncate(size int64) Error {
 }
 
 // Chmod changes the mode of the file to mode.
-func (f *File) Chmod(mode uint32) Error {
+func (f *File) Chmod(mode uint32) error {
 	var d Dir
 	var mask = ^uint32(0777)
 
@@ -171,7 +171,7 @@ func (f *File) Chmod(mode uint32) Error {
 // Sync commits the current contents of the file to stable storage.
 // Typically, this means flushing the file system's in-memory copy
 // of recently written data to disk.
-func (f *File) Sync() (err Error) {
+func (f *File) Sync() (err error) {
 	if f == nil {
 		return EINVAL
 	}
@@ -220,7 +220,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err syscall.Error) {
 
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
-func Truncate(name string, size int64) Error {
+func Truncate(name string, size int64) error {
 	var d Dir
 	d.Null()
 
@@ -233,7 +233,7 @@ func Truncate(name string, size int64) Error {
 }
 
 // Remove removes the named file or directory.
-func Remove(name string) Error {
+func Remove(name string) error {
 	if e := syscall.Remove(name); iserror(e) {
 		return &PathError{"remove", name, e}
 	}
@@ -241,7 +241,7 @@ func Remove(name string) Error {
 }
 
 // Rename renames a file.
-func Rename(oldname, newname string) Error {
+func Rename(oldname, newname string) error {
 	var d Dir
 	d.Null()
 
@@ -254,7 +254,7 @@ func Rename(oldname, newname string) Error {
 }
 
 // Chmod changes the mode of the named file to mode.
-func Chmod(name string, mode uint32) Error {
+func Chmod(name string, mode uint32) error {
 	var d Dir
 	var mask = ^uint32(0777)
 
@@ -277,7 +277,7 @@ func Chmod(name string, mode uint32) Error {
 // The argument times are in nanoseconds, although the underlying
 // filesystem may truncate or round the values to a more
 // coarse time unit.
-func Chtimes(name string, atimeNs int64, mtimeNs int64) Error {
+func Chtimes(name string, atimeNs int64, mtimeNs int64) error {
 	var d Dir
 	d.Null()
 
@@ -290,7 +290,7 @@ func Chtimes(name string, atimeNs int64, mtimeNs int64) Error {
 	return nil
 }
 
-func Pipe() (r *File, w *File, err Error) {
+func Pipe() (r *File, w *File, err error) {
 	var p [2]int
 
 	syscall.ForkLock.RLock()
@@ -306,26 +306,26 @@ func Pipe() (r *File, w *File, err Error) {
 // not supported on Plan 9
 
 // Link creates a hard link.
-func Link(oldname, newname string) Error {
+func Link(oldname, newname string) error {
 	return EPLAN9
 }
 
-func Symlink(oldname, newname string) Error {
+func Symlink(oldname, newname string) error {
 	return EPLAN9
 }
 
-func Readlink(name string) (string, Error) {
+func Readlink(name string) (string, error) {
 	return "", EPLAN9
 }
 
-func Chown(name string, uid, gid int) Error {
+func Chown(name string, uid, gid int) error {
 	return EPLAN9
 }
 
-func Lchown(name string, uid, gid int) Error {
+func Lchown(name string, uid, gid int) error {
 	return EPLAN9
 }
 
-func (f *File) Chown(uid, gid int) Error {
+func (f *File) Chown(uid, gid int) error {
 	return EPLAN9
 }

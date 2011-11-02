@@ -52,8 +52,8 @@ const DevNull = "/dev/null"
 // or Create instead.  It opens the named file with specified flag
 // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
 // methods on the returned File can be used for I/O.
-// It returns the File and an Error, if any.
-func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
+// It returns the File and an error, if any.
+func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
 	if e != 0 {
 		return nil, &PathError{"open", name, Errno(e)}
@@ -69,12 +69,12 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
 }
 
 // Close closes the File, rendering it unusable for I/O.
-// It returns an Error, if any.
-func (file *File) Close() Error {
+// It returns an error, if any.
+func (file *File) Close() error {
 	if file == nil || file.fd < 0 {
 		return EINVAL
 	}
-	var err Error
+	var err error
 	if e := syscall.Close(file.fd); e != 0 {
 		err = &PathError{"close", file.name, Errno(e)}
 	}
@@ -87,7 +87,7 @@ func (file *File) Close() Error {
 
 // Stat returns the FileInfo structure describing file.
 // It returns the FileInfo and an error, if any.
-func (file *File) Stat() (fi *FileInfo, err Error) {
+func (file *File) Stat() (fi *FileInfo, err error) {
 	var stat syscall.Stat_t
 	e := syscall.Fstat(file.fd, &stat)
 	if e != 0 {
@@ -101,7 +101,7 @@ func (file *File) Stat() (fi *FileInfo, err Error) {
 // the file pointed at by the link and has fi.FollowedSymlink set to true.
 // If name names an invalid symbolic link, the returned FileInfo describes
 // the link itself and has fi.FollowedSymlink set to false.
-func Stat(name string) (fi *FileInfo, err Error) {
+func Stat(name string) (fi *FileInfo, err error) {
 	var lstat, stat syscall.Stat_t
 	e := syscall.Lstat(name, &lstat)
 	if iserror(e) {
@@ -120,7 +120,7 @@ func Stat(name string) (fi *FileInfo, err Error) {
 // Lstat returns the FileInfo structure describing the named file and an
 // error, if any.  If the file is a symbolic link, the returned FileInfo
 // describes the symbolic link.  Lstat makes no attempt to follow the link.
-func Lstat(name string) (fi *FileInfo, err Error) {
+func Lstat(name string) (fi *FileInfo, err error) {
 	var stat syscall.Stat_t
 	e := syscall.Lstat(name, &stat)
 	if iserror(e) {
@@ -144,7 +144,7 @@ func Lstat(name string) (fi *FileInfo, err Error) {
 // nil os.Error. If it encounters an error before the end of the
 // directory, Readdir returns the FileInfo read until that point
 // and a non-nil error.
-func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
+func (file *File) Readdir(n int) (fi []FileInfo, err error) {
 	dirname := file.name
 	if dirname == "" {
 		dirname = "."
@@ -198,7 +198,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err int) {
 
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
-func Truncate(name string, size int64) Error {
+func Truncate(name string, size int64) error {
 	if e := syscall.Truncate(name, size); e != 0 {
 		return &PathError{"truncate", name, Errno(e)}
 	}
@@ -224,8 +224,8 @@ func basename(name string) string {
 }
 
 // Pipe returns a connected pair of Files; reads from r return bytes written to w.
-// It returns the files and an Error, if any.
-func Pipe() (r *File, w *File, err Error) {
+// It returns the files and an error, if any.
+func Pipe() (r *File, w *File, err error) {
 	var p [2]int
 
 	// See ../syscall/exec.go for description of lock.
