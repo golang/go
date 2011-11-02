@@ -103,14 +103,14 @@ func h() (url string) {
 
 import "url"
 
-type U struct{ url int }
+type U struct{ url_ int }
 type M map[int]int
 
 func f() {
 	url.Parse(a)
 	var url_ = 23
 	url_, x := 45, y
-	_ = U{url: url_}
+	_ = U{url_: url_}
 	_ = M{url_ + 1: url_}
 }
 

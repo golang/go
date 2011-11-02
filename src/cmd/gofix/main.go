@@ -28,14 +28,18 @@ var (
 var allowedRewrites = flag.String("r", "",
 	"restrict the rewrites to this comma-separated list")
 
-var allowed map[string]bool
+var forceRewrites = flag.String("force", "",
+	"force these fixes to run even if the code looks updated")
+
+var allowed, force map[string]bool
 
 var doDiff = flag.Bool("diff", false, "display diffs instead of rewriting files")
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: gofix [-diff] [-r fixname,...] [path ...]\n")
+	fmt.Fprintf(os.Stderr, "usage: gofix [-diff] [-r fixname,...] [-force fixname,...] [path ...]\n")
 	flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\nAvailable rewrites are:\n")
+	sort.Sort(fixes)
 	for _, f := range fixes {
 		fmt.Fprintf(os.Stderr, "\n%s\n", f.name)
 		desc := strings.TrimSpace(f.desc)
@@ -46,8 +50,6 @@ func usage() {
 }
 
 func main() {
-	sort.Sort(fixes)
-
 	flag.Usage = usage
 	flag.Parse()
 
@@ -55,6 +57,13 @@ func main() {
 		allowed = make(map[string]bool)
 		for _, f := range strings.Split(*allowedRewrites, ",") {
 			allowed[f] = true
+		}
+	}
+
+	if *forceRewrites != "" {
+		force = make(map[string]bool)
+		for _, f := range strings.Split(*forceRewrites, ",") {
+			force[f] = true
 		}
 	}
 

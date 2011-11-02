@@ -47,8 +47,6 @@ func imagecolor(f *ast.File) (fixed bool) {
 		return
 	}
 
-	importColor := false
-
 	walk(f, func(n interface{}) {
 		s, ok := n.(*ast.SelectorExpr)
 
@@ -66,20 +64,17 @@ func imagecolor(f *ast.File) (fixed bool) {
 		default:
 			for _, rename := range colorRenames {
 				if sel == rename.in {
+					addImport(f, "image/color")
 					s.X.(*ast.Ident).Name = "color"
 					s.Sel.Name = rename.out
 					fixed = true
-					importColor = true
 				}
 			}
 		}
 	})
 
-	if importColor {
-		addImport(f, "image/color")
-		if !usesImport(f, "image") {
-			deleteImport(f, "image")
-		}
+	if fixed && !usesImport(f, "image") {
+		deleteImport(f, "image")
 	}
 	return
 }

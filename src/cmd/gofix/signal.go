@@ -32,16 +32,14 @@ func signal(f *ast.File) (fixed bool) {
 
 		sel := s.Sel.String()
 		if sel == "Signal" || sel == "UnixSignal" || strings.HasPrefix(sel, "SIG") {
+			addImport(f, "os")
 			s.X = &ast.Ident{Name: "os"}
 			fixed = true
 		}
 	})
 
-	if fixed {
-		addImport(f, "os")
-		if !usesImport(f, "os/signal") {
-			deleteImport(f, "os/signal")
-		}
+	if fixed && !usesImport(f, "os/signal") {
+		deleteImport(f, "os/signal")
 	}
 	return
 }

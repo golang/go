@@ -95,7 +95,7 @@ func reflectFn(f *ast.File) bool {
 
 	// Rewrite names in method calls.
 	// Needs basic type information (see above).
-	typeof := typecheck(reflectTypeConfig, f)
+	typeof, _ := typecheck(reflectTypeConfig, f)
 	walk(f, func(n interface{}) {
 		switch n := n.(type) {
 		case *ast.SelectorExpr:

@@ -6,6 +6,7 @@ include ../../Make.inc
 
 TARG=gofix
 GOFILES=\
+	error.go\
 	filepath.go\
 	fix.go\
 	httpfinalurl.go\

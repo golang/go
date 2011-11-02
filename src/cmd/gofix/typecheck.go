@@ -99,6 +99,7 @@ type Type struct {
 	Field  map[string]string // map field name to type
 	Method map[string]string // map method name to comma-separated return types
 	Embed  []string          // list of types this type embeds (for extra methods)
+	Def    string            // definition of named type
 }
 
 // dot returns the type of "typ.name", making its decision
@@ -128,9 +129,15 @@ func (typ *Type) dot(cfg *TypeConfig, name string) string {
 }
 
 // typecheck type checks the AST f assuming the information in cfg.
-// It returns a map from AST nodes to type information in gofmt string form.
-func typecheck(cfg *TypeConfig, f *ast.File) map[interface{}]string {
-	typeof := make(map[interface{}]string)
+// It returns two maps with type information:
+// typeof maps AST nodes to type information in gofmt string form.
+// assign maps type strings to lists of expressions that were assigned
+// to values of another type that were assigned to that type.
+func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, assign map[string][]interface{}) {
+	typeof = make(map[interface{}]string)
+	assign = make(map[string][]interface{})
+	cfg1 := &TypeConfig{}
+	*cfg1 = *cfg // make copy so we can add locally
 
 	// gather function declarations
 	for _, decl := range f.Decls {
@@ -138,7 +145,7 @@ func typecheck(cfg *TypeConfig, f *ast.File) map[interface{}]string {
 		if !ok {
 			continue
 		}
-		typecheck1(cfg, fn.Type, typeof)
+		typecheck1(cfg, fn.Type, typeof, assign)
 		t := typeof[fn.Type]
 		if fn.Recv != nil {
 			// The receiver must be a type.
@@ -168,8 +175,42 @@ func typecheck(cfg *TypeConfig, f *ast.File) map[interface{}]string {
 		}
 	}
 
-	typecheck1(cfg, f, typeof)
-	return typeof
+	// gather struct declarations
+	for _, decl := range f.Decls {
+		d, ok := decl.(*ast.GenDecl)
+		if ok {
+			for _, s := range d.Specs {
+				switch s := s.(type) {
+				case *ast.TypeSpec:
+					if cfg1.Type[s.Name.Name] != nil {
+						break
+					}
+					if cfg1.Type == cfg.Type || cfg1.Type == nil {
+						// Copy map lazily: it's time.
+						cfg1.Type = make(map[string]*Type)
+						for k, v := range cfg.Type {
+							cfg1.Type[k] = v
+						}
+					}
+					t := &Type{Field: map[string]string{}}
+					cfg1.Type[s.Name.Name] = t
+					switch st := s.Type.(type) {
+					case *ast.StructType:
+						for _, f := range st.Fields.List {
+							for _, n := range f.Names {
+								t.Field[n.Name] = gofmt(f.Type)
+							}
+						}
+					case *ast.ArrayType, *ast.StarExpr, *ast.MapType:
+						t.Def = gofmt(st)
+					}
+				}
+			}
+		}
+	}
+
+	typecheck1(cfg1, f, typeof, assign)
+	return typeof, assign
 }
 
 func makeExprList(a []*ast.Ident) []ast.Expr {
@@ -183,11 +224,14 @@ func makeExprList(a []*ast.Ident) []ast.Expr {
 // Typecheck1 is the recursive form of typecheck.
 // It is like typecheck but adds to the information in typeof
 // instead of allocating a new map.
-func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string) {
+func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, assign map[string][]interface{}) {
 	// set sets the type of n to typ.
 	// If isDecl is true, n is being declared.
 	set := func(n ast.Expr, typ string, isDecl bool) {
 		if typeof[n] != "" || typ == "" {
+			if typeof[n] != typ {
+				assign[typ] = append(assign[typ], n)
+			}
 			return
 		}
 		typeof[n] = typ
@@ -236,6 +280,14 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string) {
 		}
 	}
 
+	expand := func(s string) string {
+		typ := cfg.Type[s]
+		if typ != nil && typ.Def != "" {
+			return typ.Def
+		}
+		return s
+	}
+
 	// The main type check is a recursive algorithm implemented
 	// by walkBeforeAfter(n, before, after).
 	// Most of it is bottom-up, but in a few places we need
@@ -263,7 +315,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string) {
 			defer func() {
 				if t := typeof[n]; t != "" {
 					pos := fset.Position(n.(ast.Node).Pos())
-					fmt.Fprintf(os.Stderr, "%s: typeof[%s] = %s\n", pos.String(), gofmt(n), t)
+					fmt.Fprintf(os.Stderr, "%s: typeof[%s] = %s\n", pos, gofmt(n), t)
 				}
 			}()
 		}
@@ -405,6 +457,8 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string) {
 			// x.(T) has type T.
 			if t := typeof[n.Type]; isType(t) {
 				typeof[n] = getType(t)
+			} else {
+				typeof[n] = gofmt(n.Type)
 			}
 
 		case *ast.SliceExpr:
@@ -413,7 +467,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string) {
 
 		case *ast.IndexExpr:
 			// x[i] has key type of x's type.
-			t := typeof[n.X]
+			t := expand(typeof[n.X])
 			if strings.HasPrefix(t, "[") || strings.HasPrefix(t, "map[") {
 				// Lazy: assume there are no nested [] in the array
 				// length or map key type.
@@ -426,7 +480,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string) {
 			// *x for x of type *T has type T when x is an expr.
 			// We don't use the result when *x is a type, but
 			// compute it anyway.
-			t := typeof[n.X]
+			t := expand(typeof[n.X])
 			if isType(t) {
 				typeof[n] = "type *" + getType(t)
 			} else if strings.HasPrefix(t, "*") {
@@ -447,6 +501,39 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string) {
 		case *ast.ParenExpr:
 			// (x) has type of x.
 			typeof[n] = typeof[n.X]
+
+		case *ast.RangeStmt:
+			t := expand(typeof[n.X])
+			if t == "" {
+				return
+			}
+			var key, value string
+			if t == "string" {
+				key, value = "int", "rune"
+			} else if strings.HasPrefix(t, "[") {
+				key = "int"
+				if i := strings.Index(t, "]"); i >= 0 {
+					value = t[i+1:]
+				}
+			} else if strings.HasPrefix(t, "map[") {
+				if i := strings.Index(t, "]"); i >= 0 {
+					key, value = t[4:i], t[i+1:]
+				}
+			}
+			changed := false
+			if n.Key != nil && key != "" {
+				changed = true
+				set(n.Key, key, n.Tok == token.DEFINE)
+			}
+			if n.Value != nil && value != "" {
+				changed = true
+				set(n.Value, value, n.Tok == token.DEFINE)
+			}
+			// Ugly failure of vision: already type-checked body.
+			// Do it again now that we have that type info.
+			if changed {
+				typecheck1(cfg, n.Body, typeof, assign)
+			}
 
 		case *ast.TypeSwitchStmt:
 			// Type of variable changes for each case in type switch,
@@ -471,7 +558,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string) {
 						tt = getType(tt)
 						typeof[varx] = tt
 						typeof[varx.Obj] = tt
-						typecheck1(cfg, cas.Body, typeof)
+						typecheck1(cfg, cas.Body, typeof, assign)
 					}
 				}
 			}
