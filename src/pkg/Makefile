@@ -75,6 +75,7 @@ DIRS=\
 	encoding/git85\
 	encoding/hex\
 	encoding/pem\
+	errors\
 	exec\
 	exp/ebnf\
 	exp/ebnflint\
