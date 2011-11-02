@@ -114,7 +114,7 @@ func (p *printer) Write(data []byte) (n int, err error) {
 	return
 }
 
-// localError wraps locally caught os.Errors so we can distinguish
+// localError wraps locally caught errors so we can distinguish
 // them from genuine panics which we don't want to return as errors.
 type localError struct {
 	err error

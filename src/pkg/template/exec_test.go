@@ -158,7 +158,7 @@ func (t *T) MSort(m map[string]int) []string {
 	return keys
 }
 
-// EPERM returns a value and an os.Error according to its argument.
+// EPERM returns a value and an error according to its argument.
 func (t *T) EPERM(error bool) (bool, error) {
 	if error {
 		return true, os.EPERM

@@ -107,7 +107,7 @@ func (p *Page) save() error {
 <p>
 This method's signature reads: "This is a method named <code>save</code> that
 takes as its receiver <code>p</code>, a pointer to <code>Page</code> . It takes
-no parameters, and returns a value of type <code>os.Error</code>." 
+no parameters, and returns a value of type <code>error</code>." 
 </p>
 
 <p>
@@ -116,7 +116,7 @@ file. For simplicity, we will use the <code>Title</code> as the file name.
 </p>
 
 <p>
-The <code>save</code> method returns an <code>os.Error</code> value because
+The <code>save</code> method returns an <code>error</code> value because
 that is the return type of <code>WriteFile</code> (a standard library function
 that writes a byte slice to a file).  The <code>save</code> method returns the
 error value, to let the application handle it should anything go wrong while
@@ -152,7 +152,7 @@ The function <code>loadPage</code> constructs the file name from
 
 <p>
 Functions can return multiple values. The standard library function 
-<code>io.ReadFile</code> returns <code>[]byte</code> and <code>os.Error</code>. 
+<code>io.ReadFile</code> returns <code>[]byte</code> and <code>error</code>. 
 In <code>loadPage</code>, error isn't being handled yet; the "blank identifier"
 represented by the underscore (<code>_</code>) symbol is used to throw away the
 error return value (in essence, assigning the value to nothing). 
@@ -161,7 +161,7 @@ error return value (in essence, assigning the value to nothing).
 <p>
 But what happens if <code>ReadFile</code> encounters an error?  For example,
 the file might not exist. We should not ignore such errors.  Let's modify the
-function to return <code>*Page</code> and <code>os.Error</code>.
+function to return <code>*Page</code> and <code>error</code>.
 </p>
 
 <pre>
@@ -178,7 +178,7 @@ func loadPage(title string) (*Page, error) {
 <p>
 Callers of this function can now check the second parameter; if it is
 <code>nil</code> then it has successfully loaded a Page. If not, it will be an
-<code>os.Error</code> that can be handled by the caller (see the <a
+<code>error</code> that can be handled by the caller (see the <a
 href="http://golang.org/pkg/os/#Error">os package documentation</a> for 
 details).
 </p>
@@ -337,7 +337,7 @@ HTML, and writes it to <code>w</code>, the <code>http.ResponseWriter</code>.
 </p>
 
 <p>
-Again, note the use of <code>_</code> to ignore the <code>os.Error</code> 
+Again, note the use of <code>_</code> to ignore the <code>error</code> 
 return value from <code>loadPage</code>. This is done here for simplicity
 and generally considered bad practice. We will attend to this later.
 </p>
@@ -711,7 +711,7 @@ var templates = make(map[string]*template.Template)
 Then we create an <code>init</code> function, which will be called before
 <code>main</code> at program initialization. The function
 <code>template.Must</code> is a convenience wrapper that panics when passed a
-non-nil <code>os.Error</code> value, and otherwise returns the
+non-nil <code>error</code> value, and otherwise returns the
 <code>*Template</code> unaltered. A panic is appropriate here; if the templates
 can't be loaded the only sensible thing to do is exit the program.
 </p>
@@ -768,7 +768,7 @@ The function <code>regexp.MustCompile</code> will parse and compile the
 regular expression, and return a <code>regexp.Regexp</code>. 
 <code>MustCompile</code> is distinct from <code>Compile</code> in that it will
 panic if the expression compilation fails, while <code>Compile</code> returns
-an <code>os.Error</code> as a second parameter. 
+an <code>error</code> as a second parameter. 
 </p>
 
 <p>

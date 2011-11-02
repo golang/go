@@ -828,7 +828,7 @@ func (c *Conn) OCSPResponse() []byte {
 }
 
 // VerifyHostname checks that the peer certificate chain is valid for
-// connecting to host.  If so, it returns nil; if not, it returns an os.Error
+// connecting to host.  If so, it returns nil; if not, it returns an error
 // describing the problem.
 func (c *Conn) VerifyHostname(host string) error {
 	c.handshakeMutex.Lock()

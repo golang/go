@@ -117,7 +117,7 @@ An argument is a simple value, denoted by one of the following.
 		.Method
 	  The result is the value of invoking the method with dot as the
 	  receiver, dot.Method(). Such a method must have one return value (of
-	  any type) or two return values, the second of which is an os.Error.
+	  any type) or two return values, the second of which is an error.
 	  If it has two and the returned error is non-nil, execution terminates
 	  and an error is returned to the caller as the value of Execute.
 	  Method invocations may be chained and combined with fields and keys
@@ -159,7 +159,7 @@ passed as the last argument of the following command. The output of the final
 command in the pipeline is the value of the pipeline.
 
 The output of a command will be either one value or two values, the second of
-which has type os.Error. If that second value is present and evaluates to
+which has type error. If that second value is present and evaluates to
 non-nil, execution terminates and the error is returned to the caller of
 Execute.
 

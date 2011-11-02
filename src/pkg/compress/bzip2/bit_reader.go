@@ -10,7 +10,7 @@ import (
 )
 
 // bitReader wraps an io.Reader and provides the ability to read values,
-// bit-by-bit, from it. Its Read* methods don't return the usual os.Error
+// bit-by-bit, from it. Its Read* methods don't return the usual error
 // because the error handling was verbose. Instead, any error is kept and can
 // be checked afterwards.
 type bitReader struct {

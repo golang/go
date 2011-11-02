@@ -226,7 +226,7 @@ func matchHostnames(pattern, host string) bool {
 }
 
 // VerifyHostname returns nil if c is a valid certificate for the named host.
-// Otherwise it returns an os.Error describing the mismatch.
+// Otherwise it returns an error describing the mismatch.
 func (c *Certificate) VerifyHostname(h string) error {
 	if len(c.DNSNames) > 0 {
 		for _, match := range c.DNSNames {

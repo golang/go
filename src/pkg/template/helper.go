@@ -14,7 +14,7 @@ import (
 
 // Functions and methods to parse a single template.
 
-// Must is a helper that wraps a call to a function returning (*Template, os.Error)
+// Must is a helper that wraps a call to a function returning (*Template, error)
 // and panics if the error is non-nil. It is intended for use in variable initializations
 // such as
 //	var t = template.Must(template.New("name").Parse("text"))
@@ -66,7 +66,7 @@ func (t *Template) parseFileInSet(filename string, set *Set) (*Template, error) 
 
 // Functions and methods to parse a set.
 
-// SetMust is a helper that wraps a call to a function returning (*Set, os.Error)
+// SetMust is a helper that wraps a call to a function returning (*Set, error)
 // and panics if the error is non-nil. It is intended for use in variable initializations
 // such as
 //	var s = template.SetMust(template.ParseSetFiles("file"))

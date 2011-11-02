@@ -55,8 +55,7 @@ type CRTValue struct {
 }
 
 // Validate performs basic sanity checks on the key.
-// It returns nil if the key is valid, or else an os.Error describing a problem.
-
+// It returns nil if the key is valid, or else an error describing a problem.
 func (priv *PrivateKey) Validate() error {
 	// Check that the prime factors are actually prime. Note that this is
 	// just a sanity check. Since the random witnesses chosen by

@@ -17,7 +17,7 @@ import (
 
 // FuncMap is the type of the map defining the mapping from names to functions.
 // Each function must have either a single return value, or two return values of
-// which the second has type os.Error. If the second argument evaluates to non-nil
+// which the second has type error. If the second argument evaluates to non-nil
 // during execution, execution terminates and Execute returns an error.
 type FuncMap map[string]interface{}
 
@@ -68,7 +68,7 @@ func addFuncs(out, in FuncMap) {
 
 // goodFunc checks that the function or method has the right result signature.
 func goodFunc(typ reflect.Type) bool {
-	// We allow functions with 1 result or 2 results where the second is an os.Error.
+	// We allow functions with 1 result or 2 results where the second is an error.
 	switch {
 	case typ.NumOut() == 1:
 		return true

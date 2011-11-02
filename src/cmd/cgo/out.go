@@ -276,7 +276,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 				v[0] = 0;
 				v[1] = 0;
 			} else {
-				·_Cerrno(v, e);	/* fill in v as os.Error for errno e */
+				·_Cerrno(v, e);	/* fill in v as error for errno e */
 			}
 		}`)
 	}

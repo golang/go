@@ -188,7 +188,7 @@ func (p *gcParser) error(err interface{}) {
 	if s, ok := err.(string); ok {
 		err = errors.New(s)
 	}
-	// panic with a runtime.Error if err is not an os.Error
+	// panic with a runtime.Error if err is not an error
 	panic(importError{p.scanner.Pos(), err.(error)})
 }
 

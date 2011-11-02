@@ -27,7 +27,7 @@ const debugText = `<html>
 		<th align=center>Method</th><th align=center>Calls</th>
 		{{range .Method}}
 			<tr>
-			<td align=left font=fixed>{{.Name}}({{.Type.ArgType}}, {{.Type.ReplyType}}) os.Error</td>
+			<td align=left font=fixed>{{.Name}}({{.Type.ArgType}}, {{.Type.ReplyType}}) error</td>
 			<td align=center>{{.Type.NumCalls}}</td>
 			</tr>
 		{{end}}
