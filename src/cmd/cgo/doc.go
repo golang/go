@@ -59,7 +59,7 @@ struct_, union_, or enum_, as in C.struct_stat.
 
 Any C function that returns a value may be called in a multiple
 assignment context to retrieve both the return value and the
-C errno variable as an os.Error.  For example:
+C errno variable as an error.  For example:
 
 	n, err := C.atoi("abc")
 

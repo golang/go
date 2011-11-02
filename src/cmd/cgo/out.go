@@ -48,7 +48,7 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fgo2, "import \"os\"\n\n")
 	fmt.Fprintf(fgo2, "import _ \"runtime/cgo\"\n\n")
 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
-	fmt.Fprintf(fgo2, "func _Cerrno(dst *os.Error, x int) { *dst = os.Errno(x) }\n")
+	fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int) { *dst = os.Errno(x) }\n")
 
 	for name, def := range typedef {
 		fmt.Fprintf(fgo2, "type %s ", name)
@@ -203,7 +203,7 @@ func (p *Package) structType(n *Name) (string, int64) {
 		off += pad
 	}
 	if n.AddError {
-		fmt.Fprint(&buf, "\t\tvoid *e[2]; /* os.Error */\n")
+		fmt.Fprint(&buf, "\t\tvoid *e[2]; /* error */\n")
 		off += 2 * p.PtrSize
 	}
 	if off == 0 {
@@ -217,9 +217,9 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 	name := n.Go
 	gtype := n.FuncType.Go
 	if n.AddError {
-		// Add "os.Error" to return type list.
+		// Add "error" to return type list.
 		// Type list is known to be 0 or 1 element - it's a C function.
-		err := &ast.Field{Type: ast.NewIdent("os.Error")}
+		err := &ast.Field{Type: ast.NewIdent("error")}
 		l := gtype.Results.List
 		if len(l) == 0 {
 			l = []*ast.Field{err}
