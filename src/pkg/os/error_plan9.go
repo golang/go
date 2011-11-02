@@ -4,7 +4,10 @@
 
 package os
 
-import syscall "syscall"
+import (
+	"errors"
+	"syscall"
+)
 
 // SyscallError records an error from a specific system call.
 type SyscallError struct {
@@ -29,15 +32,15 @@ func NewSyscallError(syscall string, err syscall.Error) error {
 }
 
 var (
-	Eshortstat = NewError("stat buffer too small")
-	Ebadstat   = NewError("malformed stat buffer")
-	Ebadfd     = NewError("fd out of range or not open")
-	Ebadarg    = NewError("bad arg in system call")
-	Enotdir    = NewError("not a directory")
-	Enonexist  = NewError("file does not exist")
-	Eexist     = NewError("file already exists")
-	Eio        = NewError("i/o error")
-	Eperm      = NewError("permission denied")
+	Eshortstat = errors.New("stat buffer too small")
+	Ebadstat   = errors.New("malformed stat buffer")
+	Ebadfd     = errors.New("fd out of range or not open")
+	Ebadarg    = errors.New("bad arg in system call")
+	Enotdir    = errors.New("not a directory")
+	Enonexist  = errors.New("file does not exist")
+	Eexist     = errors.New("file already exists")
+	Eio        = errors.New("i/o error")
+	Eperm      = errors.New("permission denied")
 
 	EINVAL  = Ebadarg
 	ENOTDIR = Enotdir
@@ -48,11 +51,11 @@ var (
 	EPERM   = Eperm
 	EISDIR  = syscall.EISDIR
 
-	EBADF        = NewError("bad file descriptor")
-	ENAMETOOLONG = NewError("file name too long")
-	ERANGE       = NewError("math result not representable")
-	EPIPE        = NewError("Broken Pipe")
-	EPLAN9       = NewError("not supported by plan 9")
+	EBADF        = errors.New("bad file descriptor")
+	ENAMETOOLONG = errors.New("file name too long")
+	ERANGE       = errors.New("math result not representable")
+	EPIPE        = errors.New("Broken Pipe")
+	EPLAN9       = errors.New("not supported by plan 9")
 )
 
 func iserror(err syscall.Error) bool {

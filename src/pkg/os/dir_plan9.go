@@ -5,6 +5,7 @@
 package os
 
 import (
+	"errors"
 	"io"
 	"syscall"
 )
@@ -293,7 +294,7 @@ func pbit64(b []byte, x uint64) []byte {
 // pstring appends a Go string s to a 9P message b.
 func pstring(b []byte, s string) []byte {
 	if len(s) >= 1<<16 {
-		panic(NewError("string too long"))
+		panic(errors.New("string too long"))
 	}
 	b = pbit16(b, uint16(len(s)))
 	b = append(b, s...)
