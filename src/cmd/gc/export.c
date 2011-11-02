@@ -89,7 +89,6 @@ dumppkg(Pkg *p)
 }
 
 static void
-
 dumpexportconst(Sym *s)
 {
 	Node *n;
@@ -151,7 +150,7 @@ dumpexporttype(Type *t)
 	if(t == T)
 		return;
 
-	if(t->printed || t == types[t->etype] || t == bytetype || t == runetype)
+	if(t->printed || t == types[t->etype] || t == bytetype || t == runetype || t == errortype)
 		return;
 	t->printed = 1;
 

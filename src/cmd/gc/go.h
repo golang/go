@@ -786,6 +786,7 @@ EXTERN	Type*	idealstring;
 EXTERN	Type*	idealbool;
 EXTERN	Type*	bytetype;
 EXTERN	Type*	runetype;
+EXTERN	Type*	errortype;
 EXTERN	uchar	simtype[NTYPE];
 EXTERN	uchar	isptr[NTYPE];
 EXTERN	uchar	isforw[NTYPE];
