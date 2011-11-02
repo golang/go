@@ -17,6 +17,9 @@ type conversionTest struct {
 	wantint  int64
 	wantuint uint64
 	wantstr  string
+	wantf32  float32
+	wantf64  float64
+	wantbool bool // used if d is of type *bool
 	wanterr  string
 }
 
@@ -29,6 +32,9 @@ var (
 	scanint32  int32
 	scanuint8  uint8
 	scanuint16 uint16
+	scanbool   bool
+	scanf32    float32
+	scanf64    float64
 )
 
 var conversionTests = []conversionTest{
@@ -53,6 +59,35 @@ var conversionTests = []conversionTest{
 	{s: "256", d: &scanuint16, wantuint: 256},
 	{s: "-1", d: &scanint, wantint: -1},
 	{s: "foo", d: &scanint, wanterr: `converting string "foo" to a int: parsing "foo": invalid syntax`},
+
+	// True bools
+	{s: true, d: &scanbool, wantbool: true},
+	{s: "True", d: &scanbool, wantbool: true},
+	{s: "TRUE", d: &scanbool, wantbool: true},
+	{s: "1", d: &scanbool, wantbool: true},
+	{s: 1, d: &scanbool, wantbool: true},
+	{s: int64(1), d: &scanbool, wantbool: true},
+	{s: uint16(1), d: &scanbool, wantbool: true},
+
+	// False bools
+	{s: false, d: &scanbool, wantbool: false},
+	{s: "false", d: &scanbool, wantbool: false},
+	{s: "FALSE", d: &scanbool, wantbool: false},
+	{s: "0", d: &scanbool, wantbool: false},
+	{s: 0, d: &scanbool, wantbool: false},
+	{s: int64(0), d: &scanbool, wantbool: false},
+	{s: uint16(0), d: &scanbool, wantbool: false},
+
+	// Not bools
+	{s: "yup", d: &scanbool, wanterr: `sql/driver: couldn't convert "yup" into type bool`},
+	{s: 2, d: &scanbool, wanterr: `sql/driver: couldn't convert 2 into type bool`},
+
+	// Floats
+	{s: float64(1.5), d: &scanf64, wantf64: float64(1.5)},
+	{s: int64(1), d: &scanf64, wantf64: float64(1)},
+	{s: float64(1.5), d: &scanf32, wantf32: float32(1.5)},
+	{s: "1.5", d: &scanf32, wantf32: float32(1.5)},
+	{s: "1.5", d: &scanf64, wantf64: float64(1.5)},
 }
 
 func intValue(intptr interface{}) int64 {
@@ -61,6 +96,14 @@ func intValue(intptr interface{}) int64 {
 
 func uintValue(intptr interface{}) uint64 {
 	return reflect.Indirect(reflect.ValueOf(intptr)).Uint()
+}
+
+func float64Value(ptr interface{}) float64 {
+	return *(ptr.(*float64))
+}
+
+func float32Value(ptr interface{}) float32 {
+	return *(ptr.(*float32))
 }
 
 func TestConversions(t *testing.T) {
@@ -85,6 +128,15 @@ func TestConversions(t *testing.T) {
 		}
 		if ct.wantuint != 0 && ct.wantuint != uintValue(ct.d) {
 			errf("want uint %d, got %d", ct.wantuint, uintValue(ct.d))
+		}
+		if ct.wantf32 != 0 && ct.wantf32 != float32Value(ct.d) {
+			errf("want float32 %v, got %v", ct.wantf32, float32Value(ct.d))
+		}
+		if ct.wantf64 != 0 && ct.wantf64 != float64Value(ct.d) {
+			errf("want float32 %v, got %v", ct.wantf64, float64Value(ct.d))
+		}
+		if bp, boolTest := ct.d.(*bool); boolTest && *bp != ct.wantbool && ct.wanterr == "" {
+			errf("want bool %v, got %v", ct.wantbool, *bp)
 		}
 	}
 }

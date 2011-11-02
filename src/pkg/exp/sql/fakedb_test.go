@@ -476,7 +476,7 @@ func (rc *rowsCursor) Next(dest []interface{}) error {
 	for i, v := range rc.rows[rc.pos].cols {
 		// TODO(bradfitz): convert to subset types? naah, I
 		// think the subset types should only be input to
-		// driver, but the db package should be able to handle
+		// driver, but the sql package should be able to handle
 		// a wider range of types coming out of drivers. all
 		// for ease of drivers, and to prevent drivers from
 		// messing up conversions or doing them differently.
