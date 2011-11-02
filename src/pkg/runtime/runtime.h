@@ -47,14 +47,13 @@ typedef	struct	Alg		Alg;
 typedef	struct	Func		Func;
 typedef	struct	G		G;
 typedef	struct	Gobuf		Gobuf;
-typedef	struct	Lock		Lock;
+typedef	union	Lock		Lock;
 typedef	struct	M		M;
 typedef	struct	Mem		Mem;
 typedef	union	Note		Note;
 typedef	struct	Slice		Slice;
 typedef	struct	Stktop		Stktop;
 typedef	struct	String		String;
-typedef	struct	Usema		Usema;
 typedef	struct	SigTab		SigTab;
 typedef	struct	MCache		MCache;
 typedef	struct	FixAlloc	FixAlloc;
@@ -117,32 +116,15 @@ enum
 /*
  * structures
  */
-struct	Lock
+union	Lock
 {
-#ifdef __WINDOWS__
-	M*	waitm;	// linked list of waiting M's
-#else
-	uint32	key;
-	uint32	sema;	// for OS X
-#endif
-};
-struct	Usema
-{
-	uint32	u;
-	uint32	k;
+	uint32	key;	// futex-based impl
+	M*	waitm;	// linked list of waiting M's (sema-based impl)
 };
 union	Note
 {
-	struct {	// Linux
-		uint32	state;
-	};
-	struct {	// Windows
-		Lock lock;
-	};
-	struct {	// OS X
-		int32	wakeup;
-		Usema	sema;
-	};
+	uint32	key;	// futex-based impl
+	M*	waitm;	// waiting M (sema-based impl)
 };
 struct String
 {
@@ -253,11 +235,13 @@ struct	M
 	uint32	freglo[16];	// D[i] lsb and F[i]
 	uint32	freghi[16];	// D[i] msb and F[i+16]
 	uint32	fflag;		// floating point compare flags
-
+	M*	nextwaitm;	// next M waiting for lock
+	uintptr	waitsema;	// semaphore for parking on locks
+	uint32	waitsemacount;
+	uint32	waitsemalock;
+	
 #ifdef __WINDOWS__
 	void*	thread;		// thread handle
-	void*	event;		// event for signalling
-	M*	nextwaitm;	// next M waiting for lock
 #endif
 	uintptr	end[];
 };
@@ -409,7 +393,6 @@ extern	int32	runtime·gcwaiting;		// gc is waiting to run
 int8*	runtime·goos;
 int32	runtime·ncpu;
 extern	bool	runtime·iscgo;
-extern	void	(*runtime·destroylock)(Lock*);
 
 /*
  * common functions and data

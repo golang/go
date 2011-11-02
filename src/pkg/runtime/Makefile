@@ -30,8 +30,24 @@ GOFILES=\
 
 CLEANFILES+=version.go version_*.go
 
+OFILES_darwin=\
+	lock_sema.$O\
+
+OFILES_freebsd=\
+	lock_futex.$O\
+
+OFILES_linux=\
+	lock_futex.$O\
+
+OFILES_openbsd=\
+	lock_sema.$O\
+
+OFILES_plan9=\
+	lock_sema.$O\
+
 OFILES_windows=\
 	callback.$O\
+	lock_sema.$O\
 	syscall.$O\
 
 # 386-specific object files

@@ -24,14 +24,6 @@ int32 runtime·read(int32, void*, int32);
 
 enum
 {
-	MUTEX_UNLOCKED = 0,
-	MUTEX_LOCKED = 1,
-	MUTEX_SLEEPING = 2,
-
-	ACTIVE_SPIN = 4,
-	ACTIVE_SPIN_CNT = 30,
-	PASSIVE_SPIN = 1,
-
 	FUTEX_WAIT = 0,
 	FUTEX_WAKE = 1,
 
@@ -39,34 +31,23 @@ enum
 	EAGAIN = 11,
 };
 
-// TODO(rsc): I tried using 1<<40 here but futex woke up (-ETIMEDOUT).
-// I wonder if the timespec that gets to the kernel
-// actually has two 32-bit numbers in it, so that
-// a 64-bit 1<<40 ends up being 0 seconds,
-// 1<<8 nanoseconds.
-static Timespec longtime =
-{
-	1<<30,	// 34 years
-	0
-};
-
 // Atomically,
 //	if(*addr == val) sleep
 // Might be woken up spuriously; that's allowed.
-static void
-futexsleep(uint32 *addr, uint32 val)
+void
+runtime·futexsleep(uint32 *addr, uint32 val)
 {
 	// Some Linux kernels have a bug where futex of
 	// FUTEX_WAIT returns an internal error code
 	// as an errno.  Libpthread ignores the return value
 	// here, and so can we: as it says a few lines up,
 	// spurious wakeups are allowed.
-	runtime·futex(addr, FUTEX_WAIT, val, &longtime, nil, 0);
+	runtime·futex(addr, FUTEX_WAIT, val, nil, nil, 0);
 }
 
 // If any procs are sleeping on addr, wake up at most cnt.
-static void
-futexwakeup(uint32 *addr, uint32 cnt)
+void
+runtime·futexwakeup(uint32 *addr, uint32 cnt)
 {
 	int64 ret;
 
@@ -111,112 +92,6 @@ getproccount(void)
 	runtime·close(fd);
 	return cnt ? cnt : 1;
 }
-
-// Possible lock states are MUTEX_UNLOCKED, MUTEX_LOCKED and MUTEX_SLEEPING.
-// MUTEX_SLEEPING means that there is presumably at least one sleeping thread.
-// Note that there can be spinning threads during all states - they do not
-// affect mutex's state.
-static void
-futexlock(Lock *l)
-{
-	uint32 i, v, wait, spin;
-
-	// Speculative grab for lock.
-	v = runtime·xchg(&l->key, MUTEX_LOCKED);
-	if(v == MUTEX_UNLOCKED)
-		return;
-
-	// wait is either MUTEX_LOCKED or MUTEX_SLEEPING
-	// depending on whether there is a thread sleeping
-	// on this mutex.  If we ever change l->key from
-	// MUTEX_SLEEPING to some other value, we must be
-	// careful to change it back to MUTEX_SLEEPING before
-	// returning, to ensure that the sleeping thread gets
-	// its wakeup call.
-	wait = v;
-
-	// On uniprocessor's, no point spinning.
-	// On multiprocessors, spin for ACTIVE_SPIN attempts.
-	spin = 0;
-	if(runtime·ncpu > 1)
-		spin = ACTIVE_SPIN;
-
-	for(;;) {
-		// Try for lock, spinning.
-		for(i = 0; i < spin; i++) {
-			while(l->key == MUTEX_UNLOCKED)
-				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
-						return;
-			runtime·procyield(ACTIVE_SPIN_CNT);
-		}
-
-		// Try for lock, rescheduling.
-		for(i=0; i < PASSIVE_SPIN; i++) {
-			while(l->key == MUTEX_UNLOCKED)
-				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
-					return;
-			runtime·osyield();
-		}
-
-		// Sleep.
-		v = runtime·xchg(&l->key, MUTEX_SLEEPING);
-		if(v == MUTEX_UNLOCKED)
-			return;
-		wait = MUTEX_SLEEPING;
-		futexsleep(&l->key, MUTEX_SLEEPING);
-	}
-}
-
-static void
-futexunlock(Lock *l)
-{
-	uint32 v;
-
-	v = runtime·xchg(&l->key, MUTEX_UNLOCKED);
-	if(v == MUTEX_UNLOCKED)
-		runtime·throw("unlock of unlocked lock");
-	if(v == MUTEX_SLEEPING)
-		futexwakeup(&l->key, 1);
-}
-
-void
-runtime·lock(Lock *l)
-{
-	if(m->locks++ < 0)
-		runtime·throw("runtime·lock: lock count");
-	futexlock(l);
-}
-
-void
-runtime·unlock(Lock *l)
-{
-	if(--m->locks < 0)
-		runtime·throw("runtime·unlock: lock count");
-	futexunlock(l);
-}
-
-
-// One-time notifications.
-void
-runtime·noteclear(Note *n)
-{
-	n->state = 0;
-}
-
-void
-runtime·notewakeup(Note *n)
-{
-	runtime·xchg(&n->state, 1);
-	futexwakeup(&n->state, 1<<30);
-}
-
-void
-runtime·notesleep(Note *n)
-{
-	while(runtime·atomicload(&n->state) == 0)
-		futexsleep(&n->state, 0);
-}
-
 
 // Clone, the Linux rfork.
 enum
