@@ -401,7 +401,6 @@ func writeTestmainGo() {
 		fmt.Fprintf(b, "import target_test %q\n", "./_xtest_")
 	}
 	fmt.Fprintf(b, "import %q\n", "testing")
-	fmt.Fprintf(b, "import %q\n", "os")
 	fmt.Fprintf(b, "import %q\n", "regexp")
 	fmt.Fprintln(b) // for gofmt
 
@@ -454,7 +453,7 @@ var testBody = `
 var matchPat string
 var matchRe *regexp.Regexp
 
-func matchString(pat, str string) (result bool, err os.Error) {
+func matchString(pat, str string) (result bool, err error) {
 	if matchRe == nil || matchPat != pat {
 		matchPat = pat
 		matchRe, err = regexp.Compile(matchPat)
