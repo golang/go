@@ -7,13 +7,14 @@
 package os
 
 import (
+	"errors"
 	"syscall"
 	"utf16"
 	"unsafe"
 )
 
 // ENOENV is the error indicating that an environment variable does not exist.
-var ENOENV = NewError("no such environment variable")
+var ENOENV = errors.New("no such environment variable")
 
 // Getenverror retrieves the value of the environment variable named by the key.
 // It returns the value and an error, if any.
