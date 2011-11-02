@@ -49,7 +49,7 @@ var (
 	printerMode uint
 )
 
-func report(err os.Error) {
+func report(err error) {
 	scanner.PrintError(os.Stderr, err)
 	exitCode = 2
 }
@@ -86,7 +86,7 @@ func isGoFile(f *os.FileInfo) bool {
 }
 
 // If in == nil, the source is the contents of the file with the given filename.
-func processFile(filename string, in io.Reader, out io.Writer, stdin bool) os.Error {
+func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error {
 	if in == nil {
 		f, err := os.Open(filename)
 		if err != nil {
@@ -156,7 +156,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) os.Er
 	return err
 }
 
-func visitFile(path string, f *os.FileInfo, err os.Error) os.Error {
+func visitFile(path string, f *os.FileInfo, err error) error {
 	if err == nil && isGoFile(f) {
 		err = processFile(path, nil, os.Stdout, false)
 	}
@@ -225,7 +225,7 @@ func gofmtMain() {
 	}
 }
 
-func diff(b1, b2 []byte) (data []byte, err os.Error) {
+func diff(b1, b2 []byte) (data []byte, err error) {
 	f1, err := ioutil.TempFile("", "gofmt")
 	if err != nil {
 		return
@@ -255,7 +255,7 @@ func diff(b1, b2 []byte) (data []byte, err os.Error) {
 
 // parse parses src, which was read from filename,
 // as a Go source file or statement list.
-func parse(filename string, src []byte, stdin bool) (*ast.File, func(orig, src []byte) []byte, os.Error) {
+func parse(filename string, src []byte, stdin bool) (*ast.File, func(orig, src []byte) []byte, error) {
 	// Try as whole source file.
 	file, err := parser.ParseFile(fset, filename, src, parserMode)
 	if err == nil {
@@ -264,7 +264,7 @@ func parse(filename string, src []byte, stdin bool) (*ast.File, func(orig, src [
 	// If the error is that the source file didn't begin with a
 	// package line and this is standard input, fall through to
 	// try as a source fragment.  Stop and return on any other error.
-	if !stdin || !strings.Contains(err.String(), "expected 'package'") {
+	if !stdin || !strings.Contains(err.Error(), "expected 'package'") {
 		return nil, nil, err
 	}
 
@@ -286,7 +286,7 @@ func parse(filename string, src []byte, stdin bool) (*ast.File, func(orig, src [
 	// If the error is that the source file didn't begin with a
 	// declaration, fall through to try as a statement list.
 	// Stop and return on any other error.
-	if !strings.Contains(err.String(), "expected declaration") {
+	if !strings.Contains(err.Error(), "expected declaration") {
 		return nil, nil, err
 	}
 

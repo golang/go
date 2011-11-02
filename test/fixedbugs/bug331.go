@@ -6,22 +6,22 @@
 
 package main
 
-import "os"
+import "io"
 
-func f() (_ string, x float64, err os.Error) {
+func f() (_ string, x float64, err error) {
 	return
 }
 
-func g() (_ string, x float64, err os.Error) {
-	return "hello", 3.14, os.EOF
+func g() (_ string, x float64, err error) {
+	return "hello", 3.14, io.EOF
 }
 
-var _ func() (string, float64, os.Error) = f
-var _ func() (string, float64, os.Error) = g
+var _ func() (string, float64, error) = f
+var _ func() (string, float64, error) = g
 
 func main() {
 	x, y, z := g()
-	if x != "hello" || y != 3.14 || z != os.EOF {
+	if x != "hello" || y != 3.14 || z != io.EOF {
 		println("wrong", x, len(x), y, z)
 	}
 }

@@ -6,36 +6,34 @@
 
 package p
 
-import "os"
-
-func f() (_ int, err os.Error) {
+func f() (_ int, err error) {
 	return
 }
 
-func g() (x int, _ os.Error) {
+func g() (x int, _ error) {
 	return
 }
 
-func h() (_ int, _ os.Error) {
+func h() (_ int, _ error) {
 	return
 }
 
-func i() (int, os.Error) {
-	return	// ERROR "not enough arguments to return"
+func i() (int, error) {
+	return // ERROR "not enough arguments to return"
 }
 
-func f1() (_ int, err os.Error) {
+func f1() (_ int, err error) {
 	return 1, nil
 }
 
-func g1() (x int, _ os.Error) {
+func g1() (x int, _ error) {
 	return 1, nil
 }
 
-func h1() (_ int, _ os.Error) {
+func h1() (_ int, _ error) {
 	return 1, nil
 }
 
-func ii() (int, os.Error) {
+func ii() (int, error) {
 	return 1, nil
 }

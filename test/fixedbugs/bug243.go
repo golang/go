@@ -6,7 +6,7 @@
 
 package main
 
-import "os"
+import "errors"
 
 // Issue 481: closures and var declarations
 // with multiple variables assigned from one
@@ -22,7 +22,7 @@ func main() {
 		}
 	}()
 
-	var conn, _ = Dial("tcp", "", listen.Addr().String())
+	var conn, _ = Dial("tcp", "", listen.Addr().Error())
 	_ = conn
 }
 
@@ -37,8 +37,8 @@ func Listen(x, y string) (T, string) {
 	return global, y
 }
 
-func (t T) Addr() os.Error {
-	return os.NewError("stringer")
+func (t T) Addr() error {
+	return errors.New("stringer")
 }
 
 func (t T) Accept() (int, string) {

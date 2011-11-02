@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"exec"
 	"flag"
 	"fmt"
@@ -31,7 +32,7 @@ const logfile = "goinstall.log"
 var (
 	fset          = token.NewFileSet()
 	argv0         = os.Args[0]
-	errors        = false
+	errors_       = false
 	parents       = make(map[string]string)
 	visit         = make(map[string]status)
 	installedPkgs = make(map[string]map[string]bool)
@@ -67,7 +68,7 @@ func printf(format string, args ...interface{}) {
 }
 
 func errorf(format string, args ...interface{}) {
-	errors = true
+	errors_ = true
 	logf(format, args...)
 }
 
@@ -119,7 +120,7 @@ func main() {
 
 		install(path, "")
 	}
-	if errors {
+	if errors_ {
 		os.Exit(1)
 	}
 }
@@ -243,7 +244,7 @@ func install(pkg, parent string) {
 			install(p, pkg)
 		}
 	}
-	if errors {
+	if errors_ {
 		return
 	}
 
@@ -304,17 +305,17 @@ func isStandardPath(s string) bool {
 // run runs the command cmd in directory dir with standard input stdin.
 // If the command fails, run prints the command and output on standard error
 // in addition to returning a non-nil os.Error.
-func run(dir string, stdin []byte, cmd ...string) os.Error {
+func run(dir string, stdin []byte, cmd ...string) error {
 	return genRun(dir, stdin, cmd, false)
 }
 
 // quietRun is like run but prints nothing on failure unless -v is used.
-func quietRun(dir string, stdin []byte, cmd ...string) os.Error {
+func quietRun(dir string, stdin []byte, cmd ...string) error {
 	return genRun(dir, stdin, cmd, true)
 }
 
 // genRun implements run and quietRun.
-func genRun(dir string, stdin []byte, arg []string, quiet bool) os.Error {
+func genRun(dir string, stdin []byte, arg []string, quiet bool) error {
 	cmd := exec.Command(arg[0], arg[1:]...)
 	cmd.Stdin = bytes.NewBuffer(stdin)
 	cmd.Dir = dir
@@ -329,7 +330,7 @@ func genRun(dir string, stdin []byte, arg []string, quiet bool) os.Error {
 			os.Stderr.Write(out)
 			fmt.Fprintf(os.Stderr, "--- %s\n", err)
 		}
-		return os.NewError("running " + arg[0] + ": " + err.String())
+		return errors.New("running " + arg[0] + ": " + err.Error())
 	}
 	return nil
 }

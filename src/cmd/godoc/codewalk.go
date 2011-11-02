@@ -13,6 +13,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"http"
 	"io"
@@ -84,7 +85,7 @@ type Codestep struct {
 	XML   string `xml:"innerxml"`
 
 	// Derived from Src; not in XML.
-	Err    os.Error
+	Err    error
 	File   string
 	Lo     int
 	LoByte int
@@ -107,7 +108,7 @@ func (st *Codestep) String() string {
 }
 
 // loadCodewalk reads a codewalk from the named XML file.
-func loadCodewalk(filename string) (*Codewalk, os.Error) {
+func loadCodewalk(filename string) (*Codewalk, error) {
 	f, err := fs.Open(filename)
 	if err != nil {
 		return nil, err
@@ -252,7 +253,7 @@ func codewalkFileprint(w http.ResponseWriter, r *http.Request, f string) {
 // It returns the lo and hi byte offset of the matched region within data.
 // See http://plan9.bell-labs.com/sys/doc/sam/sam.html Table II
 // for details on the syntax.
-func addrToByteRange(addr string, start int, data []byte) (lo, hi int, err os.Error) {
+func addrToByteRange(addr string, start int, data []byte) (lo, hi int, err error) {
 	var (
 		dir        byte
 		prevc      byte
@@ -264,7 +265,7 @@ func addrToByteRange(addr string, start int, data []byte) (lo, hi int, err os.Er
 		c := addr[0]
 		switch c {
 		default:
-			err = os.NewError("invalid address syntax near " + string(c))
+			err = errors.New("invalid address syntax near " + string(c))
 		case ',':
 			if len(addr) == 1 {
 				hi = len(data)
@@ -348,7 +349,7 @@ func addrToByteRange(addr string, start int, data []byte) (lo, hi int, err os.Er
 // (or characters) after hi.  Applying -n (or -#n) means to back up n lines
 // (or characters) before lo.
 // The return value is the new lo, hi.
-func addrNumber(data []byte, lo, hi int, dir byte, n int, charOffset bool) (int, int, os.Error) {
+func addrNumber(data []byte, lo, hi int, dir byte, n int, charOffset bool) (int, int, error) {
 	switch dir {
 	case 0:
 		lo = 0
@@ -424,13 +425,13 @@ func addrNumber(data []byte, lo, hi int, dir byte, n int, charOffset bool) (int,
 		}
 	}
 
-	return 0, 0, os.NewError("address out of range")
+	return 0, 0, errors.New("address out of range")
 }
 
 // addrRegexp searches for pattern in the given direction starting at lo, hi.
 // The direction dir is '+' (search forward from hi) or '-' (search backward from lo).
 // Backward searches are unimplemented.
-func addrRegexp(data []byte, lo, hi int, dir byte, pattern string) (int, int, os.Error) {
+func addrRegexp(data []byte, lo, hi int, dir byte, pattern string) (int, int, error) {
 	re, err := regexp.Compile(pattern)
 	if err != nil {
 		return 0, 0, err
@@ -438,7 +439,7 @@ func addrRegexp(data []byte, lo, hi int, dir byte, pattern string) (int, int, os
 	if dir == '-' {
 		// Could implement reverse search using binary search
 		// through file, but that seems like overkill.
-		return 0, 0, os.NewError("reverse search not implemented")
+		return 0, 0, errors.New("reverse search not implemented")
 	}
 	m := re.FindIndex(data[hi:])
 	if len(m) > 0 {
@@ -449,7 +450,7 @@ func addrRegexp(data []byte, lo, hi int, dir byte, pattern string) (int, int, os
 		m = re.FindIndex(data)
 	}
 	if len(m) == 0 {
-		return 0, 0, os.NewError("no match for " + pattern)
+		return 0, 0, errors.New("no match for " + pattern)
 	}
 	return m[0], m[1], nil
 }

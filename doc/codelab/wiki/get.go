@@ -32,7 +32,7 @@ func main() {
 		log.Fatal("no url supplied")
 	}
 	var r *http.Response
-	var err os.Error
+	var err error
 	if *post != "" {
 		b := strings.NewReader(*post)
 		r, err = http.Post(url, "application/x-www-form-urlencoded", b)

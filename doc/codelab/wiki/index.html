@@ -98,7 +98,7 @@ But what about persistent storage? We can address that by creating a
 </p>
 
 <pre>
-func (p *Page) save() os.Error {
+func (p *Page) save() error {
 	filename := p.Title + &#34;.txt&#34;
 	return ioutil.WriteFile(filename, p.Body, 0600)
 }
@@ -165,7 +165,7 @@ function to return <code>*Page</code> and <code>os.Error</code>.
 </p>
 
 <pre>
-func loadPage(title string) (*Page, os.Error) {
+func loadPage(title string) (*Page, error) {
 	filename := title + &#34;.txt&#34;
 	body, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -645,12 +645,12 @@ First, let's handle the errors in <code>renderTemplate</code>:
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 	t, err := template.ParseFile(tmpl+&#34;.html&#34;, nil)
 	if err != nil {
-		http.Error(w, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	err = t.Execute(w, p)
 	if err != nil {
-		http.Error(w, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 </pre>
@@ -675,7 +675,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 	p := &amp;Page{Title: title, Body: []byte(body)}
 	err = p.save()
 	if err != nil {
-		http.Error(w, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
@@ -741,7 +741,7 @@ the <code>Execute</code> method on the appropriate <code>Template</code> from
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
 	err := templates[tmpl].Execute(w, p)
 	if err != nil {
-		http.Error(w, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 </pre>
@@ -777,11 +777,11 @@ URL, and tests it against our <code>TitleValidator</code> expression:
 </p>
 
 <pre>
-func getTitle(w http.ResponseWriter, r *http.Request) (title string, err os.Error) {
+func getTitle(w http.ResponseWriter, r *http.Request) (title string, err error) {
 	title = r.URL.Path[lenPath:]
 	if !titleValidator.MatchString(title) {
 		http.NotFound(w, r)
-		err = os.NewError(&#34;Invalid Page Title&#34;)
+		err = errors.New(&#34;Invalid Page Title&#34;)
 	}
 	return
 }
@@ -833,7 +833,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 	p := &amp;Page{Title: title, Body: []byte(body)}
 	err = p.save()
 	if err != nil {
-		http.Error(w, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)
@@ -958,7 +958,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	p := &amp;Page{Title: title, Body: []byte(body)}
 	err := p.save()
 	if err != nil {
-		http.Error(w, err.String(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, r, &#34;/view/&#34;+title, http.StatusFound)

@@ -102,9 +102,9 @@ var printConfig = &printer.Config{
 	tabWidth,
 }
 
-func processFile(filename string, useStdin bool) os.Error {
+func processFile(filename string, useStdin bool) error {
 	var f *os.File
-	var err os.Error
+	var err error
 	var fixlog bytes.Buffer
 	var buf bytes.Buffer
 
@@ -196,12 +196,12 @@ func gofmt(n interface{}) string {
 	gofmtBuf.Reset()
 	_, err := printConfig.Fprint(&gofmtBuf, fset, n)
 	if err != nil {
-		return "<" + err.String() + ">"
+		return "<" + err.Error() + ">"
 	}
 	return gofmtBuf.String()
 }
 
-func report(err os.Error) {
+func report(err error) {
 	scanner.PrintError(os.Stderr, err)
 	exitCode = 2
 }
@@ -210,7 +210,7 @@ func walkDir(path string) {
 	filepath.Walk(path, visitFile)
 }
 
-func visitFile(path string, f *os.FileInfo, err os.Error) os.Error {
+func visitFile(path string, f *os.FileInfo, err error) error {
 	if err == nil && isGoFile(f) {
 		err = processFile(path, false)
 	}
@@ -225,7 +225,7 @@ func isGoFile(f *os.FileInfo) bool {
 	return f.IsRegular() && !strings.HasPrefix(f.Name, ".") && strings.HasSuffix(f.Name, ".go")
 }
 
-func diff(b1, b2 []byte) (data []byte, err os.Error) {
+func diff(b1, b2 []byte) (data []byte, err error) {
 	f1, err := ioutil.TempFile("", "gofix")
 	if err != nil {
 		return nil, err

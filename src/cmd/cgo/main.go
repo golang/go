@@ -255,7 +255,7 @@ func (p *Package) Record(f *File) {
 	if p.PackageName == "" {
 		p.PackageName = f.Package
 	} else if p.PackageName != f.Package {
-		error(token.NoPos, "inconsistent package names: %s, %s", p.PackageName, f.Package)
+		error_(token.NoPos, "inconsistent package names: %s, %s", p.PackageName, f.Package)
 	}
 
 	if p.Name == nil {
@@ -265,7 +265,7 @@ func (p *Package) Record(f *File) {
 			if p.Name[k] == nil {
 				p.Name[k] = v
 			} else if !reflect.DeepEqual(p.Name[k], v) {
-				error(token.NoPos, "inconsistent definitions for C.%s", k)
+				error_(token.NoPos, "inconsistent definitions for C.%s", k)
 			}
 		}
 	}

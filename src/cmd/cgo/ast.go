@@ -71,7 +71,7 @@ func (f *File) ReadGo(name string) {
 			}
 			sawC = true
 			if s.Name != nil {
-				error(s.Path.Pos(), `cannot rename import "C"`)
+				error_(s.Path.Pos(), `cannot rename import "C"`)
 			}
 			cg := s.Doc
 			if cg == nil && len(d.Specs) == 1 {
@@ -84,7 +84,7 @@ func (f *File) ReadGo(name string) {
 		}
 	}
 	if !sawC {
-		error(token.NoPos, `cannot find import "C"`)
+		error_(token.NoPos, `cannot find import "C"`)
 	}
 
 	// In ast2, strip the import "C" line.
@@ -149,7 +149,7 @@ func (f *File) saveRef(x interface{}, context string) {
 			}
 			goname := sel.Sel.Name
 			if goname == "errno" {
-				error(sel.Pos(), "cannot refer to errno directly; see documentation")
+				error_(sel.Pos(), "cannot refer to errno directly; see documentation")
 				return
 			}
 			name := f.Name[goname]
@@ -186,11 +186,11 @@ func (f *File) saveExport(x interface{}, context string) {
 
 		name := strings.TrimSpace(string(c.Text[9:]))
 		if name == "" {
-			error(c.Pos(), "export missing name")
+			error_(c.Pos(), "export missing name")
 		}
 
 		if name != n.Name.Name {
-			error(c.Pos(), "export comment has wrong name %q, want %q", name, n.Name.Name)
+			error_(c.Pos(), "export comment has wrong name %q, want %q", name, n.Name.Name)
 		}
 
 		f.ExpFunc = append(f.ExpFunc, &ExpFunc{
@@ -225,7 +225,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 
 	// everything else just recurs
 	default:
-		error(token.NoPos, "unexpected type %T in walk", x, visit)
+		error_(token.NoPos, "unexpected type %T in walk", x, visit)
 		panic("unexpected type")
 
 	case nil:

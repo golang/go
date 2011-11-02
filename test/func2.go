@@ -5,7 +5,6 @@
 // license that can be found in the LICENSE file.
 
 package main
-import os "os"
 
 type t1 int
 type t2 int
@@ -23,7 +22,7 @@ func f8(os int) int
 func f9(os int) int {
 	return os
 }
-func f10(err os.Error) os.Error {
+func f10(err error) error {
 	return err
 }
 func f11(t1 string) string {

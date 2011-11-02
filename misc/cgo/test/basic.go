@@ -69,7 +69,7 @@ func uuidgen() {
 	C.uuid_generate(&uuid[0])
 }
 
-func Size(name string) (int64, os.Error) {
+func Size(name string) (int64, error) {
 	var st C.struct_stat
 	p := C.CString(name)
 	_, err := C.stat(p, &st)
@@ -80,7 +80,7 @@ func Size(name string) (int64, os.Error) {
 	return int64(C.ulong(st.st_size)), nil
 }
 
-func Strtol(s string, base int) (int, os.Error) {
+func Strtol(s string, base int) (int, error) {
 	p := C.CString(s)
 	n, err := C.strtol(p, nil, C.int(base))
 	C.free(unsafe.Pointer(p))

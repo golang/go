@@ -40,6 +40,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -47,7 +48,6 @@ import (
 	"gob"
 	"index/suffixarray"
 	"io"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -841,16 +841,16 @@ type fileIndex struct {
 	Fulltext bool
 }
 
-func (x *fileIndex) Write(w io.Writer) os.Error {
+func (x *fileIndex) Write(w io.Writer) error {
 	return gob.NewEncoder(w).Encode(x)
 }
 
-func (x *fileIndex) Read(r io.Reader) os.Error {
+func (x *fileIndex) Read(r io.Reader) error {
 	return gob.NewDecoder(r).Decode(x)
 }
 
 // Write writes the index x to w.
-func (x *Index) Write(w io.Writer) os.Error {
+func (x *Index) Write(w io.Writer) error {
 	fulltext := false
 	if x.suffixes != nil {
 		fulltext = true
@@ -877,7 +877,7 @@ func (x *Index) Write(w io.Writer) os.Error {
 
 // Read reads the index from r into x; x must not be nil.
 // If r does not also implement io.ByteReader, it will be wrapped in a bufio.Reader.
-func (x *Index) Read(r io.Reader) os.Error {
+func (x *Index) Read(r io.Reader) error {
 	// We use the ability to read bytes as a plausible surrogate for buffering.
 	if _, ok := r.(io.ByteReader); !ok {
 		r = bufio.NewReader(r)
@@ -934,13 +934,13 @@ func isIdentifier(s string) bool {
 // identifier, Lookup returns a list of packages, a LookupResult, and a
 // list of alternative spellings, if any. Any and all results may be nil.
 // If the query syntax is wrong, an error is reported.
-func (x *Index) Lookup(query string) (paks HitList, match *LookupResult, alt *AltWords, err os.Error) {
+func (x *Index) Lookup(query string) (paks HitList, match *LookupResult, alt *AltWords, err error) {
 	ss := strings.Split(query, ".")
 
 	// check query syntax
 	for _, s := range ss {
 		if !isIdentifier(s) {
-			err = os.NewError("all query parts must be identifiers")
+			err = errors.New("all query parts must be identifiers")
 			return
 		}
 	}
@@ -968,7 +968,7 @@ func (x *Index) Lookup(query string) (paks HitList, match *LookupResult, alt *Al
 		}
 
 	default:
-		err = os.NewError("query is not a (qualified) identifier")
+		err = errors.New("query is not a (qualified) identifier")
 	}
 
 	return

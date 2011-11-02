@@ -61,7 +61,7 @@ func main() {
 			}
 			skip := 0
 			if colon := strings.LastIndex(name, ":"); colon > 0 {
-				var err os.Error
+				var err error
 				skip, err = strconv.Atoi(name[colon+1:])
 				if err != nil {
 					errorf(`illegal format for "Func:N" argument %q; %s`, name, err)
@@ -105,7 +105,7 @@ func doFile(name string, reader io.Reader) {
 	file.checkFile(name, parsedFile)
 }
 
-func visit(path string, f *os.FileInfo, err os.Error) os.Error {
+func visit(path string, f *os.FileInfo, err error) error {
 	if err != nil {
 		errorf("walk error: %s", err)
 		return nil

@@ -71,7 +71,7 @@ func (r *Resource) Poll() string {
 	if err != nil {
 		log.Println("Error", r.url, err)
 		r.errCount++
-		return err.String()
+		return err.Error()
 	}
 	r.errCount = 0
 	return resp.Status

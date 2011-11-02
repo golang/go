@@ -27,14 +27,14 @@ type FileInfo interface {
 // The FileSystem interface specifies the methods godoc is using
 // to access the file system for which it serves documentation.
 type FileSystem interface {
-	Open(path string) (io.ReadCloser, os.Error)
-	Lstat(path string) (FileInfo, os.Error)
-	Stat(path string) (FileInfo, os.Error)
-	ReadDir(path string) ([]FileInfo, os.Error)
+	Open(path string) (io.ReadCloser, error)
+	Lstat(path string) (FileInfo, error)
+	Stat(path string) (FileInfo, error)
+	ReadDir(path string) ([]FileInfo, error)
 }
 
 // ReadFile reads the file named by path from fs and returns the contents.
-func ReadFile(fs FileSystem, path string) ([]byte, os.Error) {
+func ReadFile(fs FileSystem, path string) ([]byte, error) {
 	rc, err := fs.Open(path)
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func (fi osFI) Mtime_ns() int64 {
 // osFS is the OS-specific implementation of FileSystem
 type osFS struct{}
 
-func (osFS) Open(path string) (io.ReadCloser, os.Error) {
+func (osFS) Open(path string) (io.ReadCloser, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -86,17 +86,17 @@ func (osFS) Open(path string) (io.ReadCloser, os.Error) {
 	return f, nil
 }
 
-func (osFS) Lstat(path string) (FileInfo, os.Error) {
+func (osFS) Lstat(path string) (FileInfo, error) {
 	fi, err := os.Lstat(path)
 	return osFI{fi}, err
 }
 
-func (osFS) Stat(path string) (FileInfo, os.Error) {
+func (osFS) Stat(path string) (FileInfo, error) {
 	fi, err := os.Stat(path)
 	return osFI{fi}, err
 }
 
-func (osFS) ReadDir(path string) ([]FileInfo, os.Error) {
+func (osFS) ReadDir(path string) ([]FileInfo, error) {
 	l0, err := ioutil.ReadDir(path) // l0 is sorted
 	if err != nil {
 		return nil, err

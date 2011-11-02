@@ -84,14 +84,14 @@ func Compile(w http.ResponseWriter, req *http.Request) {
 	// write request Body to x.go
 	f, err := os.Create(src)
 	if err != nil {
-		error(w, nil, err)
+		error_(w, nil, err)
 		return
 	}
 	defer os.Remove(src)
 	defer f.Close()
 	_, err = io.Copy(f, req.Body)
 	if err != nil {
-		error(w, nil, err)
+		error_(w, nil, err)
 		return
 	}
 	f.Close()
@@ -100,7 +100,7 @@ func Compile(w http.ResponseWriter, req *http.Request) {
 	out, err := run(archChar+"g", "-o", obj, src)
 	defer os.Remove(obj)
 	if err != nil {
-		error(w, out, err)
+		error_(w, out, err)
 		return
 	}
 
@@ -108,14 +108,14 @@ func Compile(w http.ResponseWriter, req *http.Request) {
 	out, err = run(archChar+"l", "-o", bin, obj)
 	defer os.Remove(bin)
 	if err != nil {
-		error(w, out, err)
+		error_(w, out, err)
 		return
 	}
 
 	// run x
 	out, err = run(bin)
 	if err != nil {
-		error(w, out, err)
+		error_(w, out, err)
 	}
 
 	// write the output of x as the http response
@@ -128,17 +128,17 @@ func Compile(w http.ResponseWriter, req *http.Request) {
 
 // error writes compile, link, or runtime errors to the HTTP connection.
 // The JavaScript interface uses the 404 status code to identify the error.
-func error(w http.ResponseWriter, out []byte, err os.Error) {
+func error_(w http.ResponseWriter, out []byte, err error) {
 	w.WriteHeader(404)
 	if out != nil {
 		output.Execute(w, out)
 	} else {
-		output.Execute(w, err.String())
+		output.Execute(w, err.Error())
 	}
 }
 
 // run executes the specified command and returns its output and an error.
-func run(cmd ...string) ([]byte, os.Error) {
+func run(cmd ...string) ([]byte, error) {
 	return exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
 }
 

@@ -556,7 +556,7 @@ The <code>newFile</code> function was not exported because it's internal. The pr
 exported factory to use is <code>OpenFile</code> (we'll explain that name in a moment):
 <p>
 <pre><!--{{code "progs/file.go" `/func.OpenFile/` `/^}/`}}
--->func OpenFile(name string, mode int, perm uint32) (file *File, err os.Error) {
+-->func OpenFile(name string, mode int, perm uint32) (file *File, err error) {
     r, e := syscall.Open(name, mode, perm)
     if e != 0 {
         err = os.Errno(e)
@@ -603,13 +603,13 @@ the tricky standard arguments to open and, especially, to create a file:
     O_TRUNC  = syscall.O_TRUNC
 )
 
-func Open(name string) (file *File, err os.Error) {
+func Open(name string) (file *File, err error) {
     return OpenFile(name, O_RDONLY, 0)
 }
 </pre>
 <p>
 <pre><!--{{code "progs/file.go" `/func.Create/` `/^}/`}}
--->func Create(name string) (file *File, err os.Error) {
+-->func Create(name string) (file *File, err error) {
     return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }
 </pre>
@@ -622,7 +622,7 @@ in parentheses before the function name. Here are some methods for <code>*File</
 each of which declares a receiver variable <code>file</code>.
 <p>
 <pre><!--{{code "progs/file.go" `/Close/` "$"}}
--->func (file *File) Close() os.Error {
+-->func (file *File) Close() error {
     if file == nil {
         return os.EINVAL
     }
@@ -634,7 +634,7 @@ each of which declares a receiver variable <code>file</code>.
     return nil
 }
 
-func (file *File) Read(b []byte) (ret int, err os.Error) {
+func (file *File) Read(b []byte) (ret int, err error) {
     if file == nil {
         return -1, os.EINVAL
     }
@@ -645,7 +645,7 @@ func (file *File) Read(b []byte) (ret int, err os.Error) {
     return int(r), err
 }
 
-func (file *File) Write(b []byte) (ret int, err os.Error) {
+func (file *File) Write(b []byte) (ret int, err error) {
     if file == nil {
         return -1, os.EINVAL
     }
@@ -690,7 +690,7 @@ func main() {
     file.Stdout.Write(hello)
     f, err := file.Open(&#34;/does/not/exist&#34;)
     if f == nil {
-        fmt.Printf(&#34;can&#39;t open file; err=%s\n&#34;, err.String())
+        fmt.Printf(&#34;can&#39;t open file; err=%s\n&#34;, err.Error())
         os.Exit(1)
     }
 }
@@ -793,7 +793,7 @@ Here is code from <code>progs/cat_rot13.go</code>:
 <p>
 <pre><!--{{code "progs/cat_rot13.go" `/type.reader/` `/^}/`}}
 -->type reader interface {
-    Read(b []byte) (ret int, err os.Error)
+    Read(b []byte) (ret int, err error)
     String() string
 }
 </pre>
@@ -817,7 +817,7 @@ func newRotate13(source reader) *rotate13 {
     return &amp;rotate13{source}
 }
 
-func (r13 *rotate13) Read(b []byte) (ret int, err os.Error) {
+func (r13 *rotate13) Read(b []byte) (ret int, err error) {
     r, e := r13.source.Read(b)
     for i := 0; i &lt; r; i++ {
         b[i] = rot13(b[i])

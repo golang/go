@@ -35,7 +35,7 @@ func check(name string, f func(), err string) {
 			println(name, "panicked but not with runtime.Error")
 			return
 		}
-		s := runt.String()
+		s := runt.Error()
 		if strings.Index(s, err) < 0 {
 			bug()
 			println(name, "panicked with", s, "not", err)

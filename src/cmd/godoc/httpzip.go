@@ -50,7 +50,7 @@ type httpZipFile struct {
 	list          zipList
 }
 
-func (f *httpZipFile) Close() os.Error {
+func (f *httpZipFile) Close() error {
 	if f.info.IsRegular() {
 		return f.ReadCloser.Close()
 	}
@@ -58,11 +58,11 @@ func (f *httpZipFile) Close() os.Error {
 	return nil
 }
 
-func (f *httpZipFile) Stat() (*os.FileInfo, os.Error) {
+func (f *httpZipFile) Stat() (*os.FileInfo, error) {
 	return &f.info, nil
 }
 
-func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, os.Error) {
+func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
 	var list []os.FileInfo
 	dirname := f.path + "/"
 	prevname := ""
@@ -106,13 +106,13 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, os.Error) {
 	}
 
 	if count >= 0 && len(list) == 0 {
-		return nil, os.EOF
+		return nil, io.EOF
 	}
 
 	return list, nil
 }
 
-func (f *httpZipFile) Seek(offset int64, whence int) (int64, os.Error) {
+func (f *httpZipFile) Seek(offset int64, whence int) (int64, error) {
 	return 0, fmt.Errorf("Seek not implemented for zip file entry: %s", f.info.Name)
 }
 
@@ -123,7 +123,7 @@ type httpZipFS struct {
 	root string
 }
 
-func (fs *httpZipFS) Open(name string) (http.File, os.Error) {
+func (fs *httpZipFS) Open(name string) (http.File, error) {
 	// fs.root does not start with '/'.
 	path := path.Join(fs.root, name) // path is clean
 	index, exact := fs.list.lookup(path)
@@ -165,7 +165,7 @@ func (fs *httpZipFS) Open(name string) (http.File, os.Error) {
 	}, nil
 }
 
-func (fs *httpZipFS) Close() os.Error {
+func (fs *httpZipFS) Close() error {
 	fs.list = nil
 	return fs.ReadCloser.Close()
 }

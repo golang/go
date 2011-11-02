@@ -6,11 +6,11 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"http"
 	"json"
 	"log"
-	"os"
 	"strconv"
 	"url"
 )
@@ -20,9 +20,9 @@ type param map[string]string
 // dash runs the given method and command on the dashboard.
 // If args is not nil, it is the query or post parameters.
 // If resp is not nil, dash unmarshals the body as JSON into resp.
-func dash(meth, cmd string, resp interface{}, args param) os.Error {
+func dash(meth, cmd string, resp interface{}, args param) error {
 	var r *http.Response
-	var err os.Error
+	var err error
 	if *verbose {
 		log.Println("dash", cmd, args)
 	}
@@ -57,7 +57,7 @@ func dash(meth, cmd string, resp interface{}, args param) os.Error {
 	return nil
 }
 
-func dashStatus(meth, cmd string, args param) os.Error {
+func dashStatus(meth, cmd string, args param) error {
 	var resp struct {
 		Status string
 		Error  string
@@ -67,13 +67,13 @@ func dashStatus(meth, cmd string, args param) os.Error {
 		return err
 	}
 	if resp.Status != "OK" {
-		return os.NewError("/build: " + resp.Error)
+		return errors.New("/build: " + resp.Error)
 	}
 	return nil
 }
 
 // todo returns the next hash to build.
-func (b *Builder) todo() (rev string, err os.Error) {
+func (b *Builder) todo() (rev string, err error) {
 	var resp []struct {
 		Hash string
 	}
@@ -87,7 +87,7 @@ func (b *Builder) todo() (rev string, err os.Error) {
 }
 
 // recordResult sends build results to the dashboard
-func (b *Builder) recordResult(buildLog string, hash string) os.Error {
+func (b *Builder) recordResult(buildLog string, hash string) error {
 	return dash("POST", "build", nil, param{
 		"builder": b.name,
 		"key":     b.key,
@@ -97,7 +97,7 @@ func (b *Builder) recordResult(buildLog string, hash string) os.Error {
 }
 
 // packages fetches a list of package paths from the dashboard
-func packages() (pkgs []string, err os.Error) {
+func packages() (pkgs []string, err error) {
 	var resp struct {
 		Packages []struct {
 			Path string
@@ -114,7 +114,7 @@ func packages() (pkgs []string, err os.Error) {
 }
 
 // updatePackage sends package build results and info dashboard
-func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) os.Error {
+func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) error {
 	return dash("POST", "package", nil, param{
 		"builder": b.name,
 		"key":     b.key,
@@ -126,7 +126,7 @@ func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) os.E
 }
 
 // postCommit informs the dashboard of a new commit
-func postCommit(key string, l *HgLog) os.Error {
+func postCommit(key string, l *HgLog) error {
 	return dashStatus("POST", "commit", param{
 		"key":    key,
 		"node":   l.Hash,

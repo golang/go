@@ -179,7 +179,7 @@ func (z *Int) SetInt64(x int64) *Int {
 // SetString interprets s as a number in the given base
 // and sets z to that value.  The base must be in the range [2,36].
 // SetString returns an error if s cannot be parsed or the base is invalid.
-func (z *Int) SetString(s string, base int) os.Error {
+func (z *Int) SetString(s string, base int) error {
 	z.doinit()
 	if base < 2 || base > 36 {
 		return os.EINVAL
