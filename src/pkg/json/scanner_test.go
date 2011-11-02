@@ -147,7 +147,7 @@ var indentErrorTests = []indentErrorTest{
 	{`{"X": "foo" "Y": "bar"}`, &SyntaxError{"invalid character '\"' after object key:value pair", 13}},
 }
 
-func TestIdentErrors(t *testing.T) {
+func TestIndentErrors(t *testing.T) {
 	for i, tt := range indentErrorTests {
 		slice := make([]uint8, 0)
 		buf := bytes.NewBuffer(slice)
