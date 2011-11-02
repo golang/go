@@ -6,7 +6,7 @@ package runtime
 
 // The Error interface identifies a run time error.
 type Error interface {
-	String() string
+	error
 
 	// RuntimeError is a no-op function but
 	// serves to distinguish types that are runtime
@@ -28,7 +28,7 @@ type TypeAssertionError struct {
 
 func (*TypeAssertionError) RuntimeError() {}
 
-func (e *TypeAssertionError) String() string {
+func (e *TypeAssertionError) Error() string {
 	inter := e.interfaceString
 	if inter == "" {
 		inter = "interface"
@@ -98,7 +98,7 @@ type errorString string
 
 func (e errorString) RuntimeError() {}
 
-func (e errorString) String() string {
+func (e errorString) Error() string {
 	return "runtime error: " + string(e)
 }
 
@@ -123,6 +123,8 @@ func printany(i interface{}) {
 		print("nil")
 	case stringer:
 		print(v.String())
+	case error:
+		print(v.Error())
 	case int:
 		print(v)
 	case string:
