@@ -7,8 +7,8 @@ package ecdsa
 import (
 	"big"
 	"crypto/elliptic"
-	"crypto/sha1"
 	"crypto/rand"
+	"crypto/sha1"
 	"encoding/hex"
 	"testing"
 )

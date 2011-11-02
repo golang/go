@@ -6,8 +6,8 @@ package x509
 
 import (
 	"asn1"
-	"bytes"
 	"big"
+	"bytes"
 	"crypto/dsa"
 	"crypto/rand"
 	"crypto/rsa"

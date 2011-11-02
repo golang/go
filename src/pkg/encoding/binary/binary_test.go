@@ -5,8 +5,8 @@
 package binary
 
 import (
-	"io"
 	"bytes"
+	"io"
 	"math"
 	"reflect"
 	"testing"

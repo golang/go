@@ -6,8 +6,8 @@ package rand
 
 import (
 	"errors"
-	"math"
 	"fmt"
+	"math"
 	"testing"
 )
 

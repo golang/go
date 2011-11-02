@@ -9,10 +9,10 @@ package main
 
 import (
 	"big"
-	"crypto/x509/pkix"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"flag"
 	"log"

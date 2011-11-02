@@ -5,9 +5,9 @@
 package time
 
 import (
-	"syscall"
-	"sync"
 	"os"
+	"sync"
+	"syscall"
 )
 
 // BUG(brainman): The Windows implementation assumes that

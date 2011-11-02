@@ -5,8 +5,8 @@
 package http
 
 import (
-	"bytes"
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"

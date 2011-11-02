@@ -5,8 +5,8 @@
 package hmac
 
 import (
-	"hash"
 	"fmt"
+	"hash"
 	"testing"
 )
 

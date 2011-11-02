@@ -5,9 +5,9 @@
 package sync_test
 
 import (
+	"runtime"
 	. "sync"
 	"sync/atomic"
-	"runtime"
 	"testing"
 )
 

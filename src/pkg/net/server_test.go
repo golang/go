@@ -8,10 +8,10 @@ import (
 	"flag"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
-	"runtime"
 )
 
 // Do not test empty datagrams by default.

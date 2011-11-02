@@ -45,12 +45,12 @@ package main
 //
 
 import (
+	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
-	"bufio"
 	"os"
 	"strings"
-	"bytes"
 )
 
 // the following are adjustable

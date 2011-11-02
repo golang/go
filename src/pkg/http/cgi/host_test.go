@@ -13,14 +13,14 @@ import (
 	"http"
 	"http/httptest"
 	"io"
-	"os"
 	"net"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-	"runtime"
 )
 
 func newRequest(httpreq string) *http.Request {

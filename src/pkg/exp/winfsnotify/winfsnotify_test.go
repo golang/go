@@ -6,8 +6,8 @@ package winfsnotify
 
 import (
 	"os"
-	"time"
 	"testing"
+	"time"
 )
 
 func expect(t *testing.T, eventstream <-chan *Event, name string, mask uint32) {

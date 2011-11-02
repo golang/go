@@ -6,8 +6,8 @@ package runtime_test
 
 import (
 	"syscall"
-	"unsafe"
 	"testing"
+	"unsafe"
 )
 
 type DLL struct {

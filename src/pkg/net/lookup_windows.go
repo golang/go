@@ -5,10 +5,10 @@
 package net
 
 import (
-	"syscall"
-	"unsafe"
 	"os"
 	"sync"
+	"syscall"
+	"unsafe"
 )
 
 var (

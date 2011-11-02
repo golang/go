@@ -7,9 +7,9 @@ package os_test
 import (
 	. "os"
 	"path/filepath"
-	"testing"
 	"runtime"
 	"syscall"
+	"testing"
 )
 
 func TestMkdirAll(t *testing.T) {

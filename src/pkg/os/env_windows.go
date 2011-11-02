@@ -9,8 +9,8 @@ package os
 import (
 	"errors"
 	"syscall"
-	"utf16"
 	"unsafe"
+	"utf16"
 )
 
 // ENOENV is the error indicating that an environment variable does not exist.

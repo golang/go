@@ -5,8 +5,8 @@
 package http
 
 import (
-	"os"
 	"net"
+	"os"
 )
 
 func init() {

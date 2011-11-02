@@ -5,10 +5,10 @@
 package io_test
 
 import (
-	. "io"
 	"bytes"
 	"crypto/sha1"
 	"fmt"
+	. "io"
 	"strings"
 	"testing"
 )

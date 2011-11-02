@@ -5,8 +5,8 @@
 package os
 
 import (
-	"unsafe"
 	"syscall"
+	"unsafe"
 )
 
 // Stat returns the FileInfo structure describing file.
