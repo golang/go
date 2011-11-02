@@ -14,12 +14,12 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net"
-	"os"
 	"path"
 	"runtime/debug"
 	"strconv"
@@ -31,10 +31,10 @@ import (
 
 // Errors introduced by the HTTP server.
 var (
-	ErrWriteAfterFlush = os.NewError("Conn.Write called after Flush")
-	ErrBodyNotAllowed  = os.NewError("http: response status code does not allow body")
-	ErrHijacked        = os.NewError("Conn has been hijacked")
-	ErrContentLength   = os.NewError("Conn.Write wrote more than the declared Content-Length")
+	ErrWriteAfterFlush = errors.New("Conn.Write called after Flush")
+	ErrBodyNotAllowed  = errors.New("http: response status code does not allow body")
+	ErrHijacked        = errors.New("Conn has been hijacked")
+	ErrContentLength   = errors.New("Conn.Write wrote more than the declared Content-Length")
 )
 
 // Objects implementing the Handler interface can be
@@ -60,7 +60,7 @@ type ResponseWriter interface {
 	// Write writes the data to the connection as part of an HTTP reply.
 	// If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
 	// before writing the data.
-	Write([]byte) (int, os.Error)
+	Write([]byte) (int, error)
 
 	// WriteHeader sends an HTTP response header with status code.
 	// If WriteHeader is not called explicitly, the first call to Write
@@ -90,7 +90,7 @@ type Hijacker interface {
 	// will not do anything else with the connection.
 	// It becomes the caller's responsibility to manage
 	// and close the connection.
-	Hijack() (net.Conn, *bufio.ReadWriter, os.Error)
+	Hijack() (net.Conn, *bufio.ReadWriter, error)
 }
 
 // A conn represents the server side of an HTTP connection.
@@ -148,7 +148,7 @@ type writerOnly struct {
 	io.Writer
 }
 
-func (w *response) ReadFrom(src io.Reader) (n int64, err os.Error) {
+func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 	// Flush before checking w.chunking, as Flush will call
 	// WriteHeader if it hasn't been called yet, and WriteHeader
 	// is what sets w.chunking.
@@ -169,7 +169,7 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err os.Error) {
 const noLimit int64 = (1 << 63) - 1
 
 // Create new connection from rwc.
-func (srv *Server) newConn(rwc net.Conn) (c *conn, err os.Error) {
+func (srv *Server) newConn(rwc net.Conn) (c *conn, err error) {
 	c = new(conn)
 	c.remoteAddr = rwc.RemoteAddr().String()
 	c.server = srv
@@ -202,9 +202,9 @@ type expectContinueReader struct {
 	closed     bool
 }
 
-func (ecr *expectContinueReader) Read(p []byte) (n int, err os.Error) {
+func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
 	if ecr.closed {
-		return 0, os.NewError("http: Read after Close on request Body")
+		return 0, errors.New("http: Read after Close on request Body")
 	}
 	if !ecr.resp.wroteContinue && !ecr.resp.conn.hijacked {
 		ecr.resp.wroteContinue = true
@@ -214,7 +214,7 @@ func (ecr *expectContinueReader) Read(p []byte) (n int, err os.Error) {
 	return ecr.readCloser.Read(p)
 }
 
-func (ecr *expectContinueReader) Close() os.Error {
+func (ecr *expectContinueReader) Close() error {
 	ecr.closed = true
 	return ecr.readCloser.Close()
 }
@@ -225,10 +225,10 @@ func (ecr *expectContinueReader) Close() os.Error {
 // It is like time.RFC1123 but hard codes GMT as the time zone.
 const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
 
-var errTooLarge = os.NewError("http: request too large")
+var errTooLarge = errors.New("http: request too large")
 
 // Read next request from connection.
-func (c *conn) readRequest() (w *response, err os.Error) {
+func (c *conn) readRequest() (w *response, err error) {
 	if c.hijacked {
 		return nil, ErrHijacked
 	}
@@ -285,7 +285,7 @@ func (w *response) WriteHeader(code int) {
 	var hasCL bool
 	var contentLength int64
 	if clenStr := w.header.Get("Content-Length"); clenStr != "" {
-		var err os.Error
+		var err error
 		contentLength, err = strconv.Atoi64(clenStr)
 		if err == nil {
 			hasCL = true
@@ -439,7 +439,7 @@ func (w *response) bodyAllowed() bool {
 	return w.status != StatusNotModified && w.req.Method != "HEAD"
 }
 
-func (w *response) Write(data []byte) (n int, err os.Error) {
+func (w *response) Write(data []byte) (n int, err error) {
 	if w.conn.hijacked {
 		log.Print("http: response.Write on hijacked connection")
 		return 0, ErrHijacked
@@ -663,7 +663,7 @@ func (c *conn) serve() {
 
 // Hijack implements the Hijacker.Hijack method. Our response is both a ResponseWriter
 // and a Hijacker.
-func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err os.Error) {
+func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	if w.conn.hijacked {
 		return nil, nil, ErrHijacked
 	}
@@ -943,7 +943,7 @@ func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 // creating a new service thread for each.  The service threads
 // read requests and then call handler to reply to them.
 // Handler is typically nil, in which case the DefaultServeMux is used.
-func Serve(l net.Listener, handler Handler) os.Error {
+func Serve(l net.Listener, handler Handler) error {
 	srv := &Server{Handler: handler}
 	return srv.Serve(l)
 }
@@ -960,7 +960,7 @@ type Server struct {
 // ListenAndServe listens on the TCP network address srv.Addr and then
 // calls Serve to handle requests on incoming connections.  If
 // srv.Addr is blank, ":http" is used.
-func (srv *Server) ListenAndServe() os.Error {
+func (srv *Server) ListenAndServe() error {
 	addr := srv.Addr
 	if addr == "" {
 		addr = ":http"
@@ -975,7 +975,7 @@ func (srv *Server) ListenAndServe() os.Error {
 // Serve accepts incoming connections on the Listener l, creating a
 // new service thread for each.  The service threads read requests and
 // then call srv.Handler to reply to them.
-func (srv *Server) Serve(l net.Listener) os.Error {
+func (srv *Server) Serve(l net.Listener) error {
 	defer l.Close()
 	for {
 		rw, e := l.Accept()
@@ -1028,7 +1028,7 @@ func (srv *Server) Serve(l net.Listener) os.Error {
 //			log.Fatal("ListenAndServe: ", err.String())
 //		}
 //	}
-func ListenAndServe(addr string, handler Handler) os.Error {
+func ListenAndServe(addr string, handler Handler) error {
 	server := &Server{Addr: addr, Handler: handler}
 	return server.ListenAndServe()
 }
@@ -1061,7 +1061,7 @@ func ListenAndServe(addr string, handler Handler) os.Error {
 //	}
 //
 // One can use generate_cert.go in crypto/tls to generate cert.pem and key.pem.
-func ListenAndServeTLS(addr string, certFile string, keyFile string, handler Handler) os.Error {
+func ListenAndServeTLS(addr string, certFile string, keyFile string, handler Handler) error {
 	server := &Server{Addr: addr, Handler: handler}
 	return server.ListenAndServeTLS(certFile, keyFile)
 }
@@ -1075,7 +1075,7 @@ func ListenAndServeTLS(addr string, certFile string, keyFile string, handler Han
 // of the server's certificate followed by the CA's certificate.
 //
 // If srv.Addr is blank, ":https" is used.
-func (s *Server) ListenAndServeTLS(certFile, keyFile string) os.Error {
+func (s *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	addr := s.Addr
 	if addr == "" {
 		addr = ":https"
@@ -1086,7 +1086,7 @@ func (s *Server) ListenAndServeTLS(certFile, keyFile string) os.Error {
 		NextProtos: []string{"http/1.1"},
 	}
 
-	var err os.Error
+	var err error
 	config.Certificates = make([]tls.Certificate, 1)
 	config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
@@ -1119,7 +1119,7 @@ func TimeoutHandler(h Handler, ns int64, msg string) Handler {
 
 // ErrHandlerTimeout is returned on ResponseWriter Write calls
 // in handlers which have timed out.
-var ErrHandlerTimeout = os.NewError("http: Handler timeout")
+var ErrHandlerTimeout = errors.New("http: Handler timeout")
 
 type timeoutHandler struct {
 	handler Handler
@@ -1167,7 +1167,7 @@ func (tw *timeoutWriter) Header() Header {
 	return tw.w.Header()
 }
 
-func (tw *timeoutWriter) Write(p []byte) (int, os.Error) {
+func (tw *timeoutWriter) Write(p []byte) (int, error) {
 	tw.mu.Lock()
 	timedOut := tw.timedOut
 	tw.mu.Unlock()

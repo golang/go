@@ -10,11 +10,10 @@ import (
 	"image"
 	"image/color"
 	"io/ioutil"
-	"os"
 	"testing"
 )
 
-func diff(m0, m1 image.Image) os.Error {
+func diff(m0, m1 image.Image) error {
 	b0, b1 := m0.Bounds(), m1.Bounds()
 	if !b0.Size().Eq(b1.Size()) {
 		return fmt.Errorf("dimensions differ: %v vs %v", b0, b1)
@@ -35,7 +34,7 @@ func diff(m0, m1 image.Image) os.Error {
 	return nil
 }
 
-func encodeDecode(m image.Image) (image.Image, os.Error) {
+func encodeDecode(m image.Image) (image.Image, error) {
 	b := bytes.NewBuffer(nil)
 	err := Encode(b, m)
 	if err != nil {

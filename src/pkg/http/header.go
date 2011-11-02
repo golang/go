@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/textproto"
-	"os"
 	"sort"
 	"strings"
 )
@@ -43,7 +42,7 @@ func (h Header) Del(key string) {
 }
 
 // Write writes a header in wire format.
-func (h Header) Write(w io.Writer) os.Error {
+func (h Header) Write(w io.Writer) error {
 	return h.WriteSubset(w, nil)
 }
 
@@ -51,7 +50,7 @@ var headerNewlineToSpace = strings.NewReplacer("\n", " ", "\r", " ")
 
 // WriteSubset writes a header in wire format.
 // If exclude is not nil, keys where exclude[key] == true are not written.
-func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) os.Error {
+func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
 	keys := make([]string, 0, len(h))
 	for k := range h {
 		if exclude == nil || !exclude[k] {

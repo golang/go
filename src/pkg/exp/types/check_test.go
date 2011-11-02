@@ -67,7 +67,7 @@ func getPos(filename string, offset int) token.Pos {
 
 // TODO(gri) Need to revisit parser interface. We should be able to use parser.ParseFiles
 //           or a similar function instead.
-func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*ast.File, os.Error) {
+func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*ast.File, error) {
 	files := make(map[string]*ast.File)
 	var errors scanner.ErrorList
 	for _, filename := range filenames {
@@ -132,7 +132,7 @@ func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) m
 	return errors
 }
 
-func eliminate(t *testing.T, expected map[token.Pos]string, errors os.Error) {
+func eliminate(t *testing.T, expected map[token.Pos]string, errors error) {
 	if errors == nil {
 		return
 	}

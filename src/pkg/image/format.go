@@ -6,18 +6,18 @@ package image
 
 import (
 	"bufio"
+	"errors"
 	"io"
-	"os"
 )
 
 // An UnknownFormatErr indicates that decoding encountered an unknown format.
-var UnknownFormatErr = os.NewError("image: unknown format")
+var UnknownFormatErr = errors.New("image: unknown format")
 
 // A format holds an image format's name, magic header and how to decode it.
 type format struct {
 	name, magic  string
-	decode       func(io.Reader) (Image, os.Error)
-	decodeConfig func(io.Reader) (Config, os.Error)
+	decode       func(io.Reader) (Image, error)
+	decodeConfig func(io.Reader) (Config, error)
 }
 
 // Formats is the list of registered formats.
@@ -29,14 +29,14 @@ var formats []format
 // string can contain "?" wildcards that each match any one byte.
 // Decode is the function that decodes the encoded image.
 // DecodeConfig is the function that decodes just its configuration.
-func RegisterFormat(name, magic string, decode func(io.Reader) (Image, os.Error), decodeConfig func(io.Reader) (Config, os.Error)) {
+func RegisterFormat(name, magic string, decode func(io.Reader) (Image, error), decodeConfig func(io.Reader) (Config, error)) {
 	formats = append(formats, format{name, magic, decode, decodeConfig})
 }
 
 // A reader is an io.Reader that can also peek ahead.
 type reader interface {
 	io.Reader
-	Peek(int) ([]byte, os.Error)
+	Peek(int) ([]byte, error)
 }
 
 // AsReader converts an io.Reader to a reader.
@@ -75,7 +75,7 @@ func sniff(r reader) format {
 // The string returned is the format name used during format registration.
 // Format registration is typically done by the init method of the codec-
 // specific package.
-func Decode(r io.Reader) (Image, string, os.Error) {
+func Decode(r io.Reader) (Image, string, error) {
 	rr := asReader(r)
 	f := sniff(rr)
 	if f.decode == nil {
@@ -89,7 +89,7 @@ func Decode(r io.Reader) (Image, string, os.Error) {
 // been encoded in a registered format. The string returned is the format name
 // used during format registration. Format registration is typically done by
 // the init method of the codec-specific package.
-func DecodeConfig(r io.Reader) (Config, string, os.Error) {
+func DecodeConfig(r io.Reader) (Config, string, error) {
 	rr := asReader(r)
 	f := sniff(rr)
 	if f.decodeConfig == nil {

@@ -7,7 +7,6 @@ package html
 import (
 	"bytes"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -127,7 +126,7 @@ type Tokenizer struct {
 	// Next call would set z.err to os.EOF but return a TextToken, and all
 	// subsequent Next calls would return an ErrorToken.
 	// err is never reset. Once it becomes non-nil, it stays non-nil.
-	err os.Error
+	err error
 	// buf[raw.start:raw.end] holds the raw bytes of the current token.
 	// buf[raw.end:] is buffered input that will yield future tokens.
 	raw span
@@ -152,7 +151,7 @@ type Tokenizer struct {
 
 // Error returns the error associated with the most recent ErrorToken token.
 // This is typically os.EOF, meaning the end of tokenization.
-func (z *Tokenizer) Error() os.Error {
+func (z *Tokenizer) Error() error {
 	if z.tt != ErrorToken {
 		return nil
 	}

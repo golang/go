@@ -41,7 +41,7 @@ var imageTests = []imageTest{
 	{"testdata/video-005.gray.png", "testdata/video-005.gray.png", 0},
 }
 
-func decode(filename string) (image.Image, string, os.Error) {
+func decode(filename string) (image.Image, string, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, "", err
@@ -50,7 +50,7 @@ func decode(filename string) (image.Image, string, os.Error) {
 	return image.Decode(bufio.NewReader(f))
 }
 
-func decodeConfig(filename string) (image.Config, string, os.Error) {
+func decodeConfig(filename string) (image.Config, string, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return image.Config{}, "", err
@@ -83,7 +83,7 @@ loop:
 	for _, it := range imageTests {
 		g := golden[it.goldenFilename]
 		if g == nil {
-			var err os.Error
+			var err error
 			g, _, err = decode(it.goldenFilename)
 			if err != nil {
 				t.Errorf("%s: %v", it.goldenFilename, err)

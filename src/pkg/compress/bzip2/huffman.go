@@ -4,10 +4,7 @@
 
 package bzip2
 
-import (
-	"os"
-	"sort"
-)
+import "sort"
 
 // A huffmanTree is a binary tree which is navigated, bit-by-bit to reach a
 // symbol.
@@ -63,7 +60,7 @@ func (t huffmanTree) Decode(br *bitReader) (v uint16) {
 
 // newHuffmanTree builds a Huffman tree from a slice containing the code
 // lengths of each symbol. The maximum code length is 32 bits.
-func newHuffmanTree(lengths []uint8) (huffmanTree, os.Error) {
+func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 	// There are many possible trees that assign the same code length to
 	// each symbol (consider reflecting a tree down the middle, for
 	// example). Since the code length assignments determine the
@@ -176,7 +173,7 @@ func (n huffmanCodes) Swap(i, j int) {
 // buildHuffmanNode takes a slice of sorted huffmanCodes and builds a node in
 // the Huffman tree at the given level. It returns the index of the newly
 // constructed node.
-func buildHuffmanNode(t *huffmanTree, codes []huffmanCode, level uint32) (nodeIndex uint16, err os.Error) {
+func buildHuffmanNode(t *huffmanTree, codes []huffmanCode, level uint32) (nodeIndex uint16, err error) {
 	test := uint32(1) << (31 - level)
 
 	// We have to search the list of codes to find the divide between the left and right sides.

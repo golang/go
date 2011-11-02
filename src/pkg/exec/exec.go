@@ -9,6 +9,7 @@ package exec
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"strconv"
@@ -18,12 +19,12 @@ import (
 // Error records the name of a binary that failed to be be executed
 // and the reason it failed.
 type Error struct {
-	Name  string
-	Error os.Error
+	Name string
+	Err  error
 }
 
-func (e *Error) String() string {
-	return "exec: " + strconv.Quote(e.Name) + ": " + e.Error.String()
+func (e *Error) Error() string {
+	return "exec: " + strconv.Quote(e.Name) + ": " + e.Err.Error()
 }
 
 // Cmd represents an external command being prepared or run.
@@ -75,13 +76,13 @@ type Cmd struct {
 	// Process is the underlying process, once started.
 	Process *os.Process
 
-	err             os.Error // last error (from LookPath, stdin, stdout, stderr)
-	finished        bool     // when Wait was called
+	err             error // last error (from LookPath, stdin, stdout, stderr)
+	finished        bool  // when Wait was called
 	childFiles      []*os.File
 	closeAfterStart []io.Closer
 	closeAfterWait  []io.Closer
-	goroutine       []func() os.Error
-	errch           chan os.Error // one send per goroutine
+	goroutine       []func() error
+	errch           chan error // one send per goroutine
 }
 
 // Command returns the Cmd struct to execute the named program with
@@ -132,7 +133,7 @@ func (c *Cmd) argv() []string {
 	return []string{c.Path}
 }
 
-func (c *Cmd) stdin() (f *os.File, err os.Error) {
+func (c *Cmd) stdin() (f *os.File, err error) {
 	if c.Stdin == nil {
 		f, err = os.Open(os.DevNull)
 		c.closeAfterStart = append(c.closeAfterStart, f)
@@ -150,7 +151,7 @@ func (c *Cmd) stdin() (f *os.File, err os.Error) {
 
 	c.closeAfterStart = append(c.closeAfterStart, pr)
 	c.closeAfterWait = append(c.closeAfterWait, pw)
-	c.goroutine = append(c.goroutine, func() os.Error {
+	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(pw, c.Stdin)
 		if err1 := pw.Close(); err == nil {
 			err = err1
@@ -160,18 +161,18 @@ func (c *Cmd) stdin() (f *os.File, err os.Error) {
 	return pr, nil
 }
 
-func (c *Cmd) stdout() (f *os.File, err os.Error) {
+func (c *Cmd) stdout() (f *os.File, err error) {
 	return c.writerDescriptor(c.Stdout)
 }
 
-func (c *Cmd) stderr() (f *os.File, err os.Error) {
+func (c *Cmd) stderr() (f *os.File, err error) {
 	if c.Stderr != nil && interfaceEqual(c.Stderr, c.Stdout) {
 		return c.childFiles[1], nil
 	}
 	return c.writerDescriptor(c.Stderr)
 }
 
-func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err os.Error) {
+func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err error) {
 	if w == nil {
 		f, err = os.OpenFile(os.DevNull, os.O_WRONLY, 0)
 		c.closeAfterStart = append(c.closeAfterStart, f)
@@ -189,7 +190,7 @@ func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err os.Error) {
 
 	c.closeAfterStart = append(c.closeAfterStart, pw)
 	c.closeAfterWait = append(c.closeAfterWait, pr)
-	c.goroutine = append(c.goroutine, func() os.Error {
+	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(w, pr)
 		return err
 	})
@@ -205,7 +206,7 @@ func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err os.Error) {
 // If the command fails to run or doesn't complete successfully, the
 // error is of type *ExitError. Other error types may be
 // returned for I/O problems.
-func (c *Cmd) Run() os.Error {
+func (c *Cmd) Run() error {
 	if err := c.Start(); err != nil {
 		return err
 	}
@@ -213,15 +214,15 @@ func (c *Cmd) Run() os.Error {
 }
 
 // Start starts the specified command but does not wait for it to complete.
-func (c *Cmd) Start() os.Error {
+func (c *Cmd) Start() error {
 	if c.err != nil {
 		return c.err
 	}
 	if c.Process != nil {
-		return os.NewError("exec: already started")
+		return errors.New("exec: already started")
 	}
 
-	type F func(*Cmd) (*os.File, os.Error)
+	type F func(*Cmd) (*os.File, error)
 	for _, setupFd := range []F{(*Cmd).stdin, (*Cmd).stdout, (*Cmd).stderr} {
 		fd, err := setupFd(c)
 		if err != nil {
@@ -231,7 +232,7 @@ func (c *Cmd) Start() os.Error {
 	}
 	c.childFiles = append(c.childFiles, c.ExtraFiles...)
 
-	var err os.Error
+	var err error
 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
 		Files: c.childFiles,
@@ -246,9 +247,9 @@ func (c *Cmd) Start() os.Error {
 		fd.Close()
 	}
 
-	c.errch = make(chan os.Error, len(c.goroutine))
+	c.errch = make(chan error, len(c.goroutine))
 	for _, fn := range c.goroutine {
-		go func(fn func() os.Error) {
+		go func(fn func() error) {
 			c.errch <- fn()
 		}(fn)
 	}
@@ -261,7 +262,7 @@ type ExitError struct {
 	*os.Waitmsg
 }
 
-func (e *ExitError) String() string {
+func (e *ExitError) Error() string {
 	return e.Waitmsg.String()
 }
 
@@ -275,17 +276,17 @@ func (e *ExitError) String() string {
 // If the command fails to run or doesn't complete successfully, the
 // error is of type *ExitError. Other error types may be
 // returned for I/O problems.
-func (c *Cmd) Wait() os.Error {
+func (c *Cmd) Wait() error {
 	if c.Process == nil {
-		return os.NewError("exec: not started")
+		return errors.New("exec: not started")
 	}
 	if c.finished {
-		return os.NewError("exec: Wait was already called")
+		return errors.New("exec: Wait was already called")
 	}
 	c.finished = true
 	msg, err := c.Process.Wait(0)
 
-	var copyError os.Error
+	var copyError error
 	for _ = range c.goroutine {
 		if err := <-c.errch; err != nil && copyError == nil {
 			copyError = err
@@ -306,9 +307,9 @@ func (c *Cmd) Wait() os.Error {
 }
 
 // Output runs the command and returns its standard output.
-func (c *Cmd) Output() ([]byte, os.Error) {
+func (c *Cmd) Output() ([]byte, error) {
 	if c.Stdout != nil {
-		return nil, os.NewError("exec: Stdout already set")
+		return nil, errors.New("exec: Stdout already set")
 	}
 	var b bytes.Buffer
 	c.Stdout = &b
@@ -318,12 +319,12 @@ func (c *Cmd) Output() ([]byte, os.Error) {
 
 // CombinedOutput runs the command and returns its combined standard
 // output and standard error.
-func (c *Cmd) CombinedOutput() ([]byte, os.Error) {
+func (c *Cmd) CombinedOutput() ([]byte, error) {
 	if c.Stdout != nil {
-		return nil, os.NewError("exec: Stdout already set")
+		return nil, errors.New("exec: Stdout already set")
 	}
 	if c.Stderr != nil {
-		return nil, os.NewError("exec: Stderr already set")
+		return nil, errors.New("exec: Stderr already set")
 	}
 	var b bytes.Buffer
 	c.Stdout = &b
@@ -334,12 +335,12 @@ func (c *Cmd) CombinedOutput() ([]byte, os.Error) {
 
 // StdinPipe returns a pipe that will be connected to the command's
 // standard input when the command starts.
-func (c *Cmd) StdinPipe() (io.WriteCloser, os.Error) {
+func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
 	if c.Stdin != nil {
-		return nil, os.NewError("exec: Stdin already set")
+		return nil, errors.New("exec: Stdin already set")
 	}
 	if c.Process != nil {
-		return nil, os.NewError("exec: StdinPipe after process started")
+		return nil, errors.New("exec: StdinPipe after process started")
 	}
 	pr, pw, err := os.Pipe()
 	if err != nil {
@@ -354,12 +355,12 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, os.Error) {
 // StdoutPipe returns a pipe that will be connected to the command's
 // standard output when the command starts.
 // The pipe will be closed automatically after Wait sees the command exit.
-func (c *Cmd) StdoutPipe() (io.ReadCloser, os.Error) {
+func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
 	if c.Stdout != nil {
-		return nil, os.NewError("exec: Stdout already set")
+		return nil, errors.New("exec: Stdout already set")
 	}
 	if c.Process != nil {
-		return nil, os.NewError("exec: StdoutPipe after process started")
+		return nil, errors.New("exec: StdoutPipe after process started")
 	}
 	pr, pw, err := os.Pipe()
 	if err != nil {
@@ -374,12 +375,12 @@ func (c *Cmd) StdoutPipe() (io.ReadCloser, os.Error) {
 // StderrPipe returns a pipe that will be connected to the command's
 // standard error when the command starts.
 // The pipe will be closed automatically after Wait sees the command exit.
-func (c *Cmd) StderrPipe() (io.ReadCloser, os.Error) {
+func (c *Cmd) StderrPipe() (io.ReadCloser, error) {
 	if c.Stderr != nil {
-		return nil, os.NewError("exec: Stderr already set")
+		return nil, errors.New("exec: Stderr already set")
 	}
 	if c.Process != nil {
-		return nil, os.NewError("exec: StderrPipe after process started")
+		return nil, errors.New("exec: StderrPipe after process started")
 	}
 	pr, pw, err := os.Pipe()
 	if err != nil {

@@ -6,6 +6,7 @@ package multipart
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/textproto"
@@ -19,7 +20,7 @@ import (
 // a Content-Disposition of "form-data".
 // It stores up to maxMemory bytes of the file parts in memory
 // and the remainder on disk in temporary files.
-func (r *Reader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
+func (r *Reader) ReadForm(maxMemory int64) (f *Form, err error) {
 	form := &Form{make(map[string][]string), make(map[string][]*FileHeader)}
 	defer func() {
 		if err != nil {
@@ -30,7 +31,7 @@ func (r *Reader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
 	maxValueBytes := int64(10 << 20) // 10 MB is a lot of text.
 	for {
 		p, err := r.NextPart()
-		if err == os.EOF {
+		if err == io.EOF {
 			break
 		}
 		if err != nil {
@@ -48,12 +49,12 @@ func (r *Reader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
 		if filename == "" {
 			// value, store as string in memory
 			n, err := io.CopyN(&b, p, maxValueBytes)
-			if err != nil && err != os.EOF {
+			if err != nil && err != io.EOF {
 				return nil, err
 			}
 			maxValueBytes -= n
 			if maxValueBytes == 0 {
-				return nil, os.NewError("multipart: message too large")
+				return nil, errors.New("multipart: message too large")
 			}
 			form.Value[name] = append(form.Value[name], b.String())
 			continue
@@ -65,7 +66,7 @@ func (r *Reader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
 			Header:   p.Header,
 		}
 		n, err := io.CopyN(&b, p, maxMemory+1)
-		if err != nil && err != os.EOF {
+		if err != nil && err != io.EOF {
 			return nil, err
 		}
 		if n > maxMemory {
@@ -102,8 +103,8 @@ type Form struct {
 }
 
 // RemoveAll removes any temporary files associated with a Form.
-func (f *Form) RemoveAll() os.Error {
-	var err os.Error
+func (f *Form) RemoveAll() error {
+	var err error
 	for _, fhs := range f.File {
 		for _, fh := range fhs {
 			if fh.tmpfile != "" {
@@ -127,7 +128,7 @@ type FileHeader struct {
 }
 
 // Open opens and returns the FileHeader's associated File.
-func (fh *FileHeader) Open() (File, os.Error) {
+func (fh *FileHeader) Open() (File, error) {
 	if b := fh.content; b != nil {
 		r := io.NewSectionReader(sliceReaderAt(b), 0, int64(len(b)))
 		return sectionReadCloser{r}, nil
@@ -151,13 +152,13 @@ type sectionReadCloser struct {
 	*io.SectionReader
 }
 
-func (rc sectionReadCloser) Close() os.Error {
+func (rc sectionReadCloser) Close() error {
 	return nil
 }
 
 type sliceReaderAt []byte
 
-func (r sliceReaderAt) ReadAt(b []byte, off int64) (int, os.Error) {
+func (r sliceReaderAt) ReadAt(b []byte, off int64) (int, error) {
 	if int(off) >= len(r) || off < 0 {
 		return 0, os.EINVAL
 	}

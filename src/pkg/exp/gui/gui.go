@@ -8,7 +8,6 @@ package gui
 import (
 	"image"
 	"image/draw"
-	"os"
 )
 
 // A Window represents a single graphics window.
@@ -21,7 +20,7 @@ type Window interface {
 	// mouse movements and window resizes.
 	EventChan() <-chan interface{}
 	// Close closes the window.
-	Close() os.Error
+	Close() error
 }
 
 // A KeyEvent is sent for a key press or release.
@@ -54,5 +53,5 @@ type ConfigEvent struct {
 
 // An ErrEvent is sent when an error occurs.
 type ErrEvent struct {
-	Err os.Error
+	Err error
 }

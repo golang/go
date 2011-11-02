@@ -92,7 +92,7 @@ func TypeByExtension(ext string) string {
 // AddExtensionType sets the MIME type associated with
 // the extension ext to typ.  The extension should begin with
 // a leading dot, as in ".html".
-func AddExtensionType(ext, typ string) os.Error {
+func AddExtensionType(ext, typ string) error {
 	if ext == "" || ext[0] != '.' {
 		return fmt.Errorf(`mime: extension "%s" misses dot`, ext)
 	}
@@ -100,7 +100,7 @@ func AddExtensionType(ext, typ string) os.Error {
 	return setExtensionType(ext, typ)
 }
 
-func setExtensionType(extension, mimeType string) os.Error {
+func setExtensionType(extension, mimeType string) error {
 	full, param, err := ParseMediaType(mimeType)
 	if err != nil {
 		return err

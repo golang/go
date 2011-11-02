@@ -12,9 +12,9 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"io"
 	"net"
-	"os"
 	"sync"
 )
 
@@ -53,12 +53,12 @@ func (c *ServerConfig) rand() io.Reader {
 // private key configured in order to accept connections. The private key must
 // be in the form of a PEM encoded, PKCS#1, RSA private key. The file "id_rsa"
 // typically contains such a key.
-func (s *ServerConfig) SetRSAPrivateKey(pemBytes []byte) os.Error {
+func (s *ServerConfig) SetRSAPrivateKey(pemBytes []byte) error {
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
-		return os.NewError("ssh: no key found")
+		return errors.New("ssh: no key found")
 	}
-	var err os.Error
+	var err error
 	s.rsa, err = x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		return err
@@ -140,7 +140,7 @@ type ServerConn struct {
 	// lock protects err and also allows Channels to serialise their writes
 	// to out.
 	lock sync.RWMutex
-	err  os.Error
+	err  error
 
 	// cachedPubKeys contains the cache results of tests for public keys.
 	// Since SSH clients will query whether a public key is acceptable
@@ -162,7 +162,7 @@ func Server(c net.Conn, config *ServerConfig) *ServerConn {
 
 // kexDH performs Diffie-Hellman key agreement on a ServerConnection. The
 // returned values are given the same names as in RFC 4253, section 8.
-func (s *ServerConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handshakeMagics, hostKeyAlgo string) (H, K []byte, err os.Error) {
+func (s *ServerConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handshakeMagics, hostKeyAlgo string) (H, K []byte, err error) {
 	packet, err := s.readPacket()
 	if err != nil {
 		return
@@ -173,7 +173,7 @@ func (s *ServerConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handsha
 	}
 
 	if kexDHInit.X.Sign() == 0 || kexDHInit.X.Cmp(group.p) >= 0 {
-		return nil, nil, os.NewError("client DH parameter out of bounds")
+		return nil, nil, errors.New("client DH parameter out of bounds")
 	}
 
 	y, err := rand.Int(s.config.rand(), group.p)
@@ -189,7 +189,7 @@ func (s *ServerConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handsha
 	case hostAlgoRSA:
 		serializedHostKey = s.config.rsaSerialized
 	default:
-		return nil, nil, os.NewError("internal error")
+		return nil, nil, errors.New("internal error")
 	}
 
 	h := hashFunc.New()
@@ -218,7 +218,7 @@ func (s *ServerConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handsha
 			return
 		}
 	default:
-		return nil, nil, os.NewError("internal error")
+		return nil, nil, errors.New("internal error")
 	}
 
 	serializedSig := serializeRSASignature(sig)
@@ -279,7 +279,7 @@ func buildDataSignedForAuth(sessionId []byte, req userAuthRequestMsg, algo, pubK
 }
 
 // Handshake performs an SSH transport and client authentication on the given ServerConn.
-func (s *ServerConn) Handshake() os.Error {
+func (s *ServerConn) Handshake() error {
 	var magics handshakeMagics
 	if _, err := s.Write(serverVersion); err != nil {
 		return err
@@ -326,7 +326,7 @@ func (s *ServerConn) Handshake() os.Error {
 
 	kexAlgo, hostKeyAlgo, ok := findAgreedAlgorithms(s.transport, &clientKexInit, &serverKexInit)
 	if !ok {
-		return os.NewError("ssh: no common algorithms")
+		return errors.New("ssh: no common algorithms")
 	}
 
 	if clientKexInit.FirstKexFollows && kexAlgo != clientKexInit.KexAlgos[0] {
@@ -345,7 +345,7 @@ func (s *ServerConn) Handshake() os.Error {
 		dhGroup14Once.Do(initDHGroup14)
 		H, K, err = s.kexDH(dhGroup14, hashFunc, &magics, hostKeyAlgo)
 	default:
-		err = os.NewError("ssh: unexpected key exchange algorithm " + kexAlgo)
+		err = errors.New("ssh: unexpected key exchange algorithm " + kexAlgo)
 	}
 	if err != nil {
 		return err
@@ -374,7 +374,7 @@ func (s *ServerConn) Handshake() os.Error {
 		return err
 	}
 	if serviceRequest.Service != serviceUserAuth {
-		return os.NewError("ssh: requested service '" + serviceRequest.Service + "' before authenticating")
+		return errors.New("ssh: requested service '" + serviceRequest.Service + "' before authenticating")
 	}
 	serviceAccept := serviceAcceptMsg{
 		Service: serviceUserAuth,
@@ -420,9 +420,9 @@ func (s *ServerConn) testPubKey(user, algo string, pubKey []byte) bool {
 	return result
 }
 
-func (s *ServerConn) authenticate(H []byte) os.Error {
+func (s *ServerConn) authenticate(H []byte) error {
 	var userAuthReq userAuthRequestMsg
-	var err os.Error
+	var err error
 	var packet []byte
 
 userAuthLoop:
@@ -435,7 +435,7 @@ userAuthLoop:
 		}
 
 		if userAuthReq.Service != serviceSSH {
-			return os.NewError("ssh: client attempted to negotiate for unknown service: " + userAuthReq.Service)
+			return errors.New("ssh: client attempted to negotiate for unknown service: " + userAuthReq.Service)
 		}
 
 		switch userAuthReq.Method {
@@ -523,7 +523,7 @@ userAuthLoop:
 						return ParseError{msgUserAuthRequest}
 					}
 				default:
-					return os.NewError("ssh: isAcceptableAlgo incorrect")
+					return errors.New("ssh: isAcceptableAlgo incorrect")
 				}
 				if s.testPubKey(userAuthReq.User, algo, pubKey) {
 					break userAuthLoop
@@ -540,7 +540,7 @@ userAuthLoop:
 		}
 
 		if len(failureMsg.Methods) == 0 {
-			return os.NewError("ssh: no authentication methods configured but NoClientAuth is also false")
+			return errors.New("ssh: no authentication methods configured but NoClientAuth is also false")
 		}
 
 		if err = s.writePacket(marshal(msgUserAuthFailure, failureMsg)); err != nil {
@@ -560,7 +560,7 @@ const defaultWindowSize = 32768
 
 // Accept reads and processes messages on a ServerConn. It must be called
 // in order to demultiplex messages to any resulting Channels.
-func (s *ServerConn) Accept() (Channel, os.Error) {
+func (s *ServerConn) Accept() (Channel, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -660,7 +660,7 @@ func (s *ServerConn) Accept() (Channel, os.Error) {
 			case UnexpectedMessageError:
 				return nil, msg
 			case *disconnectMsg:
-				return nil, os.EOF
+				return nil, io.EOF
 			default:
 				// Unknown message. Ignore.
 			}
@@ -679,7 +679,7 @@ type Listener struct {
 // Accept waits for and returns the next incoming SSH connection.
 // The receiver should call Handshake() in another goroutine 
 // to avoid blocking the accepter.
-func (l *Listener) Accept() (*ServerConn, os.Error) {
+func (l *Listener) Accept() (*ServerConn, error) {
 	c, err := l.listener.Accept()
 	if err != nil {
 		return nil, err
@@ -694,13 +694,13 @@ func (l *Listener) Addr() net.Addr {
 }
 
 // Close closes the listener.
-func (l *Listener) Close() os.Error {
+func (l *Listener) Close() error {
 	return l.listener.Close()
 }
 
 // Listen creates an SSH listener accepting connections on
 // the given network address using net.Listen.
-func Listen(network, addr string, config *ServerConfig) (*Listener, os.Error) {
+func Listen(network, addr string, config *ServerConfig) (*Listener, error) {
 	l, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, err

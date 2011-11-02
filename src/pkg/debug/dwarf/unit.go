@@ -4,10 +4,7 @@
 
 package dwarf
 
-import (
-	"os"
-	"strconv"
-)
+import "strconv"
 
 // DWARF debug info is split into a sequence of compilation units.
 // Each unit has its own abbreviation table and address size.
@@ -20,7 +17,7 @@ type unit struct {
 	addrsize int
 }
 
-func (d *Data) parseUnits() ([]unit, os.Error) {
+func (d *Data) parseUnits() ([]unit, error) {
 	// Count units.
 	nunit := 0
 	b := makeBuf(d, "info", 0, d.info, 0)

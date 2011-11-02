@@ -8,14 +8,13 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-	"os"
 )
 
 // One of the copies, say from b to r2, could be avoided by using a more
 // elaborate trick where the other copy is made during Request/Response.Write.
 // This would complicate things too much, given that these functions are for
 // debugging only.
-func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err os.Error) {
+func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
 	var buf bytes.Buffer
 	if _, err = buf.ReadFrom(b); err != nil {
 		return nil, nil, err
@@ -33,7 +32,7 @@ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err os.Error) {
 // changes req.Body to refer to the in-memory copy.
 // The documentation for Request.Write details which fields
 // of req are used.
-func DumpRequest(req *Request, body bool) (dump []byte, err os.Error) {
+func DumpRequest(req *Request, body bool) (dump []byte, err error) {
 	var b bytes.Buffer
 	save := req.Body
 	if !body || req.Body == nil {
@@ -54,7 +53,7 @@ func DumpRequest(req *Request, body bool) (dump []byte, err os.Error) {
 }
 
 // DumpResponse is like DumpRequest but dumps a response.
-func DumpResponse(resp *Response, body bool) (dump []byte, err os.Error) {
+func DumpResponse(resp *Response, body bool) (dump []byte, err error) {
 	var b bytes.Buffer
 	save := resp.Body
 	savecl := resp.ContentLength

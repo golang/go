@@ -7,7 +7,6 @@ package gzip
 import (
 	"bytes"
 	"io"
-	"os"
 	"testing"
 )
 
@@ -16,7 +15,7 @@ type gunzipTest struct {
 	desc string
 	raw  string
 	gzip []byte
-	err  os.Error
+	err  error
 }
 
 var gunzipTests = []gunzipTest{

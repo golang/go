@@ -7,10 +7,10 @@ package multipart
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"net/textproto"
-	"os"
 	"strings"
 )
 
@@ -54,7 +54,7 @@ func randomBoundary() string {
 // header. The body of the part should be written to the returned
 // Writer. After calling CreatePart, any previous part may no longer
 // be written to.
-func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, os.Error) {
+func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 	if w.lastpart != nil {
 		if err := w.lastpart.close(); err != nil {
 			return nil, err
@@ -93,7 +93,7 @@ func escapeQuotes(s string) string {
 
 // CreateFormFile is a convenience wrapper around CreatePart. It creates
 // a new form-data header with the provided field name and file name.
-func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, os.Error) {
+func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition",
 		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
@@ -104,7 +104,7 @@ func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, os.Error
 
 // CreateFormField calls CreatePart with a header using the
 // given field name.
-func (w *Writer) CreateFormField(fieldname string) (io.Writer, os.Error) {
+func (w *Writer) CreateFormField(fieldname string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition",
 		fmt.Sprintf(`form-data; name="%s"`, escapeQuotes(fieldname)))
@@ -112,7 +112,7 @@ func (w *Writer) CreateFormField(fieldname string) (io.Writer, os.Error) {
 }
 
 // WriteField calls CreateFormField and then writes the given value.
-func (w *Writer) WriteField(fieldname, value string) os.Error {
+func (w *Writer) WriteField(fieldname, value string) error {
 	p, err := w.CreateFormField(fieldname)
 	if err != nil {
 		return err
@@ -123,7 +123,7 @@ func (w *Writer) WriteField(fieldname, value string) os.Error {
 
 // Close finishes the multipart message and writes the trailing
 // boundary end line to the output.
-func (w *Writer) Close() os.Error {
+func (w *Writer) Close() error {
 	if w.lastpart != nil {
 		if err := w.lastpart.close(); err != nil {
 			return err
@@ -137,17 +137,17 @@ func (w *Writer) Close() os.Error {
 type part struct {
 	mw     *Writer
 	closed bool
-	we     os.Error // last error that occurred writing
+	we     error // last error that occurred writing
 }
 
-func (p *part) close() os.Error {
+func (p *part) close() error {
 	p.closed = true
 	return p.we
 }
 
-func (p *part) Write(d []byte) (n int, err os.Error) {
+func (p *part) Write(d []byte) (n int, err error) {
 	if p.closed {
-		return 0, os.NewError("multipart: can't write to finished part")
+		return 0, errors.New("multipart: can't write to finished part")
 	}
 	n, err = p.mw.w.Write(d)
 	if err != nil {

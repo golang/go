@@ -7,7 +7,6 @@ package json
 import (
 	"bytes"
 	"math"
-	"os"
 	"rand"
 	"reflect"
 	"testing"
@@ -140,7 +139,7 @@ func TestIndentBig(t *testing.T) {
 
 type indentErrorTest struct {
 	in  string
-	err os.Error
+	err error
 }
 
 var indentErrorTests = []indentErrorTest{

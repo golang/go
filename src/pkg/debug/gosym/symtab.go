@@ -15,7 +15,6 @@ package gosym
 import (
 	"encoding/binary"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -105,7 +104,7 @@ type sym struct {
 	name   []byte
 }
 
-func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
+func walksymtab(data []byte, fn func(sym) error) error {
 	var s sym
 	p := data
 	for len(p) >= 6 {
@@ -149,9 +148,9 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
 
 // NewTable decodes the Go symbol table in data,
 // returning an in-memory representation.
-func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
+func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 	var n int
-	err := walksymtab(symtab, func(s sym) os.Error {
+	err := walksymtab(symtab, func(s sym) error {
 		n++
 		return nil
 	})
@@ -165,7 +164,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 	nf := 0
 	nz := 0
 	lasttyp := uint8(0)
-	err = walksymtab(symtab, func(s sym) os.Error {
+	err = walksymtab(symtab, func(s sym) error {
 		n := len(t.Syms)
 		t.Syms = t.Syms[0 : n+1]
 		ts := &t.Syms[n]
@@ -355,7 +354,7 @@ func (t *Table) PCToLine(pc uint64) (file string, line int, fn *Func) {
 // LineToPC looks up the first program counter on the given line in
 // the named file.  Returns UnknownPathError or UnknownLineError if
 // there is an error looking up this line.
-func (t *Table) LineToPC(file string, line int) (pc uint64, fn *Func, err os.Error) {
+func (t *Table) LineToPC(file string, line int) (pc uint64, fn *Func, err error) {
 	obj, ok := t.Files[file]
 	if !ok {
 		return 0, nil, UnknownFileError(file)
@@ -466,7 +465,7 @@ pathloop:
 	return tos.path, aline - tos.start - tos.offset + 1
 }
 
-func (o *Obj) alineFromLine(path string, line int) (int, os.Error) {
+func (o *Obj) alineFromLine(path string, line int) (int, error) {
 	if line < 1 {
 		return 0, &UnknownLineError{path, line}
 	}
@@ -516,7 +515,7 @@ func (o *Obj) alineFromLine(path string, line int) (int, os.Error) {
 // the symbol table.
 type UnknownFileError string
 
-func (e UnknownFileError) String() string { return "unknown file: " + string(e) }
+func (e UnknownFileError) Error() string { return "unknown file: " + string(e) }
 
 // UnknownLineError represents a failure to map a line to a program
 // counter, either because the line is beyond the bounds of the file
@@ -526,7 +525,7 @@ type UnknownLineError struct {
 	Line int
 }
 
-func (e *UnknownLineError) String() string {
+func (e *UnknownLineError) Error() string {
 	return "no code at " + e.File + ":" + strconv.Itoa(e.Line)
 }
 
@@ -538,7 +537,7 @@ type DecodingError struct {
 	val interface{}
 }
 
-func (e *DecodingError) String() string {
+func (e *DecodingError) Error() string {
 	msg := e.msg
 	if e.val != nil {
 		msg += fmt.Sprintf(" '%v'", e.val)

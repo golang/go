@@ -29,6 +29,7 @@ import (
 	"bytes"
 	"fmt"
 	"http"
+	"io"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -121,7 +122,7 @@ func Symbol(w http.ResponseWriter, r *http.Request) {
 		// Wait until here to check for err; the last
 		// symbol will have an err because it doesn't end in +.
 		if err != nil {
-			if err != os.EOF {
+			if err != io.EOF {
 				fmt.Fprintf(&buf, "reading request: %v\n", err)
 			}
 			break

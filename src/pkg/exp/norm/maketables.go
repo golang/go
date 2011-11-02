@@ -220,7 +220,7 @@ func openReader(file string) (input io.ReadCloser) {
 	return
 }
 
-func parseDecomposition(s string, skipfirst bool) (a []rune, e os.Error) {
+func parseDecomposition(s string, skipfirst bool) (a []rune, e error) {
 	decomp := strings.Split(s, " ")
 	if len(decomp) > 0 && skipfirst {
 		decomp = decomp[1:]
@@ -310,7 +310,7 @@ func loadUnicodeData() {
 	for {
 		line, err := input.ReadString('\n')
 		if err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				break
 			}
 			logger.Fatal(err)
@@ -350,7 +350,7 @@ func loadCompositionExclusions() {
 	for {
 		line, err := input.ReadString('\n')
 		if err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				break
 			}
 			logger.Fatal(err)
@@ -782,7 +782,7 @@ func testDerived() {
 	for {
 		line, err := input.ReadString('\n')
 		if err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				break
 			}
 			logger.Fatal(err)

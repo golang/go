@@ -26,36 +26,36 @@ package zlib
 import (
 	"bufio"
 	"compress/flate"
+	"errors"
 	"hash"
 	"hash/adler32"
 	"io"
-	"os"
 )
 
 const zlibDeflate = 8
 
-var ChecksumError = os.NewError("zlib checksum error")
-var HeaderError = os.NewError("invalid zlib header")
-var DictionaryError = os.NewError("invalid zlib dictionary")
+var ChecksumError = errors.New("zlib checksum error")
+var HeaderError = errors.New("invalid zlib header")
+var DictionaryError = errors.New("invalid zlib dictionary")
 
 type reader struct {
 	r            flate.Reader
 	decompressor io.ReadCloser
 	digest       hash.Hash32
-	err          os.Error
+	err          error
 	scratch      [4]byte
 }
 
 // NewReader creates a new io.ReadCloser that satisfies reads by decompressing data read from r.
 // The implementation buffers input and may read more data than necessary from r.
 // It is the caller's responsibility to call Close on the ReadCloser when done.
-func NewReader(r io.Reader) (io.ReadCloser, os.Error) {
+func NewReader(r io.Reader) (io.ReadCloser, error) {
 	return NewReaderDict(r, nil)
 }
 
 // NewReaderDict is like NewReader but uses a preset dictionary.
 // NewReaderDict ignores the dictionary if the compressed data does not refer to it.
-func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, os.Error) {
+func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, error) {
 	z := new(reader)
 	if fr, ok := r.(flate.Reader); ok {
 		z.r = fr
@@ -87,7 +87,7 @@ func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, os.Error) {
 	return z, nil
 }
 
-func (z *reader) Read(p []byte) (n int, err os.Error) {
+func (z *reader) Read(p []byte) (n int, err error) {
 	if z.err != nil {
 		return 0, z.err
 	}
@@ -97,7 +97,7 @@ func (z *reader) Read(p []byte) (n int, err os.Error) {
 
 	n, err = z.decompressor.Read(p)
 	z.digest.Write(p[0:n])
-	if n != 0 || err != os.EOF {
+	if n != 0 || err != io.EOF {
 		z.err = err
 		return
 	}
@@ -117,7 +117,7 @@ func (z *reader) Read(p []byte) (n int, err os.Error) {
 }
 
 // Calling Close does not close the wrapped io.Reader originally passed to NewReader.
-func (z *reader) Close() os.Error {
+func (z *reader) Close() error {
 	if z.err != nil {
 		return z.err
 	}

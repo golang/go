@@ -5,7 +5,6 @@
 package x509
 
 import (
-	"os"
 	"strings"
 	"time"
 )
@@ -32,7 +31,7 @@ type CertificateInvalidError struct {
 	Reason InvalidReason
 }
 
-func (e CertificateInvalidError) String() string {
+func (e CertificateInvalidError) Error() string {
 	switch e.Reason {
 	case NotAuthorizedToSign:
 		return "x509: certificate is not authorized to sign other other certificates"
@@ -51,7 +50,7 @@ type HostnameError struct {
 	Host        string
 }
 
-func (h HostnameError) String() string {
+func (h HostnameError) Error() string {
 	var valid string
 	c := h.Certificate
 	if len(c.DNSNames) > 0 {
@@ -67,7 +66,7 @@ type UnknownAuthorityError struct {
 	cert *Certificate
 }
 
-func (e UnknownAuthorityError) String() string {
+func (e UnknownAuthorityError) Error() string {
 	return "x509: certificate signed by unknown authority"
 }
 
@@ -87,7 +86,7 @@ const (
 )
 
 // isValid performs validity checks on the c.
-func (c *Certificate) isValid(certType int, opts *VerifyOptions) os.Error {
+func (c *Certificate) isValid(certType int, opts *VerifyOptions) error {
 	if opts.CurrentTime < c.NotBefore.Seconds() ||
 		opts.CurrentTime > c.NotAfter.Seconds() {
 		return CertificateInvalidError{c, Expired}
@@ -136,7 +135,7 @@ func (c *Certificate) isValid(certType int, opts *VerifyOptions) os.Error {
 // the chain is c and the last element is from opts.Roots.
 //
 // WARNING: this doesn't do any revocation checking.
-func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err os.Error) {
+func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
 	if opts.CurrentTime == 0 {
 		opts.CurrentTime = time.Seconds()
 	}
@@ -160,7 +159,7 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate 
 	return n
 }
 
-func (c *Certificate) buildChains(cache map[int][][]*Certificate, currentChain []*Certificate, opts *VerifyOptions) (chains [][]*Certificate, err os.Error) {
+func (c *Certificate) buildChains(cache map[int][][]*Certificate, currentChain []*Certificate, opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	for _, rootNum := range opts.Roots.findVerifiedParents(c) {
 		root := opts.Roots.certs[rootNum]
 		err = root.isValid(rootCertificate, opts)
@@ -228,7 +227,7 @@ func matchHostnames(pattern, host string) bool {
 
 // VerifyHostname returns nil if c is a valid certificate for the named host.
 // Otherwise it returns an os.Error describing the mismatch.
-func (c *Certificate) VerifyHostname(h string) os.Error {
+func (c *Certificate) VerifyHostname(h string) error {
 	if len(c.DNSNames) > 0 {
 		for _, match := range c.DNSNames {
 			if matchHostnames(match, h) {

@@ -7,6 +7,7 @@
 package winfsnotify
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,7 +37,7 @@ type input struct {
 	op    int
 	path  string
 	flags uint32
-	reply chan os.Error
+	reply chan error
 }
 
 type inode struct {
@@ -65,14 +66,14 @@ type Watcher struct {
 	watches  watchMap       // Map of watches (key: i-number)
 	input    chan *input    // Inputs to the reader are sent on this channel
 	Event    chan *Event    // Events are returned on this channel
-	Error    chan os.Error  // Errors are sent on this channel
+	Error    chan error     // Errors are sent on this channel
 	isClosed bool           // Set to true when Close() is first called
-	quit     chan chan<- os.Error
+	quit     chan chan<- error
 	cookie   uint32
 }
 
 // NewWatcher creates and returns a Watcher.
-func NewWatcher() (*Watcher, os.Error) {
+func NewWatcher() (*Watcher, error) {
 	port, e := syscall.CreateIoCompletionPort(syscall.InvalidHandle, 0, 0, 0)
 	if e != 0 {
 		return nil, os.NewSyscallError("CreateIoCompletionPort", e)
@@ -82,8 +83,8 @@ func NewWatcher() (*Watcher, os.Error) {
 		watches: make(watchMap),
 		input:   make(chan *input, 1),
 		Event:   make(chan *Event, 50),
-		Error:   make(chan os.Error),
-		quit:    make(chan chan<- os.Error, 1),
+		Error:   make(chan error),
+		quit:    make(chan chan<- error, 1),
 	}
 	go w.readEvents()
 	return w, nil
@@ -92,14 +93,14 @@ func NewWatcher() (*Watcher, os.Error) {
 // Close closes a Watcher.
 // It sends a message to the reader goroutine to quit and removes all watches
 // associated with the watcher.
-func (w *Watcher) Close() os.Error {
+func (w *Watcher) Close() error {
 	if w.isClosed {
 		return nil
 	}
 	w.isClosed = true
 
 	// Send "quit" message to the reader goroutine
-	ch := make(chan os.Error)
+	ch := make(chan error)
 	w.quit <- ch
 	if err := w.wakeupReader(); err != nil {
 		return err
@@ -108,15 +109,15 @@ func (w *Watcher) Close() os.Error {
 }
 
 // AddWatch adds path to the watched file set.
-func (w *Watcher) AddWatch(path string, flags uint32) os.Error {
+func (w *Watcher) AddWatch(path string, flags uint32) error {
 	if w.isClosed {
-		return os.NewError("watcher already closed")
+		return errors.New("watcher already closed")
 	}
 	in := &input{
 		op:    opAddWatch,
 		path:  filepath.Clean(path),
 		flags: flags,
-		reply: make(chan os.Error),
+		reply: make(chan error),
 	}
 	w.input <- in
 	if err := w.wakeupReader(); err != nil {
@@ -126,16 +127,16 @@ func (w *Watcher) AddWatch(path string, flags uint32) os.Error {
 }
 
 // Watch adds path to the watched file set, watching all events.
-func (w *Watcher) Watch(path string) os.Error {
+func (w *Watcher) Watch(path string) error {
 	return w.AddWatch(path, FS_ALL_EVENTS)
 }
 
 // RemoveWatch removes path from the watched file set.
-func (w *Watcher) RemoveWatch(path string) os.Error {
+func (w *Watcher) RemoveWatch(path string) error {
 	in := &input{
 		op:    opRemoveWatch,
 		path:  filepath.Clean(path),
-		reply: make(chan os.Error),
+		reply: make(chan error),
 	}
 	w.input <- in
 	if err := w.wakeupReader(); err != nil {
@@ -144,7 +145,7 @@ func (w *Watcher) RemoveWatch(path string) os.Error {
 	return <-in.reply
 }
 
-func (w *Watcher) wakeupReader() os.Error {
+func (w *Watcher) wakeupReader() error {
 	e := syscall.PostQueuedCompletionStatus(w.port, 0, 0, nil)
 	if e != 0 {
 		return os.NewSyscallError("PostQueuedCompletionStatus", e)
@@ -152,7 +153,7 @@ func (w *Watcher) wakeupReader() os.Error {
 	return nil
 }
 
-func getDir(pathname string) (dir string, err os.Error) {
+func getDir(pathname string) (dir string, err error) {
 	attr, e := syscall.GetFileAttributes(syscall.StringToUTF16Ptr(pathname))
 	if e != 0 {
 		return "", os.NewSyscallError("GetFileAttributes", e)
@@ -166,7 +167,7 @@ func getDir(pathname string) (dir string, err os.Error) {
 	return
 }
 
-func getIno(path string) (ino *inode, err os.Error) {
+func getIno(path string) (ino *inode, err error) {
 	h, e := syscall.CreateFile(syscall.StringToUTF16Ptr(path),
 		syscall.FILE_LIST_DIRECTORY,
 		syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE,
@@ -207,7 +208,7 @@ func (m watchMap) set(ino *inode, watch *watch) {
 }
 
 // Must run within the I/O thread.
-func (w *Watcher) addWatch(pathname string, flags uint64) os.Error {
+func (w *Watcher) addWatch(pathname string, flags uint64) error {
 	dir, err := getDir(pathname)
 	if err != nil {
 		return err
@@ -252,7 +253,7 @@ func (w *Watcher) addWatch(pathname string, flags uint64) os.Error {
 }
 
 // Must run within the I/O thread.
-func (w *Watcher) removeWatch(pathname string) os.Error {
+func (w *Watcher) removeWatch(pathname string) error {
 	dir, err := getDir(pathname)
 	if err != nil {
 		return err
@@ -293,7 +294,7 @@ func (w *Watcher) deleteWatch(watch *watch) {
 }
 
 // Must run within the I/O thread.
-func (w *Watcher) startRead(watch *watch) os.Error {
+func (w *Watcher) startRead(watch *watch) error {
 	if e := syscall.CancelIo(watch.ino.handle); e != 0 {
 		w.Error <- os.NewSyscallError("CancelIo", e)
 		w.deleteWatch(watch)
@@ -352,7 +353,7 @@ func (w *Watcher) readEvents() {
 						w.startRead(watch)
 					}
 				}
-				var err os.Error
+				var err error
 				if e := syscall.CloseHandle(w.port); e != 0 {
 					err = os.NewSyscallError("CloseHandle", e)
 				}
@@ -392,7 +393,7 @@ func (w *Watcher) readEvents() {
 		for {
 			if n == 0 {
 				w.Event <- &Event{Mask: FS_Q_OVERFLOW}
-				w.Error <- os.NewError("short read in readEvents()")
+				w.Error <- errors.New("short read in readEvents()")
 				break
 			}
 

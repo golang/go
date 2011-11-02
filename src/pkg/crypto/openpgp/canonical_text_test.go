@@ -6,7 +6,6 @@ package openpgp
 
 import (
 	"bytes"
-	"os"
 	"testing"
 )
 
@@ -14,7 +13,7 @@ type recordingHash struct {
 	buf *bytes.Buffer
 }
 
-func (r recordingHash) Write(b []byte) (n int, err os.Error) {
+func (r recordingHash) Write(b []byte) (n int, err error) {
 	return r.buf.Write(b)
 }
 

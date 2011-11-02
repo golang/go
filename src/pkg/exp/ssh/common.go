@@ -53,7 +53,7 @@ type UnexpectedMessageError struct {
 	expected, got uint8
 }
 
-func (u UnexpectedMessageError) String() string {
+func (u UnexpectedMessageError) Error() string {
 	return "ssh: unexpected message type " + strconv.Itoa(int(u.got)) + " (expected " + strconv.Itoa(int(u.expected)) + ")"
 }
 
@@ -62,7 +62,7 @@ type ParseError struct {
 	msgType uint8
 }
 
-func (p ParseError) String() string {
+func (p ParseError) Error() string {
 	return "ssh: parse error in message type " + strconv.Itoa(int(p.msgType))
 }
 

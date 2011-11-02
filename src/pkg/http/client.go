@@ -11,9 +11,9 @@ package http
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"url"
 )
@@ -37,7 +37,7 @@ type Client struct {
 	//
 	// If CheckRedirect is nil, the Client uses its default policy,
 	// which is to stop after 10 consecutive requests.
-	CheckRedirect func(req *Request, via []*Request) os.Error
+	CheckRedirect func(req *Request, via []*Request) error
 }
 
 // DefaultClient is the default Client and is used by Get, Head, and Post.
@@ -62,7 +62,7 @@ type RoundTripper interface {
 	// RoundTrip should not modify the request, except for
 	// consuming the Body.  The request's URL and Header fields
 	// are guaranteed to be initialized.
-	RoundTrip(*Request) (*Response, os.Error)
+	RoundTrip(*Request) (*Response, error)
 }
 
 // Given a string of the form "host", "host:port", or "[ipv6::address]:port",
@@ -88,7 +88,7 @@ type readClose struct {
 // connection to the server for a subsequent "keep-alive" request.
 //
 // Generally Get, Post, or PostForm will be used instead of Do.
-func (c *Client) Do(req *Request) (resp *Response, err os.Error) {
+func (c *Client) Do(req *Request) (resp *Response, err error) {
 	if req.Method == "GET" || req.Method == "HEAD" {
 		return c.doFollowingRedirects(req)
 	}
@@ -96,17 +96,17 @@ func (c *Client) Do(req *Request) (resp *Response, err os.Error) {
 }
 
 // send issues an HTTP request.  Caller should close resp.Body when done reading from it.
-func send(req *Request, t RoundTripper) (resp *Response, err os.Error) {
+func send(req *Request, t RoundTripper) (resp *Response, err error) {
 	if t == nil {
 		t = DefaultTransport
 		if t == nil {
-			err = os.NewError("http: no Client.Transport or DefaultTransport")
+			err = errors.New("http: no Client.Transport or DefaultTransport")
 			return
 		}
 	}
 
 	if req.URL == nil {
-		return nil, os.NewError("http: nil Request.URL")
+		return nil, errors.New("http: nil Request.URL")
 	}
 
 	// Most the callers of send (Get, Post, et al) don't need
@@ -144,7 +144,7 @@ func shouldRedirect(statusCode int) bool {
 // Caller should close r.Body when done reading from it.
 //
 // Get is a convenience wrapper around DefaultClient.Get.
-func Get(url string) (r *Response, err os.Error) {
+func Get(url string) (r *Response, err error) {
 	return DefaultClient.Get(url)
 }
 
@@ -158,7 +158,7 @@ func Get(url string) (r *Response, err os.Error) {
 //    307 (Temporary Redirect)
 //
 // Caller should close r.Body when done reading from it.
-func (c *Client) Get(url string) (r *Response, err os.Error) {
+func (c *Client) Get(url string) (r *Response, err error) {
 	req, err := NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -166,7 +166,7 @@ func (c *Client) Get(url string) (r *Response, err os.Error) {
 	return c.doFollowingRedirects(req)
 }
 
-func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error) {
+func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err error) {
 	// TODO: if/when we add cookie support, the redirected request shouldn't
 	// necessarily supply the same cookies as the original.
 	var base *url.URL
@@ -177,7 +177,7 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
 	var via []*Request
 
 	if ireq.URL == nil {
-		return nil, os.NewError("http: nil Request.URL")
+		return nil, errors.New("http: nil Request.URL")
 	}
 
 	req := ireq
@@ -212,7 +212,7 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
 		if shouldRedirect(r.StatusCode) {
 			r.Body.Close()
 			if urlStr = r.Header.Get("Location"); urlStr == "" {
-				err = os.NewError(fmt.Sprintf("%d response missing Location header", r.StatusCode))
+				err = errors.New(fmt.Sprintf("%d response missing Location header", r.StatusCode))
 				break
 			}
 			base = req.URL
@@ -227,9 +227,9 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
 	return
 }
 
-func defaultCheckRedirect(req *Request, via []*Request) os.Error {
+func defaultCheckRedirect(req *Request, via []*Request) error {
 	if len(via) >= 10 {
-		return os.NewError("stopped after 10 redirects")
+		return errors.New("stopped after 10 redirects")
 	}
 	return nil
 }
@@ -239,14 +239,14 @@ func defaultCheckRedirect(req *Request, via []*Request) os.Error {
 // Caller should close r.Body when done reading from it.
 //
 // Post is a wrapper around DefaultClient.Post
-func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Error) {
+func Post(url string, bodyType string, body io.Reader) (r *Response, err error) {
 	return DefaultClient.Post(url, bodyType, body)
 }
 
 // Post issues a POST to the specified URL.
 //
 // Caller should close r.Body when done reading from it.
-func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response, err os.Error) {
+func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response, err error) {
 	req, err := NewRequest("POST", url, body)
 	if err != nil {
 		return nil, err
@@ -261,7 +261,7 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response,
 // Caller should close r.Body when done reading from it.
 //
 // PostForm is a wrapper around DefaultClient.PostForm
-func PostForm(url string, data url.Values) (r *Response, err os.Error) {
+func PostForm(url string, data url.Values) (r *Response, err error) {
 	return DefaultClient.PostForm(url, data)
 }
 
@@ -269,7 +269,7 @@ func PostForm(url string, data url.Values) (r *Response, err os.Error) {
 // with data's keys and values urlencoded as the request body.
 //
 // Caller should close r.Body when done reading from it.
-func (c *Client) PostForm(url string, data url.Values) (r *Response, err os.Error) {
+func (c *Client) PostForm(url string, data url.Values) (r *Response, err error) {
 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }
 
@@ -283,7 +283,7 @@ func (c *Client) PostForm(url string, data url.Values) (r *Response, err os.Erro
 //    307 (Temporary Redirect)
 //
 // Head is a wrapper around DefaultClient.Head
-func Head(url string) (r *Response, err os.Error) {
+func Head(url string) (r *Response, err error) {
 	return DefaultClient.Head(url)
 }
 
@@ -295,7 +295,7 @@ func Head(url string) (r *Response, err os.Error) {
 //    302 (Found)
 //    303 (See Other)
 //    307 (Temporary Redirect)
-func (c *Client) Head(url string) (r *Response, err os.Error) {
+func (c *Client) Head(url string) (r *Response, err error) {
 	req, err := NewRequest("HEAD", url, nil)
 	if err != nil {
 		return nil, err

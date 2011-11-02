@@ -8,10 +8,10 @@ import (
 	"bufio"
 	"compress/flate"
 	"encoding/binary"
+	"errors"
 	"hash"
 	"hash/crc32"
 	"io"
-	"os"
 )
 
 // TODO(adg): support zip file comments
@@ -37,7 +37,7 @@ func NewWriter(w io.Writer) *Writer {
 
 // Close finishes writing the zip file by writing the central directory.
 // It does not (and can not) close the underlying writer.
-func (w *Writer) Close() (err os.Error) {
+func (w *Writer) Close() (err error) {
 	if w.last != nil && !w.last.closed {
 		if err = w.last.close(); err != nil {
 			return
@@ -45,7 +45,7 @@ func (w *Writer) Close() (err os.Error) {
 		w.last = nil
 	}
 	if w.closed {
-		return os.NewError("zip: writer closed twice")
+		return errors.New("zip: writer closed twice")
 	}
 	w.closed = true
 
@@ -94,7 +94,7 @@ func (w *Writer) Close() (err os.Error) {
 // It returns a Writer to which the file contents should be written.
 // The file's contents must be written to the io.Writer before the next
 // call to Create, CreateHeader, or Close.
-func (w *Writer) Create(name string) (io.Writer, os.Error) {
+func (w *Writer) Create(name string) (io.Writer, error) {
 	header := &FileHeader{
 		Name:   name,
 		Method: Deflate,
@@ -107,7 +107,7 @@ func (w *Writer) Create(name string) (io.Writer, os.Error) {
 // It returns a Writer to which the file contents should be written.
 // The file's contents must be written to the io.Writer before the next
 // call to Create, CreateHeader, or Close.
-func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, os.Error) {
+func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	if w.last != nil && !w.last.closed {
 		if err := w.last.close(); err != nil {
 			return nil, err
@@ -148,7 +148,7 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, os.Error) {
 	return fw, nil
 }
 
-func writeHeader(w io.Writer, h *FileHeader) (err os.Error) {
+func writeHeader(w io.Writer, h *FileHeader) (err error) {
 	defer recoverError(&err)
 	write(w, uint32(fileHeaderSignature))
 	write(w, h.ReaderVersion)
@@ -176,17 +176,17 @@ type fileWriter struct {
 	closed    bool
 }
 
-func (w *fileWriter) Write(p []byte) (int, os.Error) {
+func (w *fileWriter) Write(p []byte) (int, error) {
 	if w.closed {
-		return 0, os.NewError("zip: write to closed file")
+		return 0, errors.New("zip: write to closed file")
 	}
 	w.crc32.Write(p)
 	return w.rawCount.Write(p)
 }
 
-func (w *fileWriter) close() (err os.Error) {
+func (w *fileWriter) close() (err error) {
 	if w.closed {
-		return os.NewError("zip: file closed twice")
+		return errors.New("zip: file closed twice")
 	}
 	w.closed = true
 	if err = w.comp.Close(); err != nil {
@@ -213,7 +213,7 @@ type countWriter struct {
 	count int64
 }
 
-func (w *countWriter) Write(p []byte) (int, os.Error) {
+func (w *countWriter) Write(p []byte) (int, error) {
 	n, err := w.w.Write(p)
 	w.count += int64(n)
 	return n, err
@@ -223,7 +223,7 @@ type nopCloser struct {
 	io.Writer
 }
 
-func (w nopCloser) Close() os.Error {
+func (w nopCloser) Close() error {
 	return nil
 }
 

@@ -5,14 +5,15 @@
 package exec
 
 import (
+	"errors"
 	"os"
 	"strings"
 )
 
 // ErrNotFound is the error resulting if a path search failed to find an executable file.
-var ErrNotFound = os.NewError("executable file not found in %PATH%")
+var ErrNotFound = errors.New("executable file not found in %PATH%")
 
-func chkStat(file string) os.Error {
+func chkStat(file string) error {
 	d, err := os.Stat(file)
 	if err != nil {
 		return err
@@ -23,7 +24,7 @@ func chkStat(file string) os.Error {
 	return os.EPERM
 }
 
-func findExecutable(file string, exts []string) (string, os.Error) {
+func findExecutable(file string, exts []string) (string, error) {
 	if len(exts) == 0 {
 		return file, chkStat(file)
 	}
@@ -41,7 +42,7 @@ func findExecutable(file string, exts []string) (string, os.Error) {
 	return ``, os.ENOENT
 }
 
-func LookPath(file string) (f string, err os.Error) {
+func LookPath(file string) (f string, err error) {
 	x := os.Getenv(`PATHEXT`)
 	if x == `` {
 		x = `.COM;.EXE;.BAT;.CMD`

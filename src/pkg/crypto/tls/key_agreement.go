@@ -12,19 +12,19 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509"
+	"errors"
 	"io"
-	"os"
 )
 
 // rsaKeyAgreement implements the standard TLS key agreement where the client
 // encrypts the pre-master secret to the server's public key.
 type rsaKeyAgreement struct{}
 
-func (ka rsaKeyAgreement) generateServerKeyExchange(config *Config, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, os.Error) {
+func (ka rsaKeyAgreement) generateServerKeyExchange(config *Config, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
 	return nil, nil
 }
 
-func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg, version uint16) ([]byte, os.Error) {
+func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg, version uint16) ([]byte, error) {
 	preMasterSecret := make([]byte, 48)
 	_, err := io.ReadFull(config.rand(), preMasterSecret[2:])
 	if err != nil {
@@ -32,14 +32,14 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKe
 	}
 
 	if len(ckx.ciphertext) < 2 {
-		return nil, os.NewError("bad ClientKeyExchange")
+		return nil, errors.New("bad ClientKeyExchange")
 	}
 
 	ciphertext := ckx.ciphertext
 	if version != versionSSL30 {
 		ciphertextLen := int(ckx.ciphertext[0])<<8 | int(ckx.ciphertext[1])
 		if ciphertextLen != len(ckx.ciphertext)-2 {
-			return nil, os.NewError("bad ClientKeyExchange")
+			return nil, errors.New("bad ClientKeyExchange")
 		}
 		ciphertext = ckx.ciphertext[2:]
 	}
@@ -57,11 +57,11 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKe
 	return preMasterSecret, nil
 }
 
-func (ka rsaKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) os.Error {
-	return os.NewError("unexpected ServerKeyExchange")
+func (ka rsaKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) error {
+	return errors.New("unexpected ServerKeyExchange")
 }
 
-func (ka rsaKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, os.Error) {
+func (ka rsaKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error) {
 	preMasterSecret := make([]byte, 48)
 	preMasterSecret[0] = byte(clientHello.vers >> 8)
 	preMasterSecret[1] = byte(clientHello.vers)
@@ -109,7 +109,7 @@ type ecdheRSAKeyAgreement struct {
 	x, y       *big.Int
 }
 
-func (ka *ecdheRSAKeyAgreement) generateServerKeyExchange(config *Config, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, os.Error) {
+func (ka *ecdheRSAKeyAgreement) generateServerKeyExchange(config *Config, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
 	var curveid uint16
 
 Curve:
@@ -131,7 +131,7 @@ Curve:
 	}
 
 	var x, y *big.Int
-	var err os.Error
+	var err error
 	ka.privateKey, x, y, err = ka.curve.GenerateKey(config.rand())
 	if err != nil {
 		return nil, err
@@ -149,7 +149,7 @@ Curve:
 	md5sha1 := md5SHA1Hash(clientHello.random, hello.random, serverECDHParams)
 	sig, err := rsa.SignPKCS1v15(config.rand(), config.Certificates[0].PrivateKey, crypto.MD5SHA1, md5sha1)
 	if err != nil {
-		return nil, os.NewError("failed to sign ECDHE parameters: " + err.String())
+		return nil, errors.New("failed to sign ECDHE parameters: " + err.Error())
 	}
 
 	skx := new(serverKeyExchangeMsg)
@@ -163,13 +163,13 @@ Curve:
 	return skx, nil
 }
 
-func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg, version uint16) ([]byte, os.Error) {
+func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg, version uint16) ([]byte, error) {
 	if len(ckx.ciphertext) == 0 || int(ckx.ciphertext[0]) != len(ckx.ciphertext)-1 {
-		return nil, os.NewError("bad ClientKeyExchange")
+		return nil, errors.New("bad ClientKeyExchange")
 	}
 	x, y := ka.curve.Unmarshal(ckx.ciphertext[1:])
 	if x == nil {
-		return nil, os.NewError("bad ClientKeyExchange")
+		return nil, errors.New("bad ClientKeyExchange")
 	}
 	x, _ = ka.curve.ScalarMult(x, y, ka.privateKey)
 	preMasterSecret := make([]byte, (ka.curve.BitSize+7)>>3)
@@ -179,14 +179,14 @@ func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *cl
 	return preMasterSecret, nil
 }
 
-var errServerKeyExchange = os.NewError("invalid ServerKeyExchange")
+var errServerKeyExchange = errors.New("invalid ServerKeyExchange")
 
-func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) os.Error {
+func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientHello *clientHelloMsg, serverHello *serverHelloMsg, cert *x509.Certificate, skx *serverKeyExchangeMsg) error {
 	if len(skx.key) < 4 {
 		return errServerKeyExchange
 	}
 	if skx.key[0] != 3 { // named curve
-		return os.NewError("server selected unsupported curve")
+		return errors.New("server selected unsupported curve")
 	}
 	curveid := uint16(skx.key[1])<<8 | uint16(skx.key[2])
 
@@ -198,7 +198,7 @@ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientH
 	case curveP521:
 		ka.curve = elliptic.P521()
 	default:
-		return os.NewError("server selected unsupported curve")
+		return errors.New("server selected unsupported curve")
 	}
 
 	publicLen := int(skx.key[3])
@@ -225,9 +225,9 @@ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientH
 	return rsa.VerifyPKCS1v15(cert.PublicKey.(*rsa.PublicKey), crypto.MD5SHA1, md5sha1, sig)
 }
 
-func (ka *ecdheRSAKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, os.Error) {
+func (ka *ecdheRSAKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error) {
 	if ka.curve == nil {
-		return nil, nil, os.NewError("missing ServerKeyExchange message")
+		return nil, nil, errors.New("missing ServerKeyExchange message")
 	}
 	priv, mx, my, err := ka.curve.GenerateKey(config.rand())
 	if err != nil {

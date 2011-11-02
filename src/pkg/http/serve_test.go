@@ -31,10 +31,10 @@ type oneConnListener struct {
 	conn net.Conn
 }
 
-func (l *oneConnListener) Accept() (c net.Conn, err os.Error) {
+func (l *oneConnListener) Accept() (c net.Conn, err error) {
 	c = l.conn
 	if c == nil {
-		err = os.EOF
+		err = io.EOF
 		return
 	}
 	err = nil
@@ -42,7 +42,7 @@ func (l *oneConnListener) Accept() (c net.Conn, err os.Error) {
 	return
 }
 
-func (l *oneConnListener) Close() os.Error {
+func (l *oneConnListener) Close() error {
 	return nil
 }
 
@@ -63,15 +63,15 @@ type testConn struct {
 	writeBuf bytes.Buffer
 }
 
-func (c *testConn) Read(b []byte) (int, os.Error) {
+func (c *testConn) Read(b []byte) (int, error) {
 	return c.readBuf.Read(b)
 }
 
-func (c *testConn) Write(b []byte) (int, os.Error) {
+func (c *testConn) Write(b []byte) (int, error) {
 	return c.writeBuf.Write(b)
 }
 
-func (c *testConn) Close() os.Error {
+func (c *testConn) Close() error {
 	return nil
 }
 
@@ -83,15 +83,15 @@ func (c *testConn) RemoteAddr() net.Addr {
 	return dummyAddr("remote-addr")
 }
 
-func (c *testConn) SetTimeout(nsec int64) os.Error {
+func (c *testConn) SetTimeout(nsec int64) error {
 	return nil
 }
 
-func (c *testConn) SetReadTimeout(nsec int64) os.Error {
+func (c *testConn) SetReadTimeout(nsec int64) error {
 	return nil
 }
 
-func (c *testConn) SetWriteTimeout(nsec int64) os.Error {
+func (c *testConn) SetWriteTimeout(nsec int64) error {
 	return nil
 }
 
@@ -108,7 +108,7 @@ func TestConsumingBodyOnNextConn(t *testing.T) {
 
 	reqNum := 0
 	ch := make(chan *Request)
-	servech := make(chan os.Error)
+	servech := make(chan error)
 	listener := &oneConnListener{conn}
 	handler := func(res ResponseWriter, req *Request) {
 		reqNum++
@@ -138,7 +138,7 @@ func TestConsumingBodyOnNextConn(t *testing.T) {
 			req.Method, "POST")
 	}
 
-	if serveerr := <-servech; serveerr != os.EOF {
+	if serveerr := <-servech; serveerr != io.EOF {
 		t.Errorf("Serve returned %q; expected EOF", serveerr)
 	}
 }
@@ -273,8 +273,8 @@ func TestServerTimeouts(t *testing.T) {
 	buf := make([]byte, 1)
 	n, err := conn.Read(buf)
 	latency := time.Nanoseconds() - t1
-	if n != 0 || err != os.EOF {
-		t.Errorf("Read = %v, %v, wanted %v, %v", n, err, 0, os.EOF)
+	if n != 0 || err != io.EOF {
+		t.Errorf("Read = %v, %v, wanted %v, %v", n, err, 0, io.EOF)
 	}
 	if latency < second*0.20 /* fudge from 0.25 above */ {
 		t.Errorf("got EOF after %d ns, want >= %d", latency, second*0.20)
@@ -753,7 +753,7 @@ func TestServerUnreadRequestBodyLarge(t *testing.T) {
 
 func TestTimeoutHandler(t *testing.T) {
 	sendHi := make(chan bool, 1)
-	writeErrors := make(chan os.Error, 1)
+	writeErrors := make(chan error, 1)
 	sayHi := HandlerFunc(func(w ResponseWriter, r *Request) {
 		<-sendHi
 		_, werr := w.Write([]byte("hi"))
@@ -992,7 +992,7 @@ func TestRequestLimit(t *testing.T) {
 
 type neverEnding byte
 
-func (b neverEnding) Read(p []byte) (n int, err os.Error) {
+func (b neverEnding) Read(p []byte) (n int, err error) {
 	for i := range p {
 		p[i] = byte(b)
 	}
@@ -1004,7 +1004,7 @@ type countReader struct {
 	n *int64
 }
 
-func (cr countReader) Read(p []byte) (n int, err os.Error) {
+func (cr countReader) Read(p []byte) (n int, err error) {
 	n, err = cr.r.Read(p)
 	*cr.n += int64(n)
 	return
@@ -1092,19 +1092,19 @@ func goTimeout(t *testing.T, ns int64, f func()) {
 }
 
 type errorListener struct {
-	errs []os.Error
+	errs []error
 }
 
-func (l *errorListener) Accept() (c net.Conn, err os.Error) {
+func (l *errorListener) Accept() (c net.Conn, err error) {
 	if len(l.errs) == 0 {
-		return nil, os.EOF
+		return nil, io.EOF
 	}
 	err = l.errs[0]
 	l.errs = l.errs[1:]
 	return
 }
 
-func (l *errorListener) Close() os.Error {
+func (l *errorListener) Close() error {
 	return nil
 }
 
@@ -1116,13 +1116,13 @@ func TestAcceptMaxFds(t *testing.T) {
 	log.SetOutput(ioutil.Discard) // is noisy otherwise
 	defer log.SetOutput(os.Stderr)
 
-	ln := &errorListener{[]os.Error{
+	ln := &errorListener{[]error{
 		&net.OpError{
-			Op:    "accept",
-			Error: os.Errno(syscall.EMFILE),
+			Op:  "accept",
+			Err: os.Errno(syscall.EMFILE),
 		}}}
 	err := Serve(ln, HandlerFunc(HandlerFunc(func(ResponseWriter, *Request) {})))
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Errorf("got error %v, want EOF", err)
 	}
 }
@@ -1138,11 +1138,11 @@ func BenchmarkClientServer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		res, err := Get(ts.URL)
 		if err != nil {
-			panic("Get: " + err.String())
+			panic("Get: " + err.Error())
 		}
 		all, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			panic("ReadAll: " + err.String())
+			panic("ReadAll: " + err.Error())
 		}
 		body := string(all)
 		if body != "Hello world.\n" {

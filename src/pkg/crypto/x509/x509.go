@@ -15,8 +15,8 @@ import (
 	"crypto/sha1"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"io"
-	"os"
 	"time"
 )
 
@@ -29,20 +29,20 @@ type pkixPublicKey struct {
 
 // ParsePKIXPublicKey parses a DER encoded public key. These values are
 // typically found in PEM blocks with "BEGIN PUBLIC KEY".
-func ParsePKIXPublicKey(derBytes []byte) (pub interface{}, err os.Error) {
+func ParsePKIXPublicKey(derBytes []byte) (pub interface{}, err error) {
 	var pki publicKeyInfo
 	if _, err = asn1.Unmarshal(derBytes, &pki); err != nil {
 		return
 	}
 	algo := getPublicKeyAlgorithmFromOID(pki.Algorithm.Algorithm)
 	if algo == UnknownPublicKeyAlgorithm {
-		return nil, os.NewError("ParsePKIXPublicKey: unknown public key algorithm")
+		return nil, errors.New("ParsePKIXPublicKey: unknown public key algorithm")
 	}
 	return parsePublicKey(algo, &pki)
 }
 
 // MarshalPKIXPublicKey serialises a public key to DER-encoded PKIX format.
-func MarshalPKIXPublicKey(pub interface{}) ([]byte, os.Error) {
+func MarshalPKIXPublicKey(pub interface{}) ([]byte, error) {
 	var pubBytes []byte
 
 	switch pub := pub.(type) {
@@ -52,7 +52,7 @@ func MarshalPKIXPublicKey(pub interface{}) ([]byte, os.Error) {
 			E: pub.E,
 		})
 	default:
-		return nil, os.NewError("MarshalPKIXPublicKey: unknown public key type")
+		return nil, errors.New("MarshalPKIXPublicKey: unknown public key type")
 	}
 
 	pkix := pkixPublicKey{
@@ -331,7 +331,7 @@ type Certificate struct {
 // that involves algorithms that are not currently implemented.
 type UnsupportedAlgorithmError struct{}
 
-func (UnsupportedAlgorithmError) String() string {
+func (UnsupportedAlgorithmError) Error() string {
 	return "cannot verify signature: algorithm unimplemented"
 }
 
@@ -340,7 +340,7 @@ func (UnsupportedAlgorithmError) String() string {
 // certificate signing key.
 type ConstraintViolationError struct{}
 
-func (ConstraintViolationError) String() string {
+func (ConstraintViolationError) Error() string {
 	return "invalid signature: parent certificate cannot sign this kind of certificate"
 }
 
@@ -350,7 +350,7 @@ func (c *Certificate) Equal(other *Certificate) bool {
 
 // CheckSignatureFrom verifies that the signature on c is a valid signature
 // from parent.
-func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err os.Error) {
+func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err error) {
 	// RFC 5280, 4.2.1.9:
 	// "If the basic constraints extension is not present in a version 3
 	// certificate, or the extension is present but the cA boolean is not
@@ -376,7 +376,7 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err os.Error) {
 
 // CheckSignature verifies that signature is a valid signature over signed from
 // c's public key.
-func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature []byte) (err os.Error) {
+func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature []byte) (err error) {
 	var hashType crypto.Hash
 
 	switch algo {
@@ -409,10 +409,10 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 			return err
 		}
 		if dsaSig.R.Sign() <= 0 || dsaSig.S.Sign() <= 0 {
-			return os.NewError("DSA signature contained zero or negative values")
+			return errors.New("DSA signature contained zero or negative values")
 		}
 		if !dsa.Verify(pub, digest, dsaSig.R, dsaSig.S) {
-			return os.NewError("DSA verification failure")
+			return errors.New("DSA verification failure")
 		}
 		return
 	}
@@ -420,14 +420,14 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 }
 
 // CheckCRLSignature checks that the signature in crl is from c.
-func (c *Certificate) CheckCRLSignature(crl *pkix.CertificateList) (err os.Error) {
+func (c *Certificate) CheckCRLSignature(crl *pkix.CertificateList) (err error) {
 	algo := getSignatureAlgorithmFromOID(crl.SignatureAlgorithm.Algorithm)
 	return c.CheckSignature(algo, crl.TBSCertList.Raw, crl.SignatureValue.RightAlign())
 }
 
 type UnhandledCriticalExtension struct{}
 
-func (h UnhandledCriticalExtension) String() string {
+func (h UnhandledCriticalExtension) Error() string {
 	return "unhandled critical extension"
 }
 
@@ -454,7 +454,7 @@ type generalSubtree struct {
 	Max  int    `asn1:"optional,tag:1"`
 }
 
-func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{}, os.Error) {
+func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{}, error) {
 	asn1Data := keyData.PublicKey.RightAlign()
 	switch algo {
 	case RSA:
@@ -482,7 +482,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 			return nil, err
 		}
 		if p.Sign() <= 0 || params.P.Sign() <= 0 || params.Q.Sign() <= 0 || params.G.Sign() <= 0 {
-			return nil, os.NewError("zero or negative DSA parameter")
+			return nil, errors.New("zero or negative DSA parameter")
 		}
 		pub := &dsa.PublicKey{
 			Parameters: dsa.Parameters{
@@ -499,7 +499,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 	panic("unreachable")
 }
 
-func parseCertificate(in *certificate) (*Certificate, os.Error) {
+func parseCertificate(in *certificate) (*Certificate, error) {
 	out := new(Certificate)
 	out.Raw = in.Raw
 	out.RawTBSCertificate = in.TBSCertificate.Raw
@@ -513,14 +513,14 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 
 	out.PublicKeyAlgorithm =
 		getPublicKeyAlgorithmFromOID(in.TBSCertificate.PublicKey.Algorithm.Algorithm)
-	var err os.Error
+	var err error
 	out.PublicKey, err = parsePublicKey(out.PublicKeyAlgorithm, &in.TBSCertificate.PublicKey)
 	if err != nil {
 		return nil, err
 	}
 
 	if in.TBSCertificate.SerialNumber.Sign() < 0 {
-		return nil, os.NewError("negative serial number")
+		return nil, errors.New("negative serial number")
 	}
 
 	out.Version = in.TBSCertificate.Version + 1
@@ -737,7 +737,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 }
 
 // ParseCertificate parses a single certificate from the given ASN.1 DER data.
-func ParseCertificate(asn1Data []byte) (*Certificate, os.Error) {
+func ParseCertificate(asn1Data []byte) (*Certificate, error) {
 	var cert certificate
 	rest, err := asn1.Unmarshal(asn1Data, &cert)
 	if err != nil {
@@ -752,12 +752,12 @@ func ParseCertificate(asn1Data []byte) (*Certificate, os.Error) {
 
 // ParseCertificates parses one or more certificates from the given ASN.1 DER
 // data. The certificates must be concatenated with no intermediate padding.
-func ParseCertificates(asn1Data []byte) ([]*Certificate, os.Error) {
+func ParseCertificates(asn1Data []byte) ([]*Certificate, error) {
 	var v []*certificate
 
 	for len(asn1Data) > 0 {
 		cert := new(certificate)
-		var err os.Error
+		var err error
 		asn1Data, err = asn1.Unmarshal(asn1Data, cert)
 		if err != nil {
 			return nil, err
@@ -794,7 +794,7 @@ var (
 	oidExtensionNameConstraints     = []int{2, 5, 29, 30}
 )
 
-func buildExtensions(template *Certificate) (ret []pkix.Extension, err os.Error) {
+func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
 	ret = make([]pkix.Extension, 7 /* maximum number of elements. */ )
 	n := 0
 
@@ -910,7 +910,7 @@ var (
 // signee and priv is the private key of the signer.
 //
 // The returned slice is the certificate in DER encoding.
-func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.PublicKey, priv *rsa.PrivateKey) (cert []byte, err os.Error) {
+func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.PublicKey, priv *rsa.PrivateKey) (cert []byte, err error) {
 	asn1PublicKey, err := asn1.Marshal(rsaPublicKey{
 		N: pub.N,
 		E: pub.E,
@@ -984,7 +984,7 @@ var pemType = "X509 CRL"
 // encoded CRLs will appear where they should be DER encoded, so this function
 // will transparently handle PEM encoding as long as there isn't any leading
 // garbage.
-func ParseCRL(crlBytes []byte) (certList *pkix.CertificateList, err os.Error) {
+func ParseCRL(crlBytes []byte) (certList *pkix.CertificateList, err error) {
 	if bytes.HasPrefix(crlBytes, pemCRLPrefix) {
 		block, _ := pem.Decode(crlBytes)
 		if block != nil && block.Type == pemType {
@@ -995,7 +995,7 @@ func ParseCRL(crlBytes []byte) (certList *pkix.CertificateList, err os.Error) {
 }
 
 // ParseDERCRL parses a DER encoded CRL from the given bytes.
-func ParseDERCRL(derBytes []byte) (certList *pkix.CertificateList, err os.Error) {
+func ParseDERCRL(derBytes []byte) (certList *pkix.CertificateList, err error) {
 	certList = new(pkix.CertificateList)
 	_, err = asn1.Unmarshal(derBytes, certList)
 	if err != nil {
@@ -1006,7 +1006,7 @@ func ParseDERCRL(derBytes []byte) (certList *pkix.CertificateList, err os.Error)
 
 // CreateCRL returns a DER encoded CRL, signed by this Certificate, that
 // contains the given list of revoked certificates.
-func (c *Certificate) CreateCRL(rand io.Reader, priv *rsa.PrivateKey, revokedCerts []pkix.RevokedCertificate, now, expiry *time.Time) (crlBytes []byte, err os.Error) {
+func (c *Certificate) CreateCRL(rand io.Reader, priv *rsa.PrivateKey, revokedCerts []pkix.RevokedCertificate, now, expiry *time.Time) (crlBytes []byte, err error) {
 	tbsCertList := pkix.TBSCertificateList{
 		Version: 2,
 		Signature: pkix.AlgorithmIdentifier{

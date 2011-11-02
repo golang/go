@@ -132,7 +132,7 @@ func (l *Logger) formatHeader(buf *bytes.Buffer, ns int64, file string, line int
 // already a newline.  Calldepth is used to recover the PC and is
 // provided for generality, although at the moment on all pre-defined
 // paths it will be 2.
-func (l *Logger) Output(calldepth int, s string) os.Error {
+func (l *Logger) Output(calldepth int, s string) error {
 	now := time.Nanoseconds() // get this early.
 	var file string
 	var line int

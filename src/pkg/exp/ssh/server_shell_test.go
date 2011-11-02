@@ -5,8 +5,8 @@
 package ssh
 
 import (
+	"io"
 	"testing"
-	"os"
 )
 
 type MockChannel struct {
@@ -15,15 +15,15 @@ type MockChannel struct {
 	received     []byte
 }
 
-func (c *MockChannel) Accept() os.Error {
+func (c *MockChannel) Accept() error {
 	return nil
 }
 
-func (c *MockChannel) Reject(RejectionReason, string) os.Error {
+func (c *MockChannel) Reject(RejectionReason, string) error {
 	return nil
 }
 
-func (c *MockChannel) Read(data []byte) (n int, err os.Error) {
+func (c *MockChannel) Read(data []byte) (n int, err error) {
 	n = len(data)
 	if n == 0 {
 		return
@@ -32,7 +32,7 @@ func (c *MockChannel) Read(data []byte) (n int, err os.Error) {
 		n = len(c.toSend)
 	}
 	if n == 0 {
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 	if c.bytesPerRead > 0 && n > c.bytesPerRead {
 		n = c.bytesPerRead
@@ -42,16 +42,16 @@ func (c *MockChannel) Read(data []byte) (n int, err os.Error) {
 	return
 }
 
-func (c *MockChannel) Write(data []byte) (n int, err os.Error) {
+func (c *MockChannel) Write(data []byte) (n int, err error) {
 	c.received = append(c.received, data...)
 	return len(data), nil
 }
 
-func (c *MockChannel) Close() os.Error {
+func (c *MockChannel) Close() error {
 	return nil
 }
 
-func (c *MockChannel) AckRequest(ok bool) os.Error {
+func (c *MockChannel) AckRequest(ok bool) error {
 	return nil
 }
 
@@ -70,7 +70,7 @@ func TestClose(t *testing.T) {
 	if line != "" {
 		t.Errorf("Expected empty line but got: %s", line)
 	}
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Errorf("Error should have been EOF but got: %s", err)
 	}
 }
@@ -78,12 +78,12 @@ func TestClose(t *testing.T) {
 var keyPressTests = []struct {
 	in   string
 	line string
-	err  os.Error
+	err  error
 }{
 	{
 		"",
 		"",
-		os.EOF,
+		io.EOF,
 	},
 	{
 		"\r",

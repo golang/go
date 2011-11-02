@@ -45,7 +45,7 @@ func testFile(t *testing.T, fn string, order Order, litWidth int) {
 		var b [4096]byte
 		for {
 			n, err0 := raw.Read(b[:])
-			if err0 != nil && err0 != os.EOF {
+			if err0 != nil && err0 != io.EOF {
 				t.Errorf("%s (order=%d litWidth=%d): %v", fn, order, litWidth, err0)
 				return
 			}
@@ -58,7 +58,7 @@ func testFile(t *testing.T, fn string, order Order, litWidth int) {
 				t.Errorf("%s (order=%d litWidth=%d): %v", fn, order, litWidth, err1)
 				return
 			}
-			if err0 == os.EOF {
+			if err0 == io.EOF {
 				break
 			}
 		}

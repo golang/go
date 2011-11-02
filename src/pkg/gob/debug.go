@@ -56,7 +56,7 @@ func newPeekReader(r io.Reader) *peekReader {
 }
 
 // Read is the usual method. It will first take data that has been read ahead.
-func (p *peekReader) Read(b []byte) (n int, err os.Error) {
+func (p *peekReader) Read(b []byte) (n int, err error) {
 	if len(p.data) == 0 {
 		return p.r.Read(b)
 	}
@@ -70,7 +70,7 @@ func (p *peekReader) Read(b []byte) (n int, err os.Error) {
 
 // peek returns as many bytes as possible from the unread
 // portion of the stream, up to the length of b.
-func (p *peekReader) peek(b []byte) (n int, err os.Error) {
+func (p *peekReader) peek(b []byte) (n int, err error) {
 	if len(p.data) > 0 {
 		n = copy(b, p.data)
 		if n == len(b) {
@@ -92,7 +92,7 @@ func (p *peekReader) peek(b []byte) (n int, err os.Error) {
 		if n > 0 {
 			e = nil
 		} else {
-			e = os.EOF
+			e = io.EOF
 		}
 	}
 	return n, e
@@ -164,7 +164,7 @@ func Debug(r io.Reader) {
 
 // debug implements Debug, but catches panics and returns
 // them as errors to be printed by Debug.
-func debug(r io.Reader) (err os.Error) {
+func debug(r io.Reader) (err error) {
 	defer catchError(&err)
 	fmt.Fprintln(os.Stderr, "Start of debugging")
 	deb := &debugger{
@@ -238,7 +238,7 @@ func (deb *debugger) delimitedMessage(indent tab) bool {
 func (deb *debugger) loadBlock(eofOK bool) int {
 	n64, w, err := decodeUintReader(deb.r, deb.tmp) // deb.uint64 will error at EOF
 	if err != nil {
-		if eofOK && err == os.EOF {
+		if eofOK && err == io.EOF {
 			return -1
 		}
 		errorf("debug: unexpected error: %s", err)

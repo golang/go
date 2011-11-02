@@ -7,7 +7,7 @@ package x509
 import (
 	"asn1"
 	"big"
-	"os"
+	"errors"
 	"crypto/rsa"
 )
 
@@ -36,7 +36,7 @@ type pkcs1AdditionalRSAPrime struct {
 }
 
 // ParsePKCS1PrivateKey returns an RSA private key from its ASN.1 PKCS#1 DER encoded form.
-func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
+func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err error) {
 	var priv pkcs1PrivateKey
 	rest, err := asn1.Unmarshal(der, &priv)
 	if len(rest) > 0 {
@@ -48,11 +48,11 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 	}
 
 	if priv.Version > 1 {
-		return nil, os.NewError("x509: unsupported private key version")
+		return nil, errors.New("x509: unsupported private key version")
 	}
 
 	if priv.N.Sign() <= 0 || priv.D.Sign() <= 0 || priv.P.Sign() <= 0 || priv.Q.Sign() <= 0 {
-		return nil, os.NewError("private key contains zero or negative value")
+		return nil, errors.New("private key contains zero or negative value")
 	}
 
 	key = new(rsa.PrivateKey)
@@ -67,7 +67,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 	key.Primes[1] = priv.Q
 	for i, a := range priv.AdditionalPrimes {
 		if a.Prime.Sign() <= 0 {
-			return nil, os.NewError("private key contains zero or negative prime")
+			return nil, errors.New("private key contains zero or negative prime")
 		}
 		key.Primes[i+2] = a.Prime
 		// We ignore the other two values because rsa will calculate

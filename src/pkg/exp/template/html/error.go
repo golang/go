@@ -197,7 +197,7 @@ const (
 	ErrSlashAmbig
 )
 
-func (e *Error) String() string {
+func (e *Error) Error() string {
 	if e.Line != 0 {
 		return fmt.Sprintf("exp/template/html:%s:%d: %s", e.Name, e.Line, e.Description)
 	} else if e.Name != "" {

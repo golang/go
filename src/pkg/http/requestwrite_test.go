@@ -6,10 +6,10 @@ package http
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"strings"
 	"testing"
 	"url"
@@ -24,7 +24,7 @@ type reqWriteTest struct {
 	WantProxy string // Request.WriteProxy
 	WantDump  string // DumpRequest
 
-	WantError os.Error // wanted error from Request.Write
+	WantError error // wanted error from Request.Write
 }
 
 var reqWriteTests = []reqWriteTest{
@@ -292,7 +292,7 @@ var reqWriteTests = []reqWriteTest{
 			ContentLength: 10, // but we're going to send only 5 bytes
 		},
 		Body:      []byte("12345"),
-		WantError: os.NewError("http: Request.ContentLength=10 with Body length 5"),
+		WantError: errors.New("http: Request.ContentLength=10 with Body length 5"),
 	},
 
 	// Request with a ContentLength of 4 but an 8 byte body.
@@ -306,7 +306,7 @@ var reqWriteTests = []reqWriteTest{
 			ContentLength: 4, // but we're going to try to send 8 bytes
 		},
 		Body:      []byte("12345678"),
-		WantError: os.NewError("http: Request.ContentLength=4 with Body length 8"),
+		WantError: errors.New("http: Request.ContentLength=4 with Body length 8"),
 	},
 
 	// Request with a 5 ContentLength and nil body.
@@ -319,7 +319,7 @@ var reqWriteTests = []reqWriteTest{
 			ProtoMinor:    1,
 			ContentLength: 5, // but we'll omit the body
 		},
-		WantError: os.NewError("http: Request.ContentLength=5 with nil Body"),
+		WantError: errors.New("http: Request.ContentLength=5 with nil Body"),
 	},
 
 	// Verify that DumpRequest preserves the HTTP version number, doesn't add a Host,
@@ -422,7 +422,7 @@ type closeChecker struct {
 	closed bool
 }
 
-func (rc *closeChecker) Close() os.Error {
+func (rc *closeChecker) Close() error {
 	rc.closed = true
 	return nil
 }

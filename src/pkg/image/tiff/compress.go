@@ -7,7 +7,6 @@ package tiff
 import (
 	"bufio"
 	"io"
-	"os"
 )
 
 type byteReader interface {
@@ -20,7 +19,7 @@ type byteReader interface {
 //
 // The PackBits compression format is described in section 9 (p. 42)
 // of the TIFF spec.
-func unpackBits(r io.Reader) ([]byte, os.Error) {
+func unpackBits(r io.Reader) ([]byte, error) {
 	buf := make([]byte, 128)
 	dst := make([]byte, 0, 1024)
 	br, ok := r.(byteReader)
@@ -31,7 +30,7 @@ func unpackBits(r io.Reader) ([]byte, os.Error) {
 	for {
 		b, err := br.ReadByte()
 		if err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				return dst, nil
 			}
 			return nil, err

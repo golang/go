@@ -5,10 +5,7 @@
 // Package bzip2 implements bzip2 decompression.
 package bzip2
 
-import (
-	"io"
-	"os"
-)
+import "io"
 
 // There's no RFC for bzip2. I used the Wikipedia page for reference and a lot
 // of guessing: http://en.wikipedia.org/wiki/Bzip2
@@ -19,7 +16,7 @@ import (
 // syntactically invalid.
 type StructuralError string
 
-func (s StructuralError) String() string {
+func (s StructuralError) Error() string {
 	return "bzip2 data invalid: " + string(s)
 }
 
@@ -53,7 +50,7 @@ const bzip2BlockMagic = 0x314159265359
 const bzip2FinalMagic = 0x177245385090
 
 // setup parses the bzip2 header.
-func (bz2 *reader) setup() os.Error {
+func (bz2 *reader) setup() error {
 	br := &bz2.br
 
 	magic := br.ReadBits(16)
@@ -76,9 +73,9 @@ func (bz2 *reader) setup() os.Error {
 	return nil
 }
 
-func (bz2 *reader) Read(buf []byte) (n int, err os.Error) {
+func (bz2 *reader) Read(buf []byte) (n int, err error) {
 	if bz2.eof {
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 
 	if !bz2.setupDone {
@@ -101,7 +98,7 @@ func (bz2 *reader) Read(buf []byte) (n int, err os.Error) {
 	return
 }
 
-func (bz2 *reader) read(buf []byte) (n int, err os.Error) {
+func (bz2 *reader) read(buf []byte) (n int, err error) {
 	// bzip2 is a block based compressor, except that it has a run-length
 	// preprocessing step. The block based nature means that we can
 	// preallocate fixed-size buffers and reuse them. However, the RLE
@@ -162,7 +159,7 @@ func (bz2 *reader) read(buf []byte) (n int, err os.Error) {
 	if magic == bzip2FinalMagic {
 		br.ReadBits64(32) // ignored CRC
 		bz2.eof = true
-		return 0, os.EOF
+		return 0, io.EOF
 	} else if magic != bzip2BlockMagic {
 		return 0, StructuralError("bad magic value found")
 	}
@@ -176,7 +173,7 @@ func (bz2 *reader) read(buf []byte) (n int, err os.Error) {
 }
 
 // readBlock reads a bzip2 block. The magic number should already have been consumed.
-func (bz2 *reader) readBlock() (err os.Error) {
+func (bz2 *reader) readBlock() (err error) {
 	br := &bz2.br
 	br.ReadBits64(32) // skip checksum. TODO: check it if we can figure out what it is.
 	randomized := br.ReadBits(1)

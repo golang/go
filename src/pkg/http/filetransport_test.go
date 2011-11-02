@@ -8,12 +8,11 @@ import (
 	"http"
 	"io/ioutil"
 	"path/filepath"
-	"os"
 	"testing"
 )
 
-func checker(t *testing.T) func(string, os.Error) {
-	return func(call string, err os.Error) {
+func checker(t *testing.T) func(string, error) {
+	return func(call string, err error) {
 		if err == nil {
 			return
 		}

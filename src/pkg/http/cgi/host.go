@@ -188,7 +188,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		cwd = "."
 	}
 
-	internalError := func(err os.Error) {
+	internalError := func(err error) {
 		rw.WriteHeader(http.StatusInternalServerError)
 		h.printf("CGI error: %v", err)
 	}
@@ -227,7 +227,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			h.printf("cgi: long header line from subprocess.")
 			return
 		}
-		if err == os.EOF {
+		if err == io.EOF {
 			break
 		}
 		if err != nil {

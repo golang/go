@@ -6,11 +6,10 @@ package packet
 
 import (
 	"crypto"
-	"crypto/openpgp/error"
+	error_ "crypto/openpgp/error"
 	"crypto/openpgp/s2k"
 	"encoding/binary"
 	"io"
-	"os"
 	"strconv"
 )
 
@@ -26,7 +25,7 @@ type OnePassSignature struct {
 
 const onePassSignatureVersion = 3
 
-func (ops *OnePassSignature) parse(r io.Reader) (err os.Error) {
+func (ops *OnePassSignature) parse(r io.Reader) (err error) {
 	var buf [13]byte
 
 	_, err = readFull(r, buf[:])
@@ -34,13 +33,13 @@ func (ops *OnePassSignature) parse(r io.Reader) (err os.Error) {
 		return
 	}
 	if buf[0] != onePassSignatureVersion {
-		err = error.UnsupportedError("one-pass-signature packet version " + strconv.Itoa(int(buf[0])))
+		err = error_.UnsupportedError("one-pass-signature packet version " + strconv.Itoa(int(buf[0])))
 	}
 
 	var ok bool
 	ops.Hash, ok = s2k.HashIdToHash(buf[2])
 	if !ok {
-		return error.UnsupportedError("hash function: " + strconv.Itoa(int(buf[2])))
+		return error_.UnsupportedError("hash function: " + strconv.Itoa(int(buf[2])))
 	}
 
 	ops.SigType = SignatureType(buf[1])
@@ -51,14 +50,14 @@ func (ops *OnePassSignature) parse(r io.Reader) (err os.Error) {
 }
 
 // Serialize marshals the given OnePassSignature to w.
-func (ops *OnePassSignature) Serialize(w io.Writer) os.Error {
+func (ops *OnePassSignature) Serialize(w io.Writer) error {
 	var buf [13]byte
 	buf[0] = onePassSignatureVersion
 	buf[1] = uint8(ops.SigType)
 	var ok bool
 	buf[2], ok = s2k.HashToHashId(ops.Hash)
 	if !ok {
-		return error.UnsupportedError("hash type: " + strconv.Itoa(int(ops.Hash)))
+		return error_.UnsupportedError("hash type: " + strconv.Itoa(int(ops.Hash)))
 	}
 	buf[3] = uint8(ops.PubKeyAlgo)
 	binary.BigEndian.PutUint64(buf[4:12], ops.KeyId)

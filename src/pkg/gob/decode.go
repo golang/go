@@ -9,17 +9,17 @@ package gob
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"math"
-	"os"
 	"reflect"
 	"unsafe"
 )
 
 var (
-	errBadUint = os.NewError("gob: encoded unsigned integer out of range")
-	errBadType = os.NewError("gob: unknown type id or corrupted data")
-	errRange   = os.NewError("gob: bad data: field numbers out of bounds")
+	errBadUint = errors.New("gob: encoded unsigned integer out of range")
+	errBadType = errors.New("gob: unknown type id or corrupted data")
+	errRange   = errors.New("gob: bad data: field numbers out of bounds")
 )
 
 // decoderState is the execution state of an instance of the decoder. A new state
@@ -54,13 +54,13 @@ func (dec *Decoder) freeDecoderState(d *decoderState) {
 	dec.freeList = d
 }
 
-func overflow(name string) os.Error {
-	return os.NewError(`value for "` + name + `" out of range`)
+func overflow(name string) error {
+	return errors.New(`value for "` + name + `" out of range`)
 }
 
 // decodeUintReader reads an encoded unsigned integer from an io.Reader.
 // Used only by the Decoder to read the message length.
-func decodeUintReader(r io.Reader, buf []byte) (x uint64, width int, err os.Error) {
+func decodeUintReader(r io.Reader, buf []byte) (x uint64, width int, err error) {
 	width = 1
 	_, err = r.Read(buf[0:width])
 	if err != nil {
@@ -77,7 +77,7 @@ func decodeUintReader(r io.Reader, buf []byte) (x uint64, width int, err os.Erro
 	}
 	width, err = io.ReadFull(r, buf[0:n])
 	if err != nil {
-		if err == os.EOF {
+		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
 		return
@@ -95,18 +95,18 @@ func decodeUintReader(r io.Reader, buf []byte) (x uint64, width int, err os.Erro
 func (state *decoderState) decodeUint() (x uint64) {
 	b, err := state.b.ReadByte()
 	if err != nil {
-		error(err)
+		error_(err)
 	}
 	if b <= 0x7f {
 		return uint64(b)
 	}
 	n := -int(int8(b))
 	if n > uint64Size {
-		error(errBadUint)
+		error_(errBadUint)
 	}
 	width, err := state.b.Read(state.buf[0:n])
 	if err != nil {
-		error(err)
+		error_(err)
 	}
 	// Don't need to check error; it's safe to loop regardless.
 	// Could check that the high byte is zero but it's not worth it.
@@ -132,10 +132,10 @@ type decOp func(i *decInstr, state *decoderState, p unsafe.Pointer)
 // The 'instructions' of the decoding machine
 type decInstr struct {
 	op     decOp
-	field  int      // field number of the wire type
-	indir  int      // how many pointer indirections to reach the value in the struct
-	offset uintptr  // offset in the structure of the field to encode
-	ovfl   os.Error // error message for overflow/underflow (for arrays, of the elements)
+	field  int     // field number of the wire type
+	indir  int     // how many pointer indirections to reach the value in the struct
+	offset uintptr // offset in the structure of the field to encode
+	ovfl   error   // error message for overflow/underflow (for arrays, of the elements)
 }
 
 // Since the encoder writes no zeros, if we arrive at a decoder we have
@@ -190,7 +190,7 @@ func decInt8(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	}
 	v := state.decodeInt()
 	if v < math.MinInt8 || math.MaxInt8 < v {
-		error(i.ovfl)
+		error_(i.ovfl)
 	} else {
 		*(*int8)(p) = int8(v)
 	}
@@ -206,7 +206,7 @@ func decUint8(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	}
 	v := state.decodeUint()
 	if math.MaxUint8 < v {
-		error(i.ovfl)
+		error_(i.ovfl)
 	} else {
 		*(*uint8)(p) = uint8(v)
 	}
@@ -222,7 +222,7 @@ func decInt16(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	}
 	v := state.decodeInt()
 	if v < math.MinInt16 || math.MaxInt16 < v {
-		error(i.ovfl)
+		error_(i.ovfl)
 	} else {
 		*(*int16)(p) = int16(v)
 	}
@@ -238,7 +238,7 @@ func decUint16(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	}
 	v := state.decodeUint()
 	if math.MaxUint16 < v {
-		error(i.ovfl)
+		error_(i.ovfl)
 	} else {
 		*(*uint16)(p) = uint16(v)
 	}
@@ -254,7 +254,7 @@ func decInt32(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	}
 	v := state.decodeInt()
 	if v < math.MinInt32 || math.MaxInt32 < v {
-		error(i.ovfl)
+		error_(i.ovfl)
 	} else {
 		*(*int32)(p) = int32(v)
 	}
@@ -270,7 +270,7 @@ func decUint32(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	}
 	v := state.decodeUint()
 	if math.MaxUint32 < v {
-		error(i.ovfl)
+		error_(i.ovfl)
 	} else {
 		*(*uint32)(p) = uint32(v)
 	}
@@ -323,7 +323,7 @@ func storeFloat32(i *decInstr, state *decoderState, p unsafe.Pointer) {
 	}
 	// +Inf is OK in both 32- and 64-bit floats.  Underflow is always OK.
 	if math.MaxFloat32 < av && av <= math.MaxFloat64 {
-		error(i.ovfl)
+		error_(i.ovfl)
 	} else {
 		*(*float32)(p) = float32(v)
 	}
@@ -464,7 +464,7 @@ func allocate(rtyp reflect.Type, p uintptr, indir int) uintptr {
 // decodeSingle decodes a top-level value that is not a struct and stores it through p.
 // Such values are preceded by a zero, making them have the memory layout of a
 // struct field (although with an illegal field number).
-func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uintptr) (err os.Error) {
+func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uintptr) (err error) {
 	state := dec.newDecoderState(&dec.buf)
 	state.fieldnum = singletonField
 	delta := int(state.decodeUint())
@@ -473,7 +473,7 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, basep uint
 	}
 	instr := &engine.instr[singletonField]
 	if instr.indir != ut.indir {
-		return os.NewError("gob: internal error: inconsistent indirection")
+		return errors.New("gob: internal error: inconsistent indirection")
 	}
 	ptr := unsafe.Pointer(basep) // offset will be zero
 	if instr.indir > 1 {
@@ -504,7 +504,7 @@ func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, p uintptr,
 		}
 		fieldnum := state.fieldnum + delta
 		if fieldnum >= len(engine.instr) {
-			error(errRange)
+			error_(errRange)
 			break
 		}
 		instr := &engine.instr[fieldnum]
@@ -532,7 +532,7 @@ func (dec *Decoder) ignoreStruct(engine *decEngine) {
 		}
 		fieldnum := state.fieldnum + delta
 		if fieldnum >= len(engine.instr) {
-			error(errRange)
+			error_(errRange)
 		}
 		instr := &engine.instr[fieldnum]
 		instr.op(instr, state, unsafe.Pointer(nil))
@@ -556,7 +556,7 @@ func (dec *Decoder) ignoreSingle(engine *decEngine) {
 }
 
 // decodeArrayHelper does the work for decoding arrays and slices.
-func (dec *Decoder) decodeArrayHelper(state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl os.Error) {
+func (dec *Decoder) decodeArrayHelper(state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl error) {
 	instr := &decInstr{elemOp, 0, elemIndir, 0, ovfl}
 	for i := 0; i < length; i++ {
 		up := unsafe.Pointer(p)
@@ -571,7 +571,7 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, p uintptr, elemOp dec
 // decodeArray decodes an array and stores it through p, that is, p points to the zeroth element.
 // The length is an unsigned integer preceding the elements.  Even though the length is redundant
 // (it's part of the type), it's a useful check and is included in the encoding.
-func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl os.Error) {
+func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl error) {
 	if indir > 0 {
 		p = allocate(atyp, p, 1) // All but the last level has been allocated by dec.Indirect
 	}
@@ -583,7 +583,7 @@ func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintpt
 
 // decodeIntoValue is a helper for map decoding.  Since maps are decoded using reflection,
 // unlike the other items we can't use a pointer directly.
-func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value, ovfl os.Error) reflect.Value {
+func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value, ovfl error) reflect.Value {
 	instr := &decInstr{op, 0, indir, 0, ovfl}
 	up := unsafe.Pointer(unsafeAddr(v))
 	if indir > 1 {
@@ -597,7 +597,7 @@ func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value, 
 // Maps are encoded as a length followed by key:value pairs.
 // Because the internals of maps are not visible to us, we must
 // use reflection rather than pointer magic.
-func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl os.Error) {
+func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl error) {
 	if indir > 0 {
 		p = allocate(mtyp, p, 1) // All but the last level has been allocated by dec.Indirect
 	}
@@ -620,7 +620,7 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr,
 
 // ignoreArrayHelper does the work for discarding arrays and slices.
 func (dec *Decoder) ignoreArrayHelper(state *decoderState, elemOp decOp, length int) {
-	instr := &decInstr{elemOp, 0, 0, 0, os.NewError("no error")}
+	instr := &decInstr{elemOp, 0, 0, 0, errors.New("no error")}
 	for i := 0; i < length; i++ {
 		elemOp(instr, state, nil)
 	}
@@ -637,8 +637,8 @@ func (dec *Decoder) ignoreArray(state *decoderState, elemOp decOp, length int) {
 // ignoreMap discards the data for a map value with no destination.
 func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
 	n := int(state.decodeUint())
-	keyInstr := &decInstr{keyOp, 0, 0, 0, os.NewError("no error")}
-	elemInstr := &decInstr{elemOp, 0, 0, 0, os.NewError("no error")}
+	keyInstr := &decInstr{keyOp, 0, 0, 0, errors.New("no error")}
+	elemInstr := &decInstr{elemOp, 0, 0, 0, errors.New("no error")}
 	for i := 0; i < n; i++ {
 		keyOp(keyInstr, state, nil)
 		elemOp(elemInstr, state, nil)
@@ -647,7 +647,7 @@ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
 
 // decodeSlice decodes a slice and stores the slice header through p.
 // Slices are encoded as an unsigned length followed by the elements.
-func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl os.Error) {
+func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl error) {
 	n := int(uintptr(state.decodeUint()))
 	if indir > 0 {
 		up := unsafe.Pointer(p)
@@ -707,7 +707,7 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p ui
 	// Read the type id of the concrete value.
 	concreteId := dec.decodeTypeSequence(true)
 	if concreteId < 0 {
-		error(dec.err)
+		error_(dec.err)
 	}
 	// Byte count of value is next; we don't care what it is (it's there
 	// in case we want to ignore the value by skipping it completely).
@@ -716,7 +716,7 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p ui
 	value := allocValue(typ)
 	dec.decodeValue(concreteId, value)
 	if dec.err != nil {
-		error(dec.err)
+		error_(dec.err)
 	}
 	// Allocate the destination interface value.
 	if indir > 0 {
@@ -736,11 +736,11 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 	b := make([]byte, state.decodeUint())
 	_, err := state.b.Read(b)
 	if err != nil {
-		error(err)
+		error_(err)
 	}
 	id := dec.decodeTypeSequence(true)
 	if id < 0 {
-		error(dec.err)
+		error_(dec.err)
 	}
 	// At this point, the decoder buffer contains a delimited value. Just toss it.
 	state.b.Next(int(state.decodeUint()))
@@ -753,12 +753,12 @@ func (dec *Decoder) decodeGobDecoder(state *decoderState, v reflect.Value) {
 	b := make([]byte, state.decodeUint())
 	_, err := state.b.Read(b)
 	if err != nil {
-		error(err)
+		error_(err)
 	}
 	// We know it's a GobDecoder, so just call the method directly.
 	err = v.Interface().(GobDecoder).GobDecode(b)
 	if err != nil {
-		error(err)
+		error_(err)
 	}
 }
 
@@ -768,7 +768,7 @@ func (dec *Decoder) ignoreGobDecoder(state *decoderState) {
 	b := make([]byte, state.decodeUint())
 	_, err := state.b.Read(b)
 	if err != nil {
-		error(err)
+		error_(err)
 	}
 }
 
@@ -868,7 +868,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 			// Generate a closure that calls out to the engine for the nested type.
 			enginePtr, err := dec.getDecEnginePtr(wireId, userType(typ))
 			if err != nil {
-				error(err)
+				error_(err)
 			}
 			op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
 				// indirect through enginePtr to delay evaluation for recursive structs.
@@ -930,7 +930,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
 			// Generate a closure that calls out to the engine for the nested type.
 			enginePtr, err := dec.getIgnoreEnginePtr(wireId)
 			if err != nil {
-				error(err)
+				error_(err)
 			}
 			op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
 				// indirect through enginePtr to delay evaluation for recursive structs
@@ -1062,23 +1062,23 @@ func (dec *Decoder) typeString(remoteId typeId) string {
 
 // compileSingle compiles the decoder engine for a non-struct top-level value, including
 // GobDecoders.
-func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *decEngine, err os.Error) {
+func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *decEngine, err error) {
 	rt := ut.user
 	engine = new(decEngine)
 	engine.instr = make([]decInstr, 1) // one item
 	name := rt.String()                // best we can do
 	if !dec.compatibleType(rt, remoteId, make(map[reflect.Type]typeId)) {
-		return nil, os.NewError("gob: wrong type received for local value " + name + ": " + dec.typeString(remoteId))
+		return nil, errors.New("gob: wrong type received for local value " + name + ": " + dec.typeString(remoteId))
 	}
 	op, indir := dec.decOpFor(remoteId, rt, name, make(map[reflect.Type]*decOp))
-	ovfl := os.NewError(`value for "` + name + `" out of range`)
+	ovfl := errors.New(`value for "` + name + `" out of range`)
 	engine.instr[singletonField] = decInstr{*op, singletonField, indir, 0, ovfl}
 	engine.numInstr = 1
 	return
 }
 
 // compileIgnoreSingle compiles the decoder engine for a non-struct top-level value that will be discarded.
-func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err os.Error) {
+func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err error) {
 	engine = new(decEngine)
 	engine.instr = make([]decInstr, 1) // one item
 	op := dec.decIgnoreOpFor(remoteId)
@@ -1090,7 +1090,7 @@ func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err
 
 // compileDec compiles the decoder engine for a value.  If the value is not a struct,
 // it calls out to compileSingle.
-func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEngine, err os.Error) {
+func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEngine, err error) {
 	rt := ut.base
 	srt := rt
 	if srt.Kind() != reflect.Struct ||
@@ -1105,7 +1105,7 @@ func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEn
 	} else {
 		wire := dec.wireType[remoteId]
 		if wire == nil {
-			error(errBadType)
+			error_(errBadType)
 		}
 		wireStruct = wire.StructT
 	}
@@ -1141,7 +1141,7 @@ func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEn
 }
 
 // getDecEnginePtr returns the engine for the specified type.
-func (dec *Decoder) getDecEnginePtr(remoteId typeId, ut *userTypeInfo) (enginePtr **decEngine, err os.Error) {
+func (dec *Decoder) getDecEnginePtr(remoteId typeId, ut *userTypeInfo) (enginePtr **decEngine, err error) {
 	rt := ut.base
 	decoderMap, ok := dec.decoderCache[rt]
 	if !ok {
@@ -1166,7 +1166,7 @@ type emptyStruct struct{}
 var emptyStructType = reflect.TypeOf(emptyStruct{})
 
 // getDecEnginePtr returns the engine for the specified type when the value is to be discarded.
-func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err os.Error) {
+func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err error) {
 	var ok bool
 	if enginePtr, ok = dec.ignorerCache[wireId]; !ok {
 		// To handle recursive types, mark this engine as underway before compiling.

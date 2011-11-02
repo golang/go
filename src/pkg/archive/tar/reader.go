@@ -9,6 +9,7 @@ package tar
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -16,7 +17,7 @@ import (
 )
 
 var (
-	HeaderError = os.NewError("invalid tar header")
+	HeaderError = errors.New("invalid tar header")
 )
 
 // A Reader provides sequential access to the contents of a tar archive.
@@ -39,7 +40,7 @@ var (
 //	}
 type Reader struct {
 	r   io.Reader
-	err os.Error
+	err error
 	nb  int64 // number of unread bytes for current file entry
 	pad int64 // amount of padding (ignored) after current file entry
 }
@@ -48,7 +49,7 @@ type Reader struct {
 func NewReader(r io.Reader) *Reader { return &Reader{r: r} }
 
 // Next advances to the next entry in the tar archive.
-func (tr *Reader) Next() (*Header, os.Error) {
+func (tr *Reader) Next() (*Header, error) {
 	var hdr *Header
 	if tr.err == nil {
 		tr.skipUnread()
@@ -119,7 +120,7 @@ func (tr *Reader) readHeader() *Header {
 			return nil
 		}
 		if bytes.Equal(header, zeroBlock[0:blockSize]) {
-			tr.err = os.EOF
+			tr.err = io.EOF
 		} else {
 			tr.err = HeaderError // zero block and then non-zero block
 		}
@@ -201,10 +202,10 @@ func (tr *Reader) readHeader() *Header {
 // Read reads from the current entry in the tar archive.
 // It returns 0, os.EOF when it reaches the end of that entry,
 // until Next is called to advance to the next entry.
-func (tr *Reader) Read(b []byte) (n int, err os.Error) {
+func (tr *Reader) Read(b []byte) (n int, err error) {
 	if tr.nb == 0 {
 		// file consumed
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 
 	if int64(len(b)) > tr.nb {
@@ -213,7 +214,7 @@ func (tr *Reader) Read(b []byte) (n int, err os.Error) {
 	n, err = tr.r.Read(b)
 	tr.nb -= int64(n)
 
-	if err == os.EOF && tr.nb > 0 {
+	if err == io.EOF && tr.nb > 0 {
 		err = io.ErrUnexpectedEOF
 	}
 	tr.err = err

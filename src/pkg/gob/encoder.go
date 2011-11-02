@@ -6,8 +6,8 @@ package gob
 
 import (
 	"bytes"
+	"errors"
 	"io"
-	"os"
 	"reflect"
 	"sync"
 )
@@ -21,7 +21,7 @@ type Encoder struct {
 	countState *encoderState           // stage for writing counts
 	freeList   *encoderState           // list of free encoderStates; avoids reallocation
 	byteBuf    bytes.Buffer            // buffer for top-level encoderState
-	err        os.Error
+	err        error
 }
 
 // Before we encode a message, we reserve space at the head of the
@@ -55,10 +55,10 @@ func (enc *Encoder) popWriter() {
 }
 
 func (enc *Encoder) badType(rt reflect.Type) {
-	enc.setError(os.NewError("gob: can't encode type " + rt.String()))
+	enc.setError(errors.New("gob: can't encode type " + rt.String()))
 }
 
-func (enc *Encoder) setError(err os.Error) {
+func (enc *Encoder) setError(err error) {
 	if enc.err == nil { // remember the first.
 		enc.err = err
 	}
@@ -171,7 +171,7 @@ func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Typ
 
 // Encode transmits the data item represented by the empty interface value,
 // guaranteeing that all necessary type information has been transmitted first.
-func (enc *Encoder) Encode(e interface{}) os.Error {
+func (enc *Encoder) Encode(e interface{}) error {
 	return enc.EncodeValue(reflect.ValueOf(e))
 }
 
@@ -215,7 +215,7 @@ func (enc *Encoder) sendTypeId(state *encoderState, ut *userTypeInfo) {
 
 // EncodeValue transmits the data item represented by the reflection value,
 // guaranteeing that all necessary type information has been transmitted first.
-func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
+func (enc *Encoder) EncodeValue(value reflect.Value) error {
 	// Make sure we're single-threaded through here, so multiple
 	// goroutines can share an encoder.
 	enc.mutex.Lock()

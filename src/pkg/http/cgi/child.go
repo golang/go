@@ -10,6 +10,7 @@ package cgi
 import (
 	"bufio"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"http"
 	"io"
@@ -25,7 +26,7 @@ import (
 // environment. This assumes the current program is being run
 // by a web server in a CGI environment.
 // The returned Request's Body is populated, if applicable.
-func Request() (*http.Request, os.Error) {
+func Request() (*http.Request, error) {
 	r, err := RequestFromMap(envMap(os.Environ()))
 	if err != nil {
 		return nil, err
@@ -48,18 +49,18 @@ func envMap(env []string) map[string]string {
 
 // RequestFromMap creates an http.Request from CGI variables.
 // The returned Request's Body field is not populated.
-func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
+func RequestFromMap(params map[string]string) (*http.Request, error) {
 	r := new(http.Request)
 	r.Method = params["REQUEST_METHOD"]
 	if r.Method == "" {
-		return nil, os.NewError("cgi: no REQUEST_METHOD in environment")
+		return nil, errors.New("cgi: no REQUEST_METHOD in environment")
 	}
 
 	r.Proto = params["SERVER_PROTOCOL"]
 	var ok bool
 	r.ProtoMajor, r.ProtoMinor, ok = http.ParseHTTPVersion(r.Proto)
 	if !ok {
-		return nil, os.NewError("cgi: invalid SERVER_PROTOCOL version")
+		return nil, errors.New("cgi: invalid SERVER_PROTOCOL version")
 	}
 
 	r.Close = true
@@ -71,7 +72,7 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
 	if lenstr := params["CONTENT_LENGTH"]; lenstr != "" {
 		clen, err := strconv.Atoi64(lenstr)
 		if err != nil {
-			return nil, os.NewError("cgi: bad CONTENT_LENGTH in environment: " + lenstr)
+			return nil, errors.New("cgi: bad CONTENT_LENGTH in environment: " + lenstr)
 		}
 		r.ContentLength = clen
 	}
@@ -96,7 +97,7 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
 		rawurl := "http://" + r.Host + params["REQUEST_URI"]
 		url, err := url.Parse(rawurl)
 		if err != nil {
-			return nil, os.NewError("cgi: failed to parse host and REQUEST_URI into a URL: " + rawurl)
+			return nil, errors.New("cgi: failed to parse host and REQUEST_URI into a URL: " + rawurl)
 		}
 		r.URL = url
 	}
@@ -106,7 +107,7 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
 		uriStr := params["REQUEST_URI"]
 		url, err := url.Parse(uriStr)
 		if err != nil {
-			return nil, os.NewError("cgi: failed to parse REQUEST_URI into a URL: " + uriStr)
+			return nil, errors.New("cgi: failed to parse REQUEST_URI into a URL: " + uriStr)
 		}
 		r.URL = url
 	}
@@ -129,7 +130,7 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
 // request, if any. If there's no current CGI environment
 // an error is returned. The provided handler may be nil to use
 // http.DefaultServeMux.
-func Serve(handler http.Handler) os.Error {
+func Serve(handler http.Handler) error {
 	req, err := Request()
 	if err != nil {
 		return err
@@ -164,7 +165,7 @@ func (r *response) Header() http.Header {
 	return r.header
 }
 
-func (r *response) Write(p []byte) (n int, err os.Error) {
+func (r *response) Write(p []byte) (n int, err error) {
 	if !r.headerSent {
 		r.WriteHeader(http.StatusOK)
 	}

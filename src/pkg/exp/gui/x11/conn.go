@@ -10,6 +10,7 @@ package x11
 
 import (
 	"bufio"
+	"errors"
 	"exp/gui"
 	"image"
 	"image/draw"
@@ -86,7 +87,7 @@ func (c *conn) writeSocket() {
 		for y := b.Min.Y; y < b.Max.Y; y++ {
 			setU32LE(c.flushBuf0[16:20], uint32(y<<16))
 			if _, err := c.w.Write(c.flushBuf0[:24]); err != nil {
-				if err != os.EOF {
+				if err != io.EOF {
 					log.Println("x11:", err)
 				}
 				return
@@ -105,7 +106,7 @@ func (c *conn) writeSocket() {
 				}
 				x += nx
 				if _, err := c.w.Write(c.flushBuf1[:nx]); err != nil {
-					if err != os.EOF {
+					if err != io.EOF {
 						log.Println("x11:", err)
 					}
 					return
@@ -113,7 +114,7 @@ func (c *conn) writeSocket() {
 			}
 		}
 		if err := c.w.Flush(); err != nil {
-			if err != os.EOF {
+			if err != io.EOF {
 				log.Println("x11:", err)
 			}
 			return
@@ -133,7 +134,7 @@ func (c *conn) FlushImage() {
 	}
 }
 
-func (c *conn) Close() os.Error {
+func (c *conn) Close() error {
 	// Shut down the writeSocket goroutine. This will close the socket to the
 	// X11 server, which will cause c.eventc to close.
 	close(c.flush)
@@ -156,7 +157,7 @@ func (c *conn) readSocket() {
 	for {
 		// X events are always 32 bytes long.
 		if _, err := io.ReadFull(c.r, c.buf[:32]); err != nil {
-			if err != os.EOF {
+			if err != io.EOF {
 				c.eventc <- gui.ErrEvent{err}
 			}
 			return
@@ -167,7 +168,7 @@ func (c *conn) readSocket() {
 			if cookie != 1 {
 				// We issued only one request (GetKeyboardMapping) with a cookie of 1,
 				// so we shouldn't get any other reply from the X server.
-				c.eventc <- gui.ErrEvent{os.NewError("x11: unexpected cookie")}
+				c.eventc <- gui.ErrEvent{errors.New("x11: unexpected cookie")}
 				return
 			}
 			keysymsPerKeycode = int(c.buf[1])
@@ -180,7 +181,7 @@ func (c *conn) readSocket() {
 				for j := range m {
 					u, err := readU32LE(c.r, c.buf[:4])
 					if err != nil {
-						if err != os.EOF {
+						if err != io.EOF {
 							c.eventc <- gui.ErrEvent{err}
 						}
 						return
@@ -253,10 +254,10 @@ func (c *conn) readSocket() {
 //	connect("/tmp/launch-123/:0") // calls net.Dial("unix", "", "/tmp/launch-123/:0"), displayStr="0"
 //	connect("hostname:2.1")       // calls net.Dial("tcp", "", "hostname:6002"), displayStr="2"
 //	connect("tcp/hostname:1.0")   // calls net.Dial("tcp", "", "hostname:6001"), displayStr="1"
-func connect(display string) (conn net.Conn, displayStr string, err os.Error) {
+func connect(display string) (conn net.Conn, displayStr string, err error) {
 	colonIdx := strings.LastIndex(display, ":")
 	if colonIdx < 0 {
-		return nil, "", os.NewError("bad display: " + display)
+		return nil, "", errors.New("bad display: " + display)
 	}
 	// Parse the section before the colon.
 	var protocol, host, socket string
@@ -275,7 +276,7 @@ func connect(display string) (conn net.Conn, displayStr string, err os.Error) {
 	// Parse the section after the colon.
 	after := display[colonIdx+1:]
 	if after == "" {
-		return nil, "", os.NewError("bad display: " + display)
+		return nil, "", errors.New("bad display: " + display)
 	}
 	if i := strings.LastIndex(after, "."); i < 0 {
 		displayStr = after
@@ -284,7 +285,7 @@ func connect(display string) (conn net.Conn, displayStr string, err os.Error) {
 	}
 	displayInt, err := strconv.Atoi(displayStr)
 	if err != nil || displayInt < 0 {
-		return nil, "", os.NewError("bad display: " + display)
+		return nil, "", errors.New("bad display: " + display)
 	}
 	// Make the connection.
 	if socket != "" {
@@ -295,21 +296,21 @@ func connect(display string) (conn net.Conn, displayStr string, err os.Error) {
 		conn, err = net.Dial("unix", "/tmp/.X11-unix/X"+displayStr)
 	}
 	if err != nil {
-		return nil, "", os.NewError("cannot connect to " + display + ": " + err.String())
+		return nil, "", errors.New("cannot connect to " + display + ": " + err.Error())
 	}
 	return
 }
 
 // authenticate authenticates ourselves with the X server.
 // displayStr is the "12" out of ":12.0".
-func authenticate(w *bufio.Writer, displayStr string) os.Error {
+func authenticate(w *bufio.Writer, displayStr string) error {
 	key, value, err := readAuth(displayStr)
 	if err != nil {
 		return err
 	}
 	// Assume that the authentication protocol is "MIT-MAGIC-COOKIE-1".
 	if len(key) != 18 || len(value) != 16 {
-		return os.NewError("unsupported Xauth")
+		return errors.New("unsupported Xauth")
 	}
 	// 0x006c means little-endian. 0x000b, 0x0000 means X major version 11, minor version 0.
 	// 0x0012 and 0x0010 means the auth key and value have lengths 18 and 16.
@@ -339,7 +340,7 @@ func authenticate(w *bufio.Writer, displayStr string) os.Error {
 }
 
 // readU8 reads a uint8 from r, using b as a scratch buffer.
-func readU8(r io.Reader, b []byte) (uint8, os.Error) {
+func readU8(r io.Reader, b []byte) (uint8, error) {
 	_, err := io.ReadFull(r, b[:1])
 	if err != nil {
 		return 0, err
@@ -348,7 +349,7 @@ func readU8(r io.Reader, b []byte) (uint8, os.Error) {
 }
 
 // readU16LE reads a little-endian uint16 from r, using b as a scratch buffer.
-func readU16LE(r io.Reader, b []byte) (uint16, os.Error) {
+func readU16LE(r io.Reader, b []byte) (uint16, error) {
 	_, err := io.ReadFull(r, b[:2])
 	if err != nil {
 		return 0, err
@@ -357,7 +358,7 @@ func readU16LE(r io.Reader, b []byte) (uint16, os.Error) {
 }
 
 // readU32LE reads a little-endian uint32 from r, using b as a scratch buffer.
-func readU32LE(r io.Reader, b []byte) (uint32, os.Error) {
+func readU32LE(r io.Reader, b []byte) (uint32, error) {
 	_, err := io.ReadFull(r, b[:4])
 	if err != nil {
 		return 0, err
@@ -374,7 +375,7 @@ func setU32LE(b []byte, u uint32) {
 }
 
 // checkPixmapFormats checks that we have an agreeable X pixmap Format.
-func checkPixmapFormats(r io.Reader, b []byte, n int) (agree bool, err os.Error) {
+func checkPixmapFormats(r io.Reader, b []byte, n int) (agree bool, err error) {
 	for i := 0; i < n; i++ {
 		_, err = io.ReadFull(r, b[:8])
 		if err != nil {
@@ -389,7 +390,7 @@ func checkPixmapFormats(r io.Reader, b []byte, n int) (agree bool, err os.Error)
 }
 
 // checkDepths checks that we have an agreeable X Depth (i.e. one that has an agreeable X VisualType).
-func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err os.Error) {
+func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err error) {
 	for i := 0; i < n; i++ {
 		var depth, visualsLen uint16
 		depth, err = readU16LE(r, b)
@@ -427,7 +428,7 @@ func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err o
 }
 
 // checkScreens checks that we have an agreeable X Screen.
-func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err os.Error) {
+func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err error) {
 	for i := 0; i < n; i++ {
 		var root0, visual0, x uint32
 		root0, err = readU32LE(r, b)
@@ -465,14 +466,14 @@ func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err os.Err
 
 // handshake performs the protocol handshake with the X server, and ensures
 // that the server provides a compatible Screen, Depth, etc.
-func (c *conn) handshake() os.Error {
+func (c *conn) handshake() error {
 	_, err := io.ReadFull(c.r, c.buf[:8])
 	if err != nil {
 		return err
 	}
 	// Byte 0 should be 1 (success), bytes 2:6 should be 0xb0000000 (major/minor version 11.0).
 	if c.buf[0] != 1 || c.buf[2] != 11 || c.buf[3] != 0 || c.buf[4] != 0 || c.buf[5] != 0 {
-		return os.NewError("unsupported X version")
+		return errors.New("unsupported X version")
 	}
 	// Ignore the release number.
 	_, err = io.ReadFull(c.r, c.buf[:4])
@@ -490,7 +491,7 @@ func (c *conn) handshake() os.Error {
 		return err
 	}
 	if resourceIdMask < 256 {
-		return os.NewError("X resource ID mask is too small")
+		return errors.New("X resource ID mask is too small")
 	}
 	// Ignore the motion buffer size.
 	_, err = io.ReadFull(c.r, c.buf[:4])
@@ -510,7 +511,7 @@ func (c *conn) handshake() os.Error {
 		return err
 	}
 	if maxReqLen != 0xffff {
-		return os.NewError("unsupported X maximum request length")
+		return errors.New("unsupported X maximum request length")
 	}
 	// Read the roots length.
 	rootsLen, err := readU8(c.r, c.buf[:1])
@@ -526,7 +527,7 @@ func (c *conn) handshake() os.Error {
 	// imageByteOrder(1), bitmapFormatBitOrder(1), bitmapFormatScanlineUnit(1) bitmapFormatScanlinePad(1),
 	// minKeycode(1), maxKeycode(1), padding(4), vendor (vendorLen).
 	if 10+int(vendorLen) > cap(c.buf) {
-		return os.NewError("unsupported X vendor")
+		return errors.New("unsupported X vendor")
 	}
 	_, err = io.ReadFull(c.r, c.buf[:10+int(vendorLen)])
 	if err != nil {
@@ -538,7 +539,7 @@ func (c *conn) handshake() os.Error {
 		return err
 	}
 	if !agree {
-		return os.NewError("unsupported X pixmap formats")
+		return errors.New("unsupported X pixmap formats")
 	}
 	// Check that we have an agreeable screen.
 	root, visual, err := checkScreens(c.r, c.buf[:24], int(rootsLen))
@@ -546,7 +547,7 @@ func (c *conn) handshake() os.Error {
 		return err
 	}
 	if root == 0 || visual == 0 {
-		return os.NewError("unsupported X screen")
+		return errors.New("unsupported X screen")
 	}
 	c.gc = resID(resourceIdBase)
 	c.window = resID(resourceIdBase + 1)
@@ -556,10 +557,10 @@ func (c *conn) handshake() os.Error {
 }
 
 // NewWindow calls NewWindowDisplay with $DISPLAY.
-func NewWindow() (gui.Window, os.Error) {
+func NewWindow() (gui.Window, error) {
 	display := os.Getenv("DISPLAY")
 	if len(display) == 0 {
-		return nil, os.NewError("$DISPLAY not set")
+		return nil, errors.New("$DISPLAY not set")
 	}
 	return NewWindowDisplay(display)
 }
@@ -567,7 +568,7 @@ func NewWindow() (gui.Window, os.Error) {
 // NewWindowDisplay returns a new gui.Window, backed by a newly created and
 // mapped X11 window. The X server to connect to is specified by the display
 // string, such as ":1".
-func NewWindowDisplay(display string) (gui.Window, os.Error) {
+func NewWindowDisplay(display string) (gui.Window, error) {
 	socket, displayStr, err := connect(display)
 	if err != nil {
 		return nil, err

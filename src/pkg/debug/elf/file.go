@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"debug/dwarf"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -71,7 +72,7 @@ type Section struct {
 }
 
 // Data reads and returns the contents of the ELF section.
-func (s *Section) Data() ([]byte, os.Error) {
+func (s *Section) Data() ([]byte, error) {
 	dat := make([]byte, s.sr.Size())
 	n, err := s.sr.ReadAt(dat, 0)
 	return dat[0:n], err
@@ -79,9 +80,9 @@ func (s *Section) Data() ([]byte, os.Error) {
 
 // stringTable reads and returns the string table given by the
 // specified link value.
-func (f *File) stringTable(link uint32) ([]byte, os.Error) {
+func (f *File) stringTable(link uint32) ([]byte, error) {
 	if link <= 0 || link >= uint32(len(f.Sections)) {
-		return nil, os.NewError("section has invalid string table link")
+		return nil, errors.New("section has invalid string table link")
 	}
 	return f.Sections[link].Data()
 }
@@ -136,7 +137,7 @@ type FormatError struct {
 	val interface{}
 }
 
-func (e *FormatError) String() string {
+func (e *FormatError) Error() string {
 	msg := e.msg
 	if e.val != nil {
 		msg += fmt.Sprintf(" '%v' ", e.val)
@@ -146,7 +147,7 @@ func (e *FormatError) String() string {
 }
 
 // Open opens the named file using os.Open and prepares it for use as an ELF binary.
-func Open(name string) (*File, os.Error) {
+func Open(name string) (*File, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err
@@ -163,8 +164,8 @@ func Open(name string) (*File, os.Error) {
 // Close closes the File.
 // If the File was created using NewFile directly instead of Open,
 // Close has no effect.
-func (f *File) Close() os.Error {
-	var err os.Error
+func (f *File) Close() error {
+	var err error
 	if f.closer != nil {
 		err = f.closer.Close()
 		f.closer = nil
@@ -185,7 +186,7 @@ func (f *File) SectionByType(typ SectionType) *Section {
 
 // NewFile creates a new File for accessing an ELF binary in an underlying reader.
 // The ELF binary is expected to start at position 0 in the ReaderAt.
-func NewFile(r io.ReaderAt) (*File, os.Error) {
+func NewFile(r io.ReaderAt) (*File, error) {
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
 	// Read and decode ELF identifier
 	var ident [16]uint8
@@ -381,7 +382,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 
 // getSymbols returns a slice of Symbols from parsing the symbol table
 // with the given type, along with the associated string table.
-func (f *File) getSymbols(typ SectionType) ([]Symbol, []byte, os.Error) {
+func (f *File) getSymbols(typ SectionType) ([]Symbol, []byte, error) {
 	switch f.Class {
 	case ELFCLASS64:
 		return f.getSymbols64(typ)
@@ -390,27 +391,27 @@ func (f *File) getSymbols(typ SectionType) ([]Symbol, []byte, os.Error) {
 		return f.getSymbols32(typ)
 	}
 
-	return nil, nil, os.NewError("not implemented")
+	return nil, nil, errors.New("not implemented")
 }
 
-func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, os.Error) {
+func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
 	symtabSection := f.SectionByType(typ)
 	if symtabSection == nil {
-		return nil, nil, os.NewError("no symbol section")
+		return nil, nil, errors.New("no symbol section")
 	}
 
 	data, err := symtabSection.Data()
 	if err != nil {
-		return nil, nil, os.NewError("cannot load symbol section")
+		return nil, nil, errors.New("cannot load symbol section")
 	}
 	symtab := bytes.NewBuffer(data)
 	if symtab.Len()%Sym32Size != 0 {
-		return nil, nil, os.NewError("length of symbol section is not a multiple of SymSize")
+		return nil, nil, errors.New("length of symbol section is not a multiple of SymSize")
 	}
 
 	strdata, err := f.stringTable(symtabSection.Link)
 	if err != nil {
-		return nil, nil, os.NewError("cannot load string table section")
+		return nil, nil, errors.New("cannot load string table section")
 	}
 
 	// The first entry is all zeros.
@@ -436,24 +437,24 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, os.Error) {
 	return symbols, strdata, nil
 }
 
-func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, os.Error) {
+func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
 	symtabSection := f.SectionByType(typ)
 	if symtabSection == nil {
-		return nil, nil, os.NewError("no symbol section")
+		return nil, nil, errors.New("no symbol section")
 	}
 
 	data, err := symtabSection.Data()
 	if err != nil {
-		return nil, nil, os.NewError("cannot load symbol section")
+		return nil, nil, errors.New("cannot load symbol section")
 	}
 	symtab := bytes.NewBuffer(data)
 	if symtab.Len()%Sym64Size != 0 {
-		return nil, nil, os.NewError("length of symbol section is not a multiple of Sym64Size")
+		return nil, nil, errors.New("length of symbol section is not a multiple of Sym64Size")
 	}
 
 	strdata, err := f.stringTable(symtabSection.Link)
 	if err != nil {
-		return nil, nil, os.NewError("cannot load string table section")
+		return nil, nil, errors.New("cannot load string table section")
 	}
 
 	// The first entry is all zeros.
@@ -506,17 +507,17 @@ func (f *File) Section(name string) *Section {
 
 // applyRelocations applies relocations to dst. rels is a relocations section
 // in RELA format.
-func (f *File) applyRelocations(dst []byte, rels []byte) os.Error {
+func (f *File) applyRelocations(dst []byte, rels []byte) error {
 	if f.Class == ELFCLASS64 && f.Machine == EM_X86_64 {
 		return f.applyRelocationsAMD64(dst, rels)
 	}
 
-	return os.NewError("not implemented")
+	return errors.New("not implemented")
 }
 
-func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) os.Error {
+func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
 	if len(rels)%Sym64Size != 0 {
-		return os.NewError("length of relocation section is not a multiple of Sym64Size")
+		return errors.New("length of relocation section is not a multiple of Sym64Size")
 	}
 
 	symbols, _, err := f.getSymbols(SHT_SYMTAB)
@@ -558,7 +559,7 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) os.Error {
 	return nil
 }
 
-func (f *File) DWARF() (*dwarf.Data, os.Error) {
+func (f *File) DWARF() (*dwarf.Data, error) {
 	// There are many other DWARF sections, but these
 	// are the required ones, and the debug/dwarf package
 	// does not use the others, so don't bother loading them.
@@ -596,7 +597,7 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
 }
 
 // Symbols returns the symbol table for f.
-func (f *File) Symbols() ([]Symbol, os.Error) {
+func (f *File) Symbols() ([]Symbol, error) {
 	sym, _, err := f.getSymbols(SHT_SYMTAB)
 	return sym, err
 }
@@ -611,7 +612,7 @@ type ImportedSymbol struct {
 // referred to by the binary f that are expected to be
 // satisfied by other libraries at dynamic load time.
 // It does not return weak symbols.
-func (f *File) ImportedSymbols() ([]ImportedSymbol, os.Error) {
+func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
 	sym, str, err := f.getSymbols(SHT_DYNSYM)
 	if err != nil {
 		return nil, err
@@ -721,7 +722,7 @@ func (f *File) gnuVersion(i int, sym *ImportedSymbol) {
 // ImportedLibraries returns the names of all libraries
 // referred to by the binary f that are expected to be
 // linked with the binary at dynamic link time.
-func (f *File) ImportedLibraries() ([]string, os.Error) {
+func (f *File) ImportedLibraries() ([]string, error) {
 	ds := f.SectionByType(SHT_DYNAMIC)
 	if ds == nil {
 		// not dynamic, so no libraries

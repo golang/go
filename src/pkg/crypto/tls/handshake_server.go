@@ -9,11 +9,11 @@ import (
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
+	"errors"
 	"io"
-	"os"
 )
 
-func (c *Conn) serverHandshake() os.Error {
+func (c *Conn) serverHandshake() error {
 	config := c.config
 	msg, err := c.readHandshake()
 	if err != nil {
@@ -177,7 +177,7 @@ FindCipherSuite:
 			cert, err := x509.ParseCertificate(asn1Data)
 			if err != nil {
 				c.sendAlert(alertBadCertificate)
-				return os.NewError("could not parse client's certificate: " + err.String())
+				return errors.New("could not parse client's certificate: " + err.Error())
 			}
 			certs[i] = cert
 		}
@@ -186,7 +186,7 @@ FindCipherSuite:
 		for i := 1; i < len(certs); i++ {
 			if err := certs[i-1].CheckSignatureFrom(certs[i]); err != nil {
 				c.sendAlert(alertBadCertificate)
-				return os.NewError("could not validate certificate signature: " + err.String())
+				return errors.New("could not validate certificate signature: " + err.Error())
 			}
 		}
 
@@ -233,7 +233,7 @@ FindCipherSuite:
 		err = rsa.VerifyPKCS1v15(pub, crypto.MD5SHA1, digest, certVerify.signature)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
-			return os.NewError("could not validate signature of connection nonces: " + err.String())
+			return errors.New("could not validate signature of connection nonces: " + err.Error())
 		}
 
 		finishedHash.Write(certVerify.marshal())

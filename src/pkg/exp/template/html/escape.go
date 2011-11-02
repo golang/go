@@ -8,14 +8,13 @@ import (
 	"bytes"
 	"fmt"
 	"html"
-	"os"
 	"template"
 	"template/parse"
 )
 
 // Escape rewrites each action in the template to guarantee that the output is
 // properly escaped.
-func Escape(t *template.Template) (*template.Template, os.Error) {
+func Escape(t *template.Template) (*template.Template, error) {
 	var s template.Set
 	s.Add(t)
 	if _, err := EscapeSet(&s, t.Name()); err != nil {
@@ -32,7 +31,7 @@ func Escape(t *template.Template) (*template.Template, os.Error) {
 // need not include helper templates.
 // If no error is returned, then the named templates have been modified. 
 // Otherwise the named templates have been rendered unusable.
-func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
+func EscapeSet(s *template.Set, names ...string) (*template.Set, error) {
 	if len(names) == 0 {
 		// TODO: Maybe add a method to Set to enumerate template names
 		// and use those instead.
@@ -41,7 +40,7 @@ func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
 	e := newEscaper(s)
 	for _, name := range names {
 		c, _ := e.escapeTree(context{}, name, 0)
-		var err os.Error
+		var err error
 		if c.err != nil {
 			err, c.err.Name = c.err, name
 		} else if c.state != stateText {

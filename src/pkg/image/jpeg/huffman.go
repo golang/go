@@ -4,10 +4,7 @@
 
 package jpeg
 
-import (
-	"io"
-	"os"
-)
+import "io"
 
 // Each code is at most 16 bits long.
 const maxCodeLength = 16
@@ -36,7 +33,7 @@ type huffman struct {
 }
 
 // Reads bytes from the io.Reader to ensure that bits.n is at least n.
-func (d *decoder) ensureNBits(n int) os.Error {
+func (d *decoder) ensureNBits(n int) error {
 	for d.b.n < n {
 		c, err := d.r.ReadByte()
 		if err != nil {
@@ -64,7 +61,7 @@ func (d *decoder) ensureNBits(n int) os.Error {
 }
 
 // The composition of RECEIVE and EXTEND, specified in section F.2.2.1.
-func (d *decoder) receiveExtend(t uint8) (int, os.Error) {
+func (d *decoder) receiveExtend(t uint8) (int, error) {
 	err := d.ensureNBits(int(t))
 	if err != nil {
 		return 0, err
@@ -81,7 +78,7 @@ func (d *decoder) receiveExtend(t uint8) (int, os.Error) {
 
 // Processes a Define Huffman Table marker, and initializes a huffman struct from its contents.
 // Specified in section B.2.4.2.
-func (d *decoder) processDHT(n int) os.Error {
+func (d *decoder) processDHT(n int) error {
 	for n > 0 {
 		if n < 17 {
 			return FormatError("DHT has wrong length")
@@ -167,7 +164,7 @@ func (d *decoder) processDHT(n int) os.Error {
 // Returns the next Huffman-coded value from the bit stream, decoded according to h.
 // TODO(nigeltao): This decoding algorithm is simple, but slow. A lookahead table, instead of always
 // peeling off only 1 bit at at time, ought to be faster.
-func (d *decoder) decodeHuffman(h *huffman) (uint8, os.Error) {
+func (d *decoder) decodeHuffman(h *huffman) (uint8, error) {
 	if h.length == 0 {
 		return 0, FormatError("uninitialized Huffman table")
 	}

@@ -8,9 +8,9 @@
 package binary
 
 import (
+	"errors"
 	"math"
 	"io"
-	"os"
 	"reflect"
 )
 
@@ -124,7 +124,7 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // or an array or struct containing only fixed-size values.
 // Bytes read from r are decoded using the specified byte order
 // and written to successive fields of the data.
-func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
+func Read(r io.Reader, order ByteOrder, data interface{}) error {
 	// Fast path for basic types.
 	if n := intDestSize(data); n != 0 {
 		var b [8]byte
@@ -161,11 +161,11 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 	case reflect.Slice:
 		v = d
 	default:
-		return os.NewError("binary.Read: invalid type " + d.Type().String())
+		return errors.New("binary.Read: invalid type " + d.Type().String())
 	}
 	size := TotalSize(v)
 	if size < 0 {
-		return os.NewError("binary.Read: invalid type " + v.Type().String())
+		return errors.New("binary.Read: invalid type " + v.Type().String())
 	}
 	d := &decoder{order: order, buf: make([]byte, size)}
 	if _, err := io.ReadFull(r, d.buf); err != nil {
@@ -183,7 +183,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 // or an array or struct containing only fixed-size values.
 // Bytes written to w are encoded using the specified byte order
 // and read from successive fields of the data.
-func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
+func Write(w io.Writer, order ByteOrder, data interface{}) error {
 	// Fast path for basic types.
 	var b [8]byte
 	var bs []byte
@@ -244,7 +244,7 @@ func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
 	v := reflect.Indirect(reflect.ValueOf(data))
 	size := TotalSize(v)
 	if size < 0 {
-		return os.NewError("binary.Write: invalid type " + v.Type().String())
+		return errors.New("binary.Write: invalid type " + v.Type().String())
 	}
 	buf := make([]byte, size)
 	e := &encoder{order: order, buf: buf}

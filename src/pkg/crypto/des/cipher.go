@@ -4,17 +4,14 @@
 
 package des
 
-import (
-	"os"
-	"strconv"
-)
+import "strconv"
 
 // The DES block size in bytes.
 const BlockSize = 8
 
 type KeySizeError int
 
-func (k KeySizeError) String() string {
+func (k KeySizeError) Error() string {
 	return "crypto/des: invalid key size " + strconv.Itoa(int(k))
 }
 
@@ -24,7 +21,7 @@ type Cipher struct {
 }
 
 // NewCipher creates and returns a new Cipher.
-func NewCipher(key []byte) (*Cipher, os.Error) {
+func NewCipher(key []byte) (*Cipher, error) {
 	if len(key) != 8 {
 		return nil, KeySizeError(len(key))
 	}
@@ -60,7 +57,7 @@ type TripleDESCipher struct {
 }
 
 // NewCipher creates and returns a new Cipher.
-func NewTripleDESCipher(key []byte) (*TripleDESCipher, os.Error) {
+func NewTripleDESCipher(key []byte) (*TripleDESCipher, error) {
 	if len(key) != 24 {
 		return nil, KeySizeError(len(key))
 	}

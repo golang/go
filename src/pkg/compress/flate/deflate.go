@@ -7,7 +7,6 @@ package flate
 import (
 	"io"
 	"math"
-	"os"
 )
 
 const (
@@ -89,7 +88,7 @@ type compressor struct {
 	offset         int
 	hash           int
 	maxInsertIndex int
-	err            os.Error
+	err            error
 }
 
 func (d *compressor) fillDeflate(b []byte) int {
@@ -123,7 +122,7 @@ func (d *compressor) fillDeflate(b []byte) int {
 	return n
 }
 
-func (d *compressor) writeBlock(tokens []token, index int, eof bool) os.Error {
+func (d *compressor) writeBlock(tokens []token, index int, eof bool) error {
 	if index > 0 || eof {
 		var window []byte
 		if d.blockStart <= index {
@@ -194,7 +193,7 @@ func (d *compressor) findMatch(pos int, prevHead int, prevLength int, lookahead 
 	return
 }
 
-func (d *compressor) writeStoredBlock(buf []byte) os.Error {
+func (d *compressor) writeStoredBlock(buf []byte) error {
 	if d.w.writeStoredHeader(len(buf), false); d.w.err != nil {
 		return d.w.err
 	}
@@ -365,7 +364,7 @@ func (d *compressor) store() {
 	d.windowEnd = 0
 }
 
-func (d *compressor) write(b []byte) (n int, err os.Error) {
+func (d *compressor) write(b []byte) (n int, err error) {
 	n = len(b)
 	b = b[d.fill(d, b):]
 	for len(b) > 0 {
@@ -375,7 +374,7 @@ func (d *compressor) write(b []byte) (n int, err os.Error) {
 	return n, d.err
 }
 
-func (d *compressor) syncFlush() os.Error {
+func (d *compressor) syncFlush() error {
 	d.sync = true
 	d.step(d)
 	if d.err == nil {
@@ -387,7 +386,7 @@ func (d *compressor) syncFlush() os.Error {
 	return d.err
 }
 
-func (d *compressor) init(w io.Writer, level int) (err os.Error) {
+func (d *compressor) init(w io.Writer, level int) (err error) {
 	d.w = newHuffmanBitWriter(w)
 
 	switch {
@@ -409,7 +408,7 @@ func (d *compressor) init(w io.Writer, level int) (err os.Error) {
 	return nil
 }
 
-func (d *compressor) close() os.Error {
+func (d *compressor) close() error {
 	d.sync = true
 	d.step(d)
 	if d.err != nil {
@@ -455,7 +454,7 @@ type dictWriter struct {
 	enabled bool
 }
 
-func (w *dictWriter) Write(b []byte) (n int, err os.Error) {
+func (w *dictWriter) Write(b []byte) (n int, err error) {
 	if w.enabled {
 		return w.w.Write(b)
 	}
@@ -470,7 +469,7 @@ type Writer struct {
 
 // Write writes data to w, which will eventually write the
 // compressed form of data to its underlying writer.
-func (w *Writer) Write(data []byte) (n int, err os.Error) {
+func (w *Writer) Write(data []byte) (n int, err error) {
 	return w.d.write(data)
 }
 
@@ -481,13 +480,13 @@ func (w *Writer) Write(data []byte) (n int, err os.Error) {
 // If the underlying writer returns an error, Flush returns that error.
 //
 // In the terminology of the zlib library, Flush is equivalent to Z_SYNC_FLUSH.
-func (w *Writer) Flush() os.Error {
+func (w *Writer) Flush() error {
 	// For more about flushing:
 	// http://www.bolet.org/~pornin/deflate-flush.html
 	return w.d.syncFlush()
 }
 
 // Close flushes and closes the writer.
-func (w *Writer) Close() os.Error {
+func (w *Writer) Close() error {
 	return w.d.close()
 }

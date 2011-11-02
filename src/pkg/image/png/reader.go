@@ -16,7 +16,6 @@ import (
 	"image"
 	"image/color"
 	"io"
-	"os"
 )
 
 // Color type, as per the PNG spec.
@@ -90,14 +89,14 @@ type decoder struct {
 // A FormatError reports that the input is not a valid PNG.
 type FormatError string
 
-func (e FormatError) String() string { return "png: invalid format: " + string(e) }
+func (e FormatError) Error() string { return "png: invalid format: " + string(e) }
 
 var chunkOrderError = FormatError("chunk out of order")
 
 // An UnsupportedError reports that the input uses a valid but unimplemented PNG feature.
 type UnsupportedError string
 
-func (e UnsupportedError) String() string { return "png: unsupported feature: " + string(e) }
+func (e UnsupportedError) Error() string { return "png: unsupported feature: " + string(e) }
 
 func abs(x int) int {
 	if x < 0 {
@@ -113,7 +112,7 @@ func min(a, b int) int {
 	return b
 }
 
-func (d *decoder) parseIHDR(length uint32) os.Error {
+func (d *decoder) parseIHDR(length uint32) error {
 	if length != 13 {
 		return FormatError("bad IHDR length")
 	}
@@ -189,7 +188,7 @@ func (d *decoder) parseIHDR(length uint32) os.Error {
 	return d.verifyChecksum()
 }
 
-func (d *decoder) parsePLTE(length uint32) os.Error {
+func (d *decoder) parsePLTE(length uint32) error {
 	np := int(length / 3) // The number of palette entries.
 	if length%3 != 0 || np <= 0 || np > 256 || np > 1<<uint(d.depth) {
 		return FormatError("bad PLTE length")
@@ -214,7 +213,7 @@ func (d *decoder) parsePLTE(length uint32) os.Error {
 	return d.verifyChecksum()
 }
 
-func (d *decoder) parsetRNS(length uint32) os.Error {
+func (d *decoder) parsetRNS(length uint32) error {
 	if length > 256 {
 		return FormatError("bad tRNS length")
 	}
@@ -263,7 +262,7 @@ func paeth(a, b, c uint8) uint8 {
 // immediately before the first Read call is that d.r is positioned between the
 // first IDAT and xxx, and the decoder state immediately after the last Read
 // call is that d.r is positioned between yy and crc1.
-func (d *decoder) Read(p []byte) (int, os.Error) {
+func (d *decoder) Read(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -294,7 +293,7 @@ func (d *decoder) Read(p []byte) (int, os.Error) {
 }
 
 // decode decodes the IDAT data into an image.
-func (d *decoder) decode() (image.Image, os.Error) {
+func (d *decoder) decode() (image.Image, error) {
 	r, err := zlib.NewReader(d)
 	if err != nil {
 		return nil, err
@@ -517,8 +516,8 @@ func (d *decoder) decode() (image.Image, os.Error) {
 
 	// Check for EOF, to verify the zlib checksum.
 	n, err := r.Read(pr[:1])
-	if err != os.EOF {
-		return nil, FormatError(err.String())
+	if err != io.EOF {
+		return nil, FormatError(err.Error())
 	}
 	if n != 0 || d.idatLength != 0 {
 		return nil, FormatError("too much pixel data")
@@ -527,7 +526,7 @@ func (d *decoder) decode() (image.Image, os.Error) {
 	return img, nil
 }
 
-func (d *decoder) parseIDAT(length uint32) (err os.Error) {
+func (d *decoder) parseIDAT(length uint32) (err error) {
 	d.idatLength = length
 	d.img, err = d.decode()
 	if err != nil {
@@ -536,14 +535,14 @@ func (d *decoder) parseIDAT(length uint32) (err os.Error) {
 	return d.verifyChecksum()
 }
 
-func (d *decoder) parseIEND(length uint32) os.Error {
+func (d *decoder) parseIEND(length uint32) error {
 	if length != 0 {
 		return FormatError("bad IEND length")
 	}
 	return d.verifyChecksum()
 }
 
-func (d *decoder) parseChunk() os.Error {
+func (d *decoder) parseChunk() error {
 	// Read the length and chunk type.
 	n, err := io.ReadFull(d.r, d.tmp[:8])
 	if err != nil {
@@ -598,7 +597,7 @@ func (d *decoder) parseChunk() os.Error {
 	return d.verifyChecksum()
 }
 
-func (d *decoder) verifyChecksum() os.Error {
+func (d *decoder) verifyChecksum() error {
 	if _, err := io.ReadFull(d.r, d.tmp[:4]); err != nil {
 		return err
 	}
@@ -608,7 +607,7 @@ func (d *decoder) verifyChecksum() os.Error {
 	return nil
 }
 
-func (d *decoder) checkHeader() os.Error {
+func (d *decoder) checkHeader() error {
 	_, err := io.ReadFull(d.r, d.tmp[:len(pngHeader)])
 	if err != nil {
 		return err
@@ -621,20 +620,20 @@ func (d *decoder) checkHeader() os.Error {
 
 // Decode reads a PNG image from r and returns it as an image.Image.
 // The type of Image returned depends on the PNG contents.
-func Decode(r io.Reader) (image.Image, os.Error) {
+func Decode(r io.Reader) (image.Image, error) {
 	d := &decoder{
 		r:   r,
 		crc: crc32.NewIEEE(),
 	}
 	if err := d.checkHeader(); err != nil {
-		if err == os.EOF {
+		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
 		return nil, err
 	}
 	for d.stage != dsSeenIEND {
 		if err := d.parseChunk(); err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				err = io.ErrUnexpectedEOF
 			}
 			return nil, err
@@ -645,20 +644,20 @@ func Decode(r io.Reader) (image.Image, os.Error) {
 
 // DecodeConfig returns the color model and dimensions of a PNG image without
 // decoding the entire image.
-func DecodeConfig(r io.Reader) (image.Config, os.Error) {
+func DecodeConfig(r io.Reader) (image.Config, error) {
 	d := &decoder{
 		r:   r,
 		crc: crc32.NewIEEE(),
 	}
 	if err := d.checkHeader(); err != nil {
-		if err == os.EOF {
+		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
 		return image.Config{}, err
 	}
 	for {
 		if err := d.parseChunk(); err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				err = io.ErrUnexpectedEOF
 			}
 			return image.Config{}, err

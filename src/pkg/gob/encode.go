@@ -55,7 +55,7 @@ func (state *encoderState) encodeUint(x uint64) {
 	if x <= 0x7F {
 		err := state.b.WriteByte(uint8(x))
 		if err != nil {
-			error(err)
+			error_(err)
 		}
 		return
 	}
@@ -68,7 +68,7 @@ func (state *encoderState) encodeUint(x uint64) {
 	state.buf[i] = uint8(i - uint64Size) // = loop count, negated
 	_, err := state.b.Write(state.buf[i : uint64Size+1])
 	if err != nil {
-		error(err)
+		error_(err)
 	}
 }
 
@@ -443,7 +443,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
 	state.encodeUint(uint64(len(name)))
 	_, err := state.b.WriteString(name)
 	if err != nil {
-		error(err)
+		error_(err)
 	}
 	// Define the type id if necessary.
 	enc.sendTypeDescriptor(enc.writer(), state, ut)
@@ -456,12 +456,12 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
 	data.Write(spaceForLength)
 	enc.encode(data, iv.Elem(), ut)
 	if enc.err != nil {
-		error(enc.err)
+		error_(enc.err)
 	}
 	enc.popWriter()
 	enc.writeMessage(b, data)
 	if enc.err != nil {
-		error(err)
+		error_(err)
 	}
 	enc.freeEncoderState(state)
 }
@@ -494,7 +494,7 @@ func (enc *Encoder) encodeGobEncoder(b *bytes.Buffer, v reflect.Value) {
 	// We know it's a GobEncoder, so just call the method directly.
 	data, err := v.Interface().(GobEncoder).GobEncode()
 	if err != nil {
-		error(err)
+		error_(err)
 	}
 	state := enc.newEncoderState(b)
 	state.fieldnum = -1
@@ -681,7 +681,7 @@ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
 func (enc *Encoder) getEncEngine(ut *userTypeInfo) *encEngine {
 	info, err1 := getTypeInfo(ut)
 	if err1 != nil {
-		error(err1)
+		error_(err1)
 	}
 	if info.encoder == nil {
 		// mark this engine as underway before compiling to handle recursive types.

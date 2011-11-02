@@ -249,7 +249,7 @@ func TestParseMediaTypeBogus(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected an error parsing invalid media type; got type %q, params %#v", mt, params)
 	}
-	if err.String() != "mime: invalid media parameter" {
+	if err.Error() != "mime: invalid media parameter" {
 		t.Errorf("expected invalid media parameter; got error %q", err)
 	}
 }

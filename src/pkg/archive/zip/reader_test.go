@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"io"
 	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 )
@@ -18,7 +17,7 @@ type ZipTest struct {
 	Name    string
 	Comment string
 	File    []ZipTestFile
-	Error   os.Error // the error that Opening this file should return
+	Error   error // the error that Opening this file should return
 }
 
 type ZipTestFile struct {
@@ -245,7 +244,7 @@ func TestInvalidFiles(t *testing.T) {
 
 type sliceReaderAt []byte
 
-func (r sliceReaderAt) ReadAt(b []byte, off int64) (int, os.Error) {
+func (r sliceReaderAt) ReadAt(b []byte, off int64) (int, error) {
 	copy(b, r[int(off):int(off)+len(b)])
 	return len(b), nil
 }

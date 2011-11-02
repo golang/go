@@ -15,7 +15,7 @@ type buffer struct {
 	buf []byte
 }
 
-func (b *buffer) ReadAt(p []byte, off int64) (int, os.Error) {
+func (b *buffer) ReadAt(p []byte, off int64) (int, error) {
 	o := int(off)
 	end := o + len(p)
 	if int64(end) != off+int64(len(p)) {

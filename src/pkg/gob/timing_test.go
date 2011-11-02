@@ -39,7 +39,7 @@ func benchmarkEndToEnd(r io.Reader, w io.Writer, b *testing.B) {
 func BenchmarkEndToEndPipe(b *testing.B) {
 	r, w, err := os.Pipe()
 	if err != nil {
-		panic("can't get pipe:" + err.String())
+		panic("can't get pipe:" + err.Error())
 	}
 	benchmarkEndToEnd(r, w, b)
 }

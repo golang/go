@@ -4,10 +4,7 @@
 
 package terminal
 
-import (
-	"os"
-	"io"
-)
+import "io"
 
 // Shell contains the state for running a VT100 terminal that is capable of
 // reading lines of input.
@@ -306,12 +303,12 @@ func (ss *Shell) writeLine(line []byte) {
 	}
 }
 
-func (ss *Shell) Write(buf []byte) (n int, err os.Error) {
+func (ss *Shell) Write(buf []byte) (n int, err error) {
 	return ss.c.Write(buf)
 }
 
 // ReadLine returns a line of input from the terminal.
-func (ss *Shell) ReadLine() (line string, err os.Error) {
+func (ss *Shell) ReadLine() (line string, err error) {
 	ss.writeLine([]byte(ss.prompt))
 	ss.c.Write(ss.outBuf)
 	ss.outBuf = ss.outBuf[:0]
@@ -337,7 +334,7 @@ func (ss *Shell) ReadLine() (line string, err os.Error) {
 					break
 				}
 				if key == keyCtrlD {
-					return "", os.EOF
+					return "", io.EOF
 				}
 				line, lineOk = ss.handleKey(key)
 			}

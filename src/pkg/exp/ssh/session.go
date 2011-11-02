@@ -9,8 +9,8 @@ package ssh
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
-	"os"
 )
 
 // A Session represents a connection to a remote command or shell.
@@ -34,7 +34,7 @@ type Session struct {
 
 // Setenv sets an environment variable that will be applied to any
 // command executed by Shell or Exec.
-func (s *Session) Setenv(name, value string) os.Error {
+func (s *Session) Setenv(name, value string) error {
 	n, v := []byte(name), []byte(value)
 	nlen, vlen := stringLength(n), stringLength(v)
 	payload := make([]byte, nlen+vlen)
@@ -53,7 +53,7 @@ func (s *Session) Setenv(name, value string) os.Error {
 var emptyModeList = []byte{0, 0, 0, 1, 0}
 
 // RequestPty requests the association of a pty with the session on the remote host.
-func (s *Session) RequestPty(term string, h, w int) os.Error {
+func (s *Session) RequestPty(term string, h, w int) error {
 	buf := make([]byte, 4+len(term)+16+len(emptyModeList))
 	b := marshalString(buf, []byte(term))
 	binary.BigEndian.PutUint32(b, uint32(h))
@@ -73,9 +73,9 @@ func (s *Session) RequestPty(term string, h, w int) os.Error {
 // Exec runs cmd on the remote host. Typically, the remote 
 // server passes cmd to the shell for interpretation. 
 // A Session only accepts one call to Exec or Shell.
-func (s *Session) Exec(cmd string) os.Error {
+func (s *Session) Exec(cmd string) error {
 	if s.started {
-		return os.NewError("session already started")
+		return errors.New("session already started")
 	}
 	cmdLen := stringLength([]byte(cmd))
 	payload := make([]byte, cmdLen)
@@ -92,9 +92,9 @@ func (s *Session) Exec(cmd string) os.Error {
 
 // Shell starts a login shell on the remote host. A Session only 
 // accepts one call to Exec or Shell.
-func (s *Session) Shell() os.Error {
+func (s *Session) Shell() error {
 	if s.started {
-		return os.NewError("session already started")
+		return errors.New("session already started")
 	}
 	s.started = true
 
@@ -106,7 +106,7 @@ func (s *Session) Shell() os.Error {
 }
 
 // NewSession returns a new interactive session on the remote host.
-func (c *ClientConn) NewSession() (*Session, os.Error) {
+func (c *ClientConn) NewSession() (*Session, error) {
 	ch, err := c.openChan("session")
 	if err != nil {
 		return nil, err

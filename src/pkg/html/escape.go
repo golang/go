@@ -6,7 +6,6 @@ package html
 
 import (
 	"bytes"
-	"os"
 	"strings"
 	"utf8"
 )
@@ -195,7 +194,7 @@ func lower(b []byte) []byte {
 
 const escapedChars = `&'<>"`
 
-func escape(w writer, s string) os.Error {
+func escape(w writer, s string) error {
 	i := strings.IndexAny(s, escapedChars)
 	for i != -1 {
 		if _, err := w.WriteString(s[:i]); err != nil {

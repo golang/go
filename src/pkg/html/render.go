@@ -6,15 +6,15 @@ package html
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
-	"os"
 )
 
 type writer interface {
 	io.Writer
-	WriteByte(byte) os.Error
-	WriteString(string) (int, os.Error)
+	WriteByte(byte) error
+	WriteString(string) (int, error)
 }
 
 // Render renders the parse tree n to the given writer.
@@ -41,7 +41,7 @@ type writer interface {
 // text node would become a tree containing <html>, <head> and <body> elements.
 // Another example is that the programmatic equivalent of "a<head>b</head>c"
 // becomes "<html><head><head/><body>abc</body></html>".
-func Render(w io.Writer, n *Node) os.Error {
+func Render(w io.Writer, n *Node) error {
 	if x, ok := w.(writer); ok {
 		return render(x, n)
 	}
@@ -52,11 +52,11 @@ func Render(w io.Writer, n *Node) os.Error {
 	return buf.Flush()
 }
 
-func render(w writer, n *Node) os.Error {
+func render(w writer, n *Node) error {
 	// Render non-element nodes; these are the easy cases.
 	switch n.Type {
 	case ErrorNode:
-		return os.NewError("html: cannot render an ErrorNode node")
+		return errors.New("html: cannot render an ErrorNode node")
 	case TextNode:
 		return escape(w, n.Data)
 	case DocumentNode:
@@ -88,7 +88,7 @@ func render(w writer, n *Node) os.Error {
 		}
 		return w.WriteByte('>')
 	default:
-		return os.NewError("html: unknown node type")
+		return errors.New("html: unknown node type")
 	}
 
 	// Render the <xxx> opening tag.

@@ -16,6 +16,7 @@ package lzw
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -45,9 +46,9 @@ type decoder struct {
 	bits     uint32
 	nBits    uint
 	width    uint
-	read     func(*decoder) (uint16, os.Error) // readLSB or readMSB
-	litWidth int                               // width in bits of literal codes
-	err      os.Error
+	read     func(*decoder) (uint16, error) // readLSB or readMSB
+	litWidth int                            // width in bits of literal codes
+	err      error
 
 	// The first 1<<litWidth codes are literal codes.
 	// The next two codes mean clear and EOF.
@@ -78,7 +79,7 @@ type decoder struct {
 }
 
 // readLSB returns the next code for "Least Significant Bits first" data.
-func (d *decoder) readLSB() (uint16, os.Error) {
+func (d *decoder) readLSB() (uint16, error) {
 	for d.nBits < d.width {
 		x, err := d.r.ReadByte()
 		if err != nil {
@@ -94,7 +95,7 @@ func (d *decoder) readLSB() (uint16, os.Error) {
 }
 
 // readMSB returns the next code for "Most Significant Bits first" data.
-func (d *decoder) readMSB() (uint16, os.Error) {
+func (d *decoder) readMSB() (uint16, error) {
 	for d.nBits < d.width {
 		x, err := d.r.ReadByte()
 		if err != nil {
@@ -109,7 +110,7 @@ func (d *decoder) readMSB() (uint16, os.Error) {
 	return code, nil
 }
 
-func (d *decoder) Read(b []byte) (int, os.Error) {
+func (d *decoder) Read(b []byte) (int, error) {
 	for {
 		if len(d.toRead) > 0 {
 			n := copy(b, d.toRead)
@@ -132,7 +133,7 @@ func (d *decoder) decode() {
 	for {
 		code, err := d.read(d)
 		if err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				err = io.ErrUnexpectedEOF
 			}
 			d.err = err
@@ -156,7 +157,7 @@ func (d *decoder) decode() {
 			continue
 		case code == d.eof:
 			d.flush()
-			d.err = os.EOF
+			d.err = io.EOF
 			return
 		case code <= d.hi:
 			c, i := code, len(d.output)-1
@@ -186,7 +187,7 @@ func (d *decoder) decode() {
 				d.prefix[d.hi] = d.last
 			}
 		default:
-			d.err = os.NewError("lzw: invalid code")
+			d.err = errors.New("lzw: invalid code")
 			return
 		}
 		d.last, d.hi = code, d.hi+1
@@ -211,7 +212,7 @@ func (d *decoder) flush() {
 	d.o = 0
 }
 
-func (d *decoder) Close() os.Error {
+func (d *decoder) Close() error {
 	d.err = os.EINVAL // in case any Reads come along
 	return nil
 }
@@ -230,7 +231,7 @@ func NewReader(r io.Reader, order Order, litWidth int) io.ReadCloser {
 	case MSB:
 		d.read = (*decoder).readMSB
 	default:
-		d.err = os.NewError("lzw: unknown order")
+		d.err = errors.New("lzw: unknown order")
 		return d
 	}
 	if litWidth < 2 || 8 < litWidth {

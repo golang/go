@@ -5,7 +5,8 @@
 package ssh
 
 import (
-	"os"
+	"errors"
+	"io"
 	"sync"
 )
 
@@ -13,19 +14,19 @@ import (
 // SSH connection.
 type Channel interface {
 	// Accept accepts the channel creation request.
-	Accept() os.Error
+	Accept() error
 	// Reject rejects the channel creation request. After calling this, no
 	// other methods on the Channel may be called. If they are then the
 	// peer is likely to signal a protocol error and drop the connection.
-	Reject(reason RejectionReason, message string) os.Error
+	Reject(reason RejectionReason, message string) error
 
 	// Read may return a ChannelRequest as an os.Error.
-	Read(data []byte) (int, os.Error)
-	Write(data []byte) (int, os.Error)
-	Close() os.Error
+	Read(data []byte) (int, error)
+	Write(data []byte) (int, error)
+	Close() error
 
 	// AckRequest either sends an ack or nack to the channel request.
-	AckRequest(ok bool) os.Error
+	AckRequest(ok bool) error
 
 	// ChannelType returns the type of the channel, as supplied by the
 	// client.
@@ -43,7 +44,7 @@ type ChannelRequest struct {
 	Payload   []byte
 }
 
-func (c ChannelRequest) String() string {
+func (c ChannelRequest) Error() string {
 	return "channel request received"
 }
 
@@ -72,7 +73,7 @@ type channel struct {
 	myId, theirId         uint32
 	myWindow, theirWindow uint32
 	maxPacketSize         uint32
-	err                   os.Error
+	err                   error
 
 	pendingRequests []ChannelRequest
 	pendingData     []byte
@@ -83,7 +84,7 @@ type channel struct {
 	cond *sync.Cond
 }
 
-func (c *channel) Accept() os.Error {
+func (c *channel) Accept() error {
 	c.serverConn.lock.Lock()
 	defer c.serverConn.lock.Unlock()
 
@@ -100,7 +101,7 @@ func (c *channel) Accept() os.Error {
 	return c.serverConn.writePacket(marshal(msgChannelOpenConfirm, confirm))
 }
 
-func (c *channel) Reject(reason RejectionReason, message string) os.Error {
+func (c *channel) Reject(reason RejectionReason, message string) error {
 	c.serverConn.lock.Lock()
 	defer c.serverConn.lock.Unlock()
 
@@ -167,7 +168,7 @@ func (c *channel) handleData(data []byte) {
 	c.cond.Signal()
 }
 
-func (c *channel) Read(data []byte) (n int, err os.Error) {
+func (c *channel) Read(data []byte) (n int, err error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -187,7 +188,7 @@ func (c *channel) Read(data []byte) (n int, err os.Error) {
 
 	for {
 		if c.theySentEOF || c.theyClosed || c.dead {
-			return 0, os.EOF
+			return 0, io.EOF
 		}
 
 		if len(c.pendingRequests) > 0 {
@@ -223,11 +224,11 @@ func (c *channel) Read(data []byte) (n int, err os.Error) {
 	panic("unreachable")
 }
 
-func (c *channel) Write(data []byte) (n int, err os.Error) {
+func (c *channel) Write(data []byte) (n int, err error) {
 	for len(data) > 0 {
 		c.lock.Lock()
 		if c.dead || c.weClosed {
-			return 0, os.EOF
+			return 0, io.EOF
 		}
 
 		if c.theirWindow == 0 {
@@ -267,7 +268,7 @@ func (c *channel) Write(data []byte) (n int, err os.Error) {
 	return
 }
 
-func (c *channel) Close() os.Error {
+func (c *channel) Close() error {
 	c.serverConn.lock.Lock()
 	defer c.serverConn.lock.Unlock()
 
@@ -276,7 +277,7 @@ func (c *channel) Close() os.Error {
 	}
 
 	if c.weClosed {
-		return os.NewError("ssh: channel already closed")
+		return errors.New("ssh: channel already closed")
 	}
 	c.weClosed = true
 
@@ -286,7 +287,7 @@ func (c *channel) Close() os.Error {
 	return c.serverConn.writePacket(marshal(msgChannelClose, closeMsg))
 }
 
-func (c *channel) AckRequest(ok bool) os.Error {
+func (c *channel) AckRequest(ok bool) error {
 	c.serverConn.lock.Lock()
 	defer c.serverConn.lock.Unlock()
 

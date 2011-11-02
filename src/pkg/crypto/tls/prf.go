@@ -9,7 +9,6 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"hash"
-	"os"
 )
 
 // Split a premaster secret in two as specified in RFC 4346, section 5.
@@ -156,7 +155,7 @@ type finishedHash struct {
 	version    uint16
 }
 
-func (h finishedHash) Write(msg []byte) (n int, err os.Error) {
+func (h finishedHash) Write(msg []byte) (n int, err error) {
 	h.clientMD5.Write(msg)
 	h.clientSHA1.Write(msg)
 	h.serverMD5.Write(msg)

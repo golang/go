@@ -11,9 +11,9 @@ import (
 	"crypto/blowfish"
 	"crypto/rand"
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 )
 
@@ -25,30 +25,30 @@ const (
 
 // The error returned from CompareHashAndPassword when a password and hash do
 // not match.
-var MismatchedHashAndPasswordError = os.NewError("crypto/bcrypt: hashedPassword is not the hash of the given password")
+var MismatchedHashAndPasswordError = errors.New("crypto/bcrypt: hashedPassword is not the hash of the given password")
 
 // The error returned from CompareHashAndPassword when a hash is too short to
 // be a bcrypt hash.
-var HashTooShortError = os.NewError("crypto/bcrypt: hashedSecret too short to be a bcrypted password")
+var HashTooShortError = errors.New("crypto/bcrypt: hashedSecret too short to be a bcrypted password")
 
 // The error returned from CompareHashAndPassword when a hash was created with
 // a bcrypt algorithm newer than this implementation.
 type HashVersionTooNewError byte
 
-func (hv HashVersionTooNewError) String() string {
+func (hv HashVersionTooNewError) Error() string {
 	return fmt.Sprintf("crypto/bcrypt: bcrypt algorithm version '%c' requested is newer than current version '%c'", byte(hv), majorVersion)
 }
 
 // The error returned from CompareHashAndPassword when a hash starts with something other than '$'
 type InvalidHashPrefixError byte
 
-func (ih InvalidHashPrefixError) String() string {
+func (ih InvalidHashPrefixError) Error() string {
 	return fmt.Sprintf("crypto/bcrypt: bcrypt hashes must start with '$', but hashedSecret started with '%c'", byte(ih))
 }
 
 type InvalidCostError int
 
-func (ic InvalidCostError) String() string {
+func (ic InvalidCostError) Error() string {
 	return fmt.Sprintf("crypto/bcrypt: cost %d is outside allowed range (%d,%d)", int(ic), int(MinCost), int(MaxCost))
 }
 
@@ -85,7 +85,7 @@ type hashed struct {
 // cost. If the cost given is less than MinCost, the cost will be set to
 // MinCost, instead. Use CompareHashAndPassword, as defined in this package,
 // to compare the returned hashed password with its cleartext version.
-func GenerateFromPassword(password []byte, cost int) ([]byte, os.Error) {
+func GenerateFromPassword(password []byte, cost int) ([]byte, error) {
 	p, err := newFromPassword(password, cost)
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func GenerateFromPassword(password []byte, cost int) ([]byte, os.Error) {
 // CompareHashAndPassword compares a bcrypt hashed password with its possible
 // plaintext equivalent. Note: Using bytes.Equal for this job is
 // insecure. Returns nil on success, or an error on failure.
-func CompareHashAndPassword(hashedPassword, password []byte) os.Error {
+func CompareHashAndPassword(hashedPassword, password []byte) error {
 	p, err := newFromHash(hashedPassword)
 	if err != nil {
 		return err
@@ -115,7 +115,7 @@ func CompareHashAndPassword(hashedPassword, password []byte) os.Error {
 	return MismatchedHashAndPasswordError
 }
 
-func newFromPassword(password []byte, cost int) (*hashed, os.Error) {
+func newFromPassword(password []byte, cost int) (*hashed, error) {
 	if cost < MinCost {
 		cost = DefaultCost
 	}
@@ -144,7 +144,7 @@ func newFromPassword(password []byte, cost int) (*hashed, os.Error) {
 	return p, err
 }
 
-func newFromHash(hashedSecret []byte) (*hashed, os.Error) {
+func newFromHash(hashedSecret []byte) (*hashed, error) {
 	if len(hashedSecret) < minHashSize {
 		return nil, HashTooShortError
 	}
@@ -172,7 +172,7 @@ func newFromHash(hashedSecret []byte) (*hashed, os.Error) {
 	return p, nil
 }
 
-func bcrypt(password []byte, cost uint32, salt []byte) ([]byte, os.Error) {
+func bcrypt(password []byte, cost uint32, salt []byte) ([]byte, error) {
 	cipherData := make([]byte, len(magicCipherData))
 	copy(cipherData, magicCipherData)
 
@@ -193,7 +193,7 @@ func bcrypt(password []byte, cost uint32, salt []byte) ([]byte, os.Error) {
 	return hsh, nil
 }
 
-func expensiveBlowfishSetup(key []byte, cost uint32, salt []byte) (*blowfish.Cipher, os.Error) {
+func expensiveBlowfishSetup(key []byte, cost uint32, salt []byte) (*blowfish.Cipher, error) {
 
 	csalt, err := base64Decode(salt)
 	if err != nil {
@@ -240,7 +240,7 @@ func (p *hashed) Hash() []byte {
 	return arr[:n]
 }
 
-func (p *hashed) decodeVersion(sbytes []byte) (int, os.Error) {
+func (p *hashed) decodeVersion(sbytes []byte) (int, error) {
 	if sbytes[0] != '$' {
 		return -1, InvalidHashPrefixError(sbytes[0])
 	}
@@ -257,7 +257,7 @@ func (p *hashed) decodeVersion(sbytes []byte) (int, os.Error) {
 }
 
 // sbytes should begin where decodeVersion left off.
-func (p *hashed) decodeCost(sbytes []byte) (int, os.Error) {
+func (p *hashed) decodeCost(sbytes []byte) (int, error) {
 	cost, err := strconv.Atoi(string(sbytes[0:2]))
 	if err != nil {
 		return -1, err
@@ -274,7 +274,7 @@ func (p *hashed) String() string {
 	return fmt.Sprintf("&{hash: %#v, salt: %#v, cost: %d, major: %c, minor: %c}", string(p.hash), p.salt, p.cost, p.major, p.minor)
 }
 
-func checkCost(cost int) os.Error {
+func checkCost(cost int) error {
 	if cost < MinCost || cost > MaxCost {
 		return InvalidCostError(cost)
 	}

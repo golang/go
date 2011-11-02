@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"go/token"
 	"io"
-	"os"
 	"sort"
 )
 
@@ -49,7 +48,7 @@ type Error struct {
 	Msg string
 }
 
-func (e *Error) String() string {
+func (e *Error) Error() string {
 	if e.Pos.Filename != "" || e.Pos.IsValid() {
 		// don't print "<unknown position>"
 		// TODO(gri) reconsider the semantics of Position.IsValid
@@ -85,12 +84,12 @@ func (p ErrorList) Less(i, j int) bool {
 	return false
 }
 
-func (p ErrorList) String() string {
+func (p ErrorList) Error() string {
 	switch len(p) {
 	case 0:
 		return "unspecified error"
 	case 1:
-		return p[0].String()
+		return p[0].Error()
 	}
 	return fmt.Sprintf("%s (and %d more errors)", p[0], len(p)-1)
 }
@@ -140,7 +139,7 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
 // so that a nil result can be assigned to an os.Error variable and
 // remains nil.
 //
-func (h *ErrorVector) GetError(mode int) os.Error {
+func (h *ErrorVector) GetError(mode int) error {
 	if len(h.errors) == 0 {
 		return nil
 	}
@@ -157,7 +156,7 @@ func (h *ErrorVector) Error(pos token.Position, msg string) {
 // one error per line, if the err parameter is an ErrorList. Otherwise
 // it prints the err string.
 //
-func PrintError(w io.Writer, err os.Error) {
+func PrintError(w io.Writer, err error) {
 	if list, ok := err.(ErrorList); ok {
 		for _, e := range list {
 			fmt.Fprintf(w, "%s\n", e)

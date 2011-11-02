@@ -7,8 +7,9 @@
 package sql
 
 import (
+	"errors"
 	"fmt"
-	"os"
+	"io"
 	"runtime"
 	"sync"
 
@@ -50,7 +51,7 @@ type NullableString struct {
 }
 
 // ScanInto implements the ScannerInto interface.
-func (ms *NullableString) ScanInto(value interface{}) os.Error {
+func (ms *NullableString) ScanInto(value interface{}) error {
 	if value == nil {
 		ms.String, ms.Valid = "", false
 		return nil
@@ -74,13 +75,13 @@ type ScannerInto interface {
 	//
 	// An error should be returned if the value can not be stored
 	// without loss of information.
-	ScanInto(value interface{}) os.Error
+	ScanInto(value interface{}) error
 }
 
 // ErrNoRows is returned by Scan when QueryRow doesn't return a
 // row. In such a case, QueryRow returns a placeholder *Row value that
 // defers this error until a Scan.
-var ErrNoRows = os.NewError("db: no rows in result set")
+var ErrNoRows = errors.New("db: no rows in result set")
 
 // DB is a database handle. It's safe for concurrent use by multiple
 // goroutines.
@@ -98,7 +99,7 @@ type DB struct {
 //
 // Most users will open a database via a driver-specific connection
 // helper function that returns a *DB.
-func Open(driverName, dataSourceName string) (*DB, os.Error) {
+func Open(driverName, dataSourceName string) (*DB, error) {
 	driver, ok := drivers[driverName]
 	if !ok {
 		return nil, fmt.Errorf("db: unknown driver %q (forgotten import?)", driverName)
@@ -114,7 +115,7 @@ func (db *DB) maxIdleConns() int {
 }
 
 // conn returns a newly-opened or cached driver.Conn
-func (db *DB) conn() (driver.Conn, os.Error) {
+func (db *DB) conn() (driver.Conn, error) {
 	db.mu.Lock()
 	if n := len(db.freeConn); n > 0 {
 		conn := db.freeConn[n-1]
@@ -154,7 +155,7 @@ func (db *DB) closeConn(c driver.Conn) {
 }
 
 // Prepare creates a prepared statement for later execution.
-func (db *DB) Prepare(query string) (*Stmt, os.Error) {
+func (db *DB) Prepare(query string) (*Stmt, error) {
 	// TODO: check if db.driver supports an optional
 	// driver.Preparer interface and call that instead, if so,
 	// otherwise we make a prepared statement that's bound
@@ -179,7 +180,7 @@ func (db *DB) Prepare(query string) (*Stmt, os.Error) {
 }
 
 // Exec executes a query without returning any rows.
-func (db *DB) Exec(query string, args ...interface{}) (Result, os.Error) {
+func (db *DB) Exec(query string, args ...interface{}) (Result, error) {
 	// Optional fast path, if the driver implements driver.Execer.
 	if execer, ok := db.driver.(driver.Execer); ok {
 		resi, err := execer.Exec(query, args)
@@ -218,7 +219,7 @@ func (db *DB) Exec(query string, args ...interface{}) (Result, os.Error) {
 }
 
 // Query executes a query that returns rows, typically a SELECT.
-func (db *DB) Query(query string, args ...interface{}) (*Rows, os.Error) {
+func (db *DB) Query(query string, args ...interface{}) (*Rows, error) {
 	stmt, err := db.Prepare(query)
 	if err != nil {
 		return nil, err
@@ -240,7 +241,7 @@ func (db *DB) QueryRow(query string, args ...interface{}) *Row {
 
 // Begin starts a transaction.  The isolation level is dependent on
 // the driver.
-func (db *DB) Begin() (*Tx, os.Error) {
+func (db *DB) Begin() (*Tx, error) {
 	// TODO(bradfitz): add another method for beginning a transaction
 	// at a specific isolation level.
 	panic(todo())
@@ -257,17 +258,17 @@ type Tx struct {
 }
 
 // Commit commits the transaction.
-func (tx *Tx) Commit() os.Error {
+func (tx *Tx) Commit() error {
 	panic(todo())
 }
 
 // Rollback aborts the transaction.
-func (tx *Tx) Rollback() os.Error {
+func (tx *Tx) Rollback() error {
 	panic(todo())
 }
 
 // Prepare creates a prepared statement.
-func (tx *Tx) Prepare(query string) (*Stmt, os.Error) {
+func (tx *Tx) Prepare(query string) (*Stmt, error) {
 	panic(todo())
 }
 
@@ -278,7 +279,7 @@ func (tx *Tx) Exec(query string, args ...interface{}) {
 }
 
 // Query executes a query that returns rows, typically a SELECT.
-func (tx *Tx) Query(query string, args ...interface{}) (*Rows, os.Error) {
+func (tx *Tx) Query(query string, args ...interface{}) (*Rows, error) {
 	panic(todo())
 }
 
@@ -313,7 +314,7 @@ func todo() string {
 
 // Exec executes a prepared statement with the given arguments and
 // returns a Result summarizing the effect of the statement.
-func (s *Stmt) Exec(args ...interface{}) (Result, os.Error) {
+func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 	ci, si, err := s.connStmt()
 	if err != nil {
 		return nil, err
@@ -352,10 +353,10 @@ func (s *Stmt) Exec(args ...interface{}) (Result, os.Error) {
 	return result{resi}, nil
 }
 
-func (s *Stmt) connStmt(args ...interface{}) (driver.Conn, driver.Stmt, os.Error) {
+func (s *Stmt) connStmt(args ...interface{}) (driver.Conn, driver.Stmt, error) {
 	s.mu.Lock()
 	if s.closed {
-		return nil, nil, os.NewError("db: statement is closed")
+		return nil, nil, errors.New("db: statement is closed")
 	}
 	var cs connStmt
 	match := false
@@ -391,7 +392,7 @@ func (s *Stmt) connStmt(args ...interface{}) (driver.Conn, driver.Stmt, os.Error
 
 // Query executes a prepared query statement with the given arguments
 // and returns the query results as a *Rows.
-func (s *Stmt) Query(args ...interface{}) (*Rows, os.Error) {
+func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 	ci, si, err := s.connStmt(args...)
 	if err != nil {
 		return nil, err
@@ -433,7 +434,7 @@ func (s *Stmt) QueryRow(args ...interface{}) *Row {
 }
 
 // Close closes the statement.
-func (s *Stmt) Close() os.Error {
+func (s *Stmt) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock() // TODO(bradfitz): move this unlock after 'closed = true'?
 	if s.closed {
@@ -473,7 +474,7 @@ type Rows struct {
 
 	closed   bool
 	lastcols []interface{}
-	lasterr  os.Error
+	lasterr  error
 }
 
 // Next prepares the next result row for reading with the Scan method.
@@ -495,8 +496,8 @@ func (rs *Rows) Next() bool {
 }
 
 // Error returns the error, if any, that was encountered during iteration.
-func (rs *Rows) Error() os.Error {
-	if rs.lasterr == os.EOF {
+func (rs *Rows) Error() error {
+	if rs.lasterr == io.EOF {
 		return nil
 	}
 	return rs.lasterr
@@ -506,15 +507,15 @@ func (rs *Rows) Error() os.Error {
 // at by dest. If dest contains pointers to []byte, the slices should
 // not be modified and should only be considered valid until the next
 // call to Next or Scan.
-func (rs *Rows) Scan(dest ...interface{}) os.Error {
+func (rs *Rows) Scan(dest ...interface{}) error {
 	if rs.closed {
-		return os.NewError("db: Rows closed")
+		return errors.New("db: Rows closed")
 	}
 	if rs.lasterr != nil {
 		return rs.lasterr
 	}
 	if rs.lastcols == nil {
-		return os.NewError("db: Scan called without calling Next")
+		return errors.New("db: Scan called without calling Next")
 	}
 	if len(dest) != len(rs.lastcols) {
 		return fmt.Errorf("db: expected %d destination arguments in Scan, not %d", len(rs.lastcols), len(dest))
@@ -531,7 +532,7 @@ func (rs *Rows) Scan(dest ...interface{}) os.Error {
 // Close closes the Rows, preventing further enumeration. If the
 // end is encountered, the Rows are closed automatically. Close
 // is idempotent.
-func (rs *Rows) Close() os.Error {
+func (rs *Rows) Close() error {
 	if rs.closed {
 		return nil
 	}
@@ -544,7 +545,7 @@ func (rs *Rows) Close() os.Error {
 // Row is the result of calling QueryRow to select a single row.
 type Row struct {
 	// One of these two will be non-nil:
-	err  os.Error // deferred error for easy chaining
+	err  error // deferred error for easy chaining
 	rows *Rows
 }
 
@@ -556,7 +557,7 @@ type Row struct {
 // If dest contains pointers to []byte, the slices should not be
 // modified and should only be considered valid until the next call to
 // Next or Scan.
-func (r *Row) Scan(dest ...interface{}) os.Error {
+func (r *Row) Scan(dest ...interface{}) error {
 	if r.err != nil {
 		return r.err
 	}
@@ -569,8 +570,8 @@ func (r *Row) Scan(dest ...interface{}) os.Error {
 
 // A Result summarizes an executed SQL command.
 type Result interface {
-	LastInsertId() (int64, os.Error)
-	RowsAffected() (int64, os.Error)
+	LastInsertId() (int64, error)
+	RowsAffected() (int64, error)
 }
 
 type result struct {

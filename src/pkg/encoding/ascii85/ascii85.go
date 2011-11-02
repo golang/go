@@ -8,7 +8,6 @@ package ascii85
 
 import (
 	"io"
-	"os"
 	"strconv"
 )
 
@@ -93,14 +92,14 @@ func MaxEncodedLen(n int) int { return (n + 3) / 4 * 5 }
 func NewEncoder(w io.Writer) io.WriteCloser { return &encoder{w: w} }
 
 type encoder struct {
-	err  os.Error
+	err  error
 	w    io.Writer
 	buf  [4]byte    // buffered data waiting to be encoded
 	nbuf int        // number of bytes in buf
 	out  [1024]byte // output buffer
 }
 
-func (e *encoder) Write(p []byte) (n int, err os.Error) {
+func (e *encoder) Write(p []byte) (n int, err error) {
 	if e.err != nil {
 		return 0, e.err
 	}
@@ -152,7 +151,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 
 // Close flushes any pending output from the encoder.
 // It is an error to call Write after calling Close.
-func (e *encoder) Close() os.Error {
+func (e *encoder) Close() error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
 		nout := Encode(e.out[0:], e.buf[0:e.nbuf])
@@ -168,7 +167,7 @@ func (e *encoder) Close() os.Error {
 
 type CorruptInputError int64
 
-func (e CorruptInputError) String() string {
+func (e CorruptInputError) Error() string {
 	return "illegal ascii85 data at input byte " + strconv.Itoa64(int64(e))
 }
 
@@ -186,7 +185,7 @@ func (e CorruptInputError) String() string {
 //
 // NewDecoder wraps an io.Reader interface around Decode.
 //
-func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
+func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err error) {
 	var v uint32
 	var nb int
 	for i, b := range src {
@@ -246,8 +245,8 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
 func NewDecoder(r io.Reader) io.Reader { return &decoder{r: r} }
 
 type decoder struct {
-	err     os.Error
-	readErr os.Error
+	err     error
+	readErr error
 	r       io.Reader
 	end     bool       // saw end of message
 	buf     [1024]byte // leftover input
@@ -256,7 +255,7 @@ type decoder struct {
 	outbuf  [1024]byte
 }
 
-func (d *decoder) Read(p []byte) (n int, err os.Error) {
+func (d *decoder) Read(p []byte) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
 	}

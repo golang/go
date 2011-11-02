@@ -12,10 +12,7 @@ package twofish
 // LibTomCrypt is free for all purposes under the public domain.
 // It was heavily inspired by the go blowfish package.
 
-import (
-	"os"
-	"strconv"
-)
+import "strconv"
 
 // BlockSize is the constant block size of Twofish.
 const BlockSize = 16
@@ -31,13 +28,13 @@ type Cipher struct {
 
 type KeySizeError int
 
-func (k KeySizeError) String() string {
+func (k KeySizeError) Error() string {
 	return "crypto/twofish: invalid key size " + strconv.Itoa(int(k))
 }
 
 // NewCipher creates and returns a Cipher.
 // The key argument should be the Twofish key, 16, 24 or 32 bytes.
-func NewCipher(key []byte) (*Cipher, os.Error) {
+func NewCipher(key []byte) (*Cipher, error) {
 	keylen := len(key)
 
 	if keylen != 16 && keylen != 24 && keylen != 32 {

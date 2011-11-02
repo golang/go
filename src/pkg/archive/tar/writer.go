@@ -8,15 +8,15 @@ package tar
 // - catch more errors (no first header, write after close, etc.)
 
 import (
+	"errors"
 	"io"
-	"os"
 	"strconv"
 )
 
 var (
-	ErrWriteTooLong    = os.NewError("write too long")
-	ErrFieldTooLong    = os.NewError("header field too long")
-	ErrWriteAfterClose = os.NewError("write after close")
+	ErrWriteTooLong    = errors.New("write too long")
+	ErrFieldTooLong    = errors.New("header field too long")
+	ErrWriteAfterClose = errors.New("write after close")
 )
 
 // A Writer provides sequential writing of a tar archive in POSIX.1 format.
@@ -36,7 +36,7 @@ var (
 //	tw.Close()
 type Writer struct {
 	w          io.Writer
-	err        os.Error
+	err        error
 	nb         int64 // number of unwritten bytes for current file entry
 	pad        int64 // amount of padding to write after current file entry
 	closed     bool
@@ -47,7 +47,7 @@ type Writer struct {
 func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
 
 // Flush finishes writing the current file (optional).
-func (tw *Writer) Flush() os.Error {
+func (tw *Writer) Flush() error {
 	n := tw.nb + tw.pad
 	for n > 0 && tw.err == nil {
 		nr := n
@@ -107,7 +107,7 @@ func (tw *Writer) numeric(b []byte, x int64) {
 // WriteHeader writes hdr and prepares to accept the file's contents.
 // WriteHeader calls Flush if it is not the first header.
 // Calling after a Close will return ErrWriteAfterClose.
-func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+func (tw *Writer) WriteHeader(hdr *Header) error {
 	if tw.closed {
 		return ErrWriteAfterClose
 	}
@@ -165,7 +165,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 // Write writes to the current entry in the tar archive.
 // Write returns the error ErrWriteTooLong if more than
 // hdr.Size bytes are written after WriteHeader.
-func (tw *Writer) Write(b []byte) (n int, err os.Error) {
+func (tw *Writer) Write(b []byte) (n int, err error) {
 	if tw.closed {
 		err = ErrWriteTooLong
 		return
@@ -187,7 +187,7 @@ func (tw *Writer) Write(b []byte) (n int, err os.Error) {
 
 // Close closes the tar archive, flushing any unwritten
 // data to the underlying writer.
-func (tw *Writer) Close() os.Error {
+func (tw *Writer) Close() error {
 	if tw.err != nil || tw.closed {
 		return tw.err
 	}

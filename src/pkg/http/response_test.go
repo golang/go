@@ -10,7 +10,6 @@ import (
 	"compress/gzip"
 	"crypto/rand"
 	"fmt"
-	"os"
 	"io"
 	"io/ioutil"
 	"reflect"
@@ -301,7 +300,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 			args = append([]interface{}{test.chunked, test.compressed}, args...)
 			t.Fatalf("on test chunked=%v, compressed=%v: "+format, args...)
 		}
-		checkErr := func(err os.Error, msg string) {
+		checkErr := func(err error, msg string) {
 			if err == nil {
 				return
 			}
@@ -320,7 +319,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		}
 		if test.compressed {
 			buf.WriteString("Content-Encoding: gzip\r\n")
-			var err os.Error
+			var err error
 			wr, err = gzip.NewWriter(wr)
 			checkErr(err, "gzip.NewWriter")
 		}
@@ -401,7 +400,7 @@ type responseLocationTest struct {
 	location string // Response's Location header or ""
 	requrl   string // Response.Request.URL or ""
 	want     string
-	wantErr  os.Error
+	wantErr  error
 }
 
 var responseLocationTests = []responseLocationTest{
@@ -417,7 +416,7 @@ func TestLocationResponse(t *testing.T) {
 		res.Header.Set("Location", tt.location)
 		if tt.requrl != "" {
 			res.Request = &Request{}
-			var err os.Error
+			var err error
 			res.Request.URL, err = url.Parse(tt.requrl)
 			if err != nil {
 				t.Fatalf("bad test URL %q: %v", tt.requrl, err)
@@ -430,7 +429,7 @@ func TestLocationResponse(t *testing.T) {
 				t.Errorf("%d. err=nil; want %q", i, tt.wantErr)
 				continue
 			}
-			if g, e := err.String(), tt.wantErr.String(); g != e {
+			if g, e := err.Error(), tt.wantErr.Error(); g != e {
 				t.Errorf("%d. err=%q; want %q", i, g, e)
 				continue
 			}

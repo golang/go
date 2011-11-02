@@ -7,8 +7,8 @@ package bytes
 // Simple byte buffer for marshaling data.
 
 import (
+	"errors"
 	"io"
-	"os"
 	"utf8"
 )
 
@@ -94,7 +94,7 @@ func (b *Buffer) grow(n int) int {
 
 // Write appends the contents of p to the buffer.  The return
 // value n is the length of p; err is always nil.
-func (b *Buffer) Write(p []byte) (n int, err os.Error) {
+func (b *Buffer) Write(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
 	m := b.grow(len(p))
 	copy(b.buf[m:], p)
@@ -103,7 +103,7 @@ func (b *Buffer) Write(p []byte) (n int, err os.Error) {
 
 // WriteString appends the contents of s to the buffer.  The return
 // value n is the length of s; err is always nil.
-func (b *Buffer) WriteString(s string) (n int, err os.Error) {
+func (b *Buffer) WriteString(s string) (n int, err error) {
 	b.lastRead = opInvalid
 	m := b.grow(len(s))
 	return copy(b.buf[m:], s), nil
@@ -119,7 +119,7 @@ const MinRead = 512
 // The return value n is the number of bytes read.
 // Any error except os.EOF encountered during the read
 // is also returned.
-func (b *Buffer) ReadFrom(r io.Reader) (n int64, err os.Error) {
+func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 	b.lastRead = opInvalid
 	// If buffer is empty, reset to recover space.
 	if b.off >= len(b.buf) {
@@ -143,7 +143,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err os.Error) {
 		m, e := r.Read(b.buf[len(b.buf):cap(b.buf)])
 		b.buf = b.buf[0 : len(b.buf)+m]
 		n += int64(m)
-		if e == os.EOF {
+		if e == io.EOF {
 			break
 		}
 		if e != nil {
@@ -157,7 +157,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err os.Error) {
 // occurs. The return value n is the number of bytes written; it always
 // fits into an int, but it is int64 to match the io.WriterTo interface.
 // Any error encountered during the write is also returned.
-func (b *Buffer) WriteTo(w io.Writer) (n int64, err os.Error) {
+func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 	b.lastRead = opInvalid
 	if b.off < len(b.buf) {
 		m, e := w.Write(b.buf[b.off:])
@@ -177,7 +177,7 @@ func (b *Buffer) WriteTo(w io.Writer) (n int64, err os.Error) {
 // WriteByte appends the byte c to the buffer.
 // The returned error is always nil, but is included
 // to match bufio.Writer's WriteByte.
-func (b *Buffer) WriteByte(c byte) os.Error {
+func (b *Buffer) WriteByte(c byte) error {
 	b.lastRead = opInvalid
 	m := b.grow(1)
 	b.buf[m] = c
@@ -188,7 +188,7 @@ func (b *Buffer) WriteByte(c byte) os.Error {
 // code point r to the buffer, returning its length and
 // an error, which is always nil but is included
 // to match bufio.Writer's WriteRune.
-func (b *Buffer) WriteRune(r rune) (n int, err os.Error) {
+func (b *Buffer) WriteRune(r rune) (n int, err error) {
 	if r < utf8.RuneSelf {
 		b.WriteByte(byte(r))
 		return 1, nil
@@ -202,12 +202,12 @@ func (b *Buffer) WriteRune(r rune) (n int, err os.Error) {
 // is drained.  The return value n is the number of bytes read.  If the
 // buffer has no data to return, err is os.EOF even if len(p) is zero;
 // otherwise it is nil.
-func (b *Buffer) Read(p []byte) (n int, err os.Error) {
+func (b *Buffer) Read(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
 	if b.off >= len(b.buf) {
 		// Buffer is empty, reset to recover space.
 		b.Truncate(0)
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 	n = copy(p, b.buf[b.off:])
 	b.off += n
@@ -237,12 +237,12 @@ func (b *Buffer) Next(n int) []byte {
 
 // ReadByte reads and returns the next byte from the buffer.
 // If no byte is available, it returns error os.EOF.
-func (b *Buffer) ReadByte() (c byte, err os.Error) {
+func (b *Buffer) ReadByte() (c byte, err error) {
 	b.lastRead = opInvalid
 	if b.off >= len(b.buf) {
 		// Buffer is empty, reset to recover space.
 		b.Truncate(0)
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 	c = b.buf[b.off]
 	b.off++
@@ -255,12 +255,12 @@ func (b *Buffer) ReadByte() (c byte, err os.Error) {
 // If no bytes are available, the error returned is os.EOF.
 // If the bytes are an erroneous UTF-8 encoding, it
 // consumes one byte and returns U+FFFD, 1.
-func (b *Buffer) ReadRune() (r rune, size int, err os.Error) {
+func (b *Buffer) ReadRune() (r rune, size int, err error) {
 	b.lastRead = opInvalid
 	if b.off >= len(b.buf) {
 		// Buffer is empty, reset to recover space.
 		b.Truncate(0)
-		return 0, 0, os.EOF
+		return 0, 0, io.EOF
 	}
 	b.lastRead = opReadRune
 	c := b.buf[b.off]
@@ -278,9 +278,9 @@ func (b *Buffer) ReadRune() (r rune, size int, err os.Error) {
 // not a ReadRune, UnreadRune returns an error.  (In this regard
 // it is stricter than UnreadByte, which will unread the last byte
 // from any read operation.)
-func (b *Buffer) UnreadRune() os.Error {
+func (b *Buffer) UnreadRune() error {
 	if b.lastRead != opReadRune {
-		return os.NewError("bytes.Buffer: UnreadRune: previous operation was not ReadRune")
+		return errors.New("bytes.Buffer: UnreadRune: previous operation was not ReadRune")
 	}
 	b.lastRead = opInvalid
 	if b.off > 0 {
@@ -293,9 +293,9 @@ func (b *Buffer) UnreadRune() os.Error {
 // UnreadByte unreads the last byte returned by the most recent
 // read operation.  If write has happened since the last read, UnreadByte
 // returns an error.
-func (b *Buffer) UnreadByte() os.Error {
+func (b *Buffer) UnreadByte() error {
 	if b.lastRead != opReadRune && b.lastRead != opRead {
-		return os.NewError("bytes.Buffer: UnreadByte: previous operation was not a read")
+		return errors.New("bytes.Buffer: UnreadByte: previous operation was not a read")
 	}
 	b.lastRead = opInvalid
 	if b.off > 0 {
@@ -310,12 +310,12 @@ func (b *Buffer) UnreadByte() os.Error {
 // it returns the data read before the error and the error itself (often os.EOF).
 // ReadBytes returns err != nil if and only if the returned data does not end in
 // delim.
-func (b *Buffer) ReadBytes(delim byte) (line []byte, err os.Error) {
+func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
 	i := IndexByte(b.buf[b.off:], delim)
 	size := i + 1
 	if i < 0 {
 		size = len(b.buf) - b.off
-		err = os.EOF
+		err = io.EOF
 	}
 	line = make([]byte, size)
 	copy(line, b.buf[b.off:])
@@ -329,7 +329,7 @@ func (b *Buffer) ReadBytes(delim byte) (line []byte, err os.Error) {
 // it returns the data read before the error and the error itself (often os.EOF).
 // ReadString returns err != nil if and only if the returned data does not end
 // in delim.
-func (b *Buffer) ReadString(delim byte) (line string, err os.Error) {
+func (b *Buffer) ReadString(delim byte) (line string, err error) {
 	bytes, err := b.ReadBytes(delim)
 	return string(bytes), err
 }

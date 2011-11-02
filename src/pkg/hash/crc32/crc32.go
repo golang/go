@@ -9,7 +9,6 @@ package crc32
 
 import (
 	"hash"
-	"os"
 	"sync"
 )
 
@@ -113,7 +112,7 @@ func Update(crc uint32, tab *Table, p []byte) uint32 {
 	return update(crc, tab, p)
 }
 
-func (d *digest) Write(p []byte) (n int, err os.Error) {
+func (d *digest) Write(p []byte) (n int, err error) {
 	d.crc = Update(d.crc, d.tab, p)
 	return len(p), nil
 }

@@ -8,6 +8,7 @@ package pe
 import (
 	"debug/dwarf"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -59,7 +60,7 @@ type ImportDirectory struct {
 }
 
 // Data reads and returns the contents of the PE section.
-func (s *Section) Data() ([]byte, os.Error) {
+func (s *Section) Data() ([]byte, error) {
 	dat := make([]byte, s.sr.Size())
 	n, err := s.sr.ReadAt(dat, 0)
 	return dat[0:n], err
@@ -74,7 +75,7 @@ type FormatError struct {
 	val interface{}
 }
 
-func (e *FormatError) String() string {
+func (e *FormatError) Error() string {
 	msg := e.msg
 	if e.val != nil {
 		msg += fmt.Sprintf(" '%v'", e.val)
@@ -84,7 +85,7 @@ func (e *FormatError) String() string {
 }
 
 // Open opens the named file using os.Open and prepares it for use as a PE binary.
-func Open(name string) (*File, os.Error) {
+func Open(name string) (*File, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err
@@ -101,8 +102,8 @@ func Open(name string) (*File, os.Error) {
 // Close closes the File.
 // If the File was created using NewFile directly instead of Open,
 // Close has no effect.
-func (f *File) Close() os.Error {
-	var err os.Error
+func (f *File) Close() error {
+	var err error
 	if f.closer != nil {
 		err = f.closer.Close()
 		f.closer = nil
@@ -111,7 +112,7 @@ func (f *File) Close() os.Error {
 }
 
 // NewFile creates a new File for accessing a PE binary in an underlying reader.
-func NewFile(r io.ReaderAt) (*File, os.Error) {
+func NewFile(r io.ReaderAt) (*File, error) {
 	f := new(File)
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
 
@@ -124,7 +125,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		var sign [4]byte
 		r.ReadAt(sign[0:], int64(dosheader[0x3c]))
 		if !(sign[0] == 'P' && sign[1] == 'E' && sign[2] == 0 && sign[3] == 0) {
-			return nil, os.NewError("Invalid PE File Format.")
+			return nil, errors.New("Invalid PE File Format.")
 		}
 		base = int64(dosheader[0x3c]) + 4
 	} else {
@@ -135,7 +136,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		return nil, err
 	}
 	if f.FileHeader.Machine != IMAGE_FILE_MACHINE_UNKNOWN && f.FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64 && f.FileHeader.Machine != IMAGE_FILE_MACHINE_I386 {
-		return nil, os.NewError("Invalid PE File Format.")
+		return nil, errors.New("Invalid PE File Format.")
 	}
 	// get symbol string table
 	sr.Seek(int64(f.FileHeader.PointerToSymbolTable+18*f.FileHeader.NumberOfSymbols), os.SEEK_SET)
@@ -215,7 +216,7 @@ func (f *File) Section(name string) *Section {
 	return nil
 }
 
-func (f *File) DWARF() (*dwarf.Data, os.Error) {
+func (f *File) DWARF() (*dwarf.Data, error) {
 	// There are many other DWARF sections, but these
 	// are the required ones, and the debug/dwarf package
 	// does not use the others, so don't bother loading them.
@@ -242,7 +243,7 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
 // referred to by the binary f that are expected to be
 // satisfied by other libraries at dynamic load time.
 // It does not return weak symbols.
-func (f *File) ImportedSymbols() ([]string, os.Error) {
+func (f *File) ImportedSymbols() ([]string, error) {
 	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64
 	ds := f.Section(".idata")
 	if ds == nil {
@@ -308,7 +309,7 @@ func (f *File) ImportedSymbols() ([]string, os.Error) {
 // ImportedLibraries returns the names of all libraries
 // referred to by the binary f that are expected to be
 // linked with the binary at dynamic link time.
-func (f *File) ImportedLibraries() ([]string, os.Error) {
+func (f *File) ImportedLibraries() ([]string, error) {
 	// TODO
 	// cgo -dynimport don't use this for windows PE, so just return.
 	return nil, nil

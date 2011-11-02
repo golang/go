@@ -6,12 +6,13 @@ package x11
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"os"
 )
 
 // readU16BE reads a big-endian uint16 from r, using b as a scratch buffer.
-func readU16BE(r io.Reader, b []byte) (uint16, os.Error) {
+func readU16BE(r io.Reader, b []byte) (uint16, error) {
 	_, err := io.ReadFull(r, b[0:2])
 	if err != nil {
 		return 0, err
@@ -20,13 +21,13 @@ func readU16BE(r io.Reader, b []byte) (uint16, os.Error) {
 }
 
 // readStr reads a length-prefixed string from r, using b as a scratch buffer.
-func readStr(r io.Reader, b []byte) (string, os.Error) {
+func readStr(r io.Reader, b []byte) (string, error) {
 	n, err := readU16BE(r, b)
 	if err != nil {
 		return "", err
 	}
 	if int(n) > len(b) {
-		return "", os.NewError("Xauthority entry too long for buffer")
+		return "", errors.New("Xauthority entry too long for buffer")
 	}
 	_, err = io.ReadFull(r, b[0:n])
 	if err != nil {
@@ -37,7 +38,7 @@ func readStr(r io.Reader, b []byte) (string, os.Error) {
 
 // readAuth reads the X authority file and returns the name/data pair for the display.
 // displayStr is the "12" out of a $DISPLAY like ":12.0".
-func readAuth(displayStr string) (name, data string, err os.Error) {
+func readAuth(displayStr string) (name, data string, err error) {
 	// b is a scratch buffer to use and should be at least 256 bytes long
 	// (i.e. it should be able to hold a hostname).
 	var b [256]byte
@@ -48,7 +49,7 @@ func readAuth(displayStr string) (name, data string, err os.Error) {
 	if fn == "" {
 		home := os.Getenv("HOME")
 		if home == "" {
-			err = os.NewError("Xauthority not found: $XAUTHORITY, $HOME not set")
+			err = errors.New("Xauthority not found: $XAUTHORITY, $HOME not set")
 			return
 		}
 		fn = home + "/.Xauthority"

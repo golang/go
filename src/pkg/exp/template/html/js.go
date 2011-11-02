@@ -148,7 +148,7 @@ func jsValEscaper(args ...interface{}) string {
 		// turning into
 		//     x//* error marshalling y:
 		//          second line of error message */null
-		return fmt.Sprintf(" /* %s */null ", strings.Replace(err.String(), "*/", "* /", -1))
+		return fmt.Sprintf(" /* %s */null ", strings.Replace(err.Error(), "*/", "* /", -1))
 	}
 
 	// TODO: maybe post-process output to prevent it from containing

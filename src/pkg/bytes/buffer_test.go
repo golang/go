@@ -6,7 +6,7 @@ package bytes_test
 
 import (
 	. "bytes"
-	"os"
+	"io"
 	"rand"
 	"testing"
 	"utf8"
@@ -344,21 +344,21 @@ var readBytesTests = []struct {
 	buffer   string
 	delim    byte
 	expected []string
-	err      os.Error
+	err      error
 }{
-	{"", 0, []string{""}, os.EOF},
+	{"", 0, []string{""}, io.EOF},
 	{"a\x00", 0, []string{"a\x00"}, nil},
 	{"abbbaaaba", 'b', []string{"ab", "b", "b", "aaab"}, nil},
 	{"hello\x01world", 1, []string{"hello\x01"}, nil},
-	{"foo\nbar", 0, []string{"foo\nbar"}, os.EOF},
+	{"foo\nbar", 0, []string{"foo\nbar"}, io.EOF},
 	{"alpha\nbeta\ngamma\n", '\n', []string{"alpha\n", "beta\n", "gamma\n"}, nil},
-	{"alpha\nbeta\ngamma", '\n', []string{"alpha\n", "beta\n", "gamma"}, os.EOF},
+	{"alpha\nbeta\ngamma", '\n', []string{"alpha\n", "beta\n", "gamma"}, io.EOF},
 }
 
 func TestReadBytes(t *testing.T) {
 	for _, test := range readBytesTests {
 		buf := NewBufferString(test.buffer)
-		var err os.Error
+		var err error
 		for _, expected := range test.expected {
 			var bytes []byte
 			bytes, err = buf.ReadBytes(test.delim)

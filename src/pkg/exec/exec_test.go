@@ -82,7 +82,7 @@ func TestExitStatus(t *testing.T) {
 	// Test that exit values are returned correctly
 	err := helperCommand("exit", "42").Run()
 	if werr, ok := err.(*ExitError); ok {
-		if s, e := werr.String(), "exit status 42"; s != e {
+		if s, e := werr.Error(), "exit status 42"; s != e {
 			t.Errorf("from exit 42 got exit %q, want %q", s, e)
 		}
 	} else {
@@ -91,7 +91,7 @@ func TestExitStatus(t *testing.T) {
 }
 
 func TestPipes(t *testing.T) {
-	check := func(what string, err os.Error) {
+	check := func(what string, err error) {
 		if err != nil {
 			t.Fatalf("%s: %v", what, err)
 		}
@@ -224,7 +224,7 @@ func TestHelperProcess(*testing.T) {
 		bufr := bufio.NewReader(os.Stdin)
 		for {
 			line, _, err := bufr.ReadLine()
-			if err == os.EOF {
+			if err == io.EOF {
 				break
 			} else if err != nil {
 				os.Exit(1)

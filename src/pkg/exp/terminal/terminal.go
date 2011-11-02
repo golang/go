@@ -15,6 +15,7 @@
 package terminal
 
 import (
+	"io"
 	"os"
 	"syscall"
 	"unsafe"
@@ -35,7 +36,7 @@ func IsTerminal(fd int) bool {
 // MakeRaw put the terminal connected to the given file descriptor into raw
 // mode and returns the previous state of the terminal so that it can be
 // restored.
-func MakeRaw(fd int) (*State, os.Error) {
+func MakeRaw(fd int) (*State, error) {
 	var oldState State
 	if _, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&oldState.termios)), 0, 0, 0); e != 0 {
 		return nil, os.Errno(e)
@@ -53,7 +54,7 @@ func MakeRaw(fd int) (*State, os.Error) {
 
 // Restore restores the terminal connected to the given file descriptor to a
 // previous state.
-func Restore(fd int, state *State) os.Error {
+func Restore(fd int, state *State) error {
 	_, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&state.termios)), 0, 0, 0)
 	return os.Errno(e)
 }
@@ -61,7 +62,7 @@ func Restore(fd int, state *State) os.Error {
 // ReadPassword reads a line of input from a terminal without local echo.  This
 // is commonly used for inputting passwords and other sensitive data. The slice
 // returned does not include the \n.
-func ReadPassword(fd int) ([]byte, os.Error) {
+func ReadPassword(fd int) ([]byte, error) {
 	var oldState syscall.Termios
 	if _, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&oldState)), 0, 0, 0); e != 0 {
 		return nil, os.Errno(e)
@@ -86,7 +87,7 @@ func ReadPassword(fd int) ([]byte, os.Error) {
 		}
 		if n == 0 {
 			if len(ret) == 0 {
-				return nil, os.EOF
+				return nil, io.EOF
 			}
 			break
 		}

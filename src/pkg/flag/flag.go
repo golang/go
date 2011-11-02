@@ -60,6 +60,7 @@
 package flag
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -67,7 +68,7 @@ import (
 )
 
 // ErrHelp is the error returned if the flag -help is invoked but no such flag is defined.
-var ErrHelp = os.NewError("flag: help requested")
+var ErrHelp = errors.New("flag: help requested")
 
 // -- Bool Value
 type boolValue bool
@@ -580,7 +581,7 @@ func Var(value Value, name string, usage string) {
 
 // failf prints to standard error a formatted error and usage message and
 // returns the error.
-func (f *FlagSet) failf(format string, a ...interface{}) os.Error {
+func (f *FlagSet) failf(format string, a ...interface{}) error {
 	err := fmt.Errorf(format, a...)
 	fmt.Fprintln(os.Stderr, err)
 	f.usage()
@@ -600,7 +601,7 @@ func (f *FlagSet) usage() {
 }
 
 // parseOne parses one flag. It returns whether a flag was seen.
-func (f *FlagSet) parseOne() (bool, os.Error) {
+func (f *FlagSet) parseOne() (bool, error) {
 	if len(f.args) == 0 {
 		return false, nil
 	}
@@ -676,7 +677,7 @@ func (f *FlagSet) parseOne() (bool, os.Error) {
 // include the command name.  Must be called after all flags in the FlagSet
 // are defined and before flags are accessed by the program.
 // The return value will be ErrHelp if -help was set but not defined.
-func (f *FlagSet) Parse(arguments []string) os.Error {
+func (f *FlagSet) Parse(arguments []string) error {
 	f.parsed = true
 	f.args = arguments
 	for {

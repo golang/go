@@ -36,7 +36,7 @@ func delta(u0, u1 uint32) int64 {
 	return d
 }
 
-func readPng(filename string) (image.Image, os.Error) {
+func readPng(filename string) (image.Image, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err

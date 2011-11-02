@@ -7,7 +7,6 @@ package http
 import (
 	"fmt"
 	"json"
-	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -50,7 +49,7 @@ func (ho headerOnlyResponseWriter) Header() Header {
 	return Header(ho)
 }
 
-func (ho headerOnlyResponseWriter) Write([]byte) (int, os.Error) {
+func (ho headerOnlyResponseWriter) Write([]byte) (int, error) {
 	panic("NOIMPL")
 }
 

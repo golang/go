@@ -11,7 +11,6 @@ import (
 	"image"
 	"image/color"
 	"io"
-	"os"
 	"strconv"
 )
 
@@ -19,7 +18,7 @@ type encoder struct {
 	w      io.Writer
 	m      image.Image
 	cb     int
-	err    os.Error
+	err    error
 	header [8]byte
 	footer [4]byte
 	tmp    [3 * 256]byte
@@ -161,7 +160,7 @@ func (e *encoder) maybeWritetRNS(p color.Palette) {
 //
 // This method should only be called from writeIDATs (via writeImage).
 // No other code should treat an encoder as an io.Writer.
-func (e *encoder) Write(b []byte) (int, os.Error) {
+func (e *encoder) Write(b []byte) (int, error) {
 	e.writeChunk(b, "IDAT")
 	if e.err != nil {
 		return 0, e.err
@@ -263,7 +262,7 @@ func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
 	return filter
 }
 
-func writeImage(w io.Writer, m image.Image, cb int) os.Error {
+func writeImage(w io.Writer, m image.Image, cb int) error {
 	zw, err := zlib.NewWriter(w)
 	if err != nil {
 		return err
@@ -424,7 +423,7 @@ func (e *encoder) writeIEND() { e.writeChunk(e.tmp[0:0], "IEND") }
 
 // Encode writes the Image m to w in PNG format. Any Image may be encoded, but
 // images that are not image.NRGBA might be encoded lossily.
-func Encode(w io.Writer, m image.Image) os.Error {
+func Encode(w io.Writer, m image.Image) error {
 	// Obviously, negative widths and heights are invalid. Furthermore, the PNG
 	// spec section 11.2.2 says that zero is invalid. Excessively large images are
 	// also rejected.

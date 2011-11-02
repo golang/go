@@ -5,14 +5,15 @@
 package exec
 
 import (
+	"errors"
 	"os"
 	"strings"
 )
 
 // ErrNotFound is the error resulting if a path search failed to find an executable file.
-var ErrNotFound = os.NewError("executable file not found in $path")
+var ErrNotFound = errors.New("executable file not found in $path")
 
-func findExecutable(file string) os.Error {
+func findExecutable(file string) error {
 	d, err := os.Stat(file)
 	if err != nil {
 		return err
@@ -27,7 +28,7 @@ func findExecutable(file string) os.Error {
 // in the directories named by the path environment variable.
 // If file begins with "/", "#", "./", or "../", it is tried
 // directly and the path is not consulted.
-func LookPath(file string) (string, os.Error) {
+func LookPath(file string) (string, error) {
 	// skip the path lookup for these prefixes
 	skip := []string{"/", "#", "./", "../"}
 

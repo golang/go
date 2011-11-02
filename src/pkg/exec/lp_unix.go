@@ -7,14 +7,15 @@
 package exec
 
 import (
+	"errors"
 	"os"
 	"strings"
 )
 
 // ErrNotFound is the error resulting if a path search failed to find an executable file.
-var ErrNotFound = os.NewError("executable file not found in $PATH")
+var ErrNotFound = errors.New("executable file not found in $PATH")
 
-func findExecutable(file string) os.Error {
+func findExecutable(file string) error {
 	d, err := os.Stat(file)
 	if err != nil {
 		return err
@@ -28,7 +29,7 @@ func findExecutable(file string) os.Error {
 // LookPath searches for an executable binary named file
 // in the directories named by the PATH environment variable.
 // If file contains a slash, it is tried directly and the PATH is not consulted.
-func LookPath(file string) (string, os.Error) {
+func LookPath(file string) (string, error) {
 	// NOTE(rsc): I wish we could use the Plan 9 behavior here
 	// (only bypass the path if file begins with / or ./ or ../)
 	// but that would not match all the Unix shells.

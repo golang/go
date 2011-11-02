@@ -6,8 +6,8 @@ package git85
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
-	"os"
 	"testing"
 )
 
@@ -90,11 +90,11 @@ func TestEncoderBuffering(t *testing.T) {
 				end = len(input)
 			}
 			n, err := encoder.Write(input[pos:end])
-			testEqual(t, "Write(%q) gave error %v, want %v", input[pos:end], err, os.Error(nil))
+			testEqual(t, "Write(%q) gave error %v, want %v", input[pos:end], err, error(nil))
 			testEqual(t, "Write(%q) gave length %v, want %v", input[pos:end], n, end-pos)
 		}
 		err := encoder.Close()
-		testEqual(t, "Close gave error %v, want %v", err, os.Error(nil))
+		testEqual(t, "Close gave error %v, want %v", err, error(nil))
 		testEqual(t, "Encoding/%d of %q = %q, want %q", bs, gitBigtest.decoded, bb.String(), gitBigtest.encoded)
 	}
 }
@@ -103,7 +103,7 @@ func TestDecode(t *testing.T) {
 	for _, p := range gitPairs {
 		dbuf := make([]byte, 4*len(p.encoded))
 		ndst, err := Decode(dbuf, []byte(p.encoded))
-		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil))
+		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, error(nil))
 		testEqual(t, "Decode(%q) = ndst %v, want %v", p.encoded, ndst, len(p.decoded))
 		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:ndst]), p.decoded)
 	}
@@ -119,7 +119,7 @@ func TestDecoder(t *testing.T) {
 		testEqual(t, "Read from %q = length %v, want %v", p.encoded, len(dbuf), len(p.decoded))
 		testEqual(t, "Decoding of %q = %q, want %q", p.encoded, string(dbuf), p.decoded)
 		if err != nil {
-			testEqual(t, "Read from %q = %v, want %v", p.encoded, err, os.EOF)
+			testEqual(t, "Read from %q = %v, want %v", p.encoded, err, io.EOF)
 		}
 	}
 }
@@ -131,7 +131,7 @@ func TestDecoderBuffering(t *testing.T) {
 		var total int
 		for total = 0; total < len(gitBigtest.decoded); {
 			n, err := decoder.Read(buf[total : total+bs])
-			testEqual(t, "Read from %q at pos %d = %d, %v, want _, %v", gitBigtest.encoded, total, n, err, os.Error(nil))
+			testEqual(t, "Read from %q at pos %d = %d, %v, want _, %v", gitBigtest.encoded, total, n, err, error(nil))
 			total += n
 		}
 		testEqual(t, "Decoding/%d of %q = %q, want %q", bs, gitBigtest.encoded, string(buf[0:total]), gitBigtest.decoded)

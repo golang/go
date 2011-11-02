@@ -15,7 +15,6 @@ import (
 	"http/httptest"
 	"io"
 	"io/ioutil"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -77,7 +76,7 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
 
 		fetch := func(n int) string {
 			req := new(Request)
-			var err os.Error
+			var err error
 			req.URL, err = url.Parse(ts.URL + fmt.Sprintf("/?close=%v", connectionClose))
 			if err != nil {
 				t.Fatalf("URL parse error: %v", err)
@@ -119,7 +118,7 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
 
 		fetch := func(n int) string {
 			req := new(Request)
-			var err os.Error
+			var err error
 			req.URL, err = url.Parse(ts.URL)
 			if err != nil {
 				t.Fatalf("URL parse error: %v", err)
@@ -575,7 +574,7 @@ func TestTransportGzipRecursive(t *testing.T) {
 
 type fooProto struct{}
 
-func (fooProto) RoundTrip(req *Request) (*Response, os.Error) {
+func (fooProto) RoundTrip(req *Request) (*Response, error) {
 	res := &Response{
 		Status:     "200 OK",
 		StatusCode: 200,

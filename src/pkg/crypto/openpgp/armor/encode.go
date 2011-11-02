@@ -7,7 +7,6 @@ package armor
 import (
 	"encoding/base64"
 	"io"
-	"os"
 )
 
 var armorHeaderSep = []byte(": ")
@@ -16,7 +15,7 @@ var newline = []byte("\n")
 var armorEndOfLineOut = []byte("-----\n")
 
 // writeSlices writes its arguments to the given Writer.
-func writeSlices(out io.Writer, slices ...[]byte) (err os.Error) {
+func writeSlices(out io.Writer, slices ...[]byte) (err error) {
 	for _, s := range slices {
 		_, err = out.Write(s)
 		if err != nil {
@@ -45,7 +44,7 @@ func newLineBreaker(out io.Writer, lineLength int) *lineBreaker {
 	}
 }
 
-func (l *lineBreaker) Write(b []byte) (n int, err os.Error) {
+func (l *lineBreaker) Write(b []byte) (n int, err error) {
 	n = len(b)
 
 	if n == 0 {
@@ -81,7 +80,7 @@ func (l *lineBreaker) Write(b []byte) (n int, err os.Error) {
 	return
 }
 
-func (l *lineBreaker) Close() (err os.Error) {
+func (l *lineBreaker) Close() (err error) {
 	if l.used > 0 {
 		_, err = l.out.Write(l.line[0:l.used])
 		if err != nil {
@@ -106,12 +105,12 @@ type encoding struct {
 	blockType []byte
 }
 
-func (e *encoding) Write(data []byte) (n int, err os.Error) {
+func (e *encoding) Write(data []byte) (n int, err error) {
 	e.crc = crc24(e.crc, data)
 	return e.b64.Write(data)
 }
 
-func (e *encoding) Close() (err os.Error) {
+func (e *encoding) Close() (err error) {
 	err = e.b64.Close()
 	if err != nil {
 		return
@@ -131,7 +130,7 @@ func (e *encoding) Close() (err os.Error) {
 
 // Encode returns a WriteCloser which will encode the data written to it in
 // OpenPGP armor.
-func Encode(out io.Writer, blockType string, headers map[string]string) (w io.WriteCloser, err os.Error) {
+func Encode(out io.Writer, blockType string, headers map[string]string) (w io.WriteCloser, err error) {
 	bType := []byte(blockType)
 	err = writeSlices(out, armorStart, bType, armorEndOfLineOut)
 	if err != nil {

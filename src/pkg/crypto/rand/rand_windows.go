@@ -23,7 +23,7 @@ type rngReader struct {
 	mu   sync.Mutex
 }
 
-func (r *rngReader) Read(b []byte) (n int, err os.Error) {
+func (r *rngReader) Read(b []byte) (n int, err error) {
 	r.mu.Lock()
 	if r.prov == 0 {
 		const provType = syscall.PROV_RSA_FULL

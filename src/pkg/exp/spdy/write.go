@@ -8,19 +8,18 @@ import (
 	"encoding/binary"
 	"http"
 	"io"
-	"os"
 	"strings"
 )
 
-func (frame *SynStreamFrame) write(f *Framer) os.Error {
+func (frame *SynStreamFrame) write(f *Framer) error {
 	return f.writeSynStreamFrame(frame)
 }
 
-func (frame *SynReplyFrame) write(f *Framer) os.Error {
+func (frame *SynReplyFrame) write(f *Framer) error {
 	return f.writeSynReplyFrame(frame)
 }
 
-func (frame *RstStreamFrame) write(f *Framer) (err os.Error) {
+func (frame *RstStreamFrame) write(f *Framer) (err error) {
 	frame.CFHeader.version = Version
 	frame.CFHeader.frameType = TypeRstStream
 	frame.CFHeader.length = 8
@@ -38,7 +37,7 @@ func (frame *RstStreamFrame) write(f *Framer) (err os.Error) {
 	return
 }
 
-func (frame *SettingsFrame) write(f *Framer) (err os.Error) {
+func (frame *SettingsFrame) write(f *Framer) (err error) {
 	frame.CFHeader.version = Version
 	frame.CFHeader.frameType = TypeSettings
 	frame.CFHeader.length = uint32(len(frame.FlagIdValues)*8 + 4)
@@ -62,7 +61,7 @@ func (frame *SettingsFrame) write(f *Framer) (err os.Error) {
 	return
 }
 
-func (frame *NoopFrame) write(f *Framer) os.Error {
+func (frame *NoopFrame) write(f *Framer) error {
 	frame.CFHeader.version = Version
 	frame.CFHeader.frameType = TypeNoop
 
@@ -70,7 +69,7 @@ func (frame *NoopFrame) write(f *Framer) os.Error {
 	return writeControlFrameHeader(f.w, frame.CFHeader)
 }
 
-func (frame *PingFrame) write(f *Framer) (err os.Error) {
+func (frame *PingFrame) write(f *Framer) (err error) {
 	frame.CFHeader.version = Version
 	frame.CFHeader.frameType = TypePing
 	frame.CFHeader.length = 4
@@ -85,7 +84,7 @@ func (frame *PingFrame) write(f *Framer) (err os.Error) {
 	return
 }
 
-func (frame *GoAwayFrame) write(f *Framer) (err os.Error) {
+func (frame *GoAwayFrame) write(f *Framer) (err error) {
 	frame.CFHeader.version = Version
 	frame.CFHeader.frameType = TypeGoAway
 	frame.CFHeader.length = 4
@@ -100,20 +99,20 @@ func (frame *GoAwayFrame) write(f *Framer) (err os.Error) {
 	return nil
 }
 
-func (frame *HeadersFrame) write(f *Framer) os.Error {
+func (frame *HeadersFrame) write(f *Framer) error {
 	return f.writeHeadersFrame(frame)
 }
 
-func (frame *DataFrame) write(f *Framer) os.Error {
+func (frame *DataFrame) write(f *Framer) error {
 	return f.writeDataFrame(frame)
 }
 
 // WriteFrame writes a frame.
-func (f *Framer) WriteFrame(frame Frame) os.Error {
+func (f *Framer) WriteFrame(frame Frame) error {
 	return frame.write(f)
 }
 
-func writeControlFrameHeader(w io.Writer, h ControlFrameHeader) os.Error {
+func writeControlFrameHeader(w io.Writer, h ControlFrameHeader) error {
 	if err := binary.Write(w, binary.BigEndian, 0x8000|h.version); err != nil {
 		return err
 	}
@@ -127,7 +126,7 @@ func writeControlFrameHeader(w io.Writer, h ControlFrameHeader) os.Error {
 	return nil
 }
 
-func writeHeaderValueBlock(w io.Writer, h http.Header) (n int, err os.Error) {
+func writeHeaderValueBlock(w io.Writer, h http.Header) (n int, err error) {
 	n = 0
 	if err = binary.Write(w, binary.BigEndian, uint16(len(h))); err != nil {
 		return
@@ -156,7 +155,7 @@ func writeHeaderValueBlock(w io.Writer, h http.Header) (n int, err os.Error) {
 	return
 }
 
-func (f *Framer) writeSynStreamFrame(frame *SynStreamFrame) (err os.Error) {
+func (f *Framer) writeSynStreamFrame(frame *SynStreamFrame) (err error) {
 	// Marshal the headers.
 	var writer io.Writer = f.headerBuf
 	if !f.headerCompressionDisabled {
@@ -194,7 +193,7 @@ func (f *Framer) writeSynStreamFrame(frame *SynStreamFrame) (err os.Error) {
 	return nil
 }
 
-func (f *Framer) writeSynReplyFrame(frame *SynReplyFrame) (err os.Error) {
+func (f *Framer) writeSynReplyFrame(frame *SynReplyFrame) (err error) {
 	// Marshal the headers.
 	var writer io.Writer = f.headerBuf
 	if !f.headerCompressionDisabled {
@@ -229,7 +228,7 @@ func (f *Framer) writeSynReplyFrame(frame *SynReplyFrame) (err os.Error) {
 	return
 }
 
-func (f *Framer) writeHeadersFrame(frame *HeadersFrame) (err os.Error) {
+func (f *Framer) writeHeadersFrame(frame *HeadersFrame) (err error) {
 	// Marshal the headers.
 	var writer io.Writer = f.headerBuf
 	if !f.headerCompressionDisabled {
@@ -264,7 +263,7 @@ func (f *Framer) writeHeadersFrame(frame *HeadersFrame) (err os.Error) {
 	return
 }
 
-func (f *Framer) writeDataFrame(frame *DataFrame) (err os.Error) {
+func (f *Framer) writeDataFrame(frame *DataFrame) (err error) {
 	// Validate DataFrame
 	if frame.StreamId&0x80000000 != 0 || len(frame.Data) >= 0x0f000000 {
 		return &Error{InvalidDataFrame, frame.StreamId}

@@ -11,10 +11,7 @@
 //	significant-byte first (network) order.
 package adler32
 
-import (
-	"hash"
-	"os"
-)
+import "hash"
 
 const (
 	mod = 65521
@@ -67,7 +64,7 @@ func finish(a, b uint32) uint32 {
 	return b<<16 | a
 }
 
-func (d *digest) Write(p []byte) (nn int, err os.Error) {
+func (d *digest) Write(p []byte) (nn int, err error) {
 	d.a, d.b = update(d.a, d.b, p)
 	return len(p), nil
 }

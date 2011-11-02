@@ -8,10 +8,7 @@
 
 package dwarf
 
-import (
-	"os"
-	"strconv"
-)
+import "strconv"
 
 // A Type conventionally represents a pointer to any of the
 // specific Type structures (CharType, StructType, etc.).
@@ -254,7 +251,7 @@ func (t *TypedefType) String() string { return t.Name }
 
 func (t *TypedefType) Size() int64 { return t.Type.Size() }
 
-func (d *Data) Type(off Offset) (Type, os.Error) {
+func (d *Data) Type(off Offset) (Type, error) {
 	if t, ok := d.typeCache[off]; ok {
 		return t, nil
 	}

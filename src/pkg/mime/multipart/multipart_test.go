@@ -10,7 +10,6 @@ import (
 	"io"
 	"io/ioutil"
 	"json"
-	"os"
 	"strings"
 	"testing"
 )
@@ -214,7 +213,7 @@ func testMultipart(t *testing.T, r io.Reader, onlyNewlines bool) {
 	if part != nil {
 		t.Error("Didn't expect a fifth part.")
 	}
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Errorf("On fifth part expected os.EOF; got %v", err)
 	}
 }
@@ -259,7 +258,7 @@ func TestVariousTextLineEndings(t *testing.T) {
 		if part != nil {
 			t.Errorf("Unexpected part in test %d", testNum)
 		}
-		if err != os.EOF {
+		if err != io.EOF {
 			t.Errorf("On test %d expected os.EOF; got %v", testNum, err)
 		}
 
@@ -273,11 +272,11 @@ type maliciousReader struct {
 
 const maxReadThreshold = 1 << 20
 
-func (mr *maliciousReader) Read(b []byte) (n int, err os.Error) {
+func (mr *maliciousReader) Read(b []byte) (n int, err error) {
 	mr.n += len(b)
 	if mr.n >= maxReadThreshold {
 		mr.t.Fatal("too much was read")
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 	return len(b), nil
 }
@@ -346,7 +345,7 @@ type slowReader struct {
 	r io.Reader
 }
 
-func (s *slowReader) Read(p []byte) (int, os.Error) {
+func (s *slowReader) Read(p []byte) (int, error) {
 	if len(p) == 0 {
 		return s.r.Read(p)
 	}

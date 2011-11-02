@@ -6,8 +6,8 @@ package gob
 
 import (
 	"bytes"
+	"errors"
 	"math"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -330,7 +330,7 @@ func newDecodeStateFromData(data []byte) *decoderState {
 // Test instruction execution for decoding.
 // Do not run the machine yet; instead do individual instructions crafted by hand.
 func TestScalarDecInstructions(t *testing.T) {
-	ovfl := os.NewError("overflow")
+	ovfl := errors.New("overflow")
 
 	// bool
 	{
@@ -633,7 +633,7 @@ func TestOverflow(t *testing.T) {
 		Minc complex128
 	}
 	var it inputT
-	var err os.Error
+	var err error
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
 	dec := NewDecoder(b)
@@ -650,7 +650,7 @@ func TestOverflow(t *testing.T) {
 	var o1 outi8
 	enc.Encode(it)
 	err = dec.Decode(&o1)
-	if err == nil || err.String() != `value for "Maxi" out of range` {
+	if err == nil || err.Error() != `value for "Maxi" out of range` {
 		t.Error("wrong overflow error for int8:", err)
 	}
 	it = inputT{
@@ -659,7 +659,7 @@ func TestOverflow(t *testing.T) {
 	b.Reset()
 	enc.Encode(it)
 	err = dec.Decode(&o1)
-	if err == nil || err.String() != `value for "Mini" out of range` {
+	if err == nil || err.Error() != `value for "Mini" out of range` {
 		t.Error("wrong underflow error for int8:", err)
 	}
 
@@ -675,7 +675,7 @@ func TestOverflow(t *testing.T) {
 	var o2 outi16
 	enc.Encode(it)
 	err = dec.Decode(&o2)
-	if err == nil || err.String() != `value for "Maxi" out of range` {
+	if err == nil || err.Error() != `value for "Maxi" out of range` {
 		t.Error("wrong overflow error for int16:", err)
 	}
 	it = inputT{
@@ -684,7 +684,7 @@ func TestOverflow(t *testing.T) {
 	b.Reset()
 	enc.Encode(it)
 	err = dec.Decode(&o2)
-	if err == nil || err.String() != `value for "Mini" out of range` {
+	if err == nil || err.Error() != `value for "Mini" out of range` {
 		t.Error("wrong underflow error for int16:", err)
 	}
 
@@ -700,7 +700,7 @@ func TestOverflow(t *testing.T) {
 	var o3 outi32
 	enc.Encode(it)
 	err = dec.Decode(&o3)
-	if err == nil || err.String() != `value for "Maxi" out of range` {
+	if err == nil || err.Error() != `value for "Maxi" out of range` {
 		t.Error("wrong overflow error for int32:", err)
 	}
 	it = inputT{
@@ -709,7 +709,7 @@ func TestOverflow(t *testing.T) {
 	b.Reset()
 	enc.Encode(it)
 	err = dec.Decode(&o3)
-	if err == nil || err.String() != `value for "Mini" out of range` {
+	if err == nil || err.Error() != `value for "Mini" out of range` {
 		t.Error("wrong underflow error for int32:", err)
 	}
 
@@ -724,7 +724,7 @@ func TestOverflow(t *testing.T) {
 	var o4 outu8
 	enc.Encode(it)
 	err = dec.Decode(&o4)
-	if err == nil || err.String() != `value for "Maxu" out of range` {
+	if err == nil || err.Error() != `value for "Maxu" out of range` {
 		t.Error("wrong overflow error for uint8:", err)
 	}
 
@@ -739,7 +739,7 @@ func TestOverflow(t *testing.T) {
 	var o5 outu16
 	enc.Encode(it)
 	err = dec.Decode(&o5)
-	if err == nil || err.String() != `value for "Maxu" out of range` {
+	if err == nil || err.Error() != `value for "Maxu" out of range` {
 		t.Error("wrong overflow error for uint16:", err)
 	}
 
@@ -754,7 +754,7 @@ func TestOverflow(t *testing.T) {
 	var o6 outu32
 	enc.Encode(it)
 	err = dec.Decode(&o6)
-	if err == nil || err.String() != `value for "Maxu" out of range` {
+	if err == nil || err.Error() != `value for "Maxu" out of range` {
 		t.Error("wrong overflow error for uint32:", err)
 	}
 
@@ -770,7 +770,7 @@ func TestOverflow(t *testing.T) {
 	var o7 outf32
 	enc.Encode(it)
 	err = dec.Decode(&o7)
-	if err == nil || err.String() != `value for "Maxf" out of range` {
+	if err == nil || err.Error() != `value for "Maxf" out of range` {
 		t.Error("wrong overflow error for float32:", err)
 	}
 
@@ -786,7 +786,7 @@ func TestOverflow(t *testing.T) {
 	var o8 outc64
 	enc.Encode(it)
 	err = dec.Decode(&o8)
-	if err == nil || err.String() != `value for "Maxc" out of range` {
+	if err == nil || err.Error() != `value for "Maxc" out of range` {
 		t.Error("wrong overflow error for complex64:", err)
 	}
 }
@@ -995,7 +995,7 @@ func TestBadRecursiveType(t *testing.T) {
 	err := NewEncoder(b).Encode(&rec)
 	if err == nil {
 		t.Error("expected error; got none")
-	} else if strings.Index(err.String(), "recursive") < 0 {
+	} else if strings.Index(err.Error(), "recursive") < 0 {
 		t.Error("expected recursive type error; got", err)
 	}
 	// Can't test decode easily because we can't encode one, so we can't pass one to a Decoder.
@@ -1014,7 +1014,7 @@ func TestInvalidField(t *testing.T) {
 	dummyEncoder.encode(b, reflect.ValueOf(&bad0), userType(reflect.TypeOf(&bad0)))
 	if err := dummyEncoder.err; err == nil {
 		t.Error("expected error; got none")
-	} else if strings.Index(err.String(), "type") < 0 {
+	} else if strings.Index(err.Error(), "type") < 0 {
 		t.Error("expected type error; got", err)
 	}
 }

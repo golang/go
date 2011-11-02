@@ -6,6 +6,7 @@ package http
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"net"
 	"net/textproto"
@@ -31,7 +32,7 @@ type ServerConn struct {
 	lk              sync.Mutex // read-write protects the following fields
 	c               net.Conn
 	r               *bufio.Reader
-	re, we          os.Error // read/write errors
+	re, we          error // read/write errors
 	lastbody        io.ReadCloser
 	nread, nwritten int
 	pipereq         map[*Request]uint
@@ -63,7 +64,7 @@ func (sc *ServerConn) Hijack() (c net.Conn, r *bufio.Reader) {
 }
 
 // Close calls Hijack and then also closes the underlying connection
-func (sc *ServerConn) Close() os.Error {
+func (sc *ServerConn) Close() error {
 	c, _ := sc.Hijack()
 	if c != nil {
 		return c.Close()
@@ -75,7 +76,7 @@ func (sc *ServerConn) Close() os.Error {
 // it is gracefully determined that there are no more requests (e.g. after the
 // first request on an HTTP/1.0 connection, or after a Connection:close on a
 // HTTP/1.1 connection).
-func (sc *ServerConn) Read() (req *Request, err os.Error) {
+func (sc *ServerConn) Read() (req *Request, err error) {
 
 	// Ensure ordered execution of Reads and Writes
 	id := sc.pipe.Next()
@@ -160,7 +161,7 @@ func (sc *ServerConn) Pending() int {
 // Write writes resp in response to req. To close the connection gracefully, set the
 // Response.Close field to true. Write should be considered operational until
 // it returns an error, regardless of any errors returned on the Read side.
-func (sc *ServerConn) Write(req *Request, resp *Response) os.Error {
+func (sc *ServerConn) Write(req *Request, resp *Response) error {
 
 	// Retrieve the pipeline ID of this request/response pair
 	sc.lk.Lock()
@@ -188,7 +189,7 @@ func (sc *ServerConn) Write(req *Request, resp *Response) os.Error {
 	c := sc.c
 	if sc.nread <= sc.nwritten {
 		defer sc.lk.Unlock()
-		return os.NewError("persist server pipe count")
+		return errors.New("persist server pipe count")
 	}
 	if resp.Close {
 		// After signaling a keep-alive close, any pipelined unread
@@ -221,13 +222,13 @@ type ClientConn struct {
 	lk              sync.Mutex // read-write protects the following fields
 	c               net.Conn
 	r               *bufio.Reader
-	re, we          os.Error // read/write errors
+	re, we          error // read/write errors
 	lastbody        io.ReadCloser
 	nread, nwritten int
 	pipereq         map[*Request]uint
 
 	pipe     textproto.Pipeline
-	writeReq func(*Request, io.Writer) os.Error
+	writeReq func(*Request, io.Writer) error
 }
 
 // NewClientConn returns a new ClientConn reading and writing c.  If r is not
@@ -267,7 +268,7 @@ func (cc *ClientConn) Hijack() (c net.Conn, r *bufio.Reader) {
 }
 
 // Close calls Hijack and then also closes the underlying connection
-func (cc *ClientConn) Close() os.Error {
+func (cc *ClientConn) Close() error {
 	c, _ := cc.Hijack()
 	if c != nil {
 		return c.Close()
@@ -280,7 +281,7 @@ func (cc *ClientConn) Close() os.Error {
 // keepalive connection is logically closed after this request and the opposing
 // server is informed. An ErrUnexpectedEOF indicates the remote closed the
 // underlying TCP connection, which is usually considered as graceful close.
-func (cc *ClientConn) Write(req *Request) (err os.Error) {
+func (cc *ClientConn) Write(req *Request) (err error) {
 
 	// Ensure ordered execution of Writes
 	id := cc.pipe.Next()
@@ -343,13 +344,13 @@ func (cc *ClientConn) Pending() int {
 // returned together with an ErrPersistEOF, which means that the remote
 // requested that this be the last request serviced. Read can be called
 // concurrently with Write, but not with another Read.
-func (cc *ClientConn) Read(req *Request) (*Response, os.Error) {
+func (cc *ClientConn) Read(req *Request) (*Response, error) {
 	return cc.readUsing(req, ReadResponse)
 }
 
 // readUsing is the implementation of Read with a replaceable
 // ReadResponse-like function, used by the Transport.
-func (cc *ClientConn) readUsing(req *Request, readRes func(*bufio.Reader, *Request) (*Response, os.Error)) (resp *Response, err os.Error) {
+func (cc *ClientConn) readUsing(req *Request, readRes func(*bufio.Reader, *Request) (*Response, error)) (resp *Response, err error) {
 	// Retrieve the pipeline ID of this request/response pair
 	cc.lk.Lock()
 	id, ok := cc.pipereq[req]
@@ -411,7 +412,7 @@ func (cc *ClientConn) readUsing(req *Request, readRes func(*bufio.Reader, *Reque
 }
 
 // Do is convenience method that writes a request and reads a response.
-func (cc *ClientConn) Do(req *Request) (resp *Response, err os.Error) {
+func (cc *ClientConn) Do(req *Request) (resp *Response, err error) {
 	err = cc.Write(req)
 	if err != nil {
 		return

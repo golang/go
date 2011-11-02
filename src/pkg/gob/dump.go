@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	var err os.Error
+	var err error
 	file := os.Stdin
 	if len(os.Args) > 1 {
 		file, err = os.Open(os.Args[1])

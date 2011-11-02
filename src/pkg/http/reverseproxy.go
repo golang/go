@@ -10,7 +10,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -141,7 +140,7 @@ type maxLatencyWriter struct {
 	done chan bool
 }
 
-func (m *maxLatencyWriter) Write(p []byte) (n int, err os.Error) {
+func (m *maxLatencyWriter) Write(p []byte) (n int, err error) {
 	m.lk.Lock()
 	defer m.lk.Unlock()
 	if m.done == nil {

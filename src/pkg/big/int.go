@@ -7,9 +7,9 @@
 package big
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"os"
 	"rand"
 	"strings"
 )
@@ -432,7 +432,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
 // ``0x'' or ``0X'' selects base 16; the ``0'' prefix selects base 8, and a
 // ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
 //
-func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, os.Error) {
+func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, error) {
 	// determine sign
 	ch, _, err := r.ReadRune()
 	if err != nil {
@@ -460,7 +460,7 @@ func (z *Int) scan(r io.RuneScanner, base int) (*Int, int, os.Error) {
 // Scan is a support routine for fmt.Scanner; it sets z to the value of
 // the scanned number. It accepts the formats 'b' (binary), 'o' (octal),
 // 'd' (decimal), 'x' (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
-func (z *Int) Scan(s fmt.ScanState, ch rune) os.Error {
+func (z *Int) Scan(s fmt.ScanState, ch rune) error {
 	s.SkipSpace() // skip leading space characters
 	base := 0
 	switch ch {
@@ -475,7 +475,7 @@ func (z *Int) Scan(s fmt.ScanState, ch rune) os.Error {
 	case 's', 'v':
 		// let scan determine the base
 	default:
-		return os.NewError("Int.Scan: invalid verb")
+		return errors.New("Int.Scan: invalid verb")
 	}
 	_, _, err := z.scan(s, base)
 	return err
@@ -513,7 +513,7 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 		return nil, false
 	}
 	_, _, err = r.ReadRune()
-	if err != os.EOF {
+	if err != io.EOF {
 		return nil, false
 	}
 	return z, true // err == os.EOF => scan consumed all of s
@@ -847,7 +847,7 @@ func (z *Int) Not(x *Int) *Int {
 const intGobVersion byte = 1
 
 // GobEncode implements the gob.GobEncoder interface.
-func (z *Int) GobEncode() ([]byte, os.Error) {
+func (z *Int) GobEncode() ([]byte, error) {
 	buf := make([]byte, 1+len(z.abs)*_S) // extra byte for version and sign bit
 	i := z.abs.bytes(buf) - 1            // i >= 0
 	b := intGobVersion << 1              // make space for sign bit
@@ -859,13 +859,13 @@ func (z *Int) GobEncode() ([]byte, os.Error) {
 }
 
 // GobDecode implements the gob.GobDecoder interface.
-func (z *Int) GobDecode(buf []byte) os.Error {
+func (z *Int) GobDecode(buf []byte) error {
 	if len(buf) == 0 {
-		return os.NewError("Int.GobDecode: no data")
+		return errors.New("Int.GobDecode: no data")
 	}
 	b := buf[0]
 	if b>>1 != intGobVersion {
-		return os.NewError(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
+		return errors.New(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
 	}
 	z.neg = b&1 != 0
 	z.abs = z.abs.setBytes(buf[1:])

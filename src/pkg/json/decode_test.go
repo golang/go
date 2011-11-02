@@ -6,7 +6,6 @@ package json
 
 import (
 	"bytes"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -30,7 +29,7 @@ type unmarshaler struct {
 	T bool
 }
 
-func (u *unmarshaler) UnmarshalJSON(b []byte) os.Error {
+func (u *unmarshaler) UnmarshalJSON(b []byte) error {
 	*u = unmarshaler{true} // All we need to see that UnmarshalJson is called.
 	return nil
 }
@@ -52,7 +51,7 @@ type unmarshalTest struct {
 	in  string
 	ptr interface{}
 	out interface{}
-	err os.Error
+	err error
 }
 
 var unmarshalTests = []unmarshalTest{

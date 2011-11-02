@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -19,7 +18,7 @@ type lzwTest struct {
 	desc       string
 	raw        string
 	compressed string
-	err        os.Error
+	err        error
 }
 
 var lzwTests = []lzwTest{

@@ -15,13 +15,12 @@ import (
 	"image/color"
 	"io"
 	"io/ioutil"
-	"os"
 )
 
 // A FormatError reports that the input is not a valid TIFF image.
 type FormatError string
 
-func (e FormatError) String() string {
+func (e FormatError) Error() string {
 	return "tiff: invalid format: " + string(e)
 }
 
@@ -29,14 +28,14 @@ func (e FormatError) String() string {
 // unimplemented feature.
 type UnsupportedError string
 
-func (e UnsupportedError) String() string {
+func (e UnsupportedError) Error() string {
 	return "tiff: unsupported feature: " + string(e)
 }
 
 // An InternalError reports that an internal error was encountered.
 type InternalError string
 
-func (e InternalError) String() string {
+func (e InternalError) Error() string {
 	return "tiff: internal error: " + string(e)
 }
 
@@ -66,7 +65,7 @@ func (d *decoder) firstVal(tag int) uint {
 
 // ifdUint decodes the IFD entry in p, which must be of the Byte, Short
 // or Long type, and returns the decoded uint values.
-func (d *decoder) ifdUint(p []byte) (u []uint, err os.Error) {
+func (d *decoder) ifdUint(p []byte) (u []uint, err error) {
 	var raw []byte
 	datatype := d.byteOrder.Uint16(p[2:4])
 	count := d.byteOrder.Uint32(p[4:8])
@@ -103,7 +102,7 @@ func (d *decoder) ifdUint(p []byte) (u []uint, err os.Error) {
 
 // parseIFD decides whether the the IFD entry in p is "interesting" and
 // stows away the data in the decoder.
-func (d *decoder) parseIFD(p []byte) os.Error {
+func (d *decoder) parseIFD(p []byte) error {
 	tag := d.byteOrder.Uint16(p[0:2])
 	switch tag {
 	case tBitsPerSample,
@@ -180,7 +179,7 @@ func (d *decoder) flushBits() {
 
 // decode decodes the raw data of an image.
 // It reads from d.buf and writes the strip with ymin <= y < ymax into dst.
-func (d *decoder) decode(dst image.Image, ymin, ymax int) os.Error {
+func (d *decoder) decode(dst image.Image, ymin, ymax int) error {
 	d.off = 0
 
 	// Apply horizontal predictor if necessary.
@@ -255,7 +254,7 @@ func (d *decoder) decode(dst image.Image, ymin, ymax int) os.Error {
 	return nil
 }
 
-func newDecoder(r io.Reader) (*decoder, os.Error) {
+func newDecoder(r io.Reader) (*decoder, error) {
 	d := &decoder{
 		r:        newReaderAt(r),
 		features: make(map[int][]uint),
@@ -350,7 +349,7 @@ func newDecoder(r io.Reader) (*decoder, os.Error) {
 
 // DecodeConfig returns the color model and dimensions of a TIFF image without
 // decoding the entire image.
-func DecodeConfig(r io.Reader) (image.Config, os.Error) {
+func DecodeConfig(r io.Reader) (image.Config, error) {
 	d, err := newDecoder(r)
 	if err != nil {
 		return image.Config{}, err
@@ -360,7 +359,7 @@ func DecodeConfig(r io.Reader) (image.Config, os.Error) {
 
 // Decode reads a TIFF image from r and returns it as an image.Image.
 // The type of Image returned depends on the contents of the TIFF.
-func Decode(r io.Reader) (img image.Image, err os.Error) {
+func Decode(r io.Reader) (img image.Image, err error) {
 	d, err := newDecoder(r)
 	if err != nil {
 		return

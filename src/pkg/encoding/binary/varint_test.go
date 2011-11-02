@@ -6,7 +6,7 @@ package binary
 
 import (
 	"bytes"
-	"os"
+	"io"
 	"testing"
 )
 
@@ -131,13 +131,13 @@ func TestBufferTooSmall(t *testing.T) {
 		}
 
 		x, err := ReadUvarint(bytes.NewBuffer(buf))
-		if x != 0 || err != os.EOF {
+		if x != 0 || err != io.EOF {
 			t.Errorf("ReadUvarint(%v): got x = %d, err = %s", buf, x, err)
 		}
 	}
 }
 
-func testOverflow(t *testing.T, buf []byte, n0 int, err0 os.Error) {
+func testOverflow(t *testing.T, buf []byte, n0 int, err0 error) {
 	x, n := Uvarint(buf)
 	if x != 0 || n != n0 {
 		t.Errorf("Uvarint(%v): got x = %d, n = %d; want 0, %d", buf, x, n, n0)

@@ -7,6 +7,7 @@ package html
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,7 +16,7 @@ import (
 	"testing"
 )
 
-func pipeErr(err os.Error) io.Reader {
+func pipeErr(err error) io.Reader {
 	pr, pw := io.Pipe()
 	pw.CloseWithError(err)
 	return pr
@@ -76,13 +77,13 @@ func dumpIndent(w io.Writer, level int) {
 	}
 }
 
-func dumpLevel(w io.Writer, n *Node, level int) os.Error {
+func dumpLevel(w io.Writer, n *Node, level int) error {
 	dumpIndent(w, level)
 	switch n.Type {
 	case ErrorNode:
-		return os.NewError("unexpected ErrorNode")
+		return errors.New("unexpected ErrorNode")
 	case DocumentNode:
-		return os.NewError("unexpected DocumentNode")
+		return errors.New("unexpected DocumentNode")
 	case ElementNode:
 		fmt.Fprintf(w, "<%s>", n.Data)
 		for _, a := range n.Attr {
@@ -97,9 +98,9 @@ func dumpLevel(w io.Writer, n *Node, level int) os.Error {
 	case DoctypeNode:
 		fmt.Fprintf(w, "<!DOCTYPE %s>", n.Data)
 	case scopeMarkerNode:
-		return os.NewError("unexpected scopeMarkerNode")
+		return errors.New("unexpected scopeMarkerNode")
 	default:
-		return os.NewError("unknown node type")
+		return errors.New("unknown node type")
 	}
 	io.WriteString(w, "\n")
 	for _, c := range n.Child {
@@ -110,7 +111,7 @@ func dumpLevel(w io.Writer, n *Node, level int) os.Error {
 	return nil
 }
 
-func dump(n *Node) (string, os.Error) {
+func dump(n *Node) (string, error) {
 	if n == nil || len(n.Child) == 0 {
 		return "", nil
 	}
