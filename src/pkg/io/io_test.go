@@ -7,7 +7,6 @@ package io_test
 import (
 	"bytes"
 	. "io"
-	"os"
 	"strings"
 	"testing"
 )
@@ -85,7 +84,7 @@ type noReadFrom struct {
 	w Writer
 }
 
-func (w *noReadFrom) Write(p []byte) (n int, err os.Error) {
+func (w *noReadFrom) Write(p []byte) (n int, err error) {
 	return w.w.Write(p)
 }
 
@@ -101,7 +100,7 @@ func TestCopyNEOF(t *testing.T) {
 	}
 
 	n, err = CopyN(&noReadFrom{b}, strings.NewReader("foo"), 4)
-	if n != 3 || err != os.EOF {
+	if n != 3 || err != EOF {
 		t.Errorf("CopyN(noReadFrom, foo, 4) = %d, %v; want 3, EOF", n, err)
 	}
 
@@ -111,7 +110,7 @@ func TestCopyNEOF(t *testing.T) {
 	}
 
 	n, err = CopyN(b, strings.NewReader("foo"), 4) // b has read from
-	if n != 3 || err != os.EOF {
+	if n != 3 || err != EOF {
 		t.Errorf("CopyN(bytes.Buffer, foo, 4) = %d, %v; want 3, EOF", n, err)
 	}
 }
@@ -121,16 +120,16 @@ func TestReadAtLeast(t *testing.T) {
 	testReadAtLeast(t, &rb)
 }
 
-// A version of bytes.Buffer that returns n > 0, os.EOF on Read
+// A version of bytes.Buffer that returns n > 0, EOF on Read
 // when the input is exhausted.
 type dataAndEOFBuffer struct {
 	bytes.Buffer
 }
 
-func (r *dataAndEOFBuffer) Read(p []byte) (n int, err os.Error) {
+func (r *dataAndEOFBuffer) Read(p []byte) (n int, err error) {
 	n, err = r.Buffer.Read(p)
 	if n > 0 && r.Buffer.Len() == 0 && err == nil {
-		err = os.EOF
+		err = EOF
 	}
 	return
 }
@@ -162,7 +161,7 @@ func testReadAtLeast(t *testing.T, rb ReadWriter) {
 		t.Errorf("expected to have read 2 bytes, got %v", n)
 	}
 	n, err = ReadAtLeast(rb, buf, 2)
-	if err != os.EOF {
+	if err != EOF {
 		t.Errorf("expected EOF, got %v", err)
 	}
 	if n != 0 {
@@ -193,14 +192,14 @@ func TestTeeReader(t *testing.T) {
 	if !bytes.Equal(wb.Bytes(), src) {
 		t.Errorf("bytes written = %q want %q", wb.Bytes(), src)
 	}
-	if n, err := r.Read(dst); n != 0 || err != os.EOF {
+	if n, err := r.Read(dst); n != 0 || err != EOF {
 		t.Errorf("r.Read at EOF = %d, %v want 0, EOF", n, err)
 	}
 	rb = bytes.NewBuffer(src)
 	pr, pw := Pipe()
 	pr.Close()
 	r = TeeReader(rb, pw)
-	if n, err := ReadFull(r, dst); n != 0 || err != os.EPIPE {
+	if n, err := ReadFull(r, dst); n != 0 || err != ErrClosedPipe {
 		t.Errorf("closed tee: ReadFull(r, dst) = %d, %v; want 0, EPIPE", n, err)
 	}
 }
