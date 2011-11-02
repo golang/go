@@ -3,10 +3,10 @@
 // license that can be found in the LICENSE file.
 
 /*
-	Package builtin provides documentation for Go's built-in functions.
-	The functions documented here are not actually in package builtin
+	Package builtin provides documentation for Go's predeclared identifiers.
+	The items documented here are not actually in package builtin
 	but their descriptions here allow godoc to present documentation
-	for the language's special functions.
+	for the language's special identifiers.
 */
 package builtin
 
@@ -133,3 +133,9 @@ func panic(v interface{})
 // nil. Thus the return value from recover reports whether the goroutine is
 // panicking.
 func recover() interface{}
+
+// The error built-in interface type is the conventional interface for
+// representing an error condition, with the nil value representing no error.
+type error interface {
+	Error() string
+}
