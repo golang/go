@@ -1483,7 +1483,7 @@ ptrto(Type *t)
 	Type *t1;
 
 	if(tptr == 0)
-		fatal("ptrto: nil");
+		fatal("ptrto: no tptr");
 	t1 = typ(tptr);
 	t1->type = t;
 	t1->width = widthptr;

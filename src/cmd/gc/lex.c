@@ -1759,6 +1759,40 @@ static void
 lexinit1(void)
 {
 	Sym *s, *s1;
+	Type *t, *f, *rcvr, *in, *out;
+
+	// t = interface { Error() string }
+	rcvr = typ(TSTRUCT);
+	rcvr->type = typ(TFIELD);
+	rcvr->type->type = ptrto(typ(TSTRUCT));
+	rcvr->funarg = 1;
+	in = typ(TSTRUCT);
+	in->funarg = 1;
+	out = typ(TSTRUCT);
+	out->type = typ(TFIELD);
+	out->type->type = types[TSTRING];
+	out->funarg = 1;
+	f = typ(TFUNC);
+	*getthis(f) = rcvr;
+	*getoutarg(f) = out;
+	*getinarg(f) = in;
+	f->thistuple = 1;
+	f->intuple = 0;
+	f->outnamed = 0;
+	f->outtuple = 1;
+	t = typ(TINTER);
+	t->type = typ(TFIELD);
+	t->type->sym = lookup("Error");
+	t->type->type = f;
+
+	// error type
+	s = lookup("error");
+	s->lexical = LNAME;
+	errortype = t;
+	errortype->sym = s;
+	s1 = pkglookup("error", builtinpkg);
+	s1->lexical = LNAME;
+	s1->def = typenod(errortype);
 
 	// byte alias
 	s = lookup("byte");
@@ -1820,6 +1854,10 @@ lexfini(void)
 	s = lookup("byte");
 	if(s->def == N)
 		s->def = typenod(bytetype);
+	
+	s = lookup("error");
+	if(s->def == N)
+		s->def = typenod(errortype);
 
 	s = lookup("rune");
 	if(s->def == N)

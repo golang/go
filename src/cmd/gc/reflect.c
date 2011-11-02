@@ -693,8 +693,13 @@ dtypesym(Type *t)
 		tbase = t->type;
 	dupok = tbase->sym == S;
 
-	if(compiling_runtime && (tbase == types[tbase->etype] || tbase == bytetype || tbase == runetype))	// int, float, etc
+	if(compiling_runtime && 
+			(tbase == types[tbase->etype] ||
+			tbase == bytetype ||
+			tbase == runetype ||
+			tbase == errortype)) { // int, float, etc
 		goto ok;
+	}
 
 	// named types from other files are defined only by those files
 	if(tbase->sym && !tbase->local)
@@ -903,6 +908,13 @@ dumptypestructs(void)
 			dtypesym(ptrto(types[i]));
 		dtypesym(ptrto(types[TSTRING]));
 		dtypesym(ptrto(types[TUNSAFEPTR]));
+
+		// emit type structs for error and func(error) string.
+		// The latter is the type of an auto-generated wrapper.
+		dtypesym(ptrto(errortype));
+		dtypesym(functype(nil, 
+			list1(nod(ODCLFIELD, N, typenod(errortype))),
+			list1(nod(ODCLFIELD, N, typenod(types[TSTRING])))));
 		
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(runtimepkg);

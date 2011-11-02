@@ -553,6 +553,9 @@ typefmt(Fmt *fp, Type *t)
 		t = types[t->etype];
 	}
 
+	if(t == errortype)
+		return fmtstrcpy(fp, "error");
+
 	// Unless the 'l' flag was specified, if the type has a name, just print that name.
 	if(!(fp->flags&FmtLong) && t->sym && t->etype != TFIELD && t != types[t->etype]) {
 		switch(fmtmode) {
