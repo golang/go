@@ -635,6 +635,10 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 			p.inBodyEndTagFormatting(p.tok.Data)
 		case "address", "article", "aside", "blockquote", "button", "center", "details", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "listing", "menu", "nav", "ol", "pre", "section", "summary", "ul":
 			p.popUntil(defaultScopeStopTags, p.tok.Data)
+		case "applet", "marquee", "object":
+			if p.popUntil(defaultScopeStopTags, p.tok.Data) {
+				p.clearActiveFormattingElements()
+			}
 		default:
 			p.inBodyEndTagOther(p.tok.Data)
 		}
