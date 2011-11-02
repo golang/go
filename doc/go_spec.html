@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of October 25, 2011 -->
+<!-- subtitle Version of November 1, 2011 -->
 
 <!--
 TODO
@@ -1498,12 +1498,10 @@ the body of any nested function.
 The following identifiers are implicitly declared in the universe block:
 </p>
 <pre class="grammar">
-Basic types:
-	bool byte complex64 complex128 float32 float64
-	int8 int16 int32 int64 rune string uint8 uint16 uint32 uint64
-
-Architecture-specific convenience types:
-	int uint uintptr
+Types:
+	bool byte complex64 complex128 error float32 float64
+	int int8 int16 int32 int64 rune string
+	uint uint8 uint16 uint32 uint64 uintptr
 
 Constants:
 	true false iota
@@ -4323,7 +4321,7 @@ func complex_f3() (re float64, im float64) {
 	return
 }
 
-func (devnull) Write(p []byte) (n int, _ os.Error) {
+func (devnull) Write(p []byte) (n int, _ error) {
 	n = len(p)
 	return
 }
@@ -5172,6 +5170,28 @@ the <code>init</code> functions: it will not start the next
 the previous one has returned.
 </p>
 
+<h2 id="Errors">Errors</h2>
+
+<p>
+The predeclared type <code>error</code> is defined as
+</p>
+
+<pre>
+type error interface {
+	Error() string
+}
+</pre>
+
+<p>
+It is the conventional interface for representing an error condition,
+with the nil value representing no error.
+For instance, a function to read data from a file might be defined:
+</p>
+
+<pre>
+func Read(f *File, b []byte) (n int, err error)
+</pre>
+
 <h2 id="Run_time_panics">Run-time panics</h2>
 
 <p>
@@ -5179,18 +5199,18 @@ Execution errors such as attempting to index an array out
 of bounds trigger a <i>run-time panic</i> equivalent to a call of
 the built-in function <a href="#Handling_panics"><code>panic</code></a>
 with a value of the implementation-defined interface type <code>runtime.Error</code>.
-That type defines at least the method
-<code>String() string</code>.  The exact error values that
-represent distinct run-time error conditions are unspecified,
-at least for now.
+That type satisfies the predeclared interface type 
+<a href="#Errors"><code>error</code></a>.
+The exact error values that
+represent distinct run-time error conditions are unspecified.
 </p>
 
 <pre>
 package runtime
 
 type Error interface {
-	String() string
-	// and perhaps others
+	error
+	// and perhaps other methods
 }
 </pre>
 
