@@ -4,14 +4,7 @@
 
 package main
 
-import (
-	"fmt"
-	"os"
-	"go/ast"
-)
-
-var _ fmt.Stringer
-var _ os.Error
+import "go/ast"
 
 var mathFix = fix{
 	"math",

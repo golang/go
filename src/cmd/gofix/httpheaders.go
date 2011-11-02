@@ -31,7 +31,7 @@ func httpheaders(f *ast.File) bool {
 	})
 
 	fixed := false
-	typeof := typecheck(headerTypeConfig, f)
+	typeof, _ := typecheck(headerTypeConfig, f)
 	walk(f, func(ni interface{}) {
 		switch n := ni.(type) {
 		case *ast.SelectorExpr:

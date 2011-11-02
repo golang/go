@@ -4,11 +4,20 @@
 
 package main
 
+/*
+receiver named error
+function named error
+method on error
+exiterror
+slice of named type (go/scanner)
+*/
+
 import (
 	"fmt"
 	"go/ast"
 	"go/token"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -97,6 +106,8 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 		walkBeforeAfter(*n, before, after)
 	case **ast.Ident:
 		walkBeforeAfter(*n, before, after)
+	case **ast.BasicLit:
+		walkBeforeAfter(*n, before, after)
 
 	// pointers to slices
 	case *[]ast.Decl:
@@ -114,7 +125,9 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
 
 	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
 	case *ast.Field:
+		walkBeforeAfter(&n.Names, before, after)
 		walkBeforeAfter(&n.Type, before, after)
+		walkBeforeAfter(&n.Tag, before, after)
 	case *ast.FieldList:
 		for _, field := range n.List {
 			walkBeforeAfter(field, before, after)
@@ -484,23 +497,101 @@ func newPkgDot(pos token.Pos, pkg, name string) ast.Expr {
 	}
 }
 
+// renameTop renames all references to the top-level name top.
+// It returns true if it makes any changes.
+func renameTop(f *ast.File, old, new string) bool {
+	var fixed bool
+
+	// Rename any conflicting imports
+	// (assuming package name is last element of path).
+	for _, s := range f.Imports {
+		if s.Name != nil {
+			if s.Name.Name == old {
+				s.Name.Name = new
+				fixed = true
+			}
+		} else {
+			_, thisName := path.Split(importPath(s))
+			if thisName == old {
+				s.Name = ast.NewIdent(new)
+				fixed = true
+			}
+		}
+	}
+
+	// Rename any top-level declarations.
+	for _, d := range f.Decls {
+		switch d := d.(type) {
+		case *ast.FuncDecl:
+			if d.Recv == nil && d.Name.Name == old {
+				d.Name.Name = new
+				d.Name.Obj.Name = new
+				fixed = true
+			}
+		case *ast.GenDecl:
+			for _, s := range d.Specs {
+				switch s := s.(type) {
+				case *ast.TypeSpec:
+					if s.Name.Name == old {
+						s.Name.Name = new
+						s.Name.Obj.Name = new
+						fixed = true
+					}
+				case *ast.ValueSpec:
+					for _, n := range s.Names {
+						if n.Name == old {
+							n.Name = new
+							n.Obj.Name = new
+							fixed = true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Rename top-level old to new, both unresolved names
+	// (probably defined in another file) and names that resolve
+	// to a declaration we renamed.
+	walk(f, func(n interface{}) {
+		id, ok := n.(*ast.Ident)
+		if ok && isTopName(id, old) {
+			id.Name = new
+			fixed = true
+		}
+		if ok && id.Obj != nil && id.Name == old && id.Obj.Name == new {
+			id.Name = id.Obj.Name
+			fixed = true
+		}
+	})
+
+	return fixed
+}
+
 // addImport adds the import path to the file f, if absent.
-func addImport(f *ast.File, path string) {
-	if imports(f, path) {
+func addImport(f *ast.File, ipath string) {
+	if imports(f, ipath) {
 		return
 	}
+
+	// Determine name of import.
+	// Assume added imports follow convention of using last element.
+	_, name := path.Split(ipath)
+
+	// Rename any conflicting top-level references from name to name_.
+	renameTop(f, name, name+"_")
 
 	newImport := &ast.ImportSpec{
 		Path: &ast.BasicLit{
 			Kind:  token.STRING,
-			Value: strconv.Quote(path),
+			Value: strconv.Quote(ipath),
 		},
 	}
 
 	var impdecl *ast.GenDecl
 
 	// Find an import decl to add to.
-	var lastImport int = -1
+	var lastImport = -1
 	for i, decl := range f.Decls {
 		gen, ok := decl.(*ast.GenDecl)
 
@@ -535,7 +626,7 @@ func addImport(f *ast.File, path string) {
 	insertAt := len(impdecl.Specs) // default to end of specs
 	for i, spec := range impdecl.Specs {
 		impspec := spec.(*ast.ImportSpec)
-		if importPath(impspec) > path {
+		if importPath(impspec) > ipath {
 			insertAt = i
 			break
 		}
