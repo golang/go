@@ -8,6 +8,7 @@ package types
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,7 +16,7 @@ import (
 	"strings"
 )
 
-func readGopackHeader(buf *bufio.Reader) (name string, size int, err os.Error) {
+func readGopackHeader(buf *bufio.Reader) (name string, size int, err error) {
 	// See $GOROOT/include/ar.h.
 	hdr := make([]byte, 16+12+6+6+8+10+2)
 	_, err = io.ReadFull(buf, hdr)
@@ -28,7 +29,7 @@ func readGopackHeader(buf *bufio.Reader) (name string, size int, err os.Error) {
 	s := strings.TrimSpace(string(hdr[16+12+6+6+8:][:10]))
 	size, err = strconv.Atoi(s)
 	if err != nil || hdr[len(hdr)-2] != '`' || hdr[len(hdr)-1] != '\n' {
-		err = os.NewError("invalid archive header")
+		err = errors.New("invalid archive header")
 		return
 	}
 	name = strings.TrimSpace(string(hdr[:16]))
@@ -44,7 +45,7 @@ type dataReader struct {
 // export data section of the given object/archive file, or an error.
 // It is the caller's responsibility to close the readCloser.
 //
-func ExportData(filename string) (rc io.ReadCloser, err os.Error) {
+func ExportData(filename string) (rc io.ReadCloser, err error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return
@@ -77,7 +78,7 @@ func ExportData(filename string) (rc io.ReadCloser, err os.Error) {
 			return
 		}
 		if name != "__.SYMDEF" {
-			err = os.NewError("go archive does not begin with __.SYMDEF")
+			err = errors.New("go archive does not begin with __.SYMDEF")
 			return
 		}
 		const block = 4096
@@ -99,7 +100,7 @@ func ExportData(filename string) (rc io.ReadCloser, err os.Error) {
 			return
 		}
 		if name != "__.PKGDEF" {
-			err = os.NewError("go archive is missing __.PKGDEF")
+			err = errors.New("go archive is missing __.PKGDEF")
 			return
 		}
 
@@ -114,7 +115,7 @@ func ExportData(filename string) (rc io.ReadCloser, err os.Error) {
 	// Now at __.PKGDEF in archive or still at beginning of file.
 	// Either way, line should begin with "go object ".
 	if !strings.HasPrefix(string(line), "go object ") {
-		err = os.NewError("not a go object file")
+		err = errors.New("not a go object file")
 		return
 	}
 

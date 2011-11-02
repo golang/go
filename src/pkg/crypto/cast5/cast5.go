@@ -6,9 +6,7 @@
 // OpenPGP cipher.
 package cast5
 
-import (
-	"os"
-)
+import "errors"
 
 const BlockSize = 8
 const KeySize = 16
@@ -18,9 +16,9 @@ type Cipher struct {
 	rotate  [16]uint8
 }
 
-func NewCipher(key []byte) (c *Cipher, err os.Error) {
+func NewCipher(key []byte) (c *Cipher, err error) {
 	if len(key) != KeySize {
-		return nil, os.NewError("CAST5: keys must be 16 bytes")
+		return nil, errors.New("CAST5: keys must be 16 bytes")
 	}
 
 	c = new(Cipher)

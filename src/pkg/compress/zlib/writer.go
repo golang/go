@@ -6,10 +6,10 @@ package zlib
 
 import (
 	"compress/flate"
+	"errors"
 	"hash"
 	"hash/adler32"
 	"io"
-	"os"
 )
 
 // These constants are copied from the flate package, so that code that imports
@@ -27,17 +27,17 @@ type Writer struct {
 	w          io.Writer
 	compressor *flate.Writer
 	digest     hash.Hash32
-	err        os.Error
+	err        error
 	scratch    [4]byte
 }
 
 // NewWriter calls NewWriterLevel with the default compression level.
-func NewWriter(w io.Writer) (*Writer, os.Error) {
+func NewWriter(w io.Writer) (*Writer, error) {
 	return NewWriterLevel(w, DefaultCompression)
 }
 
 // NewWriterLevel calls NewWriterDict with no dictionary.
-func NewWriterLevel(w io.Writer, level int) (*Writer, os.Error) {
+func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
 	return NewWriterDict(w, level, nil)
 }
 
@@ -46,7 +46,7 @@ func NewWriterLevel(w io.Writer, level int) (*Writer, os.Error) {
 // level is the compression level, which can be DefaultCompression, NoCompression,
 // or any integer value between BestSpeed and BestCompression (inclusive).
 // dict is the preset dictionary to compress with, or nil to use no dictionary.
-func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, os.Error) {
+func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
 	z := new(Writer)
 	// ZLIB has a two-byte header (as documented in RFC 1950).
 	// The first four bits is the CINFO (compression info), which is 7 for the default deflate window size.
@@ -66,7 +66,7 @@ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, os.Error) {
 	case 7, 8, 9:
 		z.scratch[1] = 3 << 6
 	default:
-		return nil, os.NewError("level out of range")
+		return nil, errors.New("level out of range")
 	}
 	if dict != nil {
 		z.scratch[1] |= 1 << 5
@@ -94,7 +94,7 @@ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, os.Error) {
 	return z, nil
 }
 
-func (z *Writer) Write(p []byte) (n int, err os.Error) {
+func (z *Writer) Write(p []byte) (n int, err error) {
 	if z.err != nil {
 		return 0, z.err
 	}
@@ -111,7 +111,7 @@ func (z *Writer) Write(p []byte) (n int, err os.Error) {
 }
 
 // Flush flushes the underlying compressor.
-func (z *Writer) Flush() os.Error {
+func (z *Writer) Flush() error {
 	if z.err != nil {
 		return z.err
 	}
@@ -120,7 +120,7 @@ func (z *Writer) Flush() os.Error {
 }
 
 // Calling Close does not close the wrapped io.Writer originally passed to NewWriter.
-func (z *Writer) Close() os.Error {
+func (z *Writer) Close() error {
 	if z.err != nil {
 		return z.err
 	}

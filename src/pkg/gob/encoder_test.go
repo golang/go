@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -116,7 +115,7 @@ func TestWrongTypeDecoder(t *testing.T) {
 	badTypeCheck(new(ET4), true, "different type of field", t)
 }
 
-func corruptDataCheck(s string, err os.Error, t *testing.T) {
+func corruptDataCheck(s string, err error, t *testing.T) {
 	b := bytes.NewBufferString(s)
 	dec := NewDecoder(b)
 	err1 := dec.Decode(new(ET2))
@@ -127,7 +126,7 @@ func corruptDataCheck(s string, err os.Error, t *testing.T) {
 
 // Check that we survive bad data.
 func TestBadData(t *testing.T) {
-	corruptDataCheck("", os.EOF, t)
+	corruptDataCheck("", io.EOF, t)
 	corruptDataCheck("\x7Fhi", io.ErrUnexpectedEOF, t)
 	corruptDataCheck("\x03now is the time for all good men", errBadType, t)
 }
@@ -149,7 +148,7 @@ func TestUnsupported(t *testing.T) {
 	}
 }
 
-func encAndDec(in, out interface{}) os.Error {
+func encAndDec(in, out interface{}) error {
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
 	err := enc.Encode(in)
@@ -225,7 +224,7 @@ func TestValueError(t *testing.T) {
 	}
 	t4p := &Type4{3}
 	var t4 Type4 // note: not a pointer.
-	if err := encAndDec(t4p, t4); err == nil || strings.Index(err.String(), "pointer") < 0 {
+	if err := encAndDec(t4p, t4); err == nil || strings.Index(err.Error(), "pointer") < 0 {
 		t.Error("expected error about pointer; got", err)
 	}
 }
@@ -333,7 +332,7 @@ func TestSingletons(t *testing.T) {
 			t.Errorf("expected error decoding %v: %s", test.in, test.err)
 			continue
 		case err != nil && test.err != "":
-			if strings.Index(err.String(), test.err) < 0 {
+			if strings.Index(err.Error(), test.err) < 0 {
 				t.Errorf("wrong error decoding %v: wanted %s, got %v", test.in, test.err, err)
 			}
 			continue
@@ -359,7 +358,7 @@ func TestStructNonStruct(t *testing.T) {
 	var ns NonStruct
 	if err := encAndDec(s, &ns); err == nil {
 		t.Error("should get error for struct/non-struct")
-	} else if strings.Index(err.String(), "type") < 0 {
+	} else if strings.Index(err.Error(), "type") < 0 {
 		t.Error("for struct/non-struct expected type error; got", err)
 	}
 	// Now try the other way
@@ -369,7 +368,7 @@ func TestStructNonStruct(t *testing.T) {
 	}
 	if err := encAndDec(ns, &s); err == nil {
 		t.Error("should get error for non-struct/struct")
-	} else if strings.Index(err.String(), "type") < 0 {
+	} else if strings.Index(err.Error(), "type") < 0 {
 		t.Error("for non-struct/struct expected type error; got", err)
 	}
 }
@@ -524,7 +523,7 @@ type Bug1Elem struct {
 
 type Bug1StructMap map[string]Bug1Elem
 
-func bug1EncDec(in Bug1StructMap, out *Bug1StructMap) os.Error {
+func bug1EncDec(in Bug1StructMap, out *Bug1StructMap) error {
 	return nil
 }
 
@@ -634,7 +633,7 @@ func TestBadCount(t *testing.T) {
 	b := []byte{0xfb, 0xa5, 0x82, 0x2f, 0xca, 0x1}
 	if err := NewDecoder(bytes.NewBuffer(b)).Decode(nil); err == nil {
 		t.Error("expected error from bad count")
-	} else if err.String() != errBadCount.String() {
+	} else if err.Error() != errBadCount.Error() {
 		t.Error("expected bad count error; got", err)
 	}
 }

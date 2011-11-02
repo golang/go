@@ -6,6 +6,7 @@ package build
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/doc"
@@ -41,7 +42,7 @@ type Context struct {
 	// describing the content of the named directory.
 	// The dir argument is the argument to ScanDir.
 	// If ReadDir is nil, ScanDir uses io.ReadDir.
-	ReadDir func(dir string) (fi []*os.FileInfo, err os.Error)
+	ReadDir func(dir string) (fi []*os.FileInfo, err error)
 
 	// ReadFile returns the content of the file named file
 	// in the directory named dir.  The dir argument is the
@@ -52,17 +53,17 @@ type Context struct {
 	//
 	// If ReadFile is nil, ScanDir uses filepath.Join(dir, file)
 	// as the path and ioutil.ReadFile to read the data.
-	ReadFile func(dir, file string) (path string, content []byte, err os.Error)
+	ReadFile func(dir, file string) (path string, content []byte, err error)
 }
 
-func (ctxt *Context) readDir(dir string) ([]*os.FileInfo, os.Error) {
+func (ctxt *Context) readDir(dir string) ([]*os.FileInfo, error) {
 	if f := ctxt.ReadDir; f != nil {
 		return f(dir)
 	}
 	return ioutil.ReadDir(dir)
 }
 
-func (ctxt *Context) readFile(dir, file string) (string, []byte, os.Error) {
+func (ctxt *Context) readFile(dir, file string) (string, []byte, error) {
 	if f := ctxt.ReadFile; f != nil {
 		return f(dir, file)
 	}
@@ -116,7 +117,7 @@ func (d *DirInfo) IsCommand() bool {
 }
 
 // ScanDir calls DefaultContext.ScanDir.
-func ScanDir(dir string) (info *DirInfo, err os.Error) {
+func ScanDir(dir string) (info *DirInfo, err error) {
 	return DefaultContext.ScanDir(dir)
 }
 
@@ -128,7 +129,7 @@ func ScanDir(dir string) (info *DirInfo, err os.Error) {
 //	- files ending in _test.go
 //	- files starting with _ or .
 //
-func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err os.Error) {
+func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 	dirs, err := ctxt.readDir(dir)
 	if err != nil {
 		return nil, err
@@ -364,7 +365,7 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
 //
 // TODO(rsc): This duplicates code in cgo.
 // Once the dust settles, remove this code from cgo.
-func (ctxt *Context) saveCgo(filename string, di *DirInfo, cg *ast.CommentGroup) os.Error {
+func (ctxt *Context) saveCgo(filename string, di *DirInfo, cg *ast.CommentGroup) error {
 	text := doc.CommentText(cg)
 	for _, line := range strings.Split(text, "\n") {
 		orig := line
@@ -459,7 +460,7 @@ func safeName(s string) bool {
 //
 //     []string{"a", "b:c d", "ef", `g"`}
 //
-func splitQuoted(s string) (r []string, err os.Error) {
+func splitQuoted(s string) (r []string, err error) {
 	var args []string
 	arg := make([]rune, len(s))
 	escaped := false
@@ -497,9 +498,9 @@ func splitQuoted(s string) (r []string, err os.Error) {
 		args = append(args, string(arg[:i]))
 	}
 	if quote != 0 {
-		err = os.NewError("unclosed quote")
+		err = errors.New("unclosed quote")
 	} else if escaped {
-		err = os.NewError("unfinished escaping")
+		err = errors.New("unfinished escaping")
 	}
 	return args, err
 }

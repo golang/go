@@ -10,9 +10,9 @@ import (
 )
 
 func init() {
-	remoteSideClosedFunc = func(err os.Error) (out bool) {
+	remoteSideClosedFunc = func(err error) (out bool) {
 		op, ok := err.(*net.OpError)
-		if ok && op.Op == "WSARecv" && op.Net == "tcp" && op.Error == os.Errno(10058) {
+		if ok && op.Op == "WSARecv" && op.Net == "tcp" && op.Err == os.Errno(10058) {
 			// TODO(bradfitz): find the symbol for 10058
 			return true
 		}

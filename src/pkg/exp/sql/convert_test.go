@@ -68,7 +68,7 @@ func TestConversions(t *testing.T) {
 		err := convertAssign(ct.d, ct.s)
 		errstr := ""
 		if err != nil {
-			errstr = err.String()
+			errstr = err.Error()
 		}
 		errf := func(format string, args ...interface{}) {
 			base := fmt.Sprintf("convertAssign #%d: for %v (%T) -> %T, ", n, ct.s, ct.s, ct.d)

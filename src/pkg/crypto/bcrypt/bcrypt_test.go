@@ -6,7 +6,6 @@ package bcrypt
 
 import (
 	"bytes"
-	"os"
 	"testing"
 )
 
@@ -68,7 +67,7 @@ func TestTooLongPasswordsWork(t *testing.T) {
 }
 
 type InvalidHashTest struct {
-	err  os.Error
+	err  error
 	hash []byte
 }
 
@@ -81,7 +80,7 @@ var invalidTests = []InvalidHashTest{
 }
 
 func TestInvalidHashErrors(t *testing.T) {
-	check := func(name string, expected, err os.Error) {
+	check := func(name string, expected, err error) {
 		if err == nil {
 			t.Errorf("%s: Should have returned an error", name)
 		}

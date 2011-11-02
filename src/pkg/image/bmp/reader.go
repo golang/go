@@ -8,15 +8,15 @@
 package bmp
 
 import (
+	"errors"
 	"image/color"
 	"image"
 	"io"
-	"os"
 )
 
 // ErrUnsupported means that the input BMP image uses a valid but unsupported
 // feature.
-var ErrUnsupported = os.NewError("bmp: unsupported BMP image")
+var ErrUnsupported = errors.New("bmp: unsupported BMP image")
 
 func readUint16(b []byte) uint16 {
 	return uint16(b[0]) | uint16(b[1])<<8
@@ -27,7 +27,7 @@ func readUint32(b []byte) uint32 {
 }
 
 // decodePaletted reads an 8 bit-per-pixel BMP image from r.
-func decodePaletted(r io.Reader, c image.Config) (image.Image, os.Error) {
+func decodePaletted(r io.Reader, c image.Config) (image.Image, error) {
 	var tmp [4]byte
 	paletted := image.NewPaletted(image.Rect(0, 0, c.Width, c.Height), c.ColorModel.(color.Palette))
 	// BMP images are stored bottom-up rather than top-down.
@@ -49,7 +49,7 @@ func decodePaletted(r io.Reader, c image.Config) (image.Image, os.Error) {
 }
 
 // decodeRGBA reads a 24 bit-per-pixel BMP image from r.
-func decodeRGBA(r io.Reader, c image.Config) (image.Image, os.Error) {
+func decodeRGBA(r io.Reader, c image.Config) (image.Image, error) {
 	rgba := image.NewRGBA(image.Rect(0, 0, c.Width, c.Height))
 	// There are 3 bytes per pixel, and each row is 4-byte aligned.
 	b := make([]byte, (3*c.Width+3)&^3)
@@ -73,7 +73,7 @@ func decodeRGBA(r io.Reader, c image.Config) (image.Image, os.Error) {
 
 // Decode reads a BMP image from r and returns it as an image.Image.
 // Limitation: The file must be 8 or 24 bits per pixel.
-func Decode(r io.Reader) (image.Image, os.Error) {
+func Decode(r io.Reader) (image.Image, error) {
 	c, err := DecodeConfig(r)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func Decode(r io.Reader) (image.Image, os.Error) {
 // DecodeConfig returns the color model and dimensions of a BMP image without
 // decoding the entire image.
 // Limitation: The file must be 8 or 24 bits per pixel.
-func DecodeConfig(r io.Reader) (config image.Config, err os.Error) {
+func DecodeConfig(r io.Reader) (config image.Config, err error) {
 	// We only support those BMP images that are a BITMAPFILEHEADER
 	// immediately followed by a BITMAPINFOHEADER.
 	const (
@@ -99,7 +99,7 @@ func DecodeConfig(r io.Reader) (config image.Config, err os.Error) {
 		return
 	}
 	if string(b[:2]) != "BM" {
-		err = os.NewError("bmp: invalid format")
+		err = errors.New("bmp: invalid format")
 		return
 	}
 	offset := readUint32(b[10:14])

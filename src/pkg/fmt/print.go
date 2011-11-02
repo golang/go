@@ -6,6 +6,7 @@ package fmt
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"reflect"
@@ -37,7 +38,7 @@ var (
 // the flags and options for the operand's format specifier.
 type State interface {
 	// Write is the function to call to emit formatted output to be printed.
-	Write(b []byte) (ret int, err os.Error)
+	Write(b []byte) (ret int, err error)
 	// Width returns the value of the width option and whether it has been set.
 	Width() (wid int, ok bool)
 	// Precision returns the value of the precision option and whether it has been set.
@@ -165,7 +166,7 @@ func (p *pp) add(c rune) {
 
 // Implement Write so we can call Fprintf on a pp (through State), for
 // recursive use in custom verbs.
-func (p *pp) Write(b []byte) (ret int, err os.Error) {
+func (p *pp) Write(b []byte) (ret int, err error) {
 	return p.buf.Write(b)
 }
 
@@ -173,7 +174,7 @@ func (p *pp) Write(b []byte) (ret int, err os.Error) {
 
 // Fprintf formats according to a format specifier and writes to w.
 // It returns the number of bytes written and any write error encountered.
-func Fprintf(w io.Writer, format string, a ...interface{}) (n int, err os.Error) {
+func Fprintf(w io.Writer, format string, a ...interface{}) (n int, err error) {
 	p := newPrinter()
 	p.doPrintf(format, a)
 	n64, err := p.buf.WriteTo(w)
@@ -183,7 +184,7 @@ func Fprintf(w io.Writer, format string, a ...interface{}) (n int, err os.Error)
 
 // Printf formats according to a format specifier and writes to standard output.
 // It returns the number of bytes written and any write error encountered.
-func Printf(format string, a ...interface{}) (n int, err os.Error) {
+func Printf(format string, a ...interface{}) (n int, err error) {
 	return Fprintf(os.Stdout, format, a...)
 }
 
@@ -198,8 +199,8 @@ func Sprintf(format string, a ...interface{}) string {
 
 // Errorf formats according to a format specifier and returns the string 
 // as a value that satisfies os.Error.
-func Errorf(format string, a ...interface{}) os.Error {
-	return os.NewError(Sprintf(format, a...))
+func Errorf(format string, a ...interface{}) error {
+	return errors.New(Sprintf(format, a...))
 }
 
 // These routines do not take a format string
@@ -207,7 +208,7 @@ func Errorf(format string, a ...interface{}) os.Error {
 // Fprint formats using the default formats for its operands and writes to w.
 // Spaces are added between operands when neither is a string.
 // It returns the number of bytes written and any write error encountered.
-func Fprint(w io.Writer, a ...interface{}) (n int, err os.Error) {
+func Fprint(w io.Writer, a ...interface{}) (n int, err error) {
 	p := newPrinter()
 	p.doPrint(a, false, false)
 	n64, err := p.buf.WriteTo(w)
@@ -218,7 +219,7 @@ func Fprint(w io.Writer, a ...interface{}) (n int, err os.Error) {
 // Print formats using the default formats for its operands and writes to standard output.
 // Spaces are added between operands when neither is a string.
 // It returns the number of bytes written and any write error encountered.
-func Print(a ...interface{}) (n int, err os.Error) {
+func Print(a ...interface{}) (n int, err error) {
 	return Fprint(os.Stdout, a...)
 }
 
@@ -239,7 +240,7 @@ func Sprint(a ...interface{}) string {
 // Fprintln formats using the default formats for its operands and writes to w.
 // Spaces are always added between operands and a newline is appended.
 // It returns the number of bytes written and any write error encountered.
-func Fprintln(w io.Writer, a ...interface{}) (n int, err os.Error) {
+func Fprintln(w io.Writer, a ...interface{}) (n int, err error) {
 	p := newPrinter()
 	p.doPrint(a, true, true)
 	n64, err := p.buf.WriteTo(w)
@@ -250,7 +251,7 @@ func Fprintln(w io.Writer, a ...interface{}) (n int, err os.Error) {
 // Println formats using the default formats for its operands and writes to standard output.
 // Spaces are always added between operands and a newline is appended.
 // It returns the number of bytes written and any write error encountered.
-func Println(a ...interface{}) (n int, err os.Error) {
+func Println(a ...interface{}) (n int, err error) {
 	return Fprintln(os.Stdout, a...)
 }
 
@@ -635,11 +636,11 @@ func (p *pp) handleMethods(verb rune, plus, goSyntax bool, depth int) (wasString
 		// setting wasString and handled and deferring catchPanic
 		// must happen before calling the method.
 		switch v := p.field.(type) {
-		case os.Error:
+		case error:
 			wasString = false
 			handled = true
 			defer p.catchPanic(p.field, verb)
-			p.printField(v.String(), verb, plus, false, depth)
+			p.printField(v.Error(), verb, plus, false, depth)
 			return
 
 		case Stringer:

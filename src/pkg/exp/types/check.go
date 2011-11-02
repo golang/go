@@ -11,7 +11,6 @@ import (
 	"go/ast"
 	"go/scanner"
 	"go/token"
-	"os"
 	"strconv"
 )
 
@@ -213,7 +212,7 @@ func (c *checker) checkObj(obj *ast.Object, ref bool) {
 // of types for all expression nodes in statements, and a scanner.ErrorList if
 // there are errors.
 //
-func Check(fset *token.FileSet, pkg *ast.Package) (types map[ast.Expr]Type, err os.Error) {
+func Check(fset *token.FileSet, pkg *ast.Package) (types map[ast.Expr]Type, err error) {
 	var c checker
 	c.fset = fset
 	c.types = make(map[ast.Expr]Type)

@@ -9,10 +9,9 @@ package armor
 import (
 	"bufio"
 	"bytes"
-	"crypto/openpgp/error"
+	error_ "crypto/openpgp/error"
 	"encoding/base64"
 	"io"
-	"os"
 )
 
 // A Block represents an OpenPGP armored structure.
@@ -36,7 +35,7 @@ type Block struct {
 	oReader openpgpReader
 }
 
-var ArmorCorrupt os.Error = error.StructuralError("armor invalid")
+var ArmorCorrupt error = error_.StructuralError("armor invalid")
 
 const crc24Init = 0xb704ce
 const crc24Poly = 0x1864cfb
@@ -69,9 +68,9 @@ type lineReader struct {
 	crc uint32
 }
 
-func (l *lineReader) Read(p []byte) (n int, err os.Error) {
+func (l *lineReader) Read(p []byte) (n int, err error) {
 	if l.eof {
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 
 	if len(l.buf) > 0 {
@@ -101,7 +100,7 @@ func (l *lineReader) Read(p []byte) (n int, err os.Error) {
 			uint32(expectedBytes[2])
 
 		line, _, err = l.in.ReadLine()
-		if err != nil && err != os.EOF {
+		if err != nil && err != io.EOF {
 			return
 		}
 		if !bytes.HasPrefix(line, armorEnd) {
@@ -109,7 +108,7 @@ func (l *lineReader) Read(p []byte) (n int, err os.Error) {
 		}
 
 		l.eof = true
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 
 	if len(line) > 64 {
@@ -138,11 +137,11 @@ type openpgpReader struct {
 	currentCRC uint32
 }
 
-func (r *openpgpReader) Read(p []byte) (n int, err os.Error) {
+func (r *openpgpReader) Read(p []byte) (n int, err error) {
 	n, err = r.b64Reader.Read(p)
 	r.currentCRC = crc24(r.currentCRC, p[:n])
 
-	if err == os.EOF {
+	if err == io.EOF {
 		if r.lReader.crc != uint32(r.currentCRC&crc24Mask) {
 			return 0, ArmorCorrupt
 		}
@@ -155,7 +154,7 @@ func (r *openpgpReader) Read(p []byte) (n int, err os.Error) {
 // leading garbage. If it doesn't find a block, it will return nil, os.EOF. The
 // given Reader is not usable after calling this function: an arbitrary amount
 // of data may have been read past the end of the block.
-func Decode(in io.Reader) (p *Block, err os.Error) {
+func Decode(in io.Reader) (p *Block, err error) {
 	r, _ := bufio.NewReaderSize(in, 100)
 	var line []byte
 	ignoreNext := false

@@ -43,7 +43,7 @@ var filenamesShort = []string{
 	"basn6a16",
 }
 
-func readPNG(filename string) (image.Image, os.Error) {
+func readPNG(filename string) (image.Image, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -223,7 +223,7 @@ func TestReader(t *testing.T) {
 		for {
 			ps, perr := pb.ReadString('\n')
 			ss, serr := sb.ReadString('\n')
-			if perr == os.EOF && serr == os.EOF {
+			if perr == io.EOF && serr == io.EOF {
 				break
 			}
 			if perr != nil {
@@ -259,7 +259,7 @@ func TestReaderError(t *testing.T) {
 			t.Errorf("decoding %s: missing error", tt.file)
 			continue
 		}
-		if !strings.Contains(err.String(), tt.err) {
+		if !strings.Contains(err.Error(), tt.err) {
 			t.Errorf("decoding %s: %s, want %s", tt.file, err, tt.err)
 		}
 		if img != nil {

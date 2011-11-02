@@ -6,10 +6,7 @@
 // pseudorandom number generator.
 package rand
 
-import (
-	"io"
-	"os"
-)
+import "io"
 
 // Reader is a global, shared instance of a cryptographically
 // strong pseudo-random generator.
@@ -18,4 +15,4 @@ import (
 var Reader io.Reader
 
 // Read is a helper function that calls Reader.Read.
-func Read(b []byte) (n int, err os.Error) { return Reader.Read(b) }
+func Read(b []byte) (n int, err error) { return Reader.Read(b) }

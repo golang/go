@@ -52,30 +52,30 @@ package csv
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
-	"os"
 	"unicode"
 )
 
 // A ParseError is returned for parsing errors.
 // The first line is 1.  The first column is 0.
 type ParseError struct {
-	Line   int      // Line where the error occurred
-	Column int      // Column (rune index) where the error occurred
-	Error  os.Error // The actual error
+	Line   int   // Line where the error occurred
+	Column int   // Column (rune index) where the error occurred
+	Err    error // The actual error
 }
 
-func (e *ParseError) String() string {
-	return fmt.Sprintf("line %d, column %d: %s", e.Line, e.Column, e.Error)
+func (e *ParseError) Error() string {
+	return fmt.Sprintf("line %d, column %d: %s", e.Line, e.Column, e.Err)
 }
 
 // These are the errors that can be returned in ParseError.Error
 var (
-	ErrTrailingComma = os.NewError("extra delimiter at end of line")
-	ErrBareQuote     = os.NewError("bare \" in non-quoted-field")
-	ErrQuote         = os.NewError("extraneous \" in field")
-	ErrFieldCount    = os.NewError("wrong number of fields in line")
+	ErrTrailingComma = errors.New("extra delimiter at end of line")
+	ErrBareQuote     = errors.New("bare \" in non-quoted-field")
+	ErrQuote         = errors.New("extraneous \" in field")
+	ErrFieldCount    = errors.New("wrong number of fields in line")
 )
 
 // A Reader reads records from a CSV-encoded file.
@@ -122,17 +122,17 @@ func NewReader(r io.Reader) *Reader {
 }
 
 // error creates a new ParseError based on err.
-func (r *Reader) error(err os.Error) os.Error {
+func (r *Reader) error(err error) error {
 	return &ParseError{
 		Line:   r.line,
 		Column: r.column,
-		Error:  err,
+		Err:    err,
 	}
 }
 
 // Read reads one record from r.  The record is a slice of strings with each
 // string representing one field.
-func (r *Reader) Read() (record []string, err os.Error) {
+func (r *Reader) Read() (record []string, err error) {
 	for {
 		record, err = r.parseRecord()
 		if record != nil {
@@ -156,10 +156,10 @@ func (r *Reader) Read() (record []string, err os.Error) {
 
 // ReadAll reads all the remaining records from r.
 // Each record is a slice of fields.
-func (r *Reader) ReadAll() (records [][]string, err os.Error) {
+func (r *Reader) ReadAll() (records [][]string, err error) {
 	for {
 		record, err := r.Read()
-		if err == os.EOF {
+		if err == io.EOF {
 			return records, nil
 		}
 		if err != nil {
@@ -173,7 +173,7 @@ func (r *Reader) ReadAll() (records [][]string, err os.Error) {
 // readRune reads one rune from r, folding \r\n to \n and keeping track
 // of how far into the line we have read.  r.column will point to the start
 // of this rune, not the end of this rune.
-func (r *Reader) readRune() (rune, os.Error) {
+func (r *Reader) readRune() (rune, error) {
 	r1, _, err := r.r.ReadRune()
 
 	// Handle \r\n here.  We make the simplifying assumption that
@@ -199,7 +199,7 @@ func (r *Reader) unreadRune() {
 }
 
 // skip reads runes up to and including the rune delim or until error.
-func (r *Reader) skip(delim rune) os.Error {
+func (r *Reader) skip(delim rune) error {
 	for {
 		r1, err := r.readRune()
 		if err != nil {
@@ -213,7 +213,7 @@ func (r *Reader) skip(delim rune) os.Error {
 }
 
 // parseRecord reads and parses a single csv record from r.
-func (r *Reader) parseRecord() (fields []string, err os.Error) {
+func (r *Reader) parseRecord() (fields []string, err error) {
 	// Each record starts on a new line.  We increment our line
 	// number (lines start at 1, not 0) and set column to -1
 	// so as we increment in readRune it points to the character we read.
@@ -240,7 +240,7 @@ func (r *Reader) parseRecord() (fields []string, err os.Error) {
 		if haveField {
 			fields = append(fields, r.field.String())
 		}
-		if delim == '\n' || err == os.EOF {
+		if delim == '\n' || err == io.EOF {
 			return fields, err
 		} else if err != nil {
 			return nil, err
@@ -252,7 +252,7 @@ func (r *Reader) parseRecord() (fields []string, err os.Error) {
 // parseField parses the next field in the record.  The read field is
 // located in r.field.  Delim is the first character not part of the field
 // (r.Comma or '\n').
-func (r *Reader) parseField() (haveField bool, delim rune, err os.Error) {
+func (r *Reader) parseField() (haveField bool, delim rune, err error) {
 	r.field.Reset()
 
 	r1, err := r.readRune()
@@ -260,7 +260,7 @@ func (r *Reader) parseField() (haveField bool, delim rune, err os.Error) {
 		// If we have EOF and are not at the start of a line
 		// then we return the empty field.  We have already
 		// checked for trailing commas if needed.
-		if err == os.EOF && r.column != 0 {
+		if err == io.EOF && r.column != 0 {
 			return true, 0, err
 		}
 		return false, 0, err
@@ -292,7 +292,7 @@ func (r *Reader) parseField() (haveField bool, delim rune, err os.Error) {
 		for {
 			r1, err = r.readRune()
 			if err != nil {
-				if err == os.EOF {
+				if err == io.EOF {
 					if r.LazyQuotes {
 						return true, 0, err
 					}
@@ -342,7 +342,7 @@ func (r *Reader) parseField() (haveField bool, delim rune, err os.Error) {
 	}
 
 	if err != nil {
-		if err == os.EOF {
+		if err == io.EOF {
 			return true, 0, err
 		}
 		return false, 0, err
@@ -362,7 +362,7 @@ func (r *Reader) parseField() (haveField bool, delim rune, err os.Error) {
 				}
 			}
 		}
-		if err == os.EOF || r1 == '\n' {
+		if err == io.EOF || r1 == '\n' {
 			r.column = c // report the comma
 			return false, 0, r.error(ErrTrailingComma)
 		}

@@ -16,7 +16,6 @@ import (
 	"big"
 	"crypto/elliptic"
 	"io"
-	"os"
 )
 
 // PublicKey represents an ECDSA public key.
@@ -35,7 +34,7 @@ var one = new(big.Int).SetInt64(1)
 
 // randFieldElement returns a random element of the field underlying the given
 // curve using the procedure given in [NSA] A.2.1.
-func randFieldElement(c *elliptic.Curve, rand io.Reader) (k *big.Int, err os.Error) {
+func randFieldElement(c *elliptic.Curve, rand io.Reader) (k *big.Int, err error) {
 	b := make([]byte, c.BitSize/8+8)
 	_, err = io.ReadFull(rand, b)
 	if err != nil {
@@ -50,7 +49,7 @@ func randFieldElement(c *elliptic.Curve, rand io.Reader) (k *big.Int, err os.Err
 }
 
 // GenerateKey generates a public&private key pair.
-func GenerateKey(c *elliptic.Curve, rand io.Reader) (priv *PrivateKey, err os.Error) {
+func GenerateKey(c *elliptic.Curve, rand io.Reader) (priv *PrivateKey, err error) {
 	k, err := randFieldElement(c, rand)
 	if err != nil {
 		return
@@ -86,7 +85,7 @@ func hashToInt(hash []byte, c *elliptic.Curve) *big.Int {
 // larger message) using the private key, priv. It returns the signature as a
 // pair of integers. The security of the private key depends on the entropy of
 // rand.
-func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err os.Error) {
+func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	// See [NSA] 3.4.1
 	c := priv.PublicKey.Curve
 

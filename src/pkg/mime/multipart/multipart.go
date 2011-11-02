@@ -20,7 +20,6 @@ import (
 	"io/ioutil"
 	"mime"
 	"net/textproto"
-	"os"
 )
 
 // TODO(bradfitz): inline these once the compiler can inline them in
@@ -69,7 +68,7 @@ func (p *Part) FileName() string {
 
 func (p *Part) parseContentDisposition() {
 	v := p.Header.Get("Content-Disposition")
-	var err os.Error
+	var err error
 	p.disposition, p.dispositionParams, err = mime.ParseMediaType(v)
 	if err != nil {
 		p.dispositionParams = emptyParams
@@ -90,7 +89,7 @@ func NewReader(reader io.Reader, boundary string) *Reader {
 	}
 }
 
-func newPart(mr *Reader) (*Part, os.Error) {
+func newPart(mr *Reader) (*Part, error) {
 	bp := &Part{
 		Header: make(map[string][]string),
 		mr:     mr,
@@ -102,7 +101,7 @@ func newPart(mr *Reader) (*Part, os.Error) {
 	return bp, nil
 }
 
-func (bp *Part) populateHeaders() os.Error {
+func (bp *Part) populateHeaders() error {
 	r := textproto.NewReader(bp.mr.bufReader)
 	header, err := r.ReadMIMEHeader()
 	if err == nil {
@@ -113,14 +112,14 @@ func (bp *Part) populateHeaders() os.Error {
 
 // Read reads the body of a part, after its headers and before the
 // next part (if any) begins.
-func (bp *Part) Read(p []byte) (n int, err os.Error) {
+func (bp *Part) Read(p []byte) (n int, err error) {
 	if bp.buffer.Len() >= len(p) {
 		// Internal buffer of unconsumed data is large enough for
 		// the read request.  No need to parse more at the moment.
 		return bp.buffer.Read(p)
 	}
 	peek, err := bp.mr.bufReader.Peek(4096) // TODO(bradfitz): add buffer size accessor
-	unexpectedEof := err == os.EOF
+	unexpectedEof := err == io.EOF
 	if err != nil && !unexpectedEof {
 		return 0, fmt.Errorf("multipart: Part Read: %v", err)
 	}
@@ -151,7 +150,7 @@ func (bp *Part) Read(p []byte) (n int, err os.Error) {
 		}
 	}
 	n, err = bp.buffer.Read(p)
-	if err == os.EOF && !foundBoundary {
+	if err == io.EOF && !foundBoundary {
 		// If the boundary hasn't been reached there's more to
 		// read, so don't pass through an EOF from the buffer
 		err = nil
@@ -159,7 +158,7 @@ func (bp *Part) Read(p []byte) (n int, err os.Error) {
 	return
 }
 
-func (bp *Part) Close() os.Error {
+func (bp *Part) Close() error {
 	io.Copy(ioutil.Discard, bp)
 	return nil
 }
@@ -178,7 +177,7 @@ type Reader struct {
 
 // NextPart returns the next part in the multipart or an error.
 // When there are no more parts, the error os.EOF is returned.
-func (mr *Reader) NextPart() (*Part, os.Error) {
+func (mr *Reader) NextPart() (*Part, error) {
 	if mr.currentPart != nil {
 		mr.currentPart.Close()
 	}
@@ -202,7 +201,7 @@ func (mr *Reader) NextPart() (*Part, os.Error) {
 
 		if hasPrefixThenNewline(line, mr.dashBoundaryDash) {
 			// Expected EOF
-			return nil, os.EOF
+			return nil, io.EOF
 		}
 
 		if expectNewPart {

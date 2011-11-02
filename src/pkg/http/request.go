@@ -11,13 +11,13 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"net/textproto"
-	"os"
 	"strconv"
 	"strings"
 	"url"
@@ -33,14 +33,14 @@ const (
 
 // ErrMissingFile is returned by FormFile when the provided file field name
 // is either not present in the request or not a file field.
-var ErrMissingFile = os.NewError("http: no such file")
+var ErrMissingFile = errors.New("http: no such file")
 
 // HTTP request parsing errors.
 type ProtocolError struct {
 	ErrorString string
 }
 
-func (err *ProtocolError) String() string { return err.ErrorString }
+func (err *ProtocolError) Error() string { return err.ErrorString }
 
 var (
 	ErrLineTooLong          = &ProtocolError{"header line too long"}
@@ -58,7 +58,7 @@ type badStringError struct {
 	str  string
 }
 
-func (e *badStringError) String() string { return fmt.Sprintf("%s %q", e.what, e.str) }
+func (e *badStringError) Error() string { return fmt.Sprintf("%s %q", e.what, e.str) }
 
 // Headers that Request.Write handles itself and should be skipped.
 var reqWriteExcludeHeader = map[string]bool{
@@ -174,11 +174,11 @@ func (r *Request) Cookies() []*Cookie {
 	return readCookies(r.Header, "")
 }
 
-var ErrNoCookie = os.NewError("http: named cookied not present")
+var ErrNoCookie = errors.New("http: named cookied not present")
 
 // Cookie returns the named cookie provided in the request or
 // ErrNoCookie if not found.
-func (r *Request) Cookie(name string) (*Cookie, os.Error) {
+func (r *Request) Cookie(name string) (*Cookie, error) {
 	for _, c := range readCookies(r.Header, name) {
 		return c, nil
 	}
@@ -222,18 +222,18 @@ var multipartByReader = &multipart.Form{
 // multipart/form-data POST request, else returns nil and an error.
 // Use this function instead of ParseMultipartForm to
 // process the request body as a stream.
-func (r *Request) MultipartReader() (*multipart.Reader, os.Error) {
+func (r *Request) MultipartReader() (*multipart.Reader, error) {
 	if r.MultipartForm == multipartByReader {
-		return nil, os.NewError("http: MultipartReader called twice")
+		return nil, errors.New("http: MultipartReader called twice")
 	}
 	if r.MultipartForm != nil {
-		return nil, os.NewError("http: multipart handled by ParseMultipartForm")
+		return nil, errors.New("http: multipart handled by ParseMultipartForm")
 	}
 	r.MultipartForm = multipartByReader
 	return r.multipartReader()
 }
 
-func (r *Request) multipartReader() (*multipart.Reader, os.Error) {
+func (r *Request) multipartReader() (*multipart.Reader, error) {
 	v := r.Header.Get("Content-Type")
 	if v == "" {
 		return nil, ErrNotMultipart
@@ -272,7 +272,7 @@ const defaultUserAgent = "Go http package"
 // If Body is present, Content-Length is <= 0 and TransferEncoding
 // hasn't been set to "identity", Write adds "Transfer-Encoding:
 // chunked" to the header. Body is closed after it is sent.
-func (req *Request) Write(w io.Writer) os.Error {
+func (req *Request) Write(w io.Writer) error {
 	return req.write(w, false, nil)
 }
 
@@ -282,11 +282,11 @@ func (req *Request) Write(w io.Writer) os.Error {
 // section 5.1.2 of RFC 2616, including the scheme and host. In
 // either case, WriteProxy also writes a Host header, using either
 // req.Host or req.URL.Host.
-func (req *Request) WriteProxy(w io.Writer) os.Error {
+func (req *Request) WriteProxy(w io.Writer) error {
 	return req.write(w, true, nil)
 }
 
-func (req *Request) dumpWrite(w io.Writer) os.Error {
+func (req *Request) dumpWrite(w io.Writer) error {
 	// TODO(bradfitz): RawPath here?
 	urlStr := valueOrDefault(req.URL.EncodedPath(), "/")
 	if req.URL.RawQuery != "" {
@@ -332,11 +332,11 @@ func (req *Request) dumpWrite(w io.Writer) os.Error {
 }
 
 // extraHeaders may be nil
-func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) os.Error {
+func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) error {
 	host := req.Host
 	if host == "" {
 		if req.URL == nil {
-			return os.NewError("http: Request.Write on Request with no Host or URL set")
+			return errors.New("http: Request.Write on Request with no Host or URL set")
 		}
 		host = req.URL.Host
 	}
@@ -415,11 +415,11 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) os.
 // Give up if the line exceeds maxLineLength.
 // The returned bytes are a pointer into storage in
 // the bufio, so they are only valid until the next bufio read.
-func readLineBytes(b *bufio.Reader) (p []byte, err os.Error) {
+func readLineBytes(b *bufio.Reader) (p []byte, err error) {
 	if p, err = b.ReadSlice('\n'); err != nil {
 		// We always know when EOF is coming.
 		// If the caller asked for a line, there should be a line.
-		if err == os.EOF {
+		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		} else if err == bufio.ErrBufferFull {
 			err = ErrLineTooLong
@@ -441,7 +441,7 @@ func readLineBytes(b *bufio.Reader) (p []byte, err os.Error) {
 }
 
 // readLineBytes, but convert the bytes into a string.
-func readLine(b *bufio.Reader) (s string, err os.Error) {
+func readLine(b *bufio.Reader) (s string, err error) {
 	p, e := readLineBytes(b)
 	if e != nil {
 		return "", e
@@ -487,7 +487,7 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 type chunkedReader struct {
 	r   *bufio.Reader
 	n   uint64 // unread bytes in chunk
-	err os.Error
+	err error
 }
 
 func (cr *chunkedReader) beginChunk() {
@@ -512,11 +512,11 @@ func (cr *chunkedReader) beginChunk() {
 				break
 			}
 		}
-		cr.err = os.EOF
+		cr.err = io.EOF
 	}
 }
 
-func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
+func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 	if cr.err != nil {
 		return 0, cr.err
 	}
@@ -536,7 +536,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
 		b := make([]byte, 2)
 		if _, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
 			if b[0] != '\r' || b[1] != '\n' {
-				cr.err = os.NewError("malformed chunked encoding")
+				cr.err = errors.New("malformed chunked encoding")
 			}
 		}
 	}
@@ -544,7 +544,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
 }
 
 // NewRequest returns a new Request given a method, URL, and optional body.
-func NewRequest(method, urlStr string, body io.Reader) (*Request, os.Error) {
+func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, err
@@ -586,7 +586,7 @@ func (r *Request) SetBasicAuth(username, password string) {
 }
 
 // ReadRequest reads and parses a request from b.
-func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 
 	tp := textproto.NewReader(b)
 	req = new(Request)
@@ -594,7 +594,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	// First line: GET /index.html HTTP/1.0
 	var s string
 	if s, err = tp.ReadLine(); err != nil {
-		if err == os.EOF {
+		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
 		return nil, err
@@ -690,7 +690,7 @@ type maxBytesReader struct {
 	stopped bool
 }
 
-func (l *maxBytesReader) Read(p []byte) (n int, err os.Error) {
+func (l *maxBytesReader) Read(p []byte) (n int, err error) {
 	if l.n <= 0 {
 		if !l.stopped {
 			l.stopped = true
@@ -698,7 +698,7 @@ func (l *maxBytesReader) Read(p []byte) (n int, err os.Error) {
 				res.requestTooLarge()
 			}
 		}
-		return 0, os.NewError("http: request body too large")
+		return 0, errors.New("http: request body too large")
 	}
 	if int64(len(p)) > l.n {
 		p = p[:l.n]
@@ -708,7 +708,7 @@ func (l *maxBytesReader) Read(p []byte) (n int, err os.Error) {
 	return
 }
 
-func (l *maxBytesReader) Close() os.Error {
+func (l *maxBytesReader) Close() error {
 	return l.r.Close()
 }
 
@@ -720,7 +720,7 @@ func (l *maxBytesReader) Close() os.Error {
 //
 // ParseMultipartForm calls ParseForm automatically.
 // It is idempotent.
-func (r *Request) ParseForm() (err os.Error) {
+func (r *Request) ParseForm() (err error) {
 	if r.Form != nil {
 		return
 	}
@@ -729,7 +729,7 @@ func (r *Request) ParseForm() (err os.Error) {
 	}
 	if r.Method == "POST" || r.Method == "PUT" {
 		if r.Body == nil {
-			return os.NewError("missing form body")
+			return errors.New("missing form body")
 		}
 		ct := r.Header.Get("Content-Type")
 		ct, _, err := mime.ParseMediaType(ct)
@@ -749,7 +749,7 @@ func (r *Request) ParseForm() (err os.Error) {
 				break
 			}
 			if int64(len(b)) > maxFormSize {
-				return os.NewError("http: POST too large")
+				return errors.New("http: POST too large")
 			}
 			var newValues url.Values
 			newValues, e = url.ParseQuery(string(b))
@@ -785,9 +785,9 @@ func (r *Request) ParseForm() (err os.Error) {
 // disk in temporary files.
 // ParseMultipartForm calls ParseForm if necessary.
 // After one call to ParseMultipartForm, subsequent calls have no effect.
-func (r *Request) ParseMultipartForm(maxMemory int64) os.Error {
+func (r *Request) ParseMultipartForm(maxMemory int64) error {
 	if r.MultipartForm == multipartByReader {
-		return os.NewError("http: multipart handled by MultipartReader")
+		return errors.New("http: multipart handled by MultipartReader")
 	}
 	if r.Form == nil {
 		err := r.ParseForm()
@@ -832,9 +832,9 @@ func (r *Request) FormValue(key string) string {
 
 // FormFile returns the first file for the provided form key.
 // FormFile calls ParseMultipartForm and ParseForm if necessary.
-func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, os.Error) {
+func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, error) {
 	if r.MultipartForm == multipartByReader {
-		return nil, nil, os.NewError("http: multipart handled by MultipartReader")
+		return nil, nil, errors.New("http: multipart handled by MultipartReader")
 	}
 	if r.MultipartForm == nil {
 		err := r.ParseMultipartForm(defaultMaxMemory)

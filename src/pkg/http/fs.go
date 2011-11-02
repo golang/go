@@ -7,6 +7,7 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -23,9 +24,9 @@ import (
 // system restricted to a specific directory tree.
 type Dir string
 
-func (d Dir) Open(name string) (File, os.Error) {
+func (d Dir) Open(name string) (File, error) {
 	if filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0 {
-		return nil, os.NewError("http: invalid character in file path")
+		return nil, errors.New("http: invalid character in file path")
 	}
 	f, err := os.Open(filepath.Join(string(d), filepath.FromSlash(path.Clean("/"+name))))
 	if err != nil {
@@ -38,17 +39,17 @@ func (d Dir) Open(name string) (File, os.Error) {
 // The elements in a file path are separated by slash ('/', U+002F)
 // characters, regardless of host operating system convention.
 type FileSystem interface {
-	Open(name string) (File, os.Error)
+	Open(name string) (File, error)
 }
 
 // A File is returned by a FileSystem's Open method and can be
 // served by the FileServer implementation.
 type File interface {
-	Close() os.Error
-	Stat() (*os.FileInfo, os.Error)
-	Readdir(count int) ([]os.FileInfo, os.Error)
-	Read([]byte) (int, os.Error)
-	Seek(offset int64, whence int) (int64, os.Error)
+	Close() error
+	Stat() (*os.FileInfo, error)
+	Readdir(count int) ([]os.FileInfo, error)
+	Read([]byte) (int, error)
+	Seek(offset int64, whence int) (int64, error)
 }
 
 // Heuristic: b is text if it is valid UTF-8 and doesn't
@@ -194,16 +195,16 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	// TODO(adg): handle multiple ranges
 	ranges, err := parseRange(r.Header.Get("Range"), size)
 	if err == nil && len(ranges) > 1 {
-		err = os.NewError("multiple ranges not supported")
+		err = errors.New("multiple ranges not supported")
 	}
 	if err != nil {
-		Error(w, err.String(), StatusRequestedRangeNotSatisfiable)
+		Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
 		return
 	}
 	if len(ranges) == 1 {
 		ra := ranges[0]
 		if _, err := f.Seek(ra.start, os.SEEK_SET); err != nil {
-			Error(w, err.String(), StatusRequestedRangeNotSatisfiable)
+			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
 			return
 		}
 		size = ra.length
@@ -269,19 +270,19 @@ type httpRange struct {
 }
 
 // parseRange parses a Range header string as per RFC 2616.
-func parseRange(s string, size int64) ([]httpRange, os.Error) {
+func parseRange(s string, size int64) ([]httpRange, error) {
 	if s == "" {
 		return nil, nil // header not present
 	}
 	const b = "bytes="
 	if !strings.HasPrefix(s, b) {
-		return nil, os.NewError("invalid range")
+		return nil, errors.New("invalid range")
 	}
 	var ranges []httpRange
 	for _, ra := range strings.Split(s[len(b):], ",") {
 		i := strings.Index(ra, "-")
 		if i < 0 {
-			return nil, os.NewError("invalid range")
+			return nil, errors.New("invalid range")
 		}
 		start, end := ra[:i], ra[i+1:]
 		var r httpRange
@@ -290,7 +291,7 @@ func parseRange(s string, size int64) ([]httpRange, os.Error) {
 			// range start relative to the end of the file.
 			i, err := strconv.Atoi64(end)
 			if err != nil {
-				return nil, os.NewError("invalid range")
+				return nil, errors.New("invalid range")
 			}
 			if i > size {
 				i = size
@@ -300,7 +301,7 @@ func parseRange(s string, size int64) ([]httpRange, os.Error) {
 		} else {
 			i, err := strconv.Atoi64(start)
 			if err != nil || i > size || i < 0 {
-				return nil, os.NewError("invalid range")
+				return nil, errors.New("invalid range")
 			}
 			r.start = i
 			if end == "" {
@@ -309,7 +310,7 @@ func parseRange(s string, size int64) ([]httpRange, os.Error) {
 			} else {
 				i, err := strconv.Atoi64(end)
 				if err != nil || r.start > i {
-					return nil, os.NewError("invalid range")
+					return nil, errors.New("invalid range")
 				}
 				if i >= size {
 					i = size - 1

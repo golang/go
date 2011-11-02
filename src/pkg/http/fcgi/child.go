@@ -80,7 +80,7 @@ func (r *response) Header() http.Header {
 	return r.header
 }
 
-func (r *response) Write(data []byte) (int, os.Error) {
+func (r *response) Write(data []byte) (int, error) {
 	if !r.wroteHeader {
 		r.WriteHeader(http.StatusOK)
 	}
@@ -117,7 +117,7 @@ func (r *response) Flush() {
 	r.w.Flush()
 }
 
-func (r *response) Close() os.Error {
+func (r *response) Close() error {
 	r.Flush()
 	return r.w.Close()
 }
@@ -214,7 +214,7 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 	if err != nil {
 		// there was an error reading the request
 		r.WriteHeader(http.StatusInternalServerError)
-		c.conn.writeRecord(typeStderr, req.reqId, []byte(err.String()))
+		c.conn.writeRecord(typeStderr, req.reqId, []byte(err.Error()))
 	} else {
 		httpReq.Body = body
 		c.handler.ServeHTTP(r, httpReq)
@@ -234,9 +234,9 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 // to reply to them.
 // If l is nil, Serve accepts connections on stdin.
 // If handler is nil, http.DefaultServeMux is used.
-func Serve(l net.Listener, handler http.Handler) os.Error {
+func Serve(l net.Listener, handler http.Handler) error {
 	if l == nil {
-		var err os.Error
+		var err error
 		l, err = net.FileListener(os.Stdin)
 		if err != nil {
 			return err

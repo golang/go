@@ -7,9 +7,8 @@ package packet
 import (
 	"compress/flate"
 	"compress/zlib"
-	"crypto/openpgp/error"
+	error_ "crypto/openpgp/error"
 	"io"
-	"os"
 	"strconv"
 )
 
@@ -19,7 +18,7 @@ type Compressed struct {
 	Body io.Reader
 }
 
-func (c *Compressed) parse(r io.Reader) os.Error {
+func (c *Compressed) parse(r io.Reader) error {
 	var buf [1]byte
 	_, err := readFull(r, buf[:])
 	if err != nil {
@@ -32,7 +31,7 @@ func (c *Compressed) parse(r io.Reader) os.Error {
 	case 2:
 		c.Body, err = zlib.NewReader(r)
 	default:
-		err = error.UnsupportedError("unknown compression algorithm: " + strconv.Itoa(int(buf[0])))
+		err = error_.UnsupportedError("unknown compression algorithm: " + strconv.Itoa(int(buf[0])))
 	}
 
 	return err

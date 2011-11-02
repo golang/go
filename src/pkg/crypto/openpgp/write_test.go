@@ -7,7 +7,6 @@ package openpgp
 import (
 	"bytes"
 	"crypto/rand"
-	"os"
 	"io"
 	"io/ioutil"
 	"testing"
@@ -106,7 +105,7 @@ func TestSymmetricEncryption(t *testing.T) {
 		t.Errorf("error closing plaintext writer: %s", err)
 	}
 
-	md, err := ReadMessage(buf, nil, func(keys []Key, symmetric bool) ([]byte, os.Error) {
+	md, err := ReadMessage(buf, nil, func(keys []Key, symmetric bool) ([]byte, error) {
 		return []byte("testing"), nil
 	})
 	if err != nil {

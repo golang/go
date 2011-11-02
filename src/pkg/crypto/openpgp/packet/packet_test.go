@@ -6,12 +6,11 @@ package packet
 
 import (
 	"bytes"
-	"crypto/openpgp/error"
+	error_ "crypto/openpgp/error"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"testing"
 )
 
@@ -49,7 +48,7 @@ var readLengthTests = []struct {
 	hexInput  string
 	length    int64
 	isPartial bool
-	err       os.Error
+	err       error
 }{
 	{"", 0, false, io.ErrUnexpectedEOF},
 	{"1f", 31, false, nil},
@@ -87,7 +86,7 @@ func TestReadLength(t *testing.T) {
 
 var partialLengthReaderTests = []struct {
 	hexInput  string
-	err       os.Error
+	err       error
 	hexOutput string
 }{
 	{"e0", io.ErrUnexpectedEOF, ""},
@@ -153,14 +152,14 @@ func TestReadHeader(t *testing.T) {
 	for i, test := range readHeaderTests {
 		tag, length, contents, err := readHeader(readerFromHex(test.hexInput))
 		if test.structuralError {
-			if _, ok := err.(error.StructuralError); ok {
+			if _, ok := err.(error_.StructuralError); ok {
 				continue
 			}
 			t.Errorf("%d: expected StructuralError, got:%s", i, err)
 			continue
 		}
 		if err != nil {
-			if len(test.hexInput) == 0 && err == os.EOF {
+			if len(test.hexInput) == 0 && err == io.EOF {
 				continue
 			}
 			if !test.unexpectedEOF || err != io.ErrUnexpectedEOF {

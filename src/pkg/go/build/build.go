@@ -7,6 +7,7 @@ package build
 
 import (
 	"bytes"
+	"errors"
 	"exec"
 	"fmt"
 	"os"
@@ -17,7 +18,7 @@ import (
 )
 
 // Build produces a build Script for the given package.
-func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
+func Build(tree *Tree, pkg string, info *DirInfo) (*Script, error) {
 	s := &Script{}
 	b := &build{
 		script: s,
@@ -29,7 +30,7 @@ func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
 	if g := os.Getenv("GOARCH"); g != "" {
 		b.goarch = g
 	}
-	var err os.Error
+	var err error
 	b.arch, err = ArchChar(b.goarch)
 	if err != nil {
 		return nil, err
@@ -42,7 +43,7 @@ func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
 			// FindTree should always be able to suggest an import
 			// path and tree. The path must be malformed
 			// (for example, an absolute or relative path).
-			return nil, os.NewError("build: invalid import: " + pkg)
+			return nil, errors.New("build: invalid import: " + pkg)
 		}
 		s.addInput(filepath.Join(t.PkgDir(), p+".a"))
 	}
@@ -89,7 +90,7 @@ func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
 	}
 
 	if len(ofiles) == 0 {
-		return nil, os.NewError("make: no object files to build")
+		return nil, errors.New("make: no object files to build")
 	}
 
 	// choose target file
@@ -138,7 +139,7 @@ func (s *Script) addIntermediate(file ...string) {
 }
 
 // Run runs the Script's Cmds in order.
-func (s *Script) Run() os.Error {
+func (s *Script) Run() error {
 	for _, c := range s.Cmd {
 		if err := c.Run(); err != nil {
 			return err
@@ -174,7 +175,7 @@ func (s *Script) Stale() bool {
 
 // Clean removes the Script's Intermediate files.
 // It tries to remove every file and returns the first error it encounters.
-func (s *Script) Clean() (err os.Error) {
+func (s *Script) Clean() (err error) {
 	// Reverse order so that directories get removed after the files they contain.
 	for i := len(s.Intermediate) - 1; i >= 0; i-- {
 		if e := os.Remove(s.Intermediate[i]); err == nil {
@@ -186,7 +187,7 @@ func (s *Script) Clean() (err os.Error) {
 
 // Nuke removes the Script's Intermediate and Output files.
 // It tries to remove every file and returns the first error it encounters.
-func (s *Script) Nuke() (err os.Error) {
+func (s *Script) Nuke() (err error) {
 	// Reverse order so that directories get removed after the files they contain.
 	for i := len(s.Output) - 1; i >= 0; i-- {
 		if e := os.Remove(s.Output[i]); err == nil {
@@ -214,7 +215,7 @@ func (c *Cmd) String() string {
 }
 
 // Run executes the Cmd.
-func (c *Cmd) Run() os.Error {
+func (c *Cmd) Run() error {
 	if c.Args[0] == "mkdir" {
 		for _, p := range c.Output {
 			if err := os.MkdirAll(p, 0777); err != nil {
@@ -245,7 +246,7 @@ func (c *Cmd) Run() os.Error {
 
 // ArchChar returns the architecture character for the given goarch.
 // For example, ArchChar("amd64") returns "6".
-func ArchChar(goarch string) (string, os.Error) {
+func ArchChar(goarch string) (string, error) {
 	switch goarch {
 	case "386":
 		return "8", nil
@@ -254,7 +255,7 @@ func ArchChar(goarch string) (string, os.Error) {
 	case "arm":
 		return "5", nil
 	}
-	return "", os.NewError("unsupported GOARCH " + goarch)
+	return "", errors.New("unsupported GOARCH " + goarch)
 }
 
 type build struct {

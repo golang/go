@@ -11,10 +11,10 @@ import (
 	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/subtle"
+	"errors"
 	"hash"
 	"io"
 	"net"
-	"os"
 	"sync"
 )
 
@@ -27,7 +27,7 @@ const (
 // TODO(dfc) suggestions for a better name will be warmly received.
 type filteredConn interface {
 	// Close closes the connection.
-	Close() os.Error
+	Close() error
 
 	// LocalAddr returns the local network address.
 	LocalAddr() net.Addr
@@ -40,7 +40,7 @@ type filteredConn interface {
 // an SSH peer.
 type packetWriter interface {
 	// Encrypt and send a packet of data to the remote peer.
-	writePacket(packet []byte) os.Error
+	writePacket(packet []byte) error
 }
 
 // transport represents the SSH connection to the remote peer.
@@ -79,7 +79,7 @@ type common struct {
 }
 
 // Read and decrypt a single packet from the remote peer.
-func (r *reader) readOnePacket() ([]byte, os.Error) {
+func (r *reader) readOnePacket() ([]byte, error) {
 	var lengthBytes = make([]byte, 5)
 	var macSize uint32
 
@@ -108,10 +108,10 @@ func (r *reader) readOnePacket() ([]byte, os.Error) {
 	paddingLength := uint32(lengthBytes[4])
 
 	if length <= paddingLength+1 {
-		return nil, os.NewError("invalid packet length")
+		return nil, errors.New("invalid packet length")
 	}
 	if length > maxPacketSize {
-		return nil, os.NewError("packet too large")
+		return nil, errors.New("packet too large")
 	}
 
 	packet := make([]byte, length-1+macSize)
@@ -126,7 +126,7 @@ func (r *reader) readOnePacket() ([]byte, os.Error) {
 	if r.mac != nil {
 		r.mac.Write(packet[:length-1])
 		if subtle.ConstantTimeCompare(r.mac.Sum(), mac) != 1 {
-			return nil, os.NewError("ssh: MAC failure")
+			return nil, errors.New("ssh: MAC failure")
 		}
 	}
 
@@ -135,7 +135,7 @@ func (r *reader) readOnePacket() ([]byte, os.Error) {
 }
 
 // Read and decrypt next packet discarding debug and noop messages.
-func (t *transport) readPacket() ([]byte, os.Error) {
+func (t *transport) readPacket() ([]byte, error) {
 	for {
 		packet, err := t.readOnePacket()
 		if err != nil {
@@ -149,7 +149,7 @@ func (t *transport) readPacket() ([]byte, os.Error) {
 }
 
 // Encrypt and send a packet of data to the remote peer.
-func (w *writer) writePacket(packet []byte) os.Error {
+func (w *writer) writePacket(packet []byte) error {
 	w.Mutex.Lock()
 	defer w.Mutex.Unlock()
 
@@ -218,7 +218,7 @@ func (w *writer) writePacket(packet []byte) os.Error {
 }
 
 // Send a message to the remote peer
-func (t *transport) sendMessage(typ uint8, msg interface{}) os.Error {
+func (t *transport) sendMessage(typ uint8, msg interface{}) error {
 	packet := marshal(typ, msg)
 	return t.writePacket(packet)
 }
@@ -252,7 +252,7 @@ var (
 // setupKeys sets the cipher and MAC keys from K, H and sessionId, as
 // described in RFC 4253, section 6.4. direction should either be serverKeys
 // (to setup server->client keys) or clientKeys (for client->server keys).
-func (c *common) setupKeys(d direction, K, H, sessionId []byte, hashFunc crypto.Hash) os.Error {
+func (c *common) setupKeys(d direction, K, H, sessionId []byte, hashFunc crypto.Hash) error {
 	h := hashFunc.New()
 
 	blockSize := 16
@@ -308,7 +308,7 @@ type truncatingMAC struct {
 	hmac   hash.Hash
 }
 
-func (t truncatingMAC) Write(data []byte) (int, os.Error) {
+func (t truncatingMAC) Write(data []byte) (int, error) {
 	return t.hmac.Write(data)
 }
 
@@ -332,7 +332,7 @@ func (t truncatingMAC) Size() int {
 const maxVersionStringBytes = 1024
 
 // Read version string as specified by RFC 4253, section 4.2.
-func readVersion(r io.Reader) ([]byte, os.Error) {
+func readVersion(r io.Reader) ([]byte, error) {
 	versionString := make([]byte, 0, 64)
 	var ok, seenCR bool
 	var buf [1]byte
@@ -360,7 +360,7 @@ forEachByte:
 	}
 
 	if !ok {
-		return nil, os.NewError("failed to read version string")
+		return nil, errors.New("failed to read version string")
 	}
 
 	// We need to remove the CR from versionString

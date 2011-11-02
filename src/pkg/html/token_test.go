@@ -6,7 +6,7 @@ package html
 
 import (
 	"bytes"
-	"os"
+	"io"
 	"strings"
 	"testing"
 )
@@ -438,7 +438,7 @@ loop:
 			}
 		}
 		z.Next()
-		if z.Error() != os.EOF {
+		if z.Error() != io.EOF {
 			t.Errorf("%s: want EOF got %q", tt.desc, z.Error())
 		}
 	}
@@ -543,7 +543,7 @@ loop:
 		tt := z.Next()
 		switch tt {
 		case ErrorToken:
-			if z.Error() != os.EOF {
+			if z.Error() != io.EOF {
 				t.Error(z.Error())
 			}
 			break loop

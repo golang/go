@@ -159,8 +159,8 @@ func TestReadRequest(t *testing.T) {
 		braw.WriteString(tt.Raw)
 		req, err := ReadRequest(bufio.NewReader(&braw))
 		if err != nil {
-			if err.String() != tt.Error {
-				t.Errorf("#%d: error %q, want error %q", i, err.String(), tt.Error)
+			if err.Error() != tt.Error {
+				t.Errorf("#%d: error %q, want error %q", i, err.Error(), tt.Error)
 			}
 			continue
 		}

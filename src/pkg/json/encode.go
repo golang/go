@@ -12,7 +12,6 @@ package json
 import (
 	"bytes"
 	"encoding/base64"
-	"os"
 	"reflect"
 	"runtime"
 	"sort"
@@ -96,7 +95,7 @@ import (
 // handle them.  Passing cyclic structures to Marshal will result in
 // an infinite recursion.
 //
-func Marshal(v interface{}) ([]byte, os.Error) {
+func Marshal(v interface{}) ([]byte, error) {
 	e := &encodeState{}
 	err := e.marshal(v)
 	if err != nil {
@@ -106,7 +105,7 @@ func Marshal(v interface{}) ([]byte, os.Error) {
 }
 
 // MarshalIndent is like Marshal but applies Indent to format the output.
-func MarshalIndent(v interface{}, prefix, indent string) ([]byte, os.Error) {
+func MarshalIndent(v interface{}, prefix, indent string) ([]byte, error) {
 	b, err := Marshal(v)
 	if err != nil {
 		return nil, err
@@ -120,7 +119,7 @@ func MarshalIndent(v interface{}, prefix, indent string) ([]byte, os.Error) {
 }
 
 // MarshalForHTML is like Marshal but applies HTMLEscape to the output.
-func MarshalForHTML(v interface{}) ([]byte, os.Error) {
+func MarshalForHTML(v interface{}) ([]byte, error) {
 	b, err := Marshal(v)
 	if err != nil {
 		return nil, err
@@ -159,14 +158,14 @@ func HTMLEscape(dst *bytes.Buffer, src []byte) {
 // Marshaler is the interface implemented by objects that
 // can marshal themselves into valid JSON.
 type Marshaler interface {
-	MarshalJSON() ([]byte, os.Error)
+	MarshalJSON() ([]byte, error)
 }
 
 type UnsupportedTypeError struct {
 	Type reflect.Type
 }
 
-func (e *UnsupportedTypeError) String() string {
+func (e *UnsupportedTypeError) Error() string {
 	return "json: unsupported type: " + e.Type.String()
 }
 
@@ -174,17 +173,17 @@ type InvalidUTF8Error struct {
 	S string
 }
 
-func (e *InvalidUTF8Error) String() string {
+func (e *InvalidUTF8Error) Error() string {
 	return "json: invalid UTF-8 in string: " + strconv.Quote(e.S)
 }
 
 type MarshalerError struct {
-	Type  reflect.Type
-	Error os.Error
+	Type reflect.Type
+	Err  error
 }
 
-func (e *MarshalerError) String() string {
-	return "json: error calling MarshalJSON for type " + e.Type.String() + ": " + e.Error.String()
+func (e *MarshalerError) Error() string {
+	return "json: error calling MarshalJSON for type " + e.Type.String() + ": " + e.Err.Error()
 }
 
 type interfaceOrPtrValue interface {
@@ -199,20 +198,20 @@ type encodeState struct {
 	bytes.Buffer // accumulated output
 }
 
-func (e *encodeState) marshal(v interface{}) (err os.Error) {
+func (e *encodeState) marshal(v interface{}) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
 				panic(r)
 			}
-			err = r.(os.Error)
+			err = r.(error)
 		}
 	}()
 	e.reflectValue(reflect.ValueOf(v))
 	return nil
 }
 
-func (e *encodeState) error(err os.Error) {
+func (e *encodeState) error(err error) {
 	panic(err)
 }
 
@@ -423,7 +422,7 @@ func (sv stringValues) Swap(i, j int)      { sv[i], sv[j] = sv[j], sv[i] }
 func (sv stringValues) Less(i, j int) bool { return sv.get(i) < sv.get(j) }
 func (sv stringValues) get(i int) string   { return sv[i].String() }
 
-func (e *encodeState) string(s string) (int, os.Error) {
+func (e *encodeState) string(s string) (int, error) {
 	len0 := e.Len()
 	e.WriteByte('"')
 	start := 0

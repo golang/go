@@ -6,10 +6,10 @@ package gzip
 
 import (
 	"compress/flate"
+	"errors"
 	"hash"
 	"hash/crc32"
 	"io"
-	"os"
 )
 
 // These constants are copied from the flate package, so that code that imports
@@ -32,11 +32,11 @@ type Compressor struct {
 	size       uint32
 	closed     bool
 	buf        [10]byte
-	err        os.Error
+	err        error
 }
 
 // NewWriter calls NewWriterLevel with the default compression level.
-func NewWriter(w io.Writer) (*Compressor, os.Error) {
+func NewWriter(w io.Writer) (*Compressor, error) {
 	return NewWriterLevel(w, DefaultCompression)
 }
 
@@ -47,7 +47,7 @@ func NewWriter(w io.Writer) (*Compressor, os.Error) {
 // It is the caller's responsibility to call Close on the WriteCloser when done.
 // level is the compression level, which can be DefaultCompression, NoCompression,
 // or any integer value between BestSpeed and BestCompression (inclusive).
-func NewWriterLevel(w io.Writer, level int) (*Compressor, os.Error) {
+func NewWriterLevel(w io.Writer, level int) (*Compressor, error) {
 	z := new(Compressor)
 	z.OS = 255 // unknown
 	z.w = w
@@ -70,9 +70,9 @@ func put4(p []byte, v uint32) {
 }
 
 // writeBytes writes a length-prefixed byte slice to z.w.
-func (z *Compressor) writeBytes(b []byte) os.Error {
+func (z *Compressor) writeBytes(b []byte) error {
 	if len(b) > 0xffff {
-		return os.NewError("gzip.Write: Extra data is too large")
+		return errors.New("gzip.Write: Extra data is too large")
 	}
 	put2(z.buf[0:2], uint16(len(b)))
 	_, err := z.w.Write(z.buf[0:2])
@@ -84,12 +84,12 @@ func (z *Compressor) writeBytes(b []byte) os.Error {
 }
 
 // writeString writes a string (in ISO 8859-1 (Latin-1) format) to z.w.
-func (z *Compressor) writeString(s string) os.Error {
+func (z *Compressor) writeString(s string) error {
 	// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
 	// TODO(nigeltao): Convert from UTF-8 to ISO 8859-1 (Latin-1).
 	for _, v := range s {
 		if v == 0 || v > 0x7f {
-			return os.NewError("gzip.Write: non-ASCII header string")
+			return errors.New("gzip.Write: non-ASCII header string")
 		}
 	}
 	_, err := io.WriteString(z.w, s)
@@ -102,7 +102,7 @@ func (z *Compressor) writeString(s string) os.Error {
 	return err
 }
 
-func (z *Compressor) Write(p []byte) (int, os.Error) {
+func (z *Compressor) Write(p []byte) (int, error) {
 	if z.err != nil {
 		return 0, z.err
 	}
@@ -162,7 +162,7 @@ func (z *Compressor) Write(p []byte) (int, os.Error) {
 }
 
 // Calling Close does not close the wrapped io.Writer originally passed to NewWriter.
-func (z *Compressor) Close() os.Error {
+func (z *Compressor) Close() error {
 	if z.err != nil {
 		return z.err
 	}

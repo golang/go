@@ -10,7 +10,7 @@
 
 package dwarf
 
-import "os"
+import "errors"
 
 // a single entry's description: a sequence of attributes
 type abbrev struct {
@@ -29,7 +29,7 @@ type abbrevTable map[uint32]abbrev
 
 // ParseAbbrev returns the abbreviation table that starts at byte off
 // in the .debug_abbrev section.
-func (d *Data) parseAbbrev(off uint32) (abbrevTable, os.Error) {
+func (d *Data) parseAbbrev(off uint32) (abbrevTable, error) {
 	if m, ok := d.abbrevCache[off]; ok {
 		return m, nil
 	}
@@ -232,7 +232,7 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 type Reader struct {
 	b            buf
 	d            *Data
-	err          os.Error
+	err          error
 	unit         int
 	lastChildren bool   // .Children of last entry returned by Next
 	lastSibling  Offset // .Val(AttrSibling) of last entry returned by Next
@@ -273,7 +273,7 @@ func (r *Reader) Seek(off Offset) {
 			return
 		}
 	}
-	r.err = os.NewError("offset out of range")
+	r.err = errors.New("offset out of range")
 }
 
 // maybeNextUnit advances to the next unit if this one is finished.
@@ -289,7 +289,7 @@ func (r *Reader) maybeNextUnit() {
 // It returns nil, nil when it reaches the end of the section.
 // It returns an error if the current offset is invalid or the data at the
 // offset cannot be decoded as a valid Entry.
-func (r *Reader) Next() (*Entry, os.Error) {
+func (r *Reader) Next() (*Entry, error) {
 	if r.err != nil {
 		return nil, r.err
 	}

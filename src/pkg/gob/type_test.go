@@ -28,7 +28,7 @@ func getTypeUnlocked(name string, rt reflect.Type) gobType {
 	defer typeLock.Unlock()
 	t, err := getBaseType(name, rt)
 	if err != nil {
-		panic("getTypeUnlocked: " + err.String())
+		panic("getTypeUnlocked: " + err.Error())
 	}
 	return t
 }

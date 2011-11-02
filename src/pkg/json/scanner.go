@@ -13,14 +13,11 @@ package json
 // This file starts with two simple examples using the scanner
 // before diving into the scanner itself.
 
-import (
-	"os"
-	"strconv"
-)
+import "strconv"
 
 // checkValid verifies that data is valid JSON-encoded data.
 // scan is passed in for use by checkValid to avoid an allocation.
-func checkValid(data []byte, scan *scanner) os.Error {
+func checkValid(data []byte, scan *scanner) error {
 	scan.reset()
 	for _, c := range data {
 		scan.bytes++
@@ -37,7 +34,7 @@ func checkValid(data []byte, scan *scanner) os.Error {
 // nextValue splits data after the next whole JSON value,
 // returning that value and the bytes that follow it as separate slices.
 // scan is passed in for use by nextValue to avoid an allocation.
-func nextValue(data []byte, scan *scanner) (value, rest []byte, err os.Error) {
+func nextValue(data []byte, scan *scanner) (value, rest []byte, err error) {
 	scan.reset()
 	for i, c := range data {
 		v := scan.step(scan, int(c))
@@ -62,7 +59,7 @@ type SyntaxError struct {
 	Offset int64  // error occurred after reading Offset bytes
 }
 
-func (e *SyntaxError) String() string { return e.msg }
+func (e *SyntaxError) Error() string { return e.msg }
 
 // A scanner is a JSON scanning state machine.
 // Callers call scan.reset() and then pass bytes in one at a time
@@ -87,7 +84,7 @@ type scanner struct {
 	parseState []int
 
 	// Error that happened, if any.
-	err os.Error
+	err error
 
 	// 1-byte redo (see undo method)
 	redoCode  int

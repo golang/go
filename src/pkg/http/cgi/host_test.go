@@ -45,7 +45,7 @@ readlines:
 	for {
 		line, err := rw.Body.ReadString('\n')
 		switch {
-		case err == os.EOF:
+		case err == io.EOF:
 			break readlines
 		case err != nil:
 			t.Fatalf("unexpected error reading from CGI: %v", err)
@@ -410,7 +410,7 @@ func TestDirWindows(t *testing.T) {
 	cgifile, _ := filepath.Abs("testdata/test.cgi")
 
 	var perl string
-	var err os.Error
+	var err error
 	perl, err = exec.LookPath("perl")
 	if err != nil {
 		return
@@ -452,7 +452,7 @@ func TestEnvOverride(t *testing.T) {
 	cgifile, _ := filepath.Abs("testdata/test.cgi")
 
 	var perl string
-	var err os.Error
+	var err error
 	perl, err = exec.LookPath("perl")
 	if err != nil {
 		return

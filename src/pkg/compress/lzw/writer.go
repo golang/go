@@ -6,6 +6,7 @@ package lzw
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,20 +14,20 @@ import (
 
 // A writer is a buffered, flushable writer.
 type writer interface {
-	WriteByte(byte) os.Error
-	Flush() os.Error
+	WriteByte(byte) error
+	Flush() error
 }
 
 // An errWriteCloser is an io.WriteCloser that always returns a given error.
 type errWriteCloser struct {
-	err os.Error
+	err error
 }
 
-func (e *errWriteCloser) Write([]byte) (int, os.Error) {
+func (e *errWriteCloser) Write([]byte) (int, error) {
 	return 0, e.err
 }
 
-func (e *errWriteCloser) Close() os.Error {
+func (e *errWriteCloser) Close() error {
 	return e.err
 }
 
@@ -50,7 +51,7 @@ type encoder struct {
 	w writer
 	// write, bits, nBits and width are the state for converting a code stream
 	// into a byte stream.
-	write func(*encoder, uint32) os.Error
+	write func(*encoder, uint32) error
 	bits  uint32
 	nBits uint
 	width uint
@@ -64,7 +65,7 @@ type encoder struct {
 	savedCode uint32
 	// err is the first error encountered during writing. Closing the encoder
 	// will make any future Write calls return os.EINVAL.
-	err os.Error
+	err error
 	// table is the hash table from 20-bit keys to 12-bit values. Each table
 	// entry contains key<<12|val and collisions resolve by linear probing.
 	// The keys consist of a 12-bit code prefix and an 8-bit byte suffix.
@@ -73,7 +74,7 @@ type encoder struct {
 }
 
 // writeLSB writes the code c for "Least Significant Bits first" data.
-func (e *encoder) writeLSB(c uint32) os.Error {
+func (e *encoder) writeLSB(c uint32) error {
 	e.bits |= c << e.nBits
 	e.nBits += e.width
 	for e.nBits >= 8 {
@@ -87,7 +88,7 @@ func (e *encoder) writeLSB(c uint32) os.Error {
 }
 
 // writeMSB writes the code c for "Most Significant Bits first" data.
-func (e *encoder) writeMSB(c uint32) os.Error {
+func (e *encoder) writeMSB(c uint32) error {
 	e.bits |= c << (32 - e.width - e.nBits)
 	e.nBits += e.width
 	for e.nBits >= 8 {
@@ -102,12 +103,12 @@ func (e *encoder) writeMSB(c uint32) os.Error {
 
 // errOutOfCodes is an internal error that means that the encoder has run out
 // of unused codes and a clear code needs to be sent next.
-var errOutOfCodes = os.NewError("lzw: out of codes")
+var errOutOfCodes = errors.New("lzw: out of codes")
 
 // incHi increments e.hi and checks for both overflow and running out of
 // unused codes. In the latter case, incHi sends a clear code, resets the
 // encoder state and returns errOutOfCodes.
-func (e *encoder) incHi() os.Error {
+func (e *encoder) incHi() error {
 	e.hi++
 	if e.hi == e.overflow {
 		e.width++
@@ -130,7 +131,7 @@ func (e *encoder) incHi() os.Error {
 }
 
 // Write writes a compressed representation of p to e's underlying writer.
-func (e *encoder) Write(p []byte) (int, os.Error) {
+func (e *encoder) Write(p []byte) (int, error) {
 	if e.err != nil {
 		return 0, e.err
 	}
@@ -188,7 +189,7 @@ loop:
 
 // Close closes the encoder, flushing any pending output. It does not close or
 // flush e's underlying writer.
-func (e *encoder) Close() os.Error {
+func (e *encoder) Close() error {
 	if e.err != nil {
 		if e.err == os.EINVAL {
 			return nil
@@ -230,14 +231,14 @@ func (e *encoder) Close() os.Error {
 // The number of bits to use for literal codes, litWidth, must be in the
 // range [2,8] and is typically 8.
 func NewWriter(w io.Writer, order Order, litWidth int) io.WriteCloser {
-	var write func(*encoder, uint32) os.Error
+	var write func(*encoder, uint32) error
 	switch order {
 	case LSB:
 		write = (*encoder).writeLSB
 	case MSB:
 		write = (*encoder).writeMSB
 	default:
-		return &errWriteCloser{os.NewError("lzw: unknown order")}
+		return &errWriteCloser{errors.New("lzw: unknown order")}
 	}
 	if litWidth < 2 || 8 < litWidth {
 		return &errWriteCloser{fmt.Errorf("lzw: litWidth %d out of range", litWidth)}

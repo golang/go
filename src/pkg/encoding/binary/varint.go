@@ -25,8 +25,8 @@ package binary
 // format incompatible with a varint encoding for larger numbers (say 128-bit).
 
 import (
+	"errors"
 	"io"
-	"os"
 )
 
 // MaxVarintLenN is the maximum length of a varint-encoded N-bit integer.
@@ -99,17 +99,17 @@ func Varint(buf []byte) (int64, int) {
 }
 
 // WriteUvarint encodes x and writes the result to w.
-func WriteUvarint(w io.Writer, x uint64) os.Error {
+func WriteUvarint(w io.Writer, x uint64) error {
 	var buf [MaxVarintLen64]byte
 	n := PutUvarint(buf[:], x)
 	_, err := w.Write(buf[0:n])
 	return err
 }
 
-var overflow = os.NewError("binary: varint overflows a 64-bit integer")
+var overflow = errors.New("binary: varint overflows a 64-bit integer")
 
 // ReadUvarint reads an encoded unsigned integer from r and returns it as a uint64.
-func ReadUvarint(r io.ByteReader) (uint64, os.Error) {
+func ReadUvarint(r io.ByteReader) (uint64, error) {
 	var x uint64
 	var s uint
 	for i := 0; ; i++ {
@@ -130,7 +130,7 @@ func ReadUvarint(r io.ByteReader) (uint64, os.Error) {
 }
 
 // WriteVarint encodes x and writes the result to w.
-func WriteVarint(w io.Writer, x int64) os.Error {
+func WriteVarint(w io.Writer, x int64) error {
 	ux := uint64(x) << 1
 	if x < 0 {
 		ux = ^ux
@@ -139,7 +139,7 @@ func WriteVarint(w io.Writer, x int64) os.Error {
 }
 
 // ReadVarint reads an encoded unsigned integer from r and returns it as a uint64.
-func ReadVarint(r io.ByteReader) (int64, os.Error) {
+func ReadVarint(r io.ByteReader) (int64, error) {
 	ux, err := ReadUvarint(r) // ok to continue in presence of error
 	x := int64(ux >> 1)
 	if ux&1 != 0 {

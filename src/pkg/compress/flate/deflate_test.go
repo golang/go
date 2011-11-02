@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"sync"
 	"testing"
 )
@@ -102,7 +101,7 @@ func newSyncBuffer() *syncBuffer {
 	return &syncBuffer{ready: make(chan bool, 1)}
 }
 
-func (b *syncBuffer) Read(p []byte) (n int, err os.Error) {
+func (b *syncBuffer) Read(p []byte) (n int, err error) {
 	for {
 		b.mu.RLock()
 		n, err = b.buf.Read(p)
@@ -122,7 +121,7 @@ func (b *syncBuffer) signal() {
 	}
 }
 
-func (b *syncBuffer) Write(p []byte) (n int, err os.Error) {
+func (b *syncBuffer) Write(p []byte) (n int, err error) {
 	n, err = b.buf.Write(p)
 	b.signal()
 	return
@@ -137,7 +136,7 @@ func (b *syncBuffer) ReadMode() {
 	b.signal()
 }
 
-func (b *syncBuffer) Close() os.Error {
+func (b *syncBuffer) Close() error {
 	b.closed = true
 	b.signal()
 	return nil
@@ -204,7 +203,7 @@ func testSync(t *testing.T, level int, input []byte, name string) {
 	}
 	buf.ReadMode()
 	out := make([]byte, 10)
-	if n, err := r.Read(out); n > 0 || err != os.EOF {
+	if n, err := r.Read(out); n > 0 || err != io.EOF {
 		t.Errorf("testSync (%d, %d, %s): final Read: %d, %v (hex: %x)", level, len(input), name, n, err, out[0:n])
 	}
 	if buf.buf.Len() != 0 {
@@ -225,7 +224,7 @@ func testSync(t *testing.T, level int, input []byte, name string) {
 	}
 }
 
-func testToFromWithLevel(t *testing.T, level int, input []byte, name string) os.Error {
+func testToFromWithLevel(t *testing.T, level int, input []byte, name string) error {
 	buffer := bytes.NewBuffer(nil)
 	w := NewWriter(buffer, level)
 	w.Write(input)

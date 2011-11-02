@@ -7,7 +7,6 @@ package flate
 import (
 	"io"
 	"math"
-	"os"
 	"strconv"
 )
 
@@ -83,7 +82,7 @@ type huffmanBitWriter struct {
 	literalEncoding *huffmanEncoder
 	offsetEncoding  *huffmanEncoder
 	codegenEncoding *huffmanEncoder
-	err             os.Error
+	err             error
 }
 
 type WrongValueError struct {
@@ -106,7 +105,7 @@ func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
 	}
 }
 
-func (err WrongValueError) String() string {
+func (err WrongValueError) Error() string {
 	return "huffmanBitWriter: " + err.name + " should belong to [" + strconv.Itoa64(int64(err.from)) + ";" +
 		strconv.Itoa64(int64(err.to)) + "] but actual value is " + strconv.Itoa64(int64(err.value))
 }

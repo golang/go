@@ -6,7 +6,6 @@ package driver
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"strconv"
 )
@@ -14,7 +13,7 @@ import (
 // ValueConverter is the interface providing the ConvertValue method.
 type ValueConverter interface {
 	// ConvertValue converts a value to a restricted subset type.
-	ConvertValue(v interface{}) (interface{}, os.Error)
+	ConvertValue(v interface{}) (interface{}, error)
 }
 
 // Bool is a ValueConverter that converts input values to bools.
@@ -27,7 +26,7 @@ type boolType struct{}
 
 var _ ValueConverter = boolType{}
 
-func (boolType) ConvertValue(v interface{}) (interface{}, os.Error) {
+func (boolType) ConvertValue(v interface{}) (interface{}, error) {
 	return nil, fmt.Errorf("TODO(bradfitz): bool conversions")
 }
 
@@ -39,7 +38,7 @@ type int32Type struct{}
 
 var _ ValueConverter = int32Type{}
 
-func (int32Type) ConvertValue(v interface{}) (interface{}, os.Error) {
+func (int32Type) ConvertValue(v interface{}) (interface{}, error) {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -72,7 +71,7 @@ var String stringType
 
 type stringType struct{}
 
-func (stringType) ConvertValue(v interface{}) (interface{}, os.Error) {
+func (stringType) ConvertValue(v interface{}) (interface{}, error) {
 	switch v.(type) {
 	case string, []byte:
 		return v, nil
@@ -137,7 +136,7 @@ type defaultConverter struct{}
 
 var _ ValueConverter = defaultConverter{}
 
-func (defaultConverter) ConvertValue(v interface{}) (interface{}, os.Error) {
+func (defaultConverter) ConvertValue(v interface{}) (interface{}, error) {
 	if IsParameterSubsetType(v) {
 		return v, nil
 	}

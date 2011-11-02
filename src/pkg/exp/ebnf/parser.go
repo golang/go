@@ -6,7 +6,6 @@ package ebnf
 
 import (
 	"io"
-	"os"
 	"scanner"
 	"strconv"
 )
@@ -184,7 +183,7 @@ func (p *parser) parse(filename string, src io.Reader) Grammar {
 // more than once; the filename is used only for error
 // positions.
 //
-func Parse(filename string, src io.Reader) (Grammar, os.Error) {
+func Parse(filename string, src io.Reader) (Grammar, error) {
 	var p parser
 	grammar := p.parse(filename, src)
 	return grammar, p.errors.Err()

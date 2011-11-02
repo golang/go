@@ -6,10 +6,10 @@ package jpeg
 
 import (
 	"bufio"
+	"errors"
 	"image"
 	"image/ycbcr"
 	"io"
-	"os"
 )
 
 // min returns the minimum of two integers.
@@ -207,9 +207,9 @@ func init() {
 
 // writer is a buffered writer.
 type writer interface {
-	Flush() os.Error
-	Write([]byte) (int, os.Error)
-	WriteByte(byte) os.Error
+	Flush() error
+	Write([]byte) (int, error)
+	WriteByte(byte) error
 }
 
 // encoder encodes an image to the JPEG format.
@@ -217,7 +217,7 @@ type encoder struct {
 	// w is the writer to write to. err is the first error encountered during
 	// writing. All attempted writes after the first error become no-ops.
 	w   writer
-	err os.Error
+	err error
 	// buf is a scratch buffer.
 	buf [16]byte
 	// bits and nBits are accumulated bits to write to w.
@@ -487,10 +487,10 @@ type Options struct {
 
 // Encode writes the Image m to w in JPEG 4:2:0 baseline format with the given
 // options. Default parameters are used if a nil *Options is passed.
-func Encode(w io.Writer, m image.Image, o *Options) os.Error {
+func Encode(w io.Writer, m image.Image, o *Options) error {
 	b := m.Bounds()
 	if b.Dx() >= 1<<16 || b.Dy() >= 1<<16 {
-		return os.NewError("jpeg: image is too large to encode")
+		return errors.New("jpeg: image is too large to encode")
 	}
 	var e encoder
 	if ww, ok := w.(writer); ok {

@@ -8,7 +8,6 @@ package dwarf
 
 import (
 	"encoding/binary"
-	"os"
 	"strconv"
 )
 
@@ -20,7 +19,7 @@ type buf struct {
 	off      Offset
 	data     []byte
 	addrsize int
-	err      os.Error
+	err      error
 }
 
 func makeBuf(d *Data, name string, off Offset, data []byte, addrsize int) buf {
@@ -146,9 +145,9 @@ func (b *buf) error(s string) {
 type DecodeError struct {
 	Name   string
 	Offset Offset
-	Error  string
+	Err    string
 }
 
-func (e DecodeError) String() string {
-	return "decoding dwarf section " + e.Name + " at offset 0x" + strconv.Itob64(int64(e.Offset), 16) + ": " + e.Error
+func (e DecodeError) Error() string {
+	return "decoding dwarf section " + e.Name + " at offset 0x" + strconv.Itob64(int64(e.Offset), 16) + ": " + e.Err
 }

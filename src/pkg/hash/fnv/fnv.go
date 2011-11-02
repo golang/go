@@ -10,7 +10,6 @@ package fnv
 import (
 	"encoding/binary"
 	"hash"
-	"os"
 )
 
 type (
@@ -61,7 +60,7 @@ func (s *sum32a) Sum32() uint32 { return uint32(*s) }
 func (s *sum64) Sum64() uint64  { return uint64(*s) }
 func (s *sum64a) Sum64() uint64 { return uint64(*s) }
 
-func (s *sum32) Write(data []byte) (int, os.Error) {
+func (s *sum32) Write(data []byte) (int, error) {
 	hash := *s
 	for _, c := range data {
 		hash *= prime32
@@ -71,7 +70,7 @@ func (s *sum32) Write(data []byte) (int, os.Error) {
 	return len(data), nil
 }
 
-func (s *sum32a) Write(data []byte) (int, os.Error) {
+func (s *sum32a) Write(data []byte) (int, error) {
 	hash := *s
 	for _, c := range data {
 		hash ^= sum32a(c)
@@ -81,7 +80,7 @@ func (s *sum32a) Write(data []byte) (int, os.Error) {
 	return len(data), nil
 }
 
-func (s *sum64) Write(data []byte) (int, os.Error) {
+func (s *sum64) Write(data []byte) (int, error) {
 	hash := *s
 	for _, c := range data {
 		hash *= prime64
@@ -91,7 +90,7 @@ func (s *sum64) Write(data []byte) (int, os.Error) {
 	return len(data), nil
 }
 
-func (s *sum64a) Write(data []byte) (int, os.Error) {
+func (s *sum64a) Write(data []byte) (int, error) {
 	hash := *s
 	for _, c := range data {
 		hash ^= sum64a(c)

@@ -267,7 +267,7 @@ func TestRead(t *testing.T) {
 		out, err := r.ReadAll()
 		perr, _ := err.(*ParseError)
 		if tt.Error != "" {
-			if err == nil || !strings.Contains(err.String(), tt.Error) {
+			if err == nil || !strings.Contains(err.Error(), tt.Error) {
 				t.Errorf("%s: error %v, want error %q", tt.Name, err, tt.Error)
 			} else if tt.Line != 0 && (tt.Line != perr.Line || tt.Column != perr.Column) {
 				t.Errorf("%s: error at %d:%d expected %d:%d", tt.Name, perr.Line, perr.Column, tt.Line, tt.Column)

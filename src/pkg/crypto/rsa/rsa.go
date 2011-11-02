@@ -11,9 +11,9 @@ import (
 	"big"
 	"crypto/rand"
 	"crypto/subtle"
+	"errors"
 	"hash"
 	"io"
-	"os"
 )
 
 var bigZero = big.NewInt(0)
@@ -57,14 +57,14 @@ type CRTValue struct {
 // Validate performs basic sanity checks on the key.
 // It returns nil if the key is valid, or else an os.Error describing a problem.
 
-func (priv *PrivateKey) Validate() os.Error {
+func (priv *PrivateKey) Validate() error {
 	// Check that the prime factors are actually prime. Note that this is
 	// just a sanity check. Since the random witnesses chosen by
 	// ProbablyPrime are deterministic, given the candidate number, it's
 	// easy for an attack to generate composites that pass this test.
 	for _, prime := range priv.Primes {
 		if !big.ProbablyPrime(prime, 20) {
-			return os.NewError("prime factor is composite")
+			return errors.New("prime factor is composite")
 		}
 	}
 
@@ -74,7 +74,7 @@ func (priv *PrivateKey) Validate() os.Error {
 		modulus.Mul(modulus, prime)
 	}
 	if modulus.Cmp(priv.N) != 0 {
-		return os.NewError("invalid modulus")
+		return errors.New("invalid modulus")
 	}
 	// Check that e and totient(Πprimes) are coprime.
 	totient := new(big.Int).Set(bigOne)
@@ -88,19 +88,19 @@ func (priv *PrivateKey) Validate() os.Error {
 	y := new(big.Int)
 	big.GcdInt(gcd, x, y, totient, e)
 	if gcd.Cmp(bigOne) != 0 {
-		return os.NewError("invalid public exponent E")
+		return errors.New("invalid public exponent E")
 	}
 	// Check that de ≡ 1 (mod totient(Πprimes))
 	de := new(big.Int).Mul(priv.D, e)
 	de.Mod(de, totient)
 	if de.Cmp(bigOne) != 0 {
-		return os.NewError("invalid private exponent D")
+		return errors.New("invalid private exponent D")
 	}
 	return nil
 }
 
 // GenerateKey generates an RSA keypair of the given bit size.
-func GenerateKey(random io.Reader, bits int) (priv *PrivateKey, err os.Error) {
+func GenerateKey(random io.Reader, bits int) (priv *PrivateKey, err error) {
 	return GenerateMultiPrimeKey(random, 2, bits)
 }
 
@@ -114,12 +114,12 @@ func GenerateKey(random io.Reader, bits int) (priv *PrivateKey, err os.Error) {
 //
 // [1] US patent 4405829 (1972, expired)
 // [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
-func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (priv *PrivateKey, err os.Error) {
+func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (priv *PrivateKey, err error) {
 	priv = new(PrivateKey)
 	priv.E = 65537
 
 	if nprimes < 2 {
-		return nil, os.NewError("rsa.GenerateMultiPrimeKey: nprimes must be >= 2")
+		return nil, errors.New("rsa.GenerateMultiPrimeKey: nprimes must be >= 2")
 	}
 
 	primes := make([]*big.Int, nprimes)
@@ -210,7 +210,7 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 // is too large for the size of the public key.
 type MessageTooLongError struct{}
 
-func (MessageTooLongError) String() string {
+func (MessageTooLongError) Error() string {
 	return "message too long for RSA public key size"
 }
 
@@ -223,7 +223,7 @@ func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
 // EncryptOAEP encrypts the given message with RSA-OAEP.
 // The message must be no longer than the length of the public modulus less
 // twice the hash length plus 2.
-func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) (out []byte, err os.Error) {
+func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) (out []byte, err error) {
 	hash.Reset()
 	k := (pub.N.BitLen() + 7) / 8
 	if len(msg) > k-2*hash.Size()-2 {
@@ -270,13 +270,13 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 // It is deliberately vague to avoid adaptive attacks.
 type DecryptionError struct{}
 
-func (DecryptionError) String() string { return "RSA decryption error" }
+func (DecryptionError) Error() string { return "RSA decryption error" }
 
 // A VerificationError represents a failure to verify a signature.
 // It is deliberately vague to avoid adaptive attacks.
 type VerificationError struct{}
 
-func (VerificationError) String() string { return "RSA verification error" }
+func (VerificationError) Error() string { return "RSA verification error" }
 
 // modInverse returns ia, the inverse of a in the multiplicative group of prime
 // order n. It requires that a be a member of the group (i.e. less than n).
@@ -335,7 +335,7 @@ func (priv *PrivateKey) Precompute() {
 
 // decrypt performs an RSA decryption, resulting in a plaintext integer. If a
 // random source is given, RSA blinding is used.
-func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.Error) {
+func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err error) {
 	// TODO(agl): can we get away with reusing blinds?
 	if c.Cmp(priv.N) > 0 {
 		err = DecryptionError{}
@@ -413,7 +413,7 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os
 
 // DecryptOAEP decrypts ciphertext using RSA-OAEP.
 // If rand != nil, DecryptOAEP uses RSA blinding to avoid timing side-channel attacks.
-func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) (msg []byte, err os.Error) {
+func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) (msg []byte, err error) {
 	k := (priv.N.BitLen() + 7) / 8
 	if len(ciphertext) > k ||
 		k < hash.Size()*2+2 {

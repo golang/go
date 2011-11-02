@@ -10,7 +10,6 @@ package flate
 import (
 	"bufio"
 	"io"
-	"os"
 	"strconv"
 )
 
@@ -25,33 +24,33 @@ const (
 // A CorruptInputError reports the presence of corrupt input at a given offset.
 type CorruptInputError int64
 
-func (e CorruptInputError) String() string {
+func (e CorruptInputError) Error() string {
 	return "flate: corrupt input before offset " + strconv.Itoa64(int64(e))
 }
 
 // An InternalError reports an error in the flate code itself.
 type InternalError string
 
-func (e InternalError) String() string { return "flate: internal error: " + string(e) }
+func (e InternalError) Error() string { return "flate: internal error: " + string(e) }
 
 // A ReadError reports an error encountered while reading input.
 type ReadError struct {
-	Offset int64    // byte offset where error occurred
-	Error  os.Error // error returned by underlying Read
+	Offset int64 // byte offset where error occurred
+	Err    error // error returned by underlying Read
 }
 
-func (e *ReadError) String() string {
-	return "flate: read error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Error.String()
+func (e *ReadError) Error() string {
+	return "flate: read error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Err.Error()
 }
 
 // A WriteError reports an error encountered while writing output.
 type WriteError struct {
-	Offset int64    // byte offset where error occurred
-	Error  os.Error // error returned by underlying Write
+	Offset int64 // byte offset where error occurred
+	Err    error // error returned by underlying Write
 }
 
-func (e *WriteError) String() string {
-	return "flate: write error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Error.String()
+func (e *WriteError) Error() string {
+	return "flate: write error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Err.Error()
 }
 
 // Huffman decoder is based on
@@ -190,7 +189,7 @@ var fixedHuffmanDecoder = huffmanDecoder{
 // the NewReader will introduce its own buffering.
 type Reader interface {
 	io.Reader
-	ReadByte() (c byte, err os.Error)
+	ReadByte() (c byte, err error)
 }
 
 // Decompress state.
@@ -224,7 +223,7 @@ type decompressor struct {
 	// and decompression state.
 	step     func(*decompressor)
 	final    bool
-	err      os.Error
+	err      error
 	toRead   []byte
 	hl, hd   *huffmanDecoder
 	copyLen  int
@@ -237,7 +236,7 @@ func (f *decompressor) nextBlock() {
 			f.flush((*decompressor).nextBlock)
 			return
 		}
-		f.err = os.EOF
+		f.err = io.EOF
 		return
 	}
 	for f.nb < 1+2 {
@@ -272,7 +271,7 @@ func (f *decompressor) nextBlock() {
 	}
 }
 
-func (f *decompressor) Read(b []byte) (int, os.Error) {
+func (f *decompressor) Read(b []byte) (int, error) {
 	for {
 		if len(f.toRead) > 0 {
 			n := copy(b, f.toRead)
@@ -287,8 +286,8 @@ func (f *decompressor) Read(b []byte) (int, os.Error) {
 	panic("unreachable")
 }
 
-func (f *decompressor) Close() os.Error {
-	if f.err == os.EOF {
+func (f *decompressor) Close() error {
+	if f.err == io.EOF {
 		return nil
 	}
 	return f.err
@@ -299,7 +298,7 @@ func (f *decompressor) Close() os.Error {
 
 var codeOrder = [...]int{16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15}
 
-func (f *decompressor) readHuffman() os.Error {
+func (f *decompressor) readHuffman() error {
 	// HLIT[5], HDIST[5], HCLEN[4].
 	for f.nb < 5+5+4 {
 		if err := f.moreBits(); err != nil {
@@ -625,10 +624,10 @@ func (f *decompressor) setDict(dict []byte) {
 	f.hw = f.hp
 }
 
-func (f *decompressor) moreBits() os.Error {
+func (f *decompressor) moreBits() error {
 	c, err := f.r.ReadByte()
 	if err != nil {
-		if err == os.EOF {
+		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
 		return err
@@ -640,7 +639,7 @@ func (f *decompressor) moreBits() os.Error {
 }
 
 // Read the next Huffman-encoded symbol from f according to h.
-func (f *decompressor) huffSym(h *huffmanDecoder) (int, os.Error) {
+func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
 	for n := uint(h.min); n <= uint(h.max); n++ {
 		lim := h.limit[n]
 		if lim == -1 {

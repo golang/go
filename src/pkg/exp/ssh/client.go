@@ -8,9 +8,9 @@ import (
 	"big"
 	"crypto"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
-	"os"
 	"net"
 	"sync"
 )
@@ -26,7 +26,7 @@ type ClientConn struct {
 }
 
 // Client returns a new SSH client connection using c as the underlying transport.
-func Client(c net.Conn, config *ClientConfig) (*ClientConn, os.Error) {
+func Client(c net.Conn, config *ClientConfig) (*ClientConn, error) {
 	conn := &ClientConn{
 		transport: newTransport(c, config.rand()),
 		config:    config,
@@ -44,7 +44,7 @@ func Client(c net.Conn, config *ClientConfig) (*ClientConn, os.Error) {
 }
 
 // handshake performs the client side key exchange. See RFC 4253 Section 7.
-func (c *ClientConn) handshake() os.Error {
+func (c *ClientConn) handshake() error {
 	var magics handshakeMagics
 
 	if _, err := c.Write(clientVersion); err != nil {
@@ -91,7 +91,7 @@ func (c *ClientConn) handshake() os.Error {
 
 	kexAlgo, hostKeyAlgo, ok := findAgreedAlgorithms(c.transport, &clientKexInit, &serverKexInit)
 	if !ok {
-		return os.NewError("ssh: no common algorithms")
+		return errors.New("ssh: no common algorithms")
 	}
 
 	if serverKexInit.FirstKexFollows && kexAlgo != serverKexInit.KexAlgos[0] {
@@ -133,7 +133,7 @@ func (c *ClientConn) handshake() os.Error {
 
 // authenticate authenticates with the remote server. See RFC 4252. 
 // Only "password" authentication is supported.
-func (c *ClientConn) authenticate() os.Error {
+func (c *ClientConn) authenticate() error {
 	if err := c.writePacket(marshal(msgServiceRequest, serviceRequestMsg{serviceUserAuth})); err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (c *ClientConn) authenticate() os.Error {
 	return nil
 }
 
-func (c *ClientConn) sendUserAuthReq(method string) os.Error {
+func (c *ClientConn) sendUserAuthReq(method string) error {
 	length := stringLength([]byte(c.config.Password)) + 1
 	payload := make([]byte, length)
 	// always false for password auth, see RFC 4252 Section 8.
@@ -183,7 +183,7 @@ func (c *ClientConn) sendUserAuthReq(method string) os.Error {
 
 // kexDH performs Diffie-Hellman key agreement on a ClientConn. The
 // returned values are given the same names as in RFC 4253, section 8.
-func (c *ClientConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handshakeMagics, hostKeyAlgo string) ([]byte, []byte, os.Error) {
+func (c *ClientConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handshakeMagics, hostKeyAlgo string) ([]byte, []byte, error) {
 	x, err := rand.Int(c.config.rand(), group.p)
 	if err != nil {
 		return nil, nil, err
@@ -207,7 +207,7 @@ func (c *ClientConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handsha
 	}
 
 	if kexDHReply.Y.Sign() == 0 || kexDHReply.Y.Cmp(group.p) >= 0 {
-		return nil, nil, os.NewError("server DH parameter out of bounds")
+		return nil, nil, errors.New("server DH parameter out of bounds")
 	}
 
 	kInt := new(big.Int).Exp(kexDHReply.Y, x, group.p)
@@ -230,7 +230,7 @@ func (c *ClientConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handsha
 
 // openChan opens a new client channel. The most common session type is "session". 
 // The full set of valid session types are listed in RFC 4250 4.9.1.
-func (c *ClientConn) openChan(typ string) (*clientChan, os.Error) {
+func (c *ClientConn) openChan(typ string) (*clientChan, error) {
 	ch := c.newChan(c.transport)
 	if err := c.writePacket(marshal(msgChannelOpen, channelOpenMsg{
 		ChanType:      typ,
@@ -247,10 +247,10 @@ func (c *ClientConn) openChan(typ string) (*clientChan, os.Error) {
 		ch.peersId = msg.MyId
 	case *channelOpenFailureMsg:
 		c.chanlist.remove(ch.id)
-		return nil, os.NewError(msg.Message)
+		return nil, errors.New(msg.Message)
 	default:
 		c.chanlist.remove(ch.id)
-		return nil, os.NewError("Unexpected packet")
+		return nil, errors.New("Unexpected packet")
 	}
 	return ch, nil
 }
@@ -329,7 +329,7 @@ func (c *ClientConn) mainLoop() {
 
 // Dial connects to the given network address using net.Dial and 
 // then initiates a SSH handshake, returning the resulting client connection.
-func Dial(network, addr string, config *ClientConfig) (*ClientConn, os.Error) {
+func Dial(network, addr string, config *ClientConfig) (*ClientConn, error) {
 	conn, err := net.Dial(network, addr)
 	if err != nil {
 		return nil, err
@@ -382,13 +382,13 @@ func newClientChan(t *transport, id uint32) *clientChan {
 }
 
 // Close closes the channel. This does not close the underlying connection.
-func (c *clientChan) Close() os.Error {
+func (c *clientChan) Close() error {
 	return c.writePacket(marshal(msgChannelClose, channelCloseMsg{
 		PeersId: c.id,
 	}))
 }
 
-func (c *clientChan) sendChanReq(req channelRequestMsg) os.Error {
+func (c *clientChan) sendChanReq(req channelRequestMsg) error {
 	if err := c.writePacket(marshal(msgChannelRequest, req)); err != nil {
 		return err
 	}
@@ -447,12 +447,12 @@ type chanWriter struct {
 }
 
 // Write writes data to the remote process's standard input.
-func (w *chanWriter) Write(data []byte) (n int, err os.Error) {
+func (w *chanWriter) Write(data []byte) (n int, err error) {
 	for {
 		if w.rwin == 0 {
 			win, ok := <-w.win
 			if !ok {
-				return 0, os.EOF
+				return 0, io.EOF
 			}
 			w.rwin += win
 			continue
@@ -469,7 +469,7 @@ func (w *chanWriter) Write(data []byte) (n int, err os.Error) {
 	panic("unreachable")
 }
 
-func (w *chanWriter) Close() os.Error {
+func (w *chanWriter) Close() error {
 	return w.writePacket(marshal(msgChannelEOF, channelEOFMsg{w.id}))
 }
 
@@ -485,7 +485,7 @@ type chanReader struct {
 }
 
 // Read reads data from the remote process's stdout or stderr.
-func (r *chanReader) Read(data []byte) (int, os.Error) {
+func (r *chanReader) Read(data []byte) (int, error) {
 	var ok bool
 	for {
 		if len(r.buf) > 0 {
@@ -499,12 +499,12 @@ func (r *chanReader) Read(data []byte) (int, os.Error) {
 		}
 		r.buf, ok = <-r.data
 		if !ok {
-			return 0, os.EOF
+			return 0, io.EOF
 		}
 	}
 	panic("unreachable")
 }
 
-func (r *chanReader) Close() os.Error {
+func (r *chanReader) Close() error {
 	return r.writePacket(marshal(msgChannelEOF, channelEOFMsg{r.id}))
 }

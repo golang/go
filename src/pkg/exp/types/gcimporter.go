@@ -9,6 +9,7 @@ package types
 
 import (
 	"big"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -102,7 +103,7 @@ func (p *gcParser) next() {
 }
 
 // GcImporter implements the ast.Importer signature.
-func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, err os.Error) {
+func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, err error) {
 	if path == "unsafe" {
 		return Unsafe, nil
 	}
@@ -118,7 +119,7 @@ func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, e
 
 	filename, id := findPkg(path)
 	if filename == "" {
-		err = os.NewError("can't find import: " + id)
+		err = errors.New("can't find import: " + id)
 		return
 	}
 
@@ -176,19 +177,19 @@ func (p *gcParser) declare(scope *ast.Scope, kind ast.ObjKind, name string) *ast
 // Internal errors are boxed as importErrors.
 type importError struct {
 	pos scanner.Position
-	err os.Error
+	err error
 }
 
-func (e importError) String() string {
+func (e importError) Error() string {
 	return fmt.Sprintf("import error %s (byte offset = %d): %s", e.pos, e.pos.Offset, e.err)
 }
 
 func (p *gcParser) error(err interface{}) {
 	if s, ok := err.(string); ok {
-		err = os.NewError(s)
+		err = errors.New(s)
 	}
 	// panic with a runtime.Error if err is not an os.Error
-	panic(importError{p.scanner.Pos(), err.(os.Error)})
+	panic(importError{p.scanner.Pos(), err.(error)})
 }
 
 func (p *gcParser) errorf(format string, args ...interface{}) {

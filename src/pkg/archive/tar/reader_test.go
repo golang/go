@@ -132,7 +132,7 @@ testLoop:
 			}
 		}
 		hdr, err := tr.Next()
-		if err == os.EOF {
+		if err == io.EOF {
 			break
 		}
 		if hdr != nil || err != nil {
@@ -195,7 +195,7 @@ func TestIncrementalRead(t *testing.T) {
 	// loop over all files
 	for ; ; nread++ {
 		hdr, err := tr.Next()
-		if hdr == nil || err == os.EOF {
+		if hdr == nil || err == io.EOF {
 			break
 		}
 
@@ -211,7 +211,7 @@ func TestIncrementalRead(t *testing.T) {
 		rdbuf := make([]uint8, 8)
 		for {
 			nr, err := tr.Read(rdbuf)
-			if err == os.EOF {
+			if err == io.EOF {
 				break
 			}
 			if err != nil {
@@ -250,7 +250,7 @@ func TestNonSeekable(t *testing.T) {
 		for {
 			nr, err := f.Read(rdbuf)
 			w.Write(rdbuf[0:nr])
-			if err == os.EOF {
+			if err == io.EOF {
 				break
 			}
 		}
@@ -262,7 +262,7 @@ func TestNonSeekable(t *testing.T) {
 
 	for ; ; nread++ {
 		hdr, err := tr.Next()
-		if hdr == nil || err == os.EOF {
+		if hdr == nil || err == io.EOF {
 			break
 		}
 	}

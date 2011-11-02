@@ -8,8 +8,9 @@ package gob
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 	"testing"
 )
@@ -34,7 +35,7 @@ type ValueGobber string // encodes with a value, decodes with a pointer.
 
 // The relevant methods
 
-func (g *ByteStruct) GobEncode() ([]byte, os.Error) {
+func (g *ByteStruct) GobEncode() ([]byte, error) {
 	b := make([]byte, 3)
 	b[0] = g.a
 	b[1] = g.a + 1
@@ -42,68 +43,68 @@ func (g *ByteStruct) GobEncode() ([]byte, os.Error) {
 	return b, nil
 }
 
-func (g *ByteStruct) GobDecode(data []byte) os.Error {
+func (g *ByteStruct) GobDecode(data []byte) error {
 	if g == nil {
-		return os.NewError("NIL RECEIVER")
+		return errors.New("NIL RECEIVER")
 	}
 	// Expect N sequential-valued bytes.
 	if len(data) == 0 {
-		return os.EOF
+		return io.EOF
 	}
 	g.a = data[0]
 	for i, c := range data {
 		if c != g.a+byte(i) {
-			return os.NewError("invalid data sequence")
+			return errors.New("invalid data sequence")
 		}
 	}
 	return nil
 }
 
-func (g *StringStruct) GobEncode() ([]byte, os.Error) {
+func (g *StringStruct) GobEncode() ([]byte, error) {
 	return []byte(g.s), nil
 }
 
-func (g *StringStruct) GobDecode(data []byte) os.Error {
+func (g *StringStruct) GobDecode(data []byte) error {
 	// Expect N sequential-valued bytes.
 	if len(data) == 0 {
-		return os.EOF
+		return io.EOF
 	}
 	a := data[0]
 	for i, c := range data {
 		if c != a+byte(i) {
-			return os.NewError("invalid data sequence")
+			return errors.New("invalid data sequence")
 		}
 	}
 	g.s = string(data)
 	return nil
 }
 
-func (a *ArrayStruct) GobEncode() ([]byte, os.Error) {
+func (a *ArrayStruct) GobEncode() ([]byte, error) {
 	return a.a[:], nil
 }
 
-func (a *ArrayStruct) GobDecode(data []byte) os.Error {
+func (a *ArrayStruct) GobDecode(data []byte) error {
 	if len(data) != len(a.a) {
-		return os.NewError("wrong length in array decode")
+		return errors.New("wrong length in array decode")
 	}
 	copy(a.a[:], data)
 	return nil
 }
 
-func (g *Gobber) GobEncode() ([]byte, os.Error) {
+func (g *Gobber) GobEncode() ([]byte, error) {
 	return []byte(fmt.Sprintf("VALUE=%d", *g)), nil
 }
 
-func (g *Gobber) GobDecode(data []byte) os.Error {
+func (g *Gobber) GobDecode(data []byte) error {
 	_, err := fmt.Sscanf(string(data), "VALUE=%d", (*int)(g))
 	return err
 }
 
-func (v ValueGobber) GobEncode() ([]byte, os.Error) {
+func (v ValueGobber) GobEncode() ([]byte, error) {
 	return []byte(fmt.Sprintf("VALUE=%s", v)), nil
 }
 
-func (v *ValueGobber) GobDecode(data []byte) os.Error {
+func (v *ValueGobber) GobDecode(data []byte) error {
 	_, err := fmt.Sscanf(string(data), "VALUE=%s", (*string)(v))
 	return err
 }
@@ -372,7 +373,7 @@ func TestGobEncoderFieldTypeError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected decode error for mismatched fields (encoder to non-decoder)")
 	}
-	if strings.Index(err.String(), "type") < 0 {
+	if strings.Index(err.Error(), "type") < 0 {
 		t.Fatal("expected type error; got", err)
 	}
 	// Non-encoder to GobDecoder: error
@@ -386,7 +387,7 @@ func TestGobEncoderFieldTypeError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected decode error for mismatched fields (non-encoder to decoder)")
 	}
-	if strings.Index(err.String(), "type") < 0 {
+	if strings.Index(err.Error(), "type") < 0 {
 		t.Fatal("expected type error; got", err)
 	}
 }
@@ -497,11 +498,11 @@ func (br *gobDecoderBug0) String() string {
 	return br.foo + "-" + br.bar
 }
 
-func (br *gobDecoderBug0) GobEncode() ([]byte, os.Error) {
+func (br *gobDecoderBug0) GobEncode() ([]byte, error) {
 	return []byte(br.String()), nil
 }
 
-func (br *gobDecoderBug0) GobDecode(b []byte) os.Error {
+func (br *gobDecoderBug0) GobDecode(b []byte) error {
 	br.foo = "foo"
 	br.bar = "bar"
 	return nil

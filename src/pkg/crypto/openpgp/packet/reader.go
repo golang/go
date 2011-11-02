@@ -5,9 +5,8 @@
 package packet
 
 import (
-	"crypto/openpgp/error"
+	error_ "crypto/openpgp/error"
 	"io"
-	"os"
 )
 
 // Reader reads packets from an io.Reader and allows packets to be 'unread' so
@@ -19,7 +18,7 @@ type Reader struct {
 
 // Next returns the most recently unread Packet, or reads another packet from
 // the top-most io.Reader. Unknown packet types are skipped.
-func (r *Reader) Next() (p Packet, err os.Error) {
+func (r *Reader) Next() (p Packet, err error) {
 	if len(r.q) > 0 {
 		p = r.q[len(r.q)-1]
 		r.q = r.q[:len(r.q)-1]
@@ -31,16 +30,16 @@ func (r *Reader) Next() (p Packet, err os.Error) {
 		if err == nil {
 			return
 		}
-		if err == os.EOF {
+		if err == io.EOF {
 			r.readers = r.readers[:len(r.readers)-1]
 			continue
 		}
-		if _, ok := err.(error.UnknownPacketTypeError); !ok {
+		if _, ok := err.(error_.UnknownPacketTypeError); !ok {
 			return nil, err
 		}
 	}
 
-	return nil, os.EOF
+	return nil, io.EOF
 }
 
 // Push causes the Reader to start reading from a new io.Reader. When an EOF

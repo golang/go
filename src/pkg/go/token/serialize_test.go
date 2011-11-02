@@ -7,13 +7,12 @@ package token
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"testing"
 )
 
 // equal returns nil if p and q describe the same file set;
 // otherwise it returns an error describing the discrepancy.
-func equal(p, q *FileSet) os.Error {
+func equal(p, q *FileSet) error {
 	if p == q {
 		// avoid deadlock if p == q
 		return nil

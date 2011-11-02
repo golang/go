@@ -9,7 +9,7 @@ package json
 
 import (
 	"encoding/base64"
-	"os"
+	"errors"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -50,7 +50,7 @@ import (
 // If no more serious errors are encountered, Unmarshal returns
 // an UnmarshalTypeError describing the earliest such error.
 //
-func Unmarshal(data []byte, v interface{}) os.Error {
+func Unmarshal(data []byte, v interface{}) error {
 	d := new(decodeState).init(data)
 
 	// Quick check for well-formedness.
@@ -70,7 +70,7 @@ func Unmarshal(data []byte, v interface{}) os.Error {
 // encoding.  UnmarshalJSON must copy the JSON data
 // if it wishes to retain the data after returning.
 type Unmarshaler interface {
-	UnmarshalJSON([]byte) os.Error
+	UnmarshalJSON([]byte) error
 }
 
 // An UnmarshalTypeError describes a JSON value that was
@@ -80,7 +80,7 @@ type UnmarshalTypeError struct {
 	Type  reflect.Type // type of Go value it could not be assigned to
 }
 
-func (e *UnmarshalTypeError) String() string {
+func (e *UnmarshalTypeError) Error() string {
 	return "json: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
 }
 
@@ -92,7 +92,7 @@ type UnmarshalFieldError struct {
 	Field reflect.StructField
 }
 
-func (e *UnmarshalFieldError) String() string {
+func (e *UnmarshalFieldError) Error() string {
 	return "json: cannot unmarshal object key " + strconv.Quote(e.Key) + " into unexported field " + e.Field.Name + " of type " + e.Type.String()
 }
 
@@ -102,7 +102,7 @@ type InvalidUnmarshalError struct {
 	Type reflect.Type
 }
 
-func (e *InvalidUnmarshalError) String() string {
+func (e *InvalidUnmarshalError) Error() string {
 	if e.Type == nil {
 		return "json: Unmarshal(nil)"
 	}
@@ -113,13 +113,13 @@ func (e *InvalidUnmarshalError) String() string {
 	return "json: Unmarshal(nil " + e.Type.String() + ")"
 }
 
-func (d *decodeState) unmarshal(v interface{}) (err os.Error) {
+func (d *decodeState) unmarshal(v interface{}) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if _, ok := r.(runtime.Error); ok {
 				panic(r)
 			}
-			err = r.(os.Error)
+			err = r.(error)
 		}
 	}()
 
@@ -142,14 +142,14 @@ type decodeState struct {
 	off        int // read offset in data
 	scan       scanner
 	nextscan   scanner // for calls to nextValue
-	savedError os.Error
+	savedError error
 	tempstr    string // scratch space to avoid some allocations
 }
 
 // errPhase is used for errors that should not happen unless
 // there is a bug in the JSON decoder or something is editing
 // the data slice while the decoder executes.
-var errPhase = os.NewError("JSON decoder out of sync - data changing underfoot?")
+var errPhase = errors.New("JSON decoder out of sync - data changing underfoot?")
 
 func (d *decodeState) init(data []byte) *decodeState {
 	d.data = data
@@ -159,13 +159,13 @@ func (d *decodeState) init(data []byte) *decodeState {
 }
 
 // error aborts the decoding by panicking with err.
-func (d *decodeState) error(err os.Error) {
+func (d *decodeState) error(err error) {
 	panic(err)
 }
 
 // saveError saves the first err it is called with,
 // for reporting at the end of the unmarshal.
-func (d *decodeState) saveError(err os.Error) {
+func (d *decodeState) saveError(err error) {
 	if d.savedError == nil {
 		d.savedError = err
 	}

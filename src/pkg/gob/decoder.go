@@ -7,8 +7,8 @@ package gob
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"io"
-	"os"
 	"reflect"
 	"sync"
 )
@@ -25,7 +25,7 @@ type Decoder struct {
 	freeList     *decoderState                           // list of free decoderStates; avoids reallocation
 	countBuf     []byte                                  // used for decoding integers while parsing messages
 	tmp          []byte                                  // temporary storage for i/o; saves reallocating
-	err          os.Error
+	err          error
 }
 
 // NewDecoder returns a new decoder that reads from the io.Reader.
@@ -50,7 +50,7 @@ func NewDecoder(r io.Reader) *Decoder {
 func (dec *Decoder) recvType(id typeId) {
 	// Have we already seen this type?  That's an error
 	if id < firstUserId || dec.wireType[id] != nil {
-		dec.err = os.NewError("gob: duplicate type received")
+		dec.err = errors.New("gob: duplicate type received")
 		return
 	}
 
@@ -64,7 +64,7 @@ func (dec *Decoder) recvType(id typeId) {
 	dec.wireType[id] = wire
 }
 
-var errBadCount = os.NewError("invalid message length")
+var errBadCount = errors.New("invalid message length")
 
 // recvMessage reads the next count-delimited item from the input. It is the converse
 // of Encoder.writeMessage. It returns false on EOF or other error reading the message.
@@ -94,7 +94,7 @@ func (dec *Decoder) readMessage(nbytes int) {
 	// Read the data
 	_, dec.err = io.ReadFull(dec.r, dec.tmp)
 	if dec.err != nil {
-		if dec.err == os.EOF {
+		if dec.err == io.EOF {
 			dec.err = io.ErrUnexpectedEOF
 		}
 		return
@@ -155,7 +155,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 		// will be absorbed by recvMessage.)
 		if dec.buf.Len() > 0 {
 			if !isInterface {
-				dec.err = os.NewError("extra data in buffer")
+				dec.err = errors.New("extra data in buffer")
 				break
 			}
 			dec.nextUint()
@@ -169,7 +169,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 // If e is nil, the value will be discarded. Otherwise,
 // the value underlying e must be a pointer to the
 // correct type for the next data item received.
-func (dec *Decoder) Decode(e interface{}) os.Error {
+func (dec *Decoder) Decode(e interface{}) error {
 	if e == nil {
 		return dec.DecodeValue(reflect.Value{})
 	}
@@ -177,7 +177,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 	// If e represents a value as opposed to a pointer, the answer won't
 	// get back to the caller.  Make sure it's a pointer.
 	if value.Type().Kind() != reflect.Ptr {
-		dec.err = os.NewError("gob: attempt to decode into a non-pointer")
+		dec.err = errors.New("gob: attempt to decode into a non-pointer")
 		return dec.err
 	}
 	return dec.DecodeValue(value)
@@ -187,12 +187,12 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 // If v is the zero reflect.Value (v.Kind() == Invalid), DecodeValue discards the value.
 // Otherwise, it stores the value into v.  In that case, v must represent
 // a non-nil pointer to data or be an assignable reflect.Value (v.CanSet())
-func (dec *Decoder) DecodeValue(v reflect.Value) os.Error {
+func (dec *Decoder) DecodeValue(v reflect.Value) error {
 	if v.IsValid() {
 		if v.Kind() == reflect.Ptr && !v.IsNil() {
 			// That's okay, we'll store through the pointer.
 		} else if !v.CanSet() {
-			return os.NewError("gob: DecodeValue of unassignable value")
+			return errors.New("gob: DecodeValue of unassignable value")
 		}
 	}
 	// Make sure we're single-threaded through here.

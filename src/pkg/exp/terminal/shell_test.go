@@ -5,8 +5,8 @@
 package terminal
 
 import (
+	"io"
 	"testing"
-	"os"
 )
 
 type MockTerminal struct {
@@ -15,7 +15,7 @@ type MockTerminal struct {
 	received     []byte
 }
 
-func (c *MockTerminal) Read(data []byte) (n int, err os.Error) {
+func (c *MockTerminal) Read(data []byte) (n int, err error) {
 	n = len(data)
 	if n == 0 {
 		return
@@ -24,7 +24,7 @@ func (c *MockTerminal) Read(data []byte) (n int, err os.Error) {
 		n = len(c.toSend)
 	}
 	if n == 0 {
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 	if c.bytesPerRead > 0 && n > c.bytesPerRead {
 		n = c.bytesPerRead
@@ -34,7 +34,7 @@ func (c *MockTerminal) Read(data []byte) (n int, err os.Error) {
 	return
 }
 
-func (c *MockTerminal) Write(data []byte) (n int, err os.Error) {
+func (c *MockTerminal) Write(data []byte) (n int, err error) {
 	c.received = append(c.received, data...)
 	return len(data), nil
 }
@@ -46,7 +46,7 @@ func TestClose(t *testing.T) {
 	if line != "" {
 		t.Errorf("Expected empty line but got: %s", line)
 	}
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Errorf("Error should have been EOF but got: %s", err)
 	}
 }
@@ -54,12 +54,12 @@ func TestClose(t *testing.T) {
 var keyPressTests = []struct {
 	in   string
 	line string
-	err  os.Error
+	err  error
 }{
 	{
 		"",
 		"",
-		os.EOF,
+		io.EOF,
 	},
 	{
 		"\r",

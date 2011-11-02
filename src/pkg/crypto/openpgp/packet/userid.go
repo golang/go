@@ -7,7 +7,6 @@ package packet
 import (
 	"io"
 	"io/ioutil"
-	"os"
 	"strings"
 )
 
@@ -65,7 +64,7 @@ func NewUserId(name, comment, email string) *UserId {
 	return uid
 }
 
-func (uid *UserId) parse(r io.Reader) (err os.Error) {
+func (uid *UserId) parse(r io.Reader) (err error) {
 	// RFC 4880, section 5.11
 	b, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -78,7 +77,7 @@ func (uid *UserId) parse(r io.Reader) (err os.Error) {
 
 // Serialize marshals uid to w in the form of an OpenPGP packet, including
 // header.
-func (uid *UserId) Serialize(w io.Writer) os.Error {
+func (uid *UserId) Serialize(w io.Writer) error {
 	err := serializeHeader(w, packetTypeUserId, len(uid.Id))
 	if err != nil {
 		return err

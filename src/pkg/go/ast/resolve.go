@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"go/scanner"
 	"go/token"
-	"os"
 	"strconv"
 )
 
@@ -61,7 +60,7 @@ func resolve(scope *Scope, ident *Ident) bool {
 // Importer should load the package data for the given path into 
 // a new *Object (pkg), record pkg in the imports map, and then
 // return pkg.
-type Importer func(imports map[string]*Object, path string) (pkg *Object, err os.Error)
+type Importer func(imports map[string]*Object, path string) (pkg *Object, err error)
 
 // NewPackage creates a new Package node from a set of File nodes. It resolves
 // unresolved identifiers across files and updates each file's Unresolved list
@@ -72,7 +71,7 @@ type Importer func(imports map[string]*Object, path string) (pkg *Object, err os
 // different package names are reported and then ignored.
 // The result is a package node and a scanner.ErrorList if there were errors.
 //
-func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, universe *Scope) (*Package, os.Error) {
+func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, universe *Scope) (*Package, error) {
 	var p pkgBuilder
 	p.fset = fset
 

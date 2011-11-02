@@ -13,7 +13,6 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"hash"
-	"os"
 )
 
 // FIPS 198:
@@ -60,7 +59,7 @@ func (h *hmac) Sum() []byte {
 	return h.outer.Sum()
 }
 
-func (h *hmac) Write(p []byte) (n int, err os.Error) {
+func (h *hmac) Write(p []byte) (n int, err error) {
 	return h.inner.Write(p)
 }
 

@@ -40,7 +40,7 @@ func TestServeFile(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	var err os.Error
+	var err error
 
 	file, err := ioutil.ReadFile(testFile)
 	if err != nil {
@@ -113,16 +113,16 @@ func TestFSRedirect(t *testing.T) {
 }
 
 type testFileSystem struct {
-	open func(name string) (File, os.Error)
+	open func(name string) (File, error)
 }
 
-func (fs *testFileSystem) Open(name string) (File, os.Error) {
+func (fs *testFileSystem) Open(name string) (File, error) {
 	return fs.open(name)
 }
 
 func TestFileServerCleans(t *testing.T) {
 	ch := make(chan string, 1)
-	fs := FileServer(&testFileSystem{func(name string) (File, os.Error) {
+	fs := FileServer(&testFileSystem{func(name string) (File, error) {
 		ch <- name
 		return nil, os.ENOENT
 	}})

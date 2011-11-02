@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"io"
-	"os"
 )
 
 // A Block represents a PEM encoded structure.
@@ -170,7 +169,7 @@ type lineBreaker struct {
 	out  io.Writer
 }
 
-func (l *lineBreaker) Write(b []byte) (n int, err os.Error) {
+func (l *lineBreaker) Write(b []byte) (n int, err error) {
 	if l.used+len(b) < pemLineLength {
 		copy(l.line[l.used:], b)
 		l.used += len(b)
@@ -197,7 +196,7 @@ func (l *lineBreaker) Write(b []byte) (n int, err os.Error) {
 	return l.Write(b[excess:])
 }
 
-func (l *lineBreaker) Close() (err os.Error) {
+func (l *lineBreaker) Close() (err error) {
 	if l.used > 0 {
 		_, err = l.out.Write(l.line[0:l.used])
 		if err != nil {
@@ -209,7 +208,7 @@ func (l *lineBreaker) Close() (err os.Error) {
 	return
 }
 
-func Encode(out io.Writer, b *Block) (err os.Error) {
+func Encode(out io.Writer, b *Block) (err error) {
 	_, err = out.Write(pemStart[1:])
 	if err != nil {
 		return

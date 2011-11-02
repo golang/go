@@ -12,7 +12,6 @@ import (
 	"flag"
 	"io"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,7 +19,7 @@ import (
 
 type zeroSource struct{}
 
-func (zeroSource) Read(b []byte) (n int, err os.Error) {
+func (zeroSource) Read(b []byte) (n int, err error) {
 	for i := range b {
 		b[i] = 0
 	}
@@ -41,7 +40,7 @@ func init() {
 	testConfig.InsecureSkipVerify = true
 }
 
-func testClientHelloFailure(t *testing.T, m handshakeMessage, expected os.Error) {
+func testClientHelloFailure(t *testing.T, m handshakeMessage, expected error) {
 	// Create in-memory network connection,
 	// send message to server.  Should return
 	// expected error.
@@ -56,7 +55,7 @@ func testClientHelloFailure(t *testing.T, m handshakeMessage, expected os.Error)
 	}()
 	err := Server(s, testConfig).Handshake()
 	s.Close()
-	if e, ok := err.(*net.OpError); !ok || e.Error != expected {
+	if e, ok := err.(*net.OpError); !ok || e.Err != expected {
 		t.Errorf("Got error: %s; expected: %s", err, expected)
 	}
 }
@@ -93,7 +92,7 @@ func TestAlertForwarding(t *testing.T) {
 
 	err := Server(s, testConfig).Handshake()
 	s.Close()
-	if e, ok := err.(*net.OpError); !ok || e.Error != os.Error(alertUnknownCA) {
+	if e, ok := err.(*net.OpError); !ok || e.Err != error(alertUnknownCA) {
 		t.Errorf("Got error: %s; expected: %s", err, alertUnknownCA)
 	}
 }
@@ -104,8 +103,8 @@ func TestClose(t *testing.T) {
 
 	err := Server(s, testConfig).Handshake()
 	s.Close()
-	if err != os.EOF {
-		t.Errorf("Got error: %s; expected: %s", err, os.EOF)
+	if err != io.EOF {
+		t.Errorf("Got error: %s; expected: %s", err, io.EOF)
 	}
 }
 

@@ -7,8 +7,8 @@
 package sql
 
 import (
+	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"strconv"
 )
@@ -16,7 +16,7 @@ import (
 // convertAssign copies to dest the value in src, converting it if possible.
 // An error is returned if the copy would result in loss of information.
 // dest should be a pointer type.
-func convertAssign(dest, src interface{}) os.Error {
+func convertAssign(dest, src interface{}) error {
 	// Common cases, without reflect.  Fall through.
 	switch s := src.(type) {
 	case string:
@@ -56,7 +56,7 @@ func convertAssign(dest, src interface{}) os.Error {
 
 	dpv := reflect.ValueOf(dest)
 	if dpv.Kind() != reflect.Ptr {
-		return os.NewError("destination not a pointer")
+		return errors.New("destination not a pointer")
 	}
 
 	dv := reflect.Indirect(dpv)

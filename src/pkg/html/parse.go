@@ -6,7 +6,6 @@ package html
 
 import (
 	"io"
-	"os"
 	"strings"
 )
 
@@ -240,7 +239,7 @@ func (p *parser) reconstructActiveFormattingElements() {
 
 // read reads the next token. This is usually from the tokenizer, but it may
 // be the synthesized end tag implied by a self-closing tag.
-func (p *parser) read() os.Error {
+func (p *parser) read() error {
 	if p.hasSelfClosingToken {
 		p.hasSelfClosingToken = false
 		p.tok.Type = EndTagToken
@@ -1136,7 +1135,7 @@ func afterAfterBodyIM(p *parser) (insertionMode, bool) {
 
 // Parse returns the parse tree for the HTML from the given Reader.
 // The input is assumed to be UTF-8 encoded.
-func Parse(r io.Reader) (*Node, os.Error) {
+func Parse(r io.Reader) (*Node, error) {
 	p := &parser{
 		tokenizer: NewTokenizer(r),
 		doc: &Node{
@@ -1150,7 +1149,7 @@ func Parse(r io.Reader) (*Node, os.Error) {
 	for {
 		if consumed {
 			if err := p.read(); err != nil {
-				if err == os.EOF {
+				if err == io.EOF {
 					break
 				}
 				return nil, err

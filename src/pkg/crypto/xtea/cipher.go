@@ -8,10 +8,7 @@ package xtea
 
 // For details, see http://www.cix.co.uk/~klockstone/xtea.pdf
 
-import (
-	"os"
-	"strconv"
-)
+import "strconv"
 
 // The XTEA block size in bytes.
 const BlockSize = 8
@@ -24,14 +21,14 @@ type Cipher struct {
 
 type KeySizeError int
 
-func (k KeySizeError) String() string {
+func (k KeySizeError) Error() string {
 	return "crypto/xtea: invalid key size " + strconv.Itoa(int(k))
 }
 
 // NewCipher creates and returns a new Cipher.
 // The key argument should be the XTEA key.
 // XTEA only supports 128 bit (16 byte) keys.
-func NewCipher(key []byte) (*Cipher, os.Error) {
+func NewCipher(key []byte) (*Cipher, error) {
 	k := len(key)
 	switch k {
 	default:

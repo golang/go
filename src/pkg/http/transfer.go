@@ -7,10 +7,10 @@ package http
 import (
 	"bytes"
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -29,7 +29,7 @@ type transferWriter struct {
 	Trailer          Header
 }
 
-func newTransferWriter(r interface{}) (t *transferWriter, err os.Error) {
+func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 	t = &transferWriter{}
 
 	// Extract relevant fields
@@ -133,7 +133,7 @@ func (t *transferWriter) shouldSendContentLength() bool {
 	return false
 }
 
-func (t *transferWriter) WriteHeader(w io.Writer) (err os.Error) {
+func (t *transferWriter) WriteHeader(w io.Writer) (err error) {
 	if t.Close {
 		_, err = io.WriteString(w, "Connection: close\r\n")
 		if err != nil {
@@ -181,7 +181,7 @@ func (t *transferWriter) WriteHeader(w io.Writer) (err os.Error) {
 	return
 }
 
-func (t *transferWriter) WriteBody(w io.Writer) (err os.Error) {
+func (t *transferWriter) WriteBody(w io.Writer) (err error) {
 	var ncopy int64
 
 	// Write body
@@ -254,7 +254,7 @@ func bodyAllowedForStatus(status int) bool {
 }
 
 // msg is *Request or *Response.
-func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
+func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	t := &transferReader{}
 
 	// Unify input
@@ -360,7 +360,7 @@ func chunked(te []string) bool { return len(te) > 0 && te[0] == "chunked" }
 func isIdentity(te []string) bool { return len(te) == 1 && te[0] == "identity" }
 
 // Sanitize transfer encoding
-func fixTransferEncoding(requestMethod string, header Header) ([]string, os.Error) {
+func fixTransferEncoding(requestMethod string, header Header) ([]string, error) {
 	raw, present := header["Transfer-Encoding"]
 	if !present {
 		return nil, nil
@@ -409,7 +409,7 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, os.Erro
 // Determine the expected body length, using RFC 2616 Section 4.4. This
 // function is not a method, because ultimately it should be shared by
 // ReadResponse and ReadRequest.
-func fixLength(isResponse bool, status int, requestMethod string, header Header, te []string) (int64, os.Error) {
+func fixLength(isResponse bool, status int, requestMethod string, header Header, te []string) (int64, error) {
 
 	// Logic based on response type or status
 	if noBodyExpected(requestMethod) {
@@ -482,7 +482,7 @@ func shouldClose(major, minor int, header Header) bool {
 }
 
 // Parse the trailer header
-func fixTrailer(header Header, te []string) (Header, os.Error) {
+func fixTrailer(header Header, te []string) (Header, error) {
 	raw := header.Get("Trailer")
 	if raw == "" {
 		return nil, nil
@@ -526,16 +526,16 @@ type body struct {
 // the body has been closed. This typically happens when the body is
 // read after an HTTP Handler calls WriteHeader or Write on its
 // ResponseWriter.
-var ErrBodyReadAfterClose = os.NewError("http: invalid Read on closed request Body")
+var ErrBodyReadAfterClose = errors.New("http: invalid Read on closed request Body")
 
-func (b *body) Read(p []byte) (n int, err os.Error) {
+func (b *body) Read(p []byte) (n int, err error) {
 	if b.closed {
 		return 0, ErrBodyReadAfterClose
 	}
 	return b.Reader.Read(p)
 }
 
-func (b *body) Close() os.Error {
+func (b *body) Close() error {
 	if b.closed {
 		return nil
 	}

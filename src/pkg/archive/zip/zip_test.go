@@ -9,15 +9,15 @@ package zip
 import (
 	"bytes"
 	"fmt"
-	"os"
+	"io"
 	"testing"
 )
 
 type stringReaderAt string
 
-func (s stringReaderAt) ReadAt(p []byte, off int64) (n int, err os.Error) {
+func (s stringReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	if off >= int64(len(s)) {
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 	n = copy(p, s[off:])
 	return

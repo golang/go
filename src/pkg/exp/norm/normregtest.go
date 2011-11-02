@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"http"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -141,7 +142,7 @@ func loadTestData() {
 	for {
 		line, err := input.ReadString('\n')
 		if err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				break
 			}
 			logger.Fatal(err)

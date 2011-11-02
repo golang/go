@@ -7,7 +7,6 @@ package bzip2
 import (
 	"bufio"
 	"io"
-	"os"
 )
 
 // bitReader wraps an io.Reader and provides the ability to read values,
@@ -18,14 +17,14 @@ type bitReader struct {
 	r    byteReader
 	n    uint64
 	bits uint
-	err  os.Error
+	err  error
 }
 
 // bitReader needs to read bytes from an io.Reader. We attempt to cast the
 // given io.Reader to this interface and, if it doesn't already fit, we wrap in
 // a bufio.Reader.
 type byteReader interface {
-	ReadByte() (byte, os.Error)
+	ReadByte() (byte, error)
 }
 
 func newBitReader(r io.Reader) bitReader {
@@ -42,7 +41,7 @@ func newBitReader(r io.Reader) bitReader {
 func (br *bitReader) ReadBits64(bits uint) (n uint64) {
 	for bits > br.bits {
 		b, err := br.r.ReadByte()
-		if err == os.EOF {
+		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
 		if err != nil {
@@ -83,6 +82,6 @@ func (br *bitReader) ReadBit() bool {
 	return n != 0
 }
 
-func (br *bitReader) Error() os.Error {
+func (br *bitReader) Error() error {
 	return br.err
 }

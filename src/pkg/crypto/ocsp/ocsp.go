@@ -14,7 +14,6 @@ import (
 	_ "crypto/sha1"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"os"
 	"time"
 )
 
@@ -106,7 +105,7 @@ type Response struct {
 // ParseError results from an invalid OCSP response.
 type ParseError string
 
-func (p ParseError) String() string {
+func (p ParseError) Error() string {
 	return string(p)
 }
 
@@ -114,7 +113,7 @@ func (p ParseError) String() string {
 // responses for a single certificate and only those using RSA signatures.
 // Non-RSA responses will result in an x509.UnsupportedAlgorithmError.
 // Signature errors or parse failures will result in a ParseError.
-func ParseResponse(bytes []byte) (*Response, os.Error) {
+func ParseResponse(bytes []byte) (*Response, error) {
 	var resp responseASN1
 	rest, err := asn1.Unmarshal(bytes, &resp)
 	if err != nil {

@@ -8,9 +8,9 @@ package http
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"net/textproto"
-	"os"
 	"strconv"
 	"strings"
 	"url"
@@ -78,13 +78,13 @@ func (r *Response) Cookies() []*Cookie {
 	return readSetCookies(r.Header)
 }
 
-var ErrNoLocation = os.NewError("http: no Location header in response")
+var ErrNoLocation = errors.New("http: no Location header in response")
 
 // Location returns the URL of the response's "Location" header,
 // if present.  Relative redirects are resolved relative to
 // the Response's Request.  ErrNoLocation is returned if no
 // Location header is present.
-func (r *Response) Location() (*url.URL, os.Error) {
+func (r *Response) Location() (*url.URL, error) {
 	lv := r.Header.Get("Location")
 	if lv == "" {
 		return nil, ErrNoLocation
@@ -101,7 +101,7 @@ func (r *Response) Location() (*url.URL, os.Error) {
 // reading resp.Body.  After that call, clients can inspect
 // resp.Trailer to find key/value pairs included in the response
 // trailer.
-func ReadResponse(r *bufio.Reader, req *Request) (resp *Response, err os.Error) {
+func ReadResponse(r *bufio.Reader, req *Request) (resp *Response, err error) {
 
 	tp := textproto.NewReader(r)
 	resp = new(Response)
@@ -112,7 +112,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (resp *Response, err os.Error) 
 	// Parse the first line of the response.
 	line, err := tp.ReadLine()
 	if err != nil {
-		if err == os.EOF {
+		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
 		return nil, err
@@ -186,7 +186,7 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 //  ContentLength
 //  Header, values for non-canonical keys will have unpredictable behavior
 //
-func (resp *Response) Write(w io.Writer) os.Error {
+func (resp *Response) Write(w io.Writer) error {
 
 	// RequestMethod should be upper-case
 	if resp.Request != nil {

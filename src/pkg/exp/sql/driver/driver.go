@@ -19,9 +19,7 @@
 //
 package driver
 
-import (
-	"os"
-)
+import "errors"
 
 // Driver is the interface that must be implemented by a database
 // driver.
@@ -31,7 +29,7 @@ type Driver interface {
 	//
 	// The returned connection is only used by one goroutine at a
 	// time.
-	Open(name string) (Conn, os.Error)
+	Open(name string) (Conn, error)
 }
 
 // Execer is an optional interface that may be implemented by a Driver
@@ -48,7 +46,7 @@ type Driver interface {
 //
 // All arguments are of a subset type as defined in the package docs.
 type Execer interface {
-	Exec(query string, args []interface{}) (Result, os.Error)
+	Exec(query string, args []interface{}) (Result, error)
 }
 
 // Conn is a connection to a database. It is not used concurrently
@@ -57,16 +55,16 @@ type Execer interface {
 // Conn is assumed to be stateful.
 type Conn interface {
 	// Prepare returns a prepared statement, bound to this connection.
-	Prepare(query string) (Stmt, os.Error)
+	Prepare(query string) (Stmt, error)
 
 	// Close invalidates and potentially stops any current
 	// prepared statements and transactions, marking this
 	// connection as no longer in use.  The driver may cache or
 	// close its underlying connection to its database.
-	Close() os.Error
+	Close() error
 
 	// Begin starts and returns a new transaction.
-	Begin() (Tx, os.Error)
+	Begin() (Tx, error)
 }
 
 // Result is the result of a query execution.
@@ -74,18 +72,18 @@ type Result interface {
 	// LastInsertId returns the database's auto-generated ID
 	// after, for example, an INSERT into a table with primary
 	// key.
-	LastInsertId() (int64, os.Error)
+	LastInsertId() (int64, error)
 
 	// RowsAffected returns the number of rows affected by the
 	// query.
-	RowsAffected() (int64, os.Error)
+	RowsAffected() (int64, error)
 }
 
 // Stmt is a prepared statement. It is bound to a Conn and not
 // used by multiple goroutines concurrently.
 type Stmt interface {
 	// Close closes the statement.
-	Close() os.Error
+	Close() error
 
 	// NumInput returns the number of placeholder parameters.
 	NumInput() int
@@ -93,11 +91,11 @@ type Stmt interface {
 	// Exec executes a query that doesn't return rows, such
 	// as an INSERT or UPDATE.  The args are all of a subset
 	// type as defined above.
-	Exec(args []interface{}) (Result, os.Error)
+	Exec(args []interface{}) (Result, error)
 
 	// Exec executes a query that may return rows, such as a
 	// SELECT.  The args of all of a subset type as defined above.
-	Query(args []interface{}) (Rows, os.Error)
+	Query(args []interface{}) (Rows, error)
 }
 
 // ColumnConverter may be optionally implemented by Stmt if the
@@ -120,7 +118,7 @@ type Rows interface {
 	Columns() []string
 
 	// Close closes the rows iterator.
-	Close() os.Error
+	Close() error
 
 	// Next is called to populate the next row of data into
 	// the provided slice. The provided slice will be the same
@@ -129,13 +127,13 @@ type Rows interface {
 	// The dest slice may be populated with only with values
 	// of subset types defined above, but excluding string.
 	// All string values must be converted to []byte.
-	Next(dest []interface{}) os.Error
+	Next(dest []interface{}) error
 }
 
 // Tx is a transaction.
 type Tx interface {
-	Commit() os.Error
-	Rollback() os.Error
+	Commit() error
+	Rollback() error
 }
 
 // RowsAffected implements Result for an INSERT or UPDATE operation
@@ -144,11 +142,11 @@ type RowsAffected int64
 
 var _ Result = RowsAffected(0)
 
-func (RowsAffected) LastInsertId() (int64, os.Error) {
-	return 0, os.NewError("no LastInsertId available")
+func (RowsAffected) LastInsertId() (int64, error) {
+	return 0, errors.New("no LastInsertId available")
 }
 
-func (v RowsAffected) RowsAffected() (int64, os.Error) {
+func (v RowsAffected) RowsAffected() (int64, error) {
 	return int64(v), nil
 }
 
@@ -160,10 +158,10 @@ type ddlSuccess struct{}
 
 var _ Result = ddlSuccess{}
 
-func (ddlSuccess) LastInsertId() (int64, os.Error) {
-	return 0, os.NewError("no LastInsertId available after DDL statement")
+func (ddlSuccess) LastInsertId() (int64, error) {
+	return 0, errors.New("no LastInsertId available after DDL statement")
 }
 
-func (ddlSuccess) RowsAffected() (int64, os.Error) {
-	return 0, os.NewError("no RowsAffected available after DDL statement")
+func (ddlSuccess) RowsAffected() (int64, error) {
+	return 0, errors.New("no RowsAffected available after DDL statement")
 }

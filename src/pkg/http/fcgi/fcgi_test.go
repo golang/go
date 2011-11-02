@@ -7,7 +7,6 @@ package fcgi
 import (
 	"bytes"
 	"io"
-	"os"
 	"testing"
 )
 
@@ -69,7 +68,7 @@ type nilCloser struct {
 	io.ReadWriter
 }
 
-func (c *nilCloser) Close() os.Error { return nil }
+func (c *nilCloser) Close() error { return nil }
 
 func TestStreams(t *testing.T) {
 	var rec record

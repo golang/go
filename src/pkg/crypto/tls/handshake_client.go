@@ -9,11 +9,11 @@ import (
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/x509"
+	"errors"
 	"io"
-	"os"
 )
 
-func (c *Conn) clientHandshake() os.Error {
+func (c *Conn) clientHandshake() error {
 	finishedHash := newFinishedHash(versionTLS10)
 
 	if c.config == nil {
@@ -40,7 +40,7 @@ func (c *Conn) clientHandshake() os.Error {
 	_, err := io.ReadFull(c.config.rand(), hello.random[4:])
 	if err != nil {
 		c.sendAlert(alertInternalError)
-		return os.NewError("short read from Rand")
+		return errors.New("short read from Rand")
 	}
 
 	finishedHash.Write(hello.marshal())
@@ -69,7 +69,7 @@ func (c *Conn) clientHandshake() os.Error {
 
 	if !hello.nextProtoNeg && serverHello.nextProtoNeg {
 		c.sendAlert(alertHandshakeFailure)
-		return os.NewError("server advertised unrequested NPN")
+		return errors.New("server advertised unrequested NPN")
 	}
 
 	suite, suiteId := mutualCipherSuite(c.config.cipherSuites(), serverHello.cipherSuite)
@@ -92,7 +92,7 @@ func (c *Conn) clientHandshake() os.Error {
 		cert, err := x509.ParseCertificate(asn1Data)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
-			return os.NewError("failed to parse certificate from server: " + err.String())
+			return errors.New("failed to parse certificate from server: " + err.Error())
 		}
 		certs[i] = cert
 	}

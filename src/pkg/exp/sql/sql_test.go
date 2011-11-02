@@ -40,7 +40,7 @@ func TestQuery(t *testing.T) {
 	var age int
 
 	err := db.QueryRow("SELECT|people|age,name|age=?", 3).Scan(&age)
-	if err == nil || !strings.Contains(err.String(), "expected 2 destination arguments") {
+	if err == nil || !strings.Contains(err.Error(), "expected 2 destination arguments") {
 		t.Errorf("expected error from wrong number of arguments; actually got: %v", err)
 	}
 
@@ -99,7 +99,7 @@ func TestBogusPreboundParameters(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if err.String() != `fakedb: invalid conversion to int32 from "bogusconversion"` {
+	if err.Error() != `fakedb: invalid conversion to int32 from "bogusconversion"` {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
@@ -135,7 +135,7 @@ func TestDb(t *testing.T) {
 		_, err := stmt.Exec(et.args...)
 		errStr := ""
 		if err != nil {
-			errStr = err.String()
+			errStr = err.Error()
 		}
 		if errStr != et.wantErr {
 			t.Errorf("stmt.Execute #%d: for %v, got error %q, want error %q",

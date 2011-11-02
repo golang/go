@@ -7,7 +7,7 @@ package packet
 import (
 	"bytes"
 	"encoding/hex"
-	"os"
+	"io"
 	"io/ioutil"
 	"testing"
 )
@@ -26,7 +26,7 @@ func TestCompressed(t *testing.T) {
 	}
 
 	contents, err := ioutil.ReadAll(c.Body)
-	if err != nil && err != os.EOF {
+	if err != nil && err != io.EOF {
 		t.Error(err)
 		return
 	}

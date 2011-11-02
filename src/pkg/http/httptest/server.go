@@ -36,7 +36,7 @@ type historyListener struct {
 	history []net.Conn
 }
 
-func (hs *historyListener) Accept() (c net.Conn, err os.Error) {
+func (hs *historyListener) Accept() (c net.Conn, err error) {
 	c, err = hs.Listener.Accept()
 	if err == nil {
 		hs.history = append(hs.history, c)

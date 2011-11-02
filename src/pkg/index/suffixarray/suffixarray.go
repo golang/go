@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"os"
 	"regexp"
 	"sort"
 )
@@ -38,14 +37,14 @@ func New(data []byte) *Index {
 }
 
 // writeInt writes an int x to w using buf to buffer the write.
-func writeInt(w io.Writer, buf []byte, x int) os.Error {
+func writeInt(w io.Writer, buf []byte, x int) error {
 	binary.PutVarint(buf, int64(x))
 	_, err := w.Write(buf[0:binary.MaxVarintLen64])
 	return err
 }
 
 // readInt reads an int x from r using buf to buffer the read and returns x.
-func readInt(r io.Reader, buf []byte) (int, os.Error) {
+func readInt(r io.Reader, buf []byte) (int, error) {
 	_, err := io.ReadFull(r, buf[0:binary.MaxVarintLen64]) // ok to continue with error
 	x, _ := binary.Varint(buf)
 	return int(x), err
@@ -53,7 +52,7 @@ func readInt(r io.Reader, buf []byte) (int, os.Error) {
 
 // writeSlice writes data[:n] to w and returns n.
 // It uses buf to buffer the write.
-func writeSlice(w io.Writer, buf []byte, data []int) (n int, err os.Error) {
+func writeSlice(w io.Writer, buf []byte, data []int) (n int, err error) {
 	// encode as many elements as fit into buf
 	p := binary.MaxVarintLen64
 	for ; n < len(data) && p+binary.MaxVarintLen64 <= len(buf); n++ {
@@ -70,7 +69,7 @@ func writeSlice(w io.Writer, buf []byte, data []int) (n int, err os.Error) {
 
 // readSlice reads data[:n] from r and returns n.
 // It uses buf to buffer the read.
-func readSlice(r io.Reader, buf []byte, data []int) (n int, err os.Error) {
+func readSlice(r io.Reader, buf []byte, data []int) (n int, err error) {
 	// read buffer size
 	var size int
 	size, err = readInt(r, buf)
@@ -96,7 +95,7 @@ func readSlice(r io.Reader, buf []byte, data []int) (n int, err os.Error) {
 const bufSize = 16 << 10 // reasonable for BenchmarkSaveRestore
 
 // Read reads the index from r into x; x must not be nil.
-func (x *Index) Read(r io.Reader) os.Error {
+func (x *Index) Read(r io.Reader) error {
 	// buffer for all reads
 	buf := make([]byte, bufSize)
 
@@ -135,7 +134,7 @@ func (x *Index) Read(r io.Reader) os.Error {
 }
 
 // Write writes the index x to w.
-func (x *Index) Write(w io.Writer) os.Error {
+func (x *Index) Write(w io.Writer) error {
 	// buffer for all writes
 	buf := make([]byte, bufSize)
 

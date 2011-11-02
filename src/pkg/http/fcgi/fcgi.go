@@ -14,8 +14,8 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
-	"os"
 	"sync"
 )
 
@@ -72,9 +72,9 @@ type beginRequest struct {
 	reserved [5]uint8
 }
 
-func (br *beginRequest) read(content []byte) os.Error {
+func (br *beginRequest) read(content []byte) error {
 	if len(content) != 8 {
-		return os.NewError("fcgi: invalid begin request record")
+		return errors.New("fcgi: invalid begin request record")
 	}
 	br.role = binary.BigEndian.Uint16(content)
 	br.flags = content[2]
@@ -107,7 +107,7 @@ func newConn(rwc io.ReadWriteCloser) *conn {
 	return &conn{rwc: rwc}
 }
 
-func (c *conn) Close() os.Error {
+func (c *conn) Close() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.rwc.Close()
@@ -118,12 +118,12 @@ type record struct {
 	buf [maxWrite + maxPad]byte
 }
 
-func (rec *record) read(r io.Reader) (err os.Error) {
+func (rec *record) read(r io.Reader) (err error) {
 	if err = binary.Read(r, binary.BigEndian, &rec.h); err != nil {
 		return err
 	}
 	if rec.h.Version != 1 {
-		return os.NewError("fcgi: invalid header version")
+		return errors.New("fcgi: invalid header version")
 	}
 	n := int(rec.h.ContentLength) + int(rec.h.PaddingLength)
 	if _, err = io.ReadFull(r, rec.buf[:n]); err != nil {
@@ -137,7 +137,7 @@ func (r *record) content() []byte {
 }
 
 // writeRecord writes and sends a single record.
-func (c *conn) writeRecord(recType uint8, reqId uint16, b []byte) os.Error {
+func (c *conn) writeRecord(recType uint8, reqId uint16, b []byte) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.buf.Reset()
@@ -155,19 +155,19 @@ func (c *conn) writeRecord(recType uint8, reqId uint16, b []byte) os.Error {
 	return err
 }
 
-func (c *conn) writeBeginRequest(reqId uint16, role uint16, flags uint8) os.Error {
+func (c *conn) writeBeginRequest(reqId uint16, role uint16, flags uint8) error {
 	b := [8]byte{byte(role >> 8), byte(role), flags}
 	return c.writeRecord(typeBeginRequest, reqId, b[:])
 }
 
-func (c *conn) writeEndRequest(reqId uint16, appStatus int, protocolStatus uint8) os.Error {
+func (c *conn) writeEndRequest(reqId uint16, appStatus int, protocolStatus uint8) error {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint32(b, uint32(appStatus))
 	b[4] = protocolStatus
 	return c.writeRecord(typeEndRequest, reqId, b)
 }
 
-func (c *conn) writePairs(recType uint8, reqId uint16, pairs map[string]string) os.Error {
+func (c *conn) writePairs(recType uint8, reqId uint16, pairs map[string]string) error {
 	w := newWriter(c, recType, reqId)
 	b := make([]byte, 8)
 	for k, v := range pairs {
@@ -227,7 +227,7 @@ type bufWriter struct {
 	*bufio.Writer
 }
 
-func (w *bufWriter) Close() os.Error {
+func (w *bufWriter) Close() error {
 	if err := w.Writer.Flush(); err != nil {
 		w.closer.Close()
 		return err
@@ -249,7 +249,7 @@ type streamWriter struct {
 	reqId   uint16
 }
 
-func (w *streamWriter) Write(p []byte) (int, os.Error) {
+func (w *streamWriter) Write(p []byte) (int, error) {
 	nn := 0
 	for len(p) > 0 {
 		n := len(p)
@@ -265,7 +265,7 @@ func (w *streamWriter) Write(p []byte) (int, os.Error) {
 	return nn, nil
 }
 
-func (w *streamWriter) Close() os.Error {
+func (w *streamWriter) Close() error {
 	// send empty record to close the stream
 	return w.c.writeRecord(w.recType, w.reqId, nil)
 }

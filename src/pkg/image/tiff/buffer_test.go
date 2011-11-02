@@ -5,7 +5,7 @@
 package tiff
 
 import (
-	"os"
+	"io"
 	"strings"
 	"testing"
 )
@@ -14,13 +14,13 @@ var readAtTests = []struct {
 	n   int
 	off int64
 	s   string
-	err os.Error
+	err error
 }{
 	{2, 0, "ab", nil},
 	{6, 0, "abcdef", nil},
 	{3, 3, "def", nil},
-	{3, 5, "f", os.EOF},
-	{3, 6, "", os.EOF},
+	{3, 5, "f", io.EOF},
+	{3, 6, "", io.EOF},
 }
 
 func TestReadAt(t *testing.T) {

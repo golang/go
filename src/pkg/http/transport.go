@@ -14,6 +14,7 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -52,12 +53,12 @@ type Transport struct {
 	// Request. If the function returns a non-nil error, the
 	// request is aborted with the provided error.
 	// If Proxy is nil or returns a nil *URL, no proxy is used.
-	Proxy func(*Request) (*url.URL, os.Error)
+	Proxy func(*Request) (*url.URL, error)
 
 	// Dial specifies the dial function for creating TCP
 	// connections.
 	// If Dial is nil, net.Dial is used.
-	Dial func(net, addr string) (c net.Conn, err os.Error)
+	Dial func(net, addr string) (c net.Conn, err error)
 
 	// TLSClientConfig specifies the TLS configuration to use with
 	// tls.Client. If nil, the default configuration is used.
@@ -76,7 +77,7 @@ type Transport struct {
 // given request, as indicated by the environment variables
 // $HTTP_PROXY and $NO_PROXY (or $http_proxy and $no_proxy).
 // Either URL or an error is returned.
-func ProxyFromEnvironment(req *Request) (*url.URL, os.Error) {
+func ProxyFromEnvironment(req *Request) (*url.URL, error) {
 	proxy := getenvEitherCase("HTTP_PROXY")
 	if proxy == "" {
 		return nil, nil
@@ -86,12 +87,12 @@ func ProxyFromEnvironment(req *Request) (*url.URL, os.Error) {
 	}
 	proxyURL, err := url.ParseRequest(proxy)
 	if err != nil {
-		return nil, os.NewError("invalid proxy address")
+		return nil, errors.New("invalid proxy address")
 	}
 	if proxyURL.Host == "" {
 		proxyURL, err = url.ParseRequest("http://" + proxy)
 		if err != nil {
-			return nil, os.NewError("invalid proxy address")
+			return nil, errors.New("invalid proxy address")
 		}
 	}
 	return proxyURL, nil
@@ -99,8 +100,8 @@ func ProxyFromEnvironment(req *Request) (*url.URL, os.Error) {
 
 // ProxyURL returns a proxy function (for use in a Transport)
 // that always returns the same URL.
-func ProxyURL(fixedURL *url.URL) func(*Request) (*url.URL, os.Error) {
-	return func(*Request) (*url.URL, os.Error) {
+func ProxyURL(fixedURL *url.URL) func(*Request) (*url.URL, error) {
+	return func(*Request) (*url.URL, error) {
 		return fixedURL, nil
 	}
 }
@@ -120,12 +121,12 @@ func (tr *transportRequest) extraHeaders() Header {
 }
 
 // RoundTrip implements the RoundTripper interface.
-func (t *Transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
+func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
 	if req.URL == nil {
-		return nil, os.NewError("http: nil Request.URL")
+		return nil, errors.New("http: nil Request.URL")
 	}
 	if req.Header == nil {
-		return nil, os.NewError("http: nil Request.Header")
+		return nil, errors.New("http: nil Request.Header")
 	}
 	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
 		t.lk.Lock()
@@ -207,13 +208,13 @@ func getenvEitherCase(k string) string {
 	return os.Getenv(strings.ToLower(k))
 }
 
-func (t *Transport) connectMethodForRequest(treq *transportRequest) (*connectMethod, os.Error) {
+func (t *Transport) connectMethodForRequest(treq *transportRequest) (*connectMethod, error) {
 	cm := &connectMethod{
 		targetScheme: treq.URL.Scheme,
 		targetAddr:   canonicalAddr(treq.URL),
 	}
 	if t.Proxy != nil {
-		var err os.Error
+		var err error
 		cm.proxyURL, err = t.Proxy(treq.Request)
 		if err != nil {
 			return nil, err
@@ -285,7 +286,7 @@ func (t *Transport) getIdleConn(cm *connectMethod) (pconn *persistConn) {
 	return
 }
 
-func (t *Transport) dial(network, addr string) (c net.Conn, err os.Error) {
+func (t *Transport) dial(network, addr string) (c net.Conn, err error) {
 	if t.Dial != nil {
 		return t.Dial(network, addr)
 	}
@@ -296,7 +297,7 @@ func (t *Transport) dial(network, addr string) (c net.Conn, err os.Error) {
 // specified in the connectMethod.  This includes doing a proxy CONNECT
 // and/or setting up TLS.  If this doesn't return an error, the persistConn
 // is ready to write requests to.
-func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
+func (t *Transport) getConn(cm *connectMethod) (*persistConn, error) {
 	if pc := t.getIdleConn(cm); pc != nil {
 		return pc, nil
 	}
@@ -352,7 +353,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
 		if resp.StatusCode != 200 {
 			f := strings.SplitN(resp.Status, " ", 2)
 			conn.Close()
-			return nil, os.NewError(f[1])
+			return nil, errors.New(f[1])
 		}
 	}
 
@@ -500,10 +501,10 @@ func (pc *persistConn) expectingResponse() bool {
 	return pc.numExpectedResponses > 0
 }
 
-var remoteSideClosedFunc func(os.Error) bool // or nil to use default
+var remoteSideClosedFunc func(error) bool // or nil to use default
 
-func remoteSideClosed(err os.Error) bool {
-	if err == os.EOF || err == os.EINVAL {
+func remoteSideClosed(err error) bool {
+	if err == io.EOF || err == os.EINVAL {
 		return true
 	}
 	if remoteSideClosedFunc != nil {
@@ -532,7 +533,7 @@ func (pc *persistConn) readLoop() {
 		}
 
 		rc := <-pc.reqch
-		resp, err := pc.cc.readUsing(rc.req, func(buf *bufio.Reader, forReq *Request) (*Response, os.Error) {
+		resp, err := pc.cc.readUsing(rc.req, func(buf *bufio.Reader, forReq *Request) (*Response, error) {
 			resp, err := ReadResponse(buf, forReq)
 			if err != nil || resp.ContentLength == 0 {
 				return resp, err
@@ -599,7 +600,7 @@ func (pc *persistConn) readLoop() {
 
 type responseAndError struct {
 	res *Response
-	err os.Error
+	err error
 }
 
 type requestAndChan struct {
@@ -612,7 +613,7 @@ type requestAndChan struct {
 	addedGzip bool
 }
 
-func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err os.Error) {
+func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
 	if pc.mutateHeaderFunc != nil {
 		pc.mutateHeaderFunc(req.extraHeaders())
 	}
@@ -634,7 +635,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err os.
 	pc.numExpectedResponses++
 	pc.lk.Unlock()
 
-	pc.cc.writeReq = func(r *Request, w io.Writer) os.Error {
+	pc.cc.writeReq = func(r *Request, w io.Writer) error {
 		return r.write(w, pc.isProxy, req.extra)
 	}
 
@@ -691,19 +692,19 @@ type bodyEOFSignal struct {
 	isClosed bool
 }
 
-func (es *bodyEOFSignal) Read(p []byte) (n int, err os.Error) {
+func (es *bodyEOFSignal) Read(p []byte) (n int, err error) {
 	n, err = es.body.Read(p)
 	if es.isClosed && n > 0 {
 		panic("http: unexpected bodyEOFSignal Read after Close; see issue 1725")
 	}
-	if err == os.EOF && es.fn != nil {
+	if err == io.EOF && es.fn != nil {
 		es.fn()
 		es.fn = nil
 	}
 	return
 }
 
-func (es *bodyEOFSignal) Close() (err os.Error) {
+func (es *bodyEOFSignal) Close() (err error) {
 	if es.isClosed {
 		return nil
 	}
@@ -721,7 +722,7 @@ type readFirstCloseBoth struct {
 	io.Closer
 }
 
-func (r *readFirstCloseBoth) Close() os.Error {
+func (r *readFirstCloseBoth) Close() error {
 	if err := r.ReadCloser.Close(); err != nil {
 		r.Closer.Close()
 		return err
@@ -737,7 +738,7 @@ type discardOnCloseReadCloser struct {
 	io.ReadCloser
 }
 
-func (d *discardOnCloseReadCloser) Close() os.Error {
+func (d *discardOnCloseReadCloser) Close() error {
 	io.Copy(ioutil.Discard, d.ReadCloser) // ignore errors; likely invalid or already closed
 	return d.ReadCloser.Close()
 }

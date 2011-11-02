@@ -6,11 +6,10 @@ package openpgp
 
 import (
 	"bytes"
-	"crypto/openpgp/error"
+	error_ "crypto/openpgp/error"
 	"encoding/hex"
 	"io"
 	"io/ioutil"
-	"os"
 	"testing"
 )
 
@@ -149,21 +148,21 @@ func TestSignedEncryptedMessage(t *testing.T) {
 	for i, test := range signedEncryptedMessageTests {
 		expected := "Signed and encrypted message\n"
 		kring, _ := ReadKeyRing(readerFromHex(test.keyRingHex))
-		prompt := func(keys []Key, symmetric bool) ([]byte, os.Error) {
+		prompt := func(keys []Key, symmetric bool) ([]byte, error) {
 			if symmetric {
 				t.Errorf("prompt: message was marked as symmetrically encrypted")
-				return nil, error.KeyIncorrectError
+				return nil, error_.KeyIncorrectError
 			}
 
 			if len(keys) == 0 {
 				t.Error("prompt: no keys requested")
-				return nil, error.KeyIncorrectError
+				return nil, error_.KeyIncorrectError
 			}
 
 			err := keys[0].PrivateKey.Decrypt([]byte("passphrase"))
 			if err != nil {
 				t.Errorf("prompt: error decrypting key: %s", err)
-				return nil, error.KeyIncorrectError
+				return nil, error_.KeyIncorrectError
 			}
 
 			return nil, nil
@@ -215,7 +214,7 @@ func TestUnspecifiedRecipient(t *testing.T) {
 func TestSymmetricallyEncrypted(t *testing.T) {
 	expected := "Symmetrically encrypted.\n"
 
-	prompt := func(keys []Key, symmetric bool) ([]byte, os.Error) {
+	prompt := func(keys []Key, symmetric bool) ([]byte, error) {
 		if len(keys) != 0 {
 			t.Errorf("prompt: len(keys) = %d (want 0)", len(keys))
 		}
@@ -287,7 +286,7 @@ func TestReadingArmoredPrivateKey(t *testing.T) {
 
 func TestNoArmoredData(t *testing.T) {
 	_, err := ReadArmoredKeyRing(bytes.NewBufferString("foo"))
-	if _, ok := err.(error.InvalidArgumentError); !ok {
+	if _, ok := err.(error_.InvalidArgumentError); !ok {
 		t.Errorf("error was not an InvalidArgumentError: %s", err)
 	}
 }

@@ -5,6 +5,7 @@
 package gob
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -36,7 +37,7 @@ var (
 // validType returns, and saves, the information associated with user-provided type rt.
 // If the user type is not valid, err will be non-nil.  To be used when the error handler
 // is not set up.
-func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
+func validUserType(rt reflect.Type) (ut *userTypeInfo, err error) {
 	userTypeLock.RLock()
 	ut = userTypeCache[rt]
 	userTypeLock.RUnlock()
@@ -67,7 +68,7 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
 		ut.base = pt.Elem()
 		if ut.base == slowpoke { // ut.base lapped slowpoke
 			// recursive pointer type.
-			return nil, os.NewError("can't represent recursive pointer type " + ut.base.String())
+			return nil, errors.New("can't represent recursive pointer type " + ut.base.String())
 		}
 		if ut.indir%2 == 0 {
 			slowpoke = slowpoke.Elem()
@@ -125,7 +126,7 @@ func implementsInterface(typ, gobEncDecType reflect.Type) (success bool, indir i
 func userType(rt reflect.Type) *userTypeInfo {
 	ut, err := validUserType(rt)
 	if err != nil {
-		error(err)
+		error_(err)
 	}
 	return ut
 }
@@ -396,12 +397,12 @@ func newStructType(name string) *structType {
 // of ut.
 // This is only called from the encoding side. The decoding side
 // works through typeIds and userTypeInfos alone.
-func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.Error) {
+func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, error) {
 	// Does this type implement GobEncoder?
 	if ut.isGobEncoder {
 		return newGobEncoderType(name), nil
 	}
-	var err os.Error
+	var err error
 	var type0, type1 gobType
 	defer func() {
 		if err != nil {
@@ -503,7 +504,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
 		return st, nil
 
 	default:
-		return nil, os.NewError("gob NewTypeObject can't handle type: " + rt.String())
+		return nil, errors.New("gob NewTypeObject can't handle type: " + rt.String())
 	}
 	return nil, nil
 }
@@ -516,7 +517,7 @@ func isExported(name string) bool {
 
 // getBaseType returns the Gob type describing the given reflect.Type's base type.
 // typeLock must be held.
-func getBaseType(name string, rt reflect.Type) (gobType, os.Error) {
+func getBaseType(name string, rt reflect.Type) (gobType, error) {
 	ut := userType(rt)
 	return getType(name, ut, ut.base)
 }
@@ -526,7 +527,7 @@ func getBaseType(name string, rt reflect.Type) (gobType, os.Error) {
 // which may be pointers.  All other types are handled through the
 // base type, never a pointer.
 // typeLock must be held.
-func getType(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.Error) {
+func getType(name string, ut *userTypeInfo, rt reflect.Type) (gobType, error) {
 	typ, present := types[rt]
 	if present {
 		return typ, nil
@@ -609,7 +610,7 @@ type typeInfo struct {
 var typeInfoMap = make(map[reflect.Type]*typeInfo) // protected by typeLock
 
 // typeLock must be held.
-func getTypeInfo(ut *userTypeInfo) (*typeInfo, os.Error) {
+func getTypeInfo(ut *userTypeInfo) (*typeInfo, error) {
 	rt := ut.base
 	if ut.isGobEncoder {
 		// We want the user type, not the base type.
@@ -658,7 +659,7 @@ func getTypeInfo(ut *userTypeInfo) (*typeInfo, os.Error) {
 func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 	t, err := getTypeInfo(userType(rt))
 	if err != nil {
-		panic("getTypeInfo: " + err.String())
+		panic("getTypeInfo: " + err.Error())
 	}
 	return t
 }
@@ -678,7 +679,7 @@ type GobEncoder interface {
 	// GobEncode returns a byte slice representing the encoding of the
 	// receiver for transmission to a GobDecoder, usually of the same
 	// concrete type.
-	GobEncode() ([]byte, os.Error)
+	GobEncode() ([]byte, error)
 }
 
 // GobDecoder is the interface describing data that provides its own
@@ -687,7 +688,7 @@ type GobDecoder interface {
 	// GobDecode overwrites the receiver, which must be a pointer,
 	// with the value represented by the byte slice, which was written
 	// by GobEncode, usually for the same concrete type.
-	GobDecode([]byte) os.Error
+	GobDecode([]byte) error
 }
 
 var (

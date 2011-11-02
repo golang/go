@@ -57,7 +57,7 @@ const (
 // local error wrapper so we can distinguish os.Errors we want to return
 // as errors from genuine panics (which we don't want to return as errors)
 type osError struct {
-	err os.Error
+	err error
 }
 
 type printer struct {
@@ -837,7 +837,7 @@ const (
 //              However, this would mess up any formatting done by
 //              the tabwriter.
 
-func (p *trimmer) Write(data []byte) (n int, err os.Error) {
+func (p *trimmer) Write(data []byte) (n int, err error) {
 	// invariants:
 	// p.state == inSpace:
 	//	p.space is unwritten
@@ -925,7 +925,7 @@ type Config struct {
 }
 
 // fprint implements Fprint and takes a nodesSizes map for setting up the printer state.
-func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{}, nodeSizes map[ast.Node]int) (written int, err os.Error) {
+func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{}, nodeSizes map[ast.Node]int) (written int, err error) {
 	// redirect output through a trimmer to eliminate trailing whitespace
 	// (Input to a tabwriter must be untrimmed since trailing tabs provide
 	// formatting information. The tabwriter could provide trimming
@@ -1004,14 +1004,14 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
 // The node type must be *ast.File, or assignment-compatible to ast.Expr,
 // ast.Decl, ast.Spec, or ast.Stmt.
 //
-func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) (int, os.Error) {
+func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) (int, error) {
 	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
 }
 
 // Fprint "pretty-prints" an AST node to output.
 // It calls Config.Fprint with default settings.
 //
-func Fprint(output io.Writer, fset *token.FileSet, node interface{}) os.Error {
+func Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
 	_, err := (&Config{Tabwidth: 8}).Fprint(output, fset, node) // don't care about number of bytes written
 	return err
 }

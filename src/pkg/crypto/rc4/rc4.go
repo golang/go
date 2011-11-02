@@ -9,10 +9,7 @@ package rc4
 // BUG(agl): RC4 is in common use but has design weaknesses that make
 // it a poor choice for new protocols.
 
-import (
-	"os"
-	"strconv"
-)
+import "strconv"
 
 // A Cipher is an instance of RC4 using a particular key.
 type Cipher struct {
@@ -22,13 +19,13 @@ type Cipher struct {
 
 type KeySizeError int
 
-func (k KeySizeError) String() string {
+func (k KeySizeError) Error() string {
 	return "crypto/rc4: invalid key size " + strconv.Itoa(int(k))
 }
 
 // NewCipher creates and returns a new Cipher.  The key argument should be the
 // RC4 key, at least 1 byte and at most 256 bytes.
-func NewCipher(key []byte) (*Cipher, os.Error) {
+func NewCipher(key []byte) (*Cipher, error) {
 	k := len(key)
 	if k < 1 || k > 256 {
 		return nil, KeySizeError(k)

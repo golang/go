@@ -9,7 +9,6 @@ import (
 	"compress/zlib"
 	"http"
 	"io"
-	"os"
 )
 
 //  Data Frame Format
@@ -161,7 +160,7 @@ const MaxDataLength = 1<<24 - 1
 // Frame is a single SPDY frame in its unpacked in-memory representation. Use
 // Framer to read and write it.
 type Frame interface {
-	write(f *Framer) os.Error
+	write(f *Framer) error
 }
 
 // ControlFrameHeader contains all the fields in a control frame header,
@@ -176,7 +175,7 @@ type ControlFrameHeader struct {
 
 type controlFrame interface {
 	Frame
-	read(h ControlFrameHeader, f *Framer) os.Error
+	read(h ControlFrameHeader, f *Framer) error
 }
 
 // SynStreamFrame is the unpacked, in-memory representation of a SYN_STREAM
@@ -321,7 +320,7 @@ type Error struct {
 	StreamId uint32
 }
 
-func (e *Error) String() string {
+func (e *Error) Error() string {
 	return string(e.Err)
 }
 
@@ -354,7 +353,7 @@ type Framer struct {
 // a io.Writer and io.Reader. Note that Framer will read and write individual fields 
 // from/to the Reader and Writer, so the caller should pass in an appropriately 
 // buffered implementation to optimize performance.
-func NewFramer(w io.Writer, r io.Reader) (*Framer, os.Error) {
+func NewFramer(w io.Writer, r io.Reader) (*Framer, error) {
 	compressBuf := new(bytes.Buffer)
 	compressor, err := zlib.NewWriterDict(compressBuf, zlib.BestCompression, []byte(HeaderDictionary))
 	if err != nil {

@@ -8,7 +8,6 @@ import (
 	"big"
 	"bytes"
 	"io"
-	"os"
 	"reflect"
 )
 
@@ -192,7 +191,7 @@ type userAuthPubKeyOkMsg struct {
 // unmarshal parses the SSH wire data in packet into out using reflection.
 // expectedType is the expected SSH message type. It either returns nil on
 // success, or a ParseError or UnexpectedMessageError on error.
-func unmarshal(out interface{}, packet []byte, expectedType uint8) os.Error {
+func unmarshal(out interface{}, packet []byte, expectedType uint8) error {
 	if len(packet) == 0 {
 		return ParseError{expectedType}
 	}

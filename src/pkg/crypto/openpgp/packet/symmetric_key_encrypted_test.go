@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"io"
 	"io/ioutil"
-	"os"
 	"testing"
 )
 
@@ -48,7 +48,7 @@ func TestSymmetricKeyEncrypted(t *testing.T) {
 	}
 
 	contents, err := ioutil.ReadAll(r)
-	if err != nil && err != os.EOF {
+	if err != nil && err != io.EOF {
 		t.Error(err)
 		return
 	}

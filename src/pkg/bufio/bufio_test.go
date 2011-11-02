@@ -28,7 +28,7 @@ func newRot13Reader(r io.Reader) *rot13Reader {
 	return r13
 }
 
-func (r13 *rot13Reader) Read(p []byte) (int, os.Error) {
+func (r13 *rot13Reader) Read(p []byte) (int, error) {
 	n, e := r13.r.Read(p)
 	if e != nil {
 		return n, e
@@ -50,14 +50,14 @@ func readBytes(buf *Reader) string {
 	nb := 0
 	for {
 		c, e := buf.ReadByte()
-		if e == os.EOF {
+		if e == io.EOF {
 			break
 		}
 		if e == nil {
 			b[nb] = c
 			nb++
 		} else if e != iotest.ErrTimeout {
-			panic("Data: " + e.String())
+			panic("Data: " + e.Error())
 		}
 	}
 	return string(b[0:nb])
@@ -95,11 +95,11 @@ func readLines(b *Reader) string {
 	s := ""
 	for {
 		s1, e := b.ReadString('\n')
-		if e == os.EOF {
+		if e == io.EOF {
 			break
 		}
 		if e != nil && e != iotest.ErrTimeout {
-			panic("GetLines: " + e.String())
+			panic("GetLines: " + e.Error())
 		}
 		s += s1
 	}
@@ -113,7 +113,7 @@ func reads(buf *Reader, m int) string {
 	for {
 		n, e := buf.Read(b[nb : nb+m])
 		nb += n
-		if e == os.EOF {
+		if e == io.EOF {
 			break
 		}
 	}
@@ -179,13 +179,13 @@ type StringReader struct {
 	step int
 }
 
-func (r *StringReader) Read(p []byte) (n int, err os.Error) {
+func (r *StringReader) Read(p []byte) (n int, err error) {
 	if r.step < len(r.data) {
 		s := r.data[r.step]
 		n = copy(p, s)
 		r.step++
 	} else {
-		err = os.EOF
+		err = io.EOF
 	}
 	return
 }
@@ -197,7 +197,7 @@ func readRuneSegments(t *testing.T, segments []string) {
 	for {
 		r, _, err := r.ReadRune()
 		if err != nil {
-			if err != os.EOF {
+			if err != io.EOF {
 				return
 			}
 			break
@@ -235,7 +235,7 @@ func TestUnreadRune(t *testing.T) {
 	for {
 		r1, _, err := r.ReadRune()
 		if err != nil {
-			if err != os.EOF {
+			if err != io.EOF {
 				t.Error("unexpected EOF")
 			}
 			break
@@ -328,7 +328,7 @@ func TestUnreadRuneAtEOF(t *testing.T) {
 	_, _, err := r.ReadRune()
 	if err == nil {
 		t.Error("expected error at EOF")
-	} else if err != os.EOF {
+	} else if err != io.EOF {
 		t.Error("expected EOF; got", err)
 	}
 }
@@ -413,11 +413,11 @@ func TestWriter(t *testing.T) {
 
 type errorWriterTest struct {
 	n, m   int
-	err    os.Error
-	expect os.Error
+	err    error
+	expect error
 }
 
-func (w errorWriterTest) Write(p []byte) (int, os.Error) {
+func (w errorWriterTest) Write(p []byte) (int, error) {
 	return len(p) * w.n / w.m, w.err
 }
 
@@ -559,7 +559,7 @@ func TestPeek(t *testing.T) {
 	if s, err := buf.Peek(0); string(s) != "" || err != nil {
 		t.Fatalf("want %q got %q, err=%v", "", string(s), err)
 	}
-	if _, err := buf.Peek(1); err != os.EOF {
+	if _, err := buf.Peek(1); err != io.EOF {
 		t.Fatalf("want EOF got %v", err)
 	}
 }
@@ -583,7 +583,7 @@ type testReader struct {
 	stride int
 }
 
-func (t *testReader) Read(buf []byte) (n int, err os.Error) {
+func (t *testReader) Read(buf []byte) (n int, err error) {
 	n = t.stride
 	if n > len(t.data) {
 		n = len(t.data)
@@ -594,7 +594,7 @@ func (t *testReader) Read(buf []byte) (n int, err os.Error) {
 	copy(buf, t.data)
 	t.data = t.data[n:]
 	if len(t.data) == 0 {
-		err = os.EOF
+		err = io.EOF
 	}
 	return
 }
@@ -614,7 +614,7 @@ func testReadLine(t *testing.T, input []byte) {
 				t.Errorf("ReadLine returned prefix")
 			}
 			if err != nil {
-				if err != os.EOF {
+				if err != io.EOF {
 					t.Fatalf("Got unknown error: %s", err)
 				}
 				break
@@ -679,7 +679,7 @@ func TestReadAfterLines(t *testing.T) {
 func TestReadEmptyBuffer(t *testing.T) {
 	l, _ := NewReaderSize(bytes.NewBuffer(nil), 10)
 	line, isPrefix, err := l.ReadLine()
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
 	}
 }
@@ -693,7 +693,7 @@ func TestLinesAfterRead(t *testing.T) {
 	}
 
 	line, isPrefix, err := l.ReadLine()
-	if err != os.EOF {
+	if err != io.EOF {
 		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
 	}
 }
@@ -701,7 +701,7 @@ func TestLinesAfterRead(t *testing.T) {
 type readLineResult struct {
 	line     []byte
 	isPrefix bool
-	err      os.Error
+	err      error
 }
 
 var readLineNewlinesTests = []struct {
@@ -714,27 +714,27 @@ var readLineNewlinesTests = []struct {
 		{nil, false, nil},
 		{[]byte("b"), true, nil},
 		{nil, false, nil},
-		{nil, false, os.EOF},
+		{nil, false, io.EOF},
 	}},
 	{"hello\r\nworld\r\n", 6, []readLineResult{
 		{[]byte("hello"), true, nil},
 		{nil, false, nil},
 		{[]byte("world"), true, nil},
 		{nil, false, nil},
-		{nil, false, os.EOF},
+		{nil, false, io.EOF},
 	}},
 	{"hello\rworld\r", 6, []readLineResult{
 		{[]byte("hello"), true, nil},
 		{[]byte("\rworld"), true, nil},
 		{[]byte("\r"), false, nil},
-		{nil, false, os.EOF},
+		{nil, false, io.EOF},
 	}},
 	{"h\ri\r\n\r", 2, []readLineResult{
 		{[]byte("h"), true, nil},
 		{[]byte("\ri"), true, nil},
 		{nil, false, nil},
 		{[]byte("\r"), false, nil},
-		{nil, false, os.EOF},
+		{nil, false, io.EOF},
 	}},
 }
 

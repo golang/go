@@ -5,8 +5,8 @@
 package json
 
 import (
+	"errors"
 	"io"
-	"os"
 )
 
 // A Decoder reads and decodes JSON objects from an input stream.
@@ -15,7 +15,7 @@ type Decoder struct {
 	buf  []byte
 	d    decodeState
 	scan scanner
-	err  os.Error
+	err  error
 }
 
 // NewDecoder returns a new decoder that reads from r.
@@ -28,7 +28,7 @@ func NewDecoder(r io.Reader) *Decoder {
 //
 // See the documentation for Unmarshal for details about
 // the conversion of JSON into a Go value.
-func (dec *Decoder) Decode(v interface{}) os.Error {
+func (dec *Decoder) Decode(v interface{}) error {
 	if dec.err != nil {
 		return dec.err
 	}
@@ -53,11 +53,11 @@ func (dec *Decoder) Decode(v interface{}) os.Error {
 
 // readValue reads a JSON value into dec.buf.
 // It returns the length of the encoding.
-func (dec *Decoder) readValue() (int, os.Error) {
+func (dec *Decoder) readValue() (int, error) {
 	dec.scan.reset()
 
 	scanp := 0
-	var err os.Error
+	var err error
 Input:
 	for {
 		// Look in the buffer for a new value.
@@ -85,7 +85,7 @@ Input:
 		// Did the last read have an error?
 		// Delayed until now to allow buffer scan.
 		if err != nil {
-			if err == os.EOF {
+			if err == io.EOF {
 				if dec.scan.step(&dec.scan, ' ') == scanEnd {
 					break Input
 				}
@@ -126,7 +126,7 @@ func nonSpace(b []byte) bool {
 type Encoder struct {
 	w   io.Writer
 	e   encodeState
-	err os.Error
+	err error
 }
 
 // NewEncoder returns a new encoder that writes to w.
@@ -138,7 +138,7 @@ func NewEncoder(w io.Writer) *Encoder {
 //
 // See the documentation for Marshal for details about the
 // conversion of Go values to JSON.
-func (enc *Encoder) Encode(v interface{}) os.Error {
+func (enc *Encoder) Encode(v interface{}) error {
 	if enc.err != nil {
 		return enc.err
 	}
@@ -168,14 +168,14 @@ func (enc *Encoder) Encode(v interface{}) os.Error {
 type RawMessage []byte
 
 // MarshalJSON returns *m as the JSON encoding of m.
-func (m *RawMessage) MarshalJSON() ([]byte, os.Error) {
+func (m *RawMessage) MarshalJSON() ([]byte, error) {
 	return *m, nil
 }
 
 // UnmarshalJSON sets *m to a copy of data.
-func (m *RawMessage) UnmarshalJSON(data []byte) os.Error {
+func (m *RawMessage) UnmarshalJSON(data []byte) error {
 	if m == nil {
-		return os.NewError("json.RawMessage: UnmarshalJSON on nil pointer")
+		return errors.New("json.RawMessage: UnmarshalJSON on nil pointer")
 	}
 	*m = append((*m)[0:0], data...)
 	return nil

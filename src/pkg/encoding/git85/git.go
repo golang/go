@@ -9,13 +9,12 @@ package git85
 import (
 	"bytes"
 	"io"
-	"os"
 	"strconv"
 )
 
 type CorruptInputError int64
 
-func (e CorruptInputError) String() string {
+func (e CorruptInputError) Error() string {
 	return "illegal git85 data at input byte " + strconv.Itoa64(int64(e))
 }
 
@@ -96,7 +95,7 @@ var newline = []byte{'\n'}
 //
 // If Decode encounters invalid input, it returns a CorruptInputError.
 //
-func Decode(dst, src []byte) (n int, err os.Error) {
+func Decode(dst, src []byte) (n int, err error) {
 	ndst := 0
 	nsrc := 0
 	for nsrc < len(src) {
@@ -153,14 +152,14 @@ func NewEncoder(w io.Writer) io.WriteCloser { return &encoder{w: w} }
 
 type encoder struct {
 	w    io.Writer
-	err  os.Error
+	err  error
 	buf  [52]byte
 	nbuf int
 	out  [1024]byte
 	nout int
 }
 
-func (e *encoder) Write(p []byte) (n int, err os.Error) {
+func (e *encoder) Write(p []byte) (n int, err error) {
 	if e.err != nil {
 		return 0, e.err
 	}
@@ -209,7 +208,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 	return
 }
 
-func (e *encoder) Close() os.Error {
+func (e *encoder) Close() error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
 		nout := Encode(e.out[0:], e.buf[0:e.nbuf])
@@ -224,8 +223,8 @@ func NewDecoder(r io.Reader) io.Reader { return &decoder{r: r} }
 
 type decoder struct {
 	r       io.Reader
-	err     os.Error
-	readErr os.Error
+	err     error
+	readErr error
 	buf     [1024]byte
 	nbuf    int
 	out     []byte
@@ -233,7 +232,7 @@ type decoder struct {
 	off     int64
 }
 
-func (d *decoder) Read(p []byte) (n int, err os.Error) {
+func (d *decoder) Read(p []byte) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
 	}

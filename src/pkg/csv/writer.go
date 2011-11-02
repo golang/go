@@ -7,7 +7,6 @@ package csv
 import (
 	"bufio"
 	"io"
-	"os"
 	"strings"
 	"unicode"
 	"utf8"
@@ -38,7 +37,7 @@ func NewWriter(w io.Writer) *Writer {
 
 // Writer writes a single CSV record to w along with any necessary quoting.
 // A record is a slice of strings with each string being one field.
-func (w *Writer) Write(record []string) (err os.Error) {
+func (w *Writer) Write(record []string) (err error) {
 	for n, field := range record {
 		if n > 0 {
 			if _, err = w.w.WriteRune(w.Comma); err != nil {
@@ -98,7 +97,7 @@ func (w *Writer) Flush() {
 }
 
 // WriteAll writes multiple CSV records to w using Write and then calls Flush.
-func (w *Writer) WriteAll(records [][]string) (err os.Error) {
+func (w *Writer) WriteAll(records [][]string) (err error) {
 	for _, record := range records {
 		err = w.Write(record)
 		if err != nil {

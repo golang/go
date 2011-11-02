@@ -12,7 +12,6 @@ package ripemd160
 import (
 	"crypto"
 	"hash"
-	"os"
 )
 
 func init() {
@@ -56,7 +55,7 @@ func New() hash.Hash {
 
 func (d *digest) Size() int { return Size }
 
-func (d *digest) Write(p []byte) (nn int, err os.Error) {
+func (d *digest) Write(p []byte) (nn int, err error) {
 	nn = len(p)
 	d.tc += uint64(nn)
 	if d.nx > 0 {

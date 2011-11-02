@@ -7,7 +7,6 @@ package norm
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 )
@@ -27,7 +26,7 @@ func readFunc(size int) appendFunc {
 		r := f.Reader(bytes.NewBuffer(out))
 		buf := make([]byte, size)
 		result := []byte{}
-		for n, err := 0, os.Error(nil); err == nil; {
+		for n, err := 0, error(nil); err == nil; {
 			n, err = r.Read(buf)
 			result = append(result, buf[:n]...)
 		}

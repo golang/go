@@ -4,14 +4,11 @@
 
 package json
 
-import (
-	"bytes"
-	"os"
-)
+import "bytes"
 
 // Compact appends to dst the JSON-encoded src with
 // insignificant space characters elided.
-func Compact(dst *bytes.Buffer, src []byte) os.Error {
+func Compact(dst *bytes.Buffer, src []byte) error {
 	origLen := dst.Len()
 	var scan scanner
 	scan.reset()
@@ -52,7 +49,7 @@ func newline(dst *bytes.Buffer, prefix, indent string, depth int) {
 // copies of indent according to the indentation nesting.
 // The data appended to dst has no trailing newline, to make it easier
 // to embed inside other formatted JSON data.
-func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) os.Error {
+func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 	origLen := dst.Len()
 	var scan scanner
 	scan.reset()

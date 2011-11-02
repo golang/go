@@ -7,11 +7,10 @@ package openpgp
 import (
 	"crypto"
 	"crypto/openpgp/armor"
-	"crypto/openpgp/error"
+	error_ "crypto/openpgp/error"
 	"crypto/openpgp/packet"
 	"crypto/rsa"
 	"io"
-	"os"
 	"time"
 )
 
@@ -178,16 +177,16 @@ func (el EntityList) DecryptionKeys() (keys []Key) {
 }
 
 // ReadArmoredKeyRing reads one or more public/private keys from an armor keyring file.
-func ReadArmoredKeyRing(r io.Reader) (EntityList, os.Error) {
+func ReadArmoredKeyRing(r io.Reader) (EntityList, error) {
 	block, err := armor.Decode(r)
-	if err == os.EOF {
-		return nil, error.InvalidArgumentError("no armored data found")
+	if err == io.EOF {
+		return nil, error_.InvalidArgumentError("no armored data found")
 	}
 	if err != nil {
 		return nil, err
 	}
 	if block.Type != PublicKeyType && block.Type != PrivateKeyType {
-		return nil, error.InvalidArgumentError("expected public or private key block, got: " + block.Type)
+		return nil, error_.InvalidArgumentError("expected public or private key block, got: " + block.Type)
 	}
 
 	return ReadKeyRing(block.Body)
@@ -195,19 +194,19 @@ func ReadArmoredKeyRing(r io.Reader) (EntityList, os.Error) {
 
 // ReadKeyRing reads one or more public/private keys. Unsupported keys are
 // ignored as long as at least a single valid key is found.
-func ReadKeyRing(r io.Reader) (el EntityList, err os.Error) {
+func ReadKeyRing(r io.Reader) (el EntityList, err error) {
 	packets := packet.NewReader(r)
-	var lastUnsupportedError os.Error
+	var lastUnsupportedError error
 
 	for {
 		var e *Entity
 		e, err = readEntity(packets)
 		if err != nil {
-			if _, ok := err.(error.UnsupportedError); ok {
+			if _, ok := err.(error_.UnsupportedError); ok {
 				lastUnsupportedError = err
 				err = readToNextPublicKey(packets)
 			}
-			if err == os.EOF {
+			if err == io.EOF {
 				err = nil
 				break
 			}
@@ -228,14 +227,14 @@ func ReadKeyRing(r io.Reader) (el EntityList, err os.Error) {
 
 // readToNextPublicKey reads packets until the start of the entity and leaves
 // the first packet of the new entity in the Reader.
-func readToNextPublicKey(packets *packet.Reader) (err os.Error) {
+func readToNextPublicKey(packets *packet.Reader) (err error) {
 	var p packet.Packet
 	for {
 		p, err = packets.Next()
-		if err == os.EOF {
+		if err == io.EOF {
 			return
 		} else if err != nil {
-			if _, ok := err.(error.UnsupportedError); ok {
+			if _, ok := err.(error_.UnsupportedError); ok {
 				err = nil
 				continue
 			}
@@ -253,7 +252,7 @@ func readToNextPublicKey(packets *packet.Reader) (err os.Error) {
 
 // readEntity reads an entity (public key, identities, subkeys etc) from the
 // given Reader.
-func readEntity(packets *packet.Reader) (*Entity, os.Error) {
+func readEntity(packets *packet.Reader) (*Entity, error) {
 	e := new(Entity)
 	e.Identities = make(map[string]*Identity)
 
@@ -266,21 +265,21 @@ func readEntity(packets *packet.Reader) (*Entity, os.Error) {
 	if e.PrimaryKey, ok = p.(*packet.PublicKey); !ok {
 		if e.PrivateKey, ok = p.(*packet.PrivateKey); !ok {
 			packets.Unread(p)
-			return nil, error.StructuralError("first packet was not a public/private key")
+			return nil, error_.StructuralError("first packet was not a public/private key")
 		} else {
 			e.PrimaryKey = &e.PrivateKey.PublicKey
 		}
 	}
 
 	if !e.PrimaryKey.PubKeyAlgo.CanSign() {
-		return nil, error.StructuralError("primary key cannot be used for signatures")
+		return nil, error_.StructuralError("primary key cannot be used for signatures")
 	}
 
 	var current *Identity
 EachPacket:
 	for {
 		p, err := packets.Next()
-		if err == os.EOF {
+		if err == io.EOF {
 			break
 		} else if err != nil {
 			return nil, err
@@ -295,7 +294,7 @@ EachPacket:
 
 			for {
 				p, err = packets.Next()
-				if err == os.EOF {
+				if err == io.EOF {
 					return nil, io.ErrUnexpectedEOF
 				} else if err != nil {
 					return nil, err
@@ -303,12 +302,12 @@ EachPacket:
 
 				sig, ok := p.(*packet.Signature)
 				if !ok {
-					return nil, error.StructuralError("user ID packet not followed by self-signature")
+					return nil, error_.StructuralError("user ID packet not followed by self-signature")
 				}
 
 				if (sig.SigType == packet.SigTypePositiveCert || sig.SigType == packet.SigTypeGenericCert) && sig.IssuerKeyId != nil && *sig.IssuerKeyId == e.PrimaryKey.KeyId {
 					if err = e.PrimaryKey.VerifyUserIdSignature(pkt.Id, sig); err != nil {
-						return nil, error.StructuralError("user ID self-signature invalid: " + err.String())
+						return nil, error_.StructuralError("user ID self-signature invalid: " + err.Error())
 					}
 					current.SelfSignature = sig
 					break
@@ -317,7 +316,7 @@ EachPacket:
 			}
 		case *packet.Signature:
 			if current == nil {
-				return nil, error.StructuralError("signature packet found before user id packet")
+				return nil, error_.StructuralError("signature packet found before user id packet")
 			}
 			current.Signatures = append(current.Signatures, pkt)
 		case *packet.PrivateKey:
@@ -344,34 +343,34 @@ EachPacket:
 	}
 
 	if len(e.Identities) == 0 {
-		return nil, error.StructuralError("entity without any identities")
+		return nil, error_.StructuralError("entity without any identities")
 	}
 
 	return e, nil
 }
 
-func addSubkey(e *Entity, packets *packet.Reader, pub *packet.PublicKey, priv *packet.PrivateKey) os.Error {
+func addSubkey(e *Entity, packets *packet.Reader, pub *packet.PublicKey, priv *packet.PrivateKey) error {
 	var subKey Subkey
 	subKey.PublicKey = pub
 	subKey.PrivateKey = priv
 	p, err := packets.Next()
-	if err == os.EOF {
+	if err == io.EOF {
 		return io.ErrUnexpectedEOF
 	}
 	if err != nil {
-		return error.StructuralError("subkey signature invalid: " + err.String())
+		return error_.StructuralError("subkey signature invalid: " + err.Error())
 	}
 	var ok bool
 	subKey.Sig, ok = p.(*packet.Signature)
 	if !ok {
-		return error.StructuralError("subkey packet not followed by signature")
+		return error_.StructuralError("subkey packet not followed by signature")
 	}
 	if subKey.Sig.SigType != packet.SigTypeSubkeyBinding {
-		return error.StructuralError("subkey signature with wrong type")
+		return error_.StructuralError("subkey signature with wrong type")
 	}
 	err = e.PrimaryKey.VerifyKeySignature(subKey.PublicKey, subKey.Sig)
 	if err != nil {
-		return error.StructuralError("subkey signature invalid: " + err.String())
+		return error_.StructuralError("subkey signature invalid: " + err.Error())
 	}
 	e.Subkeys = append(e.Subkeys, subKey)
 	return nil
@@ -382,10 +381,10 @@ const defaultRSAKeyBits = 2048
 // NewEntity returns an Entity that contains a fresh RSA/RSA keypair with a
 // single identity composed of the given full name, comment and email, any of
 // which may be empty but must not contain any of "()<>\x00".
-func NewEntity(rand io.Reader, currentTimeSecs int64, name, comment, email string) (*Entity, os.Error) {
+func NewEntity(rand io.Reader, currentTimeSecs int64, name, comment, email string) (*Entity, error) {
 	uid := packet.NewUserId(name, comment, email)
 	if uid == nil {
-		return nil, error.InvalidArgumentError("user id field contained invalid characters")
+		return nil, error_.InvalidArgumentError("user id field contained invalid characters")
 	}
 	signingPriv, err := rsa.GenerateKey(rand, defaultRSAKeyBits)
 	if err != nil {
@@ -442,7 +441,7 @@ func NewEntity(rand io.Reader, currentTimeSecs int64, name, comment, email strin
 // SerializePrivate serializes an Entity, including private key material, to
 // the given Writer. For now, it must only be used on an Entity returned from
 // NewEntity.
-func (e *Entity) SerializePrivate(w io.Writer) (err os.Error) {
+func (e *Entity) SerializePrivate(w io.Writer) (err error) {
 	err = e.PrivateKey.Serialize(w)
 	if err != nil {
 		return
@@ -480,7 +479,7 @@ func (e *Entity) SerializePrivate(w io.Writer) (err os.Error) {
 
 // Serialize writes the public part of the given Entity to w. (No private
 // key material will be output).
-func (e *Entity) Serialize(w io.Writer) os.Error {
+func (e *Entity) Serialize(w io.Writer) error {
 	err := e.PrimaryKey.Serialize(w)
 	if err != nil {
 		return err
@@ -518,16 +517,16 @@ func (e *Entity) Serialize(w io.Writer) os.Error {
 // associated with e. The provided identity must already be an element of
 // e.Identities and the private key of signer must have been decrypted if
 // necessary.
-func (e *Entity) SignIdentity(identity string, signer *Entity) os.Error {
+func (e *Entity) SignIdentity(identity string, signer *Entity) error {
 	if signer.PrivateKey == nil {
-		return error.InvalidArgumentError("signing Entity must have a private key")
+		return error_.InvalidArgumentError("signing Entity must have a private key")
 	}
 	if signer.PrivateKey.Encrypted {
-		return error.InvalidArgumentError("signing Entity's private key must be decrypted")
+		return error_.InvalidArgumentError("signing Entity's private key must be decrypted")
 	}
 	ident, ok := e.Identities[identity]
 	if !ok {
-		return error.InvalidArgumentError("given identity string not found in Entity")
+		return error_.InvalidArgumentError("given identity string not found in Entity")
 	}
 
 	sig := &packet.Signature{

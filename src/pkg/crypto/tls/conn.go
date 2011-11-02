@@ -11,9 +11,9 @@ import (
 	"crypto/cipher"
 	"crypto/subtle"
 	"crypto/x509"
+	"errors"
 	"io"
 	"net"
-	"os"
 	"sync"
 )
 
@@ -44,7 +44,7 @@ type Conn struct {
 
 	// first permanent error
 	errMutex sync.Mutex
-	err      os.Error
+	err      error
 
 	// input/output
 	in, out  halfConn     // in.Mutex < out.Mutex
@@ -55,7 +55,7 @@ type Conn struct {
 	tmp [16]byte
 }
 
-func (c *Conn) setError(err os.Error) os.Error {
+func (c *Conn) setError(err error) error {
 	c.errMutex.Lock()
 	defer c.errMutex.Unlock()
 
@@ -65,7 +65,7 @@ func (c *Conn) setError(err os.Error) os.Error {
 	return err
 }
 
-func (c *Conn) error() os.Error {
+func (c *Conn) error() error {
 	c.errMutex.Lock()
 	defer c.errMutex.Unlock()
 
@@ -88,21 +88,21 @@ func (c *Conn) RemoteAddr() net.Addr {
 
 // SetTimeout sets the read deadline associated with the connection.
 // There is no write deadline.
-func (c *Conn) SetTimeout(nsec int64) os.Error {
+func (c *Conn) SetTimeout(nsec int64) error {
 	return c.conn.SetTimeout(nsec)
 }
 
 // SetReadTimeout sets the time (in nanoseconds) that
 // Read will wait for data before returning os.EAGAIN.
 // Setting nsec == 0 (the default) disables the deadline.
-func (c *Conn) SetReadTimeout(nsec int64) os.Error {
+func (c *Conn) SetReadTimeout(nsec int64) error {
 	return c.conn.SetReadTimeout(nsec)
 }
 
 // SetWriteTimeout exists to satisfy the net.Conn interface
 // but is not implemented by TLS.  It always returns an error.
-func (c *Conn) SetWriteTimeout(nsec int64) os.Error {
-	return os.NewError("TLS does not support SetWriteTimeout")
+func (c *Conn) SetWriteTimeout(nsec int64) error {
+	return errors.New("TLS does not support SetWriteTimeout")
 }
 
 // A halfConn represents one direction of the record layer
@@ -129,7 +129,7 @@ func (hc *halfConn) prepareCipherSpec(version uint16, cipher interface{}, mac ma
 
 // changeCipherSpec changes the encryption and MAC states
 // to the ones previously passed to prepareCipherSpec.
-func (hc *halfConn) changeCipherSpec() os.Error {
+func (hc *halfConn) changeCipherSpec() error {
 	if hc.nextCipher == nil {
 		return alertInternalError
 	}
@@ -378,7 +378,7 @@ func (b *block) reserve(n int) {
 
 // readFromUntil reads from r into b until b contains at least n bytes
 // or else returns an error.
-func (b *block) readFromUntil(r io.Reader, n int) os.Error {
+func (b *block) readFromUntil(r io.Reader, n int) error {
 	// quick case
 	if len(b.data) >= n {
 		return nil
@@ -399,7 +399,7 @@ func (b *block) readFromUntil(r io.Reader, n int) os.Error {
 	return nil
 }
 
-func (b *block) Read(p []byte) (n int, err os.Error) {
+func (b *block) Read(p []byte) (n int, err error) {
 	n = copy(p, b.data[b.off:])
 	b.off += n
 	return
@@ -443,7 +443,7 @@ func (hc *halfConn) splitBlock(b *block, n int) (*block, *block) {
 // readRecord reads the next TLS record from the connection
 // and updates the record layer state.
 // c.in.Mutex <= L; c.input == nil.
-func (c *Conn) readRecord(want recordType) os.Error {
+func (c *Conn) readRecord(want recordType) error {
 	// Caller must be in sync with connection:
 	// handshake data if handshake not yet completed,
 	// else application data.  (We don't support renegotiation.)
@@ -502,7 +502,7 @@ Again:
 		}
 	}
 	if err := b.readFromUntil(c.conn, recordHeaderLen+n); err != nil {
-		if err == os.EOF {
+		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
 		if e, ok := err.(net.Error); !ok || !e.Temporary() {
@@ -534,7 +534,7 @@ Again:
 			break
 		}
 		if alert(data[1]) == alertCloseNotify {
-			c.setError(os.EOF)
+			c.setError(io.EOF)
 			break
 		}
 		switch data[0] {
@@ -543,7 +543,7 @@ Again:
 			c.in.freeBlock(b)
 			goto Again
 		case alertLevelError:
-			c.setError(&net.OpError{Op: "remote error", Error: alert(data[1])})
+			c.setError(&net.OpError{Op: "remote error", Err: alert(data[1])})
 		default:
 			c.sendAlert(alertUnexpectedMessage)
 		}
@@ -582,7 +582,7 @@ Again:
 
 // sendAlert sends a TLS alert message.
 // c.out.Mutex <= L.
-func (c *Conn) sendAlertLocked(err alert) os.Error {
+func (c *Conn) sendAlertLocked(err alert) error {
 	c.tmp[0] = alertLevelError
 	if err == alertNoRenegotiation {
 		c.tmp[0] = alertLevelWarning
@@ -591,14 +591,14 @@ func (c *Conn) sendAlertLocked(err alert) os.Error {
 	c.writeRecord(recordTypeAlert, c.tmp[0:2])
 	// closeNotify is a special case in that it isn't an error:
 	if err != alertCloseNotify {
-		return c.setError(&net.OpError{Op: "local error", Error: err})
+		return c.setError(&net.OpError{Op: "local error", Err: err})
 	}
 	return nil
 }
 
 // sendAlert sends a TLS alert message.
 // L < c.out.Mutex.
-func (c *Conn) sendAlert(err alert) os.Error {
+func (c *Conn) sendAlert(err alert) error {
 	c.out.Lock()
 	defer c.out.Unlock()
 	return c.sendAlertLocked(err)
@@ -607,7 +607,7 @@ func (c *Conn) sendAlert(err alert) os.Error {
 // writeRecord writes a TLS record with the given type and payload
 // to the connection and updates the record layer state.
 // c.out.Mutex <= L.
-func (c *Conn) writeRecord(typ recordType, data []byte) (n int, err os.Error) {
+func (c *Conn) writeRecord(typ recordType, data []byte) (n int, err error) {
 	b := c.out.newBlock()
 	for len(data) > 0 {
 		m := len(data)
@@ -643,7 +643,7 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (n int, err os.Error) {
 			c.tmp[0] = alertLevelError
 			c.tmp[1] = byte(err.(alert))
 			c.writeRecord(recordTypeAlert, c.tmp[0:2])
-			c.err = &net.OpError{Op: "local error", Error: err}
+			c.err = &net.OpError{Op: "local error", Err: err}
 			return n, c.err
 		}
 	}
@@ -653,7 +653,7 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (n int, err os.Error) {
 // readHandshake reads the next handshake message from
 // the record layer.
 // c.in.Mutex < L; c.out.Mutex < L.
-func (c *Conn) readHandshake() (interface{}, os.Error) {
+func (c *Conn) readHandshake() (interface{}, error) {
 	for c.hand.Len() < 4 {
 		if c.err != nil {
 			return nil, c.err
@@ -720,7 +720,7 @@ func (c *Conn) readHandshake() (interface{}, os.Error) {
 }
 
 // Write writes data to the connection.
-func (c *Conn) Write(b []byte) (n int, err os.Error) {
+func (c *Conn) Write(b []byte) (n int, err error) {
 	if err = c.Handshake(); err != nil {
 		return
 	}
@@ -739,7 +739,7 @@ func (c *Conn) Write(b []byte) (n int, err os.Error) {
 
 // Read can be made to time out and return err == os.EAGAIN
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
-func (c *Conn) Read(b []byte) (n int, err os.Error) {
+func (c *Conn) Read(b []byte) (n int, err error) {
 	if err = c.Handshake(); err != nil {
 		return
 	}
@@ -765,8 +765,8 @@ func (c *Conn) Read(b []byte) (n int, err os.Error) {
 }
 
 // Close closes the connection.
-func (c *Conn) Close() os.Error {
-	var alertErr os.Error
+func (c *Conn) Close() error {
+	var alertErr error
 
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
@@ -784,7 +784,7 @@ func (c *Conn) Close() os.Error {
 // protocol if it has not yet been run.
 // Most uses of this package need not call Handshake
 // explicitly: the first Read or Write will call it automatically.
-func (c *Conn) Handshake() os.Error {
+func (c *Conn) Handshake() error {
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
 	if err := c.error(); err != nil {
@@ -830,14 +830,14 @@ func (c *Conn) OCSPResponse() []byte {
 // VerifyHostname checks that the peer certificate chain is valid for
 // connecting to host.  If so, it returns nil; if not, it returns an os.Error
 // describing the problem.
-func (c *Conn) VerifyHostname(host string) os.Error {
+func (c *Conn) VerifyHostname(host string) error {
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
 	if !c.isClient {
-		return os.NewError("VerifyHostname called on TLS server connection")
+		return errors.New("VerifyHostname called on TLS server connection")
 	}
 	if !c.handshakeComplete {
-		return os.NewError("TLS handshake has not yet been performed")
+		return errors.New("TLS handshake has not yet been performed")
 	}
 	return c.peerCertificates[0].VerifyHostname(host)
 }

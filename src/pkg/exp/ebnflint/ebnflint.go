@@ -31,7 +31,7 @@ var (
 	close = []byte(`</pre>`)
 )
 
-func report(err os.Error) {
+func report(err error) {
 	scanner.PrintError(os.Stderr, err)
 	os.Exit(1)
 }
@@ -78,7 +78,7 @@ func main() {
 	var (
 		filename string
 		src      []byte
-		err      os.Error
+		err      error
 	)
 	switch flag.NArg() {
 	case 0:

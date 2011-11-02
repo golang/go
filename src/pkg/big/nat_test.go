@@ -6,7 +6,7 @@ package big
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"strings"
 	"testing"
 )
@@ -288,7 +288,7 @@ func TestScanBase(t *testing.T) {
 			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, a.base)
 		}
 		next, _, err := r.ReadRune()
-		if err == os.EOF {
+		if err == io.EOF {
 			next = 0
 			err = nil
 		}

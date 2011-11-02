@@ -7,8 +7,8 @@ package dsa
 
 import (
 	"big"
+	"errors"
 	"io"
-	"os"
 )
 
 // Parameters represents the domain parameters for a key. These parameters can
@@ -31,7 +31,7 @@ type PrivateKey struct {
 
 type invalidPublicKeyError int
 
-func (invalidPublicKeyError) String() string {
+func (invalidPublicKeyError) Error() string {
 	return "crypto/dsa: invalid public key"
 }
 
@@ -58,7 +58,7 @@ const numMRTests = 64
 
 // GenerateParameters puts a random, valid set of DSA parameters into params.
 // This function takes many seconds, even on fast machines.
-func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes) (err os.Error) {
+func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes) (err error) {
 	// This function doesn't follow FIPS 186-3 exactly in that it doesn't
 	// use a verification seed to generate the primes. The verification
 	// seed doesn't appear to be exported or used by other code and
@@ -79,7 +79,7 @@ func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes
 		L = 3072
 		N = 256
 	default:
-		return os.NewError("crypto/dsa: invalid ParameterSizes")
+		return errors.New("crypto/dsa: invalid ParameterSizes")
 	}
 
 	qBytes := make([]byte, N/8)
@@ -156,9 +156,9 @@ GeneratePrimes:
 
 // GenerateKey generates a public&private key pair. The Parameters of the
 // PrivateKey must already be valid (see GenerateParameters).
-func GenerateKey(priv *PrivateKey, rand io.Reader) os.Error {
+func GenerateKey(priv *PrivateKey, rand io.Reader) error {
 	if priv.P == nil || priv.Q == nil || priv.G == nil {
-		return os.NewError("crypto/dsa: parameters not set up before generating key")
+		return errors.New("crypto/dsa: parameters not set up before generating key")
 	}
 
 	x := new(big.Int)
@@ -185,7 +185,7 @@ func GenerateKey(priv *PrivateKey, rand io.Reader) os.Error {
 // larger message) using the private key, priv. It returns the signature as a
 // pair of integers. The security of the private key depends on the entropy of
 // rand.
-func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err os.Error) {
+func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	// FIPS 186-3, section 4.6
 
 	n := priv.Q.BitLen()

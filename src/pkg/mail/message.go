@@ -19,12 +19,12 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/textproto"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -48,7 +48,7 @@ type Message struct {
 
 // ReadMessage reads a message from r.
 // The headers are parsed, and the body of the message will be reading from r.
-func ReadMessage(r io.Reader) (msg *Message, err os.Error) {
+func ReadMessage(r io.Reader) (msg *Message, err error) {
 	tp := textproto.NewReader(bufio.NewReader(r))
 
 	hdr, err := tp.ReadMIMEHeader()
@@ -89,14 +89,14 @@ func init() {
 	}
 }
 
-func parseDate(date string) (*time.Time, os.Error) {
+func parseDate(date string) (*time.Time, error) {
 	for _, layout := range dateLayouts {
 		t, err := time.Parse(layout, date)
 		if err == nil {
 			return t, nil
 		}
 	}
-	return nil, os.NewError("mail: header could not be parsed")
+	return nil, errors.New("mail: header could not be parsed")
 }
 
 // A Header represents the key-value pairs in a mail message header.
@@ -108,10 +108,10 @@ func (h Header) Get(key string) string {
 	return textproto.MIMEHeader(h).Get(key)
 }
 
-var ErrHeaderNotPresent = os.NewError("mail: header not in message")
+var ErrHeaderNotPresent = errors.New("mail: header not in message")
 
 // Date parses the Date header field.
-func (h Header) Date() (*time.Time, os.Error) {
+func (h Header) Date() (*time.Time, error) {
 	hdr := h.Get("Date")
 	if hdr == "" {
 		return nil, ErrHeaderNotPresent
@@ -120,7 +120,7 @@ func (h Header) Date() (*time.Time, os.Error) {
 }
 
 // AddressList parses the named header field as a list of addresses.
-func (h Header) AddressList(key string) ([]*Address, os.Error) {
+func (h Header) AddressList(key string) ([]*Address, error) {
 	hdr := h.Get(key)
 	if hdr == "" {
 		return nil, ErrHeaderNotPresent
@@ -189,7 +189,7 @@ func newAddrParser(s string) *addrParser {
 	return &p
 }
 
-func (p *addrParser) parseAddressList() ([]*Address, os.Error) {
+func (p *addrParser) parseAddressList() ([]*Address, error) {
 	var list []*Address
 	for {
 		p.skipSpace()
@@ -204,18 +204,18 @@ func (p *addrParser) parseAddressList() ([]*Address, os.Error) {
 			break
 		}
 		if !p.consume(',') {
-			return nil, os.NewError("mail: expected comma")
+			return nil, errors.New("mail: expected comma")
 		}
 	}
 	return list, nil
 }
 
 // parseAddress parses a single RFC 5322 address at the start of p.
-func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
+func (p *addrParser) parseAddress() (addr *Address, err error) {
 	debug.Printf("parseAddress: %q", *p)
 	p.skipSpace()
 	if p.empty() {
-		return nil, os.NewError("mail: no address")
+		return nil, errors.New("mail: no address")
 	}
 
 	// address = name-addr / addr-spec
@@ -246,14 +246,14 @@ func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
 	// angle-addr = "<" addr-spec ">"
 	p.skipSpace()
 	if !p.consume('<') {
-		return nil, os.NewError("mail: no angle-addr")
+		return nil, errors.New("mail: no angle-addr")
 	}
 	spec, err = p.consumeAddrSpec()
 	if err != nil {
 		return nil, err
 	}
 	if !p.consume('>') {
-		return nil, os.NewError("mail: unclosed angle-addr")
+		return nil, errors.New("mail: unclosed angle-addr")
 	}
 	debug.Printf("parseAddress: spec=%q", spec)
 
@@ -264,7 +264,7 @@ func (p *addrParser) parseAddress() (addr *Address, err os.Error) {
 }
 
 // consumeAddrSpec parses a single RFC 5322 addr-spec at the start of p.
-func (p *addrParser) consumeAddrSpec() (spec string, err os.Error) {
+func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 	debug.Printf("consumeAddrSpec: %q", *p)
 
 	orig := *p
@@ -278,7 +278,7 @@ func (p *addrParser) consumeAddrSpec() (spec string, err os.Error) {
 	var localPart string
 	p.skipSpace()
 	if p.empty() {
-		return "", os.NewError("mail: no addr-spec")
+		return "", errors.New("mail: no addr-spec")
 	}
 	if p.peek() == '"' {
 		// quoted-string
@@ -295,14 +295,14 @@ func (p *addrParser) consumeAddrSpec() (spec string, err os.Error) {
 	}
 
 	if !p.consume('@') {
-		return "", os.NewError("mail: missing @ in addr-spec")
+		return "", errors.New("mail: missing @ in addr-spec")
 	}
 
 	// domain = dot-atom / domain-literal
 	var domain string
 	p.skipSpace()
 	if p.empty() {
-		return "", os.NewError("mail: no domain in addr-spec")
+		return "", errors.New("mail: no domain in addr-spec")
 	}
 	// TODO(dsymonds): Handle domain-literal
 	domain, err = p.consumeAtom(true)
@@ -314,7 +314,7 @@ func (p *addrParser) consumeAddrSpec() (spec string, err os.Error) {
 }
 
 // consumePhrase parses the RFC 5322 phrase at the start of p.
-func (p *addrParser) consumePhrase() (phrase string, err os.Error) {
+func (p *addrParser) consumePhrase() (phrase string, err error) {
 	debug.Printf("consumePhrase: [%s]", *p)
 	// phrase = 1*word
 	var words []string
@@ -323,7 +323,7 @@ func (p *addrParser) consumePhrase() (phrase string, err os.Error) {
 		var word string
 		p.skipSpace()
 		if p.empty() {
-			return "", os.NewError("mail: missing phrase")
+			return "", errors.New("mail: missing phrase")
 		}
 		if p.peek() == '"' {
 			// quoted-string
@@ -347,28 +347,28 @@ func (p *addrParser) consumePhrase() (phrase string, err os.Error) {
 	// Ignore any error if we got at least one word.
 	if err != nil && len(words) == 0 {
 		debug.Printf("consumePhrase: hit err: %v", err)
-		return "", os.NewError("mail: missing word in phrase")
+		return "", errors.New("mail: missing word in phrase")
 	}
 	phrase = strings.Join(words, " ")
 	return phrase, nil
 }
 
 // consumeQuotedString parses the quoted string at the start of p.
-func (p *addrParser) consumeQuotedString() (qs string, err os.Error) {
+func (p *addrParser) consumeQuotedString() (qs string, err error) {
 	// Assume first byte is '"'.
 	i := 1
 	qsb := make([]byte, 0, 10)
 Loop:
 	for {
 		if i >= p.len() {
-			return "", os.NewError("mail: unclosed quoted-string")
+			return "", errors.New("mail: unclosed quoted-string")
 		}
 		switch c := (*p)[i]; {
 		case c == '"':
 			break Loop
 		case c == '\\':
 			if i+1 == p.len() {
-				return "", os.NewError("mail: unclosed quoted-string")
+				return "", errors.New("mail: unclosed quoted-string")
 			}
 			qsb = append(qsb, (*p)[i+1])
 			i += 2
@@ -387,9 +387,9 @@ Loop:
 
 // consumeAtom parses an RFC 5322 atom at the start of p.
 // If dot is true, consumeAtom parses an RFC 5322 dot-atom instead.
-func (p *addrParser) consumeAtom(dot bool) (atom string, err os.Error) {
+func (p *addrParser) consumeAtom(dot bool) (atom string, err error) {
 	if !isAtext(p.peek(), false) {
-		return "", os.NewError("mail: invalid string")
+		return "", errors.New("mail: invalid string")
 	}
 	i := 1
 	for ; i < p.len() && isAtext((*p)[i], dot); i++ {
@@ -424,10 +424,10 @@ func (p *addrParser) len() int {
 	return len(*p)
 }
 
-func decodeRFC2047Word(s string) (string, os.Error) {
+func decodeRFC2047Word(s string) (string, error) {
 	fields := strings.Split(s, "?")
 	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" {
-		return "", os.NewError("mail: address not RFC 2047 encoded")
+		return "", errors.New("mail: address not RFC 2047 encoded")
 	}
 	charset, enc := strings.ToLower(fields[1]), strings.ToLower(fields[2])
 	if charset != "iso-8859-1" && charset != "utf-8" {
@@ -468,7 +468,7 @@ type qDecoder struct {
 	scratch [2]byte
 }
 
-func (qd qDecoder) Read(p []byte) (n int, err os.Error) {
+func (qd qDecoder) Read(p []byte) (n int, err error) {
 	// This method writes at most one byte into p.
 	if len(p) == 0 {
 		return 0, nil

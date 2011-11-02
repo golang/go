@@ -22,7 +22,6 @@ package asn1
 import (
 	"big"
 	"fmt"
-	"os"
 	"reflect"
 	"time"
 )
@@ -33,20 +32,20 @@ type StructuralError struct {
 	Msg string
 }
 
-func (e StructuralError) String() string { return "ASN.1 structure error: " + e.Msg }
+func (e StructuralError) Error() string { return "ASN.1 structure error: " + e.Msg }
 
 // A SyntaxError suggests that the ASN.1 data is invalid.
 type SyntaxError struct {
 	Msg string
 }
 
-func (e SyntaxError) String() string { return "ASN.1 syntax error: " + e.Msg }
+func (e SyntaxError) Error() string { return "ASN.1 syntax error: " + e.Msg }
 
 // We start by dealing with each of the primitive types in turn.
 
 // BOOLEAN
 
-func parseBool(bytes []byte) (ret bool, err os.Error) {
+func parseBool(bytes []byte) (ret bool, err error) {
 	if len(bytes) != 1 {
 		err = SyntaxError{"invalid boolean"}
 		return
@@ -59,7 +58,7 @@ func parseBool(bytes []byte) (ret bool, err os.Error) {
 
 // parseInt64 treats the given bytes as a big-endian, signed integer and
 // returns the result.
-func parseInt64(bytes []byte) (ret int64, err os.Error) {
+func parseInt64(bytes []byte) (ret int64, err error) {
 	if len(bytes) > 8 {
 		// We'll overflow an int64 in this case.
 		err = StructuralError{"integer too large"}
@@ -78,7 +77,7 @@ func parseInt64(bytes []byte) (ret int64, err os.Error) {
 
 // parseInt treats the given bytes as a big-endian, signed integer and returns
 // the result.
-func parseInt(bytes []byte) (int, os.Error) {
+func parseInt(bytes []byte) (int, error) {
 	ret64, err := parseInt64(bytes)
 	if err != nil {
 		return 0, err
@@ -150,7 +149,7 @@ func (b BitString) RightAlign() []byte {
 }
 
 // parseBitString parses an ASN.1 bit string from the given byte slice and returns it.
-func parseBitString(bytes []byte) (ret BitString, err os.Error) {
+func parseBitString(bytes []byte) (ret BitString, err error) {
 	if len(bytes) == 0 {
 		err = SyntaxError{"zero length BIT STRING"}
 		return
@@ -189,7 +188,7 @@ func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
 // parseObjectIdentifier parses an OBJECT IDENTIFIER from the given bytes and
 // returns it. An object identifier is a sequence of variable length integers
 // that are assigned in a hierarchy.
-func parseObjectIdentifier(bytes []byte) (s []int, err os.Error) {
+func parseObjectIdentifier(bytes []byte) (s []int, err error) {
 	if len(bytes) == 0 {
 		err = SyntaxError{"zero length OBJECT IDENTIFIER"}
 		return
@@ -227,7 +226,7 @@ type Flag bool
 
 // parseBase128Int parses a base-128 encoded int from the given offset in the
 // given byte slice. It returns the value and the new offset.
-func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err os.Error) {
+func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) {
 	offset = initOffset
 	for shifted := 0; offset < len(bytes); shifted++ {
 		if shifted > 4 {
@@ -248,7 +247,7 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err os.Erro
 
 // UTCTime
 
-func parseUTCTime(bytes []byte) (ret *time.Time, err os.Error) {
+func parseUTCTime(bytes []byte) (ret *time.Time, err error) {
 	s := string(bytes)
 	ret, err = time.Parse("0601021504Z0700", s)
 	if err == nil {
@@ -260,7 +259,7 @@ func parseUTCTime(bytes []byte) (ret *time.Time, err os.Error) {
 
 // parseGeneralizedTime parses the GeneralizedTime from the given byte slice
 // and returns the resulting time.
-func parseGeneralizedTime(bytes []byte) (ret *time.Time, err os.Error) {
+func parseGeneralizedTime(bytes []byte) (ret *time.Time, err error) {
 	return time.Parse("20060102150405Z0700", string(bytes))
 }
 
@@ -268,7 +267,7 @@ func parseGeneralizedTime(bytes []byte) (ret *time.Time, err os.Error) {
 
 // parsePrintableString parses a ASN.1 PrintableString from the given byte
 // array and returns it.
-func parsePrintableString(bytes []byte) (ret string, err os.Error) {
+func parsePrintableString(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
 		if !isPrintable(b) {
 			err = SyntaxError{"PrintableString contains invalid character"}
@@ -300,7 +299,7 @@ func isPrintable(b byte) bool {
 
 // parseIA5String parses a ASN.1 IA5String (ASCII string) from the given
 // byte slice and returns it.
-func parseIA5String(bytes []byte) (ret string, err os.Error) {
+func parseIA5String(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
 		if b >= 0x80 {
 			err = SyntaxError{"IA5String contains invalid character"}
@@ -315,7 +314,7 @@ func parseIA5String(bytes []byte) (ret string, err os.Error) {
 
 // parseT61String parses a ASN.1 T61String (8-bit clean string) from the given
 // byte slice and returns it.
-func parseT61String(bytes []byte) (ret string, err os.Error) {
+func parseT61String(bytes []byte) (ret string, err error) {
 	return string(bytes), nil
 }
 
@@ -323,7 +322,7 @@ func parseT61String(bytes []byte) (ret string, err os.Error) {
 
 // parseUTF8String parses a ASN.1 UTF8String (raw UTF-8) from the given byte
 // array and returns it.
-func parseUTF8String(bytes []byte) (ret string, err os.Error) {
+func parseUTF8String(bytes []byte) (ret string, err error) {
 	return string(bytes), nil
 }
 
@@ -346,7 +345,7 @@ type RawContent []byte
 // into a byte slice. It returns the parsed data and the new offset. SET and
 // SET OF (tag 17) are mapped to SEQUENCE and SEQUENCE OF (tag 16) since we
 // don't distinguish between ordered and unordered objects in this code.
-func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset int, err os.Error) {
+func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset int, err error) {
 	offset = initOffset
 	b := bytes[offset]
 	offset++
@@ -402,7 +401,7 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 // parseSequenceOf is used for SEQUENCE OF and SET OF values. It tries to parse
 // a number of ASN.1 values from the given byte slice and returns them as a
 // slice of Go values of the given type.
-func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type) (ret reflect.Value, err os.Error) {
+func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type) (ret reflect.Value, err error) {
 	expectedTag, compoundType, ok := getUniversalType(elemType)
 	if !ok {
 		err = StructuralError{"unknown Go type for slice"}
@@ -466,7 +465,7 @@ func invalidLength(offset, length, sliceLength int) bool {
 // parseField is the main parsing function. Given a byte slice and an offset
 // into the array, it will try to parse a suitable ASN.1 value out and store it
 // in the given Value.
-func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParameters) (offset int, err os.Error) {
+func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParameters) (offset int, err error) {
 	offset = initOffset
 	fieldType := v.Type()
 
@@ -649,7 +648,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		return
 	case timeType:
 		var time *time.Time
-		var err1 os.Error
+		var err1 error
 		if universalTag == tagUTCTime {
 			time, err1 = parseUTCTime(innerBytes)
 		} else {
@@ -826,13 +825,13 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //
 // Other ASN.1 types are not supported; if it encounters them,
 // Unmarshal returns a parse error.
-func Unmarshal(b []byte, val interface{}) (rest []byte, err os.Error) {
+func Unmarshal(b []byte, val interface{}) (rest []byte, err error) {
 	return UnmarshalWithParams(b, val, "")
 }
 
 // UnmarshalWithParams allows field parameters to be specified for the
 // top-level element. The form of the params is the same as the field tags.
-func UnmarshalWithParams(b []byte, val interface{}, params string) (rest []byte, err os.Error) {
+func UnmarshalWithParams(b []byte, val interface{}, params string) (rest []byte, err error) {
 	v := reflect.ValueOf(val).Elem()
 	offset, err := parseField(v, b, 0, parseFieldParameters(params))
 	if err != nil {

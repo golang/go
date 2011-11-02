@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"io"
 	"io/ioutil"
-	"os"
 	"testing"
 )
 
@@ -46,7 +45,7 @@ func readerFromHex(s string) io.Reader {
 	return bytes.NewBuffer(data)
 }
 
-func decompressHex(s string) (out []byte, err os.Error) {
+func decompressHex(s string) (out []byte, err error) {
 	r := NewReader(readerFromHex(s))
 	return ioutil.ReadAll(r)
 }

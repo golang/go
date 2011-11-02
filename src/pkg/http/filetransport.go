@@ -7,7 +7,6 @@ package http
 import (
 	"fmt"
 	"io"
-	"os"
 )
 
 // fileTransport implements RoundTripper for the 'file' protocol.
@@ -32,7 +31,7 @@ func NewFileTransport(fs FileSystem) RoundTripper {
 	return fileTransport{fileHandler{fs}}
 }
 
-func (t fileTransport) RoundTrip(req *Request) (resp *Response, err os.Error) {
+func (t fileTransport) RoundTrip(req *Request) (resp *Response, err error) {
 	// We start ServeHTTP in a goroutine, which may take a long
 	// time if the file is large.  The newPopulateResponseWriter
 	// call returns a channel which either ServeHTTP or finish()
@@ -112,7 +111,7 @@ func (pr *populateResponse) WriteHeader(code int) {
 	pr.res.Status = fmt.Sprintf("%d %s", code, StatusText(code))
 }
 
-func (pr *populateResponse) Write(p []byte) (n int, err os.Error) {
+func (pr *populateResponse) Write(p []byte) (n int, err error) {
 	if !pr.wroteHeader {
 		pr.WriteHeader(StatusOK)
 	}

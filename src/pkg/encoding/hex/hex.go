@@ -8,7 +8,6 @@ package hex
 import (
 	"bytes"
 	"io"
-	"os"
 	"strconv"
 )
 
@@ -33,12 +32,12 @@ func Encode(dst, src []byte) int {
 // OddLengthInputError results from decoding an odd length slice.
 type OddLengthInputError struct{}
 
-func (OddLengthInputError) String() string { return "odd length hex string" }
+func (OddLengthInputError) Error() string { return "odd length hex string" }
 
 // InvalidHexCharError results from finding an invalid character in a hex string.
 type InvalidHexCharError byte
 
-func (e InvalidHexCharError) String() string {
+func (e InvalidHexCharError) Error() string {
 	return "invalid hex char: " + strconv.Itoa(int(e))
 }
 
@@ -49,7 +48,7 @@ func DecodedLen(x int) int { return x / 2 }
 //
 // If Decode encounters invalid input, it returns an OddLengthInputError or an
 // InvalidHexCharError.
-func Decode(dst, src []byte) (int, os.Error) {
+func Decode(dst, src []byte) (int, error) {
 	if len(src)%2 == 1 {
 		return 0, OddLengthInputError{}
 	}
@@ -91,7 +90,7 @@ func EncodeToString(src []byte) string {
 }
 
 // DecodeString returns the bytes represented by the hexadecimal string s.
-func DecodeString(s string) ([]byte, os.Error) {
+func DecodeString(s string) ([]byte, error) {
 	src := []byte(s)
 	dst := make([]byte, DecodedLen(len(src)))
 	_, err := Decode(dst, src)
@@ -133,7 +132,7 @@ func toChar(b byte) byte {
 	return b
 }
 
-func (h *dumper) Write(data []byte) (n int, err os.Error) {
+func (h *dumper) Write(data []byte) (n int, err error) {
 	// Output lines look like:
 	// 00000010  2e 2f 30 31 32 33 34 35  36 37 38 39 3a 3b 3c 3d  |./0123456789:;<=|
 	// ^ offset                          ^ extra space              ^ ASCII of line.
@@ -185,7 +184,7 @@ func (h *dumper) Write(data []byte) (n int, err os.Error) {
 	return
 }
 
-func (h *dumper) Close() (err os.Error) {
+func (h *dumper) Close() (err error) {
 	// See the comments in Write() for the details of this format.
 	if h.used == 0 {
 		return

@@ -4,10 +4,7 @@
 
 package bcrypt
 
-import (
-	"encoding/base64"
-	"os"
-)
+import "encoding/base64"
 
 const alphabet = "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
@@ -23,7 +20,7 @@ func base64Encode(src []byte) []byte {
 	return dst[:n]
 }
 
-func base64Decode(src []byte) ([]byte, os.Error) {
+func base64Decode(src []byte) ([]byte, error) {
 	numOfEquals := 4 - (len(src) % 4)
 	for i := 0; i < numOfEquals; i++ {
 		src = append(src, '=')
