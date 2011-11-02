@@ -49,7 +49,7 @@ func TestPostQuery(t *testing.T) {
 type stringMap map[string][]string
 type parseContentTypeTest struct {
 	contentType stringMap
-	error       bool
+	err         bool
 }
 
 var parseContentTypeTests = []parseContentTypeTest{
@@ -58,7 +58,7 @@ var parseContentTypeTests = []parseContentTypeTest{
 	{contentType: stringMap{"Content-Type": {"text/plain; boundary="}}},
 	{
 		contentType: stringMap{"Content-Type": {"application/unknown"}},
-		error:       true,
+		err:         true,
 	},
 }
 
@@ -70,10 +70,10 @@ func TestPostContentTypeParsing(t *testing.T) {
 			Body:   ioutil.NopCloser(bytes.NewBufferString("body")),
 		}
 		err := req.ParseForm()
-		if !test.error && err != nil {
+		if !test.err && err != nil {
 			t.Errorf("test %d: Unexpected error: %v", i, err)
 		}
-		if test.error && err == nil {
+		if test.err && err == nil {
 			t.Errorf("test %d should have returned error", i)
 		}
 	}
