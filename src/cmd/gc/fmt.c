@@ -921,7 +921,6 @@ static int opprec[] = {
 
 	[OINDEXMAP] = 8,
 	[OINDEX] = 8,
-	[OIND] = 8,
 	[ODOTINTER] = 8,
 	[ODOTMETH] = 8,
 	[ODOTPTR] = 8,
@@ -1146,6 +1145,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 		exprfmt(f, n->left, nprec);
 		return fmtprint(f, "[%N]", n->right);
 
+	case OCOPY:
 	case OCOMPLEX:
 		return fmtprint(f, "%#O(%N, %N)", n->op, n->left, n->right);
 
@@ -1167,7 +1167,6 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OCAP:
 	case OCLOSE:
 	case OLEN:
-	case OCOPY:
 	case OMAKE:
 	case ONEW:
 	case OPANIC:
@@ -1188,13 +1187,11 @@ exprfmt(Fmt *f, Node *n, int prec)
 			return fmtprint(f, "(%,H...)", n->list);
 		return fmtprint(f, "(%,H)", n->list);
 
-	case OMAKESLICE:
-		if(count(n->list) > 2)
-			return fmtprint(f, "make(%T, %N, %N)", n->type, n->left, n->right);   // count list, but print l/r?
-		return fmtprint(f, "make(%T, %N)", n->type, n->left);
-
 	case OMAKEMAP:
 	case OMAKECHAN:
+	case OMAKESLICE:
+		if(n->list->next)
+			return fmtprint(f, "make(%T, %,H)", n->type, n->list->next);
 		return fmtprint(f, "make(%T)", n->type);
 
 	case OADD:

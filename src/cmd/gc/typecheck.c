@@ -745,6 +745,7 @@ reswitch:
 		defaultlit(&n->right->right, T);
 		if(isfixedarray(n->left->type)) {
 			n->left = nod(OADDR, n->left, N);
+			n->left->implicit = 1;
 			typecheck(&n->left, top);
 		}
 		if(n->right->left != N) {
