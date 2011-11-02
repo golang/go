@@ -98,12 +98,12 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
 		p.ctlEvent.Fd = int32(fd)
 		p.ctlEvent.Events = events
 		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_MOD, fd, &p.ctlEvent); e != 0 {
-			print("Epoll modify fd=", fd, ": ", os.Errno(e).String(), "\n")
+			print("Epoll modify fd=", fd, ": ", os.Errno(e).Error(), "\n")
 		}
 		p.events[fd] = events
 	} else {
 		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); e != 0 {
-			print("Epoll delete fd=", fd, ": ", os.Errno(e).String(), "\n")
+			print("Epoll delete fd=", fd, ": ", os.Errno(e).Error(), "\n")
 		}
 		delete(p.events, fd)
 	}
