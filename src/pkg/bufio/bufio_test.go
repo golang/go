@@ -698,6 +698,17 @@ func TestLinesAfterRead(t *testing.T) {
 	}
 }
 
+func TestReadLineNonNilLineOrError(t *testing.T) {
+	r := NewReader(strings.NewReader("line 1\n"))
+	for i := 0; i < 2; i++ {
+		l, _, err := r.ReadLine()
+		if l != nil && err != nil {
+			t.Fatalf("on line %d/2; ReadLine=%#v, %v; want non-nil line or Error, but not both",
+				i+1, l, err)
+		}
+	}
+}
+
 type readLineResult struct {
 	line     []byte
 	isPrefix bool

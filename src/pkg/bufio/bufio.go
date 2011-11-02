@@ -312,6 +312,9 @@ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
 	}
 
 	if len(line) == 0 {
+		if err != nil {
+			line = nil
+		}
 		return
 	}
 	err = nil
