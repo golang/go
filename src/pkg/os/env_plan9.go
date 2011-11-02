@@ -8,12 +8,12 @@ package os
 
 import "syscall"
 
-// ENOENV is the Error indicating that an environment variable does not exist.
+// ENOENV is the error indicating that an environment variable does not exist.
 var ENOENV = NewError("no such environment variable")
 
 // Getenverror retrieves the value of the environment variable named by the key.
 // It returns the value and an error, if any.
-func Getenverror(key string) (value string, err Error) {
+func Getenverror(key string) (value string, err error) {
 	if len(key) == 0 {
 		return "", EINVAL
 	}
@@ -45,8 +45,8 @@ func Getenv(key string) string {
 }
 
 // Setenv sets the value of the environment variable named by the key.
-// It returns an Error, if any.
-func Setenv(key, value string) Error {
+// It returns an error, if any.
+func Setenv(key, value string) error {
 	if len(key) == 0 {
 		return EINVAL
 	}

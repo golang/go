@@ -199,7 +199,7 @@ func TestMkdirAllAtSlash(t *testing.T) {
 	if err != nil {
 		pathErr, ok := err.(*PathError)
 		// common for users not to be able to write to /
-		if ok && pathErr.Error == EACCES {
+		if ok && pathErr.Err == EACCES {
 			return
 		}
 		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v`, err)

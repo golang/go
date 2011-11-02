@@ -4,6 +4,8 @@
 
 package os
 
+import "io"
+
 // MkdirAll creates a directory named path,
 // along with any necessary parents, and returns nil,
 // or else returns an error.
@@ -11,7 +13,7 @@ package os
 // directories that MkdirAll creates.
 // If path is already a directory, MkdirAll does nothing
 // and returns nil.
-func MkdirAll(path string, perm uint32) Error {
+func MkdirAll(path string, perm uint32) error {
 	// If path exists, stop with success or error.
 	dir, err := Stat(path)
 	if err == nil {
@@ -58,7 +60,7 @@ func MkdirAll(path string, perm uint32) Error {
 // It removes everything it can but returns the first error
 // it encounters.  If the path does not exist, RemoveAll
 // returns nil (no error).
-func RemoveAll(path string) Error {
+func RemoveAll(path string) error {
 	// Simple case: if Remove works, we're done.
 	err := Remove(path)
 	if err == nil {
@@ -68,7 +70,7 @@ func RemoveAll(path string) Error {
 	// Otherwise, is this a directory we need to recurse into?
 	dir, serr := Lstat(path)
 	if serr != nil {
-		if serr, ok := serr.(*PathError); ok && (serr.Error == ENOENT || serr.Error == ENOTDIR) {
+		if serr, ok := serr.(*PathError); ok && (serr.Err == ENOENT || serr.Err == ENOTDIR) {
 			return nil
 		}
 		return serr
@@ -94,7 +96,7 @@ func RemoveAll(path string) Error {
 				err = err1
 			}
 		}
-		if err1 == EOF {
+		if err1 == io.EOF {
 			break
 		}
 		// If Readdirnames returned an error, use it.

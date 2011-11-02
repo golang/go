@@ -7,10 +7,10 @@ package os
 import "syscall"
 
 // Time returns the current time, in whole seconds and
-// fractional nanoseconds, plus an Error if any. The current
+// fractional nanoseconds, plus an error if any. The current
 // time is thus 1e9*sec+nsec, in nanoseconds.  The zero of
 // time is the Unix epoch.
-func Time() (sec int64, nsec int64, err Error) {
+func Time() (sec int64, nsec int64, err error) {
 	var tv syscall.Timeval
 	if e := syscall.Gettimeofday(&tv); iserror(e) {
 		return 0, 0, NewSyscallError("gettimeofday", e)

@@ -7,6 +7,7 @@
 package os
 
 import (
+	"io"
 	"syscall"
 )
 
@@ -26,7 +27,7 @@ const (
 // nil os.Error. If it encounters an error before the end of the
 // directory, Readdirnames returns the names read until that point and
 // a non-nil error.
-func (f *File) Readdirnames(n int) (names []string, err Error) {
+func (f *File) Readdirnames(n int) (names []string, err error) {
 	// If this file has no dirinfo, create one.
 	if f.dirinfo == nil {
 		f.dirinfo = new(dirInfo)
@@ -63,7 +64,7 @@ func (f *File) Readdirnames(n int) (names []string, err Error) {
 		n -= nc
 	}
 	if n >= 0 && len(names) == 0 {
-		return names, EOF
+		return names, io.EOF
 	}
 	return names, nil
 }

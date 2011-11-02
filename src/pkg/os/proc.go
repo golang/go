@@ -24,7 +24,7 @@ func Getgid() int { return syscall.Getgid() }
 func Getegid() int { return syscall.Getegid() }
 
 // Getgroups returns a list of the numeric ids of groups that the caller belongs to.
-func Getgroups() ([]int, Error) {
+func Getgroups() ([]int, error) {
 	gids, e := syscall.Getgroups()
 	return gids, NewSyscallError("getgroups", e)
 }
