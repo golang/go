@@ -52,10 +52,6 @@ func TestGmailMX(t *testing.T) {
 }
 
 func TestGmailTXT(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Logf("LookupTXT is not implemented on Windows")
-		return
-	}
 	if testing.Short() || avoidMacFirewall {
 		t.Logf("skipping test to avoid external network")
 		return
