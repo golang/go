@@ -57,6 +57,7 @@ func init() {
 	defType("rune") // TODO(gri) should be an alias for int
 	defType("complex64")
 	Complex128 = defType("complex128")
+	defType("error")
 	defType("float32")
 	Float64 = defType("float64")
 	defType("int8")
