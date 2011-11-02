@@ -288,8 +288,8 @@ The other goroutine, number 1, is stuck in <code>runtime.gosched</code>, blocked
 #1  0x00000000004031c9 in runtime.chanrecv (c=void, ep=void, selected=void, received=void)
  at  /home/lvd/g/src/pkg/runtime/chan.c:342
 #2  0x0000000000403299 in runtime.chanrecv1 (t=void, c=void) at/home/lvd/g/src/pkg/runtime/chan.c:423
-#3  0x000000000043075b in testing.RunTests (matchString={void (struct string, struct string, bool *, os.Error *)} 0x7ffff7f9ef60, tests=  []testing.InternalTest = {...}) at /home/lvd/g/src/pkg/testing/testing.go:201
-#4  0x00000000004302b1 in testing.Main (matchString={void (struct string, struct string, bool *, os.Error *)} 0x7ffff7f9ef80, tests= []testing.InternalTest = {...}, benchmarks= []testing.InternalBenchmark = {...})
+#3  0x000000000043075b in testing.RunTests (matchString={void (struct string, struct string, bool *, error *)} 0x7ffff7f9ef60, tests=  []testing.InternalTest = {...}) at /home/lvd/g/src/pkg/testing/testing.go:201
+#4  0x00000000004302b1 in testing.Main (matchString={void (struct string, struct string, bool *, error *)} 0x7ffff7f9ef80, tests= []testing.InternalTest = {...}, benchmarks= []testing.InternalBenchmark = {...})
     at /home/lvd/g/src/pkg/testing/testing.go:168
 #5  0x0000000000400dc1 in main.main () at /home/lvd/g/src/pkg/regexp/_testmain.go:98
 #6  0x00000000004022e7 in runtime.mainstart () at /home/lvd/g/src/pkg/runtime/amd64/asm.s:78

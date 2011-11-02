@@ -304,7 +304,7 @@ func isStandardPath(s string) bool {
 
 // run runs the command cmd in directory dir with standard input stdin.
 // If the command fails, run prints the command and output on standard error
-// in addition to returning a non-nil os.Error.
+// in addition to returning a non-nil error.
 func run(dir string, stdin []byte, cmd ...string) error {
 	return genRun(dir, stdin, cmd, false)
 }

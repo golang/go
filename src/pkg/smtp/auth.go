@@ -13,7 +13,7 @@ type Auth interface {
 	// and optionally data to include in the initial AUTH message
 	// sent to the server. It can return proto == "" to indicate
 	// that the authentication should be skipped.
-	// If it returns a non-nil os.Error, the SMTP client aborts
+	// If it returns a non-nil error, the SMTP client aborts
 	// the authentication attempt and closes the connection.
 	Start(server *ServerInfo) (proto string, toServer []byte, err error)
 
@@ -21,7 +21,7 @@ type Auth interface {
 	// the fromServer data. If more is true, the server expects a
 	// response, which Next should return as toServer; otherwise
 	// Next should return toServer == nil.
-	// If Next returns a non-nil os.Error, the SMTP client aborts
+	// If Next returns a non-nil error, the SMTP client aborts
 	// the authentication attempt and closes the connection.
 	Next(fromServer []byte, more bool) (toServer []byte, err error)
 }

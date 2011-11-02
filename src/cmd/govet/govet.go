@@ -232,23 +232,23 @@ type MethodSig struct {
 // we let it go.  But if it does have a fmt.ScanState, then the
 // rest has to match.
 var canonicalMethods = map[string]MethodSig{
-	// "Flush": {{}, {"os.Error"}}, // http.Flusher and jpeg.writer conflict
-	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},               // fmt.Formatter
-	"GobDecode":     {[]string{"[]byte"}, []string{"os.Error"}},                 // gob.GobDecoder
-	"GobEncode":     {[]string{}, []string{"[]byte", "os.Error"}},               // gob.GobEncoder
-	"MarshalJSON":   {[]string{}, []string{"[]byte", "os.Error"}},               // json.Marshaler
-	"MarshalXML":    {[]string{}, []string{"[]byte", "os.Error"}},               // xml.Marshaler
-	"Peek":          {[]string{"=int"}, []string{"[]byte", "os.Error"}},         // image.reader (matching bufio.Reader)
-	"ReadByte":      {[]string{}, []string{"byte", "os.Error"}},                 // io.ByteReader
-	"ReadFrom":      {[]string{"=io.Reader"}, []string{"int64", "os.Error"}},    // io.ReaderFrom
-	"ReadRune":      {[]string{}, []string{"rune", "int", "os.Error"}},          // io.RuneReader
-	"Scan":          {[]string{"=fmt.ScanState", "rune"}, []string{"os.Error"}}, // fmt.Scanner
-	"Seek":          {[]string{"=int64", "int"}, []string{"int64", "os.Error"}}, // io.Seeker
-	"UnmarshalJSON": {[]string{"[]byte"}, []string{"os.Error"}},                 // json.Unmarshaler
-	"UnreadByte":    {[]string{}, []string{"os.Error"}},
-	"UnreadRune":    {[]string{}, []string{"os.Error"}},
-	"WriteByte":     {[]string{"byte"}, []string{"os.Error"}},                // jpeg.writer (matching bufio.Writer)
-	"WriteTo":       {[]string{"=io.Writer"}, []string{"int64", "os.Error"}}, // io.WriterTo
+	// "Flush": {{}, {"error"}}, // http.Flusher and jpeg.writer conflict
+	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},            // fmt.Formatter
+	"GobDecode":     {[]string{"[]byte"}, []string{"error"}},                 // gob.GobDecoder
+	"GobEncode":     {[]string{}, []string{"[]byte", "error"}},               // gob.GobEncoder
+	"MarshalJSON":   {[]string{}, []string{"[]byte", "error"}},               // json.Marshaler
+	"MarshalXML":    {[]string{}, []string{"[]byte", "error"}},               // xml.Marshaler
+	"Peek":          {[]string{"=int"}, []string{"[]byte", "error"}},         // image.reader (matching bufio.Reader)
+	"ReadByte":      {[]string{}, []string{"byte", "error"}},                 // io.ByteReader
+	"ReadFrom":      {[]string{"=io.Reader"}, []string{"int64", "error"}},    // io.ReaderFrom
+	"ReadRune":      {[]string{}, []string{"rune", "int", "error"}},          // io.RuneReader
+	"Scan":          {[]string{"=fmt.ScanState", "rune"}, []string{"error"}}, // fmt.Scanner
+	"Seek":          {[]string{"=int64", "int"}, []string{"int64", "error"}}, // io.Seeker
+	"UnmarshalJSON": {[]string{"[]byte"}, []string{"error"}},                 // json.Unmarshaler
+	"UnreadByte":    {[]string{}, []string{"error"}},
+	"UnreadRune":    {[]string{}, []string{"error"}},
+	"WriteByte":     {[]string{"byte"}, []string{"error"}},                // jpeg.writer (matching bufio.Writer)
+	"WriteTo":       {[]string{"=io.Writer"}, []string{"int64", "error"}}, // io.WriterTo
 }
 
 func (f *File) checkMethod(id *ast.Ident, t *ast.FuncType) {
@@ -560,11 +560,11 @@ type BadTypeUsedInTests struct {
 	X int "hello" // ERROR "struct field tag"
 }
 
-func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, rune[)] os.Error"
+func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, rune[)] error"
 }
 
 type BadInterfaceUsedInTests interface {
-	ReadByte() byte // ERROR "method ReadByte[(][)] byte should have signature ReadByte[(][)] [(]byte, os.Error[)]"
+	ReadByte() byte // ERROR "method ReadByte[(][)] byte should have signature ReadByte[(][)] [(]byte, error[)]"
 }
 
 // printf is used by the test.

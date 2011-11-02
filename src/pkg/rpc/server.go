@@ -18,12 +18,12 @@
 		  registering the service).
 		- the method has two arguments, both exported or local types.
 		- the method's second argument is a pointer.
-		- the method has return type os.Error.
+		- the method has return type error.
 
 	The method's first argument represents the arguments provided by the caller; the
 	second argument represents the result parameters to be returned to the caller.
 	The method's return value, if non-nil, is passed back as a string that the client
-	sees as an os.ErrorString.
+	sees as if created by errors.New.
 
 	The server may handle requests on a single connection by calling ServeConn.  More
 	typically it will create a network listener and call Accept or, for an HTTP
@@ -55,14 +55,14 @@
 
 		type Arith int
 
-		func (t *Arith) Multiply(args *Args, reply *int) os.Error {
+		func (t *Arith) Multiply(args *Args, reply *int) error {
 			*reply = args.A * args.B
 			return nil
 		}
 
-		func (t *Arith) Divide(args *Args, quo *Quotient) os.Error {
+		func (t *Arith) Divide(args *Args, quo *Quotient) error {
 			if args.B == 0 {
-				return os.ErrorString("divide by zero")
+				return errors.New("divide by zero")
 			}
 			quo.Quo = args.A / args.B
 			quo.Rem = args.A % args.B
@@ -133,10 +133,9 @@ const (
 	DefaultDebugPath = "/debug/rpc"
 )
 
-// Precompute the reflect type for os.Error.  Can't use os.Error directly
+// Precompute the reflect type for error.  Can't use error directly
 // because Typeof takes an empty interface value.  This is annoying.
-var unusedError *error
-var typeOfOsError = reflect.TypeOf(unusedError).Elem()
+var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
 
 type methodType struct {
 	sync.Mutex // protects counters
@@ -210,7 +209,7 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
 // receiver value that satisfy the following conditions:
 //	- exported method
 //	- two arguments, both pointers to exported structs
-//	- one return value, of type os.Error
+//	- one return value, of type error
 // It returns an error if the receiver is not an exported type or has no
 // suitable methods.
 // The client accesses each method using a string of the form "Type.Method",
@@ -281,13 +280,13 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 			log.Println("method", mname, "reply type not exported or local:", replyType)
 			continue
 		}
-		// Method needs one out: os.Error.
+		// Method needs one out: error.
 		if mtype.NumOut() != 1 {
 			log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
 			continue
 		}
-		if returnType := mtype.Out(0); returnType != typeOfOsError {
-			log.Println("method", mname, "returns", returnType.String(), "not os.Error")
+		if returnType := mtype.Out(0); returnType != typeOfError {
+			log.Println("method", mname, "returns", returnType.String(), "not error")
 			continue
 		}
 		s.method[mname] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
@@ -339,7 +338,7 @@ func (s *service) call(server *Server, sending *sync.Mutex, mtype *methodType, r
 	function := mtype.method.Func
 	// Invoke the method, providing a new value for the reply.
 	returnValues := function.Call([]reflect.Value{s.rcvr, argv, replyv})
-	// The return value for the method is an os.Error.
+	// The return value for the method is an error.
 	errInter := returnValues[0].Interface()
 	errmsg := ""
 	if errInter != nil {

@@ -54,7 +54,7 @@ const (
 	noExtraLinebreak
 )
 
-// local error wrapper so we can distinguish os.Errors we want to return
+// local error wrapper so we can distinguish errors we want to return
 // as errors from genuine panics (which we don't want to return as errors)
 type osError struct {
 	err error

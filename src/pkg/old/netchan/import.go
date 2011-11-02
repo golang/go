@@ -186,7 +186,7 @@ func (imp *Importer) Import(name string, chT interface{}, dir Dir, size int) err
 // The channel to be bound to the remote site's channel is provided
 // in the call and may be of arbitrary channel type.
 // Despite the literal signature, the effective signature is
-//	ImportNValues(name string, chT chan T, dir Dir, size, n int) os.Error
+//	ImportNValues(name string, chT chan T, dir Dir, size, n int) error
 // Example usage:
 //	imp, err := NewImporter("tcp", "netchanserver.mydomain.com:1234")
 //	if err != nil { log.Fatal(err) }

@@ -141,7 +141,7 @@ func Lstat(name string) (fi *FileInfo, err error) {
 // If n <= 0, Readdir returns all the FileInfo from the directory in
 // a single slice. In this case, if Readdir succeeds (reads all
 // the way to the end of the directory), it returns the slice and a
-// nil os.Error. If it encounters an error before the end of the
+// nil error. If it encounters an error before the end of the
 // directory, Readdir returns the FileInfo read until that point
 // and a non-nil error.
 func (file *File) Readdir(n int) (fi []FileInfo, err error) {

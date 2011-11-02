@@ -20,7 +20,7 @@ type Channel interface {
 	// peer is likely to signal a protocol error and drop the connection.
 	Reject(reason RejectionReason, message string) error
 
-	// Read may return a ChannelRequest as an os.Error.
+	// Read may return a ChannelRequest as an error.
 	Read(data []byte) (int, error)
 	Write(data []byte) (int, error)
 	Close() error

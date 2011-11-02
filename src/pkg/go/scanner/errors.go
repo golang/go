@@ -135,8 +135,8 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
 	return list
 }
 
-// GetError is like GetErrorList, but it returns an os.Error instead
-// so that a nil result can be assigned to an os.Error variable and
+// GetError is like GetErrorList, but it returns an error instead
+// so that a nil result can be assigned to an error variable and
 // remains nil.
 //
 func (h *ErrorVector) GetError(mode int) error {

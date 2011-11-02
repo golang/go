@@ -4,6 +4,8 @@
 
 package utf8
 
+import "errors"
+
 // String wraps a regular string with a small structure that provides more
 // efficient indexing by code point index, as opposed to byte index.
 // Scanning incrementally forwards or backwards is O(1) per index operation
@@ -193,19 +195,5 @@ func (s *String) At(i int) rune {
 	return r
 }
 
-// We want the panic in At(i) to satisfy os.Error, because that's what
-// runtime panics satisfy, but we can't import os.  This is our solution.
-
-// error is the type of the error returned if a user calls String.At(i) with i out of range.
-// It satisfies os.Error and runtime.Error.
-type error_ string
-
-func (err error_) String() string {
-	return string(err)
-}
-
-func (err error_) RunTimeError() {
-}
-
-var outOfRange = error_("utf8.String: index out of range")
-var sliceOutOfRange = error_("utf8.String: slice index out of range")
+var outOfRange = errors.New("utf8.String: index out of range")
+var sliceOutOfRange = errors.New("utf8.String: slice index out of range")

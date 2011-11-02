@@ -32,7 +32,7 @@ var good_re = []string{
 /*
 type stringError struct {
 	re  string
-	err os.Error
+	err error
 }
 
 var bad_re = []stringError{

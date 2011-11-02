@@ -10,7 +10,7 @@ type Error interface {
 
 	// RuntimeError is a no-op function but
 	// serves to distinguish types that are runtime
-	// errors from ordinary os.Errors: a type is a
+	// errors from ordinary errors: a type is a
 	// runtime error if it has a RuntimeError method.
 	RuntimeError()
 }
