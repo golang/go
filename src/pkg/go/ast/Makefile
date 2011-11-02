@@ -8,6 +8,7 @@ TARG=go/ast
 GOFILES=\
 	ast.go\
 	filter.go\
+	import.go\
 	print.go\
 	resolve.go\
 	scope.go\

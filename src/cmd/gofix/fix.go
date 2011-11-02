@@ -569,9 +569,9 @@ func renameTop(f *ast.File, old, new string) bool {
 }
 
 // addImport adds the import path to the file f, if absent.
-func addImport(f *ast.File, ipath string) {
+func addImport(f *ast.File, ipath string) (added bool) {
 	if imports(f, ipath) {
-		return
+		return false
 	}
 
 	// Determine name of import.
@@ -637,10 +637,11 @@ func addImport(f *ast.File, ipath string) {
 	impdecl.Specs[insertAt] = newImport
 
 	f.Imports = append(f.Imports, newImport)
+	return true
 }
 
 // deleteImport deletes the import path from the file f, if present.
-func deleteImport(f *ast.File, path string) {
+func deleteImport(f *ast.File, path string) (deleted bool) {
 	oldImport := importSpec(f, path)
 
 	// Find the import node that imports path, if any.
@@ -657,6 +658,7 @@ func deleteImport(f *ast.File, path string) {
 
 			// We found an import spec that imports path.
 			// Delete it.
+			deleted = true
 			copy(gen.Specs[j:], gen.Specs[j+1:])
 			gen.Specs = gen.Specs[:len(gen.Specs)-1]
 
@@ -687,6 +689,19 @@ func deleteImport(f *ast.File, path string) {
 			break
 		}
 	}
+
+	return
+}
+
+// rewriteImport rewrites any import of path oldPath to path newPath.
+func rewriteImport(f *ast.File, oldPath, newPath string) (rewrote bool) {
+	for _, imp := range f.Imports {
+		if importPath(imp) == oldPath {
+			rewrote = true
+			imp.Path.Value = strconv.Quote(newPath)
+		}
+	}
+	return
 }
 
 func usesImport(f *ast.File, path string) (used bool) {

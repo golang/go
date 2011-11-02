@@ -22,8 +22,8 @@ package netchan
 // BUG: can't use range clause to receive when using ImportNValues to limit the count.
 
 import (
-	"log"
 	"io"
+	"log"
 	"net"
 	"os"
 	"reflect"

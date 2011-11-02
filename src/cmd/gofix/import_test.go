@@ -246,6 +246,26 @@ import (
 )
 `,
 	},
+	{
+		Name: "import.13",
+		Fn:   rewriteImportFn("utf8", "encoding/utf8"),
+		In: `package main
+
+import (
+	"io"
+	"os"
+	"utf8" // thanks ken
+)
+`,
+		Out: `package main
+
+import (
+	"encoding/utf8" // thanks ken
+	"io"
+	"os"
+)
+`,
+	},
 }
 
 func addImportFn(path string) func(*ast.File) bool {
@@ -262,6 +282,16 @@ func deleteImportFn(path string) func(*ast.File) bool {
 	return func(f *ast.File) bool {
 		if imports(f, path) {
 			deleteImport(f, path)
+			return true
+		}
+		return false
+	}
+}
+
+func rewriteImportFn(old, new string) func(*ast.File) bool {
+	return func(f *ast.File) bool {
+		if imports(f, old) {
+			rewriteImport(f, old, new)
 			return true
 		}
 		return false

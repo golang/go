@@ -5,10 +5,8 @@
 package main
 
 import (
-	"bytes"
 	"go/ast"
 	"go/parser"
-	"go/printer"
 	"strings"
 	"testing"
 )
@@ -43,14 +41,12 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string) (out 
 		return
 	}
 
-	var buf bytes.Buffer
-	buf.Reset()
-	_, err = (&printer.Config{printerMode, tabWidth}).Fprint(&buf, fset, file)
+	outb, err := gofmtFile(file)
 	if err != nil {
 		t.Errorf("%s: printing: %v", desc, err)
 		return
 	}
-	if s := buf.String(); in != s && fn != fnop {
+	if s := string(outb); in != s && fn != fnop {
 		t.Errorf("%s: not gofmt-formatted.\n--- %s\n%s\n--- %s | gofmt\n%s",
 			desc, desc, in, desc, s)
 		tdiff(t, in, s)
@@ -67,14 +63,13 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string) (out 
 		fixed = fn(file)
 	}
 
-	buf.Reset()
-	_, err = (&printer.Config{printerMode, tabWidth}).Fprint(&buf, fset, file)
+	outb, err = gofmtFile(file)
 	if err != nil {
 		t.Errorf("%s: printing: %v", desc, err)
 		return
 	}
 
-	return buf.String(), fixed, true
+	return string(outb), fixed, true
 }
 
 func TestRewrite(t *testing.T) {
