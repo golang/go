@@ -17,126 +17,23 @@ unimplemented(int8 *name)
 	*(int32*)1231 = 1231;
 }
 
-// Thread-safe allocation of a semaphore.
-// Psema points at a kernel semaphore key.
-// It starts out zero, meaning no semaphore.
-// Fill it in, being careful of others calling initsema
-// simultaneously.
-static void
-initsema(uint32 *psema)
-{
-	uint32 sema;
-
-	if(*psema != 0)	// already have one
-		return;
-
-	sema = runtime·mach_semcreate();
-	if(!runtime·cas(psema, 0, sema)){
-		// Someone else filled it in.  Use theirs.
-		runtime·mach_semdestroy(sema);
-		return;
-	}
-}
-
-
-// Blocking locks.
-
-// Implement Locks, using semaphores.
-// l->key is the number of threads who want the lock.
-// In a race, one thread increments l->key from 0 to 1
-// and the others increment it from >0 to >1.  The thread
-// who does the 0->1 increment gets the lock, and the
-// others wait on the semaphore.  When the 0->1 thread
-// releases the lock by decrementing l->key, l->key will
-// be >0, so it will increment the semaphore to wake up
-// one of the others.  This is the same algorithm used
-// in Plan 9's user-level locks.
-
 void
-runtime·lock(Lock *l)
+runtime·semasleep(void)
 {
-	if(m->locks < 0)
-		runtime·throw("lock count");
-	m->locks++;
-
-	if(runtime·xadd(&l->key, 1) > 1) {	// someone else has it; wait
-		// Allocate semaphore if needed.
-		if(l->sema == 0)
-			initsema(&l->sema);
-		runtime·mach_semacquire(l->sema);
-	}
+	runtime·mach_semacquire(m->waitsema);
 }
 
 void
-runtime·unlock(Lock *l)
+runtime·semawakeup(M *mp)
 {
-	m->locks--;
-	if(m->locks < 0)
-		runtime·throw("lock count");
-
-	if(runtime·xadd(&l->key, -1) > 0) {	// someone else is waiting
-		// Allocate semaphore if needed.
-		if(l->sema == 0)
-			initsema(&l->sema);
-		runtime·mach_semrelease(l->sema);
-	}
+	runtime·mach_semrelease(mp->waitsema);
 }
 
-static void
-destroylock(Lock *l)
+uintptr
+runtime·semacreate(void)
 {
-	if(l->sema != 0) {
-		runtime·mach_semdestroy(l->sema);
-		l->sema = 0;
-	}
+	return runtime·mach_semcreate();
 }
-
-// User-level semaphore implementation:
-// try to do the operations in user space on u,
-// but when it's time to block, fall back on the kernel semaphore k.
-// This is the same algorithm used in Plan 9.
-void
-runtime·usemacquire(Usema *s)
-{
-	if((int32)runtime·xadd(&s->u, -1) < 0) {
-		if(s->k == 0)
-			initsema(&s->k);
-		runtime·mach_semacquire(s->k);
-	}
-}
-
-void
-runtime·usemrelease(Usema *s)
-{
-	if((int32)runtime·xadd(&s->u, 1) <= 0) {
-		if(s->k == 0)
-			initsema(&s->k);
-		runtime·mach_semrelease(s->k);
-	}
-}
-
-
-// Event notifications.
-void
-runtime·noteclear(Note *n)
-{
-	n->wakeup = 0;
-}
-
-void
-runtime·notesleep(Note *n)
-{
-	while(!n->wakeup)
-		runtime·usemacquire(&n->sema);
-}
-
-void
-runtime·notewakeup(Note *n)
-{
-	n->wakeup = 1;
-	runtime·usemrelease(&n->sema);
-}
-
 
 // BSD interface for threading.
 void
@@ -147,7 +44,6 @@ runtime·osinit(void)
 	// to let the C pthread libary install its own thread-creation callback.
 	if(!runtime·iscgo)
 		runtime·bsdthread_register();
-	runtime·destroylock = destroylock;
 
 	// Use sysctl to fetch hw.ncpu.
 	uint32 mib[2];

@@ -12,8 +12,8 @@ extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
 // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
 // thus the code is largely similar. See linux/thread.c for comments.
 
-static void
-umtx_wait(uint32 *addr, uint32 val)
+void
+runtime·futexsleep(uint32 *addr, uint32 val)
 {
 	int32 ret;
 
@@ -25,102 +25,17 @@ umtx_wait(uint32 *addr, uint32 val)
 	*(int32*)0x1005 = 0x1005;
 }
 
-static void
-umtx_wake(uint32 *addr)
+void
+runtime·futexwakeup(uint32 *addr, uint32 cnt)
 {
 	int32 ret;
 
-	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAKE, 1, nil, nil);
+	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAKE, cnt, nil, nil);
 	if(ret >= 0)
 		return;
 
 	runtime·printf("umtx_wake addr=%p ret=%d\n", addr, ret);
 	*(int32*)0x1006 = 0x1006;
-}
-
-// See linux/thread.c for comments about the algorithm.
-static void
-umtx_lock(Lock *l)
-{
-	uint32 v;
-
-again:
-	v = l->key;
-	if((v&1) == 0){
-		if(runtime·cas(&l->key, v, v|1))
-			return;
-		goto again;
-	}
-
-	if(!runtime·cas(&l->key, v, v+2))
-		goto again;
-
-	umtx_wait(&l->key, v+2);
-
-	for(;;){
-		v = l->key;
-		if(v < 2)
-			runtime·throw("bad lock key");
-		if(runtime·cas(&l->key, v, v-2))
-			break;
-	}
-
-	goto again;
-}
-
-static void
-umtx_unlock(Lock *l)
-{
-	uint32 v;
-
-again:
-	v = l->key;
-	if((v&1) == 0)
-		runtime·throw("unlock of unlocked lock");
-	if(!runtime·cas(&l->key, v, v&~1))
-		goto again;
-
-	if(v&~1)
-		umtx_wake(&l->key);
-}
-
-void
-runtime·lock(Lock *l)
-{
-	if(m->locks < 0)
-		runtime·throw("lock count");
-	m->locks++;
-	umtx_lock(l);
-}
-
-void 
-runtime·unlock(Lock *l)
-{
-	m->locks--;
-	if(m->locks < 0)
-		runtime·throw("lock count");
-	umtx_unlock(l);
-}
-
-// Event notifications.
-void
-runtime·noteclear(Note *n)
-{
-	n->lock.key = 0;
-	umtx_lock(&n->lock);
-}
-
-void
-runtime·notesleep(Note *n)
-{
-	umtx_lock(&n->lock);
-	umtx_unlock(&n->lock);
-}
-
-void
-runtime·notewakeup(Note *n)
-{
-	umtx_unlock(&n->lock);
 }
 
 void runtime·thr_start(void*);

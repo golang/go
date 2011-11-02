@@ -155,101 +155,22 @@ runtime·usleep(uint32 us)
 	runtime·stdcall(runtime·Sleep, 1, (uintptr)us);
 }
 
-// Thread-safe allocation of an event.
-static void
-initevent(void **pevent)
+void
+runtime·semasleep(void)
 {
-	void *event;
-
-	event = runtime·stdcall(runtime·CreateEvent, 4, (uintptr)0, (uintptr)0, (uintptr)0, (uintptr)0);
-	if(!runtime·casp(pevent, 0, event)) {
-		// Someone else filled it in.  Use theirs.
-		runtime·stdcall(runtime·CloseHandle, 1, event);
-	}
-}
-
-#define LOCK_HELD ((M*)-1)
-
-static void
-eventlock(Lock *l)
-{
-	// Allocate event if needed.
-	if(m->event == nil)
-		initevent(&m->event);
-
-	for(;;) {
-		m->nextwaitm = runtime·atomicloadp(&l->waitm);
-		if(m->nextwaitm == nil) {
-			if(runtime·casp(&l->waitm, nil, LOCK_HELD))
-				return;
-		// Someone else has it.
-		// l->waitm points to a linked list of M's waiting
-		// for this lock, chained through m->nextwaitm.
-		// Queue this M.
-		} else if(runtime·casp(&l->waitm, m->nextwaitm, m))
-			break;
-	}
-
-	// Wait.
-	runtime·stdcall(runtime·WaitForSingleObject, 2, m->event, (uintptr)-1);
-}
-
-static void
-eventunlock(Lock *l)
-{
-	M *mp;
-
-	for(;;) {
-		mp = runtime·atomicloadp(&l->waitm);
-		if(mp == LOCK_HELD) {
-			if(runtime·casp(&l->waitm, LOCK_HELD, nil))
-				return;
-		// Other M's are waiting for the lock.
-		// Dequeue a M.
-		} else if(runtime·casp(&l->waitm, mp, mp->nextwaitm))
-			break;
-	}
-
-	// Wake that M.
-	runtime·stdcall(runtime·SetEvent, 1, mp->event);
+	runtime·stdcall(runtime·WaitForSingleObject, 2, m->waitsema, (uintptr)-1);
 }
 
 void
-runtime·lock(Lock *l)
+runtime·semawakeup(M *mp)
 {
-	if(m->locks < 0)
-		runtime·throw("lock count");
-	m->locks++;
-	eventlock(l);
+	runtime·stdcall(runtime·SetEvent, 1, mp->waitsema);
 }
 
-void
-runtime·unlock(Lock *l)
+uintptr
+runtime·semacreate(void)
 {
-	m->locks--;
-	if(m->locks < 0)
-		runtime·throw("lock count");
-	eventunlock(l);
-}
-
-void
-runtime·noteclear(Note *n)
-{
-	n->lock.waitm = nil;
-	eventlock(&n->lock);
-}
-
-void
-runtime·notewakeup(Note *n)
-{
-	eventunlock(&n->lock);
-}
-
-void
-runtime·notesleep(Note *n)
-{
-	eventlock(&n->lock);
-	eventunlock(&n->lock);	// Let other sleepers find out too.
+	return (uintptr)runtime·stdcall(runtime·CreateEvent, 4, (uintptr)0, (uintptr)0, (uintptr)0, (uintptr)0);
 }
 
 void
