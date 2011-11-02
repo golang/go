@@ -14,6 +14,54 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-11-01">2011-11-01</h2>
+
+<pre>
+* 6l: remove mention of -e flag - it does nothing.
+* cc: change cas to newcase (thanks Ron Minnich).
+* crypto/openpgp/error: use Error in names of error impl types.
+* crypto/rsa: change public exponent from 3 to 65537.
+* crypto/tls: add Error method to alert.
+* doc: add link to A Tour of Go in Japanese,
+	add 'all' make rule to build all docs,
+	refer to tour.golang.org instead of go-tour.appspot.com.
+* exp/norm: fixed bug that crept in with moving to the new regexp.
+* exp/ssh: fix length header leaking into channel data (thanks Dave Cheney).
+* fmt: handle os.Error values explicity (as distinct from Stringer).
+* gc: clean up printing,
+	fix [568]g -V crash (thanks Mikio Hara),
+	test + fix escape analysis bug.
+* go/build: avoid os.Error in tests.
+* go/doc: remove os.NewError anti-heuristic.
+* go/parser: test and fix := scoping bug.
+* gob: split uses of gobError, remove unnecessary embedding.
+* gofix: test import insertion, deletion.
+* goinstall: intelligent vcs selection for common sites (thanks Julian Phillips).
+* gopack: change archive file name length back to 16.
+* html: fix print argument in test,
+	more parser improvements (thanks Andrew Balholm).
+* json: properly handle nil slices (thanks Alexander Reece).
+* math: improved accuracy for Sin and Cos (thanks Charles L. Dorian).
+* misc/emacs: fix restoration of windows after gofmt (thanks Jan Newmarch).
+* misc/vim: add rune keyword (thanks Jongmin Kim).
+* misc/windows: can be used for amd64 (thanks Alex Brainman).
+* net: document why we do not use SO_REUSEADDR on windows (thanks Alex Brainman).
+* os: do not interpret 0-length read as EOF.
+* pkg: remove .String() from some print arguments.
+* rpc: avoid infinite loop on input error.
+* runtime/pprof: document OS X being broken.
+* runtime: lock the main goroutine to the main OS thread during init.
+* spec: define that initialization is sequential.
+* strconv: use better errors than os.EINVAL, os.ERANGE.
+* syscall: fix Await msg on Plan 9 (thanks Andrey Mirtchovski).
+* template: do not use error as stringer,
+	fix error checking on execute without parse (thanks Scott Lawrence).
+* test/alias.go: additional tests.
+* test: error-related fixes.
+* textproto: prevent long lines in HTTP headers from causing HTTP 400 responses.
+* time: add RFC1123 with numeric timezone format (thanks Scott Lawrence).
+</pre>
+
 <h2 id="2011-10-26">2011-10-26 (new rune type)</h2>
 
 <pre>
