@@ -187,5 +187,5 @@ func (p *parser) parse(filename string, src io.Reader) Grammar {
 func Parse(filename string, src io.Reader) (Grammar, os.Error) {
 	var p parser
 	grammar := p.parse(filename, src)
-	return grammar, p.errors.Error()
+	return grammar, p.errors.Err()
 }
