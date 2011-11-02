@@ -1595,6 +1595,14 @@ looktypedot(Node *n, Type *t, int dostrcmp)
 	return 1;
 }
 
+static Type*
+derefall(Type* t)
+{
+	while(t && t->etype == tptr)
+		t = t->type;
+	return t;
+}
+
 static int
 lookdot(Node *n, Type *t, int dostrcmp)
 {
@@ -1652,8 +1660,15 @@ lookdot(Node *n, Type *t, int dostrcmp)
 				n->left = nod(OIND, n->left, N);
 				n->left->implicit = 1;
 				typecheck(&n->left, Etype|Erv);
+			} else if(tt->etype == tptr && tt->type->etype == tptr && eqtype(derefall(tt), rcvr)) {
+				yyerror("calling method %N with receiver %lN requires explicit dereference", n->right, n->left);
+				while(tt->etype == tptr) {
+					n->left = nod(OIND, n->left, N);
+					n->left->implicit = 1;
+					typecheck(&n->left, Etype|Erv);
+					tt = tt->type;
+				}
 			} else {
-				// method is attached to wrong type?
 				fatal("method mismatch: %T for %T", rcvr, tt);
 			}
 		}
