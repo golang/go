@@ -9,8 +9,8 @@ package binary
 
 import (
 	"errors"
-	"math"
 	"io"
+	"math"
 	"reflect"
 )
 

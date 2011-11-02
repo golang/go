@@ -5,11 +5,11 @@
 package xml
 
 import (
-	"reflect"
-	"testing"
 	"bytes"
-	"strings"
+	"reflect"
 	"strconv"
+	"strings"
+	"testing"
 )
 
 type DriveType int

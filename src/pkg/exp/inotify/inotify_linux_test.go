@@ -6,8 +6,8 @@ package inotify
 
 import (
 	"os"
-	"time"
 	"testing"
+	"time"
 )
 
 func TestInotifyEvents(t *testing.T) {

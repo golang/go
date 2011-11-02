@@ -6,8 +6,8 @@ package filepath_test
 
 import (
 	. "path/filepath"
-	"testing"
 	"runtime"
+	"testing"
 )
 
 type MatchTest struct {

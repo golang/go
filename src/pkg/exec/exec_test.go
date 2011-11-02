@@ -10,11 +10,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"testing"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
+	"testing"
 )
 
 func helperCommand(s ...string) *Cmd {

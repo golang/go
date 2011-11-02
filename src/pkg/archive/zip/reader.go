@@ -7,10 +7,10 @@ package zip
 import (
 	"bufio"
 	"compress/flate"
+	"encoding/binary"
 	"errors"
 	"hash"
 	"hash/crc32"
-	"encoding/binary"
 	"io"
 	"io/ioutil"
 	"os"

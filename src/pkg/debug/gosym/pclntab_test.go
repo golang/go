@@ -7,8 +7,8 @@ package gosym
 import (
 	"debug/elf"
 	"os"
-	"testing"
 	"syscall"
+	"testing"
 )
 
 func dotest() bool {

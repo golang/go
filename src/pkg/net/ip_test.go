@@ -7,8 +7,8 @@ package net
 import (
 	"bytes"
 	"reflect"
-	"testing"
 	"runtime"
+	"testing"
 )
 
 func isEqual(a, b []byte) bool {

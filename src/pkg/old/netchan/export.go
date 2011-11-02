@@ -23,8 +23,8 @@ package netchan
 
 import (
 	"errors"
-	"log"
 	"io"
+	"log"
 	"net"
 	"reflect"
 	"strconv"

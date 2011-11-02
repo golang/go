@@ -6,8 +6,8 @@ package s2k
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"crypto/rand"
+	"crypto/sha1"
 	"encoding/hex"
 	"testing"
 )

@@ -7,8 +7,8 @@ package time_test
 import (
 	"errors"
 	"fmt"
-	"testing"
 	"sort"
+	"testing"
 	. "time"
 )
 
