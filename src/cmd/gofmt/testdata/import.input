@@ -1,0 +1,108 @@
+package main
+
+import (
+	"fmt"
+	"math"
+	"log"
+	"errors"
+	"io"
+)
+
+import (
+	"fmt"
+
+	"math"
+
+	"log"
+
+	"errors"
+
+	"io"
+)
+
+import (
+	"fmt"
+	"math"
+	"log"
+	"errors"
+	"io"
+
+	"fmt"
+
+	"math"
+
+	"log"
+
+	"errors"
+
+	"io"
+)
+
+import (
+	// a block with comments
+	"fmt" // for Printf
+	"math"
+	"log" // for Fatal
+	"errors"
+	"io" // for Reader
+)
+
+import (
+	"fmt" // for Printf
+
+	"math"
+
+	"log" // for Fatal
+
+	"errors"
+
+	"io" // for Reader
+)
+
+import (
+	// for Printf
+	"fmt"
+
+	"math"
+
+	// for Fatal
+	"log"
+
+	"errors"
+
+	// for Reader
+	"io"
+)
+
+import (
+	"fmt" // for Printf
+	"math"
+	"log" // for Fatal
+	"errors"
+	"io" // for Reader
+
+	"fmt" // for Printf
+
+	"math"
+
+	"log" // for Fatal
+
+	"errors"
+
+	"io" // for Reader
+)
+
+import (
+	"fmt" // for Printf
+
+	"math"
+	"log" // for Fatal
+	"errors"
+	"io" // for Reader
+
+	"fmt" // for Printf
+	"math"
+	"log" // for Fatal
+	"errors"
+	"io" // for Reader
+)

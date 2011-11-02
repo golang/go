@@ -114,6 +114,8 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 		}
 	}
 
+	ast.SortImports(fset, file)
+
 	if *simplifyAST {
 		simplify(file)
 	}

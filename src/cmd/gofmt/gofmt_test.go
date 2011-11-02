@@ -78,6 +78,7 @@ var tests = []struct {
 	{"testdata/rewrite2.input", "-r=int->bool"},
 	{"testdata/stdin*.input", "-stdin"},
 	{"testdata/comments.input", ""},
+	{"testdata/import.input", ""},
 }
 
 func TestRewrite(t *testing.T) {
