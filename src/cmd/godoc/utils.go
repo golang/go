@@ -93,7 +93,7 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
 // writeFileAtomically writes data to a temporary file and then
 // atomically renames that file to the file named by filename.
 //
-func writeFileAtomically(filename string, data []byte) os.Error {
+func writeFileAtomically(filename string, data []byte) error {
 	// TODO(gri) this won't work on appengine
 	f, err := ioutil.TempFile(filepath.Split(filename))
 	if err != nil {

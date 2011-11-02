@@ -15,7 +15,7 @@ func main() {
 	file.Stdout.Write(hello)
 	f, err := file.Open("/does/not/exist")
 	if f == nil {
-		fmt.Printf("can't open file; err=%s\n", err.String())
+		fmt.Printf("can't open file; err=%s\n", err.Error())
 		os.Exit(1)
 	}
 }

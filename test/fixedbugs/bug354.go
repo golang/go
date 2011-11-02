@@ -9,12 +9,8 @@
 
 package main
 
-import (
-	"os"
-)
-
 type Inner struct {
-	F func() os.Error
+	F func() error
 }
 
 type Outer struct {
@@ -23,4 +19,4 @@ type Outer struct {
 
 // calls makeclosure twice on same closure
 
-var Foo = Outer{[]Inner{Inner{func() os.Error{ return nil }}}}
+var Foo = Outer{[]Inner{Inner{func() error { return nil }}}}

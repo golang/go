@@ -8,8 +8,8 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"go/build"
-	"os"
 	"path" // use for import paths
 	"strings"
 	"template"
@@ -18,7 +18,7 @@ import (
 // domake builds the package in dir.
 // domake generates a standard Makefile and passes it
 // to make on standard input.
-func domake(dir, pkg string, tree *build.Tree, isCmd bool) (err os.Error) {
+func domake(dir, pkg string, tree *build.Tree, isCmd bool) (err error) {
 	makefile, err := makeMakefile(dir, pkg, tree, isCmd)
 	if err != nil {
 		return err
@@ -36,9 +36,9 @@ func domake(dir, pkg string, tree *build.Tree, isCmd bool) (err os.Error) {
 // makeMakefile computes the standard Makefile for the directory dir
 // installing as package pkg.  It includes all *.go files in the directory
 // except those in package main and those ending in _test.go.
-func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, os.Error) {
+func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, error) {
 	if !safeName(pkg) {
-		return nil, os.NewError("unsafe name: " + pkg)
+		return nil, errors.New("unsafe name: " + pkg)
 	}
 	targ := pkg
 	targDir := tree.PkgDir()
@@ -56,7 +56,7 @@ func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, os.Err
 	isCgo := make(map[string]bool, len(cgoFiles))
 	for _, file := range cgoFiles {
 		if !safeName(file) {
-			return nil, os.NewError("bad name: " + file)
+			return nil, errors.New("bad name: " + file)
 		}
 		isCgo[file] = true
 	}
@@ -64,7 +64,7 @@ func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, os.Err
 	goFiles := make([]string, 0, len(dirInfo.GoFiles))
 	for _, file := range dirInfo.GoFiles {
 		if !safeName(file) {
-			return nil, os.NewError("unsafe name: " + file)
+			return nil, errors.New("unsafe name: " + file)
 		}
 		if !isCgo[file] {
 			goFiles = append(goFiles, file)
@@ -75,7 +75,7 @@ func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, os.Err
 	cgoOFiles := make([]string, 0, len(dirInfo.CFiles))
 	for _, file := range dirInfo.CFiles {
 		if !safeName(file) {
-			return nil, os.NewError("unsafe name: " + file)
+			return nil, errors.New("unsafe name: " + file)
 		}
 		// When cgo is in use, C files are compiled with gcc,
 		// otherwise they're compiled with gc.
@@ -88,7 +88,7 @@ func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, os.Err
 
 	for _, file := range dirInfo.SFiles {
 		if !safeName(file) {
-			return nil, os.NewError("unsafe name: " + file)
+			return nil, errors.New("unsafe name: " + file)
 		}
 		oFiles = append(oFiles, file[:len(file)-2]+".$O")
 	}

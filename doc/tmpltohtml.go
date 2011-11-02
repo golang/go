@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 // The template uses the function "code" to inject program
 // source into the output by extracting code from files and
 // injecting them as HTML-escaped <pre> blocks.
@@ -81,7 +80,7 @@ func format(arg interface{}) string {
 	return ""
 }
 
-func code(file string, arg ...interface{}) (string, os.Error) {
+func code(file string, arg ...interface{}) (string, error) {
 	text := contents(file)
 	var command string
 	switch len(arg) {

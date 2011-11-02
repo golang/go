@@ -158,10 +158,10 @@ var errorTests = []ErrorTest{
 	ErrorTest{"complex128 1/0", func() { use(e128 / d128) }, ""},
 }
 
-func error(fn func()) (error string) {
+func error_(fn func()) (error string) {
 	defer func() {
 		if e := recover(); e != nil {
-			error = e.(runtime.Error).String()
+			error = e.(runtime.Error).Error()
 		}
 	}()
 	fn()
@@ -196,7 +196,7 @@ func main() {
 		if t.err != "" {
 			continue
 		}
-		err := error(t.fn)
+		err := error_(t.fn)
 		switch {
 		case t.err == "" && err == "":
 			// fine

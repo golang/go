@@ -148,7 +148,7 @@ func getPathFilter() func(string) bool {
 
 // readDirList reads a file containing a newline-separated list
 // of directory paths and returns the list of paths.
-func readDirList(filename string) ([]string, os.Error) {
+func readDirList(filename string) ([]string, error) {
 	contents, err := ReadFile(fs, filename)
 	if err != nil {
 		return nil, err
@@ -299,7 +299,7 @@ type tconv struct {
 	indent int // valid if state == indenting
 }
 
-func (p *tconv) writeIndent() (err os.Error) {
+func (p *tconv) writeIndent() (err error) {
 	i := p.indent
 	for i >= len(spaces) {
 		i -= len(spaces)
@@ -314,7 +314,7 @@ func (p *tconv) writeIndent() (err os.Error) {
 	return
 }
 
-func (p *tconv) Write(data []byte) (n int, err os.Error) {
+func (p *tconv) Write(data []byte) (n int, err error) {
 	if len(data) == 0 {
 		return
 	}
@@ -855,7 +855,7 @@ type PageInfo struct {
 	Dirs     *DirList        // nil if no directory information
 	DirTime  int64           // directory time stamp in seconds since epoch
 	IsPkg    bool            // false if this is not documenting a real package
-	Err      os.Error        // directory read error or nil
+	Err      error           // directory read error or nil
 }
 
 func (info *PageInfo) IsEmpty() bool {
@@ -869,7 +869,7 @@ type httpHandler struct {
 }
 
 // fsReadDir implements ReadDir for the go/build package.
-func fsReadDir(dir string) ([]*os.FileInfo, os.Error) {
+func fsReadDir(dir string) ([]*os.FileInfo, error) {
 	fi, err := fs.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -888,7 +888,7 @@ func fsReadDir(dir string) ([]*os.FileInfo, os.Error) {
 }
 
 // fsReadFile implements ReadFile for the go/build package.
-func fsReadFile(dir, name string) (path string, data []byte, err os.Error) {
+func fsReadFile(dir, name string) (path string, data []byte, err error) {
 	path = filepath.Join(dir, name)
 	data, err = ReadFile(fs, path)
 	return
@@ -1172,12 +1172,12 @@ func lookup(query string) (result SearchResult) {
 		index := index.(*Index)
 
 		// identifier search
-		var err os.Error
+		var err error
 		result.Pak, result.Hit, result.Alt, err = index.Lookup(query)
 		if err != nil && *maxResults <= 0 {
 			// ignore the error if full text search is enabled
 			// since the query may be a valid regular expression
-			result.Alert = "Error in query string: " + err.String()
+			result.Alert = "Error in query string: " + err.Error()
 			return
 		}
 
@@ -1185,7 +1185,7 @@ func lookup(query string) (result SearchResult) {
 		if *maxResults > 0 && query != "" {
 			rx, err := regexp.Compile(query)
 			if err != nil {
-				result.Alert = "Error in query regular expression: " + err.String()
+				result.Alert = "Error in query regular expression: " + err.Error()
 				return
 			}
 			// If we get maxResults+1 results we know that there are more than
@@ -1280,7 +1280,7 @@ func fsDirnames() <-chan string {
 	return c
 }
 
-func readIndex(filenames string) os.Error {
+func readIndex(filenames string) error {
 	matches, err := filepath.Glob(filenames)
 	if err != nil {
 		return err

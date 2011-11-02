@@ -8,6 +8,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"exec"
 	"fmt"
 	"http"
@@ -120,7 +121,7 @@ var vcsList = []*vcs{&git, &hg, &bzr, &svn}
 
 type host struct {
 	pattern *regexp.Regexp
-	getVcs  func(repo, path string) (*vcsMatch, os.Error)
+	getVcs  func(repo, path string) (*vcsMatch, error)
 }
 
 var knownHosts = []host{
@@ -147,7 +148,7 @@ type vcsMatch struct {
 	prefix, repo string
 }
 
-func googleVcs(repo, path string) (*vcsMatch, os.Error) {
+func googleVcs(repo, path string) (*vcsMatch, error) {
 	parts := strings.SplitN(repo, "/", 2)
 	url := "https://" + repo
 	switch parts[1] {
@@ -158,21 +159,21 @@ func googleVcs(repo, path string) (*vcsMatch, os.Error) {
 	case "hg":
 		return &vcsMatch{&hg, repo, url}, nil
 	}
-	return nil, os.NewError("unsupported googlecode vcs: " + parts[1])
+	return nil, errors.New("unsupported googlecode vcs: " + parts[1])
 }
 
-func githubVcs(repo, path string) (*vcsMatch, os.Error) {
+func githubVcs(repo, path string) (*vcsMatch, error) {
 	if strings.HasSuffix(repo, ".git") {
-		return nil, os.NewError("path must not include .git suffix")
+		return nil, errors.New("path must not include .git suffix")
 	}
 	return &vcsMatch{&git, repo, "http://" + repo + ".git"}, nil
 }
 
-func bitbucketVcs(repo, path string) (*vcsMatch, os.Error) {
+func bitbucketVcs(repo, path string) (*vcsMatch, error) {
 	const bitbucketApiUrl = "https://api.bitbucket.org/1.0/repositories/"
 
 	if strings.HasSuffix(repo, ".git") {
-		return nil, os.NewError("path must not include .git suffix")
+		return nil, errors.New("path must not include .git suffix")
 	}
 
 	parts := strings.SplitN(repo, "/", 2)
@@ -205,16 +206,16 @@ func bitbucketVcs(repo, path string) (*vcsMatch, os.Error) {
 		return &vcsMatch{&hg, repo, "http://" + repo}, nil
 	}
 
-	return nil, os.NewError("unsupported bitbucket vcs: " + response.Vcs)
+	return nil, errors.New("unsupported bitbucket vcs: " + response.Vcs)
 }
 
-func launchpadVcs(repo, path string) (*vcsMatch, os.Error) {
+func launchpadVcs(repo, path string) (*vcsMatch, error) {
 	return &vcsMatch{&bzr, repo, "https://" + repo}, nil
 }
 
 // findPublicRepo checks whether pkg is located at one of
 // the supported code hosting sites and, if so, returns a match.
-func findPublicRepo(pkg string) (*vcsMatch, os.Error) {
+func findPublicRepo(pkg string) (*vcsMatch, error) {
 	for _, host := range knownHosts {
 		if hm := host.pattern.FindStringSubmatch(pkg); hm != nil {
 			return host.getVcs(hm[1], hm[2])
@@ -224,7 +225,7 @@ func findPublicRepo(pkg string) (*vcsMatch, os.Error) {
 }
 
 // findAnyRepo looks for a vcs suffix in pkg (.git, etc) and returns a match.
-func findAnyRepo(pkg string) (*vcsMatch, os.Error) {
+func findAnyRepo(pkg string) (*vcsMatch, error) {
 	for _, v := range vcsList {
 		i := strings.Index(pkg+"/", v.suffix+"/")
 		if i < 0 {
@@ -272,9 +273,9 @@ func isRemote(pkg string) bool {
 }
 
 // download checks out or updates pkg from the remote server.
-func download(pkg, srcDir string) (public bool, err os.Error) {
+func download(pkg, srcDir string) (public bool, err error) {
 	if strings.Contains(pkg, "..") {
-		err = os.NewError("invalid path (contains ..)")
+		err = errors.New("invalid path (contains ..)")
 		return
 	}
 	m, err := findPublicRepo(pkg)
@@ -290,7 +291,7 @@ func download(pkg, srcDir string) (public bool, err os.Error) {
 		}
 	}
 	if m == nil {
-		err = os.NewError("cannot download: " + pkg)
+		err = errors.New("cannot download: " + pkg)
 		return
 	}
 	err = m.checkoutRepo(srcDir, m.prefix, m.repo)
@@ -300,7 +301,7 @@ func download(pkg, srcDir string) (public bool, err os.Error) {
 // updateRepo gets a list of tags in the repository and
 // checks out the tag closest to the current runtime.Version.
 // If no matching tag is found, it just updates to tip.
-func (v *vcs) updateRepo(dst string) os.Error {
+func (v *vcs) updateRepo(dst string) error {
 	if v.tagList == "" || v.tagListRe == nil {
 		// TODO(adg): fix for svn
 		return run(dst, nil, v.cmd, v.update)
@@ -382,11 +383,11 @@ func selectTag(goVersion string, tags []string) (match string) {
 // exists and -u was specified on the command line)
 // the repository at tag/branch "release".  If there is no
 // such tag or branch, it falls back to the repository tip.
-func (vcs *vcs) checkoutRepo(srcDir, pkgprefix, repo string) os.Error {
+func (vcs *vcs) checkoutRepo(srcDir, pkgprefix, repo string) error {
 	dst := filepath.Join(srcDir, filepath.FromSlash(pkgprefix))
 	dir, err := os.Stat(filepath.Join(dst, vcs.metadir))
 	if err == nil && !dir.IsDirectory() {
-		return os.NewError("not a directory: " + dst)
+		return errors.New("not a directory: " + dst)
 	}
 	if err != nil {
 		parent, _ := filepath.Split(dst)

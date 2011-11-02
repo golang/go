@@ -307,7 +307,7 @@ func doRun(argv []string, returnStdout bool) string {
 		command = "bash"
 		argv = []string{"bash", "-c", cmd}
 	}
-	var err os.Error
+	var err error
 	argv[0], err = exec.LookPath(argv[0])
 	if err != nil {
 		Fatalf("can't find %s: %s", command, err)

@@ -14,7 +14,7 @@ import (
 func main() {
 	ga, e0 := os.Getenverror("GOARCH")
 	if e0 != nil {
-		print("$GOARCH: ", e0.String(), "\n")
+		print("$GOARCH: ", e0.Error(), "\n")
 		os.Exit(1)
 	}
 	if ga != runtime.GOARCH {
@@ -23,7 +23,7 @@ func main() {
 	}
 	xxx, e1 := os.Getenverror("DOES_NOT_EXIST")
 	if e1 != os.ENOENV {
-		print("$DOES_NOT_EXIST=", xxx, "; err = ", e1.String(), "\n")
+		print("$DOES_NOT_EXIST=", xxx, "; err = ", e1.Error(), "\n")
 		os.Exit(1)
 	}
 }

@@ -22,7 +22,6 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
-	"os"
 	"path"
 	"sort"
 	"strings"
@@ -66,7 +65,7 @@ type zipFS struct {
 	list zipList
 }
 
-func (fs *zipFS) Close() os.Error {
+func (fs *zipFS) Close() error {
 	fs.list = nil
 	return fs.ReadCloser.Close()
 }
@@ -79,7 +78,7 @@ func zipPath(name string) string {
 	return name[1:] // strip leading '/'
 }
 
-func (fs *zipFS) stat(abspath string) (int, zipFI, os.Error) {
+func (fs *zipFS) stat(abspath string) (int, zipFI, error) {
 	i, exact := fs.list.lookup(abspath)
 	if i < 0 {
 		// abspath has leading '/' stripped - print it explicitly
@@ -93,7 +92,7 @@ func (fs *zipFS) stat(abspath string) (int, zipFI, os.Error) {
 	return i, zipFI{name, file}, nil
 }
 
-func (fs *zipFS) Open(abspath string) (io.ReadCloser, os.Error) {
+func (fs *zipFS) Open(abspath string) (io.ReadCloser, error) {
 	_, fi, err := fs.stat(zipPath(abspath))
 	if err != nil {
 		return nil, err
@@ -104,17 +103,17 @@ func (fs *zipFS) Open(abspath string) (io.ReadCloser, os.Error) {
 	return fi.file.Open()
 }
 
-func (fs *zipFS) Lstat(abspath string) (FileInfo, os.Error) {
+func (fs *zipFS) Lstat(abspath string) (FileInfo, error) {
 	_, fi, err := fs.stat(zipPath(abspath))
 	return fi, err
 }
 
-func (fs *zipFS) Stat(abspath string) (FileInfo, os.Error) {
+func (fs *zipFS) Stat(abspath string) (FileInfo, error) {
 	_, fi, err := fs.stat(zipPath(abspath))
 	return fi, err
 }
 
-func (fs *zipFS) ReadDir(abspath string) ([]FileInfo, os.Error) {
+func (fs *zipFS) ReadDir(abspath string) ([]FileInfo, error) {
 	path := zipPath(abspath)
 	i, fi, err := fs.stat(path)
 	if err != nil {

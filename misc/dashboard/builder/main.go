@@ -5,6 +5,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -158,7 +159,7 @@ func main() {
 	}
 }
 
-func NewBuilder(builder string) (*Builder, os.Error) {
+func NewBuilder(builder string) (*Builder, error) {
 	b := &Builder{name: builder}
 
 	// get goos/goarch from builder string
@@ -259,7 +260,7 @@ func (b *Builder) build() bool {
 	return true
 }
 
-func (b *Builder) buildHash(hash string) (err os.Error) {
+func (b *Builder) buildHash(hash string) (err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("%s build: %s: %s", b.name, hash, err)
@@ -301,7 +302,7 @@ func (b *Builder) buildHash(hash string) (err os.Error) {
 	// if we're in external mode, build all packages and return
 	if *external {
 		if status != 0 {
-			return os.NewError("go build failed")
+			return errors.New("go build failed")
 		}
 		return b.buildPackages(workpath, hash)
 	}
@@ -572,7 +573,7 @@ func addCommit(hash, key string) bool {
 }
 
 // fullHash returns the full hash for the given Mercurial revision.
-func fullHash(rev string) (hash string, err os.Error) {
+func fullHash(rev string) (hash string, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("fullHash: %s: %s", rev, err)
@@ -601,7 +602,7 @@ func fullHash(rev string) (hash string, err os.Error) {
 var revisionRe = regexp.MustCompile(`^([^ ]+) +[0-9]+:([0-9a-f]+)$`)
 
 // firstTag returns the hash and tag of the most recent tag matching re.
-func firstTag(re *regexp.Regexp) (hash string, tag string, err os.Error) {
+func firstTag(re *regexp.Regexp) (hash string, tag string, err error) {
 	o, _, err := runLog(nil, "", goroot, "hg", "tags")
 	for _, l := range strings.Split(o, "\n") {
 		if l == "" {
@@ -609,7 +610,7 @@ func firstTag(re *regexp.Regexp) (hash string, tag string, err os.Error) {
 		}
 		s := revisionRe.FindStringSubmatch(l)
 		if s == nil {
-			err = os.NewError("couldn't find revision number")
+			err = errors.New("couldn't find revision number")
 			return
 		}
 		if !re.MatchString(s[1]) {
@@ -619,6 +620,6 @@ func firstTag(re *regexp.Regexp) (hash string, tag string, err os.Error) {
 		hash, err = fullHash(s[2])
 		return
 	}
-	err = os.NewError("no matching tag found")
+	err = errors.New("no matching tag found")
 	return
 }

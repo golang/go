@@ -24,7 +24,7 @@ func rot13(b byte) byte {
 }
 
 type reader interface {
-	Read(b []byte) (ret int, err os.Error)
+	Read(b []byte) (ret int, err error)
 	String() string
 }
 
@@ -36,7 +36,7 @@ func newRotate13(source reader) *rotate13 {
 	return &rotate13{source}
 }
 
-func (r13 *rotate13) Read(b []byte) (ret int, err os.Error) {
+func (r13 *rotate13) Read(b []byte) (ret int, err error) {
 	r, e := r13.source.Read(b)
 	for i := 0; i < r; i++ {
 		b[i] = rot13(b[i])

@@ -14,6 +14,7 @@ import (
 	"debug/macho"
 	"debug/pe"
 	"encoding/binary"
+	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -147,10 +148,10 @@ func (p *Package) addToFlag(flag string, args []string) {
 
 // pkgConfig runs pkg-config and extracts --libs and --cflags information
 // for packages.
-func pkgConfig(packages []string) (cflags, ldflags []string, err os.Error) {
+func pkgConfig(packages []string) (cflags, ldflags []string, err error) {
 	for _, name := range packages {
 		if len(name) == 0 || name[0] == '-' {
-			return nil, nil, os.NewError(fmt.Sprintf("invalid name: %q", name))
+			return nil, nil, errors.New(fmt.Sprintf("invalid name: %q", name))
 		}
 	}
 
@@ -158,7 +159,7 @@ func pkgConfig(packages []string) (cflags, ldflags []string, err os.Error) {
 	stdout, stderr, ok := run(nil, args)
 	if !ok {
 		os.Stderr.Write(stderr)
-		return nil, nil, os.NewError("pkg-config failed")
+		return nil, nil, errors.New("pkg-config failed")
 	}
 	cflags, err = splitQuoted(string(stdout))
 	if err != nil {
@@ -169,7 +170,7 @@ func pkgConfig(packages []string) (cflags, ldflags []string, err os.Error) {
 	stdout, stderr, ok = run(nil, args)
 	if !ok {
 		os.Stderr.Write(stderr)
-		return nil, nil, os.NewError("pkg-config failed")
+		return nil, nil, errors.New("pkg-config failed")
 	}
 	ldflags, err = splitQuoted(string(stdout))
 	return
@@ -191,7 +192,7 @@ func pkgConfig(packages []string) (cflags, ldflags []string, err os.Error) {
 //
 //     []string{"a", "b:c d", "ef", `g"`}
 //
-func splitQuoted(s string) (r []string, err os.Error) {
+func splitQuoted(s string) (r []string, err error) {
 	var args []string
 	arg := make([]rune, len(s))
 	escaped := false
@@ -229,9 +230,9 @@ func splitQuoted(s string) (r []string, err os.Error) {
 		args = append(args, string(arg[:i]))
 	}
 	if quote != 0 {
-		err = os.NewError("unclosed quote")
+		err = errors.New("unclosed quote")
 	} else if escaped {
-		err = os.NewError("unfinished escaping")
+		err = errors.New("unfinished escaping")
 	}
 	return args, err
 }
@@ -420,7 +421,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		case strings.Contains(line, ": statement with no effect"):
 			what = "not-type" // const or func or var
 		case strings.Contains(line, "undeclared"):
-			error(token.NoPos, "%s", strings.TrimSpace(line[colon+1:]))
+			error_(token.NoPos, "%s", strings.TrimSpace(line[colon+1:]))
 		case strings.Contains(line, "is not an integer constant"):
 			isConst[i] = false
 			continue
@@ -448,7 +449,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		if n.Kind != "" {
 			continue
 		}
-		error(token.NoPos, "could not determine kind of name for C.%s", n.Go)
+		error_(token.NoPos, "could not determine kind of name for C.%s", n.Go)
 	}
 	if nerrors > 0 {
 		fatalf("unresolved names")
@@ -617,7 +618,7 @@ func (p *Package) rewriteRef(f *File) {
 	// functions are only used in calls.
 	for _, r := range f.Ref {
 		if r.Name.Kind == "const" && r.Name.Const == "" {
-			error(r.Pos(), "unable to find value of constant C.%s", r.Name.Go)
+			error_(r.Pos(), "unable to find value of constant C.%s", r.Name.Go)
 		}
 		var expr ast.Expr = ast.NewIdent(r.Name.Mangle) // default
 		switch r.Context {
@@ -628,12 +629,12 @@ func (p *Package) rewriteRef(f *File) {
 					expr = r.Name.Type.Go
 					break
 				}
-				error(r.Pos(), "call of non-function C.%s", r.Name.Go)
+				error_(r.Pos(), "call of non-function C.%s", r.Name.Go)
 				break
 			}
 			if r.Context == "call2" {
 				if r.Name.FuncType.Result == nil {
-					error(r.Pos(), "assignment count mismatch: 2 = 0")
+					error_(r.Pos(), "assignment count mismatch: 2 = 0")
 				}
 				// Invent new Name for the two-result function.
 				n := f.Name["2"+r.Name.Go]
@@ -650,7 +651,7 @@ func (p *Package) rewriteRef(f *File) {
 			}
 		case "expr":
 			if r.Name.Kind == "func" {
-				error(r.Pos(), "must call C.%s", r.Name.Go)
+				error_(r.Pos(), "must call C.%s", r.Name.Go)
 			}
 			if r.Name.Kind == "type" {
 				// Okay - might be new(T)
@@ -662,13 +663,13 @@ func (p *Package) rewriteRef(f *File) {
 
 		case "type":
 			if r.Name.Kind != "type" {
-				error(r.Pos(), "expression C.%s used as type", r.Name.Go)
+				error_(r.Pos(), "expression C.%s used as type", r.Name.Go)
 			} else {
 				expr = r.Name.Type.Go
 			}
 		default:
 			if r.Name.Kind == "func" {
-				error(r.Pos(), "must call C.%s", r.Name.Go)
+				error_(r.Pos(), "must call C.%s", r.Name.Go)
 			}
 		}
 		*r.Expr = expr

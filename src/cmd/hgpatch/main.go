@@ -31,7 +31,7 @@ func main() {
 
 	args := flag.Args()
 	var data []byte
-	var err os.Error
+	var err error
 	switch len(args) {
 	case 0:
 		data, err = ioutil.ReadAll(os.Stdin)
@@ -189,7 +189,7 @@ func makeParent(name string) {
 
 // Copy of os.MkdirAll but adds to undo log after
 // creating a directory.
-func mkdirAll(path string, perm uint32) os.Error {
+func mkdirAll(path string, perm uint32) error {
 	dir, err := os.Lstat(path)
 	if err == nil {
 		if dir.IsDirectory() {
@@ -230,7 +230,7 @@ func mkdirAll(path string, perm uint32) os.Error {
 }
 
 // If err != nil, process the undo log and exit.
-func chk(err os.Error) {
+func chk(err error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		runUndo()
@@ -239,15 +239,15 @@ func chk(err os.Error) {
 }
 
 // Undo log
-type undo func() os.Error
+type undo func() error
 
 var undoLog []undo
 
 func undoRevert(name string) {
-	undoLog = append(undoLog, undo(func() os.Error { return hgRevert(name) }))
+	undoLog = append(undoLog, undo(func() error { return hgRevert(name) }))
 }
 
-func undoRm(name string) { undoLog = append(undoLog, undo(func() os.Error { return os.Remove(name) })) }
+func undoRm(name string) { undoLog = append(undoLog, undo(func() error { return os.Remove(name) })) }
 
 func runUndo() {
 	for i := len(undoLog) - 1; i >= 0; i-- {
@@ -258,7 +258,7 @@ func runUndo() {
 }
 
 // hgRoot returns the root directory of the repository.
-func hgRoot() (string, os.Error) {
+func hgRoot() (string, error) {
 	out, err := run([]string{"hg", "root"}, nil)
 	if err != nil {
 		return "", err
@@ -276,7 +276,7 @@ func hgIncoming() bool {
 
 // hgModified returns a list of the modified files in the
 // repository.
-func hgModified() ([]string, os.Error) {
+func hgModified() ([]string, error) {
 	out, err := run([]string{"hg", "status", "-n"}, nil)
 	if err != nil {
 		return nil, err
@@ -285,33 +285,33 @@ func hgModified() ([]string, os.Error) {
 }
 
 // hgAdd adds name to the repository.
-func hgAdd(name string) os.Error {
+func hgAdd(name string) error {
 	_, err := run([]string{"hg", "add", name}, nil)
 	return err
 }
 
 // hgRemove removes name from the repository.
-func hgRemove(name string) os.Error {
+func hgRemove(name string) error {
 	_, err := run([]string{"hg", "rm", name}, nil)
 	return err
 }
 
 // hgRevert reverts name.
-func hgRevert(name string) os.Error {
+func hgRevert(name string) error {
 	_, err := run([]string{"hg", "revert", name}, nil)
 	return err
 }
 
 // hgCopy copies src to dst in the repository.
 // Note that the argument order matches io.Copy, not "hg cp".
-func hgCopy(dst, src string) os.Error {
+func hgCopy(dst, src string) error {
 	_, err := run([]string{"hg", "cp", src, dst}, nil)
 	return err
 }
 
 // hgRename renames src to dst in the repository.
 // Note that the argument order matches io.Copy, not "hg mv".
-func hgRename(dst, src string) os.Error {
+func hgRename(dst, src string) error {
 	_, err := run([]string{"hg", "mv", src, dst}, nil)
 	return err
 }
@@ -326,7 +326,7 @@ var lookPathCache = make(map[string]string)
 
 // run runs the command argv, resolving argv[0] if necessary by searching $PATH.
 // It provides input on standard input to the command.
-func run(argv []string, input []byte) (out string, err os.Error) {
+func run(argv []string, input []byte) (out string, err error) {
 	if len(argv) < 1 {
 		return "", &runError{dup(argv), os.EINVAL}
 	}
@@ -354,7 +354,7 @@ func run(argv []string, input []byte) (out string, err os.Error) {
 // A runError represents an error that occurred while running a command.
 type runError struct {
 	cmd []string
-	err os.Error
+	err error
 }
 
-func (e *runError) String() string { return strings.Join(e.cmd, " ") + ": " + e.err.String() }
+func (e *runError) Error() string { return strings.Join(e.cmd, " ") + ": " + e.err.Error() }

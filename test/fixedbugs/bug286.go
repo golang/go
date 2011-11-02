@@ -12,15 +12,13 @@ type I interface {
 	f()
 }
 
-
 var callee string
-var error bool
+var error_ bool
 
 type T int
 
 func (t *T) f() { callee = "f" }
 func (i *T) g() { callee = "g" }
-
 
 // test1 and test2 are the same except that in the interface J
 // the entries are swapped. test2 and test3 are the same except
@@ -36,10 +34,9 @@ func test1(x I) {
 	x.(J).f()
 	if callee != "f" {
 		println("test1 called", callee)
-		error = true
+		error_ = true
 	}
 }
-
 
 func test2(x I) {
 	type J interface {
@@ -49,10 +46,9 @@ func test2(x I) {
 	x.(J).f()
 	if callee != "f" {
 		println("test2 called", callee)
-		error = true
+		error_ = true
 	}
 }
-
 
 type J interface {
 	g()
@@ -63,7 +59,7 @@ func test3(x I) {
 	x.(J).f()
 	if callee != "f" {
 		println("test3 called", callee)
-		error = true
+		error_ = true
 	}
 }
 
@@ -72,7 +68,7 @@ func main() {
 	test1(x)
 	test2(x)
 	test3(x)
-	if error {
+	if error_ {
 		panic("wrong method called")
 	}
 }

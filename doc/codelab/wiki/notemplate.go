@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"http"
 	"io/ioutil"
-	"os"
 )
 
 type Page struct {
@@ -12,12 +11,12 @@ type Page struct {
 	Body  []byte
 }
 
-func (p *Page) save() os.Error {
+func (p *Page) save() error {
 	filename := p.Title + ".txt"
 	return ioutil.WriteFile(filename, p.Body, 0600)
 }
 
-func loadPage(title string) (*Page, os.Error) {
+func loadPage(title string) (*Page, error) {
 	filename := title + ".txt"
 	body, err := ioutil.ReadFile(filename)
 	if err != nil {

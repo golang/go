@@ -11,10 +11,7 @@
 
 package main
 
-import (
-	"os"
-	"strings"
-)
+import "strings"
 
 var x = make([]byte, 10)
 
@@ -33,7 +30,7 @@ func mustRecover(s string) {
 	if v == nil {
 		panic("expected panic")
 	}
-	if e := v.(os.Error).String(); strings.Index(e, s) < 0 {
+	if e := v.(error).Error(); strings.Index(e, s) < 0 {
 		panic("want: " + s + "; have: " + e)
 	}
 }

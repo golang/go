@@ -27,7 +27,7 @@ var (
 	Stderr = newFile(syscall.Stderr, "/dev/stderr")
 )
 
-func OpenFile(name string, mode int, perm uint32) (file *File, err os.Error) {
+func OpenFile(name string, mode int, perm uint32) (file *File, err error) {
 	r, e := syscall.Open(name, mode, perm)
 	if e != 0 {
 		err = os.Errno(e)
@@ -42,15 +42,15 @@ const (
 	O_TRUNC  = syscall.O_TRUNC
 )
 
-func Open(name string) (file *File, err os.Error) {
+func Open(name string) (file *File, err error) {
 	return OpenFile(name, O_RDONLY, 0)
 }
 
-func Create(name string) (file *File, err os.Error) {
+func Create(name string) (file *File, err error) {
 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }
 
-func (file *File) Close() os.Error {
+func (file *File) Close() error {
 	if file == nil {
 		return os.EINVAL
 	}
@@ -62,7 +62,7 @@ func (file *File) Close() os.Error {
 	return nil
 }
 
-func (file *File) Read(b []byte) (ret int, err os.Error) {
+func (file *File) Read(b []byte) (ret int, err error) {
 	if file == nil {
 		return -1, os.EINVAL
 	}
@@ -73,7 +73,7 @@ func (file *File) Read(b []byte) (ret int, err os.Error) {
 	return int(r), err
 }
 
-func (file *File) Write(b []byte) (ret int, err os.Error) {
+func (file *File) Write(b []byte) (ret int, err error) {
 	if file == nil {
 		return -1, os.EINVAL
 	}

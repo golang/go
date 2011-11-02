@@ -650,7 +650,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			}
 			return r
 		}
-		error(e.Pos(), "unrecognized Go type %s", t.Name)
+		error_(e.Pos(), "unrecognized Go type %s", t.Name)
 		return &Type{Size: 4, Align: 4, C: c("int")}
 	case *ast.SelectorExpr:
 		id, ok := t.X.(*ast.Ident)
@@ -658,7 +658,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*")}
 		}
 	}
-	error(e.Pos(), "unrecognized Go type %T", e)
+	error_(e.Pos(), "unrecognized Go type %T", e)
 	return &Type{Size: 4, Align: 4, C: c("int")}
 }
 

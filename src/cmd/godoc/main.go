@@ -28,6 +28,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
 	_ "expvar" // to serve /debug/vars
 	"flag"
 	"fmt"
@@ -74,7 +75,7 @@ var (
 	query = flag.Bool("q", false, "arguments are considered search queries")
 )
 
-func serveError(w http.ResponseWriter, r *http.Request, relpath string, err os.Error) {
+func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
 	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
 	w.WriteHeader(http.StatusNotFound)
 	servePage(w, "File "+relpath, "", "", contents)
@@ -163,7 +164,7 @@ func loggingHandler(h http.Handler) http.Handler {
 	})
 }
 
-func remoteSearch(query string) (res *http.Response, err os.Error) {
+func remoteSearch(query string) (res *http.Response, err error) {
 	search := "/search?f=text&q=" + url.QueryEscape(query)
 
 	// list of addresses to try
@@ -188,7 +189,7 @@ func remoteSearch(query string) (res *http.Response, err os.Error) {
 	}
 
 	if err == nil && res.StatusCode != http.StatusOK {
-		err = os.NewError(res.Status)
+		err = errors.New(res.Status)
 	}
 
 	return

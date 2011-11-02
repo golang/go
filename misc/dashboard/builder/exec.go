@@ -14,7 +14,7 @@ import (
 )
 
 // run is a simple wrapper for exec.Run/Close
-func run(envv []string, dir string, argv ...string) os.Error {
+func run(envv []string, dir string, argv ...string) error {
 	if *verbose {
 		log.Println("run", argv)
 	}
@@ -31,7 +31,7 @@ func run(envv []string, dir string, argv ...string) os.Error {
 // process combined stdout and stderr output, exit status and error.
 // The error returned is nil, if process is started successfully,
 // even if exit status is not 0.
-func runLog(envv []string, logfile, dir string, argv ...string) (string, int, os.Error) {
+func runLog(envv []string, logfile, dir string, argv ...string) (string, int, error) {
 	if *verbose {
 		log.Println("runLog", argv)
 	}
@@ -56,7 +56,7 @@ func runLog(envv []string, logfile, dir string, argv ...string) (string, int, os
 
 	err := cmd.Run()
 	if err != nil {
-		if ws, ok := err.(*os.Waitmsg); ok {
+		if ws, ok := err.(*exec.ExitError); ok {
 			return b.String(), ws.ExitStatus(), nil
 		}
 	}

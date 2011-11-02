@@ -11,11 +11,10 @@ import (
 	"archive/zip"
 	"http"
 	"log"
-	"os"
 	"path"
 )
 
-func serveError(w http.ResponseWriter, r *http.Request, relpath string, err os.Error) {
+func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
 	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
 	w.WriteHeader(http.StatusNotFound)
 	servePage(w, "File "+relpath, "", "", contents)

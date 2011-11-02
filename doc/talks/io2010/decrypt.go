@@ -15,7 +15,7 @@ import (
 	"os"
 )
 
-func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) os.Error {
+func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) error {
 	r, err := os.Open(srcfile)
 	if err != nil {
 		return err
@@ -39,7 +39,7 @@ func EncryptAndGzip(dstfile, srcfile string, key, iv []byte) os.Error {
 	return err
 }
 
-func DecryptAndGunzip(dstfile, srcfile string, key, iv []byte) os.Error {
+func DecryptAndGunzip(dstfile, srcfile string, key, iv []byte) error {
 	f, err := os.Open(srcfile)
 	if err != nil {
 		return err

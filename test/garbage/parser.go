@@ -66,7 +66,7 @@ func parseDir(dirpath string) map[string]*ast.Package {
 	// get package AST
 	pkgs, err := parser.ParseDir(token.NewFileSet(), dirpath, filter, parser.ParseComments)
 	if err != nil {
-		println("parse", dirpath, err.String())
+		println("parse", dirpath, err.Error())
 		panic("fail")
 	}
 	return pkgs
