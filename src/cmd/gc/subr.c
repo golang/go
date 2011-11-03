@@ -2916,6 +2916,8 @@ ngotype(Node *n)
  * non-7-bit clean bytes turn into %xx.  The period needs escaping
  * only in the last segment of the path, and it makes for happier
  * users if we escape that as little as possible.
+ *
+ * If you edit this, edit ../ld/lib.c:/^pathtoprefix copy too.
  */
 static char*
 pathtoprefix(char *s)
