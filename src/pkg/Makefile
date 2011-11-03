@@ -105,11 +105,6 @@ DIRS=\
 	hash/fnv\
 	html\
 	html/template\
-	http\
-	http/cgi\
-	http/fcgi\
-	http/pprof\
-	http/httptest\
 	image\
 	image/bmp\
 	image/color\
@@ -124,7 +119,6 @@ DIRS=\
 	io/ioutil\
 	log\
 	log/syslog\
-	mail\
 	math\
 	math/big\
 	math/cmplx\
@@ -133,7 +127,17 @@ DIRS=\
 	mime/multipart\
 	net\
 	net/dict\
+	net/http\
+	net/http/cgi\
+	net/http/fcgi\
+	net/mail\
+	net/http/pprof\
+	net/http/httptest\
+	net/rpc\
+	net/rpc/jsonrpc\
+	net/smtp\
 	net/textproto\
+	net/url\
 	old/netchan\
 	old/regexp\
 	old/template\
@@ -146,14 +150,11 @@ DIRS=\
 	reflect\
 	regexp\
 	regexp/syntax\
-	rpc\
-	rpc/jsonrpc\
 	runtime\
 	runtime/cgo\
 	runtime/debug\
 	runtime/pprof\
 	scanner\
-	smtp\
 	sort\
 	strconv\
 	strings\
@@ -169,7 +170,6 @@ DIRS=\
 	testing/script\
 	time\
 	unicode\
-	url\
 	utf16\
 	utf8\
 	websocket\
@@ -205,13 +205,12 @@ NOTEST+=\
 	exp/gui/x11\
 	go/doc\
 	hash\
-	http/pprof\
-	http/httptest\
 	image/bmp\
 	image/color\
 	image/gif\
 	net/dict\
-	rand\
+	net/http/pprof\
+	net/http/httptest\
 	runtime/cgo\
 	syscall\
 	testing\

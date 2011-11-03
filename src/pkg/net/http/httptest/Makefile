@@ -2,11 +2,11 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../../Make.inc
+include ../../../../Make.inc
 
-TARG=http/cgi
+TARG=http/httptest
 GOFILES=\
-	child.go\
-	host.go\
+	recorder.go\
+	server.go\
 
-include ../../../Make.pkg
+include ../../../../Make.pkg

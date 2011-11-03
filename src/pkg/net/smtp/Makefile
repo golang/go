@@ -4,9 +4,9 @@
 
 include ../../../Make.inc
 
-TARG=rpc/jsonrpc
+TARG=smtp
 GOFILES=\
-	client.go\
-	server.go\
+	auth.go\
+	smtp.go\
 
 include ../../../Make.pkg

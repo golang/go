@@ -31,9 +31,18 @@ dirpat="$dirpat
 /^(csv)$/
 /^(exp\/template\/html)$/
 /^(gob)$/
+/^(http)/
+/^(http\/cgi)$/
+/^(http\/fcgi)$/
+/^(http\/httptest)$/
+/^(http\/pprof)$/
 /^(json)$/
+/^(mail)$/
 /^(rand)$/
+/^(rpc)$/
+/^(smtp)$/
 /^(syslog)$/
+/^(url)$/
 /^(xml)$/
 "
 
@@ -60,9 +69,19 @@ for dir in $dirs; do (
 		s;^csv.install$;encoding/csv.install;
 		s;^exp/template/html.install$;html/template.install;
 		s;^gob.install$;encoding/gob.install;
+		s;^http.install$;net/http.install;
+		s;^http/cgi.install$;net/http/cgi.install;
+		s;^http/fcgi.install$;net/http/fcgi.install;
+		s;^http/httptest.install$;net/http/httptest.install;
+		s;^http/pprof.install$;net/http/pprof.install;
 		s;^json.install$;encoding/json.install;
+		s;^mail.install$;net/mail.install;
+		s;^rpc.install$;net/rpc.install;
+		s;^rpc/jsonrpc.install$;net/rpc/jsonrpc.install;
+		s;^smtp.install$;net/smtp.install;
 		s;^syslog.install$;log/syslog.install;
 		s;^rand.install$;math/rand.install;
+		s;^url.install$;net/url.install;
 		s;^xml.install$;encoding/xml.install;' |
 		# TODO: end of renamings.
 		sed 's;^C\.install;runtime/cgo.install;' |
