@@ -427,6 +427,7 @@ func beforeHeadIM(p *parser) (insertionMode, bool) {
 	}
 	if add || implied {
 		p.addElement("head", attr)
+		p.head = p.top()
 	}
 	return inHeadIM, !implied
 }
@@ -511,7 +512,9 @@ func afterHeadIM(p *parser) (insertionMode, bool) {
 		case "frameset":
 			// TODO.
 		case "base", "basefont", "bgsound", "link", "meta", "noframes", "script", "style", "title":
-			// TODO.
+			p.oe = append(p.oe, p.head)
+			defer p.oe.pop()
+			return useTheRulesFor(p, afterHeadIM, inHeadIM)
 		case "head":
 			// TODO.
 		default:
