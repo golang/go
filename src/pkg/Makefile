@@ -16,10 +16,8 @@ all: install
 DIRS=\
 	archive/tar\
 	archive/zip\
-	big\
 	bufio\
 	bytes\
-	cmath\
 	compress/bzip2\
 	compress/flate\
 	compress/gzip\
@@ -89,7 +87,6 @@ DIRS=\
 	exp/spdy\
 	exp/sql\
 	exp/sql/driver\
-	exp/template/html\
 	exp/types\
 	expvar\
 	flag\
@@ -107,6 +104,7 @@ DIRS=\
 	hash/crc64\
 	hash/fnv\
 	html\
+	html/template\
 	http\
 	http/cgi\
 	http/fcgi\
@@ -125,8 +123,12 @@ DIRS=\
 	io\
 	io/ioutil\
 	log\
+	log/syslog\
 	mail\
 	math\
+	math/big\
+	math/cmplx\
+	math/rand\
 	mime\
 	mime/multipart\
 	net\
@@ -141,7 +143,6 @@ DIRS=\
 	patch\
 	path\
 	path/filepath\
-	rand\
 	reflect\
 	regexp\
 	regexp/syntax\
@@ -159,7 +160,6 @@ DIRS=\
 	sync\
 	sync/atomic\
 	syscall\
-	syslog\
 	tabwriter\
 	template\
 	template/parse\

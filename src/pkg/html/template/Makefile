@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../../../Make.inc
+include ../../../Make.inc
 
 TARG=exp/template/html
 GOFILES=\
@@ -19,4 +19,4 @@ GOFILES=\
 	transition.go\
 	url.go\
 
-include ../../../../Make.pkg
+include ../../../Make.pkg
