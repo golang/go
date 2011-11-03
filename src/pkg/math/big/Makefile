@@ -2,14 +2,17 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.inc
+include ../../../Make.inc
 
-TARG=rand
+TARG=big
 GOFILES=\
-	exp.go\
-	normal.go\
-	rand.go\
-	rng.go\
-	zipf.go\
+	arith.go\
+	arith_decl.go\
+	int.go\
+	nat.go\
+	rat.go\
 
-include ../../Make.pkg
+OFILES=\
+	arith_$(GOARCH).$O\
+
+include ../../../Make.pkg

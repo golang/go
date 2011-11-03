@@ -2,11 +2,14 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.inc
+include ../../../Make.inc
 
-TARG=syslog
+TARG=rand
 GOFILES=\
-	syslog.go\
-	syslog_unix.go\
+	exp.go\
+	normal.go\
+	rand.go\
+	rng.go\
+	zipf.go\
 
-include ../../Make.pkg
+include ../../../Make.pkg

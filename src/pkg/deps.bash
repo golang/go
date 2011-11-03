@@ -26,9 +26,14 @@ dirpat=$(echo $dirs C | awk '{
 # Append old names of renamed packages. TODO: clean up after renaming.
 dirpat="$dirpat
 /^(asn1)$/
+/^(big)$/
+/^(cmath)$/
 /^(csv)$/
+/^(exp\/template\/html)$/
 /^(gob)$/
 /^(json)$/
+/^(rand)$/
+/^(syslog)$/
 /^(xml)$/
 "
 
@@ -49,11 +54,16 @@ for dir in $dirs; do (
 		grep -v "^$dir\$" |
 		sed 's/$/.install/' |
 		# TODO: rename the dependencies for renamed directories.  TODO: clean up after renaming.
-		sed 's;^asn1.install$;encoding/asn1.install;' |
-		sed 's;^csv.install$;encoding/csv.install;' |
-		sed 's;^gob.install$;encoding/gob.install;' |
-		sed 's;^json.install$;encoding/json.install;' |
-		sed 's;^xml.install$;encoding/xml.install;' |
+		sed 's;^asn1.install$;encoding/asn1.install;
+		s;^big.install$;math/big.install;
+		s;^cmath.install$;math/cmplx.install;
+		s;^csv.install$;encoding/csv.install;
+		s;^exp/template/html.install$;html/template.install;
+		s;^gob.install$;encoding/gob.install;
+		s;^json.install$;encoding/json.install;
+		s;^syslog.install$;log/syslog.install;
+		s;^rand.install$;math/rand.install;
+		s;^xml.install$;encoding/xml.install;' |
 		# TODO: end of renamings.
 		sed 's;^C\.install;runtime/cgo.install;' |
 		sort -u
