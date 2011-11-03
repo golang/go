@@ -4,9 +4,10 @@
 
 // HTTP reverse proxy handler
 
-package http
+package httputil
 
 import (
+	"http"
 	"io"
 	"log"
 	"net"
@@ -24,11 +25,11 @@ type ReverseProxy struct {
 	// the request into a new request to be sent
 	// using Transport. Its response is then copied
 	// back to the original client unmodified.
-	Director func(*Request)
+	Director func(*http.Request)
 
-	// The Transport used to perform proxy requests.
-	// If nil, DefaultTransport is used.
-	Transport RoundTripper
+	// The transport used to perform proxy requests.
+	// If nil, http.DefaultTransport is used.
+	Transport http.RoundTripper
 
 	// FlushInterval specifies the flush interval, in
 	// nanoseconds, to flush to the client while
@@ -54,7 +55,7 @@ func singleJoiningSlash(a, b string) string {
 // target's path is "/base" and the incoming request was for "/dir",
 // the target request will be for /base/dir.
 func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
-	director := func(req *Request) {
+	director := func(req *http.Request) {
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host
 		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
@@ -68,7 +69,7 @@ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
 	return &ReverseProxy{Director: director}
 }
 
-func copyHeader(dst, src Header) {
+func copyHeader(dst, src http.Header) {
 	for k, vv := range src {
 		for _, v := range vv {
 			dst.Add(k, v)
@@ -76,13 +77,13 @@ func copyHeader(dst, src Header) {
 	}
 }
 
-func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
+func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	transport := p.Transport
 	if transport == nil {
-		transport = DefaultTransport
+		transport = http.DefaultTransport
 	}
 
-	outreq := new(Request)
+	outreq := new(http.Request)
 	*outreq = *req // includes shallow copies of maps, but okay
 
 	p.Director(outreq)
@@ -96,7 +97,7 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
 	// to us.  This is modifying the same underlying map from req
 	// (shallow copied above) so we only copy it if necessary.
 	if outreq.Header.Get("Connection") != "" {
-		outreq.Header = make(Header)
+		outreq.Header = make(http.Header)
 		copyHeader(outreq.Header, req.Header)
 		outreq.Header.Del("Connection")
 	}
@@ -108,7 +109,7 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
 	res, err := transport.RoundTrip(outreq)
 	if err != nil {
 		log.Printf("http: proxy error: %v", err)
-		rw.WriteHeader(StatusInternalServerError)
+		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -129,7 +130,7 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
 
 type writeFlusher interface {
 	io.Writer
-	Flusher
+	http.Flusher
 }
 
 type maxLatencyWriter struct {

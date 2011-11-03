@@ -16,7 +16,6 @@ GOFILES=\
 	lex.go\
 	request.go\
 	response.go\
-	reverseproxy.go\
 	server.go\
 	sniff.go\
 	status.go\
@@ -25,7 +24,7 @@ GOFILES=\
 
 GOFILES_windows=\
 	transport_windows.go\
-	
+
 GOFILES+=$(GOFILES_$(GOOS))
 
 include ../../../Make.pkg
