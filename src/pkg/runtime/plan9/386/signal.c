@@ -4,9 +4,10 @@
 
 #include "runtime.h"
 
-void
-runtime·gettime(int64*, int32*) 
+int64
+runtime·nanotime(void) 
 {
+	// Won't compile.
 }
 
 String

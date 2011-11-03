@@ -55,16 +55,18 @@ TEXT runtime·setitimer(SB), 7, $0
 	SYSCALL
 	RET
 
-// void gettime(int64 *sec, int32 *usec)
-TEXT runtime·gettime(SB), 7, $32
+// int64 nanotime(void)
+TEXT runtime·nanotime(SB), 7, $32
 	MOVQ	SP, DI	// must be non-nil, unused
 	MOVQ	$0, SI
 	MOVL	$(0x2000000+116), AX
 	SYSCALL
-	MOVQ	sec+0(FP), DI
-	MOVQ	AX, (DI)
-	MOVQ	usec+8(FP), DI
-	MOVL	DX, (DI)
+
+	// sec is in AX, usec in DX
+	// return nsec in AX
+	IMULQ	$1000000000, AX
+	IMULQ	$1000, DX
+	ADDQ	DX, AX
 	RET
 
 TEXT runtime·sigaction(SB),7,$0

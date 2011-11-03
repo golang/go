@@ -133,19 +133,19 @@ TEXT runtime·setitimer(SB),7,$-8
 	SYSCALL
 	RET
 
-TEXT runtime·gettime(SB),7,$32
+TEXT runtime·nanotime(SB),7,$32
 	LEAQ	8(SP), DI		// arg 1 - tp
 	MOVQ	$0, SI			// arg 2 - tzp
 	MOVL	$116, AX		// sys_gettimeofday
 	SYSCALL
-
-	MOVQ	8(SP), BX		// sec
-	MOVQ	sec+0(FP), DI
-	MOVQ	BX, (DI)
-
+	MOVQ	8(SP), AX		// sec
 	MOVL	16(SP), BX		// usec
-	MOVQ	usec+8(FP), DI
-	MOVL	BX, (DI)
+
+	// sec is in AX, usec in DX
+	// return nsec in AX
+	IMULQ	$1000000000, AX
+	IMULQ	$1000, DX
+	ADDQ	DX, AX
 	RET
 
 TEXT runtime·sigaction(SB),7,$-8

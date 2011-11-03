@@ -60,20 +60,27 @@ TEXT runtime·setitimer(SB),7,$0
 	INT	$0x80
 	RET
 
-// void gettime(int64 *sec, int32 *usec)
-TEXT runtime·gettime(SB), 7, $32
+// int64 nanotime(void) so really
+// void nanotime(int64 *nsec)
+TEXT runtime·nanotime(SB), 7, $32
 	LEAL	12(SP), AX	// must be non-nil, unused
 	MOVL	AX, 4(SP)
 	MOVL	$0, 8(SP)	// time zone pointer
 	MOVL	$116, AX
 	INT	$0x80
+	MOVL	DX, BX
 
-	MOVL	sec+0(FP), DI
-	MOVL	AX, (DI)
-	MOVL	$0, 4(DI)	// zero extend 32 -> 64
-
-	MOVL	usec+4(FP), DI
-	MOVL	DX, (DI)
+	// sec is in AX, usec in BX
+	// convert to DX:AX nsec
+	MOVL	$1000000000, CX
+	MULL	CX
+	IMULL	$1000, BX
+	ADDL	BX, AX
+	ADCL	$0, DX
+	
+	MOVL	ret+0(FP), DI
+	MOVL	AX, 0(DI)
+	MOVL	DX, 4(DI)
 	RET
 
 TEXT runtime·sigaction(SB),7,$0

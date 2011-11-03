@@ -654,18 +654,6 @@ runtime·algarray[] =
 [ANOEQ128]	{ runtime·nohash, runtime·noequal, memprint, (void*)memcopy128 },
 };
 
-int64
-runtime·nanotime(void)
-{
-	int64 sec;
-	int32 usec;
-
-	sec = 0;
-	usec = 0;
-	runtime·gettime(&sec, &usec);
-	return sec*1000000000 + (int64)usec*1000;
-}
-
 void
 runtime·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool retbool)
 {

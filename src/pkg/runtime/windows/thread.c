@@ -18,10 +18,9 @@
 #pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
 #pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
 #pragma dynimport runtime·GetSystemInfo GetSystemInfo "kernel32.dll"
+#pragma dynimport runtime·GetSystemTimeAsFileTime GetSystemTimeAsFileTime "kernel32.dll"
 #pragma dynimport runtime·GetThreadContext GetThreadContext "kernel32.dll"
 #pragma dynimport runtime·LoadLibrary LoadLibraryW "kernel32.dll"
-#pragma dynimport runtime·QueryPerformanceCounter QueryPerformanceCounter "kernel32.dll"
-#pragma dynimport runtime·QueryPerformanceFrequency QueryPerformanceFrequency "kernel32.dll"
 #pragma dynimport runtime·ResumeThread ResumeThread "kernel32.dll"
 #pragma dynimport runtime·SetConsoleCtrlHandler SetConsoleCtrlHandler "kernel32.dll"
 #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
@@ -44,10 +43,9 @@ extern void *runtime·GetEnvironmentStringsW;
 extern void *runtime·GetProcAddress;
 extern void *runtime·GetStdHandle;
 extern void *runtime·GetSystemInfo;
+extern void *runtime·GetSystemTimeAsFileTime;
 extern void *runtime·GetThreadContext;
 extern void *runtime·LoadLibrary;
-extern void *runtime·QueryPerformanceCounter;
-extern void *runtime·QueryPerformanceFrequency;
 extern void *runtime·ResumeThread;
 extern void *runtime·SetConsoleCtrlHandler;
 extern void *runtime·SetEvent;
@@ -58,8 +56,6 @@ extern void *runtime·SuspendThread;
 extern void *runtime·timeBeginPeriod;
 extern void *runtime·WaitForSingleObject;
 extern void *runtime·WriteFile;
-
-static int64 timerfreq;
 
 static int32
 getproccount(void)
@@ -77,7 +73,6 @@ runtime·osinit(void)
 	runtime·stdcall(runtime·DuplicateHandle, 7,
 		(uintptr)-1, (uintptr)-2, (uintptr)-1, &m->thread,
 		(uintptr)0, (uintptr)0, (uintptr)DUPLICATE_SAME_ACCESS);
-	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
 	runtime·stdcall(runtime·timeBeginPeriod, 1, (uintptr)1);
 	runtime·ncpu = getproccount();
@@ -197,15 +192,16 @@ runtime·minit(void)
 {
 }
 
-void
-runtime·gettime(int64 *sec, int32 *usec)
+int64
+runtime·nanotime(void)
 {
-	int64 count;
+	int64 filetime;
 
-	runtime·stdcall(runtime·QueryPerformanceCounter, 1, &count);
-	*sec = count / timerfreq;
-	count %= timerfreq;
-	*usec = count*1000000 / timerfreq;
+	runtime·stdcall(runtime·GetSystemTimeAsFileTime, 1, &filetime);
+	
+	// Filetime is 100s of nanoseconds since January 1, 1601.
+	// Convert to nanoseconds since January 1, 1970.
+	return (filetime - 116444736000000000LL) * 100LL;
 }
 
 // Calling stdcall on os stack.
