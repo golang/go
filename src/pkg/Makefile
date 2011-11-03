@@ -16,7 +16,6 @@ all: install
 DIRS=\
 	archive/tar\
 	archive/zip\
-	asn1\
 	big\
 	bufio\
 	bytes\
@@ -62,19 +61,23 @@ DIRS=\
 	crypto/x509\
 	crypto/x509/pkix\
 	crypto/xtea\
-	csv\
 	debug/dwarf\
 	debug/macho\
 	debug/elf\
 	debug/gosym\
 	debug/pe\
 	encoding/ascii85\
+	encoding/asn1\
 	encoding/base32\
 	encoding/base64\
 	encoding/binary\
+	encoding/csv\
 	encoding/git85\
+	encoding/gob\
 	encoding/hex\
+	encoding/json\
 	encoding/pem\
+	encoding/xml\
 	errors\
 	exec\
 	exp/ebnf\
@@ -98,7 +101,6 @@ DIRS=\
 	go/printer\
 	go/scanner\
 	go/token\
-	gob\
 	hash\
 	hash/adler32\
 	hash/crc32\
@@ -122,7 +124,6 @@ DIRS=\
 	index/suffixarray\
 	io\
 	io/ioutil\
-	json\
 	log\
 	mail\
 	math\
@@ -172,7 +173,6 @@ DIRS=\
 	utf16\
 	utf8\
 	websocket\
-	xml\
 	../cmd/cgo\
 	../cmd/godoc\
 	../cmd/gofix\
@@ -235,6 +235,9 @@ TEST=\
 
 BENCH=\
 	$(filter-out $(NOBENCH),$(TEST))
+
+CRAP:
+	echo $(DIRS)
 
 clean.dirs: $(addsuffix .clean, $(DIRS))
 install.dirs: $(addsuffix .install, $(DIRS))

@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.inc
+include ../../../Make.inc
 
 TARG=gob
 GOFILES=\
@@ -14,7 +14,7 @@ GOFILES=\
 	error.go\
 	type.go\
 
-include ../../Make.pkg
+include ../../../Make.pkg
 
 # Help for debugging. Requires adding debug.go to the gob package as well.
 
