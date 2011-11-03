@@ -21,10 +21,17 @@ dirpat=$(echo $dirs C | awk '{
 		gsub("/", "\\/", x)
 		printf("/^(%s)$/\n", x)
 	}
-}')
+}'
+	# Add packages' old names. TODO: clean up after renaming.
+	echo "/^(asn1)$/"
+	echo "/^(csv)$/"
+	echo "/^(gob)$/"
+	echo "/^(json)$/"
+	echo "/^(xml)$/"
+)
 
 for dir in $dirs; do (
-	cd $dir || exit 1
+	cd $dir >/dev/null || exit 1
 
 	sources=$(sed -n 's/^[ 	]*\([^ 	]*\.go\)[ 	]*\\*[ 	]*$/\1/p' Makefile)
 	sources=$(echo $sources | sed 's/\$(GOOS)/'$GOOS'/g')
@@ -39,6 +46,16 @@ for dir in $dirs; do (
 		awk "$dirpat" |
 		grep -v "^$dir\$" |
 		sed 's/$/.install/' |
+		# TODO: rename the dependencies for renamed directories.  TODO: clean up after renaming.
+		# awk is overkill but it's easy to understand.
+		awk '
+			/^asn1.install$/ { print "encoding/asn1.install"; next }
+			/^csv.install$/ { print "encoding/csv.install"; next }
+			/^gob.install$/ { print "encoding/gob.install"; next }
+			/^json.install$/ { print "encoding/json.install"; next }
+			/^xml.install$/ { print "encoding/xml.install"; next }
+			{print}
+		' |
 		sed 's;^C\.install;runtime/cgo.install;' |
 		sort -u
 	)
