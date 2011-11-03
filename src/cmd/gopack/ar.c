@@ -654,7 +654,7 @@ matchhdr(char *p, char **lastp)
 void
 scanobj(Biobuf *b, Arfile *ap, long size)
 {
-	int obj;
+	int obj, goobject;
 	vlong offset, offset1;
 	Dir *d;
 	static int lastobj = -1;
@@ -695,9 +695,19 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 		return;
 	}
 
+	goobject = 1;
 	offset1 = Boffset(b);
 	Bseek(b, offset, 0);
 	p = Brdstr(b, '\n', 1);
+	
+	// After the go object header comes the Go metadata,
+	// followed by ! on a line by itself.  If this is not a Go object,
+	// the ! comes immediately.  Catch that so we can avoid
+	// the call to scanpkg below, since scanpkg assumes that the
+	// Go metadata is present.
+	if(Bgetc(b) == '!')
+		goobject = 0;
+
 	Bseek(b, offset1, 0);
 	if(p == nil || strncmp(p, "go object ", 10) != 0) {
 		fprint(2, "gopack: malformed object file %s\n", file);
@@ -734,7 +744,7 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 	}
 	Bseek(b, offset, 0);
 	objtraverse(objsym, ap);
-	if (gflag) {
+	if (gflag && goobject) {
 		scanpkg(b, size);
 		Bseek(b, offset, 0);
 	}
