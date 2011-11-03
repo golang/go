@@ -95,21 +95,28 @@ TEXT runtime·mincore(SB),7,$0-24
 	CALL	*runtime·_vdso(SB)
 	RET
 
-TEXT runtime·gettime(SB), 7, $32
+// int64 nanotime(void) so really
+// void nanotime(int64 *nsec)
+TEXT runtime·nanotime(SB), 7, $32
 	MOVL	$78, AX			// syscall - gettimeofday
 	LEAL	8(SP), BX
 	MOVL	$0, CX
 	MOVL	$0, DX
 	CALL	*runtime·_vdso(SB)
-
-	MOVL	8(SP), BX	// sec
-	MOVL	sec+0(FP), DI
-	MOVL	BX, (DI)
-	MOVL	$0, 4(DI)	// zero extend 32 -> 64 bits
-
+	MOVL	8(SP), AX	// sec
 	MOVL	12(SP), BX	// usec
-	MOVL	usec+4(FP), DI
-	MOVL	BX, (DI)
+
+	// sec is in AX, usec in BX
+	// convert to DX:AX nsec
+	MOVL	$1000000000, CX
+	MULL	CX
+	IMULL	$1000, BX
+	ADDL	BX, AX
+	ADCL	$0, DX
+	
+	MOVL	ret+0(FP), DI
+	MOVL	AX, 0(DI)
+	MOVL	DX, 4(DI)
 	RET
 
 TEXT runtime·rt_sigaction(SB),7,$0

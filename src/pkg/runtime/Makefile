@@ -98,6 +98,7 @@ OFILES=\
 	symtab.$O\
 	sys.$O\
 	thread.$O\
+	time.$O\
 	traceback.$O\
 	$(OFILES_$(GOARCH))\
 	$(OFILES_$(GOOS))\

@@ -127,14 +127,14 @@ TEXT runtime·mincore(SB),7,$0
 	SWI	$0
 	RET
 
-TEXT runtime·gettime(SB),7,$32
+// int64 nanotime(void) so really
+// void nanotime(int64 *nsec)
+TEXT runtime·nanotime(SB),7,$32
 	/* dummy version - return 0,0 */
 	MOVW	$0, R1
 	MOVW	0(FP), R0
 	MOVW	R1, 0(R0)
 	MOVW	R1, 4(R0)
-	MOVW	4(FP), R0
-	MOVW	R1, 0(R0)
 
 /*
 	attempt at real version - seg faults

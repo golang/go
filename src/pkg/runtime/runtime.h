@@ -490,7 +490,6 @@ void	runtime·exitsyscall(void);
 G*	runtime·newproc1(byte*, byte*, int32, int32, void*);
 void	runtime·siginit(void);
 bool	runtime·sigsend(int32 sig);
-void	runtime·gettime(int64*, int32*);
 int32	runtime·callers(int32, uintptr*, int32);
 int32	runtime·gentraceback(byte*, byte*, byte*, G*, int32, uintptr*, int32);
 int64	runtime·nanotime(void);
