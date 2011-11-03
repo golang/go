@@ -13,7 +13,7 @@ package builtin
 // bool is the set of boolean values, true and false.
 type bool bool
 
-// uint8 is the set of all unsigned  8-bit integers.
+// uint8 is the set of all unsigned 8-bit integers.
 // Range: 0 through 255.
 type uint8 uint8
 
@@ -29,7 +29,7 @@ type uint32 uint32
 // Range: 0 through 18446744073709551615.
 type uint64 uint64
 
-// int8 is the set of all signed  8-bit integers.
+// int8 is the set of all signed 8-bit integers.
 // Range: -128 through 127.
 type int8 int8
 
