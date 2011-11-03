@@ -7,5 +7,6 @@ include ../../../../Make.inc
 TARG=net/http/httputil
 GOFILES=\
 	persist.go\
+	reverseproxy.go\
 
 include ../../../../Make.pkg

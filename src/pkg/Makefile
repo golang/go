@@ -212,7 +212,6 @@ NOTEST+=\
 	net/dict\
 	net/http/pprof\
 	net/http/httptest\
-	net/http/httputil\
 	runtime/cgo\
 	syscall\
 	testing\

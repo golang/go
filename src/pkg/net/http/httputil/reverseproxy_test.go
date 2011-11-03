@@ -4,10 +4,10 @@
 
 // Reverse proxy tests.
 
-package http_test
+package httputil
 
 import (
-	. "http"
+	"http"
 	"http/httptest"
 	"io/ioutil"
 	"testing"
@@ -17,7 +17,7 @@ import (
 func TestReverseProxy(t *testing.T) {
 	const backendResponse = "I am the backend"
 	const backendStatus = 404
-	backend := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if len(r.TransferEncoding) > 0 {
 			t.Errorf("backend got unexpected TransferEncoding: %v", r.TransferEncoding)
 		}
@@ -31,7 +31,7 @@ func TestReverseProxy(t *testing.T) {
 			t.Errorf("backend got Host header %q, want %q", g, e)
 		}
 		w.Header().Set("X-Foo", "bar")
-		SetCookie(w, &Cookie{Name: "flavor", Value: "chocolateChip"})
+		http.SetCookie(w, &http.Cookie{Name: "flavor", Value: "chocolateChip"})
 		w.WriteHeader(backendStatus)
 		w.Write([]byte(backendResponse))
 	}))
@@ -44,11 +44,11 @@ func TestReverseProxy(t *testing.T) {
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 
-	getReq, _ := NewRequest("GET", frontend.URL, nil)
+	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
 	getReq.Host = "some-name"
 	getReq.Header.Set("Connection", "close")
 	getReq.Close = true
-	res, err := DefaultClient.Do(getReq)
+	res, err := http.DefaultClient.Do(getReq)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
