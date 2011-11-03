@@ -200,20 +200,19 @@ func TestHTTP(t *testing.T) {
 	once.Do(startServer)
 
 	// If the client did not send a handshake that matches the protocol
-	// specification, the server should abort the WebSocket connection.
-	_, err := http.Get(fmt.Sprintf("http://%s/echo", serverAddr))
-	if err == nil {
-		t.Error("Get: unexpected success")
-		return
-	}
-	urlerr, ok := err.(*url.Error)
-	if !ok {
-		t.Errorf("Get: not url.Error %#v", err)
-		return
-	}
-	if urlerr.Err != io.ErrUnexpectedEOF {
+	// specification, the server MUST return an HTTP respose with an
+	// appropriate error code (such as 400 Bad Request)
+	resp, err := http.Get(fmt.Sprintf("http://%s/echo", serverAddr))
+	if err != nil {
 		t.Errorf("Get: error %#v", err)
 		return
+	}
+	if resp == nil {
+		t.Error("Get: resp is null")
+		return
+	}
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Get: expected %q got %q", http.StatusBadRequest, resp.StatusCode)
 	}
 }
 
