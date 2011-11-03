@@ -903,18 +903,26 @@ unmal(void *v, uint32 n)
  * Convert raw string to the prefix that will be used in the symbol table.
  * Invalid bytes turn into %xx.	 Right now the only bytes that need
  * escaping are %, ., and ", but we escape all control characters too.
+ *
+ * Must be same as ../gc/subr.c:/^pathtoprefix.
  */
 static char*
 pathtoprefix(char *s)
 {
 	static char hex[] = "0123456789abcdef";
-	char *p, *r, *w;
+	char *p, *r, *w, *l;
 	int n;
+
+	// find first character past the last slash, if any.
+	l = s;
+	for(r=s; *r; r++)
+		if(*r == '/')
+			l = r+1;
 
 	// check for chars that need escaping
 	n = 0;
 	for(r=s; *r; r++)
-		if(*r <= ' ' || *r == '.' || *r == '%' || *r == '"')
+		if(*r <= ' ' || (*r == '.' && r >= l) || *r == '%' || *r == '"' || *r >= 0x7f)
 			n++;
 
 	// quick exit
@@ -924,7 +932,7 @@ pathtoprefix(char *s)
 	// escape
 	p = mal((r-s)+1+2*n);
 	for(r=s, w=p; *r; r++) {
-		if(*r <= ' ' || *r == '.' || *r == '%' || *r == '"') {
+		if(*r <= ' ' || (*r == '.' && r >= l) || *r == '%' || *r == '"' || *r >= 0x7f) {
 			*w++ = '%';
 			*w++ = hex[(*r>>4)&0xF];
 			*w++ = hex[*r&0xF];
