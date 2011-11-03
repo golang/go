@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../../Make.inc
+include ../../../../Make.inc
 
 TARG=template/parse
 GOFILES=\
@@ -11,4 +11,4 @@ GOFILES=\
 	parse.go\
 	set.go\
 
-include ../../../Make.pkg
+include ../../../../Make.pkg
