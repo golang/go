@@ -235,7 +235,7 @@ func (s *Scanner) next() rune {
 			copy(s.srcBuf[0:], s.srcBuf[s.srcPos:s.srcEnd])
 			s.srcBufOffset += s.srcPos
 			// read more bytes
-			// (an io.Reader must return os.EOF when it reaches
+			// (an io.Reader must return io.EOF when it reaches
 			// the end of what it is reading - simply returning
 			// n == 0 will make this loop retry forever; but the
 			// error is in the reader implementation in that case)

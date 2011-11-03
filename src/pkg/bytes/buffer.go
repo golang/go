@@ -117,7 +117,7 @@ const MinRead = 512
 
 // ReadFrom reads data from r until EOF and appends it to the buffer.
 // The return value n is the number of bytes read.
-// Any error except os.EOF encountered during the read
+// Any error except io.EOF encountered during the read
 // is also returned.
 func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 	b.lastRead = opInvalid
@@ -200,7 +200,7 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
 
 // Read reads the next len(p) bytes from the buffer or until the buffer
 // is drained.  The return value n is the number of bytes read.  If the
-// buffer has no data to return, err is os.EOF even if len(p) is zero;
+// buffer has no data to return, err is io.EOF even if len(p) is zero;
 // otherwise it is nil.
 func (b *Buffer) Read(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
@@ -236,7 +236,7 @@ func (b *Buffer) Next(n int) []byte {
 }
 
 // ReadByte reads and returns the next byte from the buffer.
-// If no byte is available, it returns error os.EOF.
+// If no byte is available, it returns error io.EOF.
 func (b *Buffer) ReadByte() (c byte, err error) {
 	b.lastRead = opInvalid
 	if b.off >= len(b.buf) {
@@ -252,7 +252,7 @@ func (b *Buffer) ReadByte() (c byte, err error) {
 
 // ReadRune reads and returns the next UTF-8-encoded
 // Unicode code point from the buffer.
-// If no bytes are available, the error returned is os.EOF.
+// If no bytes are available, the error returned is io.EOF.
 // If the bytes are an erroneous UTF-8 encoding, it
 // consumes one byte and returns U+FFFD, 1.
 func (b *Buffer) ReadRune() (r rune, size int, err error) {
@@ -307,7 +307,7 @@ func (b *Buffer) UnreadByte() error {
 // ReadBytes reads until the first occurrence of delim in the input,
 // returning a slice containing the data up to and including the delimiter.
 // If ReadBytes encounters an error before finding a delimiter,
-// it returns the data read before the error and the error itself (often os.EOF).
+// it returns the data read before the error and the error itself (often io.EOF).
 // ReadBytes returns err != nil if and only if the returned data does not end in
 // delim.
 func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
@@ -326,7 +326,7 @@ func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
 // ReadString reads until the first occurrence of delim in the input,
 // returning a string containing the data up to and including the delimiter.
 // If ReadString encounters an error before finding a delimiter,
-// it returns the data read before the error and the error itself (often os.EOF).
+// it returns the data read before the error and the error itself (often io.EOF).
 // ReadString returns err != nil if and only if the returned data does not end
 // in delim.
 func (b *Buffer) ReadString(delim byte) (line string, err error) {

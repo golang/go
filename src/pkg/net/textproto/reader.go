@@ -299,7 +299,7 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err err
 //
 // The decoded form returned by the Reader's Read method
 // rewrites the "\r\n" line endings into the simpler "\n",
-// removes leading dot escapes if present, and stops with error os.EOF
+// removes leading dot escapes if present, and stops with error io.EOF
 // after consuming (and discarding) the end-of-sequence line.
 func (r *Reader) DotReader() io.Reader {
 	r.closeDot()

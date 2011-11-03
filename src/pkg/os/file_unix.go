@@ -136,7 +136,7 @@ func Lstat(name string) (fi *FileInfo, err error) {
 //
 // If n > 0, Readdir returns at most n FileInfo structures. In this case, if
 // Readdir returns an empty slice, it will return a non-nil error
-// explaining why. At the end of a directory, the error is os.EOF.
+// explaining why. At the end of a directory, the error is io.EOF.
 //
 // If n <= 0, Readdir returns all the FileInfo from the directory in
 // a single slice. In this case, if Readdir succeeds (reads all

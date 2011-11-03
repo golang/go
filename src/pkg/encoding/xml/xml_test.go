@@ -520,7 +520,7 @@ func TestTrailingRawToken(t *testing.T) {
 	for _, err = p.RawToken(); err == nil; _, err = p.RawToken() {
 	}
 	if err != io.EOF {
-		t.Fatalf("p.RawToken() = _, %v, want _, os.EOF", err)
+		t.Fatalf("p.RawToken() = _, %v, want _, io.EOF", err)
 	}
 }
 
@@ -531,7 +531,7 @@ func TestTrailingToken(t *testing.T) {
 	for _, err = p.Token(); err == nil; _, err = p.Token() {
 	}
 	if err != io.EOF {
-		t.Fatalf("p.Token() = _, %v, want _, os.EOF", err)
+		t.Fatalf("p.Token() = _, %v, want _, io.EOF", err)
 	}
 }
 
@@ -542,7 +542,7 @@ func TestEntityInsideCDATA(t *testing.T) {
 	for _, err = p.Token(); err == nil; _, err = p.Token() {
 	}
 	if err != io.EOF {
-		t.Fatalf("p.Token() = _, %v, want _, os.EOF", err)
+		t.Fatalf("p.Token() = _, %v, want _, io.EOF", err)
 	}
 }
 

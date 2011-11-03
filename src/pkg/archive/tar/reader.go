@@ -29,7 +29,7 @@ var (
 //	tr := tar.NewReader(r)
 //	for {
 //		hdr, err := tr.Next()
-//		if err == os.EOF {
+//		if err == io.EOF {
 //			// end of tar archive
 //			break
 //		}
@@ -200,7 +200,7 @@ func (tr *Reader) readHeader() *Header {
 }
 
 // Read reads from the current entry in the tar archive.
-// It returns 0, os.EOF when it reaches the end of that entry,
+// It returns 0, io.EOF when it reaches the end of that entry,
 // until Next is called to advance to the next entry.
 func (tr *Reader) Read(b []byte) (n int, err error) {
 	if tr.nb == 0 {

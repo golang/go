@@ -58,7 +58,7 @@ func (r *Reader) UnreadByte() error {
 
 // ReadRune reads and returns the next UTF-8-encoded
 // Unicode code point from the buffer.
-// If no bytes are available, the error returned is os.EOF.
+// If no bytes are available, the error returned is io.EOF.
 // If the bytes are an erroneous UTF-8 encoding, it
 // consumes one byte and returns U+FFFD, 1.
 func (r *Reader) ReadRune() (ch rune, size int, err error) {

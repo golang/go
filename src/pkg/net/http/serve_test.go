@@ -824,7 +824,7 @@ func TestRedirectMunging(t *testing.T) {
 // explicit Content-Length of zero is present), then the transport can re-use the
 // connection immediately. But when it re-uses the connection, it typically closes
 // the previous request's body, which is not optimal for zero-lengthed bodies,
-// as the client would then see http.ErrBodyReadAfterClose and not 0, os.EOF.
+// as the client would then see http.ErrBodyReadAfterClose and not 0, io.EOF.
 func TestZeroLengthPostAndResponse(t *testing.T) {
 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
 		all, err := ioutil.ReadAll(r.Body)

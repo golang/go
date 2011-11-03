@@ -135,7 +135,7 @@ func (b *Reader) Peek(n int) ([]byte, error) {
 // It returns the number of bytes read into p.
 // It calls Read at most once on the underlying Reader,
 // hence n may be less than len(p).
-// At EOF, the count will be zero and err will be os.EOF.
+// At EOF, the count will be zero and err will be io.EOF.
 func (b *Reader) Read(p []byte) (n int, err error) {
 	n = len(p)
 	if n == 0 {
@@ -246,7 +246,7 @@ func (b *Reader) Buffered() int { return b.w - b.r }
 // returning a slice pointing at the bytes in the buffer.
 // The bytes stop being valid at the next read call.
 // If ReadSlice encounters an error before finding a delimiter,
-// it returns all the data in the buffer and the error itself (often os.EOF).
+// it returns all the data in the buffer and the error itself (often io.EOF).
 // ReadSlice fails with error ErrBufferFull if the buffer fills without a delim.
 // Because the data returned from ReadSlice will be overwritten
 // by the next I/O operation, most clients should use
@@ -332,7 +332,7 @@ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
 // ReadBytes reads until the first occurrence of delim in the input,
 // returning a slice containing the data up to and including the delimiter.
 // If ReadBytes encounters an error before finding a delimiter,
-// it returns the data read before the error and the error itself (often os.EOF).
+// it returns the data read before the error and the error itself (often io.EOF).
 // ReadBytes returns err != nil if and only if the returned data does not end in
 // delim.
 func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
@@ -379,7 +379,7 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
 // ReadString reads until the first occurrence of delim in the input,
 // returning a string containing the data up to and including the delimiter.
 // If ReadString encounters an error before finding a delimiter,
-// it returns the data read before the error and the error itself (often os.EOF).
+// it returns the data read before the error and the error itself (often io.EOF).
 // ReadString returns err != nil if and only if the returned data does not end in
 // delim.
 func (b *Reader) ReadString(delim byte) (line string, err error) {
