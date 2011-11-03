@@ -11,7 +11,7 @@ import (
 
 // Content-type sniffing algorithm.
 // References in this file refer to this draft specification:
-//   http://tools.ietf.org/html/draft-ietf-websec-mime-sniff-03
+//   http://mimesniff.spec.whatwg.org/
 
 // The algorithm prefers to use sniffLen bytes to make its decision.
 const sniffLen = 512
