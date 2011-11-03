@@ -98,7 +98,7 @@ runtime·compilecallback(Eface fn, bool /*cleanstack*/)
 
 	// JMP AX
 	*p++ = 0xFF;
-	*p++ = 0xE0;
+	*p = 0xE0;
 
 	return &c->asmbody;
 }
