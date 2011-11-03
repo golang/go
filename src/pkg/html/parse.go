@@ -455,8 +455,10 @@ func inHeadIM(p *parser) (insertionMode, bool) {
 		implied = true
 	case StartTagToken:
 		switch p.tok.Data {
-		case "meta":
-			// TODO.
+		case "base", "basefont", "bgsound", "command", "link", "meta":
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.oe.pop()
+			p.acknowledgeSelfClosingTag()
 		case "script", "title", "noscript", "noframes", "style":
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.setOriginalIM(inHeadIM)
