@@ -8,8 +8,13 @@ import (
 	"go/ast"
 )
 
+func init() {
+	register(imagecolorFix)
+}
+
 var imagecolorFix = fix{
 	"imagecolor",
+	"2011-10-04",
 	imagecolor,
 	`Adapt code to types moved from image to color.
 

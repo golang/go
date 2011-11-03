@@ -8,8 +8,13 @@ import (
 	"go/ast"
 )
 
+func init() {
+	register(httpHeadersFix)
+}
+
 var httpHeadersFix = fix{
 	"httpheaders",
+	"2011-06-16",
 	httpheaders,
 	`Rename http Referer, UserAgent, Cookie, SetCookie, which are now methods.
 

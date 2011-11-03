@@ -9,8 +9,13 @@ import (
 	"go/token"
 )
 
+func init() {
+	register(stringssplitFix)
+}
+
 var stringssplitFix = fix{
 	"stringssplit",
+	"2011-06-28",
 	stringssplit,
 	`Restore strings.Split to its original meaning and add strings.SplitN. Bytes too.
 

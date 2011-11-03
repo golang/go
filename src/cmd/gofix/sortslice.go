@@ -8,8 +8,13 @@ import (
 	"go/ast"
 )
 
+func init() {
+	register(sortsliceFix)
+}
+
 var sortsliceFix = fix{
 	"sortslice",
+	"2011-06-26",
 	sortslice,
 	`Adapt code from sort.[Float64|Int|String]Array to  sort.[Float64|Int|String]Slice.
 		

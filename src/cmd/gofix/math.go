@@ -6,8 +6,13 @@ package main
 
 import "go/ast"
 
+func init() {
+	register(mathFix)
+}
+
 var mathFix = fix{
 	"math",
+	"2011-09-29",
 	math,
 	`Remove the leading F from math functions such as Fabs.
 

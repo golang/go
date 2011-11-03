@@ -8,8 +8,13 @@ import (
 	"go/ast"
 )
 
+func init() {
+	register(httpFinalURLFix)
+}
+
 var httpFinalURLFix = fix{
 	"httpfinalurl",
+	"2011-05-13",
 	httpfinalurl,
 	`Adapt http Get calls to not have a finalURL result parameter.
 

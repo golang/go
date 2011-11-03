@@ -9,8 +9,13 @@ import (
 	"go/token"
 )
 
+func init() {
+	register(httpserverFix)
+}
+
 var httpserverFix = fix{
 	"httpserver",
+	"2011-03-15",
 	httpserver,
 	`Adapt http server methods and functions to changes
 made to the http ResponseWriter interface.

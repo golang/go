@@ -8,8 +8,13 @@ import (
 	"go/ast"
 )
 
+func init() {
+	register(sorthelpersFix)
+}
+
 var sorthelpersFix = fix{
 	"sorthelpers",
+	"2011-07-08",
 	sorthelpers,
 	`Adapt code from sort.Sort[Ints|Float64s|Strings] to sort.[Ints|Float64s|Strings].
 `,

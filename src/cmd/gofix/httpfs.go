@@ -9,8 +9,13 @@ import (
 	"go/token"
 )
 
+func init() {
+	register(httpFileSystemFix)
+}
+
 var httpFileSystemFix = fix{
 	"httpfs",
+	"2011-06-27",
 	httpfs,
 	`Adapt http FileServer to take a FileSystem.
 

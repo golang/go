@@ -6,8 +6,13 @@ package main
 
 import "go/ast"
 
+func init() {
+	register(urlFix)
+}
+
 var urlFix = fix{
 	"url",
+	"2011-08-17",
 	url,
 	`Move the URL pieces of package http into a new package, url.
 

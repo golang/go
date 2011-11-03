@@ -8,8 +8,13 @@ import (
 	"go/ast"
 )
 
+func init() {
+	register(netudpgroupFix)
+}
+
 var netudpgroupFix = fix{
 	"netudpgroup",
+	"2011-08-18",
 	netudpgroup,
 	`Adapt 1-argument calls of net.(*UDPConn).JoinGroup, LeaveGroup to use 2-argument form.
 

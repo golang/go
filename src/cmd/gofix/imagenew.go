@@ -8,8 +8,13 @@ import (
 	"go/ast"
 )
 
+func init() {
+	register(imagenewFix)
+}
+
 var imagenewFix = fix{
 	"imagenew",
+	"2011-09-14",
 	imagenew,
 	`Adapt image.NewXxx calls to pass an image.Rectangle instead of (w, h int).
 
