@@ -11,11 +11,12 @@ import (
 )
 
 func init() {
-	fixes = append(fixes, errorFix)
+	register(errorFix)
 }
 
 var errorFix = fix{
 	"error",
+	"2011-11-02",
 	errorFn,
 	`Use error instead of os.Error.
 

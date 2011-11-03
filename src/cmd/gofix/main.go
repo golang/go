@@ -40,7 +40,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "usage: gofix [-diff] [-r fixname,...] [-force fixname,...] [path ...]\n")
 	flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\nAvailable rewrites are:\n")
-	sort.Sort(fixes)
+	sort.Sort(byName(fixes))
 	for _, f := range fixes {
 		fmt.Fprintf(os.Stderr, "\n%s\n", f.name)
 		desc := strings.TrimSpace(f.desc)
@@ -53,6 +53,8 @@ func usage() {
 func main() {
 	flag.Usage = usage
 	flag.Parse()
+
+	sort.Sort(byDate(fixes))
 
 	if *allowedRewrites != "" {
 		allowed = make(map[string]bool)

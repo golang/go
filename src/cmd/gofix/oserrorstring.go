@@ -8,8 +8,13 @@ import (
 	"go/ast"
 )
 
+func init() {
+	register(oserrorstringFix)
+}
+
 var oserrorstringFix = fix{
 	"oserrorstring",
+	"2011-06-22",
 	oserrorstring,
 	`Replace os.ErrorString() conversions with calls to os.NewError().
 

@@ -8,8 +8,13 @@ import (
 	"go/ast"
 )
 
+func init() {
+	register(osopenFix)
+}
+
 var osopenFix = fix{
 	"osopen",
+	"2011-04-04",
 	osopen,
 	`Adapt os.Open calls to new, easier API and rename O_CREAT O_CREATE.
 

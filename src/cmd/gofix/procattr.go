@@ -9,8 +9,13 @@ import (
 	"go/token"
 )
 
+func init() {
+	register(procattrFix)
+}
+
 var procattrFix = fix{
 	"procattr",
+	"2011-03-15",
 	procattr,
 	`Adapt calls to os.StartProcess to use new ProcAttr type.
 

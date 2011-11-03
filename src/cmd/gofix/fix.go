@@ -24,45 +24,29 @@ import (
 
 type fix struct {
 	name string
+	date string // date that fix was introduced, in YYYY-MM-DD format
 	f    func(*ast.File) bool
 	desc string
 }
 
-// main runs sort.Sort(fixes) before printing list of fixes.
-type fixlist []fix
+// main runs sort.Sort(byName(fixes)) before printing list of fixes.
+type byName []fix
 
-func (f fixlist) Len() int           { return len(f) }
-func (f fixlist) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
-func (f fixlist) Less(i, j int) bool { return f[i].name < f[j].name }
+func (f byName) Len() int           { return len(f) }
+func (f byName) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+func (f byName) Less(i, j int) bool { return f[i].name < f[j].name }
 
-var fixes = fixlist{
-	// NOTE: This list must be in chronological order,
-	// so that code using APIs that changed multiple times
-	// can be updated in the correct order.
-	// Add new fixes to bottom of list.  Do not sort.
-	httpserverFix,
-	procattrFix,
-	netdialFix,
-	netlookupFix,
-	tlsdialFix,
-	osopenFix,
-	reflectFix,
-	httpFinalURLFix,
-	httpHeadersFix,
-	oserrorstringFix,
-	sortsliceFix,
-	filepathFix,
-	httpFileSystemFix,
-	stringssplitFix,
-	signalFix,
-	sorthelpersFix,
-	urlFix,
-	netudpgroupFix,
-	imagenewFix,
-	mathFix,
-	ioCopyNFix,
-	imagecolorFix,
-	mapdeleteFix,
+// main runs sort.Sort(byDate(fixes)) before applying fixes.
+type byDate []fix
+
+func (f byDate) Len() int           { return len(f) }
+func (f byDate) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+func (f byDate) Less(i, j int) bool { return f[i].date < f[j].date }
+
+var fixes []fix
+
+func register(f fix) {
+	fixes = append(fixes, f)
 }
 
 // walk traverses the AST x, calling visit(y) for each node y in the tree but

@@ -8,8 +8,13 @@ import (
 	"go/ast"
 )
 
+func init() {
+	register(ioCopyNFix)
+}
+
 var ioCopyNFix = fix{
 	"iocopyn",
+	"2011-09-30",
 	ioCopyN,
 	`Rename io.Copyn to io.CopyN.
 

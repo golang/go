@@ -15,8 +15,13 @@ import (
 	"strings"
 )
 
+func init() {
+	register(reflectFix)
+}
+
 var reflectFix = fix{
 	"reflect",
+	"2011-04-08",
 	reflectFn,
 	`Adapt code to new reflect API.
 

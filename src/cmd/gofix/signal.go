@@ -9,8 +9,13 @@ import (
 	"strings"
 )
 
+func init() {
+	register(signalFix)
+}
+
 var signalFix = fix{
 	"signal",
+	"2011-06-29",
 	signal,
 	`Adapt code to types moved from os/signal to signal.
 

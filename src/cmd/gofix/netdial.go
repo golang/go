@@ -8,8 +8,15 @@ import (
 	"go/ast"
 )
 
+func init() {
+	register(netdialFix)
+	register(tlsdialFix)
+	register(netlookupFix)
+}
+
 var netdialFix = fix{
 	"netdial",
+	"2011-03-28",
 	netdial,
 	`Adapt 3-argument calls of net.Dial to use 2-argument form.
 
@@ -19,6 +26,7 @@ http://codereview.appspot.com/4244055
 
 var tlsdialFix = fix{
 	"tlsdial",
+	"2011-03-28",
 	tlsdial,
 	`Adapt 4-argument calls of tls.Dial to use 3-argument form.
 
@@ -28,6 +36,7 @@ http://codereview.appspot.com/4244055
 
 var netlookupFix = fix{
 	"netlookup",
+	"2011-03-28",
 	netlookup,
 	`Adapt 3-result calls to net.LookupHost to use 2-result form.
 

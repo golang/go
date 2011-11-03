@@ -6,8 +6,13 @@ package main
 
 import "go/ast"
 
+func init() {
+	register(mapdeleteFix)
+}
+
 var mapdeleteFix = fix{
 	"mapdelete",
+	"2011-10-18",
 	mapdelete,
 	`Use delete(m, k) instead of m[k] = 0, false.
 
