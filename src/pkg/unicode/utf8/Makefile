@@ -2,10 +2,11 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../Make.inc
+include ../../../Make.inc
 
-TARG=utf16
+TARG=utf8
 GOFILES=\
-	utf16.go\
+	string.go\
+	utf8.go\
 
-include ../../Make.pkg
+include ../../../Make.pkg

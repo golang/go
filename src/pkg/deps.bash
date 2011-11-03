@@ -29,6 +29,7 @@ dirpat="$dirpat
 /^(big)$/
 /^(cmath)$/
 /^(csv)$/
+/^(exec)$/
 /^(exp\/template\/html)$/
 /^(gob)$/
 /^(http)/
@@ -40,9 +41,15 @@ dirpat="$dirpat
 /^(mail)$/
 /^(rand)$/
 /^(rpc)$/
+/^(scanner)$/
 /^(smtp)$/
 /^(syslog)$/
+/^(tabwriter)$/
 /^(url)$/
+/^(template)$/
+/^(template\/parse)$/
+/^(utf16)$/
+/^(utf8)$/
 /^(xml)$/
 "
 
@@ -67,6 +74,7 @@ for dir in $dirs; do (
 		s;^big.install$;math/big.install;
 		s;^cmath.install$;math/cmplx.install;
 		s;^csv.install$;encoding/csv.install;
+		s;^exec.install$;os/exec.install;
 		s;^exp/template/html.install$;html/template.install;
 		s;^gob.install$;encoding/gob.install;
 		s;^http.install$;net/http.install;
@@ -78,10 +86,16 @@ for dir in $dirs; do (
 		s;^mail.install$;net/mail.install;
 		s;^rpc.install$;net/rpc.install;
 		s;^rpc/jsonrpc.install$;net/rpc/jsonrpc.install;
+		s;^scanner.install$;text/scanner.install;
 		s;^smtp.install$;net/smtp.install;
 		s;^syslog.install$;log/syslog.install;
+		s;^tabwriter.install$;text/tabwriter.install;
+		s;^template.install$;text/template.install;
+		s;^template/parse.install$;text/template/parse.install;
 		s;^rand.install$;math/rand.install;
 		s;^url.install$;net/url.install;
+		s;^utf16.install$;unicode/utf16.install;
+		s;^utf8.install$;unicode/utf8.install;
 		s;^xml.install$;encoding/xml.install;' |
 		# TODO: end of renamings.
 		sed 's;^C\.install;runtime/cgo.install;' |

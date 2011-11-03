@@ -77,7 +77,6 @@ DIRS=\
 	encoding/pem\
 	encoding/xml\
 	errors\
-	exec\
 	exp/ebnf\
 	exp/ebnflint\
 	exp/gotype\
@@ -142,6 +141,7 @@ DIRS=\
 	old/regexp\
 	old/template\
 	os\
+	os/exec\
 	os/signal\
 	os/user\
 	patch\
@@ -154,24 +154,24 @@ DIRS=\
 	runtime/cgo\
 	runtime/debug\
 	runtime/pprof\
-	scanner\
 	sort\
 	strconv\
 	strings\
 	sync\
 	sync/atomic\
 	syscall\
-	tabwriter\
-	template\
-	template/parse\
 	testing\
 	testing/iotest\
 	testing/quick\
 	testing/script\
+	text/scanner\
+	text/tabwriter\
+	text/template\
+	text/template/parse\
 	time\
 	unicode\
-	utf16\
-	utf8\
+	unicode/utf16\
+	unicode/utf8\
 	websocket\
 	../cmd/cgo\
 	../cmd/godoc\
