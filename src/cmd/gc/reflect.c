@@ -158,10 +158,13 @@ methods(Type *t)
 	// generating code if necessary.
 	a = nil;
 	for(f=mt->xmethod; f; f=f->down) {
-		if(f->type->etype != TFUNC)
-			continue;
 		if(f->etype != TFIELD)
-			fatal("methods: not field");
+			fatal("methods: not field %T", f);
+		if (f->type->etype != TFUNC || f->type->thistuple == 0)
+			fatal("non-method on %T method %S %T\n", mt, f->sym, f);
+		if (!getthisx(f->type)->type)
+			fatal("receiver with no type on %T method %S %T\n", mt, f->sym, f);
+
 		method = f->sym;
 		if(method == nil)
 			continue;

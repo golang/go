@@ -2178,8 +2178,11 @@ expandmeth(Sym *s, Type *t)
 			if(c == 0)
 				continue;
 			if(c == 1) {
-				sl->good = 1;
-				sl->field = f;
+				// addot1 may have dug out arbitrary fields, we only want methods.
+				if(f->type->etype == TFUNC && f->type->thistuple > 0) {
+					sl->good = 1;
+					sl->field = f;
+				}
 			}
 			break;
 		}
