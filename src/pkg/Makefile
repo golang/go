@@ -129,9 +129,10 @@ DIRS=\
 	net/http\
 	net/http/cgi\
 	net/http/fcgi\
-	net/mail\
 	net/http/pprof\
 	net/http/httptest\
+	net/http/httputil\
+	net/mail\
 	net/rpc\
 	net/rpc/jsonrpc\
 	net/smtp\
@@ -211,6 +212,7 @@ NOTEST+=\
 	net/dict\
 	net/http/pprof\
 	net/http/httptest\
+	net/http/httputil\
 	runtime/cgo\
 	syscall\
 	testing\
