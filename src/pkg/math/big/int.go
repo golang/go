@@ -516,7 +516,7 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 	if err != io.EOF {
 		return nil, false
 	}
-	return z, true // err == os.EOF => scan consumed all of s
+	return z, true // err == io.EOF => scan consumed all of s
 }
 
 // SetBytes interprets buf as the bytes of a big-endian unsigned

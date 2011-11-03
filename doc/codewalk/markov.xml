@@ -105,7 +105,7 @@ Prefix               Map key
 	reads space-separated values from an <code>io.Reader</code>.
 	<br/><br/>
 	The <code>Build</code> method returns once the <code>Reader</code>'s
-	<code>Read</code> method returns <code>os.EOF</code> (end of file)
+	<code>Read</code> method returns <code>io.EOF</code> (end of file)
 	or some other read error occurs.
 </step>
 
@@ -133,7 +133,7 @@ Prefix               Map key
 	(including punctuation), which is exactly what we need.
 	<br/><br/>
 	<code>Fscan</code> returns an error if it encounters a read error
-	(<code>os.EOF</code>, for example) or if it can't scan the requested
+	(<code>io.EOF</code>, for example) or if it can't scan the requested
 	value (in our case, a single string). In either case we just want to
 	stop scanning, so we <code>break</code> out of the loop.
 </step>

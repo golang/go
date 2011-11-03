@@ -471,7 +471,7 @@ Again:
 		// RFC suggests that EOF without an alertCloseNotify is
 		// an error, but popular web sites seem to do this,
 		// so we can't make it an error.
-		// if err == os.EOF {
+		// if err == io.EOF {
 		// 	err = io.ErrUnexpectedEOF
 		// }
 		if e, ok := err.(net.Error); !ok || !e.Temporary() {

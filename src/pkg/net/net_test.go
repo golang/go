@@ -147,7 +147,7 @@ func TestShutdown(t *testing.T) {
 		var buf [10]byte
 		n, err := c.Read(buf[:])
 		if n != 0 || err != io.EOF {
-			t.Fatalf("server Read = %d, %v; want 0, os.EOF", n, err)
+			t.Fatalf("server Read = %d, %v; want 0, io.EOF", n, err)
 		}
 		c.Write([]byte("response"))
 		c.Close()

@@ -123,7 +123,7 @@ type Tokenizer struct {
 	// for tt != Error && err != nil to hold: this means that Next returned a
 	// valid token but the subsequent Next call will return an error token.
 	// For example, if the HTML text input was just "plain", then the first
-	// Next call would set z.err to os.EOF but return a TextToken, and all
+	// Next call would set z.err to io.EOF but return a TextToken, and all
 	// subsequent Next calls would return an ErrorToken.
 	// err is never reset. Once it becomes non-nil, it stays non-nil.
 	err error
@@ -150,7 +150,7 @@ type Tokenizer struct {
 }
 
 // Error returns the error associated with the most recent ErrorToken token.
-// This is typically os.EOF, meaning the end of tokenization.
+// This is typically io.EOF, meaning the end of tokenization.
 func (z *Tokenizer) Error() error {
 	if z.tt != ErrorToken {
 		return nil

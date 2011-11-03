@@ -197,7 +197,7 @@ func NewParser(r io.Reader) *Parser {
 }
 
 // Token returns the next XML token in the input stream.
-// At the end of the input stream, Token returns nil, os.EOF.
+// At the end of the input stream, Token returns nil, io.EOF.
 //
 // Slices of bytes in the returned token data refer to the
 // parser's internal buffer and remain valid only until the next

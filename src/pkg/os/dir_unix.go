@@ -19,7 +19,7 @@ const (
 //
 // If n > 0, Readdirnames returns at most n names. In this case, if
 // Readdirnames returns an empty slice, it will return a non-nil error
-// explaining why. At the end of a directory, the error is os.EOF.
+// explaining why. At the end of a directory, the error is io.EOF.
 //
 // If n <= 0, Readdirnames returns all the names from the directory in
 // a single slice. In this case, if Readdirnames succeeds (reads all

@@ -176,7 +176,7 @@ type Reader struct {
 }
 
 // NextPart returns the next part in the multipart or an error.
-// When there are no more parts, the error os.EOF is returned.
+// When there are no more parts, the error io.EOF is returned.
 func (mr *Reader) NextPart() (*Part, error) {
 	if mr.currentPart != nil {
 		mr.currentPart.Close()
