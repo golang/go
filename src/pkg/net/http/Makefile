@@ -14,7 +14,6 @@ GOFILES=\
 	fs.go\
 	header.go\
 	lex.go\
-	persist.go\
 	request.go\
 	response.go\
 	reverseproxy.go\

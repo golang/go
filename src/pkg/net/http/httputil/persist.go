@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package http
+// Package httputil provides HTTP utility functions, complementing the
+// more common ones in the net/http package.
+package httputil
 
 import (
 	"bufio"
 	"errors"
+	"http"
 	"io"
 	"net"
 	"net/textproto"
@@ -15,8 +18,8 @@ import (
 )
 
 var (
-	ErrPersistEOF = &ProtocolError{"persistent connection closed"}
-	ErrPipeline   = &ProtocolError{"pipeline error"}
+	ErrPersistEOF = &http.ProtocolError{"persistent connection closed"}
+	ErrPipeline   = &http.ProtocolError{"pipeline error"}
 )
 
 // A ServerConn reads requests and sends responses over an underlying
@@ -35,7 +38,7 @@ type ServerConn struct {
 	re, we          error // read/write errors
 	lastbody        io.ReadCloser
 	nread, nwritten int
-	pipereq         map[*Request]uint
+	pipereq         map[*http.Request]uint
 
 	pipe textproto.Pipeline
 }
@@ -46,7 +49,7 @@ func NewServerConn(c net.Conn, r *bufio.Reader) *ServerConn {
 	if r == nil {
 		r = bufio.NewReader(c)
 	}
-	return &ServerConn{c: c, r: r, pipereq: make(map[*Request]uint)}
+	return &ServerConn{c: c, r: r, pipereq: make(map[*http.Request]uint)}
 }
 
 // Hijack detaches the ServerConn and returns the underlying connection as well
@@ -76,7 +79,7 @@ func (sc *ServerConn) Close() error {
 // it is gracefully determined that there are no more requests (e.g. after the
 // first request on an HTTP/1.0 connection, or after a Connection:close on a
 // HTTP/1.1 connection).
-func (sc *ServerConn) Read() (req *Request, err error) {
+func (sc *ServerConn) Read() (req *http.Request, err error) {
 
 	// Ensure ordered execution of Reads and Writes
 	id := sc.pipe.Next()
@@ -126,7 +129,7 @@ func (sc *ServerConn) Read() (req *Request, err error) {
 		}
 	}
 
-	req, err = ReadRequest(r)
+	req, err = http.ReadRequest(r)
 	sc.lk.Lock()
 	defer sc.lk.Unlock()
 	if err != nil {
@@ -161,7 +164,7 @@ func (sc *ServerConn) Pending() int {
 // Write writes resp in response to req. To close the connection gracefully, set the
 // Response.Close field to true. Write should be considered operational until
 // it returns an error, regardless of any errors returned on the Read side.
-func (sc *ServerConn) Write(req *Request, resp *Response) error {
+func (sc *ServerConn) Write(req *http.Request, resp *http.Response) error {
 
 	// Retrieve the pipeline ID of this request/response pair
 	sc.lk.Lock()
@@ -225,10 +228,10 @@ type ClientConn struct {
 	re, we          error // read/write errors
 	lastbody        io.ReadCloser
 	nread, nwritten int
-	pipereq         map[*Request]uint
+	pipereq         map[*http.Request]uint
 
 	pipe     textproto.Pipeline
-	writeReq func(*Request, io.Writer) error
+	writeReq func(*http.Request, io.Writer) error
 }
 
 // NewClientConn returns a new ClientConn reading and writing c.  If r is not
@@ -240,8 +243,8 @@ func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
 	return &ClientConn{
 		c:        c,
 		r:        r,
-		pipereq:  make(map[*Request]uint),
-		writeReq: (*Request).Write,
+		pipereq:  make(map[*http.Request]uint),
+		writeReq: (*http.Request).Write,
 	}
 }
 
@@ -249,7 +252,7 @@ func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
 // using Request's WriteProxy method.
 func NewProxyClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
 	cc := NewClientConn(c, r)
-	cc.writeReq = (*Request).WriteProxy
+	cc.writeReq = (*http.Request).WriteProxy
 	return cc
 }
 
@@ -281,7 +284,7 @@ func (cc *ClientConn) Close() error {
 // keepalive connection is logically closed after this request and the opposing
 // server is informed. An ErrUnexpectedEOF indicates the remote closed the
 // underlying TCP connection, which is usually considered as graceful close.
-func (cc *ClientConn) Write(req *Request) (err error) {
+func (cc *ClientConn) Write(req *http.Request) (err error) {
 
 	// Ensure ordered execution of Writes
 	id := cc.pipe.Next()
@@ -344,13 +347,7 @@ func (cc *ClientConn) Pending() int {
 // returned together with an ErrPersistEOF, which means that the remote
 // requested that this be the last request serviced. Read can be called
 // concurrently with Write, but not with another Read.
-func (cc *ClientConn) Read(req *Request) (*Response, error) {
-	return cc.readUsing(req, ReadResponse)
-}
-
-// readUsing is the implementation of Read with a replaceable
-// ReadResponse-like function, used by the Transport.
-func (cc *ClientConn) readUsing(req *Request, readRes func(*bufio.Reader, *Request) (*Response, error)) (resp *Response, err error) {
+func (cc *ClientConn) Read(req *http.Request) (resp *http.Response, err error) {
 	// Retrieve the pipeline ID of this request/response pair
 	cc.lk.Lock()
 	id, ok := cc.pipereq[req]
@@ -393,7 +390,7 @@ func (cc *ClientConn) readUsing(req *Request, readRes func(*bufio.Reader, *Reque
 		}
 	}
 
-	resp, err = readRes(r, req)
+	resp, err = http.ReadResponse(r, req)
 	cc.lk.Lock()
 	defer cc.lk.Unlock()
 	if err != nil {
@@ -412,7 +409,7 @@ func (cc *ClientConn) readUsing(req *Request, readRes func(*bufio.Reader, *Reque
 }
 
 // Do is convenience method that writes a request and reads a response.
-func (cc *ClientConn) Do(req *Request) (resp *Response, err error) {
+func (cc *ClientConn) Do(req *http.Request) (resp *http.Response, err error) {
 	err = cc.Write(req)
 	if err != nil {
 		return

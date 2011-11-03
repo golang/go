@@ -17,6 +17,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/http/httputil"
 	"os"
 	"reflect"
 	"strings"
@@ -181,7 +182,7 @@ func TestHostHandlers(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	cc := NewClientConn(conn, nil)
+	cc := httputil.NewClientConn(conn, nil)
 	for _, vt := range vtests {
 		var r *Response
 		var req Request
