@@ -660,7 +660,7 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
 	}
 
 	if !v.Type().Implements(errorType) && !v.Type().Implements(fmtStringerType) {
-		if v.CanAddr() && reflect.PtrTo(v.Type()).Implements(fmtStringerType) {
+		if v.CanAddr() && (reflect.PtrTo(v.Type()).Implements(errorType) || reflect.PtrTo(v.Type()).Implements(fmtStringerType)) {
 			v = v.Addr()
 		} else {
 			switch v.Kind() {

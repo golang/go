@@ -32,6 +32,9 @@ type T struct {
 	// Struct with String method.
 	V0     V
 	V1, V2 *V
+	// Struct with Error method.
+	W0     W
+	W1, W2 *W
 	// Slices
 	SI      []int
 	SIEmpty []int
@@ -77,6 +80,17 @@ func (v *V) String() string {
 	return fmt.Sprintf("<%d>", v.j)
 }
 
+type W struct {
+	k int
+}
+
+func (w *W) Error() string {
+	if w == nil {
+		return "nilW"
+	}
+	return fmt.Sprintf("[%d]", w.k)
+}
+
 var tVal = &T{
 	True:   true,
 	I:      17,
@@ -85,6 +99,8 @@ var tVal = &T{
 	U:      &U{"v"},
 	V0:     V{6666},
 	V1:     &V{7777}, // leave V2 as nil
+	W0:     W{888},
+	W1:     &W{999}, // leave W2 as nil
 	SI:     []int{3, 4, 5},
 	SB:     []bool{true, false},
 	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
@@ -250,6 +266,11 @@ var execTests = []execTest{
 	{"V{6666}.String()", "-{{.V0}}-", "-<6666>-", tVal, true},
 	{"&V{7777}.String()", "-{{.V1}}-", "-<7777>-", tVal, true},
 	{"(*V)(nil).String()", "-{{.V2}}-", "-nilV-", tVal, true},
+
+	// Type with Error method.
+	{"W{888}.Error()", "-{{.W0}}-", "-[888]-", tVal, true},
+	{"&W{999}.Error()", "-{{.W1}}-", "-[999]-", tVal, true},
+	{"(*W)(nil).Error()", "-{{.W2}}-", "-nilW-", tVal, true},
 
 	// Pointers.
 	{"*int", "{{.PI}}", "23", tVal, true},
