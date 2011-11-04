@@ -734,7 +734,7 @@ func (r *Request) ParseForm() (err error) {
 		ct := r.Header.Get("Content-Type")
 		ct, _, err := mime.ParseMediaType(ct)
 		switch {
-		case ct == "text/plain" || ct == "application/x-www-form-urlencoded" || ct == "":
+		case ct == "application/x-www-form-urlencoded":
 			var reader io.Reader = r.Body
 			maxFormSize := int64(1<<63 - 1)
 			if _, ok := r.Body.(*maxBytesReader); !ok {
