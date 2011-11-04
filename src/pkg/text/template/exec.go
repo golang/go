@@ -445,7 +445,7 @@ func methodByName(receiver reflect.Value, name string) (reflect.Value, bool) {
 }
 
 var (
-	osErrorType     = reflect.TypeOf((*error)(nil)).Elem()
+	errorType       = reflect.TypeOf((*error)(nil)).Elem()
 	fmtStringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
 )
 
@@ -659,7 +659,7 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
 		return
 	}
 
-	if !v.Type().Implements(fmtStringerType) {
+	if !v.Type().Implements(errorType) && !v.Type().Implements(fmtStringerType) {
 		if v.CanAddr() && reflect.PtrTo(v.Type()).Implements(fmtStringerType) {
 			v = v.Addr()
 		} else {

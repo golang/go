@@ -6,6 +6,7 @@ package template
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -52,6 +53,7 @@ type T struct {
 	NonEmptyInterface I
 	// Stringer.
 	Str fmt.Stringer
+	Err error
 	// Pointers
 	PI  *int
 	PSI *[]int
@@ -99,6 +101,7 @@ var tVal = &T{
 	Empty4:            &U{"UinEmpty"},
 	NonEmptyInterface: new(T),
 	Str:               bytes.NewBuffer([]byte("foozle")),
+	Err:               errors.New("erroozle"),
 	PI:                newInt(23),
 	PSI:               newIntSlice(21, 22, 23),
 	Tmpl:              Must(New("x").Parse("test template")), // "x" is the value of .X
@@ -416,6 +419,7 @@ var execTests = []execTest{
 	{"bug4", "{{if .Empty0}}non-nil{{else}}nil{{end}}", "nil", tVal, true},
 	// Stringer.
 	{"bug5", "{{.Str}}", "foozle", tVal, true},
+	{"bug5a", "{{.Err}}", "erroozle", tVal, true},
 	// Args need to be indirected and dereferenced sometimes.
 	{"bug6a", "{{vfunc .V0 .V1}}", "vfunc", tVal, true},
 	{"bug6b", "{{vfunc .V0 .V0}}", "vfunc", tVal, true},

@@ -72,7 +72,7 @@ func goodFunc(typ reflect.Type) bool {
 	switch {
 	case typ.NumOut() == 1:
 		return true
-	case typ.NumOut() == 2 && typ.Out(1) == osErrorType:
+	case typ.NumOut() == 2 && typ.Out(1) == errorType:
 		return true
 	}
 	return false
