@@ -22,7 +22,6 @@ type reqWriteTest struct {
 	// Any of these three may be empty to skip that test.
 	WantWrite string // Request.Write
 	WantProxy string // Request.WriteProxy
-	WantDump  string // DumpRequest
 
 	WantError error // wanted error from Request.Write
 }
@@ -107,11 +106,6 @@ var reqWriteTests = []reqWriteTest{
 		WantProxy: "GET http://www.google.com/search HTTP/1.1\r\n" +
 			"Host: www.google.com\r\n" +
 			"User-Agent: Go http package\r\n" +
-			"Transfer-Encoding: chunked\r\n\r\n" +
-			chunk("abcdef") + chunk(""),
-
-		WantDump: "GET /search HTTP/1.1\r\n" +
-			"Host: www.google.com\r\n" +
 			"Transfer-Encoding: chunked\r\n\r\n" +
 			chunk("abcdef") + chunk(""),
 	},
@@ -335,13 +329,6 @@ var reqWriteTests = []reqWriteTest{
 			},
 		},
 
-		// We can dump it:
-		WantDump: "GET /foo HTTP/1.0\r\n" +
-			"X-Foo: X-Bar\r\n\r\n",
-
-		// .. but we can't call Request.Write on it, due to its lack of Host header.
-		// TODO(bradfitz): there might be an argument to allow this, but for now I'd
-		// rather let HTTP/1.0 continue to die.
 		WantWrite: "GET /foo HTTP/1.1\r\n" +
 			"Host: \r\n" +
 			"User-Agent: Go http package\r\n" +
@@ -398,19 +385,6 @@ func TestRequestWrite(t *testing.T) {
 			sraw := praw.String()
 			if sraw != tt.WantProxy {
 				t.Errorf("Test Proxy %d, expecting:\n%s\nGot:\n%s\n", i, tt.WantProxy, sraw)
-				continue
-			}
-		}
-
-		if tt.WantDump != "" {
-			setBody()
-			dump, err := DumpRequest(&tt.Req, true)
-			if err != nil {
-				t.Errorf("DumpRequest #%d: %s", i, err)
-				continue
-			}
-			if string(dump) != tt.WantDump {
-				t.Errorf("DumpRequest %d, expecting:\n%s\nGot:\n%s\n", i, tt.WantDump, string(dump))
 				continue
 			}
 		}

@@ -9,7 +9,6 @@ GOFILES=\
 	chunked.go\
 	client.go\
 	cookie.go\
-	dump.go\
 	filetransport.go\
 	fs.go\
 	header.go\

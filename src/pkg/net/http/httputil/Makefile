@@ -6,6 +6,8 @@ include ../../../../Make.inc
 
 TARG=net/http/httputil
 GOFILES=\
+	chunked.go\
+	dump.go\
 	persist.go\
 	reverseproxy.go\
 
