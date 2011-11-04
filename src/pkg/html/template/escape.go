@@ -12,31 +12,23 @@ import (
 	"template/parse"
 )
 
-// Escape rewrites each action in the template to guarantee that the output is
+// escape rewrites each action in the template to guarantee that the output is
 // properly escaped.
-func Escape(t *template.Template) (*template.Template, error) {
+func escape(t *template.Template) error {
 	var s template.Set
 	s.Add(t)
-	if _, err := EscapeSet(&s, t.Name()); err != nil {
-		return nil, err
-	}
+	return escapeSet(&s, t.Name())
 	// TODO: if s contains cloned dependencies due to self-recursion
 	// cross-context, error out.
-	return t, nil
 }
 
-// EscapeSet rewrites the template set to guarantee that the output of any of
+// escapeSet rewrites the template set to guarantee that the output of any of
 // the named templates is properly escaped.
 // Names should include the names of all templates that might be Executed but
 // need not include helper templates.
 // If no error is returned, then the named templates have been modified. 
 // Otherwise the named templates have been rendered unusable.
-func EscapeSet(s *template.Set, names ...string) (*template.Set, error) {
-	if len(names) == 0 {
-		// TODO: Maybe add a method to Set to enumerate template names
-		// and use those instead.
-		return nil, &Error{ErrNoNames, "", 0, "must specify names of top level templates"}
-	}
+func escapeSet(s *template.Set, names ...string) error {
 	e := newEscaper(s)
 	for _, name := range names {
 		c, _ := e.escapeTree(context{}, name, 0)
@@ -53,11 +45,11 @@ func EscapeSet(s *template.Set, names ...string) (*template.Set, error) {
 					t.Tree = nil
 				}
 			}
-			return nil, err
+			return err
 		}
 	}
 	e.commit()
-	return s, nil
+	return nil
 }
 
 // funcMap maps command names to functions that render their inputs safe.
@@ -509,7 +501,7 @@ func (e *escaper) escapeTree(c context, name string, line int) (context, string)
 		}, dname
 	}
 	if dname != name {
-		// Use any template derived during an earlier call to EscapeSet
+		// Use any template derived during an earlier call to escapeSet
 		// with different top level templates, or clone if necessary.
 		dt := e.template(dname)
 		if dt == nil {
@@ -675,7 +667,7 @@ func contextAfterText(c context, s []byte) (context, int) {
 		// http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state
 		// lists the runes below as error characters.
 		// Error out because HTML parsers may differ on whether
-		// "<a id= onclick=f("     ends inside id's or onchange's value,
+		// "<a id= onclick=f("     ends inside id's or onclick's value,
 		// "<a class=`foo "        ends inside a value,
 		// "<a style=font:'Arial'" needs open-quote fixup.
 		// IE treats '`' as a quotation character.

@@ -16,6 +16,7 @@ GOFILES=\
 	escape.go\
 	html.go\
 	js.go\
+	template.go\
 	transition.go\
 	url.go\
 
