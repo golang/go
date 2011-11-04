@@ -30,8 +30,8 @@ func (h Header) Set(key, value string) {
 
 // Get gets the first value associated with the given key.
 // If there are no values associated with the key, Get returns "".
-// Get is a convenience method.  For more complex queries,
-// access the map directly.
+// To access multiple values of a key, access the map directly
+// with CanonicalHeaderKey.
 func (h Header) Get(key string) string {
 	return textproto.MIMEHeader(h).Get(key)
 }

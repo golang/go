@@ -143,7 +143,7 @@ func shouldRedirect(statusCode int) bool {
 //
 // Caller should close r.Body when done reading from it.
 //
-// Get is a convenience wrapper around DefaultClient.Get.
+// Get is a wrapper around DefaultClient.Get.
 func Get(url string) (r *Response, err error) {
 	return DefaultClient.Get(url)
 }
