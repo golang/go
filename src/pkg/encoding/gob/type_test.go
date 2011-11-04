@@ -151,3 +151,11 @@ func TestStructType(t *testing.T) {
 		t.Errorf("struct printed as %q; expected %q", str, expected)
 	}
 }
+
+// Should be OK to register the same type multiple times, as long as they're
+// at the same level of indirection.
+func TestRegistration(t *testing.T) {
+	type T struct{ a int }
+	Register(new(T))
+	Register(new(T))
+}
