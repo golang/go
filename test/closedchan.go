@@ -11,6 +11,10 @@
 
 package main
 
+import "os"
+
+var failed bool
+
 type Chan interface {
 	Send(int)
 	Nbsend(int) bool
@@ -225,19 +229,23 @@ func test1(c Chan) {
 		// recv a close signal (a zero value)
 		if x := c.Recv(); x != 0 {
 			println("test1: recv on closed:", x, c.Impl())
+			failed = true
 		}
 		if x, ok := c.Recv2(); x != 0 || ok {
 			println("test1: recv2 on closed:", x, ok, c.Impl())
+			failed = true
 		}
 
 		// should work with select: received a value without blocking, so selected == true.
 		x, selected := c.Nbrecv()
 		if x != 0 || !selected {
 			println("test1: recv on closed nb:", x, selected, c.Impl())
+			failed = true
 		}
 		x, ok, selected := c.Nbrecv2()
 		if x != 0 || ok || !selected {
 			println("test1: recv2 on closed nb:", x, ok, selected, c.Impl())
+			failed = true
 		}
 	}
 
@@ -247,12 +255,14 @@ func test1(c Chan) {
 	// the value should have been discarded.
 	if x := c.Recv(); x != 0 {
 		println("test1: recv on closed got non-zero after send on closed:", x, c.Impl())
+		failed = true
 	}
 
 	// similarly Send.
 	shouldPanic(func() { c.Send(2) })
 	if x := c.Recv(); x != 0 {
 		println("test1: recv on closed got non-zero after send on closed:", x, c.Impl())
+		failed = true
 	}
 }
 
@@ -260,6 +270,7 @@ func testasync1(c Chan) {
 	// should be able to get the last value via Recv
 	if x := c.Recv(); x != 1 {
 		println("testasync1: Recv did not get 1:", x, c.Impl())
+		failed = true
 	}
 
 	test1(c)
@@ -269,6 +280,7 @@ func testasync2(c Chan) {
 	// should be able to get the last value via Recv2
 	if x, ok := c.Recv2(); x != 1 || !ok {
 		println("testasync1: Recv did not get 1, true:", x, ok, c.Impl())
+		failed = true
 	}
 
 	test1(c)
@@ -278,6 +290,7 @@ func testasync3(c Chan) {
 	// should be able to get the last value via Nbrecv
 	if x, selected := c.Nbrecv(); x != 1 || !selected {
 		println("testasync2: Nbrecv did not get 1, true:", x, selected, c.Impl())
+		failed = true
 	}
 
 	test1(c)
@@ -287,6 +300,7 @@ func testasync4(c Chan) {
 	// should be able to get the last value via Nbrecv2
 	if x, ok, selected := c.Nbrecv2(); x != 1 || !ok || !selected {
 		println("testasync2: Nbrecv did not get 1, true, true:", x, ok, selected, c.Impl())
+		failed = true
 	}
 	test1(c)
 }
@@ -338,4 +352,8 @@ func main() {
 	shouldPanic(func() {
 		close(ch)
 	})
+
+	if failed {
+		os.Exit(1)
+	}
 }
