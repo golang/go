@@ -29,12 +29,10 @@ func TestQuery(t *testing.T) {
 }
 
 func TestPostQuery(t *testing.T) {
-	req := &Request{Method: "POST"}
-	req.URL, _ = url.Parse("http://www.google.com/search?q=foo&q=bar&both=x")
-	req.Header = Header{
-		"Content-Type": {"application/x-www-form-urlencoded; boo!"},
-	}
-	req.Body = ioutil.NopCloser(strings.NewReader("z=post&both=y"))
+	req, _ := NewRequest("POST", "http://www.google.com/search?q=foo&q=bar&both=x",
+		strings.NewReader("z=post&both=y"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
+
 	if q := req.FormValue("q"); q != "foo" {
 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
 	}
@@ -49,7 +47,6 @@ func TestPostQuery(t *testing.T) {
 type stringMap map[string][]string
 type parseContentTypeTest struct {
 	contentType stringMap
-	err         bool
 }
 
 var parseContentTypeTests = []parseContentTypeTest{
@@ -58,11 +55,10 @@ var parseContentTypeTests = []parseContentTypeTest{
 	{contentType: stringMap{"Content-Type": {"text/plain; boundary="}}},
 	{
 		contentType: stringMap{"Content-Type": {"application/unknown"}},
-		err:         true,
 	},
 }
 
-func TestPostContentTypeParsing(t *testing.T) {
+func TestParseFormBadContentType(t *testing.T) {
 	for i, test := range parseContentTypeTests {
 		req := &Request{
 			Method: "POST",
@@ -70,10 +66,7 @@ func TestPostContentTypeParsing(t *testing.T) {
 			Body:   ioutil.NopCloser(bytes.NewBufferString("body")),
 		}
 		err := req.ParseForm()
-		if !test.err && err != nil {
-			t.Errorf("test %d: Unexpected error: %v", i, err)
-		}
-		if test.err && err == nil {
+		if err == nil {
 			t.Errorf("test %d should have returned error", i)
 		}
 	}
