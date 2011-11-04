@@ -69,13 +69,6 @@ var reqWriteExcludeHeader = map[string]bool{
 	"Trailer":           true,
 }
 
-var reqWriteExcludeHeaderDump = map[string]bool{
-	"Host":              true, // not in Header map anyway
-	"Content-Length":    true,
-	"Transfer-Encoding": true,
-	"Trailer":           true,
-}
-
 // A Request represents a parsed HTTP request header.
 type Request struct {
 	Method string // GET, POST, PUT, etc.
@@ -284,51 +277,6 @@ func (req *Request) Write(w io.Writer) error {
 // req.Host or req.URL.Host.
 func (req *Request) WriteProxy(w io.Writer) error {
 	return req.write(w, true, nil)
-}
-
-func (req *Request) dumpWrite(w io.Writer) error {
-	// TODO(bradfitz): RawPath here?
-	urlStr := valueOrDefault(req.URL.EncodedPath(), "/")
-	if req.URL.RawQuery != "" {
-		urlStr += "?" + req.URL.RawQuery
-	}
-
-	bw := bufio.NewWriter(w)
-	fmt.Fprintf(bw, "%s %s HTTP/%d.%d\r\n", valueOrDefault(req.Method, "GET"), urlStr,
-		req.ProtoMajor, req.ProtoMinor)
-
-	host := req.Host
-	if host == "" && req.URL != nil {
-		host = req.URL.Host
-	}
-	if host != "" {
-		fmt.Fprintf(bw, "Host: %s\r\n", host)
-	}
-
-	// Process Body,ContentLength,Close,Trailer
-	tw, err := newTransferWriter(req)
-	if err != nil {
-		return err
-	}
-	err = tw.WriteHeader(bw)
-	if err != nil {
-		return err
-	}
-
-	err = req.Header.WriteSubset(bw, reqWriteExcludeHeaderDump)
-	if err != nil {
-		return err
-	}
-
-	io.WriteString(bw, "\r\n")
-
-	// Write body and trailer
-	err = tw.WriteBody(bw)
-	if err != nil {
-		return err
-	}
-	bw.Flush()
-	return nil
 }
 
 // extraHeaders may be nil

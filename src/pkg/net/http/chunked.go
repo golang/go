@@ -7,23 +7,10 @@ package http
 import (
 	"bufio"
 	"io"
-	"log"
 	"strconv"
 )
 
-// NewChunkedWriter returns a new writer that translates writes into HTTP
-// "chunked" format before writing them to w. Closing the returned writer
-// sends the final 0-length chunk that marks the end of the stream.
-//
-// NewChunkedWriter is not needed by normal applications. The http
-// package adds chunking automatically if handlers don't set a
-// Content-Length header. Using NewChunkedWriter inside a handler
-// would result in double chunking or chunking with a Content-Length
-// length, both of which are wrong.
-func NewChunkedWriter(w io.Writer) io.WriteCloser {
-	if _, bad := w.(*response); bad {
-		log.Printf("warning: using NewChunkedWriter in an http.Handler; expect corrupt output")
-	}
+func newChunkedWriter(w io.Writer) io.WriteCloser {
 	return &chunkedWriter{w}
 }
 
@@ -65,12 +52,6 @@ func (cw *chunkedWriter) Close() error {
 	return err
 }
 
-// NewChunkedReader returns a new reader that translates the data read from r
-// out of HTTP "chunked" format before returning it. 
-// The reader returns io.EOF when the final 0-length chunk is read.
-//
-// NewChunkedReader is not needed by normal applications. The http package
-// automatically decodes chunking when reading response bodies.
-func NewChunkedReader(r *bufio.Reader) io.Reader {
+func newChunkedReader(r *bufio.Reader) io.Reader {
 	return &chunkedReader{r: r}
 }
