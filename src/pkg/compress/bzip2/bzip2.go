@@ -80,7 +80,7 @@ func (bz2 *reader) Read(buf []byte) (n int, err error) {
 
 	if !bz2.setupDone {
 		err = bz2.setup()
-		brErr := bz2.br.Error()
+		brErr := bz2.br.Err()
 		if brErr != nil {
 			err = brErr
 		}
@@ -91,7 +91,7 @@ func (bz2 *reader) Read(buf []byte) (n int, err error) {
 	}
 
 	n, err = bz2.read(buf)
-	brErr := bz2.br.Error()
+	brErr := bz2.br.Err()
 	if brErr != nil {
 		err = brErr
 	}

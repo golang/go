@@ -250,7 +250,7 @@ func (p *parser) read() error {
 	p.tok = p.tokenizer.Token()
 	switch p.tok.Type {
 	case ErrorToken:
-		return p.tokenizer.Error()
+		return p.tokenizer.Err()
 	case SelfClosingTagToken:
 		p.hasSelfClosingToken = true
 		p.tok.Type = StartTagToken

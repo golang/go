@@ -149,9 +149,9 @@ type Tokenizer struct {
 	textIsRaw bool
 }
 
-// Error returns the error associated with the most recent ErrorToken token.
+// Err returns the error associated with the most recent ErrorToken token.
 // This is typically io.EOF, meaning the end of tokenization.
-func (z *Tokenizer) Error() error {
+func (z *Tokenizer) Err() error {
 	if z.tt != ErrorToken {
 		return nil
 	}

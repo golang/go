@@ -620,7 +620,7 @@ func (s *Stmt) Close() error {
 //         err = rows.Scan(&id, &name)
 //         ...
 //     }
-//     err = rows.Error() // get any Error encountered during iteration
+//     err = rows.Err() // get any error encountered during iteration
 //     ...
 type Rows struct {
 	db          *DB
@@ -651,8 +651,8 @@ func (rs *Rows) Next() bool {
 	return rs.lasterr == nil
 }
 
-// Error returns the error, if any, that was encountered during iteration.
-func (rs *Rows) Error() error {
+// Err returns the error, if any, that was encountered during iteration.
+func (rs *Rows) Err() error {
 	if rs.lasterr == io.EOF {
 		return nil
 	}

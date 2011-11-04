@@ -481,7 +481,7 @@ func newPkgDot(pos token.Pos, pkg, name string) ast.Expr {
 	}
 }
 
-// renameTop renames all references to the top-level name top.
+// renameTop renames all references to the top-level name old.
 // It returns true if it makes any changes.
 func renameTop(f *ast.File, old, new string) bool {
 	var fixed bool

@@ -9,6 +9,7 @@ GOFILES=\
 	error.go\
 	filepath.go\
 	fix.go\
+	htmlerr.go\
 	httpfinalurl.go\
 	httpfs.go\
 	httpheaders.go\
