@@ -88,6 +88,11 @@ func Count(s, sep []byte) int {
 	return n
 }
 
+// Contains returns whether subslice is within b.
+func Contains(b, subslice []string) bool {
+	return Index(b, subslice) != -1
+}
+
 // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
 func Index(s, sep []byte) int {
 	n := len(sep)
