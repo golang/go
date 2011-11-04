@@ -139,7 +139,7 @@ TEXT runtime·nanotime(SB),7,$32
 	MOVL	$116, AX		// sys_gettimeofday
 	SYSCALL
 	MOVQ	8(SP), AX		// sec
-	MOVL	16(SP), BX		// usec
+	MOVL	16(SP), DX	// usec
 
 	// sec is in AX, usec in DX
 	// return nsec in AX
