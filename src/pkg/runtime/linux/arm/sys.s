@@ -130,28 +130,25 @@ TEXT runtime·mincore(SB),7,$0
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),7,$32
-	/* dummy version - return 0,0 */
-	MOVW	$0, R1
-	MOVW	0(FP), R0
-	MOVW	R1, 0(R0)
-	MOVW	R1, 4(R0)
-
-/*
-	attempt at real version - seg faults
-
-	MOVW	$8(SP), R0
-	MOVW	$0, R1
+	MOVW	$8(R13), R0  // timeval
+	MOVW	$0, R1  // zone
 	MOVW	$SYS_gettimeofday, R7
 	SWI	$0
-
-	MOVW	0(FP), R0	// sec
-	MOVW	8(SP), R1
-	MOVW	R1, 0(R0)
-
-	MOVW	4(FP), R0	// usec
-	MOVW	12(SP), R1
-	MOVW	R1, 0(R0)
-*/
+	
+	MOVW	8(R13), R0  // sec
+	MOVW	12(R13), R2  // usec
+	
+	MOVW	$1000000000, R3
+	MULLU	R0, R3, (R1, R0)
+	MOVW	$1000, R3
+	MOVW	$0, R4
+	MUL	R3, R2
+	ADD.S	R2, R0
+	ADC	R4, R1
+	
+	MOVW	0(FP), R3
+	MOVW	R0, 0(R3)
+	MOVW	R1, 4(R3)
 	RET
 
 // int32 futex(int32 *uaddr, int32 op, int32 val,
