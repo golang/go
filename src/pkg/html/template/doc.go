@@ -9,59 +9,54 @@ construction of HTML output that is safe against code injection.
 
 Introduction
 
-To use this package, invoke the standard template package to parse a template
-set, and then use this package’s EscapeSet function to secure the set.
-The arguments to EscapeSet are the template set and the names of all templates
-that will be passed to Execute.
+This package wraps package template so you can use the standard template API
+to parse and execute templates.
 
     set, err := new(template.Set).Parse(...)
-    set, err = EscapeSet(set, "templateName0", ...)
+    // Error checking elided
+    err = set.Execute(out, "Foo", data)
 
-If successful, set will now be injection-safe. Otherwise, the returned set will
-be nil and an error, described below, will explain the problem.
+If successful, set will now be injection-safe. Otherwise, err is an error
+defined in the docs for ErrorCode.
 
-The template names do not need to include helper templates but should include
-all names x used thus:
-
-    set.Execute(out, x, ...)
-
-EscapeSet modifies the named templates in place to treat data values as plain
-text safe for embedding in an HTML document. The escaping is contextual, so
-actions can appear within JavaScript, CSS, and URI contexts without introducing'hazards.
+HTML templates treat data values as plain text which should be encoded so they
+can be safely embedded in an HTML document. The escaping is contextual, so
+actions can appear within JavaScript, CSS, and URI contexts.
 
 The security model used by this package assumes that template authors are
 trusted, while Execute's data parameter is not. More details are provided below.
 
 Example
 
-    tmpls, err := new(template.Set).Parse(`{{define "t'}}Hello, {{.}}!{{end}}`)
-
-when used by itself
-
-    tmpls.Execute(out, "t", "<script>alert('you have been pwned')</script>")
+    import "template"
+    ...
+    t, err := (&template.Set{}).Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
+    err = t.Execute(out, "T", "<script>alert('you have been pwned')</script>")
 
 produces
 
     Hello, <script>alert('you have been pwned')</script>!
 
-but after securing with EscapeSet like this,
+but with contextual autoescaping,
 
-    tmpls, err := EscapeSet(tmpls, "t")
-    tmpls.Execute(out, "t", ...)
+    import "html/template"
+    ...
+    t, err := (&template.Set{}).Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
+    err = t.Execute(out, "T", "<script>alert('you have been pwned')</script>")
 
-produces the safe, escaped HTML output
+produces safe, escaped HTML output
 
     Hello, &lt;script&gt;alert('you have been pwned')&lt;/script&gt;!
 
 
 Contexts
 
-EscapeSet understands HTML, CSS, JavaScript, and URIs. It adds sanitizing
+This package understands HTML, CSS, JavaScript, and URIs. It adds sanitizing
 functions to each simple action pipeline, so given the excerpt
 
   <a href="/search?q={{.}}">{{.}}</a>
 
-EscapeSet will rewrite each {{.}} to add escaping functions where necessary,
+At parse time each {{.}} is overwritten to add escaping functions as necessary,
 in this case,
 
   <a href="/search?q={{. | urlquery}}">{{. | html}}</a>
@@ -134,8 +129,8 @@ embedding in JavaScript contexts.
 
 Typed Strings
 
-By default, EscapeSet assumes all pipelines produce a plain text string. It
-adds escaping pipeline stages necessary to correctly and safely embed that
+By default, this package assumes that all pipelines produce a plain text string.
+It adds escaping pipeline stages necessary to correctly and safely embed that
 plain text string in the appropriate context.
 
 When a data value is not plain text, you can make sure it is not over-escaped
@@ -183,8 +178,8 @@ injecting the template output into a page and all code specified by the
 template author should run as a result of the same."
 
 Least Surprise Property
-"A developer (or code reviewer) familiar with HTML, CSS, and JavaScript;
-who knows that EscapeSet is applied should be able to look at a {{.}}
+"A developer (or code reviewer) familiar with HTML, CSS, and JavaScript, who
+knows that contextual autoescaping happens should be able to look at a {{.}}
 and correctly infer what sanitization happens."
 */
 package html

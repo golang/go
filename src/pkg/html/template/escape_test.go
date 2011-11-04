@@ -651,14 +651,14 @@ func TestEscape(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		tmpl := template.New(test.name)
+		tmpl := New(test.name)
 		// TODO: Move noescape into template/func.go
 		tmpl.Funcs(template.FuncMap{
 			"noescape": func(a ...interface{}) string {
 				return fmt.Sprint(a...)
 			},
 		})
-		tmpl = template.Must(Escape(template.Must(tmpl.Parse(test.input))))
+		tmpl = Must(tmpl.Parse(test.input))
 		b := new(bytes.Buffer)
 		if err := tmpl.Execute(b, data); err != nil {
 			t.Errorf("%s: template execution failed: %s", test.name, err)
@@ -792,17 +792,13 @@ func TestEscapeSet(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		var s template.Set
-		for name, src := range test.inputs {
-			t := template.New(name)
-			t.Funcs(fns)
-			s.Add(template.Must(t.Parse(src)))
+		source := ""
+		for name, body := range test.inputs {
+			source += fmt.Sprintf("{{define %q}}%s{{end}} ", name, body)
 		}
+		s := &Set{}
 		s.Funcs(fns)
-		if _, err := EscapeSet(&s, "main"); err != nil {
-			t.Errorf("%s for input:\n%v", err, test.inputs)
-			continue
-		}
+		s.Parse(source)
 		var b bytes.Buffer
 
 		if err := s.Execute(&b, "main", data); err != nil {
@@ -962,17 +958,19 @@ func TestErrors(t *testing.T) {
 
 	for _, test := range tests {
 		var err error
+		buf := new(bytes.Buffer)
 		if strings.HasPrefix(test.input, "{{define") {
-			var s template.Set
-			_, err = s.Parse(test.input)
-			if err != nil {
-				t.Errorf("Failed to parse %q: %s", test.input, err)
-				continue
+			var s *Set
+			s, err = (&Set{}).Parse(test.input)
+			if err == nil {
+				err = s.Execute(buf, "z", nil)
 			}
-			_, err = EscapeSet(&s, "z")
 		} else {
-			tmpl := template.Must(template.New("z").Parse(test.input))
-			_, err = Escape(tmpl)
+			var t *Template
+			t, err = New("z").Parse(test.input)
+			if err == nil {
+				err = t.Execute(buf, nil)
+			}
 		}
 		var got string
 		if err != nil {
@@ -1548,33 +1546,29 @@ func TestEnsurePipelineContains(t *testing.T) {
 	}
 }
 
-func expectExecuteFailure(t *testing.T, b *bytes.Buffer, err error) {
-	if err != nil {
-		if b.Len() != 0 {
-			t.Errorf("output on buffer: %q", b.String())
-		}
-	} else {
-		t.Errorf("unescaped template executed")
-	}
-}
-
 func TestEscapeErrorsNotIgnorable(t *testing.T) {
 	var b bytes.Buffer
-	tmpl := template.Must(template.New("dangerous").Parse("<a"))
-	Escape(tmpl)
+	tmpl, _ := New("dangerous").Parse("<a")
 	err := tmpl.Execute(&b, nil)
-	expectExecuteFailure(t, &b, err)
+	if err == nil {
+		t.Errorf("Expected error")
+	} else if b.Len() != 0 {
+		t.Errorf("Emitted output despite escaping failure")
+	}
 }
 
 func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
-	s, err := (&template.Set{}).Parse(`{{define "t"}}<a{{end}}`)
+	var b bytes.Buffer
+	s, err := (&Set{}).Parse(`{{define "t"}}<a{{end}}`)
 	if err != nil {
 		t.Errorf("failed to parse set: %q", err)
 	}
-	EscapeSet(s, "t")
-	var b bytes.Buffer
 	err = s.Execute(&b, "t", nil)
-	expectExecuteFailure(t, &b, err)
+	if err == nil {
+		t.Errorf("Expected error")
+	} else if b.Len() != 0 {
+		t.Errorf("Emitted output despite escaping failure")
+	}
 }
 
 func TestRedundantFuncs(t *testing.T) {
@@ -1612,7 +1606,7 @@ func TestRedundantFuncs(t *testing.T) {
 }
 
 func BenchmarkEscapedExecute(b *testing.B) {
-	tmpl := template.Must(Escape(template.Must(template.New("t").Parse(`<a onclick="alert('{{.}}')">{{.}}</a>`))))
+	tmpl := Must(New("t").Parse(`<a onclick="alert('{{.}}')">{{.}}</a>`))
 	var buf bytes.Buffer
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

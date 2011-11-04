@@ -7,7 +7,6 @@ package html
 import (
 	"bytes"
 	"strings"
-	"template"
 	"testing"
 )
 
@@ -203,7 +202,7 @@ func TestTypedContent(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		tmpl := template.Must(Escape(template.Must(template.New("x").Parse(test.input))))
+		tmpl := Must(New("x").Parse(test.input))
 		pre := strings.Index(test.input, "{{.}}")
 		post := len(test.input) - (pre + 5)
 		var b bytes.Buffer

@@ -56,7 +56,7 @@ func TestClone(t *testing.T) {
 			t.Errorf("want %q, got %q", want, got)
 		}
 
-		d, err := Escape(d)
+		err := escape(d)
 		if err != nil {
 			t.Errorf("%q: failed to escape: %s", test.input, err)
 			continue
