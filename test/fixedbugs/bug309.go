@@ -15,5 +15,7 @@ func foo(t interface{}, c chan int) {
 		case <-c:
 			// bug was: internal compiler error: var without type, init: v
 		}
+	default:
+		_ = v
 	}
 }

@@ -131,7 +131,7 @@ func (x Const) Match(y Const) (u, v Const) {
 // otherwise the result is invalid.
 func (x Const) Convert(typ *Type) Const {
 	// TODO(gri) implement this
-	switch x := x.val.(type) {
+	switch x.val.(type) {
 	case bool:
 	case *big.Int:
 	case *big.Rat:

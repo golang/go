@@ -617,7 +617,7 @@ func (p *Parser) Skip() error {
 		if err != nil {
 			return err
 		}
-		switch t := tok.(type) {
+		switch tok.(type) {
 		case StartElement:
 			if err := p.Skip(); err != nil {
 				return err

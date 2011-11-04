@@ -80,7 +80,7 @@ func main() {
 		case 2:
 			i = 3.14
 		}
-		switch k := i.(type) {
+		switch i.(type) {
 		case p0.T:
 			if j != 0 {
 				println("type switch p0.T")
