@@ -943,22 +943,27 @@ func inRowIM(p *parser) (insertionMode, bool) {
 	case StartTagToken:
 		switch p.tok.Data {
 		case "td", "th":
-			// TODO: clear the stack back to a table row context.
+			p.clearStackToContext(tableRowContextStopTags)
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.afe = append(p.afe, &scopeMarker)
 			return inCellIM, true
+		case "caption", "col", "colgroup", "tbody", "tfoot", "thead", "tr":
+			if p.popUntil(tableScopeStopTags, "tr") {
+				return inTableBodyIM, false
+			}
+			// Ignore the token.
+			return inRowIM, true
 		default:
 			// TODO.
 		}
 	case EndTagToken:
 		switch p.tok.Data {
 		case "tr":
-			if !p.elementInScope(tableScopeStopTags, "tr") {
-				return inRowIM, true
+			if p.popUntil(tableScopeStopTags, "tr") {
+				return inTableBodyIM, true
 			}
-			p.clearStackToContext(tableRowContextStopTags)
-			p.oe.pop()
-			return inTableBodyIM, true
+			// Ignore the token.
+			return inRowIM, true
 		case "table":
 			if p.popUntil(tableScopeStopTags, "tr") {
 				return inTableBodyIM, false
