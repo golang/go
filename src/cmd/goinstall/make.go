@@ -109,13 +109,16 @@ func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, error)
 	return buf.Bytes(), nil
 }
 
-var safeBytes = []byte("+-./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz")
+var safeBytes = []byte("+-~./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz")
 
 func safeName(s string) bool {
 	if s == "" {
 		return false
 	}
 	if strings.Contains(s, "..") {
+		return false
+	}
+	if s[0] == '~' {
 		return false
 	}
 	for i := 0; i < len(s); i++ {
