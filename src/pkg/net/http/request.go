@@ -69,7 +69,8 @@ var reqWriteExcludeHeader = map[string]bool{
 	"Trailer":           true,
 }
 
-// A Request represents a parsed HTTP request header.
+// A Request represents an HTTP request received by a server
+// or to be sent by a client.
 type Request struct {
 	Method string // GET, POST, PUT, etc.
 	URL    *url.URL
@@ -106,14 +107,20 @@ type Request struct {
 
 	// ContentLength records the length of the associated content.
 	// The value -1 indicates that the length is unknown.
-	// Values >= 0 indicate that the given number of bytes may be read from Body.
+	// Values >= 0 indicate that the given number of bytes may
+	// be read from Body.
+	// For outgoing requests, a value of 0 means unknown if Body is not nil.
 	ContentLength int64
 
-	// TransferEncoding lists the transfer encodings from outermost to innermost.
-	// An empty list denotes the "identity" encoding.
+	// TransferEncoding lists the transfer encodings from outermost to
+	// innermost. An empty list denotes the "identity" encoding.
+	// TransferEncoding can usually be ignored; chunked encoding is
+	// automatically added and removed as necessary when sending and
+	// receiving requests.
 	TransferEncoding []string
 
-	// Whether to close the connection after replying to this request.
+	// Close indicates whether to close the connection after
+	// replying to this request.
 	Close bool
 
 	// The host on which the URL is sought.
@@ -121,16 +128,21 @@ type Request struct {
 	// or the host name given in the URL itself.
 	Host string
 
-	// The parsed form. Only available after ParseForm is called.
+	// Form contains the parsed form data, including both the URL
+	// field's query parameters and the POST or PUT form data.
+	// This field is only available after ParseForm is called.
+	// The HTTP client ignores Form and uses Body instead.
 	Form url.Values
 
-	// The parsed multipart form, including file uploads.
-	// Only available after ParseMultipartForm is called.
+	// MultipartForm is the parsed multipart form, including file uploads.
+	// This field is only available after ParseMultipartForm is called.
+	// The HTTP client ignores MultipartForm and uses Body instead.
 	MultipartForm *multipart.Form
 
 	// Trailer maps trailer keys to values.  Like for Header, if the
 	// response has multiple trailer lines with the same key, they will be
 	// concatenated, delimited by commas.
+	// Trailer support is only partially complete.
 	Trailer Header
 
 	// RemoteAddr allows HTTP servers and other software to record
@@ -139,6 +151,7 @@ type Request struct {
 	// has no defined format. The HTTP server in this package
 	// sets RemoteAddr to an "IP:port" address before invoking a
 	// handler.
+	// This field is ignored by the HTTP client.
 	RemoteAddr string
 
 	// TLS allows HTTP servers and other software to record
@@ -147,6 +160,7 @@ type Request struct {
 	// The HTTP server in this package sets the field for
 	// TLS-enabled connections before invoking a handler;
 	// otherwise it leaves the field nil.
+	// This field is ignored by the HTTP client.
 	TLS *tls.ConnectionState
 }
 
