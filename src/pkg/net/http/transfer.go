@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/textproto"
 	"strconv"
 	"strings"
 )
@@ -532,7 +533,68 @@ func (b *body) Read(p []byte) (n int, err error) {
 	if b.closed {
 		return 0, ErrBodyReadAfterClose
 	}
-	return b.Reader.Read(p)
+	n, err = b.Reader.Read(p)
+
+	// Read the final trailer once we hit EOF.
+	if err == io.EOF && b.hdr != nil {
+		err = b.readTrailer()
+		b.hdr = nil
+	}
+	return n, err
+}
+
+var (
+	singleCRLF = []byte("\r\n")
+	doubleCRLF = []byte("\r\n\r\n")
+)
+
+func seeUpcomingDoubleCRLF(r *bufio.Reader) bool {
+	for peekSize := 4; ; peekSize++ {
+		// This loop stops when Peek returns an error,
+		// which it does when r's buffer has been filled.
+		buf, err := r.Peek(peekSize)
+		if bytes.HasSuffix(buf, doubleCRLF) {
+			return true
+		}
+		if err != nil {
+			break
+		}
+	}
+	return false
+}
+
+func (b *body) readTrailer() error {
+	// The common case, since nobody uses trailers.
+	buf, _ := b.r.Peek(2)
+	if bytes.Equal(buf, singleCRLF) {
+		b.r.ReadByte()
+		b.r.ReadByte()
+		return nil
+	}
+
+	// Make sure there's a header terminator coming up, to prevent
+	// a DoS with an unbounded size Trailer.  It's not easy to
+	// slip in a LimitReader here, as textproto.NewReader requires
+	// a concrete *bufio.Reader.  Also, we can't get all the way
+	// back up to our conn's LimitedReader that *might* be backing
+	// this bufio.Reader.  Instead, a hack: we iteratively Peek up
+	// to the bufio.Reader's max size, looking for a double CRLF.
+	// This limits the trailer to the underlying buffer size, typically 4kB.
+	if !seeUpcomingDoubleCRLF(b.r) {
+		return errors.New("http: suspiciously long trailer after chunked body")
+	}
+
+	hdr, err := textproto.NewReader(b.r).ReadMIMEHeader()
+	if err != nil {
+		return err
+	}
+	switch rr := b.hdr.(type) {
+	case *Request:
+		rr.Trailer = Header(hdr)
+	case *Response:
+		rr.Trailer = Header(hdr)
+	}
+	return nil
 }
 
 func (b *body) Close() error {
@@ -557,15 +619,10 @@ func (b *body) Close() error {
 		return nil
 	}
 
+	// Fully consume the body, which will also lead to us reading
+	// the trailer headers after the body, if present.
 	if _, err := io.Copy(ioutil.Discard, b); err != nil {
 		return err
 	}
-
-	if b.hdr == nil { // not reading trailer
-		return nil
-	}
-
-	// TODO(petar): Put trailer reader code here
-
 	return nil
 }
