@@ -418,9 +418,7 @@ simple_stmt:
 |	expr_list LCOLAS expr_list
 	{
 		if($3->n->op == OTYPESW) {
-			Node *n;
-			
-			n = N;
+			$$ = nod(OTYPESW, N, $3->n->right);
 			if($3->next != nil)
 				yyerror("expr.(type) must be alone in list");
 			if($1->next != nil)
@@ -428,8 +426,7 @@ simple_stmt:
 			else if($1->n->op != ONAME && $1->n->op != OTYPE && $1->n->op != ONONAME)
 				yyerror("invalid variable name %N in type switch", $1->n);
 			else
-				n = $1->n;
-			$$ = nod(OTYPESW, n, $3->n->right);
+				$$->left = dclname($1->n->sym);  // it's a colas, so must not re-use an oldname.
 			break;
 		}
 		$$ = colas($1, $3);
@@ -448,7 +445,7 @@ simple_stmt:
 case:
 	LCASE expr_or_type_list ':'
 	{
-		Node *n;
+		Node *n, *nn;
 
 		// will be converted to OCASE
 		// right will point to next case
@@ -458,12 +455,13 @@ case:
 		$$->list = $2;
 		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
 			// type switch - declare variable
-			n = newname(n->sym);
-			n->used = 1;	// TODO(rsc): better job here
-			declare(n, dclcontext);
-			$$->nname = n;
+			nn = newname(n->sym);
+			declare(nn, dclcontext);
+			$$->nname = nn;
+
+			// keep track of the instances for reporting unused
+			nn->defn = typesw->right;
 		}
-		break;
 	}
 |	LCASE expr_or_type_list '=' expr ':'
 	{
@@ -494,16 +492,18 @@ case:
 	}
 |	LDEFAULT ':'
 	{
-		Node *n;
+		Node *n, *nn;
 
 		markdcl();
 		$$ = nod(OXCASE, N, N);
 		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
 			// type switch - declare variable
-			n = newname(n->sym);
-			n->used = 1;	// TODO(rsc): better job here
-			declare(n, dclcontext);
-			$$->nname = n;
+			nn = newname(n->sym);
+			declare(nn, dclcontext);
+			$$->nname = nn;
+
+			// keep track of the instances for reporting unused
+			nn->defn = typesw->right;
 		}
 	}
 

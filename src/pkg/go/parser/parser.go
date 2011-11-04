@@ -1131,7 +1131,7 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
 
 // checkExpr checks that x is an expression (and not a type).
 func (p *parser) checkExpr(x ast.Expr) ast.Expr {
-	switch t := unparen(x).(type) {
+	switch unparen(x).(type) {
 	case *ast.BadExpr:
 	case *ast.Ident:
 	case *ast.BasicLit:

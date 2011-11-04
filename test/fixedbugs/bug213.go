@@ -7,7 +7,7 @@
 package main
 func main() {
 	var v interface{} = 0;
-	switch x := v.(type) {
+	switch v.(type) {
 	case int:
 		fallthrough;		// ERROR "fallthrough"
 	default:

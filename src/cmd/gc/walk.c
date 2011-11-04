@@ -63,7 +63,6 @@ walk(Node *fn)
 {
 	char s[50];
 	NodeList *l;
-	Node *n;
 	int lno;
 
 	curfn = fn;
@@ -77,15 +76,33 @@ walk(Node *fn)
 			yyerror("function ends without a return statement");
 
 	lno = lineno;
+
+	// Final typecheck for any unused variables.
+	// It's hard to be on the heap when not-used, but best to be consistent about &~PHEAP here and below.
+	for(l=fn->dcl; l; l=l->next)
+		if(l->n->op == ONAME && (l->n->class&~PHEAP) == PAUTO)
+			typecheck(&l->n, Erv | Easgn);
+
+	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
+	for(l=fn->dcl; l; l=l->next)
+		if(l->n->op == ONAME && (l->n->class&~PHEAP) == PAUTO && l->n->defn && l->n->defn->op == OTYPESW && l->n->used)
+			l->n->defn->left->used++;
+	
 	for(l=fn->dcl; l; l=l->next) {
-		n = l->n;
-		if(n->op != ONAME || n->class != PAUTO)
+		if(l->n->op != ONAME || (l->n->class&~PHEAP) != PAUTO || l->n->sym->name[0] == '&' || l->n->used)
 			continue;
-		lineno = n->lineno;
-		typecheck(&n, Erv | Easgn);	// only needed for unused variables
-		if(!n->used && n->sym->name[0] != '&' && !nsyntaxerrors)
-			yyerror("%S declared and not used", n->sym);
-	}
+		if(l->n->defn && l->n->defn->op == OTYPESW) {
+			if(l->n->defn->left->used)
+				continue;
+			lineno = l->n->defn->left->lineno;
+			yyerror("%S declared and not used", l->n->sym);
+			l->n->defn->left->used = 1; // suppress repeats
+		} else {
+			lineno = l->n->lineno;
+			yyerror("%S declared and not used", l->n->sym);
+		}
+	}	
+
 	lineno = lno;
 	if(nerrors != 0)
 		return;
