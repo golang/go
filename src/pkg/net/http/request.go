@@ -142,6 +142,8 @@ type Request struct {
 	// Trailer maps trailer keys to values.  Like for Header, if the
 	// response has multiple trailer lines with the same key, they will be
 	// concatenated, delimited by commas.
+	// For server requests, Trailer is only populated after Body has been
+	// closed or fully consumed.
 	// Trailer support is only partially complete.
 	Trailer Header
 
@@ -464,16 +466,6 @@ func (cr *chunkedReader) beginChunk() {
 		return
 	}
 	if cr.n == 0 {
-		// trailer CRLF
-		for {
-			line, cr.err = readLine(cr.r)
-			if cr.err != nil {
-				return
-			}
-			if line == "" {
-				break
-			}
-		}
 		cr.err = io.EOF
 	}
 }

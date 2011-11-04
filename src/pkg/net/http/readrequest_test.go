@@ -9,19 +9,22 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"reflect"
 	"testing"
 	"url"
 )
 
 type reqTest struct {
-	Raw   string
-	Req   *Request
-	Body  string
-	Error string
+	Raw     string
+	Req     *Request
+	Body    string
+	Trailer Header
+	Error   string
 }
 
 var noError = ""
 var noBody = ""
+var noTrailer Header = nil
 
 var reqTests = []reqTest{
 	// Baseline test; All Request fields included for template use
@@ -72,6 +75,7 @@ var reqTests = []reqTest{
 
 		"abcdef\n",
 
+		noTrailer,
 		noError,
 	},
 
@@ -97,6 +101,7 @@ var reqTests = []reqTest{
 		},
 
 		noBody,
+		noTrailer,
 		noError,
 	},
 
@@ -130,6 +135,7 @@ var reqTests = []reqTest{
 		},
 
 		noBody,
+		noTrailer,
 		noError,
 	},
 
@@ -139,6 +145,7 @@ var reqTests = []reqTest{
 			"Host: test\r\n\r\n",
 		nil,
 		noBody,
+		noTrailer,
 		"parse ../../../../etc/passwd: invalid URI for request",
 	},
 
@@ -148,7 +155,41 @@ var reqTests = []reqTest{
 			"Host: test\r\n\r\n",
 		nil,
 		noBody,
+		noTrailer,
 		"parse : empty url",
+	},
+
+	// Tests chunked body with trailer:
+	{
+		"POST / HTTP/1.1\r\n" +
+			"Host: foo.com\r\n" +
+			"Transfer-Encoding: chunked\r\n\r\n" +
+			"3\r\nfoo\r\n" +
+			"3\r\nbar\r\n" +
+			"0\r\n" +
+			"Trailer-Key: Trailer-Value\r\n" +
+			"\r\n",
+		&Request{
+			Method: "POST",
+			URL: &url.URL{
+				Raw:     "/",
+				Path:    "/",
+				RawPath: "/",
+			},
+			TransferEncoding: []string{"chunked"},
+			Proto:            "HTTP/1.1",
+			ProtoMajor:       1,
+			ProtoMinor:       1,
+			ContentLength:    -1,
+			Host:             "foo.com",
+			Form:             url.Values{},
+		},
+
+		"foobar",
+		Header{
+			"Trailer-Key": {"Trailer-Value"},
+		},
+		noError,
 	},
 }
 
@@ -169,12 +210,18 @@ func TestReadRequest(t *testing.T) {
 		diff(t, fmt.Sprintf("#%d Request", i), req, tt.Req)
 		var bout bytes.Buffer
 		if rbody != nil {
-			io.Copy(&bout, rbody)
+			_, err := io.Copy(&bout, rbody)
+			if err != nil {
+				t.Fatalf("#%d. copying body: %v", i, err)
+			}
 			rbody.Close()
 		}
 		body := bout.String()
 		if body != tt.Body {
 			t.Errorf("#%d: Body = %q want %q", i, body, tt.Body)
+		}
+		if !reflect.DeepEqual(tt.Trailer, req.Trailer) {
+			t.Errorf("%#d. Trailers differ.\n got: %v\nwant: %v", i, req.Trailer, tt.Trailer)
 		}
 	}
 }
