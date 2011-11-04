@@ -703,18 +703,19 @@ func RegisterName(name string, value interface{}) {
 		// reserved for nil
 		panic("attempt to register empty name")
 	}
-	base := userType(reflect.TypeOf(value)).base
-	// Check for incompatible duplicates.
-	if t, ok := nameToConcreteType[name]; ok && t != base {
-		panic("gob: registering duplicate types for " + name)
+	ut := userType(reflect.TypeOf(value))
+	// Check for incompatible duplicates. The name must refer to the
+	// same user type, and vice versa.
+	if t, ok := nameToConcreteType[name]; ok && t != ut.user {
+		panic(fmt.Sprintf("gob: registering duplicate types for %q: %s != %s", name, t, ut.user))
 	}
-	if n, ok := concreteTypeToName[base]; ok && n != name {
-		panic("gob: registering duplicate names for " + base.String())
+	if n, ok := concreteTypeToName[ut.base]; ok && n != name {
+		panic(fmt.Sprintf("gob: registering duplicate names for %s: %q != %q", ut.user, n, name))
 	}
 	// Store the name and type provided by the user....
 	nameToConcreteType[name] = reflect.TypeOf(value)
 	// but the flattened type in the type table, since that's what decode needs.
-	concreteTypeToName[base] = name
+	concreteTypeToName[ut.base] = name
 }
 
 // Register records a type, identified by a value for that type, under its
