@@ -30,7 +30,7 @@ func netudpgroup(f *ast.File) bool {
 	fixed := false
 	for _, d := range f.Decls {
 		fd, ok := d.(*ast.FuncDecl)
-		if !ok {
+		if !ok || fd.Body == nil {
 			continue
 		}
 		walk(fd.Body, func(n interface{}) {
