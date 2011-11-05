@@ -30,4 +30,24 @@ func f() {
 }
 `,
 	},
+	// Innocent function with no body.
+	{
+		Name: "netudpgroup.1",
+		In: `package main
+
+import "net"
+
+func f()
+
+var _ net.IP
+`,
+		Out: `package main
+
+import "net"
+
+func f()
+
+var _ net.IP
+`,
+	},
 }
