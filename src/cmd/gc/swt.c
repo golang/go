@@ -825,7 +825,7 @@ typecheckswitch(Node *n)
 		typecheck(&n->ntest->right, Erv);
 		t = n->ntest->right->type;
 		if(t != T && t->etype != TINTER)
-			yyerror("cannot type switch on non-interface value %+N", n->ntest->right);
+			yyerror("cannot type switch on non-interface value %lN", n->ntest->right);
 	} else {
 		// value switch
 		top = Erv;
@@ -860,13 +860,13 @@ typecheckswitch(Node *n)
 					if(ll->n->op == OTYPE)
 						yyerror("type %T is not an expression", ll->n->type);
 					else if(ll->n->type != T && !eqtype(ll->n->type, t))
-						yyerror("case %+N in %T switch", ll->n, t);
+						yyerror("case %lN in %T switch", ll->n, t);
 					break;
 				case Etype:	// type switch
 					if(ll->n->op == OLITERAL && istype(ll->n->type, TNIL)) {
 						;
 					} else if(ll->n->op != OTYPE && ll->n->type != T) {
-						yyerror("%#N is not a type", ll->n);
+						yyerror("%lN is not a type", ll->n);
 						// reset to original type
 						ll->n = n->ntest->right;
 					}
