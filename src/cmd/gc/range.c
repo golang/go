@@ -46,6 +46,10 @@ typecheckrange(Node *n)
 		break;
 
 	case TCHAN:
+		if(!(t->chan & Crecv)) {
+			yyerror("invalid operation: range %N (receive from send-only type %T)", n->right, n->right->type);
+			goto out;
+		}
 		t1 = t->type;
 		t2 = nil;
 		if(count(n->list) == 2)
