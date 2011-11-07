@@ -380,18 +380,30 @@ saveerrors(void)
 	nerrors = 0;
 }
 
+/*
+ *	macro to portably read/write archive header.
+ *	'cmd' is read/write/Bread/Bwrite, etc.
+ */
+#define	HEADER_IO(cmd, f, h)	cmd(f, h.name, sizeof(h.name)) != sizeof(h.name)\
+				|| cmd(f, h.date, sizeof(h.date)) != sizeof(h.date)\
+				|| cmd(f, h.uid, sizeof(h.uid)) != sizeof(h.uid)\
+				|| cmd(f, h.gid, sizeof(h.gid)) != sizeof(h.gid)\
+				|| cmd(f, h.mode, sizeof(h.mode)) != sizeof(h.mode)\
+				|| cmd(f, h.size, sizeof(h.size)) != sizeof(h.size)\
+				|| cmd(f, h.fmag, sizeof(h.fmag)) != sizeof(h.fmag)
+
 static int
 arsize(Biobuf *b, char *name)
 {
-	struct ar_hdr *a;
+	struct ar_hdr a;
 
-	if((a = Brdline(b, '\n')) == nil)
+	if (HEADER_IO(Bread, b, a))
 		return -1;
-	if(Blinelen(b) != sizeof(struct ar_hdr))
+
+	if(strncmp(a.name, name, strlen(name)) != 0)
 		return -1;
-	if(strncmp(a->name, name, strlen(name)) != 0)
-		return -1;
-	return atoi(a->size);
+
+	return atoi(a.size);
 }
 
 static int
