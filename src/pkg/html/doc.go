@@ -61,7 +61,7 @@ call to Next. For example, to extract an HTML page's anchor text:
 		case StartTagToken, EndTagToken:
 			tn, _ := z.TagName()
 			if len(tn) == 1 && tn[0] == 'a' {
-				if tt == StartTag {
+				if tt == StartTagToken {
 					depth++
 				} else {
 					depth--
