@@ -22,7 +22,7 @@ p9ctime(long t)
 		tm->tm_hour,
 		tm->tm_min,
 		tm->tm_sec,
-		tm->tm_zone,
+		"XXX",  // tm_zone is unavailable on windows, and no one cares
 		tm->tm_year + 1900);
 	return buf;
 }
