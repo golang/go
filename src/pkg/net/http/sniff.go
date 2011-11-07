@@ -38,7 +38,7 @@ func DetectContentType(data []byte) string {
 }
 
 func isWS(b byte) bool {
-	return bytes.IndexByte([]byte("\t\n\x0C\n "), b) != -1
+	return bytes.IndexByte([]byte("\t\n\x0C\r "), b) != -1
 }
 
 type sniffSig interface {
