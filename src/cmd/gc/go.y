@@ -1792,11 +1792,11 @@ hidden_type_misc:
 	}
 |	LSTRUCT '{' ohidden_structdcl_list '}'
 	{
-		$$ = dostruct($3, TSTRUCT);
+		$$ = tostruct($3);
 	}
 |	LINTERFACE '{' ohidden_interfacedcl_list '}'
 	{
-		$$ = dostruct($3, TINTER);
+		$$ = tointerface($3);
 	}
 |	'*' hidden_type
 	{

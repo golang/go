@@ -311,7 +311,7 @@ reswitch:
 	case OTSTRUCT:
 		ok |= Etype;
 		n->op = OTYPE;
-		n->type = dostruct(n->list, TSTRUCT);
+		n->type = tostruct(n->list);
 		if(n->type == T)
 			goto error;
 		n->list = nil;
@@ -320,7 +320,7 @@ reswitch:
 	case OTINTER:
 		ok |= Etype;
 		n->op = OTYPE;
-		n->type = dostruct(n->list, TINTER);
+		n->type = tointerface(n->list);
 		if(n->type == T)
 			goto error;
 		break;
