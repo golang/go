@@ -31,12 +31,9 @@ runtime·initsig(int32)
 }
 
 uint32
-runtime·sighandler(ExceptionRecord *info, void *frame, Context *r)
+runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
 {
 	uintptr *sp;
-	G *gp;
-
-	USED(frame);
 
 	switch(info->ExceptionCode) {
 	case EXCEPTION_BREAKPOINT:
@@ -44,7 +41,7 @@ runtime·sighandler(ExceptionRecord *info, void *frame, Context *r)
 		return 1;
 	}
 
-	if((gp = m->curg) != nil && runtime·issigpanic(info->ExceptionCode)) {
+	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
 		// Make it look like a call to the signal func.
 		// Have to pass arguments out of band since
 		// augmenting the stack frame would break

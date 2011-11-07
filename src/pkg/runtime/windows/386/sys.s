@@ -48,51 +48,33 @@ TEXT runtime·setlasterror(SB),7,$0
 	MOVL	AX, 0x34(FS)
 	RET
 
-TEXT runtime·sigtramp(SB),7,$0
-	PUSHL	BP			// cdecl
-	PUSHL	BX
-	PUSHL	SI
-	PUSHL	DI
-	PUSHL	0(FS)
-	CALL	runtime·sigtramp1(SB)
-	POPL	0(FS)
-	POPL	DI
-	POPL	SI
-	POPL	BX
-	POPL	BP
-	RET
-
-TEXT runtime·sigtramp1(SB),0,$16-40
+TEXT runtime·sigtramp(SB),7,$28
 	// unwinding?
-	MOVL	info+24(FP), BX
-	MOVL	4(BX), CX		// exception flags
-	ANDL	$6, CX
+	MOVL	info+0(FP), CX
+	TESTL	$6, 4(CX)		// exception flags
 	MOVL	$1, AX
 	JNZ	sigdone
 
-	// place ourselves at the top of the SEH chain to
-	// ensure SEH frames lie within thread stack bounds
-	MOVL	frame+28(FP), CX	// our SEH frame
-	MOVL	CX, 0(FS)
-
 	// copy arguments for call to sighandler
-	MOVL	BX, 0(SP)
+	MOVL	CX, 0(SP)
+	MOVL	context+8(FP), CX
 	MOVL	CX, 4(SP)
-	MOVL	context+32(FP), BX
-	MOVL	BX, 8(SP)
-	MOVL	dispatcher+36(FP), BX
+	get_tls(CX)
+	MOVL	g(CX), CX
+	MOVL	CX, 8(SP)
+
 	MOVL	BX, 12(SP)
+	MOVL	BP, 16(SP)
+	MOVL	SI, 20(SP)
+	MOVL	DI, 24(SP)
 
 	CALL	runtime·sighandler(SB)
-	TESTL	AX, AX
-	JZ	sigdone
+	// AX is set to report result back to Windows
 
-	// call windows default handler early
-	MOVL	4(SP), BX		// our SEH frame
-	MOVL	0(BX), BX		// SEH frame of default handler
-	MOVL	BX, 4(SP)		// set establisher frame
-	CALL	4(BX)
-
+	MOVL	24(SP), DI
+	MOVL	20(SP), SI
+	MOVL	16(SP), BP
+	MOVL	12(SP), BX
 sigdone:
 	RET
 
