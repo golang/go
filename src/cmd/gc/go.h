@@ -1331,6 +1331,7 @@ void	zname(Biobuf *b, Sym *s, int t);
 #pragma	varargck	type	"D"	Addr*
 #pragma	varargck	type	"lD"	Addr*
 #pragma	varargck	type	"E"	int
+#pragma	varargck	type	"E"	uint
 #pragma	varargck	type	"F"	Mpflt*
 #pragma	varargck	type	"H"	NodeList*
 #pragma	varargck	type	"J"	Node*
