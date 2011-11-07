@@ -16,6 +16,6 @@ type I2 interface {
 }
 
 
-var i1 I1 = i2 // GC_ERROR "missing m method|need type assertion"
+var i1 I1 = i2
 var i2 I2
 var i2a I2 = i1

@@ -1052,6 +1052,11 @@ assignop(Type *src, Type *dst, char **why)
 	if(dst->etype == TINTER && src->etype != TNIL) {
 		if(implements(src, dst, &missing, &have, &ptr))
 			return OCONVIFACE;
+
+		// we'll have complained about this method anyway, supress spurious messages.
+		if(have && have->sym == missing->sym && (have->type->broke || missing->type->broke))
+			return OCONVIFACE;
+
 		if(why != nil) {
 			if(isptrto(src, TINTER))
 				*why = smprint(":\n\t%T is pointer to interface, not interface", src);
