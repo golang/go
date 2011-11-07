@@ -42,7 +42,7 @@ struct ThreadStart
  * Makes a local copy of the ThreadStart and
  * calls libcgo_sys_thread_start(ts).
  */
-void (*libcgo_thread_start)(ThreadStart *ts);
+extern void (*libcgo_thread_start)(ThreadStart *ts);
 
 /*
  * Creates the new operating system thread (OS, arch dependent).
