@@ -83,7 +83,7 @@ authentication method is supported.
 
 	config := &ClientConfig{
 		User: "username",
-		Password: "123456",
+		Auth: []ClientAuth{ ... },
 	}
 	client, err := Dial("yourserver.com:22", config)
 

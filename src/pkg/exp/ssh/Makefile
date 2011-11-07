@@ -8,6 +8,7 @@ TARG=exp/ssh
 GOFILES=\
 	channel.go\
 	client.go\
+	client_auth.go\
 	common.go\
 	messages.go\
 	transport.go\

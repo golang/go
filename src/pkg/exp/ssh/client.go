@@ -131,56 +131,6 @@ func (c *ClientConn) handshake() error {
 	return c.transport.reader.setupKeys(serverKeys, K, H, H, hashFunc)
 }
 
-// authenticate authenticates with the remote server. See RFC 4252. 
-// Only "password" authentication is supported.
-func (c *ClientConn) authenticate() error {
-	if err := c.writePacket(marshal(msgServiceRequest, serviceRequestMsg{serviceUserAuth})); err != nil {
-		return err
-	}
-	packet, err := c.readPacket()
-	if err != nil {
-		return err
-	}
-
-	var serviceAccept serviceAcceptMsg
-	if err = unmarshal(&serviceAccept, packet, msgServiceAccept); err != nil {
-		return err
-	}
-
-	// TODO(dfc) support proper authentication method negotation
-	method := "none"
-	if c.config.Password != "" {
-		method = "password"
-	}
-	if err := c.sendUserAuthReq(method); err != nil {
-		return err
-	}
-
-	if packet, err = c.readPacket(); err != nil {
-		return err
-	}
-
-	if packet[0] != msgUserAuthSuccess {
-		return UnexpectedMessageError{msgUserAuthSuccess, packet[0]}
-	}
-	return nil
-}
-
-func (c *ClientConn) sendUserAuthReq(method string) error {
-	length := stringLength([]byte(c.config.Password)) + 1
-	payload := make([]byte, length)
-	// always false for password auth, see RFC 4252 Section 8.
-	payload[0] = 0
-	marshalString(payload[1:], []byte(c.config.Password))
-
-	return c.writePacket(marshal(msgUserAuthRequest, userAuthRequestMsg{
-		User:    c.config.User,
-		Service: serviceSSH,
-		Method:  method,
-		Payload: payload,
-	}))
-}
-
 // kexDH performs Diffie-Hellman key agreement on a ClientConn. The
 // returned values are given the same names as in RFC 4253, section 8.
 func (c *ClientConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handshakeMagics, hostKeyAlgo string) ([]byte, []byte, error) {
@@ -348,8 +298,9 @@ type ClientConfig struct {
 	// The username to authenticate.
 	User string
 
-	// Used for "password" method authentication.
-	Password string
+	// A slice of ClientAuth methods. Only the first instance 
+	// of a particular RFC 4252 method will be used during authentication.
+	Auth []ClientAuth
 }
 
 func (c *ClientConfig) rand() io.Reader {
