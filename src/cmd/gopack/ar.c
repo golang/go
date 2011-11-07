@@ -1420,15 +1420,12 @@ void
 longt(Armember *bp)
 {
 	char *cp;
-	time_t date;
 
 	pmode(strtoul(bp->hdr.mode, 0, 8));
 	Bprint(&bout, "%3ld/%1ld", strtol(bp->hdr.uid, 0, 0), strtol(bp->hdr.gid, 0, 0));
 	Bprint(&bout, "%7ld", bp->size);
-	date = bp->date;
-	cp = ctime(&date);
-	/* using unix ctime, not plan 9 time, so cp+20 for year, not cp+24 */
-	Bprint(&bout, " %-12.12s %-4.4s ", cp+4, cp+20);
+	cp = ctime(bp->date);
+	Bprint(&bout, " %-12.12s %-4.4s ", cp+4, cp+24);
 }
 
 int	m1[] = { 1, ROWN, 'r', '-' };
