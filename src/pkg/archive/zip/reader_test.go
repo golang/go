@@ -98,7 +98,11 @@ func readTestZip(t *testing.T, zt ZipTest) {
 	if err == FormatError {
 		return
 	}
-	defer z.Close()
+	defer func() {
+		if err := z.Close(); err != nil {
+			t.Errorf("error %q when closing zip file", err)
+		}
+	}()
 
 	// bail here if no Files expected to be tested
 	// (there may actually be files in the zip, but we don't care)

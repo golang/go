@@ -60,6 +60,7 @@ func OpenReader(name string) (*ReadCloser, error) {
 		f.Close()
 		return nil, err
 	}
+	r.f = f
 	return r, nil
 }
 
