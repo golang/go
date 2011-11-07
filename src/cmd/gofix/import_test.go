@@ -266,6 +266,90 @@ import (
 )
 `,
 	},
+	{
+		Name: "import.14",
+		Fn:   rewriteImportFn("asn1", "encoding/asn1"),
+		In: `package main
+
+import (
+	"asn1"
+	"crypto"
+	"crypto/rsa"
+	_ "crypto/sha1"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"time"
+)
+
+var x = 1
+`,
+		Out: `package main
+
+import (
+	"crypto"
+	"crypto/rsa"
+	_ "crypto/sha1"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
+	"time"
+)
+
+var x = 1
+`,
+	},
+	{
+		Name: "import.15",
+		Fn:   rewriteImportFn("url", "net/url"),
+		In: `package main
+
+import (
+	"bufio"
+	"net"
+	"path"
+	"url"
+)
+
+var x = 1 // comment on x, not on url
+`,
+		Out: `package main
+
+import (
+	"bufio"
+	"net"
+	"net/url"
+	"path"
+)
+
+var x = 1 // comment on x, not on url
+`,
+	},
+	{
+		Name: "import.16",
+		Fn:   rewriteImportFn("http", "net/http", "template", "text/template"),
+		In: `package main
+
+import (
+	"flag"
+	"http"
+	"log"
+	"template"
+)
+
+var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18
+`,
+		Out: `package main
+
+import (
+	"flag"
+	"log"
+	"net/http"
+	"text/template"
+)
+
+var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18
+`,
+	},
 }
 
 func addImportFn(path string) func(*ast.File) bool {
@@ -288,12 +372,15 @@ func deleteImportFn(path string) func(*ast.File) bool {
 	}
 }
 
-func rewriteImportFn(old, new string) func(*ast.File) bool {
+func rewriteImportFn(oldnew ...string) func(*ast.File) bool {
 	return func(f *ast.File) bool {
-		if imports(f, old) {
-			rewriteImport(f, old, new)
-			return true
+		fixed := false
+		for i := 0; i < len(oldnew); i += 2 {
+			if imports(f, oldnew[i]) {
+				rewriteImport(f, oldnew[i], oldnew[i+1])
+				fixed = true
+			}
 		}
-		return false
+		return fixed
 	}
 }
