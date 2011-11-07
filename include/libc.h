@@ -95,6 +95,7 @@ extern	void	perror(const char*);
 extern	int	postnote(int, int, char *);
 extern	double	p9pow10(int);
 extern	char*	searchpath(char*);
+extern	char*	p9ctime(long);
 #define p9setjmp(b)	sigsetjmp((void*)(b), 1)
 
 extern	void	sysfatal(char*, ...);
@@ -115,6 +116,7 @@ extern	void	sysfatal(char*, ...);
 #undef  strtod
 #define strtod		fmtstrtod
 #define charstod	fmtcharstod
+#define ctime	p9ctime
 #endif
 
 /*

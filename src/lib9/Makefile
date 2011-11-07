@@ -57,6 +57,7 @@ LIB9OFILES=\
 	atoi.$O\
 	cleanname.$O\
 	create.$O\
+	ctime.$O\
 	dirfstat.$O\
 	dirfwstat.$O\
 	dirstat.$O\
