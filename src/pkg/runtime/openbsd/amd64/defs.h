@@ -100,6 +100,13 @@ struct StackT {
 	byte pad_godefs_0[4];
 };
 
+typedef struct Timespec Timespec;
+struct Timespec {
+	int32 tv_sec;
+	byte pad_godefs_0[4];
+	int64 tv_nsec;
+};
+
 typedef struct Timeval Timeval;
 struct Timeval {
 	int64 tv_sec;

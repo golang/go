@@ -18,13 +18,19 @@ enum
 
 	ESRCH = 3,
 	ENOTSUP = 91,
+
+	// From OpenBSD's sys/time.h
+	CLOCK_REALTIME = 0,
+	CLOCK_VIRTUAL = 1,
+	CLOCK_PROF = 2,
+	CLOCK_MONOTONIC = 3
 };
 
 extern SigTab runtime·sigtab[];
 
 extern int64 runtime·rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
-extern int32 runtime·thrsleep(void *, void *, void*, void *);
-extern int32 runtime·thrwakeup(void *, int32);
+extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock);
+extern int32 runtime·thrwakeup(void *ident, int32 n);
 
 // From OpenBSD's <sys/sysctl.h>
 #define	CTL_HW	6
@@ -65,7 +71,7 @@ retry:
 		runtime·osyield();
 	if(m->waitsemacount == 0) {
 		// the function unlocks the spinlock
-		runtime·thrsleep(&m->waitsemacount, 0, 0, &m->waitsemalock);
+		runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock);
 		goto retry;
 	}
 	m->waitsemacount--;
