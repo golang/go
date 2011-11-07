@@ -245,6 +245,9 @@ const pathTestString = `
             <Value>C</Value>
             <Value>D</Value>
         </Item1>
+        <_>
+            <value>E</value>
+        </_>
     </items>
     <after>2</after>
 </result>
@@ -279,11 +282,17 @@ type PathTestD struct {
 	Before, After string
 }
 
+type PathTestE struct {
+	Underline     string `xml:"items>_>value"`
+	Before, After string
+}
+
 var pathTests = []interface{}{
 	&PathTestA{Items: []PathTestItem{{"A"}, {"D"}}, Before: "1", After: "2"},
 	&PathTestB{Other: []PathTestItem{{"A"}, {"D"}}, Before: "1", After: "2"},
 	&PathTestC{Values1: []string{"A", "C", "D"}, Values2: []string{"B"}, Before: "1", After: "2"},
 	&PathTestD{Other: PathTestSet{Item1: []PathTestItem{{"A"}, {"D"}}}, Before: "1", After: "2"},
+	&PathTestE{Underline: "E", Before: "1", After: "2"},
 }
 
 func TestUnmarshalPaths(t *testing.T) {

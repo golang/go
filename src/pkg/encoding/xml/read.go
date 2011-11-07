@@ -201,8 +201,8 @@ func (p *Parser) Unmarshal(val interface{}, start *StartElement) error {
 func fieldName(original string) string {
 
 	var i int
-	//remove leading underscores
-	for i = 0; i < len(original) && original[i] == '_'; i++ {
+	//remove leading underscores, without exhausting all characters
+	for i = 0; i < len(original)-1 && original[i] == '_'; i++ {
 	}
 
 	return strings.Map(
