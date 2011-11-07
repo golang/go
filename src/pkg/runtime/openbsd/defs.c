@@ -93,6 +93,7 @@ typedef union sigval $Sigval;
 
 typedef stack_t $StackT;
 
+typedef struct timespec $Timespec;
 typedef struct timeval $Timeval;
 typedef struct itimerval $Itimerval;
 
