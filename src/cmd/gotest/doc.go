@@ -37,6 +37,7 @@ os.Stdout and os.Stderr is compared against their doc comment.
 
 Multiple example functions may be provided for a given name XXX if they are
 discriminated by a distinct suffix starting with "_", such as ExampleXXX_2.
+Example functions without doc comments are compiled but not executed.
 
 See the documentation of the testing package for more information.
 

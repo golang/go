@@ -231,9 +231,14 @@ func getTestNames() {
 			} else if isTest(name, "Benchmark") {
 				f.benchmarks = append(f.benchmarks, name)
 			} else if isTest(name, "Example") {
+				output := doc.CommentText(n.Doc)
+				if output == "" {
+					// Don't run examples with no output.
+					continue
+				}
 				f.examples = append(f.examples, example{
 					name:   name,
-					output: doc.CommentText(n.Doc),
+					output: output,
 				})
 			}
 			// TODO: worth checking the signature? Probably not.
@@ -372,7 +377,7 @@ func writeTestmainGo() {
 	insideTests := false
 	for _, f := range files {
 		//println(f.name, f.pkg)
-		if len(f.tests) == 0 && len(f.benchmarks) == 0 {
+		if len(f.tests) == 0 && len(f.benchmarks) == 0 && len(f.examples) == 0 {
 			continue
 		}
 		if isOutsideTest(f.pkg) {
