@@ -28,7 +28,7 @@ func NewSyscallError(syscall string, err syscall.Error) error {
 	if err == nil {
 		return nil
 	}
-	return &SyscallError{syscall, err.String()}
+	return &SyscallError{syscall, err.Error()}
 }
 
 var (

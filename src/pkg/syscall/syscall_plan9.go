@@ -19,13 +19,13 @@ const ImplementsGetwd = true
 
 // An Error can represent any printable error condition.
 type Error interface {
-	String() string
+	error
 }
 
 // ErrorString implements Error's String method by returning itself.
 type ErrorString string
 
-func (e ErrorString) String() string { return string(e) }
+func (e ErrorString) Error() string { return string(e) }
 
 // NewError converts s to an ErrorString, which satisfies the Error interface.
 func NewError(s string) Error { return ErrorString(s) }
