@@ -133,7 +133,7 @@ func TestParser(t *testing.T) {
 		n int
 	}{
 		// TODO(nigeltao): Process all the test cases from all the .dat files.
-		{"tests1.dat", 89},
+		{"tests1.dat", 92},
 		{"tests2.dat", 0},
 		{"tests3.dat", 0},
 	}
@@ -210,6 +210,7 @@ var renderTestBlacklist = map[string]bool{
 	// The second <a> will be reparented to the first <table>'s parent. This
 	// results in an <a> whose parent is an <a>, which is not 'well-formed'.
 	`<a><table><td><a><table></table><a></tr><a></table><b>X</b>C<a>Y`: true,
-	// The second <a> will be reparented, similar to the case above.
+	// More cases of <a> being reparented:
 	`<a href="blah">aba<table><a href="foo">br<tr><td></td></tr>x</table>aoe`: true,
+	`<a><table><a></table><p><a><div><a>`:                                     true,
 }

@@ -651,6 +651,9 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 			}
 		case "base", "basefont", "bgsound", "command", "link", "meta", "noframes", "script", "style", "title":
 			return useTheRulesFor(p, inBodyIM, inHeadIM)
+		case "image":
+			p.tok.Data = "img"
+			return inBodyIM, false
 		default:
 			// TODO.
 			p.addElement(p.tok.Data, p.tok.Attr)
