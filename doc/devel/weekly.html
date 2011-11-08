@@ -14,6 +14,42 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-11-08">2011-11-09</h2>
+
+<pre>
+This weekly snapshot renames various Go packages as described in the Go 1 plan.
+Import statements in client code can be updated automatically with gofix.
+
+The changes are:
+	asn1              -> encoding/asn1
+	big               -> math/big
+	cmath             -> math/cmplx
+	csv               -> encoding/csv
+	exec              -> os/exec
+	exp/template/html -> html/template
+	gob               -> encoding/gob
+	http              -> net/http
+	http/cgi          -> net/http/cgi
+	http/fcgi         -> net/http/fcgi
+	http/httptest     -> net/http/httptest
+	http/pprof        -> net/http/pprof
+	json              -> encoding/json
+	mail              -> net/mail
+	rpc               -> net/rpc
+	rpc/jsonrpc       -> net/rpc/jsonrpc
+	scanner           -> text/scanner
+	smtp              -> net/smtp
+	syslog            -> log/syslog
+	tabwriter         -> text/tabwriter
+	template          -> text/template
+	template/parse    -> text/template/parse
+	rand              -> math/rand
+	url               -> net/url
+	utf16             -> unicode/utf16
+	utf8              -> unicode/utf8
+	xml               -> encoding/xml
+</pre>
+
 <h2 id="2011-11-08">2011-11-08</h2>
 
 <pre>
@@ -80,7 +116,7 @@ Other changes:
 	make closedchan.go exit with failure if something fails.
 * time: faster Nanoseconds call.
 * websocket: return an error HTTP response for bad websocket request.
-* xml: allow parsing of <_> </_>. (thanks David Crawshaw).
+* xml: allow parsing of &lt;_&gt; &lt;/_&gt;. (thanks David Crawshaw).
 </pre>
 
 <h2 id="2011-11-02">2011-11-02 (new error type)</h2>
