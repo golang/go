@@ -1586,6 +1586,14 @@ runtime·lockedOSThread(void)
 	return g->lockedm != nil && m->lockedg != nil;
 }
 
+// for testing of callbacks
+void
+runtime·golockedOSThread(bool ret)
+{
+	ret = runtime·lockedOSThread();
+	FLUSH(&ret);
+}
+
 // for testing of wire, unwire
 void
 runtime·mid(uint32 ret)
