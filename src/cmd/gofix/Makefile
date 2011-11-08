@@ -9,6 +9,7 @@ GOFILES=\
 	error.go\
 	filepath.go\
 	fix.go\
+	go1pkgrename.go\
 	htmlerr.go\
 	httpfinalurl.go\
 	httpfs.go\
