@@ -13,19 +13,19 @@
 package main
 
 import (
+	"encoding/xml"
 	"errors"
 	"fmt"
-	"http"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"template"
-	"utf8"
-	"xml"
+	"text/template"
+	"unicode/utf8"
 )
 
 // Handler for /doc/codewalk/ and below.

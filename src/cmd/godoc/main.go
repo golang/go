@@ -34,10 +34,11 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
-	"http"
-	_ "http/pprof" // to serve /debug/pprof/*
 	"io"
 	"log"
+	"net/http"
+	_ "net/http/pprof" // to serve /debug/pprof/*
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -45,7 +46,6 @@ import (
 	"runtime"
 	"strings"
 	"time"
-	"url"
 )
 
 const defaultAddr = ":6060" // default webserver address

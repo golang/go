@@ -7,13 +7,13 @@ package main
 import (
 	"bytes"
 	"errors"
-	"exec"
 	"flag"
 	"fmt"
 	"go/build"
 	"go/token"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath" // use for file system paths
 	"regexp"
 	"runtime"

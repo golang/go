@@ -50,8 +50,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
-	"rand"
 	"strings"
 	"time"
 )

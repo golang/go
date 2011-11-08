@@ -1,10 +1,10 @@
 package main
 
 import (
-	"http"
 	"io/ioutil"
+	"net/http"
 	"regexp"
-	"template"
+	"text/template"
 )
 
 type Page struct {

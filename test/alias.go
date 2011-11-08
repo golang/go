@@ -11,25 +11,25 @@ package main
 
 import (
 	"fmt"
-	"utf8"
+	"unicode/utf8"
 )
 
-func f(byte) {}
+func f(byte)  {}
 func g(uint8) {}
 
 func main() {
 	var x float64
-	f(x)  // ERROR "byte"
-	g(x)  // ERROR "uint8"
+	f(x) // ERROR "byte"
+	g(x) // ERROR "uint8"
 
 	// Test across imports.
 
 	var ff fmt.Formatter
 	var fs fmt.State
-	ff.Format(fs, x)  // ERROR "rune"
+	ff.Format(fs, x) // ERROR "rune"
 
-	utf8.RuneStart(x)  // ERROR "byte"
+	utf8.RuneStart(x) // ERROR "byte"
 
 	var s utf8.String
-	s.At(x)  // ERROR "int"
+	s.At(x) // ERROR "int"
 }

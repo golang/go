@@ -1,9 +1,9 @@
 package main
 
 import (
-	"http"
 	"io/ioutil"
-	"template"
+	"net/http"
+	"text/template"
 )
 
 type Page struct {

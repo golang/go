@@ -3,13 +3,13 @@ package main
 import (
 	"bytes"
 	"flag"
+	"go/ast"
 	"go/parser"
 	"go/printer"
-	"go/ast"
 	"go/token"
 	"log"
-	"template"
 	"os"
+	"text/template"
 )
 
 var (

@@ -12,7 +12,7 @@ import (
 	"go/build"
 	"path" // use for import paths
 	"strings"
-	"template"
+	"text/template"
 )
 
 // domake builds the package in dir.

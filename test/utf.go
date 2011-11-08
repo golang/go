@@ -6,7 +6,7 @@
 
 package main
 
-import "utf8"
+import "unicode/utf8"
 
 func main() {
 	var chars [6]rune

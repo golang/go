@@ -13,9 +13,9 @@ import (
 	"go/doc"
 	"go/printer"
 	"go/token"
-	"http"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -23,7 +23,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"template"
+	"text/template"
 	"time"
 )
 

@@ -8,12 +8,12 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
-	"exec"
 	"fmt"
-	"http"
-	"json"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"

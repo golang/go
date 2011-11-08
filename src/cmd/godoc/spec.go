@@ -14,7 +14,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"scanner"
+	"text/scanner"
 )
 
 type ebnfParser struct {

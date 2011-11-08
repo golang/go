@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"template"
+	"text/template"
 )
 
 func main() {

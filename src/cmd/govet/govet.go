@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"utf8"
+	"unicode/utf8"
 )
 
 var verbose = flag.Bool("v", false, "verbose")

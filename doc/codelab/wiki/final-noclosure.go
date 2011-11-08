@@ -2,10 +2,10 @@ package main
 
 import (
 	"errors"
-	"http"
 	"io/ioutil"
+	"net/http"
 	"regexp"
-	"template"
+	"text/template"
 )
 
 type Page struct {

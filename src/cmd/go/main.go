@@ -10,7 +10,7 @@ import (
 	"io"
 	"os"
 	"strings"
-	"template"
+	"text/template"
 )
 
 // A Command is an implementation of a go command

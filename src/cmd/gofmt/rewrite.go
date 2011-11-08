@@ -13,7 +13,7 @@ import (
 	"reflect"
 	"strings"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 func initRewrite() {

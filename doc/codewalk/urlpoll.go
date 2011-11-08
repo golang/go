@@ -5,8 +5,8 @@
 package main
 
 import (
-	"http"
 	"log"
+	"net/http"
 	"time"
 )
 

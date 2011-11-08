@@ -27,7 +27,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"template"
+	"text/template"
 )
 
 func Usage() {

@@ -5,16 +5,16 @@
 package main
 
 import (
-	"exec"
 	"flag"
-	"http"
 	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 	"strconv"
-	"template"
+	"text/template"
 )
 
 var (

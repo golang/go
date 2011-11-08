@@ -6,10 +6,10 @@ package main
 
 import (
 	"bytes"
-	"exec"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 )
 
