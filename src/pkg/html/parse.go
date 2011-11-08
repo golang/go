@@ -275,7 +275,9 @@ type insertionMode func(*parser) (insertionMode, bool)
 // Section 11.2.3.1, "using the rules for".
 func useTheRulesFor(p *parser, actual, delegate insertionMode) (insertionMode, bool) {
 	im, consumed := delegate(p)
-	// TODO: do we need to update p.originalMode if it equals delegate?
+	if p.originalIM == delegate {
+		p.originalIM = actual
+	}
 	if im != delegate {
 		return im, consumed
 	}
@@ -537,6 +539,23 @@ func afterHeadIM(p *parser) (insertionMode, bool) {
 	return inBodyIM, !implied
 }
 
+// copyAttributes copies attributes of src not found on dst to dst.
+func copyAttributes(dst *Node, src Token) {
+	if len(src.Attr) == 0 {
+		return
+	}
+	attr := map[string]string{}
+	for _, a := range dst.Attr {
+		attr[a.Key] = a.Val
+	}
+	for _, a := range src.Attr {
+		if _, ok := attr[a.Key]; !ok {
+			dst.Attr = append(dst.Attr, a)
+			attr[a.Key] = a.Val
+		}
+	}
+}
+
 // Section 11.2.5.4.7.
 func inBodyIM(p *parser) (insertionMode, bool) {
 	switch p.tok.Type {
@@ -622,6 +641,16 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 			}
 			p.reconstructActiveFormattingElements()
 			p.addElement(p.tok.Data, p.tok.Attr)
+		case "body":
+			if len(p.oe) >= 2 {
+				body := p.oe[1]
+				if body.Type == ElementNode && body.Data == "body" {
+					p.framesetOK = false
+					copyAttributes(body, p.tok)
+				}
+			}
+		case "base", "basefont", "bgsound", "command", "link", "meta", "noframes", "script", "style", "title":
+			return useTheRulesFor(p, inBodyIM, inHeadIM)
 		default:
 			// TODO.
 			p.addElement(p.tok.Data, p.tok.Attr)
