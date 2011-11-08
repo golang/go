@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"runtime"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -120,7 +121,7 @@ func TestCDecl(t *testing.T) {
 	}
 }
 
-func TestCallback(t *testing.T) {
+func TestEnumWindows(t *testing.T) {
 	d := GetDLL(t, "user32.dll")
 	isWindows := d.Proc("IsWindow")
 	counter := 0
@@ -142,6 +143,99 @@ func TestCallback(t *testing.T) {
 	if counter == 0 {
 		t.Error("Callback has been never called or your have no windows")
 	}
+}
+
+func callback(hwnd syscall.Handle, lparam uintptr) uintptr {
+	(*(*func())(unsafe.Pointer(&lparam)))()
+	return 0 // stop enumeration
+}
+
+// nestedCall calls into Windows, back into Go, and finally to f.
+func nestedCall(t *testing.T, f func()) {
+	c := syscall.NewCallback(callback)
+	d := GetDLL(t, "user32.dll")
+	defer d.Release()
+	d.Proc("EnumWindows").Call(c, uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&f))))
+}
+
+func TestCallback(t *testing.T) {
+	var x = false
+	nestedCall(t, func() { x = true })
+	if !x {
+		t.Fatal("nestedCall did not call func")
+	}
+}
+
+func TestCallbackGC(t *testing.T) {
+	nestedCall(t, runtime.GC)
+}
+
+func TestCallbackPanic(t *testing.T) {
+	// Make sure panic during callback unwinds properly.
+	if runtime.LockedOSThread() {
+		t.Fatal("locked OS thread on entry to TestCallbackPanic")
+	}
+	defer func() {
+		s := recover()
+		if s == nil {
+			t.Fatal("did not panic")
+		}
+		if s.(string) != "callback panic" {
+			t.Fatal("wrong panic:", s)
+		}
+		if runtime.LockedOSThread() {
+			t.Fatal("locked OS thread on exit from TestCallbackPanic")
+		}
+	}()
+	nestedCall(t, func() { panic("callback panic") })
+	panic("nestedCall returned")
+}
+
+func TestCallbackPanicLoop(t *testing.T) {
+	// Make sure we don't blow out m->g0 stack.
+	for i := 0; i < 100000; i++ {
+		TestCallbackPanic(t)
+	}
+}
+
+func TestCallbackPanicLocked(t *testing.T) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if !runtime.LockedOSThread() {
+		t.Fatal("runtime.LockOSThread didn't")
+	}
+	defer func() {
+		s := recover()
+		if s == nil {
+			t.Fatal("did not panic")
+		}
+		if s.(string) != "callback panic" {
+			t.Fatal("wrong panic:", s)
+		}
+		if !runtime.LockedOSThread() {
+			t.Fatal("lost lock on OS thread after panic")
+		}
+	}()
+	nestedCall(t, func() { panic("callback panic") })
+	panic("nestedCall returned")
+}
+
+func TestBlockingCallback(t *testing.T) {
+	c := make(chan int)
+	go func() {
+		for i := 0; i < 10; i++ {
+			c <- <-c
+		}
+	}()
+	nestedCall(t, func() {
+		for i := 0; i < 10; i++ {
+			c <- i
+			if j := <-c; j != i {
+				t.Errorf("out of sync %d != %d", j, i)
+			}
+		}
+	})
 }
 
 func TestCallbackInAnotherThread(t *testing.T) {
