@@ -5,7 +5,7 @@
 package ssh
 
 import (
-	"big"
+	"math/big"
 	"strconv"
 	"sync"
 )

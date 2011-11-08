@@ -5,16 +5,16 @@
 package x509
 
 import (
-	"asn1"
-	"big"
 	"bytes"
 	"crypto/dsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
+	"math/big"
 	"testing"
 	"time"
 )

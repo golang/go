@@ -14,8 +14,8 @@ package elliptic
 // reverse the transform than to operate in affine coordinates.
 
 import (
-	"big"
 	"io"
+	"math/big"
 	"sync"
 )
 

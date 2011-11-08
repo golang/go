@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // BUG(rsc): Mapping between XML elements and data structures is inherently flawed:

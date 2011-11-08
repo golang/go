@@ -5,7 +5,6 @@
 package rsa
 
 import (
-	"big"
 	"bytes"
 	"crypto"
 	"crypto/rand"
@@ -13,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"io"
+	"math/big"
 	"testing"
 	"testing/quick"
 )

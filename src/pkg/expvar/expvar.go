@@ -23,10 +23,10 @@ package expvar
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
-	"http"
-	"json"
 	"log"
+	"net/http"
 	"os"
 	"runtime"
 	"strconv"

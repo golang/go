@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"strconv"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 const (

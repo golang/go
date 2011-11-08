@@ -5,9 +5,9 @@
 package types
 
 import (
-	"exec"
 	"go/ast"
 	"io/ioutil"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"

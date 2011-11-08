@@ -13,9 +13,9 @@ package ecdsa
 //     http://www.secg.org/download/aid-780/sec1-v2.pdf
 
 import (
-	"big"
 	"crypto/elliptic"
 	"io"
+	"math/big"
 )
 
 // PublicKey represents an ECDSA public key.

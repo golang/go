@@ -3,8 +3,8 @@ package main
 // Need to compile package gob with debug.go to build this program.
 
 import (
+	"encoding/gob"
 	"fmt"
-	"gob"
 	"os"
 )
 

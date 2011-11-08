@@ -7,7 +7,7 @@ package json
 import (
 	"bytes"
 	"math"
-	"rand"
+	"math/rand"
 	"reflect"
 	"testing"
 )

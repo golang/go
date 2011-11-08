@@ -7,8 +7,8 @@
 package types
 
 import (
-	"big"
 	"go/token"
+	"math/big"
 	"strconv"
 )
 

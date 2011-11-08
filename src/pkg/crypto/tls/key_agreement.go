@@ -5,7 +5,6 @@
 package tls
 
 import (
-	"big"
 	"crypto"
 	"crypto/elliptic"
 	"crypto/md5"
@@ -14,6 +13,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"io"
+	"math/big"
 )
 
 // rsaKeyAgreement implements the standard TLS key agreement where the client

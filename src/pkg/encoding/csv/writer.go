@@ -9,7 +9,7 @@ import (
 	"io"
 	"strings"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // A Writer writes records to a CSV encoded file.

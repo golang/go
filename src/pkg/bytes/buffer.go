@@ -9,7 +9,7 @@ package bytes
 import (
 	"errors"
 	"io"
-	"utf8"
+	"unicode/utf8"
 )
 
 // A Buffer is a variable-sized buffer of bytes with Read and Write methods.

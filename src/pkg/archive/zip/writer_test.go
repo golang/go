@@ -7,7 +7,7 @@ package zip
 import (
 	"bytes"
 	"io/ioutil"
-	"rand"
+	"math/rand"
 	"testing"
 )
 

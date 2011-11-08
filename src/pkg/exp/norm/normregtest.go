@@ -10,9 +10,9 @@ import (
 	"exp/norm"
 	"flag"
 	"fmt"
-	"http"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path"
 	"regexp"
@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"utf8"
+	"unicode/utf8"
 )
 
 func main() {

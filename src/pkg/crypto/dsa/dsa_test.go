@@ -5,8 +5,8 @@
 package dsa
 
 import (
-	"big"
 	"crypto/rand"
+	"math/big"
 	"testing"
 )
 

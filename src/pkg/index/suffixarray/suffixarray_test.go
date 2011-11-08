@@ -6,7 +6,7 @@ package suffixarray
 
 import (
 	"bytes"
-	"rand"
+	"math/rand"
 	"regexp"
 	"sort"
 	"strings"

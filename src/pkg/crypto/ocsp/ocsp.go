@@ -8,12 +8,12 @@
 package ocsp
 
 import (
-	"asn1"
 	"crypto"
 	"crypto/rsa"
 	_ "crypto/sha1"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"time"
 )
 

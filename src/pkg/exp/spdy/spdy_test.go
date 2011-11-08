@@ -6,8 +6,8 @@ package spdy
 
 import (
 	"bytes"
-	"http"
 	"io"
+	"net/http"
 	"reflect"
 	"testing"
 )

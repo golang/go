@@ -7,8 +7,8 @@ package spdy
 import (
 	"compress/zlib"
 	"encoding/binary"
-	"http"
 	"io"
+	"net/http"
 	"strings"
 )
 

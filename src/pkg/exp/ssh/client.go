@@ -5,12 +5,12 @@
 package ssh
 
 import (
-	"big"
 	"crypto"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"sync"
 )

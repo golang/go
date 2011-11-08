@@ -5,11 +5,11 @@
 package packet
 
 import (
-	"big"
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	"math/big"
 	"testing"
 )
 

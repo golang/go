@@ -5,13 +5,13 @@
 package packet
 
 import (
-	"big"
 	"crypto/openpgp/elgamal"
 	error_ "crypto/openpgp/error"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/binary"
 	"io"
+	"math/big"
 	"strconv"
 )
 

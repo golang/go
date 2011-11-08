@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-	"utf16"
-	"utf8"
+	"unicode/utf16"
+	"unicode/utf8"
 )
 
 // Unmarshal parses the JSON-encoded data and stores the result

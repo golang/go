@@ -5,7 +5,6 @@
 package packet
 
 import (
-	"big"
 	"bytes"
 	"crypto/cipher"
 	"crypto/dsa"
@@ -16,6 +15,7 @@ import (
 	"crypto/sha1"
 	"io"
 	"io/ioutil"
+	"math/big"
 	"strconv"
 )
 

@@ -6,8 +6,8 @@ package ebnf
 
 import (
 	"io"
-	"scanner"
 	"strconv"
+	"text/scanner"
 )
 
 type parser struct {

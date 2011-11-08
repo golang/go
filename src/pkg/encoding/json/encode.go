@@ -17,7 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // Marshal returns the JSON encoding of v.

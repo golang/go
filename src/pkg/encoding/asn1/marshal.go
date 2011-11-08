@@ -5,10 +5,10 @@
 package asn1
 
 import (
-	"big"
 	"bytes"
 	"fmt"
 	"io"
+	"math/big"
 	"reflect"
 	"time"
 )

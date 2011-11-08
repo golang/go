@@ -20,8 +20,8 @@ package asn1
 // everything by any means.
 
 import (
-	"big"
 	"fmt"
+	"math/big"
 	"reflect"
 	"time"
 )

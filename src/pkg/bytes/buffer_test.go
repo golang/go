@@ -7,9 +7,9 @@ package bytes_test
 import (
 	. "bytes"
 	"io"
-	"rand"
+	"math/rand"
 	"testing"
-	"utf8"
+	"unicode/utf8"
 )
 
 const N = 10000  // make this bigger for a larger (and slower) test

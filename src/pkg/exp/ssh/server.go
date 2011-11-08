@@ -5,7 +5,6 @@
 package ssh
 
 import (
-	"big"
 	"bytes"
 	"crypto"
 	"crypto/rand"
@@ -14,6 +13,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"io"
+	"math/big"
 	"net"
 	"sync"
 )

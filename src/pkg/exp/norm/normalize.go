@@ -5,7 +5,7 @@
 // Package norm contains types and functions for normalizing Unicode strings.
 package norm
 
-import "utf8"
+import "unicode/utf8"
 
 // A Form denotes a canonical representation of Unicode code points.
 // The Unicode-defined normalization and equivalence forms are:

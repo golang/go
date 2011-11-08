@@ -8,17 +8,17 @@
 package types
 
 import (
-	"big"
 	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
 	"runtime"
-	"scanner"
 	"strconv"
+	"text/scanner"
 )
 
 const trace = false // set to true for debugging

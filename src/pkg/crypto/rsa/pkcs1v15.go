@@ -5,11 +5,11 @@
 package rsa
 
 import (
-	"big"
 	"crypto"
 	"crypto/subtle"
 	"errors"
 	"io"
+	"math/big"
 )
 
 // This file implements encryption and decryption using PKCS#1 v1.5 padding.

@@ -5,9 +5,9 @@
 package elliptic
 
 import (
-	"big"
 	"crypto/rand"
 	"fmt"
+	"math/big"
 	"testing"
 )
 
