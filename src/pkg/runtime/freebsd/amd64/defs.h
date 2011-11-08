@@ -184,6 +184,12 @@ struct Ucontext {
 	byte pad_godefs_0[12];
 };
 
+typedef struct Timespec Timespec;
+struct Timespec {
+	int64 tv_sec;
+	int64 tv_nsec;
+};
+
 typedef struct Timeval Timeval;
 struct Timeval {
 	int64 tv_sec;
