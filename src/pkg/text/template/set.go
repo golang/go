@@ -101,8 +101,7 @@ func (s *Set) Execute(wr io.Writer, name string, data interface{}) error {
 
 // Parse parses a string into a set of named templates.  Parse may be called
 // multiple times for a given set, adding the templates defined in the string
-// to the set.  If a template is redefined, the element in the set is
-// overwritten with the new definition.
+// to the set.  It is an error if a template has a name already defined in the set.
 func (s *Set) Parse(text string) (*Set, error) {
 	trees, err := parse.Set(text, s.leftDelim, s.rightDelim, s.parseFuncs, builtins)
 	if err != nil {
@@ -112,8 +111,10 @@ func (s *Set) Parse(text string) (*Set, error) {
 	for name, tree := range trees {
 		tmpl := New(name)
 		tmpl.Tree = tree
-		tmpl.addToSet(s)
-		s.tmpl[name] = tmpl
+		err = s.add(tmpl)
+		if err != nil {
+			return s, err
+		}
 	}
 	return s, nil
 }
