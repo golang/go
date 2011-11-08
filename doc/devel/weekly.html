@@ -14,6 +14,75 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-11-08">2011-11-08</h2>
+
+<pre>
+This weekly snapshot includes some package changes.
+
+In preparation for the Go 1 package reorganziation the sources for various
+packages have been moved, but the import paths remain unchanged. This
+inconsistency breaks goinstall at this snapshot. If you use goinstall, please
+stay synced to the previous weekly snapshot until the next one is tagged.
+
+The Error methods in the html, bzip2, and sql packages that return error values
+have been renamed to Err.
+
+Some non-core parts of the http package have been moved to net/http/httputil.
+The Dump* and NewChunked* functions and ClientConn, ServerConn, and
+ReverseProxy types have been moved from http to httputil.
+
+The API for html/template is now a direct copy of the template API, instead of
+exposing a single Escape function. For HTML templates, simply use the
+html/template package as you would the template package.
+
+Other changes:
+* all: rename os.EOF to io.EOF in non-code contexts (thanks Vincent Vanackere),
+	sort imports with gofix.
+* archive/zip: close file opened with OpenReader (thanks Dmitry Chestnykh).
+* bufio: return nil line from ReadLine on error, as documented.
+* builtin: document basic types and the built-in error type.
+* bytes: add Contains function.
+* exp/sql: finish implementation of transactions, flesh out types, docs.
+* exp/ssh: improved client authentication support (thanks Dave Cheney).
+* gc: better error message for range over non-receive channel,
+	bug fixes and clean-ups,
+	detect type switch variable not used cases,
+	fix escaping of package paths in symbol names,
+	helpful error message on method call on pointer to pointer,
+	portably read archive headers (thanks Ron Minnich).
+* gob: fix bug when registering the same type multiple times.
+* gofix: avoid panic on body-less functions in netudpgroup,
+	make fix order implicit by date.
+* gofmt, gofix: sort imports.
+* goinstall: support launchpad.net/~user branches (thanks Jani Monoses).
+* gopack: do not look for Go metadata in non-Go objects.
+* gotest: don't run examples that have no expected output.
+* html: the parser bug fixing campaign continues (thanks Andrew Balholm).
+* http: fix whitespace handling in sniffer,
+	only recognize application/x-www-form-urlencoded in ParseForm,
+	support Trailers in ReadRequest.
+* lib9: add ctime.
+* math: faster Gamma (thanks Charles L. Dorian),
+	improved accuracy for Tan (thanks Charles L. Dorian),
+	improved high-angle test for Cos, Sin and Tan (thanks Charles L. Dorian).
+* net: implement LookupTXT for windows (thanks Alex Brainman).
+* os,text,unicode: renamings.
+* runtime/cgo: fix data declaration to be extern.
+* runtime: add timespec definition for freebsd,
+	add windows callback tests (thanks Alex Brainman),
+	fix prototype for openbsd thrsleep,
+	fix set and not used,
+	unify mutex code across OSes,
+	windows_386 sighandler to use correct g (thanks Alex Brainman).
+* template: format error with pointer receiver,
+	make redefinition of a template in a set more consistent.
+* test: clear execute bit from source file (thanks Mikio Hara),
+	make closedchan.go exit with failure if something fails.
+* time: faster Nanoseconds call.
+* websocket: return an error HTTP response for bad websocket request.
+* xml: allow parsing of <_> </_>. (thanks David Crawshaw).
+</pre>
+
 <h2 id="2011-11-02">2011-11-02 (new error type)</h2>
 
 <pre>
