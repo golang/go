@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"http"
 	"io/ioutil"
+	"net/http"
 )
 
 type Page struct {

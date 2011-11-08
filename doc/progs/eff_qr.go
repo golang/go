@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"http"
 	"log"
-	"template"
+	"net/http"
+	"text/template"
 )
 
 var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18

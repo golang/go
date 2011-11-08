@@ -6,11 +6,11 @@ package main
 
 import (
 	"bytes"
-	"exec"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"patch"
 	"path/filepath"
 	"sort"

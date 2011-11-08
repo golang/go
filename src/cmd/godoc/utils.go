@@ -15,7 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"utf8"
+	"unicode/utf8"
 )
 
 // An RWValue wraps a value and permits mutually exclusive

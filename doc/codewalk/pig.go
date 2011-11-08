@@ -6,7 +6,7 @@ package main
 
 import (
 	"fmt"
-	"rand"
+	"math/rand"
 )
 
 const (

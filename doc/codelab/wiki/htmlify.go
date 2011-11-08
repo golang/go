@@ -1,9 +1,9 @@
 package main
 
 import (
-	"template"
-	"os"
 	"io/ioutil"
+	"os"
+	"text/template"
 )
 
 func main() {

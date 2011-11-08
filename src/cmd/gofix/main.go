@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"exec"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -16,6 +15,7 @@ import (
 	"go/token"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"

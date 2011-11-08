@@ -40,12 +40,12 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/gob"
 	"errors"
 	"go/ast"
 	"go/parser"
 	"go/scanner"
 	"go/token"
-	"gob"
 	"index/suffixarray"
 	"io"
 	"path/filepath"

@@ -5,6 +5,7 @@
 package main
 
 import (
+	"encoding/xml"
 	"errors"
 	"flag"
 	"fmt"
@@ -17,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"xml"
 )
 
 const (

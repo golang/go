@@ -8,7 +8,7 @@ import (
 	"container/heap"
 	"flag"
 	"fmt"
-	"rand"
+	"math/rand"
 	"time"
 )
 

@@ -12,14 +12,14 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path"
 	"runtime"
 	"strings"
 	"time"
-	"http"
-	_ "http/pprof"
-	"log"
 )
 
 var serve = flag.String("serve", "", "serve http on this address at end")

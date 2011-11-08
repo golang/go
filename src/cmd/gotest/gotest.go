@@ -6,7 +6,6 @@ package main
 
 import (
 	"bufio"
-	"exec"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -15,12 +14,13 @@ import (
 	"go/token"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"runtime"
 	"sort"
 	"strings"
 	"time"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // Environment for commands.

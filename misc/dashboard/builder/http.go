@@ -6,13 +6,13 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"http"
-	"json"
 	"log"
+	"net/http"
+	"net/url"
 	"strconv"
-	"url"
 )
 
 type param map[string]string

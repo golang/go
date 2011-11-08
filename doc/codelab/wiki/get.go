@@ -1,12 +1,12 @@
 package main
 
 import (
-	"http"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 )

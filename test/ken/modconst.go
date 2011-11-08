@@ -6,7 +6,7 @@
 
 package main
 
-import "rand"
+import "math/rand"
 
 const Count = 1e5
 

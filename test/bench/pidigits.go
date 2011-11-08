@@ -38,9 +38,9 @@ POSSIBILITY OF SUCH DAMAGE.
 package main
 
 import (
-	"big"
 	"flag"
 	"fmt"
+	"math/big"
 )
 
 var n = flag.Int("n", 27, "number of digits")
