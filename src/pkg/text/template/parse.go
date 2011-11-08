@@ -71,7 +71,7 @@ func (t *Template) Parse(s string) (tmpl *Template, err error) {
 
 // ParseInSet parses the template definition string to construct an internal
 // representation of the template for execution. It also adds the template
-// to the set.
+// to the set. It is an error if s is already defined in the set.
 // Function bindings are checked against those in the set.
 func (t *Template) ParseInSet(s string, set *Set) (tmpl *Template, err error) {
 	var setFuncs FuncMap
@@ -82,15 +82,8 @@ func (t *Template) ParseInSet(s string, set *Set) (tmpl *Template, err error) {
 	if err != nil {
 		return nil, err
 	}
-	t.addToSet(set)
-	return t, nil
-}
-
-// addToSet adds the template to the set, verifying it's not being double-assigned.
-func (t *Template) addToSet(set *Set) {
-	if set == nil || t.set == set {
-		return
+	if set != nil {
+		err = set.add(t)
 	}
-	// If double-assigned, Add will panic and we will turn that into an error.
-	set.Add(t)
+	return t, err
 }
