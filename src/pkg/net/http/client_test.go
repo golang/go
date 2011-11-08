@@ -10,15 +10,15 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	. "http"
-	"http/httptest"
 	"io"
 	"io/ioutil"
 	"net"
+	. "net/http"
+	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
-	"url"
 )
 
 var robotsTxtHandler = HandlerFunc(func(w ResponseWriter, r *Request) {

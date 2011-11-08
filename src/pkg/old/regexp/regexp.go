@@ -72,7 +72,7 @@ import (
 	"bytes"
 	"io"
 	"strings"
-	"utf8"
+	"unicode/utf8"
 )
 
 var debug = false

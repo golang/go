@@ -6,10 +6,10 @@ package multipart
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"json"
 	"strings"
 	"testing"
 )

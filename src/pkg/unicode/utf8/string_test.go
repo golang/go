@@ -5,9 +5,9 @@
 package utf8_test
 
 import (
-	"rand"
+	"math/rand"
 	"testing"
-	. "utf8"
+	. "unicode/utf8"
 )
 
 func TestScanForwards(t *testing.T) {

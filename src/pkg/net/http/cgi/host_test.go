@@ -8,13 +8,13 @@ package cgi
 
 import (
 	"bufio"
-	"exec"
 	"fmt"
-	"http"
-	"http/httptest"
 	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"

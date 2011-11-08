@@ -11,20 +11,20 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	. "http"
-	"http/httptest"
 	"io"
 	"io/ioutil"
 	"log"
 	"net"
+	. "net/http"
+	"net/http/httptest"
 	"net/http/httputil"
+	"net/url"
 	"os"
 	"reflect"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
-	"url"
 )
 
 type dummyAddr string

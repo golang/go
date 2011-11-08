@@ -7,17 +7,17 @@ package http_test
 import (
 	"bytes"
 	"fmt"
-	. "http"
-	"http/httptest"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
+	. "net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
-	"url"
 )
 
 func TestQuery(t *testing.T) {

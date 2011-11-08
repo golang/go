@@ -8,11 +8,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/url"
 	"reflect"
 	"strings"
 	"unicode"
-	"url"
-	"utf8"
+	"unicode/utf8"
 )
 
 // FuncMap is the type of the map defining the mapping from names to functions.

@@ -12,9 +12,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"reflect"
 	"testing"
-	"url"
 )
 
 type respTest struct {

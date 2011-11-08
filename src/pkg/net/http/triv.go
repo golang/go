@@ -9,9 +9,9 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
-	"http"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 )

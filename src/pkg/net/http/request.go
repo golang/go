@@ -18,9 +18,9 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/textproto"
+	"net/url"
 	"strconv"
 	"strings"
-	"url"
 )
 
 const (

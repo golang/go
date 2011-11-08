@@ -5,8 +5,8 @@
 package netchan
 
 import (
+	"encoding/gob"
 	"errors"
-	"gob"
 	"io"
 	"reflect"
 	"sync"

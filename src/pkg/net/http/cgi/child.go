@@ -12,14 +12,14 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"http"
 	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
-	"url"
 )
 
 // Request returns the HTTP request as represented in the current

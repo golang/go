@@ -5,7 +5,7 @@
 package quick
 
 import (
-	"rand"
+	"math/rand"
 	"reflect"
 	"testing"
 )

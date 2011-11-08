@@ -5,10 +5,10 @@
 package jsonrpc
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
-	"json"
-	"rpc"
+	"net/rpc"
 	"sync"
 )
 

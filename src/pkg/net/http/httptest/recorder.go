@@ -7,7 +7,7 @@ package httptest
 
 import (
 	"bytes"
-	"http"
+	"net/http"
 )
 
 // ResponseRecorder is an implementation of http.ResponseWriter that

@@ -10,7 +10,7 @@ import (
 	"io"
 	"strings"
 	"testing"
-	"utf8"
+	"unicode/utf8"
 )
 
 // A StringReader delivers its data one string segment at a time via Read.

@@ -5,8 +5,8 @@
 package http
 
 import (
+	"encoding/json"
 	"fmt"
-	"json"
 	"reflect"
 	"testing"
 	"time"

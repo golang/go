@@ -6,8 +6,8 @@ package big
 
 import (
 	"bytes"
+	"encoding/gob"
 	"fmt"
-	"gob"
 	"testing"
 )
 

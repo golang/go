@@ -9,9 +9,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/url"
 	"reflect"
 	"testing"
-	"url"
 )
 
 type reqTest struct {

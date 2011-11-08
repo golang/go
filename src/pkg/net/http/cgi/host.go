@@ -16,12 +16,12 @@ package cgi
 
 import (
 	"bufio"
-	"exec"
 	"fmt"
-	"http"
 	"io"
 	"log"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"

@@ -7,15 +7,15 @@ package websocket
 import (
 	"bytes"
 	"fmt"
-	"http"
-	"http/httptest"
 	"io"
 	"log"
 	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
-	"url"
 )
 
 var serverAddr string

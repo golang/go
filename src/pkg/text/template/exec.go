@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
-	"template/parse"
+	"text/template/parse"
 )
 
 // state represents the state of an execution. It's not part of the

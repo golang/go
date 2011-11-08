@@ -9,9 +9,9 @@ package httputil
 import (
 	"bufio"
 	"errors"
-	"http"
 	"io"
 	"net"
+	"net/http"
 	"net/textproto"
 	"os"
 	"sync"

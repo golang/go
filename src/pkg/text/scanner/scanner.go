@@ -31,7 +31,7 @@ import (
 	"io"
 	"os"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // TODO(gri): Consider changing this to use the new (token) Position package.

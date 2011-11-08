@@ -6,8 +6,8 @@ package httputil
 
 import (
 	"bufio"
-	"http"
 	"io"
+	"net/http"
 	"strconv"
 	"strings"
 )

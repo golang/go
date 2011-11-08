@@ -17,7 +17,7 @@
 package net
 
 import (
-	"rand"
+	"math/rand"
 	"sync"
 	"time"
 )

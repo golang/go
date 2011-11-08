@@ -14,8 +14,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
-	"url"
 )
 
 // A Client is an HTTP client. Its zero value (DefaultClient) is a usable client

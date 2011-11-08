@@ -9,15 +9,15 @@ import (
 	"compress/bzip2"
 	"fmt"
 	"io"
+	"math/rand"
 	old "old/regexp"
 	"os"
 	"path/filepath"
-	"rand"
 	"regexp/syntax"
 	"strconv"
 	"strings"
 	"testing"
-	"utf8"
+	"unicode/utf8"
 )
 
 // TestRE2 tests this package's regexp API against test cases

@@ -9,7 +9,7 @@ import (
 	"crypto/tls"
 	"io"
 	"net"
-	"url"
+	"net/url"
 )
 
 // DialError is an error that occurs while dialling a websocket server.

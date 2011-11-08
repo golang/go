@@ -6,10 +6,10 @@ package http_test
 
 import (
 	"bytes"
-	. "http"
-	"http/httptest"
 	"io/ioutil"
 	"log"
+	. "net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 )

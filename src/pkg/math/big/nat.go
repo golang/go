@@ -21,7 +21,7 @@ package big
 import (
 	"errors"
 	"io"
-	"rand"
+	"math/rand"
 )
 
 // An unsigned integer x of the form

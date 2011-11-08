@@ -9,14 +9,14 @@ package websocket
 import (
 	"bufio"
 	"crypto/tls"
-	"http"
+	"encoding/json"
 	"io"
 	"io/ioutil"
-	"json"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"sync"
-	"url"
 )
 
 const (

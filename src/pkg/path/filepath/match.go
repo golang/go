@@ -9,7 +9,7 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"utf8"
+	"unicode/utf8"
 )
 
 var ErrBadPattern = errors.New("syntax error in pattern")

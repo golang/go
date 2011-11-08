@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 	"unicode"
-	. "utf16"
+	. "unicode/utf16"
 )
 
 type encodeTest struct {

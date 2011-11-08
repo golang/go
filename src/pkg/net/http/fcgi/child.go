@@ -8,10 +8,10 @@ package fcgi
 
 import (
 	"fmt"
-	"http"
-	"http/cgi"
 	"io"
 	"net"
+	"net/http"
+	"net/http/cgi"
 	"os"
 	"time"
 )

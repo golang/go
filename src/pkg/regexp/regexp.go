@@ -60,7 +60,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"utf8"
+	"unicode/utf8"
 )
 
 var debug = false

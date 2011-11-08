@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"strings"
 	"testing"
-	"url"
 )
 
 type reqWriteTest struct {

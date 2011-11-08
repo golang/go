@@ -7,11 +7,11 @@
 package jsonrpc
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
-	"json"
 	"net"
-	"rpc"
+	"net/rpc"
 	"sync"
 )
 

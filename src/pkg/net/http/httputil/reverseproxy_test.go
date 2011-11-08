@@ -7,11 +7,11 @@
 package httputil
 
 import (
-	"http"
-	"http/httptest"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
-	"url"
 )
 
 func TestReverseProxy(t *testing.T) {
