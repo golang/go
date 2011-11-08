@@ -7,7 +7,7 @@
 package os
 
 import (
-	"error"
+	"errors"
 	"syscall"
 )
 

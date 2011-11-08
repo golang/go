@@ -5,6 +5,7 @@
 package os
 
 import (
+	"errors"
 	"runtime"
 	"syscall"
 )
@@ -47,7 +48,7 @@ func (note Plan9Note) String() string {
 
 func (p *Process) Signal(sig Signal) error {
 	if p.done {
-		return NewError("os: process already finished")
+		return errors.New("os: process already finished")
 	}
 
 	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/note", O_WRONLY, 0)
