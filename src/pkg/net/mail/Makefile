@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=mail
+TARG=net/mail
 GOFILES=\
 	message.go\
 

@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=exp/template/html
+TARG=html/template
 GOFILES=\
 	attr.go\
 	clone.go\

@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=syslog
+TARG=log/syslog
 GOFILES=\
 	syslog.go\
 	syslog_unix.go\

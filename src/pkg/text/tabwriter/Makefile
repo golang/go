@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=tabwriter
+TARG=text/tabwriter
 GOFILES=\
 	tabwriter.go\
 

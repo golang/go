@@ -23,36 +23,6 @@ dirpat=$(echo $dirs C | awk '{
 	}
 }')
 
-# Append old names of renamed packages. TODO: clean up after renaming.
-dirpat="$dirpat
-/^(asn1)$/
-/^(big)$/
-/^(cmath)$/
-/^(csv)$/
-/^(exec)$/
-/^(exp\/template\/html)$/
-/^(gob)$/
-/^(http)/
-/^(http\/cgi)$/
-/^(http\/fcgi)$/
-/^(http\/httptest)$/
-/^(http\/pprof)$/
-/^(json)$/
-/^(mail)$/
-/^(rand)$/
-/^(rpc)$/
-/^(scanner)$/
-/^(smtp)$/
-/^(syslog)$/
-/^(tabwriter)$/
-/^(url)$/
-/^(template)$/
-/^(template\/parse)$/
-/^(utf16)$/
-/^(utf8)$/
-/^(xml)$/
-"
-
 for dir in $dirs; do (
 	cd $dir >/dev/null || exit 1
 
@@ -69,35 +39,6 @@ for dir in $dirs; do (
 		awk "$dirpat" |
 		grep -v "^$dir\$" |
 		sed 's/$/.install/' |
-		# TODO: rename the dependencies for renamed directories.  TODO: clean up after renaming.
-		sed 's;^asn1.install$;encoding/asn1.install;
-		s;^big.install$;math/big.install;
-		s;^cmath.install$;math/cmplx.install;
-		s;^csv.install$;encoding/csv.install;
-		s;^exec.install$;os/exec.install;
-		s;^exp/template/html.install$;html/template.install;
-		s;^gob.install$;encoding/gob.install;
-		s;^http.install$;net/http.install;
-		s;^http/cgi.install$;net/http/cgi.install;
-		s;^http/fcgi.install$;net/http/fcgi.install;
-		s;^http/httptest.install$;net/http/httptest.install;
-		s;^http/pprof.install$;net/http/pprof.install;
-		s;^json.install$;encoding/json.install;
-		s;^mail.install$;net/mail.install;
-		s;^rpc.install$;net/rpc.install;
-		s;^rpc/jsonrpc.install$;net/rpc/jsonrpc.install;
-		s;^scanner.install$;text/scanner.install;
-		s;^smtp.install$;net/smtp.install;
-		s;^syslog.install$;log/syslog.install;
-		s;^tabwriter.install$;text/tabwriter.install;
-		s;^template.install$;text/template.install;
-		s;^template/parse.install$;text/template/parse.install;
-		s;^rand.install$;math/rand.install;
-		s;^url.install$;net/url.install;
-		s;^utf16.install$;unicode/utf16.install;
-		s;^utf8.install$;unicode/utf8.install;
-		s;^xml.install$;encoding/xml.install;' |
-		# TODO: end of renamings.
 		sed 's;^C\.install;runtime/cgo.install;' |
 		sort -u
 	)

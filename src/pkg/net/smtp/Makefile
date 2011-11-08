@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=smtp
+TARG=net/smtp
 GOFILES=\
 	auth.go\
 	smtp.go\

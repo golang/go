@@ -4,7 +4,7 @@
 
 include ../../../../Make.inc
 
-TARG=template/parse
+TARG=text/template/parse
 GOFILES=\
 	lex.go\
 	node.go\

@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=template
+TARG=text/template
 GOFILES=\
 	doc.go\
 	exec.go\

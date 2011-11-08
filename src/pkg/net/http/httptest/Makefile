@@ -4,7 +4,7 @@
 
 include ../../../../Make.inc
 
-TARG=http/httptest
+TARG=net/http/httptest
 GOFILES=\
 	recorder.go\
 	server.go\

@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=asn1
+TARG=encoding/asn1
 GOFILES=\
 	asn1.go\
 	common.go\

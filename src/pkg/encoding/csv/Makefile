@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=csv
+TARG=encoding/csv
 GOFILES=\
 	reader.go\
 	writer.go\

@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=rpc
+TARG=net/rpc
 GOFILES=\
 	client.go\
 	debug.go\

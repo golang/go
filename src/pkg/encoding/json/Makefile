@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=json
+TARG=encoding/json
 GOFILES=\
 	decode.go\
 	encode.go\

@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package html
+package template
 
 import (
 	"bytes"
 	"fmt"
 	"html"
-	"template"
-	"template/parse"
+	"text/template"
+	"text/template/parse"
 )
 
 // escape rewrites each action in the template to guarantee that the output is

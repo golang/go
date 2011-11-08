@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=rand
+TARG=math/rand
 GOFILES=\
 	exp.go\
 	normal.go\

@@ -3,8 +3,9 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package html is a specialization of package template that automates the
-construction of HTML output that is safe against code injection.
+Package template (html/template) is a specialization of package text/template
+that automates the construction of HTML output that is safe against code
+injection.
 
 
 Introduction
@@ -182,4 +183,4 @@ Least Surprise Property
 knows that contextual autoescaping happens should be able to look at a {{.}}
 and correctly infer what sanitization happens."
 */
-package html
+package template

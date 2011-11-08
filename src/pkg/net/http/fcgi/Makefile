@@ -4,7 +4,7 @@
 
 include ../../../../Make.inc
 
-TARG=http/fcgi
+TARG=net/http/fcgi
 GOFILES=\
 	child.go\
 	fcgi.go\

@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=utf8
+TARG=unicode/utf8
 GOFILES=\
 	string.go\
 	utf8.go\

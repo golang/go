@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=scanner
+TARG=text/scanner
 GOFILES=\
 	scanner.go\
 
