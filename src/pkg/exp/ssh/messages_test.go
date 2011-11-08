@@ -5,8 +5,8 @@
 package ssh
 
 import (
-	"big"
-	"rand"
+	"math/big"
+	"math/rand"
 	"reflect"
 	"testing"
 	"testing/quick"

@@ -11,7 +11,7 @@ import (
 	"bytes"
 	"io"
 	"strconv"
-	"utf8"
+	"unicode/utf8"
 )
 
 const (

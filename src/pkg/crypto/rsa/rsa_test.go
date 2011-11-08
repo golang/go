@@ -5,10 +5,10 @@
 package rsa
 
 import (
-	"big"
 	"bytes"
 	"crypto/rand"
 	"crypto/sha1"
+	"math/big"
 	"testing"
 )
 

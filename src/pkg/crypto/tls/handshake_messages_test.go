@@ -5,7 +5,7 @@
 package tls
 
 import (
-	"rand"
+	"math/rand"
 	"reflect"
 	"testing"
 	"testing/quick"

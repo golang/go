@@ -8,7 +8,6 @@
 package main
 
 import (
-	"big"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -16,6 +15,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"log"
+	"math/big"
 	"os"
 	"time"
 )

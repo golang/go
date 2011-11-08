@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 func eq(a, b []string) bool {

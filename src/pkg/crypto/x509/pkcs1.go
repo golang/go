@@ -5,10 +5,10 @@
 package x509
 
 import (
-	"asn1"
-	"big"
 	"crypto/rsa"
+	"encoding/asn1"
 	"errors"
+	"math/big"
 )
 
 // pkcs1PrivateKey is a structure which mirrors the PKCS#1 ASN.1 for an RSA private key.

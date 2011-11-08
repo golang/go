@@ -13,11 +13,11 @@
 package elgamal
 
 import (
-	"big"
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
 	"io"
+	"math/big"
 )
 
 // PublicKey represents an ElGamal public key.

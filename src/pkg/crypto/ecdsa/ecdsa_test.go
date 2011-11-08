@@ -5,11 +5,11 @@
 package ecdsa
 
 import (
-	"big"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
+	"math/big"
 	"testing"
 )
 

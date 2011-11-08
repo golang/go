@@ -4,7 +4,7 @@
 
 package norm
 
-import "utf8"
+import "unicode/utf8"
 
 const (
 	maxCombiningChars = 30

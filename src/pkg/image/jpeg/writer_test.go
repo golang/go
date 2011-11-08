@@ -10,8 +10,8 @@ import (
 	"image/color"
 	"image/png"
 	"io/ioutil"
+	"math/rand"
 	"os"
-	"rand"
 	"testing"
 )
 

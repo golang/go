@@ -7,8 +7,8 @@
 package pkix
 
 import (
-	"asn1"
-	"big"
+	"encoding/asn1"
+	"math/big"
 	"time"
 )
 

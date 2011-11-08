@@ -8,12 +8,12 @@ package rsa
 // TODO(agl): Add support for PSS padding.
 
 import (
-	"big"
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
 	"hash"
 	"io"
+	"math/big"
 )
 
 var bigZero = big.NewInt(0)

@@ -6,9 +6,9 @@
 package dsa
 
 import (
-	"big"
 	"errors"
 	"io"
+	"math/big"
 )
 
 // Parameters represents the domain parameters for a key. These parameters can

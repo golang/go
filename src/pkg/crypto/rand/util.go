@@ -5,8 +5,8 @@
 package rand
 
 import (
-	"big"
 	"io"
+	"math/big"
 	"os"
 )
 

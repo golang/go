@@ -5,9 +5,9 @@
 package elgamal
 
 import (
-	"big"
 	"bytes"
 	"crypto/rand"
+	"math/big"
 	"testing"
 )
 

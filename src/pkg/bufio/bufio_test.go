@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 	"testing/iotest"
-	"utf8"
+	"unicode/utf8"
 )
 
 // Reads from a reader and rot13s the result.

@@ -5,9 +5,9 @@
 package ssh
 
 import (
-	"big"
 	"bytes"
 	"io"
+	"math/big"
 	"reflect"
 )
 

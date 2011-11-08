@@ -8,7 +8,7 @@ package bytes
 
 import (
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // Compare returns an integer comparing the two byte arrays lexicographically.

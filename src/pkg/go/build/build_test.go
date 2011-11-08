@@ -5,7 +5,7 @@
 package build
 
 import (
-	"exec"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"

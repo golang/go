@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // runeUnreader is the interface to something that can unread runes.

@@ -6,8 +6,8 @@ package spdy
 
 import (
 	"encoding/binary"
-	"http"
 	"io"
+	"net/http"
 	"strings"
 )
 

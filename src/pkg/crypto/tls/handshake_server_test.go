@@ -5,12 +5,12 @@
 package tls
 
 import (
-	"big"
 	"bytes"
 	"crypto/rsa"
 	"encoding/hex"
 	"flag"
 	"io"
+	"math/big"
 	"net"
 	"strconv"
 	"strings"

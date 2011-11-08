@@ -7,8 +7,8 @@ package spdy
 import (
 	"bytes"
 	"compress/zlib"
-	"http"
 	"io"
+	"net/http"
 )
 
 //  Data Frame Format

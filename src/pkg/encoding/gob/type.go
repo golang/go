@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"sync"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // userTypeInfo stores the information associated with a type the user has handed

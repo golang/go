@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"sync"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // Some constants in the form of bytes, to avoid string overhead.

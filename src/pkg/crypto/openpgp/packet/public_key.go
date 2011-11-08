@@ -5,7 +5,6 @@
 package packet
 
 import (
-	"big"
 	"crypto/dsa"
 	"crypto/openpgp/elgamal"
 	error_ "crypto/openpgp/error"
@@ -15,6 +14,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"math/big"
 	"strconv"
 )
 

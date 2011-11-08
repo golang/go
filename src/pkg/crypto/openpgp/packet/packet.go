@@ -7,12 +7,12 @@
 package packet
 
 import (
-	"big"
 	"crypto/aes"
 	"crypto/cast5"
 	"crypto/cipher"
 	error_ "crypto/openpgp/error"
 	"io"
+	"math/big"
 )
 
 // readFull is the same as io.ReadFull except that reading zero bytes returns

@@ -8,9 +8,9 @@ package build
 import (
 	"bytes"
 	"errors"
-	"exec"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"

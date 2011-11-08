@@ -13,7 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"tabwriter"
+	"text/tabwriter"
 )
 
 const debug = false // enable for debugging

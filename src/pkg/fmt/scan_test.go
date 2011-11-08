@@ -15,7 +15,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-	"utf8"
+	"unicode/utf8"
 )
 
 type ScanTest struct {

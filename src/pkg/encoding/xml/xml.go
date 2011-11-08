@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // A SyntaxError represents a syntax error in the XML input stream.
