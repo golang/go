@@ -6,14 +6,14 @@ package http_test
 
 import (
 	"fmt"
-	. "http"
-	"http/httptest"
 	"io/ioutil"
+	. "net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"url"
 )
 
 const (

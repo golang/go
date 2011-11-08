@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"template/parse"
+	"text/template/parse"
 )
 
 // Set holds a set of related templates that can refer to one another by name.

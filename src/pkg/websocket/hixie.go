@@ -13,13 +13,13 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
-	"http"
 	"io"
 	"io/ioutil"
-	"rand"
+	"math/rand"
+	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
-	"url"
 )
 
 // An aray of characters to be randomly inserted to construct Sec-WebSocket-Key

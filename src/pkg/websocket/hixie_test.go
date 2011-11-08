@@ -8,11 +8,11 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"http"
 	"io"
+	"net/http"
+	"net/url"
 	"strings"
 	"testing"
-	"url"
 )
 
 // Test the getChallengeResponse function with values from section

@@ -11,9 +11,9 @@ import (
 	"errors"
 	"io"
 	"net/textproto"
+	"net/url"
 	"strconv"
 	"strings"
-	"url"
 )
 
 var respExcludeHeader = map[string]bool{

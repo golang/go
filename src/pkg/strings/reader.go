@@ -7,7 +7,7 @@ package strings
 import (
 	"errors"
 	"io"
-	"utf8"
+	"unicode/utf8"
 )
 
 // A Reader implements the io.Reader, io.ByteScanner, and

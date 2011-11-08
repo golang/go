@@ -20,13 +20,13 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/url"
 	"path"
 	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"url"
 )
 
 // Errors introduced by the HTTP server.

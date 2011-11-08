@@ -6,12 +6,12 @@ package rpc
 
 import (
 	"bufio"
+	"encoding/gob"
 	"errors"
-	"gob"
-	"http"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"sync"
 )
 

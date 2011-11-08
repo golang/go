@@ -7,8 +7,8 @@
 package syscall
 
 import (
+	"unicode/utf16"
 	"unsafe"
-	"utf16"
 )
 
 const OS = "windows"

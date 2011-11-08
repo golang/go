@@ -12,8 +12,8 @@ import (
 	. "strings"
 	"testing"
 	"unicode"
+	"unicode/utf8"
 	"unsafe"
-	"utf8"
 )
 
 func eq(a, b []string) bool {

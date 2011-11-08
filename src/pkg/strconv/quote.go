@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"strings"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 const lowerhex = "0123456789abcdef"

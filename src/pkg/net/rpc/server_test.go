@@ -7,10 +7,10 @@ package rpc
 import (
 	"errors"
 	"fmt"
-	"http/httptest"
 	"io"
 	"log"
 	"net"
+	"net/http/httptest"
 	"runtime"
 	"strings"
 	"sync"

@@ -7,14 +7,14 @@
 package httputil
 
 import (
-	"http"
 	"io"
 	"log"
 	"net"
+	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
-	"url"
 )
 
 // ReverseProxy is an HTTP Handler that takes an incoming request and

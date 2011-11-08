@@ -6,7 +6,7 @@ package runtime_test
 
 import (
 	"math"
-	"rand"
+	"math/rand"
 	. "runtime"
 	"testing"
 )

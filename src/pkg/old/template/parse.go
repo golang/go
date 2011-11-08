@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // Errors returned during parsing and execution.  Users may extract the information and reformat

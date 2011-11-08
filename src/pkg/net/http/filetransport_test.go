@@ -5,8 +5,8 @@
 package http_test
 
 import (
-	"http"
 	"io/ioutil"
+	"net/http"
 	"path/filepath"
 	"testing"
 )

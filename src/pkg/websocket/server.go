@@ -7,8 +7,8 @@ package websocket
 import (
 	"bufio"
 	"fmt"
-	"http"
 	"io"
+	"net/http"
 )
 
 func newServerConn(rwc io.ReadWriteCloser, buf *bufio.ReadWriter, req *http.Request) (conn *Conn, err error) {

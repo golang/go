@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"utf8"
+	"unicode/utf8"
 )
 
 // A Dir implements http.FileSystem using the native file

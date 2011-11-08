@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // item represents a token or text string returned from the scanner.

@@ -8,10 +8,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"http"
 	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"strings"
 )
 

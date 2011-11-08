@@ -11,9 +11,9 @@ package rpc
 
 import (
 	"fmt"
-	"http"
+	"net/http"
 	"sort"
-	"template"
+	"text/template"
 )
 
 const debugText = `<html>

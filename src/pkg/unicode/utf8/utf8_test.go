@@ -7,7 +7,7 @@ package utf8_test
 import (
 	"bytes"
 	"testing"
-	. "utf8"
+	. "unicode/utf8"
 )
 
 type Utf8Map struct {

@@ -6,9 +6,9 @@ package big
 
 import (
 	"bytes"
+	"encoding/gob"
 	"encoding/hex"
 	"fmt"
-	"gob"
 	"testing"
 	"testing/quick"
 )

@@ -11,15 +11,15 @@ import (
 	"compress/gzip"
 	"crypto/rand"
 	"fmt"
-	. "http"
-	"http/httptest"
 	"io"
 	"io/ioutil"
+	. "net/http"
+	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-	"url"
 )
 
 // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close

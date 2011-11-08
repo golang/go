@@ -6,7 +6,7 @@ package template
 
 import (
 	"reflect"
-	"template/parse"
+	"text/template/parse"
 )
 
 // Template is the representation of a parsed template.

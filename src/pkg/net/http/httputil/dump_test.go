@@ -7,11 +7,11 @@ package httputil
 import (
 	"bytes"
 	"fmt"
-	"http"
 	"io"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"testing"
-	"url"
 )
 
 type dumpTest struct {

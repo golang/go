@@ -20,10 +20,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
-	"url"
 )
 
 // DefaultTransport is the default implementation of Transport and is

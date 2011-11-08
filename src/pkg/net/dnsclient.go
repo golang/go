@@ -7,7 +7,7 @@ package net
 import (
 	"bytes"
 	"fmt"
-	"rand"
+	"math/rand"
 	"sort"
 )
 

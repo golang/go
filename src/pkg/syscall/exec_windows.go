@@ -8,8 +8,8 @@ package syscall
 
 import (
 	"sync"
+	"unicode/utf16"
 	"unsafe"
-	"utf16"
 )
 
 var ForkLock sync.RWMutex

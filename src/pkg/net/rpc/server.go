@@ -114,17 +114,17 @@ package rpc
 
 import (
 	"bufio"
+	"encoding/gob"
 	"errors"
-	"gob"
-	"http"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"reflect"
 	"strings"
 	"sync"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 const (

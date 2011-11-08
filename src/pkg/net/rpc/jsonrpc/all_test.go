@@ -5,12 +5,12 @@
 package jsonrpc
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"json"
 	"net"
-	"rpc"
+	"net/rpc"
 	"testing"
 )
 

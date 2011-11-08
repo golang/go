@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"rand"
+	"math/rand"
 	"strings"
 )
 

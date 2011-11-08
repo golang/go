@@ -15,11 +15,11 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
-	"http"
 	"io"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"strings"
-	"url"
 )
 
 const (
