@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package cmath provides basic constants and mathematical functions for
+// Package cmplx provides basic constants and mathematical functions for
 // complex numbers.
-package cmath
+package cmplx
 
 import "math"
 

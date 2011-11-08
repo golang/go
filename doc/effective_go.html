@@ -1996,7 +1996,7 @@ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 <code>http.ResponseWriter</code>.)
 For reference, here's how to attach such a server to a node on the URL tree.
 <pre>
-import "http"
+import "net/http"
 ...
 ctr := new(Counter)
 http.Handle("/counter", ctr)
@@ -2925,12 +2925,13 @@ An explanation follows.
 
 import (
     &#34;flag&#34;
-    &#34;http&#34;
     &#34;log&#34;
-    &#34;template&#34;
+    &#34;net/http&#34;
+    &#34;text/template&#34;
 )
 
-var addr = flag.String(&#34;addr&#34;, &#34;:1718&#34;, &#34;http service address&#34;) // Q=17, R=18
+var // Q=17, R=18
+addr = flag.String(&#34;addr&#34;, &#34;:1718&#34;, &#34;http service address&#34;)
 
 var templ = template.Must(template.New(&#34;qr&#34;).Parse(templateStr))
 

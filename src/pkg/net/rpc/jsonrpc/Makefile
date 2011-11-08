@@ -4,7 +4,7 @@
 
 include ../../../../Make.inc
 
-TARG=rpc/jsonrpc
+TARG=net/rpc/jsonrpc
 GOFILES=\
 	client.go\
 	server.go\

@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=cmath
+TARG=math/cmplx
 
 GOFILES=\
 	abs.go\

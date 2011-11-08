@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package html
+package template
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
-	"json"
 	"strings"
-	"template"
-	"template/parse"
 	"testing"
+	"text/template"
+	"text/template/parse"
 )
 
 type badMarshaler struct{}
@@ -224,7 +224,7 @@ func TestEscape(t *testing.T) {
 		{
 			"badMarshaller",
 			`<button onclick='alert(1/{{.B}}in numbers)'>`,
-			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *html.badMarshaler: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
+			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *template.badMarshaler: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
 		},
 		{
 			"jsMarshaller",

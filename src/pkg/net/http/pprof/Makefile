@@ -4,7 +4,7 @@
 
 include ../../../../Make.inc
 
-TARG=http/pprof
+TARG=net/http/pprof
 GOFILES=\
 	pprof.go\
 

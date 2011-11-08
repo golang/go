@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package cmath
+package cmplx
 
 // Polar returns the absolute value r and phase θ of x,
 // such that x = r * e**θi.

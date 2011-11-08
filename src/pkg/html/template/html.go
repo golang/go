@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package html
+package template
 
 import (
 	"bytes"
 	"fmt"
 	"strings"
-	"utf8"
+	"unicode/utf8"
 )
 
 // htmlNospaceEscaper escapes for inclusion in unquoted attribute values.

@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=exec
+TARG=os/exec
 GOFILES=\
 	exec.go\
 

@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=http
+TARG=net/http
 GOFILES=\
 	chunked.go\
 	client.go\

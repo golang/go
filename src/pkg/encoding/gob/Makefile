@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=gob
+TARG=encoding/gob
 GOFILES=\
 	decode.go\
 	decoder.go\

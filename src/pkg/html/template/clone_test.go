@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package html
+package template
 
 import (
 	"bytes"
-	"template"
-	"template/parse"
 	"testing"
+	"text/template"
+	"text/template/parse"
 )
 
 func TestClone(t *testing.T) {

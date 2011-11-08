@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=url
+TARG=net/url
 GOFILES=\
 	url.go\
 

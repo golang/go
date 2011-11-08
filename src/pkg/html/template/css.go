@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package html
+package template
 
 import (
 	"bytes"
 	"fmt"
 	"unicode"
-	"utf8"
+	"unicode/utf8"
 )
 
 // endsWithCSSKeyword returns whether b ends with an ident that

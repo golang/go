@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=utf16
+TARG=unicode/utf16
 GOFILES=\
 	utf16.go\
 

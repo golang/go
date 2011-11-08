@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=xml
+TARG=encoding/xml
 
 GOFILES=\
 	marshal.go\

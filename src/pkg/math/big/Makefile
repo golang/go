@@ -4,7 +4,7 @@
 
 include ../../../Make.inc
 
-TARG=big
+TARG=math/big
 GOFILES=\
 	arith.go\
 	arith_decl.go\

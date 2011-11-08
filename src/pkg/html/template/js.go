@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package html
+package template
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
-	"json"
 	"strings"
-	"utf8"
+	"unicode/utf8"
 )
 
 // nextJSCtx returns the context that determines whether a slash after the

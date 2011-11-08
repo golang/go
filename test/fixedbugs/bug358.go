@@ -10,8 +10,8 @@
 package main
 
 import (
-	"http"
 	"io/ioutil"	// GCCGO_ERROR "imported and not used"
+	"net/http"
 	"os"
 )
 

@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package html
+package template
 
 import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"template"
+	"text/template"
 )
 
 // Set is a specialized template.Set that produces a safe HTML document
