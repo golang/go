@@ -8,5 +8,10 @@
 void
 callback(void *f)
 {
+	// use some stack space
+	volatile char data[64*1024];
+
+	data[0] = 0;
 	goCallback(f);
+        data[sizeof(data)-1] = 0;
 }

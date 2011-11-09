@@ -5,11 +5,12 @@
 #include "libcgo.h"
 
 static void
-xinitcgo(void)
+xinitcgo(G *g)
 {
+	// unimplemented
 }
 
-void (*initcgo)(void) = xinitcgo;
+void (*initcgo)(G*) = xinitcgo;
 
 void
 libcgo_sys_thread_start(ThreadStart *ts)

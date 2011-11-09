@@ -3,16 +3,24 @@
 // license that can be found in the LICENSE file.
 
 #include <pthread.h>
+#include <string.h> // strerror
 #include "libcgo.h"
 
 static void* threadentry(void*);
 
 void
-xinitcgo(void)
+xinitcgo(G* g)
 {
+	pthread_attr_t attr;
+	size_t size;
+
+	pthread_attr_init(&attr);
+	pthread_attr_getstacksize(&attr, &size);
+	g->stackguard = (uintptr)&attr - size + 4096;
+	pthread_attr_destroy(&attr);
 }
 
-void (*initcgo)(void) = xinitcgo;
+void (*initcgo)(G*) = xinitcgo;
 
 void
 libcgo_sys_thread_start(ThreadStart *ts)
