@@ -470,10 +470,15 @@ func inHeadIM(p *parser) (insertionMode, bool) {
 			implied = true
 		}
 	case EndTagToken:
-		if p.tok.Data == "head" {
+		switch p.tok.Data {
+		case "head":
 			pop = true
+		case "body", "html", "br":
+			implied = true
+		default:
+			// Ignore the token.
+			return inHeadIM, true
 		}
-		// TODO.
 	case CommentToken:
 		p.addChild(&Node{
 			Type: CommentNode,
@@ -524,7 +529,14 @@ func afterHeadIM(p *parser) (insertionMode, bool) {
 			framesetOK = true
 		}
 	case EndTagToken:
-		// TODO.
+		switch p.tok.Data {
+		case "body", "html", "br":
+			implied = true
+			framesetOK = true
+		default:
+			// Ignore the token.
+			return afterHeadIM, true
+		}
 	case CommentToken:
 		p.addChild(&Node{
 			Type: CommentNode,
