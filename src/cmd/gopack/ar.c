@@ -37,7 +37,6 @@
 #define rcmd your_rcmd
 
 #include <u.h>
-#include <time.h>
 #include <libc.h>
 #include <bio.h>
 #include <mach.h>
@@ -838,7 +837,6 @@ foundstart:
 			goto bad;
 
 	/* how big is it? */
-	pkg = nil;
 	first = 1;
 	start = end = 0;
 	for (n=0; n<size; n+=Blinelen(b)) {
@@ -1102,7 +1100,7 @@ armove(Biobuf *b, Arfile *ap, Armember *bp)
 	for (cp = strchr(bp->hdr.name, 0);		/* blank pad on right */
 		cp < bp->hdr.name+sizeof(bp->hdr.name); cp++)
 			*cp = ' ';
-	sprint(bp->hdr.date, "%-12ld", 0);  // was d->mtime but removed for idempotent builds
+	sprint(bp->hdr.date, "%-12ld", 0L);  // was d->mtime but removed for idempotent builds
 	sprint(bp->hdr.uid, "%-6d", 0);
 	sprint(bp->hdr.gid, "%-6d", 0);
 	sprint(bp->hdr.mode, "%-8lo", d->mode);
@@ -1236,7 +1234,7 @@ rl(int fd)
 	len = symdefsize;
 	if(len&01)
 		len++;
-	sprint(a.date, "%-12ld", 0);  // time(0)
+	sprint(a.date, "%-12ld", 0L);  // time(0)
 	sprint(a.uid, "%-6d", 0);
 	sprint(a.gid, "%-6d", 0);
 	sprint(a.mode, "%-8lo", 0644L);
@@ -1273,7 +1271,7 @@ rl(int fd)
 
 	if (gflag) {
 		len = pkgdefsize;
-		sprint(a.date, "%-12ld", 0);  // time(0)
+		sprint(a.date, "%-12ld", 0L);  // time(0)
 		sprint(a.uid, "%-6d", 0);
 		sprint(a.gid, "%-6d", 0);
 		sprint(a.mode, "%-8lo", 0644L);
