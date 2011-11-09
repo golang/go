@@ -91,6 +91,11 @@ type rune rune
 // invocation.
 type Type int
 
+// Type1 is here for the purposes of documentation only. It is a stand-in
+// for any Go type, but represents the same type for any given function
+// invocation.
+type Type1 int
+
 // IntegerType is here for the purposes of documentation only. It is a stand-in
 // for any integer type: int, uint, int8 etc.
 type IntegerType int
@@ -118,6 +123,11 @@ func append(slice []Type, elems ...Type) []Type
 // returns the number of elements copied, which will be the minimum of
 // len(src) and len(dst).
 func copy(dst, src []Type) int
+
+// The delete built-in function deletes the element with the specified key
+// (m[key]) from the map. If there is no such element, delete is a no-op.
+// If m is nil, delete panics.
+func delete(m map[Type]Type1, key Type)
 
 // The len built-in function returns the length of v, according to its type:
 //	Array: the number of elements in v.
@@ -171,7 +181,7 @@ func complex(r, i FloatType) ComplexType
 // The return value will be floating point type corresponding to the type of c.
 func real(c ComplexType) FloatType
 
-// The imaginary built-in function returns the imaginary part of the complex
+// The imag built-in function returns the imaginary part of the complex
 // number c. The return value will be floating point type corresponding to
 // the type of c.
 func imag(c ComplexType) FloatType
