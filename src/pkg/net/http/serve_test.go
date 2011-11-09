@@ -1077,6 +1077,31 @@ func TestClientWriteShutdown(t *testing.T) {
 	}
 }
 
+// Tests that chunked server responses that write 1 byte at a time are
+// buffered before chunk headers are added, not after chunk headers.
+func TestServerBufferedChunking(t *testing.T) {
+	if true {
+		t.Logf("Skipping known broken test; see Issue 2357")
+		return
+	}
+	conn := new(testConn)
+	conn.readBuf.Write([]byte("GET / HTTP/1.1\r\n\r\n"))
+	done := make(chan bool)
+	ls := &oneConnListener{conn}
+	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		defer close(done)
+		rw.Header().Set("Content-Type", "text/plain") // prevent sniffing, which buffers
+		rw.Write([]byte{'x'})
+		rw.Write([]byte{'y'})
+		rw.Write([]byte{'z'})
+	}))
+	<-done
+	if !bytes.HasSuffix(conn.writeBuf.Bytes(), []byte("\r\n\r\n3\r\nxyz\r\n0\r\n\r\n")) {
+		t.Errorf("response didn't end with a single 3 byte 'xyz' chunk; got:\n%q",
+			conn.writeBuf.Bytes())
+	}
+}
+
 // goTimeout runs f, failing t if f takes more than ns to complete.
 func goTimeout(t *testing.T, ns int64, f func()) {
 	ch := make(chan bool, 2)
