@@ -1247,6 +1247,7 @@ void	queuemethod(Node *n);
 /*
  *	unsafe.c
  */
+int	isunsafebuiltin(Node *n);
 Node*	unsafenmagic(Node *n);
 
 /*

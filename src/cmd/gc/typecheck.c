@@ -210,6 +210,10 @@ reswitch:
 			}
 			n->used = 1;
 		}
+		if(!(top &Ecall) && isunsafebuiltin(n)) {
+			yyerror("%N is not an expression, must be called", n);
+			goto error;
+		}
 		ok |= Erv;
 		goto ret;
 

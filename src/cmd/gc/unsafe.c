@@ -10,6 +10,7 @@
  * look for
  *	unsafe.Sizeof
  *	unsafe.Offsetof
+ *	unsafe.Alignof
  * rewrite with a constant
  */
 Node*
@@ -22,7 +23,7 @@ unsafenmagic(Node *nn)
 	Val val;
 	Node *fn;
 	NodeList *args;
-	
+
 	fn = nn->left;
 	args = nn->list;
 
@@ -83,7 +84,7 @@ bad:
 	yyerror("invalid expression %N", nn);
 	v = 0;
 	goto ret;
-	
+
 yes:
 	if(args->next != nil)
 		yyerror("extra arguments for %S", s);
@@ -96,4 +97,18 @@ ret:
 	n->val = val;
 	n->type = types[TUINTPTR];
 	return n;
+}
+
+int
+isunsafebuiltin(Node *n)
+{
+	if(n == N || n->op != ONAME || n->sym == S || n->sym->pkg != unsafepkg)
+		return 0;
+	if(strcmp(n->sym->name, "Sizeof") == 0)
+		return 1;
+	if(strcmp(n->sym->name, "Offsetof") == 0)
+		return 1;
+	if(strcmp(n->sym->name, "Alignof") == 0)
+		return 1;
+	return 0;
 }
