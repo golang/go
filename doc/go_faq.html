@@ -496,8 +496,8 @@ It's possible to use these ideas to construct something analogous to
 type-safe Unix pipes.  For instance, see how <code>fmt.Fprintf</code>
 enables formatted printing to any output, not just a file, or how the
 <code>bufio</code> package can be completely separate from file I/O,
-or how the <code>crypto</code> packages stitch together block and
-stream ciphers.  All these ideas stem from a single interface
+or how the <code>image</code> packages generate compressed
+image files.  All these ideas stem from a single interface
 (<code>io.Writer</code>) representing a single method
 (<code>Write</code>).  And that's only scratching the surface.
 </p>
@@ -681,7 +681,7 @@ examples and also have them be statically checked.
 Can I convert a []T to an []interface{}?</h3>
 
 <p>
-Not directly because they do not have the same representation in memory.
+Not directly, because they do not have the same representation in memory.
 It is necessary to copy the elements individually to the destination
 slice. This example converts a slice of <code>int</code> to a slice of
 <code>interface{}</code>:
@@ -841,10 +841,13 @@ for more information about how to proceed.
 When are function parameters passed by value?</h3>
 
 <p>
-Everything in Go is passed by value.  A function always gets a copy of the
+As in all languages in the C family, everything in Go is passed by value.
+That is, a function always gets a copy of the
 thing being passed, as if there were an assignment statement assigning the
-value to the parameter.  For instance, copying a pointer value makes a copy of
-the pointer, not the data it points to. 
+value to the parameter.  For instance, passing an <code>int</code> value
+to a function makes a copy of the <code>int</code>, and passing a pointer
+value makes a copy of the pointer, but not the data it points to.
+(See the next section for a discussion of how this affects method receivers.)
 </p>
 
 <p>
@@ -946,6 +949,12 @@ floating-point numbers.
 The default size of a floating-point constant is <code>float64</code>.
 </p>
 
+<p>
+At the moment, all implementations use 32-bit ints, an essentially arbitrary decision.
+However, we expect that <code>int</code> will be increased to 64 bits on 64-bit
+architectures in a future release of Go.
+</p>
+
 <h3 id="stack_or_heap">
 How do I know whether a variable is allocated on the heap or the stack?</h3>
 
@@ -966,9 +975,10 @@ garbage-collected heap to avoid dangling pointer errors.
 </p>
 
 <p>
-In the current compilers, the analysis is crude: if a variable has its address
-taken, that variable is allocated on the heap. We are working to improve this
-analysis so that more data is kept on the stack. 
+In the current compilers, if a variable has its address taken, that variable
+is a candidate for allocation on the heap. However, a basic <em>escape
+analysis</em> recognizes some cases when such variables will not
+live past the return from the function and can reside on the stack.
 </p>
 
 <h2 id="Concurrency">Concurrency</h2>
@@ -1008,7 +1018,7 @@ effectively equal to the number of running goroutines.
 </p>
 
 <p>
-Programs that perform concurrent computation should benefit from an increase in
+Programs that perform parallel computation should benefit from an increase in
 <code>GOMAXPROCS</code>. (See the <a
 href="http://golang.org/pkg/runtime/#GOMAXPROCS"><code>runtime</code> package's
 documentation</a>.)
@@ -1227,16 +1237,16 @@ it now. <code>Gccgo</code>'s run-time support uses <code>glibc</code>.
 control; it is
 compiled with a version of the Plan 9 C compiler that supports
 segmented stacks for goroutines.
-Work is underway to provide the same stack management in
-<code>gccgo</code>.
+The <code>gccgo</code> compiler also implements segmented
+stacks, supported by recent modifications to its linker.
 </p>
 
 <h3 id="Why_is_my_trivial_program_such_a_large_binary">
 Why is my trivial program such a large binary?</h3>
 
 <p>
-The gc tool chain (<code>5l</code>, <code>6l</code>, and <code>8l</code>) only
-generate statically linked binaries.  All Go binaries therefore include the Go
+The linkers in the gc tool chain (<code>5l</code>, <code>6l</code>, and <code>8l</code>)
+do static linking.  All Go binaries therefore include the Go
 run-time, along with the run-time type information necessary to support dynamic
 type checks, reflection, and even panic-time stack traces.
 </p>
@@ -1316,7 +1326,7 @@ For instance, pidigits depends on a multi-precision math package, and the C
 versions, unlike Go's, use <a href="http://gmplib.org/">GMP</a> (which is
 written in optimized assembler). 
 Benchmarks that depend on regular expressions (regex-dna, for instance) are
-essentially comparing Go's stopgap <a href="/pkg/regexp">regexp package</a> to
+essentially comparing Go's native <a href="/pkg/regexp">regexp package</a> to
 mature, highly optimized regular expression libraries like PCRE.
 </p>
 
@@ -1373,7 +1383,7 @@ the declaration
 declares <code>a</code> to be a pointer but not <code>b</code>; in Go
 </p>
 <pre>
-	var a, b *int;
+	var a, b *int
 </pre>
 <p>
 declares both to be pointers.  This is clearer and more regular.
@@ -1381,11 +1391,11 @@ Also, the <code>:=</code> short declaration form argues that a full variable
 declaration should present the same order as <code>:=</code> so
 </p>
 <pre>
-	var a uint64 = 1;
+	var a uint64 = 1
 </pre>
 has the same effect as
 <pre>
-	a := uint64(1);
+	a := uint64(1)
 </pre>
 <p>
 Parsing is also simplified by having a distinct grammar for types that
