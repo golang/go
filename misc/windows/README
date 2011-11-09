@@ -1,13 +1,14 @@
-package.bash packages the Go toolchain for Window's in 
-zip and installer (exe) format. 
+package.bash packages the Go toolchain for Windows in 
+zip and installer (msi) format. 
 
 Dependencies
 ============
-- Inno Setup: http://www.jrsoftware.org/isinfo.php
+- WiX Installer XML (WiX) toolset: http://wix.sourceforge.net/
 - 7Zip command-line: http://www.7-zip.org/download.html
 - MinGW/Msys tools
 
 Unzip and place 7za.exe in msys' bin directory.
+Add the WiX bin directory to PATH.
 
 Packaging
 =========
