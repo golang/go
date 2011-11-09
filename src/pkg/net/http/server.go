@@ -149,11 +149,13 @@ type writerOnly struct {
 }
 
 func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
-	// Flush before checking w.chunking, as Flush will call
-	// WriteHeader if it hasn't been called yet, and WriteHeader
-	// is what sets w.chunking.
-	w.Flush()
+	// Call WriteHeader before checking w.chunking if it hasn't
+	// been called yet, since WriteHeader is what sets w.chunking.
+	if !w.wroteHeader {
+		w.WriteHeader(StatusOK)
+	}
 	if !w.chunking && w.bodyAllowed() && !w.needSniff {
+		w.Flush()
 		if rf, ok := w.conn.rwc.(io.ReaderFrom); ok {
 			n, err = rf.ReadFrom(src)
 			w.written += n
