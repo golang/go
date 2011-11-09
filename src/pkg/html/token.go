@@ -552,8 +552,10 @@ func (z *Tokenizer) Next() TokenType {
 	z.data.end = z.raw.end
 	if z.rawTag != "" {
 		z.readRawOrRCDATA()
-		z.tt = TextToken
-		return z.tt
+		if z.data.end > z.data.start {
+			z.tt = TextToken
+			return z.tt
+		}
 	}
 	z.textIsRaw = false
 
