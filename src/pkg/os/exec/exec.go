@@ -50,14 +50,14 @@ type Cmd struct {
 	// calling process's current directory.
 	Dir string
 
-	// Stdin specifies the process's standard input.
-	// If Stdin is nil, the process reads from DevNull.
+	// Stdin specifies the process's standard input. If Stdin is
+	// nil, the process reads from the null device (os.DevNull).
 	Stdin io.Reader
 
 	// Stdout and Stderr specify the process's standard output and error.
 	//
-	// If either is nil, Run connects the
-	// corresponding file descriptor to /dev/null.
+	// If either is nil, Run connects the corresponding file descriptor
+	// to the null device (os.DevNull).
 	//
 	// If Stdout and Stderr are are the same writer, at most one
 	// goroutine at a time will call Write.
