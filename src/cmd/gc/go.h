@@ -852,7 +852,6 @@ EXTERN	int	typecheckok;
 EXTERN	int	compiling_runtime;
 
 EXTERN	int	rune32;
-EXTERN	int	reorg;
 
 /*
  *	y.tab.c
