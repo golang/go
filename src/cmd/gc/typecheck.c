@@ -1032,6 +1032,9 @@ reswitch:
 			yyerror("first argument to append must be slice; have %lT", t);
 			goto error;
 		}
+		if(!exportassignok(t->type, "append"))
+			goto error;
+
 		if(n->isddd) {
 			if(args->next == nil) {
 				yyerror("cannot use ... on first argument to append");
@@ -1098,6 +1101,8 @@ reswitch:
 			yyerror("arguments to copy have different element types: %lT and %lT", n->left->type, n->right->type);
 			goto error;
 		}
+		if(!exportassignok(n->left->type->type, "copy"))
+			goto error;
 		goto ret;
 
 	case OCONV:
