@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of November 1, 2011 -->
+<!-- subtitle Version of November 9, 2011 -->
 
 <!--
 TODO
@@ -1688,7 +1688,7 @@ type TreeNode struct {
 	value *Comparable
 }
 
-type Cipher interface {
+type Block interface {
 	BlockSize() int
 	Encrypt(src, dst []byte)
 	Decrypt(src, dst []byte)
@@ -1720,8 +1720,8 @@ type PrintableMutex struct {
 	Mutex
 }
 
-// MyCipher is an interface type that has the same method set as Cipher.
-type MyCipher Cipher
+// MyBlock is an interface type that has the same method set as Block.
+type MyBlock Block
 </pre>
 
 <p>
