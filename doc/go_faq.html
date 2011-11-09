@@ -351,26 +351,6 @@ not familiar with the code.
 </p>
 
 <p>
-The same arguments apply to the use of <code>assert()</code> in test programs. Proper
-error handling means letting other tests run after one has failed, so
-that the person debugging the failure gets a complete picture of what is
-wrong. It is more useful for a test to report that
-<code>isPrime</code> gives the wrong answer for 2, 3, 5, and 7 (or for
-2, 4, 8, and 16) than to report that <code>isPrime</code> gives the wrong
-answer for 2 and therefore no more tests were run. The programmer who
-triggers the test failure may not be familiar with the code that fails.
-Time invested writing a good error message now pays off later when the
-test breaks.
-</p>
-
-<p>
-In testing, if the amount of extra code required to write
-good errors seems repetitive and overwhelming, it might work better as a
-table-driven test instead.
-Go has excellent support for data structure literals.
-</p>
-
-<p>
 We understand that this is a point of contention. There are many things in
 the Go language and libraries that differ from modern practices, simply
 because we feel it's sometimes worth trying a different approach.
@@ -1195,6 +1175,45 @@ builds a test binary, and runs it.
 </p>
 
 <p>See the <a href="/doc/code.html">How to Write Go Code</a> document for more details.</p>
+
+<h3 id="testing_framework">
+Where is my favorite helper function for testing?</h3>
+
+<p>
+Go's standard <code>testing</code> package makes it easy to write unit tests, but it lacks
+features provided in other language's testing frameworks such as assertion functions.
+An <a href="#assertions">earlier section</a> of this document explained why Go
+doesn't have assertions, and
+the same arguments apply to the use of <code>assert</code> in tests.
+Proper error handling means letting other tests run after one has failed, so
+that the person debugging the failure gets a complete picture of what is
+wrong. It is more useful for a test to report that
+<code>isPrime</code> gives the wrong answer for 2, 3, 5, and 7 (or for
+2, 4, 8, and 16) than to report that <code>isPrime</code> gives the wrong
+answer for 2 and therefore no more tests were run. The programmer who
+triggers the test failure may not be familiar with the code that fails.
+Time invested writing a good error message now pays off later when the
+test breaks.
+</p>
+
+<p>
+A related point is that testing frameworks tend to develop into mini-languages
+of their own, with conditionals and controls and printing mechanisms,
+but Go already has all those capabilities; why recreate them?
+We'd rather write tests in Go; it's one fewer language to learn and the
+approach keeps the tests straightforward and easy to understand.
+</p>
+
+<p>
+If the amount of extra code required to write
+good errors seems repetitive and overwhelming, the test might work better if
+table-driven, iterating over a list of inputs and outputs defined
+in a data structure (Go has excellent support for data structure literals).
+The work to write a good test and good error messages will then be amortized over many
+test cases. The standard Go library is full of illustrative examples, such as in
+<a href="http://golang.org/src/pkg/fmt/fmt_test.go">the formatting
+tests for the <code>fmt</code> package</a>.
+</p>
 
 
 <h2 id="Implementation">Implementation</h2>
