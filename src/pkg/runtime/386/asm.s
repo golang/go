@@ -26,12 +26,14 @@ TEXT _rt0_386(SB),7,$0
 	// we set up GS ourselves.
 	MOVL	initcgo(SB), AX
 	TESTL	AX, AX
-	JZ	4(PC)
+	JZ	needtls
+	PUSHL	$runtime·g0(SB)
 	CALL	AX
+	POPL	AX
 	// skip runtime·ldt0setup(SB) and tls test after initcgo for non-windows
 	CMPL runtime·iswindows(SB), $0
 	JEQ ok
-
+needtls:
 	// skip runtime·ldt0setup(SB) and tls test on Plan 9 in all cases
 	CMPL	runtime·isplan9(SB), $1
 	JEQ	ok
@@ -58,9 +60,15 @@ ok:
 	MOVL	CX, m_g0(AX)
 
 	// create istack out of the OS stack
+	// if there is an initcgo, it had setup stackguard for us
+	MOVL	initcgo(SB), AX
+	TESTL	AX, AX
+	JNZ	stackok
 	LEAL	(-64*1024+104)(SP), AX	// TODO: 104?
 	MOVL	AX, g_stackguard(CX)
+stackok:
 	MOVL	SP, g_stackbase(CX)
+
 	CALL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
 	// convention is D is always cleared

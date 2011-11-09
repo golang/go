@@ -13,11 +13,13 @@ static void *threadentry(void*);
 #define STACKSIZE (1*1024*1024)
 
 static void
-xinitcgo(void)
+xinitcgo(G *g)
 {
+	int tmp;
+	g->stackguard = (uintptr)&tmp - STACKSIZE + 4096;
 }
 
-void (*initcgo)(void) = xinitcgo;
+void (*initcgo)(G*) = xinitcgo;
 
 void
 libcgo_sys_thread_start(ThreadStart *ts)

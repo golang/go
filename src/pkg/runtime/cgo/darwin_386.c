@@ -100,12 +100,20 @@ inittls(void)
 }
 
 static void
-xinitcgo(void)
+xinitcgo(G *g)
 {
+	pthread_attr_t attr;
+	size_t size;
+
+	pthread_attr_init(&attr);
+	pthread_attr_getstacksize(&attr, &size);
+	g->stackguard = (uintptr)&attr - size + 4096;
+	pthread_attr_destroy(&attr);
+
 	inittls();
 }
 
-void (*initcgo)(void) = xinitcgo;
+void (*initcgo)(G*) = xinitcgo;
 
 void
 libcgo_sys_thread_start(ThreadStart *ts)
