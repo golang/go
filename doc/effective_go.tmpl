@@ -1853,42 +1853,53 @@ the rest of the code is unaffected by the change of algorithm.
 </p>
 <p>
 A similar approach allows the streaming cipher algorithms
-in the <code>crypto/block</code> package to be
+in the various <code>crypto</code> packages to be
 separated from the block ciphers they chain together.
-By analogy with the <code>bufio</code> package,
-they wrap a <code>Cipher</code> interface
-and return <code>hash.Hash</code>,
-<code>io.Reader</code>, or <code>io.Writer</code>
-interface values, not specific implementations.
+The <code>Block</code> interface
+in the <code>crypto/cipher</code>package specifies the
+behavior of a block cipher, which provides encryption
+of a single block of data.
+Then, by analogy with the <code>bufio</code> package,
+cipher packages that implement this interface
+can be used to construct streaming ciphers, represented
+by the <code>Stream</code> interface, without
+knowing the details of the block encryption.
 </p>
 <p>
-The interface to <code>crypto/block</code> includes:
+The  <code>crypto/cipher</code> interfaces look like this:
 </p>
 <pre>
-type Cipher interface {
+type Block interface {
     BlockSize() int
     Encrypt(src, dst []byte)
     Decrypt(src, dst []byte)
 }
 
-// NewECBDecrypter returns a reader that reads data
-// from r and decrypts it using c in electronic codebook (ECB) mode.
-func NewECBDecrypter(c Cipher, r io.Reader) io.Reader
+type Stream interface {
+    XORKeyStream(dst, src []byte)
+}
+</pre>
 
-// NewCBCDecrypter returns a reader that reads data
-// from r and decrypts it using c in cipher block chaining (CBC) mode
-// with the initialization vector iv.
-func NewCBCDecrypter(c Cipher, iv []byte, r io.Reader) io.Reader
+<p>
+Here's the definition of the counter mode (CTR) stream,
+which turns a block cipher into a streaming cipher; notice
+that the block cipher's details are abstracted away:
+</p>
+
+<pre>
+// NewCTR returns a Stream that encrypts/decrypts using the given Block in
+// counter mode. The length of iv must be the same as the Block's block size.
+func NewCTR(block Block, iv []byte) Stream
 </pre>
 <p>
-<code>NewECBDecrypter</code> and <code>NewCBCReader</code> apply not
+<code>NewCTR</code> applies not
 just to one specific encryption algorithm and data source but to any
-implementation of the <code>Cipher</code> interface and any
-<code>io.Reader</code>.  Because they return <code>io.Reader</code>
-interface values, replacing ECB
-encryption with CBC encryption is a localized change.  The constructor
+implementation of the <code>Block</code> interface and any
+<code>Stream</code>.  Because they return
+interface values, replacing CTR
+encryption with other encryption modes is a localized change.  The constructor
 calls must be edited, but because the surrounding code must treat the result only
-as an <code>io.Reader</code>, it won't notice the difference.
+as a <code>Stream</code>, it won't notice the difference.
 </p>
 
 <h3 id="interface_methods">Interfaces and methods</h3>
