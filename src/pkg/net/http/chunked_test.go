@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This code is a duplicate of ../chunked_test.go with these edits:
-//	s/newChunked/NewChunked/g
-//	s/package http/package httputil/
+// This code is duplicated in httputil/chunked_test.go.
 // Please make any changes in both files.
 
-package httputil
+package http
 
 import (
 	"bytes"
@@ -18,7 +16,7 @@ import (
 func TestChunk(t *testing.T) {
 	var b bytes.Buffer
 
-	w := NewChunkedWriter(&b)
+	w := newChunkedWriter(&b)
 	const chunk1 = "hello, "
 	const chunk2 = "world! 0123456789abcdef"
 	w.Write([]byte(chunk1))
@@ -29,7 +27,7 @@ func TestChunk(t *testing.T) {
 		t.Fatalf("chunk writer wrote %q; want %q", g, e)
 	}
 
-	r := NewChunkedReader(&b)
+	r := newChunkedReader(&b)
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		t.Logf(`data: "%s"`, data)
