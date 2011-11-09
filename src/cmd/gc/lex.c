@@ -18,6 +18,8 @@ int windows;
 int yyprev;
 int yylast;
 
+Strlit *reorgpath(Strlit*);
+
 static void	lexinit(void);
 static void	lexinit1(void);
 static void	lexfini(void);
@@ -38,6 +40,7 @@ static struct {
 	int *val;
 } exper[] = {
 	{"rune32", &rune32},
+	{"reorg", &reorg},
 };
 
 static void
@@ -537,6 +540,9 @@ importfile(Val *f, int line)
 		yyerror("import path contains NUL");
 		errorexit();
 	}
+	
+	if(reorg)
+		f->u.sval = reorgpath(f->u.sval);
 
 	// The package name main is no longer reserved,
 	// but we reserve the import path "main" to identify
@@ -2114,4 +2120,48 @@ mkpackage(char* pkgname)
 			*p = 0;
 		outfile = smprint("%s.%c", namebuf, thechar);
 	}
+}
+
+static struct {
+	char *old;
+	char *xnew;
+} reorgtab[] = {
+	{"asn1", "encoding/asn1"},
+	{"big", "math/big"},
+	{"cmath", "math/cmplx"},
+	{"csv", "encoding/csv"},
+	{"exec", "os/exec"},
+	{"exp/template/html", "html/template"},
+	{"gob", "encoding/gob"},
+	{"http", "net/http"},
+	{"http/cgi", "net/http/cgi"},
+	{"http/fcgi", "net/http/fcgi"},
+	{"http/httptest", "net/http/httptest"},
+	{"http/pprof", "net/http/pprof"},
+	{"json", "encoding/json"},
+	{"mail", "net/mail"},
+	{"rpc", "net/rpc"},
+	{"rpc/jsonrpc", "net/rpc/jsonrpc"},
+	{"scanner", "text/scanner"},
+	{"smtp", "net/smtp"},
+	{"syslog", "log/syslog"},
+	{"tabwriter", "text/tabwriter"},
+	{"template", "text/template"},
+	{"template/parse", "text/template/parse"},
+	{"rand", "math/rand"},
+	{"url", "net/url"},
+	{"utf16", "unicode/utf16"},
+	{"utf8", "unicode/utf8"},
+	{"xml", "encoding/xml"},
+};
+
+Strlit*
+reorgpath(Strlit *s)
+{
+	int i;
+
+	for(i=0; i < nelem(reorgtab); i++)
+		if(strcmp(s->s, reorgtab[i].old) == 0)
+			return strlit(reorgtab[i].xnew);
+	return s;
 }
