@@ -28,9 +28,9 @@
 //
 //	%T Type*	Types
 //		Flags: +,- #: mode (see below)
-//			'l' definition instead of name. 
+//			'l' definition instead of name.
 //			'h' omit "func" and receiver in function types
-//			'u' (only in -/Sym mode) print type identifiers wit package name instead of prefix. 
+//			'u' (only in -/Sym mode) print type identifiers wit package name instead of prefix.
 //
 //	%N Node*	Nodes
 //		Flags: +,- #: mode (see below)
@@ -41,7 +41,7 @@
 //		Flags: those of %N
 //			','  separate items with ',' instead of ';'
 //
-//	%Z Strlit*	String literals 
+//	%Z Strlit*	String literals
 //
 //   In mparith1.c:
 //      %B Mpint*	Big integers
@@ -542,6 +542,7 @@ static int
 typefmt(Fmt *fp, Type *t)
 {
 	Type *t1;
+	Sym *s;
 
 	if(t == T)
 		return fmtstrcpy(fp, "<T>");
@@ -680,10 +681,23 @@ typefmt(Fmt *fp, Type *t)
 
 	case TFIELD:
 		if(!(fp->flags&FmtShort)) {
-			if(t->sym != S && !t->embedded)
-				fmtprint(fp, "%hS ", t->sym);
-			if((!t->sym || t->embedded) && fmtmode == FExp)
-				fmtstrcpy(fp, "? ");
+			s = t->sym;
+			switch(fmtmode) {
+			case FErr:
+			case FExp:
+				// Take the name from the original, lest we substituted it with .anon%d
+				if (t->nname)
+					s = t->nname->orig->sym;
+
+				if((s == S || t->embedded)) {
+					fmtstrcpy(fp, "? ");
+					break;
+				}
+				// fallthrough
+			default:
+				if(!(s == S || t->embedded))
+					fmtprint(fp, "%hS ", s);
+			}
 		}
 
 		if(t->isddd)
