@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
-# Copyright 2010 The Go Authors.  All rights reserved.
+# Copyright 2011 The Go Authors.  All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 set -e
 
-ISCC="C:/Program Files/Inno Setup 5/ISCC.exe"
+PROGS="
+	candle
+	light
+	heat
+"
 
-echo "%%%%% Checking for Inno Setup %%%%%" 1>&2
-if ! test -f "$ISCC"; then
-	ISCC="C:/Program Files (x86)/Inno Setup 5/ISCC.exe"
-	if ! test -f "$ISCC"; then
-		echo "No Inno Setup installation found" 1>&2
+echo "%%%%% Checking for WiX executables %%%%%" 1>&2
+for i in $PROGS; do
+	if ! which -a $1 >/dev/null; then
+		echo "Cannot find '$i' on search path." 1>$2
 		exit 1
 	fi
-fi
+done
 
 echo "%%%%% Checking the packager's path %%%%%" 1>&2
 if ! test -f ../../src/env.bash; then
@@ -38,7 +41,12 @@ cp -a ../../bin go/bin
 echo "%%%%% Starting zip packaging %%%%%" 1>&2
 7za a -tzip -mx=9 gowin$GOARCH"_"$ver.zip "go/" >/dev/null
 
-echo "%%%%% Starting installer packaging %%%%%" 1>&2
-"$ISCC" //dAppName=Go //dAppVersion=$GOARCH"_"$ver //dAppNameLower=go installer.iss  >/dev/null
+echo "%%%%% Starting Go directory file harvesting %%%%%" 1>&2
+heat dir go -nologo -cg AppFiles -gg -g1 -srd -sfrag -template fragment -dr APPLICATIONROOTDIRECTORY -var var.SourceDir -out AppFiles.wxs
 
+echo "%%%%% Starting installer packaging %%%%%" 1>&2
+candle -nologo -dVersion=$ver -dArch=$GOARCH -dSourceDir=go installer.wxs AppFiles.wxs
+light -nologo installer.wixobj AppFiles.wixobj -o gowin$GOARCH"_"$ver.msi
+
+rm -f *.wixobj AppFiles.wxs *.wixpdb
 
