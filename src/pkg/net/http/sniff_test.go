@@ -6,6 +6,7 @@ package http_test
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"log"
 	. "net/http"
@@ -78,4 +79,36 @@ func TestServerContentType(t *testing.T) {
 		}
 		resp.Body.Close()
 	}
+}
+
+func TestContentTypeWithCopy(t *testing.T) {
+	const (
+		input    = "\n<html>\n\t<head>\n"
+		expected = "text/html; charset=utf-8"
+	)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		// Use io.Copy from a bytes.Buffer to trigger ReadFrom.
+		buf := bytes.NewBuffer([]byte(input))
+		n, err := io.Copy(w, buf)
+		if int(n) != len(input) || err != nil {
+			t.Fatalf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
+		}
+	}))
+	defer ts.Close()
+
+	resp, err := Get(ts.URL)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != expected {
+		t.Errorf("Content-Type = %q, want %q", ct, expected)
+	}
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("reading body: %v", err)
+	} else if !bytes.Equal(data, []byte(input)) {
+		t.Errorf("data is %q, want %q", data, input)
+	}
+	resp.Body.Close()
 }
