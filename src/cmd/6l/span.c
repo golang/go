@@ -266,10 +266,6 @@ instinit(void)
 	ycover[Ym*Ymax + Ymm] = 1;
 	ycover[Ymr*Ymax + Ymm] = 1;
 
-	ycover[Yax*Ymax + Yxm] = 1;
-	ycover[Ycx*Ymax + Yxm] = 1;
-	ycover[Yrx*Ymax + Yxm] = 1;
-	ycover[Yrl*Ymax + Yxm] = 1;
 	ycover[Ym*Ymax + Yxm] = 1;
 	ycover[Yxr*Ymax + Yxm] = 1;
 

@@ -200,7 +200,8 @@ uchar	ymovq[] =
 	Ymm,	Ymr,	Zm_r_xm,	1,	// MMX MOVD
 	Ymr,	Ymm,	Zr_m_xm,	1,	// MMX MOVD
 	Yxr,	Ymr,	Zm_r_xm_nr,	2,	// MOVDQ2Q
-	Yxr,	Ym,	Zr_m_xm_nr,	2,	// MOVQ xmm store
+	Yxm,	Yxr,	Zm_r_xm_nr,	2, // MOVQ xmm1/m64 -> xmm2
+	Yxr,	Yxm,	Zr_m_xm_nr,	2, // MOVQ xmm1 -> xmm2/m64
 	Yml,	Yxr,	Zm_r_xm,	2,	// MOVD xmm load
 	Yxr,	Yml,	Zr_m_xm,	2,	// MOVD xmm store
 	Yiauto,	Yrl,	Zaut_r,	2,	// built-in LEAQ
@@ -862,7 +863,7 @@ Optab optab[] =
 	{ AMOVNTPD,	yxr_ml,	Pe, 0x2b },
 	{ AMOVNTPS,	yxr_ml,	Pm, 0x2b },
 	{ AMOVNTQ,	ymr_ml,	Pm, 0xe7 },
-	{ AMOVQ,	ymovq,	Pw, 0x89,0x8b,0x31,0xc7,(00),0xb8,0xc7,(00),0x6f,0x7f,0x6e,0x7e,Pf2,0xd6,Pe,0xd6,Pe,0x6e,Pe,0x7e },
+	{ AMOVQ,	ymovq,	Pw, 0x89, 0x8b, 0x31, 0xc7,(00), 0xb8, 0xc7,(00), 0x6f, 0x7f, 0x6e, 0x7e, Pf2,0xd6, Pf3,0x7e, Pe,0xd6, Pe,0x6e, Pe,0x7e },
 	{ AMOVQOZX,	ymrxr,	Pf3, 0xd6,0x7e },
 	{ AMOVSB,	ynone,	Pb, 0xa4 },
 	{ AMOVSD,	yxmov,	Pf2, 0x10,0x11 },
