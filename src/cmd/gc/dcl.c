@@ -573,7 +573,7 @@ funchdr(Node *n)
 static void
 funcargs(Node *nt)
 {
-	Node *n;
+	Node *n, *nn;
 	NodeList *l;
 	int gen;
 
@@ -615,6 +615,10 @@ funcargs(Node *nt)
 			n->left->ntype = n->right;
 			if(isblank(n->left)) {
 				// Give it a name so we can assign to it during return.
+				// preserve the original in ->orig
+				nn = nod(OXXX, N, N);
+				*nn = *n->left;
+				n->left = nn;
 				snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
 				n->left->sym = lookup(namebuf);
 			}
@@ -1342,6 +1346,3 @@ funccompile(Node *n, int isclosure)
 	funcdepth = 0;
 	dclcontext = PEXTERN;
 }
-
-
-
