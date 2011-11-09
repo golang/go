@@ -133,7 +133,7 @@ func TestParser(t *testing.T) {
 		n int
 	}{
 		// TODO(nigeltao): Process all the test cases from all the .dat files.
-		{"tests1.dat", 99},
+		{"tests1.dat", 106},
 		{"tests2.dat", 0},
 		{"tests3.dat", 0},
 	}
@@ -213,4 +213,5 @@ var renderTestBlacklist = map[string]bool{
 	// More cases of <a> being reparented:
 	`<a href="blah">aba<table><a href="foo">br<tr><td></td></tr>x</table>aoe`: true,
 	`<a><table><a></table><p><a><div><a>`:                                     true,
+	`<a><table><td><a><table></table><a></tr><a></table><a>`:                  true,
 }
