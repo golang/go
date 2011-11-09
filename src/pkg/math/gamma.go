@@ -63,7 +63,7 @@ package math
 //   Stephen L. Moshier
 //   moshier@na-net.ornl.gov
 
-var _P = [...]float64{
+var _gamP = [...]float64{
 	1.60119522476751861407e-04,
 	1.19135147006586384913e-03,
 	1.04213797561761569935e-02,
@@ -72,7 +72,7 @@ var _P = [...]float64{
 	4.94214826801497100753e-01,
 	9.99999999999999996796e-01,
 }
-var _Q = [...]float64{
+var _gamQ = [...]float64{
 	-2.31581873324120129819e-05,
 	5.39605580493303397842e-04,
 	-4.45641913851797240494e-03,
@@ -82,7 +82,7 @@ var _Q = [...]float64{
 	7.14304917030273074085e-02,
 	1.00000000000000000320e+00,
 }
-var _S = [...]float64{
+var _gamS = [...]float64{
 	7.87311395793093628397e-04,
 	-2.29549961613378126380e-04,
 	-2.68132617805781232825e-03,
@@ -98,7 +98,7 @@ func stirling(x float64) float64 {
 		MaxStirling = 143.01608
 	)
 	w := 1 / x
-	w = 1 + w*((((_S[0]*w+_S[1])*w+_S[2])*w+_S[3])*w+_S[4])
+	w = 1 + w*((((_gamS[0]*w+_gamS[1])*w+_gamS[2])*w+_gamS[3])*w+_gamS[4])
 	y := Exp(x)
 	if x > MaxStirling { // avoid Pow() overflow
 		v := Pow(x, 0.5*x-0.25)
@@ -176,8 +176,8 @@ func Gamma(x float64) float64 {
 	}
 
 	x = x - 2
-	p = (((((x*_P[0]+_P[1])*x+_P[2])*x+_P[3])*x+_P[4])*x+_P[5])*x + _P[6]
-	q = ((((((x*_Q[0]+_Q[1])*x+_Q[2])*x+_Q[3])*x+_Q[4])*x+_Q[5])*x+_Q[6])*x + _Q[7]
+	p = (((((x*_gamP[0]+_gamP[1])*x+_gamP[2])*x+_gamP[3])*x+_gamP[4])*x+_gamP[5])*x + _gamP[6]
+	q = ((((((x*_gamQ[0]+_gamQ[1])*x+_gamQ[2])*x+_gamQ[3])*x+_gamQ[4])*x+_gamQ[5])*x+_gamQ[6])*x + _gamQ[7]
 	return z * p / q
 
 small:
