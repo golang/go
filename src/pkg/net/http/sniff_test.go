@@ -92,7 +92,7 @@ func TestContentTypeWithCopy(t *testing.T) {
 		buf := bytes.NewBuffer([]byte(input))
 		n, err := io.Copy(w, buf)
 		if int(n) != len(input) || err != nil {
-			t.Fatalf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
+			t.Errorf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
 		}
 	}))
 	defer ts.Close()
