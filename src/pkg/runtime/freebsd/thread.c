@@ -10,14 +10,23 @@ extern SigTab runtime·sigtab[];
 extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
 
 // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
-// thus the code is largely similar. See linux/thread.c for comments.
+// thus the code is largely similar. See linux/thread.c and lock_futex.c for comments.
 
 void
-runtime·futexsleep(uint32 *addr, uint32 val)
+runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 {
 	int32 ret;
+	Timespec ts, *tsp;
 
-	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT, val, nil, nil);
+	if(ns < 0)
+		tsp = nil;
+	else {
+		ts.sec = ns / 1000000000LL;
+		ts.nsec = ns % 1000000000LL;
+		tsp = &ts;
+	}
+
+	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT, val, nil, tsp);
 	if(ret >= 0 || ret == -EINTR)
 		return;
 

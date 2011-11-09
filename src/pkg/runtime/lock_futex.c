@@ -4,24 +4,27 @@
 
 #include "runtime.h"
 
+// This implementation depends on OS-specific implementations of
+//
+//	runtime.futexsleep(uint32 *addr, uint32 val, int64 ns)
+//		Atomically,
+//			if(*addr == val) sleep
+//		Might be woken up spuriously; that's allowed.
+//		Don't sleep longer than ns; ns < 0 means forever.
+//
+//	runtime.futexwakeup(uint32 *addr, uint32 cnt)
+//		If any procs are sleeping on addr, wake up at most cnt.
+
 enum
 {
 	MUTEX_UNLOCKED = 0,
 	MUTEX_LOCKED = 1,
 	MUTEX_SLEEPING = 2,
-	
+
 	ACTIVE_SPIN = 4,
 	ACTIVE_SPIN_CNT = 30,
 	PASSIVE_SPIN = 1,
 };
-
-// Atomically,
-//	if(*addr == val) sleep
-// Might be woken up spuriously; that's allowed.
-void	runtime·futexsleep(uint32 *addr, uint32 val);
-
-// If any procs are sleeping on addr, wake up at most cnt.
-void	runtime·futexwakeup(uint32 *addr, uint32 cnt);
 
 // Possible lock states are MUTEX_UNLOCKED, MUTEX_LOCKED and MUTEX_SLEEPING.
 // MUTEX_SLEEPING means that there is presumably at least one sleeping thread.
@@ -39,7 +42,7 @@ runtime·lock(Lock *l)
 	v = runtime·xchg(&l->key, MUTEX_LOCKED);
 	if(v == MUTEX_UNLOCKED)
 		return;
-	
+
 	// wait is either MUTEX_LOCKED or MUTEX_SLEEPING
 	// depending on whether there is a thread sleeping
 	// on this mutex.  If we ever change l->key from
@@ -48,13 +51,13 @@ runtime·lock(Lock *l)
 	// returning, to ensure that the sleeping thread gets
 	// its wakeup call.
 	wait = v;
-	
+
 	// On uniprocessor's, no point spinning.
 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
 	spin = 0;
 	if(runtime·ncpu > 1)
 		spin = ACTIVE_SPIN;
-	
+
 	for(;;) {
 		// Try for lock, spinning.
 		for(i = 0; i < spin; i++) {
@@ -63,7 +66,7 @@ runtime·lock(Lock *l)
 					return;
 			runtime·procyield(ACTIVE_SPIN_CNT);
 		}
-		
+
 		// Try for lock, rescheduling.
 		for(i=0; i < PASSIVE_SPIN; i++) {
 			while(l->key == MUTEX_UNLOCKED)
@@ -71,13 +74,13 @@ runtime·lock(Lock *l)
 					return;
 			runtime·osyield();
 		}
-		
+
 		// Sleep.
 		v = runtime·xchg(&l->key, MUTEX_SLEEPING);
 		if(v == MUTEX_UNLOCKED)
 			return;
 		wait = MUTEX_SLEEPING;
-		runtime·futexsleep(&l->key, MUTEX_SLEEPING);
+		runtime·futexsleep(&l->key, MUTEX_SLEEPING, -1);
 	}
 }
 
@@ -114,5 +117,30 @@ void
 runtime·notesleep(Note *n)
 {
 	while(runtime·atomicload(&n->key) == 0)
-		runtime·futexsleep(&n->key, 0);
+		runtime·futexsleep(&n->key, 0, -1);
+}
+
+void
+runtime·notetsleep(Note *n, int64 ns)
+{
+	int64 deadline, now;
+
+	if(ns < 0) {
+		runtime·notesleep(n);
+		return;
+	}
+
+	if(runtime·atomicload(&n->key) != 0)
+		return;
+
+	deadline = runtime·nanotime() + ns;
+	for(;;) {
+		runtime·futexsleep(&n->key, 0, ns);
+		if(runtime·atomicload(&n->key) != 0)
+			return;
+		now = runtime·nanotime();
+		if(now >= deadline)
+			return;
+		ns = deadline - now;
+	}
 }
