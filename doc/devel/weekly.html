@@ -21,33 +21,33 @@ This weekly snapshot renames various Go packages as described in the Go 1 plan.
 Import statements in client code can be updated automatically with gofix.
 
 The changes are:
-	asn1              -> encoding/asn1
-	big               -> math/big
-	cmath             -> math/cmplx
-	csv               -> encoding/csv
-	exec              -> os/exec
-	exp/template/html -> html/template
-	gob               -> encoding/gob
-	http              -> net/http
-	http/cgi          -> net/http/cgi
-	http/fcgi         -> net/http/fcgi
-	http/httptest     -> net/http/httptest
-	http/pprof        -> net/http/pprof
-	json              -> encoding/json
-	mail              -> net/mail
-	rpc               -> net/rpc
-	rpc/jsonrpc       -> net/rpc/jsonrpc
-	scanner           -> text/scanner
-	smtp              -> net/smtp
-	syslog            -> log/syslog
-	tabwriter         -> text/tabwriter
-	template          -> text/template
-	template/parse    -> text/template/parse
-	rand              -> math/rand
-	url               -> net/url
-	utf16             -> unicode/utf16
-	utf8              -> unicode/utf8
-	xml               -> encoding/xml
+	asn1              -&gt; encoding/asn1
+	big               -&gt; math/big
+	cmath             -&gt; math/cmplx
+	csv               -&gt; encoding/csv
+	exec              -&gt; os/exec
+	exp/template/html -&gt; html/template
+	gob               -&gt; encoding/gob
+	http              -&gt; net/http
+	http/cgi          -&gt; net/http/cgi
+	http/fcgi         -&gt; net/http/fcgi
+	http/httptest     -&gt; net/http/httptest
+	http/pprof        -&gt; net/http/pprof
+	json              -&gt; encoding/json
+	mail              -&gt; net/mail
+	rpc               -&gt; net/rpc
+	rpc/jsonrpc       -&gt; net/rpc/jsonrpc
+	scanner           -&gt; text/scanner
+	smtp              -&gt; net/smtp
+	syslog            -&gt; log/syslog
+	tabwriter         -&gt; text/tabwriter
+	template          -&gt; text/template
+	template/parse    -&gt; text/template/parse
+	rand              -&gt; math/rand
+	url               -&gt; net/url
+	utf16             -&gt; unicode/utf16
+	utf8              -&gt; unicode/utf8
+	xml               -&gt; encoding/xml
 </pre>
 
 <h2 id="2011-11-08">2011-11-08</h2>
@@ -252,7 +252,7 @@ The Go compiler will reject a return statement without arguments when any of
 the result variables has been shadowed. Code rejected as a result of this
 change is likely to be buggy.
 
-Receive-only channels (<-chan T) cannot be closed.
+Receive-only channels (&lt;-chan T) cannot be closed.
 The compiler will diagnose such attempts.
 
 The first element of a map iteration is chosen at random. Code that depends on
@@ -378,17 +378,17 @@ have been renamed to Abs, Dim, Max, Min, and Mod.
 
 Parts of the image package have been moved to the new image/color package.
 The spin-off renames some types. The new names are simply better:
-	image.Color              -> color.Color
-	image.ColorModel         -> color.Model
-	image.ColorModelFunc     -> color.ModelFunc
-	image.PalettedColorModel -> color.Palette
-	image.RGBAColor          -> color.RGBA
-	image.RGBAColorModel     -> color.RGBAModel
-	image.RGBA64Color        -> color.RGBA64
-	image.RGBA64ColorModel   -> color.RGBA64Model
+	image.Color              -&gt; color.Color
+	image.ColorModel         -&gt; color.Model
+	image.ColorModelFunc     -&gt; color.ModelFunc
+	image.PalettedColorModel -&gt; color.Palette
+	image.RGBAColor          -&gt; color.RGBA
+	image.RGBAColorModel     -&gt; color.RGBAModel
+	image.RGBA64Color        -&gt; color.RGBA64
+	image.RGBA64ColorModel   -&gt; color.RGBA64Model
 (similarly for NRGBAColor, GrayColorModel, etc)
 The image.ColorImage type stays in the image package, but is renamed:
-	image.ColorImage -> image.Uniform
+	image.ColorImage -&gt; image.Uniform
 The image.Image implementations (image.RGBA, image.RGBA64, image.NRGBA,
 image.Alpha, etc) do not change their name, and gain a nice symmetry:
 an image.RGBA is an image of color.RGBA, etc.
@@ -991,7 +991,7 @@ Other changes:
 * exp/regexp/syntax: add Prog.NumCap.
 * exp/template: API changes, bug fixes, and tweaks.
 * flag: make -help nicer.
-* fmt: Scan(&int) was mishandling a lone digit.
+* fmt: Scan(&amp;int) was mishandling a lone digit.
 * gc: fix closure bug,
 	fix to build with clang (thanks Dave Cheney),
 	make size of struct{} and [0]byte 0 bytes (thanks Robert Hencke),
@@ -1172,7 +1172,7 @@ Other changes:
         add support for Plan 9 (thanks Anthony Martin),
         better error message for windows LookPath (thanks Alex Brainman).
 * fmt: catch panics from calls to String etc.
-* gc: descriptive panic for nil pointer -> value method call,
+* gc: descriptive panic for nil pointer -&gt; value method call,
         implement goto restriction,
         unsafe.Alignof, unsafe.Offsetof, unsafe.Sizeof now return uintptr.
 * go/build: include Import objects in Script Inputs.
@@ -1247,7 +1247,7 @@ Other changes:
 * net: export all fields in Interface (thanks Mikio Hara),
         rearrange source to run more tests on Windows (thanks Alex Brainman),
         sendfile for win32 (thanks Yasuhiro Matsumoto).
-* os: Plan 9, fix OpenFile & Chmod, add Process.Kill (thanks Yuval Pavel Zholkover).
+* os: Plan 9, fix OpenFile &amp; Chmod, add Process.Kill (thanks Yuval Pavel Zholkover).
 * runtime: fix Plan 9 "lingering goroutines bug" (thanks Yuval Pavel Zholkover).
 * spec: clarify rules for append, scope rules for :=,
         specify constant conversions,
@@ -1333,7 +1333,7 @@ This code:
 		return nil, err
 	}
 	var buf bytes.Buffer
-	io.Copy(&buf, p.Stdout)
+	io.Copy(&amp;buf, p.Stdout)
 	w, err := p.Wait(0)
 	p.Close()
 	if err != nil {
@@ -1391,7 +1391,7 @@ Other changes:
 * goinstall: fixes for windows (thanks Alex Brainman),
 	more verbose logging with -v.
 * gotest, pkg/exec: use bash to run shell scripts on windows (thanks Alex Brainman).
-* http/spdy: redo interfaces, flesh out implementation & frame types (thanks William Chan).
+* http/spdy: redo interfaces, flesh out implementation &amp; frame types (thanks William Chan).
 * http: Transport hook to register non-http(s) protocols,
 	add client+server benchmark,
 	catch Handler goroutine panics,
@@ -1547,7 +1547,7 @@ Other changes:
 * image/tiff: implement a decoder (thanks Benny Siegert).
 * image: add type-specific Set methods and use them when decoding PNG,
 	make AlphaColor.Set conform to usual signature (thanks Roger Peppe),
-	png & jpeg encoding benchmarks.
+	png &amp; jpeg encoding benchmarks.
 * ld: do not emit reference to dynamic library named "",
 	fix alignment of rodata section on Plan 9 (thanks Anthony Martin),
 	make ELF binaries with no shared library dependencies static binaries.
@@ -1566,7 +1566,7 @@ Other changes:
 	protocol family adaptive address family selection (thanks Mikio Hara),
 	re-enable wildcard listening (thanks Mikio Hara),
 	sort records returned by LookupSRV (thanks Gary Burd).
-* os: make Readdir & Readdirnames return os.EOF at end,
+* os: make Readdir &amp; Readdirnames return os.EOF at end,
 	make Setenv update C environment variables.
 * reflect: allow unexported key in Value.MapIndex.
 * runtime, sync/atomic: fix arm cas.
@@ -1906,7 +1906,7 @@ Other changes:
 * go/printer, gofmt: avoid exponential layout algorithm,
         gofmt: simplify struct formatting and respect line breaks.
 * go/scanner: to interpret line comments with Windows filenames (thanks Alex Brainman).
-* go/token: use array instead of map for token->string table.
+* go/token: use array instead of map for token-&gt;string table.
 * gob: optimizations to reduce allocations,
         use pointers in bootstrapType so interfaces behave properly.
 * gobuilder: recognize CLs of the form weekly.DATE.
@@ -2012,7 +2012,7 @@ arguments as an *os.ProcAttr and *syscall.ProcAttr values, respectively. This
 code:
 	os.StartProcess(bin, args, env, dir, fds)
 should now be written as:
-	os.StartProcess(bin, args, &os.ProcAttr{Files: fds, Dir: dir, Env: env})
+	os.StartProcess(bin, args, &amp;os.ProcAttr{Files: fds, Dir: dir, Env: env})
 
 The gob package will now encode and decode values of types that implement the
 gob.GobEncoder and gob.GobDecoder interfaces. This allows types with unexported
@@ -2413,12 +2413,12 @@ This release also changes some of the internal structure of the memory
 allocator in preparation for other garbage collector changes. 
 If you run into problems, please let us know.
 There is one known issue that we are aware of but have not debugged yet:
-	http://code.google.com/p/go/issues/detail?id=1464&.
+	http://code.google.com/p/go/issues/detail?id=1464&amp;.
 
 Other changes in this release:
 * 5l: document -F, force it on old ARMs (software floating point emulation)
 * 6g: fix registerization of temporaries (thanks Eoghan Sherry),
-        fix uint64(uintptr(unsafe.Pointer(&x))).
+        fix uint64(uintptr(unsafe.Pointer(&amp;x))).
 * 6l: Relocate CMOV* instructions (thanks Gustavo Niemeyer),
         windows/amd64 port (thanks Wei Guangjing).
 * 8l: add PE dynexport, emit DWARF in Windows PE, and
@@ -2622,7 +2622,7 @@ This release includes several fixes and changes:
         normalize processing of format string.
 * gc: return constant floats for parts of complex constants (thanks Anthony Martin),
         rewrite complex /= to l = l / r (thanks Patrick Gavlin),
-        fix &^=.
+        fix &amp;^=.
 * go/ast: provide complete node text range info.
 * gob: generate a better error message in one confusing place.
 * godoc: fix godoc -src (thanks Icarus Sparry).
@@ -2813,9 +2813,9 @@ will fail to compile rather than behave erroneously.
 The bytes package has changed. Its Add and AddByte functions have been removed,
 as their functionality is provided by the recently-introduced built-in function
 "append". Any code that uses them will need to be changed:
-s = bytes.Add(s, b)    ->    s = append(s, b...)
-s = bytes.AddByte(b, c)    ->    s = append(s, b)
-s = bytes.Add(nil, c)    ->    append([]byte(nil), c)
+s = bytes.Add(s, b)    -&gt;    s = append(s, b...)
+s = bytes.AddByte(b, c)    -&gt;    s = append(s, b)
+s = bytes.Add(nil, c)    -&gt;    append([]byte(nil), c)
 
 The template package has changed. Your code will need to be updated if it calls
 the HTMLFormatter or StringFormatter functions, or implements its own formatter
@@ -3081,12 +3081,12 @@ standard error by default.  The names have also changed, although the old names
 are still supported.  They will be deleted in the next release, though, so it
 would be good to update now if you can.  For most purposes all you need to do
 is make these substitutions:
-        log.Stderr -> log.Println or log.Print
-        log.Stderrf -> log.Printf
-        log.Crash -> log.Panicln or log.Panic
-        log.Crashf -> log.Panicf
-        log.Exit -> log.Exitln or log.Exit
-        log.Exitf -> log.Exitf (no change)
+        log.Stderr -&gt; log.Println or log.Print
+        log.Stderrf -&gt; log.Printf
+        log.Crash -&gt; log.Panicln or log.Panic
+        log.Crashf -&gt; log.Panicf
+        log.Exit -&gt; log.Exitln or log.Exit
+        log.Exitf -&gt; log.Exitf (no change)
 Calls to log.New() must drop the second argument.
 Also, custom loggers with exit or panic properties will need to be reworked.
 For full details, see the change description:
@@ -3325,7 +3325,7 @@ as well as the following fixes and changes:
         implement new slice spec (thanks Scott Lawrence)
         make string x + y + z + ... + w efficient
         more accurate line numbers for ATEXT
-        remove &[10]int -> []int conversion
+        remove &amp;[10]int -&gt; []int conversion
 * go-mode.el: fix highlighting for 'chan' type (thanks Scott Lawrence)
 * godoc: better support for directory trees for user-supplied paths
         use correct delay time (bug fix)
@@ -3811,7 +3811,7 @@ clarifications and consolidations to the Language Specification.
 
 The type checking rules around assignments and conversions are simpler but more
 restrictive: assignments no longer convert implicitly from *[10]int to []int
-(write x[0:] instead of &x), and conversions can no longer change the names of
+(write x[0:] instead of &amp;x), and conversions can no longer change the names of
 types inside composite types.
 
 The fmt package now includes flexible type-driven (fmt.Scan) and 
@@ -3843,7 +3843,7 @@ format-driven (fmt.Scanf) scanners for all basic types.
 * os/signal: correct the regexp for finding Unix signal names (thanks Vinu Rajashekhar).
 * regexp: optimizations (thanks Kyle Consalus).
 * runtime: fix printing -Inf (thanks Evan Shaw),
-        finish pchw -> tiny, added gettime for tiny (thanks Daniel Theophanes).
+        finish pchw -&gt; tiny, added gettime for tiny (thanks Daniel Theophanes).
 * spec: clean-ups and consolidation.
 * syscall: additional Windows compatibility fixes (thanks Alex Brainman).
 * test/bench: added regex-dna-parallel.go (thanks Kyle Consalus).
@@ -3866,10 +3866,10 @@ preparing for Google I/O.
 * cmath: update range of Phase and Polar due to signed zero (thanks Charles L. Dorian).
 * codereview: work better with mq (thanks Peter Williams).
 * compress: renamings
-	NewDeflater -> NewWriter
-	NewInflater -> NewReader
-	Deflater -> Compressor
-	Inflater -> Decompressor
+	NewDeflater -&gt; NewWriter
+	NewInflater -&gt; NewReader
+	Deflater -&gt; Compressor
+	Inflater -&gt; Decompressor
 * exp/draw/x11: respect $XAUTHORITY,
         treat $DISPLAY the same way x-go-bindings does.
 * exp/draw: fast path for glyph images, other optimizations,
@@ -3891,7 +3891,7 @@ preparing for Google I/O.
         fix printing of labels.
 * http: prevent crash if remote server is not responding with "HTTP/".
 * json: accept escaped slash in string scanner (thanks Michael Hoisie),
-        fix array -> non-array decoding.
+        fix array -&gt; non-array decoding.
 * libmach: skip __nl_symbol_ptr section on OS X.
 * math: amd64 versions of Fdim, Fmax, Fmin,
         signed zero Sqrt special case (thanks Charles L. Dorian).
@@ -4186,8 +4186,8 @@ This release also includes the goinstall command-line tool.
 There is one language change: the ability to convert a string to []byte or 
 []int.  This deprecates the strings.Bytes and strings.Runes functions.
 You can convert your existing sources using these gofmt commands:
-	gofmt -r 'strings.Bytes(x) -> []byte(x)' -w file-or-directory-list
-	gofmt -r 'strings.Runes(x) -> []int(x)' -w file-or-directory-list
+	gofmt -r 'strings.Bytes(x) -&gt; []byte(x)' -w file-or-directory-list
+	gofmt -r 'strings.Runes(x) -&gt; []int(x)' -w file-or-directory-list
 After running these you might need to delete unused imports of the "strings" 
 package.
 
@@ -4347,7 +4347,7 @@ There are no language changes.
 
 build: $GOBIN should no longer be required in $PATH (thanks Devon H. O'Dell),
 	new package target "make bench" to run benchmarks
-8g: faster float -> uint64 conversion (thanks Evan Shaw)
+8g: faster float -&gt; uint64 conversion (thanks Evan Shaw)
 5g, 6g, 8g:
 	clean opnames.h to avoid stale errors (thanks Yongjian Xu),
 	a handful of small compiler fixes
