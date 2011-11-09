@@ -44,7 +44,7 @@ func NewCipher(key []byte) (*Cipher, error) {
 }
 
 // BlockSize returns the XTEA block size, 8 bytes.
-// It is necessary to satisfy the Cipher interface in the
+// It is necessary to satisfy the Block interface in the
 // package "crypto/cipher".
 func (c *Cipher) BlockSize() int { return BlockSize }
 
