@@ -315,7 +315,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
 		}
 		var wr io.Writer = &buf
 		if test.chunked {
-			wr = &chunkedWriter{wr}
+			wr = newChunkedWriter(wr)
 		}
 		if test.compressed {
 			buf.WriteString("Content-Encoding: gzip\r\n")

@@ -19,12 +19,10 @@ import (
 	"mime/multipart"
 	"net/textproto"
 	"net/url"
-	"strconv"
 	"strings"
 )
 
 const (
-	maxLineLength    = 4096 // assumed <= bufio.defaultBufSize
 	maxValueLength   = 4096
 	maxHeaderLines   = 1024
 	chunkSize        = 4 << 10  // 4 KB chunks
@@ -43,7 +41,6 @@ type ProtocolError struct {
 func (err *ProtocolError) Error() string { return err.ErrorString }
 
 var (
-	ErrLineTooLong          = &ProtocolError{"header line too long"}
 	ErrHeaderTooLong        = &ProtocolError{"header too long"}
 	ErrShortBody            = &ProtocolError{"entity body too short"}
 	ErrNotSupported         = &ProtocolError{"feature not supported"}
@@ -375,44 +372,6 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 	return nil
 }
 
-// Read a line of bytes (up to \n) from b.
-// Give up if the line exceeds maxLineLength.
-// The returned bytes are a pointer into storage in
-// the bufio, so they are only valid until the next bufio read.
-func readLineBytes(b *bufio.Reader) (p []byte, err error) {
-	if p, err = b.ReadSlice('\n'); err != nil {
-		// We always know when EOF is coming.
-		// If the caller asked for a line, there should be a line.
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
-		} else if err == bufio.ErrBufferFull {
-			err = ErrLineTooLong
-		}
-		return nil, err
-	}
-	if len(p) >= maxLineLength {
-		return nil, ErrLineTooLong
-	}
-
-	// Chop off trailing white space.
-	var i int
-	for i = len(p); i > 0; i-- {
-		if c := p[i-1]; c != ' ' && c != '\r' && c != '\t' && c != '\n' {
-			break
-		}
-	}
-	return p[0:i], nil
-}
-
-// readLineBytes, but convert the bytes into a string.
-func readLine(b *bufio.Reader) (s string, err error) {
-	p, e := readLineBytes(b)
-	if e != nil {
-		return "", e
-	}
-	return string(p), nil
-}
-
 // Convert decimal at s[i:len(s)] to integer,
 // returning value, string position where the digits stopped,
 // and whether there was a valid number (digits, not too big).
@@ -446,55 +405,6 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 		return 0, 0, false
 	}
 	return major, minor, true
-}
-
-type chunkedReader struct {
-	r   *bufio.Reader
-	n   uint64 // unread bytes in chunk
-	err error
-}
-
-func (cr *chunkedReader) beginChunk() {
-	// chunk-size CRLF
-	var line string
-	line, cr.err = readLine(cr.r)
-	if cr.err != nil {
-		return
-	}
-	cr.n, cr.err = strconv.Btoui64(line, 16)
-	if cr.err != nil {
-		return
-	}
-	if cr.n == 0 {
-		cr.err = io.EOF
-	}
-}
-
-func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
-	if cr.err != nil {
-		return 0, cr.err
-	}
-	if cr.n == 0 {
-		cr.beginChunk()
-		if cr.err != nil {
-			return 0, cr.err
-		}
-	}
-	if uint64(len(b)) > cr.n {
-		b = b[0:cr.n]
-	}
-	n, cr.err = cr.r.Read(b)
-	cr.n -= uint64(n)
-	if cr.n == 0 && cr.err == nil {
-		// end of chunk (CRLF)
-		b := make([]byte, 2)
-		if _, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
-			if b[0] != '\r' || b[1] != '\n' {
-				cr.err = errors.New("malformed chunked encoding")
-			}
-		}
-	}
-	return n, cr.err
 }
 
 // NewRequest returns a new Request given a method, URL, and optional body.
