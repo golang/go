@@ -577,6 +577,9 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 	var conv typeConv
 	conv.Init(p.PtrSize)
 	for i, n := range names {
+		if types[i] == nil {
+			continue
+		}
 		f, fok := types[i].(*dwarf.FuncType)
 		if n.Kind != "type" && fok {
 			n.Kind = "func"
@@ -664,6 +667,10 @@ func (p *Package) rewriteRef(f *File) {
 		case "type":
 			if r.Name.Kind != "type" {
 				error_(r.Pos(), "expression C.%s used as type", r.Name.Go)
+			} else if r.Name.Type == nil {
+				// Use of C.enum_x, C.struct_x or C.union_x without C definition.
+				// GCC won't raise an error when using pointers to such unknown types.
+				error_(r.Pos(), "type C.%s: undefined C type '%s'", r.Name.Go, r.Name.C)
 			} else {
 				expr = r.Name.Type.Go
 			}
