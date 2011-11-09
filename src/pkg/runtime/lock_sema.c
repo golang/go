@@ -4,6 +4,22 @@
 
 #include "runtime.h"
 
+// This implementation depends on OS-specific implementations of
+//
+//	uintptr runtime.semacreate(void)
+//		Create a semaphore, which will be assigned to m->waitsema.
+//		The zero value is treated as absence of any semaphore,
+//		so be sure to return a non-zero value.
+//
+//	int32 runtime.semasleep(int64 ns)
+//		If ns < 0, acquire m->waitsema and return 0.
+//		If ns >= 0, try to acquire m->waitsema for at most ns nanoseconds.
+//		Return 0 if the semaphore was acquired, -1 if interrupted or timed out.
+//
+//	int32 runtime.semawakeup(M *mp)
+//		Wake up mp, which is or will soon be sleeping on mp->waitsema.
+//
+
 enum
 {
 	LOCKED = 1,
@@ -12,13 +28,6 @@ enum
 	ACTIVE_SPIN_CNT = 30,
 	PASSIVE_SPIN = 1,
 };
-
-// creates per-M semaphore (must not return 0)
-uintptr	runtime·semacreate(void);
-// acquires per-M semaphore 
-void	runtime·semasleep(void);
-// releases mp's per-M semaphore
-void	runtime·semawakeup(M *mp);
 
 void
 runtime·lock(Lock *l)
@@ -35,13 +44,13 @@ runtime·lock(Lock *l)
 
 	if(m->waitsema == 0)
 		m->waitsema = runtime·semacreate();
-	
+
 	// On uniprocessor's, no point spinning.
 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
 	spin = 0;
 	if(runtime·ncpu > 1)
 		spin = ACTIVE_SPIN;
-	
+
 	for(i=0;; i++) {
 		v = (uintptr)runtime·atomicloadp(&l->waitm);
 		if((v&LOCKED) == 0) {
@@ -68,11 +77,11 @@ unlocked:
 					goto unlocked;
 			}
 			if(v&LOCKED) {
-				// Wait.
-				runtime·semasleep();
+				// Queued.  Wait.
+				runtime·semasleep(-1);
 				i = 0;
 			}
-		}			
+		}
 	}
 }
 
@@ -95,7 +104,7 @@ runtime·unlock(Lock *l)
 			// Dequeue an M.
 			mp = (void*)(v&~LOCKED);
 			if(runtime·casp(&l->waitm, (void*)v, mp->nextwaitm)) {
-				// Wake that M.
+				// Dequeued an M.  Wake it.
 				runtime·semawakeup(mp);
 				break;
 			}
@@ -113,9 +122,23 @@ runtime·noteclear(Note *n)
 void
 runtime·notewakeup(Note *n)
 {
-	if(runtime·casp(&n->waitm, nil, (void*)LOCKED))
-		return;
-	runtime·semawakeup(n->waitm);
+	M *mp;
+
+	do
+		mp = runtime·atomicloadp(&n->waitm);
+	while(!runtime·casp(&n->waitm, mp, (void*)LOCKED));
+
+	// Successfully set waitm to LOCKED.
+	// What was it before?
+	if(mp == nil) {
+		// Nothing was waiting.  Done.
+	} else if(mp == (M*)LOCKED) {
+		// Two notewakeups!  Not allowed.
+		runtime·throw("notewakeup - double wakeup");
+	} else {
+		// Must be the waiting m.  Wake it up.
+		runtime·semawakeup(mp);
+	}
 }
 
 void
@@ -123,6 +146,72 @@ runtime·notesleep(Note *n)
 {
 	if(m->waitsema == 0)
 		m->waitsema = runtime·semacreate();
-	if(runtime·casp(&n->waitm, nil, m))
-		runtime·semasleep();
+	if(!runtime·casp(&n->waitm, nil, m)) {  // must be LOCKED (got wakeup)
+		if(n->waitm != (void*)LOCKED)
+			runtime·throw("notesleep - waitm out of sync");
+		return;
+	}
+	// Queued.  Sleep.
+	runtime·semasleep(-1);
+}
+
+void
+runtime·notetsleep(Note *n, int64 ns)
+{
+	M *mp;
+	int64 deadline, now;
+
+	if(ns < 0) {
+		runtime·notesleep(n);
+		return;
+	}
+
+	if(m->waitsema == 0)
+		m->waitsema = runtime·semacreate();
+
+	// Register for wakeup on n->waitm.
+	if(!runtime·casp(&n->waitm, nil, m)) {  // must be LOCKED (got wakeup already)
+		if(n->waitm != (void*)LOCKED)
+			runtime·throw("notetsleep - waitm out of sync");
+		return;
+	}
+
+	deadline = runtime·nanotime() + ns;
+	for(;;) {
+		// Registered.  Sleep.
+		if(runtime·semasleep(ns) >= 0) {
+			// Acquired semaphore, semawakeup unregistered us.
+			// Done.
+			return;
+		}
+
+		// Interrupted or timed out.  Still registered.  Semaphore not acquired.
+		now = runtime·nanotime();
+		if(now >= deadline)
+			break;
+
+		// Deadline hasn't arrived.  Keep sleeping.
+		ns = deadline - now;
+	}
+
+	// Deadline arrived.  Still registered.  Semaphore not acquired.
+	// Want to give up and return, but have to unregister first,
+	// so that any notewakeup racing with the return does not
+	// try to grant us the semaphore when we don't expect it.
+	for(;;) {
+		mp = runtime·atomicloadp(&n->waitm);
+		if(mp == m) {
+			// No wakeup yet; unregister if possible.
+			if(runtime·casp(&n->waitm, mp, nil))
+				return;
+		} else if(mp == (M*)LOCKED) {
+			// Wakeup happened so semaphore is available.
+			// Grab it to avoid getting out of sync.
+			if(runtime·semasleep(-1) < 0)
+				runtime·throw("runtime: unable to acquire - semaphore out of sync");
+			return;
+		} else {
+			runtime·throw("runtime: unexpected waitm - semaphore out of sync");
+		}
+	}
 }

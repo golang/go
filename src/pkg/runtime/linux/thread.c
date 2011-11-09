@@ -34,15 +34,29 @@ enum
 // Atomically,
 //	if(*addr == val) sleep
 // Might be woken up spuriously; that's allowed.
+// Don't sleep longer than ns; ns < 0 means forever.
 void
-runtime·futexsleep(uint32 *addr, uint32 val)
+runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 {
+	Timespec ts, *tsp;
+
+	if(ns < 0)
+		tsp = nil;
+	else {
+		ts.tv_sec = ns/1000000000LL;
+		ts.tv_nsec = ns%1000000000LL;
+		// Avoid overflow
+		if(ts.tv_sec > 1<<30)
+			ts.tv_sec = 1<<30;
+		tsp = &ts;
+	}
+
 	// Some Linux kernels have a bug where futex of
 	// FUTEX_WAIT returns an internal error code
 	// as an errno.  Libpthread ignores the return value
 	// here, and so can we: as it says a few lines up,
 	// spurious wakeups are allowed.
-	runtime·futex(addr, FUTEX_WAIT, val, nil, nil, 0);
+	runtime·futex(addr, FUTEX_WAIT, val, tsp, nil, 0);
 }
 
 // If any procs are sleeping on addr, wake up at most cnt.

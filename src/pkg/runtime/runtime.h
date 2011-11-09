@@ -70,6 +70,8 @@ typedef	struct	Hchan		Hchan;
 typedef	struct	Complex64	Complex64;
 typedef	struct	Complex128	Complex128;
 typedef	struct	WinCall		WinCall;
+typedef	struct	Timers		Timers;
+typedef	struct	Timer		Timer;
 
 /*
  * per-cpu declaration.
@@ -239,7 +241,7 @@ struct	M
 	uintptr	waitsema;	// semaphore for parking on locks
 	uint32	waitsemacount;
 	uint32	waitsemalock;
-	
+
 #ifdef __WINDOWS__
 	void*	thread;		// thread handle
 #endif
@@ -314,6 +316,33 @@ enum {
    Windows = 0
 };
 #endif
+
+struct	Timers
+{
+	Lock;
+	G	*timerproc;
+	bool		sleeping;
+	bool		rescheduling;
+	Note	waitnote;
+	Timer	**t;
+	int32	len;
+	int32	cap;
+};
+
+// Package time knows the layout of this structure.
+// If this struct changes, adjust ../time/sleep.go:/runtimeTimer.
+struct	Timer
+{
+	int32	i;		// heap index
+
+	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
+	// each time calling f(now, arg) in the timer goroutine, so f must be
+	// a well-behaved function and not block.
+	int64	when;
+	int64	period;
+	void	(*f)(int64, Eface);
+	Eface	arg;
+};
 
 /*
  * defined macros
@@ -483,6 +512,8 @@ uint32	runtime·fastrand1(void);
 void	runtime·exit(int32);
 void	runtime·breakpoint(void);
 void	runtime·gosched(void);
+void	runtime·tsleep(int64);
+M*	runtime·newm(void);
 void	runtime·goexit(void);
 void	runtime·asmcgocall(void (*fn)(void*), void*);
 void	runtime·entersyscall(void);
@@ -540,10 +571,28 @@ void	runtime·unlock(Lock*);
  * subsequent noteclear must be called only after
  * previous notesleep has returned, e.g. it's disallowed
  * to call noteclear straight after notewakeup.
+ *
+ * notetsleep is like notesleep but wakes up after
+ * a given number of nanoseconds even if the event
+ * has not yet happened.  if a goroutine uses notetsleep to
+ * wake up early, it must wait to call noteclear until it
+ * can be sure that no other goroutine is calling
+ * notewakeup.
  */
 void	runtime·noteclear(Note*);
 void	runtime·notesleep(Note*);
 void	runtime·notewakeup(Note*);
+void	runtime·notetsleep(Note*, int64);
+
+/*
+ * low-level synchronization for implementing the above
+ */
+uintptr	runtime·semacreate(void);
+int32	runtime·semasleep(int64);
+void	runtime·semawakeup(M*);
+// or
+void	runtime·futexsleep(uint32*, uint32, int64);
+void	runtime·futexwakeup(uint32*, uint32);
 
 /*
  * This is consistent across Linux and BSD.

@@ -15,7 +15,6 @@ static void unwindstack(G*, byte*);
 static void schedule(G*);
 static void acquireproc(void);
 static void releaseproc(void);
-static M *startm(void);
 
 typedef struct Sched Sched;
 
@@ -72,7 +71,7 @@ struct Sched {
 	volatile uint32 atomic;	// atomic scheduling word (see below)
 
 	int32 profilehz;	// cpu profiling rate
-	
+
 	bool init;  // running initialization
 	bool lockmain;  // init called runtime.LockOSThread
 
@@ -701,7 +700,7 @@ runtime·starttheworld(bool extra)
 		// but m is not running a specific goroutine,
 		// so set the helpgc flag as a signal to m's
 		// first schedule(nil) to mcpu-- and grunning--.
-		m = startm();
+		m = runtime·newm();
 		m->helpgc = 1;
 		runtime·sched.grunning++;
 	}
@@ -756,14 +755,14 @@ matchmg(void)
 
 		// Find the m that will run gp.
 		if((mp = mget(gp)) == nil)
-			mp = startm();
+			mp = runtime·newm();
 		mnextg(mp, gp);
 	}
 }
 
 // Create a new m.  It will start off with a call to runtime·mstart.
-static M*
-startm(void)
+M*
+runtime·newm(void)
 {
 	M *m;
 

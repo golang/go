@@ -9,7 +9,7 @@ int32	runtime·bsdthread_create(void*, M*, G*, void(*)(void));
 void	runtime·bsdthread_register(void);
 int32	runtime·mach_msg_trap(MachHeader*, int32, uint32, uint32, uint32, uint32, uint32);
 uint32	runtime·mach_reply_port(void);
-void	runtime·mach_semacquire(uint32);
+int32	runtime·mach_semacquire(uint32, int64);
 uint32	runtime·mach_semcreate(void);
 void	runtime·mach_semdestroy(uint32);
 void	runtime·mach_semrelease(uint32);

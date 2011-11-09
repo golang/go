@@ -17,10 +17,10 @@ unimplemented(int8 *name)
 	*(int32*)1231 = 1231;
 }
 
-void
-runtime·semasleep(void)
+int32
+runtime·semasleep(int64 ns)
 {
-	runtime·mach_semacquire(m->waitsema);
+	return runtime·mach_semacquire(m->waitsema, ns);
 }
 
 void
@@ -252,6 +252,7 @@ enum
 	// Mach calls that get interrupted by Unix signals
 	// return this error code.  We retry them.
 	KERN_ABORTED = 14,
+	KERN_OPERATION_TIMED_OUT = 49,
 };
 
 typedef struct Tmach_semcreateMsg Tmach_semcreateMsg;
@@ -343,16 +344,25 @@ int32 runtime·mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
 int32 runtime·mach_semaphore_signal(uint32 sema);
 int32 runtime·mach_semaphore_signal_all(uint32 sema);
 
-void
-runtime·mach_semacquire(uint32 sem)
+int32
+runtime·mach_semacquire(uint32 sem, int64 ns)
 {
 	int32 r;
 
+	if(ns >= 0) {
+		r = runtime·mach_semaphore_timedwait(sem, ns/1000000000LL, ns%1000000000LL);
+		if(r == KERN_ABORTED || r == KERN_OPERATION_TIMED_OUT)
+			return -1;
+		if(r != 0)
+			macherror(r, "semaphore_wait");
+		return 0;
+	}
 	while((r = runtime·mach_semaphore_wait(sem)) != 0) {
 		if(r == KERN_ABORTED)	// interrupted
 			continue;
 		macherror(r, "semaphore_wait");
 	}
+	return 0;
 }
 
 void

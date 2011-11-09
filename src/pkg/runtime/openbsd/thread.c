@@ -62,21 +62,52 @@ runtime·semacreate(void)
 	return 1;
 }
 
-void
-runtime·semasleep(void)
+int32
+runtime·semasleep(int64 ns)
 {
-retry:
+	Timespec ts;
+
 	// spin-mutex lock
 	while(runtime·xchg(&m->waitsemalock, 1))
 		runtime·osyield();
-	if(m->waitsemacount == 0) {
-		// the function unlocks the spinlock
-		runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock);
-		goto retry;
+
+	for(;;) {
+		// lock held
+		if(m->waitsemacount == 0) {
+			// sleep until semaphore != 0 or timeout.
+			// thrsleep unlocks m->waitsemalock.
+			if(ns < 0)
+				runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock);
+			else {
+				ts.tv_sec = ns/1000000000LL;
+				ts.tv_nsec = ns%1000000000LL;
+				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock);
+			}
+			// reacquire lock
+			while(runtime·xchg(&m->waitsemalock, 1))
+				runtime·osyield();
+		}
+
+		// lock held (again)
+		if(m->waitsemacount != 0) {
+			// semaphore is available.
+			m->waitsemacount--;
+			// spin-mutex unlock
+			runtime·atomicstore(&m->waitsemalock, 0);
+			return 0;  // semaphore acquired
+		}
+
+		// semaphore not available.
+		// if there is a timeout, stop now.
+		// otherwise keep trying.
+		if(ns >= 0)
+			break;
 	}
-	m->waitsemacount--;
+
+	// lock held but giving up
 	// spin-mutex unlock
 	runtime·atomicstore(&m->waitsemalock, 0);
+	return -1;
 }
 
 void
