@@ -2719,6 +2719,18 @@ for try := 0; try &lt; 2; try++ {
 }
 </pre>
 
+<p>
+The second <code>if</code> statement here is idiomatic Go.
+The type assertion <code>err.(*os.PathError)</code> is
+checked with the "comma ok" idiom (mentioned <a href="#maps">earlier</a>
+in the context of examining maps).
+If the type assertion fails, <code>ok</code> will be false, and <code>e</code>
+will be <code>nil</code>.
+If it succeeds,  <code>ok</code> will be true, which means the
+error was of type <code>*os.PathError</code>, and then so is <code>e</code>,
+which we can examine for more information about the error.
+</p>
+
 <h3 id="panic">Panic</h3>
 
 <p>
