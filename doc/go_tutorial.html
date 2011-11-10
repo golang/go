@@ -1377,7 +1377,7 @@ The <code>server</code> routine loops forever, receiving requests and, to avoid 
 a long-running operation, starting a goroutine to do the actual work.
 <p>
 <pre><!--{{code "progs/server.go" `/func.server/` `/^}/`}}
--->func server(op binOp, service chan *request) {
+-->func server(op binOp, service &lt;-chan *request) {
     for {
         req := &lt;-service
         go run(op, req) // don&#39;t wait for it
@@ -1385,16 +1385,40 @@ a long-running operation, starting a goroutine to do the actual work.
 }
 </pre>
 <p>
-We construct a server in a familiar way, starting it and returning a channel
+There's a new feature in the signature of <code>server</code>: the type of the
+<code>service</code> channel specifies the direction of communication.
+A channel of plain <code>chan</code> type can be used both for sending and receiving.
+However, the type used when declaring a channel can be decorated with an arrow to
+indicate that the channel can be used only to send (<code>chan&lt;-</code>) or to
+receive (<code>&lt;-chan</code>) data.
+The arrow points towards or away from the <code>chan</code> to indicate whether data flows into or out of
+the channel.
+In the <code>server</code> function, <code>service &lt;-chan *request</code> is a "receive only" channel
+that the function can use only to <em>read</em> new requests.
+<p>
+We instantiate a server in a familiar way, starting it and returning a channel
 connected to it:
 <p>
 <pre><!--{{code "progs/server.go" `/func.startServer/` `/^}/`}}
--->func startServer(op binOp) chan *request {
+-->func startServer(op binOp) chan&lt;- *request {
     req := make(chan *request)
     go server(op, req)
     return req
 }
 </pre>
+<p>
+The returned channel is send only, even though the channel was created bidirectionally.
+The read end is passed to <code>server</code>, while the send end is returned
+to the caller of <code>startServer</code>, so the two halves of the channel
+are distinguished, just as we did in <code>startServer</code>.
+<p>
+Bidirectional channels can be assigned to unidirectional channels but not the
+other way around, so if you annotate your channel directions when you declare
+them, such as in function signatures, the type system can help you set up and
+use channels correctly.
+Note that it's pointless to <code>make</code> unidirectional channels, since you can't
+use them to communicate. Their purpose is served by variables assigned from bidirectional channels
+to distinguish the input and output halves.
 <p>
 Here's a simple test.  It starts a server with an addition operator and sends out
 <code>N</code> requests without waiting for the replies.  Only after all the requests are sent
@@ -1437,7 +1461,7 @@ we can provide a second, <code>quit</code> channel to the server:
 It passes the quit channel to the <code>server</code> function, which uses it like this:
 <p>
 <pre><!--{{code "progs/server1.go" `/func.server/` `/^}/`}}
--->func server(op binOp, service chan *request, quit chan bool) {
+-->func server(op binOp, service &lt;-chan *request, quit &lt;-chan bool) {
     for {
         select {
         case req := &lt;-service:

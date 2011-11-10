@@ -18,7 +18,7 @@ func run(op binOp, req *request) {
 	req.replyc <- reply
 }
 
-func server(op binOp, service chan *request, quit chan bool) {
+func server(op binOp, service <-chan *request, quit <-chan bool) {
 	for {
 		select {
 		case req := <-service:
