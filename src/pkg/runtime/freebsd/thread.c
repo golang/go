@@ -21,8 +21,8 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
 	if(ns < 0)
 		tsp = nil;
 	else {
-		ts.sec = ns / 1000000000LL;
-		ts.nsec = ns % 1000000000LL;
+		ts.tv_sec = ns / 1000000000LL;
+		ts.tv_nsec = ns % 1000000000LL;
 		tsp = &ts;
 	}
 
