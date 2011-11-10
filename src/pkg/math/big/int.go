@@ -685,7 +685,7 @@ func (z *Int) Bit(i int) uint {
 	return z.abs.bit(uint(i))
 }
 
-// SetBit sets the i'th bit of z to bit and returns z.
+// SetBit sets z to x, with x's i'th bit set to b (0 or 1).
 // That is, if bit is 1 SetBit sets z = x | (1 << i);
 // if bit is 0 it sets z = x &^ (1 << i). If bit is not 0 or 1,
 // SetBit will panic.
