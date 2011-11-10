@@ -321,7 +321,7 @@ func (p *parser) resetInsertionMode() insertionMode {
 		case "body":
 			return inBodyIM
 		case "frameset":
-			// TODO: return inFramesetIM
+			return inFramesetIM
 		case "html":
 			return beforeHeadIM
 		}
@@ -517,7 +517,8 @@ func afterHeadIM(p *parser) (insertionMode, bool) {
 			attr = p.tok.Attr
 			framesetOK = false
 		case "frameset":
-			// TODO.
+			p.addElement(p.tok.Data, p.tok.Attr)
+			return inFramesetIM, true
 		case "base", "basefont", "bgsound", "link", "meta", "noframes", "script", "style", "title":
 			p.oe = append(p.oe, p.head)
 			defer p.oe.pop()
@@ -646,7 +647,7 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 				break
 			}
 			p.popUntil(buttonScopeStopTags, "p")
-			p.addElement("li", p.tok.Attr)
+			p.addElement(p.tok.Data, p.tok.Attr)
 		case "optgroup", "option":
 			if p.top().Data == "option" {
 				p.oe.pop()
@@ -1169,6 +1170,69 @@ func afterBodyIM(p *parser) (insertionMode, bool) {
 	return afterBodyIM, true
 }
 
+// Section 11.2.5.4.19.
+func inFramesetIM(p *parser) (insertionMode, bool) {
+	switch p.tok.Type {
+	case CommentToken:
+		p.addChild(&Node{
+			Type: CommentNode,
+			Data: p.tok.Data,
+		})
+	case StartTagToken:
+		switch p.tok.Data {
+		case "html":
+			return useTheRulesFor(p, inFramesetIM, inBodyIM)
+		case "frameset":
+			p.addElement(p.tok.Data, p.tok.Attr)
+		case "frame":
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.oe.pop()
+			p.acknowledgeSelfClosingTag()
+		case "noframes":
+			return useTheRulesFor(p, inFramesetIM, inHeadIM)
+		}
+	case EndTagToken:
+		switch p.tok.Data {
+		case "frameset":
+			if p.oe.top().Data != "html" {
+				p.oe.pop()
+				if p.oe.top().Data != "frameset" {
+					return afterFramesetIM, true
+				}
+			}
+		}
+	default:
+		// Ignore the token.
+	}
+	return inFramesetIM, true
+}
+
+// Section 11.2.5.4.20.
+func afterFramesetIM(p *parser) (insertionMode, bool) {
+	switch p.tok.Type {
+	case CommentToken:
+		p.addChild(&Node{
+			Type: CommentNode,
+			Data: p.tok.Data,
+		})
+	case StartTagToken:
+		switch p.tok.Data {
+		case "html":
+			return useTheRulesFor(p, inFramesetIM, inBodyIM)
+		case "noframes":
+			return useTheRulesFor(p, inFramesetIM, inHeadIM)
+		}
+	case EndTagToken:
+		switch p.tok.Data {
+		case "html":
+			return afterAfterFramesetIM, true
+		}
+	default:
+		// Ignore the token.
+	}
+	return afterFramesetIM, true
+}
+
 // Section 11.2.5.4.21.
 func afterAfterBodyIM(p *parser) (insertionMode, bool) {
 	switch p.tok.Type {
@@ -1189,6 +1253,27 @@ func afterAfterBodyIM(p *parser) (insertionMode, bool) {
 		return afterAfterBodyIM, true
 	}
 	return inBodyIM, false
+}
+
+// Section 11.2.5.4.22.
+func afterAfterFramesetIM(p *parser) (insertionMode, bool) {
+	switch p.tok.Type {
+	case CommentToken:
+		p.addChild(&Node{
+			Type: CommentNode,
+			Data: p.tok.Data,
+		})
+	case StartTagToken:
+		switch p.tok.Data {
+		case "html":
+			return useTheRulesFor(p, afterAfterFramesetIM, inBodyIM)
+		case "noframes":
+			return useTheRulesFor(p, afterAfterFramesetIM, inHeadIM)
+		}
+	default:
+		// Ignore the token.
+	}
+	return afterAfterFramesetIM, true
 }
 
 // Parse returns the parse tree for the HTML from the given Reader.
