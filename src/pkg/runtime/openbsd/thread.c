@@ -79,6 +79,7 @@ runtime·semasleep(int64 ns)
 			if(ns < 0)
 				runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock);
 			else {
+				ns += runtime·nanotime();
 				ts.tv_sec = ns/1000000000LL;
 				ts.tv_nsec = ns%1000000000LL;
 				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock);
