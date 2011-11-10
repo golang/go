@@ -18,14 +18,14 @@ func run(op binOp, req *request) {
 	req.replyc <- reply
 }
 
-func server(op binOp, service chan *request) {
+func server(op binOp, service <-chan *request) {
 	for {
 		req := <-service
 		go run(op, req) // don't wait for it
 	}
 }
 
-func startServer(op binOp) chan *request {
+func startServer(op binOp) chan<- *request {
 	req := make(chan *request)
 	go server(op, req)
 	return req
