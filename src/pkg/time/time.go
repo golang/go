@@ -237,3 +237,63 @@ func (t *Time) Weekday() int {
 	}
 	return weekday
 }
+
+// julianDayNumber returns the time's Julian Day Number
+// relative to the epoch 12:00 January 1, 4713 BC, Monday.
+func julianDayNumber(year int64, month, day int) int64 {
+	a := int64(14-month) / 12
+	y := year + 4800 - a
+	m := int64(month) + 12*a - 3
+	return int64(day) + (153*m+2)/5 + 365*y + y/4 - y/100 + y/400 - 32045
+}
+
+// startOfFirstWeek returns the julian day number of the first day
+// of the first week of the given year.
+func startOfFirstWeek(year int64) (d int64) {
+	jan01 := julianDayNumber(year, 1, 1)
+	weekday := (jan01 % 7) + 1
+	if weekday <= 4 {
+		d = jan01 - weekday + 1
+	} else {
+		d = jan01 + 8 - weekday
+	}
+	return
+}
+
+// dayOfWeek returns the weekday of the given date.
+func dayOfWeek(year int64, month, day int) int {
+	t := Time{Year: year, Month: month, Day: day}
+	return t.Weekday()
+}
+
+// ISOWeek returns the time's year and week number according to ISO 8601. 
+// Week ranges from 1 to 53. Jan 01 to Jan 03 of year n might belong to 
+// week 52 or 53 of year n-1, and Dec 29 to Dec 31 might belong to week 1 
+// of year n+1.
+func (t *Time) ISOWeek() (year int64, week int) {
+	d := julianDayNumber(t.Year, t.Month, t.Day)
+	week1Start := startOfFirstWeek(t.Year)
+
+	if d < week1Start {
+		// Previous year, week 52 or 53
+		year = t.Year - 1
+		if dayOfWeek(t.Year-1, 1, 1) == 4 || dayOfWeek(t.Year-1, 12, 31) == 4 {
+			week = 53
+		} else {
+			week = 52
+		}
+		return
+	}
+
+	if d < startOfFirstWeek(t.Year+1) {
+		// Current year, week 01..52(,53)
+		year = t.Year
+		week = int((d-week1Start)/7 + 1)
+		return
+	}
+
+	// Next year, week 1
+	year = t.Year + 1
+	week = 1
+	return
+}
