@@ -667,6 +667,8 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 		case "image":
 			p.tok.Data = "img"
 			return inBodyIM, false
+		case "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr":
+			// Ignore the token.
 		default:
 			// TODO.
 			p.addElement(p.tok.Data, p.tok.Attr)
