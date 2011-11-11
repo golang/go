@@ -6,7 +6,7 @@ include ../../../Make.inc
 
 TARG=exp/terminal
 GOFILES=\
-	shell.go\
+	terminal.go\
 
 ifneq ($(GOOS),windows)
 GOFILES+=util.go

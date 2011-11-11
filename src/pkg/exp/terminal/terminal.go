@@ -6,9 +6,9 @@ package terminal
 
 import "io"
 
-// Shell contains the state for running a VT100 terminal that is capable of
+// Terminal contains the state for running a VT100 terminal that is capable of
 // reading lines of input.
-type Shell struct {
+type Terminal struct {
 	c      io.ReadWriter
 	prompt string
 
@@ -34,12 +34,12 @@ type Shell struct {
 	inBuf     [256]byte
 }
 
-// NewShell runs a VT100 terminal on the given ReadWriter. If the ReadWriter is
+// NewTerminal runs a VT100 terminal on the given ReadWriter. If the ReadWriter is
 // a local terminal, that terminal must first have been put into raw mode.
 // prompt is a string that is written at the start of each input line (i.e.
 // "> ").
-func NewShell(c io.ReadWriter, prompt string) *Shell {
-	return &Shell{
+func NewTerminal(c io.ReadWriter, prompt string) *Terminal {
+	return &Terminal{
 		c:          c,
 		prompt:     prompt,
 		termWidth:  80,
@@ -107,17 +107,17 @@ func bytesToKey(b []byte) (int, []byte) {
 	return -1, b
 }
 
-// queue appends data to the end of ss.outBuf
-func (ss *Shell) queue(data []byte) {
-	if len(ss.outBuf)+len(data) > cap(ss.outBuf) {
-		newOutBuf := make([]byte, len(ss.outBuf), 2*(len(ss.outBuf)+len(data)))
-		copy(newOutBuf, ss.outBuf)
-		ss.outBuf = newOutBuf
+// queue appends data to the end of t.outBuf
+func (t *Terminal) queue(data []byte) {
+	if len(t.outBuf)+len(data) > cap(t.outBuf) {
+		newOutBuf := make([]byte, len(t.outBuf), 2*(len(t.outBuf)+len(data)))
+		copy(newOutBuf, t.outBuf)
+		t.outBuf = newOutBuf
 	}
 
-	oldLen := len(ss.outBuf)
-	ss.outBuf = ss.outBuf[:len(ss.outBuf)+len(data)]
-	copy(ss.outBuf[oldLen:], data)
+	oldLen := len(t.outBuf)
+	t.outBuf = t.outBuf[:len(t.outBuf)+len(data)]
+	copy(t.outBuf[oldLen:], data)
 }
 
 var eraseUnderCursor = []byte{' ', keyEscape, '[', 'D'}
@@ -126,31 +126,31 @@ func isPrintable(key int) bool {
 	return key >= 32 && key < 127
 }
 
-// moveCursorToPos appends data to ss.outBuf which will move the cursor to the
+// moveCursorToPos appends data to t.outBuf which will move the cursor to the
 // given, logical position in the text.
-func (ss *Shell) moveCursorToPos(pos int) {
-	x := len(ss.prompt) + pos
-	y := x / ss.termWidth
-	x = x % ss.termWidth
+func (t *Terminal) moveCursorToPos(pos int) {
+	x := len(t.prompt) + pos
+	y := x / t.termWidth
+	x = x % t.termWidth
 
 	up := 0
-	if y < ss.cursorY {
-		up = ss.cursorY - y
+	if y < t.cursorY {
+		up = t.cursorY - y
 	}
 
 	down := 0
-	if y > ss.cursorY {
-		down = y - ss.cursorY
+	if y > t.cursorY {
+		down = y - t.cursorY
 	}
 
 	left := 0
-	if x < ss.cursorX {
-		left = ss.cursorX - x
+	if x < t.cursorX {
+		left = t.cursorX - x
 	}
 
 	right := 0
-	if x > ss.cursorX {
-		right = x - ss.cursorX
+	if x > t.cursorX {
+		right = x - t.cursorX
 	}
 
 	movement := make([]byte, 3*(up+down+left+right))
@@ -180,152 +180,154 @@ func (ss *Shell) moveCursorToPos(pos int) {
 		m = m[3:]
 	}
 
-	ss.cursorX = x
-	ss.cursorY = y
-	ss.queue(movement)
+	t.cursorX = x
+	t.cursorY = y
+	t.queue(movement)
 }
 
 const maxLineLength = 4096
 
 // handleKey processes the given key and, optionally, returns a line of text
 // that the user has entered.
-func (ss *Shell) handleKey(key int) (line string, ok bool) {
+func (t *Terminal) handleKey(key int) (line string, ok bool) {
 	switch key {
 	case keyBackspace:
-		if ss.pos == 0 {
+		if t.pos == 0 {
 			return
 		}
-		ss.pos--
+		t.pos--
 
-		copy(ss.line[ss.pos:], ss.line[1+ss.pos:])
-		ss.line = ss.line[:len(ss.line)-1]
-		ss.writeLine(ss.line[ss.pos:])
-		ss.moveCursorToPos(ss.pos)
-		ss.queue(eraseUnderCursor)
+		copy(t.line[t.pos:], t.line[1+t.pos:])
+		t.line = t.line[:len(t.line)-1]
+		t.writeLine(t.line[t.pos:])
+		t.moveCursorToPos(t.pos)
+		t.queue(eraseUnderCursor)
 	case keyAltLeft:
 		// move left by a word.
-		if ss.pos == 0 {
+		if t.pos == 0 {
 			return
 		}
-		ss.pos--
-		for ss.pos > 0 {
-			if ss.line[ss.pos] != ' ' {
+		t.pos--
+		for t.pos > 0 {
+			if t.line[t.pos] != ' ' {
 				break
 			}
-			ss.pos--
+			t.pos--
 		}
-		for ss.pos > 0 {
-			if ss.line[ss.pos] == ' ' {
-				ss.pos++
+		for t.pos > 0 {
+			if t.line[t.pos] == ' ' {
+				t.pos++
 				break
 			}
-			ss.pos--
+			t.pos--
 		}
-		ss.moveCursorToPos(ss.pos)
+		t.moveCursorToPos(t.pos)
 	case keyAltRight:
 		// move right by a word.
-		for ss.pos < len(ss.line) {
-			if ss.line[ss.pos] == ' ' {
+		for t.pos < len(t.line) {
+			if t.line[t.pos] == ' ' {
 				break
 			}
-			ss.pos++
+			t.pos++
 		}
-		for ss.pos < len(ss.line) {
-			if ss.line[ss.pos] != ' ' {
+		for t.pos < len(t.line) {
+			if t.line[t.pos] != ' ' {
 				break
 			}
-			ss.pos++
+			t.pos++
 		}
-		ss.moveCursorToPos(ss.pos)
+		t.moveCursorToPos(t.pos)
 	case keyLeft:
-		if ss.pos == 0 {
+		if t.pos == 0 {
 			return
 		}
-		ss.pos--
-		ss.moveCursorToPos(ss.pos)
+		t.pos--
+		t.moveCursorToPos(t.pos)
 	case keyRight:
-		if ss.pos == len(ss.line) {
+		if t.pos == len(t.line) {
 			return
 		}
-		ss.pos++
-		ss.moveCursorToPos(ss.pos)
+		t.pos++
+		t.moveCursorToPos(t.pos)
 	case keyEnter:
-		ss.moveCursorToPos(len(ss.line))
-		ss.queue([]byte("\r\n"))
-		line = string(ss.line)
+		t.moveCursorToPos(len(t.line))
+		t.queue([]byte("\r\n"))
+		line = string(t.line)
 		ok = true
-		ss.line = ss.line[:0]
-		ss.pos = 0
-		ss.cursorX = 0
-		ss.cursorY = 0
-		ss.maxLine = 0
+		t.line = t.line[:0]
+		t.pos = 0
+		t.cursorX = 0
+		t.cursorY = 0
+		t.maxLine = 0
 	default:
 		if !isPrintable(key) {
 			return
 		}
-		if len(ss.line) == maxLineLength {
+		if len(t.line) == maxLineLength {
 			return
 		}
-		if len(ss.line) == cap(ss.line) {
-			newLine := make([]byte, len(ss.line), 2*(1+len(ss.line)))
-			copy(newLine, ss.line)
-			ss.line = newLine
+		if len(t.line) == cap(t.line) {
+			newLine := make([]byte, len(t.line), 2*(1+len(t.line)))
+			copy(newLine, t.line)
+			t.line = newLine
 		}
-		ss.line = ss.line[:len(ss.line)+1]
-		copy(ss.line[ss.pos+1:], ss.line[ss.pos:])
-		ss.line[ss.pos] = byte(key)
-		ss.writeLine(ss.line[ss.pos:])
-		ss.pos++
-		ss.moveCursorToPos(ss.pos)
+		t.line = t.line[:len(t.line)+1]
+		copy(t.line[t.pos+1:], t.line[t.pos:])
+		t.line[t.pos] = byte(key)
+		t.writeLine(t.line[t.pos:])
+		t.pos++
+		t.moveCursorToPos(t.pos)
 	}
 	return
 }
 
-func (ss *Shell) writeLine(line []byte) {
+func (t *Terminal) writeLine(line []byte) {
 	for len(line) != 0 {
-		if ss.cursorX == ss.termWidth {
-			ss.queue([]byte("\r\n"))
-			ss.cursorX = 0
-			ss.cursorY++
-			if ss.cursorY > ss.maxLine {
-				ss.maxLine = ss.cursorY
+		if t.cursorX == t.termWidth {
+			t.queue([]byte("\r\n"))
+			t.cursorX = 0
+			t.cursorY++
+			if t.cursorY > t.maxLine {
+				t.maxLine = t.cursorY
 			}
 		}
 
-		remainingOnLine := ss.termWidth - ss.cursorX
+		remainingOnLine := t.termWidth - t.cursorX
 		todo := len(line)
 		if todo > remainingOnLine {
 			todo = remainingOnLine
 		}
-		ss.queue(line[:todo])
-		ss.cursorX += todo
+		t.queue(line[:todo])
+		t.cursorX += todo
 		line = line[todo:]
 	}
 }
 
-func (ss *Shell) Write(buf []byte) (n int, err error) {
-	return ss.c.Write(buf)
+func (t *Terminal) Write(buf []byte) (n int, err error) {
+	return t.c.Write(buf)
 }
 
 // ReadLine returns a line of input from the terminal.
-func (ss *Shell) ReadLine() (line string, err error) {
-	ss.writeLine([]byte(ss.prompt))
-	ss.c.Write(ss.outBuf)
-	ss.outBuf = ss.outBuf[:0]
+func (t *Terminal) ReadLine() (line string, err error) {
+	if t.cursorX == 0 {
+		t.writeLine([]byte(t.prompt))
+		t.c.Write(t.outBuf)
+		t.outBuf = t.outBuf[:0]
+	}
 
 	for {
-		// ss.remainder is a slice at the beginning of ss.inBuf
+		// t.remainder is a slice at the beginning of t.inBuf
 		// containing a partial key sequence
-		readBuf := ss.inBuf[len(ss.remainder):]
+		readBuf := t.inBuf[len(t.remainder):]
 		var n int
-		n, err = ss.c.Read(readBuf)
+		n, err = t.c.Read(readBuf)
 		if err != nil {
 			return
 		}
 
 		if err == nil {
-			ss.remainder = ss.inBuf[:n+len(ss.remainder)]
-			rest := ss.remainder
+			t.remainder = t.inBuf[:n+len(t.remainder)]
+			rest := t.remainder
 			lineOk := false
 			for !lineOk {
 				var key int
@@ -336,16 +338,16 @@ func (ss *Shell) ReadLine() (line string, err error) {
 				if key == keyCtrlD {
 					return "", io.EOF
 				}
-				line, lineOk = ss.handleKey(key)
+				line, lineOk = t.handleKey(key)
 			}
 			if len(rest) > 0 {
-				n := copy(ss.inBuf[:], rest)
-				ss.remainder = ss.inBuf[:n]
+				n := copy(t.inBuf[:], rest)
+				t.remainder = t.inBuf[:n]
 			} else {
-				ss.remainder = nil
+				t.remainder = nil
 			}
-			ss.c.Write(ss.outBuf)
-			ss.outBuf = ss.outBuf[:0]
+			t.c.Write(t.outBuf)
+			t.outBuf = t.outBuf[:0]
 			if lineOk {
 				return
 			}
@@ -353,4 +355,8 @@ func (ss *Shell) ReadLine() (line string, err error) {
 		}
 	}
 	panic("unreachable")
+}
+
+func (t *Terminal) SetSize(width, height int) {
+	t.termWidth, t.termHeight = width, height
 }
