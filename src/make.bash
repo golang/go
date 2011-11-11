@@ -50,21 +50,26 @@ chmod +x "$GOBIN"/gomake
 # TODO(brainman): delete this after 01/01/2012.
 rm -f "$GOBIN"/gotest	# remove old bash version of gotest on Windows
 
-if [ -d /selinux -a -f /selinux/booleans/allow_execstack -a -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled; then
-	if ! cat /selinux/booleans/allow_execstack | grep -c '^1 1$' >> /dev/null ; then
-		echo "WARNING: the default SELinux policy on, at least, Fedora 12 breaks "
-		echo "Go. You can enable the features that Go needs via the following "
-		echo "command (as root):"
-		echo "  # setsebool -P allow_execstack 1"
-		echo
-		echo "Note that this affects your system globally! "
-		echo
-		echo "The build will continue in five seconds in case we "
-		echo "misdiagnosed the issue..."
+# on Fedora 16 the selinux filesystem is mounted at /sys/fs/selinux,
+# so loop through the possible selinux mount points
+for se_mount in /selinux /sys/fs/selinux
+do
+	if [ -d $se_mount -a -f $se_mount/booleans/allow_execstack -a -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled; then
+		if ! cat $se_mount/booleans/allow_execstack | grep -c '^1 1$' >> /dev/null ; then
+			echo "WARNING: the default SELinux policy on, at least, Fedora 12 breaks "
+			echo "Go. You can enable the features that Go needs via the following "
+			echo "command (as root):"
+			echo "  # setsebool -P allow_execstack 1"
+			echo
+			echo "Note that this affects your system globally! "
+			echo
+			echo "The build will continue in five seconds in case we "
+			echo "misdiagnosed the issue..."
 
-		sleep 5
+			sleep 5
+		fi
 	fi
-fi
+done
 
 (
 	cd "$GOROOT"/src/pkg;
