@@ -93,7 +93,8 @@ func main() {
 
 	m[13] = 'B'
 	//  13        14
-	m[gint()] = gbyte(), false
+	delete(m, gint())
+	gbyte()
 	if _, present := m[13]; present {
 		println("bad map removal")
 		panic("fail")

@@ -802,7 +802,6 @@ stmtfmt(Fmt *f, Node *n)
 	case OAS2DOTTYPE:
 	case OAS2FUNC:
 	case OAS2MAPR:
-	case OAS2MAPW:
 	case OAS2RECV:
 		fmtprint(f, "%,H = %,H", n->list, n->rlist);
 		break;
@@ -981,7 +980,6 @@ static int opprec[] = {
 	[OAS2DOTTYPE] = -1,
 	[OAS2FUNC] = -1,
 	[OAS2MAPR] = -1,
-	[OAS2MAPW] = -1,
 	[OAS2RECV] = -1,
 	[OASOP] = -1,
 	[OBREAK] = -1,

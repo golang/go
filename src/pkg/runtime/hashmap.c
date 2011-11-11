@@ -1000,34 +1000,6 @@ runtime·mapassign1(MapType *t, Hmap *h, ...)
 	runtime·mapassign(t, h, ak, av);
 }
 
-// mapassign2(mapType *type, hmap *map[any]any, key any, val any, pres bool);
-#pragma textflag 7
-void
-runtime·mapassign2(MapType *t, Hmap *h, ...)
-{
-	byte *ak, *av, *ap;
-
-	if(h == nil)
-		runtime·panicstring("assignment to entry in nil map");
-
-	ak = (byte*)&h + h->ko2;
-	av = (byte*)&h + h->vo2;
-	ap = (byte*)&h + h->po2;
-
-	if(*ap == false)
-		av = nil;	// delete
-
-	runtime·mapassign(t, h, ak, av);
-
-	if(debug) {
-		runtime·prints("mapassign2: map=");
-		runtime·printpointer(h);
-		runtime·prints("; key=");
-		h->keyalg->print(h->keysize, ak);
-		runtime·prints("\n");
-	}
-}
-
 // mapdelete(mapType *type, hmap *map[any]any, key any)
 #pragma textflag 7
 void

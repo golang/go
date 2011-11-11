@@ -183,7 +183,6 @@ walkstmt(Node **np)
 	case OAS2DOTTYPE:
 	case OAS2RECV:
 	case OAS2FUNC:
-	case OAS2MAPW:
 	case OAS2MAPR:
 	case OCLOSE:
 	case OCOPY:
@@ -642,17 +641,6 @@ walkexpr(Node **np, NodeList **init)
 		}
 		t = l->type;
 		n = mkcall1(mapfndel("mapdelete", t), t->down, init, typename(t), l, r);
-		goto ret;
-
-	case OAS2MAPW:
-		// map[] = a,b - mapassign2
-		// a,b = m[i];
-		*init = concat(*init, n->ninit);
-		n->ninit = nil;
-		walkexprlistsafe(n->list, init);
-		l = n->list->n;
-		t = l->left->type;
-		n = mkcall1(mapfn("mapassign2", t), T, init, typename(t), l->left, l->right, n->rlist->n, n->rlist->next->n);
 		goto ret;
 
 	case OAS2DOTTYPE:

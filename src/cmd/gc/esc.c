@@ -222,7 +222,6 @@ esc(Node *n)
 	case OAS2RECV:		// v, ok = <-ch
 	case OAS2MAPR:		// v, ok = m[k]
 	case OAS2DOTTYPE:	// v, ok = x.(type)
-	case OAS2MAPW:		// m[k] = x, ok
 		escassign(n->list->n, n->rlist->n);
 		break;
 
