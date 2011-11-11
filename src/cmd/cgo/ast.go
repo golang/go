@@ -128,6 +128,7 @@ func (f *File) ReadGo(name string) {
 	f.walk(ast1, "prog", (*File).saveExport)
 	f.walk(ast2, "prog", (*File).saveExport2)
 
+	f.Comments = ast1.Comments
 	f.AST = ast2
 }
 

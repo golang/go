@@ -53,7 +53,7 @@ func (p *Package) writeDefs() {
 	for name, def := range typedef {
 		fmt.Fprintf(fgo2, "type %s ", name)
 		printer.Fprint(fgo2, fset, def)
-		fmt.Fprintf(fgo2, "\n")
+		fmt.Fprintf(fgo2, "\n\n")
 	}
 	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
 
