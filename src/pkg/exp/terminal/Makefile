@@ -9,7 +9,7 @@ GOFILES=\
 	shell.go\
 
 ifneq ($(GOOS),windows)
-GOFILES+=terminal.go
+GOFILES+=util.go
 endif
 
 include ../../../Make.pkg
