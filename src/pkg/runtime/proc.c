@@ -13,8 +13,6 @@ bool	runtime·iscgo;
 
 static void unwindstack(G*, byte*);
 static void schedule(G*);
-static void acquireproc(void);
-static void releaseproc(void);
 
 typedef struct Sched Sched;
 
