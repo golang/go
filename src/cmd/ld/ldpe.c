@@ -283,7 +283,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 				case IMAGE_REL_I386_REL32:
 				case IMAGE_REL_AMD64_REL32:
 					rp->type = D_PCREL;
-					rp->add = 0;
+					rp->add = le32(rsect->base+rp->off);
 					break;
 				case IMAGE_REL_I386_DIR32NB:
 				case IMAGE_REL_I386_DIR32:
@@ -408,7 +408,7 @@ readsym(PeObj *obj, int i, PeSym **y)
 	sym = &obj->pesym[i];
 	*y = sym;
 	
-	if(sym->sclass == IMAGE_SYM_CLASS_STATIC && sym->value == 0 && sym->type == 0) // section
+	if(sym->name[0] == '.') // .section
 		name = obj->sect[sym->sectnum-1].sym->name;
 	else {
 		name = sym->name;
