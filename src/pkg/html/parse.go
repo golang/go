@@ -313,7 +313,7 @@ func (p *parser) resetInsertionMode() insertionMode {
 		case "caption":
 			// TODO: return inCaptionIM
 		case "colgroup":
-			// TODO: return inColumnGroupIM
+			return inColumnGroupIM
 		case "table":
 			return inTableIM
 		case "head":
@@ -879,6 +879,14 @@ func inTableIM(p *parser) (insertionMode, bool) {
 			}
 			// Ignore the token.
 			return inTableIM, true
+		case "colgroup":
+			p.clearStackToContext(tableScopeStopTags)
+			p.addElement(p.tok.Data, p.tok.Attr)
+			return inColumnGroupIM, true
+		case "col":
+			p.clearStackToContext(tableScopeStopTags)
+			p.addElement("colgroup", p.tok.Attr)
+			return inColumnGroupIM, false
 		default:
 			// TODO.
 		}
@@ -922,6 +930,46 @@ func (p *parser) clearStackToContext(stopTags []string) {
 			}
 		}
 	}
+}
+
+// Section 11.2.5.4.12.
+func inColumnGroupIM(p *parser) (insertionMode, bool) {
+	switch p.tok.Type {
+	case CommentToken:
+		p.addChild(&Node{
+			Type: CommentNode,
+			Data: p.tok.Data,
+		})
+		return inColumnGroupIM, true
+	case DoctypeToken:
+		// Ignore the token.
+		return inColumnGroupIM, true
+	case StartTagToken:
+		switch p.tok.Data {
+		case "html":
+			return useTheRulesFor(p, inColumnGroupIM, inBodyIM)
+		case "col":
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.oe.pop()
+			p.acknowledgeSelfClosingTag()
+			return inColumnGroupIM, true
+		}
+	case EndTagToken:
+		switch p.tok.Data {
+		case "colgroup":
+			if p.oe.top().Data != "html" {
+				p.oe.pop()
+			}
+			return inTableIM, true
+		case "col":
+			// Ignore the token.
+			return inColumnGroupIM, true
+		}
+	}
+	if p.oe.top().Data != "html" {
+		p.oe.pop()
+	}
+	return inTableIM, false
 }
 
 // Section 11.2.5.4.13.
