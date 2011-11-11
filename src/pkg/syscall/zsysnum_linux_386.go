@@ -338,4 +338,8 @@ const (
 	SYS_PWRITEV                = 334
 	SYS_RT_TGSIGQUEUEINFO      = 335
 	SYS_PERF_EVENT_OPEN        = 336
+	SYS_RECVMMSG               = 337
+	SYS_FANOTIFY_INIT          = 338
+	SYS_FANOTIFY_MARK          = 339
+	SYS_PRLIMIT64              = 340
 )

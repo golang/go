@@ -303,4 +303,8 @@ const (
 	SYS_PWRITEV                = 296
 	SYS_RT_TGSIGQUEUEINFO      = 297
 	SYS_PERF_EVENT_OPEN        = 298
+	SYS_RECVMMSG               = 299
+	SYS_FANOTIFY_INIT          = 300
+	SYS_FANOTIFY_MARK          = 301
+	SYS_PRLIMIT64              = 302
 )

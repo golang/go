@@ -8,7 +8,7 @@
 #include "signals.h"
 
 void
-runtime·dumpregs(Regs *r)
+runtime·dumpregs(Regs32 *r)
 {
 	runtime·printf("eax     %x\n", r->eax);
 	runtime·printf("ebx     %x\n", r->ebx);
@@ -37,8 +37,8 @@ void
 runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
 {
 	Ucontext *uc;
-	Mcontext *mc;
-	Regs *r;
+	Mcontext32 *mc;
+	Regs32 *r;
 	uintptr *sp;
 	byte *pc;
 
@@ -141,8 +141,8 @@ sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 	if(restart)
 		sa.sa_flags |= SA_RESTART;
 	sa.sa_mask = ~0U;
-	sa.sa_tramp = (uintptr)runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
-	sa.__sigaction_u.__sa_sigaction = (uintptr)fn;
+	sa.sa_tramp = (void*)runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
+	*(uintptr*)&sa.__sigaction_u = (uintptr)fn;
 	runtime·sigaction(i, &sa, nil);
 }
 

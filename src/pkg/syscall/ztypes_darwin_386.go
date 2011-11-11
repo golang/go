@@ -1,54 +1,22 @@
-// godefs -gsyscall -f-m32 types_darwin.c
-
-// MACHINE GENERATED - DO NOT EDIT.
+// Created by cgo -godefs - DO NOT EDIT
+// cgo -godefs types_darwin.go
 
 package syscall
 
-// Constants
 const (
-	sizeofPtr              = 0x4
-	sizeofShort            = 0x2
-	sizeofInt              = 0x4
-	sizeofLong             = 0x4
-	sizeofLongLong         = 0x8
-	O_CLOEXEC              = 0
-	SizeofSockaddrInet4    = 0x10
-	SizeofSockaddrInet6    = 0x1c
-	SizeofSockaddrAny      = 0x6c
-	SizeofSockaddrUnix     = 0x6a
-	SizeofSockaddrDatalink = 0x14
-	SizeofLinger           = 0x8
-	SizeofIPMreq           = 0x8
-	SizeofIPv6Mreq         = 0x14
-	SizeofMsghdr           = 0x1c
-	SizeofCmsghdr          = 0xc
-	SizeofInet6Pktinfo     = 0x14
-	PTRACE_TRACEME         = 0
-	PTRACE_CONT            = 0x7
-	PTRACE_KILL            = 0x8
-	SizeofIfMsghdr         = 0x70
-	SizeofIfData           = 0x60
-	SizeofIfaMsghdr        = 0x14
-	SizeofIfmaMsghdr       = 0x10
-	SizeofIfmaMsghdr2      = 0x14
-	SizeofRtMsghdr         = 0x5c
-	SizeofRtMetrics        = 0x38
-	SizeofBpfVersion       = 0x4
-	SizeofBpfStat          = 0x8
-	SizeofBpfProgram       = 0x8
-	SizeofBpfInsn          = 0x8
-	SizeofBpfHdr           = 0x14
+	sizeofPtr      = 0x4
+	sizeofShort    = 0x2
+	sizeofInt      = 0x4
+	sizeofLong     = 0x4
+	sizeofLongLong = 0x8
 )
 
-// Types
-
-type _C_short int16
-
-type _C_int int32
-
-type _C_long int32
-
-type _C_long_long int64
+type (
+	_C_short     int16
+	_C_int       int32
+	_C_long      int32
+	_C_long_long int64
+)
 
 type Timespec struct {
 	Sec  int32
@@ -59,6 +27,8 @@ type Timeval struct {
 	Sec  int32
 	Usec int32
 }
+
+type Timeval32 [0]byte
 
 type Rusage struct {
 	Utime    Timeval
@@ -85,6 +55,10 @@ type Rlimit struct {
 }
 
 type _Gid_t uint32
+
+const (
+	O_CLOEXEC = 0
+)
 
 type Stat_t struct {
 	Dev           int32
@@ -115,7 +89,7 @@ type Statfs_t struct {
 	Bavail      uint64
 	Files       uint64
 	Ffree       uint64
-	Fsid        [8]byte /* fsid */
+	Fsid        Fsid
 	Owner       uint32
 	Type        uint32
 	Flags       uint32
@@ -157,6 +131,10 @@ type Log2phys_t struct {
 	Flags       uint32
 	Contigbytes int64
 	Devoffset   int64
+}
+
+type Fsid struct {
+	Val [2]int32
 }
 
 type Dirent struct {
@@ -257,6 +235,26 @@ type Inet6Pktinfo struct {
 	Ifindex uint32
 }
 
+const (
+	SizeofSockaddrInet4    = 0x10
+	SizeofSockaddrInet6    = 0x1c
+	SizeofSockaddrAny      = 0x6c
+	SizeofSockaddrUnix     = 0x6a
+	SizeofSockaddrDatalink = 0x14
+	SizeofLinger           = 0x8
+	SizeofIPMreq           = 0x8
+	SizeofIPv6Mreq         = 0x14
+	SizeofMsghdr           = 0x1c
+	SizeofCmsghdr          = 0xc
+	SizeofInet6Pktinfo     = 0x14
+)
+
+const (
+	PTRACE_TRACEME = 0x0
+	PTRACE_CONT    = 0x7
+	PTRACE_KILL    = 0x8
+)
+
 type Kevent_t struct {
 	Ident  uint32
 	Filter int16
@@ -269,6 +267,16 @@ type Kevent_t struct {
 type FdSet struct {
 	Bits [32]int32
 }
+
+const (
+	SizeofIfMsghdr    = 0x70
+	SizeofIfData      = 0x60
+	SizeofIfaMsghdr   = 0x14
+	SizeofIfmaMsghdr  = 0x10
+	SizeofIfmaMsghdr2 = 0x14
+	SizeofRtMsghdr    = 0x5c
+	SizeofRtMetrics   = 0x38
+)
 
 type IfMsghdr struct {
 	Msglen       uint16
@@ -374,6 +382,14 @@ type RtMetrics struct {
 	Pksent   uint32
 	Filler   [4]uint32
 }
+
+const (
+	SizeofBpfVersion = 0x4
+	SizeofBpfStat    = 0x8
+	SizeofBpfProgram = 0x8
+	SizeofBpfInsn    = 0x8
+	SizeofBpfHdr     = 0x14
+)
 
 type BpfVersion struct {
 	Major uint16
