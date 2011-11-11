@@ -59,6 +59,7 @@ PROGS="
 	gcc
 	grep
 	ls
+	$MAKE
 	mkdir
 	mv
 	pwd
