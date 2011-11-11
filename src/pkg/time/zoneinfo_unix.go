@@ -12,7 +12,7 @@
 package time
 
 import (
-	"io/ioutil"
+	"bytes"
 	"os"
 )
 
@@ -180,11 +180,17 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 }
 
 func readinfofile(name string) ([]zonetime, bool) {
-	buf, err := ioutil.ReadFile(name)
+	var b bytes.Buffer
+
+	f, err := os.Open(name)
 	if err != nil {
 		return nil, false
 	}
-	return parseinfo(buf)
+	defer f.Close()
+	if _, err := b.ReadFrom(f); err != nil {
+		return nil, false
+	}
+	return parseinfo(b.Bytes())
 }
 
 func setupTestingZone() {
