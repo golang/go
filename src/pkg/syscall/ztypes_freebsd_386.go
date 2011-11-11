@@ -1,70 +1,22 @@
-// godefs -gsyscall -f-m32 types_freebsd.c
-
-// MACHINE GENERATED - DO NOT EDIT.
+// Created by cgo -godefs - DO NOT EDIT
+// cgo -godefs types_freebsd.go
 
 package syscall
 
-// Constants
 const (
-	sizeofPtr              = 0x4
-	sizeofShort            = 0x2
-	sizeofInt              = 0x4
-	sizeofLong             = 0x4
-	sizeofLongLong         = 0x8
-	O_CLOEXEC              = 0
-	S_IFMT                 = 0xf000
-	S_IFIFO                = 0x1000
-	S_IFCHR                = 0x2000
-	S_IFDIR                = 0x4000
-	S_IFBLK                = 0x6000
-	S_IFREG                = 0x8000
-	S_IFLNK                = 0xa000
-	S_IFSOCK               = 0xc000
-	S_ISUID                = 0x800
-	S_ISGID                = 0x400
-	S_ISVTX                = 0x200
-	S_IRUSR                = 0x100
-	S_IWUSR                = 0x80
-	S_IXUSR                = 0x40
-	SizeofSockaddrInet4    = 0x10
-	SizeofSockaddrInet6    = 0x1c
-	SizeofSockaddrAny      = 0x6c
-	SizeofSockaddrUnix     = 0x6a
-	SizeofSockaddrDatalink = 0x36
-	SizeofLinger           = 0x8
-	SizeofIPMreq           = 0x8
-	SizeofIPMreqn          = 0xc
-	SizeofIPv6Mreq         = 0x14
-	SizeofMsghdr           = 0x1c
-	SizeofCmsghdr          = 0xc
-	SizeofInet6Pktinfo     = 0x14
-	PTRACE_TRACEME         = 0
-	PTRACE_CONT            = 0x7
-	PTRACE_KILL            = 0x8
-	SizeofIfMsghdr         = 0x60
-	SizeofIfData           = 0x50
-	SizeofIfaMsghdr        = 0x14
-	SizeofIfmaMsghdr       = 0x10
-	SizeofRtMsghdr         = 0x5c
-	SizeofRtMetrics        = 0x38
-	SizeofBpfVersion       = 0x4
-	SizeofBpfStat          = 0x8
-	SizeofBpfZbuf          = 0xc
-	SizeofBpfProgram       = 0x8
-	SizeofBpfInsn          = 0x8
-	SizeofBpfHdr           = 0x14
-	SizeofBpfZbufHeader    = 0x20
+	sizeofPtr      = 0x4
+	sizeofShort    = 0x2
+	sizeofInt      = 0x4
+	sizeofLong     = 0x4
+	sizeofLongLong = 0x8
 )
 
-// Types
-
-type _C_short int16
-
-type _C_int int32
-
-type _C_long int32
-
-type _C_long_long int64
+type (
+	_C_short     int16
+	_C_int       int32
+	_C_long      int32
+	_C_long_long int64
+)
 
 type Timespec struct {
 	Sec  int32
@@ -102,6 +54,27 @@ type Rlimit struct {
 
 type _Gid_t uint32
 
+const (
+	O_CLOEXEC = 0
+)
+
+const (
+	S_IFMT   = 0xf000
+	S_IFIFO  = 0x1000
+	S_IFCHR  = 0x2000
+	S_IFDIR  = 0x4000
+	S_IFBLK  = 0x6000
+	S_IFREG  = 0x8000
+	S_IFLNK  = 0xa000
+	S_IFSOCK = 0xc000
+	S_ISUID  = 0x800
+	S_ISGID  = 0x400
+	S_ISVTX  = 0x200
+	S_IRUSR  = 0x100
+	S_IWUSR  = 0x80
+	S_IXUSR  = 0x40
+)
+
 type Stat_t struct {
 	Dev           uint32
 	Ino           uint32
@@ -120,8 +93,7 @@ type Stat_t struct {
 	Gen           uint32
 	Lspare        int32
 	Birthtimespec Timespec
-	Pad_godefs_0  uint32
-	Pad_godefs_1  uint32
+	Pad_cgo_0     [8]byte
 }
 
 type Statfs_t struct {
@@ -142,7 +114,7 @@ type Statfs_t struct {
 	Spare       [10]uint64
 	Namemax     uint32
 	Owner       uint32
-	Fsid        [8]byte /* fsid */
+	Fsid        Fsid
 	Charspare   [80]int8
 	Fstypename  [16]int8
 	Mntfromname [88]int8
@@ -164,6 +136,10 @@ type Dirent struct {
 	Type   uint8
 	Namlen uint8
 	Name   [256]int8
+}
+
+type Fsid struct {
+	Val [2]int32
 }
 
 type RawSockaddrInet4 struct {
@@ -260,6 +236,27 @@ type Inet6Pktinfo struct {
 	Ifindex uint32
 }
 
+const (
+	SizeofSockaddrInet4    = 0x10
+	SizeofSockaddrInet6    = 0x1c
+	SizeofSockaddrAny      = 0x6c
+	SizeofSockaddrUnix     = 0x6a
+	SizeofSockaddrDatalink = 0x36
+	SizeofLinger           = 0x8
+	SizeofIPMreq           = 0x8
+	SizeofIPMreqn          = 0xc
+	SizeofIPv6Mreq         = 0x14
+	SizeofMsghdr           = 0x1c
+	SizeofCmsghdr          = 0xc
+	SizeofInet6Pktinfo     = 0x14
+)
+
+const (
+	PTRACE_TRACEME = 0x0
+	PTRACE_CONT    = 0x7
+	PTRACE_KILL    = 0x8
+)
+
 type Kevent_t struct {
 	Ident  uint32
 	Filter int16
@@ -273,15 +270,24 @@ type FdSet struct {
 	X__fds_bits [32]uint32
 }
 
+const (
+	SizeofIfMsghdr   = 0x60
+	SizeofIfData     = 0x50
+	SizeofIfaMsghdr  = 0x14
+	SizeofIfmaMsghdr = 0x10
+	SizeofRtMsghdr   = 0x5c
+	SizeofRtMetrics  = 0x38
+)
+
 type IfMsghdr struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Addrs        int32
-	Flags        int32
-	Index        uint16
-	Pad_godefs_0 [2]byte
-	Data         IfData
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Addrs     int32
+	Flags     int32
+	Index     uint16
+	Pad_cgo_0 [2]byte
+	Data      IfData
 }
 
 type IfData struct {
@@ -313,40 +319,40 @@ type IfData struct {
 }
 
 type IfaMsghdr struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Addrs        int32
-	Flags        int32
-	Index        uint16
-	Pad_godefs_0 [2]byte
-	Metric       int32
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Addrs     int32
+	Flags     int32
+	Index     uint16
+	Pad_cgo_0 [2]byte
+	Metric    int32
 }
 
 type IfmaMsghdr struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Addrs        int32
-	Flags        int32
-	Index        uint16
-	Pad_godefs_0 [2]byte
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Addrs     int32
+	Flags     int32
+	Index     uint16
+	Pad_cgo_0 [2]byte
 }
 
 type RtMsghdr struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Index        uint16
-	Pad_godefs_0 [2]byte
-	Flags        int32
-	Addrs        int32
-	Pid          int32
-	Seq          int32
-	Errno        int32
-	Fmask        int32
-	Inits        uint32
-	Rmx          RtMetrics
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Index     uint16
+	Pad_cgo_0 [2]byte
+	Flags     int32
+	Addrs     int32
+	Pid       int32
+	Seq       int32
+	Errno     int32
+	Fmask     int32
+	Inits     uint32
+	Rmx       RtMetrics
 }
 
 type RtMetrics struct {
@@ -363,6 +369,16 @@ type RtMetrics struct {
 	Weight   uint32
 	Filler   [3]uint32
 }
+
+const (
+	SizeofBpfVersion    = 0x4
+	SizeofBpfStat       = 0x8
+	SizeofBpfZbuf       = 0xc
+	SizeofBpfProgram    = 0x8
+	SizeofBpfInsn       = 0x8
+	SizeofBpfHdr        = 0x14
+	SizeofBpfZbufHeader = 0x20
+)
 
 type BpfVersion struct {
 	Major uint16
@@ -393,11 +409,11 @@ type BpfInsn struct {
 }
 
 type BpfHdr struct {
-	Tstamp       Timeval
-	Caplen       uint32
-	Datalen      uint32
-	Hdrlen       uint16
-	Pad_godefs_0 [2]byte
+	Tstamp    Timeval
+	Caplen    uint32
+	Datalen   uint32
+	Hdrlen    uint16
+	Pad_cgo_0 [2]byte
 }
 
 type BpfZbufHeader struct {

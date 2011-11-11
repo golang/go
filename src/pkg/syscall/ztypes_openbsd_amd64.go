@@ -1,70 +1,27 @@
-// godefs -gsyscall -f-m64 types_openbsd.c
-
-// MACHINE GENERATED - DO NOT EDIT.
+// Created by cgo -godefs - DO NOT EDIT
+// cgo -godefs types_openbsd.go
 
 package syscall
 
-// Constants
 const (
-	sizeofPtr              = 0x8
-	sizeofShort            = 0x2
-	sizeofInt              = 0x4
-	sizeofLong             = 0x8
-	sizeofLongLong         = 0x8
-	S_IFMT                 = 0xf000
-	S_IFIFO                = 0x1000
-	S_IFCHR                = 0x2000
-	S_IFDIR                = 0x4000
-	S_IFBLK                = 0x6000
-	S_IFREG                = 0x8000
-	S_IFLNK                = 0xa000
-	S_IFSOCK               = 0xc000
-	S_ISUID                = 0x800
-	S_ISGID                = 0x400
-	S_ISVTX                = 0x200
-	S_IRUSR                = 0x100
-	S_IWUSR                = 0x80
-	S_IXUSR                = 0x40
-	SizeofSockaddrInet4    = 0x10
-	SizeofSockaddrInet6    = 0x1c
-	SizeofSockaddrAny      = 0x6c
-	SizeofSockaddrUnix     = 0x6a
-	SizeofSockaddrDatalink = 0x20
-	SizeofLinger           = 0x8
-	SizeofIPMreq           = 0x8
-	SizeofIPv6Mreq         = 0x14
-	SizeofMsghdr           = 0x30
-	SizeofCmsghdr          = 0xc
-	SizeofInet6Pktinfo     = 0x14
-	PTRACE_TRACEME         = 0
-	PTRACE_CONT            = 0x7
-	PTRACE_KILL            = 0x8
-	SizeofIfMsghdr         = 0xf0
-	SizeofIfData           = 0xd8
-	SizeofIfaMsghdr        = 0x18
-	SizeofRtMsghdr         = 0x58
-	SizeofRtMetrics        = 0x30
-	SizeofBpfVersion       = 0x4
-	SizeofBpfStat          = 0x8
-	SizeofBpfProgram       = 0x10
-	SizeofBpfInsn          = 0x8
-	SizeofBpfHdr           = 0x14
+	sizeofPtr      = 0x8
+	sizeofShort    = 0x2
+	sizeofInt      = 0x4
+	sizeofLong     = 0x8
+	sizeofLongLong = 0x8
 )
 
-// Types
-
-type _C_short int16
-
-type _C_int int32
-
-type _C_long int64
-
-type _C_long_long int64
+type (
+	_C_short     int16
+	_C_int       int32
+	_C_long      int64
+	_C_long_long int64
+)
 
 type Timespec struct {
-	Sec          int32
-	Pad_godefs_0 [4]byte
-	Nsec         int64
+	Sec       int32
+	Pad_cgo_0 [4]byte
+	Nsec      int64
 }
 
 type Timeval struct {
@@ -98,6 +55,23 @@ type Rlimit struct {
 
 type _Gid_t uint32
 
+const (
+	S_IFMT   = 0xf000
+	S_IFIFO  = 0x1000
+	S_IFCHR  = 0x2000
+	S_IFDIR  = 0x4000
+	S_IFBLK  = 0x6000
+	S_IFREG  = 0x8000
+	S_IFLNK  = 0xa000
+	S_IFSOCK = 0xc000
+	S_ISUID  = 0x800
+	S_ISGID  = 0x400
+	S_ISVTX  = 0x200
+	S_IRUSR  = 0x100
+	S_IWUSR  = 0x80
+	S_IXUSR  = 0x40
+)
+
 type Stat_t struct {
 	Dev            int32
 	Ino            uint32
@@ -124,7 +98,7 @@ type Statfs_t struct {
 	F_flags       uint32
 	F_bsize       uint32
 	F_iosize      uint32
-	Pad_godefs_0  [4]byte
+	Pad_cgo_0     [4]byte
 	F_blocks      uint64
 	F_bfree       uint64
 	F_bavail      int64
@@ -135,7 +109,7 @@ type Statfs_t struct {
 	F_syncreads   uint64
 	F_asyncwrites uint64
 	F_asyncreads  uint64
-	F_fsid        [8]byte /* fsid_t */
+	F_fsid        Fsid
 	F_namemax     uint32
 	F_owner       uint32
 	F_ctime       uint32
@@ -143,8 +117,8 @@ type Statfs_t struct {
 	F_fstypename  [16]int8
 	F_mntonname   [90]int8
 	F_mntfromname [90]int8
-	Pad_godefs_1  [4]byte
-	Mount_info    [160]byte /* mount_info */
+	Pad_cgo_1     [4]byte
+	Mount_info    [160]byte
 }
 
 type Flock_t struct {
@@ -161,6 +135,10 @@ type Dirent struct {
 	Type   uint8
 	Namlen uint8
 	Name   [256]int8
+}
+
+type Fsid struct {
+	Val [2]int32
 }
 
 type RawSockaddrInet4 struct {
@@ -231,15 +209,15 @@ type IPv6Mreq struct {
 }
 
 type Msghdr struct {
-	Name         *byte
-	Namelen      uint32
-	Pad_godefs_0 [4]byte
-	Iov          *Iovec
-	Iovlen       uint32
-	Pad_godefs_1 [4]byte
-	Control      *byte
-	Controllen   uint32
-	Flags        int32
+	Name       *byte
+	Namelen    uint32
+	Pad_cgo_0  [4]byte
+	Iov        *Iovec
+	Iovlen     uint32
+	Pad_cgo_1  [4]byte
+	Control    *byte
+	Controllen uint32
+	Flags      int32
 }
 
 type Cmsghdr struct {
@@ -253,6 +231,26 @@ type Inet6Pktinfo struct {
 	Ifindex uint32
 }
 
+const (
+	SizeofSockaddrInet4    = 0x10
+	SizeofSockaddrInet6    = 0x1c
+	SizeofSockaddrAny      = 0x6c
+	SizeofSockaddrUnix     = 0x6a
+	SizeofSockaddrDatalink = 0x20
+	SizeofLinger           = 0x8
+	SizeofIPMreq           = 0x8
+	SizeofIPv6Mreq         = 0x14
+	SizeofMsghdr           = 0x30
+	SizeofCmsghdr          = 0xc
+	SizeofInet6Pktinfo     = 0x14
+)
+
+const (
+	PTRACE_TRACEME = 0x0
+	PTRACE_CONT    = 0x7
+	PTRACE_KILL    = 0x8
+)
+
 type Kevent_t struct {
 	Ident  uint32
 	Filter int16
@@ -265,6 +263,14 @@ type Kevent_t struct {
 type FdSet struct {
 	Bits [32]int32
 }
+
+const (
+	SizeofIfMsghdr  = 0xf0
+	SizeofIfData    = 0xd8
+	SizeofIfaMsghdr = 0x18
+	SizeofRtMsghdr  = 0x58
+	SizeofRtMetrics = 0x30
+)
 
 type IfMsghdr struct {
 	Msglen  uint16
@@ -282,28 +288,28 @@ type IfMsghdr struct {
 }
 
 type IfData struct {
-	Type         uint8
-	Addrlen      uint8
-	Hdrlen       uint8
-	Link_state   uint8
-	Mtu          uint32
-	Metric       uint32
-	Pad          uint32
-	Baudrate     uint64
-	Ipackets     uint64
-	Ierrors      uint64
-	Opackets     uint64
-	Oerrors      uint64
-	Collisions   uint64
-	Ibytes       uint64
-	Obytes       uint64
-	Imcasts      uint64
-	Omcasts      uint64
-	Iqdrops      uint64
-	Noproto      uint64
-	Lastchange   Timeval
-	Mclpool      [7][12]byte /* mclpool */
-	Pad_godefs_0 [4]byte
+	Type       uint8
+	Addrlen    uint8
+	Hdrlen     uint8
+	Link_state uint8
+	Mtu        uint32
+	Metric     uint32
+	Pad        uint32
+	Baudrate   uint64
+	Ipackets   uint64
+	Ierrors    uint64
+	Opackets   uint64
+	Oerrors    uint64
+	Collisions uint64
+	Ibytes     uint64
+	Obytes     uint64
+	Imcasts    uint64
+	Omcasts    uint64
+	Iqdrops    uint64
+	Noproto    uint64
+	Lastchange Timeval
+	Mclpool    [7]Mclpool
+	Pad_cgo_0  [4]byte
 }
 
 type IfaMsghdr struct {
@@ -353,6 +359,22 @@ type RtMetrics struct {
 	Rttvar   uint32
 }
 
+type Mclpool struct {
+	Grown uint32
+	Alive uint16
+	Hwm   uint16
+	Cwm   uint16
+	Lwm   uint16
+}
+
+const (
+	SizeofBpfVersion = 0x4
+	SizeofBpfStat    = 0x8
+	SizeofBpfProgram = 0x10
+	SizeofBpfInsn    = 0x8
+	SizeofBpfHdr     = 0x14
+)
+
 type BpfVersion struct {
 	Major uint16
 	Minor uint16
@@ -364,9 +386,9 @@ type BpfStat struct {
 }
 
 type BpfProgram struct {
-	Len          uint32
-	Pad_godefs_0 [4]byte
-	Insns        *BpfInsn
+	Len       uint32
+	Pad_cgo_0 [4]byte
+	Insns     *BpfInsn
 }
 
 type BpfInsn struct {
@@ -377,11 +399,11 @@ type BpfInsn struct {
 }
 
 type BpfHdr struct {
-	Tstamp       BpfTimeval
-	Caplen       uint32
-	Datalen      uint32
-	Hdrlen       uint16
-	Pad_godefs_0 [2]byte
+	Tstamp    BpfTimeval
+	Caplen    uint32
+	Datalen   uint32
+	Hdrlen    uint16
+	Pad_cgo_0 [2]byte
 }
 
 type BpfTimeval struct {
