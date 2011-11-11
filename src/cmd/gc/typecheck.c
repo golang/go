@@ -2334,7 +2334,7 @@ typecheckas2(Node *n)
 {
 	int cl, cr;
 	NodeList *ll, *lr;
-	Node *l, *r, *rr;
+	Node *l, *r;
 	Iter s;
 	Type *t;
 
@@ -2373,16 +2373,7 @@ typecheckas2(Node *n)
 	if(cl == 1 && cr == 2 && l->op == OINDEXMAP) {
 		if(l->type == T)
 			goto out;
-		n->op = OAS2MAPW;
-		n->rlist->n = assignconv(r, l->type, "assignment");
-		rr = n->rlist->next->n;
-		n->rlist->next->n = assignconv(rr, types[TBOOL], "assignment");
-		if(isconst(rr, CTBOOL) && !rr->val.u.bval) {
-			n->op = ODELETE;
-			n->list = list(list1(l->left), l->right);
-			n->right = n->rlist->n;
-			n->rlist = nil;
-		}
+		yyerror("assignment count mismatch: %d = %d (use delete)", cl, cr);
 		goto out;
 	}
 
