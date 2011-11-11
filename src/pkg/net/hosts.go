@@ -7,8 +7,8 @@
 package net
 
 import (
-	"os"
 	"sync"
+	"time"
 )
 
 const cacheMaxAge = int64(300) // 5 minutes.
@@ -26,7 +26,7 @@ var hosts struct {
 }
 
 func readHosts() {
-	now, _, _ := os.Time()
+	now := time.Seconds()
 	hp := hostsPath
 	if len(hosts.byName) == 0 || hosts.time+cacheMaxAge <= now || hosts.path != hp {
 		hs := make(map[string][]string)
@@ -51,7 +51,7 @@ func readHosts() {
 			}
 		}
 		// Update the data cache.
-		hosts.time, _, _ = os.Time()
+		hosts.time = time.Seconds()
 		hosts.path = hp
 		hosts.byName = hs
 		hosts.byAddr = is
