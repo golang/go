@@ -429,6 +429,12 @@ imm:
 		$$.type = D_FCONST;
 		$$.dval = $3;
 	}
+|	'$' '(' '-' LFCONST ')'
+	{
+		$$ = nullgen;
+		$$.type = D_FCONST;
+		$$.dval = -$4;
+	}
 |	'$' '-' LFCONST
 	{
 		$$ = nullgen;
