@@ -159,8 +159,8 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 	if m != nil && pattern.IsValid() && pattern.Type() == identType {
 		name := pattern.Interface().(*ast.Ident).Name
 		if isWildcard(name) && val.IsValid() {
-			// wildcards only match expressions
-			if _, ok := val.Interface().(ast.Expr); ok {
+			// wildcards only match valid (non-nil) expressions.
+			if _, ok := val.Interface().(ast.Expr); ok && !val.IsNil() {
 				if old, ok := m[name]; ok {
 					return match(nil, old, val)
 				}
