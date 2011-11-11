@@ -43,6 +43,7 @@ type Package struct {
 // A File collects information about a single Go input file.
 type File struct {
 	AST      *ast.File           // parsed AST
+	Comments []*ast.CommentGroup // comments from file
 	Package  string              // Package name
 	Preamble string              // C preamble (doc comment on import "C")
 	Ref      []*Ref              // all references to C.xxx in AST
@@ -123,6 +124,12 @@ var fset = token.NewFileSet()
 
 var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
 
+// These flags are for bootstrapping a new Go implementation,
+// to generate Go and C headers that match the data layout and
+// constant values used in the host's C libraries and system calls.
+var godefs = flag.Bool("godefs", false, "for bootstrap: write Go definitions for C file to standard output")
+var cdefs = flag.Bool("cdefs", false, "for bootstrap: write C definitions for C file to standard output")
+
 var goarch, goos string
 
 func main() {
@@ -142,6 +149,11 @@ func main() {
 		return
 	}
 
+	if *godefs && *cdefs {
+		fmt.Fprintf(os.Stderr, "cgo: cannot use -cdefs and -godefs together\n")
+		os.Exit(2)
+	}
+
 	args := flag.Args()
 	if len(args) < 1 {
 		usage()
@@ -159,36 +171,9 @@ func main() {
 		usage()
 	}
 
-	// Copy it to a new slice so it can grow.
-	gccOptions := make([]string, i)
-	copy(gccOptions, args[0:i])
-
 	goFiles := args[i:]
 
-	goarch = runtime.GOARCH
-	if s := os.Getenv("GOARCH"); s != "" {
-		goarch = s
-	}
-	goos = runtime.GOOS
-	if s := os.Getenv("GOOS"); s != "" {
-		goos = s
-	}
-	ptrSize := ptrSizeMap[goarch]
-	if ptrSize == 0 {
-		fatalf("unknown $GOARCH %q", goarch)
-	}
-
-	// Clear locale variables so gcc emits English errors [sic].
-	os.Setenv("LANG", "en_US.UTF-8")
-	os.Setenv("LC_ALL", "C")
-	os.Setenv("LC_CTYPE", "C")
-
-	p := &Package{
-		PtrSize:    ptrSize,
-		GccOptions: gccOptions,
-		CgoFlags:   make(map[string]string),
-		Written:    make(map[string]bool),
-	}
+	p := newPackage(args[:i])
 
 	// Need a unique prefix for the global C symbols that
 	// we use to coordinate between gcc and ourselves.
@@ -239,15 +224,56 @@ func main() {
 			pkg = filepath.Join(dir, pkg)
 		}
 		p.PackagePath = pkg
-		p.writeOutput(f, input)
-
 		p.Record(f)
+		if *godefs {
+			os.Stdout.WriteString(p.godefs(f, input))
+		} else if *cdefs {
+			os.Stdout.WriteString(p.cdefs(f, input))
+		} else {
+			p.writeOutput(f, input)
+		}
 	}
 
-	p.writeDefs()
+	if !*godefs && !*cdefs {
+		p.writeDefs()
+	}
 	if nerrors > 0 {
 		os.Exit(2)
 	}
+}
+
+// newPackage returns a new Package that will invoke
+// gcc with the additional arguments specified in args.
+func newPackage(args []string) *Package {
+	// Copy the gcc options to a new slice so the list
+	// can grow without overwriting the slice that args is in.
+	gccOptions := make([]string, len(args))
+	copy(gccOptions, args)
+
+	goarch = runtime.GOARCH
+	if s := os.Getenv("GOARCH"); s != "" {
+		goarch = s
+	}
+	goos = runtime.GOOS
+	if s := os.Getenv("GOOS"); s != "" {
+		goos = s
+	}
+	ptrSize := ptrSizeMap[goarch]
+	if ptrSize == 0 {
+		fatalf("unknown $GOARCH %q", goarch)
+	}
+
+	// Reset locale variables so gcc emits English errors [sic].
+	os.Setenv("LANG", "en_US.UTF-8")
+	os.Setenv("LC_ALL", "C")
+
+	p := &Package{
+		PtrSize:    ptrSize,
+		GccOptions: gccOptions,
+		CgoFlags:   make(map[string]string),
+		Written:    make(map[string]bool),
+	}
+	return p
 }
 
 // Record what needs to be recorded about f.

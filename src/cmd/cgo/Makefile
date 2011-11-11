@@ -8,6 +8,7 @@ TARG=cgo
 GOFILES=\
 	ast.go\
 	gcc.go\
+	godefs.go\
 	main.go\
 	out.go\
 	util.go\

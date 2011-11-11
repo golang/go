@@ -16,7 +16,6 @@ DIRS=\
 	cc\
 	cov\
 	gc\
-	godefs\
 	gopack\
 	nm\
 	prof\
