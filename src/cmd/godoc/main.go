@@ -38,7 +38,6 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof" // to serve /debug/pprof/*
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -165,8 +164,6 @@ func loggingHandler(h http.Handler) http.Handler {
 }
 
 func remoteSearch(query string) (res *http.Response, err error) {
-	search := "/search?f=text&q=" + url.QueryEscape(query)
-
 	// list of addresses to try
 	var addrs []string
 	if *serverAddr != "" {
@@ -180,6 +177,7 @@ func remoteSearch(query string) (res *http.Response, err error) {
 	}
 
 	// remote search
+	search := remoteSearchURL(query, *html)
 	for _, addr := range addrs {
 		url := "http://" + addr + search
 		res, err = http.Get(url)
