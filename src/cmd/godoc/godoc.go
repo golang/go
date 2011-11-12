@@ -16,6 +16,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -843,6 +844,19 @@ func getPageInfoMode(r *http.Request) (mode PageInfoMode) {
 		}
 	}
 	return
+}
+
+// remoteSearchURL returns the search URL for a given query as needed by
+// remoteSearch. If html is set, an html result is requested; otherwise
+// the result is in textual form.
+// Adjust this function as necessary if modeNames or FormValue parameters
+// change.
+func remoteSearchURL(query string, html bool) string {
+	s := "/search?m=text&q="
+	if html {
+		s = "/search?q="
+	}
+	return s + url.QueryEscape(query)
 }
 
 type PageInfo struct {
