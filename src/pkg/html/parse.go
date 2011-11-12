@@ -352,30 +352,19 @@ func initialIM(p *parser) (insertionMode, bool) {
 
 // Section 11.2.5.4.2.
 func beforeHTMLIM(p *parser) (insertionMode, bool) {
-	var (
-		add     bool
-		attr    []Attribute
-		implied bool
-	)
 	switch p.tok.Type {
-	case ErrorToken:
-		implied = true
-	case TextToken:
-		// TODO: distinguish whitespace text from others.
-		implied = true
 	case StartTagToken:
 		if p.tok.Data == "html" {
-			add = true
-			attr = p.tok.Attr
-		} else {
-			implied = true
+			p.addElement(p.tok.Data, p.tok.Attr)
+			return beforeHeadIM, true
 		}
 	case EndTagToken:
 		switch p.tok.Data {
 		case "head", "body", "html", "br":
-			implied = true
+			// Drop down to creating an implied <html> tag.
 		default:
 			// Ignore the token.
+			return beforeHTMLIM, true
 		}
 	case CommentToken:
 		p.doc.Add(&Node{
@@ -384,10 +373,9 @@ func beforeHTMLIM(p *parser) (insertionMode, bool) {
 		})
 		return beforeHTMLIM, true
 	}
-	if add || implied {
-		p.addElement("html", attr)
-	}
-	return beforeHeadIM, !implied
+	// Create an implied <html> tag.
+	p.addElement("html", nil)
+	return beforeHeadIM, false
 }
 
 // Section 11.2.5.4.3.
@@ -691,6 +679,9 @@ func inBodyIM(p *parser) (insertionMode, bool) {
 			if p.popUntil(defaultScopeStopTags, p.tok.Data) {
 				p.clearActiveFormattingElements()
 			}
+		case "br":
+			p.tok.Type = StartTagToken
+			return inBodyIM, false
 		default:
 			p.inBodyEndTagOther(p.tok.Data)
 		}
@@ -1192,18 +1183,15 @@ func inSelectIM(p *parser) (insertionMode, bool) {
 func afterBodyIM(p *parser) (insertionMode, bool) {
 	switch p.tok.Type {
 	case ErrorToken:
-		// TODO.
-	case TextToken:
-		// TODO.
+		// Stop parsing.
+		return nil, true
 	case StartTagToken:
-		// TODO.
+		if p.tok.Data == "html" {
+			return useTheRulesFor(p, afterBodyIM, inBodyIM)
+		}
 	case EndTagToken:
-		switch p.tok.Data {
-		case "html":
-			// TODO: autoclose the stack of open elements.
+		if p.tok.Data == "html" {
 			return afterAfterBodyIM, true
-		default:
-			// TODO.
 		}
 	case CommentToken:
 		// The comment is attached to the <html> element.
@@ -1216,8 +1204,7 @@ func afterBodyIM(p *parser) (insertionMode, bool) {
 		})
 		return afterBodyIM, true
 	}
-	// TODO: should this be "return inBodyIM, true"?
-	return afterBodyIM, true
+	return inBodyIM, false
 }
 
 // Section 11.2.5.4.19.
