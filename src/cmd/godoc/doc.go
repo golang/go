@@ -80,6 +80,10 @@ The flags are:
 		repository holding the source files.
 	-sync_minutes=0
 		sync interval in minutes; sync is disabled if <= 0
+	-templates=""
+		directory containing alternate template files; if set,
+		the directory may provide alternative template files
+		for the files in $GOROOT/lib/godoc
 	-filter=""
 		filter file containing permitted package directory paths
 	-filter_minutes=0
