@@ -119,7 +119,7 @@ yyerrorl(int line, char *fmt, ...)
 
 	hcrash();
 	nerrors++;
-	if(nerrors >= 10 && !debug['e']) {
+	if(nsavederrors+nerrors >= 10 && !debug['e']) {
 		flusherrors();
 		print("%L: too many errors\n", line);
 		errorexit();
@@ -187,7 +187,7 @@ yyerror(char *fmt, ...)
 
 	hcrash();
 	nerrors++;
-	if(nerrors >= 10 && !debug['e']) {
+	if(nsavederrors+nerrors >= 10 && !debug['e']) {
 		flusherrors();
 		print("%L: too many errors\n", parserline());
 		errorexit();
