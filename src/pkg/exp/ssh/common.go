@@ -5,6 +5,8 @@
 package ssh
 
 import (
+	"crypto/dsa"
+	"crypto/rsa"
 	"math/big"
 	"strconv"
 	"sync"
@@ -126,4 +128,87 @@ func findAgreedAlgorithms(transport *transport, clientKexInit, serverKexInit *ke
 
 	ok = true
 	return
+}
+
+// serialize a signed slice according to RFC 4254 6.6.
+func serializeSignature(algoname string, sig []byte) []byte {
+	length := stringLength([]byte(algoname))
+	length += stringLength(sig)
+
+	ret := make([]byte, length)
+	r := marshalString(ret, []byte(algoname))
+	r = marshalString(r, sig)
+
+	return ret
+}
+
+// serialize an rsa.PublicKey or dsa.PublicKey according to RFC 4253 6.6.
+func serializePublickey(key interface{}) []byte {
+	algoname := algoName(key)
+	switch key := key.(type) {
+	case rsa.PublicKey:
+		e := new(big.Int).SetInt64(int64(key.E))
+		length := stringLength([]byte(algoname))
+		length += intLength(e)
+		length += intLength(key.N)
+		ret := make([]byte, length)
+		r := marshalString(ret, []byte(algoname))
+		r = marshalInt(r, e)
+		marshalInt(r, key.N)
+		return ret
+	case dsa.PublicKey:
+		length := stringLength([]byte(algoname))
+		length += intLength(key.P)
+		length += intLength(key.Q)
+		length += intLength(key.G)
+		length += intLength(key.Y)
+		ret := make([]byte, length)
+		r := marshalString(ret, []byte(algoname))
+		r = marshalInt(r, key.P)
+		r = marshalInt(r, key.Q)
+		r = marshalInt(r, key.G)
+		marshalInt(r, key.Y)
+		return ret
+	}
+	panic("unexpected key type")
+}
+
+func algoName(key interface{}) string {
+	switch key.(type) {
+	case rsa.PublicKey:
+		return "ssh-rsa"
+	case dsa.PublicKey:
+		return "ssh-dss"
+	}
+	panic("unexpected key type")
+}
+
+// buildDataSignedForAuth returns the data that is signed in order to prove
+// posession of a private key. See RFC 4252, section 7.
+func buildDataSignedForAuth(sessionId []byte, req userAuthRequestMsg, algo, pubKey []byte) []byte {
+	user := []byte(req.User)
+	service := []byte(req.Service)
+	method := []byte(req.Method)
+
+	length := stringLength(sessionId)
+	length += 1
+	length += stringLength(user)
+	length += stringLength(service)
+	length += stringLength(method)
+	length += 1
+	length += stringLength(algo)
+	length += stringLength(pubKey)
+
+	ret := make([]byte, length)
+	r := marshalString(ret, sessionId)
+	r[0] = msgUserAuthRequest
+	r = r[1:]
+	r = marshalString(r, user)
+	r = marshalString(r, service)
+	r = marshalString(r, method)
+	r[0] = 1
+	r = r[1:]
+	r = marshalString(r, algo)
+	r = marshalString(r, pubKey)
+	return ret
 }
