@@ -637,6 +637,24 @@ func inBodyIM(p *parser) bool {
 			}
 			p.popUntil(buttonScopeStopTags, "p")
 			p.addElement(p.tok.Data, p.tok.Attr)
+		case "dd", "dt":
+			p.framesetOK = false
+			for i := len(p.oe) - 1; i >= 0; i-- {
+				node := p.oe[i]
+				switch node.Data {
+				case "dd", "dt":
+					p.oe = p.oe[:i]
+				case "address", "div", "p":
+					continue
+				default:
+					if !isSpecialElement[node.Data] {
+						continue
+					}
+				}
+				break
+			}
+			p.popUntil(buttonScopeStopTags, "p")
+			p.addElement(p.tok.Data, p.tok.Attr)
 		case "optgroup", "option":
 			if p.top().Data == "option" {
 				p.oe.pop()
