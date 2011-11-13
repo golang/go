@@ -35,10 +35,6 @@ func Client(c net.Conn, config *ClientConfig) (*ClientConn, error) {
 		conn.Close()
 		return nil, err
 	}
-	if err := conn.authenticate(); err != nil {
-		conn.Close()
-		return nil, err
-	}
 	go conn.mainLoop()
 	return conn, nil
 }
@@ -128,7 +124,10 @@ func (c *ClientConn) handshake() error {
 	if packet[0] != msgNewKeys {
 		return UnexpectedMessageError{msgNewKeys, packet[0]}
 	}
-	return c.transport.reader.setupKeys(serverKeys, K, H, H, hashFunc)
+	if err := c.transport.reader.setupKeys(serverKeys, K, H, H, hashFunc); err != nil {
+		return err
+	}
+	return c.authenticate(H)
 }
 
 // kexDH performs Diffie-Hellman key agreement on a ClientConn. The
