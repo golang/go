@@ -195,6 +195,7 @@ func (c *ClientConn) openChan(typ string) (*clientChan, error) {
 	switch msg := (<-ch.msg).(type) {
 	case *channelOpenConfirmMsg:
 		ch.peersId = msg.MyId
+		ch.win <- int(msg.MyWindow)
 	case *channelOpenFailureMsg:
 		c.chanlist.remove(ch.id)
 		return nil, errors.New(msg.Message)
