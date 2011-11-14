@@ -795,6 +795,10 @@ BigSwitch:
 	case reflect.Map:
 		if goSyntax {
 			p.buf.WriteString(f.Type().String())
+			if f.IsNil() {
+				p.buf.WriteString("(nil)")
+				break
+			}
 			p.buf.WriteByte('{')
 		} else {
 			p.buf.Write(mapBytes)
@@ -873,6 +877,10 @@ BigSwitch:
 		}
 		if goSyntax {
 			p.buf.WriteString(value.Type().String())
+			if f.IsNil() {
+				p.buf.WriteString("(nil)")
+				break
+			}
 			p.buf.WriteByte('{')
 		} else {
 			p.buf.WriteByte('[')
