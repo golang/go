@@ -381,6 +381,7 @@ func (d *decodeState) array(v reflect.Value) {
 			d.error(errPhase)
 		}
 	}
+
 	if i < av.Len() {
 		if !sv.IsValid() {
 			// Array.  Zero the rest.
@@ -391,6 +392,9 @@ func (d *decodeState) array(v reflect.Value) {
 		} else {
 			sv.SetLen(i)
 		}
+	}
+	if i == 0 && av.Kind() == reflect.Slice && sv.IsNil() {
+		sv.Set(reflect.MakeSlice(sv.Type(), 0, 0))
 	}
 }
 
