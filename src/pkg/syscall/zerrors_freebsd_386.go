@@ -311,6 +311,13 @@ const (
 	DT_SOCK                           = 0xc
 	DT_UNKNOWN                        = 0x0
 	DT_WHT                            = 0xe
+	ECHO                              = 0x8
+	ECHOCTL                           = 0x40
+	ECHOE                             = 0x2
+	ECHOK                             = 0x4
+	ECHOKE                            = 0x1
+	ECHONL                            = 0x10
+	ECHOPRT                           = 0x20
 	EVFILT_AIO                        = -0x3
 	EVFILT_FS                         = -0x9
 	EVFILT_LIO                        = -0xa
@@ -1216,13 +1223,6 @@ const (
 	EBUSY           = Errno(0x10)
 	ECANCELED       = Errno(0x55)
 	ECHILD          = Errno(0xa)
-	ECHO            = Errno(0x8)
-	ECHOCTL         = Errno(0x40)
-	ECHOE           = Errno(0x2)
-	ECHOK           = Errno(0x4)
-	ECHOKE          = Errno(0x1)
-	ECHONL          = Errno(0x10)
-	ECHOPRT         = Errno(0x20)
 	ECONNABORTED    = Errno(0x35)
 	ECONNREFUSED    = Errno(0x3d)
 	ECONNRESET      = Errno(0x36)
