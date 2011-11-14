@@ -9,7 +9,7 @@ package net
 var supportsIPv6, supportsIPv4map = probeIPv6Stack()
 
 func firstFavoriteAddr(filter func(IP) IP, addrs []string) (addr IP) {
-	if filter == anyaddr {
+	if filter == nil {
 		// We'll take any IP address, but since the dialing code
 		// does not yet try multiple addresses, prefer to use
 		// an IPv4 address if possible.  This is especially relevant
@@ -113,7 +113,7 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err error) {
 		// Try as an IP address.
 		addr = ParseIP(host)
 		if addr == nil {
-			filter := anyaddr
+			var filter func(IP) IP
 			if net != "" && net[len(net)-1] == '4' {
 				filter = ipv4only
 			}

@@ -48,8 +48,9 @@ const (
 type encoder struct {
 	// w is the writer that compressed bytes are written to.
 	w writer
-	// write, bits, nBits and width are the state for converting a code stream
-	// into a byte stream.
+	// order, write, bits, nBits and width are the state for
+	// converting a code stream into a byte stream.
+	order Order
 	write func(*encoder, uint32) error
 	bits  uint32
 	nBits uint
@@ -213,7 +214,7 @@ func (e *encoder) Close() error {
 	}
 	// Write the final bits.
 	if e.nBits > 0 {
-		if e.write == (*encoder).writeMSB {
+		if e.order == MSB {
 			e.bits >>= 24
 		}
 		if err := e.w.WriteByte(uint8(e.bits)); err != nil {
@@ -249,6 +250,7 @@ func NewWriter(w io.Writer, order Order, litWidth int) io.WriteCloser {
 	lw := uint(litWidth)
 	return &encoder{
 		w:         bw,
+		order:     order,
 		write:     write,
 		width:     1 + lw,
 		litWidth:  lw,

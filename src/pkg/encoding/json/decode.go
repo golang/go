@@ -227,7 +227,7 @@ func (d *decodeState) value(v reflect.Value) {
 		// d.scan thinks we're still at the beginning of the item.
 		// Feed in an empty string - the shortest, simplest value -
 		// so that it knows we got to the end of the value.
-		if d.scan.step == stateRedo {
+		if d.scan.redo {
 			panic("redo")
 		}
 		d.scan.step(&d.scan, '"')

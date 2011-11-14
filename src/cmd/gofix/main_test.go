@@ -34,7 +34,7 @@ func addTestCases(t []testCase, fn func(*ast.File) bool) {
 
 func fnop(*ast.File) bool { return false }
 
-func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string) (out string, fixed, ok bool) {
+func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string, mustBeGofmt bool) (out string, fixed, ok bool) {
 	file, err := parser.ParseFile(fset, desc, in, parserMode)
 	if err != nil {
 		t.Errorf("%s: parsing: %v", desc, err)
@@ -46,7 +46,7 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string) (out 
 		t.Errorf("%s: printing: %v", desc, err)
 		return
 	}
-	if s := string(outb); in != s && fn != fnop {
+	if s := string(outb); in != s && mustBeGofmt {
 		t.Errorf("%s: not gofmt-formatted.\n--- %s\n%s\n--- %s | gofmt\n%s",
 			desc, desc, in, desc, s)
 		tdiff(t, in, s)
@@ -75,13 +75,13 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string) (out 
 func TestRewrite(t *testing.T) {
 	for _, tt := range testCases {
 		// Apply fix: should get tt.Out.
-		out, fixed, ok := parseFixPrint(t, tt.Fn, tt.Name, tt.In)
+		out, fixed, ok := parseFixPrint(t, tt.Fn, tt.Name, tt.In, true)
 		if !ok {
 			continue
 		}
 
 		// reformat to get printing right
-		out, _, ok = parseFixPrint(t, fnop, tt.Name, out)
+		out, _, ok = parseFixPrint(t, fnop, tt.Name, out, false)
 		if !ok {
 			continue
 		}
@@ -101,7 +101,7 @@ func TestRewrite(t *testing.T) {
 		}
 
 		// Should not change if run again.
-		out2, fixed2, ok := parseFixPrint(t, tt.Fn, tt.Name+" output", out)
+		out2, fixed2, ok := parseFixPrint(t, tt.Fn, tt.Name+" output", out, true)
 		if !ok {
 			continue
 		}

@@ -138,6 +138,7 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
 	assign = make(map[string][]interface{})
 	cfg1 := &TypeConfig{}
 	*cfg1 = *cfg // make copy so we can add locally
+	copied := false
 
 	// gather function declarations
 	for _, decl := range f.Decls {
@@ -185,7 +186,8 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
 					if cfg1.Type[s.Name.Name] != nil {
 						break
 					}
-					if cfg1.Type == cfg.Type || cfg1.Type == nil {
+					if !copied {
+						copied = true
 						// Copy map lazily: it's time.
 						cfg1.Type = make(map[string]*Type)
 						for k, v := range cfg.Type {
