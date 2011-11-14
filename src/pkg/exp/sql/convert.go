@@ -14,6 +14,21 @@ import (
 	"strconv"
 )
 
+// subsetTypeArgs takes a slice of arguments from callers of the sql
+// package and converts them into a slice of the driver package's
+// "subset types".
+func subsetTypeArgs(args []interface{}) ([]interface{}, error) {
+	out := make([]interface{}, len(args))
+	for n, arg := range args {
+		var err error
+		out[n], err = driver.DefaultParameterConverter.ConvertValue(arg)
+		if err != nil {
+			return nil, fmt.Errorf("sql: converting argument #%d's type: %v", n+1, err)
+		}
+	}
+	return out, nil
+}
+
 // convertAssign copies to dest the value in src, converting it if possible.
 // An error is returned if the copy would result in loss of information.
 // dest should be a pointer type.

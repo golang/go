@@ -34,8 +34,16 @@ func exec(t *testing.T, db *DB, query string, args ...interface{}) {
 	}
 }
 
+func closeDB(t *testing.T, db *DB) {
+	err := db.Close()
+	if err != nil {
+		t.Fatalf("error closing DB: %v", err)
+	}
+}
+
 func TestQuery(t *testing.T) {
 	db := newTestDB(t, "people")
+	defer closeDB(t, db)
 	var name string
 	var age int
 
@@ -69,6 +77,7 @@ func TestQuery(t *testing.T) {
 
 func TestStatementQueryRow(t *testing.T) {
 	db := newTestDB(t, "people")
+	defer closeDB(t, db)
 	stmt, err := db.Prepare("SELECT|people|age|name=?")
 	if err != nil {
 		t.Fatalf("Prepare: %v", err)
@@ -94,6 +103,7 @@ func TestStatementQueryRow(t *testing.T) {
 // just a test of fakedb itself
 func TestBogusPreboundParameters(t *testing.T) {
 	db := newTestDB(t, "foo")
+	defer closeDB(t, db)
 	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
 	_, err := db.Prepare("INSERT|t1|name=?,age=bogusconversion")
 	if err == nil {
@@ -106,6 +116,7 @@ func TestBogusPreboundParameters(t *testing.T) {
 
 func TestDb(t *testing.T) {
 	db := newTestDB(t, "foo")
+	defer closeDB(t, db)
 	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
 	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
 	if err != nil {

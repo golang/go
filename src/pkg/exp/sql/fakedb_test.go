@@ -195,6 +195,29 @@ func (c *fakeConn) Close() error {
 	return nil
 }
 
+func checkSubsetTypes(args []interface{}) error {
+	for n, arg := range args {
+		switch arg.(type) {
+		case int64, float64, bool, nil, []byte, string:
+		default:
+			return fmt.Errorf("fakedb_test: invalid argument #%d: %v, type %T", n+1, arg, arg)
+		}
+	}
+	return nil
+}
+
+func (c *fakeConn) Exec(query string, args []interface{}) (driver.Result, error) {
+	// This is an optional interface, but it's implemented here
+	// just to check that all the args of of the proper types.
+	// ErrSkip is returned so the caller acts as if we didn't
+	// implement this at all.
+	err := checkSubsetTypes(args)
+	if err != nil {
+		return nil, err
+	}
+	return nil, driver.ErrSkip
+}
+
 func errf(msg string, args ...interface{}) error {
 	return errors.New("fakedb: " + fmt.Sprintf(msg, args...))
 }
@@ -323,6 +346,11 @@ func (s *fakeStmt) Close() error {
 }
 
 func (s *fakeStmt) Exec(args []interface{}) (driver.Result, error) {
+	err := checkSubsetTypes(args)
+	if err != nil {
+		return nil, err
+	}
+
 	db := s.c.db
 	switch s.cmd {
 	case "WIPE":
@@ -377,6 +405,11 @@ func (s *fakeStmt) execInsert(args []interface{}) (driver.Result, error) {
 }
 
 func (s *fakeStmt) Query(args []interface{}) (driver.Rows, error) {
+	err := checkSubsetTypes(args)
+	if err != nil {
+		return nil, err
+	}
+
 	db := s.c.db
 	if len(args) != s.placeholders {
 		panic("error in pkg db; should only get here if size is correct")
