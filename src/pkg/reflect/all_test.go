@@ -651,6 +651,14 @@ var deepEqualTests = []DeepEqualTest{
 	{nil, 1, false},
 	{1, nil, false},
 
+	// Nil vs empty: not the same.
+	{[]int{}, []int(nil), false},
+	{[]int{}, []int{}, true},
+	{[]int(nil), []int(nil), true},
+	{map[int]int{}, map[int]int(nil), false},
+	{map[int]int{}, map[int]int{}, true},
+	{map[int]int(nil), map[int]int(nil), true},
+
 	// Mismatched types
 	{1, 1.0, false},
 	{int32(1), int64(1), false},
