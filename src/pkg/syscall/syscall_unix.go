@@ -19,35 +19,28 @@ var (
 
 const darwinAMD64 = OS == "darwin" && ARCH == "amd64"
 
-func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
-func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
-func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
-func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
-
-func Errstr(errno int) string {
-	if errno < 0 || errno >= int(len(errors)) {
-		return "error " + itoa(errno)
-	}
-	return errors[errno]
-}
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
 // Mmap manager, for use by operating system-specific implementations.
 
 type mmapper struct {
 	sync.Mutex
 	active map[*byte][]byte // active mappings; key is last byte in mapping
-	mmap   func(addr, length uintptr, prot, flags, fd int, offset int64) (uintptr, int)
-	munmap func(addr uintptr, length uintptr) int
+	mmap   func(addr, length uintptr, prot, flags, fd int, offset int64) (uintptr, error)
+	munmap func(addr uintptr, length uintptr) error
 }
 
-func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, errno int) {
+func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
 	if length <= 0 {
 		return nil, EINVAL
 	}
 
 	// Map the requested memory.
 	addr, errno := m.mmap(0, uintptr(length), prot, flags, fd, offset)
-	if errno != 0 {
+	if errno != nil {
 		return nil, errno
 	}
 
@@ -66,10 +59,10 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
 	m.Lock()
 	defer m.Unlock()
 	m.active[p] = b
-	return b, 0
+	return b, nil
 }
 
-func (m *mmapper) Munmap(data []byte) (errno int) {
+func (m *mmapper) Munmap(data []byte) (err error) {
 	if len(data) == 0 || len(data) != cap(data) {
 		return EINVAL
 	}
@@ -84,9 +77,36 @@ func (m *mmapper) Munmap(data []byte) (errno int) {
 	}
 
 	// Unmap the memory and update m.
-	if errno := m.munmap(uintptr(unsafe.Pointer(&b[0])), uintptr(len(b))); errno != 0 {
+	if errno := m.munmap(uintptr(unsafe.Pointer(&b[0])), uintptr(len(b))); errno != nil {
 		return errno
 	}
 	delete(m.active, p)
-	return 0
+	return nil
+}
+
+// An Errno is an unsigned number describing an error condition.
+// It implements the error interface.  The zero Errno is by convention
+// a non-error, so code to convert from Errno to error should use:
+//	err = nil
+//	if errno != 0 {
+//		err = errno
+//	}
+type Errno uintptr
+
+func (e Errno) Error() string {
+	if 0 <= e && int(e) < len(errors) {
+		s := errors[e]
+		if s != "" {
+			return s
+		}
+	}
+	return "errno " + itoa(int(e))
+}
+
+func (e Errno) Temporary() bool {
+	return e == EINTR || e == EMFILE || e.Timeout()
+}
+
+func (e Errno) Timeout() bool {
+	return e == EAGAIN || e == EWOULDBLOCK || e == ETIMEDOUT
 }

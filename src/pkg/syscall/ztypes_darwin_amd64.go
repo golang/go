@@ -24,9 +24,9 @@ type Timespec struct {
 }
 
 type Timeval struct {
-	Sec          int64
-	Usec         int32
-	Pad_godefs_0 [4]byte
+	Sec       int64
+	Usec      int32
+	Pad_cgo_0 [4]byte
 }
 
 type Timeval32 struct {
@@ -60,10 +60,6 @@ type Rlimit struct {
 
 type _Gid_t uint32
 
-const (
-	O_CLOEXEC = 0
-)
-
 type Stat_t struct {
 	Dev           int32
 	Mode          uint16
@@ -72,7 +68,7 @@ type Stat_t struct {
 	Uid           uint32
 	Gid           uint32
 	Rdev          int32
-	Pad_godefs_0  [4]byte
+	Pad_cgo_0     [4]byte
 	Atimespec     Timespec
 	Mtimespec     Timespec
 	Ctimespec     Timespec
@@ -122,9 +118,9 @@ type Fstore_t struct {
 }
 
 type Radvisory_t struct {
-	Offset       int64
-	Count        int32
-	Pad_godefs_0 [4]byte
+	Offset    int64
+	Count     int32
+	Pad_cgo_0 [4]byte
 }
 
 type Fbootstraptransfer_t struct {
@@ -144,13 +140,13 @@ type Fsid struct {
 }
 
 type Dirent struct {
-	Ino          uint64
-	Seekoff      uint64
-	Reclen       uint16
-	Namlen       uint16
-	Type         uint8
-	Name         [1024]int8
-	Pad_godefs_0 [3]byte
+	Ino       uint64
+	Seekoff   uint64
+	Reclen    uint16
+	Namlen    uint16
+	Type      uint8
+	Name      [1024]int8
+	Pad_cgo_0 [3]byte
 }
 
 type RawSockaddrInet4 struct {
@@ -221,15 +217,15 @@ type IPv6Mreq struct {
 }
 
 type Msghdr struct {
-	Name         *byte
-	Namelen      uint32
-	Pad_godefs_0 [4]byte
-	Iov          *Iovec
-	Iovlen       int32
-	Pad_godefs_1 [4]byte
-	Control      *byte
-	Controllen   uint32
-	Flags        int32
+	Name       *byte
+	Namelen    uint32
+	Pad_cgo_0  [4]byte
+	Iov        *Iovec
+	Iovlen     int32
+	Pad_cgo_1  [4]byte
+	Control    *byte
+	Controllen uint32
+	Flags      int32
 }
 
 type Cmsghdr struct {
@@ -287,14 +283,14 @@ const (
 )
 
 type IfMsghdr struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Addrs        int32
-	Flags        int32
-	Index        uint16
-	Pad_godefs_0 [2]byte
-	Data         IfData
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Addrs     int32
+	Flags     int32
+	Index     uint16
+	Pad_cgo_0 [2]byte
+	Data      IfData
 }
 
 type IfData struct {
@@ -330,51 +326,51 @@ type IfData struct {
 }
 
 type IfaMsghdr struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Addrs        int32
-	Flags        int32
-	Index        uint16
-	Pad_godefs_0 [2]byte
-	Metric       int32
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Addrs     int32
+	Flags     int32
+	Index     uint16
+	Pad_cgo_0 [2]byte
+	Metric    int32
 }
 
 type IfmaMsghdr struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Addrs        int32
-	Flags        int32
-	Index        uint16
-	Pad_godefs_0 [2]byte
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Addrs     int32
+	Flags     int32
+	Index     uint16
+	Pad_cgo_0 [2]byte
 }
 
 type IfmaMsghdr2 struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Addrs        int32
-	Flags        int32
-	Index        uint16
-	Pad_godefs_0 [2]byte
-	Refcount     int32
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Addrs     int32
+	Flags     int32
+	Index     uint16
+	Pad_cgo_0 [2]byte
+	Refcount  int32
 }
 
 type RtMsghdr struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Index        uint16
-	Pad_godefs_0 [2]byte
-	Flags        int32
-	Addrs        int32
-	Pid          int32
-	Seq          int32
-	Errno        int32
-	Use          int32
-	Inits        uint32
-	Rmx          RtMetrics
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Index     uint16
+	Pad_cgo_0 [2]byte
+	Flags     int32
+	Addrs     int32
+	Pid       int32
+	Seq       int32
+	Errno     int32
+	Use       int32
+	Inits     uint32
+	Rmx       RtMetrics
 }
 
 type RtMetrics struct {
@@ -410,9 +406,9 @@ type BpfStat struct {
 }
 
 type BpfProgram struct {
-	Len          uint32
-	Pad_godefs_0 [4]byte
-	Insns        *BpfInsn
+	Len       uint32
+	Pad_cgo_0 [4]byte
+	Insns     *BpfInsn
 }
 
 type BpfInsn struct {
@@ -423,9 +419,9 @@ type BpfInsn struct {
 }
 
 type BpfHdr struct {
-	Tstamp       Timeval32
-	Caplen       uint32
-	Datalen      uint32
-	Hdrlen       uint16
-	Pad_godefs_0 [2]byte
+	Tstamp    Timeval32
+	Caplen    uint32
+	Datalen   uint32
+	Hdrlen    uint16
+	Pad_cgo_0 [2]byte
 }

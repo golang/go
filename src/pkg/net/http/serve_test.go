@@ -1145,7 +1145,7 @@ func TestAcceptMaxFds(t *testing.T) {
 	ln := &errorListener{[]error{
 		&net.OpError{
 			Op:  "accept",
-			Err: os.Errno(syscall.EMFILE),
+			Err: syscall.EMFILE,
 		}}}
 	err := Serve(ln, HandlerFunc(HandlerFunc(func(ResponseWriter, *Request) {})))
 	if err != io.EOF {

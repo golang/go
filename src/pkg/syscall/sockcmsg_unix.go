@@ -47,17 +47,17 @@ type SocketControlMessage struct {
 	Data   []byte
 }
 
-func ParseSocketControlMessage(buf []byte) ([]SocketControlMessage, int) {
+func ParseSocketControlMessage(buf []byte) ([]SocketControlMessage, error) {
 	var (
 		h     *Cmsghdr
 		dbuf  []byte
-		e     int
+		e     error
 		cmsgs []SocketControlMessage
 	)
 
 	for len(buf) >= CmsgLen(0) {
 		h, dbuf, e = socketControlMessageHeaderAndData(buf)
-		if e != 0 {
+		if e != nil {
 			break
 		}
 		m := SocketControlMessage{}
@@ -70,12 +70,12 @@ func ParseSocketControlMessage(buf []byte) ([]SocketControlMessage, int) {
 	return cmsgs, e
 }
 
-func socketControlMessageHeaderAndData(buf []byte) (*Cmsghdr, []byte, int) {
+func socketControlMessageHeaderAndData(buf []byte) (*Cmsghdr, []byte, error) {
 	h := (*Cmsghdr)(unsafe.Pointer(&buf[0]))
 	if h.Len < SizeofCmsghdr || int(h.Len) > len(buf) {
 		return nil, nil, EINVAL
 	}
-	return h, buf[cmsgAlignOf(SizeofCmsghdr):], 0
+	return h, buf[cmsgAlignOf(SizeofCmsghdr):], nil
 }
 
 // UnixRights encodes a set of open file descriptors into a socket
@@ -99,7 +99,7 @@ func UnixRights(fds ...int) []byte {
 
 // ParseUnixRights decodes a socket control message that contains an
 // integer array of open file descriptors from another process.
-func ParseUnixRights(msg *SocketControlMessage) ([]int, int) {
+func ParseUnixRights(msg *SocketControlMessage) ([]int, error) {
 	if msg.Header.Level != SOL_SOCKET {
 		return nil, EINVAL
 	}
@@ -111,5 +111,5 @@ func ParseUnixRights(msg *SocketControlMessage) ([]int, int) {
 		fds[j] = int(*(*int32)(unsafe.Pointer(&msg.Data[i])))
 		j++
 	}
-	return fds, 0
+	return fds, nil
 }

@@ -21,16 +21,16 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 		ift  []Interface
 		tab  []byte
 		msgs []syscall.NetlinkMessage
-		e    int
+		e    error
 	)
 
 	tab, e = syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
-	if e != 0 {
+	if e != nil {
 		return nil, os.NewSyscallError("netlink rib", e)
 	}
 
 	msgs, e = syscall.ParseNetlinkMessage(tab)
-	if e != 0 {
+	if e != nil {
 		return nil, os.NewSyscallError("netlink message", e)
 	}
 
@@ -42,7 +42,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 			ifim := (*syscall.IfInfomsg)(unsafe.Pointer(&m.Data[0]))
 			if ifindex == 0 || ifindex == int(ifim.Index) {
 				attrs, e := syscall.ParseNetlinkRouteAttr(&m)
-				if e != 0 {
+				if e != nil {
 					return nil, os.NewSyscallError("netlink routeattr", e)
 				}
 				ifi := newLink(attrs, ifim)
@@ -102,27 +102,19 @@ func linkFlags(rawFlags uint32) Flags {
 // for all network interfaces.  Otherwise it returns addresses
 // for a specific interface.
 func interfaceAddrTable(ifindex int) ([]Addr, error) {
-	var (
-		tab  []byte
-		e    int
-		err  error
-		ifat []Addr
-		msgs []syscall.NetlinkMessage
-	)
-
-	tab, e = syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
-	if e != 0 {
+	tab, e := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
+	if e != nil {
 		return nil, os.NewSyscallError("netlink rib", e)
 	}
 
-	msgs, e = syscall.ParseNetlinkMessage(tab)
-	if e != 0 {
+	msgs, e := syscall.ParseNetlinkMessage(tab)
+	if e != nil {
 		return nil, os.NewSyscallError("netlink message", e)
 	}
 
-	ifat, err = addrTable(msgs, ifindex)
-	if err != nil {
-		return nil, err
+	ifat, e := addrTable(msgs, ifindex)
+	if e != nil {
+		return nil, e
 	}
 
 	return ifat, nil
@@ -139,7 +131,7 @@ func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
 			ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
 			if ifindex == 0 || ifindex == int(ifam.Index) {
 				attrs, e := syscall.ParseNetlinkRouteAttr(&m)
-				if e != 0 {
+				if e != nil {
 					return nil, os.NewSyscallError("netlink routeattr", e)
 				}
 				ifat = append(ifat, newAddr(attrs, int(ifam.Family))...)

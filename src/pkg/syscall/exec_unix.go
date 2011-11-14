@@ -75,9 +75,9 @@ func StringSlicePtr(ss []string) []*byte {
 
 func CloseOnExec(fd int) { fcntl(fd, F_SETFD, FD_CLOEXEC) }
 
-func SetNonblock(fd int, nonblocking bool) (errno int) {
+func SetNonblock(fd int, nonblocking bool) (err error) {
 	flag, err := fcntl(fd, F_GETFL, 0)
-	if err != 0 {
+	if err != nil {
 		return err
 	}
 	if nonblocking {
@@ -90,19 +90,22 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
 }
 
 // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
-// If a dup or exec fails, write the errno int to pipe.
+// If a dup or exec fails, write the errno error to pipe.
 // (Pipe is close-on-exec so if exec succeeds, it will be closed.)
 // In the child, this function must not acquire any locks, because
 // they might have been locked at the time of the fork.  This means
 // no rescheduling, no malloc calls, and no new stack segments.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
-func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err int) {
+func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
 	// Declare all variables at top in case any
 	// declarations require heap allocation (e.g., err1).
-	var r1, r2, err1 uintptr
-	var nextfd int
-	var i int
+	var (
+		r1, r2 uintptr
+		err1   Errno
+		nextfd int
+		i      int
+	)
 
 	// guard against side effects of shuffling fds below.
 	fd := append([]int(nil), attr.Files...)
@@ -113,7 +116,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// No more allocation or calls of non-assembly functions.
 	r1, r2, err1 = RawSyscall(SYS_FORK, 0, 0, 0)
 	if err1 != 0 {
-		return 0, int(err1)
+		return 0, err1
 	}
 
 	// On Darwin:
@@ -315,10 +318,10 @@ type SysProcAttr struct {
 var zeroProcAttr ProcAttr
 var zeroSysProcAttr SysProcAttr
 
-func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
+func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) {
 	var p [2]int
 	var n int
-	var err1 uintptr
+	var err1 Errno
 	var wstatus WaitStatus
 
 	if attr == nil {
@@ -356,19 +359,20 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
 	ForkLock.Lock()
 
 	// Allocate child status pipe close on exec.
-	if err = Pipe(p[0:]); err != 0 {
+	if err = Pipe(p[0:]); err != nil {
 		goto error
 	}
-	if _, err = fcntl(p[0], F_SETFD, FD_CLOEXEC); err != 0 {
+	if _, err = fcntl(p[0], F_SETFD, FD_CLOEXEC); err != nil {
 		goto error
 	}
-	if _, err = fcntl(p[1], F_SETFD, FD_CLOEXEC); err != 0 {
+	if _, err = fcntl(p[1], F_SETFD, FD_CLOEXEC); err != nil {
 		goto error
 	}
 
 	// Kick off child.
-	pid, err = forkAndExecInChild(argv0p, argvp, envvp, chroot, dir, attr, sys, p[1])
-	if err != 0 {
+	pid, err1 = forkAndExecInChild(argv0p, argvp, envvp, chroot, dir, attr, sys, p[1])
+	if err1 != 0 {
+		err = Errno(err1)
 		goto error
 	}
 	ForkLock.Unlock()
@@ -377,11 +381,11 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
 	Close(p[1])
 	n, err = read(p[0], (*byte)(unsafe.Pointer(&err1)), int(unsafe.Sizeof(err1)))
 	Close(p[0])
-	if err != 0 || n != 0 {
+	if err != nil || n != 0 {
 		if n == int(unsafe.Sizeof(err1)) {
-			err = int(err1)
+			err = Errno(err1)
 		}
-		if err == 0 {
+		if err == nil {
 			err = EPIPE
 		}
 
@@ -395,7 +399,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
 	}
 
 	// Read got EOF, so pipe closed on exec, so exec succeeded.
-	return pid, 0
+	return pid, nil
 
 error:
 	if p[0] >= 0 {
@@ -407,21 +411,21 @@ error:
 }
 
 // Combination of fork and exec, careful to be thread safe.
-func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
+func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) {
 	return forkExec(argv0, argv, attr)
 }
 
 // StartProcess wraps ForkExec for package os.
-func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err int) {
+func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err error) {
 	pid, err = forkExec(argv0, argv, attr)
 	return pid, 0, err
 }
 
 // Ordinary exec.
-func Exec(argv0 string, argv []string, envv []string) (err int) {
+func Exec(argv0 string, argv []string, envv []string) (err error) {
 	_, _, err1 := RawSyscall(SYS_EXECVE,
 		uintptr(unsafe.Pointer(StringBytePtr(argv0))),
 		uintptr(unsafe.Pointer(&StringSlicePtr(argv)[0])),
 		uintptr(unsafe.Pointer(&StringSlicePtr(envv)[0])))
-	return int(err1)
+	return Errno(err1)
 }

@@ -57,9 +57,3 @@ var (
 	EPIPE        = errors.New("Broken Pipe")
 	EPLAN9       = errors.New("not supported by plan 9")
 )
-
-func iserror(err syscall.Error) bool {
-	return err != nil
-}
-
-func Errno(e syscall.Error) syscall.Error { return e }

@@ -28,10 +28,7 @@ var (
 )
 
 func OpenFile(name string, mode int, perm uint32) (file *File, err error) {
-	r, e := syscall.Open(name, mode, perm)
-	if e != 0 {
-		err = os.Errno(e)
-	}
+	r, err := syscall.Open(name, mode, perm)
 	return newFile(r, name), err
 }
 
@@ -54,22 +51,16 @@ func (file *File) Close() error {
 	if file == nil {
 		return os.EINVAL
 	}
-	e := syscall.Close(file.fd)
+	err := syscall.Close(file.fd)
 	file.fd = -1 // so it can't be closed again
-	if e != 0 {
-		return os.Errno(e)
-	}
-	return nil
+	return err
 }
 
 func (file *File) Read(b []byte) (ret int, err error) {
 	if file == nil {
 		return -1, os.EINVAL
 	}
-	r, e := syscall.Read(file.fd, b)
-	if e != 0 {
-		err = os.Errno(e)
-	}
+	r, err := syscall.Read(file.fd, b)
 	return int(r), err
 }
 
@@ -77,10 +68,7 @@ func (file *File) Write(b []byte) (ret int, err error) {
 	if file == nil {
 		return -1, os.EINVAL
 	}
-	r, e := syscall.Write(file.fd, b)
-	if e != 0 {
-		err = os.Errno(e)
-	}
+	r, err := syscall.Write(file.fd, b)
 	return int(r), err
 }
 

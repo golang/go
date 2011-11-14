@@ -56,10 +56,6 @@ type Rlimit struct {
 
 type _Gid_t uint32
 
-const (
-	O_CLOEXEC = 0
-)
-
 type Stat_t struct {
 	Dev           int32
 	Mode          uint16
@@ -138,13 +134,13 @@ type Fsid struct {
 }
 
 type Dirent struct {
-	Ino          uint64
-	Seekoff      uint64
-	Reclen       uint16
-	Namlen       uint16
-	Type         uint8
-	Name         [1024]int8
-	Pad_godefs_0 [3]byte
+	Ino       uint64
+	Seekoff   uint64
+	Reclen    uint16
+	Namlen    uint16
+	Type      uint8
+	Name      [1024]int8
+	Pad_cgo_0 [3]byte
 }
 
 type RawSockaddrInet4 struct {
@@ -279,14 +275,14 @@ const (
 )
 
 type IfMsghdr struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Addrs        int32
-	Flags        int32
-	Index        uint16
-	Pad_godefs_0 [2]byte
-	Data         IfData
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Addrs     int32
+	Flags     int32
+	Index     uint16
+	Pad_cgo_0 [2]byte
+	Data      IfData
 }
 
 type IfData struct {
@@ -322,51 +318,51 @@ type IfData struct {
 }
 
 type IfaMsghdr struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Addrs        int32
-	Flags        int32
-	Index        uint16
-	Pad_godefs_0 [2]byte
-	Metric       int32
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Addrs     int32
+	Flags     int32
+	Index     uint16
+	Pad_cgo_0 [2]byte
+	Metric    int32
 }
 
 type IfmaMsghdr struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Addrs        int32
-	Flags        int32
-	Index        uint16
-	Pad_godefs_0 [2]byte
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Addrs     int32
+	Flags     int32
+	Index     uint16
+	Pad_cgo_0 [2]byte
 }
 
 type IfmaMsghdr2 struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Addrs        int32
-	Flags        int32
-	Index        uint16
-	Pad_godefs_0 [2]byte
-	Refcount     int32
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Addrs     int32
+	Flags     int32
+	Index     uint16
+	Pad_cgo_0 [2]byte
+	Refcount  int32
 }
 
 type RtMsghdr struct {
-	Msglen       uint16
-	Version      uint8
-	Type         uint8
-	Index        uint16
-	Pad_godefs_0 [2]byte
-	Flags        int32
-	Addrs        int32
-	Pid          int32
-	Seq          int32
-	Errno        int32
-	Use          int32
-	Inits        uint32
-	Rmx          RtMetrics
+	Msglen    uint16
+	Version   uint8
+	Type      uint8
+	Index     uint16
+	Pad_cgo_0 [2]byte
+	Flags     int32
+	Addrs     int32
+	Pid       int32
+	Seq       int32
+	Errno     int32
+	Use       int32
+	Inits     uint32
+	Rmx       RtMetrics
 }
 
 type RtMetrics struct {
@@ -414,9 +410,9 @@ type BpfInsn struct {
 }
 
 type BpfHdr struct {
-	Tstamp       Timeval
-	Caplen       uint32
-	Datalen      uint32
-	Hdrlen       uint16
-	Pad_godefs_0 [2]byte
+	Tstamp    Timeval
+	Caplen    uint32
+	Datalen   uint32
+	Hdrlen    uint16
+	Pad_cgo_0 [2]byte
 }

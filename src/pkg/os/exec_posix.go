@@ -40,8 +40,8 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 	}
 
 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
-	if iserror(e) {
-		return nil, &PathError{"fork/exec", name, Errno(e)}
+	if e != nil {
+		return nil, &PathError{"fork/exec", name, e}
 	}
 	return newProcess(pid, h), nil
 }
@@ -62,8 +62,8 @@ func Exec(name string, argv []string, envv []string) error {
 		envv = Environ()
 	}
 	e := syscall.Exec(name, argv, envv)
-	if iserror(e) {
-		return &PathError{"exec", name, Errno(e)}
+	if e != nil {
+		return &PathError{"exec", name, e}
 	}
 	return nil
 }

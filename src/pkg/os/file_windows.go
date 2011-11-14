@@ -50,8 +50,8 @@ func (file *File) isdir() bool { return file != nil && file.dirinfo != nil }
 
 func openFile(name string, flag int, perm uint32) (file *File, err error) {
 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
-	if e != 0 {
-		return nil, &PathError{"open", name, Errno(e)}
+	if e != nil {
+		return nil, &PathError{"open", name, e}
 	}
 
 	// There's a race here with fork/exec, which we are
@@ -66,8 +66,8 @@ func openFile(name string, flag int, perm uint32) (file *File, err error) {
 func openDir(name string) (file *File, err error) {
 	d := new(dirInfo)
 	r, e := syscall.FindFirstFile(syscall.StringToUTF16Ptr(name+`\*`), &d.data)
-	if e != 0 {
-		return nil, &PathError{"open", name, Errno(e)}
+	if e != nil {
+		return nil, &PathError{"open", name, e}
 	}
 	f := NewFile(r, name)
 	f.dirinfo = d
@@ -102,15 +102,15 @@ func (file *File) Close() error {
 	if file == nil || file.fd < 0 {
 		return EINVAL
 	}
-	var e int
+	var e error
 	if file.isdir() {
 		e = syscall.FindClose(syscall.Handle(file.fd))
 	} else {
 		e = syscall.CloseHandle(syscall.Handle(file.fd))
 	}
 	var err error
-	if e != 0 {
-		err = &PathError{"close", file.name, Errno(e)}
+	if e != nil {
+		err = &PathError{"close", file.name, e}
 	}
 	file.fd = syscall.InvalidHandle // so it can't be closed again
 
@@ -152,11 +152,11 @@ func (file *File) Readdir(n int) (fi []FileInfo, err error) {
 	for n != 0 {
 		if file.dirinfo.needdata {
 			e := syscall.FindNextFile(syscall.Handle(file.fd), d)
-			if e != 0 {
+			if e != nil {
 				if e == syscall.ERROR_NO_MORE_FILES {
 					break
 				} else {
-					err = &PathError{"FindNextFile", file.name, Errno(e)}
+					err = &PathError{"FindNextFile", file.name, e}
 					if !wantAll {
 						fi = nil
 					}
@@ -181,7 +181,7 @@ func (file *File) Readdir(n int) (fi []FileInfo, err error) {
 
 // read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and an error, if any.
-func (f *File) read(b []byte) (n int, err int) {
+func (f *File) read(b []byte) (n int, err error) {
 	f.l.Lock()
 	defer f.l.Unlock()
 	return syscall.Read(f.fd, b)
@@ -190,11 +190,11 @@ func (f *File) read(b []byte) (n int, err int) {
 // pread reads len(b) bytes from the File starting at byte offset off.
 // It returns the number of bytes read and the error, if any.
 // EOF is signaled by a zero count with err set to 0.
-func (f *File) pread(b []byte, off int64) (n int, err int) {
+func (f *File) pread(b []byte, off int64) (n int, err error) {
 	f.l.Lock()
 	defer f.l.Unlock()
 	curoffset, e := syscall.Seek(f.fd, 0, 1)
-	if e != 0 {
+	if e != nil {
 		return 0, e
 	}
 	defer syscall.Seek(f.fd, curoffset, 0)
@@ -204,15 +204,15 @@ func (f *File) pread(b []byte, off int64) (n int, err int) {
 	}
 	var done uint32
 	e = syscall.ReadFile(syscall.Handle(f.fd), b, &done, &o)
-	if e != 0 {
+	if e != nil {
 		return 0, e
 	}
-	return int(done), 0
+	return int(done), nil
 }
 
 // write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
-func (f *File) write(b []byte) (n int, err int) {
+func (f *File) write(b []byte) (n int, err error) {
 	f.l.Lock()
 	defer f.l.Unlock()
 	return syscall.Write(f.fd, b)
@@ -220,11 +220,11 @@ func (f *File) write(b []byte) (n int, err int) {
 
 // pwrite writes len(b) bytes to the File starting at byte offset off.
 // It returns the number of bytes written and an error, if any.
-func (f *File) pwrite(b []byte, off int64) (n int, err int) {
+func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 	f.l.Lock()
 	defer f.l.Unlock()
 	curoffset, e := syscall.Seek(f.fd, 0, 1)
-	if e != 0 {
+	if e != nil {
 		return 0, e
 	}
 	defer syscall.Seek(f.fd, curoffset, 0)
@@ -234,17 +234,17 @@ func (f *File) pwrite(b []byte, off int64) (n int, err int) {
 	}
 	var done uint32
 	e = syscall.WriteFile(syscall.Handle(f.fd), b, &done, &o)
-	if e != 0 {
+	if e != nil {
 		return 0, e
 	}
-	return int(done), 0
+	return int(done), nil
 }
 
 // seek sets the offset for the next Read or Write on file to offset, interpreted
 // according to whence: 0 means relative to the origin of the file, 1 means
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
-func (f *File) seek(offset int64, whence int) (ret int64, err int) {
+func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 	f.l.Lock()
 	defer f.l.Unlock()
 	return syscall.Seek(f.fd, offset, whence)
@@ -273,7 +273,7 @@ func Pipe() (r *File, w *File, err error) {
 	// See ../syscall/exec.go for description of lock.
 	syscall.ForkLock.RLock()
 	e := syscall.Pipe(p[0:])
-	if iserror(e) {
+	if e != nil {
 		syscall.ForkLock.RUnlock()
 		return nil, nil, NewSyscallError("pipe", e)
 	}

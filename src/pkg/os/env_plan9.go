@@ -21,7 +21,7 @@ func Getenverror(key string) (value string, err error) {
 		return "", EINVAL
 	}
 	f, e := Open("/env/" + key)
-	if iserror(e) {
+	if e != nil {
 		return "", ENOENV
 	}
 	defer f.Close()
@@ -30,7 +30,7 @@ func Getenverror(key string) (value string, err error) {
 	f.Seek(0, 0)
 	buf := make([]byte, l)
 	n, e := f.Read(buf)
-	if iserror(e) {
+	if e != nil {
 		return "", ENOENV
 	}
 
@@ -55,7 +55,7 @@ func Setenv(key, value string) error {
 	}
 
 	f, e := Create("/env/" + key)
-	if iserror(e) {
+	if e != nil {
 		return e
 	}
 	defer f.Close()
@@ -75,18 +75,18 @@ func Environ() []string {
 	env := make([]string, 0, 100)
 
 	f, e := Open("/env")
-	if iserror(e) {
+	if e != nil {
 		panic(e)
 	}
 	defer f.Close()
 
 	names, e := f.Readdirnames(-1)
-	if iserror(e) {
+	if e != nil {
 		panic(e)
 	}
 
 	for _, k := range names {
-		if v, e := Getenverror(k); !iserror(e) {
+		if v, e := Getenverror(k); e == nil {
 			env = append(env, k+"="+v)
 		}
 	}

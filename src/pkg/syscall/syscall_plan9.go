@@ -17,11 +17,6 @@ const OS = "plan9"
 
 const ImplementsGetwd = true
 
-// An Error can represent any printable error condition.
-type Error interface {
-	error
-}
-
 // ErrorString implements Error's String method by returning itself.
 type ErrorString string
 

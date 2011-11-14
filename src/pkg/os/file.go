@@ -59,11 +59,11 @@ func (file *File) Read(b []byte) (n int, err error) {
 	if n < 0 {
 		n = 0
 	}
-	if n == 0 && len(b) > 0 && !iserror(e) {
+	if n == 0 && len(b) > 0 && e == nil {
 		return 0, io.EOF
 	}
-	if iserror(e) {
-		err = &PathError{"read", file.name, Errno(e)}
+	if e != nil {
+		err = &PathError{"read", file.name, e}
 	}
 	return n, err
 }
@@ -78,11 +78,11 @@ func (file *File) ReadAt(b []byte, off int64) (n int, err error) {
 	}
 	for len(b) > 0 {
 		m, e := file.pread(b, off)
-		if m == 0 && !iserror(e) {
+		if m == 0 && e == nil {
 			return n, io.EOF
 		}
-		if iserror(e) {
-			err = &PathError{"read", file.name, Errno(e)}
+		if e != nil {
+			err = &PathError{"read", file.name, e}
 			break
 		}
 		n += m
@@ -106,8 +106,8 @@ func (file *File) Write(b []byte) (n int, err error) {
 
 	epipecheck(file, e)
 
-	if iserror(e) {
-		err = &PathError{"write", file.name, Errno(e)}
+	if e != nil {
+		err = &PathError{"write", file.name, e}
 	}
 	return n, err
 }
@@ -121,8 +121,8 @@ func (file *File) WriteAt(b []byte, off int64) (n int, err error) {
 	}
 	for len(b) > 0 {
 		m, e := file.pwrite(b, off)
-		if iserror(e) {
-			err = &PathError{"write", file.name, Errno(e)}
+		if e != nil {
+			err = &PathError{"write", file.name, e}
 			break
 		}
 		n += m
@@ -138,11 +138,11 @@ func (file *File) WriteAt(b []byte, off int64) (n int, err error) {
 // It returns the new offset and an error, if any.
 func (file *File) Seek(offset int64, whence int) (ret int64, err error) {
 	r, e := file.seek(offset, whence)
-	if !iserror(e) && file.dirinfo != nil && r != 0 {
+	if e == nil && file.dirinfo != nil && r != 0 {
 		e = syscall.EISDIR
 	}
-	if iserror(e) {
-		return 0, &PathError{"seek", file.name, Errno(e)}
+	if e != nil {
+		return 0, &PathError{"seek", file.name, e}
 	}
 	return r, nil
 }
@@ -160,16 +160,16 @@ func (file *File) WriteString(s string) (ret int, err error) {
 // It returns an error, if any.
 func Mkdir(name string, perm uint32) error {
 	e := syscall.Mkdir(name, perm)
-	if iserror(e) {
-		return &PathError{"mkdir", name, Errno(e)}
+	if e != nil {
+		return &PathError{"mkdir", name, e}
 	}
 	return nil
 }
 
 // Chdir changes the current working directory to the named directory.
 func Chdir(dir string) error {
-	if e := syscall.Chdir(dir); iserror(e) {
-		return &PathError{"chdir", dir, Errno(e)}
+	if e := syscall.Chdir(dir); e != nil {
+		return &PathError{"chdir", dir, e}
 	}
 	return nil
 }
@@ -177,8 +177,8 @@ func Chdir(dir string) error {
 // Chdir changes the current working directory to the file,
 // which must be a directory.
 func (f *File) Chdir() error {
-	if e := syscall.Fchdir(f.fd); iserror(e) {
-		return &PathError{"chdir", f.name, Errno(e)}
+	if e := syscall.Fchdir(f.fd); e != nil {
+		return &PathError{"chdir", f.name, e}
 	}
 	return nil
 }

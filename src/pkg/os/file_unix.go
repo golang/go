@@ -55,8 +55,8 @@ const DevNull = "/dev/null"
 // It returns the File and an error, if any.
 func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
-	if e != 0 {
-		return nil, &PathError{"open", name, Errno(e)}
+	if e != nil {
+		return nil, &PathError{"open", name, e}
 	}
 
 	// There's a race here with fork/exec, which we are
@@ -75,8 +75,8 @@ func (file *File) Close() error {
 		return EINVAL
 	}
 	var err error
-	if e := syscall.Close(file.fd); e != 0 {
-		err = &PathError{"close", file.name, Errno(e)}
+	if e := syscall.Close(file.fd); e != nil {
+		err = &PathError{"close", file.name, e}
 	}
 	file.fd = -1 // so it can't be closed again
 
@@ -90,8 +90,8 @@ func (file *File) Close() error {
 func (file *File) Stat() (fi *FileInfo, err error) {
 	var stat syscall.Stat_t
 	e := syscall.Fstat(file.fd, &stat)
-	if e != 0 {
-		return nil, &PathError{"stat", file.name, Errno(e)}
+	if e != nil {
+		return nil, &PathError{"stat", file.name, e}
 	}
 	return fileInfoFromStat(file.name, new(FileInfo), &stat, &stat), nil
 }
@@ -104,13 +104,13 @@ func (file *File) Stat() (fi *FileInfo, err error) {
 func Stat(name string) (fi *FileInfo, err error) {
 	var lstat, stat syscall.Stat_t
 	e := syscall.Lstat(name, &lstat)
-	if iserror(e) {
-		return nil, &PathError{"stat", name, Errno(e)}
+	if e != nil {
+		return nil, &PathError{"stat", name, e}
 	}
 	statp := &lstat
 	if lstat.Mode&syscall.S_IFMT == syscall.S_IFLNK {
 		e := syscall.Stat(name, &stat)
-		if !iserror(e) {
+		if e == nil {
 			statp = &stat
 		}
 	}
@@ -123,8 +123,8 @@ func Stat(name string) (fi *FileInfo, err error) {
 func Lstat(name string) (fi *FileInfo, err error) {
 	var stat syscall.Stat_t
 	e := syscall.Lstat(name, &stat)
-	if iserror(e) {
-		return nil, &PathError{"lstat", name, Errno(e)}
+	if e != nil {
+		return nil, &PathError{"lstat", name, e}
 	}
 	return fileInfoFromStat(name, new(FileInfo), &stat, &stat), nil
 }
@@ -165,26 +165,26 @@ func (file *File) Readdir(n int) (fi []FileInfo, err error) {
 
 // read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and an error, if any.
-func (f *File) read(b []byte) (n int, err int) {
+func (f *File) read(b []byte) (n int, err error) {
 	return syscall.Read(f.fd, b)
 }
 
 // pread reads len(b) bytes from the File starting at byte offset off.
 // It returns the number of bytes read and the error, if any.
 // EOF is signaled by a zero count with err set to 0.
-func (f *File) pread(b []byte, off int64) (n int, err int) {
+func (f *File) pread(b []byte, off int64) (n int, err error) {
 	return syscall.Pread(f.fd, b, off)
 }
 
 // write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
-func (f *File) write(b []byte) (n int, err int) {
+func (f *File) write(b []byte) (n int, err error) {
 	return syscall.Write(f.fd, b)
 }
 
 // pwrite writes len(b) bytes to the File starting at byte offset off.
 // It returns the number of bytes written and an error, if any.
-func (f *File) pwrite(b []byte, off int64) (n int, err int) {
+func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 	return syscall.Pwrite(f.fd, b, off)
 }
 
@@ -192,15 +192,15 @@ func (f *File) pwrite(b []byte, off int64) (n int, err int) {
 // according to whence: 0 means relative to the origin of the file, 1 means
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
-func (f *File) seek(offset int64, whence int) (ret int64, err int) {
+func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 	return syscall.Seek(f.fd, offset, whence)
 }
 
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
 func Truncate(name string, size int64) error {
-	if e := syscall.Truncate(name, size); e != 0 {
-		return &PathError{"truncate", name, Errno(e)}
+	if e := syscall.Truncate(name, size); e != nil {
+		return &PathError{"truncate", name, e}
 	}
 	return nil
 }
@@ -231,7 +231,7 @@ func Pipe() (r *File, w *File, err error) {
 	// See ../syscall/exec.go for description of lock.
 	syscall.ForkLock.RLock()
 	e := syscall.Pipe(p[0:])
-	if iserror(e) {
+	if e != nil {
 		syscall.ForkLock.RUnlock()
 		return nil, nil, NewSyscallError("pipe", e)
 	}

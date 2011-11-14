@@ -11,16 +11,16 @@
 #	  This includes return parameters.
 #	* The parameter lists must give a type for each argument:
 #	  the (x, y, z int) shorthand is not allowed.
-#	* If the return parameter is an error number, it must be named errno.
+#	* If the return parameter is an error number, it must be named err.
 #	* If go func name needs to be different from it's winapi dll name,
 #	  the winapi name could be specified at the end, after "=" sign, like
-#	  //sys LoadLibrary(libname string) (handle uint32, errno int) = LoadLibraryA
-#	* Each function, that returns errno, needs to supply a condition,
+#	  //sys LoadLibrary(libname string) (handle uint32, err error) = LoadLibraryA
+#	* Each function that returns err needs to supply a condition,
 #	  that return value of winapi will be tested against to
-#	  detect failure. This would set errno to windows "last-error",
-#	  otherwise it will be 0. The value can be provided
+#	  detect failure. This would set err to windows "last-error",
+#	  otherwise it will be nil. The value can be provided
 #	  at end of //sys declaration, like
-#	  //sys LoadLibrary(libname string) (handle uint32, errno int) [failretval==-1] = LoadLibraryA
+#	  //sys LoadLibrary(libname string) (handle uint32, err error) [failretval==-1] = LoadLibraryA
 #	  and is [failretval==0] by default.
 
 use strict;
@@ -81,7 +81,7 @@ while(<>) {
 	$syscalldot = "syscall." if $package ne "syscall";
 
 	# Line must be of the form
-	#	func Open(path string, mode int, perm int) (fd int, errno int)
+	#	func Open(path string, mode int, perm int) (fd int, err error)
 	# Split into name, in params, out params.
 	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:\[failretval(.*)\])?\s*(?:=\s*(?:(\w*)\.)?(\w*))?$/) {
 		print STDERR "$ARGV:$.: malformed //sys declaration\n";
@@ -207,7 +207,7 @@ while(<>) {
 		my $p = $out[$i];
 		my ($name, $type) = parseparam($p);
 		my $reg = "";
-		if($name eq "errno") {
+		if($name eq "err") {
 			$reg = "e1";
 			$ret[2] = $reg;
 		} else {
@@ -238,7 +238,7 @@ while(<>) {
 		if($i == 0) {
 			if($type eq "bool") {
 				$failexpr = "!$name";
-			} elsif($name eq "errno") {
+			} elsif($name eq "err") {
 				$ret[$i] = "r1";
 				$failexpr = "int(r1) $failcond";
 			} else {
@@ -246,16 +246,14 @@ while(<>) {
 			}
 		}
 		$failexpr =~ s/(=)([0-9A-Za-z\-+])/$1 $2/;  # gofmt compatible
-		if($name eq "errno") {
-			# Set errno to "last error" only if returned value indicate failure
+		if($name eq "err") {
+			# Set err to "last error" only if returned value indicate failure
 			$body .= "\tif $failexpr {\n";
 			$body .= "\t\tif $reg != 0 {\n";
 			$body .= "\t\t\t$name = $type($reg)\n";
 			$body .= "\t\t} else {\n";
 			$body .= "\t\t\t$name = ${syscalldot}EINVAL\n";
 			$body .= "\t\t}\n";
-			$body .= "\t} else {\n";
-			$body .= "\t\t$name = 0\n";
 			$body .= "\t}\n";
 		} else {
 			$body .= "\t$name = $rettype($reg)\n";

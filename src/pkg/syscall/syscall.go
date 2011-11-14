@@ -9,8 +9,9 @@
 // packages rather than this one if you can.
 // For details of the functions and data types in this package consult
 // the manuals for the appropriate operating system.
-// These calls return errno == 0 to indicate success; otherwise
-// errno is an operating system error number describing the failure.
+// These calls return err == nil to indicate success; otherwise
+// err is an operating system error describing the failure.
+// On most systems, that error has type syscall.Errno.
 package syscall
 
 // StringByteSlice returns a NUL-terminated slice of bytes

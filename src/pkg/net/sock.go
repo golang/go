@@ -28,9 +28,9 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 	// See ../syscall/exec.go for description of ForkLock.
 	syscall.ForkLock.RLock()
 	s, e := syscall.Socket(f, p, t)
-	if e != 0 {
+	if err != nil {
 		syscall.ForkLock.RUnlock()
-		return nil, os.Errno(e)
+		return nil, err
 	}
 	syscall.CloseOnExec(s)
 	syscall.ForkLock.RUnlock()
@@ -39,9 +39,9 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 
 	if la != nil {
 		e = syscall.Bind(s, la)
-		if e != 0 {
+		if e != nil {
 			closesocket(s)
-			return nil, os.Errno(e)
+			return nil, e
 		}
 	}
 

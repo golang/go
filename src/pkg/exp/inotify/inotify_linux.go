@@ -105,9 +105,9 @@ func (w *Watcher) AddWatch(path string, flags uint32) error {
 		watchEntry.flags |= flags
 		flags |= syscall.IN_MASK_ADD
 	}
-	wd, errno := syscall.InotifyAddWatch(w.fd, path, flags)
-	if wd == -1 {
-		return &os.PathError{"inotify_add_watch", path, os.Errno(errno)}
+	wd, err := syscall.InotifyAddWatch(w.fd, path, flags)
+	if err != nil {
+		return &os.PathError{"inotify_add_watch", path, err}
 	}
 
 	if !found {
@@ -139,14 +139,10 @@ func (w *Watcher) RemoveWatch(path string) error {
 // readEvents reads from the inotify file descriptor, converts the
 // received events into Event objects and sends them via the Event channel
 func (w *Watcher) readEvents() {
-	var (
-		buf   [syscall.SizeofInotifyEvent * 4096]byte // Buffer for a maximum of 4096 raw events
-		n     int                                     // Number of bytes read with read()
-		errno int                                     // Syscall errno
-	)
+	var buf [syscall.SizeofInotifyEvent * 4096]byte
 
 	for {
-		n, errno = syscall.Read(w.fd, buf[0:])
+		n, err := syscall.Read(w.fd, buf[0:])
 		// See if there is a message on the "done" channel
 		var done bool
 		select {
@@ -156,16 +152,16 @@ func (w *Watcher) readEvents() {
 
 		// If EOF or a "done" message is received
 		if n == 0 || done {
-			errno := syscall.Close(w.fd)
-			if errno == -1 {
-				w.Error <- os.NewSyscallError("close", errno)
+			err := syscall.Close(w.fd)
+			if err != nil {
+				w.Error <- os.NewSyscallError("close", err)
 			}
 			close(w.Event)
 			close(w.Error)
 			return
 		}
 		if n < 0 {
-			w.Error <- os.NewSyscallError("read", errno)
+			w.Error <- os.NewSyscallError("read", err)
 			continue
 		}
 		if n < syscall.SizeofInotifyEvent {

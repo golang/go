@@ -125,47 +125,47 @@ func CloseOnExec(fd Handle) {
 	SetHandleInformation(Handle(fd), HANDLE_FLAG_INHERIT, 0)
 }
 
-func SetNonblock(fd Handle, nonblocking bool) (errno int) {
-	return 0
+func SetNonblock(fd Handle, nonblocking bool) (err error) {
+	return nil
 }
 
 // getFullPath retrieves the full path of the specified file.
 // Just a wrapper for Windows GetFullPathName api.
-func getFullPath(name string) (path string, err int) {
+func getFullPath(name string) (path string, err error) {
 	p := StringToUTF16Ptr(name)
 	buf := make([]uint16, 100)
 	n, err := GetFullPathName(p, uint32(len(buf)), &buf[0], nil)
-	if err != 0 {
+	if err != nil {
 		return "", err
 	}
 	if n > uint32(len(buf)) {
 		// Windows is asking for bigger buffer.
 		buf = make([]uint16, n)
 		n, err = GetFullPathName(p, uint32(len(buf)), &buf[0], nil)
-		if err != 0 {
+		if err != nil {
 			return "", err
 		}
 		if n > uint32(len(buf)) {
 			return "", EINVAL
 		}
 	}
-	return UTF16ToString(buf[:n]), 0
+	return UTF16ToString(buf[:n]), nil
 }
 
 func isSlash(c uint8) bool {
 	return c == '\\' || c == '/'
 }
 
-func normalizeDir(dir string) (name string, err int) {
+func normalizeDir(dir string) (name string, err error) {
 	ndir, err := getFullPath(dir)
-	if err != 0 {
+	if err != nil {
 		return "", err
 	}
 	if len(ndir) > 2 && isSlash(ndir[0]) && isSlash(ndir[1]) {
 		// dir cannot have \\server\share\path form
 		return "", EINVAL
 	}
-	return ndir, 0
+	return ndir, nil
 }
 
 func volToUpper(ch int) int {
@@ -175,13 +175,13 @@ func volToUpper(ch int) int {
 	return ch
 }
 
-func joinExeDirAndFName(dir, p string) (name string, err int) {
+func joinExeDirAndFName(dir, p string) (name string, err error) {
 	if len(p) == 0 {
 		return "", EINVAL
 	}
 	if len(p) > 2 && isSlash(p[0]) && isSlash(p[1]) {
 		// \\server\share\path form
-		return p, 0
+		return p, nil
 	}
 	if len(p) > 1 && p[1] == ':' {
 		// has drive letter
@@ -189,10 +189,10 @@ func joinExeDirAndFName(dir, p string) (name string, err int) {
 			return "", EINVAL
 		}
 		if isSlash(p[2]) {
-			return p, 0
+			return p, nil
 		} else {
 			d, err := normalizeDir(dir)
-			if err != 0 {
+			if err != nil {
 				return "", err
 			}
 			if volToUpper(int(p[0])) == volToUpper(int(d[0])) {
@@ -204,7 +204,7 @@ func joinExeDirAndFName(dir, p string) (name string, err int) {
 	} else {
 		// no drive letter
 		d, err := normalizeDir(dir)
-		if err != 0 {
+		if err != nil {
 			return "", err
 		}
 		if isSlash(p[0]) {
@@ -232,7 +232,7 @@ type SysProcAttr struct {
 var zeroProcAttr ProcAttr
 var zeroSysProcAttr SysProcAttr
 
-func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err int) {
+func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err error) {
 	if len(argv0) == 0 {
 		return 0, 0, EWINDOWS
 	}
@@ -255,9 +255,9 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
 		// argv0 relative to the current directory, and, only once the new
 		// process is started, it does Chdir(attr.Dir). We are adjusting
 		// for that difference here by making argv0 absolute.
-		var err int
+		var err error
 		argv0, err = joinExeDirAndFName(attr.Dir, argv0)
-		if err != 0 {
+		if err != nil {
 			return 0, 0, err
 		}
 	}
@@ -294,7 +294,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
 	for i := range attr.Files {
 		if attr.Files[i] > 0 {
 			err := DuplicateHandle(p, Handle(attr.Files[i]), p, &fd[i], 0, true, DUPLICATE_SAME_ACCESS)
-			if err != 0 {
+			if err != nil {
 				return 0, 0, err
 			}
 			defer CloseHandle(Handle(fd[i]))
@@ -314,14 +314,14 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
 	pi := new(ProcessInformation)
 
 	err = CreateProcess(argv0p, argvp, nil, nil, true, CREATE_UNICODE_ENVIRONMENT, createEnvBlock(attr.Env), dirp, si, pi)
-	if err != 0 {
+	if err != nil {
 		return 0, 0, err
 	}
 	defer CloseHandle(Handle(pi.Thread))
 
-	return int(pi.ProcessId), int(pi.Process), 0
+	return int(pi.ProcessId), int(pi.Process), nil
 }
 
-func Exec(argv0 string, argv []string, envv []string) (err int) {
+func Exec(argv0 string, argv []string, envv []string) (err error) {
 	return EWINDOWS
 }

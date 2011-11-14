@@ -26,7 +26,7 @@ func UnixCredentials(ucred *Ucred) []byte {
 // ParseUnixCredentials decodes a socket control message that contains
 // credentials in a Ucred structure. To receive such a message, the
 // SO_PASSCRED option must be enabled on the socket.
-func ParseUnixCredentials(msg *SocketControlMessage) (*Ucred, int) {
+func ParseUnixCredentials(msg *SocketControlMessage) (*Ucred, error) {
 	if msg.Header.Level != SOL_SOCKET {
 		return nil, EINVAL
 	}
@@ -34,5 +34,5 @@ func ParseUnixCredentials(msg *SocketControlMessage) (*Ucred, int) {
 		return nil, EINVAL
 	}
 	ucred := *(*Ucred)(unsafe.Pointer(&msg.Data[0]))
-	return &ucred, 0
+	return &ucred, nil
 }

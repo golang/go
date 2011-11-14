@@ -8,7 +8,7 @@ import "syscall"
 
 func Hostname() (name string, err error) {
 	s, e := syscall.ComputerName()
-	if e != 0 {
+	if e != nil {
 		return "", NewSyscallError("ComputerName", e)
 	}
 	return s, nil

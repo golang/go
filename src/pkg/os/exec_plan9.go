@@ -32,7 +32,7 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 	sysattr.Files = intfd
 
 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
-	if iserror(e) {
+	if e != nil {
 		return nil, &PathError{"fork/exec", name, e}
 	}
 
@@ -52,7 +52,7 @@ func (p *Process) Signal(sig Signal) error {
 	}
 
 	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/note", O_WRONLY, 0)
-	if iserror(e) {
+	if e != nil {
 		return NewSyscallError("signal", e)
 	}
 	defer f.Close()
@@ -63,7 +63,7 @@ func (p *Process) Signal(sig Signal) error {
 // Kill causes the Process to exit immediately.
 func (p *Process) Kill() error {
 	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/ctl", O_WRONLY, 0)
-	if iserror(e) {
+	if e != nil {
 		return NewSyscallError("kill", e)
 	}
 	defer f.Close()
@@ -77,7 +77,7 @@ func (p *Process) Kill() error {
 // ForkExec is almost always a better way to execute a program.
 func Exec(name string, argv []string, envv []string) error {
 	e := syscall.Exec(name, argv, envv)
-	if iserror(e) {
+	if e != nil {
 		return &PathError{"exec", name, e}
 	}
 
@@ -102,7 +102,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err error) {
 	for true {
 		err = syscall.Await(&waitmsg)
 
-		if iserror(err) {
+		if err != nil {
 			return nil, NewSyscallError("wait", err)
 		}
 

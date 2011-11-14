@@ -12,10 +12,9 @@ package os
 import "syscall"
 
 func Hostname() (name string, err error) {
-	var errno int
-	name, errno = syscall.Sysctl("kern.hostname")
-	if errno != 0 {
-		return "", NewSyscallError("sysctl kern.hostname", errno)
+	name, err = syscall.Sysctl("kern.hostname")
+	if err != nil {
+		return "", NewSyscallError("sysctl kern.hostname", err)
 	}
 	return name, nil
 }

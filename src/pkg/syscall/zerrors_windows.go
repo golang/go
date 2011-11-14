@@ -5,8 +5,8 @@ package syscall
 
 // Go names for Windows errors.
 const (
-	ENOENT  = ERROR_FILE_NOT_FOUND
-	ENOTDIR = ERROR_PATH_NOT_FOUND
+	ENOENT  Errno = ERROR_FILE_NOT_FOUND
+	ENOTDIR Errno = ERROR_PATH_NOT_FOUND
 )
 
 // Windows reserves errors >= 1<<29 for application use.
@@ -14,7 +14,7 @@ const APPLICATION_ERROR = 1 << 29
 
 // Invented values to support what package os and others expects.
 const (
-	E2BIG = APPLICATION_ERROR + iota
+	E2BIG Errno = APPLICATION_ERROR + iota
 	EACCES
 	EADDRINUSE
 	EADDRNOTAVAIL
