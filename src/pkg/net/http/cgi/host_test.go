@@ -363,14 +363,13 @@ func TestCopyError(t *testing.T) {
 	}
 	conn.Close()
 
-	if tries := 0; childRunning() {
-		for tries < 15 && childRunning() {
-			time.Sleep(50e6 * int64(tries))
-			tries++
-		}
-		if childRunning() {
-			t.Fatalf("post-conn.Close, expected child to be gone")
-		}
+	tries := 0
+	for tries < 15 && childRunning() {
+		time.Sleep(50e6 * int64(tries))
+		tries++
+	}
+	if childRunning() {
+		t.Fatalf("post-conn.Close, expected child to be gone")
 	}
 }
 
