@@ -6,9 +6,8 @@
 
 package main
 
-
 type I interface {
-       M()
+	M()
 }
 
 func bad() {
@@ -16,11 +15,32 @@ func bad() {
 	var s string
 
 	switch i {
-	case s:  // ERROR "mismatched types string and I"
+	case s: // ERROR "mismatched types string and I"
 	}
 
 	switch s {
-	case i:  // ERROR "mismatched types I and string"
+	case i: // ERROR "mismatched types I and string"
+	}
+
+	var m, m1 map[int]int
+	switch m {
+	case nil:
+	case m1: // ERROR "can only compare map m to nil"
+	default:
+	}
+
+	var a, a1 []int
+	switch a {
+	case nil:
+	case a1: // ERROR "can only compare slice a to nil"
+	default:
+	}
+
+	var f, f1 func()
+	switch f {
+	case nil:
+	case f1: // ERROR "can only compare func f to nil"
+	default:
 	}
 }
 

@@ -82,9 +82,9 @@ func main() {
 		case []int:
 			assert(x[3] == 3 && i == Array, "array")
 		case map[string]int:
-			assert(x == m && i == Map, "map")
+			assert(x != nil && i == Map, "map")
 		case func(i int) interface{}:
-			assert(x == f && i == Func, "fun")
+			assert(x != nil && i == Func, "fun")
 		default:
 			assert(false, "unknown")
 		}
@@ -111,5 +111,4 @@ func main() {
 	default:
 		assert(false, "switch 4 unknown")
 	}
-
 }

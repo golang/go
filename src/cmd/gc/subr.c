@@ -547,6 +547,8 @@ maptype(Type *key, Type *val)
 		switch(key->etype) {
 		case TARRAY:
 		case TSTRUCT:
+		case TMAP:
+		case TFUNC:
 			yyerror("invalid map key type %T", key);
 			break;
 		case TFORW:
