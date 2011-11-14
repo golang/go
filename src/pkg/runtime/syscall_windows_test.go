@@ -68,7 +68,7 @@ func Test64BitReturnStdCall(t *testing.T) {
 		VER_LESS          = 4
 		VER_LESS_EQUAL    = 5
 
-		ERROR_OLD_WIN_VERSION = 1150
+		ERROR_OLD_WIN_VERSION syscall.Errno = 1150
 	)
 
 	type OSVersionInfoEx struct {
@@ -106,7 +106,7 @@ func Test64BitReturnStdCall(t *testing.T) {
 		VER_MAJORVERSION|VER_MINORVERSION|VER_SERVICEPACKMAJOR|VER_SERVICEPACKMINOR,
 		m1, m2)
 	if r == 0 && e2 != ERROR_OLD_WIN_VERSION {
-		t.Errorf("VerifyVersionInfo failed: (%d) %s", e2, syscall.Errstr(int(e2)))
+		t.Errorf("VerifyVersionInfo failed: %s", e2)
 	}
 }
 
