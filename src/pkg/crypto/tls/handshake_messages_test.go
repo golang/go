@@ -27,10 +27,12 @@ var tests = []interface{}{
 type testMessage interface {
 	marshal() []byte
 	unmarshal([]byte) bool
+	equal(interface{}) bool
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
 	rand := rand.New(rand.NewSource(0))
+
 	for i, iface := range tests {
 		ty := reflect.ValueOf(iface).Type()
 
@@ -54,7 +56,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 			}
 			m2.marshal() // to fill any marshal cache in the message
 
-			if !reflect.DeepEqual(m1, m2) {
+			if !m1.equal(m2) {
 				t.Errorf("#%d got:%#v want:%#v %x", i, m2, m1, marshaled)
 				break
 			}
