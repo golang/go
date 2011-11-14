@@ -811,6 +811,7 @@ void
 typecheckswitch(Node *n)
 {
 	int top, lno, ptr;
+	char *nilonly;
 	Type *t, *missing, *have;
 	NodeList *l, *ll;
 	Node *ncase, *nvar;
@@ -818,6 +819,7 @@ typecheckswitch(Node *n)
 
 	lno = lineno;
 	typechecklist(n->ninit, Etop);
+	nilonly = nil;
 
 	if(n->ntest != N && n->ntest->op == OTYPESW) {
 		// type switch
@@ -835,6 +837,16 @@ typecheckswitch(Node *n)
 			t = n->ntest->type;
 		} else
 			t = types[TBOOL];
+		if(t) {
+			if(!okforeq[t->etype] || isfixedarray(t))
+				yyerror("cannot switch on %lN", n->ntest);
+			else if(t->etype == TARRAY)
+				nilonly = "slice";
+			else if(t->etype == TFUNC)
+				nilonly = "func";
+			else if(t->etype == TMAP)
+				nilonly = "map";
+		}
 	}
 	n->type = t;
 
@@ -865,6 +877,8 @@ typecheckswitch(Node *n)
 							yyerror("invalid case %N in switch on %N (mismatched types %T and %T)", ll->n, n->ntest, ll->n->type, t);
 						else
 							yyerror("invalid case %N in switch (mismatched types %T and bool)", ll->n, n->ntest, ll->n->type, t);
+					} else if(nilonly && !isconst(ll->n, CTNIL)) {
+						yyerror("invalid case %N in switch (can only compare %s %N to nil)", ll->n, nilonly, n->ntest);
 					}
 					break;
 				case Etype:	// type switch

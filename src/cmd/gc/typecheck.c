@@ -445,8 +445,8 @@ reswitch:
 			yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(et));
 			goto error;
 		}
-		// okfor allows any array == array;
-		// restrict to slice == nil and nil == slice.
+		// okfor allows any array == array, map == map, func == func.
+		// restrict to slice/map/func == nil and nil == slice/map/func.
 		if(l->type->etype == TARRAY && !isslice(l->type))
 			goto notokfor;
 		if(r->type->etype == TARRAY && !isslice(r->type))
@@ -455,6 +455,15 @@ reswitch:
 			yyerror("invalid operation: %N (slice can only be compared to nil)", n);
 			goto error;
 		}
+		if(l->type->etype == TMAP && !isnil(l) && !isnil(r)) {
+			yyerror("invalid operation: %N (map can only be compared to nil)", n);
+			goto error;
+		}
+		if(l->type->etype == TFUNC && !isnil(l) && !isnil(r)) {
+			yyerror("invalid operation: %N (func can only be compared to nil)", n);
+			goto error;
+		}
+		
 		t = l->type;
 		if(iscmp[n->op]) {
 			evconst(n);

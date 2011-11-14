@@ -491,12 +491,12 @@ typeinit(void)
 	okforeq[TPTR64] = 1;
 	okforeq[TUNSAFEPTR] = 1;
 	okforeq[TINTER] = 1;
-	okforeq[TMAP] = 1;
 	okforeq[TCHAN] = 1;
-	okforeq[TFUNC] = 1;
 	okforeq[TSTRING] = 1;
 	okforeq[TBOOL] = 1;
-	okforeq[TARRAY] = 1;	// refined in typecheck
+	okforeq[TMAP] = 1;	// nil only; refined in typecheck
+	okforeq[TFUNC] = 1;	// nil only; refined in typecheck
+	okforeq[TARRAY] = 1;	// nil slice only; refined in typecheck
 
 	okforcmp[TSTRING] = 1;
 

@@ -12,16 +12,16 @@ type v bool
 
 var (
 	// valid
-	_ map[int8]v 
-	_ map[uint8]v 
-	_ map[int16]v 
-	_ map[uint16]v 
-	_ map[int32]v 
-	_ map[uint32]v 
-	_ map[int64]v 
-	_ map[uint64]v 
-	_ map[int]v 
-	_ map[uint]v 
+	_ map[int8]v
+	_ map[uint8]v
+	_ map[int16]v
+	_ map[uint16]v
+	_ map[int32]v
+	_ map[uint32]v
+	_ map[int64]v
+	_ map[uint64]v
+	_ map[int]v
+	_ map[uint]v
 	_ map[uintptr]v
 	_ map[float32]v
 	_ map[float64]v
@@ -30,12 +30,12 @@ var (
 	_ map[bool]v
 	_ map[string]v
 	_ map[chan int]v
-	_ map[func()]v
 	_ map[*int]v
-	_ map[map[int]int]v
 
 	// invalid
-	_ map[struct{}]v // ERROR "invalid map key"
-	_ map[[]int]v  // ERROR "invalid map key"
-	_ map[[10]int]v // ERROR "invalid map key"
+	_ map[struct{}]v    // ERROR "invalid map key"
+	_ map[[]int]v       // ERROR "invalid map key"
+	_ map[[10]int]v     // ERROR "invalid map key"
+	_ map[func()]v      // ERROR "invalid map key"
+	_ map[map[int]int]v // ERROR "invalid map key"
 )
