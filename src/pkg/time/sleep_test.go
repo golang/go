@@ -7,7 +7,9 @@ package time_test
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"sort"
+	"sync/atomic"
 	"testing"
 	. "time"
 )
@@ -45,6 +47,20 @@ func TestAfterFunc(t *testing.T) {
 
 	AfterFunc(0, f)
 	<-c
+}
+
+func TestAfterStress(t *testing.T) {
+	stop := uint32(0)
+	go func() {
+		for atomic.LoadUint32(&stop) == 0 {
+			runtime.GC()
+		}
+	}()
+	c := Tick(1)
+	for i := 0; i < 100; i++ {
+		<-c
+	}
+	atomic.StoreUint32(&stop, 1)
 }
 
 func BenchmarkAfterFunc(b *testing.B) {
