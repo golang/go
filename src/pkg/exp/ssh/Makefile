@@ -11,9 +11,10 @@ GOFILES=\
 	client_auth.go\
 	common.go\
 	messages.go\
-	transport.go\
 	server.go\
 	server_shell.go\
 	session.go\
+	tcpip.go\
+	transport.go\
 
 include ../../../Make.pkg
