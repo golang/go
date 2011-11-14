@@ -176,7 +176,7 @@ func (z *Int) Quo(x, y *Int) *Int {
 // If y == 0, a division-by-zero run-time panic occurs.
 // Rem implements truncated modulus (like Go); see QuoRem for more details.
 func (z *Int) Rem(x, y *Int) *Int {
-	_, z.abs = nat{}.div(z.abs, x.abs, y.abs)
+	_, z.abs = nat(nil).div(z.abs, x.abs, y.abs)
 	z.neg = len(z.abs) > 0 && x.neg // 0 has no sign
 	return z
 }
@@ -678,7 +678,7 @@ func (z *Int) Bit(i int) uint {
 		panic("negative bit index")
 	}
 	if z.neg {
-		t := nat{}.sub(z.abs, natOne)
+		t := nat(nil).sub(z.abs, natOne)
 		return t.bit(uint(i)) ^ 1
 	}
 
@@ -710,8 +710,8 @@ func (z *Int) And(x, y *Int) *Int {
 	if x.neg == y.neg {
 		if x.neg {
 			// (-x) & (-y) == ^(x-1) & ^(y-1) == ^((x-1) | (y-1)) == -(((x-1) | (y-1)) + 1)
-			x1 := nat{}.sub(x.abs, natOne)
-			y1 := nat{}.sub(y.abs, natOne)
+			x1 := nat(nil).sub(x.abs, natOne)
+			y1 := nat(nil).sub(y.abs, natOne)
 			z.abs = z.abs.add(z.abs.or(x1, y1), natOne)
 			z.neg = true // z cannot be zero if x and y are negative
 			return z
@@ -729,7 +729,7 @@ func (z *Int) And(x, y *Int) *Int {
 	}
 
 	// x & (-y) == x & ^(y-1) == x &^ (y-1)
-	y1 := nat{}.sub(y.abs, natOne)
+	y1 := nat(nil).sub(y.abs, natOne)
 	z.abs = z.abs.andNot(x.abs, y1)
 	z.neg = false
 	return z
@@ -740,8 +740,8 @@ func (z *Int) AndNot(x, y *Int) *Int {
 	if x.neg == y.neg {
 		if x.neg {
 			// (-x) &^ (-y) == ^(x-1) &^ ^(y-1) == ^(x-1) & (y-1) == (y-1) &^ (x-1)
-			x1 := nat{}.sub(x.abs, natOne)
-			y1 := nat{}.sub(y.abs, natOne)
+			x1 := nat(nil).sub(x.abs, natOne)
+			y1 := nat(nil).sub(y.abs, natOne)
 			z.abs = z.abs.andNot(y1, x1)
 			z.neg = false
 			return z
@@ -755,14 +755,14 @@ func (z *Int) AndNot(x, y *Int) *Int {
 
 	if x.neg {
 		// (-x) &^ y == ^(x-1) &^ y == ^(x-1) & ^y == ^((x-1) | y) == -(((x-1) | y) + 1)
-		x1 := nat{}.sub(x.abs, natOne)
+		x1 := nat(nil).sub(x.abs, natOne)
 		z.abs = z.abs.add(z.abs.or(x1, y.abs), natOne)
 		z.neg = true // z cannot be zero if x is negative and y is positive
 		return z
 	}
 
 	// x &^ (-y) == x &^ ^(y-1) == x & (y-1)
-	y1 := nat{}.add(y.abs, natOne)
+	y1 := nat(nil).add(y.abs, natOne)
 	z.abs = z.abs.and(x.abs, y1)
 	z.neg = false
 	return z
@@ -773,8 +773,8 @@ func (z *Int) Or(x, y *Int) *Int {
 	if x.neg == y.neg {
 		if x.neg {
 			// (-x) | (-y) == ^(x-1) | ^(y-1) == ^((x-1) & (y-1)) == -(((x-1) & (y-1)) + 1)
-			x1 := nat{}.sub(x.abs, natOne)
-			y1 := nat{}.sub(y.abs, natOne)
+			x1 := nat(nil).sub(x.abs, natOne)
+			y1 := nat(nil).sub(y.abs, natOne)
 			z.abs = z.abs.add(z.abs.and(x1, y1), natOne)
 			z.neg = true // z cannot be zero if x and y are negative
 			return z
@@ -792,7 +792,7 @@ func (z *Int) Or(x, y *Int) *Int {
 	}
 
 	// x | (-y) == x | ^(y-1) == ^((y-1) &^ x) == -(^((y-1) &^ x) + 1)
-	y1 := nat{}.sub(y.abs, natOne)
+	y1 := nat(nil).sub(y.abs, natOne)
 	z.abs = z.abs.add(z.abs.andNot(y1, x.abs), natOne)
 	z.neg = true // z cannot be zero if one of x or y is negative
 	return z
@@ -803,8 +803,8 @@ func (z *Int) Xor(x, y *Int) *Int {
 	if x.neg == y.neg {
 		if x.neg {
 			// (-x) ^ (-y) == ^(x-1) ^ ^(y-1) == (x-1) ^ (y-1)
-			x1 := nat{}.sub(x.abs, natOne)
-			y1 := nat{}.sub(y.abs, natOne)
+			x1 := nat(nil).sub(x.abs, natOne)
+			y1 := nat(nil).sub(y.abs, natOne)
 			z.abs = z.abs.xor(x1, y1)
 			z.neg = false
 			return z
@@ -822,7 +822,7 @@ func (z *Int) Xor(x, y *Int) *Int {
 	}
 
 	// x ^ (-y) == x ^ ^(y-1) == ^(x ^ (y-1)) == -((x ^ (y-1)) + 1)
-	y1 := nat{}.sub(y.abs, natOne)
+	y1 := nat(nil).sub(y.abs, natOne)
 	z.abs = z.abs.add(z.abs.xor(x.abs, y1), natOne)
 	z.neg = true // z cannot be zero if only one of x or y is negative
 	return z
