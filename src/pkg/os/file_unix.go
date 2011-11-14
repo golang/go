@@ -241,3 +241,12 @@ func Pipe() (r *File, w *File, err error) {
 
 	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
 }
+
+// TempDir returns the default directory to use for temporary files.
+func TempDir() string {
+	dir := Getenv("TMPDIR")
+	if dir == "" {
+		dir = "/tmp"
+	}
+	return dir
+}

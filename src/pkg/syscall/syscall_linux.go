@@ -184,12 +184,6 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	return
 }
 
-func Sleep(nsec int64) (err error) {
-	tv := NsecToTimeval(nsec)
-	_, err = Select(0, nil, nil, nil, &tv)
-	return err
-}
-
 func Mkfifo(path string, mode uint32) (err error) {
 	return Mknod(path, mode|S_IFIFO, 0)
 }

@@ -163,11 +163,6 @@ func Pipe(p []int) (err Error) {
 	return
 }
 
-//sys	sleep(millisecs int32) (err Error)
-func Sleep(nsec int64) (err Error) {
-	return sleep(int32((nsec + 999) / 1e6)) // round up to microsecond
-}
-
 // Underlying system call writes to newoffset via pointer.
 // Implemented in assembly to avoid allocation.
 func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)

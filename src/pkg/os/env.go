@@ -6,7 +6,10 @@
 
 package os
 
-func setenv_c(k, v string)
+import (
+	"errors"
+	"syscall"
+)
 
 // Expand replaces ${var} or $var in the string based on the mapping function.
 // Invocations of undefined variables are replaced with the empty string.
@@ -72,4 +75,48 @@ func getShellName(s string) (string, int) {
 	for i = 0; i < len(s) && isAlphaNum(s[i]); i++ {
 	}
 	return s[:i], i
+}
+
+// ENOENV is the error indicating that an environment variable does not exist.
+var ENOENV = errors.New("no such environment variable")
+
+// Getenverror retrieves the value of the environment variable named by the key.
+// It returns the value and an error, if any.
+func Getenverror(key string) (value string, err error) {
+	if len(key) == 0 {
+		return "", EINVAL
+	}
+	val, found := syscall.Getenv(key)
+	if !found {
+		return "", ENOENV
+	}
+	return val, nil
+}
+
+// Getenv retrieves the value of the environment variable named by the key.
+// It returns the value, which will be empty if the variable is not present.
+func Getenv(key string) string {
+	v, _ := Getenverror(key)
+	return v
+}
+
+// Setenv sets the value of the environment variable named by the key.
+// It returns an error, if any.
+func Setenv(key, value string) error {
+	err := syscall.Setenv(key, value)
+	if err != nil {
+		return NewSyscallError("setenv", err)
+	}
+	return nil
+}
+
+// Clearenv deletes all environment variables.
+func Clearenv() {
+	syscall.Clearenv()
+}
+
+// Environ returns an array of strings representing the environment,
+// in the form "key=value".
+func Environ() []string {
+	return syscall.Environ()
 }

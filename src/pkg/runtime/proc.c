@@ -1723,9 +1723,9 @@ runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
 void (*libcgo_setenv)(byte**);
 
 // Update the C environment if cgo is loaded.
-// Called from os.Setenv.
+// Called from syscall.Setenv.
 void
-os·setenv_c(String k, String v)
+syscall·setenv_c(String k, String v)
 {
 	byte *arg[2];
 

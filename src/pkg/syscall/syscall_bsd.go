@@ -137,11 +137,6 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	return
 }
 
-func Sleep(ns int64) (err error) {
-	tv := NsecToTimeval(ns)
-	return Select(0, nil, nil, nil, &tv)
-}
-
 //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
 //sys	bind(s int, addr uintptr, addrlen _Socklen) (err error)
 //sys	connect(s int, addr uintptr, addrlen _Socklen) (err error)

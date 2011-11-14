@@ -172,7 +172,7 @@ static int32	argc;
 static uint8**	argv;
 
 Slice os·Args;
-Slice os·Envs;
+Slice syscall·envs;
 
 void
 runtime·args(int32 c, uint8 **v)
@@ -214,9 +214,9 @@ runtime·goenvs_unix(void)
 	s = runtime·malloc(n*sizeof s[0]);
 	for(i=0; i<n; i++)
 		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
-	os·Envs.array = (byte*)s;
-	os·Envs.len = n;
-	os·Envs.cap = n;
+	syscall·envs.array = (byte*)s;
+	syscall·envs.len = n;
+	syscall·envs.cap = n;
 }
 
 byte*
@@ -229,8 +229,8 @@ runtime·getenv(int8 *s)
 
 	bs = (byte*)s;
 	len = runtime·findnull(bs);
-	envv = (String*)os·Envs.array;
-	envc = os·Envs.len;
+	envv = (String*)syscall·envs.array;
+	envc = syscall·envs.len;
 	for(i=0; i<envc; i++){
 		if(envv[i].len <= len)
 			continue;

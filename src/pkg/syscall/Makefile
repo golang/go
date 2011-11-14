@@ -18,6 +18,7 @@ GOFILES=\
 
 GOFILES_freebsd=\
 	bpf_bsd.go\
+	env_unix.go\
 	exec_unix.go\
 	route_bsd.go\
 	route_freebsd.go\
@@ -27,6 +28,7 @@ GOFILES_freebsd=\
 
 GOFILES_darwin=\
 	bpf_bsd.go\
+	env_unix.go\
 	exec_unix.go\
 	route_bsd.go\
 	route_darwin.go\
@@ -35,6 +37,7 @@ GOFILES_darwin=\
 	syscall_unix.go\
 
 GOFILES_linux=\
+	env_unix.go\
 	exec_unix.go\
 	lsf_linux.go\
 	netlink_linux.go\
@@ -44,6 +47,7 @@ GOFILES_linux=\
 
 GOFILES_openbsd=\
 	bpf_bsd.go\
+	env_unix.go\
 	exec_unix.go\
 	route_bsd.go\
 	route_openbsd.go\
@@ -52,12 +56,14 @@ GOFILES_openbsd=\
 	syscall_unix.go\
 
 GOFILES_windows=\
+	env_windows.go\
 	exec_windows.go\
 	dll_windows.go\
 	zerrors_windows.go\
 	ztypes_windows.go\
 
 GOFILES_plan9=\
+	env_plan9.go\
 	exec_plan9.go\
 
 OFILES=\
