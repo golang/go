@@ -149,6 +149,8 @@ timerproc(void)
 {
 	int64 delta, now;
 	Timer *t;
+	void (*f)(int64, Eface);
+	Eface arg;
 
 	for(;;) {
 		runtime·lock(&timers);
@@ -173,7 +175,11 @@ timerproc(void)
 				siftdown(0);
 				t->i = -1;  // mark as removed
 			}
-			t->f(now, t->arg);
+			f = t->f;
+			arg = t->arg;
+			runtime·unlock(&timers);
+			f(now, arg);
+			runtime·lock(&timers);
 		}
 		if(delta < 0) {
 			// No timers left - put goroutine to sleep.
