@@ -1269,6 +1269,8 @@ indent(Fmt *fp)
 {
 	int i;
 
+	if(dumpdepth > 1)
+		fmtstrcpy(fp, "\n");
 	for(i = 0; i < dumpdepth; ++i)
 		fmtstrcpy(fp, ".   ");
 }
@@ -1286,10 +1288,10 @@ nodedump(Fmt *fp, Node *n)
 	if(recur) {
 		indent(fp);
 		if(dumpdepth > 10)
-			return fmtstrcpy(fp, "...\n");
+			return fmtstrcpy(fp, "...");
 
 		if(n->ninit != nil) {
-			fmtprint(fp, "%O-init\n%H", n->op, n->ninit);
+			fmtprint(fp, "%O-init%H", n->op, n->ninit);
 			indent(fp);
 		}
 	}
@@ -1319,7 +1321,7 @@ nodedump(Fmt *fp, Node *n)
 		if(recur && n->type == T && n->ntype) {
 			fmtstrcpy(fp, "\n");
 			indent(fp);
-			fmtprint(fp, "%O-ntype\n%N", n->op, n->ntype);
+			fmtprint(fp, "%O-ntype%N", n->op, n->ntype);
 		}
 		break;
 	}
@@ -1331,34 +1333,33 @@ nodedump(Fmt *fp, Node *n)
 		fmtprint(fp, " %T", n->type);
 
 	if(recur) {
-		fmtstrcpy(fp, "\n");
 		if(n->left)
 			fmtprint(fp, "%N", n->left);
 		if(n->right)
 			fmtprint(fp, "%N", n->right);
 		if(n->list) {
 			indent(fp);
-			fmtprint(fp, "%O-list\n%H", n->op, n->list);
+			fmtprint(fp, "%O-list%H", n->op, n->list);
 		}
 		if(n->rlist) {
 			indent(fp);
-			fmtprint(fp, "%O-rlist\n%H", n->op, n->rlist);
+			fmtprint(fp, "%O-rlist%H", n->op, n->rlist);
 		}
 		if(n->ntest) {
 			indent(fp);
-			fmtprint(fp, "%O-test\n%N", n->op, n->ntest);
+			fmtprint(fp, "%O-test%N", n->op, n->ntest);
 		}
 		if(n->nbody) {
 			indent(fp);
-			fmtprint(fp, "%O-body\n%H", n->op, n->nbody);
+			fmtprint(fp, "%O-body%H", n->op, n->nbody);
 		}
 		if(n->nelse) {
 			indent(fp);
-			fmtprint(fp, "%O-else\n%H", n->op, n->nelse);
+			fmtprint(fp, "%O-else%H", n->op, n->nelse);
 		}
 		if(n->nincr) {
 			indent(fp);
-			fmtprint(fp, "%O-incr\n%N", n->op, n->nincr);
+			fmtprint(fp, "%O-incr%N", n->op, n->nincr);
 		}
 	}
 
@@ -1521,11 +1522,11 @@ fmtinstallgo(void)
 void
 dumplist(char *s, NodeList *l)
 {
-	print("%s\n%+H", s, l);
+	print("%s\n%+H\n", s, l);
 }
 
 void
 dump(char *s, Node *n)
 {
-	print("%s [%p]\n%+N", s, n, n);
+	print("%s [%p]\n%+N\n", s, n, n);
 }
