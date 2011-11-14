@@ -47,6 +47,7 @@
       <item> byte </item>
       <item> complex64 </item>
       <item> complex128 </item>
+      <item> error </item>
       <item> float32 </item>
       <item> float64 </item>
       <item> int </item>
@@ -54,6 +55,7 @@
       <item> int16 </item>
       <item> int32 </item>
       <item> int64 </item>
+      <item> rune </item>
       <item> string </item>
       <item> uint </item>
       <item> uintptr </item>
