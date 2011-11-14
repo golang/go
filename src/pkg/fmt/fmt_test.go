@@ -357,6 +357,10 @@ var fmttests = []struct {
 	{"%#v", map[string]B{"a": {1, 2}}, `map[string] fmt_test.B{"a":fmt_test.B{I:1, j:2}}`},
 	{"%#v", []string{"a", "b"}, `[]string{"a", "b"}`},
 	{"%#v", SI{}, `fmt_test.SI{I:interface {}(nil)}`},
+	{"%#v", []int(nil), `[]int(nil)`},
+	{"%#v", []int{}, `[]int{}`},
+	{"%#v", map[int]byte(nil), `map[int] uint8(nil)`},
+	{"%#v", map[int]byte{}, `map[int] uint8{}`},
 
 	// slices with other formats
 	{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},

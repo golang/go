@@ -324,7 +324,7 @@ var x, y Xs
 var z IntString
 
 var multiTests = []ScanfMultiTest{
-	{"", "", nil, nil, ""},
+	{"", "", []interface{}{}, []interface{}{}, ""},
 	{"%d", "23", args(&i), args(23), ""},
 	{"%2s%3s", "22333", args(&s, &t), args("22", "333"), ""},
 	{"%2d%3d", "44555", args(&i, &j), args(44, 555), ""},
@@ -378,7 +378,7 @@ func testScan(name string, t *testing.T, scan func(r io.Reader, a ...interface{}
 		}
 		val := v.Interface()
 		if !reflect.DeepEqual(val, test.out) {
-			t.Errorf("%s scanning %q: expected %v got %v, type %T", name, test.text, test.out, val, val)
+			t.Errorf("%s scanning %q: expected %#v got %#v, type %T", name, test.text, test.out, val, val)
 		}
 	}
 }
@@ -417,7 +417,7 @@ func TestScanf(t *testing.T) {
 		}
 		val := v.Interface()
 		if !reflect.DeepEqual(val, test.out) {
-			t.Errorf("scanning (%q, %q): expected %v got %v, type %T", test.format, test.text, test.out, val, val)
+			t.Errorf("scanning (%q, %q): expected %#v got %#v, type %T", test.format, test.text, test.out, val, val)
 		}
 	}
 }
@@ -520,7 +520,7 @@ func testScanfMulti(name string, t *testing.T) {
 		}
 		result := resultVal.Interface()
 		if !reflect.DeepEqual(result, test.out) {
-			t.Errorf("scanning (%q, %q): expected %v got %v", test.format, test.text, test.out, result)
+			t.Errorf("scanning (%q, %q): expected %#v got %#v", test.format, test.text, test.out, result)
 		}
 	}
 }
