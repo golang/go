@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of November 9, 2011 -->
+<!-- subtitle Version of November 13, 2011 -->
 
 <!--
 TODO
@@ -2966,14 +2966,10 @@ and string values. The result of a comparison is defined as follows:
 	or if both are <code>nil</code>.
 	</li>
 	<li>
-	Function values are equal if they refer to the same function
-	or if both are <code>nil</code>.
+	A slice, map, or function value may be compared only to <code>nil</code>.
 	</li>
 	<li>
-	A slice value may only be compared to <code>nil</code>.
-	</li>
-	<li>
-	Channel and map values are equal if they were created by the same call to <code>make</code>
+	Channel values are equal if they were created by the same call to <code>make</code>
 	(§<a href="#Making_slices_maps_and_channels">Making slices, maps, and channels</a>)
 	or if both are <code>nil</code>.
 	</li>
