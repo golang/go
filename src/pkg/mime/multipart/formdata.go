@@ -160,7 +160,7 @@ type sliceReaderAt []byte
 
 func (r sliceReaderAt) ReadAt(b []byte, off int64) (int, error) {
 	if int(off) >= len(r) || off < 0 {
-		return 0, os.EINVAL
+		return 0, io.ErrUnexpectedEOF
 	}
 	n := copy(b, r[int(off):])
 	return n, nil

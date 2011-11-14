@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -425,9 +424,9 @@ var errorWriterTests = []errorWriterTest{
 	{0, 1, nil, io.ErrShortWrite},
 	{1, 2, nil, io.ErrShortWrite},
 	{1, 1, nil, nil},
-	{0, 1, os.EPIPE, os.EPIPE},
-	{1, 2, os.EPIPE, os.EPIPE},
-	{1, 1, os.EPIPE, os.EPIPE},
+	{0, 1, io.ErrClosedPipe, io.ErrClosedPipe},
+	{1, 2, io.ErrClosedPipe, io.ErrClosedPipe},
+	{1, 1, io.ErrClosedPipe, io.ErrClosedPipe},
 }
 
 func TestWriteErrors(t *testing.T) {

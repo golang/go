@@ -22,6 +22,10 @@ var (
 	ErrPipeline   = &http.ProtocolError{"pipeline error"}
 )
 
+// This is an API usage error - the local side is closed.
+// ErrPersistEOF (above) reports that the remote side is closed.
+var errClosed = errors.New("i/o operation on closed connection")
+
 // A ServerConn reads requests and sends responses over an underlying
 // connection, until the HTTP keepalive logic commands an end. ServerConn
 // also allows hijacking the underlying connection by calling Hijack
@@ -108,7 +112,7 @@ func (sc *ServerConn) Read() (req *http.Request, err error) {
 	}
 	if sc.r == nil { // connection closed by user in the meantime
 		defer sc.lk.Unlock()
-		return nil, os.EBADF
+		return nil, errClosed
 	}
 	r := sc.r
 	lastbody := sc.lastbody
@@ -313,7 +317,7 @@ func (cc *ClientConn) Write(req *http.Request) (err error) {
 	}
 	if cc.c == nil { // connection closed by user in the meantime
 		defer cc.lk.Unlock()
-		return os.EBADF
+		return errClosed
 	}
 	c := cc.c
 	if req.Close {
@@ -369,7 +373,7 @@ func (cc *ClientConn) Read(req *http.Request) (resp *http.Response, err error) {
 	}
 	if cc.r == nil { // connection closed by user in the meantime
 		defer cc.lk.Unlock()
-		return nil, os.EBADF
+		return nil, errClosed
 	}
 	r := cc.r
 	lastbody := cc.lastbody

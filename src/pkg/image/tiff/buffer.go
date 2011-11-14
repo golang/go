@@ -4,10 +4,7 @@
 
 package tiff
 
-import (
-	"io"
-	"os"
-)
+import "io"
 
 // buffer buffers an io.Reader to satisfy io.ReaderAt.
 type buffer struct {
@@ -19,7 +16,7 @@ func (b *buffer) ReadAt(p []byte, off int64) (int, error) {
 	o := int(off)
 	end := o + len(p)
 	if int64(end) != off+int64(len(p)) {
-		return 0, os.EINVAL
+		return 0, io.ErrUnexpectedEOF
 	}
 
 	m := len(b.buf)
