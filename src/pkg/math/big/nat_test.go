@@ -16,9 +16,9 @@ var cmpTests = []struct {
 	r    int
 }{
 	{nil, nil, 0},
-	{nil, nat{}, 0},
-	{nat{}, nil, 0},
-	{nat{}, nat{}, 0},
+	{nil, nat(nil), 0},
+	{nat(nil), nil, 0},
+	{nat(nil), nat(nil), 0},
 	{nat{0}, nat{0}, 0},
 	{nat{0}, nat{1}, -1},
 	{nat{1}, nat{0}, 1},
@@ -67,7 +67,7 @@ var prodNN = []argNN{
 
 func TestSet(t *testing.T) {
 	for _, a := range sumNN {
-		z := nat{}.set(a.z)
+		z := nat(nil).set(a.z)
 		if z.cmp(a.z) != 0 {
 			t.Errorf("got z = %v; want %v", z, a.z)
 		}
@@ -129,7 +129,7 @@ var mulRangesN = []struct {
 
 func TestMulRangeN(t *testing.T) {
 	for i, r := range mulRangesN {
-		prod := nat{}.mulRange(r.a, r.b).decimalString()
+		prod := nat(nil).mulRange(r.a, r.b).decimalString()
 		if prod != r.prod {
 			t.Errorf("#%d: got %s; want %s", i, prod, r.prod)
 		}
@@ -175,7 +175,7 @@ func toString(x nat, charset string) string {
 	s := make([]byte, i)
 
 	// don't destroy x
-	q := nat{}.set(x)
+	q := nat(nil).set(x)
 
 	// convert
 	for len(q) > 0 {
@@ -212,7 +212,7 @@ func TestString(t *testing.T) {
 			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
 		}
 
-		x, b, err := nat{}.scan(strings.NewReader(a.s), len(a.c))
+		x, b, err := nat(nil).scan(strings.NewReader(a.s), len(a.c))
 		if x.cmp(a.x) != 0 {
 			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
 		}
@@ -271,7 +271,7 @@ var natScanTests = []struct {
 func TestScanBase(t *testing.T) {
 	for _, a := range natScanTests {
 		r := strings.NewReader(a.s)
-		x, b, err := nat{}.scan(r, a.base)
+		x, b, err := nat(nil).scan(r, a.base)
 		if err == nil && !a.ok {
 			t.Errorf("scan%+v\n\texpected error", a)
 		}
@@ -651,17 +651,17 @@ var expNNTests = []struct {
 
 func TestExpNN(t *testing.T) {
 	for i, test := range expNNTests {
-		x, _, _ := nat{}.scan(strings.NewReader(test.x), 0)
-		y, _, _ := nat{}.scan(strings.NewReader(test.y), 0)
-		out, _, _ := nat{}.scan(strings.NewReader(test.out), 0)
+		x, _, _ := nat(nil).scan(strings.NewReader(test.x), 0)
+		y, _, _ := nat(nil).scan(strings.NewReader(test.y), 0)
+		out, _, _ := nat(nil).scan(strings.NewReader(test.out), 0)
 
 		var m nat
 
 		if len(test.m) > 0 {
-			m, _, _ = nat{}.scan(strings.NewReader(test.m), 0)
+			m, _, _ = nat(nil).scan(strings.NewReader(test.m), 0)
 		}
 
-		z := nat{}.expNN(x, y, m)
+		z := nat(nil).expNN(x, y, m)
 		if z.cmp(out) != 0 {
 			t.Errorf("#%d got %v want %v", i, z, out)
 		}

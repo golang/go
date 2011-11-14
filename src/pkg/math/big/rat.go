@@ -33,7 +33,7 @@ func (z *Rat) SetFrac(a, b *Int) *Rat {
 		panic("division by zero")
 	}
 	if &z.a == b || alias(z.a.abs, babs) {
-		babs = nat{}.set(babs) // make a copy
+		babs = nat(nil).set(babs) // make a copy
 	}
 	z.a.abs = z.a.abs.set(a.abs)
 	z.b = z.b.set(babs)
@@ -315,7 +315,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	if _, ok := z.a.SetString(s, 10); !ok {
 		return nil, false
 	}
-	powTen := nat{}.expNN(natTen, exp.abs, nil)
+	powTen := nat(nil).expNN(natTen, exp.abs, nil)
 	if exp.neg {
 		z.b = powTen
 		z.norm()
@@ -357,23 +357,23 @@ func (z *Rat) FloatString(prec int) string {
 	}
 	// z.b != 0
 
-	q, r := nat{}.div(nat{}, z.a.abs, z.b)
+	q, r := nat(nil).div(nat(nil), z.a.abs, z.b)
 
 	p := natOne
 	if prec > 0 {
-		p = nat{}.expNN(natTen, nat{}.setUint64(uint64(prec)), nil)
+		p = nat(nil).expNN(natTen, nat(nil).setUint64(uint64(prec)), nil)
 	}
 
 	r = r.mul(r, p)
-	r, r2 := r.div(nat{}, r, z.b)
+	r, r2 := r.div(nat(nil), r, z.b)
 
 	// see if we need to round up
 	r2 = r2.add(r2, r2)
 	if z.b.cmp(r2) <= 0 {
 		r = r.add(r, natOne)
 		if r.cmp(p) >= 0 {
-			q = nat{}.add(q, natOne)
-			r = nat{}.sub(r, p)
+			q = nat(nil).add(q, natOne)
+			r = nat(nil).sub(r, p)
 		}
 	}
 
