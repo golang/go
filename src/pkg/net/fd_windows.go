@@ -26,11 +26,11 @@ func init() {
 	var d syscall.WSAData
 	e := syscall.WSAStartup(uint32(0x202), &d)
 	if e != 0 {
-		initErr = os.NewSyscallError("WSAStartup", e)
+		initErr = os.NewSyscallError("WSAStartup", syscall.Errno(e))
 	}
 }
 
-func closesocket(s syscall.Handle) (errno int) {
+func closesocket(s syscall.Handle) (err error) {
 	return syscall.Closesocket(s)
 }
 
@@ -38,13 +38,13 @@ func closesocket(s syscall.Handle) (errno int) {
 type anOpIface interface {
 	Op() *anOp
 	Name() string
-	Submit() (errno int)
+	Submit() (err error)
 }
 
 // IO completion result parameters.
 type ioResult struct {
 	qty uint32
-	err int
+	err error
 }
 
 // anOp implements functionality common to all io operations.
@@ -54,7 +54,7 @@ type anOp struct {
 	o syscall.Overlapped
 
 	resultc chan ioResult
-	errnoc  chan int
+	errnoc  chan error
 	fd      *netFD
 }
 
@@ -71,7 +71,7 @@ func (o *anOp) Init(fd *netFD, mode int) {
 	}
 	o.resultc = fd.resultc[i]
 	if fd.errnoc[i] == nil {
-		fd.errnoc[i] = make(chan int)
+		fd.errnoc[i] = make(chan error)
 	}
 	o.errnoc = fd.errnoc[i]
 }
@@ -111,14 +111,14 @@ func (s *resultSrv) Run() {
 	for {
 		r.err = syscall.GetQueuedCompletionStatus(s.iocp, &(r.qty), &key, &o, syscall.INFINITE)
 		switch {
-		case r.err == 0:
+		case r.err == nil:
 			// Dequeued successfully completed io packet.
-		case r.err == syscall.WAIT_TIMEOUT && o == nil:
+		case r.err == syscall.Errno(syscall.WAIT_TIMEOUT) && o == nil:
 			// Wait has timed out (should not happen now, but might be used in the future).
 			panic("GetQueuedCompletionStatus timed out")
 		case o == nil:
 			// Failed to dequeue anything -> report the error.
-			panic("GetQueuedCompletionStatus failed " + syscall.Errstr(r.err))
+			panic("GetQueuedCompletionStatus failed " + r.err.Error())
 		default:
 			// Dequeued failed io packet.
 		}
@@ -153,7 +153,7 @@ func (s *ioSrv) ProcessRemoteIO() {
 // inline, or, if timeouts are employed, passes the request onto
 // a special goroutine and waits for completion or cancels request.
 func (s *ioSrv) ExecIO(oi anOpIface, deadline_delta int64) (n int, err error) {
-	var e int
+	var e error
 	o := oi.Op()
 	if deadline_delta > 0 {
 		// Send request to a special dedicated thread,
@@ -164,12 +164,12 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline_delta int64) (n int, err error) {
 		e = oi.Submit()
 	}
 	switch e {
-	case 0:
+	case nil:
 		// IO completed immediately, but we need to get our completion message anyway.
 	case syscall.ERROR_IO_PENDING:
 		// IO started, and we have to wait for its completion.
 	default:
-		return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, os.Errno(e)}
+		return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, e}
 	}
 	// Wait for our request to complete.
 	var r ioResult
@@ -187,8 +187,8 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline_delta int64) (n int, err error) {
 	} else {
 		r = <-o.resultc
 	}
-	if r.err != 0 {
-		err = &OpError{oi.Name(), o.fd.net, o.fd.laddr, os.Errno(r.err)}
+	if r.err != nil {
+		err = &OpError{oi.Name(), o.fd.net, o.fd.laddr, r.err}
 	}
 	return int(r.qty), err
 }
@@ -200,10 +200,10 @@ var onceStartServer sync.Once
 
 func startServer() {
 	resultsrv = new(resultSrv)
-	var errno int
-	resultsrv.iocp, errno = syscall.CreateIoCompletionPort(syscall.InvalidHandle, 0, 0, 1)
-	if errno != 0 {
-		panic("CreateIoCompletionPort failed " + syscall.Errstr(errno))
+	var err error
+	resultsrv.iocp, err = syscall.CreateIoCompletionPort(syscall.InvalidHandle, 0, 0, 1)
+	if err != nil {
+		panic("CreateIoCompletionPort: " + err.Error())
 	}
 	go resultsrv.Run()
 
@@ -228,7 +228,7 @@ type netFD struct {
 	laddr   Addr
 	raddr   Addr
 	resultc [2]chan ioResult // read/write completion results
-	errnoc  [2]chan int      // read/write submit or cancel operation errors
+	errnoc  [2]chan error    // read/write submit or cancel operation errors
 
 	// owned by client
 	rdeadline_delta int64
@@ -256,8 +256,8 @@ func newFD(fd syscall.Handle, family, proto int, net string) (f *netFD, err erro
 	}
 	onceStartServer.Do(startServer)
 	// Associate our socket with resultsrv.iocp.
-	if _, e := syscall.CreateIoCompletionPort(syscall.Handle(fd), resultsrv.iocp, 0, 0); e != 0 {
-		return nil, os.Errno(e)
+	if _, e := syscall.CreateIoCompletionPort(syscall.Handle(fd), resultsrv.iocp, 0, 0); e != nil {
+		return nil, e
 	}
 	return allocFD(fd, family, proto, net), nil
 }
@@ -268,11 +268,7 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 }
 
 func (fd *netFD) connect(ra syscall.Sockaddr) (err error) {
-	e := syscall.Connect(fd.sysfd, ra)
-	if e != 0 {
-		return os.Errno(e)
-	}
-	return nil
+	return syscall.Connect(fd.sysfd, ra)
 }
 
 // Add a reference to this fd.
@@ -317,9 +313,9 @@ func (fd *netFD) shutdown(how int) error {
 	if fd == nil || fd.sysfd == syscall.InvalidHandle {
 		return os.EINVAL
 	}
-	errno := syscall.Shutdown(fd.sysfd, how)
-	if errno != 0 {
-		return &OpError{"shutdown", fd.net, fd.laddr, os.Errno(errno)}
+	err := syscall.Shutdown(fd.sysfd, how)
+	if err != nil {
+		return &OpError{"shutdown", fd.net, fd.laddr, err}
 	}
 	return nil
 }
@@ -338,7 +334,7 @@ type readOp struct {
 	bufOp
 }
 
-func (o *readOp) Submit() (errno int) {
+func (o *readOp) Submit() (err error) {
 	var d, f uint32
 	return syscall.WSARecv(syscall.Handle(o.fd.sysfd), &o.buf, 1, &d, &f, &o.o, nil)
 }
@@ -375,7 +371,7 @@ type readFromOp struct {
 	rsan int32
 }
 
-func (o *readFromOp) Submit() (errno int) {
+func (o *readFromOp) Submit() (err error) {
 	var d, f uint32
 	return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &d, &f, &o.rsa, &o.rsan, &o.o, nil)
 }
@@ -415,7 +411,7 @@ type writeOp struct {
 	bufOp
 }
 
-func (o *writeOp) Submit() (errno int) {
+func (o *writeOp) Submit() (err error) {
 	var d uint32
 	return syscall.WSASend(o.fd.sysfd, &o.buf, 1, &d, 0, &o.o, nil)
 }
@@ -447,7 +443,7 @@ type writeToOp struct {
 	sa syscall.Sockaddr
 }
 
-func (o *writeToOp) Submit() (errno int) {
+func (o *writeToOp) Submit() (err error) {
 	var d uint32
 	return syscall.WSASendto(o.fd.sysfd, &o.buf, 1, &d, 0, o.sa, &o.o, nil)
 }
@@ -484,7 +480,7 @@ type acceptOp struct {
 	attrs   [2]syscall.RawSockaddrAny // space for local and remote address only
 }
 
-func (o *acceptOp) Submit() (errno int) {
+func (o *acceptOp) Submit() (err error) {
 	var d uint32
 	l := uint32(unsafe.Sizeof(o.attrs[0]))
 	return syscall.AcceptEx(o.fd.sysfd, o.newsock,
@@ -506,17 +502,17 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err err
 	// See ../syscall/exec.go for description of ForkLock.
 	syscall.ForkLock.RLock()
 	s, e := syscall.Socket(fd.family, fd.proto, 0)
-	if e != 0 {
+	if e != nil {
 		syscall.ForkLock.RUnlock()
-		return nil, os.Errno(e)
+		return nil, e
 	}
 	syscall.CloseOnExec(s)
 	syscall.ForkLock.RUnlock()
 
 	// Associate our new socket with IOCP.
 	onceStartServer.Do(startServer)
-	if _, e = syscall.CreateIoCompletionPort(s, resultsrv.iocp, 0, 0); e != 0 {
-		return nil, &OpError{"CreateIoCompletionPort", fd.net, fd.laddr, os.Errno(e)}
+	if _, e = syscall.CreateIoCompletionPort(s, resultsrv.iocp, 0, 0); e != nil {
+		return nil, &OpError{"CreateIoCompletionPort", fd.net, fd.laddr, e}
 	}
 
 	// Submit accept request.
@@ -531,9 +527,9 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err err
 
 	// Inherit properties of the listening socket.
 	e = syscall.Setsockopt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
-	if e != 0 {
+	if e != nil {
 		closesocket(s)
-		return nil, err
+		return nil, e
 	}
 
 	// Get local and peer addr out of AcceptEx buffer.

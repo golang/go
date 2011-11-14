@@ -40,12 +40,12 @@ func print_version(v uint32) {
 
 func main() {
 	h, err := syscall.LoadLibrary("kernel32.dll")
-	if err != 0 {
+	if err != nil {
 		abort("LoadLibrary", err)
 	}
 	defer syscall.FreeLibrary(h)
 	proc, err := syscall.GetProcAddress(h, "GetVersion")
-	if err != 0 {
+	if err != nil {
 		abort("GetProcAddress", err)
 	}
 	r, _, _ := syscall.Syscall(uintptr(proc), 0, 0, 0, 0)
@@ -84,83 +84,84 @@ func NewCallback(fn interface{}) uintptr
 
 // windows api calls
 
-//sys	GetLastError() (lasterrno int)
-//sys	LoadLibrary(libname string) (handle Handle, errno int) = LoadLibraryW
-//sys	FreeLibrary(handle Handle) (errno int)
-//sys	GetProcAddress(module Handle, procname string) (proc uintptr, errno int)
-//sys	GetVersion() (ver uint32, errno int)
-//sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) = FormatMessageW
+//sys	GetLastError() (lasterr uintptr)
+//sys	LoadLibrary(libname string) (handle Handle, err error) = LoadLibraryW
+//sys	FreeLibrary(handle Handle) (err error)
+//sys	GetProcAddress(module Handle, procname string) (proc uintptr, err error)
+//sys	GetVersion() (ver uint32, err error)
+//sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
-//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, errno int) [failretval==InvalidHandle] = CreateFileW
-//sys	ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (errno int)
-//sys	WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (errno int)
-//sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) [failretval==0xffffffff]
-//sys	CloseHandle(handle Handle) (errno int)
-//sys	GetStdHandle(stdhandle int) (handle Handle, errno int) [failretval==InvalidHandle]
-//sys	FindFirstFile(name *uint16, data *Win32finddata) (handle Handle, errno int) [failretval==InvalidHandle] = FindFirstFileW
-//sys	FindNextFile(handle Handle, data *Win32finddata) (errno int) = FindNextFileW
-//sys	FindClose(handle Handle) (errno int)
-//sys	GetFileInformationByHandle(handle Handle, data *ByHandleFileInformation) (errno int)
-//sys	GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, errno int) = GetCurrentDirectoryW
-//sys	SetCurrentDirectory(path *uint16) (errno int) = SetCurrentDirectoryW
-//sys	CreateDirectory(path *uint16, sa *SecurityAttributes) (errno int) = CreateDirectoryW
-//sys	RemoveDirectory(path *uint16) (errno int) = RemoveDirectoryW
-//sys	DeleteFile(path *uint16) (errno int) = DeleteFileW
-//sys	MoveFile(from *uint16, to *uint16) (errno int) = MoveFileW
-//sys	GetComputerName(buf *uint16, n *uint32) (errno int) = GetComputerNameW
-//sys	SetEndOfFile(handle Handle) (errno int)
+//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
+//sys	ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
+//sys	WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
+//sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
+//sys	CloseHandle(handle Handle) (err error)
+//sys	GetStdHandle(stdhandle int) (handle Handle, err error) [failretval==InvalidHandle]
+//sys	FindFirstFile(name *uint16, data *Win32finddata) (handle Handle, err error) [failretval==InvalidHandle] = FindFirstFileW
+//sys	FindNextFile(handle Handle, data *Win32finddata) (err error) = FindNextFileW
+//sys	FindClose(handle Handle) (err error)
+//sys	GetFileInformationByHandle(handle Handle, data *ByHandleFileInformation) (err error)
+//sys	GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, err error) = GetCurrentDirectoryW
+//sys	SetCurrentDirectory(path *uint16) (err error) = SetCurrentDirectoryW
+//sys	CreateDirectory(path *uint16, sa *SecurityAttributes) (err error) = CreateDirectoryW
+//sys	RemoveDirectory(path *uint16) (err error) = RemoveDirectoryW
+//sys	DeleteFile(path *uint16) (err error) = DeleteFileW
+//sys	MoveFile(from *uint16, to *uint16) (err error) = MoveFileW
+//sys	GetComputerName(buf *uint16, n *uint32) (err error) = GetComputerNameW
+//sys	SetEndOfFile(handle Handle) (err error)
 //sys	GetSystemTimeAsFileTime(time *Filetime)
 //sys	sleep(msec uint32) = Sleep
-//sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) [failretval==0xffffffff]
-//sys	CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, threadcnt uint32) (handle Handle, errno int)
-//sys	GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (errno int)
-//sys	PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) (errno int)
-//sys	CancelIo(s Handle) (errno int)
-//sys	CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (errno int) = CreateProcessW
-//sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, errno int)
-//sys	TerminateProcess(handle Handle, exitcode uint32) (errno int)
-//sys	GetExitCodeProcess(handle Handle, exitcode *uint32) (errno int)
-//sys	GetStartupInfo(startupInfo *StartupInfo) (errno int) = GetStartupInfoW
-//sys	GetCurrentProcess() (pseudoHandle Handle, errno int)
-//sys	DuplicateHandle(hSourceProcessHandle Handle, hSourceHandle Handle, hTargetProcessHandle Handle, lpTargetHandle *Handle, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (errno int)
-//sys	WaitForSingleObject(handle Handle, waitMilliseconds uint32) (event uint32, errno int) [failretval==0xffffffff]
-//sys	GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) = GetTempPathW
-//sys	CreatePipe(readhandle *Handle, writehandle *Handle, sa *SecurityAttributes, size uint32) (errno int)
-//sys	GetFileType(filehandle Handle) (n uint32, errno int)
-//sys	CryptAcquireContext(provhandle *Handle, container *uint16, provider *uint16, provtype uint32, flags uint32) (errno int) = advapi32.CryptAcquireContextW
-//sys	CryptReleaseContext(provhandle Handle, flags uint32) (errno int) = advapi32.CryptReleaseContext
-//sys	CryptGenRandom(provhandle Handle, buflen uint32, buf *byte) (errno int) = advapi32.CryptGenRandom
-//sys	GetEnvironmentStrings() (envs *uint16, errno int) [failretval==nil] = kernel32.GetEnvironmentStringsW
-//sys	FreeEnvironmentStrings(envs *uint16) (errno int) = kernel32.FreeEnvironmentStringsW
-//sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) = kernel32.GetEnvironmentVariableW
-//sys	SetEnvironmentVariable(name *uint16, value *uint16) (errno int) = kernel32.SetEnvironmentVariableW
-//sys	SetFileTime(handle Handle, ctime *Filetime, atime *Filetime, wtime *Filetime) (errno int)
-//sys	GetFileAttributes(name *uint16) (attrs uint32, errno int) [failretval==INVALID_FILE_ATTRIBUTES] = kernel32.GetFileAttributesW
-//sys	SetFileAttributes(name *uint16, attrs uint32) (errno int) = kernel32.SetFileAttributesW
-//sys	GetFileAttributesEx(name *uint16, level uint32, info *byte) (errno int) = kernel32.GetFileAttributesExW
+//sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, err error) [failretval==0xffffffff]
+//sys	CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, threadcnt uint32) (handle Handle, err error)
+//sys	GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (err error)
+//sys	PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) (err error)
+//sys	CancelIo(s Handle) (err error)
+//sys	CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (err error) = CreateProcessW
+//sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, err error)
+//sys	TerminateProcess(handle Handle, exitcode uint32) (err error)
+//sys	GetExitCodeProcess(handle Handle, exitcode *uint32) (err error)
+//sys	GetStartupInfo(startupInfo *StartupInfo) (err error) = GetStartupInfoW
+//sys	GetCurrentProcess() (pseudoHandle Handle, err error)
+//sys	DuplicateHandle(hSourceProcessHandle Handle, hSourceHandle Handle, hTargetProcessHandle Handle, lpTargetHandle *Handle, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (err error)
+//sys	WaitForSingleObject(handle Handle, waitMilliseconds uint32) (event uint32, err error) [failretval==0xffffffff]
+//sys	GetTempPath(buflen uint32, buf *uint16) (n uint32, err error) = GetTempPathW
+//sys	CreatePipe(readhandle *Handle, writehandle *Handle, sa *SecurityAttributes, size uint32) (err error)
+//sys	GetFileType(filehandle Handle) (n uint32, err error)
+//sys	CryptAcquireContext(provhandle *Handle, container *uint16, provider *uint16, provtype uint32, flags uint32) (err error) = advapi32.CryptAcquireContextW
+//sys	CryptReleaseContext(provhandle Handle, flags uint32) (err error) = advapi32.CryptReleaseContext
+//sys	CryptGenRandom(provhandle Handle, buflen uint32, buf *byte) (err error) = advapi32.CryptGenRandom
+//sys	GetEnvironmentStrings() (envs *uint16, err error) [failretval==nil] = kernel32.GetEnvironmentStringsW
+//sys	FreeEnvironmentStrings(envs *uint16) (err error) = kernel32.FreeEnvironmentStringsW
+//sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, err error) = kernel32.GetEnvironmentVariableW
+//sys	SetEnvironmentVariable(name *uint16, value *uint16) (err error) = kernel32.SetEnvironmentVariableW
+//sys	SetFileTime(handle Handle, ctime *Filetime, atime *Filetime, wtime *Filetime) (err error)
+//sys	GetFileAttributes(name *uint16) (attrs uint32, err error) [failretval==INVALID_FILE_ATTRIBUTES] = kernel32.GetFileAttributesW
+//sys	SetFileAttributes(name *uint16, attrs uint32) (err error) = kernel32.SetFileAttributesW
+//sys	GetFileAttributesEx(name *uint16, level uint32, info *byte) (err error) = kernel32.GetFileAttributesExW
 //sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
-//sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) [failretval==nil] = shell32.CommandLineToArgvW
-//sys	LocalFree(hmem Handle) (handle Handle, errno int) [failretval!=0]
-//sys	SetHandleInformation(handle Handle, mask uint32, flags uint32) (errno int)
-//sys	FlushFileBuffers(handle Handle) (errno int)
-//sys	GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (n uint32, errno int) = kernel32.GetFullPathNameW
-//sys	CreateFileMapping(fhandle Handle, sa *SecurityAttributes, prot uint32, maxSizeHigh uint32, maxSizeLow uint32, name *uint16) (handle Handle, errno int) = kernel32.CreateFileMappingW
-//sys	MapViewOfFile(handle Handle, access uint32, offsetHigh uint32, offsetLow uint32, length uintptr) (addr uintptr, errno int)
-//sys	UnmapViewOfFile(addr uintptr) (errno int)
-//sys	FlushViewOfFile(addr uintptr, length uintptr) (errno int)
-//sys	VirtualLock(addr uintptr, length uintptr) (errno int)
-//sys	VirtualUnlock(addr uintptr, length uintptr) (errno int)
-//sys	TransmitFile(s Handle, handle Handle, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (errno int) = mswsock.TransmitFile
-//sys	ReadDirectoryChanges(handle Handle, buf *byte, buflen uint32, watchSubTree bool, mask uint32, retlen *uint32, overlapped *Overlapped, completionRoutine uintptr) (errno int) = kernel32.ReadDirectoryChangesW
-//sys	CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, errno int) = crypt32.CertOpenSystemStoreW
+//sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, err error) [failretval==nil] = shell32.CommandLineToArgvW
+//sys	LocalFree(hmem Handle) (handle Handle, err error) [failretval!=0]
+//sys	SetHandleInformation(handle Handle, mask uint32, flags uint32) (err error)
+//sys	FlushFileBuffers(handle Handle) (err error)
+//sys	GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (n uint32, err error) = kernel32.GetFullPathNameW
+//sys	CreateFileMapping(fhandle Handle, sa *SecurityAttributes, prot uint32, maxSizeHigh uint32, maxSizeLow uint32, name *uint16) (handle Handle, err error) = kernel32.CreateFileMappingW
+//sys	MapViewOfFile(handle Handle, access uint32, offsetHigh uint32, offsetLow uint32, length uintptr) (addr uintptr, err error)
+//sys	UnmapViewOfFile(addr uintptr) (err error)
+//sys	FlushViewOfFile(addr uintptr, length uintptr) (err error)
+//sys	VirtualLock(addr uintptr, length uintptr) (err error)
+//sys	VirtualUnlock(addr uintptr, length uintptr) (err error)
+//sys	TransmitFile(s Handle, handle Handle, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (err error) = mswsock.TransmitFile
+//sys	ReadDirectoryChanges(handle Handle, buf *byte, buflen uint32, watchSubTree bool, mask uint32, retlen *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) = kernel32.ReadDirectoryChangesW
+//sys	CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) = crypt32.CertOpenSystemStoreW
 //sys	CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext) = crypt32.CertEnumCertificatesInStore
-//sys	CertCloseStore(store Handle, flags uint32) (errno int) = crypt32.CertCloseStore
+//sys	CertCloseStore(store Handle, flags uint32) (err error) = crypt32.CertCloseStore
 
 // syscall interface implementation for other packages
 
-func Errstr(errno int) string {
+
+func errstr(errno Errno) string {
 	// deal with special go errors
-	e := errno - APPLICATION_ERROR
+	e := int(errno - APPLICATION_ERROR)
 	if 0 <= e && e < len(errors) {
 		return errors[e]
 	}
@@ -168,8 +169,8 @@ func Errstr(errno int) string {
 	var flags uint32 = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_IGNORE_INSERTS
 	b := make([]uint16, 300)
 	n, err := FormatMessage(flags, 0, uint32(errno), 0, b, nil)
-	if err != 0 {
-		return "error " + itoa(errno) + " (FormatMessage failed with err=" + itoa(err) + ")"
+	if err != nil {
+		return "error " + itoa(int(errno)) + " (FormatMessage failed with err=" + itoa(int(err.(Errno))) + ")"
 	}
 	// trim terminating \r and \n
 	for ; n > 0 && (b[n-1] == '\n' || b[n-1] == '\r'); n-- {
@@ -186,7 +187,7 @@ func makeInheritSa() *SecurityAttributes {
 	return &sa
 }
 
-func Open(path string, mode int, perm uint32) (fd Handle, errno int) {
+func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	if len(path) == 0 {
 		return InvalidHandle, ERROR_FILE_NOT_FOUND
 	}
@@ -225,32 +226,32 @@ func Open(path string, mode int, perm uint32) (fd Handle, errno int) {
 		createmode = OPEN_EXISTING
 	}
 	h, e := CreateFile(StringToUTF16Ptr(path), access, sharemode, sa, createmode, FILE_ATTRIBUTE_NORMAL, 0)
-	return h, int(e)
+	return h, e
 }
 
-func Read(fd Handle, p []byte) (n int, errno int) {
+func Read(fd Handle, p []byte) (n int, err error) {
 	var done uint32
 	e := ReadFile(fd, p, &done, nil)
-	if e != 0 {
+	if e != nil {
 		if e == ERROR_BROKEN_PIPE {
 			// NOTE(brainman): work around ERROR_BROKEN_PIPE is returned on reading EOF from stdin
-			return 0, 0
+			return 0, nil
 		}
 		return 0, e
 	}
-	return int(done), 0
+	return int(done), nil
 }
 
-func Write(fd Handle, p []byte) (n int, errno int) {
+func Write(fd Handle, p []byte) (n int, err error) {
 	var done uint32
 	e := WriteFile(fd, p, &done, nil)
-	if e != 0 {
+	if e != nil {
 		return 0, e
 	}
-	return int(done), 0
+	return int(done), nil
 }
 
-func Seek(fd Handle, offset int64, whence int) (newoffset int64, errno int) {
+func Seek(fd Handle, offset int64, whence int) (newoffset int64, err error) {
 	var w uint32
 	switch whence {
 	case 0:
@@ -268,13 +269,13 @@ func Seek(fd Handle, offset int64, whence int) (newoffset int64, errno int) {
 		return 0, EPIPE
 	}
 	rlo, e := SetFilePointer(fd, lo, &hi, w)
-	if e != 0 {
+	if e != nil {
 		return 0, e
 	}
-	return int64(hi)<<32 + int64(rlo), 0
+	return int64(hi)<<32 + int64(rlo), nil
 }
 
-func Close(fd Handle) (errno int) {
+func Close(fd Handle) (err error) {
 	return CloseHandle(fd)
 }
 
@@ -292,98 +293,98 @@ func getStdHandle(h int) (fd Handle) {
 
 const ImplementsGetwd = true
 
-func Getwd() (wd string, errno int) {
+func Getwd() (wd string, err error) {
 	b := make([]uint16, 300)
 	n, e := GetCurrentDirectory(uint32(len(b)), &b[0])
-	if e != 0 {
+	if e != nil {
 		return "", e
 	}
-	return string(utf16.Decode(b[0:n])), 0
+	return string(utf16.Decode(b[0:n])), nil
 }
 
-func Chdir(path string) (errno int) {
+func Chdir(path string) (err error) {
 	return SetCurrentDirectory(&StringToUTF16(path)[0])
 }
 
-func Mkdir(path string, mode uint32) (errno int) {
+func Mkdir(path string, mode uint32) (err error) {
 	return CreateDirectory(&StringToUTF16(path)[0], nil)
 }
 
-func Rmdir(path string) (errno int) {
+func Rmdir(path string) (err error) {
 	return RemoveDirectory(&StringToUTF16(path)[0])
 }
 
-func Unlink(path string) (errno int) {
+func Unlink(path string) (err error) {
 	return DeleteFile(&StringToUTF16(path)[0])
 }
 
-func Rename(oldpath, newpath string) (errno int) {
+func Rename(oldpath, newpath string) (err error) {
 	from := &StringToUTF16(oldpath)[0]
 	to := &StringToUTF16(newpath)[0]
 	return MoveFile(from, to)
 }
 
-func ComputerName() (name string, errno int) {
+func ComputerName() (name string, err error) {
 	var n uint32 = MAX_COMPUTERNAME_LENGTH + 1
 	b := make([]uint16, n)
 	e := GetComputerName(&b[0], &n)
-	if e != 0 {
+	if e != nil {
 		return "", e
 	}
-	return string(utf16.Decode(b[0:n])), 0
+	return string(utf16.Decode(b[0:n])), nil
 }
 
-func Ftruncate(fd Handle, length int64) (errno int) {
+func Ftruncate(fd Handle, length int64) (err error) {
 	curoffset, e := Seek(fd, 0, 1)
-	if e != 0 {
+	if e != nil {
 		return e
 	}
 	defer Seek(fd, curoffset, 0)
 	_, e = Seek(fd, length, 0)
-	if e != 0 {
+	if e != nil {
 		return e
 	}
 	e = SetEndOfFile(fd)
-	if e != 0 {
+	if e != nil {
 		return e
 	}
-	return 0
+	return nil
 }
 
-func Gettimeofday(tv *Timeval) (errno int) {
+func Gettimeofday(tv *Timeval) (err error) {
 	var ft Filetime
 	GetSystemTimeAsFileTime(&ft)
 	*tv = NsecToTimeval(ft.Nanoseconds())
-	return 0
+	return nil
 }
 
-func Sleep(nsec int64) (errno int) {
+func Sleep(nsec int64) (err error) {
 	sleep(uint32((nsec + 1e6 - 1) / 1e6)) // round up to milliseconds
-	return 0
+	return nil
 }
 
-func Pipe(p []Handle) (errno int) {
+func Pipe(p []Handle) (err error) {
 	if len(p) != 2 {
 		return EINVAL
 	}
 	var r, w Handle
 	e := CreatePipe(&r, &w, makeInheritSa(), 0)
-	if e != 0 {
+	if e != nil {
 		return e
 	}
 	p[0] = r
 	p[1] = w
-	return 0
+	return nil
 }
 
-func Utimes(path string, tv []Timeval) (errno int) {
+func Utimes(path string, tv []Timeval) (err error) {
 	if len(tv) != 2 {
 		return EINVAL
 	}
 	h, e := CreateFile(StringToUTF16Ptr(path),
 		FILE_WRITE_ATTRIBUTES, FILE_SHARE_WRITE, nil,
 		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
-	if e != 0 {
+	if e != nil {
 		return e
 	}
 	defer Close(h)
@@ -392,17 +393,17 @@ func Utimes(path string, tv []Timeval) (errno int) {
 	return SetFileTime(h, nil, &a, &w)
 }
 
-func Fsync(fd Handle) (errno int) {
+func Fsync(fd Handle) (err error) {
 	return FlushFileBuffers(fd)
 }
 
-func Chmod(path string, mode uint32) (errno int) {
+func Chmod(path string, mode uint32) (err error) {
 	if mode == 0 {
 		return EINVAL
 	}
 	p := StringToUTF16Ptr(path)
 	attrs, e := GetFileAttributes(p)
-	if e != 0 {
+	if e != nil {
 		return e
 	}
 	if mode&S_IWRITE != 0 {
@@ -415,32 +416,32 @@ func Chmod(path string, mode uint32) (errno int) {
 
 // net api calls
 
-//sys	WSAStartup(verreq uint32, data *WSAData) (sockerrno int) = ws2_32.WSAStartup
-//sys	WSACleanup() (errno int) [failretval==-1] = ws2_32.WSACleanup
-//sys	WSAIoctl(s Handle, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *Overlapped, completionRoutine uintptr) (errno int) [failretval==-1] = ws2_32.WSAIoctl
-//sys	socket(af int32, typ int32, protocol int32) (handle Handle, errno int) [failretval==InvalidHandle] = ws2_32.socket
-//sys	Setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (errno int) [failretval==-1] = ws2_32.setsockopt
-//sys	bind(s Handle, name uintptr, namelen int32) (errno int) [failretval==-1] = ws2_32.bind
-//sys	connect(s Handle, name uintptr, namelen int32) (errno int) [failretval==-1] = ws2_32.connect
-//sys	getsockname(s Handle, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval==-1] = ws2_32.getsockname
-//sys	getpeername(s Handle, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval==-1] = ws2_32.getpeername
-//sys	listen(s Handle, backlog int32) (errno int) [failretval==-1] = ws2_32.listen
-//sys	shutdown(s Handle, how int32) (errno int) [failretval==-1] = ws2_32.shutdown
-//sys	Closesocket(s Handle) (errno int) [failretval==-1] = ws2_32.closesocket
-//sys	AcceptEx(ls Handle, as Handle, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (errno int) = mswsock.AcceptEx
+//sys	WSAStartup(verreq uint32, data *WSAData) (sockerr uintptr) = ws2_32.WSAStartup
+//sys	WSACleanup() (err error) [failretval==-1] = ws2_32.WSACleanup
+//sys	WSAIoctl(s Handle, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) [failretval==-1] = ws2_32.WSAIoctl
+//sys	socket(af int32, typ int32, protocol int32) (handle Handle, err error) [failretval==InvalidHandle] = ws2_32.socket
+//sys	Setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (err error) [failretval==-1] = ws2_32.setsockopt
+//sys	bind(s Handle, name uintptr, namelen int32) (err error) [failretval==-1] = ws2_32.bind
+//sys	connect(s Handle, name uintptr, namelen int32) (err error) [failretval==-1] = ws2_32.connect
+//sys	getsockname(s Handle, rsa *RawSockaddrAny, addrlen *int32) (err error) [failretval==-1] = ws2_32.getsockname
+//sys	getpeername(s Handle, rsa *RawSockaddrAny, addrlen *int32) (err error) [failretval==-1] = ws2_32.getpeername
+//sys	listen(s Handle, backlog int32) (err error) [failretval==-1] = ws2_32.listen
+//sys	shutdown(s Handle, how int32) (err error) [failretval==-1] = ws2_32.shutdown
+//sys	Closesocket(s Handle) (err error) [failretval==-1] = ws2_32.closesocket
+//sys	AcceptEx(ls Handle, as Handle, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (err error) = mswsock.AcceptEx
 //sys	GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) = mswsock.GetAcceptExSockaddrs
-//sys	WSARecv(s Handle, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSARecv
-//sys	WSASend(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSASend
-//sys	WSARecvFrom(s Handle, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32,  from *RawSockaddrAny, fromlen *int32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSARecvFrom
-//sys	WSASendTo(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *RawSockaddrAny, tolen int32,  overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSASendTo
-//sys	GetHostByName(name string) (h *Hostent, errno int) [failretval==nil] = ws2_32.gethostbyname
-//sys	GetServByName(name string, proto string) (s *Servent, errno int) [failretval==nil] = ws2_32.getservbyname
+//sys	WSARecv(s Handle, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (err error) [failretval==-1] = ws2_32.WSARecv
+//sys	WSASend(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (err error) [failretval==-1] = ws2_32.WSASend
+//sys	WSARecvFrom(s Handle, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32,  from *RawSockaddrAny, fromlen *int32, overlapped *Overlapped, croutine *byte) (err error) [failretval==-1] = ws2_32.WSARecvFrom
+//sys	WSASendTo(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *RawSockaddrAny, tolen int32,  overlapped *Overlapped, croutine *byte) (err error) [failretval==-1] = ws2_32.WSASendTo
+//sys	GetHostByName(name string) (h *Hostent, err error) [failretval==nil] = ws2_32.gethostbyname
+//sys	GetServByName(name string, proto string) (s *Servent, err error) [failretval==nil] = ws2_32.getservbyname
 //sys	Ntohs(netshort uint16) (u uint16) = ws2_32.ntohs
-//sys	GetProtoByName(name string) (p *Protoent, errno int) [failretval==nil] = ws2_32.getprotobyname
-//sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) = dnsapi.DnsQuery_W
+//sys	GetProtoByName(name string) (p *Protoent, err error) [failretval==nil] = ws2_32.getprotobyname
+//sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status Errno) = dnsapi.DnsQuery_W
 //sys	DnsRecordListFree(rl *DNSRecord, freetype uint32) = dnsapi.DnsRecordListFree
-//sys	GetIfEntry(pIfRow *MibIfRow) (errcode int) = iphlpapi.GetIfEntry
-//sys	GetAdaptersInfo(ai *IpAdapterInfo, ol *uint32) (errcode int) = iphlpapi.GetAdaptersInfo
+//sys	GetIfEntry(pIfRow *MibIfRow) (errcode Errno) = iphlpapi.GetIfEntry
+//sys	GetAdaptersInfo(ai *IpAdapterInfo, ol *uint32) (errcode Errno) = iphlpapi.GetAdaptersInfo
 
 // For testing: clients can set this flag to force
 // creation of IPv6 sockets to return EAFNOSUPPORT.
@@ -464,7 +465,7 @@ type RawSockaddrAny struct {
 }
 
 type Sockaddr interface {
-	sockaddr() (ptr uintptr, len int32, errno int) // lowercase; only we can define Sockaddrs
+	sockaddr() (ptr uintptr, len int32, err error) // lowercase; only we can define Sockaddrs
 }
 
 type SockaddrInet4 struct {
@@ -473,7 +474,7 @@ type SockaddrInet4 struct {
 	raw  RawSockaddrInet4
 }
 
-func (sa *SockaddrInet4) sockaddr() (uintptr, int32, int) {
+func (sa *SockaddrInet4) sockaddr() (uintptr, int32, error) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
 		return 0, 0, EINVAL
 	}
@@ -484,7 +485,7 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, int32, int) {
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i]
 	}
-	return uintptr(unsafe.Pointer(&sa.raw)), int32(unsafe.Sizeof(sa.raw)), 0
+	return uintptr(unsafe.Pointer(&sa.raw)), int32(unsafe.Sizeof(sa.raw)), nil
 }
 
 type SockaddrInet6 struct {
@@ -493,7 +494,7 @@ type SockaddrInet6 struct {
 	Addr   [16]byte
 }
 
-func (sa *SockaddrInet6) sockaddr() (uintptr, int32, int) {
+func (sa *SockaddrInet6) sockaddr() (uintptr, int32, error) {
 	// TODO(brainman): implement SockaddrInet6.sockaddr()
 	return 0, 0, EWINDOWS
 }
@@ -502,12 +503,12 @@ type SockaddrUnix struct {
 	Name string
 }
 
-func (sa *SockaddrUnix) sockaddr() (uintptr, int32, int) {
+func (sa *SockaddrUnix) sockaddr() (uintptr, int32, error) {
 	// TODO(brainman): implement SockaddrUnix.sockaddr()
 	return 0, 0, EWINDOWS
 }
 
-func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, int) {
+func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
 	switch rsa.Addr.Family {
 	case AF_UNIX:
 		return nil, EWINDOWS
@@ -520,7 +521,7 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, int) {
 		for i := 0; i < len(sa.Addr); i++ {
 			sa.Addr[i] = pp.Addr[i]
 		}
-		return sa, 0
+		return sa, nil
 
 	case AF_INET6:
 		return nil, EWINDOWS
@@ -528,68 +529,66 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, int) {
 	return nil, EAFNOSUPPORT
 }
 
-func Socket(domain, typ, proto int) (fd Handle, errno int) {
+func Socket(domain, typ, proto int) (fd Handle, err error) {
 	if domain == AF_INET6 && SocketDisableIPv6 {
 		return InvalidHandle, EAFNOSUPPORT
 	}
-	h, e := socket(int32(domain), int32(typ), int32(proto))
-	return h, int(e)
+	return socket(int32(domain), int32(typ), int32(proto))
 }
 
-func SetsockoptInt(fd Handle, level, opt int, value int) (errno int) {
+func SetsockoptInt(fd Handle, level, opt int, value int) (err error) {
 	v := int32(value)
-	return int(Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&v)), int32(unsafe.Sizeof(v))))
+	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&v)), int32(unsafe.Sizeof(v)))
 }
 
-func Bind(fd Handle, sa Sockaddr) (errno int) {
+func Bind(fd Handle, sa Sockaddr) (err error) {
 	ptr, n, err := sa.sockaddr()
-	if err != 0 {
+	if err != nil {
 		return err
 	}
 	return bind(fd, ptr, n)
 }
 
-func Connect(fd Handle, sa Sockaddr) (errno int) {
+func Connect(fd Handle, sa Sockaddr) (err error) {
 	ptr, n, err := sa.sockaddr()
-	if err != 0 {
+	if err != nil {
 		return err
 	}
 	return connect(fd, ptr, n)
 }
 
-func Getsockname(fd Handle) (sa Sockaddr, errno int) {
+func Getsockname(fd Handle) (sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	l := int32(unsafe.Sizeof(rsa))
-	if errno = getsockname(fd, &rsa, &l); errno != 0 {
+	if err = getsockname(fd, &rsa, &l); err != nil {
 		return
 	}
 	return rsa.Sockaddr()
 }
 
-func Getpeername(fd Handle) (sa Sockaddr, errno int) {
+func Getpeername(fd Handle) (sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	l := int32(unsafe.Sizeof(rsa))
-	if errno = getpeername(fd, &rsa, &l); errno != 0 {
+	if err = getpeername(fd, &rsa, &l); err != nil {
 		return
 	}
 	return rsa.Sockaddr()
 }
 
-func Listen(s Handle, n int) (errno int) {
-	return int(listen(s, int32(n)))
+func Listen(s Handle, n int) (err error) {
+	return listen(s, int32(n))
 }
 
-func Shutdown(fd Handle, how int) (errno int) {
-	return int(shutdown(fd, int32(how)))
+func Shutdown(fd Handle, how int) (err error) {
+	return shutdown(fd, int32(how))
 }
 
-func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to Sockaddr, overlapped *Overlapped, croutine *byte) (errno int) {
+func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to Sockaddr, overlapped *Overlapped, croutine *byte) (err error) {
 	rsa, l, err := to.sockaddr()
-	if err != 0 {
+	if err != nil {
 		return err
 	}
-	errno = WSASendTo(s, bufs, bufcnt, sent, flags, (*RawSockaddrAny)(unsafe.Pointer(rsa)), l, overlapped, croutine)
-	return
+	return WSASendTo(s, bufs, bufcnt, sent, flags, (*RawSockaddrAny)(unsafe.Pointer(rsa)), l, overlapped, croutine)
 }
 
 // Invented structures to support what package os expects.
@@ -620,12 +619,12 @@ func (w WaitStatus) TrapCause() int { return -1 }
 
 // TODO(brainman): fix all needed for net
 
-func Accept(fd Handle) (nfd Handle, sa Sockaddr, errno int) { return 0, nil, EWINDOWS }
-func Recvfrom(fd Handle, p []byte, flags int) (n int, from Sockaddr, errno int) {
+func Accept(fd Handle) (nfd Handle, sa Sockaddr, err error) { return 0, nil, EWINDOWS }
+func Recvfrom(fd Handle, p []byte, flags int) (n int, from Sockaddr, err error) {
 	return 0, nil, EWINDOWS
 }
-func Sendto(fd Handle, p []byte, flags int, to Sockaddr) (errno int)       { return EWINDOWS }
-func SetsockoptTimeval(fd Handle, level, opt int, tv *Timeval) (errno int) { return EWINDOWS }
+func Sendto(fd Handle, p []byte, flags int, to Sockaddr) (err error)       { return EWINDOWS }
+func SetsockoptTimeval(fd Handle, level, opt int, tv *Timeval) (err error) { return EWINDOWS }
 
 type Linger struct {
 	Onoff  int32
@@ -647,30 +646,30 @@ type IPv6Mreq struct {
 	Interface uint32
 }
 
-func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (errno int) { return EWINDOWS }
-func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (errno int) {
+func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) { return EWINDOWS }
+func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))
 }
-func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (errno int) { return EWINDOWS }
-func BindToDevice(fd Handle, device string) (errno int)                        { return EWINDOWS }
+func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) { return EWINDOWS }
+func BindToDevice(fd Handle, device string) (err error)                        { return EWINDOWS }
 
 // TODO(brainman): fix all needed for os
 
 func Getpid() (pid int)   { return -1 }
 func Getppid() (ppid int) { return -1 }
 
-func Fchdir(fd Handle) (errno int)                        { return EWINDOWS }
-func Link(oldpath, newpath string) (errno int)            { return EWINDOWS }
-func Symlink(path, link string) (errno int)               { return EWINDOWS }
-func Readlink(path string, buf []byte) (n int, errno int) { return 0, EWINDOWS }
+func Fchdir(fd Handle) (err error)                        { return EWINDOWS }
+func Link(oldpath, newpath string) (err error)            { return EWINDOWS }
+func Symlink(path, link string) (err error)               { return EWINDOWS }
+func Readlink(path string, buf []byte) (n int, err error) { return 0, EWINDOWS }
 
-func Fchmod(fd Handle, mode uint32) (errno int)        { return EWINDOWS }
-func Chown(path string, uid int, gid int) (errno int)  { return EWINDOWS }
-func Lchown(path string, uid int, gid int) (errno int) { return EWINDOWS }
-func Fchown(fd Handle, uid int, gid int) (errno int)   { return EWINDOWS }
+func Fchmod(fd Handle, mode uint32) (err error)        { return EWINDOWS }
+func Chown(path string, uid int, gid int) (err error)  { return EWINDOWS }
+func Lchown(path string, uid int, gid int) (err error) { return EWINDOWS }
+func Fchown(fd Handle, uid int, gid int) (err error)   { return EWINDOWS }
 
 func Getuid() (uid int)                  { return -1 }
 func Geteuid() (euid int)                { return -1 }
 func Getgid() (gid int)                  { return -1 }
 func Getegid() (egid int)                { return -1 }
-func Getgroups() (gids []int, errno int) { return nil, EWINDOWS }
+func Getgroups() (gids []int, err error) { return nil, EWINDOWS }

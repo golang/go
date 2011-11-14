@@ -8,9 +8,9 @@ package user
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 	"strings"
+	"syscall"
 	"unsafe"
 )
 
@@ -71,7 +71,7 @@ func lookup(uid int, username string, lookupByName bool) (*User, error) {
 			C.size_t(bufSize),
 			&result)
 		if rv != 0 {
-			return nil, fmt.Errorf("user: lookup username %s: %s", username, os.Errno(rv))
+			return nil, fmt.Errorf("user: lookup username %s: %s", username, syscall.Errno(rv))
 		}
 		if result == nil {
 			return nil, UnknownUserError(username)
@@ -86,7 +86,7 @@ func lookup(uid int, username string, lookupByName bool) (*User, error) {
 			C.size_t(bufSize),
 			&result)
 		if rv != 0 {
-			return nil, fmt.Errorf("user: lookup userid %d: %s", uid, os.Errno(rv))
+			return nil, fmt.Errorf("user: lookup userid %d: %s", uid, syscall.Errno(rv))
 		}
 		if result == nil {
 			return nil, UnknownUserIdError(uid)

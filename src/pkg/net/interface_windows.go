@@ -39,7 +39,7 @@ func getAdapterList() (*syscall.IpAdapterInfo, error) {
 
 func getInterfaceList() ([]syscall.InterfaceInfo, error) {
 	s, e := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
-	if e != 0 {
+	if e != nil {
 		return nil, os.NewSyscallError("Socket", e)
 	}
 	defer syscall.Closesocket(s)
@@ -48,7 +48,7 @@ func getInterfaceList() ([]syscall.InterfaceInfo, error) {
 	ret := uint32(0)
 	size := uint32(unsafe.Sizeof(ii))
 	e = syscall.WSAIoctl(s, syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&ii[0])), size, &ret, nil, 0)
-	if e != 0 {
+	if e != nil {
 		return nil, os.NewSyscallError("WSAIoctl", e)
 	}
 	c := ret / uint32(unsafe.Sizeof(ii[0]))

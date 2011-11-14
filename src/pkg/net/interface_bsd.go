@@ -20,18 +20,18 @@ import (
 func interfaceTable(ifindex int) ([]Interface, error) {
 	var (
 		tab  []byte
-		e    int
+		e    error
 		msgs []syscall.RoutingMessage
 		ift  []Interface
 	)
 
 	tab, e = syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
-	if e != 0 {
+	if e != nil {
 		return nil, os.NewSyscallError("route rib", e)
 	}
 
 	msgs, e = syscall.ParseRoutingMessage(tab)
-	if e != 0 {
+	if e != nil {
 		return nil, os.NewSyscallError("route message", e)
 	}
 
@@ -55,7 +55,7 @@ func newLink(m *syscall.InterfaceMessage) ([]Interface, error) {
 	var ift []Interface
 
 	sas, e := syscall.ParseRoutingSockaddr(m)
-	if e != 0 {
+	if e != nil {
 		return nil, os.NewSyscallError("route sockaddr", e)
 	}
 
@@ -110,18 +110,18 @@ func linkFlags(rawFlags int32) Flags {
 func interfaceAddrTable(ifindex int) ([]Addr, error) {
 	var (
 		tab  []byte
-		e    int
+		e    error
 		msgs []syscall.RoutingMessage
 		ifat []Addr
 	)
 
 	tab, e = syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
-	if e != 0 {
+	if e != nil {
 		return nil, os.NewSyscallError("route rib", e)
 	}
 
 	msgs, e = syscall.ParseRoutingMessage(tab)
-	if e != 0 {
+	if e != nil {
 		return nil, os.NewSyscallError("route message", e)
 	}
 
@@ -145,7 +145,7 @@ func newAddr(m *syscall.InterfaceAddrMessage) ([]Addr, error) {
 	var ifat []Addr
 
 	sas, e := syscall.ParseRoutingSockaddr(m)
-	if e != 0 {
+	if e != nil {
 		return nil, os.NewSyscallError("route sockaddr", e)
 	}
 

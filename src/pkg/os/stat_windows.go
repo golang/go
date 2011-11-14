@@ -21,8 +21,8 @@ func (file *File) Stat() (fi *FileInfo, err error) {
 	}
 	var d syscall.ByHandleFileInformation
 	e := syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &d)
-	if e != 0 {
-		return nil, &PathError{"GetFileInformationByHandle", file.name, Errno(e)}
+	if e != nil {
+		return nil, &PathError{"GetFileInformationByHandle", file.name, e}
 	}
 	return setFileInfo(new(FileInfo), basename(file.name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
 }
@@ -34,12 +34,12 @@ func (file *File) Stat() (fi *FileInfo, err error) {
 // the link itself and has fi.FollowedSymlink set to false.
 func Stat(name string) (fi *FileInfo, err error) {
 	if len(name) == 0 {
-		return nil, &PathError{"Stat", name, Errno(syscall.ERROR_PATH_NOT_FOUND)}
+		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}
 	var d syscall.Win32FileAttributeData
 	e := syscall.GetFileAttributesEx(syscall.StringToUTF16Ptr(name), syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&d)))
-	if e != 0 {
-		return nil, &PathError{"GetFileAttributesEx", name, Errno(e)}
+	if e != nil {
+		return nil, &PathError{"GetFileAttributesEx", name, e}
 	}
 	return setFileInfo(new(FileInfo), basename(name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
 }

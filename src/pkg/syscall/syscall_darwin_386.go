@@ -23,8 +23,8 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 	return
 }
 
-//sysnb	gettimeofday(tp *Timeval) (sec int32, usec int32, errno int)
-func Gettimeofday(tv *Timeval) (errno int) {
+//sysnb	gettimeofday(tp *Timeval) (sec int32, usec int32, err error)
+func Gettimeofday(tv *Timeval) (err error) {
 	// The tv passed to gettimeofday must be non-nil
 	// but is otherwise unused.  The answers come back
 	// in the two registers.
@@ -52,4 +52,4 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint32(length)
 }
 
-func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) // sic
+func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) // sic

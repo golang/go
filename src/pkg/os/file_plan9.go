@@ -41,7 +41,7 @@ type dirInfo struct {
 	bufp int                   // location of next record in buf.
 }
 
-func epipecheck(file *File, e syscall.Error) {
+func epipecheck(file *File, e error) {
 }
 
 // DevNull is the name of the operating system's ``null device.''
@@ -130,7 +130,7 @@ func (file *File) Close() error {
 // It returns the FileInfo and an error, if any.
 func (f *File) Stat() (fi *FileInfo, err error) {
 	d, err := dirstat(f)
-	if iserror(err) {
+	if err != nil {
 		return nil, err
 	}
 	return fileInfoFromStat(new(FileInfo), d), err
@@ -144,7 +144,7 @@ func (f *File) Truncate(size int64) error {
 
 	d.Length = uint64(size)
 
-	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); iserror(e) {
+	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); e != nil {
 		return &PathError{"truncate", f.name, e}
 	}
 	return nil
@@ -157,12 +157,12 @@ func (f *File) Chmod(mode uint32) error {
 
 	d.Null()
 	odir, e := dirstat(f)
-	if iserror(e) {
+	if e != nil {
 		return &PathError{"chmod", f.name, e}
 	}
 
 	d.Mode = (odir.Mode & mask) | (mode &^ mask)
-	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); iserror(e) {
+	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); e != nil {
 		return &PathError{"chmod", f.name, e}
 	}
 	return nil
@@ -179,7 +179,7 @@ func (f *File) Sync() (err error) {
 	var d Dir
 	d.Null()
 
-	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); iserror(e) {
+	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); e != nil {
 		return NewSyscallError("fsync", e)
 	}
 	return nil
@@ -226,7 +226,7 @@ func Truncate(name string, size int64) error {
 
 	d.Length = uint64(size)
 
-	if e := syscall.Wstat(name, pdir(nil, &d)); iserror(e) {
+	if e := syscall.Wstat(name, pdir(nil, &d)); e != nil {
 		return &PathError{"truncate", name, e}
 	}
 	return nil
@@ -234,7 +234,7 @@ func Truncate(name string, size int64) error {
 
 // Remove removes the named file or directory.
 func Remove(name string) error {
-	if e := syscall.Remove(name); iserror(e) {
+	if e := syscall.Remove(name); e != nil {
 		return &PathError{"remove", name, e}
 	}
 	return nil
@@ -247,7 +247,7 @@ func Rename(oldname, newname string) error {
 
 	d.Name = newname
 
-	if e := syscall.Wstat(oldname, pdir(nil, &d)); iserror(e) {
+	if e := syscall.Wstat(oldname, pdir(nil, &d)); e != nil {
 		return &PathError{"rename", oldname, e}
 	}
 	return nil
@@ -260,12 +260,12 @@ func Chmod(name string, mode uint32) error {
 
 	d.Null()
 	odir, e := dirstat(name)
-	if iserror(e) {
+	if e != nil {
 		return &PathError{"chmod", name, e}
 	}
 
 	d.Mode = (odir.Mode & mask) | (mode &^ mask)
-	if e := syscall.Wstat(name, pdir(nil, &d)); iserror(e) {
+	if e := syscall.Wstat(name, pdir(nil, &d)); e != nil {
 		return &PathError{"chmod", name, e}
 	}
 	return nil
@@ -284,7 +284,7 @@ func Chtimes(name string, atimeNs int64, mtimeNs int64) error {
 	d.Atime = uint32(atimeNs / 1e9)
 	d.Mtime = uint32(mtimeNs / 1e9)
 
-	if e := syscall.Wstat(name, pdir(nil, &d)); iserror(e) {
+	if e := syscall.Wstat(name, pdir(nil, &d)); e != nil {
 		return &PathError{"chtimes", name, e}
 	}
 	return nil
@@ -294,7 +294,7 @@ func Pipe() (r *File, w *File, err error) {
 	var p [2]int
 
 	syscall.ForkLock.RLock()
-	if e := syscall.Pipe(p[0:]); iserror(e) {
+	if e := syscall.Pipe(p[0:]); e != nil {
 		syscall.ForkLock.RUnlock()
 		return nil, nil, NewSyscallError("pipe", e)
 	}

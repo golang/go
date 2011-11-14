@@ -12,8 +12,8 @@ import (
 )
 
 func loadStore(roots *x509.CertPool, name string) {
-	store, errno := syscall.CertOpenSystemStore(syscall.InvalidHandle, syscall.StringToUTF16Ptr(name))
-	if errno != 0 {
+	store, err := syscall.CertOpenSystemStore(syscall.InvalidHandle, syscall.StringToUTF16Ptr(name))
+	if err != nil {
 		return
 	}
 

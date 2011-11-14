@@ -45,10 +45,10 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n\n")
 	fmt.Fprintf(fgo2, "package %s\n\n", p.PackageName)
 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n")
-	fmt.Fprintf(fgo2, "import \"os\"\n\n")
+	fmt.Fprintf(fgo2, "import \"syscall\"\n\n")
 	fmt.Fprintf(fgo2, "import _ \"runtime/cgo\"\n\n")
 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
-	fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int) { *dst = os.Errno(x) }\n")
+	fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int) { *dst = syscall.Errno(x) }\n")
 
 	for name, def := range typedef {
 		fmt.Fprintf(fgo2, "type %s ", name)

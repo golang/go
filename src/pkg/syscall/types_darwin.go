@@ -103,10 +103,6 @@ type _Gid_t C.gid_t
 
 // Files
 
-const (
-	O_CLOEXEC = 0 // not supported
-)
-
 type Stat_t C.struct_stat64
 
 type Statfs_t C.struct_statfs64

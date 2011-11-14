@@ -52,7 +52,7 @@ func Setenv(key, value string) error {
 		v = syscall.StringToUTF16Ptr(value)
 	}
 	e := syscall.SetEnvironmentVariable(syscall.StringToUTF16Ptr(key), v)
-	if e != 0 {
+	if e != nil {
 		return NewSyscallError("SetEnvironmentVariable", e)
 	}
 	return nil
@@ -77,7 +77,7 @@ func Clearenv() {
 // in the form "key=value".
 func Environ() []string {
 	s, e := syscall.GetEnvironmentStrings()
-	if e != 0 {
+	if e != nil {
 		return nil
 	}
 	defer syscall.FreeEnvironmentStrings(s)
@@ -117,7 +117,7 @@ func init() {
 	var argc int32
 	cmd := syscall.GetCommandLine()
 	argv, e := syscall.CommandLineToArgv(cmd, &argc)
-	if e != 0 {
+	if e != nil {
 		return
 	}
 	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(argv))))

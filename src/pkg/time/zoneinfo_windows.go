@@ -161,7 +161,7 @@ var onceSetupZone sync.Once
 
 func setupZone() {
 	var i syscall.Timezoneinformation
-	if _, e := syscall.GetTimeZoneInformation(&i); e != 0 {
+	if _, e := syscall.GetTimeZoneInformation(&i); e != nil {
 		initError = os.NewSyscallError("GetTimeZoneInformation", e)
 		return
 	}

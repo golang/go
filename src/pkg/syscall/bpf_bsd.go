@@ -20,54 +20,54 @@ func BpfJump(code, k, jt, jf int) *BpfInsn {
 	return &BpfInsn{Code: uint16(code), Jt: uint8(jt), Jf: uint8(jf), K: uint32(k)}
 }
 
-func BpfBuflen(fd int) (int, int) {
+func BpfBuflen(fd int) (int, error) {
 	var l int
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCGBLEN, uintptr(unsafe.Pointer(&l)))
-	if e := int(ep); e != 0 {
-		return 0, e
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCGBLEN, uintptr(unsafe.Pointer(&l)))
+	if err != 0 {
+		return 0, Errno(err)
 	}
-	return l, 0
+	return l, nil
 }
 
-func SetBpfBuflen(fd, l int) (int, int) {
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCSBLEN, uintptr(unsafe.Pointer(&l)))
-	if e := int(ep); e != 0 {
-		return 0, e
+func SetBpfBuflen(fd, l int) (int, error) {
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCSBLEN, uintptr(unsafe.Pointer(&l)))
+	if err != 0 {
+		return 0, Errno(err)
 	}
-	return l, 0
+	return l, nil
 }
 
-func BpfDatalink(fd int) (int, int) {
+func BpfDatalink(fd int) (int, error) {
 	var t int
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCGDLT, uintptr(unsafe.Pointer(&t)))
-	if e := int(ep); e != 0 {
-		return 0, e
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCGDLT, uintptr(unsafe.Pointer(&t)))
+	if err != 0 {
+		return 0, Errno(err)
 	}
-	return t, 0
+	return t, nil
 }
 
-func SetBpfDatalink(fd, t int) (int, int) {
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCSDLT, uintptr(unsafe.Pointer(&t)))
-	if e := int(ep); e != 0 {
-		return 0, e
+func SetBpfDatalink(fd, t int) (int, error) {
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCSDLT, uintptr(unsafe.Pointer(&t)))
+	if err != 0 {
+		return 0, Errno(err)
 	}
-	return t, 0
+	return t, nil
 }
 
-func SetBpfPromisc(fd, m int) int {
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCPROMISC, uintptr(unsafe.Pointer(&m)))
-	if e := int(ep); e != 0 {
-		return e
+func SetBpfPromisc(fd, m int) error {
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCPROMISC, uintptr(unsafe.Pointer(&m)))
+	if err != 0 {
+		return Errno(err)
 	}
-	return 0
+	return nil
 }
 
-func FlushBpf(fd int) int {
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCFLUSH, 0)
-	if e := int(ep); e != 0 {
-		return e
+func FlushBpf(fd int) error {
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCFLUSH, 0)
+	if err != 0 {
+		return Errno(err)
 	}
-	return 0
+	return nil
 }
 
 type ivalue struct {
@@ -75,95 +75,95 @@ type ivalue struct {
 	value int16
 }
 
-func BpfInterface(fd int, name string) (string, int) {
+func BpfInterface(fd int, name string) (string, error) {
 	var iv ivalue
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCGETIF, uintptr(unsafe.Pointer(&iv)))
-	if e := int(ep); e != 0 {
-		return "", e
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCGETIF, uintptr(unsafe.Pointer(&iv)))
+	if err != 0 {
+		return "", Errno(err)
 	}
-	return name, 0
+	return name, nil
 }
 
-func SetBpfInterface(fd int, name string) int {
+func SetBpfInterface(fd int, name string) error {
 	var iv ivalue
 	copy(iv.name[:], []byte(name))
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCSETIF, uintptr(unsafe.Pointer(&iv)))
-	if e := int(ep); e != 0 {
-		return e
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCSETIF, uintptr(unsafe.Pointer(&iv)))
+	if err != 0 {
+		return Errno(err)
 	}
-	return 0
+	return nil
 }
 
-func BpfTimeout(fd int) (*Timeval, int) {
+func BpfTimeout(fd int) (*Timeval, error) {
 	var tv Timeval
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCGRTIMEOUT, uintptr(unsafe.Pointer(&tv)))
-	if e := int(ep); e != 0 {
-		return nil, e
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCGRTIMEOUT, uintptr(unsafe.Pointer(&tv)))
+	if err != 0 {
+		return nil, Errno(err)
 	}
-	return &tv, 0
+	return &tv, nil
 }
 
-func SetBpfTimeout(fd int, tv *Timeval) int {
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCSRTIMEOUT, uintptr(unsafe.Pointer(tv)))
-	if e := int(ep); e != 0 {
-		return e
+func SetBpfTimeout(fd int, tv *Timeval) error {
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCSRTIMEOUT, uintptr(unsafe.Pointer(tv)))
+	if err != 0 {
+		return Errno(err)
 	}
-	return 0
+	return nil
 }
 
-func BpfStats(fd int) (*BpfStat, int) {
+func BpfStats(fd int) (*BpfStat, error) {
 	var s BpfStat
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCGSTATS, uintptr(unsafe.Pointer(&s)))
-	if e := int(ep); e != 0 {
-		return nil, e
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCGSTATS, uintptr(unsafe.Pointer(&s)))
+	if err != 0 {
+		return nil, Errno(err)
 	}
-	return &s, 0
+	return &s, nil
 }
 
-func SetBpfImmediate(fd, m int) int {
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCIMMEDIATE, uintptr(unsafe.Pointer(&m)))
-	if e := int(ep); e != 0 {
-		return e
+func SetBpfImmediate(fd, m int) error {
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCIMMEDIATE, uintptr(unsafe.Pointer(&m)))
+	if err != 0 {
+		return Errno(err)
 	}
-	return 0
+	return nil
 }
 
-func SetBpf(fd int, i []BpfInsn) int {
+func SetBpf(fd int, i []BpfInsn) error {
 	var p BpfProgram
 	p.Len = uint32(len(i))
 	p.Insns = (*BpfInsn)(unsafe.Pointer(&i[0]))
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCSETF, uintptr(unsafe.Pointer(&p)))
-	if e := int(ep); e != 0 {
-		return e
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCSETF, uintptr(unsafe.Pointer(&p)))
+	if err != 0 {
+		return Errno(err)
 	}
-	return 0
+	return nil
 }
 
-func CheckBpfVersion(fd int) int {
+func CheckBpfVersion(fd int) error {
 	var v BpfVersion
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCVERSION, uintptr(unsafe.Pointer(&v)))
-	if e := int(ep); e != 0 {
-		return e
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCVERSION, uintptr(unsafe.Pointer(&v)))
+	if err != 0 {
+		return Errno(err)
 	}
 	if v.Major != BPF_MAJOR_VERSION || v.Minor != BPF_MINOR_VERSION {
 		return EINVAL
 	}
-	return 0
+	return nil
 }
 
-func BpfHeadercmpl(fd int) (int, int) {
+func BpfHeadercmpl(fd int) (int, error) {
 	var f int
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCGHDRCMPLT, uintptr(unsafe.Pointer(&f)))
-	if e := int(ep); e != 0 {
-		return 0, e
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCGHDRCMPLT, uintptr(unsafe.Pointer(&f)))
+	if err != 0 {
+		return 0, Errno(err)
 	}
-	return f, 0
+	return f, nil
 }
 
-func SetBpfHeadercmpl(fd, f int) int {
-	_, _, ep := Syscall(SYS_IOCTL, uintptr(fd), BIOCSHDRCMPLT, uintptr(unsafe.Pointer(&f)))
-	if e := int(ep); e != 0 {
-		return e
+func SetBpfHeadercmpl(fd, f int) error {
+	_, _, err := Syscall(SYS_IOCTL, uintptr(fd), BIOCSHDRCMPLT, uintptr(unsafe.Pointer(&f)))
+	if err != 0 {
+		return Errno(err)
 	}
-	return 0
+	return nil
 }
