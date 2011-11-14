@@ -32,7 +32,9 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
 	}
 	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(_p0), uintptr(len(p)), 0, uintptr(offset), uintptr(offset>>32))
 	n = int(r0)
-	errno = int(e1)
+	if e1 != 0 {
+		err = e1
+	}
 	return
 }
 
@@ -43,7 +45,9 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
 	}
 	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(_p0), uintptr(len(p)), 0, uintptr(offset), uintptr(offset>>32))
 	n = int(r0)
-	errno = int(e1)
+	if e1 != 0 {
+		err = e1
+	}
 	return
 }
 
@@ -51,13 +55,17 @@ func Ftruncate(fd int, length int64) (err error) {
 	// ARM EABI requires 64-bit arguments should be put in a pair
 	// of registers from an even register number.
 	_, _, e1 := Syscall6(SYS_FTRUNCATE64, uintptr(fd), 0, uintptr(length), uintptr(length>>32), 0, 0)
-	errno = int(e1)
+	if e1 != 0 {
+		err = e1
+	}
 	return
 }
 
 func Truncate(path string, length int64) (err error) {
 	_, _, e1 := Syscall6(SYS_TRUNCATE64, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, uintptr(length), uintptr(length>>32), 0, 0)
-	errno = int(e1)
+	if e1 != 0 {
+		err = e1
+	}
 	return
 }
 
