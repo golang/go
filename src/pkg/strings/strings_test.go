@@ -489,46 +489,47 @@ func TestSpecialCase(t *testing.T) {
 func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
 
 var trimTests = []struct {
-	f               func(string, string) string
+	f               string
 	in, cutset, out string
 }{
-	{Trim, "abba", "a", "bb"},
-	{Trim, "abba", "ab", ""},
-	{TrimLeft, "abba", "ab", ""},
-	{TrimRight, "abba", "ab", ""},
-	{TrimLeft, "abba", "a", "bba"},
-	{TrimRight, "abba", "a", "abb"},
-	{Trim, "<tag>", "<>", "tag"},
-	{Trim, "* listitem", " *", "listitem"},
-	{Trim, `"quote"`, `"`, "quote"},
-	{Trim, "\u2C6F\u2C6F\u0250\u0250\u2C6F\u2C6F", "\u2C6F", "\u0250\u0250"},
+	{"Trim", "abba", "a", "bb"},
+	{"Trim", "abba", "ab", ""},
+	{"TrimLeft", "abba", "ab", ""},
+	{"TrimRight", "abba", "ab", ""},
+	{"TrimLeft", "abba", "a", "bba"},
+	{"TrimRight", "abba", "a", "abb"},
+	{"Trim", "<tag>", "<>", "tag"},
+	{"Trim", "* listitem", " *", "listitem"},
+	{"Trim", `"quote"`, `"`, "quote"},
+	{"Trim", "\u2C6F\u2C6F\u0250\u0250\u2C6F\u2C6F", "\u2C6F", "\u0250\u0250"},
 	//empty string tests
-	{Trim, "abba", "", "abba"},
-	{Trim, "", "123", ""},
-	{Trim, "", "", ""},
-	{TrimLeft, "abba", "", "abba"},
-	{TrimLeft, "", "123", ""},
-	{TrimLeft, "", "", ""},
-	{TrimRight, "abba", "", "abba"},
-	{TrimRight, "", "123", ""},
-	{TrimRight, "", "", ""},
-	{TrimRight, "☺\xc0", "☺", "☺\xc0"},
+	{"Trim", "abba", "", "abba"},
+	{"Trim", "", "123", ""},
+	{"Trim", "", "", ""},
+	{"TrimLeft", "abba", "", "abba"},
+	{"TrimLeft", "", "123", ""},
+	{"TrimLeft", "", "", ""},
+	{"TrimRight", "abba", "", "abba"},
+	{"TrimRight", "", "123", ""},
+	{"TrimRight", "", "", ""},
+	{"TrimRight", "☺\xc0", "☺", "☺\xc0"},
 }
 
 func TestTrim(t *testing.T) {
 	for _, tc := range trimTests {
-		actual := tc.f(tc.in, tc.cutset)
-		var name string
-		switch tc.f {
-		case Trim:
-			name = "Trim"
-		case TrimLeft:
-			name = "TrimLeft"
-		case TrimRight:
-			name = "TrimRight"
+		name := tc.f
+		var f func(string, string) string
+		switch name {
+		case "Trim":
+			f = Trim
+		case "TrimLeft":
+			f = TrimLeft
+		case "TrimRight":
+			f = TrimRight
 		default:
-			t.Error("Undefined trim function")
+			t.Error("Undefined trim function %s", name)
 		}
+		actual := f(tc.in, tc.cutset)
 		if actual != tc.out {
 			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.cutset, actual, tc.out)
 		}

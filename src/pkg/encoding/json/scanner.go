@@ -80,6 +80,9 @@ type scanner struct {
 	// on a 64-bit Mac Mini, and it's nicer to read.
 	step func(*scanner, int) int
 
+	// Reached end of top-level value.
+	endTop bool
+
 	// Stack of what we're in the middle of - array values, object keys, object values.
 	parseState []int
 
@@ -87,6 +90,7 @@ type scanner struct {
 	err error
 
 	// 1-byte redo (see undo method)
+	redo      bool
 	redoCode  int
 	redoState func(*scanner, int) int
 
@@ -135,6 +139,8 @@ func (s *scanner) reset() {
 	s.step = stateBeginValue
 	s.parseState = s.parseState[0:0]
 	s.err = nil
+	s.redo = false
+	s.endTop = false
 }
 
 // eof tells the scanner that the end of input has been reached.
@@ -143,11 +149,11 @@ func (s *scanner) eof() int {
 	if s.err != nil {
 		return scanError
 	}
-	if s.step == stateEndTop {
+	if s.endTop {
 		return scanEnd
 	}
 	s.step(s, ' ')
-	if s.step == stateEndTop {
+	if s.endTop {
 		return scanEnd
 	}
 	if s.err == nil {
@@ -166,8 +172,10 @@ func (s *scanner) pushParseState(p int) {
 func (s *scanner) popParseState() {
 	n := len(s.parseState) - 1
 	s.parseState = s.parseState[0:n]
+	s.redo = false
 	if n == 0 {
 		s.step = stateEndTop
+		s.endTop = true
 	} else {
 		s.step = stateEndValue
 	}
@@ -269,6 +277,7 @@ func stateEndValue(s *scanner, c int) int {
 	if n == 0 {
 		// Completed top-level before the current byte.
 		s.step = stateEndTop
+		s.endTop = true
 		return stateEndTop(s, c)
 	}
 	if c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
@@ -606,16 +615,18 @@ func quoteChar(c int) string {
 // undo causes the scanner to return scanCode from the next state transition.
 // This gives callers a simple 1-byte undo mechanism.
 func (s *scanner) undo(scanCode int) {
-	if s.step == stateRedo {
-		panic("invalid use of scanner")
+	if s.redo {
+		panic("json: invalid use of scanner")
 	}
 	s.redoCode = scanCode
 	s.redoState = s.step
 	s.step = stateRedo
+	s.redo = true
 }
 
 // stateRedo helps implement the scanner's 1-byte undo.
 func stateRedo(s *scanner, c int) int {
+	s.redo = false
 	s.step = s.redoState
 	return s.redoCode
 }

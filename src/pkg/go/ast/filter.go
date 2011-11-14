@@ -24,7 +24,7 @@ func exportFilter(name string) bool {
 // it returns false otherwise.
 //
 func FileExports(src *File) bool {
-	return FilterFile(src, exportFilter)
+	return filterFile(src, exportFilter, true)
 }
 
 // PackageExports trims the AST for a Go package in place such that
@@ -35,7 +35,7 @@ func FileExports(src *File) bool {
 // it returns false otherwise.
 //
 func PackageExports(pkg *Package) bool {
-	return FilterPackage(pkg, exportFilter)
+	return filterPackage(pkg, exportFilter, true)
 }
 
 // ----------------------------------------------------------------------------
@@ -72,7 +72,7 @@ func fieldName(x Expr) *Ident {
 	return nil
 }
 
-func filterFieldList(fields *FieldList, filter Filter) (removedFields bool) {
+func filterFieldList(fields *FieldList, filter Filter, export bool) (removedFields bool) {
 	if fields == nil {
 		return false
 	}
@@ -93,8 +93,8 @@ func filterFieldList(fields *FieldList, filter Filter) (removedFields bool) {
 			keepField = len(f.Names) > 0
 		}
 		if keepField {
-			if filter == exportFilter {
-				filterType(f.Type, filter)
+			if export {
+				filterType(f.Type, filter, export)
 			}
 			list[j] = f
 			j++
@@ -107,84 +107,84 @@ func filterFieldList(fields *FieldList, filter Filter) (removedFields bool) {
 	return
 }
 
-func filterParamList(fields *FieldList, filter Filter) bool {
+func filterParamList(fields *FieldList, filter Filter, export bool) bool {
 	if fields == nil {
 		return false
 	}
 	var b bool
 	for _, f := range fields.List {
-		if filterType(f.Type, filter) {
+		if filterType(f.Type, filter, export) {
 			b = true
 		}
 	}
 	return b
 }
 
-func filterType(typ Expr, f Filter) bool {
+func filterType(typ Expr, f Filter, export bool) bool {
 	switch t := typ.(type) {
 	case *Ident:
 		return f(t.Name)
 	case *ParenExpr:
-		return filterType(t.X, f)
+		return filterType(t.X, f, export)
 	case *ArrayType:
-		return filterType(t.Elt, f)
+		return filterType(t.Elt, f, export)
 	case *StructType:
-		if filterFieldList(t.Fields, f) {
+		if filterFieldList(t.Fields, f, export) {
 			t.Incomplete = true
 		}
 		return len(t.Fields.List) > 0
 	case *FuncType:
-		b1 := filterParamList(t.Params, f)
-		b2 := filterParamList(t.Results, f)
+		b1 := filterParamList(t.Params, f, export)
+		b2 := filterParamList(t.Results, f, export)
 		return b1 || b2
 	case *InterfaceType:
-		if filterFieldList(t.Methods, f) {
+		if filterFieldList(t.Methods, f, export) {
 			t.Incomplete = true
 		}
 		return len(t.Methods.List) > 0
 	case *MapType:
-		b1 := filterType(t.Key, f)
-		b2 := filterType(t.Value, f)
+		b1 := filterType(t.Key, f, export)
+		b2 := filterType(t.Value, f, export)
 		return b1 || b2
 	case *ChanType:
-		return filterType(t.Value, f)
+		return filterType(t.Value, f, export)
 	}
 	return false
 }
 
-func filterSpec(spec Spec, f Filter) bool {
+func filterSpec(spec Spec, f Filter, export bool) bool {
 	switch s := spec.(type) {
 	case *ValueSpec:
 		s.Names = filterIdentList(s.Names, f)
 		if len(s.Names) > 0 {
-			if f == exportFilter {
-				filterType(s.Type, f)
+			if export {
+				filterType(s.Type, f, export)
 			}
 			return true
 		}
 	case *TypeSpec:
 		if f(s.Name.Name) {
-			if f == exportFilter {
-				filterType(s.Type, f)
+			if export {
+				filterType(s.Type, f, export)
 			}
 			return true
 		}
-		if f != exportFilter {
+		if !export {
 			// For general filtering (not just exports),
 			// filter type even if name is not filtered
 			// out.
 			// If the type contains filtered elements,
 			// keep the declaration.
-			return filterType(s.Type, f)
+			return filterType(s.Type, f, export)
 		}
 	}
 	return false
 }
 
-func filterSpecList(list []Spec, f Filter) []Spec {
+func filterSpecList(list []Spec, f Filter, export bool) []Spec {
 	j := 0
 	for _, s := range list {
-		if filterSpec(s, f) {
+		if filterSpec(s, f, export) {
 			list[j] = s
 			j++
 		}
@@ -200,9 +200,13 @@ func filterSpecList(list []Spec, f Filter) []Spec {
 // filtering; it returns false otherwise.
 //
 func FilterDecl(decl Decl, f Filter) bool {
+	return filterDecl(decl, f, false)
+}
+
+func filterDecl(decl Decl, f Filter, export bool) bool {
 	switch d := decl.(type) {
 	case *GenDecl:
-		d.Specs = filterSpecList(d.Specs, f)
+		d.Specs = filterSpecList(d.Specs, f, export)
 		return len(d.Specs) > 0
 	case *FuncDecl:
 		return f(d.Name.Name)
@@ -221,9 +225,13 @@ func FilterDecl(decl Decl, f Filter) bool {
 // left after filtering; it returns false otherwise.
 //
 func FilterFile(src *File, f Filter) bool {
+	return filterFile(src, f, false)
+}
+
+func filterFile(src *File, f Filter, export bool) bool {
 	j := 0
 	for _, d := range src.Decls {
-		if FilterDecl(d, f) {
+		if filterDecl(d, f, export) {
 			src.Decls[j] = d
 			j++
 		}
@@ -244,9 +252,13 @@ func FilterFile(src *File, f Filter) bool {
 // left after filtering; it returns false otherwise.
 //
 func FilterPackage(pkg *Package, f Filter) bool {
+	return filterPackage(pkg, f, false)
+}
+
+func filterPackage(pkg *Package, f Filter, export bool) bool {
 	hasDecls := false
 	for _, src := range pkg.Files {
-		if FilterFile(src, f) {
+		if filterFile(src, f, export) {
 			hasDecls = true
 		}
 	}
