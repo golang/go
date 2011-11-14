@@ -283,3 +283,21 @@ func Pipe() (r *File, w *File, err error) {
 
 	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
 }
+
+// TempDir returns the default directory to use for temporary files.
+func TempDir() string {
+	const pathSep = '\\'
+	dirw := make([]uint16, MAX_PATH)
+	n, _ := syscall.GetTempPath(uint32(len(dirw)), &dirw[0])
+	if n > uint32(len(dirw)) {
+		dirw = make([]uint16, n)
+		n, _ = syscall.GetTempPath(uint32(len(dirw)), &dirw[0])
+		if n > uint32(len(dirw)) {
+			n = 0
+		}
+	}
+	if n > 0 && dirw[n-1] == pathSep {
+		n--
+	}
+	return string(utf16.Decode(dirw[0:n]))
+}

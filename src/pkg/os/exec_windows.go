@@ -65,3 +65,17 @@ func FindProcess(pid int) (p *Process, err error) {
 	}
 	return newProcess(pid, int(h)), nil
 }
+
+func init() {
+	var argc int32
+	cmd := GetCommandLine()
+	argv, e := CommandLineToArgv(cmd, &argc)
+	if e != nil {
+		return
+	}
+	defer LocalFree(Handle(uintptr(unsafe.Pointer(argv))))
+	Args = make([]string, argc)
+	for i, v := range (*argv)[:argc] {
+		Args[i] = string(UTF16ToString((*v)[:]))
+	}
+}

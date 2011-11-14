@@ -329,3 +329,8 @@ func Lchown(name string, uid, gid int) error {
 func (f *File) Chown(uid, gid int) error {
 	return EPLAN9
 }
+
+// TempDir returns the default directory to use for temporary files.
+func TempDir() string {
+	return "/tmp"
+}

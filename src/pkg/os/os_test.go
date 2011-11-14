@@ -18,7 +18,7 @@ import (
 
 var dot = []string{
 	"dir_unix.go",
-	"env_unix.go",
+	"env.go",
 	"error.go",
 	"file.go",
 	"os_test.go",

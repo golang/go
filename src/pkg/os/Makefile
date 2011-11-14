@@ -20,7 +20,6 @@ GOFILES=\
 GOFILES_freebsd=\
 	dir_unix.go\
 	error_posix.go\
-	env_unix.go\
 	file_posix.go\
 	file_unix.go\
 	path_unix.go\
@@ -32,7 +31,6 @@ GOFILES_freebsd=\
 GOFILES_darwin=\
 	dir_unix.go\
 	error_posix.go\
-	env_unix.go\
 	file_posix.go\
 	file_unix.go\
 	path_unix.go\
@@ -44,7 +42,6 @@ GOFILES_darwin=\
 GOFILES_linux=\
 	dir_unix.go\
 	error_posix.go\
-	env_unix.go\
 	file_posix.go\
 	file_unix.go\
 	path_unix.go\
@@ -56,7 +53,6 @@ GOFILES_linux=\
 GOFILES_openbsd=\
 	dir_unix.go\
 	error_posix.go\
-	env_unix.go\
 	file_posix.go\
 	file_unix.go\
 	path_unix.go\
@@ -68,7 +64,6 @@ GOFILES_openbsd=\
 GOFILES_windows=\
 	dir_windows.go\
 	error_posix.go\
-	env_windows.go\
 	file_posix.go\
 	file_windows.go\
 	path_windows.go\
@@ -80,7 +75,6 @@ GOFILES_windows=\
 GOFILES_plan9=\
 	dir_plan9.go\
 	error_plan9.go\
-	env_plan9.go\
 	file_plan9.go\
 	path_plan9.go\
 	sys_plan9.go\
