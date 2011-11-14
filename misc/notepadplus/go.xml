@@ -17,7 +17,8 @@
 		<KeyWord name="copy" />
 		<KeyWord name="default" /> 
 		<KeyWord name="defer" /> 
-		<KeyWord name="else" /> 
+		<KeyWord name="else" />
+		<KeyWord name="error" />
 		<KeyWord name="fallthrough" /> 
 		<KeyWord name="false" /> 
 		<KeyWord name="float32" /> 
@@ -49,6 +50,7 @@
 		<KeyWord name="real" />
 		<KeyWord name="recover" />
 		<KeyWord name="return" />
+		<KeyWord name="rune" />
 		<KeyWord name="select" /> 
 		<KeyWord name="string" /> 
 		<KeyWord name="struct" /> 
