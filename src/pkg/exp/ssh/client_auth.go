@@ -5,7 +5,6 @@
 package ssh
 
 import (
-	"crypto/rand"
 	"errors"
 	"io"
 )
@@ -28,7 +27,7 @@ func (c *ClientConn) authenticate(session []byte) error {
 	// then any untried methods suggested by the server. 
 	tried, remain := make(map[string]bool), make(map[string]bool)
 	for auth := ClientAuth(new(noneAuth)); auth != nil; {
-		ok, methods, err := auth.auth(session, c.config.User, c.transport)
+		ok, methods, err := auth.auth(session, c.config.User, c.transport, c.config.rand())
 		if err != nil {
 			return err
 		}
@@ -62,7 +61,7 @@ type ClientAuth interface {
 	// Returns true if authentication is successful.
 	// If authentication is not successful, a []string of alternative 
 	// method names is returned.
-	auth(session []byte, user string, t *transport) (bool, []string, error)
+	auth(session []byte, user string, t *transport, rand io.Reader) (bool, []string, error)
 
 	// method returns the RFC 4252 method name.
 	method() string
@@ -71,7 +70,7 @@ type ClientAuth interface {
 // "none" authentication, RFC 4252 section 5.2.
 type noneAuth int
 
-func (n *noneAuth) auth(session []byte, user string, t *transport) (bool, []string, error) {
+func (n *noneAuth) auth(session []byte, user string, t *transport, rand io.Reader) (bool, []string, error) {
 	if err := t.writePacket(marshal(msgUserAuthRequest, userAuthRequestMsg{
 		User:    user,
 		Service: serviceSSH,
@@ -104,7 +103,7 @@ type passwordAuth struct {
 	ClientPassword
 }
 
-func (p *passwordAuth) auth(session []byte, user string, t *transport) (bool, []string, error) {
+func (p *passwordAuth) auth(session []byte, user string, t *transport, rand io.Reader) (bool, []string, error) {
 	type passwordAuthMsg struct {
 		User     string
 		Service  string
@@ -174,7 +173,7 @@ type publickeyAuth struct {
 	ClientKeyring
 }
 
-func (p *publickeyAuth) auth(session []byte, user string, t *transport) (bool, []string, error) {
+func (p *publickeyAuth) auth(session []byte, user string, t *transport, rand io.Reader) (bool, []string, error) {
 	type publickeyAuthMsg struct {
 		User    string
 		Service string
@@ -241,8 +240,7 @@ func (p *publickeyAuth) auth(session []byte, user string, t *transport) (bool, [
 	for i, key := range validKeys {
 		pubkey := serializePublickey(key)
 		algoname := algoName(key)
-		// TODO(dfc) use random source from the ClientConfig
-		sign, err := p.Sign(i, rand.Reader, buildDataSignedForAuth(session, userAuthRequestMsg{
+		sign, err := p.Sign(i, rand, buildDataSignedForAuth(session, userAuthRequestMsg{
 			User:    user,
 			Service: serviceSSH,
 			Method:  p.method(),
