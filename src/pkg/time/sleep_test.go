@@ -54,6 +54,9 @@ func TestAfterStress(t *testing.T) {
 	go func() {
 		for atomic.LoadUint32(&stop) == 0 {
 			runtime.GC()
+			// Need to yield, because otherwise
+			// the main goroutine will never set the stop flag.
+			runtime.Gosched()
 		}
 	}()
 	c := Tick(1)
