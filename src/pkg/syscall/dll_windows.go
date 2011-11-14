@@ -15,6 +15,14 @@ func (e Errno) Error() string {
 	return errstr(e)
 }
 
+func (e Errno) Temporary() bool {
+	return e == EINTR || e == EMFILE || e.Timeout()
+}
+
+func (e Errno) Timeout() bool {
+	return e == EAGAIN || e == EWOULDBLOCK || e == ETIMEDOUT
+}
+
 // DLLError describes reasons for DLL load failures.
 type DLLError struct {
 	Err     error
