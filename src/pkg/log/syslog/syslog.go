@@ -8,6 +8,7 @@
 package syslog
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -75,7 +76,7 @@ func Dial(network, raddr string, priority Priority, prefix string) (w *Writer, e
 // Write sends a log message to the syslog daemon.
 func (w *Writer) Write(b []byte) (int, error) {
 	if w.priority > LOG_DEBUG || w.priority < LOG_EMERG {
-		return 0, os.EINVAL
+		return 0, errors.New("log/syslog: invalid priority")
 	}
 	return w.conn.writeBytes(w.priority, w.prefix, b)
 }

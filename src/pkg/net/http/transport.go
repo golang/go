@@ -504,7 +504,7 @@ func (pc *persistConn) expectingResponse() bool {
 var remoteSideClosedFunc func(error) bool // or nil to use default
 
 func remoteSideClosed(err error) bool {
-	if err == io.EOF || err == os.EINVAL {
+	if err == io.EOF {
 		return true
 	}
 	if remoteSideClosedFunc != nil {

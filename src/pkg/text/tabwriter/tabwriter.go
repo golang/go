@@ -13,7 +13,6 @@ package tabwriter
 import (
 	"bytes"
 	"io"
-	"os"
 	"unicode/utf8"
 )
 
@@ -221,7 +220,7 @@ type osError struct {
 func (b *Writer) write0(buf []byte) {
 	n, err := b.output.Write(buf)
 	if n != len(buf) && err == nil {
-		err = os.EIO
+		err = io.ErrShortWrite
 	}
 	if err != nil {
 		panic(osError{err})

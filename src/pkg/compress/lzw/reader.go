@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 )
 
 // Order specifies the bit ordering in an LZW data stream.
@@ -212,8 +211,10 @@ func (d *decoder) flush() {
 	d.o = 0
 }
 
+var errClosed = errors.New("compress/lzw: reader/writer is closed")
+
 func (d *decoder) Close() error {
-	d.err = os.EINVAL // in case any Reads come along
+	d.err = errClosed // in case any Reads come along
 	return nil
 }
 

@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 )
 
 // A writer is a buffered, flushable writer.
@@ -64,7 +63,7 @@ type encoder struct {
 	// call. It is equal to invalidCode if there was no such call.
 	savedCode uint32
 	// err is the first error encountered during writing. Closing the encoder
-	// will make any future Write calls return os.EINVAL.
+	// will make any future Write calls return errClosed
 	err error
 	// table is the hash table from 20-bit keys to 12-bit values. Each table
 	// entry contains key<<12|val and collisions resolve by linear probing.
@@ -191,13 +190,13 @@ loop:
 // flush e's underlying writer.
 func (e *encoder) Close() error {
 	if e.err != nil {
-		if e.err == os.EINVAL {
+		if e.err == errClosed {
 			return nil
 		}
 		return e.err
 	}
-	// Make any future calls to Write return os.EINVAL.
-	e.err = os.EINVAL
+	// Make any future calls to Write return errClosed.
+	e.err = errClosed
 	// Write the savedCode if valid.
 	if e.savedCode != invalidCode {
 		if err := e.write(e, e.savedCode); err != nil {

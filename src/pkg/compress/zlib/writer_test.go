@@ -59,10 +59,6 @@ func testLevelDict(t *testing.T, fn string, b0 []byte, level int, d string) {
 		}
 		defer zlibw.Close()
 		_, err = zlibw.Write(b0)
-		if err == os.EPIPE {
-			// Fail, but do not report the error, as some other (presumably reported) error broke the pipe.
-			return
-		}
 		if err != nil {
 			t.Errorf("%s (level=%d, dict=%q): %v", fn, level, d, err)
 			return

@@ -7,7 +7,6 @@ package xml
 import (
 	"bytes"
 	"io"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -205,7 +204,7 @@ func (d *downCaser) ReadByte() (c byte, err error) {
 
 func (d *downCaser) Read(p []byte) (int, error) {
 	d.t.Fatalf("unexpected Read call on downCaser reader")
-	return 0, os.EINVAL
+	panic("unreachable")
 }
 
 func TestRawTokenAltEncoding(t *testing.T) {

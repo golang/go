@@ -93,7 +93,8 @@ func (c *Conn) SetTimeout(nsec int64) error {
 }
 
 // SetReadTimeout sets the time (in nanoseconds) that
-// Read will wait for data before returning os.EAGAIN.
+// Read will wait for data before returning a net.Error
+// with Timeout() == true.
 // Setting nsec == 0 (the default) disables the deadline.
 func (c *Conn) SetReadTimeout(nsec int64) error {
 	return c.conn.SetReadTimeout(nsec)
@@ -737,7 +738,7 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 	return c.writeRecord(recordTypeApplicationData, b)
 }
 
-// Read can be made to time out and return err == os.EAGAIN
+// Read can be made to time out and return a net.Error with Timeout() == true
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
 func (c *Conn) Read(b []byte) (n int, err error) {
 	if err = c.Handshake(); err != nil {
