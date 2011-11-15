@@ -655,6 +655,9 @@ func inBodyIM(p *parser) bool {
 			}
 			p.popUntil(buttonScopeStopTags, "p")
 			p.addElement(p.tok.Data, p.tok.Attr)
+		case "plaintext":
+			p.popUntil(buttonScopeStopTags, "p")
+			p.addElement(p.tok.Data, p.tok.Attr)
 		case "optgroup", "option":
 			if p.top().Data == "option" {
 				p.oe.pop()
