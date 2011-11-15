@@ -205,7 +205,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 	for _, Benchmark := range benchmarks {
 		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
 		if err != nil {
-			println("invalid regexp for -test.bench:", err.Error())
+			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.bench: %s\n", err)
 			os.Exit(1)
 		}
 		if !matched {
@@ -218,11 +218,11 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 			if procs != 1 {
 				benchName = fmt.Sprintf("%s-%d", Benchmark.Name, procs)
 			}
-			print(fmt.Sprintf("%s\t", benchName))
+			fmt.Printf("%s\t", benchName)
 			r := b.run()
-			print(fmt.Sprintf("%v\n", r))
+			fmt.Printf("%v\n", r)
 			if p := runtime.GOMAXPROCS(-1); p != procs {
-				print(fmt.Sprintf("%s left GOMAXPROCS set to %d\n", benchName, p))
+				fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
 			}
 		}
 	}
