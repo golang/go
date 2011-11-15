@@ -55,7 +55,7 @@ type dirInfo struct {
 
 const DevNull = "NUL"
 
-func (file *File) isdir() bool { return file != nil && file.dirinfo != nil }
+func (file *file) isdir() bool { return file != nil && file.dirinfo != nil }
 
 func openFile(name string, flag int, perm uint32) (file *File, err error) {
 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
