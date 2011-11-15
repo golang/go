@@ -357,11 +357,6 @@ func Gettimeofday(tv *Timeval) (err error) {
 	return nil
 }
 
-func Sleep(nsec int64) (err error) {
-	sleep(uint32((nsec + 1e6 - 1) / 1e6)) // round up to milliseconds
-	return nil
-}
-
 func Pipe(p []Handle) (err error) {
 	if len(p) != 2 {
 		return EINVAL

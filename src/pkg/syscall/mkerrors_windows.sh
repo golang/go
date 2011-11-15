@@ -158,7 +158,7 @@ main(void)
 	printf("\n// Go names for Windows errors.\n");
 	printf("const (\n");
 	for(i=0; i<nelem(goerrors); i++) {
-		printf("\t%s = %s\n", goerrors[i].goname, goerrors[i].winname);
+		printf("\t%s Errno = %s\n", goerrors[i].goname, goerrors[i].winname);
 			
 	}
 	printf(")\n");
@@ -171,7 +171,7 @@ main(void)
 	for(i=0; i<nelem(errors); i++) {
 		printf("\t%s", errors[i].name);
 		if(iota) {
-			printf(" = APPLICATION_ERROR + iota");
+			printf(" Errno = APPLICATION_ERROR + iota");
 			iota = !iota;
 		}
 		printf("\n");

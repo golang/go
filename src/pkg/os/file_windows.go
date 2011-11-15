@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
+	"unicode/utf16"
 )
 
 // File represents an open file descriptor.
@@ -299,7 +300,7 @@ func Pipe() (r *File, w *File, err error) {
 // TempDir returns the default directory to use for temporary files.
 func TempDir() string {
 	const pathSep = '\\'
-	dirw := make([]uint16, MAX_PATH)
+	dirw := make([]uint16, syscall.MAX_PATH)
 	n, _ := syscall.GetTempPath(uint32(len(dirw)), &dirw[0])
 	if n > uint32(len(dirw)) {
 		dirw = make([]uint16, n)

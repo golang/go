@@ -7,7 +7,6 @@
 package syscall
 
 import (
-	"errors"
 	"unicode/utf16"
 	"unsafe"
 )
