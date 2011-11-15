@@ -186,11 +186,12 @@ func TestNextValueBig(t *testing.T) {
 	}
 }
 
+var benchScan scanner
+
 func BenchmarkSkipValue(b *testing.B) {
 	initBig()
-	var scan scanner
 	for i := 0; i < b.N; i++ {
-		nextValue(jsonBig, &scan)
+		nextValue(jsonBig, &benchScan)
 	}
 	b.SetBytes(int64(len(jsonBig)))
 }
