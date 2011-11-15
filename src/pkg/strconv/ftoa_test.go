@@ -148,3 +148,27 @@ func TestFtoa(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkFtoa64Decimal(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Ftoa64(33909, 'g', -1)
+	}
+}
+
+func BenchmarkFtoa64Float(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Ftoa64(339.7784, 'g', -1)
+	}
+}
+
+func BenchmarkFtoa64FloatExp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Ftoa64(-5.09e75, 'g', -1)
+	}
+}
+
+func BenchmarkFtoa64Big(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Ftoa64(123456789123456789123456789, 'g', -1)
+	}
+}
