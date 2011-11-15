@@ -98,7 +98,8 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
 	// The shift is exp - flt.mantbits because mant is a 1-bit integer
 	// followed by a flt.mantbits fraction, and we are treating it as
 	// a 1+flt.mantbits-bit integer.
-	d := newDecimal(mant)
+	d := new(decimal)
+	d.Assign(mant)
 	d.Shift(exp - int(flt.mantbits))
 
 	// Round appropriately.
@@ -184,7 +185,8 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	// d = mant << (exp - mantbits)
 	// Next highest floating point number is mant+1 << exp-mantbits.
 	// Our upper bound is halfway inbetween, mant*2+1 << exp-mantbits-1.
-	upper := newDecimal(mant*2 + 1)
+	upper := new(decimal)
+	upper.Assign(mant*2 + 1)
 	upper.Shift(exp - int(flt.mantbits) - 1)
 
 	// d = mant << (exp - mantbits)
@@ -203,7 +205,8 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 		mantlo = mant*2 - 1
 		explo = exp - 1
 	}
-	lower := newDecimal(mantlo*2 + 1)
+	lower := new(decimal)
+	lower.Assign(mantlo*2 + 1)
 	lower.Shift(explo - int(flt.mantbits) - 1)
 
 	// The upper and lower bounds are possible outputs only if
