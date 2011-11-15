@@ -138,6 +138,8 @@ type Rows interface {
 	// The dest slice may be populated with only with values
 	// of subset types defined above, but excluding string.
 	// All string values must be converted to []byte.
+	//
+	// Next should return io.EOF when there are no more rows.
 	Next(dest []interface{}) error
 }
 
