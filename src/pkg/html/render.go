@@ -52,7 +52,19 @@ func Render(w io.Writer, n *Node) error {
 	return buf.Flush()
 }
 
+// plaintextAbort is returned from render1 when a <plaintext> element 
+// has been rendered. No more end tags should be rendered after that.
+var plaintextAbort = errors.New("html: internal error (plaintext abort)")
+
 func render(w writer, n *Node) error {
+	err := render1(w, n)
+	if err == plaintextAbort {
+		err = nil
+	}
+	return err
+}
+
+func render1(w writer, n *Node) error {
 	// Render non-element nodes; these are the easy cases.
 	switch n.Type {
 	case ErrorNode:
@@ -61,7 +73,7 @@ func render(w writer, n *Node) error {
 		return escape(w, n.Data)
 	case DocumentNode:
 		for _, c := range n.Child {
-			if err := render(w, c); err != nil {
+			if err := render1(w, c); err != nil {
 				return err
 			}
 		}
@@ -128,7 +140,7 @@ func render(w writer, n *Node) error {
 
 	// Render any child nodes.
 	switch n.Data {
-	case "noembed", "noframes", "noscript", "script", "style":
+	case "noembed", "noframes", "noscript", "plaintext", "script", "style":
 		for _, c := range n.Child {
 			if c.Type != TextNode {
 				return fmt.Errorf("html: raw text element <%s> has non-text child node", n.Data)
@@ -137,18 +149,23 @@ func render(w writer, n *Node) error {
 				return err
 			}
 		}
+		if n.Data == "plaintext" {
+			// Don't render anything else. <plaintext> must be the
+			// last element in the file, with no closing tag.
+			return plaintextAbort
+		}
 	case "textarea", "title":
 		for _, c := range n.Child {
 			if c.Type != TextNode {
 				return fmt.Errorf("html: RCDATA element <%s> has non-text child node", n.Data)
 			}
-			if err := render(w, c); err != nil {
+			if err := render1(w, c); err != nil {
 				return err
 			}
 		}
 	default:
 		for _, c := range n.Child {
-			if err := render(w, c); err != nil {
+			if err := render1(w, c); err != nil {
 				return err
 			}
 		}

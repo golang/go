@@ -401,14 +401,14 @@ func (z *Tokenizer) readStartTag() TokenType {
 			break
 		}
 	}
-	// Any "<noembed>", "<noframes>", "<noscript>", "<script>", "<style>",
+	// Any "<noembed>", "<noframes>", "<noscript>", "<plaintext", "<script>", "<style>",
 	// "<textarea>" or "<title>" tag flags the tokenizer's next token as raw.
-	// The tag name lengths of these special cases ranges in [5, 8].
-	if x := z.data.end - z.data.start; 5 <= x && x <= 8 {
+	// The tag name lengths of these special cases ranges in [5, 9].
+	if x := z.data.end - z.data.start; 5 <= x && x <= 9 {
 		switch z.buf[z.data.start] {
-		case 'n', 's', 't', 'N', 'S', 'T':
+		case 'n', 'p', 's', 't', 'N', 'P', 'S', 'T':
 			switch s := strings.ToLower(string(z.buf[z.data.start:z.data.end])); s {
-			case "noembed", "noframes", "noscript", "script", "style", "textarea", "title":
+			case "noembed", "noframes", "noscript", "plaintext", "script", "style", "textarea", "title":
 				z.rawTag = s
 			}
 		}
@@ -551,7 +551,15 @@ func (z *Tokenizer) Next() TokenType {
 	z.data.start = z.raw.end
 	z.data.end = z.raw.end
 	if z.rawTag != "" {
-		z.readRawOrRCDATA()
+		if z.rawTag == "plaintext" {
+			// Read everything up to EOF.
+			for z.err == nil {
+				z.readByte()
+			}
+			z.textIsRaw = true
+		} else {
+			z.readRawOrRCDATA()
+		}
 		if z.data.end > z.data.start {
 			z.tt = TextToken
 			return z.tt
