@@ -1018,9 +1018,6 @@ eqtypenoname(Type *t1, Type *t2)
 // Is type src assignment compatible to type dst?
 // If so, return op code to use in conversion.
 // If not, return 0.
-//
-// It is the caller's responsibility to call exportassignok
-// to check for assignments to other packages' unexported fields,
 int
 assignop(Type *src, Type *dst, char **why)
 {
@@ -1225,7 +1222,6 @@ assignconv(Node *n, Type *t, char *context)
 	if(t->etype == TBLANK)
 		return n;
 
-	exportassignok(n->type, context);
 	if(eqtype(n->type, t))
 		return n;
 

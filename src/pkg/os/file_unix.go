@@ -13,6 +13,14 @@ import (
 
 // File represents an open file descriptor.
 type File struct {
+	*file
+}
+
+// file is the real representation of *File.
+// The extra level of indirection ensures that no clients of os
+// can overwrite this data, which could cause the finalizer
+// to close the wrong file descriptor.
+type file struct {
 	fd      int
 	name    string
 	dirinfo *dirInfo // nil unless directory being read
@@ -32,8 +40,8 @@ func NewFile(fd int, name string) *File {
 	if fd < 0 {
 		return nil
 	}
-	f := &File{fd: fd, name: name}
-	runtime.SetFinalizer(f, (*File).Close)
+	f := &File{&file{fd: fd, name: name}}
+	runtime.SetFinalizer(f.file, (*file).close)
 	return f
 }
 
@@ -71,6 +79,10 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
 // Close closes the File, rendering it unusable for I/O.
 // It returns an error, if any.
 func (file *File) Close() error {
+	return file.file.close()
+}
+
+func (file *file) close() error {
 	if file == nil || file.fd < 0 {
 		return EINVAL
 	}

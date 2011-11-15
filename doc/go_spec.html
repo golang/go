@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of November 13, 2011 -->
+<!-- subtitle Version of November 14, 2011 -->
 
 <!--
 TODO
@@ -1366,15 +1366,6 @@ is a pointer, function, slice, map, channel, or interface type.
 by a value of type <code>T</code>.
 </li>
 </ul>
-
-<p>
-If <code>T</code> is a struct type with non-<a href="#Exported_identifiers">exported</a>
-fields, the assignment must be in the same package in which <code>T</code> is declared,
-or <code>x</code> must be the receiver of a method call.
-In other words, a struct value can be assigned to a struct variable only if
-every field of the struct may be legally assigned individually by the program,
-or if the assignment is initializing the receiver of a method of the struct type.
-</p>
 
 <p>
 Any value may be assigned to the <a href="#Blank_identifier">blank identifier</a>.
