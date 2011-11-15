@@ -70,7 +70,6 @@ var reqTests = []reqTest{
 			Close:         false,
 			ContentLength: 7,
 			Host:          "www.techcrunch.com",
-			Form:          url.Values{},
 		},
 
 		"abcdef\n",
@@ -94,10 +93,10 @@ var reqTests = []reqTest{
 			Proto:         "HTTP/1.1",
 			ProtoMajor:    1,
 			ProtoMinor:    1,
+			Header:        Header{},
 			Close:         false,
 			ContentLength: 0,
 			Host:          "foo.com",
-			Form:          url.Values{},
 		},
 
 		noBody,
@@ -131,7 +130,6 @@ var reqTests = []reqTest{
 			Close:         false,
 			ContentLength: 0,
 			Host:          "test",
-			Form:          url.Values{},
 		},
 
 		noBody,
@@ -180,9 +178,9 @@ var reqTests = []reqTest{
 			Proto:            "HTTP/1.1",
 			ProtoMajor:       1,
 			ProtoMinor:       1,
+			Header:           Header{},
 			ContentLength:    -1,
 			Host:             "foo.com",
-			Form:             url.Values{},
 		},
 
 		"foobar",
