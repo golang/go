@@ -69,7 +69,7 @@
 some syntax analysis.")
 
 (defvar go-mode-font-lock-keywords
-  (let ((builtins '("append" "cap" "close" "complex" "copy" "imag" "len"
+  (let ((builtins '("append" "cap" "close" "complex" "copy" "delete" "imag" "len"
                     "make" "new" "panic" "print" "println" "real" "recover"))
         (constants '("nil" "true" "false" "iota"))
         (type-name "\\s *\\(?:[*(]\\s *\\)*\\(?:\\w+\\s *\\.\\s *\\)?\\(\\w+\\)")
