@@ -37,18 +37,20 @@ var buildPkgs = []struct {
 	{
 		"go/build/cmdtest",
 		&DirInfo{
-			GoFiles: []string{"main.go"},
-			Package: "main",
-			Imports: []string{"go/build/pkgtest"},
+			GoFiles:     []string{"main.go"},
+			Package:     "main",
+			Imports:     []string{"go/build/pkgtest"},
+			TestImports: []string{},
 		},
 	},
 	{
 		"go/build/cgotest",
 		&DirInfo{
-			CgoFiles: []string{"cgotest.go"},
-			CFiles:   []string{"cgotest.c"},
-			Imports:  []string{"C", "unsafe"},
-			Package:  "cgotest",
+			CgoFiles:    []string{"cgotest.go"},
+			CFiles:      []string{"cgotest.c"},
+			Imports:     []string{"C", "unsafe"},
+			TestImports: []string{},
+			Package:     "cgotest",
 		},
 	},
 }
