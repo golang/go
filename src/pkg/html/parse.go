@@ -619,6 +619,12 @@ func inBodyIM(p *parser) bool {
 			// TODO: detect <select> inside a table.
 			p.im = inSelectIM
 			return true
+		case "form":
+			if p.form == nil {
+				p.popUntil(buttonScopeStopTags, "p")
+				p.addElement(p.tok.Data, p.tok.Attr)
+				p.form = p.top()
+			}
 		case "li":
 			p.framesetOK = false
 			for i := len(p.oe) - 1; i >= 0; i-- {
