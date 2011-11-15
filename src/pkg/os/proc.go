@@ -8,7 +8,7 @@ package os
 
 import "syscall"
 
-// Args is the command-line arguments, starting with the program name.
+// Args hold the command-line arguments, starting with the program name.
 var Args []string
 
 // Getuid returns the numeric user id of the caller.
