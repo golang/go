@@ -81,7 +81,7 @@ runtime·osinit(void)
 void
 runtime·goenvs(void)
 {
-	extern Slice os·Envs;
+	extern Slice syscall·envs;
 
 	uint16 *env;
 	String *s;
@@ -101,9 +101,9 @@ runtime·goenvs(void)
 		s[i] = runtime·gostringw(p);
 		p += runtime·findnullw(p)+1;
 	}
-	os·Envs.array = (byte*)s;
-	os·Envs.len = n;
-	os·Envs.cap = n;
+	syscall·envs.array = (byte*)s;
+	syscall·envs.len = n;
+	syscall·envs.cap = n;
 
 	runtime·stdcall(runtime·FreeEnvironmentStringsW, 1, env);
 }

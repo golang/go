@@ -8,6 +8,7 @@ import (
 	"errors"
 	"runtime"
 	"syscall"
+	"unsafe"
 )
 
 func (p *Process) Wait(options int) (w *Waitmsg, err error) {
@@ -68,14 +69,14 @@ func FindProcess(pid int) (p *Process, err error) {
 
 func init() {
 	var argc int32
-	cmd := GetCommandLine()
-	argv, e := CommandLineToArgv(cmd, &argc)
+	cmd := syscall.GetCommandLine()
+	argv, e := syscall.CommandLineToArgv(cmd, &argc)
 	if e != nil {
 		return
 	}
-	defer LocalFree(Handle(uintptr(unsafe.Pointer(argv))))
+	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(argv))))
 	Args = make([]string, argc)
 	for i, v := range (*argv)[:argc] {
-		Args[i] = string(UTF16ToString((*v)[:]))
+		Args[i] = string(syscall.UTF16ToString((*v)[:]))
 	}
 }
