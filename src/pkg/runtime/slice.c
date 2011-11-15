@@ -32,6 +32,11 @@ runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
 	}
 }
 
+// Dummy word to use as base pointer for make([]T, 0).
+// Since you cannot take the address of such a slice,
+// you can't tell that they all have the same base pointer.
+static uintptr zerobase;
+
 static void
 makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
 {
@@ -42,7 +47,9 @@ makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
 	ret->len = len;
 	ret->cap = cap;
 
-	if((t->elem->kind&KindNoPointers))
+	if(cap == 0)
+		ret->array = (byte*)&zerobase;
+	else if((t->elem->kind&KindNoPointers))
 		ret->array = runtime·mallocgc(size, FlagNoPointers, 1, 1);
 	else
 		ret->array = runtime·mal(size);
