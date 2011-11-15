@@ -1234,7 +1234,6 @@ void	walkswitch(Node *sw);
 /*
  *	typecheck.c
  */
-int	exportassignok(Type *t, char *desc);
 int	islvalue(Node *n);
 Node*	typecheck(Node **np, int top);
 void	typechecklist(NodeList *l, int top);

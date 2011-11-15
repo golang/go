@@ -1045,8 +1045,6 @@ reswitch:
 			yyerror("first argument to append must be slice; have %lT", t);
 			goto error;
 		}
-		if(!exportassignok(t->type, "append"))
-			goto error;
 
 		if(n->isddd) {
 			if(args->next == nil) {
@@ -1114,8 +1112,6 @@ reswitch:
 			yyerror("arguments to copy have different element types: %lT and %lT", n->left->type, n->right->type);
 			goto error;
 		}
-		if(!exportassignok(n->left->type->type, "copy"))
-			goto error;
 		goto ret;
 
 	case OCONV:
@@ -1731,7 +1727,6 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
 		for(tl=tstruct->type; tl; tl=tl->down) {
 			if(tl->isddd) {
 				for(; tn; tn=tn->down) {
-					exportassignok(tn->type, desc);
 					if(assignop(tn->type, tl->type->type, &why) == 0) {
 						if(call != N)
 							yyerror("cannot use %T as type %T in argument to %N%s", tn->type, tl->type, call, why);
@@ -1743,7 +1738,6 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
 			}
 			if(tn == T)
 				goto notenough;
-			exportassignok(tn->type, desc);
 			if(assignop(tn->type, tl->type, &why) == 0) {
 				if(call != N)
 					yyerror("cannot use %T as type %T in argument to %N%s", tn->type, tl->type, call, why);
@@ -1814,66 +1808,6 @@ toomany:
 		yyerror("too many arguments to %O", op);
 	goto out;
 }
-
-/*
- * do the export rules allow writing to this type?
- * cannot be implicitly assigning to any type with
- * an unavailable field.
- */
-int
-exportassignok(Type *t, char *desc)
-{
-	Type *f;
-	Sym *s;
-
-	if(t == T)
-		return 1;
-	if(t->trecur)
-		return 1;
-	t->trecur = 1;
-
-	switch(t->etype) {
-	default:
-		// most types can't contain others; they're all fine.
-		break;
-	case TSTRUCT:
-		for(f=t->type; f; f=f->down) {
-			if(f->etype != TFIELD)
-				fatal("structas: not field");
-			s = f->sym;
-			// s == nil doesn't happen for embedded fields (they get the type symbol).
-			// it only happens for fields in a ... struct.
-			if(s != nil && !exportname(s->name) && s->pkg != localpkg) {
-				char *prefix;
-
-				prefix = "";
-				if(desc != nil)
-					prefix = " in ";
-				else
-					desc = "";
-				yyerror("implicit assignment of unexported field '%s' of %T%s%s", s->name, t, prefix, desc);
-				goto no;
-			}
-			if(!exportassignok(f->type, desc))
-				goto no;
-		}
-		break;
-
-	case TARRAY:
-		if(t->bound < 0)	// slices are pointers; that's fine
-			break;
-		if(!exportassignok(t->type, desc))
-			goto no;
-		break;
-	}
-	t->trecur = 0;
-	return 1;
-
-no:
-	t->trecur = 0;
-	return 0;
-}
-
 
 /*
  * type check composite
@@ -2310,8 +2244,6 @@ typecheckas(Node *n)
 	if(n->right && n->right->type != T) {
 		if(n->left->type != T)
 			n->right = assignconv(n->right, n->left->type, "assignment");
-		else if(!isblank(n->left))
-			exportassignok(n->right->type, "assignment");
 	}
 	if(n->left->defn == n && n->left->ntype == N) {
 		defaultlit(&n->right, T);
@@ -2335,7 +2267,6 @@ checkassignto(Type *src, Node *dst)
 		yyerror("cannot assign %T to %lN in multiple assignment%s", src, dst, why);
 		return;
 	}
-	exportassignok(dst->type, "multiple assignment");
 }
 
 static void
