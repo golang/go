@@ -16,6 +16,12 @@
 
 #undef	BUFSIZ
 
+// The parser's maximum stack size.
+// We have to use a #define macro here since yacc
+// or bison will check for its definition and use
+// a potentially smaller value if it is undefined.
+#define YYMAXDEPTH 500
+
 enum
 {
 	NHUNK		= 50000,
@@ -23,7 +29,6 @@ enum
 	NSYMB		= 500,
 	NHASH		= 1024,
 	STRINGSZ	= 200,
-	YYMAXDEPTH	= 500,
 	MAXALIGN	= 7,
 	UINF		= 100,
 	HISTSZ		= 10,

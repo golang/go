@@ -46,24 +46,36 @@ bison && /^state 0/ { grammar = 0; states = 1 }
 states && /^state / { state = $2 }
 states { statetext[state] = statetext[state] $0 "\n" }
 
-states && / shift, and go to state/ {
+states && / shift/ {
 	n = nshift[state]++
-	shift[state,n] = $7
+	if($0 ~ /and go to/)
+		shift[state,n] = $7 # GNU Bison
+	else
+		shift[state,n] = $3 # Plan 9 Yacc
 	shifttoken[state,n] = $1
 	next
 }
-states && / go to state/ {
+states && / (go to|goto)/ {
 	n = nshift[state]++
-	shift[state,n] = $5
+	if($0 ~ /go to/)
+		shift[state,n] = $5 # GNU Bison
+	else
+		shift[state,n] = $3 # Plan 9 Yacc
 	shifttoken[state,n] = $1
 	next
 }
-states && / reduce using rule/ {
+states && / reduce/ {
 	n = nreduce[state]++
-	reduce[state,n] = $5
+	if($0 ~ /reduce using rule/)
+		reduce[state,n] = $5 # GNU Bison
+	else
+		reduce[state,n] = $3 # Plan 9 yacc
 	reducetoken[state,n] = $1
 	next
-}	
+}
+
+# Skip over the summary information printed by Plan 9 yacc.
+/nonterminals$/,/^maximum spread/ { next }
 
 # First // comment marks the beginning of the pattern file.
 /^\/\// { bison = 0; grammar = 0; state = 0 }
@@ -96,7 +108,8 @@ $1 == "%" {
 		if(found)
 			continue
 		for(j=0; j<nreduce[state]; j++) {
-			if(reducetoken[state,j] == tok || reducetoken[state,j] == "$default") {
+			t = reducetoken[state,j]
+			if(t == tok || t == "$default" || t == ".") {
 				stack[nstack++] = state
 				rule = reduce[state,j]
 				nstack -= rulesize[rule]
