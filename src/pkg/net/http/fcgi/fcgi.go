@@ -19,19 +19,22 @@ import (
 	"sync"
 )
 
+// recType is a record type, as defined by
+// http://www.fastcgi.com/devkit/doc/fcgi-spec.html#S8
+type recType uint8
+
 const (
-	// Packet Types
-	typeBeginRequest = iota + 1
-	typeAbortRequest
-	typeEndRequest
-	typeParams
-	typeStdin
-	typeStdout
-	typeStderr
-	typeData
-	typeGetValues
-	typeGetValuesResult
-	typeUnknownType
+	typeBeginRequest    recType = 1
+	typeAbortRequest    recType = 2
+	typeEndRequest      recType = 3
+	typeParams          recType = 4
+	typeStdin           recType = 5
+	typeStdout          recType = 6
+	typeStderr          recType = 7
+	typeData            recType = 8
+	typeGetValues       recType = 9
+	typeGetValuesResult recType = 10
+	typeUnknownType     recType = 11
 )
 
 // keep the connection between web-server and responder open after request
@@ -59,7 +62,7 @@ const headerLen = 8
 
 type header struct {
 	Version       uint8
-	Type          uint8
+	Type          recType
 	Id            uint16
 	ContentLength uint16
 	PaddingLength uint8
@@ -85,7 +88,7 @@ func (br *beginRequest) read(content []byte) error {
 // not synchronized because we don't care what the contents are
 var pad [maxPad]byte
 
-func (h *header) init(recType uint8, reqId uint16, contentLength int) {
+func (h *header) init(recType recType, reqId uint16, contentLength int) {
 	h.Version = 1
 	h.Type = recType
 	h.Id = reqId
@@ -137,7 +140,7 @@ func (r *record) content() []byte {
 }
 
 // writeRecord writes and sends a single record.
-func (c *conn) writeRecord(recType uint8, reqId uint16, b []byte) error {
+func (c *conn) writeRecord(recType recType, reqId uint16, b []byte) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.buf.Reset()
@@ -167,12 +170,12 @@ func (c *conn) writeEndRequest(reqId uint16, appStatus int, protocolStatus uint8
 	return c.writeRecord(typeEndRequest, reqId, b)
 }
 
-func (c *conn) writePairs(recType uint8, reqId uint16, pairs map[string]string) error {
+func (c *conn) writePairs(recType recType, reqId uint16, pairs map[string]string) error {
 	w := newWriter(c, recType, reqId)
 	b := make([]byte, 8)
 	for k, v := range pairs {
 		n := encodeSize(b, uint32(len(k)))
-		n += encodeSize(b[n:], uint32(len(k)))
+		n += encodeSize(b[n:], uint32(len(v)))
 		if _, err := w.Write(b[:n]); err != nil {
 			return err
 		}
@@ -235,7 +238,7 @@ func (w *bufWriter) Close() error {
 	return w.closer.Close()
 }
 
-func newWriter(c *conn, recType uint8, reqId uint16) *bufWriter {
+func newWriter(c *conn, recType recType, reqId uint16) *bufWriter {
 	s := &streamWriter{c: c, recType: recType, reqId: reqId}
 	w, _ := bufio.NewWriterSize(s, maxWrite)
 	return &bufWriter{s, w}
@@ -245,7 +248,7 @@ func newWriter(c *conn, recType uint8, reqId uint16) *bufWriter {
 // It only writes maxWrite bytes at a time.
 type streamWriter struct {
 	c       *conn
-	recType uint8
+	recType recType
 	reqId   uint16
 }
 

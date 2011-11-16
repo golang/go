@@ -6,6 +6,7 @@ package fcgi
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"testing"
 )
@@ -40,25 +41,25 @@ func TestSize(t *testing.T) {
 
 var streamTests = []struct {
 	desc    string
-	recType uint8
+	recType recType
 	reqId   uint16
 	content []byte
 	raw     []byte
 }{
 	{"single record", typeStdout, 1, nil,
-		[]byte{1, typeStdout, 0, 1, 0, 0, 0, 0},
+		[]byte{1, byte(typeStdout), 0, 1, 0, 0, 0, 0},
 	},
 	// this data will have to be split into two records
 	{"two records", typeStdin, 300, make([]byte, 66000),
 		bytes.Join([][]byte{
 			// header for the first record
-			{1, typeStdin, 0x01, 0x2C, 0xFF, 0xFF, 1, 0},
+			{1, byte(typeStdin), 0x01, 0x2C, 0xFF, 0xFF, 1, 0},
 			make([]byte, 65536),
 			// header for the second
-			{1, typeStdin, 0x01, 0x2C, 0x01, 0xD1, 7, 0},
+			{1, byte(typeStdin), 0x01, 0x2C, 0x01, 0xD1, 7, 0},
 			make([]byte, 472),
 			// header for the empty record
-			{1, typeStdin, 0x01, 0x2C, 0, 0, 0, 0},
+			{1, byte(typeStdin), 0x01, 0x2C, 0, 0, 0, 0},
 		},
 			nil),
 	},
@@ -109,5 +110,41 @@ outer:
 		if !bytes.Equal(buf.Bytes(), test.raw) {
 			t.Errorf("%s: wrote wrong content", test.desc)
 		}
+	}
+}
+
+type writeOnlyConn struct {
+	buf []byte
+}
+
+func (c *writeOnlyConn) Write(p []byte) (int, error) {
+	c.buf = append(c.buf, p...)
+	return len(p), nil
+}
+
+func (c *writeOnlyConn) Read(p []byte) (int, error) {
+	return 0, errors.New("conn is write-only")
+}
+
+func (c *writeOnlyConn) Close() error {
+	return nil
+}
+
+func TestGetValues(t *testing.T) {
+	var rec record
+	rec.h.Type = typeGetValues
+
+	wc := new(writeOnlyConn)
+	c := newChild(wc, nil)
+	err := c.handleRecord(&rec)
+	if err != nil {
+		t.Fatalf("handleRecord: %v", err)
+	}
+
+	const want = "\x01\n\x00\x00\x00\x12\x06\x00" +
+		"\x0f\x01FCGI_MPXS_CONNS1" +
+		"\x00\x00\x00\x00\x00\x00\x01\n\x00\x00\x00\x00\x00\x00"
+	if got := string(wc.buf); got != want {
+		t.Errorf(" got: %q\nwant: %q\n", got, want)
 	}
 }
