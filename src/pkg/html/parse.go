@@ -298,7 +298,7 @@ func (p *parser) resetInsertionMode() {
 		case "tbody", "thead", "tfoot":
 			p.im = inTableBodyIM
 		case "caption":
-			// TODO: p.im = inCaptionIM
+			p.im = inCaptionIM
 		case "colgroup":
 			p.im = inColumnGroupIM
 		case "table":
@@ -887,6 +887,12 @@ func inTableIM(p *parser) bool {
 		// TODO.
 	case StartTagToken:
 		switch p.tok.Data {
+		case "caption":
+			p.clearStackToContext(tableScopeStopTags)
+			p.afe = append(p.afe, &scopeMarker)
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.im = inCaptionIM
+			return true
 		case "tbody", "tfoot", "thead":
 			p.clearStackToContext(tableScopeStopTags)
 			p.addElement(p.tok.Data, p.tok.Attr)
@@ -958,6 +964,46 @@ func (p *parser) clearStackToContext(stopTags []string) {
 			}
 		}
 	}
+}
+
+// Section 11.2.5.4.11.
+func inCaptionIM(p *parser) bool {
+	switch p.tok.Type {
+	case StartTagToken:
+		switch p.tok.Data {
+		case "caption", "col", "colgroup", "tbody", "td", "tfoot", "thead", "tr":
+			if p.popUntil(tableScopeStopTags, "caption") {
+				p.clearActiveFormattingElements()
+				p.im = inTableIM
+				return false
+			} else {
+				// Ignore the token.
+				return true
+			}
+		}
+	case EndTagToken:
+		switch p.tok.Data {
+		case "caption":
+			if p.popUntil(tableScopeStopTags, "caption") {
+				p.clearActiveFormattingElements()
+				p.im = inTableIM
+			}
+			return true
+		case "table":
+			if p.popUntil(tableScopeStopTags, "caption") {
+				p.clearActiveFormattingElements()
+				p.im = inTableIM
+				return false
+			} else {
+				// Ignore the token.
+				return true
+			}
+		case "body", "col", "colgroup", "html", "tbody", "td", "tfoot", "th", "thead", "tr":
+			// Ignore the token.
+			return true
+		}
+	}
+	return inBodyIM(p)
 }
 
 // Section 11.2.5.4.12.
