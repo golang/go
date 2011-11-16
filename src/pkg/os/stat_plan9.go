@@ -34,7 +34,7 @@ func dirstat(arg interface{}) (d *Dir, err error) {
 		buf := make([]byte, nd)
 
 		var n int
-		var e syscall.Error
+		var e error
 
 		switch syscallArg := arg.(type) {
 		case *File:
