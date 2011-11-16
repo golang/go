@@ -537,7 +537,9 @@ func (b *body) Read(p []byte) (n int, err error) {
 
 	// Read the final trailer once we hit EOF.
 	if err == io.EOF && b.hdr != nil {
-		err = b.readTrailer()
+		if e := b.readTrailer(); e != nil {
+			err = e
+		}
 		b.hdr = nil
 	}
 	return n, err
