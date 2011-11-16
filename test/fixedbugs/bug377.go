@@ -6,4 +6,4 @@
 
 // Issue 1802
 
-ignored
+package ignored

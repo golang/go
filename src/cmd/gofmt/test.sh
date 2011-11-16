@@ -14,6 +14,7 @@ TMP1=test_tmp1.go
 TMP2=test_tmp2.go
 TMP3=test_tmp3.go
 COUNT=0
+rm -f _failed
 
 count() {
 	#echo $1
@@ -27,9 +28,8 @@ count() {
 
 error() {
 	echo $1
-	exit 1
+	touch _failed
 }
-
 
 # apply to one file
 apply1() {
@@ -156,6 +156,11 @@ runtests() {
 # run over all .go files
 runtests "$@"
 cleanup
+
+if [ -f _failed ]; then
+	rm _failed
+	exit 1
+fi
 
 # done
 echo
