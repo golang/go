@@ -7,6 +7,7 @@ package fcgi
 // This file implements FastCGI from the perspective of a child process.
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -123,89 +124,101 @@ func (r *response) Close() error {
 }
 
 type child struct {
-	conn    *conn
-	handler http.Handler
+	conn     *conn
+	handler  http.Handler
+	requests map[uint16]*request // keyed by request ID
 }
 
-func newChild(rwc net.Conn, handler http.Handler) *child {
-	return &child{newConn(rwc), handler}
+func newChild(rwc io.ReadWriteCloser, handler http.Handler) *child {
+	return &child{
+		conn:     newConn(rwc),
+		handler:  handler,
+		requests: make(map[uint16]*request),
+	}
 }
 
 func (c *child) serve() {
-	requests := map[uint16]*request{}
 	defer c.conn.Close()
 	var rec record
-	var br beginRequest
 	for {
 		if err := rec.read(c.conn.rwc); err != nil {
 			return
 		}
-
-		req, ok := requests[rec.h.Id]
-		if !ok && rec.h.Type != typeBeginRequest && rec.h.Type != typeGetValues {
-			// The spec says to ignore unknown request IDs.
-			continue
-		}
-		if ok && rec.h.Type == typeBeginRequest {
-			// The server is trying to begin a request with the same ID
-			// as an in-progress request. This is an error.
+		if err := c.handleRecord(&rec); err != nil {
 			return
 		}
-
-		switch rec.h.Type {
-		case typeBeginRequest:
-			if err := br.read(rec.content()); err != nil {
-				return
-			}
-			if br.role != roleResponder {
-				c.conn.writeEndRequest(rec.h.Id, 0, statusUnknownRole)
-				break
-			}
-			requests[rec.h.Id] = newRequest(rec.h.Id, br.flags)
-		case typeParams:
-			// NOTE(eds): Technically a key-value pair can straddle the boundary
-			// between two packets. We buffer until we've received all parameters.
-			if len(rec.content()) > 0 {
-				req.rawParams = append(req.rawParams, rec.content()...)
-				break
-			}
-			req.parseParams()
-		case typeStdin:
-			content := rec.content()
-			if req.pw == nil {
-				var body io.ReadCloser
-				if len(content) > 0 {
-					// body could be an io.LimitReader, but it shouldn't matter
-					// as long as both sides are behaving.
-					body, req.pw = io.Pipe()
-				}
-				go c.serveRequest(req, body)
-			}
-			if len(content) > 0 {
-				// TODO(eds): This blocks until the handler reads from the pipe.
-				// If the handler takes a long time, it might be a problem.
-				req.pw.Write(content)
-			} else if req.pw != nil {
-				req.pw.Close()
-			}
-		case typeGetValues:
-			values := map[string]string{"FCGI_MPXS_CONNS": "1"}
-			c.conn.writePairs(0, typeGetValuesResult, values)
-		case typeData:
-			// If the filter role is implemented, read the data stream here.
-		case typeAbortRequest:
-			delete(requests, rec.h.Id)
-			c.conn.writeEndRequest(rec.h.Id, 0, statusRequestComplete)
-			if !req.keepConn {
-				// connection will close upon return
-				return
-			}
-		default:
-			b := make([]byte, 8)
-			b[0] = rec.h.Type
-			c.conn.writeRecord(typeUnknownType, 0, b)
-		}
 	}
+}
+
+var errCloseConn = errors.New("fcgi: connection should be closed")
+
+func (c *child) handleRecord(rec *record) error {
+	req, ok := c.requests[rec.h.Id]
+	if !ok && rec.h.Type != typeBeginRequest && rec.h.Type != typeGetValues {
+		// The spec says to ignore unknown request IDs.
+		return nil
+	}
+	if ok && rec.h.Type == typeBeginRequest {
+		// The server is trying to begin a request with the same ID
+		// as an in-progress request. This is an error.
+		return errors.New("fcgi: received ID that is already in-flight")
+	}
+
+	switch rec.h.Type {
+	case typeBeginRequest:
+		var br beginRequest
+		if err := br.read(rec.content()); err != nil {
+			return err
+		}
+		if br.role != roleResponder {
+			c.conn.writeEndRequest(rec.h.Id, 0, statusUnknownRole)
+			return nil
+		}
+		c.requests[rec.h.Id] = newRequest(rec.h.Id, br.flags)
+	case typeParams:
+		// NOTE(eds): Technically a key-value pair can straddle the boundary
+		// between two packets. We buffer until we've received all parameters.
+		if len(rec.content()) > 0 {
+			req.rawParams = append(req.rawParams, rec.content()...)
+			return nil
+		}
+		req.parseParams()
+	case typeStdin:
+		content := rec.content()
+		if req.pw == nil {
+			var body io.ReadCloser
+			if len(content) > 0 {
+				// body could be an io.LimitReader, but it shouldn't matter
+				// as long as both sides are behaving.
+				body, req.pw = io.Pipe()
+			}
+			go c.serveRequest(req, body)
+		}
+		if len(content) > 0 {
+			// TODO(eds): This blocks until the handler reads from the pipe.
+			// If the handler takes a long time, it might be a problem.
+			req.pw.Write(content)
+		} else if req.pw != nil {
+			req.pw.Close()
+		}
+	case typeGetValues:
+		values := map[string]string{"FCGI_MPXS_CONNS": "1"}
+		c.conn.writePairs(typeGetValuesResult, 0, values)
+	case typeData:
+		// If the filter role is implemented, read the data stream here.
+	case typeAbortRequest:
+		delete(c.requests, rec.h.Id)
+		c.conn.writeEndRequest(rec.h.Id, 0, statusRequestComplete)
+		if !req.keepConn {
+			// connection will close upon return
+			return errCloseConn
+		}
+	default:
+		b := make([]byte, 8)
+		b[0] = byte(rec.h.Type)
+		c.conn.writeRecord(typeUnknownType, 0, b)
+	}
+	return nil
 }
 
 func (c *child) serveRequest(req *request, body io.ReadCloser) {
