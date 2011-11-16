@@ -64,7 +64,7 @@ const DevNull = "/dev/null"
 func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
 	var (
 		fd     int
-		e      syscall.Error
+		e      error
 		create bool
 		excl   bool
 		trunc  bool
@@ -93,7 +93,7 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
 	} else {
 		fd, e = syscall.Open(name, flag)
 		if e != nil && create {
-			var e1 syscall.Error
+			var e1 error
 			fd, e1 = syscall.Create(name, flag, perm)
 			if e1 == nil {
 				e = nil
@@ -199,26 +199,26 @@ func (f *File) Sync() (err error) {
 
 // read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and an error, if any.
-func (f *File) read(b []byte) (n int, err syscall.Error) {
+func (f *File) read(b []byte) (n int, err error) {
 	return syscall.Read(f.fd, b)
 }
 
 // pread reads len(b) bytes from the File starting at byte offset off.
 // It returns the number of bytes read and the error, if any.
 // EOF is signaled by a zero count with err set to nil.
-func (f *File) pread(b []byte, off int64) (n int, err syscall.Error) {
+func (f *File) pread(b []byte, off int64) (n int, err error) {
 	return syscall.Pread(f.fd, b, off)
 }
 
 // write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
-func (f *File) write(b []byte) (n int, err syscall.Error) {
+func (f *File) write(b []byte) (n int, err error) {
 	return syscall.Write(f.fd, b)
 }
 
 // pwrite writes len(b) bytes to the File starting at byte offset off.
 // It returns the number of bytes written and an error, if any.
-func (f *File) pwrite(b []byte, off int64) (n int, err syscall.Error) {
+func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 	return syscall.Pwrite(f.fd, b, off)
 }
 
@@ -226,7 +226,7 @@ func (f *File) pwrite(b []byte, off int64) (n int, err syscall.Error) {
 // according to whence: 0 means relative to the origin of the file, 1 means
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
-func (f *File) seek(offset int64, whence int) (ret int64, err syscall.Error) {
+func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 	return syscall.Seek(f.fd, offset, whence)
 }
 

@@ -85,7 +85,7 @@ func gstring(b []byte) (string, []byte) {
 }
 
 // readdirnames returns the names of files inside the directory represented by dirfd.
-func readdirnames(dirfd int) (names []string, err Error) {
+func readdirnames(dirfd int) (names []string, err error) {
 	result := make([]string, 0, 100)
 	var buf [STATMAX]byte
 
@@ -117,7 +117,7 @@ func readdirnames(dirfd int) (names []string, err Error) {
 
 // readdupdevice returns a list of currently opened fds (excluding stdin, stdout, stderr) from the dup device #d.
 // ForkLock should be write locked before calling, so that no new fds would be created while the fd list is being read.
-func readdupdevice() (fds []int, err Error) {
+func readdupdevice() (fds []int, err error) {
 	dupdevfd, err := Open("#d", O_RDONLY)
 
 	if err != nil {
@@ -169,7 +169,7 @@ func init() {
 // no rescheduling, no malloc calls, and no new stack segments.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
-func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, attr *ProcAttr, fdsToClose []int, pipe int, rflag int) (pid int, err Error) {
+func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, attr *ProcAttr, fdsToClose []int, pipe int, rflag int) (pid int, err error) {
 	// Declare all variables at top in case any
 	// declarations require heap allocation (e.g., errbuf).
 	var (
@@ -314,7 +314,7 @@ childerror:
 	panic("unreached")
 }
 
-func cexecPipe(p []int) Error {
+func cexecPipe(p []int) error {
 	e := Pipe(p)
 	if e != nil {
 		return e
@@ -351,7 +351,7 @@ type SysProcAttr struct {
 var zeroProcAttr ProcAttr
 var zeroSysProcAttr SysProcAttr
 
-func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err Error) {
+func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) {
 	var (
 		p      [2]int
 		n      int
@@ -478,18 +478,18 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err Error) 
 }
 
 // Combination of fork and exec, careful to be thread safe.
-func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err Error) {
+func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) {
 	return forkExec(argv0, argv, attr)
 }
 
 // StartProcess wraps ForkExec for package os.
-func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err Error) {
+func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err error) {
 	pid, err = forkExec(argv0, argv, attr)
 	return pid, 0, err
 }
 
 // Ordinary exec.
-func Exec(argv0 string, argv []string, envv []string) (err Error) {
+func Exec(argv0 string, argv []string, envv []string) (err error) {
 	if envv != nil {
 		r1, _, _ := RawSyscall(SYS_RFORK, RFCENVG, 0, 0)
 		if int(r1) == -1 {

@@ -23,7 +23,7 @@ type ErrorString string
 func (e ErrorString) Error() string { return string(e) }
 
 // NewError converts s to an ErrorString, which satisfies the Error interface.
-func NewError(s string) Error { return ErrorString(s) }
+func NewError(s string) error { return ErrorString(s) }
 
 var (
 	Stdin  = 0
@@ -89,7 +89,7 @@ func Exit(code int) {
 	Exits(&msg)
 }
 
-func readnum(path string) (uint, Error) {
+func readnum(path string) (uint, error) {
 	var b [12]byte
 
 	fd, e := Open(path, O_RDONLY)
@@ -121,15 +121,15 @@ func Getppid() (ppid int) {
 	return int(n)
 }
 
-func Read(fd int, p []byte) (n int, err Error) {
+func Read(fd int, p []byte) (n int, err error) {
 	return Pread(fd, p, -1)
 }
 
-func Write(fd int, p []byte) (n int, err Error) {
+func Write(fd int, p []byte) (n int, err error) {
 	return Pwrite(fd, p, -1)
 }
 
-func Getwd() (wd string, err Error) {
+func Getwd() (wd string, err error) {
 	fd, e := Open(".", O_RDONLY)
 
 	if e != nil {
@@ -140,8 +140,8 @@ func Getwd() (wd string, err Error) {
 	return Fd2path(fd)
 }
 
-//sys	fd2path(fd int, buf []byte) (err Error)
-func Fd2path(fd int) (path string, err Error) {
+//sys	fd2path(fd int, buf []byte) (err error)
+func Fd2path(fd int) (path string, err error) {
 	var buf [512]byte
 
 	e := fd2path(fd, buf[:])
@@ -151,8 +151,8 @@ func Fd2path(fd int) (path string, err Error) {
 	return cstring(buf[:]), nil
 }
 
-//sys	pipe(p *[2]_C_int) (err Error)
-func Pipe(p []int) (err Error) {
+//sys	pipe(p *[2]_C_int) (err error)
+func Pipe(p []int) (err error) {
 	if len(p) != 2 {
 		return NewError("bad arg in system call")
 	}
@@ -167,7 +167,7 @@ func Pipe(p []int) (err Error) {
 // Implemented in assembly to avoid allocation.
 func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
 
-func Seek(fd int, offset int64, whence int) (newoffset int64, err Error) {
+func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 	newoffset, e := seek(0, fd, offset, whence)
 
 	err = nil
@@ -177,7 +177,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err Error) {
 	return
 }
 
-func Mkdir(path string, mode uint32) (err Error) {
+func Mkdir(path string, mode uint32) (err error) {
 	fd, err := Create(path, O_RDONLY, DMDIR|mode)
 
 	if fd != -1 {
@@ -204,8 +204,8 @@ func (w Waitmsg) ExitStatus() int {
 	return 1
 }
 
-//sys	await(s []byte) (n int, err Error)
-func Await(w *Waitmsg) (err Error) {
+//sys	await(s []byte) (n int, err error)
+func Await(w *Waitmsg) (err error) {
 	var buf [512]byte
 	var f [5][]byte
 
@@ -242,7 +242,7 @@ func Await(w *Waitmsg) (err Error) {
 	return
 }
 
-func Unmount(name, old string) (err Error) {
+func Unmount(name, old string) (err error) {
 	oldp := uintptr(unsafe.Pointer(StringBytePtr(old)))
 
 	var r0 uintptr
@@ -262,7 +262,7 @@ func Unmount(name, old string) (err Error) {
 	return
 }
 
-func Fchdir(fd int) (err Error) {
+func Fchdir(fd int) (err error) {
 	path, err := Fd2path(fd)
 
 	if err != nil {
@@ -284,7 +284,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 	return
 }
 
-func DecodeBintime(b []byte) (nsec int64, err Error) {
+func DecodeBintime(b []byte) (nsec int64, err error) {
 	if len(b) != 8 {
 		return -1, NewError("bad /dev/bintime format")
 	}
@@ -300,7 +300,7 @@ func DecodeBintime(b []byte) (nsec int64, err Error) {
 	return
 }
 
-func Gettimeofday(tv *Timeval) (err Error) {
+func Gettimeofday(tv *Timeval) (err error) {
 	// TODO(paulzhol): 
 	// avoid reopening a file descriptor for /dev/bintime on each call,
 	// use lower-level calls to avoid allocation.
@@ -331,7 +331,7 @@ func Geteuid() (euid int) { return -1 }
 func Getgid() (gid int)   { return -1 }
 func Getuid() (uid int)   { return -1 }
 
-func Getgroups() (gids []int, err Error) {
+func Getgroups() (gids []int, err error) {
 	return make([]int, 0), nil
 }
 
