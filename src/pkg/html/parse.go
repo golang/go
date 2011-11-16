@@ -1226,7 +1226,13 @@ func inSelectIM(p *parser) bool {
 			}
 			p.addElement(p.tok.Data, p.tok.Attr)
 		case "optgroup":
-			// TODO.
+			if p.top().Data == "option" {
+				p.oe.pop()
+			}
+			if p.top().Data == "optgroup" {
+				p.oe.pop()
+			}
+			p.addElement(p.tok.Data, p.tok.Attr)
 		case "select":
 			endSelect = true
 		case "input", "keygen", "textarea":
