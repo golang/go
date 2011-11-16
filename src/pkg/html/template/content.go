@@ -6,6 +6,7 @@ package template
 
 import (
 	"fmt"
+	"reflect"
 )
 
 // Strings of content from a trusted source.
@@ -70,10 +71,25 @@ const (
 	contentTypeUnsafe
 )
 
+// indirect returns the value, after dereferencing as many times
+// as necessary to reach the base type (or nil).
+func indirect(a interface{}) interface{} {
+	if t := reflect.TypeOf(a); t.Kind() != reflect.Ptr {
+		// Avoid creating a reflect.Value if it's not a pointer.
+		return a
+	}
+	v := reflect.ValueOf(a)
+	for v.Kind() == reflect.Ptr && !v.IsNil() {
+		v = v.Elem()
+	}
+	return v.Interface()
+}
+
 // stringify converts its arguments to a string and the type of the content.
+// All pointers are dereferenced, as in the text/template package.
 func stringify(args ...interface{}) (string, contentType) {
 	if len(args) == 1 {
-		switch s := args[0].(type) {
+		switch s := indirect(args[0]).(type) {
 		case string:
 			return s, contentTypePlain
 		case CSS:
@@ -89,6 +105,9 @@ func stringify(args ...interface{}) (string, contentType) {
 		case URL:
 			return string(s), contentTypeURL
 		}
+	}
+	for i, arg := range args {
+		args[i] = indirect(arg)
 	}
 	return fmt.Sprint(args...), contentTypePlain
 }

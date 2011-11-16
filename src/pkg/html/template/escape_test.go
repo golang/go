@@ -28,7 +28,7 @@ func (x *goodMarshaler) MarshalJSON() ([]byte, error) {
 }
 
 func TestEscape(t *testing.T) {
-	var data = struct {
+	data := struct {
 		F, T    bool
 		C, G, H string
 		A, E    []string
@@ -50,6 +50,7 @@ func TestEscape(t *testing.T) {
 		Z: nil,
 		W: HTML(`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`),
 	}
+	pdata := &data
 
 	tests := []struct {
 		name   string
@@ -666,6 +667,15 @@ func TestEscape(t *testing.T) {
 		}
 		if w, g := test.output, b.String(); w != g {
 			t.Errorf("%s: escaped output: want\n\t%q\ngot\n\t%q", test.name, w, g)
+			continue
+		}
+		b.Reset()
+		if err := tmpl.Execute(b, pdata); err != nil {
+			t.Errorf("%s: template execution failed for pointer: %s", test.name, err)
+			continue
+		}
+		if w, g := test.output, b.String(); w != g {
+			t.Errorf("%s: escaped output for pointer: want\n\t%q\ngot\n\t%q", test.name, w, g)
 			continue
 		}
 	}
@@ -1602,6 +1612,29 @@ func TestRedundantFuncs(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestIndirectPrint(t *testing.T) {
+	a := 3
+	ap := &a
+	b := "hello"
+	bp := &b
+	bpp := &bp
+	tmpl := Must(New("t").Parse(`{{.}}`))
+	var buf bytes.Buffer
+	err := tmpl.Execute(&buf, ap)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	} else if buf.String() != "3" {
+		t.Errorf(`Expected "3"; got %q`, buf.String())
+	}
+	buf.Reset()
+	err = tmpl.Execute(&buf, bpp)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	} else if buf.String() != "hello" {
+		t.Errorf(`Expected "hello"; got %q`, buf.String())
 	}
 }
 
