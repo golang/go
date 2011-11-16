@@ -412,29 +412,29 @@ func (x *ChanType) End() token.Pos      { return x.Value.End() }
 // exprNode() ensures that only expression/type nodes can be
 // assigned to an ExprNode.
 //
-func (x *BadExpr) exprNode()        {}
-func (x *Ident) exprNode()          {}
-func (x *Ellipsis) exprNode()       {}
-func (x *BasicLit) exprNode()       {}
-func (x *FuncLit) exprNode()        {}
-func (x *CompositeLit) exprNode()   {}
-func (x *ParenExpr) exprNode()      {}
-func (x *SelectorExpr) exprNode()   {}
-func (x *IndexExpr) exprNode()      {}
-func (x *SliceExpr) exprNode()      {}
-func (x *TypeAssertExpr) exprNode() {}
-func (x *CallExpr) exprNode()       {}
-func (x *StarExpr) exprNode()       {}
-func (x *UnaryExpr) exprNode()      {}
-func (x *BinaryExpr) exprNode()     {}
-func (x *KeyValueExpr) exprNode()   {}
+func (*BadExpr) exprNode()        {}
+func (*Ident) exprNode()          {}
+func (*Ellipsis) exprNode()       {}
+func (*BasicLit) exprNode()       {}
+func (*FuncLit) exprNode()        {}
+func (*CompositeLit) exprNode()   {}
+func (*ParenExpr) exprNode()      {}
+func (*SelectorExpr) exprNode()   {}
+func (*IndexExpr) exprNode()      {}
+func (*SliceExpr) exprNode()      {}
+func (*TypeAssertExpr) exprNode() {}
+func (*CallExpr) exprNode()       {}
+func (*StarExpr) exprNode()       {}
+func (*UnaryExpr) exprNode()      {}
+func (*BinaryExpr) exprNode()     {}
+func (*KeyValueExpr) exprNode()   {}
 
-func (x *ArrayType) exprNode()     {}
-func (x *StructType) exprNode()    {}
-func (x *FuncType) exprNode()      {}
-func (x *InterfaceType) exprNode() {}
-func (x *MapType) exprNode()       {}
-func (x *ChanType) exprNode()      {}
+func (*ArrayType) exprNode()     {}
+func (*StructType) exprNode()    {}
+func (*FuncType) exprNode()      {}
+func (*InterfaceType) exprNode() {}
+func (*MapType) exprNode()       {}
+func (*ChanType) exprNode()      {}
 
 // ----------------------------------------------------------------------------
 // Convenience functions for Idents
@@ -711,27 +711,27 @@ func (s *RangeStmt) End() token.Pos  { return s.Body.End() }
 // stmtNode() ensures that only statement nodes can be
 // assigned to a StmtNode.
 //
-func (s *BadStmt) stmtNode()        {}
-func (s *DeclStmt) stmtNode()       {}
-func (s *EmptyStmt) stmtNode()      {}
-func (s *LabeledStmt) stmtNode()    {}
-func (s *ExprStmt) stmtNode()       {}
-func (s *SendStmt) stmtNode()       {}
-func (s *IncDecStmt) stmtNode()     {}
-func (s *AssignStmt) stmtNode()     {}
-func (s *GoStmt) stmtNode()         {}
-func (s *DeferStmt) stmtNode()      {}
-func (s *ReturnStmt) stmtNode()     {}
-func (s *BranchStmt) stmtNode()     {}
-func (s *BlockStmt) stmtNode()      {}
-func (s *IfStmt) stmtNode()         {}
-func (s *CaseClause) stmtNode()     {}
-func (s *SwitchStmt) stmtNode()     {}
-func (s *TypeSwitchStmt) stmtNode() {}
-func (s *CommClause) stmtNode()     {}
-func (s *SelectStmt) stmtNode()     {}
-func (s *ForStmt) stmtNode()        {}
-func (s *RangeStmt) stmtNode()      {}
+func (*BadStmt) stmtNode()        {}
+func (*DeclStmt) stmtNode()       {}
+func (*EmptyStmt) stmtNode()      {}
+func (*LabeledStmt) stmtNode()    {}
+func (*ExprStmt) stmtNode()       {}
+func (*SendStmt) stmtNode()       {}
+func (*IncDecStmt) stmtNode()     {}
+func (*AssignStmt) stmtNode()     {}
+func (*GoStmt) stmtNode()         {}
+func (*DeferStmt) stmtNode()      {}
+func (*ReturnStmt) stmtNode()     {}
+func (*BranchStmt) stmtNode()     {}
+func (*BlockStmt) stmtNode()      {}
+func (*IfStmt) stmtNode()         {}
+func (*CaseClause) stmtNode()     {}
+func (*SwitchStmt) stmtNode()     {}
+func (*TypeSwitchStmt) stmtNode() {}
+func (*CommClause) stmtNode()     {}
+func (*SelectStmt) stmtNode()     {}
+func (*ForStmt) stmtNode()        {}
+func (*RangeStmt) stmtNode()      {}
 
 // ----------------------------------------------------------------------------
 // Declarations
@@ -807,9 +807,9 @@ func (s *TypeSpec) End() token.Pos { return s.Type.End() }
 // specNode() ensures that only spec nodes can be
 // assigned to a Spec.
 //
-func (s *ImportSpec) specNode() {}
-func (s *ValueSpec) specNode()  {}
-func (s *TypeSpec) specNode()   {}
+func (*ImportSpec) specNode() {}
+func (*ValueSpec) specNode()  {}
+func (*TypeSpec) specNode()   {}
 
 // A declaration is represented by one of the following declaration nodes.
 //
@@ -875,9 +875,9 @@ func (d *FuncDecl) End() token.Pos {
 // declNode() ensures that only declaration nodes can be
 // assigned to a DeclNode.
 //
-func (d *BadDecl) declNode()  {}
-func (d *GenDecl) declNode()  {}
-func (d *FuncDecl) declNode() {}
+func (*BadDecl) declNode()  {}
+func (*GenDecl) declNode()  {}
+func (*FuncDecl) declNode() {}
 
 // ----------------------------------------------------------------------------
 // Files and packages
