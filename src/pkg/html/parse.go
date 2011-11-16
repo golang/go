@@ -1245,9 +1245,17 @@ func inSelectIM(p *parser) bool {
 	case EndTagToken:
 		switch p.tok.Data {
 		case "option":
-			// TODO.
+			if p.top().Data == "option" {
+				p.oe.pop()
+			}
 		case "optgroup":
-			// TODO.
+			i := len(p.oe) - 1
+			if p.oe[i].Data == "option" {
+				i--
+			}
+			if p.oe[i].Data == "optgroup" {
+				p.oe = p.oe[:i]
+			}
 		case "select":
 			endSelect = true
 		default:
