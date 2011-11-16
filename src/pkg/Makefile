@@ -83,6 +83,7 @@ DIRS=\
 	exp/gui\
 	exp/gui/x11\
 	exp/norm\
+	exp/ssh\
 	exp/spdy\
 	exp/sql\
 	exp/sql/driver\
