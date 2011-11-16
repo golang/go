@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"unicode/utf8"
 )
@@ -117,12 +118,24 @@ var regexpPrecederKeywords = map[string]bool{
 	"void":       true,
 }
 
+var jsonMarshalType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
+
+// indirectToJSONMarshaler returns the value, after dereferencing as many times
+// as necessary to reach the base type (or nil) or an implementation of json.Marshal.
+func indirectToJSONMarshaler(a interface{}) interface{} {
+	v := reflect.ValueOf(a)
+	for !v.Type().Implements(jsonMarshalType) && v.Kind() == reflect.Ptr && !v.IsNil() {
+		v = v.Elem()
+	}
+	return v.Interface()
+}
+
 // jsValEscaper escapes its inputs to a JS Expression (section 11.14) that has
-// nether side-effects nor free variables outside (NaN, Infinity).
+// neither side-effects nor free variables outside (NaN, Infinity).
 func jsValEscaper(args ...interface{}) string {
 	var a interface{}
 	if len(args) == 1 {
-		a = args[0]
+		a = indirectToJSONMarshaler(args[0])
 		switch t := a.(type) {
 		case JS:
 			return string(t)
@@ -135,6 +148,9 @@ func jsValEscaper(args ...interface{}) string {
 			a = t.String()
 		}
 	} else {
+		for i, arg := range args {
+			args[i] = indirectToJSONMarshaler(arg)
+		}
 		a = fmt.Sprint(args...)
 	}
 	// TODO: detect cycles before calling Marshal which loops infinitely on
