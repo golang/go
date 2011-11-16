@@ -7,10 +7,8 @@
  */
 
 #include <u.h>
-#include <time.h>
 #include <libc.h>
 #include <bio.h>
-#include <ctype.h>
 #include "tree.h"
 
 #include <ureg_amd64.h>
@@ -394,7 +392,7 @@ startprocess(char **argv)
 		pid = getpid();
 		if(ctlproc(pid, "hang") < 0)
 			sysfatal("ctlproc hang: %r");
-		execv(argv[0], argv);
+		exec(argv[0], argv);
 		sysfatal("exec %s: %r", argv[0]);
 	}
 	if(ctlproc(pid, "attached") < 0 || ctlproc(pid, "waitstop") < 0)
@@ -454,7 +452,6 @@ main(int argc, char **argv)
 
 	if(argc == 0) {
 		*--argv = "6.out";
-		argc++;
 	}
 	fd = open(argv[0], OREAD);
 	if(fd < 0)
