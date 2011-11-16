@@ -97,6 +97,9 @@ type Stmt interface {
 	Close() error
 
 	// NumInput returns the number of placeholder parameters.
+	// -1 means the driver doesn't know how to count the number of
+	// placeholders, so we won't sanity check input here and instead let the
+	// driver deal with errors.
 	NumInput() int
 
 	// Exec executes a query that doesn't return rows, such

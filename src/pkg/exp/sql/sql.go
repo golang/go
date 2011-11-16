@@ -474,7 +474,10 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 	}
 	defer releaseConn()
 
-	if want := si.NumInput(); len(args) != want {
+	// -1 means the driver doesn't know how to count the number of
+	// placeholders, so we won't sanity check input here and instead let the
+	// driver deal with errors.
+	if want := si.NumInput(); want != -1 && len(args) != want {
 		return nil, fmt.Errorf("db: expected %d arguments, got %d", want, len(args))
 	}
 
@@ -570,7 +573,11 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(args) != si.NumInput() {
+
+	// -1 means the driver doesn't know how to count the number of
+	// placeholders, so we won't sanity check input here and instead let the
+	// driver deal with errors.
+	if want := si.NumInput(); want != -1 && len(args) != want {
 		return nil, fmt.Errorf("db: statement expects %d inputs; got %d", si.NumInput(), len(args))
 	}
 	sargs, err := subsetTypeArgs(args)
