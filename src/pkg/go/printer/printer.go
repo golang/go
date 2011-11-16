@@ -13,6 +13,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"text/tabwriter"
 )
 
@@ -244,6 +246,8 @@ func (p *printer) writeItem(pos token.Position, data string) {
 	p.last = p.pos
 }
 
+const linePrefix = "//line "
+
 // writeCommentPrefix writes the whitespace before a comment.
 // If there is any pending whitespace, it consumes as much of
 // it as is likely to help position the comment nicely.
@@ -252,7 +256,7 @@ func (p *printer) writeItem(pos token.Position, data string) {
 // a group of comments (or nil), and isKeyword indicates if the
 // next item is a keyword.
 //
-func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment, isKeyword bool) {
+func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *ast.Comment, isKeyword bool) {
 	if p.written == 0 {
 		// the comment is the first item to be printed - don't write any whitespace
 		return
@@ -337,6 +341,13 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment
 			}
 			p.writeWhitespace(j)
 		}
+
+		// turn off indent if we're about to print a line directive.
+		indent := p.indent
+		if strings.HasPrefix(comment.Text, linePrefix) {
+			p.indent = 0
+		}
+
 		// use formfeeds to break columns before a comment;
 		// this is analogous to using formfeeds to separate
 		// individual lines of /*-style comments - but make
@@ -347,6 +358,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment
 			n = 1
 		}
 		p.writeNewlines(n, true)
+		p.indent = indent
 	}
 }
 
@@ -526,6 +538,26 @@ func stripCommonPrefix(lines [][]byte) {
 func (p *printer) writeComment(comment *ast.Comment) {
 	text := comment.Text
 
+	if strings.HasPrefix(text, linePrefix) {
+		pos := strings.TrimSpace(text[len(linePrefix):])
+		i := strings.LastIndex(pos, ":")
+		if i >= 0 {
+			// The line directive we are about to print changed
+			// the Filename and Line number used by go/token
+			// as it was reading the input originally.
+			// In order to match the original input, we have to
+			// update our own idea of the file and line number
+			// accordingly, after printing the directive.
+			file := pos[:i]
+			line, _ := strconv.Atoi(string(pos[i+1:]))
+			defer func() {
+				p.pos.Filename = string(file)
+				p.pos.Line = line
+				p.pos.Column = 1
+			}()
+		}
+	}
+
 	// shortcut common case of //-style comments
 	if text[1] == '/' {
 		p.writeItem(p.fset.Position(comment.Pos()), p.escape(text))
@@ -599,7 +631,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (dro
 	var last *ast.Comment
 	for ; p.commentBefore(next); p.cindex++ {
 		for _, c := range p.comments[p.cindex].List {
-			p.writeCommentPrefix(p.fset.Position(c.Pos()), next, last, tok.IsKeyword())
+			p.writeCommentPrefix(p.fset.Position(c.Pos()), next, last, c, tok.IsKeyword())
 			p.writeComment(c)
 			last = c
 		}
