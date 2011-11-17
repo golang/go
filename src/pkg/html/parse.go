@@ -683,6 +683,44 @@ func inBodyIM(p *parser) bool {
 		case "image":
 			p.tok.Data = "img"
 			return false
+		case "isindex":
+			if p.form != nil {
+				// Ignore the token.
+				return true
+			}
+			action := ""
+			prompt := "This is a searchable index. Enter search keywords: "
+			attr := []Attribute{{Key: "name", Val: "isindex"}}
+			for _, a := range p.tok.Attr {
+				switch a.Key {
+				case "action":
+					action = a.Val
+				case "name":
+					// Ignore the attribute.
+				case "prompt":
+					prompt = a.Val
+				default:
+					attr = append(attr, a)
+				}
+			}
+			p.acknowledgeSelfClosingTag()
+			p.popUntil(buttonScopeStopTags, "p")
+			p.addElement("form", nil)
+			p.form = p.top()
+			if action != "" {
+				p.form.Attr = []Attribute{{Key: "action", Val: action}}
+			}
+			p.addElement("hr", nil)
+			p.oe.pop()
+			p.addElement("label", nil)
+			p.addText(prompt)
+			p.addElement("input", attr)
+			p.oe.pop()
+			p.oe.pop()
+			p.addElement("hr", nil)
+			p.oe.pop()
+			p.oe.pop()
+			p.form = nil
 		case "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr":
 			// Ignore the token.
 		default:
