@@ -1,80 +1,152 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 <!--
 # Copyright 2010 The Go Authors.  All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 -->
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
-  <Product  Id="FF5B30B2-08C2-11E1-85A2-6ACA4824019B"
-            Name="The Go Programming Language $(var.Arch) $(var.Version)"
-            Language="1033"
-            Version="0.0.0.0"
-            Manufacturer="http://golang.org"
-            UpgradeCode="1C3114EA-08C3-11E1-9095-7FCA4824019B" >
-            <!-- Version="$(var.Version)" TODO: Version requires X.X.X.X format -->
-            
-    <Package    Id='*' Keywords='Installer' 
-                Description="The Go Programming Language Installer"
-                Comments="The Go programming language is an open source project to make programmers more productive. Go is expressive, concise, clean, and efficient. Its concurrency mechanisms make it easy to write programs that get the most out of multicore and networked machines, while its novel type system enables flexible and modular program construction. Go compiles quickly to machine code yet has the convenience of garbage collection and the power of run-time reflection. It's a fast, statically typed, compiled language that feels like a dynamically typed, interpreted language." 
-                InstallerVersion="300"
-                Compressed="yes"
-                Languages="1033" />
+<?if $(var.Arch) = 386 ?>
+  <?define SYSFOLDER=SystemFolder ?>
+  <?define Win64=no ?>
+<?else?>
+  <?define SYSFOLDER=System64Folder ?>
+  <?define Win64=yes ?>
+<?endif?>
 
-    <Media Id='1' Cabinet="go.cab" EmbedCab="yes" />
-    <Condition Message="Windows 2000 or greater required."> VersionNT >= 500</Condition>
-    
-    <SetDirectory Id="SYS_ROOT" Value="C:\"/>
-    <Property Id="EnableEV" Value="1" />
-        
-        <!-- Define the directory structure and environment variables -->
-        <Directory Id="TARGETDIR" Name="SourceDir">
-            <Directory Id="SYS_ROOT">
-                <Directory Id="APPLICATIONROOTDIRECTORY" Name="Go"/>
+<Product
+    Id="FF5B30B2-08C2-11E1-85A2-6ACA4824019B"
+    Name="The Go Programming Language $(var.Arch) $(var.Version)"
+    Language="1033"
+    Version="0.0.0.0"
+    Manufacturer="http://golang.org"
+    UpgradeCode="1C3114EA-08C3-11E1-9095-7FCA4824019B" >
+    <!-- Version="$(var.Version)" TODO: Version requires X.X.X.X format -->
 
-                <Component  Id="GoEnvVars"
-                            Guid="067EE394-08EF-11E1-ACBC-43FF4824019B">
-                    <CreateFolder />
-                    <Environment    Id="GoRootPath"
-                                    Action="set" 
-                                    Part="all"
-                                    Name="GOROOT"
-                                    Permanent="no"
-                                    System="yes"
-                                    Value="C:\Go" />
+<Package
+    Id='*' Keywords='Installer'
+    Description="The Go Programming Language Installer"
+    Comments="The Go programming language is an open source project to make programmers more productive."
+    InstallerVersion="300"
+    Compressed="yes"
+    Manufacturer="http://golang.org"
+    InstallScope="perMachine"
+    Languages="1033" />
+     <!--    Platform="x86 or x64" -->
+<!--
+<Upgrade Id="">
+    <UpgradeVersion
+        IncludeMaximum="yes"
+        IncludeMinimum="yes"
+        Language="1033"
+        Maximum=""
+        Minimum=""
+        Property="" />
+</Upgrade>
+-->
+<Media Id='1' Cabinet="go.cab" EmbedCab="yes" CompressionLevel="high" />
+<Condition Message="Windows 2000 or greater required."> VersionNT >= 500</Condition>
+<SetDirectory Id="INSTALLDIRROOT" Value="C:\"/>
 
-                    <Environment    Id="GoBinPath"
-                                    Action="set" 
-                                    Part="all"
-                                    Name="GOBIN"
-                                    Permanent="no"
-                                    System="yes"
-                                    Value="C:\Go\bin" />
+<CustomAction
+    Id="SetApplicationRootDirectory"
+    Property="ARPINSTALLLOCATION"
+    Value="[INSTALLDIR]" />
 
-                    <Environment    Id="Environment"
-                                    Action="set" 
-                                    Part="last"
-                                    Name="PATH"
-                                    Permanent="no"
-                                    System="yes"
-                                    Value="C:\Go\bin" />                         
-                </Component>
+<!-- Define the directory structure and environment variables -->
+<Directory Id="TARGETDIR" Name="SourceDir">
+  <Directory Id="INSTALLDIRROOT">
+    <Directory Id="INSTALLDIR" Name="Go"/>
+  </Directory>
+  <Directory Id="ProgramMenuFolder">
+    <Directory Id="GoProgramShortcutsDir" Name="Go Programming"/>
+  </Directory>
+  <Directory Id="DesktopFolder" Name="Desktop"/>
+</Directory>
 
-            </Directory>
-        </Directory>
+<!-- Programs Menu & Desktop Shortcuts -->
+<DirectoryRef Id="GoProgramShortcutsDir">
+  <Component Id="Component_GoShortCuts" Guid="f5fbfb5e-6c5c-423b-9298-21b0e3c98f4b">
+    <Shortcut
+        Id="GoEnvStartMenuShortcut"
+        Name="GoEnv"
+        Description="Sets the Go environment and spawns a shell window"
+        Target="[INSTALLDIR]goenv.bat" />
+    <Shortcut
+        Id="GoEnvDesktopShortcut"
+        Directory="DesktopFolder"
+        Name="GoEnv"
+        Description="Sets the Go environment and spawns a shell window"
+        Target="[INSTALLDIR]goenv.bat" />
+    <Shortcut
+        Id="GoDocServerStartMenuShortcut"
+        Name="GoDocServer"
+        Description="Starts the godoc server on localhost:6060"
+        Target="[INSTALLDIR]godocserver.bat" />
+    <Shortcut
+        Id="GoDocServerDesktopShortcut"
+        Directory="DesktopFolder"
+        Name="GoDocServer"
+        Description="Starts the godoc server on localhost:6060"
+        Target="[INSTALLDIR]godocserver.bat" />
+    <Shortcut
+        Id="UninstallShortcut"
+        Name="Uninstall Go"
+        Description="Uninstalls Go and all of its components"
+        Target="[$(var.SYSFOLDER)]msiexec.exe"
+        Arguments="/x [ProductCode]" />
+    <RemoveFolder
+        Id="GoProgramShortcutsDir"
+        On="uninstall" />
+    <RegistryValue
+        Root="HKCU"
+        Key="Software\Microsoft\TheGoProgrammingLanguage"
+        Name="installed"
+        Type="integer"
+        Value="1"
+        KeyPath="yes" />
+  </Component>
+</DirectoryRef>
 
-        <!-- Install the files -->
-        <Feature    Id="GoTools" 
-                    Title="Go" 
-                    Level="1">
-            <ComponentGroupRef Id="AppFiles" />
-            <ComponentRef Id="GoEnvVars" />
-        </Feature>   
+<!-- Components -->
+<DirectoryRef Id="INSTALLDIR">
+  <Component Id="Component_GoDocServerBAT" Guid="c40ea60a-4290-4a91-864d-e1d8eb5cf693">
+    <File
+        Id="FILE_GoDocServerBat"
+        Source="godocserver.bat"
+        KeyPath="yes" />
+  </Component>
+  <Component Id="Component_GoEnvBAT" Guid="ee4587d3-fba3-47f9-b45e-ec9ca9c8a9c3">
+    <File
+        Id="FILE_GoEnvBat"
+        Source="goenv.bat"
+        KeyPath="yes" />
+  </Component>
+</DirectoryRef>
 
-        <!-- Update the environment -->
-        <InstallExecuteSequence>
-            <WriteEnvironmentStrings>EnableEV=1</WriteEnvironmentStrings>
-        </InstallExecuteSequence>
+<!-- Install the files -->
+<Feature
+    Id="GoTools"
+    Title="Go"
+    Level="1">
 
-  </Product>
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="Component_GoDocServerBAT" />
+      <ComponentRef Id="Component_GoEnvBAT" />
+      <ComponentRef Id="Component_GoShortCuts" />
+</Feature>
+
+<!-- Update the environment -->
+<InstallExecuteSequence>
+  <Custom
+    Action="SetApplicationRootDirectory"
+    Before="InstallFinalize" />
+</InstallExecuteSequence>
+
+<!-- Include the user interface -->
+<WixVariable Id="WixUILicenseRtf" Value="LICENSE" />
+<Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+<UIRef Id="WixUI_InstallDir" />
+
+</Product>
 </Wix>

@@ -42,11 +42,11 @@ echo "%%%%% Starting zip packaging %%%%%" 1>&2
 7za a -tzip -mx=9 gowin$GOARCH"_"$ver.zip "go/" >/dev/null
 
 echo "%%%%% Starting Go directory file harvesting %%%%%" 1>&2
-heat dir go -nologo -cg AppFiles -gg -g1 -srd -sfrag -template fragment -dr APPLICATIONROOTDIRECTORY -var var.SourceDir -out AppFiles.wxs
+heat dir go -nologo -cg AppFiles -gg -g1 -srd -sfrag -template fragment -dr INSTALLDIR -var var.SourceDir -out AppFiles.wxs
 
 echo "%%%%% Starting installer packaging %%%%%" 1>&2
 candle -nologo -dVersion=$ver -dArch=$GOARCH -dSourceDir=go installer.wxs AppFiles.wxs
-light -nologo installer.wixobj AppFiles.wixobj -o gowin$GOARCH"_"$ver.msi
+light -nologo -ext WixUIExtension -ext WixUtilExtension installer.wixobj AppFiles.wixobj -o gowin$GOARCH"_"$ver.msi
 
 rm -f *.wixobj AppFiles.wxs *.wixpdb
 
