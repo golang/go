@@ -559,7 +559,16 @@ func Sysctl(name string) (value string, err error) {
 		return "", err
 	}
 	if n == 0 {
-		return "", nil
+		// TODO(jsing): Remove after OpenBSD 5.2 release.
+		// Work around a bug that was fixed after OpenBSD 5.0.
+		// The length for kern.hostname and kern.domainname is always
+		// returned as 0 when a nil value is passed for oldp.
+		if OS == "openbsd" && (value == "kern.hostname" || value == "kern.domainname") {
+			// MAXHOSTNAMELEN
+			n = 256
+		} else {
+			return "", nil
+		}
 	}
 
 	// Read into buffer of that size.
