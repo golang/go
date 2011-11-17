@@ -79,6 +79,8 @@ GOOSARCH="${GOOS}_${GOARCH}"
 mksyscall="./mksyscall.pl"
 mkerrors="./mkerrors.sh"
 zerrors="zerrors_$GOOSARCH.go"
+mksysctl=""
+zsysctl="zsysctl_$GOOSARCH.go"
 run="sh"
 
 case "$1" in
@@ -169,12 +171,16 @@ plan9_386)
 openbsd_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32 -openbsd"
+	mksysctl="./mksysctl_openbsd.pl"
+	zsysctl="zsysctl_openbsd.go"
 	mksysnum="curl -s 'http://www.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_openbsd.pl"
 	mktypes="GOARCH=$GOARCH cgo -godefs"
 	;;
 openbsd_amd64)
 	mkerrors="$mkerrors -m64"
 	mksyscall="./mksyscall.pl -openbsd"
+	mksysctl="./mksysctl_openbsd.pl"
+	zsysctl="zsysctl_openbsd.go"
 	mksysnum="curl -s 'http://www.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_openbsd.pl"
 	mktypes="GOARCH=$GOARCH cgo -godefs"
 	;;
@@ -192,6 +198,7 @@ esac
 		syscall_goos="syscall_bsd.go $syscall_goos"
 		;;
 	esac
+	if [ -n "$mksysctl" ]; then echo "$mksysctl |gofmt >$zsysctl"; fi
 	if [ -n "$mksyscall" ]; then echo "$mksyscall $syscall_goos syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"; fi
 	if [ -n "$mksysnum" ]; then echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"; fi
 	if [ -n "$mktypes" ]; then echo "$mktypes types_$GOOS.go |gofmt >ztypes_$GOOSARCH.go"; fi
