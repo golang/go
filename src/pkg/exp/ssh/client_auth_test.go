@@ -161,7 +161,7 @@ func TestClientAuthPassword(t *testing.T) {
 	}
 	serverConfig.PubKeyCallback = nil
 
-	l, err := Listen("tcp", "0.0.0.0:0", serverConfig)
+	l, err := Listen("tcp", "127.0.0.1:0", serverConfig)
 	if err != nil {
 		t.Fatalf("unable to listen: %s", err)
 	}
@@ -189,7 +189,7 @@ func TestClientAuthPassword(t *testing.T) {
 
 	c, err := Dial("tcp", l.Addr().String(), config)
 	if err != nil {
-		t.Errorf("unable to dial remote side: %s", err)
+		t.Fatalf("unable to dial remote side: %s", err)
 	}
 	defer c.Close()
 	<-done
@@ -211,7 +211,7 @@ func TestClientAuthPasswordAndPublickey(t *testing.T) {
 		return user == "testuser" && algo == algoname && bytes.Equal(pubkey, expected)
 	}
 
-	l, err := Listen("tcp", "0.0.0.0:0", serverConfig)
+	l, err := Listen("tcp", "127.0.0.1:0", serverConfig)
 	if err != nil {
 		t.Fatalf("unable to listen: %s", err)
 	}
@@ -241,7 +241,7 @@ func TestClientAuthPasswordAndPublickey(t *testing.T) {
 
 	c, err := Dial("tcp", l.Addr().String(), config)
 	if err != nil {
-		t.Errorf("unable to dial remote side: %s", err)
+		t.Fatalf("unable to dial remote side: %s", err)
 	}
 	defer c.Close()
 	<-done
