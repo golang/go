@@ -16,6 +16,13 @@ import (
 	"unsafe"
 )
 
+func TestBool(t *testing.T) {
+	v := ValueOf(true)
+	if v.Bool() != true {
+		t.Fatal("ValueOf(true).Bool() = false")
+	}
+}
+
 type integer int
 type T struct {
 	a int
@@ -215,7 +222,8 @@ func TestTypes(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	for i, tt := range valueTests {
-		v := ValueOf(tt.i).Elem()
+		v := ValueOf(tt.i)
+		v = v.Elem()
 		switch v.Kind() {
 		case Int:
 			v.SetInt(132)
@@ -1100,21 +1108,38 @@ func TestMethod(t *testing.T) {
 	}
 
 	// Curried method of value.
-	i = ValueOf(p).Method(1).Call([]Value{ValueOf(10)})[0].Int()
+	tfunc := TypeOf(func(int) int(nil))
+	v := ValueOf(p).Method(1)
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Value Method Type is %s; want %s", tt, tfunc)
+	}
+	i = v.Call([]Value{ValueOf(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Value Method returned %d; want 250", i)
 	}
-	i = ValueOf(p).MethodByName("Dist").Call([]Value{ValueOf(10)})[0].Int()
+	v = ValueOf(p).MethodByName("Dist")
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Value MethodByName Type is %s; want %s", tt, tfunc)
+	}
+	i = v.Call([]Value{ValueOf(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Value MethodByName returned %d; want 250", i)
 	}
 
 	// Curried method of pointer.
-	i = ValueOf(&p).Method(1).Call([]Value{ValueOf(10)})[0].Int()
+	v = ValueOf(&p).Method(1)
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Pointer Value Method Type is %s; want %s", tt, tfunc)
+	}
+	i = v.Call([]Value{ValueOf(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Pointer Value Method returned %d; want 250", i)
 	}
-	i = ValueOf(&p).MethodByName("Dist").Call([]Value{ValueOf(10)})[0].Int()
+	v = ValueOf(&p).MethodByName("Dist")
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Pointer Value MethodByName Type is %s; want %s", tt, tfunc)
+	}
+	i = v.Call([]Value{ValueOf(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Pointer Value MethodByName returned %d; want 250", i)
 	}
@@ -1129,11 +1154,19 @@ func TestMethod(t *testing.T) {
 		}
 	}{p}
 	pv := ValueOf(s).Field(0)
-	i = pv.Method(0).Call([]Value{ValueOf(10)})[0].Int()
+	v = pv.Method(0)
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Interface Method Type is %s; want %s", tt, tfunc)
+	}
+	i = v.Call([]Value{ValueOf(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Interface Method returned %d; want 250", i)
 	}
-	i = pv.MethodByName("Dist").Call([]Value{ValueOf(10)})[0].Int()
+	v = pv.MethodByName("Dist")
+	if tt := v.Type(); tt != tfunc {
+		t.Errorf("Interface MethodByName Type is %s; want %s", tt, tfunc)
+	}
+	i = v.Call([]Value{ValueOf(10)})[0].Int()
 	if i != 250 {
 		t.Errorf("Interface MethodByName returned %d; want 250", i)
 	}
