@@ -85,6 +85,11 @@ var (
 	procCertOpenSystemStoreW        = modcrypt32.NewProc("CertOpenSystemStoreW")
 	procCertEnumCertificatesInStore = modcrypt32.NewProc("CertEnumCertificatesInStore")
 	procCertCloseStore              = modcrypt32.NewProc("CertCloseStore")
+	procRegOpenKeyExW               = modadvapi32.NewProc("RegOpenKeyExW")
+	procRegCloseKey                 = modadvapi32.NewProc("RegCloseKey")
+	procRegQueryInfoKeyW            = modadvapi32.NewProc("RegQueryInfoKeyW")
+	procRegEnumKeyExW               = modadvapi32.NewProc("RegEnumKeyExW")
+	procRegQueryValueExW            = modadvapi32.NewProc("RegQueryValueExW")
 	procWSAStartup                  = modws2_32.NewProc("WSAStartup")
 	procWSACleanup                  = modws2_32.NewProc("WSACleanup")
 	procWSAIoctl                    = modws2_32.NewProc("WSAIoctl")
@@ -979,6 +984,36 @@ func CertCloseStore(store Handle, flags uint32) (err error) {
 			err = EINVAL
 		}
 	}
+	return
+}
+
+func RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno uintptr) {
+	r0, _, _ := Syscall6(procRegOpenKeyExW.Addr(), 5, uintptr(key), uintptr(unsafe.Pointer(subkey)), uintptr(options), uintptr(desiredAccess), uintptr(unsafe.Pointer(result)), 0)
+	regerrno = uintptr(r0)
+	return
+}
+
+func RegCloseKey(key Handle) (regerrno uintptr) {
+	r0, _, _ := Syscall(procRegCloseKey.Addr(), 1, uintptr(key), 0, 0)
+	regerrno = uintptr(r0)
+	return
+}
+
+func RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno uintptr) {
+	r0, _, _ := Syscall12(procRegQueryInfoKeyW.Addr(), 12, uintptr(key), uintptr(unsafe.Pointer(class)), uintptr(unsafe.Pointer(classLen)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(subkeysLen)), uintptr(unsafe.Pointer(maxSubkeyLen)), uintptr(unsafe.Pointer(maxClassLen)), uintptr(unsafe.Pointer(valuesLen)), uintptr(unsafe.Pointer(maxValueNameLen)), uintptr(unsafe.Pointer(maxValueLen)), uintptr(unsafe.Pointer(saLen)), uintptr(unsafe.Pointer(lastWriteTime)))
+	regerrno = uintptr(r0)
+	return
+}
+
+func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno uintptr) {
+	r0, _, _ := Syscall9(procRegEnumKeyExW.Addr(), 8, uintptr(key), uintptr(index), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(nameLen)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(class)), uintptr(unsafe.Pointer(classLen)), uintptr(unsafe.Pointer(lastWriteTime)), 0)
+	regerrno = uintptr(r0)
+	return
+}
+
+func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno uintptr) {
+	r0, _, _ := Syscall6(procRegQueryValueExW.Addr(), 6, uintptr(key), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(valtype)), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(buflen)))
+	regerrno = uintptr(r0)
 	return
 }
 

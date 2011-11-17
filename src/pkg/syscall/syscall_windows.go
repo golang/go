@@ -154,6 +154,11 @@ func NewCallback(fn interface{}) uintptr
 //sys	CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) = crypt32.CertOpenSystemStoreW
 //sys	CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext) = crypt32.CertEnumCertificatesInStore
 //sys	CertCloseStore(store Handle, flags uint32) (err error) = crypt32.CertCloseStore
+//sys	RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno uintptr) = advapi32.RegOpenKeyExW
+//sys	RegCloseKey(key Handle) (regerrno uintptr) = advapi32.RegCloseKey
+//sys	RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno uintptr) = advapi32.RegQueryInfoKeyW
+//sys	RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno uintptr) = advapi32.RegEnumKeyExW
+//sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno uintptr) = advapi32.RegQueryValueExW
 
 // syscall interface implementation for other packages
 
