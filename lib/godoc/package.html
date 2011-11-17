@@ -141,17 +141,25 @@
 	<p>
 	<table class="layout">
 	<tr>
-	<th align="left" colspan="{{html .MaxHeight}}">Name</th>
-	<td width="25">&nbsp;</td>
+	{{if $.DirFlat}}
+		<th align="left">Name</th>
+	{{else}}
+		<th align="left" colspan="{{html .MaxHeight}}">Name</th>
+	{{end}}
+	<th width="25"></th>
 	<th align="left">Synopsis</th>
 	</tr>
 	<tr>
-	<th align="left"><a href="..">..</a></th>
+	<td align="left"><a href="..">..</a></td>
 	</tr>
 	{{range .List}}
 		<tr>
-		{{repeat `<td width="25"></td>` .Depth}}
-		<td align="left" colspan="{{html .Height}}"><a href="{{html .Path}}">{{html .Name}}</a></td>
+		{{if $.DirFlat}}
+			<td align="left"><a href="{{html .Path}}">{{html .Path}}</a></td>
+		{{else}}
+			{{repeat `<td width="20"></td>` .Depth}}
+			<td align="left" colspan="{{html .Height}}"><a href="{{html .Path}}">{{html .Name}}</a></td>
+		{{end}}
 		<td></td>
 		<td align="left">{{html .Synopsis}}</td>
 		</tr>
