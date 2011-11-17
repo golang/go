@@ -942,11 +942,6 @@ func TestHostname(t *testing.T) {
 		return
 	}
 
-	// TODO(jsing): Fix nametomib() on OpenBSD
-	if syscall.OS == "openbsd" {
-		return
-	}
-
 	// Check internal Hostname() against the output of /bin/hostname.
 	// Allow that the internal Hostname returns a Fully Qualified Domain Name
 	// and the /bin/hostname only returns the first component
