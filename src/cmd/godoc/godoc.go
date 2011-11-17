@@ -825,6 +825,7 @@ const (
 	noFiltering PageInfoMode = 1 << iota // do not filter exports
 	showSource                           // show source code, do not extract documentation
 	noHtml                               // show result in textual form, do not generate HTML
+	flatDir                              // show directory in a flat (non-indented) manner
 )
 
 // modeNames defines names for each PageInfoMode flag.
@@ -832,18 +833,26 @@ var modeNames = map[string]PageInfoMode{
 	"all":  noFiltering,
 	"src":  showSource,
 	"text": noHtml,
+	"flat": flatDir,
 }
 
 // getPageInfoMode computes the PageInfoMode flags by analyzing the request
 // URL form value "m". It is value is a comma-separated list of mode names
 // as defined by modeNames (e.g.: m=src,text).
-func getPageInfoMode(r *http.Request) (mode PageInfoMode) {
+func getPageInfoMode(r *http.Request) PageInfoMode {
+	var mode PageInfoMode
 	for _, k := range strings.Split(r.FormValue("m"), ",") {
 		if m, found := modeNames[strings.TrimSpace(k)]; found {
 			mode |= m
 		}
 	}
-	return
+	return adjustPageInfoMode(r, mode)
+}
+
+// Specialized versions of godoc may adjust the PageInfoMode by overriding
+// this variable.
+var adjustPageInfoMode = func(_ *http.Request, mode PageInfoMode) PageInfoMode {
+	return mode
 }
 
 // remoteSearchURL returns the search URL for a given query as needed by
@@ -868,8 +877,9 @@ type PageInfo struct {
 	Examples []*doc.Example  // nil if no example code
 	Dirs     *DirList        // nil if no directory information
 	DirTime  int64           // directory time stamp in seconds since epoch
+	DirFlat  bool            // if set, show directory in a flat (non-indented) manner
 	IsPkg    bool            // false if this is not documenting a real package
-	Err      error           // directory read error or nil
+	Err      error           // I/O error or nil
 }
 
 func (info *PageInfo) IsEmpty() bool {
@@ -1105,7 +1115,19 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 		timestamp = time.Seconds()
 	}
 
-	return PageInfo{abspath, plist, fset, past, pdoc, examples, dir.listing(true), timestamp, h.isPkg, nil}
+	return PageInfo{
+		Dirname:  abspath,
+		PList:    plist,
+		FSet:     fset,
+		PAst:     past,
+		PDoc:     pdoc,
+		Examples: examples,
+		Dirs:     dir.listing(true),
+		DirTime:  timestamp,
+		DirFlat:  mode&flatDir != 0,
+		IsPkg:    h.isPkg,
+		Err:      nil,
+	}
 }
 
 func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
