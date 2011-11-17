@@ -54,6 +54,7 @@ GOFILES_openbsd=\
 	sockcmsg_unix.go\
 	syscall_bsd.go\
 	syscall_unix.go\
+	zsysctl_openbsd.go\
 
 GOFILES_windows=\
 	env_windows.go\
