@@ -22,13 +22,19 @@ import (
 
 // A Dir implements http.FileSystem using the native file
 // system restricted to a specific directory tree.
+//
+// An empty Dir is treated as ".".
 type Dir string
 
 func (d Dir) Open(name string) (File, error) {
 	if filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0 {
 		return nil, errors.New("http: invalid character in file path")
 	}
-	f, err := os.Open(filepath.Join(string(d), filepath.FromSlash(path.Clean("/"+name))))
+	dir := string(d)
+	if dir == "" {
+		dir = "."
+	}
+	f, err := os.Open(filepath.Join(dir, filepath.FromSlash(path.Clean("/"+name))))
 	if err != nil {
 		return nil, err
 	}
