@@ -895,7 +895,7 @@ def CheckFormat(ui, repo, files, just_warn=False):
 
 # Check that gofmt run on the list of files does not change them
 def CheckGofmt(ui, repo, files, just_warn):
-	files = [f for f in files if (f.startswith('src/') or f.startswith('test/bench/')) and f.endswith('.go')]
+	files = [f for f in files if (not f.startswith('test/') or f.startswith('test/bench/')) and f.endswith('.go')]
 	if not files:
 		return
 	cwd = os.getcwd()
