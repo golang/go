@@ -29,7 +29,7 @@ trusted, while Execute's data parameter is not. More details are provided below.
 
 Example
 
-    import "template"
+    import "text/template"
     ...
     t, err := (&template.Set{}).Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
     err = t.Execute(out, "T", "<script>alert('you have been pwned')</script>")

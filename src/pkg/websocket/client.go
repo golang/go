@@ -72,8 +72,8 @@ A trivial example client:
 	package main
 
 	import (
-		"http"
 		"log"
+		"net/http"
 		"strings"
 		"websocket"
 	)
