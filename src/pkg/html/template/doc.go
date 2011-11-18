@@ -13,9 +13,9 @@ Introduction
 This package wraps package template so you can use the standard template API
 to parse and execute templates.
 
-    set, err := new(template.Set).Parse(...)
-    // Error checking elided
-    err = set.Execute(out, "Foo", data)
+  set, err := new(template.Set).Parse(...)
+  // Error checking elided
+  err = set.Execute(out, "Foo", data)
 
 If successful, set will now be injection-safe. Otherwise, err is an error
 defined in the docs for ErrorCode.
@@ -29,25 +29,25 @@ trusted, while Execute's data parameter is not. More details are provided below.
 
 Example
 
-    import "text/template"
-    ...
-    t, err := (&template.Set{}).Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
-    err = t.Execute(out, "T", "<script>alert('you have been pwned')</script>")
+  import "text/template"
+  ...
+  t, err := (&template.Set{}).Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
+  err = t.Execute(out, "T", "<script>alert('you have been pwned')</script>")
 
 produces
 
-    Hello, <script>alert('you have been pwned')</script>!
+  Hello, <script>alert('you have been pwned')</script>!
 
 but with contextual autoescaping,
 
-    import "html/template"
-    ...
-    t, err := (&template.Set{}).Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
-    err = t.Execute(out, "T", "<script>alert('you have been pwned')</script>")
+  import "html/template"
+  ...
+  t, err := (&template.Set{}).Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
+  err = t.Execute(out, "T", "<script>alert('you have been pwned')</script>")
 
 produces safe, escaped HTML output
 
-    Hello, &lt;script&gt;alert('you have been pwned')&lt;/script&gt;!
+  Hello, &lt;script&gt;alert('you have been pwned')&lt;/script&gt;!
 
 
 Contexts
@@ -80,36 +80,36 @@ Contexts
 Assuming {{.}} is `O'Reilly: How are <i>you</i>?`, the table below shows
 how {{.}} appears when used in the context to the left.
 
-Context                          {{.}} After
-{{.}}                            O'Reilly: How are &lt;i&gt;you&lt;/i&gt;?
-<a title='{{.}}'>                O&#39;Reilly: How are you?
-<a href="/{{.}}">                O&#39;Reilly: How are %3ci%3eyou%3c/i%3e?
-<a href="?q={{.}}">              O&#39;Reilly%3a%20How%20are%3ci%3e...%3f
-<a onx='f("{{.}}")'>             O\x27Reilly: How are \x3ci\x3eyou...?
-<a onx='f({{.}})'>               "O\x27Reilly: How are \x3ci\x3eyou...?"
-<a onx='pattern = /{{.}}/;'>     O\x27Reilly: How are \x3ci\x3eyou...\x3f
+  Context                          {{.}} After
+  {{.}}                            O'Reilly: How are &lt;i&gt;you&lt;/i&gt;?
+  <a title='{{.}}'>                O&#39;Reilly: How are you?
+  <a href="/{{.}}">                O&#39;Reilly: How are %3ci%3eyou%3c/i%3e?
+  <a href="?q={{.}}">              O&#39;Reilly%3a%20How%20are%3ci%3e...%3f
+  <a onx='f("{{.}}")'>             O\x27Reilly: How are \x3ci\x3eyou...?
+  <a onx='f({{.}})'>               "O\x27Reilly: How are \x3ci\x3eyou...?"
+  <a onx='pattern = /{{.}}/;'>     O\x27Reilly: How are \x3ci\x3eyou...\x3f
 
 If used in an unsafe context, then the value might be filtered out:
 
-Context                          {{.}} After
-<a href="{{.}}">                 #ZgotmplZ
+  Context                          {{.}} After
+  <a href="{{.}}">                 #ZgotmplZ
 
 since "O'Reilly:" is not an allowed protocol like "http:".
 
 
 If {{.}} is the innocuous word, `left`, then it can appear more widely,
 
-Context                              {{.}} After
-{{.}}                                left
-<a title='{{.}}'>                    left
-<a href='{{.}}'>                     left
-<a href='/{{.}}'>                    left
-<a href='?dir={{.}}'>                left
-<a style="border-{{.}}: 4px">        left
-<a style="align: {{.}}">             left
-<a style="background: '{{.}}'>       left
-<a style="background: url('{{.}}')>  left
-<style>p.{{.}} {color:red}</style>   left
+  Context                              {{.}} After
+  {{.}}                                left
+  <a title='{{.}}'>                    left
+  <a href='{{.}}'>                     left
+  <a href='/{{.}}'>                    left
+  <a href='?dir={{.}}'>                left
+  <a style="border-{{.}}: 4px">        left
+  <a style="align: {{.}}">             left
+  <a style="background: '{{.}}'>       left
+  <a style="background: url('{{.}}')>  left
+  <style>p.{{.}} {color:red}</style>   left
 
 Non-string values can be used in JavaScript contexts.
 If {{.}} is
