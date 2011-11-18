@@ -16,7 +16,6 @@ package terminal
 
 import (
 	"io"
-	"os"
 	"syscall"
 	"unsafe"
 )
@@ -29,8 +28,8 @@ type State struct {
 // IsTerminal returns true if the given file descriptor is a terminal.
 func IsTerminal(fd int) bool {
 	var termios syscall.Termios
-	_, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&termios)), 0, 0, 0)
-	return e == 0
+	_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&termios)), 0, 0, 0)
+	return err == 0
 }
 
 // MakeRaw put the terminal connected to the given file descriptor into raw
@@ -38,15 +37,15 @@ func IsTerminal(fd int) bool {
 // restored.
 func MakeRaw(fd int) (*State, error) {
 	var oldState State
-	if _, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&oldState.termios)), 0, 0, 0); e != 0 {
-		return nil, os.Errno(e)
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&oldState.termios)), 0, 0, 0); err != 0 {
+		return nil, err
 	}
 
 	newState := oldState.termios
 	newState.Iflag &^= syscall.ISTRIP | syscall.INLCR | syscall.ICRNL | syscall.IGNCR | syscall.IXON | syscall.IXOFF
 	newState.Lflag &^= syscall.ECHO | syscall.ICANON | syscall.ISIG
-	if _, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); e != 0 {
-		return nil, os.Errno(e)
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); err != 0 {
+		return nil, err
 	}
 
 	return &oldState, nil
@@ -55,8 +54,8 @@ func MakeRaw(fd int) (*State, error) {
 // Restore restores the terminal connected to the given file descriptor to a
 // previous state.
 func Restore(fd int, state *State) error {
-	_, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&state.termios)), 0, 0, 0)
-	return os.Errno(e)
+	_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&state.termios)), 0, 0, 0)
+	return err
 }
 
 // ReadPassword reads a line of input from a terminal without local echo.  This
@@ -64,14 +63,14 @@ func Restore(fd int, state *State) error {
 // returned does not include the \n.
 func ReadPassword(fd int) ([]byte, error) {
 	var oldState syscall.Termios
-	if _, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&oldState)), 0, 0, 0); e != 0 {
-		return nil, os.Errno(e)
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&oldState)), 0, 0, 0); err != 0 {
+		return nil, err
 	}
 
 	newState := oldState
 	newState.Lflag &^= syscall.ECHO
-	if _, _, e := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); e != 0 {
-		return nil, os.Errno(e)
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); err != 0 {
+		return nil, err
 	}
 
 	defer func() {
@@ -81,9 +80,9 @@ func ReadPassword(fd int) ([]byte, error) {
 	var buf [16]byte
 	var ret []byte
 	for {
-		n, errno := syscall.Read(fd, buf[:])
-		if errno != 0 {
-			return nil, os.Errno(errno)
+		n, err := syscall.Read(fd, buf[:])
+		if err != nil {
+			return nil, err
 		}
 		if n == 0 {
 			if len(ret) == 0 {

@@ -188,6 +188,7 @@ DIRS=\
 ifeq ($(GOOS),linux)
 DIRS+=\
 	exp/inotify\
+	exp/terminal\
 
 endif
 
