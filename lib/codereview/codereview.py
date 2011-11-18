@@ -1933,7 +1933,7 @@ def submit(ui, repo, *pats, **opts):
 		changeURL = "http://code.google.com/p/%s/source/detail?r=%s" % (m.group(2), changeURL)
 	else:
 		print >>sys.stderr, "URL: ", url
-	pmsg = "*** Submitted as " + changeURL + " ***\n\n" + opts['message']
+	pmsg = "*** Submitted as " + changeURL + " ***\n\n" + message
 
 	# When posting, move reviewers to CC line,
 	# so that the issue stops showing up in their "My Issues" page.
