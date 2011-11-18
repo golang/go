@@ -899,11 +899,10 @@ var (
 	oidRSA         = []int{1, 2, 840, 113549, 1, 1, 1}
 )
 
-// CreateSelfSignedCertificate creates a new certificate based on
-// a template. The following members of template are used: SerialNumber,
-// Subject, NotBefore, NotAfter, KeyUsage, BasicConstraintsValid, IsCA,
-// MaxPathLen, SubjectKeyId, DNSNames, PermittedDNSDomainsCritical,
-// PermittedDNSDomains.
+// CreateCertificate creates a new certificate based on a template. The
+// following members of template are used: SerialNumber, Subject, NotBefore,
+// NotAfter, KeyUsage, BasicConstraintsValid, IsCA, MaxPathLen, SubjectKeyId,
+// DNSNames, PermittedDNSDomainsCritical, PermittedDNSDomains.
 //
 // The certificate is signed by parent. If parent is equal to template then the
 // certificate is self-signed. The parameter pub is the public key of the
