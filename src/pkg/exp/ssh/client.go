@@ -60,8 +60,8 @@ func (c *ClientConn) handshake() error {
 	clientKexInit := kexInitMsg{
 		KexAlgos:                supportedKexAlgos,
 		ServerHostKeyAlgos:      supportedHostKeyAlgos,
-		CiphersClientServer:     supportedCiphers,
-		CiphersServerClient:     supportedCiphers,
+		CiphersClientServer:     c.config.Crypto.ciphers(),
+		CiphersServerClient:     c.config.Crypto.ciphers(),
 		MACsClientServer:        supportedMACs,
 		MACsServerClient:        supportedMACs,
 		CompressionClientServer: supportedCompressions,
@@ -301,6 +301,9 @@ type ClientConfig struct {
 	// A slice of ClientAuth methods. Only the first instance 
 	// of a particular RFC 4252 method will be used during authentication.
 	Auth []ClientAuth
+
+	// Cryptographic-related configuration.
+	Crypto CryptoConfig
 }
 
 func (c *ClientConfig) rand() io.Reader {

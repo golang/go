@@ -7,7 +7,6 @@ package ssh
 import (
 	"bufio"
 	"crypto"
-	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/subtle"
@@ -19,7 +18,10 @@ import (
 )
 
 const (
-	paddingMultiple = 16 // TODO(dfc) does this need to be configurable?
+	packetSizeMultiple = 16 // TODO(huin) this should be determined by the cipher.
+	minPacketSize      = 16
+	maxPacketSize      = 36000
+	minPaddingSize     = 4 // TODO(huin) should this be configurable?
 )
 
 // filteredConn reduces the set of methods exposed when embeddeding
@@ -61,8 +63,7 @@ type reader struct {
 type writer struct {
 	*sync.Mutex // protects writer.Writer from concurrent writes
 	*bufio.Writer
-	paddingMultiple int
-	rand            io.Reader
+	rand io.Reader
 	common
 }
 
@@ -82,14 +83,11 @@ type common struct {
 func (r *reader) readOnePacket() ([]byte, error) {
 	var lengthBytes = make([]byte, 5)
 	var macSize uint32
-
 	if _, err := io.ReadFull(r, lengthBytes); err != nil {
 		return nil, err
 	}
 
-	if r.cipher != nil {
-		r.cipher.XORKeyStream(lengthBytes, lengthBytes)
-	}
+	r.cipher.XORKeyStream(lengthBytes, lengthBytes)
 
 	if r.mac != nil {
 		r.mac.Reset()
@@ -153,9 +151,9 @@ func (w *writer) writePacket(packet []byte) error {
 	w.Mutex.Lock()
 	defer w.Mutex.Unlock()
 
-	paddingLength := paddingMultiple - (5+len(packet))%paddingMultiple
+	paddingLength := packetSizeMultiple - (5+len(packet))%packetSizeMultiple
 	if paddingLength < 4 {
-		paddingLength += paddingMultiple
+		paddingLength += packetSizeMultiple
 	}
 
 	length := len(packet) + 1 + paddingLength
@@ -188,11 +186,9 @@ func (w *writer) writePacket(packet []byte) error {
 
 	// TODO(dfc) lengthBytes, packet and padding should be
 	// subslices of a single buffer
-	if w.cipher != nil {
-		w.cipher.XORKeyStream(lengthBytes, lengthBytes)
-		w.cipher.XORKeyStream(packet, packet)
-		w.cipher.XORKeyStream(padding, padding)
-	}
+	w.cipher.XORKeyStream(lengthBytes, lengthBytes)
+	w.cipher.XORKeyStream(packet, packet)
+	w.cipher.XORKeyStream(padding, padding)
 
 	if _, err := w.Write(lengthBytes); err != nil {
 		return err
@@ -227,11 +223,17 @@ func newTransport(conn net.Conn, rand io.Reader) *transport {
 	return &transport{
 		reader: reader{
 			Reader: bufio.NewReader(conn),
+			common: common{
+				cipher: noneCipher{},
+			},
 		},
 		writer: writer{
 			Writer: bufio.NewWriter(conn),
 			rand:   rand,
 			Mutex:  new(sync.Mutex),
+			common: common{
+				cipher: noneCipher{},
+			},
 		},
 		filteredConn: conn,
 	}
@@ -249,29 +251,32 @@ var (
 	clientKeys = direction{[]byte{'A'}, []byte{'C'}, []byte{'E'}}
 )
 
-// setupKeys sets the cipher and MAC keys from K, H and sessionId, as
+// setupKeys sets the cipher and MAC keys from kex.K, kex.H and sessionId, as
 // described in RFC 4253, section 6.4. direction should either be serverKeys
 // (to setup server->client keys) or clientKeys (for client->server keys).
 func (c *common) setupKeys(d direction, K, H, sessionId []byte, hashFunc crypto.Hash) error {
-	h := hashFunc.New()
+	cipherMode := cipherModes[c.cipherAlgo]
 
-	blockSize := 16
-	keySize := 16
 	macKeySize := 20
 
-	iv := make([]byte, blockSize)
-	key := make([]byte, keySize)
+	iv := make([]byte, cipherMode.ivSize)
+	key := make([]byte, cipherMode.keySize)
 	macKey := make([]byte, macKeySize)
+
+	h := hashFunc.New()
 	generateKeyMaterial(iv, d.ivTag, K, H, sessionId, h)
 	generateKeyMaterial(key, d.keyTag, K, H, sessionId, h)
 	generateKeyMaterial(macKey, d.macKeyTag, K, H, sessionId, h)
 
 	c.mac = truncatingMAC{12, hmac.NewSHA1(macKey)}
-	aes, err := aes.NewCipher(key)
+
+	cipher, err := cipherMode.createCipher(key, iv)
 	if err != nil {
 		return err
 	}
-	c.cipher = cipher.NewCTR(aes, iv)
+
+	c.cipher = cipher
+
 	return nil
 }
 

@@ -16,7 +16,6 @@ import (
 const (
 	kexAlgoDH14SHA1 = "diffie-hellman-group14-sha1"
 	hostAlgoRSA     = "ssh-rsa"
-	cipherAES128CTR = "aes128-ctr"
 	macSHA196       = "hmac-sha1-96"
 	compressionNone = "none"
 	serviceUserAuth = "ssh-userauth"
@@ -25,7 +24,6 @@ const (
 
 var supportedKexAlgos = []string{kexAlgoDH14SHA1}
 var supportedHostKeyAlgos = []string{hostAlgoRSA}
-var supportedCiphers = []string{cipherAES128CTR}
 var supportedMACs = []string{macSHA196}
 var supportedCompressions = []string{compressionNone}
 
@@ -128,6 +126,20 @@ func findAgreedAlgorithms(transport *transport, clientKexInit, serverKexInit *ke
 
 	ok = true
 	return
+}
+
+// Cryptographic configuration common to both ServerConfig and ClientConfig.
+type CryptoConfig struct {
+	// The allowed cipher algorithms. If unspecified then DefaultCipherOrder is
+	// used.
+	Ciphers []string
+}
+
+func (c *CryptoConfig) ciphers() []string {
+	if c.Ciphers == nil {
+		return DefaultCipherOrder
+	}
+	return c.Ciphers
 }
 
 // serialize a signed slice according to RFC 4254 6.6.

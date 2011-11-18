@@ -7,6 +7,7 @@ include ../../../Make.inc
 TARG=exp/ssh
 GOFILES=\
 	channel.go\
+	cipher.go\
 	client.go\
 	client_auth.go\
 	common.go\

@@ -448,8 +448,6 @@ func parseUint32(in []byte) (out uint32, rest []byte, ok bool) {
 	return
 }
 
-const maxPacketSize = 36000
-
 func nameListLength(namelist []string) int {
 	length := 4 /* uint32 length prefix */
 	for i, name := range namelist {
