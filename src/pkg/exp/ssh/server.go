@@ -40,6 +40,9 @@ type ServerConfig struct {
 	// key authentication. It must return true iff the given public key is
 	// valid for the given user.
 	PubKeyCallback func(user, algo string, pubkey []byte) bool
+
+	// Cryptographic-related configuration.
+	Crypto CryptoConfig
 }
 
 func (c *ServerConfig) rand() io.Reader {
@@ -257,8 +260,8 @@ func (s *ServerConn) Handshake() error {
 	serverKexInit := kexInitMsg{
 		KexAlgos:                supportedKexAlgos,
 		ServerHostKeyAlgos:      supportedHostKeyAlgos,
-		CiphersClientServer:     supportedCiphers,
-		CiphersServerClient:     supportedCiphers,
+		CiphersClientServer:     s.config.Crypto.ciphers(),
+		CiphersServerClient:     s.config.Crypto.ciphers(),
 		MACsClientServer:        supportedMACs,
 		MACsServerClient:        supportedMACs,
 		CompressionClientServer: supportedCompressions,
@@ -323,7 +326,9 @@ func (s *ServerConn) Handshake() error {
 	if packet[0] != msgNewKeys {
 		return UnexpectedMessageError{msgNewKeys, packet[0]}
 	}
-	s.transport.reader.setupKeys(clientKeys, K, H, H, hashFunc)
+	if err = s.transport.reader.setupKeys(clientKeys, K, H, H, hashFunc); err != nil {
+		return err
+	}
 	if packet, err = s.readPacket(); err != nil {
 		return err
 	}
