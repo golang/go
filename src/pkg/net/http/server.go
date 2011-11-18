@@ -1013,8 +1013,8 @@ func (srv *Server) Serve(l net.Listener) error {
 //	package main
 //
 //	import (
-//		"http"
 //		"io"
+//		"net/http"
 //		"log"
 //	)
 //
@@ -1044,8 +1044,8 @@ func ListenAndServe(addr string, handler Handler) error {
 // A trivial example server is:
 //
 //	import (
-//		"http"
 //		"log"
+//		"net/http"
 //	)
 //
 //	func handler(w http.ResponseWriter, req *http.Request) {

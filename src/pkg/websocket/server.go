@@ -60,8 +60,8 @@ A trivial example server:
 	package main
 
 	import (
-		"http"
 		"io"
+		"net/http"
 		"websocket"
 	)
 
