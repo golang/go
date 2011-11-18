@@ -487,7 +487,11 @@ func testExecute(execTests []execTest, set *Set, t *testing.T) {
 	}
 	for _, test := range execTests {
 		tmpl := New(test.name).Funcs(funcs)
-		_, err := tmpl.ParseInSet(test.input, set)
+		theSet := set
+		if theSet == nil {
+			theSet = new(Set)
+		}
+		_, err := tmpl.ParseInSet(test.input, theSet)
 		if err != nil {
 			t.Errorf("%s: parse error: %s", test.name, err)
 			continue

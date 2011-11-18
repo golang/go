@@ -16,6 +16,7 @@ import (
 // A template may be a member of multiple sets.
 type Set struct {
 	tmpl       map[string]*Template
+	trees      map[string]*parse.Tree // maintained by parse package
 	leftDelim  string
 	rightDelim string
 	parseFuncs FuncMap
