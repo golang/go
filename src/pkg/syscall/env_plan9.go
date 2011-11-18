@@ -10,40 +10,40 @@ import "errors"
 
 func Getenv(key string) (value string, found bool) {
 	if len(key) == 0 {
-		return "", EINVAL
+		return "", false
 	}
-	f, e := Open("/env/" + key)
+	f, e := Open("/env/"+key, O_RDONLY)
 	if e != nil {
-		return "", ENOENV
+		return "", false
 	}
-	defer f.Close()
+	defer Close(f)
 
-	l, _ := f.Seek(0, 2)
-	f.Seek(0, 0)
+	l, _ := Seek(f, 0, 2)
+	Seek(f, 0, 0)
 	buf := make([]byte, l)
-	n, e := f.Read(buf)
+	n, e := Read(f, buf)
 	if e != nil {
-		return "", ENOENV
+		return "", false
 	}
 
 	if n > 0 && buf[n-1] == 0 {
 		buf = buf[:n-1]
 	}
-	return string(buf), nil
+	return string(buf), true
 }
 
 func Setenv(key, value string) error {
 	if len(key) == 0 {
-		return EINVAL
+		return errors.New("bad arg in system call")
 	}
 
-	f, e := Create("/env/" + key)
+	f, e := Create("/env/"+key, O_RDWR, 0666)
 	if e != nil {
 		return e
 	}
-	defer f.Close()
+	defer Close(f)
 
-	_, e = f.Write([]byte(value))
+	_, e = Write(f, []byte(value))
 	return nil
 }
 
@@ -54,13 +54,13 @@ func Clearenv() {
 func Environ() []string {
 	env := make([]string, 0, 100)
 
-	f, e := Open("/env")
+	f, e := Open("/env", O_RDONLY)
 	if e != nil {
 		panic(e)
 	}
-	defer f.Close()
+	defer Close(f)
 
-	names, e := f.Readdirnames(-1)
+	names, e := readdirnames(f)
 	if e != nil {
 		panic(e)
 	}
