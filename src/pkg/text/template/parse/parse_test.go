@@ -236,7 +236,7 @@ var builtins = map[string]interface{}{
 
 func TestParse(t *testing.T) {
 	for _, test := range parseTests {
-		tmpl, err := New(test.name).Parse(test.input, "", "", builtins)
+		tmpl, err := New(test.name).Parse(test.input, "", "", nil, builtins)
 		switch {
 		case err == nil && !test.ok:
 			t.Errorf("%q: expected error; got none", test.name)

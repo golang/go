@@ -146,29 +146,70 @@ func (t *Tree) atEOF() bool {
 // Parse parses the template definition string to construct an internal
 // representation of the template for execution. If either action delimiter
 // string is empty, the default ("{{" or "}}") is used.
-func (t *Tree) Parse(s, leftDelim, rightDelim string, funcs ...map[string]interface{}) (tree *Tree, err error) {
+func (t *Tree) Parse(s, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
 	defer t.recover(&err)
 	t.startParse(funcs, lex(t.Name, s, leftDelim, rightDelim))
-	t.parse(true)
+	t.parse(treeSet)
 	t.stopParse()
 	return t, nil
 }
 
-// parse is the helper for Parse.
-// It triggers an error if we expect EOF but don't reach it.
-func (t *Tree) parse(toEOF bool) (next Node) {
-	t.Root, next = t.itemList(true)
-	if toEOF && next != nil {
-		t.errorf("unexpected %s", next)
+// parse is the top-level parser for a template, essentially the same
+// as itemList except it also parses {{define}} actions.
+// It runs to EOF.
+func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
+	t.Root = newList()
+	for t.peek().typ != itemEOF {
+		if t.peek().typ == itemLeftDelim {
+			delim := t.next()
+			if t.next().typ == itemDefine {
+				newT := New("new definition") // name will be updated once we know it.
+				newT.startParse(t.funcs, t.lex)
+				newT.parseDefinition(treeSet)
+				continue
+			}
+			t.backup2(delim)
+		}
+		n := t.textOrAction()
+		if n.Type() == nodeEnd {
+			t.errorf("unexpected %s", n)
+		}
+		t.Root.append(n)
 	}
-	return next
+	return nil
+}
+
+// parseDefinition parses a {{define}} ...  {{end}} template definition and
+// installs the definition in the treeSet map.  The "define" keyword has already
+// been scanned.
+func (t *Tree) parseDefinition(treeSet map[string]*Tree) {
+	if treeSet == nil {
+		t.errorf("no set specified for template definition")
+	}
+	const context = "define clause"
+	name := t.expect(itemString, context)
+	var err error
+	t.Name, err = strconv.Unquote(name.val)
+	if err != nil {
+		t.error(err)
+	}
+	t.expect(itemRightDelim, context)
+	var end Node
+	t.Root, end = t.itemList()
+	if end.Type() != nodeEnd {
+		t.errorf("unexpected %s in %s", end, context)
+	}
+	t.stopParse()
+	if _, present := treeSet[t.Name]; present {
+		t.errorf("template: %q multiply defined", name)
+	}
+	treeSet[t.Name] = t
 }
 
 // itemList:
 //	textOrAction*
-// Terminates at EOF and at {{end}} or {{else}}, which is returned separately.
-// The toEOF flag tells whether we expect to reach EOF.
-func (t *Tree) itemList(toEOF bool) (list *ListNode, next Node) {
+// Terminates at {{end}} or {{else}}, returned separately.
+func (t *Tree) itemList() (list *ListNode, next Node) {
 	list = newList()
 	for t.peek().typ != itemEOF {
 		n := t.textOrAction()
@@ -178,10 +219,8 @@ func (t *Tree) itemList(toEOF bool) (list *ListNode, next Node) {
 		}
 		list.append(n)
 	}
-	if !toEOF {
-		t.unexpected(t.next(), "input")
-	}
-	return list, nil
+	t.errorf("unexpected EOF")
+	return
 }
 
 // textOrAction:
@@ -276,11 +315,11 @@ func (t *Tree) parseControl(context string) (lineNum int, pipe *PipeNode, list, 
 	defer t.popVars(len(t.vars))
 	pipe = t.pipeline(context)
 	var next Node
-	list, next = t.itemList(false)
+	list, next = t.itemList()
 	switch next.Type() {
 	case nodeEnd: //done
 	case nodeElse:
-		elseList, next = t.itemList(false)
+		elseList, next = t.itemList()
 		if next.Type() != nodeEnd {
 			t.errorf("expected end; found %s", next)
 		}
