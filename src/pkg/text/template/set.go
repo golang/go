@@ -104,7 +104,8 @@ func (s *Set) Execute(wr io.Writer, name string, data interface{}) error {
 // multiple times for a given set, adding the templates defined in the string
 // to the set.  It is an error if a template has a name already defined in the set.
 func (s *Set) Parse(text string) (*Set, error) {
-	trees, err := parse.Set(text, s.leftDelim, s.rightDelim, s.parseFuncs, builtins)
+	// TODO: "ROOT" is just a placeholder while we rejig the API.
+	trees, err := parse.Parse("ROOT", text, s.leftDelim, s.rightDelim, s.parseFuncs, builtins)
 	if err != nil {
 		return nil, err
 	}
