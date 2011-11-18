@@ -22,7 +22,7 @@ To configure, set the following options in
 your repository's .hg/hgrc file.
 
 	[extensions]
-	codereview = path/to/codereview.py
+	codereview = /path/to/codereview.py
 
 	[codereview]
 	server = codereview.appspot.com
@@ -38,110 +38,60 @@ For example, if change 123456 contains the files x.go and y.go,
 "hg diff @123456" is equivalent to"hg diff x.go y.go".
 '''
 
-from mercurial import cmdutil, commands, hg, util, error, match, discovery
-from mercurial.node import nullrev, hex, nullid, short
-import os, re, time
-import stat
-import subprocess
-import threading
-from HTMLParser import HTMLParser
-
-# The standard 'json' package is new in Python 2.6.
-# Before that it was an external package named simplejson.
-try:
-	# Standard location in 2.6 and beyond.
-	import json
-except Exception, e:
-	try:
-		# Conventional name for earlier package.
-		import simplejson as json
-	except:
-		try:
-			# Was also bundled with django, which is commonly installed.
-			from django.utils import simplejson as json
-		except:
-			# We give up.
-			raise e
-
-try:
-	hgversion = util.version()
-except:
-	from mercurial.version import version as v
-	hgversion = v.get_version()
-
-# in Mercurial 1.9 the cmdutil.match and cmdutil.revpair moved to scmutil
-if hgversion >= '1.9':
-    from mercurial import scmutil
-else:
-    scmutil = cmdutil
-
-oldMessage = """
-The code review extension requires Mercurial 1.3 or newer.
-
-To install a new Mercurial,
-
-	sudo easy_install mercurial
-
-works on most systems.
-"""
-
-linuxMessage = """
-You may need to clear your current Mercurial installation by running:
-
-	sudo apt-get remove mercurial mercurial-common
-	sudo rm -rf /etc/mercurial
-"""
-
-if hgversion < '1.3':
-	msg = oldMessage
-	if os.access("/etc/mercurial", 0):
-		msg += linuxMessage
-	raise util.Abort(msg)
-
-def promptyesno(ui, msg):
-	# Arguments to ui.prompt changed between 1.3 and 1.3.1.
-	# Even so, some 1.3.1 distributions seem to have the old prompt!?!?
-	# What a terrible way to maintain software.
-	try:
-		return ui.promptchoice(msg, ["&yes", "&no"], 0) == 0
-	except AttributeError:
-		return ui.prompt(msg, ["&yes", "&no"], "y") != "n"
-
-def incoming(repo, other):
-	fui = FakeMercurialUI()
-	ret = commands.incoming(fui, repo, *[other.path], **{'bundle': '', 'force': False})
-	if ret and ret != 1:
-		raise util.Abort(ret)
-	out = fui.output
-	return out
-
-def outgoing(repo):
-	fui = FakeMercurialUI()
-	ret = commands.outgoing(fui, repo, *[], **{})
-	if ret and ret != 1:
-		raise util.Abort(ret)
-	out = fui.output
-	return out
-
-# To experiment with Mercurial in the python interpreter:
-#    >>> repo = hg.repository(ui.ui(), path = ".")
-
-#######################################################################
-# Normally I would split this into multiple files, but it simplifies
-# import path headaches to keep it all in one file.  Sorry.
-
 import sys
+
 if __name__ == "__main__":
 	print >>sys.stderr, "This is a Mercurial extension and should not be invoked directly."
 	sys.exit(2)
 
-server = "codereview.appspot.com"
-server_url_base = None
+# We require Python 2.6 for the json package.
+if sys.version < '2.6':
+	print >>sys.stderr, "The codereview extension requires Python 2.6 or newer."
+	print >>sys.stderr, "You are running Python " + sys.version
+	sys.exit(2)
+
+import json
+import os
+import re
+import stat
+import subprocess
+import threading
+import time
+
+from mercurial import commands as hg_commands
+from mercurial import util as hg_util
+
 defaultcc = None
-contributors = {}
-missing_codereview = None
+codereview_disabled = None
 real_rollback = None
 releaseBranch = None
+server = "codereview.appspot.com"
+server_url_base = None
+
+#######################################################################
+# Normally I would split this into multiple files, but it simplifies
+# import path headaches to keep it all in one file.  Sorry.
+# The different parts of the file are separated by banners like this one.
+
+#######################################################################
+# Helpers
+
+def RelativePath(path, cwd):
+	n = len(cwd)
+	if path.startswith(cwd) and path[n] == '/':
+		return path[n+1:]
+	return path
+
+def Sub(l1, l2):
+	return [l for l in l1 if l not in l2]
+
+def Add(l1, l2):
+	l = l1 + Sub(l2, l1)
+	l.sort()
+	return l
+
+def Intersect(l1, l2):
+	return [l for l in l1 if l in l2]
 
 #######################################################################
 # RE: UNICODE STRING HANDLING
@@ -168,7 +118,7 @@ releaseBranch = None
 
 def typecheck(s, t):
 	if type(s) != t:
-		raise util.Abort("type check failed: %s has type %s != %s" % (repr(s), type(s), t))
+		raise hg_util.Abort("type check failed: %s has type %s != %s" % (repr(s), type(s), t))
 
 # If we have to pass unicode instead of str, ustr does that conversion clearly.
 def ustr(s):
@@ -198,6 +148,40 @@ def default_to_utf8():
 	sys.setdefaultencoding('utf-8')
 
 default_to_utf8()
+
+#######################################################################
+# Status printer for long-running commands
+
+global_status = None
+
+def set_status(s):
+	# print >>sys.stderr, "\t", time.asctime(), s
+	global global_status
+	global_status = s
+
+class StatusThread(threading.Thread):
+	def __init__(self):
+		threading.Thread.__init__(self)
+	def run(self):
+		# pause a reasonable amount of time before
+		# starting to display status messages, so that
+		# most hg commands won't ever see them.
+		time.sleep(30)
+
+		# now show status every 15 seconds
+		while True:
+			time.sleep(15 - time.time() % 15)
+			s = global_status
+			if s is None:
+				continue
+			if s == "":
+				s = "(unknown status)"
+			print >>sys.stderr, time.asctime(), s
+
+def start_status_thread():
+	t = StatusThread()
+	t.setDaemon(True)  # allowed to exit if t is still running
+	t.start()
 
 #######################################################################
 # Change list parsing.
@@ -275,17 +259,18 @@ class CL(object):
 		typecheck(s, str)
 		return s
 
-	def PendingText(self):
+	def PendingText(self, quick=False):
 		cl = self
 		s = cl.name + ":" + "\n"
 		s += Indent(cl.desc, "\t")
 		s += "\n"
 		if cl.copied_from:
 			s += "\tAuthor: " + cl.copied_from + "\n"
-		s += "\tReviewer: " + JoinComma(cl.reviewer) + "\n"
-		for (who, line) in cl.lgtm:
-			s += "\t\t" + who + ": " + line + "\n"
-		s += "\tCC: " + JoinComma(cl.cc) + "\n"
+		if not quick:
+			s += "\tReviewer: " + JoinComma(cl.reviewer) + "\n"
+			for (who, line) in cl.lgtm:
+				s += "\t\t" + who + ": " + line + "\n"
+			s += "\tCC: " + JoinComma(cl.cc) + "\n"
 		s += "\tFiles:\n"
 		for f in cl.files:
 			s += "\t\t" + f + "\n"
@@ -360,7 +345,7 @@ class CL(object):
 			uploaded_diff_file = [("data", "data.diff", emptydiff)]
 		
 		if vcs and self.name != "new":
-			form_fields.append(("subject", "diff -r " + vcs.base_rev + " " + getremote(ui, repo, {}).path))
+			form_fields.append(("subject", "diff -r " + vcs.base_rev + " " + ui.expandpath("default")))
 		else:
 			# First upload sets the subject for the CL itself.
 			form_fields.append(("subject", self.Subject()))
@@ -379,7 +364,7 @@ class CL(object):
 			ui.status(msg + "\n")
 		set_status("uploaded CL metadata + diffs")
 		if not response_body.startswith("Issue created.") and not response_body.startswith("Issue updated."):
-			raise util.Abort("failed to update issue: " + response_body)
+			raise hg_util.Abort("failed to update issue: " + response_body)
 		issue = msg[msg.rfind("/")+1:]
 		self.name = issue
 		if not self.url:
@@ -404,7 +389,7 @@ class CL(object):
 			pmsg += " (cc: %s)" % (', '.join(self.cc),)
 		pmsg += ",\n"
 		pmsg += "\n"
-		repourl = getremote(ui, repo, {}).path
+		repourl = ui.expandpath("default")
 		if not self.mailed:
 			pmsg += "I'd like you to review this change to\n" + repourl + "\n"
 		else:
@@ -567,37 +552,6 @@ def LoadCL(ui, repo, name, web=True):
 	set_status("loaded CL " + name)
 	return cl, ''
 
-global_status = None
-
-def set_status(s):
-	# print >>sys.stderr, "\t", time.asctime(), s
-	global global_status
-	global_status = s
-
-class StatusThread(threading.Thread):
-	def __init__(self):
-		threading.Thread.__init__(self)
-	def run(self):
-		# pause a reasonable amount of time before
-		# starting to display status messages, so that
-		# most hg commands won't ever see them.
-		time.sleep(30)
-
-		# now show status every 15 seconds
-		while True:
-			time.sleep(15 - time.time() % 15)
-			s = global_status
-			if s is None:
-				continue
-			if s == "":
-				s = "(unknown status)"
-			print >>sys.stderr, time.asctime(), s
-
-def start_status_thread():
-	t = StatusThread()
-	t.setDaemon(True)  # allowed to exit if t is still running
-	t.start()
-
 class LoadCLThread(threading.Thread):
 	def __init__(self, ui, repo, dir, f, web):
 		threading.Thread.__init__(self)
@@ -735,101 +689,6 @@ _change_prolog = """# Change list.
 # Multi-line values should be indented.
 """
 
-#######################################################################
-# Mercurial helper functions
-
-# Get effective change nodes taking into account applied MQ patches
-def effective_revpair(repo):
-    try:
-	return scmutil.revpair(repo, ['qparent'])
-    except:
-	return scmutil.revpair(repo, None)
-
-# Return list of changed files in repository that match pats.
-# Warn about patterns that did not match.
-def matchpats(ui, repo, pats, opts):
-	matcher = scmutil.match(repo, pats, opts)
-	node1, node2 = effective_revpair(repo)
-	modified, added, removed, deleted, unknown, ignored, clean = repo.status(node1, node2, matcher, ignored=True, clean=True, unknown=True)
-	return (modified, added, removed, deleted, unknown, ignored, clean)
-
-# Return list of changed files in repository that match pats.
-# The patterns came from the command line, so we warn
-# if they have no effect or cannot be understood.
-def ChangedFiles(ui, repo, pats, opts, taken=None):
-	taken = taken or {}
-	# Run each pattern separately so that we can warn about
-	# patterns that didn't do anything useful.
-	for p in pats:
-		modified, added, removed, deleted, unknown, ignored, clean = matchpats(ui, repo, [p], opts)
-		redo = False
-		for f in unknown:
-			promptadd(ui, repo, f)
-			redo = True
-		for f in deleted:
-			promptremove(ui, repo, f)
-			redo = True
-		if redo:
-			modified, added, removed, deleted, unknown, ignored, clean = matchpats(ui, repo, [p], opts)
-		for f in modified + added + removed:
-			if f in taken:
-				ui.warn("warning: %s already in CL %s\n" % (f, taken[f].name))
-		if not modified and not added and not removed:
-			ui.warn("warning: %s did not match any modified files\n" % (p,))
-
-	# Again, all at once (eliminates duplicates)
-	modified, added, removed = matchpats(ui, repo, pats, opts)[:3]
-	l = modified + added + removed
-	l.sort()
-	if taken:
-		l = Sub(l, taken.keys())
-	return l
-
-# Return list of changed files in repository that match pats and still exist.
-def ChangedExistingFiles(ui, repo, pats, opts):
-	modified, added = matchpats(ui, repo, pats, opts)[:2]
-	l = modified + added
-	l.sort()
-	return l
-
-# Return list of files claimed by existing CLs
-def Taken(ui, repo):
-	all = LoadAllCL(ui, repo, web=False)
-	taken = {}
-	for _, cl in all.items():
-		for f in cl.files:
-			taken[f] = cl
-	return taken
-
-# Return list of changed files that are not claimed by other CLs
-def DefaultFiles(ui, repo, pats, opts):
-	return ChangedFiles(ui, repo, pats, opts, taken=Taken(ui, repo))
-
-def Sub(l1, l2):
-	return [l for l in l1 if l not in l2]
-
-def Add(l1, l2):
-	l = l1 + Sub(l2, l1)
-	l.sort()
-	return l
-
-def Intersect(l1, l2):
-	return [l for l in l1 if l in l2]
-
-def getremote(ui, repo, opts):
-	# save $http_proxy; creating the HTTP repo object will
-	# delete it in an attempt to "help"
-	proxy = os.environ.get('http_proxy')
-	source = hg.parseurl(ui.expandpath("default"), None)[0]
-	try:
-		remoteui = hg.remoteui # hg 1.6
-	except:
-		remoteui = cmdutil.remoteui
-	other = hg.repository(remoteui(repo, opts), source)
-	if proxy is not None:
-		os.environ['http_proxy'] = proxy
-	return other
-
 desc_re = '^(.+: |(tag )?(release|weekly)\.|fix build|undo CL)'
 
 desc_msg = '''Your CL description appears not to use the standard form.
@@ -851,15 +710,17 @@ Examples:
 
 '''
 
+def promptyesno(ui, msg):
+	return ui.promptchoice(msg, ["&yes", "&no"], 0) == 0
 
 def promptremove(ui, repo, f):
 	if promptyesno(ui, "hg remove %s (y/n)?" % (f,)):
-		if commands.remove(ui, repo, 'path:'+f) != 0:
+		if hg_commands.remove(ui, repo, 'path:'+f) != 0:
 			ui.warn("error removing %s" % (f,))
 
 def promptadd(ui, repo, f):
 	if promptyesno(ui, "hg add %s (y/n)?" % (f,)):
-		if commands.add(ui, repo, 'path:'+f) != 0:
+		if hg_commands.add(ui, repo, 'path:'+f) != 0:
 			ui.warn("error adding %s" % (f,))
 
 def EditCL(ui, repo, cl):
@@ -899,10 +760,14 @@ def EditCL(ui, repo, cl):
 		# Check file list for files that need to be hg added or hg removed
 		# or simply aren't understood.
 		pats = ['path:'+f for f in clx.files]
-		modified, added, removed, deleted, unknown, ignored, clean = matchpats(ui, repo, pats, {})
+		changed = hg_matchPattern(ui, repo, *pats, modified=True, added=True, removed=True)
+		deleted = hg_matchPattern(ui, repo, *pats, deleted=True)
+		unknown = hg_matchPattern(ui, repo, *pats, unknown=True)
+		ignored = hg_matchPattern(ui, repo, *pats, ignored=True)
+		clean = hg_matchPattern(ui, repo, *pats, clean=True)
 		files = []
 		for f in clx.files:
-			if f in modified or f in added or f in removed:
+			if f in changed:
 				files.append(f)
 				continue
 			if f in deleted:
@@ -954,7 +819,7 @@ def CommandLineCL(ui, repo, pats, opts, defaultcc=None):
 	else:
 		cl = CL("new")
 		cl.local = True
-		cl.files = ChangedFiles(ui, repo, pats, opts, taken=Taken(ui, repo))
+		cl.files = ChangedFiles(ui, repo, pats, taken=Taken(ui, repo))
 		if not cl.files:
 			return None, "no files changed"
 	if opts.get('reviewer'):
@@ -972,42 +837,56 @@ def CommandLineCL(ui, repo, pats, opts, defaultcc=None):
 				return None, err
 	return cl, ""
 
-# reposetup replaces cmdutil.match with this wrapper,
-# which expands the syntax @clnumber to mean the files
-# in that CL.
-original_match = None
-global_repo = None
-global_ui = None
-def ReplacementForCmdutilMatch(ctx, pats=None, opts=None, globbed=False, default='relpath'):
-	taken = []
-	files = []
-	pats = pats or []
-	opts = opts or {}
-	
+#######################################################################
+# Change list file management
+
+# Return list of changed files in repository that match pats.
+# The patterns came from the command line, so we warn
+# if they have no effect or cannot be understood.
+def ChangedFiles(ui, repo, pats, taken=None):
+	taken = taken or {}
+	# Run each pattern separately so that we can warn about
+	# patterns that didn't do anything useful.
 	for p in pats:
-		if p.startswith('@'):
-			taken.append(p)
-			clname = p[1:]
-			if not GoodCLName(clname):
-				raise util.Abort("invalid CL name " + clname)
-			cl, err = LoadCL(global_repo.ui, global_repo, clname, web=False)
-			if err != '':
-				raise util.Abort("loading CL " + clname + ": " + err)
-			if not cl.files:
-				raise util.Abort("no files in CL " + clname)
-			files = Add(files, cl.files)
-	pats = Sub(pats, taken) + ['path:'+f for f in files]
+		for f in hg_matchPattern(ui, repo, p, unknown=True):
+			promptadd(ui, repo, f)
+		for f in hg_matchPattern(ui, repo, p, removed=True):
+			promptremove(ui, repo, f)
+		files = hg_matchPattern(ui, repo, p, modified=True, added=True, removed=True)
+		for f in files:
+			if f in taken:
+				ui.warn("warning: %s already in CL %s\n" % (f, taken[f].name))
+		if not files:
+			ui.warn("warning: %s did not match any modified files\n" % (p,))
 
-	# work-around for http://selenic.com/hg/rev/785bbc8634f8
-	if hgversion >= '1.9' and not hasattr(ctx, 'match'):
-		ctx = ctx[None]
-	return original_match(ctx, pats=pats, opts=opts, globbed=globbed, default=default)
+	# Again, all at once (eliminates duplicates)
+	l = hg_matchPattern(ui, repo, *pats, modified=True, added=True, removed=True)
+	l.sort()
+	if taken:
+		l = Sub(l, taken.keys())
+	return l
 
-def RelativePath(path, cwd):
-	n = len(cwd)
-	if path.startswith(cwd) and path[n] == '/':
-		return path[n+1:]
-	return path
+# Return list of changed files in repository that match pats and still exist.
+def ChangedExistingFiles(ui, repo, pats, opts):
+	l = hg_matchPattern(ui, repo, *pats, modified=True, added=True)
+	l.sort()
+	return l
+
+# Return list of files claimed by existing CLs
+def Taken(ui, repo):
+	all = LoadAllCL(ui, repo, web=False)
+	taken = {}
+	for _, cl in all.items():
+		for f in cl.files:
+			taken[f] = cl
+	return taken
+
+# Return list of changed files that are not claimed by other CLs
+def DefaultFiles(ui, repo, pats):
+	return ChangedFiles(ui, repo, pats, taken=Taken(ui, repo))
+
+#######################################################################
+# File format checking.
 
 def CheckFormat(ui, repo, files, just_warn=False):
 	set_status("running gofmt")
@@ -1028,7 +907,7 @@ def CheckGofmt(ui, repo, files, just_warn):
 		cmd = subprocess.Popen(["gofmt", "-l"] + files, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=sys.platform != "win32")
 		cmd.stdin.close()
 	except:
-		raise util.Abort("gofmt: " + ExceptionDetail())
+		raise hg_util.Abort("gofmt: " + ExceptionDetail())
 	data = cmd.stdout.read()
 	errors = cmd.stderr.read()
 	cmd.wait()
@@ -1041,7 +920,7 @@ def CheckGofmt(ui, repo, files, just_warn):
 		if just_warn:
 			ui.warn("warning: " + msg + "\n")
 		else:
-			raise util.Abort(msg)
+			raise hg_util.Abort(msg)
 	return
 
 # Check that *.[chys] files indent using tabs.
@@ -1070,19 +949,282 @@ def CheckTabfmt(ui, repo, files, just_warn):
 		if just_warn:
 			ui.warn("warning: " + msg + "\n")
 		else:
-			raise util.Abort(msg)
+			raise hg_util.Abort(msg)
 	return
 
 #######################################################################
-# Mercurial commands
+# CONTRIBUTORS file parsing
 
-# every command must take a ui and and repo as arguments.
-# opts is a dict where you can find other command line flags
-#
-# Other parameters are taken in order from items on the command line that
-# don't start with a dash.  If no default value is given in the parameter list,
-# they are required.
-#
+contributors = {}
+
+def ReadContributors(ui, repo):
+	global contributors
+	try:
+		f = open(repo.root + '/CONTRIBUTORS', 'r')
+	except:
+		ui.write("warning: cannot open %s: %s\n" % (repo.root+'/CONTRIBUTORS', ExceptionDetail()))
+		return
+
+	for line in f:
+		# CONTRIBUTORS is a list of lines like:
+		#	Person <email>
+		#	Person <email> <alt-email>
+		# The first email address is the one used in commit logs.
+		if line.startswith('#'):
+			continue
+		m = re.match(r"([^<>]+\S)\s+(<[^<>\s]+>)((\s+<[^<>\s]+>)*)\s*$", line)
+		if m:
+			name = m.group(1)
+			email = m.group(2)[1:-1]
+			contributors[email.lower()] = (name, email)
+			for extra in m.group(3).split():
+				contributors[extra[1:-1].lower()] = (name, email)
+
+def CheckContributor(ui, repo, user=None):
+	set_status("checking CONTRIBUTORS file")
+	user, userline = FindContributor(ui, repo, user, warn=False)
+	if not userline:
+		raise hg_util.Abort("cannot find %s in CONTRIBUTORS" % (user,))
+	return userline
+
+def FindContributor(ui, repo, user=None, warn=True):
+	if not user:
+		user = ui.config("ui", "username")
+		if not user:
+			raise hg_util.Abort("[ui] username is not configured in .hgrc")
+	user = user.lower()
+	m = re.match(r".*<(.*)>", user)
+	if m:
+		user = m.group(1)
+
+	if user not in contributors:
+		if warn:
+			ui.warn("warning: cannot find %s in CONTRIBUTORS\n" % (user,))
+		return user, None
+	
+	user, email = contributors[user]
+	return email, "%s <%s>" % (user, email)
+
+#######################################################################
+# Mercurial helper functions.
+# Read http://mercurial.selenic.com/wiki/MercurialApi before writing any of these.
+# We use the ui.pushbuffer/ui.popbuffer + hg_commands.xxx tricks for all interaction
+# with Mercurial.  It has proved the most stable as they make changes.
+
+# We require Mercurial 1.4 for now.  The minimum required version can be pushed forward.
+
+oldMessage = """
+The code review extension requires Mercurial 1.4 or newer.
+
+To install a new Mercurial,
+
+	sudo easy_install mercurial
+
+works on most systems.
+"""
+
+linuxMessage = """
+You may need to clear your current Mercurial installation by running:
+
+	sudo apt-get remove mercurial mercurial-common
+	sudo rm -rf /etc/mercurial
+"""
+
+hgversion = hg_util.version()
+
+if hgversion < '1.4':
+	msg = oldMessage
+	if os.access("/etc/mercurial", 0):
+		msg += linuxMessage
+	raise hg_util.Abort(msg)
+
+from mercurial.hg import clean as hg_clean
+from mercurial import cmdutil as hg_cmdutil
+from mercurial import error as hg_error
+from mercurial import match as hg_match
+from mercurial import node as hg_node
+
+class uiwrap(object):
+	def __init__(self, ui):
+		self.ui = ui
+		ui.pushbuffer()
+		self.oldQuiet = ui.quiet
+		ui.quiet = True
+		self.oldVerbose = ui.verbose
+		ui.verbose = False
+	def output(self):
+		ui = self.ui
+		ui.quiet = self.oldQuiet
+		ui.verbose = self.oldVerbose
+		return ui.popbuffer()
+
+def hg_matchPattern(ui, repo, *pats, **opts):
+	w = uiwrap(ui)
+	hg_commands.status(ui, repo, *pats, **opts)
+	text = w.output()
+	ret = []
+	prefix = os.path.realpath(repo.root)+'/'
+	for line in text.split('\n'):
+		f = line.split()
+		if len(f) > 1:
+			if len(pats) > 0:
+				# Given patterns, Mercurial shows relative to cwd
+				p = os.path.realpath(f[1])
+				if not p.startswith(prefix):
+					print >>sys.stderr, "File %s not in repo root %s.\n" % (p, prefix)
+				else:
+					ret.append(p[len(prefix):])
+			else:
+				# Without patterns, Mercurial shows relative to root (what we want)
+				ret.append(f[1])
+	return ret
+
+def hg_heads(ui, repo):
+	w = uiwrap(ui)
+	ret = hg_commands.heads(ui, repo)
+	if ret:
+		raise hg_util.Abort(ret)
+	return w.output()
+
+noise = [
+	"",
+	"resolving manifests",
+	"searching for changes",
+	"couldn't find merge tool hgmerge",
+	"adding changesets",
+	"adding manifests",
+	"adding file changes",
+	"all local heads known remotely",
+]
+
+def isNoise(line):
+	line = str(line)
+	for x in noise:
+		if line == x:
+			return True
+	return False
+
+def hg_incoming(ui, repo):
+	w = uiwrap(ui)
+	ret = hg_commands.incoming(ui, repo, force=False, bundle="")
+	if ret and ret != 1:
+		raise hg_util.Abort(ret)
+	return w.output()
+
+def hg_log(ui, repo, **opts):
+	for k in ['date', 'keyword', 'rev', 'user']:
+		if not opts.has_key(k):
+			opts[k] = ""
+	w = uiwrap(ui)
+	ret = hg_commands.log(ui, repo, **opts)
+	if ret:
+		raise hg_util.Abort(ret)
+	return w.output()
+
+def hg_outgoing(ui, repo, **opts):
+	w = uiwrap(ui)
+	ret = hg_commands.outgoing(ui, repo, **opts)
+	if ret and ret != 1:
+		raise hg_util.Abort(ret)
+	return w.output()
+
+def hg_pull(ui, repo, **opts):
+	w = uiwrap(ui)
+	ui.quiet = False
+	ui.verbose = True  # for file list
+	err = hg_commands.pull(ui, repo, **opts)
+	for line in w.output().split('\n'):
+		if isNoise(line):
+			continue
+		if line.startswith('moving '):
+			line = 'mv ' + line[len('moving '):]
+		if line.startswith('getting ') and line.find(' to ') >= 0:
+			line = 'mv ' + line[len('getting '):]
+		if line.startswith('getting '):
+			line = '+ ' + line[len('getting '):]
+		if line.startswith('removing '):
+			line = '- ' + line[len('removing '):]
+		ui.write(line + '\n')
+	return err
+
+def hg_push(ui, repo, **opts):
+	w = uiwrap(ui)
+	ui.quiet = False
+	ui.verbose = True
+	err = hg_commands.push(ui, repo, **opts)
+	for line in w.output().split('\n'):
+		if not isNoise(line):
+			ui.write(line + '\n')
+	return err
+
+def hg_commit(ui, repo, *pats, **opts):
+	return hg_commands.commit(ui, repo, *pats, **opts)
+
+#######################################################################
+# Mercurial precommit hook to disable commit except through this interface.
+
+commit_okay = False
+
+def precommithook(ui, repo, **opts):
+	if commit_okay:
+		return False  # False means okay.
+	ui.write("\ncodereview extension enabled; use mail, upload, or submit instead of commit\n\n")
+	return True
+
+#######################################################################
+# @clnumber file pattern support
+
+# We replace scmutil.match with the MatchAt wrapper to add the @clnumber pattern.
+
+match_repo = None
+match_ui = None
+match_orig = None
+
+def InstallMatch(ui, repo):
+	global match_repo
+	global match_ui
+	global match_orig
+
+	match_ui = ui
+	match_repo = repo
+
+	from mercurial import scmutil
+	match_orig = scmutil.match
+	scmutil.match = MatchAt
+
+def MatchAt(ctx, pats=None, opts=None, globbed=False, default='relpath'):
+	taken = []
+	files = []
+	pats = pats or []
+	opts = opts or {}
+	
+	for p in pats:
+		if p.startswith('@'):
+			taken.append(p)
+			clname = p[1:]
+			if clname == "default":
+				files = DefaultFiles(match_ui, match_repo, [])
+			else:
+				if not GoodCLName(clname):
+					raise hg_util.Abort("invalid CL name " + clname)
+				cl, err = LoadCL(match_repo.ui, match_repo, clname, web=False)
+				if err != '':
+					raise hg_util.Abort("loading CL " + clname + ": " + err)
+				if not cl.files:
+					raise hg_util.Abort("no files in CL " + clname)
+				files = Add(files, cl.files)
+	pats = Sub(pats, taken) + ['path:'+f for f in files]
+
+	# work-around for http://selenic.com/hg/rev/785bbc8634f8
+	if not hasattr(ctx, 'match'):
+		ctx = ctx[None]
+	return match_orig(ctx, pats=pats, opts=opts, globbed=globbed, default=default)
+
+#######################################################################
+# Commands added by code review extension.
+
+#######################################################################
+# hg change
 
 def change(ui, repo, *pats, **opts):
 	"""create, edit or delete a change list
@@ -1106,8 +1248,8 @@ def change(ui, repo, *pats, **opts):
 	before running hg change -d 123456.
 	"""
 
-	if missing_codereview:
-		return missing_codereview
+	if codereview_disabled:
+		return codereview_disabled
 	
 	dirty = {}
 	if len(pats) > 0 and GoodCLName(pats[0]):
@@ -1121,12 +1263,12 @@ def change(ui, repo, *pats, **opts):
 		if not cl.local and (opts["stdin"] or not opts["stdout"]):
 			return "cannot change non-local CL " + name
 	else:
-		if repo[None].branch() != "default":
-			return "cannot run hg change outside default branch"
 		name = "new"
 		cl = CL("new")
+		if repo[None].branch() != "default":
+			return "cannot create CL outside default branch"
 		dirty[cl] = True
-		files = ChangedFiles(ui, repo, pats, opts, taken=Taken(ui, repo))
+		files = ChangedFiles(ui, repo, pats, taken=Taken(ui, repo))
 
 	if opts["delete"] or opts["deletelocal"]:
 		if opts["delete"] and opts["deletelocal"]:
@@ -1194,16 +1336,23 @@ def change(ui, repo, *pats, **opts):
 			ui.write("CL created: " + cl.url + "\n")
 	return
 
+#######################################################################
+# hg code-login (broken?)
+
 def code_login(ui, repo, **opts):
 	"""log in to code review server
 
 	Logs in to the code review server, saving a cookie in
 	a file in your home directory.
 	"""
-	if missing_codereview:
-		return missing_codereview
+	if codereview_disabled:
+		return codereview_disabled
 
 	MySend(None)
+
+#######################################################################
+# hg clpatch / undo / release-apply / download
+# All concerned with applying or unapplying patches to the repository.
 
 def clpatch(ui, repo, clname, **opts):
 	"""import a patch from the code review server
@@ -1274,16 +1423,16 @@ def release_apply(ui, repo, clname, **opts):
 		return "no active release branches"
 	if c.branch() != releaseBranch:
 		if c.modified() or c.added() or c.removed():
-			raise util.Abort("uncommitted local changes - cannot switch branches")
-		err = hg.clean(repo, releaseBranch)
+			raise hg_util.Abort("uncommitted local changes - cannot switch branches")
+		err = hg_clean(repo, releaseBranch)
 		if err:
 			return err
 	try:
 		err = clpatch_or_undo(ui, repo, clname, opts, mode="backport")
 		if err:
-			raise util.Abort(err)
+			raise hg_util.Abort(err)
 	except Exception, e:
-		hg.clean(repo, "default")
+		hg_clean(repo, "default")
 		raise e
 	return None
 
@@ -1318,14 +1467,10 @@ backportFooter = """
 
 # Implementation of clpatch/undo.
 def clpatch_or_undo(ui, repo, clname, opts, mode):
-	if missing_codereview:
-		return missing_codereview
+	if codereview_disabled:
+		return codereview_disabled
 
 	if mode == "undo" or mode == "backport":
-		if hgversion < '1.4':
-			# Don't have cmdutil.match (see implementation of sync command).
-			return "hg is too old to run hg %s - update to 1.4 or newer" % mode
-
 		# Find revision in Mercurial repository.
 		# Assume CL number is 7+ decimal digits.
 		# Otherwise is either change log sequence number (fewer decimal digits),
@@ -1333,12 +1478,8 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 		# Mercurial will fall over long before the change log
 		# sequence numbers get to be 7 digits long.
 		if re.match('^[0-9]{7,}$', clname):
-			found = False
-			matchfn = scmutil.match(repo, [], {'rev': None})
-			def prep(ctx, fns):
-				pass
-			for ctx in cmdutil.walkchangerevs(repo, matchfn, {'rev': None}, prep):
-				rev = repo[ctx.rev()]
+			for r in hg_log(ui, repo, keyword="codereview.appspot.com/"+clname, limit=100, template="{node}\n").split():
+				rev = repo[r]
 				# Last line with a code review URL is the actual review URL.
 				# Earlier ones might be part of the CL description.
 				n = rev2clname(rev)
@@ -1356,7 +1497,7 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 				return "cannot find CL name in revision description"
 		
 		# Create fresh CL and start with patch that would reverse the change.
-		vers = short(rev.node())
+		vers = hg_node.short(rev.node())
 		cl = CL("new")
 		desc = str(rev.description())
 		if mode == "undo":
@@ -1364,7 +1505,7 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 		else:
 			cl.desc = (backportHeader % (releaseBranch, line1(desc), clname, vers)) + desc + undoFooter
 		v1 = vers
-		v0 = short(rev.parents()[0].node())
+		v0 = hg_node.short(rev.parents()[0].node())
 		if mode == "undo":
 			arg = v1 + ":" + v0
 		else:
@@ -1382,7 +1523,7 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 	# find current hg version (hg identify)
 	ctx = repo[None]
 	parents = ctx.parents()
-	id = '+'.join([short(p.node()) for p in parents])
+	id = '+'.join([hg_node.short(p.node()) for p in parents])
 
 	# if version does not match the patch version,
 	# try to update the patch line numbers.
@@ -1415,7 +1556,7 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 	cl.files = out.strip().split()
 	if not cl.files and not opts["ignore_hgpatch_failure"]:
 		return "codereview issue %s has no changed files" % clname
-	files = ChangedFiles(ui, repo, [], opts)
+	files = ChangedFiles(ui, repo, [])
 	extra = Sub(cl.files, files)
 	if extra:
 		ui.warn("warning: these files were listed in the patch but not changed:\n\t" + "\n\t".join(extra) + "\n")
@@ -1495,8 +1636,8 @@ def download(ui, repo, clname, **opts):
 	Download prints a description of the given change list
 	followed by its diff, downloaded from the code review server.
 	"""
-	if missing_codereview:
-		return missing_codereview
+	if codereview_disabled:
+		return codereview_disabled
 
 	cl, vers, patch, err = DownloadCL(ui, repo, clname)
 	if err != "":
@@ -1504,6 +1645,9 @@ def download(ui, repo, clname, **opts):
 	ui.write(cl.EditorText() + "\n")
 	ui.write(patch + "\n")
 	return
+
+#######################################################################
+# hg file
 
 def file(ui, repo, clname, pat, *pats, **opts):
 	"""assign files to or remove files from a change list
@@ -1513,8 +1657,8 @@ def file(ui, repo, clname, pat, *pats, **opts):
 	The -d option only removes files from the change list.
 	It does not edit them or remove them from the repository.
 	"""
-	if missing_codereview:
-		return missing_codereview
+	if codereview_disabled:
+		return codereview_disabled
 
 	pats = tuple([pat] + list(pats))
 	if not GoodCLName(clname):
@@ -1527,7 +1671,7 @@ def file(ui, repo, clname, pat, *pats, **opts):
 	if not cl.local:
 		return "cannot change non-local CL " + clname
 
-	files = ChangedFiles(ui, repo, pats, opts)
+	files = ChangedFiles(ui, repo, pats)
 
 	if opts["delete"]:
 		oldfiles = Intersect(files, cl.files)
@@ -1567,14 +1711,17 @@ def file(ui, repo, clname, pat, *pats, **opts):
 		d.Flush(ui, repo)
 	return
 
+#######################################################################
+# hg gofmt
+
 def gofmt(ui, repo, *pats, **opts):
 	"""apply gofmt to modified files
 
 	Applies gofmt to the modified files in the repository that match
 	the given patterns.
 	"""
-	if missing_codereview:
-		return missing_codereview
+	if codereview_disabled:
+		return codereview_disabled
 
 	files = ChangedExistingFiles(ui, repo, pats, opts)
 	files = [f for f in files if f.endswith(".go")]
@@ -1587,12 +1734,15 @@ def gofmt(ui, repo, *pats, **opts):
 		if not opts["list"]:
 			cmd += ["-w"]
 		if os.spawnvp(os.P_WAIT, "gofmt", cmd + files) != 0:
-			raise util.Abort("gofmt did not exit cleanly")
-	except error.Abort, e:
+			raise hg_util.Abort("gofmt did not exit cleanly")
+	except hg_error.Abort, e:
 		raise
 	except:
-		raise util.Abort("gofmt: " + ExceptionDetail())
+		raise hg_util.Abort("gofmt: " + ExceptionDetail())
 	return
+
+#######################################################################
+# hg mail
 
 def mail(ui, repo, *pats, **opts):
 	"""mail a change for review
@@ -1600,8 +1750,8 @@ def mail(ui, repo, *pats, **opts):
 	Uploads a patch to the code review server and then sends mail
 	to the reviewer and CC list asking for a review.
 	"""
-	if missing_codereview:
-		return missing_codereview
+	if codereview_disabled:
+		return codereview_disabled
 
 	cl, err = CommandLineCL(ui, repo, pats, opts, defaultcc=defaultcc)
 	if err != "":
@@ -1623,63 +1773,55 @@ def mail(ui, repo, *pats, **opts):
 
 	cl.Mail(ui, repo)		
 
+#######################################################################
+# hg p / hg pq / hg ps / hg pending
+
+def ps(ui, repo, *pats, **opts):
+	"""alias for hg p --short
+	"""
+	opts['short'] = True
+	return pending(ui, repo, *pats, **opts)
+
+def pq(ui, repo, *pats, **opts):
+	"""alias for hg p --quick
+	"""
+	opts['quick'] = True
+	return pending(ui, repo, *pats, **opts)
+
 def pending(ui, repo, *pats, **opts):
 	"""show pending changes
 
 	Lists pending changes followed by a list of unassigned but modified files.
 	"""
-	if missing_codereview:
-		return missing_codereview
+	if codereview_disabled:
+		return codereview_disabled
 
-	m = LoadAllCL(ui, repo, web=True)
+	quick = opts.get('quick', False)
+	short = opts.get('short', False)
+	m = LoadAllCL(ui, repo, web=not quick and not short)
 	names = m.keys()
 	names.sort()
 	for name in names:
 		cl = m[name]
-		ui.write(cl.PendingText() + "\n")
+		if short:
+			ui.write(name + "\t" + line1(cl.desc) + "\n")
+		else:
+			ui.write(cl.PendingText(quick=quick) + "\n")
 
-	files = DefaultFiles(ui, repo, [], opts)
+	if short:
+		return
+	files = DefaultFiles(ui, repo, [])
 	if len(files) > 0:
 		s = "Changed files not in any CL:\n"
 		for f in files:
 			s += "\t" + f + "\n"
 		ui.write(s)
 
-def reposetup(ui, repo):
-	global original_match
-	if original_match is None:
-		global global_repo, global_ui
-		global_repo = repo
-		global_ui = ui
-		start_status_thread()
-		original_match = scmutil.match
-		scmutil.match = ReplacementForCmdutilMatch
-		RietveldSetup(ui, repo)
+#######################################################################
+# hg submit
 
-def CheckContributor(ui, repo, user=None):
-	set_status("checking CONTRIBUTORS file")
-	user, userline = FindContributor(ui, repo, user, warn=False)
-	if not userline:
-		raise util.Abort("cannot find %s in CONTRIBUTORS" % (user,))
-	return userline
-
-def FindContributor(ui, repo, user=None, warn=True):
-	if not user:
-		user = ui.config("ui", "username")
-		if not user:
-			raise util.Abort("[ui] username is not configured in .hgrc")
-	user = user.lower()
-	m = re.match(r".*<(.*)>", user)
-	if m:
-		user = m.group(1)
-
-	if user not in contributors:
-		if warn:
-			ui.warn("warning: cannot find %s in CONTRIBUTORS\n" % (user,))
-		return user, None
-	
-	user, email = contributors[user]
-	return email, "%s <%s>" % (user, email)
+def need_sync():
+	raise hg_util.Abort("local repository out of date; must sync before submit")
 
 def submit(ui, repo, *pats, **opts):
 	"""submit change to remote repository
@@ -1687,16 +1829,14 @@ def submit(ui, repo, *pats, **opts):
 	Submits change to remote repository.
 	Bails out if the local repository is not in sync with the remote one.
 	"""
-	if missing_codereview:
-		return missing_codereview
+	if codereview_disabled:
+		return codereview_disabled
 
 	# We already called this on startup but sometimes Mercurial forgets.
 	set_mercurial_encoding_to_utf8()
 
-	other = getremote(ui, repo, opts)
-	repo.ui.quiet = True
-	if not opts["no_incoming"] and incoming(repo, other):
-		return "local repository out of date; must sync before submit"
+	if not opts["no_incoming"] and hg_incoming(ui, repo):
+		need_sync()
 
 	cl, err = CommandLineCL(ui, repo, pats, opts, defaultcc=defaultcc)
 	if err != "":
@@ -1742,58 +1882,45 @@ def submit(ui, repo, *pats, **opts):
 		cl.Mail(ui, repo)
 
 	# submit changes locally
-	date = opts.get('date')
-	if date:
-		opts['date'] = util.parsedate(date)
-		typecheck(opts['date'], str)
-	opts['message'] = cl.desc.rstrip() + "\n\n" + about
-	typecheck(opts['message'], str)
-
-	if opts['dryrun']:
-		print "NOT SUBMITTING:"
-		print "User: ", userline
-		print "Message:"
-		print Indent(opts['message'], "\t")
-		print "Files:"
-		print Indent('\n'.join(cl.files), "\t")
-		return "dry run; not submitted"
+	message = cl.desc.rstrip() + "\n\n" + about
+	typecheck(message, str)
 
 	set_status("pushing " + cl.name + " to remote server")
 
-	other = getremote(ui, repo, opts)
-	if outgoing(repo):
-		raise util.Abort("local repository corrupt or out-of-phase with remote: found outgoing changes")
+	if hg_outgoing(ui, repo):
+		raise hg_util.Abort("local repository corrupt or out-of-phase with remote: found outgoing changes")
+	
+	old_heads = len(hg_heads(ui, repo).split())
 
-	m = match.exact(repo.root, repo.getcwd(), cl.files)
-	node = repo.commit(ustr(opts['message']), ustr(userline), opts.get('date'), m)
-	if not node:
+	global commit_okay
+	commit_okay = True
+	ret = hg_commit(ui, repo, *['path:'+f for f in cl.files], message=message, user=userline)
+	commit_okay = False
+	if ret:
 		return "nothing changed"
-
+	node = repo["-1"].node()
 	# push to remote; if it fails for any reason, roll back
 	try:
-		log = repo.changelog
-		rev = log.rev(node)
-		parents = log.parentrevs(rev)
-		if (rev-1 not in parents and
-				(parents == (nullrev, nullrev) or
-				len(log.heads(log.node(parents[0]))) > 1 and
-				(parents[1] == nullrev or len(log.heads(log.node(parents[1]))) > 1))):
-			# created new head
-			raise util.Abort("local repository out of date; must sync before submit")
+		new_heads = len(hg_heads(ui, repo).split())
+		if old_heads != new_heads:
+			# Created new head, so we weren't up to date.
+			need_sync()
 
-		# push changes to remote.
-		# if it works, we're committed.
-		# if not, roll back
-		r = repo.push(other, False, None)
-		if r == 0:
-			raise util.Abort("local repository out of date; must sync before submit")
+		# Push changes to remote.  If it works, we're committed.  If not, roll back.
+		try:
+			hg_push(ui, repo)
+		except hg_error.Abort, e:
+			if e.message.find("push creates new heads") >= 0:
+				# Remote repository had changes we missed.
+				need_sync()
+			raise
 	except:
 		real_rollback()
 		raise
 
-	# we're committed. upload final patch, close review, add commit message
-	changeURL = short(node)
-	url = other.url()
+	# We're committed. Upload final patch, close review, add commit message.
+	changeURL = hg_node.short(node)
+	url = ui.expandpath("default")
 	m = re.match("^https?://([^@/]+@)?([^.]+)\.googlecode\.com/hg/?", url)
 	if m:
 		changeURL = "http://code.google.com/p/%s/source/detail?r=%s" % (m.group(2), changeURL)
@@ -1808,14 +1935,17 @@ def submit(ui, repo, *pats, **opts):
 	if not cl.copied_from:
 		EditDesc(cl.name, closed=True, private=cl.private)
 	cl.Delete(ui, repo)
-	
+
 	c = repo[None]
 	if c.branch() == releaseBranch and not c.modified() and not c.added() and not c.removed():
 		ui.write("switching from %s to default branch.\n" % releaseBranch)
-		err = hg.clean(repo, "default")
+		err = hg_clean(repo, "default")
 		if err:
 			return err
 	return None
+
+#######################################################################
+# hg sync
 
 def sync(ui, repo, **opts):
 	"""synchronize with remote repository
@@ -1823,38 +1953,20 @@ def sync(ui, repo, **opts):
 	Incorporates recent changes from the remote repository
 	into the local repository.
 	"""
-	if missing_codereview:
-		return missing_codereview
+	if codereview_disabled:
+		return codereview_disabled
 
 	if not opts["local"]:
-		ui.status = sync_note
-		ui.note = sync_note
-		other = getremote(ui, repo, opts)
-		modheads = repo.pull(other)
-		err = commands.postincoming(ui, repo, modheads, True, "tip")
+		err = hg_pull(ui, repo, update=True)
 		if err:
 			return err
-	commands.update(ui, repo, rev="default")
 	sync_changes(ui, repo)
-
-def sync_note(msg):
-	# we run sync (pull -u) in verbose mode to get the
-	# list of files being updated, but that drags along
-	# a bunch of messages we don't care about.
-	# omit them.
-	if msg == 'resolving manifests\n':
-		return
-	if msg == 'searching for changes\n':
-		return
-	if msg == "couldn't find merge tool hgmerge\n":
-		return
-	sys.stdout.write(msg)
 
 def sync_changes(ui, repo):
 	# Look through recent change log descriptions to find
 	# potential references to http://.*/our-CL-number.
 	# Double-check them by looking at the Rietveld log.
-	def Rev(rev):
+	for rev in hg_log(ui, repo, limit=100, template="{node}\n").split():
 		desc = repo[rev].description().strip()
 		for clname in re.findall('(?m)^http://(?:[^\n]+)/([0-9]+)$', desc):
 			if IsLocalCL(ui, repo, clname) and IsRietveldSubmitted(ui, clname, repo[rev].hex()):
@@ -1867,28 +1979,10 @@ def sync_changes(ui, repo):
 					EditDesc(cl.name, closed=True, private=cl.private)
 				cl.Delete(ui, repo)
 
-	if hgversion < '1.4':
-		get = util.cachefunc(lambda r: repo[r].changeset())
-		changeiter, matchfn = cmdutil.walkchangerevs(ui, repo, [], get, {'rev': None})
-		n = 0
-		for st, rev, fns in changeiter:
-			if st != 'iter':
-				continue
-			n += 1
-			if n > 100:
-				break
-			Rev(rev)
-	else:
-		matchfn = scmutil.match(repo, [], {'rev': None})
-		def prep(ctx, fns):
-			pass
-		for ctx in cmdutil.walkchangerevs(repo, matchfn, {'rev': None}, prep):
-			Rev(ctx.rev())
-
 	# Remove files that are not modified from the CLs in which they appear.
 	all = LoadAllCL(ui, repo, web=False)
-	changed = ChangedFiles(ui, repo, [], {})
-	for _, cl in all.items():
+	changed = ChangedFiles(ui, repo, [])
+	for cl in all.values():
 		extra = Sub(cl.files, changed)
 		if extra:
 			ui.warn("Removing unmodified files from CL %s:\n" % (cl.name,))
@@ -1903,13 +1997,16 @@ def sync_changes(ui, repo):
 				ui.warn("CL %s has no files; delete locally with hg change -D %s\n" % (cl.name, cl.name))
 	return
 
+#######################################################################
+# hg upload
+
 def upload(ui, repo, name, **opts):
 	"""upload diffs to the code review server
 
 	Uploads the current modifications for a given change to the server.
 	"""
-	if missing_codereview:
-		return missing_codereview
+	if codereview_disabled:
+		return codereview_disabled
 
 	repo.ui.quiet = True
 	cl, err = LoadCL(ui, repo, name, web=True)
@@ -1920,6 +2017,9 @@ def upload(ui, repo, name, **opts):
 	cl.Upload(ui, repo)
 	print "%s%s\n" % (server_url_base, cl.name)
 	return
+
+#######################################################################
+# Table of commands, supplied to Mercurial for installation.
 
 review_opts = [
 	('r', 'reviewer', '', 'add reviewer'),
@@ -1979,13 +2079,26 @@ cmdtable = {
 	),
 	"^pending|p": (
 		pending,
+		[
+			('s', 'short', False, 'show short result form'),
+			('', 'quick', False, 'do not consult codereview server'),
+		],
+		"[FILE ...]"
+	),
+	"^ps": (
+		ps,
+		[],
+		"[FILE ...]"
+	),
+	"^pq": (
+		pq,
 		[],
 		"[FILE ...]"
 	),
 	"^mail": (
 		mail,
 		review_opts + [
-		] + commands.walkopts,
+		] + hg_commands.walkopts,
 		"[-r reviewer] [--cc cc] [change# | file ...]"
 	),
 	"^release-apply": (
@@ -2001,8 +2114,7 @@ cmdtable = {
 		submit,
 		review_opts + [
 			('', 'no_incoming', None, 'disable initial incoming check (for testing)'),
-			('n', 'dryrun', None, 'make change only locally (for testing)'),
-		] + commands.walkopts + commands.commitopts + commands.commitopts2,
+		] + hg_commands.walkopts + hg_commands.commitopts + hg_commands.commitopts2,
 		"[-r reviewer] [--cc cc] [change# | file ...]"
 	),
 	"^sync": (
@@ -2027,9 +2139,54 @@ cmdtable = {
 	),
 }
 
+#######################################################################
+# Mercurial extension initialization
+
+def norollback(*pats, **opts):
+	"""(disabled when using this extension)"""
+	raise hg_util.Abort("codereview extension enabled; use undo instead of rollback")
+
+def reposetup(ui, repo):
+	global codereview_disabled
+	global defaultcc
+	
+	repo_config_path = ''
+	# Read repository-specific options from lib/codereview/codereview.cfg
+	try:
+		repo_config_path = repo.root + '/lib/codereview/codereview.cfg'
+		f = open(repo_config_path)
+		for line in f:
+			if line.startswith('defaultcc: '):
+				defaultcc = SplitCommaSpace(line[10:])
+	except:
+		# If there are no options, chances are good this is not
+		# a code review repository; stop now before we foul
+		# things up even worse.  Might also be that repo doesn't
+		# even have a root.  See issue 959.
+		if repo_config_path == '':
+			codereview_disabled = 'codereview disabled: repository has no root'
+		else:
+			codereview_disabled = 'codereview disabled: cannot open ' + repo_config_path
+		return
+
+	InstallMatch(ui, repo)
+	ReadContributors(ui, repo)
+	RietveldSetup(ui, repo)
+
+	# Disable the Mercurial commands that might change the repository.
+	# Only commands in this extension are supposed to do that.
+	ui.setconfig("hooks", "precommit.codereview", precommithook)
+
+	# Rollback removes an existing commit.  Don't do that either.
+	global real_rollback
+	real_rollback = repo.rollback
+	repo.rollback = norollback
+	
 
 #######################################################################
 # Wrappers around upload.py for interacting with Rietveld
+
+from HTMLParser import HTMLParser
 
 # HTML form parser
 class FormParser(HTMLParser):
@@ -2106,7 +2263,7 @@ def fix_json(x):
 		for k in todel:
 			del x[k]
 	else:
-		raise util.Abort("unknown type " + str(type(x)) + " in fix_json")
+		raise hg_util.Abort("unknown type " + str(type(x)) + " in fix_json")
 	if type(x) is str:
 		x = x.replace('\r\n', '\n')
 	return x
@@ -2309,68 +2466,13 @@ def PostMessage(ui, issue, message, reviewers=None, cc=None, send_mail=True, sub
 class opt(object):
 	pass
 
-def nocommit(*pats, **opts):
-	"""(disabled when using this extension)"""
-	raise util.Abort("codereview extension enabled; use mail, upload, or submit instead of commit")
-
-def nobackout(*pats, **opts):
-	"""(disabled when using this extension)"""
-	raise util.Abort("codereview extension enabled; use undo instead of backout")
-
-def norollback(*pats, **opts):
-	"""(disabled when using this extension)"""
-	raise util.Abort("codereview extension enabled; use undo instead of rollback")
-
 def RietveldSetup(ui, repo):
-	global defaultcc, upload_options, rpc, server, server_url_base, force_google_account, verbosity, contributors
-	global missing_codereview
-
-	repo_config_path = ''
-	# Read repository-specific options from lib/codereview/codereview.cfg
-	try:
-		repo_config_path = repo.root + '/lib/codereview/codereview.cfg'
-		f = open(repo_config_path)
-		for line in f:
-			if line.startswith('defaultcc: '):
-				defaultcc = SplitCommaSpace(line[10:])
-	except:
-		# If there are no options, chances are good this is not
-		# a code review repository; stop now before we foul
-		# things up even worse.  Might also be that repo doesn't
-		# even have a root.  See issue 959.
-		if repo_config_path == '':
-			missing_codereview = 'codereview disabled: repository has no root'
-		else:
-			missing_codereview = 'codereview disabled: cannot open ' + repo_config_path
-		return
-
-	# Should only modify repository with hg submit.
-	# Disable the built-in Mercurial commands that might
-	# trip things up.
-	cmdutil.commit = nocommit
-	global real_rollback
-	real_rollback = repo.rollback
-	repo.rollback = norollback
-	# would install nobackout if we could; oh well
-
-	try:
-		f = open(repo.root + '/CONTRIBUTORS', 'r')
-	except:
-		raise util.Abort("cannot open %s: %s" % (repo.root+'/CONTRIBUTORS', ExceptionDetail()))
-	for line in f:
-		# CONTRIBUTORS is a list of lines like:
-		#	Person <email>
-		#	Person <email> <alt-email>
-		# The first email address is the one used in commit logs.
-		if line.startswith('#'):
-			continue
-		m = re.match(r"([^<>]+\S)\s+(<[^<>\s]+>)((\s+<[^<>\s]+>)*)\s*$", line)
-		if m:
-			name = m.group(1)
-			email = m.group(2)[1:-1]
-			contributors[email.lower()] = (name, email)
-			for extra in m.group(3).split():
-				contributors[extra[1:-1].lower()] = (name, email)
+	global force_google_account
+	global rpc
+	global server
+	global server_url_base
+	global upload_options
+	global verbosity
 
 	if not ui.verbose:
 		verbosity = 0
@@ -2421,7 +2523,7 @@ def RietveldSetup(ui, repo):
 		# answer when comparing release-branch.r99 with
 		# release-branch.r100.  If we do ten releases a year
 		# that gives us 4 years before we have to worry about this.
-		raise util.Abort('tags.sort needs to be fixed for release-branch.r100')
+		raise hg_util.Abort('tags.sort needs to be fixed for release-branch.r100')
 	tags.sort()
 	for t in tags:
 		if t.startswith('release-branch.'):
@@ -3238,9 +3340,9 @@ class MercurialVCS(VersionControlSystem):
 				out = RunShell(["hg", "status", "-C", "--rev", rev])
 			else:
 				fui = FakeMercurialUI()
-				ret = commands.status(fui, self.repo, *[], **{'rev': [rev], 'copies': True})
+				ret = hg_commands.status(fui, self.repo, *[], **{'rev': [rev], 'copies': True})
 				if ret:
-					raise util.Abort(ret)
+					raise hg_util.Abort(ret)
 				out = fui.output
 			self.status = out.splitlines()
 		for i in range(len(self.status)):
@@ -3253,7 +3355,7 @@ class MercurialVCS(VersionControlSystem):
 				if i+1 < len(self.status) and self.status[i+1][:2] == '  ':
 					return self.status[i:i+2]
 				return self.status[i:i+1]
-		raise util.Abort("no status for " + path)
+		raise hg_util.Abort("no status for " + path)
 	
 	def GetBaseFile(self, filename):
 		set_status("inspecting " + filename)
