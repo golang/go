@@ -14,6 +14,86 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-11-18">2011-11-18</h2>
+
+<pre>
+This release includes some language changes.
+
+Map and function value comparisons are now disallowed (except for comparison
+with nil) as per the Go 1 plan. Function equality was problematic in some
+contexts and map equality compares pointers, not the maps' content.
+
+As an experiment, structs are now allowed to be copied even if they contain
+unexported fields. This gives packages the ability to return opaque values in
+their APIs.
+
+Other changes:
+* 6a, 8a: allow $(-1) for consistency with $1, $(1), $-1.
+* 6l: code generation fixes (thanks Michał Derkacz).
+* build: fix check for selinux allow_execstack on Fedora (thanks Bobby Powers).
+* builtin: document delete.
+* cgo: don't panic on undeclared enums/structs (thanks Rémy Oudompheng),
+	fix g0 stack guard.
+* crypto/tls: fix handshake message test.
+* crypto: update incorrect references to Cipher interface; should be Block.
+* doc: clean ups, additions, and fixes to several documents.
+* doc/install: add openbsd (thanks Joel Sing!).
+* doc: link to Chinese translation of A Tour of Go.
+* encoding/json: add marshal/unmarshal benchmark,
+	decode [] as empty slice, not nil slice,
+	make BenchmarkSkipValue more consistent.
+* env.bash: check for presence of make/gmake (thanks Scott Lawrence).
+* exp/sql: NumInput() allow -1 to ignore checking (thanks Yasuhiro Matsumoto),
+	add DB.Close, fix bugs, remove Execer on Driver (only Conn),
+	document that for drivers, io.EOF means no more rows,
+	add client side support for publickey auth (thanks Dave Cheney),
+	add direct-tcpip client support (thanks Dave Cheney),
+	change test listen address, also exit test if fails,
+	other fixes and improvements (thanks Dave Cheney).
+* exp/terminal: rename shell to terminal and add SetSize.
+* fcgi: fix server capability discovery.
+* fmt: distinguish empty vs nil slice/map in %#v.
+* gc: better error, type checks, and many fixes,
+	remove m[k] = x, false syntax (use delete(m, k) instead),
+	support for building with Plan 9 yacc (thanks Anthony Martin).
+* go/printer: make //line formatting idempotent.
+* godefs: delete, replaced by cgo -godefs.
+* godoc: document -templates flag, fix remote search,
+	provide mode for flat (non-indented) directory listings.
+* gofmt: leave nil nodes of the AST unchanged (thanks Rémy Oudompheng).
+* html/template: indirect top-level values before printing.
+* html: more parser improvements (thanks Andrew Balholm).
+* http: fix serving from CWD with http.ServeFile,
+	make Dir("") equivalent to Dir(".").
+* ld: fix .bss for ldpe (thanks Wei Guangjing).
+* math/big: replace nat{} -&gt; nat(nil).
+* math: faster Lgamma (thanks Charles L. Dorian).
+* mime: implement TypeByExtension for windows.
+* misc/bbedit: error and rune support (thanks Anthony Starks).
+* misc/benchcmp: benchmark comparison script.
+* misc/emacs: add delete builtin (thanks Bobby Powers).
+* misc/kate: add error and rune (thanks Evan Shaw).
+* misc/notepadplus: error and rune support (thanks Anthony Starks).
+* misc/windows: Windows installer in MSI format (thanks Joe Poirier).
+* net, io/ioutil: remove use of os.Time (thanks Anthony Martin).
+* net/http: fix EOF handling on response body (thanks Gustavo Niemeyer),
+	fix sniffing when using ReadFrom,
+	use t.Errorf from alternate goroutine in test.
+* os: remove undocumented Envs (use os.Environ instead).
+* reflect: empty slice/map is not DeepEqual to nil,
+	make Value an opaque struct.
+* runtime, syscall: convert from godefs to cgo.
+* runtime: add nanotime for Plan 9 (thanks Anthony Martin),
+	add timer support, use for package time,
+	avoid allocation for make([]T, 0).
+* strconv: add Ftoa benchmarks, make Ftoa faster.
+* syscall: delete syscall.Sleep, take over env implementation, use error.
+* testing: add file:line stamps to messages, print results to standard output.
+* text/template: refactor set parsing.
+* time: add ISOWeek method to Time (thanks Volker Dobler).
+* various: avoid func compare, reduce overuse of os.EINVAL + others.
+</pre>
+
 <h2 id="2011-11-09">2011-11-09</h2>
 
 <pre>
