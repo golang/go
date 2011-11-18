@@ -87,6 +87,23 @@ by making copies of the data.  In pseudo-Go definitions:
 	// C pointer, length to Go []byte
 	func C.GoBytes(unsafe.Pointer, C.int) []byte
 
+Go functions can be exported for use by C code in the following way:
+
+	//export MyFunction
+	func MyFunction(arg1, arg2 int, arg3 string) int64 {...}
+
+	//export MyFunction2
+	func MyFunction2(arg1, arg2 int, arg3 string) (int64, C.char*) {...}
+
+They will be available in the C code as:
+
+	extern int64 MyFunction(int arg1, int arg2, GoString arg3);
+	extern struct MyFunction2_return MyFunction2(int arg1, int arg2, GoString arg3);
+
+found in _cgo_export.h generated header. Functions with multiple
+return values are mapped to functions returning a struct.
+Not all Go types can be mapped to C types in a useful way.
+
 Cgo transforms the input file into four output files: two Go source
 files, a C file for 6c (or 8c or 5c), and a C file for gcc.
 
