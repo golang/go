@@ -13,16 +13,26 @@ import (
 	"unicode"
 )
 
-// Tree is the representation of a parsed template.
+// Tree is the representation of a single parsed template.
 type Tree struct {
-	Name string    // Name is the name of the template.
-	Root *ListNode // Root is the top-level root of the parse tree.
+	Name string    // name of the template represented by the tree.
+	Root *ListNode // top-level root of the tree.
 	// Parsing only; cleared after parse.
 	funcs     []map[string]interface{}
 	lex       *lexer
 	token     [2]item // two-token lookahead for parser.
 	peekCount int
 	vars      []string // variables defined at the moment.
+}
+
+// Parse returns a map from template name to parse.Tree, created by parsing the
+// templates described in the argument string. The top-level template will be
+// given the specified name. If an error is encountered, parsing stops and an
+// empty map is returned with the error.
+func Parse(name, text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (treeSet map[string]*Tree, err error) {
+	treeSet = make(map[string]*Tree)
+	_, err = New(name).Parse(text, leftDelim, rightDelim, treeSet, funcs...)
+	return
 }
 
 // next returns the next token.
@@ -58,7 +68,7 @@ func (t *Tree) peek() item {
 
 // Parsing.
 
-// New allocates a new template with the given name.
+// New allocates a new parse tree with the given name.
 func New(name string, funcs ...map[string]interface{}) *Tree {
 	return &Tree{
 		Name:  name,
@@ -107,7 +117,7 @@ func (t *Tree) recover(errp *error) {
 	return
 }
 
-// startParse starts the template parsing from the lexer.
+// startParse initializes the parser, using the lexer.
 func (t *Tree) startParse(funcs []map[string]interface{}, lex *lexer) {
 	t.Root = nil
 	t.lex = lex
@@ -143,9 +153,10 @@ func (t *Tree) atEOF() bool {
 	return false
 }
 
-// Parse parses the template definition string to construct an internal
-// representation of the template for execution. If either action delimiter
-// string is empty, the default ("{{" or "}}") is used.
+// Parse parses the template definition string to construct a representation of
+// the template for execution. If either action delimiter string is empty, the
+// default ("{{" or "}}") is used. Embedded template definitions are added to
+// the treeSet map.
 func (t *Tree) Parse(s, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
 	defer t.recover(&err)
 	t.startParse(funcs, lex(t.Name, s, leftDelim, rightDelim))
