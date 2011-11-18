@@ -4,12 +4,6 @@
 
 #include "runtime.h"
 
-int64
-runtime·nanotime(void) 
-{
-	// Won't compile.
-}
-
 String
 runtime·signame(int32)
 {

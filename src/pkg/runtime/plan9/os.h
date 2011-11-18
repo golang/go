@@ -4,6 +4,8 @@
 
 // Plan 9-specific system calls
 int32	runtime·open(uint8 *file, int32 mode);
+int32	runtime·pread(int32 fd, void *buf, int32 nbytes, int64 offset);
+int32	runtime·pwrite(int32 fd, void *buf, int32 nbytes, int64 offset);
 int32	runtime·read(int32 fd, void *buf, int32 nbytes);
 int32	runtime·close(int32 fd);
 void	runtime·exits(int8* msg);
@@ -16,9 +18,14 @@ int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);
 /* open */
 enum
 {
-	OREAD			= 0,
-	OWRITE			= 1,
-	ORDWR			= 2
+	OREAD	= 0,
+	OWRITE	= 1,
+	ORDWR	= 2,
+	OEXEC	= 3,
+	OTRUNC	= 16,
+	OCEXEC	= 32,
+	ORCLOSE	= 64,
+	OEXCL	= 0x1000
 };
 
 /* rfork */
