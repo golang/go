@@ -37,7 +37,7 @@ lower-cased, and attributes are collected into a []Attribute. For example:
 	for {
 		if z.Next() == html.ErrorToken {
 			// Returning io.EOF indicates success.
-			return z.Error()
+			return z.Err()
 		}
 		emitToken(z.Token())
 	}
@@ -51,7 +51,7 @@ call to Next. For example, to extract an HTML page's anchor text:
 		tt := z.Next()
 		switch tt {
 		case ErrorToken:
-			return z.Error()
+			return z.Err()
 		case TextToken:
 			if depth > 0 {
 				// emitBytes should copy the []byte it receives,
