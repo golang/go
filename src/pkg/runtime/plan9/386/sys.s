@@ -14,16 +14,14 @@ TEXT runtime·open(SB),7,$0
 	INT     $64
 	RET
 
-// TODO(ality): remove use of deprecated system calls
-
-TEXT runtime·read(SB),7,$0
-	MOVL	$15, AX
-	INT		$64
+TEXT runtime·pread(SB),7,$0
+	MOVL    $50, AX
+	INT     $64
 	RET
 
-TEXT runtime·write(SB),7,$0
-	MOVL	$20, AX
-	INT		$64
+TEXT runtime·pwrite(SB),7,$0
+	MOVL    $51, AX
+	INT     $64
 	RET
 
 TEXT runtime·close(SB),7,$0
@@ -90,9 +88,9 @@ TEXT runtime·rfork(SB),7,$0
 	MOVL	0(BX), BX
 	
 	// more paranoia; check that stack splitting code works
-	PUSHAL
+	PUSHL	SI
 	CALL	runtime·emptyfunc(SB)
-	POPAL
+	POPL	SI
 	
 	CALL	SI	// fn()
 	CALL	runtime·exit(SB)
