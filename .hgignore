@@ -29,6 +29,8 @@ doc/codelab/wiki/*.bin
 misc/cgo/life/run.out
 misc/dashboard/builder/gobuilder
 misc/goplay/goplay
+misc/osx/*.pkg
+misc/osx/*.dmg
 src/Make.inc
 src/cmd/6a/6a
 src/cmd/?l/enam.c
