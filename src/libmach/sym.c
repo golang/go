@@ -124,7 +124,7 @@ syminit(int fd, Fhdr *fp)
 		/* minimum symbol record size = 4+1+2 bytes */
 	symbols = malloc((fp->symsz/(4+1+2)+1)*sizeof(Sym));
 	if(symbols == 0) {
-		werrstr("can't malloc %ld bytes", fp->symsz);
+		werrstr("can't malloc %d bytes", fp->symsz);
 		return -1;
 	}
 	Binit(&b, fd, OREAD);
@@ -203,11 +203,11 @@ syminit(int fd, Fhdr *fp)
 		}
 	}
 	if (debug)
-		print("NG: %ld NT: %d NF: %d\n", nglob, ntxt, fmaxi);
+		print("NG: %d NT: %d NF: %d\n", nglob, ntxt, fmaxi);
 	if (fp->sppcsz) {			/* pc-sp offset table */
 		spoff = (uchar *)malloc(fp->sppcsz);
 		if(spoff == 0) {
-			werrstr("can't malloc %ld bytes", fp->sppcsz);
+			werrstr("can't malloc %d bytes", fp->sppcsz);
 			return -1;
 		}
 		Bseek(&b, fp->sppcoff, 0);
@@ -220,7 +220,7 @@ syminit(int fd, Fhdr *fp)
 	if (fp->lnpcsz) {			/* pc-line number table */
 		pcline = (uchar *)malloc(fp->lnpcsz);
 		if(pcline == 0) {
-			werrstr("can't malloc %ld bytes", fp->lnpcsz);
+			werrstr("can't malloc %d bytes", fp->lnpcsz);
 			return -1;
 		}
 		Bseek(&b, fp->lnpcoff, 0);
@@ -280,12 +280,12 @@ decodename(Biobuf *bp, Sym *p)
 		n = Bseek(bp, 0, 1)-o;
 		p->name = malloc(n);
 		if(p->name == 0) {
-			werrstr("can't malloc %ld bytes", n);
+			werrstr("can't malloc %d bytes", n);
 			return -1;
 		}
 		Bseek(bp, -n, 1);
 		if(Bread(bp, p->name, n) != n) {
-			werrstr("can't read %ld bytes of symbol name", n);
+			werrstr("can't read %d bytes of symbol name", n);
 			return -1;
 		}
 	} else {
@@ -297,7 +297,7 @@ decodename(Biobuf *bp, Sym *p)
 		n = Blinelen(bp);
 		p->name = malloc(n);
 		if(p->name == 0) {
-			werrstr("can't malloc %ld bytes", n);
+			werrstr("can't malloc %d bytes", n);
 			return -1;
 		}
 		strcpy(p->name, cp);
@@ -913,7 +913,7 @@ file2pc(char *file, int32 line)
 			break;
 	free(name);
 	if(i >= nfiles) {
-		werrstr("line %ld in file %s not found", line, file);
+		werrstr("line %d in file %s not found", line, file);
 		return ~0;
 	}
 	start = fp->addr;		/* first text addr this file */
@@ -926,10 +926,10 @@ file2pc(char *file, int32 line)
 	 * run the state machine to locate the pc closest to that value.
 	 */
 	if(debug)
-		print("find pc for %ld - between: %llux and %llux\n", line, start, end);
+		print("find pc for %d - between: %llux and %llux\n", line, start, end);
 	pc = line2addr(line, start, end);
 	if(pc == ~0) {
-		werrstr("line %ld not in file %s", line, file);
+		werrstr("line %d not in file %s", line, file);
 		return ~0;
 	}
 	return pc;
@@ -1146,7 +1146,7 @@ fline(char *str, int n, int32 line, Hist *base, Hist **ret)
 	else {
 		k = fileelem(fnames, (uchar*)start->name, str, n);
 		if(k+8 < n)
-			sprint(str+k, ":%ld", line);
+			sprint(str+k, ":%d", line);
 	}
 /**********Remove comments for complete back-trace of include sequence
  *	if(start != base) {
@@ -1404,7 +1404,7 @@ printhist(char *msg, Hist *hp, int count)
 	while(hp->name) {
 		if(count && ++i > count)
 			break;
-		print("%s Line: %lx (%ld)  Offset: %lx (%ld)  Name: ", msg,
+		print("%s Line: %x (%d)  Offset: %x (%d)  Name: ", msg,
 			hp->line, hp->line, hp->offset, hp->offset);
 		for(cp = (uchar *)hp->name+1; (*cp<<8)|cp[1]; cp += 2) {
 			if (cp != (uchar *)hp->name+1)
