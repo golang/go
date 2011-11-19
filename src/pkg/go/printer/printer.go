@@ -19,7 +19,7 @@ import (
 )
 
 const debug = false // enable for debugging
-
+const infinity = 1 << 30
 
 type whiteSpace int
 
@@ -32,18 +32,6 @@ const (
 	indent   = whiteSpace('>')
 	unindent = whiteSpace('<')
 )
-
-var (
-	esc       = []byte{tabwriter.Escape}
-	htab      = []byte{'\t'}
-	htabs     = []byte("\t\t\t\t\t\t\t\t")
-	newlines  = []byte("\n\n\n\n\n\n\n\n") // more than the max determined by nlines
-	formfeeds = []byte("\f\f\f\f\f\f\f\f") // more than the max determined by nlines
-)
-
-// Special positions
-var noPos token.Position // use noPos when a position is needed but not known
-var infinity = 1 << 30
 
 // Use ignoreMultiLine if the multiLine information is not important.
 var ignoreMultiLine = new(bool)
@@ -58,7 +46,7 @@ const (
 
 // local error wrapper so we can distinguish errors we want to return
 // as errors from genuine panics (which we don't want to return as errors)
-type osError struct {
+type printerError struct {
 	err error
 }
 
@@ -143,12 +131,15 @@ func (p *printer) nlines(n, min int) int {
 // write0 writes raw (uninterpreted) data to p.output and handles errors.
 // write0 does not indent after newlines, and does not HTML-escape or update p.pos.
 //
-func (p *printer) write0(data []byte) {
+func (p *printer) write0(data string) {
 	if len(data) > 0 {
-		n, err := p.output.Write(data)
+		// TODO(gri) Replace bottleneck []byte conversion
+		//           with writing into a bytes.Buffer.
+		//           Will also simplify post-processing.
+		n, err := p.output.Write([]byte(data))
 		p.written += n
 		if err != nil {
-			panic(osError{err})
+			panic(printerError{err})
 		}
 	}
 }
@@ -157,12 +148,12 @@ func (p *printer) write0(data []byte) {
 // after a line break unless in a tabwriter escape sequence.
 // It updates p.pos as a side-effect.
 //
-func (p *printer) write(data []byte) {
+func (p *printer) write(data string) {
 	i0 := 0
-	for i, b := range data {
-		switch b {
+	for i := 0; i < len(data); i++ {
+		switch data[i] {
 		case '\n', '\f':
-			// write segment ending in b
+			// write segment ending in data[i]
 			p.write0(data[i0 : i+1])
 
 			// update p.pos
@@ -172,6 +163,7 @@ func (p *printer) write(data []byte) {
 
 			if p.mode&inLiteral == 0 {
 				// write indentation
+				const htabs = "\t\t\t\t\t\t\t\t"
 				// use "hard" htabs - indentation columns
 				// must not be discarded by the tabwriter
 				j := p.indent
@@ -211,9 +203,9 @@ func (p *printer) writeNewlines(n int, useFF bool) {
 	if n > 0 {
 		n = p.nlines(n, 0)
 		if useFF {
-			p.write(formfeeds[0:n])
+			p.write("\f\f\f\f"[0:n])
 		} else {
-			p.write(newlines[0:n])
+			p.write("\n\n\n\n"[0:n])
 		}
 	}
 }
@@ -240,9 +232,9 @@ func (p *printer) writeItem(pos token.Position, data string) {
 	if debug {
 		// do not update p.pos - use write0
 		_, filename := filepath.Split(pos.Filename)
-		p.write0([]byte(fmt.Sprintf("[%s:%d:%d]", filename, pos.Line, pos.Column)))
+		p.write0(fmt.Sprintf("[%s:%d:%d]", filename, pos.Line, pos.Column))
 	}
-	p.write([]byte(data))
+	p.write(data)
 	p.last = p.pos
 }
 
@@ -301,9 +293,9 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 				// next item is on the same line as the comment
 				// (which must be a /*-style comment): separate
 				// with a blank instead of a tab
-				p.write([]byte{' '})
+				p.write(" ")
 			} else {
-				p.write(htab)
+				p.write("\t")
 			}
 		}
 
@@ -573,11 +565,10 @@ func (p *printer) writeComment(comment *ast.Comment) {
 
 	// write comment lines, separated by formfeed,
 	// without a line break after the last line
-	linebreak := formfeeds[0:1]
 	pos := p.fset.Position(comment.Pos())
 	for i, line := range lines {
 		if i > 0 {
-			p.write(linebreak)
+			p.write("\f")
 			pos = p.pos
 		}
 		if len(line) > 0 {
@@ -617,7 +608,7 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
 
 	// make sure we have a line break
 	if needsLinebreak {
-		p.write([]byte{'\n'})
+		p.write("\n")
 	}
 
 	return
@@ -643,7 +634,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (dro
 		if last.Text[1] == '*' && p.fset.Position(last.Pos()).Line == next.Line {
 			// the last comment is a /*-style comment and the next item
 			// follows on the same line: separate with an extra blank
-			p.write([]byte{' '})
+			p.write(" ")
 		}
 		// ensure that there is a line break after a //-style comment,
 		// before a closing '}' unless explicitly disabled, or at eof
@@ -663,7 +654,6 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (dro
 // whiteWhitespace writes the first n whitespace entries.
 func (p *printer) writeWhitespace(n int) {
 	// write entries
-	var data [1]byte
 	for i := 0; i < n; i++ {
 		switch ch := p.wsbuf[i]; ch {
 		case ignore:
@@ -695,8 +685,7 @@ func (p *printer) writeWhitespace(n int) {
 			}
 			fallthrough
 		default:
-			data[0] = byte(ch)
-			p.write(data[0:])
+			p.write(string(ch))
 		}
 	}
 
@@ -871,6 +860,8 @@ const (
 //              However, this would mess up any formatting done by
 //              the tabwriter.
 
+var aNewline = []byte("\n")
+
 func (p *trimmer) Write(data []byte) (n int, err error) {
 	// invariants:
 	// p.state == inSpace:
@@ -889,8 +880,8 @@ func (p *trimmer) Write(data []byte) (n int, err error) {
 			case '\t', ' ':
 				p.space.WriteByte(b) // WriteByte returns no errors
 			case '\n', '\f':
-				p.space.Reset()                        // discard trailing space
-				_, err = p.output.Write(newlines[0:1]) // write newline
+				p.space.Reset() // discard trailing space
+				_, err = p.output.Write(aNewline)
 			case tabwriter.Escape:
 				_, err = p.output.Write(p.space.Bytes())
 				p.state = inEscape
@@ -917,7 +908,7 @@ func (p *trimmer) Write(data []byte) (n int, err error) {
 				_, err = p.output.Write(data[m:n])
 				p.state = inSpace
 				p.space.Reset()
-				_, err = p.output.Write(newlines[0:1]) // write newline
+				_, err = p.output.Write(aNewline)
 			case tabwriter.Escape:
 				_, err = p.output.Write(data[m:n])
 				p.state = inEscape
@@ -992,7 +983,7 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
 	defer func() {
 		written = p.written
 		if e := recover(); e != nil {
-			err = e.(osError).err // re-panics if it's not a local osError
+			err = e.(printerError).err // re-panics if it's not a printerError
 		}
 	}()
 
@@ -1020,7 +1011,7 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
 		p.useNodeComments = n.Comments == nil
 		p.file(n)
 	default:
-		panic(osError{fmt.Errorf("printer.Fprint: unsupported node type %T", n)})
+		panic(printerError{fmt.Errorf("printer.Fprint: unsupported node type %T", n)})
 	}
 	p.flush(token.Position{Offset: infinity, Line: infinity}, token.EOF)
 
