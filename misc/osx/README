@@ -1,0 +1,9 @@
+Use image.bash to construct a disk image.
+
+package.bash constructs a package file (Go.pkg) for installation on OS X, and
+is used by image.bash to construct a disk image. Strictly speaking, the disk
+image is unnecessary, but they are more common by convention.
+
+These scripts depend on PackageMaker (Developer Tools), osascript, and hdiutil.
+Appropriate checks are run in utils.bash, called at the beginning of each
+script.
