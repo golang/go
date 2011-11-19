@@ -307,7 +307,7 @@ gsymoff(char *buf, int n, long v, int space)
 	if (!delta)
 		return snprint(buf, n, "%s", s.name);
 	if (s.type != 't' && s.type != 'T')
-		return snprint(buf, n, "%s+%lux", s.name, v-s.value);
+		return snprint(buf, n, "%s+%llux", s.name, v-s.value);
 	else
 		return snprint(buf, n, "#%lux", v);
 }

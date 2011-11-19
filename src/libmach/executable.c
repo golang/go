@@ -677,7 +677,7 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
 	uint32 (*swal)(uint32);
 	ushort (*swab)(ushort);
 	Ehdr64 *ep;
-	Phdr64 *ph;
+	Phdr64 *ph, *pph;
 	Shdr64 *sh;
 	int i, it, id, is, phsz, shsz;
 
@@ -797,7 +797,8 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
 	}
 
 	settext(fp, ep->elfentry, ph[it].vaddr, ph[it].memsz, ph[it].offset);
-	setdata(fp, ph[id].vaddr, ph[id].filesz, ph[id].offset, ph[id].memsz - ph[id].filesz);
+	pph = ph + id;
+	setdata(fp, pph->vaddr, pph->filesz, pph->offset, pph->memsz - pph->filesz);
 	if(is != -1)
 		setsym(fp, ph[is].offset, ph[is].filesz, 0, 0, 0, ph[is].memsz);
 	else if(sh != 0){
@@ -1049,7 +1050,6 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	mp->sizeofcmds = swal(mp->sizeofcmds);
 	mp->flags = swal(mp->flags);
 	mp->reserved = swal(mp->reserved);
-	hdrsize = 0;
 
 	switch(mp->magic) {
 	case 0xFEEDFACE:	// 32-bit mach
@@ -1104,7 +1104,9 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	datava = 0;
 	symtab = 0;
 	pclntab = 0;
-	textsize = datasize = bsssize = 0;
+	textsize = 0;
+	datasize = 0;
+	bsssize = 0;
 	for (i = 0; i < mp->ncmds; i++) {
 		MachCmd *c;
 
@@ -1379,7 +1381,8 @@ pedotout(int fd, Fhdr *fp, ExecHdr *hp)
 	}
 
 	seek(fd, start+sizeof(magic)+sizeof(fh)+leswab(fh.SizeOfOptionalHeader), 0);
-	fp->txtaddr = fp->dataddr = 0;
+	fp->txtaddr = 0;
+	fp->dataddr = 0;
 	for (i=0; i<leswab(fh.NumberOfSections); i++) {
 		if (readn(fd, &sh, sizeof(sh)) != sizeof(sh)) {
 			werrstr("could not read Section Header %d", i+1);
@@ -1398,7 +1401,7 @@ pedotout(int fd, Fhdr *fp, ExecHdr *hp)
 	seek(fd, leswal(fh.PointerToSymbolTable), 0);
 	symtab = esymtab = 0;
 	for (i=0; i<leswal(fh.NumberOfSymbols); i++) {
-		if (readn(fd, &sym, sizeof(sym)) != sizeof(sym)) {
+		if (readn(fd, sym, sizeof(sym)) != sizeof(sym)) {
 			werrstr("crippled COFF symbol %d", i);
 			return 0;
 		}
@@ -1451,7 +1454,6 @@ setsym(Fhdr *fp, vlong symoff, int32 symsz, vlong sppcoff, int32 sppcsz, vlong l
 	fp->lnpcoff = lnpcoff;
 	fp->lnpcsz = lnpcsz;
 }
-
 
 static uvlong
 _round(uvlong a, uint32 b)

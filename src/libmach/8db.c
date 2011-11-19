@@ -125,7 +125,7 @@ i386excep(Map *map, Rgetter rget)
 			if (memcmp(buf, machdata->bpinst, machdata->bpsize) == 0)
 				return "breakpoint";
 		}
-		snprint(buf, sizeof(buf), "exception %ld", c);
+		snprint(buf, sizeof(buf), "exception %d", c);
 		return buf;
 	} else
 		return excname[c];
@@ -1971,7 +1971,7 @@ plocal(Instr *ip)
 
 	offset = ip->disp;
 	if (!findsym(ip->addr, CTEXT, &s) || !findlocal(&s, FRAMENAME, &s)) {
-		bprint(ip, "%lux(SP)", offset);
+		bprint(ip, "%ux(SP)", offset);
 		return;
 	}
 
@@ -1987,7 +1987,7 @@ plocal(Instr *ip)
 		bprint(ip, "%s+", s.name);
 	else
 		offset = ip->disp;
-	bprint(ip, "%lux%s", offset, reg);
+	bprint(ip, "%ux%s", offset, reg);
 }
 
 static int
@@ -2061,7 +2061,7 @@ immediate(Instr *ip, vlong val)
 			w = -w;
 		if (issymref(ip, &s, w, val)) {
 			if (w)
-				bprint(ip, "%s+%#lux(SB)", s.name, w);
+				bprint(ip, "%s+%#ux(SB)", s.name, w);
 			else
 				bprint(ip, "%s(SB)", s.name);
 			return;
@@ -2104,7 +2104,7 @@ pea(Instr *ip)
 		if (ip->base < 0)
 			immediate(ip, ip->disp);
 		else {
-			bprint(ip, "%lux", ip->disp);
+			bprint(ip, "%ux", ip->disp);
 			if(ip->rip)
 				bprint(ip, "(RIP)");
 			bprint(ip,"(%s%s)", ANAME(ip), reg[ip->rex&REXB? ip->base+8: ip->base]);
@@ -2197,7 +2197,7 @@ prinstr(Instr *ip, char *fmt)
 				bprint(ip, "CBW");
 			break;
 		case 'd':
-			bprint(ip,"%ux:%lux",ip->seg,ip->disp);
+			bprint(ip,"%ux:%ux", ip->seg, ip->disp);
 			break;
 		case 'm':
 			if (ip->mod == 3 && ip->osize != 'B') {
