@@ -362,25 +362,24 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 	}
 }
 
-// TODO(gri): It should be possible to convert the code below from using
-//            []byte to string and in the process eliminate some conversions.
-
 // Split comment text into lines
-func split(text []byte) [][]byte {
+// (using strings.Split(text, "\n") is significantly slower for
+// this specific purpose, as measured with: gotest -bench=Print)
+func split(text string) []string {
 	// count lines (comment text never ends in a newline)
 	n := 1
-	for _, c := range text {
-		if c == '\n' {
+	for i := 0; i < len(text); i++ {
+		if text[i] == '\n' {
 			n++
 		}
 	}
 
 	// split
-	lines := make([][]byte, n)
+	lines := make([]string, n)
 	n = 0
 	i := 0
-	for j, c := range text {
-		if c == '\n' {
+	for j := 0; j < len(text); j++ {
+		if text[j] == '\n' {
 			lines[n] = text[i:j] // exclude newline
 			i = j + 1            // discard newline
 			n++
@@ -391,16 +390,18 @@ func split(text []byte) [][]byte {
 	return lines
 }
 
-func isBlank(s []byte) bool {
-	for _, b := range s {
-		if b > ' ' {
+// Returns true if s contains only white space
+// (only tabs and blanks can appear in the printer's context).
+func isBlank(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] > ' ' {
 			return false
 		}
 	}
 	return true
 }
 
-func commonPrefix(a, b []byte) []byte {
+func commonPrefix(a, b string) string {
 	i := 0
 	for i < len(a) && i < len(b) && a[i] == b[i] && (a[i] <= ' ' || a[i] == '*') {
 		i++
@@ -408,7 +409,7 @@ func commonPrefix(a, b []byte) []byte {
 	return a[0:i]
 }
 
-func stripCommonPrefix(lines [][]byte) {
+func stripCommonPrefix(lines []string) {
 	if len(lines) < 2 {
 		return // at most one line - nothing to do
 	}
@@ -432,19 +433,21 @@ func stripCommonPrefix(lines [][]byte) {
 	// Note that the first and last line are never empty (they
 	// contain the opening /* and closing */ respectively) and
 	// thus they can be ignored by the blank line check.
-	var prefix []byte
+	var prefix string
 	if len(lines) > 2 {
+		first := true
 		for i, line := range lines[1 : len(lines)-1] {
 			switch {
 			case isBlank(line):
-				lines[1+i] = nil // range starts at line 1
-			case prefix == nil:
+				lines[1+i] = "" // range starts at line 1
+			case first:
 				prefix = commonPrefix(line, line)
+				first = false
 			default:
 				prefix = commonPrefix(prefix, line)
 			}
 		}
-	} else { // len(lines) == 2
+	} else { // len(lines) == 2, lines cannot be blank (contain /* and */)
 		line := lines[1]
 		prefix = commonPrefix(line, line)
 	}
@@ -453,7 +456,7 @@ func stripCommonPrefix(lines [][]byte) {
 	 * Check for vertical "line of stars" and correct prefix accordingly.
 	 */
 	lineOfStars := false
-	if i := bytes.Index(prefix, []byte{'*'}); i >= 0 {
+	if i := strings.Index(prefix, "*"); i >= 0 {
 		// Line of stars present.
 		if i > 0 && prefix[i-1] == ' ' {
 			i-- // remove trailing blank from prefix so stars remain aligned
@@ -501,7 +504,7 @@ func stripCommonPrefix(lines [][]byte) {
 			}
 			// Shorten the computed common prefix by the length of
 			// suffix, if it is found as suffix of the prefix.
-			if bytes.HasSuffix(prefix, suffix) {
+			if strings.HasSuffix(prefix, string(suffix)) {
 				prefix = prefix[0 : len(prefix)-len(suffix)]
 			}
 		}
@@ -511,19 +514,18 @@ func stripCommonPrefix(lines [][]byte) {
 	// with the opening /*, otherwise align the text with the other
 	// lines.
 	last := lines[len(lines)-1]
-	closing := []byte("*/")
-	i := bytes.Index(last, closing)
+	closing := "*/"
+	i := strings.Index(last, closing) // i >= 0 (closing is always present)
 	if isBlank(last[0:i]) {
 		// last line only contains closing */
-		var sep []byte
 		if lineOfStars {
-			// insert an aligning blank
-			sep = []byte{' '}
+			closing = " */" // add blank to align final star
 		}
-		lines[len(lines)-1] = bytes.Join([][]byte{prefix, closing}, sep)
+		lines[len(lines)-1] = prefix + closing
 	} else {
 		// last line contains more comment text - assume
-		// it is aligned like the other lines
+		// it is aligned like the other lines and include
+		// in prefix computation
 		prefix = commonPrefix(prefix, last)
 	}
 
@@ -549,9 +551,9 @@ func (p *printer) writeComment(comment *ast.Comment) {
 			// update our own idea of the file and line number
 			// accordingly, after printing the directive.
 			file := pos[:i]
-			line, _ := strconv.Atoi(string(pos[i+1:]))
+			line, _ := strconv.Atoi(pos[i+1:])
 			defer func() {
-				p.pos.Filename = string(file)
+				p.pos.Filename = file
 				p.pos.Line = line
 				p.pos.Column = 1
 			}()
@@ -566,7 +568,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 
 	// for /*-style comments, print line by line and let the
 	// write function take care of the proper indentation
-	lines := split([]byte(text))
+	lines := split(text)
 	stripCommonPrefix(lines)
 
 	// write comment lines, separated by formfeed,
@@ -579,7 +581,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 			pos = p.pos
 		}
 		if len(line) > 0 {
-			p.writeItem(pos, p.escape(string(line)))
+			p.writeItem(pos, p.escape(line))
 		}
 	}
 }
