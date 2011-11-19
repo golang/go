@@ -301,7 +301,7 @@ const (
 	IFLA_LINKINFO     = 0x12
 	IFLA_NET_NS_PID   = 0x13
 	IFLA_IFALIAS      = 0x14
-	IFLA_MAX          = 0x1a
+	IFLA_MAX          = 0x1c
 	RT_SCOPE_UNIVERSE = 0x0
 	RT_SCOPE_SITE     = 0xc8
 	RT_SCOPE_LINK     = 0xfd
