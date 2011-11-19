@@ -342,4 +342,10 @@ const (
 	SYS_FANOTIFY_INIT          = 338
 	SYS_FANOTIFY_MARK          = 339
 	SYS_PRLIMIT64              = 340
+	SYS_NAME_TO_HANDLE_AT      = 341
+	SYS_OPEN_BY_HANDLE_AT      = 342
+	SYS_CLOCK_ADJTIME          = 343
+	SYS_SYNCFS                 = 344
+	SYS_SENDMMSG               = 345
+	SYS_SETNS                  = 346
 )

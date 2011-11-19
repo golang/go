@@ -903,6 +903,14 @@ const (
 	O_TRUNC                           = 0x400
 	O_TTY_INIT                        = 0x80000
 	O_WRONLY                          = 0x1
+	RLIMIT_AS                         = 0xa
+	RLIMIT_CORE                       = 0x4
+	RLIMIT_CPU                        = 0x0
+	RLIMIT_DATA                       = 0x2
+	RLIMIT_FSIZE                      = 0x1
+	RLIMIT_NOFILE                     = 0x8
+	RLIMIT_STACK                      = 0x3
+	RLIM_INFINITY                     = 0x7fffffffffffffff
 	RTAX_AUTHOR                       = 0x6
 	RTAX_BRD                          = 0x7
 	RTAX_DST                          = 0x0
@@ -972,6 +980,9 @@ const (
 	RTV_SPIPE                         = 0x10
 	RTV_SSTHRESH                      = 0x20
 	RTV_WEIGHT                        = 0x100
+	RUSAGE_CHILDREN                   = -0x1
+	RUSAGE_SELF                       = 0x0
+	RUSAGE_THREAD                     = 0x1
 	SCM_BINTIME                       = 0x4
 	SCM_CREDS                         = 0x3
 	SCM_RIGHTS                        = 0x1

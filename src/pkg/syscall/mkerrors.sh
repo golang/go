@@ -118,6 +118,7 @@ includes='
 #include <errno.h>
 #include <sys/signal.h>
 #include <signal.h>
+#include <sys/resource.h>
 '
 
 ccflags="$@"
@@ -169,6 +170,8 @@ ccflags="$@"
 		$2 ~ /^TIOC/ ||
 		$2 ~ /^(IFF|IFT|NET_RT|RTM|RTF|RTV|RTA|RTAX)_/ ||
 		$2 ~ /^BIOC/ ||
+		$2 ~ /^RUSAGE_(SELF|CHILDREN|THREAD)/ ||
+		$2 ~ /^RLIMIT_(AS|CORE|CPU|DATA|FSIZE|NOFILE|STACK)|RLIM_INFINITY/ ||
 		$2 !~ /^(BPF_TIMEVAL)$/ &&
 		$2 ~ /^(BPF|DLT)_/ ||
 		$2 !~ "WMESGLEN" &&

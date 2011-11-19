@@ -582,6 +582,7 @@ const (
 	NETLINK_NFLOG                    = 0x5
 	NETLINK_NO_ENOBUFS               = 0x5
 	NETLINK_PKTINFO                  = 0x3
+	NETLINK_RDMA                     = 0x14
 	NETLINK_ROUTE                    = 0x0
 	NETLINK_SCSITRANSPORT            = 0x12
 	NETLINK_SELINUX                  = 0x7
@@ -700,6 +701,14 @@ const (
 	PTRACE_SYSEMU                    = 0x1f
 	PTRACE_SYSEMU_SINGLESTEP         = 0x20
 	PTRACE_TRACEME                   = 0x0
+	RLIMIT_AS                        = 0x9
+	RLIMIT_CORE                      = 0x4
+	RLIMIT_CPU                       = 0x0
+	RLIMIT_DATA                      = 0x2
+	RLIMIT_FSIZE                     = 0x1
+	RLIMIT_NOFILE                    = 0x7
+	RLIMIT_STACK                     = 0x3
+	RLIM_INFINITY                    = -0x1
 	RTAX_ADVMSS                      = 0x8
 	RTAX_CWND                        = 0x7
 	RTAX_FEATURES                    = 0xc
@@ -830,6 +839,9 @@ const (
 	RT_CLASS_MAIN                    = 0xfe
 	RT_CLASS_MAX                     = 0xff
 	RT_CLASS_UNSPEC                  = 0x0
+	RUSAGE_CHILDREN                  = -0x1
+	RUSAGE_SELF                      = 0x0
+	RUSAGE_THREAD                    = 0x1
 	SCM_CREDENTIALS                  = 0x2
 	SCM_RIGHTS                       = 0x1
 	SCM_TIMESTAMP                    = 0x1d
@@ -1101,6 +1113,7 @@ const (
 	TIOCSSOFTCAR                     = 0x541a
 	TIOCSTI                          = 0x5412
 	TIOCSWINSZ                       = 0x5414
+	TIOCVHANGUP                      = 0x5437
 	TUNATTACHFILTER                  = 0x401054d5
 	TUNDETACHFILTER                  = 0x401054d6
 	TUNGETFEATURES                   = 0x800454cf
@@ -1167,6 +1180,7 @@ const (
 	EFBIG           = Errno(0x1b)
 	EHOSTDOWN       = Errno(0x70)
 	EHOSTUNREACH    = Errno(0x71)
+	EHWPOISON       = Errno(0x85)
 	EIDRM           = Errno(0x2b)
 	EILSEQ          = Errno(0x54)
 	EINPROGRESS     = Errno(0x73)
@@ -1399,4 +1413,5 @@ var errors = [...]string{
 	130: "owner died",
 	131: "state not recoverable",
 	132: "operation not possible due to RF-kill",
+	133: "unknown error 133",
 }
