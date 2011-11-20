@@ -94,12 +94,35 @@ type Result interface {
 // used by multiple goroutines concurrently.
 type Stmt interface {
 	// Close closes the statement.
+	//
+	// Closing a statement should not interrupt any outstanding
+	// query created from that statement. That is, the following
+	// order of operations is valid:
+	//
+	//  * create a driver statement
+	//  * call Query on statement, returning Rows
+	//  * close the statement
+	//  * read from Rows
+	//
+	// If closing a statement invalidates currently-running
+	// queries, the final step above will incorrectly fail.
+	//
+	// TODO(bradfitz): possibly remove the restriction above, if
+	// enough driver authors object and find it complicates their
+	// code too much. The sql package could be smarter about
+	// refcounting the statement and closing it at the appropriate
+	// time.
 	Close() error
 
 	// NumInput returns the number of placeholder parameters.
-	// -1 means the driver doesn't know how to count the number of
-	// placeholders, so we won't sanity check input here and instead let the
-	// driver deal with errors.
+	//
+	// If NumInput returns >= 0, the sql package will sanity check
+	// argument counts from callers and return errors to the caller
+	// before the statement's Exec or Query methods are called.
+	//
+	// NumInput may also return -1, if the driver doesn't know
+	// its number of placeholders. In that case, the sql package
+	// will not sanity check Exec or Query argument counts.
 	NumInput() int
 
 	// Exec executes a query that doesn't return rows, such

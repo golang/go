@@ -90,6 +90,8 @@ type fakeStmt struct {
 	cmd   string
 	table string
 
+	closed bool
+
 	colName      []string      // used by CREATE, INSERT, SELECT (selected columns)
 	colType      []string      // used by CREATE
 	colValue     []interface{} // used by INSERT (mix of strings and "?" for bound params)
@@ -232,6 +234,9 @@ func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (driver.Stmt, e
 	stmt.table = parts[0]
 	stmt.colName = strings.Split(parts[1], ",")
 	for n, colspec := range strings.Split(parts[2], ",") {
+		if colspec == "" {
+			continue
+		}
 		nameVal := strings.Split(colspec, "=")
 		if len(nameVal) != 2 {
 			return nil, errf("SELECT on table %q has invalid column spec of %q (index %d)", stmt.table, colspec, n)
@@ -342,10 +347,16 @@ func (s *fakeStmt) ColumnConverter(idx int) driver.ValueConverter {
 }
 
 func (s *fakeStmt) Close() error {
+	s.closed = true
 	return nil
 }
 
+var errClosed = errors.New("fakedb: statement has been closed")
+
 func (s *fakeStmt) Exec(args []interface{}) (driver.Result, error) {
+	if s.closed {
+		return nil, errClosed
+	}
 	err := checkSubsetTypes(args)
 	if err != nil {
 		return nil, err
@@ -405,6 +416,9 @@ func (s *fakeStmt) execInsert(args []interface{}) (driver.Result, error) {
 }
 
 func (s *fakeStmt) Query(args []interface{}) (driver.Rows, error) {
+	if s.closed {
+		return nil, errClosed
+	}
 	err := checkSubsetTypes(args)
 	if err != nil {
 		return nil, err
