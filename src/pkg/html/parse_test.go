@@ -10,65 +10,65 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 )
 
-func pipeErr(err error) io.Reader {
-	pr, pw := io.Pipe()
-	pw.CloseWithError(err)
-	return pr
-}
-
-func readDat(filename string, c chan io.Reader) {
-	defer close(c)
-	f, err := os.Open("testdata/webkit/" + filename)
+// readParseTest reads a single test case from r.
+func readParseTest(r *bufio.Reader) (text, want string, err error) {
+	line, err := r.ReadSlice('\n')
 	if err != nil {
-		c <- pipeErr(err)
-		return
+		return "", "", err
 	}
-	defer f.Close()
+	var b []byte
 
-	// Loop through the lines of the file. Each line beginning with "#" denotes
-	// a new section, which is returned as a separate io.Reader.
-	r := bufio.NewReader(f)
-	var pw *io.PipeWriter
+	// Read the HTML.
+	if string(line) != "#data\n" {
+		return "", "", fmt.Errorf(`got %q want "#data\n"`, line)
+	}
 	for {
-		line, err := r.ReadSlice('\n')
+		line, err = r.ReadSlice('\n')
 		if err != nil {
-			if pw != nil {
-				pw.CloseWithError(err)
-				pw = nil
-			} else {
-				c <- pipeErr(err)
-			}
-			return
-		}
-		if len(line) == 0 {
-			continue
+			return "", "", err
 		}
 		if line[0] == '#' {
-			if pw != nil {
-				pw.Close()
-			}
-			var pr *io.PipeReader
-			pr, pw = io.Pipe()
-			c <- pr
-			continue
+			break
 		}
-		if line[0] != '|' {
-			// Strip the trailing '\n'.
-			line = line[:len(line)-1]
+		b = append(b, line...)
+	}
+	text = strings.TrimRight(string(b), "\n")
+	b = b[:0]
+
+	// Skip the error list.
+	if string(line) != "#errors\n" {
+		return "", "", fmt.Errorf(`got %q want "#errors\n"`, line)
+	}
+	for {
+		line, err = r.ReadSlice('\n')
+		if err != nil {
+			return "", "", err
 		}
-		if pw != nil {
-			if _, err := pw.Write(line); err != nil {
-				pw.CloseWithError(err)
-				pw = nil
-			}
+		if line[0] == '#' {
+			break
 		}
 	}
+
+	// Read the dump of what the parse tree should be.
+	if string(line) != "#document\n" {
+		return "", "", fmt.Errorf(`got %q want "#document\n"`, line)
+	}
+	for {
+		line, err = r.ReadSlice('\n')
+		if err != nil && err != io.EOF {
+			return "", "", err
+		}
+		if len(line) == 0 || len(line) == 1 && line[0] == '\n' {
+			break
+		}
+		b = append(b, line...)
+	}
+	return text, string(b), nil
 }
 
 func dumpIndent(w io.Writer, level int) {
@@ -93,7 +93,7 @@ func dumpLevel(w io.Writer, n *Node, level int) error {
 			fmt.Fprintf(w, `%s="%s"`, a.Key, a.Val)
 		}
 	case TextNode:
-		fmt.Fprintf(w, "%q", n.Data)
+		fmt.Fprintf(w, `"%s"`, n.Data)
 	case CommentNode:
 		fmt.Fprintf(w, "<!-- %s -->", n.Data)
 	case DoctypeNode:
@@ -134,23 +134,24 @@ func TestParser(t *testing.T) {
 	}{
 		// TODO(nigeltao): Process all the test cases from all the .dat files.
 		{"tests1.dat", -1},
-		{"tests2.dat", 43},
+		{"tests2.dat", 47},
 		{"tests3.dat", 0},
 	}
 	for _, tf := range testFiles {
-		rc := make(chan io.Reader)
-		go readDat(tf.filename, rc)
+		f, err := os.Open("testdata/webkit/" + tf.filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		r := bufio.NewReader(f)
 		for i := 0; i != tf.n; i++ {
-			// Parse the #data section.
-			dataReader := <-rc
-			if dataReader == nil {
+			text, want, err := readParseTest(r)
+			if err == io.EOF && tf.n == -1 {
 				break
 			}
-			b, err := ioutil.ReadAll(dataReader)
 			if err != nil {
 				t.Fatal(err)
 			}
-			text := string(b)
 			doc, err := Parse(strings.NewReader(text))
 			if err != nil {
 				t.Fatal(err)
@@ -159,16 +160,8 @@ func TestParser(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// Skip the #error section.
-			if _, err := io.Copy(ioutil.Discard, <-rc); err != nil {
-				t.Fatal(err)
-			}
 			// Compare the parsed tree to the #document section.
-			b, err = ioutil.ReadAll(<-rc)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if want := string(b); got != want {
+			if got != want {
 				t.Errorf("%s test #%d %q, got vs want:\n----\n%s----\n%s----", tf.filename, i, text, got, want)
 				continue
 			}
@@ -191,12 +184,6 @@ func TestParser(t *testing.T) {
 			if got != got1 {
 				t.Errorf("%s test #%d %q, got vs got1:\n----\n%s----\n%s----", tf.filename, i, text, got, got1)
 				continue
-			}
-		}
-		// Drain any untested cases for the test file.
-		for r := range rc {
-			if _, err := ioutil.ReadAll(r); err != nil {
-				t.Fatal(err)
 			}
 		}
 	}
