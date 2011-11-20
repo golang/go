@@ -342,17 +342,6 @@ func (c *clientChan) Close() error {
 	}))
 }
 
-func (c *clientChan) sendChanReq(req channelRequestMsg) error {
-	if err := c.writePacket(marshal(msgChannelRequest, req)); err != nil {
-		return err
-	}
-	msg := <-c.msg
-	if _, ok := msg.(*channelRequestSuccessMsg); ok {
-		return nil
-	}
-	return fmt.Errorf("failed to complete request: %s, %#v", req.Request, msg)
-}
-
 // Thread safe channel list.
 type chanlist struct {
 	// protects concurrent access to chans
