@@ -157,10 +157,21 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (cert Certificate, err error)
 		return
 	}
 
-	key, err := x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes)
-	if err != nil {
-		err = errors.New("crypto/tls: failed to parse key: " + err.Error())
-		return
+	// OpenSSL 0.9.8 generates PKCS#1 private keys by default, while
+	// OpenSSL 1.0.0 generates PKCS#8 keys. We try both.
+	var key *rsa.PrivateKey
+	if key, err = x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes); err != nil {
+		var privKey interface{}
+		if privKey, err = x509.ParsePKCS8PrivateKey(keyDERBlock.Bytes); err != nil {
+			err = errors.New("crypto/tls: failed to parse key: " + err.Error())
+			return
+		}
+
+		var ok bool
+		if key, ok = privKey.(*rsa.PrivateKey); !ok {
+			err = errors.New("crypto/tls: found non-RSA private key in PKCS#8 wrapping")
+			return
+		}
 	}
 
 	cert.PrivateKey = key
