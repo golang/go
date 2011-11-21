@@ -38,8 +38,8 @@ var (
 // creation of IPv6 sockets to return EAFNOSUPPORT.
 var SocketDisableIPv6 bool
 
-func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err string)
-func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err string)
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err ErrorString)
+func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err ErrorString)
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 
@@ -170,7 +170,6 @@ func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int6
 func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 	newoffset, e := seek(0, fd, offset, whence)
 
-	err = nil
 	if newoffset == -1 {
 		err = NewError(e)
 	}
@@ -246,7 +245,7 @@ func Unmount(name, old string) (err error) {
 	oldp := uintptr(unsafe.Pointer(StringBytePtr(old)))
 
 	var r0 uintptr
-	var e string
+	var e ErrorString
 
 	// bind(2) man page: If name is zero, everything bound or mounted upon old is unbound or unmounted.
 	if name == "" {
@@ -255,9 +254,8 @@ func Unmount(name, old string) (err error) {
 		r0, _, e = Syscall(SYS_UNMOUNT, uintptr(unsafe.Pointer(StringBytePtr(name))), oldp, 0)
 	}
 
-	err = nil
 	if int(r0) == -1 {
-		err = NewError(e)
+		err = e
 	}
 	return
 }
@@ -288,7 +286,6 @@ func DecodeBintime(b []byte) (nsec int64, err error) {
 	if len(b) != 8 {
 		return -1, NewError("bad /dev/bintime format")
 	}
-	err = nil
 	nsec = int64(b[0])<<56 |
 		int64(b[1])<<48 |
 		int64(b[2])<<40 |
@@ -335,17 +332,17 @@ func Getgroups() (gids []int, err error) {
 	return make([]int, 0), nil
 }
 
-//sys	Dup(oldfd int, newfd int) (fd int, err Error)
-//sys	Open(path string, mode int) (fd int, err Error)
-//sys	Create(path string, mode int, perm uint32) (fd int, err Error)
-//sys	Remove(path string) (err Error)
-//sys	Pread(fd int, p []byte, offset int64) (n int, err Error)
-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err Error)
-//sys	Close(fd int) (err Error)
-//sys	Chdir(path string) (err Error)
-//sys	Bind(name string, old string, flag int) (err Error)
-//sys	Mount(fd int, afd int, old string, flag int, aname string) (err Error)
-//sys	Stat(path string, edir []byte) (n int, err Error)
-//sys	Fstat(fd int, edir []byte) (n int, err Error)
-//sys	Wstat(path string, edir []byte) (err Error)
-//sys	Fwstat(fd int, edir []byte) (err Error)
+//sys	Dup(oldfd int, newfd int) (fd int, err error)
+//sys	Open(path string, mode int) (fd int, err error)
+//sys	Create(path string, mode int, perm uint32) (fd int, err error)
+//sys	Remove(path string) (err error)
+//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
+//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+//sys	Close(fd int) (err error)
+//sys	Chdir(path string) (err error)
+//sys	Bind(name string, old string, flag int) (err error)
+//sys	Mount(fd int, afd int, old string, flag int, aname string) (err error)
+//sys	Stat(path string, edir []byte) (n int, err error)
+//sys	Fstat(fd int, edir []byte) (n int, err error)
+//sys	Wstat(path string, edir []byte) (err error)
+//sys	Fwstat(fd int, edir []byte) (err error)
