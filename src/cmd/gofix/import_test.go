@@ -350,15 +350,52 @@ import (
 var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18
 `,
 	},
+	{
+		Name: "import.3",
+		Fn:   addImportFn("x/y/z", "x/a/c"),
+		In: `package main
+
+// Comment
+import "C"
+
+import (
+	"a"
+	"b"
+
+	"x/w"
+
+	"d/f"
+)
+`,
+		Out: `package main
+
+// Comment
+import "C"
+
+import (
+	"a"
+	"b"
+
+	"x/a/c"
+	"x/w"
+	"x/y/z"
+
+	"d/f"
+)
+`,
+	},
 }
 
-func addImportFn(path string) func(*ast.File) bool {
+func addImportFn(path ...string) func(*ast.File) bool {
 	return func(f *ast.File) bool {
-		if !imports(f, path) {
-			addImport(f, path)
-			return true
+		fixed := false
+		for _, p := range path {
+			if !imports(f, p) {
+				addImport(f, p)
+				fixed = true
+			}
 		}
-		return false
+		return fixed
 	}
 }
 
