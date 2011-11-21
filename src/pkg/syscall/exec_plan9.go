@@ -516,10 +516,10 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 		}
 	}
 
-	_, _, e := Syscall(SYS_EXEC,
+	_, _, e1 := Syscall(SYS_EXEC,
 		uintptr(unsafe.Pointer(StringBytePtr(argv0))),
 		uintptr(unsafe.Pointer(&StringSlicePtr(argv)[0])),
 		0)
 
-	return NewError(e)
+	return e1
 }
