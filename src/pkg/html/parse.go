@@ -319,9 +319,17 @@ func (p *parser) resetInsertionMode() {
 	p.im = inBodyIM
 }
 
+const whitespace = " \t\r\n\f"
+
 // Section 11.2.5.4.1.
 func initialIM(p *parser) bool {
 	switch p.tok.Type {
+	case TextToken:
+		p.tok.Data = strings.TrimLeft(p.tok.Data, whitespace)
+		if len(p.tok.Data) == 0 {
+			// It was all whitespace, so ignore it.
+			return true
+		}
 	case CommentToken:
 		p.doc.Add(&Node{
 			Type: CommentNode,
@@ -345,6 +353,12 @@ func initialIM(p *parser) bool {
 // Section 11.2.5.4.2.
 func beforeHTMLIM(p *parser) bool {
 	switch p.tok.Type {
+	case TextToken:
+		p.tok.Data = strings.TrimLeft(p.tok.Data, whitespace)
+		if len(p.tok.Data) == 0 {
+			// It was all whitespace, so ignore it.
+			return true
+		}
 	case StartTagToken:
 		if p.tok.Data == "html" {
 			p.addElement(p.tok.Data, p.tok.Attr)
@@ -383,7 +397,11 @@ func beforeHeadIM(p *parser) bool {
 	case ErrorToken:
 		implied = true
 	case TextToken:
-		// TODO: distinguish whitespace text from others.
+		p.tok.Data = strings.TrimLeft(p.tok.Data, whitespace)
+		if len(p.tok.Data) == 0 {
+			// It was all whitespace, so ignore it.
+			return true
+		}
 		implied = true
 	case StartTagToken:
 		switch p.tok.Data {
@@ -416,8 +434,6 @@ func beforeHeadIM(p *parser) bool {
 	p.im = inHeadIM
 	return !implied
 }
-
-const whitespace = " \t\r\n\f"
 
 // Section 11.2.5.4.4.
 func inHeadIM(p *parser) bool {

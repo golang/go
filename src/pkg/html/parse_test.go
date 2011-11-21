@@ -134,7 +134,7 @@ func TestParser(t *testing.T) {
 	}{
 		// TODO(nigeltao): Process all the test cases from all the .dat files.
 		{"tests1.dat", -1},
-		{"tests2.dat", 47},
+		{"tests2.dat", 50},
 		{"tests3.dat", 0},
 	}
 	for _, tf := range testFiles {
