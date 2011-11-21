@@ -95,4 +95,31 @@ var _ = cmplx.Sin
 var _ = poot.Poot
 `,
 	},
+	{
+		Name: "go1rename.2",
+		In: `package foo
+
+import (
+	"fmt"
+	"http"
+	"url"
+
+	"google/secret/project/go"
+)
+
+func main() {}
+`,
+		Out: `package foo
+
+import (
+	"fmt"
+	"net/http"
+	"net/url"
+
+	"google/secret/project/go"
+)
+
+func main() {}
+`,
+	},
 }
