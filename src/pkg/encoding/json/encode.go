@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 )
@@ -295,28 +296,10 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
 
 	case reflect.Struct:
 		e.WriteByte('{')
-		t := v.Type()
-		n := v.NumField()
 		first := true
-		for i := 0; i < n; i++ {
-			f := t.Field(i)
-			if f.PkgPath != "" {
-				continue
-			}
-			tag, omitEmpty, quoted := f.Name, false, false
-			if tv := f.Tag.Get("json"); tv != "" {
-				if tv == "-" {
-					continue
-				}
-				name, opts := parseTag(tv)
-				if isValidTag(name) {
-					tag = name
-				}
-				omitEmpty = opts.Contains("omitempty")
-				quoted = opts.Contains("string")
-			}
-			fieldValue := v.Field(i)
-			if omitEmpty && isEmptyValue(fieldValue) {
+		for _, ef := range encodeFields(v.Type()) {
+			fieldValue := v.Field(ef.i)
+			if ef.omitEmpty && isEmptyValue(fieldValue) {
 				continue
 			}
 			if first {
@@ -324,9 +307,9 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
 			} else {
 				e.WriteByte(',')
 			}
-			e.string(tag)
+			e.string(ef.tag)
 			e.WriteByte(':')
-			e.reflectValueQuoted(fieldValue, quoted)
+			e.reflectValueQuoted(fieldValue, ef.quoted)
 		}
 		e.WriteByte('}')
 
@@ -469,4 +452,64 @@ func (e *encodeState) string(s string) (int, error) {
 	}
 	e.WriteByte('"')
 	return e.Len() - len0, nil
+}
+
+// encodeField contains information about how to encode a field of a
+// struct.
+type encodeField struct {
+	i         int // field index in struct
+	tag       string
+	quoted    bool
+	omitEmpty bool
+}
+
+var (
+	typeCacheLock     sync.RWMutex
+	encodeFieldsCache = make(map[reflect.Type][]encodeField)
+)
+
+// encodeFields returns a slice of encodeField for a given
+// struct type.
+func encodeFields(t reflect.Type) []encodeField {
+	typeCacheLock.RLock()
+	fs, ok := encodeFieldsCache[t]
+	typeCacheLock.RUnlock()
+	if ok {
+		return fs
+	}
+
+	typeCacheLock.Lock()
+	defer typeCacheLock.Unlock()
+	fs, ok = encodeFieldsCache[t]
+	if ok {
+		return fs
+	}
+
+	v := reflect.Zero(t)
+	n := v.NumField()
+	for i := 0; i < n; i++ {
+		f := t.Field(i)
+		if f.PkgPath != "" {
+			continue
+		}
+		var ef encodeField
+		ef.i = i
+		ef.tag = f.Name
+
+		tv := f.Tag.Get("json")
+		if tv != "" {
+			if tv == "-" {
+				continue
+			}
+			name, opts := parseTag(tv)
+			if isValidTag(name) {
+				ef.tag = name
+			}
+			ef.omitEmpty = opts.Contains("omitempty")
+			ef.quoted = opts.Contains("string")
+		}
+		fs = append(fs, ef)
+	}
+	encodeFieldsCache[t] = fs
+	return fs
 }
