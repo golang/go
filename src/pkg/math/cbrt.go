@@ -45,22 +45,21 @@ func Cbrt(x float64) float64 {
 		x = -x
 		sign = true
 	}
-	// Reduce argument
-	f, e := Frexp(x)
+	// Reduce argument and estimate cube root
+	f, e := Frexp(x) // 0.5 <= f < 1.0
 	m := e % 3
 	if m > 0 {
 		m -= 3
 		e -= m // e is multiple of 3
 	}
-	f = Ldexp(f, m) // 0.125 <= f < 1.0
-
-	// Estimate cube root
 	switch m {
 	case 0: // 0.5 <= f < 1.0
 		f = A1*f + A2 - A3/(A4+f)
-	case -1: // 0.25 <= f < 0.5
+	case -1:
+		f *= 0.5 // 0.25 <= f < 0.5
 		f = B1*f + B2 - B3/(B4+f)
-	default: // 0.125 <= f < 0.25
+	default: // m == -2
+		f *= 0.25 // 0.125 <= f < 0.25
 		f = C1*f + C2 - C3/(C4+f)
 	}
 	y := Ldexp(f, e/3) // e/3 = exponent of cube root
