@@ -218,8 +218,9 @@ func install(pkg, parent string) {
 		} else {
 			// Test if this is a public repository
 			// (for reporting to dashboard).
-			m, _ := findPublicRepo(pkg)
-			public = m != nil
+			repo, e := findPublicRepo(pkg)
+			public = repo != nil
+			err = e
 		}
 	}
 	if err != nil {
@@ -333,4 +334,19 @@ func genRun(dir string, stdin []byte, arg []string, quiet bool) error {
 		return errors.New("running " + arg[0] + ": " + err.Error())
 	}
 	return nil
+}
+
+// isRemote returns true if the first part of the package name looks like a
+// hostname - i.e. contains at least one '.' and the last part is at least 2
+// characters.
+func isRemote(pkg string) bool {
+	parts := strings.SplitN(pkg, "/", 2)
+	if len(parts) != 2 {
+		return false
+	}
+	parts = strings.Split(parts[0], ".")
+	if len(parts) < 2 || len(parts[len(parts)-1]) < 2 {
+		return false
+	}
+	return true
 }

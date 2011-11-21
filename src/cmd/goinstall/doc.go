@@ -79,6 +79,10 @@ Goinstall recognizes packages from a few common code hosting sites:
 		import "project.googlecode.com/svn/trunk"
 		import "project.googlecode.com/svn/trunk/sub/directory"
 
+	Google Code Project Hosting sub-repositories:
+
+		import "code.google.com/p/project.subrepo/sub/directory
+
 	Launchpad (Bazaar)
 
 		import "launchpad.net/project"
