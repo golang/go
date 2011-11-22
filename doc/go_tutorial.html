@@ -557,10 +557,7 @@ exported factory to use is <code>OpenFile</code> (we'll explain that name in a m
 <p>
 <pre><!--{{code "progs/file.go" `/func.OpenFile/` `/^}/`}}
 -->func OpenFile(name string, mode int, perm uint32) (file *File, err error) {
-    r, e := syscall.Open(name, mode, perm)
-    if e != 0 {
-        err = os.Errno(e)
-    }
+    r, err := syscall.Open(name, mode, perm)
     return newFile(r, name), err
 }
 </pre>
@@ -626,22 +623,16 @@ each of which declares a receiver variable <code>file</code>.
     if file == nil {
         return os.EINVAL
     }
-    e := syscall.Close(file.fd)
+    err := syscall.Close(file.fd)
     file.fd = -1 // so it can&#39;t be closed again
-    if e != 0 {
-        return os.Errno(e)
-    }
-    return nil
+    return err
 }
 
 func (file *File) Read(b []byte) (ret int, err error) {
     if file == nil {
         return -1, os.EINVAL
     }
-    r, e := syscall.Read(file.fd, b)
-    if e != 0 {
-        err = os.Errno(e)
-    }
+    r, err := syscall.Read(file.fd, b)
     return int(r), err
 }
 
@@ -649,10 +640,7 @@ func (file *File) Write(b []byte) (ret int, err error) {
     if file == nil {
         return -1, os.EINVAL
     }
-    r, e := syscall.Write(file.fd, b)
-    if e != 0 {
-        err = os.Errno(e)
-    }
+    r, err := syscall.Write(file.fd, b)
     return int(r), err
 }
 
