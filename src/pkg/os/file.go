@@ -70,8 +70,8 @@ func (file *File) Read(b []byte) (n int, err error) {
 
 // ReadAt reads len(b) bytes from the File starting at byte offset off.
 // It returns the number of bytes read and the error, if any.
-// EOF is signaled by a zero count with err set to io.EOF.
-// ReadAt always returns a non-nil error when n != len(b).
+// ReadAt always returns a non-nil error when n < len(b).
+// At end of file, that error is io.EOF.
 func (file *File) ReadAt(b []byte, off int64) (n int, err error) {
 	if file == nil {
 		return 0, EINVAL
