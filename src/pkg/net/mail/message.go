@@ -185,7 +185,7 @@ func (a *Address) String() string {
 type addrParser []byte
 
 func newAddrParser(s string) *addrParser {
-	p := addrParser([]byte(s))
+	p := addrParser(s)
 	return &p
 }
 

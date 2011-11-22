@@ -1177,19 +1177,19 @@ convertop(Type *src, Type *dst, char **why)
 	if(isint[src->etype] && dst->etype == TSTRING)
 		return ORUNESTR;
 
-	if(isslice(src) && src->sym == nil && dst->etype == TSTRING) {
-		if(eqtype(src->type, bytetype))
+	if(isslice(src) && dst->etype == TSTRING) {
+		if(src->type->etype == bytetype->etype)
 			return OARRAYBYTESTR;
-		if(eqtype(src->type, runetype))
+		if(src->type->etype == runetype->etype)
 			return OARRAYRUNESTR;
 	}
 	
 	// 7. src is a string and dst is []byte or []rune.
 	// String to slice.
-	if(src->etype == TSTRING && isslice(dst) && dst->sym == nil) {
-		if(eqtype(dst->type, bytetype))
+	if(src->etype == TSTRING && isslice(dst)) {
+		if(dst->type->etype == bytetype->etype)
 			return OSTRARRAYBYTE;
-		if(eqtype(dst->type, runetype))
+		if(dst->type->etype == runetype->etype)
 			return OSTRARRAYRUNE;
 	}
 	

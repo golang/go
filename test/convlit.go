@@ -54,12 +54,12 @@ var _ = []byte(ss)
 var _ []rune = ss // ERROR "cannot use|incompatible|invalid"
 var _ []byte = ss // ERROR "cannot use|incompatible|invalid"
 
-// named slice is not
+// named slice is now ok
 type Trune []rune
 type Tbyte []byte
 
-var _ = Trune("abc") // ERROR "convert|incompatible|invalid"
-var _ = Tbyte("abc") // ERROR "convert|incompatible|invalid"
+var _ = Trune("abc") // ok
+var _ = Tbyte("abc") // ok
 
 // implicit is still not
 var _ Trune = "abc" // ERROR "cannot use|incompatible|invalid"
