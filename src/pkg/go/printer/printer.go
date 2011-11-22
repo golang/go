@@ -44,20 +44,13 @@ const (
 	noExtraLinebreak
 )
 
-// local error wrapper so we can distinguish errors we want to return
-// as errors from genuine panics (which we don't want to return as errors)
-type printerError struct {
-	err error
-}
-
 type printer struct {
 	// Configuration (does not change after initialization)
-	output io.Writer
 	Config
-	fset *token.FileSet
+	fset   *token.FileSet
+	output bytes.Buffer
 
 	// Current state
-	written int         // number of bytes written
 	indent  int         // current indentation
 	mode    pmode       // current printer mode
 	lastTok token.Token // the last token printed (token.ILLEGAL if it's whitespace)
@@ -85,8 +78,7 @@ type printer struct {
 	nodeSizes map[ast.Node]int
 }
 
-func (p *printer) init(output io.Writer, cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]int) {
-	p.output = output
+func (p *printer) init(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]int) {
 	p.Config = *cfg
 	p.fset = fset
 	p.wsbuf = make([]whiteSpace, 0, 16) // whitespace sequences are short
@@ -128,22 +120,6 @@ func (p *printer) nlines(n, min int) int {
 	return n
 }
 
-// write0 writes raw (uninterpreted) data to p.output and handles errors.
-// write0 does not indent after newlines, and does not HTML-escape or update p.pos.
-//
-func (p *printer) write0(data string) {
-	if len(data) > 0 {
-		// TODO(gri) Replace bottleneck []byte conversion
-		//           with writing into a bytes.Buffer.
-		//           Will also simplify post-processing.
-		n, err := p.output.Write([]byte(data))
-		p.written += n
-		if err != nil {
-			panic(printerError{err})
-		}
-	}
-}
-
 // write interprets data and writes it to p.output. It inserts indentation
 // after a line break unless in a tabwriter escape sequence.
 // It updates p.pos as a side-effect.
@@ -154,7 +130,7 @@ func (p *printer) write(data string) {
 		switch data[i] {
 		case '\n', '\f':
 			// write segment ending in data[i]
-			p.write0(data[i0 : i+1])
+			p.output.WriteString(data[i0 : i+1])
 
 			// update p.pos
 			p.pos.Offset += i + 1 - i0
@@ -168,9 +144,9 @@ func (p *printer) write(data string) {
 				// must not be discarded by the tabwriter
 				j := p.indent
 				for ; j > len(htabs); j -= len(htabs) {
-					p.write0(htabs)
+					p.output.WriteString(htabs)
 				}
-				p.write0(htabs[0:j])
+				p.output.WriteString(htabs[0:j])
 
 				// update p.pos
 				p.pos.Offset += p.indent
@@ -191,7 +167,7 @@ func (p *printer) write(data string) {
 	}
 
 	// write remaining segment
-	p.write0(data[i0:])
+	p.output.WriteString(data[i0:])
 
 	// update p.pos
 	d := len(data) - i0
@@ -232,7 +208,7 @@ func (p *printer) writeItem(pos token.Position, data string) {
 	if debug {
 		// do not update p.pos - use write0
 		_, filename := filepath.Split(pos.Filename)
-		p.write0(fmt.Sprintf("[%s:%d:%d]", filename, pos.Line, pos.Column))
+		fmt.Fprintf(&p.output, "[%s:%d:%d]", filename, pos.Line, pos.Column)
 	}
 	p.write(data)
 	p.last = p.pos
@@ -249,7 +225,7 @@ const linePrefix = "//line "
 // next item is a keyword.
 //
 func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *ast.Comment, isKeyword bool) {
-	if p.written == 0 {
+	if p.output.Len() == 0 {
 		// the comment is the first item to be printed - don't write any whitespace
 		return
 	}
@@ -701,7 +677,6 @@ func (p *printer) writeWhitespace(n int) {
 // ----------------------------------------------------------------------------
 // Printing interface
 
-
 func mayCombine(prev token.Token, next byte) (b bool) {
 	switch prev {
 	case token.INT:
@@ -831,6 +806,35 @@ func (p *printer) flush(next token.Position, tok token.Token) (droppedFF bool) {
 	return
 }
 
+func (p *printer) printNode(node interface{}) error {
+	switch n := node.(type) {
+	case ast.Expr:
+		p.useNodeComments = true
+		p.expr(n, ignoreMultiLine)
+	case ast.Stmt:
+		p.useNodeComments = true
+		// A labeled statement will un-indent to position the
+		// label. Set indent to 1 so we don't get indent "underflow".
+		if _, labeledStmt := n.(*ast.LabeledStmt); labeledStmt {
+			p.indent = 1
+		}
+		p.stmt(n, false, ignoreMultiLine)
+	case ast.Decl:
+		p.useNodeComments = true
+		p.decl(n, ignoreMultiLine)
+	case ast.Spec:
+		p.useNodeComments = true
+		p.spec(n, 1, false, ignoreMultiLine)
+	case *ast.File:
+		p.comments = n.Comments
+		p.useNodeComments = n.Comments == nil
+		p.file(n)
+	default:
+		return fmt.Errorf("go/printer: unsupported node type %T", n)
+	}
+	return nil
+}
+
 // ----------------------------------------------------------------------------
 // Trimmer
 
@@ -950,15 +954,22 @@ type Config struct {
 }
 
 // fprint implements Fprint and takes a nodesSizes map for setting up the printer state.
-func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{}, nodeSizes map[ast.Node]int) (written int, err error) {
+func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{}, nodeSizes map[ast.Node]int) (err error) {
+	// print node
+	var p printer
+	p.init(cfg, fset, nodeSizes)
+	if err = p.printNode(node); err != nil {
+		return
+	}
+	p.flush(token.Position{Offset: infinity, Line: infinity}, token.EOF)
+
 	// redirect output through a trimmer to eliminate trailing whitespace
 	// (Input to a tabwriter must be untrimmed since trailing tabs provide
 	// formatting information. The tabwriter could provide trimming
 	// functionality but no tabwriter is used when RawFormat is set.)
 	output = &trimmer{output: output}
 
-	// setup tabwriter if needed and redirect output
-	var tw *tabwriter.Writer
+	// redirect output through a tabwriter if necessary
 	if cfg.Mode&RawFormat == 0 {
 		minwidth := cfg.Tabwidth
 
@@ -973,51 +984,17 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
 			twmode |= tabwriter.TabIndent
 		}
 
-		tw = tabwriter.NewWriter(output, minwidth, cfg.Tabwidth, 1, padchar, twmode)
-		output = tw
+		output = tabwriter.NewWriter(output, minwidth, cfg.Tabwidth, 1, padchar, twmode)
 	}
 
-	// setup printer
-	var p printer
-	p.init(output, cfg, fset, nodeSizes)
-	defer func() {
-		written = p.written
-		if e := recover(); e != nil {
-			err = e.(printerError).err // re-panics if it's not a printerError
-		}
-	}()
-
-	// print node
-	switch n := node.(type) {
-	case ast.Expr:
-		p.useNodeComments = true
-		p.expr(n, ignoreMultiLine)
-	case ast.Stmt:
-		p.useNodeComments = true
-		// A labeled statement will un-indent to position the
-		// label. Set indent to 1 so we don't get indent "underflow".
-		if _, labeledStmt := n.(*ast.LabeledStmt); labeledStmt {
-			p.indent = 1
-		}
-		p.stmt(n, false, ignoreMultiLine)
-	case ast.Decl:
-		p.useNodeComments = true
-		p.decl(n, ignoreMultiLine)
-	case ast.Spec:
-		p.useNodeComments = true
-		p.spec(n, 1, false, ignoreMultiLine)
-	case *ast.File:
-		p.comments = n.Comments
-		p.useNodeComments = n.Comments == nil
-		p.file(n)
-	default:
-		panic(printerError{fmt.Errorf("printer.Fprint: unsupported node type %T", n)})
+	// write printer result via tabwriter/trimmer to output
+	if _, err = output.Write(p.output.Bytes()); err != nil {
+		return
 	}
-	p.flush(token.Position{Offset: infinity, Line: infinity}, token.EOF)
 
 	// flush tabwriter, if any
-	if tw != nil {
-		tw.Flush() // ignore errors
+	if tw, _ := (output).(*tabwriter.Writer); tw != nil {
+		err = tw.Flush()
 	}
 
 	return
@@ -1028,15 +1005,16 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
 // Position information is interpreted relative to the file set fset.
 // The node type must be *ast.File, or assignment-compatible to ast.Expr,
 // ast.Decl, ast.Spec, or ast.Stmt.
+// Note: The number of bytes written is always 0 and should be ignored.
 //
 func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) (int, error) {
-	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
+	return 0, cfg.fprint(output, fset, node, make(map[ast.Node]int))
 }
 
 // Fprint "pretty-prints" an AST node to output.
 // It calls Config.Fprint with default settings.
 //
 func Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
-	_, err := (&Config{Tabwidth: 8}).Fprint(output, fset, node) // don't care about number of bytes written
+	_, err := (&Config{Tabwidth: 8}).Fprint(output, fset, node)
 	return err
 }
