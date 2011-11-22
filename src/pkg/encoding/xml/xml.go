@@ -61,7 +61,7 @@ type StartElement struct {
 
 func (e StartElement) Copy() StartElement {
 	attrs := make([]Attr, len(e.Attr))
-	copy(e.Attr, attrs)
+	copy(attrs, e.Attr)
 	e.Attr = attrs
 	return e
 }
