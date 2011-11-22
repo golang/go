@@ -73,6 +73,15 @@ gomake clean
 gotest
 ) || exit $?
 
+[ "$CGO_ENABLED" != 1 ] ||
+[ "$GOHOSTOS" == windows ] ||
+[ "$GOHOSTOS" == darwin ] ||
+(xcd ../misc/cgo/testso
+gomake clean
+gomake out
+LD_LIBRARY_PATH=. ./out
+) || exit $?
+
 (xcd ../doc/progs
 time ./run
 ) || exit $?

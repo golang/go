@@ -162,7 +162,7 @@ endif
 # After main we have to define all the symbols that will be provided
 # by Go code.  That's crosscall2 and any exported symbols.
 
-_cgo1_.o: _cgo_main.o $(CGO_OFILES)
+_cgo1_.o: _cgo_main.o $(CGO_OFILES) $(CGO_DEPS)
 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ $^ $(CGO_LDFLAGS) $(_CGO_LDFLAGS)
 
 _obj/_cgo_import.c: _cgo1_.o
