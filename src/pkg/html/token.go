@@ -289,7 +289,11 @@ func (z *Tokenizer) readComment() {
 	for dashCount := 2; ; {
 		c := z.readByte()
 		if z.err != nil {
-			z.data.end = z.raw.end
+			// Ignore up to two dashes at EOF.
+			if dashCount > 2 {
+				dashCount = 2
+			}
+			z.data.end = z.raw.end - dashCount
 			return
 		}
 		switch c {
