@@ -457,6 +457,8 @@ func inHeadIM(p *parser) bool {
 		implied = true
 	case StartTagToken:
 		switch p.tok.Data {
+		case "html":
+			return inBodyIM(p)
 		case "base", "basefont", "bgsound", "command", "link", "meta":
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.oe.pop()
@@ -581,6 +583,8 @@ func inBodyIM(p *parser) bool {
 		p.framesetOK = false
 	case StartTagToken:
 		switch p.tok.Data {
+		case "html":
+			copyAttributes(p.oe[0], p.tok)
 		case "address", "article", "aside", "blockquote", "center", "details", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "menu", "nav", "ol", "p", "section", "summary", "ul":
 			p.popUntil(buttonScopeStopTags, "p")
 			p.addElement(p.tok.Data, p.tok.Attr)
