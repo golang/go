@@ -54,8 +54,8 @@ func main() {
 
 	_, bb := <-c
 	asBool(bb) // ERROR "cannot use.*type bool.*as type Bool"
-	_, b = <-c     // ERROR "cannot .* bool.*type Bool"
+	_, b = <-c // ERROR "cannot .* bool.*type Bool"
 	_ = b
 
-	asString(String(slice)) // ERROR "cannot .*type Slice.*type String"
+	asString(String(slice)) // ok
 }
