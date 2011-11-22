@@ -20,7 +20,7 @@ import (
 var testfile *ast.File
 
 func testprint(out io.Writer, file *ast.File) {
-	if _, err := (&Config{TabIndent | UseSpaces, 8}).Fprint(out, fset, file); err != nil {
+	if err := (&Config{TabIndent | UseSpaces, 8}).Fprint(out, fset, file); err != nil {
 		log.Fatalf("print error: %s", err)
 	}
 }
