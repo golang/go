@@ -1000,21 +1000,18 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
 	return
 }
 
-// Fprint "pretty-prints" an AST node to output and returns the number
-// of bytes written and an error (if any) for a given configuration cfg.
+// Fprint "pretty-prints" an AST node to output for a given configuration cfg.
 // Position information is interpreted relative to the file set fset.
 // The node type must be *ast.File, or assignment-compatible to ast.Expr,
 // ast.Decl, ast.Spec, or ast.Stmt.
-// Note: The number of bytes written is always 0 and should be ignored.
 //
-func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) (int, error) {
-	return 0, cfg.fprint(output, fset, node, make(map[ast.Node]int))
+func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
+	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
 }
 
 // Fprint "pretty-prints" an AST node to output.
 // It calls Config.Fprint with default settings.
 //
 func Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
-	_, err := (&Config{Tabwidth: 8}).Fprint(output, fset, node)
-	return err
+	return (&Config{Tabwidth: 8}).Fprint(output, fset, node)
 }

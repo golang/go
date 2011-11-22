@@ -109,7 +109,7 @@ func gofmtFile(f *ast.File) ([]byte, error) {
 	var buf bytes.Buffer
 
 	ast.SortImports(fset, f)
-	_, err := printConfig.Fprint(&buf, fset, f)
+	err := printConfig.Fprint(&buf, fset, f)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +203,7 @@ var gofmtBuf bytes.Buffer
 
 func gofmt(n interface{}) string {
 	gofmtBuf.Reset()
-	_, err := printConfig.Fprint(&gofmtBuf, fset, n)
+	err := printConfig.Fprint(&gofmtBuf, fset, n)
 	if err != nil {
 		return "<" + err.Error() + ">"
 	}
