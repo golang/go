@@ -486,10 +486,13 @@ func TestCopyTokenStartElement(t *testing.T) {
 	elt := StartElement{Name{"", "hello"}, []Attr{{Name{"", "lang"}, "en"}}}
 	var tok1 Token = elt
 	tok2 := CopyToken(tok1)
+	if tok1.(StartElement).Attr[0].Value != "en" {
+		t.Error("CopyToken overwrote Attr[0]")
+	}
 	if !reflect.DeepEqual(tok1, tok2) {
 		t.Error("CopyToken(StartElement) != StartElement")
 	}
-	elt.Attr[0] = Attr{Name{"", "lang"}, "de"}
+	tok1.(StartElement).Attr[0] = Attr{Name{"", "lang"}, "de"}
 	if reflect.DeepEqual(tok1, tok2) {
 		t.Error("CopyToken(CharData) uses same buffer.")
 	}
