@@ -501,6 +501,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 		if fn.Recv != nil {
 			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname
 		}
+		fmt.Fprintf(fc, "#pragma dynexport %s %s\n", goname, goname)
 		fmt.Fprintf(fc, "extern void ·%s();\n", goname)
 		fmt.Fprintf(fc, "\nvoid\n")
 		fmt.Fprintf(fc, "_cgoexp%s_%s(void *a, int32 n)\n", cPrefix, exp.ExpName)
