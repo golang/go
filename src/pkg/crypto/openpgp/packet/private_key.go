@@ -99,13 +99,9 @@ func (pk *PrivateKey) parse(r io.Reader) (err error) {
 }
 
 func mod64kHash(d []byte) uint16 {
-	h := uint16(0)
-	for i := 0; i < len(d); i += 2 {
-		v := uint16(d[i]) << 8
-		if i+1 < len(d) {
-			v += uint16(d[i+1])
-		}
-		h += v
+	var h uint16
+	for _, b := range d {
+		h += uint16(b)
 	}
 	return h
 }
