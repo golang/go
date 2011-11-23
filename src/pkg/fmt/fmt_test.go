@@ -47,8 +47,10 @@ func TestFmtInterface(t *testing.T) {
 const b32 uint32 = 1<<32 - 1
 const b64 uint64 = 1<<64 - 1
 
-var array = []int{1, 2, 3, 4, 5}
-var iarray = []interface{}{1, "hello", 2.5, nil}
+var array = [5]int{1, 2, 3, 4, 5}
+var iarray = [4]interface{}{1, "hello", 2.5, nil}
+var slice = array[:]
+var islice = iarray[:]
 
 type A struct {
 	i int
@@ -327,6 +329,12 @@ var fmttests = []struct {
 	{"%v", &array, "&[1 2 3 4 5]"},
 	{"%v", &iarray, "&[1 hello 2.5 <nil>]"},
 
+	// slices
+	{"%v", slice, "[1 2 3 4 5]"},
+	{"%v", islice, "[1 hello 2.5 <nil>]"},
+	{"%v", &slice, "&[1 2 3 4 5]"},
+	{"%v", &islice, "&[1 hello 2.5 <nil>]"},
+
 	// complexes with %v
 	{"%v", 1 + 2i, "(1+2i)"},
 	{"%v", complex64(1 + 2i), "(1+2i)"},
@@ -359,6 +367,10 @@ var fmttests = []struct {
 	{"%#v", SI{}, `fmt_test.SI{I:interface {}(nil)}`},
 	{"%#v", []int(nil), `[]int(nil)`},
 	{"%#v", []int{}, `[]int{}`},
+	{"%#v", array, `[5]int{1, 2, 3, 4, 5}`},
+	{"%#v", &array, `&[5]int{1, 2, 3, 4, 5}`},
+	{"%#v", iarray, `[4]interface {}{1, "hello", 2.5, interface {}(nil)}`},
+	{"%#v", &iarray, `&[4]interface {}{1, "hello", 2.5, interface {}(nil)}`},
 	{"%#v", map[int]byte(nil), `map[int] uint8(nil)`},
 	{"%#v", map[int]byte{}, `map[int] uint8{}`},
 
