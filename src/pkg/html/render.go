@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 type writer interface {
@@ -98,6 +99,40 @@ func render1(w writer, n *Node) error {
 		if _, err := w.WriteString(n.Data); err != nil {
 			return err
 		}
+		if n.Attr != nil {
+			var p, s string
+			for _, a := range n.Attr {
+				switch a.Key {
+				case "public":
+					p = a.Val
+				case "system":
+					s = a.Val
+				}
+			}
+			if p != "" {
+				if _, err := w.WriteString(" PUBLIC "); err != nil {
+					return err
+				}
+				if err := writeQuoted(w, p); err != nil {
+					return err
+				}
+				if s != "" {
+					if err := w.WriteByte(' '); err != nil {
+						return err
+					}
+					if err := writeQuoted(w, s); err != nil {
+						return err
+					}
+				}
+			} else if s != "" {
+				if _, err := w.WriteString(" SYSTEM "); err != nil {
+					return err
+				}
+				if err := writeQuoted(w, s); err != nil {
+					return err
+				}
+			}
+		}
 		return w.WriteByte('>')
 	default:
 		return errors.New("html: unknown node type")
@@ -179,6 +214,27 @@ func render1(w writer, n *Node) error {
 		return err
 	}
 	return w.WriteByte('>')
+}
+
+// writeQuoted writes s to w surrounded by quotes. Normally it will use double
+// quotes, but if s contains a double quote, it will use single quotes.
+// It is used for writing the identifiers in a doctype declaration.
+// In valid HTML, they can't contain both types of quotes.
+func writeQuoted(w writer, s string) error {
+	var q byte = '"'
+	if strings.Contains(s, `"`) {
+		q = '\''
+	}
+	if err := w.WriteByte(q); err != nil {
+		return err
+	}
+	if _, err := w.WriteString(s); err != nil {
+		return err
+	}
+	if err := w.WriteByte(q); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Section 13.1.2, "Elements", gives this list of void elements. Void elements
