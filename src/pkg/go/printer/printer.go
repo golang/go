@@ -21,7 +21,7 @@ import (
 const debug = false // enable for debugging
 const infinity = 1 << 30
 
-type whiteSpace int
+type whiteSpace byte
 
 const (
 	ignore   = whiteSpace(0)
@@ -40,24 +40,20 @@ var ignoreMultiLine = new(bool)
 type pmode int
 
 const (
-	inLiteral pmode = 1 << iota
-	noExtraLinebreak
+	noExtraLinebreak pmode = 1 << iota
 )
 
 type printer struct {
 	// Configuration (does not change after initialization)
 	Config
-	fset   *token.FileSet
-	output bytes.Buffer
+	fset *token.FileSet
 
 	// Current state
-	indent  int         // current indentation
-	mode    pmode       // current printer mode
-	lastTok token.Token // the last token printed (token.ILLEGAL if it's whitespace)
-
-	// Reused buffers
-	wsbuf  []whiteSpace // delayed white space
-	litbuf bytes.Buffer // for creation of escaped literals and comments
+	output  bytes.Buffer // raw printer result
+	indent  int          // current indentation
+	mode    pmode        // current printer mode
+	lastTok token.Token  // the last token printed (token.ILLEGAL if it's whitespace)
+	wsbuf   []whiteSpace // delayed white space
 
 	// The (possibly estimated) position in the generated output;
 	// in AST space (i.e., pos is set whenever a token position is
@@ -93,19 +89,6 @@ func (p *printer) internalError(msg ...interface{}) {
 	}
 }
 
-// escape escapes string s by bracketing it with tabwriter.Escape.
-// Escaped strings pass through tabwriter unchanged. (Note that
-// valid Go programs cannot contain tabwriter.Escape bytes since
-// they do not appear in legal UTF-8 sequences).
-//
-func (p *printer) escape(s string) string {
-	p.litbuf.Reset()
-	p.litbuf.WriteByte(tabwriter.Escape)
-	p.litbuf.WriteString(s)
-	p.litbuf.WriteByte(tabwriter.Escape)
-	return p.litbuf.String()
-}
-
 // nlines returns the adjusted number of linebreaks given the desired number
 // of breaks n such that min <= result <= max.
 //
@@ -120,69 +103,78 @@ func (p *printer) nlines(n, min int) int {
 	return n
 }
 
-// write interprets data and writes it to p.output. It inserts indentation
-// after a line break unless in a tabwriter escape sequence.
-// It updates p.pos as a side-effect.
-//
-func (p *printer) write(data string) {
-	i0 := 0
-	for i := 0; i < len(data); i++ {
-		switch data[i] {
-		case '\n', '\f':
-			// write segment ending in data[i]
-			p.output.WriteString(data[i0 : i+1])
+// writeByte writes a single byte to p.output and updates p.pos.
+func (p *printer) writeByte(ch byte) {
+	p.output.WriteByte(ch)
+	p.pos.Offset++
+	p.pos.Column++
 
-			// update p.pos
-			p.pos.Offset += i + 1 - i0
-			p.pos.Line++
-			p.pos.Column = 1
-
-			if p.mode&inLiteral == 0 {
-				// write indentation
-				const htabs = "\t\t\t\t\t\t\t\t"
-				// use "hard" htabs - indentation columns
-				// must not be discarded by the tabwriter
-				j := p.indent
-				for ; j > len(htabs); j -= len(htabs) {
-					p.output.WriteString(htabs)
-				}
-				p.output.WriteString(htabs[0:j])
-
-				// update p.pos
-				p.pos.Offset += p.indent
-				p.pos.Column += p.indent
-			}
-
-			// next segment start
-			i0 = i + 1
-
-		case tabwriter.Escape:
-			p.mode ^= inLiteral
-
-			// ignore escape chars introduced by printer - they are
-			// invisible and must not affect p.pos (was issue #1089)
-			p.pos.Offset--
-			p.pos.Column--
+	if ch == '\n' || ch == '\f' {
+		// write indentation
+		// use "hard" htabs - indentation columns
+		// must not be discarded by the tabwriter
+		const htabs = "\t\t\t\t\t\t\t\t"
+		j := p.indent
+		for j > len(htabs) {
+			p.output.WriteString(htabs)
+			j -= len(htabs)
 		}
+		p.output.WriteString(htabs[0:j])
+
+		// update p.pos
+		p.pos.Line++
+		p.pos.Offset += p.indent
+		p.pos.Column = 1 + p.indent
 	}
-
-	// write remaining segment
-	p.output.WriteString(data[i0:])
-
-	// update p.pos
-	d := len(data) - i0
-	p.pos.Offset += d
-	p.pos.Column += d
 }
 
-func (p *printer) writeNewlines(n int, useFF bool) {
-	if n > 0 {
-		n = p.nlines(n, 0)
-		if useFF {
-			p.write("\f\f\f\f"[0:n])
-		} else {
-			p.write("\n\n\n\n"[0:n])
+// writeNewlines writes up to n newlines to p.output and updates p.pos.
+// The actual number of newlines written is limited by nlines.
+// nl must be one of '\n' or '\f'.
+//
+func (p *printer) writeNewlines(n int, nl byte) {
+	for n = p.nlines(n, 0); n > 0; n-- {
+		p.writeByte(nl)
+	}
+}
+
+// writeString writes the string s to p.output and updates p.pos.
+// If isLit is set, s is escaped w/ tabwriter.Escape characters
+// to protect s from being interpreted by the tabwriter.
+//
+// Note: writeString is only used to write Go tokens, literals, and
+// comments, all of which must be written literally. Thus, it is correct
+// to always set isLit = true. However, setting it explicitly only when
+// needed (i.e., when we don't know that s contains no tabs or line breaks)
+// avoids processing extra escape characters and reduces run time of the
+// printer benchmark by up to 10%.
+//
+func (p *printer) writeString(s string, isLit bool) {
+	if isLit {
+		// Protect s such that is passes through the tabwriter
+		// unchanged. Note that valid Go programs cannot contain
+		// tabwriter.Escape bytes since they do not appear in legal
+		// UTF-8 sequences.
+		p.output.WriteByte(tabwriter.Escape)
+	}
+
+	p.output.WriteString(s)
+
+	// update p.pos
+	nlines := 0
+	column := p.pos.Column + len(s)
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			nlines++
+			column = len(s) - i
 		}
+	}
+	p.pos.Offset += len(s)
+	p.pos.Line += nlines
+	p.pos.Column = column
+
+	if isLit {
+		p.output.WriteByte(tabwriter.Escape)
 	}
 }
 
@@ -192,7 +184,7 @@ func (p *printer) writeNewlines(n int, useFF bool) {
 // source text. writeItem updates p.last to the position immediately following
 // the data.
 //
-func (p *printer) writeItem(pos token.Position, data string) {
+func (p *printer) writeItem(pos token.Position, data string, isLit bool) {
 	if pos.IsValid() {
 		// continue with previous position if we don't have a valid pos
 		if p.last.IsValid() && p.last.Filename != pos.Filename {
@@ -210,7 +202,7 @@ func (p *printer) writeItem(pos token.Position, data string) {
 		_, filename := filepath.Split(pos.Filename)
 		fmt.Fprintf(&p.output, "[%s:%d:%d]", filename, pos.Line, pos.Column)
 	}
-	p.write(data)
+	p.writeString(data, isLit)
 	p.last = p.pos
 }
 
@@ -232,7 +224,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 
 	if pos.IsValid() && pos.Filename != p.last.Filename {
 		// comment in a different file - separate with newlines (writeNewlines will limit the number)
-		p.writeNewlines(10, true)
+		p.writeNewlines(10, '\f')
 		return
 	}
 
@@ -265,14 +257,14 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 		}
 		// make sure there is at least one separator
 		if !hasSep {
+			sep := byte('\t')
 			if pos.Line == next.Line {
 				// next item is on the same line as the comment
 				// (which must be a /*-style comment): separate
 				// with a blank instead of a tab
-				p.write(" ")
-			} else {
-				p.write("\t")
+				sep = ' '
 			}
+			p.writeByte(sep)
 		}
 
 	} else {
@@ -325,7 +317,9 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 		if n <= 0 && prev != nil && prev.Text[1] == '/' {
 			n = 1
 		}
-		p.writeNewlines(n, true)
+		if n > 0 {
+			p.writeNewlines(n, '\f')
+		}
 		p.indent = indent
 	}
 }
@@ -530,7 +524,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 
 	// shortcut common case of //-style comments
 	if text[1] == '/' {
-		p.writeItem(p.fset.Position(comment.Pos()), p.escape(text))
+		p.writeItem(p.fset.Position(comment.Pos()), text, true)
 		return
 	}
 
@@ -544,11 +538,11 @@ func (p *printer) writeComment(comment *ast.Comment) {
 	pos := p.fset.Position(comment.Pos())
 	for i, line := range lines {
 		if i > 0 {
-			p.write("\f")
+			p.writeByte('\f')
 			pos = p.pos
 		}
 		if len(line) > 0 {
-			p.writeItem(pos, p.escape(line))
+			p.writeItem(pos, line, true)
 		}
 	}
 }
@@ -584,7 +578,7 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
 
 	// make sure we have a line break
 	if needsLinebreak {
-		p.write("\n")
+		p.writeByte('\n')
 	}
 
 	return
@@ -610,7 +604,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (dro
 		if last.Text[1] == '*' && p.fset.Position(last.Pos()).Line == next.Line {
 			// the last comment is a /*-style comment and the next item
 			// follows on the same line: separate with an extra blank
-			p.write(" ")
+			p.writeByte(' ')
 		}
 		// ensure that there is a line break after a //-style comment,
 		// before a closing '}' unless explicitly disabled, or at eof
@@ -661,7 +655,7 @@ func (p *printer) writeWhitespace(n int) {
 			}
 			fallthrough
 		default:
-			p.write(string(ch))
+			p.writeByte(byte(ch))
 		}
 	}
 
@@ -709,7 +703,8 @@ func mayCombine(prev token.Token, next byte) (b bool) {
 func (p *printer) print(args ...interface{}) {
 	for _, f := range args {
 		next := p.pos // estimated position of next item
-		var data string
+		data := ""
+		isLit := false
 		var tok token.Token
 
 		switch x := f.(type) {
@@ -737,7 +732,8 @@ func (p *printer) print(args ...interface{}) {
 			data = x.Name
 			tok = token.IDENT
 		case *ast.BasicLit:
-			data = p.escape(x.Value)
+			data = x.Value
+			isLit = true
 			tok = x.Kind
 		case token.Token:
 			s := x.String()
@@ -769,15 +765,20 @@ func (p *printer) print(args ...interface{}) {
 		p.pos = next
 
 		if data != "" {
-			droppedFF := p.flush(next, tok)
+			nl := byte('\n')
+			if p.flush(next, tok) {
+				nl = '\f' // dropped formfeed before
+			}
 
 			// intersperse extra newlines if present in the source
 			// (don't do this in flush as it will cause extra newlines
 			// at the end of a file) - use formfeeds if we dropped one
 			// before
-			p.writeNewlines(next.Line-p.pos.Line, droppedFF)
+			if n := next.Line - p.pos.Line; n > 0 {
+				p.writeNewlines(n, nl)
+			}
 
-			p.writeItem(next, data)
+			p.writeItem(next, data, isLit)
 		}
 	}
 }
