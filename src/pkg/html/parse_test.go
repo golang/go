@@ -97,7 +97,23 @@ func dumpLevel(w io.Writer, n *Node, level int) error {
 	case CommentNode:
 		fmt.Fprintf(w, "<!-- %s -->", n.Data)
 	case DoctypeNode:
-		fmt.Fprintf(w, "<!DOCTYPE %s>", n.Data)
+		fmt.Fprintf(w, "<!DOCTYPE %s", n.Data)
+		if n.Attr != nil {
+			var p, s string
+			for _, a := range n.Attr {
+				switch a.Key {
+				case "public":
+					p = a.Val
+				case "system":
+					s = a.Val
+				}
+			}
+			if p != "" || s != "" {
+				fmt.Fprintf(w, ` "%s"`, p)
+				fmt.Fprintf(w, ` "%s"`, s)
+			}
+		}
+		io.WriteString(w, ">")
 	case scopeMarkerNode:
 		return errors.New("unexpected scopeMarkerNode")
 	default:
@@ -133,8 +149,9 @@ func TestParser(t *testing.T) {
 		n int
 	}{
 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+		{"doctype01.dat", -1},
 		{"tests1.dat", -1},
-		{"tests2.dat", 59},
+		{"tests2.dat", -1},
 		{"tests3.dat", 0},
 	}
 	for _, tf := range testFiles {
