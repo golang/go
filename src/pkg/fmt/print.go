@@ -877,7 +877,7 @@ BigSwitch:
 		}
 		if goSyntax {
 			p.buf.WriteString(value.Type().String())
-			if f.IsNil() {
+			if f.Kind() == reflect.Slice && f.IsNil() {
 				p.buf.WriteString("(nil)")
 				break
 			}
