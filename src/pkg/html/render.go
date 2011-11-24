@@ -173,6 +173,16 @@ func render1(w writer, n *Node) error {
 		return err
 	}
 
+	// Add initial newline where there is danger of a newline beging ignored.
+	if len(n.Child) > 0 && n.Child[0].Type == TextNode && strings.HasPrefix(n.Child[0].Data, "\n") {
+		switch n.Data {
+		case "pre", "listing", "textarea":
+			if err := w.WriteByte('\n'); err != nil {
+				return err
+			}
+		}
+	}
+
 	// Render any child nodes.
 	switch n.Data {
 	case "noembed", "noframes", "noscript", "plaintext", "script", "style":
