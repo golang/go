@@ -908,6 +908,56 @@ func TestContains(t *testing.T) {
 	}
 }
 
+var ContainsAnyTests = []struct {
+	str, substr string
+	expected    bool
+}{
+	{"", "", false},
+	{"", "a", false},
+	{"", "abc", false},
+	{"a", "", false},
+	{"a", "a", true},
+	{"aaa", "a", true},
+	{"abc", "xyz", false},
+	{"abc", "xcz", true},
+	{"a☺b☻c☹d", "uvw☻xyz", true},
+	{"aRegExp*", ".(|)*+?^$[]", true},
+	{dots + dots + dots, " ", false},
+}
+
+func TestContainsAny(t *testing.T) {
+	for _, ct := range ContainsAnyTests {
+		if ContainsAny(ct.str, ct.substr) != ct.expected {
+			t.Errorf("ContainsAny(%s, %s) = %v, want %v",
+				ct.str, ct.substr, !ct.expected, ct.expected)
+		}
+	}
+}
+
+var ContainsRuneTests = []struct {
+	str      string
+	r        rune
+	expected bool
+}{
+	{"", 'a', false},
+	{"a", 'a', true},
+	{"aaa", 'a', true},
+	{"abc", 'y', false},
+	{"abc", 'c', true},
+	{"a☺b☻c☹d", 'x', false},
+	{"a☺b☻c☹d", '☻', true},
+	{"aRegExp*", '*', true},
+}
+
+func TestContainsRune(t *testing.T) {
+	for _, ct := range ContainsRuneTests {
+		if ContainsRune(ct.str, ct.r) != ct.expected {
+			t.Errorf("ContainsRune(%s, %s) = %v, want %v",
+				ct.str, ct.r, !ct.expected, ct.expected)
+		}
+	}
+}
+
 var EqualFoldTests = []struct {
 	s, t string
 	out  bool
