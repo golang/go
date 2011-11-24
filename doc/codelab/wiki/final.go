@@ -58,7 +58,7 @@ var templates = make(map[string]*template.Template)
 
 func init() {
 	for _, tmpl := range []string{"edit", "view"} {
-		t := template.Must(template.ParseFile(tmpl + ".html"))
+		t := template.Must(template.ParseFiles(tmpl + ".html"))
 		templates[tmpl] = t
 	}
 }
