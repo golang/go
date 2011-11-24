@@ -1984,7 +1984,7 @@ It's easy to write a function to print the arguments.
 </p>
 <pre>
 func ArgServer() {
-    for i, s := range os.Args {
+    for _, s := range os.Args {
         fmt.Println(s)
     }
 }
@@ -2022,7 +2022,7 @@ to have the right signature.
 <pre>
 // Argument server.
 func ArgServer(w http.ResponseWriter, req *http.Request) {
-    for i, s := range os.Args {
+    for _, s := range os.Args {
         fmt.Fprintln(w, s)
     }
 }
