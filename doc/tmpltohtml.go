@@ -45,7 +45,7 @@ func main() {
 	// Read and parse the input.
 	name := flag.Args()[0]
 	tmpl := template.New(name).Funcs(template.FuncMap{"code": code})
-	if _, err := tmpl.ParseFile(name); err != nil {
+	if _, err := tmpl.ParseFiles(name); err != nil {
 		log.Fatal(err)
 	}
 

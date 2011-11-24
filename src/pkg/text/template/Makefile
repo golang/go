@@ -10,7 +10,6 @@ GOFILES=\
 	exec.go\
 	funcs.go\
 	helper.go\
-	parse.go\
-	set.go\
+	template.go\
 
 include ../../../Make.pkg

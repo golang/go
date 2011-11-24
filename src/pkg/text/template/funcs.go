@@ -17,8 +17,9 @@ import (
 
 // FuncMap is the type of the map defining the mapping from names to functions.
 // Each function must have either a single return value, or two return values of
-// which the second has type error. If the second argument evaluates to non-nil
-// during execution, execution terminates and Execute returns an error.
+// which the second has type error. In that case, if the second (error)
+// argument evaluates to non-nil during execution, execution terminates and
+// Execute returns that error.
 type FuncMap map[string]interface{}
 
 var builtins = FuncMap{
@@ -78,15 +79,10 @@ func goodFunc(typ reflect.Type) bool {
 	return false
 }
 
-// findFunction looks for a function in the template, set, and global map.
-func findFunction(name string, tmpl *Template, set *Set) (reflect.Value, bool) {
-	if tmpl != nil {
+// findFunction looks for a function in the template, and global map.
+func findFunction(name string, tmpl *Template) (reflect.Value, bool) {
+	if tmpl != nil && tmpl.common != nil {
 		if fn := tmpl.execFuncs[name]; fn.IsValid() {
-			return fn, true
-		}
-	}
-	if set != nil {
-		if fn := set.execFuncs[name]; fn.IsValid() {
 			return fn, true
 		}
 	}
@@ -310,7 +306,6 @@ func JSEscape(w io.Writer, b []byte) {
 			if unicode.IsPrint(r) {
 				w.Write(b[i : i+size])
 			} else {
-				// TODO(dsymonds): Do this without fmt?
 				fmt.Fprintf(w, "\\u%04X", r)
 			}
 			i += size - 1

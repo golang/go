@@ -97,6 +97,15 @@ func (t *Tree) expect(expected itemType, context string) item {
 	return token
 }
 
+// expectEither consumes the next token and guarantees it has one of the required types.
+func (t *Tree) expectOneOf(expected1, expected2 itemType, context string) item {
+	token := t.next()
+	if token.typ != expected1 && token.typ != expected2 {
+		t.errorf("expected %s or %s in %s; got %s", expected1, expected2, context, token)
+	}
+	return token
+}
+
 // unexpected complains about the token and terminates processing.
 func (t *Tree) unexpected(token item, context string) {
 	t.errorf("unexpected %s in %s", token, context)
@@ -162,7 +171,16 @@ func (t *Tree) Parse(s, leftDelim, rightDelim string, treeSet map[string]*Tree, 
 	t.startParse(funcs, lex(t.Name, s, leftDelim, rightDelim))
 	t.parse(treeSet)
 	t.stopParse()
+	t.add(treeSet)
 	return t, nil
+}
+
+// add adds tree to the treeSet.
+func (t *Tree) add(treeSet map[string]*Tree) {
+	if _, present := treeSet[t.Name]; present {
+		t.errorf("template: multiple definition of template %q", t.Name)
+	}
+	treeSet[t.Name] = t
 }
 
 // parse is the top-level parser for a template, essentially the same
@@ -174,7 +192,7 @@ func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
 		if t.peek().typ == itemLeftDelim {
 			delim := t.next()
 			if t.next().typ == itemDefine {
-				newT := New("new definition") // name will be updated once we know it.
+				newT := New("definition") // name will be updated once we know it.
 				newT.startParse(t.funcs, t.lex)
 				newT.parseDefinition(treeSet)
 				continue
@@ -194,11 +212,8 @@ func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
 // installs the definition in the treeSet map.  The "define" keyword has already
 // been scanned.
 func (t *Tree) parseDefinition(treeSet map[string]*Tree) {
-	if treeSet == nil {
-		t.errorf("no set specified for template definition")
-	}
 	const context = "define clause"
-	name := t.expect(itemString, context)
+	name := t.expectOneOf(itemString, itemRawString, context)
 	var err error
 	t.Name, err = strconv.Unquote(name.val)
 	if err != nil {
@@ -211,10 +226,7 @@ func (t *Tree) parseDefinition(treeSet map[string]*Tree) {
 		t.errorf("unexpected %s in %s", end, context)
 	}
 	t.stopParse()
-	if _, present := treeSet[t.Name]; present {
-		t.errorf("template: %q multiply defined", name)
-	}
-	treeSet[t.Name] = t
+	t.add(treeSet)
 }
 
 // itemList:

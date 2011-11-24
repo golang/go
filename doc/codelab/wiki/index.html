@@ -476,7 +476,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		p = &amp;Page{Title: title}
 	}
-	t, _ := template.ParseFile(&#34;edit.html&#34;)
+	t, _ := template.ParseFiles(&#34;edit.html&#34;)
 	t.Execute(w, p)
 }
 </pre>
@@ -530,7 +530,7 @@ Modify <code>viewHandler</code> accordingly:
 func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[lenPath:]
 	p, _ := loadPage(title)
-	t, _ := template.ParseFile(&#34;view.html&#34;)
+	t, _ := template.ParseFiles(&#34;view.html&#34;)
 	t.Execute(w, p)
 }
 </pre>
@@ -558,7 +558,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	t, _ := template.ParseFile(tmpl+&#34;.html&#34;, nil)
+	t, _ := template.ParseFiles(tmpl+&#34;.html&#34;, nil)
 	t.Execute(w, p)
 }
 </pre>
@@ -643,7 +643,7 @@ First, let's handle the errors in <code>renderTemplate</code>:
 
 <pre>
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	t, err := template.ParseFile(tmpl+&#34;.html&#34;, nil)
+	t, err := template.ParseFiles(tmpl+&#34;.html&#34;, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -719,7 +719,7 @@ can't be loaded the only sensible thing to do is exit the program.
 <pre>
 func init() {
 	for _, tmpl := range []string{&#34;edit&#34;, &#34;view&#34;} {
-		t := template.Must(template.ParseFile(tmpl + &#34;.html&#34;))
+		t := template.Must(template.ParseFiles(tmpl + &#34;.html&#34;))
 		templates[tmpl] = t
 	}
 }

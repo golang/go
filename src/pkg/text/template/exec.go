@@ -85,8 +85,18 @@ func errRecover(errp *error) {
 	}
 }
 
+// ExecuteTemplate applies the template associated with t that has the given name
+// to the specified data object and writes the output to wr.
+func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
+	tmpl := t.tmpl[name]
+	if tmpl == nil {
+		return fmt.Errorf("template: no template %q associated with template %q", name, t.name)
+	}
+	return tmpl.Execute(wr, data)
+}
+
 // Execute applies a parsed template to the specified data object,
-// writing the output to wr.
+// and writes the output to wr.
 func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
 	defer errRecover(&err)
 	value := reflect.ValueOf(data)
@@ -251,13 +261,9 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 }
 
 func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
-	set := s.tmpl.set
-	if set == nil {
-		s.errorf("no set defined in which to invoke template named %q", t.Name)
-	}
-	tmpl := set.tmpl[t.Name]
+	tmpl := s.tmpl.tmpl[t.Name]
 	if tmpl == nil {
-		s.errorf("template %q not in set", t.Name)
+		s.errorf("template %q not defined", t.Name)
 	}
 	// Variables declared by the pipeline persist.
 	dot = s.evalPipeline(dot, t.Pipe)
@@ -376,7 +382,7 @@ func (s *state) evalFieldChain(dot, receiver reflect.Value, ident []string, args
 }
 
 func (s *state) evalFunction(dot reflect.Value, name string, args []parse.Node, final reflect.Value) reflect.Value {
-	function, ok := findFunction(name, s.tmpl, s.tmpl.set)
+	function, ok := findFunction(name, s.tmpl)
 	if !ok {
 		s.errorf("%q is not a defined function", name)
 	}
@@ -398,7 +404,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
 	if ptr.Kind() != reflect.Interface && ptr.CanAddr() {
 		ptr = ptr.Addr()
 	}
-	if method, ok := methodByName(ptr, fieldName); ok {
+	if method := ptr.MethodByName(fieldName); method.IsValid() {
 		return s.evalCall(dot, method, fieldName, args, final)
 	}
 	hasArgs := len(args) > 1 || final.IsValid()
@@ -431,17 +437,6 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
 	}
 	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
 	panic("not reached")
-}
-
-// TODO: delete when reflect's own MethodByName is released.
-func methodByName(receiver reflect.Value, name string) (reflect.Value, bool) {
-	typ := receiver.Type()
-	for i := 0; i < typ.NumMethod(); i++ {
-		if typ.Method(i).Name == name {
-			return receiver.Method(i), true // This value includes the receiver.
-		}
-	}
-	return zero, false
 }
 
 var (

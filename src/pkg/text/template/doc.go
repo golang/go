@@ -18,8 +18,7 @@ The input text for a template is UTF-8-encoded text in any format.
 "{{" and "}}"; all text outside actions is copied to the output unchanged.
 Actions may not span newlines, although comments can.
 
-Once constructed, templates and template sets can be executed safely in
-parallel.
+Once constructed, a template may be executed safely in parallel.
 
 Actions
 
@@ -221,10 +220,9 @@ All produce the quoted word "output":
 
 Functions
 
-During execution functions are found in three function maps: first in the
-template, then in the "template set" (described below), and finally in the
-global function map. By default, no functions are defined in the template or
-the set but the Funcs methods can be used to add them.
+During execution functions are found in two function maps: first in the
+template, then in the global function map. By default, no functions are defined
+in the template but the Funcs methods can be used to add them.
 
 Predefined global functions are named as follows.
 
@@ -265,49 +263,63 @@ Predefined global functions are named as follows.
 The boolean functions take any zero value to be false and a non-zero value to
 be true.
 
-Template sets
+Associated templates
 
-Each template is named by a string specified when it is created.  A template may
-use a template invocation to instantiate another template directly or by its
-name; see the explanation of the template action above. The name is looked up
-in the template set associated with the template.
+Each template is named by a string specified when it is created. Also, each
+template is associated with zero or more other templates that it may invoke by
+name; such associations are transitive and form a name space of templates.
 
-If no template invocation actions occur in the template, the issue of template
-sets can be ignored.  If it does contain invocations, though, the template
-containing the invocations must be part of a template set in which to look up
-the names.
+A template may use a template invocation to instantiate another associated
+template; see the explanation of the "template" action above. The name must be
+that of a template associated with the template that contains the invocation.
 
-There are two ways to construct template sets.
+Nested template definitions
 
-The first is to use a Set's Parse method to create a set of named templates from
-a single input defining multiple templates.  The syntax of the definitions is to
-surround each template declaration with a define and end action.
+When parsing a template, another template may be defined and associated with the
+template being parsed. Template definitions must appear at the top level of the
+template, much like global variables in a Go program.
+
+The syntax of such definitions is to surround each template declaration with a
+"define" and "end" action.
 
 The define action names the template being created by providing a string
-constant. Here is a simple example of input to Set.Parse:
+constant. Here is a simple example:
 
-	`{{define "T1"}} definition of template T1 {{end}}
-	{{define "T2"}} definition of template T2 {{end}}
-	{{define "T3"}} {{template "T1"}} {{template "T2"}} {{end}}`
+	`{{define "T1"}}ONE{{end}}
+	{{define "T2"}}TWO{{end}}
+	{{define "T3"}}{{template "T1"}} {{template "T2"}}{{end}}
+	{{template "T3"}}`
 
 This defines two templates, T1 and T2, and a third T3 that invokes the other two
-when it is executed.
+when it is executed. Finally it invokes T3. If executed this template will
+produce the text
 
-The second way to build a template set is to use Set's Add method to add a
-parsed template to a set.  A template may be bound to at most one set.  If it's
-necessary to have a template in multiple sets, the template definition must be
-parsed multiple times to create distinct *Template values.
+	ONE TWO
 
-Set.Parse may be called multiple times on different inputs to construct the set.
-Two sets may therefore be constructed with a common base set of templates plus,
-through a second Parse call each, specializations for some elements.
+By construction, a template may reside in only one association. If it's
+necessary to have a template addressable from multiple associations, the
+template definition must be parsed multiple times to create distinct *Template
+values.
 
-A template may be executed directly or through Set.Execute, which executes a
-named template from the set.  To invoke our example above, we might write,
+Parse may be called multiple times to assemble the various associated templates;
+see the ParseFiles and ParseGlob functions and methods for simple ways to parse
+related templates stored in files.
 
-	err := set.Execute(os.Stdout, "T3", "no data needed")
+A template may be executed directly or through ExecuteTemplate, which executes
+an associated template identified by name. To invoke our example above, we
+might write,
+
+	err := tmpl.Execute(os.Stdout, "no data needed")
 	if err != nil {
 		log.Fatalf("execution failed: %s", err)
 	}
+
+or to invoke a particular template explicitly by name,
+
+	err := tmpl.ExecuteTemplate(os.Stdout, "T2", "no data needed")
+	if err != nil {
+		log.Fatalf("execution failed: %s", err)
+	}
+
 */
 package template

@@ -476,7 +476,7 @@ func vfunc(V, *V) string {
 	return "vfunc"
 }
 
-func testExecute(execTests []execTest, set *Set, t *testing.T) {
+func testExecute(execTests []execTest, template *Template, t *testing.T) {
 	b := new(bytes.Buffer)
 	funcs := FuncMap{
 		"count":    count,
@@ -486,12 +486,13 @@ func testExecute(execTests []execTest, set *Set, t *testing.T) {
 		"zeroArgs": zeroArgs,
 	}
 	for _, test := range execTests {
-		tmpl := New(test.name).Funcs(funcs)
-		theSet := set
-		if theSet == nil {
-			theSet = new(Set)
+		var tmpl *Template
+		var err error
+		if template == nil {
+			tmpl, err = New(test.name).Funcs(funcs).Parse(test.input)
+		} else {
+			tmpl, err = template.New(test.name).Funcs(funcs).Parse(test.input)
 		}
-		_, err := tmpl.ParseInSet(test.input, theSet)
 		if err != nil {
 			t.Errorf("%s: parse error: %s", test.name, err)
 			continue
@@ -663,24 +664,34 @@ func TestTree(t *testing.T) {
 			},
 		},
 	}
-	set := new(Set)
-	_, err := set.Delims("(", ")").Parse(treeTemplate)
+	tmpl, err := New("root").Delims("(", ")").Parse(treeTemplate)
 	if err != nil {
 		t.Fatal("parse error:", err)
 	}
 	var b bytes.Buffer
-	err = set.Execute(&b, "tree", tree)
-	if err != nil {
-		t.Fatal("exec error:", err)
-	}
 	stripSpace := func(r rune) rune {
 		if r == '\t' || r == '\n' {
 			return -1
 		}
 		return r
 	}
-	result := strings.Map(stripSpace, b.String())
 	const expect = "[1[2[3[4]][5[6]]][7[8[9]][10[11]]]]"
+	// First by looking up the template.
+	err = tmpl.Template("tree").Execute(&b, tree)
+	if err != nil {
+		t.Fatal("exec error:", err)
+	}
+	result := strings.Map(stripSpace, b.String())
+	if result != expect {
+		t.Errorf("expected %q got %q", expect, result)
+	}
+	// Then direct to execution.
+	b.Reset()
+	err = tmpl.ExecuteTemplate(&b, "tree", tree)
+	if err != nil {
+		t.Fatal("exec error:", err)
+	}
+	result = strings.Map(stripSpace, b.String())
 	if result != expect {
 		t.Errorf("expected %q got %q", expect, result)
 	}

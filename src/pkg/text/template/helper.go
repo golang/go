@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Helper functions to make constructing templates and sets easier.
+// Helper functions to make constructing templates easier.
 
 package template
 
@@ -12,11 +12,11 @@ import (
 	"path/filepath"
 )
 
-// Functions and methods to parse a single template.
+// Functions and methods to parse templates.
 
 // Must is a helper that wraps a call to a function returning (*Template, error)
-// and panics if the error is non-nil. It is intended for use in variable initializations
-// such as
+// and panics if the error is non-nil. It is intended for use in variable
+// initializations such as
 //	var t = template.Must(template.New("name").Parse("text"))
 func Must(t *Template, err error) *Template {
 	if err != nil {
@@ -25,217 +25,84 @@ func Must(t *Template, err error) *Template {
 	return t
 }
 
-// ParseFile creates a new Template and parses the template definition from
-// the named file.  The template name is the base name of the file.
-func ParseFile(filename string) (*Template, error) {
-	t := New(filepath.Base(filename))
-	return t.ParseFile(filename)
+// ParseFiles creates a new Template and parses the template definitions from
+// the named files. The returned template's name will have the (base) name and
+// (parsed) contents of the first file. There must be at least one file.
+// If an error occurs, parsing stops and the returned *Template is nil.
+func ParseFiles(filenames ...string) (*Template, error) {
+	return parseFiles(nil, filenames...)
 }
 
-// parseFileInSet creates a new Template and parses the template
-// definition from the named file. The template name is the base name
-// of the file. It also adds the template to the set. Function bindings are
-// checked against those in the set.
-func parseFileInSet(filename string, set *Set) (*Template, error) {
-	t := New(filepath.Base(filename))
-	return t.parseFileInSet(filename, set)
+// ParseFiles parses the named files and associates the resulting templates with
+// t. If an error occurs, parsing stops and the returned template is nil;
+// otherwise it is t. There must be at least one file.
+func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
+	return parseFiles(t, filenames...)
 }
 
-// ParseFile reads the template definition from a file and parses it to
-// construct an internal representation of the template for execution.
-// The returned template will be nil if an error occurs.
-func (t *Template) ParseFile(filename string) (*Template, error) {
-	b, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
+// parseFiles is the helper for the method and function. If the argument
+// template is nil, it is created from the first file.
+func parseFiles(t *Template, filenames ...string) (*Template, error) {
+	if len(filenames) == 0 {
+		// Not really a problem, but be consistent.
+		return nil, fmt.Errorf("template: no files named in call to ParseFiles")
 	}
-	return t.Parse(string(b))
-}
-
-// parseFileInSet is the same as ParseFile except that function bindings
-// are checked against those in the set and the template is added
-// to the set.
-// The returned template will be nil if an error occurs.
-func (t *Template) parseFileInSet(filename string, set *Set) (*Template, error) {
-	b, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	return t.ParseInSet(string(b), set)
-}
-
-// Functions and methods to parse a set.
-
-// SetMust is a helper that wraps a call to a function returning (*Set, error)
-// and panics if the error is non-nil. It is intended for use in variable initializations
-// such as
-//	var s = template.SetMust(template.ParseSetFiles("file"))
-func SetMust(s *Set, err error) *Set {
-	if err != nil {
-		panic(err)
-	}
-	return s
-}
-
-// ParseFiles parses the named files into a set of named templates.
-// Each file must be parseable by itself.
-// If an error occurs, parsing stops and the returned set is nil.
-func (s *Set) ParseFiles(filenames ...string) (*Set, error) {
 	for _, filename := range filenames {
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {
 			return nil, err
 		}
-		_, err = s.Parse(string(b))
+		s := string(b)
+		name := filepath.Base(filename)
+		// First template becomes return value if not already defined,
+		// and we use that one for subsequent New calls to associate
+		// all the templates together. Also, if this file has the same name
+		// as t, this file becomes the contents of t, so
+		//  t, err := New(name).Funcs(xxx).ParseFiles(name)
+		// works. Otherwise we create a new template associated with t.
+		var tmpl *Template
+		if t == nil {
+			t = New(name)
+		}
+		if name == t.Name() {
+			tmpl = t
+		} else {
+			tmpl = t.New(name)
+		}
+		_, err = tmpl.Parse(s)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return s, nil
+	return t, nil
 }
 
-// ParseSetFiles creates a new Set and parses the set definition from the
-// named files. Each file must be individually parseable.
-func ParseSetFiles(filenames ...string) (*Set, error) {
-	s := new(Set)
-	for _, filename := range filenames {
-		b, err := ioutil.ReadFile(filename)
-		if err != nil {
-			return nil, err
-		}
-		_, err = s.Parse(string(b))
-		if err != nil {
-			return nil, err
-		}
-	}
-	return s, nil
+// ParseGlob creates a new Template and parses the template definitions from the
+// files identified by the pattern, which must match at least one file. The
+// returned template will have the (base) name and (parsed) contents of the
+// first file matched by the pattern. ParseGlob is equivalent to calling
+// ParseFiles with the list of files matched by the pattern.
+func ParseGlob(pattern string) (*Template, error) {
+	return parseGlob(nil, pattern)
 }
 
-// ParseGlob parses the set definition from the files identified by the
-// pattern.  The pattern is processed by filepath.Glob and must match at
-// least one file.
-// If an error occurs, parsing stops and the returned set is nil.
-func (s *Set) ParseGlob(pattern string) (*Set, error) {
+// ParseGlob parses the template definitions in the files identified by the
+// pattern and associates the resulting templates with t. The pattern is
+// processed by filepath.Glob and must match at least one file. ParseGlob is
+// equivalent to calling t.ParseFiles with the list of files matched by the
+// pattern.
+func (t *Template) ParseGlob(pattern string) (*Template, error) {
+	return parseGlob(t, pattern)
+}
+
+// parseGlob is the implementation of the function and method ParseGlob.
+func parseGlob(t *Template, pattern string) (*Template, error) {
 	filenames, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, err
 	}
 	if len(filenames) == 0 {
-		return nil, fmt.Errorf("pattern matches no files: %#q", pattern)
+		return nil, fmt.Errorf("template: pattern matches no files: %#q", pattern)
 	}
-	return s.ParseFiles(filenames...)
-}
-
-// ParseSetGlob creates a new Set and parses the set definition from the
-// files identified by the pattern. The pattern is processed by filepath.Glob
-// and must match at least one file.
-func ParseSetGlob(pattern string) (*Set, error) {
-	set, err := new(Set).ParseGlob(pattern)
-	if err != nil {
-		return nil, err
-	}
-	return set, nil
-}
-
-// Functions and methods to parse stand-alone template files into a set.
-
-// ParseTemplateFiles parses the named template files and adds
-// them to the set. Each template will be named the base name of
-// its file.
-// Unlike with ParseFiles, each file should be a stand-alone template
-// definition suitable for Template.Parse (not Set.Parse); that is, the
-// file does not contain {{define}} clauses. ParseTemplateFiles is
-// therefore equivalent to calling the ParseFile function to create
-// individual templates, which are then added to the set.
-// Each file must be parseable by itself.
-// If an error occurs, parsing stops and the returned set is nil.
-func (s *Set) ParseTemplateFiles(filenames ...string) (*Set, error) {
-	for _, filename := range filenames {
-		_, err := parseFileInSet(filename, s)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return s, nil
-}
-
-// ParseTemplateGlob parses the template files matched by the
-// patern and adds them to the set. Each template will be named
-// the base name of its file.
-// Unlike with ParseGlob, each file should be a stand-alone template
-// definition suitable for Template.Parse (not Set.Parse); that is, the
-// file does not contain {{define}} clauses. ParseTemplateGlob is
-// therefore equivalent to calling the ParseFile function to create
-// individual templates, which are then added to the set.
-// Each file must be parseable by itself.
-// If an error occurs, parsing stops and the returned set is nil.
-func (s *Set) ParseTemplateGlob(pattern string) (*Set, error) {
-	filenames, err := filepath.Glob(pattern)
-	if err != nil {
-		return nil, err
-	}
-	for _, filename := range filenames {
-		_, err := parseFileInSet(filename, s)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return s, nil
-}
-
-// ParseTemplateFiles creates a set by parsing the named files,
-// each of which defines a single template. Each template will be
-// named the base name of its file.
-// Unlike with ParseFiles, each file should be a stand-alone template
-// definition suitable for Template.Parse (not Set.Parse); that is, the
-// file does not contain {{define}} clauses. ParseTemplateFiles is
-// therefore equivalent to calling the ParseFile function to create
-// individual templates, which are then added to the set.
-// Each file must be parseable by itself. Parsing stops if an error is
-// encountered.
-func ParseTemplateFiles(filenames ...string) (*Set, error) {
-	set := new(Set)
-	set.init()
-	for _, filename := range filenames {
-		t, err := ParseFile(filename)
-		if err != nil {
-			return nil, err
-		}
-		if err := set.add(t); err != nil {
-			return nil, err
-		}
-	}
-	return set, nil
-}
-
-// ParseTemplateGlob creates a set by parsing the files matched
-// by the pattern, each of which defines a single template. The pattern
-// is processed by filepath.Glob and must match at least one file. Each
-// template will be named the base name of its file.
-// Unlike with ParseGlob, each file should be a stand-alone template
-// definition suitable for Template.Parse (not Set.Parse); that is, the
-// file does not contain {{define}} clauses. ParseTemplateGlob is
-// therefore equivalent to calling the ParseFile function to create
-// individual templates, which are then added to the set.
-// Each file must be parseable by itself. Parsing stops if an error is
-// encountered.
-func ParseTemplateGlob(pattern string) (*Set, error) {
-	set := new(Set)
-	filenames, err := filepath.Glob(pattern)
-	if err != nil {
-		return nil, err
-	}
-	if len(filenames) == 0 {
-		return nil, fmt.Errorf("pattern matches no files: %#q", pattern)
-	}
-	for _, filename := range filenames {
-		t, err := ParseFile(filename)
-		if err != nil {
-			return nil, err
-		}
-		if err := set.add(t); err != nil {
-			return nil, err
-		}
-	}
-	return set, nil
+	return parseFiles(t, filenames...)
 }
