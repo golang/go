@@ -31,6 +31,7 @@ GOFILES=\
 	sorthelpers.go\
 	sortslice.go\
 	stringssplit.go\
+	template.go\
 	typecheck.go\
 	url.go\
 
