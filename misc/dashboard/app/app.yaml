@@ -4,5 +4,10 @@ runtime: go
 api_version: 3
 
 handlers:
+- url: /log/.+
+  script: _go_app
 - url: /(commit|tag|todo|result)
   script: _go_app
+- url: /buildtest
+  script: _go_app
+  login: admin
