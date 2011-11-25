@@ -205,3 +205,19 @@ func testAfterQueuing(t *testing.T) error {
 	}
 	return nil
 }
+
+func TestTimerStopStress(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	for i := 0; i < 100; i++ {
+		go func(i int) {
+			timer := AfterFunc(2e9, func() {
+				t.Fatalf("timer %d was not stopped", i)
+			})
+			Sleep(1e9)
+			timer.Stop()
+		}(i)
+	}
+	Sleep(3e9)
+}

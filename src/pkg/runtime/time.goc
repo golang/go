@@ -133,9 +133,16 @@ deltimer(Timer *t)
 		return false;
 	}
 
-	timers.t[i] = timers.t[--timers.len];
-	siftup(i);
-	siftdown(i);
+	timers.len--;
+	if(i == timers.len) {
+		timers.t[i] = nil;
+	} else {
+		timers.t[i] = timers.t[timers.len];
+		timers.t[timers.len] = nil;
+		timers.t[i]->i = i;
+		siftup(i);
+		siftdown(i);
+	}
 	runtime·unlock(&timers);
 	return true;
 }
