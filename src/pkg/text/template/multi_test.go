@@ -230,6 +230,15 @@ func TestClone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Verify that the clone is self-consistent.
+	for k, v := range clone.tmpl {
+		if k == clone.name && v.tmpl[k] != clone {
+			t.Error("clone does not contain root")
+		}
+		if v != v.tmpl[v.name] {
+			t.Errorf("clone does not contain self for %q", k)
+		}
+	}
 	// Execute root.
 	var b bytes.Buffer
 	err = root.ExecuteTemplate(&b, "a", 0)

@@ -73,12 +73,15 @@ func (t *Template) init() {
 // common templates and use them with variant definitions for other templates by
 // adding the variants after the clone is made.
 func (t *Template) Clone() *Template {
-	nt := t.copy()
+	nt := t.copy(nil)
 	nt.init()
+	nt.tmpl[t.name] = nt
 	for k, v := range t.tmpl {
+		if k == t.name { // Already installed.
+			continue
+		}
 		// The associated templates share nt's common structure.
-		tmpl := v.copy()
-		tmpl.common = nt.common
+		tmpl := v.copy(nt.common)
 		nt.tmpl[k] = tmpl
 	}
 	for k, v := range t.parseFuncs {
@@ -90,10 +93,11 @@ func (t *Template) Clone() *Template {
 	return nt
 }
 
-// copy returns a shallow copy of t, with common set to nil.
-func (t *Template) copy() *Template {
+// copy returns a shallow copy of t, with common set to the argument.
+func (t *Template) copy(c *common) *Template {
 	nt := New(t.name)
 	nt.Tree = t.Tree
+	nt.common = c
 	nt.leftDelim = t.leftDelim
 	nt.rightDelim = t.rightDelim
 	return nt
