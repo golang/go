@@ -12,10 +12,10 @@ import (
 // Strings of content from a trusted source.
 type (
 	// CSS encapsulates known safe content that matches any of:
-	// (1) The CSS3 stylesheet production, such as `p { color: purple }`.
-	// (2) The CSS3 rule production, such as `a[href=~"https:"].foo#bar`.
-	// (3) CSS3 declaration productions, such as `color: red; margin: 2px`.
-	// (4) The CSS3 value production, such as `rgba(0, 0, 255, 127)`.
+	//   1. The CSS3 stylesheet production, such as `p { color: purple }`.
+	//   2. The CSS3 rule production, such as `a[href=~"https:"].foo#bar`.
+	//   3. CSS3 declaration productions, such as `color: red; margin: 2px`.
+	//   4. The CSS3 value production, such as `rgba(0, 0, 255, 127)`.
 	// See http://www.w3.org/TR/css3-syntax/#style
 	CSS string
 
@@ -41,8 +41,8 @@ type (
 	// JSStr encapsulates a sequence of characters meant to be embedded
 	// between quotes in a JavaScript expression.
 	// The string must match a series of StringCharacters:
-	// StringCharacter :: SourceCharacter but not `\` or LineTerminator
-	//                  | EscapeSequence
+	//   StringCharacter :: SourceCharacter but not `\` or LineTerminator
+	//                    | EscapeSequence
 	// Note that LineContinuations are not allowed.
 	// JSStr("foo\\nbar") is fine, but JSStr("foo\\\nbar") is not.
 	JSStr string
