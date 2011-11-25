@@ -7,7 +7,7 @@
 //
 // Code simply using databases should use package sql.
 //
-// Drivers only need to be aware of a subset of Go's types.  The db package
+// Drivers only need to be aware of a subset of Go's types.  The sql package
 // will convert all types into one of the following:
 //
 //   int64
