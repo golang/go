@@ -136,9 +136,9 @@ func (t *Template) Funcs(funcMap FuncMap) *Template {
 	return t
 }
 
-// Template returns the template with the given name that is associated with t,
+// Lookup returns the template with the given name that is associated with t,
 // or nil if there is no such template.
-func (t *Template) Template(name string) *Template {
+func (t *Template) Lookup(name string) *Template {
 	return t.tmpl[name]
 }
 
