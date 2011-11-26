@@ -89,6 +89,9 @@ func openDir(name string) (file *File, err error) {
 // methods on the returned File can be used for I/O.
 // It returns the File and an error, if any.
 func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
+	if name == "" {
+		return nil, &PathError{"open", name, syscall.ENOENT}
+	}
 	// TODO(brainman): not sure about my logic of assuming it is dir first, then fall back to file
 	r, e := openDir(name)
 	if e == nil {
