@@ -901,6 +901,14 @@ func TestOpenError(t *testing.T) {
 	}
 }
 
+func TestOpenNoName(t *testing.T) {
+	f, err := Open("")
+	if err == nil {
+		t.Fatal(`Open("") succeeded`)
+		f.Close()
+	}
+}
+
 func run(t *testing.T, cmd []string) string {
 	// Run /bin/hostname and collect output.
 	r, w, err := Pipe()
