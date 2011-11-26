@@ -677,7 +677,7 @@ func TestTree(t *testing.T) {
 	}
 	const expect = "[1[2[3[4]][5[6]]][7[8[9]][10[11]]]]"
 	// First by looking up the template.
-	err = tmpl.Template("tree").Execute(&b, tree)
+	err = tmpl.Lookup("tree").Execute(&b, tree)
 	if err != nil {
 		t.Fatal("exec error:", err)
 	}
