@@ -679,6 +679,13 @@ func inBodyIM(p *parser) bool {
 		case "b", "big", "code", "em", "font", "i", "s", "small", "strike", "strong", "tt", "u":
 			p.reconstructActiveFormattingElements()
 			p.addFormattingElement(p.tok.Data, p.tok.Attr)
+		case "nobr":
+			p.reconstructActiveFormattingElements()
+			if p.elementInScope(defaultScopeStopTags, "nobr") {
+				p.inBodyEndTagFormatting("nobr")
+				p.reconstructActiveFormattingElements()
+			}
+			p.addFormattingElement(p.tok.Data, p.tok.Attr)
 		case "applet", "marquee", "object":
 			p.reconstructActiveFormattingElements()
 			p.addElement(p.tok.Data, p.tok.Attr)
