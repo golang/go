@@ -518,6 +518,9 @@ func inHeadIM(p *parser) bool {
 			p.setOriginalIM()
 			p.im = textIM
 			return true
+		case "head":
+			// Ignore the token.
+			return true
 		default:
 			implied = true
 		}
