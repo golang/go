@@ -338,7 +338,7 @@ func newClientChan(t *transport, id uint32) *clientChan {
 // Close closes the channel. This does not close the underlying connection.
 func (c *clientChan) Close() error {
 	return c.writePacket(marshal(msgChannelClose, channelCloseMsg{
-		PeersId: c.id,
+		PeersId: c.peersId,
 	}))
 }
 
@@ -384,7 +384,7 @@ func (c *chanlist) remove(id uint32) {
 // A chanWriter represents the stdin of a remote process.
 type chanWriter struct {
 	win          chan int // receives window adjustments
-	id           uint32   // this channel's id
+	peersId      uint32   // the peers id
 	rwin         int      // current rwin size
 	packetWriter          // for sending channelDataMsg
 }
@@ -403,7 +403,7 @@ func (w *chanWriter) Write(data []byte) (n int, err error) {
 		n = len(data)
 		packet := make([]byte, 0, 9+n)
 		packet = append(packet, msgChannelData,
-			byte(w.id)>>24, byte(w.id)>>16, byte(w.id)>>8, byte(w.id),
+			byte(w.peersId)>>24, byte(w.peersId)>>16, byte(w.peersId)>>8, byte(w.peersId),
 			byte(n)>>24, byte(n)>>16, byte(n)>>8, byte(n))
 		err = w.writePacket(append(packet, data...))
 		w.rwin -= n
@@ -413,7 +413,7 @@ func (w *chanWriter) Write(data []byte) (n int, err error) {
 }
 
 func (w *chanWriter) Close() error {
-	return w.writePacket(marshal(msgChannelEOF, channelEOFMsg{w.id}))
+	return w.writePacket(marshal(msgChannelEOF, channelEOFMsg{w.peersId}))
 }
 
 // A chanReader represents stdout or stderr of a remote process.
@@ -422,8 +422,8 @@ type chanReader struct {
 	// If writes to this channel block, they will block mainLoop, making
 	// it unable to receive new messages from the remote side.
 	data         chan []byte // receives data from remote
-	id           uint32
-	packetWriter // for sending windowAdjustMsg
+	peersId      uint32      // the peers id
+	packetWriter             // for sending windowAdjustMsg
 	buf          []byte
 }
 
@@ -435,7 +435,7 @@ func (r *chanReader) Read(data []byte) (int, error) {
 			n := copy(data, r.buf)
 			r.buf = r.buf[n:]
 			msg := windowAdjustMsg{
-				PeersId:         r.id,
+				PeersId:         r.peersId,
 				AdditionalBytes: uint32(n),
 			}
 			return n, r.writePacket(marshal(msgChannelWindowAdjust, msg))
@@ -446,8 +446,4 @@ func (r *chanReader) Read(data []byte) (int, error) {
 		}
 	}
 	panic("unreachable")
-}
-
-func (r *chanReader) Close() error {
-	return r.writePacket(marshal(msgChannelEOF, channelEOFMsg{r.id}))
 }
