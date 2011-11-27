@@ -86,12 +86,12 @@ func (c *ClientConn) dial(laddr string, lport int, raddr string, rport int) (*tc
 		clientChan: ch,
 		Reader: &chanReader{
 			packetWriter: ch,
-			id:           ch.id,
+			peersId:      ch.peersId,
 			data:         ch.data,
 		},
 		Writer: &chanWriter{
 			packetWriter: ch,
-			id:           ch.id,
+			peersId:      ch.peersId,
 			win:          ch.win,
 		},
 	}, nil

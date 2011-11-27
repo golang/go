@@ -53,7 +53,7 @@ type setenvRequest struct {
 // command executed by Shell or Exec.
 func (s *Session) Setenv(name, value string) error {
 	req := setenvRequest{
-		PeersId:   s.id,
+		PeersId:   s.peersId,
 		Request:   "env",
 		WantReply: true,
 		Name:      name,
@@ -84,7 +84,7 @@ type ptyRequestMsg struct {
 // RequestPty requests the association of a pty with the session on the remote host.
 func (s *Session) RequestPty(term string, h, w int) error {
 	req := ptyRequestMsg{
-		PeersId:   s.id,
+		PeersId:   s.peersId,
 		Request:   "pty-req",
 		WantReply: true,
 		Term:      term,
@@ -116,7 +116,7 @@ func (s *Session) Exec(cmd string) error {
 		return errors.New("ssh: session already started")
 	}
 	req := execMsg{
-		PeersId:   s.id,
+		PeersId:   s.peersId,
 		Request:   "exec",
 		WantReply: true,
 		Command:   cmd,
@@ -140,7 +140,7 @@ func (s *Session) Shell() error {
 		return errors.New("ssh: session already started")
 	}
 	req := channelRequestMsg{
-		PeersId:   s.id,
+		PeersId:   s.peersId,
 		Request:   "shell",
 		WantReply: true,
 	}
@@ -237,7 +237,7 @@ func (s *Session) stdin() error {
 	s.copyFuncs = append(s.copyFuncs, func() error {
 		_, err := io.Copy(&chanWriter{
 			packetWriter: s,
-			id:           s.id,
+			peersId:      s.peersId,
 			win:          s.win,
 		}, s.Stdin)
 		return err
@@ -252,7 +252,7 @@ func (s *Session) stdout() error {
 	s.copyFuncs = append(s.copyFuncs, func() error {
 		_, err := io.Copy(s.Stdout, &chanReader{
 			packetWriter: s,
-			id:           s.id,
+			peersId:      s.peersId,
 			data:         s.data,
 		})
 		return err
@@ -267,7 +267,7 @@ func (s *Session) stderr() error {
 	s.copyFuncs = append(s.copyFuncs, func() error {
 		_, err := io.Copy(s.Stderr, &chanReader{
 			packetWriter: s,
-			id:           s.id,
+			peersId:      s.peersId,
 			data:         s.dataExt,
 		})
 		return err
