@@ -370,86 +370,34 @@ func BenchmarkScanPi(b *testing.B) {
 	}
 }
 
-const (
-	// 314**271
-	// base  2: 2249 digits
-	// base  8:  751 digits
-	// base 10:  678 digits
-	// base 16:  563 digits
-	shortBase     = 314
-	shortExponent = 271
+func BenchmarkScan10Base2(b *testing.B)     { ScanHelper(b, 2, 10, 10) }
+func BenchmarkScan100Base2(b *testing.B)    { ScanHelper(b, 2, 10, 100) }
+func BenchmarkScan1000Base2(b *testing.B)   { ScanHelper(b, 2, 10, 1000) }
+func BenchmarkScan10000Base2(b *testing.B)  { ScanHelper(b, 2, 10, 10000) }
+func BenchmarkScan100000Base2(b *testing.B) { ScanHelper(b, 2, 10, 100000) }
 
-	// 3141**2178
-	// base  2: 31577 digits
-	// base  8: 10527 digits
-	// base 10:  9507 digits
-	// base 16:  7895 digits
-	mediumBase     = 3141
-	mediumExponent = 2718
+func BenchmarkScan10Base8(b *testing.B)     { ScanHelper(b, 8, 10, 10) }
+func BenchmarkScan100Base8(b *testing.B)    { ScanHelper(b, 8, 10, 100) }
+func BenchmarkScan1000Base8(b *testing.B)   { ScanHelper(b, 8, 10, 1000) }
+func BenchmarkScan10000Base8(b *testing.B)  { ScanHelper(b, 8, 10, 10000) }
+func BenchmarkScan100000Base8(b *testing.B) { ScanHelper(b, 8, 10, 100000) }
 
-	// 3141**2178
-	// base  2: 406078 digits
-	// base  8: 135360 digits
-	// base 10: 122243 digits
-	// base 16: 101521 digits
-	longBase     = 31415
-	longExponent = 27182
-)
+func BenchmarkScan10Base10(b *testing.B)     { ScanHelper(b, 10, 10, 10) }
+func BenchmarkScan100Base10(b *testing.B)    { ScanHelper(b, 10, 10, 100) }
+func BenchmarkScan1000Base10(b *testing.B)   { ScanHelper(b, 10, 10, 1000) }
+func BenchmarkScan10000Base10(b *testing.B)  { ScanHelper(b, 10, 10, 10000) }
+func BenchmarkScan100000Base10(b *testing.B) { ScanHelper(b, 10, 10, 100000) }
 
-func BenchmarkScanShort2(b *testing.B) {
-	ScanHelper(b, 2, shortBase, shortExponent)
-}
+func BenchmarkScan10Base16(b *testing.B)     { ScanHelper(b, 16, 10, 10) }
+func BenchmarkScan100Base16(b *testing.B)    { ScanHelper(b, 16, 10, 100) }
+func BenchmarkScan1000Base16(b *testing.B)   { ScanHelper(b, 16, 10, 1000) }
+func BenchmarkScan10000Base16(b *testing.B)  { ScanHelper(b, 16, 10, 10000) }
+func BenchmarkScan100000Base16(b *testing.B) { ScanHelper(b, 16, 10, 100000) }
 
-func BenchmarkScanShort8(b *testing.B) {
-	ScanHelper(b, 8, shortBase, shortExponent)
-}
-
-func BenchmarkScanSort10(b *testing.B) {
-	ScanHelper(b, 10, shortBase, shortExponent)
-}
-
-func BenchmarkScanShort16(b *testing.B) {
-	ScanHelper(b, 16, shortBase, shortExponent)
-}
-
-func BenchmarkScanMedium2(b *testing.B) {
-	ScanHelper(b, 2, mediumBase, mediumExponent)
-}
-
-func BenchmarkScanMedium8(b *testing.B) {
-	ScanHelper(b, 8, mediumBase, mediumExponent)
-}
-
-func BenchmarkScanMedium10(b *testing.B) {
-	ScanHelper(b, 10, mediumBase, mediumExponent)
-}
-
-func BenchmarkScanMedium16(b *testing.B) {
-	ScanHelper(b, 16, mediumBase, mediumExponent)
-}
-
-func BenchmarkScanLong2(b *testing.B) {
-	ScanHelper(b, 2, longBase, longExponent)
-}
-
-func BenchmarkScanLong8(b *testing.B) {
-	ScanHelper(b, 8, longBase, longExponent)
-}
-
-func BenchmarkScanLong10(b *testing.B) {
-	ScanHelper(b, 10, longBase, longExponent)
-}
-
-func BenchmarkScanLong16(b *testing.B) {
-	ScanHelper(b, 16, longBase, longExponent)
-}
-
-func ScanHelper(b *testing.B, base int, xv, yv Word) {
+func ScanHelper(b *testing.B, base int, x, y Word) {
 	b.StopTimer()
-	var x, y, z nat
-	x = x.setWord(xv)
-	y = y.setWord(yv)
-	z = z.expNN(x, y, nil)
+	var z nat
+	z = z.expWW(x, y)
 
 	var s string
 	s = z.string(lowercaseDigits[0:base])
@@ -459,68 +407,112 @@ func ScanHelper(b *testing.B, base int, xv, yv Word) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		x.scan(strings.NewReader(s), base)
+		z.scan(strings.NewReader(s), base)
 	}
 }
 
-func BenchmarkStringShort2(b *testing.B) {
-	StringHelper(b, 2, shortBase, shortExponent)
-}
+func BenchmarkString10Base2(b *testing.B)     { StringHelper(b, 2, 10, 10) }
+func BenchmarkString100Base2(b *testing.B)    { StringHelper(b, 2, 10, 100) }
+func BenchmarkString1000Base2(b *testing.B)   { StringHelper(b, 2, 10, 1000) }
+func BenchmarkString10000Base2(b *testing.B)  { StringHelper(b, 2, 10, 10000) }
+func BenchmarkString100000Base2(b *testing.B) { StringHelper(b, 2, 10, 100000) }
 
-func BenchmarkStringShort8(b *testing.B) {
-	StringHelper(b, 8, shortBase, shortExponent)
-}
+func BenchmarkString10Base8(b *testing.B)     { StringHelper(b, 8, 10, 10) }
+func BenchmarkString100Base8(b *testing.B)    { StringHelper(b, 8, 10, 100) }
+func BenchmarkString1000Base8(b *testing.B)   { StringHelper(b, 8, 10, 1000) }
+func BenchmarkString10000Base8(b *testing.B)  { StringHelper(b, 8, 10, 10000) }
+func BenchmarkString100000Base8(b *testing.B) { StringHelper(b, 8, 10, 100000) }
 
-func BenchmarkStringShort10(b *testing.B) {
-	StringHelper(b, 10, shortBase, shortExponent)
-}
+func BenchmarkString10Base10(b *testing.B)     { StringHelper(b, 10, 10, 10) }
+func BenchmarkString100Base10(b *testing.B)    { StringHelper(b, 10, 10, 100) }
+func BenchmarkString1000Base10(b *testing.B)   { StringHelper(b, 10, 10, 1000) }
+func BenchmarkString10000Base10(b *testing.B)  { StringHelper(b, 10, 10, 10000) }
+func BenchmarkString100000Base10(b *testing.B) { StringHelper(b, 10, 10, 100000) }
 
-func BenchmarkStringShort16(b *testing.B) {
-	StringHelper(b, 16, shortBase, shortExponent)
-}
+func BenchmarkString10Base16(b *testing.B)     { StringHelper(b, 16, 10, 10) }
+func BenchmarkString100Base16(b *testing.B)    { StringHelper(b, 16, 10, 100) }
+func BenchmarkString1000Base16(b *testing.B)   { StringHelper(b, 16, 10, 1000) }
+func BenchmarkString10000Base16(b *testing.B)  { StringHelper(b, 16, 10, 10000) }
+func BenchmarkString100000Base16(b *testing.B) { StringHelper(b, 16, 10, 100000) }
 
-func BenchmarkStringMedium2(b *testing.B) {
-	StringHelper(b, 2, mediumBase, mediumExponent)
-}
-
-func BenchmarkStringMedium8(b *testing.B) {
-	StringHelper(b, 8, mediumBase, mediumExponent)
-}
-
-func BenchmarkStringMedium10(b *testing.B) {
-	StringHelper(b, 10, mediumBase, mediumExponent)
-}
-
-func BenchmarkStringMedium16(b *testing.B) {
-	StringHelper(b, 16, mediumBase, mediumExponent)
-}
-
-func BenchmarkStringLong2(b *testing.B) {
-	StringHelper(b, 2, longBase, longExponent)
-}
-
-func BenchmarkStringLong8(b *testing.B) {
-	StringHelper(b, 8, longBase, longExponent)
-}
-
-func BenchmarkStringLong10(b *testing.B) {
-	StringHelper(b, 10, longBase, longExponent)
-}
-
-func BenchmarkStringLong16(b *testing.B) {
-	StringHelper(b, 16, longBase, longExponent)
-}
-
-func StringHelper(b *testing.B, base int, xv, yv Word) {
+func StringHelper(b *testing.B, base int, x, y Word) {
 	b.StopTimer()
-	var x, y, z nat
-	x = x.setWord(xv)
-	y = y.setWord(yv)
-	z = z.expNN(x, y, nil)
+	var z nat
+	z = z.expWW(x, y)
+	z.string(lowercaseDigits[0:base]) // warm divisor cache
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		z.string(lowercaseDigits[0:base])
+		_ = z.string(lowercaseDigits[0:base])
+	}
+}
+
+func BenchmarkLeafSize0(b *testing.B)  { LeafSizeHelper(b, 10, 0) } // test without splitting
+func BenchmarkLeafSize1(b *testing.B)  { LeafSizeHelper(b, 10, 1) }
+func BenchmarkLeafSize2(b *testing.B)  { LeafSizeHelper(b, 10, 2) }
+func BenchmarkLeafSize3(b *testing.B)  { LeafSizeHelper(b, 10, 3) }
+func BenchmarkLeafSize4(b *testing.B)  { LeafSizeHelper(b, 10, 4) }
+func BenchmarkLeafSize5(b *testing.B)  { LeafSizeHelper(b, 10, 5) }
+func BenchmarkLeafSize6(b *testing.B)  { LeafSizeHelper(b, 10, 6) }
+func BenchmarkLeafSize7(b *testing.B)  { LeafSizeHelper(b, 10, 7) }
+func BenchmarkLeafSize8(b *testing.B)  { LeafSizeHelper(b, 10, 8) }
+func BenchmarkLeafSize9(b *testing.B)  { LeafSizeHelper(b, 10, 9) }
+func BenchmarkLeafSize10(b *testing.B) { LeafSizeHelper(b, 10, 10) }
+func BenchmarkLeafSize11(b *testing.B) { LeafSizeHelper(b, 10, 11) }
+func BenchmarkLeafSize12(b *testing.B) { LeafSizeHelper(b, 10, 12) }
+func BenchmarkLeafSize13(b *testing.B) { LeafSizeHelper(b, 10, 13) }
+func BenchmarkLeafSize14(b *testing.B) { LeafSizeHelper(b, 10, 14) }
+func BenchmarkLeafSize15(b *testing.B) { LeafSizeHelper(b, 10, 15) }
+func BenchmarkLeafSize16(b *testing.B) { LeafSizeHelper(b, 10, 16) }
+func BenchmarkLeafSize32(b *testing.B) { LeafSizeHelper(b, 10, 32) } // try some large lengths 
+func BenchmarkLeafSize64(b *testing.B) { LeafSizeHelper(b, 10, 64) }
+
+func LeafSizeHelper(b *testing.B, base Word, size int) {
+	b.StopTimer()
+	originalLeafSize := leafSize
+	resetTable(cacheBase10[:])
+	leafSize = size
+	b.StartTimer()
+
+	for d := 1; d <= 10000; d *= 10 {
+		b.StopTimer()
+		var z nat
+		z = z.expWW(base, Word(d))            // build target number
+		_ = z.string(lowercaseDigits[0:base]) // warm divisor cache
+		b.StartTimer()
+
+		for i := 0; i < b.N; i++ {
+			_ = z.string(lowercaseDigits[0:base])
+		}
+	}
+
+	b.StopTimer()
+	resetTable(cacheBase10[:])
+	leafSize = originalLeafSize
+	b.StartTimer()
+}
+
+func resetTable(table []divisor) {
+	if table != nil && table[0].bbb != nil {
+		for i := 0; i < len(table); i++ {
+			table[i].bbb = nil
+			table[i].nbits = 0
+			table[i].ndigits = 0
+		}
+	}
+}
+
+func TestStringPowers(t *testing.T) {
+	var b, p Word
+	for b = 2; b <= 16; b++ {
+		for p = 0; p <= 512; p++ {
+			x := nat(nil).expWW(b, p)
+			xs := x.string(lowercaseDigits[0:b])
+			xs2 := toString(x, lowercaseDigits[0:b])
+			if xs != xs2 {
+				t.Errorf("failed at %d ** %d in base %d: %s != %s", b, p, b, xs, xs2)
+			}
+		}
 	}
 }
 
