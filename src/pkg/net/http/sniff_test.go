@@ -6,12 +6,14 @@ package http_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	. "net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -111,4 +113,25 @@ func TestContentTypeWithCopy(t *testing.T) {
 		t.Errorf("data is %q, want %q", data, input)
 	}
 	resp.Body.Close()
+}
+
+func TestSniffWriteSize(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		size, _ := strconv.Atoi(r.FormValue("size"))
+		written, err := io.WriteString(w, strings.Repeat("a", size))
+		if err != nil {
+			t.Errorf("write of %d bytes: %v", size, err)
+			return
+		}
+		if written != size {
+			t.Errorf("write of %d bytes wrote %d bytes", size, written)
+		}
+	}))
+	defer ts.Close()
+	for _, size := range []int{0, 1, 200, 600, 999, 1000, 1023, 1024, 512 << 10, 1 << 20} {
+		_, err := Get(fmt.Sprintf("%s/?size=%d", ts.URL, size))
+		if err != nil {
+			t.Fatalf("size %d: %v", size, err)
+		}
+	}
 }

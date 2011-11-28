@@ -467,7 +467,7 @@ func (w *response) Write(data []byte) (n int, err error) {
 		// determine the content type.  Accumulate the
 		// initial writes in w.conn.body.
 		// Cap m so that append won't allocate.
-		m := cap(w.conn.body) - len(w.conn.body)
+		m = cap(w.conn.body) - len(w.conn.body)
 		if m > len(data) {
 			m = len(data)
 		}
