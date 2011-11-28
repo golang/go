@@ -312,7 +312,11 @@ func Rel(basepath, targpath string) (string, error) {
 	if b0 != bl {
 		// Base elements left. Must go up before going down.
 		seps := strings.Count(base[b0:bl], string(Separator))
-		buf := make([]byte, 3+seps*3+tl-t0)
+		size := 2 + seps*3
+		if tl != t0 {
+			size += 1 + tl - t0
+		}
+		buf := make([]byte, size)
 		n := copy(buf, "..")
 		for i := 0; i < seps; i++ {
 			buf[n] = Separator
