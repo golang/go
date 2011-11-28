@@ -2530,6 +2530,7 @@ copytype(Node *n, Type *t)
 	t->vargen = n->vargen;
 	t->siggen = 0;
 	t->method = nil;
+	t->xmethod = nil;
 	t->nod = N;
 	t->printed = 0;
 	t->deferwidth = 0;
