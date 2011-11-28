@@ -702,7 +702,7 @@ func TestTrim(t *testing.T) {
 		case "TrimRight":
 			f = TrimRight
 		default:
-			t.Error("Undefined trim function %s", name)
+			t.Errorf("Undefined trim function %s", name)
 		}
 		actual := string(f([]byte(tc.in), tc.cutset))
 		if actual != tc.out {
