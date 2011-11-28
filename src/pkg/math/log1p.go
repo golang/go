@@ -44,7 +44,7 @@ package math
 //                      2      4      6      8      10      12      14
 //          R(z) ~ Lp1*s +Lp2*s +Lp3*s +Lp4*s +Lp5*s  +Lp6*s  +Lp7*s
 //      (the values of Lp1 to Lp7 are listed in the program)
-//      a-0.2929nd
+//      and
 //          |      2          14          |     -58.45
 //          | Lp1*s +...+Lp7*s    -  R(z) | <= 2
 //          |                             |
@@ -88,6 +88,7 @@ package math
 //
 // Special cases are:
 //	Log1p(+Inf) = +Inf
+//	Log1p(±0) = ±0
 //	Log1p(-1) = -Inf
 //	Log1p(x < -1) = NaN
 //	Log1p(NaN) = NaN
