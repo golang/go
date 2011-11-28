@@ -117,3 +117,29 @@ func Syscall12(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4
 	r1 = c.r1;
 	r2 = c.r2;
 }
+
+func Syscall15(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr, a13 uintptr, a14 uintptr, a15 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	WinCall c;
+
+	USED(a2);
+	USED(a3);
+	USED(a4);
+	USED(a5);
+	USED(a6);
+	USED(a7);
+	USED(a8);
+	USED(a9);
+	USED(a10);
+	USED(a11);
+	USED(a12);
+	USED(a13);
+	USED(a14);
+	USED(a15);
+	c.fn = (void*)fn;
+	c.n = nargs;
+	c.args = &a1;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
+}

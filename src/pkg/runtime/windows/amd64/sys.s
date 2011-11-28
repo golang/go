@@ -4,7 +4,7 @@
 
 #include "amd64/asm.h"
 
-#define maxargs 12
+#define maxargs 15
 
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),7,$0
