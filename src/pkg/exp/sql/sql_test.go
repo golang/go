@@ -166,7 +166,7 @@ func TestBogusPreboundParameters(t *testing.T) {
 	}
 }
 
-func TestDb(t *testing.T) {
+func TestExec(t *testing.T) {
 	db := newTestDB(t, "foo")
 	defer closeDB(t, db)
 	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
@@ -204,5 +204,27 @@ func TestDb(t *testing.T) {
 			t.Errorf("stmt.Execute #%d: for %v, got error %q, want error %q",
 				n, et.args, errStr, et.wantErr)
 		}
+	}
+}
+
+func TestTxStmt(t *testing.T) {
+	db := newTestDB(t, "")
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
+	stmt, err := db.Prepare("INSERT|t1|name=?,age=?")
+	if err != nil {
+		t.Fatalf("Stmt, err = %v, %v", stmt, err)
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatalf("Begin = %v", err)
+	}
+	_, err = tx.Stmt(stmt).Exec("Bobby", 7)
+	if err != nil {
+		t.Fatalf("Exec = %v", err)
+	}
+	err = tx.Commit()
+	if err != nil {
+		t.Fatalf("Commit = %v", err)
 	}
 }
