@@ -384,7 +384,7 @@ func (c *chanlist) remove(id uint32) {
 // A chanWriter represents the stdin of a remote process.
 type chanWriter struct {
 	win          chan int // receives window adjustments
-	peersId      uint32   // the peers id
+	peersId      uint32   // the peer's id
 	rwin         int      // current rwin size
 	packetWriter          // for sending channelDataMsg
 }
@@ -422,7 +422,7 @@ type chanReader struct {
 	// If writes to this channel block, they will block mainLoop, making
 	// it unable to receive new messages from the remote side.
 	data         chan []byte // receives data from remote
-	peersId      uint32      // the peers id
+	peersId      uint32      // the peer's id
 	packetWriter             // for sending windowAdjustMsg
 	buf          []byte
 }
