@@ -403,8 +403,8 @@ func (w *chanWriter) Write(data []byte) (n int, err error) {
 		n = len(data)
 		packet := make([]byte, 0, 9+n)
 		packet = append(packet, msgChannelData,
-			byte(w.peersId)>>24, byte(w.peersId)>>16, byte(w.peersId)>>8, byte(w.peersId),
-			byte(n)>>24, byte(n)>>16, byte(n)>>8, byte(n))
+			byte(w.peersId>>24), byte(w.peersId>>16), byte(w.peersId>>8), byte(w.peersId),
+			byte(n>>24), byte(n>>16), byte(n>>8), byte(n))
 		err = w.writePacket(append(packet, data...))
 		w.rwin -= n
 		return
