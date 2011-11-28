@@ -141,7 +141,7 @@ func multipleLines(file, text string, arg1, arg2 interface{}) string {
 	if !isInt2 {
 		line2 = match(file, line1, lines, pattern2)
 	} else if line2 < line1 {
-		log.Fatal("lines out of order for %q: %d %d", line1, line2)
+		log.Fatalf("lines out of order for %q: %d %d", text, line1, line2)
 	}
 	return strings.Join(lines[line1-1:line2], "")
 }
@@ -153,7 +153,7 @@ func match(file string, start int, lines []string, pattern string) int {
 	// $ matches the end of the file.
 	if pattern == "$" {
 		if len(lines) == 0 {
-			log.Fatal("%q: empty file", file)
+			log.Fatalf("%q: empty file", file)
 		}
 		return len(lines)
 	}
