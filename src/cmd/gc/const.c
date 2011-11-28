@@ -424,7 +424,7 @@ isconst(Node *n, int ct)
 void
 evconst(Node *n)
 {
-	Node *nl, *nr;
+	Node *nl, *nr, *norig;
 	int32 len;
 	Strlit *str;
 	int wl, wr, lno, et;
@@ -842,8 +842,11 @@ unary:
 	}
 
 ret:
+	norig = n->orig;
 	// rewrite n in place.
 	*n = *nl;
+	// restore value of n->orig.
+	n->orig = norig;
 	n->val = v;
 
 	// check range.
