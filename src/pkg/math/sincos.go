@@ -7,7 +7,6 @@ package math
 // Sincos(x) returns Sin(x), Cos(x).
 //
 // Special conditions are:
-//	Sincos(+Inf) = NaN, NaN
-//	Sincos(-Inf) = NaN, NaN
+//	Sincos(±Inf) = NaN, NaN
 //	Sincos(NaN) = NaN, NaN
 func Sincos(x float64) (sin, cos float64) { return Sin(x), Cos(x) }
