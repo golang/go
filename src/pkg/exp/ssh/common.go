@@ -224,3 +224,16 @@ func buildDataSignedForAuth(sessionId []byte, req userAuthRequestMsg, algo, pubK
 	r = marshalString(r, pubKey)
 	return ret
 }
+
+// safeString sanitises s according to RFC 4251, section 9.2. 
+// All control characters except tab, carriage return and newline are
+// replaced by 0x20.
+func safeString(s string) string {
+	out := []byte(s)
+	for i, c := range out {
+		if c < 0x20 && c != 0xd && c != 0xa && c != 0x9 {
+			out[i] = 0x20
+		}
+	}
+	return string(out)
+}
