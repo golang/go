@@ -56,18 +56,25 @@ Curves:
 	ellipticOk := supportedCurve && supportedPointFormat
 
 	var suite *cipherSuite
-	var suiteId uint16
 FindCipherSuite:
 	for _, id := range clientHello.cipherSuites {
 		for _, supported := range config.cipherSuites() {
 			if id == supported {
-				suite = cipherSuites[id]
+				suite = nil
+				for _, s := range cipherSuites {
+					if s.id == id {
+						suite = s
+						break
+					}
+				}
+				if suite == nil {
+					continue
+				}
 				// Don't select a ciphersuite which we can't
 				// support for this client.
 				if suite.elliptic && !ellipticOk {
 					continue
 				}
-				suiteId = id
 				break FindCipherSuite
 			}
 		}
@@ -87,7 +94,7 @@ FindCipherSuite:
 	}
 
 	hello.vers = vers
-	hello.cipherSuite = suiteId
+	hello.cipherSuite = suite.id
 	t := uint32(config.time())
 	hello.random = make([]byte, 32)
 	hello.random[0] = byte(t >> 24)
@@ -296,7 +303,7 @@ FindCipherSuite:
 	c.writeRecord(recordTypeHandshake, finished.marshal())
 
 	c.handshakeComplete = true
-	c.cipherSuite = suiteId
+	c.cipherSuite = suite.id
 
 	return nil
 }

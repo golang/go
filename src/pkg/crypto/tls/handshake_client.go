@@ -72,7 +72,7 @@ func (c *Conn) clientHandshake() error {
 		return errors.New("server advertised unrequested NPN")
 	}
 
-	suite, suiteId := mutualCipherSuite(c.config.cipherSuites(), serverHello.cipherSuite)
+	suite := mutualCipherSuite(c.config.cipherSuites(), serverHello.cipherSuite)
 	if suite == nil {
 		return c.sendAlert(alertHandshakeFailure)
 	}
@@ -292,7 +292,7 @@ func (c *Conn) clientHandshake() error {
 	}
 
 	c.handshakeComplete = true
-	c.cipherSuite = suiteId
+	c.cipherSuite = suite.id
 	return nil
 }
 
