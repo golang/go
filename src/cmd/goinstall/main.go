@@ -32,7 +32,6 @@ const logfile = "goinstall.log"
 var (
 	fset          = token.NewFileSet()
 	argv0         = os.Args[0]
-	errors_       = false
 	parents       = make(map[string]string)
 	visit         = make(map[string]status)
 	installedPkgs = make(map[string]map[string]bool)
@@ -41,6 +40,7 @@ var (
 	allpkg            = flag.Bool("a", false, "install all previously installed packages")
 	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
 	update            = flag.Bool("u", false, "update already-downloaded packages")
+	doGofix           = flag.Bool("fix", false, "gofix each package before building it")
 	doInstall         = flag.Bool("install", true, "build and install")
 	clean             = flag.Bool("clean", false, "clean the package directory before installing")
 	nuke              = flag.Bool("nuke", false, "clean the package directory and target before installing")
@@ -55,6 +55,51 @@ const (
 	done
 )
 
+type PackageError struct {
+	pkg string
+	err error
+}
+
+func (e *PackageError) Error() string {
+	return fmt.Sprintf("%s: %v", e.pkg, e.err)
+}
+
+type DownloadError struct {
+	pkg    string
+	goroot bool
+	err    error
+}
+
+func (e *DownloadError) Error() string {
+	s := fmt.Sprintf("%s: download failed: %v", e.pkg, e.err)
+	if e.goroot && os.Getenv("GOPATH") == "" {
+		s += " ($GOPATH is not set)"
+	}
+	return s
+}
+
+type DependencyError PackageError
+
+func (e *DependencyError) Error() string {
+	return fmt.Sprintf("%s: depends on failing packages:\n\t%v", e.pkg, e.err)
+}
+
+type BuildError PackageError
+
+func (e *BuildError) Error() string {
+	return fmt.Sprintf("%s: build failed: %v", e.pkg, e.err)
+}
+
+type RunError struct {
+	cmd, dir string
+	out      []byte
+	err      error
+}
+
+func (e *RunError) Error() string {
+	return fmt.Sprintf("%v\ncd %q && %q\n%s", e.err, e.dir, e.cmd, e.out)
+}
+
 func logf(format string, args ...interface{}) {
 	format = "%s: " + format
 	args = append([]interface{}{argv0}, args...)
@@ -65,18 +110,6 @@ func printf(format string, args ...interface{}) {
 	if *verbose {
 		logf(format, args...)
 	}
-}
-
-func errorf(format string, args ...interface{}) {
-	errors_ = true
-	logf(format, args...)
-}
-
-func terrorf(tree *build.Tree, format string, args ...interface{}) {
-	if tree != nil && tree.Goroot && os.Getenv("GOPATH") == "" {
-		format = strings.TrimRight(format, "\n") + " ($GOPATH not set)\n"
-	}
-	errorf(format, args...)
 }
 
 func main() {
@@ -112,15 +145,14 @@ func main() {
 	if len(args) == 0 {
 		usage()
 	}
+	errs := false
 	for _, path := range args {
-		if s := schemeRe.FindString(path); s != "" {
-			errorf("%q used in import path, try %q\n", s, path[len(s):])
-			continue
+		if err := install(path, ""); err != nil {
+			errs = true
+			fmt.Fprintln(os.Stderr, err)
 		}
-
-		install(path, "")
 	}
-	if errors_ {
+	if errs {
 		os.Exit(1)
 	}
 }
@@ -164,7 +196,7 @@ func logPackage(pkg string, tree *build.Tree) (logged bool) {
 	name := filepath.Join(tree.Path, logfile)
 	fout, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		terrorf(tree, "package log: %s\n", err)
+		printf("package log: %s\n", err)
 		return false
 	}
 	fmt.Fprintf(fout, "%s\n", pkg)
@@ -173,11 +205,19 @@ func logPackage(pkg string, tree *build.Tree) (logged bool) {
 }
 
 // install installs the package named by path, which is needed by parent.
-func install(pkg, parent string) {
+func install(pkg, parent string) error {
+	// Basic validation of import path string.
+	if s := schemeRe.FindString(pkg); s != "" {
+		return fmt.Errorf("%q used in import path, try %q\n", s, pkg[len(s):])
+	}
+	if strings.HasSuffix(pkg, "/") {
+		return fmt.Errorf("%q should not have trailing '/'\n", pkg)
+	}
+
 	// Make sure we're not already trying to install pkg.
 	switch visit[pkg] {
 	case done:
-		return
+		return nil
 	case visiting:
 		fmt.Fprintf(os.Stderr, "%s: package dependency cycle\n", argv0)
 		printDeps(parent)
@@ -190,24 +230,17 @@ func install(pkg, parent string) {
 		visit[pkg] = done
 	}()
 
-	// Don't allow trailing '/'
-	if strings.HasSuffix(pkg, "/") {
-		errorf("%s should not have trailing '/'\n", pkg)
-		return
-	}
-
 	// Check whether package is local or remote.
 	// If remote, download or update it.
 	tree, pkg, err := build.FindTree(pkg)
 	// Don't build the standard library.
 	if err == nil && tree.Goroot && isStandardPath(pkg) {
 		if parent == "" {
-			errorf("%s: can not goinstall the standard library\n", pkg)
-		} else {
-			printf("%s: skipping standard library\n", pkg)
+			return &PackageError{pkg, errors.New("cannot goinstall the standard library")}
 		}
-		return
+		return nil
 	}
+
 	// Download remote packages if not found or forced with -u flag.
 	remote, public := isRemote(pkg), false
 	if remote {
@@ -215,6 +248,9 @@ func install(pkg, parent string) {
 			// Download remote package.
 			printf("%s: download\n", pkg)
 			public, err = download(pkg, tree.SrcDir())
+			if err != nil {
+				return &DownloadError{pkg, tree.Goroot, err}
+			}
 		} else {
 			// Test if this is a public repository
 			// (for reporting to dashboard).
@@ -224,62 +260,12 @@ func install(pkg, parent string) {
 		}
 	}
 	if err != nil {
-		terrorf(tree, "%s: %v\n", pkg, err)
-		return
-	}
-	dir := filepath.Join(tree.SrcDir(), filepath.FromSlash(pkg))
-
-	// Install prerequisites.
-	dirInfo, err := build.ScanDir(dir)
-	if err != nil {
-		terrorf(tree, "%s: %v\n", pkg, err)
-		return
-	}
-	// We reserve package main to identify commands.
-	if parent != "" && dirInfo.Package == "main" {
-		terrorf(tree, "%s: found only package main in %s; cannot import", pkg, dir)
-		return
-	}
-	for _, p := range dirInfo.Imports {
-		if p != "C" {
-			install(p, pkg)
-		}
-	}
-	if errors_ {
-		return
+		return &PackageError{pkg, err}
 	}
 
-	// Install this package.
-	if *useMake {
-		err := domake(dir, pkg, tree, dirInfo.IsCommand())
-		if err != nil {
-			terrorf(tree, "%s: install: %v\n", pkg, err)
-			return
-		}
-	} else {
-		script, err := build.Build(tree, pkg, dirInfo)
-		if err != nil {
-			terrorf(tree, "%s: install: %v\n", pkg, err)
-			return
-		}
-		if *nuke {
-			printf("%s: nuke\n", pkg)
-			script.Nuke()
-		} else if *clean {
-			printf("%s: clean\n", pkg)
-			script.Clean()
-		}
-		if *doInstall {
-			if script.Stale() {
-				printf("%s: install\n", pkg)
-				if err := script.Run(); err != nil {
-					terrorf(tree, "%s: install: %v\n", pkg, err)
-					return
-				}
-			} else {
-				printf("%s: up-to-date\n", pkg)
-			}
-		}
+	// Install the package and its dependencies.
+	if err := installPackage(pkg, parent, tree, false); err != nil {
+		return err
 	}
 
 	if remote {
@@ -291,6 +277,106 @@ func install(pkg, parent string) {
 		if logged && public {
 			maybeReportToDashboard(pkg)
 		}
+	}
+
+	return nil
+}
+
+// installPackage installs the specified package and its dependencies.
+func installPackage(pkg, parent string, tree *build.Tree, retry bool) (installErr error) {
+	printf("%s: install\n", pkg)
+
+	// Read package information.
+	dir := filepath.Join(tree.SrcDir(), filepath.FromSlash(pkg))
+	dirInfo, err := build.ScanDir(dir)
+	if err != nil {
+		return &PackageError{pkg, err}
+	}
+
+	// We reserve package main to identify commands.
+	if parent != "" && dirInfo.Package == "main" {
+		return &PackageError{pkg, fmt.Errorf("found only package main in %s; cannot import", dir)}
+	}
+
+	// Run gofix if we fail to build and -fix is set.
+	defer func() {
+		if retry || installErr == nil || !*doGofix {
+			return
+		}
+		if e, ok := (installErr).(*DependencyError); ok {
+			// If this package failed to build due to a
+			// DependencyError, only attempt to gofix it if its
+			// dependency failed for some reason other than a
+			// DependencyError or BuildError.
+			// (If a dep or one of its deps doesn't build there's
+			// no way that gofixing this package can help.)
+			switch e.err.(type) {
+			case *DependencyError:
+				return
+			case *BuildError:
+				return
+			}
+		}
+		gofix(pkg, dir, dirInfo)
+		installErr = installPackage(pkg, parent, tree, true) // retry
+	}()
+
+	// Install prerequisites.
+	for _, p := range dirInfo.Imports {
+		if p == "C" {
+			continue
+		}
+		if err := install(p, pkg); err != nil {
+			return &DependencyError{pkg, err}
+		}
+	}
+
+	// Install this package.
+	if *useMake {
+		err := domake(dir, pkg, tree, dirInfo.IsCommand())
+		if err != nil {
+			return &BuildError{pkg, err}
+		}
+		return nil
+	}
+	script, err := build.Build(tree, pkg, dirInfo)
+	if err != nil {
+		return &BuildError{pkg, err}
+	}
+	if *nuke {
+		printf("%s: nuke\n", pkg)
+		script.Nuke()
+	} else if *clean {
+		printf("%s: clean\n", pkg)
+		script.Clean()
+	}
+	if *doInstall {
+		if script.Stale() {
+			printf("%s: install\n", pkg)
+			if err := script.Run(); err != nil {
+				return &BuildError{pkg, err}
+			}
+		} else {
+			printf("%s: up-to-date\n", pkg)
+		}
+	}
+
+	return nil
+}
+
+// gofix runs gofix against the GoFiles and CgoFiles of dirInfo in dir.
+func gofix(pkg, dir string, dirInfo *build.DirInfo) {
+	printf("%s: gofix\n", pkg)
+	files := append([]string{}, dirInfo.GoFiles...)
+	files = append(files, dirInfo.CgoFiles...)
+	for i, file := range files {
+		files[i] = filepath.Join(dir, file)
+	}
+	cmd := exec.Command("gofix", files...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		logf("%s: gofix: %v", pkg, err)
 	}
 }
 
@@ -304,34 +390,17 @@ func isStandardPath(s string) bool {
 }
 
 // run runs the command cmd in directory dir with standard input stdin.
-// If the command fails, run prints the command and output on standard error
-// in addition to returning a non-nil error.
-func run(dir string, stdin []byte, cmd ...string) error {
-	return genRun(dir, stdin, cmd, false)
-}
-
-// quietRun is like run but prints nothing on failure unless -v is used.
-func quietRun(dir string, stdin []byte, cmd ...string) error {
-	return genRun(dir, stdin, cmd, true)
-}
-
-// genRun implements run and quietRun.
-func genRun(dir string, stdin []byte, arg []string, quiet bool) error {
+// If verbose is set and the command fails it prints the output to stderr.
+func run(dir string, stdin []byte, arg ...string) error {
 	cmd := exec.Command(arg[0], arg[1:]...)
 	cmd.Stdin = bytes.NewBuffer(stdin)
 	cmd.Dir = dir
-	printf("%s: %s %s\n", dir, cmd.Path, strings.Join(arg[1:], " "))
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		if !quiet || *verbose {
-			if dir != "" {
-				dir = "cd " + dir + "; "
-			}
-			fmt.Fprintf(os.Stderr, "%s: === %s%s\n", cmd.Path, dir, strings.Join(cmd.Args, " "))
-			os.Stderr.Write(out)
-			fmt.Fprintf(os.Stderr, "--- %s\n", err)
+	printf("cd %s && %s %s\n", dir, cmd.Path, strings.Join(arg[1:], " "))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		if *verbose {
+			fmt.Fprintf(os.Stderr, "%v\n%s\n", err, out)
 		}
-		return errors.New("running " + arg[0] + ": " + err.Error())
+		return &RunError{strings.Join(arg, " "), dir, out, err}
 	}
 	return nil
 }

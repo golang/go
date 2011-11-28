@@ -132,7 +132,7 @@ type RemoteRepo interface {
 	// the part of the import path that forms the repository root,
 	// and the version control system it uses. It may discover this
 	// information by using the supplied client to make HTTP requests.
-	Repo(_ *http.Client) (url, root string, vcs *vcs, err error)
+	Repo(*http.Client) (url, root string, vcs *vcs, err error)
 }
 
 type host struct {
@@ -169,7 +169,7 @@ type baseRepo struct {
 	vcs       *vcs
 }
 
-func (r *baseRepo) Repo(_ *http.Client) (url, root string, vcs *vcs, err error) {
+func (r *baseRepo) Repo(*http.Client) (url, root string, vcs *vcs, err error) {
 	return r.url, r.root, r.vcs, nil
 }
 
@@ -345,7 +345,7 @@ type anyRepo struct {
 	rootWithoutSuffix string
 }
 
-func (r *anyRepo) Repo(_ *http.Client) (url, root string, vcs *vcs, err error) {
+func (r *anyRepo) Repo(*http.Client) (url, root string, vcs *vcs, err error) {
 	if r.url != "" {
 		return r.url, r.root, r.vcs, nil
 	}
@@ -458,13 +458,12 @@ func (v *vcs) updateRepo(repoPath string) error {
 	cmd := exec.Command(v.cmd, v.tagList)
 	cmd.Dir = repoPath
 	cmd.Stderr = stderr
-	b, err := cmd.Output()
+	out, err := cmd.Output()
 	if err != nil {
-		errorf("%s %s: %s\n", v.cmd, v.tagList, stderr)
-		return err
+		return &RunError{strings.Join(cmd.Args, " "), repoPath, out, err}
 	}
 	var tags []string
-	for _, m := range v.tagListRe.FindAllStringSubmatch(string(b), -1) {
+	for _, m := range v.tagListRe.FindAllStringSubmatch(string(out), -1) {
 		tags = append(tags, m[1])
 	}
 
