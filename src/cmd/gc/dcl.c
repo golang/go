@@ -771,7 +771,6 @@ structfield(Node *n)
 		break;
 	}
 
-	// tofunarg will undo this for _ arguments
 	if(n->left && n->left->op == ONAME) {
 		f->nname = n->left;
 		f->embedded = n->embedded;
@@ -839,13 +838,6 @@ tofunargs(NodeList *l)
 
 	for(tp = &t->type; l; l=l->next) {
 		f = structfield(l->n);
-
-		// Unlink the name for _ arguments.
-		if(l->n->left && l->n->left->op == ONAME && isblank(l->n->left)) {
-			f->nname = nil;
-			f->sym = nil;
-			f->embedded = 0;
-		}
 
 		// esc.c needs to find f given a PPARAM to add the tag.
 		if(l->n->left && l->n->left->class == PPARAM)

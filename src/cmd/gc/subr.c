@@ -2226,13 +2226,12 @@ structargs(Type **tl, int mustname)
 	gen = 0;
 	for(t = structfirst(&savet, tl); t != T; t = structnext(&savet)) {
 		n = N;
-		if(t->sym)
-			n = newname(t->sym);
-		else if(mustname) {
-			// have to give it a name so we can refer to it in trampoline
+		if(mustname && (t->sym == nil || strcmp(t->sym->name, "_") == 0)) {
+			// invent a name so that we can refer to it in the trampoline
 			snprint(buf, sizeof buf, ".anon%d", gen++);
 			n = newname(lookup(buf));
-		}
+		} else if(t->sym)
+			n = newname(t->sym);
 		a = nod(ODCLFIELD, n, typenod(t->type));
 		a->isddd = t->isddd;
 		if(n != N)
@@ -2274,7 +2273,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 	int isddd;
 	Val v;
 
-	if(0 && debug['r'])
+	if(debug['r'])
 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
 			rcvr, method, newnam);
 
