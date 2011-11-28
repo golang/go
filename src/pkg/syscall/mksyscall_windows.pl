@@ -190,6 +190,11 @@ while(<>) {
 		while(@args < 12) {
 			push @args, "0";
 		}
+	} elsif(@args <= 15) {
+		$asm = "${syscalldot}Syscall15";
+		while(@args < 15) {
+			push @args, "0";
+		}
 	} else {
 		print STDERR "$ARGV:$.: too many arguments to system call\n";
 	}
