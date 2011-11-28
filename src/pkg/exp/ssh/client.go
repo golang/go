@@ -177,35 +177,7 @@ func (c *ClientConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handsha
 	return H, K, nil
 }
 
-// openChan opens a new client channel. The most common session type is "session". 
-// The full set of valid session types are listed in RFC 4250 4.9.1.
-func (c *ClientConn) openChan(typ string) (*clientChan, error) {
-	ch := c.newChan(c.transport)
-	if err := c.writePacket(marshal(msgChannelOpen, channelOpenMsg{
-		ChanType:      typ,
-		PeersId:       ch.id,
-		PeersWindow:   1 << 14,
-		MaxPacketSize: 1 << 15, // RFC 4253 6.1
-	})); err != nil {
-		c.chanlist.remove(ch.id)
-		return nil, err
-	}
-	// wait for response
-	switch msg := (<-ch.msg).(type) {
-	case *channelOpenConfirmMsg:
-		ch.peersId = msg.MyId
-		ch.win <- int(msg.MyWindow)
-	case *channelOpenFailureMsg:
-		c.chanlist.remove(ch.id)
-		return nil, errors.New(msg.Message)
-	default:
-		c.chanlist.remove(ch.id)
-		return nil, errors.New("Unexpected packet")
-	}
-	return ch, nil
-}
-
-// mainloop reads incoming messages and routes channel messages
+// mainLoop reads incoming messages and routes channel messages
 // to their respective ClientChans.
 func (c *ClientConn) mainLoop() {
 	// TODO(dfc) signal the underlying close to all channels
@@ -271,7 +243,7 @@ func (c *ClientConn) mainLoop() {
 			case *windowAdjustMsg:
 				c.getChan(msg.PeersId).win <- int(msg.AdditionalBytes)
 			default:
-				fmt.Printf("mainLoop: unhandled %#v\n", msg)
+				fmt.Printf("mainLoop: unhandled message %T: %v\n", msg, msg)
 			}
 		}
 	}
@@ -347,7 +319,7 @@ type chanlist struct {
 	// protects concurrent access to chans
 	sync.Mutex
 	// chans are indexed by the local id of the channel, clientChan.id.
-	// The PeersId value of messages received by ClientConn.mainloop is
+	// The PeersId value of messages received by ClientConn.mainLoop is
 	// used to locate the right local clientChan in this slice.
 	chans []*clientChan
 }

@@ -277,11 +277,29 @@ func (s *Session) stderr() error {
 
 // NewSession returns a new interactive session on the remote host.
 func (c *ClientConn) NewSession() (*Session, error) {
-	ch, err := c.openChan("session")
-	if err != nil {
+	ch := c.newChan(c.transport)
+	if err := c.writePacket(marshal(msgChannelOpen, channelOpenMsg{
+		ChanType:      "session",
+		PeersId:       ch.id,
+		PeersWindow:   1 << 14,
+		MaxPacketSize: 1 << 15, // RFC 4253 6.1
+	})); err != nil {
+		c.chanlist.remove(ch.id)
 		return nil, err
 	}
-	return &Session{
-		clientChan: ch,
-	}, nil
+	// wait for response
+	msg := <-ch.msg
+	switch msg := msg.(type) {
+	case *channelOpenConfirmMsg:
+		ch.peersId = msg.MyId
+		ch.win <- int(msg.MyWindow)
+		return &Session{
+			clientChan: ch,
+		}, nil
+	case *channelOpenFailureMsg:
+		c.chanlist.remove(ch.id)
+		return nil, fmt.Errorf("ssh: channel open failed: %s", msg.Message)
+	}
+	c.chanlist.remove(ch.id)
+	return nil, fmt.Errorf("ssh: unexpected message %T: %v", msg, msg)
 }
