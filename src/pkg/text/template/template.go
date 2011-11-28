@@ -103,6 +103,23 @@ func (t *Template) copy(c *common) *Template {
 	return nt
 }
 
+// Add associates the argument template, arg, with t, and vice versa,
+// so they may invoke each other. To do this, it also removes any
+// prior associations arg may have. Except for losing the link to
+// arg, templates associated with arg are otherwise unaffected. It
+// is an error if the argument template's name is already associated
+// with t.  Add is here to support html/template and is not intended
+// for other uses.
+// TODO: make this take a parse.Tree argument instead of a template.
+func (t *Template) Add(arg *Template) error {
+	if t.tmpl[arg.name] != nil {
+		return fmt.Errorf("template: redefinition of template %q", arg.name)
+	}
+	arg.common = t.common
+	t.tmpl[arg.name] = arg
+	return nil
+}
+
 // Templates returns a slice of the templates associated with t, including t
 // itself.
 func (t *Template) Templates() []*Template {
@@ -139,6 +156,9 @@ func (t *Template) Funcs(funcMap FuncMap) *Template {
 // Lookup returns the template with the given name that is associated with t,
 // or nil if there is no such template.
 func (t *Template) Lookup(name string) *Template {
+	if t.common == nil {
+		return nil
+	}
 	return t.tmpl[name]
 }
 
