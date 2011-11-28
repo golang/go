@@ -2465,6 +2465,7 @@ static void
 domethod(Node *n)
 {
 	Node *nt;
+	Type *t;
 
 	nt = n->type->nname;
 	typecheck(&nt, Etype);
@@ -2474,6 +2475,20 @@ domethod(Node *n)
 		n->type->nod = N;
 		return;
 	}
+	
+	// If we have
+	//	type I interface {
+	//		M(_ int)
+	//	}
+	// then even though I.M looks like it doesn't care about the
+	// value of its argument, a specific implementation of I may
+	// care.  The _ would suppress the assignment to that argument
+	// while generating a call, so remove it.
+	for(t=getinargx(nt->type)->type; t; t=t->down) {
+		if(t->sym != nil && strcmp(t->sym->name, "_") == 0)
+			t->sym = nil;
+	}
+
 	*n->type = *nt->type;
 	n->type->nod = N;
 	checkwidth(n->type);

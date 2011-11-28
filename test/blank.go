@@ -101,6 +101,29 @@ func main() {
 	}
 
 	h(a, b)
+	
+	m()
+}
+
+type I interface {
+	M(_ int, y int)
+}
+
+type TI struct{}
+
+func (TI) M(x int, y int) {
+	if x != y {
+		println("invalid M call:", x, y)
+		panic("bad M")
+	}
+}
+
+func m() {
+	var i I
+	
+	i = TI{}
+	i.M(1, 1)
+	i.M(2, 2)
 }
 
 // useless but legal
@@ -120,3 +143,4 @@ func _() {
 func ff() {
 	var _ int = 1
 }
+
