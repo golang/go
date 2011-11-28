@@ -170,8 +170,8 @@ func (t *Tree) Parse(s, leftDelim, rightDelim string, treeSet map[string]*Tree, 
 	defer t.recover(&err)
 	t.startParse(funcs, lex(t.Name, s, leftDelim, rightDelim))
 	t.parse(treeSet)
-	t.stopParse()
 	t.add(treeSet)
+	t.stopParse()
 	return t, nil
 }
 
