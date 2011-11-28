@@ -37,6 +37,7 @@ type keyAgreement interface {
 // A cipherSuite is a specific combination of key agreement, cipher and MAC
 // function. All cipher suites currently assume RSA key agreement.
 type cipherSuite struct {
+	id uint16
 	// the lengths, in bytes, of the key material needed for each component.
 	keyLen int
 	macLen int
@@ -50,13 +51,13 @@ type cipherSuite struct {
 	mac      func(version uint16, macKey []byte) macFunction
 }
 
-var cipherSuites = map[uint16]*cipherSuite{
-	TLS_RSA_WITH_RC4_128_SHA:            &cipherSuite{16, 20, 0, rsaKA, false, cipherRC4, macSHA1},
-	TLS_RSA_WITH_3DES_EDE_CBC_SHA:       &cipherSuite{24, 20, 8, rsaKA, false, cipher3DES, macSHA1},
-	TLS_RSA_WITH_AES_128_CBC_SHA:        &cipherSuite{16, 20, 16, rsaKA, false, cipherAES, macSHA1},
-	TLS_ECDHE_RSA_WITH_RC4_128_SHA:      &cipherSuite{16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1},
-	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA: &cipherSuite{24, 20, 8, ecdheRSAKA, true, cipher3DES, macSHA1},
-	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:  &cipherSuite{16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1},
+var cipherSuites = []*cipherSuite{
+	&cipherSuite{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, false, cipherRC4, macSHA1},
+	&cipherSuite{TLS_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, rsaKA, false, cipher3DES, macSHA1},
+	&cipherSuite{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, false, cipherAES, macSHA1},
+	&cipherSuite{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1},
+	&cipherSuite{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, true, cipher3DES, macSHA1},
+	&cipherSuite{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1},
 }
 
 func cipherRC4(key, iv []byte, isRead bool) interface{} {
@@ -159,15 +160,20 @@ func ecdheRSAKA() keyAgreement {
 	return new(ecdheRSAKeyAgreement)
 }
 
-// mutualCipherSuite returns a cipherSuite and its id given a list of supported
+// mutualCipherSuite returns a cipherSuite given a list of supported
 // ciphersuites and the id requested by the peer.
-func mutualCipherSuite(have []uint16, want uint16) (suite *cipherSuite, id uint16) {
+func mutualCipherSuite(have []uint16, want uint16) *cipherSuite {
 	for _, id := range have {
 		if id == want {
-			return cipherSuites[id], id
+			for _, suite := range cipherSuites {
+				if suite.id == want {
+					return suite
+				}
+			}
+			return nil
 		}
 	}
-	return
+	return nil
 }
 
 // A list of the possible cipher suite ids. Taken from
