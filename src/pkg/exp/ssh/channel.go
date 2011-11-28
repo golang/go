@@ -244,13 +244,13 @@ func (c *channel) Write(data []byte) (n int, err error) {
 
 		packet := make([]byte, 1+4+4+len(todo))
 		packet[0] = msgChannelData
-		packet[1] = byte(c.theirId) >> 24
-		packet[2] = byte(c.theirId) >> 16
-		packet[3] = byte(c.theirId) >> 8
+		packet[1] = byte(c.theirId >> 24)
+		packet[2] = byte(c.theirId >> 16)
+		packet[3] = byte(c.theirId >> 8)
 		packet[4] = byte(c.theirId)
-		packet[5] = byte(len(todo)) >> 24
-		packet[6] = byte(len(todo)) >> 16
-		packet[7] = byte(len(todo)) >> 8
+		packet[5] = byte(len(todo) >> 24)
+		packet[6] = byte(len(todo) >> 16)
+		packet[7] = byte(len(todo) >> 8)
 		packet[8] = byte(len(todo))
 		copy(packet[9:], todo)
 
