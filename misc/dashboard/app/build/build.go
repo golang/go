@@ -105,6 +105,16 @@ func (com *Commit) HasResult(builder string) bool {
 	return false
 }
 
+func (com *Commit) HasGoHashResult(builder, goHash string) bool {
+	for _, r := range com.Result {
+		p := strings.SplitN(r, "|", 4)
+		if len(p) == 4 && p[0] == builder && p[3] == goHash {
+			return true
+		}
+	}
+	return false
+}
+
 // A Result describes a build result for a Commit on an OS/architecture.
 //
 // Each Result entity is a descendant of its associated Commit entity.
@@ -299,11 +309,8 @@ func todoHandler(w http.ResponseWriter, r *http.Request) {
 		Ancestor(p.Key(c)).
 		Limit(commitsPerPage).
 		Order("-Num")
-	if goHash != "" && p.Path != "" {
-		q.Filter("GoHash =", goHash)
-	}
 	var nextHash string
-	for t := q.Run(c); ; {
+	for t := q.Run(c); nextHash == ""; {
 		com := new(Commit)
 		if _, err := t.Next(com); err == datastore.Done {
 			break
@@ -311,12 +318,39 @@ func todoHandler(w http.ResponseWriter, r *http.Request) {
 			logErr(w, r, err)
 			return
 		}
-		if !com.HasResult(builder) {
+		var hasResult bool
+		if goHash != "" {
+			hasResult = com.HasGoHashResult(builder, goHash)
+		} else {
+			hasResult = com.HasResult(builder)
+		}
+		if !hasResult {
 			nextHash = com.Hash
-			break
 		}
 	}
 	fmt.Fprint(w, nextHash)
+}
+
+// packagesHandler returns a JSON-encoded list of the non-Go Packages
+// monitored by the dashboard.
+func packagesHandler(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	var pkgs []*Package
+	for t := datastore.NewQuery("Package").Run(c); ; {
+		pkg := new(Package)
+		if _, err := t.Next(pkg); err == datastore.Done {
+			break
+		} else if err != nil {
+			logErr(w, r, err)
+			return
+		}
+		if pkg.Path != "" {
+			pkgs = append(pkgs, pkg)
+		}
+	}
+	if err := json.NewEncoder(w).Encode(pkgs); err != nil {
+		logErr(w, r, err)
+	}
 }
 
 // resultHandler records a build result.
@@ -408,6 +442,7 @@ func AuthHandler(h http.HandlerFunc) http.HandlerFunc {
 func init() {
 	// authenticated handlers
 	http.HandleFunc("/commit", AuthHandler(commitHandler))
+	http.HandleFunc("/packages", AuthHandler(packagesHandler))
 	http.HandleFunc("/result", AuthHandler(resultHandler))
 	http.HandleFunc("/tag", AuthHandler(tagHandler))
 	http.HandleFunc("/todo", AuthHandler(todoHandler))
