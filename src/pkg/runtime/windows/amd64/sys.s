@@ -4,7 +4,9 @@
 
 #include "amd64/asm.h"
 
-#define maxargs 15
+// maxargs should be divisible by 2, as Windows stack
+// must be kept 16-byte aligned on syscall entry.
+#define maxargs 16
 
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),7,$0
