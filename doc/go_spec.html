@@ -912,9 +912,9 @@ in a struct type:
 
 <pre>
 struct {
-	T         // conflicts with anonymous field *T and *P.T
-	*T        // conflicts with anonymous field T and *P.T
-	*P.T      // conflicts with anonymous field T and *T
+	T     // conflicts with anonymous field *T and *P.T
+	*T    // conflicts with anonymous field T and *P.T
+	*P.T  // conflicts with anonymous field T and *T
 }
 </pre>
 
@@ -974,7 +974,7 @@ BaseType = Type .
 
 <pre>
 *int
-*map[string] *chan int
+*map[string]*chan int
 </pre>
 
 <h3 id="Function_types">Function types</h3>
@@ -1153,9 +1153,9 @@ failure will cause a <a href="#Run_time_panics">run-time panic</a>.
 </p>
 
 <pre>
-map [string] int
-map [*T] struct { x, y float64 }
-map [string] interface {}
+map[string]int
+map[*T]struct{ x, y float64 }
+map[string]interface{}
 </pre>
 
 <p>
@@ -1174,8 +1174,8 @@ which takes the map type and an optional capacity hint as arguments:
 </p>
 
 <pre>
-make(map[string] int)
-make(map[string] int, 100)
+make(map[string]int)
+make(map[string]int, 100)
 </pre>
 
 <p>
@@ -1207,9 +1207,9 @@ A channel may be constrained only to send or only to receive by
 </p>
 
 <pre>
-chan T         // can be used to send and receive values of type T
-chan&lt;- float64 // can only be used to send float64s
-&lt;-chan int     // can only be used to receive ints
+chan T          // can be used to send and receive values of type T
+chan&lt;- float64  // can only be used to send float64s
+&lt;-chan int      // can only be used to receive ints
 </pre>
 
 <p>
@@ -1218,9 +1218,9 @@ possible:
 </p>
 
 <pre>
-chan&lt;- chan int     // same as chan&lt;- (chan int)
-chan&lt;- &lt;-chan int   // same as chan&lt;- (&lt;-chan int)
-&lt;-chan &lt;-chan int   // same as &lt;-chan (&lt;-chan int)
+chan&lt;- chan int    // same as chan&lt;- (chan int)
+chan&lt;- &lt;-chan int  // same as chan&lt;- (&lt;-chan int)
+&lt;-chan &lt;-chan int  // same as &lt;-chan (&lt;-chan int)
 chan (&lt;-chan int)
 </pre>
 
@@ -1306,8 +1306,8 @@ Given the declarations
 type (
 	T0 []string
 	T1 []string
-	T2 struct { a, b int }
-	T3 struct { a, c int }
+	T2 struct{ a, b int }
+	T3 struct{ a, c int }
 	T4 func(int, float64) *T0
 	T5 func(x int, y float64) *[]string
 )
@@ -1320,7 +1320,7 @@ these types are identical:
 <pre>
 T0 and T0
 []int and []int
-struct { a, b *T5 } and struct { a, b *T5 }
+struct{ a, b *T5 } and struct{ a, b *T5 }
 func(x int, y float64) *[]string and func(int, float64) (result *[]string)
 </pre>
 
@@ -1564,10 +1564,10 @@ constant, even if the literal's fractional part is zero.
 
 <pre>
 const Pi float64 = 3.14159265358979323846
-const zero = 0.0             // untyped floating-point constant
+const zero = 0.0         // untyped floating-point constant
 const (
 	size int64 = 1024
-	eof = -1             // untyped integer constant
+	eof        = -1  // untyped integer constant
 )
 const a, b, c = 3, 4, "foo"  // a = 3, b = 4, c = "foo", untyped integer and string constants
 const u, v float32 = 0, 3    // u = 0.0, v = 3.0
@@ -1639,10 +1639,10 @@ it is only incremented after each ConstSpec:
 
 <pre>
 const (
-	bit0, mask0 = 1 &lt;&lt; iota, 1 &lt;&lt; iota - 1  // bit0 == 1, mask0 == 0
-	bit1, mask1                             // bit1 == 2, mask1 == 1
-	_, _                                    // skips iota == 2
-	bit3, mask3                             // bit3 == 8, mask3 == 7
+	bit0, mask0 = 1 &lt;&lt; iota, 1&lt;&lt;iota - 1  // bit0 == 1, mask0 == 0
+	bit1, mask1                           // bit1 == 2, mask1 == 1
+	_, _                                  // skips iota == 2
+	bit3, mask3                           // bit3 == 8, mask3 == 7
 )
 </pre>
 
@@ -1670,7 +1670,7 @@ TypeSpec     = identifier Type .
 type IntArray [16]int
 
 type (
-	Point struct { x, y float64 }
+	Point struct{ x, y float64 }
 	Polar Point
 )
 
@@ -1753,7 +1753,7 @@ var U, V, W float64
 var k = 0
 var x, y float32 = -1, -2
 var (
-	i int
+	i       int
 	u, v, s = 2.0, 3.0, "bar"
 )
 var re, im = complexSqrt(-1)
@@ -2090,9 +2090,9 @@ to the maximum element index plus one.
 </p>
 
 <pre>
-buffer := [10]string{}               // len(buffer) == 10
-intSet := [6]int{1, 2, 3, 5}         // len(intSet) == 6
-days := [...]string{"Sat", "Sun"}    // len(days) == 2
+buffer := [10]string{}             // len(buffer) == 10
+intSet := [6]int{1, 2, 3, 5}       // len(intSet) == 6
+days := [...]string{"Sat", "Sun"}  // len(days) == 2
 </pre>
 
 <p>
@@ -2331,13 +2331,13 @@ one may write:
 </p>
 
 <pre>
-p.z         // (*p).z
-p.y         // ((*p).T1).y
-p.x         // (*(*p).T0).x
+p.z   // (*p).z
+p.y   // ((*p).T1).y
+p.x   // (*(*p).T0).x
 
-p.M2        // (*p).M2
-p.M1        // ((*p).T1).M1
-p.M0        // ((*p).T0).M0
+p.M2  // (*p).M2
+p.M1  // ((*p).T1).M1
+p.M0  // ((*p).T0).M0
 </pre>
 
 
@@ -2476,9 +2476,9 @@ sliced operand:
 </p>
 
 <pre>
-a[2:]	// same a[2 : len(a)]
-a[:3]   // same as a[0 : 3]
-a[:]    // same as a[0 : len(a)]
+a[2:]  // same a[2 : len(a)]
+a[:3]  // same as a[0 : 3]
+a[:]   // same as a[0 : len(a)]
 </pre>
 
 <p>
@@ -2571,7 +2571,7 @@ the method.
 </p>
 
 <pre>
-math.Atan2(x, y)    // function call
+math.Atan2(x, y)  // function call
 var pt *Point
 pt.Scale(3.5)  // method call with receiver pt
 </pre>
@@ -3091,7 +3091,7 @@ Consider a struct type <code>T</code> with two methods,
 type T struct {
 	a int
 }
-func (tv  T) Mv(a int)     int     { return 0 }  // value receiver
+func (tv  T) Mv(a int) int         { return 0 }  // value receiver
 func (tp *T) Mp(f float32) float32 { return 1 }  // pointer receiver
 var t T
 </pre>
@@ -3337,11 +3337,11 @@ string containing the UTF-8 representation of the integer. Values outside
 the range of valid Unicode code points are converted to <code>"\uFFFD"</code>.
 
 <pre>
-string('a')           // "a"
-string(-1)            // "\ufffd" == "\xef\xbf\xbd "
-string(0xf8)          // "\u00f8" == "ø" == "\xc3\xb8"
+string('a')       // "a"
+string(-1)        // "\ufffd" == "\xef\xbf\xbd "
+string(0xf8)      // "\u00f8" == "ø" == "\xc3\xb8"
 type MyString string
-MyString(0x65e5)      // "\u65e5" == "日" == "\xe6\x97\xa5"
+MyString(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
 </pre>
 </li>
 
@@ -3351,7 +3351,7 @@ a string whose successive bytes are the elements of the slice.  If
 the slice value is <code>nil</code>, the result is the empty string.
 
 <pre>
-string([]byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'})   // "hellø"
+string([]byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'})  // "hellø"
 
 type MyBytes []byte
 string(MyBytes{'h', 'e', 'l', 'l', '\xc3', '\xb8'})  // "hellø"
@@ -3365,7 +3365,7 @@ converted to strings.  If the slice value is <code>nil</code>, the
 result is the empty string.
 
 <pre>
-string([]rune{0x767d, 0x9d6c, 0x7fd4})   // "\u767d\u9d6c\u7fd4" == "白鵬翔"
+string([]rune{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
 
 type MyRunes []rune
 string(MyRunes{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
@@ -3378,8 +3378,8 @@ yields a slice whose successive elements are the bytes of the string.
 If the string is empty, the result is <code>[]byte(nil)</code>.
 
 <pre>
-[]byte("hellø")  // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
-MyBytes("hellø") // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
+[]byte("hellø")   // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
+MyBytes("hellø")  // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
 </pre>
 </li>
 
@@ -3473,11 +3473,11 @@ of the constant type. The following constant expressions are illegal:
 </p>
 
 <pre>
-uint(-1)       // -1 cannot be represented as a uint
-int(3.14)      // 3.14 cannot be represented as an int
-int64(Huge)    // 1&lt;&lt;100 cannot be represented as an int64
-Four * 300     // 300 cannot be represented as an int8
-Four * 100     // 400 cannot be represented as an int8
+uint(-1)     // -1 cannot be represented as a uint
+int(3.14)    // 3.14 cannot be represented as an int
+int64(Huge)  // 1&lt;&lt;100 cannot be represented as an int64
+Four * 300   // 300 cannot be represented as an int8
+Four * 100   // 400 cannot be represented as an int8
 </pre>
 
 <p>
@@ -3487,11 +3487,11 @@ and -1 for signed and untyped constants.
 </p>
 
 <pre>
-^1          // untyped integer constant, equal to -2
-uint8(^1)   // error, same as uint8(-2), out of range
-^uint8(1)   // typed uint8 constant, same as 0xFF ^ uint8(1) = uint8(0xFE)
-int8(^1)    // same as int8(-2)
-^int8(1)    // same as -1 ^ int8(1) = -2
+^1         // untyped integer constant, equal to -2
+uint8(^1)  // error, same as uint8(-2), out of range
+^uint8(1)  // typed uint8 constant, same as 0xFF ^ uint8(1) = uint8(0xFE)
+int8(^1)   // same as int8(-2)
+^int8(1)   // same as -1 ^ int8(1) = -2
 </pre>
 
 <!--
@@ -3517,7 +3517,7 @@ order.
 For example, in the assignment
 </p>
 <pre>
-y[f()], ok = g(h(), i() + x[j()], &lt;-c), k()
+y[f()], ok = g(h(), i()+x[j()], &lt;-c), k()
 </pre>
 <p>
 the function calls and communication happen in the order
@@ -3732,14 +3732,14 @@ a, b = b, a  // exchange a and b
 
 x := []int{1, 2, 3}
 i := 0
-i, x[i] = 1, 2   // set i = 1, x[0] = 2
+i, x[i] = 1, 2  // set i = 1, x[0] = 2
 
 i = 0
 x[i], i = 2, 1  // set x[0] = 2, i = 1
 
 x[0], x[0] = 1, 2  // set x[0] = 1, then x[0] = 2 (so x[0] = 2 at end)
 
-x[1], x[3] = 4, 5 // set x[1] = 4, then panic setting x[3] = 5.
+x[1], x[3] = 4, 5  // set x[1] = 4, then panic setting x[3] = 5.
 
 type Point struct { x, y int }
 var p *Point
@@ -4247,7 +4247,7 @@ for {  // send random sequence of bits to c
 	}
 }
 
-select { }  // block forever
+select {}  // block forever
 </pre>
 
 
@@ -4644,10 +4644,10 @@ is negative or larger than <code>m</code>, or if <code>n</code> or
 </p>
 
 <pre>
-s := make([]int, 10, 100)        // slice with len(s) == 10, cap(s) == 100
-s := make([]int, 10)             // slice with len(s) == cap(s) == 10
-c := make(chan int, 10)          // channel with a buffer size of 10
-m := make(map[string] int, 100)  // map with initial space for 100 elements
+s := make([]int, 10, 100)       // slice with len(s) == 10, cap(s) == 100
+s := make([]int, 10)            // slice with len(s) == cap(s) == 10
+c := make(chan int, 10)         // channel with a buffer size of 10
+m := make(map[string]int, 100)  // map with initial space for 100 elements
 </pre>
 
 
@@ -4693,7 +4693,7 @@ var t []interface{}
 t = append(t, 42, 3.1415, "foo")                          t == []interface{}{42, 3.1415, "foo"}
 
 var b []byte
-b = append(b, "bar"...)    // append string contents      b == []byte{'b', 'a', 'r' }
+b = append(b, "bar"...)  // append string contents      b == []byte{'b', 'a', 'r' }
 </pre>
 
 <p>
@@ -5008,7 +5008,7 @@ func generate(ch chan&lt;- int) {
 // Copy the values from channel 'src' to channel 'dst',
 // removing those divisible by 'prime'.
 func filter(src &lt;-chan int, dst chan&lt;- int, prime int) {
-	for i := range src {	// Loop over values received from 'src'.
+	for i := range src {  // Loop over values received from 'src'.
 		if i%prime != 0 {
 			dst &lt;- i  // Send 'i' to channel 'dst'.
 		}
