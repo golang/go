@@ -4,8 +4,6 @@
 
 package build
 
-// TODO(adg): test branches
-// TODO(adg): test non-Go packages
 // TODO(adg): test authentication
 
 import (
@@ -32,33 +30,67 @@ var testEntityKinds = []string{
 	"Log",
 }
 
+const testPkg = "code.google.com/p/go.more"
+
+var testPackage = &Package{Name: "Test", Path: testPkg}
+
+var testPackages = []*Package{
+	&Package{Name: "Go", Path: ""},
+	testPackage,
+}
+
 var testRequests = []struct {
 	path string
 	vals url.Values
 	req  interface{}
 	res  interface{}
 }{
+	// Packages
+	{"/packages", nil, nil, []*Package{testPackage}},
+
+	// Go repo
 	{"/commit", nil, &Commit{Hash: "0001", ParentHash: "0000"}, nil},
 	{"/commit", nil, &Commit{Hash: "0002", ParentHash: "0001"}, nil},
 	{"/commit", nil, &Commit{Hash: "0003", ParentHash: "0002"}, nil},
 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
 	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0003"},
-
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0001", OK: true}, nil},
 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
-
-	{"/result", nil, &Result{Builder: "linux-386", Hash: "0002", OK: false, Log: []byte("test")}, nil},
+	{"/result", nil, &Result{Builder: "linux-386", Hash: "0002", OK: true}, nil},
 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
-	{"/log/a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", nil, nil, "test"},
 
+	// multiple builders
+	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0003"},
 	{"/result", nil, &Result{Builder: "linux-amd64", Hash: "0003", OK: true}, nil},
 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
 	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0002"},
-}
 
-var testPackages = []*Package{
-	&Package{Name: "Go", Path: ""},
-	&Package{Name: "Other", Path: "code.google.com/p/go.other"},
+	// branches
+	{"/commit", nil, &Commit{Hash: "0004", ParentHash: "0003"}, nil},
+	{"/commit", nil, &Commit{Hash: "0005", ParentHash: "0002"}, nil},
+	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0005"},
+	{"/result", nil, &Result{Builder: "linux-386", Hash: "0005", OK: true}, nil},
+	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0004"},
+	{"/result", nil, &Result{Builder: "linux-386", Hash: "0004", OK: true}, nil},
+	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
+
+	// logs
+	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: []byte("test")}, nil},
+	{"/log/a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", nil, nil, "test"},
+	{"/todo", url.Values{"builder": {"linux-386"}}, nil, ""},
+
+	// non-Go repos
+	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1001", ParentHash: "1000"}, nil},
+	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1002", ParentHash: "1001"}, nil},
+	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1003", ParentHash: "1002"}, nil},
+	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, "1003"},
+	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1003", GoHash: "0001", OK: true}, nil},
+	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, "1002"},
+	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1002", GoHash: "0001", OK: true}, nil},
+	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, "1001"},
+	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0001", OK: true}, nil},
+	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, ""},
+	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0002"}}, nil, "1003"},
 }
 
 func testHandler(w http.ResponseWriter, r *http.Request) {
@@ -106,11 +138,13 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 		http.DefaultServeMux.ServeHTTP(rec, req)
 		if rec.Code != 0 && rec.Code != 200 {
 			errorf(rec.Body.String())
+			return
 		}
 		if e, ok := t.res.(string); ok {
 			g := rec.Body.String()
 			if g != e {
 				errorf("body mismatch: got %q want %q", g, e)
+				return
 			}
 		}
 	}
