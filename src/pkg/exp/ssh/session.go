@@ -15,6 +15,25 @@ import (
 	"io/ioutil"
 )
 
+type signal string
+
+// POSIX signals as listed in RFC 4254 Section 6.10.
+const (
+	SIGABRT signal = "ABRT"
+	SIGALRM signal = "ALRM"
+	SIGFPE  signal = "FPE"
+	SIGHUP  signal = "HUP"
+	SIGILL  signal = "ILL"
+	SIGINT  signal = "INT"
+	SIGKILL signal = "KILL"
+	SIGPIPE signal = "PIPE"
+	SIGQUIT signal = "QUIT"
+	SIGSEGV signal = "SEGV"
+	SIGTERM signal = "TERM"
+	SIGUSR1 signal = "USR1"
+	SIGUSR2 signal = "USR2"
+)
+
 // A Session represents a connection to a remote command or shell.
 type Session struct {
 	// Stdin specifies the remote process's standard input.
@@ -35,7 +54,7 @@ type Session struct {
 
 	*clientChan // the channel backing this session
 
-	started   bool // true once a Shell or Exec is invoked.
+	started   bool // true once a Shell or Run is invoked.
 	copyFuncs []func() error
 	errch     chan error // one send per copyFunc
 }
@@ -50,7 +69,7 @@ type setenvRequest struct {
 }
 
 // Setenv sets an environment variable that will be applied to any
-// command executed by Shell or Exec.
+// command executed by Shell or Run.
 func (s *Session) Setenv(name, value string) error {
 	req := setenvRequest{
 		PeersId:   s.peersId,
@@ -100,6 +119,26 @@ func (s *Session) RequestPty(term string, h, w int) error {
 	return s.waitForResponse()
 }
 
+// RFC 4254 Section 6.9.
+type signalMsg struct {
+	PeersId   uint32
+	Request   string
+	WantReply bool
+	Signal    string
+}
+
+// Signal sends the given signal to the remote process.
+// sig is one of the SIG* constants.
+func (s *Session) Signal(sig signal) error {
+	req := signalMsg{
+		PeersId:   s.peersId,
+		Request:   "signal",
+		WantReply: false,
+		Signal:    string(sig),
+	}
+	return s.writePacket(marshal(msgChannelRequest, req))
+}
+
 // RFC 4254 Section 6.5.
 type execMsg struct {
 	PeersId   uint32
@@ -108,10 +147,10 @@ type execMsg struct {
 	Command   string
 }
 
-// Exec runs cmd on the remote host. Typically, the remote 
-// server passes cmd to the shell for interpretation. 
-// A Session only accepts one call to Exec or Shell.
-func (s *Session) Exec(cmd string) error {
+// Start runs cmd on the remote host. Typically, the remote
+// server passes cmd to the shell for interpretation.
+// A Session only accepts one call to Run, Start or Shell.
+func (s *Session) Start(cmd string) error {
 	if s.started {
 		return errors.New("ssh: session already started")
 	}
@@ -127,14 +166,23 @@ func (s *Session) Exec(cmd string) error {
 	if err := s.waitForResponse(); err != nil {
 		return fmt.Errorf("ssh: could not execute command %s: %v", cmd, err)
 	}
-	if err := s.start(); err != nil {
+	return s.start()
+}
+
+// Run runs cmd on the remote host and waits for it to terminate. 
+// Typically, the remote server passes cmd to the shell for 
+// interpretation. A Session only accepts one call to Run, 
+// Start or Shell.
+func (s *Session) Run(cmd string) error {
+	err := s.Start(cmd)
+	if err != nil {
 		return err
 	}
 	return s.Wait()
 }
 
 // Shell starts a login shell on the remote host. A Session only 
-// accepts one call to Exec or Shell.
+// accepts one call to Run, Start or Shell.
 func (s *Session) Shell() error {
 	if s.started {
 		return errors.New("ssh: session already started")
