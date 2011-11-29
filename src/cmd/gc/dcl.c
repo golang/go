@@ -674,41 +674,6 @@ typedcl1(Node *n, Node *t, int local)
 }
 
 /*
- * typedcl1 but during imports
- */
-void
-typedcl2(Type *pt, Type *t)
-{
-	Node *n;
-
-	// override declaration in unsafe.go for Pointer.
-	// there is no way in Go code to define unsafe.Pointer
-	// so we have to supply it.
-	if(incannedimport &&
-	   strcmp(importpkg->name, "unsafe") == 0 &&
-	   strcmp(pt->nod->sym->name, "Pointer") == 0) {
-		t = types[TUNSAFEPTR];
-	}
-
-	if(pt->etype == TFORW)
-		goto ok;
-	if(!eqtype(pt->orig, t))
-		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt->orig, t);
-	return;
-
-ok:
-	n = pt->nod;
-	copytype(pt->nod, t);
-	// unzero nod
-	pt->nod = n;
-
-	pt->sym->lastlineno = parserline();
-	declare(n, PEXTERN);
-
-	checkwidth(pt);
-}
-
-/*
  * structs, functions, and methods.
  * they don't belong here, but where do they belong?
  */

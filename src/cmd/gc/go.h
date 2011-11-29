@@ -964,7 +964,6 @@ Type*	tointerface(NodeList *l);
 Type*	tostruct(NodeList *l);
 Node*	typedcl0(Sym *s);
 Node*	typedcl1(Node *n, Node *t, int local);
-void	typedcl2(Type *pt, Type *t);
 Node*	typenod(Type *t);
 NodeList*	variter(NodeList *vl, Node *t, NodeList *el);
 
