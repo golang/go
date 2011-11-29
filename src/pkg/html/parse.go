@@ -37,6 +37,8 @@ type parser struct {
 	// fosterParenting is whether new elements should be inserted according to
 	// the foster parenting rules (section 11.2.5.3).
 	fosterParenting bool
+	// quirks is whether the parser is operating in "quirks mode."
+	quirks bool
 }
 
 func (p *parser) top() *Node {
@@ -321,25 +323,91 @@ func (p *parser) resetInsertionMode() {
 
 const whitespace = " \t\r\n\f"
 
+// quirkyIDs is a list of public doctype identifiers that cause a document
+// to be interpreted in quirks mode. The identifiers should be in lower case.
+var quirkyIDs = []string{
+	"+//silmaril//dtd html pro v0r11 19970101//",
+	"-//advasoft ltd//dtd html 3.0 aswedit + extensions//",
+	"-//as//dtd html 3.0 aswedit + extensions//",
+	"-//ietf//dtd html 2.0 level 1//",
+	"-//ietf//dtd html 2.0 level 2//",
+	"-//ietf//dtd html 2.0 strict level 1//",
+	"-//ietf//dtd html 2.0 strict level 2//",
+	"-//ietf//dtd html 2.0 strict//",
+	"-//ietf//dtd html 2.0//",
+	"-//ietf//dtd html 2.1e//",
+	"-//ietf//dtd html 3.0//",
+	"-//ietf//dtd html 3.2 final//",
+	"-//ietf//dtd html 3.2//",
+	"-//ietf//dtd html 3//",
+	"-//ietf//dtd html level 0//",
+	"-//ietf//dtd html level 1//",
+	"-//ietf//dtd html level 2//",
+	"-//ietf//dtd html level 3//",
+	"-//ietf//dtd html strict level 0//",
+	"-//ietf//dtd html strict level 1//",
+	"-//ietf//dtd html strict level 2//",
+	"-//ietf//dtd html strict level 3//",
+	"-//ietf//dtd html strict//",
+	"-//ietf//dtd html//",
+	"-//metrius//dtd metrius presentational//",
+	"-//microsoft//dtd internet explorer 2.0 html strict//",
+	"-//microsoft//dtd internet explorer 2.0 html//",
+	"-//microsoft//dtd internet explorer 2.0 tables//",
+	"-//microsoft//dtd internet explorer 3.0 html strict//",
+	"-//microsoft//dtd internet explorer 3.0 html//",
+	"-//microsoft//dtd internet explorer 3.0 tables//",
+	"-//netscape comm. corp.//dtd html//",
+	"-//netscape comm. corp.//dtd strict html//",
+	"-//o'reilly and associates//dtd html 2.0//",
+	"-//o'reilly and associates//dtd html extended 1.0//",
+	"-//o'reilly and associates//dtd html extended relaxed 1.0//",
+	"-//softquad software//dtd hotmetal pro 6.0::19990601::extensions to html 4.0//",
+	"-//softquad//dtd hotmetal pro 4.0::19971010::extensions to html 4.0//",
+	"-//spyglass//dtd html 2.0 extended//",
+	"-//sq//dtd html 2.0 hotmetal + extensions//",
+	"-//sun microsystems corp.//dtd hotjava html//",
+	"-//sun microsystems corp.//dtd hotjava strict html//",
+	"-//w3c//dtd html 3 1995-03-24//",
+	"-//w3c//dtd html 3.2 draft//",
+	"-//w3c//dtd html 3.2 final//",
+	"-//w3c//dtd html 3.2//",
+	"-//w3c//dtd html 3.2s draft//",
+	"-//w3c//dtd html 4.0 frameset//",
+	"-//w3c//dtd html 4.0 transitional//",
+	"-//w3c//dtd html experimental 19960712//",
+	"-//w3c//dtd html experimental 970421//",
+	"-//w3c//dtd w3 html//",
+	"-//w3o//dtd w3 html 3.0//",
+	"-//webtechs//dtd mozilla html 2.0//",
+	"-//webtechs//dtd mozilla html//",
+}
+
 // parseDoctype parses the data from a DoctypeToken into a name,
 // public identifier, and system identifier. It returns a Node whose Type 
 // is DoctypeNode, whose Data is the name, and which has attributes
 // named "system" and "public" for the two identifiers if they were present.
-func parseDoctype(s string) *Node {
-	n := &Node{Type: DoctypeNode}
+// quirks is whether the document should be parsed in "quirks mode".
+func parseDoctype(s string) (n *Node, quirks bool) {
+	n = &Node{Type: DoctypeNode}
 
 	// Find the name.
 	space := strings.IndexAny(s, whitespace)
 	if space == -1 {
 		space = len(s)
 	}
-	n.Data = strings.ToLower(s[:space])
+	n.Data = s[:space]
+	// The comparison to "html" is case-sensitive.
+	if n.Data != "html" {
+		quirks = true
+	}
+	n.Data = strings.ToLower(n.Data)
 	s = strings.TrimLeft(s[space:], whitespace)
 
 	if len(s) < 6 {
 		// It can't start with "PUBLIC" or "SYSTEM".
 		// Ignore the rest of the string.
-		return n
+		return n, quirks || s != ""
 	}
 
 	key := strings.ToLower(s[:6])
@@ -371,7 +439,35 @@ func parseDoctype(s string) *Node {
 		}
 	}
 
-	return n
+	if key != "" || s != "" {
+		quirks = true
+	} else if len(n.Attr) > 0 {
+		if n.Attr[0].Key == "public" {
+			public := strings.ToLower(n.Attr[0].Val)
+			switch public {
+			case "-//w3o//dtd w3 html strict 3.0//en//", "-/w3d/dtd html 4.0 transitional/en", "html":
+				quirks = true
+			default:
+				for _, q := range quirkyIDs {
+					if strings.HasPrefix(public, q) {
+						quirks = true
+						break
+					}
+				}
+			}
+			// The following two public IDs only cause quirks mode if there is no system ID.
+			if len(n.Attr) == 1 && (strings.HasPrefix(public, "-//w3c//dtd html 4.01 frameset//") ||
+				strings.HasPrefix(public, "-//w3c//dtd html 4.01 transitional//")) {
+				quirks = true
+			}
+		}
+		if lastAttr := n.Attr[len(n.Attr)-1]; lastAttr.Key == "system" &&
+			strings.ToLower(lastAttr.Val) == "http://www.ibm.com/data/dtd/v11/ibmxhtml1-transitional.dtd" {
+			quirks = true
+		}
+	}
+
+	return n, quirks
 }
 
 // Section 11.2.5.4.1.
@@ -390,12 +486,13 @@ func initialIM(p *parser) bool {
 		})
 		return true
 	case DoctypeToken:
-		p.doc.Add(parseDoctype(p.tok.Data))
+		n, quirks := parseDoctype(p.tok.Data)
+		p.doc.Add(n)
+		p.quirks = quirks
 		p.im = beforeHTMLIM
 		return true
 	}
-	// TODO: set "quirks mode"? It's defined in the DOM spec instead of HTML5 proper,
-	// and so switching on "quirks mode" might belong in a different package.
+	p.quirks = true
 	p.im = beforeHTMLIM
 	return false
 }
@@ -698,7 +795,9 @@ func inBodyIM(p *parser) bool {
 			p.acknowledgeSelfClosingTag()
 			p.framesetOK = false
 		case "table":
-			p.popUntil(buttonScopeStopTags, "p") // TODO: skip this step in quirks mode.
+			if !p.quirks {
+				p.popUntil(buttonScopeStopTags, "p")
+			}
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.framesetOK = false
 			p.im = inTableIM
