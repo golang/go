@@ -349,8 +349,31 @@ importvar(Sym *s, Type *t, int ctxt)
 void
 importtype(Type *pt, Type *t)
 {
-	if(pt != T && t != T)
-		typedcl2(pt, t);
+	Node *n;
+
+	if(pt != T && t != T) {
+		// override declaration in unsafe.go for Pointer.
+		// there is no way in Go code to define unsafe.Pointer
+		// so we have to supply it.
+		if(incannedimport &&
+		   strcmp(importpkg->name, "unsafe") == 0 &&
+		   strcmp(pt->nod->sym->name, "Pointer") == 0) {
+			t = types[TUNSAFEPTR];
+		}
+
+		if(pt->etype == TFORW) {
+			n = pt->nod;
+			copytype(pt->nod, t);
+			// unzero nod
+			pt->nod = n;
+			
+			pt->sym->lastlineno = parserline();
+			declare(n, PEXTERN);
+			
+			checkwidth(pt);
+		} else if(!eqtype(pt->orig, t))
+			yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt->orig, t);
+	}
 
 	if(debug['E'])
 		print("import type %T %lT\n", pt, t);
