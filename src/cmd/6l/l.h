@@ -133,6 +133,7 @@ struct	Sym
 	int32	sig;
 	int32	plt;
 	int32	got;
+	int32	align;	// if non-zero, required alignment in bytes
 	Sym*	hash;	// in hash table
 	Sym*	allsym;	// in all symbol list
 	Sym*	next;	// in text or data list

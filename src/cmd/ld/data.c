@@ -824,6 +824,8 @@ dodata(void)
 	datsize = 0;
 	s = datap;
 	for(; s != nil && s->type < SSYMTAB; s = s->next) {
+		if(s->align != 0)
+			datsize = rnd(datsize, s->align);
 		s->type = SRODATA;
 		s->value = datsize;
 		datsize += rnd(s->size, PtrSize);
@@ -855,6 +857,8 @@ dodata(void)
 	/* read-only ELF sections */
 	for(; s != nil && s->type < SELFSECT; s = s->next) {
 		sect = addsection(&segtext, s->name, 04);
+		if(s->align != 0)
+			datsize = rnd(datsize, s->align);
 		sect->vaddr = datsize;
 		s->type = SRODATA;
 		s->value = datsize;
@@ -866,6 +870,8 @@ dodata(void)
 	datsize = 0;
 	for(; s != nil && s->type < SDATA; s = s->next) {
 		sect = addsection(&segdata, s->name, 06);
+		if(s->align != 0)
+			datsize = rnd(datsize, s->align);
 		sect->vaddr = datsize;
 		s->type = SDATA;
 		s->value = datsize;
@@ -887,7 +893,9 @@ dodata(void)
 			t = rnd(t, PtrSize);
 		else if(t > 2)
 			t = rnd(t, 4);
-		if(t & 1) {
+		if(s->align != 0)
+			datsize = rnd(datsize, s->align);
+		else if(t & 1) {
 			;
 		} else if(t & 2)
 			datsize = rnd(datsize, 2);
@@ -913,7 +921,9 @@ dodata(void)
 			t = rnd(t, PtrSize);
 		else if(t > 2)
 			t = rnd(t, 4);
-		if(t & 1) {
+		if(s->align != 0)
+			datsize = rnd(datsize, s->align);
+		else if(t & 1) {
 			;
 		} else if(t & 2)
 			datsize = rnd(datsize, 2);
@@ -947,6 +957,8 @@ textaddress(void)
 	for(sym = textp; sym != nil; sym = sym->next) {
 		if(sym->type & SSUB)
 			continue;
+		if(sym->align != 0)
+			va = rnd(va, sym->align);
 		sym->value = 0;
 		for(sub = sym; sub != S; sub = sub->sub) {
 			sub->value += va;
