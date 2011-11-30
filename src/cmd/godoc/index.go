@@ -48,6 +48,7 @@ import (
 	"go/token"
 	"index/suffixarray"
 	"io"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -701,8 +702,8 @@ func isWhitelisted(filename string) bool {
 	return whitelisted[key]
 }
 
-func (x *Indexer) visitFile(dirname string, f FileInfo, fulltextIndex bool) {
-	if !f.IsRegular() {
+func (x *Indexer) visitFile(dirname string, f os.FileInfo, fulltextIndex bool) {
+	if f.IsDir() {
 		return
 	}
 
@@ -781,7 +782,7 @@ func NewIndex(dirnames <-chan string, fulltextIndex bool, throttle float64) *Ind
 			continue // ignore this directory
 		}
 		for _, f := range list {
-			if !f.IsDirectory() {
+			if !f.IsDir() {
 				x.visitFile(dirname, f, fulltextIndex)
 			}
 			th.Throttle()

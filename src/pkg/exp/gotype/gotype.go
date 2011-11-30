@@ -150,14 +150,14 @@ func processFiles(filenames []string, allFiles bool) {
 		switch info, err := os.Stat(filename); {
 		case err != nil:
 			report(err)
-		case info.IsRegular():
-			if allFiles || isGoFilename(info.Name) {
-				filenames[i] = filename
-				i++
-			}
-		case info.IsDirectory():
+		case info.IsDir():
 			if allFiles || *recursive {
 				processDirectory(filename)
+			}
+		default:
+			if allFiles || isGoFilename(info.Name()) {
+				filenames[i] = filename
+				i++
 			}
 		}
 	}

@@ -381,15 +381,15 @@ func filenameFunc(path string) string {
 	return localname
 }
 
-func fileInfoNameFunc(fi FileInfo) string {
+func fileInfoNameFunc(fi os.FileInfo) string {
 	name := fi.Name()
-	if fi.IsDirectory() {
+	if fi.IsDir() {
 		name += "/"
 	}
 	return name
 }
 
-func fileInfoTimeFunc(fi FileInfo) string {
+func fileInfoTimeFunc(fi os.FileInfo) string {
 	if t := fi.ModTime(); t.Unix() != 0 {
 		return t.Local().String()
 	}
@@ -789,7 +789,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if dir != nil && dir.IsDirectory() {
+	if dir != nil && dir.IsDir() {
 		if redirect(w, r) {
 			return
 		}
@@ -894,22 +894,8 @@ type httpHandler struct {
 }
 
 // fsReadDir implements ReadDir for the go/build package.
-func fsReadDir(dir string) ([]*os.FileInfo, error) {
-	fi, err := fs.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert []FileInfo to []*os.FileInfo.
-	osfi := make([]*os.FileInfo, len(fi))
-	for i, f := range fi {
-		mode := uint32(S_IFREG)
-		if f.IsDirectory() {
-			mode = S_IFDIR
-		}
-		osfi[i] = &os.FileInfo{Name: f.Name(), Size: f.Size(), ModTime: f.ModTime(), Mode: mode}
-	}
-	return osfi, nil
+func fsReadDir(dir string) ([]os.FileInfo, error) {
+	return fs.ReadDir(dir)
 }
 
 // fsReadFile implements ReadFile for the go/build package.
@@ -969,7 +955,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 	}
 
 	// filter function to select the desired .go files
-	filter := func(d FileInfo) bool {
+	filter := func(d os.FileInfo) bool {
 		// Only Go files.
 		if !isPkgFile(d) {
 			return false
@@ -1048,7 +1034,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 
 	// get examples from *_test.go files
 	var examples []*doc.Example
-	filter = func(d FileInfo) bool {
+	filter = func(d os.FileInfo) bool {
 		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
 	}
 	if testpkgs, err := parseDir(fset, abspath, filter); err != nil {

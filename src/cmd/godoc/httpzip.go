@@ -35,13 +35,18 @@ import (
 	"time"
 )
 
-// We cannot import syscall on app engine.
-// TODO(gri) Once we have a truly abstract FileInfo implementation
-//           this won't be needed anymore.
-const (
-	S_IFDIR = 0x4000 // == syscall.S_IFDIR
-	S_IFREG = 0x8000 // == syscall.S_IFREG
-)
+type fileInfo struct {
+	name  string
+	mode  os.FileMode
+	size  int64
+	mtime time.Time
+}
+
+func (fi *fileInfo) Name() string       { return fi.name }
+func (fi *fileInfo) Mode() os.FileMode  { return fi.mode }
+func (fi *fileInfo) Size() int64        { return fi.size }
+func (fi *fileInfo) ModTime() time.Time { return fi.mtime }
+func (fi *fileInfo) IsDir() bool        { return fi.mode.IsDir() }
 
 // httpZipFile is the zip-file based implementation of http.File
 type httpZipFile struct {
@@ -52,15 +57,15 @@ type httpZipFile struct {
 }
 
 func (f *httpZipFile) Close() error {
-	if f.info.IsRegular() {
+	if !f.info.IsDir() {
 		return f.ReadCloser.Close()
 	}
 	f.list = nil
 	return nil
 }
 
-func (f *httpZipFile) Stat() (*os.FileInfo, error) {
-	return &f.info, nil
+func (f *httpZipFile) Stat() (os.FileInfo, error) {
+	return f.info, nil
 }
 
 func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
@@ -77,17 +82,17 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
 			break // not in the same directory anymore
 		}
 		name := e.Name[len(dirname):] // local name
-		var mode uint32
+		var mode os.FileMode
 		var size int64
 		var mtime time.Time
 		if i := strings.IndexRune(name, '/'); i >= 0 {
 			// We infer directories from files in subdirectories.
 			// If we have x/y, return a directory entry for x.
 			name = name[0:i] // keep local directory name only
-			mode = S_IFDIR
+			mode = os.ModeDir
 			// no size or mtime for directories
 		} else {
-			mode = S_IFREG
+			mode = 0
 			size = int64(e.UncompressedSize)
 			mtime = e.ModTime()
 		}
@@ -96,11 +101,11 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
 		// by determining the (fs.list) range of local directory entries
 		// (via two binary searches).
 		if name != prevname {
-			list = append(list, os.FileInfo{
-				Name:    name,
-				Mode:    mode,
-				Size:    size,
-				ModTime: mtime,
+			list = append(list, &fileInfo{
+				name,
+				mode,
+				size,
+				mtime,
 			})
 			prevname = name
 			count--
@@ -115,7 +120,7 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
 }
 
 func (f *httpZipFile) Seek(offset int64, whence int) (int64, error) {
-	return 0, fmt.Errorf("Seek not implemented for zip file entry: %s", f.info.Name)
+	return 0, fmt.Errorf("Seek not implemented for zip file entry: %s", f.info.Name())
 }
 
 // httpZipFS is the zip-file based implementation of http.FileSystem
@@ -143,11 +148,11 @@ func (fs *httpZipFS) Open(name string) (http.File, error) {
 		}
 		return &httpZipFile{
 			path,
-			os.FileInfo{
-				Name:    name,
-				Mode:    S_IFREG,
-				Size:    int64(f.UncompressedSize),
-				ModTime: f.ModTime(),
+			&fileInfo{
+				name,
+				0,
+				int64(f.UncompressedSize),
+				f.ModTime(),
 			},
 			rc,
 			nil,
@@ -157,10 +162,11 @@ func (fs *httpZipFS) Open(name string) (http.File, error) {
 	// not an exact match - must be a directory
 	return &httpZipFile{
 		path,
-		os.FileInfo{
-			Name: name,
-			Mode: S_IFDIR,
-			// no size or mtime for directories
+		&fileInfo{
+			name,
+			os.ModeDir,
+			0,  // no size for directory
+			time.Time{},  // no mtime for directory
 		},
 		nil,
 		fs.list[index:],

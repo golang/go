@@ -190,8 +190,8 @@ func TestDirJoin(t *testing.T) {
 		if err != nil {
 			t.Fatalf("stat of %s: %v", name, err)
 		}
-		if gfi.Ino != wfi.Ino {
-			t.Errorf("%s got different inode", name)
+		if !gfi.(*os.FileStat).SameFile(wfi.(*os.FileStat)) {
+			t.Errorf("%s got different file", name)
 		}
 	}
 	test(Dir("/etc/"), "/hosts")

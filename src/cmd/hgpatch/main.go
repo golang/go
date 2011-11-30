@@ -192,7 +192,7 @@ func makeParent(name string) {
 func mkdirAll(path string, perm uint32) error {
 	dir, err := os.Lstat(path)
 	if err == nil {
-		if dir.IsDirectory() {
+		if dir.IsDir() {
 			return nil
 		}
 		return &os.PathError{"mkdir", path, os.ENOTDIR}
@@ -220,7 +220,7 @@ func mkdirAll(path string, perm uint32) error {
 		// Handle arguments like "foo/." by
 		// double-checking that directory doesn't exist.
 		dir, err1 := os.Lstat(path)
-		if err1 == nil && dir.IsDirectory() {
+		if err1 == nil && dir.IsDir() {
 			return nil
 		}
 		return err

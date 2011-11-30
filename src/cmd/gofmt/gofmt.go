@@ -80,9 +80,10 @@ func initPrinterMode() {
 	}
 }
 
-func isGoFile(f *os.FileInfo) bool {
+func isGoFile(f os.FileInfo) bool {
 	// ignore non-Go files
-	return f.IsRegular() && !strings.HasPrefix(f.Name, ".") && strings.HasSuffix(f.Name, ".go")
+	name := f.Name()
+	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
 }
 
 // If in == nil, the source is the contents of the file with the given filename.
@@ -158,7 +159,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 	return err
 }
 
-func visitFile(path string, f *os.FileInfo, err error) error {
+func visitFile(path string, f os.FileInfo, err error) error {
 	if err == nil && isGoFile(f) {
 		err = processFile(path, nil, os.Stdout, false)
 	}
@@ -217,12 +218,12 @@ func gofmtMain() {
 		switch dir, err := os.Stat(path); {
 		case err != nil:
 			report(err)
-		case dir.IsRegular():
+		case dir.IsDir():
+			walkDir(path)
+		default:
 			if err := processFile(path, nil, os.Stdout, false); err != nil {
 				report(err)
 			}
-		case dir.IsDirectory():
-			walkDir(path)
 		}
 	}
 }

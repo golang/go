@@ -223,7 +223,7 @@ func EvalSymlinks(path string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if !fi.IsSymlink() {
+		if fi.Mode()&os.ModeSymlink == 0 {
 			b.WriteString(p)
 			if path != "" {
 				b.WriteRune(Separator)
@@ -345,19 +345,19 @@ var SkipDir = errors.New("skip this directory")
 // sole exception is that if path is a directory and the function returns the
 // special value SkipDir, the contents of the directory are skipped
 // and processing continues as usual on the next file.
-type WalkFunc func(path string, info *os.FileInfo, err error) error
+type WalkFunc func(path string, info os.FileInfo, err error) error
 
 // walk recursively descends path, calling w.
-func walk(path string, info *os.FileInfo, walkFn WalkFunc) error {
+func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
 	err := walkFn(path, info, nil)
 	if err != nil {
-		if info.IsDirectory() && err == SkipDir {
+		if info.IsDir() && err == SkipDir {
 			return nil
 		}
 		return err
 	}
 
-	if !info.IsDirectory() {
+	if !info.IsDir() {
 		return nil
 	}
 
@@ -367,7 +367,7 @@ func walk(path string, info *os.FileInfo, walkFn WalkFunc) error {
 	}
 
 	for _, fileInfo := range list {
-		if err = walk(Join(path, fileInfo.Name), fileInfo, walkFn); err != nil {
+		if err = walk(Join(path, fileInfo.Name()), fileInfo, walkFn); err != nil {
 			return err
 		}
 	}
@@ -390,7 +390,7 @@ func Walk(root string, walkFn WalkFunc) error {
 // readDir reads the directory named by dirname and returns
 // a sorted list of directory entries.
 // Copied from io/ioutil to avoid the circular import.
-func readDir(dirname string) ([]*os.FileInfo, error) {
+func readDir(dirname string) ([]os.FileInfo, error) {
 	f, err := os.Open(dirname)
 	if err != nil {
 		return nil, err
@@ -400,20 +400,16 @@ func readDir(dirname string) ([]*os.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	fi := make(fileInfoList, len(list))
-	for i := range list {
-		fi[i] = &list[i]
-	}
-	sort.Sort(fi)
-	return fi, nil
+	sort.Sort(byName(list))
+	return list, nil
 }
 
-// A dirList implements sort.Interface.
-type fileInfoList []*os.FileInfo
+// byName implements sort.Interface.
+type byName []os.FileInfo
 
-func (f fileInfoList) Len() int           { return len(f) }
-func (f fileInfoList) Less(i, j int) bool { return f[i].Name < f[j].Name }
-func (f fileInfoList) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+func (f byName) Len() int           { return len(f) }
+func (f byName) Less(i, j int) bool { return f[i].Name() < f[j].Name() }
+func (f byName) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
 
 // Base returns the last element of path.
 // Trailing path separators are removed before extracting the last element.

@@ -82,7 +82,7 @@ func main() {
 	} else {
 		for _, name := range flag.Args() {
 			// Is it a directory?
-			if fi, err := os.Stat(name); err == nil && fi.IsDirectory() {
+			if fi, err := os.Stat(name); err == nil && fi.IsDir() {
 				walkDir(name)
 			} else {
 				doFile(name, nil)
@@ -105,12 +105,12 @@ func doFile(name string, reader io.Reader) {
 	file.checkFile(name, parsedFile)
 }
 
-func visit(path string, f *os.FileInfo, err error) error {
+func visit(path string, f os.FileInfo, err error) error {
 	if err != nil {
 		errorf("walk error: %s", err)
 		return nil
 	}
-	if f.IsRegular() && strings.HasSuffix(path, ".go") {
+	if !f.IsDir() && strings.HasSuffix(path, ".go") {
 		doFile(path, nil)
 	}
 	return nil

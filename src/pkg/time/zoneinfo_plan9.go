@@ -6,10 +6,10 @@
 
 package time
 
-import (
-	"strconv"
-	"strings"
-)
+//import (
+//	"strconv"
+//	"strings"
+//)
 
 func parseZones(s string) (zt []zonetime) {
 	f := strings.Fields(s)

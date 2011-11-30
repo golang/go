@@ -9,31 +9,48 @@ import (
 	"time"
 )
 
-func isSymlink(stat *syscall.Stat_t) bool {
-	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
+func sameFile(fs1, fs2 *FileStat) bool {
+	sys1 := fs1.Sys.(*syscall.Stat_t)
+	sys2 := fs2.Sys.(*syscall.Stat_t)
+	return sys1.Dev == sys2.Dev && sys1.Ino == sys2.Ino
 }
 
-func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
-	fi.Dev = uint64(stat.Dev)
-	fi.Ino = uint64(stat.Ino)
-	fi.Nlink = uint64(stat.Nlink)
-	fi.Mode = uint32(stat.Mode)
-	fi.Uid = int(stat.Uid)
-	fi.Gid = int(stat.Gid)
-	fi.Rdev = uint64(stat.Rdev)
-	fi.Size = int64(stat.Size)
-	fi.Blksize = int64(stat.Blksize)
-	fi.Blocks = stat.Blocks
-	fi.AccessTime = timespecToTime(stat.Atimespec)
-	fi.ModTime = timespecToTime(stat.Mtimespec)
-	fi.ChangeTime = timespecToTime(stat.Ctimespec)
-	fi.Name = basename(name)
-	if isSymlink(lstat) && !isSymlink(stat) {
-		fi.FollowedSymlink = true
+func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+	fs := &FileStat{
+		name:    basename(name),
+		size:    int64(st.Size),
+		modTime: timespecToTime(st.Mtimespec),
+		Sys:     st,
 	}
-	return fi
+	fs.mode = FileMode(st.Mode & 0777)
+	switch st.Mode & syscall.S_IFMT {
+	case syscall.S_IFBLK, syscall.S_IFCHR:
+		fs.mode |= ModeDevice
+	case syscall.S_IFDIR:
+		fs.mode |= ModeDir
+	case syscall.S_IFIFO:
+		fs.mode |= ModeNamedPipe
+	case syscall.S_IFLNK:
+		fs.mode |= ModeSymlink
+	case syscall.S_IFREG:
+		// nothing to do
+	case syscall.S_IFSOCK:
+		fs.mode |= ModeSocket
+	}
+	if st.Mode&syscall.S_ISGID != 0 {
+		fs.mode |= ModeSetgid
+	}
+	if st.Mode&syscall.S_ISUID != 0 {
+		fs.mode |= ModeSetuid
+	}
+	return fs
 }
 
 func timespecToTime(ts syscall.Timespec) time.Time {
 	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
+}
+
+// For testing.
+func atime(fi FileInfo) time.Time {
+	return timespecToTime(fi.(*FileStat).Sys.(*syscall.Stat_t).Atimespec)
 }

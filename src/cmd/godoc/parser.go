@@ -13,6 +13,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"path/filepath"
 )
 
@@ -47,7 +48,7 @@ func parseFiles(fset *token.FileSet, filenames []string) (pkgs map[string]*ast.P
 	return
 }
 
-func parseDir(fset *token.FileSet, path string, filter func(FileInfo) bool) (map[string]*ast.Package, error) {
+func parseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool) (map[string]*ast.Package, error) {
 	list, err := fs.ReadDir(path)
 	if err != nil {
 		return nil, err
