@@ -538,6 +538,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
 			s->np = sect->size;
 		}
 		s->size = sect->size;
+		s->align = sect->align;
 		if(s->type == STEXT) {
 			if(etextp)
 				etextp->next = s;

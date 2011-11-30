@@ -143,6 +143,7 @@ struct	Sym
 	int32	value;
 	int32	sig;
 	int32	size;
+	int32	align;	// if non-zero, required alignment in bytes
 	uchar	special;
 	uchar	fnptr;	// used as fn ptr
 	Sym*	hash;	// in hash table
