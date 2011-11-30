@@ -4,6 +4,11 @@
 
 package time
 
+func nano() int64 {
+	sec, nsec := now()
+	return sec*1e9 + int64(nsec)
+}
+
 // Interface to timers implemented in package runtime.
 // Must be in sync with ../runtime/runtime.h:/^struct.Timer$
 type runtimeTimer struct {
@@ -21,7 +26,7 @@ func stopTimer(*runtimeTimer) bool
 // When the Timer expires, the current time will be sent on C,
 // unless the Timer was created by AfterFunc.
 type Timer struct {
-	C <-chan int64
+	C <-chan Time
 	r runtimeTimer
 }
 
@@ -34,12 +39,12 @@ func (t *Timer) Stop() (ok bool) {
 
 // NewTimer creates a new Timer that will send
 // the current time on its channel after at least ns nanoseconds.
-func NewTimer(ns int64) *Timer {
-	c := make(chan int64, 1)
+func NewTimer(d Duration) *Timer {
+	c := make(chan Time, 1)
 	t := &Timer{
 		C: c,
 		r: runtimeTimer{
-			when: Nanoseconds() + ns,
+			when: nano() + int64(d),
 			f:    sendTime,
 			arg:  c,
 		},
@@ -55,16 +60,16 @@ func sendTime(now int64, c interface{}) {
 	// the desired behavior when the reader gets behind,
 	// because the sends are periodic.
 	select {
-	case c.(chan int64) <- now:
+	case c.(chan Time) <- Unix(0, now):
 	default:
 	}
 }
 
-// After waits at least ns nanoseconds before sending the current time
+// After waits for the duration to elapse and then sends the current time
 // on the returned channel.
 // It is equivalent to NewTimer(ns).C.
-func After(ns int64) <-chan int64 {
-	return NewTimer(ns).C
+func After(d Duration) <-chan Time {
+	return NewTimer(d).C
 }
 
 // AfterFunc waits at least ns nanoseconds before calling f
@@ -73,7 +78,7 @@ func After(ns int64) <-chan int64 {
 func AfterFunc(ns int64, f func()) *Timer {
 	t := &Timer{
 		r: runtimeTimer{
-			when: Nanoseconds() + ns,
+			when: nano() + ns,
 			f:    goFunc,
 			arg:  f,
 		},

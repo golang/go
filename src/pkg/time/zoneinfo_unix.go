@@ -12,8 +12,8 @@
 package time
 
 import (
-	"bytes"
-	"os"
+	"errors"
+	"syscall"
 )
 
 const (
@@ -65,18 +65,20 @@ func byteString(p []byte) string {
 	return string(p)
 }
 
-func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
+var badData = errors.New("malformed time zone information")
+
+func loadZoneData(bytes []byte) (l *Location, err error) {
 	d := data{bytes, false}
 
 	// 4-byte magic "TZif"
 	if magic := d.read(4); string(magic) != "TZif" {
-		return nil, false
+		return nil, badData
 	}
 
 	// 1-byte version, then 15 bytes of padding
 	var p []byte
 	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
-		return nil, false
+		return nil, badData
 	}
 
 	// six big-endian 32-bit integers:
@@ -98,7 +100,7 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 	for i := 0; i < 6; i++ {
 		nn, ok := d.big4()
 		if !ok {
-			return nil, false
+			return nil, badData
 		}
 		n[i] = int(nn)
 	}
@@ -127,7 +129,7 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 	isutc := d.read(n[NUTCLocal])
 
 	if d.error { // ran out of data
-		return nil, false
+		return nil, badData
 	}
 
 	// If version == 2, the entire file repeats, this time using
@@ -137,90 +139,119 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 	// Now we can build up a useful data structure.
 	// First the zone information.
 	//	utcoff[4] isdst[1] nameindex[1]
-	z := make([]zone, n[NZone])
-	for i := 0; i < len(z); i++ {
+	zone := make([]zone, n[NZone])
+	for i := range zone {
 		var ok bool
 		var n uint32
 		if n, ok = zonedata.big4(); !ok {
-			return nil, false
+			return nil, badData
 		}
-		z[i].utcoff = int(n)
+		zone[i].offset = int(n)
 		var b byte
 		if b, ok = zonedata.byte(); !ok {
-			return nil, false
+			return nil, badData
 		}
-		z[i].isdst = b != 0
+		zone[i].isDST = b != 0
 		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
-			return nil, false
+			return nil, badData
 		}
-		z[i].name = byteString(abbrev[b:])
+		zone[i].name = byteString(abbrev[b:])
 	}
 
 	// Now the transition time info.
-	zt = make([]zonetime, n[NTime])
-	for i := 0; i < len(zt); i++ {
+	tx := make([]zoneTrans, n[NTime])
+	for i := range tx {
 		var ok bool
 		var n uint32
 		if n, ok = txtimes.big4(); !ok {
-			return nil, false
+			return nil, badData
 		}
-		zt[i].time = int32(n)
-		if int(txzones[i]) >= len(z) {
-			return nil, false
+		tx[i].when = int64(int32(n))
+		if int(txzones[i]) >= len(zone) {
+			return nil, badData
 		}
-		zt[i].zone = &z[txzones[i]]
+		tx[i].index = txzones[i]
 		if i < len(isstd) {
-			zt[i].isstd = isstd[i] != 0
+			tx[i].isstd = isstd[i] != 0
 		}
 		if i < len(isutc) {
-			zt[i].isutc = isutc[i] != 0
+			tx[i].isutc = isutc[i] != 0
 		}
 	}
-	return zt, true
+
+	// Commited to succeed.
+	l = &Location{zone: zone, tx: tx}
+
+	// Fill in the cache with information about right now,
+	// since that will be the most common lookup.
+	sec, _ := now()
+	for i := range tx {
+		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
+			l.cacheStart = tx[i].when
+			l.cacheEnd = 1<<63 - 1
+			if i+1 < len(tx) {
+				l.cacheEnd = tx[i+1].when
+			}
+			l.cacheZone = &l.zone[tx[i].index]
+		}
+	}
+
+	return l, nil
 }
 
-func readinfofile(name string) ([]zonetime, bool) {
-	var b bytes.Buffer
-
-	f, err := os.Open(name)
+func loadZoneFile(name string) (l *Location, err error) {
+	buf, err := readFile(name)
 	if err != nil {
-		return nil, false
+		return
 	}
-	defer f.Close()
-	if _, err := b.ReadFrom(f); err != nil {
-		return nil, false
-	}
-	return parseinfo(b.Bytes())
+	return loadZoneData(buf)
 }
 
-func setupTestingZone() {
-	os.Setenv("TZ", "America/Los_Angeles")
-	setupZone()
+func initTestingZone() {
+	syscall.Setenv("TZ", "America/Los_Angeles")
+	initLocal()
 }
 
-func setupZone() {
+// Many systems use /usr/share/zoneinfo, Solaris 2 has
+// /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ.
+var zoneDirs = []string{
+	"/usr/share/zoneinfo/",
+	"/usr/share/lib/zoneinfo/",
+	"/usr/lib/locale/TZ/",
+}
+
+func initLocal() {
 	// consult $TZ to find the time zone to use.
 	// no $TZ means use the system default /etc/localtime.
 	// $TZ="" means use UTC.
 	// $TZ="foo" means use /usr/share/zoneinfo/foo.
-	// Many systems use /usr/share/zoneinfo, Solaris 2 has
-	// /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ.
-	zoneDirs := []string{"/usr/share/zoneinfo/",
-		"/usr/share/lib/zoneinfo/",
-		"/usr/lib/locale/TZ/"}
 
-	tz, err := os.Getenverror("TZ")
+	tz, ok := syscall.Getenv("TZ")
 	switch {
-	case err == os.ENOENV:
-		zones, _ = readinfofile("/etc/localtime")
-	case len(tz) > 0:
-		for _, zoneDir := range zoneDirs {
-			var ok bool
-			if zones, ok = readinfofile(zoneDir + tz); ok {
-				break
-			}
+	case !ok:
+		z, err := loadZoneFile("/etc/localtime")
+		if err == nil {
+			localLoc = *z
+			localLoc.name = "Local"
+			return
 		}
-	case len(tz) == 0:
-		// do nothing: use UTC
+	case tz != "" && tz != "UTC":
+		if z, err := loadLocation(tz); err == nil {
+			localLoc = *z
+			return
+		}
 	}
+
+	// Fall back to UTC.
+	localLoc.name = "UTC"
+}
+
+func loadLocation(name string) (*Location, error) {
+	for _, zoneDir := range zoneDirs {
+		if z, err := loadZoneFile(zoneDir + name); err == nil {
+			z.name = name
+			return z, nil
+		}
+	}
+	return nil, errors.New("unknown time zone " + name)
 }

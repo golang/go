@@ -91,6 +91,23 @@ TEXT runtime·setitimer(SB),7,$-4
 	INT	$0x80
 	RET
 
+// func now() (sec int64, nsec int32)
+TEXT time·now(SB), 7, $32
+	MOVL	$116, AX
+	LEAL	12(SP), BX
+	MOVL	BX, 4(SP)
+	MOVL	$0, 8(SP)
+	INT	$0x80
+	MOVL	12(SP), AX		// sec
+	MOVL	16(SP), BX		// usec
+
+	// sec is in AX, usec in BX
+	MOVL	AX, sec+0(FP)
+	MOVL	$0, sec+4(FP)
+	IMULL	$1000, BX
+	MOVL	BX, nsec+8(FP)
+	RET
+
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),7,$32

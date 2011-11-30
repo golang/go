@@ -6,12 +6,9 @@
 
 package time
 
-import (
-	"os"
-	"syscall"
-)
+import "syscall"
 
 // for testing: whatever interrupts a sleep
 func interrupt() {
-	syscall.Kill(os.Getpid(), syscall.SIGCHLD)
+	syscall.Kill(syscall.Getpid(), syscall.SIGCHLD)
 }

@@ -219,6 +219,18 @@ runtime·nanotime(void)
 	return (filetime - 116444736000000000LL) * 100LL;
 }
 
+void
+time·now(int64 sec, int32 usec)
+{
+	int64 ns;
+	
+	ns = runtime·nanotime();
+	sec = ns / 1000000000LL;
+	usec = ns - sec * 1000000000LL;
+	FLUSH(&sec);
+	FLUSH(&usec);
+}
+
 // Calling stdcall on os stack.
 #pragma textflag 7
 void *

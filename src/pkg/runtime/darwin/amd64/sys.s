@@ -55,6 +55,19 @@ TEXT runtime·setitimer(SB), 7, $0
 	SYSCALL
 	RET
 
+// func now() (sec int64, nsec int32)
+TEXT time·now(SB), 7, $32
+	MOVQ	SP, DI	// must be non-nil, unused
+	MOVQ	$0, SI
+	MOVL	$(0x2000000+116), AX
+	SYSCALL
+
+	// sec is in AX, usec in DX
+	MOVQ	AX, sec+0(FP)
+	IMULQ	$1000, DX
+	MOVL	DX, nsec+8(FP)
+	RET
+
 // int64 nanotime(void)
 TEXT runtime·nanotime(SB), 7, $32
 	MOVQ	SP, DI	// must be non-nil, unused

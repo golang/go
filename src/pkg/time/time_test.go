@@ -16,73 +16,89 @@ import (
 // won't be. The purpose of this test is to at least explain why some of
 // the subsequent tests fail.
 func TestZoneData(t *testing.T) {
-	lt := LocalTime()
+	lt := Now()
 	// PST is 8 hours west, PDT is 7 hours west.  We could use the name but it's not unique.
-	if off := lt.ZoneOffset; off != -8*60*60 && off != -7*60*60 {
-		t.Errorf("Unable to find US Pacific time zone data for testing; time zone is %q offset %d", lt.Zone, off)
+	if name, off := lt.Zone(); off != -8*60*60 && off != -7*60*60 {
+		t.Errorf("Unable to find US Pacific time zone data for testing; time zone is %q offset %d", name, off)
 		t.Error("Likely problem: the time zone files have not been installed.")
 	}
 }
 
+// parsedTime is the struct representing a parsed time value.
+type parsedTime struct {
+	Year                 int
+	Month                Month
+	Day                  int
+	Hour, Minute, Second int // 15:04:05 is 15, 4, 5.
+	Nanosecond           int // Fractional second.
+	Weekday              Weekday
+	ZoneOffset           int    // seconds east of UTC, e.g. -7*60*60 for -0700
+	Zone                 string // e.g., "MST"
+}
+
 type TimeTest struct {
 	seconds int64
-	golden  Time
+	golden  parsedTime
 }
 
 var utctests = []TimeTest{
-	{0, Time{1970, 1, 1, 0, 0, 0, 0, 0, "UTC"}},
-	{1221681866, Time{2008, 9, 17, 20, 4, 26, 0, 0, "UTC"}},
-	{-1221681866, Time{1931, 4, 16, 3, 55, 34, 0, 0, "UTC"}},
-	{-11644473600, Time{1601, 1, 1, 0, 0, 0, 0, 0, "UTC"}},
-	{599529660, Time{1988, 12, 31, 0, 1, 0, 0, 0, "UTC"}},
-	{978220860, Time{2000, 12, 31, 0, 1, 0, 0, 0, "UTC"}},
-	{1e18, Time{31688740476, 10, 23, 1, 46, 40, 0, 0, "UTC"}},
-	{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, 0, 0, "UTC"}},
-	{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, 0, 0, "UTC"}},
-	{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, 0, 0, "UTC"}},
+	{0, parsedTime{1970, January, 1, 0, 0, 0, 0, Thursday, 0, "UTC"}},
+	{1221681866, parsedTime{2008, September, 17, 20, 4, 26, 0, Wednesday, 0, "UTC"}},
+	{-1221681866, parsedTime{1931, April, 16, 3, 55, 34, 0, Thursday, 0, "UTC"}},
+	{-11644473600, parsedTime{1601, January, 1, 0, 0, 0, 0, Monday, 0, "UTC"}},
+	{599529660, parsedTime{1988, December, 31, 0, 1, 0, 0, Saturday, 0, "UTC"}},
+	{978220860, parsedTime{2000, December, 31, 0, 1, 0, 0, Sunday, 0, "UTC"}},
 }
 
 var nanoutctests = []TimeTest{
-	{0, Time{1970, 1, 1, 0, 0, 0, 1e8, 0, "UTC"}},
-	{1221681866, Time{2008, 9, 17, 20, 4, 26, 2e8, 0, "UTC"}},
+	{0, parsedTime{1970, January, 1, 0, 0, 0, 1e8, Thursday, 0, "UTC"}},
+	{1221681866, parsedTime{2008, September, 17, 20, 4, 26, 2e8, Wednesday, 0, "UTC"}},
 }
 
 var localtests = []TimeTest{
-	{0, Time{1969, 12, 31, 16, 0, 0, 0, -8 * 60 * 60, "PST"}},
-	{1221681866, Time{2008, 9, 17, 13, 4, 26, 0, -7 * 60 * 60, "PDT"}},
+	{0, parsedTime{1969, December, 31, 16, 0, 0, 0, Wednesday, -8 * 60 * 60, "PST"}},
+	{1221681866, parsedTime{2008, September, 17, 13, 4, 26, 0, Wednesday, -7 * 60 * 60, "PDT"}},
 }
 
 var nanolocaltests = []TimeTest{
-	{0, Time{1969, 12, 31, 16, 0, 0, 1e8, -8 * 60 * 60, "PST"}},
-	{1221681866, Time{2008, 9, 17, 13, 4, 26, 3e8, -7 * 60 * 60, "PDT"}},
+	{0, parsedTime{1969, December, 31, 16, 0, 0, 1e8, Wednesday, -8 * 60 * 60, "PST"}},
+	{1221681866, parsedTime{2008, September, 17, 13, 4, 26, 3e8, Wednesday, -7 * 60 * 60, "PDT"}},
 }
 
-func same(t, u *Time) bool {
-	return t.Year == u.Year &&
-		t.Month == u.Month &&
-		t.Day == u.Day &&
-		t.Hour == u.Hour &&
-		t.Minute == u.Minute &&
-		t.Second == u.Second &&
-		t.Nanosecond == u.Nanosecond &&
-		t.Weekday() == u.Weekday() &&
-		t.ZoneOffset == u.ZoneOffset &&
-		t.Zone == u.Zone
+func same(t Time, u *parsedTime) bool {
+	// Check aggregates.
+	year, month, day := t.Date()
+	hour, min, sec := t.Clock()
+	name, offset := t.Zone()
+	if year != u.Year || month != u.Month || day != u.Day ||
+		hour != u.Hour || min != u.Minute || sec != u.Second ||
+		name != u.Zone || offset != u.ZoneOffset {
+		return false
+	}
+	// Check individual entries.
+	return t.Year() == u.Year &&
+		t.Month() == u.Month &&
+		t.Day() == u.Day &&
+		t.Hour() == u.Hour &&
+		t.Minute() == u.Minute &&
+		t.Second() == u.Second &&
+		t.Nanosecond() == u.Nanosecond &&
+		t.Weekday() == u.Weekday
 }
 
 func TestSecondsToUTC(t *testing.T) {
 	for _, test := range utctests {
 		sec := test.seconds
 		golden := &test.golden
-		tm := SecondsToUTC(sec)
-		newsec := tm.Seconds()
+		tm := Unix(sec, 0).UTC()
+		newsec := tm.Unix()
 		if newsec != sec {
 			t.Errorf("SecondsToUTC(%d).Seconds() = %d", sec, newsec)
 		}
 		if !same(tm, golden) {
-			t.Errorf("SecondsToUTC(%d):", sec)
+			t.Errorf("SecondsToUTC(%d):  // %#v", sec, tm)
 			t.Errorf("  want=%+v", *golden)
-			t.Errorf("  have=%+v", *tm)
+			t.Errorf("  have=%v", tm.Format(RFC3339+" MST"))
 		}
 	}
 }
@@ -91,15 +107,15 @@ func TestNanosecondsToUTC(t *testing.T) {
 	for _, test := range nanoutctests {
 		golden := &test.golden
 		nsec := test.seconds*1e9 + int64(golden.Nanosecond)
-		tm := NanosecondsToUTC(nsec)
-		newnsec := tm.Nanoseconds()
+		tm := Unix(0, nsec).UTC()
+		newnsec := tm.Unix()*1e9 + int64(tm.Nanosecond())
 		if newnsec != nsec {
 			t.Errorf("NanosecondsToUTC(%d).Nanoseconds() = %d", nsec, newnsec)
 		}
 		if !same(tm, golden) {
 			t.Errorf("NanosecondsToUTC(%d):", nsec)
 			t.Errorf("  want=%+v", *golden)
-			t.Errorf("  have=%+v", *tm)
+			t.Errorf("  have=%+v", tm.Format(RFC3339+" MST"))
 		}
 	}
 }
@@ -108,38 +124,38 @@ func TestSecondsToLocalTime(t *testing.T) {
 	for _, test := range localtests {
 		sec := test.seconds
 		golden := &test.golden
-		tm := SecondsToLocalTime(sec)
-		newsec := tm.Seconds()
+		tm := Unix(sec, 0)
+		newsec := tm.Unix()
 		if newsec != sec {
 			t.Errorf("SecondsToLocalTime(%d).Seconds() = %d", sec, newsec)
 		}
 		if !same(tm, golden) {
 			t.Errorf("SecondsToLocalTime(%d):", sec)
 			t.Errorf("  want=%+v", *golden)
-			t.Errorf("  have=%+v", *tm)
+			t.Errorf("  have=%+v", tm.Format(RFC3339+" MST"))
 		}
 	}
 }
 
-func TestNanoecondsToLocalTime(t *testing.T) {
+func TestNanosecondsToLocalTime(t *testing.T) {
 	for _, test := range nanolocaltests {
 		golden := &test.golden
 		nsec := test.seconds*1e9 + int64(golden.Nanosecond)
-		tm := NanosecondsToLocalTime(nsec)
-		newnsec := tm.Nanoseconds()
+		tm := Unix(0, nsec)
+		newnsec := tm.Unix()*1e9 + int64(tm.Nanosecond())
 		if newnsec != nsec {
 			t.Errorf("NanosecondsToLocalTime(%d).Seconds() = %d", nsec, newnsec)
 		}
 		if !same(tm, golden) {
 			t.Errorf("NanosecondsToLocalTime(%d):", nsec)
 			t.Errorf("  want=%+v", *golden)
-			t.Errorf("  have=%+v", *tm)
+			t.Errorf("  have=%+v", tm.Format(RFC3339+" MST"))
 		}
 	}
 }
 
 func TestSecondsToUTCAndBack(t *testing.T) {
-	f := func(sec int64) bool { return SecondsToUTC(sec).Seconds() == sec }
+	f := func(sec int64) bool { return Unix(sec, 0).UTC().Unix() == sec }
 	f32 := func(sec int32) bool { return f(int64(sec)) }
 	cfg := &quick.Config{MaxCount: 10000}
 
@@ -153,7 +169,11 @@ func TestSecondsToUTCAndBack(t *testing.T) {
 }
 
 func TestNanosecondsToUTCAndBack(t *testing.T) {
-	f := func(nsec int64) bool { return NanosecondsToUTC(nsec).Nanoseconds() == nsec }
+	f := func(nsec int64) bool {
+		t := Unix(0, nsec).UTC()
+		ns := t.Unix()*1e9 + int64(t.Nanosecond())
+		return ns == nsec
+	}
 	f32 := func(nsec int32) bool { return f(int64(nsec)) }
 	cfg := &quick.Config{MaxCount: 10000}
 
@@ -173,9 +193,9 @@ type TimeFormatTest struct {
 }
 
 var rfc3339Formats = []TimeFormatTest{
-	{Time{2008, 9, 17, 20, 4, 26, 0, 0, "UTC"}, "2008-09-17T20:04:26Z"},
-	{Time{1994, 9, 17, 20, 4, 26, 0, -18000, "EST"}, "1994-09-17T20:04:26-05:00"},
-	{Time{2000, 12, 26, 1, 15, 6, 0, 15600, "OTO"}, "2000-12-26T01:15:06+04:20"},
+	{Date(2008, 9, 17, 20, 4, 26, 0, UTC), "2008-09-17T20:04:26Z"},
+	{Date(1994, 9, 17, 20, 4, 26, 0, FixedZone("EST", -18000)), "1994-09-17T20:04:26-05:00"},
+	{Date(2000, 12, 26, 1, 15, 6, 0, FixedZone("OTO", 15600)), "2000-12-26T01:15:06+04:20"},
 }
 
 func TestRFC3339Conversion(t *testing.T) {
@@ -216,7 +236,7 @@ var formatTests = []FormatTest{
 
 func TestFormat(t *testing.T) {
 	// The numeric time represents Thu Feb  4 21:00:57.012345678 PST 2010
-	time := NanosecondsToLocalTime(1233810057012345678)
+	time := Unix(0, 1233810057012345678)
 	for _, test := range formatTests {
 		result := time.Format(test.format)
 		if result != test.result {
@@ -229,10 +249,10 @@ type ParseTest struct {
 	name       string
 	format     string
 	value      string
-	hasTZ      bool  // contains a time zone
-	hasWD      bool  // contains a weekday
-	yearSign   int64 // sign of year
-	fracDigits int   // number of digits of fractional second
+	hasTZ      bool // contains a time zone
+	hasWD      bool // contains a weekday
+	yearSign   int  // sign of year
+	fracDigits int  // number of digits of fractional second
 }
 
 var parseTests = []ParseTest{
@@ -298,47 +318,48 @@ func TestRubyParse(t *testing.T) {
 	}
 }
 
-func checkTime(time *Time, test *ParseTest, t *testing.T) {
+func checkTime(time Time, test *ParseTest, t *testing.T) {
 	// The time should be Thu Feb  4 21:00:57 PST 2010
-	if test.yearSign*time.Year != 2010 {
-		t.Errorf("%s: bad year: %d not %d", test.name, time.Year, 2010)
+	if test.yearSign*time.Year() != 2010 {
+		t.Errorf("%s: bad year: %d not %d", test.name, time.Year(), 2010)
 	}
-	if time.Month != 2 {
-		t.Errorf("%s: bad month: %d not %d", test.name, time.Month, 2)
+	if time.Month() != February {
+		t.Errorf("%s: bad month: %s not %s", test.name, time.Month(), February)
 	}
-	if time.Day != 4 {
-		t.Errorf("%s: bad day: %d not %d", test.name, time.Day, 4)
+	if time.Day() != 4 {
+		t.Errorf("%s: bad day: %d not %d", test.name, time.Day(), 4)
 	}
-	if time.Hour != 21 {
-		t.Errorf("%s: bad hour: %d not %d", test.name, time.Hour, 21)
+	if time.Hour() != 21 {
+		t.Errorf("%s: bad hour: %d not %d", test.name, time.Hour(), 21)
 	}
-	if time.Minute != 0 {
-		t.Errorf("%s: bad minute: %d not %d", test.name, time.Minute, 0)
+	if time.Minute() != 0 {
+		t.Errorf("%s: bad minute: %d not %d", test.name, time.Minute(), 0)
 	}
-	if time.Second != 57 {
-		t.Errorf("%s: bad second: %d not %d", test.name, time.Second, 57)
+	if time.Second() != 57 {
+		t.Errorf("%s: bad second: %d not %d", test.name, time.Second(), 57)
 	}
 	// Nanoseconds must be checked against the precision of the input.
 	nanosec, err := strconv.Atoui("012345678"[:test.fracDigits] + "000000000"[:9-test.fracDigits])
 	if err != nil {
 		panic(err)
 	}
-	if time.Nanosecond != int(nanosec) {
-		t.Errorf("%s: bad nanosecond: %d not %d", test.name, time.Nanosecond, nanosec)
+	if time.Nanosecond() != int(nanosec) {
+		t.Errorf("%s: bad nanosecond: %d not %d", test.name, time.Nanosecond(), nanosec)
 	}
-	if test.hasTZ && time.ZoneOffset != -28800 {
-		t.Errorf("%s: bad tz offset: %d not %d", test.name, time.ZoneOffset, -28800)
+	name, offset := time.Zone()
+	if test.hasTZ && offset != -28800 {
+		t.Errorf("%s: bad tz offset: %s %d not %d", test.name, name, offset, -28800)
 	}
-	if test.hasWD && time.Weekday() != 4 {
-		t.Errorf("%s: bad weekday: %d not %d", test.name, time.Weekday(), 4)
+	if test.hasWD && time.Weekday() != Thursday {
+		t.Errorf("%s: bad weekday: %s not %s", test.name, time.Weekday(), Thursday)
 	}
 }
 
 func TestFormatAndParse(t *testing.T) {
 	const fmt = "Mon MST " + RFC3339 // all fields
 	f := func(sec int64) bool {
-		t1 := SecondsToLocalTime(sec)
-		if t1.Year < 1000 || t1.Year > 9999 {
+		t1 := Unix(sec, 0)
+		if t1.Year() < 1000 || t1.Year() > 9999 {
 			// not required to work
 			return true
 		}
@@ -347,8 +368,8 @@ func TestFormatAndParse(t *testing.T) {
 			t.Errorf("error: %s", err)
 			return false
 		}
-		if !same(t1, t2) {
-			t.Errorf("different: %q %q", t1, t2)
+		if t1.Unix() != t2.Unix() || t1.Nanosecond() != t2.Nanosecond() {
+			t.Errorf("FormatAndParse %d: %q(%d) %q(%d)", sec, t1, t1.Unix(), t2, t2.Unix())
 			return false
 		}
 		return true
@@ -394,7 +415,7 @@ func TestParseErrors(t *testing.T) {
 }
 
 func TestNoonIs12PM(t *testing.T) {
-	noon := Time{Hour: 12}
+	noon := Date(0, January, 1, 12, 0, 0, 0, UTC)
 	const expect = "12:00PM"
 	got := noon.Format("3:04PM")
 	if got != expect {
@@ -407,7 +428,7 @@ func TestNoonIs12PM(t *testing.T) {
 }
 
 func TestMidnightIs12AM(t *testing.T) {
-	midnight := Time{Hour: 0}
+	midnight := Date(0, January, 1, 0, 0, 0, 0, UTC)
 	expect := "12:00AM"
 	got := midnight.Format("3:04PM")
 	if got != expect {
@@ -424,15 +445,15 @@ func Test12PMIsNoon(t *testing.T) {
 	if err != nil {
 		t.Fatal("error parsing date:", err)
 	}
-	if noon.Hour != 12 {
-		t.Errorf("got %d; expect 12", noon.Hour)
+	if noon.Hour() != 12 {
+		t.Errorf("got %d; expect 12", noon.Hour())
 	}
 	noon, err = Parse("03:04PM", "12:00PM")
 	if err != nil {
 		t.Fatal("error parsing date:", err)
 	}
-	if noon.Hour != 12 {
-		t.Errorf("got %d; expect 12", noon.Hour)
+	if noon.Hour() != 12 {
+		t.Errorf("got %d; expect 12", noon.Hour())
 	}
 }
 
@@ -441,15 +462,15 @@ func Test12AMIsMidnight(t *testing.T) {
 	if err != nil {
 		t.Fatal("error parsing date:", err)
 	}
-	if midnight.Hour != 0 {
-		t.Errorf("got %d; expect 0", midnight.Hour)
+	if midnight.Hour() != 0 {
+		t.Errorf("got %d; expect 0", midnight.Hour())
 	}
 	midnight, err = Parse("03:04PM", "12:00AM")
 	if err != nil {
 		t.Fatal("error parsing date:", err)
 	}
-	if midnight.Hour != 0 {
-		t.Errorf("got %d; expect 0", midnight.Hour)
+	if midnight.Hour() != 0 {
+		t.Errorf("got %d; expect 0", midnight.Hour())
 	}
 }
 
@@ -463,7 +484,7 @@ func TestMissingZone(t *testing.T) {
 	expect := "Thu Feb  2 16:10:03 -0500 2006" // -0500 not EST
 	str := time.Format(UnixDate)               // uses MST as its time zone
 	if str != expect {
-		t.Errorf("expected %q got %q", expect, str)
+		t.Errorf("got %s; expect %s", str, expect)
 	}
 }
 
@@ -473,16 +494,17 @@ func TestMinutesInTimeZone(t *testing.T) {
 		t.Fatal("error parsing date:", err)
 	}
 	expected := (1*60 + 23) * 60
-	if time.ZoneOffset != expected {
-		t.Errorf("ZoneOffset incorrect, expected %d got %d", expected, time.ZoneOffset)
+	_, offset := time.Zone()
+	if offset != expected {
+		t.Errorf("ZoneOffset = %d, want %d", offset, expected)
 	}
 }
 
 type ISOWeekTest struct {
-	year       int64 // year
-	month, day int   // month and day
-	yex        int64 // expected year
-	wex        int   // expected week
+	year       int // year
+	month, day int // month and day
+	yex        int // expected year
+	wex        int // expected week
 }
 
 var isoWeekTests = []ISOWeekTest{
@@ -524,7 +546,7 @@ var isoWeekTests = []ISOWeekTest{
 func TestISOWeek(t *testing.T) {
 	// Selected dates and corner cases
 	for _, wt := range isoWeekTests {
-		dt := &Time{Year: wt.year, Month: wt.month, Day: wt.day}
+		dt := Date(wt.year, Month(wt.month), wt.day, 0, 0, 0, 0, UTC)
 		y, w := dt.ISOWeek()
 		if w != wt.wex || y != wt.yex {
 			t.Errorf("got %d/%d; expected %d/%d for %d-%02d-%02d",
@@ -533,27 +555,91 @@ func TestISOWeek(t *testing.T) {
 	}
 
 	// The only real invariant: Jan 04 is in week 1
-	for year := int64(1950); year < 2100; year++ {
-		if y, w := (&Time{Year: year, Month: 1, Day: 4}).ISOWeek(); y != year || w != 1 {
+	for year := 1950; year < 2100; year++ {
+		if y, w := Date(year, January, 4, 0, 0, 0, 0, UTC).ISOWeek(); y != year || w != 1 {
 			t.Errorf("got %d/%d; expected %d/1 for Jan 04", y, w, year)
 		}
 	}
 }
 
-func BenchmarkSeconds(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Seconds()
+var durationTests = []struct {
+	str string
+	d   Duration
+}{
+	{"0", 0},
+	{"1ns", 1 * Nanosecond},
+	{"1.1us", 1100 * Nanosecond},
+	{"2.2ms", 2200 * Microsecond},
+	{"3.3s", 3300 * Millisecond},
+	{"4m5s", 4*Minute + 5*Second},
+	{"4m5.001s", 4*Minute + 5001*Millisecond},
+	{"5h6m7.001s", 5*Hour + 6*Minute + 7001*Millisecond},
+	{"8m0.000000001s", 8*Minute + 1*Nanosecond},
+	{"2562047h47m16.854775807s", 1<<63 - 1},
+	{"-2562047h47m16.854775808s", -1 << 63},
+}
+
+func TestDurationString(t *testing.T) {
+	for _, tt := range durationTests {
+		if str := tt.d.String(); str != tt.str {
+			t.Errorf("Duration(%d).String() = %s, want %s", int64(tt.d), str, tt.str)
+		}
+		if tt.d > 0 {
+			if str := (-tt.d).String(); str != "-"+tt.str {
+				t.Errorf("Duration(%d).String() = %s, want %s", int64(-tt.d), str, "-"+tt.str)
+			}
+		}
 	}
 }
 
-func BenchmarkNanoseconds(b *testing.B) {
+var dateTests = []struct {
+	year, month, day, hour, min, sec, nsec int
+	z                                      *Location
+	unix                                   int64
+}{
+	{2011, 11, 6, 1, 0, 0, 0, Local, 1320566400},   // 1:00:00 PDT
+	{2011, 11, 6, 1, 59, 59, 0, Local, 1320569999}, // 1:59:59 PDT
+	{2011, 11, 6, 2, 0, 0, 0, Local, 1320573600},   // 2:00:00 PST
+
+	{2011, 3, 13, 1, 0, 0, 0, Local, 1300006800},   // 1:00:00 PST
+	{2011, 3, 13, 1, 59, 59, 0, Local, 1300010399}, // 1:59:59 PST
+	{2011, 3, 13, 3, 0, 0, 0, Local, 1300010400},   // 3:00:00 PDT
+	{2011, 3, 13, 2, 30, 0, 0, Local, 1300008600},  // 2:30:00 PDT ≡ 1:30 PST
+
+	// Many names for Fri Nov 18 7:56:35 PST 2011
+	{2011, 11, 18, 7, 56, 35, 0, Local, 1321631795},                 // Nov 18 7:56:35
+	{2011, 11, 19, -17, 56, 35, 0, Local, 1321631795},               // Nov 19 -17:56:35
+	{2011, 11, 17, 31, 56, 35, 0, Local, 1321631795},                // Nov 17 31:56:35
+	{2011, 11, 18, 6, 116, 35, 0, Local, 1321631795},                // Nov 18 6:116:35
+	{2011, 10, 49, 7, 56, 35, 0, Local, 1321631795},                 // Oct 49 7:56:35
+	{2011, 11, 18, 7, 55, 95, 0, Local, 1321631795},                 // Nov 18 7:55:95
+	{2011, 11, 18, 7, 56, 34, 1e9, Local, 1321631795},               // Nov 18 7:56:34 + 10⁹ns
+	{2011, 12, -12, 7, 56, 35, 0, Local, 1321631795},                // Dec -21 7:56:35
+	{2012, 1, -43, 7, 56, 35, 0, Local, 1321631795},                 // Jan -52 7:56:35 2012
+	{2012, int(January - 2), 18, 7, 56, 35, 0, Local, 1321631795},   // (Jan-2) 18 7:56:35 2012
+	{2010, int(December + 11), 18, 7, 56, 35, 0, Local, 1321631795}, // (Dec+11) 18 7:56:35 2010
+}
+
+func TestDate(t *testing.T) {
+	for _, tt := range dateTests {
+		time := Date(tt.year, Month(tt.month), tt.day, tt.hour, tt.min, tt.sec, tt.nsec, tt.z)
+		want := Unix(tt.unix, 0)
+		if !time.Equal(want) {
+			t.Errorf("Date(%d, %d, %d, %d, %d, %d, %d, %s) = %v, want %v",
+				tt.year, tt.month, tt.day, tt.hour, tt.min, tt.sec, tt.nsec, tt.z,
+				time, want)
+		}
+	}
+}
+
+func BenchmarkNow(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Nanoseconds()
+		Now()
 	}
 }
 
 func BenchmarkFormat(b *testing.B) {
-	time := SecondsToLocalTime(1265346057)
+	time := Unix(1265346057, 0)
 	for i := 0; i < b.N; i++ {
 		time.Format("Mon Jan  2 15:04:05 2006")
 	}
@@ -562,5 +648,33 @@ func BenchmarkFormat(b *testing.B) {
 func BenchmarkParse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Parse(ANSIC, "Mon Jan  2 15:04:05 2006")
+	}
+}
+
+func BenchmarkHour(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		_ = t.Hour()
+	}
+}
+
+func BenchmarkSecond(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		_ = t.Second()
+	}
+}
+
+func BenchmarkYear(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		_ = t.Year()
+	}
+}
+
+func BenchmarkDay(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		_ = t.Day()
 	}
 }

@@ -133,6 +133,21 @@ TEXT runtime·setitimer(SB),7,$-8
 	SYSCALL
 	RET
 
+// func now() (sec int64, nsec int32)
+TEXT time·now(SB), 7, $32
+	LEAQ	8(SP), DI		// arg 1 - tp
+	MOVQ	$0, SI			// arg 2 - tzp
+	MOVL	$116, AX		// sys_gettimeofday
+	SYSCALL
+	MOVQ	8(SP), AX		// sec
+	MOVL	16(SP), DX	// usec
+
+	// sec is in AX, usec in DX
+	MOVQ	AX, sec+0(FP)
+	IMULQ	$1000, DX
+	MOVL	DX, nsec+8(FP)
+	RET
+
 TEXT runtime·nanotime(SB),7,$32
 	LEAQ	8(SP), DI		// arg 1 - tp
 	MOVQ	$0, SI			// arg 2 - tzp

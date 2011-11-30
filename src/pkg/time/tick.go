@@ -9,27 +9,27 @@ import "errors"
 // A Ticker holds a synchronous channel that delivers `ticks' of a clock
 // at intervals.
 type Ticker struct {
-	C <-chan int64 // The channel on which the ticks are delivered.
+	C <-chan Time // The channel on which the ticks are delivered.
 	r runtimeTimer
 }
 
-// NewTicker returns a new Ticker containing a channel that will
-// send the time, in nanoseconds, every ns nanoseconds.  It adjusts the
-// intervals to make up for pauses in delivery of the ticks. The value of
-// ns must be greater than zero; if not, NewTicker will panic.
-func NewTicker(ns int64) *Ticker {
-	if ns <= 0 {
+// NewTicker returns a new Ticker containing a channel that will send the
+// time, in nanoseconds, with a period specified by the duration argument.
+// It adjusts the intervals or drops ticks to make up for slow receivers.
+// The duration d must be greater than zero; if not, NewTicker will panic.
+func NewTicker(d Duration) *Ticker {
+	if d <= 0 {
 		panic(errors.New("non-positive interval for NewTicker"))
 	}
 	// Give the channel a 1-element time buffer.
 	// If the client falls behind while reading, we drop ticks
 	// on the floor until the client catches up.
-	c := make(chan int64, 1)
+	c := make(chan Time, 1)
 	t := &Ticker{
 		C: c,
 		r: runtimeTimer{
-			when:   Nanoseconds() + ns,
-			period: ns,
+			when:   nano() + int64(d),
+			period: int64(d),
 			f:      sendTime,
 			arg:    c,
 		},
@@ -45,9 +45,9 @@ func (t *Ticker) Stop() {
 
 // Tick is a convenience wrapper for NewTicker providing access to the ticking
 // channel only.  Useful for clients that have no need to shut down the ticker.
-func Tick(ns int64) <-chan int64 {
-	if ns <= 0 {
+func Tick(d Duration) <-chan Time {
+	if d <= 0 {
 		return nil
 	}
-	return NewTicker(ns).C
+	return NewTicker(d).C
 }

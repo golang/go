@@ -1,10 +1,6 @@
 package time
 
-import (
-	"bytes"
-	"errors"
-	"strconv"
-)
+import "errors"
 
 const (
 	numeric = iota
@@ -259,8 +255,60 @@ func lookup(tab []string, val string) (int, string, error) {
 	return -1, val, errBad
 }
 
+// Duplicates functionality in strconv, but avoids dependency.
+func itoa(x int) string {
+	var buf [32]byte
+	n := len(buf)
+	if x == 0 {
+		return "0"
+	}
+	u := uint(x)
+	if x < 0 {
+		u = -u
+	}
+	for u > 0 {
+		n--
+		buf[n] = byte(u%10 + '0')
+		u /= 10
+	}
+	if x < 0 {
+		n--
+		buf[n] = '-'
+	}
+	return string(buf[n:])
+}
+
+// Never printed, just needs to be non-nil for return by atoi.
+var atoiError = errors.New("time: invalid number")
+
+// Duplicates functionality in strconv, but avoids dependency.
+func atoi(s string) (x int, err error) {
+	i := 0
+	if len(s) > 0 && s[0] == '-' {
+		i++
+	}
+	if i >= len(s) {
+		return 0, atoiError
+	}
+	for ; i < len(s); i++ {
+		c := s[i]
+		if c < '0' || c > '9' {
+			return 0, atoiError
+		}
+		if x >= (1<<31-10)/10 {
+			// will overflow
+			return 0, atoiError
+		}
+		x = x*10 + int(c) - '0'
+	}
+	if s[0] == '-' {
+		x = -x
+	}
+	return x, nil
+}
+
 func pad(i int, padding string) string {
-	s := strconv.Itoa(i)
+	s := itoa(i)
 	if i < 10 {
 		s = padding + s
 	}
@@ -273,7 +321,7 @@ func zeroPad(i int) string { return pad(i, "0") }
 func formatNano(nanosec, n int) string {
 	// User might give us bad data. Make sure it's positive and in range.
 	// They'll get nonsense output but it will have the right format.
-	s := strconv.Uitoa(uint(nanosec) % 1e9)
+	s := itoa(int(uint(nanosec) % 1e9))
 	// Zero pad left without fmt.
 	if len(s) < 9 {
 		s = "000000000"[:9-len(s)] + s
@@ -284,14 +332,42 @@ func formatNano(nanosec, n int) string {
 	return "." + s[:n]
 }
 
+// String returns the time formatted using the format string
+//	"Mon Jan _2 15:04:05 -0700 MST 2006"
+func (t Time) String() string {
+	return t.Format("Mon Jan _2 15:04:05 -0700 MST 2006")
+}
+
+type buffer []byte
+
+func (b *buffer) WriteString(s string) {
+	*b = append(*b, s...)
+}
+
+func (b *buffer) WriteByte(c byte) {
+	*b = append(*b, c)
+}
+
+func (b *buffer) String() string {
+	return string([]byte(*b))
+}
+
 // Format returns a textual representation of the time value formatted
 // according to layout.  The layout defines the format by showing the
 // representation of a standard time, which is then used to describe
 // the time to be formatted.  Predefined layouts ANSIC, UnixDate,
 // RFC3339 and others describe standard representations. For more
 // information about the formats, see the documentation for ANSIC.
-func (t *Time) Format(layout string) string {
-	b := new(bytes.Buffer)
+func (t Time) Format(layout string) string {
+	var (
+		year  int = -1
+		month Month
+		day   int
+		hour  int = -1
+		min   int
+		sec   int
+		b     buffer
+	)
 	// Each iteration generates one std value.
 	for {
 		prefix, std, suffix := nextStdChunk(layout)
@@ -299,62 +375,92 @@ func (t *Time) Format(layout string) string {
 		if std == "" {
 			break
 		}
+
+		// Compute year, month, day if needed.
+		if year < 0 {
+			// Jan 01 02 2006
+			if a, z := std[0], std[len(std)-1]; a == 'J' || a == 'j' || z == '1' || z == '2' || z == '6' {
+				year, month, day = t.Date()
+			}
+		}
+
+		// Compute hour, minute, second if needed.
+		if hour < 0 {
+			// 03 04 05 15 pm
+			if z := std[len(std)-1]; z == '3' || z == '4' || z == '5' || z == 'm' || z == 'M' {
+				hour, min, sec = t.Clock()
+			}
+		}
+
 		var p string
 		switch std {
 		case stdYear:
-			p = zeroPad(int(t.Year % 100))
+			p = zeroPad(year % 100)
 		case stdLongYear:
-			p = strconv.Itoa64(t.Year)
+			p = itoa(year)
 		case stdMonth:
-			p = shortMonthNames[t.Month]
+			p = month.String()[:3]
 		case stdLongMonth:
-			p = longMonthNames[t.Month]
+			p = month.String()
 		case stdNumMonth:
-			p = strconv.Itoa(t.Month)
+			p = itoa(int(month))
 		case stdZeroMonth:
-			p = zeroPad(t.Month)
+			p = zeroPad(int(month))
 		case stdWeekDay:
-			p = shortDayNames[t.Weekday()]
+			p = t.Weekday().String()[:3]
 		case stdLongWeekDay:
-			p = longDayNames[t.Weekday()]
+			p = t.Weekday().String()
 		case stdDay:
-			p = strconv.Itoa(t.Day)
+			p = itoa(day)
 		case stdUnderDay:
-			p = pad(t.Day, " ")
+			p = pad(day, " ")
 		case stdZeroDay:
-			p = zeroPad(t.Day)
+			p = zeroPad(day)
 		case stdHour:
-			p = zeroPad(t.Hour)
+			p = zeroPad(hour)
 		case stdHour12:
 			// Noon is 12PM, midnight is 12AM.
-			hr := t.Hour % 12
+			hr := hour % 12
 			if hr == 0 {
 				hr = 12
 			}
-			p = strconv.Itoa(hr)
+			p = itoa(hr)
 		case stdZeroHour12:
 			// Noon is 12PM, midnight is 12AM.
-			hr := t.Hour % 12
+			hr := hour % 12
 			if hr == 0 {
 				hr = 12
 			}
 			p = zeroPad(hr)
 		case stdMinute:
-			p = strconv.Itoa(t.Minute)
+			p = itoa(min)
 		case stdZeroMinute:
-			p = zeroPad(t.Minute)
+			p = zeroPad(min)
 		case stdSecond:
-			p = strconv.Itoa(t.Second)
+			p = itoa(sec)
 		case stdZeroSecond:
-			p = zeroPad(t.Second)
+			p = zeroPad(sec)
+		case stdPM:
+			if hour >= 12 {
+				p = "PM"
+			} else {
+				p = "AM"
+			}
+		case stdpm:
+			if hour >= 12 {
+				p = "pm"
+			} else {
+				p = "am"
+			}
 		case stdISO8601TZ, stdISO8601ColonTZ, stdNumTZ, stdNumColonTZ:
 			// Ugly special case.  We cheat and take the "Z" variants
 			// to mean "the time zone as formatted for ISO 8601".
-			if t.ZoneOffset == 0 && std[0] == 'Z' {
+			_, offset := t.Zone()
+			if offset == 0 && std[0] == 'Z' {
 				p = "Z"
 				break
 			}
-			zone := t.ZoneOffset / 60 // convert to minutes
+			zone := offset / 60 // convert to minutes
 			if zone < 0 {
 				p = "-"
 				zone = -zone
@@ -366,25 +472,14 @@ func (t *Time) Format(layout string) string {
 				p += ":"
 			}
 			p += zeroPad(zone % 60)
-		case stdPM:
-			if t.Hour >= 12 {
-				p = "PM"
-			} else {
-				p = "AM"
-			}
-		case stdpm:
-			if t.Hour >= 12 {
-				p = "pm"
-			} else {
-				p = "am"
-			}
 		case stdTZ:
-			if t.Zone != "" {
-				p = t.Zone
+			name, offset := t.Zone()
+			if name != "" {
+				p = name
 			} else {
 				// No time zone known for this time, but we must print one.
 				// Use the -0700 format.
-				zone := t.ZoneOffset / 60 // convert to minutes
+				zone := offset / 60 // convert to minutes
 				if zone < 0 {
 					p = "-"
 					zone = -zone
@@ -396,21 +491,13 @@ func (t *Time) Format(layout string) string {
 			}
 		default:
 			if len(std) >= 2 && std[0:2] == ".0" {
-				p = formatNano(t.Nanosecond, len(std)-1)
+				p = formatNano(t.Nanosecond(), len(std)-1)
 			}
 		}
 		b.WriteString(p)
 		layout = suffix
 	}
 	return b.String()
-}
-
-// String returns a Unix-style representation of the time value.
-func (t *Time) String() string {
-	if t == nil {
-		return "<nil>"
-	}
-	return t.Format(UnixDate)
 }
 
 var errBad = errors.New("bad value for field") // placeholder not passed to user
@@ -424,17 +511,21 @@ type ParseError struct {
 	Message    string
 }
 
+func quote(s string) string {
+	return "\"" + s + "\""
+}
+
 // String is the string representation of a ParseError.
 func (e *ParseError) Error() string {
 	if e.Message == "" {
 		return "parsing time " +
-			strconv.Quote(e.Value) + " as " +
-			strconv.Quote(e.Layout) + ": cannot parse " +
-			strconv.Quote(e.ValueElem) + " as " +
-			strconv.Quote(e.LayoutElem)
+			quote(e.Value) + " as " +
+			quote(e.Layout) + ": cannot parse " +
+			quote(e.ValueElem) + " as " +
+			quote(e.LayoutElem)
 	}
 	return "parsing time " +
-		strconv.Quote(e.Value) + e.Message
+		quote(e.Value) + e.Message
 }
 
 // isDigit returns true if s[i] is a decimal digit, false if not or
@@ -498,30 +589,42 @@ func skip(value, prefix string) (string, error) {
 // representations.For more information about the formats, see the
 // documentation for ANSIC.
 //
-// Only those elements present in the value will be set in the returned time
-// structure.  Also, if the input string represents an inconsistent time
-// (such as having the wrong day of the week), the returned value will also
-// be inconsistent.  In any case, the elements of the returned time will be
-// sane: hours in 0..23, minutes in 0..59, day of month in 1..31, etc.
+// Elements omitted from the value are assumed to be zero, or when
+// zero is impossible, one, so parsing "3:04pm" returns the time
+// corresponding to Jan 1, year 0, 15:04:00 UTC.
 // Years must be in the range 0000..9999. The day of the week is checked
 // for syntax but it is otherwise ignored.
-func Parse(alayout, avalue string) (*Time, error) {
-	var t Time
+func Parse(layout, value string) (Time, error) {
+	alayout, avalue := layout, value
 	rangeErrString := "" // set if a value is out of range
 	amSet := false       // do we need to subtract 12 from the hour for midnight?
 	pmSet := false       // do we need to add 12 to the hour?
-	layout, value := alayout, avalue
+
+	// Time being constructed.
+	var (
+		year       int
+		month      int = 1 // January
+		day        int = 1
+		hour       int
+		min        int
+		sec        int
+		nsec       int
+		z          *Location
+		zoneOffset int = -1
+		zoneName   string
+	)
+
 	// Each iteration processes one std value.
 	for {
 		var err error
 		prefix, std, suffix := nextStdChunk(layout)
 		value, err = skip(value, prefix)
 		if err != nil {
-			return nil, &ParseError{alayout, avalue, prefix, value, ""}
+			return Time{}, &ParseError{alayout, avalue, prefix, value, ""}
 		}
 		if len(std) == 0 {
 			if len(value) != 0 {
-				return nil, &ParseError{alayout, avalue, "", value, ": extra text: " + value}
+				return Time{}, &ParseError{alayout, avalue, "", value, ": extra text: " + value}
 			}
 			break
 		}
@@ -534,11 +637,11 @@ func Parse(alayout, avalue string) (*Time, error) {
 				break
 			}
 			p, value = value[0:2], value[2:]
-			t.Year, err = strconv.Atoi64(p)
-			if t.Year >= 69 { // Unix time starts Dec 31 1969 in some time zones
-				t.Year += 1900
+			year, err = atoi(p)
+			if year >= 69 { // Unix time starts Dec 31 1969 in some time zones
+				year += 1900
 			} else {
-				t.Year += 2000
+				year += 2000
 			}
 		case stdLongYear:
 			if len(value) < 4 || !isDigit(value, 0) {
@@ -546,14 +649,14 @@ func Parse(alayout, avalue string) (*Time, error) {
 				break
 			}
 			p, value = value[0:4], value[4:]
-			t.Year, err = strconv.Atoi64(p)
+			year, err = atoi(p)
 		case stdMonth:
-			t.Month, value, err = lookup(shortMonthNames, value)
+			month, value, err = lookup(shortMonthNames, value)
 		case stdLongMonth:
-			t.Month, value, err = lookup(longMonthNames, value)
+			month, value, err = lookup(longMonthNames, value)
 		case stdNumMonth, stdZeroMonth:
-			t.Month, value, err = getnum(value, std == stdZeroMonth)
-			if t.Month <= 0 || 12 < t.Month {
+			month, value, err = getnum(value, std == stdZeroMonth)
+			if month <= 0 || 12 < month {
 				rangeErrString = "month"
 			}
 		case stdWeekDay:
@@ -565,29 +668,28 @@ func Parse(alayout, avalue string) (*Time, error) {
 			if std == stdUnderDay && len(value) > 0 && value[0] == ' ' {
 				value = value[1:]
 			}
-			t.Day, value, err = getnum(value, std == stdZeroDay)
-			if t.Day < 0 || 31 < t.Day {
-				// TODO: be more thorough in date check?
+			day, value, err = getnum(value, std == stdZeroDay)
+			if day < 0 || 31 < day {
 				rangeErrString = "day"
 			}
 		case stdHour:
-			t.Hour, value, err = getnum(value, false)
-			if t.Hour < 0 || 24 <= t.Hour {
+			hour, value, err = getnum(value, false)
+			if hour < 0 || 24 <= hour {
 				rangeErrString = "hour"
 			}
 		case stdHour12, stdZeroHour12:
-			t.Hour, value, err = getnum(value, std == stdZeroHour12)
-			if t.Hour < 0 || 12 < t.Hour {
+			hour, value, err = getnum(value, std == stdZeroHour12)
+			if hour < 0 || 12 < hour {
 				rangeErrString = "hour"
 			}
 		case stdMinute, stdZeroMinute:
-			t.Minute, value, err = getnum(value, std == stdZeroMinute)
-			if t.Minute < 0 || 60 <= t.Minute {
+			min, value, err = getnum(value, std == stdZeroMinute)
+			if min < 0 || 60 <= min {
 				rangeErrString = "minute"
 			}
 		case stdSecond, stdZeroSecond:
-			t.Second, value, err = getnum(value, std == stdZeroSecond)
-			if t.Second < 0 || 60 <= t.Second {
+			sec, value, err = getnum(value, std == stdZeroSecond)
+			if sec < 0 || 60 <= sec {
 				rangeErrString = "second"
 			}
 			// Special case: do we have a fractional second but no
@@ -602,51 +704,8 @@ func Parse(alayout, avalue string) (*Time, error) {
 				n := 2
 				for ; n < len(value) && isDigit(value, n); n++ {
 				}
-				rangeErrString, err = t.parseNanoseconds(value, n)
+				nsec, rangeErrString, err = parseNanoseconds(value, n)
 				value = value[n:]
-			}
-		case stdISO8601TZ, stdISO8601ColonTZ, stdNumTZ, stdNumShortTZ, stdNumColonTZ:
-			if std[0] == 'Z' && len(value) >= 1 && value[0] == 'Z' {
-				value = value[1:]
-				t.Zone = "UTC"
-				break
-			}
-			var sign, hh, mm string
-			if std == stdISO8601ColonTZ || std == stdNumColonTZ {
-				if len(value) < 6 {
-					err = errBad
-					break
-				}
-				if value[3] != ':' {
-					err = errBad
-					break
-				}
-				sign, hh, mm, value = value[0:1], value[1:3], value[4:6], value[6:]
-			} else if std == stdNumShortTZ {
-				if len(value) < 3 {
-					err = errBad
-					break
-				}
-				sign, hh, mm, value = value[0:1], value[1:3], "00", value[3:]
-			} else {
-				if len(value) < 5 {
-					err = errBad
-					break
-				}
-				sign, hh, mm, value = value[0:1], value[1:3], value[3:5], value[5:]
-			}
-			var hr, min int
-			hr, err = strconv.Atoi(hh)
-			if err == nil {
-				min, err = strconv.Atoi(mm)
-			}
-			t.ZoneOffset = (hr*60 + min) * 60 // offset is in seconds
-			switch sign[0] {
-			case '+':
-			case '-':
-				t.ZoneOffset = -t.ZoneOffset
-			default:
-				err = errBad
 			}
 		case stdPM:
 			if len(value) < 2 {
@@ -676,10 +735,54 @@ func Parse(alayout, avalue string) (*Time, error) {
 			default:
 				err = errBad
 			}
+		case stdISO8601TZ, stdISO8601ColonTZ, stdNumTZ, stdNumShortTZ, stdNumColonTZ:
+			if std[0] == 'Z' && len(value) >= 1 && value[0] == 'Z' {
+				value = value[1:]
+				z = UTC
+				break
+			}
+			var sign, hour, min string
+			if std == stdISO8601ColonTZ || std == stdNumColonTZ {
+				if len(value) < 6 {
+					err = errBad
+					break
+				}
+				if value[3] != ':' {
+					err = errBad
+					break
+				}
+				sign, hour, min, value = value[0:1], value[1:3], value[4:6], value[6:]
+			} else if std == stdNumShortTZ {
+				if len(value) < 3 {
+					err = errBad
+					break
+				}
+				sign, hour, min, value = value[0:1], value[1:3], "00", value[3:]
+			} else {
+				if len(value) < 5 {
+					err = errBad
+					break
+				}
+				sign, hour, min, value = value[0:1], value[1:3], value[3:5], value[5:]
+			}
+			var hr, mm int
+			hr, err = atoi(hour)
+			if err == nil {
+				mm, err = atoi(min)
+			}
+			zoneOffset = (hr*60 + mm) * 60 // offset is in seconds
+			switch sign[0] {
+			case '+':
+			case '-':
+				zoneOffset = -zoneOffset
+			default:
+				err = errBad
+			}
 		case stdTZ:
 			// Does it look like a time zone?
 			if len(value) >= 3 && value[0:3] == "UTC" {
-				t.Zone, value = value[0:3], value[3:]
+				z = UTC
+				value = value[3:]
 				break
 			}
 
@@ -700,47 +803,86 @@ func Parse(alayout, avalue string) (*Time, error) {
 				break
 			}
 			// It's a valid format.
-			t.Zone = p
-			// Can we find its offset?
-			if offset, found := lookupByName(p); found {
-				t.ZoneOffset = offset
-			}
+			zoneName = p
 		default:
 			if len(value) < len(std) {
 				err = errBad
 				break
 			}
 			if len(std) >= 2 && std[0:2] == ".0" {
-				rangeErrString, err = t.parseNanoseconds(value, len(std))
+				nsec, rangeErrString, err = parseNanoseconds(value, len(std))
 				value = value[len(std):]
 			}
 		}
 		if rangeErrString != "" {
-			return nil, &ParseError{alayout, avalue, std, value, ": " + rangeErrString + " out of range"}
+			return Time{}, &ParseError{alayout, avalue, std, value, ": " + rangeErrString + " out of range"}
 		}
 		if err != nil {
-			return nil, &ParseError{alayout, avalue, std, value, ""}
+			return Time{}, &ParseError{alayout, avalue, std, value, ""}
 		}
 	}
-	if pmSet && t.Hour < 12 {
-		t.Hour += 12
-	} else if amSet && t.Hour == 12 {
-		t.Hour = 0
+	if pmSet && hour < 12 {
+		hour += 12
+	} else if amSet && hour == 12 {
+		hour = 0
 	}
-	return &t, nil
+
+	// TODO: be more aggressive checking day?
+	if z != nil {
+		return Date(year, Month(month), day, hour, min, sec, nsec, z), nil
+	}
+
+	t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
+	if zoneOffset != -1 {
+		t.sec -= int64(zoneOffset)
+
+		// Look for local zone with the given offset.
+		// If that zone was in effect at the given time, use it.
+		name, offset, _, _, _ := Local.lookup(t.sec + internalToUnix)
+		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
+			t.loc = Local
+			return t, nil
+		}
+
+		// Otherwise create fake zone to record offset.
+		t.loc = FixedZone(zoneName, zoneOffset)
+		return t, nil
+	}
+
+	if zoneName != "" {
+		// Look for local zone with the given offset.
+		// If that zone was in effect at the given time, use it.
+		offset, _, ok := Local.lookupName(zoneName)
+		if ok {
+			name, off, _, _, _ := Local.lookup(t.sec + internalToUnix - int64(offset))
+			if name == zoneName && off == offset {
+				t.sec -= int64(offset)
+				t.loc = Local
+				return t, nil
+			}
+		}
+
+		// Otherwise, create fake zone with unknown offset.
+		t.loc = FixedZone(zoneName, 0)
+		return t, nil
+	}
+
+	// Otherwise, fall back to UTC.
+	return t, nil
 }
 
-func (t *Time) parseNanoseconds(value string, nbytes int) (rangErrString string, err error) {
+func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, err error) {
 	if value[0] != '.' {
-		return "", errBad
+		err = errBad
+		return
 	}
-	var ns int
-	ns, err = strconv.Atoi(value[1:nbytes])
+	ns, err = atoi(value[1:nbytes])
 	if err != nil {
-		return "", err
+		return
 	}
 	if ns < 0 || 1e9 <= ns {
-		return "fractional second", nil
+		rangeErrString = "fractional second"
+		return
 	}
 	// We need nanoseconds, which means scaling by the number
 	// of missing digits in the format, maximum length 10. If it's
@@ -749,6 +891,5 @@ func (t *Time) parseNanoseconds(value string, nbytes int) (rangErrString string,
 	for i := 0; i < scaleDigits; i++ {
 		ns *= 10
 	}
-	t.Nanosecond = ns
 	return
 }

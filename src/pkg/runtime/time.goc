@@ -19,10 +19,7 @@ static bool deltimer(Timer*);
 // Package time APIs.
 // Godoc uses the comments in package time, not these.
 
-// Nanoseconds returns the current time in nanoseconds.
-func Nanoseconds() (ret int64) {
-	ret = runtime·nanotime();
-}
+// time.now is implemented in assembly.
 
 // Sleep puts the current goroutine to sleep for at least ns nanoseconds.
 func Sleep(ns int64) {
