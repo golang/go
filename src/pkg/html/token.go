@@ -379,6 +379,28 @@ func (z *Tokenizer) readMarkupDeclaration() TokenType {
 	return DoctypeToken
 }
 
+// startTagIn returns whether the start tag in z.buf[z.data.start:z.data.end]
+// case-insensitively matches any element of ss.
+func (z *Tokenizer) startTagIn(ss ...string) bool {
+loop:
+	for _, s := range ss {
+		if z.data.end-z.data.start != len(s) {
+			continue loop
+		}
+		for i := 0; i < len(s); i++ {
+			c := z.buf[z.data.start+i]
+			if 'A' <= c && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+			if c != s[i] {
+				continue loop
+			}
+		}
+		return true
+	}
+	return false
+}
+
 // readStartTag reads the next start tag token. The opening "<a" has already
 // been consumed, where 'a' means anything in [A-Za-z].
 func (z *Tokenizer) readStartTag() TokenType {
@@ -406,15 +428,26 @@ func (z *Tokenizer) readStartTag() TokenType {
 		}
 	}
 	// Several tags flag the tokenizer's next token as raw.
-	// The tag name lengths of these special cases ranges in [3, 9].
-	if x := z.data.end - z.data.start; 3 <= x && x <= 9 {
-		switch z.buf[z.data.start] {
-		case 'i', 'n', 'p', 's', 't', 'x', 'I', 'N', 'P', 'S', 'T', 'X':
-			switch s := strings.ToLower(string(z.buf[z.data.start:z.data.end])); s {
-			case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "textarea", "title", "xmp":
-				z.rawTag = s
-			}
-		}
+	c, raw := z.buf[z.data.start], false
+	if 'A' <= c && c <= 'Z' {
+		c += 'a' - 'A'
+	}
+	switch c {
+	case 'i':
+		raw = z.startTagIn("iframe")
+	case 'n':
+		raw = z.startTagIn("noembed", "noframes", "noscript")
+	case 'p':
+		raw = z.startTagIn("plaintext")
+	case 's':
+		raw = z.startTagIn("script", "style")
+	case 't':
+		raw = z.startTagIn("textarea", "title")
+	case 'x':
+		raw = z.startTagIn("xmp")
+	}
+	if raw {
+		z.rawTag = strings.ToLower(string(z.buf[z.data.start:z.data.end]))
 	}
 	// Look for a self-closing token like "<br/>".
 	if z.err == nil && z.buf[z.raw.end-2] == '/' {
