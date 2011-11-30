@@ -6,7 +6,7 @@ package time
 
 func init() {
 	// force US/Pacific for time zone tests
-	onceSetupZone.Do(setupTestingZone)
+	localOnce.Do(initTestingZone)
 }
 
 var Interrupt = interrupt

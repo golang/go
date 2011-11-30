@@ -5,34 +5,21 @@
 package time
 
 import (
-	"os"
-	"sync"
+	"errors"
 	"syscall"
 )
 
-// BUG(brainman): The Windows implementation assumes that
-// this year's rules for daylight savings time apply to all previous
-// and future years as well.
+// TODO(rsc): Fall back to copy of zoneinfo files.
 
-// TODO(brainman): use GetDynamicTimeZoneInformation, whenever possible (Vista and up),
-// to improve on situation described in the bug above.
+// BUG(brainman,rsc): On Windows, the operating system does not provide complete
+// time zone information.
+// The implementation assumes that this year's rules for daylight savings
+// time apply to all previous and future years as well. 
+// Also, time zone abbreviations are unavailable.  The implementation constructs
+// them using the capital letters from a longer time zone description.	
 
-type zone struct {
-	name                  string
-	offset                int
-	year                  int64
-	month, day, dayofweek int
-	hour, minute, second  int
-	abssec                int64
-	prev                  *zone
-}
-
-// BUG(rsc): On Windows, time zone abbreviations are unavailable.
-// This package constructs them using the capital letters from a longer
-// time zone description.
-
-// Populate zone struct with Windows supplied information. Returns true, if data is valid.
-func (z *zone) populate(bias, biasdelta int32, d *syscall.Systemtime, name []uint16) (dateisgood bool) {
+// abbrev returns the abbreviation to use for the given zone name.
+func abbrev(name []uint16) string {
 	// name is 'Pacific Standard Time' but we want 'PST'.
 	// Extract just capital letters.  It's not perfect but the
 	// information we need is not available from the kernel.
@@ -41,147 +28,98 @@ func (z *zone) populate(bias, biasdelta int32, d *syscall.Systemtime, name []uin
 	//
 	// http://social.msdn.microsoft.com/Forums/eu/vclanguage/thread/a87e1d25-fb71-4fe0-ae9c-a9578c9753eb
 	// http://stackoverflow.com/questions/4195948/windows-time-zone-abbreviations-in-asp-net
-	short := make([]uint16, len(name))
+	short := make([]rune, len(name))
 	w := 0
 	for _, c := range name {
 		if 'A' <= c && c <= 'Z' {
-			short[w] = c
+			short[w] = rune(c)
 			w++
 		}
 	}
-	z.name = syscall.UTF16ToString(short[:w])
-
-	z.offset = int(bias)
-	z.year = int64(d.Year)
-	z.month = int(d.Month)
-	z.day = int(d.Day)
-	z.dayofweek = int(d.DayOfWeek)
-	z.hour = int(d.Hour)
-	z.minute = int(d.Minute)
-	z.second = int(d.Second)
-	dateisgood = d.Month != 0
-	if dateisgood {
-		z.offset += int(biasdelta)
-	}
-	z.offset = -z.offset * 60
-	return
+	return string(short)
 }
 
-// Pre-calculate cutoff time in seconds since the Unix epoch, if data is supplied in "absolute" format.
-func (z *zone) preCalculateAbsSec() {
-	if z.year != 0 {
-		t := &Time{
-			Year:   z.year,
-			Month:  int(z.month),
-			Day:    int(z.day),
-			Hour:   int(z.hour),
-			Minute: int(z.minute),
-			Second: int(z.second),
-		}
-		z.abssec = t.Seconds()
-		// Time given is in "local" time. Adjust it for "utc".
-		z.abssec -= int64(z.prev.offset)
-	}
-}
-
-// Convert zone cutoff time to sec in number of seconds since the Unix epoch, given particular year.
-func (z *zone) cutoffSeconds(year int64) int64 {
+// pseudoUnix returns the pseudo-Unix time (seconds since Jan 1 1970 *LOCAL TIME*)
+// denoted by the system date+time d in the given year.
+// It is up to the caller to convert this local time into a UTC-based time.
+func pseudoUnix(year int, d *syscall.Systemtime) int64 {
 	// Windows specifies daylight savings information in "day in month" format:
-	// z.month is month number (1-12)
-	// z.dayofweek is appropriate weekday (Sunday=0 to Saturday=6)
-	// z.day is week within the month (1 to 5, where 5 is last week of the month)
-	// z.hour, z.minute and z.second are absolute time
-	t := &Time{
-		Year:   year,
-		Month:  int(z.month),
-		Day:    1,
-		Hour:   int(z.hour),
-		Minute: int(z.minute),
-		Second: int(z.second),
-	}
-	t = SecondsToUTC(t.Seconds())
-	i := int(z.dayofweek) - t.Weekday()
+	// d.Month is month number (1-12)
+	// d.DayOfWeek is appropriate weekday (Sunday=0 to Saturday=6)
+	// d.Day is week within the month (1 to 5, where 5 is last week of the month)
+	// d.Hour, d.Minute and d.Second are absolute time
+	day := 1
+	t := Date(year, Month(d.Month), day, int(d.Hour), int(d.Minute), int(d.Second), 0, UTC)
+	i := int(d.DayOfWeek) - int(t.Weekday())
 	if i < 0 {
 		i += 7
 	}
-	t.Day += i
-	if week := int(z.day) - 1; week < 4 {
-		t.Day += week * 7
+	day += i
+	if week := int(d.Day) - 1; week < 4 {
+		day += week * 7
 	} else {
 		// "Last" instance of the day.
-		t.Day += 4 * 7
-		if t.Day > months(year)[t.Month] {
-			t.Day -= 7
+		day += 4 * 7
+		if day > daysIn(Month(d.Month), year) {
+			day -= 7
 		}
 	}
-	// Result is in "local" time. Adjust it for "utc".
-	return t.Seconds() - int64(z.prev.offset)
+	return t.sec + int64(day-1)*secondsPerDay
 }
 
-// Is t before the cutoff for switching to z?
-func (z *zone) isBeforeCutoff(t *Time) bool {
-	var coff int64
-	if z.year == 0 {
-		// "day in month" format used
-		coff = z.cutoffSeconds(t.Year)
-	} else {
-		// "absolute" format used
-		coff = z.abssec
+func initLocalFromTZI(i *syscall.Timezoneinformation) {
+	l := &localLoc
+
+	nzone := 1
+	if i.StandardDate.Month > 0 {
+		nzone++
 	}
-	return t.Seconds() < coff
-}
+	l.zone = make([]zone, nzone)
 
-type zoneinfo struct {
-	disabled         bool // daylight saving time is not used locally
-	offsetIfDisabled int
-	januaryIsStd     bool // is january 1 standard time?
-	std, dst         zone
-}
-
-// Pick zone (std or dst) t time belongs to.
-func (zi *zoneinfo) pickZone(t *Time) *zone {
-	z := &zi.std
-	if tz.januaryIsStd {
-		if !zi.dst.isBeforeCutoff(t) && zi.std.isBeforeCutoff(t) {
-			// after switch to daylight time and before the switch back to standard
-			z = &zi.dst
-		}
-	} else {
-		if zi.std.isBeforeCutoff(t) || !zi.dst.isBeforeCutoff(t) {
-			// before switch to standard time or after the switch back to daylight
-			z = &zi.dst
-		}
-	}
-	return z
-}
-
-var tz zoneinfo
-var initError error
-var onceSetupZone sync.Once
-
-func setupZone() {
-	var i syscall.Timezoneinformation
-	if _, e := syscall.GetTimeZoneInformation(&i); e != nil {
-		initError = os.NewSyscallError("GetTimeZoneInformation", e)
+	std := &l.zone[0]
+	std.name = abbrev(i.StandardName[0:])
+	std.offset = -int(i.StandardBias) * 60
+	if nzone == 1 {
+		// No daylight savings.
+		l.cacheStart = -1 << 63
+		l.cacheEnd = 1<<63 - 1
+		l.cacheZone = std
 		return
 	}
-	setupZoneFromTZI(&i)
-}
 
-func setupZoneFromTZI(i *syscall.Timezoneinformation) {
-	if !tz.std.populate(i.Bias, i.StandardBias, &i.StandardDate, i.StandardName[0:]) {
-		tz.disabled = true
-		tz.offsetIfDisabled = tz.std.offset
-		return
+	dst := &l.zone[1]
+	dst.name = abbrev(i.DaylightName[0:])
+	dst.offset = std.offset + -int(i.DaylightBias)*60
+	dst.isDST = true
+
+	// Arrange so that d0 is first transition date, d1 second,
+	// i0 is index of zone after first transition, i1 second.
+	d0 := &i.StandardDate
+	d1 := &i.DaylightDate
+	i0 := 0
+	i1 := 1
+	if d0.Month > d1.Month {
+		d0, d1 = d1, d0
+		i0, i1 = i1, i0
 	}
-	tz.std.prev = &tz.dst
-	tz.dst.populate(i.Bias, i.DaylightBias, &i.DaylightDate, i.DaylightName[0:])
-	tz.dst.prev = &tz.std
-	tz.std.preCalculateAbsSec()
-	tz.dst.preCalculateAbsSec()
-	// Is january 1 standard time this year?
-	t := UTC()
-	tz.januaryIsStd = tz.dst.cutoffSeconds(t.Year) < tz.std.cutoffSeconds(t.Year)
+
+	// 2 tx per year, 100 years on each side of this year
+	l.tx = make([]zoneTrans, 400)
+
+	t := Now().UTC()
+	year := t.Year()
+	txi := 0
+	for y := year - 100; y < year+100; y++ {
+		tx := &l.tx[txi]
+		tx.when = pseudoUnix(y, d0) - int64(l.zone[i1].offset)
+		tx.index = uint8(i0)
+		txi++
+
+		tx = &l.tx[txi]
+		tx.when = pseudoUnix(y, d1) - int64(l.zone[i0].offset)
+		tx.index = uint8(i1)
+		txi++
+	}
 }
 
 var usPacific = syscall.Timezoneinformation{
@@ -197,53 +135,20 @@ var usPacific = syscall.Timezoneinformation{
 	DaylightBias: -60,
 }
 
-func setupTestingZone() {
-	setupZoneFromTZI(&usPacific)
+func initTestingZone() {
+	initLocalFromTZI(&usPacific)
 }
 
-// Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
-func lookupTimezone(sec int64) (zone string, offset int) {
-	onceSetupZone.Do(setupZone)
-	if initError != nil {
-		return "", 0
+func initLocal() {
+	var i syscall.Timezoneinformation
+	if _, err := syscall.GetTimeZoneInformation(&i); err != nil {
+		localLoc.name = "UTC"
+		return
 	}
-	if tz.disabled {
-		return "", tz.offsetIfDisabled
-	}
-	t := SecondsToUTC(sec)
-	z := &tz.std
-	if tz.std.year == 0 {
-		// "day in month" format used
-		z = tz.pickZone(t)
-	} else {
-		// "absolute" format used
-		if tz.std.year == t.Year {
-			// we have rule for the year in question
-			z = tz.pickZone(t)
-		} else {
-			// we do not have any information for that year,
-			// will assume standard offset all year around
-		}
-	}
-	return z.name, z.offset
+	initLocalFromTZI(&i)
 }
 
-// lookupByName returns the time offset for the
-// time zone with the given abbreviation. It only considers
-// time zones that apply to the current system.
-func lookupByName(name string) (off int, found bool) {
-	onceSetupZone.Do(setupZone)
-	if initError != nil {
-		return 0, false
-	}
-	if tz.disabled {
-		return tz.offsetIfDisabled, false
-	}
-	switch name {
-	case tz.std.name:
-		return tz.std.offset, true
-	case tz.dst.name:
-		return tz.dst.offset, true
-	}
-	return 0, false
+// TODO(rsc): Implement.
+func loadLocation(name string) (*Location, error) {
+	return nil, errors.New("unknown time zone " + name)
 }

@@ -93,6 +93,21 @@ TEXT runtime·mincore(SB),7,$0-24
 	SYSCALL
 	RET
 
+// func now() (sec int64, nsec int32)
+TEXT time·now(SB), 7, $32
+	LEAQ	8(SP), DI
+	MOVQ	$0, SI
+	MOVQ	$0xffffffffff600000, AX
+	CALL	AX
+	MOVQ	8(SP), AX	// sec
+	MOVL	16(SP), DX	// usec
+
+	// sec is in AX, usec in DX
+	MOVQ	AX, sec+0(FP)
+	IMULQ	$1000, DX
+	MOVL	DX, nsec+8(FP)
+	RET
+
 TEXT runtime·nanotime(SB), 7, $32
 	LEAQ	8(SP), DI
 	MOVQ	$0, SI

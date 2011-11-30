@@ -127,6 +127,23 @@ TEXT runtime·mincore(SB),7,$0
 	SWI	$0
 	RET
 
+TEXT time·now(SB), 7, $32
+	MOVW	$8(R13), R0  // timeval
+	MOVW	$0, R1  // zone
+	MOVW	$SYS_gettimeofday, R7
+	SWI	$0
+	
+	MOVW	8(R13), R0  // sec
+	MOVW	12(R13), R2  // usec
+	
+	MOVW	R0, 0(FP)
+	MOVW	$0, R1
+	MOVW	R1, 4(FP)
+	MOVW	$1000, R3
+	MUL	R3, R2
+	MOVW	R2, 8(FP)
+	RET	
+
 // int64 nanotime(void) so really
 // void nanotime(int64 *nsec)
 TEXT runtime·nanotime(SB),7,$32

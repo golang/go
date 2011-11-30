@@ -3,11 +3,109 @@
 // license that can be found in the LICENSE file.
 
 // Package time provides functionality for measuring and displaying time.
+//
+// The calendrical calculations always assume a Gregorian calendar.
 package time
 
-// Days of the week.
+// A Time represents an instant in time with nanosecond precision.
+//
+// Programs using times should typically store and pass them as values,
+// not pointers.  That is, time variables and struct fields should be of
+// type time.Time, not *time.Time.
+//
+// Time instants can be compared using the Before, After, and Equal methods.
+// The Sub method subtracts two instants, producing a Duration.
+// The Add method adds a Time and a Duration, producing a Time.
+//
+// The zero value of type Time is January 1, year 1, 00:00:00.000000000 UTC.
+// As this time is unlikely to come up in practice, the IsZero method gives
+// a simple way of detecting a time that has not been initialized explicitly.
+//
+// Each Time has associated with it a Location, consulted when computing the
+// presentation form of the time, such as in the Format, Hour, and Year methods.
+// The methods Local, UTC, and In return a Time with a specific location.
+// Changing the location in this way changes only the presentation; it does not
+// change the instant in time being denoted and therefore does not affect the
+// computations described in earlier paragraphs.
+//
+type Time struct {
+	// sec gives the number of seconds elapsed since
+	// January 1, year 1 00:00:00 UTC.
+	sec int64
+
+	// nsec specifies a non-negative nanosecond
+	// offset within the second named by Seconds.
+	// It must be in the range [0, 999999999].
+	nsec int32
+
+	// loc specifies the Location that should be used to
+	// determine the minute, hour, month, day, and year
+	// that correspond to this Time.
+	// Only the zero Time has a nil Location.
+	// In that case it is interpreted to mean UTC.
+	loc *Location
+}
+
+// After reports whether the time instant t is after u.
+func (t Time) After(u Time) bool {
+	return t.sec > u.sec || t.sec == u.sec && t.nsec > u.nsec
+}
+
+// Before reports whether the time instant t is before u.
+func (t Time) Before(u Time) bool {
+	return t.sec < u.sec || t.sec == u.sec && t.nsec < u.nsec
+}
+
+// Equal reports whether t and u represent the same time instant.
+// Two times can be equal even if they are in different locations.
+// For example, 6:00 +0200 CEST and 4:00 UTC are Equal.
+// This comparison is different from using t == u, which also compares
+// the locations.
+func (t Time) Equal(u Time) bool {
+	return t.sec == u.sec && t.nsec == u.nsec
+}
+
+// A Month specifies a month of the year (January = 1, ...).
+type Month int
+
 const (
-	Sunday = iota
+	January Month = 1 + iota
+	February
+	March
+	April
+	May
+	June
+	July
+	August
+	September
+	October
+	November
+	December
+)
+
+var months = [...]string{
+	"January",
+	"February",
+	"March",
+	"April",
+	"May",
+	"June",
+	"July",
+	"August",
+	"September",
+	"October",
+	"November",
+	"December",
+}
+
+// String returns the English name of the month ("January", "February", ...).
+func (m Month) String() string { return months[m-1] }
+
+// A Weekday specifies a day of the week (Sunday = 0, ...).
+type Weekday int
+
+const (
+	Sunday Weekday = iota
 	Monday
 	Tuesday
 	Wednesday
@@ -16,284 +114,749 @@ const (
 	Saturday
 )
 
-// Time is the struct representing a parsed time value.
-type Time struct {
-	Year                 int64  // 2006 is 2006
-	Month, Day           int    // Jan-2 is 1, 2
-	Hour, Minute, Second int    // 15:04:05 is 15, 4, 5.
-	Nanosecond           int    // Fractional second.
-	ZoneOffset           int    // seconds east of UTC, e.g. -7*60*60 for -0700
-	Zone                 string // e.g., "MST"
+var days = [...]string{
+	"Sunday",
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday",
 }
 
-var nonleapyear = []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
-var leapyear = []int{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+// String returns the English name of the day ("Sunday", "Monday", ...).
+func (d Weekday) String() string { return days[d] }
 
-func months(year int64) []int {
-	if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
-		return leapyear
-	}
-	return nonleapyear
-}
+// Computations on time.
+// 
+// The zero value for a Time is defined to be
+//	January 1, year 1, 00:00:00.000000000 UTC
+// which (1) looks like a zero, or as close as you can get in a date
+// (1-1-1 00:00:00 UTC), (2) is unlikely enough to arise in practice to
+// be a suitable "not set" sentinel, unlike Jan 1 1970, and (3) has a
+// non-negative year even in time zones west of UTC, unlike 1-1-0
+// 00:00:00 UTC, which would be 12-31-(-1) 19:00:00 in New York.
+// 
+// The zero Time value does not force a specific epoch for the time
+// representation.  For example, to use the Unix epoch internally, we
+// could define that to distinguish a zero value from Jan 1 1970, that
+// time would be represented by sec=-1, nsec=1e9.  However, it does
+// suggest a representation, namely using 1-1-1 00:00:00 UTC as the
+// epoch, and that's what we do.
+// 
+// The Add and Sub computations are oblivious to the choice of epoch.
+// 
+// The presentation computations - year, month, minute, and so on - all
+// rely heavily on division and modulus by positive constants.  For
+// calendrical calculations we want these divisions to round down, even
+// for negative values, so that the remainder is always positive, but
+// Go's division (like most hardware divison instructions) rounds to
+// zero.  We can still do those computations and then adjust the result
+// for a negative numerator, but it's annoying to write the adjustment
+// over and over.  Instead, we can change to a different epoch so long
+// ago that all the times we care about will be positive, and then round
+// to zero and round down coincide.  These presentation routines already
+// have to add the zone offset, so adding the translation to the
+// alternate epoch is cheap.  For example, having a non-negative time t
+// means that we can write
+//
+//	sec = t % 60
+//
+// instead of
+//
+//	sec = t % 60
+//	if sec < 0 {
+//		sec += 60
+//	}
+//
+// everywhere.
+// 
+// The calendar runs on an exact 400 year cycle: a 400-year calendar
+// printed for 1970-2469 will apply as well to 2470-2869.  Even the days
+// of the week match up.  It simplifies the computations to choose the
+// cycle boundaries so that the exceptional years are always delayed as
+// long as possible.  That means choosing a year equal to 1 mod 400, so
+// that the first leap year is the 4th year, the first missed leap year
+// is the 100th year, and the missed missed leap year is the 400th year.
+// So we'd prefer instead to print a calendar for 2001-2400 and reuse it
+// for 2401-2800.
+// 
+// Finally, it's convenient if the delta between the Unix epoch and
+// long-ago epoch is representable by an int64 constant.
+// 
+// These three considerations—choose an epoch as early as possible, that
+// uses a year equal to 1 mod 400, and that is no more than 2⁶³ seconds
+// earlier than 1970—bring us to the year -292277022399.  We refer to
+// this year as the absolute zero year, and to times measured as a uint64
+// seconds since this year as absolute times.
+// 
+// Times measured as an int64 seconds since the year 1—the representation
+// used for Time's sec field—are called internal times.
+// 
+// Times measured as an int64 seconds since the year 1970 are called Unix
+// times.
+// 
+// It is tempting to just use the year 1 as the absolute epoch, defining
+// that the routines are only valid for years >= 1.  However, the
+// routines would then be invalid when displaying the epoch in time zones
+// west of UTC, since it is year 0.  It doesn't seem tenable to say that
+// printing the zero time correctly isn't supported in half the time
+// zones.  By comparison, it's reasonable to mishandle some times in
+// the year -292277022399.
+// 
+// All this is opaque to clients of the API and can be changed if a
+// better implementation presents itself.
 
 const (
-	secondsPerDay   = 24 * 60 * 60
-	daysPer400Years = 365*400 + 97
-	daysPer100Years = 365*100 + 24
-	daysPer4Years   = 365*4 + 1
-	days1970To2001  = 31*365 + 8
+	// The unsigned zero year for internal calculations.
+	// Must be 1 mod 400, and times before it will not compute correctly,
+	// but otherwise can be changed at will.
+	absoluteZeroYear = -292277022399
+
+	// The year of the zero Time.
+	// Assumed by the unixToInternal computation below.
+	internalYear = 1
+
+	// The year of the zero Unix time.
+	unixYear = 1970
+
+	// Offsets to convert between internal and absolute or Unix times.
+	absoluteToInternal int64 = (absoluteZeroYear - internalYear) * 365.2425 * secondsPerDay
+	internalToAbsolute       = -absoluteToInternal
+
+	unixToInternal int64 = (1969*365 + 1969/4 - 1969/100 + 1969/400) * secondsPerDay
+	internalToUnix int64 = -unixToInternal
 )
 
-// SecondsToUTC converts sec, in number of seconds since the Unix epoch,
-// into a parsed Time value in the UTC time zone.
-func SecondsToUTC(sec int64) *Time {
-	t := new(Time)
-
-	// Split into time and day.
-	day := sec / secondsPerDay
-	sec -= day * secondsPerDay
-	if sec < 0 {
-		day--
-		sec += secondsPerDay
-	}
-
-	// Time
-	t.Hour = int(sec / 3600)
-	t.Minute = int((sec / 60) % 60)
-	t.Second = int(sec % 60)
-
-	// Change day from 0 = 1970 to 0 = 2001,
-	// to make leap year calculations easier
-	// (2001 begins 4-, 100-, and 400-year cycles ending in a leap year.)
-	day -= days1970To2001
-
-	year := int64(2001)
-	if day < 0 {
-		// Go back enough 400 year cycles to make day positive.
-		n := -day/daysPer400Years + 1
-		year -= 400 * n
-		day += daysPer400Years * n
-	}
-
-	// Cut off 400 year cycles.
-	n := day / daysPer400Years
-	year += 400 * n
-	day -= daysPer400Years * n
-
-	// Cut off 100-year cycles
-	n = day / daysPer100Years
-	if n > 3 { // happens on last day of 400th year
-		n = 3
-	}
-	year += 100 * n
-	day -= daysPer100Years * n
-
-	// Cut off 4-year cycles
-	n = day / daysPer4Years
-	if n > 24 { // happens on last day of 100th year
-		n = 24
-	}
-	year += 4 * n
-	day -= daysPer4Years * n
-
-	// Cut off non-leap years.
-	n = day / 365
-	if n > 3 { // happens on last day of 4th year
-		n = 3
-	}
-	year += n
-	day -= 365 * n
-
-	t.Year = year
-
-	// If someone ever needs yearday,
-	// tyearday = day (+1?)
-
-	months := months(year)
-	var m int
-	yday := int(day)
-	for m = 0; m < 12 && yday >= months[m]; m++ {
-		yday -= months[m]
-	}
-	t.Month = m + 1
-	t.Day = yday + 1
-	t.Zone = "UTC"
-
-	return t
+// IsZero reports whether t represents the zero time instant,
+// January 1, year 1, 00:00:00 UTC.
+func (t Time) IsZero() bool {
+	return t.sec == 0 && t.nsec == 0
 }
 
-// NanosecondsToUTC converts nsec, in number of nanoseconds since the Unix epoch,
-// into a parsed Time value in the UTC time zone.
-func NanosecondsToUTC(nsec int64) *Time {
-	// This one calls SecondsToUTC rather than the other way around because
-	// that admits a much larger span of time; NanosecondsToUTC is limited
-	// to a few hundred years only.
-	t := SecondsToUTC(nsec / 1e9)
-	t.Nanosecond = int(nsec % 1e9)
-	return t
-}
-
-// UTC returns the current time as a parsed Time value in the UTC time zone.
-func UTC() *Time { return NanosecondsToUTC(Nanoseconds()) }
-
-// SecondsToLocalTime converts sec, in number of seconds since the Unix epoch,
-// into a parsed Time value in the local time zone.
-func SecondsToLocalTime(sec int64) *Time {
-	z, offset := lookupTimezone(sec)
-	t := SecondsToUTC(sec + int64(offset))
-	t.Zone = z
-	t.ZoneOffset = offset
-	return t
-}
-
-// NanosecondsToLocalTime converts nsec, in number of nanoseconds since the Unix epoch,
-// into a parsed Time value in the local time zone.
-func NanosecondsToLocalTime(nsec int64) *Time {
-	t := SecondsToLocalTime(nsec / 1e9)
-	t.Nanosecond = int(nsec % 1e9)
-	return t
-}
-
-// LocalTime returns the current time as a parsed Time value in the local time zone.
-func LocalTime() *Time { return NanosecondsToLocalTime(Nanoseconds()) }
-
-// Seconds returns the number of seconds since January 1, 1970 represented by the
-// parsed Time value.
-func (t *Time) Seconds() int64 {
-	// First, accumulate days since January 1, 2001.
-	// Using 2001 instead of 1970 makes the leap-year
-	// handling easier (see SecondsToUTC), because
-	// it is at the beginning of the 4-, 100-, and 400-year cycles.
-	day := int64(0)
-
-	// Rewrite year to be >= 2001.
-	year := t.Year
-	if year < 2001 {
-		n := (2001-year)/400 + 1
-		year += 400 * n
-		day -= daysPer400Years * n
+// abs returns the time t as an absolute time, adjusted by the zone offset.
+// It is called when computing a presentation property like Month or Hour.
+func (t Time) abs() uint64 {
+	l := t.loc
+	if l == nil {
+		l = &utcLoc
 	}
-
-	// Add in days from 400-year cycles.
-	n := (year - 2001) / 400
-	year -= 400 * n
-	day += daysPer400Years * n
-
-	// Add in 100-year cycles.
-	n = (year - 2001) / 100
-	year -= 100 * n
-	day += daysPer100Years * n
-
-	// Add in 4-year cycles.
-	n = (year - 2001) / 4
-	year -= 4 * n
-	day += daysPer4Years * n
-
-	// Add in non-leap years.
-	n = year - 2001
-	day += 365 * n
-
-	// Add in days this year.
-	months := months(t.Year)
-	for m := 0; m < t.Month-1; m++ {
-		day += int64(months[m])
+	// Avoid function call if we hit the local time cache.
+	sec := t.sec + internalToUnix
+	if l != &utcLoc {
+		if l.cacheZone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
+			sec += int64(l.cacheZone.offset)
+		} else {
+			_, offset, _, _, _ := l.lookup(sec)
+			sec += int64(offset)
+		}
 	}
-	day += int64(t.Day - 1)
-
-	// Convert days to seconds since January 1, 2001.
-	sec := day * secondsPerDay
-
-	// Add in time elapsed today.
-	sec += int64(t.Hour) * 3600
-	sec += int64(t.Minute) * 60
-	sec += int64(t.Second)
-
-	// Convert from seconds since 2001 to seconds since 1970.
-	sec += days1970To2001 * secondsPerDay
-
-	// Account for local time zone.
-	sec -= int64(t.ZoneOffset)
-	return sec
+	return uint64(sec + (unixToInternal + internalToAbsolute))
 }
 
-// Nanoseconds returns the number of nanoseconds since January 1, 1970 represented by the
-// parsed Time value.
-func (t *Time) Nanoseconds() int64 {
-	return t.Seconds()*1e9 + int64(t.Nanosecond)
-}
-
-// Weekday returns the time's day of the week. Sunday is day 0.
-func (t *Time) Weekday() int {
-	sec := t.Seconds() + int64(t.ZoneOffset)
-	day := sec / secondsPerDay
-	sec -= day * secondsPerDay
-	if sec < 0 {
-		day--
-	}
-	// Day 0 = January 1, 1970 was a Thursday
-	weekday := int((day + Thursday) % 7)
-	if weekday < 0 {
-		weekday += 7
-	}
-	return weekday
-}
-
-// julianDayNumber returns the time's Julian Day Number
-// relative to the epoch 12:00 January 1, 4713 BC, Monday.
-func julianDayNumber(year int64, month, day int) int64 {
-	a := int64(14-month) / 12
-	y := year + 4800 - a
-	m := int64(month) + 12*a - 3
-	return int64(day) + (153*m+2)/5 + 365*y + y/4 - y/100 + y/400 - 32045
-}
-
-// startOfFirstWeek returns the julian day number of the first day
-// of the first week of the given year.
-func startOfFirstWeek(year int64) (d int64) {
-	jan01 := julianDayNumber(year, 1, 1)
-	weekday := (jan01 % 7) + 1
-	if weekday <= 4 {
-		d = jan01 - weekday + 1
-	} else {
-		d = jan01 + 8 - weekday
-	}
+// Date returns the year, month, and day in which t occurs.
+func (t Time) Date() (year int, month Month, day int) {
+	year, month, day, _ = t.date(true)
 	return
 }
 
-// dayOfWeek returns the weekday of the given date.
-func dayOfWeek(year int64, month, day int) int {
-	t := Time{Year: year, Month: month, Day: day}
-	return t.Weekday()
+// Year returns the year in which t occurs.
+func (t Time) Year() int {
+	year, _, _, _ := t.date(false)
+	return year
 }
 
-// ISOWeek returns the time's year and week number according to ISO 8601. 
+// Month returns the month of the year specified by t.
+func (t Time) Month() Month {
+	_, month, _, _ := t.date(true)
+	return month
+}
+
+// Day returns the day of the month specified by t.
+func (t Time) Day() int {
+	_, _, day, _ := t.date(true)
+	return day
+}
+
+// Weekday returns the day of the week specified by t.
+func (t Time) Weekday() Weekday {
+	// January 1 of the absolute year, like January 1 of 2001, was a Monday.
+	sec := (t.abs() + uint64(Monday)*secondsPerDay) % secondsPerWeek
+	return Weekday(int(sec) / secondsPerDay)
+}
+
+// ISOWeek returns the ISO 8601 year and week number in which t occurs.
 // Week ranges from 1 to 53. Jan 01 to Jan 03 of year n might belong to 
 // week 52 or 53 of year n-1, and Dec 29 to Dec 31 might belong to week 1 
 // of year n+1.
-func (t *Time) ISOWeek() (year int64, week int) {
-	d := julianDayNumber(t.Year, t.Month, t.Day)
-	week1Start := startOfFirstWeek(t.Year)
+func (t Time) ISOWeek() (year, week int) {
+	year, month, day, yday := t.date(true)
+	wday := int(t.Weekday()+6) % 7 // weekday but Monday = 0.
+	const (
+		Mon int = iota
+		Tue
+		Wed
+		Thu
+		Fri
+		Sat
+		Sun
+	)
 
-	if d < week1Start {
-		// Previous year, week 52 or 53
-		year = t.Year - 1
-		if dayOfWeek(t.Year-1, 1, 1) == 4 || dayOfWeek(t.Year-1, 12, 31) == 4 {
-			week = 53
-		} else {
-			week = 52
+	// Calculate week as number of Mondays in year up to
+	// and including today, plus 1 because the first week is week 0.
+	// Putting the + 1 inside the numerator as a + 7 keeps the
+	// numerator from being negative, which would cause it to
+	// round incorrectly.
+	week = (yday - wday + 7) / 7
+
+	// The week number is now correct under the assumption
+	// that the first Monday of the year is in week 1.
+	// If Jan 1 is a Tuesday, Wednesday, or Thursday, the first Monday
+	// is actually in week 2.
+	jan1wday := (wday - yday + 7*53) % 7
+	if Tue <= jan1wday && jan1wday <= Thu {
+		week++
+	}
+
+	// If the week number is still 0, we're in early January but in
+	// the last week of last year.
+	if week == 0 {
+		year--
+		week = 52
+		// A year has 53 weeks when Jan 1 or Dec 31 is a Thursday,
+		// meaning Jan 1 of the next year is a Friday
+		// or it was a leap year and Jan 1 of the next year is a Saturday.
+		if jan1wday == Fri || (jan1wday == Sat && isLeap(year)) {
+			week++
 		}
-		return
 	}
 
-	if d < startOfFirstWeek(t.Year+1) {
-		// Current year, week 01..52(,53)
-		year = t.Year
-		week = int((d-week1Start)/7 + 1)
-		return
+	// December 29 to 31 are in week 1 of next year if
+	// they are after the last Thursday of the year and
+	// December 31 is a Monday, Tuesday, or Wednesday.
+	if month == December && day >= 29 && wday < Thu {
+		if dec31wday := (wday + 31 - day) % 7; Mon <= dec31wday && dec31wday <= Wed {
+			year++
+			week = 1
+		}
 	}
 
-	// Next year, week 1
-	year = t.Year + 1
-	week = 1
 	return
+}
+
+// Clock returns the hour, minute, and second within the day specified by t.
+func (t Time) Clock() (hour, min, sec int) {
+	sec = int(t.abs() % secondsPerDay)
+	hour = sec / secondsPerHour
+	sec -= hour * secondsPerHour
+	min = sec / secondsPerMinute
+	sec -= min * secondsPerMinute
+	return
+}
+
+// Hour returns the hour within the day specified by t, in the range [0, 23].
+func (t Time) Hour() int {
+	return int(t.abs()%secondsPerDay) / secondsPerHour
+}
+
+// Minute returns the minute offset within the hour specified by t, in the range [0, 59].
+func (t Time) Minute() int {
+	return int(t.abs()%secondsPerHour) / secondsPerMinute
+}
+
+// Second returns the second offset within the minute specified by t, in the range [0, 59].
+func (t Time) Second() int {
+	return int(t.abs() % secondsPerMinute)
+}
+
+// Nanosecond returns the nanosecond offset within the second specified by t,
+// in the range [0, 999999999].
+func (t Time) Nanosecond() int {
+	return int(t.nsec)
+}
+
+// A Duration represents the elapsed time between two instants
+// as an int64 nanosecond count.  The representation limits the
+// largest representable duration to approximately 290 years.
+type Duration int64
+
+// Common durations.  There is no definition for units of Day or larger
+// to avoid confusion across daylight savings time zone transitions.
+const (
+	Nanosecond  Duration = 1
+	Microsecond          = 1000 * Nanosecond
+	Millisecond          = 1000 * Microsecond
+	Second               = 1000 * Millisecond
+	Minute               = 60 * Second
+	Hour                 = 60 * Minute
+)
+
+// Duration returns a string representing the duration in the form "72h3m0.5s".
+// Leading zero units are omitted.  As a special case, durations less than one
+// second format use a smaller unit (milli-, micro-, or nanoseconds) to ensure
+// that the leading digit is non-zero.  The zero duration formats as 0,
+// with no unit.
+func (d Duration) String() string {
+	// Largest time is 2540400h10m10.000000000s
+	var buf [32]byte
+	w := len(buf)
+
+	u := uint64(d)
+	neg := d < 0
+	if neg {
+		u = -u
+	}
+
+	if u < uint64(Second) {
+		// Special case: if duration is smaller than a second,
+		// use smaller units, like 1.2ms
+		var (
+			prec int
+			unit byte
+		)
+		switch {
+		case u == 0:
+			return "0"
+		case u < uint64(Microsecond):
+			// print nanoseconds
+			prec = 0
+			unit = 'n'
+		case u < uint64(Millisecond):
+			// print microseconds
+			prec = 3
+			unit = 'u'
+		default:
+			// print milliseconds
+			prec = 6
+			unit = 'm'
+		}
+		w -= 2
+		buf[w] = unit
+		buf[w+1] = 's'
+		w, u = fmtFrac(buf[:w], u, prec)
+		w = fmtInt(buf[:w], u)
+	} else {
+		w--
+		buf[w] = 's'
+
+		w, u = fmtFrac(buf[:w], u, 9)
+
+		// u is now integer seconds
+		w = fmtInt(buf[:w], u%60)
+		u /= 60
+
+		// u is now integer minutes
+		if u > 0 {
+			w--
+			buf[w] = 'm'
+			w = fmtInt(buf[:w], u%60)
+			u /= 60
+
+			// u is now integer hours
+			// Stop at hours because days can be different lengths.
+			if u > 0 {
+				w--
+				buf[w] = 'h'
+				w = fmtInt(buf[:w], u)
+			}
+		}
+	}
+
+	if neg {
+		w--
+		buf[w] = '-'
+	}
+
+	return string(buf[w:])
+}
+
+// fmtFrac formats the fraction of v/10**prec (e.g., ".12345") into the
+// tail of buf, omitting trailing zeros.  it omits the decimal
+// point too when the fraction is 0.  It returns the index where the
+// output bytes begin and the value v/10**prec.
+func fmtFrac(buf []byte, v uint64, prec int) (nw int, nv uint64) {
+	// Omit trailing zeros up to and including decimal point.
+	w := len(buf)
+	print := false
+	for i := 0; i < prec; i++ {
+		digit := v % 10
+		print = print || digit != 0
+		if print {
+			w--
+			buf[w] = byte(digit) + '0'
+		}
+		v /= 10
+	}
+	if print {
+		w--
+		buf[w] = '.'
+	}
+	return w, v
+}
+
+// fmtInt formats v into the tail of buf.
+// It returns the index where the output begins.
+func fmtInt(buf []byte, v uint64) int {
+	w := len(buf)
+	if v == 0 {
+		w--
+		buf[w] = '0'
+	} else {
+		for v > 0 {
+			w--
+			buf[w] = byte(v%10) + '0'
+			v /= 10
+		}
+	}
+	return w
+}
+
+// Nanoseconds returns the duration as an integer nanosecond count.
+func (d Duration) Nanoseconds() int64 { return int64(d) }
+
+// These methods return float64 because the dominant
+// use case is for printing a floating point number like 1.5s, and
+// a truncation to integer would make them not useful in those cases.
+// Splitting the integer and fraction ourselves guarantees that
+// converting the returned float64 to an integer rounds the same
+// way that a pure integer conversion would have, even in cases
+// where, say, float64(d.Nanoseconds())/1e9 would have rounded
+// differently.
+
+// Seconds returns the duration as a floating point number of seconds.
+func (d Duration) Seconds() float64 {
+	sec := d / Second
+	nsec := d % Second
+	return float64(sec) + float64(nsec)*1e-9
+}
+
+// Minutes returns the duration as a floating point number of minutes.
+func (d Duration) Minutes() float64 {
+	min := d / Minute
+	nsec := d % Minute
+	return float64(min) + float64(nsec)*(1e-9/60)
+}
+
+// Hours returns the duration as a floating point number of hours.
+func (d Duration) Hours() float64 {
+	hour := d / Hour
+	nsec := d % Hour
+	return float64(hour) + float64(nsec)*(1e-9/60/60)
+}
+
+// Add returns the time t+d.
+func (t Time) Add(d Duration) Time {
+	t.sec += int64(d / 1e9)
+	t.nsec += int32(d % 1e9)
+	if t.nsec > 1e9 {
+		t.sec++
+		t.nsec -= 1e9
+	} else if t.nsec < 0 {
+		t.sec--
+		t.nsec += 1e9
+	}
+	return t
+}
+
+// Sub returns the duration t-u.
+// To compute t-d for a duration d, use t.Add(-d).
+func (t Time) Sub(u Time) Duration {
+	return Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
+}
+
+const (
+	secondsPerMinute = 60
+	secondsPerHour   = 60 * 60
+	secondsPerDay    = 24 * secondsPerHour
+	secondsPerWeek   = 7 * secondsPerDay
+	daysPer400Years  = 365*400 + 97
+	daysPer100Years  = 365*100 + 24
+	daysPer4Years    = 365*4 + 1
+	days1970To2001   = 31*365 + 8
+)
+
+// date computes the year and, only when full=true,
+// the month and day in which t occurs.
+func (t Time) date(full bool) (year int, month Month, day int, yday int) {
+	// Split into time and day.
+	d := t.abs() / secondsPerDay
+
+	// Account for 400 year cycles.
+	n := d / daysPer400Years
+	y := 400 * n
+	d -= daysPer400Years * n
+
+	// Cut off 100-year cycles.
+	// The last cycle has one extra leap year, so on the last day
+	// of that year, day / daysPer100Years will be 4 instead of 3.
+	// Cut it back down to 3 by subtracting n>>2.
+	n = d / daysPer100Years
+	n -= n >> 2
+	y += 100 * n
+	d -= daysPer100Years * n
+
+	// Cut off 4-year cycles.
+	// The last cycle has a missing leap year, which does not
+	// affect the computation.
+	n = d / daysPer4Years
+	y += 4 * n
+	d -= daysPer4Years * n
+
+	// Cut off years within a 4-year cycle.
+	// The last year is a leap year, so on the last day of that year,
+	// day / 365 will be 4 instead of 3.  Cut it back down to 3
+	// by subtracting n>>2.
+	n = d / 365
+	n -= n >> 2
+	y += n
+	d -= 365 * n
+
+	year = int(int64(y) + absoluteZeroYear)
+	yday = int(d)
+
+	if !full {
+		return
+	}
+
+	day = yday
+	if isLeap(year) {
+		// Leap year
+		switch {
+		case day > 31+29-1:
+			// After leap day; pretend it wasn't there.
+			day--
+		case day == 31+29-1:
+			// Leap day.
+			month = February
+			day = 29
+			return
+		}
+	}
+
+	// Estimate month on assumption that every month has 31 days.
+	// The estimate may be too low by at most one month, so adjust.
+	month = Month(day / 31)
+	end := int(daysBefore[month+1])
+	var begin int
+	if day >= end {
+		month++
+		begin = end
+	} else {
+		begin = int(daysBefore[month])
+	}
+
+	month++ // because January is 1
+	day = day - begin + 1
+	return
+}
+
+// daysBefore[m] counts the number of days in a non-leap year
+// before month m begins.  There is an entry for m=12, counting
+// the number of days before January of next year (365).
+var daysBefore = [...]int32{
+	0,
+	31,
+	31 + 28,
+	31 + 28 + 31,
+	31 + 28 + 31 + 30,
+	31 + 28 + 31 + 30 + 31,
+	31 + 28 + 31 + 30 + 31 + 30,
+	31 + 28 + 31 + 30 + 31 + 30 + 31,
+	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31,
+	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
+	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
+	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
+	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
+}
+
+func daysIn(m Month, year int) int {
+	if m == February && isLeap(year) {
+		return 29
+	}
+	return int(daysBefore[m+1] - daysBefore[m])
+}
+
+// Provided by package runtime.
+func now() (sec int64, nsec int32)
+
+// Now returns the current local time.
+func Now() Time {
+	sec, nsec := now()
+	return Time{sec + unixToInternal, nsec, Local}
+}
+
+// UTC returns t with the location set to UTC.
+func (t Time) UTC() Time {
+	t.loc = UTC
+	return t
+}
+
+// Local returns t with the location set to local time.
+func (t Time) Local() Time {
+	t.loc = Local
+	return t
+}
+
+// In returns t with the location information set to loc.
+//
+// In panics if loc is nil.
+func (t Time) In(loc *Location) Time {
+	if loc == nil {
+		panic("time: missing Location in call to Time.In")
+	}
+	t.loc = loc
+	return t
+}
+
+// Location returns the time zone information associated with t.
+func (t Time) Location() *Location {
+	l := t.loc
+	if l == nil {
+		l = UTC
+	}
+	return l
+}
+
+// Zone computes the time zone in effect at time t, returning the abbreviated
+// name of the zone (such as "CET") and its offset in seconds east of UTC.
+func (t Time) Zone() (name string, offset int) {
+	name, offset, _, _, _ = t.loc.lookup(t.sec + internalToUnix)
+	return
+}
+
+// Unix returns the Unix time, the number of seconds elapsed
+// since January 1, 1970 UTC.
+func (t Time) Unix() int64 {
+	return t.sec + internalToUnix
+}
+
+// UnixNano returns the Unix time, the number of nanoseconds elapsed
+// since January 1, 1970 UTC.
+func (t Time) UnixNano() int64 {
+	return (t.sec+internalToUnix)*1e9 + int64(t.nsec)
+}
+
+// Unix returns the local Time corresponding to the given Unix time,
+// sec seconds and nsec nanoseconds since January 1, 1970 UTC.
+// It is valid to pass nsec outside the range [0, 999999999].
+func Unix(sec int64, nsec int64) Time {
+	if nsec < 0 || nsec >= 1e9 {
+		n := nsec / 1e9
+		sec += n
+		nsec -= n * 1e9
+		if nsec < 0 {
+			nsec += 1e9
+			sec--
+		}
+	}
+	return Time{sec + unixToInternal, int32(nsec), Local}
+}
+
+func isLeap(year int) bool {
+	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
+}
+
+// norm returns nhi, nlo such that
+//	hi * base + lo == nhi * base + nlo
+//	0 <= nlo < base
+func norm(hi, lo, base int) (nhi, nlo int) {
+	if lo < 0 {
+		n := (-lo-1)/base + 1
+		hi -= n
+		lo += n * base
+	}
+	if lo >= base {
+		n := lo / base
+		hi += n
+		lo -= n * base
+	}
+	return hi, lo
+}
+
+// Date returns the Time corresponding to
+//	yyyy-mm-dd hh:mm:ss + nsec nanoseconds
+// in the appropriate zone for that time in the given location.
+//
+// The month, day, hour, min, sec, and nsec values may be outside
+// their usual ranges and will be normalized during the conversion.
+// For example, October 32 converts to November 1.
+//
+// A daylight savings time transition skips or repeats times.
+// For example, in the United States, March 13, 2011 2:15am never occurred,
+// while November 6, 2011 1:15am occurred twice.  In such cases, the
+// choice of time zone, and therefore the time, is not well-defined.
+// Date returns a time that is correct in one of the two zones involved
+// in the transition, but it does not guarantee which.
+//
+// Date panics if loc is nil.
+func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) Time {
+	if loc == nil {
+		panic("time: missing Location in call to Date")
+	}
+
+	// Normalize month, overflowing into year.
+	m := int(month) - 1
+	year, m = norm(year, m, 12)
+	month = Month(m) + 1
+
+	// Normalize nsec, sec, min, hour, overflowing into day.
+	sec, nsec = norm(sec, nsec, 1e9)
+	min, sec = norm(min, sec, 60)
+	hour, min = norm(hour, min, 60)
+	day, hour = norm(day, hour, 24)
+
+	y := uint64(int64(year) - absoluteZeroYear)
+
+	// Compute days since the absolute epoch.
+
+	// Add in days from 400-year cycles.
+	n := y / 400
+	y -= 400 * n
+	d := daysPer400Years * n
+
+	// Add in 100-year cycles.
+	n = y / 100
+	y -= 100 * n
+	d += daysPer100Years * n
+
+	// Add in 4-year cycles.
+	n = y / 4
+	y -= 4 * n
+	d += daysPer4Years * n
+
+	// Add in non-leap years.
+	n = y
+	d += 365 * n
+
+	// Add in days before this month.
+	d += uint64(daysBefore[month-1])
+	if isLeap(year) && month >= March {
+		d++ // February 29
+	}
+
+	// Add in days before today.
+	d += uint64(day - 1)
+
+	// Add in time elapsed today.
+	abs := d * secondsPerDay
+	abs += uint64(hour*secondsPerHour + min*secondsPerMinute + sec)
+
+	unix := int64(abs) + (absoluteToInternal + internalToUnix)
+
+	// Look for zone offset for t, so we can adjust to UTC.
+	// The lookup function expects UTC, so we pass t in the
+	// hope that it will not be too close to a zone transition,
+	// and then adjust if it is.
+	_, offset, _, start, end := loc.lookup(unix)
+	if offset != 0 {
+		switch utc := unix - int64(offset); {
+		case utc < start:
+			_, offset, _, _, _ = loc.lookup(start - 1)
+		case utc >= end:
+			_, offset, _, _, _ = loc.lookup(end)
+		}
+		unix -= int64(offset)
+	}
+
+	return Time{unix + unixToInternal, int32(nsec), loc}
 }

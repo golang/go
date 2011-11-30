@@ -7,7 +7,6 @@
 package time
 
 import (
-	"os"
 	"strconv"
 	"strings"
 )
@@ -49,7 +48,7 @@ func parseZones(s string) (zt []zonetime) {
 	return
 }
 
-func setupZone() {
+func initLocal() {
 	t, err := os.Getenverror("timezone")
 	if err != nil {
 		// do nothing: use UTC
@@ -58,16 +57,8 @@ func setupZone() {
 	zones = parseZones(t)
 }
 
-func setupTestingZone() {
-	f, err := os.Open("/adm/timezone/US_Pacific")
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	l, _ := f.Seek(0, 2)
-	f.Seek(0, 0)
-	buf := make([]byte, l)
-	_, err = f.Read(buf)
+func initTestingZone() {
+	buf, err := readFile("/adm/timezone/US_Pacific")
 	if err != nil {
 		return
 	}

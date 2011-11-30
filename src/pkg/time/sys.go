@@ -4,17 +4,33 @@
 
 package time
 
-// Seconds reports the number of seconds since the Unix epoch,
-// January 1, 1970 00:00:00 UTC.
-func Seconds() int64 {
-	return Nanoseconds() / 1e9
+import "syscall"
+
+// Sleep pauses the current goroutine for the duration d.
+func Sleep(d Duration)
+
+// readFile reads and returns the content of the named file.
+// It is a trivial implementation of ioutil.ReadFile, reimplemented
+// here to avoid depending on io/ioutil or os.
+func readFile(name string) ([]byte, error) {
+	f, err := syscall.Open(name, syscall.O_RDONLY, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer syscall.Close(f)
+	var (
+		buf [4096]byte
+		ret []byte
+		n   int
+	)
+	for {
+		n, err = syscall.Read(f, buf[:])
+		if n > 0 {
+			ret = append(ret, buf[:n]...)
+		}
+		if n == 0 || err != nil {
+			break
+		}
+	}
+	return ret, err
 }
-
-// Nanoseconds is implemented by package runtime.
-
-// Nanoseconds reports the number of nanoseconds since the Unix epoch,
-// January 1, 1970 00:00:00 UTC.
-func Nanoseconds() int64
-
-// Sleep pauses the current goroutine for at least ns nanoseconds.
-func Sleep(ns int64)
