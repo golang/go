@@ -1065,9 +1065,11 @@ func (z nat) setBit(x nat, i uint, b uint) nat {
 		return z.norm()
 	case 1:
 		if j >= n {
-			n = j + 1
+			z = z.make(j + 1)
+			z[n:].clear()
+		} else {
+			z = z.make(n)
 		}
-		z = z.make(n)
 		copy(z, x)
 		z[j] |= m
 		// no need to normalize

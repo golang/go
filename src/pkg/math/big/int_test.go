@@ -1242,9 +1242,13 @@ func TestBitSet(t *testing.T) {
 		x.SetString(test.x, 0)
 		b := x.Bit(test.i)
 		if b != test.b {
-
-			t.Errorf("#%d want %v got %v", i, test.b, b)
+			t.Errorf("#%d got %v want %v", i, b, test.b)
 		}
+	}
+	z := NewInt(1)
+	z.SetBit(NewInt(0), 2, 1)
+	if z.Cmp(NewInt(4)) != 0 {
+		t.Errorf("destination leaked into result; got %s want 4", z)
 	}
 }
 
