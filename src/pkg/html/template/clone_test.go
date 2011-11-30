@@ -7,8 +7,6 @@ package template
 import (
 	"bytes"
 	"testing"
-	"text/template"
-	"text/template/parse"
 )
 
 func TestClone(t *testing.T) {
@@ -48,15 +46,20 @@ func TestClone(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		s := template.Must(template.New("s").Parse(test.input))
-		d := template.New("d")
-		d.Tree = &parse.Tree{Name: d.Name(), Root: cloneList(s.Root)}
+		s, err := New("s").Parse(test.input)
+		if err != nil {
+			t.Errorf("input=%q: unexpected parse error %v", test.input, err)
+		}
 
-		if want, got := s.Root.String(), d.Root.String(); want != got {
+		d, _ := New("d").Parse(test.input)
+		// Hack: just replace the root of the tree.
+		d.text.Root = cloneList(s.text.Root)
+
+		if want, got := s.text.Root.String(), d.text.Root.String(); want != got {
 			t.Errorf("want %q, got %q", want, got)
 		}
 
-		err := escape(d)
+		err = escapeTemplates(d, "d")
 		if err != nil {
 			t.Errorf("%q: failed to escape: %s", test.input, err)
 			continue
@@ -73,18 +76,17 @@ func TestClone(t *testing.T) {
 
 		data := []string{"foo", "<bar>", "baz"}
 
-		// Make sure escaping d did not affect s.
 		var b bytes.Buffer
-		s.Execute(&b, data)
-		if got := b.String(); got != test.want {
-			t.Errorf("%q: want %q, got %q", test.input, test.want, got)
-			continue
-		}
-
-		b.Reset()
 		d.Execute(&b, data)
 		if got := b.String(); got != test.wantClone {
-			t.Errorf("%q: want %q, got %q", test.input, test.wantClone, got)
+			t.Errorf("input=%q: want %q, got %q", test.input, test.wantClone, got)
+		}
+
+		// Make sure escaping d did not affect s.
+		b.Reset()
+		s.text.Execute(&b, data)
+		if got := b.String(); got != test.want {
+			t.Errorf("input=%q: want %q, got %q", test.input, test.want, got)
 		}
 	}
 }
