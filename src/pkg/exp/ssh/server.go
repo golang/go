@@ -636,20 +636,30 @@ func (s *ServerConn) Accept() (Channel, error) {
 
 // A Listener implements a network listener (net.Listener) for SSH connections.
 type Listener struct {
-	net.Listener
-	config *ServerConfig
+	listener net.Listener
+	config   *ServerConfig
 }
 
 // Accept waits for and returns the next incoming SSH connection.
 // The receiver should call Handshake() in another goroutine 
 // to avoid blocking the accepter.
 func (l *Listener) Accept() (*ServerConn, error) {
-	c, err := l.Listener.Accept()
+	c, err := l.listener.Accept()
 	if err != nil {
 		return nil, err
 	}
 	conn := Server(c, l.config)
 	return conn, nil
+}
+
+// Addr returns the listener's network address.
+func (l *Listener) Addr() net.Addr {
+	return l.listener.Addr()
+}
+
+// Close closes the listener.
+func (l *Listener) Close() error {
+	return l.listener.Close()
 }
 
 // Listen creates an SSH listener accepting connections on
