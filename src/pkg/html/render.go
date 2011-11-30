@@ -185,7 +185,7 @@ func render1(w writer, n *Node) error {
 
 	// Render any child nodes.
 	switch n.Data {
-	case "noembed", "noframes", "noscript", "plaintext", "script", "style":
+	case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style":
 		for _, c := range n.Child {
 			if c.Type != TextNode {
 				return fmt.Errorf("html: raw text element <%s> has non-text child node", n.Data)

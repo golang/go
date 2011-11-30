@@ -405,14 +405,13 @@ func (z *Tokenizer) readStartTag() TokenType {
 			break
 		}
 	}
-	// Any "<noembed>", "<noframes>", "<noscript>", "<plaintext", "<script>", "<style>",
-	// "<textarea>" or "<title>" tag flags the tokenizer's next token as raw.
+	// Several tags flag the tokenizer's next token as raw.
 	// The tag name lengths of these special cases ranges in [5, 9].
 	if x := z.data.end - z.data.start; 5 <= x && x <= 9 {
 		switch z.buf[z.data.start] {
-		case 'n', 'p', 's', 't', 'N', 'P', 'S', 'T':
+		case 'i', 'n', 'p', 's', 't', 'I', 'N', 'P', 'S', 'T':
 			switch s := strings.ToLower(string(z.buf[z.data.start:z.data.end])); s {
-			case "noembed", "noframes", "noscript", "plaintext", "script", "style", "textarea", "title":
+			case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "textarea", "title":
 				z.rawTag = s
 			}
 		}
