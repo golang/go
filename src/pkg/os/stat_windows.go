@@ -77,7 +77,11 @@ func basename(name string) string {
 	return name
 }
 
-func toFileInfo(name string, fa, sizehi, sizelo uint32, ctime, atime, wtime syscall.Filetime) FileInfo {
+type winTimes struct {
+	atime, ctime syscall.Filetime
+}
+
+func toFileInfo(name string, fa, sizehi, sizelo uint32, ctime, atime, mtime syscall.Filetime) FileInfo {
 	fs := new(FileStat)
 	fs.mode = 0
 	if fa&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
@@ -90,10 +94,16 @@ func toFileInfo(name string, fa, sizehi, sizelo uint32, ctime, atime, wtime sysc
 	}
 	fs.size = int64(sizehi)<<32 + int64(sizelo)
 	fs.name = name
-	fs.modTime = time.Unix(0, wtime.Nanoseconds())
+	fs.modTime = time.Unix(0, mtime.Nanoseconds())
+	fs.Sys = &winTimes{atime, ctime}
 	return fs
 }
 
 func sameFile(fs1, fs2 *FileStat) bool {
 	return false
+}
+
+// For testing.
+func atime(fi FileInfo) time.Time {
+	return time.Unix(0, fi.(*FileStat).Sys.(*winTimes).atime.Nanoseconds())
 }
