@@ -770,6 +770,11 @@ func inBodyIM(p *parser) bool {
 			p.oe.pop()
 			p.oe.pop()
 			p.form = nil
+		case "xmp":
+			p.popUntil(buttonScopeStopTags, "p")
+			p.reconstructActiveFormattingElements()
+			p.framesetOK = false
+			p.addElement(p.tok.Data, p.tok.Attr)
 		case "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr":
 			// Ignore the token.
 		default:
