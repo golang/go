@@ -806,13 +806,15 @@ func TestEscapeSet(t *testing.T) {
 		for name, body := range test.inputs {
 			source += fmt.Sprintf("{{define %q}}%s{{end}} ", name, body)
 		}
-		s := &Set{}
-		s.Funcs(fns)
-		s.Parse(source)
+		tmpl, err := New("root").Funcs(fns).Parse(source)
+		if err != nil {
+			t.Errorf("error parsing %q: %v", source, err)
+			continue
+		}
 		var b bytes.Buffer
 
-		if err := s.Execute(&b, "main", data); err != nil {
-			t.Errorf("%q executing %v", err.Error(), s.Template("main"))
+		if err := tmpl.ExecuteTemplate(&b, "main", data); err != nil {
+			t.Errorf("%q executing %v", err.Error(), tmpl.Lookup("main"))
 			continue
 		}
 		if got := b.String(); test.want != got {
@@ -929,13 +931,13 @@ func TestErrors(t *testing.T) {
 			"z:1: no such template foo",
 		},
 		{
-			`{{define "z"}}<div{{template "y"}}>{{end}}` +
+			`<div{{template "y"}}>` +
 				// Illegal starting in stateTag but not in stateText.
 				`{{define "y"}} foo<b{{end}}`,
 			`"<" in attribute name: " foo<b"`,
 		},
 		{
-			`{{define "z"}}<script>reverseList = [{{template "t"}}]</script>{{end}}` +
+			`<script>reverseList = [{{template "t"}}]</script>` +
 				// Missing " after recursive call.
 				`{{define "t"}}{{if .Tail}}{{template "t" .Tail}}{{end}}{{.Head}}",{{end}}`,
 			`: cannot compute output context for template t$htmltemplate_stateJS_elementScript`,
@@ -967,21 +969,13 @@ func TestErrors(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		var err error
 		buf := new(bytes.Buffer)
-		if strings.HasPrefix(test.input, "{{define") {
-			var s *Set
-			s, err = (&Set{}).Parse(test.input)
-			if err == nil {
-				err = s.Execute(buf, "z", nil)
-			}
-		} else {
-			var t *Template
-			t, err = New("z").Parse(test.input)
-			if err == nil {
-				err = t.Execute(buf, nil)
-			}
+		tmpl, err := New("z").Parse(test.input)
+		if err != nil {
+			t.Errorf("input=%q: unexpected parse error %s\n", test.input, err)
+			continue
 		}
+		err = tmpl.Execute(buf, nil)
 		var got string
 		if err != nil {
 			got = err.Error()
@@ -1569,11 +1563,11 @@ func TestEscapeErrorsNotIgnorable(t *testing.T) {
 
 func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
 	var b bytes.Buffer
-	s, err := (&Set{}).Parse(`{{define "t"}}<a{{end}}`)
+	tmpl, err := New("root").Parse(`{{define "t"}}<a{{end}}`)
 	if err != nil {
 		t.Errorf("failed to parse set: %q", err)
 	}
-	err = s.Execute(&b, "t", nil)
+	err = tmpl.ExecuteTemplate(&b, "t", nil)
 	if err == nil {
 		t.Errorf("Expected error")
 	} else if b.Len() != 0 {

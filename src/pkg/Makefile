@@ -102,6 +102,7 @@ DIRS=\
 	hash/crc64\
 	hash/fnv\
 	html\
+	html/template\
 	image\
 	image/bmp\
 	image/color\
