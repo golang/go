@@ -100,7 +100,11 @@ func toFileInfo(name string, fa, sizehi, sizelo uint32, ctime, atime, mtime sysc
 }
 
 func sameFile(fs1, fs2 *FileStat) bool {
-	return false
+	// TODO(rsc): Do better than this, but this matches what
+	// used to happen when code compared .Dev and .Ino,
+	// which were both always zero.  Obviously not all files
+	// are the same.
+	return true
 }
 
 // For testing.
