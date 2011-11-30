@@ -223,13 +223,21 @@ var utcTestData = []timeTest{
 func TestUTCTime(t *testing.T) {
 	for i, test := range utcTestData {
 		ret, err := parseUTCTime([]byte(test.in))
-		if (err == nil) != test.ok {
-			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
-		}
-		if err == nil {
-			if !reflect.DeepEqual(test.out, ret) {
-				t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out)
+		if err != nil {
+			if test.ok {
+				t.Errorf("#%d: parseUTCTime(%q) = error %v", i, err)
 			}
+			continue
+		}
+		if !test.ok {
+			t.Errorf("#%d: parseUTCTime(%q) succeeded, should have failed", i)
+			continue
+		}
+		const format = "Jan _2 15:04:05 -0700 2006" // ignore zone name, just offset
+		have := ret.Format(format)
+		want := test.out.Format(format)
+		if have != want {
+			t.Errorf("#%d: parseUTCTime(%q) = %s, want %s", test.in, have, want)
 		}
 	}
 }
