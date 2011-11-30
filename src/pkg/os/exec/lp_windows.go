@@ -18,10 +18,10 @@ func chkStat(file string) error {
 	if err != nil {
 		return err
 	}
-	if d.IsRegular() {
-		return nil
+	if d.IsDir() {
+		return os.EPERM
 	}
-	return os.EPERM
+	return nil
 }
 
 func findExecutable(file string, exts []string) (string, error) {

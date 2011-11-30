@@ -56,7 +56,7 @@ func OpenReader(name string) (*ReadCloser, error) {
 		return nil, err
 	}
 	r := new(ReadCloser)
-	if err := r.init(f, fi.Size); err != nil {
+	if err := r.init(f, fi.Size()); err != nil {
 		f.Close()
 		return nil, err
 	}

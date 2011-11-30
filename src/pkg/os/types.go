@@ -9,51 +9,103 @@ import (
 	"time"
 )
 
-// An operating-system independent representation of Unix data structures.
-// OS-specific routines in this directory convert the OS-local versions to these.
-
 // Getpagesize returns the underlying system's memory page size.
 func Getpagesize() int { return syscall.Getpagesize() }
 
-// A FileInfo describes a file and is returned by Stat, Fstat, and Lstat
-type FileInfo struct {
-	Dev             uint64    // device number of file system holding file.
-	Ino             uint64    // inode number.
-	Nlink           uint64    // number of hard links.
-	Mode            uint32    // permission and mode bits.
-	Uid             int       // user id of owner.
-	Gid             int       // group id of owner.
-	Rdev            uint64    // device type for special file.
-	Size            int64     // length in bytes.
-	Blksize         int64     // size of blocks, in bytes.
-	Blocks          int64     // number of blocks allocated for file.
-	AccessTime      time.Time // access time
-	ModTime         time.Time // modification time
-	ChangeTime      time.Time // status change time
-	Name            string    // base name of the file name provided in Open, Stat, etc.
-	FollowedSymlink bool      // followed a symlink to get this information
+// A FileInfo describes a file and is returned by Stat and Lstat
+type FileInfo interface {
+	Name() string       // base name of the file
+	Size() int64        // length in bytes
+	Mode() FileMode     // file mode bits
+	ModTime() time.Time // modification time
+	IsDir() bool        // abbreviation for Mode().IsDir()
 }
 
-// IsFifo reports whether the FileInfo describes a FIFO file.
-func (f *FileInfo) IsFifo() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFIFO }
+// A FileMode represents a file's mode and permission bits.
+// The bits have the same definition on all systems, so that
+// information about files can be moved from one system
+// to another portably.  Not all bits apply to all systems.
+// The only required bit is ModeDir for directories.
+type FileMode uint32
 
-// IsChar reports whether the FileInfo describes a character special file.
-func (f *FileInfo) IsChar() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFCHR }
+// The defined file mode bits are the most significant bits of the FileMode.
+// The nine least-significant bits are the standard Unix rwxrwxrwx permissions.
+const (
+	// The single letters are the abbreviations
+	// used by the String method's formatting.
+	ModeDir       FileMode = 1 << (32 - 1 - iota) // d: is a directory
+	ModeAppend                                    // a: append-only
+	ModeExclusive                                 // l: exclusive use
+	ModeTemporary                                 // t: temporary file (not backed up)
+	ModeSymlink                                   // L: symbolic link
+	ModeDevice                                    // D: device file
+	ModeNamedPipe                                 // p: named pipe (FIFO)
+	ModeSocket                                    // S: Unix domain socket
+	ModeSetuid                                    // u: setuid
+	ModeSetgid                                    // g: setgid
 
-// IsDirectory reports whether the FileInfo describes a directory.
-func (f *FileInfo) IsDirectory() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFDIR }
+	ModePerm FileMode = 0777 // permission bits
+)
 
-// IsBlock reports whether the FileInfo describes a block special file.
-func (f *FileInfo) IsBlock() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFBLK }
+func (m FileMode) String() string {
+	const str = "daltLDpSug"
+	var buf [20]byte
+	w := 0
+	for i, c := range str {
+		if m&(1<<uint(32-1-i)) != 0 {
+			buf[w] = byte(c)
+			w++
+		}
+	}
+	if w == 0 {
+		buf[w] = '-'
+		w++
+	}
+	const rwx = "rwxrwxrwx"
+	for i, c := range rwx {
+		if m&(1<<uint(9-1-i)) != 0 {
+			buf[w] = byte(c)
+		} else {
+			buf[w] = '-'
+		}
+		w++
+	}
+	return string(buf[:w])
+}
 
-// IsRegular reports whether the FileInfo describes a regular file.
-func (f *FileInfo) IsRegular() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFREG }
+// IsDir reports whether m describes a directory.
+// That is, it tests for the ModeDir bit being set in m.
+func (m FileMode) IsDir() bool {
+	return m&ModeDir != 0
+}
 
-// IsSymlink reports whether the FileInfo describes a symbolic link.
-func (f *FileInfo) IsSymlink() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFLNK }
+// Perm returns the Unix permission bits in m.
+func (m FileMode) Perm() FileMode {
+	return m & ModePerm
+}
 
-// IsSocket reports whether the FileInfo describes a socket.
-func (f *FileInfo) IsSocket() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFSOCK }
+// A FileStat is the implementation of FileInfo returned by Stat and Lstat.
+// Clients that need access to the underlying system-specific stat information
+// can test for *os.FileStat and then consult the Sys field.
+type FileStat struct {
+	name    string
+	size    int64
+	mode    FileMode
+	modTime time.Time
 
-// Permission returns the file permission bits.
-func (f *FileInfo) Permission() uint32 { return f.Mode & 0777 }
+	Sys interface{}
+}
+
+func (fs *FileStat) Name() string       { return fs.name }
+func (fs *FileStat) Size() int64        { return fs.size }
+func (fs *FileStat) Mode() FileMode     { return fs.mode }
+func (fs *FileStat) ModTime() time.Time { return fs.modTime }
+func (fs *FileStat) IsDir() bool        { return fs.mode.IsDir() }
+
+// SameFile reports whether fs and other describe the same file.
+// For example, on Unix this means that the device and inode fields
+// of the two underlying structures are identical; on other systems
+// the decision may be based on the path names.
+func (fs *FileStat) SameFile(other *FileStat) bool {
+	return sameFile(fs, other)
+}

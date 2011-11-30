@@ -81,11 +81,11 @@ func (b *Builder) buildPackages(workpath string, hash string) error {
 	return nil
 }
 
-func isGoFile(fi *os.FileInfo) bool {
-	return fi.IsRegular() && // exclude directories
-		!strings.HasPrefix(fi.Name, ".") && // ignore .files
-		!strings.HasSuffix(fi.Name, "_test.go") && // ignore tests
-		filepath.Ext(fi.Name) == ".go"
+func isGoFile(fi os.FileInfo) bool {
+	return !fi.IsDir() && // exclude directories
+		!strings.HasPrefix(fi.Name(), ".") && // ignore .files
+		!strings.HasSuffix(fi.Name(), "_test.go") && // ignore tests
+		filepath.Ext(fi.Name()) == ".go"
 }
 
 func packageComment(pkg, pkgpath string) (info string, err error) {

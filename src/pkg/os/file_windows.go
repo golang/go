@@ -180,12 +180,12 @@ func (file *File) Readdir(n int) (fi []FileInfo, err error) {
 				}
 			}
 		}
-		var f FileInfo
-		setFileInfo(&f, string(syscall.UTF16ToString(d.FileName[0:])), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
 		file.dirinfo.needdata = true
-		if f.Name == "." || f.Name == ".." { // Useless names
+		name := string(syscall.UTF16ToString(d.FileName[0:]))
+		if name == "." || name == ".." { // Useless names
 			continue
 		}
+		f := toFileInfo(name, d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
 		n--
 		fi = append(fi, f)
 	}

@@ -159,13 +159,13 @@ func (s *Script) Stale() bool {
 			// any error reading output files means stale
 			return true
 		}
-		if fi.ModTime.After(latest) {
-			latest = fi.ModTime
+		if mtime := fi.ModTime(); mtime.After(latest) {
+			latest = mtime
 		}
 	}
 	for _, file := range s.Input {
 		fi, err := os.Stat(file)
-		if err != nil || fi.ModTime.After(latest) {
+		if err != nil || fi.ModTime().After(latest) {
 			// any error reading input files means stale
 			// (attempt to rebuild to figure out why)
 			return true

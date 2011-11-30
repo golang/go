@@ -113,7 +113,7 @@ func nameFilter(filename string) bool {
 	return true
 }
 
-func dirFilter(f *os.FileInfo) bool { return nameFilter(f.Name) }
+func dirFilter(f os.FileInfo) bool { return nameFilter(f.Name()) }
 
 func TestParse4(t *testing.T) {
 	path := "."

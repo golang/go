@@ -15,8 +15,8 @@ func checkSize(t *testing.T, path string, size int64) {
 	if err != nil {
 		t.Fatalf("Stat %q (looking for size %d): %s", path, size, err)
 	}
-	if dir.Size != size {
-		t.Errorf("Stat %q: size %d want %d", path, dir.Size, size)
+	if dir.Size() != size {
+		t.Errorf("Stat %q: size %d want %d", path, dir.Size(), size)
 	}
 }
 
@@ -76,9 +76,9 @@ func TestReadDir(t *testing.T) {
 	foundTestDir := false
 	for _, dir := range list {
 		switch {
-		case dir.IsRegular() && dir.Name == "ioutil_test.go":
+		case !dir.IsDir() && dir.Name() == "ioutil_test.go":
 			foundTest = true
-		case dir.IsDirectory() && dir.Name == "_test":
+		case dir.IsDir() && dir.Name() == "_test":
 			foundTestDir = true
 		}
 	}

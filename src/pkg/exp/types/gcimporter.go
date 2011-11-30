@@ -59,7 +59,7 @@ func findPkg(path string) (filename, id string) {
 	// try extensions
 	for _, ext := range pkgExts {
 		filename = noext + ext
-		if f, err := os.Stat(filename); err == nil && f.IsRegular() {
+		if f, err := os.Stat(filename); err == nil && !f.IsDir() {
 			return
 		}
 	}

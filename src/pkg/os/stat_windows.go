@@ -12,7 +12,7 @@ import (
 
 // Stat returns the FileInfo structure describing file.
 // It returns the FileInfo and an error, if any.
-func (file *File) Stat() (fi *FileInfo, err error) {
+func (file *File) Stat() (fi FileInfo, err error) {
 	if file == nil || file.fd < 0 {
 		return nil, EINVAL
 	}
@@ -25,7 +25,7 @@ func (file *File) Stat() (fi *FileInfo, err error) {
 	if e != nil {
 		return nil, &PathError{"GetFileInformationByHandle", file.name, e}
 	}
-	return setFileInfo(new(FileInfo), basename(file.name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
+	return toFileInfo(basename(file.name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
 }
 
 // Stat returns a FileInfo structure describing the named file and an error, if any.
@@ -33,7 +33,7 @@ func (file *File) Stat() (fi *FileInfo, err error) {
 // the file pointed at by the link and has fi.FollowedSymlink set to true.
 // If name names an invalid symbolic link, the returned FileInfo describes
 // the link itself and has fi.FollowedSymlink set to false.
-func Stat(name string) (fi *FileInfo, err error) {
+func Stat(name string) (fi FileInfo, err error) {
 	if len(name) == 0 {
 		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}
@@ -42,13 +42,13 @@ func Stat(name string) (fi *FileInfo, err error) {
 	if e != nil {
 		return nil, &PathError{"GetFileAttributesEx", name, e}
 	}
-	return setFileInfo(new(FileInfo), basename(name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
+	return toFileInfo(basename(name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
 }
 
 // Lstat returns the FileInfo structure describing the named file and an
 // error, if any.  If the file is a symbolic link, the returned FileInfo
 // describes the symbolic link.  Lstat makes no attempt to follow the link.
-func Lstat(name string) (fi *FileInfo, err error) {
+func Lstat(name string) (fi FileInfo, err error) {
 	// No links on Windows
 	return Stat(name)
 }
@@ -77,23 +77,23 @@ func basename(name string) string {
 	return name
 }
 
-func setFileInfo(fi *FileInfo, name string, fa, sizehi, sizelo uint32, ctime, atime, wtime syscall.Filetime) *FileInfo {
-	fi.Mode = 0
+func toFileInfo(name string, fa, sizehi, sizelo uint32, ctime, atime, wtime syscall.Filetime) FileInfo {
+	fs := new(FileStat)
+	fs.mode = 0
 	if fa&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
-		fi.Mode = fi.Mode | syscall.S_IFDIR
-	} else {
-		fi.Mode = fi.Mode | syscall.S_IFREG
+		fs.mode |= ModeDir
 	}
 	if fa&syscall.FILE_ATTRIBUTE_READONLY != 0 {
-		fi.Mode = fi.Mode | 0444
+		fs.mode |= 0444
 	} else {
-		fi.Mode = fi.Mode | 0666
+		fs.mode |= 0666
 	}
-	fi.Size = int64(sizehi)<<32 + int64(sizelo)
-	fi.Name = name
-	fi.FollowedSymlink = false
-	fi.AccessTime = time.Unix(0, atime.Nanoseconds())
-	fi.ModTime = time.Unix(0, wtime.Nanoseconds())
-	fi.ChangeTime = time.Unix(0, ctime.Nanoseconds())
-	return fi
+	fs.size = int64(sizehi)<<32 + int64(sizelo)
+	fs.name = name
+	fs.modTime = time.Unix(0, wtime.Nanoseconds())
+	return fs
+}
+
+func sameFile(fs1, fs2 *FileStat) bool {
+	return false
 }

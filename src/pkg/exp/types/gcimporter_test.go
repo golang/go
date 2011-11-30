@@ -72,18 +72,18 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 			return
 		}
 		switch {
-		case f.IsRegular():
+		case !f.IsDir():
 			// try extensions
 			for _, ext := range pkgExts {
-				if strings.HasSuffix(f.Name, ext) {
-					name := f.Name[0 : len(f.Name)-len(ext)] // remove extension
+				if strings.HasSuffix(f.Name(), ext) {
+					name := f.Name()[0 : len(f.Name())-len(ext)] // remove extension
 					if testPath(t, filepath.Join(dir, name)) {
 						nimports++
 					}
 				}
 			}
-		case f.IsDirectory():
-			nimports += testDir(t, filepath.Join(dir, f.Name), endTime)
+		case f.IsDir():
+			nimports += testDir(t, filepath.Join(dir, f.Name()), endTime)
 		}
 	}
 	return

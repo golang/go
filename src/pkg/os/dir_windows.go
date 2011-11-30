@@ -8,7 +8,7 @@ func (file *File) Readdirnames(n int) (names []string, err error) {
 	fis, err := file.Readdir(n)
 	names = make([]string, len(fis))
 	for i, fi := range fis {
-		names[i] = fi.Name
+		names[i] = fi.Name()
 	}
 	return names, err
 }

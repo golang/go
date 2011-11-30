@@ -318,7 +318,7 @@ func checkMarks(t *testing.T, report bool) {
 // Assumes that each node name is unique. Good enough for a test.
 // If clear is true, any incoming error is cleared before return. The errors
 // are always accumulated, though.
-func mark(path string, info *os.FileInfo, err error, errors *[]error, clear bool) error {
+func mark(path string, info os.FileInfo, err error, errors *[]error, clear bool) error {
 	if err != nil {
 		*errors = append(*errors, err)
 		if clear {
@@ -326,8 +326,9 @@ func mark(path string, info *os.FileInfo, err error, errors *[]error, clear bool
 		}
 		return err
 	}
+	name := info.Name()
 	walkTree(tree, tree.name, func(path string, n *Node) {
-		if n.name == info.Name {
+		if n.name == name {
 			n.mark++
 		}
 	})
@@ -338,7 +339,7 @@ func TestWalk(t *testing.T) {
 	makeTree(t)
 	errors := make([]error, 0, 10)
 	clear := true
-	markFn := func(path string, info *os.FileInfo, err error) error {
+	markFn := func(path string, info os.FileInfo, err error) error {
 		return mark(path, info, err, &errors, clear)
 	}
 	// Expect no errors.
@@ -600,7 +601,7 @@ func TestAbs(t *testing.T) {
 			t.Errorf("Abs(%q) error: %v", path, err)
 		}
 		absinfo, err := os.Stat(abspath)
-		if err != nil || absinfo.Ino != info.Ino {
+		if err != nil || !absinfo.(*os.FileStat).SameFile(info.(*os.FileStat)) {
 			t.Errorf("Abs(%q)=%q, not the same file", path, abspath)
 		}
 		if !filepath.IsAbs(abspath) {

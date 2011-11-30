@@ -70,7 +70,7 @@ func (t *Tree) HasSrc(pkg string) bool {
 	if err != nil {
 		return false
 	}
-	return fi.IsDirectory()
+	return fi.IsDir()
 }
 
 // HasPkg returns whether the given package's
@@ -80,7 +80,7 @@ func (t *Tree) HasPkg(pkg string) bool {
 	if err != nil {
 		return false
 	}
-	return fi.IsRegular()
+	return !fi.IsDir()
 	// TODO(adg): check object version is consistent
 }
 

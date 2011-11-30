@@ -410,12 +410,12 @@ func (b *Builder) envvWindows() []string {
 
 func isDirectory(name string) bool {
 	s, err := os.Stat(name)
-	return err == nil && s.IsDirectory()
+	return err == nil && s.IsDir()
 }
 
 func isFile(name string) bool {
 	s, err := os.Stat(name)
-	return err == nil && (s.IsRegular() || s.IsSymlink())
+	return err == nil && !s.IsDir()
 }
 
 // commitWatcher polls hg for new commits and tells the dashboard about them.

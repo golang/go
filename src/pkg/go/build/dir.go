@@ -38,16 +38,16 @@ type Context struct {
 	// format of the strings dir and file: they can be
 	// slash-separated, backslash-separated, even URLs.
 
-	// ReadDir returns a slice of *os.FileInfo, sorted by Name,
+	// ReadDir returns a slice of os.FileInfo, sorted by Name,
 	// describing the content of the named directory.
 	// The dir argument is the argument to ScanDir.
 	// If ReadDir is nil, ScanDir uses io.ReadDir.
-	ReadDir func(dir string) (fi []*os.FileInfo, err error)
+	ReadDir func(dir string) (fi []os.FileInfo, err error)
 
 	// ReadFile returns the content of the file named file
 	// in the directory named dir.  The dir argument is the
 	// argument to ScanDir, and the file argument is the
-	// Name field from an *os.FileInfo returned by ReadDir.
+	// Name field from an os.FileInfo returned by ReadDir.
 	// The returned path is the full name of the file, to be
 	// used in error messages.
 	//
@@ -56,7 +56,7 @@ type Context struct {
 	ReadFile func(dir, file string) (path string, content []byte, err error)
 }
 
-func (ctxt *Context) readDir(dir string) ([]*os.FileInfo, error) {
+func (ctxt *Context) readDir(dir string) ([]os.FileInfo, error) {
 	if f := ctxt.ReadDir; f != nil {
 		return f(dir)
 	}
@@ -140,18 +140,19 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 	testImported := make(map[string]bool)
 	fset := token.NewFileSet()
 	for _, d := range dirs {
-		if !d.IsRegular() {
+		if d.IsDir() {
 			continue
 		}
-		if strings.HasPrefix(d.Name, "_") ||
-			strings.HasPrefix(d.Name, ".") {
+		name := d.Name()
+		if strings.HasPrefix(name, "_") ||
+			strings.HasPrefix(name, ".") {
 			continue
 		}
-		if !ctxt.goodOSArchFile(d.Name) {
+		if !ctxt.goodOSArchFile(name) {
 			continue
 		}
 
-		ext := path.Ext(d.Name)
+		ext := path.Ext(name)
 		switch ext {
 		case ".go", ".c", ".s":
 			// tentatively okay
@@ -161,7 +162,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 		}
 
 		// Look for +build comments to accept or reject the file.
-		filename, data, err := ctxt.readFile(dir, d.Name)
+		filename, data, err := ctxt.readFile(dir, name)
 		if err != nil {
 			return nil, err
 		}
@@ -172,10 +173,10 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 		// Going to save the file.  For non-Go files, can stop here.
 		switch ext {
 		case ".c":
-			di.CFiles = append(di.CFiles, d.Name)
+			di.CFiles = append(di.CFiles, name)
 			continue
 		case ".s":
-			di.SFiles = append(di.SFiles, d.Name)
+			di.SFiles = append(di.SFiles, name)
 			continue
 		}
 
@@ -192,7 +193,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 			continue
 		}
 
-		isTest := strings.HasSuffix(d.Name, "_test.go")
+		isTest := strings.HasSuffix(name, "_test.go")
 		if isTest && strings.HasSuffix(pkg, "_test") {
 			pkg = pkg[:len(pkg)-len("_test")]
 		}
@@ -255,15 +256,15 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 			}
 		}
 		if isCgo {
-			di.CgoFiles = append(di.CgoFiles, d.Name)
+			di.CgoFiles = append(di.CgoFiles, name)
 		} else if isTest {
 			if pkg == string(pf.Name.Name) {
-				di.TestGoFiles = append(di.TestGoFiles, d.Name)
+				di.TestGoFiles = append(di.TestGoFiles, name)
 			} else {
-				di.XTestGoFiles = append(di.XTestGoFiles, d.Name)
+				di.XTestGoFiles = append(di.XTestGoFiles, name)
 			}
 		} else {
-			di.GoFiles = append(di.GoFiles, d.Name)
+			di.GoFiles = append(di.GoFiles, name)
 		}
 	}
 	if di.Package == "" {

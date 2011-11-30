@@ -41,8 +41,8 @@ func TestLookup(t *testing.T) {
 		t.Errorf("expected Uid of %d; got %d", e, g)
 	}
 	fi, err := os.Stat(u.HomeDir)
-	if err != nil || !fi.IsDirectory() {
-		t.Errorf("expected a valid HomeDir; stat(%q): err=%v, IsDirectory=%v", u.HomeDir, err, fi.IsDirectory())
+	if err != nil || !fi.IsDir() {
+		t.Errorf("expected a valid HomeDir; stat(%q): err=%v, IsDir=%v", u.HomeDir, err, fi.IsDir())
 	}
 	if u.Username == "" {
 		t.Fatalf("didn't get a username")

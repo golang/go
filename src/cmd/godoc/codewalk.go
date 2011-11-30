@@ -41,7 +41,7 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
 
 	// If directory exists, serve list of code walks.
 	dir, err := fs.Lstat(abspath)
-	if err == nil && dir.IsDirectory() {
+	if err == nil && dir.IsDir() {
 		codewalkDir(w, r, relpath, abspath)
 		return
 	}
@@ -186,7 +186,7 @@ func codewalkDir(w http.ResponseWriter, r *http.Request, relpath, abspath string
 	var v []interface{}
 	for _, fi := range dir {
 		name := fi.Name()
-		if fi.IsDirectory() {
+		if fi.IsDir() {
 			v = append(v, &elem{name + "/", ""})
 		} else if strings.HasSuffix(name, ".xml") {
 			cw, err := loadCodewalk(abspath + "/" + name)
