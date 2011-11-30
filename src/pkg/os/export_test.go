@@ -6,5 +6,4 @@ package os
 
 // Export for testing.
 
-var TimespecToTime = timespecToTime
 var Atime = atime
