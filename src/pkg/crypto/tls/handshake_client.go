@@ -32,7 +32,7 @@ func (c *Conn) clientHandshake() error {
 		nextProtoNeg:       len(c.config.NextProtos) > 0,
 	}
 
-	t := uint32(c.config.time())
+	t := uint32(c.config.time().Unix())
 	hello.random[0] = byte(t >> 24)
 	hello.random[1] = byte(t >> 16)
 	hello.random[2] = byte(t >> 8)

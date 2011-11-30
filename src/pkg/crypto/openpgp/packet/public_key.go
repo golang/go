@@ -16,11 +16,12 @@ import (
 	"io"
 	"math/big"
 	"strconv"
+	"time"
 )
 
 // PublicKey represents an OpenPGP public key. See RFC 4880, section 5.5.2.
 type PublicKey struct {
-	CreationTime uint32 // seconds since the epoch
+	CreationTime time.Time
 	PubKeyAlgo   PublicKeyAlgorithm
 	PublicKey    interface{} // Either a *rsa.PublicKey or *dsa.PublicKey
 	Fingerprint  [20]byte
@@ -38,9 +39,9 @@ func fromBig(n *big.Int) parsedMPI {
 }
 
 // NewRSAPublicKey returns a PublicKey that wraps the given rsa.PublicKey.
-func NewRSAPublicKey(creationTimeSecs uint32, pub *rsa.PublicKey, isSubkey bool) *PublicKey {
+func NewRSAPublicKey(creationTime time.Time, pub *rsa.PublicKey, isSubkey bool) *PublicKey {
 	pk := &PublicKey{
-		CreationTime: creationTimeSecs,
+		CreationTime: creationTime,
 		PubKeyAlgo:   PubKeyAlgoRSA,
 		PublicKey:    pub,
 		IsSubkey:     isSubkey,
@@ -62,7 +63,7 @@ func (pk *PublicKey) parse(r io.Reader) (err error) {
 	if buf[0] != 4 {
 		return error_.UnsupportedError("public key version")
 	}
-	pk.CreationTime = uint32(buf[1])<<24 | uint32(buf[2])<<16 | uint32(buf[3])<<8 | uint32(buf[4])
+	pk.CreationTime = time.Unix(int64(uint32(buf[1])<<24|uint32(buf[2])<<16|uint32(buf[3])<<8|uint32(buf[4])), 0)
 	pk.PubKeyAlgo = PublicKeyAlgorithm(buf[5])
 	switch pk.PubKeyAlgo {
 	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly, PubKeyAlgoRSASignOnly:
@@ -234,10 +235,11 @@ func (pk *PublicKey) Serialize(w io.Writer) (err error) {
 func (pk *PublicKey) serializeWithoutHeaders(w io.Writer) (err error) {
 	var buf [6]byte
 	buf[0] = 4
-	buf[1] = byte(pk.CreationTime >> 24)
-	buf[2] = byte(pk.CreationTime >> 16)
-	buf[3] = byte(pk.CreationTime >> 8)
-	buf[4] = byte(pk.CreationTime)
+	t := uint32(pk.CreationTime.Unix())
+	buf[1] = byte(t >> 24)
+	buf[2] = byte(t >> 16)
+	buf[3] = byte(t >> 8)
+	buf[4] = byte(t)
 	buf[5] = byte(pk.PubKeyAlgo)
 
 	_, err = w.Write(buf[:])

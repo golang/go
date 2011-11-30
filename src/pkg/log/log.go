@@ -83,27 +83,28 @@ func itoa(buf *bytes.Buffer, i int, wid int) {
 	}
 }
 
-func (l *Logger) formatHeader(buf *bytes.Buffer, ns int64, file string, line int) {
+func (l *Logger) formatHeader(buf *bytes.Buffer, t time.Time, file string, line int) {
 	buf.WriteString(l.prefix)
 	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
-		t := time.SecondsToLocalTime(ns / 1e9)
 		if l.flag&Ldate != 0 {
-			itoa(buf, int(t.Year), 4)
+			year, month, day := t.Date()
+			itoa(buf, year, 4)
 			buf.WriteByte('/')
-			itoa(buf, int(t.Month), 2)
+			itoa(buf, int(month), 2)
 			buf.WriteByte('/')
-			itoa(buf, int(t.Day), 2)
+			itoa(buf, day, 2)
 			buf.WriteByte(' ')
 		}
 		if l.flag&(Ltime|Lmicroseconds) != 0 {
-			itoa(buf, int(t.Hour), 2)
+			hour, min, sec := t.Clock()
+			itoa(buf, hour, 2)
 			buf.WriteByte(':')
-			itoa(buf, int(t.Minute), 2)
+			itoa(buf, min, 2)
 			buf.WriteByte(':')
-			itoa(buf, int(t.Second), 2)
+			itoa(buf, sec, 2)
 			if l.flag&Lmicroseconds != 0 {
 				buf.WriteByte('.')
-				itoa(buf, int(ns%1e9)/1e3, 6)
+				itoa(buf, t.Nanosecond()/1e3, 6)
 			}
 			buf.WriteByte(' ')
 		}
@@ -133,7 +134,7 @@ func (l *Logger) formatHeader(buf *bytes.Buffer, ns int64, file string, line int
 // provided for generality, although at the moment on all pre-defined
 // paths it will be 2.
 func (l *Logger) Output(calldepth int, s string) error {
-	now := time.Nanoseconds() // get this early.
+	now := time.Now() // get this early.
 	var file string
 	var line int
 	l.mu.Lock()

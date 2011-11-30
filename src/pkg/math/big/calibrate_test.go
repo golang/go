@@ -22,14 +22,14 @@ import (
 var calibrate = flag.Bool("calibrate", false, "run calibration test")
 
 // measure returns the time to run f
-func measure(f func()) int64 {
+func measure(f func()) time.Duration {
 	const N = 100
-	start := time.Nanoseconds()
+	start := time.Now()
 	for i := N; i > 0; i-- {
 		f()
 	}
-	stop := time.Nanoseconds()
-	return (stop - start) / N
+	stop := time.Now()
+	return stop.Sub(start) / N
 }
 
 func computeThresholds() {
@@ -46,7 +46,7 @@ func computeThresholds() {
 	th1 := -1
 	th2 := -1
 
-	var deltaOld int64
+	var deltaOld time.Duration
 	for count := -1; count != 0; count-- {
 		// determine Tk, the work load execution time using Karatsuba multiplication
 		karatsubaThreshold = n // enable karatsuba

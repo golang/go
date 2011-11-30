@@ -89,14 +89,14 @@ func init() {
 	}
 }
 
-func parseDate(date string) (*time.Time, error) {
+func parseDate(date string) (time.Time, error) {
 	for _, layout := range dateLayouts {
 		t, err := time.Parse(layout, date)
 		if err == nil {
 			return t, nil
 		}
 	}
-	return nil, errors.New("mail: header could not be parsed")
+	return time.Time{}, errors.New("mail: header could not be parsed")
 }
 
 // A Header represents the key-value pairs in a mail message header.
@@ -111,10 +111,10 @@ func (h Header) Get(key string) string {
 var ErrHeaderNotPresent = errors.New("mail: header not in message")
 
 // Date parses the Date header field.
-func (h Header) Date() (*time.Time, error) {
+func (h Header) Date() (time.Time, error) {
 	hdr := h.Get("Date")
 	if hdr == "" {
-		return nil, ErrHeaderNotPresent
+		return time.Time{}, ErrHeaderNotPresent
 	}
 	return parseDate(hdr)
 }

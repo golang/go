@@ -4,7 +4,10 @@
 
 package os
 
-import "syscall"
+import (
+	"syscall"
+	"time"
+)
 
 // An operating-system independent representation of Unix data structures.
 // OS-specific routines in this directory convert the OS-local versions to these.
@@ -14,21 +17,21 @@ func Getpagesize() int { return syscall.Getpagesize() }
 
 // A FileInfo describes a file and is returned by Stat, Fstat, and Lstat
 type FileInfo struct {
-	Dev             uint64 // device number of file system holding file.
-	Ino             uint64 // inode number.
-	Nlink           uint64 // number of hard links.
-	Mode            uint32 // permission and mode bits.
-	Uid             int    // user id of owner.
-	Gid             int    // group id of owner.
-	Rdev            uint64 // device type for special file.
-	Size            int64  // length in bytes.
-	Blksize         int64  // size of blocks, in bytes.
-	Blocks          int64  // number of blocks allocated for file.
-	Atime_ns        int64  // access time; nanoseconds since epoch.
-	Mtime_ns        int64  // modified time; nanoseconds since epoch.
-	Ctime_ns        int64  // status change time; nanoseconds since epoch.
-	Name            string // base name of the file name provided in Open, Stat, etc.
-	FollowedSymlink bool   // followed a symlink to get this information
+	Dev             uint64    // device number of file system holding file.
+	Ino             uint64    // inode number.
+	Nlink           uint64    // number of hard links.
+	Mode            uint32    // permission and mode bits.
+	Uid             int       // user id of owner.
+	Gid             int       // group id of owner.
+	Rdev            uint64    // device type for special file.
+	Size            int64     // length in bytes.
+	Blksize         int64     // size of blocks, in bytes.
+	Blocks          int64     // number of blocks allocated for file.
+	AccessTime      time.Time // access time
+	ModTime         time.Time // modification time
+	ChangeTime      time.Time // status change time
+	Name            string    // base name of the file name provided in Open, Stat, etc.
+	FollowedSymlink bool      // followed a symlink to get this information
 }
 
 // IsFifo reports whether the FileInfo describes a FIFO file.

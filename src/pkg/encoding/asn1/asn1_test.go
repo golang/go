@@ -202,22 +202,22 @@ func TestObjectIdentifier(t *testing.T) {
 type timeTest struct {
 	in  string
 	ok  bool
-	out *time.Time
+	out time.Time
 }
 
 var utcTestData = []timeTest{
-	{"910506164540-0700", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, -7 * 60 * 60, ""}},
-	{"910506164540+0730", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, 7*60*60 + 30*60, ""}},
-	{"910506234540Z", true, &time.Time{1991, 05, 06, 23, 45, 40, 0, 0, "UTC"}},
-	{"9105062345Z", true, &time.Time{1991, 05, 06, 23, 45, 0, 0, 0, "UTC"}},
-	{"a10506234540Z", false, nil},
-	{"91a506234540Z", false, nil},
-	{"9105a6234540Z", false, nil},
-	{"910506a34540Z", false, nil},
-	{"910506334a40Z", false, nil},
-	{"91050633444aZ", false, nil},
-	{"910506334461Z", false, nil},
-	{"910506334400Za", false, nil},
+	{"910506164540-0700", true, time.Date(1991, 05, 06, 16, 45, 40, 0, time.FixedZone("", -7*60*60))},
+	{"910506164540+0730", true, time.Date(1991, 05, 06, 16, 45, 40, 0, time.FixedZone("", 7*60*60+30*60))},
+	{"910506234540Z", true, time.Date(1991, 05, 06, 23, 45, 40, 0, time.UTC)},
+	{"9105062345Z", true, time.Date(1991, 05, 06, 23, 45, 0, 0, time.UTC)},
+	{"a10506234540Z", false, time.Time{}},
+	{"91a506234540Z", false, time.Time{}},
+	{"9105a6234540Z", false, time.Time{}},
+	{"910506a34540Z", false, time.Time{}},
+	{"910506334a40Z", false, time.Time{}},
+	{"91050633444aZ", false, time.Time{}},
+	{"910506334461Z", false, time.Time{}},
+	{"910506334400Za", false, time.Time{}},
 }
 
 func TestUTCTime(t *testing.T) {
@@ -235,10 +235,10 @@ func TestUTCTime(t *testing.T) {
 }
 
 var generalizedTimeTestData = []timeTest{
-	{"20100102030405Z", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 0, "UTC"}},
-	{"20100102030405", false, nil},
-	{"20100102030405+0607", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 6*60*60 + 7*60, ""}},
-	{"20100102030405-0607", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, -6*60*60 - 7*60, ""}},
+	{"20100102030405Z", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.UTC)},
+	{"20100102030405", false, time.Time{}},
+	{"20100102030405+0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", 6*60*60+7*60))},
+	{"20100102030405-0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", -6*60*60-7*60))},
 }
 
 func TestGeneralizedTime(t *testing.T) {
@@ -407,7 +407,7 @@ type AttributeTypeAndValue struct {
 }
 
 type Validity struct {
-	NotBefore, NotAfter *time.Time
+	NotBefore, NotAfter time.Time
 }
 
 type PublicKeyInfo struct {
@@ -475,7 +475,10 @@ var derEncodedSelfSignedCert = Certificate{
 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 3}, Value: "false.example.com"}},
 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1}, Value: "false@example.com"}},
 		},
-		Validity: Validity{NotBefore: &time.Time{Year: 2009, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, ZoneOffset: 0, Zone: "UTC"}, NotAfter: &time.Time{Year: 2010, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, ZoneOffset: 0, Zone: "UTC"}},
+		Validity: Validity{
+			NotBefore: time.Date(2009, 10, 8, 00, 25, 53, 0, time.UTC),
+			NotAfter:  time.Date(2010, 10, 8, 00, 25, 53, 0, time.UTC),
+		},
 		Subject: RDNSequence{
 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 6}, Value: "XX"}},
 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 8}, Value: "Some-State"}},

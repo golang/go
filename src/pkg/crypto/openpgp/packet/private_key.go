@@ -17,6 +17,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"strconv"
+	"time"
 )
 
 // PrivateKey represents a possibly encrypted private key. See RFC 4880,
@@ -32,9 +33,9 @@ type PrivateKey struct {
 	iv            []byte
 }
 
-func NewRSAPrivateKey(currentTimeSecs uint32, priv *rsa.PrivateKey, isSubkey bool) *PrivateKey {
+func NewRSAPrivateKey(currentTime time.Time, priv *rsa.PrivateKey, isSubkey bool) *PrivateKey {
 	pk := new(PrivateKey)
-	pk.PublicKey = *NewRSAPublicKey(currentTimeSecs, &priv.PublicKey, isSubkey)
+	pk.PublicKey = *NewRSAPublicKey(currentTime, &priv.PublicKey, isSubkey)
 	pk.PrivateKey = priv
 	return pk
 }

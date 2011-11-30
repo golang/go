@@ -15,7 +15,13 @@ func TestOCSPDecode(t *testing.T) {
 		t.Error(err)
 	}
 
-	expected := Response{Status: 0, SerialNumber: []byte{0x1, 0xd0, 0xfa}, RevocationReason: 0, ThisUpdate: &time.Time{Year: 2010, Month: 7, Day: 7, Hour: 15, Minute: 1, Second: 5, ZoneOffset: 0, Zone: "UTC"}, NextUpdate: &time.Time{Year: 2010, Month: 7, Day: 7, Hour: 18, Minute: 35, Second: 17, ZoneOffset: 0, Zone: "UTC"}}
+	expected := Response{
+		Status:           0,
+		SerialNumber:     []byte{0x1, 0xd0, 0xfa},
+		RevocationReason: 0,
+		ThisUpdate:       time.Date(2010, 7, 7, 15, 1, 5, 0, time.UTC),
+		NextUpdate:       time.Date(2010, 7, 7, 18, 35, 17, 0, time.UTC),
+	}
 
 	if !reflect.DeepEqual(resp.ThisUpdate, resp.ThisUpdate) {
 		t.Errorf("resp.ThisUpdate: got %d, want %d", resp.ThisUpdate, expected.ThisUpdate)

@@ -6,19 +6,20 @@ package packet
 
 import (
 	"testing"
+	"time"
 )
 
 var privateKeyTests = []struct {
 	privateKeyHex string
-	creationTime  uint32
+	creationTime  time.Time
 }{
 	{
 		privKeyRSAHex,
-		0x4cc349a8,
+		time.Unix(0x4cc349a8, 0),
 	},
 	{
 		privKeyElGamalHex,
-		0x4df9ee1a,
+		time.Unix(0x4df9ee1a, 0),
 	},
 }
 
@@ -43,7 +44,7 @@ func TestPrivateKeyRead(t *testing.T) {
 			continue
 		}
 
-		if privKey.CreationTime != test.creationTime || privKey.Encrypted {
+		if !privKey.CreationTime.Equal(test.creationTime) || privKey.Encrypted {
 			t.Errorf("#%d: bad result, got: %#v", i, privKey)
 		}
 	}

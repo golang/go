@@ -288,52 +288,58 @@ func marshalTwoDigits(out *forkableWriter, v int) (err error) {
 	return out.WriteByte(byte('0' + v%10))
 }
 
-func marshalUTCTime(out *forkableWriter, t *time.Time) (err error) {
+func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
+	utc := t.UTC()
+	year, month, day := utc.Date()
+
 	switch {
-	case 1950 <= t.Year && t.Year < 2000:
-		err = marshalTwoDigits(out, int(t.Year-1900))
-	case 2000 <= t.Year && t.Year < 2050:
-		err = marshalTwoDigits(out, int(t.Year-2000))
+	case 1950 <= year && year < 2000:
+		err = marshalTwoDigits(out, int(year-1900))
+	case 2000 <= year && year < 2050:
+		err = marshalTwoDigits(out, int(year-2000))
 	default:
 		return StructuralError{"Cannot represent time as UTCTime"}
 	}
-
 	if err != nil {
 		return
 	}
 
-	err = marshalTwoDigits(out, t.Month)
+	err = marshalTwoDigits(out, int(month))
 	if err != nil {
 		return
 	}
 
-	err = marshalTwoDigits(out, t.Day)
+	err = marshalTwoDigits(out, day)
 	if err != nil {
 		return
 	}
 
-	err = marshalTwoDigits(out, t.Hour)
+	hour, min, sec := utc.Clock()
+
+	err = marshalTwoDigits(out, hour)
 	if err != nil {
 		return
 	}
 
-	err = marshalTwoDigits(out, t.Minute)
+	err = marshalTwoDigits(out, min)
 	if err != nil {
 		return
 	}
 
-	err = marshalTwoDigits(out, t.Second)
+	err = marshalTwoDigits(out, sec)
 	if err != nil {
 		return
 	}
+
+	_, offset := t.Zone()
 
 	switch {
-	case t.ZoneOffset/60 == 0:
+	case offset/60 == 0:
 		err = out.WriteByte('Z')
 		return
-	case t.ZoneOffset > 0:
+	case offset > 0:
 		err = out.WriteByte('+')
-	case t.ZoneOffset < 0:
+	case offset < 0:
 		err = out.WriteByte('-')
 	}
 
@@ -341,7 +347,7 @@ func marshalUTCTime(out *forkableWriter, t *time.Time) (err error) {
 		return
 	}
 
-	offsetMinutes := t.ZoneOffset / 60
+	offsetMinutes := offset / 60
 	if offsetMinutes < 0 {
 		offsetMinutes = -offsetMinutes
 	}
@@ -366,7 +372,7 @@ func stripTagAndLength(in []byte) []byte {
 func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameters) (err error) {
 	switch value.Type() {
 	case timeType:
-		return marshalUTCTime(out, value.Interface().(*time.Time))
+		return marshalUTCTime(out, value.Interface().(time.Time))
 	case bitStringType:
 		return marshalBitString(out, value.Interface().(BitString))
 	case objectIdentifierType:

@@ -172,11 +172,12 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline_delta int64) (n int, err error) {
 		return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, e}
 	}
 	// Wait for our request to complete.
+	// TODO(rsc): This should stop the timer.
 	var r ioResult
 	if deadline_delta > 0 {
 		select {
 		case r = <-o.resultc:
-		case <-time.After(deadline_delta):
+		case <-time.After(time.Duration(deadline_delta) * time.Nanosecond):
 			s.canchan <- oi
 			<-o.errnoc
 			r = <-o.resultc

@@ -122,7 +122,7 @@ func (z *Compressor) Write(p []byte) (int, error) {
 		if z.Comment != "" {
 			z.buf[3] |= 0x10
 		}
-		put4(z.buf[4:8], z.Mtime)
+		put4(z.buf[4:8], uint32(z.ModTime.Unix()))
 		if z.level == BestCompression {
 			z.buf[8] = 2
 		} else if z.level == BestSpeed {

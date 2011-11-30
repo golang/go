@@ -4,7 +4,10 @@
 
 package os
 
-import "syscall"
+import (
+	"syscall"
+	"time"
+)
 
 func isSymlink(stat *syscall.Stat_t) bool {
 	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
@@ -21,12 +24,16 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
 	fi.Size = stat.Size
 	fi.Blksize = int64(stat.Blksize)
 	fi.Blocks = stat.Blocks
-	fi.Atime_ns = syscall.TimespecToNsec(stat.Atimespec)
-	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtimespec)
-	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctimespec)
+	fi.AccessTime = timespecToTime(stat.Atimespec)
+	fi.ModTime = timespecToTime(stat.Mtimespec)
+	fi.ChangeTime = timespecToTime(stat.Ctimespec)
 	fi.Name = basename(name)
 	if isSymlink(lstat) && !isSymlink(stat) {
 		fi.FollowedSymlink = true
 	}
 	return fi
+}
+
+func timespecToTime(ts syscall.Timespec) time.Time {
+	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
 }

@@ -111,12 +111,13 @@ func decorate(s string, addFileLine bool) string {
 // T is a type passed to Test functions to manage test state and support formatted test logs.
 // Logs are accumulated during execution and dumped to standard error when done.
 type T struct {
-	name          string    // Name of test.
-	errors        string    // Error string from test.
-	failed        bool      // Test has failed.
-	ch            chan *T   // Output for serial tests.
-	startParallel chan bool // Parallel tests will wait on this.
-	ns            int64     // Duration of test in nanoseconds.
+	name          string        // Name of test.
+	errors        string        // Error string from test.
+	failed        bool          // Test has failed.
+	ch            chan *T       // Output for serial tests.
+	startParallel chan bool     // Parallel tests will wait on this.
+	start         time.Time     // Time test started
+	dt            time.Duration // Length of test
 }
 
 // Fail marks the Test function as having failed but continues execution.
@@ -128,7 +129,7 @@ func (t *T) Failed() bool { return t.failed }
 // FailNow marks the Test function as having failed and stops its execution.
 // Execution will continue at the next Test.
 func (t *T) FailNow() {
-	t.ns = time.Nanoseconds() - t.ns
+	t.dt = time.Now().Sub(t.start)
 	t.Fail()
 	t.ch <- t
 	runtime.Goexit()
@@ -184,9 +185,9 @@ type InternalTest struct {
 }
 
 func tRunner(t *T, test *InternalTest) {
-	t.ns = time.Nanoseconds()
+	t.start = time.Now()
 	test.F(t)
-	t.ns = time.Nanoseconds() - t.ns
+	t.dt = time.Now().Sub(t.start)
 	t.ch <- t
 }
 
@@ -211,7 +212,7 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
 }
 
 func report(t *T) {
-	tstr := fmt.Sprintf("(%.2f seconds)", float64(t.ns)/1e9)
+	tstr := fmt.Sprintf("(%.2f seconds)", t.dt.Seconds())
 	format := "--- %s: %s %s\n%s"
 	if t.failed {
 		fmt.Printf(format, "FAIL", t.name, tstr, t.errors)

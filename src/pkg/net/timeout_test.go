@@ -17,7 +17,7 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
 		return
 	}
 	defer fd.Close()
-	t0 := time.Nanoseconds()
+	t0 := time.Now()
 	fd.SetReadTimeout(1e8) // 100ms
 	var b [100]byte
 	var n int
@@ -27,7 +27,7 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
 	} else {
 		n, err1 = fd.Read(b[0:])
 	}
-	t1 := time.Nanoseconds()
+	t1 := time.Now()
 	what := "Read"
 	if readFrom {
 		what = "ReadFrom"
@@ -35,8 +35,8 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
 	if n != 0 || err1 == nil || !err1.(Error).Timeout() {
 		t.Errorf("fd.%s on %s %s did not return 0, timeout: %v, %v", what, network, addr, n, err1)
 	}
-	if t1-t0 < 0.5e8 || t1-t0 > 1.5e8 {
-		t.Errorf("fd.%s on %s %s took %f seconds, expected 0.1", what, network, addr, float64(t1-t0)/1e9)
+	if dt := t1.Sub(t0); dt < 50*time.Millisecond || dt > 150*time.Millisecond {
+		t.Errorf("fd.%s on %s %s took %s, expected 0.1s", what, network, addr, dt)
 	}
 }
 

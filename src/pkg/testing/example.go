@@ -56,9 +56,9 @@ func RunExamples(examples []InternalExample) (ok bool) {
 		}()
 
 		// run example
-		ns := -time.Nanoseconds()
+		t0 := time.Now()
 		eg.F()
-		ns += time.Nanoseconds()
+		dt := time.Now().Sub(t0)
 
 		// close pipe, restore stdout/stderr, get output
 		w.Close()
@@ -66,7 +66,7 @@ func RunExamples(examples []InternalExample) (ok bool) {
 		out := <-outC
 
 		// report any errors
-		tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
+		tstr := fmt.Sprintf("(%.2f seconds)", dt.Seconds())
 		if out != eg.Output {
 			fmt.Printf(
 				"--- FAIL: %s %s\ngot:\n%s\nwant:\n%s\n",

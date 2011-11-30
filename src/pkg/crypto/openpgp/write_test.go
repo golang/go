@@ -54,7 +54,7 @@ func TestNewEntity(t *testing.T) {
 		return
 	}
 
-	e, err := NewEntity(rand.Reader, time.Seconds(), "Test User", "test", "test@example.com")
+	e, err := NewEntity(rand.Reader, time.Now(), "Test User", "test", "test@example.com")
 	if err != nil {
 		t.Errorf("failed to create entity: %s", err)
 		return

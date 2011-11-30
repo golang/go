@@ -76,7 +76,7 @@ type VerifyOptions struct {
 	DNSName       string
 	Intermediates *CertPool
 	Roots         *CertPool
-	CurrentTime   int64 // if 0, the current system time is used.
+	CurrentTime   time.Time // if zero, the current time is used
 }
 
 const (
@@ -87,8 +87,11 @@ const (
 
 // isValid performs validity checks on the c.
 func (c *Certificate) isValid(certType int, opts *VerifyOptions) error {
-	if opts.CurrentTime < c.NotBefore.Seconds() ||
-		opts.CurrentTime > c.NotAfter.Seconds() {
+	now := opts.CurrentTime
+	if now.IsZero() {
+		now = time.Now()
+	}
+	if now.Before(c.NotBefore) || now.After(c.NotAfter) {
 		return CertificateInvalidError{c, Expired}
 	}
 
@@ -136,9 +139,6 @@ func (c *Certificate) isValid(certType int, opts *VerifyOptions) error {
 //
 // WARNING: this doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
-	if opts.CurrentTime == 0 {
-		opts.CurrentTime = time.Seconds()
-	}
 	err = c.isValid(leafCertificate, &opts)
 	if err != nil {
 		return

@@ -68,7 +68,7 @@ func detachSign(w io.Writer, signer *Entity, message io.Reader, sigType packet.S
 	sig.SigType = sigType
 	sig.PubKeyAlgo = signer.PrivateKey.PubKeyAlgo
 	sig.Hash = crypto.SHA256
-	sig.CreationTime = uint32(time.Seconds())
+	sig.CreationTime = time.Now()
 	sig.IssuerKeyId = &signer.PrivateKey.KeyId
 
 	h, wrappedHash, err := hashForSignature(sig.Hash, sig.SigType)
@@ -95,8 +95,8 @@ type FileHints struct {
 	// file should not be written to disk. It may be equal to "_CONSOLE" to
 	// suggest the data should not be written to disk.
 	FileName string
-	// EpochSeconds contains the modification time of the file, or 0 if not applicable.
-	EpochSeconds uint32
+	// ModTime contains the modification time of the file, or the zero time if not applicable.
+	ModTime time.Time
 }
 
 // SymmetricallyEncrypt acts like gpg -c: it encrypts a file with a passphrase.
@@ -115,7 +115,11 @@ func SymmetricallyEncrypt(ciphertext io.Writer, passphrase []byte, hints *FileHi
 	if err != nil {
 		return
 	}
-	return packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
+	var epochSeconds uint32
+	if !hints.ModTime.IsZero() {
+		epochSeconds = uint32(hints.ModTime.Unix())
+	}
+	return packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, epochSeconds)
 }
 
 // intersectPreferences mutates and returns a prefix of a that contains only
@@ -243,7 +247,11 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
 		w = noOpCloser{encryptedData}
 
 	}
-	literalData, err := packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
+	var epochSeconds uint32
+	if !hints.ModTime.IsZero() {
+		epochSeconds = uint32(hints.ModTime.Unix())
+	}
+	literalData, err := packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, epochSeconds)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +283,7 @@ func (s signatureWriter) Close() error {
 		SigType:      packet.SigTypeBinary,
 		PubKeyAlgo:   s.signer.PubKeyAlgo,
 		Hash:         s.hashType,
-		CreationTime: uint32(time.Seconds()),
+		CreationTime: time.Now(),
 		IssuerKeyId:  &s.signer.KeyId,
 	}
 

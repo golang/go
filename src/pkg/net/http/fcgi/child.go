@@ -103,7 +103,7 @@ func (r *response) WriteHeader(code int) {
 	}
 
 	if r.header.Get("Date") == "" {
-		r.header.Set("Date", time.UTC().Format(http.TimeFormat))
+		r.header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
 	}
 
 	fmt.Fprintf(r.w, "Status: %d %s\r\n", code, http.StatusText(code))

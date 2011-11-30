@@ -127,19 +127,19 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 	// TODO(dsymonds): handle names longer than 100 chars
 	copy(s.next(100), []byte(hdr.Name))
 
-	tw.octal(s.next(8), hdr.Mode)          // 100:108
-	tw.numeric(s.next(8), int64(hdr.Uid))  // 108:116
-	tw.numeric(s.next(8), int64(hdr.Gid))  // 116:124
-	tw.numeric(s.next(12), hdr.Size)       // 124:136
-	tw.numeric(s.next(12), hdr.Mtime)      // 136:148
-	s.next(8)                              // chksum (148:156)
-	s.next(1)[0] = hdr.Typeflag            // 156:157
-	tw.cString(s.next(100), hdr.Linkname)  // linkname (157:257)
-	copy(s.next(8), []byte("ustar\x0000")) // 257:265
-	tw.cString(s.next(32), hdr.Uname)      // 265:297
-	tw.cString(s.next(32), hdr.Gname)      // 297:329
-	tw.numeric(s.next(8), hdr.Devmajor)    // 329:337
-	tw.numeric(s.next(8), hdr.Devminor)    // 337:345
+	tw.octal(s.next(8), hdr.Mode)              // 100:108
+	tw.numeric(s.next(8), int64(hdr.Uid))      // 108:116
+	tw.numeric(s.next(8), int64(hdr.Gid))      // 116:124
+	tw.numeric(s.next(12), hdr.Size)           // 124:136
+	tw.numeric(s.next(12), hdr.ModTime.Unix()) // 136:148
+	s.next(8)                                  // chksum (148:156)
+	s.next(1)[0] = hdr.Typeflag                // 156:157
+	tw.cString(s.next(100), hdr.Linkname)      // linkname (157:257)
+	copy(s.next(8), []byte("ustar\x0000"))     // 257:265
+	tw.cString(s.next(32), hdr.Uname)          // 265:297
+	tw.cString(s.next(32), hdr.Gname)          // 297:329
+	tw.numeric(s.next(8), hdr.Devmajor)        // 329:337
+	tw.numeric(s.next(8), hdr.Devminor)        // 337:345
 
 	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
 	if tw.usedBinary {

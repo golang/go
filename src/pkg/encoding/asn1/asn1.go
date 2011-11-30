@@ -247,7 +247,7 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) 
 
 // UTCTime
 
-func parseUTCTime(bytes []byte) (ret *time.Time, err error) {
+func parseUTCTime(bytes []byte) (ret time.Time, err error) {
 	s := string(bytes)
 	ret, err = time.Parse("0601021504Z0700", s)
 	if err == nil {
@@ -259,7 +259,7 @@ func parseUTCTime(bytes []byte) (ret *time.Time, err error) {
 
 // parseGeneralizedTime parses the GeneralizedTime from the given byte slice
 // and returns the resulting time.
-func parseGeneralizedTime(bytes []byte) (ret *time.Time, err error) {
+func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
 	return time.Parse("20060102150405Z0700", string(bytes))
 }
 
@@ -450,7 +450,7 @@ var (
 	objectIdentifierType = reflect.TypeOf(ObjectIdentifier{})
 	enumeratedType       = reflect.TypeOf(Enumerated(0))
 	flagType             = reflect.TypeOf(Flag(false))
-	timeType             = reflect.TypeOf(&time.Time{})
+	timeType             = reflect.TypeOf(time.Time{})
 	rawValueType         = reflect.TypeOf(RawValue{})
 	rawContentsType      = reflect.TypeOf(RawContent(nil))
 	bigIntType           = reflect.TypeOf(new(big.Int))
@@ -647,7 +647,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		err = err1
 		return
 	case timeType:
-		var time *time.Time
+		var time time.Time
 		var err1 error
 		if universalTag == tagUTCTime {
 			time, err1 = parseUTCTime(innerBytes)
@@ -799,7 +799,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //
 // An ASN.1 ENUMERATED can be written to an Enumerated.
 //
-// An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a *time.Time.
+// An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a time.Time.
 //
 // An ASN.1 PrintableString or IA5String can be written to a string.
 //

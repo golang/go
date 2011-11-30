@@ -25,6 +25,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"time"
 )
 
 // zipFI is the zip-file based implementation of FileInfo
@@ -44,11 +45,11 @@ func (fi zipFI) Size() int64 {
 	return 0 // directory
 }
 
-func (fi zipFI) Mtime_ns() int64 {
+func (fi zipFI) ModTime() time.Time {
 	if f := fi.file; f != nil {
-		return f.Mtime_ns()
+		return f.ModTime()
 	}
-	return 0 // directory has no modified time entry
+	return time.Time{} // directory has no modified time entry
 }
 
 func (fi zipFI) IsDirectory() bool {

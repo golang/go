@@ -24,9 +24,9 @@ const (
 	codeProject      = "go"
 	codePyScript     = "misc/dashboard/googlecode_upload.py"
 	hgUrl            = "https://go.googlecode.com/hg/"
-	waitInterval     = 30e9 // time to wait before checking for new revs
 	mkdirPerm        = 0750
-	pkgBuildInterval = 1e9 * 60 * 60 * 24 // rebuild packages every 24 hours
+	waitInterval     = 30 * time.Second // time to wait before checking for new revs
+	pkgBuildInterval = 24 * time.Hour   // rebuild packages every 24 hours
 )
 
 // These variables are copied from the gobuilder's environment
@@ -131,7 +131,7 @@ func main() {
 	// check for new commits and build them
 	for {
 		built := false
-		t := time.Nanoseconds()
+		t := time.Now()
 		if *parallel {
 			done := make(chan bool)
 			for _, b := range builders {
@@ -152,9 +152,9 @@ func main() {
 			time.Sleep(waitInterval)
 		}
 		// sleep if we're looping too fast.
-		t1 := time.Nanoseconds() - t
-		if t1 < waitInterval {
-			time.Sleep(waitInterval - t1)
+		dt := time.Now().Sub(t)
+		if dt < waitInterval {
+			time.Sleep(waitInterval - dt)
 		}
 	}
 }
@@ -194,7 +194,7 @@ func NewBuilder(builder string) (*Builder, error) {
 // a new release tag is found.
 func (b *Builder) buildExternal() {
 	var prevTag string
-	var nextBuild int64
+	var nextBuild time.Time
 	for {
 		time.Sleep(waitInterval)
 		err := run(nil, goroot, "hg", "pull", "-u")
@@ -213,7 +213,7 @@ func (b *Builder) buildExternal() {
 		// don't rebuild if there's no new release
 		// and it's been less than pkgBuildInterval
 		// nanoseconds since the last build.
-		if tag == prevTag && time.Nanoseconds() < nextBuild {
+		if tag == prevTag && time.Now().Before(nextBuild) {
 			continue
 		}
 		// build will also build the packages
@@ -222,7 +222,7 @@ func (b *Builder) buildExternal() {
 			continue
 		}
 		prevTag = tag
-		nextBuild = time.Nanoseconds() + pkgBuildInterval
+		nextBuild = time.Now().Add(pkgBuildInterval)
 	}
 }
 

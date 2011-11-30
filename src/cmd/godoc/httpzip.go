@@ -32,6 +32,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"time"
 )
 
 // We cannot import syscall on app engine.
@@ -77,17 +78,18 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
 		}
 		name := e.Name[len(dirname):] // local name
 		var mode uint32
-		var size, mtime_ns int64
+		var size int64
+		var mtime time.Time
 		if i := strings.IndexRune(name, '/'); i >= 0 {
 			// We infer directories from files in subdirectories.
 			// If we have x/y, return a directory entry for x.
 			name = name[0:i] // keep local directory name only
 			mode = S_IFDIR
-			// no size or mtime_ns for directories
+			// no size or mtime for directories
 		} else {
 			mode = S_IFREG
 			size = int64(e.UncompressedSize)
-			mtime_ns = e.Mtime_ns()
+			mtime = e.ModTime()
 		}
 		// If we have x/y and x/z, don't return two directory entries for x.
 		// TODO(gri): It should be possible to do this more efficiently
@@ -95,10 +97,10 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
 		// (via two binary searches).
 		if name != prevname {
 			list = append(list, os.FileInfo{
-				Name:     name,
-				Mode:     mode,
-				Size:     size,
-				Mtime_ns: mtime_ns,
+				Name:    name,
+				Mode:    mode,
+				Size:    size,
+				ModTime: mtime,
 			})
 			prevname = name
 			count--
@@ -142,10 +144,10 @@ func (fs *httpZipFS) Open(name string) (http.File, error) {
 		return &httpZipFile{
 			path,
 			os.FileInfo{
-				Name:     name,
-				Mode:     S_IFREG,
-				Size:     int64(f.UncompressedSize),
-				Mtime_ns: f.Mtime_ns(),
+				Name:    name,
+				Mode:    S_IFREG,
+				Size:    int64(f.UncompressedSize),
+				ModTime: f.ModTime(),
 			},
 			rc,
 			nil,
@@ -158,7 +160,7 @@ func (fs *httpZipFS) Open(name string) (http.File, error) {
 		os.FileInfo{
 			Name: name,
 			Mode: S_IFDIR,
-			// no size or mtime_ns for directories
+			// no size or mtime for directories
 		},
 		nil,
 		fs.list[index:],

@@ -31,11 +31,11 @@ type ReverseProxy struct {
 	// If nil, http.DefaultTransport is used.
 	Transport http.RoundTripper
 
-	// FlushInterval specifies the flush interval, in
-	// nanoseconds, to flush to the client while
-	// coping the response body.
+	// FlushInterval specifies the flush interval
+	// to flush to the client while copying the
+	// response body.
 	// If zero, no periodic flushing is done.
-	FlushInterval int64
+	FlushInterval time.Duration
 }
 
 func singleJoiningSlash(a, b string) string {
@@ -135,7 +135,7 @@ type writeFlusher interface {
 
 type maxLatencyWriter struct {
 	dst     writeFlusher
-	latency int64 // nanos
+	latency time.Duration
 
 	lk   sync.Mutex // protects init of done, as well Write + Flush
 	done chan bool

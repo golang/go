@@ -80,7 +80,7 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Could not enable CPU profiling: %s\n", err)
 		return
 	}
-	time.Sleep(sec * 1e9)
+	time.Sleep(time.Duration(sec) * time.Second)
 	pprof.StopCPUProfile()
 }
 

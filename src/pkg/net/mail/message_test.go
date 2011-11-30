@@ -82,34 +82,18 @@ func headerEq(a, b Header) bool {
 func TestDateParsing(t *testing.T) {
 	tests := []struct {
 		dateStr string
-		exp     *time.Time
+		exp     time.Time
 	}{
 		// RFC 5322, Appendix A.1.1
 		{
 			"Fri, 21 Nov 1997 09:55:06 -0600",
-			&time.Time{
-				Year:       1997,
-				Month:      11,
-				Day:        21,
-				Hour:       9,
-				Minute:     55,
-				Second:     6,
-				ZoneOffset: -6 * 60 * 60,
-			},
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
 		},
 		// RFC5322, Appendix A.6.2
 		// Obsolete date.
 		{
 			"21 Nov 97 09:55:06 GMT",
-			&time.Time{
-				Year:   1997,
-				Month:  11,
-				Day:    21,
-				Hour:   9,
-				Minute: 55,
-				Second: 6,
-				Zone:   "GMT",
-			},
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("GMT", 0)),
 		},
 	}
 	for _, test := range tests {

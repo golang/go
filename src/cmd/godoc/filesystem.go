@@ -13,13 +13,14 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"time"
 )
 
 // The FileInfo interface provides access to file information.
 type FileInfo interface {
 	Name() string
 	Size() int64
-	Mtime_ns() int64
+	ModTime() time.Time
 	IsRegular() bool
 	IsDirectory() bool
 }
@@ -64,8 +65,8 @@ func (fi osFI) Size() int64 {
 	return fi.FileInfo.Size
 }
 
-func (fi osFI) Mtime_ns() int64 {
-	return fi.FileInfo.Mtime_ns
+func (fi osFI) ModTime() time.Time {
+	return fi.FileInfo.ModTime
 }
 
 // osFS is the OS-specific implementation of FileSystem

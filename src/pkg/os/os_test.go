@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 var dot = []string{
@@ -719,8 +720,7 @@ func TestChtimes(t *testing.T) {
 	}
 
 	// Move access and modification time back a second
-	const OneSecond = 1e9 // in nanoseconds
-	err = Chtimes(f.Name(), preStat.Atime_ns-OneSecond, preStat.Mtime_ns-OneSecond)
+	err = Chtimes(f.Name(), preStat.AccessTime.Add(-time.Second), preStat.ModTime.Add(-time.Second))
 	if err != nil {
 		t.Fatalf("Chtimes %s: %s", f.Name(), err)
 	}
@@ -734,16 +734,16 @@ func TestChtimes(t *testing.T) {
 		Mtime is the time of the last change of content.  Similarly, atime is set whenever the
 	    contents are accessed; also, it is set whenever mtime is set.
 	*/
-	if postStat.Atime_ns >= preStat.Atime_ns && syscall.OS != "plan9" {
-		t.Errorf("Atime_ns didn't go backwards; was=%d, after=%d",
-			preStat.Atime_ns,
-			postStat.Atime_ns)
+	if !postStat.AccessTime.Before(preStat.AccessTime) && syscall.OS != "plan9" {
+		t.Errorf("AccessTime didn't go backwards; was=%d, after=%d",
+			preStat.AccessTime,
+			postStat.AccessTime)
 	}
 
-	if postStat.Mtime_ns >= preStat.Mtime_ns {
-		t.Errorf("Mtime_ns didn't go backwards; was=%d, after=%d",
-			preStat.Mtime_ns,
-			postStat.Mtime_ns)
+	if !postStat.ModTime.Before(preStat.ModTime) {
+		t.Errorf("ModTime didn't go backwards; was=%d, after=%d",
+			preStat.ModTime,
+			postStat.ModTime)
 	}
 }
 

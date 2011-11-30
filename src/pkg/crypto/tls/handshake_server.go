@@ -95,7 +95,7 @@ FindCipherSuite:
 
 	hello.vers = vers
 	hello.cipherSuite = suite.id
-	t := uint32(config.time())
+	t := uint32(config.time().Unix())
 	hello.random = make([]byte, 32)
 	hello.random[0] = byte(t >> 24)
 	hello.random[1] = byte(t >> 16)

@@ -142,10 +142,9 @@ type CertificateList struct {
 	SignatureValue     asn1.BitString
 }
 
-// HasExpired returns true iff currentTimeSeconds is past the expiry time of
-// certList.
-func (certList *CertificateList) HasExpired(currentTimeSeconds int64) bool {
-	return certList.TBSCertList.NextUpdate.Seconds() <= currentTimeSeconds
+// HasExpired returns true iff now is past the expiry time of certList.
+func (certList *CertificateList) HasExpired(now time.Time) bool {
+	return now.After(certList.TBSCertList.NextUpdate)
 }
 
 // TBSCertificateList represents the ASN.1 structure of the same name. See RFC
@@ -155,8 +154,8 @@ type TBSCertificateList struct {
 	Version             int `asn1:"optional,default:2"`
 	Signature           AlgorithmIdentifier
 	Issuer              RDNSequence
-	ThisUpdate          *time.Time
-	NextUpdate          *time.Time
+	ThisUpdate          time.Time
+	NextUpdate          time.Time
 	RevokedCertificates []RevokedCertificate `asn1:"optional"`
 	Extensions          []Extension          `asn1:"tag:0,optional,explicit"`
 }
@@ -165,6 +164,6 @@ type TBSCertificateList struct {
 // 5280, section 5.1.
 type RevokedCertificate struct {
 	SerialNumber   *big.Int
-	RevocationTime *time.Time
+	RevocationTime time.Time
 	Extensions     []Extension `asn1:"optional"`
 }

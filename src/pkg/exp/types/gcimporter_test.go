@@ -58,16 +58,16 @@ func testPath(t *testing.T, path string) bool {
 	return true
 }
 
-const maxTime = 3e9 // maximum allotted testing time in ns
+const maxTime = 3 * time.Second
 
-func testDir(t *testing.T, dir string, endTime int64) (nimports int) {
+func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 	dirname := filepath.Join(pkgRoot, dir)
 	list, err := ioutil.ReadDir(dirname)
 	if err != nil {
 		t.Errorf("testDir(%s): %s", dirname, err)
 	}
 	for _, f := range list {
-		if time.Nanoseconds() >= endTime {
+		if time.Now().After(endTime) {
 			t.Log("testing time used up")
 			return
 		}
@@ -96,6 +96,6 @@ func TestGcImport(t *testing.T) {
 	if testPath(t, "./testdata/exports") {
 		nimports++
 	}
-	nimports += testDir(t, "", time.Nanoseconds()+maxTime) // installed packages
+	nimports += testDir(t, "", time.Now().Add(maxTime)) // installed packages
 	t.Logf("tested %d imports", nimports)
 }

@@ -61,7 +61,7 @@ type responseData struct {
 	Version       int              `asn1:"optional,default:1,explicit,tag:0"`
 	RequestorName pkix.RDNSequence `asn1:"optional,explicit,tag:1"`
 	KeyHash       []byte           `asn1:"optional,explicit,tag:2"`
-	ProducedAt    *time.Time
+	ProducedAt    time.Time
 	Responses     []singleResponse
 }
 
@@ -70,12 +70,12 @@ type singleResponse struct {
 	Good       asn1.Flag   `asn1:"explicit,tag:0,optional"`
 	Revoked    revokedInfo `asn1:"explicit,tag:1,optional"`
 	Unknown    asn1.Flag   `asn1:"explicit,tag:2,optional"`
-	ThisUpdate *time.Time
-	NextUpdate *time.Time `asn1:"explicit,tag:0,optional"`
+	ThisUpdate time.Time
+	NextUpdate time.Time `asn1:"explicit,tag:0,optional"`
 }
 
 type revokedInfo struct {
-	RevocationTime *time.Time
+	RevocationTime time.Time
 	Reason         int `asn1:"explicit,tag:0,optional"`
 }
 
@@ -97,7 +97,7 @@ type Response struct {
 	// Status is one of {Good, Revoked, Unknown, ServerFailed}
 	Status                                        int
 	SerialNumber                                  []byte
-	ProducedAt, ThisUpdate, NextUpdate, RevokedAt *time.Time
+	ProducedAt, ThisUpdate, NextUpdate, RevokedAt time.Time
 	RevocationReason                              int
 	Certificate                                   *x509.Certificate
 }
