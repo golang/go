@@ -153,6 +153,8 @@ func TestParser(t *testing.T) {
 		{"tests1.dat", -1},
 		{"tests2.dat", -1},
 		{"tests3.dat", -1},
+		// tests4.dat is fragment cases.
+		{"tests5.dat", 10},
 	}
 	for _, tf := range testFiles {
 		f, err := os.Open("testdata/webkit/" + tf.filename)
