@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"time"
 )
 
 var (
@@ -141,7 +142,7 @@ func (tr *Reader) readHeader() *Header {
 	hdr.Uid = int(tr.octal(s.next(8)))
 	hdr.Gid = int(tr.octal(s.next(8)))
 	hdr.Size = tr.octal(s.next(12))
-	hdr.Mtime = tr.octal(s.next(12))
+	hdr.ModTime = time.Unix(tr.octal(s.next(12)), 0)
 	s.next(8) // chksum
 	hdr.Typeflag = s.next(1)[0]
 	hdr.Linkname = cString(s.next(100))
@@ -178,8 +179,8 @@ func (tr *Reader) readHeader() *Header {
 			prefix = cString(s.next(155))
 		case "star":
 			prefix = cString(s.next(131))
-			hdr.Atime = tr.octal(s.next(12))
-			hdr.Ctime = tr.octal(s.next(12))
+			hdr.AccessTime = time.Unix(tr.octal(s.next(12)), 0)
+			hdr.ChangeTime = time.Unix(tr.octal(s.next(12)), 0)
 		}
 		if len(prefix) > 0 {
 			hdr.Name = prefix + "/" + hdr.Name

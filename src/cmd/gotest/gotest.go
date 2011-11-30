@@ -56,10 +56,10 @@ var (
 
 // elapsed returns the number of seconds since gotest started.
 func elapsed() float64 {
-	return float64(time.Nanoseconds()-start) / 1e9
+	return time.Now().Sub(start).Seconds()
 }
 
-var start = time.Nanoseconds()
+var start = time.Now()
 
 // File represents a file that contains tests.
 type File struct {
@@ -293,10 +293,10 @@ func runTestWithArgs(binary string) {
 func doRun(argv []string, returnStdout bool) string {
 	if xFlag {
 		fmt.Printf("gotest %.2fs: %s\n", elapsed(), strings.Join(argv, " "))
-		t := -time.Nanoseconds()
+		start := time.Now()
 		defer func() {
-			t += time.Nanoseconds()
-			fmt.Printf(" [+%.2fs]\n", float64(t)/1e9)
+			t := time.Now().Sub(start)
+			fmt.Printf(" [+%.2fs]\n", t.Seconds())
 		}()
 	}
 	command := argv[0]

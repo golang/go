@@ -171,7 +171,7 @@ func (s *pollServer) WakeFD(fd *netFD, mode int) {
 }
 
 func (s *pollServer) Now() int64 {
-	return time.Nanoseconds()
+	return time.Now().UnixNano()
 }
 
 func (s *pollServer) CheckDeadlines() {

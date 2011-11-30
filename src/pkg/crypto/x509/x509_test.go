@@ -250,8 +250,8 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			CommonName:   commonName,
 			Organization: []string{"Acme Co"},
 		},
-		NotBefore: time.SecondsToUTC(1000),
-		NotAfter:  time.SecondsToUTC(100000),
+		NotBefore: time.Unix(1000, 0),
+		NotAfter:  time.Unix(100000, 0),
 
 		SubjectKeyId: []byte{1, 2, 3, 4},
 		KeyUsage:     KeyUsageCertSign,
@@ -396,8 +396,8 @@ func TestCRLCreation(t *testing.T) {
 	block, _ = pem.Decode([]byte(pemCertificate))
 	cert, _ := ParseCertificate(block.Bytes)
 
-	now := time.SecondsToUTC(1000)
-	expiry := time.SecondsToUTC(10000)
+	now := time.Unix(1000, 0)
+	expiry := time.Unix(10000, 0)
 
 	revokedCerts := []pkix.RevokedCertificate{
 		{
@@ -443,7 +443,7 @@ func TestParseDERCRL(t *testing.T) {
 		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
 	}
 
-	if certList.HasExpired(1302517272) {
+	if certList.HasExpired(time.Unix(1302517272, 0)) {
 		t.Errorf("CRL has expired (but shouldn't have)")
 	}
 
@@ -463,7 +463,7 @@ func TestParsePEMCRL(t *testing.T) {
 		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
 	}
 
-	if certList.HasExpired(1302517272) {
+	if certList.HasExpired(time.Unix(1302517272, 0)) {
 		t.Errorf("CRL has expired (but shouldn't have)")
 	}
 

@@ -107,7 +107,7 @@ type dsaSignature struct {
 }
 
 type validity struct {
-	NotBefore, NotAfter *time.Time
+	NotBefore, NotAfter time.Time
 }
 
 type publicKeyInfo struct {
@@ -303,7 +303,7 @@ type Certificate struct {
 	SerialNumber        *big.Int
 	Issuer              pkix.Name
 	Subject             pkix.Name
-	NotBefore, NotAfter *time.Time // Validity bounds.
+	NotBefore, NotAfter time.Time // Validity bounds.
 	KeyUsage            KeyUsage
 
 	ExtKeyUsage        []ExtKeyUsage           // Sequence of extended key usages.
@@ -1005,7 +1005,7 @@ func ParseDERCRL(derBytes []byte) (certList *pkix.CertificateList, err error) {
 
 // CreateCRL returns a DER encoded CRL, signed by this Certificate, that
 // contains the given list of revoked certificates.
-func (c *Certificate) CreateCRL(rand io.Reader, priv *rsa.PrivateKey, revokedCerts []pkix.RevokedCertificate, now, expiry *time.Time) (crlBytes []byte, err error) {
+func (c *Certificate) CreateCRL(rand io.Reader, priv *rsa.PrivateKey, revokedCerts []pkix.RevokedCertificate, now, expiry time.Time) (crlBytes []byte, err error) {
 	tbsCertList := pkix.TBSCertificateList{
 		Version: 2,
 		Signature: pkix.AlgorithmIdentifier{

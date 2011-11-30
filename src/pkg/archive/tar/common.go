@@ -11,41 +11,42 @@
 //   http://www.gnu.org/software/tar/manual/html_node/Standard.html
 package tar
 
+import "time"
+
 const (
 	blockSize = 512
 
 	// Types
-	TypeReg           = '0'    // regular file.
-	TypeRegA          = '\x00' // regular file.
-	TypeLink          = '1'    // hard link.
-	TypeSymlink       = '2'    // symbolic link.
-	TypeChar          = '3'    // character device node.
-	TypeBlock         = '4'    // block device node.
-	TypeDir           = '5'    // directory.
-	TypeFifo          = '6'    // fifo node.
-	TypeCont          = '7'    // reserved.
-	TypeXHeader       = 'x'    // extended header.
-	TypeXGlobalHeader = 'g'    // global extended header.
+	TypeReg           = '0'    // regular file
+	TypeRegA          = '\x00' // regular file
+	TypeLink          = '1'    // hard link
+	TypeSymlink       = '2'    // symbolic link
+	TypeChar          = '3'    // character device node
+	TypeBlock         = '4'    // block device node
+	TypeDir           = '5'    // directory
+	TypeFifo          = '6'    // fifo node
+	TypeCont          = '7'    // reserved
+	TypeXHeader       = 'x'    // extended header
+	TypeXGlobalHeader = 'g'    // global extended header
 )
 
 // A Header represents a single header in a tar archive.
 // Some fields may not be populated.
 type Header struct {
-	Name     string // name of header file entry.
-	Mode     int64  // permission and mode bits.
-	Uid      int    // user id of owner.
-	Gid      int    // group id of owner.
-	Size     int64  // length in bytes.
-	Mtime    int64  // modified time; seconds since epoch.
-	Typeflag byte   // type of header entry.
-	Linkname string // target name of link.
-	Uname    string // user name of owner.
-	Gname    string // group name of owner.
-	Devmajor int64  // major number of character or block device.
-	Devminor int64  // minor number of character or block device.
-	Atime    int64  // access time; seconds since epoch.
-	Ctime    int64  // status change time; seconds since epoch.
-
+	Name       string    // name of header file entry
+	Mode       int64     // permission and mode bits
+	Uid        int       // user id of owner
+	Gid        int       // group id of owner
+	Size       int64     // length in bytes
+	ModTime    time.Time // modified time
+	Typeflag   byte      // type of header entry
+	Linkname   string    // target name of link
+	Uname      string    // user name of owner
+	Gname      string    // group name of owner
+	Devmajor   int64     // major number of character or block device
+	Devminor   int64     // minor number of character or block device
+	AccessTime time.Time // access time
+	ChangeTime time.Time // status change time
 }
 
 var zeroBlock = make([]byte, blockSize)

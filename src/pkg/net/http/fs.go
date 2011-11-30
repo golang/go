@@ -148,11 +148,11 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 		}
 	}
 
-	if t, _ := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); t != nil && d.Mtime_ns/1e9 <= t.Seconds() {
+	if t, err := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); err == nil && !d.ModTime.After(t) {
 		w.WriteHeader(StatusNotModified)
 		return
 	}
-	w.Header().Set("Last-Modified", time.SecondsToUTC(d.Mtime_ns/1e9).Format(TimeFormat))
+	w.Header().Set("Last-Modified", d.ModTime.UTC().Format(TimeFormat))
 
 	// use contents of index.html for directory, if present
 	if d.IsDirectory() {

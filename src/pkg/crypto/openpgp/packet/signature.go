@@ -15,6 +15,7 @@ import (
 	"hash"
 	"io"
 	"strconv"
+	"time"
 )
 
 // Signature represents a signature. See RFC 4880, section 5.2.
@@ -28,7 +29,7 @@ type Signature struct {
 	// HashTag contains the first two bytes of the hash for fast rejection
 	// of bad signed data.
 	HashTag      [2]byte
-	CreationTime uint32 // Unix epoch time
+	CreationTime time.Time
 
 	RSASignature     parsedMPI
 	DSASigR, DSASigS parsedMPI
@@ -151,7 +152,7 @@ func parseSignatureSubpackets(sig *Signature, subpackets []byte, isHashed bool) 
 		}
 	}
 
-	if sig.CreationTime == 0 {
+	if sig.CreationTime.IsZero() {
 		err = error_.StructuralError("no creation time in signature")
 	}
 
@@ -223,7 +224,12 @@ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (r
 			err = error_.StructuralError("signature creation time not four bytes")
 			return
 		}
-		sig.CreationTime = binary.BigEndian.Uint32(subpacket)
+		t := binary.BigEndian.Uint32(subpacket)
+		if t == 0 {
+			sig.CreationTime = time.Time{}
+		} else {
+			sig.CreationTime = time.Unix(int64(t), 0)
+		}
 	case signatureExpirationSubpacket:
 		// Signature expiration time, section 5.2.3.10
 		if !isHashed {
@@ -541,10 +547,7 @@ type outputSubpacket struct {
 
 func (sig *Signature) buildSubpackets() (subpackets []outputSubpacket) {
 	creationTime := make([]byte, 4)
-	creationTime[0] = byte(sig.CreationTime >> 24)
-	creationTime[1] = byte(sig.CreationTime >> 16)
-	creationTime[2] = byte(sig.CreationTime >> 8)
-	creationTime[3] = byte(sig.CreationTime)
+	binary.BigEndian.PutUint32(creationTime, uint32(sig.CreationTime.Unix()))
 	subpackets = append(subpackets, outputSubpacket{true, creationTimeSubpacket, false, creationTime})
 
 	if sig.IssuerKeyId != nil {

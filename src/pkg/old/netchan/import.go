@@ -276,9 +276,9 @@ func (imp *Importer) unackedCount() int64 {
 // If the timeout (measured in nanoseconds) is positive and Drain takes
 // longer than that to complete, an error is returned.
 func (imp *Importer) Drain(timeout int64) error {
-	startTime := time.Nanoseconds()
+	deadline := time.Now().Add(time.Duration(timeout))
 	for imp.unackedCount() > 0 {
-		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
+		if timeout > 0 && time.Now().After(deadline) {
 			return errors.New("timeout")
 		}
 		time.Sleep(100 * 1e6)

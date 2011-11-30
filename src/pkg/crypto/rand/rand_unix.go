@@ -100,7 +100,7 @@ func (r *reader) Read(b []byte) (n int, err error) {
 		// t = encrypt(time)
 		// dst = encrypt(t^seed)
 		// seed = encrypt(t^dst)
-		ns := time.Nanoseconds()
+		ns := time.Now().UnixNano()
 		r.time[0] = byte(ns >> 56)
 		r.time[1] = byte(ns >> 48)
 		r.time[2] = byte(ns >> 40)

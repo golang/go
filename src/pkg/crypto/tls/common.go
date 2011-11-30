@@ -121,7 +121,7 @@ type Config struct {
 
 	// Time returns the current time as the number of seconds since the epoch.
 	// If Time is nil, TLS uses the system time.Seconds.
-	Time func() int64
+	Time func() time.Time
 
 	// Certificates contains one or more certificate chains
 	// to present to the other side of the connection.
@@ -175,10 +175,10 @@ func (c *Config) rand() io.Reader {
 	return r
 }
 
-func (c *Config) time() int64 {
+func (c *Config) time() time.Time {
 	t := c.Time
 	if t == nil {
-		t = time.Seconds
+		t = time.Now
 	}
 	return t()
 }

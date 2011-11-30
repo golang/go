@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"testing"
 	"testing/iotest"
+	"time"
 )
 
 type writerTestEntry struct {
@@ -38,7 +39,7 @@ var writerTests = []*writerTest{
 					Uid:      73025,
 					Gid:      5000,
 					Size:     5,
-					Mtime:    1246508266,
+					ModTime:  time.Unix(1246508266, 0),
 					Typeflag: '0',
 					Uname:    "dsymonds",
 					Gname:    "eng",
@@ -52,7 +53,7 @@ var writerTests = []*writerTest{
 					Uid:      73025,
 					Gid:      5000,
 					Size:     11,
-					Mtime:    1245217492,
+					ModTime:  time.Unix(1245217492, 0),
 					Typeflag: '0',
 					Uname:    "dsymonds",
 					Gname:    "eng",
@@ -66,7 +67,7 @@ var writerTests = []*writerTest{
 					Uid:      1000,
 					Gid:      1000,
 					Size:     0,
-					Mtime:    1314603082,
+					ModTime:  time.Unix(1314603082, 0),
 					Typeflag: '2',
 					Linkname: "small.txt",
 					Uname:    "strings",
@@ -89,7 +90,7 @@ var writerTests = []*writerTest{
 					Uid:      73025,
 					Gid:      5000,
 					Size:     16 << 30,
-					Mtime:    1254699560,
+					ModTime:  time.Unix(1254699560, 0),
 					Typeflag: '0',
 					Uname:    "dsymonds",
 					Gname:    "eng",

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const cacheMaxAge = int64(300) // 5 minutes.
+const cacheMaxAge = 5 * time.Minute
 
 // hostsPath points to the file with static IP/address entries.
 var hostsPath = "/etc/hosts"
@@ -21,14 +21,14 @@ var hosts struct {
 	sync.Mutex
 	byName map[string][]string
 	byAddr map[string][]string
-	time   int64
+	expire time.Time
 	path   string
 }
 
 func readHosts() {
-	now := time.Seconds()
+	now := time.Now()
 	hp := hostsPath
-	if len(hosts.byName) == 0 || hosts.time+cacheMaxAge <= now || hosts.path != hp {
+	if len(hosts.byName) == 0 || now.After(hosts.expire) || hosts.path != hp {
 		hs := make(map[string][]string)
 		is := make(map[string][]string)
 		var file *file
@@ -51,7 +51,7 @@ func readHosts() {
 			}
 		}
 		// Update the data cache.
-		hosts.time = time.Seconds()
+		hosts.expire = time.Now().Add(cacheMaxAge)
 		hosts.path = hp
 		hosts.byName = hs
 		hosts.byAddr = is

@@ -266,19 +266,19 @@ func TestServerTimeouts(t *testing.T) {
 	}
 
 	// Slow client that should timeout.
-	t1 := time.Nanoseconds()
+	t1 := time.Now()
 	conn, err := net.Dial("tcp", addr.String())
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
 	buf := make([]byte, 1)
 	n, err := conn.Read(buf)
-	latency := time.Nanoseconds() - t1
+	latency := time.Now().Sub(t1)
 	if n != 0 || err != io.EOF {
 		t.Errorf("Read = %v, %v, wanted %v, %v", n, err, 0, io.EOF)
 	}
-	if latency < second*0.20 /* fudge from 0.25 above */ {
-		t.Errorf("got EOF after %d ns, want >= %d", latency, second*0.20)
+	if latency < 200*time.Millisecond /* fudge from 0.25 above */ {
+		t.Errorf("got EOF after %s, want >= %s", latency, 200*time.Millisecond)
 	}
 
 	// Hit the HTTP server successfully again, verifying that the
@@ -760,7 +760,7 @@ func TestTimeoutHandler(t *testing.T) {
 		_, werr := w.Write([]byte("hi"))
 		writeErrors <- werr
 	})
-	timeout := make(chan int64, 1) // write to this to force timeouts
+	timeout := make(chan time.Time, 1) // write to this to force timeouts
 	ts := httptest.NewServer(NewTestTimeoutHandler(sayHi, timeout))
 	defer ts.Close()
 
@@ -782,7 +782,7 @@ func TestTimeoutHandler(t *testing.T) {
 	}
 
 	// Times out:
-	timeout <- 1
+	timeout <- time.Time{}
 	res, err = Get(ts.URL)
 	if err != nil {
 		t.Error(err)

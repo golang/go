@@ -263,7 +263,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 				t.Fatalf(format, arg...)
 			}
 			t.Logf("retrying shortly after expected error: "+format, arg...)
-			time.Sleep(1e9 / int64(retries))
+			time.Sleep(time.Second / time.Duration(retries))
 		}
 		for retries >= 0 {
 			retries--

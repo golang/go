@@ -123,7 +123,7 @@ var readSetCookiesTests = []struct {
 			Path:       "/",
 			Domain:     ".google.ch",
 			HttpOnly:   true,
-			Expires:    time.Time{Year: 2011, Month: 11, Day: 23, Hour: 1, Minute: 5, Second: 3, ZoneOffset: 0, Zone: "GMT"},
+			Expires:    time.Date(2011, 11, 23, 1, 5, 3, 0, time.UTC),
 			RawExpires: "Wed, 23-Nov-2011 01:05:03 GMT",
 			Raw:        "NID=99=YsDT5i3E-CXax-; expires=Wed, 23-Nov-2011 01:05:03 GMT; path=/; domain=.google.ch; HttpOnly",
 		}},

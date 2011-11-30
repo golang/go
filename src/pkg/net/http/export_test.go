@@ -7,6 +7,8 @@
 
 package http
 
+import "time"
+
 func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	keys = make([]string, 0)
 	t.lk.Lock()
@@ -33,8 +35,8 @@ func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
 	return len(conns)
 }
 
-func NewTestTimeoutHandler(handler Handler, ch <-chan int64) Handler {
-	f := func() <-chan int64 {
+func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
+	f := func() <-chan time.Time {
 		return ch
 	}
 	return &timeoutHandler{handler, f, ""}

@@ -7,14 +7,12 @@
 package httptest
 
 import (
-	"crypto/rand"
 	"crypto/tls"
 	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
-	"time"
 )
 
 // A Server is an HTTP server listening on a system-chosen port on the
@@ -113,8 +111,6 @@ func (s *Server) StartTLS() {
 	}
 
 	s.TLS = &tls.Config{
-		Rand:         rand.Reader,
-		Time:         time.Seconds,
 		NextProtos:   []string{"http/1.1"},
 		Certificates: []tls.Certificate{cert},
 	}

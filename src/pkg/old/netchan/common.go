@@ -129,8 +129,8 @@ func (ed *encDec) encode(hdr *header, payloadType int, payload interface{}) erro
 }
 
 // See the comment for Exporter.Drain.
-func (cs *clientSet) drain(timeout int64) error {
-	startTime := time.Nanoseconds()
+func (cs *clientSet) drain(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
 	for {
 		pending := false
 		cs.mu.Lock()
@@ -152,7 +152,7 @@ func (cs *clientSet) drain(timeout int64) error {
 		if !pending {
 			break
 		}
-		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
+		if timeout > 0 && time.Now().After(deadline) {
 			return errors.New("timeout")
 		}
 		time.Sleep(100 * 1e6) // 100 milliseconds
@@ -161,8 +161,8 @@ func (cs *clientSet) drain(timeout int64) error {
 }
 
 // See the comment for Exporter.Sync.
-func (cs *clientSet) sync(timeout int64) error {
-	startTime := time.Nanoseconds()
+func (cs *clientSet) sync(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
 	// seq remembers the clients and their seqNum at point of entry.
 	seq := make(map[unackedCounter]int64)
 	for client := range cs.clients {
@@ -185,7 +185,7 @@ func (cs *clientSet) sync(timeout int64) error {
 		if !pending {
 			break
 		}
-		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
+		if timeout > 0 && time.Now().After(deadline) {
 			return errors.New("timeout")
 		}
 		time.Sleep(100 * 1e6) // 100 milliseconds

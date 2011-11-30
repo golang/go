@@ -18,7 +18,7 @@ import (
 var rand uint32
 
 func reseed() uint32 {
-	return uint32(time.Nanoseconds() + int64(os.Getpid()))
+	return uint32(time.Now().UnixNano() + int64(os.Getpid()))
 }
 
 func nextSuffix() string {

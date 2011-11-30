@@ -6,6 +6,7 @@ package os
 
 import (
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -91,8 +92,8 @@ func setFileInfo(fi *FileInfo, name string, fa, sizehi, sizelo uint32, ctime, at
 	fi.Size = int64(sizehi)<<32 + int64(sizelo)
 	fi.Name = name
 	fi.FollowedSymlink = false
-	fi.Atime_ns = atime.Nanoseconds()
-	fi.Mtime_ns = wtime.Nanoseconds()
-	fi.Ctime_ns = ctime.Nanoseconds()
+	fi.AccessTime = time.Unix(0, atime.Nanoseconds())
+	fi.ModTime = time.Unix(0, wtime.Nanoseconds())
+	fi.ChangeTime = time.Unix(0, ctime.Nanoseconds())
 	return fi
 }

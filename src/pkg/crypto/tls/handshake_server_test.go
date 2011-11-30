@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 type zeroSource struct{}
@@ -31,7 +32,7 @@ var testConfig *Config
 
 func init() {
 	testConfig = new(Config)
-	testConfig.Time = func() int64 { return 0 }
+	testConfig.Time = func() time.Time { return time.Unix(0, 0) }
 	testConfig.Rand = zeroSource{}
 	testConfig.Certificates = make([]Certificate, 1)
 	testConfig.Certificates[0].Certificate = [][]byte{testCertificate}
