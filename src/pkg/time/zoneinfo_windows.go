@@ -28,12 +28,10 @@ func abbrev(name []uint16) string {
 	//
 	// http://social.msdn.microsoft.com/Forums/eu/vclanguage/thread/a87e1d25-fb71-4fe0-ae9c-a9578c9753eb
 	// http://stackoverflow.com/questions/4195948/windows-time-zone-abbreviations-in-asp-net
-	short := make([]rune, len(name))
-	w := 0
+	var short []rune
 	for _, c := range name {
 		if 'A' <= c && c <= 'Z' {
-			short[w] = rune(c)
-			w++
+			short = append(short, rune(c))
 		}
 	}
 	return string(short)
@@ -78,18 +76,23 @@ func initLocalFromTZI(i *syscall.Timezoneinformation) {
 
 	std := &l.zone[0]
 	std.name = abbrev(i.StandardName[0:])
-	std.offset = -int(i.StandardBias) * 60
 	if nzone == 1 {
 		// No daylight savings.
+		std.offset = -int(i.Bias) * 60
 		l.cacheStart = -1 << 63
 		l.cacheEnd = 1<<63 - 1
 		l.cacheZone = std
 		return
 	}
 
+	// StandardBias must be ignored if StandardDate is not set,
+	// so this computation is delayed until after the nzone==1
+	// return above.
+	std.offset = -int(i.Bias+i.StandardBias) * 60
+
 	dst := &l.zone[1]
 	dst.name = abbrev(i.DaylightName[0:])
-	dst.offset = std.offset + -int(i.DaylightBias)*60
+	dst.offset = -int(i.Bias+i.DaylightBias) * 60
 	dst.isDST = true
 
 	// Arrange so that d0 is first transition date, d1 second,
