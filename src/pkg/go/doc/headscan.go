@@ -43,7 +43,7 @@ func isGoFile(fi os.FileInfo) bool {
 
 func appendHeadings(list []string, comment string) []string {
 	var buf bytes.Buffer
-	doc.ToHTML(&buf, []byte(comment), nil)
+	doc.ToHTML(&buf, comment, nil)
 	for s := buf.String(); ; {
 		i := strings.Index(s, html_h)
 		if i < 0 {
