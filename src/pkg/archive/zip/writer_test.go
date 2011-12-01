@@ -21,12 +21,12 @@ type WriteTest struct {
 }
 
 var writeTests = []WriteTest{
-	WriteTest{
+	{
 		Name:   "foo",
 		Data:   []byte("Rabbits, guinea pigs, gophers, marsupial rats, and quolls."),
 		Method: Store,
 	},
-	WriteTest{
+	{
 		Name:   "bar",
 		Data:   nil, // large data set in the test
 		Method: Deflate,

@@ -165,8 +165,8 @@ func (fs *httpZipFS) Open(name string) (http.File, error) {
 		&fileInfo{
 			name,
 			os.ModeDir,
-			0,  // no size for directory
-			time.Time{},  // no mtime for directory
+			0,           // no size for directory
+			time.Time{}, // no mtime for directory
 		},
 		nil,
 		fs.list[index:],

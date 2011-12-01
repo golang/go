@@ -38,8 +38,8 @@ POSSIBILITY OF SUCH DAMAGE.
 package main
 
 import (
-	big "gmp"
 	"fmt"
+	big "gmp"
 	"runtime"
 )
 

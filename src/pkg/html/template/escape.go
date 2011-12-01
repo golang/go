@@ -716,7 +716,7 @@ func (e *escaper) editTextNode(n *parse.TextNode, text []byte) {
 // commit applies changes to actions and template calls needed to contextually
 // autoescape content and adds any derived templates to the set.
 func (e *escaper) commit() {
-	for name, _ := range e.output {
+	for name := range e.output {
 		e.template(name).Funcs(funcMap)
 	}
 	for _, t := range e.derived {

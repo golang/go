@@ -5,8 +5,8 @@
 package main
 
 import (
-	"swig/callback"
 	"fmt"
+	"swig/callback"
 )
 
 type GoCallback struct{}
