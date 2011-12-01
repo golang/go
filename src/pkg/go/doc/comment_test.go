@@ -1,0 +1,39 @@
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package doc
+
+import (
+	"testing"
+)
+
+var headingTests = []struct {
+	line string
+	ok   bool
+}{
+	{"Section", true},
+	{"A typical usage", true},
+	{"ΔΛΞ is Greek", true},
+	{"Foo 42", true},
+	{"", false},
+	{"section", false},
+	{"A typical usage:", true},
+	{"δ is Greek", false}, // TODO: consider allowing this 
+	{"Foo §", false},
+	{"Fermat's Last Sentence", true},
+	{"Fermat's", true},
+	{"'sX", false},
+	{"Ted 'Too' Bar", false},
+	{"Use n+m", false},
+	{"Scanning:", true},
+	{"N:M", false},
+}
+
+func TestIsHeading(t *testing.T) {
+	for _, tt := range headingTests {
+		if h := heading([]byte(tt.line)); (h != nil) != tt.ok {
+			t.Errorf("isHeading(%q) = %v, want %v", tt.line, h, tt.ok)
+		}
+	}
+}

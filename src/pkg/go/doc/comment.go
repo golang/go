@@ -7,11 +7,14 @@
 package doc
 
 import (
+	"bytes"
 	"go/ast"
 	"io"
 	"regexp"
 	"strings"
 	"text/template" // for HTMLEscape
+	"unicode"
+	"unicode/utf8"
 )
 
 func isWhitespace(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' }
@@ -168,6 +171,8 @@ var (
 	html_endp   = []byte("</p>\n")
 	html_pre    = []byte("<pre>")
 	html_endpre = []byte("</pre>\n")
+	html_h      = []byte("<h3>")
+	html_endh   = []byte("</h3>\n")
 )
 
 // Emphasize and escape a line of text for HTML. URLs are converted into links;
@@ -268,6 +273,52 @@ func unindent(block [][]byte) {
 	}
 }
 
+// heading returns the (possibly trimmed) line if it passes as a valid section
+// heading; otherwise it returns nil. 
+func heading(line []byte) []byte {
+	line = bytes.TrimSpace(line)
+	if len(line) == 0 {
+		return nil
+	}
+
+	// a heading must start with an uppercase letter
+	r, _ := utf8.DecodeRune(line)
+	if !unicode.IsLetter(r) || !unicode.IsUpper(r) {
+		return nil
+	}
+
+	// it must end in a letter, digit or ':'
+	r, _ = utf8.DecodeLastRune(line)
+	if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != ':' {
+		return nil
+	}
+
+	// strip trailing ':', if any
+	if r == ':' {
+		line = line[0 : len(line)-1]
+	}
+
+	// exclude lines with illegal characters
+	if bytes.IndexAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") >= 0 {
+		return nil
+	}
+
+	// allow ' for possessive 's only
+	b := line
+	for {
+		i := bytes.IndexRune(b, '\'')
+		if i < 0 {
+			break
+		}
+		if i+1 >= len(b) || b[i+1] != 's' || (i+2 < len(b) && b[i+2] != ' ') {
+			return nil // not followed by "s "
+		}
+		b = b[i+2:]
+	}
+
+	return line
+}
+
 // Convert comment text to formatted HTML.
 // The comment was prepared by DocReader,
 // so it is known not to have leading, trailing blank lines
@@ -276,6 +327,7 @@ func unindent(block [][]byte) {
 //
 // Turn each run of multiple \n into </p><p>.
 // Turn each run of indented lines into a <pre> block without indent.
+// Enclose headings with header tags.
 //
 // URLs in the comment text are converted into links; if the URL also appears
 // in the words map, the link is taken from the map (if the corresponding map
@@ -286,6 +338,8 @@ func unindent(block [][]byte) {
 // into a link.
 func ToHTML(w io.Writer, s []byte, words map[string]string) {
 	inpara := false
+	lastWasBlank := false
+	lastNonblankWasHeading := false
 
 	close := func() {
 		if inpara {
@@ -308,6 +362,7 @@ func ToHTML(w io.Writer, s []byte, words map[string]string) {
 			// close paragraph
 			close()
 			i++
+			lastWasBlank = true
 			continue
 		}
 		if indentLen(line) > 0 {
@@ -336,8 +391,27 @@ func ToHTML(w io.Writer, s []byte, words map[string]string) {
 			w.Write(html_endpre)
 			continue
 		}
+
+		if lastWasBlank && !lastNonblankWasHeading && i+2 < len(lines) &&
+			isBlank(lines[i+1]) && !isBlank(lines[i+2]) && indentLen(lines[i+2]) == 0 {
+			// current line is non-blank, sourounded by blank lines
+			// and the next non-blank line is not indented: this
+			// might be a heading.
+			if head := heading(line); head != nil {
+				close()
+				w.Write(html_h)
+				template.HTMLEscape(w, head)
+				w.Write(html_endh)
+				i += 2
+				lastNonblankWasHeading = true
+				continue
+			}
+		}
+
 		// open paragraph
 		open()
+		lastWasBlank = false
+		lastNonblankWasHeading = false
 		emphasize(w, lines[i], words, true) // nice text formatting
 		i++
 	}
