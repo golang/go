@@ -787,6 +787,7 @@ bgen(Node *n, int true, Prog *to)
 	int et, a;
 	Node *nl, *nr, *r;
 	Node n1, n2, tmp, t1, t2, ax;
+	NodeList *ll;
 	Prog *p1, *p2;
 
 	if(debug['g']) {
@@ -902,7 +903,10 @@ bgen(Node *n, int true, Prog *to)
 				p1 = gbranch(AJMP, T);
 				p2 = gbranch(AJMP, T);
 				patch(p1, pc);
+				ll = n->ninit;  // avoid re-genning ninit
+				n->ninit = nil;
 				bgen(n, 1, p2);
+				n->ninit = ll;
 				patch(gbranch(AJMP, T), to);
 				patch(p2, pc);
 				break;

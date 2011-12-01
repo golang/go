@@ -850,6 +850,7 @@ bgen(Node *n, int true, Prog *to)
 	int et, a;
 	Node *nl, *nr, *r;
 	Node n1, n2, n3, n4, tmp;
+	NodeList *ll;
 	Prog *p1, *p2;
 
 	USED(n4);			// in unreachable code below
@@ -950,7 +951,10 @@ bgen(Node *n, int true, Prog *to)
 				p1 = gbranch(AB, T);
 				p2 = gbranch(AB, T);
 				patch(p1, pc);
+				ll = n->ninit;
+				n->ninit = nil;
 				bgen(n, 1, p2);
+				n->ninit = ll;
 				patch(gbranch(AB, T), to);
 				patch(p2, pc);
 				goto ret;
