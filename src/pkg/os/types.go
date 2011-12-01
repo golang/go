@@ -44,6 +44,9 @@ const (
 	ModeSetuid                                    // u: setuid
 	ModeSetgid                                    // g: setgid
 
+	// Mask for the type bits. For regular files, none will be set.
+	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice
+
 	ModePerm FileMode = 0777 // permission bits
 )
 
