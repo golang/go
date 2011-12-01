@@ -16,21 +16,21 @@ import (
 )
 
 // readParseTest reads a single test case from r.
-func readParseTest(r *bufio.Reader) (text, want string, err error) {
+func readParseTest(r *bufio.Reader) (text, want, context string, err error) {
 	line, err := r.ReadSlice('\n')
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	var b []byte
 
 	// Read the HTML.
 	if string(line) != "#data\n" {
-		return "", "", fmt.Errorf(`got %q want "#data\n"`, line)
+		return "", "", "", fmt.Errorf(`got %q want "#data\n"`, line)
 	}
 	for {
 		line, err = r.ReadSlice('\n')
 		if err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 		if line[0] == '#' {
 			break
@@ -42,33 +42,45 @@ func readParseTest(r *bufio.Reader) (text, want string, err error) {
 
 	// Skip the error list.
 	if string(line) != "#errors\n" {
-		return "", "", fmt.Errorf(`got %q want "#errors\n"`, line)
+		return "", "", "", fmt.Errorf(`got %q want "#errors\n"`, line)
 	}
 	for {
 		line, err = r.ReadSlice('\n')
 		if err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 		if line[0] == '#' {
 			break
 		}
 	}
 
+	if string(line) == "#document-fragment\n" {
+		line, err = r.ReadSlice('\n')
+		if err != nil {
+			return "", "", "", err
+		}
+		context = strings.TrimSpace(string(line))
+		line, err = r.ReadSlice('\n')
+		if err != nil {
+			return "", "", "", err
+		}
+	}
+
 	// Read the dump of what the parse tree should be.
 	if string(line) != "#document\n" {
-		return "", "", fmt.Errorf(`got %q want "#document\n"`, line)
+		return "", "", "", fmt.Errorf(`got %q want "#document\n"`, line)
 	}
 	for {
 		line, err = r.ReadSlice('\n')
 		if err != nil && err != io.EOF {
-			return "", "", err
+			return "", "", "", err
 		}
 		if len(line) == 0 || len(line) == 1 && line[0] == '\n' {
 			break
 		}
 		b = append(b, line...)
 	}
-	return text, string(b), nil
+	return text, string(b), context, nil
 }
 
 func dumpIndent(w io.Writer, level int) {
@@ -153,7 +165,7 @@ func TestParser(t *testing.T) {
 		{"tests1.dat", -1},
 		{"tests2.dat", -1},
 		{"tests3.dat", -1},
-		// tests4.dat is fragment cases.
+		{"tests4.dat", -1},
 		{"tests5.dat", -1},
 	}
 	for _, tf := range testFiles {
@@ -164,17 +176,37 @@ func TestParser(t *testing.T) {
 		defer f.Close()
 		r := bufio.NewReader(f)
 		for i := 0; i != tf.n; i++ {
-			text, want, err := readParseTest(r)
+			text, want, context, err := readParseTest(r)
 			if err == io.EOF && tf.n == -1 {
 				break
 			}
 			if err != nil {
 				t.Fatal(err)
 			}
-			doc, err := Parse(strings.NewReader(text))
-			if err != nil {
-				t.Fatal(err)
+
+			var doc *Node
+			if context == "" {
+				doc, err = Parse(strings.NewReader(text))
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				contextNode := &Node{
+					Type: ElementNode,
+					Data: context,
+				}
+				nodes, err := ParseFragment(strings.NewReader(text), contextNode)
+				if err != nil {
+					t.Fatal(err)
+				}
+				doc = &Node{
+					Type: DocumentNode,
+				}
+				for _, n := range nodes {
+					doc.Add(n)
+				}
 			}
+
 			got, err := dump(doc)
 			if err != nil {
 				t.Fatal(err)
@@ -184,7 +216,7 @@ func TestParser(t *testing.T) {
 				t.Errorf("%s test #%d %q, got vs want:\n----\n%s----\n%s----", tf.filename, i, text, got, want)
 				continue
 			}
-			if renderTestBlacklist[text] {
+			if renderTestBlacklist[text] || context != "" {
 				continue
 			}
 			// Check that rendering and re-parsing results in an identical tree.

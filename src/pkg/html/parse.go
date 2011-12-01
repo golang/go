@@ -39,6 +39,9 @@ type parser struct {
 	fosterParenting bool
 	// quirks is whether the parser is operating in "quirks mode."
 	quirks bool
+	// context is the context element when parsing an HTML fragment
+	// (section 11.4).
+	context *Node
 }
 
 func (p *parser) top() *Node {
@@ -287,9 +290,10 @@ func (p *parser) setOriginalIM() {
 func (p *parser) resetInsertionMode() {
 	for i := len(p.oe) - 1; i >= 0; i-- {
 		n := p.oe[i]
-		if i == 0 {
-			// TODO: set n to the context element, for HTML fragment parsing.
+		if i == 0 && p.context != nil {
+			n = p.context
 		}
+
 		switch n.Data {
 		case "select":
 			p.im = inSelectIM
@@ -1516,6 +1520,29 @@ func afterAfterFramesetIM(p *parser) bool {
 	return true
 }
 
+func (p *parser) parse() error {
+	// Iterate until EOF. Any other error will cause an early return.
+	consumed := true
+	for {
+		if consumed {
+			if err := p.read(); err != nil {
+				if err == io.EOF {
+					break
+				}
+				return err
+			}
+		}
+		consumed = p.im(p)
+	}
+	// Loop until the final token (the ErrorToken signifying EOF) is consumed.
+	for {
+		if consumed = p.im(p); consumed {
+			break
+		}
+	}
+	return nil
+}
+
 // Parse returns the parse tree for the HTML from the given Reader.
 // The input is assumed to be UTF-8 encoded.
 func Parse(r io.Reader) (*Node, error) {
@@ -1528,24 +1555,62 @@ func Parse(r io.Reader) (*Node, error) {
 		framesetOK: true,
 		im:         initialIM,
 	}
-	// Iterate until EOF. Any other error will cause an early return.
-	consumed := true
-	for {
-		if consumed {
-			if err := p.read(); err != nil {
-				if err == io.EOF {
-					break
-				}
-				return nil, err
-			}
-		}
-		consumed = p.im(p)
+	err := p.parse()
+	if err != nil {
+		return nil, err
 	}
-	// Loop until the final token (the ErrorToken signifying EOF) is consumed.
-	for {
-		if consumed = p.im(p); consumed {
+	return p.doc, nil
+}
+
+// ParseFragment parses a fragment of HTML and returns the nodes that were 
+// found. If the fragment is the InnerHTML for an existing element, pass that
+// element in context.
+func ParseFragment(r io.Reader, context *Node) ([]*Node, error) {
+	p := &parser{
+		tokenizer: NewTokenizer(r),
+		doc: &Node{
+			Type: DocumentNode,
+		},
+		scripting: true,
+		context:   context,
+	}
+
+	if context != nil {
+		switch context.Data {
+		case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "title", "textarea", "xmp":
+			p.tokenizer.rawTag = context.Data
+		}
+	}
+
+	root := &Node{
+		Type: ElementNode,
+		Data: "html",
+	}
+	p.doc.Add(root)
+	p.oe = nodeStack{root}
+	p.resetInsertionMode()
+
+	for n := context; n != nil; n = n.Parent {
+		if n.Type == ElementNode && n.Data == "form" {
+			p.form = n
 			break
 		}
 	}
-	return p.doc, nil
+
+	err := p.parse()
+	if err != nil {
+		return nil, err
+	}
+
+	parent := p.doc
+	if context != nil {
+		parent = root
+	}
+
+	result := parent.Child
+	parent.Child = nil
+	for _, n := range result {
+		n.Parent = nil
+	}
+	return result, nil
 }
