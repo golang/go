@@ -8,7 +8,6 @@
 package fnv
 
 import (
-	"encoding/binary"
 	"hash"
 )
 
@@ -105,26 +104,46 @@ func (s *sum32a) Size() int { return 4 }
 func (s *sum64) Size() int  { return 8 }
 func (s *sum64a) Size() int { return 8 }
 
-func (s *sum32) Sum() []byte {
-	a := make([]byte, 4)
-	binary.BigEndian.PutUint32(a, uint32(*s))
-	return a
+func (s *sum32) Sum(in []byte) []byte {
+	v := uint32(*s)
+	in = append(in, byte(v>>24))
+	in = append(in, byte(v>>16))
+	in = append(in, byte(v>>8))
+	in = append(in, byte(v))
+	return in
 }
 
-func (s *sum32a) Sum() []byte {
-	a := make([]byte, 4)
-	binary.BigEndian.PutUint32(a, uint32(*s))
-	return a
+func (s *sum32a) Sum(in []byte) []byte {
+	v := uint32(*s)
+	in = append(in, byte(v>>24))
+	in = append(in, byte(v>>16))
+	in = append(in, byte(v>>8))
+	in = append(in, byte(v))
+	return in
 }
 
-func (s *sum64) Sum() []byte {
-	a := make([]byte, 8)
-	binary.BigEndian.PutUint64(a, uint64(*s))
-	return a
+func (s *sum64) Sum(in []byte) []byte {
+	v := uint64(*s)
+	in = append(in, byte(v>>56))
+	in = append(in, byte(v>>48))
+	in = append(in, byte(v>>40))
+	in = append(in, byte(v>>32))
+	in = append(in, byte(v>>24))
+	in = append(in, byte(v>>16))
+	in = append(in, byte(v>>8))
+	in = append(in, byte(v))
+	return in
 }
 
-func (s *sum64a) Sum() []byte {
-	a := make([]byte, 8)
-	binary.BigEndian.PutUint64(a, uint64(*s))
-	return a
+func (s *sum64a) Sum(in []byte) []byte {
+	v := uint64(*s)
+	in = append(in, byte(v>>56))
+	in = append(in, byte(v>>48))
+	in = append(in, byte(v>>40))
+	in = append(in, byte(v>>32))
+	in = append(in, byte(v>>24))
+	in = append(in, byte(v>>16))
+	in = append(in, byte(v>>8))
+	in = append(in, byte(v))
+	return in
 }

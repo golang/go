@@ -398,7 +398,7 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 	}
 
 	h.Write(signed)
-	digest := h.Sum()
+	digest := h.Sum(nil)
 
 	switch pub := c.PublicKey.(type) {
 	case *rsa.PublicKey:
@@ -957,7 +957,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
 
 	h := sha1.New()
 	h.Write(tbsCertContents)
-	digest := h.Sum()
+	digest := h.Sum(nil)
 
 	signature, err := rsa.SignPKCS1v15(rand, priv, crypto.SHA1, digest)
 	if err != nil {
@@ -1024,7 +1024,7 @@ func (c *Certificate) CreateCRL(rand io.Reader, priv *rsa.PrivateKey, revokedCer
 
 	h := sha1.New()
 	h.Write(tbsCertListContents)
-	digest := h.Sum()
+	digest := h.Sum(nil)
 
 	signature, err := rsa.SignPKCS1v15(rand, priv, crypto.SHA1, digest)
 	if err != nil {

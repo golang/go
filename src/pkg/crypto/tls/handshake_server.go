@@ -235,8 +235,8 @@ FindCipherSuite:
 		}
 
 		digest := make([]byte, 36)
-		copy(digest[0:16], finishedHash.serverMD5.Sum())
-		copy(digest[16:36], finishedHash.serverSHA1.Sum())
+		copy(digest[0:16], finishedHash.serverMD5.Sum(nil))
+		copy(digest[16:36], finishedHash.serverSHA1.Sum(nil))
 		err = rsa.VerifyPKCS1v15(pub, crypto.MD5SHA1, digest, certVerify.signature)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)

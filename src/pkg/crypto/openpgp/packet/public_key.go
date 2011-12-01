@@ -88,7 +88,7 @@ func (pk *PublicKey) setFingerPrintAndKeyId() {
 	fingerPrint := sha1.New()
 	pk.SerializeSignaturePrefix(fingerPrint)
 	pk.serializeWithoutHeaders(fingerPrint)
-	copy(pk.Fingerprint[:], fingerPrint.Sum())
+	copy(pk.Fingerprint[:], fingerPrint.Sum(nil))
 	pk.KeyId = binary.BigEndian.Uint64(pk.Fingerprint[12:20])
 }
 
@@ -271,7 +271,7 @@ func (pk *PublicKey) VerifySignature(signed hash.Hash, sig *Signature) (err erro
 	}
 
 	signed.Write(sig.HashSuffix)
-	hashBytes := signed.Sum()
+	hashBytes := signed.Sum(nil)
 
 	if hashBytes[0] != sig.HashTag[0] || hashBytes[1] != sig.HashTag[1] {
 		return error_.SignatureError("hash tag doesn't match")

@@ -123,7 +123,7 @@ func (r *reader) readOnePacket() ([]byte, error) {
 
 	if r.mac != nil {
 		r.mac.Write(packet[:length-1])
-		if subtle.ConstantTimeCompare(r.mac.Sum(), mac) != 1 {
+		if subtle.ConstantTimeCompare(r.mac.Sum(nil), mac) != 1 {
 			return nil, errors.New("ssh: MAC failure")
 		}
 	}
@@ -201,7 +201,7 @@ func (w *writer) writePacket(packet []byte) error {
 	}
 
 	if w.mac != nil {
-		if _, err := w.Write(w.mac.Sum()); err != nil {
+		if _, err := w.Write(w.mac.Sum(nil)); err != nil {
 			return err
 		}
 	}
@@ -297,7 +297,7 @@ func generateKeyMaterial(out, tag []byte, K, H, sessionId []byte, h hash.Hash) {
 			h.Write(digestsSoFar)
 		}
 
-		digest := h.Sum()
+		digest := h.Sum(nil)
 		n := copy(out, digest)
 		out = out[n:]
 		if len(out) > 0 {
@@ -317,9 +317,9 @@ func (t truncatingMAC) Write(data []byte) (int, error) {
 	return t.hmac.Write(data)
 }
 
-func (t truncatingMAC) Sum() []byte {
-	digest := t.hmac.Sum()
-	return digest[:t.length]
+func (t truncatingMAC) Sum(in []byte) []byte {
+	out := t.hmac.Sum(in)
+	return out[:len(in)+t.length]
 }
 
 func (t truncatingMAC) Reset() {

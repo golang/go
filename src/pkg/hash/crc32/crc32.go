@@ -119,14 +119,13 @@ func (d *digest) Write(p []byte) (n int, err error) {
 
 func (d *digest) Sum32() uint32 { return d.crc }
 
-func (d *digest) Sum() []byte {
-	p := make([]byte, 4)
+func (d *digest) Sum(in []byte) []byte {
 	s := d.Sum32()
-	p[0] = byte(s >> 24)
-	p[1] = byte(s >> 16)
-	p[2] = byte(s >> 8)
-	p[3] = byte(s)
-	return p
+	in = append(in, byte(s>>24))
+	in = append(in, byte(s>>16))
+	in = append(in, byte(s>>8))
+	in = append(in, byte(s))
+	return in
 }
 
 // Checksum returns the CRC-32 checksum of data

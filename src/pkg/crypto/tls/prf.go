@@ -22,14 +22,14 @@ func splitPreMasterSecret(secret []byte) (s1, s2 []byte) {
 func pHash(result, secret, seed []byte, hash func() hash.Hash) {
 	h := hmac.New(hash, secret)
 	h.Write(seed)
-	a := h.Sum()
+	a := h.Sum(nil)
 
 	j := 0
 	for j < len(result) {
 		h.Reset()
 		h.Write(a)
 		h.Write(seed)
-		b := h.Sum()
+		b := h.Sum(nil)
 		todo := len(b)
 		if j+todo > len(result) {
 			todo = len(result) - j
@@ -39,7 +39,7 @@ func pHash(result, secret, seed []byte, hash func() hash.Hash) {
 
 		h.Reset()
 		h.Write(a)
-		a = h.Sum()
+		a = h.Sum(nil)
 	}
 }
 
@@ -84,13 +84,13 @@ func pRF30(result, secret, label, seed []byte) {
 		hashSHA1.Write(b[:i+1])
 		hashSHA1.Write(secret)
 		hashSHA1.Write(seed)
-		digest := hashSHA1.Sum()
+		digest := hashSHA1.Sum(nil)
 
 		hashMD5.Reset()
 		hashMD5.Write(secret)
 		hashMD5.Write(digest)
 
-		done += copy(result[done:], hashMD5.Sum())
+		done += copy(result[done:], hashMD5.Sum(nil))
 		i++
 	}
 }
@@ -182,24 +182,24 @@ func finishedSum30(md5, sha1 hash.Hash, masterSecret []byte, magic [4]byte) []by
 	md5.Write(magic[:])
 	md5.Write(masterSecret)
 	md5.Write(ssl30Pad1[:])
-	md5Digest := md5.Sum()
+	md5Digest := md5.Sum(nil)
 
 	md5.Reset()
 	md5.Write(masterSecret)
 	md5.Write(ssl30Pad2[:])
 	md5.Write(md5Digest)
-	md5Digest = md5.Sum()
+	md5Digest = md5.Sum(nil)
 
 	sha1.Write(magic[:])
 	sha1.Write(masterSecret)
 	sha1.Write(ssl30Pad1[:40])
-	sha1Digest := sha1.Sum()
+	sha1Digest := sha1.Sum(nil)
 
 	sha1.Reset()
 	sha1.Write(masterSecret)
 	sha1.Write(ssl30Pad2[:40])
 	sha1.Write(sha1Digest)
-	sha1Digest = sha1.Sum()
+	sha1Digest = sha1.Sum(nil)
 
 	ret := make([]byte, len(md5Digest)+len(sha1Digest))
 	copy(ret, md5Digest)
@@ -217,8 +217,8 @@ func (h finishedHash) clientSum(masterSecret []byte) []byte {
 		return finishedSum30(h.clientMD5, h.clientSHA1, masterSecret, ssl3ClientFinishedMagic)
 	}
 
-	md5 := h.clientMD5.Sum()
-	sha1 := h.clientSHA1.Sum()
+	md5 := h.clientMD5.Sum(nil)
+	sha1 := h.clientSHA1.Sum(nil)
 	return finishedSum10(md5, sha1, clientFinishedLabel, masterSecret)
 }
 
@@ -229,7 +229,7 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
 		return finishedSum30(h.serverMD5, h.serverSHA1, masterSecret, ssl3ServerFinishedMagic)
 	}
 
-	md5 := h.serverMD5.Sum()
-	sha1 := h.serverSHA1.Sum()
+	md5 := h.serverMD5.Sum(nil)
+	sha1 := h.serverSHA1.Sum(nil)
 	return finishedSum10(md5, sha1, serverFinishedLabel, masterSecret)
 }

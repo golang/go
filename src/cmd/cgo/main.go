@@ -189,7 +189,7 @@ func main() {
 		io.Copy(h, f)
 		f.Close()
 	}
-	cPrefix = fmt.Sprintf("_%x", h.Sum()[0:6])
+	cPrefix = fmt.Sprintf("_%x", h.Sum(nil)[0:6])
 
 	fs := make([]*File, len(goFiles))
 	for i, input := range goFiles {

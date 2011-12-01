@@ -97,7 +97,7 @@ func (cfg *TypeConfig) typeof(name string) string {
 // looked for in the Embed list.
 type Type struct {
 	Field  map[string]string // map field name to type
-	Method map[string]string // map method name to comma-separated return types
+	Method map[string]string // map method name to comma-separated return types (should start with "func ")
 	Embed  []string          // list of types this type embeds (for extra methods)
 	Def    string            // definition of named type
 }

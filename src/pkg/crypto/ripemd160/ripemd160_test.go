@@ -38,10 +38,10 @@ func TestVectors(t *testing.T) {
 				io.WriteString(md, tv.in)
 			} else {
 				io.WriteString(md, tv.in[0:len(tv.in)/2])
-				md.Sum()
+				md.Sum(nil)
 				io.WriteString(md, tv.in[len(tv.in)/2:])
 			}
-			s := fmt.Sprintf("%x", md.Sum())
+			s := fmt.Sprintf("%x", md.Sum(nil))
 			if s != tv.out {
 				t.Fatalf("RIPEMD-160[%d](%s) = %s, expected %s", j, tv.in, s, tv.out)
 			}
@@ -56,7 +56,7 @@ func TestMillionA(t *testing.T) {
 		io.WriteString(md, "aaaaaaaaaa")
 	}
 	out := "52783243c1697bdbe16d37f97f68f08325dc1528"
-	s := fmt.Sprintf("%x", md.Sum())
+	s := fmt.Sprintf("%x", md.Sum(nil))
 	if s != out {
 		t.Fatalf("RIPEMD-160 (1 million 'a') = %s, expected %s", s, out)
 	}

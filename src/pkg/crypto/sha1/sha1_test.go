@@ -60,10 +60,10 @@ func TestGolden(t *testing.T) {
 				io.WriteString(c, g.in)
 			} else {
 				io.WriteString(c, g.in[0:len(g.in)/2])
-				c.Sum()
+				c.Sum(nil)
 				io.WriteString(c, g.in[len(g.in)/2:])
 			}
-			s := fmt.Sprintf("%x", c.Sum())
+			s := fmt.Sprintf("%x", c.Sum(nil))
 			if s != g.out {
 				t.Fatalf("sha1[%d](%s) = %s want %s", j, g.in, s, g.out)
 			}

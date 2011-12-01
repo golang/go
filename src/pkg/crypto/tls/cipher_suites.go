@@ -127,13 +127,13 @@ func (s ssl30MAC) MAC(seq, record []byte) []byte {
 	s.h.Write(record[:1])
 	s.h.Write(record[3:5])
 	s.h.Write(record[recordHeaderLen:])
-	digest := s.h.Sum()
+	digest := s.h.Sum(nil)
 
 	s.h.Reset()
 	s.h.Write(s.key)
 	s.h.Write(ssl30Pad2[:padLength])
 	s.h.Write(digest)
-	return s.h.Sum()
+	return s.h.Sum(nil)
 }
 
 // tls10MAC implements the TLS 1.0 MAC function. RFC 2246, section 6.2.3.
@@ -149,7 +149,7 @@ func (s tls10MAC) MAC(seq, record []byte) []byte {
 	s.h.Reset()
 	s.h.Write(seq)
 	s.h.Write(record)
-	return s.h.Sum()
+	return s.h.Sum(nil)
 }
 
 func rsaKA() keyAgreement {

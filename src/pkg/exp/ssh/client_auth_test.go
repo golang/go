@@ -70,7 +70,7 @@ func (k *keychain) Sign(i int, rand io.Reader, data []byte) (sig []byte, err err
 	hashFunc := crypto.SHA1
 	h := hashFunc.New()
 	h.Write(data)
-	digest := h.Sum()
+	digest := h.Sum(nil)
 	return rsa.SignPKCS1v15(rand, k.keys[i], hashFunc, digest)
 }
 

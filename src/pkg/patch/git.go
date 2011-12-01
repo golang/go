@@ -22,7 +22,7 @@ func gitSHA1(data []byte) []byte {
 	h := sha1.New()
 	fmt.Fprintf(h, "blob %d\x00", len(data))
 	h.Write(data)
-	return h.Sum()
+	return h.Sum(nil)
 }
 
 // BUG(rsc): The Git binary delta format is not implemented, only Git binary literals.

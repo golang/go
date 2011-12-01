@@ -201,7 +201,7 @@ func (ser *seMDCReader) Close() error {
 	}
 	ser.h.Write(ser.trailer[:2])
 
-	final := ser.h.Sum()
+	final := ser.h.Sum(nil)
 	if subtle.ConstantTimeCompare(final, ser.trailer[2:]) != 1 {
 		return error_.SignatureError("hash mismatch")
 	}
@@ -227,7 +227,7 @@ func (w *seMDCWriter) Close() (err error) {
 	buf[0] = mdcPacketTagByte
 	buf[1] = sha1.Size
 	w.h.Write(buf[:2])
-	digest := w.h.Sum()
+	digest := w.h.Sum(nil)
 	copy(buf[2:], digest)
 
 	_, err = w.w.Write(buf[:])

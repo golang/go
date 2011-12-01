@@ -48,15 +48,15 @@ func (h *hmac) tmpPad(xor byte) {
 	}
 }
 
-func (h *hmac) Sum() []byte {
-	sum := h.inner.Sum()
+func (h *hmac) Sum(in []byte) []byte {
+	sum := h.inner.Sum(nil)
 	h.tmpPad(0x5c)
 	for i, b := range sum {
 		h.tmp[padSize+i] = b
 	}
 	h.outer.Reset()
 	h.outer.Write(h.tmp)
-	return h.outer.Sum()
+	return h.outer.Sum(in)
 }
 
 func (h *hmac) Write(p []byte) (n int, err error) {
@@ -81,7 +81,7 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
 	if len(key) > padSize {
 		// If key is too big, hash it.
 		hm.outer.Write(key)
-		key = hm.outer.Sum()
+		key = hm.outer.Sum(nil)
 	}
 	hm.key = make([]byte, len(key))
 	copy(hm.key, key)

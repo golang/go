@@ -20047,11 +20047,10 @@ var gettysburg = "  Four score and seven years ago our fathers brought forth on\
 	"\n" +
 	"Abraham Lincoln, November 19, 1863, Gettysburg, Pennsylvania\n"
 
-
 func main() {
 	m := md5.New()
 	io.WriteString(m, data)
-	hash := fmt.Sprintf("%x", m.Sum())
+	hash := fmt.Sprintf("%x", m.Sum(nil))
 	if hash != "525f06bc62a65017cd2217d7584e5920" {
 		println("BUG a", hash)
 		return
@@ -20059,7 +20058,7 @@ func main() {
 
 	m = md5.New()
 	io.WriteString(m, gettysburg)
-	hash = fmt.Sprintf("%x", m.Sum())
+	hash = fmt.Sprintf("%x", m.Sum(nil))
 	if hash != "d7ec5d9d47a4d166091e8d9ebd7ea0aa" {
 		println("BUG gettysburg", hash)
 		println(len(gettysburg))
