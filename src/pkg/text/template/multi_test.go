@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"testing"
+	"text/template/parse"
 )
 
 type isEmptyTest struct {
@@ -256,5 +257,32 @@ func TestClone(t *testing.T) {
 	}
 	if b.String() != "bclone" {
 		t.Errorf("expected %q got %q", "bclone", b.String())
+	}
+}
+
+func TestAddParseTree(t *testing.T) {
+	// Create some templates.
+	root, err := New("root").Parse(cloneText1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = root.Parse(cloneText2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Add a new parse tree.
+	tree, err := parse.Parse("cloneText3", cloneText3, "", "", nil, builtins)
+	if err != nil {
+		t.Fatal(err)
+	}
+	added, err := root.AddParseTree("c", tree["c"])
+	// Execute.
+	var b bytes.Buffer
+	err = added.ExecuteTemplate(&b, "a", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.String() != "broot" {
+		t.Errorf("expected %q got %q", "broot", b.String())
 	}
 }
