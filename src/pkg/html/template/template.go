@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sync"
 	"text/template"
+	"text/template/parse"
 )
 
 // Template is a specialized template.Template that produces a safe HTML
@@ -65,10 +66,14 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) 
 	return tmpl.text.ExecuteTemplate(wr, name, data)
 }
 
-// Parse parses a string into a set of named templates.  Parse may be called
-// multiple times for a given set, adding the templates defined in the string
-// to the set.  If a template is redefined, the element in the set is
-// overwritten with the new definition.
+// Parse parses a string into a template. Nested template definitions
+// will be associated with the top-level template t. Parse may be
+// called multiple times to parse definitions of templates to associate
+// with t. It is an error if a resulting template is non-empty (contains
+// content other than template definitions) and would replace a
+// non-empty template with the same name.  (In multiple calls to Parse
+// with the same receiver template, only one call can contain text
+// other than space, comments, and template definitions.)
 func (t *Template) Parse(src string) (*Template, error) {
 	t.nameSpace.mu.Lock()
 	t.escaped = false
@@ -94,9 +99,9 @@ func (t *Template) Parse(src string) (*Template, error) {
 	return t, nil
 }
 
-// Add is unimplemented.
-func (t *Template) Add(*Template) error {
-	return fmt.Errorf("html/template: Add unimplemented")
+// AddParseTree is unimplemented.
+func (t *Template) AddParseTree(name string, tree *parse.Tree) error {
+	return fmt.Errorf("html/template: AddParseTree unimplemented")
 }
 
 // Clone is unimplemented.

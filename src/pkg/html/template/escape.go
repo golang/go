@@ -720,7 +720,9 @@ func (e *escaper) commit() {
 		e.template(name).Funcs(funcMap)
 	}
 	for _, t := range e.derived {
-		e.tmpl.text.Add(t)
+		if _, err := e.tmpl.text.AddParseTree(t.Name(), t.Tree); err != nil {
+			panic("error adding derived template")
+		}
 	}
 	for n, s := range e.actionNodeEdits {
 		ensurePipelineContains(n.Pipe, s)
