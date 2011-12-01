@@ -456,7 +456,7 @@ func comment_htmlFunc(comment string) string {
 	var buf bytes.Buffer
 	// TODO(gri) Provide list of words (e.g. function parameters)
 	//           to be emphasized by ToHTML.
-	doc.ToHTML(&buf, []byte(comment), nil) // does html-escaping
+	doc.ToHTML(&buf, comment, nil) // does html-escaping
 	return buf.String()
 }
 

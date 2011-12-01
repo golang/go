@@ -7,7 +7,6 @@
 package doc
 
 import (
-	"bytes"
 	"go/ast"
 	"io"
 	"regexp"
@@ -85,39 +84,6 @@ func CommentText(comment *ast.CommentGroup) string {
 	return strings.Join(lines, "\n")
 }
 
-// Split bytes into lines.
-func split(text []byte) [][]byte {
-	// count lines
-	n := 0
-	last := 0
-	for i, c := range text {
-		if c == '\n' {
-			last = i + 1
-			n++
-		}
-	}
-	if last < len(text) {
-		n++
-	}
-
-	// split
-	out := make([][]byte, n)
-	last = 0
-	n = 0
-	for i, c := range text {
-		if c == '\n' {
-			out[n] = text[last : i+1]
-			last = i + 1
-			n++
-		}
-	}
-	if last < len(text) {
-		out[n] = text[last:]
-	}
-
-	return out
-}
-
 var (
 	ldquo = []byte("&ldquo;")
 	rdquo = []byte("&rdquo;")
@@ -125,13 +91,13 @@ var (
 
 // Escape comment text for HTML. If nice is set,
 // also turn `` into &ldquo; and '' into &rdquo;.
-func commentEscape(w io.Writer, s []byte, nice bool) {
+func commentEscape(w io.Writer, text string, nice bool) {
 	last := 0
 	if nice {
-		for i := 0; i < len(s)-1; i++ {
-			ch := s[i]
-			if ch == s[i+1] && (ch == '`' || ch == '\'') {
-				template.HTMLEscape(w, s[last:i])
+		for i := 0; i < len(text)-1; i++ {
+			ch := text[i]
+			if ch == text[i+1] && (ch == '`' || ch == '\'') {
+				template.HTMLEscape(w, []byte(text[last:i]))
 				last = i + 2
 				switch ch {
 				case '`':
@@ -143,7 +109,7 @@ func commentEscape(w io.Writer, s []byte, nice bool) {
 			}
 		}
 	}
-	template.HTMLEscape(w, s[last:])
+	template.HTMLEscape(w, []byte(text[last:]))
 }
 
 const (
@@ -183,9 +149,9 @@ var (
 // and the word is converted into a link. If nice is set, the remaining text's
 // appearance is improved where it makes sense (e.g., `` is turned into &ldquo;
 // and '' into &rdquo;).
-func emphasize(w io.Writer, line []byte, words map[string]string, nice bool) {
+func emphasize(w io.Writer, line string, words map[string]string, nice bool) {
 	for {
-		m := matchRx.FindSubmatchIndex(line)
+		m := matchRx.FindStringSubmatchIndex(line)
 		if m == nil {
 			break
 		}
@@ -233,7 +199,7 @@ func emphasize(w io.Writer, line []byte, words map[string]string, nice bool) {
 	commentEscape(w, line, nice)
 }
 
-func indentLen(s []byte) int {
+func indentLen(s string) int {
 	i := 0
 	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
 		i++
@@ -241,9 +207,11 @@ func indentLen(s []byte) int {
 	return i
 }
 
-func isBlank(s []byte) bool { return len(s) == 0 || (len(s) == 1 && s[0] == '\n') }
+func isBlank(s string) bool {
+	return len(s) == 0 || (len(s) == 1 && s[0] == '\n')
+}
 
-func commonPrefix(a, b []byte) []byte {
+func commonPrefix(a, b string) string {
 	i := 0
 	for i < len(a) && i < len(b) && a[i] == b[i] {
 		i++
@@ -251,7 +219,7 @@ func commonPrefix(a, b []byte) []byte {
 	return a[0:i]
 }
 
-func unindent(block [][]byte) {
+func unindent(block []string) {
 	if len(block) == 0 {
 		return
 	}
@@ -274,23 +242,23 @@ func unindent(block [][]byte) {
 }
 
 // heading returns the (possibly trimmed) line if it passes as a valid section
-// heading; otherwise it returns nil. 
-func heading(line []byte) []byte {
-	line = bytes.TrimSpace(line)
+// heading; otherwise it returns the empty string. 
+func heading(line string) string {
+	line = strings.TrimSpace(line)
 	if len(line) == 0 {
-		return nil
+		return ""
 	}
 
 	// a heading must start with an uppercase letter
-	r, _ := utf8.DecodeRune(line)
+	r, _ := utf8.DecodeRuneInString(line)
 	if !unicode.IsLetter(r) || !unicode.IsUpper(r) {
-		return nil
+		return ""
 	}
 
 	// it must end in a letter, digit or ':'
-	r, _ = utf8.DecodeLastRune(line)
+	r, _ = utf8.DecodeLastRuneInString(line)
 	if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != ':' {
-		return nil
+		return ""
 	}
 
 	// strip trailing ':', if any
@@ -299,18 +267,18 @@ func heading(line []byte) []byte {
 	}
 
 	// exclude lines with illegal characters
-	if bytes.IndexAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") >= 0 {
-		return nil
+	if strings.IndexAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") >= 0 {
+		return ""
 	}
 
 	// allow "'" for possessive "'s" only
 	for b := line; ; {
-		i := bytes.IndexRune(b, '\'')
+		i := strings.IndexRune(b, '\'')
 		if i < 0 {
 			break
 		}
 		if i+1 >= len(b) || b[i+1] != 's' || (i+2 < len(b) && b[i+2] != ' ') {
-			return nil // not followed by "s "
+			return "" // not followed by "s "
 		}
 		b = b[i+2:]
 	}
@@ -335,7 +303,7 @@ func heading(line []byte) []byte {
 // Go identifiers that appear in the words map are italicized; if the corresponding
 // map value is not the empty string, it is considered a URL and the word is converted
 // into a link.
-func ToHTML(w io.Writer, s []byte, words map[string]string) {
+func ToHTML(w io.Writer, text string, words map[string]string) {
 	inpara := false
 	lastWasBlank := false
 	lastWasHeading := false
@@ -353,7 +321,7 @@ func ToHTML(w io.Writer, s []byte, words map[string]string) {
 		}
 	}
 
-	lines := split(s)
+	lines := strings.SplitAfter(text, "\n")
 	unindent(lines)
 	for i := 0; i < len(lines); {
 		line := lines[i]
@@ -397,10 +365,10 @@ func ToHTML(w io.Writer, s []byte, words map[string]string) {
 			// current line is non-blank, sourounded by blank lines
 			// and the next non-blank line is not indented: this
 			// might be a heading.
-			if head := heading(line); head != nil {
+			if head := heading(line); head != "" {
 				close()
 				w.Write(html_h)
-				template.HTMLEscape(w, head)
+				commentEscape(w, head, true) // nice text formatting
 				w.Write(html_endh)
 				i += 2
 				lastWasHeading = true
