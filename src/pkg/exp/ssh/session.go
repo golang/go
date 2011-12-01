@@ -54,9 +54,10 @@ type Session struct {
 
 	*clientChan // the channel backing this session
 
-	started   bool // true once a Shell or Run is invoked.
-	copyFuncs []func() error
-	errch     chan error // one send per copyFunc
+	started        bool // true once Start, Run or Shell is invoked.
+	closeAfterWait []io.Closer
+	copyFuncs      []func() error
+	errch          chan error // one send per copyFunc
 }
 
 // RFC 4254 Section 6.4.
@@ -231,7 +232,7 @@ func (s *Session) start() error {
 	return nil
 }
 
-// Wait waits for the remote command to exit. 
+// Wait waits for the remote command to exit.
 func (s *Session) Wait() error {
 	if !s.started {
 		return errors.New("ssh: session not started")
@@ -244,11 +245,12 @@ func (s *Session) Wait() error {
 			copyError = err
 		}
 	}
-
+	for _, fd := range s.closeAfterWait {
+		fd.Close()
+	}
 	if waitErr != nil {
 		return waitErr
 	}
-
 	return copyError
 }
 
@@ -283,11 +285,15 @@ func (s *Session) stdin() error {
 		s.Stdin = new(bytes.Buffer)
 	}
 	s.copyFuncs = append(s.copyFuncs, func() error {
-		_, err := io.Copy(&chanWriter{
+		w := &chanWriter{
 			packetWriter: s,
 			peersId:      s.peersId,
 			win:          s.win,
-		}, s.Stdin)
+		}
+		_, err := io.Copy(w, s.Stdin)
+		if err1 := w.Close(); err == nil {
+			err = err1
+		}
 		return err
 	})
 	return nil
@@ -298,11 +304,12 @@ func (s *Session) stdout() error {
 		s.Stdout = ioutil.Discard
 	}
 	s.copyFuncs = append(s.copyFuncs, func() error {
-		_, err := io.Copy(s.Stdout, &chanReader{
+		r := &chanReader{
 			packetWriter: s,
 			peersId:      s.peersId,
 			data:         s.data,
-		})
+		}
+		_, err := io.Copy(s.Stdout, r)
 		return err
 	})
 	return nil
@@ -313,15 +320,71 @@ func (s *Session) stderr() error {
 		s.Stderr = ioutil.Discard
 	}
 	s.copyFuncs = append(s.copyFuncs, func() error {
-		_, err := io.Copy(s.Stderr, &chanReader{
+		r := &chanReader{
 			packetWriter: s,
 			peersId:      s.peersId,
 			data:         s.dataExt,
-		})
+		}
+		_, err := io.Copy(s.Stderr, r)
 		return err
 	})
 	return nil
 }
+
+// StdinPipe returns a pipe that will be connected to the 
+// remote command's standard input when the command starts.
+func (s *Session) StdinPipe() (io.WriteCloser, error) {
+	if s.Stdin != nil {
+		return nil, errors.New("ssh: Stdin already set")
+	}
+	if s.started {
+		return nil, errors.New("ssh: StdinPipe after process started")
+	}
+	pr, pw := io.Pipe()
+	s.Stdin = pr
+	s.closeAfterWait = append(s.closeAfterWait, pr)
+	return pw, nil
+}
+
+// StdoutPipe returns a pipe that will be connected to the 
+// remote command's standard output when the command starts.
+// There is a fixed amount of buffering that is shared between
+// stdout and stderr streams. If the StdoutPipe reader is 
+// not serviced fast enought it may eventually cause the 
+// remote command to block.
+func (s *Session) StdoutPipe() (io.ReadCloser, error) {
+	if s.Stdout != nil {
+		return nil, errors.New("ssh: Stdout already set")
+	}
+	if s.started {
+		return nil, errors.New("ssh: StdoutPipe after process started")
+	}
+	pr, pw := io.Pipe()
+	s.Stdout = pw
+	s.closeAfterWait = append(s.closeAfterWait, pw)
+	return pr, nil
+}
+
+// StderrPipe returns a pipe that will be connected to the 
+// remote command's standard error when the command starts.
+// There is a fixed amount of buffering that is shared between
+// stdout and stderr streams. If the StderrPipe reader is 
+// not serviced fast enought it may eventually cause the 
+// remote command to block.
+func (s *Session) StderrPipe() (io.ReadCloser, error) {
+	if s.Stderr != nil {
+		return nil, errors.New("ssh: Stderr already set")
+	}
+	if s.started {
+		return nil, errors.New("ssh: StderrPipe after process started")
+	}
+	pr, pw := io.Pipe()
+	s.Stderr = pw
+	s.closeAfterWait = append(s.closeAfterWait, pw)
+	return pr, nil
+}
+
+// TODO(dfc) add Output and CombinedOutput helpers
 
 // NewSession returns a new interactive session on the remote host.
 func (c *ClientConn) NewSession() (*Session, error) {
