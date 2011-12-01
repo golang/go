@@ -15,39 +15,39 @@ import (
 	"io/ioutil"
 )
 
-type signal string
+type Signal string
 
 // POSIX signals as listed in RFC 4254 Section 6.10.
 const (
-	SIGABRT signal = "ABRT"
-	SIGALRM signal = "ALRM"
-	SIGFPE  signal = "FPE"
-	SIGHUP  signal = "HUP"
-	SIGILL  signal = "ILL"
-	SIGINT  signal = "INT"
-	SIGKILL signal = "KILL"
-	SIGPIPE signal = "PIPE"
-	SIGQUIT signal = "QUIT"
-	SIGSEGV signal = "SEGV"
-	SIGTERM signal = "TERM"
-	SIGUSR1 signal = "USR1"
-	SIGUSR2 signal = "USR2"
+	SIGABRT Signal = "ABRT"
+	SIGALRM Signal = "ALRM"
+	SIGFPE  Signal = "FPE"
+	SIGHUP  Signal = "HUP"
+	SIGILL  Signal = "ILL"
+	SIGINT  Signal = "INT"
+	SIGKILL Signal = "KILL"
+	SIGPIPE Signal = "PIPE"
+	SIGQUIT Signal = "QUIT"
+	SIGSEGV Signal = "SEGV"
+	SIGTERM Signal = "TERM"
+	SIGUSR1 Signal = "USR1"
+	SIGUSR2 Signal = "USR2"
 )
 
 // A Session represents a connection to a remote command or shell.
 type Session struct {
 	// Stdin specifies the remote process's standard input.
-	// If Stdin is nil, the remote process reads from an empty 
+	// If Stdin is nil, the remote process reads from an empty
 	// bytes.Buffer.
 	Stdin io.Reader
 
-	// Stdout and Stderr specify the remote process's standard 
+	// Stdout and Stderr specify the remote process's standard
 	// output and error.
 	//
-	// If either is nil, Run connects the corresponding file 
-	// descriptor to an instance of ioutil.Discard. There is a 
-	// fixed amount of buffering that is shared for the two streams. 
-	// If either blocks it may eventually cause the remote 
+	// If either is nil, Run connects the corresponding file
+	// descriptor to an instance of ioutil.Discard. There is a
+	// fixed amount of buffering that is shared for the two streams.
+	// If either blocks it may eventually cause the remote
 	// command to block.
 	Stdout io.Writer
 	Stderr io.Writer
@@ -130,7 +130,7 @@ type signalMsg struct {
 
 // Signal sends the given signal to the remote process.
 // sig is one of the SIG* constants.
-func (s *Session) Signal(sig signal) error {
+func (s *Session) Signal(sig Signal) error {
 	req := signalMsg{
 		PeersId:   s.peersId,
 		Request:   "signal",
@@ -170,9 +170,9 @@ func (s *Session) Start(cmd string) error {
 	return s.start()
 }
 
-// Run runs cmd on the remote host and waits for it to terminate. 
-// Typically, the remote server passes cmd to the shell for 
-// interpretation. A Session only accepts one call to Run, 
+// Run runs cmd on the remote host and waits for it to terminate.
+// Typically, the remote server passes cmd to the shell for
+// interpretation. A Session only accepts one call to Run,
 // Start or Shell.
 func (s *Session) Run(cmd string) error {
 	err := s.Start(cmd)
@@ -182,7 +182,7 @@ func (s *Session) Run(cmd string) error {
 	return s.Wait()
 }
 
-// Shell starts a login shell on the remote host. A Session only 
+// Shell starts a login shell on the remote host. A Session only
 // accepts one call to Run, Start or Shell.
 func (s *Session) Shell() error {
 	if s.started {
@@ -331,7 +331,7 @@ func (s *Session) stderr() error {
 	return nil
 }
 
-// StdinPipe returns a pipe that will be connected to the 
+// StdinPipe returns a pipe that will be connected to the
 // remote command's standard input when the command starts.
 func (s *Session) StdinPipe() (io.WriteCloser, error) {
 	if s.Stdin != nil {
@@ -346,11 +346,11 @@ func (s *Session) StdinPipe() (io.WriteCloser, error) {
 	return pw, nil
 }
 
-// StdoutPipe returns a pipe that will be connected to the 
+// StdoutPipe returns a pipe that will be connected to the
 // remote command's standard output when the command starts.
 // There is a fixed amount of buffering that is shared between
-// stdout and stderr streams. If the StdoutPipe reader is 
-// not serviced fast enought it may eventually cause the 
+// stdout and stderr streams. If the StdoutPipe reader is
+// not serviced fast enought it may eventually cause the
 // remote command to block.
 func (s *Session) StdoutPipe() (io.ReadCloser, error) {
 	if s.Stdout != nil {
@@ -365,11 +365,11 @@ func (s *Session) StdoutPipe() (io.ReadCloser, error) {
 	return pr, nil
 }
 
-// StderrPipe returns a pipe that will be connected to the 
+// StderrPipe returns a pipe that will be connected to the
 // remote command's standard error when the command starts.
 // There is a fixed amount of buffering that is shared between
-// stdout and stderr streams. If the StderrPipe reader is 
-// not serviced fast enought it may eventually cause the 
+// stdout and stderr streams. If the StderrPipe reader is
+// not serviced fast enought it may eventually cause the
 // remote command to block.
 func (s *Session) StderrPipe() (io.ReadCloser, error) {
 	if s.Stderr != nil {
