@@ -60,6 +60,8 @@ N = 30
 
 def builderInfo(b):
     f = b.split('-', 3)
+    if len(f) < 2:
+      f.append(None)
     goos = f[0]
     goarch = f[1]
     note = ""
@@ -105,7 +107,15 @@ class MainPage(webapp.RequestHandler):
 
         for r in revs:
             for b in r['builds']:
-                builders[b['builder']] = builderInfo(b['builder'])
+                if b['builder'] in builders:
+                    continue
+                bi = builderInfo(b['builder'])
+                builders[b['builder']] = bi
+        bad_builders = [key for key in builders if not builders[key]['goarch']]
+        for key in bad_builders:
+            del builders[key]
+        for r in revs:
+            r['builds'] = [b for b in r['builds'] if b['builder'] not in bad_builders]
 
         for r in revs:
             have = set(x['builder'] for x in r['builds'])
@@ -123,6 +133,7 @@ class MainPage(webapp.RequestHandler):
         if len(results) == num:
             values['next'] = page + 1
 
+        values['bad'] = bad_builders
         path = os.path.join(os.path.dirname(__file__), 'main.html')
         self.response.out.write(template.render(path, values))
 
