@@ -3,9 +3,12 @@
 		<p class="exampleHeading">▹ Example</p>
 	</div>
 	<div class="expanded">
-		<p class="exampleHeading">▾ Example Code:</p>
+		<p class="exampleHeading">▾ Example</p>
+		<p>Code:</p>
 		<p class="code"><pre>{{.Code}}</pre></p>
+		{{if .Output}}
 		<p>Output:</p>
 		<p class="output"><pre>{{html .Output}}</pre></p>
+		{{end}}
 	</div>
 </div>
