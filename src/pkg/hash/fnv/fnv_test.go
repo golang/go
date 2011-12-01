@@ -72,7 +72,7 @@ func testGolden(t *testing.T, hash hash.Hash, gold []golden) {
 		if done != len(g.text) {
 			t.Fatalf("wrote only %d out of %d bytes", done, len(g.text))
 		}
-		if actual := hash.Sum(); !bytes.Equal(g.sum, actual) {
+		if actual := hash.Sum(nil); !bytes.Equal(g.sum, actual) {
 			t.Errorf("hash(%q) = 0x%x want 0x%x", g.text, actual, g.sum)
 		}
 	}
@@ -97,26 +97,26 @@ func TestIntegrity64a(t *testing.T) {
 func testIntegrity(t *testing.T, h hash.Hash) {
 	data := []byte{'1', '2', 3, 4, 5}
 	h.Write(data)
-	sum := h.Sum()
+	sum := h.Sum(nil)
 
 	if size := h.Size(); size != len(sum) {
 		t.Fatalf("Size()=%d but len(Sum())=%d", size, len(sum))
 	}
 
-	if a := h.Sum(); !bytes.Equal(sum, a) {
+	if a := h.Sum(nil); !bytes.Equal(sum, a) {
 		t.Fatalf("first Sum()=0x%x, second Sum()=0x%x", sum, a)
 	}
 
 	h.Reset()
 	h.Write(data)
-	if a := h.Sum(); !bytes.Equal(sum, a) {
+	if a := h.Sum(nil); !bytes.Equal(sum, a) {
 		t.Fatalf("Sum()=0x%x, but after Reset() Sum()=0x%x", sum, a)
 	}
 
 	h.Reset()
 	h.Write(data[:2])
 	h.Write(data[2:])
-	if a := h.Sum(); !bytes.Equal(sum, a) {
+	if a := h.Sum(nil); !bytes.Equal(sum, a) {
 		t.Fatalf("Sum()=0x%x, but with partial writes, Sum()=0x%x", sum, a)
 	}
 
@@ -162,6 +162,6 @@ func benchmark(b *testing.B, h hash.Hash) {
 	for todo := b.N; todo != 0; todo-- {
 		h.Reset()
 		h.Write(data)
-		h.Sum()
+		h.Sum(nil)
 	}
 }

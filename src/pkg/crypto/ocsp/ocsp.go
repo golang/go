@@ -161,7 +161,7 @@ func ParseResponse(bytes []byte) (*Response, error) {
 
 	pub := ret.Certificate.PublicKey.(*rsa.PublicKey)
 	h.Write(basicResp.TBSResponseData.Raw)
-	digest := h.Sum()
+	digest := h.Sum(nil)
 	signature := basicResp.Signature.RightAlign()
 
 	if rsa.VerifyPKCS1v15(pub, hashType, digest, signature) != nil {

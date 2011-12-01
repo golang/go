@@ -168,7 +168,7 @@ func TestSignPKCS1v15(t *testing.T) {
 	for i, test := range signPKCS1v15Tests {
 		h := sha1.New()
 		h.Write([]byte(test.in))
-		digest := h.Sum()
+		digest := h.Sum(nil)
 
 		s, err := SignPKCS1v15(nil, rsaPrivateKey, crypto.SHA1, digest)
 		if err != nil {
@@ -186,7 +186,7 @@ func TestVerifyPKCS1v15(t *testing.T) {
 	for i, test := range signPKCS1v15Tests {
 		h := sha1.New()
 		h.Write([]byte(test.in))
-		digest := h.Sum()
+		digest := h.Sum(nil)
 
 		sig, _ := hex.DecodeString(test.out)
 

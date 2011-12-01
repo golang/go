@@ -172,7 +172,7 @@ func (c *ClientConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handsha
 	marshalInt(K, kInt)
 	h.Write(K)
 
-	H := h.Sum()
+	H := h.Sum(nil)
 
 	return H, K, nil
 }

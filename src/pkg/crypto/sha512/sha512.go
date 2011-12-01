@@ -123,7 +123,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	return
 }
 
-func (d0 *digest) Sum() []byte {
+func (d0 *digest) Sum(in []byte) []byte {
 	// Make a copy of d0 so that caller can keep writing and summing.
 	d := new(digest)
 	*d = *d0
@@ -149,21 +149,19 @@ func (d0 *digest) Sum() []byte {
 		panic("d.nx != 0")
 	}
 
-	p := make([]byte, 64)
-	j := 0
-	for _, s := range d.h {
-		p[j+0] = byte(s >> 56)
-		p[j+1] = byte(s >> 48)
-		p[j+2] = byte(s >> 40)
-		p[j+3] = byte(s >> 32)
-		p[j+4] = byte(s >> 24)
-		p[j+5] = byte(s >> 16)
-		p[j+6] = byte(s >> 8)
-		p[j+7] = byte(s >> 0)
-		j += 8
-	}
+	h := d.h[:]
 	if d.is384 {
-		return p[0:48]
+		h = d.h[:6]
 	}
-	return p
+	for _, s := range h {
+		in = append(in, byte(s>>56))
+		in = append(in, byte(s>>48))
+		in = append(in, byte(s>>40))
+		in = append(in, byte(s>>32))
+		in = append(in, byte(s>>24))
+		in = append(in, byte(s>>16))
+		in = append(in, byte(s>>8))
+		in = append(in, byte(s))
+	}
+	return in
 }

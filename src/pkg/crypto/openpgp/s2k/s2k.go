@@ -34,7 +34,7 @@ func Salted(out []byte, h hash.Hash, in []byte, salt []byte) {
 		}
 		h.Write(salt)
 		h.Write(in)
-		n := copy(out[done:], h.Sum())
+		n := copy(out[done:], h.Sum(nil))
 		done += n
 	}
 }
@@ -68,7 +68,7 @@ func Iterated(out []byte, h hash.Hash, in []byte, salt []byte, count int) {
 				written += len(combined)
 			}
 		}
-		n := copy(out[done:], h.Sum())
+		n := copy(out[done:], h.Sum(nil))
 		done += n
 	}
 }

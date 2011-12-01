@@ -222,7 +222,7 @@ func TestIncrementalRead(t *testing.T) {
 			h.Write(rdbuf[0:nr])
 		}
 		// verify checksum
-		have := fmt.Sprintf("%x", h.Sum())
+		have := fmt.Sprintf("%x", h.Sum(nil))
 		want := cksums[nread]
 		if want != have {
 			t.Errorf("Bad checksum on file %s:\nhave %+v\nwant %+v", hdr.Name, have, want)

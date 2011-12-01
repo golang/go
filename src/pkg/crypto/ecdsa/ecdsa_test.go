@@ -214,7 +214,7 @@ func TestVectors(t *testing.T) {
 		msg, _ := hex.DecodeString(test.msg)
 		sha.Reset()
 		sha.Write(msg)
-		hashed := sha.Sum()
+		hashed := sha.Sum(nil)
 		r := fromHex(test.r)
 		s := fromHex(test.s)
 		if Verify(&pub, hashed, r, s) != test.ok {

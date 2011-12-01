@@ -77,7 +77,7 @@ func TestMultiWriter(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	sha1hex := fmt.Sprintf("%x", sha1.Sum())
+	sha1hex := fmt.Sprintf("%x", sha1.Sum(nil))
 	if sha1hex != "01cb303fa8c30a64123067c5aa6284ba7ec2d31b" {
 		t.Error("incorrect sha1 value")
 	}

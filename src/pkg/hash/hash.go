@@ -13,9 +13,9 @@ type Hash interface {
 	// It never returns an error.
 	io.Writer
 
-	// Sum returns the current hash, without changing the
-	// underlying hash state.
-	Sum() []byte
+	// Sum appends the current hash in the same manner as append(), without
+	// changing the underlying hash state.
+	Sum(in []byte) []byte
 
 	// Reset resets the hash to one with zero bytes written.
 	Reset()

@@ -371,7 +371,7 @@ func getNonceAccept(nonce []byte) (expected []byte, err error) {
 		return
 	}
 	expected = make([]byte, 28)
-	base64.StdEncoding.Encode(expected, h.Sum())
+	base64.StdEncoding.Encode(expected, h.Sum(nil))
 	return
 }
 

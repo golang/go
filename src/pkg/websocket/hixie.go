@@ -274,7 +274,7 @@ func getChallengeResponse(number1, number2 uint32, key3 []byte) (expected []byte
 	if _, err = h.Write(challenge); err != nil {
 		return
 	}
-	expected = h.Sum()
+	expected = h.Sum(nil)
 	return
 }
 

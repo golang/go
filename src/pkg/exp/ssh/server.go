@@ -207,11 +207,11 @@ func (s *ServerConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handsha
 	marshalInt(K, kInt)
 	h.Write(K)
 
-	H = h.Sum()
+	H = h.Sum(nil)
 
 	h.Reset()
 	h.Write(H)
-	hh := h.Sum()
+	hh := h.Sum(nil)
 
 	var sig []byte
 	switch hostKeyAlgo {
@@ -478,7 +478,7 @@ userAuthLoop:
 					hashFunc := crypto.SHA1
 					h := hashFunc.New()
 					h.Write(signedData)
-					digest := h.Sum()
+					digest := h.Sum(nil)
 					rsaKey, ok := parseRSA(pubKey)
 					if !ok {
 						return ParseError{msgUserAuthRequest}
