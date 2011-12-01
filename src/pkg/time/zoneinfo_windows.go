@@ -62,7 +62,7 @@ func pseudoUnix(year int, d *syscall.Systemtime) int64 {
 			day -= 7
 		}
 	}
-	return t.sec + int64(day-1)*secondsPerDay
+	return t.sec + int64(day-1)*secondsPerDay + internalToUnix
 }
 
 func initLocalFromTZI(i *syscall.Timezoneinformation) {
