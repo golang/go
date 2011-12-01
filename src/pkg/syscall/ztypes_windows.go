@@ -659,7 +659,7 @@ type MibIfRow struct {
 
 type CertContext struct {
 	EncodingType uint32
-	EncodedCert  uintptr
+	EncodedCert  *byte
 	Length       uint32
 	CertInfo     uintptr
 	Store        Handle

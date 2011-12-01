@@ -969,9 +969,16 @@ func CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) {
 	return
 }
 
-func CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext) {
-	r0, _, _ := Syscall(procCertEnumCertificatesInStore.Addr(), 2, uintptr(store), uintptr(unsafe.Pointer(prevContext)), 0)
+func CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext, err error) {
+	r0, _, e1 := Syscall(procCertEnumCertificatesInStore.Addr(), 2, uintptr(store), uintptr(unsafe.Pointer(prevContext)), 0)
 	context = (*CertContext)(unsafe.Pointer(r0))
+	if context == nil {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = EINVAL
+		}
+	}
 	return
 }
 
