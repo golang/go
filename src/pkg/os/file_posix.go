@@ -169,11 +169,11 @@ func (f *File) Truncate(size int64) error {
 // Sync commits the current contents of the file to stable storage.
 // Typically, this means flushing the file system's in-memory copy
 // of recently written data to disk.
-func (file *File) Sync() (err error) {
-	if file == nil {
+func (f *File) Sync() (err error) {
+	if f == nil {
 		return EINVAL
 	}
-	if e := syscall.Fsync(file.fd); e != nil {
+	if e := syscall.Fsync(f.fd); e != nil {
 		return NewSyscallError("fsync", e)
 	}
 	return nil
