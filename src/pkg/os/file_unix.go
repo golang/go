@@ -28,11 +28,11 @@ type file struct {
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
-func (file *File) Fd() int {
-	if file == nil {
+func (f *File) Fd() int {
+	if f == nil {
 		return -1
 	}
-	return file.fd
+	return f.fd
 }
 
 // NewFile returns a new File with the given file descriptor and name.
@@ -78,8 +78,8 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
 
 // Close closes the File, rendering it unusable for I/O.
 // It returns an error, if any.
-func (file *File) Close() error {
-	return file.file.close()
+func (f *File) Close() error {
+	return f.file.close()
 }
 
 func (file *file) close() error {
@@ -99,13 +99,13 @@ func (file *file) close() error {
 
 // Stat returns the FileInfo structure describing file.
 // It returns the FileInfo and an error, if any.
-func (file *File) Stat() (fi FileInfo, err error) {
+func (f *File) Stat() (fi FileInfo, err error) {
 	var stat syscall.Stat_t
-	err = syscall.Fstat(file.fd, &stat)
+	err = syscall.Fstat(f.fd, &stat)
 	if err != nil {
-		return nil, &PathError{"stat", file.name, err}
+		return nil, &PathError{"stat", f.name, err}
 	}
-	return fileInfoFromStat(&stat, file.name), nil
+	return fileInfoFromStat(&stat, f.name), nil
 }
 
 // Stat returns a FileInfo describing the named file and an error, if any.
@@ -149,13 +149,13 @@ func Lstat(name string) (fi FileInfo, err error) {
 // nil error. If it encounters an error before the end of the
 // directory, Readdir returns the FileInfo read until that point
 // and a non-nil error.
-func (file *File) Readdir(n int) (fi []FileInfo, err error) {
-	dirname := file.name
+func (f *File) Readdir(n int) (fi []FileInfo, err error) {
+	dirname := f.name
 	if dirname == "" {
 		dirname = "."
 	}
 	dirname += "/"
-	names, err := file.Readdirnames(n)
+	names, err := f.Readdirnames(n)
 	fi = make([]FileInfo, len(names))
 	for i, filename := range names {
 		fip, err := Lstat(dirname + filename)
