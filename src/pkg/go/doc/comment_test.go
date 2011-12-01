@@ -19,7 +19,7 @@ var headingTests = []struct {
 	{"", false},
 	{"section", false},
 	{"A typical usage:", true},
-	{"δ is Greek", false}, // TODO: consider allowing this 
+	{"δ is Greek", false},
 	{"Foo §", false},
 	{"Fermat's Last Sentence", true},
 	{"Fermat's", true},
