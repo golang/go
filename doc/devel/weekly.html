@@ -14,6 +14,27 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-12-02">2011-12-02</h2>
+
+<pre>
+This weekly snapshot includes changes to the hash package and a gofix for the
+time and os.FileInfo changes in the last snapshot.
+
+The hash.Hasher's Sum method has been given a []byte argument, permitting
+the user to hash an arbitrary byte slice without Writing to the Hasher.
+Existing code that uses Sum can pass nil as the argument.
+Gofix will make this change automatically.
+
+Other changes:
+* crypto/tls: cleanup certificate load on windows (thanks Alex Brainman).
+* exp/ssh: add Std{in,out,err}Pipe methods to Session (thanks Dave Cheney).
+* dashboard: don't choke on weird builder names.
+* exp/ssh: export type signal, now Signal (thanks Gustav Paul).
+* os: add ModeType constant to mask file type bits (thanks Gustavo Niemeyer).
+* text/template: replace Add with AddParseTree.
+* go/doc: detect headings and format them in html (thanks Volker Dobler).
+</pre>
+
 <h2 id="2011-12-01">2011-12-01</h2>
 
 <pre>
