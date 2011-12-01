@@ -1,15 +1,39 @@
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+/*
+	The headscan command extracts comment headings from package files;
+	it is used to detect false positives which may require an adjustment
+	to the comment formatting heuristics in comment.go.
+
+	Usage: headscan [-root root_directory]
+
+	By default, the $GOROOT/src directory is scanned.
+*/
 package main
 
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"go/doc"
 	"go/parser"
 	"go/token"
-	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+)
+
+var (
+	root    = flag.String("root", filepath.Join(runtime.GOROOT(), "src"), "root of filesystem tree to scan")
+	verbose = flag.Bool("v", false, "verbose mode")
+)
+
+const (
+	html_h    = "<h3>"
+	html_endh = "</h3>\n"
 )
 
 func isGoFile(fi os.FileInfo) bool {
@@ -17,37 +41,71 @@ func isGoFile(fi os.FileInfo) bool {
 		!strings.HasSuffix(fi.Name(), "_test.go")
 }
 
+func appendHeadings(list []string, comment string) []string {
+	var buf bytes.Buffer
+	doc.ToHTML(&buf, []byte(comment), nil)
+	for s := buf.String(); ; {
+		i := strings.Index(s, html_h)
+		if i < 0 {
+			break
+		}
+		i += len(html_h)
+		j := strings.Index(s, html_endh)
+		if j < 0 {
+			list = append(list, s[i:]) // incorrect HTML
+			break
+		}
+		list = append(list, s[i:j])
+		s = s[j+len(html_endh):]
+	}
+	return list
+}
+
 func main() {
-	fset := token.NewFileSet()
-	rootDir := flag.String("root", "./", "root of filesystem tree to scan")
 	flag.Parse()
-	err := filepath.Walk(*rootDir, func(path string, fi os.FileInfo, err error) error {
+	fset := token.NewFileSet()
+	nheadings := 0
+	err := filepath.Walk(*root, func(path string, fi os.FileInfo, err error) error {
 		if !fi.IsDir() {
 			return nil
 		}
 		pkgs, err := parser.ParseDir(fset, path, isGoFile, parser.ParseComments)
 		if err != nil {
-			log.Println(path, err)
+			if *verbose {
+				fmt.Fprintln(os.Stderr, err)
+			}
 			return nil
 		}
 		for _, pkg := range pkgs {
 			d := doc.NewPackageDoc(pkg, path)
-			buf := new(bytes.Buffer)
-			doc.ToHTML(buf, []byte(d.Doc), nil)
-			b := buf.Bytes()
-			for {
-				i := bytes.Index(b, []byte("<h3>"))
-				if i == -1 {
-					break
+			list := appendHeadings(nil, d.Doc)
+			for _, d := range d.Consts {
+				list = appendHeadings(list, d.Doc)
+			}
+			for _, d := range d.Types {
+				list = appendHeadings(list, d.Doc)
+			}
+			for _, d := range d.Vars {
+				list = appendHeadings(list, d.Doc)
+			}
+			for _, d := range d.Funcs {
+				list = appendHeadings(list, d.Doc)
+			}
+			if len(list) > 0 {
+				// directories may contain multiple packages;
+				// print path and package name
+				fmt.Printf("%s (package %s)\n", path, pkg.Name)
+				for _, h := range list {
+					fmt.Printf("\t%s\n", h)
 				}
-				line := bytes.SplitN(b[i:], []byte("\n"), 2)[0]
-				log.Printf("%s: %s", path, line)
-				b = b[i+len(line):]
+				nheadings += len(list)
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
+	fmt.Println(nheadings, "headings found")
 }

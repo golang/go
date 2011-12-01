@@ -303,9 +303,8 @@ func heading(line []byte) []byte {
 		return nil
 	}
 
-	// allow ' for possessive 's only
-	b := line
-	for {
+	// allow "'" for possessive "'s" only
+	for b := line; ; {
 		i := bytes.IndexRune(b, '\'')
 		if i < 0 {
 			break
@@ -339,7 +338,7 @@ func heading(line []byte) []byte {
 func ToHTML(w io.Writer, s []byte, words map[string]string) {
 	inpara := false
 	lastWasBlank := false
-	lastNonblankWasHeading := false
+	lastWasHeading := false
 
 	close := func() {
 		if inpara {
@@ -389,10 +388,11 @@ func ToHTML(w io.Writer, s []byte, words map[string]string) {
 				emphasize(w, line, nil, false) // no nice text formatting
 			}
 			w.Write(html_endpre)
+			lastWasHeading = false
 			continue
 		}
 
-		if lastWasBlank && !lastNonblankWasHeading && i+2 < len(lines) &&
+		if lastWasBlank && !lastWasHeading && i+2 < len(lines) &&
 			isBlank(lines[i+1]) && !isBlank(lines[i+2]) && indentLen(lines[i+2]) == 0 {
 			// current line is non-blank, sourounded by blank lines
 			// and the next non-blank line is not indented: this
@@ -403,7 +403,7 @@ func ToHTML(w io.Writer, s []byte, words map[string]string) {
 				template.HTMLEscape(w, head)
 				w.Write(html_endh)
 				i += 2
-				lastNonblankWasHeading = true
+				lastWasHeading = true
 				continue
 			}
 		}
@@ -411,7 +411,7 @@ func ToHTML(w io.Writer, s []byte, words map[string]string) {
 		// open paragraph
 		open()
 		lastWasBlank = false
-		lastNonblankWasHeading = false
+		lastWasHeading = false
 		emphasize(w, lines[i], words, true) // nice text formatting
 		i++
 	}
