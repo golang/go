@@ -14,6 +14,137 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-12-01">2011-12-01</h2>
+
+<pre>
+This weekly snapshot includes changes to the time, os, and text/template
+packages. The changes to the time and os packages are significant and related.
+Code that uses package time, package text/template, or package os's FileInfo
+type will require changes.
+
+In package time, there is now one type - time.Time - to represent times.
+Note that time.Time should be used as a value, in contrast to old code
+which typically used a *time.Time, a pointer to a large struct.  (Drop the *.)
+Any function that previously accepted a *time.Time, an int64
+number of seconds since 1970, or an int64 number of nanoseconds
+since 1970 should now accept a time.Time.  Especially as a replacement
+for the int64s, the type is good documentation about the meaning of
+its value.
+
+Whether you were previously calling time.Seconds, time.Nanoseconds,
+time.LocalTime, or time.UTC, the replacement is the new function
+time.Now.
+
+If you previously wrote code like:
+
+       t0 := time.Nanoseconds()
+       myFunction()
+       t1 := time.Nanoseconds()
+       delta := t1 - t0
+       fmt.Printf("That took %.2f seconds\n", float64(t1-t0)/1e9)
+
+you can now write:
+
+       t0 := time.Now()
+       myFunction()
+       t1 := time.Now()
+       delta := t1.Sub(t0)
+       fmt.Printf("That took %s\n", delta)
+
+In this snippet, the variable delta is of the new type time.Duration, the
+replacement for the many int64 parameters that were nanosecond
+counts (but not since 1970).
+
+Gofix can do the above conversions and some others, but it does not
+rewrite explicit int64 types as time.Time. It is very likely that you will
+need to edit your program to change these types after running gofix.
+As always, be sure to read the changes that gofix makes using your
+version control system's diff feature.
+
+See http://weekly.golang.org/pkg/time/ for details.
+
+In package os, the FileInfo struct is replaced by a FileInfo interface,
+admitting implementations by code beyond the operating system.
+Code that refers to *os.FileInfo (a pointer to the old struct) should
+instead refer to os.FileInfo (the new interface).
+The interface has just a few methods:
+
+       type FileInfo interface {
+               Name() string       // base name of the file
+               Size() int64        // length in bytes
+               Mode() FileMode     // file mode bits
+               ModTime() time.Time // modification time
+               IsDir() bool        // abbreviation for Mode().IsDir()
+       }
+
+If you need access to the underlying stat_t provided by the operating
+system kernel, you can access it by assuming that the FileInfo you are
+holding is actually an *os.FileStat, and that it's Sys field is actually a
+*syscall.Stat_t, as in:
+
+       dev := fi.(*os.FileStat).Sys.(*syscall.Stat_t).Dev
+
+Of course, this is not necessarily portable across different operating
+systems.
+
+Gofix will take care of rewriting *os.FileInfo to os.FileInfo for you,
+and it will also rewrite expressions like fi.Name into calls like fi.Name().
+
+See http://weekly.golang.org/pkg/os/#FileInfo for details.
+
+The template package has been changed to export a new, simpler API.
+The Set type is gone. Instead, templates are automatically associated by
+being parsed together; nested definitions implicitly create associations.
+Only associated templates can invoke one another.
+This approach dramatically reduces the breadth of the construction API.
+The html/template package has been updated also.
+There's a gofix for the simplest and most common uses of the old API.
+Code that doesn't mention the Set type is likely to work after running gofix;
+code that uses Set will need to be updated by hand.
+The template definition language itself is unchanged.
+
+See http://weekly.golang.org/pkg/text/template/ for details.
+
+
+Other changes:
+* cgo: add support for callbacks from dynamic libraries.
+* codereview: gofmt check for non-src/ files (thanks David Crawshaw).
+* crypto/openpgp/packet: fix private key checksum.
+* crypto/tls: add openbsd root certificate location,
+	don't rely on map iteration order.
+* crypto/x509, crypto/tls: support PKCS#8 private keys.
+* dashboard: start of reimplementation in Go for App Engine.
+* encoding/xml: fix copy bug.
+* exp/gui: move exp/gui and exp/gui/x11 to http://code.google.com/p/x-go-binding
+* exp/ssh: various improvements (thanks Dave Cheney and Gustav Paul).
+* filepath/path: fix Rel buffer sizing (thanks Gustavo Niemeyer).
+* gc: fix Nconv bug (thanks Rémy Oudompheng) and other fixes.
+* go/printer, gofmt: performance improvements.
+* gofix: test and fix missorted renames.
+* goinstall: add -fix flag to run gofix on packages on build failure,
+	better error reporting,
+	don't hit network unless a checkout or update is required,
+	support Google Code sub-repositories.
+* html: parser improvements (thanks Andrew Balholm).
+* http: fix sniffing bug causing short writes.
+* json: speed up encoding, caching reflect calls.
+* ld: align ELF data sections.
+* math/big: fix destination leak into result value (thanks Roger Peppe),
+	use recursive subdivision for significant speedup.
+* math: faster Cbrt and Sincos (thanks Charles L. Dorian).
+* misc/osx: scripts to make OS X package and disk image (thanks Scott Lawrence).
+* os: fail if Open("") is called on windows (thanks Alex Brainman).
+* runtime: make sure stack is 16-byte aligned on syscall (thanks Alex Brainman).
+* spec, gc: allow direct conversion between string and named []byte, []rune.
+* sql: add Tx.Stmt to use an existing prepared stmt in a transaction,
+	more driver docs & tests; no functional changes.
+* strings: add ContainsAny and ContainsRune (thanks Scott Lawrence).
+* syscall: add SUSv3 RLIMIT/RUSAGE constants (thanks Sébastien Paolacci),
+	fix openbsd sysctl hostname/domainname workaround,
+	implement Syscall15 (thanks Alex Brainman).
+* time: fix Timer stop.
+</pre>
+
 <h2 id="2011-11-18">2011-11-18</h2>
 
 <pre>
