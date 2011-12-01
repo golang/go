@@ -69,7 +69,7 @@ var timefileinfoTypeConfig = &TypeConfig{
 //
 func timefileinfoIsOld(f *ast.File, typeof map[interface{}]string) bool {
 	old := false
-	
+
 	// called records the expressions that appear as
 	// the function part of a function call, so that
 	// we can distinguish a ref to the possibly new time.UTC

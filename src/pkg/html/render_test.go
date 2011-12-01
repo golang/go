@@ -30,11 +30,11 @@ func TestRenderer(t *testing.T) {
 						Type: ElementNode,
 						Data: "p",
 						Attr: []Attribute{
-							Attribute{
+							{
 								Key: "id",
 								Val: "A",
 							},
-							Attribute{
+							{
 								Key: "foo",
 								Val: `abc"def`,
 							},
@@ -48,7 +48,7 @@ func TestRenderer(t *testing.T) {
 								Type: ElementNode,
 								Data: "b",
 								Attr: []Attribute{
-									Attribute{
+									{
 										Key: "empty",
 										Val: "",
 									},
@@ -64,7 +64,7 @@ func TestRenderer(t *testing.T) {
 								Type: ElementNode,
 								Data: "i",
 								Attr: []Attribute{
-									Attribute{
+									{
 										Key: "backslash",
 										Val: `\`,
 									},
