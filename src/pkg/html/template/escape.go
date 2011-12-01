@@ -32,7 +32,7 @@ func escapeTemplates(tmpl *Template, names ...string) error {
 		if err != nil {
 			// Prevent execution of unsafe templates.
 			for _, name := range names {
-				if t := tmpl.Lookup(name); t != nil {
+				if t := tmpl.set[name]; t != nil {
 					t.text.Tree = nil
 				}
 			}
@@ -520,7 +520,7 @@ func (e *escaper) computeOutCtx(c context, t *template.Template) context {
 	if !ok && c1.state != stateError {
 		return context{
 			state: stateError,
-			// TODO: Find the first node with a line in t.Tree.Root
+			// TODO: Find the first node with a line in t.text.Tree.Root
 			err: errorf(ErrOutputContext, 0, "cannot compute output context for template %s", t.Name()),
 		}
 	}

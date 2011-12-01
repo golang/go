@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"path/filepath"
+	"sync"
 	"text/template"
 )
 
@@ -19,22 +20,47 @@ type Template struct {
 	// We could embed the text/template field, but it's safer not to because
 	// we need to keep our version of the name space and the underlying
 	// template's in sync.
-	text *template.Template
-	// Templates are grouped by sharing the set, a pointer.
-	set *map[string]*Template
+	text       *template.Template
+	*nameSpace // common to all associated templates
+}
+
+// nameSpace is the data structure shared by all templates in an association.
+type nameSpace struct {
+	mu  sync.Mutex
+	set map[string]*Template
+}
+
+// Execute applies a parsed template to the specified data object,
+// writing the output to wr.
+func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
+	t.nameSpace.mu.Lock()
+	if !t.escaped {
+		if err = escapeTemplates(t, t.Name()); err != nil {
+			t.escaped = true
+		}
+	}
+	t.nameSpace.mu.Unlock()
+	if err != nil {
+		return
+	}
+	return t.text.Execute(wr, data)
 }
 
 // ExecuteTemplate applies the template associated with t that has the given name
 // to the specified data object and writes the output to wr.
-func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
-	tmpl := t.Lookup(name)
+func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) (err error) {
+	t.nameSpace.mu.Lock()
+	tmpl := t.set[name]
 	if tmpl == nil {
+		t.nameSpace.mu.Unlock()
 		return fmt.Errorf("template: no template %q associated with template %q", name, t.Name())
 	}
 	if !tmpl.escaped {
-		if err := escapeTemplates(tmpl, name); err != nil { // TODO: make a method of set?
-			return err
-		}
+		err = escapeTemplates(tmpl, name)
+	}
+	t.nameSpace.mu.Unlock()
+	if err != nil {
+		return
 	}
 	return tmpl.text.ExecuteTemplate(wr, name, data)
 }
@@ -44,7 +70,9 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) 
 // to the set.  If a template is redefined, the element in the set is
 // overwritten with the new definition.
 func (t *Template) Parse(src string) (*Template, error) {
+	t.nameSpace.mu.Lock()
 	t.escaped = false
+	t.nameSpace.mu.Unlock()
 	ret, err := t.text.Parse(src)
 	if err != nil {
 		return nil, err
@@ -52,28 +80,18 @@ func (t *Template) Parse(src string) (*Template, error) {
 	// In general, all the named templates might have changed underfoot.
 	// Regardless, some new ones may have been defined.
 	// The template.Template set has been updated; update ours.
+	t.nameSpace.mu.Lock()
+	defer t.nameSpace.mu.Unlock()
 	for _, v := range ret.Templates() {
 		name := v.Name()
-		tmpl := t.Lookup(name)
+		tmpl := t.set[name]
 		if tmpl == nil {
-			tmpl = t.New(name)
+			tmpl = t.new(name)
 		}
 		tmpl.escaped = false
 		tmpl.text = v
 	}
 	return t, nil
-}
-
-// Execute applies a parsed template to the specified data object,
-// writing the output to wr.
-func (t *Template) Execute(wr io.Writer, data interface{}) error {
-	if !t.escaped {
-		if err := escapeTemplates(t, t.Name()); err != nil {
-			return err
-		}
-		t.escaped = true
-	}
-	return t.text.Execute(wr, data)
 }
 
 // Add is unimplemented.
@@ -88,13 +106,14 @@ func (t *Template) Clone(name string) error {
 
 // New allocates a new HTML template with the given name.
 func New(name string) *Template {
-	set := make(map[string]*Template)
 	tmpl := &Template{
 		false,
 		template.New(name),
-		&set,
+		&nameSpace{
+			set: make(map[string]*Template),
+		},
 	}
-	(*tmpl.set)[name] = tmpl
+	tmpl.set[name] = tmpl
 	return tmpl
 }
 
@@ -102,12 +121,19 @@ func New(name string) *Template {
 // and with the same delimiters. The association, which is transitive,
 // allows one template to invoke another with a {{template}} action.
 func (t *Template) New(name string) *Template {
+	t.nameSpace.mu.Lock()
+	defer t.nameSpace.mu.Unlock()
+	return t.new(name)
+}
+
+// new is the implementation of New, without the lock.
+func (t *Template) new(name string) *Template {
 	tmpl := &Template{
 		false,
 		t.text.New(name),
-		t.set,
+		t.nameSpace,
 	}
-	(*tmpl.set)[name] = tmpl
+	tmpl.set[name] = tmpl
 	return tmpl
 }
 
@@ -138,7 +164,9 @@ func (t *Template) Delims(left, right string) *Template {
 // Lookup returns the template with the given name that is associated with t,
 // or nil if there is no such template.
 func (t *Template) Lookup(name string) *Template {
-	return (*t.set)[name]
+	t.nameSpace.mu.Lock()
+	defer t.nameSpace.mu.Unlock()
+	return t.set[name]
 }
 
 // Must panics if err is non-nil in the same way as template.Must.
