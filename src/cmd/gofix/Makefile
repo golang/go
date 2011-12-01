@@ -33,6 +33,7 @@ GOFILES=\
 	sortslice.go\
 	stringssplit.go\
 	template.go\
+	timefileinfo.go\
 	typecheck.go\
 	url.go\
 
