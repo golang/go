@@ -515,7 +515,7 @@ func quote(s string) string {
 	return "\"" + s + "\""
 }
 
-// String is the string representation of a ParseError.
+// Error returns the string representation of a ParseError.
 func (e *ParseError) Error() string {
 	if e.Message == "" {
 		return "parsing time " +
