@@ -241,8 +241,8 @@ func unindent(block []string) {
 	}
 }
 
-// heading returns the (possibly trimmed) line if it passes as a valid section
-// heading; otherwise it returns the empty string. 
+// heading returns the trimmed line if it passes as a section heading;
+// otherwise it returns the empty string. 
 func heading(line string) string {
 	line = strings.TrimSpace(line)
 	if len(line) == 0 {
@@ -255,15 +255,10 @@ func heading(line string) string {
 		return ""
 	}
 
-	// it must end in a letter, digit or ':'
+	// it must end in a letter or digit:
 	r, _ = utf8.DecodeLastRuneInString(line)
-	if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != ':' {
+	if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
 		return ""
-	}
-
-	// strip trailing ':', if any
-	if r == ':' {
-		line = line[0 : len(line)-1]
 	}
 
 	// exclude lines with illegal characters
