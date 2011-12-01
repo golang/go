@@ -29,6 +29,9 @@ pre {
   background: #F0F0F0;
   padding: 0.5em 1em;
 }
+h3 {
+  font-size: 100%;
+}
 
 /* Top bar */
 #container {

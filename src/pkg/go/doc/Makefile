@@ -11,3 +11,9 @@ GOFILES=\
 	example.go\
 
 include ../../../Make.pkg
+
+# Script to test heading detection heuristic
+CLEANFILES+=headscan
+headscan: headscan.go
+	$(GC) headscan.go
+	$(LD) -o headscan headscan.$(O)
