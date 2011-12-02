@@ -10,7 +10,6 @@ static	Node*	walkprint(Node*, NodeList**, int);
 static	Node*	conv(Node*, Type*);
 static	Node*	mapfn(char*, Type*);
 static	Node*	mapfndel(char*, Type*);
-static	Node*	makenewvar(Type*, NodeList**, Node**);
 static	Node*	ascompatee1(int, Node*, Node*, NodeList**);
 static	NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
 static	NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
@@ -976,24 +975,7 @@ walkexpr(Node **np, NodeList **init)
 			nodintconst(t->type->width));
 		goto ret;
 
-	case OADDR:;
-		Node *nvar, *nstar;
-
-		// turn &Point(1, 2) or &[]int(1, 2) or &[...]int(1, 2) into allocation.
-		// initialize with
-		//	nvar := new(*Point);
-		//	*nvar = Point(1, 2);
-		// and replace expression with nvar
-		switch(n->left->op) {
-		case OARRAYLIT:
-		case OMAPLIT:
-		case OSTRUCTLIT:
-			nvar = makenewvar(n->type, init, &nstar);
-			anylit(0, n->left, nstar, init);
-			n = nvar;
-			goto ret;
-		}
-
+	case OADDR:
 		walkexpr(&n->left, init);
 		goto ret;
 
@@ -1191,9 +1173,10 @@ walkexpr(Node **np, NodeList **init)
 	case OARRAYLIT:
 	case OMAPLIT:
 	case OSTRUCTLIT:
-		nvar = temp(n->type);
-		anylit(0, n, nvar, init);
-		n = nvar;
+	case OPTRLIT:
+		var = temp(n->type);
+		anylit(0, n, var, init);
+		n = var;
 		goto ret;
 
 	case OSEND:
@@ -1213,22 +1196,6 @@ ret:
 	ullmancalc(n);
 	lineno = lno;
 	*np = n;
-}
-
-static Node*
-makenewvar(Type *t, NodeList **init, Node **nstar)
-{
-	Node *nvar, *nas;
-
-	nvar = temp(t);
-	nas = nod(OAS, nvar, callnew(t->type));
-	typecheck(&nas, Etop);
-	walkexpr(&nas, init);
-	*init = list(*init, nas);
-
-	*nstar = nod(OIND, nvar, N);
-	typecheck(nstar, Erv);
-	return nvar;
 }
 
 static Node*

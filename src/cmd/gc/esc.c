@@ -291,6 +291,14 @@ esc(Node *n)
 		for(ll=n->list; ll; ll=ll->next)
 			escassign(n, ll->n->right);
 		break;
+	
+	case OPTRLIT:
+		n->esc = EscNone;  // until proven otherwise
+		noesc = list(noesc, n);
+		n->escloopdepth = loopdepth;
+		// Contents make it to memory, lose track.
+		escassign(&theSink, n->left);
+		break;
 
 	case OMAPLIT:
 		n->esc = EscNone;  // until proven otherwise
@@ -387,6 +395,7 @@ escassign(Node *dst, Node *src)
 	case ONAME:
 	case OPARAM:
 	case ODDDARG:
+	case OPTRLIT:
 	case OARRAYLIT:
 	case OMAPLIT:
 	case OSTRUCTLIT:
@@ -647,6 +656,7 @@ escwalk(int level, Node *dst, Node *src)
 		}
 		break;
 
+	case OPTRLIT:
 	case OADDR:
 		if(leaks) {
 			src->esc = EscHeap;

@@ -156,7 +156,7 @@ Lconv(Fmt *fp)
 				break;
 			fmtprint(fp, " ");
 		}
-		if(debug['L'])
+		if(debug['L'] || (fp->flags&FmtLong))
 			fmtprint(fp, "%s/", pathname);
 		if(a[i].line)
 			fmtprint(fp, "%s:%d[%s:%d]",
@@ -1115,6 +1115,11 @@ exprfmt(Fmt *f, Node *n, int prec)
 
 	case OCOMPLIT:
 		return fmtstrcpy(f, "composite literal");
+
+	case OPTRLIT:
+		if(fmtmode == FErr)
+			return fmtprint(f, "&%T literal", n->type->type);
+		return fmtprint(f, "&%T{ %,H }", n->type->type, n->list);
 
 	case OARRAYLIT:
 	case OMAPLIT:
