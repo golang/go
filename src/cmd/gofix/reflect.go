@@ -617,75 +617,75 @@ func reflectFixAssert(n interface{}) bool {
 // which implements Type.)
 var reflectTypeConfig = &TypeConfig{
 	Type: map[string]*Type{
-		"reflect.ArrayOrSliceType":  &Type{Embed: []string{"reflect.Type"}},
-		"reflect.ArrayOrSliceValue": &Type{Embed: []string{"reflect.Value"}},
-		"reflect.ArrayType":         &Type{Embed: []string{"reflect.Type"}},
-		"reflect.ArrayValue":        &Type{Embed: []string{"reflect.Value"}},
-		"reflect.BoolType":          &Type{Embed: []string{"reflect.Type"}},
-		"reflect.BoolValue":         &Type{Embed: []string{"reflect.Value"}},
-		"reflect.ChanType":          &Type{Embed: []string{"reflect.Type"}},
-		"reflect.ChanValue": &Type{
+		"reflect.ArrayOrSliceType":  {Embed: []string{"reflect.Type"}},
+		"reflect.ArrayOrSliceValue": {Embed: []string{"reflect.Value"}},
+		"reflect.ArrayType":         {Embed: []string{"reflect.Type"}},
+		"reflect.ArrayValue":        {Embed: []string{"reflect.Value"}},
+		"reflect.BoolType":          {Embed: []string{"reflect.Type"}},
+		"reflect.BoolValue":         {Embed: []string{"reflect.Value"}},
+		"reflect.ChanType":          {Embed: []string{"reflect.Type"}},
+		"reflect.ChanValue": {
 			Method: map[string]string{
 				"Recv":    "func() (reflect.Value, bool)",
 				"TryRecv": "func() (reflect.Value, bool)",
 			},
 			Embed: []string{"reflect.Value"},
 		},
-		"reflect.ComplexType":  &Type{Embed: []string{"reflect.Type"}},
-		"reflect.ComplexValue": &Type{Embed: []string{"reflect.Value"}},
-		"reflect.FloatType":    &Type{Embed: []string{"reflect.Type"}},
-		"reflect.FloatValue":   &Type{Embed: []string{"reflect.Value"}},
-		"reflect.FuncType": &Type{
+		"reflect.ComplexType":  {Embed: []string{"reflect.Type"}},
+		"reflect.ComplexValue": {Embed: []string{"reflect.Value"}},
+		"reflect.FloatType":    {Embed: []string{"reflect.Type"}},
+		"reflect.FloatValue":   {Embed: []string{"reflect.Value"}},
+		"reflect.FuncType": {
 			Method: map[string]string{
 				"In":  "func(int) reflect.Type",
 				"Out": "func(int) reflect.Type",
 			},
 			Embed: []string{"reflect.Type"},
 		},
-		"reflect.FuncValue": &Type{
+		"reflect.FuncValue": {
 			Method: map[string]string{
 				"Call": "func([]reflect.Value) []reflect.Value",
 			},
 		},
-		"reflect.IntType":        &Type{Embed: []string{"reflect.Type"}},
-		"reflect.IntValue":       &Type{Embed: []string{"reflect.Value"}},
-		"reflect.InterfaceType":  &Type{Embed: []string{"reflect.Type"}},
-		"reflect.InterfaceValue": &Type{Embed: []string{"reflect.Value"}},
-		"reflect.MapType": &Type{
+		"reflect.IntType":        {Embed: []string{"reflect.Type"}},
+		"reflect.IntValue":       {Embed: []string{"reflect.Value"}},
+		"reflect.InterfaceType":  {Embed: []string{"reflect.Type"}},
+		"reflect.InterfaceValue": {Embed: []string{"reflect.Value"}},
+		"reflect.MapType": {
 			Method: map[string]string{
 				"Key": "func() reflect.Type",
 			},
 			Embed: []string{"reflect.Type"},
 		},
-		"reflect.MapValue": &Type{
+		"reflect.MapValue": {
 			Method: map[string]string{
 				"Keys": "func() []reflect.Value",
 			},
 			Embed: []string{"reflect.Value"},
 		},
-		"reflect.Method": &Type{
+		"reflect.Method": {
 			Field: map[string]string{
 				"Type": "*reflect.FuncType",
 				"Func": "*reflect.FuncValue",
 			},
 		},
-		"reflect.PtrType":   &Type{Embed: []string{"reflect.Type"}},
-		"reflect.PtrValue":  &Type{Embed: []string{"reflect.Value"}},
-		"reflect.SliceType": &Type{Embed: []string{"reflect.Type"}},
-		"reflect.SliceValue": &Type{
+		"reflect.PtrType":   {Embed: []string{"reflect.Type"}},
+		"reflect.PtrValue":  {Embed: []string{"reflect.Value"}},
+		"reflect.SliceType": {Embed: []string{"reflect.Type"}},
+		"reflect.SliceValue": {
 			Method: map[string]string{
 				"Slice": "func(int, int) *reflect.SliceValue",
 			},
 			Embed: []string{"reflect.Value"},
 		},
-		"reflect.StringType":  &Type{Embed: []string{"reflect.Type"}},
-		"reflect.StringValue": &Type{Embed: []string{"reflect.Value"}},
-		"reflect.StructField": &Type{
+		"reflect.StringType":  {Embed: []string{"reflect.Type"}},
+		"reflect.StringValue": {Embed: []string{"reflect.Value"}},
+		"reflect.StructField": {
 			Field: map[string]string{
 				"Type": "reflect.Type",
 			},
 		},
-		"reflect.StructType": &Type{
+		"reflect.StructType": {
 			Method: map[string]string{
 				"Field":           "func() reflect.StructField",
 				"FieldByIndex":    "func() reflect.StructField",
@@ -694,7 +694,7 @@ var reflectTypeConfig = &TypeConfig{
 			},
 			Embed: []string{"reflect.Type"},
 		},
-		"reflect.StructValue": &Type{
+		"reflect.StructValue": {
 			Method: map[string]string{
 				"Field":           "func() reflect.Value",
 				"FieldByIndex":    "func() reflect.Value",
@@ -703,17 +703,17 @@ var reflectTypeConfig = &TypeConfig{
 			},
 			Embed: []string{"reflect.Value"},
 		},
-		"reflect.Type": &Type{
+		"reflect.Type": {
 			Method: map[string]string{
 				"Elem":   "func() reflect.Type",
 				"Method": "func() reflect.Method",
 			},
 		},
-		"reflect.UintType":           &Type{Embed: []string{"reflect.Type"}},
-		"reflect.UintValue":          &Type{Embed: []string{"reflect.Value"}},
-		"reflect.UnsafePointerType":  &Type{Embed: []string{"reflect.Type"}},
-		"reflect.UnsafePointerValue": &Type{Embed: []string{"reflect.Value"}},
-		"reflect.Value": &Type{
+		"reflect.UintType":           {Embed: []string{"reflect.Type"}},
+		"reflect.UintValue":          {Embed: []string{"reflect.Value"}},
+		"reflect.UnsafePointerType":  {Embed: []string{"reflect.Type"}},
+		"reflect.UnsafePointerValue": {Embed: []string{"reflect.Value"}},
+		"reflect.Value": {
 			Method: map[string]string{
 				"Addr":     "func() *reflect.PtrValue",
 				"Elem":     "func() reflect.Value",

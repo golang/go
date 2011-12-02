@@ -81,14 +81,14 @@ var addCookieTests = []struct {
 		"",
 	},
 	{
-		[]*Cookie{&Cookie{Name: "cookie-1", Value: "v$1"}},
+		[]*Cookie{{Name: "cookie-1", Value: "v$1"}},
 		"cookie-1=v$1",
 	},
 	{
 		[]*Cookie{
-			&Cookie{Name: "cookie-1", Value: "v$1"},
-			&Cookie{Name: "cookie-2", Value: "v$2"},
-			&Cookie{Name: "cookie-3", Value: "v$3"},
+			{Name: "cookie-1", Value: "v$1"},
+			{Name: "cookie-2", Value: "v$2"},
+			{Name: "cookie-3", Value: "v$3"},
 		},
 		"cookie-1=v$1; cookie-2=v$2; cookie-3=v$3",
 	},
@@ -113,11 +113,11 @@ var readSetCookiesTests = []struct {
 }{
 	{
 		Header{"Set-Cookie": {"Cookie-1=v$1"}},
-		[]*Cookie{&Cookie{Name: "Cookie-1", Value: "v$1", Raw: "Cookie-1=v$1"}},
+		[]*Cookie{{Name: "Cookie-1", Value: "v$1", Raw: "Cookie-1=v$1"}},
 	},
 	{
 		Header{"Set-Cookie": {"NID=99=YsDT5i3E-CXax-; expires=Wed, 23-Nov-2011 01:05:03 GMT; path=/; domain=.google.ch; HttpOnly"}},
-		[]*Cookie{&Cookie{
+		[]*Cookie{{
 			Name:       "NID",
 			Value:      "99=YsDT5i3E-CXax-",
 			Path:       "/",
@@ -159,30 +159,30 @@ var readCookiesTests = []struct {
 		Header{"Cookie": {"Cookie-1=v$1", "c2=v2"}},
 		"",
 		[]*Cookie{
-			&Cookie{Name: "Cookie-1", Value: "v$1"},
-			&Cookie{Name: "c2", Value: "v2"},
+			{Name: "Cookie-1", Value: "v$1"},
+			{Name: "c2", Value: "v2"},
 		},
 	},
 	{
 		Header{"Cookie": {"Cookie-1=v$1", "c2=v2"}},
 		"c2",
 		[]*Cookie{
-			&Cookie{Name: "c2", Value: "v2"},
+			{Name: "c2", Value: "v2"},
 		},
 	},
 	{
 		Header{"Cookie": {"Cookie-1=v$1; c2=v2"}},
 		"",
 		[]*Cookie{
-			&Cookie{Name: "Cookie-1", Value: "v$1"},
-			&Cookie{Name: "c2", Value: "v2"},
+			{Name: "Cookie-1", Value: "v$1"},
+			{Name: "c2", Value: "v2"},
 		},
 	},
 	{
 		Header{"Cookie": {"Cookie-1=v$1; c2=v2"}},
 		"c2",
 		[]*Cookie{
-			&Cookie{Name: "c2", Value: "v2"},
+			{Name: "c2", Value: "v2"},
 		},
 	},
 }

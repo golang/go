@@ -260,19 +260,19 @@ type Node struct {
 var tree = &Node{
 	"testdata",
 	[]*Node{
-		&Node{"a", nil, 0},
-		&Node{"b", []*Node{}, 0},
-		&Node{"c", nil, 0},
-		&Node{
+		{"a", nil, 0},
+		{"b", []*Node{}, 0},
+		{"c", nil, 0},
+		{
 			"d",
 			[]*Node{
-				&Node{"x", nil, 0},
-				&Node{"y", []*Node{}, 0},
-				&Node{
+				{"x", nil, 0},
+				{"y", []*Node{}, 0},
+				{
 					"z",
 					[]*Node{
-						&Node{"u", nil, 0},
-						&Node{"v", nil, 0},
+						{"u", nil, 0},
+						{"v", nil, 0},
 					},
 					0,
 				},

@@ -88,7 +88,7 @@ var errType = regexp.MustCompile(`^\*?([Ee]rror|.*Error)$`)
 // information about types, functions, and variables in external packages.
 var errorTypeConfig = &TypeConfig{
 	Type: map[string]*Type{
-		"os.Error": &Type{},
+		"os.Error": {},
 	},
 	Func: map[string]string{
 		"fmt.Errorf":  "os.Error",

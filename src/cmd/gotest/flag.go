@@ -53,22 +53,22 @@ type flagSpec struct {
 // flagDefn is the set of flags we process.
 var flagDefn = []*flagSpec{
 	// gotest-local.
-	&flagSpec{name: "c", isBool: true},
-	&flagSpec{name: "file", multiOK: true},
-	&flagSpec{name: "x", isBool: true},
+	{name: "c", isBool: true},
+	{name: "file", multiOK: true},
+	{name: "x", isBool: true},
 
 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
-	&flagSpec{name: "bench", passToTest: true},
-	&flagSpec{name: "benchtime", passToTest: true},
-	&flagSpec{name: "cpu", passToTest: true},
-	&flagSpec{name: "cpuprofile", passToTest: true},
-	&flagSpec{name: "memprofile", passToTest: true},
-	&flagSpec{name: "memprofilerate", passToTest: true},
-	&flagSpec{name: "parallel", passToTest: true},
-	&flagSpec{name: "run", passToTest: true},
-	&flagSpec{name: "short", isBool: true, passToTest: true},
-	&flagSpec{name: "timeout", passToTest: true},
-	&flagSpec{name: "v", isBool: true, passToTest: true},
+	{name: "bench", passToTest: true},
+	{name: "benchtime", passToTest: true},
+	{name: "cpu", passToTest: true},
+	{name: "cpuprofile", passToTest: true},
+	{name: "memprofile", passToTest: true},
+	{name: "memprofilerate", passToTest: true},
+	{name: "parallel", passToTest: true},
+	{name: "run", passToTest: true},
+	{name: "short", isBool: true, passToTest: true},
+	{name: "timeout", passToTest: true},
+	{name: "v", isBool: true, passToTest: true},
 }
 
 // flags processes the command line, grabbing -x and -c, rewriting known flags

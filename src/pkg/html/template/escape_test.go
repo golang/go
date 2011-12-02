@@ -689,11 +689,11 @@ func TestEscapeSet(t *testing.T) {
 
 	data := dataItem{
 		Children: []*dataItem{
-			&dataItem{X: "foo"},
-			&dataItem{X: "<bar>"},
-			&dataItem{
+			{X: "foo"},
+			{X: "<bar>"},
+			{
 				Children: []*dataItem{
-					&dataItem{X: "baz"},
+					{X: "baz"},
 				},
 			},
 		},

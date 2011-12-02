@@ -354,7 +354,7 @@ func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
 }
 
 func (p *printer) setLineComment(text string) {
-	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{token.NoPos, text}}})
+	p.setComment(&ast.CommentGroup{[]*ast.Comment{{token.NoPos, text}}})
 }
 
 func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) {

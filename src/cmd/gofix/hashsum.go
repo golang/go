@@ -66,7 +66,7 @@ var hashSumTypeConfig = &TypeConfig{
 	},
 
 	Type: map[string]*Type{
-		"crypto.Hash": &Type{
+		"crypto.Hash": {
 			Method: map[string]string{
 				"New": "func() hash.Hash",
 			},

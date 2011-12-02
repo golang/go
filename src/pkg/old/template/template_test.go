@@ -105,108 +105,108 @@ var formatters = FormatterMap{
 
 var tests = []*Test{
 	// Simple
-	&Test{"", "", ""},
-	&Test{"abc", "abc", ""},
-	&Test{"abc\ndef\n", "abc\ndef\n", ""},
-	&Test{" {.meta-left}   \n", "{", ""},
-	&Test{" {.meta-right}   \n", "}", ""},
-	&Test{" {.space}   \n", " ", ""},
-	&Test{" {.tab}   \n", "\t", ""},
-	&Test{"     {#comment}   \n", "", ""},
-	&Test{"\tSome Text\t\n", "\tSome Text\t\n", ""},
-	&Test{" {.meta-right} {.meta-right} {.meta-right} \n", " } } } \n", ""},
+	{"", "", ""},
+	{"abc", "abc", ""},
+	{"abc\ndef\n", "abc\ndef\n", ""},
+	{" {.meta-left}   \n", "{", ""},
+	{" {.meta-right}   \n", "}", ""},
+	{" {.space}   \n", " ", ""},
+	{" {.tab}   \n", "\t", ""},
+	{"     {#comment}   \n", "", ""},
+	{"\tSome Text\t\n", "\tSome Text\t\n", ""},
+	{" {.meta-right} {.meta-right} {.meta-right} \n", " } } } \n", ""},
 
 	// Variables at top level
-	&Test{
+	{
 		in: "{Header}={Integer}\n",
 
 		out: "Header=77\n",
 	},
 
-	&Test{
+	{
 		in: "Pointers: {*HeaderPtr}={*IntegerPtr}\n",
 
 		out: "Pointers: Header=77\n",
 	},
 
-	&Test{
+	{
 		in: "Stars but not pointers: {*Header}={*Integer}\n",
 
 		out: "Stars but not pointers: Header=77\n",
 	},
 
-	&Test{
+	{
 		in: "nil pointer: {*NilPtr}={*Integer}\n",
 
 		out: "nil pointer: <nil>=77\n",
 	},
 
-	&Test{
+	{
 		in: `{"Strings" ":"} {""} {"|"} {"\t\u0123 \x23\\"} {"\"}{\\"}`,
 
 		out: "Strings:  | \t\u0123 \x23\\ \"}{\\",
 	},
 
-	&Test{
+	{
 		in: "{`Raw strings` `:`} {``} {`|`} {`\\t\\u0123 \\x23\\`} {`}{\\`}",
 
 		out: "Raw strings:  | \\t\\u0123 \\x23\\ }{\\",
 	},
 
-	&Test{
+	{
 		in: "Characters: {'a'} {'\\u0123'} {' '} {'{'} {'|'} {'}'}",
 
 		out: "Characters: 97 291 32 123 124 125",
 	},
 
-	&Test{
+	{
 		in: "Integers: {1} {-2} {+42} {0777} {0x0a}",
 
 		out: "Integers: 1 -2 42 511 10",
 	},
 
-	&Test{
+	{
 		in: "Floats: {.5} {-.5} {1.1} {-2.2} {+42.1} {1e10} {1.2e-3} {1.2e3} {-1.2e3}",
 
 		out: "Floats: 0.5 -0.5 1.1 -2.2 42.1 1e+10 0.0012 1200 -1200",
 	},
 
 	// Method at top level
-	&Test{
+	{
 		in: "ptrmethod={PointerMethod}\n",
 
 		out: "ptrmethod=ptrmethod!\n",
 	},
 
-	&Test{
+	{
 		in: "valmethod={ValueMethod}\n",
 
 		out: "valmethod=valmethod!\n",
 	},
 
 	// Section
-	&Test{
+	{
 		in: "{.section Data }\n" +
 			"some text for the section\n" +
 			"{.end}\n",
 
 		out: "some text for the section\n",
 	},
-	&Test{
+	{
 		in: "{.section Data }\n" +
 			"{Header}={Integer}\n" +
 			"{.end}\n",
 
 		out: "Header=77\n",
 	},
-	&Test{
+	{
 		in: "{.section Pdata }\n" +
 			"{Header}={Integer}\n" +
 			"{.end}\n",
 
 		out: "Header=77\n",
 	},
-	&Test{
+	{
 		in: "{.section Pdata }\n" +
 			"data present\n" +
 			"{.or}\n" +
@@ -215,7 +215,7 @@ var tests = []*Test{
 
 		out: "data present\n",
 	},
-	&Test{
+	{
 		in: "{.section Empty }\n" +
 			"data present\n" +
 			"{.or}\n" +
@@ -224,7 +224,7 @@ var tests = []*Test{
 
 		out: "data not present\n",
 	},
-	&Test{
+	{
 		in: "{.section Null }\n" +
 			"data present\n" +
 			"{.or}\n" +
@@ -233,7 +233,7 @@ var tests = []*Test{
 
 		out: "data not present\n",
 	},
-	&Test{
+	{
 		in: "{.section Pdata }\n" +
 			"{Header}={Integer}\n" +
 			"{.section @ }\n" +
@@ -245,20 +245,20 @@ var tests = []*Test{
 			"Header=77\n",
 	},
 
-	&Test{
+	{
 		in: "{.section Data}{.end} {Header}\n",
 
 		out: " Header\n",
 	},
 
-	&Test{
+	{
 		in: "{.section Integer}{@}{.end}",
 
 		out: "77",
 	},
 
 	// Repeated
-	&Test{
+	{
 		in: "{.section Pdata }\n" +
 			"{.repeated section @ }\n" +
 			"{Item}={Value}\n" +
@@ -268,7 +268,7 @@ var tests = []*Test{
 		out: "ItemNumber1=ValueNumber1\n" +
 			"ItemNumber2=ValueNumber2\n",
 	},
-	&Test{
+	{
 		in: "{.section Pdata }\n" +
 			"{.repeated section @ }\n" +
 			"{Item}={Value}\n" +
@@ -280,7 +280,7 @@ var tests = []*Test{
 		out: "ItemNumber1=ValueNumber1\n" +
 			"ItemNumber2=ValueNumber2\n",
 	},
-	&Test{
+	{
 		in: "{.section @ }\n" +
 			"{.repeated section Empty }\n" +
 			"{Item}={Value}\n" +
@@ -291,7 +291,7 @@ var tests = []*Test{
 
 		out: "this should appear: empty field\n",
 	},
-	&Test{
+	{
 		in: "{.repeated section Pdata }\n" +
 			"{Item}\n" +
 			"{.alternates with}\n" +
@@ -302,7 +302,7 @@ var tests = []*Test{
 			"is\nover\nmultiple\nlines\n" +
 			"ItemNumber2\n",
 	},
-	&Test{
+	{
 		in: "{.repeated section Pdata }\n" +
 			"{Item}\n" +
 			"{.alternates with}\n" +
@@ -313,7 +313,7 @@ var tests = []*Test{
 			"is\nover\nmultiple\nlines\n" +
 			"ItemNumber2\n",
 	},
-	&Test{
+	{
 		in: "{.section Pdata }\n" +
 			"{.repeated section @ }\n" +
 			"{Item}={Value}\n" +
@@ -327,7 +327,7 @@ var tests = []*Test{
 			"DIVIDER\n" +
 			"ItemNumber2=ValueNumber2\n",
 	},
-	&Test{
+	{
 		in: "{.repeated section Vec }\n" +
 			"{@}\n" +
 			"{.end}\n",
@@ -336,27 +336,27 @@ var tests = []*Test{
 			"elt2\n",
 	},
 	// Same but with a space before {.end}: was a bug.
-	&Test{
+	{
 		in: "{.repeated section Vec }\n" +
 			"{@} {.end}\n",
 
 		out: "elt1 elt2 \n",
 	},
-	&Test{
+	{
 		in: "{.repeated section Integer}{.end}",
 
 		err: "line 1: .repeated: cannot repeat Integer (type int)",
 	},
 
 	// Nested names
-	&Test{
+	{
 		in: "{.section @ }\n" +
 			"{InnerT.Item}={InnerT.Value}\n" +
 			"{.end}",
 
 		out: "ItemNumber1=ValueNumber1\n",
 	},
-	&Test{
+	{
 		in: "{.section @ }\n" +
 			"{InnerT.Item}={.section InnerT}{.section Value}{@}{.end}{.end}\n" +
 			"{.end}",
@@ -364,14 +364,14 @@ var tests = []*Test{
 		out: "ItemNumber1=ValueNumber1\n",
 	},
 
-	&Test{
+	{
 		in: "{.section Emptystring}emptystring{.end}\n" +
 			"{.section Header}header{.end}\n",
 
 		out: "\nheader\n",
 	},
 
-	&Test{
+	{
 		in: "{.section True}1{.or}2{.end}\n" +
 			"{.section False}3{.or}4{.end}\n",
 
@@ -380,32 +380,32 @@ var tests = []*Test{
 
 	// Maps
 
-	&Test{
+	{
 		in: "{Mp.mapkey}\n",
 
 		out: "Ahoy!\n",
 	},
-	&Test{
+	{
 		in: "{Innermap.Mp.innerkey}\n",
 
 		out: "55\n",
 	},
-	&Test{
+	{
 		in: "{.section Innermap}{.section Mp}{innerkey}{.end}{.end}\n",
 
 		out: "55\n",
 	},
-	&Test{
+	{
 		in: "{.section JSON}{.repeated section maps}{a}{b}{.end}{.end}\n",
 
 		out: "1234\n",
 	},
-	&Test{
+	{
 		in: "{Stringmap.stringkey1}\n",
 
 		out: "stringresult\n",
 	},
-	&Test{
+	{
 		in: "{.repeated section Stringmap}\n" +
 			"{@}\n" +
 			"{.end}",
@@ -413,7 +413,7 @@ var tests = []*Test{
 		out: "stringresult\n" +
 			"stringresult\n",
 	},
-	&Test{
+	{
 		in: "{.repeated section Stringmap}\n" +
 			"\t{@}\n" +
 			"{.end}",
@@ -421,12 +421,12 @@ var tests = []*Test{
 		out: "\tstringresult\n" +
 			"\tstringresult\n",
 	},
-	&Test{
+	{
 		in: "{*Ptrmap.stringkey1}\n",
 
 		out: "pointedToString\n",
 	},
-	&Test{
+	{
 		in: "{.repeated section Ptrmap}\n" +
 			"{*@}\n" +
 			"{.end}",
@@ -437,22 +437,22 @@ var tests = []*Test{
 
 	// Interface values
 
-	&Test{
+	{
 		in: "{Iface}",
 
 		out: "[1 2 3]",
 	},
-	&Test{
+	{
 		in: "{.repeated section Iface}{@}{.alternates with} {.end}",
 
 		out: "1 2 3",
 	},
-	&Test{
+	{
 		in: "{.section Iface}{@}{.end}",
 
 		out: "[1 2 3]",
 	},
-	&Test{
+	{
 		in: "{.section Ifaceptr}{Item} {Value}{.end}",
 
 		out: "Item Value",
