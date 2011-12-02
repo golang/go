@@ -240,16 +240,6 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
 	return newUDPConn(fd), nil
 }
 
-// BindToDevice binds a UDPConn to a network interface.
-func (c *UDPConn) BindToDevice(device string) error {
-	if !c.ok() {
-		return os.EINVAL
-	}
-	c.fd.incref()
-	defer c.fd.decref()
-	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
-}
-
 // File returns a copy of the underlying os.File, set to blocking mode.
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.

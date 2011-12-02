@@ -111,11 +111,6 @@ func setReuseAddr(fd *netFD, reuse bool) error {
 	return setsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse))
 }
 
-func bindToDevice(fd *netFD, dev string) error {
-	// TODO(rsc): call setsockopt with null-terminated string pointer
-	return os.EINVAL
-}
-
 func setDontRoute(fd *netFD, dontroute bool) error {
 	fd.incref()
 	defer fd.decref()
