@@ -119,7 +119,9 @@ func (enc *Encoder) sendActualType(w io.Writer, state *encoderState, ut *userTyp
 	switch st := actual; st.Kind() {
 	case reflect.Struct:
 		for i := 0; i < st.NumField(); i++ {
-			enc.sendType(w, state, st.Field(i).Type)
+			if isExported(st.Field(i).Name) {
+				enc.sendType(w, state, st.Field(i).Type)
+			}
 		}
 	case reflect.Array, reflect.Slice:
 		enc.sendType(w, state, st.Elem())
