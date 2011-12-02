@@ -63,11 +63,10 @@ func LookPath(file string) (f string, err error) {
 		}
 		return ``, &Error{file, err}
 	}
-	if pathenv := os.Getenv(`PATH`); pathenv == `` {
-		if f, err = findExecutable(`.\`+file, exts); err == nil {
-			return
-		}
-	} else {
+	if f, err = findExecutable(`.\`+file, exts); err == nil {
+		return
+	}
+	if pathenv := os.Getenv(`PATH`); pathenv != `` {
 		for _, dir := range strings.Split(pathenv, `;`) {
 			if f, err = findExecutable(dir+`\`+file, exts); err == nil {
 				return
