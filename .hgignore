@@ -41,14 +41,13 @@ src/cmd/gc/opnames.h
 src/cmd/gc/y.output
 src/cmd/gc/y1.tab.c
 src/cmd/gc/yerr.h
-src/cmd/goinstall/syslist.go
 src/pkg/Make.deps
 src/pkg/exp/norm/maketables
 src/pkg/exp/norm/maketesttables
 src/pkg/exp/norm/normregtest
 src/pkg/exp/ebnflint/ebnflint
 src/pkg/go/build/syslist.go
-src/pkg/os/signal/unix.go
+src/pkg/go/doc/headscan
 src/pkg/runtime/*/asm.h
 src/pkg/runtime/goc2c
 src/pkg/runtime/mkversion
