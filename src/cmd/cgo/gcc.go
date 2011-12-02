@@ -1304,7 +1304,7 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType) *FuncType {
 	var gr []*ast.Field
 	if _, ok := dtype.ReturnType.(*dwarf.VoidType); !ok && dtype.ReturnType != nil {
 		r = c.Type(dtype.ReturnType)
-		gr = []*ast.Field{&ast.Field{Type: r.Go}}
+		gr = []*ast.Field{{Type: r.Go}}
 	}
 	return &FuncType{
 		Params: p,

@@ -40,7 +40,7 @@ var templateSetMethods = []string{
 
 var templateTypeConfig = &TypeConfig{
 	Type: map[string]*Type{
-		"template.Template": &Type{
+		"template.Template": {
 			Method: map[string]string{
 				"Funcs":      "func() *template.Template",
 				"Delims":     "func() *template.Template",
@@ -49,7 +49,7 @@ var templateTypeConfig = &TypeConfig{
 				"ParseInSet": "func() (*template.Template, error)",
 			},
 		},
-		"template.Set": &Type{
+		"template.Set": {
 			Method: map[string]string{
 				"ParseSetFiles":      "func() (*template.Set, error)",
 				"ParseSetGlob":       "func() (*template.Set, error)",

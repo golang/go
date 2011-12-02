@@ -2026,7 +2026,7 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
 	// must have exactly one receiver
 	if par.NumFields() != 1 {
 		p.errorExpected(par.Opening, "exactly one receiver")
-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{par.Opening, par.Closing + 1}}}
+		par.List = []*ast.Field{{Type: &ast.BadExpr{par.Opening, par.Closing + 1}}}
 		return par
 	}
 
@@ -2035,7 +2035,7 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
 	base := deref(recv.Type)
 	if _, isIdent := base.(*ast.Ident); !isIdent {
 		p.errorExpected(base.Pos(), "(unqualified) identifier")
-		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{recv.Pos(), recv.End()}}}
+		par.List = []*ast.Field{{Type: &ast.BadExpr{recv.Pos(), recv.End()}}}
 	}
 
 	return par

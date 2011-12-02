@@ -119,14 +119,14 @@ func TestAddressParsing(t *testing.T) {
 		// Bare address
 		{
 			`jdoe@machine.example`,
-			[]*Address{&Address{
+			[]*Address{{
 				Address: "jdoe@machine.example",
 			}},
 		},
 		// RFC 5322, Appendix A.1.1
 		{
 			`John Doe <jdoe@machine.example>`,
-			[]*Address{&Address{
+			[]*Address{{
 				Name:    "John Doe",
 				Address: "jdoe@machine.example",
 			}},
@@ -134,7 +134,7 @@ func TestAddressParsing(t *testing.T) {
 		// RFC 5322, Appendix A.1.2
 		{
 			`"Joe Q. Public" <john.q.public@example.com>`,
-			[]*Address{&Address{
+			[]*Address{{
 				Name:    "Joe Q. Public",
 				Address: "john.q.public@example.com",
 			}},
@@ -142,14 +142,14 @@ func TestAddressParsing(t *testing.T) {
 		{
 			`Mary Smith <mary@x.test>, jdoe@example.org, Who? <one@y.test>`,
 			[]*Address{
-				&Address{
+				{
 					Name:    "Mary Smith",
 					Address: "mary@x.test",
 				},
-				&Address{
+				{
 					Address: "jdoe@example.org",
 				},
-				&Address{
+				{
 					Name:    "Who?",
 					Address: "one@y.test",
 				},
@@ -158,10 +158,10 @@ func TestAddressParsing(t *testing.T) {
 		{
 			`<boss@nil.test>, "Giant; \"Big\" Box" <sysservices@example.net>`,
 			[]*Address{
-				&Address{
+				{
 					Address: "boss@nil.test",
 				},
-				&Address{
+				{
 					Name:    `Giant; "Big" Box`,
 					Address: "sysservices@example.net",
 				},
@@ -174,7 +174,7 @@ func TestAddressParsing(t *testing.T) {
 		{
 			`=?iso-8859-1?q?J=F6rg_Doe?= <joerg@example.com>`,
 			[]*Address{
-				&Address{
+				{
 					Name:    `Jörg Doe`,
 					Address: "joerg@example.com",
 				},
@@ -184,7 +184,7 @@ func TestAddressParsing(t *testing.T) {
 		{
 			`=?utf-8?q?J=C3=B6rg_Doe?= <joerg@example.com>`,
 			[]*Address{
-				&Address{
+				{
 					Name:    `Jörg Doe`,
 					Address: "joerg@example.com",
 				},
@@ -194,7 +194,7 @@ func TestAddressParsing(t *testing.T) {
 		{
 			`=?ISO-8859-1?Q?Andr=E9?= Pirard <PIRARD@vm1.ulg.ac.be>`,
 			[]*Address{
-				&Address{
+				{
 					Name:    `André Pirard`,
 					Address: "PIRARD@vm1.ulg.ac.be",
 				},
@@ -204,7 +204,7 @@ func TestAddressParsing(t *testing.T) {
 		{
 			`=?ISO-8859-1?B?SvZyZw==?= <joerg@example.com>`,
 			[]*Address{
-				&Address{
+				{
 					Name:    `Jörg`,
 					Address: "joerg@example.com",
 				},
@@ -214,7 +214,7 @@ func TestAddressParsing(t *testing.T) {
 		{
 			`=?UTF-8?B?SsO2cmc=?= <joerg@example.com>`,
 			[]*Address{
-				&Address{
+				{
 					Name:    `Jörg`,
 					Address: "joerg@example.com",
 				},

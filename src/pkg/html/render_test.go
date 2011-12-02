@@ -14,19 +14,19 @@ func TestRenderer(t *testing.T) {
 		Type: ElementNode,
 		Data: "html",
 		Child: []*Node{
-			&Node{
+			{
 				Type: ElementNode,
 				Data: "head",
 			},
-			&Node{
+			{
 				Type: ElementNode,
 				Data: "body",
 				Child: []*Node{
-					&Node{
+					{
 						Type: TextNode,
 						Data: "0<1",
 					},
-					&Node{
+					{
 						Type: ElementNode,
 						Data: "p",
 						Attr: []Attribute{
@@ -40,11 +40,11 @@ func TestRenderer(t *testing.T) {
 							},
 						},
 						Child: []*Node{
-							&Node{
+							{
 								Type: TextNode,
 								Data: "2",
 							},
-							&Node{
+							{
 								Type: ElementNode,
 								Data: "b",
 								Attr: []Attribute{
@@ -54,13 +54,13 @@ func TestRenderer(t *testing.T) {
 									},
 								},
 								Child: []*Node{
-									&Node{
+									{
 										Type: TextNode,
 										Data: "3",
 									},
 								},
 							},
-							&Node{
+							{
 								Type: ElementNode,
 								Data: "i",
 								Attr: []Attribute{
@@ -70,7 +70,7 @@ func TestRenderer(t *testing.T) {
 									},
 								},
 								Child: []*Node{
-									&Node{
+									{
 										Type: TextNode,
 										Data: "&4",
 									},
@@ -78,19 +78,19 @@ func TestRenderer(t *testing.T) {
 							},
 						},
 					},
-					&Node{
+					{
 						Type: TextNode,
 						Data: "5",
 					},
-					&Node{
+					{
 						Type: ElementNode,
 						Data: "blockquote",
 					},
-					&Node{
+					{
 						Type: ElementNode,
 						Data: "br",
 					},
-					&Node{
+					{
 						Type: TextNode,
 						Data: "6",
 					},

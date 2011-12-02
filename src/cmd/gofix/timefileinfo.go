@@ -30,13 +30,13 @@ http://codereview.appspot.com/5416060
 
 var timefileinfoTypeConfig = &TypeConfig{
 	Type: map[string]*Type{
-		"os.File": &Type{
+		"os.File": {
 			Method: map[string]string{
 				"Readdir": "func() []*os.FileInfo",
 				"Stat":    "func() (*os.FileInfo, error)",
 			},
 		},
-		"time.Time": &Type{
+		"time.Time": {
 			Method: map[string]string{
 				"Seconds":     "time.raw",
 				"Nanoseconds": "time.raw",

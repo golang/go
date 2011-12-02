@@ -578,22 +578,22 @@ func c(repr string, args ...interface{}) *TypeRepr {
 
 // Map predeclared Go types to Type.
 var goTypes = map[string]*Type{
-	"int":        &Type{Size: 4, Align: 4, C: c("int")},
-	"uint":       &Type{Size: 4, Align: 4, C: c("uint")},
-	"int8":       &Type{Size: 1, Align: 1, C: c("schar")},
-	"uint8":      &Type{Size: 1, Align: 1, C: c("uchar")},
-	"int16":      &Type{Size: 2, Align: 2, C: c("short")},
-	"uint16":     &Type{Size: 2, Align: 2, C: c("ushort")},
-	"int32":      &Type{Size: 4, Align: 4, C: c("int")},
-	"uint32":     &Type{Size: 4, Align: 4, C: c("uint")},
-	"int64":      &Type{Size: 8, Align: 8, C: c("int64")},
-	"uint64":     &Type{Size: 8, Align: 8, C: c("uint64")},
-	"float":      &Type{Size: 4, Align: 4, C: c("float")},
-	"float32":    &Type{Size: 4, Align: 4, C: c("float")},
-	"float64":    &Type{Size: 8, Align: 8, C: c("double")},
-	"complex":    &Type{Size: 8, Align: 8, C: c("__complex float")},
-	"complex64":  &Type{Size: 8, Align: 8, C: c("__complex float")},
-	"complex128": &Type{Size: 16, Align: 16, C: c("__complex double")},
+	"int":        {Size: 4, Align: 4, C: c("int")},
+	"uint":       {Size: 4, Align: 4, C: c("uint")},
+	"int8":       {Size: 1, Align: 1, C: c("schar")},
+	"uint8":      {Size: 1, Align: 1, C: c("uchar")},
+	"int16":      {Size: 2, Align: 2, C: c("short")},
+	"uint16":     {Size: 2, Align: 2, C: c("ushort")},
+	"int32":      {Size: 4, Align: 4, C: c("int")},
+	"uint32":     {Size: 4, Align: 4, C: c("uint")},
+	"int64":      {Size: 8, Align: 8, C: c("int64")},
+	"uint64":     {Size: 8, Align: 8, C: c("uint64")},
+	"float":      {Size: 4, Align: 4, C: c("float")},
+	"float32":    {Size: 4, Align: 4, C: c("float")},
+	"float64":    {Size: 8, Align: 8, C: c("double")},
+	"complex":    {Size: 8, Align: 8, C: c("__complex float")},
+	"complex64":  {Size: 8, Align: 8, C: c("__complex float")},
+	"complex128": {Size: 16, Align: 16, C: c("__complex double")},
 }
 
 // Map an ast type to a Type.

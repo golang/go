@@ -61,7 +61,7 @@ func httpheaders(f *ast.File) bool {
 
 var headerTypeConfig = &TypeConfig{
 	Type: map[string]*Type{
-		"*http.Request":  &Type{},
-		"*http.Response": &Type{},
+		"*http.Request":  {},
+		"*http.Response": {},
 	},
 }

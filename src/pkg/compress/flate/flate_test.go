@@ -52,7 +52,7 @@ type InitDecoderTest struct {
 
 var initDecoderTests = []*InitDecoderTest{
 	// Example from Connell 1973,
-	&InitDecoderTest{
+	{
 		[]int{3, 5, 2, 4, 3, 5, 5, 4, 4, 3, 4, 5},
 		huffmanDecoder{
 			2, 5,
@@ -68,7 +68,7 @@ var initDecoderTests = []*InitDecoderTest{
 	},
 
 	// Example from RFC 1951 section 3.2.2
-	&InitDecoderTest{
+	{
 		[]int{2, 1, 3, 3},
 		huffmanDecoder{
 			1, 3,
@@ -80,7 +80,7 @@ var initDecoderTests = []*InitDecoderTest{
 	},
 
 	// Second example from RFC 1951 section 3.2.2
-	&InitDecoderTest{
+	{
 		[]int{3, 3, 3, 3, 3, 2, 4, 4},
 		huffmanDecoder{
 			2, 4,
@@ -92,21 +92,21 @@ var initDecoderTests = []*InitDecoderTest{
 	},
 
 	// Static Huffman codes (RFC 1951 section 3.2.6)
-	&InitDecoderTest{
+	{
 		fixedHuffmanBits[0:],
 		fixedHuffmanDecoder,
 		true,
 	},
 
 	// Illegal input.
-	&InitDecoderTest{
+	{
 		[]int{},
 		huffmanDecoder{},
 		false,
 	},
 
 	// Illegal input.
-	&InitDecoderTest{
+	{
 		[]int{0, 0, 0, 0, 0, 0, 0},
 		huffmanDecoder{},
 		false,

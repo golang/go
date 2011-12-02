@@ -63,7 +63,7 @@ func (v *vcs) String() string {
 }
 
 var vcsMap = map[string]*vcs{
-	"hg": &vcs{
+	"hg": {
 		name:      "Mercurial",
 		cmd:       "hg",
 		metadir:   ".hg",
@@ -78,7 +78,7 @@ var vcsMap = map[string]*vcs{
 		suffix:    ".hg",
 	},
 
-	"git": &vcs{
+	"git": {
 		name:      "Git",
 		cmd:       "git",
 		metadir:   ".git",
@@ -93,7 +93,7 @@ var vcsMap = map[string]*vcs{
 		suffix:    ".git",
 	},
 
-	"svn": &vcs{
+	"svn": {
 		name:      "Subversion",
 		cmd:       "svn",
 		metadir:   ".svn",
@@ -105,7 +105,7 @@ var vcsMap = map[string]*vcs{
 		suffix:    ".svn",
 	},
 
-	"bzr": &vcs{
+	"bzr": {
 		name:          "Bazaar",
 		cmd:           "bzr",
 		metadir:       ".bzr",

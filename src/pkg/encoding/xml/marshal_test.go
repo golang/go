@@ -160,19 +160,19 @@ var marshalTests = []struct {
 			Age:   1,
 			Drive: ImprobabilityDrive,
 			Passenger: []*Passenger{
-				&Passenger{
+				{
 					Name:   []string{"Zaphod", "Beeblebrox"},
 					Weight: 7.25,
 				},
-				&Passenger{
+				{
 					Name:   []string{"Trisha", "McMillen"},
 					Weight: 5.5,
 				},
-				&Passenger{
+				{
 					Name:   []string{"Ford", "Prefect"},
 					Weight: 7,
 				},
-				&Passenger{
+				{
 					Name:   []string{"Arthur", "Dent"},
 					Weight: 6.75,
 				},

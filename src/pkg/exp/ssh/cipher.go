@@ -77,12 +77,12 @@ var DefaultCipherOrder = []string{
 var cipherModes = map[string]*cipherMode{
 	// Ciphers from RFC4344, which introduced many CTR-based ciphers. Algorithms
 	// are defined in the order specified in the RFC.
-	"aes128-ctr": &cipherMode{16, aes.BlockSize, 0, newAESCTR},
-	"aes192-ctr": &cipherMode{24, aes.BlockSize, 0, newAESCTR},
-	"aes256-ctr": &cipherMode{32, aes.BlockSize, 0, newAESCTR},
+	"aes128-ctr": {16, aes.BlockSize, 0, newAESCTR},
+	"aes192-ctr": {24, aes.BlockSize, 0, newAESCTR},
+	"aes256-ctr": {32, aes.BlockSize, 0, newAESCTR},
 
 	// Ciphers from RFC4345, which introduces security-improved arcfour ciphers.
 	// They are defined in the order specified in the RFC.
-	"arcfour128": &cipherMode{16, 0, 1536, newRC4},
-	"arcfour256": &cipherMode{32, 0, 1536, newRC4},
+	"arcfour128": {16, 0, 1536, newRC4},
+	"arcfour256": {32, 0, 1536, newRC4},
 }

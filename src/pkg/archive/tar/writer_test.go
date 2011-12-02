@@ -29,10 +29,10 @@ var writerTests = []*writerTest{
 	// tar (GNU tar) 1.26
 	//   ln -s small.txt link.txt
 	//   tar -b 1 --format=ustar -c -f writer.tar small.txt small2.txt link.txt
-	&writerTest{
+	{
 		file: "testdata/writer.tar",
 		entries: []*writerTestEntry{
-			&writerTestEntry{
+			{
 				header: &Header{
 					Name:     "small.txt",
 					Mode:     0640,
@@ -46,7 +46,7 @@ var writerTests = []*writerTest{
 				},
 				contents: "Kilts",
 			},
-			&writerTestEntry{
+			{
 				header: &Header{
 					Name:     "small2.txt",
 					Mode:     0640,
@@ -60,7 +60,7 @@ var writerTests = []*writerTest{
 				},
 				contents: "Google.com\n",
 			},
-			&writerTestEntry{
+			{
 				header: &Header{
 					Name:     "link.txt",
 					Mode:     0777,
@@ -80,10 +80,10 @@ var writerTests = []*writerTest{
 	// The truncated test file was produced using these commands:
 	//   dd if=/dev/zero bs=1048576 count=16384 > /tmp/16gig.txt
 	//   tar -b 1 -c -f- /tmp/16gig.txt | dd bs=512 count=8 > writer-big.tar
-	&writerTest{
+	{
 		file: "testdata/writer-big.tar",
 		entries: []*writerTestEntry{
-			&writerTestEntry{
+			{
 				header: &Header{
 					Name:     "tmp/16gig.txt",
 					Mode:     0640,
