@@ -64,7 +64,7 @@ var typeTests = []pair{
 	{struct{ x (**integer) }{}, "**reflect_test.integer"},
 	{struct{ x ([32]int32) }{}, "[32]int32"},
 	{struct{ x ([]int8) }{}, "[]int8"},
-	{struct{ x (map[string]int32) }{}, "map[string] int32"},
+	{struct{ x (map[string]int32) }{}, "map[string]int32"},
 	{struct{ x (chan<- string) }{}, "chan<- string"},
 	{struct {
 		x struct {
@@ -180,7 +180,7 @@ var valueTests = []pair{
 	{new(**int8), "**int8(0)"},
 	{new([5]int32), "[5]int32{0, 0, 0, 0, 0}"},
 	{new(**integer), "**reflect_test.integer(0)"},
-	{new(map[string]int32), "map[string] int32{<can't iterate on maps>}"},
+	{new(map[string]int32), "map[string]int32{<can't iterate on maps>}"},
 	{new(chan<- string), "chan<- string"},
 	{new(func(a int8, b int32)), "func(int8, int32)(0)"},
 	{new(struct {
@@ -419,7 +419,7 @@ func TestAll(t *testing.T) {
 	testType(t, 8, typ.Elem(), "int32")
 
 	typ = TypeOf((map[string]*int32)(nil))
-	testType(t, 9, typ, "map[string] *int32")
+	testType(t, 9, typ, "map[string]*int32")
 	mtyp := typ
 	testType(t, 10, mtyp.Key(), "string")
 	testType(t, 11, mtyp.Elem(), "*int32")

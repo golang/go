@@ -614,11 +614,11 @@ func LimitFooer(r Fooer, n int64) Fooer { // ERROR "leaking param: r"
 }
 
 func foo90(x *int) map[*int]*int { // ERROR "leaking param: x"
-	return map[*int]*int{nil: x} // ERROR "map\[\*int\] \*int literal escapes to heap"
+	return map[*int]*int{nil: x} // ERROR "map\[\*int\]\*int literal escapes to heap"
 }
 
 func foo91(x *int) map[*int]*int { // ERROR "leaking param: x"
-	return map[*int]*int{x: nil} // ERROR "map\[\*int\] \*int literal escapes to heap"
+	return map[*int]*int{x: nil} // ERROR "map\[\*int\]\*int literal escapes to heap"
 }
 
 func foo92(x *int) [2]*int { // ERROR "leaking param: x"

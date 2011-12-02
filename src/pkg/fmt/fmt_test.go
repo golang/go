@@ -361,8 +361,8 @@ var fmttests = []struct {
 	{"%#v", make(chan int), "(chan int)(0xPTR)"},
 	{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
 	{"%#v", 1000000000, "1000000000"},
-	{"%#v", map[string]int{"a": 1}, `map[string] int{"a":1}`},
-	{"%#v", map[string]B{"a": {1, 2}}, `map[string] fmt_test.B{"a":fmt_test.B{I:1, j:2}}`},
+	{"%#v", map[string]int{"a": 1}, `map[string]int{"a":1}`},
+	{"%#v", map[string]B{"a": {1, 2}}, `map[string]fmt_test.B{"a":fmt_test.B{I:1, j:2}}`},
 	{"%#v", []string{"a", "b"}, `[]string{"a", "b"}`},
 	{"%#v", SI{}, `fmt_test.SI{I:interface {}(nil)}`},
 	{"%#v", []int(nil), `[]int(nil)`},
@@ -371,8 +371,8 @@ var fmttests = []struct {
 	{"%#v", &array, `&[5]int{1, 2, 3, 4, 5}`},
 	{"%#v", iarray, `[4]interface {}{1, "hello", 2.5, interface {}(nil)}`},
 	{"%#v", &iarray, `&[4]interface {}{1, "hello", 2.5, interface {}(nil)}`},
-	{"%#v", map[int]byte(nil), `map[int] uint8(nil)`},
-	{"%#v", map[int]byte{}, `map[int] uint8{}`},
+	{"%#v", map[int]byte(nil), `map[int]uint8(nil)`},
+	{"%#v", map[int]byte{}, `map[int]uint8{}`},
 
 	// slices with other formats
 	{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},

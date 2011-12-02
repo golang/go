@@ -24,7 +24,7 @@ var tests = []struct {
 
 	// maps
 	{map[string]int{"a": 1},
-		`0  map[string] int (len = 1) {
+		`0  map[string]int (len = 1) {
 		1  .  "a": 1
 		2  }`},
 
