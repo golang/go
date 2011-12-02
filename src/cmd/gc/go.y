@@ -66,7 +66,7 @@ static void fixlbrace(int);
 %type	<node>	pseudocall range_stmt select_stmt
 %type	<node>	simple_stmt
 %type	<node>	switch_stmt uexpr
-%type	<node>	xfndcl typedcl
+%type	<node>	xfndcl typedcl start_complit
 
 %type	<list>	xdcl fnbody fnres loop_body dcl_name_list
 %type	<list>	new_name_list expr_list keyval_list braced_keyval_list expr_or_type_list xdcl_list
@@ -900,28 +900,33 @@ pexpr_no_paren:
 		$$ = nod(OCALL, $1, N);
 		$$->list = list1($3);
 	}
-|	comptype lbrace braced_keyval_list '}'
+|	comptype lbrace start_complit braced_keyval_list '}'
 	{
-		// composite expression
-		$$ = nod(OCOMPLIT, N, $1);
-		$$->list = $3;
-		
+		$$ = $3;
+		$$->right = $1;
+		$$->list = $4;
 		fixlbrace($2);
 	}
-|	pexpr_no_paren '{' braced_keyval_list '}'
+|	pexpr_no_paren '{' start_complit braced_keyval_list '}'
 	{
-		// composite expression
-		$$ = nod(OCOMPLIT, N, $1);
-		$$->list = $3;
+		$$ = $3;
+		$$->right = $1;
+		$$->list = $4;
 	}
-|	'(' expr_or_type ')' '{' braced_keyval_list '}'
+|	'(' expr_or_type ')' '{' start_complit braced_keyval_list '}'
 	{
-		yyerror("cannot parenthesize type in composite literal");
-		// composite expression
-		$$ = nod(OCOMPLIT, N, $2);
-		$$->list = $5;
+		$$ = $5;
+		$$->right = $2;
+		$$->list = $6;
 	}
 |	fnliteral
+
+start_complit:
+	{
+		// composite expression.
+		// make node early so we get the right line number.
+		$$ = nod(OCOMPLIT, N, N);
+	}
 
 keyval:
 	expr ':' complitexpr
@@ -931,10 +936,10 @@ keyval:
 
 complitexpr:
 	expr
-|	'{' braced_keyval_list '}'
+|	'{' start_complit braced_keyval_list '}'
 	{
-		$$ = nod(OCOMPLIT, N, N);
-		$$->list = $2;
+		$$ = $2;
+		$$->list = $3;
 	}
 
 pexpr:
