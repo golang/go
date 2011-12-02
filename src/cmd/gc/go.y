@@ -915,6 +915,7 @@ pexpr_no_paren:
 	}
 |	'(' expr_or_type ')' '{' start_complit braced_keyval_list '}'
 	{
+		yyerror("cannot parenthesize type in composite literal");
 		$$ = $5;
 		$$->right = $2;
 		$$->list = $6;
