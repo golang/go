@@ -7,6 +7,7 @@
 package parse
 
 import (
+	"bytes"
 	"fmt"
 	"runtime"
 	"strconv"
@@ -177,10 +178,37 @@ func (t *Tree) Parse(s, leftDelim, rightDelim string, treeSet map[string]*Tree, 
 
 // add adds tree to the treeSet.
 func (t *Tree) add(treeSet map[string]*Tree) {
-	if _, present := treeSet[t.Name]; present {
+	tree := treeSet[t.Name]
+	if tree == nil || IsEmptyTree(tree.Root) {
+		treeSet[t.Name] = t
+		return
+	}
+	if !IsEmptyTree(t.Root) {
 		t.errorf("template: multiple definition of template %q", t.Name)
 	}
-	treeSet[t.Name] = t
+}
+
+// IsEmptyTree reports whether this tree (node) is empty of everything but space.
+func IsEmptyTree(n Node) bool {
+	switch n := n.(type) {
+	case *ActionNode:
+	case *IfNode:
+	case *ListNode:
+		for _, node := range n.Nodes {
+			if !IsEmptyTree(node) {
+				return false
+			}
+		}
+		return true
+	case *RangeNode:
+	case *TemplateNode:
+	case *TextNode:
+		return len(bytes.TrimSpace(n.Text)) == 0
+	case *WithNode:
+	default:
+		panic("unknown node: " + n.String())
+	}
+	return false
 }
 
 // parse is the top-level parser for a template, essentially the same

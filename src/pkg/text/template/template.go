@@ -5,7 +5,6 @@
 package template
 
 import (
-	"bytes"
 	"fmt"
 	"reflect"
 	"text/template/parse"
@@ -198,8 +197,8 @@ func (t *Template) associate(new *Template) error {
 	}
 	name := new.name
 	if old := t.tmpl[name]; old != nil {
-		oldIsEmpty := isEmpty(old.Root)
-		newIsEmpty := isEmpty(new.Root)
+		oldIsEmpty := parse.IsEmptyTree(old.Root)
+		newIsEmpty := parse.IsEmptyTree(new.Root)
 		if !oldIsEmpty && !newIsEmpty {
 			return fmt.Errorf("template: redefinition of template %q", name)
 		}
@@ -210,27 +209,4 @@ func (t *Template) associate(new *Template) error {
 	}
 	t.tmpl[name] = new
 	return nil
-}
-
-// isEmpty reports whether this tree (node) is empty of everything but space.
-func isEmpty(n parse.Node) bool {
-	switch n := n.(type) {
-	case *parse.ActionNode:
-	case *parse.IfNode:
-	case *parse.ListNode:
-		for _, node := range n.Nodes {
-			if !isEmpty(node) {
-				return false
-			}
-		}
-		return true
-	case *parse.RangeNode:
-	case *parse.TemplateNode:
-	case *parse.TextNode:
-		return len(bytes.TrimSpace(n.Text)) == 0
-	case *parse.WithNode:
-	default:
-		panic("unknown node: " + n.String())
-	}
-	return false
 }
