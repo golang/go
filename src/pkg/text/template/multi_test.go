@@ -13,35 +13,6 @@ import (
 	"text/template/parse"
 )
 
-type isEmptyTest struct {
-	name  string
-	input string
-	empty bool
-}
-
-var isEmptyTests = []isEmptyTest{
-	{"empty", ``, true},
-	{"nonempty", `hello`, false},
-	{"spaces only", " \t\n \t\n", true},
-	{"definition", `{{define "x"}}something{{end}}`, true},
-	{"definitions and space", "{{define `x`}}something{{end}}\n\n{{define `y`}}something{{end}}\n\n", true},
-	{"definitions and text", "{{define `x`}}something{{end}}\nx\n{{define `y`}}something{{end}}\ny\n}}", false},
-	{"definition and action", "{{define `x`}}something{{end}}{{if 3}}foo{{end}}", false},
-}
-
-func TestIsEmpty(t *testing.T) {
-	for _, test := range isEmptyTests {
-		template, err := New("root").Parse(test.input)
-		if err != nil {
-			t.Errorf("%q: unexpected error: %v", test.name, err)
-			continue
-		}
-		if empty := isEmpty(template.Root); empty != test.empty {
-			t.Errorf("%q: expected %t got %t", test.name, test.empty, empty)
-		}
-	}
-}
-
 const (
 	noError  = true
 	hasError = false
