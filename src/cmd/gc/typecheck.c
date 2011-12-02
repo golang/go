@@ -541,7 +541,8 @@ reswitch:
 		case OMAPLIT:
 		case OSTRUCTLIT:
 		case OARRAYLIT:
-			break;
+			if(!n->implicit)
+				break;
 		default:
 			checklvalue(n->left, "take the address of");
 		}
@@ -757,9 +758,13 @@ reswitch:
 		defaultlit(&n->right->left, T);
 		defaultlit(&n->right->right, T);
 		if(isfixedarray(n->left->type)) {
+			if(!islvalue(n->left)) {
+				yyerror("invalid operation %N (slice of unaddressable value)", n);
+				goto error;
+			}
 			n->left = nod(OADDR, n->left, N);
 			n->left->implicit = 1;
-			typecheck(&n->left, top);
+			typecheck(&n->left, Erv);
 		}
 		if(n->right->left != N) {
 			if((t = n->right->left->type) == T)
