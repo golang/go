@@ -326,12 +326,12 @@ var marshalErrorTests = []struct {
 			"question": "What do you get when you multiply six by nine?",
 			"answer":   "42",
 		},
-		Err:  "xml: unsupported type: map[string] string",
+		Err:  "xml: unsupported type: map[string]string",
 		Kind: reflect.Map,
 	},
 	{
 		Value: map[*Ship]bool{nil: false},
-		Err:   "xml: unsupported type: map[*xml.Ship] bool",
+		Err:   "xml: unsupported type: map[*xml.Ship]bool",
 		Kind:  reflect.Map,
 	},
 }

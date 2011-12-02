@@ -610,7 +610,7 @@ typefmt(Fmt *fp, Type *t)
 		return fmtprint(fp, "chan %T", t->type);
 
 	case TMAP:
-		return fmtprint(fp, "map[%T] %T", t->down, t->type);
+		return fmtprint(fp, "map[%T]%T", t->down, t->type);
 
 	case TINTER:
 		fmtstrcpy(fp, "interface {");
@@ -1067,7 +1067,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 		return fmtprint(f, "(%N)", n->left);
 
 	case OTMAP:
-		return fmtprint(f, "map[%N] %N", n->left, n->right);
+		return fmtprint(f, "map[%N]%N", n->left, n->right);
 
 	case OTCHAN:
 		switch(n->etype) {
