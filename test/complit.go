@@ -31,6 +31,18 @@ func eq(a []*R) {
 	}
 }
 
+func teq(t *T, n int) {
+	for i := 0; i < n; i++ {
+		if t == nil || t.i != i {
+			panic("bad")
+		}
+		t = t.next
+	}
+	if t != nil {
+		panic("bad")
+	}
+}
+
 type P struct {
 	a, b int
 }
@@ -45,6 +57,9 @@ func main() {
 
 	var tp *T
 	tp = &T{0, 7.2, "hi", &t}
+
+	tl := &T{i: 0, next: {i: 1, next: {i: 2, next: {i: 3, next: {i: 4}}}}}
+	teq(tl, 5)
 
 	a1 := []int{1, 2, 3}
 	if len(a1) != 3 {
@@ -93,6 +108,7 @@ func main() {
 	}
 
 	eq([]*R{itor(0), itor(1), itor(2), itor(3), itor(4), itor(5)})
+	eq([]*R{{0}, {1}, {2}, {3}, {4}, {5}})
 
 	p1 := NewP(1, 2)
 	p2 := NewP(1, 2)

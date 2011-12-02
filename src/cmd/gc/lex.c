@@ -335,7 +335,7 @@ main(int argc, char *argv[])
 		errorexit();
 
 	// Phase 3b: escape analysis.
-	if(!debug['s'])
+	if(!debug['N'])
 		escapes();
 
 	// Phase 4: Compile function bodies.

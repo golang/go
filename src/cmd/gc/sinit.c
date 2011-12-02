@@ -262,6 +262,14 @@ staticcopy(Node *l, Node *r, NodeList **out)
 		case ONAME:
 			gdata(l, r, l->type->width);
 			return 1;
+		}
+		break;
+	
+	case OPTRLIT:
+		switch(r->left->op) {
+		default:
+			//dump("not static addr", r);
+			break;
 		case OARRAYLIT:
 		case OSTRUCTLIT:
 		case OMAPLIT:
@@ -347,7 +355,14 @@ staticassign(Node *l, Node *r, NodeList **out)
 		case ONAME:
 			gdata(l, r, l->type->width);
 			return 1;
-		
+		}
+	
+	case OPTRLIT:
+		switch(r->left->op) {
+		default:
+			//dump("not static ptrlit", r);
+			break;
+
 		case OARRAYLIT:
 		case OMAPLIT:
 		case OSTRUCTLIT:
@@ -917,6 +932,19 @@ anylit(int ctxt, Node *n, Node *var, NodeList **init)
 	switch(n->op) {
 	default:
 		fatal("anylit: not lit");
+
+	case OPTRLIT:
+		if(!isptr[t->etype])
+			fatal("anylit: not ptr");
+
+		a = nod(OAS, var, callnew(t->type));
+		typecheck(&a, Etop);
+		*init = list(*init, a);
+
+		var = nod(OIND, var, N);
+		typecheck(&var, Erv | Easgn);
+		anylit(ctxt, n->left, var, init);
+		break;
 
 	case OSTRUCTLIT:
 		if(t->etype != TSTRUCT)

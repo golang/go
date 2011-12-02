@@ -438,7 +438,7 @@ enum
 	OCLOSE,
 	OCLOSURE,
 	OCMPIFACE, OCMPSTR,
-	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
+	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT, OPTRLIT,
 	OCONV, OCONVIFACE, OCONVNOP,
 	OCOPY,
 	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
@@ -1340,6 +1340,8 @@ void	zname(Biobuf *b, Sym *s, int t);
 #pragma	varargck	type	"F"	Mpflt*
 #pragma	varargck	type	"H"	NodeList*
 #pragma	varargck	type	"J"	Node*
+#pragma	varargck	type	"lL"	int
+#pragma	varargck	type	"lL"	uint
 #pragma	varargck	type	"L"	int
 #pragma	varargck	type	"L"	uint
 #pragma	varargck	type	"N"	Node*

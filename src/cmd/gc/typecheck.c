@@ -344,6 +344,7 @@ reswitch:
 		ntop = Erv | Etype;
 		if(!(top & Eaddr))  		// The *x in &*x is not an indirect.
 			ntop |= Eindir;
+		ntop |= top & Ecomplit;
 		l = typecheck(&n->left, ntop);
 		if((t = l->type) == T)
 			goto error;
@@ -537,15 +538,7 @@ reswitch:
 		typecheck(&n->left, Erv | Eaddr);
 		if(n->left->type == T)
 			goto error;
-		switch(n->left->op) {
-		case OMAPLIT:
-		case OSTRUCTLIT:
-		case OARRAYLIT:
-			if(!n->implicit)
-				break;
-		default:
-			checklvalue(n->left, "take the address of");
-		}
+		checklvalue(n->left, "take the address of");
 		for(l=n->left; l->op == ODOT; l=l->left)
 			l->addrtaken = 1;
 		l->addrtaken = 1;
@@ -555,7 +548,7 @@ reswitch:
 			goto error;
 		// top&Eindir means this is &x in *&x.  (or the arg to built-in print)
 		// n->etype means code generator flagged it as non-escaping.
-		if(debug['s'] && !(top & Eindir) && !n->etype)
+		if(debug['N'] && !(top & Eindir) && !n->etype)
 			addrescapes(n->left);
 		n->type = ptrto(t);
 		goto ret;
@@ -1670,7 +1663,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
 		if(!eqtype(rcvr, tt)) {
 			if(rcvr->etype == tptr && eqtype(rcvr->type, tt)) {
 				checklvalue(n->left, "call pointer method on");
-				if(debug['s'])
+				if(debug['N'])
 					addrescapes(n->left);
 				n->left = nod(OADDR, n->left, N);
 				n->left->implicit = 1;
@@ -1967,13 +1960,51 @@ inithash(Node *n, Node ***hash, Node **autohash, ulong nautohash)
 	return h;
 }
 
+static int
+iscomptype(Type *t)
+{
+	switch(t->etype) {
+	case TARRAY:
+	case TSTRUCT:
+	case TMAP:
+		return 1;
+	case TPTR32:
+	case TPTR64:
+		switch(t->type->etype) {
+		case TARRAY:
+		case TSTRUCT:
+		case TMAP:
+			return 1;
+		}
+		break;
+	}
+	return 0;
+}
+
+static void
+pushtype(Node *n, Type *t)
+{
+	if(n == N || n->op != OCOMPLIT || !iscomptype(t))
+		return;
+	
+	if(n->right == N) {
+		n->right = typenod(t);
+		n->right->implicit = 1;
+	}
+	else if(debug['s']) {
+		typecheck(&n->right, Etype);
+		if(n->right->type != T && eqtype(n->right->type, t))
+			print("%lL: redundant type: %T\n", n->right->lineno, t);
+	}
+}
+
 static void
 typecheckcomplit(Node **np)
 {
 	int bad, i, len, nerr;
-	Node *l, *n, **hash;
+	Node *l, *n, *r, **hash;
 	NodeList *ll;
-	Type *t, *f, *pushtype;
+	Type *t, *f;
 	Sym *s;
 	int32 lno;
 	ulong nhash;
@@ -1988,30 +2019,29 @@ typecheckcomplit(Node **np)
 		yyerror("missing type in composite literal");
 		goto error;
 	}
-
+	
 	setlineno(n->right);
 	l = typecheck(&n->right /* sic */, Etype|Ecomplit);
 	if((t = l->type) == T)
 		goto error;
 	nerr = nerrors;
-
-	// can omit type on composite literal values if the outer
-	// composite literal is array, slice, or map, and the 
-	// element type is itself a struct, array, slice, or map.
-	pushtype = T;
-	if(t->etype == TARRAY || t->etype == TMAP) {
-		pushtype = t->type;
-		if(pushtype != T) {
-			switch(pushtype->etype) {
-			case TSTRUCT:
-			case TARRAY:
-			case TMAP:
-				break;
-			default:
-				pushtype = T;
-				break;
-			}
+	n->type = t;
+	
+	if(isptr[t->etype]) {
+		// For better or worse, we don't allow pointers as
+		// the composite literal type, except when using
+		// the &T syntax, which sets implicit.
+		if(!n->right->implicit) {
+			yyerror("invalid pointer type %T for composite literal (use &%T instead)", t, t->type);
+			goto error;
 		}
+		
+		// Also, the underlying type must be a struct, map, slice, or array.
+		if(!iscomptype(t)) {
+			yyerror("invalid pointer type %T for composite literal", t);
+			goto error;
+		}
+		t = t->type;		
 	}
 
 	switch(t->etype) {
@@ -2054,11 +2084,11 @@ typecheckcomplit(Node **np)
 				}
 			}
 
-			if(l->right->op == OCOMPLIT && l->right->right == N && pushtype != T)
-				l->right->right = typenod(pushtype);
-			typecheck(&l->right, Erv);
-			defaultlit(&l->right, t->type);
-			l->right = assignconv(l->right, t->type, "array element");
+			r = l->right;
+			pushtype(r, t->type);
+			typecheck(&r, Erv);
+			defaultlit(&r, t->type);
+			l->right = assignconv(r, t->type, "array element");
 		}
 		if(t->bound == -100)
 			t->bound = len;
@@ -2084,11 +2114,11 @@ typecheckcomplit(Node **np)
 			l->left = assignconv(l->left, t->down, "map key");
 			keydup(l->left, hash, nhash);
 
-			if(l->right->op == OCOMPLIT && l->right->right == N && pushtype != T)
-				l->right->right = typenod(pushtype);
-			typecheck(&l->right, Erv);
-			defaultlit(&l->right, t->type);
-			l->right = assignconv(l->right, t->type, "map value");
+			r = l->right;
+			pushtype(r, t->type);
+			typecheck(&r, Erv);
+			defaultlit(&r, t->type);
+			l->right = assignconv(r, t->type, "map value");
 		}
 		n->op = OMAPLIT;
 		break;
@@ -2109,6 +2139,7 @@ typecheckcomplit(Node **np)
 				s = f->sym;
 				if(s != nil && !exportname(s->name) && s->pkg != localpkg)
 					yyerror("implicit assignment of unexported field '%s' in %T literal", s->name, t);
+				// No pushtype allowed here.  Must name fields for that.
 				ll->n = assignconv(ll->n, f->type, "field value");
 				ll->n = nod(OKEY, newname(f->sym), ll->n);
 				ll->n->left->type = f;
@@ -2142,7 +2173,6 @@ typecheckcomplit(Node **np)
 				if(s->pkg != localpkg)
 					s = lookup(s->name);
 				f = lookdot1(s, t, t->type, 0);
-				typecheck(&l->right, Erv);
 				if(f == nil) {
 					yyerror("unknown %T field '%s' in struct literal", t, s->name);
 					continue;
@@ -2152,7 +2182,10 @@ typecheckcomplit(Node **np)
 				l->left->type = f;
 				s = f->sym;
 				fielddup(newname(s), hash, nhash);
-				l->right = assignconv(l->right, f->type, "field value");
+				r = l->right;
+				pushtype(r, f->type);
+				typecheck(&r, Erv);
+				l->right = assignconv(r, f->type, "field value");
 			}
 		}
 		n->op = OSTRUCTLIT;
@@ -2160,7 +2193,13 @@ typecheckcomplit(Node **np)
 	}
 	if(nerr != nerrors)
 		goto error;
-	n->type = t;
+	
+	if(isptr[n->type->etype]) {
+		n = nod(OPTRLIT, n, N);
+		n->typecheck = 1;
+		n->type = n->left->type;
+		n->left->type = t;
+	}
 
 	*np = n;
 	lineno = lno;

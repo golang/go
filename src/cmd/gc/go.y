@@ -804,7 +804,14 @@ uexpr:
 	}
 |	'&' uexpr
 	{
-		$$ = nod(OADDR, $2, N);
+		if($2->op == OCOMPLIT) {
+			// Special case for &T{...}: turn into (*T){...}.
+			$$ = $2;
+			$$->right = nod(OIND, $$->right, N);
+			$$->right->implicit = 1;
+		} else {
+			$$ = nod(OADDR, $2, N);
+		}
 	}
 |	'+' uexpr
 	{
