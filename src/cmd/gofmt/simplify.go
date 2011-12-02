@@ -6,6 +6,7 @@ package main
 
 import (
 	"go/ast"
+	"go/token"
 	"reflect"
 )
 
@@ -26,10 +27,12 @@ func (s *simplifier) Visit(node ast.Node) ast.Visitor {
 
 		if eltType != nil {
 			typ := reflect.ValueOf(eltType)
-			for _, x := range outer.Elts {
+			for i, x := range outer.Elts {
+				px := &outer.Elts[i]
 				// look at value of indexed/named elements
 				if t, ok := x.(*ast.KeyValueExpr); ok {
 					x = t.Value
+					px = &t.Value
 				}
 				simplify(x)
 				// if the element is a composite literal and its literal type
@@ -38,6 +41,19 @@ func (s *simplifier) Visit(node ast.Node) ast.Visitor {
 				if inner, ok := x.(*ast.CompositeLit); ok {
 					if match(nil, typ, reflect.ValueOf(inner.Type)) {
 						inner.Type = nil
+					}
+				}
+				// if the outer literal's element type is a pointer type *T
+				// and the element is & of a composite literal of type T,
+				// the inner &T may be omitted.
+				if ptr, ok := eltType.(*ast.StarExpr); ok {
+					if addr, ok := x.(*ast.UnaryExpr); ok && addr.Op == token.AND {
+						if inner, ok := addr.X.(*ast.CompositeLit); ok {
+							if match(nil, reflect.ValueOf(ptr.X), reflect.ValueOf(inner.Type)) {
+								inner.Type = nil  // drop T
+								*px = inner // drop &
+							}
+						}
 					}
 				}
 			}
