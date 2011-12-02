@@ -225,19 +225,19 @@ func TestUTCTime(t *testing.T) {
 		ret, err := parseUTCTime([]byte(test.in))
 		if err != nil {
 			if test.ok {
-				t.Errorf("#%d: parseUTCTime(%q) = error %v", i, err)
+				t.Errorf("#%d: parseUTCTime(%q) = error %v", i, test.in, err)
 			}
 			continue
 		}
 		if !test.ok {
-			t.Errorf("#%d: parseUTCTime(%q) succeeded, should have failed", i)
+			t.Errorf("#%d: parseUTCTime(%q) succeeded, should have failed", i, test.in)
 			continue
 		}
 		const format = "Jan _2 15:04:05 -0700 2006" // ignore zone name, just offset
 		have := ret.Format(format)
 		want := test.out.Format(format)
 		if have != want {
-			t.Errorf("#%d: parseUTCTime(%q) = %s, want %s", test.in, have, want)
+			t.Errorf("#%d: parseUTCTime(%q) = %s, want %s", i, test.in, have, want)
 		}
 	}
 }
