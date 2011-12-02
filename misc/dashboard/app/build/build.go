@@ -193,29 +193,42 @@ func (t *Tag) Valid() os.Error {
 	return nil
 }
 
-// commitHandler records a new commit. It reads a JSON-encoded Commit value
-// from the request body and creates a new Commit entity.
-// commitHandler also updates the "tip" Tag for each new commit at tip.
+// commitHandler retrieves commit data or records a new commit.
+//
+// For GET requests it returns a Commit value for the specified
+// packagePath and hash.
+//
+// For POST requests it reads a JSON-encoded Commit value from the request
+// body and creates a new Commit entity. It also updates the "tip" Tag for
+// each new commit at tip.
 //
 // This handler is used by a gobuilder process in -commit mode.
-func commitHandler(w http.ResponseWriter, r *http.Request) {
+func commitHandler(r *http.Request) (interface{}, os.Error) {
+	c := appengine.NewContext(r)
 	com := new(Commit)
+
+	// TODO(adg): support unauthenticated GET requests to this handler
+	if r.Method == "GET" {
+		com.PackagePath = r.FormValue("packagePath")
+		com.Hash = r.FormValue("hash")
+		if err := datastore.Get(c, com.Key(c), com); err != nil {
+			return nil, err
+		}
+		return com, nil
+	}
+
+	// POST request
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(com); err != nil {
-		logErr(w, r, err)
-		return
+		return nil, err
 	}
 	if err := com.Valid(); err != nil {
-		logErr(w, r, err)
-		return
+		return nil, err
 	}
 	tx := func(c appengine.Context) os.Error {
 		return addCommit(c, com)
 	}
-	c := appengine.NewContext(r)
-	if err := datastore.RunInTransaction(c, tx, nil); err != nil {
-		logErr(w, r, err)
-	}
+	return nil, datastore.RunInTransaction(c, tx, nil)
 }
 
 // addCommit adds the Commit entity to the datastore and updates the tip Tag.
@@ -266,25 +279,21 @@ func addCommit(c appengine.Context, com *Commit) os.Error {
 // request body and updates the Tag entity for the Kind of tag provided.
 //
 // This handler is used by a gobuilder process in -commit mode.
-func tagHandler(w http.ResponseWriter, r *http.Request) {
+func tagHandler(r *http.Request) (interface{}, os.Error) {
 	t := new(Tag)
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(t); err != nil {
-		logErr(w, r, err)
-		return
+		return nil, err
 	}
 	if err := t.Valid(); err != nil {
-		logErr(w, r, err)
-		return
+		return nil, err
 	}
 	c := appengine.NewContext(r)
-	if _, err := datastore.Put(c, t.Key(c), t); err != nil {
-		logErr(w, r, err)
-		return
-	}
+	_, err := datastore.Put(c, t.Key(c), t)
+	return nil, err
 }
 
-// todoHandler returns the string of the hash of the next Commit to be built.
+// todoHandler returns the hash of the next Commit to be built.
 // It expects a "builder" query parameter.
 //
 // By default it scans the first 20 Go Commits in Num-descending order and
@@ -294,29 +303,28 @@ func tagHandler(w http.ResponseWriter, r *http.Request) {
 // and scans the first 20 Commits in Num-descending order for the specified
 // packagePath and returns the first that doesn't have a Result for this builder
 // and goHash combination.
-func todoHandler(w http.ResponseWriter, r *http.Request) {
+func todoHandler(r *http.Request) (interface{}, os.Error) {
 	builder := r.FormValue("builder")
 	goHash := r.FormValue("goHash")
 
 	c := appengine.NewContext(r)
 	p, err := GetPackage(c, r.FormValue("packagePath"))
 	if err != nil {
-		logErr(w, r, err)
-		return
+		return nil, err
 	}
 
-	q := datastore.NewQuery("Commit").
+	t := datastore.NewQuery("Commit").
 		Ancestor(p.Key(c)).
 		Limit(commitsPerPage).
-		Order("-Num")
-	var nextHash string
-	for t := q.Run(c); nextHash == ""; {
+		Order("-Num").
+		Run(c)
+	for {
 		com := new(Commit)
-		if _, err := t.Next(com); err == datastore.Done {
-			break
-		} else if err != nil {
-			logErr(w, r, err)
-			return
+		if _, err := t.Next(com); err != nil {
+			if err == datastore.Done {
+				err = nil
+			}
+			return nil, err
 		}
 		var hasResult bool
 		if goHash != "" {
@@ -325,15 +333,15 @@ func todoHandler(w http.ResponseWriter, r *http.Request) {
 			hasResult = com.HasResult(builder)
 		}
 		if !hasResult {
-			nextHash = com.Hash
+			return com.Hash, nil
 		}
 	}
-	fmt.Fprint(w, nextHash)
+	panic("unreachable")
 }
 
-// packagesHandler returns a JSON-encoded list of the non-Go Packages
-// monitored by the dashboard.
-func packagesHandler(w http.ResponseWriter, r *http.Request) {
+// packagesHandler returns a list of the non-Go Packages monitored
+// by the dashboard.
+func packagesHandler(r *http.Request) (interface{}, os.Error) {
 	c := appengine.NewContext(r)
 	var pkgs []*Package
 	for t := datastore.NewQuery("Package").Run(c); ; {
@@ -341,16 +349,13 @@ func packagesHandler(w http.ResponseWriter, r *http.Request) {
 		if _, err := t.Next(pkg); err == datastore.Done {
 			break
 		} else if err != nil {
-			logErr(w, r, err)
-			return
+			return nil, err
 		}
 		if pkg.Path != "" {
 			pkgs = append(pkgs, pkg)
 		}
 	}
-	if err := json.NewEncoder(w).Encode(pkgs); err != nil {
-		logErr(w, r, err)
-	}
+	return pkgs, nil
 }
 
 // resultHandler records a build result.
@@ -358,24 +363,21 @@ func packagesHandler(w http.ResponseWriter, r *http.Request) {
 // creates a new Result entity, and updates the relevant Commit entity.
 // If the Log field is not empty, resultHandler creates a new Log entity
 // and updates the LogHash field before putting the Commit entity.
-func resultHandler(w http.ResponseWriter, r *http.Request) {
+func resultHandler(r *http.Request) (interface{}, os.Error) {
+	c := appengine.NewContext(r)
 	res := new(Result)
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(res); err != nil {
-		logErr(w, r, err)
-		return
+		return nil, err
 	}
 	if err := res.Valid(); err != nil {
-		logErr(w, r, err)
-		return
+		return nil, err
 	}
-	c := appengine.NewContext(r)
 	// store the Log text if supplied
 	if len(res.Log) > 0 {
 		hash, err := PutLog(c, res.Log)
 		if err != nil {
-			logErr(w, r, err)
-			return
+			return nil, err
 		}
 		res.LogHash = hash
 	}
@@ -392,9 +394,7 @@ func resultHandler(w http.ResponseWriter, r *http.Request) {
 		com := &Commit{PackagePath: res.PackagePath, Hash: res.Hash}
 		return com.AddResult(c, res)
 	}
-	if err := datastore.RunInTransaction(c, tx, nil); err != nil {
-		logErr(w, r, err)
-	}
+	return nil, datastore.RunInTransaction(c, tx, nil)
 }
 
 func logHandler(w http.ResponseWriter, r *http.Request) {
@@ -416,9 +416,16 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type dashHandler func(*http.Request) (interface{}, os.Error)
+
+type dashResponse struct {
+	Response interface{}
+	Error    os.Error
+}
+
 // AuthHandler wraps a http.HandlerFunc with a handler that validates the
 // supplied key and builder query parameters.
-func AuthHandler(h http.HandlerFunc) http.HandlerFunc {
+func AuthHandler(h dashHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Put the URL Query values into r.Form to avoid parsing the
 		// request body when calling r.FormValue.
@@ -435,7 +442,17 @@ func AuthHandler(h http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 
-		h(w, r) // Call the original HandlerFunc.
+		// Call the original HandlerFunc and return the response.
+		c := appengine.NewContext(r)
+		resp, err := h(r)
+		if err != nil {
+			c.Errorf("%v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(dashResponse{resp, err})
+		if err != nil {
+			c.Criticalf("%v", err)
+		}
 	}
 }
 
