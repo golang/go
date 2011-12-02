@@ -16,6 +16,7 @@ import (
 	"io"
 	"json"
 	"os"
+	"strings"
 	"url"
 )
 
@@ -77,7 +78,7 @@ var testRequests = []struct {
 	// logs
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: []byte("test")}, nil},
 	{"/log/a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", nil, nil, "test"},
-	{"/todo", url.Values{"builder": {"linux-386"}}, nil, ""},
+	{"/todo", url.Values{"builder": {"linux-386"}}, nil, nil},
 
 	// non-Go repos
 	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1001", ParentHash: "1000"}, nil},
@@ -89,7 +90,7 @@ var testRequests = []struct {
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1002", GoHash: "0001", OK: true}, nil},
 	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, "1001"},
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0001", OK: true}, nil},
-	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, ""},
+	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, nil},
 	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0002"}}, nil, "1003"},
 }
 
@@ -111,13 +112,11 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	failed := false
 	for i, t := range testRequests {
 		errorf := func(format string, args ...interface{}) {
 			fmt.Fprintf(w, "%d %s: ", i, t.path)
 			fmt.Fprintf(w, format, args...)
 			fmt.Fprintln(w)
-			failed = true
 		}
 		var body io.ReadWriter
 		if t.req != nil {
@@ -133,6 +132,9 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 			logErr(w, r, err)
 			return
 		}
+		if t.req != nil {
+			req.Method = "POST"
+		}
 		req.Header = r.Header
 		rec := httptest.NewRecorder()
 		http.DefaultServeMux.ServeHTTP(rec, req)
@@ -140,17 +142,34 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 			errorf(rec.Body.String())
 			return
 		}
-		if e, ok := t.res.(string); ok {
-			g := rec.Body.String()
-			if g != e {
-				errorf("body mismatch: got %q want %q", g, e)
+		resp := new(dashResponse)
+		if strings.HasPrefix(t.path, "/log/") {
+			resp.Response = rec.Body.String()
+		} else {
+			err := json.NewDecoder(rec.Body).Decode(resp)
+			if err != nil {
+				errorf("decoding response: %v", err)
 				return
 			}
 		}
+		if e, ok := t.res.(string); ok {
+			g, ok := resp.Response.(string)
+			if !ok {
+				errorf("Response not string: %T", resp.Response)
+				return
+			}
+			if g != e {
+				errorf("response mismatch: got %q want %q", g, e)
+				return
+			}
+		}
+		if t.res == nil && resp.Response != nil {
+			errorf("response mismatch: got %q expected <nil>",
+				resp.Response)
+			return
+		}
 	}
-	if !failed {
-		fmt.Fprint(w, "PASS")
-	}
+	fmt.Fprint(w, "PASS")
 }
 
 func nukeEntities(c appengine.Context, kinds []string) os.Error {
