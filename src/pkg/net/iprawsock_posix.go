@@ -267,16 +267,6 @@ func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err error) {
 	return newIPConn(fd), nil
 }
 
-// BindToDevice binds an IPConn to a network interface.
-func (c *IPConn) BindToDevice(device string) error {
-	if !c.ok() {
-		return os.EINVAL
-	}
-	c.fd.incref()
-	defer c.fd.decref()
-	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
-}
-
 // File returns a copy of the underlying os.File, set to blocking mode.
 // It is the caller's responsibility to close f when finished.
 // Closing c does not affect f, and closing f does not affect c.
