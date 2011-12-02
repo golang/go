@@ -2118,11 +2118,26 @@ tmp[0 : n]
 Within a composite literal of array, slice, or map type <code>T</code>,
 elements that are themselves composite literals may elide the respective
 literal type if it is identical to the element type of <code>T</code>.
+Similarly, elements that are addresses of composite literals may elide
+the <code>&T</code> when the the element type is <code>*T</code>.
+The same elisions may be applied to field values within a struct literal,
+but only if the value has a field name key.
 </p>
 
+
+
 <pre>
-[...]Point{{1.5, -3.5}, {0, 0}}  // same as [...]Point{Point{1.5, -3.5}, Point{0, 0}}
-[][]int{{1, 2, 3}, {4, 5}}       // same as [][]int{[]int{1, 2, 3}, []int{4, 5}}
+[...]Point{{1.5, -3.5}, {0, 0}}   // same as [...]Point{Point{1.5, -3.5}, Point{0, 0}}
+[][]int{{1, 2, 3}, {4, 5}}        // same as [][]int{[]int{1, 2, 3}, []int{4, 5}}
+
+[...]*Point{{1.5, -3.5}, {0, 0}}  // same as [...]*Point{&Point{1.5, -3.5}, &Point{0, 0}}
+
+type List struct {
+	Val int
+	Next *List
+}
+
+&List{Val: 1, Next: {Val: 2}}     // same as &List{Val: 1, Next: &List{Val: 2}}
 </pre>
 
 <p>
