@@ -288,19 +288,21 @@ Using slices one can write this function (from <code>sum.go</code>):
 Note how the return type (<code>int</code>) is defined for <code>sum</code> by stating it
 after the parameter list.
 <p>
-To call the function, we slice the array.  This intricate call (we'll show
+To call the function, we slice the array.  This code (we'll show
 a simpler way in a moment) constructs
 an array and slices it:
 <p>
 <pre>
-s := sum([3]int{1,2,3}[:])
+x := [3]int{1,2,3}
+s := sum(x[:])
 </pre>
 <p>
 If you are creating a regular array but want the compiler to count the
 elements for you, use <code>...</code> as the array size:
 <p>
 <pre>
-s := sum([...]int{1,2,3}[:])
+x := [...]int{1,2,3}
+s := sum(x[:])
 </pre>
 <p>
 That's fussier than necessary, though.
