@@ -169,7 +169,7 @@ func printDeps(pkg string) {
 }
 
 // readPackageList reads the list of installed packages from the
-// goinstall.log files in GOROOT and the GOPATHs and initalizes
+// goinstall.log files in GOROOT and the GOPATHs and initializes
 // the installedPkgs variable.
 func readPackageList() {
 	for _, t := range build.Path {
