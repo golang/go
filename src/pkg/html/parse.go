@@ -515,7 +515,19 @@ func afterHeadIM(p *parser) bool {
 		implied    bool
 	)
 	switch p.tok.Type {
-	case ErrorToken, TextToken:
+	case ErrorToken:
+		implied = true
+		framesetOK = true
+	case TextToken:
+		s := strings.TrimLeft(p.tok.Data, whitespace)
+		if len(s) < len(p.tok.Data) {
+			// Add the initial whitespace to the current node.
+			p.addText(p.tok.Data[:len(p.tok.Data)-len(s)])
+			if s == "" {
+				return true
+			}
+			p.tok.Data = s
+		}
 		implied = true
 		framesetOK = true
 	case StartTagToken:
@@ -535,7 +547,8 @@ func afterHeadIM(p *parser) bool {
 			defer p.oe.pop()
 			return inHeadIM(p)
 		case "head":
-			// TODO.
+			// Ignore the token.
+			return true
 		default:
 			implied = true
 			framesetOK = true
