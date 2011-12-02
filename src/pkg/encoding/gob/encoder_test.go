@@ -662,3 +662,19 @@ func TestSequentialDecoder(t *testing.T) {
 		}
 	}
 }
+
+// Should be able to have unrepresentable fields (chan, func) as long as they
+// are unexported.
+type Bug2 struct {
+	A int
+	b chan int
+}
+
+func TestUnexportedChan(t *testing.T) {
+	b := Bug2{23, make(chan int)}
+	var stream bytes.Buffer
+	enc := NewEncoder(&stream)
+	if err := enc.Encode(b); err != nil {
+		t.Fatalf("error encoding unexported channel: %s", err)
+	}
+}
