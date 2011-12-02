@@ -20,8 +20,8 @@ hg update weekly.<i>YYYY-MM-DD</i>
 This weekly snapshot includes changes to the hash package and a gofix for the
 time and os.FileInfo changes in the last snapshot.
 
-The hash.Hasher's Sum method has been given a []byte argument, permitting
-the user to hash an arbitrary byte slice without Writing to the Hasher.
+The hash.Hash's Sum method has been given a []byte argument,
+permitting the user to append the hash to an existing byte slice.
 Existing code that uses Sum can pass nil as the argument.
 Gofix will make this change automatically.
 
