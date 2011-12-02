@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of November 22, 2011 -->
+<!-- subtitle Version of December 2, 2011 -->
 
 <!--
 TODO
@@ -2106,11 +2106,12 @@ element index plus one. A slice literal has the form
 </pre>
 
 <p>
-and is a shortcut for a slice operation applied to an array literal:
+and is a shortcut for a slice operation applied to an array:
 </p>
 
 <pre>
-[n]T{x1, x2, … xn}[0 : n]
+tmp := [n]T{x1, x2, … xn}
+tmp[0 : n]
 </pre>
 
 <p>
