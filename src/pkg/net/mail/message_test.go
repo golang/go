@@ -105,7 +105,7 @@ func TestDateParsing(t *testing.T) {
 			t.Errorf("Failed parsing %q: %v", test.dateStr, err)
 			continue
 		}
-		if !reflect.DeepEqual(date, test.exp) {
+		if !date.Equal(test.exp) {
 			t.Errorf("Parse of %q: got %+v, want %+v", test.dateStr, date, test.exp)
 		}
 	}
