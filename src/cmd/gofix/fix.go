@@ -15,6 +15,7 @@ slice of named type (go/scanner)
 import (
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"os"
 	"path"
@@ -742,4 +743,12 @@ func usesImport(f *ast.File, path string) (used bool) {
 	})
 
 	return
+}
+
+func expr(s string) ast.Expr {
+	x, err := parser.ParseExpr(fset, "", s)
+	if err != nil {
+		panic("parsing " + s + ": " + err.Error())
+	}
+	return x
 }
