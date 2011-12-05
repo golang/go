@@ -128,33 +128,23 @@ func testAtof(t *testing.T, opt bool) {
 	oldopt := SetOptimize(opt)
 	for i := 0; i < len(atoftests); i++ {
 		test := &atoftests[i]
-		out, err := Atof64(test.in)
-		outs := Ftoa64(out, 'g', -1)
+		out, err := ParseFloat(test.in, 64)
+		outs := FormatFloat(out, 'g', -1, 64)
 		if outs != test.out || !reflect.DeepEqual(err, test.err) {
-			t.Errorf("Atof64(%v) = %v, %v want %v, %v",
-				test.in, out, err, test.out, test.err)
-		}
-
-		out, err = AtofN(test.in, 64)
-		outs = FtoaN(out, 'g', -1, 64)
-		if outs != test.out || !reflect.DeepEqual(err, test.err) {
-			t.Errorf("AtofN(%v, 64) = %v, %v want %v, %v",
+			t.Errorf("ParseFloat(%v, 64) = %v, %v want %v, %v",
 				test.in, out, err, test.out, test.err)
 		}
 
 		if float64(float32(out)) == out {
-			out32, err := Atof32(test.in)
-			outs := Ftoa32(out32, 'g', -1)
-			if outs != test.out || !reflect.DeepEqual(err, test.err) {
-				t.Errorf("Atof32(%v) = %v, %v want %v, %v  # %v",
-					test.in, out32, err, test.out, test.err, out)
+			out, err := ParseFloat(test.in, 32)
+			out32 := float32(out)
+			if float64(out32) != out {
+				t.Errorf("ParseFloat(%v, 32) = %v, not a float32 (closest is %v)", test.in, out, float64(out32))
+				continue
 			}
-
-			out, err := AtofN(test.in, 32)
-			out32 = float32(out)
-			outs = FtoaN(float64(out32), 'g', -1, 32)
+			outs := FormatFloat(float64(out32), 'g', -1, 32)
 			if outs != test.out || !reflect.DeepEqual(err, test.err) {
-				t.Errorf("AtofN(%v, 32) = %v, %v want %v, %v  # %v",
+				t.Errorf("ParseFloat(%v, 32) = %v, %v want %v, %v  # %v",
 					test.in, out32, err, test.out, test.err, out)
 			}
 		}
@@ -168,24 +158,24 @@ func TestAtofSlow(t *testing.T) { testAtof(t, false) }
 
 func BenchmarkAtof64Decimal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Atof64("33909")
+		ParseFloat("33909", 64)
 	}
 }
 
 func BenchmarkAtof64Float(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Atof64("339.7784")
+		ParseFloat("339.7784", 64)
 	}
 }
 
 func BenchmarkAtof64FloatExp(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Atof64("-5.09e75")
+		ParseFloat("-5.09e75", 64)
 	}
 }
 
 func BenchmarkAtof64Big(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Atof64("123456789123456789123456789")
+		ParseFloat("123456789123456789123456789", 64)
 	}
 }

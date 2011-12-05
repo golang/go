@@ -29,6 +29,9 @@ func TestQuote(t *testing.T) {
 		if out := Quote(tt.in); out != tt.out {
 			t.Errorf("Quote(%s) = %s, want %s", tt.in, out, tt.out)
 		}
+		if out := AppendQuote([]byte("abc"), tt.in); string(out) != "abc"+tt.out {
+			t.Errorf("AppendQuote(%q, %s) = %s, want %s", "abc", tt.in, out, "abc"+tt.out)
+		}
 	}
 }
 
@@ -36,6 +39,9 @@ func TestQuoteToASCII(t *testing.T) {
 	for _, tt := range quotetests {
 		if out := QuoteToASCII(tt.in); out != tt.ascii {
 			t.Errorf("QuoteToASCII(%s) = %s, want %s", tt.in, out, tt.ascii)
+		}
+		if out := AppendQuoteToASCII([]byte("abc"), tt.in); string(out) != "abc"+tt.ascii {
+			t.Errorf("AppendQuoteToASCII(%q, %s) = %s, want %s", "abc", tt.in, out, "abc"+tt.ascii)
 		}
 	}
 }
@@ -63,6 +69,9 @@ func TestQuoteRune(t *testing.T) {
 		if out := QuoteRune(tt.in); out != tt.out {
 			t.Errorf("QuoteRune(%U) = %s, want %s", tt.in, out, tt.out)
 		}
+		if out := AppendQuoteRune([]byte("abc"), tt.in); string(out) != "abc"+tt.out {
+			t.Errorf("AppendQuoteRune(%q, %U) = %s, want %s", "abc", tt.in, out, "abc"+tt.out)
+		}
 	}
 }
 
@@ -70,6 +79,9 @@ func TestQuoteRuneToASCII(t *testing.T) {
 	for _, tt := range quoterunetests {
 		if out := QuoteRuneToASCII(tt.in); out != tt.ascii {
 			t.Errorf("QuoteRuneToASCII(%U) = %s, want %s", tt.in, out, tt.ascii)
+		}
+		if out := AppendQuoteRuneToASCII([]byte("abc"), tt.in); string(out) != "abc"+tt.ascii {
+			t.Errorf("AppendQuoteRuneToASCII(%q, %U) = %s, want %s", "abc", tt.in, out, "abc"+tt.ascii)
 		}
 	}
 }

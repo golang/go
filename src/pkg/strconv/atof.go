@@ -338,21 +338,7 @@ func (d *decimal) atof32() (f float32, ok bool) {
 	return
 }
 
-// Atof32 converts the string s to a 32-bit floating-point number.
-//
-// If s is well-formed and near a valid floating point number,
-// Atof32 returns the nearest floating point number rounded
-// using IEEE754 unbiased rounding.
-//
-// The errors that Atof32 returns have concrete type *NumError
-// and include err.Num = s.
-//
-// If s is not syntactically well-formed, Atof32 returns err.Error = ErrSyntax.
-//
-// If s is syntactically well-formed but is more than 1/2 ULP
-// away from the largest floating point number of the given size,
-// Atof32 returns f = ±Inf, err.Error = ErrRange.
-func Atof32(s string) (f float32, err error) {
+func atof32(s string) (f float32, err error) {
 	if val, ok := special(s); ok {
 		return float32(val), nil
 	}
@@ -374,10 +360,7 @@ func Atof32(s string) (f float32, err error) {
 	return f, err
 }
 
-// Atof64 converts the string s to a 64-bit floating-point number.
-// Except for the type of its result, its definition is the same as that
-// of Atof32.
-func Atof64(s string) (f float64, err error) {
+func atof64(s string) (f float64, err error) {
 	if val, ok := special(s); ok {
 		return val, nil
 	}
@@ -399,14 +382,28 @@ func Atof64(s string) (f float64, err error) {
 	return f, err
 }
 
-// AtofN converts the string s to a 64-bit floating-point number,
-// but it rounds the result assuming that it will be stored in a value
-// of n bits (32 or 64).
-func AtofN(s string, n int) (f float64, err error) {
-	if n == 32 {
-		f1, err1 := Atof32(s)
+// ParseFloat converts the string s to a floating-point number
+// with the precision specified by bitSize: 32 for float32, or 64 for float64.
+// When bitSize=32, the result still has type float64, but it will be
+// convertible to float32 without changing its value.
+//
+// If s is well-formed and near a valid floating point number,
+// ParseFloat returns the nearest floating point number rounded
+// using IEEE754 unbiased rounding.
+//
+// The errors that ParseFloat returns have concrete type *NumError
+// and include err.Num = s.
+//
+// If s is not syntactically well-formed, ParseFloat returns err.Error = ErrSyntax.
+//
+// If s is syntactically well-formed but is more than 1/2 ULP
+// away from the largest floating point number of the given size,
+// ParseFloat returns f = ±Inf, err.Error = ErrRange.
+func ParseFloat(s string, bitSize int) (f float64, err error) {
+	if bitSize == 32 {
+		f1, err1 := atof32(s)
 		return float64(f1), err1
 	}
-	f1, err1 := Atof64(s)
+	f1, err1 := atof64(s)
 	return f1, err1
 }
