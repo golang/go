@@ -75,7 +75,7 @@ var _tanQ = [...]float64{
 
 // Tan returns the tangent of x.
 //
-// Special conditions are:
+// Special cases are:
 //	Tan(±0) = ±0
 //	Tan(±Inf) = NaN
 //	Tan(NaN) = NaN
