@@ -334,11 +334,11 @@ main(int argc, char *argv[])
 	if(nsavederrors+nerrors)
 		errorexit();
 
-	// Phase 3b: escape analysis.
+	// Phase 4: escape analysis.
 	if(!debug['N'])
 		escapes();
 
-	// Phase 4: Compile function bodies.
+	// Phase 5: Compile top level functions.
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
 			funccompile(l->n, 0);
@@ -346,16 +346,15 @@ main(int argc, char *argv[])
 	if(nsavederrors+nerrors == 0)
 		fninit(xtop);
 
-	// Phase 4b: Compile all closures.
+	// Phase 5b: Compile all closures.
 	while(closures) {
 		l = closures;
 		closures = nil;
-		for(; l; l=l->next) {
+		for(; l; l=l->next)
 			funccompile(l->n, 1);
-		}
 	}
 
-	// Phase 5: check external declarations.
+	// Phase 6: check external declarations.
 	for(l=externdcl; l; l=l->next)
 		if(l->n->op == ONAME)
 			typecheck(&l->n, Erv);
@@ -1423,7 +1422,7 @@ yylex(void)
 	// Track last two tokens returned by yylex.
 	yyprev = yylast;
 	yylast = lx;
- 	return lx;
+	return lx;
 }
 
 static int
@@ -1680,12 +1679,12 @@ static	struct
 	"type",		LTYPE,		Txxx,		OXXX,
 	"var",		LVAR,		Txxx,		OXXX,
 
-	"append",		LNAME,		Txxx,		OAPPEND,
+	"append",	LNAME,		Txxx,		OAPPEND,
 	"cap",		LNAME,		Txxx,		OCAP,
 	"close",	LNAME,		Txxx,		OCLOSE,
 	"complex",	LNAME,		Txxx,		OCOMPLEX,
 	"copy",		LNAME,		Txxx,		OCOPY,
-	"delete",		LNAME,		Txxx,		ODELETE,
+	"delete",	LNAME,		Txxx,		ODELETE,
 	"imag",		LNAME,		Txxx,		OIMAG,
 	"len",		LNAME,		Txxx,		OLEN,
 	"make",		LNAME,		Txxx,		OMAKE,
@@ -1710,6 +1709,7 @@ lexinit(void)
 	Sym *s, *s1;
 	Type *t;
 	int etype;
+	Val v;
 
 	/*
 	 * initialize basic types array
@@ -1738,6 +1738,16 @@ lexinit(void)
 			s1->def = typenod(t);
 			continue;
 		}
+
+		etype = syms[i].op;
+		if(etype != OXXX) {
+			s1 = pkglookup(syms[i].name, builtinpkg);
+			s1->lexical = LNAME;
+			s1->def = nod(ONAME, N, N);
+			s1->def->sym = s;
+			s1->def->etype = etype;
+			s1->def->builtin = 1;
+		}
 	}
 
 	// logically, the type of a string literal.
@@ -1765,6 +1775,19 @@ lexinit(void)
 	types[TBLANK] = typ(TBLANK);
 	s->def->type = types[TBLANK];
 	nblank = s->def;
+
+	s = pkglookup("_", builtinpkg);
+	s->block = -100;
+	s->def = nod(ONAME, N, N);
+	s->def->sym = s;
+	types[TBLANK] = typ(TBLANK);
+	s->def->type = types[TBLANK];
+
+	types[TNIL] = typ(TNIL);
+	s = pkglookup("nil", builtinpkg);
+	v.ctype = CTNIL;
+	s->def = nodlit(v);
+	s->def->sym = s;
 }
 
 static void
@@ -1875,7 +1898,6 @@ lexfini(void)
 	if(s->def == N)
 		s->def = typenod(runetype);
 
-	types[TNIL] = typ(TNIL);
 	s = lookup("nil");
 	if(s->def == N) {
 		v.ctype = CTNIL;

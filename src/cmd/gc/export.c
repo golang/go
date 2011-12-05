@@ -7,11 +7,9 @@
 #include	"go.h"
 #include	"y.tab.h"
 
-static	void	dumpsym(Sym*);
-static	void	dumpexporttype(Type*);
-static	void	dumpexportvar(Sym*);
-static	void	dumpexportconst(Sym*);
+static void	dumpexporttype(Type*);
 
+// Mark n's symbol as exported
 void
 exportsym(Node *n)
 {
@@ -27,6 +25,7 @@ exportsym(Node *n)
 	exportlist = list(exportlist, n);
 }
 
+// Mark n's symbol as package-local
 static void
 packagesym(Node *n)
 {
@@ -178,7 +177,7 @@ dumpexporttype(Type *t)
 	Bprint(bout, "\ttype %#S %#lT\n", t->sym, t);
 	for(i=0; i<n; i++) {
 		f = m[i];
-		Bprint(bout, "\tfunc (%#T) %#hS%#hT\n", getthisx(f->type)->type, f->sym, f->type);
+		Bprint(bout, "\tfunc (%#T) %#hhS%#hT\n", getthisx(f->type)->type, f->sym, f->type);
 	}
 }
 
@@ -200,15 +199,18 @@ dumpsym(Sym *s)
 	default:
 		yyerror("unexpected export symbol: %O %S", s->def->op, s);
 		break;
+
 	case OLITERAL:
 		dumpexportconst(s);
 		break;
+
 	case OTYPE:
 		if(s->def->type->etype == TFORW)
 			yyerror("export of incomplete type %S", s);
 		else
 			dumpexporttype(s->def->type);
 		break;
+
 	case ONAME:
 		dumpexportvar(s);
 		break;
@@ -286,12 +288,25 @@ pkgtype(Sym *s)
 	return s->def->type;
 }
 
-static int
-mypackage(Sym *s)
+void
+importimport(Sym *s, Strlit *z)
 {
-	// we import all definitions for runtime.
-	// lowercase ones can only be used by the compiler.
-	return s->pkg == localpkg || s->pkg == runtimepkg;
+	// Informational: record package name
+	// associated with import path, for use in
+	// human-readable messages.
+	Pkg *p;
+
+	p = mkpkg(z);
+	if(p->name == nil) {
+		p->name = s->name;
+		pkglookup(s->name, nil)->npkg++;
+	} else if(strcmp(p->name, s->name) != 0)
+		yyerror("conflicting names %s and %s for package \"%Z\"", p->name, s->name, p->path);
+	
+	if(!incannedimport && myimportpath != nil && strcmp(z->s, myimportpath) == 0) {
+		yyerror("import \"%Z\": package depends on \"%Z\" (import cycle)", importpkg->path, z);
+		errorexit();
+	}
 }
 
 void
@@ -299,19 +314,17 @@ importconst(Sym *s, Type *t, Node *n)
 {
 	Node *n1;
 
-	if(!exportname(s->name) && !mypackage(s))
-		return;
 	importsym(s, OLITERAL);
 	convlit(&n, t);
-	if(s->def != N) {
-		// TODO: check if already the same.
+
+	if(s->def != N)	 // TODO: check if already the same.
 		return;
-	}
 
 	if(n->op != OLITERAL) {
 		yyerror("expression must be a constant");
 		return;
 	}
+
 	if(n->sym != S) {
 		n1 = nod(OXXX, N, N);
 		*n1 = *n;
@@ -325,12 +338,9 @@ importconst(Sym *s, Type *t, Node *n)
 }
 
 void
-importvar(Sym *s, Type *t, int ctxt)
+importvar(Sym *s, Type *t)
 {
 	Node *n;
-
-	if(!exportname(s->name) && !initname(s->name) && !mypackage(s))
-		return;
 
 	importsym(s, ONAME);
 	if(s->def != N && s->def->op == ONAME) {
@@ -340,7 +350,7 @@ importvar(Sym *s, Type *t, int ctxt)
 	}
 	n = newname(s);
 	n->type = t;
-	declare(n, ctxt);
+	declare(n, PEXTERN);
 
 	if(debug['E'])
 		print("import var %S %lT\n", s, t);
@@ -351,38 +361,25 @@ importtype(Type *pt, Type *t)
 {
 	Node *n;
 
-	if(pt != T && t != T) {
-		// override declaration in unsafe.go for Pointer.
-		// there is no way in Go code to define unsafe.Pointer
-		// so we have to supply it.
-		if(incannedimport &&
-		   strcmp(importpkg->name, "unsafe") == 0 &&
-		   strcmp(pt->nod->sym->name, "Pointer") == 0) {
-			t = types[TUNSAFEPTR];
-		}
-
-		if(pt->etype == TFORW) {
-			n = pt->nod;
-			copytype(pt->nod, t);
-			// unzero nod
-			pt->nod = n;
-			
-			pt->sym->lastlineno = parserline();
-			declare(n, PEXTERN);
-			
-			checkwidth(pt);
-		} else if(!eqtype(pt->orig, t))
-			yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt->orig, t);
+	// override declaration in unsafe.go for Pointer.
+	// there is no way in Go code to define unsafe.Pointer
+	// so we have to supply it.
+	if(incannedimport &&
+	   strcmp(importpkg->name, "unsafe") == 0 &&
+	   strcmp(pt->nod->sym->name, "Pointer") == 0) {
+		t = types[TUNSAFEPTR];
 	}
+
+	if(pt->etype == TFORW) {
+		n = pt->nod;
+		copytype(pt->nod, t);
+		pt->nod = n;		// unzero nod
+		pt->sym->lastlineno = parserline();
+		declare(n, PEXTERN);
+		checkwidth(pt);
+	} else if(!eqtype(pt->orig, t))
+		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt->orig, t);
 
 	if(debug['E'])
 		print("import type %T %lT\n", pt, t);
 }
-
-void
-importmethod(Sym *s, Type *t)
-{
-	checkwidth(t);
-	addmethod(s, t, 0);
-}
-

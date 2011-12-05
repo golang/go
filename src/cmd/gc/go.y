@@ -56,7 +56,7 @@ static void fixlbrace(int);
 %type	<node>	case caseblock
 %type	<node>	compound_stmt dotname embed expr complitexpr
 %type	<node>	expr_or_type
-%type	<node>	fndcl fnliteral
+%type	<node>	fndcl hidden_fndcl fnliteral
 %type	<node>	for_body for_header for_stmt if_header if_stmt else non_dcl_stmt
 %type	<node>	interfacedcl keyval labelname name
 %type	<node>	name_or_type non_expr_type
@@ -80,8 +80,8 @@ static void fixlbrace(int);
 
 %type	<sym>	hidden_importsym hidden_pkg_importsym
 
-%type	<node>	hidden_constant hidden_literal hidden_dcl
-%type	<node>	hidden_interfacedcl hidden_structdcl hidden_opt_sym
+%type	<node>	hidden_constant hidden_literal hidden_funarg
+%type	<node>	hidden_interfacedcl hidden_structdcl
 
 %type	<list>	hidden_funres
 %type	<list>	ohidden_funres
@@ -235,7 +235,7 @@ import_here:
 	}
 
 import_package:
-	LPACKAGE sym import_safety ';'
+	LPACKAGE LNAME import_safety ';'
 	{
 		if(importpkg->name == nil) {
 			importpkg->name = $2->name;
@@ -1004,7 +1004,17 @@ onew_name:
 
 sym:
 	LNAME
+	{
+		$$ = $1;
+		// during imports, unqualified non-exported identifiers are from builtinpkg
+		if(importpkg != nil && !exportname($1->name))
+			$$ = pkglookup($1->name, builtinpkg);
+	}
 |	hidden_importsym
+|	'?'
+	{
+		$$ = S;
+	}
 
 hidden_importsym:
 	'@' LLITERAL '.' LNAME
@@ -1186,38 +1196,43 @@ xfndcl:
 	}
 
 fndcl:
-	dcl_name '(' oarg_type_list_ocomma ')' fnres
+	sym '(' oarg_type_list_ocomma ')' fnres
 	{
-		Node *n;
+		Node *t;
 
+		$$ = N;
 		$3 = checkarglist($3, 1);
-		$$ = nod(ODCLFUNC, N, N);
-		$$->nname = $1;
-		n = nod(OTFUNC, N, N);
-		n->list = $3;
-		n->rlist = $5;
-		if(strcmp($1->sym->name, "init") == 0) {
-			$$->nname = renameinit($1);
+
+		if(strcmp($1->name, "init") == 0) {
+			$1 = renameinit();
 			if($3 != nil || $5 != nil)
 				yyerror("func init must have no arguments and no return values");
 		}
-		if(strcmp(localpkg->name, "main") == 0 && strcmp($1->sym->name, "main") == 0) {
+		if(strcmp(localpkg->name, "main") == 0 && strcmp($1->name, "main") == 0) {
 			if($3 != nil || $5 != nil)
 				yyerror("func main must have no arguments and no return values");
 		}
-		// TODO: check if nname already has an ntype
-		$$->nname->ntype = n;
+
+		t = nod(OTFUNC, N, N);
+		t->list = $3;
+		t->rlist = $5;
+
+		$$ = nod(ODCLFUNC, N, N);
+		$$->nname = newname($1);
+		$$->nname->defn = $$;
+		$$->nname->ntype = t;		// TODO: check if nname already has an ntype
+		declare($$->nname, PFUNC);
+
 		funchdr($$);
 	}
 |	'(' oarg_type_list_ocomma ')' sym '(' oarg_type_list_ocomma ')' fnres
 	{
 		Node *rcvr, *t;
-		Node *name;
-		
-		name = newname($4);
+
+		$$ = N;
 		$2 = checkarglist($2, 0);
 		$6 = checkarglist($6, 1);
-		$$ = N;
+
 		if($2 == nil) {
 			yyerror("method has no receiver");
 			break;
@@ -1234,13 +1249,51 @@ fndcl:
 		if(rcvr->right->op == OTPAREN || (rcvr->right->op == OIND && rcvr->right->left->op == OTPAREN))
 			yyerror("cannot parenthesize receiver type");
 
-		$$ = nod(ODCLFUNC, N, N);
-		$$->nname = methodname1(name, rcvr->right);
 		t = nod(OTFUNC, rcvr, N);
 		t->list = $6;
 		t->rlist = $8;
+
+		$$ = nod(ODCLFUNC, N, N);
+		$$->shortname = newname($4);
+		$$->nname = methodname1($$->shortname, rcvr->right);
+		$$->nname->defn = $$;
 		$$->nname->ntype = t;
-		$$->shortname = name;
+		declare($$->nname, PFUNC);
+
+		funchdr($$);
+	}
+
+hidden_fndcl:
+	hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres
+	{
+		Sym *s;
+		Type *t;
+
+		$$ = N;
+
+		s = $1;
+		t = functype(N, $3, $5);
+
+		importsym(s, ONAME);
+		if(s->def != N && s->def->op == ONAME) {
+			if(eqtype(t, s->def->type))
+				break;
+			yyerror("inconsistent definition for func %S during import\n\t%T\n\t%T", s, s->def->type, t);
+		}
+
+		$$ = newname(s);
+		$$->type = t;
+		declare($$, PFUNC);
+
+		funchdr($$);
+	}
+|	'(' hidden_funarg_list ')' sym '(' ohidden_funarg_list ')' ohidden_funres
+	{
+		$$ = methodname1(newname($4), $2->n->right); 
+		$$->type = functype($2->n, $6, $8);
+
+		checkwidth($$->type);
+		addmethod($4, $$->type, 0);
 		funchdr($$);
 	}
 
@@ -1709,31 +1762,16 @@ oliteral:
 |	LLITERAL
 
 /*
- * import syntax from header of
- * an output package
+ * import syntax from package header
  */
 hidden_import:
-	LIMPORT sym LLITERAL ';'
+	LIMPORT LNAME LLITERAL ';'
 	{
-		// Informational: record package name
-		// associated with import path, for use in
-		// human-readable messages.
-		Pkg *p;
-
-		p = mkpkg($3.u.sval);
-		if(p->name == nil) {
-			p->name = $2->name;
-			pkglookup($2->name, nil)->npkg++;
-		} else if(strcmp(p->name, $2->name) != 0)
-			yyerror("conflicting names %s and %s for package \"%Z\"", p->name, $2->name, p->path);
-		if(!incannedimport && myimportpath != nil && strcmp($3.u.sval->s, myimportpath) == 0) {
-			yyerror("import \"%Z\": package depends on \"%Z\" (import cycle)", importpkg->path, $3.u.sval);
-			errorexit();
-		}
+		importimport($2, $3.u.sval);
 	}
 |	LVAR hidden_pkg_importsym hidden_type ';'
 	{
-		importvar($2, $3, PEXTERN);
+		importvar($2, $3);
 	}
 |	LCONST hidden_pkg_importsym '=' hidden_constant ';'
 	{
@@ -1747,17 +1785,24 @@ hidden_import:
 	{
 		importtype($2, $3);
 	}
-|	LFUNC hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres ';'
+|	LFUNC hidden_fndcl fnbody ';'
 	{
-		importvar($2, functype(N, $4, $6), PFUNC);
-	}
-|	LFUNC '(' hidden_funarg_list ')' sym '(' ohidden_funarg_list ')' ohidden_funres ';'
-	{
-		if($3->next != nil || $3->n->op != ODCLFIELD) {
-			yyerror("bad receiver in method");
-			YYERROR;
+		if($2 == N)
+			break;
+
+		funcbody($2);
+		importlist = list(importlist, $2);
+
+		if(debug['E']) {
+			print("import [%Z] func %lN \n", $2->sym->pkg->path, $2);
 		}
-		importmethod($5, functype($3->n, $7, $9));
+	}
+
+hidden_pkg_importsym:
+	hidden_importsym
+	{
+		$$ = $1;
+		structpkg = $$->pkg;
 	}
 
 hidden_pkgtype:
@@ -1766,6 +1811,10 @@ hidden_pkgtype:
 		$$ = pkgtype($1);
 		importsym($1, OTYPE);
 	}
+
+/*
+ *  importing types
+ */
 
 hidden_type:
 	hidden_type_misc
@@ -1848,30 +1897,25 @@ hidden_type_func:
 		$$ = functype(nil, $3, $5);
 	}
 
-hidden_opt_sym:
-	sym
+hidden_funarg:
+	sym hidden_type oliteral
 	{
-		$$ = newname($1);
-	}
-|	'?'
-	{
-		$$ = N;
-	}
-
-hidden_dcl:
-	hidden_opt_sym hidden_type oliteral
-	{
-		$$ = nod(ODCLFIELD, $1, typenod($2));
+		$$ = nod(ODCLFIELD, N, typenod($2));
+		if($1)
+			$$->left = newname($1);
 		$$->val = $3;
 	}
-|	hidden_opt_sym LDDD hidden_type oliteral
+|	sym LDDD hidden_type oliteral
 	{
 		Type *t;
-		
+	
 		t = typ(TARRAY);
 		t->bound = -1;
 		t->type = $3;
-		$$ = nod(ODCLFIELD, $1, typenod(t));
+
+		$$ = nod(ODCLFIELD, N, typenod(t));
+		if($1)
+			$$->left = newname($1);
 		$$->isddd = 1;
 		$$->val = $4;
 	}
@@ -1879,21 +1923,19 @@ hidden_dcl:
 hidden_structdcl:
 	sym hidden_type oliteral
 	{
-		$$ = nod(ODCLFIELD, newname($1), typenod($2));
-		$$->val = $3;
-	}
-|	'?' hidden_type oliteral
-	{
 		Sym *s;
 
-		s = $2->sym;
-		if(s == S && isptr[$2->etype])
-			s = $2->type->sym;
-		if(s && s->pkg == builtinpkg)
-			s = lookup(s->name);
-		$$ = embedded(s);
-		$$->right = typenod($2);
-		$$->val = $3;
+		if($1 != S) {
+			$$ = nod(ODCLFIELD, newname($1), typenod($2));
+			$$->val = $3;
+		} else {
+			s = $2->sym;
+			if(s == S && isptr[$2->etype])
+				s = $2->type->sym;
+			$$ = embedded(s);
+			$$->right = typenod($2);
+			$$->val = $3;
+		}
 	}
 
 hidden_interfacedcl:
@@ -1917,6 +1959,10 @@ hidden_funres:
 	{
 		$$ = list1(nod(ODCLFIELD, N, typenod($1)));
 	}
+
+/*
+ *  importing constants
+ */
 
 hidden_literal:
 	LLITERAL
@@ -1951,22 +1997,15 @@ hidden_constant:
 		$$ = nodcplxlit($2->val, $4->val);
 	}
 
-hidden_pkg_importsym:
-	hidden_importsym
-	{
-		$$ = $1;
-		structpkg = $$->pkg;
-	}
-
 hidden_import_list:
 |	hidden_import_list hidden_import
 
 hidden_funarg_list:
-	hidden_dcl
+	hidden_funarg
 	{
 		$$ = list1($1);
 	}
-|	hidden_funarg_list ',' hidden_dcl
+|	hidden_funarg_list ',' hidden_funarg
 	{
 		$$ = list($1, $3);
 	}

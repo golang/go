@@ -13,21 +13,13 @@
  * package and also uncallable, the name,
  * normally "pkg.init", is altered to "pkg.init·1".
  */
-Node*
-renameinit(Node *n)
+Sym*
+renameinit(void)
 {
-	Sym *s;
 	static int initgen;
 
-	s = n->sym;
-	if(s == S)
-		return n;
-	if(strcmp(s->name, "init") != 0)
-		return n;
-
 	snprint(namebuf, sizeof(namebuf), "init·%d", ++initgen);
-	s = lookup(namebuf);
-	return newname(s);
+	return lookup(namebuf);
 }
 
 /*
@@ -125,7 +117,9 @@ fninit(NodeList *n)
 	fn = nod(ODCLFUNC, N, N);
 	initsym = lookup(namebuf);
 	fn->nname = newname(initsym);
+	fn->nname->defn = fn;
 	fn->nname->ntype = nod(OTFUNC, N, N);
+	declare(fn->nname, PFUNC);
 	funchdr(fn);
 
 	// (3)

@@ -2287,8 +2287,6 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 	in = structargs(getinarg(method->type), 1);
 	out = structargs(getoutarg(method->type), 0);
 
-	fn = nod(ODCLFUNC, N, N);
-	fn->nname = newname(newnam);
 	t = nod(OTFUNC, N, N);
 	l = list1(this);
 	if(iface && rcvr->width < types[tptr]->width) {
@@ -2305,7 +2303,12 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 	}
 	t->list = concat(l, in);
 	t->rlist = out;
+
+	fn = nod(ODCLFUNC, N, N);
+	fn->nname = newname(newnam);
+	fn->nname->defn = fn;
 	fn->nname->ntype = t;
+	declare(fn->nname, PFUNC);
 	funchdr(fn);
 
 	// arg list

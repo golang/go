@@ -43,7 +43,7 @@ resolve(Node *n)
 {
 	Node *r;
 
-	if(n != N && n->op == ONONAME && (r = n->sym->def) != N) {
+	if(n != N && n->op == ONONAME && n->sym != S && (r = n->sym->def) != N) {
 		if(r->op != OIOTA)
 			n = r;
 		else if(n->iota >= 0)
@@ -114,7 +114,6 @@ typecheck(Node **np, int top)
 	NodeList *args;
 	int lno, ok, ntop;
 	Type *t, *tp, *ft, *missing, *have;
-	Sym *sym;
 	Val v;
 	char *why;
 
@@ -567,15 +566,14 @@ reswitch:
 	case ODOT:
 		typecheck(&n->left, Erv|Etype);
 		defaultlit(&n->left, T);
-		l = n->left;
-		if((t = l->type) == T)
+		if((t = n->left->type) == T)
 			goto error;
 		if(n->right->op != ONAME) {
 			yyerror("rhs of . must be a name");	// impossible
 			goto error;
 		}
-		sym = n->right->sym;
-		if(l->op == OTYPE) {
+
+		if(n->left->op == OTYPE) {
 			if(!looktypedot(n, t, 0)) {
 				if(looktypedot(n, t, 1))
 					yyerror("%N undefined (cannot refer to unexported method %S)", n, n->right->sym);
@@ -584,19 +582,18 @@ reswitch:
 				goto error;
 			}
 			if(n->type->etype != TFUNC || n->type->thistuple != 1) {
-				yyerror("type %T has no method %hS", n->left->type, sym);
+				yyerror("type %T has no method %hS", n->left->type, n->right->sym);
 				n->type = T;
 				goto error;
 			}
 			n->op = ONAME;
-			n->sym = methodsym(sym, l->type, 0);
-			n->type = methodfunc(n->type, l->type);
+			n->sym = n->right->sym;
+			n->type = methodfunc(n->type, n->left->type);
 			n->xoffset = 0;
 			n->class = PFUNC;
 			ok = Erv;
 			goto ret;
 		}
-		tp = t;
 		if(isptr[t->etype] && t->type->etype != TINTER) {
 			t = t->type;
 			if(t == T)
@@ -608,7 +605,7 @@ reswitch:
 			if(lookdot(n, t, 1))
 				yyerror("%N undefined (cannot refer to unexported field or method %S)", n, n->right->sym);
 			else
-				yyerror("%N undefined (type %T has no field or method %S)", n, tp, n->right->sym);
+				yyerror("%N undefined (type %T has no field or method %S)", n, n->left->type, n->right->sym);
 			goto error;
 		}
 		switch(n->op) {
@@ -2167,14 +2164,16 @@ typecheckcomplit(Node **np)
 					typecheck(&l->right, Erv);
 					continue;
 				}
+
 				// Sym might have resolved to name in other top-level
 				// package, because of import dot.  Redirect to correct sym
 				// before we do the lookup.
-				if(s->pkg != localpkg)
+				if(s->pkg != localpkg && exportname(s->name))
 					s = lookup(s->name);
+
 				f = lookdot1(s, t, t->type, 0);
 				if(f == nil) {
-					yyerror("unknown %T field '%s' in struct literal", t, s->name);
+					yyerror("unknown %T field '%S' in struct literal", t, s);
 					continue;
 				}
 				l->left = newname(s);

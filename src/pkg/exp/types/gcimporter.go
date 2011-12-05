@@ -323,7 +323,7 @@ func (p *gcParser) parseMapType() Type {
 	return &Map{Key: key, Elt: elt}
 }
 
-// Name = identifier | "?" .
+// Name = identifier | "?" | ExportedName  .
 //
 func (p *gcParser) parseName() (name string) {
 	switch p.tok {
@@ -333,6 +333,9 @@ func (p *gcParser) parseName() (name string) {
 	case '?':
 		// anonymous
 		p.next()
+	case '@':
+		// exported name prefixed with package path
+		_, name = p.parseExportedName()
 	default:
 		p.error("name expected")
 	}
@@ -747,7 +750,7 @@ func (p *gcParser) parseFuncDecl() {
 	}
 }
 
-// MethodDecl = "func" Receiver identifier Signature .
+// MethodDecl = "func" Receiver Name Signature .
 // Receiver   = "(" ( identifier | "?" ) [ "*" ] ExportedName ")" [ FuncBody ].
 //
 func (p *gcParser) parseMethodDecl() {
@@ -755,7 +758,7 @@ func (p *gcParser) parseMethodDecl() {
 	p.expect('(')
 	p.parseParameter() // receiver
 	p.expect(')')
-	p.expect(scanner.Ident)
+	p.parseName() // unexported method names in imports are qualified with their package.
 	p.parseSignature()
 	if p.tok == '{' {
 		p.parseFuncBody()
