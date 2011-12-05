@@ -6,41 +6,14 @@
 #include "hashmap.h"
 #include "type.h"
 
-/* Return a pointer to the struct/union of type "type"
-   whose "field" field is addressed by pointer "p". */
-
 struct Hmap {	   /* a hash table; initialize with hash_init() */
 	uint32 count;	  /* elements in table - must be first */
-
 	uint8 datasize;   /* amount of data to store in entry */
 	uint8 max_power;  /* max power of 2 to create sub-tables */
-	uint8 max_probes; /* max entries to probe before rehashing */
-	uint8 indirectval; /* storing pointers to values */
+	uint8 indirectval;	/* storing pointers to values */
+	uint8 valoff;	/* offset of value in key+value data block */
 	int32 changes;	      /* inc'ed whenever a subtable is created/grown */
-	hash_hash_t (*data_hash) (uint32, void *a);  /* return hash of *a */
-	uint32 (*data_eq) (uint32, void *a, void *b);   /* return whether *a == *b */
-	void (*data_del) (uint32, void *arg, void *data);  /* invoked on deletion */
 	struct hash_subtable *st;    /* first-level table */
-
-	uint32	keysize;
-	uint32	valsize;
-	uint32	datavo;
-
-	// three sets of offsets: the digit counts how many
-	// of key, value are passed as inputs:
-	//	0 = func() (key, value)
-	//	1 = func(key) (value)
-	//	2 = func(key, value)
-	uint32	ko0;
-	uint32	vo0;
-	uint32	ko1;
-	uint32	vo1;
-	uint32	po1;
-	uint32	ko2;
-	uint32	vo2;
-	uint32	po2;
-	Alg*	keyalg;
-	Alg*	valalg;
 };
 
 struct hash_entry {
@@ -58,7 +31,7 @@ struct hash_subtable {
 	struct hash_entry entry[1];  /* 2**power+max_probes-1 elements of elemsize bytes */
 };
 
-#define HASH_DATA_EQ(h,x,y) ((*h->data_eq) (h->keysize, (x), (y)))
+#define HASH_DATA_EQ(eq, t, h,x,y) ((eq)=0, (*t->key->alg->equal) (&(eq), t->key->size, (x), (y)), (eq))
 
 #define HASH_REHASH 0x2       /* an internal flag */
 /* the number of bits used is stored in the flags word too */
@@ -79,6 +52,7 @@ struct hash_subtable {
 #define HASH_OFFSET(base, byte_offset) \
 	  ((struct hash_entry *) (((byte *) (base)) + (byte_offset)))
 
+#define HASH_MAX_PROBES	15 /* max entries to probe before rehashing */
 
 /* return a hash layer with 2**power empty entries */
 static struct hash_subtable *
@@ -87,8 +61,8 @@ hash_subtable_new (Hmap *h, int32 power, int32 used)
 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
 	int32 bytes = elemsize << power;
 	struct hash_subtable *st;
-	int32 limit_bytes = h->max_probes * elemsize;
-	int32 max_probes = h->max_probes;
+	int32 limit_bytes = HASH_MAX_PROBES * elemsize;
+	int32 max_probes = HASH_MAX_PROBES;
 
 	if (bytes < limit_bytes) {
 		limit_bytes = bytes;
@@ -127,12 +101,7 @@ init_sizes (int64 hint, int32 *init_power, int32 *max_power)
 }
 
 static void
-hash_init (Hmap *h,
-		int32 datasize,
-		hash_hash_t (*data_hash) (uint32, void *),
-		uint32 (*data_eq) (uint32, void *, void *),
-		void (*data_del) (uint32, void *, void *),
-		int64 hint)
+hash_init (Hmap *h, int32 datasize, int64 hint)
 {
 	int32 init_power;
 	int32 max_power;
@@ -143,15 +112,11 @@ hash_init (Hmap *h,
 	init_sizes (hint, &init_power, &max_power);
 	h->datasize = datasize;
 	h->max_power = max_power;
-	h->max_probes = 15;
 	assert (h->datasize == datasize);
 	assert (h->max_power == max_power);
 	assert (sizeof (void *) <= h->datasize || h->max_power == 255);
 	h->count = 0;
 	h->changes = 0;
-	h->data_hash = data_hash;
-	h->data_eq = data_eq;
-	h->data_del = data_del;
 	h->st = hash_subtable_new (h, init_power, 0);
 }
 
@@ -199,11 +164,11 @@ hash_remove_n (struct hash_subtable *st, struct hash_entry *dst_e, int32 n)
 }
 
 static int32
-hash_insert_internal (struct hash_subtable **pst, int32 flags, hash_hash_t hash,
+hash_insert_internal (MapType*, struct hash_subtable **pst, int32 flags, hash_hash_t hash,
 		Hmap *h, void *data, void **pres);
 
 static void
-hash_conv (Hmap *h,
+hash_conv (MapType *t, Hmap *h,
 		struct hash_subtable *st, int32 flags,
 		hash_hash_t hash,
 		struct hash_entry *e)
@@ -238,13 +203,13 @@ hash_conv (Hmap *h,
 		   (ne <= st->last && (e_hash = ne->hash) != HASH_NIL &&
 		   (e_hash & prefix_mask) == current)) {
 			struct hash_subtable *new_st = hash_subtable_new (h, 1, HASH_USED (new_flags));
-			int32 rc = hash_insert_internal (&new_st, new_flags, e->hash, h, e->data, &dummy_result);
+			int32 rc = hash_insert_internal (t, &new_st, new_flags, e->hash, h, e->data, &dummy_result);
 			assert (rc == 0);
 			memcpy(dummy_result, e->data, h->datasize);
 			e = ne;
 			while (e <= st->last && (e_hash = e->hash) != HASH_NIL && (e_hash & prefix_mask) == current) {
 				assert ((e_hash & HASH_MASK) != HASH_SUBHASH);
-				rc = hash_insert_internal (&new_st, new_flags, e_hash, h, e->data, &dummy_result);
+				rc = hash_insert_internal (t, &new_st, new_flags, e_hash, h, e->data, &dummy_result);
 				assert (rc == 0);
 				memcpy(dummy_result, e->data, h->datasize);
 				e = HASH_OFFSET (e, elemsize);
@@ -266,7 +231,7 @@ hash_conv (Hmap *h,
 }
 
 static void
-hash_grow (Hmap *h, struct hash_subtable **pst, int32 flags)
+hash_grow (MapType *t, Hmap *h, struct hash_subtable **pst, int32 flags)
 {
 	struct hash_subtable *old_st = *pst;
 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
@@ -280,7 +245,7 @@ hash_grow (Hmap *h, struct hash_subtable **pst, int32 flags)
 	for (e = old_st->entry; e <= last_e; e = HASH_OFFSET (e, elemsize)) {
 		hash_hash_t hash = e->hash;
 		if (hash != HASH_NIL) {
-			int32 rc = hash_insert_internal (pst, flags, e->hash, h, e->data, &dummy_result);
+			int32 rc = hash_insert_internal (t, pst, flags, e->hash, h, e->data, &dummy_result);
 			assert (rc == 0);
 			memcpy(dummy_result, e->data, h->datasize);
 			used++;
@@ -290,16 +255,20 @@ hash_grow (Hmap *h, struct hash_subtable **pst, int32 flags)
 }
 
 static int32
-hash_lookup (Hmap *h, void *data, void **pres)
+hash_lookup (MapType *t, Hmap *h, void *data, void **pres)
 {
 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
-	hash_hash_t hash = (*h->data_hash) (h->keysize, data) & ~HASH_MASK;
+	hash_hash_t hash;
 	struct hash_subtable *st = h->st;
 	int32 used = 0;
 	hash_hash_t e_hash;
 	struct hash_entry *e;
 	struct hash_entry *end_e;
-
+	bool eq;
+	
+	hash = 0;
+	(*t->key->alg->hash) (&hash, t->key->size, data);
+	hash &= ~HASH_MASK;
 	hash += HASH_ADJUST (hash);
 	for (;;) {
 		int32 shift = HASH_BITS - (st->power + used);
@@ -319,7 +288,7 @@ hash_lookup (Hmap *h, void *data, void **pres)
 		e = HASH_OFFSET (e, elemsize);
 	}
 	while (e != end_e && ((e_hash = e->hash) ^ hash) < HASH_SUBHASH) {
-		if (HASH_DATA_EQ (h, data, e->data)) {    /* a match */
+		if (HASH_DATA_EQ (eq, t, h, data, e->data)) {    /* a match */
 			*pres = e->data;
 			return (1);
 		}
@@ -331,16 +300,20 @@ hash_lookup (Hmap *h, void *data, void **pres)
 }
 
 static int32
-hash_remove (Hmap *h, void *data, void *arg)
+hash_remove (MapType *t, Hmap *h, void *data)
 {
 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
-	hash_hash_t hash = (*h->data_hash) (h->keysize, data) & ~HASH_MASK;
+	hash_hash_t hash;
 	struct hash_subtable *st = h->st;
 	int32 used = 0;
 	hash_hash_t e_hash;
 	struct hash_entry *e;
 	struct hash_entry *end_e;
+	bool eq;
 
+	hash = 0;
+	(*t->key->alg->hash) (&hash, t->key->size, data);
+	hash &= ~HASH_MASK;
 	hash += HASH_ADJUST (hash);
 	for (;;) {
 		int32 shift = HASH_BITS - (st->power + used);
@@ -360,8 +333,9 @@ hash_remove (Hmap *h, void *data, void *arg)
 		e = HASH_OFFSET (e, elemsize);
 	}
 	while (e != end_e && ((e_hash = e->hash) ^ hash) < HASH_SUBHASH) {
-		if (HASH_DATA_EQ (h, data, e->data)) {    /* a match */
-			(*h->data_del) (h->datavo, arg, e->data);
+		if (HASH_DATA_EQ (eq, t, h, data, e->data)) {    /* a match */
+			if (h->indirectval)
+				free (*(void**)((byte*)e->data + h->valoff));
 			hash_remove_n (st, e, 1);
 			h->count--;
 			return (1);
@@ -373,10 +347,11 @@ hash_remove (Hmap *h, void *data, void *arg)
 }
 
 static int32
-hash_insert_internal (struct hash_subtable **pst, int32 flags, hash_hash_t hash,
+hash_insert_internal (MapType *t, struct hash_subtable **pst, int32 flags, hash_hash_t hash,
 				 Hmap *h, void *data, void **pres)
 {
 	int32 elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
+	bool eq;
 
 	if ((flags & HASH_REHASH) == 0) {
 		hash += HASH_ADJUST (hash);
@@ -409,7 +384,7 @@ hash_insert_internal (struct hash_subtable **pst, int32 flags, hash_hash_t hash,
 			int32 ins_i = i;
 			hash_hash_t ins_e_hash;
 			while (ins_e != end_e && ((e_hash = ins_e->hash) ^ hash) < HASH_SUBHASH) {
-				if (HASH_DATA_EQ (h, data, ins_e->data)) {    /* a match */
+				if (HASH_DATA_EQ (eq, t, h, data, ins_e->data)) {    /* a match */
 					*pres = ins_e->data;
 					return (1);
 				}
@@ -447,17 +422,22 @@ hash_insert_internal (struct hash_subtable **pst, int32 flags, hash_hash_t hash,
 		}
 		h->changes++;
 		if (st->power < h->max_power) {
-			hash_grow (h, pst, flags);
+			hash_grow (t, h, pst, flags);
 		} else {
-			hash_conv (h, st, flags, hash, start_e);
+			hash_conv (t, h, st, flags, hash, start_e);
 		}
 	}
 }
 
 static int32
-hash_insert (Hmap *h, void *data, void **pres)
+hash_insert (MapType *t, Hmap *h, void *data, void **pres)
 {
-	int32 rc = hash_insert_internal (&h->st, 0, (*h->data_hash) (h->keysize, data), h, data, pres);
+	uintptr hash;
+	int32 rc;
+	
+	hash = 0;
+	(*t->key->alg->hash) (&hash, t->key->size, data);
+	rc = hash_insert_internal (t, &h->st, 0, hash, h, data, pres);
 
 	h->count += (rc == 0);    /* increment count if element didn't previously exist */
 	return (rc);
@@ -528,7 +508,7 @@ Again:
 	last = sub->last;
 
 	if (e != sub->start && it->last_hash != HASH_OFFSET (e, -elemsize)->hash) {
-		struct hash_entry *start = HASH_OFFSET (e, -(elemsize * it->h->max_probes));
+		struct hash_entry *start = HASH_OFFSET (e, -(elemsize * HASH_MAX_PROBES));
 		struct hash_entry *pe = HASH_OFFSET (e, -elemsize);
 		hash_hash_t last_hash = it->last_hash;
 		if (start < sub->start) {
@@ -599,12 +579,13 @@ Again:
 }
 
 static void
-hash_iter_init (Hmap *h, struct hash_iter *it)
+hash_iter_init (MapType *t, Hmap *h, struct hash_iter *it)
 {
 	it->elemsize = h->datasize + offsetof (struct hash_entry, data[0]);
 	it->changes = h->changes;
 	it->i = 0;
 	it->h = h;
+	it->t = t;
 	it->last_hash = 0;
 	it->subtable_state[0].e = h->st->entry;
 	it->subtable_state[0].start = h->st->entry;
@@ -701,24 +682,6 @@ enum {
 	MaxValsize = 256 - 64
 };
 
-static void
-donothing(uint32 s, void *a, void *b)
-{
-	USED(s);
-	USED(a);
-	USED(b);
-}
-
-static void
-freedata(uint32 datavo, void *a, void *b)
-{
-	void *p;
-
-	USED(a);
-	p = *(void**)((byte*)b + datavo);
-	free(p);
-}
-
 static void**
 hash_indirect(Hmap *h, void *p)
 {
@@ -734,8 +697,7 @@ Hmap*
 runtime·makemap_c(MapType *typ, int64 hint)
 {
 	Hmap *h;
-	int32 keyalg, valalg, keysize, valsize, valsize_in_hash;
-	void (*data_del)(uint32, void*, void*);
+	int32 valsize_in_hash;
 	Type *key, *val;
 	
 	key = typ->key;
@@ -744,68 +706,30 @@ runtime·makemap_c(MapType *typ, int64 hint)
 	if(hint < 0 || (int32)hint != hint)
 		runtime·panicstring("makemap: size out of range");
 
-	keyalg = key->alg;
-	valalg = val->alg;
-	keysize = key->size;
-	valsize = val->size;
-
-	if(keyalg >= nelem(runtime·algarray) || runtime·algarray[keyalg].hash == runtime·nohash) {
-		runtime·printf("map(keyalg=%d)\n", keyalg);
+	if(key->alg->hash == runtime·nohash)
 		runtime·throw("runtime.makemap: unsupported map key type");
-	}
-
-	if(valalg >= nelem(runtime·algarray)) {
-		runtime·printf("map(valalg=%d)\n", valalg);
-		runtime·throw("runtime.makemap: unsupported map value type");
-	}
 
 	h = runtime·mal(sizeof(*h));
 
-	valsize_in_hash = valsize;
-	data_del = donothing;
-	if (valsize > MaxValsize) {
+	valsize_in_hash = val->size;
+	if (val->size > MaxValsize) {
 		h->indirectval = 1;
-		data_del = freedata;
 		valsize_in_hash = sizeof(void*);
 	} 
 
-	// align value inside data so that mark-sweep gc can find it.
-	// might remove in the future and just assume datavo == keysize.
-	h->datavo = keysize;
+	// Align value inside data so that mark-sweep gc can find it.
+	h->valoff = key->size;
 	if(valsize_in_hash >= sizeof(void*))
-		h->datavo = runtime·rnd(keysize, sizeof(void*));
+		h->valoff = runtime·rnd(key->size, sizeof(void*));
 
-	hash_init(h, h->datavo+valsize_in_hash,
-		runtime·algarray[keyalg].hash,
-		runtime·algarray[keyalg].equal,
-		data_del,
-		hint);
-
-	h->keysize = keysize;
-	h->valsize = valsize;
-	h->keyalg = &runtime·algarray[keyalg];
-	h->valalg = &runtime·algarray[valalg];
+	hash_init(h, h->valoff+valsize_in_hash, hint);
 
 	// these calculations are compiler dependent.
 	// figure out offsets of map call arguments.
 
-	// func() (key, val)
-	h->ko0 = runtime·rnd(sizeof(h), Structrnd);
-	h->vo0 = runtime·rnd(h->ko0+keysize, val->align);
-
-	// func(key) (val[, pres])
-	h->ko1 = runtime·rnd(sizeof(h), key->align);
-	h->vo1 = runtime·rnd(h->ko1+keysize, Structrnd);
-	h->po1 = h->vo1 + valsize;
-
-	// func(key, val[, pres])
-	h->ko2 = runtime·rnd(sizeof(h), key->align);
-	h->vo2 = runtime·rnd(h->ko2+keysize, val->align);
-	h->po2 = h->vo2 + valsize;
-
 	if(debug) {
-		runtime·printf("makemap: map=%p; keysize=%d; valsize=%d; keyalg=%d; valalg=%d; offsets=%d,%d; %d,%d,%d; %d,%d,%d\n",
-			h, keysize, valsize, keyalg, valalg, h->ko0, h->vo0, h->ko1, h->vo1, h->po1, h->ko2, h->vo2, h->po2);
+		runtime·printf("makemap: map=%p; keysize=%p; valsize=%p; keyalg=%p; valalg=%p\n",
+			h, key->size, val->size, key->alg, val->alg);
 	}
 
 	return h;
@@ -834,9 +758,9 @@ runtime·mapaccess(MapType *t, Hmap *h, byte *ak, byte *av, bool *pres)
 	byte *res;
 	Type *elem;
 
+	elem = t->elem;
 	if(h == nil) {
-		elem = t->elem;
-		runtime·algarray[elem->alg].copy(elem->size, av, nil);
+		elem->alg->copy(elem->size, av, nil);
 		*pres = false;
 		return;
 	}
@@ -845,12 +769,12 @@ runtime·mapaccess(MapType *t, Hmap *h, byte *ak, byte *av, bool *pres)
 		runtime·gosched();
 
 	res = nil;
-	if(hash_lookup(h, ak, (void**)&res)) {
+	if(hash_lookup(t, h, ak, (void**)&res)) {
 		*pres = true;
-		h->valalg->copy(h->valsize, av, hash_indirect(h, res+h->datavo));
+		elem->alg->copy(elem->size, av, hash_indirect(h, res+h->valoff));
 	} else {
 		*pres = false;
-		h->valalg->copy(h->valsize, av, nil);
+		elem->alg->copy(elem->size, av, nil);
 	}
 }
 
@@ -862,13 +786,8 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
 	byte *ak, *av;
 	bool pres;
 
-	if(h == nil) {
-		ak = (byte*)(&h + 1);
-		av = ak + runtime·rnd(t->key->size, Structrnd);
-	} else {
-		ak = (byte*)&h + h->ko1;
-		av = (byte*)&h + h->vo1;
-	}
+	ak = (byte*)(&h + 1);
+	av = ak + runtime·rnd(t->key->size, Structrnd);
 
 	runtime·mapaccess(t, h, ak, av, &pres);
 
@@ -876,9 +795,9 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
 		runtime·prints("runtime.mapaccess1: map=");
 		runtime·printpointer(h);
 		runtime·prints("; key=");
-		h->keyalg->print(h->keysize, ak);
+		t->key->alg->print(t->key->size, ak);
 		runtime·prints("; val=");
-		h->valalg->print(h->valsize, av);
+		t->elem->alg->print(t->elem->size, av);
 		runtime·prints("; pres=");
 		runtime·printbool(pres);
 		runtime·prints("\n");
@@ -892,15 +811,9 @@ runtime·mapaccess2(MapType *t, Hmap *h, ...)
 {
 	byte *ak, *av, *ap;
 
-	if(h == nil) {
-		ak = (byte*)(&h + 1);
-		av = ak + runtime·rnd(t->key->size, Structrnd);
-		ap = av + t->elem->size;
-	} else {
-		ak = (byte*)&h + h->ko1;
-		av = (byte*)&h + h->vo1;
-		ap = (byte*)&h + h->po1;
-	}
+	ak = (byte*)(&h + 1);
+	av = ak + runtime·rnd(t->key->size, Structrnd);
+	ap = av + t->elem->size;
 
 	runtime·mapaccess(t, h, ak, av, ap);
 
@@ -908,9 +821,9 @@ runtime·mapaccess2(MapType *t, Hmap *h, ...)
 		runtime·prints("runtime.mapaccess2: map=");
 		runtime·printpointer(h);
 		runtime·prints("; key=");
-		h->keyalg->print(h->keysize, ak);
+		t->key->alg->print(t->key->size, ak);
 		runtime·prints("; val=");
-		h->valalg->print(h->valsize, av);
+		t->elem->alg->print(t->key->size, av);
 		runtime·prints("; pres=");
 		runtime·printbool(*ap);
 		runtime·prints("\n");
@@ -949,33 +862,31 @@ runtime·mapassign(MapType *t, Hmap *h, byte *ak, byte *av)
 	byte *res;
 	int32 hit;
 
-	USED(t);
-
 	if(h == nil)
 		runtime·panicstring("assignment to entry in nil map");
 
 	if(runtime·gcwaiting)
 		runtime·gosched();
 
-	res = nil;
 	if(av == nil) {
-		hash_remove(h, ak, (void**)&res);
+		hash_remove(t, h, ak);
 		return;
 	}
 
-	hit = hash_insert(h, ak, (void**)&res);
+	res = nil;
+	hit = hash_insert(t, h, ak, (void**)&res);
 	if(!hit && h->indirectval)
-		*(void**)(res+h->datavo) = runtime·mal(h->valsize);
-	h->keyalg->copy(h->keysize, res, ak);
-	h->valalg->copy(h->valsize, hash_indirect(h, res+h->datavo), av);
+		*(void**)(res+h->valoff) = runtime·mal(t->elem->size);
+	t->key->alg->copy(t->key->size, res, ak);
+	t->elem->alg->copy(t->elem->size, hash_indirect(h, res+h->valoff), av);
 
 	if(debug) {
 		runtime·prints("mapassign: map=");
 		runtime·printpointer(h);
 		runtime·prints("; key=");
-		h->keyalg->print(h->keysize, ak);
+		t->key->alg->print(t->key->size, ak);
 		runtime·prints("; val=");
-		h->valalg->print(h->valsize, av);
+		t->elem->alg->print(t->elem->size, av);
 		runtime·prints("; hit=");
 		runtime·printint(hit);
 		runtime·prints("; res=");
@@ -994,8 +905,8 @@ runtime·mapassign1(MapType *t, Hmap *h, ...)
 	if(h == nil)
 		runtime·panicstring("assignment to entry in nil map");
 
-	ak = (byte*)&h + h->ko2;
-	av = (byte*)&h + h->vo2;
+	ak = (byte*)(&h + 1);
+	av = ak + runtime·rnd(t->key->size, t->elem->align);
 
 	runtime·mapassign(t, h, ak, av);
 }
@@ -1010,14 +921,14 @@ runtime·mapdelete(MapType *t, Hmap *h, ...)
 	if(h == nil)
 		runtime·panicstring("deletion of entry in nil map");
 
-	ak = (byte*)&h + h->ko2;
+	ak = (byte*)(&h + 1);
 	runtime·mapassign(t, h, ak, nil);
 
 	if(debug) {
 		runtime·prints("mapdelete: map=");
 		runtime·printpointer(h);
 		runtime·prints("; key=");
-		h->keyalg->print(h->keysize, ak);
+		t->key->alg->print(t->key->size, ak);
 		runtime·prints("\n");
 	}
 }
@@ -1033,11 +944,11 @@ reflect·mapassign(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
 
 	if(h == nil)
 		runtime·panicstring("assignment to entry in nil map");
-	if(h->keysize <= sizeof(key))
+	if(t->key->size <= sizeof(key))
 		ak = (byte*)&key;
 	else
 		ak = (byte*)key;
-	if(h->valsize <= sizeof(val))
+	if(t->elem->size <= sizeof(val))
 		av = (byte*)&val;
 	else
 		av = (byte*)val;
@@ -1048,13 +959,13 @@ reflect·mapassign(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
 
 // mapiterinit(mapType *type, hmap *map[any]any, hiter *any);
 void
-runtime·mapiterinit(MapType*, Hmap *h, struct hash_iter *it)
+runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
 {
 	if(h == nil) {
 		it->data = nil;
 		return;
 	}
-	hash_iter_init(h, it);
+	hash_iter_init(t, h, it);
 	it->data = hash_next(it);
 	if(debug) {
 		runtime·prints("runtime.mapiterinit: map=");
@@ -1109,15 +1020,17 @@ runtime·mapiter1(struct hash_iter *it, ...)
 {
 	Hmap *h;
 	byte *ak, *res;
+	Type *key;
 
 	h = it->h;
-	ak = (byte*)&it + h->ko0;
+	ak = (byte*)(&it + 1);
 
 	res = it->data;
 	if(res == nil)
 		runtime·throw("runtime.mapiter1: key:val nil pointer");
 
-	h->keyalg->copy(h->keysize, ak, res);
+	key = it->t->key;
+	key->alg->copy(key->size, ak, res);
 
 	if(debug) {
 		runtime·prints("mapiter2: iter=");
@@ -1131,14 +1044,14 @@ runtime·mapiter1(struct hash_iter *it, ...)
 bool
 runtime·mapiterkey(struct hash_iter *it, void *ak)
 {
-	Hmap *h;
 	byte *res;
+	Type *key;
 
-	h = it->h;
 	res = it->data;
 	if(res == nil)
 		return false;
-	h->keyalg->copy(h->keysize, ak, res);
+	key = it->t->key;
+	key->alg->copy(key->size, ak, res);
 	return true;
 }
 
@@ -1149,20 +1062,20 @@ runtime·mapiterkey(struct hash_iter *it, void *ak)
 void
 reflect·mapiterkey(struct hash_iter *it, uintptr key, bool ok)
 {
-	Hmap *h;
 	byte *res;
+	Type *tkey;
 
 	key = 0;
 	ok = false;
-	h = it->h;
 	res = it->data;
 	if(res == nil) {
 		key = 0;
 		ok = false;
 	} else {
+		tkey = it->t->key;
 		key = 0;
-		if(h->keysize <= sizeof(key))
-			h->keyalg->copy(h->keysize, (byte*)&key, res);
+		if(tkey->size <= sizeof(key))
+			tkey->alg->copy(tkey->size, (byte*)&key, res);
 		else
 			key = (uintptr)res;
 		ok = true;
@@ -1191,17 +1104,19 @@ runtime·mapiter2(struct hash_iter *it, ...)
 {
 	Hmap *h;
 	byte *ak, *av, *res;
+	MapType *t;
 
-	h = it->h;
-	ak = (byte*)&it + h->ko0;
-	av = (byte*)&it + h->vo0;
+	t = it->t;
+	ak = (byte*)(&it + 1);
+	av = ak + runtime·rnd(t->key->size, t->elem->align);
 
 	res = it->data;
 	if(res == nil)
 		runtime·throw("runtime.mapiter2: key:val nil pointer");
 
-	h->keyalg->copy(h->keysize, ak, res);
-	h->valalg->copy(h->valsize, av, hash_indirect(h, res+h->datavo));
+	h = it->h;
+	t->key->alg->copy(t->key->size, ak, res);
+	t->elem->alg->copy(t->elem->size, av, hash_indirect(h, res+h->valoff));
 
 	if(debug) {
 		runtime·prints("mapiter2: iter=");

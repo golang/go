@@ -92,11 +92,6 @@ runtime·makechan_c(ChanType *t, int64 hint)
 	if(hint < 0 || (int32)hint != hint || (elem->size > 0 && hint > ((uintptr)-1) / elem->size))
 		runtime·panicstring("makechan: size out of range");
 
-	if(elem->alg >= nelem(runtime·algarray)) {
-		runtime·printf("chan(alg=%d)\n", elem->alg);
-		runtime·throw("runtime.makechan: unsupported elem type");
-	}
-
 	// calculate rounded size of Hchan
 	n = sizeof(*c);
 	while(n & MAXALIGN)
@@ -105,12 +100,12 @@ runtime·makechan_c(ChanType *t, int64 hint)
 	// allocate memory in one call
 	c = (Hchan*)runtime·mal(n + hint*elem->size);
 	c->elemsize = elem->size;
-	c->elemalg = &runtime·algarray[elem->alg];
+	c->elemalg = elem->alg;
 	c->elemalign = elem->align;
 	c->dataqsiz = hint;
 
 	if(debug)
-		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%d; elemalign=%d; dataqsiz=%d\n",
+		runtime·printf("makechan: chan=%p; elemsize=%D; elemalg=%p; elemalign=%d; dataqsiz=%d\n",
 			c, (int64)elem->size, elem->alg, elem->align, c->dataqsiz);
 
 	return c;

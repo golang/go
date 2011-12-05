@@ -159,17 +159,18 @@ out:
 static void
 copyin(Type *t, void *src, void **dst)
 {
-	int32 wid, alg;
+	uintptr size;
 	void *p;
+	Alg *alg;
 
-	wid = t->size;
+	size = t->size;
 	alg = t->alg;
 
-	if(wid <= sizeof(*dst))
-		runtime·algarray[alg].copy(wid, dst, src);
+	if(size <= sizeof(*dst))
+		alg->copy(size, dst, src);
 	else {
-		p = runtime·mal(wid);
-		runtime·algarray[alg].copy(wid, p, src);
+		p = runtime·mal(size);
+		alg->copy(size, p, src);
 		*dst = p;
 	}
 }
@@ -177,15 +178,16 @@ copyin(Type *t, void *src, void **dst)
 static void
 copyout(Type *t, void **src, void *dst)
 {
-	int32 wid, alg;
+	uintptr size;
+	Alg *alg;
 
-	wid = t->size;
+	size = t->size;
 	alg = t->alg;
 
-	if(wid <= sizeof(*src))
-		runtime·algarray[alg].copy(wid, dst, src);
+	if(size <= sizeof(*src))
+		alg->copy(size, dst, src);
 	else
-		runtime·algarray[alg].copy(wid, dst, *src);
+		alg->copy(size, dst, *src);
 }
 
 // func convT2I(typ *byte, typ2 *byte, elem any) (ret any)
@@ -548,23 +550,27 @@ runtime·assertE2E2(InterfaceType* inter, Eface e, Eface ret, bool ok)
 static uintptr
 ifacehash1(void *data, Type *t)
 {
-	int32 alg, wid;
+	Alg *alg;
+	uintptr size, h;
 	Eface err;
 
 	if(t == nil)
 		return 0;
 
 	alg = t->alg;
-	wid = t->size;
-	if(runtime·algarray[alg].hash == runtime·nohash) {
+	size = t->size;
+	if(alg->hash == runtime·nohash) {
 		// calling nohash will panic too,
 		// but we can print a better error.
 		runtime·newErrorString(runtime·catstring(runtime·gostringnocopy((byte*)"hash of unhashable type "), *t->string), &err);
 		runtime·panic(err);
 	}
-	if(wid <= sizeof(data))
-		return runtime·algarray[alg].hash(wid, &data);
-	return runtime·algarray[alg].hash(wid, data);
+	h = 0;
+	if(size <= sizeof(data))
+		alg->hash(&h, size, &data);
+	else
+		alg->hash(&h, size, data);
+	return h;
 }
 
 uintptr
@@ -584,22 +590,27 @@ runtime·efacehash(Eface a)
 static bool
 ifaceeq1(void *data1, void *data2, Type *t)
 {
-	int32 alg, wid;
+	uintptr size;
+	Alg *alg;
 	Eface err;
+	bool eq;
 
 	alg = t->alg;
-	wid = t->size;
+	size = t->size;
 
-	if(runtime·algarray[alg].equal == runtime·noequal) {
+	if(alg->equal == runtime·noequal) {
 		// calling noequal will panic too,
 		// but we can print a better error.
 		runtime·newErrorString(runtime·catstring(runtime·gostringnocopy((byte*)"comparing uncomparable type "), *t->string), &err);
 		runtime·panic(err);
 	}
 
-	if(wid <= sizeof(data1))
-		return runtime·algarray[alg].equal(wid, &data1, &data2);
-	return runtime·algarray[alg].equal(wid, data1, data2);
+	eq = 0;
+	if(size <= sizeof(data1))
+		alg->equal(&eq, size, &data1, &data2);
+	else
+		alg->equal(&eq, size, data1, data2);
+	return eq;
 }
 
 bool
@@ -701,7 +712,7 @@ unsafe·Reflect(Eface e, Eface rettype, void *retaddr)
 		if(e.type->size <= sizeof(uintptr)) {
 			// Copy data into x ...
 			x = 0;
-			runtime·algarray[e.type->alg].copy(e.type->size, &x, &e.data);
+			e.type->alg->copy(e.type->size, &x, &e.data);
 
 			// but then build pointer to x so that Reflect
 			// always returns pointer to data.
@@ -711,7 +722,7 @@ unsafe·Reflect(Eface e, Eface rettype, void *retaddr)
 			// Already a pointer, but still make a copy,
 			// to preserve value semantics for interface data.
 			p = runtime·mal(e.type->size);
-			runtime·algarray[e.type->alg].copy(e.type->size, p, e.data);
+			e.type->alg->copy(e.type->size, p, e.data);
 		}
 		retaddr = p;
 	}
@@ -734,7 +745,7 @@ unsafe·Unreflect(Eface typ, void *addr, Eface e)
 	// Interface holds either pointer to data
 	// or copy of original data.
 	if(e.type->size <= sizeof(uintptr))
-		runtime·algarray[e.type->alg].copy(e.type->size, &e.data, addr);
+		e.type->alg->copy(e.type->size, &e.data, addr);
 	else {
 		// Easier: already a pointer to data.
 		// TODO(rsc): Should this make a copy?

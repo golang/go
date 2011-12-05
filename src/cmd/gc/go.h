@@ -72,35 +72,6 @@ struct	Strlit
 	char	s[3];	// variable
 };
 
-/*
- * note this is the runtime representation
- * of hashmap iterator. it is probably
- * insafe to use it this way, but it puts
- * all the changes in one place.
- * only flag is referenced from go.
- * actual placement does not matter as long
- * as the size is >= actual size.
- */
-typedef	struct	Hiter	Hiter;
-struct	Hiter
-{
-	uchar	data[8];		// return val from next
-	int32	elemsize;		// size of elements in table
-	int32	changes;		// number of changes observed last time
-	int32	i;			// stack pointer in subtable_state
-	int32	cycled;		// actually a bool but pad for next field, a pointer
-	uchar	last[8];		// last hash value returned
-	uchar	cycle[8];		// the value where we started and will stop
-	uchar	h[8];			// the hash table
-	struct
-	{
-		uchar	sub[8];		// pointer into subtable
-		uchar	start[8];	// pointer into start of subtable
-		uchar	end[8];		// pointer into end of subtable
-		uchar	pad[8];
-	} sub[4];
-};
-
 enum
 {
 	Mpscale	= 29,		// safely smaller than bits in a long

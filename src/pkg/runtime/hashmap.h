@@ -86,6 +86,7 @@ struct hash_iter {
 	hash_hash_t last_hash;	/* last hash value returned */
 	hash_hash_t cycle;	/* hash value where we started */
 	struct Hmap *h;		/* the hash table */
+	MapType *t;			/* the map type */
 	struct hash_iter_sub {
 		struct hash_entry *e;		/* pointer into subtable */
 		struct hash_entry *start;	/* start of subtable */
