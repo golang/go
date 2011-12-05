@@ -31,6 +31,7 @@ GOFILES=\
 	signal.go\
 	sorthelpers.go\
 	sortslice.go\
+	strconv.go\
 	stringssplit.go\
 	template.go\
 	timefileinfo.go\
