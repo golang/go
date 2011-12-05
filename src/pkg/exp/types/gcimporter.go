@@ -305,7 +305,7 @@ func (p *gcParser) parseArrayType() Type {
 	lit := p.expect(scanner.Int)
 	p.expect(']')
 	elt := p.parseType()
-	n, err := strconv.Atoui64(lit)
+	n, err := strconv.ParseUint(lit, 10, 64)
 	if err != nil {
 		p.error(err)
 	}
@@ -622,10 +622,11 @@ func (p *gcParser) parseNumber() Const {
 		// exponent (base 2)
 		p.next()
 		sign, val = p.parseInt()
-		exp, err := strconv.Atoui(val)
+		exp64, err := strconv.ParseUint(val, 10, 0)
 		if err != nil {
 			p.error(err)
 		}
+		exp := uint(exp64)
 		if sign == "-" {
 			denom := big.NewInt(1)
 			denom.Lsh(denom, exp)

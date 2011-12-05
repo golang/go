@@ -159,7 +159,7 @@ func TestHandshakeServerSSLv3(t *testing.T) {
 
 var serve = flag.Bool("serve", false, "run a TLS server on :10443")
 var testCipherSuites = flag.String("ciphersuites",
-	"0x"+strconv.Itob(int(TLS_RSA_WITH_RC4_128_SHA), 16),
+	"0x"+strconv.FormatInt(int64(TLS_RSA_WITH_RC4_128_SHA), 16),
 	"cipher suites to accept in serving mode")
 
 func TestRunServer(t *testing.T) {
@@ -170,7 +170,7 @@ func TestRunServer(t *testing.T) {
 	suites := strings.Split(*testCipherSuites, ",")
 	testConfig.CipherSuites = make([]uint16, len(suites))
 	for i := range suites {
-		suite, err := strconv.Btoui64(suites[i], 0)
+		suite, err := strconv.ParseUint(suites[i], 0, 64)
 		if err != nil {
 			panic(err)
 		}

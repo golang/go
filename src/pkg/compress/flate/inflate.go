@@ -25,7 +25,7 @@ const (
 type CorruptInputError int64
 
 func (e CorruptInputError) Error() string {
-	return "flate: corrupt input before offset " + strconv.Itoa64(int64(e))
+	return "flate: corrupt input before offset " + strconv.FormatInt(int64(e), 10)
 }
 
 // An InternalError reports an error in the flate code itself.
@@ -40,7 +40,7 @@ type ReadError struct {
 }
 
 func (e *ReadError) Error() string {
-	return "flate: read error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Err.Error()
+	return "flate: read error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
 }
 
 // A WriteError reports an error encountered while writing output.
@@ -50,7 +50,7 @@ type WriteError struct {
 }
 
 func (e *WriteError) Error() string {
-	return "flate: write error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Err.Error()
+	return "flate: write error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
 }
 
 // Huffman decoder is based on

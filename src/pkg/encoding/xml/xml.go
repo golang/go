@@ -889,9 +889,9 @@ Input:
 				var n uint64
 				var err error
 				if i >= 3 && s[1] == 'x' {
-					n, err = strconv.Btoui64(s[2:], 16)
+					n, err = strconv.ParseUint(s[2:], 16, 64)
 				} else {
-					n, err = strconv.Btoui64(s[1:], 10)
+					n, err = strconv.ParseUint(s[1:], 10, 64)
 				}
 				if err == nil && n <= unicode.MaxRune {
 					text = string(n)

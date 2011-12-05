@@ -147,7 +147,7 @@ func (t *transferWriter) WriteHeader(w io.Writer) (err error) {
 	// TransferEncoding)
 	if t.shouldSendContentLength() {
 		io.WriteString(w, "Content-Length: ")
-		_, err = io.WriteString(w, strconv.Itoa64(t.ContentLength)+"\r\n")
+		_, err = io.WriteString(w, strconv.FormatInt(t.ContentLength, 10)+"\r\n")
 		if err != nil {
 			return
 		}
@@ -432,7 +432,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 	// Logic based on Content-Length
 	cl := strings.TrimSpace(header.Get("Content-Length"))
 	if cl != "" {
-		n, err := strconv.Atoi64(cl)
+		n, err := strconv.ParseInt(cl, 10, 64)
 		if err != nil || n < 0 {
 			return -1, &badStringError{"bad Content-Length", cl}
 		}

@@ -365,13 +365,13 @@ func hixie76ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) 
 	key2, number2 := generateKeyNumber()
 	if config.handshakeData != nil {
 		key1 = config.handshakeData["key1"]
-		n, err := strconv.Atoui(config.handshakeData["number1"])
+		n, err := strconv.ParseUint(config.handshakeData["number1"], 10, 32)
 		if err != nil {
 			panic(err)
 		}
 		number1 = uint32(n)
 		key2 = config.handshakeData["key2"]
-		n, err = strconv.Atoui(config.handshakeData["number2"])
+		n, err = strconv.ParseUint(config.handshakeData["number2"], 10, 32)
 		if err != nil {
 			panic(err)
 		}

@@ -156,7 +156,7 @@ func flag(i int) (f *flagSpec, value string, extra bool) {
 
 // setBoolFlag sets the addressed boolean to the value.
 func setBoolFlag(flag *bool, value string) {
-	x, err := strconv.Atob(value)
+	x, err := strconv.ParseBool(value)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gotest: illegal bool flag value %s\n", value)
 		usage()

@@ -486,19 +486,19 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 	// Helper functions for integer and unsigned integer conversions
 	var itmp int64
 	getInt64 := func() bool {
-		itmp, err = strconv.Atoi64(string(src))
+		itmp, err = strconv.ParseInt(string(src), 10, 64)
 		// TODO: should check sizes
 		return err == nil
 	}
 	var utmp uint64
 	getUint64 := func() bool {
-		utmp, err = strconv.Atoui64(string(src))
+		utmp, err = strconv.ParseUint(string(src), 10, 64)
 		// TODO: check for overflow?
 		return err == nil
 	}
 	var ftmp float64
 	getFloat64 := func() bool {
-		ftmp, err = strconv.Atof64(string(src))
+		ftmp, err = strconv.ParseFloat(string(src), 64)
 		// TODO: check for overflow?
 		return err == nil
 	}
@@ -525,7 +525,7 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 		}
 		t.SetFloat(ftmp)
 	case reflect.Bool:
-		value, err := strconv.Atob(strings.TrimSpace(string(src)))
+		value, err := strconv.ParseBool(strings.TrimSpace(string(src)))
 		if err != nil {
 			return err
 		}

@@ -489,7 +489,7 @@ func selectTag(goVersion string, tags []string) (match string) {
 	const rPrefix = "release.r"
 	if strings.HasPrefix(goVersion, rPrefix) {
 		p := "go.r"
-		v, err := strconv.Atof64(goVersion[len(rPrefix):])
+		v, err := strconv.ParseFloat(goVersion[len(rPrefix):], 64)
 		if err != nil {
 			return ""
 		}
@@ -498,7 +498,7 @@ func selectTag(goVersion string, tags []string) (match string) {
 			if !strings.HasPrefix(t, p) {
 				continue
 			}
-			tf, err := strconv.Atof64(t[len(p):])
+			tf, err := strconv.ParseFloat(t[len(p):], 64)
 			if err != nil {
 				continue
 			}

@@ -173,15 +173,15 @@ func (p *printer) marshalValue(val reflect.Value, name string) error {
 
 	switch k := val.Kind(); k {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		p.WriteString(strconv.Itoa64(val.Int()))
+		p.WriteString(strconv.FormatInt(val.Int(), 10))
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		p.WriteString(strconv.Uitoa64(val.Uint()))
+		p.WriteString(strconv.FormatUint(val.Uint(), 10))
 	case reflect.Float32, reflect.Float64:
-		p.WriteString(strconv.Ftoa64(val.Float(), 'g', -1))
+		p.WriteString(strconv.FormatFloat(val.Float(), 'g', -1, 64))
 	case reflect.String:
 		Escape(p, []byte(val.String()))
 	case reflect.Bool:
-		p.WriteString(strconv.Btoa(val.Bool()))
+		p.WriteString(strconv.FormatBool(val.Bool()))
 	case reflect.Array:
 		// will be [...]byte
 		bytes := make([]byte, val.Len())

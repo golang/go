@@ -178,7 +178,7 @@ func (a Attr) GoString() string {
 			return "dwarf.Attr" + s
 		}
 	}
-	return "dwarf.Attr(" + strconv.Itoa64(int64(a)) + ")"
+	return "dwarf.Attr(" + strconv.FormatInt(int64(a), 10) + ")"
 }
 
 // A format is a DWARF data encoding format.
@@ -347,7 +347,7 @@ func (t Tag) GoString() string {
 			return "dwarf.Tag" + s
 		}
 	}
-	return "dwarf.Tag(" + strconv.Itoa64(int64(t)) + ")"
+	return "dwarf.Tag(" + strconv.FormatInt(int64(t), 10) + ")"
 }
 
 // Location expression operators.

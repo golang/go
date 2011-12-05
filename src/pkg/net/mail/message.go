@@ -481,7 +481,7 @@ func (qd qDecoder) Read(p []byte) (n int, err error) {
 		if _, err := io.ReadFull(qd.r, qd.scratch[:2]); err != nil {
 			return 0, err
 		}
-		x, err := strconv.Btoi64(string(qd.scratch[:2]), 16)
+		x, err := strconv.ParseInt(string(qd.scratch[:2]), 16, 64)
 		if err != nil {
 			return 0, fmt.Errorf("mail: invalid RFC 2047 encoding: %q", qd.scratch[:2])
 		}

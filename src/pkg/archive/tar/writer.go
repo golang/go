@@ -79,7 +79,7 @@ func (tw *Writer) cString(b []byte, s string) {
 
 // Encode x as an octal ASCII string and write it into b with leading zeros.
 func (tw *Writer) octal(b []byte, x int64) {
-	s := strconv.Itob64(x, 8)
+	s := strconv.FormatInt(x, 8)
 	// leading zeros, but leave room for a NUL.
 	for len(s)+1 < len(b) {
 		s = "0" + s
@@ -90,7 +90,7 @@ func (tw *Writer) octal(b []byte, x int64) {
 // Write x into b, either as octal or as binary (GNUtar/star extension).
 func (tw *Writer) numeric(b []byte, x int64) {
 	// Try octal first.
-	s := strconv.Itob64(x, 8)
+	s := strconv.FormatInt(x, 8)
 	if len(s) < len(b) {
 		tw.octal(b, x)
 		return

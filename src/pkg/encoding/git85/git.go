@@ -15,7 +15,7 @@ import (
 type CorruptInputError int64
 
 func (e CorruptInputError) Error() string {
-	return "illegal git85 data at input byte " + strconv.Itoa64(int64(e))
+	return "illegal git85 data at input byte " + strconv.FormatInt(int64(e), 10)
 }
 
 const encode = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~"
