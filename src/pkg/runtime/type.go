@@ -27,15 +27,16 @@ type Type interface{}
 // All types begin with a few common fields needed for
 // the interface runtime.
 type commonType struct {
-	size          uintptr // size in bytes
-	hash          uint32  // hash of type; avoids computation in hash tables
-	alg           uint8   // algorithm for copy+hash+cmp (../runtime/runtime.h:/AMEM)
-	align         uint8   // alignment of variable with this type
-	fieldAlign    uint8   // alignment of struct field with this type
-	kind          uint8   // enumeration for C
-	string        *string // string form; unnecessary  but undeniably useful
-	*uncommonType         // (relatively) uncommon fields
-	ptrToThis     *Type   // pointer to this type, if used in binary or has methods
+	size          uintptr  // size in bytes
+	hash          uint32   // hash of type; avoids computation in hash tables
+	_             uint8    // unused
+	align         uint8    // alignment of variable with this type
+	fieldAlign    uint8    // alignment of struct field with this type
+	kind          uint8    // enumeration for C
+	alg           *uintptr // algorithm table (../runtime/runtime.h:/Alg)
+	string        *string  // string form; unnecessary  but undeniably useful
+	*uncommonType          // (relatively) uncommon fields
+	ptrToThis     *Type    // pointer to this type, if used in binary or has methods
 }
 
 // Values for commonType.kind.

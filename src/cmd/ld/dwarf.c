@@ -775,7 +775,7 @@ enum {
 	KindNoPointers = 1<<7,
 
 	// size of Type interface header + CommonType structure.
-	CommonSize = 2*PtrSize+ 4*PtrSize + 8,
+	CommonSize = 2*PtrSize+ 5*PtrSize + 8,
 };
 
 static Reloc*

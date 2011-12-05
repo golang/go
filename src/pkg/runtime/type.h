@@ -23,10 +23,11 @@ struct CommonType
 {
 	uintptr size;
 	uint32 hash;
-	uint8 alg;
+	uint8 _unused;
 	uint8 align;
 	uint8 fieldAlign;
 	uint8 kind;
+	Alg *alg;
 	String *string;
 	UncommonType *x;
 	Type *ptrto;

@@ -63,6 +63,7 @@ OFILES_arm=\
 	vlrt.$O\
 
 OFILES=\
+	alg.$O\
 	asm.$O\
 	atomic.$O\
 	cgocall.$O\

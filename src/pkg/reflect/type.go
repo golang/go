@@ -241,10 +241,11 @@ const (
 type commonType struct {
 	size       uintptr
 	hash       uint32
-	alg        uint8
+	_          uint8
 	align      uint8
 	fieldAlign uint8
 	kind       uint8
+	alg        *uintptr
 	string     *string
 	*uncommonType
 	ptrToThis *runtime.Type

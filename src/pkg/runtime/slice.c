@@ -11,7 +11,7 @@ static	int32	debug	= 0;
 
 static	void	makeslice1(SliceType*, int32, int32, Slice*);
 static	void	growslice1(SliceType*, Slice, int32, Slice *);
-	void	runtime·slicecopy(Slice to, Slice fm, uintptr width, int32 ret);
+	void	runtime·copy(Slice to, Slice fm, uintptr width, int32 ret);
 
 // see also unsafe·NewArray
 // makeslice(typ *Type, len, cap int64) (ary []any);
@@ -290,9 +290,9 @@ runtime·slicearray(byte* old, uint64 nel, uint64 lb, uint64 hb, uint64 width, S
 	}
 }
 
-// slicecopy(to any, fr any, wid uint32) int
+// copy(to any, fr any, wid uint32) int
 void
-runtime·slicecopy(Slice to, Slice fm, uintptr width, int32 ret)
+runtime·copy(Slice to, Slice fm, uintptr width, int32 ret)
 {
 	if(fm.len == 0 || to.len == 0 || width == 0) {
 		ret = 0;

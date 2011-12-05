@@ -167,7 +167,9 @@ walkrange(Node *n)
 	case TMAP:
 		th = typ(TARRAY);
 		th->type = ptrto(types[TUINT8]);
-		th->bound = (sizeof(struct Hiter) + widthptr - 1) / widthptr;
+		// see ../../pkg/runtime/hashmap.h:/hash_iter
+		// Size in words.
+		th->bound = 5 + 4*3 + 4*4/widthptr;
 		hit = temp(th);
 
 		fn = syslook("mapiterinit", 1);

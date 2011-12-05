@@ -553,9 +553,14 @@ haspointers(Type *t)
 static int
 dcommontype(Sym *s, int ot, Type *t)
 {
-	int i;
+	int i, sizeofAlg;
 	Sym *sptr;
+	static Sym *algarray;
 	char *p;
+
+	sizeofAlg = 4*widthptr;
+	if(algarray == nil)
+		algarray = pkglookup("algarray", runtimepkg);
 
 	dowidth(t);
 	
@@ -586,7 +591,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	//	}
 	ot = duintptr(s, ot, t->width);
 	ot = duint32(s, ot, typehash(t));
-	ot = duint8(s, ot, algtype(t));
+	ot = duint8(s, ot, 0);	// unused
 	ot = duint8(s, ot, t->align);	// align
 	ot = duint8(s, ot, t->align);	// fieldAlign
 	i = kinds[t->etype];
@@ -595,6 +600,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	if(!haspointers(t))
 		i |= KindNoPointers;
 	ot = duint8(s, ot, i);  // kind
+	ot = dsymptr(s, ot, algarray, algtype(t)*sizeofAlg);
 	p = smprint("%-uT", t);
 	//print("dcommontype: %s\n", p);
 	ot = dgostringptr(s, ot, p);	// string
