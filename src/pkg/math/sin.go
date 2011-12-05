@@ -110,7 +110,7 @@ var _cos = [...]float64{
 
 // Cos returns the cosine of x.
 //
-// Special conditions are:
+// Special cases are:
 //	Cos(±Inf) = NaN
 //	Cos(NaN) = NaN
 func Cos(x float64) float64 {
