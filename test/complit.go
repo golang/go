@@ -58,7 +58,7 @@ func main() {
 	var tp *T
 	tp = &T{0, 7.2, "hi", &t}
 
-	tl := &T{i: 0, next: {i: 1, next: {i: 2, next: {i: 3, next: {i: 4}}}}}
+	tl := &T{i: 0, next: &T{i: 1, next: &T{i: 2, next: &T{i: 3, next: &T{i: 4}}}}}
 	teq(tl, 5)
 
 	a1 := []int{1, 2, 3}

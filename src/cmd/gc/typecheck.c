@@ -2183,7 +2183,7 @@ typecheckcomplit(Node **np)
 				s = f->sym;
 				fielddup(newname(s), hash, nhash);
 				r = l->right;
-				pushtype(r, f->type);
+				// No pushtype allowed here.  Tried and rejected.
 				typecheck(&r, Erv);
 				l->right = assignconv(r, f->type, "field value");
 			}

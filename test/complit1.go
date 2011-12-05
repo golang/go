@@ -34,6 +34,6 @@ type T struct {
 
 var (
 	_ = &T{0, 0, "", nil}               // ok
-	_ = &T{i: 0, f: 0, s: "", next: {}} // ok
+	_ = &T{i: 0, f: 0, s: "", next: {}} // ERROR "missing type in composite literal"
 	_ = &T{0, 0, "", {}}                // ERROR "missing type in composite literal"
 )
