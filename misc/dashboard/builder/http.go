@@ -8,96 +8,108 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
-	"strconv"
 )
 
-type param map[string]string
+type obj map[string]interface{}
 
 // dash runs the given method and command on the dashboard.
-// If args is not nil, it is the query or post parameters.
-// If resp is not nil, dash unmarshals the body as JSON into resp.
-func dash(meth, cmd string, resp interface{}, args param) error {
+// If args is non-nil it is encoded as the URL query string.
+// If req is non-nil it is JSON-encoded and passed as the body of the HTTP POST.
+// If resp is non-nil the server's response is decoded into the value pointed
+// to by resp (resp must be a pointer).
+func dash(meth, cmd string, args url.Values, req, resp interface{}) error {
 	var r *http.Response
 	var err error
 	if *verbose {
-		log.Println("dash", cmd, args)
+		log.Println("dash", meth, cmd, args, req)
 	}
 	cmd = "http://" + *dashboard + "/" + cmd
-	vals := make(url.Values)
-	for k, v := range args {
-		vals.Add(k, v)
+	if len(args) > 0 {
+		cmd += "?" + args.Encode()
 	}
 	switch meth {
 	case "GET":
-		if q := vals.Encode(); q != "" {
-			cmd += "?" + q
+		if req != nil {
+			log.Panicf("%s to %s with req", meth, cmd)
 		}
 		r, err = http.Get(cmd)
 	case "POST":
-		r, err = http.PostForm(cmd, vals)
-	default:
-		return fmt.Errorf("unknown method %q", meth)
-	}
-	if err != nil {
-		return err
-	}
-	defer r.Body.Close()
-	var buf bytes.Buffer
-	buf.ReadFrom(r.Body)
-	if resp != nil {
-		if err = json.Unmarshal(buf.Bytes(), resp); err != nil {
-			log.Printf("json unmarshal %#q: %s\n", buf.Bytes(), err)
-			return err
+		var body io.Reader
+		if req != nil {
+			b, err := json.Marshal(req)
+			if err != nil {
+				return err
+			}
+			body = bytes.NewBuffer(b)
 		}
+		r, err = http.Post(cmd, "text/json", body)
+	default:
+		log.Panicf("%s: invalid method %q", cmd, meth)
+		panic("invalid method: " + meth)
 	}
-	return nil
-}
-
-func dashStatus(meth, cmd string, args param) error {
-	var resp struct {
-		Status string
-		Error  string
-	}
-	err := dash(meth, cmd, &resp, args)
 	if err != nil {
 		return err
 	}
-	if resp.Status != "OK" {
-		return errors.New("/build: " + resp.Error)
+
+	defer r.Body.Close()
+	body := new(bytes.Buffer)
+	if _, err := body.ReadFrom(r.Body); err != nil {
+		return err
 	}
+
+	// Read JSON-encoded Response into provided resp
+	// and return an error if present.
+	var result = struct {
+		Response interface{}
+		Error    string
+	}{
+		// Put the provided resp in here as it can be a pointer to
+		// some value we should unmarshal into.
+		Response: resp,
+	}
+	if err = json.Unmarshal(body.Bytes(), &result); err != nil {
+		log.Printf("json unmarshal %#q: %s\n", body.Bytes(), err)
+		return err
+	}
+	if result.Error != "" {
+		return errors.New(result.Error)
+	}
+
 	return nil
 }
 
 // todo returns the next hash to build.
 func (b *Builder) todo() (rev string, err error) {
-	var resp []struct {
-		Hash string
-	}
-	if err = dash("GET", "todo", &resp, param{"builder": b.name}); err != nil {
+	// TODO(adg): handle packages
+	args := url.Values{"builder": {b.name}}
+	var resp string
+	if err = dash("GET", "todo", args, nil, &resp); err != nil {
 		return
 	}
-	if len(resp) > 0 {
-		rev = resp[0].Hash
+	if resp != "" {
+		rev = resp
 	}
 	return
 }
 
 // recordResult sends build results to the dashboard
 func (b *Builder) recordResult(buildLog string, hash string) error {
-	return dash("POST", "build", nil, param{
-		"builder": b.name,
-		"key":     b.key,
-		"node":    hash,
-		"log":     buildLog,
-	})
+	// TODO(adg): handle packages
+	return dash("POST", "result", url.Values{"key": {b.key}}, obj{
+		"Builder": b.name,
+		"Hash":    hash,
+		"Log":     buildLog,
+	}, nil)
 }
 
 // packages fetches a list of package paths from the dashboard
 func packages() (pkgs []string, err error) {
+	return nil, nil
+	/* TODO(adg): un-stub this once the new package builder design is done
 	var resp struct {
 		Packages []struct {
 			Path string
@@ -111,10 +123,13 @@ func packages() (pkgs []string, err error) {
 		pkgs = append(pkgs, p.Path)
 	}
 	return
+	*/
 }
 
 // updatePackage sends package build results and info dashboard
 func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) error {
+	return nil
+	/* TODO(adg): un-stub this once the new package builder design is done
 	return dash("POST", "package", nil, param{
 		"builder": b.name,
 		"key":     b.key,
@@ -123,26 +138,44 @@ func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) erro
 		"log":     buildLog,
 		"info":    info,
 	})
+	*/
 }
 
-// postCommit informs the dashboard of a new commit
-func postCommit(key string, l *HgLog) error {
-	return dashStatus("POST", "commit", param{
-		"key":    key,
-		"node":   l.Hash,
-		"date":   l.Date,
-		"user":   l.Author,
-		"parent": l.Parent,
-		"desc":   l.Desc,
-	})
-}
-
-// dashboardCommit returns true if the dashboard knows about hash.
-func dashboardCommit(hash string) bool {
-	err := dashStatus("GET", "commit", param{"node": hash})
+func postCommit(key, pkg string, l *HgLog) bool {
+	err := dash("POST", "commit", url.Values{"key": {key}}, obj{
+		"PackagePath": pkg,
+		"Hash":        l.Hash,
+		"ParentHash":  l.Parent,
+		// TODO(adg): l.Date as int64 unix epoch secs in Time field
+		"User": l.Author,
+		"Desc": l.Desc,
+	}, nil)
 	if err != nil {
-		log.Printf("check %s: %s", hash, err)
+		log.Printf("failed to add %s to dashboard: %v", key, err)
 		return false
 	}
 	return true
+}
+
+func dashboardCommit(pkg, hash string) bool {
+	err := dash("GET", "commit", url.Values{
+		"packagePath": {pkg},
+		"hash":        {hash},
+	}, nil, nil)
+	return err == nil
+}
+
+func dashboardPackages() []string {
+	var resp []struct {
+		Path string
+	}
+	if err := dash("GET", "packages", nil, nil, &resp); err != nil {
+		log.Println("dashboardPackages:", err)
+		return nil
+	}
+	var pkgs []string
+	for _, r := range resp {
+		pkgs = append(pkgs, r.Path)
+	}
+	return pkgs
 }
