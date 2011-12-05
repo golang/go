@@ -8,6 +8,7 @@
 #include	"y.tab.h"
 
 static	void	funcargs(Node*);
+static	void	funcargs2(Type*);
 
 static int
 dflag(void)
@@ -547,13 +548,6 @@ ifacedcl(Node *n)
 void
 funchdr(Node *n)
 {
-
-	if(n->nname != N) {
-		n->nname->op = ONAME;
-		declare(n->nname, PFUNC);
-		n->nname->defn = n;
-	}
-
 	// change the declaration context from extern to auto
 	if(funcdepth == 0 && dclcontext != PEXTERN)
 		fatal("funchdr: dclcontext");
@@ -564,10 +558,13 @@ funchdr(Node *n)
 
 	n->outer = curfn;
 	curfn = n;
+
 	if(n->nname)
 		funcargs(n->nname->ntype);
-	else
+	else if (n->ntype)
 		funcargs(n->ntype);
+	else
+		funcargs2(n->type);
 }
 
 static void
@@ -582,11 +579,11 @@ funcargs(Node *nt)
 
 	// declare the receiver and in arguments.
 	// no n->defn because type checking of func header
-	// will fill in the types before we can demand them.
+	// will not fill in the types until later
 	if(nt->left != N) {
 		n = nt->left;
 		if(n->op != ODCLFIELD)
-			fatal("funcargs1 %O", n->op);
+			fatal("funcargs receiver %O", n->op);
 		if(n->left != N) {
 			n->left->op = ONAME;
 			n->left->ntype = n->right;
@@ -596,7 +593,7 @@ funcargs(Node *nt)
 	for(l=nt->list; l; l=l->next) {
 		n = l->n;
 		if(n->op != ODCLFIELD)
-			fatal("funcargs2 %O", n->op);
+			fatal("funcargs in %O", n->op);
 		if(n->left != N) {
 			n->left->op = ONAME;
 			n->left->ntype = n->right;
@@ -609,7 +606,7 @@ funcargs(Node *nt)
 	for(l=nt->rlist; l; l=l->next) {
 		n = l->n;
 		if(n->op != ODCLFIELD)
-			fatal("funcargs3 %O", n->op);
+			fatal("funcargs out %O", n->op);
 		if(n->left != N) {
 			n->left->op = ONAME;
 			n->left->ntype = n->right;
@@ -625,6 +622,48 @@ funcargs(Node *nt)
 			declare(n->left, PPARAMOUT);
 		}
 	}
+}
+
+/*
+ * Same as funcargs, except run over an already constructed TFUNC.
+ * This happens during import, where the hidden_fndcl rule has
+ * used functype directly to parse the function's type.
+ */
+static void
+funcargs2(Type *t)
+{
+	Type *ft;
+	Node *n;
+
+	if(t->etype != TFUNC)
+		fatal("funcargs2 %T", t);
+	
+	if(t->thistuple)
+		for(ft=getthisx(t)->type; ft; ft=ft->down) {
+			if(!ft->nname || !ft->nname->sym)
+				continue;
+			n = newname(ft->nname->sym);
+			n->type = ft->type;
+			declare(n, PPARAM);
+		}
+
+	if(t->intuple)
+		for(ft=getinargx(t)->type; ft; ft=ft->down) {
+			if(!ft->nname || !ft->nname->sym)
+				continue;
+			n = newname(ft->nname->sym);
+			n->type = ft->type;
+			declare(n, PPARAM);
+		}
+
+	if(t->outtuple)
+		for(ft=getoutargx(t)->type; ft; ft=ft->down) {
+			if(!ft->nname || !ft->nname->sym)
+				continue;
+			n = newname(ft->nname->sym);
+			n->type = ft->type;
+			declare(n, PPARAMOUT);
+		}
 }
 
 /*
@@ -654,7 +693,7 @@ typedcl0(Sym *s)
 {
 	Node *n;
 
-	n = dclname(s);
+	n = newname(s);
 	n->op = OTYPE;
 	declare(n, dclcontext);
 	return n;
@@ -740,8 +779,6 @@ structfield(Node *n)
 		f->nname = n->left;
 		f->embedded = n->embedded;
 		f->sym = f->nname->sym;
-		if(importpkg && !exportname(f->sym->name))
-			f->sym = pkglookup(f->sym->name, structpkg);
 	}
 
 	lineno = lno;
@@ -778,8 +815,12 @@ tostruct(NodeList *l)
 	Type *t, *f, **tp;
 	t = typ(TSTRUCT);
 
-	for(tp = &t->type; l; l=l->next,tp = &(*tp)->down)
-		*tp = structfield(l->n);
+	for(tp = &t->type; l; l=l->next) {
+		f = structfield(l->n);
+
+		*tp = f;
+		tp = &f->down;
+	}
 
 	for(f=t->type; f && !t->broke; f=f->down)
 		if(f->broke)
@@ -803,7 +844,7 @@ tofunargs(NodeList *l)
 
 	for(tp = &t->type; l; l=l->next) {
 		f = structfield(l->n);
-
+		f->funarg = 1;
 		// esc.c needs to find f given a PPARAM to add the tag.
 		if(l->n->left && l->n->left->class == PPARAM)
 			l->n->left->paramfld = f;
@@ -944,7 +985,10 @@ embedded(Sym *s)
 		*utfrune(name, CenterDot) = 0;
 	}
 
-	n = newname(lookup(name));
+	if(exportname(name) || s->pkg == builtinpkg)  // old behaviour, tests pass, but is it correct?
+		n = newname(lookup(name));
+	else
+		n = newname(pkglookup(name, s->pkg));
 	n = nod(ODCLFIELD, n, oldname(s));
 	n->embedded = 1;
 	return n;
@@ -1009,6 +1053,17 @@ checkarglist(NodeList *all, int input)
 			t = n;
 			n = N;
 		}
+
+		// during import l->n->op is OKEY, but l->n->left->sym == S
+		// means it was a '?', not that it was
+		// a lone type This doesn't matter for the exported
+		// declarations, which are parsed by rules that don't
+		// use checkargs, but can happen for func literals in
+		// the inline bodies.
+		// TODO(rsc) this can go when typefmt case TFIELD in exportmode fmt.c prints _ instead of ?
+		if(importpkg && n->sym == S)
+			n = N;
+
 		if(n != N && n->sym == S) {
 			t = n;
 			n = N;
@@ -1137,7 +1192,6 @@ methodsym(Sym *nsym, Type *t0, int iface)
 	else
 		p = smprint("%-hT.%s%s", t0, nsym->name, suffix);
 	s = pkglookup(p, s->pkg);
-	//print("methodsym:%s -> %+S\n", p, s);
 	free(p);
 	return s;
 
@@ -1174,7 +1228,11 @@ methodname1(Node *n, Node *t)
 		p = smprint("(%s%S).%S", star, t->sym, n->sym);
 	else
 		p = smprint("%S.%S", t->sym, n->sym);
-	n = newname(pkglookup(p, t->sym->pkg));
+
+	if(exportname(t->sym->name))
+		n = newname(lookup(p));
+	else
+		n = newname(pkglookup(p, t->sym->pkg));
 	free(p);
 	return n;
 }
@@ -1234,8 +1292,6 @@ addmethod(Sym *sf, Type *t, int local)
 	}
 
 	pa = f;
-	if(importpkg && !exportname(sf->name))
-		sf = pkglookup(sf->name, importpkg);
 
 	n = nod(ODCLFIELD, newname(sf), N);
 	n->type = t;
@@ -1258,10 +1314,16 @@ addmethod(Sym *sf, Type *t, int local)
 		return;
 	}
 
+	f = structfield(n);
+
+	// during import unexported method names should be in the type's package
+	if(importpkg && f->sym && !exportname(f->sym->name) && f->sym->pkg != structpkg)
+		fatal("imported method name %+S in wrong package %s\n", f->sym, structpkg->name);
+
 	if(d == T)
-		pa->method = structfield(n);
+		pa->method = f;
 	else
-		d->down = structfield(n);
+		d->down = f;
 	return;
 }
 

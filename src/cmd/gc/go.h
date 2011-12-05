@@ -135,7 +135,7 @@ struct	Type
 	uchar	printed;
 	uchar	embedded;	// TFIELD embedded type
 	uchar	siggen;
-	uchar	funarg;
+	uchar	funarg;		// on TSTRUCT and TFIELD
 	uchar	copyany;
 	uchar	local;		// created in this file
 	uchar	deferwidth;
@@ -325,9 +325,9 @@ struct	NodeList
 
 enum
 {
-	SymExport	= 1<<0,
+	SymExport	= 1<<0,	// to be exported
 	SymPackage	= 1<<1,
-	SymExported	= 1<<2,
+	SymExported	= 1<<2,	// already written out by export
 	SymUniq		= 1<<3,
 	SymSiggen	= 1<<4,
 };
@@ -794,7 +794,7 @@ EXTERN	NodeList*	xtop;
 EXTERN	NodeList*	externdcl;
 EXTERN	NodeList*	closures;
 EXTERN	NodeList*	exportlist;
-EXTERN	NodeList*	typelist;
+EXTERN	NodeList*	importlist;	// imported functions and methods with inlinable bodies
 EXTERN	int	dclcontext;		// PEXTERN/PAUTO
 EXTERN	int	incannedimport;
 EXTERN	int	statuniqgen;		// name generator for static temps
@@ -950,11 +950,11 @@ void	autoexport(Node *n, int ctxt);
 void	dumpexport(void);
 int	exportname(char *s);
 void	exportsym(Node *n);
-void	importconst(Sym *s, Type *t, Node *n);
-void	importmethod(Sym *s, Type *t);
-Sym*	importsym(Sym *s, int op);
-void	importtype(Type *pt, Type *t);
-void	importvar(Sym *s, Type *t, int ctxt);
+void    importconst(Sym *s, Type *t, Node *n);
+void	importimport(Sym *s, Strlit *z);
+Sym*    importsym(Sym *s, int op);
+void    importtype(Type *pt, Type *t);
+void    importvar(Sym *s, Type *t);
 Type*	pkgtype(Sym *s);
 
 /*
@@ -983,7 +983,7 @@ Node*	temp(Type*);
  *	init.c
  */
 void	fninit(NodeList *n);
-Node*	renameinit(Node *n);
+Sym*	renameinit(void);
 
 /*
  *	lex.c
