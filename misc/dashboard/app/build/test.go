@@ -36,7 +36,7 @@ const testPkg = "code.google.com/p/go.more"
 var testPackage = &Package{Name: "Test", Path: testPkg}
 
 var testPackages = []*Package{
-	{Name: "Go", Path: ""},
+	&Package{Name: "Go", Path: ""},
 	testPackage,
 }
 
