@@ -89,7 +89,6 @@
 		<h2 id="{{$tname_html}}">type <a href="/{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
 		{{comment_html .Doc}}
 		<p><pre>{{node_html .Decl $.FSet}}</pre></p>
-		{{example_html $tname $.Examples $.FSet}}
 		{{range .Consts}}
 			{{comment_html .Doc}}
 			<pre>{{node_html .Decl $.FSet}}</pre>
@@ -98,6 +97,7 @@
 			{{comment_html .Doc}}
 			<pre>{{node_html .Decl $.FSet}}</pre>
 		{{end}}
+		{{example_html $tname $.Examples $.FSet}}
 		{{range .Factories}}
 			{{$name_html := html .Name}}
 			<h3 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
