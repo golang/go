@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -93,7 +94,7 @@ func main() {
 	if err := os.Mkdir(*buildroot, mkdirPerm); err != nil {
 		log.Fatalf("Error making build root (%s): %s", *buildroot, err)
 	}
-	if err := run(nil, *buildroot, "hg", "clone", hgUrl, goroot); err != nil {
+	if err := hgClone(hgUrl, goroot); err != nil {
 		log.Fatal("Error cloning repository:", err)
 	}
 
@@ -107,7 +108,7 @@ func main() {
 
 	// if specified, build revision and return
 	if *buildRevision != "" {
-		hash, err := fullHash(*buildRevision)
+		hash, err := fullHash(goroot, *buildRevision)
 		if err != nil {
 			log.Fatal("Error finding revision: ", err)
 		}
@@ -246,7 +247,7 @@ func (b *Builder) build() bool {
 	}
 	// Look for hash locally before running hg pull.
 
-	if _, err := fullHash(hash[:12]); err != nil {
+	if _, err := fullHash(goroot, hash[:12]); err != nil {
 		// Don't have hash, so run hg pull.
 		if err := run(nil, goroot, "hg", "pull"); err != nil {
 			log.Println("hg pull failed:", err)
@@ -425,16 +426,33 @@ func commitWatcher() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	key := b.key
+
 	for {
 		if *verbose {
 			log.Printf("poll...")
 		}
-		commitPoll(b.key)
+		commitPoll(key, "")
+		for _, pkg := range dashboardPackages() {
+			commitPoll(key, pkg)
+		}
 		if *verbose {
 			log.Printf("sleep...")
 		}
 		time.Sleep(60e9)
 	}
+}
+
+func hgClone(url, path string) error {
+	return run(nil, *buildroot, "hg", "clone", url, path)
+}
+
+func hgRepoExists(path string) bool {
+	fi, err := os.Stat(filepath.Join(path, ".hg"))
+	if err != nil {
+		return false
+	}
+	return fi.IsDir()
 }
 
 // HgLog represents a single Mercurial revision.
@@ -467,7 +485,7 @@ const xmlLogTemplate = `
 
 // commitPoll pulls any new revisions from the hg server
 // and tells the server about them.
-func commitPoll(key string) {
+func commitPoll(key, pkg string) {
 	// Catch unexpected panics.
 	defer func() {
 		if err := recover(); err != nil {
@@ -475,14 +493,29 @@ func commitPoll(key string) {
 		}
 	}()
 
-	if err := run(nil, goroot, "hg", "pull"); err != nil {
+	pkgRoot := goroot
+
+	if pkg != "" {
+		pkgRoot = path.Join(*buildroot, pkg)
+		if !hgRepoExists(pkgRoot) {
+			if err := hgClone(repoURL(pkg), pkgRoot); err != nil {
+				log.Printf("%s: hg clone failed: %v", pkg, err)
+				if err := os.RemoveAll(pkgRoot); err != nil {
+					log.Printf("%s: %v", pkg, err)
+				}
+				return
+			}
+		}
+	}
+
+	if err := run(nil, pkgRoot, "hg", "pull"); err != nil {
 		log.Printf("hg pull: %v", err)
 		return
 	}
 
 	const N = 50 // how many revisions to grab
 
-	data, _, err := runLog(nil, "", goroot, "hg", "log",
+	data, _, err := runLog(nil, "", pkgRoot, "hg", "log",
 		"--encoding=utf-8",
 		"--limit="+strconv.Itoa(N),
 		"--template="+xmlLogTemplate,
@@ -511,14 +544,11 @@ func commitPoll(key string) {
 		if l.Parent == "" && i+1 < len(logs) {
 			l.Parent = logs[i+1].Hash
 		} else if l.Parent != "" {
-			l.Parent, _ = fullHash(l.Parent)
+			l.Parent, _ = fullHash(pkgRoot, l.Parent)
 		}
-		log.Printf("hg log: %s < %s\n", l.Hash, l.Parent)
-		if l.Parent == "" {
-			// Can't create node without parent.
-			continue
+		if *verbose {
+			log.Printf("hg log %s: %s < %s\n", pkg, l.Hash, l.Parent)
 		}
-
 		if logByHash[l.Hash] == nil {
 			// Make copy to avoid pinning entire slice when only one entry is new.
 			t := *l
@@ -528,17 +558,14 @@ func commitPoll(key string) {
 
 	for i := range logs {
 		l := &logs[i]
-		if l.Parent == "" {
-			continue
-		}
-		addCommit(l.Hash, key)
+		addCommit(pkg, l.Hash, key)
 	}
 }
 
 // addCommit adds the commit with the named hash to the dashboard.
 // key is the secret key for authentication to the dashboard.
 // It avoids duplicate effort.
-func addCommit(hash, key string) bool {
+func addCommit(pkg, hash, key string) bool {
 	l := logByHash[hash]
 	if l == nil {
 		return false
@@ -548,7 +575,7 @@ func addCommit(hash, key string) bool {
 	}
 
 	// Check for already added, perhaps in an earlier run.
-	if dashboardCommit(hash) {
+	if dashboardCommit(pkg, hash) {
 		log.Printf("%s already on dashboard\n", hash)
 		// Record that this hash is on the dashboard,
 		// as must be all its parents.
@@ -560,26 +587,24 @@ func addCommit(hash, key string) bool {
 	}
 
 	// Create parent first, to maintain some semblance of order.
-	if !addCommit(l.Parent, key) {
-		return false
+	if l.Parent != "" {
+		if !addCommit(pkg, l.Parent, key) {
+			return false
+		}
 	}
 
 	// Create commit.
-	if err := postCommit(key, l); err != nil {
-		log.Printf("failed to add %s to dashboard: %v", key, err)
-		return false
-	}
-	return true
+	return postCommit(key, pkg, l)
 }
 
 // fullHash returns the full hash for the given Mercurial revision.
-func fullHash(rev string) (hash string, err error) {
+func fullHash(root, rev string) (hash string, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("fullHash: %s: %s", rev, err)
 		}
 	}()
-	s, _, err := runLog(nil, "", goroot,
+	s, _, err := runLog(nil, "", root,
 		"hg", "log",
 		"--encoding=utf-8",
 		"--rev="+rev,
@@ -617,9 +642,21 @@ func firstTag(re *regexp.Regexp) (hash string, tag string, err error) {
 			continue
 		}
 		tag = s[1]
-		hash, err = fullHash(s[2])
+		hash, err = fullHash(goroot, s[2])
 		return
 	}
 	err = errors.New("no matching tag found")
 	return
+}
+
+var repoRe = regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+(\.[a-z0-9\-]+)?)(/[a-z0-9A-Z_.\-/]+)?$`)
+
+// repoURL returns the repository URL for the supplied import path.
+func repoURL(importPath string) string {
+	m := repoRe.FindStringSubmatch(importPath)
+	if len(m) < 2 {
+		log.Printf("repoURL: couldn't decipher %q", importPath)
+		return ""
+	}
+	return "https://code.google.com/p/" + m[1]
 }
