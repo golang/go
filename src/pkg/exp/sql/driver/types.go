@@ -54,13 +54,13 @@ func (boolType) ConvertValue(src interface{}) (interface{}, error) {
 	case bool:
 		return s, nil
 	case string:
-		b, err := strconv.Atob(s)
+		b, err := strconv.ParseBool(s)
 		if err != nil {
 			return nil, fmt.Errorf("sql/driver: couldn't convert %q into type bool", s)
 		}
 		return b, nil
 	case []byte:
-		b, err := strconv.Atob(string(s))
+		b, err := strconv.ParseBool(string(s))
 		if err != nil {
 			return nil, fmt.Errorf("sql/driver: couldn't convert %q into type bool", s)
 		}

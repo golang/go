@@ -80,7 +80,7 @@ func (tr *Reader) octal(b []byte) int64 {
 	for len(b) > 0 && (b[len(b)-1] == ' ' || b[len(b)-1] == '\x00') {
 		b = b[0 : len(b)-1]
 	}
-	x, err := strconv.Btoui64(cString(b), 8)
+	x, err := strconv.ParseUint(cString(b), 8, 64)
 	if err != nil {
 		tr.err = err
 	}

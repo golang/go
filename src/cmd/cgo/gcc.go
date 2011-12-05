@@ -355,7 +355,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 				// with enum-derived constants.  Otherwise
 				// in the cgo -godefs output half the constants
 				// are in hex and half are in whatever the #define used.
-				i, err := strconv.Btoi64(n.Define, 0)
+				i, err := strconv.ParseInt(n.Define, 0, 64)
 				if err == nil {
 					n.Const = fmt.Sprintf("%#x", i)
 				} else {
@@ -1333,7 +1333,7 @@ func (c *typeConv) Opaque(n int64) ast.Expr {
 func (c *typeConv) intExpr(n int64) ast.Expr {
 	return &ast.BasicLit{
 		Kind:  token.INT,
-		Value: strconv.Itoa64(n),
+		Value: strconv.FormatInt(n, 10),
 	}
 }
 

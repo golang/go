@@ -613,7 +613,7 @@ func (s *ss) scanInt(verb rune, bitSize int) int64 {
 		}
 	}
 	tok := s.scanNumber(digits, haveDigits)
-	i, err := strconv.Btoi64(tok, base)
+	i, err := strconv.ParseInt(tok, base, 64)
 	if err != nil {
 		s.error(err)
 	}
@@ -643,7 +643,7 @@ func (s *ss) scanUint(verb rune, bitSize int) uint64 {
 		base, digits, haveDigits = s.scanBasePrefix()
 	}
 	tok := s.scanNumber(digits, haveDigits)
-	i, err := strconv.Btoui64(tok, base)
+	i, err := strconv.ParseUint(tok, base, 64)
 	if err != nil {
 		s.error(err)
 	}
@@ -719,7 +719,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
 	if p := strings.Index(str, "p"); p >= 0 {
 		// Atof doesn't handle power-of-2 exponents,
 		// but they're easy to evaluate.
-		f, err := strconv.AtofN(str[:p], n)
+		f, err := strconv.ParseFloat(str[:p], n)
 		if err != nil {
 			// Put full string into error.
 			if e, ok := err.(*strconv.NumError); ok {
@@ -737,7 +737,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
 		}
 		return math.Ldexp(f, n)
 	}
-	f, err := strconv.AtofN(str, n)
+	f, err := strconv.ParseFloat(str, n)
 	if err != nil {
 		s.error(err)
 	}

@@ -226,7 +226,7 @@ func parseDecomposition(s string, skipfirst bool) (a []rune, e error) {
 		decomp = decomp[1:]
 	}
 	for _, d := range decomp {
-		point, err := strconv.Btoui64(d, 16)
+		point, err := strconv.ParseUint(d, 16, 64)
 		if err != nil {
 			return a, err
 		}
@@ -240,7 +240,7 @@ func parseCharacter(line string) {
 	if len(field) != NumField {
 		logger.Fatalf("%5s: %d fields (expected %d)\n", line, len(field), NumField)
 	}
-	x, err := strconv.Btoui64(field[FCodePoint], 16)
+	x, err := strconv.ParseUint(field[FCodePoint], 16, 64)
 	point := int(x)
 	if err != nil {
 		logger.Fatalf("%.5s...: %s", line, err)
@@ -264,7 +264,7 @@ func parseCharacter(line string) {
 	if state != SLast {
 		firstChar = lastChar
 	}
-	x, err = strconv.Atoui64(field[FCanonicalCombiningClass])
+	x, err = strconv.ParseUint(field[FCanonicalCombiningClass], 10, 64)
 	if err != nil {
 		logger.Fatalf("%U: bad ccc field: %s", int(x), err)
 	}
@@ -336,7 +336,7 @@ func parseExclusion(line string) int {
 	if len(matches) != 2 {
 		logger.Fatalf("%s: %d matches (expected 1)\n", line, len(matches))
 	}
-	point, err := strconv.Btoui64(matches[1], 16)
+	point, err := strconv.ParseUint(matches[1], 16, 64)
 	if err != nil {
 		logger.Fatalf("%.5s...: %s", line, err)
 	}
@@ -792,13 +792,13 @@ func testDerived() {
 			continue
 		}
 		rng := strings.Split(qc[1], "..")
-		i, err := strconv.Btoui64(rng[0], 16)
+		i, err := strconv.ParseUint(rng[0], 16, 64)
 		if err != nil {
 			log.Fatal(err)
 		}
 		j := i
 		if len(rng) > 1 {
-			j, err = strconv.Btoui64(rng[1], 16)
+			j, err = strconv.ParseUint(rng[1], 16, 64)
 			if err != nil {
 				log.Fatal(err)
 			}

@@ -106,8 +106,8 @@ func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
 }
 
 func (err WrongValueError) Error() string {
-	return "huffmanBitWriter: " + err.name + " should belong to [" + strconv.Itoa64(int64(err.from)) + ";" +
-		strconv.Itoa64(int64(err.to)) + "] but actual value is " + strconv.Itoa64(int64(err.value))
+	return "huffmanBitWriter: " + err.name + " should belong to [" + strconv.FormatInt(int64(err.from), 10) + ";" +
+		strconv.FormatInt(int64(err.to), 10) + "] but actual value is " + strconv.FormatInt(int64(err.value), 10)
 }
 
 func (w *huffmanBitWriter) flushBits() {

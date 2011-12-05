@@ -70,7 +70,7 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 	r.Host = params["HTTP_HOST"]
 
 	if lenstr := params["CONTENT_LENGTH"]; lenstr != "" {
-		clen, err := strconv.Atoi64(lenstr)
+		clen, err := strconv.ParseInt(lenstr, 10, 64)
 		if err != nil {
 			return nil, errors.New("cgi: bad CONTENT_LENGTH in environment: " + lenstr)
 		}

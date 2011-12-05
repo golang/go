@@ -278,7 +278,7 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
 			return n.s
 		}
 	}
-	return strconv.Uitoa64(uint64(i))
+	return strconv.FormatUint(uint64(i), 10)
 }
 
 func flagName(i uint32, names []intName, goSyntax bool) string {
@@ -296,10 +296,10 @@ func flagName(i uint32, names []intName, goSyntax bool) string {
 		}
 	}
 	if len(s) == 0 {
-		return "0x" + strconv.Uitob64(uint64(i), 16)
+		return "0x" + strconv.FormatUint(uint64(i), 16)
 	}
 	if i != 0 {
-		s += "+0x" + strconv.Uitob64(uint64(i), 16)
+		s += "+0x" + strconv.FormatUint(uint64(i), 16)
 	}
 	return s
 }

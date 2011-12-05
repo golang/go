@@ -267,7 +267,7 @@ func dumpProg(b *bytes.Buffer, p *Prog) {
 }
 
 func u32(i uint32) string {
-	return strconv.Uitoa64(uint64(i))
+	return strconv.FormatUint(uint64(i), 10)
 }
 
 func dumpInst(b *bytes.Buffer, i *Inst) {

@@ -339,7 +339,7 @@ func checkTime(time Time, test *ParseTest, t *testing.T) {
 		t.Errorf("%s: bad second: %d not %d", test.name, time.Second(), 57)
 	}
 	// Nanoseconds must be checked against the precision of the input.
-	nanosec, err := strconv.Atoui("012345678"[:test.fracDigits] + "000000000"[:9-test.fracDigits])
+	nanosec, err := strconv.ParseUint("012345678"[:test.fracDigits]+"000000000"[:9-test.fracDigits], 10, 0)
 	if err != nil {
 		panic(err)
 	}

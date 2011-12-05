@@ -267,7 +267,7 @@ func newNumber(text string, typ itemType) (*NumberNode, error) {
 	}
 	// Imaginary constants can only be complex unless they are zero.
 	if len(text) > 0 && text[len(text)-1] == 'i' {
-		f, err := strconv.Atof64(text[:len(text)-1])
+		f, err := strconv.ParseFloat(text[:len(text)-1], 64)
 		if err == nil {
 			n.IsComplex = true
 			n.Complex128 = complex(0, f)
@@ -276,12 +276,12 @@ func newNumber(text string, typ itemType) (*NumberNode, error) {
 		}
 	}
 	// Do integer test first so we get 0x123 etc.
-	u, err := strconv.Btoui64(text, 0) // will fail for -0; fixed below.
+	u, err := strconv.ParseUint(text, 0, 64) // will fail for -0; fixed below.
 	if err == nil {
 		n.IsUint = true
 		n.Uint64 = u
 	}
-	i, err := strconv.Btoi64(text, 0)
+	i, err := strconv.ParseInt(text, 0, 64)
 	if err == nil {
 		n.IsInt = true
 		n.Int64 = i
@@ -298,7 +298,7 @@ func newNumber(text string, typ itemType) (*NumberNode, error) {
 		n.IsFloat = true
 		n.Float64 = float64(n.Uint64)
 	} else {
-		f, err := strconv.Atof64(text)
+		f, err := strconv.ParseFloat(text, 64)
 		if err == nil {
 			n.IsFloat = true
 			n.Float64 = f

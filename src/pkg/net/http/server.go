@@ -288,7 +288,7 @@ func (w *response) WriteHeader(code int) {
 	var contentLength int64
 	if clenStr := w.header.Get("Content-Length"); clenStr != "" {
 		var err error
-		contentLength, err = strconv.Atoi64(clenStr)
+		contentLength, err = strconv.ParseInt(clenStr, 10, 64)
 		if err == nil {
 			hasCL = true
 		} else {

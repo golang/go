@@ -48,7 +48,7 @@ func (cr *chunkedReader) beginChunk() {
 	if cr.err != nil {
 		return
 	}
-	cr.n, cr.err = strconv.Btoui64(line, 16)
+	cr.n, cr.err = strconv.ParseUint(line, 16, 64)
 	if cr.err != nil {
 		return
 	}
@@ -147,7 +147,7 @@ func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	head := strconv.Itob(len(data), 16) + "\r\n"
+	head := strconv.FormatInt(int64(len(data)), 16) + "\r\n"
 
 	if _, err = io.WriteString(cw.Wire, head); err != nil {
 		return 0, err

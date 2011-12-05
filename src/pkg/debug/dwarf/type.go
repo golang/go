@@ -110,7 +110,7 @@ type ArrayType struct {
 }
 
 func (t *ArrayType) String() string {
-	return "[" + strconv.Itoa64(t.Count) + "]" + t.Type.String()
+	return "[" + strconv.FormatInt(t.Count, 10) + "]" + t.Type.String()
 }
 
 func (t *ArrayType) Size() int64 { return t.Count * t.Type.Size() }
@@ -171,10 +171,10 @@ func (t *StructType) Defn() string {
 			s += "; "
 		}
 		s += f.Name + " " + f.Type.String()
-		s += "@" + strconv.Itoa64(f.ByteOffset)
+		s += "@" + strconv.FormatInt(f.ByteOffset, 10)
 		if f.BitSize > 0 {
-			s += " : " + strconv.Itoa64(f.BitSize)
-			s += "@" + strconv.Itoa64(f.BitOffset)
+			s += " : " + strconv.FormatInt(f.BitSize, 10)
+			s += "@" + strconv.FormatInt(f.BitOffset, 10)
 		}
 	}
 	s += "}"
@@ -206,7 +206,7 @@ func (t *EnumType) String() string {
 		if i > 0 {
 			s += "; "
 		}
-		s += v.Name + "=" + strconv.Itoa64(v.Val)
+		s += v.Name + "=" + strconv.FormatInt(v.Val, 10)
 	}
 	s += "}"
 	return s

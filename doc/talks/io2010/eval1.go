@@ -101,7 +101,6 @@ func main() {
 	}
 }
 
-
 // Custom grammar and values
 
 var precTab = map[string]int{
@@ -125,7 +124,7 @@ func newVal(lit string) Value {
 	if err == nil {
 		return Int(x)
 	}
-	b, err := strconv.Atob(lit)
+	b, err := strconv.ParseBool(lit)
 	if err == nil {
 		return Bool(b)
 	}
@@ -175,7 +174,7 @@ func (x Int) BinaryOp(op string, y Value) Value {
 
 type Bool bool
 
-func (x Bool) String() string { return strconv.Btoa(bool(x)) }
+func (x Bool) String() string { return strconv.FormatBool(bool(x)) }
 func (x Bool) BinaryOp(op string, y Value) Value {
 	switch y := y.(type) {
 	case Error:
@@ -194,7 +193,6 @@ func (x Bool) BinaryOp(op string, y Value) Value {
 	}
 	return Error(fmt.Sprintf("illegal operation: '%v %s %v'", x, op, y))
 }
-
 
 func trace(newVal func(string) Value) func(string) Value {
 	return func(s string) Value {

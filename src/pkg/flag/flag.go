@@ -79,7 +79,7 @@ func newBoolValue(val bool, p *bool) *boolValue {
 }
 
 func (b *boolValue) Set(s string) bool {
-	v, err := strconv.Atob(s)
+	v, err := strconv.ParseBool(s)
 	*b = boolValue(v)
 	return err == nil
 }
@@ -95,7 +95,7 @@ func newIntValue(val int, p *int) *intValue {
 }
 
 func (i *intValue) Set(s string) bool {
-	v, err := strconv.Btoi64(s, 0)
+	v, err := strconv.ParseInt(s, 0, 64)
 	*i = intValue(v)
 	return err == nil
 }
@@ -111,7 +111,7 @@ func newInt64Value(val int64, p *int64) *int64Value {
 }
 
 func (i *int64Value) Set(s string) bool {
-	v, err := strconv.Btoi64(s, 0)
+	v, err := strconv.ParseInt(s, 0, 64)
 	*i = int64Value(v)
 	return err == nil
 }
@@ -127,7 +127,7 @@ func newUintValue(val uint, p *uint) *uintValue {
 }
 
 func (i *uintValue) Set(s string) bool {
-	v, err := strconv.Btoui64(s, 0)
+	v, err := strconv.ParseUint(s, 0, 64)
 	*i = uintValue(v)
 	return err == nil
 }
@@ -143,7 +143,7 @@ func newUint64Value(val uint64, p *uint64) *uint64Value {
 }
 
 func (i *uint64Value) Set(s string) bool {
-	v, err := strconv.Btoui64(s, 0)
+	v, err := strconv.ParseUint(s, 0, 64)
 	*i = uint64Value(v)
 	return err == nil
 }
@@ -174,7 +174,7 @@ func newFloat64Value(val float64, p *float64) *float64Value {
 }
 
 func (f *float64Value) Set(s string) bool {
-	v, err := strconv.Atof64(s)
+	v, err := strconv.ParseFloat(s, 64)
 	*f = float64Value(v)
 	return err == nil
 }

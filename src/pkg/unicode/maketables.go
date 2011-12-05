@@ -199,7 +199,7 @@ func parseCategory(line string) (state State) {
 	if len(field) != NumField {
 		logger.Fatalf("%5s: %d fields (expected %d)\n", line, len(field), NumField)
 	}
-	point, err := strconv.Btoui64(field[FCodePoint], 16)
+	point, err := strconv.ParseUint(field[FCodePoint], 16, 64)
 	if err != nil {
 		logger.Fatalf("%.5s...: %s", line, err)
 	}
@@ -261,7 +261,7 @@ func (char *Char) letterValue(s string, cas string) rune {
 	if s == "" {
 		return 0
 	}
-	v, err := strconv.Btoui64(s, 16)
+	v, err := strconv.ParseUint(s, 16, 64)
 	if err != nil {
 		char.dump(cas)
 		logger.Fatalf("%U: bad letter(%s): %s", char.codePoint, s, err)
@@ -377,11 +377,11 @@ func loadCasefold() {
 			// Only care about 'common' and 'simple' foldings.
 			continue
 		}
-		p1, err := strconv.Btoui64(field[0], 16)
+		p1, err := strconv.ParseUint(field[0], 16, 64)
 		if err != nil {
 			logger.Fatalf("CaseFolding.txt %.5s...: %s", line, err)
 		}
-		p2, err := strconv.Btoui64(field[2], 16)
+		p2, err := strconv.ParseUint(field[2], 16, 64)
 		if err != nil {
 			logger.Fatalf("CaseFolding.txt %.5s...: %s", line, err)
 		}
@@ -628,13 +628,13 @@ func parseScript(line string, scripts map[string][]Script) {
 	if len(matches) != 4 {
 		logger.Fatalf("%s: %d matches (expected 3)\n", line, len(matches))
 	}
-	lo, err := strconv.Btoui64(matches[1], 16)
+	lo, err := strconv.ParseUint(matches[1], 16, 64)
 	if err != nil {
 		logger.Fatalf("%.5s...: %s", line, err)
 	}
 	hi := lo
 	if len(matches[2]) > 2 { // ignore leading ..
-		hi, err = strconv.Btoui64(matches[2][2:], 16)
+		hi, err = strconv.ParseUint(matches[2][2:], 16, 64)
 		if err != nil {
 			logger.Fatalf("%.5s...: %s", line, err)
 		}

@@ -95,7 +95,7 @@ func convertAssign(dest, src interface{}) error {
 	switch dv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		s := asString(src)
-		i64, err := strconv.Atoi64(s)
+		i64, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
 			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
 		}
@@ -106,7 +106,7 @@ func convertAssign(dest, src interface{}) error {
 		return nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		s := asString(src)
-		u64, err := strconv.Atoui64(s)
+		u64, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
 			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
 		}
@@ -117,7 +117,7 @@ func convertAssign(dest, src interface{}) error {
 		return nil
 	case reflect.Float32, reflect.Float64:
 		s := asString(src)
-		f64, err := strconv.Atof64(s)
+		f64, err := strconv.ParseFloat(s, 64)
 		if err != nil {
 			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
 		}

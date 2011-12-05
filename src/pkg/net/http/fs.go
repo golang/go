@@ -220,7 +220,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 
 	w.Header().Set("Accept-Ranges", "bytes")
 	if w.Header().Get("Content-Encoding") == "" {
-		w.Header().Set("Content-Length", strconv.Itoa64(size))
+		w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
 	}
 
 	w.WriteHeader(code)
@@ -295,7 +295,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 		if start == "" {
 			// If no start is specified, end specifies the
 			// range start relative to the end of the file.
-			i, err := strconv.Atoi64(end)
+			i, err := strconv.ParseInt(end, 10, 64)
 			if err != nil {
 				return nil, errors.New("invalid range")
 			}
@@ -305,7 +305,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 			r.start = size - i
 			r.length = size - r.start
 		} else {
-			i, err := strconv.Atoi64(start)
+			i, err := strconv.ParseInt(start, 10, 64)
 			if err != nil || i > size || i < 0 {
 				return nil, errors.New("invalid range")
 			}
@@ -314,7 +314,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 				// If no end is specified, range extends to end of the file.
 				r.length = size - r.start
 			} else {
-				i, err := strconv.Atoi64(end)
+				i, err := strconv.ParseInt(end, 10, 64)
 				if err != nil || r.start > i {
 					return nil, errors.New("invalid range")
 				}

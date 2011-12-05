@@ -277,7 +277,7 @@ func escape(b *bytes.Buffer, r rune, force bool) {
 	default:
 		if r < 0x100 {
 			b.WriteString(`\x`)
-			s := strconv.Itob(int(r), 16)
+			s := strconv.FormatInt(int64(r), 16)
 			if len(s) == 1 {
 				b.WriteRune('0')
 			}
@@ -285,7 +285,7 @@ func escape(b *bytes.Buffer, r rune, force bool) {
 			break
 		}
 		b.WriteString(`\x{`)
-		b.WriteString(strconv.Itob(int(r), 16))
+		b.WriteString(strconv.FormatInt(int64(r), 16))
 		b.WriteString(`}`)
 	}
 }

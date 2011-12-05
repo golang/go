@@ -275,13 +275,13 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
 		}
 
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		writeString(e, strconv.Itoa64(v.Int()))
+		writeString(e, strconv.FormatInt(v.Int(), 10))
 
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		writeString(e, strconv.Uitoa64(v.Uint()))
+		writeString(e, strconv.FormatUint(v.Uint(), 10))
 
 	case reflect.Float32, reflect.Float64:
-		writeString(e, strconv.FtoaN(v.Float(), 'g', -1, v.Type().Bits()))
+		writeString(e, strconv.FormatFloat(v.Float(), 'g', -1, v.Type().Bits()))
 
 	case reflect.String:
 		if quoted {

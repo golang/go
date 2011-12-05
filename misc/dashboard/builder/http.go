@@ -134,7 +134,7 @@ func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) erro
 		"builder": b.name,
 		"key":     b.key,
 		"path":    pkg,
-		"ok":      strconv.Btoa(ok),
+		"ok":      strconv.FormatBool(ok),
 		"log":     buildLog,
 		"info":    info,
 	})

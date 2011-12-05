@@ -63,7 +63,7 @@ func Heap(w http.ResponseWriter, r *http.Request) {
 // Profile responds with the pprof-formatted cpu profile.
 // The package initialization registers it as /debug/pprof/profile.
 func Profile(w http.ResponseWriter, r *http.Request) {
-	sec, _ := strconv.Atoi64(r.FormValue("seconds"))
+	sec, _ := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
 	if sec == 0 {
 		sec = 30
 	}
@@ -111,7 +111,7 @@ func Symbol(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			word = word[0 : len(word)-1] // trim +
 		}
-		pc, _ := strconv.Btoui64(string(word), 0)
+		pc, _ := strconv.ParseUint(string(word), 0, 64)
 		if pc != 0 {
 			f := runtime.FuncForPC(uintptr(pc))
 			if f != nil {
