@@ -6,8 +6,8 @@ api_version: 3
 handlers:
 - url: /log/.+
   script: _go_app
-- url: /(commit|package|result|tag|todo)
+- url: /(commit|packages|result|tag|todo)
   script: _go_app
-- url: /buildtest
+- url: /(init|buildtest)
   script: _go_app
   login: admin

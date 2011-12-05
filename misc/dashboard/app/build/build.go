@@ -79,7 +79,7 @@ func (c *Commit) Valid() os.Error {
 	if !validHash(c.Hash) {
 		return os.NewError("invalid Hash")
 	}
-	if !validHash(c.ParentHash) {
+	if c.ParentHash != "" && !validHash(c.ParentHash) { // empty is OK
 		return os.NewError("invalid ParentHash")
 	}
 	return nil
@@ -207,7 +207,6 @@ func commitHandler(r *http.Request) (interface{}, os.Error) {
 	c := appengine.NewContext(r)
 	com := new(Commit)
 
-	// TODO(adg): support unauthenticated GET requests to this handler
 	if r.Method == "GET" {
 		com.PackagePath = r.FormValue("packagePath")
 		com.Hash = r.FormValue("hash")
@@ -215,6 +214,9 @@ func commitHandler(r *http.Request) (interface{}, os.Error) {
 			return nil, err
 		}
 		return com, nil
+	}
+	if r.Method != "POST" {
+		return nil, errBadMethod(r.Method)
 	}
 
 	// POST request
@@ -280,6 +282,10 @@ func addCommit(c appengine.Context, com *Commit) os.Error {
 //
 // This handler is used by a gobuilder process in -commit mode.
 func tagHandler(r *http.Request) (interface{}, os.Error) {
+	if r.Method != "POST" {
+		return nil, errBadMethod(r.Method)
+	}
+
 	t := new(Tag)
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(t); err != nil {
@@ -364,6 +370,10 @@ func packagesHandler(r *http.Request) (interface{}, os.Error) {
 // If the Log field is not empty, resultHandler creates a new Log entity
 // and updates the LogHash field before putting the Commit entity.
 func resultHandler(r *http.Request) (interface{}, os.Error) {
+	if r.Method != "POST" {
+		return nil, errBadMethod(r.Method)
+	}
+
 	c := appengine.NewContext(r)
 	res := new(Result)
 	defer r.Body.Close()
@@ -416,11 +426,17 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type errBadMethod string
+
+func (e errBadMethod) String() string {
+	return "bad method: " + string(e)
+}
+
 type dashHandler func(*http.Request) (interface{}, os.Error)
 
 type dashResponse struct {
 	Response interface{}
-	Error    os.Error
+	Error    string
 }
 
 // AuthHandler wraps a http.HandlerFunc with a handler that validates the
@@ -431,9 +447,9 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
 		// request body when calling r.FormValue.
 		r.Form = r.URL.Query()
 
-		// Validate key query parameter.
+		// Validate key query parameter for POST requests only.
 		key := r.FormValue("key")
-		if key != secretKey {
+		if r.Method == "POST" && key != secretKey {
 			h := sha1.New()
 			h.Write([]byte(r.FormValue("builder") + secretKey))
 			if key != fmt.Sprintf("%x", h.Sum()) {
@@ -445,18 +461,39 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
 		// Call the original HandlerFunc and return the response.
 		c := appengine.NewContext(r)
 		resp, err := h(r)
+		dashResp := dashResponse{Response: resp}
 		if err != nil {
 			c.Errorf("%v", err)
+			dashResp.Error = err.String()
 		}
 		w.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(w).Encode(dashResponse{resp, err})
-		if err != nil {
+		if err = json.NewEncoder(w).Encode(dashResp); err != nil {
 			c.Criticalf("%v", err)
 		}
 	}
 }
 
+func initHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO(adg): devise a better way of bootstrapping new packages
+	var pkgs = []*Package{
+		&Package{Name: "Go", Path: ""},
+		&Package{Name: "Test", Path: "code.google.com/p/go.test"},
+	}
+	c := appengine.NewContext(r)
+	for _, p := range pkgs {
+		_, err := datastore.Put(c, p.Key(c), p)
+		if err != nil {
+			logErr(w, r, err)
+			return
+		}
+	}
+	fmt.Fprint(w, "OK")
+}
+
 func init() {
+	// admin handlers
+	http.HandleFunc("/init", initHandler)
+
 	// authenticated handlers
 	http.HandleFunc("/commit", AuthHandler(commitHandler))
 	http.HandleFunc("/packages", AuthHandler(packagesHandler))

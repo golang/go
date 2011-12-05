@@ -31,7 +31,7 @@ var testEntityKinds = []string{
 	"Log",
 }
 
-const testPkg = "code.google.com/p/go.more"
+const testPkg = "code.google.com/p/go.test"
 
 var testPackage = &Package{Name: "Test", Path: testPkg}
 
@@ -102,6 +102,10 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	if err := nukeEntities(c, testEntityKinds); err != nil {
 		logErr(w, r, err)
+		return
+	}
+	if r.FormValue("nukeonly") != "" {
+		fmt.Fprint(w, "OK")
 		return
 	}
 
