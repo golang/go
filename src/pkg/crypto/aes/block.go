@@ -56,10 +56,10 @@ func encryptBlock(xk []uint32, dst, src []byte) {
 	nr := len(xk)/4 - 2 // - 2: one above, one more below
 	k := 4
 	for r := 0; r < nr; r++ {
-		t0 = xk[k+0] ^ te[0][s0>>24] ^ te[1][s1>>16&0xff] ^ te[2][s2>>8&0xff] ^ te[3][s3&0xff]
-		t1 = xk[k+1] ^ te[0][s1>>24] ^ te[1][s2>>16&0xff] ^ te[2][s3>>8&0xff] ^ te[3][s0&0xff]
-		t2 = xk[k+2] ^ te[0][s2>>24] ^ te[1][s3>>16&0xff] ^ te[2][s0>>8&0xff] ^ te[3][s1&0xff]
-		t3 = xk[k+3] ^ te[0][s3>>24] ^ te[1][s0>>16&0xff] ^ te[2][s1>>8&0xff] ^ te[3][s2&0xff]
+		t0 = xk[k+0] ^ te[0][uint8(s0>>24)] ^ te[1][uint8(s1>>16)] ^ te[2][uint8(s2>>8)] ^ te[3][uint8(s3)]
+		t1 = xk[k+1] ^ te[0][uint8(s1>>24)] ^ te[1][uint8(s2>>16)] ^ te[2][uint8(s3>>8)] ^ te[3][uint8(s0)]
+		t2 = xk[k+2] ^ te[0][uint8(s2>>24)] ^ te[1][uint8(s3>>16)] ^ te[2][uint8(s0>>8)] ^ te[3][uint8(s1)]
+		t3 = xk[k+3] ^ te[0][uint8(s3>>24)] ^ te[1][uint8(s0>>16)] ^ te[2][uint8(s1>>8)] ^ te[3][uint8(s2)]
 		k += 4
 		s0, s1, s2, s3 = t0, t1, t2, t3
 	}
@@ -101,10 +101,10 @@ func decryptBlock(xk []uint32, dst, src []byte) {
 	nr := len(xk)/4 - 2 // - 2: one above, one more below
 	k := 4
 	for r := 0; r < nr; r++ {
-		t0 = xk[k+0] ^ td[0][s0>>24] ^ td[1][s3>>16&0xff] ^ td[2][s2>>8&0xff] ^ td[3][s1&0xff]
-		t1 = xk[k+1] ^ td[0][s1>>24] ^ td[1][s0>>16&0xff] ^ td[2][s3>>8&0xff] ^ td[3][s2&0xff]
-		t2 = xk[k+2] ^ td[0][s2>>24] ^ td[1][s1>>16&0xff] ^ td[2][s0>>8&0xff] ^ td[3][s3&0xff]
-		t3 = xk[k+3] ^ td[0][s3>>24] ^ td[1][s2>>16&0xff] ^ td[2][s1>>8&0xff] ^ td[3][s0&0xff]
+		t0 = xk[k+0] ^ td[0][uint8(s0>>24)] ^ td[1][uint8(s3>>16)] ^ td[2][uint8(s2>>8)] ^ td[3][uint8(s1)]
+		t1 = xk[k+1] ^ td[0][uint8(s1>>24)] ^ td[1][uint8(s0>>16)] ^ td[2][uint8(s3>>8)] ^ td[3][uint8(s2)]
+		t2 = xk[k+2] ^ td[0][uint8(s2>>24)] ^ td[1][uint8(s1>>16)] ^ td[2][uint8(s0>>8)] ^ td[3][uint8(s3)]
+		t3 = xk[k+3] ^ td[0][uint8(s3>>24)] ^ td[1][uint8(s2>>16)] ^ td[2][uint8(s1>>8)] ^ td[3][uint8(s0)]
 		k += 4
 		s0, s1, s2, s3 = t0, t1, t2, t3
 	}
