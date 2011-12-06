@@ -12,6 +12,7 @@ import (
 	"runtime" // for the malloc count test only
 	"strings"
 	"testing"
+	"time"
 )
 
 type (
@@ -352,7 +353,7 @@ var fmttests = []struct {
 	{"%s", I(23), `<23>`},
 	{"%q", I(23), `"<23>"`},
 	{"%x", I(23), `3c32333e`},
-	{"%d", I(23), `%!d(string=<23>)`},
+	{"%d", I(23), `23`}, // Stringer applies only to string formats.
 
 	// go syntax
 	{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
@@ -429,6 +430,10 @@ var fmttests = []struct {
 	{"%p", make(map[int]int), "0xPTR"},
 	{"%p", make([]int, 1), "0xPTR"},
 	{"%p", 27, "%!p(int=27)"}, // not a pointer at all
+
+	// %d on Stringer should give integer if possible
+	{"%s", time.Time{}.Month(), "January"},
+	{"%d", time.Time{}.Month(), "1"},
 
 	// erroneous things
 	{"%s %", "hello", "hello %!(NOVERB)"},
@@ -772,9 +777,9 @@ var panictests = []struct {
 	out string
 }{
 	// String
-	{"%d", (*Panic)(nil), "<nil>"}, // nil pointer special case
-	{"%d", Panic{io.ErrUnexpectedEOF}, "%d(PANIC=unexpected EOF)"},
-	{"%d", Panic{3}, "%d(PANIC=3)"},
+	{"%s", (*Panic)(nil), "<nil>"}, // nil pointer special case
+	{"%s", Panic{io.ErrUnexpectedEOF}, "%s(PANIC=unexpected EOF)"},
+	{"%s", Panic{3}, "%s(PANIC=3)"},
 	// GoString
 	{"%#v", (*Panic)(nil), "<nil>"}, // nil pointer special case
 	{"%#v", Panic{io.ErrUnexpectedEOF}, "%v(PANIC=unexpected EOF)"},
