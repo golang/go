@@ -49,14 +49,13 @@ func (h *hmac) tmpPad(xor byte) {
 }
 
 func (h *hmac) Sum(in []byte) []byte {
-	sum := h.inner.Sum(nil)
+	origLen := len(in)
+	in = h.inner.Sum(in)
 	h.tmpPad(0x5c)
-	for i, b := range sum {
-		h.tmp[padSize+i] = b
-	}
+	copy(h.tmp[padSize:], in[origLen:])
 	h.outer.Reset()
 	h.outer.Write(h.tmp)
-	return h.outer.Sum(in)
+	return h.outer.Sum(in[:origLen])
 }
 
 func (h *hmac) Write(p []byte) (n int, err error) {

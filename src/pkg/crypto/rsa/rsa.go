@@ -189,12 +189,13 @@ func incCounter(c *[4]byte) {
 // specified in PKCS#1 v2.1.
 func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 	var counter [4]byte
+	var digest []byte
 
 	done := 0
 	for done < len(out) {
 		hash.Write(seed)
 		hash.Write(counter[0:4])
-		digest := hash.Sum(nil)
+		digest = hash.Sum(digest[:0])
 		hash.Reset()
 
 		for i := 0; i < len(digest) && done < len(out); i++ {

@@ -231,10 +231,10 @@ func (c *Conn) clientHandshake() error {
 
 	if cert != nil {
 		certVerify := new(certificateVerifyMsg)
-		var digest [36]byte
-		copy(digest[0:16], finishedHash.serverMD5.Sum(nil))
-		copy(digest[16:36], finishedHash.serverSHA1.Sum(nil))
-		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey, crypto.MD5SHA1, digest[0:])
+		digest := make([]byte, 0, 36)
+		digest = finishedHash.serverMD5.Sum(digest)
+		digest = finishedHash.serverSHA1.Sum(digest)
+		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey, crypto.MD5SHA1, digest)
 		if err != nil {
 			return c.sendAlert(alertInternalError)
 		}

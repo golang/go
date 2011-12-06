@@ -150,18 +150,23 @@ func (d0 *digest) Sum(in []byte) []byte {
 	}
 
 	h := d.h[:]
+	size := Size
 	if d.is384 {
 		h = d.h[:6]
+		size = Size384
 	}
-	for _, s := range h {
-		in = append(in, byte(s>>56))
-		in = append(in, byte(s>>48))
-		in = append(in, byte(s>>40))
-		in = append(in, byte(s>>32))
-		in = append(in, byte(s>>24))
-		in = append(in, byte(s>>16))
-		in = append(in, byte(s>>8))
-		in = append(in, byte(s))
+
+	var digest [Size]byte
+	for i, s := range h {
+		digest[i*8] = byte(s >> 56)
+		digest[i*8+1] = byte(s >> 48)
+		digest[i*8+2] = byte(s >> 40)
+		digest[i*8+3] = byte(s >> 32)
+		digest[i*8+4] = byte(s >> 24)
+		digest[i*8+5] = byte(s >> 16)
+		digest[i*8+6] = byte(s >> 8)
+		digest[i*8+7] = byte(s)
 	}
-	return in
+
+	return append(in, digest[:size]...)
 }

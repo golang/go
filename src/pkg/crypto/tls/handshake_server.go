@@ -234,9 +234,9 @@ FindCipherSuite:
 			return c.sendAlert(alertUnexpectedMessage)
 		}
 
-		digest := make([]byte, 36)
-		copy(digest[0:16], finishedHash.serverMD5.Sum(nil))
-		copy(digest[16:36], finishedHash.serverSHA1.Sum(nil))
+		digest := make([]byte, 0, 36)
+		digest = finishedHash.serverMD5.Sum(digest)
+		digest = finishedHash.serverSHA1.Sum(digest)
 		err = rsa.VerifyPKCS1v15(pub, crypto.MD5SHA1, digest, certVerify.signature)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
