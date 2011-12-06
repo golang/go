@@ -47,23 +47,22 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
 	return t.text.Execute(wr, data)
 }
 
-// ExecuteTemplate applies the template associated with t that has the given name
-// to the specified data object and writes the output to wr.
+// ExecuteTemplate applies the template associated with t that has the given
+// name to the specified data object and writes the output to wr.
 func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) (err error) {
 	t.nameSpace.mu.Lock()
 	tmpl := t.set[name]
-	if tmpl == nil {
-		t.nameSpace.mu.Unlock()
-		return fmt.Errorf("template: no template %q associated with template %q", name, t.Name())
+	if (tmpl == nil) != (t.text.Lookup(name) == nil) {
+		panic("html/template internal error: template escaping out of sync")
 	}
-	if !tmpl.escaped {
+	if tmpl != nil && !tmpl.escaped {
 		err = escapeTemplates(tmpl, name)
 	}
 	t.nameSpace.mu.Unlock()
 	if err != nil {
 		return
 	}
-	return tmpl.text.ExecuteTemplate(wr, name, data)
+	return t.text.ExecuteTemplate(wr, name, data)
 }
 
 // Parse parses a string into a template. Nested template definitions
@@ -106,7 +105,7 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) error {
 
 // Clone is unimplemented.
 func (t *Template) Clone(name string) error {
-	return fmt.Errorf("html/template: Add unimplemented")
+	return fmt.Errorf("html/template: Clone unimplemented")
 }
 
 // New allocates a new HTML template with the given name.
