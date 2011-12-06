@@ -499,8 +499,7 @@ algtype(Type *t)
 {
 	int a;
 
-	if(issimple[t->etype] || isptr[t->etype] ||
-		t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP) {
+	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN) {
 		if(t->width == 1)
 			a = AMEM8;
 		else if(t->width == 2)
