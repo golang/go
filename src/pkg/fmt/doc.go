@@ -89,18 +89,22 @@
 	If an operand implements interface Formatter, that interface
 	can be used for fine control of formatting.
 
-	Next, if an operand implements the error interface, the Error method
+	If the format (which is implicitly %v for Println etc.) is valid
+	for a string (%s %q %v %x %X), the following two rules also apply:
+
+	1. If an operand implements the error interface, the Error method
 	will be used to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
 
-	Finally, if an operand implements method String() string that method
+	2. If an operand implements method String() string, that method
 	will be used to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
+
 	To avoid recursion in cases such as
-		type X int
-		func (x X) String() string { return Sprintf("%d", x) }
+		type X string
+		func (x X) String() string { return Sprintf("<%s>", x) }
 	cast the value before recurring:
-		func (x X) String() string { return Sprintf("%d", int(x)) }
+		func (x X) String() string { return Sprintf("<%s>", string(x)) }
 
 	Format errors:
 
