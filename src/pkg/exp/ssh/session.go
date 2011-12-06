@@ -285,13 +285,8 @@ func (s *Session) stdin() error {
 		s.Stdin = new(bytes.Buffer)
 	}
 	s.copyFuncs = append(s.copyFuncs, func() error {
-		w := &chanWriter{
-			packetWriter: s,
-			peersId:      s.peersId,
-			win:          s.win,
-		}
-		_, err := io.Copy(w, s.Stdin)
-		if err1 := w.Close(); err == nil {
+		_, err := io.Copy(s.clientChan.stdin, s.Stdin)
+		if err1 := s.clientChan.stdin.Close(); err == nil {
 			err = err1
 		}
 		return err
@@ -304,12 +299,7 @@ func (s *Session) stdout() error {
 		s.Stdout = ioutil.Discard
 	}
 	s.copyFuncs = append(s.copyFuncs, func() error {
-		r := &chanReader{
-			packetWriter: s,
-			peersId:      s.peersId,
-			data:         s.data,
-		}
-		_, err := io.Copy(s.Stdout, r)
+		_, err := io.Copy(s.Stdout, s.clientChan.stdout)
 		return err
 	})
 	return nil
@@ -320,12 +310,7 @@ func (s *Session) stderr() error {
 		s.Stderr = ioutil.Discard
 	}
 	s.copyFuncs = append(s.copyFuncs, func() error {
-		r := &chanReader{
-			packetWriter: s,
-			peersId:      s.peersId,
-			data:         s.dataExt,
-		}
-		_, err := io.Copy(s.Stderr, r)
+		_, err := io.Copy(s.Stderr, s.clientChan.stderr)
 		return err
 	})
 	return nil
@@ -398,19 +383,11 @@ func (c *ClientConn) NewSession() (*Session, error) {
 		c.chanlist.remove(ch.id)
 		return nil, err
 	}
-	// wait for response
-	msg := <-ch.msg
-	switch msg := msg.(type) {
-	case *channelOpenConfirmMsg:
-		ch.peersId = msg.MyId
-		ch.win <- int(msg.MyWindow)
-		return &Session{
-			clientChan: ch,
-		}, nil
-	case *channelOpenFailureMsg:
+	if err := ch.waitForChannelOpenResponse(); err != nil {
 		c.chanlist.remove(ch.id)
-		return nil, fmt.Errorf("ssh: channel open failed: %s", msg.Message)
+		return nil, fmt.Errorf("ssh: unable to open session: %v", err)
 	}
-	c.chanlist.remove(ch.id)
-	return nil, fmt.Errorf("ssh: unexpected message %T: %v", msg, msg)
+	return &Session{
+		clientChan: ch,
+	}, nil
 }
