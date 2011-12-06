@@ -77,8 +77,8 @@ func TestItoa(t *testing.T) {
 				t.Errorf("FormatUint(%v, %v) = %v want %v",
 					test.in, test.base, s, test.out)
 			}
-			x := AppendUint([]byte("abc"), uint64(test.in), test.base)
-			if string(x) != "abc"+test.out {
+			x := AppendUint(nil, uint64(test.in), test.base)
+			if string(x) != test.out {
 				t.Errorf("AppendUint(%q, %v, %v) = %q want %v",
 					"abc", uint64(test.in), test.base, x, test.out)
 			}
@@ -122,5 +122,39 @@ func TestUitoa(t *testing.T) {
 				"abc", test.in, test.base, x, test.out)
 		}
 
+	}
+}
+
+func BenchmarkFormatInt(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, test := range itob64tests {
+			FormatInt(test.in, test.base)
+		}
+	}
+}
+
+func BenchmarkAppendInt(b *testing.B) {
+	dst := make([]byte, 0, 30)
+	for i := 0; i < b.N; i++ {
+		for _, test := range itob64tests {
+			AppendInt(dst, test.in, test.base)
+		}
+	}
+}
+
+func BenchmarkFormatUint(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, test := range uitob64tests {
+			FormatUint(test.in, test.base)
+		}
+	}
+}
+
+func BenchmarkAppendUint(b *testing.B) {
+	dst := make([]byte, 0, 30)
+	for i := 0; i < b.N; i++ {
+		for _, test := range uitob64tests {
+			AppendUint(dst, test.in, test.base)
+		}
 	}
 }
