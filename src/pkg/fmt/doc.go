@@ -103,7 +103,7 @@
 	To avoid recursion in cases such as
 		type X string
 		func (x X) String() string { return Sprintf("<%s>", x) }
-	cast the value before recurring:
+	convert the value before recurring:
 		func (x X) String() string { return Sprintf("<%s>", string(x)) }
 
 	Format errors:
