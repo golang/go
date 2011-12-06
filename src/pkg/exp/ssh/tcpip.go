@@ -6,6 +6,7 @@ package ssh
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net"
 )
@@ -42,20 +43,21 @@ func (c *ClientConn) DialTCP(n string, laddr, raddr *net.TCPAddr) (net.Conn, err
 	}, nil
 }
 
+// RFC 4254 7.2
+type channelOpenDirectMsg struct {
+	ChanType      string
+	PeersId       uint32
+	PeersWindow   uint32
+	MaxPacketSize uint32
+	raddr         string
+	rport         uint32
+	laddr         string
+	lport         uint32
+}
+
 // dial opens a direct-tcpip connection to the remote server. laddr and raddr are passed as
 // strings and are expected to be resolveable at the remote end.
 func (c *ClientConn) dial(laddr string, lport int, raddr string, rport int) (*tcpchan, error) {
-	// RFC 4254 7.2
-	type channelOpenDirectMsg struct {
-		ChanType      string
-		PeersId       uint32
-		PeersWindow   uint32
-		MaxPacketSize uint32
-		raddr         string
-		rport         uint32
-		laddr         string
-		lport         uint32
-	}
 	ch := c.newChan(c.transport)
 	if err := c.writePacket(marshal(msgChannelOpen, channelOpenDirectMsg{
 		ChanType:      "direct-tcpip",
@@ -70,30 +72,14 @@ func (c *ClientConn) dial(laddr string, lport int, raddr string, rport int) (*tc
 		c.chanlist.remove(ch.id)
 		return nil, err
 	}
-	// wait for response
-	switch msg := (<-ch.msg).(type) {
-	case *channelOpenConfirmMsg:
-		ch.peersId = msg.MyId
-		ch.win <- int(msg.MyWindow)
-	case *channelOpenFailureMsg:
+	if err := ch.waitForChannelOpenResponse(); err != nil {
 		c.chanlist.remove(ch.id)
-		return nil, errors.New("ssh: error opening remote TCP connection: " + msg.Message)
-	default:
-		c.chanlist.remove(ch.id)
-		return nil, errors.New("ssh: unexpected packet")
+		return nil, fmt.Errorf("ssh: unable to open direct tcpip connection: %v", err)
 	}
 	return &tcpchan{
 		clientChan: ch,
-		Reader: &chanReader{
-			packetWriter: ch,
-			peersId:      ch.peersId,
-			data:         ch.data,
-		},
-		Writer: &chanWriter{
-			packetWriter: ch,
-			peersId:      ch.peersId,
-			win:          ch.win,
-		},
+		Reader:     ch.stdout,
+		Writer:     ch.stdin,
 	}, nil
 }
 
