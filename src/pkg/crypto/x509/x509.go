@@ -927,10 +927,15 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
 		return
 	}
 
-	asn1Issuer, err := asn1.Marshal(parent.Subject.ToRDNSequence())
-	if err != nil {
-		return
+	var asn1Issuer []byte
+	if len(parent.RawSubject) > 0 {
+		asn1Issuer = parent.RawSubject
+	} else {
+		if asn1Issuer, err = asn1.Marshal(parent.Subject.ToRDNSequence()); err != nil {
+			return
+		}
 	}
+
 	asn1Subject, err := asn1.Marshal(template.Subject.ToRDNSequence())
 	if err != nil {
 		return
