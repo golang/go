@@ -20,7 +20,7 @@ var (
 )
 
 // Uniform is an infinite-sized Image of uniform color.
-// It implements both the color.Color and Image interfaces.
+// It implements the color.Color, color.ColorModel, and Image interfaces.
 type Uniform struct {
 	C color.Color
 }
@@ -30,7 +30,11 @@ func (c *Uniform) RGBA() (r, g, b, a uint32) {
 }
 
 func (c *Uniform) ColorModel() color.Model {
-	return color.ModelFunc(func(color.Color) color.Color { return c.C })
+	return c
+}
+
+func (c *Uniform) Convert(color.Color) color.Color {
+	return c.C
 }
 
 func (c *Uniform) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
