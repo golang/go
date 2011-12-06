@@ -93,7 +93,7 @@ Go functions can be exported for use by C code in the following way:
 	func MyFunction(arg1, arg2 int, arg3 string) int64 {...}
 
 	//export MyFunction2
-	func MyFunction2(arg1, arg2 int, arg3 string) (int64, C.char*) {...}
+	func MyFunction2(arg1, arg2 int, arg3 string) (int64, *C.char) {...}
 
 They will be available in the C code as:
 
