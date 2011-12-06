@@ -134,13 +134,22 @@ type Model interface {
 	Convert(c Color) Color
 }
 
-// ModelFunc is an adapter type to allow the use of a color conversion
-// function as a Model. If f is such a function, ModelFunc(f) is a Model that
-// invokes f to implement the conversion.
-type ModelFunc func(Color) Color
+// ModelFunc returns a Model that invokes f to implement the conversion.
+func ModelFunc(f func(Color) Color) Model {
+	// Note: using *modelFunc as the implementation
+	// means that callers can still use comparisons
+	// like m == RGBAModel.  This is not possible if
+	// we use the func value directly, because funcs
+	// are no longer comparable.
+	return &modelFunc{f}
+}
 
-func (f ModelFunc) Convert(c Color) Color {
-	return f(c)
+type modelFunc struct {
+	f func(Color) Color
+}
+
+func (m *modelFunc) Convert(c Color) Color {
+	return m.f(c)
 }
 
 // RGBAModel is the Model for RGBA colors.
