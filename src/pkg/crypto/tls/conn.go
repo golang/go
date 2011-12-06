@@ -118,6 +118,9 @@ type halfConn struct {
 
 	nextCipher interface{} // next encryption state
 	nextMac    macFunction // next MAC algorithm
+
+	// used to save allocating a new buffer for each MAC.
+	inDigestBuf, outDigestBuf []byte
 }
 
 // prepareCipherSpec sets the encryption and MAC states
@@ -280,12 +283,13 @@ func (hc *halfConn) decrypt(b *block) (bool, alert) {
 		b.data[4] = byte(n)
 		b.resize(recordHeaderLen + n)
 		remoteMAC := payload[n:]
-		localMAC := hc.mac.MAC(hc.seq[0:], b.data)
+		localMAC := hc.mac.MAC(hc.inDigestBuf, hc.seq[0:], b.data)
 		hc.incSeq()
 
 		if subtle.ConstantTimeCompare(localMAC, remoteMAC) != 1 || paddingGood != 255 {
 			return false, alertBadRecordMAC
 		}
+		hc.inDigestBuf = localMAC
 	}
 
 	return true, 0
@@ -312,12 +316,13 @@ func padToBlockSize(payload []byte, blockSize int) (prefix, finalBlock []byte) {
 func (hc *halfConn) encrypt(b *block) (bool, alert) {
 	// mac
 	if hc.mac != nil {
-		mac := hc.mac.MAC(hc.seq[0:], b.data)
+		mac := hc.mac.MAC(hc.outDigestBuf, hc.seq[0:], b.data)
 		hc.incSeq()
 
 		n := len(b.data)
 		b.resize(n + len(mac))
 		copy(b.data[n:], mac)
+		hc.outDigestBuf = mac
 	}
 
 	payload := b.data[recordHeaderLen:]

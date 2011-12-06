@@ -96,7 +96,7 @@ func macSHA1(version uint16, key []byte) macFunction {
 
 type macFunction interface {
 	Size() int
-	MAC(seq, data []byte) []byte
+	MAC(digestBuf, seq, data []byte) []byte
 }
 
 // ssl30MAC implements the SSLv3 MAC function, as defined in
@@ -114,7 +114,7 @@ var ssl30Pad1 = [48]byte{0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0
 
 var ssl30Pad2 = [48]byte{0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c}
 
-func (s ssl30MAC) MAC(seq, record []byte) []byte {
+func (s ssl30MAC) MAC(digestBuf, seq, record []byte) []byte {
 	padLength := 48
 	if s.h.Size() == 20 {
 		padLength = 40
@@ -127,13 +127,13 @@ func (s ssl30MAC) MAC(seq, record []byte) []byte {
 	s.h.Write(record[:1])
 	s.h.Write(record[3:5])
 	s.h.Write(record[recordHeaderLen:])
-	digest := s.h.Sum(nil)
+	digestBuf = s.h.Sum(digestBuf[:0])
 
 	s.h.Reset()
 	s.h.Write(s.key)
 	s.h.Write(ssl30Pad2[:padLength])
-	s.h.Write(digest)
-	return s.h.Sum(nil)
+	s.h.Write(digestBuf)
+	return s.h.Sum(digestBuf[:0])
 }
 
 // tls10MAC implements the TLS 1.0 MAC function. RFC 2246, section 6.2.3.
@@ -145,11 +145,11 @@ func (s tls10MAC) Size() int {
 	return s.h.Size()
 }
 
-func (s tls10MAC) MAC(seq, record []byte) []byte {
+func (s tls10MAC) MAC(digestBuf, seq, record []byte) []byte {
 	s.h.Reset()
 	s.h.Write(seq)
 	s.h.Write(record)
-	return s.h.Sum(nil)
+	return s.h.Sum(digestBuf[:0])
 }
 
 func rsaKA() keyAgreement {
