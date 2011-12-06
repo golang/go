@@ -20,7 +20,7 @@ type bitReader struct {
 	err  error
 }
 
-// bitReader needs to read bytes from an io.Reader. We attempt to cast the
+// bitReader needs to read bytes from an io.Reader. We attempt to convert the
 // given io.Reader to this interface and, if it doesn't already fit, we wrap in
 // a bufio.Reader.
 type byteReader interface {

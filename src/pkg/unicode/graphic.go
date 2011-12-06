@@ -32,8 +32,8 @@ var PrintRanges = []*RangeTable{
 // Such characters include letters, marks, numbers, punctuation, symbols, and
 // spaces, from categories L, M, N, P, S, Zs.
 func IsGraphic(r rune) bool {
-	// We cast to uint32 to avoid the extra test for negative,
-	// and in the index we cast to uint8 to avoid the range check.
+	// We convert to uint32 to avoid the extra test for negative,
+	// and in the index we convert to uint8 to avoid the range check.
 	if uint32(r) <= MaxLatin1 {
 		return properties[uint8(r)]&pg != 0
 	}

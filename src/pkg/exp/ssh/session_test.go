@@ -61,7 +61,7 @@ func dial(t *testing.T) *ClientConn {
 					WantReply bool
 					Status    uint32
 				}
-				// TODO(dfc) casting to the concrete type should not be
+				// TODO(dfc) converting to the concrete type should not be
 				// necessary to send a packet.
 				msg := exitMsg{
 					PeersId:   ch.(*channel).theirId,
