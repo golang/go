@@ -468,8 +468,8 @@ func TestInterfaceValue(t *testing.T) {
 func TestFunctionValue(t *testing.T) {
 	var x interface{} = func() {}
 	v := ValueOf(x)
-	if v.Interface() != v.Interface() || v.Interface() != x {
-		t.Fatalf("TestFunction != itself")
+	if fmt.Sprint(v.Interface()) != fmt.Sprint(x) {
+		t.Fatalf("TestFunction returned wrong pointer")
 	}
 	assert(t, v.Type().String(), "func()")
 }
