@@ -29,7 +29,12 @@ func domake(dir, pkg string, tree *build.Tree, isCmd bool) (err error) {
 	} else if *clean {
 		cmd = append(cmd, "clean")
 	}
-	cmd = append(cmd, "install")
+	if *doInstall {
+		cmd = append(cmd, "install")
+	}
+	if len(cmd) <= 3 { // nothing to do
+		return nil
+	}
 	return run(dir, makefile, cmd...)
 }
 
