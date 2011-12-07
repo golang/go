@@ -21,9 +21,4 @@ GOFILES=\
 	transfer.go\
 	transport.go\
 
-GOFILES_windows=\
-	transport_windows.go\
-
-GOFILES+=$(GOFILES_$(GOOS))
-
 include ../../../Make.pkg
