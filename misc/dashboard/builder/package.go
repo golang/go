@@ -18,7 +18,7 @@ import (
 
 const MaxCommentLength = 500 // App Engine won't store more in a StringProperty.
 
-func (b *Builder) buildPackages(workpath string, hash string) error {
+func (b *Builder) buildExternalPackages(workpath string, hash string) error {
 	logdir := filepath.Join(*buildroot, "log")
 	if err := os.Mkdir(logdir, 0755); err != nil {
 		return err

@@ -237,7 +237,7 @@ func (b *Builder) build() bool {
 			log.Println(b.name, "build:", err)
 		}
 	}()
-	hash, err := b.todo()
+	hash, err := b.todo("", "")
 	if err != nil {
 		log.Println(err)
 		return false
@@ -285,8 +285,7 @@ func (b *Builder) buildHash(hash string) (err error) {
 	}
 
 	// update to specified revision
-	err = run(nil, path.Join(workpath, "go"),
-		"hg", "update", hash)
+	err = run(nil, path.Join(workpath, "go"), "hg", "update", hash)
 	if err != nil {
 		return
 	}
@@ -305,18 +304,21 @@ func (b *Builder) buildHash(hash string) (err error) {
 		if status != 0 {
 			return errors.New("go build failed")
 		}
-		return b.buildPackages(workpath, hash)
+		return b.buildExternalPackages(workpath, hash)
 	}
 
 	if status != 0 {
 		// record failure
-		return b.recordResult(buildLog, hash)
+		return b.recordResult(false, "", hash, "", buildLog)
 	}
 
 	// record success
-	if err = b.recordResult("", hash); err != nil {
+	if err = b.recordResult(true, "", hash, "", ""); err != nil {
 		return fmt.Errorf("recordResult: %s", err)
 	}
+
+	// build goinstallable packages
+	b.buildPackages(filepath.Join(workpath, "go"), hash)
 
 	// finish here if codeUsername and codePassword aren't set
 	if b.codeUsername == "" || b.codePassword == "" || !*buildRelease {
@@ -344,9 +346,65 @@ func (b *Builder) buildHash(hash string) (err error) {
 			"-w", b.codePassword,
 			"-l", fmt.Sprintf("%s,%s", b.goos, b.goarch),
 			fn)
+		if err != nil {
+			return fmt.Errorf("%s: %s", codePyScript, err)
+		}
 	}
 
 	return
+}
+
+func (b *Builder) buildPackages(goRoot, goHash string) {
+	for _, pkg := range dashboardPackages() {
+		// get the latest todo for this package
+		hash, err := b.todo(pkg, goHash)
+		if err != nil {
+			log.Printf("buildPackages %s: %v", pkg, err)
+			continue
+		}
+		if hash == "" {
+			continue
+		}
+
+		// goinstall the package
+		if *verbose {
+			log.Printf("buildPackages %s: installing %q", pkg, hash)
+		}
+		buildLog, err := b.goinstall(goRoot, pkg, hash)
+		ok := buildLog == ""
+		if err != nil {
+			ok = false
+			log.Printf("buildPackages %s: %v", pkg, err)
+		}
+
+		// record the result
+		err = b.recordResult(ok, pkg, hash, goHash, buildLog)
+		if err != nil {
+			log.Printf("buildPackages %s: %v", pkg, err)
+		}
+	}
+}
+
+func (b *Builder) goinstall(goRoot, pkg, hash string) (string, error) {
+	bin := filepath.Join(goRoot, "bin/goinstall")
+	env := append(b.envv(), "GOROOT="+goRoot)
+
+	// fetch package and dependencies
+	log, status, err := runLog(env, "", goRoot, bin,
+		"-dashboard=false", "-install=false", pkg)
+	if err != nil || status != 0 {
+		return log, err
+	}
+
+	// hg update to the specified hash
+	pkgPath := filepath.Join(goRoot, "src/pkg", pkg)
+	if err := run(nil, pkgPath, "hg", "update", hash); err != nil {
+		return "", err
+	}
+
+	// build the package
+	log, _, err = runLog(env, "", goRoot, bin, "-dashboard=false", pkg)
+	return log, err
 }
 
 // envv returns an environment for build/bench execution

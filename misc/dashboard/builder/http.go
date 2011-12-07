@@ -83,9 +83,12 @@ func dash(meth, cmd string, args url.Values, req, resp interface{}) error {
 }
 
 // todo returns the next hash to build.
-func (b *Builder) todo() (rev string, err error) {
-	// TODO(adg): handle packages
-	args := url.Values{"builder": {b.name}}
+func (b *Builder) todo(pkg, goHash string) (rev string, err error) {
+	args := url.Values{
+		"builder":     {b.name},
+		"packagePath": {pkg},
+		"goHash":      {goHash},
+	}
 	var resp string
 	if err = dash("GET", "todo", args, nil, &resp); err != nil {
 		return
@@ -97,13 +100,16 @@ func (b *Builder) todo() (rev string, err error) {
 }
 
 // recordResult sends build results to the dashboard
-func (b *Builder) recordResult(buildLog string, hash string) error {
-	// TODO(adg): handle packages
-	return dash("POST", "result", url.Values{"key": {b.key}}, obj{
-		"Builder": b.name,
-		"Hash":    hash,
-		"Log":     buildLog,
-	}, nil)
+func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string) error {
+	req := obj{
+		"Builder":     b.name,
+		"PackagePath": pkg,
+		"Hash":        hash,
+		"GoHash":      goHash,
+		"OK":          ok,
+		"Log":         buildLog,
+	}
+	return dash("POST", "result", url.Values{"key": {b.key}}, req, nil)
 }
 
 // packages fetches a list of package paths from the dashboard

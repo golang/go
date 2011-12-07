@@ -60,7 +60,7 @@ func runLog(envv []string, logfile, dir string, argv ...string) (string, int, er
 			return b.String(), ws.ExitStatus(), nil
 		}
 	}
-	return b.String(), 0, nil
+	return b.String(), 0, err
 }
 
 // useBash prefixes a list of args with 'bash' if the first argument
