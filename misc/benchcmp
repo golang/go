@@ -17,7 +17,7 @@ BEGIN {
 	n = 0
 }
 
-$1 ~ /^Benchmark/ && $4 == "ns/op" {
+$1 ~ /Benchmark/ && $4 == "ns/op" {
 	if(old[$1]) {
 		if(!saw[$1]++) {
 			name[n++] = $1
