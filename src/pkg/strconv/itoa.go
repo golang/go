@@ -46,21 +46,21 @@ var shifts = [len(digits) + 1]uint{
 }
 
 // formatBits computes the string representation of u in the given base.
-// If negative is set, u is treated as negative int64 value. If append_
-// is set, the string is appended to dst and the resulting byte slice is
+// If neg is set, u is treated as negative int64 value. If append_ is
+// set, the string is appended to dst and the resulting byte slice is
 // returned as the first result value; otherwise the string is returned
 // as the second result value.
 //
-func formatBits(dst []byte, u uint64, base int, negative, append_ bool) (d []byte, s string) {
+func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s string) {
 	if base < 2 || base > len(digits) {
-		panic("invalid base")
+		panic("strconv: illegal AppendInt/FormatInt base")
 	}
 	// 2 <= base && base <= len(digits)
 
 	var a [64 + 1]byte // +1 for sign of 64bit value in base 2
 	i := len(a)
 
-	if negative {
+	if neg {
 		u = -u
 	}
 
@@ -99,7 +99,7 @@ func formatBits(dst []byte, u uint64, base int, negative, append_ bool) (d []byt
 	a[i] = digits[uintptr(u)]
 
 	// add sign, if any
-	if negative {
+	if neg {
 		i--
 		a[i] = '-'
 	}
