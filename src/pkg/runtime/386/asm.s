@@ -21,15 +21,22 @@ TEXT _rt0_386(SB),7,$0
 	MOVL	AX, 120(SP)		// save argc, argv away
 	MOVL	BX, 124(SP)
 
+	// set default stack bounds.
+	// initcgo may update stackguard.
+	MOVL	$runtime·g0(SB), BP
+	LEAL	(-64*1024+104)(SP), BX
+	MOVL	BX, g_stackguard(BP)
+	MOVL	SP, g_stackbase(BP)
+	
 	// if there is an initcgo, call it to let it
 	// initialize and to set up GS.  if not,
 	// we set up GS ourselves.
 	MOVL	initcgo(SB), AX
 	TESTL	AX, AX
 	JZ	needtls
-	PUSHL	$runtime·g0(SB)
+	PUSHL	BP
 	CALL	AX
-	POPL	AX
+	POPL	BP
 	// skip runtime·ldt0setup(SB) and tls test after initcgo for non-windows
 	CMPL runtime·iswindows(SB), $0
 	JEQ ok
@@ -58,16 +65,6 @@ ok:
 
 	// save m->g0 = g0
 	MOVL	CX, m_g0(AX)
-
-	// create istack out of the OS stack
-	// if there is an initcgo, it had setup stackguard for us
-	MOVL	initcgo(SB), AX
-	TESTL	AX, AX
-	JNZ	stackok
-	LEAL	(-64*1024+104)(SP), AX	// TODO: 104?
-	MOVL	AX, g_stackguard(CX)
-stackok:
-	MOVL	SP, g_stackbase(CX)
 
 	CALL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 

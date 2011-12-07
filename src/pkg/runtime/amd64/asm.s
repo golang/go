@@ -12,13 +12,19 @@ TEXT _rt0_amd64(SB),7,$-8
 	ANDQ	$~15, SP
 	MOVQ	AX, 16(SP)
 	MOVQ	BX, 24(SP)
+	
+	// create istack out of the given (operating system) stack.
+	// initcgo may update stackguard.
+	MOVQ	$runtime·g0(SB), DI
+	LEAQ	(-8192+104)(SP), BX
+	MOVQ	BX, g_stackguard(DI)
+	MOVQ	SP, g_stackbase(DI)
 
 	// if there is an initcgo, call it.
 	MOVQ	initcgo(SB), AX
 	TESTQ	AX, AX
 	JZ	needtls
-	LEAQ	runtime·g0(SB), DI
-	CALL	AX
+	CALL	AX  // g0 already in DI
 	CMPL	runtime·iswindows(SB), $0
 	JEQ ok
 
@@ -43,16 +49,6 @@ ok:
 
 	// save m->g0 = g0
 	MOVQ	CX, m_g0(AX)
-
-	// create istack out of the given (operating system) stack
-	// if there is an initcgo, it had setup stackguard for us
-	MOVQ	initcgo(SB), AX
-	TESTQ	AX, AX
-	JNZ	stackok
-	LEAQ	(-8192+104)(SP), AX
-	MOVQ	AX, g_stackguard(CX)
-stackok:
-	MOVQ	SP, g_stackbase(CX)
 
 	CLD				// convention is D is always left cleared
 	CALL	runtime·check(SB)

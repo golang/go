@@ -125,6 +125,7 @@ EXTERN	int32	nsymbol;
 EXTERN	char*	thestring;
 EXTERN	int	ndynexp;
 EXTERN	int	havedynamic;
+EXTERN	int	iscgo;
 
 EXTERN	Segment	segtext;
 EXTERN	Segment	segdata;

@@ -274,6 +274,7 @@ loadlib(void)
 	for(i=0; i<libraryp; i++) {
 		if(debug['v'])
 			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i].file, library[i].objref);
+		iscgo |= strcmp(library[i].pkg, "runtime/cgo") == 0;
 		objfile(library[i].file, library[i].pkg);
 	}
 	
