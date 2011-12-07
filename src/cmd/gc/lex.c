@@ -137,6 +137,7 @@ usage(void)
 	print("  -N disable optimizer\n");
 	print("  -S print the assembly language\n");
 	print("  -V print the compiler version\n");
+	print("  -W print the parse tree after typing\n");
 	print("  -d print declarations\n");
 	print("  -e no limit on number of errors printed\n");
 	print("  -f print stack frame structure\n");
@@ -146,7 +147,7 @@ usage(void)
 	print("  -p assumed import path for this code\n");
 	print("  -s disable escape analysis\n");
 	print("  -u disable package unsafe\n");
-	print("  -w print the parse tree after typing\n");
+	print("  -w print type checking details\n");
 	print("  -x print lex tokens\n");
 	exits("usage");
 }
