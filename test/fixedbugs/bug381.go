@@ -4,15 +4,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Issue 2452.
+// Issue 2276.
 
 // Check that the error messages says 
-//	bug378.go:17: 1 + 2 not used
+//	bug378.go:19: unsafe.Alignof(0) not used
 // and not
-//	bug378.go:17: 1 not used
+//	bug378.go:19: 4 not used
 
 package main
 
+import "unsafe"
+
 func main() {
-	1 + 2 // ERROR "1 \+ 2 not used|value computed is not used"
+	unsafe.Alignof(0) // ERROR "unsafe\.Alignof|value computed is not used"
 }
