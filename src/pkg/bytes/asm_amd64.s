@@ -90,3 +90,19 @@ success:
 	MOVL DI, ret+24(FP)
 	RET
 
+TEXT ·Equal(SB),7,$0
+	MOVL	len+8(FP), BX
+	MOVL	len1+24(FP), CX
+	MOVL	$0, AX
+	MOVL	$1, DX
+	CMPL	BX, CX
+	JNE	eqret
+	MOVQ	p+0(FP), SI
+	MOVQ	q+16(FP), DI
+	CLD
+	REP; CMPSB
+	CMOVLEQ	DX, AX
+eqret:
+	MOVB	AX, ret+32(FP)
+	RET
+
