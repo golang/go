@@ -119,10 +119,10 @@ Error:
 	return n, &NumError{s0, err}
 }
 
-// ParseInt interprets a string s in an arbitrary base b (2 to 36)
-// and returns the corresponding value n.  If b == 0, the base
-// is taken from the string prefix: base 16 for "0x", base 8 for "0",
-// and base 10 otherwise.
+// ParseInt interprets a string s in the given base (2 to 36) and
+// returns the corresponding value i.  If base == 0, the base is
+// implied by the string's prefix: base 16 for "0x", base 8 for
+// "0", and base 10 otherwise.
 //
 // The bitSize argument specifies the integer type
 // that the result must fit into.  Bit sizes 0, 8, 16, 32, and 64

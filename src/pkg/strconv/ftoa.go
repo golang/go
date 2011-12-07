@@ -46,7 +46,7 @@ var float64info = floatInfo{52, 11, -1023}
 // because correct rounding and the number of digits
 // needed to identify f depend on the precision of the representation.
 func FormatFloat(f float64, fmt byte, prec, bitSize int) string {
-	return string(genericFtoa(make([]byte, 0, 16), f, fmt, prec, bitSize))
+	return string(genericFtoa(make([]byte, 0, max(prec+4, 24)), f, fmt, prec, bitSize))
 }
 
 // AppendFloat appends the string form of the floating-point number f,
