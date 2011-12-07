@@ -166,7 +166,7 @@ func Cos(x float64) float64 {
 
 // Sin returns the sine of x.
 //
-// Special conditions are:
+// Special cases are:
 //	Sin(±0) = ±0
 //	Sin(±Inf) = NaN
 //	Sin(NaN) = NaN
