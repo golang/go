@@ -842,8 +842,12 @@ unary:
 	}
 
 ret:
-	norig = n->orig;
-	// rewrite n in place.
+	if(n == n->orig) {
+		// duplicate node for n->orig.
+		norig = nod(OLITERAL, N, N);
+		*norig = *n;
+	} else
+		norig = n->orig;
 	*n = *nl;
 	// restore value of n->orig.
 	n->orig = norig;

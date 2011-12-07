@@ -94,8 +94,10 @@ ret:
 	val.u.xval = mal(sizeof(*n->val.u.xval));
 	mpmovecfix(val.u.xval, v);
 	n = nod(OLITERAL, N, N);
+	n->orig = nn;
 	n->val = val;
 	n->type = types[TUINTPTR];
+	nn->type = types[TUINTPTR];
 	return n;
 }
 
