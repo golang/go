@@ -1,0 +1,81 @@
+<!-- Go 1 Release Notes -->
+
+<h2 id="introduction">Introduction to Go 1</h2>
+
+<p>
+For a full explanation of the motivation and design of Go 1, see XXX.
+Here follows a summary.
+</p>
+
+<p>
+Go 1 is intended to be a stable language and core library set that will form a reliable foundation for people and organizations that want to make a long-term commitment to developing in the Go programming language. Go will continue to develop, but in a way that guarantees code written to the Go 1 specification will continue to work. For instance, Go 1 will be a supported platform on Google App Engine for the next few years. Incompatible changes to the environment, should they arise, will be done in a distinct version.
+</p>
+
+<p>
+This document describes the changes in the language and libraries in Go 1, relative to the previous release, r60 (at the time of writing, tagged as r60.3). It also explains how to update code at r60 to compile and run under Go 1. Finally, it outlines the new <code>go</code> command for building Go programs and the new binary release process being introduced. Most of these topics have more thorough presentations elsewhere; such documents are linked below.
+
+<h2 id="language">Changes to the language</h2>
+
+<h3 id="append">Append</h3>
+
+<h3 id="close">Close</h3>
+
+<h3 id="composite_literals">Composite literals</h3>
+
+<h3 id="goroutines_init">Goroutines during init</h3>
+
+<h3 id="rune">The rune type</h3>
+
+<h3 id="delete">Deleting from maps</h3>
+
+<h3 id="multiple_assignment">Multiple assignment</h3>
+
+<h3 id="shadowing">Returns and shadowed variables</h3>
+
+<h3 id="struct_equality">Equality of structs and arrays</h3>
+
+<h2 id="library">Changes to the library</h2>
+
+<h3 id="package_hierarchy">The package hierarchy</h3>
+
+<h3 id="errors">The error type</h3>
+
+<h3 id="syscall_errors">System call errors</h3>
+
+<h3 id="time">Time</h3>
+
+<h3 id="html">The html package</h3>
+
+<h3 id="http">The http package</h3>
+
+<h3 id="strconv">The strconv package</h3>
+
+<h3 id="exp">The package tree exp</h3>
+
+<h3 id="old">The package tree old</h3>
+
+<h3 id="deleted_packages">Deleted packages</h3>
+
+<!-- 
+go/typechecker
+go/types
+ebnf (and cmd/ebnflint)
+container/vector
+try (and gotry)
+exp/datafmt
+netchan
+-->
+
+<h3 id="subrepo_packages">Packages moving to subrepositories</h3>
+
+<!-- 
+crypto/openpgp to XXX
+maybe exp/ssh?
+-->
+
+<h3 id="os_fileinfo">The os.FileInfo type</h3>
+
+<h2 id="go_command">The go command</h2>
+
+<h2 id="releases">Packaged releases</h2>
+
