@@ -183,6 +183,8 @@ runtime·semacreate(void)
 	return (uintptr)runtime·stdcall(runtime·CreateEvent, 4, (uintptr)0, (uintptr)0, (uintptr)0, (uintptr)0);
 }
 
+#define STACK_SIZE_PARAM_IS_A_RESERVATION ((uintptr)0x00010000)
+
 void
 runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
@@ -193,7 +195,8 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	USED(fn);	// assuming fn = mstart
 
 	thandle = runtime·stdcall(runtime·CreateThread, 6,
-		nil, nil, runtime·tstart_stdcall, m, nil, nil);
+		nil, (uintptr)0x20000, runtime·tstart_stdcall, m,
+		STACK_SIZE_PARAM_IS_A_RESERVATION, nil);
 	if(thandle == nil) {
 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), runtime·getlasterror());
 		runtime·throw("runtime.newosproc");

@@ -650,8 +650,21 @@ asmbpe(void)
 	// Commit size must be strictly less than reserve
 	// size otherwise reserve will be rounded up to a
 	// larger size, as verified with VMMap.
-	set(SizeOfStackReserve, 0x00010000);
-	set(SizeOfStackCommit, 0x0000ffff);
+
+	// Go code would be OK with 64k stacks, but we need larger stacks for cgo.
+	// That default stack reserve size affects only the main thread,
+	// for other threads we specify stack size in runtime explicitly
+	// (runtime knows whether cgo is enabled or not).
+	// If you change stack reserve sizes here,
+	// change them in runtime/cgo/windows_386/amd64.c as well.
+	if(!iscgo) {
+		set(SizeOfStackReserve, 0x00010000);
+		set(SizeOfStackCommit, 0x0000ffff);
+	} else {
+		set(SizeOfStackReserve, pe64 ? 0x00200000 : 0x00100000);
+		// account for 2 guard pages
+		set(SizeOfStackCommit, (pe64 ? 0x00200000 : 0x00100000) - 0x2000);
+	}
 	set(SizeOfHeapReserve, 0x00100000);
 	set(SizeOfHeapCommit, 0x00001000);
 	set(NumberOfRvaAndSizes, 16);

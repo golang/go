@@ -8,15 +8,16 @@
 
 static void *threadentry(void*);
 
-/* From what I've read 1MB is default for 32-bit Linux. 
-   Allocation granularity on Windows is typically 64 KB. */
+/* 1MB is default stack size for 32-bit Windows.
+   Allocation granularity on Windows is typically 64 KB.
+   The constant is also hardcoded in cmd/ld/pe.c (keep synchronized). */
 #define STACKSIZE (1*1024*1024)
 
 static void
 xinitcgo(G *g)
 {
 	int tmp;
-	g->stackguard = (uintptr)&tmp - STACKSIZE + 4096;
+	g->stackguard = (uintptr)&tmp - STACKSIZE + 8*1024;
 }
 
 void (*initcgo)(G*) = xinitcgo;
@@ -24,8 +25,7 @@ void (*initcgo)(G*) = xinitcgo;
 void
 libcgo_sys_thread_start(ThreadStart *ts)
 {
-	ts->g->stackguard = STACKSIZE;
-	_beginthread(threadentry, STACKSIZE, ts);
+	_beginthread(threadentry, 0, ts);
 }
 
 static void*
@@ -38,12 +38,7 @@ threadentry(void *v)
 	free(v);
 
 	ts.g->stackbase = (uintptr)&ts;
-
-	/*
-	 * libcgo_sys_thread_start set stackguard to stack size;
-	 * change to actual guard pointer.
-	 */
-	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+	ts.g->stackguard = (uintptr)&ts - STACKSIZE + 8*1024;
 
 	/*
 	 * Set specific keys in thread local storage.
