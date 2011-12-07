@@ -13,7 +13,7 @@ import "unsafe"
 // cause a memory access fault. This test checks
 // that Go is doing the correct explicit checks to catch
 // these nil pointer accesses, not just relying on the hardware.
-var dummy [512 << 20]byte // give us a big address space
+var dummy [256 << 20]byte // give us a big address space
 
 func main() {
 	// the test only tests what we intend to test
