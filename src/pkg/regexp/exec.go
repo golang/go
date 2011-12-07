@@ -1,6 +1,9 @@
 package regexp
 
-import "regexp/syntax"
+import (
+	"io"
+	"regexp/syntax"
+)
 
 // A queue is a 'sparse array' holding pending threads of execution.
 // See http://research.swtch.com/2008/03/using-uninitialized-memory-for-fun-and.html
@@ -34,6 +37,28 @@ type machine struct {
 	pool     []*thread    // pool of available threads
 	matched  bool         // whether a match was found
 	matchcap []int        // capture information for the match
+
+	// cached inputs, to avoid allocation
+	inputBytes  inputBytes
+	inputString inputString
+	inputReader inputReader
+}
+
+func (m *machine) newInputBytes(b []byte) input {
+	m.inputBytes.str = b
+	return &m.inputBytes
+}
+
+func (m *machine) newInputString(s string) input {
+	m.inputString.str = s
+	return &m.inputString
+}
+
+func (m *machine) newInputReader(r io.RuneReader) input {
+	m.inputReader.r = r
+	m.inputReader.atEOT = false
+	m.inputReader.pos = 0
+	return &m.inputReader
 }
 
 // progMachine returns a new machine running the prog p.
@@ -74,6 +99,9 @@ func (m *machine) alloc(i *syntax.Inst) *thread {
 
 // free returns t to the free pool.
 func (m *machine) free(t *thread) {
+	m.inputBytes.str = nil
+	m.inputString.str = ""
+	m.inputReader.r = nil
 	m.pool = append(m.pool, t)
 }
 
@@ -287,8 +315,16 @@ var empty = make([]int, 0)
 
 // doExecute finds the leftmost match in the input and returns
 // the position of its subexpressions.
-func (re *Regexp) doExecute(i input, pos int, ncap int) []int {
+func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int) []int {
 	m := re.get()
+	var i input
+	if r != nil {
+		i = m.newInputReader(r)
+	} else if b != nil {
+		i = m.newInputBytes(b)
+	} else {
+		i = m.newInputString(s)
+	}
 	m.init(ncap)
 	if !m.match(i, pos) {
 		re.put(m)
