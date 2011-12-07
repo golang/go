@@ -673,7 +673,7 @@ func daysIn(m Month, year int) int {
 	if m == February && isLeap(year) {
 		return 29
 	}
-	return int(daysBefore[m+1] - daysBefore[m])
+	return int(daysBefore[m] - daysBefore[m-1])
 }
 
 // Provided by package runtime.
