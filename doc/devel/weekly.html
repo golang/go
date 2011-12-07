@@ -14,6 +14,56 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-12-06">2011-12-06</h2>
+
+<pre>
+This snapshot includes a language change and changes to the strconv and go/doc
+packages. The package changes require changes to client code.
+The language change is backwards-compatible.
+
+Type elision in arrays, slices, or maps of composite literals has been
+extended to include pointers to composite literals. Code like this
+	var t = []&T{&T{}, &T{}}
+may now be written as
+	var t = []&T{{}, {}}
+You can use gofmt -s to simplify such code.
+
+The strconv package has been given a more idiomatic and efficient interface.
+Client code can be updated with gofix. See the docs for the details:
+	http://weekly.golang.org/pkg/strconv/
+
+The go/doc package's ToHTML function now takes a []byte argument instead of a
+string.
+
+Other changes:
+* crypto/aes: eliminate some bounds checking and truncation (thanks Rémy Oudompheng).
+* crypto/x509: if a parent cert has a raw subject, use it.
+* encoding/gob: don't send type info for unexported fields.
+* exp/ssh: allow for msgUserAuthBanner during authentication (thanks Gustav Paul).
+* fmt: benchmark floating point,
+	only use Stringer or Error for strings.
+* gc: changes in export format in preparation of inlining,
+	disallow map/func equality via interface comparison,
+	use gofmt spacing when printing map type.
+* go/doc: exclude lines ending in ':' from possible headings.
+* gobuilder: -commit mode for packages,
+	cripple -package mode temporarily,
+	use new dashboard protocol.
+* godoc: improved output of examples in html (thanks Volker Dobler).
+* gofmt: handle &T in composite literal simplify.
+* goinstall: honour -install=false flag when -make=true.
+* hash: rewrite comment on Hash.Sum method.
+* html: more parser improvements (thanks Andrew Balholm).
+* image: avoid func comparison during ColorModel comparison.
+* math: add special-cases comments to Sinh and Tanh (thanks Charles L. Dorian).
+* misc/dashboard: further implementation work.
+* net, syscall: remove BindToDevice from UDPConn, IPConn (thanks Mikio Hara).
+* net/mail: correctly compare parsed times in the test.
+* os/exec: make LookPath always search CWD under Windows (thanks Benny Siegert).
+* runtime: prep for type-specific algorithms.
+* strconv: 34% to 63% faster conversions.
+</pre>
+
 <h2 id="2011-12-02">2011-12-02</h2>
 
 <pre>
