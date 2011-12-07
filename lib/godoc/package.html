@@ -51,8 +51,8 @@
 	{{comment_html .Doc}}
 	{{if $.IsPkg}}
 		{{with .Filenames}}
-			<p>
 			<h4>Package files</h4>
+			<p>
 			<span style="font-size:90%">
 			{{range .}}
 				<a href="/{{.|srcLink}}">{{.|filename|html}}</a>
@@ -88,7 +88,7 @@
 		{{$tname_html := node_html .Type.Name $.FSet}}
 		<h2 id="{{$tname_html}}">type <a href="/{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
 		{{comment_html .Doc}}
-		<p><pre>{{node_html .Decl $.FSet}}</pre></p>
+		<pre>{{node_html .Decl $.FSet}}</pre>
 		{{range .Consts}}
 			{{comment_html .Doc}}
 			<pre>{{node_html .Decl $.FSet}}</pre>
