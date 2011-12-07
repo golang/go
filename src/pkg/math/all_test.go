@@ -958,6 +958,75 @@ var fabsSC = []float64{
 	NaN(),
 }
 
+var vffdimSC = [][2]float64{
+	{Inf(-1), Inf(-1)},
+	{Inf(-1), Inf(1)},
+	{Inf(-1), NaN()},
+	{Copysign(0, -1), Copysign(0, -1)},
+	{Copysign(0, -1), 0},
+	{0, Copysign(0, -1)},
+	{0, 0},
+	{Inf(1), Inf(-1)},
+	{Inf(1), Inf(1)},
+	{Inf(1), NaN()},
+	{NaN(), Inf(-1)},
+	{NaN(), Copysign(0, -1)},
+	{NaN(), 0},
+	{NaN(), Inf(1)},
+	{NaN(), NaN()},
+}
+var fdimSC = []float64{
+	NaN(),
+	0,
+	NaN(),
+	0,
+	0,
+	0,
+	0,
+	Inf(1),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+}
+var fmaxSC = []float64{
+	Inf(-1),
+	Inf(1),
+	NaN(),
+	Copysign(0, -1),
+	0,
+	0,
+	0,
+	Inf(1),
+	Inf(1),
+	Inf(1),
+	NaN(),
+	NaN(),
+	NaN(),
+	Inf(1),
+	NaN(),
+}
+var fminSC = []float64{
+	Inf(-1),
+	Inf(-1),
+	Inf(-1),
+	Copysign(0, -1),
+	Copysign(0, -1),
+	Copysign(0, -1),
+	0,
+	Inf(-1),
+	Inf(1),
+	NaN(),
+	Inf(-1),
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+}
+
 var vffmodSC = [][2]float64{
 	{Inf(-1), Inf(-1)},
 	{Inf(-1), -Pi},
@@ -1875,6 +1944,11 @@ func TestDim(t *testing.T) {
 			t.Errorf("Dim(%g, %g) = %g, want %g", vf[i], 0.0, f, fdim[i])
 		}
 	}
+	for i := 0; i < len(vffdimSC); i++ {
+		if f := Dim(vffdimSC[i][0], vffdimSC[i][1]); !alike(fdimSC[i], f) {
+			t.Errorf("Dim(%g, %g) = %g, want %g", vffdimSC[i][0], vffdimSC[i][1], f, fdimSC[i])
+		}
+	}
 }
 
 func TestFloor(t *testing.T) {
@@ -1896,12 +1970,22 @@ func TestMax(t *testing.T) {
 			t.Errorf("Max(%g, %g) = %g, want %g", vf[i], ceil[i], f, ceil[i])
 		}
 	}
+	for i := 0; i < len(vffdimSC); i++ {
+		if f := Max(vffdimSC[i][0], vffdimSC[i][1]); !alike(fmaxSC[i], f) {
+			t.Errorf("Max(%g, %g) = %g, want %g", vffdimSC[i][0], vffdimSC[i][1], f, fmaxSC[i])
+		}
+	}
 }
 
 func TestMin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Min(vf[i], floor[i]); floor[i] != f {
 			t.Errorf("Min(%g, %g) = %g, want %g", vf[i], floor[i], f, floor[i])
+		}
+	}
+	for i := 0; i < len(vffdimSC); i++ {
+		if f := Min(vffdimSC[i][0], vffdimSC[i][1]); !alike(fminSC[i], f) {
+			t.Errorf("Min(%g, %g) = %g, want %g", vffdimSC[i][0], vffdimSC[i][1], f, fminSC[i])
 		}
 	}
 }
