@@ -2198,6 +2198,7 @@ typecheckcomplit(Node **np)
 		n->typecheck = 1;
 		n->type = n->left->type;
 		n->left->type = t;
+		n->left->typecheck = 1;
 	}
 
 	*np = n;
