@@ -6,7 +6,7 @@ package ssh
 
 // ClientConn functional tests.
 // These tests require a running ssh server listening on port 22
-// on the local host. Functional tests will be skipped unless 
+// on the local host. Functional tests will be skipped unless
 // -ssh.user and -ssh.pass must be passed to gotest.
 
 import (

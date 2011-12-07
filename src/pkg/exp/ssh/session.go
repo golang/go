@@ -34,6 +34,20 @@ const (
 	SIGUSR2 Signal = "USR2"
 )
 
+var signals = map[Signal]int{
+	SIGABRT: 6,
+	SIGALRM: 14,
+	SIGFPE:  8,
+	SIGHUP:  1,
+	SIGILL:  4,
+	SIGINT:  2,
+	SIGKILL: 9,
+	SIGPIPE: 13,
+	SIGQUIT: 3,
+	SIGSEGV: 11,
+	SIGTERM: 15,
+}
+
 // A Session represents a connection to a remote command or shell.
 type Session struct {
 	// Stdin specifies the remote process's standard input.
@@ -170,10 +184,17 @@ func (s *Session) Start(cmd string) error {
 	return s.start()
 }
 
-// Run runs cmd on the remote host and waits for it to terminate.
-// Typically, the remote server passes cmd to the shell for
-// interpretation. A Session only accepts one call to Run,
-// Start or Shell.
+// Run runs cmd on the remote host. Typically, the remote
+// server passes cmd to the shell for interpretation.
+// A Session only accepts one call to Run, Start or Shell.
+//
+// The returned error is nil if the command runs, has no problems
+// copying stdin, stdout, and stderr, and exits with a zero exit
+// status.
+//
+// If the command fails to run or doesn't complete successfully, the
+// error is of type *ExitError. Other error types may be
+// returned for I/O problems.
 func (s *Session) Run(cmd string) error {
 	err := s.Start(cmd)
 	if err != nil {
@@ -233,6 +254,14 @@ func (s *Session) start() error {
 }
 
 // Wait waits for the remote command to exit.
+//
+// The returned error is nil if the command runs, has no problems
+// copying stdin, stdout, and stderr, and exits with a zero exit
+// status.
+//
+// If the command fails to run or doesn't complete successfully, the
+// error is of type *ExitError. Other error types may be
+// returned for I/O problems.
 func (s *Session) Wait() error {
 	if !s.started {
 		return errors.New("ssh: session not started")
@@ -255,21 +284,40 @@ func (s *Session) Wait() error {
 }
 
 func (s *Session) wait() error {
-	for {
-		switch msg := (<-s.msg).(type) {
+	wm := Waitmsg{status: -1}
+
+	// Wait for msg channel to be closed before returning.
+	for msg := range s.msg {
+		switch msg := msg.(type) {
 		case *channelRequestMsg:
-			// TODO(dfc) improve this behavior to match os.Waitmsg
 			switch msg.Request {
 			case "exit-status":
 				d := msg.RequestSpecificData
-				status := int(d[0])<<24 | int(d[1])<<16 | int(d[2])<<8 | int(d[3])
-				if status > 0 {
-					return fmt.Errorf("remote process exited with %d", status)
-				}
-				return nil
+				wm.status = int(d[0])<<24 | int(d[1])<<16 | int(d[2])<<8 | int(d[3])
 			case "exit-signal":
-				// TODO(dfc) make a more readable error message
-				return fmt.Errorf("%v", msg.RequestSpecificData)
+				signal, rest, ok := parseString(msg.RequestSpecificData)
+				if !ok {
+					return fmt.Errorf("wait: could not parse request data: %v", msg.RequestSpecificData)
+				}
+				wm.signal = safeString(string(signal))
+
+				// skip coreDumped bool
+				if len(rest) == 0 {
+					return fmt.Errorf("wait: could not parse request data: %v", msg.RequestSpecificData)
+				}
+				rest = rest[1:]
+
+				errmsg, rest, ok := parseString(rest)
+				if !ok {
+					return fmt.Errorf("wait: could not parse request data: %v", msg.RequestSpecificData)
+				}
+				wm.msg = safeString(string(errmsg))
+
+				lang, _, ok := parseString(rest)
+				if !ok {
+					return fmt.Errorf("wait: could not parse request data: %v", msg.RequestSpecificData)
+				}
+				wm.lang = safeString(string(lang))
 			default:
 				return fmt.Errorf("wait: unexpected channel request: %v", msg)
 			}
@@ -277,7 +325,20 @@ func (s *Session) wait() error {
 			return fmt.Errorf("wait: unexpected packet %T received: %v", msg, msg)
 		}
 	}
-	panic("unreachable")
+	if wm.status == 0 {
+		return nil
+	}
+	if wm.status == -1 {
+		// exit-status was never sent from server
+		if wm.signal == "" {
+			return errors.New("wait: remote command exited without exit status or exit signal")
+		}
+		wm.status = 128
+		if _, ok := signals[Signal(wm.signal)]; ok {
+			wm.status += signals[Signal(wm.signal)]
+		}
+	}
+	return &ExitError{wm}
 }
 
 func (s *Session) stdin() error {
@@ -390,4 +451,47 @@ func (c *ClientConn) NewSession() (*Session, error) {
 	return &Session{
 		clientChan: ch,
 	}, nil
+}
+
+// An ExitError reports unsuccessful completion of a remote command.
+type ExitError struct {
+	Waitmsg
+}
+
+func (e *ExitError) Error() string {
+	return e.Waitmsg.String()
+}
+
+// Waitmsg stores the information about an exited remote command
+// as reported by Wait.
+type Waitmsg struct {
+	status int
+	signal string
+	msg    string
+	lang   string
+}
+
+// ExitStatus returns the exit status of the remote command.
+func (w Waitmsg) ExitStatus() int {
+	return w.status
+}
+
+// Signal returns the exit signal of the remote command if
+// it was terminated violently.
+func (w Waitmsg) Signal() string {
+	return w.signal
+}
+
+// Msg returns the exit message given by the remote command
+func (w Waitmsg) Msg() string {
+	return w.msg
+}
+
+// Lang returns the language tag. See RFC 3066
+func (w Waitmsg) Lang() string {
+	return w.lang
+}
+
+func (w Waitmsg) String() string {
+	return fmt.Sprintf("Process exited with: %v. Reason was: %v (%v)", w.status, w.msg, w.signal)
 }
