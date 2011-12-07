@@ -632,6 +632,29 @@ func TestDate(t *testing.T) {
 	}
 }
 
+var daysInTests = []struct {
+	year, month, di int
+}{
+	{2011, 1, 31},  // January, first month, 31 days
+	{2011, 2, 28},  // February, non-leap year, 28 days
+	{2012, 2, 29},  // February, leap year, 29 days
+	{2011, 6, 30},  // June, 30 days
+	{2011, 12, 31}, // December, last month, 31 days
+}
+
+func TestDaysIn(t *testing.T) {
+	// The daysIn function is not exported.
+	// Test the daysIn function via the `var DaysIn = daysIn`
+	// statement in the internal_test.go file.
+	for _, tt := range daysInTests {
+		di := DaysIn(Month(tt.month), tt.year)
+		if di != tt.di {
+			t.Errorf("got %d; expected %d for %d-%02d",
+				di, tt.di, tt.year, tt.month)
+		}
+	}
+}
+
 func BenchmarkNow(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Now()

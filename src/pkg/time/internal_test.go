@@ -10,3 +10,4 @@ func init() {
 }
 
 var Interrupt = interrupt
+var DaysIn = daysIn
