@@ -95,34 +95,25 @@ func convertAssign(dest, src interface{}) error {
 	switch dv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		s := asString(src)
-		i64, err := strconv.ParseInt(s, 10, 64)
+		i64, err := strconv.ParseInt(s, 10, dv.Type().Bits())
 		if err != nil {
 			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
-		}
-		if dv.OverflowInt(i64) {
-			return fmt.Errorf("string %q overflows %s", s, dv.Kind())
 		}
 		dv.SetInt(i64)
 		return nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		s := asString(src)
-		u64, err := strconv.ParseUint(s, 10, 64)
+		u64, err := strconv.ParseUint(s, 10, dv.Type().Bits())
 		if err != nil {
 			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
-		}
-		if dv.OverflowUint(u64) {
-			return fmt.Errorf("string %q overflows %s", s, dv.Kind())
 		}
 		dv.SetUint(u64)
 		return nil
 	case reflect.Float32, reflect.Float64:
 		s := asString(src)
-		f64, err := strconv.ParseFloat(s, 64)
+		f64, err := strconv.ParseFloat(s, dv.Type().Bits())
 		if err != nil {
 			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
-		}
-		if dv.OverflowFloat(f64) {
-			return fmt.Errorf("value %q overflows %s", s, dv.Kind())
 		}
 		dv.SetFloat(f64)
 		return nil
