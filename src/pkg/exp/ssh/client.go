@@ -187,10 +187,10 @@ func (c *ClientConn) mainLoop() {
 		if err != nil {
 			break
 		}
-		// TODO(dfc) A note on blocking channel use. 
-		// The msg, win, data and dataExt channels of a clientChan can 
-		// cause this loop to block indefinately if the consumer does 
-		// not service them. 
+		// TODO(dfc) A note on blocking channel use.
+		// The msg, win, data and dataExt channels of a clientChan can
+		// cause this loop to block indefinately if the consumer does
+		// not service them.
 		switch packet[0] {
 		case msgChannelData:
 			if len(packet) < 9 {
@@ -211,7 +211,7 @@ func (c *ClientConn) mainLoop() {
 			datatype := uint32(packet[5])<<24 | uint32(packet[6])<<16 | uint32(packet[7])<<8 | uint32(packet[8])
 			if length := int(packet[9])<<24 | int(packet[10])<<16 | int(packet[11])<<8 | int(packet[12]); length > 0 {
 				packet = packet[13:]
-				// RFC 4254 5.2 defines data_type_code 1 to be data destined 
+				// RFC 4254 5.2 defines data_type_code 1 to be data destined
 				// for stderr on interactive sessions. Other data types are
 				// silently discarded.
 				if datatype == 1 {
@@ -231,9 +231,10 @@ func (c *ClientConn) mainLoop() {
 				close(ch.stdin.win)
 				close(ch.stdout.data)
 				close(ch.stderr.data)
+				close(ch.msg)
 				c.chanlist.remove(msg.PeersId)
 			case *channelEOFMsg:
-				c.getChan(msg.PeersId).msg <- msg
+				c.getChan(msg.PeersId).sendEOF()
 			case *channelRequestSuccessMsg:
 				c.getChan(msg.PeersId).msg <- msg
 			case *channelRequestFailureMsg:
@@ -249,7 +250,7 @@ func (c *ClientConn) mainLoop() {
 	}
 }
 
-// Dial connects to the given network address using net.Dial and 
+// Dial connects to the given network address using net.Dial and
 // then initiates a SSH handshake, returning the resulting client connection.
 func Dial(network, addr string, config *ClientConfig) (*ClientConn, error) {
 	conn, err := net.Dial(network, addr)
@@ -259,18 +260,18 @@ func Dial(network, addr string, config *ClientConfig) (*ClientConn, error) {
 	return Client(conn, config)
 }
 
-// A ClientConfig structure is used to configure a ClientConn. After one has 
+// A ClientConfig structure is used to configure a ClientConn. After one has
 // been passed to an SSH function it must not be modified.
 type ClientConfig struct {
-	// Rand provides the source of entropy for key exchange. If Rand is 
-	// nil, the cryptographic random reader in package crypto/rand will 
+	// Rand provides the source of entropy for key exchange. If Rand is
+	// nil, the cryptographic random reader in package crypto/rand will
 	// be used.
 	Rand io.Reader
 
 	// The username to authenticate.
 	User string
 
-	// A slice of ClientAuth methods. Only the first instance 
+	// A slice of ClientAuth methods. Only the first instance
 	// of a particular RFC 4252 method will be used during authentication.
 	Auth []ClientAuth
 
@@ -285,7 +286,7 @@ func (c *ClientConfig) rand() io.Reader {
 	return c.Rand
 }
 
-// A clientChan represents a single RFC 4254 channel that is multiplexed 
+// A clientChan represents a single RFC 4254 channel that is multiplexed
 // over a single SSH connection.
 type clientChan struct {
 	packetWriter
@@ -297,7 +298,7 @@ type clientChan struct {
 }
 
 // newClientChan returns a partially constructed *clientChan
-// using the local id provided. To be usable clientChan.peersId 
+// using the local id provided. To be usable clientChan.peersId
 // needs to be assigned once known.
 func newClientChan(t *transport, id uint32) *clientChan {
 	c := &clientChan{
@@ -320,8 +321,8 @@ func newClientChan(t *transport, id uint32) *clientChan {
 	return c
 }
 
-// waitForChannelOpenResponse, if successful, fills out 
-// the peerId and records any initial window advertisement. 
+// waitForChannelOpenResponse, if successful, fills out
+// the peerId and records any initial window advertisement.
 func (c *clientChan) waitForChannelOpenResponse() error {
 	switch msg := (<-c.msg).(type) {
 	case *channelOpenConfirmMsg:
@@ -333,6 +334,13 @@ func (c *clientChan) waitForChannelOpenResponse() error {
 		return errors.New(safeString(msg.Message))
 	}
 	return errors.New("unexpected packet")
+}
+
+// sendEOF Sends EOF to the server. RFC 4254 Section 5.3
+func (c *clientChan) sendEOF() error {
+	return c.writePacket(marshal(msgChannelEOF, channelEOFMsg{
+		PeersId: c.peersId,
+	}))
 }
 
 // Close closes the channel. This does not close the underlying connection.
