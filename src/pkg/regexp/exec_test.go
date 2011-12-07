@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	old "old/regexp"
 	"os"
 	"path/filepath"
 	"regexp/syntax"
@@ -679,18 +678,6 @@ func benchmark(b *testing.B, re string, n int) {
 	}
 }
 
-func benchold(b *testing.B, re string, n int) {
-	r := old.MustCompile(re)
-	t := makeText(n)
-	b.ResetTimer()
-	b.SetBytes(int64(n))
-	for i := 0; i < b.N; i++ {
-		if r.Match(t) {
-			panic("match!")
-		}
-	}
-}
-
 const (
 	easy0  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ$"
 	easy1  = "A[AB]B[BC]C[CD]D[DE]E[EF]F[FG]G[GH]H[HI]I[IJ]J$"
@@ -700,35 +687,23 @@ const (
 		"(N)(O)(P)(Q)(R)(S)(T)(U)(V)(W)(X)(Y)(Z)$"
 )
 
-func BenchmarkMatchEasy0_1K(b *testing.B)       { benchmark(b, easy0, 1<<10) }
-func BenchmarkMatchEasy0_1K_Old(b *testing.B)   { benchold(b, easy0, 1<<10) }
-func BenchmarkMatchEasy0_1M(b *testing.B)       { benchmark(b, easy0, 1<<20) }
-func BenchmarkMatchEasy0_1M_Old(b *testing.B)   { benchold(b, easy0, 1<<20) }
-func BenchmarkMatchEasy0_32K(b *testing.B)      { benchmark(b, easy0, 32<<10) }
-func BenchmarkMatchEasy0_32K_Old(b *testing.B)  { benchold(b, easy0, 32<<10) }
-func BenchmarkMatchEasy0_32M(b *testing.B)      { benchmark(b, easy0, 32<<20) }
-func BenchmarkMatchEasy0_32M_Old(b *testing.B)  { benchold(b, easy0, 32<<20) }
-func BenchmarkMatchEasy1_1K(b *testing.B)       { benchmark(b, easy1, 1<<10) }
-func BenchmarkMatchEasy1_1K_Old(b *testing.B)   { benchold(b, easy1, 1<<10) }
-func BenchmarkMatchEasy1_1M(b *testing.B)       { benchmark(b, easy1, 1<<20) }
-func BenchmarkMatchEasy1_1M_Old(b *testing.B)   { benchold(b, easy1, 1<<20) }
-func BenchmarkMatchEasy1_32K(b *testing.B)      { benchmark(b, easy1, 32<<10) }
-func BenchmarkMatchEasy1_32K_Old(b *testing.B)  { benchold(b, easy1, 32<<10) }
-func BenchmarkMatchEasy1_32M(b *testing.B)      { benchmark(b, easy1, 32<<20) }
-func BenchmarkMatchEasy1_32M_Old(b *testing.B)  { benchold(b, easy1, 32<<20) }
-func BenchmarkMatchMedium_1K(b *testing.B)      { benchmark(b, medium, 1<<10) }
-func BenchmarkMatchMedium_1K_Old(b *testing.B)  { benchold(b, medium, 1<<10) }
-func BenchmarkMatchMedium_1M(b *testing.B)      { benchmark(b, medium, 1<<20) }
-func BenchmarkMatchMedium_1M_Old(b *testing.B)  { benchold(b, medium, 1<<20) }
-func BenchmarkMatchMedium_32K(b *testing.B)     { benchmark(b, medium, 32<<10) }
-func BenchmarkMatchMedium_32K_Old(b *testing.B) { benchold(b, medium, 32<<10) }
-func BenchmarkMatchMedium_32M(b *testing.B)     { benchmark(b, medium, 32<<20) }
-func BenchmarkMatchMedium_32M_Old(b *testing.B) { benchold(b, medium, 32<<20) }
-func BenchmarkMatchHard_1K(b *testing.B)        { benchmark(b, hard, 1<<10) }
-func BenchmarkMatchHard_1K_Old(b *testing.B)    { benchold(b, hard, 1<<10) }
-func BenchmarkMatchHard_1M(b *testing.B)        { benchmark(b, hard, 1<<20) }
-func BenchmarkMatchHard_1M_Old(b *testing.B)    { benchold(b, hard, 1<<20) }
-func BenchmarkMatchHard_32K(b *testing.B)       { benchmark(b, hard, 32<<10) }
-func BenchmarkMatchHard_32K_Old(b *testing.B)   { benchold(b, hard, 32<<10) }
-func BenchmarkMatchHard_32M(b *testing.B)       { benchmark(b, hard, 32<<20) }
-func BenchmarkMatchHard_32M_Old(b *testing.B)   { benchold(b, hard, 32<<20) }
+func BenchmarkMatchEasy0_32(b *testing.B)   { benchmark(b, easy0, 32<<0) }
+func BenchmarkMatchEasy0_1K(b *testing.B)   { benchmark(b, easy0, 1<<10) }
+func BenchmarkMatchEasy0_32K(b *testing.B)  { benchmark(b, easy0, 32<<10) }
+func BenchmarkMatchEasy0_1M(b *testing.B)   { benchmark(b, easy0, 1<<20) }
+func BenchmarkMatchEasy0_32M(b *testing.B)  { benchmark(b, easy0, 32<<20) }
+func BenchmarkMatchEasy1_32(b *testing.B)   { benchmark(b, easy1, 32<<0) }
+func BenchmarkMatchEasy1_1K(b *testing.B)   { benchmark(b, easy1, 1<<10) }
+func BenchmarkMatchEasy1_32K(b *testing.B)  { benchmark(b, easy1, 32<<10) }
+func BenchmarkMatchEasy1_1M(b *testing.B)   { benchmark(b, easy1, 1<<20) }
+func BenchmarkMatchEasy1_32M(b *testing.B)  { benchmark(b, easy1, 32<<20) }
+func BenchmarkMatchMedium_32(b *testing.B)  { benchmark(b, medium, 1<<0) }
+func BenchmarkMatchMedium_1K(b *testing.B)  { benchmark(b, medium, 1<<10) }
+func BenchmarkMatchMedium_32K(b *testing.B) { benchmark(b, medium, 32<<10) }
+func BenchmarkMatchMedium_1M(b *testing.B)  { benchmark(b, medium, 1<<20) }
+func BenchmarkMatchMedium_32M(b *testing.B) { benchmark(b, medium, 32<<20) }
+func BenchmarkMatchHard_32(b *testing.B)    { benchmark(b, hard, 32<<0) }
+func BenchmarkMatchHard_1K(b *testing.B)    { benchmark(b, hard, 1<<10) }
+func BenchmarkMatchHard_32K(b *testing.B)   { benchmark(b, hard, 32<<10) }
+func BenchmarkMatchHard_1M(b *testing.B)    { benchmark(b, hard, 1<<20) }
+func BenchmarkMatchHard_32M(b *testing.B)   { benchmark(b, hard, 32<<20) }
