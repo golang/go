@@ -6,3 +6,6 @@
 TEXT ·IndexByte(SB),7,$0
 	B	·indexBytePortable(SB)
 
+// no memcmp implementation on arm yet
+TEXT ·Equal(SB),7,$0
+	B	·equalPortable(SB)

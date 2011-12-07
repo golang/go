@@ -37,7 +37,9 @@ func Compare(a, b []byte) int {
 }
 
 // Equal returns a boolean reporting whether a == b.
-func Equal(a, b []byte) bool {
+func Equal(a, b []byte) bool
+
+func equalPortable(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -74,18 +76,33 @@ func explode(s []byte, n int) [][]byte {
 
 // Count counts the number of non-overlapping instances of sep in s.
 func Count(s, sep []byte) int {
-	if len(sep) == 0 {
+	n := len(sep)
+	if n == 0 {
 		return utf8.RuneCount(s) + 1
 	}
-	c := sep[0]
-	n := 0
-	for i := 0; i+len(sep) <= len(s); i++ {
-		if s[i] == c && (len(sep) == 1 || Equal(s[i:i+len(sep)], sep)) {
-			n++
-			i += len(sep) - 1
-		}
+	if n > len(s) {
+		return 0
 	}
-	return n
+	count := 0
+	c := sep[0]
+	i := 0
+	t := s[:len(s)-n+1]
+	for i < len(t) {
+		if t[i] != c {
+			o := IndexByte(t[i:], c)
+			if o < 0 {
+				break
+			}
+			i += o
+		}
+		if n == 1 || Equal(s[i:i+n], sep) {
+			count++
+			i += n
+			continue
+		}
+		i++
+	}
+	return count
 }
 
 // Contains returns whether subslice is within b.
@@ -99,11 +116,27 @@ func Index(s, sep []byte) int {
 	if n == 0 {
 		return 0
 	}
+	if n > len(s) {
+		return -1
+	}
 	c := sep[0]
-	for i := 0; i+n <= len(s); i++ {
-		if s[i] == c && (n == 1 || Equal(s[i:i+n], sep)) {
+	if n == 1 {
+		return IndexByte(s, c)
+	}
+	i := 0
+	t := s[:len(s)-n+1]
+	for i < len(t) {
+		if t[i] != c {
+			o := IndexByte(t[i:], c)
+			if o < 0 {
+				break
+			}
+			i += o
+		}
+		if Equal(s[i:i+n], sep) {
 			return i
 		}
+		i++
 	}
 	return -1
 }
