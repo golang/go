@@ -23,9 +23,9 @@ The language change is backwards-compatible.
 
 Type elision in arrays, slices, or maps of composite literals has been
 extended to include pointers to composite literals. Code like this
-	var t = []&T{&T{}, &T{}}
+	var t = []*T{&amp;T{}, &amp;T{}}
 may now be written as
-	var t = []&T{{}, {}}
+	var t = []*T{{}, {}}
 You can use gofmt -s to simplify such code.
 
 The strconv package has been given a more idiomatic and efficient interface.
