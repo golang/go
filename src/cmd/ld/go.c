@@ -235,7 +235,7 @@ loadpkgdata(char *file, char *pkg, char *data, int len)
 		x = ilookup(name);
 		if(x->prefix == nil) {
 			x->prefix = prefix;
-			x->def = def;
+			x->def = strdup(def);
 			x->file = file;
 		} else if(strcmp(x->prefix, prefix) != 0) {
 			fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
@@ -248,7 +248,10 @@ loadpkgdata(char *file, char *pkg, char *data, int len)
 			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
 			nerrors++;
 		}
+		free(name);
+		free(def);
 	}
+	free(file);
 }
 
 // replace all "". with pkg.
@@ -264,7 +267,7 @@ expandpkg(char *t0, char *pkg)
 		n++;
 
 	if(n == 0)
-		return t0;
+		return strdup(t0);
 
 	// use malloc, not mal, so that caller can free
 	w0 = malloc(strlen(t0) + strlen(pkg)*n);
