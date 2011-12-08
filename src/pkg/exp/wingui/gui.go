@@ -18,8 +18,9 @@ func abortf(format string, a ...interface{}) {
 	os.Exit(1)
 }
 
-func abortErrNo(funcname string, err int) {
-	abortf("%s failed: %d %s\n", funcname, err, syscall.Errstr(err))
+func abortErrNo(funcname string, err error) {
+	errno, _ := err.(syscall.Errno)
+	abortf("%s failed: %d %s\n", funcname, uint32(errno), err)
 }
 
 // global vars
@@ -33,7 +34,7 @@ var (
 func WndProc(hwnd syscall.Handle, msg uint32, wparam, lparam uintptr) (rc uintptr) {
 	switch msg {
 	case WM_CREATE:
-		var e int
+		var e error
 		// CreateWindowEx
 		bh, e = CreateWindowEx(
 			0,
@@ -42,7 +43,7 @@ func WndProc(hwnd syscall.Handle, msg uint32, wparam, lparam uintptr) (rc uintpt
 			WS_CHILD|WS_VISIBLE|BS_DEFPUSHBUTTON,
 			75, 70, 140, 25,
 			hwnd, 1, mh, 0)
-		if e != 0 {
+		if e != nil {
 			abortErrNo("CreateWindowEx", e)
 		}
 		fmt.Printf("button handle is %x\n", bh)
@@ -51,7 +52,7 @@ func WndProc(hwnd syscall.Handle, msg uint32, wparam, lparam uintptr) (rc uintpt
 		switch syscall.Handle(lparam) {
 		case bh:
 			e := PostMessage(hwnd, WM_CLOSE, 0, 0)
-			if e != 0 {
+			if e != nil {
 				abortErrNo("PostMessage", e)
 			}
 		default:
@@ -69,23 +70,23 @@ func WndProc(hwnd syscall.Handle, msg uint32, wparam, lparam uintptr) (rc uintpt
 }
 
 func rungui() int {
-	var e int
+	var e error
 
 	// GetModuleHandle
 	mh, e = GetModuleHandle(nil)
-	if e != 0 {
+	if e != nil {
 		abortErrNo("GetModuleHandle", e)
 	}
 
 	// Get icon we're going to use.
 	myicon, e := LoadIcon(0, IDI_APPLICATION)
-	if e != 0 {
+	if e != nil {
 		abortErrNo("LoadIcon", e)
 	}
 
 	// Get cursor we're going to use.
 	mycursor, e := LoadCursor(0, IDC_ARROW)
-	if e != 0 {
+	if e != nil {
 		abortErrNo("LoadCursor", e)
 	}
 
@@ -104,7 +105,7 @@ func rungui() int {
 	wc.MenuName = nil
 	wc.ClassName = wcname
 	wc.IconSm = myicon
-	if _, e := RegisterClassEx(&wc); e != 0 {
+	if _, e := RegisterClassEx(&wc); e != nil {
 		abortErrNo("RegisterClassEx", e)
 	}
 
@@ -116,7 +117,7 @@ func rungui() int {
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, CW_USEDEFAULT, 300, 200,
 		0, 0, mh, 0)
-	if e != 0 {
+	if e != nil {
 		abortErrNo("CreateWindowEx", e)
 	}
 	fmt.Printf("main window handle is %x\n", wh)
@@ -125,7 +126,7 @@ func rungui() int {
 	ShowWindow(wh, SW_SHOWDEFAULT)
 
 	// UpdateWindow
-	if e := UpdateWindow(wh); e != 0 {
+	if e := UpdateWindow(wh); e != nil {
 		abortErrNo("UpdateWindow", e)
 	}
 
@@ -133,7 +134,7 @@ func rungui() int {
 	var m Msg
 	for {
 		r, e := GetMessage(&m, 0, 0, 0)
-		if e != 0 {
+		if e != nil {
 			abortErrNo("GetMessage", e)
 		}
 		if r == 0 {

@@ -76,6 +76,36 @@ func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 
 func Getpagesize() int { return 4096 }
 
+// Errno is the Windows error number.
+type Errno uintptr
+
+func (e Errno) Error() string {
+	// deal with special go errors
+	idx := int(e - APPLICATION_ERROR)
+	if 0 <= idx && idx < len(errors) {
+		return errors[idx]
+	}
+	// ask windows for the remaining errors
+	var flags uint32 = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_IGNORE_INSERTS
+	b := make([]uint16, 300)
+	n, err := FormatMessage(flags, 0, uint32(e), 0, b, nil)
+	if err != nil {
+		return "error " + itoa(int(e)) + " (FormatMessage failed with err=" + itoa(int(err.(Errno))) + ")"
+	}
+	// trim terminating \r and \n
+	for ; n > 0 && (b[n-1] == '\n' || b[n-1] == '\r'); n-- {
+	}
+	return string(utf16.Decode(b[:n]))
+}
+
+func (e Errno) Temporary() bool {
+	return e == EINTR || e == EMFILE || e.Timeout()
+}
+
+func (e Errno) Timeout() bool {
+	return e == EAGAIN || e == EWOULDBLOCK || e == ETIMEDOUT
+}
+
 // Converts a Go function to a function pointer conforming
 // to the stdcall calling convention.  This is useful when
 // interoperating with Windows code requiring callbacks.
@@ -84,7 +114,7 @@ func NewCallback(fn interface{}) uintptr
 
 // windows api calls
 
-//sys	GetLastError() (lasterr uintptr)
+//sys	GetLastError() (lasterr error)
 //sys	LoadLibrary(libname string) (handle Handle, err error) = LoadLibraryW
 //sys	FreeLibrary(handle Handle) (err error)
 //sys	GetProcAddress(module Handle, procname string) (proc uintptr, err error)
@@ -154,33 +184,13 @@ func NewCallback(fn interface{}) uintptr
 //sys	CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) = crypt32.CertOpenSystemStoreW
 //sys	CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext, err error) [failretval==nil] = crypt32.CertEnumCertificatesInStore
 //sys	CertCloseStore(store Handle, flags uint32) (err error) = crypt32.CertCloseStore
-//sys	RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno uintptr) = advapi32.RegOpenKeyExW
-//sys	RegCloseKey(key Handle) (regerrno uintptr) = advapi32.RegCloseKey
-//sys	RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno uintptr) = advapi32.RegQueryInfoKeyW
-//sys	RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno uintptr) = advapi32.RegEnumKeyExW
-//sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno uintptr) = advapi32.RegQueryValueExW
+//sys	RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno error) = advapi32.RegOpenKeyExW
+//sys	RegCloseKey(key Handle) (regerrno error) = advapi32.RegCloseKey
+//sys	RegQueryInfoKey(key Handle, class *uint16, classLen *uint32, reserved *uint32, subkeysLen *uint32, maxSubkeyLen *uint32, maxClassLen *uint32, valuesLen *uint32, maxValueNameLen *uint32, maxValueLen *uint32, saLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegQueryInfoKeyW
+//sys	RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegEnumKeyExW
+//sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) = advapi32.RegQueryValueExW
 
 // syscall interface implementation for other packages
-
-
-func errstr(errno Errno) string {
-	// deal with special go errors
-	e := int(errno - APPLICATION_ERROR)
-	if 0 <= e && e < len(errors) {
-		return errors[e]
-	}
-	// ask windows for the remaining errors
-	var flags uint32 = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_IGNORE_INSERTS
-	b := make([]uint16, 300)
-	n, err := FormatMessage(flags, 0, uint32(errno), 0, b, nil)
-	if err != nil {
-		return "error " + itoa(int(errno)) + " (FormatMessage failed with err=" + itoa(int(err.(Errno))) + ")"
-	}
-	// trim terminating \r and \n
-	for ; n > 0 && (b[n-1] == '\n' || b[n-1] == '\r'); n-- {
-	}
-	return string(utf16.Decode(b[:n]))
-}
 
 func Exit(code int) { ExitProcess(uint32(code)) }
 
@@ -415,7 +425,7 @@ func Chmod(path string, mode uint32) (err error) {
 
 // net api calls
 
-//sys	WSAStartup(verreq uint32, data *WSAData) (sockerr uintptr) = ws2_32.WSAStartup
+//sys	WSAStartup(verreq uint32, data *WSAData) (sockerr error) = ws2_32.WSAStartup
 //sys	WSACleanup() (err error) [failretval==-1] = ws2_32.WSACleanup
 //sys	WSAIoctl(s Handle, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) [failretval==-1] = ws2_32.WSAIoctl
 //sys	socket(af int32, typ int32, protocol int32) (handle Handle, err error) [failretval==InvalidHandle] = ws2_32.socket
@@ -437,10 +447,10 @@ func Chmod(path string, mode uint32) (err error) {
 //sys	GetServByName(name string, proto string) (s *Servent, err error) [failretval==nil] = ws2_32.getservbyname
 //sys	Ntohs(netshort uint16) (u uint16) = ws2_32.ntohs
 //sys	GetProtoByName(name string) (p *Protoent, err error) [failretval==nil] = ws2_32.getprotobyname
-//sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status Errno) = dnsapi.DnsQuery_W
+//sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status error) = dnsapi.DnsQuery_W
 //sys	DnsRecordListFree(rl *DNSRecord, freetype uint32) = dnsapi.DnsRecordListFree
-//sys	GetIfEntry(pIfRow *MibIfRow) (errcode Errno) = iphlpapi.GetIfEntry
-//sys	GetAdaptersInfo(ai *IpAdapterInfo, ol *uint32) (errcode Errno) = iphlpapi.GetAdaptersInfo
+//sys	GetIfEntry(pIfRow *MibIfRow) (errcode error) = iphlpapi.GetIfEntry
+//sys	GetAdaptersInfo(ai *IpAdapterInfo, ol *uint32) (errcode error) = iphlpapi.GetAdaptersInfo
 
 // For testing: clients can set this flag to force
 // creation of IPv6 sockets to return EAFNOSUPPORT.

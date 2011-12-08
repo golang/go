@@ -12,18 +12,18 @@ import (
 func initMime() {
 	var root syscall.Handle
 	if syscall.RegOpenKeyEx(syscall.HKEY_CLASSES_ROOT, syscall.StringToUTF16Ptr(`\`),
-		0, syscall.KEY_READ, &root) != 0 {
+		0, syscall.KEY_READ, &root) != nil {
 		return
 	}
 	defer syscall.RegCloseKey(root)
 	var count uint32
-	if syscall.RegQueryInfoKey(root, nil, nil, nil, &count, nil, nil, nil, nil, nil, nil, nil) != 0 {
+	if syscall.RegQueryInfoKey(root, nil, nil, nil, &count, nil, nil, nil, nil, nil, nil, nil) != nil {
 		return
 	}
 	var buf [1 << 10]uint16
 	for i := uint32(0); i < count; i++ {
 		n := uint32(len(buf))
-		if syscall.RegEnumKeyEx(root, i, &buf[0], &n, nil, nil, nil, nil) != 0 {
+		if syscall.RegEnumKeyEx(root, i, &buf[0], &n, nil, nil, nil, nil) != nil {
 			continue
 		}
 		ext := syscall.UTF16ToString(buf[:])
@@ -33,14 +33,14 @@ func initMime() {
 		var h syscall.Handle
 		if syscall.RegOpenKeyEx(
 			syscall.HKEY_CLASSES_ROOT, syscall.StringToUTF16Ptr(`\`+ext),
-			0, syscall.KEY_READ, &h) != 0 {
+			0, syscall.KEY_READ, &h) != nil {
 			continue
 		}
 		var typ uint32
 		n = uint32(len(buf) * 2) // api expects array of bytes, not uint16
 		if syscall.RegQueryValueEx(
 			h, syscall.StringToUTF16Ptr("Content Type"),
-			nil, &typ, (*byte)(unsafe.Pointer(&buf[0])), &n) != 0 {
+			nil, &typ, (*byte)(unsafe.Pointer(&buf[0])), &n) != nil {
 			syscall.RegCloseKey(h)
 			continue
 		}
