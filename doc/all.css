@@ -214,3 +214,9 @@ sup.new {
 .exampleHeading {
   cursor: pointer;
 }
+
+/* Table of code entries; used by go1.html */
+.codetable td {
+   font-family: monospace;
+   font-size: 120%;
+}
