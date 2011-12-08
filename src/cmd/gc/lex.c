@@ -1098,7 +1098,7 @@ lx:
 	return c;
 
 asop:
-	yylval.lint = c;	// rathole to hold which asop
+	yylval.i = c;	// rathole to hold which asop
 	DBG("lex: TOKEN ASOP %c\n", c);
 	return LASOP;
 

@@ -31,13 +31,13 @@ static void fixlbrace(int);
 	Type*		type;
 	Sym*		sym;
 	struct	Val	val;
-	int		lint;
+	int		i;
 }
 
 // |sed 's/.*	//' |9 fmt -l1 |sort |9 fmt -l50 | sed 's/^/%xxx		/'
 
 %token	<val>	LLITERAL
-%token	<lint>	LASOP
+%token	<i>	LASOP
 %token	<sym>	LBREAK LCASE LCHAN LCOLAS LCONST LCONTINUE LDDD
 %token	<sym>	LDEFAULT LDEFER LELSE LFALL LFOR LFUNC LGO LGOTO
 %token	<sym>	LIF LIMPORT LINTERFACE LMAP LNAME
@@ -47,7 +47,7 @@ static void fixlbrace(int);
 %token		LANDAND LANDNOT LBODY LCOMM LDEC LEQ LGE LGT
 %token		LIGNORE LINC LLE LLSH LLT LNE LOROR LRSH
 
-%type	<lint>	lbrace import_here
+%type	<i>	lbrace import_here
 %type	<sym>	sym packname
 %type	<val>	oliteral
 
