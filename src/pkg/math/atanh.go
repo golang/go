@@ -39,9 +39,10 @@ package math
 // Atanh(x) calculates the inverse hyperbolic tangent of x.
 //
 // Special cases are:
-//	Atanh(x) = NaN if x < -1 or x > 1
 //	Atanh(1) = +Inf
+//	Atanh(±0) = ±0
 //	Atanh(-1) = -Inf
+//	Atanh(x) = NaN if x < -1 or x > 1
 //	Atanh(NaN) = NaN
 func Atanh(x float64) float64 {
 	const NearZero = 1.0 / (1 << 28) // 2**-28

@@ -29,11 +29,11 @@ package math
 // Remainder returns the IEEE 754 floating-point remainder of x/y.
 //
 // Special cases are:
-//	Remainder(x, NaN) = NaN
+//	Remainder(±Inf, y) = NaN
 //	Remainder(NaN, y) = NaN
-//	Remainder(Inf, y) = NaN
 //	Remainder(x, 0) = NaN
-//	Remainder(x, Inf) = x
+//	Remainder(x, ±Inf) = x
+//	Remainder(x, NaN) = NaN
 func Remainder(x, y float64) float64 {
 	const (
 		Tiny    = 4.45014771701440276618e-308 // 0x0020000000000000

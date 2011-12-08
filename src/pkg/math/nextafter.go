@@ -10,6 +10,7 @@ package math
 // Special cases are:
 //	Nextafter(NaN, y) = NaN
 //	Nextafter(x, NaN) = NaN
+//	Nextafter(0, y) = -0, if y < 0
 func Nextafter(x, y float64) (r float64) {
 	// TODO(rsc): Remove manual inlining of IsNaN
 	// when compiler does it for us
