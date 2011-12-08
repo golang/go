@@ -185,6 +185,10 @@ func GenerateKey(priv *PrivateKey, rand io.Reader) error {
 // larger message) using the private key, priv. It returns the signature as a
 // pair of integers. The security of the private key depends on the entropy of
 // rand.
+//
+// Note that FIPS 186-3 section 4.6 specifies that the hash should be truncated
+// to the byte-length of the subgroup. This function does not perform that
+// truncation itself.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	// FIPS 186-3, section 4.6
 
@@ -218,10 +222,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 			continue
 		}
 
-		if n > len(hash) {
-			n = len(hash)
-		}
-		z := k.SetBytes(hash[:n])
+		z := k.SetBytes(hash)
 
 		s = new(big.Int).Mul(priv.X, r)
 		s.Add(s, z)
@@ -238,7 +239,11 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 }
 
 // Verify verifies the signature in r, s of hash using the public key, pub. It
-// returns true iff the signature is valid.
+// reports whether the signature is valid.
+//
+// Note that FIPS 186-3 section 4.6 specifies that the hash should be truncated
+// to the byte-length of the subgroup. This function does not perform that
+// truncation itself.
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	// FIPS 186-3, section 4.7
 
@@ -255,12 +260,7 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	if n&7 != 0 {
 		return false
 	}
-	n >>= 3
-
-	if n > len(hash) {
-		n = len(hash)
-	}
-	z := new(big.Int).SetBytes(hash[:n])
+	z := new(big.Int).SetBytes(hash)
 
 	u1 := new(big.Int).Mul(z, w)
 	u1.Mod(u1, pub.Q)
