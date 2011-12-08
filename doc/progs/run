@@ -38,6 +38,7 @@ for i in \
 	eff_bytesize.go\
 	eff_qr.go \
 	eff_sequence.go\
+	go1.go\
 ; do
 	$GC $i
 done
@@ -92,5 +93,7 @@ testit server1 "" ""
 
 testit eff_bytesize "" "1.00YB 9.09TB"
 testit eff_sequence "" "[-1 2 6 16 44]"
+
+testit go1 "" ""
 
 rm -f $O.out $O.out.exe *.$O "$TMPFILE"
