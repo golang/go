@@ -39,7 +39,7 @@ func TestAfterFunc(t *testing.T) {
 		i--
 		if i >= 0 {
 			AfterFunc(0, f)
-			Sleep(1e9)
+			Sleep(1 * Second)
 		} else {
 			c <- true
 		}
@@ -91,7 +91,7 @@ func BenchmarkAfter(b *testing.B) {
 
 func BenchmarkStop(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		NewTimer(1e9).Stop()
+		NewTimer(1 * Second).Stop()
 	}
 }
 
@@ -126,12 +126,11 @@ func TestAfterTick(t *testing.T) {
 }
 
 func TestAfterStop(t *testing.T) {
-	const msec = 1e6
-	AfterFunc(100*msec, func() {})
-	t0 := NewTimer(50 * msec)
+	AfterFunc(100*Millisecond, func() {})
+	t0 := NewTimer(50 * Millisecond)
 	c1 := make(chan bool, 1)
-	t1 := AfterFunc(150*msec, func() { c1 <- true })
-	c2 := After(200 * msec)
+	t1 := AfterFunc(150*Millisecond, func() { c1 <- true })
+	c2 := After(200 * Millisecond)
 	if !t0.Stop() {
 		t.Fatalf("failed to stop event 0")
 	}
@@ -212,12 +211,12 @@ func TestTimerStopStress(t *testing.T) {
 	}
 	for i := 0; i < 100; i++ {
 		go func(i int) {
-			timer := AfterFunc(2e9, func() {
+			timer := AfterFunc(2*Second, func() {
 				t.Fatalf("timer %d was not stopped", i)
 			})
-			Sleep(1e9)
+			Sleep(1 * Second)
 			timer.Stop()
 		}(i)
 	}
-	Sleep(3e9)
+	Sleep(3 * Second)
 }

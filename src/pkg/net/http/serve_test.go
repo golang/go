@@ -361,7 +361,7 @@ func TestIdentityResponse(t *testing.T) {
 
 	// The ReadAll will hang for a failing test, so use a Timer to
 	// fail explicitly.
-	goTimeout(t, 2e9, func() {
+	goTimeout(t, 2*time.Second, func() {
 		got, _ := ioutil.ReadAll(conn)
 		expectedSuffix := "\r\n\r\ntoo short"
 		if !strings.HasSuffix(string(got), expectedSuffix) {
@@ -395,7 +395,7 @@ func testTcpConnectionCloses(t *testing.T, req string, h Handler) {
 	success := make(chan bool)
 	go func() {
 		select {
-		case <-time.After(5e9):
+		case <-time.After(5 * time.Second):
 			t.Fatal("body not closed after 5s")
 		case <-success:
 		}
@@ -546,7 +546,7 @@ func TestTLSHandshakeTimeout(t *testing.T) {
 		t.Fatalf("Dial: %v", err)
 	}
 	defer conn.Close()
-	goTimeout(t, 10e9, func() {
+	goTimeout(t, 10*time.Second, func() {
 		var buf [1]byte
 		n, err := conn.Read(buf[:])
 		if err == nil || n != 0 {
@@ -576,7 +576,7 @@ func TestTLSServer(t *testing.T) {
 		t.Fatalf("Dial: %v", err)
 	}
 	defer idleConn.Close()
-	goTimeout(t, 10e9, func() {
+	goTimeout(t, 10*time.Second, func() {
 		if !strings.HasPrefix(ts.URL, "https://") {
 			t.Errorf("expected test TLS server to start with https://, got %q", ts.URL)
 			return
@@ -925,7 +925,7 @@ func testHandlerPanic(t *testing.T, withHijack bool) {
 	select {
 	case <-done:
 		return
-	case <-time.After(5e9):
+	case <-time.After(5 * time.Second):
 		t.Fatal("expected server handler to log an error")
 	}
 }
@@ -1072,7 +1072,7 @@ func TestClientWriteShutdown(t *testing.T) {
 	}()
 	select {
 	case <-donec:
-	case <-time.After(10e9):
+	case <-time.After(10 * time.Second):
 		t.Fatalf("timeout")
 	}
 }
@@ -1103,10 +1103,10 @@ func TestServerBufferedChunking(t *testing.T) {
 }
 
 // goTimeout runs f, failing t if f takes more than ns to complete.
-func goTimeout(t *testing.T, ns int64, f func()) {
+func goTimeout(t *testing.T, d time.Duration, f func()) {
 	ch := make(chan bool, 2)
-	timer := time.AfterFunc(ns, func() {
-		t.Errorf("Timeout expired after %d ns", ns)
+	timer := time.AfterFunc(d, func() {
+		t.Errorf("Timeout expired after %v", d)
 		ch <- true
 	})
 	defer timer.Stop()

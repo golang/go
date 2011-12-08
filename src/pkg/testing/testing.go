@@ -322,7 +322,7 @@ var timer *time.Timer
 // startAlarm starts an alarm if requested.
 func startAlarm() {
 	if *timeout > 0 {
-		timer = time.AfterFunc(*timeout*1e9, alarm)
+		timer = time.AfterFunc(time.Duration(*timeout)*time.Second, alarm)
 	}
 }
 
