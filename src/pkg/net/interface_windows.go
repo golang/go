@@ -31,7 +31,7 @@ func getAdapterList() (*syscall.IpAdapterInfo, error) {
 		a = (*syscall.IpAdapterInfo)(unsafe.Pointer(&b[0]))
 		e = syscall.GetAdaptersInfo(a, &l)
 	}
-	if e != 0 {
+	if e != nil {
 		return nil, os.NewSyscallError("GetAdaptersInfo", e)
 	}
 	return a, nil
@@ -77,7 +77,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 
 			row := syscall.MibIfRow{Index: index}
 			e := syscall.GetIfEntry(&row)
-			if e != 0 {
+			if e != nil {
 				return nil, os.NewSyscallError("GetIfEntry", e)
 			}
 

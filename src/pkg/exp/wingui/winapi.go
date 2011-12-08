@@ -110,22 +110,22 @@ var (
 	IDI_INFORMATION = IDI_ASTERISK
 )
 
-//sys	GetModuleHandle(modname *uint16) (handle syscall.Handle, errno int) = GetModuleHandleW
-//sys	RegisterClassEx(wndclass *Wndclassex) (atom uint16, errno int) = user32.RegisterClassExW
-//sys	CreateWindowEx(exstyle uint32, classname *uint16, windowname *uint16, style uint32, x int32, y int32, width int32, height int32, wndparent syscall.Handle, menu syscall.Handle, instance syscall.Handle, param uintptr) (hwnd syscall.Handle, errno int) = user32.CreateWindowExW
+//sys	GetModuleHandle(modname *uint16) (handle syscall.Handle, err error) = GetModuleHandleW
+//sys	RegisterClassEx(wndclass *Wndclassex) (atom uint16, err error) = user32.RegisterClassExW
+//sys	CreateWindowEx(exstyle uint32, classname *uint16, windowname *uint16, style uint32, x int32, y int32, width int32, height int32, wndparent syscall.Handle, menu syscall.Handle, instance syscall.Handle, param uintptr) (hwnd syscall.Handle, err error) = user32.CreateWindowExW
 //sys	DefWindowProc(hwnd syscall.Handle, msg uint32, wparam uintptr, lparam uintptr) (lresult uintptr) = user32.DefWindowProcW
-//sys	DestroyWindow(hwnd syscall.Handle) (errno int) = user32.DestroyWindow
+//sys	DestroyWindow(hwnd syscall.Handle) (err error) = user32.DestroyWindow
 //sys	PostQuitMessage(exitcode int32) = user32.PostQuitMessage
 //sys	ShowWindow(hwnd syscall.Handle, cmdshow int32) (wasvisible bool) = user32.ShowWindow
-//sys	UpdateWindow(hwnd syscall.Handle) (errno int) = user32.UpdateWindow
-//sys	GetMessage(msg *Msg, hwnd syscall.Handle, MsgFilterMin uint32, MsgFilterMax uint32) (ret int32, errno int) [failretval==-1] = user32.GetMessageW
+//sys	UpdateWindow(hwnd syscall.Handle) (err error) = user32.UpdateWindow
+//sys	GetMessage(msg *Msg, hwnd syscall.Handle, MsgFilterMin uint32, MsgFilterMax uint32) (ret int32, err error) [failretval==-1] = user32.GetMessageW
 //sys	TranslateMessage(msg *Msg) (done bool) = user32.TranslateMessage
 //sys	DispatchMessage(msg *Msg) (ret int32) = user32.DispatchMessageW
-//sys	LoadIcon(instance syscall.Handle, iconname *uint16) (icon syscall.Handle, errno int) = user32.LoadIconW
-//sys	LoadCursor(instance syscall.Handle, cursorname *uint16) (cursor syscall.Handle, errno int) = user32.LoadCursorW
-//sys	SetCursor(cursor syscall.Handle) (precursor syscall.Handle, errno int) = user32.SetCursor
+//sys	LoadIcon(instance syscall.Handle, iconname *uint16) (icon syscall.Handle, err error) = user32.LoadIconW
+//sys	LoadCursor(instance syscall.Handle, cursorname *uint16) (cursor syscall.Handle, err error) = user32.LoadCursorW
+//sys	SetCursor(cursor syscall.Handle) (precursor syscall.Handle, err error) = user32.SetCursor
 //sys	SendMessage(hwnd syscall.Handle, msg uint32, wparam uintptr, lparam uintptr) (lresult uintptr) = user32.SendMessageW
-//sys	PostMessage(hwnd syscall.Handle, msg uint32, wparam uintptr, lparam uintptr) (errno int) = user32.PostMessageW
+//sys	PostMessage(hwnd syscall.Handle, msg uint32, wparam uintptr, lparam uintptr) (err error) = user32.PostMessageW
 
 func MakeIntResource(id uint16) *uint16 {
 	return (*uint16)(unsafe.Pointer(uintptr(id)))
