@@ -35,6 +35,11 @@ func Usage() {
 	os.Exit(2)
 }
 
+var templateFuncs = template.FuncMap{
+	"code":      code,
+	"donotedit": donotedit,
+}
+
 func main() {
 	flag.Usage = Usage
 	flag.Parse()
@@ -44,7 +49,7 @@ func main() {
 
 	// Read and parse the input.
 	name := flag.Args()[0]
-	tmpl := template.New(name).Funcs(template.FuncMap{"code": code})
+	tmpl := template.New(name).Funcs(templateFuncs)
 	if _, err := tmpl.ParseFiles(name); err != nil {
 		log.Fatal(err)
 	}
@@ -78,6 +83,11 @@ func format(arg interface{}) string {
 		log.Fatalf("unrecognized argument: %v type %T", arg, arg)
 	}
 	return ""
+}
+
+func donotedit() string {
+	// No editing please.
+	return fmt.Sprintf("<!--\n  DO NOT EDIT: created by\n    tmpltohtml %s\n-->\n", flag.Args()[0])
 }
 
 func code(file string, arg ...interface{}) (string, error) {
