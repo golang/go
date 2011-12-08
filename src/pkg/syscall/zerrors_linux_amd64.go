@@ -478,6 +478,10 @@ const (
 	LINUX_REBOOT_CMD_SW_SUSPEND      = 0xd000fce2
 	LINUX_REBOOT_MAGIC1              = 0xfee1dead
 	LINUX_REBOOT_MAGIC2              = 0x28121969
+	LOCK_EX                          = 0x2
+	LOCK_NB                          = 0x4
+	LOCK_SH                          = 0x1
+	LOCK_UN                          = 0x8
 	MADV_DOFORK                      = 0xb
 	MADV_DONTFORK                    = 0xa
 	MADV_DONTNEED                    = 0x4

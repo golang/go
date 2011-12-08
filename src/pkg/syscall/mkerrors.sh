@@ -108,6 +108,7 @@ includes_OpenBSD='
 
 includes='
 #include <sys/types.h>
+#include <sys/file.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <sys/socket.h>
@@ -153,6 +154,7 @@ ccflags="$@"
 		$2 ~ /^E[A-Z0-9_]+$/ ||
 		$2 ~ /^SIG[^_]/ ||
 		$2 ~ /^IN_/ ||
+		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
 		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|MCL|DT|MADV)_/ ||
 		$2 == "SOMAXCONN" ||
 		$2 == "NAME_MAX" ||
