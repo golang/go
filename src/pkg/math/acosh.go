@@ -36,6 +36,7 @@ package math
 // Acosh(x) calculates the inverse hyperbolic cosine of x.
 //
 // Special cases are:
+//	Acosh(+Inf) = +Inf
 //	Acosh(x) = NaN if x < 1
 //	Acosh(NaN) = NaN
 func Acosh(x float64) float64 {

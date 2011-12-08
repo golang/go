@@ -13,8 +13,11 @@ package math
 // sign agrees with that of x.
 //
 // Special cases are:
-//	if x is not finite, Mod returns NaN
-//	if y is 0 or NaN, Mod returns NaN
+//	Mod(±Inf, y) = NaN
+//	Mod(NaN, y) = NaN
+//	Mod(x, 0) = NaN
+//	Mod(x, ±Inf) = x
+//	Mod(x, NaN) = NaN
 func Mod(x, y float64) float64 {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us.
