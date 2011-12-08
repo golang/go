@@ -49,20 +49,28 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
 
 // ExecuteTemplate applies the template associated with t that has the given
 // name to the specified data object and writes the output to wr.
-func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) (err error) {
+func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
+	tmpl, err := t.lookupAndEscapeTemplate(wr, name)
+	if err != nil {
+		return err
+	}
+	return tmpl.text.Execute(wr, data)
+}
+
+// lookupAndEscapeTemplate guarantees that the template with the given name
+// is escaped, or returns an error if it cannot be. It returns the named
+// template.
+func (t *Template) lookupAndEscapeTemplate(wr io.Writer, name string) (tmpl *Template, err error) {
 	t.nameSpace.mu.Lock()
-	tmpl := t.set[name]
+	defer t.nameSpace.mu.Unlock()
+	tmpl = t.set[name]
 	if (tmpl == nil) != (t.text.Lookup(name) == nil) {
 		panic("html/template internal error: template escaping out of sync")
 	}
 	if tmpl != nil && !tmpl.escaped {
 		err = escapeTemplates(tmpl, name)
 	}
-	t.nameSpace.mu.Unlock()
-	if err != nil {
-		return
-	}
-	return t.text.ExecuteTemplate(wr, name, data)
+	return tmpl, err
 }
 
 // Parse parses a string into a template. Nested template definitions
