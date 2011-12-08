@@ -27,8 +27,8 @@ import (
 	"syscall"
 )
 
-func abort(funcname string, err int) {
-	panic(funcname + " failed: " + syscall.Errstr(err))
+func abort(funcname string, err error) {
+	panic(funcname + " failed: " + err.Error())
 }
 
 func print_version(v uint32) {
