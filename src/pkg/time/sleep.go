@@ -72,13 +72,13 @@ func After(d Duration) <-chan Time {
 	return NewTimer(d).C
 }
 
-// AfterFunc waits at least ns nanoseconds before calling f
+// AfterFunc waits for the duration to elapse and then calls f
 // in its own goroutine. It returns a Timer that can
 // be used to cancel the call using its Stop method.
-func AfterFunc(ns int64, f func()) *Timer {
+func AfterFunc(d Duration, f func()) *Timer {
 	t := &Timer{
 		r: runtimeTimer{
-			when: nano() + ns,
+			when: nano() + int64(d),
 			f:    goFunc,
 			arg:  f,
 		},
