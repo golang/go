@@ -1,4 +1,9 @@
 <!-- Go 1 Release Notes -->
+<!--
+  DO NOT EDIT: created by
+    tmpltohtml go1.tmpl
+-->
+
 
 <h2 id="introduction">Introduction to Go 1</h2>
 
@@ -33,13 +38,13 @@ thorough presentations elsewhere; such documents are linked below.
 
 <h3 id="close">Close</h3>
 
-<h3 id="composite_literals">Composite literals</h3>
+<h3 id="literals">Composite literals</h3>
 
-<h3 id="goroutines_init">Goroutines during init</h3>
+<h3 id="init">Goroutines during init</h3>
 
 <h3 id="rune">The rune type</h3>
 
-<h3 id="map_deletion">Deleting from maps</h3>
+<h3 id="delete">Deleting from maps</h3>
 
 <p>
 The original syntax for deleting an element in a map was:
@@ -50,8 +55,7 @@ The original syntax for deleting an element in a map was:
 </pre>
 
 <p>
-This syntax had a number of minor problems and is being replaced.
-As of Go 1, that syntax is gone and in its place is a new built-in
+In Go 1, that syntax has gone; instead there is a new built-in
 function, <code>delete</code>.  The call
 </p>
 
@@ -79,15 +83,94 @@ will flag other uses of the syntax for inspection by the programmer.
 
 <h3 id="shadowing">Returns and shadowed variables</h3>
 
-<h3 id="struct_equality">Equality of structs and arrays</h3>
+<h3 id="equality">Equality of structs and arrays</h3>
 
 <h2 id="library">Changes to the library</h2>
 
-<h3 id="package_hierarchy">The package hierarchy</h3>
+<h3 id="hierarchy">The package hierarchy</h3>
+
+<p>
+Go 1 has a rearranged package hierarchy that groups related items
+into subdirectories. For instance, <code>utf8</code> and
+<code>utf16</code> now occupy subdirectories of <code>unicode</code>.
+Also, <a href="#subrepo">some packages</a> have moved into
+subrepositories of
+<a href="http://code.google.com/p/go"><code>code.google.com/p/go</code></a>
+while <a href="#deleted">others</a> have been deleted outright.
+</p>
+
+<table class="codetable" frame="border" summary="Moved packages">
+<colgroup align="left" width="60%"></colgroup>
+<colgroup align="left" width="40%"></colgroup>
+<tr>
+<th align="left">Old path</th>
+<th align="left">New path</th>
+</tr>
+<tr><td>asn1 <td>encoding/asn1
+<tr><td>csv</td> <td>encoding/csv</td></tr>
+<tr><td>gob</td> <td>encoding/gob</td></tr>
+<tr><td>json</td> <td>encoding/json</td></tr>
+<tr><td>xml</td> <td>encoding/xml</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>exp/template/html</td> <td>html/template</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>big</td> <td>math/big</td></tr>
+<tr><td>cmath</td> <td>math/cmplx</td></tr>
+<tr><td>rand</td> <td>math/rand</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>http</td> <td>net/http</td></tr>
+<tr><td>http/cgi</td> <td>net/http/cgi</td></tr>
+<tr><td>http/fcgi</td> <td>net/http/fcgi</td></tr>
+<tr><td>http/httptest</td> <td>net/http/httptest</td></tr>
+<tr><td>http/pprof</td> <td>net/http/pprof</td></tr>
+<tr><td>mail</td> <td>net/mail</td></tr>
+<tr><td>rpc</td> <td>net/rpc</td></tr>
+<tr><td>rpc/jsonrpc</td> <td>net/rpc/jsonrpc</td></tr>
+<tr><td>smtp</td> <td>net/smtp</td></tr>
+<tr><td>url</td> <td>net/url</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>exec</td> <td>os/exec</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>scanner</td> <td>text/scanner</td></tr>
+<tr><td>tabwriter</td> <td>text/tabwriter</td></tr>
+<tr><td>template</td> <td>text/template</td></tr>
+<tr><td>template/parse</td> <td>text/template/parse</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>utf8</td> <td>unicode/utf8</td></tr>
+<tr><td>utf16</td> <td>unicode/utf16</td></tr>
+</table>
+
+<p>
+Note that the package names for the old <code>cmath</code> and
+<code>exp/template/html</code> packages have changed to <code>cmplx</code>
+and <code>template</code>.
+</p>
+
+<p>
+<em>Updating</em>:
+Gofix will update all imports and package renames for packages that
+remain inside the standard repository.  Programs that import packages
+that are no longer in the standard repository will need to be edited
+by hand.
+<font color="red">TODO: should warn about deletions.</font>
+<font color="red">TODO: should also handle packages that move to subrepos.</font>
+</p>
 
 <h3 id="errors">The error type</h3>
 
-<h3 id="syscall_errors">System call errors</h3>
+<h3 id="errno">System call errors</h3>
 
 <h3 id="time">Time</h3>
 
@@ -101,9 +184,21 @@ will flag other uses of the syntax for inspection by the programmer.
 
 <h3 id="old">The package tree old</h3>
 
-<h3 id="deleted_packages">Deleted packages</h3>
+<h3 id="deleted">Deleted packages</h3>
 
 <!-- 
+
+moving to exp/* (and thus not in Go 1):
+	ebnf, command ebnflint
+	go/types, command gotype
+	http/spdy
+	
+deleted:
+	container/vector
+	exp/datafmt
+	go/typechecker
+	try, command gotry
+
 go/typechecker
 go/types
 ebnf (and cmd/ebnflint)
@@ -113,7 +208,7 @@ exp/datafmt
 netchan
 -->
 
-<h3 id="subrepo_packages">Packages moving to subrepositories</h3>
+<h3 id="subrepo">Packages moving to subrepositories</h3>
 
 <!-- 
 crypto/openpgp to XXX
