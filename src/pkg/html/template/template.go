@@ -183,7 +183,9 @@ func (t *Template) Lookup(name string) *Template {
 
 // Must panics if err is non-nil in the same way as template.Must.
 func Must(t *Template, err error) *Template {
-	t.text = template.Must(t.text, err)
+	if err != nil {
+		panic(err)
+	}
 	return t
 }
 
