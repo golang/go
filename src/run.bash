@@ -78,8 +78,7 @@ gotest
 [ "$GOHOSTOS" == darwin ] ||
 (xcd ../misc/cgo/testso
 gomake clean
-gomake out
-LD_LIBRARY_PATH=. ./out
+./test.bash
 ) || exit $?
 
 (xcd ../doc/progs
