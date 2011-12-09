@@ -1778,23 +1778,7 @@ of the expression list.
 <p>
 If the type is absent and the corresponding expression evaluates to an
 untyped <a href="#Constants">constant</a>, the type of the declared variable
-is <code>bool</code>, <code>int</code>, <code>float64</code>,
-<code>complex128</code>, or <code>string</code> respectively, depending on
-whether the value is a boolean, integer, floating-point, complex, or string
-constant:
-</p>
-
-<pre>
-var b  = true    // t  has type bool
-var r  = 'a'     // r  has type int
-var i  = 0       // i  has type int
-var f  = 3.0     // f  has type float64
-var c0 = 0i      // c0 has type complex128
-var c1 = 1 + 0i  // c1 has type complex128
-var c2 = 1 + 1i  // c2 has type complex128
-var s1 = "OMDB"  // s1 has type string
-var s2 = `foo`   // s2 has type string
-</pre>
+is as described in §<a href="#Assignments">Assignments</a>.
 
 <h3 id="Short_variable_declarations">Short variable declarations</h3>
 
