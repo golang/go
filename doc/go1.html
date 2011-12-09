@@ -478,6 +478,9 @@ while <a href="#deleted">others</a> have been deleted outright.
 <th align="left">Old path</th>
 <th align="left">New path</th>
 </tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
 <tr><td>asn1</td> <td>encoding/asn1</td></tr>
 <tr><td>csv</td> <td>encoding/csv</td></tr>
 <tr><td>gob</td> <td>encoding/gob</td></tr>
@@ -536,13 +539,32 @@ Gofix will update all imports and package renames for packages that
 remain inside the standard repository.  Programs that import packages
 that are no longer in the standard repository will need to be edited
 by hand.
-<font color="red">TODO: should warn about deletions.</font>
-<font color="red">TODO: should also handle packages that move to subrepos.</font>
+<br>
+<font color="red">TODO: gofix should warn about deletions.</font>
+<br>
+<font color="red">TODO: gofix should also handle packages that move to subrepos.</font>
 </p>
 
-<h3 id="errors">The error type</h3>
+<h3 id="errors">The error type and errors package</h3>
 
 <h3 id="errno">System call errors</h3>
+
+<p>
+In Go 1, the
+<a href="http://golang.org/pkg/syscall"><code>syscall</code></a>
+package returns an <code>error</code> for system call errors,
+rather than plain integer <code>errno</code> values.
+On Unix, the implementation is done by a 
+<a href="http://golang.org/pkg/syscall/#Errno"><code>syscall.Errno</code></a> type
+that satisfies <code>error</code> and replaces the old <code>os.Errno</code>.
+</p>
+
+<p>
+<em>Updating</em>:
+Gofix will update almost all code affected by the change.
+Regardless, most code should use the <code>os</code> package
+rather than <code>syscall</code> and so will be unaffected.
+</p>
 
 <h3 id="time">Time</h3>
 
@@ -551,6 +573,98 @@ by hand.
 <h3 id="http">The http package</h3>
 
 <h3 id="strconv">The strconv package</h3>
+
+<p>
+In Go 1, the
+<a href="http://golang.org/pkg/syscall"><code>strconv</code></a>
+package has been significantly reworked to make it more Go-like and less C-like,
+although <code>Atoi</code> lives on (it's similar to
+<code>int(ParseInt(x, 10, 0))</code>, as does
+<code>Itoa(x)</code> (<code>FormatInt(int64(x), 10)</code>).
+There are also new variants of some of the functions that append to byte slices rather than
+return strings, to allow control over allocation.
+</p>
+
+<p>
+This table summarizes the renamings; see the
+<a href="/pkg/strconv">package documentation</a>
+for full details.
+</p>
+
+<table class="codetable" frame="border" summary="strconv renames">
+<colgroup align="left" width="50%"></colgroup>
+<colgroup align="left" width="50%"></colgroup>
+<tr>
+<th align="left">Old call</th>
+<th align="left">New call</th>
+</tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>Atob(x)</td> <td>ParseBool(x)</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>Atof32(x)</td> <td>ParseFloat(x, 32)§</td></tr>
+<tr><td>Atof64(x)</td> <td>ParseFloat(x, 64)</td></tr>
+<tr><td>AtofN(x, n)</td> <td>ParseFloat(x, n)</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>Atoi(x)</td> <td>Atoi(x)</td></tr>
+<tr><td>Atoi(x)</td> <td>ParseInt(x, 10, 0)§</td></tr>
+<tr><td>Atoi64(x)</td> <td>ParseInt(x, 10, 64)</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>Atoui(x)</td> <td>ParseUint(x, 10, 0)§</td></tr>
+<tr><td>Atoi64(x)</td> <td>ParseInt(x, 10, 64)</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>Btoi64(x, b)</td> <td>ParseInt(x, b, 64)</td></tr>
+<tr><td>Btoui64(x, b)</td> <td>ParseUint(x, b, 64)</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>Btoa(x)</td> <td>FormatBool(x)</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>Ftoa32(x, f, p)</td> <td>FormatFloat(x, float64(f), p, 32)</td></tr>
+<tr><td>Ftoa64(x, f, p)</td> <td>FormatFloat(x, f, p, 64)</td></tr>
+<tr><td>FtoaN(x, f, p, n)</td> <td>FormatFloat(x, f, p, n)</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>Itoa(x)</td> <td>Itoa(x)</td></tr>
+<tr><td>Itoa(x)</td> <td>FormatInt(int64(x), 10)</td></tr>
+<tr><td>Itoa64(x)</td> <td>FormatInt(x, 10)</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>Itob(x, b)</td> <td>FormatInt(int64(x), b)</td></tr>
+<tr><td>Itob64(x, b)</td> <td>FormatInt(x, b)</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>Uitoa(x)</td> <td>FormatUint(uint64(x), 10)</td></tr>
+<tr><td>Uitoa64(x)</td> <td>FormatUint(x, 10)</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>Uitob(x, b)</td> <td>FormatUint(uint64(x), b)</td></tr>
+<tr><td>Uitob64(x, b)</td> <td>FormatUint(x, b)</td></tr>
+</table>
+		
+<p>
+<em>Updating</em>:
+Gofix will update almost all code affected by the change.
+<br>
+§ <code>Atoi</code> persists but <code>Atoui</code> and <code>Atof32</code> do not, so
+they may require
+a cast that must be added by hand; gofix will warn about it.
+</p>
 
 <h3 id="exp">The package tree exp</h3>
 
