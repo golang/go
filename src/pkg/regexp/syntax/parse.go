@@ -1694,7 +1694,7 @@ func appendFoldedClass(r []rune, x []rune) []rune {
 // appendNegatedClass returns the result of appending the negation of the class x to the class r.
 // It assumes x is clean.
 func appendNegatedClass(r []rune, x []rune) []rune {
-	nextLo := rune('\u0000')
+	nextLo := '\u0000'
 	for i := 0; i < len(x); i += 2 {
 		lo, hi := x[i], x[i+1]
 		if nextLo <= lo-1 {
@@ -1735,7 +1735,7 @@ func appendTable(r []rune, x *unicode.RangeTable) []rune {
 
 // appendNegatedTable returns the result of appending the negation of x to the class r.
 func appendNegatedTable(r []rune, x *unicode.RangeTable) []rune {
-	nextLo := rune('\u0000') // lo end of next class to add
+	nextLo := '\u0000' // lo end of next class to add
 	for _, xr := range x.R16 {
 		lo, hi, stride := rune(xr.Lo), rune(xr.Hi), rune(xr.Stride)
 		if stride == 1 {
@@ -1777,8 +1777,8 @@ func appendNegatedTable(r []rune, x *unicode.RangeTable) []rune {
 // negateClass overwrites r and returns r's negation.
 // It assumes the class r is already clean.
 func negateClass(r []rune) []rune {
-	nextLo := rune('\u0000') // lo end of next class to add
-	w := 0                   // write index
+	nextLo := '\u0000' // lo end of next class to add
+	w := 0             // write index
 	for i := 0; i < len(r); i += 2 {
 		lo, hi := r[i], r[i+1]
 		if nextLo <= lo-1 {

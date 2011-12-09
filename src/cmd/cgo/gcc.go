@@ -201,7 +201,7 @@ func splitQuoted(s string) (r []string, err error) {
 	arg := make([]rune, len(s))
 	escaped := false
 	quoted := false
-	quote := rune(0)
+	quote := '\x00'
 	i := 0
 	for _, r := range s {
 		switch {

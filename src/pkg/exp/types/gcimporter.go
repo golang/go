@@ -81,7 +81,7 @@ type gcParser struct {
 func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*ast.Object) {
 	p.scanner.Init(src)
 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
-	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
+	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanChars | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
 	p.scanner.Whitespace = 1<<'\t' | 1<<' '
 	p.scanner.Filename = filename // for good error messages
 	p.next()
@@ -206,7 +206,7 @@ func (p *gcParser) expect(tok rune) string {
 }
 
 func (p *gcParser) expectSpecial(tok string) {
-	sep := rune('x') // not white space
+	sep := 'x' // not white space
 	i := 0
 	for i < len(tok) && p.tok == rune(tok[i]) && sep > ' ' {
 		sep = p.scanner.Peek() // if sep <= ' ', there is white space before the next token
@@ -261,7 +261,7 @@ func (p *gcParser) parsePkgId() *ast.Object {
 func (p *gcParser) parseDotIdent() string {
 	ident := ""
 	if p.tok != scanner.Int {
-		sep := rune('x') // not white space
+		sep := 'x' // not white space
 		for (p.tok == scanner.Ident || p.tok == scanner.Int || p.tok == '·') && sep > ' ' {
 			ident += p.lit
 			sep = p.scanner.Peek() // if sep <= ' ', there is white space before the next token
@@ -645,6 +645,7 @@ func (p *gcParser) parseNumber() Const {
 // Literal     = bool_lit | int_lit | float_lit | complex_lit | string_lit .
 // bool_lit    = "true" | "false" .
 // complex_lit = "(" float_lit "+" float_lit ")" .
+// rune_lit = "(" int_lit "+" int_lit ")" .
 // string_lit  = `"` { unicode_char } `"` .
 //
 func (p *gcParser) parseConstDecl() {
@@ -674,21 +675,32 @@ func (p *gcParser) parseConstDecl() {
 			typ = Float64.Underlying
 		}
 	case '(':
-		// complex_lit
+		// complex_lit or rune_lit
 		p.next()
+		if p.tok == scanner.Char {
+			p.next()
+			p.expect('+')
+			p.parseNumber()
+			// TODO: x = ...
+			break
+		}
 		re := p.parseNumber()
 		p.expect('+')
 		im := p.parseNumber()
 		p.expect(')')
 		x = Const{cmplx{re.val.(*big.Rat), im.val.(*big.Rat)}}
 		typ = Complex128.Underlying
+	case scanner.Char:
+		// TODO: x = ...
+		p.next()
 	case scanner.String:
 		// string_lit
 		x = MakeConst(token.STRING, p.lit)
 		p.next()
 		typ = String.Underlying
 	default:
-		p.error("expected literal")
+		println(p.tok)
+		p.errorf("expected literal got %s", scanner.TokenString(p.tok))
 	}
 	if obj.Type == nil {
 		obj.Type = typ

@@ -592,7 +592,7 @@ func (x nat) bitLen() int {
 const MaxBase = 'z' - 'a' + 10 + 1 // = hexValue('z') + 1
 
 func hexValue(ch rune) Word {
-	d := MaxBase + 1 // illegal base
+	d := int(MaxBase + 1) // illegal base
 	switch {
 	case '0' <= ch && ch <= '9':
 		d = int(ch - '0')

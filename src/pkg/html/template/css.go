@@ -106,7 +106,7 @@ func isHex(c byte) bool {
 
 // hexDecode decodes a short hex digit sequence: "10" -> 16.
 func hexDecode(s []byte) rune {
-	n := rune(0)
+	n := '\x00'
 	for _, c := range s {
 		n <<= 4
 		switch {

@@ -470,7 +470,7 @@ func Title(s []byte) []byte {
 	// Use a closure here to remember state.
 	// Hackish but effective. Depends on Map scanning in order and calling
 	// the closure once per rune.
-	prev := rune(' ')
+	prev := ' '
 	return Map(
 		func(r rune) rune {
 			if isSeparator(prev) {
