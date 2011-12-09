@@ -199,7 +199,8 @@ func (p *gcParser) errorf(format string, args ...interface{}) {
 func (p *gcParser) expect(tok rune) string {
 	lit := p.lit
 	if p.tok != tok {
-		p.errorf("expected %q, got %q (%q)", scanner.TokenString(tok), scanner.TokenString(p.tok), lit)
+		panic(1)
+		p.errorf("expected %s, got %s (%s)", scanner.TokenString(tok), scanner.TokenString(p.tok), lit)
 	}
 	p.next()
 	return lit
@@ -681,6 +682,7 @@ func (p *gcParser) parseConstDecl() {
 			p.next()
 			p.expect('+')
 			p.parseNumber()
+			p.expect(')')
 			// TODO: x = ...
 			break
 		}
