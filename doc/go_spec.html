@@ -695,7 +695,7 @@ complex64   the set of all complex numbers with float32 real and imaginary parts
 complex128  the set of all complex numbers with float64 real and imaginary parts
 
 byte        alias for uint8
-rune        alias for int (will change to int32 in the future)
+rune        alias for int32
 </pre>
 
 <p>
@@ -716,8 +716,7 @@ uintptr  an unsigned integer large enough to store the uninterpreted bits of a p
 <p>
 To avoid portability issues all numeric types are distinct except
 <code>byte</code>, which is an alias for <code>uint8</code>, and
-<code>rune</code>, which is an alias for <code>int</code> (to become
-<code>int32</code> in a later version of Go).
+<code>rune</code>, which is an alias for <code>int32</code>.
 Conversions
 are required when different numeric types are mixed in an expression
 or assignment. For instance, <code>int32</code> and <code>int</code>
