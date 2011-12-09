@@ -118,12 +118,29 @@ func (TI) M(x int, y int) {
 	}
 }
 
+var fp = func(_ int, y int) {}
+
+func init() {
+	fp = fp1
+}
+
+func fp1(x, y int) {
+	if x != y {
+		println("invalid fp1 call:", x, y)
+		panic("bad fp1")
+	}
+}
+
+
 func m() {
 	var i I
 	
 	i = TI{}
 	i.M(1, 1)
 	i.M(2, 2)
+	
+	fp(1, 1)
+	fp(2, 2)
 }
 
 // useless but legal

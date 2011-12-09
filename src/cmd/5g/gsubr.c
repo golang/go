@@ -515,6 +515,12 @@ nodarg(Type *t, int fp)
 	n->orig = t->nname;
 
 fp:
+	// Rewrite argument named _ to __,
+	// or else the assignment to _ will be
+	// discarded during code generation.
+	if(isblank(n))
+		n->sym = lookup("__");
+
 	switch(fp) {
 	default:
 		fatal("nodarg %T %d", t, fp);
