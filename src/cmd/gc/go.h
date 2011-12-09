@@ -113,7 +113,7 @@ struct	Val
 	{
 		short	reg;		// OREGISTER
 		short	bval;		// bool value CTBOOL
-		Mpint*	xval;		// int CTINT
+		Mpint*	xval;		// int CTINT, rune CTRUNE
 		Mpflt*	fval;		// float CTFLT
 		Mpcplx*	cval;		// float CTCPLX
 		Strlit*	sval;		// string CTSTR
@@ -527,6 +527,7 @@ enum
 	CTxxx,
 
 	CTINT,
+	CTRUNE,
 	CTFLT,
 	CTCPLX,
 	CTSTR,

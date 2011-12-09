@@ -1341,6 +1341,7 @@ iszero(Node *n)
 			return n->val.u.bval == 0;
 			
 		case CTINT:
+		case CTRUNE:
 			return mpcmpfixc(n->val.u.xval, 0) == 0;
 	
 		case CTFLT:

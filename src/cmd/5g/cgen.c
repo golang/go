@@ -1066,7 +1066,7 @@ bgen(Node *n, int true, Prog *to)
 		}
 
 		if(nr->op == OLITERAL) {
-			if(nr->val.ctype == CTINT &&  mpgetfix(nr->val.u.xval) == 0) {
+			if(isconst(nr, CTINT) &&  mpgetfix(nr->val.u.xval) == 0) {
 				gencmp0(nl, nl->type, a, to);
 				break;
 			}
