@@ -132,6 +132,7 @@ exprcmp(Case *c1, Case *c2)
 		n = mpcmpfltflt(n1->val.u.fval, n2->val.u.fval);
 		break;
 	case CTINT:
+	case CTRUNE:
 		n = mpcmpfixfix(n1->val.u.xval, n2->val.u.xval);
 		break;
 	case CTSTR:
@@ -380,6 +381,7 @@ mkcaselist(Node *sw, int arg)
 			switch(consttype(n->left)) {
 			case CTFLT:
 			case CTINT:
+			case CTRUNE:
 			case CTSTR:
 				c->type = Texprconst;
 			}

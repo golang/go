@@ -709,6 +709,7 @@ aindex(Node *b, Type *t)
 			yyerror("array bound must be an integer expression");
 			break;
 		case CTINT:
+		case CTRUNE:
 			bound = mpgetfix(b->val.u.xval);
 			if(bound < 0)
 				yyerror("array bound must be non negative");

@@ -1538,6 +1538,9 @@ walkprint(Node *nn, NodeList **init, int defer)
 		n = l->n;
 		if(n->op == OLITERAL) {
 			switch(n->val.ctype) {
+			case CTRUNE:
+				defaultlit(&n, runetype);
+				break;
 			case CTINT:
 				defaultlit(&n, types[TINT64]);
 				break;

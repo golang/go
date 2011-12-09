@@ -840,7 +840,7 @@ l0:
 		}
 		yylval.val.u.xval = mal(sizeof(*yylval.val.u.xval));
 		mpmovecfix(yylval.val.u.xval, v);
-		yylval.val.ctype = CTINT;
+		yylval.val.ctype = CTRUNE;
 		DBG("lex: codepoint literal\n");
 		strcpy(litbuf, "string literal");
 		return LLITERAL;

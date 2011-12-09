@@ -257,6 +257,7 @@ reswitch:
 			l = typecheck(&n->left, Erv);
 			switch(consttype(l)) {
 			case CTINT:
+			case CTRUNE:
 				v = l->val;
 				break;
 			case CTFLT:
@@ -1849,6 +1850,7 @@ keydup(Node *n, Node *hash[], ulong nhash)
 		b = 23;
 		break;
 	case CTINT:
+	case CTRUNE:
 		b = mpgetfix(n->val.u.xval);
 		break;
 	case CTFLT:

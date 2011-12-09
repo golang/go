@@ -1974,6 +1974,7 @@ hidden_literal:
 		$$ = nodlit($2);
 		switch($$->val.ctype){
 		case CTINT:
+		case CTRUNE:
 			mpnegfix($$->val.u.xval);
 			break;
 		case CTFLT:
@@ -1994,6 +1995,11 @@ hidden_constant:
 	hidden_literal
 |	'(' hidden_literal '+' hidden_literal ')'
 	{
+		if($2->val.ctype == CTRUNE && $4->val.ctype == CTINT) {
+			$$ = $2;
+			mpaddfixfix($2->val.u.xval, $4->val.u.xval);
+			break;
+		}
 		$$ = nodcplxlit($2->val, $4->val);
 	}
 

@@ -354,12 +354,22 @@ static int
 Vconv(Fmt *fp)
 {
 	Val *v;
+	vlong x;
 
 	v = va_arg(fp->args, Val*);
 
 	switch(v->ctype) {
 	case CTINT:
 		return fmtprint(fp, "%B", v->u.xval);
+	case CTRUNE:
+		x = mpgetfix(v->u.xval);
+		if(' ' <= x && x < 0x80)
+			return fmtprint(fp, "'%c'", (int)x);
+		if(0 <= x && x < (1<<16))
+			return fmtprint(fp, "'\\u%04ux'", (int)x);
+		if(0 <= x && x <= Runemax)
+			return fmtprint(fp, "'\\U%08llux'", x);
+		return fmtprint(fp, "('\\x00' + %B)", v->u.xval);
 	case CTFLT:
 		return fmtprint(fp, "%F", v->u.fval);
 	case CTCPLX:  // ? 1234i ->  (0p+0+617p+1)
