@@ -363,7 +363,7 @@ Vconv(Fmt *fp)
 		return fmtprint(fp, "%B", v->u.xval);
 	case CTRUNE:
 		x = mpgetfix(v->u.xval);
-		if(' ' <= x && x < 0x80)
+		if(' ' <= x && x < 0x80 && x != '\\' && x != '\'')
 			return fmtprint(fp, "'%c'", (int)x);
 		if(0 <= x && x < (1<<16))
 			return fmtprint(fp, "'\\u%04ux'", (int)x);
