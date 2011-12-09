@@ -1685,6 +1685,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
 		n->right = methodname(n->right, n->left->type);
 		n->xoffset = f2->width;
 		n->type = f2->type;
+//		print("lookdot found [%p] %T\n", f2->type, f2->type);
 		n->op = ODOTMETH;
 		return 1;
 	}
@@ -2441,7 +2442,7 @@ typecheckfunc(Node *n)
 	if((t = n->nname->type) == T)
 		return;
 	n->type = t;
-
+	t->nname = n->nname;
 	rcvr = getthisx(t)->type;
 	if(rcvr != nil && n->shortname != N && !isblank(n->shortname))
 		addmethod(n->shortname->sym, t, 1);

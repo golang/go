@@ -167,6 +167,8 @@ walkstmt(Node **np)
 
 	setlineno(n);
 
+	walkstmtlist(n->ninit);
+
 	switch(n->op) {
 	default:
 		if(n->op == ONAME)
@@ -243,7 +245,6 @@ walkstmt(Node **np)
 		break;
 
 	case OFOR:
-		walkstmtlist(n->ninit);
 		if(n->ntest != N) {
 			walkstmtlist(n->ntest->ninit);
 			init = n->ntest->ninit;
@@ -256,7 +257,6 @@ walkstmt(Node **np)
 		break;
 
 	case OIF:
-		walkstmtlist(n->ninit);
 		walkexpr(&n->ntest, &n->ninit);
 		walkstmtlist(n->nbody);
 		walkstmtlist(n->nelse);
@@ -382,6 +382,12 @@ walkexpr(Node **np, NodeList **init)
 		// because we might replace n with some other node
 		// and would lose the init list.
 		fatal("walkexpr init == &n->ninit");
+	}
+
+	if(n->ninit != nil) {
+		walkstmtlist(n->ninit);
+		*init = concat(*init, n->ninit);
+		n->ninit = nil;
 	}
 
 	// annoying case - not typechecked
@@ -1229,7 +1235,7 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
 
 	// cannot happen: caller checked that lists had same length
 	if(ll || lr)
-		yyerror("error in shape across %O", op);
+		yyerror("error in shape across %+H %O %+H", nl, op, nr);
 	return nn;
 }
 

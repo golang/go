@@ -145,18 +145,14 @@ func GcImporter(imports map[string]*ast.Object, path string) (pkg *ast.Object, e
 
 // Declare inserts a named object of the given kind in scope.
 func (p *gcParser) declare(scope *ast.Scope, kind ast.ObjKind, name string) *ast.Object {
-	// a type may have been declared before - if it exists
-	// already in the respective package scope, return that
-	// type
-	if kind == ast.Typ {
-		if obj := scope.Lookup(name); obj != nil {
-			assert(obj.Kind == ast.Typ)
-			return obj
-		}
+	// the object may have been imported before - if it exists
+	// already in the respective package scope, return that object
+	if obj := scope.Lookup(name); obj != nil {
+		assert(obj.Kind == kind)
+		return obj
 	}
 
-	// any other object must be a newly declared object -
-	// create it and insert it into the package scope
+	// otherwise create a new object and insert it into the package scope
 	obj := ast.NewObj(kind, name)
 	if scope.Insert(obj) != nil {
 		p.errorf("already declared: %v %s", kind, obj.Name)

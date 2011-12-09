@@ -642,7 +642,7 @@ funcargs2(Type *t)
 		for(ft=getthisx(t)->type; ft; ft=ft->down) {
 			if(!ft->nname || !ft->nname->sym)
 				continue;
-			n = newname(ft->nname->sym);
+			n = ft->nname;  // no need for newname(ft->nname->sym)
 			n->type = ft->type;
 			declare(n, PPARAM);
 		}
@@ -651,7 +651,7 @@ funcargs2(Type *t)
 		for(ft=getinargx(t)->type; ft; ft=ft->down) {
 			if(!ft->nname || !ft->nname->sym)
 				continue;
-			n = newname(ft->nname->sym);
+			n = ft->nname;
 			n->type = ft->type;
 			declare(n, PPARAM);
 		}
@@ -660,7 +660,7 @@ funcargs2(Type *t)
 		for(ft=getoutargx(t)->type; ft; ft=ft->down) {
 			if(!ft->nname || !ft->nname->sym)
 				continue;
-			n = newname(ft->nname->sym);
+			n = ft->nname;
 			n->type = ft->type;
 			declare(n, PPARAMOUT);
 		}
@@ -845,6 +845,7 @@ tofunargs(NodeList *l)
 	for(tp = &t->type; l; l=l->next) {
 		f = structfield(l->n);
 		f->funarg = 1;
+
 		// esc.c needs to find f given a PPARAM to add the tag.
 		if(l->n->left && l->n->left->class == PPARAM)
 			l->n->left->paramfld = f;
@@ -1224,6 +1225,7 @@ methodname1(Node *n, Node *t)
 	}
 	if(t->sym == S || isblank(n))
 		return newname(n->sym);
+
 	if(star)
 		p = smprint("(%s%S).%S", star, t->sym, n->sym);
 	else
