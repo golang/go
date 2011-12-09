@@ -49,5 +49,3 @@ const (
 	MaxUint32 = 1<<32 - 1
 	MaxUint64 = 1<<64 - 1
 )
-
-// BUG(rsc): The manual should define the special cases for all of these functions.
