@@ -1964,7 +1964,7 @@ lookdot0(Sym *s, Type *t, Type **save, int ignorecase)
 	return c;
 }
 
-// search depth d --
+// search depth d for field/method s --
 // return count of fields+methods
 // found at search depth.
 // answer is in dotlist array and
@@ -2087,8 +2087,6 @@ expand0(Type *t, int followptr)
 
 	if(u->etype == TINTER) {
 		for(f=u->type; f!=T; f=f->down) {
-			if(!exportname(f->sym->name) && f->sym->pkg != localpkg)
-				continue;
 			if(f->sym->flags & SymUniq)
 				continue;
 			f->sym->flags |= SymUniq;
@@ -2104,8 +2102,6 @@ expand0(Type *t, int followptr)
 	u = methtype(t);
 	if(u != T) {
 		for(f=u->method; f!=T; f=f->down) {
-			if(!exportname(f->sym->name) && f->sym->pkg != localpkg)
-				continue;
 			if(f->sym->flags & SymUniq)
 				continue;
 			f->sym->flags |= SymUniq;

@@ -119,7 +119,3 @@ broke
 0x0
 
 == bugs/
-
-=========== bugs/bug367.go
-panic: interface conversion: main.T is not p.I: missing method get
-BUG: should not fail
