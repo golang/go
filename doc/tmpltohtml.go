@@ -16,7 +16,13 @@
 //	{{code "foo.go" `/^func.main/` `/^}/`
 //
 // Patterns can be `/regular expression/`, a decimal number, or "$"
-// to signify the end of the file.
+// to signify the end of the file. In multi-line matches,
+// lines that end with the four characters
+//	OMIT
+// are omitted from the output, making it easy to provide marker
+// lines in the input that will not appear in the output but are easy
+// to identify by pattern.
+
 package main
 
 import (
@@ -152,6 +158,11 @@ func multipleLines(file, text string, arg1, arg2 interface{}) string {
 		line2 = match(file, line1, lines, pattern2)
 	} else if line2 < line1 {
 		log.Fatalf("lines out of order for %q: %d %d", text, line1, line2)
+	}
+	for k := line1 - 1; k < line2; k++ {
+		if strings.HasSuffix(lines[k], "OMIT\n") {
+			lines[k] = ""
+		}
 	}
 	return strings.Join(lines[line1-1:line2], "")
 }
