@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of December 5, 2011 -->
+<!-- subtitle Version of December 8, 2011 -->
 
 <!--
 TODO
@@ -361,7 +361,7 @@ imaginary_lit = (decimals | float_lit) "i" .
 <h3 id="Character_literals">Character literals</h3>
 
 <p>
-A character literal represents an <a href="#Constants">integer constant</a>,
+A character literal represents a <a href="#Constants">character constant</a>,
 typically a Unicode code point, as one or more characters enclosed in single
 quotes.  Within the quotes, any character may appear except single
 quote and newline. A single quoted character represents itself,
@@ -513,19 +513,22 @@ literal.
 
 <h2 id="Constants">Constants</h2>
 
-<p>There are <i>boolean constants</i>, <i>integer constants</i>,
+<p>There are <i>boolean constants</i>,
+<i>character constants</i>,
+<i>integer constants</i>,
 <i>floating-point constants</i>, <i>complex constants</i>,
-and <i>string constants</i>. Integer, floating-point,
+and <i>string constants</i>. Character, integer, floating-point,
 and complex constants are
 collectively called <i>numeric constants</i>.
 </p>
 
 <p>
-A constant value is represented by an
+A constant value is represented by a
+<a href="#Character_literals">character</a>,
 <a href="#Integer_literals">integer</a>,
 <a href="#Floating-point_literals">floating-point</a>,
 <a href="#Imaginary_literals">imaginary</a>,
-<a href="#Character_literals">character</a>, or
+or
 <a href="#String_literals">string</a> literal,
 an identifier denoting a constant,
 a <a href="#Constant_expressions">constant expression</a>,
@@ -3412,14 +3415,12 @@ operands and are evaluated at compile-time.
 <p>
 Untyped boolean, numeric, and string constants may be used as operands
 wherever it is legal to use an operand of boolean, numeric, or string type,
-respectively. Except for shift operations, if the operands of a binary operation
-are an untyped integer constant and an untyped floating-point constant,
-the integer constant is converted to an untyped floating-point constant
-(relevant for <code>/</code> and <code>%</code>).
-Similarly, untyped integer or floating-point constants may be used as operands
-wherever it is legal to use an operand of complex type;
-the integer or floating point constant is converted to a
-complex constant with a zero imaginary part.
+respectively.
+Except for shift operations, if the operands of a binary operation are
+different kinds of untyped constants, the operation and result use
+the kind that appears later in this list: integer, character, floating-point, complex.
+For example, an untyped integer constant divided by an
+untyped complex constant yields an untyped complex constant.
 </p>
 
 <p>
@@ -3435,32 +3436,30 @@ complex, or string constant).
 </p>
 
 <pre>
-const a = 2 + 3.0          // a == 5.0   (floating-point constant)
-const b = 15 / 4           // b == 3     (integer constant)
-const c = 15 / 4.0         // c == 3.75  (floating-point constant)
-const d = 1 &lt;&lt; 3.0         // d == 8     (integer constant)
-const e = 1.0 &lt;&lt; 3         // e == 8     (integer constant)
+const a = 2 + 3.0          // a == 5.0   (untyped floating-point constant)
+const b = 15 / 4           // b == 3     (untyped integer constant)
+const c = 15 / 4.0         // c == 3.75  (untyped floating-point constant)
+const Θ float64 = 3/2      // Θ == 1.5   (type float64)
+const d = 1 &lt;&lt; 3.0         // d == 8     (untyped integer constant)
+const e = 1.0 &lt;&lt; 3         // e == 8     (untyped integer constant)
 const f = int32(1) &lt;&lt; 33   // f == 0     (type int32)
 const g = float64(2) &gt;&gt; 1  // illegal    (float64(2) is a typed floating-point constant)
 const h = "foo" &gt; "bar"    // h == true  (type bool)
+const j = 'w' + 1          // j == 'x'   (untyped character constant)
+const Σ = 1 - 0.707        //            (untyped complex constant)
+const Δ = Σ + 2.0e-4       //            (untyped complex constant)
+const Φ = iota*1i - 1/1i   //            (untyped complex constant)
 </pre>
 
 <p>
-Imaginary literals are untyped complex constants (with zero real part)
-and may be combined in binary
-operations with untyped integer and floating-point constants; the
-result is an untyped complex constant.
-Complex constants are always constructed from
-constant expressions involving imaginary
-literals or constants derived from them, or calls of the built-in function
-<a href="#Complex_numbers"><code>complex</code></a>.
+Applying the built-in function <code>complex</code> to untyped
+integer, character, or floating-point constants yields
+an untyped complex constant.
 </p>
 
 <pre>
-const Σ = 1 - 0.707i
-const Δ = Σ + 2.0e-4 - 1/1i
-const Φ = iota * 1i
-const iΓ = complex(0, Γ)
+const ic = complex(0, c)   // iΓ == 3.75i (untyped complex constant)
+const iΘ = complex(0, Θ)   // iΘ == 1.5i  (type complex128)
 </pre>
 
 <p>
@@ -3758,10 +3757,10 @@ In assignments, each value must be
 <a href="#Assignability">assignable</a> to the type of the
 operand to which it is assigned. If an untyped <a href="#Constants">constant</a>
 is assigned to a variable of interface type, the constant is <a href="#Conversions">converted</a>
-to type <code>bool</code>, <code>int</code>, <code>float64</code>,
+to type <code>bool</code>, <code>rune</code>, <code>int</code>, <code>float64</code>,
 <code>complex128</code> or <code>string</code>
-respectively, depending on whether the value is a boolean, integer, floating-point,
-complex, or string constant.
+respectively, depending on whether the value is a boolean,
+character, integer, floating-point, complex, or string constant.
 </p>
 
 
