@@ -1745,7 +1745,7 @@ lexinit(void)
 			s1 = pkglookup(syms[i].name, builtinpkg);
 			s1->lexical = LNAME;
 			s1->def = nod(ONAME, N, N);
-			s1->def->sym = s;
+			s1->def->sym = s1;
 			s1->def->etype = etype;
 			s1->def->builtin = 1;
 		}
