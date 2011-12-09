@@ -481,6 +481,7 @@ nodarg(Type *t, int fp)
 	n = nod(ONAME, N, N);
 	n->type = t->type;
 	n->sym = t->sym;
+	
 	if(t->width == BADWIDTH)
 		fatal("nodarg: offset not computed for %T", t);
 	n->xoffset = t->width;
@@ -488,6 +489,12 @@ nodarg(Type *t, int fp)
 	n->orig = t->nname;
 
 fp:
+	// Rewrite argument named _ to __,
+	// or else the assignment to _ will be
+	// discarded during code generation.
+	if(isblank(n))
+		n->sym = lookup("__");
+
 	switch(fp) {
 	case 0:		// output arg
 		n->op = OINDREG;

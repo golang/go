@@ -967,6 +967,12 @@ nodarg(Type *t, int fp)
 		n->orig = t->nname;
 		break;
 	}
+	
+	// Rewrite argument named _ to __,
+	// or else the assignment to _ will be
+	// discarded during code generation.
+	if(isblank(n))
+		n->sym = lookup("__");
 
 	switch(fp) {
 	default:
