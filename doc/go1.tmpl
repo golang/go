@@ -27,16 +27,78 @@ r60 to compile and run under Go 1. Finally, it outlines the new
 <code>go</code> command for building Go programs and the new binary
 release process being introduced. Most of these topics have more
 thorough presentations elsewhere; such documents are linked below.
+</p>
 
 <h2 id="language">Changes to the language</h2>
 
 <h3 id="append">Append</h3>
 
+<p>
+The <code>append</code> built-in function is variadic, so one can
+append to a byte slice using the <code>...</code> syntax in the
+call.
+</p>
+
+{{code "progs/go1.go" `/greeting := ..byte/` `/append.*hello/`}}
+
+<p>
+By analogy with the similar property of <code>copy</code>, Go 1
+permits a string to be appended (byte-wise) directly to a byte
+slice; the conversion is no longer necessary:
+</p>
+
+{{code "progs/go1.go" `/append.*world/`}}
+
+<p>
+<em>Updating</em>:
+This is a new feature, so existing code needs no changes.
+</p>
+
 <h3 id="close">Close</h3>
+
+<p>
+The <code>close</code> built-in function lets a sender tell a receiver
+that no more data will be transmitted on the channel.  In Go 1 the
+type system enforces the directionality when possible: it is illegal
+to call <code>close</code> on a receive-only channel:
+</p>
+
+<pre>
+    var c chan int
+    var csend chan<- int = c
+    var crecv <-chan int = c
+    close(c)     // legal
+    close(csend) // legal
+    close(crecv) // illegal
+</pre>
+
+<p>
+<em>Updating</em>:
+Existing code that attempts to close a receive-only channel was
+erroneous even before Go 1 and should be fixed.  The compiler will
+now reject such code.
+</p>
 
 <h3 id="literals">Composite literals</h3>
 
 <h3 id="init">Goroutines during init</h3>
+
+<p>
+Go 1 allows goroutines to be created and run during initialization.
+(They used to be created but were not run until after initialization
+completed.) Code that uses goroutines can now be called from
+<code>init</code> routines and global initialization expressions
+without introducing a deadlock.
+</p>
+
+{{code "progs/go1.go" `/PackageGlobal/` `/^}/`}}
+
+<p>
+<em>Updating</em>:
+This is a new feature, so existing code needs no changes,
+although it's possible that code that depends on goroutines not starting before <code>main</code> will break.
+There was no such code in the standard repository.
+</p>
 
 <h3 id="rune">The rune type</h3>
 
@@ -71,13 +133,131 @@ the ignored value can be safely discarded from the program and
 will flag other uses of the syntax for inspection by the programmer.
 </p>
 
-<h3 id="map_iteration">Iterating in maps</h3>
+<h3 id="iteration">Iterating in maps</h3>
+
+<p>
+In Go 1, the order in which elements are visited when iterating
+over a map using a <code>for</code> <code>range</code> statement
+is defined to be unpredictable, even if the same loop is run multiple
+times with the same map.
+Code should not assume that the elements are visited in any particular order.
+</p>
+
+{{code "progs/go1.go" `/Sunday/` `/^	}/`}}
+
+<p>
+<em>Updating</em>:
+This is one change where tools cannot help.  Most existing code
+will be unaffected, but some programs may break or misbehave; we
+recommend manual checking of all range statements over maps to
+verify they do not depend on iteration order. There were a few such
+examples in the standard repository; they have been fixed.
+Note that it was already incorrect to depend on the iteration order, which
+was unspecified. This change codifies the unpredictability.
+</p>
 
 <h3 id="multiple_assignment">Multiple assignment</h3>
 
+<p>
+Go 1 fully specifies the evaluation order in multiple assignment
+statements. In particular, if the left-hand side of the assignment
+statement contains expressions that require evaluation, such as
+function calls or array indexing operations, these will all be done
+using the usual left-to-right rule before any variables are assigned
+their value.  Once everything is evaluated, the actual assignments
+proceed in left-to-right order.
+</p>
+
+<p>
+These examples illustrate the behavior.
+</p>
+
+{{code "progs/go1.go" `/sa :=/` `/then sc.0. = 2/`}}
+
+<em>Updating</em>:
+This is one change where tools cannot help, but breakage is unlikely.
+No code in the standard repository was broken by this change, and code
+that depended on the previous unspecified behavior was already incorrect.
+</p>
+
 <h3 id="shadowing">Returns and shadowed variables</h3>
 
+<p>
+A shadowed variable is one that has the same name as another variable in an inner scope.
+In functions with named return values,
+the Go 1 compilers disallow return statements without arguments if any of the named return values is shadowed at the point of the return statement.
+(It isn't part of the specification, because this is one area we are still exploring;
+the situation is analogous to the compilers rejecting functions that do not end with an explicit return statement.)
+</p>
+
+<p>
+This function implicitly returns a shadowed return value and will be rejected by the compiler:
+</p>
+
+<pre>
+    func Bug() (i, j, k int) {
+        for i = 0; i < 5; i++ {
+            for j := 0; j < 5; j++ { // Redeclares j.
+                k += i*j
+                if k > 100 {
+                    return // Rejected: j is shadowed here.
+                }
+            }
+        }
+        return // OK: j is not shadowed here.
+    }
+</pre>
+
+<p>
+<em>Updating</em>:
+Code that shadows return values in this way will be rejected by the compiler and will need to be fixed by hand.
+The few cases that arose in the standard repository were mostly bugs.
+</p>
+
+<h3 id="unexported">Copying structs with unexported fields</h3>
+
 <h3 id="equality">Equality of structs and arrays</h3>
+
+<p>
+Go 1 defines equality and inequality (<code>==</code> and
+<code>!=</code>) for struct and array values, respectively, provided
+the elements of the data structures can themselves be compared.
+That is, if equality is defined for all the fields of a struct (or
+an array element), then it is defined for the struct (or array).
+</p>
+
+<p>
+As a result, structs and arrays can now be used as map keys:
+</p>
+
+{{code "progs/go1.go" `/type Day struct/` `/Printf/`}}
+
+<p>
+Note that equality is still undefined for slices, for which the
+calculation is in general infeasible.  Also note that the ordered
+comparison operators (<code>&lt;</code> <code>&lt;=</code>
+<code>&gt;</code> <code>&gt;=</code>) are still undefined for
+structs and arrays.
+
+<p>
+<em>Updating</em>:
+This is a new feature, so existing code needs no changes.
+</p>
+
+<h3 id="funcs">Function and map equality</h3>
+
+<p>
+Go 1 disallows checking for equality of functions and maps,
+respectively, except to compare them directly to <code>nil</code>.
+</p>
+
+<p>
+<em>Updating</em>:
+Existing code that depends on function or map equality will be
+rejected by the compiler and will need to be fixed by hand.
+Few programs will be affected, but the fix may require some
+redesign.
+</p>
 
 <h2 id="library">Changes to the library</h2>
 
