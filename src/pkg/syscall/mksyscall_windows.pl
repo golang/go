@@ -263,7 +263,7 @@ while(<>) {
 		} elsif($rettype eq "error") {
 			# Set $reg to "error" only if returned value indicate failure
 			$body .= "\tif $reg != 0 {\n";
-			$body .= "\t\t$name = Errno($reg)\n";
+			$body .= "\t\t$name = ${syscalldot}Errno($reg)\n";
 			$body .= "\t}\n";
 		} else {
 			$body .= "\t$name = $rettype($reg)\n";
