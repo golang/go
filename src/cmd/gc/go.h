@@ -828,8 +828,6 @@ EXTERN	int	funcdepth;
 EXTERN	int	typecheckok;
 EXTERN	int	compiling_runtime;
 
-EXTERN	int	rune32;
-
 /*
  *	y.tab.c
  */

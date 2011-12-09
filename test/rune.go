@@ -14,8 +14,9 @@ var (
 	r4 = 'a'/2
 	r5 = 'a'<<1
 	r6 = 'b'<<2
+	r7 int32
 
-	r = []rune{r0, r1, r2, r3, r4, r5, r6}
+	r = []rune{r0, r1, r2, r3, r4, r5, r6, r7}
 )
 
 var (

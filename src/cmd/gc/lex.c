@@ -37,7 +37,7 @@ static struct {
 	char *name;
 	int *val;
 } exper[] = {
-	{"rune32", &rune32},
+//	{"rune32", &rune32},
 };
 
 static void
@@ -1842,10 +1842,7 @@ lexinit1(void)
 	// rune alias
 	s = lookup("rune");
 	s->lexical = LNAME;
-	if(rune32)
-		runetype = typ(TINT32);
-	else
-		runetype = typ(TINT);
+	runetype = typ(TINT32);
 	runetype->sym = s;
 	s1 = pkglookup("rune", builtinpkg);
 	s1->lexical = LNAME;
