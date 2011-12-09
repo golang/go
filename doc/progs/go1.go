@@ -6,7 +6,10 @@
 
 package main
 
-import "log"
+import (
+	"log"
+	"unicode"
+)
 
 func main() {
 	stringAppend()
@@ -14,6 +17,8 @@ func main() {
 	mapIteration()
 	multipleAssignment()
 	structEquality()
+	compositeLiterals()
+	runeType()
 }
 
 func mapDelete() {
@@ -78,6 +83,51 @@ func structEquality() {
 	//		Thanksgiving: true,
 	//	}
 	//	fmt.Printf("Christmas is a holiday: %t\n", holiday[Christmas])
+}
+
+func compositeLiterals() {
+	type Date struct {
+		month string
+		day   int
+	}
+	// Struct values, fully qualified; always legal.
+	holiday1 := []Date{
+		Date{"Feb", 14},
+		Date{"Nov", 11},
+		Date{"Dec", 25},
+	}
+	// Struct values, type name elided; always legal.
+	holiday2 := []Date{
+		{"Feb", 14},
+		{"Nov", 11},
+		{"Dec", 25},
+	}
+	// Pointers, fully qualified, always legal.
+	holiday3 := []*Date{
+		&Date{"Feb", 14},
+		&Date{"Nov", 11},
+		&Date{"Dec", 25},
+	}
+	// Pointers, type name elided; legal in Go 1.
+	holiday4 := []*Date{
+		{"Feb", 14},
+		{"Nov", 11},
+		{"Dec", 25},
+	}
+	// STOP OMIT
+	_, _, _, _ = holiday1, holiday2, holiday3, holiday4
+}
+
+func runeType() {
+	// STARTRUNE OMIT
+	delta := 'δ' // delta has type rune.
+	var DELTA rune
+	DELTA = unicode.ToUpper(delta)
+	epsilon := unicode.ToLower(DELTA + 1)
+	if epsilon != 'δ'+1 {
+		log.Fatal("inconsistent casing for Greek")
+	}
+	// ENDRUNE OMIT
 }
 
 func f(string, int) {
