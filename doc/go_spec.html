@@ -3408,7 +3408,7 @@ untyped complex constant yields an untyped complex constant.
 
 <p>
 A constant <a href="#Comparison_operators">comparison</a> always yields
-a constant of type <code>bool</code>. If the left operand of a constant
+an untyped boolean constant. If the left operand of a constant
 <a href="#Operators">shift expression</a> is an untyped constant, the
 result is an integer constant; otherwise it is a constant of the same
 type as the left operand, which must be of integer type
@@ -3427,8 +3427,11 @@ const d = 1 &lt;&lt; 3.0         // d == 8     (untyped integer constant)
 const e = 1.0 &lt;&lt; 3         // e == 8     (untyped integer constant)
 const f = int32(1) &lt;&lt; 33   // f == 0     (type int32)
 const g = float64(2) &gt;&gt; 1  // illegal    (float64(2) is a typed floating-point constant)
-const h = "foo" &gt; "bar"    // h == true  (type bool)
-const j = 'w' + 1          // j == 'x'   (untyped character constant)
+const h = "foo" &gt; "bar"    // h == true  (untyped boolean constant)
+const j = true             // j == true  (untyped boolean constant)
+const k = 'w' + 1          // k == 'x'   (untyped character constant)
+const l = "hi"             // l == "hi"  (untyped string constant)
+const m = string(k)        // m == "x"   (type string)
 const Σ = 1 - 0.707        //            (untyped complex constant)
 const Δ = Σ + 2.0e-4       //            (untyped complex constant)
 const Φ = iota*1i - 1/1i   //            (untyped complex constant)
