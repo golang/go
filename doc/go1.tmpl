@@ -81,6 +81,22 @@ now reject such code.
 
 <h3 id="literals">Composite literals</h3>
 
+<p>
+In Go 1, a composite literal of array, slice, or map type can elide the
+type specification for the elements' initializers if they are of pointer type.
+All four of the initializations in this example are legal; the last one was illegal before Go 1.
+</p>
+
+{{code "progs/go1.go" `/type Date struct/` `/STOP/`}}
+
+<p>
+<em>Updating</em>:
+This change has no effect on existing code, but the command
+<code>gofmt</code> <code>-s</code> applied to existing source
+will, among other things, elide explicit element types wherever permitted.
+</p>
+
+
 <h3 id="init">Goroutines during init</h3>
 
 <p>
@@ -102,6 +118,54 @@ There was no such code in the standard repository.
 
 <h3 id="rune">The rune type</h3>
 
+<p>
+Go 1 introduces a new basic type, <code>rune</code>, to be used to represent
+individual Unicode code points.
+It is an alias for <code>int32</code>, analogous to <code>byte</code>
+as an alias for <code>uint8</code>.
+</p>
+
+<p>
+Character literals such as <code>'a'</code>, <code>'語'</code>, and <code>'\u0345'</code>
+now have default type <code>rune</code>,
+analogous to <code>1.0</code> having default type <code>float64</code>.
+A variable initialized to a character constant will therefore
+have type <code>rune</code> unless otherwise specified.
+</p>
+
+<p>
+Libraries have been updated to use <code>rune</code> rather than <code>int</code>
+when appropriate. For instance, the functions <code>unicode.ToLower</code> and
+relatives now take and return a <code>rune</code>.
+</p>
+
+{{code "progs/go1.go" `/STARTRUNE/` `/ENDRUNE/`}}
+
+<p>
+<em>Updating</em>:
+Most source code will be unaffected by this because the type inference from
+<code>:=</code> initializers introduces the new type silently, and it propagates
+from there.
+Some code may get type errors that a trivial conversion will resolve.
+</p>
+
+<h3 id="error">The error type</h3>
+
+<p>
+Go 1 introduces a new built-in type, <code>error</code>, which has the following definition:
+</p>
+
+<pre>
+    type error interface {
+        Error() string
+    }
+</pre>
+
+<p>
+Since the consequences of this type are all in the package library,
+it is discussed <a href="errors">below</a>.
+</p>
+
 <h3 id="delete">Deleting from maps</h3>
 
 <p>
@@ -109,7 +173,7 @@ The original syntax for deleting an element in a map was:
 </p>
 
 <pre>
-    m[x] = ignored, false
+    m[k] = ignored, false
 </pre>
 
 <p>
@@ -174,6 +238,7 @@ These examples illustrate the behavior.
 
 {{code "progs/go1.go" `/sa :=/` `/then sc.0. = 2/`}}
 
+<p>
 <em>Updating</em>:
 This is one change where tools cannot help, but breakage is unlikely.
 No code in the standard repository was broken by this change, and code
@@ -215,6 +280,54 @@ The few cases that arose in the standard repository were mostly bugs.
 </p>
 
 <h3 id="unexported">Copying structs with unexported fields</h3>
+
+<p>
+Go 1 relaxes the rules about accessing structs with unexported (lower-case) fields,
+permitting a client package to assign (and therefore copy) such a struct.
+Of course, the client package still cannot access such fields individually.
+</p>
+
+<p>
+As an example, if package <code>p</code> includes the definitions,
+</p>
+
+<pre>
+    type Struct struct {
+        Public int
+        secret int
+    }
+    func NewStruct(a int) Struct {  // Note: not a pointer.
+        return Struct{a, f(a)}
+    }
+    func (s Struct) String() string {
+        return fmt.Sprintf("{%d (secret %d)}", s.Public, s.secret)
+    }
+</pre>
+
+<p>
+a package that imports <code>p</code> can assign and copy values of type
+<code>p.Struct</code> at will.
+Behind the scenes the unexported fields will be assigned and copied just
+as if they were exported,
+but the client code will never be aware of them. The code
+</p>
+
+<pre>
+    import "p"
+
+    myStruct := p.NewStruct(23)
+    copyOfMyStruct := myStruct
+    fmt.Println(myStruct, copyOfMyStruct)
+</pre>
+
+<p>
+will show that the secret field of the struct has been copied to the new value.
+</p>
+
+<p>
+<em>Updating</em>:
+This is a new feature, so existing code needs no changes.
+</p>
 
 <h3 id="equality">Equality of structs and arrays</h3>
 
