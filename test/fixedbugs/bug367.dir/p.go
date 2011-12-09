@@ -3,14 +3,13 @@ package p
 type T struct{ x int }
 type S struct{}
 
-func (p *S) get() T {
-	return T{0}
+func (p *S) get() {
 }
 
 type I interface {
-	get() T
+	get()
 }
 
 func F(i I) {
-	_ = i.get()
+	i.get()
 }
