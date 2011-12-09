@@ -3458,7 +3458,7 @@ an untyped complex constant.
 </p>
 
 <pre>
-const ic = complex(0, c)   // iΓ == 3.75i (untyped complex constant)
+const ic = complex(0, c)   // ic == 3.75i (untyped complex constant)
 const iΘ = complex(0, Θ)   // iΘ == 1.5i  (type complex128)
 </pre>
 
@@ -5200,7 +5200,7 @@ Execution errors such as attempting to index an array out
 of bounds trigger a <i>run-time panic</i> equivalent to a call of
 the built-in function <a href="#Handling_panics"><code>panic</code></a>
 with a value of the implementation-defined interface type <code>runtime.Error</code>.
-That type satisfies the predeclared interface type 
+That type satisfies the predeclared interface type
 <a href="#Errors"><code>error</code></a>.
 The exact error values that
 represent distinct run-time error conditions are unspecified.
