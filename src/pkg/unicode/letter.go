@@ -7,10 +7,10 @@
 package unicode
 
 const (
-	MaxRune         = 0x10FFFF // Maximum valid Unicode code point.
-	ReplacementChar = 0xFFFD   // Represents invalid code points.
-	MaxASCII        = 0x7F     // maximum ASCII value.
-	MaxLatin1       = 0xFF     // maximum Latin-1 value.
+	MaxRune         = '\U0010FFFF' // Maximum valid Unicode code point.
+	ReplacementChar = '\uFFFD'     // Represents invalid code points.
+	MaxASCII        = '\u007F'     // maximum ASCII value.
+	MaxLatin1       = '\u00FF'     // maximum Latin-1 value.
 )
 
 // RangeTable defines a set of Unicode code points by listing the ranges of

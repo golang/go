@@ -78,7 +78,7 @@ func unescapeEntity(b []byte, dst, src int, attribute bool) (dst1, src1 int) {
 			i++
 		}
 
-		x := rune(0)
+		x := '\x00'
 		for i < len(s) {
 			c = s[i]
 			i++

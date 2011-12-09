@@ -642,7 +642,7 @@ func equal(m string, s1, s2 string, t *testing.T) bool {
 
 func TestCaseConsistency(t *testing.T) {
 	// Make a string of all the runes.
-	numRunes := unicode.MaxRune + 1
+	numRunes := int(unicode.MaxRune + 1)
 	if testing.Short() {
 		numRunes = 1000
 	}

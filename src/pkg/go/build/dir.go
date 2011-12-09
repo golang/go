@@ -466,7 +466,7 @@ func splitQuoted(s string) (r []string, err error) {
 	arg := make([]rune, len(s))
 	escaped := false
 	quoted := false
-	quote := rune(0)
+	quote := '\x00'
 	i := 0
 	for _, rune := range s {
 		switch {
@@ -475,9 +475,9 @@ func splitQuoted(s string) (r []string, err error) {
 		case rune == '\\':
 			escaped = true
 			continue
-		case quote != 0:
+		case quote != '\x00':
 			if rune == quote {
-				quote = 0
+				quote = '\x00'
 				continue
 			}
 		case rune == '"' || rune == '\'':
