@@ -193,7 +193,7 @@ func (f Func) String() string {
 var vars map[string]Var = make(map[string]Var)
 var mutex sync.Mutex
 
-// Publish declares an named exported variable. This should be called from a
+// Publish declares a named exported variable. This should be called from a
 // package's init function when it creates its Vars. If the name is already
 // registered then this will log.Panic.
 func Publish(name string, v Var) {
