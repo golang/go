@@ -261,7 +261,7 @@ func (w *response) Header() Header {
 }
 
 // maxPostHandlerReadBytes is the max number of Request.Body bytes not
-// consumed by a handler that the server will read from the a client
+// consumed by a handler that the server will read from the client
 // in order to keep a connection alive.  If there are more bytes than
 // this then the server to be paranoid instead sends a "Connection:
 // close" response.
