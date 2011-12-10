@@ -655,6 +655,17 @@ func TestDaysIn(t *testing.T) {
 	}
 }
 
+func TestAddToExactSecond(t *testing.T) {
+	// Add an amount to the current time to round it up to the next exact second.
+	// This test checks that the nsec field still lies within the range [0, 999999999].
+	t1 := Now()
+	t2 := t1.Add(Second - Duration(t1.Nanosecond()))
+	sec := (t1.Second() + 1) % 60
+	if t2.Second() != sec || t2.Nanosecond() != 0 {
+		t.Errorf("sec = %d, nsec = %d, want sec = %d, nsec = 0", t2.Second(), t2.Nanosecond(), sec)
+	}
+}
+
 func BenchmarkNow(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Now()

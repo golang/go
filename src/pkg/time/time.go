@@ -548,7 +548,7 @@ func (d Duration) Hours() float64 {
 func (t Time) Add(d Duration) Time {
 	t.sec += int64(d / 1e9)
 	t.nsec += int32(d % 1e9)
-	if t.nsec > 1e9 {
+	if t.nsec >= 1e9 {
 		t.sec++
 		t.nsec -= 1e9
 	} else if t.nsec < 0 {
