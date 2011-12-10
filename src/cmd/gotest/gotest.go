@@ -114,13 +114,6 @@ func Fatalf(s string, args ...interface{}) {
 	os.Exit(2)
 }
 
-// theChar is the map from architecture to object character.
-var theChar = map[string]string{
-	"arm":   "5",
-	"amd64": "6",
-	"386":   "8",
-}
-
 // addEnv adds a name=value pair to the environment passed to subcommands.
 // If the item is already in the environment, addEnv replaces the value.
 func addEnv(name, value string) {
@@ -143,9 +136,10 @@ func setEnvironment() {
 		GOARCH = runtime.GOARCH
 	}
 	addEnv("GOARCH", GOARCH)
-	O = theChar[GOARCH]
-	if O == "" {
-		Fatalf("unknown architecture %s", GOARCH)
+	var err error
+	O, err = build.ArchChar(GOARCH)
+	if err != nil {
+		Fatalf("unknown architecture: %s", err)
 	}
 
 	// Commands and their flags.
