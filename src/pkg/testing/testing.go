@@ -75,7 +75,7 @@ func Short() bool {
 	return *short
 }
 
-// decorate inserts the a final newline if needed and indentation tabs for formatting.
+// decorate inserts the final newline if needed and indentation tabs for formatting.
 // If addFileLine is true, it also prefixes the string with the file and line of the call site.
 func decorate(s string, addFileLine bool) string {
 	if addFileLine {
