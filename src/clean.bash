@@ -22,6 +22,8 @@ rm -f "$GOROOT"/lib/*.a
 for i in lib9 libbio libmach cmd pkg \
 	../misc/cgo/gmp ../misc/cgo/stdio \
 	../misc/cgo/life ../misc/cgo/test \
+	../misc/dashboard/builder ../misc/goplay\
+	../doc/codelab/wiki\
 	../test/bench ../test/garbage
 do
 	# Do not use gomake here. It may not be available.

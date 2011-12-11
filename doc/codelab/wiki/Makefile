@@ -8,7 +8,7 @@ all: index.html
 
 include ../../../src/Make.common
 
-CLEANFILES+=index.html srcextract.bin htmlify.bin get.bin
+CLEANFILES+=srcextract.bin htmlify.bin get.bin
 
 index.html: wiki.html srcextract.bin htmlify.bin
 	PATH=.:$$PATH awk '/^!/{system(substr($$0,2)); next} {print}' < wiki.html | tr -d '\r' > index.html
