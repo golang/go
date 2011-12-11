@@ -20,13 +20,13 @@ GOFILES=\
 	error.go\
 	extern.go\
 	mem.go\
+	runtime_defs.go\
 	sig.go\
 	softfloat64.go\
 	type.go\
 	version.go\
 	version_$(GOOS).go\
 	version_$(GOARCH).go\
-	runtime_defs.go\
 
 CLEANFILES+=version.go version_*.go
 
@@ -69,9 +69,9 @@ OFILES=\
 	cgocall.$O\
 	chan.$O\
 	closure.$O\
+	complex.$O\
 	cpuprof.$O\
 	float.$O\
-	complex.$O\
 	hashmap.$O\
 	iface.$O\
 	malloc.$O\
@@ -87,10 +87,10 @@ OFILES=\
 	msize.$O\
 	print.$O\
 	proc.$O\
+	rt0.$O\
 	rune.$O\
 	runtime.$O\
 	runtime1.$O\
-	rt0.$O\
 	sema.$O\
 	signal.$O\
 	sigqueue.$O\
