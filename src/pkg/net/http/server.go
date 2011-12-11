@@ -1027,7 +1027,7 @@ func (srv *Server) Serve(l net.Listener) error {
 //		http.HandleFunc("/hello", HelloServer)
 //		err := http.ListenAndServe(":12345", nil)
 //		if err != nil {
-//			log.Fatal("ListenAndServe: ", err.Error())
+//			log.Fatal("ListenAndServe: ", err)
 //		}
 //	}
 func ListenAndServe(addr string, handler Handler) error {
