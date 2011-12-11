@@ -177,7 +177,7 @@ func loadTestData() {
 				}
 				if test.r == 0 {
 					// save for CharacterByCharacterTests
-					test.r = int(r)
+					test.r = rune(r)
 				}
 				var buf [utf8.UTFMax]byte
 				sz := utf8.EncodeRune(buf[:], rune(r))
@@ -242,9 +242,9 @@ func doConformanceTests(t *Test, partn int) {
 
 func CharacterByCharacterTests() {
 	tests := part[1].tests
-	last := 0
+	var last rune = 0
 	for i := 0; i <= len(tests); i++ { // last one is special case
-		var r int
+		var r rune
 		if i == len(tests) {
 			r = 0x2FA1E // Don't have to go to 0x10FFFF
 		} else {
