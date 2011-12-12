@@ -4,6 +4,9 @@
 
 package time
 
+// Sleep pauses the current goroutine for the duration d.
+func Sleep(d Duration)
+
 func nano() int64 {
 	sec, nsec := now()
 	return sec*1e9 + int64(nsec)

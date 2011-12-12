@@ -97,6 +97,18 @@ runtime·nanotime(void)
 	return (int64)hi<<32 | (int64)lo;
 }
 
+void
+time·now(int64 sec, int32 nsec)
+{
+	int64 ns;
+
+	ns = runtime·nanotime();
+	sec = ns / 1000000000LL;
+	nsec = ns - sec * 1000000000LL;
+	FLUSH(&sec);
+	FLUSH(&nsec);
+}
+
 extern Tos *_tos;
 void
 runtime·exit(int32)
