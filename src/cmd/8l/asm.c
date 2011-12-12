@@ -42,6 +42,7 @@
 char linuxdynld[] = "/lib/ld-linux.so.2";
 char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
 char openbsddynld[] = "/usr/libexec/ld.so";
+char netbsddynld[] = "/usr/libexec/ld.elf_so";
 
 int32
 entryvalue(void)
@@ -969,6 +970,9 @@ asmb(void)
 				case Hfreebsd:
 					interpreter = freebsddynld;
 					break;
+				case Hnetbsd:
+					interpreter = netbsddynld;
+					break;
 				case Hopenbsd:
 					interpreter = openbsddynld;
 					break;
@@ -1139,6 +1143,9 @@ asmb(void)
 		switch(HEADTYPE) {
 		case Hfreebsd:
 			eh->ident[EI_OSABI] = ELFOSABI_FREEBSD;
+			break;
+		case Hnetbsd:
+			eh->ident[EI_OSABI] = ELFOSABI_NETBSD;
 			break;
 		case Hopenbsd:
 			eh->ident[EI_OSABI] = ELFOSABI_OPENBSD;

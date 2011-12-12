@@ -47,18 +47,19 @@ char	*noname		= "<none>";
 char	*thestring 	= "386";
 
 Header headers[] = {
-   "garbunix", Hgarbunix,
-   "unixcoff", Hunixcoff,
-   "plan9", Hplan9x32,
-   "msdoscom", Hmsdoscom,
-   "msdosexe", Hmsdosexe,
-   "darwin", Hdarwin,
-   "linux", Hlinux,
-   "freebsd", Hfreebsd,
-   "openbsd", Hopenbsd,
-   "windows", Hwindows,
-   "windowsgui", Hwindows,
-   0, 0
+	"garbunix", Hgarbunix,
+	"unixcoff", Hunixcoff,
+	"plan9", Hplan9x32,
+	"msdoscom", Hmsdoscom,
+	"msdosexe", Hmsdosexe,
+	"darwin", Hdarwin,
+	"linux", Hlinux,
+	"freebsd", Hfreebsd,
+	"netbsd", Hnetbsd,
+	"openbsd", Hopenbsd,
+	"windows", Hwindows,
+	"windowsgui", Hwindows,
+	0, 0
 };
 
 /*
@@ -70,6 +71,7 @@ Header headers[] = {
  *	-Hdarwin -Tx -Rx			is Apple Mach-O
  *	-Hlinux -Tx -Rx				is Linux ELF32
  *	-Hfreebsd -Tx -Rx			is FreeBSD ELF32
+ *	-Hnetbsd -Tx -Rx			is NetBSD ELF32
  *	-Hopenbsd -Tx -Rx			is OpenBSD ELF32
  *	-Hwindows -Tx -Rx			is MS Windows PE32
  */
@@ -225,6 +227,7 @@ main(int argc, char *argv[])
 		break;
 	case Hlinux:	/* elf32 executable */
 	case Hfreebsd:
+	case Hnetbsd:
 	case Hopenbsd:
 		/*
 		 * ELF uses TLS offsets negative from %gs.

@@ -44,6 +44,7 @@
 char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
 char freebsddynld[] = "/libexec/ld-elf.so.1";
 char openbsddynld[] = "/usr/libexec/ld.so";
+char netbsddynld[] = "/libexec/ld.elf_so";
 
 char	zeroes[32];
 
@@ -95,6 +96,7 @@ enum {
 	ElfStrPlt,
 	ElfStrGnuVersion,
 	ElfStrGnuVersionR,
+	ElfStrNoteNetbsdIdent,
 	NElfStr
 };
 
@@ -558,7 +560,7 @@ doelf(void)
 {
 	Sym *s, *shstrtab, *dynstr;
 
-	if(HEADTYPE != Hlinux && HEADTYPE != Hfreebsd && HEADTYPE != Hopenbsd)
+	if(HEADTYPE != Hlinux && HEADTYPE != Hfreebsd && HEADTYPE != Hopenbsd && HEADTYPE != Hnetbsd)
 		return;
 
 	/* predefine strings we need for section headers */
@@ -570,6 +572,8 @@ doelf(void)
 	elfstr[ElfStrText] = addstring(shstrtab, ".text");
 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
+	if(HEADTYPE == Hnetbsd)
+		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
 	addstring(shstrtab, ".elfdata");
 	addstring(shstrtab, ".rodata");
 	addstring(shstrtab, ".gosymtab");
@@ -763,6 +767,7 @@ asmb(void)
 		break;
 	case Hlinux:
 	case Hfreebsd:
+	case Hnetbsd:
 	case Hopenbsd:
 		debug['8'] = 1;	/* 64-bit addresses */
 		/* index of elf text section; needed by asmelfsym, double-checked below */
@@ -798,6 +803,7 @@ asmb(void)
 			break;
 		case Hlinux:
 		case Hfreebsd:
+		case Hnetbsd:
 		case Hopenbsd:
 			symo = rnd(HEADR+segtext.len, INITRND)+segdata.filelen;
 			symo = rnd(symo, INITRND);
@@ -867,6 +873,7 @@ asmb(void)
 		break;
 	case Hlinux:
 	case Hfreebsd:
+	case Hnetbsd:
 	case Hopenbsd:
 		/* elf amd-64 */
 
@@ -909,6 +916,9 @@ asmb(void)
 					break;
 				case Hfreebsd:
 					interpreter = freebsddynld;
+					break;
+				case Hnetbsd:
+					interpreter = netbsddynld;
 					break;
 				case Hopenbsd:
 					interpreter = openbsddynld;
@@ -1076,6 +1086,8 @@ asmb(void)
 		eh->ident[EI_MAG3] = 'F';
 		if(HEADTYPE == Hfreebsd)
 			eh->ident[EI_OSABI] = ELFOSABI_FREEBSD;
+		else if(HEADTYPE == Hnetbsd)
+			eh->ident[EI_OSABI] = ELFOSABI_NETBSD;
 		else if(HEADTYPE == Hopenbsd)
 			eh->ident[EI_OSABI] = ELFOSABI_OPENBSD;
 		eh->ident[EI_CLASS] = ELFCLASS64;

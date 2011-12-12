@@ -31,6 +31,8 @@ Options new in this version:
 	Write Linux ELF binaries (default when $GOOS is linux)
 -Hfreebsd
 	Write FreeBSD ELF binaries (default when $GOOS is freebsd)
+-Hnetbsd
+	Write NetBSD ELF binaries (default when $GOOS is netbsd)
 -Hopenbsd
 	Write OpenBSD ELF binaries (default when $GOOS is openbsd)
 -Hwindows
