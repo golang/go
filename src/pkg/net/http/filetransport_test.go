@@ -7,6 +7,7 @@ package http_test
 import (
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -28,6 +29,8 @@ func TestFileTransport(t *testing.T) {
 	fname := filepath.Join(dname, "foo.txt")
 	err = ioutil.WriteFile(fname, []byte("Bar"), 0644)
 	check("WriteFile", err)
+	defer os.Remove(dname)
+	defer os.Remove(fname)
 
 	tr := &http.Transport{}
 	tr.RegisterProtocol("file", http.NewFileTransport(http.Dir(dname)))
