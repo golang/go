@@ -28,6 +28,7 @@
 #define SYS_futex (SYS_BASE + 240)
 #define SYS_exit_group (SYS_BASE + 248)
 #define SYS_munmap (SYS_BASE + 91)
+#define SYS_madvise (SYS_BASE + 220)
 #define SYS_setitimer (SYS_BASE + 104)
 #define SYS_mincore (SYS_BASE + 219)
 #define SYS_gettid (SYS_BASE + 224)
@@ -108,6 +109,14 @@ TEXT runtime·munmap(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	$SYS_munmap, R7
+	SWI	$0
+	RET
+
+TEXT runtime·madvise(SB),7,$0
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
+	MOVW	$SYS_madvise, R7
 	SWI	$0
 	RET
 

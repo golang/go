@@ -12,6 +12,8 @@ enum {
 	MAP_PRIVATE	= 0x2,
 	MAP_FIXED	= 0x10,
 
+	MADV_DONTNEED	= 0x4,
+
 	SA_RESTART	= 0x10000000,
 	SA_ONSTACK	= 0x8000000,
 	SA_RESTORER	= 0x4000000,
@@ -95,7 +97,7 @@ struct Siginfo {
 	int32	si_signo;
 	int32	si_errno;
 	int32	si_code;
-	byte	Pad_godefs_0[4];
+	byte	Pad_cgo_0[4];
 	byte	_sifields[112];
 };
 struct Itimerval {
@@ -181,7 +183,7 @@ struct Fpreg1 {
 struct Sigaltstack {
 	byte	*ss_sp;
 	int32	ss_flags;
-	byte	Pad_godefs_0[4];
+	byte	Pad_cgo_0[4];
 	uint64	ss_size;
 };
 struct Mcontext {

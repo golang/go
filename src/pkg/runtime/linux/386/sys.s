@@ -212,6 +212,17 @@ TEXT runtime·munmap(SB),7,$0
 	INT $3
 	RET
 
+TEXT runtime·madvise(SB),7,$0
+	MOVL	$219, AX	// madvise
+	MOVL	4(SP), BX
+	MOVL	8(SP), CX
+	MOVL	12(SP), DX
+	CALL	*runtime·_vdso(SB)
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	INT $3
+	RET
+
 // int32 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
 TEXT runtime·futex(SB),7,$0
