@@ -38,6 +38,7 @@ static struct {
 	int *val;
 } exper[] = {
 //	{"rune32", &rune32},
+	{nil, nil},
 };
 
 static void
@@ -45,7 +46,7 @@ addexp(char *s)
 {
 	int i;
 	
-	for(i=0; i<nelem(exper); i++) {
+	for(i=0; exper[i].name != nil; i++) {
 		if(strcmp(exper[i].name, s) == 0) {
 			*exper[i].val = 1;
 			return;
@@ -75,7 +76,7 @@ expstring(void)
 	static char buf[512];
 
 	strcpy(buf, "X");
-	for(i=0; i<nelem(exper); i++)
+	for(i=0; exper[i].name != nil; i++)
 		if(*exper[i].val)
 			seprint(buf+strlen(buf), buf+sizeof buf, ",%s", exper[i].name);
 	if(strlen(buf) == 1)
