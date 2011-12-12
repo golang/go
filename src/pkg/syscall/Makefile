@@ -45,6 +45,17 @@ GOFILES_linux=\
 	sockcmsg_unix.go\
 	syscall_unix.go\
 
+GOFILES_netbsd=\
+	bpf_bsd.go\
+	env_unix.go\
+	exec_unix.go\
+	route_bsd.go\
+	route_netbsd.go\
+	sockcmsg_unix.go\
+	syscall_bsd.go\
+	syscall_unix.go\
+	zsysctl_netbsd.go\
+
 GOFILES_openbsd=\
 	bpf_bsd.go\
 	env_unix.go\

@@ -29,6 +29,7 @@ endif
 install: install-$(NAME)
 install-linux: install-default
 install-freebsd: install-default
+install-netbsd: install-default
 install-openbsd: install-default
 install-windows: install-default
 

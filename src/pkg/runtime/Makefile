@@ -39,6 +39,9 @@ OFILES_freebsd=\
 OFILES_linux=\
 	lock_futex.$O\
 
+OFILES_netbsd=\
+	lock_sema.$O\
+
 OFILES_openbsd=\
 	lock_sema.$O\
 

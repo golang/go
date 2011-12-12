@@ -26,6 +26,7 @@ endif
 
 GOFILES_freebsd+=root_unix.go
 GOFILES_linux+=root_unix.go
+GOFILES_netbsd+=root_unix.go
 GOFILES_openbsd+=root_unix.go
 GOFILES_plan9+=root_stub.go
 GOFILES_windows+=root_windows.go

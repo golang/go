@@ -104,6 +104,27 @@ else
 GOFILES_linux+=cgo_stub.go
 endif
 
+GOFILES_netbsd=\
+	dnsclient_unix.go\
+	dnsconfig.go\
+	fd.go\
+	fd_$(GOOS).go\
+	file.go\
+	interface_bsd.go\
+	interface_openbsd.go\
+	iprawsock_posix.go\
+	ipsock_posix.go\
+	lookup_unix.go\
+	newpollserver.go\
+	port.go\
+	sendfile_stub.go\
+	sock.go\
+	sock_bsd.go\
+	tcpsock_posix.go\
+	udpsock_posix.go\
+	unixsock_posix.go\
+	cgo_stub.go\
+
 GOFILES_openbsd=\
 	dnsclient_unix.go\
 	dnsconfig.go\
