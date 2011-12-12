@@ -134,6 +134,7 @@ func (db *DB) maxIdleConns() int {
 func (db *DB) conn() (driver.Conn, error) {
 	db.mu.Lock()
 	if db.closed {
+		db.mu.Unlock()
 		return nil, errors.New("sql: database is closed")
 	}
 	if n := len(db.freeConn); n > 0 {
