@@ -7,6 +7,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"unicode"
 )
@@ -19,6 +21,7 @@ func main() {
 	structEquality()
 	compositeLiterals()
 	runeType()
+	errorExample()
 }
 
 func mapDelete() {
@@ -128,6 +131,29 @@ func runeType() {
 		log.Fatal("inconsistent casing for Greek")
 	}
 	// ENDRUNE OMIT
+}
+
+// START ERROR EXAMPLE OMIT
+type SyntaxError struct {
+	File    string
+	Line    int
+	Message string
+}
+
+func (se *SyntaxError) Error() string {
+	return fmt.Sprintf("%s:%d: %s", se.File, se.Line, se.Message)
+}
+// END ERROR EXAMPLE OMIT
+
+func errorExample() {
+	var ErrSyntax = errors.New("syntax error")
+	_ = ErrSyntax
+	se := &SyntaxError{"file", 7, "error"}
+	got := fmt.Sprint(se)
+	const expect = "file:7: error"
+	if got != expect {
+		log.Fatalf("errorsPackage: expected %q got %q", expect, got)
+	}
 }
 
 func f(string, int) {

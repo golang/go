@@ -217,7 +217,7 @@ Go 1 introduces a new built-in type, <code>error</code>, which has the following
 
 <p>
 Since the consequences of this type are all in the package library,
-it is discussed <a href="errors">below</a>.
+it is discussed <a href="#errors">below</a>.
 </p>
 
 <h3 id="delete">Deleting from maps</h3>
@@ -547,15 +547,73 @@ by hand.
 
 <h3 id="errors">The error type and errors package</h3>
 
+<p>
+As mentioned above, Go 1 introduces a new built-in interface type called <code>error</code>.
+Its intent is to replace the old <code>os.Error</code> type with a more central concept.
+So the widely-used <code>String</code> method does not cause accidental satisfaction
+of the <code>error</code> interface, the <code>error</code> interface uses instead
+the name <code>Error</code> for that method:
+</p>
+
+<pre>
+    type error interface {
+        Error() string
+    }
+</pre>
+
+<p>
+The <code>fmt</code> library automatically invokes <code>Error</code>, as it already
+does for <code>String</code>, for easy printing of error values.
+</p>
+
+<pre><!--{{code "progs/go1.go" `/START ERROR EXAMPLE/` `/END ERROR EXAMPLE/`}}
+-->type SyntaxError struct {
+    File    string
+    Line    int
+    Message string
+}
+
+func (se *SyntaxError) Error() string {
+    return fmt.Sprintf(&#34;%s:%d: %s&#34;, se.File, se.Line, se.Message)
+}
+</pre>
+
+<p>
+All standard packages have been updated to use the new interface; the old <code>os.Error</code> is gone.
+</p>
+
+<p>
+A new package, <a href="/pkg/errors/"><code>errors</code></a>, contains the function
+</p>
+
+<pre>
+func New(text string) error
+</pre>
+
+<p>
+to turn a string into an error. It replaces the old <code>os.NewError</code>.
+</p>
+
+<pre><!--{{code "progs/go1.go" `/ErrSyntax/`}}
+-->    var ErrSyntax = errors.New(&#34;syntax error&#34;)
+</pre>
+		
+<p>
+<em>Updating</em>:
+Gofix will update almost all code affected by the change.
+Code that defines error types with a <code>String</code> method will need to be updated
+by hand to rename the methods to <code>Error</code>.
+</p>
+
 <h3 id="errno">System call errors</h3>
 
 <p>
 In Go 1, the
-<a href="http://golang.org/pkg/syscall"><code>syscall</code></a>
+<a href="/pkg/syscall/"><code>syscall</code></a>
 package returns an <code>error</code> for system call errors,
 rather than plain integer <code>errno</code> values.
 On Unix, the implementation is done by a 
-<a href="http://golang.org/pkg/syscall/#Errno"><code>syscall.Errno</code></a> type
+<a href="/pkg/syscall/#Errno"><code>syscall.Errno</code></a> type
 that satisfies <code>error</code> and replaces the old <code>os.Errno</code>.
 </p>
 
@@ -568,15 +626,13 @@ rather than <code>syscall</code> and so will be unaffected.
 
 <h3 id="time">Time</h3>
 
-<h3 id="html">The html package</h3>
-
 <h3 id="http">The http package</h3>
 
 <h3 id="strconv">The strconv package</h3>
 
 <p>
 In Go 1, the
-<a href="http://golang.org/pkg/syscall"><code>strconv</code></a>
+<a href="/pkg/strconv/"><code>strconv</code></a>
 package has been significantly reworked to make it more Go-like and less C-like,
 although <code>Atoi</code> lives on (it's similar to
 <code>int(ParseInt(x, 10, 0))</code>, as does
@@ -587,7 +643,7 @@ return strings, to allow control over allocation.
 
 <p>
 This table summarizes the renamings; see the
-<a href="/pkg/strconv">package documentation</a>
+<a href="/pkg/strconv/">package documentation</a>
 for full details.
 </p>
 
@@ -666,33 +722,99 @@ they may require
 a cast that must be added by hand; gofix will warn about it.
 </p>
 
+<h3 id="os_fileinfo">The os.FileInfo type</h3>
+
 <h3 id="exp">The package tree exp</h3>
+
+<p>
+Because they are not standardized, the packages under the <code>exp</code> directory will not be available in the
+standard Go 1 release distributions, although they will be available in source code form
+in <a href="http://code.google.com/p/go/">the repository</a> for
+developers who wish to use them.
+</p>
+
+<p>
+Several packages have moved under <code>exp</code> at the time of Go 1's release:
+</p>
+
+<ul>
+<li><code>ebnf</code></li>
+<li><code>go/types</code></li>
+<li><code>http/spdy</code></li>
+</ul>
+
+<p>
+All these packages are available under the same names, with <code>exp/</code> prefixed: <code>exp/ebnf</code> etc.
+</p>
+
+<p>
+Also, the <code>gotype</code> command now resides in <code>exp/gotype</code>, while
+<code>ebnflint</code> is now in <code>exp/ebnflint</code>
+</p>
+
+<p>
+<em>Updating</em>:
+Code that uses packages in <code>exp</code> will need to be updated by hand,
+or else compiled from an installation that has <code>exp</code> available.
+Gofix will warn about such uses.
+<br>
+<font color="red">TODO: gofix should warn about such uses.</font>
+</p>
 
 <h3 id="old">The package tree old</h3>
 
+<p>
+Because they are deprecated, the packages under the <code>old</code> directory will not be available in the
+standard Go 1 release distributions, although they will be available in source code form for
+developers who wish to use them.
+</p>
+
+<p>
+The packages in their new locations are:
+</p>
+
+<ul>
+<li><code>old/netchan</code></li>
+<li><code>old/regexp</code></li>
+<li><code>old/template</code></li>
+</ul>
+
+<p>
+<em>Updating</em>:
+Code that uses packages now in <code>old</code> will need to be updated by hand,
+or else compiled from an installation that has <code>old</code> available.
+Gofix will warn about such uses.
+<br>
+<font color="red">TODO: gofix should warn about such uses.</font>
+</p>
+
 <h3 id="deleted">Deleted packages</h3>
 
-<!-- 
+<p>
+Go 1 deletes several packages outright:
+</p>
 
-moving to exp/* (and thus not in Go 1):
-	ebnf, command ebnflint
-	go/types, command gotype
-	http/spdy
-	
-deleted:
-	container/vector
-	exp/datafmt
-	go/typechecker
-	try, command gotry
+<ul>
+<li><code>container/vector</code></li>
+<li><code>exp/datafmt</code></li>
+<li><code>go/typechecker</code></li>
+<li><code>try</code></li>
+</ul>
 
-go/typechecker
-go/types
-ebnf (and cmd/ebnflint)
-container/vector
-try (and gotry)
-exp/datafmt
-netchan
--->
+<p>
+and also the command <code>gotry</code>.
+</p>
+
+<p>
+<em>Updating</em>:
+Code that uses <code>container/vector</code> should be updated to use
+slices directly.  See
+<a href="http://code.google.com/p/go-wiki/wiki/SliceTricks">the Go
+Language Community Wiki</a> for some suggestions.
+Code that uses the other packages (there should be almost zero) will need to be rethought.
+<br>
+<font color="red">TODO: gofix should warn such uses.</font>
+</p>
 
 <h3 id="subrepo">Packages moving to subrepositories</h3>
 
@@ -700,8 +822,6 @@ netchan
 crypto/openpgp to XXX
 maybe exp/ssh?
 -->
-
-<h3 id="os_fileinfo">The os.FileInfo type</h3>
 
 <h2 id="go_command">The go command</h2>
 
