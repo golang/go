@@ -319,7 +319,9 @@ Loop:
 				// For matches this long, we don't bother inserting each individual
 				// item into the table.
 				d.index += d.length
-				d.hash = (int(d.window[d.index])<<hashShift + int(d.window[d.index+1]))
+				if d.index < d.maxInsertIndex {
+					d.hash = (int(d.window[d.index])<<hashShift + int(d.window[d.index+1]))
+				}
 			}
 			if d.ti == maxFlateBlockTokens {
 				// The block includes the current character
