@@ -35,7 +35,6 @@ go_tutorial="
 	cat.go 
 	cat_rot13.go 
 	echo.go 
-	file.go
 	helloworld.go 
 	helloworld3.go 
 	print.go 
