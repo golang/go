@@ -17,6 +17,7 @@ package runtime
 /*
 #cgo CFLAGS: -I/home/rsc/pub/linux-2.6/arch/x86/include -I/home/rsc/pub/linux-2.6/include -D_LOOSE_KERNEL_NAMES -D__ARCH_SI_UID_T=__kernel_uid32_t
 
+#define size_t __kernel_size_t
 #include <asm/signal.h>
 #include <asm/mman.h>
 #include <asm/sigcontext.h>
@@ -46,6 +47,8 @@ const (
 	MAP_ANON    = C.MAP_ANONYMOUS
 	MAP_PRIVATE = C.MAP_PRIVATE
 	MAP_FIXED   = C.MAP_FIXED
+
+	MADV_DONTNEED = C.MADV_DONTNEED
 
 	SA_RESTART  = C.SA_RESTART
 	SA_ONSTACK  = C.SA_ONSTACK

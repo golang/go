@@ -192,6 +192,17 @@ TEXT runtime·munmap(SB),7,$0
 	CALL	runtime·notok(SB)
 	RET
 
+TEXT runtime·madvise(SB),7,$0
+	MOVQ	8(SP), DI
+	MOVQ	16(SP), SI
+	MOVQ	24(SP), DX
+	MOVQ	$28, AX	// madvise
+	SYSCALL
+	CMPQ	AX, $0xfffffffffffff001
+	JLS	2(PC)
+	CALL	runtime·notok(SB)
+	RET
+
 TEXT runtime·notok(SB),7,$0
 	MOVQ	$0xf1, BP
 	MOVQ	BP, (BP)
