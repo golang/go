@@ -8,7 +8,14 @@ TARG=tmpltohtml
 GOFILES=\
 	tmpltohtml.go\
 
-all: tmpltohtml go_tutorial.html effective_go.html go1.html articles/defer_panic_recover.html
+HTML=\
+	articles/defer_panic_recover.html\
+	articles/error_handling.html\
+	effective_go.html\
+	go1.html\
+	go_tutorial.html\
+
+all: tmpltohtml $(HTML)
 
 %.html: %.tmpl tmpltohtml
 	./makehtml $*.tmpl

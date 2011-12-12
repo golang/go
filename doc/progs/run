@@ -31,6 +31,13 @@ effective_go="
 	eff_sequence.go
 "
 
+error_handling="
+	error.go
+	error2.go
+	error3.go
+	error4.go
+"
+
 go_tutorial="
 	cat.go 
 	cat_rot13.go 
@@ -52,6 +59,7 @@ go_tutorial="
 for i in \
 	$defer_panic_recover \
 	$effective_go \
+	$error_handling \
 	$go_tutorial \
 	go1.go \
 ; do
