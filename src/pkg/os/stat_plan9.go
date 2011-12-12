@@ -4,87 +4,96 @@
 
 package os
 
-import "syscall"
+import (
+	"syscall"
+	"time"
+)
 
-func fileInfoFromStat(fi *FileInfo, d *Dir) *FileInfo {
-	fi.Dev = uint64(d.Qid.Vers) | uint64(d.Qid.Type<<32)
-	fi.Ino = d.Qid.Path
+func sameFile(fs1, fs2 *FileStat) bool {
+	a := fs1.Sys.(*Dir)
+	b := fs2.Sys.(*Dir)
+	return a.Qid.Path == b.Qid.Path && a.Type == b.Type && a.Dev == b.Dev
+}
 
-	fi.Mode = uint32(d.Mode) & 0777
-	if (d.Mode & syscall.DMDIR) == syscall.DMDIR {
-		fi.Mode |= syscall.S_IFDIR
-	} else {
-		fi.Mode |= syscall.S_IFREG
+func fileInfoFromStat(d *Dir) FileInfo {
+	fs := &FileStat{
+		name:    d.Name,
+		size:    int64(d.Length),
+		modTime: time.Unix(int64(d.Mtime), 0),
+		Sys:     d,
 	}
-
-	fi.Size = int64(d.Length)
-	fi.Atime_ns = 1e9 * int64(d.Atime)
-	fi.Mtime_ns = 1e9 * int64(d.Mtime)
-	fi.Name = d.Name
-	fi.FollowedSymlink = false
-	return fi
+	fs.mode = FileMode(d.Mode & 0777)
+	if d.Mode&syscall.DMDIR != 0 {
+		fs.mode |= ModeDir
+	}
+	if d.Mode&syscall.DMAPPEND != 0 {
+		fs.mode |= ModeAppend
+	}
+	if d.Mode&syscall.DMEXCL != 0 {
+		fs.mode |= ModeExclusive
+	}
+	if d.Mode&syscall.DMTMP != 0 {
+		fs.mode |= ModeTemporary
+	}
+	return fs
 }
 
 // arg is an open *File or a path string. 
 func dirstat(arg interface{}) (d *Dir, err error) {
 	var name string
-	nd := syscall.STATFIXLEN + 16*4
 
-	for i := 0; i < 2; i++ { /* should work by the second try */
-		buf := make([]byte, nd)
+	// This is big enough for most stat messages
+	// and rounded to a multiple of 128 bytes.
+	size := (syscall.STATFIXLEN + 16*4 + 128) &^ 128
+
+	for i := 0; i < 2; i++ {
+		buf := make([]byte, size)
 
 		var n int
-		var e error
-
-		switch syscallArg := arg.(type) {
+		switch a := arg.(type) {
 		case *File:
-			name = syscallArg.name
-			n, e = syscall.Fstat(syscallArg.fd, buf)
+			name = a.name
+			n, err = syscall.Fstat(a.fd, buf)
 		case string:
-			name = syscallArg
-			n, e = syscall.Stat(name, buf)
+			name = a
+			n, err = syscall.Stat(name, buf)
 		}
-
-		if e != nil {
-			return nil, &PathError{"stat", name, e}
+		if err != nil {
+			return nil, &PathError{"stat", name, err}
 		}
-
 		if n < syscall.STATFIXLEN {
 			return nil, &PathError{"stat", name, Eshortstat}
 		}
 
-		ntmp, _ := gbit16(buf)
-		nd = int(ntmp)
+		// Pull the real size out of the stat message.
+		s, _ := gbit16(buf)
+		size = int(s)
 
-		if nd <= n {
-			d, e := UnmarshalDir(buf[:n])
-
-			if e != nil {
-				return nil, &PathError{"stat", name, e}
+		// If the stat message is larger than our buffer we will
+		// go around the loop and allocate one that is big enough.
+		if size <= n {
+			d, err = UnmarshalDir(buf[:n])
+			if err != nil {
+				return nil, &PathError{"stat", name, err}
 			}
-			return d, e
+			return
 		}
 	}
-
 	return nil, &PathError{"stat", name, Ebadstat}
 }
 
 // Stat returns a FileInfo structure describing the named file and an error, if any.
-func Stat(name string) (fi *FileInfo, err error) {
+func Stat(name string) (FileInfo, error) {
 	d, err := dirstat(name)
 	if err != nil {
 		return nil, err
 	}
-	return fileInfoFromStat(new(FileInfo), d), err
+	return fileInfoFromStat(d), nil
 }
 
 // Lstat returns the FileInfo structure describing the named file and an
 // error, if any.  If the file is a symbolic link (though Plan 9 does not have symbolic links), 
 // the returned FileInfo describes the symbolic link.  Lstat makes no attempt to follow the link.
-func Lstat(name string) (fi *FileInfo, err error) {
-	d, err := dirstat(name)
-	if err != nil {
-		return nil, err
-	}
-	return fileInfoFromStat(new(FileInfo), d), err
+func Lstat(name string) (FileInfo, error) {
+	return Stat(name)
 }
