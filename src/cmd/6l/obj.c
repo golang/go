@@ -44,16 +44,17 @@ char*	thestring 	= "amd64";
 char*	paramspace	= "FP";
 
 Header headers[] = {
-   "plan9x32", Hplan9x32,
-   "plan9", Hplan9x64,
-   "elf", Helf,
-   "darwin", Hdarwin,
-   "linux", Hlinux,
-   "freebsd", Hfreebsd,
-   "openbsd", Hopenbsd,
-   "windows", Hwindows,
-   "windowsgui", Hwindows,
-   0, 0
+	"plan9x32", Hplan9x32,
+	"plan9", Hplan9x64,
+	"elf", Helf,
+	"darwin", Hdarwin,
+	"linux", Hlinux,
+	"freebsd", Hfreebsd,
+	"netbsd", Hnetbsd,
+	"openbsd", Hopenbsd,
+	"windows", Hwindows,
+	"windowsgui", Hwindows,
+	0, 0
 };
 
 /*
@@ -63,6 +64,7 @@ Header headers[] = {
  *	-Hdarwin -Tx -Rx		is apple MH-exec
  *	-Hlinux -Tx -Rx			is linux elf-exec
  *	-Hfreebsd -Tx -Rx		is FreeBSD elf-exec
+ *	-Hnetbsd -Tx -Rx		is NetBSD elf-exec
  *	-Hopenbsd -Tx -Rx		is OpenBSD elf-exec
  *	-Hwindows -Tx -Rx		is MS Windows PE32+
  *
@@ -197,6 +199,7 @@ main(int argc, char *argv[])
 		break;
 	case Hlinux:	/* elf64 executable */
 	case Hfreebsd:	/* freebsd */
+	case Hnetbsd:	/* netbsd */
 	case Hopenbsd:	/* openbsd */
 		/*
 		 * ELF uses TLS offset negative from FS.

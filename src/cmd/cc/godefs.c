@@ -124,11 +124,11 @@ Uconv(Fmt *fp)
 
 	if(s && *s) {
 		if(upper)
-			str[0] = toupper(*s);
+			str[0] = toupper((uchar)*s);
 		else
-			str[0] = tolower(*s);
+			str[0] = tolower((uchar)*s);
 		for(i = 1; i < STRINGSZ && s[i] != 0; i++)
-			str[i] = tolower(s[i]);
+			str[i] = tolower((uchar)s[i]);
 		str[i] = 0;
 	}
 
