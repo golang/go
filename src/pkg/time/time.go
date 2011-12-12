@@ -736,6 +736,86 @@ func (t Time) UnixNano() int64 {
 	return (t.sec+internalToUnix)*1e9 + int64(t.nsec)
 }
 
+type gobError string
+
+func (g gobError) Error() string { return string(g) }
+
+const timeGobVersion byte = 1
+
+// GobEncode implements the gob.GobEncoder interface.
+func (t Time) GobEncode() ([]byte, error) {
+	var offsetMin int16 // minutes east of UTC. -1 is UTC.
+
+	if t.Location() == &utcLoc {
+		offsetMin = -1
+	} else {
+		_, offset := t.Zone()
+		if offset%60 != 0 {
+			return nil, gobError("Time.GobEncode: zone offset has fractional minute")
+		}
+		offset /= 60
+		if offset < -32768 || offset == -1 || offset > 32767 {
+			return nil, gobError("Time.GobEncode: unexpected zone offset")
+		}
+		offsetMin = int16(offset)
+	}
+
+	enc := []byte{
+		timeGobVersion,    // byte 0 : version
+		byte(t.sec >> 56), // bytes 1-8: seconds
+		byte(t.sec >> 48),
+		byte(t.sec >> 40),
+		byte(t.sec >> 32),
+		byte(t.sec >> 24),
+		byte(t.sec >> 16),
+		byte(t.sec >> 8),
+		byte(t.sec),
+		byte(t.nsec >> 24), // bytes 9-12: nanoseconds
+		byte(t.nsec >> 16),
+		byte(t.nsec >> 8),
+		byte(t.nsec),
+		byte(offsetMin >> 8), // bytes 13-14: zone offset in minutes
+		byte(offsetMin),
+	}
+
+	return enc, nil
+}
+
+// GobDecode implements the gob.GobDecoder interface.
+func (t *Time) GobDecode(buf []byte) error {
+	if len(buf) == 0 {
+		return gobError("Time.GobDecode: no data")
+	}
+
+	if buf[0] != timeGobVersion {
+		return gobError("Time.GobDecode: unsupported version")
+	}
+
+	if len(buf) != /*version*/ 1+ /*sec*/ 8+ /*nsec*/ 4+ /*zone offset*/ 2 {
+		return gobError("Time.GobDecode: invalid length")
+	}
+
+	buf = buf[1:]
+	t.sec = int64(buf[7]) | int64(buf[6])<<8 | int64(buf[5])<<16 | int64(buf[4])<<24 |
+		int64(buf[3])<<32 | int64(buf[2])<<40 | int64(buf[1])<<48 | int64(buf[0])<<56
+
+	buf = buf[8:]
+	t.nsec = int32(buf[3]) | int32(buf[2])<<8 | int32(buf[1])<<16 | int32(buf[0])<<24
+
+	buf = buf[4:]
+	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
+
+	if offset == -1*60 {
+		t.loc = &utcLoc
+	} else if _, localoff, _, _, _ := Local.lookup(t.sec + internalToUnix); offset == localoff {
+		t.loc = Local
+	} else {
+		t.loc = FixedZone("", offset)
+	}
+
+	return nil
+}
+
 // Unix returns the local Time corresponding to the given Unix time,
 // sec seconds and nsec nanoseconds since January 1, 1970 UTC.
 // It is valid to pass nsec outside the range [0, 999999999].
