@@ -422,8 +422,9 @@ assigned to a variable.
 <p>
 <h2>An I/O Package</h2>
 <p>
-Next we'll look at a simple package for doing file I/O with an
-open/close/read/write interface.  Here's the start of <code>file.go</code>:
+Next we'll look at a simple package for doing Unix file I/O with an
+open/close/read/write interface.
+Here's the start of <code>file.go</code>:
 <p>
 {{code "progs/file.go" `/package/` `/^}/`}}
 <p>
@@ -436,6 +437,11 @@ and reproduce the rudiments of its file I/O.
 <p>
 The other item is the low-level, external <code>syscall</code> package, which provides
 a primitive interface to the underlying operating system's calls.
+The <code>syscall</code> package is very system-dependent, and the way it's
+used here works only on Unix-like systems,
+but the general ideas explored here apply broadly.
+(A Windows version is available in
+<a href="progs/file_windows.go"><code>file_windows.go</code></a>.)
 <p>
 Next is a type definition: the <code>type</code> keyword introduces a type declaration,
 in this case a data structure called <code>File</code>.
