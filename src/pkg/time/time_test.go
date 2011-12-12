@@ -5,6 +5,8 @@
 package time_test
 
 import (
+	"bytes"
+	"encoding/gob"
 	"strconv"
 	"strings"
 	"testing"
@@ -663,6 +665,74 @@ func TestAddToExactSecond(t *testing.T) {
 	sec := (t1.Second() + 1) % 60
 	if t2.Second() != sec || t2.Nanosecond() != 0 {
 		t.Errorf("sec = %d, nsec = %d, want sec = %d, nsec = 0", t2.Second(), t2.Nanosecond(), sec)
+	}
+}
+
+var gobTests = []Time{
+	Date(0, 1, 2, 3, 4, 5, 6, UTC),
+	Date(7, 8, 9, 10, 11, 12, 13, FixedZone("", 0)),
+	Unix(81985467080890095, 0x76543210), // Time.sec: 0x0123456789ABCDEF
+	Time{},                              // nil location
+	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", 32767*60)),
+	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", -32768*60)),
+}
+
+func TestTimeGob(t *testing.T) {
+	var b bytes.Buffer
+	enc := gob.NewEncoder(&b)
+	dec := gob.NewDecoder(&b)
+	for _, tt := range gobTests {
+		var gobtt Time
+		if err := enc.Encode(&tt); err != nil {
+			t.Errorf("%v gob Encode error = %q, want nil", tt, err)
+		} else if err := dec.Decode(&gobtt); err != nil {
+			t.Errorf("%v gob Decode error = %q, want nil", tt, err)
+		} else {
+			gobname, goboffset := gobtt.Zone()
+			name, offset := tt.Zone()
+			if !gobtt.Equal(tt) || goboffset != offset || gobname != name {
+				t.Errorf("Decoded time = %v, want %v", gobtt, tt)
+			}
+		}
+		b.Reset()
+	}
+}
+
+var invalidEncodingTests = []struct {
+	bytes []byte
+	want  string
+}{
+	{[]byte{}, "Time.GobDecode: no data"},
+	{[]byte{0, 2, 3}, "Time.GobDecode: unsupported version"},
+	{[]byte{1, 2, 3}, "Time.GobDecode: invalid length"},
+}
+
+func TestInvalidTimeGob(t *testing.T) {
+	for _, tt := range invalidEncodingTests {
+		var ignored Time
+		err := ignored.GobDecode(tt.bytes)
+		if err == nil || err.Error() != tt.want {
+			t.Errorf("time.GobDecode(%#v) error = %v, want %v", tt.bytes, err, tt.want)
+		}
+	}
+}
+
+var notEncodableTimes = []struct {
+	time Time
+	want string
+}{
+	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", 1)), "Time.GobEncode: zone offset has fractional minute"},
+	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", -1*60)), "Time.GobEncode: unexpected zone offset"},
+	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", -32769*60)), "Time.GobEncode: unexpected zone offset"},
+	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", 32768*60)), "Time.GobEncode: unexpected zone offset"},
+}
+
+func TestNotGobEncodableTime(t *testing.T) {
+	for _, tt := range notEncodableTimes {
+		_, err := tt.time.GobEncode()
+		if err == nil || err.Error() != tt.want {
+			t.Errorf("%v GobEncode error = %v, want %v", tt.time, err, tt.want)
+		}
 	}
 }
 
