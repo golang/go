@@ -1328,12 +1328,26 @@ var modfSC = [][2]float64{
 }
 
 var vfnextafterSC = [][2]float64{
+	{0, 0},
+	{0, Copysign(0, -1)},
+	{0, -1},
 	{0, NaN()},
+	{Copysign(0, -1), 1},
+	{Copysign(0, -1), 0},
+	{Copysign(0, -1), Copysign(0, -1)},
+	{Copysign(0, -1), -1},
 	{NaN(), 0},
 	{NaN(), NaN()},
 }
 var nextafterSC = []float64{
+	0,
+	0,
+	-4.9406564584124654418e-324, // Float64frombits(0x8000000000000001)
 	NaN(),
+	4.9406564584124654418e-324, // Float64frombits(0x0000000000000001)
+	Copysign(0, -1),
+	Copysign(0, -1),
+	-4.9406564584124654418e-324, // Float64frombits(0x8000000000000001)
 	NaN(),
 	NaN(),
 }
@@ -2259,7 +2273,7 @@ func TestNextafter(t *testing.T) {
 			t.Errorf("Nextafter(%g, %g) = %g want %g", vf[i], 10.0, f, nextafter[i])
 		}
 	}
-	for i := 0; i < len(vfmodfSC); i++ {
+	for i := 0; i < len(vfnextafterSC); i++ {
 		if f := Nextafter(vfnextafterSC[i][0], vfnextafterSC[i][1]); !alike(nextafterSC[i], f) {
 			t.Errorf("Nextafter(%g, %g) = %g want %g", vfnextafterSC[i][0], vfnextafterSC[i][1], f, nextafterSC[i])
 		}
