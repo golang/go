@@ -538,7 +538,7 @@ func TestHeadResponses(t *testing.T) {
 
 func TestTLSHandshakeTimeout(t *testing.T) {
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
-	ts.Config.ReadTimeout = 250e6
+	ts.Config.ReadTimeout = 250 * time.Millisecond
 	ts.StartTLS()
 	defer ts.Close()
 	conn, err := net.Dial("tcp", ts.Listener.Addr().String())

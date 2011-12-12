@@ -57,7 +57,7 @@ func TestInotifyEvents(t *testing.T) {
 	}
 
 	// We expect this event to be received almost immediately, but let's wait 1 s to be sure
-	time.Sleep(1000e6) // 1000 ms
+	time.Sleep(1 * time.Second)
 	if eventsReceived == 0 {
 		t.Fatal("inotify event hasn't been received after 1 second")
 	}
@@ -69,7 +69,7 @@ func TestInotifyEvents(t *testing.T) {
 	select {
 	case <-done:
 		t.Log("event channel closed")
-	case <-time.After(1e9):
+	case <-time.After(1 * time.Second):
 		t.Fatal("event stream was not closed after 1 second")
 	}
 }
@@ -84,7 +84,7 @@ func TestInotifyClose(t *testing.T) {
 		done = true
 	}()
 
-	time.Sleep(50e6) // 50 ms
+	time.Sleep(50 * time.Millisecond)
 	if !done {
 		t.Fatal("double Close() test failed: second Close() call didn't return")
 	}

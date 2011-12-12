@@ -155,7 +155,7 @@ func (cs *clientSet) drain(timeout time.Duration) error {
 		if timeout > 0 && time.Now().After(deadline) {
 			return errors.New("timeout")
 		}
-		time.Sleep(100 * 1e6) // 100 milliseconds
+		time.Sleep(100 * time.Millisecond)
 	}
 	return nil
 }
@@ -188,7 +188,7 @@ func (cs *clientSet) sync(timeout time.Duration) error {
 		if timeout > 0 && time.Now().After(deadline) {
 			return errors.New("timeout")
 		}
-		time.Sleep(100 * 1e6) // 100 milliseconds
+		time.Sleep(100 * time.Millisecond)
 	}
 	return nil
 }

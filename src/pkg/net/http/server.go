@@ -952,11 +952,11 @@ func Serve(l net.Listener, handler Handler) error {
 
 // A Server defines parameters for running an HTTP server.
 type Server struct {
-	Addr           string  // TCP address to listen on, ":http" if empty
-	Handler        Handler // handler to invoke, http.DefaultServeMux if nil
-	ReadTimeout    int64   // the net.Conn.SetReadTimeout value for new connections
-	WriteTimeout   int64   // the net.Conn.SetWriteTimeout value for new connections
-	MaxHeaderBytes int     // maximum size of request headers, DefaultMaxHeaderBytes if 0
+	Addr           string        // TCP address to listen on, ":http" if empty
+	Handler        Handler       // handler to invoke, http.DefaultServeMux if nil
+	ReadTimeout    time.Duration // the net.Conn.SetReadTimeout value for new connections
+	WriteTimeout   time.Duration // the net.Conn.SetWriteTimeout value for new connections
+	MaxHeaderBytes int           // maximum size of request headers, DefaultMaxHeaderBytes if 0
 }
 
 // ListenAndServe listens on the TCP network address srv.Addr and then
@@ -989,10 +989,10 @@ func (srv *Server) Serve(l net.Listener) error {
 			return e
 		}
 		if srv.ReadTimeout != 0 {
-			rw.SetReadTimeout(srv.ReadTimeout)
+			rw.SetReadTimeout(srv.ReadTimeout.Nanoseconds())
 		}
 		if srv.WriteTimeout != 0 {
-			rw.SetWriteTimeout(srv.WriteTimeout)
+			rw.SetWriteTimeout(srv.WriteTimeout.Nanoseconds())
 		}
 		c, err := srv.newConn(rw)
 		if err != nil {

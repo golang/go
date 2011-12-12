@@ -285,7 +285,7 @@ func PerformanceTest() {
 		norm.NFC.Append(nil, buf...)
 		success <- true
 	}()
-	timeout := time.After(1e9)
+	timeout := time.After(1 * time.Second)
 	select {
 	case <-success:
 		// test completed before the timeout
