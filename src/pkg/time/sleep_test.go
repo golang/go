@@ -119,8 +119,7 @@ func TestAfterTick(t *testing.T) {
 	t1 := Now()
 	d := t1.Sub(t0)
 	target := Delta * Count
-	slop := target * 2 / 10
-	if d < target-slop || d > target+slop {
+	if d < target*9/10 || d > target*30/10 {
 		t.Fatalf("%d ticks of %s took %s, expected %s", Count, Delta, d, target)
 	}
 }
@@ -197,9 +196,8 @@ func testAfterQueuing(t *testing.T) error {
 		}
 		dt := r.t.Sub(t0)
 		target := Duration(slot) * Delta
-		slop := Delta / 4
-		if dt < target-slop || dt > target+slop {
-			return fmt.Errorf("After(%s) arrived at %s, expected [%s,%s]", target, dt, target-slop, target+slop)
+		if dt < target-Delta/2 || dt > target+Delta*10 {
+			return fmt.Errorf("After(%s) arrived at %s, expected [%s,%s]", target, dt, target-Delta/2, target+Delta*10)
 		}
 	}
 	return nil
