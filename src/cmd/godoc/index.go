@@ -53,6 +53,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 // ----------------------------------------------------------------------------
@@ -767,7 +768,7 @@ func canonical(w string) string { return strings.ToLower(w) }
 //
 func NewIndex(dirnames <-chan string, fulltextIndex bool, throttle float64) *Index {
 	var x Indexer
-	th := NewThrottle(throttle, 0.1e9) // run at least 0.1s at a time
+	th := NewThrottle(throttle, 100*time.Millisecond) // run at least 0.1s at a time
 
 	// initialize Indexer
 	// (use some reasonably sized maps to start)

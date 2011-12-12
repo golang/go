@@ -281,7 +281,7 @@ func (imp *Importer) Drain(timeout int64) error {
 		if timeout > 0 && time.Now().After(deadline) {
 			return errors.New("timeout")
 		}
-		time.Sleep(100 * 1e6)
+		time.Sleep(100 * time.Millisecond)
 	}
 	return nil
 }

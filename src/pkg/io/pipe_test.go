@@ -165,7 +165,7 @@ var pipeTests = []pipeTest{
 }
 
 func delayClose(t *testing.T, cl closer, ch chan int, tt pipeTest) {
-	time.Sleep(1e6) // 1 ms
+	time.Sleep(1 * time.Millisecond)
 	var err error
 	if tt.closeWithError {
 		err = cl.CloseWithError(tt.err)

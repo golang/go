@@ -27,7 +27,6 @@ var (
 )
 
 const (
-	second      = 1e9
 	newHttpPath = "/foo"
 )
 
@@ -388,12 +387,12 @@ func (WriteFailCodec) WriteRequest(*Request, interface{}) error {
 }
 
 func (WriteFailCodec) ReadResponseHeader(*Response) error {
-	time.Sleep(120e9)
+	time.Sleep(120 * time.Second)
 	panic("unreachable")
 }
 
 func (WriteFailCodec) ReadResponseBody(interface{}) error {
-	time.Sleep(120e9)
+	time.Sleep(120 * time.Second)
 	panic("unreachable")
 }
 
@@ -413,7 +412,7 @@ func TestSendDeadlock(t *testing.T) {
 	select {
 	case <-done:
 		return
-	case <-time.After(5e9):
+	case <-time.After(5 * time.Second):
 		t.Fatal("deadlock")
 	}
 }

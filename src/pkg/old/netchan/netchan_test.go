@@ -151,7 +151,7 @@ func TestErrorForIllegalChannel(t *testing.T) {
 	// Expect an error now.  Start a timeout.
 	timeout := make(chan bool, 1) // buffered so closure will not hang around.
 	go func() {
-		time.Sleep(10e9) // very long, to give even really slow machines a chance.
+		time.Sleep(10 * time.Second) // very long, to give even really slow machines a chance.
 		timeout <- true
 	}()
 	select {
@@ -300,7 +300,7 @@ func TestIndependentSends(t *testing.T) {
 	go importReceive(imp, t, done)
 
 	// wait for export side to try to deliver some values.
-	time.Sleep(0.25e9)
+	time.Sleep(250 * time.Millisecond)
 
 	ctlch := make(chan int)
 	if err := imp.ImportNValues("exportedCtl", ctlch, Send, 1, 1); err != nil {
@@ -409,7 +409,7 @@ func TestImportFlowControl(t *testing.T) {
 
 func testFlow(sendDone chan bool, ch <-chan int, N int, t *testing.T) {
 	go func() {
-		time.Sleep(0.5e9)
+		time.Sleep(500 * time.Millisecond)
 		sendDone <- false
 	}()
 
