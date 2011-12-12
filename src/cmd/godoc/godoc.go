@@ -105,6 +105,7 @@ func registerPublicHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/doc/codewalk/", codewalk)
 	mux.HandleFunc("/search", search)
 	mux.Handle("/robots.txt", fileServer)
+	mux.HandleFunc("/opensearch.xml", serveSearchDesc)
 	mux.HandleFunc("/", serveFile)
 }
 
@@ -600,7 +601,8 @@ var (
 	packageHTML,
 	packageText,
 	searchHTML,
-	searchText *template.Template
+	searchText,
+	searchDescXML *template.Template
 )
 
 func readTemplates() {
@@ -615,6 +617,7 @@ func readTemplates() {
 	packageText = readTemplate("package.txt")
 	searchHTML = readTemplate("search.html")
 	searchText = readTemplate("search.txt")
+	searchDescXML = readTemplate("opensearch.xml")
 }
 
 // ----------------------------------------------------------------------------
@@ -807,6 +810,16 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fileServer.ServeHTTP(w, r)
+}
+
+func serveSearchDesc(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/opensearchdescription+xml")
+	data := map[string]interface{}{
+		"BaseURL": fmt.Sprintf("http://%s", r.Host),
+	}
+	if err := searchDescXML.Execute(w, &data); err != nil {
+		log.Printf("searchDescXML.Execute: %s", err)
+	}
 }
 
 // ----------------------------------------------------------------------------
