@@ -6,61 +6,152 @@
 
 package time
 
-//import (
-//	"strconv"
-//	"strings"
-//)
+import (
+	"errors"
+	"syscall"
+)
 
-func parseZones(s string) (zt []zonetime) {
-	f := strings.Fields(s)
-	if len(f) < 4 {
-		return
-	}
+var badData = errors.New("malformed time zone information")
 
-	// standard timezone offset
-	o, err := strconv.Atoi(f[1])
-	if err != nil {
-		return
-	}
-	std := &zone{name: f[0], utcoff: o, isdst: false}
-
-	// alternate timezone offset
-	o, err = strconv.Atoi(f[3])
-	if err != nil {
-		return
-	}
-	dst := &zone{name: f[2], utcoff: o, isdst: true}
-
-	// transition time pairs
-	f = f[4:]
-	for i := 0; i < len(f); i++ {
-		z := std
-		if i%2 == 0 {
-			z = dst
-		}
-		t, err := strconv.Atoi(f[i])
-		if err != nil {
-			return nil
-		}
-		t -= std.utcoff
-		zt = append(zt, zonetime{time: int32(t), zone: z})
-	}
-	return
+func isSpace(r rune) bool {
+	return r == ' ' || r == '\t' || r == '\n'
 }
 
-func initLocal() {
-	t, err := os.Getenverror("timezone")
-	if err != nil {
-		// do nothing: use UTC
-		return
+// Copied from strings to avoid a dependency.
+func fields(s string) []string {
+	// First count the fields.
+	n := 0
+	inField := false
+	for _, rune := range s {
+		wasInField := inField
+		inField = !isSpace(rune)
+		if inField && !wasInField {
+			n++
+		}
 	}
-	zones = parseZones(t)
+
+	// Now create them.
+	a := make([]string, n)
+	na := 0
+	fieldStart := -1 // Set to -1 when looking for start of field.
+	for i, rune := range s {
+		if isSpace(rune) {
+			if fieldStart >= 0 {
+				a[na] = s[fieldStart:i]
+				na++
+				fieldStart = -1
+			}
+		} else if fieldStart == -1 {
+			fieldStart = i
+		}
+	}
+	if fieldStart >= 0 { // Last field might end at EOF.
+		a[na] = s[fieldStart:]
+	}
+	return a
+}
+
+func loadZoneData(s string) (l *Location, err error) {
+	f := fields(s)
+	if len(f) < 4 {
+		if len(f) == 2 && f[0] == "GMT" {
+			return UTC, nil
+		}
+		return nil, badData
+	}
+
+	var zones [2]zone
+
+	// standard timezone offset
+	o, err := atoi(f[1])
+	if err != nil {
+		return nil, badData
+	}
+	zones[0] = zone{name: f[0], offset: o, isDST: false}
+
+	// alternate timezone offset
+	o, err = atoi(f[3])
+	if err != nil {
+		return nil, badData
+	}
+	zones[1] = zone{name: f[2], offset: o, isDST: true}
+
+	// transition time pairs
+	var tx []zoneTrans
+	f = f[4:]
+	for i := 0; i < len(f); i++ {
+		zi := 0
+		if i%2 == 0 {
+			zi = 1
+		}
+		t, err := atoi(f[i])
+		if err != nil {
+			return nil, badData
+		}
+		t -= zones[0].offset
+		tx = append(tx, zoneTrans{when: int64(t), index: uint8(zi)})
+	}
+
+	// Committed to succeed.
+	l = &Location{zone: zones[:], tx: tx}
+
+	// Fill in the cache with information about right now,
+	// since that will be the most common lookup.
+	sec, _ := now()
+	for i := range tx {
+		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
+			l.cacheStart = tx[i].when
+			l.cacheEnd = 1<<63 - 1
+			if i+1 < len(tx) {
+				l.cacheEnd = tx[i+1].when
+			}
+			l.cacheZone = &l.zone[tx[i].index]
+		}
+	}
+
+	return l, nil
+}
+
+func loadZoneFile(name string) (*Location, error) {
+	b, err := readFile(name)
+	if err != nil {
+		return nil, err
+	}
+	return loadZoneData(string(b))
 }
 
 func initTestingZone() {
-	buf, err := readFile("/adm/timezone/US_Pacific")
-	if err != nil {
+	if z, err := loadZoneFile("/adm/timezone/US_Pacific"); err == nil {
+		localLoc = *z
 		return
 	}
-	zones = parseZones(string(buf))
+
+	// Fall back to UTC.
+	localLoc.name = "UTC"
+}
+
+func initLocal() {
+	t, ok := syscall.Getenv("timezone")
+	if ok {
+		if z, err := loadZoneData(t); err == nil {
+			localLoc = *z
+			return
+		}
+	} else {
+		if z, err := loadZoneFile("/adm/timezone/local"); err == nil {
+			localLoc = *z
+			localLoc.name = "Local"
+			return
+		}
+	}
+
+	// Fall back to UTC.
+	localLoc.name = "UTC"
+}
+
+func loadLocation(name string) (*Location, error) {
+	if z, err := loadZoneFile("/adm/timezone/" + name); err == nil {
+		return z, nil
+	}
+	return nil, errors.New("unknown time zone " + name)
 }

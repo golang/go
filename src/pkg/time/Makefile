@@ -8,7 +8,6 @@ TARG=time
 GOFILES=\
 	format.go\
 	sleep.go\
-	sys.go\
 	tick.go\
 	time.go\
 	zoneinfo.go\
