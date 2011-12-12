@@ -228,3 +228,16 @@ func TestTxStmt(t *testing.T) {
 		t.Fatalf("Commit = %v", err)
 	}
 }
+
+// Tests fix for issue 2542, that we release a lock when querying on
+// a closed connection.
+func TestIssue2542Deadlock(t *testing.T) {
+	db := newTestDB(t, "people")
+	closeDB(t, db)
+	for i := 0; i < 2; i++ {
+		_, err := db.Query("SELECT|people|age,name|")
+		if err == nil {
+			t.Fatalf("expected error")
+		}
+	}
+}
