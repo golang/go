@@ -1336,7 +1336,7 @@ static int
 getlinepragma(void)
 {
 	int i, c, n;
-	char *cp, *ep;
+	char *cp, *ep, *linep;
 	Hist *h;
 
 	for(i=0; i<5; i++) {
@@ -1347,32 +1347,36 @@ getlinepragma(void)
 
 	cp = lexbuf;
 	ep = lexbuf+sizeof(lexbuf)-5;
+	linep = nil;
 	for(;;) {
 		c = getr();
-		if(c == '\n' || c == EOF)
+		if(c == EOF)
 			goto out;
+		if(c == '\n')
+			break;
 		if(c == ' ')
 			continue;
 		if(c == ':')
-			break;
+			linep = cp;
 		if(cp < ep)
 			*cp++ = c;
 	}
 	*cp = 0;
 
+	if(linep == nil || linep >= ep)
+		goto out;
+	*linep++ = '\0';
 	n = 0;
-	for(;;) {
-		c = getr();
-		if(!yy_isdigit(c))
-			break;
-		n = n*10 + (c-'0');
+	for(cp=linep; *cp; cp++) {
+		if(*cp < '0' || *cp > '9')
+			goto out;
+		n = n*10 + *cp - '0';
 		if(n > 1e8) {
 			yyerror("line number out of range");
 			errorexit();
 		}
 	}
-
-	if(c != '\n' || n <= 0)
+	if(n <= 0)
 		goto out;
 
 	// try to avoid allocating file name over and over
