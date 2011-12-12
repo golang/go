@@ -1432,6 +1432,18 @@ func inFramesetIM(p *parser) bool {
 			Type: CommentNode,
 			Data: p.tok.Data,
 		})
+	case TextToken:
+		// Ignore all text but whitespace.
+		s := strings.Map(func(c rune) rune {
+			switch c {
+			case ' ', '\t', '\n', '\f', '\r':
+				return c
+			}
+			return -1
+		}, p.tok.Data)
+		if s != "" {
+			p.addText(s)
+		}
 	case StartTagToken:
 		switch p.tok.Data {
 		case "html":
@@ -1470,6 +1482,18 @@ func afterFramesetIM(p *parser) bool {
 			Type: CommentNode,
 			Data: p.tok.Data,
 		})
+	case TextToken:
+		// Ignore all text but whitespace.
+		s := strings.Map(func(c rune) rune {
+			switch c {
+			case ' ', '\t', '\n', '\f', '\r':
+				return c
+			}
+			return -1
+		}, p.tok.Data)
+		if s != "" {
+			p.addText(s)
+		}
 	case StartTagToken:
 		switch p.tok.Data {
 		case "html":
