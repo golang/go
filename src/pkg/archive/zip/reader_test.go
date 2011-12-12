@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"io"
 	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 )
@@ -25,7 +26,7 @@ type ZipTestFile struct {
 	Content []byte // if blank, will attempt to compare against File
 	File    string // name of file to compare to (relative to testdata/)
 	Mtime   string // modified time in format "mm-dd-yy hh:mm:ss"
-	Mode    uint32
+	Mode    os.FileMode
 }
 
 // Caution: The Mtime values found for the test files should correspond to
@@ -47,13 +48,13 @@ var tests = []ZipTest{
 				Name:    "test.txt",
 				Content: []byte("This is a test text file.\n"),
 				Mtime:   "09-05-10 12:12:02",
-				Mode:    0x81a4,
+				Mode:    0644,
 			},
 			{
 				Name:  "gophercolor16x16.png",
 				File:  "gophercolor16x16.png",
 				Mtime: "09-05-10 15:52:58",
-				Mode:  0x81a4,
+				Mode:  0644,
 			},
 		},
 	},
@@ -64,6 +65,7 @@ var tests = []ZipTest{
 				Name:  "r/r.zip",
 				File:  "r.zip",
 				Mtime: "03-04-10 00:24:16",
+				Mode:  0666,
 			},
 		},
 	},
@@ -76,8 +78,42 @@ var tests = []ZipTest{
 				Name:    "filename",
 				Content: []byte("This is a test textfile.\n"),
 				Mtime:   "02-02-11 13:06:20",
+				Mode:    0666,
 			},
 		},
+	},
+	{
+		// created in windows XP file manager.
+		Name: "winxp.zip",
+		File: crossPlatform,
+	},
+	{
+		// created by Zip 3.0 under Linux
+		Name: "unix.zip",
+		File: crossPlatform,
+	},
+}
+
+var crossPlatform = []ZipTestFile{
+	{
+		Name:    "hello",
+		Content: []byte("world \r\n"),
+		Mode:    0666,
+	},
+	{
+		Name:    "dir/bar",
+		Content: []byte("foo \r\n"),
+		Mode:    0666,
+	},
+	{
+		Name:    "dir/empty/",
+		Content: []byte{},
+		Mode:    os.ModeDir | 0777,
+	},
+	{
+		Name:    "readonly",
+		Content: []byte("important \r\n"),
+		Mode:    0444,
 	},
 }
 
@@ -159,13 +195,15 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
 		t.Errorf("name=%q, want %q", f.Name, ft.Name)
 	}
 
-	mtime, err := time.Parse("01-02-06 15:04:05", ft.Mtime)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if ft := f.ModTime(); !ft.Equal(mtime) {
-		t.Errorf("%s: mtime=%s, want %s", f.Name, ft, mtime)
+	if ft.Mtime != "" {
+		mtime, err := time.Parse("01-02-06 15:04:05", ft.Mtime)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if ft := f.ModTime(); !ft.Equal(mtime) {
+			t.Errorf("%s: mtime=%s, want %s", f.Name, ft, mtime)
+		}
 	}
 
 	testFileMode(t, f, ft.Mode)
@@ -191,7 +229,7 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
 	r.Close()
 
 	var c []byte
-	if len(ft.Content) != 0 {
+	if ft.Content != nil {
 		c = ft.Content
 	} else if c, err = ioutil.ReadFile("testdata/" + ft.File); err != nil {
 		t.Error(err)
@@ -211,7 +249,7 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
 	}
 }
 
-func testFileMode(t *testing.T, f *File, want uint32) {
+func testFileMode(t *testing.T, f *File, want os.FileMode) {
 	mode, err := f.Mode()
 	if want == 0 {
 		if err == nil {
@@ -220,7 +258,7 @@ func testFileMode(t *testing.T, f *File, want uint32) {
 	} else if err != nil {
 		t.Errorf("%s mode: %s", f.Name, err)
 	} else if mode != want {
-		t.Errorf("%s mode: want 0x%x, got 0x%x", f.Name, want, mode)
+		t.Errorf("%s mode: want %v, got %v", f.Name, want, mode)
 	}
 }
 
