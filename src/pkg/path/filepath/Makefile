@@ -18,6 +18,9 @@ GOFILES_darwin=\
 GOFILES_linux=\
 	path_unix.go
 
+GOFILES_netbsd=\
+	path_unix.go
+
 GOFILES_openbsd=\
 	path_unix.go
 

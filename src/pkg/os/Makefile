@@ -50,6 +50,17 @@ GOFILES_linux=\
 	exec_unix.go\
 	signal_unix.go\
 
+GOFILES_netbsd=\
+	dir_unix.go\
+	error_posix.go\
+	file_posix.go\
+	file_unix.go\
+	path_unix.go\
+	sys_bsd.go\
+	exec_posix.go\
+	exec_unix.go\
+	signal_unix.go\
+
 GOFILES_openbsd=\
 	dir_unix.go\
 	error_posix.go\

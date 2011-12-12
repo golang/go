@@ -25,6 +25,10 @@ GOFILES_linux=\
 	sys_unix.go\
 	zoneinfo_unix.go\
 
+GOFILES_netbsd=\
+	sys_unix.go\
+	zoneinfo_unix.go\
+
 GOFILES_openbsd=\
 	sys_unix.go\
 	zoneinfo_unix.go\

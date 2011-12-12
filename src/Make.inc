@@ -33,6 +33,7 @@ GOOS_LIST=\
 	darwin\
 	freebsd\
 	linux\
+	netbsd\
 	openbsd\
 	plan9\
 	windows\
@@ -136,6 +137,9 @@ ifeq ($(GOOS),plan9)  # ... and not on Plan 9
 CGO_ENABLED:=0
 endif
 ifeq ($(GOOS),openbsd)  # ... and not on OpenBSD
+CGO_ENABLED:=0
+endif
+ifeq ($(GOOS),netbsd)  # ... and not on NetBSD
 CGO_ENABLED:=0
 endif
 endif

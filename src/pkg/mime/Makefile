@@ -19,6 +19,9 @@ GOFILES_darwin=\
 GOFILES_linux=\
 	type_unix.go
 
+GOFILES_netbsd=\
+	type_unix.go
+
 GOFILES_openbsd=\
 	type_unix.go
 
