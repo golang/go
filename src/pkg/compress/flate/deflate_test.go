@@ -318,3 +318,15 @@ func TestWriterDict(t *testing.T) {
 		t.Fatalf("writer wrote %q want %q", b1.Bytes(), b.Bytes())
 	}
 }
+
+// See http://code.google.com/p/go/issues/detail?id=2508
+func TestRegression2508(t *testing.T) {
+	w := NewWriter(ioutil.Discard, 1)
+	buf := make([]byte, 1024)
+	for i := 0; i < 131072; i++ {
+		if _, err := w.Write(buf); err != nil {
+			t.Fatalf("writer failed: %v", err)
+		}
+	}
+	w.Close()
+}
