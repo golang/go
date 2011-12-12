@@ -36,11 +36,11 @@ func BackgroundSleep(n int) {
 }
 
 func testParallelSleep(t *testing.T) {
-	dt := -time.Nanoseconds()
+	start := time.Now()
 	parallelSleep(1)
-	dt += time.Nanoseconds()
+	dt := time.Now().Sub(start)
 	// bug used to run sleeps in serial, producing a 2-second delay.
-	if dt >= 1.3e9 {
-		t.Fatalf("parallel 1-second sleeps slept for %f seconds", float64(dt)/1e9)
+	if dt >= 1300*time.Millisecond {
+		t.Fatalf("parallel 1-second sleeps slept for %f seconds", dt.Seconds())
 	}
 }
