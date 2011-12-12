@@ -18,7 +18,7 @@ func findExecutable(file string) error {
 	if err != nil {
 		return err
 	}
-	if d.IsRegular() && d.Permission()&0111 != 0 {
+	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
 		return nil
 	}
 	return os.EPERM

@@ -64,9 +64,7 @@ func (file *File) Readdir(n int) (fi []FileInfo, err error) {
 		if e != nil {
 			return result, &PathError{"readdir", file.name, e}
 		}
-		var f FileInfo
-		fileInfoFromStat(&f, dir)
-		result = append(result, f)
+		result = append(result, fileInfoFromStat(dir))
 
 		d.bufp += int(m)
 		n--
@@ -94,7 +92,7 @@ func (file *File) Readdirnames(n int) (names []string, err error) {
 	fi, err := file.Readdir(n)
 	names = make([]string, len(fi))
 	for i := range fi {
-		names[i] = fi[i].Name
+		names[i] = fi[i].Name()
 	}
 	return
 }

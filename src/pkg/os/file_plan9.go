@@ -140,12 +140,12 @@ func (file *file) close() error {
 
 // Stat returns the FileInfo structure describing file.
 // It returns the FileInfo and an error, if any.
-func (f *File) Stat() (fi *FileInfo, err error) {
+func (f *File) Stat() (FileInfo, error) {
 	d, err := dirstat(f)
 	if err != nil {
 		return nil, err
 	}
-	return fileInfoFromStat(new(FileInfo), d), err
+	return fileInfoFromStat(d), nil
 }
 
 // Truncate changes the size of the file.
