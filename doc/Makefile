@@ -8,7 +8,7 @@ TARG=tmpltohtml
 GOFILES=\
 	tmpltohtml.go\
 
-all: tmpltohtml go_tutorial.html effective_go.html go1.html
+all: tmpltohtml go_tutorial.html effective_go.html go1.html articles/defer_panic_recover.html
 
 %.html: %.tmpl tmpltohtml
 	./makehtml $*.tmpl

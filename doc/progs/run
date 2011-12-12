@@ -20,25 +20,41 @@ else
 	$GC file.go
 fi
 
+defer_panic_recover="
+	defer.go 
+	defer2.go 
+"
+
+effective_go="
+	eff_bytesize.go
+	eff_qr.go 
+	eff_sequence.go
+"
+
+go_tutorial="
+	cat.go 
+	cat_rot13.go 
+	echo.go 
+	file.go
+	helloworld.go 
+	helloworld3.go 
+	print.go 
+	print_string.go 
+	server.go 
+	server1.go 
+	sieve.go 
+	sieve1.go 
+	sort.go 
+	sortmain.go 
+	strings.go 
+	sum.go 
+"
+
 for i in \
-	helloworld.go \
-	helloworld3.go \
-	echo.go \
-	cat.go \
-	cat_rot13.go \
-	sum.go \
-	sort.go \
-	sortmain.go \
-	print.go \
-	print_string.go \
-	sieve.go \
-	sieve1.go \
-	server1.go \
-	strings.go \
-	eff_bytesize.go\
-	eff_qr.go \
-	eff_sequence.go\
-	go1.go\
+	$defer_panic_recover \
+	$effective_go \
+	$go_tutorial \
+	go1.go \
 ; do
 	$GC $i
 done
