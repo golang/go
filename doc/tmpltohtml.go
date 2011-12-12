@@ -31,6 +31,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"text/template"
@@ -54,8 +55,8 @@ func main() {
 	}
 
 	// Read and parse the input.
-	name := flag.Args()[0]
-	tmpl := template.New(name).Funcs(templateFuncs)
+	name := flag.Arg(0)
+	tmpl := template.New(filepath.Base(name)).Funcs(templateFuncs)
 	if _, err := tmpl.ParseFiles(name); err != nil {
 		log.Fatal(err)
 	}
