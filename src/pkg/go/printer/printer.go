@@ -807,13 +807,75 @@ func (p *printer) flush(next token.Position, tok token.Token) (droppedFF bool) {
 	return
 }
 
+// getNode returns the ast.CommentGroup associated with n, if any.
+func getDoc(n ast.Node) *ast.CommentGroup {
+	switch n := n.(type) {
+	// *ast.Fields cannot be printed separately - ignore for now
+	case *ast.ImportSpec:
+		return n.Doc
+	case *ast.ValueSpec:
+		return n.Doc
+	case *ast.TypeSpec:
+		return n.Doc
+	case *ast.GenDecl:
+		return n.Doc
+	case *ast.FuncDecl:
+		return n.Doc
+	case *ast.File:
+		return n.Doc
+	}
+	return nil
+}
+
 func (p *printer) printNode(node interface{}) error {
+	// unpack *CommentedNode, if any
+	var comments []*ast.CommentGroup
+	if cnode, ok := node.(*CommentedNode); ok {
+		node = cnode.Node
+		comments = cnode.Comments
+	}
+
+	if comments != nil {
+		// commented node - restrict comment list to relevant range
+		n, ok := node.(ast.Node)
+		if !ok {
+			goto unsupported
+		}
+		beg := n.Pos()
+		end := n.End()
+		// if the node has associated documentation,
+		// include that commentgroup in the range
+		// (the comment list is sorted in the order
+		// of the comment appearance in the source code)
+		if doc := getDoc(n); doc != nil {
+			beg = doc.Pos()
+		}
+		// token.Pos values are global offsets, we can
+		// compare them directly
+		i := 0
+		for i < len(comments) && comments[i].End() < beg {
+			i++
+		}
+		j := i
+		for j < len(comments) && comments[j].Pos() < end {
+			j++
+		}
+		if i < j {
+			p.comments = comments[i:j]
+		}
+	} else if n, ok := node.(*ast.File); ok {
+		// use ast.File comments, if any
+		p.comments = n.Comments
+	}
+
+	// if there are no comments, use node comments
+	p.useNodeComments = p.comments == nil
+
+	// format node
 	switch n := node.(type) {
 	case ast.Expr:
-		p.useNodeComments = true
 		p.expr(n, ignoreMultiLine)
 	case ast.Stmt:
-		p.useNodeComments = true
 		// A labeled statement will un-indent to position the
 		// label. Set indent to 1 so we don't get indent "underflow".
 		if _, labeledStmt := n.(*ast.LabeledStmt); labeledStmt {
@@ -821,19 +883,19 @@ func (p *printer) printNode(node interface{}) error {
 		}
 		p.stmt(n, false, ignoreMultiLine)
 	case ast.Decl:
-		p.useNodeComments = true
 		p.decl(n, ignoreMultiLine)
 	case ast.Spec:
-		p.useNodeComments = true
 		p.spec(n, 1, false, ignoreMultiLine)
 	case *ast.File:
-		p.comments = n.Comments
-		p.useNodeComments = n.Comments == nil
 		p.file(n)
 	default:
-		return fmt.Errorf("go/printer: unsupported node type %T", n)
+		goto unsupported
 	}
+
 	return nil
+
+unsupported:
+	return fmt.Errorf("go/printer: unsupported node type %T", node)
 }
 
 // ----------------------------------------------------------------------------
@@ -1001,10 +1063,18 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
 	return
 }
 
+// A CommentedNode bundles an AST node and corresponding comments.
+// It may be provided as argument to any of the FPrint functions.
+//
+type CommentedNode struct {
+	Node     interface{} // *ast.File, or ast.Expr, ast.Decl, ast.Spec, or ast.Stmt
+	Comments []*ast.CommentGroup
+}
+
 // Fprint "pretty-prints" an AST node to output for a given configuration cfg.
 // Position information is interpreted relative to the file set fset.
-// The node type must be *ast.File, or assignment-compatible to ast.Expr,
-// ast.Decl, ast.Spec, or ast.Stmt.
+// The node type must be *ast.File, *CommentedNode, or assignment-compatible
+// to ast.Expr, ast.Decl, ast.Spec, or ast.Stmt.
 //
 func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
 	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
