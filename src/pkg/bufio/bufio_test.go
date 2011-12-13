@@ -135,9 +135,10 @@ var bufreaders = []bufReader{
 	{"lines", readLines},
 }
 
+const minReadBufferSize = 16
+
 var bufsizes = []int{
-	2, 3, 4, 5, 6, 7, 8, 9, 10,
-	23, 32, 46, 64, 93, 128, 1024, 4096,
+	minReadBufferSize, 23, 32, 46, 64, 93, 128, 1024, 4096,
 }
 
 func TestReader(t *testing.T) {
@@ -514,27 +515,32 @@ func TestWriteString(t *testing.T) {
 }
 
 func TestBufferFull(t *testing.T) {
-	buf, _ := NewReaderSize(strings.NewReader("hello, world"), 5)
-	line, err := buf.ReadSlice(',')
-	if string(line) != "hello" || err != ErrBufferFull {
+	const longString = "And now, hello, world! It is the time for all good men to come to the aid of their party"
+	buf, err := NewReaderSize(strings.NewReader(longString), minReadBufferSize)
+	if err != nil {
+		t.Fatal("NewReaderSize:", err)
+	}
+	line, err := buf.ReadSlice('!')
+	if string(line) != "And now, hello, " || err != ErrBufferFull {
 		t.Errorf("first ReadSlice(,) = %q, %v", line, err)
 	}
-	line, err = buf.ReadSlice(',')
-	if string(line) != "," || err != nil {
+	line, err = buf.ReadSlice('!')
+	if string(line) != "world!" || err != nil {
 		t.Errorf("second ReadSlice(,) = %q, %v", line, err)
 	}
 }
 
 func TestPeek(t *testing.T) {
 	p := make([]byte, 10)
-	buf, _ := NewReaderSize(strings.NewReader("abcdefghij"), 4)
+	// string is 16 (minReadBufferSize) long.
+	buf, _ := NewReaderSize(strings.NewReader("abcdefghijklmnop"), minReadBufferSize)
 	if s, err := buf.Peek(1); string(s) != "a" || err != nil {
 		t.Fatalf("want %q got %q, err=%v", "a", string(s), err)
 	}
 	if s, err := buf.Peek(4); string(s) != "abcd" || err != nil {
 		t.Fatalf("want %q got %q, err=%v", "abcd", string(s), err)
 	}
-	if _, err := buf.Peek(5); err != ErrBufferFull {
+	if _, err := buf.Peek(32); err != ErrBufferFull {
 		t.Fatalf("want ErrBufFull got %v", err)
 	}
 	if _, err := buf.Read(p[0:3]); string(p[0:3]) != "abc" || err != nil {
@@ -552,8 +558,8 @@ func TestPeek(t *testing.T) {
 	if s, err := buf.Peek(4); string(s) != "ghij" || err != nil {
 		t.Fatalf("want %q got %q, err=%v", "ghij", string(s), err)
 	}
-	if _, err := buf.Read(p[0:4]); string(p[0:4]) != "ghij" || err != nil {
-		t.Fatalf("want %q got %q, err=%v", "ghij", string(p[0:3]), err)
+	if _, err := buf.Read(p[0:]); string(p[0:]) != "ghijklmnop" || err != nil {
+		t.Fatalf("want %q got %q, err=%v", "ghijklmnop", string(p[0:minReadBufferSize]), err)
 	}
 	if s, err := buf.Peek(0); string(s) != "" || err != nil {
 		t.Fatalf("want %q got %q, err=%v", "", string(s), err)
@@ -635,19 +641,25 @@ func TestReadLine(t *testing.T) {
 }
 
 func TestLineTooLong(t *testing.T) {
-	buf := bytes.NewBuffer([]byte("aaabbbcc\n"))
-	l, _ := NewReaderSize(buf, 3)
+	data := make([]byte, 0)
+	for i := 0; i < minReadBufferSize*5/2; i++ {
+		data = append(data, '0'+byte(i%10))
+	}
+	buf := bytes.NewBuffer(data)
+	l, _ := NewReaderSize(buf, minReadBufferSize)
 	line, isPrefix, err := l.ReadLine()
-	if !isPrefix || !bytes.Equal(line, []byte("aaa")) || err != nil {
-		t.Errorf("bad result for first line: %x %s", line, err)
+	if !isPrefix || !bytes.Equal(line, data[:minReadBufferSize]) || err != nil {
+		t.Errorf("bad result for first line: got %q want %q %v", line, data[:minReadBufferSize], err)
 	}
+	data = data[len(line):]
 	line, isPrefix, err = l.ReadLine()
-	if !isPrefix || !bytes.Equal(line, []byte("bbb")) || err != nil {
-		t.Errorf("bad result for second line: %x", line)
+	if !isPrefix || !bytes.Equal(line, data[:minReadBufferSize]) || err != nil {
+		t.Errorf("bad result for second line: got %q want %q %v", line, data[:minReadBufferSize], err)
 	}
+	data = data[len(line):]
 	line, isPrefix, err = l.ReadLine()
-	if isPrefix || !bytes.Equal(line, []byte("cc")) || err != nil {
-		t.Errorf("bad result for third line: %x", line)
+	if isPrefix || !bytes.Equal(line, data[:minReadBufferSize/2]) || err != nil {
+		t.Errorf("bad result for third line: got %q want %q %v", line, data[:minReadBufferSize/2], err)
 	}
 	line, isPrefix, err = l.ReadLine()
 	if isPrefix || err == nil {
@@ -656,8 +668,8 @@ func TestLineTooLong(t *testing.T) {
 }
 
 func TestReadAfterLines(t *testing.T) {
-	line1 := "line1"
-	restData := "line2\nline 3\n"
+	line1 := "this is line1"
+	restData := "this is line2\nthis is line 3\n"
 	inbuf := bytes.NewBuffer([]byte(line1 + "\n" + restData))
 	outbuf := new(bytes.Buffer)
 	maxLineLength := len(line1) + len(restData)/2
@@ -676,7 +688,7 @@ func TestReadAfterLines(t *testing.T) {
 }
 
 func TestReadEmptyBuffer(t *testing.T) {
-	l, _ := NewReaderSize(bytes.NewBuffer(nil), 10)
+	l, _ := NewReaderSize(bytes.NewBuffer(nil), minReadBufferSize)
 	line, isPrefix, err := l.ReadLine()
 	if err != io.EOF {
 		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
@@ -684,7 +696,7 @@ func TestReadEmptyBuffer(t *testing.T) {
 }
 
 func TestLinesAfterRead(t *testing.T) {
-	l, _ := NewReaderSize(bytes.NewBuffer([]byte("foo")), 10)
+	l, _ := NewReaderSize(bytes.NewBuffer([]byte("foo")), minReadBufferSize)
 	_, err := ioutil.ReadAll(l)
 	if err != nil {
 		t.Error(err)
@@ -715,34 +727,19 @@ type readLineResult struct {
 }
 
 var readLineNewlinesTests = []struct {
-	input   string
-	bufSize int
-	expect  []readLineResult
+	input  string
+	expect []readLineResult
 }{
-	{"h\r\nb\r\n", 2, []readLineResult{
-		{[]byte("h"), true, nil},
+	{"012345678901234\r\n012345678901234\r\n", []readLineResult{
+		{[]byte("012345678901234"), true, nil},
 		{nil, false, nil},
-		{[]byte("b"), true, nil},
-		{nil, false, nil},
-		{nil, false, io.EOF},
-	}},
-	{"hello\r\nworld\r\n", 6, []readLineResult{
-		{[]byte("hello"), true, nil},
-		{nil, false, nil},
-		{[]byte("world"), true, nil},
+		{[]byte("012345678901234"), true, nil},
 		{nil, false, nil},
 		{nil, false, io.EOF},
 	}},
-	{"hello\rworld\r", 6, []readLineResult{
-		{[]byte("hello"), true, nil},
-		{[]byte("\rworld"), true, nil},
-		{[]byte("\r"), false, nil},
-		{nil, false, io.EOF},
-	}},
-	{"h\ri\r\n\r", 2, []readLineResult{
-		{[]byte("h"), true, nil},
-		{[]byte("\ri"), true, nil},
-		{nil, false, nil},
+	{"0123456789012345\r012345678901234\r", []readLineResult{
+		{[]byte("0123456789012345"), true, nil},
+		{[]byte("\r012345678901234"), true, nil},
 		{[]byte("\r"), false, nil},
 		{nil, false, io.EOF},
 	}},
@@ -750,12 +747,12 @@ var readLineNewlinesTests = []struct {
 
 func TestReadLineNewlines(t *testing.T) {
 	for _, e := range readLineNewlinesTests {
-		testReadLineNewlines(t, e.input, e.bufSize, e.expect)
+		testReadLineNewlines(t, e.input, e.expect)
 	}
 }
 
-func testReadLineNewlines(t *testing.T, input string, bufSize int, expect []readLineResult) {
-	b, err := NewReaderSize(strings.NewReader(input), bufSize)
+func testReadLineNewlines(t *testing.T, input string, expect []readLineResult) {
+	b, err := NewReaderSize(strings.NewReader(input), minReadBufferSize)
 	if err != nil {
 		t.Fatal(err)
 	}
