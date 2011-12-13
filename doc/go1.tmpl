@@ -529,6 +529,67 @@ rather than <code>syscall</code> and so will be unaffected.
 
 <h3 id="time">Time</h3>
 
+<p>
+One of the most sweeping changes in the Go 1 library is the
+complete redesign of the 
+<a href="/pkg/time/"><code>time</code></a> package.
+Instead of an integer number of nanoseconds as an <code>int64</code>,
+and a separate <code>*time.Time</code> type to deal with human
+units such as hours and years,
+there are now two fundamental types:
+<a href="/pkg/time/#Time"><code>time.Time</code></a>
+(a value, so the <code>*</code> is gone), which represents a moment in time;
+and <a href="/pkg/time/#Duration"><code>time.Duration</code></a>,
+which represents an interval.
+Both have nanosecond resolution.
+A <code>Time</code> can represent any time into the ancient
+past and remote future, while a <code>Duration</code> can
+span plus or minus only about 290 years.
+There are methods on these types, plus a number of helpful
+predefined constant durations such as <code>time.Second</code>.
+</p>
+
+<p>
+Among the new methods are things like
+<a href="/pkg/time/#Time.Add"><code>Time.Add</code></a>,
+which adds a <code>Duration</code> to a <code>Time</code>, and
+<a href="/pkg/time/#Time.Sub"><code>Time.Sub</code></a>,
+which subtracts two <code>Times</code> to yield a <code>Duration</code>.
+</p>
+
+<p>
+The most important semantic change is that the Unix epoch (Jan 1, 1970) is now
+relevant only for those functions and methods that mention Unix:
+<a href="/pkg/time/#Unix"><code>time.Unix</code></a>
+and the <a href="/pkg/time/#Time.Unix"><code>Unix</code></a>
+and <a href="/pkg/time/#Time.UnixNano"><code>UnixNano</code></a> methods
+of the <code>Time</code> type.
+In particular,
+<a href="/pkg/time/#Now"><code>time.Now</code></a>
+returns a <code>time.Time</code> value rather than, in the old
+API, an integer nanosecond count since the Unix epoch.
+</p>
+
+{{code "progs/go1.go" `/sleepUntil/` `/^}/`}}
+
+<p>
+The new types, methods, and constants have been propagated through
+all the standard packages that use time, such as <code>os</code> and
+its representation of file time stamps.
+</p>
+
+<p>
+<em>Updating</em>:
+Gofix will update many uses of the old <code>time</code> package to use the new
+types and methods, although it does not replace values such as <code>1e9</code>
+representing nanoseconds per second.
+Also, because of type changes in some of the values that arise,
+some of the expressions rewritten by gofix may require
+further hand editing; in such cases the rewrite will include
+the correct function or method for the old functionality, but
+may have the wrong type or require further analysis.
+</p>
+
 <h3 id="html">The html package</h3>
 
 <p>

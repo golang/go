@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 	"unicode"
 )
 
@@ -22,6 +23,7 @@ func main() {
 	compositeLiterals()
 	runeType()
 	errorExample()
+	timePackage()
 }
 
 func mapDelete() {
@@ -50,6 +52,9 @@ func mapIteration() {
 	}
 }
 
+func f(string, int) {
+}
+
 func assert(t bool) {
 	if !t {
 		log.Panic("assertion fail")
@@ -74,18 +79,17 @@ func multipleAssignment() {
 }
 
 func structEquality() {
-	// Feature not net in repo.
-	//	type Day struct {
-	//		long string
-	//		short string
-	//	}
-	//	Christmas := Day{"Christmas", "XMas"}
-	//	Thanksgiving := Day{"Thanksgiving", "Turkey"}
-	//	holiday := map[Day]bool {
-	//		Christmas: true,
-	//		Thanksgiving: true,
-	//	}
-	//	fmt.Printf("Christmas is a holiday: %t\n", holiday[Christmas])
+	type Day struct {
+		long  string
+		short string
+	}
+	Christmas := Day{"Christmas", "XMas"}
+	Thanksgiving := Day{"Thanksgiving", "Turkey"}
+	holiday := map[Day]bool{
+		Christmas:    true,
+		Thanksgiving: true,
+	}
+	fmt.Printf("Christmas is a holiday: %t\n", holiday[Christmas])
 }
 
 func compositeLiterals() {
@@ -156,7 +160,19 @@ func errorExample() {
 	}
 }
 
-func f(string, int) {
+// sleepUntil sleeps until the specified time. It returns immediately if it's too late.
+func sleepUntil(wakeup time.Time) {
+	now := time.Now() // A Time.
+	if !wakeup.After(now) {
+		return
+	}
+	delta := wakeup.Sub(now) // A Duration.
+	log.Printf("Sleeping for %.3fs", delta.Seconds())
+	time.Sleep(delta)
+}
+
+func timePackage() {
+	sleepUntil(time.Now().Add(123 * time.Millisecond))
 }
 
 func initializationFunction(c chan int) {
