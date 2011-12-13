@@ -511,7 +511,8 @@ symfmt(Fmt *fp, Sym *s)
 				return fmtprint(fp, "%s.%s", s->pkg->name, s->name);	// dcommontype, typehash
 			return fmtprint(fp, "%s.%s", s->pkg->prefix, s->name);	// (methodsym), typesym, weaksym
 		case FExp:
-			return fmtprint(fp, "@\"%Z\".%s", s->pkg->path, s->name);
+			if(s->pkg != builtinpkg)
+				return fmtprint(fp, "@\"%Z\".%s", s->pkg->path, s->name);
 		}
 	}
 
@@ -1073,7 +1074,9 @@ exprfmt(Fmt *f, Node *n, int prec)
 		return fmtprint(f, "%T", n->type);
 
 	case OTARRAY:
-		return fmtprint(f, "[]%N", n->left);
+		if(n->left)
+			return fmtprint(f, "[]%N", n->left);
+		return fmtprint(f, "[]%N", n->right);  // happens before typecheck
 
 	case OTPAREN:
 		return fmtprint(f, "(%N)", n->left);
@@ -1109,7 +1112,9 @@ exprfmt(Fmt *f, Node *n, int prec)
 		return fmtprint(f, "%T { %H }", n->type, n->nbody);
 
 	case OCOMPLIT:
-		return fmtstrcpy(f, "composite literal");
+		if(fmtmode == FErr)
+			return fmtstrcpy(f, "composite literal");
+		return fmtprint(f, "%N{ %,H }", n->right, n->list);
 
 	case OPTRLIT:
 		return fmtprint(f, "&%N", n->left);
@@ -1401,7 +1406,7 @@ Sconv(Fmt *fp)
 	if(s == S)
 		return fmtstrcpy(fp, "<S>");
 
-	if(s->name[0] == '_' && s->name[1] == '\0')
+	if(s->name && s->name[0] == '_' && s->name[1] == '\0')
 		return fmtstrcpy(fp, "_");
 
 	sf = fp->flags;
