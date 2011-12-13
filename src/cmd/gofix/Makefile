@@ -16,6 +16,7 @@ GOFILES=\
 	httpfs.go\
 	httpheaders.go\
 	httpserver.go\
+	httputil.go\
 	imagecolor.go\
 	imagenew.go\
 	iocopyn.go\
