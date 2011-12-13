@@ -98,7 +98,11 @@ func dumpLevel(w io.Writer, n *Node, level int) error {
 	case DocumentNode:
 		return errors.New("unexpected DocumentNode")
 	case ElementNode:
-		fmt.Fprintf(w, "<%s>", n.Data)
+		if n.Namespace != "" {
+			fmt.Fprintf(w, "<%s %s>", n.Namespace, n.Data)
+		} else {
+			fmt.Fprintf(w, "<%s>", n.Data)
+		}
 		for _, a := range n.Attr {
 			io.WriteString(w, "\n")
 			dumpIndent(w, level+1)
@@ -161,6 +165,7 @@ func TestParser(t *testing.T) {
 		n int
 	}{
 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+		{"adoption01.dat", -1},
 		{"doctype01.dat", -1},
 		{"tests1.dat", -1},
 		{"tests2.dat", -1},

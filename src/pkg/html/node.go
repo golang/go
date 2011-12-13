@@ -24,14 +24,15 @@ var scopeMarker = Node{Type: scopeMarkerNode}
 
 // A Node consists of a NodeType and some Data (tag name for element nodes,
 // content for text) and are part of a tree of Nodes. Element nodes may also
-// contain a slice of Attributes. Data is unescaped, so that it looks like
-// "a<b" rather than "a&lt;b".
+// have a Namespace and contain a slice of Attributes. Data is unescaped, so
+// that it looks like "a<b" rather than "a&lt;b".
 type Node struct {
-	Parent *Node
-	Child  []*Node
-	Type   NodeType
-	Data   string
-	Attr   []Attribute
+	Parent    *Node
+	Child     []*Node
+	Type      NodeType
+	Data      string
+	Namespace string
+	Attr      []Attribute
 }
 
 // Add adds a node as a child of n.

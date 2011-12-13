@@ -192,9 +192,10 @@ func (p *parser) addText(text string) {
 // addElement calls addChild with an element node.
 func (p *parser) addElement(tag string, attr []Attribute) {
 	p.addChild(&Node{
-		Type: ElementNode,
-		Data: tag,
-		Attr: attr,
+		Type:      ElementNode,
+		Data:      tag,
+		Namespace: p.top().Namespace,
+		Attr:      attr,
 	})
 }
 
@@ -318,7 +319,10 @@ func (p *parser) resetInsertionMode() {
 		case "html":
 			p.im = beforeHeadIM
 		default:
-			continue
+			if p.top().Namespace == "" {
+				continue
+			}
+			p.im = inForeignContentIM
 		}
 		return
 	}
@@ -792,6 +796,21 @@ func inBodyIM(p *parser) bool {
 			p.reconstructActiveFormattingElements()
 			p.framesetOK = false
 			p.addElement(p.tok.Data, p.tok.Attr)
+		case "math", "svg":
+			p.reconstructActiveFormattingElements()
+			namespace := ""
+			if p.tok.Data == "math" {
+				// TODO: adjust MathML attributes.
+				namespace = "mathml"
+			} else {
+				// TODO: adjust SVG attributes.
+				namespace = "svg"
+			}
+			// TODO: adjust foreign attributes.
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.top().Namespace = namespace
+			p.im = inForeignContentIM
+			return true
 		case "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr":
 			// Ignore the token.
 		default:
@@ -1551,6 +1570,39 @@ func afterAfterFramesetIM(p *parser) bool {
 		case "noframes":
 			return inHeadIM(p)
 		}
+	default:
+		// Ignore the token.
+	}
+	return true
+}
+
+// TODO: fix up the other IM's section numbers to match the latest spec.
+
+// Section 12.2.5.5.
+func inForeignContentIM(p *parser) bool {
+	switch p.tok.Type {
+	case CommentToken:
+		p.addChild(&Node{
+			Type: CommentNode,
+			Data: p.tok.Data,
+		})
+	case StartTagToken:
+		if breakout[p.tok.Data] {
+			// TODO.
+		}
+		switch p.top().Namespace {
+		case "mathml":
+			// TODO: adjust MathML attributes.
+		case "svg":
+			// TODO: adjust SVG tag names.
+			// TODO: adjust SVG attributes.
+		default:
+			panic("html: bad parser state: unexpected namespace")
+		}
+		// TODO: adjust foreign attributes.
+		p.addElement(p.tok.Data, p.tok.Attr)
+	case EndTagToken:
+		// TODO.
 	default:
 		// Ignore the token.
 	}
