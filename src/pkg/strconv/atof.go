@@ -338,6 +338,8 @@ func (d *decimal) atof32() (f float32, ok bool) {
 	return
 }
 
+const fnParseFloat = "ParseFloat"
+
 func atof32(s string) (f float32, err error) {
 	if val, ok := special(s); ok {
 		return float32(val), nil
@@ -345,7 +347,7 @@ func atof32(s string) (f float32, err error) {
 
 	var d decimal
 	if !d.set(s) {
-		return 0, &NumError{s, ErrSyntax}
+		return 0, syntaxError(fnParseFloat, s)
 	}
 	if optimize {
 		if f, ok := d.atof32(); ok {
@@ -355,7 +357,7 @@ func atof32(s string) (f float32, err error) {
 	b, ovf := d.floatBits(&float32info)
 	f = math.Float32frombits(uint32(b))
 	if ovf {
-		err = &NumError{s, ErrRange}
+		err = rangeError(fnParseFloat, s)
 	}
 	return f, err
 }
@@ -367,7 +369,7 @@ func atof64(s string) (f float64, err error) {
 
 	var d decimal
 	if !d.set(s) {
-		return 0, &NumError{s, ErrSyntax}
+		return 0, syntaxError(fnParseFloat, s)
 	}
 	if optimize {
 		if f, ok := d.atof64(); ok {
@@ -377,7 +379,7 @@ func atof64(s string) (f float64, err error) {
 	b, ovf := d.floatBits(&float64info)
 	f = math.Float64frombits(b)
 	if ovf {
-		err = &NumError{s, ErrRange}
+		err = rangeError(fnParseFloat, s)
 	}
 	return f, err
 }

@@ -55,10 +55,10 @@ var conversionTests = []conversionTest{
 
 	// Strings to integers
 	{s: "255", d: &scanuint8, wantuint: 255},
-	{s: "256", d: &scanuint8, wanterr: `converting string "256" to a uint8: parsing "256": value out of range`},
+	{s: "256", d: &scanuint8, wanterr: `converting string "256" to a uint8: strconv.ParseUint: parsing "256": value out of range`},
 	{s: "256", d: &scanuint16, wantuint: 256},
 	{s: "-1", d: &scanint, wantint: -1},
-	{s: "foo", d: &scanint, wanterr: `converting string "foo" to a int: parsing "foo": invalid syntax`},
+	{s: "foo", d: &scanint, wanterr: `converting string "foo" to a int: strconv.ParseInt: parsing "foo": invalid syntax`},
 
 	// True bools
 	{s: true, d: &scanbool, wantbool: true},

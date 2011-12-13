@@ -14,7 +14,7 @@ func ParseBool(str string) (value bool, err error) {
 	case "0", "f", "F", "false", "FALSE", "False":
 		return false, nil
 	}
-	return false, &NumError{str, ErrSyntax}
+	return false, syntaxError("ParseBool", str)
 }
 
 // FormatBool returns "true" or "false" according to the value of b

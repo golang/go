@@ -152,37 +152,37 @@ func init() {
 	for i := range atoui64tests {
 		test := &atoui64tests[i]
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err}
+			test.err = &NumError{"ParseUint", test.in, test.err}
 		}
 	}
 	for i := range btoui64tests {
 		test := &btoui64tests[i]
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err}
+			test.err = &NumError{"ParseUint", test.in, test.err}
 		}
 	}
 	for i := range atoi64tests {
 		test := &atoi64tests[i]
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err}
+			test.err = &NumError{"ParseInt", test.in, test.err}
 		}
 	}
 	for i := range btoi64tests {
 		test := &btoi64tests[i]
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err}
+			test.err = &NumError{"ParseInt", test.in, test.err}
 		}
 	}
 	for i := range atoui32tests {
 		test := &atoui32tests[i]
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err}
+			test.err = &NumError{"ParseUint", test.in, test.err}
 		}
 	}
 	for i := range atoi32tests {
 		test := &atoi32tests[i]
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err}
+			test.err = &NumError{"ParseInt", test.in, test.err}
 		}
 	}
 }
