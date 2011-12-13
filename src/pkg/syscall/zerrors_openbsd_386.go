@@ -149,6 +149,13 @@ const (
 	DT_REG                            = 0x8
 	DT_SOCK                           = 0xc
 	DT_UNKNOWN                        = 0x0
+	ECHO                              = 0x8
+	ECHOCTL                           = 0x40
+	ECHOE                             = 0x2
+	ECHOK                             = 0x4
+	ECHOKE                            = 0x1
+	ECHONL                            = 0x10
+	ECHOPRT                           = 0x20
 	EFER_LMA                          = 0x400
 	EFER_LME                          = 0x100
 	EFER_NXE                          = 0x800
@@ -156,6 +163,7 @@ const (
 	EMT_TAGOVF                        = 0x1
 	EMUL_ENABLED                      = 0x1
 	EMUL_NATIVE                       = 0x2
+	ENDRUNDISC                        = 0x9
 	ETHERMIN                          = 0x2e
 	ETHERMTU                          = 0x5dc
 	ETHERTYPE_8023                    = 0x4
@@ -383,6 +391,7 @@ const (
 	F_GETFL                           = 0x3
 	F_GETLK                           = 0x7
 	F_GETOWN                          = 0x5
+	F_OK                              = 0x0
 	F_RDLCK                           = 0x1
 	F_SETFD                           = 0x2
 	F_SETFL                           = 0x4
@@ -787,6 +796,10 @@ const (
 	IP_RTABLE                         = 0x1021
 	IP_TOS                            = 0x3
 	IP_TTL                            = 0x4
+	LOCK_EX                           = 0x2
+	LOCK_NB                           = 0x4
+	LOCK_SH                           = 0x1
+	LOCK_UN                           = 0x8
 	MAP_ET_KVAGUARD                   = 0x10
 	MSG_BCAST                         = 0x100
 	MSG_CTRUNC                        = 0x20
@@ -826,6 +839,13 @@ const (
 	O_SYNC                            = 0x80
 	O_TRUNC                           = 0x400
 	O_WRONLY                          = 0x1
+	RLIMIT_CORE                       = 0x4
+	RLIMIT_CPU                        = 0x0
+	RLIMIT_DATA                       = 0x2
+	RLIMIT_FSIZE                      = 0x1
+	RLIMIT_NOFILE                     = 0x8
+	RLIMIT_STACK                      = 0x3
+	RLIM_INFINITY                     = 0x7fffffffffffffff
 	RTAX_AUTHOR                       = 0x6
 	RTAX_BRD                          = 0x7
 	RTAX_DST                          = 0x0
@@ -901,6 +921,9 @@ const (
 	RTV_SPIPE                         = 0x10
 	RTV_SSTHRESH                      = 0x20
 	RT_TABLEID_MAX                    = 0xff
+	RUSAGE_CHILDREN                   = -0x1
+	RUSAGE_SELF                       = 0x0
+	RUSAGE_THREAD                     = 0x1
 	SCM_CREDS                         = 0x2
 	SCM_RIGHTS                        = 0x1
 	SCM_TIMESTAMP                     = 0x4
@@ -1182,13 +1205,6 @@ const (
 	EBUSY           = Errno(0x10)
 	ECANCELED       = Errno(0x58)
 	ECHILD          = Errno(0xa)
-	ECHO            = Errno(0x8)
-	ECHOCTL         = Errno(0x40)
-	ECHOE           = Errno(0x2)
-	ECHOK           = Errno(0x4)
-	ECHOKE          = Errno(0x1)
-	ECHONL          = Errno(0x10)
-	ECHOPRT         = Errno(0x20)
 	ECONNABORTED    = Errno(0x35)
 	ECONNREFUSED    = Errno(0x3d)
 	ECONNRESET      = Errno(0x36)
@@ -1218,7 +1234,6 @@ const (
 	EMLINK          = Errno(0x1f)
 	EMSGSIZE        = Errno(0x28)
 	ENAMETOOLONG    = Errno(0x3f)
-	ENDRUNDISC      = Errno(0x9)
 	ENEEDAUTH       = Errno(0x51)
 	ENETDOWN        = Errno(0x32)
 	ENETRESET       = Errno(0x34)

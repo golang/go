@@ -201,4 +201,7 @@ const (
 	SYS_UNLINKAT      = 325 // { int sys_unlinkat(int fd, const char *path, \
 	SYS_UTIMENSAT     = 326 // { int sys_utimensat(int fd, const char *path, \
 	SYS_FUTIMENS      = 327 // { int sys_futimens(int fd, \
+	SYS___TFORK       = 328 // { int sys___tfork(struct __tfork *param); }
+	SYS___SET_TCB     = 329 // { void sys___set_tcb(void *tcb); }
+	SYS___GET_TCB     = 330 // { void *sys___get_tcb(void); }
 )
