@@ -7,8 +7,6 @@
 #include	"gg.h"
 #include	"opt.h"
 
-#define	DUPOK	(1<<1)  /* same in all architectures */
-
 static void allocauto(Prog* p);
 
 void
