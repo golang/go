@@ -18,25 +18,34 @@ var FindPublicRepoTests = []struct {
 	transport      *testTransport
 }{
 	{
-		"repo.googlecode.com/hg/path/foo",
+		"code.google.com/p/repo/path/foo",
 		"hg",
-		"repo.googlecode.com/hg",
-		"https://repo.googlecode.com/hg",
-		nil,
+		"code.google.com/p/repo",
+		"https://code.google.com/p/repo",
+		&testTransport{
+			"https://code.google.com/p/repo/source/checkout",
+			`<tt id="checkoutcmd">hg clone https://...`,
+		},
 	},
 	{
-		"repo.googlecode.com/svn/path",
+		"code.google.com/p/repo/path/foo",
 		"svn",
-		"repo.googlecode.com/svn",
-		"https://repo.googlecode.com/svn",
-		nil,
+		"code.google.com/p/repo",
+		"https://code.google.com/p/repo",
+		&testTransport{
+			"https://code.google.com/p/repo/source/checkout",
+			`<tt id="checkoutcmd">svn checkout https://...`,
+		},
 	},
 	{
-		"repo.googlecode.com/git",
+		"code.google.com/p/repo/path/foo",
 		"git",
-		"repo.googlecode.com/git",
-		"https://repo.googlecode.com/git",
-		nil,
+		"code.google.com/p/repo",
+		"https://code.google.com/p/repo",
+		&testTransport{
+			"https://code.google.com/p/repo/source/checkout",
+			`<tt id="checkoutcmd">git clone https://...`,
+		},
 	},
 	{
 		"code.google.com/p/repo.sub/path",

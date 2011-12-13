@@ -10,6 +10,7 @@ GOFILES=\
 	filepath.go\
 	fix.go\
 	go1pkgrename.go\
+	googlecode.go\
 	hashsum.go\
 	htmlerr.go\
 	httpfinalurl.go\

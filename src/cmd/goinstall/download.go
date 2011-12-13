@@ -142,12 +142,8 @@ type host struct {
 
 var knownHosts = []host{
 	{
-		regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/(svn|git|hg))(/[a-z0-9A-Z_.\-/]+)?$`),
+		regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+(\.[a-z0-9\-]+)?)(/[a-z0-9A-Z_.\-/]+)?$`),
 		matchGoogleRepo,
-	},
-	{
-		regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+\.[a-z0-9\-]+)(/[a-z0-9A-Z_.\-/]+)?$`),
-		matchGoogleSubrepo,
 	},
 	{
 		regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]+)?$`),
@@ -189,15 +185,6 @@ func (r *baseRepo) IsCheckedOut(srcDir string) bool {
 	return isDir(filepath.Join(pkgPath, r.vcs.metadir))
 }
 
-// matchGoogleRepo handles matches of the form "repo.googlecode.com/vcs/path".
-func matchGoogleRepo(root string) (RemoteRepo, error) {
-	p := strings.SplitN(root, "/", 2)
-	if vcs := vcsMap[p[1]]; vcs != nil {
-		return &baseRepo{"https://" + root, root, vcs}, nil
-	}
-	return nil, errors.New("unsupported googlecode vcs: " + p[1])
-}
-
 // matchGithubRepo handles matches for github.com repositories.
 func matchGithubRepo(root string) (RemoteRepo, error) {
 	if strings.HasSuffix(root, ".git") {
@@ -211,21 +198,19 @@ func matchLaunchpadRepo(root string) (RemoteRepo, error) {
 	return &baseRepo{"https://" + root, root, vcsMap["bzr"]}, nil
 }
 
-// matchGoogleSubrepo matches repos like "code.google.com/p/repo.subrepo/path".
-// Note that it doesn't match primary Google Code repositories,
-// which should use the "foo.googlecode.com" form only. (for now)
-func matchGoogleSubrepo(id string) (RemoteRepo, error) {
+// matchGoogleRepo matches repos like "code.google.com/p/repo.subrepo/path".
+func matchGoogleRepo(id string) (RemoteRepo, error) {
 	root := "code.google.com/p/" + id
-	return &googleSubrepo{baseRepo{"https://" + root, root, nil}}, nil
+	return &googleRepo{baseRepo{"https://" + root, root, nil}}, nil
 }
 
-// googleSubrepo implements a RemoteRepo that discovers a Google Code
+// googleRepo implements a RemoteRepo that discovers a Google Code
 // repository's VCS type by scraping the code.google.com source checkout page.
-type googleSubrepo struct{ baseRepo }
+type googleRepo struct{ baseRepo }
 
-var googleSubrepoRe = regexp.MustCompile(`id="checkoutcmd">(hg|git|svn)`)
+var googleRepoRe = regexp.MustCompile(`id="checkoutcmd">(hg|git|svn)`)
 
-func (r *googleSubrepo) Repo(client *http.Client) (url, root string, vcs *vcs, err error) {
+func (r *googleRepo) Repo(client *http.Client) (url, root string, vcs *vcs, err error) {
 	if r.vcs != nil {
 		return r.url, r.root, r.vcs, nil
 	}
@@ -233,7 +218,10 @@ func (r *googleSubrepo) Repo(client *http.Client) (url, root string, vcs *vcs, e
 	// Use the code.google.com source checkout page to find the VCS type.
 	const prefix = "code.google.com/p/"
 	p := strings.SplitN(r.root[len(prefix):], ".", 2)
-	u := fmt.Sprintf("https://%s%s/source/checkout?repo=%s", prefix, p[0], p[1])
+	u := fmt.Sprintf("https://%s%s/source/checkout", prefix, p[0])
+	if len(p) == 2 {
+		u += fmt.Sprintf("?repo=%s", p[1])
+	}
 	resp, err := client.Get(u)
 	if err != nil {
 		return "", "", nil, err
@@ -248,7 +236,7 @@ func (r *googleSubrepo) Repo(client *http.Client) (url, root string, vcs *vcs, e
 	}
 
 	// Scrape result for vcs details.
-	m := googleSubrepoRe.FindSubmatch(b)
+	m := googleRepoRe.FindSubmatch(b)
 	if len(m) == 2 {
 		if v := vcsMap[string(m[1])]; v != nil {
 			r.vcs = v
@@ -377,10 +365,22 @@ func (v *vcs) findURL(root string) (string, error) {
 	return "", nil
 }
 
+var oldGoogleRepo = regexp.MustCompile(`^([a-z0-9\-]+)\.googlecode\.com/(svn|git|hg)(/[a-z0-9A-Z_.\-/]+)?$`)
+
 // download checks out or updates the specified package from the remote server.
 func download(importPath, srcDir string) (public bool, err error) {
 	if strings.Contains(importPath, "..") {
 		err = errors.New("invalid path (contains ..)")
+		return
+	}
+
+	if m := oldGoogleRepo.FindStringSubmatch(importPath); m != nil {
+		fixedPath := "code.google.com/p/" + m[1] + m[3]
+		err = fmt.Errorf(
+			"unsupported import path; should be %q\n"+
+				"Run goinstall with -fix to gofix the code.",
+			fixedPath,
+		)
 		return
 	}
 
