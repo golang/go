@@ -211,6 +211,7 @@ const (
 	F_MARKDEPENDENCY            = 0x3c
 	F_NOCACHE                   = 0x30
 	F_NODIRECT                  = 0x3e
+	F_OK                        = 0x0
 	F_PATHPKG_CHECK             = 0x34
 	F_PEOFPOSMODE               = 0x3
 	F_PREALLOCATE               = 0x2a
@@ -559,6 +560,10 @@ const (
 	IP_TRAFFIC_MGT_BACKGROUND   = 0x41
 	IP_TTL                      = 0x4
 	IP_UNBLOCK_SOURCE           = 0x49
+	LOCK_EX                     = 0x2
+	LOCK_NB                     = 0x4
+	LOCK_SH                     = 0x1
+	LOCK_UN                     = 0x8
 	MADV_CAN_REUSE              = 0x9
 	MADV_DONTNEED               = 0x4
 	MADV_FREE                   = 0x5
@@ -660,6 +665,14 @@ const (
 	PT_WRITE_D                  = 0x5
 	PT_WRITE_I                  = 0x4
 	PT_WRITE_U                  = 0x6
+	RLIMIT_AS                   = 0x5
+	RLIMIT_CORE                 = 0x4
+	RLIMIT_CPU                  = 0x0
+	RLIMIT_DATA                 = 0x2
+	RLIMIT_FSIZE                = 0x1
+	RLIMIT_NOFILE               = 0x8
+	RLIMIT_STACK                = 0x3
+	RLIM_INFINITY               = 0x7fffffffffffffff
 	RTAX_AUTHOR                 = 0x6
 	RTAX_BRD                    = 0x7
 	RTAX_DST                    = 0x0
@@ -731,6 +744,8 @@ const (
 	RTV_RTTVAR                  = 0x80
 	RTV_SPIPE                   = 0x10
 	RTV_SSTHRESH                = 0x20
+	RUSAGE_CHILDREN             = -0x1
+	RUSAGE_SELF                 = 0x0
 	SCM_CREDS                   = 0x3
 	SCM_RIGHTS                  = 0x1
 	SCM_TIMESTAMP               = 0x2

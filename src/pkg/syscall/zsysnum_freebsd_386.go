@@ -33,7 +33,7 @@ const (
 	SYS_ACCEPT                   = 30  // { int accept(int s, \
 	SYS_GETPEERNAME              = 31  // { int getpeername(int fdes, \
 	SYS_GETSOCKNAME              = 32  // { int getsockname(int fdes, \
-	SYS_ACCESS                   = 33  // { int access(char *path, int flags); }
+	SYS_ACCESS                   = 33  // { int access(char *path, int amode); }
 	SYS_CHFLAGS                  = 34  // { int chflags(char *path, int flags); }
 	SYS_FCHFLAGS                 = 35  // { int fchflags(int fd, int flags); }
 	SYS_SYNC                     = 36  // { int sync(void); }
@@ -146,6 +146,9 @@ const (
 	SYS_KTIMER_GETTIME           = 238 // { int ktimer_gettime(int timerid, struct \
 	SYS_KTIMER_GETOVERRUN        = 239 // { int ktimer_getoverrun(int timerid); }
 	SYS_NANOSLEEP                = 240 // { int nanosleep(const struct timespec *rqtp, \
+	SYS_FFCLOCK_GETCOUNTER       = 241 // { int ffclock_getcounter(ffcounter *ffcount); }
+	SYS_FFCLOCK_SETESTIMATE      = 242 // { int ffclock_setestimate( \
+	SYS_FFCLOCK_GETESTIMATE      = 243 // { int ffclock_getestimate( \
 	SYS_NTP_GETTIME              = 248 // { int ntp_gettime(struct ntptimeval *ntvp); }
 	SYS_MINHERIT                 = 250 // { int minherit(void *addr, size_t len, \
 	SYS_RFORK                    = 251 // { int rfork(int flags); }
@@ -215,7 +218,7 @@ const (
 	SYS_EXTATTR_GET_FD           = 372 // { ssize_t extattr_get_fd(int fd, \
 	SYS_EXTATTR_DELETE_FD        = 373 // { int extattr_delete_fd(int fd, \
 	SYS___SETUGID                = 374 // { int __setugid(int flag); }
-	SYS_EACCESS                  = 376 // { int eaccess(char *path, int flags); }
+	SYS_EACCESS                  = 376 // { int eaccess(char *path, int amode); }
 	SYS_NMOUNT                   = 378 // { int nmount(struct iovec *iovp, \
 	SYS___MAC_GET_PROC           = 384 // { int __mac_get_proc(struct mac *mac_p); }
 	SYS___MAC_SET_PROC           = 385 // { int __mac_set_proc(struct mac *mac_p); }
@@ -296,7 +299,7 @@ const (
 	SYS_CPUSET_GETID             = 486 // { int cpuset_getid(cpulevel_t level, \
 	SYS_CPUSET_GETAFFINITY       = 487 // { int cpuset_getaffinity(cpulevel_t level, \
 	SYS_CPUSET_SETAFFINITY       = 488 // { int cpuset_setaffinity(cpulevel_t level, \
-	SYS_FACCESSAT                = 489 // { int faccessat(int fd, char *path, int mode, \
+	SYS_FACCESSAT                = 489 // { int faccessat(int fd, char *path, int amode, \
 	SYS_FCHMODAT                 = 490 // { int fchmodat(int fd, char *path, mode_t mode, \
 	SYS_FCHOWNAT                 = 491 // { int fchownat(int fd, char *path, uid_t uid, \
 	SYS_FEXECVE                  = 492 // { int fexecve(int fd, char **argv, \

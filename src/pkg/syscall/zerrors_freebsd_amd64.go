@@ -354,6 +354,7 @@ const (
 	F_GETLK                           = 0xb
 	F_GETOWN                          = 0x5
 	F_OGETLK                          = 0x7
+	F_OK                              = 0x0
 	F_OSETLK                          = 0x8
 	F_OSETLKW                         = 0x9
 	F_RDAHEAD                         = 0x10
@@ -864,6 +865,10 @@ const (
 	IP_TOS                            = 0x3
 	IP_TTL                            = 0x4
 	IP_UNBLOCK_SOURCE                 = 0x49
+	LOCK_EX                           = 0x2
+	LOCK_NB                           = 0x4
+	LOCK_SH                           = 0x1
+	LOCK_UN                           = 0x8
 	MSG_COMPAT                        = 0x8000
 	MSG_CTRUNC                        = 0x20
 	MSG_DONTROUTE                     = 0x4
