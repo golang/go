@@ -8,15 +8,16 @@ package doc
 
 import (
 	"go/ast"
+	"go/printer"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 )
 
 type Example struct {
-	Name   string         // name of the item being demonstrated
-	Body   *ast.BlockStmt // code
-	Output string         // expected output
+	Name   string                 // name of the item being demonstrated
+	Body   *printer.CommentedNode // code
+	Output string                 // expected output
 }
 
 func Examples(pkg *ast.Package) []*Example {
@@ -33,7 +34,7 @@ func Examples(pkg *ast.Package) []*Example {
 			}
 			examples = append(examples, &Example{
 				Name:   name[len("Example"):],
-				Body:   f.Body,
+				Body:   &printer.CommentedNode{f.Body, src.Comments},
 				Output: CommentText(f.Doc),
 			})
 		}
