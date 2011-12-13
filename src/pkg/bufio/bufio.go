@@ -52,12 +52,14 @@ type Reader struct {
 	lastRuneSize int
 }
 
+const minReadBufferSize = 16
+
 // NewReaderSize creates a new Reader whose buffer has the specified size,
-// which must be greater than one.  If the argument io.Reader is already a
+// which must be at least 16 bytes.  If the argument io.Reader is already a
 // Reader with large enough size, it returns the underlying Reader.
 // It returns the Reader and any error.
 func NewReaderSize(rd io.Reader, size int) (*Reader, error) {
-	if size <= 1 {
+	if size < minReadBufferSize {
 		return nil, BufSizeError(size)
 	}
 	// Is it already a Reader?
