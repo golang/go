@@ -119,7 +119,7 @@ func init() {
 	for i := range atoftests {
 		test := &atoftests[i]
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err}
+			test.err = &NumError{"ParseFloat", test.in, test.err}
 		}
 	}
 }

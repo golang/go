@@ -14,11 +14,22 @@ var ErrSyntax = errors.New("invalid syntax")
 
 // A NumError records a failed conversion.
 type NumError struct {
-	Num string // the input
-	Err error  // the reason the conversion failed (ErrRange, ErrSyntax)
+	Func string // the failing function (ParseBool, ParseInt, ParseUint, ParseFloat)
+	Num  string // the input
+	Err  error  // the reason the conversion failed (ErrRange, ErrSyntax)
 }
 
-func (e *NumError) Error() string { return `parsing "` + e.Num + `": ` + e.Err.Error() }
+func (e *NumError) Error() string {
+	return "strconv." + e.Func + ": " + `parsing "` + e.Num + `": ` + e.Err.Error()
+}
+
+func syntaxError(fn, str string) *NumError {
+	return &NumError{fn, str, ErrSyntax}
+}
+
+func rangeError(fn, str string) *NumError {
+	return &NumError{fn, str, ErrRange}
+}
 
 const intSize = 32 << uint(^uint(0)>>63)
 
@@ -116,7 +127,7 @@ func ParseUint(s string, b int, bitSize int) (n uint64, err error) {
 	return n, nil
 
 Error:
-	return n, &NumError{s0, err}
+	return n, &NumError{"ParseUint", s0, err}
 }
 
 // ParseInt interprets a string s in the given base (2 to 36) and
@@ -134,13 +145,15 @@ Error:
 // to s cannot be represented by a signed integer of the
 // given size, err.Error = ErrRange.
 func ParseInt(s string, base int, bitSize int) (i int64, err error) {
+	const fnParseInt = "ParseInt"
+
 	if bitSize == 0 {
 		bitSize = int(IntSize)
 	}
 
 	// Empty string bad.
 	if len(s) == 0 {
-		return 0, &NumError{s, ErrSyntax}
+		return 0, syntaxError(fnParseInt, s)
 	}
 
 	// Pick off leading sign.
@@ -157,15 +170,16 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	var un uint64
 	un, err = ParseUint(s, base, bitSize)
 	if err != nil && err.(*NumError).Err != ErrRange {
+		err.(*NumError).Func = fnParseInt
 		err.(*NumError).Num = s0
 		return 0, err
 	}
 	cutoff := uint64(1 << uint(bitSize-1))
 	if !neg && un >= cutoff {
-		return int64(cutoff - 1), &NumError{s0, ErrRange}
+		return int64(cutoff - 1), rangeError(fnParseInt, s0)
 	}
 	if neg && un > cutoff {
-		return -int64(cutoff), &NumError{s0, ErrRange}
+		return -int64(cutoff), rangeError(fnParseInt, s0)
 	}
 	n := int64(un)
 	if neg {
