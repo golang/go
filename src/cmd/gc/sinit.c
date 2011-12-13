@@ -302,18 +302,18 @@ staticcopy(Node *l, Node *r, NodeList **out)
 			n1.type = e->expr->type;
 			if(e->expr->op == OLITERAL)
 				gdata(&n1, e->expr, n1.type->width);
-			else if(staticassign(&n1, e->expr, out)) {
-				// Done
-			} else {
-				// Requires computation, but we're
-				// copying someone else's computation.
+			else {
 				ll = nod(OXXX, N, N);
 				*ll = n1;
-				rr = nod(OXXX, N, N);
-				*rr = *orig;
-				rr->type = ll->type;
-				rr->xoffset += e->xoffset;
-				*out = list(*out, nod(OAS, ll, rr));
+				if(!staticassign(ll, e->expr, out)) {
+					// Requires computation, but we're
+					// copying someone else's computation.
+					rr = nod(OXXX, N, N);
+					*rr = *orig;
+					rr->type = ll->type;
+					rr->xoffset += e->xoffset;
+					*out = list(*out, nod(OAS, ll, rr));
+				}
 			}
 		}
 		return 1;
@@ -407,12 +407,11 @@ staticassign(Node *l, Node *r, NodeList **out)
 			n1.type = e->expr->type;
 			if(e->expr->op == OLITERAL)
 				gdata(&n1, e->expr, n1.type->width);
-			else if(staticassign(&n1, e->expr, out)) {
-				// done
-			} else {
+			else {
 				a = nod(OXXX, N, N);
 				*a = n1;
-				*out = list(*out, nod(OAS, a, e->expr));
+				if(!staticassign(a, e->expr, out))
+					*out = list(*out, nod(OAS, a, e->expr));
 			}
 		}
 		return 1;
