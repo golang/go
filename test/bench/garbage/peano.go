@@ -12,20 +12,16 @@ import (
 	"time"
 )
 
-
 type Number struct {
 	next *Number
 }
-
 
 // -------------------------------------
 // Peano primitives
 
 func zero() *Number { return nil }
 
-
 func is_zero(x *Number) bool { return x == nil }
-
 
 func add1(x *Number) *Number {
 	e := new(Number)
@@ -33,9 +29,7 @@ func add1(x *Number) *Number {
 	return e
 }
 
-
 func sub1(x *Number) *Number { return x.next }
-
 
 func add(x, y *Number) *Number {
 	if is_zero(y) {
@@ -45,7 +39,6 @@ func add(x, y *Number) *Number {
 	return add(add1(x), sub1(y))
 }
 
-
 func mul(x, y *Number) *Number {
 	if is_zero(x) || is_zero(y) {
 		return zero()
@@ -54,7 +47,6 @@ func mul(x, y *Number) *Number {
 	return add(mul(x, sub1(y)), x)
 }
 
-
 func fact(n *Number) *Number {
 	if is_zero(n) {
 		return add1(zero())
@@ -62,7 +54,6 @@ func fact(n *Number) *Number {
 
 	return mul(fact(sub1(n)), n)
 }
-
 
 // -------------------------------------
 // Helpers to generate/count Peano integers
@@ -75,7 +66,6 @@ func gen(n int) *Number {
 	return zero()
 }
 
-
 func count(x *Number) int {
 	if is_zero(x) {
 		return 0
@@ -84,14 +74,12 @@ func count(x *Number) int {
 	return count(sub1(x)) + 1
 }
 
-
 func check(x *Number, expected int) {
 	var c = count(x)
 	if c != expected {
 		panic(fmt.Sprintf("error: found %d; expected %d", c, expected))
 	}
 }
-
 
 // -------------------------------------
 // Test basic functionality
@@ -116,7 +104,6 @@ func verify() {
 	check(fact(add1(zero())), 1)
 	check(fact(gen(5)), 120)
 }
-
 
 // -------------------------------------
 // Factorial
