@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of December 10, 2011 -->
+<!-- subtitle Version of December 12, 2011 -->
 
 <!--
 TODO
@@ -2909,72 +2909,103 @@ Comparison operators compare two operands and yield a value of type <code>bool</
 !=    not equal
 &lt;     less
 &lt;=    less or equal
->     greater
->=    greater or equal
+&gt;     greater
+&gt;=    greater or equal
 </pre>
 
 <p>
-The operands must be <i>comparable</i>; that is, the first operand
+In any comparison, the first operand
 must be <a href="#Assignability">assignable</a>
 to the type of the second operand, or vice versa.
 </p>
 <p>
-The operators <code>==</code> and <code>!=</code> apply
-to operands of all types except arrays and structs.
-All other comparison operators apply only to integer, floating-point
-and string values. The result of a comparison is defined as follows:
+The equality operators <code>==</code> and <code>!=</code> apply
+to operands that are <i>comparable</i>.
+The ordering operators <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, and <code>&gt;=</code>
+apply to operands that are <i>ordered</i>.
+These terms and the result of the comparisons are defined as follows:
 </p>
 
 <ul>
 	<li>
-	Integer values are compared in the usual way.
+	Boolean values are comparable.
+	Two boolean values are equal if they are either both
+	<code>true</code> or both <code>false</code>.
 	</li>
+
 	<li>
-	Floating point values are compared as defined by the IEEE-754
-	standard.
+	Integer values are comparable and ordered, in the usual way.
 	</li>
+	
 	<li>
-	Two complex values <code>u</code>, <code>v</code> are
+	Floating point values are comparable and ordered,
+	as defined by the IEEE-754 standard.
+	</li>
+	
+	<li>
+	Complex values are comparable.
+	Two complex values <code>u</code> and <code>v</code> are
 	equal if both <code>real(u) == real(v)</code> and
 	<code>imag(u) == imag(v)</code>.
 	</li>
+	
 	<li>
-	String values are compared byte-wise (lexically).
+	String values are comparable and ordered, lexically byte-wise.
 	</li>
+	
 	<li>
-	Boolean values are equal if they are either both
-	<code>true</code> or both <code>false</code>.
+	Pointer values are comparable.
+	Two pointer values are equal if they point to the same location or if both have value <code>nil</code>.
 	</li>
+	
 	<li>
-	Pointer values are equal if they point to the same location
-	or if both are <code>nil</code>.
-	</li>
-	<li>
-	A slice, map, or function value may be compared only to <code>nil</code>.
-	</li>
-	<li>
-	Channel values are equal if they were created by the same call to <code>make</code>
+	Channel values are comparable.
+	Two channel values are equal if they were created by the same call to <code>make</code>
 	(§<a href="#Making_slices_maps_and_channels">Making slices, maps, and channels</a>)
-	or if both are <code>nil</code>.
+	or if both have value <code>nil</code>.
 	</li>
+
 	<li>
-	Interface values are equal if they have <a href="#Type_identity">identical</a> dynamic types and
-	equal dynamic values or if both are <code>nil</code>.
+	Interface values are comparable.
+	Two interface values are equal if they have <a href="#Type_identity">identical</a> dynamic types
+	and equal dynamic values or if both have value <code>nil</code>.
 	</li>
+	
 	<li>
-	An interface value <code>x</code> is equal to a non-interface value
-	<code>y</code> if the dynamic type of <code>x</code> is identical to
-	the static type of <code>y</code> and the dynamic value of <code>x</code>
-	is equal to <code>y</code>.
+	A value <code>x</code> of non-interface type <code>X</code> and
+	a value <code>t</code> of interface type <code>T</code> are comparable when values
+	of type <code>X</code> are comparable and
+	<code>X</code> implements <code>T</code>.
+	They are equal if <code>t</code>'s dynamic type is identical to <code>X</code>
+	and <code>t</code>'s dynamic value is equal to <code>x</code>.
 	</li>
+
 	<li>
-	A pointer, function, slice, channel, map, or interface value is equal
-	to <code>nil</code> if it has been assigned the explicit value
-	<code>nil</code>, if it is uninitialized, or if it has been assigned
-	another value equal to <code>nil</code>.
+	Struct values are comparable if all the fields are comparable.
+	Two struct values are equal if their corresponding fields are equal.
+	</li>
+	
+	<li>
+	Array values are comparable if values of the array element type are comparable.
+	Two array values are equal if their corresponding elements are equal.
 	</li>
 </ul>
 
+<p>
+A comparison of two interface values with identical dynamic types
+causes a <a href="#Run_time_panics">run-time panic</a> if values
+of that type are not comparable.  This behavior applies not only to direct interface
+value comparisons but also when comparing arrays of interface values
+or structs with interface-valued fields.
+</p>
+
+<p>
+Slice, map, and function values are not comparable.
+However, as a special case, a slice, map, or function value may
+be compared to the predeclared identifier <code>nil</code>.
+Comparison of pointer, channel, and interface values to <code>nil</code>
+is also allowed and follows from the general rules above.
+</p>
 
 <h3 id="Logical_operators">Logical operators</h3>
 
