@@ -101,7 +101,7 @@ do
 done
 
 [ "$GOARCH" == arm ] ||
-(xcd ../test/bench
+(xcd ../test/bench/shootout
 ./timing.sh -test
 ) || exit $?
 

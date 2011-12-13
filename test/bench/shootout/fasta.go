@@ -70,7 +70,7 @@ const (
 	IA = 3877
 	IC = 29573
 
-	LookupSize  = 4096
+	LookupSize          = 4096
 	LookupScale float64 = LookupSize - 1
 )
 
@@ -177,7 +177,6 @@ func main() {
 	out.WriteString(">THREE Homo sapiens frequency\n")
 	Random(homosapiens, 5**n)
 }
-
 
 type buffer []byte
 

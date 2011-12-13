@@ -49,20 +49,20 @@ const (
 )
 
 var complement = [...]int{
-	red | red<<2: red,
-	red | yellow<<2: blue,
-	red | blue<<2: yellow,
-	yellow | red<<2: blue,
+	red | red<<2:       red,
+	red | yellow<<2:    blue,
+	red | blue<<2:      yellow,
+	yellow | red<<2:    blue,
 	yellow | yellow<<2: yellow,
-	yellow | blue<<2: red,
-	blue | red<<2: yellow,
-	blue | yellow<<2: red,
-	blue | blue<<2: blue,
+	yellow | blue<<2:   red,
+	blue | red<<2:      yellow,
+	blue | yellow<<2:   red,
+	blue | blue<<2:     blue,
 }
 
 var colname = [...]string{
-	blue: "blue",
-	red: "red",
+	blue:   "blue",
+	red:    "red",
 	yellow: "yellow",
 }
 
