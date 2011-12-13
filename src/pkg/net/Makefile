@@ -111,7 +111,7 @@ GOFILES_netbsd=\
 	fd_$(GOOS).go\
 	file.go\
 	interface_bsd.go\
-	interface_openbsd.go\
+	interface_netbsd.go\
 	iprawsock_posix.go\
 	ipsock_posix.go\
 	lookup_unix.go\
