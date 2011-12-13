@@ -1065,25 +1065,30 @@ class uiwrap(object):
 		ui.verbose = self.oldVerbose
 		return ui.popbuffer()
 
+def to_slash(path):
+	if sys.platform == "win32":
+		return path.replace('\\', '/')
+	return path
+
 def hg_matchPattern(ui, repo, *pats, **opts):
 	w = uiwrap(ui)
 	hg_commands.status(ui, repo, *pats, **opts)
 	text = w.output()
 	ret = []
-	prefix = os.path.realpath(repo.root)+'/'
+	prefix = to_slash(os.path.realpath(repo.root))+'/'
 	for line in text.split('\n'):
 		f = line.split()
 		if len(f) > 1:
 			if len(pats) > 0:
 				# Given patterns, Mercurial shows relative to cwd
-				p = os.path.realpath(f[1])
+				p = to_slash(os.path.realpath(f[1]))
 				if not p.startswith(prefix):
 					print >>sys.stderr, "File %s not in repo root %s.\n" % (p, prefix)
 				else:
 					ret.append(p[len(prefix):])
 			else:
 				# Without patterns, Mercurial shows relative to root (what we want)
-				ret.append(f[1])
+				ret.append(to_slash(f[1]))
 	return ret
 
 def hg_heads(ui, repo):
@@ -3139,7 +3144,7 @@ class VersionControlSystem(object):
 				unused, filename = line.split(':', 1)
 				# On Windows if a file has property changes its filename uses '\'
 				# instead of '/'.
-				filename = filename.strip().replace('\\', '/')
+				filename = to_slash(filename.strip())
 				files[filename] = self.GetBaseFile(filename)
 		return files
 
@@ -3357,7 +3362,7 @@ class MercurialVCS(VersionControlSystem):
 			#	A path
 			#	M path
 			# etc
-			line = self.status[i].replace('\\', '/')
+			line = to_slash(self.status[i])
 			if line[2:] == path:
 				if i+1 < len(self.status) and self.status[i+1][:2] == '  ':
 					return self.status[i:i+2]
@@ -3424,7 +3429,7 @@ def SplitPatch(data):
 			# When a file is modified, paths use '/' between directories, however
 			# when a property is modified '\' is used on Windows.  Make them the same
 			# otherwise the file shows up twice.
-			temp_filename = temp_filename.strip().replace('\\', '/')
+			temp_filename = to_slash(temp_filename.strip())
 			if temp_filename != filename:
 				# File has property changes but no modifications, create a new diff.
 				new_filename = temp_filename
