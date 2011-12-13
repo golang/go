@@ -569,14 +569,14 @@ func (c *conn) serve() {
 		if err == nil {
 			return
 		}
-		if c.rwc != nil { // may be nil if connection hijacked
-			c.rwc.Close()
-		}
-
 		var buf bytes.Buffer
 		fmt.Fprintf(&buf, "http: panic serving %v: %v\n", c.remoteAddr, err)
 		buf.Write(debug.Stack())
 		log.Print(buf.String())
+
+		if c.rwc != nil { // may be nil if connection hijacked
+			c.rwc.Close()
+		}
 	}()
 
 	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
