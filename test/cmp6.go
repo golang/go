@@ -11,7 +11,7 @@ func use(bool) {}
 type T1 *int
 type T2 *int
 
-type T3 struct{}
+type T3 struct{ z []int }
 
 var t3 T3
 
@@ -54,4 +54,14 @@ func main() {
 	use(x == x) // ERROR "slice can only be compared to nil"
 	use(f == f) // ERROR "func can only be compared to nil"
 	use(m == m) // ERROR "map can only be compared to nil"
+
+	// Comparison with interface that cannot return true
+	// (would panic).
+	var i interface{}
+	use(i == x) // ERROR "invalid operation"
+	use(x == i) // ERROR "invalid operation"
+	use(i == f) // ERROR "invalid operation"
+	use(f == i) // ERROR "invalid operation"
+	use(i == m) // ERROR "invalid operation"
+	use(m == i) // ERROR "invalid operation"
 }

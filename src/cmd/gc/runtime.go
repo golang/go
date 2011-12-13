@@ -8,6 +8,8 @@
 
 package PACKAGE
 
+import "unsafe"
+
 // emitted by compiler, not referred to by go programs
 
 func new(typ *byte) *any
@@ -80,6 +82,8 @@ func efaceeq(i1 any, i2 any) (ret bool)
 func ifacethash(i1 any) (ret uint32)
 func efacethash(i1 any) (ret uint32)
 
+func equal(typ *byte, x1, x2 any) (ret bool)
+
 // *byte is really *runtime.Type
 func makemap(mapType *byte, hint int64) (hmap map[any]any)
 func mapaccess1(mapType *byte, hmap map[any]any, key any) (val any)
@@ -118,6 +122,13 @@ func sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
 func slicearray(old *any, nel uint64, lb uint64, hb uint64, width uint64) (ary []any)
 
 func closure() // has args, but compiler fills in
+
+func memequal(eq *bool, size uintptr, x, y unsafe.Pointer)
+func memequal8(eq *bool, size uintptr, x, y unsafe.Pointer)
+func memequal16(eq *bool, size uintptr, x, y unsafe.Pointer)
+func memequal32(eq *bool, size uintptr, x, y unsafe.Pointer)
+func memequal64(eq *bool, size uintptr, x, y unsafe.Pointer)
+func memequal128(eq *bool, size uintptr, x, y unsafe.Pointer)
 
 // only used on 32-bit
 func int64div(int64, int64) int64

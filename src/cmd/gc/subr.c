@@ -495,44 +495,108 @@ nod(int op, Node *nleft, Node *nright)
 }
 
 int
+algtype1(Type *t, Type **bad)
+{
+	int a, ret;
+	Type *t1;
+	
+	if(bad)
+		*bad = T;
+
+	switch(t->etype) {
+	case TINT8:
+	case TUINT8:
+	case TINT16:
+	case TUINT16:
+	case TINT32:
+	case TUINT32:
+	case TINT64:
+	case TUINT64:
+	case TINT:
+	case TUINT:
+	case TUINTPTR:
+	case TCOMPLEX64:
+	case TCOMPLEX128:
+	case TFLOAT32:
+	case TFLOAT64:
+	case TBOOL:
+	case TPTR32:
+	case TPTR64:
+	case TCHAN:
+	case TUNSAFEPTR:
+		return AMEM;
+	
+	case TFUNC:
+	case TMAP:
+		if(bad)
+			*bad = t;
+		return ANOEQ;
+
+	case TSTRING:
+		return ASTRING;
+	
+	case TINTER:
+		if(isnilinter(t))
+			return ANILINTER;
+		return AINTER;
+	
+	case TARRAY:
+		if(isslice(t)) {
+			if(bad)
+				*bad = t;
+			return ANOEQ;
+		}
+		if(t->bound == 0)
+			return AMEM;
+		a = algtype1(t->type, bad);
+		if(a == ANOEQ || a == AMEM) {
+			if(a == ANOEQ && bad)
+				*bad = t;
+			return a;
+		}
+		return -1;  // needs special compare
+
+	case TSTRUCT:
+		if(t->type != T && t->type->down == T) {
+			// One-field struct is same as that one field alone.
+			return algtype1(t->type->type, bad);
+		}
+		ret = AMEM;
+		for(t1=t->type; t1!=T; t1=t1->down) {
+			a = algtype1(t1->type, bad);
+			if(a == ANOEQ)
+				return ANOEQ;  // not comparable
+			if(a != AMEM)
+				ret = -1;  // needs special compare
+		}
+		return ret;
+	}
+
+	fatal("algtype1: unexpected type %T", t);
+	return 0;
+}
+
+int
 algtype(Type *t)
 {
 	int a;
-
-	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN) {
-		if(t->width == 1)
-			a = AMEM8;
-		else if(t->width == 2)
-			a = AMEM16;
-		else if(t->width == 4)
-			a = AMEM32;
-		else if(t->width == 8)
-			a = AMEM64;
-		else if(t->width == 16)
-			a = AMEM128;
-		else
-			a = AMEM;	// just bytes (int, ptr, etc)
-	} else if(t->etype == TSTRING)
-		a = ASTRING;	// string
-	else if(isnilinter(t))
-		a = ANILINTER;	// nil interface
-	else if(t->etype == TINTER)
-		a = AINTER;	// interface
-	else if(isslice(t))
-		a = ASLICE;	// slice
-	else {
-		if(t->width == 1)
-			a = ANOEQ8;
-		else if(t->width == 2)
-			a = ANOEQ16;
-		else if(t->width == 4)
-			a = ANOEQ32;
-		else if(t->width == 8)
-			a = ANOEQ64;
-		else if(t->width == 16)
-			a = ANOEQ128;
-		else
-			a = ANOEQ;	// just bytes, but no hash/eq
+	
+	a = algtype1(t, nil);
+	if(a == AMEM || a == ANOEQ) {
+		if(isslice(t))
+			return ASLICE;
+		switch(t->width) {
+		case 1:
+			return a + AMEM8 - AMEM;
+		case 2:
+			return a + AMEM16 - AMEM;
+		case 4:
+			return a + AMEM32 - AMEM;
+		case 8:
+			return a + AMEM64 - AMEM;
+		case 16:
+			return a + AMEM128 - AMEM;
+		}
 	}
 	return a;
 }
@@ -544,11 +608,12 @@ maptype(Type *key, Type *val)
 
 	if(key != nil) {
 		switch(key->etype) {
-		case TARRAY:
-		case TSTRUCT:
-		case TMAP:
-		case TFUNC:
-			yyerror("invalid map key type %T", key);
+		default:
+			if(algtype1(key, nil) == ANOEQ)
+				yyerror("invalid map key type %T", key);
+			break;
+		case TANY:
+			// will be resolved later.
 			break;
 		case TFORW:
 			// map[key] used during definition of key.
@@ -2352,6 +2417,391 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
 
 	funcbody(fn);
 	curfn = fn;
+	typecheck(&fn, Etop);
+	typechecklist(fn->nbody, Etop);
+	curfn = nil;
+	funccompile(fn, 0);
+}
+
+static Node*
+hashmem(Type *t, vlong width)
+{
+	Node *tfn, *n;
+	Sym *sym;
+	
+	sym = pkglookup("memhash", runtimepkg);
+
+	n = newname(sym);
+	n->class = PFUNC;
+	tfn = nod(OTFUNC, N, N);
+	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(types[TUINTPTR]))));
+	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
+	typecheck(&tfn, Etype);
+	n->type = tfn->type;
+	return n;
+}
+
+static Node*
+hashfor(Type *t)
+{
+	int a;
+	Sym *sym;
+	Node *tfn, *n;
+
+	a = algtype1(t, nil);
+	switch(a) {
+	case AMEM:
+		return hashmem(t, t->width);
+	case AINTER:
+		sym = pkglookup("interhash", runtimepkg);
+		break;
+	case ANILINTER:
+		sym = pkglookup("nilinterhash", runtimepkg);
+		break;
+	case ASTRING:
+		sym = pkglookup("strhash", runtimepkg);
+		break;
+	default:
+		sym = typesymprefix(".hash", t);
+		break;
+	}
+
+	n = newname(sym);
+	n->class = PFUNC;
+	tfn = nod(OTFUNC, N, N);
+	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(types[TUINTPTR]))));
+	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
+	typecheck(&tfn, Etype);
+	n->type = tfn->type;
+	return n;
+}
+
+/*
+ * Generate a helper function to compute the hash of a value of type t.
+ */
+void
+genhash(Sym *sym, Type *t)
+{
+	Node *n, *fn, *np, *nh, *ni, *call, *nx, *na, *tfn;
+	Node *hashel;
+	Type *first, *t1;
+	int64 size;
+
+	if(debug['r'])
+		print("genhash %S %T\n", sym, t);
+
+	lineno = 1;  // less confusing than end of input
+	dclcontext = PEXTERN;
+	markdcl();
+
+	// func sym(h *uintptr, s uintptr, p *T)
+	fn = nod(ODCLFUNC, N, N);
+	fn->nname = newname(sym);
+	fn->nname->class = PFUNC;
+	tfn = nod(OTFUNC, N, N);
+	fn->nname->ntype = tfn;
+
+	n = nod(ODCLFIELD, newname(lookup("h")), typenod(ptrto(types[TUINTPTR])));
+	tfn->list = list(tfn->list, n);
+	nh = n->left;
+	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
+	tfn->list = list(tfn->list, n);
+	n = nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)));
+	tfn->list = list(tfn->list, n);
+	np = n->left;
+
+	funchdr(fn);
+	typecheck(&fn->nname->ntype, Etype);
+
+	// genhash is only called for types that have equality but
+	// cannot be handled by the standard algorithms,
+	// so t must be either an array or a struct.
+	switch(t->etype) {
+	default:
+		fatal("genhash %T", t);
+	case TARRAY:
+		if(isslice(t))
+			fatal("genhash %T", t);
+		// An array of pure memory would be handled by the
+		// standard algorithm, so the element type must not be
+		// pure memory.
+		hashel = hashfor(t->type);
+		n = nod(ORANGE, N, nod(OIND, np, N));
+		ni = newname(lookup("i"));
+		ni->type = types[TINT];
+		n->list = list1(ni);
+		n->colas = 1;
+		colasdefn(n->list, n);
+		ni = n->list->n;
+
+		// *h = *h<<3 | *h>>61
+		n->nbody = list(n->nbody,
+			nod(OAS,
+				nod(OIND, nh, N),
+				nod(OOR,
+					nod(OLSH, nod(OIND, nh, N), nodintconst(3)),
+					nod(ORSH, nod(OIND, nh, N), nodintconst(widthptr*8-3)))));
+
+		// hashel(h, sizeof(p[i]), &p[i])
+		call = nod(OCALL, hashel, N);
+		call->list = list(call->list, nh);
+		call->list = list(call->list, nodintconst(t->type->width));
+		nx = nod(OINDEX, np, ni);
+		nx->etype = 1;  // no bounds check
+		na = nod(OADDR, nx, N);
+		na->etype = 1;  // no escape to heap
+		call->list = list(call->list, na);
+		n->nbody = list(n->nbody, call);
+
+		fn->nbody = list(fn->nbody, n);
+		break;
+
+	case TSTRUCT:
+		// Walk the struct using memhash for runs of AMEM
+		// and calling specific hash functions for the others.
+		first = T;
+		for(t1=t->type;; t1=t1->down) {
+			if(t1 != T && algtype1(t1->type, nil) == AMEM) {
+				if(first == T)
+					first = t1;
+				continue;
+			}
+			// Run memhash for fields up to this one.
+			if(first != T) {
+				if(first->down == t1)
+					size = first->type->width;
+				else if(t1 == T)
+					size = t->width - first->width;  // first->width is offset
+				else
+					size = t1->width - first->width;  // both are offsets
+				hashel = hashmem(first->type, size);
+				// hashel(h, size, &p.first)
+				call = nod(OCALL, hashel, N);
+				call->list = list(call->list, nh);
+				call->list = list(call->list, nodintconst(size));
+				nx = nod(OXDOT, np, newname(first->sym));  // TODO: fields from other packages?
+				na = nod(OADDR, nx, N);
+				na->etype = 1;  // no escape to heap
+				call->list = list(call->list, na);
+				fn->nbody = list(fn->nbody, call);
+
+				first = T;
+			}
+			if(t1 == T)
+				break;
+
+			// Run hash for this field.
+			hashel = hashfor(t1->type);
+			// hashel(h, size, &p.t1)
+			call = nod(OCALL, hashel, N);
+			call->list = list(call->list, nh);
+			call->list = list(call->list, nodintconst(t1->type->width));
+			nx = nod(OXDOT, np, newname(t1->sym));  // TODO: fields from other packages?
+			na = nod(OADDR, nx, N);
+			na->etype = 1;  // no escape to heap
+			call->list = list(call->list, na);
+			fn->nbody = list(fn->nbody, call);
+		}
+		break;
+	}
+
+	if(debug['r'])
+		dumplist("genhash body", fn->nbody);
+
+	funcbody(fn);
+	curfn = fn;
+	fn->dupok = 1;
+	typecheck(&fn, Etop);
+	typechecklist(fn->nbody, Etop);
+	curfn = nil;
+	funccompile(fn, 0);
+}
+
+// Return node for
+//	if p.field != q.field { *eq = false; return }
+static Node*
+eqfield(Node *p, Node *q, Node *field, Node *eq)
+{
+	Node *nif, *nx, *ny;
+
+	nx = nod(OXDOT, p, field);
+	ny = nod(OXDOT, q, field);
+	nif = nod(OIF, N, N);
+	nif->ntest = nod(ONE, nx, ny);
+	nif->nbody = list(nif->nbody, nod(OAS, nod(OIND, eq, N), nodbool(0)));
+	nif->nbody = list(nif->nbody, nod(ORETURN, N, N));
+	return nif;
+}
+
+static Node*
+eqmemfunc(vlong size)
+{
+	char buf[30];
+
+	switch(size) {
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+	case 16:
+		snprint(buf, sizeof buf, "memequal%d", (int)size*8);
+		return syslook(buf, 0);
+	}
+	return syslook("memequal", 0);
+}
+
+// Return node for
+//	if memequal(size, &p.field, &q.field, eq); !*eq { return }
+static Node*
+eqmem(Node *p, Node *q, Node *field, vlong size, Node *eq)
+{
+	Node *nif, *nx, *ny, *call;
+
+	nx = nod(OADDR, nod(OXDOT, p, field), N);
+	nx->etype = 1;  // does not escape
+	ny = nod(OADDR, nod(OXDOT, q, field), N);
+	ny->etype = 1;  // does not escape
+
+	call = nod(OCALL, eqmemfunc(size), N);
+	call->list = list(call->list, eq);
+	call->list = list(call->list, nodintconst(size));
+	call->list = list(call->list, conv(nx, types[TUNSAFEPTR]));
+	call->list = list(call->list, conv(ny, types[TUNSAFEPTR]));
+
+	nif = nod(OIF, N, N);
+	nif->ninit = list(nif->ninit, call);
+	nif->ntest = nod(ONOT, nod(OIND, eq, N), N);
+	nif->nbody = list(nif->nbody, nod(ORETURN, N, N));
+	return nif;
+}
+
+/*
+ * Generate a helper function to check equality of two values of type t.
+ */
+void
+geneq(Sym *sym, Type *t)
+{
+	Node *n, *fn, *np, *neq, *nq, *tfn, *nif, *ni, *nx, *ny, *nrange;
+	Type *t1, *first;
+	int64 size;
+
+	if(debug['r'])
+		print("geneq %S %T\n", sym, t);
+
+	lineno = 1;  // less confusing than end of input
+	dclcontext = PEXTERN;
+	markdcl();
+
+	// func sym(eq *bool, s uintptr, p, q *T)
+	fn = nod(ODCLFUNC, N, N);
+	fn->nname = newname(sym);
+	fn->nname->class = PFUNC;
+	tfn = nod(OTFUNC, N, N);
+	fn->nname->ntype = tfn;
+
+	n = nod(ODCLFIELD, newname(lookup("eq")), typenod(ptrto(types[TBOOL])));
+	tfn->list = list(tfn->list, n);
+	neq = n->left;
+	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
+	tfn->list = list(tfn->list, n);
+	n = nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)));
+	tfn->list = list(tfn->list, n);
+	np = n->left;
+	n = nod(ODCLFIELD, newname(lookup("q")), typenod(ptrto(t)));
+	tfn->list = list(tfn->list, n);
+	nq = n->left;
+
+	funchdr(fn);
+
+	// geneq is only called for types that have equality but
+	// cannot be handled by the standard algorithms,
+	// so t must be either an array or a struct.
+	switch(t->etype) {
+	default:
+		fatal("geneq %T", t);
+	case TARRAY:
+		if(isslice(t))
+			fatal("geneq %T", t);
+		// An array of pure memory would be handled by the
+		// standard memequal, so the element type must not be
+		// pure memory.  Even if we unrolled the range loop,
+		// each iteration would be a function call, so don't bother
+		// unrolling.
+		nrange = nod(ORANGE, N, nod(OIND, np, N));
+		ni = newname(lookup("i"));
+		ni->type = types[TINT];
+		nrange->list = list1(ni);
+		nrange->colas = 1;
+		colasdefn(nrange->list, nrange);
+		ni = nrange->list->n;
+		
+		// if p[i] != q[i] { *eq = false; return }
+		nx = nod(OINDEX, np, ni);
+		nx->etype = 1;  // no bounds check
+		ny = nod(OINDEX, nq, ni);
+		ny->etype = 1;  // no bounds check
+
+		nif = nod(OIF, N, N);
+		nif->ntest = nod(ONE, nx, ny);
+		nif->nbody = list(nif->nbody, nod(OAS, nod(OIND, neq, N), nodbool(0)));
+		nif->nbody = list(nif->nbody, nod(ORETURN, N, N));
+		nrange->nbody = list(nrange->nbody, nif);
+		fn->nbody = list(fn->nbody, nrange);
+
+		// *eq = true;
+		fn->nbody = list(fn->nbody, nod(OAS, nod(OIND, neq, N), nodbool(1)));
+		break;
+
+	case TSTRUCT:
+		// Walk the struct using memequal for runs of AMEM
+		// and calling specific equality tests for the others.
+		first = T;
+		for(t1=t->type;; t1=t1->down) {
+			if(t1 != T && algtype1(t1->type, nil) == AMEM) {
+				if(first == T)
+					first = t1;
+				continue;
+			}
+			// Run memequal for fields up to this one.
+			// TODO(rsc): All the calls to newname are wrong for
+			// cross-package unexported fields.
+			if(first != T) {
+				if(first->down == t1) {
+					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
+				} else if(first->down->down == t1) {
+					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
+					first = first->down;
+					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
+				} else {
+					// More than two fields: use memequal.
+					if(t1 == T)
+						size = t->width - first->width;  // first->width is offset
+					else
+						size = t1->width - first->width;  // both are offsets
+					fn->nbody = list(fn->nbody, eqmem(np, nq, newname(first->sym), size, neq));
+				}
+				first = T;
+			}
+			if(t1 == T)
+				break;
+
+			// Check this field, which is not just memory.
+			fn->nbody = list(fn->nbody, eqfield(np, nq, newname(t1->sym), neq));
+		}
+
+		// *eq = true;
+		fn->nbody = list(fn->nbody, nod(OAS, nod(OIND, neq, N), nodbool(1)));
+		break;
+	}
+
+	if(debug['r'])
+		dumplist("geneq body", fn->nbody);
+
+	funcbody(fn);
+	curfn = fn;
+	fn->dupok = 1;
 	typecheck(&fn, Etop);
 	typechecklist(fn->nbody, Etop);
 	curfn = nil;

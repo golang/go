@@ -37,23 +37,24 @@ enum
 
 	AUNK		= 100,
 
-	// these values are known by runtime
+	// These values are known by runtime.
+	// The MEMx and NOEQx values must run in parallel.  See algtype.
 	AMEM		= 0,
-	ANOEQ,
-	ASTRING,
-	AINTER,
-	ANILINTER,
-	ASLICE,
 	AMEM8,
 	AMEM16,
 	AMEM32,
 	AMEM64,
 	AMEM128,
+	ANOEQ,
 	ANOEQ8,
 	ANOEQ16,
 	ANOEQ32,
 	ANOEQ64,
 	ANOEQ128,
+	ASTRING,
+	AINTER,
+	ANILINTER,
+	ASLICE,
 
 	BADWIDTH	= -1000000000,
 };
@@ -245,6 +246,7 @@ struct	Node
 	uchar	readonly;
 	uchar	implicit;	// don't show in printout
 	uchar	addrtaken;	// address taken, even if not moved to heap
+	uchar	dupok;	// duplicate definitions ok (for func)
 
 	// most nodes
 	Type*	type;
@@ -1085,6 +1087,7 @@ void	dumptypestructs(void);
 Type*	methodfunc(Type *f, Type*);
 Node*	typename(Type *t);
 Sym*	typesym(Type *t);
+Sym*	typesymprefix(char *prefix, Type *t);
 int	haspointers(Type *t);
 
 /*
@@ -1109,6 +1112,7 @@ Node*	adddot(Node *n);
 int	adddot1(Sym *s, Type *t, int d, Type **save, int ignorecase);
 Type*	aindex(Node *b, Type *t);
 int	algtype(Type *t);
+int	algtype1(Type *t, Type **bad);
 void	argtype(Node *on, Type *t);
 Node*	assignconv(Node *n, Type *t, char *context);
 int	assignop(Type *src, Type *dst, char **why);
@@ -1129,6 +1133,8 @@ void	frame(int context);
 Type*	funcfirst(Iter *s, Type *t);
 Type*	funcnext(Iter *s);
 void	genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface);
+void	genhash(Sym *sym, Type *t);
+void	geneq(Sym *sym, Type *t);
 Type**	getinarg(Type *t);
 Type*	getinargx(Type *t);
 Type**	getoutarg(Type *t);
@@ -1237,6 +1243,7 @@ void	walkexprlist(NodeList *l, NodeList **init);
 void	walkexprlistsafe(NodeList *l, NodeList **init);
 void	walkstmt(Node **np);
 void	walkstmtlist(NodeList *l);
+Node*	conv(Node*, Type*);
 
 /*
  *	arch-specific ggen.c/gsubr.c/gobj.c/pgen.c

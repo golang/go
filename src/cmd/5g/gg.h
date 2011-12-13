@@ -43,6 +43,8 @@ struct	Prog
 	uchar	scond;
 };
 
+#define TEXTFLAG reg
+
 #define REGALLOC_R0 0
 #define REGALLOC_RMAX REGEXT
 #define REGALLOC_F0 (REGALLOC_RMAX+1)
