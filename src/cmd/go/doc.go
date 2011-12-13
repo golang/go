@@ -31,3 +31,5 @@ Additional help topics:
 Use "go help [topic]" for more information about that topic.
 */
 package documentation
+
+// NOTE: cmdDoc is in fmt.go.

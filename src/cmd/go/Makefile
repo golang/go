@@ -14,6 +14,7 @@ GOFILES=\
 	help.go\
 	list.go\
 	main.go\
+	pkg.go\
 	test.go\
 	version.go\
 	vet.go\

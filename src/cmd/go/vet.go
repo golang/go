@@ -21,7 +21,10 @@ See also: go fmt, go fix.
 }
 
 func runVet(cmd *Command, args []string) {
-	args = importPaths(args)
-	_ = args
-	panic("vet not implemented")
+	for _, pkg := range packages(args) {
+		// Use pkg.gofiles instead of pkg.Dir so that
+		// the command only applies to this package,
+		// not to packages in subdirectories.
+		run(append([]string{"govet"}, pkg.gofiles...)...)
+	}
 }
