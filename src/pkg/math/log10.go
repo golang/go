@@ -6,8 +6,16 @@ package math
 
 // Log10 returns the decimal logarithm of x.
 // The special cases are the same as for Log.
-func Log10(x float64) float64 { return Log(x) * (1 / Ln10) }
+func Log10(x float64) float64
+
+func log10(x float64) float64 {
+	return Log(x) * (1 / Ln10)
+}
 
 // Log2 returns the binary logarithm of x.
 // The special cases are the same as for Log.
-func Log2(x float64) float64 { return Log(x) * (1 / Ln2) }
+func Log2(x float64) float64
+
+func log2(x float64) float64 {
+	return Log(x) * (1 / Ln2)
+}

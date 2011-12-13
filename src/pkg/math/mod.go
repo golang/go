@@ -18,7 +18,9 @@ package math
 //	Mod(x, 0) = NaN
 //	Mod(x, ±Inf) = x
 //	Mod(x, NaN) = NaN
-func Mod(x, y float64) float64 {
+func Mod(x, y float64) float64
+
+func mod(x, y float64) float64 {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us.
 	if y == 0 || x > MaxFloat64 || x < -MaxFloat64 || x != x || y != y { // y == 0 || IsInf(x, 0) || IsNaN(x) || IsNan(y)

@@ -9,7 +9,9 @@ package math
 // Special cases are:
 //	Abs(±Inf) = +Inf
 //	Abs(NaN) = NaN
-func Abs(x float64) float64 {
+func Abs(x float64) float64
+
+func abs(x float64) float64 {
 	switch {
 	case x < 0:
 		return -x

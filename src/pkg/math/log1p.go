@@ -92,7 +92,9 @@ package math
 //	Log1p(-1) = -Inf
 //	Log1p(x < -1) = NaN
 //	Log1p(NaN) = NaN
-func Log1p(x float64) float64 {
+func Log1p(x float64) float64
+
+func log1p(x float64) float64 {
 	const (
 		Sqrt2M1     = 4.142135623730950488017e-01  // Sqrt(2)-1 = 0x3fda827999fcef34
 		Sqrt2HalfM1 = -2.928932188134524755992e-01 // Sqrt(2)/2-1 = 0xbfd2bec333018866

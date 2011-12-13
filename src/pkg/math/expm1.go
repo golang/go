@@ -121,7 +121,9 @@ package math
 //	Expm1(-Inf) = -1
 //	Expm1(NaN) = NaN
 // Very large values overflow to -1 or +Inf.
-func Expm1(x float64) float64 {
+func Expm1(x float64) float64
+
+func expm1(x float64) float64 {
 	const (
 		Othreshold = 7.09782712893383973096e+02 // 0x40862E42FEFA39EF
 		Ln2X56     = 3.88162421113569373274e+01 // 0x4043687a9f1af2b1

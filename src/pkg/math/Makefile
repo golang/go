@@ -6,44 +6,31 @@ include ../../Make.inc
 
 TARG=math
 
-OFILES_arm=\
-	sqrt_arm.$O\
-
-OFILES_amd64=\
-	abs_amd64.$O\
-	dim_amd64.$O\
-	exp_amd64.$O\
-	hypot_amd64.$O\
-	log_amd64.$O\
-	sqrt_amd64.$O\
-
-OFILES_386=\
-	abs_386.$O\
-	asin_386.$O\
-	atan_386.$O\
-	atan2_386.$O\
-	exp_386.$O\
-	exp2_386.$O\
-	expm1_386.$O\
-	floor_386.$O\
-	frexp_386.$O\
-	hypot_386.$O\
-	ldexp_386.$O\
-	log_386.$O\
-	log10_386.$O\
-	log1p_386.$O\
-	mod_386.$O\
-	modf_386.$O\
-	remainder_386.$O\
-	sin_386.$O\
-	sincos_386.$O\
-	sqrt_386.$O\
-	tan_386.$O\
-
 OFILES=\
-	$(OFILES_$(GOARCH))
+	abs_$(GOARCH).$O\
+	asin_$(GOARCH).$O\
+	atan_$(GOARCH).$O\
+	atan2_$(GOARCH).$O\
+	dim_$(GOARCH).$O\
+	exp_$(GOARCH).$O\
+	exp2_$(GOARCH).$O\
+	expm1_$(GOARCH).$O\
+	floor_$(GOARCH).$O\
+	frexp_$(GOARCH).$O\
+	hypot_$(GOARCH).$O\
+	ldexp_$(GOARCH).$O\
+	log_$(GOARCH).$O\
+	log10_$(GOARCH).$O\
+	log1p_$(GOARCH).$O\
+	mod_$(GOARCH).$O\
+	modf_$(GOARCH).$O\
+	remainder_$(GOARCH).$O\
+	sin_$(GOARCH).$O\
+	sincos_$(GOARCH).$O\
+	sqrt_$(GOARCH).$O\
+	tan_$(GOARCH).$O\
 
-ALLGOFILES=\
+GOFILES=\
 	abs.go\
 	acosh.go\
 	asin.go\
@@ -58,14 +45,11 @@ ALLGOFILES=\
 	dim.go\
 	erf.go\
 	exp.go\
-	exp_port.go\
-	exp2.go\
 	expm1.go\
 	floor.go\
 	frexp.go\
 	gamma.go\
 	hypot.go\
-	hypot_port.go\
 	j0.go\
 	j1.go\
 	jn.go\
@@ -86,16 +70,8 @@ ALLGOFILES=\
 	sincos.go\
 	sinh.go\
 	sqrt.go\
-	sqrt_port.go\
 	tan.go\
 	tanh.go\
 	unsafe.go\
-
-NOGOFILES=\
-	$(subst _$(GOARCH).$O,.go,$(OFILES_$(GOARCH)))
-
-GOFILES=\
-	$(filter-out $(NOGOFILES),$(ALLGOFILES))\
-	$(subst .go,_decl.go,$(NOGOFILES))\
 
 include ../../Make.pkg
