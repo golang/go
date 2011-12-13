@@ -16,7 +16,7 @@ package math
 //	Hypot(p, q) = NaN if p or q is NaN
 func Hypot(p, q float64) float64
 
-func hypotSqrt(p, q float64) float64 {
+func hypot(p, q float64) float64 {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us
 	// special cases
@@ -40,47 +40,4 @@ func hypotSqrt(p, q float64) float64 {
 	}
 	q = q / p
 	return p * Sqrt(1+q*q)
-}
-
-func hypotNoSqrt(p, q float64) float64 {
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
-	// special cases
-	switch {
-	case p < -MaxFloat64 || p > MaxFloat64 || q < -MaxFloat64 || q > MaxFloat64: // IsInf(p, 0) || IsInf(q, 0):
-		return Inf(1)
-	case p != p || q != q: // IsNaN(p) || IsNaN(q):
-		return NaN()
-	}
-	if p < 0 {
-		p = -p
-	}
-	if q < 0 {
-		q = -q
-	}
-
-	if p < q {
-		p, q = q, p
-	}
-
-	if p == 0 {
-		return 0
-	}
-
-	pfac := p
-	q = q / p
-	r := q
-	p = 1
-	for {
-		r = r * r
-		s := r + 4
-		if s == 4 {
-			return p * pfac
-		}
-		r = r / s
-		p = p + 2*r*p
-		q = q * r
-		r = q / p
-	}
-	panic("unreachable")
 }

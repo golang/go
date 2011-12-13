@@ -3,4 +3,4 @@
 // license that can be found in the LICENSE file.
 
 TEXT ·Hypot(SB),7,$0
-	B ·hypotNoSqrt(SB)
+	B ·hypot(SB)

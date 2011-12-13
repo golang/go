@@ -2062,30 +2062,16 @@ func TestHypot(t *testing.T) {
 	}
 }
 
-func TestHypotSqrtGo(t *testing.T) {
+func TestHypotGo(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := Abs(1e200 * tanh[i] * Sqrt(2))
-		if f := HypotSqrtGo(1e200*tanh[i], 1e200*tanh[i]); !veryclose(a, f) {
-			t.Errorf("HypotSqrtGo(%g, %g) = %g, want %g", 1e200*tanh[i], 1e200*tanh[i], f, a)
+		if f := HypotGo(1e200*tanh[i], 1e200*tanh[i]); !veryclose(a, f) {
+			t.Errorf("HypotGo(%g, %g) = %g, want %g", 1e200*tanh[i], 1e200*tanh[i], f, a)
 		}
 	}
 	for i := 0; i < len(vfhypotSC); i++ {
-		if f := HypotSqrtGo(vfhypotSC[i][0], vfhypotSC[i][1]); !alike(hypotSC[i], f) {
-			t.Errorf("HypotSqrtGo(%g, %g) = %g, want %g", vfhypotSC[i][0], vfhypotSC[i][1], f, hypotSC[i])
-		}
-	}
-}
-
-func TestHypotNoSqrtGo(t *testing.T) {
-	for i := 0; i < len(vf); i++ {
-		a := Abs(1e200 * tanh[i] * Sqrt(2))
-		if f := HypotNoSqrtGo(1e200*tanh[i], 1e200*tanh[i]); !veryclose(a, f) {
-			t.Errorf("HypotNoSqrtGo(%g, %g) = %g, want %g", 1e200*tanh[i], 1e200*tanh[i], f, a)
-		}
-	}
-	for i := 0; i < len(vfhypotSC); i++ {
-		if f := HypotNoSqrtGo(vfhypotSC[i][0], vfhypotSC[i][1]); !alike(hypotSC[i], f) {
-			t.Errorf("HypotNoSqrtGo(%g, %g) = %g, want %g", vfhypotSC[i][0], vfhypotSC[i][1], f, hypotSC[i])
+		if f := HypotGo(vfhypotSC[i][0], vfhypotSC[i][1]); !alike(hypotSC[i], f) {
+			t.Errorf("HypotGo(%g, %g) = %g, want %g", vfhypotSC[i][0], vfhypotSC[i][1], f, hypotSC[i])
 		}
 	}
 }
@@ -2741,15 +2727,9 @@ func BenchmarkHypot(b *testing.B) {
 	}
 }
 
-func BenchmarkHypotNoSqrtGo(b *testing.B) {
+func BenchmarkHypotGo(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		HypotNoSqrtGo(3, 4)
-	}
-}
-
-func BenchmarkHypotSqrtGo(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		HypotSqrtGo(3, 4)
+		HypotGo(3, 4)
 	}
 }
 
