@@ -4,7 +4,7 @@
 
 package html
 
-// Section 11.2.3.2 of the HTML5 specification says "The following elements
+// Section 12.2.3.2 of the HTML5 specification says "The following elements
 // have varying levels of special parsing rules".
 // http://www.whatwg.org/specs/web-apps/current-work/multipage/parsing.html#the-stack-of-open-elements
 var isSpecialElement = map[string]bool{

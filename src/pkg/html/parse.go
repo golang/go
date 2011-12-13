@@ -22,12 +22,12 @@ type parser struct {
 	hasSelfClosingToken bool
 	// doc is the document root element.
 	doc *Node
-	// The stack of open elements (section 11.2.3.2) and active formatting
-	// elements (section 11.2.3.3).
+	// The stack of open elements (section 12.2.3.2) and active formatting
+	// elements (section 12.2.3.3).
 	oe, afe nodeStack
-	// Element pointers (section 11.2.3.4).
+	// Element pointers (section 12.2.3.4).
 	head, form *Node
-	// Other parsing state flags (section 11.2.3.5).
+	// Other parsing state flags (section 12.2.3.5).
 	scripting, framesetOK bool
 	// im is the current insertion mode.
 	im insertionMode
@@ -35,12 +35,12 @@ type parser struct {
 	// or inTableText insertion mode.
 	originalIM insertionMode
 	// fosterParenting is whether new elements should be inserted according to
-	// the foster parenting rules (section 11.2.5.3).
+	// the foster parenting rules (section 12.2.5.3).
 	fosterParenting bool
 	// quirks is whether the parser is operating in "quirks mode."
 	quirks bool
 	// context is the context element when parsing an HTML fragment
-	// (section 11.4).
+	// (section 12.4).
 	context *Node
 }
 
@@ -51,7 +51,7 @@ func (p *parser) top() *Node {
 	return p.doc
 }
 
-// stopTags for use in popUntil. These come from section 11.2.3.2.
+// stopTags for use in popUntil. These come from section 12.2.3.2.
 var (
 	defaultScopeStopTags  = []string{"applet", "caption", "html", "table", "td", "th", "marquee", "object"}
 	listItemScopeStopTags = []string{"applet", "caption", "html", "table", "td", "th", "marquee", "object", "ol", "ul"}
@@ -130,7 +130,7 @@ func (p *parser) addChild(n *Node) {
 }
 
 // fosterParent adds a child node according to the foster parenting rules.
-// Section 11.2.5.3, "foster parenting".
+// Section 12.2.5.3, "foster parenting".
 func (p *parser) fosterParent(n *Node) {
 	p.fosterParenting = false
 	var table, parent *Node
@@ -199,14 +199,14 @@ func (p *parser) addElement(tag string, attr []Attribute) {
 	})
 }
 
-// Section 11.2.3.3.
+// Section 12.2.3.3.
 func (p *parser) addFormattingElement(tag string, attr []Attribute) {
 	p.addElement(tag, attr)
 	p.afe = append(p.afe, p.top())
 	// TODO.
 }
 
-// Section 11.2.3.3.
+// Section 12.2.3.3.
 func (p *parser) clearActiveFormattingElements() {
 	for {
 		n := p.afe.pop()
@@ -216,7 +216,7 @@ func (p *parser) clearActiveFormattingElements() {
 	}
 }
 
-// Section 11.2.3.3.
+// Section 12.2.3.3.
 func (p *parser) reconstructActiveFormattingElements() {
 	n := p.afe.top()
 	if n == nil {
@@ -266,12 +266,12 @@ func (p *parser) read() error {
 	return nil
 }
 
-// Section 11.2.4.
+// Section 12.2.4.
 func (p *parser) acknowledgeSelfClosingTag() {
 	p.hasSelfClosingToken = false
 }
 
-// An insertion mode (section 11.2.3.1) is the state transition function from
+// An insertion mode (section 12.2.3.1) is the state transition function from
 // a particular state in the HTML5 parser's state machine. It updates the
 // parser's fields depending on parser.tok (where ErrorToken means EOF).
 // It returns whether the token was consumed.
@@ -279,7 +279,7 @@ type insertionMode func(*parser) bool
 
 // setOriginalIM sets the insertion mode to return to after completing a text or
 // inTableText insertion mode.
-// Section 11.2.3.1, "using the rules for".
+// Section 12.2.3.1, "using the rules for".
 func (p *parser) setOriginalIM() {
 	if p.originalIM != nil {
 		panic("html: bad parser state: originalIM was set twice")
@@ -287,7 +287,7 @@ func (p *parser) setOriginalIM() {
 	p.originalIM = p.im
 }
 
-// Section 11.2.3.1, "reset the insertion mode".
+// Section 12.2.3.1, "reset the insertion mode".
 func (p *parser) resetInsertionMode() {
 	for i := len(p.oe) - 1; i >= 0; i-- {
 		n := p.oe[i]
@@ -331,7 +331,7 @@ func (p *parser) resetInsertionMode() {
 
 const whitespace = " \t\r\n\f"
 
-// Section 11.2.5.4.1.
+// Section 12.2.5.4.1.
 func initialIM(p *parser) bool {
 	switch p.tok.Type {
 	case TextToken:
@@ -358,7 +358,7 @@ func initialIM(p *parser) bool {
 	return false
 }
 
-// Section 11.2.5.4.2.
+// Section 12.2.5.4.2.
 func beforeHTMLIM(p *parser) bool {
 	switch p.tok.Type {
 	case TextToken:
@@ -394,7 +394,7 @@ func beforeHTMLIM(p *parser) bool {
 	return false
 }
 
-// Section 11.2.5.4.3.
+// Section 12.2.5.4.3.
 func beforeHeadIM(p *parser) bool {
 	var (
 		add     bool
@@ -443,7 +443,7 @@ func beforeHeadIM(p *parser) bool {
 	return !implied
 }
 
-// Section 11.2.5.4.4.
+// Section 12.2.5.4.4.
 func inHeadIM(p *parser) bool {
 	var (
 		pop     bool
@@ -510,7 +510,7 @@ func inHeadIM(p *parser) bool {
 	return true
 }
 
-// Section 11.2.5.4.6.
+// Section 12.2.5.4.6.
 func afterHeadIM(p *parser) bool {
 	var (
 		add        bool
@@ -598,7 +598,7 @@ func copyAttributes(dst *Node, src Token) {
 	}
 }
 
-// Section 11.2.5.4.7.
+// Section 12.2.5.4.7.
 func inBodyIM(p *parser) bool {
 	switch p.tok.Type {
 	case TextToken:
@@ -989,7 +989,7 @@ func (p *parser) inBodyEndTagOther(tag string) {
 	}
 }
 
-// Section 11.2.5.4.8.
+// Section 12.2.5.4.8.
 func textIM(p *parser) bool {
 	switch p.tok.Type {
 	case ErrorToken:
@@ -1005,7 +1005,7 @@ func textIM(p *parser) bool {
 	return p.tok.Type == EndTagToken
 }
 
-// Section 11.2.5.4.9.
+// Section 12.2.5.4.9.
 func inTableIM(p *parser) bool {
 	switch p.tok.Type {
 	case ErrorToken:
@@ -1094,7 +1094,7 @@ func (p *parser) clearStackToContext(stopTags []string) {
 	}
 }
 
-// Section 11.2.5.4.11.
+// Section 12.2.5.4.11.
 func inCaptionIM(p *parser) bool {
 	switch p.tok.Type {
 	case StartTagToken:
@@ -1134,7 +1134,7 @@ func inCaptionIM(p *parser) bool {
 	return inBodyIM(p)
 }
 
-// Section 11.2.5.4.12.
+// Section 12.2.5.4.12.
 func inColumnGroupIM(p *parser) bool {
 	switch p.tok.Type {
 	case CommentToken:
@@ -1176,7 +1176,7 @@ func inColumnGroupIM(p *parser) bool {
 	return false
 }
 
-// Section 11.2.5.4.13.
+// Section 12.2.5.4.13.
 func inTableBodyIM(p *parser) bool {
 	var (
 		add      bool
@@ -1232,7 +1232,7 @@ func inTableBodyIM(p *parser) bool {
 	return inTableIM(p)
 }
 
-// Section 11.2.5.4.14.
+// Section 12.2.5.4.14.
 func inRowIM(p *parser) bool {
 	switch p.tok.Type {
 	case ErrorToken:
@@ -1291,7 +1291,7 @@ func inRowIM(p *parser) bool {
 	return inTableIM(p)
 }
 
-// Section 11.2.5.4.15.
+// Section 12.2.5.4.15.
 func inCellIM(p *parser) bool {
 	var (
 		closeTheCellAndReprocess bool
@@ -1336,7 +1336,7 @@ func inCellIM(p *parser) bool {
 	return inBodyIM(p)
 }
 
-// Section 11.2.5.4.16.
+// Section 12.2.5.4.16.
 func inSelectIM(p *parser) bool {
 	endSelect := false
 	switch p.tok.Type {
@@ -1413,7 +1413,7 @@ func inSelectIM(p *parser) bool {
 	return true
 }
 
-// Section 11.2.5.4.18.
+// Section 12.2.5.4.18.
 func afterBodyIM(p *parser) bool {
 	switch p.tok.Type {
 	case ErrorToken:
@@ -1443,7 +1443,7 @@ func afterBodyIM(p *parser) bool {
 	return false
 }
 
-// Section 11.2.5.4.19.
+// Section 12.2.5.4.19.
 func inFramesetIM(p *parser) bool {
 	switch p.tok.Type {
 	case CommentToken:
@@ -1493,7 +1493,7 @@ func inFramesetIM(p *parser) bool {
 	return true
 }
 
-// Section 11.2.5.4.20.
+// Section 12.2.5.4.20.
 func afterFramesetIM(p *parser) bool {
 	switch p.tok.Type {
 	case CommentToken:
@@ -1532,7 +1532,7 @@ func afterFramesetIM(p *parser) bool {
 	return true
 }
 
-// Section 11.2.5.4.21.
+// Section 12.2.5.4.21.
 func afterAfterBodyIM(p *parser) bool {
 	switch p.tok.Type {
 	case ErrorToken:
@@ -1555,7 +1555,7 @@ func afterAfterBodyIM(p *parser) bool {
 	return false
 }
 
-// Section 11.2.5.4.22.
+// Section 12.2.5.4.22.
 func afterAfterFramesetIM(p *parser) bool {
 	switch p.tok.Type {
 	case CommentToken:
@@ -1575,8 +1575,6 @@ func afterAfterFramesetIM(p *parser) bool {
 	}
 	return true
 }
-
-// TODO: fix up the other IM's section numbers to match the latest spec.
 
 // Section 12.2.5.5.
 func inForeignContentIM(p *parser) bool {

@@ -17,7 +17,7 @@ const (
 	scopeMarkerNode
 )
 
-// Section 11.2.3.3 says "scope markers are inserted when entering applet
+// Section 12.2.3.3 says "scope markers are inserted when entering applet
 // elements, buttons, object elements, marquees, table cells, and table
 // captions, and are used to prevent formatting from 'leaking'".
 var scopeMarker = Node{Type: scopeMarkerNode}
