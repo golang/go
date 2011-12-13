@@ -247,7 +247,7 @@ func writeQuoted(w writer, s string) error {
 	return nil
 }
 
-// Section 13.1.2, "Elements", gives this list of void elements. Void elements
+// Section 12.1.2, "Elements", gives this list of void elements. Void elements
 // are those that can't have any contents.
 var voidElements = map[string]bool{
 	"area":    true,
