@@ -8,7 +8,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"os"
+	"os/exec"
 	"strings"
 	"text/template"
 )
@@ -55,6 +57,7 @@ func (c *Command) Usage() {
 var commands = []*Command{
 	cmdBuild,
 	cmdClean,
+	cmdDoc,
 	cmdFix,
 	cmdFmt,
 	cmdGet,
@@ -69,9 +72,12 @@ var commands = []*Command{
 	helpRemote,
 }
 
+var exitStatus = 0
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
+	log.SetFlags(0)
 
 	args := flag.Args()
 	if len(args) < 1 {
@@ -89,6 +95,7 @@ func main() {
 			cmd.Flag.Parse(args[1:])
 			args = cmd.Flag.Args()
 			cmd.Run(cmd, args)
+			os.Exit(exitStatus)
 			return
 		}
 	}
@@ -171,4 +178,29 @@ func importPaths(args []string) []string {
 		return []string{"."}
 	}
 	return args
+}
+
+func fatalf(format string, args ...interface{}) {
+	log.Printf(format, args...)
+	os.Exit(1)
+}
+
+func errorf(format string, args ...interface{}) {
+	log.Printf(format, args...)
+	exitStatus = 1
+}
+
+func exitIfErrors() {
+	if exitStatus != 0 {
+		os.Exit(exitStatus)
+	}
+}
+
+func run(cmdline ...string) {
+	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		errorf("%v", err)
+	}
 }

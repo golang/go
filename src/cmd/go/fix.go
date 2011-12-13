@@ -21,7 +21,10 @@ See also: go fmt, go vet.
 }
 
 func runFix(cmd *Command, args []string) {
-	args = importPaths(args)
-	_ = args
-	panic("fix not implemented")
+	for _, pkg := range packages(args) {
+		// Use pkg.gofiles instead of pkg.Dir so that
+		// the command only applies to this package,
+		// not to packages in subdirectories.
+		run(append([]string{"gofix"}, pkg.gofiles...)...)
+	}
 }

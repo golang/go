@@ -4,8 +4,13 @@
 
 package main
 
+import (
+	"encoding/json"
+	"os"
+	"text/template"
+)
+
 var cmdList = &Command{
-	Run:       runList,
 	UsageLine: "list [-f format] [-json] [importpath...]",
 	Short:     "list packages",
 	Long: `
@@ -19,31 +24,59 @@ The default output shows the package name and file system location:
 
 The -f flag specifies an alternate format for the list,
 using the syntax of package template.  The default output
-is equivalent to -f '{{.Name}} {{.Dir}}'  The struct
+is equivalent to -f '{{.Name}} {{.Dir}}'.  The struct
 being passed to the template is:
 
     type Package struct {
-        Name string         // package name
-        Doc string          // package documentation string
-        GoFiles []string    // names of Go source files in package
-        ImportPath string   // import path denoting package
-        Imports []string    // import paths used by this package
-        Deps []string       // all (recursively) imported dependencies
-        Dir string          // directory containing package sources
-        Version string      // version of installed package
+        Name       string // package name
+        Doc        string // package documentation string
+        ImportPath string // import path of package in dir
+        Dir        string // directory containing package sources
+        Version    string // version of installed package (TODO)
+
+        // Source files
+        GoFiles  []string // .go source files (excluding CgoFiles)
+        CFiles   []string // .c source files
+        SFiles   []string // .s source files
+        CgoFiles []string // .go sources files that import "C"
+
+        // Dependency information
+        Imports []string // import paths used by this package
+        Deps    []string // all (recursively) imported dependencies
     }
 
-The -json flag causes the package data to be printed in JSON format.
+The -json flag causes the package data to be printed in JSON format
+instead of using the template format.
 
 For more about import paths, see 'go help importpath'.
 	`,
+}
+
+func init() {
+	cmdList.Run = runList // break init cycle
 }
 
 var listFmt = cmdList.Flag.String("f", "{{.Name}} {{.Dir}}", "")
 var listJson = cmdList.Flag.Bool("json", false, "")
 
 func runList(cmd *Command, args []string) {
-	args = importPaths(args)
-	_ = args
-	panic("list not implemented")
+	var do func(*Package)
+	if *listJson {
+		enc := json.NewEncoder(os.Stdout)
+		do = func(p *Package) { enc.Encode(p) }
+	} else {
+		tmpl, err := template.New("main").Parse(*listFmt + "\n")
+		if err != nil {
+			fatalf("%s", err)
+		}
+		do = func(p *Package) {
+			if err := tmpl.Execute(os.Stdout, p); err != nil {
+				fatalf("%s", err)
+			}
+		}
+	}
+
+	for _, pkg := range packages(args) {
+		do(pkg)
+	}
 }

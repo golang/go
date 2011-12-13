@@ -7,21 +7,48 @@ package main
 var cmdFmt = &Command{
 	Run:       runFmt,
 	UsageLine: "fmt [importpath...]",
-	Short:     "run gofmt -w on packages",
+	Short:     "run gofmt on package sources",
 	Long: `
-Fmt runs the command 'gofmt -w' on the packages named by the import paths.
+Fmt runs the command 'gofmt -l -w' on the packages named
+by the import paths.  It prints the names of the files that are modified.
 
 For more about gofmt, see 'godoc gofmt'.
 For more about import paths, see 'go help importpath'.
 
 To run gofmt with specific options, run gofmt itself.
 
-See also: go fix, go vet.
+See also: go doc, go fix, go vet.
 	`,
 }
 
 func runFmt(cmd *Command, args []string) {
-	args = importPaths(args)
-	_ = args
-	panic("fmt not implemented")
+	for _, pkg := range packages(args) {
+		// Use pkg.gofiles instead of pkg.Dir so that
+		// the command only applies to this package,
+		// not to packages in subdirectories.
+		run(append([]string{"gofmt", "-l", "-w"}, pkg.gofiles...)...)
+	}
+}
+
+var cmdDoc = &Command{
+	Run:       runDoc,
+	UsageLine: "doc [importpath...]",
+	Short:     "run godoc on package sources",
+	Long: `
+Doc runs the godoc command on the packages named by the
+import paths.
+
+For more about godoc, see 'godoc godoc'.
+For more about import paths, see 'go help importpath'.
+
+To run gofmt with specific options, run gofmt itself.
+
+See also: go fix, go fmt, go vet.
+	`,
+}
+
+func runDoc(cmd *Command, args []string) {
+	for _, pkg := range packages(args) {
+		run("godoc", pkg.Dir)
+	}
 }
