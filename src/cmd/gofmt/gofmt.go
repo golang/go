@@ -34,8 +34,7 @@ var (
 	// layout control
 	comments  = flag.Bool("comments", true, "print comments")
 	tabWidth  = flag.Int("tabwidth", 8, "tab width")
-	tabIndent = flag.Bool("tabindent", true, "indent with tabs independent of -spaces")
-	useSpaces = flag.Bool("spaces", true, "align with spaces instead of tabs")
+	tabIndent = flag.Bool("tabs", true, "indent with tabs")
 
 	// debugging
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
@@ -71,12 +70,9 @@ func initParserMode() {
 }
 
 func initPrinterMode() {
-	printerMode = uint(0)
+	printerMode = printer.UseSpaces
 	if *tabIndent {
 		printerMode |= printer.TabIndent
-	}
-	if *useSpaces {
-		printerMode |= printer.UseSpaces
 	}
 }
 
