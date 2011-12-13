@@ -36,10 +36,8 @@ The flags are:
 Formatting control flags:
 	-comments=true
 		Print comments; if false, all comments are elided from the output.
-	-spaces
-		Align with spaces instead of tabs.
-	-tabindent
-		Indent with tabs independent of -spaces.
+	-tabs=true
+		Indent with tabs; if false, spaces are used instead.
 	-tabwidth=8
 		Tab width in spaces.
 
