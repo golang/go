@@ -331,9 +331,9 @@ func (f *fmt) fmt_q(s string) {
 func (f *fmt) fmt_qc(c int64) {
 	var quoted string
 	if f.plus {
-		quoted = strconv.QuoteRuneToASCII(int(c))
+		quoted = strconv.QuoteRuneToASCII(rune(c))
 	} else {
-		quoted = strconv.QuoteRune(int(c))
+		quoted = strconv.QuoteRune(rune(c))
 	}
 	f.padString(quoted)
 }
