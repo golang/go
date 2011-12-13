@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"testing"
 	"time"
 )
@@ -127,7 +126,7 @@ testLoop:
 				f.Close()
 				continue testLoop
 			}
-			if !reflect.DeepEqual(hdr, header) {
+			if *hdr != *header {
 				t.Errorf("test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
 					i, j, *hdr, *header)
 			}
@@ -201,7 +200,7 @@ func TestIncrementalRead(t *testing.T) {
 		}
 
 		// check the header
-		if !reflect.DeepEqual(hdr, headers[nread]) {
+		if *hdr != *headers[nread] {
 			t.Errorf("Incorrect header:\nhave %+v\nwant %+v",
 				*hdr, headers[nread])
 		}
