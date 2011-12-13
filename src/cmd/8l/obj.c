@@ -600,6 +600,10 @@ loop:
 	case ATEXT:
 		s = p->from.sym;
 		if(s->text != nil) {
+			if(p->from.scale & DUPOK) {
+				skip = 1;
+				goto casdef;
+			}
 			diag("%s: %s: redefinition", pn, s->name);
 			return;
 		}

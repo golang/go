@@ -13,6 +13,7 @@
 static	NodeList*	signatlist;
 static	Sym*	dtypesym(Type*);
 static	Sym*	weaktypesym(Type*);
+static	Sym*	dalgsym(Type*);
 
 static int
 sigcmp(Sig *a, Sig *b)
@@ -553,17 +554,20 @@ haspointers(Type *t)
 static int
 dcommontype(Sym *s, int ot, Type *t)
 {
-	int i, sizeofAlg;
-	Sym *sptr;
+	int i, alg, sizeofAlg;
+	Sym *sptr, *algsym;
 	static Sym *algarray;
 	char *p;
 
 	sizeofAlg = 4*widthptr;
 	if(algarray == nil)
 		algarray = pkglookup("algarray", runtimepkg);
+	alg = algtype(t);
+	algsym = S;
+	if(alg < 0)
+		algsym = dalgsym(t);
 
 	dowidth(t);
-	
 	if(t->sym != nil && !isptr[t->etype])
 		sptr = dtypesym(ptrto(t));
 	else
@@ -600,7 +604,10 @@ dcommontype(Sym *s, int ot, Type *t)
 	if(!haspointers(t))
 		i |= KindNoPointers;
 	ot = duint8(s, ot, i);  // kind
-	ot = dsymptr(s, ot, algarray, algtype(t)*sizeofAlg);
+	if(alg >= 0)
+		ot = dsymptr(s, ot, algarray, alg*sizeofAlg);
+	else
+		ot = dsymptr(s, ot, algsym, 0);
 	p = smprint("%-uT", t);
 	//print("dcommontype: %s\n", p);
 	ot = dgostringptr(s, ot, p);	// string
@@ -625,6 +632,19 @@ typesym(Type *t)
 	p = smprint("%-T", t);
 	s = pkglookup(p, typepkg);
 	//print("typesym: %s -> %+S\n", p, s);
+	free(p);
+	return s;
+}
+
+Sym*
+typesymprefix(char *prefix, Type *t)
+{
+	char *p;
+	Sym *s;
+
+	p = smprint("%s.%-T", prefix, t);
+	s = pkglookup(p, typepkg);
+	//print("algsym: %s -> %+S\n", p, s);
 	free(p);
 	return s;
 }
@@ -930,3 +950,43 @@ dumptypestructs(void)
 		dimportpath(mkpkg(strlit("main")));
 	}
 }
+
+Sym*
+dalgsym(Type *t)
+{
+	int ot;
+	Sym *s, *hash, *eq;
+	char buf[100];
+
+	// dalgsym is only called for a type that needs an algorithm table,
+	// which implies that the type is comparable (or else it would use ANOEQ).
+
+	s = typesymprefix(".alg", t);
+	hash = typesymprefix(".hash", t);
+	genhash(hash, t);
+	eq = typesymprefix(".eq", t);
+	geneq(eq, t);
+
+	// ../../pkg/runtime/runtime.h:/Alg
+	ot = 0;
+	ot = dsymptr(s, ot, hash, 0);
+	ot = dsymptr(s, ot, eq, 0);
+	ot = dsymptr(s, ot, pkglookup("memprint", runtimepkg), 0);
+	switch(t->width) {
+	default:
+		ot = dsymptr(s, ot, pkglookup("memcopy", runtimepkg), 0);
+		break;
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+	case 16:
+		snprint(buf, sizeof buf, "memcopy%d", (int)t->width*8);
+		ot = dsymptr(s, ot, pkglookup(buf, runtimepkg), 0);
+		break;
+	}
+
+	ggloblsym(s, ot, 1);
+	return s;
+}
+

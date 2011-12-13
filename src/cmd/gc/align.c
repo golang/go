@@ -497,6 +497,7 @@ typeinit(void)
 	okforeq[TMAP] = 1;	// nil only; refined in typecheck
 	okforeq[TFUNC] = 1;	// nil only; refined in typecheck
 	okforeq[TARRAY] = 1;	// nil slice only; refined in typecheck
+	okforeq[TSTRUCT] = 1;	// it's complicated; refined in typecheck
 
 	okforcmp[TSTRING] = 1;
 

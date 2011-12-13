@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "type.h"
 
 /*
  * map and chan helpers for
@@ -68,7 +69,7 @@ runtime·memprint(uintptr s, void *a)
 		v = *(uint16*)a;
 		break;
 	case 4:
-		v = *(uintptr*)a;
+		v = *(uint32*)a;
 		break;
 	case 8:
 		v = *(uint64*)a;
@@ -343,3 +344,18 @@ runtime·algarray[] =
 [ANOEQ128]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy128 },
 };
 
+// Runtime helpers.
+
+// func equal(t *Type, x T, y T) (ret bool)
+#pragma textflag 7
+void
+runtime·equal(Type *t, ...)
+{
+	byte *x, *y;
+	bool *ret;
+	
+	x = (byte*)(&t+1);
+	y = x + t->size;
+	ret = (bool*)(y + t->size);
+	t->alg->equal(ret, t->size, x, y);
+}

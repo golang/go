@@ -90,11 +90,15 @@ static char* _typekind[] = {
 };
 
 static char*
-typekind(int et)
+typekind(Type *t)
 {
+	int et;
 	static char buf[50];
 	char *s;
 	
+	if(isslice(t))
+		return "slice";
+	et = t->etype;
 	if(0 <= et && et < nelem(_typekind) && (s=_typekind[et]) != nil)
 		return s;
 	snprint(buf, sizeof buf, "etype=%d", et);
@@ -113,7 +117,7 @@ typecheck(Node **np, int top)
 	Node *n, *l, *r;
 	NodeList *args;
 	int lno, ok, ntop;
-	Type *t, *tp, *ft, *missing, *have;
+	Type *t, *tp, *ft, *missing, *have, *badtype;
 	Val v;
 	char *why;
 
@@ -419,15 +423,25 @@ reswitch:
 		if(iscmp[n->op] && t->etype != TIDEAL && !eqtype(l->type, r->type)) {
 			// comparison is okay as long as one side is
 			// assignable to the other.  convert so they have
-			// the same type.  (the only conversion that isn't
-			// a no-op is concrete == interface.)
+			// the same type.
+			//
+			// the only conversion that isn't a no-op is concrete == interface.
+			// in that case, check comparability of the concrete type.
 			if(r->type->etype != TBLANK && (aop = assignop(l->type, r->type, nil)) != 0) {
+				if(isinter(r->type) && !isinter(l->type) && algtype1(l->type, nil) == ANOEQ) {
+					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(l->type));
+					goto error;
+				}
 				l = nod(aop, l, N);
 				l->type = r->type;
 				l->typecheck = 1;
 				n->left = l;
 				t = l->type;
 			} else if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
+				if(isinter(l->type) && !isinter(r->type) && algtype1(r->type, nil) == ANOEQ) {
+					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(r->type));
+					goto error;
+				}
 				r = nod(aop, r, N);
 				r->type = l->type;
 				r->typecheck = 1;
@@ -442,16 +456,15 @@ reswitch:
 			goto error;
 		}
 		if(!okfor[op][et]) {
-		notokfor:
-			yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(et));
+			yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(t));
 			goto error;
 		}
 		// okfor allows any array == array, map == map, func == func.
 		// restrict to slice/map/func == nil and nil == slice/map/func.
-		if(l->type->etype == TARRAY && !isslice(l->type))
-			goto notokfor;
-		if(r->type->etype == TARRAY && !isslice(r->type))
-			goto notokfor;
+		if(isfixedarray(l->type) && algtype1(l->type, nil) == ANOEQ) {
+			yyerror("invalid operation: %N (%T cannot be compared)", n, l->type);
+			goto error;
+		}
 		if(isslice(l->type) && !isnil(l) && !isnil(r)) {
 			yyerror("invalid operation: %N (slice can only be compared to nil)", n);
 			goto error;
@@ -462,6 +475,10 @@ reswitch:
 		}
 		if(l->type->etype == TFUNC && !isnil(l) && !isnil(r)) {
 			yyerror("invalid operation: %N (func can only be compared to nil)", n);
+			goto error;
+		}
+		if(l->type->etype == TSTRUCT && algtype1(l->type, &badtype) == ANOEQ) {
+			yyerror("invalid operation: %N (struct containing %T cannot be compared)", n, badtype);
 			goto error;
 		}
 		

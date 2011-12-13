@@ -60,6 +60,7 @@ func test4() {
 
 type T struct {
 	a, b int
+	c    []int
 }
 
 func test5() {

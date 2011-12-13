@@ -10,10 +10,10 @@ package main
 
 func main() {
 	cmp(1)
-	
+
 	var (
 		m map[int]int
-		s struct{}
+		s struct{ x []int }
 		f func()
 	)
 	noCmp(m)

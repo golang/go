@@ -41,6 +41,8 @@ struct	Prog
 	void*	reg;		// pointer to containing Reg struct
 };
 
+#define TEXTFLAG from.scale
+
 EXTERN	int32	dynloc;
 EXTERN	uchar	reg[D_NONE];
 EXTERN	int32	pcloc;		// instruction counter

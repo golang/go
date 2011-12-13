@@ -43,6 +43,8 @@ struct	Prog
 	void*	reg;		// pointer to containing Reg struct
 };
 
+#define TEXTFLAG from.scale
+
 // foptoas flags
 enum
 {
