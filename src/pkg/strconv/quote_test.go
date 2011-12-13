@@ -47,7 +47,7 @@ func TestQuoteToASCII(t *testing.T) {
 }
 
 type quoteRuneTest struct {
-	in    int
+	in    rune
 	out   string
 	ascii string
 }
