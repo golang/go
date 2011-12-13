@@ -10,8 +10,10 @@ package math
 //	Dim(+Inf, +Inf) = NaN
 //	Dim(-Inf, -Inf) = NaN
 //	Dim(x, NaN) = Dim(NaN, x) = NaN
-func Dim(x, y float64) float64 {
-	return Max(x-y, 0)
+func Dim(x, y float64) float64
+
+func dim(x, y float64) float64 {
+	return max(x-y, 0)
 }
 
 // Max returns the larger of x or y.
@@ -21,7 +23,9 @@ func Dim(x, y float64) float64 {
 //	Max(x, NaN) = Max(NaN, x) = NaN
 //	Max(+0, ±0) = Max(±0, +0) = +0
 //	Max(-0, -0) = -0
-func Max(x, y float64) float64 {
+func Max(x, y float64) float64
+
+func max(x, y float64) float64 {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us
 	// special cases
@@ -48,7 +52,9 @@ func Max(x, y float64) float64 {
 //	Min(x, -Inf) = Min(-Inf, x) = -Inf
 //	Min(x, NaN) = Min(NaN, x) = NaN
 //	Min(-0, ±0) = Min(±0, -0) = -0
-func Min(x, y float64) float64 {
+func Min(x, y float64) float64
+
+func min(x, y float64) float64 {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us
 	// special cases

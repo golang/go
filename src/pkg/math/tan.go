@@ -79,7 +79,9 @@ var _tanQ = [...]float64{
 //	Tan(±0) = ±0
 //	Tan(±Inf) = NaN
 //	Tan(NaN) = NaN
-func Tan(x float64) float64 {
+func Tan(x float64) float64
+
+func tan(x float64) float64 {
 	const (
 		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
 		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,

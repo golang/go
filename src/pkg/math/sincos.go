@@ -12,7 +12,9 @@ package math
 //	Sincos(±0) = ±0, 1
 //	Sincos(±Inf) = NaN, NaN
 //	Sincos(NaN) = NaN, NaN
-func Sincos(x float64) (sin, cos float64) {
+func Sincos(x float64) (sin, cos float64)
+
+func sincos(x float64) (sin, cos float64) {
 	const (
 		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
 		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,

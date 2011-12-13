@@ -13,7 +13,9 @@ package math
 //	Frexp(±0) = ±0, 0
 //	Frexp(±Inf) = ±Inf, 0
 //	Frexp(NaN) = NaN, 0
-func Frexp(f float64) (frac float64, exp int) {
+func Frexp(f float64) (frac float64, exp int)
+
+func frexp(f float64) (frac float64, exp int) {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us
 	// special cases

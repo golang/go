@@ -34,7 +34,9 @@ package math
 //	Remainder(x, 0) = NaN
 //	Remainder(x, ±Inf) = x
 //	Remainder(x, NaN) = NaN
-func Remainder(x, y float64) float64 {
+func Remainder(x, y float64) float64
+
+func remainder(x, y float64) float64 {
 	const (
 		Tiny    = 4.45014771701440276618e-308 // 0x0020000000000000
 		HalfMax = MaxFloat64 / 2

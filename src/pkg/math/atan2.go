@@ -26,7 +26,9 @@ package math
 //	Atan2(y<0, -Inf) = -Pi
 //	Atan2(+Inf, x) = +Pi/2
 //	Atan2(-Inf, x) = -Pi/2
-func Atan2(y, x float64) float64 {
+func Atan2(y, x float64) float64
+
+func atan2(y, x float64) float64 {
 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
 	// when compiler does it for us
 	// special cases
