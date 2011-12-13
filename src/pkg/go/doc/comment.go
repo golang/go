@@ -281,7 +281,20 @@ func heading(line string) string {
 	return line
 }
 
-// Convert comment text to formatted HTML.
+type op int
+
+const (
+	opPara op = iota
+	opHead
+	opPre
+)
+
+type block struct {
+	op    op
+	lines []string
+}
+
+// ToHTML converts comment text to formatted HTML.
 // The comment was prepared by DocReader,
 // so it is known not to have leading, trailing blank lines
 // nor to have trailing spaces at the end of lines.
@@ -299,20 +312,43 @@ func heading(line string) string {
 // map value is not the empty string, it is considered a URL and the word is converted
 // into a link.
 func ToHTML(w io.Writer, text string, words map[string]string) {
-	inpara := false
-	lastWasBlank := false
-	lastWasHeading := false
-
-	close := func() {
-		if inpara {
+	for _, b := range blocks(text) {
+		switch b.op {
+		case opPara:
+			w.Write(html_p)
+			for _, line := range b.lines {
+				emphasize(w, line, words, true)
+			}
 			w.Write(html_endp)
-			inpara = false
+		case opHead:
+			w.Write(html_h)
+			for _, line := range b.lines {
+				commentEscape(w, line, true)
+			}
+			w.Write(html_endh)
+		case opPre:
+			w.Write(html_pre)
+			for _, line := range b.lines {
+				emphasize(w, line, nil, false)
+			}
+			w.Write(html_endpre)
 		}
 	}
-	open := func() {
-		if !inpara {
-			w.Write(html_p)
-			inpara = true
+}
+
+func blocks(text string) []block {
+	var (
+		out  []block
+		para []string
+
+		lastWasBlank   = false
+		lastWasHeading = false
+	)
+
+	close := func() {
+		if para != nil {
+			out = append(out, block{opPara, para})
+			para = nil
 		}
 	}
 
@@ -340,17 +376,13 @@ func ToHTML(w io.Writer, text string, words map[string]string) {
 			for j > i && isBlank(lines[j-1]) {
 				j--
 			}
-			block := lines[i:j]
+			pre := lines[i:j]
 			i = j
 
-			unindent(block)
+			unindent(pre)
 
 			// put those lines in a pre block
-			w.Write(html_pre)
-			for _, line := range block {
-				emphasize(w, line, nil, false) // no nice text formatting
-			}
-			w.Write(html_endpre)
+			out = append(out, block{opPre, pre})
 			lastWasHeading = false
 			continue
 		}
@@ -362,9 +394,7 @@ func ToHTML(w io.Writer, text string, words map[string]string) {
 			// might be a heading.
 			if head := heading(line); head != "" {
 				close()
-				w.Write(html_h)
-				commentEscape(w, head, true) // nice text formatting
-				w.Write(html_endh)
+				out = append(out, block{opHead, []string{head}})
 				i += 2
 				lastWasHeading = true
 				continue
@@ -372,11 +402,95 @@ func ToHTML(w io.Writer, text string, words map[string]string) {
 		}
 
 		// open paragraph
-		open()
 		lastWasBlank = false
 		lastWasHeading = false
-		emphasize(w, lines[i], words, true) // nice text formatting
+		para = append(para, lines[i])
 		i++
 	}
 	close()
+
+	return out
+}
+
+// ToText prepares comment text for presentation in textual output.
+// It wraps paragraphs of text to width or fewer Unicode code points
+// and then prefixes each line with the indent.  In preformatted sections
+// (such as program text), it prefixes each non-blank line with preIndent.
+func ToText(w io.Writer, text string, indent, preIndent string, width int) {
+	l := lineWrapper{
+		out:    w,
+		width:  width,
+		indent: indent,
+	}
+	for i, b := range blocks(text) {
+		switch b.op {
+		case opPara:
+			if i > 0 {
+				w.Write(nl)
+			}
+			for _, line := range b.lines {
+				l.write(line)
+			}
+			l.flush()
+		case opHead:
+			w.Write(nl)
+			for _, line := range b.lines {
+				l.write(line + "\n")
+			}
+			l.flush()
+		case opPre:
+			w.Write(nl)
+			for _, line := range b.lines {
+				if !isBlank(line) {
+					w.Write([]byte(preIndent))
+					w.Write([]byte(line))
+				}
+			}
+		}
+	}
+}
+
+type lineWrapper struct {
+	out       io.Writer
+	printed   bool
+	width     int
+	indent    string
+	n         int
+	pendSpace int
+}
+
+var nl = []byte("\n")
+var space = []byte(" ")
+
+func (l *lineWrapper) write(text string) {
+	if l.n == 0 && l.printed {
+		l.out.Write(nl) // blank line before new paragraph
+	}
+	l.printed = true
+
+	for _, f := range strings.Fields(text) {
+		w := utf8.RuneCountInString(f)
+		// wrap if line is too long
+		if l.n > 0 && l.n+l.pendSpace+w > l.width {
+			l.out.Write(nl)
+			l.n = 0
+			l.pendSpace = 0
+		}
+		if l.n == 0 {
+			l.out.Write([]byte(l.indent))
+		}
+		l.out.Write(space[:l.pendSpace])
+		l.out.Write([]byte(f))
+		l.n += l.pendSpace + w
+		l.pendSpace = 1
+	}
+}
+
+func (l *lineWrapper) flush() {
+	if l.n == 0 {
+		return
+	}
+	l.out.Write(nl)
+	l.pendSpace = 0
+	l.n = 0
 }
