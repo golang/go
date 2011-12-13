@@ -22,13 +22,14 @@ func gcstats(name string, n int, t int64) {
 	}
 	t1, t2, t3, t4, t5 := tukey5(st.PauseNs[0:nn])
 	fmt.Printf("garbage.%sPause5: %d %d %d %d %d\n", name, t1, t2, t3, t4, t5)
-	
-//	fmt.Printf("garbage.%sScan: %v\n", name, st.ScanDist)
+
+	//	fmt.Printf("garbage.%sScan: %v\n", name, st.ScanDist)
 }
 
 type T []uint64
-func (t T) Len() int { return len(t) }
-func (t T) Swap(i, j int) { t[i], t[j] = t[j], t[i] }
+
+func (t T) Len() int           { return len(t) }
+func (t T) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 func (t T) Less(i, j int) bool { return t[i] < t[j] }
 
 func tukey5(raw []uint64) (lo, q1, q2, q3, hi uint64) {
