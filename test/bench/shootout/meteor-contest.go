@@ -43,7 +43,6 @@ import (
 
 var max_solutions = flag.Int("n", 2100, "maximum number of solutions")
 
-
 func boolInt(b bool) int8 {
 	if b {
 		return 1
@@ -115,7 +114,6 @@ var piece_def = [10][4]int8{
 	[4]int8{E, E, E, SW},
 }
 
-
 /* To minimize the amount of work done in the recursive solve function below,
  * I'm going to allocate enough space for all legal rotations of each piece
  * at each position on the board. That's 10 pieces x 50 board positions x
@@ -137,7 +135,6 @@ func rotate(dir int8) int8 { return (dir + 2) % PIVOT }
 
 /* Returns the direction flipped on the horizontal axis */
 func flip(dir int8) int8 { return (PIVOT - dir) % PIVOT }
-
 
 /* Returns the new cell index from the specified cell in the
  * specified direction.  The index is only valid if the
@@ -322,7 +319,6 @@ func record_piece(piece int, minimum int8, first_empty int8, piece_mask uint64) 
 	piece_counts[piece][minimum]++
 }
 
-
 /* Fill the entire board going cell by cell.  If any cells are "trapped"
  * they will be left alone.
  */
@@ -350,7 +346,6 @@ func fill_contiguous_space(board []int8, index int8) {
 		fill_contiguous_space(board, shift(index, NE))
 	}
 }
-
 
 /* To thin the number of pieces, I calculate if any of them trap any empty
  * cells at the edges.  There are only a handful of exceptions where the
@@ -381,7 +376,6 @@ func has_island(cell []int8, piece int) bool {
 	}
 	return true
 }
-
 
 /* Calculate all six rotations of the specified piece at the specified index.
  * We calculate only half of piece 3's rotations.  This is because any solution
@@ -416,7 +410,6 @@ func calc_pieces() {
 		}
 	}
 }
-
 
 /* Calculate all 32 possible states for a 5-bit row and all rows that will
  * create islands that follow any of the 32 possible rows.  These pre-
@@ -530,7 +523,6 @@ func calc_rows() {
 	}
 }
 
-
 /* Calculate islands while solving the board.
  */
 func boardHasIslands(cell int8) int8 {
@@ -544,7 +536,6 @@ func boardHasIslands(cell int8) int8 {
 	}
 	return bad_even_triple[current_triple]
 }
-
 
 /* The recursive solve algorithm.  Try to place each permutation in the upper-
  * leftmost empty cell.  Mark off available pieces as it goes along.
