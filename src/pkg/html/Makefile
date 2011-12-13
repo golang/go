@@ -11,6 +11,7 @@ GOFILES=\
 	doctype.go\
 	entity.go\
 	escape.go\
+	foreign.go\
 	node.go\
 	parse.go\
 	render.go\
