@@ -1166,8 +1166,8 @@ func inColumnGroupIM(p *parser) bool {
 		case "colgroup":
 			if p.oe.top().Data != "html" {
 				p.oe.pop()
+				p.im = inTableIM
 			}
-			p.im = inTableIM
 			return true
 		case "col":
 			// Ignore the token.
@@ -1176,9 +1176,10 @@ func inColumnGroupIM(p *parser) bool {
 	}
 	if p.oe.top().Data != "html" {
 		p.oe.pop()
+		p.im = inTableIM
+		return false
 	}
-	p.im = inTableIM
-	return false
+	return true
 }
 
 // Section 12.2.5.4.13.
