@@ -131,10 +131,7 @@ func setEnvironment() {
 	// Basic environment.
 	GOROOT = runtime.GOROOT()
 	addEnv("GOROOT", GOROOT)
-	GOARCH = os.Getenv("GOARCH")
-	if GOARCH == "" {
-		GOARCH = runtime.GOARCH
-	}
+	GOARCH = build.DefaultContext.GOARCH
 	addEnv("GOARCH", GOARCH)
 	var err error
 	O, err = build.ArchChar(GOARCH)
