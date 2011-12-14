@@ -35,7 +35,11 @@ func AppendUint(dst []byte, i uint64, base int) []byte {
 	return dst
 }
 
-const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+const (
+	digits   = "0123456789abcdefghijklmnopqrstuvwxyz"
+	digits01 = "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
+	digits10 = "0000000000111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999"
+)
 
 var shifts = [len(digits) + 1]uint{
 	1 << 1: 1,
@@ -66,12 +70,22 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 
 	// convert bits
 	if base == 10 {
-		// common case: use constant 10 for / and % because
-		// the compiler can optimize it into a multiply+shift
-		for u >= 10 {
+		// common case: use constants for / and % because
+		// the compiler can optimize it into a multiply+shift,
+		// and unroll loop
+		for u >= 100 {
+			i -= 2
+			q := u / 100
+			j := u - q*100
+			a[i+1] = digits01[j]
+			a[i+0] = digits10[j]
+			u = q
+		}
+		if u >= 10 {
 			i--
-			a[i] = digits[u%10]
-			u /= 10
+			q := u / 10
+			a[i] = digits[u-q*10]
+			u = q
 		}
 
 	} else if s := shifts[base]; s > 0 {
