@@ -28,11 +28,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-
 #include "gc.h"
 
 void
 swit1(C1 *q, int nc, int32 def, Node *n)
+{
+	Node nreg;
+
+	if(typev[n->type->etype]) {
+		regsalloc(&nreg, n);
+		nreg.type = types[TVLONG];
+		cgen(n, &nreg);
+		swit2(q, nc, def, &nreg);
+		return;
+	}
+
+	regalloc(&nreg, n, Z);
+	nreg.type = types[TLONG];
+	cgen(n, &nreg);
+	swit2(q, nc, def, &nreg);
+	regfree(&nreg);
+}
+
+void
+swit2(C1 *q, int nc, int32 def, Node *n)
 {
 	C1 *r;
 	int i;
@@ -65,12 +84,12 @@ swit1(C1 *q, int nc, int32 def, Node *n)
 	sp = p;
 	gopcode(OEQ, nodconst(r->val), n, Z);	/* just gen the B.EQ */
 	patch(p, r->label);
-	swit1(q, i, def, n);
+	swit2(q, i, def, n);
 
 	if(debug['W'])
 		print("case < %.8ux\n", r->val);
 	patch(sp, pc);
-	swit1(r+1, nc-i-1, def, n);
+	swit2(r+1, nc-i-1, def, n);
 	return;
 
 direct:
