@@ -76,7 +76,7 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 		for u >= 100 {
 			i -= 2
 			q := u / 100
-			j := u - q*100
+			j := uintptr(u - q*100)
 			a[i+1] = digits01[j]
 			a[i+0] = digits10[j]
 			u = q
@@ -84,7 +84,7 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 		if u >= 10 {
 			i--
 			q := u / 10
-			a[i] = digits[u-q*10]
+			a[i] = digits[uintptr(u-q*10)]
 			u = q
 		}
 
@@ -103,7 +103,7 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s 
 		b := uint64(base)
 		for u >= b {
 			i--
-			a[i] = digits[u%b]
+			a[i] = digits[uintptr(u%b)]
 			u /= b
 		}
 	}
