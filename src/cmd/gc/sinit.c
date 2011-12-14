@@ -707,9 +707,10 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
 
 	// set auto to point at new temp or heap (3 assign)
 	if(n->esc == EscNone) {
-		a = temp(t);
-		*init = list(*init, nod(OAS, a, N));  // zero new temp
-		a = nod(OADDR, a, N);
+		a = nod(OAS, temp(t), N);
+		typecheck(&a, Etop);
+		*init = list(*init, a);  // zero new temp
+		a = nod(OADDR, a->left, N);
 	} else {
 		a = nod(ONEW, N, N);
 		a->list = list1(typenod(t));
