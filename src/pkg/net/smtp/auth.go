@@ -4,7 +4,11 @@
 
 package smtp
 
-import "errors"
+import (
+	"crypto/hmac"
+	"errors"
+	"fmt"
+)
 
 // Auth is implemented by an SMTP authentication mechanism.
 type Auth interface {
@@ -62,6 +66,32 @@ func (a *plainAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 	if more {
 		// We've already sent everything.
 		return nil, errors.New("unexpected server challenge")
+	}
+	return nil, nil
+}
+
+type cramMD5Auth struct {
+	username, secret string
+}
+
+// CRAMMD5Auth returns an Auth that implements the CRAM-MD5 authentication
+// mechanism as defined in RFC 2195.
+// The returned Auth uses the given username and secret to authenticate
+// to the server using the challenge-response mechanism.
+func CRAMMD5Auth(username, secret string) Auth {
+	return &cramMD5Auth{username, secret}
+}
+
+func (a *cramMD5Auth) Start(server *ServerInfo) (string, []byte, error) {
+	return "CRAM-MD5", nil, nil
+}
+
+func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if more {
+		d := hmac.NewMD5([]byte(a.secret))
+		d.Write(fromServer)
+		s := make([]byte, 0, d.Size())
+		return []byte(fmt.Sprintf("%s %x", a.username, d.Sum(s))), nil
 	}
 	return nil, nil
 }
