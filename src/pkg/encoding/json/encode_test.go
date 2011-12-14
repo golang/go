@@ -82,3 +82,28 @@ func TestStringTag(t *testing.T) {
 		t.Fatalf("decode didn't match.\nsource: %#v\nEncoded as:\n%s\ndecode: %#v", s, string(got), s2)
 	}
 }
+
+// byte slices are special even if they're renamed types.
+type renamedByte byte
+type renamedByteSlice []byte
+type renamedRenamedByteSlice []renamedByte
+
+func TestEncodeRenamedByteSlice(t *testing.T) {
+	s := renamedByteSlice("abc")
+	result, err := Marshal(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expect := `"YWJj"`
+	if string(result) != expect {
+		t.Errorf(" got %s want %s", result, expect)
+	}
+	r := renamedRenamedByteSlice("abc")
+	result, err = Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(result) != expect {
+		t.Errorf(" got %s want %s", result, expect)
+	}
+}

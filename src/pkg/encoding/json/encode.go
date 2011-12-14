@@ -339,13 +339,10 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
 			e.WriteString("null")
 			break
 		}
-		// Slices can be marshalled as nil, but otherwise are handled
-		// as arrays.
-		fallthrough
-	case reflect.Array:
-		if v.Type() == byteSliceType {
+		if v.Type().Elem().Kind() == reflect.Uint8 {
+			// Byte slices get special treatment; arrays don't.
+			s := v.Bytes()
 			e.WriteByte('"')
-			s := v.Interface().([]byte)
 			if len(s) < 1024 {
 				// for small buffers, using Encode directly is much faster.
 				dst := make([]byte, base64.StdEncoding.EncodedLen(len(s)))
@@ -361,6 +358,10 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
 			e.WriteByte('"')
 			break
 		}
+		// Slices can be marshalled as nil, but otherwise are handled
+		// as arrays.
+		fallthrough
+	case reflect.Array:
 		e.WriteByte('[')
 		n := v.Len()
 		for i := 0; i < n; i++ {
