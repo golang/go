@@ -141,7 +141,7 @@ struct	Type
 	uchar	local;		// created in this file
 	uchar	deferwidth;
 	uchar	broke;
-	uchar	isddd;	// TFIELD is ... argument
+	uchar	isddd;		// TFIELD is ... argument
 	uchar	align;
 
 	Node*	nod;		// canonical OTYPE node
@@ -260,6 +260,7 @@ struct	Node
 	NodeList*	exit;
 	NodeList*	cvars;	// closure params
 	NodeList*	dcl;	// autodcl for this func/closure
+	NodeList*	inl;	// copy of the body for use in inlining
 
 	// OLITERAL/OREGISTER
 	Val	val;
@@ -279,6 +280,9 @@ struct	Node
 	// ONAME closure param with PPARAMREF
 	Node*	outer;	// outer PPARAMREF in nested closure
 	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
+
+	// ONAME substitute while inlining
+	Node* inlvar;
 
 	// OPACK
 	Pkg*	pkg;
@@ -473,6 +477,7 @@ enum
 	// misc
 	ODDD,
 	ODDDARG,
+	OINLCALL,	// intermediary representation of an inlined call
 
 	// for back ends
 	OCMP, ODEC, OEXTEND, OINC, OREGISTER, OINDREG,
@@ -985,6 +990,12 @@ Node*	temp(Type*);
  */
 void	fninit(NodeList *n);
 Sym*	renameinit(void);
+
+/*
+ *	inl.c
+ */
+void	caninl(Node *fn);
+void	inlcalls(Node *fn);
 
 /*
  *	lex.c

@@ -7,7 +7,7 @@
 #include	"go.h"
 #include	"y.tab.h"
 
-static void	dumpexporttype(Type*);
+static void	dumpexporttype(Type *t);
 
 // Mark n's symbol as exported
 void
@@ -78,7 +78,7 @@ dumppkg(Pkg *p)
 {
 	char *suffix;
 
-	if(p == nil || p == localpkg || p->exported)
+	if(p == nil || p == localpkg || p->exported || p == builtinpkg)
 		return;
 	p->exported = 1;
 	suffix = "";
@@ -86,6 +86,68 @@ dumppkg(Pkg *p)
 		suffix = " // indirect";
 	Bprint(bout, "\timport %s \"%Z\"%s\n", p->name, p->path, suffix);
 }
+
+// Look for anything we need for the inline body
+static void reexportdep(Node *n);
+static void
+reexportdeplist(NodeList *ll)
+{
+	for(; ll ;ll=ll->next)
+		reexportdep(ll->n);
+}
+
+static void
+reexportdep(Node *n)
+{
+	Type *t;
+
+	if(!n)
+		return;
+
+	switch(n->op) {
+	case ONAME:
+		switch(n->class&~PHEAP) {
+		case PFUNC:
+		case PEXTERN:
+			if (n->sym && n->sym->pkg != localpkg && n->sym->pkg != builtinpkg)
+				exportlist = list(exportlist, n);
+		}
+		break;
+
+	case OTYPE:
+	case OLITERAL:
+		if (n->sym && n->sym->pkg != localpkg && n->sym->pkg != builtinpkg)
+			exportlist = list(exportlist, n);
+		break;
+
+	// for operations that need a type when rendered, put the type on the export list.
+	case OCONV:
+	case OCONVIFACE:
+	case OCONVNOP:
+	case ODOTTYPE:
+	case OSTRUCTLIT:
+	case OPTRLIT:
+		t = n->type;
+		if(!t->sym && t->type)
+			t = t->type;
+		if (t && t->sym && t->sym->def && t->sym->pkg != localpkg  && t->sym->pkg != builtinpkg) {
+//			print("reexport convnop %+hN\n", t->sym->def);
+			exportlist = list(exportlist, t->sym->def);
+		}
+		break;
+	}
+
+	reexportdep(n->left);
+	reexportdep(n->right);
+	reexportdeplist(n->list);
+	reexportdeplist(n->rlist);
+	reexportdeplist(n->ninit);
+	reexportdep(n->ntest);
+	reexportdep(n->nincr);
+	reexportdeplist(n->nbody);
+	reexportdeplist(n->nelse);
+}
+
 
 static void
 dumpexportconst(Sym *s)
@@ -123,9 +185,13 @@ dumpexportvar(Sym *s)
 	t = n->type;
 	dumpexporttype(t);
 
-	if(t->etype == TFUNC && n->class == PFUNC)
-		Bprint(bout, "\tfunc %#S%#hT\n", s, t);
-	else
+	if(t->etype == TFUNC && n->class == PFUNC) {
+		if (n->inl) {
+			Bprint(bout, "\tfunc %#S%#hT { %#H }\n", s, t, n->inl);
+			reexportdeplist(n->inl);
+		} else
+			Bprint(bout, "\tfunc %#S%#hT\n", s, t);
+	} else
 		Bprint(bout, "\tvar %#S %#T\n", s, t);
 }
 
@@ -148,7 +214,6 @@ dumpexporttype(Type *t)
 
 	if(t == T)
 		return;
-
 	if(t->printed || t == types[t->etype] || t == bytetype || t == runetype || t == errortype)
 		return;
 	t->printed = 1;
@@ -177,7 +242,11 @@ dumpexporttype(Type *t)
 	Bprint(bout, "\ttype %#S %#lT\n", t->sym, t);
 	for(i=0; i<n; i++) {
 		f = m[i];
-		Bprint(bout, "\tfunc (%#T) %#hhS%#hT\n", getthisx(f->type)->type, f->sym, f->type);
+		if (f->type->nname && f->type->nname->inl) { // nname was set by caninl
+			Bprint(bout, "\tfunc (%#T) %#hhS%#hT { %#H }\n", getthisx(f->type)->type, f->sym, f->type, f->type->nname->inl);
+			reexportdeplist(f->type->nname->inl);
+		} else
+			Bprint(bout, "\tfunc (%#T) %#hhS%#hT\n", getthisx(f->type)->type, f->sym, f->type);
 	}
 }
 
