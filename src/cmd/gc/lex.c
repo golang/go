@@ -336,11 +336,43 @@ main(int argc, char *argv[])
 	if(nsavederrors+nerrors)
 		errorexit();
 
-	// Phase 4: escape analysis.
+	// Phase 4: Inlining
+	if (debug['l']) {  		// TODO only if debug['l'] > 1, otherwise lazily when used.
+		// Typecheck imported function bodies
+		for(l=importlist; l; l=l->next) {
+			if (l->n->inl == nil)
+				continue;
+			curfn = l->n;
+			saveerrors();
+			importpkg = l->n->sym->pkg;
+			if (debug['l']>2)
+				print("typecheck import [%S] %lN { %#H }\n", l->n->sym, l->n, l->n->inl);
+			typechecklist(l->n->inl, Etop);
+			importpkg = nil;
+ 		}
+		curfn = nil;
+		
+		if(nsavederrors+nerrors)
+			errorexit();
+	}
+
+	if (debug['l']) {
+		// Find functions that can be inlined and clone them before walk expands them.
+		for(l=xtop; l; l=l->next)
+			if(l->n->op == ODCLFUNC)
+				caninl(l->n);
+		
+		// Expand inlineable calls in all functions
+		for(l=xtop; l; l=l->next)
+			if(l->n->op == ODCLFUNC)
+				inlcalls(l->n);
+	}
+
+	// Phase 5: escape analysis.
 	if(!debug['N'])
 		escapes();
 
-	// Phase 5: Compile top level functions.
+	// Phase 6: Compile top level functions.
 	for(l=xtop; l; l=l->next)
 		if(l->n->op == ODCLFUNC)
 			funccompile(l->n, 0);
@@ -348,7 +380,7 @@ main(int argc, char *argv[])
 	if(nsavederrors+nerrors == 0)
 		fninit(xtop);
 
-	// Phase 5b: Compile all closures.
+	// Phase 6b: Compile all closures.
 	while(closures) {
 		l = closures;
 		closures = nil;
@@ -356,7 +388,7 @@ main(int argc, char *argv[])
 			funccompile(l->n, 1);
 	}
 
-	// Phase 6: check external declarations.
+	// Phase 7: check external declarations.
 	for(l=externdcl; l; l=l->next)
 		if(l->n->op == ONAME)
 			typecheck(&l->n, Erv);

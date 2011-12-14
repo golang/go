@@ -27,6 +27,7 @@ OFILES=\
 	fmt.$O\
 	gen.$O\
 	init.$O\
+	inl.$O\
 	lex.$O\
 	md5.$O\
 	mparith1.$O\

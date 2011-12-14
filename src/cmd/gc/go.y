@@ -1295,6 +1295,12 @@ hidden_fndcl:
 		checkwidth($$->type);
 		addmethod($4, $$->type, 0);
 		funchdr($$);
+		
+		// inl.c's inlnode in on a dotmeth node expects to find the inlineable body as
+		// (dotmeth's type)->nname->inl, and dotmeth's type has been pulled
+		// out by typecheck's lookdot as this $$->ttype.  So by providing
+		// this back link here we avoid special casing there.
+		$$->type->nname = $$;
 	}
 
 fntype:
@@ -1790,11 +1796,15 @@ hidden_import:
 		if($2 == N)
 			break;
 
+		$2->inl = $3;
+
 		funcbody($2);
 		importlist = list(importlist, $2);
 
 		if(debug['E']) {
-			print("import [%Z] func %lN \n", $2->sym->pkg->path, $2);
+			print("import [%Z] func %lN \n", importpkg->path, $2);
+			if(debug['l'] > 2 && $2->inl)
+				print("inl body:%+H\n", $2->inl);
 		}
 	}
 
