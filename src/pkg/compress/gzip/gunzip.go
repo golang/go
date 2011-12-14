@@ -96,6 +96,7 @@ func get4(p []byte) uint32 {
 
 func (z *Decompressor) readString() (string, error) {
 	var err error
+	needconv := false
 	for i := 0; ; i++ {
 		if i >= len(z.buf) {
 			return "", HeaderError
@@ -104,9 +105,18 @@ func (z *Decompressor) readString() (string, error) {
 		if err != nil {
 			return "", err
 		}
+		if z.buf[i] > 0x7f {
+			needconv = true
+		}
 		if z.buf[i] == 0 {
 			// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
-			// TODO(nigeltao): Convert from ISO 8859-1 (Latin-1) to UTF-8.
+			if needconv {
+				s := make([]rune, 0, i)
+				for _, v := range z.buf[0:i] {
+					s = append(s, rune(v))
+				}
+				return string(s), nil
+			}
 			return string(z.buf[0:i]), nil
 		}
 	}
