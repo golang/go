@@ -86,13 +86,25 @@ func (z *Compressor) writeBytes(b []byte) error {
 // writeString writes a string (in ISO 8859-1 (Latin-1) format) to z.w.
 func (z *Compressor) writeString(s string) error {
 	// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
-	// TODO(nigeltao): Convert from UTF-8 to ISO 8859-1 (Latin-1).
+	var err error
+	needconv := false
 	for _, v := range s {
-		if v == 0 || v > 0x7f {
-			return errors.New("gzip.Write: non-ASCII header string")
+		if v == 0 || v > 0xff {
+			return errors.New("gzip.Write: non-Latin-1 header string")
+		}
+		if v > 0x7f {
+			needconv = true
 		}
 	}
-	_, err := io.WriteString(z.w, s)
+	if needconv {
+		b := make([]byte, 0, len(s))
+		for _, v := range s {
+			b = append(b, byte(v))
+		}
+		_, err = z.w.Write(b)
+	} else {
+		_, err = io.WriteString(z.w, s)
+	}
 	if err != nil {
 		return err
 	}

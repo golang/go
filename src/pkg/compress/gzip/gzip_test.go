@@ -5,6 +5,8 @@
 package gzip
 
 import (
+	"bufio"
+	"bytes"
 	"io"
 	"io/ioutil"
 	"testing"
@@ -52,7 +54,8 @@ func TestEmpty(t *testing.T) {
 func TestWriter(t *testing.T) {
 	pipe(t,
 		func(compressor *Compressor) {
-			compressor.Comment = "comment"
+			compressor.Comment = "Äußerung"
+			//compressor.Comment = "comment"
 			compressor.Extra = []byte("extra")
 			compressor.ModTime = time.Unix(1e8, 0)
 			compressor.Name = "name"
@@ -69,8 +72,8 @@ func TestWriter(t *testing.T) {
 			if string(b) != "payload" {
 				t.Fatalf("payload is %q, want %q", string(b), "payload")
 			}
-			if decompressor.Comment != "comment" {
-				t.Fatalf("comment is %q, want %q", decompressor.Comment, "comment")
+			if decompressor.Comment != "Äußerung" {
+				t.Fatalf("comment is %q, want %q", decompressor.Comment, "Äußerung")
 			}
 			if string(decompressor.Extra) != "extra" {
 				t.Fatalf("extra is %q, want %q", decompressor.Extra, "extra")
@@ -82,4 +85,30 @@ func TestWriter(t *testing.T) {
 				t.Fatalf("name is %q, want %q", decompressor.Name, "name")
 			}
 		})
+}
+
+func TestLatin1(t *testing.T) {
+	latin1 := []byte{0xc4, 'u', 0xdf, 'e', 'r', 'u', 'n', 'g', 0}
+	utf8 := "Äußerung"
+	z := Decompressor{r: bufio.NewReader(bytes.NewBuffer(latin1))}
+	s, err := z.readString()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if s != utf8 {
+		t.Fatalf("string is %q, want %q", s, utf8)
+	}
+
+	buf := bytes.NewBuffer(make([]byte, 0, len(latin1)))
+	c := Compressor{w: buf}
+	if err = c.writeString(utf8); err != nil {
+		t.Fatalf("%v", err)
+	}
+	s = buf.String()
+	if s != string(latin1) {
+		t.Fatalf("string is %v, want %v", s, latin1)
+	}
+	//if s, err = buf.ReadString(0); err != nil {
+	//t.Fatalf("%v", err)
+	//}
 }
