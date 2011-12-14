@@ -1273,6 +1273,8 @@ addmethod(Sym *sf, Type *t, int local)
 				t = t->type;
 			}
 		}
+		if(t->broke) // rely on typecheck having complained before
+			return;
 		if(t != T) {
 			if(t->sym == S) {
 				yyerror("invalid receiver type %T (%T is an unnamed type)", pa, t);
