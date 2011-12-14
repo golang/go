@@ -22,7 +22,7 @@ func TestGcSys(t *testing.T) {
 		sys = runtime.MemStats.Sys - sys
 	}
 	t.Logf("used %d extra bytes", sys)
-	if sys > 2<<20 {
+	if sys > 4<<20 {
 		t.Fatalf("using too much memory: %d bytes", sys)
 	}
 }
