@@ -309,7 +309,7 @@ var singleTests = []SingleTest{
 	{[7]int{4, 55, 1, 44, 22, 66, 1234}, &testArray, ""},
 
 	// Decode errors
-	{172, &testFloat32, "wrong type"},
+	{172, &testFloat32, "type"},
 }
 
 func TestSingletons(t *testing.T) {

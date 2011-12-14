@@ -1068,7 +1068,12 @@ func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *de
 	engine.instr = make([]decInstr, 1) // one item
 	name := rt.String()                // best we can do
 	if !dec.compatibleType(rt, remoteId, make(map[reflect.Type]typeId)) {
-		return nil, errors.New("gob: wrong type received for local value " + name + ": " + dec.typeString(remoteId))
+		remoteType := dec.typeString(remoteId)
+		// Common confusing case: local interface type, remote concrete type.
+		if ut.base.Kind() == reflect.Interface && remoteId != tInterface {
+			return nil, errors.New("gob: local interface type " + name + " can only be decoded from remote interface type; received concrete type " + remoteType)
+		}
+		return nil, errors.New("gob: decoding into local type " + name + ", received remote type " + remoteType)
 	}
 	op, indir := dec.decOpFor(remoteId, rt, name, make(map[reflect.Type]*decOp))
 	ovfl := errors.New(`value for "` + name + `" out of range`)
