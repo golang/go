@@ -154,12 +154,20 @@ func (t *Template) Name() string {
 	return t.text.Name()
 }
 
+// FuncMap is the type of the map defining the mapping from names to
+// functions. Each function must have either a single return value, or two
+// return values of which the second has type error. In that case, if the
+// second (error) argument evaluates to non-nil during execution, execution
+// terminates and Execute returns that error. FuncMap has the same base type
+// as template.FuncMap, copied here so clients need not import "text/template".
+type FuncMap map[string]interface{}
+
 // Funcs adds the elements of the argument map to the template's function map.
 // It panics if a value in the map is not a function with appropriate return
 // type. However, it is legal to overwrite elements of the map. The return
 // value is the template, so calls can be chained.
-func (t *Template) Funcs(funcMap template.FuncMap) *Template {
-	t.text.Funcs(funcMap)
+func (t *Template) Funcs(funcMap FuncMap) *Template {
+	t.text.Funcs(template.FuncMap(funcMap))
 	return t
 }
 
