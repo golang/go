@@ -539,12 +539,13 @@ func (pc *persistConn) readLoop() {
 		resp, err := ReadResponse(pc.br, rc.req)
 
 		if err == nil {
-			if rc.addedGzip && resp.Header.Get("Content-Encoding") == "gzip" {
+			hasBody := rc.req.Method != "HEAD" && resp.ContentLength != 0
+			if rc.addedGzip && hasBody && resp.Header.Get("Content-Encoding") == "gzip" {
 				resp.Header.Del("Content-Encoding")
 				resp.Header.Del("Content-Length")
 				resp.ContentLength = -1
 				gzReader, zerr := gzip.NewReader(resp.Body)
-				if err != nil {
+				if zerr != nil {
 					pc.close()
 					err = zerr
 				} else {
