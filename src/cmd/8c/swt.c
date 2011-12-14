@@ -36,40 +36,12 @@ swit1(C1 *q, int nc, int32 def, Node *n)
 	C1 *r;
 	int i;
 	Prog *sp;
-	Node n1, nreg, ncon;
-
-	if(typev[n->type->etype]) {
-		if(n->op != ONAME || n->sym != nodsafe->sym) {
-			regsalloc(&nreg, n);
-			nreg.type = types[TVLONG];
-			cgen(n, &nreg);
-			swit1(q, nc, def, &nreg);
-			return;
-		}
-	} else {
-		if(n->op != OREGISTER) {
-			regalloc(&nreg, n, Z);
-			nreg.type = types[TLONG];
-			cgen(n, &nreg);
-			swit1(q, nc, def, &nreg);
-			regfree(&nreg);
-			return;
-		}
-	}
 
 	if(nc < 5) {
 		for(i=0; i<nc; i++) {
 			if(debug['W'])
 				print("case = %.8ux\n", q->val);
-			if(n->type && typev[n->type->etype]) {
-				memset(&n1, 0, sizeof n1);
-				n1.op = OEQ;
-				n1.left = n;
-				ncon = *nodconst(q->val);
-				n1.right = &ncon;
-				boolgen(&n1, 1, Z);
-			} else
-				gopcode(OEQ, n->type, n, nodconst(q->val));
+			gopcode(OEQ, n->type, n, nodconst(q->val));
 			patch(p, q->label);
 			q++;
 		}
@@ -81,22 +53,10 @@ swit1(C1 *q, int nc, int32 def, Node *n)
 	r = q+i;
 	if(debug['W'])
 		print("case > %.8ux\n", r->val);
-	if(n->type && typev[n->type->etype]) {
-		memset(&n1, 0, sizeof n1);
-		n1.op = OGT;
-		n1.left = n;
-		ncon = *nodconst(r->val);
-		n1.right = &ncon;
-		boolgen(&n1, 1, Z);
-		sp = p;
-		n1.op = OEQ;
-		boolgen(&n1, 1, Z);
-	} else {
-		gopcode(OGT, n->type, n, nodconst(r->val));
-		sp = p;
-		gbranch(OGOTO);
-		p->as = AJEQ;
-	}
+	gopcode(OGT, n->type, n, nodconst(r->val));
+	sp = p;
+	gbranch(OGOTO);
+	p->as = AJEQ;
 	patch(p, r->label);
 	swit1(q, i, def, n);
 

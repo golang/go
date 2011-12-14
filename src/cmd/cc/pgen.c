@@ -293,7 +293,7 @@ loop:
 		complex(l);
 		if(l->type == T)
 			break;
-		if(!typechlvp[l->type->etype] || l->type->etype == TIND) {
+		if(!typeword[l->type->etype] || l->type->etype == TIND) {
 			diag(n, "switch expression must be integer");
 			break;
 		}
@@ -320,7 +320,15 @@ loop:
 		}
 
 		patch(sp, pc);
-		doswit(l);
+		regalloc(&nod, l, Z);
+		/* always signed */
+		if(typev[l->type->etype])
+			nod.type = types[TVLONG];
+		else
+			nod.type = types[TLONG];
+		cgen(l, &nod);
+		doswit(&nod);
+		regfree(&nod);
 		patch(spb, pc);
 
 		cases = cn;
