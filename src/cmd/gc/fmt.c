@@ -371,9 +371,13 @@ Vconv(Fmt *fp)
 			return fmtprint(fp, "'\\U%08llux'", x);
 		return fmtprint(fp, "('\\x00' + %B)", v->u.xval);
 	case CTFLT:
-		return fmtprint(fp, "%F", v->u.fval);
-	case CTCPLX:  // ? 1234i ->  (0p+0+617p+1)
-		return fmtprint(fp, "(%F+%F)", &v->u.cval->real, &v->u.cval->imag);
+		if((fp->flags & FmtSharp) || fmtmode == FExp)
+			return fmtprint(fp, "%F", v->u.fval);
+		return fmtprint(fp, "%#F", v->u.fval);
+	case CTCPLX:
+		if((fp->flags & FmtSharp) || fmtmode == FExp)
+			return fmtprint(fp, "(%F+%F)", &v->u.cval->real, &v->u.cval->imag);
+		return fmtprint(fp, "(%#F + %#Fi)", &v->u.cval->real, &v->u.cval->imag);
 	case CTSTR:
 		return fmtprint(fp, "\"%Z\"", v->u.sval);
 	case CTBOOL:
