@@ -1278,13 +1278,17 @@ exprfmt(Fmt *f, Node *n, int prec)
 static int
 nodefmt(Fmt *f, Node *n)
 {
+	Type *t;
 
-	if(f->flags&FmtLong && n->type != T) {
-		if(n->type->etype == TNIL)
+	t = n->type;
+	if(n->orig != N)
+		n = n->orig;
+
+	if(f->flags&FmtLong && t != T) {
+		if(t->etype == TNIL)
 			return fmtprint(f, "nil");
 		else
-			return fmtprint(f, "%N (type %T)", n, n->type);
-
+			return fmtprint(f, "%N (type %T)", n, t);
 	}
 
 	// TODO inlining produces expressions with ninits. we can't print these yet.
@@ -1479,8 +1483,6 @@ Nconv(Fmt *fp)
 	switch(fmtmode) {
 	case FErr:
 	case FExp:
-		if(n->orig != N)
-			n = n->orig;
 		r = nodefmt(fp, n);
 		break;
 	case FDbg:
