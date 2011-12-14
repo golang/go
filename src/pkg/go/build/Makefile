@@ -11,7 +11,7 @@ GOFILES=\
 	path.go\
 	syslist.go\
 
-CLEANFILES+=syslist.go pkgtest/_obj cmdtest/_obj cgotest/_obj
+CLEANFILES+=pkgtest/_obj cmdtest/_obj cgotest/_obj
 
 include ../../../Make.pkg
 
