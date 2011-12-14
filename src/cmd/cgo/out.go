@@ -46,7 +46,9 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fgo2, "package %s\n\n", p.PackageName)
 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n")
 	fmt.Fprintf(fgo2, "import \"syscall\"\n\n")
-	fmt.Fprintf(fgo2, "import _ \"runtime/cgo\"\n\n")
+	if !*gccgo {
+		fmt.Fprintf(fgo2, "import _ \"runtime/cgo\"\n\n")
+	}
 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
 	fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int) { *dst = syscall.Errno(x) }\n")
 
@@ -57,7 +59,11 @@ func (p *Package) writeDefs() {
 	}
 	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
 
-	fmt.Fprintf(fc, cProlog)
+	if *gccgo {
+		fmt.Fprintf(fc, cPrologGccgo)
+	} else {
+		fmt.Fprintf(fc, cProlog)
+	}
 
 	cVars := make(map[string]bool)
 	for _, n := range p.Name {
@@ -238,10 +244,19 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
 		Type: gtype,
 	}
 	printer.Fprint(fgo2, fset, d)
-	fmt.Fprintf(fgo2, "\n")
+	if *gccgo {
+		fmt.Fprintf(fgo2, " __asm__(\"%s\")\n", n.C)
+	} else {
+		fmt.Fprintf(fgo2, "\n")
+	}
 
 	if name == "CString" || name == "GoString" || name == "GoStringN" || name == "GoBytes" {
 		// The builtins are already defined in the C prolog.
+		return
+	}
+
+	// gccgo does not require a wrapper unless an error must be returned.
+	if *gccgo && !n.AddError {
 		return
 	}
 
@@ -727,6 +742,42 @@ void
 	runtime·memmove((byte*)p, s.str, s.len);
 	p[s.len] = 0;
 	FLUSH(&p);
+}
+`
+
+const cPrologGccgo = `
+#include <stdint.h>
+#include <string.h>
+
+struct __go_string {
+	const unsigned char *__data;
+	int __length;
+};
+
+typedef struct __go_open_array {
+	void* __values;
+	int __count;
+	int __capacity;
+} Slice;
+
+struct __go_string __go_byte_array_to_string(const void* p, int len);
+struct __go_open_array __go_string_to_byte_array (struct __go_string str);
+
+const char *CString(struct __go_string s) {
+	return strndup(s.__data, s.__length);
+}
+
+struct __go_string GoString(char *p) {
+	return __go_byte_array_to_string(p, strlen(p));
+}
+
+struct __go_string GoStringN(char *p, int n) {
+	return __go_byte_array_to_string(p, n);
+}
+
+Slice GoBytes(char *p, int n) {
+	struct __go_string s = { p, n };
+	return __go_string_to_byte_array(s);
 }
 `
 

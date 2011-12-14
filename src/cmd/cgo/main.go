@@ -130,6 +130,8 @@ var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import da
 var godefs = flag.Bool("godefs", false, "for bootstrap: write Go definitions for C file to standard output")
 var cdefs = flag.Bool("cdefs", false, "for bootstrap: write C definitions for C file to standard output")
 
+var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
+
 var goarch, goos string
 
 func main() {
