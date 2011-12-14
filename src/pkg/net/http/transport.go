@@ -544,7 +544,7 @@ func (pc *persistConn) readLoop() {
 				resp.Header.Del("Content-Length")
 				resp.ContentLength = -1
 				gzReader, zerr := gzip.NewReader(resp.Body)
-				if zerr != nil {
+				if err != nil {
 					pc.close()
 					err = zerr
 				} else {
