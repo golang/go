@@ -33,6 +33,21 @@
 void
 swit1(C1 *q, int nc, int32 def, Node *n)
 {
+	Node nreg;
+
+	regalloc(&nreg, n, Z);
+	if(typev[n->type->etype])
+		nreg.type = types[TVLONG];
+	else
+		nreg.type = types[TLONG];
+	cgen(n, &nreg);
+	swit2(q, nc, def, &nreg);
+	regfree(&nreg);
+}
+
+void
+swit2(C1 *q, int nc, int32 def, Node *n)
+{
 	C1 *r;
 	int i;
 	Prog *sp;
@@ -58,12 +73,12 @@ swit1(C1 *q, int nc, int32 def, Node *n)
 	gbranch(OGOTO);
 	p->as = AJEQ;
 	patch(p, r->label);
-	swit1(q, i, def, n);
+	swit2(q, i, def, n);
 
 	if(debug['W'])
 		print("case < %.8llux\n", r->val);
 	patch(sp, pc);
-	swit1(r+1, nc-i-1, def, n);
+	swit2(r+1, nc-i-1, def, n);
 }
 
 void
