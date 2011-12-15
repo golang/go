@@ -426,13 +426,16 @@ func (S *Scanner) scanString() {
 	S.next()
 }
 
-func (S *Scanner) scanRawString() {
+func (S *Scanner) scanRawString() (hasCR bool) {
 	// '`' opening already consumed
 	offs := S.offset - 1
 
 	for S.ch != '`' {
 		ch := S.ch
 		S.next()
+		if ch == '\r' {
+			hasCR = true
+		}
 		if ch < 0 {
 			S.error(offs, "string not terminated")
 			break
@@ -440,6 +443,7 @@ func (S *Scanner) scanRawString() {
 	}
 
 	S.next()
+	return
 }
 
 func (S *Scanner) skipWhitespace() {
@@ -490,6 +494,18 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 	return tok0
 }
 
+func stripCR(b []byte) []byte {
+	c := make([]byte, len(b))
+	i := 0
+	for _, ch := range b {
+		if ch != '\r' {
+			c[i] = ch
+			i++
+		}
+	}
+	return c[:i]
+}
+
 // Scan scans the next token and returns the token position,
 // the token, and the literal string corresponding to the
 // token. The source end is indicated by token.EOF.
@@ -518,6 +534,7 @@ scanAgain:
 	insertSemi := false
 	offs := S.offset
 	tok := token.ILLEGAL
+	hasCR := false
 
 	// determine token value
 	switch ch := S.ch; {
@@ -556,7 +573,7 @@ scanAgain:
 		case '`':
 			insertSemi = true
 			tok = token.STRING
-			S.scanRawString()
+			hasCR = S.scanRawString()
 		case ':':
 			tok = S.switch2(token.COLON, token.DEFINE)
 		case '.':
@@ -663,5 +680,9 @@ scanAgain:
 	// TODO(gri): The scanner API should change such that the literal string
 	//            is only valid if an actual literal was scanned. This will
 	//            permit a more efficient implementation.
-	return S.file.Pos(offs), tok, string(S.src[offs:S.offset])
+	lit := S.src[offs:S.offset]
+	if hasCR {
+		lit = stripCR(lit)
+	}
+	return S.file.Pos(offs), tok, string(lit)
 }
