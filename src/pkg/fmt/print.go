@@ -503,9 +503,9 @@ func (p *pp) fmtString(v string, verb rune, goSyntax bool) {
 	case 's':
 		p.fmt.fmt_s(v)
 	case 'x':
-		p.fmt.fmt_sx(v)
+		p.fmt.fmt_sx(v, ldigits)
 	case 'X':
-		p.fmt.fmt_sX(v)
+		p.fmt.fmt_sx(v, udigits)
 	case 'q':
 		p.fmt.fmt_q(v)
 	default:
@@ -542,9 +542,9 @@ func (p *pp) fmtBytes(v []byte, verb rune, goSyntax bool, depth int) {
 	case 's':
 		p.fmt.fmt_s(s)
 	case 'x':
-		p.fmt.fmt_sx(s)
+		p.fmt.fmt_sx(s, ldigits)
 	case 'X':
-		p.fmt.fmt_sX(s)
+		p.fmt.fmt_sx(s, udigits)
 	case 'q':
 		p.fmt.fmt_q(s)
 	default:
