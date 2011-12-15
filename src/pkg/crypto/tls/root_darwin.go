@@ -8,7 +8,7 @@ package tls
 // Note: We disable -Werror here because the code in this file uses a deprecated API to stay
 // compatible with both Mac OS X 10.6 and 10.7. Using a deprecated function on Darwin generates
 // a warning.
-#cgo CFLAGS: -Wno-error
+#cgo CFLAGS: -Wno-error -Wno-deprecated-declarations
 #cgo LDFLAGS: -framework CoreFoundation -framework Security
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
