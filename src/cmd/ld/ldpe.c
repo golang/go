@@ -282,6 +282,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 					diag("%s: unknown relocation type %d;", pn, type);
 				case IMAGE_REL_I386_REL32:
 				case IMAGE_REL_AMD64_REL32:
+				case IMAGE_REL_AMD64_ADDR32: // R_X86_64_PC32
+				case IMAGE_REL_AMD64_ADDR32NB:
 					rp->type = D_PCREL;
 					rp->add = le32(rsect->base+rp->off);
 					break;
@@ -290,10 +292,6 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
 					rp->type = D_ADDR;
 					// load addend from image
 					rp->add = le32(rsect->base+rp->off);
-					break;
-				case IMAGE_REL_AMD64_ADDR32: // R_X86_64_PC32
-					rp->type = D_PCREL;
-					rp->add += 4;
 					break;
 				case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
 					rp->siz = 8;

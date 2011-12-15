@@ -142,9 +142,6 @@ endif
 ifeq ($(GOOS),netbsd)  # ... and not on NetBSD
 CGO_ENABLED:=0
 endif
-ifeq ($(GOOS)$(GOARCH),windowsamd64)  # ... and not on Windows/amd64
-CGO_ENABLED:=0
-endif
 endif
 
 # Make environment more standard.
