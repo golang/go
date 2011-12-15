@@ -35,6 +35,8 @@
 static void escfunc(Node *func);
 static void esclist(NodeList *l);
 static void esc(Node *n);
+static void escloopdepthlist(NodeList *l);
+static void escloopdepth(Node *n);
 static void escassign(Node *dst, Node *src);
 static void esccall(Node*);
 static void escflows(Node *dst, Node *src);
@@ -138,9 +140,62 @@ escfunc(Node *func)
 		escassign(curfn, n);
 	}
 
+	escloopdepthlist(curfn->nbody);
 	esclist(curfn->nbody);
 	curfn = savefn;
 	loopdepth = saveld;
+}
+
+// Mark labels that have no backjumps to them as not increasing loopdepth.
+// Walk hasn't generated (goto|label)->left->sym->label yet, so we'll cheat
+// and set it to one of the following two.  Then in esc we'll clear it again.
+static Label looping;
+static Label nonlooping;
+
+static void
+escloopdepthlist(NodeList *l)
+{
+	for(; l; l=l->next)
+		escloopdepth(l->n);
+}
+
+static void
+escloopdepth(Node *n)
+{
+	if(n == N)
+		return;
+
+	escloopdepthlist(n->ninit);
+
+	switch(n->op) {
+	case OLABEL:
+		if(!n->left || !n->left->sym)
+			fatal("esc:label without label: %+N", n);
+		// Walk will complain about this label being already defined, but that's not until
+		// after escape analysis. in the future, maybe pull label & goto analysis out of walk and put before esc
+		// if(n->left->sym->label != nil)
+		//	fatal("escape analysis messed up analyzing label: %+N", n);
+		n->left->sym->label = &nonlooping;
+		break;
+	case OGOTO:
+		if(!n->left || !n->left->sym)
+			fatal("esc:goto without label: %+N", n);
+		// If we come past one that's uninitialized, this must be a (harmless) forward jump
+		// but if it's set to nonlooping the label must have preceded this goto.
+		if(n->left->sym->label == &nonlooping)
+			n->left->sym->label = &looping;
+		break;
+	}
+
+	escloopdepth(n->left);
+	escloopdepth(n->right);
+	escloopdepthlist(n->list);
+	escloopdepth(n->ntest);
+	escloopdepth(n->nincr);
+	escloopdepthlist(n->nbody);
+	escloopdepthlist(n->nelse);
+	escloopdepthlist(n->rlist);
+
 }
 
 static void
@@ -188,9 +243,20 @@ esc(Node *n)
 			n->left->escloopdepth = loopdepth;
 		break;
 
-	case OLABEL:  // TODO: new loop/scope only if there are backjumps to it.
-		loopdepth++;
-		break;
+	case OLABEL:
+		if(n->left->sym->label == &nonlooping) {
+			if(debug['m'] > 1)
+				print("%L:%N non-looping label\n", lineno, n);
+		} else if(n->left->sym->label == &looping) {
+			if(debug['m'] > 1)
+				print("%L: %N looping label\n", lineno, n);
+			loopdepth++;
+		}
+		// See case OLABEL in escloopdepth above
+		// else if(n->left->sym->label == nil)
+		//	fatal("escape anaylysis missed or messed up a label: %+N", n);
+
+		n->left->sym->label = nil;
 
 	case ORANGE:
 		// Everything but fixed array is a dereference.
