@@ -105,6 +105,10 @@ done
 ./timing.sh -test
 ) || exit $?
 
+(xcd ../test/bench/go1
+gomake test
+) || exit $?
+
 (xcd ../test
 ./run
 ) || exit $?
