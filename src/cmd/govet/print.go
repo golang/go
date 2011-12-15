@@ -1,0 +1,202 @@
+// Copyright 2010 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains the printf-checker.
+
+package main
+
+import (
+	"flag"
+	"fmt"
+	"go/ast"
+	"go/token"
+	"strings"
+	"unicode/utf8"
+)
+
+var printfuncs = flag.String("printfuncs", "", "comma-separated list of print function names to check")
+
+// printfList records the formatted-print functions. The value is the location
+// of the format parameter. Names are lower-cased so the lookup is
+// case insensitive.
+var printfList = map[string]int{
+	"errorf":  0,
+	"fatalf":  0,
+	"fprintf": 1,
+	"panicf":  0,
+	"printf":  0,
+	"sprintf": 0,
+}
+
+// printList records the unformatted-print functions. The value is the location
+// of the first parameter to be printed.  Names are lower-cased so the lookup is
+// case insensitive.
+var printList = map[string]int{
+	"error":  0,
+	"fatal":  0,
+	"fprint": 1, "fprintln": 1,
+	"panic": 0, "panicln": 0,
+	"print": 0, "println": 0,
+	"sprint": 0, "sprintln": 0,
+}
+
+// checkCall triggers the print-specific checks if the call invokes a print function.
+func (f *File) checkFmtPrintfCall(call *ast.CallExpr, Name string) {
+	name := strings.ToLower(Name)
+	if skip, ok := printfList[name]; ok {
+		f.checkPrintf(call, Name, skip)
+		return
+	}
+	if skip, ok := printList[name]; ok {
+		f.checkPrint(call, Name, skip)
+		return
+	}
+}
+
+// checkPrintf checks a call to a formatted print routine such as Printf.
+// The skip argument records how many arguments to ignore; that is,
+// call.Args[skip] is (well, should be) the format argument.
+func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
+	if len(call.Args) <= skip {
+		return
+	}
+	// Common case: literal is first argument.
+	arg := call.Args[skip]
+	lit, ok := arg.(*ast.BasicLit)
+	if !ok {
+		// Too hard to check.
+		if *verbose {
+			f.Warn(call.Pos(), "can't check args for call to", name)
+		}
+		return
+	}
+	if lit.Kind == token.STRING {
+		if !strings.Contains(lit.Value, "%") {
+			if len(call.Args) > skip+1 {
+				f.Badf(call.Pos(), "no formatting directive in %s call", name)
+			}
+			return
+		}
+	}
+	// Hard part: check formats against args.
+	// Trivial but useful test: count.
+	numArgs := 0
+	for i, w := 0, 0; i < len(lit.Value); i += w {
+		w = 1
+		if lit.Value[i] == '%' {
+			nbytes, nargs := parsePrintfVerb(lit.Value[i:])
+			w = nbytes
+			numArgs += nargs
+		}
+	}
+	expect := len(call.Args) - (skip + 1)
+	if numArgs != expect {
+		f.Badf(call.Pos(), "wrong number of args in %s call: %d needed but %d args", name, numArgs, expect)
+	}
+}
+
+// parsePrintfVerb returns the number of bytes and number of arguments
+// consumed by the Printf directive that begins s, including its percent sign
+// and verb.
+func parsePrintfVerb(s string) (nbytes, nargs int) {
+	// There's guaranteed a percent sign.
+	nbytes = 1
+	end := len(s)
+	// There may be flags.
+FlagLoop:
+	for nbytes < end {
+		switch s[nbytes] {
+		case '#', '0', '+', '-', ' ':
+			nbytes++
+		default:
+			break FlagLoop
+		}
+	}
+	getNum := func() {
+		if nbytes < end && s[nbytes] == '*' {
+			nbytes++
+			nargs++
+		} else {
+			for nbytes < end && '0' <= s[nbytes] && s[nbytes] <= '9' {
+				nbytes++
+			}
+		}
+	}
+	// There may be a width.
+	getNum()
+	// If there's a period, there may be a precision.
+	if nbytes < end && s[nbytes] == '.' {
+		nbytes++
+		getNum()
+	}
+	// Now a verb.
+	c, w := utf8.DecodeRuneInString(s[nbytes:])
+	nbytes += w
+	if c != '%' {
+		nargs++
+	}
+	return
+}
+
+// checkPrint checks a call to an unformatted print routine such as Println.
+// The skip argument records how many arguments to ignore; that is,
+// call.Args[skip] is the first argument to be printed.
+func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
+	isLn := strings.HasSuffix(name, "ln")
+	args := call.Args
+	if len(args) <= skip {
+		if *verbose && !isLn {
+			f.Badf(call.Pos(), "no args in %s call", name)
+		}
+		return
+	}
+	arg := args[skip]
+	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+		if strings.Contains(lit.Value, "%") {
+			f.Badf(call.Pos(), "possible formatting directive in %s call", name)
+		}
+	}
+	if isLn {
+		// The last item, if a string, should not have a newline.
+		arg = args[len(call.Args)-1]
+		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+			if strings.HasSuffix(lit.Value, `\n"`) {
+				f.Badf(call.Pos(), "%s call ends with newline", name)
+			}
+		}
+	}
+}
+
+// This function never executes, but it serves as a simple test for the program.
+// Test with make test.
+func BadFunctionUsedInTests() {
+	fmt.Println()                      // not an error
+	fmt.Println("%s", "hi")            // ERROR "possible formatting directive in Println call"
+	fmt.Printf("%s", "hi", 3)          // ERROR "wrong number of args in Printf call"
+	fmt.Printf("%s%%%d", "hi", 3)      // correct
+	fmt.Printf("%.*d", 3, 3)           // correct
+	fmt.Printf("%.*d", 3, 3, 3)        // ERROR "wrong number of args in Printf call"
+	printf("now is the time", "buddy") // ERROR "no formatting directive"
+	Printf("now is the time", "buddy") // ERROR "no formatting directive"
+	Printf("hi")                       // ok
+	f := new(File)
+	f.Warn(0, "%s", "hello", 3)  // ERROR "possible formatting directive in Warn call"
+	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args in Warnf call"
+}
+
+type BadTypeUsedInTests struct {
+	X int "hello" // ERROR "struct field tag"
+}
+
+func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, rune[)] error"
+}
+
+type BadInterfaceUsedInTests interface {
+	ReadByte() byte // ERROR "method ReadByte[(][)] byte should have signature ReadByte[(][)] [(]byte, error[)]"
+}
+
+// printf is used by the test.
+func printf(format string, args ...interface{}) {
+	panic("don't call - testing only")
+}

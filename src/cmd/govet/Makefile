@@ -7,6 +7,9 @@ include ../../Make.inc
 TARG=govet
 GOFILES=\
 	govet.go\
+	method.go\
+	print.go\
+	structtag.go\
 
 include ../../Make.cmd
 
