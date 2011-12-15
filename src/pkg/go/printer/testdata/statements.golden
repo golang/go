@@ -271,7 +271,6 @@ func _() {
 	// Known bug: The first use call may have more than one empty line before
 	//            (see go/printer/nodes.go, func linebreak).
 
-
 	use(x)
 
 	if x < x {
@@ -385,7 +384,6 @@ func _() {
 L:	// A comment on the same line as the label, followed by a single empty line.
 	// Known bug: There may be more than one empty line before MoreCode()
 	//            (see go/printer/nodes.go, func linebreak).
-
 
 	MoreCode()
 }
