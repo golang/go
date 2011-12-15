@@ -8,7 +8,8 @@ package main
 
 import "unsafe"
 
-func use(bool) {}
+var global bool
+func use(b bool) { global = b }
 
 func stringptr(s string) uintptr { return *(*uintptr)(unsafe.Pointer(&s)) }
 
