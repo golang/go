@@ -840,6 +840,8 @@ l0:
 				ncp += ncp;
 			}
 			c = getr();
+			if(c == '\r')
+				continue;
 			if(c == EOF) {
 				yyerror("eof in string");
 				break;
