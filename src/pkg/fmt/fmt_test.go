@@ -813,3 +813,37 @@ func TestPanics(t *testing.T) {
 		}
 	}
 }
+
+// Test that erroneous String routine doesn't cause fatal recursion.
+var recurCount = 0
+
+type Recur struct {
+	i      int
+	failed *bool
+}
+
+func (r Recur) String() string {
+	if recurCount++; recurCount > 10 {
+		*r.failed = true
+		return "FAIL"
+	}
+	// This will call badVerb. Before the fix, that would cause us to recur into
+	// this routine to print %!p(value). Now we don't call the user's method
+	// during an error.
+	return Sprintf("recur@%p value: %d", r, r.i)
+}
+
+func TestBadVerbRecursion(t *testing.T) {
+	failed := false
+	r := Recur{3, &failed}
+	Sprintf("recur@%p value: %d\n", &r, r.i)
+	if failed {
+		t.Error("fail with pointer")
+	}
+	failed = false
+	r = Recur{4, &failed}
+	Sprintf("recur@%p, value: %d\n", r, r.i)
+	if failed {
+		t.Error("fail with value")
+	}
+}
