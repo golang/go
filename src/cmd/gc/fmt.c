@@ -913,6 +913,11 @@ stmtfmt(Fmt *f, Node *n)
 		else
 			fmtprint(f, "%#O", n->op);
 		break;
+
+	case OLABEL:
+		fmtprint(f, "%N: ", n->left);
+		break;
+	  
 	}
 
 	if(extrablock)
@@ -1016,6 +1021,7 @@ static int opprec[] = {
 	[OFALL] = -1,
 	[OFOR] = -1,
 	[OIF] = -1,
+	[OLABEL] = -1,
 	[OPROC] = -1,
 	[ORANGE] = -1,
 	[ORETURN] = -1,

@@ -1011,3 +1011,24 @@ func foo121b() {
 		go fmt.Printf("%d", i)    // ERROR "[.][.][.] argument escapes to heap"
 	}
 }
+
+// a harmless forward jump
+func foo122() {
+	var i *int
+
+	goto L1
+L1:
+	i = new(int)	// ERROR "does not escape"
+	_ = i
+}
+
+// a backward jump, increases loopdepth
+func foo123() {
+	var i *int
+
+L1:
+	i = new(int)  // ERROR "escapes"
+
+	goto L1
+	_ = i
+}
