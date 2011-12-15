@@ -203,7 +203,7 @@ func TestRFC959Lines(t *testing.T) {
 			t.Errorf("#%d: code=%d, want %d", i, code, tt.wantCode)
 		}
 		if msg != tt.wantMsg {
-			t.Errorf("%#d: msg=%q, want %q", i, msg, tt.wantMsg)
+			t.Errorf("#%d: msg=%q, want %q", i, msg, tt.wantMsg)
 		}
 	}
 }

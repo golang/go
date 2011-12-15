@@ -394,7 +394,7 @@ func TestUnmarshal(t *testing.T) {
 		if err != nil {
 			t.Errorf("#%d: unexpected error: %#v", i, err)
 		} else if got, want := dest, test.Value; !reflect.DeepEqual(got, want) {
-			t.Errorf("#%d: unmarshal(%#s) = %#v, want %#v", i, test.ExpectXML, got, want)
+			t.Errorf("#%d: unmarshal(%q) = %#v, want %#v", i, test.ExpectXML, got, want)
 		}
 	}
 }

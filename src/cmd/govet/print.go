@@ -67,7 +67,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
 	if !ok {
 		// Too hard to check.
 		if *verbose {
-			f.Warn(call.Pos(), "can't check args for call to", name)
+			f.Warn(call.Pos(), "can't check non-literal format in call to", name)
 		}
 		return
 	}
@@ -85,7 +85,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
 	for i, w := 0, 0; i < len(lit.Value); i += w {
 		w = 1
 		if lit.Value[i] == '%' {
-			nbytes, nargs := parsePrintfVerb(lit.Value[i:])
+			nbytes, nargs := f.parsePrintfVerb(call, lit.Value[i:])
 			w = nbytes
 			numArgs += nargs
 		}
@@ -99,8 +99,9 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
 // parsePrintfVerb returns the number of bytes and number of arguments
 // consumed by the Printf directive that begins s, including its percent sign
 // and verb.
-func parsePrintfVerb(s string) (nbytes, nargs int) {
+func (f *File) parsePrintfVerb(call *ast.CallExpr, s string) (nbytes, nargs int) {
 	// There's guaranteed a percent sign.
+	flags := make([]byte, 0, 5)
 	nbytes = 1
 	end := len(s)
 	// There may be flags.
@@ -108,6 +109,7 @@ FlagLoop:
 	for nbytes < end {
 		switch s[nbytes] {
 		case '#', '0', '+', '-', ' ':
+			flags = append(flags, s[nbytes])
 			nbytes++
 		default:
 			break FlagLoop
@@ -127,6 +129,7 @@ FlagLoop:
 	getNum()
 	// If there's a period, there may be a precision.
 	if nbytes < end && s[nbytes] == '.' {
+		flags = append(flags, '.') // Treat precision as a flag.
 		nbytes++
 		getNum()
 	}
@@ -135,8 +138,68 @@ FlagLoop:
 	nbytes += w
 	if c != '%' {
 		nargs++
+		f.checkPrintfVerb(call, c, flags)
 	}
 	return
+}
+
+type printVerb struct {
+	verb  rune
+	flags string // known flags are all ASCII
+}
+
+// Common flag sets for printf verbs.
+const (
+	numFlag      = " -+.0"
+	sharpNumFlag = " -+.0#"
+	allFlags     = " -+.0#"
+)
+
+// printVerbs identifies which flags are known to printf for each verb.
+// TODO: A type that implements Formatter may do what it wants, and govet
+// will complain incorrectly.
+var printVerbs = []printVerb{
+	// '-' is a width modifier, always valid.
+	// '.' is a precision for float, max width for strings.
+	// '+' is required sign for numbers, Go format for %v.
+	// '#' is alternate format for several verbs.
+	// ' ' is spacer for numbers
+	{'b', numFlag},
+	{'c', "-"},
+	{'d', numFlag},
+	{'e', "-."},
+	{'E', numFlag},
+	{'f', numFlag},
+	{'F', numFlag},
+	{'g', numFlag},
+	{'G', numFlag},
+	{'o', sharpNumFlag},
+	{'p', "-#"},
+	{'q', "-+#."},
+	{'s', "-."},
+	{'t', "-"},
+	{'T', "-"},
+	{'U', "-#"},
+	{'v', allFlags},
+	{'x', sharpNumFlag},
+	{'X', sharpNumFlag},
+}
+
+const printfVerbs = "bcdeEfFgGopqstTvxUX"
+
+func (f *File) checkPrintfVerb(call *ast.CallExpr, verb rune, flags []byte) {
+	// Linear scan is fast enough for a small list.
+	for _, v := range printVerbs {
+		if v.verb == verb {
+			for _, flag := range flags {
+				if !strings.ContainsRune(v.flags, rune(flag)) {
+					f.Badf(call.Pos(), "unrecognized printf flag for verb %q: %q", verb, flag)
+				}
+			}
+			return
+		}
+	}
+	f.Badf(call.Pos(), "unrecognized printf verb %q", verb)
 }
 
 // checkPrint checks a call to an unformatted print routine such as Println.
@@ -183,6 +246,8 @@ func BadFunctionUsedInTests() {
 	f := new(File)
 	f.Warn(0, "%s", "hello", 3)  // ERROR "possible formatting directive in Warn call"
 	f.Warnf(0, "%s", "hello", 3) // ERROR "wrong number of args in Warnf call"
+	f.Warnf(0, "%r", "hello")    // ERROR "unrecognized printf verb"
+	f.Warnf(0, "%#s", "hello")   // ERROR "unrecognized printf flag"
 }
 
 type BadTypeUsedInTests struct {
