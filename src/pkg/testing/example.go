@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -67,11 +68,9 @@ func RunExamples(examples []InternalExample) (ok bool) {
 
 		// report any errors
 		tstr := fmt.Sprintf("(%.2f seconds)", dt.Seconds())
-		if out != eg.Output {
-			fmt.Printf(
-				"--- FAIL: %s %s\ngot:\n%s\nwant:\n%s\n",
-				eg.Name, tstr, out, eg.Output,
-			)
+		if g, e := strings.TrimSpace(out), strings.TrimSpace(eg.Output); g != e {
+			fmt.Printf("--- FAIL: %s %s\ngot:\n%s\nwant:\n%s\n",
+				eg.Name, tstr, g, e)
 			ok = false
 		} else if *chatty {
 			fmt.Printf("--- PASS: %s %s\n", eg.Name, tstr)
