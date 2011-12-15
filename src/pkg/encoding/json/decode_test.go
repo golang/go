@@ -6,6 +6,7 @@ package json
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -239,6 +240,38 @@ func TestHTMLEscape(t *testing.T) {
 	}
 	if !bytes.Equal(b, []byte(`"foobarbaz\u003c\u003e\u0026quux"`)) {
 		t.Fatalf("Unexpected encoding of \"<>&\": %s", b)
+	}
+}
+
+// WrongString is a struct that's misusing the ,string modifier.
+type WrongString struct {
+	Message string `json:"result,string"`
+}
+
+type wrongStringTest struct {
+	in, err string
+}
+
+// TODO(bradfitz): as part of Issue 2331, fix these tests' expected
+// error values to be helpful, rather than the confusing messages they
+// are now.
+var wrongStringTests = []wrongStringTest{
+	{`{"result":"x"}`, "JSON decoder out of sync - data changing underfoot?"},
+	{`{"result":"foo"}`, "json: cannot unmarshal bool into Go value of type string"},
+	{`{"result":"123"}`, "json: cannot unmarshal number into Go value of type string"},
+}
+
+// If people misuse the ,string modifier, the error message should be
+// helpful, telling the user that they're doing it wrong.
+func TestErrorMessageFromMisusedString(t *testing.T) {
+	for n, tt := range wrongStringTests {
+		r := strings.NewReader(tt.in)
+		var s WrongString
+		err := NewDecoder(r).Decode(&s)
+		got := fmt.Sprintf("%v", err)
+		if got != tt.err {
+			t.Errorf("%d. got err = %q, want %q", n, got, tt.err)
+		}
 	}
 }
 
