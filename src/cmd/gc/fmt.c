@@ -914,6 +914,9 @@ stmtfmt(Fmt *f, Node *n)
 			fmtprint(f, "%#O", n->op);
 		break;
 
+	case OEMPTY:
+		break;
+
 	case OLABEL:
 		fmtprint(f, "%N: ", n->left);
 		break;
@@ -1018,6 +1021,7 @@ static int opprec[] = {
 	[ODCL] = -1,
 	[ODCLFIELD] = -1,
 	[ODEFER] = -1,
+	[OEMPTY] = -1,
 	[OFALL] = -1,
 	[OFOR] = -1,
 	[OIF] = -1,

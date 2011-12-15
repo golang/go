@@ -60,7 +60,7 @@ caninl(Node *fn)
 	case ORETURN:
 	case OAS:
 	case OAS2:
-	  // case OEMPTY:  // TODO
+	case OEMPTY:
 		break;
 	}
 
@@ -449,7 +449,7 @@ mkinlcall(Node **np, Node *fn)
 		// TODO check that n->list->n is a call?
 		as->rlist = n->list;
 		for(t = getinargx(fn->type)->type; t; t=t->down) {
-			if(t->nname) {
+			if(t->nname && !isblank(t->nname)) {
 				if(!t->nname->inlvar)
 					fatal("missing inlvar for %N\n", t->nname);
 				as->list = list(as->list, t->nname->inlvar);
@@ -460,7 +460,7 @@ mkinlcall(Node **np, Node *fn)
 	} else {
 		ll = n->list;
 		for(t = getinargx(fn->type)->type; t && ll; t=t->down) {
-			if(t->nname) {
+			if(t->nname && !isblank(t->nname)) {
 				if(!t->nname->inlvar)
 					fatal("missing inlvar for %N\n", t->nname);
 				as->list = list(as->list, t->nname->inlvar);
