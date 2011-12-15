@@ -22,10 +22,10 @@ var drivers = make(map[string]driver.Driver)
 // it panics.
 func Register(name string, driver driver.Driver) {
 	if driver == nil {
-		panic("db: Register driver is nil")
+		panic("sql: Register driver is nil")
 	}
 	if _, dup := drivers[name]; dup {
-		panic("db: Register called twice for driver " + name)
+		panic("sql: Register called twice for driver " + name)
 	}
 	drivers[name] = driver
 }
@@ -80,7 +80,7 @@ type ScannerInto interface {
 // ErrNoRows is returned by Scan when QueryRow doesn't return a
 // row. In such a case, QueryRow returns a placeholder *Row value that
 // defers this error until a Scan.
-var ErrNoRows = errors.New("db: no rows in result set")
+var ErrNoRows = errors.New("sql: no rows in result set")
 
 // DB is a database handle. It's safe for concurrent use by multiple
 // goroutines.
@@ -102,7 +102,7 @@ type DB struct {
 func Open(driverName, dataSourceName string) (*DB, error) {
 	driver, ok := drivers[driverName]
 	if !ok {
-		return nil, fmt.Errorf("db: unknown driver %q (forgotten import?)", driverName)
+		return nil, fmt.Errorf("sql: unknown driver %q (forgotten import?)", driverName)
 	}
 	return &DB{driver: driver, dsn: dataSourceName}, nil
 }
@@ -514,7 +514,7 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 	// placeholders, so we won't sanity check input here and instead let the
 	// driver deal with errors.
 	if want := si.NumInput(); want != -1 && len(args) != want {
-		return nil, fmt.Errorf("db: expected %d arguments, got %d", want, len(args))
+		return nil, fmt.Errorf("sql: expected %d arguments, got %d", want, len(args))
 	}
 
 	// Convert args to subset types.
@@ -522,10 +522,10 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 		for n, arg := range args {
 			args[n], err = cc.ColumnConverter(n).ConvertValue(arg)
 			if err != nil {
-				return nil, fmt.Errorf("db: converting Exec argument #%d's type: %v", n, err)
+				return nil, fmt.Errorf("sql: converting Exec argument #%d's type: %v", n, err)
 			}
 			if !driver.IsParameterSubsetType(args[n]) {
-				return nil, fmt.Errorf("db: driver ColumnConverter error converted %T to unsupported type %T",
+				return nil, fmt.Errorf("sql: driver ColumnConverter error converted %T to unsupported type %T",
 					arg, args[n])
 			}
 		}
@@ -533,7 +533,7 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 		for n, arg := range args {
 			args[n], err = driver.DefaultParameterConverter.ConvertValue(arg)
 			if err != nil {
-				return nil, fmt.Errorf("db: converting Exec argument #%d's type: %v", n, err)
+				return nil, fmt.Errorf("sql: converting Exec argument #%d's type: %v", n, err)
 			}
 		}
 	}
@@ -555,7 +555,7 @@ func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(), si driver.Stmt, e
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		err = errors.New("db: statement is closed")
+		err = errors.New("sql: statement is closed")
 		return
 	}
 
@@ -617,7 +617,7 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 	// placeholders, so we won't sanity check input here and instead let the
 	// driver deal with errors.
 	if want := si.NumInput(); want != -1 && len(args) != want {
-		return nil, fmt.Errorf("db: statement expects %d inputs; got %d", si.NumInput(), len(args))
+		return nil, fmt.Errorf("sql: statement expects %d inputs; got %d", si.NumInput(), len(args))
 	}
 	sargs, err := subsetTypeArgs(args)
 	if err != nil {
@@ -737,27 +737,40 @@ func (rs *Rows) Err() error {
 	return rs.lasterr
 }
 
+// Columns returns the column names.
+// Columns returns an error if the rows are closed, or if the rows
+// are from QueryRow and there was a deferred error.
+func (rs *Rows) Columns() ([]string, error) {
+	if rs.closed {
+		return nil, errors.New("sql: Rows are closed")
+	}
+	if rs.rowsi == nil {
+		return nil, errors.New("sql: no Rows available")
+	}
+	return rs.rowsi.Columns(), nil
+}
+
 // Scan copies the columns in the current row into the values pointed
 // at by dest. If dest contains pointers to []byte, the slices should
 // not be modified and should only be considered valid until the next
 // call to Next or Scan.
 func (rs *Rows) Scan(dest ...interface{}) error {
 	if rs.closed {
-		return errors.New("db: Rows closed")
+		return errors.New("sql: Rows closed")
 	}
 	if rs.lasterr != nil {
 		return rs.lasterr
 	}
 	if rs.lastcols == nil {
-		return errors.New("db: Scan called without calling Next")
+		return errors.New("sql: Scan called without calling Next")
 	}
 	if len(dest) != len(rs.lastcols) {
-		return fmt.Errorf("db: expected %d destination arguments in Scan, not %d", len(rs.lastcols), len(dest))
+		return fmt.Errorf("sql: expected %d destination arguments in Scan, not %d", len(rs.lastcols), len(dest))
 	}
 	for i, sv := range rs.lastcols {
 		err := convertAssign(dest[i], sv)
 		if err != nil {
-			return fmt.Errorf("db: Scan error on column index %d: %v", i, err)
+			return fmt.Errorf("sql: Scan error on column index %d: %v", i, err)
 		}
 	}
 	return nil
