@@ -219,7 +219,7 @@ func TestReadRequest(t *testing.T) {
 			t.Errorf("#%d: Body = %q want %q", i, body, tt.Body)
 		}
 		if !reflect.DeepEqual(tt.Trailer, req.Trailer) {
-			t.Errorf("%#d. Trailers differ.\n got: %v\nwant: %v", i, req.Trailer, tt.Trailer)
+			t.Errorf("#%d. Trailers differ.\n got: %v\nwant: %v", i, req.Trailer, tt.Trailer)
 		}
 	}
 }
