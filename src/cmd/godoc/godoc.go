@@ -26,6 +26,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 // ----------------------------------------------------------------------------
@@ -482,14 +484,24 @@ func comment_textFunc(comment, indent, preIndent string) string {
 	return buf.String()
 }
 
+func startsWithUppercase(s string) bool {
+	r, _ := utf8.DecodeRuneInString(s)
+	return unicode.IsUpper(r)
+}
+
 func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
 	var buf bytes.Buffer
 	for _, eg := range examples {
-		// accept Foo or Foo_.* for funcName == Foo
 		name := eg.Name
-		if i := strings.Index(name, "_"); i >= 0 {
-			name = name[:i]
+
+		// strip lowercase braz in Foo_braz or Foo_Bar_braz from name 
+		// while keeping uppercase Braz in Foo_Braz
+		if i := strings.LastIndex(name, "_"); i != -1 {
+			if i < len(name)-1 && !startsWithUppercase(name[i+1:]) {
+				name = name[:i]
+			}
 		}
+
 		if name != funcName {
 			continue
 		}

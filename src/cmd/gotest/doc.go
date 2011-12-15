@@ -35,8 +35,15 @@ os.Stdout and os.Stderr is compared against their doc comment.
 		fmt.Println("The output of this example function.")
 	}
 
-Multiple example functions may be provided for a given name XXX if they are
-discriminated by a distinct suffix starting with "_", such as ExampleXXX_2.
+The following naming conventions are used to declare examples for a function F, 
+a type T and method M on type T:
+	 func ExampleF() { ... }     and    func ExampleF_suffix() { ... } 
+	 func ExampleT() { ... }     and    func ExampleT_suffix() { ... }
+	 func ExampleT_M() { ... }   and    func ExampleT_M_suffix() { ... }
+
+Multiple example functions may be provided by appending a distinct suffix
+to the name.  The suffix must start with a lowercase letter.
+
 Example functions without doc comments are compiled but not executed.
 
 See the documentation of the testing package for more information.
