@@ -72,6 +72,8 @@ var commands = []*Command{
 	helpGopath,
 	helpImportpath,
 	helpRemote,
+	helpTestflag,
+	helpTestfunc,
 }
 
 var exitStatus = 0
