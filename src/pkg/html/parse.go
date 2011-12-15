@@ -705,7 +705,7 @@ func inBodyIM(p *parser) bool {
 				case "address", "div", "p":
 					continue
 				default:
-					if !isSpecialElement[node.Data] {
+					if !isSpecialElement(node) {
 						continue
 					}
 				}
@@ -723,7 +723,7 @@ func inBodyIM(p *parser) bool {
 				case "address", "div", "p":
 					continue
 				default:
-					if !isSpecialElement[node.Data] {
+					if !isSpecialElement(node) {
 						continue
 					}
 				}
@@ -895,7 +895,7 @@ func (p *parser) inBodyEndTagFormatting(tag string) {
 		// Steps 5-6. Find the furthest block.
 		var furthestBlock *Node
 		for _, e := range p.oe[feIndex:] {
-			if isSpecialElement[e.Data] {
+			if isSpecialElement(e) {
 				furthestBlock = e
 				break
 			}
@@ -988,7 +988,7 @@ func (p *parser) inBodyEndTagOther(tag string) {
 			p.oe = p.oe[:i]
 			break
 		}
-		if isSpecialElement[p.oe[i].Data] {
+		if isSpecialElement(p.oe[i]) {
 			break
 		}
 	}
@@ -1606,7 +1606,18 @@ func inForeignContentIM(p *parser) bool {
 		// TODO: adjust foreign attributes.
 		p.addElement(p.tok.Data, p.tok.Attr)
 	case EndTagToken:
-		// TODO.
+		for i := len(p.oe) - 1; i >= 0; i-- {
+			if p.oe[i].Namespace == "" {
+				inBodyIM(p)
+				break
+			}
+			if strings.EqualFold(p.oe[i].Data, p.tok.Data) {
+				p.oe = p.oe[:i]
+				break
+			}
+		}
+		p.resetInsertionMode()
+		return true
 	default:
 		// Ignore the token.
 	}

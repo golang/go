@@ -7,7 +7,7 @@ package html
 // Section 12.2.3.2 of the HTML5 specification says "The following elements
 // have varying levels of special parsing rules".
 // http://www.whatwg.org/specs/web-apps/current-work/multipage/parsing.html#the-stack-of-open-elements
-var isSpecialElement = map[string]bool{
+var isSpecialElementMap = map[string]bool{
 	"address":    true,
 	"applet":     true,
 	"area":       true,
@@ -87,4 +87,14 @@ var isSpecialElement = map[string]bool{
 	"ul":         true,
 	"wbr":        true,
 	"xmp":        true,
+}
+
+func isSpecialElement(element *Node) bool {
+	switch element.Namespace {
+	case "", "html":
+		return isSpecialElementMap[element.Data]
+	case "svg":
+		return element.Data == "foreignObject"
+	}
+	return false
 }
