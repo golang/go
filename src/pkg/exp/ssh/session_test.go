@@ -20,7 +20,7 @@ func dial(handler serverType, t *testing.T) *ClientConn {
 	serverConfig.PasswordCallback = func(user, pass string) bool {
 		return user == "testuser" && pass == string(pw)
 	}
-	serverConfig.PubKeyCallback = nil
+	serverConfig.PublicKeyCallback = nil
 
 	l, err := Listen("tcp", "127.0.0.1:0", serverConfig)
 	if err != nil {

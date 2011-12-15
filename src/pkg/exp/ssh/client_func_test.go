@@ -50,7 +50,7 @@ func TestFuncPublickeyAuth(t *testing.T) {
 	config := &ClientConfig{
 		User: *sshuser,
 		Auth: []ClientAuth{
-			ClientAuthPublickey(kc),
+			ClientAuthKeyring(kc),
 		},
 	}
 	conn, err := Dial("tcp", "localhost:22", config)
