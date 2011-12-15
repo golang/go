@@ -17,6 +17,7 @@ import (
 	"json"
 	"os"
 	"strings"
+	"time"
 	"url"
 )
 
@@ -40,6 +41,19 @@ var testPackages = []*Package{
 	testPackage,
 }
 
+var tCommitTime = time.Seconds() - 60*60*24*7
+
+func tCommit(hash, parentHash string) *Commit {
+	tCommitTime += 60 * 60 * 12 // each commit should have a different time
+	return &Commit{
+		Hash:       hash,
+		ParentHash: parentHash,
+		Time:       datastore.Time(tCommitTime * 1e6),
+		User:       "adg",
+		Desc:       "change description",
+	}
+}
+
 var testRequests = []struct {
 	path string
 	vals url.Values
@@ -50,9 +64,9 @@ var testRequests = []struct {
 	{"/packages", nil, nil, []*Package{testPackage}},
 
 	// Go repo
-	{"/commit", nil, &Commit{Hash: "0001", ParentHash: "0000"}, nil},
-	{"/commit", nil, &Commit{Hash: "0002", ParentHash: "0001"}, nil},
-	{"/commit", nil, &Commit{Hash: "0003", ParentHash: "0002"}, nil},
+	{"/commit", nil, tCommit("0001", "0000"), nil},
+	{"/commit", nil, tCommit("0002", "0001"), nil},
+	{"/commit", nil, tCommit("0003", "0002"), nil},
 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
 	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0003"},
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0001", OK: true}, nil},
@@ -67,8 +81,8 @@ var testRequests = []struct {
 	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0002"},
 
 	// branches
-	{"/commit", nil, &Commit{Hash: "0004", ParentHash: "0003"}, nil},
-	{"/commit", nil, &Commit{Hash: "0005", ParentHash: "0002"}, nil},
+	{"/commit", nil, tCommit("0004", "0003"), nil},
+	{"/commit", nil, tCommit("0005", "0002"), nil},
 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0005"},
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0005", OK: true}, nil},
 	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0004"},
@@ -92,6 +106,7 @@ var testRequests = []struct {
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0001", OK: true}, nil},
 	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, nil},
 	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0002"}}, nil, "1003"},
+	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0005", OK: false, Log: []byte("boo")}, nil},
 }
 
 func testHandler(w http.ResponseWriter, r *http.Request) {

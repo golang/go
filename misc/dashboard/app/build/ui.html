@@ -1,0 +1,138 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <title>Go Build Dashboard</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 0; margin: 0;
+      }
+      h1, h2 {
+      	margin: 0;
+        padding: 5px;
+      }
+      h1 {
+      	background: #eee;
+      }
+      h2 {
+        margin-top: 10px;
+      }
+      .build, .packages {
+        margin: 5px;
+        border-collapse: collapse;
+      }
+      .build td, .build th, .packages td, .packages th {
+        vertical-align: top;
+        padding: 2px 4px;
+        font-size: 10pt;
+      }
+      .build tr:nth-child(2n) {
+        background-color: #f0f0f0;
+      }
+      .build .result {
+        text-align: center;
+        width: 50px;
+      }
+      .build .time {
+        color: #666;
+      }
+      .build .descr, .build .time, .build .user {
+        white-space: nowrap;
+      }
+      .paginate {
+        padding: 0.5em;
+      }
+      .paginate a {
+        padding: 0.5em;
+        background: #eee;
+        color: blue;
+      }
+      .paginate a.inactive {
+        color: #999;
+      }
+    </style>
+  </head>
+  <body>
+
+    <h1>Go Build Status</h1>
+
+    <h2>Go</h2>
+
+  {{if $.Commits}}
+
+    <table class="build">
+      <tr>
+        <th>&nbsp;</th>
+    {{range $.Builders}}
+        <th class="result">{{builderTitle .}}</th>
+    {{end}}
+      </tr>
+    {{range $c := $.Commits}}
+      <tr>
+      <td class="hash"><a href="{{repoURL .Hash ""}}">{{shortHash .Hash}}</a></td>
+      {{range $.Builders}}
+      <td class="result">
+      {{with $c.Result . ""}}
+        {{if .OK}}
+        <span class="ok">ok</span>
+        {{else}}
+        <a href="/log/{{.LogHash}}" class="fail">fail</a>
+        {{end}}
+      {{else}}
+        &nbsp;
+      {{end}}
+      </td>
+      {{end}}
+      <td class="user">{{.User}}</td>
+      <td class="time">{{.Time.Time}}</td>
+      <td class="desc">{{.Desc}}</td>
+      </tr>
+    {{end}}
+    </table>
+
+    {{with $.Pagination}}
+    <div class="paginate">
+      <a {{if .HasPrev}}href="?page={{.Prev}}"{{else}}class="inactive"{{end}}>prev</a>
+      <a {{if .Next}}href="?page={{.Next}}"{{else}}class="inactive"{{end}}>next</a>
+      <a {{if .HasPrev}}href="?page=0}"{{else}}class="inactive"{{end}}>top</a>
+    </div>
+    {{end}}
+
+  {{else}}
+    <p>No commits to display. Hm.</p>
+  {{end}}
+
+    <h2>Other packages</h2>
+
+    <table class="packages">
+    <tr>
+      <th>State</th>
+      <th>Package</th>
+      <th>&nbsp;</th>
+    </tr>
+  {{range $state := $.TipState}}
+    <tr>
+      <td>
+    {{if .Results}}
+        <img src="/static/status_{{if .OK}}good{{else}}alert{{end}}.gif" />
+    {{else}}
+        &nbsp;
+    {{end}}
+      </td>
+      <td><a title="{{.Package.Path}}">{{.Package.Name}}</a></td>
+      <td>
+    {{range .Results}}
+        <div>
+          {{$h := $state.Commit.Hash}}
+          <a href="{{repoURL $h $state.Commit.PackagePath}}">{{shortHash $h}}</a>
+          <a href="/log/{{.LogHash}}">failed</a>
+          on {{.Builder}}/<a href="{{repoURL .GoHash ""}}">{{shortHash .GoHash}}</a>
+        </a></div>
+    {{end}}
+      </td>
+    </tr>
+  {{end}}
+    </table>
+
+  </body>
+</html>
