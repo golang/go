@@ -83,6 +83,8 @@ var tokens = [...]elt{
 		"`",
 		literal,
 	},
+	{token.STRING, "`\r`", literal},
+	{token.STRING, "`foo\r\nbar`", literal},
 
 	// Operators and delimiters
 	{token.ADD, "+", operator},
@@ -239,8 +241,16 @@ func TestScan(t *testing.T) {
 		if tok != e.tok {
 			t.Errorf("bad token for %q: got %s, expected %s", lit, tok, e.tok)
 		}
-		if e.tok.IsLiteral() && lit != e.lit {
-			t.Errorf("bad literal for %q: got %q, expected %q", lit, lit, e.lit)
+		if e.tok.IsLiteral() {
+			// no CRs in raw string literals
+			elit := e.lit
+			if elit[0] == '`' {
+				elit = string(stripCR([]byte(elit)))
+				epos.Offset += len(e.lit) - len(lit) // correct position
+			}
+			if lit != elit {
+				t.Errorf("bad literal for %q: got %q, expected %q", lit, lit, elit)
+			}
 		}
 		if tokenclass(tok) != e.class {
 			t.Errorf("bad class for %q: got %d, expected %d", lit, tokenclass(tok), e.class)
