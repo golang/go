@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/build"
 	"go/doc"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -40,6 +41,7 @@ type Package struct {
 	info    *build.DirInfo
 	imports []*Package
 	gofiles []string // GoFiles+CgoFiles
+	targ    string
 }
 
 // packageCache is a lookup cache for loadPackage,
@@ -66,10 +68,21 @@ func loadPackage(arg string) (*Package, error) {
 
 	// Find basic information about package path.
 	t, importPath, err := build.FindTree(arg)
+	// Maybe it is a standard command.
+	if err != nil && !filepath.IsAbs(arg) && !strings.HasPrefix(arg, ".") {
+		goroot := build.Path[0]
+		p := filepath.Join(goroot.Path, "src/cmd", arg)
+		if st, err1 := os.Stat(p); err1 == nil && st.IsDir() {
+			t = goroot
+			importPath = "../cmd/" + arg
+			err = nil
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
-	dir := filepath.Join(t.SrcDir(), importPath)
+
+	dir := filepath.Join(t.SrcDir(), filepath.FromSlash(importPath))
 
 	// Maybe we know the package by its directory.
 	if p := packageCache[dir]; p != nil {
@@ -79,11 +92,23 @@ func loadPackage(arg string) (*Package, error) {
 		return p, nil
 	}
 
+	return scanPackage(&build.DefaultContext, t, arg, importPath, dir)
+}
+
+func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string) (*Package, error) {
 	// Read the files in the directory to learn the structure
 	// of the package.
-	info, err := build.ScanDir(dir)
+	info, err := ctxt.ScanDir(dir)
 	if err != nil {
 		return nil, err
+	}
+
+	var targ string
+	if info.Package == "main" {
+		_, elem := filepath.Split(importPath)
+		targ = filepath.Join(t.BinDir(), elem)
+	} else {
+		targ = filepath.Join(t.PkgDir(), filepath.FromSlash(importPath)+".a")
 	}
 
 	p := &Package{
@@ -97,6 +122,9 @@ func loadPackage(arg string) (*Package, error) {
 		SFiles:     info.SFiles,
 		CgoFiles:   info.CgoFiles,
 		Standard:   t.Goroot && !strings.Contains(importPath, "."),
+		targ:       targ,
+		t:          t,
+		info:       info,
 	}
 
 	// Build list of full paths to all Go files in the package,
@@ -123,7 +151,7 @@ func loadPackage(arg string) (*Package, error) {
 		}
 		p1, err := loadPackage(path)
 		if err != nil {
-			delete(packageCache, arg)
+			delete(packageCache, dir)
 			delete(packageCache, importPath)
 			// Add extra error detail to show full import chain.
 			// Always useful, but especially useful in import loops.

@@ -14,20 +14,17 @@ import (
 	"go/printer"
 	"go/token"
 	"os"
-	"path/filepath"
 	"strings"
 )
-
-var objDir = "_obj" + string(filepath.Separator)
 
 // writeDefs creates output files to be compiled by 6g, 6c, and gcc.
 // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
 func (p *Package) writeDefs() {
-	fgo2 := creat(objDir + "_cgo_gotypes.go")
-	fc := creat(objDir + "_cgo_defun.c")
-	fm := creat(objDir + "_cgo_main.c")
+	fgo2 := creat(*objDir + "_cgo_gotypes.go")
+	fc := creat(*objDir + "_cgo_defun.c")
+	fm := creat(*objDir + "_cgo_main.c")
 
-	fflg := creat(objDir + "_cgo_flags")
+	fflg := creat(*objDir + "_cgo_flags")
 	for k, v := range p.CgoFlags {
 		fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, v)
 	}
@@ -109,6 +106,15 @@ func (p *Package) writeDefs() {
 }
 
 func dynimport(obj string) {
+	stdout := os.Stdout
+	if *dynout != "" {
+		f, err := os.Create(*dynout)
+		if err != nil {
+			fatalf("%s", err)
+		}
+		stdout = f
+	}
+
 	if f, err := elf.Open(obj); err == nil {
 		sym, err := f.ImportedSymbols()
 		if err != nil {
@@ -119,14 +125,14 @@ func dynimport(obj string) {
 			if s.Version != "" {
 				targ += "@" + s.Version
 			}
-			fmt.Printf("#pragma dynimport %s %s %q\n", s.Name, targ, s.Library)
+			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", s.Name, targ, s.Library)
 		}
 		lib, err := f.ImportedLibraries()
 		if err != nil {
 			fatalf("cannot load imported libraries from ELF file %s: %v", obj, err)
 		}
 		for _, l := range lib {
-			fmt.Printf("#pragma dynimport _ _ %q\n", l)
+			fmt.Fprintf(stdout, "#pragma dynimport _ _ %q\n", l)
 		}
 		return
 	}
@@ -140,14 +146,14 @@ func dynimport(obj string) {
 			if len(s) > 0 && s[0] == '_' {
 				s = s[1:]
 			}
-			fmt.Printf("#pragma dynimport %s %s %q\n", s, s, "")
+			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", s, s, "")
 		}
 		lib, err := f.ImportedLibraries()
 		if err != nil {
 			fatalf("cannot load imported libraries from Mach-O file %s: %v", obj, err)
 		}
 		for _, l := range lib {
-			fmt.Printf("#pragma dynimport _ _ %q\n", l)
+			fmt.Fprintf(stdout, "#pragma dynimport _ _ %q\n", l)
 		}
 		return
 	}
@@ -159,7 +165,7 @@ func dynimport(obj string) {
 		}
 		for _, s := range sym {
 			ss := strings.Split(s, ":")
-			fmt.Printf("#pragma dynimport %s %s %q\n", ss[0], ss[0], strings.ToLower(ss[1]))
+			fmt.Fprintf(stdout, "#pragma dynimport %s %s %q\n", ss[0], ss[0], strings.ToLower(ss[1]))
 		}
 		return
 	}
@@ -307,8 +313,8 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 		base = base[0 : len(base)-3]
 	}
 	base = strings.Map(slashToUnderscore, base)
-	fgo1 := creat(objDir + base + ".cgo1.go")
-	fgcc := creat(objDir + base + ".cgo2.c")
+	fgo1 := creat(*objDir + base + ".cgo1.go")
+	fgcc := creat(*objDir + base + ".cgo2.c")
 
 	p.GoFiles = append(p.GoFiles, base+".cgo1.go")
 	p.GccFiles = append(p.GccFiles, base+".cgo2.c")
@@ -383,7 +389,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 // Write out the various stubs we need to support functions exported
 // from Go so that they are callable from C.
 func (p *Package) writeExports(fgo2, fc, fm *os.File) {
-	fgcc := creat(objDir + "_cgo_export.c")
+	fgcc := creat(*objDir + "_cgo_export.c")
 	fgcch := creat("_cgo_export.h")
 
 	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")

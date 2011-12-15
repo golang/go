@@ -58,12 +58,19 @@ func init() {
 
 var listFmt = cmdList.Flag.String("f", "{{.Name}} {{.Dir}}", "")
 var listJson = cmdList.Flag.Bool("json", false, "")
+var nl = []byte{'\n'}
 
 func runList(cmd *Command, args []string) {
 	var do func(*Package)
 	if *listJson {
-		enc := json.NewEncoder(os.Stdout)
-		do = func(p *Package) { enc.Encode(p) }
+		do = func(p *Package) {
+			b, err := json.MarshalIndent(p, "", "\t")
+			if err != nil {
+				fatalf("%s", err)
+			}
+			os.Stdout.Write(b)
+			os.Stdout.Write(nl)
+		}
 	} else {
 		tmpl, err := template.New("main").Parse(*listFmt + "\n")
 		if err != nil {
