@@ -36,10 +36,10 @@ type ServerConfig struct {
 	// several goroutines.
 	PasswordCallback func(user, password string) bool
 
-	// PubKeyCallback, if non-nil, is called when a client attempts public
+	// PublicKeyCallback, if non-nil, is called when a client attempts public
 	// key authentication. It must return true iff the given public key is
 	// valid for the given user.
-	PubKeyCallback func(user, algo string, pubkey []byte) bool
+	PublicKeyCallback func(user, algo string, pubkey []byte) bool
 
 	// Cryptographic-related configuration.
 	Crypto CryptoConfig
@@ -359,7 +359,7 @@ func isAcceptableAlgo(algo string) bool {
 
 // testPubKey returns true if the given public key is acceptable for the user.
 func (s *ServerConn) testPubKey(user, algo string, pubKey []byte) bool {
-	if s.config.PubKeyCallback == nil || !isAcceptableAlgo(algo) {
+	if s.config.PublicKeyCallback == nil || !isAcceptableAlgo(algo) {
 		return false
 	}
 
@@ -369,7 +369,7 @@ func (s *ServerConn) testPubKey(user, algo string, pubKey []byte) bool {
 		}
 	}
 
-	result := s.config.PubKeyCallback(user, algo, pubKey)
+	result := s.config.PublicKeyCallback(user, algo, pubKey)
 	if len(s.cachedPubKeys) < maxCachedPubKeys {
 		c := cachedPubKey{
 			user:   user,
@@ -425,7 +425,7 @@ userAuthLoop:
 				break userAuthLoop
 			}
 		case "publickey":
-			if s.config.PubKeyCallback == nil {
+			if s.config.PublicKeyCallback == nil {
 				break
 			}
 			payload := userAuthReq.Payload
@@ -499,7 +499,7 @@ userAuthLoop:
 		if s.config.PasswordCallback != nil {
 			failureMsg.Methods = append(failureMsg.Methods, "password")
 		}
-		if s.config.PubKeyCallback != nil {
+		if s.config.PublicKeyCallback != nil {
 			failureMsg.Methods = append(failureMsg.Methods, "publickey")
 		}
 

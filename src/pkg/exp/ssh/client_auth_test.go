@@ -122,7 +122,7 @@ var (
 		PasswordCallback: func(user, pass string) bool {
 			return user == "testuser" && pass == string(clientPassword)
 		},
-		PubKeyCallback: func(user, algo string, pubkey []byte) bool {
+		PublicKeyCallback: func(user, algo string, pubkey []byte) bool {
 			key := clientKeychain.keys[0].(*rsa.PrivateKey).PublicKey
 			expected := []byte(serializePublickey(key))
 			algoname := algoName(key)
@@ -179,7 +179,7 @@ func TestClientAuthPublickey(t *testing.T) {
 	config := &ClientConfig{
 		User: "testuser",
 		Auth: []ClientAuth{
-			ClientAuthPublickey(clientKeychain),
+			ClientAuthKeyring(clientKeychain),
 		},
 	}
 	c, err := Dial("tcp", newMockAuthServer(t), config)
@@ -210,7 +210,7 @@ func TestClientAuthWrongPassword(t *testing.T) {
 		User: "testuser",
 		Auth: []ClientAuth{
 			ClientAuthPassword(wrongPw),
-			ClientAuthPublickey(clientKeychain),
+			ClientAuthKeyring(clientKeychain),
 		},
 	}
 
@@ -228,7 +228,7 @@ func TestClientAuthInvalidPublickey(t *testing.T) {
 	config := &ClientConfig{
 		User: "testuser",
 		Auth: []ClientAuth{
-			ClientAuthPublickey(kc),
+			ClientAuthKeyring(kc),
 		},
 	}
 
@@ -246,7 +246,7 @@ func TestClientAuthRSAandDSA(t *testing.T) {
 	config := &ClientConfig{
 		User: "testuser",
 		Auth: []ClientAuth{
-			ClientAuthPublickey(kc),
+			ClientAuthKeyring(kc),
 		},
 	}
 	c, err := Dial("tcp", newMockAuthServer(t), config)

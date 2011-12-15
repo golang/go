@@ -283,8 +283,8 @@ func (p *publickeyAuth) method() string {
 	return "publickey"
 }
 
-// ClientAuthPublickey returns a ClientAuth using public key authentication.
-func ClientAuthPublickey(impl ClientKeyring) ClientAuth {
+// ClientAuthKeyring returns a ClientAuth using public key authentication.
+func ClientAuthKeyring(impl ClientKeyring) ClientAuth {
 	return &publickeyAuth{impl}
 }
 
