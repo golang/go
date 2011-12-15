@@ -18,7 +18,7 @@ import (
 )
 
 func helperCommand(s ...string) *Cmd {
-	cs := []string{"-test.run=exec.TestHelperProcess", "--"}
+	cs := []string{"-test.run=TestHelperProcess", "--"}
 	cs = append(cs, s...)
 	cmd := Command(os.Args[0], cs...)
 	cmd.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
