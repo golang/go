@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of December 14, 2011 -->
+<!-- subtitle Version of December 15, 2011 -->
 
 <!--
 TODO
@@ -146,7 +146,7 @@ and stop at the end of the line. A line comment acts like a newline.
 <li>
 <i>General comments</i> start with the character sequence <code>/*</code>
 and continue through the character sequence <code>*/</code>. A general
-comment that spans multiple lines acts like a newline, otherwise it acts
+comment containing one or more newlines acts like a newline, otherwise it acts
 like a space.
 </li>
 </ol>
@@ -453,14 +453,14 @@ Raw string literals are character sequences between back quotes
 back quote. The value of a raw string literal is the
 string composed of the uninterpreted characters between the quotes;
 in particular, backslashes have no special meaning and the string may
-span multiple lines.
+contain newlines.
 Carriage returns inside raw string literals
 are discarded from the raw string value.
 </p>
 <p>
 Interpreted string literals are character sequences between double
 quotes <code>&quot;&quot;</code>. The text between the quotes,
-which may not span multiple lines, forms the
+which may not contain newlines, forms the
 value of the literal, with backslash escapes interpreted as they
 are in character literals (except that <code>\'</code> is illegal and
 <code>\"</code> is legal).  The three-digit octal (<code>\</code><i>nnn</i>)
