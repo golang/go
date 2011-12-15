@@ -7,10 +7,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/build"
 	"io"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"text/template"
 )
@@ -56,13 +58,13 @@ func (c *Command) Usage() {
 // The order here is the order in which they are printed by 'go help'.
 var commands = []*Command{
 	cmdBuild,
-	cmdClean,
 	cmdDoc,
 	cmdFix,
 	cmdFmt,
 	cmdGet,
 	cmdInstall,
 	cmdList,
+	cmdRun,
 	cmdTest,
 	cmdVersion,
 	cmdVet,
@@ -95,7 +97,7 @@ func main() {
 			cmd.Flag.Parse(args[1:])
 			args = cmd.Flag.Args()
 			cmd.Run(cmd, args)
-			os.Exit(exitStatus)
+			exit()
 			return
 		}
 	}
@@ -173,16 +175,31 @@ func help(args []string) {
 
 // importPaths returns the import paths to use for the given command line.
 func importPaths(args []string) []string {
-	// TODO: "all"
+	if len(args) == 1 && args[0] == "all" {
+		return allPackages()
+	}
 	if len(args) == 0 {
 		return []string{"."}
 	}
 	return args
 }
 
+var atexitFuncs []func()
+
+func atexit(f func()) {
+	atexitFuncs = append(atexitFuncs, f)
+}
+
+func exit() {
+	for _, f := range atexitFuncs {
+		f()
+	}
+	os.Exit(exitStatus)
+}
+
 func fatalf(format string, args ...interface{}) {
-	log.Printf(format, args...)
-	os.Exit(1)
+	errorf(format, args...)
+	exit()
 }
 
 func errorf(format string, args ...interface{}) {
@@ -192,7 +209,7 @@ func errorf(format string, args ...interface{}) {
 
 func exitIfErrors() {
 	if exitStatus != 0 {
-		os.Exit(exitStatus)
+		exit()
 	}
 }
 
@@ -203,4 +220,53 @@ func run(cmdline ...string) {
 	if err := cmd.Run(); err != nil {
 		errorf("%v", err)
 	}
+}
+
+// allPackages returns all the packages that can be found
+// under the $GOPATH directories and $GOROOT.
+func allPackages() []string {
+	have := make(map[string]bool)
+	var pkgs []string
+	runtime := filepath.Join(build.Path[0].SrcDir(), "runtime") + string(filepath.Separator)
+	for _, t := range build.Path {
+		src := t.SrcDir() + string(filepath.Separator)
+		filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
+			if err != nil || !fi.IsDir() {
+				return nil
+			}
+
+			// Avoid testdata directory trees.
+			if strings.HasSuffix(path, string(filepath.Separator)+"testdata") {
+				return filepath.SkipDir
+			}
+			// Avoid runtime subdirectories.
+			if strings.HasPrefix(path, runtime) {
+				switch path {
+				case runtime + "darwin", runtime + "freebsd", runtime + "linux", runtime + "netbsd", runtime + "openbsd", runtime + "windows":
+					return filepath.SkipDir
+				}
+			}
+
+			_, err = build.ScanDir(path)
+			if err != nil {
+				return nil
+			}
+			name := path[len(src):]
+			if have[name] {
+				return nil
+			}
+			pkgs = append(pkgs, name)
+			have[name] = true
+
+			// Avoid go/build test data.
+			if path == filepath.Join(build.Path[0].SrcDir(), "go/build") {
+				return filepath.SkipDir
+			}
+
+			return nil
+		})
+
+		// TODO: Commands.
+	}
+	return pkgs
 }

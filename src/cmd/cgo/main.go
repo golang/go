@@ -123,12 +123,14 @@ var cPrefix string
 var fset = token.NewFileSet()
 
 var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
+var dynout = flag.String("dynout", "", "write -dynobj output to this file")
 
 // These flags are for bootstrapping a new Go implementation,
 // to generate Go and C headers that match the data layout and
 // constant values used in the host's C libraries and system calls.
 var godefs = flag.Bool("godefs", false, "for bootstrap: write Go definitions for C file to standard output")
 var cdefs = flag.Bool("cdefs", false, "for bootstrap: write C definitions for C file to standard output")
+var objDir = flag.String("objdir", "", "object directory")
 
 var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 
@@ -202,9 +204,13 @@ func main() {
 		fs[i] = f
 	}
 
-	// make sure that _obj directory exists, so that we can write
-	// all the output files there.
-	os.Mkdir("_obj", 0777)
+	if *objDir == "" {
+		// make sure that _obj directory exists, so that we can write
+		// all the output files there.
+		os.Mkdir("_obj", 0777)
+		*objDir = "_obj"
+	}
+	*objDir += string(filepath.Separator)
 
 	for i, input := range goFiles {
 		f := fs[i]

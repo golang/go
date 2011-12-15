@@ -729,7 +729,9 @@ func (p *Package) gccMachine() []string {
 	return nil
 }
 
-var gccTmp = objDir + "_cgo_.o"
+func gccTmp() string {
+	return *objDir + "_cgo_.o"
+}
 
 // gccCmd returns the gcc command line to use for compiling
 // the input.
@@ -738,7 +740,7 @@ func (p *Package) gccCmd() []string {
 		p.gccName(),
 		"-Wall",                             // many warnings
 		"-Werror",                           // warnings are errors
-		"-o" + gccTmp,                       // write object to tmp
+		"-o" + gccTmp(),                     // write object to tmp
 		"-gdwarf-2",                         // generate DWARF v2 debugging symbols
 		"-fno-eliminate-unused-debug-types", // gets rid of e.g. untyped enum otherwise
 		"-c",                                // do not link
@@ -755,10 +757,10 @@ func (p *Package) gccCmd() []string {
 func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte) {
 	runGcc(stdin, p.gccCmd())
 
-	if f, err := macho.Open(gccTmp); err == nil {
+	if f, err := macho.Open(gccTmp()); err == nil {
 		d, err := f.DWARF()
 		if err != nil {
-			fatalf("cannot load DWARF output from %s: %v", gccTmp, err)
+			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
 		}
 		var data []byte
 		if f.Symtab != nil {
@@ -784,23 +786,23 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
 	// Can skip debug data block in ELF and PE for now.
 	// The DWARF information is complete.
 
-	if f, err := elf.Open(gccTmp); err == nil {
+	if f, err := elf.Open(gccTmp()); err == nil {
 		d, err := f.DWARF()
 		if err != nil {
-			fatalf("cannot load DWARF output from %s: %v", gccTmp, err)
+			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
 		}
 		return d, f.ByteOrder, nil
 	}
 
-	if f, err := pe.Open(gccTmp); err == nil {
+	if f, err := pe.Open(gccTmp()); err == nil {
 		d, err := f.DWARF()
 		if err != nil {
-			fatalf("cannot load DWARF output from %s: %v", gccTmp, err)
+			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
 		}
 		return d, binary.LittleEndian, nil
 	}
 
-	fatalf("cannot parse gcc output %s as ELF, Mach-O, PE object", gccTmp)
+	fatalf("cannot parse gcc output %s as ELF, Mach-O, PE object", gccTmp())
 	panic("not reached")
 }
 
