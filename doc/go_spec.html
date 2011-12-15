@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of December 13, 2011 -->
+<!-- subtitle Version of December 14, 2011 -->
 
 <!--
 TODO
@@ -454,6 +454,8 @@ back quote. The value of a raw string literal is the
 string composed of the uninterpreted characters between the quotes;
 in particular, backslashes have no special meaning and the string may
 span multiple lines.
+Carriage returns inside raw string literals
+are discarded from the raw string value.
 </p>
 <p>
 Interpreted string literals are character sequences between double
