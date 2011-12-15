@@ -75,6 +75,23 @@ func TestQuery(t *testing.T) {
 	}
 }
 
+func TestRowsColumns(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+	rows, err := db.Query("SELECT|people|age,name|")
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	cols, err := rows.Columns()
+	if err != nil {
+		t.Fatalf("Columns: %v", err)
+	}
+	want := []string{"age", "name"}
+	if !reflect.DeepEqual(cols, want) {
+		t.Errorf("got %#v; want %#v", cols, want)
+	}
+}
+
 func TestQueryRow(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -187,12 +204,12 @@ func TestExec(t *testing.T) {
 		{[]interface{}{7, 9}, ""},
 
 		// Invalid conversions:
-		{[]interface{}{"Brad", int64(0xFFFFFFFF)}, "db: converting Exec argument #1's type: sql/driver: value 4294967295 overflows int32"},
-		{[]interface{}{"Brad", "strconv fail"}, "db: converting Exec argument #1's type: sql/driver: value \"strconv fail\" can't be converted to int32"},
+		{[]interface{}{"Brad", int64(0xFFFFFFFF)}, "sql: converting Exec argument #1's type: sql/driver: value 4294967295 overflows int32"},
+		{[]interface{}{"Brad", "strconv fail"}, "sql: converting Exec argument #1's type: sql/driver: value \"strconv fail\" can't be converted to int32"},
 
 		// Wrong number of args:
-		{[]interface{}{}, "db: expected 2 arguments, got 0"},
-		{[]interface{}{1, 2, 3}, "db: expected 2 arguments, got 3"},
+		{[]interface{}{}, "sql: expected 2 arguments, got 0"},
+		{[]interface{}{1, 2, 3}, "sql: expected 2 arguments, got 3"},
 	}
 	for n, et := range execTests {
 		_, err := stmt.Exec(et.args...)
