@@ -14,6 +14,111 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-12-14">2011-12-14</h2>
+
+<pre>
+This release includes language changes and changes to goinstall and gofmt.
+
+Equality and inequality (== and !=) are now defined for struct and array
+values, respectively, provided the elements of the data structures can
+themselves be compared. See the Go 1 release notes for the details:
+	http://weekly..golang.org/doc/go1.html#equality
+
+The rune type is now an alias for int32 and character literals have the default
+type of rune. Code that uses int where it should use rune will break. 
+See the Go 1 release notes for the details:
+	http://weekly.golang.org/doc/go1.html#rune
+
+Goinstall now expects Google Code import paths to be of the form:
+	"code.google.com/p/go-tour/tree"
+It will reject imports in the old style "go-tour.googlecode.com/hg/tree".
+There is a gofix module to rename such imports.
+Use goinstall -fix to update broken packages.
+
+Gofmt's flags have been modified slightly.
+The -tabintent flag has been renamed -tabs.
+The -spaces flag has been removed.
+
+Other changes:
+* 5c, 6c, 8c: support 64-bit switch value (thanks Anthony Martin).
+* 8c: handle 64-bit switch value.
+* archive/tar: use struct comparison not DeepEqual (thanks Christopher Wedgwood).
+* archive/zip: make zip understand os.FileMode (thanks Roger Peppe).
+* bufio: make the minimum read buffer size 16 bytes.
+* build: disable cgo on Windows/amd64,
+	regularize packages so they may be built without Makefiles.
+* bytes: faster Count, Index, Equal.
+* cgo: add basic gccgo support (thanks Rémy Oudompheng).
+* codereview: fix path slash issue (thanks Yasuhiro Matsumoto).
+* compress/flate: fix out of bounds error.
+* contribute.html: do not fill in the reviewer field (thanks Florian Weimer).
+* crypto/aes: made faster by eliminating some indirection (thanks Taru Karttunen).
+* crypto/dsa: don't truncate input hashes.
+* doc/go_tutorial: make clear the file example is Unix-specific.
+* doc: add Defer, Panic, and Recover article,
+	add Error Handling article,
+	add Go 1 release notes document.
+* encoding/gob: better error messages when types mismatch.
+* env.bash: export CGO_ENABLED so cgo tests run (thanks Alex Brainman).
+* exp/sql: simplify some string conversions.
+* exp/ssh: Wait returns an *ExitError (thanks Gustav Paul).
+* exp/ssh: improve client channel close behavior (thanks Dave Cheney).
+* fmt: don't recur if String method (etc.) misbehaves.
+* gc: better error messages,
+	inlining (disabled without -l),
+	many bug fixes (thanks Lucio De Re and Rémy Oudompheng).
+* go/printer, godoc: print comments in example code.
+* go: implement doc, fmt, fix, list, vet, build, and install.
+* gobuilder: goinstall packages after building go tree.
+* godoc: &lt;pre&gt; must not occur inside &lt;p&gt; (thanks Olivier Duperray),
+	added an opensearch description document (thanks Christoph Hack),
+	text wrapping.
+* gofix: add httputil fix (thanks Yasuhiro Matsumoto).
+* gotest: use go/build more (thanks Robert Hencke).
+* gzip: convert between Latin-1 and Unicode (thanks Vadim Vygonets).
+* html/template: define the FuncMap type locally.
+* html: a first step at parsing foreign content (MathML, SVG),
+	more parser improvements (thanks Andrew Balholm).
+* http: close connection after printing panic stack trace (thanks Roger Peppe),
+	fix failing Transport HEAD request with gzip-looking response.
+* json: treat renamed byte slices the same as []byte.
+* ld: first pass at linker support for NetBSD binaries (thanks Christopher Nielsen),
+	fix memory leaks (thanks Scott Lawrence),
+	increase default stack size on Windows for cgo.
+* math: delete non-Sqrt-based Hypot,
+	implement, document, and fix special cases (thanks Charles L. Dorian),
+* misc/benchcmp: don't require "Benchmark" at beginning of line.
+* misc/osx: rename profile.go to profile_go (thanks Scott Lawrence).
+* net/http: fix trivial example server (thanks Olivier Duperray),
+	net/http: make test remove temporary file and directory.
+* net/smtp: add CRAM-MD5 authentication (thanks Vadim Vygonets).
+* reflect: fix Slice cap (thanks Gustavo Niemeyer).
+* regexp: performance improvements; avoid allocation of input interface.
+* runtime: bump gc 'extra bytes' check (thanks Christopher Wedgwood),
+	madvise and SysUnused for Linux (thanks Sébastien Paolacci),
+	make gc_test test extra allocated space, not total space,
+	support for NetBSD (thanks Christopher Nielsen).
+* spec: adjust complex constant example (thanks Robert Hencke),
+	values of underlying type uintptr can be converted to unsafe.Pointer,
+	var x = 'a' defaults to type rune.
+* strconv: include package and function name in error strings,
+	make QuoteRune etc. take a rune argument,
+	some performance improvements.
+* syscall: add constants for flock() system call under Linux,
+	regenerate z-files for darwin, freebsd (thanks Mikio Hara),
+	regenerate z-files for openbsd,
+	return error, not uintptr, when function returns error (thanks Alex Brainman).
+* test/bench: move to test/bench/shootout.
+* test/garbage: move to test/bench/garbage.
+* test: make array smaller in nilptr test.
+* time: allow sleep tests to run for 200% too long,
+	fix Time.Add (thanks Hector Chu),
+	fix daysIn for December (thanks Peter Mundy),
+	gob marshaler for Time (thanks Robert Hencke),
+	use Duration for AfterFunc.
+* various: a grab-bag of time.Duration cleanups.
+</pre>
+
 <h2 id="2011-12-06">2011-12-06</h2>
 
 <pre>
