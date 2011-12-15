@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 )
@@ -463,23 +464,28 @@ func TestAll(t *testing.T) {
 	// Parse
 	testAll(t, func(test *Test) (*Template, error) { return Parse(test.in, formatters) })
 	// ParseFile
+	f, err := ioutil.TempFile("", "template-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
 	testAll(t, func(test *Test) (*Template, error) {
-		err := ioutil.WriteFile("_test/test.tmpl", []byte(test.in), 0600)
+		err := ioutil.WriteFile(f.Name(), []byte(test.in), 0600)
 		if err != nil {
 			t.Error("unexpected write error:", err)
 			return nil, err
 		}
-		return ParseFile("_test/test.tmpl", formatters)
+		return ParseFile(f.Name(), formatters)
 	})
 	// tmpl.ParseFile
 	testAll(t, func(test *Test) (*Template, error) {
-		err := ioutil.WriteFile("_test/test.tmpl", []byte(test.in), 0600)
+		err := ioutil.WriteFile(f.Name(), []byte(test.in), 0600)
 		if err != nil {
 			t.Error("unexpected write error:", err)
 			return nil, err
 		}
 		tmpl := New(formatters)
-		return tmpl, tmpl.ParseFile("_test/test.tmpl")
+		return tmpl, tmpl.ParseFile(f.Name())
 	})
 }
 

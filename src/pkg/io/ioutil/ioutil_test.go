@@ -37,7 +37,11 @@ func TestReadFile(t *testing.T) {
 }
 
 func TestWriteFile(t *testing.T) {
-	filename := "_test/rumpelstilzchen"
+	f, err := TempFile("", "ioutil-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filename := f.Name()
 	data := "Programming today is a race between software engineers striving to " +
 		"build bigger and better idiot-proof programs, and the Universe trying " +
 		"to produce bigger and better idiots. So far, the Universe is winning."
