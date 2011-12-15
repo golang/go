@@ -68,10 +68,12 @@ type Session struct {
 
 	*clientChan // the channel backing this session
 
-	started        bool // true once Start, Run or Shell is invoked.
-	closeAfterWait []io.Closer
-	copyFuncs      []func() error
-	errch          chan error // one send per copyFunc
+	started   bool // true once Start, Run or Shell is invoked.
+	copyFuncs []func() error
+	errch     chan error // one send per copyFunc
+
+	// true if pipe method is active
+	stdinpipe, stdoutpipe, stderrpipe bool
 }
 
 // RFC 4254 Section 6.4.
@@ -237,11 +239,9 @@ func (s *Session) waitForResponse() error {
 func (s *Session) start() error {
 	s.started = true
 
-	type F func(*Session) error
+	type F func(*Session)
 	for _, setupFd := range []F{(*Session).stdin, (*Session).stdout, (*Session).stderr} {
-		if err := setupFd(s); err != nil {
-			return err
-		}
+		setupFd(s)
 	}
 
 	s.errch = make(chan error, len(s.copyFuncs))
@@ -273,9 +273,6 @@ func (s *Session) Wait() error {
 		if err := <-s.errch; err != nil && copyError == nil {
 			copyError = err
 		}
-	}
-	for _, fd := range s.closeAfterWait {
-		fd.Close()
 	}
 	if waitErr != nil {
 		return waitErr
@@ -341,7 +338,10 @@ func (s *Session) wait() error {
 	return &ExitError{wm}
 }
 
-func (s *Session) stdin() error {
+func (s *Session) stdin() {
+	if s.stdinpipe {
+		return
+	}
 	if s.Stdin == nil {
 		s.Stdin = new(bytes.Buffer)
 	}
@@ -352,10 +352,12 @@ func (s *Session) stdin() error {
 		}
 		return err
 	})
-	return nil
 }
 
-func (s *Session) stdout() error {
+func (s *Session) stdout() {
+	if s.stdoutpipe {
+		return
+	}
 	if s.Stdout == nil {
 		s.Stdout = ioutil.Discard
 	}
@@ -363,10 +365,12 @@ func (s *Session) stdout() error {
 		_, err := io.Copy(s.Stdout, s.clientChan.stdout)
 		return err
 	})
-	return nil
 }
 
-func (s *Session) stderr() error {
+func (s *Session) stderr() {
+	if s.stderrpipe {
+		return
+	}
 	if s.Stderr == nil {
 		s.Stderr = ioutil.Discard
 	}
@@ -374,7 +378,6 @@ func (s *Session) stderr() error {
 		_, err := io.Copy(s.Stderr, s.clientChan.stderr)
 		return err
 	})
-	return nil
 }
 
 // StdinPipe returns a pipe that will be connected to the
@@ -386,10 +389,8 @@ func (s *Session) StdinPipe() (io.WriteCloser, error) {
 	if s.started {
 		return nil, errors.New("ssh: StdinPipe after process started")
 	}
-	pr, pw := io.Pipe()
-	s.Stdin = pr
-	s.closeAfterWait = append(s.closeAfterWait, pr)
-	return pw, nil
+	s.stdinpipe = true
+	return s.clientChan.stdin, nil
 }
 
 // StdoutPipe returns a pipe that will be connected to the
@@ -398,17 +399,15 @@ func (s *Session) StdinPipe() (io.WriteCloser, error) {
 // stdout and stderr streams. If the StdoutPipe reader is
 // not serviced fast enought it may eventually cause the
 // remote command to block.
-func (s *Session) StdoutPipe() (io.ReadCloser, error) {
+func (s *Session) StdoutPipe() (io.Reader, error) {
 	if s.Stdout != nil {
 		return nil, errors.New("ssh: Stdout already set")
 	}
 	if s.started {
 		return nil, errors.New("ssh: StdoutPipe after process started")
 	}
-	pr, pw := io.Pipe()
-	s.Stdout = pw
-	s.closeAfterWait = append(s.closeAfterWait, pw)
-	return pr, nil
+	s.stdoutpipe = true
+	return s.clientChan.stdout, nil
 }
 
 // StderrPipe returns a pipe that will be connected to the
@@ -417,17 +416,15 @@ func (s *Session) StdoutPipe() (io.ReadCloser, error) {
 // stdout and stderr streams. If the StderrPipe reader is
 // not serviced fast enought it may eventually cause the
 // remote command to block.
-func (s *Session) StderrPipe() (io.ReadCloser, error) {
+func (s *Session) StderrPipe() (io.Reader, error) {
 	if s.Stderr != nil {
 		return nil, errors.New("ssh: Stderr already set")
 	}
 	if s.started {
 		return nil, errors.New("ssh: StderrPipe after process started")
 	}
-	pr, pw := io.Pipe()
-	s.Stderr = pw
-	s.closeAfterWait = append(s.closeAfterWait, pw)
-	return pr, nil
+	s.stderrpipe = true
+	return s.clientChan.stderr, nil
 }
 
 // TODO(dfc) add Output and CombinedOutput helpers
