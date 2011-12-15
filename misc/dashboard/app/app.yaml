@@ -4,9 +4,11 @@ runtime: go
 api_version: 3
 
 handlers:
+- url: /static
+  static_dir: static
 - url: /log/.+
   script: _go_app
-- url: /(commit|packages|result|tag|todo)
+- url: /(|commit|packages|result|tag|todo)
   script: _go_app
 - url: /(init|buildtest)
   script: _go_app
