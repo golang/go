@@ -564,6 +564,20 @@ func (t Time) Sub(u Time) Duration {
 	return Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
 }
 
+// AddDate returns the time corresponding to adding the
+// given number of years, months, and days to t.
+// For example, AddDate(-1, 2, 3) applied to January 1, 2011
+// returns March 4, 2010.
+//
+// AddDate normalizes its result in the same way that Date does,
+// so, for example, adding one month to October 31 yields
+// December 1, the normalized form for November 31.
+func (t Time) AddDate(years int, months int, days int) Time {
+	year, month, day := t.Date()
+	hour, min, sec := t.Clock()
+	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec), t.loc)
+}
+
 const (
 	secondsPerMinute = 60
 	secondsPerHour   = 60 * 60
