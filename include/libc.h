@@ -187,7 +187,7 @@ extern	void	sysfatal(char*, ...);
 #define DMWRITE		0x2		/* mode bit for write permission */
 #define DMEXEC		0x1		/* mode bit for execute permission */
 
-#ifdef RFMEM	/* FreeBSD, OpenBSD */
+#ifdef RFMEM	/* FreeBSD, OpenBSD, NetBSD */
 #undef RFFDG
 #undef RFNOTEG
 #undef RFPROC
