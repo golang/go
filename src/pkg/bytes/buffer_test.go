@@ -16,7 +16,6 @@ const N = 10000  // make this bigger for a larger (and slower) test
 var data string  // test data for write tests
 var bytes []byte // test data; same as data but as a slice.
 
-
 func init() {
 	bytes = make([]byte, N)
 	for i := 0; i < N; i++ {

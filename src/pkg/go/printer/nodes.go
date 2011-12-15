@@ -39,7 +39,10 @@ import (
 //            future (not yet interspersed) comments in this function.
 //
 func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (printedBreak bool) {
-	n := p.nlines(line-p.pos.Line, min)
+	n := nlimit(line - p.pos.Line)
+	if n < min {
+		n = min
+	}
 	if n > 0 {
 		p.print(ws)
 		if newSection {

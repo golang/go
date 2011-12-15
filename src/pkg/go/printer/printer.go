@@ -18,8 +18,11 @@ import (
 	"text/tabwriter"
 )
 
-const debug = false // enable for debugging
-const infinity = 1 << 30
+const (
+	maxNewlines = 2     // max. number of newlines between source text
+	debug       = false // enable for debugging
+	infinity    = 1 << 30
+)
 
 type whiteSpace byte
 
@@ -89,21 +92,7 @@ func (p *printer) internalError(msg ...interface{}) {
 	}
 }
 
-// nlines returns the adjusted number of linebreaks given the desired number
-// of breaks n such that min <= result <= max.
-//
-func (p *printer) nlines(n, min int) int {
-	const max = 2 // max. number of newlines
-	switch {
-	case n < min:
-		return min
-	case n > max:
-		return max
-	}
-	return n
-}
-
-// writeByte writes a single byte to p.output and updates p.pos.
+// writeByte writes ch to p.output and updates p.pos.
 func (p *printer) writeByte(ch byte) {
 	p.output.WriteByte(ch)
 	p.pos.Offset++
@@ -128,13 +117,11 @@ func (p *printer) writeByte(ch byte) {
 	}
 }
 
-// writeNewlines writes up to n newlines to p.output and updates p.pos.
-// The actual number of newlines written is limited by nlines.
-// nl must be one of '\n' or '\f'.
-//
-func (p *printer) writeNewlines(n int, nl byte) {
-	for n = p.nlines(n, 0); n > 0; n-- {
-		p.writeByte(nl)
+// writeByteN writes ch n times to p.output and updates p.pos.
+func (p *printer) writeByteN(ch byte, n int) {
+	for n > 0 {
+		p.writeByte(ch)
+		n--
 	}
 }
 
@@ -223,8 +210,8 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 	}
 
 	if pos.IsValid() && pos.Filename != p.last.Filename {
-		// comment in a different file - separate with newlines (writeNewlines will limit the number)
-		p.writeNewlines(10, '\f')
+		// comment in a different file - separate with newlines
+		p.writeByteN('\f', maxNewlines)
 		return
 	}
 
@@ -318,7 +305,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 			n = 1
 		}
 		if n > 0 {
-			p.writeNewlines(n, '\f')
+			p.writeByteN('\f', nlimit(n))
 		}
 		p.indent = indent
 	}
@@ -550,10 +537,11 @@ func (p *printer) writeComment(comment *ast.Comment) {
 // writeCommentSuffix writes a line break after a comment if indicated
 // and processes any leftover indentation information. If a line break
 // is needed, the kind of break (newline vs formfeed) depends on the
-// pending whitespace. writeCommentSuffix returns true if a pending
-// formfeed was dropped from the whitespace buffer.
+// pending whitespace. The writeCommentSuffix result indicates if a
+// newline was written or if a formfeed was dropped from the whitespace
+// buffer.
 //
-func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
+func (p *printer) writeCommentSuffix(needsLinebreak bool) (wroteNewline, droppedFF bool) {
 	for i, ch := range p.wsbuf {
 		switch ch {
 		case blank, vtab:
@@ -566,6 +554,7 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
 			// but remember if we dropped any formfeeds
 			if needsLinebreak {
 				needsLinebreak = false
+				wroteNewline = true
 			} else {
 				if ch == formfeed {
 					droppedFF = true
@@ -579,6 +568,7 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
 	// make sure we have a line break
 	if needsLinebreak {
 		p.writeByte('\n')
+		wroteNewline = true
 	}
 
 	return
@@ -587,10 +577,10 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
 // intersperseComments consumes all comments that appear before the next token
 // tok and prints it together with the buffered whitespace (i.e., the whitespace
 // that needs to be written before the next token). A heuristic is used to mix
-// the comments and whitespace. intersperseComments returns true if a pending
-// formfeed was dropped from the whitespace buffer.
+// the comments and whitespace. The intersperseComments result indicates if a
+// newline was written or if a formfeed was dropped from the whitespace buffer.
 //
-func (p *printer) intersperseComments(next token.Position, tok token.Token) (droppedFF bool) {
+func (p *printer) intersperseComments(next token.Position, tok token.Token) (wroteNewline, droppedFF bool) {
 	var last *ast.Comment
 	for ; p.commentBefore(next); p.cindex++ {
 		for _, c := range p.comments[p.cindex].List {
@@ -618,7 +608,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (dro
 	// no comment was written - we should never reach here since
 	// intersperseComments should not be called in that case
 	p.internalError("intersperseComments called without pending comments")
-	return false
+	return
 }
 
 // whiteWhitespace writes the first n whitespace entries.
@@ -670,6 +660,14 @@ func (p *printer) writeWhitespace(n int) {
 
 // ----------------------------------------------------------------------------
 // Printing interface
+
+// nlines limits n to maxNewlines.
+func nlimit(n int) int {
+	if n > maxNewlines {
+		n = maxNewlines
+	}
+	return n
+}
 
 func mayCombine(prev token.Token, next byte) (b bool) {
 	switch prev {
@@ -765,17 +763,22 @@ func (p *printer) print(args ...interface{}) {
 		p.pos = next
 
 		if data != "" {
-			nl := byte('\n')
-			if p.flush(next, tok) {
-				nl = '\f' // dropped formfeed before
-			}
+			wroteNewline, droppedFF := p.flush(next, tok)
 
 			// intersperse extra newlines if present in the source
 			// (don't do this in flush as it will cause extra newlines
-			// at the end of a file) - use formfeeds if we dropped one
-			// before
-			if n := next.Line - p.pos.Line; n > 0 {
-				p.writeNewlines(n, nl)
+			// at the end of a file)
+			n := nlimit(next.Line - p.pos.Line)
+			// don't exceed maxNewlines if we already wrote one
+			if wroteNewline && n == maxNewlines {
+				n = maxNewlines - 1
+			}
+			if n > 0 {
+				ch := byte('\n')
+				if droppedFF {
+					ch = '\f' // use formfeed since we dropped one before
+				}
+				p.writeByteN(ch, n)
 			}
 
 			p.writeItem(next, data, isLit)
@@ -790,16 +793,15 @@ func (p *printer) commentBefore(next token.Position) bool {
 	return p.cindex < len(p.comments) && p.fset.Position(p.comments[p.cindex].List[0].Pos()).Offset < next.Offset
 }
 
-// Flush prints any pending comments and whitespace occurring
-// textually before the position of the next token tok. Flush
-// returns true if a pending formfeed character was dropped
-// from the whitespace buffer as a result of interspersing
-// comments.
+// Flush prints any pending comments and whitespace occurring textually
+// before the position of the next token tok. The Flush result indicates
+// if a newline was written or if a formfeed was dropped from the whitespace
+// buffer.
 //
-func (p *printer) flush(next token.Position, tok token.Token) (droppedFF bool) {
+func (p *printer) flush(next token.Position, tok token.Token) (wroteNewline, droppedFF bool) {
 	if p.commentBefore(next) {
 		// if there are comments before the next item, intersperse them
-		droppedFF = p.intersperseComments(next, tok)
+		wroteNewline, droppedFF = p.intersperseComments(next, tok)
 	} else {
 		// otherwise, write any leftover whitespace
 		p.writeWhitespace(len(p.wsbuf))
