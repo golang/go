@@ -634,6 +634,32 @@ func TestDate(t *testing.T) {
 	}
 }
 
+// Several ways of getting from
+// Fri Nov 18 7:56:35 PST 2011
+// to
+// Thu Mar 19 7:56:35 PST 2016
+var addDateTests = []struct {
+	years, months, days int
+}{
+	{4, 4, 1},
+	{3, 16, 1},
+	{3, 15, 30},
+	{5, -6, -18 - 30 - 12},
+}
+
+func TestAddDate(t *testing.T) {
+	t0 := Date(2011, 11, 18, 7, 56, 35, 0, UTC)
+	t1 := Date(2016, 3, 19, 7, 56, 35, 0, UTC)
+	for _, at := range addDateTests {
+		time := t0.AddDate(at.years, at.months, at.days)
+		if !time.Equal(t1) {
+			t.Errorf("AddDate(%d, %d, %d) = %v, want %v",
+				at.years, at.months, at.days,
+				time, t1)
+		}
+	}
+}
+
 var daysInTests = []struct {
 	year, month, di int
 }{
