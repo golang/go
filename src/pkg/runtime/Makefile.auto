@@ -50,13 +50,6 @@ AUTO=\
 	zsyscall_windows_amd64.c\
 	zversion.go\
 
-HFILES=\
-	arch_GOARCH.h\
-	os_GOOS.h\
-	signals_GOOS.h\
-	defs_GOOS_GOARCH.h\
-	zasm_GOOS_GOARCH.h\
-
 all: auto
 auto: $(AUTO)
 
@@ -90,29 +83,19 @@ zgoarch_%.go:
 	(echo '// AUTO-GENERATED; run make -f Makefile.auto'; echo; echo 'package runtime'; echo; echo 'const theGoarch = "$*"') >$@
 
 # definitions of runtime structs, translated from C to Go
-zruntime_defs_%.go: proc.c iface.c hashmap.c chan.c $(HFILES) mkgodefs.sh
+zruntime_defs_%.go: proc.c iface.c hashmap.c chan.c mkgodefs.sh
 	./mkgodefs.sh $* proc.c iface.c hashmap.c chan.c >$@.tmp
 	mv -f $@.tmp $@
 
 # struct field offsets #defined for assembly
-zasm_%.h: mkasmh.sh proc.c $(HFILES)
+zasm_%.h: mkasmh.sh proc.c
 	./mkasmh.sh $* >$@.tmp
 	mv -f $@.tmp $@
 
 clean:
 	rm -f goc2c mkversion $(AUTO)
 
-arch_GOARCH.h: arch_$(GOARCH).h
-	cp $^ $@
-
-defs_GOOS_GOARCH.h: defs_$(GOOS)_$(GOARCH).h
-	cp $^ $@
-
-os_GOOS.h: os_$(GOOS).h
-	cp $^ $@
-
-signals_GOOS.h: signals_$(GOOS).h
-	cp $^ $@
-
-zasm_GOOS_GOARCH.h: zasm_$(GOOS)_$(GOARCH).h
-	cp $^ $@
+# This file must not run targets in parallel:
+# mkgodefs.sh and mkasmh.sh scribble on the same files.
+# This is a magic name known to GNU make.
+.NOTPARALLEL:
