@@ -245,5 +245,5 @@ endif
 %.$O: _obj/%.c $(HFILES)
 	$(CC) $(CFLAGS) -I . -o "$@" _obj/$*.c
 
-%.$O: %.s
+%.$O: %.s $(HFILES)
 	$(AS) $*.s
