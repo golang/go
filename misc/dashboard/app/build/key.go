@@ -9,7 +9,7 @@ import "appengine"
 // Delete this init function before deploying to production.
 func init() {
 	if !appengine.IsDevAppServer() {
-		panic("please read key.go")
+		panic("please read misc/dashboard/app/build/key.go")
 	}
 }
 
