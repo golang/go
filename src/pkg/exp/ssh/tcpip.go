@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 )
+
 // Dial initiates a connection to the addr from the remote host.
 // addr is resolved using net.ResolveTCPAddr before connection. 
 // This could allow an observer to observe the DNS name of the 

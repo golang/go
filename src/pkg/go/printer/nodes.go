@@ -364,9 +364,10 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 	lbrace := fields.Opening
 	list := fields.List
 	rbrace := fields.Closing
+	hasComments := isIncomplete || p.commentBefore(p.fset.Position(rbrace))
 	srcIsOneLine := lbrace.IsValid() && rbrace.IsValid() && p.fset.Position(lbrace).Line == p.fset.Position(rbrace).Line
 
-	if !isIncomplete && !p.commentBefore(p.fset.Position(rbrace)) && srcIsOneLine {
+	if !hasComments && srcIsOneLine {
 		// possibly a one-line struct/interface
 		if len(list) == 0 {
 			// no blank between keyword and {} in this case
@@ -391,9 +392,13 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 			return
 		}
 	}
+	// hasComments || !srcIsOneLine
 
-	// at least one entry or incomplete
-	p.print(blank, lbrace, token.LBRACE, indent, formfeed)
+	p.print(blank, lbrace, token.LBRACE, indent)
+	if hasComments || len(list) > 0 {
+		p.print(formfeed)
+	}
+
 	if isStruct {
 
 		sep := vtab
@@ -1512,9 +1517,14 @@ func (p *printer) file(src *ast.File) {
 			prev := tok
 			tok = declToken(d)
 			// if the declaration token changed (e.g., from CONST to TYPE)
+			// or the next declaration has documentation associated with it,
 			// print an empty line between top-level declarations
+			// (because p.linebreak is called with the position of d, which
+			// is past any documentation, the minimum requirement is satisfied
+			// even w/o the extra getDoc(d) nil-check - leave it in case the
+			// linebreak logic improves - there's already a TODO).
 			min := 1
-			if prev != tok {
+			if prev != tok || getDoc(d) != nil {
 				min = 2
 			}
 			p.linebreak(p.fset.Position(d.Pos()).Line, min, ignore, false)

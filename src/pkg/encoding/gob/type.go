@@ -130,6 +130,7 @@ func userType(rt reflect.Type) *userTypeInfo {
 	}
 	return ut
 }
+
 // A typeId represents a gob Type as an integer that can be passed on the wire.
 // Internally, typeIds are used as keys to a map to recover the underlying type info.
 type typeId int32

@@ -115,6 +115,20 @@ import (
 import _ "io"
 var _ int
 
+// at least one empty line between declarations of the same kind
+// if there is associated documentation (was issue 2570)
+type T1 struct{}
+// T2 comment
+type T2 struct {
+} // should be a two-line struct
+
+
+// T3 comment
+type T2 struct {
+
+
+} // should be a two-line struct
+
 
 // printing of constant literals
 const (
@@ -290,6 +304,18 @@ type _ struct {
 	G struct {
 		Stackbase, Sched, Status, Alllink int
 	}
+}
+
+
+// no blank lines in empty structs and interfaces, but leave 1- or 2-line layout alone
+type _ struct{            }
+type _ struct {
+
+}
+
+type _ interface{            }
+type _ interface {
+
 }
 
 

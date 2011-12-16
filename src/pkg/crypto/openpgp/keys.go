@@ -16,6 +16,7 @@ import (
 
 // PublicKeyType is the armor type for a PGP public key.
 var PublicKeyType = "PGP PUBLIC KEY BLOCK"
+
 // PrivateKeyType is the armor type for a PGP private key.
 var PrivateKeyType = "PGP PRIVATE KEY BLOCK"
 
