@@ -4,6 +4,8 @@
 
 include ../../Make.inc
 
+x:=$(shell gomake -f Makefile.auto)
+
 TARG=runtime
 
 GOFILES=\
@@ -106,7 +108,6 @@ AUTOHFILES=\
 	os_GOOS.h\
 	signals_GOOS.h\
 	defs_GOOS_GOARCH.h\
-	zasm_GOOS_GOARCH.h\
 
 HFILES=\
 	cgocall.h\
@@ -114,7 +115,6 @@ HFILES=\
 	hashmap.h\
 	malloc.h\
 	stack.h\
-	asm_$(GOARCH).h\
 	$(AUTOHFILES)\
 
 GOFILES+=$(GOFILES_$(GOOS))
@@ -155,3 +155,5 @@ signals_GOOS.h: signals_$(GOOS).h
 
 zasm_GOOS_GOARCH.h: zasm_$(GOOS)_$(GOARCH).h
 	cp $^ $@
+
+%.$O: zasm_GOOS_GOARCH.h

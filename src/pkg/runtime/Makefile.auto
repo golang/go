@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+include ../../Make.inc
+
 GOARCHES=\
 	386\
 	amd64\
@@ -48,6 +50,13 @@ AUTO=\
 	zsyscall_windows_amd64.c\
 	zversion.go\
 
+HFILES=\
+	arch_GOARCH.h\
+	os_GOOS.h\
+	signals_GOOS.h\
+	defs_GOOS_GOARCH.h\
+	zasm_GOOS_GOARCH.h\
+
 all: auto
 auto: $(AUTO)
 
@@ -86,9 +95,24 @@ zruntime_defs_%.go: proc.c iface.c hashmap.c chan.c $(HFILES) mkgodefs.sh
 	mv -f $@.tmp $@
 
 # struct field offsets #defined for assembly
-zasm_%.h: mkasmh.sh proc.c defs.h
+zasm_%.h: mkasmh.sh proc.c $(HFILES)
 	./mkasmh.sh $* >$@.tmp
 	mv -f $@.tmp $@
 
 clean:
 	rm -f goc2c mkversion $(AUTO)
+
+arch_GOARCH.h: arch_$(GOARCH).h
+	cp $^ $@
+
+defs_GOOS_GOARCH.h: defs_$(GOOS)_$(GOARCH).h
+	cp $^ $@
+
+os_GOOS.h: os_$(GOOS).h
+	cp $^ $@
+
+signals_GOOS.h: signals_$(GOOS).h
+	cp $^ $@
+
+zasm_GOOS_GOARCH.h: zasm_$(GOOS)_$(GOARCH).h
+	cp $^ $@
