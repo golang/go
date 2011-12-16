@@ -6,7 +6,7 @@
 // /usr/src/sys/kern/syscalls.master for syscall numbers.
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "asm_amd64.h"
 	
 TEXT runtime·sys_umtx_op(SB),7,$0
 	MOVQ 8(SP), DI

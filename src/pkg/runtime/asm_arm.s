@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "asm_arm.h"
 
 // using frame size $-4 means do not save LR on stack.
 TEXT _rt0_arm(SB),7,$-4

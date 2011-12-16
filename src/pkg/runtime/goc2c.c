@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
-
 /*
  * Translate a .goc file into a .c file.  A .goc file is a combination
  * of a limited form of Go with C.
@@ -744,7 +742,6 @@ main(int argc, char **argv)
 		}
 	}
 
-	printf("// AUTO-GENERATED; run make\n\n");
 	process_file();
 	exits(0);
 }

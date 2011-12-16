@@ -6,7 +6,7 @@
 // /usr/src/sys/kern/syscalls.master for syscall numbers.
 //
 
-#include "zasm_GOOS_GOARCH.h"
+#include "asm_386.h"
 
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),7,$-4

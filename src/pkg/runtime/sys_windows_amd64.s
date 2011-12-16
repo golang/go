@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "asm_amd64.h"
 
 // maxargs should be divisible by 2, as Windows stack
 // must be kept 16-byte aligned on syscall entry.

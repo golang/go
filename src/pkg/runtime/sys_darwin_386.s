@@ -6,7 +6,7 @@
 // See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
 // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
 
-#include "zasm_GOOS_GOARCH.h"
+#include "asm_386.h"
 
 TEXT runtime·notok(SB),7,$0
 	MOVL	$0xf1, 0xf1
