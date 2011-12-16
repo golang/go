@@ -57,7 +57,7 @@ enum {
 	// to each stack below the usual guard area for OS-specific
 	// purposes like signal handling. Used on Windows because
 	// it does not use a separate stack.
-#ifdef __WINDOWS__
+#ifdef GOOS_windows
 	StackSystem = 512 * sizeof(uintptr),
 #else
 	StackSystem = 0,

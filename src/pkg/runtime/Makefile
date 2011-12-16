@@ -4,16 +4,10 @@
 
 include ../../Make.inc
 
+# Go tool will do this for package runtime.
+CFLAGS+=-DGOOS_$(GOOS) -DGOARCH_$(GOARCH)
+
 TARG=runtime
-
-# Set SIZE to 32 or 64.
-SIZE_386=32
-SIZE_amd64=64
-SIZE_arm=32
-SIZE=$(SIZE_$(GOARCH))
-
-CFLAGS_windows=-D__WINDOWS__
-CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -FVw $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
 
 GOFILES=\
 	debug.go\
@@ -49,29 +43,29 @@ OFILES_plan9=\
 	lock_sema.$O\
 
 OFILES_windows=\
-	callback.$O\
+	callback_windows_$(GOARCH).$O\
 	lock_sema.$O\
-	syscall.$O\
+	syscall_windows.$O\
 
 # 386-specific object files
 OFILES_386=\
-	vlop.$O\
-	vlrt.$O\
+	vlop_386.$O\
+	vlrt_386.$O\
 
 # arm-specific object files
 OFILES_arm=\
-	memset.$O\
-	softfloat.$O\
-	vlop.$O\
-	vlrt.$O\
+	memset_arm.$O\
+	softfloat_arm.$O\
+	vlop_arm.$O\
+	vlrt_arm.$O\
 
 OFILES=\
 	alg.$O\
-	asm.$O\
-	atomic.$O\
+	asm_$(GOARCH).$O\
+	atomic_$(GOARCH).$O\
 	cgocall.$O\
 	chan.$O\
-	closure.$O\
+	closure_$(GOARCH).$O\
 	complex.$O\
 	cpuprof.$O\
 	float.$O\
@@ -80,8 +74,8 @@ OFILES=\
 	malloc.$O\
 	mcache.$O\
 	mcentral.$O\
-	mem.$O\
-	memmove.$O\
+	mem_$(GOOS).$O\
+	memmove_$(GOARCH).$O\
 	mfinal.$O\
 	mfixalloc.$O\
 	mgc0.$O\
@@ -90,22 +84,28 @@ OFILES=\
 	msize.$O\
 	print.$O\
 	proc.$O\
-	rt0.$O\
+	rt0_$(GOOS)_$(GOARCH).$O\
 	rune.$O\
 	runtime.$O\
 	runtime1.$O\
 	sema.$O\
-	signal.$O\
+	signal_$(GOOS)_$(GOARCH).$O\
 	sigqueue.$O\
 	slice.$O\
 	string.$O\
 	symtab.$O\
-	sys.$O\
-	thread.$O\
+	sys_$(GOOS)_$(GOARCH).$O\
+	thread_$(GOOS).$O\
 	time.$O\
-	traceback.$O\
+	traceback_$(GOARCH).$O\
 	$(OFILES_$(GOARCH))\
 	$(OFILES_$(GOOS))\
+
+AUTOHFILES=\
+	arch_GOARCH.h\
+	os_GOOS.h\
+	signals_GOOS.h\
+	defs_GOOS_GOARCH.h\
 
 HFILES=\
 	cgocall.h\
@@ -113,10 +113,7 @@ HFILES=\
 	hashmap.h\
 	malloc.h\
 	stack.h\
-	$(GOARCH)/asm.h\
-	$(GOOS)/os.h\
-	$(GOOS)/signals.h\
-	$(GOOS)/$(GOARCH)/defs.h\
+	$(AUTOHFILES)\
 
 GOFILES+=$(GOFILES_$(GOOS))
 
@@ -135,9 +132,9 @@ $(pkgdir)/%.h: %.h
 clean: clean-local
 
 clean-local:
-	rm -f goc2c mkversion version.go */asm.h runtime.acid.* runtime_defs.go $$(ls *.goc | sed 's/goc$$/c/')
+	rm -f goc2c mkversion version.go runtime.acid.* runtime_defs.go $$(ls *.goc | sed 's/goc$$/c/') $(AUTOHFILES)
 
-$(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
+asm_$(GOARCH).h: mkasmh.sh runtime.acid.$(GOARCH)
 	./mkasmh.sh >$@.x
 	mv -f $@.x $@
 
@@ -160,20 +157,7 @@ version_$(GOOS).go:
 	./goc2c "`pwd`/$<" > $@.tmp
 	mv -f $@.tmp $@
 
-%.$O:	$(GOARCH)/%.c $(HFILES)
-	$(CC) $(CFLAGS) $<
-
-%.$O:	$(GOOS)/%.c $(HFILES)
-	$(CC) $(CFLAGS) $<
-
-%.$O:	$(GOOS)/$(GOARCH)/%.c $(HFILES)
-	$(CC) $(CFLAGS) $<
-
-%.$O:	$(GOARCH)/%.s $(GOARCH)/asm.h
-	$(AS) $<
-
-%.$O:	$(GOOS)/$(GOARCH)/%.s $(GOARCH)/asm.h
-	$(AS) $<
+%.$O: asm_$(GOARCH).h
 
 # for discovering offsets inside structs when debugging
 runtime.acid.$(GOARCH): runtime.h proc.c
@@ -185,6 +169,18 @@ traceback.$O:	amd64/traceback.c
 	$(CC) $(CFLAGS) $<
 endif
 
-runtime_defs.go: proc.c iface.c hashmap.c chan.c
-	CC="$(CC)" CFLAGS="$(CFLAGS)" ./mkgodefs.sh $^ > $@.x
+runtime_defs.go: proc.c iface.c hashmap.c chan.c $(HFILES)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" ./mkgodefs.sh proc.c iface.c hashmap.c chan.c > $@.x
 	mv -f $@.x $@
+
+arch_GOARCH.h: arch_$(GOARCH).h
+	cp $^ $@
+
+defs_GOOS_GOARCH.h: defs_$(GOOS)_$(GOARCH).h
+	cp $^ $@
+
+os_GOOS.h: os_$(GOOS).h
+	cp $^ $@
+
+signals_GOOS.h: signals_$(GOOS).h
+	cp $^ $@

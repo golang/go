@@ -26,7 +26,7 @@
 // TODO(rsc): Compute max waste for any given size.
 
 #include "runtime.h"
-#include "arch.h"
+#include "arch_GOARCH.h"
 #include "malloc.h"
 
 int32 runtime·class_to_size[NumSizeClasses];

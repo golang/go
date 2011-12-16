@@ -7,7 +7,7 @@
 // See malloc.h for overview.
 
 #include "runtime.h"
-#include "arch.h"
+#include "arch_GOARCH.h"
 #include "malloc.h"
 
 // Initialize f to allocate objects of the given size,

@@ -19,7 +19,7 @@
 
 package runtime
 #include "runtime.h"
-#include "arch.h"
+#include "arch_GOARCH.h"
 
 typedef struct Sema Sema;
 struct Sema

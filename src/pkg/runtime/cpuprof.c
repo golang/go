@@ -49,7 +49,7 @@
 // in the situation when normally the goroutine "owns" handoff.
 
 #include "runtime.h"
-#include "arch.h"
+#include "arch_GOARCH.h"
 #include "malloc.h"
 
 enum

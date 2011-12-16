@@ -7,7 +7,7 @@
 // See malloc.h for an overview.
 
 #include "runtime.h"
-#include "arch.h"
+#include "arch_GOARCH.h"
 #include "malloc.h"
 
 void*
