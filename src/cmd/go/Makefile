@@ -16,6 +16,7 @@ GOFILES=\
 	pkg.go\
 	run.go\
 	test.go\
+	testflag.go\
 	version.go\
 	vet.go\
 

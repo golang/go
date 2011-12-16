@@ -36,6 +36,10 @@ type Command struct {
 
 	// Flag is a set of flags specific to this command.
 	Flag flag.FlagSet
+
+	// CustomFlags indicates that the command will do its own
+	// flag parsing.
+	CustomFlags bool
 }
 
 // Name returns the command's name: the first word in the usage line.
@@ -96,8 +100,12 @@ func main() {
 	for _, cmd := range commands {
 		if cmd.Name() == args[0] && cmd.Run != nil {
 			cmd.Flag.Usage = func() { cmd.Usage() }
-			cmd.Flag.Parse(args[1:])
-			args = cmd.Flag.Args()
+			if cmd.CustomFlags {
+				args = args[1:]
+			} else {
+				cmd.Flag.Parse(args[1:])
+				args = cmd.Flag.Args()
+			}
 			cmd.Run(cmd, args)
 			exit()
 			return
@@ -208,6 +216,8 @@ func errorf(format string, args ...interface{}) {
 	log.Printf(format, args...)
 	exitStatus = 1
 }
+
+var logf = log.Printf
 
 func exitIfErrors() {
 	if exitStatus != 0 {

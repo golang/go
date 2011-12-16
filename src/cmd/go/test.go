@@ -4,10 +4,32 @@
 
 package main
 
+import (
+	"bytes"
+	"fmt"
+	"go/ast"
+	"go/build"
+	"go/doc"
+	"go/parser"
+	"go/token"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"text/template"
+	"unicode"
+	"unicode/utf8"
+)
+
+// Break init loop.
+func init() {
+	cmdTest.Run = runTest
+}
+
 var cmdTest = &Command{
-	Run:       runTest,
-	UsageLine: "test [importpath...] [-file a.go -file b.go ...] [-c] [-x] [flags for test binary]",
-	Short:     "test packages",
+	CustomFlags: true,
+	UsageLine:   "test [importpath...] [-file a.go -file b.go ...] [-c] [-x] [flags for test binary]",
+	Short:       "test packages",
 	Long: `
 'Go test' automates testing the packages named by the import paths.
 It prints a summary of the test results in the format:
@@ -158,8 +180,385 @@ See the documentation of the testing package for more information.
 		`,
 }
 
+// TODO(rsc): Rethink the flag handling.
+// It might be better to do
+//	go test [go-test-flags] [importpaths] [flags for test binary]
+// If there are no import paths then the two flag sections
+// run together, but we can deal with that.  Right now, 
+//	go test -x  (ok)
+//	go test -x math (NOT OK)
+//	go test math -x (ok)
+// which is weird, because the -x really does apply to go test, not to math.
+// It is also possible that -file can go away.
+// For now just use the gotest code.
+
+var (
+	testC     bool     // -c flag
+	testX     bool     // -x flag
+	testFiles []string // -file flag(s)  TODO: not respected
+	testArgs  []string
+)
+
 func runTest(cmd *Command, args []string) {
-	args = importPaths(args)
-	_ = args
-	panic("test not implemented")
+	// Determine which are the import paths
+	// (leading arguments not starting with -).
+	i := 0
+	for i < len(args) && !strings.HasPrefix(args[i], "-") {
+		i++
+	}
+	pkgs := packages(args[:i])
+	if len(pkgs) == 0 {
+		fatalf("no packages to test")
+	}
+
+	testArgs = testFlags(args[i:])
+	if testC && len(pkgs) != 1 {
+		fatalf("cannot use -c flag with multiple packages")
+	}
+
+	var b builder
+	b.init(false, false, testX)
+
+	var builds, runs []*action
+
+	// Prepare build + run actions for all packages being tested.
+	for _, p := range pkgs {
+		buildTest, runTest, err := b.test(p)
+		if err != nil {
+			errorf("%s: %s", p, err)
+			continue
+		}
+		if buildTest == nil {
+			// no test at all
+			continue
+		}
+		builds = append(builds, buildTest)
+		runs = append(runs, runTest)
+	}
+
+	// Build+run the tests one at a time in the order
+	// specified on the command line.
+	// May want to revisit when we parallelize things,
+	// although probably not for benchmark runs.
+	for i, a := range builds {
+		if i > 0 {
+			// Make build of test i depend on
+			// completing the run of test i-1.
+			a.deps = append(a.deps, runs[i-1])
+		}
+	}
+
+	allRuns := &action{f: (*builder).nop, deps: runs}
+	b.do(allRuns)
 }
+
+func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
+	if len(p.info.TestGoFiles)+len(p.info.XTestGoFiles) == 0 {
+		return &action{f: (*builder).nop, p: p}, &action{f: (*builder).notest, p: p}, nil
+	}
+
+	// Build Package structs describing:
+	//	ptest - package + test files
+	//	pxtest - package of external test files
+	//	pmain - test.out binary
+	var ptest, pxtest, pmain *Package
+
+	// go/build does not distinguish the dependencies used
+	// by the TestGoFiles from the dependencies used by the
+	// XTestGoFiles, so we build one list and use it for both
+	// ptest and pxtest.  No harm done.
+	var imports []*Package
+	for _, path := range p.info.TestImports {
+		p1, err := loadPackage(path)
+		if err != nil {
+			return nil, nil, err
+		}
+		imports = append(imports, p1)
+	}
+
+	// The ptest package needs to be importable under the
+	// same import path that p has, but we cannot put it in
+	// the usual place in the temporary tree, because then
+	// other tests will see it as the real package.
+	// Instead we make a _test directory under the import path
+	// and then repeat the import path there.  We tell the
+	// compiler and linker to look in that _test directory first.
+	//
+	// That is, if the package under test is unicode/utf8,
+	// then the normal place to write the package archive is
+	// $WORK/unicode/utf8.a, but we write the test package archive to
+	// $WORK/unicode/utf8/_test/unicode/utf8.a.
+	// We write the external test package archive to
+	// $WORK/unicode/utf8/_test/unicode/utf8_test.a.
+	testDir := filepath.Join(b.work, filepath.FromSlash(p.ImportPath+"/_test"))
+	ptestObj := filepath.Join(testDir, filepath.FromSlash(p.ImportPath+".a"))
+
+	// Create the directory for the .a files.
+	ptestDir, _ := filepath.Split(ptestObj)
+	if err := b.mkdir(ptestDir); err != nil {
+		return nil, nil, err
+	}
+	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), p); err != nil {
+		return nil, nil, err
+	}
+
+	// Test package.
+	if len(p.info.TestGoFiles) > 0 {
+		ptest = new(Package)
+		*ptest = *p
+		ptest.GoFiles = nil
+		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
+		ptest.GoFiles = append(ptest.GoFiles, p.info.TestGoFiles...)
+		ptest.targ = "" // must rebuild
+		ptest.Imports = p.info.TestImports
+		ptest.imports = imports
+		ptest.pkgdir = testDir
+	} else {
+		ptest = p
+	}
+
+	// External test package.
+	if len(p.info.XTestGoFiles) > 0 {
+		pxtest = &Package{
+			Name:       p.Name + "_test",
+			ImportPath: p.ImportPath + "_test",
+			Dir:        p.Dir,
+			GoFiles:    p.info.XTestGoFiles,
+			Imports:    p.info.TestImports,
+			t:          p.t,
+			info:       &build.DirInfo{},
+			imports:    imports,
+			pkgdir:     testDir,
+		}
+	}
+
+	// Action for building test.out.
+	pmain = &Package{
+		Name:    "main",
+		Dir:     testDir,
+		GoFiles: []string{"_testmain.go"},
+		t:       p.t,
+		info:    &build.DirInfo{},
+		imports: []*Package{ptest},
+	}
+	if pxtest != nil {
+		pmain.imports = append(pmain.imports, pxtest)
+	}
+	pmainAction := b.action(modeBuild, modeBuild, pmain)
+	pmainAction.pkgbin = filepath.Join(testDir, "test.out")
+
+	if testC {
+		// -c flag: create action to copy binary to ./test.out.
+		pmain.targ = "test.out"
+		runAction = &action{
+			f:    (*builder).install,
+			deps: []*action{pmainAction},
+			p:    pmain,
+		}
+	} else {
+		// run test
+		runAction = &action{
+			f:          (*builder).runTest,
+			deps:       []*action{pmainAction},
+			p:          p,
+			ignoreFail: true,
+		}
+	}
+
+	return pmainAction, runAction, nil
+}
+
+var pass = []byte("\nPASS\n")
+
+// runTest is the action for running a test binary.
+func (b *builder) runTest(a *action) error {
+	if b.nflag || b.vflag {
+		b.showcmd("%s", strings.Join(append([]string{a.deps[0].pkgbin}, testArgs...), " "))
+		if b.nflag {
+			return nil
+		}
+	}
+
+	if a.failed {
+		// We were unable to build the binary.
+		a.failed = false
+		fmt.Printf("FAIL\t%s [build failed]\n", a.p.ImportPath)
+		exitStatus = 1
+		return nil
+	}
+
+	cmd := exec.Command(a.deps[0].pkgbin, testArgs...)
+	cmd.Dir = a.p.Dir
+	out, err := cmd.CombinedOutput()
+	if err == nil && (bytes.Equal(out, pass[1:]) || bytes.HasSuffix(out, pass)) {
+		fmt.Printf("ok  \t%s\n", a.p.ImportPath)
+		return nil
+	}
+
+	fmt.Printf("FAIL\t%s\n", a.p.ImportPath)
+	exitStatus = 1
+	if len(out) > 0 {
+		os.Stdout.Write(out)
+		// assume printing the test binary's exit status is superfluous
+	} else {
+		fmt.Printf("%s\n", err)
+	}
+	return nil
+}
+
+// notest is the action for testing a package with no test files.
+func (b *builder) notest(a *action) error {
+	fmt.Printf("?   \t%s [no test files]\n", a.p.ImportPath)
+	return nil
+}
+
+// isTest tells whether name looks like a test (or benchmark, according to prefix).
+// It is a Test (say) if there is a character after Test that is not a lower-case letter.
+// We don't want TesticularCancer.
+func isTest(name, prefix string) bool {
+	if !strings.HasPrefix(name, prefix) {
+		return false
+	}
+	if len(name) == len(prefix) { // "Test" is ok
+		return true
+	}
+	rune, _ := utf8.DecodeRuneInString(name[len(prefix):])
+	return !unicode.IsLower(rune)
+}
+
+// writeTestmain writes the _testmain.go file for package p to
+// the file named out.
+func writeTestmain(out string, p *Package) error {
+	t := &testFuncs{
+		Package: p,
+		Info:    p.info,
+	}
+	for _, file := range p.info.TestGoFiles {
+		if err := t.load(filepath.Join(p.Dir, file), "_test", &t.NeedTest); err != nil {
+			return err
+		}
+	}
+	for _, file := range p.info.XTestGoFiles {
+		if err := t.load(filepath.Join(p.Dir, file), "_xtest", &t.NeedXtest); err != nil {
+			return err
+		}
+	}
+
+	f, err := os.Create(out)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if err := testmainTmpl.Execute(f, t); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type testFuncs struct {
+	Tests      []testFunc
+	Benchmarks []testFunc
+	Examples   []testFunc
+	Package    *Package
+	Info       *build.DirInfo
+	NeedTest   bool
+	NeedXtest  bool
+}
+
+type testFunc struct {
+	Package string // imported package name (_test or _xtest)
+	Name    string // function name
+	Output  string // output, for examples
+}
+
+var testFileSet = token.NewFileSet()
+
+func (t *testFuncs) load(filename, pkg string, seen *bool) error {
+	f, err := parser.ParseFile(testFileSet, filename, nil, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+	for _, d := range f.Decls {
+		n, ok := d.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+		if n.Recv != nil {
+			continue
+		}
+		name := n.Name.String()
+		switch {
+		case isTest(name, "Test"):
+			t.Tests = append(t.Tests, testFunc{pkg, name, ""})
+			*seen = true
+		case isTest(name, "Benchmark"):
+			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, ""})
+			*seen = true
+		case isTest(name, "Example"):
+			output := doc.CommentText(n.Doc)
+			if output == "" {
+				// Don't run examples with no output.
+				continue
+			}
+			t.Examples = append(t.Examples, testFunc{pkg, name, output})
+			*seen = true
+		}
+	}
+
+	return nil
+}
+
+var testmainTmpl = template.Must(template.New("main").Parse(`
+package main
+
+import (
+	"regexp"
+	"testing"
+
+{{if .NeedTest}}
+	_test {{.Package.ImportPath | printf "%q"}}
+{{end}}
+{{if .NeedXtest}}
+	_xtest {{.Package.ImportPath | printf "%s_test" | printf "%q"}}
+{{end}}
+)
+
+var tests = []testing.InternalTest{
+{{range .Tests}}
+	{"{{.Name}}", {{.Package}}.{{.Name}}},
+{{end}}
+}
+
+var benchmarks = []testing.InternalBenchmark{
+{{range .Benchmarks}}
+	{"{{.Name}}", {{.Package}}.{{.Name}}},
+{{end}}
+}
+
+var examples = []testing.InternalExample{
+{{range .Examples}}
+	{"{{.Name}}", {{.Package}}.{{.Name}}, {{.Output | printf "%q"}}},
+{{end}}
+}
+
+var matchPat string
+var matchRe *regexp.Regexp
+
+func matchString(pat, str string) (result bool, err error) {
+	if matchRe == nil || matchPat != pat {
+		matchPat = pat
+		matchRe, err = regexp.Compile(matchPat)
+		if err != nil {
+			return
+		}
+	}
+	return matchRe.MatchString(str), nil
+}
+
+func main() {
+	testing.Main(matchString, tests, benchmarks, examples)
+}
+
+`))
