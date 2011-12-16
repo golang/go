@@ -51,6 +51,11 @@ OFILES_windows=\
 OFILES_386=\
 	vlop_386.$O\
 	vlrt_386.$O\
+	traceback_x86.$O\
+
+# amd64-specific object files
+OFILES_amd64=\
+	traceback_x86.$O\
 
 # arm-specific object files
 OFILES_arm=\
@@ -58,6 +63,7 @@ OFILES_arm=\
 	softfloat_arm.$O\
 	vlop_arm.$O\
 	vlrt_arm.$O\
+	traceback_x86.$O\
 
 OFILES=\
 	alg.$O\
@@ -97,7 +103,6 @@ OFILES=\
 	sys_$(GOOS)_$(GOARCH).$O\
 	thread_$(GOOS).$O\
 	time.$O\
-	traceback_$(GOARCH).$O\
 	$(OFILES_$(GOARCH))\
 	$(OFILES_$(GOOS))\
 
@@ -113,6 +118,7 @@ HFILES=\
 	hashmap.h\
 	malloc.h\
 	stack.h\
+	asm_$(GOARCH).h\
 	$(AUTOHFILES)\
 
 GOFILES+=$(GOFILES_$(GOOS))
@@ -157,10 +163,8 @@ version_$(GOOS).go:
 	./goc2c "`pwd`/$<" > $@.tmp
 	mv -f $@.tmp $@
 
-%.$O: asm_$(GOARCH).h
-
 # for discovering offsets inside structs when debugging
-runtime.acid.$(GOARCH): runtime.h proc.c
+runtime.acid.$(GOARCH): runtime.h proc.c $(AUTOHFILES)
 	$(CC) $(CFLAGS) -a proc.c >$@
 
 # 386 traceback is really amd64 traceback
