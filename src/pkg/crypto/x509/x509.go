@@ -981,6 +981,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
 // pemCRLPrefix is the magic string that indicates that we have a PEM encoded
 // CRL.
 var pemCRLPrefix = []byte("-----BEGIN X509 CRL")
+
 // pemType is the type of a PEM encoded CRL.
 var pemType = "X509 CRL"
 

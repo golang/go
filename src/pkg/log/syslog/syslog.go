@@ -92,11 +92,13 @@ func (w *Writer) Emerg(m string) (err error) {
 	_, err = w.writeString(LOG_EMERG, m)
 	return err
 }
+
 // Crit logs a message using the LOG_CRIT priority.
 func (w *Writer) Crit(m string) (err error) {
 	_, err = w.writeString(LOG_CRIT, m)
 	return err
 }
+
 // ERR logs a message using the LOG_ERR priority.
 func (w *Writer) Err(m string) (err error) {
 	_, err = w.writeString(LOG_ERR, m)
@@ -114,11 +116,13 @@ func (w *Writer) Notice(m string) (err error) {
 	_, err = w.writeString(LOG_NOTICE, m)
 	return err
 }
+
 // Info logs a message using the LOG_INFO priority.
 func (w *Writer) Info(m string) (err error) {
 	_, err = w.writeString(LOG_INFO, m)
 	return err
 }
+
 // Debug logs a message using the LOG_DEBUG priority.
 func (w *Writer) Debug(m string) (err error) {
 	_, err = w.writeString(LOG_DEBUG, m)

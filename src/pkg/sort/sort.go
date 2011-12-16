@@ -240,14 +240,18 @@ func (p StringSlice) Sort() { Sort(p) }
 
 // Ints sorts a slice of ints in increasing order.
 func Ints(a []int) { Sort(IntSlice(a)) }
+
 // Float64s sorts a slice of float64s in increasing order.
 func Float64s(a []float64) { Sort(Float64Slice(a)) }
+
 // Strings sorts a slice of strings in increasing order.
 func Strings(a []string) { Sort(StringSlice(a)) }
 
 // IntsAreSorted tests whether a slice of ints is sorted in increasing order.
 func IntsAreSorted(a []int) bool { return IsSorted(IntSlice(a)) }
+
 // Float64sAreSorted tests whether a slice of float64s is sorted in increasing order.
 func Float64sAreSorted(a []float64) bool { return IsSorted(Float64Slice(a)) }
+
 // StringsAreSorted tests whether a slice of strings is sorted in increasing order.
 func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }

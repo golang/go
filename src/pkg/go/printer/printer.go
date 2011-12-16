@@ -257,6 +257,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 	} else {
 		// comment on a different line:
 		// separate with at least one line break
+		droppedLinebreak := false
 		if prev == nil {
 			// first comment of a comment group
 			j := 0
@@ -282,6 +283,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 				case newline, formfeed:
 					// TODO(gri): may want to keep formfeed info in some cases
 					p.wsbuf[i] = ignore
+					droppedLinebreak = true
 				}
 				j = i
 				break
@@ -289,25 +291,41 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
 			p.writeWhitespace(j)
 		}
 
-		// turn off indent if we're about to print a line directive.
-		indent := p.indent
-		if strings.HasPrefix(comment.Text, linePrefix) {
-			p.indent = 0
+		// determine number of linebreaks before the comment
+		n := 0
+		if pos.IsValid() && p.last.IsValid() {
+			n = pos.Line - p.last.Line
+			if n < 0 { // should never happen
+				n = 0
+			}
 		}
 
-		// use formfeeds to break columns before a comment;
-		// this is analogous to using formfeeds to separate
-		// individual lines of /*-style comments - but make
-		// sure there is at least one line break if the previous
-		// comment was a line comment
-		n := pos.Line - p.last.Line // if !pos.IsValid(), pos.Line == 0, and n will be 0
-		if n <= 0 && prev != nil && prev.Text[1] == '/' {
+		// at the package scope level only (p.indent == 0),
+		// add an extra newline if we dropped one before:
+		// this preserves a blank line before documentation
+		// comments at the package scope level (issue 2570)
+		if p.indent == 0 && droppedLinebreak {
+			n++
+		}
+
+		// make sure there is at least one line break
+		// if the previous comment was a line comment
+		if n == 0 && prev != nil && prev.Text[1] == '/' {
 			n = 1
 		}
+
 		if n > 0 {
+			// turn off indent if we're about to print a line directive
+			indent := p.indent
+			if strings.HasPrefix(comment.Text, linePrefix) {
+				p.indent = 0
+			}
+			// use formfeeds to break columns before a comment;
+			// this is analogous to using formfeeds to separate
+			// individual lines of /*-style comments
 			p.writeByteN('\f', nlimit(n))
+			p.indent = indent // restore indent
 		}
-		p.indent = indent
 	}
 }
 
@@ -812,7 +830,8 @@ func (p *printer) flush(next token.Position, tok token.Token) (wroteNewline, dro
 // getNode returns the ast.CommentGroup associated with n, if any.
 func getDoc(n ast.Node) *ast.CommentGroup {
 	switch n := n.(type) {
-	// *ast.Fields cannot be printed separately - ignore for now
+	case *ast.Field:
+		return n.Doc
 	case *ast.ImportSpec:
 		return n.Doc
 	case *ast.ValueSpec:

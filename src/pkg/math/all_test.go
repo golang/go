@@ -22,6 +22,7 @@ var vf = []float64{
 	1.8253080916808550e+00,
 	-8.6859247685756013e+00,
 }
+
 // The expected results below were computed by the high precision calculators
 // at http://keisan.casio.com/.  More exact input values (array vf[], above)
 // were obtained by printing them with "%.26f".  The answers were calculated
@@ -159,6 +160,7 @@ var cos = []float64{
 	-2.517729313893103197176091e-01,
 	-7.39241351595676573201918e-01,
 }
+
 // Results for 100000 * Pi + vf[i]
 var cosLarge = []float64{
 	2.634752141185559426744e-01,
@@ -514,6 +516,7 @@ var sin = []float64{
 	9.6778633541687993721617774e-01,
 	-6.734405869050344734943028e-01,
 }
+
 // Results for 100000 * Pi + vf[i]
 var sinLarge = []float64{
 	-9.646661658548936063912e-01,
@@ -563,6 +566,7 @@ var tan = []float64{
 	-3.843885560201130679995041e+00,
 	9.10988793377685105753416e-01,
 }
+
 // Results for 100000 * Pi + vf[i]
 var tanLarge = []float64{
 	-3.66131656475596512705e+00,

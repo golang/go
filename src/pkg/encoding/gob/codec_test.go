@@ -102,12 +102,15 @@ func TestIntCodec(t *testing.T) {
 
 // The result of encoding a true boolean with field number 7
 var boolResult = []byte{0x07, 0x01}
+
 // The result of encoding a number 17 with field number 7
 var signedResult = []byte{0x07, 2 * 17}
 var unsignedResult = []byte{0x07, 17}
 var floatResult = []byte{0x07, 0xFE, 0x31, 0x40}
+
 // The result of encoding a number 17+19i with field number 7
 var complexResult = []byte{0x07, 0xFE, 0x31, 0x40, 0xFE, 0x33, 0x40}
+
 // The result of encoding "hello" with field number 7
 var bytesResult = []byte{0x07, 0x05, 'h', 'e', 'l', 'l', 'o'}
 

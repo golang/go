@@ -106,7 +106,7 @@ type S3 struct {
 var x int	// x
 var ()
 
-// This comment SHOULD be associated with the next declaration.
+// This comment SHOULD be associated with f0.
 func f0() {
 	const pi = 3.14	// pi
 	var s1 struct{}	/* an empty struct */	/* foo */
@@ -115,8 +115,9 @@ func f0() {
 	var s2 struct{} = struct{}{}
 	x := pi
 }
+
 //
-// NO SPACE HERE
+// This comment should be associated with f1, with one blank line before the comment.
 //
 func f1() {
 	f0()
