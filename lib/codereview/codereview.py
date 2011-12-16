@@ -1490,6 +1490,7 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
 		# Mercurial will fall over long before the change log
 		# sequence numbers get to be 7 digits long.
 		if re.match('^[0-9]{7,}$', clname):
+			found = False
 			for r in hg_log(ui, repo, keyword="codereview.appspot.com/"+clname, limit=100, template="{node}\n").split():
 				rev = repo[r]
 				# Last line with a code review URL is the actual review URL.
