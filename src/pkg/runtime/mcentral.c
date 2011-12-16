@@ -15,7 +15,7 @@
 // so that it is faster to move those lists between MCaches and MCentrals.
 
 #include "runtime.h"
-#include "arch.h"
+#include "arch_GOARCH.h"
 #include "malloc.h"
 
 static bool MCentral_Grow(MCentral *c);

@@ -13,9 +13,9 @@
 // and figure out exactly what we want.
 
 #include "runtime.h"
-#include "defs.h"
-#include "os.h"
-#include "arch.h"
+#include "defs_GOOS_GOARCH.h"
+#include "os_GOOS.h"
+#include "arch_GOARCH.h"
 
 extern byte pclntab[], epclntab[], symtab[], esymtab[];
 

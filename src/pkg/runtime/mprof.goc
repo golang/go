@@ -7,9 +7,9 @@
 
 package runtime
 #include "runtime.h"
-#include "arch.h"
+#include "arch_GOARCH.h"
 #include "malloc.h"
-#include "defs.h"
+#include "defs_GOOS_GOARCH.h"
 #include "type.h"
 
 // NOTE(rsc): Everything here could use cas if contention became an issue.

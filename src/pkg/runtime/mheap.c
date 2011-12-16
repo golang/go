@@ -13,7 +13,7 @@
 // and heapmap(i) == span for all s->start <= i < s->start+s->npages.
 
 #include "runtime.h"
-#include "arch.h"
+#include "arch_GOARCH.h"
 #include "malloc.h"
 
 static MSpan *MHeap_AllocLocked(MHeap*, uintptr, int32);

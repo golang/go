@@ -7,9 +7,9 @@
 package time
 
 #include "runtime.h"
-#include "defs.h"
-#include "os.h"
-#include "arch.h"
+#include "defs_GOOS_GOARCH.h"
+#include "os_GOOS.h"
+#include "arch_GOARCH.h"
 #include "malloc.h"
 
 static Timers timers;

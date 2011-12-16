@@ -38,7 +38,7 @@
 
 package runtime
 #include "runtime.h"
-#include "defs.h"
+#include "defs_GOOS_GOARCH.h"
 
 static struct {
 	Note;

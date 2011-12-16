@@ -241,7 +241,7 @@ struct	M
 	uint32	waitsemacount;
 	uint32	waitsemalock;
 
-#ifdef __WINDOWS__
+#ifdef GOOS_windows
 	void*	thread;		// thread handle
 #endif
 	uintptr	end[];
@@ -299,7 +299,7 @@ struct	WinCall
 	uintptr	err;	// error number
 };
 
-#ifdef __WINDOWS__
+#ifdef GOOS_windows
 enum {
    Windows = 1
 };

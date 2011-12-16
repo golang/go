@@ -5,7 +5,7 @@
 // Garbage collector.
 
 #include "runtime.h"
-#include "arch.h"
+#include "arch_GOARCH.h"
 #include "malloc.h"
 #include "stack.h"
 

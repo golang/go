@@ -1,0 +1,145 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package syscall
+#include "runtime.h"
+#include "os_GOOS.h"
+#include "cgocall.h"
+
+func loadlibrary(filename *uint16) (handle uintptr, err uintptr) {
+	WinCall c;
+
+	c.fn = runtime·LoadLibrary;
+	c.n = 1;
+	c.args = &filename;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	handle = c.r1;
+	if(handle == 0)
+		err = c.err;
+	else
+		err = 0;
+}
+
+func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err uintptr) {
+	WinCall c;
+
+	USED(procname);
+	c.fn = runtime·GetProcAddress;
+	c.n = 2;
+	c.args = &handle;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	proc = c.r1;
+	if(proc == 0)
+		err = c.err;
+	else
+		err = 0;
+}
+
+func NewCallback(fn Eface) (code uintptr) {
+	code = (uintptr)runtime·compilecallback(fn, true);
+}
+
+func NewCallbackCDecl(fn Eface) (code uintptr) {
+	code = (uintptr)runtime·compilecallback(fn, false);
+}
+
+func Syscall(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	WinCall c;
+
+	USED(a2);
+	USED(a3);
+	c.fn = (void*)fn;
+	c.n = nargs;
+	c.args = &a1;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
+}
+
+func Syscall6(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	WinCall c;
+
+	USED(a2);
+	USED(a3);
+	USED(a4);
+	USED(a5);
+	USED(a6);
+	c.fn = (void*)fn;
+	c.n = nargs;
+	c.args = &a1;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
+}
+
+func Syscall9(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	WinCall c;
+
+	USED(a2);
+	USED(a3);
+	USED(a4);
+	USED(a5);
+	USED(a6);
+	USED(a7);
+	USED(a8);
+	USED(a9);
+	c.fn = (void*)fn;
+	c.n = nargs;
+	c.args = &a1;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
+}
+
+func Syscall12(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	WinCall c;
+
+	USED(a2);
+	USED(a3);
+	USED(a4);
+	USED(a5);
+	USED(a6);
+	USED(a7);
+	USED(a8);
+	USED(a9);
+	USED(a10);
+	USED(a11);
+	USED(a12);
+	c.fn = (void*)fn;
+	c.n = nargs;
+	c.args = &a1;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
+}
+
+func Syscall15(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr, a13 uintptr, a14 uintptr, a15 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+	WinCall c;
+
+	USED(a2);
+	USED(a3);
+	USED(a4);
+	USED(a5);
+	USED(a6);
+	USED(a7);
+	USED(a8);
+	USED(a9);
+	USED(a10);
+	USED(a11);
+	USED(a12);
+	USED(a13);
+	USED(a14);
+	USED(a15);
+	c.fn = (void*)fn;
+	c.n = nargs;
+	c.args = &a1;
+	runtime·cgocall(runtime·asmstdcall, &c);
+	err = c.err;
+	r1 = c.r1;
+	r2 = c.r2;
+}

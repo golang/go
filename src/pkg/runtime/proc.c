@@ -3,10 +3,10 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
-#include "arch.h"
-#include "defs.h"
+#include "arch_GOARCH.h"
+#include "defs_GOOS_GOARCH.h"
 #include "malloc.h"
-#include "os.h"
+#include "os_GOOS.h"
 #include "stack.h"
 
 bool	runtime·iscgo;

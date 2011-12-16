@@ -8,10 +8,10 @@
 
 package runtime
 #include "runtime.h"
-#include "arch.h"
+#include "arch_GOARCH.h"
 #include "stack.h"
 #include "malloc.h"
-#include "defs.h"
+#include "defs_GOOS_GOARCH.h"
 #include "type.h"
 
 MHeap runtime·mheap;
