@@ -109,17 +109,6 @@ _* | *_ | _)
 	echo 'undefined $GOOS_$GOARCH:' "$GOOSARCH" 1>&2
 	exit 1
 	;;
-freebsd_386)
-	mkerrors="$mkerrors -m32"
-	mksyscall="./mksyscall.pl -l32"
-	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
-	;;
-freebsd_amd64)
-	mkerrors="$mkerrors -m64"
-	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
-	mktypes="GOARCH=$GOARCH cgo -godefs"
-	;;
 darwin_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32"
@@ -129,6 +118,17 @@ darwin_386)
 darwin_amd64)
 	mkerrors="$mkerrors -m64"
 	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
+	mktypes="GOARCH=$GOARCH cgo -godefs"
+	;;
+freebsd_386)
+	mkerrors="$mkerrors -m32"
+	mksyscall="./mksyscall.pl -l32"
+	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
+	mktypes="GOARCH=$GOARCH cgo -godefs"
+	;;
+freebsd_amd64)
+	mkerrors="$mkerrors -m64"
+	mksysnum="curl -s 'http://svn.freebsd.org/base/head/sys/kern/syscalls.master' | ./mksysnum_freebsd.pl"
 	mktypes="GOARCH=$GOARCH cgo -godefs"
 	;;
 linux_386)
@@ -148,26 +148,6 @@ linux_arm)
 	mksysnum="./mksysnum_linux.pl /usr/include/asm/unistd.h"
 	mktypes="GOARCH=$GOARCH cgo -godefs"
 	;;
-windows_386)
-	mksyscall="./mksyscall_windows.pl -l32"
-	mksysnum=
-	mktypes=
-	mkerrors="./mkerrors_windows.sh -m32"
-	zerrors="zerrors_windows.go"
-	;;
-windows_amd64)
-	mksyscall="./mksyscall_windows.pl"
-	mksysnum=
-	mktypes=
-	mkerrors="./mkerrors_windows.sh -m32"
-	zerrors="zerrors_windows.go"
-	;;
-plan9_386)
-	mkerrors=
-	mksyscall="./mksyscall.pl -l32 -plan9"
-	mksysnum="./mksysnum_plan9.sh /n/sources/plan9/sys/src/libc/9syscall/sys.h"
-	mktypes="XXX"
-	;;
 openbsd_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32 -openbsd"
@@ -183,6 +163,26 @@ openbsd_amd64)
 	zsysctl="zsysctl_openbsd.go"
 	mksysnum="curl -s 'http://www.openbsd.org/cgi-bin/cvsweb/~checkout~/src/sys/kern/syscalls.master' | ./mksysnum_openbsd.pl"
 	mktypes="GOARCH=$GOARCH cgo -godefs"
+	;;
+plan9_386)
+	mkerrors=
+	mksyscall="./mksyscall.pl -l32 -plan9"
+	mksysnum="./mksysnum_plan9.sh /n/sources/plan9/sys/src/libc/9syscall/sys.h"
+	mktypes="XXX"
+	;;
+windows_386)
+	mksyscall="./mksyscall_windows.pl -l32"
+	mksysnum=
+	mktypes=
+	mkerrors="./mkerrors_windows.sh -m32"
+	zerrors="zerrors_windows.go"
+	;;
+windows_amd64)
+	mksyscall="./mksyscall_windows.pl"
+	mksysnum=
+	mktypes=
+	mkerrors="./mkerrors_windows.sh -m32"
+	zerrors="zerrors_windows.go"
 	;;
 *)
 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
