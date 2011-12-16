@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "defs_GOOS_GOARCH.h"
-#include "zasm_GOOS_GOARCH.h"
+#include "asm_386.h"
 
 // setldt(int entry, int address, int limit)
 TEXT runtime·setldt(SB),7,$0

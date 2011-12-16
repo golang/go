@@ -4,7 +4,8 @@
 
 include ../../Make.inc
 
-x:=$(shell gomake -f Makefile.auto)
+# Go tool will do this for package runtime.
+CFLAGS+=-DGOOS_$(GOOS) -DGOARCH_$(GOARCH)
 
 TARG=runtime
 
@@ -13,13 +14,15 @@ GOFILES=\
 	error.go\
 	extern.go\
 	mem.go\
+	runtime_defs.go\
 	sig.go\
 	softfloat64.go\
 	type.go\
-	zgoarch_$(GOARCH).go\
-	zgoos_$(GOOS).go\
-	zruntime_defs_$(GOOS)_$(GOARCH).go\
-	zversion.go\
+	version.go\
+	version_$(GOOS).go\
+	version_$(GOARCH).go\
+
+CLEANFILES+=version.go version_*.go
 
 OFILES_darwin=\
 	lock_sema.$O\
@@ -42,7 +45,7 @@ OFILES_plan9=\
 OFILES_windows=\
 	callback_windows_$(GOARCH).$O\
 	lock_sema.$O\
-	zsyscall_windows_$(GOARCH).$O\
+	syscall_windows.$O\
 
 # 386-specific object files
 OFILES_386=\
@@ -63,8 +66,6 @@ OFILES_arm=\
 	traceback_x86.$O\
 
 OFILES=\
-	$(OFILES_$(GOARCH))\
-	$(OFILES_$(GOOS))\
 	alg.$O\
 	asm_$(GOARCH).$O\
 	atomic_$(GOARCH).$O\
@@ -76,6 +77,7 @@ OFILES=\
 	float.$O\
 	hashmap.$O\
 	iface.$O\
+	malloc.$O\
 	mcache.$O\
 	mcentral.$O\
 	mem_$(GOOS).$O\
@@ -84,24 +86,25 @@ OFILES=\
 	mfixalloc.$O\
 	mgc0.$O\
 	mheap.$O\
+	mprof.$O\
 	msize.$O\
 	print.$O\
 	proc.$O\
 	rt0_$(GOOS)_$(GOARCH).$O\
 	rune.$O\
 	runtime.$O\
+	runtime1.$O\
+	sema.$O\
 	signal_$(GOOS)_$(GOARCH).$O\
+	sigqueue.$O\
 	slice.$O\
+	string.$O\
 	symtab.$O\
 	sys_$(GOOS)_$(GOARCH).$O\
 	thread_$(GOOS).$O\
-	zmalloc_$(GOARCH).$O\
-	zmprof_$(GOARCH).$O\
-	zruntime1_$(GOARCH).$O\
-	zsema_$(GOARCH).$O\
-	zsigqueue_$(GOARCH).$O\
-	zstring_$(GOARCH).$O\
-	ztime_$(GOARCH).$O\
+	time.$O\
+	$(OFILES_$(GOARCH))\
+	$(OFILES_$(GOOS))\
 
 AUTOHFILES=\
 	arch_GOARCH.h\
@@ -115,16 +118,13 @@ HFILES=\
 	hashmap.h\
 	malloc.h\
 	stack.h\
+	asm_$(GOARCH).h\
 	$(AUTOHFILES)\
 
 GOFILES+=$(GOFILES_$(GOOS))
 
 # For use by cgo.
 INSTALLFILES=$(pkgdir)/runtime.h $(pkgdir)/cgocall.h
-
-# Go tool will do this for package runtime.
-AFLAGS+=-DGOOS_$(GOOS) -DGOARCH_$(GOARCH)
-CFLAGS+=-DGOOS_$(GOOS) -DGOARCH_$(GOARCH)
 
 # special, out of the way compiler flag that means "add runtime metadata to output"
 GC+= -+
@@ -138,8 +138,44 @@ $(pkgdir)/%.h: %.h
 clean: clean-local
 
 clean-local:
-	rm -f $(AUTOHFILES)
-	make -f Makefile.auto clean
+	rm -f goc2c mkversion version.go runtime.acid.* runtime_defs.go $$(ls *.goc | sed 's/goc$$/c/') $(AUTOHFILES)
+
+asm_$(GOARCH).h: mkasmh.sh runtime.acid.$(GOARCH)
+	./mkasmh.sh >$@.x
+	mv -f $@.x $@
+
+goc2c: goc2c.c
+	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
+
+mkversion: mkversion.c
+	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
+
+version.go: mkversion
+	GOROOT="$(GOROOT_FINAL)" ./mkversion >version.go
+
+version_$(GOARCH).go:
+	(echo 'package runtime'; echo 'const theGoarch = "$(GOARCH)"') >$@
+
+version_$(GOOS).go:
+	(echo 'package runtime'; echo 'const theGoos = "$(GOOS)"') >$@
+
+%.c:	%.goc goc2c
+	./goc2c "`pwd`/$<" > $@.tmp
+	mv -f $@.tmp $@
+
+# for discovering offsets inside structs when debugging
+runtime.acid.$(GOARCH): runtime.h proc.c $(AUTOHFILES)
+	$(CC) $(CFLAGS) -a proc.c >$@
+
+# 386 traceback is really amd64 traceback
+ifeq ($(GOARCH),386)
+traceback.$O:	amd64/traceback.c
+	$(CC) $(CFLAGS) $<
+endif
+
+runtime_defs.go: proc.c iface.c hashmap.c chan.c $(HFILES)
+	CC="$(CC)" CFLAGS="$(CFLAGS)" ./mkgodefs.sh proc.c iface.c hashmap.c chan.c > $@.x
+	mv -f $@.x $@
 
 arch_GOARCH.h: arch_$(GOARCH).h
 	cp $^ $@
@@ -152,8 +188,3 @@ os_GOOS.h: os_$(GOOS).h
 
 signals_GOOS.h: signals_$(GOOS).h
 	cp $^ $@
-
-zasm_GOOS_GOARCH.h: zasm_$(GOOS)_$(GOARCH).h
-	cp $^ $@
-
-%.$O: zasm_GOOS_GOARCH.h
