@@ -6,7 +6,7 @@
 // /usr/src/sys/kern/syscalls.master for syscall numbers.
 //
 
-#include "asm_386.h"
+#include "zasm_GOOS_GOARCH.h"
 	
 TEXT runtime·sys_umtx_op(SB),7,$-4
 	MOVL	$454, AX

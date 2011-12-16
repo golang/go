@@ -78,11 +78,17 @@ done
 bash "$GOROOT"/src/clean.bash
 
 # pkg builds libcgo and the Go programs in cmd.
-for i in lib9 libbio libmach cmd pkg
+for i in lib9 libbio libmach cmd
 do
 	echo; echo; echo %%%% making $i %%%%; echo
 	gomake -C $i install
 done
+
+echo; echo; echo %%%% making runtime generated files %%%%; echo
+gomake -C pkg/runtime -f Makefile.auto
+
+echo; echo; echo %%%% making pkg%%%%; echo
+gomake -C pkg install
 
 # Print post-install messages.
 # Implemented as a function so that all.bash can repeat the output

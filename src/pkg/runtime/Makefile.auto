@@ -1,0 +1,94 @@
+# Copyright 2011 The Go Authors.  All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+GOARCHES=\
+	386\
+	amd64\
+	arm\
+
+GOOSES=\
+	darwin\
+	freebsd\
+	linux\
+	netbsd\
+	openbsd\
+	plan9\
+	windows\
+
+GOOSARCHES=\
+	darwin_386\
+	darwin_amd64\
+	freebsd_386\
+	freebsd_amd64\
+	linux_386\
+	linux_amd64\
+	linux_arm\
+	netbsd_386\
+	netbsd_amd64\
+	openbsd_386\
+	openbsd_amd64\
+	plan9_386\
+	windows_386\
+	windows_amd64\
+
+AUTO=\
+	$(GOARCHES:%=zmalloc_%.c)\
+	$(GOARCHES:%=zmprof_%.c)\
+	$(GOARCHES:%=zruntime1_%.c)\
+	$(GOARCHES:%=zsema_%.c)\
+	$(GOARCHES:%=zsigqueue_%.c)\
+	$(GOARCHES:%=zstring_%.c)\
+	$(GOARCHES:%=ztime_%.c)\
+	$(GOARCHES:%=zgoarch_%.go)\
+	$(GOOSES:%=zgoos_%.go)\
+	$(GOOSARCHES:%=zruntime_defs_%.go)\
+	$(GOOSARCHES:%=zasm_%.h)\
+	zsyscall_windows_386.c\
+	zsyscall_windows_amd64.c\
+	zversion.go\
+
+all: auto
+auto: $(AUTO)
+
+# .goc -> .c (specific to os/arch combination)
+goc2c: goc2c.c
+	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
+
+z%_386.c: %.goc goc2c
+	GOARCH=386 ./goc2c "`pwd`/$<" >$@.tmp
+	mv -f $@.tmp $@
+
+z%_amd64.c: %.goc goc2c
+	GOARCH=amd64 ./goc2c "`pwd`/$<" >$@.tmp
+	mv -f $@.tmp $@
+
+z%_arm.c: %.goc goc2c
+	GOARCH=arm ./goc2c "`pwd`/$<" >$@.tmp
+	mv -f $@.tmp $@
+
+# version files
+mkversion: mkversion.c ../../../lib/lib9.a
+	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
+
+zversion.go: mkversion
+	GOROOT="$(GOROOT_FINAL)" ./mkversion >$@
+
+zgoos_%.go:
+	(echo '// AUTO-GENERATED; run make -f Makefile.auto'; echo; echo 'package runtime'; echo; echo 'const theGoos = "$*"') >$@
+
+zgoarch_%.go:
+	(echo '// AUTO-GENERATED; run make -f Makefile.auto'; echo; echo 'package runtime'; echo; echo 'const theGoarch = "$*"') >$@
+
+# definitions of runtime structs, translated from C to Go
+zruntime_defs_%.go: proc.c iface.c hashmap.c chan.c $(HFILES) mkgodefs.sh
+	./mkgodefs.sh $* proc.c iface.c hashmap.c chan.c >$@.tmp
+	mv -f $@.tmp $@
+
+# struct field offsets #defined for assembly
+zasm_%.h: mkasmh.sh proc.c defs.h
+	./mkasmh.sh $* >$@.tmp
+	mv -f $@.tmp $@
+
+clean:
+	rm -f goc2c mkversion $(AUTO)
