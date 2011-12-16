@@ -8,9 +8,12 @@ all: install
 
 # Only build tools for current architecture, and only tools written in C.
 # The tools written in Go are managed by ../pkg/Makefile.
+# We need all the C compilers for rebuilding generated files in runtime.
 DIRS=\
 	$(O)a\
-	$(O)c\
+	5c\
+	6c\
+	8c\
 	$(O)g\
 	$(O)l\
 	cc\
@@ -55,7 +58,7 @@ nuke: $(patsubst %,%.nuke,$(CLEANDIRS))
 	@echo
 	$(MAKE) -C $* install
 
-gc.install $(O)c.install: cc.install
+gc.install 5c.install 6c.install 8c.install: cc.install
 $(O)g.install: gc.install
 $(O)a.install $(O)c.install $(O)g.install: $(O)l.install
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "asm_amd64.h"
+#include "zasm_GOOS_GOARCH.h"
 
 TEXT	_rt0_amd64_windows(SB),7,$-8
 	MOVQ	$_rt0_amd64(SB), AX

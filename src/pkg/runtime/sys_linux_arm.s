@@ -6,7 +6,7 @@
 // System calls and other sys.stuff for arm, Linux
 //
 
-#include "asm_arm.h"
+#include "zasm_GOOS_GOARCH.h"
 
 // OABI
 //#define SYS_BASE 0x00900000

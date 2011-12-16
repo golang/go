@@ -6,7 +6,7 @@
 // /usr/src/sys/kern/syscalls.master for syscall numbers.
 //
 
-#include "asm_amd64.h"
+#include "zasm_GOOS_GOARCH.h"
 
 // int64 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
 TEXT runtime·rfork_thread(SB),7,$0
