@@ -12,6 +12,7 @@ GOFILES=\
 	filetransport.go\
 	fs.go\
 	header.go\
+	jar.go\
 	lex.go\
 	request.go\
 	response.go\

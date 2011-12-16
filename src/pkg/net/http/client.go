@@ -38,6 +38,11 @@ type Client struct {
 	// If CheckRedirect is nil, the Client uses its default policy,
 	// which is to stop after 10 consecutive requests.
 	CheckRedirect func(req *Request, via []*Request) error
+
+	// Jar specifies the cookie jar. 
+	// If Jar is nil, cookies are not sent in requests and ignored 
+	// in responses.
+	Jar CookieJar
 }
 
 // DefaultClient is the default Client and is used by Get, Head, and Post.
@@ -180,6 +185,11 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err error) {
 		return nil, errors.New("http: nil Request.URL")
 	}
 
+	jar := c.Jar
+	if jar == nil {
+		jar = blackHoleJar{}
+	}
+
 	req := ireq
 	urlStr := "" // next relative or absolute URL to fetch (after first request)
 	for redirect := 0; ; redirect++ {
@@ -203,12 +213,19 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err error) {
 					break
 				}
 			}
+			for _, cookie := range jar.Cookies(req.URL) {
+				req.AddCookie(cookie)
+			}
 		}
 
 		urlStr = req.URL.String()
 		if r, err = send(req, c.Transport); err != nil {
 			break
 		}
+		if c := r.Cookies(); len(c) > 0 {
+			jar.SetCookies(req.URL, c)
+		}
+
 		if shouldRedirect(r.StatusCode) {
 			r.Body.Close()
 			if urlStr = r.Header.Get("Location"); urlStr == "" {
