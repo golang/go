@@ -15,35 +15,6 @@ GCC=gcc
 
 uname=$(uname)
 
-includes_Linux='
-#define _LARGEFILE_SOURCE
-#define _LARGEFILE64_SOURCE
-#define _FILE_OFFSET_BITS 64
-#define _GNU_SOURCE
-
-#include <bits/sockaddr.h>
-#include <sys/epoll.h>
-#include <sys/inotify.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <sys/mount.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <linux/if_addr.h>
-#include <linux/if_ether.h>
-#include <linux/if_tun.h>
-#include <linux/filter.h>
-#include <linux/netlink.h>
-#include <linux/reboot.h>
-#include <linux/rtnetlink.h>
-#include <linux/ptrace.h>
-#include <linux/wait.h>
-#include <net/if.h>
-#include <net/if_arp.h>
-#include <net/route.h>
-#include <netpacket/packet.h>
-'
-
 includes_Darwin='
 #define _DARWIN_C_SOURCE
 #define KERNEL
@@ -82,6 +53,35 @@ includes_FreeBSD='
 #include <termios.h>
 #include <netinet/ip.h>
 #include <netinet/ip_mroute.h>
+'
+
+includes_Linux='
+#define _LARGEFILE_SOURCE
+#define _LARGEFILE64_SOURCE
+#define _FILE_OFFSET_BITS 64
+#define _GNU_SOURCE
+
+#include <bits/sockaddr.h>
+#include <sys/epoll.h>
+#include <sys/inotify.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/mount.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <linux/if_addr.h>
+#include <linux/if_ether.h>
+#include <linux/if_tun.h>
+#include <linux/filter.h>
+#include <linux/netlink.h>
+#include <linux/reboot.h>
+#include <linux/rtnetlink.h>
+#include <linux/ptrace.h>
+#include <linux/wait.h>
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <net/route.h>
+#include <netpacket/packet.h>
 '
 
 includes_OpenBSD='
