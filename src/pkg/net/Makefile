@@ -21,34 +21,6 @@ GOFILES=\
 	udpsock.go\
 	unixsock.go\
 
-GOFILES_freebsd=\
-	dnsclient_unix.go\
-	dnsconfig.go\
-	fd.go\
-	fd_$(GOOS).go\
-	file.go\
-	interface_bsd.go\
-	interface_freebsd.go\
-	iprawsock_posix.go\
-	ipsock_posix.go\
-	lookup_unix.go\
-	newpollserver.go\
-	port.go\
-	sendfile_stub.go\
-	sock.go\
-	sock_bsd.go\
-	tcpsock_posix.go\
-	udpsock_posix.go\
-	unixsock_posix.go\
-
-ifeq ($(CGO_ENABLED),1)
-CGOFILES_freebsd=\
-	cgo_bsd.go\
-	cgo_unix.go
-else
-GOFILES_freebsd+=cgo_stub.go
-endif
-
 GOFILES_darwin=\
 	dnsclient_unix.go\
 	dnsconfig.go\
@@ -75,6 +47,34 @@ CGOFILES_darwin=\
 	cgo_unix.go
 else
 GOFILES_darwin+=cgo_stub.go
+endif
+
+GOFILES_freebsd=\
+	dnsclient_unix.go\
+	dnsconfig.go\
+	fd.go\
+	fd_$(GOOS).go\
+	file.go\
+	interface_bsd.go\
+	interface_freebsd.go\
+	iprawsock_posix.go\
+	ipsock_posix.go\
+	lookup_unix.go\
+	newpollserver.go\
+	port.go\
+	sendfile_stub.go\
+	sock.go\
+	sock_bsd.go\
+	tcpsock_posix.go\
+	udpsock_posix.go\
+	unixsock_posix.go\
+
+ifeq ($(CGO_ENABLED),1)
+CGOFILES_freebsd=\
+	cgo_bsd.go\
+	cgo_unix.go
+else
+GOFILES_freebsd+=cgo_stub.go
 endif
 
 GOFILES_linux=\
