@@ -70,26 +70,26 @@ func TestReadDir(t *testing.T) {
 		t.Fatalf("ReadDir %s: error expected, none found", dirname)
 	}
 
-	dirname = "."
+	dirname = ".."
 	list, err := ReadDir(dirname)
 	if err != nil {
 		t.Fatalf("ReadDir %s: %v", dirname, err)
 	}
 
-	foundTest := false
-	foundTestDir := false
+	foundFile := false
+	foundSubDir := false
 	for _, dir := range list {
 		switch {
-		case !dir.IsDir() && dir.Name() == "ioutil_test.go":
-			foundTest = true
-		case dir.IsDir() && dir.Name() == "_test":
-			foundTestDir = true
+		case !dir.IsDir() && dir.Name() == "io_test.go":
+			foundFile = true
+		case dir.IsDir() && dir.Name() == "ioutil":
+			foundSubDir = true
 		}
 	}
-	if !foundTest {
-		t.Fatalf("ReadDir %s: test file not found", dirname)
+	if !foundFile {
+		t.Fatalf("ReadDir %s: io_test.go file not found", dirname)
 	}
-	if !foundTestDir {
-		t.Fatalf("ReadDir %s: _test directory not found", dirname)
+	if !foundSubDir {
+		t.Fatalf("ReadDir %s: ioutil directory not found", dirname)
 	}
 }
