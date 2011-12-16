@@ -11,7 +11,7 @@ CGOFILES=\
 
 CGO_OFILES=\
 	c-life.o\
-	
+
 ifeq ($(GOOS),windows)
 ifeq ($(GOARCH),amd64)
 CGO_OFILES+=\
@@ -31,5 +31,5 @@ CLEANFILES+=life
 include ../../../src/Make.pkg
 
 life: install main.go
-	$(GC) main.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) main.go
 	$(LD) -o $@ main.$O

@@ -18,5 +18,5 @@ libcgoso.so: cgoso_c.c
 	gcc cgoso_c.c -fPIC -o $@ $(_CGO_CFLAGS_$(GOARCH)) $(_CGO_LDFLAGS_$(GOOS))
 
 out: install main.go
-	$(GC) main.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) main.go
 	$(LD) -o $@ main.$O

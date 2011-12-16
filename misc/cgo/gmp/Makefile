@@ -28,11 +28,11 @@ include ../../../src/Make.pkg
 
 # Computes 1000 digits of pi; single-threaded.
 pi: install pi.go
-	$(GC) pi.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) pi.go
 	$(LD) -o $@ pi.$O
 
 # Computes 200 Fibonacci numbers; multi-threaded.
 fib: install fib.go
-	$(GC) fib.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) fib.go
 	$(LD) -o $@ fib.$O
 

@@ -13,5 +13,5 @@ CLEANFILES+=hello fib chain run.out
 include ../../../src/Make.pkg
 
 %: install %.go
-	$(GC) $*.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) $*.go
 	$(LD) -o $@ $*.$O

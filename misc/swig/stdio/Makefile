@@ -13,5 +13,5 @@ CLEANFILES+=hello
 include ../../../src/Make.pkg
 
 %: install %.go
-	$(GC) $*.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) $*.go
 	$(LD) $(SWIG_RPATH) -o $@ $*.$O

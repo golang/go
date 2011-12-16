@@ -17,7 +17,7 @@ include ../../Make.pkg
 CLEANFILES+=maketables
 
 maketables: maketables.go
-	$(GC) maketables.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) maketables.go
 	$(LD) -o maketables maketables.$O
 
 tables:	maketables

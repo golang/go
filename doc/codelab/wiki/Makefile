@@ -21,5 +21,5 @@ test: get.bin
 	$(LD) -o $@ $<
 
 %.$O: %.go
-	$(GC) $*.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) $*.go
 

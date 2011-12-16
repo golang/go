@@ -19,15 +19,15 @@ include ../../../Make.pkg
 CLEANFILES+=maketables maketesttables
 
 maketables: maketables.go triegen.go
-	$(GC) maketables.go triegen.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) maketables.go triegen.go
 	$(LD) -o maketables maketables.$O
 
 maketesttables: maketesttables.go triegen.go
-	$(GC) maketesttables.go triegen.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) maketesttables.go triegen.go
 	$(LD) -o maketesttables maketesttables.$O
 
 normregtest: normregtest.go
-	$(GC) normregtest.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) normregtest.go
 	$(LD) -o normregtest normregtest.$O
 
 tables:	maketables
