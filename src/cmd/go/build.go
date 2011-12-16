@@ -105,6 +105,7 @@ type builder struct {
 	nflag       bool                 // the -n flag
 	vflag       bool                 // the -v flag
 	arch        string               // e.g., "6"
+	goroot      string               // the $GOROOT
 	actionCache map[cacheKey]*action // a cache of already-constructed actions
 }
 
@@ -112,10 +113,12 @@ type builder struct {
 type action struct {
 	f func(*builder, *action) error // the action itself
 
-	p      *Package  // the package this action works on
-	deps   []*action // actions that must happen before this one
-	done   bool      // whether the action is done (might have failed)
-	failed bool      // whether the action failed
+	p          *Package  // the package this action works on
+	deps       []*action // actions that must happen before this one
+	done       bool      // whether the action is done (might have failed)
+	failed     bool      // whether the action failed
+	pkgdir     string    // the -I or -L argument to use when importing this package
+	ignoreFail bool      // whether to run f even if dependencies fail
 
 	// Results left for communication with other code.
 	pkgobj string // the built .a file
@@ -143,6 +146,7 @@ func (b *builder) init(aflag, nflag, vflag bool) {
 	b.nflag = nflag
 	b.vflag = vflag
 	b.actionCache = make(map[cacheKey]*action)
+	b.goroot = runtime.GOROOT()
 
 	b.arch, err = build.ArchChar(build.DefaultContext.GOARCH)
 	if err != nil {
@@ -209,12 +213,24 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 		return a
 	}
 
-	a = &action{p: p}
+	a = &action{p: p, pkgdir: p.t.PkgDir()}
+	if p.pkgdir != "" { // overrides p.t
+		a.pkgdir = p.pkgdir
+	}
+
 	b.actionCache[key] = a
 
 	switch mode {
 	case modeBuild, modeInstall:
+		for _, p1 := range p.imports {
+			a.deps = append(a.deps, b.action(depMode, depMode, p1))
+		}
+
 		if !needInstall(p) && !b.aflag {
+			// TODO: This is not right if the deps above
+			// are not all no-ops too.  If fmt is up to date
+			// wrt its own source files,  but strconv has
+			// changed, then fmt is not up to date.
 			a.f = (*builder).nop
 			return a
 		}
@@ -238,9 +254,6 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 		}
 
 		a.f = (*builder).build
-		for _, p1 := range p.imports {
-			a.deps = append(a.deps, b.action(depMode, depMode, p1))
-		}
 	}
 
 	return a
@@ -288,8 +301,10 @@ func (b *builder) do(a *action) {
 		b.do(a1)
 		if a1.failed {
 			a.failed = true
-			a.done = true
-			return
+			if !a.ignoreFail {
+				a.done = true
+				return
+			}
 		}
 	}
 	if err := a.f(b, a); err != nil {
@@ -303,10 +318,12 @@ func (b *builder) nop(a *action) error {
 	return nil
 }
 
-// build is the action for building a single package.
+// build is the action for building a single package or command.
 func (b *builder) build(a *action) error {
 	obj := filepath.Join(b.work, filepath.FromSlash(a.p.ImportPath+"/_obj")) + string(filepath.Separator)
-	a.pkgobj = filepath.Join(b.work, filepath.FromSlash(a.p.ImportPath+".a"))
+	if a.pkgobj == "" {
+		a.pkgobj = filepath.Join(b.work, filepath.FromSlash(a.p.ImportPath+".a"))
+	}
 
 	// make build directory
 	if err := b.mkdir(obj); err != nil {
@@ -332,11 +349,10 @@ func (b *builder) build(a *action) error {
 	inc = append(inc, "-I", b.work)
 	incMap := map[string]bool{}
 	for _, a1 := range a.deps {
-		p1 := a1.p
-		if p1.t.Goroot {
+		pkgdir := a1.pkgdir
+		if pkgdir == build.Path[0].PkgDir() || pkgdir == "" {
 			continue
 		}
-		pkgdir := p1.t.PkgDir()
 		if !incMap[pkgdir] {
 			incMap[pkgdir] = true
 			inc = append(inc, "-I", pkgdir)
@@ -386,17 +402,14 @@ func (b *builder) build(a *action) error {
 
 // install is the action for installing a single package.
 func (b *builder) install(a *action) error {
-	if err := b.build(a); err != nil {
-		return err
-	}
-
+	a1 := a.deps[0]
 	var src string
 	var perm uint32
-	if a.pkgbin != "" {
-		src = a.pkgbin
+	if a1.pkgbin != "" {
+		src = a1.pkgbin
 		perm = 0777
 	} else {
-		src = a.pkgobj
+		src = a1.pkgobj
 		perm = 0666
 	}
 

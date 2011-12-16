@@ -38,6 +38,7 @@ type Package struct {
 
 	// Unexported fields are not part of the public API.
 	t       *build.Tree
+	pkgdir  string
 	info    *build.DirInfo
 	imports []*Package
 	gofiles []string // GoFiles+CgoFiles
