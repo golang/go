@@ -22,4 +22,4 @@ dump:	dump.$O
 	$(LD) -o dump $<
 
 dump.$O:	dump.go
-	$(GC) $<
+	$(GC) $(GCFLAGS) $(GCIMPORTS) $<

@@ -15,5 +15,5 @@ include ../../../Make.pkg
 # Script to test heading detection heuristic
 CLEANFILES+=headscan
 headscan: headscan.go
-	$(GC) headscan.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) headscan.go
 	$(LD) -o headscan headscan.$(O)

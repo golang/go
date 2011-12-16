@@ -12,7 +12,7 @@ ALL=\
 all: $(addsuffix .out, $(ALL))
 
 %.$O: %.go stats.go
-	$(GC) $*.go stats.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) $*.go stats.go
 
 %.out: %.$O
 	$(LD) -o $@ $*.$O

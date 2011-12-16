@@ -12,7 +12,7 @@ include ../../Make.cmd
 
 units: goyacc units.y
 	./goyacc -p units_ units.y
-	$(GC) y.go
+	$(GC) $(GCFLAGS) $(GCIMPORTS) y.go
 	$(LD) -o units y.$O
 
 CLEANFILES += units y.go y.output
