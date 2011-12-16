@@ -469,7 +469,14 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
 // isZero returns whether the value is the zero of its type.
 func isZero(val reflect.Value) bool {
 	switch val.Kind() {
-	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+	case reflect.Array:
+		for i := 0; i < val.Len(); i++ {
+			if !isZero(val.Index(i)) {
+				return false
+			}
+		}
+		return true
+	case reflect.Map, reflect.Slice, reflect.String:
 		return val.Len() == 0
 	case reflect.Bool:
 		return !val.Bool()

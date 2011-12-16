@@ -529,28 +529,48 @@ func TestGobEncoderExtraIndirect(t *testing.T) {
 }
 
 // Another bug: this caused a crash with the new Go1 Time type.
+// We throw in a gob-encoding array, to test another case of isZero
 
-type TimeBug struct {
+type isZeroBug struct {
 	T time.Time
 	S string
 	I int
+	A isZeroBugArray
 }
 
-func TestGobEncodeTime(t *testing.T) {
-	x := TimeBug{time.Now(), "hello", -55}
+type isZeroBugArray [2]uint8
+
+// Receiver is value, not pointer, to test isZero of array.
+func (a isZeroBugArray) GobEncode() (b []byte, e error) {
+	b = append(b, a[:]...)
+	return b, nil
+}
+
+func (a *isZeroBugArray) GobDecode(data []byte) error {
+	println("DECODE")
+	if len(data) != len(a) {
+		return io.EOF
+	}
+	a[0] = data[0]
+	a[1] = data[1]
+	return nil
+}
+
+func TestGobEncodeIsZero(t *testing.T) {
+	x := isZeroBug{time.Now(), "hello", -55, isZeroBugArray{1, 2}}
 	b := new(bytes.Buffer)
 	enc := NewEncoder(b)
 	err := enc.Encode(x)
 	if err != nil {
 		t.Fatal("encode:", err)
 	}
-	var y TimeBug
+	var y isZeroBug
 	dec := NewDecoder(b)
 	err = dec.Decode(&y)
 	if err != nil {
 		t.Fatal("decode:", err)
 	}
 	if x != y {
-		t.Fatal("%v != %v", x, y)
+		t.Fatalf("%v != %v", x, y)
 	}
 }
