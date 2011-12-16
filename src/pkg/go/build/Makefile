@@ -18,5 +18,6 @@ include ../../../Make.pkg
 syslist.go: ../../../Make.inc Makefile
 	echo '// Generated automatically by make.' >$@
 	echo 'package build' >>$@
+	echo >>$@
 	echo 'const goosList = "$(GOOS_LIST)"' >>$@
 	echo 'const goarchList = "$(GOARCH_LIST)"' >>$@
