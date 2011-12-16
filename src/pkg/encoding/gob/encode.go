@@ -483,6 +483,13 @@ func isZero(val reflect.Value) bool {
 		return val.Float() == 0
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return val.Uint() == 0
+	case reflect.Struct:
+		for i := 0; i < val.NumField(); i++ {
+			if !isZero(val.Field(i)) {
+				return false
+			}
+		}
+		return true
 	}
 	panic("unknown type in isZero " + val.Type().String())
 }

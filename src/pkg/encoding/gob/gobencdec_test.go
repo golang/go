@@ -13,6 +13,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Types that implement the GobEncoder/Decoder interfaces.
@@ -524,5 +525,32 @@ func TestGobEncoderExtraIndirect(t *testing.T) {
 	}
 	if got.foo != gdb.foo || got.bar != gdb.bar {
 		t.Errorf("got = %q, want %q", got, gdb)
+	}
+}
+
+// Another bug: this caused a crash with the new Go1 Time type.
+
+type TimeBug struct {
+	T time.Time
+	S string
+	I int
+}
+
+func TestGobEncodeTime(t *testing.T) {
+	x := TimeBug{time.Now(), "hello", -55}
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+	err := enc.Encode(x)
+	if err != nil {
+		t.Fatal("encode:", err)
+	}
+	var y TimeBug
+	dec := NewDecoder(b)
+	err = dec.Decode(&y)
+	if err != nil {
+		t.Fatal("decode:", err)
+	}
+	if x != y {
+		t.Fatal("%v != %v", x, y)
 	}
 }
