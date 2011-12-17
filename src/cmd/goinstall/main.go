@@ -249,6 +249,10 @@ func install(pkg, parent string) error {
 			printf("%s: download\n", pkg)
 			public, err = download(pkg, tree.SrcDir())
 			if err != nil {
+				// only suggest -fix if the bad import was not on the command line
+				if e, ok := err.(*errOldGoogleRepo); ok && parent != "" {
+					err = fmt.Errorf("%v\nRun goinstall with -fix to gofix the code.", e)
+				}
 				return &DownloadError{pkg, tree.Goroot, err}
 			}
 		} else {
