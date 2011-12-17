@@ -8,6 +8,8 @@ for targ in \
 	linux_386 \
 	linux_amd64 \
 	linux_arm \
+	netbsd_386 \
+	netbsd_amd64 \
 	openbsd_386 \
 	openbsd_amd64 \
 ; do
