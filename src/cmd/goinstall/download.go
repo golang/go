@@ -367,6 +367,14 @@ func (v *vcs) findURL(root string) (string, error) {
 
 var oldGoogleRepo = regexp.MustCompile(`^([a-z0-9\-]+)\.googlecode\.com/(svn|git|hg)(/[a-z0-9A-Z_.\-/]+)?$`)
 
+type errOldGoogleRepo struct {
+	fixedPath string
+}
+
+func (e *errOldGoogleRepo) Error() string {
+	return fmt.Sprintf("unsupported import path; should be %q", e.fixedPath)
+}
+
 // download checks out or updates the specified package from the remote server.
 func download(importPath, srcDir string) (public bool, err error) {
 	if strings.Contains(importPath, "..") {
@@ -376,11 +384,7 @@ func download(importPath, srcDir string) (public bool, err error) {
 
 	if m := oldGoogleRepo.FindStringSubmatch(importPath); m != nil {
 		fixedPath := "code.google.com/p/" + m[1] + m[3]
-		err = fmt.Errorf(
-			"unsupported import path; should be %q\n"+
-				"Run goinstall with -fix to gofix the code.",
-			fixedPath,
-		)
+		err = &errOldGoogleRepo{fixedPath}
 		return
 	}
 
