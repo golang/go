@@ -85,8 +85,8 @@ func (t *Tree) HasPkg(pkg string) bool {
 }
 
 var (
-	ErrNotFound     = errors.New("go/build: package could not be found locally")
-	ErrTreeNotFound = errors.New("go/build: no valid GOROOT or GOPATH could be found")
+	ErrNotFound     = errors.New("package could not be found locally")
+	ErrTreeNotFound = errors.New("no valid GOROOT or GOPATH could be found")
 )
 
 // FindTree takes an import or filesystem path and returns the
@@ -151,7 +151,7 @@ func init() {
 	root := runtime.GOROOT()
 	t, err := newTree(root)
 	if err != nil {
-		log.Printf("go/build: invalid GOROOT %q: %v", root, err)
+		log.Printf("invalid GOROOT %q: %v", root, err)
 	} else {
 		t.Goroot = true
 		Path = []*Tree{t}
@@ -163,7 +163,7 @@ func init() {
 		}
 		t, err := newTree(p)
 		if err != nil {
-			log.Printf("go/build: invalid GOPATH %q: %v", p, err)
+			log.Printf("invalid GOPATH %q: %v", p, err)
 			continue
 		}
 		Path = append(Path, t)
