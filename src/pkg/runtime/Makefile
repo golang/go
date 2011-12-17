@@ -63,7 +63,7 @@ OFILES_arm=\
 	softfloat_arm.$O\
 	vlop_arm.$O\
 	vlrt_arm.$O\
-	traceback_x86.$O\
+	traceback_arm.$O\
 
 OFILES=\
 	alg.$O\
