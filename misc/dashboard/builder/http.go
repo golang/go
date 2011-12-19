@@ -8,10 +8,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type obj map[string]interface{}
@@ -147,20 +149,19 @@ func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) erro
 	*/
 }
 
-func postCommit(key, pkg string, l *HgLog) bool {
-	err := dash("POST", "commit", url.Values{"key": {key}}, obj{
+func postCommit(key, pkg string, l *HgLog) error {
+	t, err := time.Parse(time.RFC3339, l.Date)
+	if err != nil {
+		return fmt.Errorf("parsing %q: %v", l.Date, t)
+	}
+	return dash("POST", "commit", url.Values{"key": {key}}, obj{
 		"PackagePath": pkg,
 		"Hash":        l.Hash,
 		"ParentHash":  l.Parent,
-		// TODO(adg): l.Date as int64 unix epoch secs in Time field
-		"User": l.Author,
-		"Desc": l.Desc,
+		"Time":        t.Unix() * 1e6, // in microseconds, yuck!
+		"User":        l.Author,
+		"Desc":        l.Desc,
 	}, nil)
-	if err != nil {
-		log.Printf("failed to add %s to dashboard: %v", key, err)
-		return false
-	}
-	return true
 }
 
 func dashboardCommit(pkg, hash string) bool {
