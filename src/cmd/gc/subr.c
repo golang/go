@@ -2636,20 +2636,27 @@ eqfield(Node *p, Node *q, Node *field, Node *eq)
 }
 
 static Node*
-eqmemfunc(vlong size)
+eqmemfunc(vlong size, Type *type)
 {
 	char buf[30];
+	Node *fn;
 
 	switch(size) {
+	default:
+		fn = syslook("memequal", 1);
+		break;
 	case 1:
 	case 2:
 	case 4:
 	case 8:
 	case 16:
 		snprint(buf, sizeof buf, "memequal%d", (int)size*8);
-		return syslook(buf, 0);
+		fn = syslook(buf, 1);
+		break;
 	}
-	return syslook("memequal", 0);
+	argtype(fn, type);
+	argtype(fn, type);
+	return fn;
 }
 
 // Return node for
@@ -2663,12 +2670,14 @@ eqmem(Node *p, Node *q, Node *field, vlong size, Node *eq)
 	nx->etype = 1;  // does not escape
 	ny = nod(OADDR, nod(OXDOT, q, field), N);
 	ny->etype = 1;  // does not escape
+	typecheck(&nx, Erv);
+	typecheck(&ny, Erv);
 
-	call = nod(OCALL, eqmemfunc(size), N);
+	call = nod(OCALL, eqmemfunc(size, nx->type->type), N);
 	call->list = list(call->list, eq);
 	call->list = list(call->list, nodintconst(size));
-	call->list = list(call->list, conv(nx, types[TUNSAFEPTR]));
-	call->list = list(call->list, conv(ny, types[TUNSAFEPTR]));
+	call->list = list(call->list, nx);
+	call->list = list(call->list, ny);
 
 	nif = nod(OIF, N, N);
 	nif->ninit = list(nif->ninit, call);

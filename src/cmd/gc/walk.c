@@ -2408,8 +2408,12 @@ eqfor(Type *t)
 	if(a != AMEM && a != -1)
 		fatal("eqfor %T", t);
 
-	if(a == AMEM)
-		return syslook("memequal", 0);
+	if(a == AMEM) {
+		n = syslook("memequal", 1);
+		argtype(n, t);
+		argtype(n, t);
+		return n;
+	}
 
 	sym = typesymprefix(".eq", t);
 	n = newname(sym);
@@ -2417,8 +2421,8 @@ eqfor(Type *t)
 	ntype = nod(OTFUNC, N, N);
 	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(ptrto(types[TBOOL]))));
 	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
-	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(types[TUNSAFEPTR])));
-	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(types[TUNSAFEPTR])));
+	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
+	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
 	typecheck(&ntype, Etype);
 	n->type = ntype->type;
 	return n;
@@ -2536,8 +2540,8 @@ walkcompare(Node **np, NodeList **init)
 	a->etype = 1;  // does not escape
 	call->list = list(call->list, a);
 	call->list = list(call->list, nodintconst(t->width));
-	call->list = list(call->list, conv(l, types[TUNSAFEPTR]));
-	call->list = list(call->list, conv(r, types[TUNSAFEPTR]));
+	call->list = list(call->list, l);
+	call->list = list(call->list, r);
 	typecheck(&call, Etop);
 	walkstmt(&call);
 	*init = list(*init, call);
