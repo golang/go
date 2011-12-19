@@ -6,7 +6,7 @@
 // System calls and other sys.stuff for 386, Linux
 //
 
-#include "asm_386.h"
+#include "zasm_GOOS_GOARCH.h"
 
 TEXT runtime·exit(SB),7,$0
 	MOVL	$252, AX	// syscall number

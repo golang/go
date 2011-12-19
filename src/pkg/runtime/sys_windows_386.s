@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "asm_386.h"
+#include "zasm_GOOS_GOARCH.h"
 
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),7,$0
