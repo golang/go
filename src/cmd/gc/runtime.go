@@ -8,8 +8,6 @@
 
 package PACKAGE
 
-import "unsafe"
-
 // emitted by compiler, not referred to by go programs
 
 func new(typ *byte) *any
@@ -123,12 +121,12 @@ func slicearray(old *any, nel uint64, lb uint64, hb uint64, width uint64) (ary [
 
 func closure() // has args, but compiler fills in
 
-func memequal(eq *bool, size uintptr, x, y unsafe.Pointer)
-func memequal8(eq *bool, size uintptr, x, y unsafe.Pointer)
-func memequal16(eq *bool, size uintptr, x, y unsafe.Pointer)
-func memequal32(eq *bool, size uintptr, x, y unsafe.Pointer)
-func memequal64(eq *bool, size uintptr, x, y unsafe.Pointer)
-func memequal128(eq *bool, size uintptr, x, y unsafe.Pointer)
+func memequal(eq *bool, size uintptr, x, y *any)
+func memequal8(eq *bool, size uintptr, x, y *any)
+func memequal16(eq *bool, size uintptr, x, y *any)
+func memequal32(eq *bool, size uintptr, x, y *any)
+func memequal64(eq *bool, size uintptr, x, y *any)
+func memequal128(eq *bool, size uintptr, x, y *any)
 
 // only used on 32-bit
 func int64div(int64, int64) int64
