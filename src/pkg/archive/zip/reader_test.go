@@ -163,10 +163,10 @@ func readTestZip(t *testing.T, zt ZipTest) {
 	done := make(chan bool)
 	for i := 0; i < 5; i++ {
 		for j, ft := range zt.File {
-			go func() {
+			go func(j int, ft ZipTestFile) {
 				readTestFile(t, ft, z.File[j])
 				done <- true
-			}()
+			}(j, ft)
 			n++
 		}
 	}
