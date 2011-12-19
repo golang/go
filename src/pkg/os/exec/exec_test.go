@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"runtime"
 	"strconv"
@@ -146,6 +147,15 @@ func TestExtraFiles(t *testing.T) {
 		t.Logf("no operating system support; skipping")
 		return
 	}
+
+	// Force network usage, to verify the epoll (or whatever) fd
+	// doesn't leak to the child,
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
 	tf, err := ioutil.TempFile("", "")
 	if err != nil {
 		t.Fatalf("TempFile: %v", err)
@@ -167,7 +177,7 @@ func TestExtraFiles(t *testing.T) {
 	c.ExtraFiles = []*os.File{tf}
 	bs, err := c.CombinedOutput()
 	if err != nil {
-		t.Fatalf("CombinedOutput: %v", err)
+		t.Fatalf("CombinedOutput: %v; output %q", err, bs)
 	}
 	if string(bs) != text {
 		t.Errorf("got %q; want %q", string(bs), text)
@@ -245,6 +255,29 @@ func TestHelperProcess(*testing.T) {
 		if err != nil {
 			fmt.Printf("ReadAll from fd 3: %v", err)
 			os.Exit(1)
+		}
+		// TODO(bradfitz,iant): the rest of this test is disabled
+		// for now. remove this block once 5494061 is in.
+		{
+			os.Stderr.Write(bs)
+			os.Exit(0)
+		}
+		// Now verify that there are no other open fds.
+		var files []*os.File
+		for wantfd := os.Stderr.Fd() + 2; wantfd <= 100; wantfd++ {
+			f, err := os.Open(os.Args[0])
+			if err != nil {
+				fmt.Printf("error opening file with expected fd %d: %v", wantfd, err)
+				os.Exit(1)
+			}
+			if got := f.Fd(); got != wantfd {
+				fmt.Printf("leaked parent file. fd = %d; want %d", got, wantfd)
+				os.Exit(1)
+			}
+			files = append(files, f)
+		}
+		for _, f := range files {
+			f.Close()
 		}
 		os.Stderr.Write(bs)
 	case "exit":
