@@ -14,9 +14,9 @@ package strconv
 type decimal struct {
 	// TODO(rsc): Can make d[] a bit smaller and add
 	// truncated bool;
-	d   [2000]byte // digits
-	nd  int        // number of digits used
-	dp  int        // decimal point
+	d   [800]byte // digits
+	nd  int       // number of digits used
+	dp  int       // decimal point
 	neg bool
 }
 
