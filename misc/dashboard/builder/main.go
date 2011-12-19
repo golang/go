@@ -536,7 +536,7 @@ const xmlLogTemplate = `
 	<hash>{node|escape}</hash>
 	<parent>{parent|escape}</parent>
 	<author>{author|escape}</author>
-	<date>{date}</date>
+	<date>{date|rfc3339date}</date>
 	<desc>{desc|escape}</desc>
 	</log>
 `
@@ -652,7 +652,11 @@ func addCommit(pkg, hash, key string) bool {
 	}
 
 	// Create commit.
-	return postCommit(key, pkg, l)
+	if err := postCommit(key, pkg, l); err != nil {
+		log.Printf("failed to add %s to dashboard: %v", key, err)
+		return false
+	}
+	return true
 }
 
 // fullHash returns the full hash for the given Mercurial revision.
