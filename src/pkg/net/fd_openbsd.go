@@ -26,6 +26,7 @@ func newpollster() (p *pollster, err error) {
 	if p.kq, err = syscall.Kqueue(); err != nil {
 		return nil, os.NewSyscallError("kqueue", err)
 	}
+	syscall.CloseOnExec(p.kq)
 	p.events = p.eventbuf[0:0]
 	return p, nil
 }
