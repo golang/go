@@ -26,6 +26,7 @@ my $errors = 0;
 my $_32bit = "";
 my $plan9 = 0;
 my $openbsd = 0;
+my $netbsd = 0;
 
 if($ARGV[0] eq "-b32") {
 	$_32bit = "big-endian";
@@ -40,6 +41,10 @@ if($ARGV[0] eq "-plan9") {
 }
 if($ARGV[0] eq "-openbsd") {
 	$openbsd = 1;
+	shift;
+}
+if($ARGV[0] eq "-netbsd") {
+	$netbsd = 1;
 	shift;
 }
 
@@ -120,7 +125,7 @@ while(<>) {
 			$text .= "\n";
 			push @args, "uintptr(_p$n)", "uintptr(len($name))";
 			$n++;
-		} elsif($type eq "int64" && $openbsd) {
+		} elsif($type eq "int64" && ($openbsd || $netbsd)) {
 			push @args, "0";
 			if($_32bit eq "big-endian") {
 				push @args, "uintptr($name>>32)", "uintptr($name)";
