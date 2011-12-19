@@ -246,4 +246,4 @@ endif
 	$(CC) $(CFLAGS) -I . -o "$@" _obj/$*.c
 
 %.$O: %.s $(HFILES)
-	$(AS) $*.s
+	$(AS) $(AFLAGS) $*.s

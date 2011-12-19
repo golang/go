@@ -6,7 +6,7 @@
 // System calls and other sys.stuff for AMD64, Linux
 //
 
-#include "asm_amd64.h"
+#include "zasm_GOOS_GOARCH.h"
 
 TEXT runtime·exit(SB),7,$0-8
 	MOVL	8(SP), DI

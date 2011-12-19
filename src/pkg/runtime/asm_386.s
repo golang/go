@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "asm_386.h"
+#include "zasm_GOOS_GOARCH.h"
 
 TEXT _rt0_386(SB),7,$0
 	// Linux, Windows start the FPU in extended double precision.
