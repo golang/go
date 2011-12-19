@@ -5,8 +5,8 @@
 package tls
 
 import (
+	"crypto"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"io"
 	"strings"
@@ -255,7 +255,7 @@ func (c *Config) BuildNameToCertificate() {
 // A Certificate is a chain of one or more certificates, leaf first.
 type Certificate struct {
 	Certificate [][]byte
-	PrivateKey  *rsa.PrivateKey
+	PrivateKey  crypto.PrivateKey // supported types: *rsa.PrivateKey
 	// OCSPStaple contains an optional OCSP response which will be served
 	// to clients that request it.
 	OCSPStaple []byte

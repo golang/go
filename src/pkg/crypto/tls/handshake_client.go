@@ -234,7 +234,7 @@ func (c *Conn) clientHandshake() error {
 		digest := make([]byte, 0, 36)
 		digest = finishedHash.serverMD5.Sum(digest)
 		digest = finishedHash.serverSHA1.Sum(digest)
-		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey, crypto.MD5SHA1, digest)
+		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey.(*rsa.PrivateKey), crypto.MD5SHA1, digest)
 		if err != nil {
 			return c.sendAlert(alertInternalError)
 		}

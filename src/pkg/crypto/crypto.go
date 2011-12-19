@@ -71,3 +71,6 @@ func RegisterHash(h Hash, f func() hash.Hash) {
 	}
 	hashes[h] = f
 }
+
+// PrivateKey represents a private key using an unspecified algorithm.
+type PrivateKey interface{}
