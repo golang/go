@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"testing"
+	"time"
 )
 
 type stringReaderAt string
@@ -53,5 +54,15 @@ func TestOver65kFiles(t *testing.T) {
 		if zr.File[i].Name != want {
 			t.Fatalf("File(%d) = %q, want %q", i, zr.File[i].Name, want)
 		}
+	}
+}
+
+func TestModTime(t *testing.T) {
+	var testTime = time.Date(2009, time.November, 10, 23, 45, 58, 0, time.UTC)
+	fh := new(FileHeader)
+	fh.SetModTime(testTime)
+	outTime := fh.ModTime()
+	if !outTime.Equal(testTime) {
+		t.Errorf("times don't match: got %s, want %s", outTime, testTime)
 	}
 }
