@@ -96,10 +96,26 @@ func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
 	)
 }
 
+// timeToMsDosTime converts a time.Time to an MS-DOS date and time.
+// The resolution is 2s.
+// See: http://msdn.microsoft.com/en-us/library/ms724274(v=VS.85).aspx
+func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
+	t = t.In(time.UTC)
+	fDate = uint16(t.Day() + int(t.Month())<<5 + (t.Year()-1980)<<9)
+	fTime = uint16(t.Second()/2 + t.Minute()<<5 + t.Hour()<<11)
+	return
+}
+
 // ModTime returns the modification time.
 // The resolution is 2s.
 func (h *FileHeader) ModTime() time.Time {
 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
+}
+
+// SetModTime sets the ModifiedTime and ModifiedDate fields to the given time.
+// The resolution is 2s.
+func (h *FileHeader) SetModTime(t time.Time) {
+	h.ModifiedDate, h.ModifiedTime = timeToMsDosTime(t)
 }
 
 // traditional names for Unix constants
