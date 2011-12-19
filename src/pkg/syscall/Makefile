@@ -54,7 +54,6 @@ GOFILES_netbsd=\
 	sockcmsg_unix.go\
 	syscall_bsd.go\
 	syscall_unix.go\
-	zsysctl_netbsd.go\
 
 GOFILES_openbsd=\
 	bpf_bsd.go\
