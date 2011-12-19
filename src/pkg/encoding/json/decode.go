@@ -228,7 +228,9 @@ func (d *decodeState) value(v reflect.Value) {
 		// Feed in an empty string - the shortest, simplest value -
 		// so that it knows we got to the end of the value.
 		if d.scan.redo {
-			panic("redo")
+			// rewind.
+			d.scan.redo = false
+			d.scan.step = stateBeginValue
 		}
 		d.scan.step(&d.scan, '"')
 		d.scan.step(&d.scan, '"')
@@ -317,24 +319,21 @@ func (d *decodeState) array(v reflect.Value) {
 	}
 	v = pv
 
-	// Decoding into nil interface?  Switch to non-reflect code.
-	iv := v
-	ok := iv.Kind() == reflect.Interface
-	if ok {
-		iv.Set(reflect.ValueOf(d.arrayInterface()))
-		return
-	}
-
 	// Check type of target.
-	av := v
-	if av.Kind() != reflect.Array && av.Kind() != reflect.Slice {
+	switch v.Kind() {
+	default:
 		d.saveError(&UnmarshalTypeError{"array", v.Type()})
 		d.off--
 		d.next()
 		return
+	case reflect.Interface:
+		// Decoding into nil interface?  Switch to non-reflect code.
+		v.Set(reflect.ValueOf(d.arrayInterface()))
+		return
+	case reflect.Array:
+	case reflect.Slice:
+		break
 	}
-
-	sv := v
 
 	i := 0
 	for {
@@ -349,23 +348,25 @@ func (d *decodeState) array(v reflect.Value) {
 		d.scan.undo(op)
 
 		// Get element of array, growing if necessary.
-		if i >= av.Cap() && sv.IsValid() {
-			newcap := sv.Cap() + sv.Cap()/2
-			if newcap < 4 {
-				newcap = 4
+		if v.Kind() == reflect.Slice {
+			// Grow slice if necessary
+			if i >= v.Cap() {
+				newcap := v.Cap() + v.Cap()/2
+				if newcap < 4 {
+					newcap = 4
+				}
+				newv := reflect.MakeSlice(v.Type(), v.Len(), newcap)
+				reflect.Copy(newv, v)
+				v.Set(newv)
 			}
-			newv := reflect.MakeSlice(sv.Type(), sv.Len(), newcap)
-			reflect.Copy(newv, sv)
-			sv.Set(newv)
-		}
-		if i >= av.Len() && sv.IsValid() {
-			// Must be slice; gave up on array during i >= av.Cap().
-			sv.SetLen(i + 1)
+			if i >= v.Len() {
+				v.SetLen(i + 1)
+			}
 		}
 
-		// Decode into element.
-		if i < av.Len() {
-			d.value(av.Index(i))
+		if i < v.Len() {
+			// Decode into element.
+			d.value(v.Index(i))
 		} else {
 			// Ran out of fixed array: skip.
 			d.value(reflect.Value{})
@@ -382,19 +383,19 @@ func (d *decodeState) array(v reflect.Value) {
 		}
 	}
 
-	if i < av.Len() {
-		if !sv.IsValid() {
+	if i < v.Len() {
+		if v.Kind() == reflect.Array {
 			// Array.  Zero the rest.
-			z := reflect.Zero(av.Type().Elem())
-			for ; i < av.Len(); i++ {
-				av.Index(i).Set(z)
+			z := reflect.Zero(v.Type().Elem())
+			for ; i < v.Len(); i++ {
+				v.Index(i).Set(z)
 			}
 		} else {
-			sv.SetLen(i)
+			v.SetLen(i)
 		}
 	}
-	if i == 0 && av.Kind() == reflect.Slice && sv.IsNil() {
-		sv.Set(reflect.MakeSlice(sv.Type(), 0, 0))
+	if i == 0 && v.Kind() == reflect.Slice {
+		v.Set(reflect.MakeSlice(v.Type(), 0, 0))
 	}
 }
 

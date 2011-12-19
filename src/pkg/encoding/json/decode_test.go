@@ -74,6 +74,12 @@ var unmarshalTests = []unmarshalTest{
 
 	// syntax errors
 	{`{"X": "foo", "Y"}`, nil, nil, &SyntaxError{"invalid character '}' after object key", 17}},
+	{`[1, 2, 3+]`, nil, nil, &SyntaxError{"invalid character '+' after array element", 9}},
+
+	// array tests
+	{`[1, 2, 3]`, new([3]int), [3]int{1, 2, 3}, nil},
+	{`[1, 2, 3]`, new([1]int), [1]int{1}, nil},
+	{`[1, 2, 3]`, new([5]int), [5]int{1, 2, 3, 0, 0}, nil},
 
 	// composite tests
 	{allValueIndent, new(All), allValue, nil},
