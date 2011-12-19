@@ -60,6 +60,7 @@ func TestWriteFile(t *testing.T) {
 	}
 
 	// cleanup
+	f.Close()
 	os.Remove(filename) // ignore error
 }
 
