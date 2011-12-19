@@ -10,6 +10,7 @@ GOFILES=\
 	atof.go\
 	atoi.go\
 	decimal.go\
+	extfloat.go\
 	ftoa.go\
 	itoa.go\
 	quote.go\
