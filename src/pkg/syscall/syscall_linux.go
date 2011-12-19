@@ -806,6 +806,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sysnb	Dup(oldfd int) (fd int, err error)
 //sysnb	Dup2(oldfd int, newfd int) (fd int, err error)
 //sysnb	EpollCreate(size int) (fd int, err error)
+//sysnb	EpollCreate1(flag int) (fd int, err error)
 //sysnb	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (err error)
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Exit(code int) = SYS_EXIT_GROUP

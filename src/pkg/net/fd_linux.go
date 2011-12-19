@@ -37,11 +37,17 @@ func newpollster() (p *pollster, err error) {
 	p = new(pollster)
 	var e error
 
-	// The arg to epoll_create is a hint to the kernel
-	// about the number of FDs we will care about.
-	// We don't know, and since 2.6.8 the kernel ignores it anyhow.
-	if p.epfd, e = syscall.EpollCreate(16); e != nil {
-		return nil, os.NewSyscallError("epoll_create", e)
+	if p.epfd, e = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC); e != nil {
+		if e != syscall.ENOSYS {
+			return nil, os.NewSyscallError("epoll_create1", e)
+		}
+		// The arg to epoll_create is a hint to the kernel
+		// about the number of FDs we will care about.
+		// We don't know, and since 2.6.8 the kernel ignores it anyhow.
+		if p.epfd, e = syscall.EpollCreate(16); e != nil {
+			return nil, os.NewSyscallError("epoll_create", e)
+		}
+		syscall.CloseOnExec(p.epfd)
 	}
 	p.events = make(map[int]uint32)
 	return p, nil
