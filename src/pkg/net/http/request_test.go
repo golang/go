@@ -202,8 +202,8 @@ func validateTestMultipartContents(t *testing.T, req *Request, allMem bool) {
 	if g, e := req.FormValue("texta"), textaValue; g != e {
 		t.Errorf("texta value = %q, want %q", g, e)
 	}
-	if g, e := req.FormValue("texta"), textaValue; g != e {
-		t.Errorf("texta value = %q, want %q", g, e)
+	if g, e := req.FormValue("textb"), textbValue; g != e {
+		t.Errorf("textb value = %q, want %q", g, e)
 	}
 	if g := req.FormValue("missing"); g != "" {
 		t.Errorf("missing value = %q, want empty string", g)
