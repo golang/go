@@ -1585,6 +1585,17 @@ func afterAfterFramesetIM(p *parser) bool {
 // Section 12.2.5.5.
 func inForeignContentIM(p *parser) bool {
 	switch p.tok.Type {
+	case TextToken:
+		// TODO: HTML integration points.
+		if p.top().Namespace == "" {
+			inBodyIM(p)
+			p.resetInsertionMode()
+			return true
+		}
+		if p.framesetOK {
+			p.framesetOK = strings.TrimLeft(p.tok.Data, whitespace) == ""
+		}
+		p.addText(p.tok.Data)
 	case CommentToken:
 		p.addChild(&Node{
 			Type: CommentNode,
