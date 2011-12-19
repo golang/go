@@ -1206,6 +1206,13 @@ func inTableBodyIM(p *parser) bool {
 			add = true
 			data = "tr"
 			consumed = false
+		case "caption", "col", "colgroup", "tbody", "tfoot", "thead":
+			if !p.popUntil(tableScopeStopTags, "tbody", "thead", "tfoot") {
+				// Ignore the token.
+				return true
+			}
+			p.im = inTableIM
+			return false
 		default:
 			// TODO.
 		}
