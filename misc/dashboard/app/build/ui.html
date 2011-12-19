@@ -29,11 +29,15 @@
       .build tr:nth-child(2n) {
         background-color: #f0f0f0;
       }
+      .build .hash {
+      	font-family: monospace;
+      }
       .build .result {
         text-align: center;
         width: 50px;
       }
       .build .time {
+      	font-family: monospace;
         color: #666;
       }
       .build .descr, .build .time, .build .user {
@@ -83,9 +87,9 @@
       {{end}}
       </td>
       {{end}}
-      <td class="user">{{.User}}</td>
-      <td class="time">{{.Time.Time}}</td>
-      <td class="desc">{{.Desc}}</td>
+      <td class="user">{{shortUser .User}}</td>
+      <td class="time">{{.Time.Time.Format "02 Jan 2006 15:04"}}</td>
+      <td class="desc">{{shortDesc .Desc}}</td>
       </tr>
     {{end}}
     </table>

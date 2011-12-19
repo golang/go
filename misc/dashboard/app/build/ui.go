@@ -148,7 +148,9 @@ var uiTemplate = template.Must(
 	template.New("ui").
 		Funcs(template.FuncMap{
 			"builderTitle": builderTitle,
+			"shortDesc":    shortDesc,
 			"shortHash":    shortHash,
+			"shortUser":    shortUser,
 			"repoURL":      repoURL,
 		}).
 		ParseFile("build/ui.html"),
@@ -159,12 +161,31 @@ func builderTitle(s string) string {
 	return strings.Replace(s, "-", " ", -1)
 }
 
-// shortHash returns a the short version of a hash.
+// shortDesc returns the first line of a description.
+func shortDesc(desc string) string {
+	if i := strings.Index(desc, "\n"); i != -1 {
+		desc = desc[:i]
+	}
+	return desc
+}
+
+// shortHash returns a short version of a hash.
 func shortHash(hash string) string {
 	if len(hash) > 12 {
 		hash = hash[:12]
 	}
 	return hash
+}
+
+// shortUser returns a shortened version of a user string.
+func shortUser(user string) string {
+	if i, j := strings.Index(user, "<"), strings.Index(user, ">"); i != -1 && j > i {
+		user = user[i+1 : j]
+		if k := strings.Index(user, "@golang.org"); k != -1 {
+			user = user[:k]
+		}
+	}
+	return user
 }
 
 // repoRe matches Google Code repositories and subrepositories (without paths).
