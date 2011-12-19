@@ -20,12 +20,14 @@
     may or may not build or be safe to use.
     </p>
 
+<!--
     <p>
     An "ok" in the <b>build</b> column indicates that the package is
     <a href="http://golang.org/cmd/goinstall/">goinstallable</a>
     with the latest
     <a href="http://golang.org/doc/devel/release.html">release</a> of Go.
     </p>
+-->
 
     <p>
     The <b>info</b> column shows the first paragraph from the
@@ -39,7 +41,7 @@
         <tr>
           <td class="time">{{r.last_install|date:"Y-M-d H:i"}}</td>
           <td class="count">{{r.week_count}}</td>
-          <td class="ok">{% if r.ok %}<a title="{{r.last_ok|date:"Y-M-d H:i"}}">ok</a>{% else %}&nbsp;{% endif %}</td>
+<!--          <td class="ok">{% if r.ok %}<a title="{{r.last_ok|date:"Y-M-d H:i"}}">ok</a>{% else %}&nbsp;{% endif %}</td> -->
           <td class="path"><a href="{{r.web_url}}">{{r.path}}</a></td>
           <td class="info">{% if r.info %}{{r.info|escape}}{% endif %}</td>
         </tr>
@@ -53,7 +55,7 @@
         <tr>
           <td class="time">{{r.last_install|date:"Y-M-d H:i"}}</td>
           <td class="count">{{r.count}}</td>
-          <td class="ok">{% if r.ok %}<a title="{{r.last_ok|date:"Y-M-d H:i"}}">ok</a>{% else %}&nbsp;{% endif %}</td>
+<!--          <td class="ok">{% if r.ok %}<a title="{{r.last_ok|date:"Y-M-d H:i"}}">ok</a>{% else %}&nbsp;{% endif %}</td> -->
           <td class="path"><a href="{{r.web_url}}">{{r.path}}</a></td>
           <td class="info">{% if r.info %}{{r.info|escape}}{% endif %}</td>
         </tr>
@@ -67,7 +69,7 @@
         <tr>
           <td class="time">{{r.last_install|date:"Y-M-d H:i"}}</td>
           <td class="count">{{r.count}}</td>
-          <td class="ok">{% if r.ok %}<a title="{{r.last_ok|date:"Y-M-d H:i"}}">ok</a>{% else %}&nbsp;{% endif %}</td>
+<!--          <td class="ok">{% if r.ok %}<a title="{{r.last_ok|date:"Y-M-d H:i"}}">ok</a>{% else %}&nbsp;{% endif %}</td> -->
           <td class="path"><a href="{{r.web_url}}">{{r.path}}</a></td>
           <td class="info">{% if r.info %}{{r.info|escape}}{% endif %}</td>
         </tr>
