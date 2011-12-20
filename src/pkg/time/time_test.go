@@ -7,6 +7,7 @@ package time_test
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"strconv"
 	"strings"
 	"testing"
@@ -694,6 +695,12 @@ func TestAddToExactSecond(t *testing.T) {
 	}
 }
 
+func equalTimeAndZone(a, b Time) bool {
+	aname, aoffset := a.Zone()
+	bname, boffset := b.Zone()
+	return a.Equal(b) && aoffset == boffset && aname == bname
+}
+
 var gobTests = []Time{
 	Date(0, 1, 2, 3, 4, 5, 6, UTC),
 	Date(7, 8, 9, 10, 11, 12, 13, FixedZone("", 0)),
@@ -713,12 +720,8 @@ func TestTimeGob(t *testing.T) {
 			t.Errorf("%v gob Encode error = %q, want nil", tt, err)
 		} else if err := dec.Decode(&gobtt); err != nil {
 			t.Errorf("%v gob Decode error = %q, want nil", tt, err)
-		} else {
-			gobname, goboffset := gobtt.Zone()
-			name, offset := tt.Zone()
-			if !gobtt.Equal(tt) || goboffset != offset || gobname != name {
-				t.Errorf("Decoded time = %v, want %v", gobtt, tt)
-			}
+		} else if !equalTimeAndZone(gobtt, tt) {
+			t.Errorf("Decoded time = %v, want %v", gobtt, tt)
 		}
 		b.Reset()
 	}
@@ -758,6 +761,57 @@ func TestNotGobEncodableTime(t *testing.T) {
 		_, err := tt.time.GobEncode()
 		if err == nil || err.Error() != tt.want {
 			t.Errorf("%v GobEncode error = %v, want %v", tt.time, err, tt.want)
+		}
+	}
+}
+
+var jsonTests = []struct {
+	time Time
+	json string
+}{
+	{Date(9999, 4, 12, 23, 20, 50, .52*1e9, UTC), `"9999-04-12T23:20:50.52Z"`},
+	{Date(1996, 12, 19, 16, 39, 57, 0, Local), `"1996-12-19T16:39:57-08:00"`},
+	{Date(0, 1, 1, 0, 0, 0, 1, FixedZone("", 1*60)), `"0000-01-01T00:00:00.000000001+00:01"`},
+}
+
+func TestTimeJSON(t *testing.T) {
+	for _, tt := range jsonTests {
+		var jsonTime Time
+
+		if jsonBytes, err := json.Marshal(tt.time); err != nil {
+			t.Errorf("%v json.Marshal error = %v, want nil", tt.time, err)
+		} else if string(jsonBytes) != tt.json {
+			t.Errorf("%v JSON = %q, want %q", tt.time, string(jsonBytes), tt.json)
+		} else if err = json.Unmarshal(jsonBytes, &jsonTime); err != nil {
+			t.Errorf("%v json.Unmarshal error = %v, want nil", tt.time, err)
+		} else if !equalTimeAndZone(jsonTime, tt.time) {
+			t.Errorf("Unmarshaled time = %v, want %v", jsonTime, tt.time)
+		}
+	}
+}
+
+func TestInvalidTimeJSON(t *testing.T) {
+	var tt Time
+	err := json.Unmarshal([]byte(`{"now is the time":"buddy"}`), &tt)
+	_, isParseErr := err.(*ParseError)
+	if !isParseErr {
+		t.Errorf("expected *time.ParseError unmarshaling JSON, got %v", err)
+	}
+}
+
+var notJSONEncodableTimes = []struct {
+	time Time
+	want string
+}{
+	{Date(10000, 1, 1, 0, 0, 0, 0, UTC), "Time.MarshalJSON: year outside of range [0,9999]"},
+	{Date(-1, 1, 1, 0, 0, 0, 0, UTC), "Time.MarshalJSON: year outside of range [0,9999]"},
+}
+
+func TestNotJSONEncodableTime(t *testing.T) {
+	for _, tt := range notJSONEncodableTimes {
+		_, err := tt.time.MarshalJSON()
+		if err == nil || err.Error() != tt.want {
+			t.Errorf("%v MarshalJSON error = %v, want %v", tt.time, err, tt.want)
 		}
 	}
 }
