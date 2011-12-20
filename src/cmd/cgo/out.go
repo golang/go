@@ -599,8 +599,11 @@ func c(repr string, args ...interface{}) *TypeRepr {
 
 // Map predeclared Go types to Type.
 var goTypes = map[string]*Type{
+	"bool":       {Size: 1, Align: 1, C: c("uchar")},
+	"byte":       {Size: 1, Align: 1, C: c("uchar")},
 	"int":        {Size: 4, Align: 4, C: c("int")},
 	"uint":       {Size: 4, Align: 4, C: c("uint")},
+	"rune":       {Size: 4, Align: 4, C: c("int")},
 	"int8":       {Size: 1, Align: 1, C: c("schar")},
 	"uint8":      {Size: 1, Align: 1, C: c("uchar")},
 	"int16":      {Size: 2, Align: 2, C: c("short")},
@@ -632,7 +635,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 	case *ast.FuncType:
 		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*")}
 	case *ast.InterfaceType:
-		return &Type{Size: 3 * p.PtrSize, Align: p.PtrSize, C: c("GoInterface")}
+		return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoInterface")}
 	case *ast.MapType:
 		return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("GoMap")}
 	case *ast.ChanType:
@@ -665,6 +668,9 @@ func (p *Package) cgoType(e ast.Expr) *Type {
 		}
 		if t.Name == "string" {
 			return &Type{Size: p.PtrSize + 4, Align: p.PtrSize, C: c("GoString")}
+		}
+		if t.Name == "error" {
+			return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoInterface")}
 		}
 		if r, ok := goTypes[t.Name]; ok {
 			if r.Align > p.PtrSize {

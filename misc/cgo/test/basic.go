@@ -128,9 +128,9 @@ func testMultipleAssign(t *testing.T) {
 }
 
 var (
-	uint  = (C.uint)(0)
-	ulong C.ulong
-	char  C.char
+	cuint  = (C.uint)(0)
+	culong C.ulong
+	cchar  C.char
 )
 
 type Context struct {
