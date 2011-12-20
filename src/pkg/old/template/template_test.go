@@ -468,7 +468,11 @@ func TestAll(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(f.Name())
+	defer func() {
+		name := f.Name()
+		f.Close()
+		os.Remove(name)
+	}()
 	testAll(t, func(test *Test) (*Template, error) {
 		err := ioutil.WriteFile(f.Name(), []byte(test.in), 0600)
 		if err != nil {
