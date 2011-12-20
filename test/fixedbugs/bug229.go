@@ -12,9 +12,9 @@ func main() {
 	var t testing.T
 	
 	// make sure error mentions that
-	// ch is unexported, not just "ch not found".
+	// name is unexported, not just "name not found".
 
-	t.ch = nil	// ERROR "unexported"
+	t.name = nil	// ERROR "unexported"
 	
 	println(testing.anyLowercaseName("asdf"))	// ERROR "unexported" "undefined: testing.anyLowercaseName"
 }
