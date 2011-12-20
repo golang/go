@@ -84,7 +84,7 @@ func BenchmarkCodeEncoder(b *testing.B) {
 	enc := NewEncoder(ioutil.Discard)
 	for i := 0; i < b.N; i++ {
 		if err := enc.Encode(&codeStruct); err != nil {
-			panic(err)
+			b.Fatal("Encode:", err)
 		}
 	}
 	b.SetBytes(int64(len(codeJSON)))
@@ -98,7 +98,7 @@ func BenchmarkCodeMarshal(b *testing.B) {
 	}
 	for i := 0; i < b.N; i++ {
 		if _, err := Marshal(&codeStruct); err != nil {
-			panic(err)
+			b.Fatal("Marshal:", err)
 		}
 	}
 	b.SetBytes(int64(len(codeJSON)))
@@ -120,7 +120,7 @@ func BenchmarkCodeDecoder(b *testing.B) {
 		buf.WriteByte('\n')
 		buf.WriteByte('\n')
 		if err := dec.Decode(&r); err != nil {
-			panic(err)
+			b.Fatal("Decode:", err)
 		}
 	}
 	b.SetBytes(int64(len(codeJSON)))
@@ -135,7 +135,7 @@ func BenchmarkCodeUnmarshal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var r codeResponse
 		if err := Unmarshal(codeJSON, &r); err != nil {
-			panic(err)
+			b.Fatal("Unmmarshal:", err)
 		}
 	}
 	b.SetBytes(int64(len(codeJSON)))
@@ -150,7 +150,7 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
 	var r codeResponse
 	for i := 0; i < b.N; i++ {
 		if err := Unmarshal(codeJSON, &r); err != nil {
-			panic(err)
+			b.Fatal("Unmmarshal:", err)
 		}
 	}
 	b.SetBytes(int64(len(codeJSON)))

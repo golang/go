@@ -125,7 +125,7 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
 		}
 	}
 	if !img.Opaque() {
-		panic("expected image to be opaque")
+		b.Fatal("expected image to be opaque")
 	}
 	b.SetBytes(640 * 480 * 4)
 	b.StartTimer()
@@ -138,7 +138,7 @@ func BenchmarkEncodeRGBA(b *testing.B) {
 	b.StopTimer()
 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
 	if img.Opaque() {
-		panic("expected image to not be opaque")
+		b.Fatal("expected image to not be opaque")
 	}
 	b.SetBytes(640 * 480 * 4)
 	b.StartTimer()

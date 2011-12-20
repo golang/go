@@ -183,11 +183,11 @@ const (
 
 func (e *Error) Error() string {
 	if e.Line != 0 {
-		return fmt.Sprintf("exp/template/html:%s:%d: %s", e.Name, e.Line, e.Description)
+		return fmt.Sprintf("html/template:%s:%d: %s", e.Name, e.Line, e.Description)
 	} else if e.Name != "" {
-		return fmt.Sprintf("exp/template/html:%s: %s", e.Name, e.Description)
+		return fmt.Sprintf("html/template:%s: %s", e.Name, e.Description)
 	}
-	return "exp/template/html: " + e.Description
+	return "html/template: " + e.Description
 }
 
 // errorf creates an error given a format string f and args.

@@ -5,7 +5,6 @@
 package big
 
 import (
-	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -402,7 +401,7 @@ func ScanHelper(b *testing.B, base int, x, y Word) {
 	var s string
 	s = z.string(lowercaseDigits[0:base])
 	if t := toString(z, lowercaseDigits[0:base]); t != s {
-		panic(fmt.Sprintf("scanning: got %s; want %s", s, t))
+		b.Fatalf("scanning: got %s; want %s", s, t)
 	}
 	b.StartTimer()
 

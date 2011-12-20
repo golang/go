@@ -197,7 +197,7 @@ func BenchmarkReadStruct(b *testing.B) {
 	}
 	b.StopTimer()
 	if !reflect.DeepEqual(s, t) {
-		panic("no match")
+		b.Fatal("no match")
 	}
 }
 
@@ -251,6 +251,6 @@ func BenchmarkWriteInts(b *testing.B) {
 	}
 	b.StopTimer()
 	if !bytes.Equal(buf.Bytes(), big[:30]) {
-		panic("first half doesn't match")
+		b.Fatalf("first half doesn't match: %x %x", buf.Bytes(), big[:30])
 	}
 }
