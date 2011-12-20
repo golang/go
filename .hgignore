@@ -49,12 +49,17 @@ src/pkg/exp/ebnflint/ebnflint
 src/pkg/go/build/syslist.go
 src/pkg/go/doc/headscan
 src/pkg/runtime/*/asm.h
+src/pkg/runtime/arch_GOARCH.h
+src/pkg/runtime/defs_GOOS_GOARCH.h
 src/pkg/runtime/goc2c
 src/pkg/runtime/mkversion
+src/pkg/runtime/os_GOOS.h
 src/pkg/runtime/runtime.acid.*
 src/pkg/runtime/runtime_defs.go
+src/pkg/runtime/signals_GOOS.h
 src/pkg/runtime/version.go
 src/pkg/runtime/version_*.go
+src/pkg/runtime/z*
 src/pkg/unicode/maketables
 src/pkg/*.*/
 test/pass.out
