@@ -256,8 +256,9 @@ func TestHelperProcess(*testing.T) {
 			fmt.Printf("ReadAll from fd 3: %v", err)
 			os.Exit(1)
 		}
-		// TODO(bradfitz,iant): the rest of this test is disabled
-		// for now. remove this block once we figure out why it fails.
+		// TODO(bradfitz): remove this block once the builders are restarted
+		// with a new binary including be47ea17bea0 (set CLOEXEC on epoll/kqueue fds)
+		// and 5500053 (don't trust O_CLOEXEC on OS X).
 		{
 			os.Stderr.Write(bs)
 			os.Exit(0)
