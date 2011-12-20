@@ -377,14 +377,6 @@ func (fd *netFD) CloseWrite() error {
 	return fd.shutdown(syscall.SHUT_WR)
 }
 
-type timeoutError struct{}
-
-func (e *timeoutError) Error() string   { return "i/o timeout" }
-func (e *timeoutError) Timeout() bool   { return true }
-func (e *timeoutError) Temporary() bool { return true }
-
-var errTimeout error = &timeoutError{}
-
 func (fd *netFD) Read(p []byte) (n int, err error) {
 	if fd == nil {
 		return 0, os.EINVAL
