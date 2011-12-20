@@ -59,7 +59,7 @@ if $USE_GO_TOOL; then
 	go test runtime -short -cpu=1,2,4
 else
 	(xcd pkg/runtime;
-	go test -short -cpu=1,2,4
+	gotest -short -cpu=1,2,4
 	) || exit $?
 fi
 
