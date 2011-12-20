@@ -8,17 +8,17 @@
 
 // This implementation depends on OS-specific implementations of
 //
-//	uintptr runtime.semacreate(void)
+//	uintptr runtime·semacreate(void)
 //		Create a semaphore, which will be assigned to m->waitsema.
 //		The zero value is treated as absence of any semaphore,
 //		so be sure to return a non-zero value.
 //
-//	int32 runtime.semasleep(int64 ns)
+//	int32 runtime·semasleep(int64 ns)
 //		If ns < 0, acquire m->waitsema and return 0.
 //		If ns >= 0, try to acquire m->waitsema for at most ns nanoseconds.
 //		Return 0 if the semaphore was acquired, -1 if interrupted or timed out.
 //
-//	int32 runtime.semawakeup(M *mp)
+//	int32 runtime·semawakeup(M *mp)
 //		Wake up mp, which is or will soon be sleeping on mp->waitsema.
 //
 
