@@ -3,6 +3,10 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+# Set to false if something breaks, to revert back to Makefiles.
+# TODO: This variable will go away when the Makefiles do.
+USE_GO_TOOL=${USE_GO_TOOL:-true}
+
 # If set to a Windows-style path convert to an MSYS-Unix 
 # one using the built-in shell commands.   
 if [[ "$GOROOT" == *:* ]]; then

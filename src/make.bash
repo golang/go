@@ -85,10 +85,24 @@ do
 done
 
 echo; echo; echo %%%% making runtime generated files %%%%; echo
-(cd "$GOROOT"/src/pkg/runtime; ./autogen.sh) || exit 1
 
-echo; echo; echo %%%% making pkg %%%%; echo
-gomake -C pkg install
+(
+	cd "$GOROOT"/src/pkg/runtime
+	./autogen.sh
+	make install  # copy runtime.h to pkg directory
+) || exit 1
+
+if $USE_GO_TOOL; then
+	echo
+	echo '# Building go command from bootstrap script.'
+	./buildscript_${GOOS}_$GOARCH.sh
+
+	echo '# Building Go code.'
+	GOPATH="" go install -a all
+else
+	echo; echo; echo %%%% making pkg %%%%; echo
+	gomake -C pkg install
+fi
 
 # Print post-install messages.
 # Implemented as a function so that all.bash can repeat the output
