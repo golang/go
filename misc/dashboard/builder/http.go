@@ -85,20 +85,29 @@ func dash(meth, cmd string, args url.Values, req, resp interface{}) error {
 }
 
 // todo returns the next hash to build.
-func (b *Builder) todo(pkg, goHash string) (rev string, err error) {
+func (b *Builder) todo(kind, pkg, goHash string) (rev string, err error) {
 	args := url.Values{
+		"kind":        {kind},
 		"builder":     {b.name},
 		"packagePath": {pkg},
 		"goHash":      {goHash},
 	}
-	var resp string
+	var resp *struct {
+		Kind string
+		Data struct {
+			Hash string
+		}
+	}
 	if err = dash("GET", "todo", args, nil, &resp); err != nil {
-		return
+		return "", err
 	}
-	if resp != "" {
-		rev = resp
+	if resp == nil {
+		return "", nil
 	}
-	return
+	if kind != resp.Kind {
+		return "", fmt.Errorf("expecting Kind %q, got %q", kind, resp.Kind)
+	}
+	return resp.Data.Hash, nil
 }
 
 // recordResult sends build results to the dashboard

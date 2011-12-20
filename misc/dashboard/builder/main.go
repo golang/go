@@ -237,7 +237,7 @@ func (b *Builder) build() bool {
 			log.Println(b.name, "build:", err)
 		}
 	}()
-	hash, err := b.todo("", "")
+	hash, err := b.todo("build-go-commit", "", "")
 	if err != nil {
 		log.Println(err)
 		return false
@@ -357,7 +357,7 @@ func (b *Builder) buildHash(hash string) (err error) {
 func (b *Builder) buildPackages(goRoot, goHash string) {
 	for _, pkg := range dashboardPackages() {
 		// get the latest todo for this package
-		hash, err := b.todo(pkg, goHash)
+		hash, err := b.todo("build-package", pkg, goHash)
 		if err != nil {
 			log.Printf("buildPackages %s: %v", pkg, err)
 			continue

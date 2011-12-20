@@ -355,22 +355,48 @@ func tagHandler(r *http.Request) (interface{}, os.Error) {
 	return nil, err
 }
 
-// todoHandler returns the hash of the next Commit to be built.
-// It expects a "builder" query parameter.
-//
-// By default it scans the first 20 Go Commits in Num-descending order and
-// returns the first one it finds that doesn't have a Result for this builder.
-//
-// If provided with additional packagePath and goHash query parameters,
-// and scans the first 20 Commits in Num-descending order for the specified
-// packagePath and returns the first that doesn't have a Result for this builder
-// and goHash combination.
-func todoHandler(r *http.Request) (interface{}, os.Error) {
-	builder := r.FormValue("builder")
-	goHash := r.FormValue("goHash")
+// Todo is a todoHandler response.
+type Todo struct {
+	Kind string // "build-go-commit" or "build-package"
+	Data interface{}
+}
 
+// todoHandler returns the next action to be performed by a builder.
+// It expects "builder" and "kind" query parameters and returns a *Todo value.
+// Multiple "kind" parameters may be specified.
+func todoHandler(r *http.Request) (todo interface{}, err os.Error) {
 	c := appengine.NewContext(r)
-	p, err := GetPackage(c, r.FormValue("packagePath"))
+	builder := r.FormValue("builder")
+	for _, kind := range r.Form["kind"] {
+		var data interface{}
+		switch kind {
+		case "build-go-commit":
+			data, err = buildTodo(c, builder, "", "")
+		case "build-package":
+			data, err = buildTodo(
+				c, builder,
+				r.FormValue("packagePath"),
+				r.FormValue("goHash"),
+			)
+		}
+		if data != nil || err != nil {
+			return &Todo{Kind: kind, Data: data}, err
+		}
+	}
+	return nil, nil
+}
+
+// buildTodo returns the next Commit to be built (or nil if none available).
+//
+// If packagePath and goHash are empty, it scans the first 20 Go Commits in
+// Num-descending order and returns the first one it finds that doesn't have a
+// Result for this builder.
+//
+// If provided with non-empty packagePath and goHash args, it scans the first
+// 20 Commits in Num-descending order for the specified packagePath and
+// returns the first that doesn't have a Result for this builder and goHash.
+func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interface{}, os.Error) {
+	p, err := GetPackage(c, packagePath)
 	if err != nil {
 		return nil, err
 	}
@@ -389,7 +415,7 @@ func todoHandler(r *http.Request) (interface{}, os.Error) {
 			return nil, err
 		}
 		if com.Result(builder, goHash) == nil {
-			return com.Hash, nil
+			return com, nil
 		}
 	}
 	panic("unreachable")
