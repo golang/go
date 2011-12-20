@@ -52,7 +52,7 @@ type Builder struct {
 var (
 	buildroot     = flag.String("buildroot", path.Join(os.TempDir(), "gobuilder"), "Directory under which to build")
 	commitFlag    = flag.Bool("commit", false, "upload information about new commits")
-	dashboard     = flag.String("dashboard", "godashboard.appspot.com", "Go Dashboard Host")
+	dashboard     = flag.String("dashboard", "go-build.appspot.com", "Go Dashboard Host")
 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
 	buildCmd      = flag.String("cmd", "./all.bash", "Build command (specify absolute or relative to go/src/)")
