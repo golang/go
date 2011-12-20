@@ -239,7 +239,6 @@ func run(cmdline ...string) {
 func allPackages() []string {
 	have := make(map[string]bool)
 	var pkgs []string
-	runtime := filepath.Join(build.Path[0].SrcDir(), "runtime") + string(filepath.Separator)
 	for _, t := range build.Path {
 		src := t.SrcDir() + string(filepath.Separator)
 		filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
@@ -250,13 +249,6 @@ func allPackages() []string {
 			// Avoid testdata directory trees.
 			if strings.HasSuffix(path, string(filepath.Separator)+"testdata") {
 				return filepath.SkipDir
-			}
-			// Avoid runtime subdirectories.
-			if strings.HasPrefix(path, runtime) {
-				switch path {
-				case runtime + "darwin", runtime + "freebsd", runtime + "linux", runtime + "netbsd", runtime + "openbsd", runtime + "windows":
-					return filepath.SkipDir
-				}
 			}
 
 			_, err = build.ScanDir(path)
