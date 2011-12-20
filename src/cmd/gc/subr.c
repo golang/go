@@ -2487,6 +2487,7 @@ genhash(Sym *sym, Type *t)
 	Node *n, *fn, *np, *nh, *ni, *call, *nx, *na, *tfn;
 	Node *hashel;
 	Type *first, *t1;
+	int old_safemode;
 	int64 size;
 
 	if(debug['r'])
@@ -2616,7 +2617,16 @@ genhash(Sym *sym, Type *t)
 	typecheck(&fn, Etop);
 	typechecklist(fn->nbody, Etop);
 	curfn = nil;
+
+	// Disable safemode while compiling this code: the code we
+	// generate internally can refer to unsafe.Pointer.
+	// In this case it can happen if we need to generate an ==
+	// for a struct containing a reflect.Value, which itself has
+	// an unexported field of type unsafe.Pointer.
+	old_safemode = safemode;
+	safemode = 0;
 	funccompile(fn, 0);
+	safemode = old_safemode;
 }
 
 // Return node for
@@ -2694,6 +2704,7 @@ geneq(Sym *sym, Type *t)
 {
 	Node *n, *fn, *np, *neq, *nq, *tfn, *nif, *ni, *nx, *ny, *nrange;
 	Type *t1, *first;
+	int old_safemode;
 	int64 size;
 
 	if(debug['r'])
@@ -2814,7 +2825,16 @@ geneq(Sym *sym, Type *t)
 	typecheck(&fn, Etop);
 	typechecklist(fn->nbody, Etop);
 	curfn = nil;
+	
+	// Disable safemode while compiling this code: the code we
+	// generate internally can refer to unsafe.Pointer.
+	// In this case it can happen if we need to generate an ==
+	// for a struct containing a reflect.Value, which itself has
+	// an unexported field of type unsafe.Pointer.
+	old_safemode = safemode;
+	safemode = 0;
 	funccompile(fn, 0);
+	safemode = old_safemode;
 }
 
 static Type*
