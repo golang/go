@@ -8,11 +8,11 @@
         padding: 0; margin: 0;
       }
       h1, h2 {
-      	margin: 0;
+        margin: 0;
         padding: 5px;
       }
       h1 {
-      	background: #eee;
+        background: #eee;
       }
       h2 {
         margin-top: 10px;
@@ -30,14 +30,14 @@
         background-color: #f0f0f0;
       }
       .build .hash {
-      	font-family: monospace;
+        font-family: monospace;
       }
       .build .result {
         text-align: center;
         width: 50px;
       }
       .build .time {
-      	font-family: monospace;
+        font-family: monospace;
         color: #666;
       }
       .build .descr, .build .time, .build .user {
@@ -53,6 +53,9 @@
       }
       .paginate a.inactive {
         color: #999;
+      }
+      .fail {
+        color: #C00;
       }
     </style>
   </head>
@@ -129,7 +132,11 @@
         <div>
           {{$h := $state.Commit.Hash}}
           <a href="{{repoURL $h $state.Commit.PackagePath}}">{{shortHash $h}}</a>
-          <a href="/log/{{.LogHash}}">failed</a>
+          {{if .OK}}
+            ok
+          {{else}}
+            <a href="/log/{{.LogHash}}" class="fail">failed</a>
+          {{end}}
           on {{.Builder}}/<a href="{{repoURL .GoHash ""}}">{{shortHash .GoHash}}</a>
         </a></div>
     {{end}}
