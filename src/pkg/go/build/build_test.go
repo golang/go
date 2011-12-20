@@ -48,6 +48,7 @@ var buildPkgs = []struct {
 		&DirInfo{
 			CgoFiles:    []string{"cgotest.go"},
 			CFiles:      []string{"cgotest.c"},
+			HFiles:      []string{"cgotest.h"},
 			Imports:     []string{"C", "unsafe"},
 			TestImports: []string{},
 			Package:     "cgotest",

@@ -29,6 +29,7 @@ type Package struct {
 	// Source files
 	GoFiles  []string // .go source files (excluding CgoFiles)
 	CFiles   []string // .c source files
+	HFiles   []string // .h source files
 	SFiles   []string // .s source files
 	CgoFiles []string // .go sources files that import "C"
 
@@ -120,6 +121,7 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 		Imports:    info.Imports,
 		GoFiles:    info.GoFiles,
 		CFiles:     info.CFiles,
+		HFiles:     info.HFiles,
 		SFiles:     info.SFiles,
 		CgoFiles:   info.CgoFiles,
 		Standard:   t.Goroot && !strings.Contains(importPath, "."),

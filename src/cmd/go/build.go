@@ -106,6 +106,8 @@ type builder struct {
 	vflag       bool                 // the -v flag
 	arch        string               // e.g., "6"
 	goroot      string               // the $GOROOT
+	goarch      string               // the $GOARCH
+	goos        string               // the $GOOS
 	actionCache map[cacheKey]*action // a cache of already-constructed actions
 }
 
@@ -147,8 +149,10 @@ func (b *builder) init(aflag, nflag, vflag bool) {
 	b.vflag = vflag
 	b.actionCache = make(map[cacheKey]*action)
 	b.goroot = runtime.GOROOT()
+	b.goarch = build.DefaultContext.GOARCH
+	b.goos = build.DefaultContext.GOOS
 
-	b.arch, err = build.ArchChar(build.DefaultContext.GOARCH)
+	b.arch, err = build.ArchChar(b.goarch)
 	if err != nil {
 		fatalf("%s", err)
 	}
@@ -236,7 +240,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 		}
 		if p.Standard {
 			switch p.ImportPath {
-			case "runtime", "runtime/cgo":
+			case "runtime/cgo":
 				// Too complex - can't build.
 				a.f = (*builder).nop
 				return a
@@ -362,17 +366,60 @@ func (b *builder) build(a *action) error {
 	// compile Go
 	if len(gofiles) > 0 {
 		out := "_go_.6"
-		if err := b.gc(a.p.Dir, obj+out, a.p.ImportPath, inc, gofiles); err != nil {
+		gcargs := []string{"-p", a.p.ImportPath}
+		if a.p.Standard && a.p.ImportPath == "runtime" {
+			// runtime compiles with a special 6g flag to emit
+			// additional reflect type data.
+			gcargs = append(gcargs, "-+")
+		}
+		if err := b.gc(a.p.Dir, obj+out, gcargs, inc, gofiles); err != nil {
 			return err
 		}
 		objects = append(objects, out)
 	}
 
-	// assemble .s files
-	if len(a.p.SFiles) > 0 {
-		for _, sfile := range a.p.SFiles {
-			out := sfile[:len(sfile)-len(".s")] + "." + b.arch
-			if err := b.asm(a.p.Dir, obj+out, sfile); err != nil {
+	// copy .h files named for goos or goarch or goos_goarch
+	// to names using GOOS and GOARCH.
+	// For example, defs_linux_amd64.h becomes defs_GOOS_GOARCH.h.
+	_goos_goarch := "_" + b.goos + "_" + b.goarch + ".h"
+	_goos := "_" + b.goos + ".h"
+	_goarch := "_" + b.goarch + ".h"
+	for _, file := range a.p.HFiles {
+		switch {
+		case strings.HasSuffix(file, _goos_goarch):
+			targ := file[:len(file)-len(_goos_goarch)] + "_GOOS_GOARCH.h"
+			if err := b.copyFile(obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
+				return err
+			}
+		case strings.HasSuffix(file, _goarch):
+			targ := file[:len(file)-len(_goarch)] + "_GOARCH.h"
+			if err := b.copyFile(obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
+				return err
+			}
+		case strings.HasSuffix(file, _goos):
+			targ := file[:len(file)-len(_goos)] + "_GOOS.h"
+			if err := b.copyFile(obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
+				return err
+			}
+		}
+	}
+
+	// in a cgo package, the .c files are compiled with gcc during b.cgo above.
+	// in a non-cgo package, the .c files are compiled with 5c/6c/8c.
+	// The same convention applies for .s files.
+	if len(a.p.CgoFiles) == 0 {
+		for _, file := range a.p.CFiles {
+			out := file[:len(file)-len(".c")] + "." + b.arch
+			if err := b.cc(a.p.Dir, obj+out, file); err != nil {
+				return err
+			}
+			objects = append(objects, out)
+		}
+
+		// assemble .s files
+		for _, file := range a.p.SFiles {
+			out := file[:len(file)-len(".s")] + "." + b.arch
+			if err := b.asm(a.p.Dir, obj+out, file); err != nil {
 				return err
 			}
 			objects = append(objects, out)
@@ -510,8 +557,10 @@ func (b *builder) mkdir(dir string) error {
 
 // gc runs the Go compiler in a specific directory on a set of files
 // to generate the named output file. 
-func (b *builder) gc(dir, ofile, importPath string, importArgs []string, gofiles []string) error {
-	args := append([]string{b.arch + "g", "-o", ofile, "-p", importPath}, importArgs...)
+func (b *builder) gc(dir, ofile string, gcargs, importArgs []string, gofiles []string) error {
+	args := []string{b.arch + "g", "-o", ofile}
+	args = append(args, gcargs...)
+	args = append(args, importArgs...)
 	args = append(args, gofiles...)
 	return b.run(dir, args...)
 }
@@ -519,7 +568,7 @@ func (b *builder) gc(dir, ofile, importPath string, importArgs []string, gofiles
 // asm runs the assembler in a specific directory on a specific file
 // to generate the named output file. 
 func (b *builder) asm(dir, ofile, sfile string) error {
-	return b.run(dir, b.arch+"a", "-o", ofile, sfile)
+	return b.run(dir, b.arch+"a", "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, sfile)
 }
 
 // gopack runs the assembler in a specific directory to create
@@ -538,8 +587,8 @@ func (b *builder) ld(dir, out string, importArgs []string, mainpkg string) error
 // to produce an output file.
 func (b *builder) cc(dir, ofile, cfile string) error {
 	inc := filepath.Join(runtime.GOROOT(), "pkg",
-		fmt.Sprintf("%s_%s", build.DefaultContext.GOOS, build.DefaultContext.GOARCH))
-	return b.run(dir, b.arch+"c", "-FVW", "-I", inc, "-o", ofile, cfile)
+		fmt.Sprintf("%s_%s", b.goos, b.goarch))
+	return b.run(dir, b.arch+"c", "-FVw", "-I", inc, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
 }
 
 // gcc runs the gcc C compiler to create an object from a single C file.

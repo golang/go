@@ -96,8 +96,9 @@ type DirInfo struct {
 
 	// Source files
 	GoFiles  []string // .go files in dir (excluding CgoFiles)
+	HFiles   []string // .h files in dir
 	CFiles   []string // .c files in dir
-	SFiles   []string // .s files in dir
+	SFiles   []string // .s (and, when using cgo, .S files in dir)
 	CgoFiles []string // .go files that import "C"
 
 	// Cgo directives
@@ -135,6 +136,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 		return nil, err
 	}
 
+	var Sfiles []string // files with ".S" (capital S)
 	var di DirInfo
 	imported := make(map[string]bool)
 	testImported := make(map[string]bool)
@@ -154,7 +156,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 
 		ext := path.Ext(name)
 		switch ext {
-		case ".go", ".c", ".s":
+		case ".go", ".c", ".s", ".h", ".S":
 			// tentatively okay
 		default:
 			// skip
@@ -175,8 +177,14 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 		case ".c":
 			di.CFiles = append(di.CFiles, name)
 			continue
+		case ".h":
+			di.HFiles = append(di.HFiles, name)
+			continue
 		case ".s":
 			di.SFiles = append(di.SFiles, name)
+			continue
+		case ".S":
+			Sfiles = append(Sfiles, name)
 			continue
 		}
 
@@ -282,6 +290,15 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 		di.TestImports[i] = p
 		i++
 	}
+
+	// add the .S files only if we are using cgo
+	// (which means gcc will compile them).
+	// The standard assemblers expect .s files.
+	if len(di.CgoFiles) > 0 {
+		di.SFiles = append(di.SFiles, Sfiles...)
+		sort.Strings(di.SFiles)
+	}
+
 	// File name lists are sorted because ReadDir sorts.
 	sort.Strings(di.Imports)
 	sort.Strings(di.TestImports)
