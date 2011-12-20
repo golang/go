@@ -70,13 +70,15 @@ func loadPackage(arg string) (*Package, error) {
 
 	// Find basic information about package path.
 	t, importPath, err := build.FindTree(arg)
+	dir := ""
 	// Maybe it is a standard command.
-	if err != nil && !filepath.IsAbs(arg) && !strings.HasPrefix(arg, ".") {
+	if err != nil && !filepath.IsAbs(arg) && strings.HasPrefix(arg, "cmd/") {
 		goroot := build.Path[0]
-		p := filepath.Join(goroot.Path, "src/cmd", arg)
+		p := filepath.Join(goroot.Path, "src", arg)
 		if st, err1 := os.Stat(p); err1 == nil && st.IsDir() {
 			t = goroot
-			importPath = "../cmd/" + arg
+			importPath = arg
+			dir = p
 			err = nil
 		}
 	}
@@ -84,7 +86,9 @@ func loadPackage(arg string) (*Package, error) {
 		return nil, err
 	}
 
-	dir := filepath.Join(t.SrcDir(), filepath.FromSlash(importPath))
+	if dir == "" {
+		dir = filepath.Join(t.SrcDir(), filepath.FromSlash(importPath))
+	}
 
 	// Maybe we know the package by its directory.
 	if p := packageCache[dir]; p != nil {
@@ -139,6 +143,13 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 		p.gofiles = append(p.gofiles, filepath.Join(dir, f))
 	}
 	sort.Strings(p.gofiles)
+
+	// Packages that use cgo import runtime/cgo implicitly,
+	// except runtime/cgo itself.
+	if len(info.CgoFiles) > 0 && (!p.Standard || p.ImportPath != "runtime/cgo") {
+		p.Imports = append(p.Imports, "runtime/cgo")
+		sort.Strings(p.Imports)
+	}
 
 	// Record package under both import path and full directory name.
 	packageCache[dir] = p

@@ -6,6 +6,8 @@
 // to update builtin.c.boot.  This is not done automatically
 // to avoid depending on having a working compiler binary.
 
+// +build ignore
+
 package PACKAGE
 
 type Pointer uintptr // not really; filled in by compiler
