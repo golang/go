@@ -67,45 +67,45 @@ var testRequests = []struct {
 	{"/commit", nil, tCommit("0001", "0000"), nil},
 	{"/commit", nil, tCommit("0002", "0001"), nil},
 	{"/commit", nil, tCommit("0003", "0002"), nil},
-	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
-	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0003"},
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0001", OK: true}, nil},
-	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0002", OK: true}, nil},
-	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
 
 	// multiple builders
-	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0003"},
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
 	{"/result", nil, &Result{Builder: "linux-amd64", Hash: "0003", OK: true}, nil},
-	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
-	{"/todo", url.Values{"builder": {"linux-amd64"}}, nil, "0002"},
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-amd64"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0002"}}},
 
 	// branches
 	{"/commit", nil, tCommit("0004", "0003"), nil},
 	{"/commit", nil, tCommit("0005", "0002"), nil},
-	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0005"},
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0005"}}},
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0005", OK: true}, nil},
-	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0004"},
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0004"}}},
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0004", OK: true}, nil},
-	{"/todo", url.Values{"builder": {"linux-386"}}, nil, "0003"},
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
 
 	// logs
 	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: []byte("test")}, nil},
 	{"/log/a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", nil, nil, "test"},
-	{"/todo", url.Values{"builder": {"linux-386"}}, nil, nil},
+	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, nil},
 
 	// non-Go repos
 	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1001", ParentHash: "1000"}, nil},
 	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1002", ParentHash: "1001"}, nil},
 	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1003", ParentHash: "1002"}, nil},
-	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, "1003"},
+	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1003"}}},
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1003", GoHash: "0001", OK: true}, nil},
-	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, "1002"},
+	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1002"}}},
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1002", GoHash: "0001", OK: true}, nil},
-	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, "1001"},
+	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1001"}}},
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0001", OK: true}, nil},
-	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, nil},
-	{"/todo", url.Values{"builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0002"}}, nil, "1003"},
+	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, nil},
+	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0002"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1003"}}},
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0005", OK: false, Log: []byte("boo")}, nil},
 }
 
@@ -156,12 +156,22 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		req.Header = r.Header
 		rec := httptest.NewRecorder()
+
+		// Make the request
 		http.DefaultServeMux.ServeHTTP(rec, req)
+
 		if rec.Code != 0 && rec.Code != 200 {
 			errorf(rec.Body.String())
 			return
 		}
 		resp := new(dashResponse)
+
+		// If we're expecting a *Todo value,
+		// prime the Response field with a Todo and a Commit inside it.
+		if _, ok := t.res.(*Todo); ok {
+			resp.Response = &Todo{Data: &Commit{}}
+		}
+
 		if strings.HasPrefix(t.path, "/log/") {
 			resp.Response = rec.Body.String()
 		} else {
@@ -179,6 +189,30 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			if g != e {
 				errorf("response mismatch: got %q want %q", g, e)
+				return
+			}
+		}
+		if e, ok := t.res.(*Todo); ok {
+			g, ok := resp.Response.(*Todo)
+			if !ok {
+				errorf("Response not *Todo: %T", resp.Response)
+				return
+			}
+			if e.Data == nil && g.Data != nil {
+				errorf("Response.Data should be nil, got: %v", g.Data)
+				return
+			}
+			if g.Data == nil {
+				errorf("Response.Data is nil, want: %v", e.Data)
+				return
+			}
+			gd, ok := g.Data.(*Commit)
+			if !ok {
+				errorf("Response.Data not *Commit: %T", g.Data)
+				return
+			}
+			if e.Data.(*Commit).Hash != gd.Hash {
+				errorf("hashes don't match: got %q, want %q", g, e)
 				return
 			}
 		}
