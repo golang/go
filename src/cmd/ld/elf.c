@@ -318,29 +318,77 @@ elfwritedynentsymsize(Sym *s, int tag, Sym *t)
 }
 
 int
-elfwriteinterp(void)
-{
-	int n;
-
-	if(interp == nil)
-		return 0;
-
-	n = strlen(interp)+1;
-	cseek(ELFRESERVE-n);
-	cwrite(interp, n);
-	return n;
-}
-
-void
-elfinterp(ElfShdr *sh, uint64 startva, char *p)
+elfinterp(ElfShdr *sh, uint64 startva, uint64 resoff, char *p)
 {
 	int n;
 
 	interp = p;
 	n = strlen(interp)+1;
-	sh->addr = startva + ELFRESERVE - n;
-	sh->off = ELFRESERVE - n;
+	sh->addr = startva + resoff - n;
+	sh->off = resoff - n;
 	sh->size = n;
+
+	return n;
+}
+
+int
+elfwriteinterp(vlong stridx)
+{
+	ElfShdr *sh = nil;
+	int i;
+
+	for(i = 0; i < hdr.shnum; i++)
+		if(shdr[i]->name == stridx)
+			sh = shdr[i];
+	if(sh == nil || interp == nil)
+		return 0;
+
+	cseek(sh->off);
+	cwrite(interp, sh->size);
+	return sh->size;
+}
+
+// Defined in NetBSD's sys/exec_elf.h
+#define ELF_NOTE_TYPE_NETBSD_TAG	1
+#define ELF_NOTE_NETBSD_NAMESZ		7
+#define ELF_NOTE_NETBSD_DESCSZ		4
+#define ELF_NOTE_NETBSD_NAME		"NetBSD\0\0"
+#define ELF_NOTE_NETBSD_VERSION		599000000	/* NetBSD 5.99 */
+
+int
+elfnetbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
+{
+	int n;
+
+	n = sizeof(Elf_Note) + ELF_NOTE_NETBSD_NAMESZ + ELF_NOTE_NETBSD_DESCSZ + 1;
+	n += resoff % 4;
+	sh->addr = startva + resoff - n;
+	sh->off = resoff - n;
+	sh->size = n;
+
+	return n;
+}
+
+int
+elfwritenetbsdsig(vlong stridx) {
+	ElfShdr *sh = nil;
+	int i;
+
+	for(i = 0; i < hdr.shnum; i++)
+		if(shdr[i]->name == stridx)
+			sh = shdr[i];
+	if(sh == nil)
+		return 0;
+
+	// Write Elf_Note header followed by NetBSD string.
+	cseek(sh->off);
+	LPUT(ELF_NOTE_NETBSD_NAMESZ);
+	LPUT(ELF_NOTE_NETBSD_DESCSZ);
+	LPUT(ELF_NOTE_TYPE_NETBSD_TAG);
+	cwrite(ELF_NOTE_NETBSD_NAME, 8);
+	LPUT(ELF_NOTE_NETBSD_VERSION);
+
+	return sh->size;
 }
 
 extern int nelfsym;

@@ -707,7 +707,7 @@ asmb(void)
 {
 	int32 magic;
 	int a, dynsym;
-	vlong vl, startva, symo, dwarfoff, machlink;
+	vlong vl, startva, symo, dwarfoff, machlink, resoff;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
@@ -778,6 +778,8 @@ asmb(void)
 			if(elfverneed)
 				elftextsh += 2;
 		}
+		if(HEADTYPE == Hnetbsd)
+			elftextsh += 1;
 		break;
 	case Hwindows:
 		break;
@@ -879,6 +881,7 @@ asmb(void)
 
 		eh = getElfEhdr();
 		startva = INITTEXT - HEADR;
+		resoff = ELFRESERVE;
 
 		/* This null SHdr must appear before all others */
 		newElfShdr(elfstr[ElfStrEmpty]);
@@ -925,10 +928,23 @@ asmb(void)
 					break;
 				}
 			}
-			elfinterp(sh, startva, interpreter);
+			resoff -= elfinterp(sh, startva, resoff, interpreter);
 
 			ph = newElfPhdr();
 			ph->type = PT_INTERP;
+			ph->flags = PF_R;
+			phsh(ph, sh);
+		}
+
+		if(HEADTYPE == Hnetbsd) {
+			sh = newElfShdr(elfstr[ElfStrNoteNetbsdIdent]);
+			sh->type = SHT_NOTE;
+			sh->flags = SHF_ALLOC;
+			sh->addralign = 4;
+			resoff -= elfnetbsdsig(sh, startva, resoff);
+
+			ph = newElfPhdr();
+			ph->type = PT_NOTE;
 			ph->flags = PF_R;
 			phsh(ph, sh);
 		}
@@ -937,7 +953,7 @@ asmb(void)
 		elfphload(&segdata);
 
 		/* Dynamic linking sections */
-		if (!debug['d']) {	/* -d suppresses dynamic loader format */
+		if(!debug['d']) {	/* -d suppresses dynamic loader format */
 			/* S headers for dynamic linking */
 			sh = newElfShdr(elfstr[ElfStrGot]);
 			sh->type = SHT_PROGBITS;
@@ -1061,7 +1077,7 @@ asmb(void)
 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
 			elfshbits(sect);
 
-		if (!debug['s']) {
+		if(!debug['s']) {
 			sh = newElfShdr(elfstr[ElfStrSymtab]);
 			sh->type = SHT_SYMTAB;
 			sh->off = symo;
@@ -1107,7 +1123,9 @@ asmb(void)
 		a += elfwritehdr();
 		a += elfwritephdrs();
 		a += elfwriteshdrs();
-		a += elfwriteinterp();
+		a += elfwriteinterp(elfstr[ElfStrInterp]);
+		if(HEADTYPE == Hnetbsd)
+			a += elfwritenetbsdsig(elfstr[ElfStrNoteNetbsdIdent]);
 		if(a > ELFRESERVE)	
 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
 		break;
