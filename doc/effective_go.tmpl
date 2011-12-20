@@ -527,11 +527,61 @@ if err != nil {
 }
 d, err := f.Stat()
 if err != nil {
+    f.Close()
     return err
 }
 codeUsing(f, d)
 </pre>
 
+
+<h3 id="redeclaration">Redeclaration</h3>
+
+<p>
+An aside: The last example in the previous section demonstrates a detail of how the
+<code>:=</code> short declaration form works.
+The declaration that calls <code>os.Open</code> reads,
+</p>
+
+<pre>
+f, err := os.Open(name)
+</pre>
+
+<p>
+This statement declares two variables, <code>f</code> and <code>err</code>.
+A few lines later, the call to <code>f.Stat</code> reads,
+</p>
+
+<pre>
+d, err := f.Stat()
+</pre>
+
+<p>
+which looks as if it declares <code>d</code> and <code>err</code>.
+Notice, though, that <code>err</code> appears in both statements.
+This duplication is legal: <code>err</code> is declared by the first statement,
+but only <em>re-assigned</em> in the second.
+This means that the call to <code>f.Stat</code> uses the existing
+<code>err</code> variable declared above, and just gives it a new value.
+</p>
+
+<p>
+In a <code>:=</code> declaration a variable <code>v</code> may appear even
+if it has already been declared, provided:
+</p>
+
+<ul>
+<li>this declaration is in the same scope as the existing declaration of <code>v</code>
+(if <code>v</code> is already declared in an outer scope, the declaration will create a new variable),</li>
+<li>the corresponding value in the initialization is assignable to <code>v</code>, and</li>
+<li>there is at least one other variable in the declaration that is being declared anew.</li>
+</ul>
+
+<p>
+This unusual property is pure pragmatism,
+making it easy to use a single <code>err</code> value, for example,
+in a long <code>if-else</code> chain.
+You'll see it used often.
+</p>
 
 <h3 id="for">For</h3>
 
