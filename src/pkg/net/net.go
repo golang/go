@@ -157,6 +157,14 @@ func (e *OpError) Timeout() bool {
 	return ok && t.Timeout()
 }
 
+type timeoutError struct{}
+
+func (e *timeoutError) Error() string   { return "i/o timeout" }
+func (e *timeoutError) Timeout() bool   { return true }
+func (e *timeoutError) Temporary() bool { return true }
+
+var errTimeout error = &timeoutError{}
+
 type AddrError struct {
 	Err  string
 	Addr string
