@@ -7,7 +7,6 @@ package draw
 import (
 	"image"
 	"image/color"
-	"image/ycbcr"
 	"testing"
 )
 
@@ -97,7 +96,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 			}
 		}
 		src = src1
-	case ycbcr.YCbCrColorModel:
+	case color.YCbCrModel:
 		yy := make([]uint8, srcw*srch)
 		cb := make([]uint8, srcw*srch)
 		cr := make([]uint8, srcw*srch)
@@ -106,13 +105,13 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 			cb[i] = uint8(5 * i % 0x100)
 			cr[i] = uint8(7 * i % 0x100)
 		}
-		src = &ycbcr.YCbCr{
+		src = &image.YCbCr{
 			Y:              yy,
 			Cb:             cb,
 			Cr:             cr,
 			YStride:        srcw,
 			CStride:        srcw,
-			SubsampleRatio: ycbcr.SubsampleRatio444,
+			SubsampleRatio: image.YCbCrSubsampleRatio444,
 			Rect:           image.Rect(0, 0, srcw, srch),
 		}
 	default:
@@ -177,7 +176,7 @@ func BenchmarkNRGBASrc(b *testing.B) {
 }
 
 func BenchmarkYCbCr(b *testing.B) {
-	bench(b, color.RGBAModel, ycbcr.YCbCrColorModel, nil, Over)
+	bench(b, color.RGBAModel, color.YCbCrModel, nil, Over)
 }
 
 func BenchmarkGlyphOver(b *testing.B) {

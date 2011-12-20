@@ -7,5 +7,6 @@ include ../../../Make.inc
 TARG=image/color
 GOFILES=\
 	color.go\
+	ycbcr.go\
 
 include ../../../Make.pkg

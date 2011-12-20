@@ -7,7 +7,6 @@ package draw
 import (
 	"image"
 	"image/color"
-	"image/ycbcr"
 	"testing"
 )
 
@@ -56,13 +55,13 @@ func vgradGreenNRGBA(alpha int) image.Image {
 }
 
 func vgradCr() image.Image {
-	m := &ycbcr.YCbCr{
+	m := &image.YCbCr{
 		Y:              make([]byte, 16*16),
 		Cb:             make([]byte, 16*16),
 		Cr:             make([]byte, 16*16),
 		YStride:        16,
 		CStride:        16,
-		SubsampleRatio: ycbcr.SubsampleRatio444,
+		SubsampleRatio: image.YCbCrSubsampleRatio444,
 		Rect:           image.Rect(0, 0, 16, 16),
 	}
 	for y := 0; y < 16; y++ {

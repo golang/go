@@ -11,7 +11,6 @@ import (
 	"bufio"
 	"image"
 	"image/color"
-	"image/ycbcr"
 	"io"
 )
 
@@ -97,7 +96,7 @@ type decoder struct {
 	r             Reader
 	width, height int
 	img1          *image.Gray
-	img3          *ycbcr.YCbCr
+	img3          *image.YCbCr
 	ri            int // Restart Interval.
 	nComp         int
 	comp          [nColorComponent]component
@@ -203,20 +202,20 @@ func (d *decoder) makeImg(h0, v0, mxx, myy int) {
 		d.img1 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.Gray)
 		return
 	}
-	var subsampleRatio ycbcr.SubsampleRatio
+	var subsampleRatio image.YCbCrSubsampleRatio
 	n := h0 * v0
 	switch n {
 	case 1:
-		subsampleRatio = ycbcr.SubsampleRatio444
+		subsampleRatio = image.YCbCrSubsampleRatio444
 	case 2:
-		subsampleRatio = ycbcr.SubsampleRatio422
+		subsampleRatio = image.YCbCrSubsampleRatio422
 	case 4:
-		subsampleRatio = ycbcr.SubsampleRatio420
+		subsampleRatio = image.YCbCrSubsampleRatio420
 	default:
 		panic("unreachable")
 	}
 	b := make([]byte, mxx*myy*(1*8*8*n+2*8*8))
-	d.img3 = &ycbcr.YCbCr{
+	d.img3 = &image.YCbCr{
 		Y:              b[mxx*myy*(0*8*8*n+0*8*8) : mxx*myy*(1*8*8*n+0*8*8)],
 		Cb:             b[mxx*myy*(1*8*8*n+0*8*8) : mxx*myy*(1*8*8*n+1*8*8)],
 		Cr:             b[mxx*myy*(1*8*8*n+1*8*8) : mxx*myy*(1*8*8*n+2*8*8)],
@@ -466,7 +465,7 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 	case nGrayComponent:
 		return image.Config{color.GrayModel, d.width, d.height}, nil
 	case nColorComponent:
-		return image.Config{ycbcr.YCbCrColorModel, d.width, d.height}, nil
+		return image.Config{color.YCbCrModel, d.width, d.height}, nil
 	}
 	return image.Config{}, FormatError("missing SOF marker")
 }

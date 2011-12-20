@@ -10,5 +10,6 @@ GOFILES=\
 	geom.go\
 	image.go\
 	names.go\
+	ycbcr.go\
 
 include ../../Make.pkg

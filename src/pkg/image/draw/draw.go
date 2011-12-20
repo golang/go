@@ -11,7 +11,6 @@ package draw
 import (
 	"image"
 	"image/color"
-	"image/ycbcr"
 )
 
 // m is the maximum color value returned by image.Color.RGBA.
@@ -81,7 +80,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 				case *image.NRGBA:
 					drawNRGBAOver(dst0, r, src0, sp)
 					return
-				case *ycbcr.YCbCr:
+				case *image.YCbCr:
 					drawYCbCr(dst0, r, src0, sp)
 					return
 				}
@@ -104,7 +103,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 				case *image.NRGBA:
 					drawNRGBASrc(dst0, r, src0, sp)
 					return
-				case *ycbcr.YCbCr:
+				case *image.YCbCr:
 					drawYCbCr(dst0, r, src0, sp)
 					return
 				}
@@ -346,8 +345,8 @@ func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image
 	}
 }
 
-func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Point) {
-	// A YCbCr image is always fully opaque, and so if the mask is implicitly nil
+func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) {
+	// An image.YCbCr is always fully opaque, and so if the mask is implicitly nil
 	// (i.e. fully opaque) then the op is effectively always Src.
 	var (
 		yy, cb, cr uint8
@@ -357,7 +356,7 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Po
 	y0 := r.Min.Y - dst.Rect.Min.Y
 	y1 := r.Max.Y - dst.Rect.Min.Y
 	switch src.SubsampleRatio {
-	case ycbcr.SubsampleRatio422:
+	case image.YCbCrSubsampleRatio422:
 		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
 			dpix := dst.Pix[y*dst.Stride:]
 			for x, sx := x0, sp.X; x != x1; x, sx = x+4, sx+1 {
@@ -365,14 +364,14 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Po
 				yy = src.Y[sy*src.YStride+sx]
 				cb = src.Cb[sy*src.CStride+i]
 				cr = src.Cr[sy*src.CStride+i]
-				rr, gg, bb := ycbcr.YCbCrToRGB(yy, cb, cr)
+				rr, gg, bb := color.YCbCrToRGB(yy, cb, cr)
 				dpix[x+0] = rr
 				dpix[x+1] = gg
 				dpix[x+2] = bb
 				dpix[x+3] = 255
 			}
 		}
-	case ycbcr.SubsampleRatio420:
+	case image.YCbCrSubsampleRatio420:
 		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
 			dpix := dst.Pix[y*dst.Stride:]
 			for x, sx := x0, sp.X; x != x1; x, sx = x+4, sx+1 {
@@ -380,7 +379,7 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Po
 				yy = src.Y[sy*src.YStride+sx]
 				cb = src.Cb[j*src.CStride+i]
 				cr = src.Cr[j*src.CStride+i]
-				rr, gg, bb := ycbcr.YCbCrToRGB(yy, cb, cr)
+				rr, gg, bb := color.YCbCrToRGB(yy, cb, cr)
 				dpix[x+0] = rr
 				dpix[x+1] = gg
 				dpix[x+2] = bb
@@ -395,7 +394,7 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Po
 				yy = src.Y[sy*src.YStride+sx]
 				cb = src.Cb[sy*src.CStride+sx]
 				cr = src.Cr[sy*src.CStride+sx]
-				rr, gg, bb := ycbcr.YCbCrToRGB(yy, cb, cr)
+				rr, gg, bb := color.YCbCrToRGB(yy, cb, cr)
 				dpix[x+0] = rr
 				dpix[x+1] = gg
 				dpix[x+2] = bb

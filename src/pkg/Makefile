@@ -111,7 +111,6 @@ DIRS=\
 	image/jpeg\
 	image/png\
 	image/tiff\
-	image/ycbcr\
 	index/suffixarray\
 	io\
 	io/ioutil\
@@ -205,7 +204,6 @@ NOTEST+=\
 	go/doc\
 	hash\
 	image/bmp\
-	image/color\
 	image/gif\
 	net/dict\
 	net/http/pprof\
