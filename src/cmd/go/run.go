@@ -12,14 +12,14 @@ func init() {
 }
 
 var cmdRun = &Command{
-	UsageLine: "run [-a] [-n] [-v] gofiles...",
+	UsageLine: "run [-a] [-n] [-x] gofiles...",
 	Short:     "compile and run Go program",
 	Long: `
 Run compiles and runs the main package comprising the named Go source files.
 
 The -a flag forces reinstallation of packages that are already up-to-date.
 The -n flag prints the commands but does not run them.
-The -v flag prints the commands.
+The -x flag prints the commands.
 
 See also: go build.
 	`,
@@ -27,11 +27,11 @@ See also: go build.
 
 var runA = cmdRun.Flag.Bool("a", false, "")
 var runN = cmdRun.Flag.Bool("n", false, "")
-var runV = cmdRun.Flag.Bool("v", false, "")
+var runX = cmdRun.Flag.Bool("x", false, "")
 
 func runRun(cmd *Command, args []string) {
 	var b builder
-	b.init(*runA, *runN, *runV)
+	b.init(*runA, *runN, *runX)
 	p := goFilesPackage(args, "")
 	p.targ = "" // force rebuild - no up-to-date copy anywhere
 	a1 := b.action(modeBuild, modeBuild, p)

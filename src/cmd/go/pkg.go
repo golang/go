@@ -20,22 +20,22 @@ type Package struct {
 	// See list.go.  It is okay to add fields, but not to change or
 	// remove existing ones.  Keep in sync with list.go
 	Name       string // package name
-	Doc        string // package documentation string
+	Doc        string `json:",omitempty"` // package documentation string
 	ImportPath string // import path of package in dir
 	Dir        string // directory containing package sources
-	Version    string // version of installed package (TODO)
-	Standard   bool   // is this package part of the standard Go library?
+	Version    string `json:",omitempty"` // version of installed package (TODO)
+	Standard   bool   `json:",omitempty"` // is this package part of the standard Go library?
 
 	// Source files
 	GoFiles  []string // .go source files (excluding CgoFiles)
-	CFiles   []string // .c source files
-	HFiles   []string // .h source files
-	SFiles   []string // .s source files
-	CgoFiles []string // .go sources files that import "C"
+	CFiles   []string `json:",omitempty"` // .c source files
+	HFiles   []string `json:",omitempty"` // .h source files
+	SFiles   []string `json:",omitempty"` // .s source files
+	CgoFiles []string `json:",omitempty"` // .go sources files that import "C"
 
 	// Dependency information
-	Imports []string // import paths used by this package
-	Deps    []string // all (recursively) imported dependencies
+	Imports []string `json:",omitempty"` // import paths used by this package
+	Deps    []string `json:",omitempty"` // all (recursively) imported dependencies
 
 	// Unexported fields are not part of the public API.
 	t       *build.Tree

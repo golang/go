@@ -25,7 +25,7 @@ func init() {
 }
 
 var cmdBuild = &Command{
-	UsageLine: "build [-a] [-n] [-v] [importpath... | gofiles...]",
+	UsageLine: "build [-a] [-n] [-x] [importpath... | gofiles...]",
 	Short:     "compile packages and dependencies",
 	Long: `
 Build compiles the packages named by the import paths,
@@ -37,7 +37,7 @@ source file.
 
 The -a flag forces rebuilding of packages that are already up-to-date.
 The -n flag prints the commands but does not run them.
-The -v flag prints the commands.
+The -x flag prints the commands.
 
 For more about import paths, see 'go help importpath'.
 
@@ -47,18 +47,18 @@ See also: go install, go get, go clean.
 
 var buildA = cmdBuild.Flag.Bool("a", false, "")
 var buildN = cmdBuild.Flag.Bool("n", false, "")
-var buildV = cmdBuild.Flag.Bool("v", false, "")
+var buildX = cmdBuild.Flag.Bool("x", false, "")
 
 func runBuild(cmd *Command, args []string) {
 	var b builder
-	b.init(*buildA, *buildN, *buildV)
+	b.init(*buildA, *buildN, *buildX)
 
 	if len(args) > 0 && strings.HasSuffix(args[0], ".go") {
 		b.do(b.action(modeInstall, modeBuild, goFilesPackage(args, "")))
 		return
 	}
 
-	a := &action{f: (*builder).nop}
+	a := &action{}
 	for _, p := range packages(args) {
 		a.deps = append(a.deps, b.action(modeBuild, modeBuild, p))
 	}
@@ -66,7 +66,7 @@ func runBuild(cmd *Command, args []string) {
 }
 
 var cmdInstall = &Command{
-	UsageLine: "install [-a] [-n] [-v] [importpath...]",
+	UsageLine: "install [-a] [-n] [-x] [importpath...]",
 	Short:     "compile and install packages and dependencies",
 	Long: `
 Install compiles and installs the packages named by the import paths,
@@ -74,7 +74,7 @@ along with their dependencies.
 
 The -a flag forces reinstallation of packages that are already up-to-date.
 The -n flag prints the commands but does not run them.
-The -v flag prints the commands.
+The -x flag prints the commands.
 
 For more about import paths, see 'go help importpath'.
 
@@ -84,12 +84,12 @@ See also: go build, go get, go clean.
 
 var installA = cmdInstall.Flag.Bool("a", false, "")
 var installN = cmdInstall.Flag.Bool("n", false, "")
-var installV = cmdInstall.Flag.Bool("v", false, "")
+var installX = cmdInstall.Flag.Bool("x", false, "")
 
 func runInstall(cmd *Command, args []string) {
 	var b builder
-	b.init(*installA, *installN, *installV)
-	a := &action{f: (*builder).nop}
+	b.init(*installA, *installN, *installX)
+	a := &action{}
 	for _, p := range packages(args) {
 		a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
 	}
@@ -103,7 +103,7 @@ type builder struct {
 	work        string               // the temporary work directory (ends in filepath.Separator)
 	aflag       bool                 // the -a flag
 	nflag       bool                 // the -n flag
-	vflag       bool                 // the -v flag
+	xflag       bool                 // the -x flag
 	arch        string               // e.g., "6"
 	goroot      string               // the $GOROOT
 	goarch      string               // the $GOARCH
@@ -113,7 +113,7 @@ type builder struct {
 
 // An action represents a single action in the action graph.
 type action struct {
-	f func(*builder, *action) error // the action itself
+	f func(*builder, *action) error // the action itself (nil = no-op)
 
 	p          *Package  // the package this action works on
 	deps       []*action // actions that must happen before this one
@@ -142,11 +142,11 @@ const (
 	modeInstall
 )
 
-func (b *builder) init(aflag, nflag, vflag bool) {
+func (b *builder) init(aflag, nflag, xflag bool) {
 	var err error
 	b.aflag = aflag
 	b.nflag = nflag
-	b.vflag = vflag
+	b.xflag = xflag
 	b.actionCache = make(map[cacheKey]*action)
 	b.goroot = runtime.GOROOT()
 	b.goarch = build.DefaultContext.GOARCH
@@ -164,7 +164,7 @@ func (b *builder) init(aflag, nflag, vflag bool) {
 		if err != nil {
 			fatalf("%s", err)
 		}
-		if vflag {
+		if b.xflag {
 			fmt.Printf("WORK=%s\n", b.work)
 		}
 		atexit(func() { os.RemoveAll(b.work) })
@@ -230,23 +230,13 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 			a.deps = append(a.deps, b.action(depMode, depMode, p1))
 		}
 
-		if !needInstall(p) && !b.aflag {
-			// TODO: This is not right if the deps above
-			// are not all no-ops too.  If fmt is up to date
-			// wrt its own source files,  but strconv has
-			// changed, then fmt is not up to date.
-			a.f = (*builder).nop
+		if !needInstall(p) && !b.aflag && allNop(a.deps) {
 			return a
 		}
 		if p.Standard {
 			switch p.ImportPath {
-			case "runtime/cgo":
-				// Too complex - can't build.
-				a.f = (*builder).nop
-				return a
 			case "builtin", "unsafe":
 				// Fake packages - nothing to build.
-				a.f = (*builder).nop
 				return a
 			}
 		}
@@ -261,6 +251,15 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 	}
 
 	return a
+}
+
+func allNop(actions []*action) bool {
+	for _, a := range actions {
+		if a.f != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // needInstall reports whether p needs to be built and installed.
@@ -311,15 +310,13 @@ func (b *builder) do(a *action) {
 			}
 		}
 	}
-	if err := a.f(b, a); err != nil {
-		errorf("%s", err)
-		a.failed = true
+	if a.f != nil {
+		if err := a.f(b, a); err != nil {
+			errorf("%s", err)
+			a.failed = true
+		}
 	}
 	a.done = true
-}
-
-func (b *builder) nop(a *action) error {
-	return nil
 }
 
 // build is the action for building a single package or command.
@@ -334,13 +331,38 @@ func (b *builder) build(a *action) error {
 		return err
 	}
 
-	var objects []string
-	var gofiles []string
+	var gofiles, cfiles, sfiles, objects []string
 	gofiles = append(gofiles, a.p.GoFiles...)
+	cfiles = append(cfiles, a.p.CFiles...)
+	sfiles = append(sfiles, a.p.SFiles...)
 
 	// run cgo
 	if len(a.p.CgoFiles) > 0 {
-		outGo, outObj, err := b.cgo(a.p.Dir, obj, a.p.info)
+		// In a package using cgo, cgo compiles the C and assembly files with gcc.  
+		// There is one exception: runtime/cgo's job is to bridge the
+		// cgo and non-cgo worlds, so it necessarily has files in both.
+		// In that case gcc only gets the gcc_* files.
+		var gccfiles []string
+		if a.p.Standard && a.p.ImportPath == "runtime/cgo" {
+			filter := func(files, nongcc, gcc []string) ([]string, []string) {
+				for _, f := range files {
+					if strings.HasPrefix(f, "gcc_") {
+						gcc = append(gcc, f)
+					} else {
+						nongcc = append(nongcc, f)
+					}
+				}
+				return nongcc, gcc
+			}
+			cfiles, gccfiles = filter(cfiles, cfiles[:0], gccfiles)
+			sfiles, gccfiles = filter(sfiles, sfiles[:0], gccfiles)
+		} else {
+			gccfiles = append(cfiles, sfiles...)
+			cfiles = nil
+			sfiles = nil
+		}
+
+		outGo, outObj, err := b.cgo(a.p.Dir, obj, gccfiles, a.p)
 		if err != nil {
 			return err
 		}
@@ -349,15 +371,26 @@ func (b *builder) build(a *action) error {
 	}
 
 	// prepare Go import path list
-	var inc []string
-	inc = append(inc, "-I", b.work)
+	inc := []string{}
 	incMap := map[string]bool{}
+
+	// work directory first
+	inc = append(inc, "-I", b.work)
+	incMap[b.work] = true
+	incMap[build.Path[0].PkgDir()] = true // goroot
+	incMap[""] = true                     // ignore empty strings
+
+	// then build package directories of dependencies
 	for _, a1 := range a.deps {
-		pkgdir := a1.pkgdir
-		if pkgdir == build.Path[0].PkgDir() || pkgdir == "" {
-			continue
+		if pkgdir := a1.pkgdir; !incMap[pkgdir] {
+			incMap[pkgdir] = true
+			inc = append(inc, "-I", pkgdir)
 		}
-		if !incMap[pkgdir] {
+	}
+
+	// then installed package directories of dependencies
+	for _, a1 := range a.deps {
+		if pkgdir := a1.p.t.PkgDir(); !incMap[pkgdir] {
 			incMap[pkgdir] = true
 			inc = append(inc, "-I", pkgdir)
 		}
@@ -404,26 +437,21 @@ func (b *builder) build(a *action) error {
 		}
 	}
 
-	// in a cgo package, the .c files are compiled with gcc during b.cgo above.
-	// in a non-cgo package, the .c files are compiled with 5c/6c/8c.
-	// The same convention applies for .s files.
-	if len(a.p.CgoFiles) == 0 {
-		for _, file := range a.p.CFiles {
-			out := file[:len(file)-len(".c")] + "." + b.arch
-			if err := b.cc(a.p.Dir, obj+out, file); err != nil {
-				return err
-			}
-			objects = append(objects, out)
+	for _, file := range cfiles {
+		out := file[:len(file)-len(".c")] + "." + b.arch
+		if err := b.cc(a.p.Dir, obj, obj+out, file); err != nil {
+			return err
 		}
+		objects = append(objects, out)
+	}
 
-		// assemble .s files
-		for _, file := range a.p.SFiles {
-			out := file[:len(file)-len(".s")] + "." + b.arch
-			if err := b.asm(a.p.Dir, obj+out, file); err != nil {
-				return err
-			}
-			objects = append(objects, out)
+	// assemble .s files
+	for _, file := range sfiles {
+		out := file[:len(file)-len(".s")] + "." + b.arch
+		if err := b.asm(a.p.Dir, obj, obj+out, file); err != nil {
+			return err
 		}
+		objects = append(objects, out)
 	}
 
 	// pack into archive
@@ -474,7 +502,7 @@ func (b *builder) install(a *action) error {
 
 // copyFile is like 'cp src dst'.
 func (b *builder) copyFile(dst, src string, perm uint32) error {
-	if b.nflag || b.vflag {
+	if b.nflag || b.xflag {
 		b.showcmd("cp %s %s", src, dst)
 		if b.nflag {
 			return nil
@@ -510,7 +538,7 @@ func (b *builder) fmtcmd(format string, args ...interface{}) string {
 }
 
 // showcmd prints the given command to standard output
-// for the implementation of -n or -v.
+// for the implementation of -n or -x.
 func (b *builder) showcmd(format string, args ...interface{}) {
 	fmt.Println(b.fmtcmd(format, args...))
 }
@@ -519,7 +547,7 @@ func (b *builder) showcmd(format string, args ...interface{}) {
 // If the commnd fails, run prints information about the failure
 // and returns a non-nil error.
 func (b *builder) run(dir string, cmdline ...string) error {
-	if b.nflag || b.vflag {
+	if b.nflag || b.xflag {
 		b.showcmd("cd %s; %s", dir, strings.Join(cmdline, " "))
 		if b.nflag {
 			return nil
@@ -542,7 +570,7 @@ func (b *builder) run(dir string, cmdline ...string) error {
 
 // mkdir makes the named directory.
 func (b *builder) mkdir(dir string) error {
-	if b.nflag || b.vflag {
+	if b.nflag || b.xflag {
 		b.showcmd("mkdir -p %s", dir)
 		if b.nflag {
 			return nil
@@ -567,8 +595,8 @@ func (b *builder) gc(dir, ofile string, gcargs, importArgs []string, gofiles []s
 
 // asm runs the assembler in a specific directory on a specific file
 // to generate the named output file. 
-func (b *builder) asm(dir, ofile, sfile string) error {
-	return b.run(dir, b.arch+"a", "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, sfile)
+func (b *builder) asm(dir, obj, ofile, sfile string) error {
+	return b.run(dir, b.arch+"a", "-I", obj, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, sfile)
 }
 
 // gopack runs the assembler in a specific directory to create
@@ -585,10 +613,10 @@ func (b *builder) ld(dir, out string, importArgs []string, mainpkg string) error
 
 // cc runs the gc-toolchain C compiler in a directory on a C file
 // to produce an output file.
-func (b *builder) cc(dir, ofile, cfile string) error {
+func (b *builder) cc(dir, objdir, ofile, cfile string) error {
 	inc := filepath.Join(runtime.GOROOT(), "pkg",
 		fmt.Sprintf("%s_%s", b.goos, b.goarch))
-	return b.run(dir, b.arch+"c", "-FVw", "-I", inc, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
+	return b.run(dir, b.arch+"c", "-FVw", "-I", objdir, "-I", inc, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
 }
 
 // gcc runs the gcc C compiler to create an object from a single C file.
@@ -617,12 +645,12 @@ func (b *builder) gccCmd(objdir string, flags []string, args ...string) []string
 
 var cgoRe = regexp.MustCompile(`[/\\:]`)
 
-func (b *builder) cgo(dir, obj string, info *build.DirInfo) (outGo, outObj []string, err error) {
+func (b *builder) cgo(dir, obj string, csfiles []string, p *Package) (outGo, outObj []string, err error) {
 	// cgo
 	// TODO: CGOPKGPATH, CGO_FLAGS?
 	gofiles := []string{obj + "_cgo_gotypes.go"}
 	cfiles := []string{"_cgo_main.c", "_cgo_export.c"}
-	for _, fn := range info.CgoFiles {
+	for _, fn := range p.CgoFiles {
 		f := cgoRe.ReplaceAllString(fn[:len(fn)-2], "_")
 		gofiles = append(gofiles, obj+f+"cgo1.go")
 		cfiles = append(cfiles, f+"cgo2.c")
@@ -630,14 +658,20 @@ func (b *builder) cgo(dir, obj string, info *build.DirInfo) (outGo, outObj []str
 	defunC := obj + "_cgo_defun.c"
 	// TODO: make cgo not depend on $GOARCH?
 	// TODO: make cgo write to obj
-	if err := b.run(dir, append([]string{"cgo", "-objdir", obj, "--"}, info.CgoFiles...)...); err != nil {
+	cgoArgs := []string{"cgo", "-objdir", obj}
+	if p.Standard && p.ImportPath == "runtime/cgo" {
+		cgoArgs = append(cgoArgs, "-import_runtime_cgo=false")
+	}
+	cgoArgs = append(cgoArgs, "--")
+	cgoArgs = append(cgoArgs, p.CgoFiles...)
+	if err := b.run(dir, cgoArgs...); err != nil {
 		return nil, nil, err
 	}
 	outGo = append(outGo, gofiles...)
 
 	// cc _cgo_defun.c
 	defunObj := obj + "_cgo_defun." + b.arch
-	if err := b.cc(dir, defunObj, defunC); err != nil {
+	if err := b.cc(dir, obj, defunObj, defunC); err != nil {
 		return nil, nil, err
 	}
 	outObj = append(outObj, defunObj)
@@ -646,7 +680,7 @@ func (b *builder) cgo(dir, obj string, info *build.DirInfo) (outGo, outObj []str
 	var linkobj []string
 	for _, cfile := range cfiles {
 		ofile := obj + cfile[:len(cfile)-1] + "o"
-		if err := b.gcc(dir, ofile, info.CgoCFLAGS, obj+cfile); err != nil {
+		if err := b.gcc(dir, ofile, p.info.CgoCFLAGS, obj+cfile); err != nil {
 			return nil, nil, err
 		}
 		linkobj = append(linkobj, ofile)
@@ -654,16 +688,16 @@ func (b *builder) cgo(dir, obj string, info *build.DirInfo) (outGo, outObj []str
 			outObj = append(outObj, ofile)
 		}
 	}
-	for _, cfile := range info.CFiles {
-		ofile := obj + cgoRe.ReplaceAllString(cfile[:len(cfile)-1], "_") + "o"
-		if err := b.gcc(dir, ofile, info.CgoCFLAGS, cfile); err != nil {
+	for _, file := range csfiles {
+		ofile := obj + cgoRe.ReplaceAllString(file[:len(file)-1], "_") + "o"
+		if err := b.gcc(dir, ofile, p.info.CgoCFLAGS, file); err != nil {
 			return nil, nil, err
 		}
 		linkobj = append(linkobj, ofile)
 		outObj = append(outObj, ofile)
 	}
 	dynobj := obj + "_cgo_.o"
-	if err := b.gccld(dir, dynobj, info.CgoLDFLAGS, linkobj); err != nil {
+	if err := b.gccld(dir, dynobj, p.info.CgoLDFLAGS, linkobj); err != nil {
 		return nil, nil, err
 	}
 
@@ -675,7 +709,7 @@ func (b *builder) cgo(dir, obj string, info *build.DirInfo) (outGo, outObj []str
 
 	// cc _cgo_import.ARCH
 	importObj := obj + "_cgo_import." + b.arch
-	if err := b.cc(dir, importObj, importC); err != nil {
+	if err := b.cc(dir, obj, importObj, importC); err != nil {
 		return nil, nil, err
 	}
 	outObj = append(outObj, importObj)

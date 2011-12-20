@@ -32,7 +32,13 @@ func (p *Package) writeDefs() {
 
 	// Write C main file for using gcc to resolve imports.
 	fmt.Fprintf(fm, "int main() { return 0; }\n")
-	fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
+	if *importRuntimeCgo {
+		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
+	} else {
+		// If we're not importing runtime/cgo, we *are* runtime/cgo,
+		// which provides crosscall2.  We just need a prototype.
+		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c);")
+	}
 	fmt.Fprintf(fm, "void _cgo_allocate(void *a, int c) { }\n")
 	fmt.Fprintf(fm, "void _cgo_panic(void *a, int c) { }\n")
 
@@ -43,7 +49,7 @@ func (p *Package) writeDefs() {
 	fmt.Fprintf(fgo2, "package %s\n\n", p.PackageName)
 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n")
 	fmt.Fprintf(fgo2, "import \"syscall\"\n\n")
-	if !*gccgo {
+	if !*gccgo && *importRuntimeCgo {
 		fmt.Fprintf(fgo2, "import _ \"runtime/cgo\"\n\n")
 	}
 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")

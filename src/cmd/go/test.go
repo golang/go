@@ -248,13 +248,13 @@ func runTest(cmd *Command, args []string) {
 		}
 	}
 
-	allRuns := &action{f: (*builder).nop, deps: runs}
+	allRuns := &action{deps: runs}
 	b.do(allRuns)
 }
 
 func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 	if len(p.info.TestGoFiles)+len(p.info.XTestGoFiles) == 0 {
-		return &action{f: (*builder).nop, p: p}, &action{f: (*builder).notest, p: p}, nil
+		return &action{p: p}, &action{f: (*builder).notest, p: p}, nil
 	}
 
 	// Build Package structs describing:
@@ -310,8 +310,8 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
 		ptest.GoFiles = append(ptest.GoFiles, p.info.TestGoFiles...)
 		ptest.targ = "" // must rebuild
-		ptest.Imports = p.info.TestImports
-		ptest.imports = imports
+		ptest.Imports = append(append([]string{}, p.info.Imports...), p.info.TestImports...)
+		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
 		ptest.pkgdir = testDir
 	} else {
 		ptest = p
@@ -372,7 +372,7 @@ var pass = []byte("\nPASS\n")
 
 // runTest is the action for running a test binary.
 func (b *builder) runTest(a *action) error {
-	if b.nflag || b.vflag {
+	if b.nflag || b.xflag {
 		b.showcmd("%s", strings.Join(append([]string{a.deps[0].pkgbin}, testArgs...), " "))
 		if b.nflag {
 			return nil
