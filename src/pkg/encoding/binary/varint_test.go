@@ -165,6 +165,7 @@ func TestNonCanonicalZero(t *testing.T) {
 
 func BenchmarkPutUvarint32(b *testing.B) {
 	buf := make([]byte, MaxVarintLen32)
+	b.SetBytes(4)
 	for i := 0; i < b.N; i++ {
 		for j := uint(0); j < MaxVarintLen32; j++ {
 			PutUvarint(buf, 1<<(j*7))
@@ -174,6 +175,7 @@ func BenchmarkPutUvarint32(b *testing.B) {
 
 func BenchmarkPutUvarint64(b *testing.B) {
 	buf := make([]byte, MaxVarintLen64)
+	b.SetBytes(8)
 	for i := 0; i < b.N; i++ {
 		for j := uint(0); j < MaxVarintLen64; j++ {
 			PutUvarint(buf, 1<<(j*7))
