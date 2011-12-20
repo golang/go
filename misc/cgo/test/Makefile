@@ -16,6 +16,7 @@ CGOFILES=\
 	issue1222.go\
 	issue1328.go\
 	issue1560.go\
+	issue2462.go\
 	duplicate_symbol.go\
 
 CGO_OFILES=\
