@@ -944,23 +944,23 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			`<input type=button value=onclick=>`,
-			`exp/template/html:z: "=" in unquoted attr: "onclick="`,
+			`html/template:z: "=" in unquoted attr: "onclick="`,
 		},
 		{
 			`<input type=button value= onclick=>`,
-			`exp/template/html:z: "=" in unquoted attr: "onclick="`,
+			`html/template:z: "=" in unquoted attr: "onclick="`,
 		},
 		{
 			`<input type=button value= 1+1=2>`,
-			`exp/template/html:z: "=" in unquoted attr: "1+1=2"`,
+			`html/template:z: "=" in unquoted attr: "1+1=2"`,
 		},
 		{
 			"<a class=`foo>",
-			"exp/template/html:z: \"`\" in unquoted attr: \"`foo\"",
+			"html/template:z: \"`\" in unquoted attr: \"`foo\"",
 		},
 		{
 			`<a style=font:'Arial'>`,
-			`exp/template/html:z: "'" in unquoted attr: "font:'Arial'"`,
+			`html/template:z: "'" in unquoted attr: "font:'Arial'"`,
 		},
 		{
 			`<a=foo>`,

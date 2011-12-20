@@ -673,7 +673,7 @@ func benchmark(b *testing.B, re string, n int) {
 	b.SetBytes(int64(n))
 	for i := 0; i < b.N; i++ {
 		if r.Match(t) {
-			panic("match!")
+			b.Fatal("match!")
 		}
 	}
 }

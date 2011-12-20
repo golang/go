@@ -356,7 +356,7 @@ func BenchmarkEncrypt(b *testing.B) {
 	tt := encryptTests[0]
 	c, err := NewCipher(tt.key)
 	if err != nil {
-		panic("NewCipher")
+		b.Fatal("NewCipher:", err)
 	}
 	out := make([]byte, len(tt.in))
 	b.StartTimer()

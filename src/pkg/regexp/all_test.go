@@ -324,8 +324,7 @@ func BenchmarkLiteral(b *testing.B) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		if !re.MatchString(x) {
-			println("no match!")
-			break
+			b.Fatalf("no match!")
 		}
 	}
 }
@@ -337,8 +336,7 @@ func BenchmarkNotLiteral(b *testing.B) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		if !re.MatchString(x) {
-			println("no match!")
-			break
+			b.Fatalf("no match!")
 		}
 	}
 }
@@ -350,8 +348,7 @@ func BenchmarkMatchClass(b *testing.B) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		if !re.MatchString(x) {
-			println("no match!")
-			break
+			b.Fatalf("no match!")
 		}
 	}
 }
@@ -365,8 +362,7 @@ func BenchmarkMatchClass_InRange(b *testing.B) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		if !re.MatchString(x) {
-			println("no match!")
-			break
+			b.Fatalf("no match!")
 		}
 	}
 }

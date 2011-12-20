@@ -289,8 +289,7 @@ func bmIndexByte(b *testing.B, index func([]byte, byte) int, n int) {
 	for i := 0; i < b.N; i++ {
 		j := index(buf, 'x')
 		if j != n-1 {
-			println("bad index", j)
-			panic("bad index")
+			b.Fatal("bad index", j)
 		}
 	}
 	buf[n-1] = '\x00'
@@ -317,7 +316,7 @@ func bmEqual(b *testing.B, equal func([]byte, []byte) bool, n int) {
 	for i := 0; i < b.N; i++ {
 		eq := equal(buf1, buf2)
 		if !eq {
-			panic("bad equal")
+			b.Fatal("bad equal")
 		}
 	}
 	buf1[n-1] = '\x00'
@@ -339,8 +338,7 @@ func bmIndex(b *testing.B, index func([]byte, []byte) int, n int) {
 	for i := 0; i < b.N; i++ {
 		j := index(buf, buf[n-7:])
 		if j != n-7 {
-			println("bad index", j)
-			panic("bad index")
+			b.Fatal("bad index", j)
 		}
 	}
 	buf[n-1] = '\x00'
@@ -362,8 +360,7 @@ func bmIndexEasy(b *testing.B, index func([]byte, []byte) int, n int) {
 	for i := 0; i < b.N; i++ {
 		j := index(buf, buf[n-7:])
 		if j != n-7 {
-			println("bad index", j)
-			panic("bad index")
+			b.Fatal("bad index", j)
 		}
 	}
 	buf[n-1] = '\x00'
@@ -385,8 +382,7 @@ func bmCount(b *testing.B, count func([]byte, []byte) int, n int) {
 	for i := 0; i < b.N; i++ {
 		j := count(buf, buf[n-7:])
 		if j != 1 {
-			println("bad count", j)
-			panic("bad count")
+			b.Fatal("bad count", j)
 		}
 	}
 	buf[n-1] = '\x00'
@@ -408,8 +404,7 @@ func bmCountEasy(b *testing.B, count func([]byte, []byte) int, n int) {
 	for i := 0; i < b.N; i++ {
 		j := count(buf, buf[n-7:])
 		if j != 1 {
-			println("bad count", j)
-			panic("bad count")
+			b.Fatal("bad count", j)
 		}
 	}
 	buf[n-1] = '\x00'

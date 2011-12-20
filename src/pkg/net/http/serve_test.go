@@ -1164,15 +1164,15 @@ func BenchmarkClientServer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		res, err := Get(ts.URL)
 		if err != nil {
-			panic("Get: " + err.Error())
+			b.Fatal("Get:", err)
 		}
 		all, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			panic("ReadAll: " + err.Error())
+			b.Fatal("ReadAll:", err)
 		}
 		body := string(all)
 		if body != "Hello world.\n" {
-			panic("Got body: " + body)
+			b.Fatal("Got body:", body)
 		}
 	}
 

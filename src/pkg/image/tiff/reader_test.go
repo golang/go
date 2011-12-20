@@ -113,7 +113,7 @@ func BenchmarkDecode(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err := Decode(r)
 		if err != nil {
-			panic(err)
+			b.Fatal("Decode:", err)
 		}
 	}
 }

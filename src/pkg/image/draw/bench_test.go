@@ -51,7 +51,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 		}
 		dst = dst1
 	default:
-		panic("unreachable")
+		b.Fatal("unknown destination color model", dcm)
 	}
 
 	var src image.Image
@@ -116,7 +116,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 			Rect:           image.Rect(0, 0, srcw, srch),
 		}
 	default:
-		panic("unreachable")
+		b.Fatal("unknown source color model", scm)
 	}
 
 	var mask image.Image
@@ -137,7 +137,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 		}
 		mask = mask1
 	default:
-		panic("unreachable")
+		b.Fatal("unknown mask color model", mcm)
 	}
 
 	b.StartTimer()
