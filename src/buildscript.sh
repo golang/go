@@ -19,7 +19,7 @@ do
 
 export GOOS='$GOOS'
 export GOARCH='$GOARCH'
-export WORK=$(mktemp -d -t go-build)
+export WORK=$(mktemp -d -t go-build.XXXXXX)
 trap "rm -rf $WORK" EXIT SIGINT SIGTERM
 set -e
 
