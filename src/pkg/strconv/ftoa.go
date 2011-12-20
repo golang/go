@@ -40,11 +40,7 @@ var float64info = floatInfo{52, 11, -1023}
 // For 'e', 'E', and 'f' it is the number of digits after the decimal point.
 // For 'g' and 'G' it is the total number of digits.
 // The special precision -1 uses the smallest number of digits
-// necessary such that Atof32 will return f exactly.
-//
-// Ftoa32(f) is not the same as Ftoa64(float32(f)),
-// because correct rounding and the number of digits
-// needed to identify f depend on the precision of the representation.
+// necessary such that ParseFloat will return f exactly.
 func FormatFloat(f float64, fmt byte, prec, bitSize int) string {
 	return string(genericFtoa(make([]byte, 0, max(prec+4, 24)), f, fmt, prec, bitSize))
 }
