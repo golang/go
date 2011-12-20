@@ -120,7 +120,8 @@ func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string) erro
 		"OK":          ok,
 		"Log":         buildLog,
 	}
-	return dash("POST", "result", url.Values{"key": {b.key}}, req, nil)
+	args := url.Values{"key": {b.key}, "builder": {b.name}}
+	return dash("POST", "result", args, req, nil)
 }
 
 // packages fetches a list of package paths from the dashboard
