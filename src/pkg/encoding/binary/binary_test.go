@@ -171,11 +171,42 @@ func (br *byteSliceReader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-func BenchmarkRead(b *testing.B) {
+func BenchmarkReadSlice1000Int32s(b *testing.B) {
+	bsr := &byteSliceReader{}
+	slice := make([]int32, 1000)
+	buf := make([]byte, len(slice)*4)
+	b.SetBytes(int64(len(buf)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bsr.remain = buf
+		Read(bsr, BigEndian, slice)
+	}
+}
+
+func BenchmarkReadStruct(b *testing.B) {
+	bsr := &byteSliceReader{}
+	var buf bytes.Buffer
+	Write(&buf, BigEndian, &s)
+	n := TotalSize(reflect.ValueOf(s))
+	b.SetBytes(int64(n))
+	t := s
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bsr.remain = buf.Bytes()
+		Read(bsr, BigEndian, &t)
+	}
+	b.StopTimer()
+	if !reflect.DeepEqual(s, t) {
+		panic("no match")
+	}
+}
+
+func BenchmarkReadInts(b *testing.B) {
 	var ls Struct
 	bsr := &byteSliceReader{}
 	var r io.Reader = bsr
-
+	b.SetBytes(2 * (1 + 2 + 4 + 8))
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		bsr.remain = big
 		Read(r, BigEndian, &ls.Int8)
@@ -196,25 +227,19 @@ func BenchmarkRead(b *testing.B) {
 	for i := range want.Array {
 		want.Array[i] = 0
 	}
+	b.StopTimer()
 	if !reflect.DeepEqual(ls, want) {
 		panic("no match")
 	}
 }
 
-func BenchmarkWrite(b *testing.B) {
+func BenchmarkWriteInts(b *testing.B) {
 	buf := new(bytes.Buffer)
 	var w io.Writer = buf
-
+	b.SetBytes(2 * (1 + 2 + 4 + 8))
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
-		Write(w, BigEndian, &s.Int8)
-		Write(w, BigEndian, &s.Int16)
-		Write(w, BigEndian, &s.Int32)
-		Write(w, BigEndian, &s.Int64)
-		Write(w, BigEndian, &s.Uint8)
-		Write(w, BigEndian, &s.Uint16)
-		Write(w, BigEndian, &s.Uint32)
-		Write(w, BigEndian, &s.Uint64)
 		Write(w, BigEndian, s.Int8)
 		Write(w, BigEndian, s.Int16)
 		Write(w, BigEndian, s.Int32)
@@ -224,11 +249,8 @@ func BenchmarkWrite(b *testing.B) {
 		Write(w, BigEndian, s.Uint32)
 		Write(w, BigEndian, s.Uint64)
 	}
-
-	if !bytes.Equal(buf.Bytes()[:30], big[:30]) {
+	b.StopTimer()
+	if !bytes.Equal(buf.Bytes(), big[:30]) {
 		panic("first half doesn't match")
-	}
-	if !bytes.Equal(buf.Bytes()[30:], big[:30]) {
-		panic("second half doesn't match")
 	}
 }
