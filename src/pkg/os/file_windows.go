@@ -281,6 +281,35 @@ func Truncate(name string, size int64) error {
 	return nil
 }
 
+// Remove removes the named file or directory.
+func Remove(name string) error {
+	p := &syscall.StringToUTF16(name)[0]
+
+	// Go file interface forces us to know whether
+	// name is a file or directory. Try both.
+	e := syscall.DeleteFile(p)
+	if e == nil {
+		return nil
+	}
+	e1 := syscall.RemoveDirectory(p)
+	if e1 == nil {
+		return nil
+	}
+
+	// Both failed: figure out which error to return.
+	if e1 != e {
+		a, e2 := syscall.GetFileAttributes(p)
+		if e2 != nil {
+			e = e2
+		} else {
+			if a&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+				e = e1
+			}
+		}
+	}
+	return &PathError{"remove", name, e}
+}
+
 // Pipe returns a connected pair of Files; reads from r return bytes written to w.
 // It returns the files and an error, if any.
 func Pipe() (r *File, w *File, err error) {
