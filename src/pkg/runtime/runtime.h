@@ -635,7 +635,8 @@ void	runtime·futexwakeup(uint32*, uint32);
  * low level C-called
  */
 uint8*	runtime·mmap(byte*, uintptr, int32, int32, int32, uint32);
-void	runtime·munmap(uint8*, uintptr);
+void	runtime·munmap(byte*, uintptr);
+void	runtime·madvise(byte*, uintptr, int32);
 void	runtime·memclr(byte*, uintptr);
 void	runtime·setcallerpc(void*, void*);
 void*	runtime·getcallerpc(void*);
