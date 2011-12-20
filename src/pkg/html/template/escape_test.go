@@ -928,7 +928,7 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			`{{template "foo"}}`,
-			"z:1: no such template foo",
+			"z:1: no such template \"foo\"",
 		},
 		{
 			`<div{{template "y"}}>` +

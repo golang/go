@@ -486,9 +486,17 @@ func (e *escaper) escapeTree(c context, name string, line int) (context, string)
 	}
 	t := e.template(name)
 	if t == nil {
+		// Two cases: The template exists but is empty, or has never been mentioned at
+		// all. Distinguish the cases in the error messages.
+		if e.tmpl.set[name] != nil {
+			return context{
+				state: stateError,
+				err:   errorf(ErrNoSuchTemplate, line, "%q is an incomplete or empty template", name),
+			}, dname
+		}
 		return context{
 			state: stateError,
-			err:   errorf(ErrNoSuchTemplate, line, "no such template %s", name),
+			err:   errorf(ErrNoSuchTemplate, line, "no such template %q", name),
 		}, dname
 	}
 	if dname != name {
