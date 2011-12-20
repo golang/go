@@ -8,7 +8,7 @@ import (
 	"bufio"
 	"errors"
 	"image"
-	"image/ycbcr"
+	"image/color"
 	"io"
 )
 
@@ -379,7 +379,7 @@ func toYCbCr(m image.Image, p image.Point, yBlock, cbBlock, crBlock *block) {
 	for j := 0; j < 8; j++ {
 		for i := 0; i < 8; i++ {
 			r, g, b, _ := m.At(min(p.X+i, xmax), min(p.Y+j, ymax)).RGBA()
-			yy, cb, cr := ycbcr.RGBToYCbCr(uint8(r>>8), uint8(g>>8), uint8(b>>8))
+			yy, cb, cr := color.RGBToYCbCr(uint8(r>>8), uint8(g>>8), uint8(b>>8))
 			yBlock[8*j+i] = int(yy)
 			cbBlock[8*j+i] = int(cb)
 			crBlock[8*j+i] = int(cr)
@@ -404,7 +404,7 @@ func rgbaToYCbCr(m *image.RGBA, p image.Point, yBlock, cbBlock, crBlock *block) 
 				sx = xmax
 			}
 			pix := m.Pix[offset+sx*4:]
-			yy, cb, cr := ycbcr.RGBToYCbCr(pix[0], pix[1], pix[2])
+			yy, cb, cr := color.RGBToYCbCr(pix[0], pix[1], pix[2])
 			yBlock[8*j+i] = int(yy)
 			cbBlock[8*j+i] = int(cb)
 			crBlock[8*j+i] = int(cr)

@@ -20,6 +20,7 @@ GOFILES=\
 	httputil.go\
 	imagecolor.go\
 	imagenew.go\
+	imageycbcr.go\
 	iocopyn.go\
 	main.go\
 	mapdelete.go\
