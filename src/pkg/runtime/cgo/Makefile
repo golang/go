@@ -14,15 +14,15 @@ ifeq ($(CGO_ENABLED),1)
 # Unwarranted chumminess with Make.pkg's cgo rules.
 # Do not try this at home.
 CGO_OFILES=\
-	$(GOARCH).o\
-	$(GOOS)_$(GOARCH).o\
-	util.o\
+	gcc_$(GOARCH).o\
+	gcc_$(GOOS)_$(GOARCH).o\
+	gcc_util.o\
 
 ifeq ($(GOOS),windows)
 CGO_LDFLAGS=-lm -mthreads
 else
 CGO_LDFLAGS=-lpthread
-CGO_OFILES+=setenv.o\
+CGO_OFILES+=gcc_setenv.o\
 
 endif
 
@@ -50,11 +50,11 @@ _cgo_main.c:
 	echo 'int main() { return 0; }' >$@
 endif
 
-$(GOARCH).o: $(GOARCH).S
+gcc_$(GOARCH).o: gcc_$(GOARCH).S
 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $^
 
-$(GOOS)_$(GOARCH).o: $(GOOS)_$(GOARCH).c
+gcc_$(GOOS)_$(GOARCH).o: gcc_$(GOOS)_$(GOARCH).c
 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $^
 
-%.o: %.c
+gcc_%.o: gcc_%.c
 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $^
