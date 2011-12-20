@@ -4,6 +4,10 @@
 
 package net
 
+import (
+	"time"
+)
+
 func resolveNetAddr(op, net, addr string) (a Addr, err error) {
 	if addr == "" {
 		return nil, &OpError{op, net, nil, errMissingAddress}
@@ -42,11 +46,15 @@ func resolveNetAddr(op, net, addr string) (a Addr, err error) {
 //	Dial("tcp", "google.com:80")
 //	Dial("tcp", "[de:ad:be:ef::ca:fe]:80")
 //
-func Dial(net, addr string) (c Conn, err error) {
+func Dial(net, addr string) (Conn, error) {
 	addri, err := resolveNetAddr("dial", net, addr)
 	if err != nil {
 		return nil, err
 	}
+	return dialAddr(net, addr, addri)
+}
+
+func dialAddr(net, addr string, addri Addr) (c Conn, err error) {
 	switch ra := addri.(type) {
 	case *TCPAddr:
 		c, err = DialTCP(net, nil, ra)
@@ -64,6 +72,62 @@ func Dial(net, addr string) (c Conn, err error) {
 	}
 	return
 }
+
+// DialTimeout acts like Dial but takes a timeout.
+// The timeout includes name resolution, if required.
+func DialTimeout(net, addr string, timeout time.Duration) (Conn, error) {
+	// TODO(bradfitz): the timeout should be pushed down into the
+	// net package's event loop, so on timeout to dead hosts we
+	// don't have a goroutine sticking around for the default of
+	// ~3 minutes.
+	t := time.NewTimer(timeout)
+	defer t.Stop()
+	type pair struct {
+		Conn
+		error
+	}
+	ch := make(chan pair, 1)
+	resolvedAddr := make(chan Addr, 1)
+	go func() {
+		addri, err := resolveNetAddr("dial", net, addr)
+		if err != nil {
+			ch <- pair{nil, err}
+			return
+		}
+		resolvedAddr <- addri // in case we need it for OpError
+		c, err := dialAddr(net, addr, addri)
+		ch <- pair{c, err}
+	}()
+	select {
+	case <-t.C:
+		// Try to use the real Addr in our OpError, if we resolved it
+		// before the timeout. Otherwise we just use stringAddr.
+		var addri Addr
+		select {
+		case a := <-resolvedAddr:
+			addri = a
+		default:
+			addri = &stringAddr{net, addr}
+		}
+		err := &OpError{
+			Op:   "dial",
+			Net:  net,
+			Addr: addri,
+			Err:  &timeoutError{},
+		}
+		return nil, err
+	case p := <-ch:
+		return p.Conn, p.error
+	}
+	panic("unreachable")
+}
+
+type stringAddr struct {
+	net, addr string
+}
+
+func (a stringAddr) Network() string { return a.net }
+func (a stringAddr) String() string  { return a.addr }
 
 // Listen announces on the local network address laddr.
 // The network string net must be a stream-oriented
