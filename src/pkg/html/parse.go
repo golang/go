@@ -319,10 +319,7 @@ func (p *parser) resetInsertionMode() {
 		case "html":
 			p.im = beforeHeadIM
 		default:
-			if p.top().Namespace == "" {
-				continue
-			}
-			p.im = inForeignContentIM
+			continue
 		}
 		return
 	}
@@ -814,7 +811,6 @@ func inBodyIM(p *parser) bool {
 			// TODO: adjust foreign attributes.
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.top().Namespace = namespace
-			p.im = inForeignContentIM
 			return true
 		case "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr":
 			// Ignore the token.
@@ -1590,7 +1586,7 @@ func afterAfterFramesetIM(p *parser) bool {
 }
 
 // Section 12.2.5.5.
-func inForeignContentIM(p *parser) bool {
+func parseForeignContent(p *parser) bool {
 	switch p.tok.Type {
 	case TextToken:
 		// TODO: HTML integration points.
@@ -1610,7 +1606,14 @@ func inForeignContentIM(p *parser) bool {
 		})
 	case StartTagToken:
 		if breakout[p.tok.Data] {
-			// TODO.
+			for i := len(p.oe) - 1; i >= 0; i-- {
+				// TODO: HTML, MathML integration points.
+				if p.oe[i].Namespace == "" {
+					p.oe = p.oe[:i+1]
+					break
+				}
+			}
+			return false
 		}
 		switch p.top().Namespace {
 		case "mathml":
@@ -1626,19 +1629,31 @@ func inForeignContentIM(p *parser) bool {
 	case EndTagToken:
 		for i := len(p.oe) - 1; i >= 0; i-- {
 			if p.oe[i].Namespace == "" {
-				inBodyIM(p)
-				break
+				return p.im(p)
 			}
 			if strings.EqualFold(p.oe[i].Data, p.tok.Data) {
 				p.oe = p.oe[:i]
 				break
 			}
 		}
-		p.resetInsertionMode()
 		return true
 	default:
 		// Ignore the token.
 	}
+	return true
+}
+
+// Section 12.2.5.
+func (p *parser) inForeignContent() bool {
+	if len(p.oe) == 0 {
+		return false
+	}
+	n := p.oe[len(p.oe)-1]
+	if n.Namespace == "" {
+		return false
+	}
+	// TODO: MathML, HTML integration points.
+	// TODO: MathML's annotation-xml combining with SVG's svg.
 	return true
 }
 
@@ -1654,7 +1669,11 @@ func (p *parser) parse() error {
 				return err
 			}
 		}
-		consumed = p.im(p)
+		if p.inForeignContent() {
+			consumed = parseForeignContent(p)
+		} else {
+			consumed = p.im(p)
+		}
 	}
 	// Loop until the final token (the ErrorToken signifying EOF) is consumed.
 	for {
