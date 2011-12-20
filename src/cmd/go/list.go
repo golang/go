@@ -14,7 +14,7 @@ var cmdList = &Command{
 	UsageLine: "list [-f format] [-json] [importpath...]",
 	Short:     "list packages",
 	Long: `
-List lists the packages named by the import paths.
+List lists the packages named by the import paths, one per line.
 
 The default output shows the package name and file system location:
 
@@ -24,7 +24,7 @@ The default output shows the package name and file system location:
 
 The -f flag specifies an alternate format for the list,
 using the syntax of package template.  The default output
-is equivalent to -f '{{.Name}} {{.Dir}}'.  The struct
+is equivalent to -f '{{.ImportPath}}'.  The struct
 being passed to the template is:
 
     type Package struct {
@@ -57,7 +57,7 @@ func init() {
 	cmdList.Run = runList // break init cycle
 }
 
-var listFmt = cmdList.Flag.String("f", "{{.Name}} {{.Dir}}", "")
+var listFmt = cmdList.Flag.String("f", "{{.ImportPath}}", "")
 var listJson = cmdList.Flag.Bool("json", false, "")
 var nl = []byte{'\n'}
 

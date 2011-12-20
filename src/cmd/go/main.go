@@ -237,8 +237,38 @@ func run(cmdline ...string) {
 // allPackages returns all the packages that can be found
 // under the $GOPATH directories and $GOROOT.
 func allPackages() []string {
-	have := make(map[string]bool)
+	have := map[string]bool{
+		"builtin": true, // ignore pseudo-package that exists only for documentation
+	}
 	var pkgs []string
+
+	// Commands
+	goroot := build.Path[0].Path
+	cmd := filepath.Join(goroot, "src/cmd") + string(filepath.Separator)
+	filepath.Walk(cmd, func(path string, fi os.FileInfo, err error) error {
+		if err != nil || !fi.IsDir() {
+			return nil
+		}
+		name := path[len(cmd):]
+		// Commands are all in cmd/, not in subdirectories.
+		if strings.Contains(name, string(filepath.Separator)) {
+			return filepath.SkipDir
+		}
+
+		_, err = build.ScanDir(path)
+		if err != nil {
+			return nil
+		}
+
+		// We use, e.g., cmd/gofmt as the pseudo import path for gofmt.
+		name = "cmd/" + name
+		if !have[name] {
+			have[name] = true
+			pkgs = append(pkgs, name)
+		}
+		return nil
+	})
+
 	for _, t := range build.Path {
 		src := t.SrcDir() + string(filepath.Separator)
 		filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
@@ -256,21 +286,19 @@ func allPackages() []string {
 				return nil
 			}
 			name := path[len(src):]
-			if have[name] {
-				return nil
+			if !have[name] {
+				pkgs = append(pkgs, name)
+				have[name] = true
 			}
-			pkgs = append(pkgs, name)
-			have[name] = true
 
 			// Avoid go/build test data.
+			// TODO: Move it into a testdata directory.
 			if path == filepath.Join(build.Path[0].SrcDir(), "go/build") {
 				return filepath.SkipDir
 			}
 
 			return nil
 		})
-
-		// TODO: Commands.
 	}
 	return pkgs
 }
