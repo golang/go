@@ -228,10 +228,6 @@ func runTest(cmd *Command, args []string) {
 			errorf("%s: %s", p, err)
 			continue
 		}
-		if buildTest == nil {
-			// no test at all
-			continue
-		}
 		builds = append(builds, buildTest)
 		runs = append(runs, runTest)
 	}
@@ -254,7 +250,9 @@ func runTest(cmd *Command, args []string) {
 
 func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 	if len(p.info.TestGoFiles)+len(p.info.XTestGoFiles) == 0 {
-		return &action{p: p}, &action{f: (*builder).notest, p: p}, nil
+		build := &action{p: p}
+		run := &action{f: (*builder).notest, p: p, deps: []*action{build}}
+		return build, run, nil
 	}
 
 	// Build Package structs describing:
@@ -292,6 +290,7 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 	// $WORK/unicode/utf8/_test/unicode/utf8_test.a.
 	testDir := filepath.Join(b.work, filepath.FromSlash(p.ImportPath+"/_test"))
 	ptestObj := filepath.Join(testDir, filepath.FromSlash(p.ImportPath+".a"))
+	pxtestObj := filepath.Join(testDir, filepath.FromSlash(p.ImportPath+"_test.a"))
 
 	// Create the directory for the .a files.
 	ptestDir, _ := filepath.Split(ptestObj)
@@ -309,10 +308,15 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 		ptest.GoFiles = nil
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
 		ptest.GoFiles = append(ptest.GoFiles, p.info.TestGoFiles...)
-		ptest.targ = "" // must rebuild
+		ptest.target = ""
 		ptest.Imports = append(append([]string{}, p.info.Imports...), p.info.TestImports...)
 		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
 		ptest.pkgdir = testDir
+		a := b.action(modeBuild, modeBuild, ptest)
+		a.objdir = testDir + string(filepath.Separator)
+		a.objpkg = ptestObj
+		a.target = ptestObj
+		a.link = false
 	} else {
 		ptest = p
 	}
@@ -330,6 +334,11 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 			imports:    imports,
 			pkgdir:     testDir,
 		}
+		pxtest.imports = append(pxtest.imports, ptest)
+		a := b.action(modeBuild, modeBuild, pxtest)
+		a.objdir = testDir + string(filepath.Separator)
+		a.objpkg = pxtestObj
+		a.target = pxtestObj
 	}
 
 	// Action for building test.out.
@@ -344,16 +353,19 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 	if pxtest != nil {
 		pmain.imports = append(pmain.imports, pxtest)
 	}
-	pmainAction := b.action(modeBuild, modeBuild, pmain)
-	pmainAction.pkgbin = filepath.Join(testDir, "test.out")
+	a := b.action(modeBuild, modeBuild, pmain)
+	a.objdir = testDir + string(filepath.Separator)
+	a.objpkg = filepath.Join(testDir, "main.a")
+	a.target = filepath.Join(testDir, "test.out") + b.exe
+	pmainAction := a
 
 	if testC {
 		// -c flag: create action to copy binary to ./test.out.
-		pmain.targ = "test.out"
 		runAction = &action{
-			f:    (*builder).install,
-			deps: []*action{pmainAction},
-			p:    pmain,
+			f:      (*builder).install,
+			deps:   []*action{pmainAction},
+			p:      pmain,
+			target: "test.out" + b.exe,
 		}
 	} else {
 		// run test
@@ -372,8 +384,11 @@ var pass = []byte("\nPASS\n")
 
 // runTest is the action for running a test binary.
 func (b *builder) runTest(a *action) error {
+	args := []string{a.deps[0].target}
+	args = append(args, testArgs...)
+
 	if b.nflag || b.xflag {
-		b.showcmd("%s", strings.Join(append([]string{a.deps[0].pkgbin}, testArgs...), " "))
+		b.showcmd("", "%s", strings.Join(args, " "))
 		if b.nflag {
 			return nil
 		}
@@ -387,7 +402,7 @@ func (b *builder) runTest(a *action) error {
 		return nil
 	}
 
-	cmd := exec.Command(a.deps[0].pkgbin, testArgs...)
+	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = a.p.Dir
 	out, err := cmd.CombinedOutput()
 	if err == nil && (bytes.Equal(out, pass[1:]) || bytes.HasSuffix(out, pass)) {

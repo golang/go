@@ -185,8 +185,10 @@ func help(args []string) {
 
 // importPaths returns the import paths to use for the given command line.
 func importPaths(args []string) []string {
-	if len(args) == 1 && args[0] == "all" {
-		return allPackages()
+	if len(args) == 1 {
+		if args[0] == "all" || args[0] == "std" {
+			return allPackages(args[0])
+		}
 	}
 	if len(args) == 0 {
 		return []string{"."}
@@ -236,9 +238,12 @@ func run(cmdline ...string) {
 
 // allPackages returns all the packages that can be found
 // under the $GOPATH directories and $GOROOT.
-func allPackages() []string {
+func allPackages(what string) []string {
 	have := map[string]bool{
 		"builtin": true, // ignore pseudo-package that exists only for documentation
+	}
+	if !build.DefaultContext.CgoEnabled {
+		have["runtime/cgo"] = true // ignore during walk
 	}
 	var pkgs []string
 
@@ -270,6 +275,9 @@ func allPackages() []string {
 	})
 
 	for _, t := range build.Path {
+		if what == "std" && !t.Goroot {
+			continue
+		}
 		src := t.SrcDir() + string(filepath.Separator)
 		filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
 			if err != nil || !fi.IsDir() {
@@ -281,15 +289,21 @@ func allPackages() []string {
 				return filepath.SkipDir
 			}
 
+			name := filepath.ToSlash(path[len(src):])
+			if what == "std" && strings.Contains(name, ".") {
+				return filepath.SkipDir
+			}
+			if have[name] {
+				return nil
+			}
+
 			_, err = build.ScanDir(path)
 			if err != nil {
 				return nil
 			}
-			name := filepath.ToSlash(path[len(src):])
-			if !have[name] {
-				pkgs = append(pkgs, name)
-				have[name] = true
-			}
+
+			pkgs = append(pkgs, name)
+			have[name] = true
 
 			// Avoid go/build test data.
 			// TODO: Move it into a testdata directory.
