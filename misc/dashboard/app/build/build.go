@@ -176,7 +176,7 @@ type Result struct {
 	GoHash string
 
 	OK      bool
-	Log     []byte `datastore:"-"`        // for JSON unmarshaling
+	Log     string `datastore:"-"`        // for JSON unmarshaling only
 	LogHash string `datastore:",noindex"` // Key to the Log record.
 }
 
@@ -208,12 +208,12 @@ type Log struct {
 	CompressedLog []byte
 }
 
-func PutLog(c appengine.Context, text []byte) (hash string, err os.Error) {
+func PutLog(c appengine.Context, text string) (hash string, err os.Error) {
 	h := sha1.New()
-	h.Write(text)
+	io.WriteString(h, text)
 	b := new(bytes.Buffer)
 	z, _ := gzip.NewWriterLevel(b, gzip.BestCompression)
-	z.Write(text)
+	io.WriteString(z, text)
 	z.Close()
 	hash = fmt.Sprintf("%x", h.Sum())
 	key := datastore.NewKey(c, "Log", hash, 0, nil)
@@ -511,6 +511,7 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
 // logHandler displays log text for a given hash.
 // It handles paths like "/log/hash".
 func logHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-type", "text/plain")
 	c := appengine.NewContext(r)
 	h := r.URL.Path[len("/log/"):]
 	k := datastore.NewKey(c, "Log", h, 0, nil)
