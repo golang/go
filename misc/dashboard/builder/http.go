@@ -111,7 +111,7 @@ func (b *Builder) todo(kind, pkg, goHash string) (rev string, err error) {
 }
 
 // recordResult sends build results to the dashboard
-func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string) error {
+func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string, runTime time.Duration) error {
 	req := obj{
 		"Builder":     b.name,
 		"PackagePath": pkg,
@@ -119,6 +119,7 @@ func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string) erro
 		"GoHash":      goHash,
 		"OK":          ok,
 		"Log":         buildLog,
+		"RunTime":     runTime,
 	}
 	args := url.Values{"key": {b.key}, "builder": {b.name}}
 	return dash("POST", "result", args, req, nil)

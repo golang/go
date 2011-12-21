@@ -294,7 +294,9 @@ func (b *Builder) buildHash(hash string) (err error) {
 
 	// build
 	logfile := path.Join(workpath, "build.log")
+	startTime := time.Now()
 	buildLog, status, err := runLog(b.envv(), logfile, srcDir, *buildCmd)
+	runTime := time.Now().Sub(startTime)
 	if err != nil {
 		return fmt.Errorf("%s: %s", *buildCmd, err)
 	}
@@ -309,11 +311,11 @@ func (b *Builder) buildHash(hash string) (err error) {
 
 	if status != 0 {
 		// record failure
-		return b.recordResult(false, "", hash, "", buildLog)
+		return b.recordResult(false, "", hash, "", buildLog, runTime)
 	}
 
 	// record success
-	if err = b.recordResult(true, "", hash, "", ""); err != nil {
+	if err = b.recordResult(true, "", hash, "", "", runTime); err != nil {
 		return fmt.Errorf("recordResult: %s", err)
 	}
 
@@ -378,7 +380,7 @@ func (b *Builder) buildPackages(goRoot, goHash string) {
 		}
 
 		// record the result
-		err = b.recordResult(ok, pkg, hash, goHash, buildLog)
+		err = b.recordResult(ok, pkg, hash, goHash, buildLog, 0)
 		if err != nil {
 			log.Printf("buildPackages %s: %v", pkg, err)
 		}
