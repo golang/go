@@ -34,7 +34,7 @@ if $rebuild; then
 	if $USE_GO_TOOL; then
 		echo
 		echo '# Package builds'
-		GOPATH="" time go install -a all
+		time GOPATH="" go install -a all
 	else
 		(xcd pkg
 			gomake clean
@@ -46,7 +46,7 @@ fi
 if $USE_GO_TOOL; then
 	echo
 	echo '# Package tests'
-	GOPATH="" time go test all -short
+	time GOPATH="" go test all -short
 else
 	(xcd pkg
 	gomake testshort
