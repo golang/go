@@ -139,6 +139,7 @@ type builder struct {
 	goos        string               // the $GOOS
 	gobin       string               // the $GOBIN
 	exe         string               // the executable suffix - "" or ".exe"
+	gcflags     []string             // additional flags for Go compiler
 	actionCache map[cacheKey]*action // a cache of already-constructed actions
 	mkdirCache  map[string]bool      // a cache of created directories
 
@@ -202,6 +203,7 @@ func (b *builder) init(aflag, nflag, xflag bool) {
 	if b.goos == "windows" {
 		b.exe = ".exe"
 	}
+	b.gcflags = strings.Fields(os.Getenv("GCFLAGS"))
 
 	b.arch, err = build.ArchChar(b.goarch)
 	if err != nil {
@@ -836,6 +838,7 @@ func mkAbs(dir, f string) string {
 // to generate the named output file. 
 func (b *builder) gc(p *Package, ofile string, gcargs, importArgs []string, gofiles []string) error {
 	args := []string{b.arch + "g", "-o", ofile}
+	args = append(args, b.gcflags...)
 	args = append(args, gcargs...)
 	args = append(args, importArgs...)
 	for _, f := range gofiles {
@@ -890,7 +893,13 @@ func (b *builder) gccld(p *Package, out string, flags []string, obj []string) er
 // gccCmd returns a gcc command line ending with args
 func (b *builder) gccCmd(objdir string, flags []string, args ...string) []string {
 	// TODO: HOST_CC?
-	a := []string{"gcc", "-I", objdir, "-g", "-fPIC", "-O2"}
+	a := []string{"gcc", "-I", objdir, "-g", "-O2"}
+
+	// Definitely want -fPIC but on Windows gcc complains
+	// "-fPIC ignored for target (all code is position independent)"
+	if b.goos != "windows" {
+		a = append(a, "-fPIC")
+	}
 	switch b.arch {
 	case "8":
 		a = append(a, "-m32")
