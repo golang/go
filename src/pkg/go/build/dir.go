@@ -84,6 +84,8 @@ var cgoEnabled = map[string]bool{
 	"linux/amd64":   true,
 	"freebsd/386":   true,
 	"freebsd/amd64": true,
+	"windows/386":   true,
+	"windows/amd64": true,
 }
 
 func defaultContext() Context {

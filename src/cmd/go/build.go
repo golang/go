@@ -452,7 +452,7 @@ func (b *builder) build(a *action) error {
 		return err
 	}
 
-	var gofiles, cfiles, sfiles, objects []string
+	var gofiles, cfiles, sfiles, objects, cgoObjects []string
 	gofiles = append(gofiles, a.p.GoFiles...)
 	cfiles = append(cfiles, a.p.CFiles...)
 	sfiles = append(sfiles, a.p.SFiles...)
@@ -487,7 +487,7 @@ func (b *builder) build(a *action) error {
 		if err != nil {
 			return err
 		}
-		objects = append(objects, outObj...)
+		cgoObjects = append(cgoObjects, outObj...)
 		gofiles = append(gofiles, outGo...)
 	}
 
@@ -575,6 +575,12 @@ func (b *builder) build(a *action) error {
 		}
 		objects = append(objects, out)
 	}
+
+	// NOTE(rsc): On Windows, it is critically important that the
+	// gcc-compiled objects (cgoObjects) be listed after the ordinary
+	// objects in the archive.  I do not know why this is.
+	// http://golang.org/issue/2601
+	objects = append(objects, cgoObjects...)
 
 	// pack into archive in obj directory
 	if err := b.gopack(a.p, obj, a.objpkg, objects); err != nil {
@@ -917,6 +923,8 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 		return nil, nil, errors.New("cannot use cgo when compiling for a different operating system")
 	}
 
+	outObj = append(outObj, "") // for importObj, at end of function
+
 	// cgo
 	// TODO: CGOPKGPATH, CGO_FLAGS?
 	gofiles := []string{obj + "_cgo_gotypes.go"}
@@ -983,7 +991,11 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	if err := b.cc(p, obj, importObj, importC); err != nil {
 		return nil, nil, err
 	}
-	outObj = append(outObj, importObj)
+
+	// NOTE(rsc): The importObj is a 5c/6c/8c object and on Windows
+	// must be processed before the gcc-generated objects.
+	// Put it first.  We left room above.  http://golang.org/issue/2601
+	outObj[0] = importObj
 
 	return outGo, outObj, nil
 }
