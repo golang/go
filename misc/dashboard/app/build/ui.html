@@ -31,13 +31,13 @@
       }
       .build .hash {
         font-family: monospace;
+	font-size: 9pt;
       }
       .build .result {
         text-align: center;
         width: 50px;
       }
       .build .time {
-        font-family: monospace;
         color: #666;
       }
       .build .descr, .build .time, .build .user {
@@ -62,8 +62,6 @@
   <body>
 
     <h1>Go Build Status</h1>
-
-    <h2>Go</h2>
 
   {{if $.Commits}}
 
@@ -91,7 +89,7 @@
       </td>
       {{end}}
       <td class="user">{{shortUser .User}}</td>
-      <td class="time">{{.Time.Time.Format "02 Jan 2006 15:04"}}</td>
+      <td class="time">{{.Time.Time.Format "Mon 02 Jan 15:04"}}</td>
       <td class="desc">{{shortDesc .Desc}}</td>
       </tr>
     {{end}}
@@ -109,6 +107,7 @@
     <p>No commits to display. Hm.</p>
   {{end}}
 
+  {{if $.TipState}}
     <h2>Other packages</h2>
 
     <table class="packages">
@@ -144,6 +143,7 @@
     </tr>
   {{end}}
     </table>
+  {{end}}
 
   </body>
 </html>
