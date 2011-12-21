@@ -262,11 +262,11 @@ func TestHelperProcess(*testing.T) {
 			f, err := os.Open(os.Args[0])
 			if err != nil {
 				fmt.Printf("error opening file with expected fd %d: %v", wantfd, err)
-				fmt.Println(Command("lsof", "-p", fmt.Sprint(os.Getpid())).CombinedOutput())
 				os.Exit(1)
 			}
 			if got := f.Fd(); got != wantfd {
 				fmt.Printf("leaked parent file. fd = %d; want %d", got, wantfd)
+				fmt.Println(Command("lsof", "-p", fmt.Sprint(os.Getpid())).CombinedOutput())
 				os.Exit(1)
 			}
 			files = append(files, f)
