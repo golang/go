@@ -24,7 +24,17 @@ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
 set -e
 
 '
-	go install -a -n cmd/go
+	# Save script printed by go install but make shell safe
+	# by quoting variable expansions.  On Windows, rewrite
+	# \ paths into / paths.  This avoids the \ being interpreted
+	# as a shell escape but also makes sure that we generate the
+	# same scripts on Unix and Windows systems.
+	go install -a -n cmd/go | sed '
+		s/$GOBIN/"$GOBIN"/g
+		s/$GOROOT/"$GOROOT"/g
+		s/$WORK/"$WORK"/g
+		s;\\;/;g
+	'
 	)>$targ
 	chmod +x $targ
 done
