@@ -94,6 +94,9 @@ var testRequests = []struct {
 	{"/log/a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", nil, nil, "test"},
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, nil},
 
+	// repeat failure (shouldn't re-send mail)
+	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: "test"}, nil},
+
 	// non-Go repos
 	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1001", ParentHash: "1000"}, nil},
 	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1002", ParentHash: "1001"}, nil},
@@ -132,6 +135,7 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i, t := range testRequests {
+		c.Infof("running test %d %s", i, t.path)
 		errorf := func(format string, args ...interface{}) {
 			fmt.Fprintf(w, "%d %s: ", i, t.path)
 			fmt.Fprintf(w, format, args...)

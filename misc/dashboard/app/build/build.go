@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"http"
 	"io"
+	"io/ioutil"
 	"json"
 	"os"
 	"strings"
@@ -94,6 +95,8 @@ type Commit struct {
 	// and release Tags are stored here. This is purely de-normalized data.
 	// The complete data set is stored in Result entities.
 	ResultData []string `datastore:",noindex"`
+
+	FailNotificationSent bool
 }
 
 func (com *Commit) Key(c appengine.Context) *datastore.Key {
@@ -164,6 +167,15 @@ func partsToHash(c *Commit, p []string) *Result {
 	}
 }
 
+// OK returns the Commit's build state for a specific builder and goHash.
+func (c *Commit) OK(builder, goHash string) (ok, present bool) {
+	r := c.Result(builder, goHash)
+	if r == nil {
+		return false, false
+	}
+	return r.OK, true
+}
+
 // A Result describes a build result for a Commit on an OS/architecture.
 //
 // Each Result entity is a descendant of its associated Commit entity.
@@ -206,6 +218,18 @@ func (r *Result) Data() string {
 // uncompressed log text.
 type Log struct {
 	CompressedLog []byte
+}
+
+func (l *Log) Text() ([]byte, os.Error) {
+	d, err := gzip.NewReader(bytes.NewBuffer(l.CompressedLog))
+	if err != nil {
+		return nil, fmt.Errorf("reading log data: %v", err)
+	}
+	b, err := ioutil.ReadAll(d)
+	if err != nil {
+		return nil, fmt.Errorf("reading log data: %v", err)
+	}
+	return b, nil
 }
 
 func PutLog(c appengine.Context, text string) (hash string, err os.Error) {
@@ -503,7 +527,10 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
 		if err := com.AddResult(c, res); err != nil {
 			return fmt.Errorf("AddResult: %v", err)
 		}
-		return nil
+		// Send build failure notifications, if necessary.
+		// Note this must run after the call AddResult, which
+		// populates the Commit's ResultData field.
+		return notifyOnFailure(c, com, res.Builder)
 	}
 	return nil, datastore.RunInTransaction(c, tx, nil)
 }
@@ -513,21 +540,19 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
 func logHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-type", "text/plain")
 	c := appengine.NewContext(r)
-	h := r.URL.Path[len("/log/"):]
-	k := datastore.NewKey(c, "Log", h, 0, nil)
+	hash := r.URL.Path[len("/log/"):]
+	key := datastore.NewKey(c, "Log", hash, 0, nil)
 	l := new(Log)
-	if err := datastore.Get(c, k, l); err != nil {
+	if err := datastore.Get(c, key, l); err != nil {
 		logErr(w, r, err)
 		return
 	}
-	d, err := gzip.NewReader(bytes.NewBuffer(l.CompressedLog))
+	b, err := l.Text()
 	if err != nil {
 		logErr(w, r, err)
 		return
 	}
-	if _, err := io.Copy(w, d); err != nil {
-		logErr(w, r, err)
-	}
+	w.Write(b)
 }
 
 type dashHandler func(*http.Request) (interface{}, os.Error)
