@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin freebsd linux netbsd openbsd windows
+// +build darwin freebsd linux netbsd openbsd
 
 // Package signal implements operating system-independent signal handling.
 package signal
@@ -33,3 +33,5 @@ func init() {
 	Incoming = ch
 	go process(ch)
 }
+
+// BUG(rsc): This package is unavailable on Plan 9 and Windows.
