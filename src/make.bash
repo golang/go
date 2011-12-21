@@ -89,7 +89,7 @@ echo; echo; echo %%%% making runtime generated files %%%%; echo
 (
 	cd "$GOROOT"/src/pkg/runtime
 	./autogen.sh
-	gomake install  # copy runtime.h to pkg directory
+	gomake install; gomake clean # copy runtime.h to pkg directory
 ) || exit 1
 
 if $USE_GO_TOOL; then
@@ -98,7 +98,7 @@ if $USE_GO_TOOL; then
 	./buildscript_${GOOS}_$GOARCH.sh
 
 	echo '# Building Go code.'
-	GOPATH="" go install -a all
+	go install -a std
 else
 	echo; echo; echo %%%% making pkg %%%%; echo
 	gomake -C pkg install

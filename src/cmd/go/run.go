@@ -33,7 +33,7 @@ func runRun(cmd *Command, args []string) {
 	var b builder
 	b.init(*runA, *runN, *runX)
 	p := goFilesPackage(args, "")
-	p.targ = "" // force rebuild - no up-to-date copy anywhere
+	p.target = "" // must build - not up to date
 	a1 := b.action(modeBuild, modeBuild, p)
 	a := &action{f: (*builder).runProgram, deps: []*action{a1}}
 	b.do(a)
@@ -42,6 +42,6 @@ func runRun(cmd *Command, args []string) {
 // runProgram is the action for running a binary that has already
 // been compiled.  We ignore exit status.
 func (b *builder) runProgram(a *action) error {
-	run(a.deps[0].pkgbin)
+	run(a.deps[0].target)
 	return nil
 }

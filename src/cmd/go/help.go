@@ -27,6 +27,9 @@ The special import path "all" expands to all package directories
 found in all the GOPATH trees.  For example, 'go list all' 
 lists all the packages on the local system.
 
+The special import path "std" is like all but expands to just the
+packages in the standard Go library.
+
 An import path can also name a package to be downloaded from
 a remote repository.  Run 'go help remote' for details.
 

@@ -33,11 +33,12 @@ being passed to the template is:
         ImportPath string // import path of package in dir
         Dir        string // directory containing package sources
         Version    string // version of installed package (TODO)
+        Stale      bool   // would 'go install' do anything for this package?
 
         // Source files
         GoFiles  []string // .go source files (excluding CgoFiles)
         CFiles   []string // .c source files
-        HFiles []string // .h source files
+        HFiles   []string // .h source files
         SFiles   []string // .s source files
         CgoFiles []string // .go sources files that import "C"
 

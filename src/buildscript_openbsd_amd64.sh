@@ -12,22 +12,11 @@ set -e
 
 
 #
-# errors
-#
-
-mkdir -p $WORK/errors/_obj/
- cd $GOROOT/src/pkg/errors
-6g -o $WORK/errors/_obj/_go_.6 -p errors -I $WORK ./errors.go
-gopack grc $WORK/errors.a $WORK/errors/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
-cp $WORK/errors.a $GOROOT/pkg/openbsd_amd64/errors.a
-
-#
 # runtime
 #
 
 mkdir -p $WORK/runtime/_obj/
- cd $GOROOT/src/pkg/runtime
+cd $GOROOT/src/pkg/runtime
 6g -o $WORK/runtime/_obj/_go_.6 -p runtime -+ -I $WORK ./debug.go ./error.go ./extern.go ./mem.go ./sig.go ./softfloat64.go ./type.go ./zgoarch_amd64.go ./zgoos_openbsd.go ./zruntime_defs_openbsd_amd64.go ./zversion.go
 cp $GOROOT/src/pkg/runtime/arch_amd64.h $WORK/runtime/_obj/arch_GOARCH.h
 cp $GOROOT/src/pkg/runtime/defs_openbsd_amd64.h $WORK/runtime/_obj/defs_GOOS_GOARCH.h
@@ -78,11 +67,21 @@ mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/runtime.a $GOROOT/pkg/openbsd_amd64/runtime.a
 
 #
+# errors
+#
+
+mkdir -p $WORK/errors/_obj/
+cd $GOROOT/src/pkg/errors
+6g -o $WORK/errors/_obj/_go_.6 -p errors -I $WORK ./errors.go
+gopack grc $WORK/errors.a $WORK/errors/_obj/_go_.6
+cp $WORK/errors.a $GOROOT/pkg/openbsd_amd64/errors.a
+
+#
 # sync/atomic
 #
 
 mkdir -p $WORK/sync/atomic/_obj/
- cd $GOROOT/src/pkg/sync/atomic
+cd $GOROOT/src/pkg/sync/atomic
 6g -o $WORK/sync/atomic/_obj/_go_.6 -p sync/atomic -I $WORK ./doc.go
 6a -I $WORK/sync/atomic/_obj/ -o $WORK/sync/atomic/_obj/asm_amd64.6 -DGOOS_openbsd -DGOARCH_amd64 ./asm_amd64.s
 gopack grc $WORK/sync/atomic.a $WORK/sync/atomic/_obj/_go_.6 $WORK/sync/atomic/_obj/asm_amd64.6
@@ -94,10 +93,9 @@ cp $WORK/sync/atomic.a $GOROOT/pkg/openbsd_amd64/sync/atomic.a
 #
 
 mkdir -p $WORK/sync/_obj/
- cd $GOROOT/src/pkg/sync
+cd $GOROOT/src/pkg/sync
 6g -o $WORK/sync/_obj/_go_.6 -p sync -I $WORK ./cond.go ./mutex.go ./once.go ./rwmutex.go ./waitgroup.go
 gopack grc $WORK/sync.a $WORK/sync/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/sync.a $GOROOT/pkg/openbsd_amd64/sync.a
 
 #
@@ -105,10 +103,9 @@ cp $WORK/sync.a $GOROOT/pkg/openbsd_amd64/sync.a
 #
 
 mkdir -p $WORK/io/_obj/
- cd $GOROOT/src/pkg/io
+cd $GOROOT/src/pkg/io
 6g -o $WORK/io/_obj/_go_.6 -p io -I $WORK ./io.go ./multi.go ./pipe.go
 gopack grc $WORK/io.a $WORK/io/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/io.a $GOROOT/pkg/openbsd_amd64/io.a
 
 #
@@ -116,10 +113,9 @@ cp $WORK/io.a $GOROOT/pkg/openbsd_amd64/io.a
 #
 
 mkdir -p $WORK/unicode/_obj/
- cd $GOROOT/src/pkg/unicode
+cd $GOROOT/src/pkg/unicode
 6g -o $WORK/unicode/_obj/_go_.6 -p unicode -I $WORK ./casetables.go ./digit.go ./graphic.go ./letter.go ./tables.go
 gopack grc $WORK/unicode.a $WORK/unicode/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/unicode.a $GOROOT/pkg/openbsd_amd64/unicode.a
 
 #
@@ -127,7 +123,7 @@ cp $WORK/unicode.a $GOROOT/pkg/openbsd_amd64/unicode.a
 #
 
 mkdir -p $WORK/unicode/utf8/_obj/
- cd $GOROOT/src/pkg/unicode/utf8
+cd $GOROOT/src/pkg/unicode/utf8
 6g -o $WORK/unicode/utf8/_obj/_go_.6 -p unicode/utf8 -I $WORK ./string.go ./utf8.go
 gopack grc $WORK/unicode/utf8.a $WORK/unicode/utf8/_obj/_go_.6
 mkdir -p $GOROOT/pkg/openbsd_amd64/unicode/
@@ -138,11 +134,10 @@ cp $WORK/unicode/utf8.a $GOROOT/pkg/openbsd_amd64/unicode/utf8.a
 #
 
 mkdir -p $WORK/bytes/_obj/
- cd $GOROOT/src/pkg/bytes
+cd $GOROOT/src/pkg/bytes
 6g -o $WORK/bytes/_obj/_go_.6 -p bytes -I $WORK ./buffer.go ./bytes.go ./bytes_decl.go
 6a -I $WORK/bytes/_obj/ -o $WORK/bytes/_obj/asm_amd64.6 -DGOOS_openbsd -DGOARCH_amd64 ./asm_amd64.s
 gopack grc $WORK/bytes.a $WORK/bytes/_obj/_go_.6 $WORK/bytes/_obj/asm_amd64.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/bytes.a $GOROOT/pkg/openbsd_amd64/bytes.a
 
 #
@@ -150,7 +145,7 @@ cp $WORK/bytes.a $GOROOT/pkg/openbsd_amd64/bytes.a
 #
 
 mkdir -p $WORK/math/_obj/
- cd $GOROOT/src/pkg/math
+cd $GOROOT/src/pkg/math
 6g -o $WORK/math/_obj/_go_.6 -p math -I $WORK ./abs.go ./acosh.go ./asin.go ./asinh.go ./atan.go ./atan2.go ./atanh.go ./bits.go ./cbrt.go ./const.go ./copysign.go ./dim.go ./erf.go ./exp.go ./expm1.go ./floor.go ./frexp.go ./gamma.go ./hypot.go ./j0.go ./j1.go ./jn.go ./ldexp.go ./lgamma.go ./log.go ./log10.go ./log1p.go ./logb.go ./mod.go ./modf.go ./nextafter.go ./pow.go ./pow10.go ./remainder.go ./signbit.go ./sin.go ./sincos.go ./sinh.go ./sqrt.go ./tan.go ./tanh.go ./unsafe.go
 6a -I $WORK/math/_obj/ -o $WORK/math/_obj/abs_amd64.6 -DGOOS_openbsd -DGOARCH_amd64 ./abs_amd64.s
 6a -I $WORK/math/_obj/ -o $WORK/math/_obj/asin_amd64.6 -DGOOS_openbsd -DGOARCH_amd64 ./asin_amd64.s
@@ -176,18 +171,37 @@ mkdir -p $WORK/math/_obj/
 6a -I $WORK/math/_obj/ -o $WORK/math/_obj/sqrt_amd64.6 -DGOOS_openbsd -DGOARCH_amd64 ./sqrt_amd64.s
 6a -I $WORK/math/_obj/ -o $WORK/math/_obj/tan_amd64.6 -DGOOS_openbsd -DGOARCH_amd64 ./tan_amd64.s
 gopack grc $WORK/math.a $WORK/math/_obj/_go_.6 $WORK/math/_obj/abs_amd64.6 $WORK/math/_obj/asin_amd64.6 $WORK/math/_obj/atan2_amd64.6 $WORK/math/_obj/atan_amd64.6 $WORK/math/_obj/dim_amd64.6 $WORK/math/_obj/exp2_amd64.6 $WORK/math/_obj/exp_amd64.6 $WORK/math/_obj/expm1_amd64.6 $WORK/math/_obj/floor_amd64.6 $WORK/math/_obj/fltasm_amd64.6 $WORK/math/_obj/frexp_amd64.6 $WORK/math/_obj/hypot_amd64.6 $WORK/math/_obj/ldexp_amd64.6 $WORK/math/_obj/log10_amd64.6 $WORK/math/_obj/log1p_amd64.6 $WORK/math/_obj/log_amd64.6 $WORK/math/_obj/mod_amd64.6 $WORK/math/_obj/modf_amd64.6 $WORK/math/_obj/remainder_amd64.6 $WORK/math/_obj/sin_amd64.6 $WORK/math/_obj/sincos_amd64.6 $WORK/math/_obj/sqrt_amd64.6 $WORK/math/_obj/tan_amd64.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/math.a $GOROOT/pkg/openbsd_amd64/math.a
+
+#
+# sort
+#
+
+mkdir -p $WORK/sort/_obj/
+cd $GOROOT/src/pkg/sort
+6g -o $WORK/sort/_obj/_go_.6 -p sort -I $WORK ./search.go ./sort.go
+gopack grc $WORK/sort.a $WORK/sort/_obj/_go_.6
+cp $WORK/sort.a $GOROOT/pkg/openbsd_amd64/sort.a
+
+#
+# container/heap
+#
+
+mkdir -p $WORK/container/heap/_obj/
+cd $GOROOT/src/pkg/container/heap
+6g -o $WORK/container/heap/_obj/_go_.6 -p container/heap -I $WORK ./heap.go
+gopack grc $WORK/container/heap.a $WORK/container/heap/_obj/_go_.6
+mkdir -p $GOROOT/pkg/openbsd_amd64/container/
+cp $WORK/container/heap.a $GOROOT/pkg/openbsd_amd64/container/heap.a
 
 #
 # strings
 #
 
 mkdir -p $WORK/strings/_obj/
- cd $GOROOT/src/pkg/strings
+cd $GOROOT/src/pkg/strings
 6g -o $WORK/strings/_obj/_go_.6 -p strings -I $WORK ./reader.go ./replace.go ./strings.go
 gopack grc $WORK/strings.a $WORK/strings/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/strings.a $GOROOT/pkg/openbsd_amd64/strings.a
 
 #
@@ -195,10 +209,9 @@ cp $WORK/strings.a $GOROOT/pkg/openbsd_amd64/strings.a
 #
 
 mkdir -p $WORK/strconv/_obj/
- cd $GOROOT/src/pkg/strconv
+cd $GOROOT/src/pkg/strconv
 6g -o $WORK/strconv/_obj/_go_.6 -p strconv -I $WORK ./atob.go ./atof.go ./atoi.go ./decimal.go ./extfloat.go ./ftoa.go ./itoa.go ./quote.go
 gopack grc $WORK/strconv.a $WORK/strconv/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/strconv.a $GOROOT/pkg/openbsd_amd64/strconv.a
 
 #
@@ -206,7 +219,7 @@ cp $WORK/strconv.a $GOROOT/pkg/openbsd_amd64/strconv.a
 #
 
 mkdir -p $WORK/encoding/base64/_obj/
- cd $GOROOT/src/pkg/encoding/base64
+cd $GOROOT/src/pkg/encoding/base64
 6g -o $WORK/encoding/base64/_obj/_go_.6 -p encoding/base64 -I $WORK ./base64.go
 gopack grc $WORK/encoding/base64.a $WORK/encoding/base64/_obj/_go_.6
 mkdir -p $GOROOT/pkg/openbsd_amd64/encoding/
@@ -217,32 +230,19 @@ cp $WORK/encoding/base64.a $GOROOT/pkg/openbsd_amd64/encoding/base64.a
 #
 
 mkdir -p $WORK/reflect/_obj/
- cd $GOROOT/src/pkg/reflect
+cd $GOROOT/src/pkg/reflect
 6g -o $WORK/reflect/_obj/_go_.6 -p reflect -I $WORK ./deepequal.go ./type.go ./value.go
 gopack grc $WORK/reflect.a $WORK/reflect/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/reflect.a $GOROOT/pkg/openbsd_amd64/reflect.a
-
-#
-# sort
-#
-
-mkdir -p $WORK/sort/_obj/
- cd $GOROOT/src/pkg/sort
-6g -o $WORK/sort/_obj/_go_.6 -p sort -I $WORK ./search.go ./sort.go
-gopack grc $WORK/sort.a $WORK/sort/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
-cp $WORK/sort.a $GOROOT/pkg/openbsd_amd64/sort.a
 
 #
 # unicode/utf16
 #
 
 mkdir -p $WORK/unicode/utf16/_obj/
- cd $GOROOT/src/pkg/unicode/utf16
+cd $GOROOT/src/pkg/unicode/utf16
 6g -o $WORK/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I $WORK ./utf16.go
 gopack grc $WORK/unicode/utf16.a $WORK/unicode/utf16/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/unicode/
 cp $WORK/unicode/utf16.a $GOROOT/pkg/openbsd_amd64/unicode/utf16.a
 
 #
@@ -250,10 +250,9 @@ cp $WORK/unicode/utf16.a $GOROOT/pkg/openbsd_amd64/unicode/utf16.a
 #
 
 mkdir -p $WORK/encoding/json/_obj/
- cd $GOROOT/src/pkg/encoding/json
+cd $GOROOT/src/pkg/encoding/json
 6g -o $WORK/encoding/json/_obj/_go_.6 -p encoding/json -I $WORK ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
 gopack grc $WORK/encoding/json.a $WORK/encoding/json/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/encoding/
 cp $WORK/encoding/json.a $GOROOT/pkg/openbsd_amd64/encoding/json.a
 
 #
@@ -261,11 +260,10 @@ cp $WORK/encoding/json.a $GOROOT/pkg/openbsd_amd64/encoding/json.a
 #
 
 mkdir -p $WORK/syscall/_obj/
- cd $GOROOT/src/pkg/syscall
+cd $GOROOT/src/pkg/syscall
 6g -o $WORK/syscall/_obj/_go_.6 -p syscall -I $WORK ./bpf_bsd.go ./env_unix.go ./exec_unix.go ./route_bsd.go ./route_openbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_openbsd.go ./syscall_openbsd_amd64.go ./syscall_unix.go ./zerrors_openbsd_amd64.go ./zsyscall_openbsd_amd64.go ./zsysctl_openbsd.go ./zsysnum_openbsd_amd64.go ./ztypes_openbsd_amd64.go
 6a -I $WORK/syscall/_obj/ -o $WORK/syscall/_obj/asm_openbsd_amd64.6 -DGOOS_openbsd -DGOARCH_amd64 ./asm_openbsd_amd64.s
 gopack grc $WORK/syscall.a $WORK/syscall/_obj/_go_.6 $WORK/syscall/_obj/asm_openbsd_amd64.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/syscall.a $GOROOT/pkg/openbsd_amd64/syscall.a
 
 #
@@ -273,10 +271,9 @@ cp $WORK/syscall.a $GOROOT/pkg/openbsd_amd64/syscall.a
 #
 
 mkdir -p $WORK/time/_obj/
- cd $GOROOT/src/pkg/time
+cd $GOROOT/src/pkg/time
 6g -o $WORK/time/_obj/_go_.6 -p time -I $WORK ./format.go ./sleep.go ./sys_unix.go ./tick.go ./time.go ./zoneinfo.go ./zoneinfo_unix.go
 gopack grc $WORK/time.a $WORK/time/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/time.a $GOROOT/pkg/openbsd_amd64/time.a
 
 #
@@ -284,10 +281,9 @@ cp $WORK/time.a $GOROOT/pkg/openbsd_amd64/time.a
 #
 
 mkdir -p $WORK/os/_obj/
- cd $GOROOT/src/pkg/os
+cd $GOROOT/src/pkg/os
 6g -o $WORK/os/_obj/_go_.6 -p os -I $WORK ./dir_unix.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_openbsd.go ./sys_bsd.go ./time.go ./types.go ./zsignal_openbsd_amd64.go
 gopack grc $WORK/os.a $WORK/os/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/os.a $GOROOT/pkg/openbsd_amd64/os.a
 
 #
@@ -295,10 +291,9 @@ cp $WORK/os.a $GOROOT/pkg/openbsd_amd64/os.a
 #
 
 mkdir -p $WORK/fmt/_obj/
- cd $GOROOT/src/pkg/fmt
+cd $GOROOT/src/pkg/fmt
 6g -o $WORK/fmt/_obj/_go_.6 -p fmt -I $WORK ./doc.go ./format.go ./print.go ./scan.go
 gopack grc $WORK/fmt.a $WORK/fmt/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/fmt.a $GOROOT/pkg/openbsd_amd64/fmt.a
 
 #
@@ -306,10 +301,9 @@ cp $WORK/fmt.a $GOROOT/pkg/openbsd_amd64/fmt.a
 #
 
 mkdir -p $WORK/flag/_obj/
- cd $GOROOT/src/pkg/flag
+cd $GOROOT/src/pkg/flag
 6g -o $WORK/flag/_obj/_go_.6 -p flag -I $WORK ./flag.go
 gopack grc $WORK/flag.a $WORK/flag/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/flag.a $GOROOT/pkg/openbsd_amd64/flag.a
 
 #
@@ -317,10 +311,9 @@ cp $WORK/flag.a $GOROOT/pkg/openbsd_amd64/flag.a
 #
 
 mkdir -p $WORK/bufio/_obj/
- cd $GOROOT/src/pkg/bufio
+cd $GOROOT/src/pkg/bufio
 6g -o $WORK/bufio/_obj/_go_.6 -p bufio -I $WORK ./bufio.go
 gopack grc $WORK/bufio.a $WORK/bufio/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/bufio.a $GOROOT/pkg/openbsd_amd64/bufio.a
 
 #
@@ -328,10 +321,9 @@ cp $WORK/bufio.a $GOROOT/pkg/openbsd_amd64/bufio.a
 #
 
 mkdir -p $WORK/encoding/gob/_obj/
- cd $GOROOT/src/pkg/encoding/gob
+cd $GOROOT/src/pkg/encoding/gob
 6g -o $WORK/encoding/gob/_obj/_go_.6 -p encoding/gob -I $WORK ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
 gopack grc $WORK/encoding/gob.a $WORK/encoding/gob/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/encoding/
 cp $WORK/encoding/gob.a $GOROOT/pkg/openbsd_amd64/encoding/gob.a
 
 #
@@ -339,7 +331,7 @@ cp $WORK/encoding/gob.a $GOROOT/pkg/openbsd_amd64/encoding/gob.a
 #
 
 mkdir -p $WORK/go/token/_obj/
- cd $GOROOT/src/pkg/go/token
+cd $GOROOT/src/pkg/go/token
 6g -o $WORK/go/token/_obj/_go_.6 -p go/token -I $WORK ./position.go ./serialize.go ./token.go
 gopack grc $WORK/go/token.a $WORK/go/token/_obj/_go_.6
 mkdir -p $GOROOT/pkg/openbsd_amd64/go/
@@ -350,7 +342,7 @@ cp $WORK/go/token.a $GOROOT/pkg/openbsd_amd64/go/token.a
 #
 
 mkdir -p $WORK/path/filepath/_obj/
- cd $GOROOT/src/pkg/path/filepath
+cd $GOROOT/src/pkg/path/filepath
 6g -o $WORK/path/filepath/_obj/_go_.6 -p path/filepath -I $WORK ./match.go ./path.go ./path_unix.go
 gopack grc $WORK/path/filepath.a $WORK/path/filepath/_obj/_go_.6
 mkdir -p $GOROOT/pkg/openbsd_amd64/path/
@@ -361,10 +353,9 @@ cp $WORK/path/filepath.a $GOROOT/pkg/openbsd_amd64/path/filepath.a
 #
 
 mkdir -p $WORK/go/scanner/_obj/
- cd $GOROOT/src/pkg/go/scanner
+cd $GOROOT/src/pkg/go/scanner
 6g -o $WORK/go/scanner/_obj/_go_.6 -p go/scanner -I $WORK ./errors.go ./scanner.go
 gopack grc $WORK/go/scanner.a $WORK/go/scanner/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/go/
 cp $WORK/go/scanner.a $GOROOT/pkg/openbsd_amd64/go/scanner.a
 
 #
@@ -372,10 +363,9 @@ cp $WORK/go/scanner.a $GOROOT/pkg/openbsd_amd64/go/scanner.a
 #
 
 mkdir -p $WORK/go/ast/_obj/
- cd $GOROOT/src/pkg/go/ast
+cd $GOROOT/src/pkg/go/ast
 6g -o $WORK/go/ast/_obj/_go_.6 -p go/ast -I $WORK ./ast.go ./filter.go ./import.go ./print.go ./resolve.go ./scope.go ./walk.go
 gopack grc $WORK/go/ast.a $WORK/go/ast/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/go/
 cp $WORK/go/ast.a $GOROOT/pkg/openbsd_amd64/go/ast.a
 
 #
@@ -383,7 +373,7 @@ cp $WORK/go/ast.a $GOROOT/pkg/openbsd_amd64/go/ast.a
 #
 
 mkdir -p $WORK/text/tabwriter/_obj/
- cd $GOROOT/src/pkg/text/tabwriter
+cd $GOROOT/src/pkg/text/tabwriter
 6g -o $WORK/text/tabwriter/_obj/_go_.6 -p text/tabwriter -I $WORK ./tabwriter.go
 gopack grc $WORK/text/tabwriter.a $WORK/text/tabwriter/_obj/_go_.6
 mkdir -p $GOROOT/pkg/openbsd_amd64/text/
@@ -394,10 +384,9 @@ cp $WORK/text/tabwriter.a $GOROOT/pkg/openbsd_amd64/text/tabwriter.a
 #
 
 mkdir -p $WORK/go/printer/_obj/
- cd $GOROOT/src/pkg/go/printer
+cd $GOROOT/src/pkg/go/printer
 6g -o $WORK/go/printer/_obj/_go_.6 -p go/printer -I $WORK ./nodes.go ./printer.go
 gopack grc $WORK/go/printer.a $WORK/go/printer/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/go/
 cp $WORK/go/printer.a $GOROOT/pkg/openbsd_amd64/go/printer.a
 
 #
@@ -405,7 +394,7 @@ cp $WORK/go/printer.a $GOROOT/pkg/openbsd_amd64/go/printer.a
 #
 
 mkdir -p $WORK/regexp/syntax/_obj/
- cd $GOROOT/src/pkg/regexp/syntax
+cd $GOROOT/src/pkg/regexp/syntax
 6g -o $WORK/regexp/syntax/_obj/_go_.6 -p regexp/syntax -I $WORK ./compile.go ./parse.go ./perl_groups.go ./prog.go ./regexp.go ./simplify.go
 gopack grc $WORK/regexp/syntax.a $WORK/regexp/syntax/_obj/_go_.6
 mkdir -p $GOROOT/pkg/openbsd_amd64/regexp/
@@ -416,10 +405,9 @@ cp $WORK/regexp/syntax.a $GOROOT/pkg/openbsd_amd64/regexp/syntax.a
 #
 
 mkdir -p $WORK/regexp/_obj/
- cd $GOROOT/src/pkg/regexp
+cd $GOROOT/src/pkg/regexp
 6g -o $WORK/regexp/_obj/_go_.6 -p regexp -I $WORK ./exec.go ./regexp.go
 gopack grc $WORK/regexp.a $WORK/regexp/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/regexp.a $GOROOT/pkg/openbsd_amd64/regexp.a
 
 #
@@ -427,7 +415,7 @@ cp $WORK/regexp.a $GOROOT/pkg/openbsd_amd64/regexp.a
 #
 
 mkdir -p $WORK/io/ioutil/_obj/
- cd $GOROOT/src/pkg/io/ioutil
+cd $GOROOT/src/pkg/io/ioutil
 6g -o $WORK/io/ioutil/_obj/_go_.6 -p io/ioutil -I $WORK ./ioutil.go ./tempfile.go
 gopack grc $WORK/io/ioutil.a $WORK/io/ioutil/_obj/_go_.6
 mkdir -p $GOROOT/pkg/openbsd_amd64/io/
@@ -438,7 +426,7 @@ cp $WORK/io/ioutil.a $GOROOT/pkg/openbsd_amd64/io/ioutil.a
 #
 
 mkdir -p $WORK/net/url/_obj/
- cd $GOROOT/src/pkg/net/url
+cd $GOROOT/src/pkg/net/url
 6g -o $WORK/net/url/_obj/_go_.6 -p net/url -I $WORK ./url.go
 gopack grc $WORK/net/url.a $WORK/net/url/_obj/_go_.6
 mkdir -p $GOROOT/pkg/openbsd_amd64/net/
@@ -449,7 +437,7 @@ cp $WORK/net/url.a $GOROOT/pkg/openbsd_amd64/net/url.a
 #
 
 mkdir -p $WORK/text/template/parse/_obj/
- cd $GOROOT/src/pkg/text/template/parse
+cd $GOROOT/src/pkg/text/template/parse
 6g -o $WORK/text/template/parse/_obj/_go_.6 -p text/template/parse -I $WORK ./lex.go ./node.go ./parse.go
 gopack grc $WORK/text/template/parse.a $WORK/text/template/parse/_obj/_go_.6
 mkdir -p $GOROOT/pkg/openbsd_amd64/text/template/
@@ -460,10 +448,9 @@ cp $WORK/text/template/parse.a $GOROOT/pkg/openbsd_amd64/text/template/parse.a
 #
 
 mkdir -p $WORK/text/template/_obj/
- cd $GOROOT/src/pkg/text/template
+cd $GOROOT/src/pkg/text/template
 6g -o $WORK/text/template/_obj/_go_.6 -p text/template -I $WORK ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
 gopack grc $WORK/text/template.a $WORK/text/template/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/text/
 cp $WORK/text/template.a $GOROOT/pkg/openbsd_amd64/text/template.a
 
 #
@@ -471,10 +458,9 @@ cp $WORK/text/template.a $GOROOT/pkg/openbsd_amd64/text/template.a
 #
 
 mkdir -p $WORK/go/doc/_obj/
- cd $GOROOT/src/pkg/go/doc
+cd $GOROOT/src/pkg/go/doc
 6g -o $WORK/go/doc/_obj/_go_.6 -p go/doc -I $WORK ./comment.go ./doc.go ./example.go
 gopack grc $WORK/go/doc.a $WORK/go/doc/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/go/
 cp $WORK/go/doc.a $GOROOT/pkg/openbsd_amd64/go/doc.a
 
 #
@@ -482,10 +468,9 @@ cp $WORK/go/doc.a $GOROOT/pkg/openbsd_amd64/go/doc.a
 #
 
 mkdir -p $WORK/go/parser/_obj/
- cd $GOROOT/src/pkg/go/parser
+cd $GOROOT/src/pkg/go/parser
 6g -o $WORK/go/parser/_obj/_go_.6 -p go/parser -I $WORK ./interface.go ./parser.go
 gopack grc $WORK/go/parser.a $WORK/go/parser/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/go/
 cp $WORK/go/parser.a $GOROOT/pkg/openbsd_amd64/go/parser.a
 
 #
@@ -493,10 +478,9 @@ cp $WORK/go/parser.a $GOROOT/pkg/openbsd_amd64/go/parser.a
 #
 
 mkdir -p $WORK/log/_obj/
- cd $GOROOT/src/pkg/log
+cd $GOROOT/src/pkg/log
 6g -o $WORK/log/_obj/_go_.6 -p log -I $WORK ./log.go
 gopack grc $WORK/log.a $WORK/log/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/log.a $GOROOT/pkg/openbsd_amd64/log.a
 
 #
@@ -504,7 +488,7 @@ cp $WORK/log.a $GOROOT/pkg/openbsd_amd64/log.a
 #
 
 mkdir -p $WORK/os/exec/_obj/
- cd $GOROOT/src/pkg/os/exec
+cd $GOROOT/src/pkg/os/exec
 6g -o $WORK/os/exec/_obj/_go_.6 -p os/exec -I $WORK ./exec.go ./lp_unix.go
 gopack grc $WORK/os/exec.a $WORK/os/exec/_obj/_go_.6
 mkdir -p $GOROOT/pkg/openbsd_amd64/os/
@@ -515,10 +499,9 @@ cp $WORK/os/exec.a $GOROOT/pkg/openbsd_amd64/os/exec.a
 #
 
 mkdir -p $WORK/path/_obj/
- cd $GOROOT/src/pkg/path
+cd $GOROOT/src/pkg/path
 6g -o $WORK/path/_obj/_go_.6 -p path -I $WORK ./match.go ./path.go
 gopack grc $WORK/path.a $WORK/path/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/
 cp $WORK/path.a $GOROOT/pkg/openbsd_amd64/path.a
 
 #
@@ -526,10 +509,9 @@ cp $WORK/path.a $GOROOT/pkg/openbsd_amd64/path.a
 #
 
 mkdir -p $WORK/go/build/_obj/
- cd $GOROOT/src/pkg/go/build
+cd $GOROOT/src/pkg/go/build
 6g -o $WORK/go/build/_obj/_go_.6 -p go/build -I $WORK ./build.go ./dir.go ./path.go ./syslist.go
 gopack grc $WORK/go/build.a $WORK/go/build/_obj/_go_.6
-mkdir -p $GOROOT/pkg/openbsd_amd64/go/
 cp $WORK/go/build.a $GOROOT/pkg/openbsd_amd64/go/build.a
 
 #
@@ -537,7 +519,7 @@ cp $WORK/go/build.a $GOROOT/pkg/openbsd_amd64/go/build.a
 #
 
 mkdir -p $WORK/cmd/go/_obj/
- cd $GOROOT/src/cmd/go
+cd $GOROOT/src/cmd/go
 6g -o $WORK/cmd/go/_obj/_go_.6 -p cmd/go -I $WORK ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
 gopack grc $WORK/cmd/go.a $WORK/cmd/go/_obj/_go_.6
 6l -o $WORK/cmd/go/_obj/a.out -L $WORK $WORK/cmd/go.a

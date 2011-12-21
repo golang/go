@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // A Package describes a single package found in a directory.
@@ -25,13 +26,16 @@ type Package struct {
 	Dir        string // directory containing package sources
 	Version    string `json:",omitempty"` // version of installed package (TODO)
 	Standard   bool   `json:",omitempty"` // is this package part of the standard Go library?
+	Stale      bool   `json:",omitempty"` // would 'go install' do anything for this package?
 
 	// Source files
-	GoFiles  []string // .go source files (excluding CgoFiles)
-	CFiles   []string `json:",omitempty"` // .c source files
-	HFiles   []string `json:",omitempty"` // .h source files
-	SFiles   []string `json:",omitempty"` // .s source files
-	CgoFiles []string `json:",omitempty"` // .go sources files that import "C"
+	GoFiles    []string // .go source files (excluding CgoFiles)
+	CFiles     []string `json:",omitempty"` // .c source files
+	HFiles     []string `json:",omitempty"` // .h source files
+	SFiles     []string `json:",omitempty"` // .s source files
+	CgoFiles   []string `json:",omitempty"` // .go sources files that import "C"
+	CgoCFLAGS  []string `json:",omitempty"` // cgo: flags for C compiler
+	CgoLDFLAGS []string `json:",omitempty"` // cgo: flags for linker
 
 	// Dependency information
 	Imports []string `json:",omitempty"` // import paths used by this package
@@ -42,8 +46,8 @@ type Package struct {
 	pkgdir  string
 	info    *build.DirInfo
 	imports []*Package
-	gofiles []string // GoFiles+CgoFiles
-	targ    string
+	gofiles []string // GoFiles+CgoFiles, absolute paths
+	target  string   // installed file for this package (may be executable)
 }
 
 // packageCache is a lookup cache for loadPackage,
@@ -109,15 +113,15 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 		return nil, err
 	}
 
-	var targ string
+	var target string
 	if info.Package == "main" {
 		_, elem := filepath.Split(importPath)
-		targ = filepath.Join(t.BinDir(), elem)
+		target = filepath.Join(t.BinDir(), elem)
 		if ctxt.GOOS == "windows" {
-			targ += ".exe"
+			target += ".exe"
 		}
 	} else {
-		targ = filepath.Join(t.PkgDir(), filepath.FromSlash(importPath)+".a")
+		target = filepath.Join(t.PkgDir(), filepath.FromSlash(importPath)+".a")
 	}
 
 	p := &Package{
@@ -131,10 +135,17 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 		HFiles:     info.HFiles,
 		SFiles:     info.SFiles,
 		CgoFiles:   info.CgoFiles,
+		CgoCFLAGS:  info.CgoCFLAGS,
+		CgoLDFLAGS: info.CgoLDFLAGS,
 		Standard:   t.Goroot && !strings.Contains(importPath, "."),
-		targ:       targ,
+		target:     target,
 		t:          t,
 		info:       info,
+	}
+
+	var built time.Time
+	if fi, err := os.Stat(target); err == nil {
+		built = fi.ModTime()
 	}
 
 	// Build list of full paths to all Go files in the package,
@@ -146,12 +157,33 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 		p.gofiles = append(p.gofiles, filepath.Join(dir, f))
 	}
 	sort.Strings(p.gofiles)
+	srcss := [][]string{
+		p.GoFiles,
+		p.CFiles,
+		p.HFiles,
+		p.SFiles,
+		p.CgoFiles,
+	}
+Stale:
+	for _, srcs := range srcss {
+		for _, src := range srcs {
+			if fi, err := os.Stat(filepath.Join(p.Dir, src)); err != nil || fi.ModTime().After(built) {
+				//println("STALE", p.ImportPath, "needs", src, err)
+				p.Stale = true
+				break Stale
+			}
+		}
+	}
 
+	importPaths := p.Imports
 	// Packages that use cgo import runtime/cgo implicitly,
 	// except runtime/cgo itself.
 	if len(info.CgoFiles) > 0 && (!p.Standard || p.ImportPath != "runtime/cgo") {
-		p.Imports = append(p.Imports, "runtime/cgo")
-		sort.Strings(p.Imports)
+		importPaths = append(importPaths, "runtime/cgo")
+	}
+	// Everything depends on runtime, except runtime and unsafe.
+	if !p.Standard || (p.ImportPath != "runtime" && p.ImportPath != "unsafe") {
+		importPaths = append(importPaths, "runtime")
 	}
 
 	// Record package under both import path and full directory name.
@@ -161,7 +193,7 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 	// Build list of imported packages and full dependency list.
 	imports := make([]*Package, 0, len(p.Imports))
 	deps := make(map[string]bool)
-	for _, path := range p.Imports {
+	for _, path := range importPaths {
 		deps[path] = true
 		if path == "C" {
 			continue
@@ -175,9 +207,21 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 			return nil, fmt.Errorf("%s: import %s\n\t%v", arg, path, err)
 		}
 		imports = append(imports, p1)
-
 		for _, dep := range p1.Deps {
 			deps[dep] = true
+		}
+		if p1.Stale {
+			p.Stale = true
+		}
+		// p1.target can be empty only if p1 is not a real package,
+		// such as package unsafe or the temporary packages
+		// created during go test.
+		if !p.Stale && p1.target != "" {
+			if fi, err := os.Stat(p1.target); err != nil || fi.ModTime().After(built) {
+				//println("STALE", p.ImportPath, "needs", p1.target, err)
+				//println("BUILT", built.String(), "VS", fi.ModTime().String())
+				p.Stale = true
+			}
 		}
 	}
 	p.imports = imports
@@ -187,6 +231,12 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 		p.Deps = append(p.Deps, dep)
 	}
 	sort.Strings(p.Deps)
+
+	// unsafe is a fake package and is never out-of-date.
+	if p.Standard && p.ImportPath == "unsafe" {
+		p.Stale = false
+		p.target = ""
+	}
 
 	return p, nil
 }

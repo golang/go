@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"container/heap"
 	"errors"
 	"fmt"
 	"go/build"
@@ -27,19 +28,25 @@ func init() {
 }
 
 var cmdBuild = &Command{
-	UsageLine: "build [-a] [-n] [-x] [importpath... | gofiles...]",
+	UsageLine: "build [-a] [-n] [-x] [-o output] [importpath... | gofiles...]",
 	Short:     "compile packages and dependencies",
 	Long: `
 Build compiles the packages named by the import paths,
 along with their dependencies, but it does not install the results.
 
-If the arguments are a list of .go files, build compiles them into
-a package object or command executable named for the first
-source file.
+If the arguments are a list of .go files, build treats them as a list
+of source files specifying a single package.
+
+When the command line specifies a single main package,
+build writes the resulting executable to output (default a.out).
+Otherwise build compiles the packages but discards the results,
+serving only as a check that the packages can be built.
 
 The -a flag forces rebuilding of packages that are already up-to-date.
 The -n flag prints the commands but does not run them.
 The -x flag prints the commands.
+The -o flag specifies the output file name.
+It is an error to use -o when the command line specifies multiple packages.
 
 For more about import paths, see 'go help importpath'.
 
@@ -50,13 +57,33 @@ See also: go install, go get, go clean.
 var buildA = cmdBuild.Flag.Bool("a", false, "")
 var buildN = cmdBuild.Flag.Bool("n", false, "")
 var buildX = cmdBuild.Flag.Bool("x", false, "")
+var buildO = cmdBuild.Flag.String("o", "", "output file")
 
 func runBuild(cmd *Command, args []string) {
 	var b builder
 	b.init(*buildA, *buildN, *buildX)
 
+	var pkgs []*Package
 	if len(args) > 0 && strings.HasSuffix(args[0], ".go") {
-		b.do(b.action(modeInstall, modeBuild, goFilesPackage(args, "")))
+		pkg := goFilesPackage(args, "")
+		pkgs = append(pkgs, pkg)
+	} else {
+		pkgs = packages(args)
+	}
+
+	if len(pkgs) == 1 && pkgs[0].Name == "main" && *buildO == "" {
+		*buildO = "a.out"
+	}
+
+	if *buildO != "" {
+		if len(pkgs) > 1 {
+			fatalf("go build: cannot use -o with multiple packages")
+		}
+		p := pkgs[0]
+		p.target = "" // must build - not up to date
+		a := b.action(modeInstall, modeBuild, p)
+		a.target = *buildO
+		b.do(a)
 		return
 	}
 
@@ -111,26 +138,39 @@ type builder struct {
 	goarch      string               // the $GOARCH
 	goos        string               // the $GOOS
 	gobin       string               // the $GOBIN
+	exe         string               // the executable suffix - "" or ".exe"
 	actionCache map[cacheKey]*action // a cache of already-constructed actions
+	mkdirCache  map[string]bool      // a cache of created directories
 
 	output    sync.Mutex
 	scriptDir string // current directory in printed script
+
+	exec      sync.Mutex
+	readySema chan bool
+	ready     actionQueue
 }
 
 // An action represents a single action in the action graph.
 type action struct {
-	f func(*builder, *action) error // the action itself (nil = no-op)
+	p        *Package  // the package this action works on
+	deps     []*action // actions that must happen before this one
+	triggers []*action // inverse of deps
+	cgo      *action   // action for cgo binary if needed
 
-	p          *Package  // the package this action works on
-	deps       []*action // actions that must happen before this one
-	done       bool      // whether the action is done (might have failed)
-	failed     bool      // whether the action failed
-	pkgdir     string    // the -I or -L argument to use when importing this package
-	ignoreFail bool      // whether to run f even if dependencies fail
+	f          func(*builder, *action) error // the action itself (nil = no-op)
+	ignoreFail bool                          // whether to run f even if dependencies fail
 
-	// Results left for communication with other code.
-	pkgobj string // the built .a file
-	pkgbin string // the built a.out file, if one exists
+	// Generated files, directories.
+	link   bool   // target is executable, not just package
+	pkgdir string // the -I or -L argument to use when importing this package
+	objdir string // directory for intermediate objects
+	objpkg string // the intermediate package .a file created during the action
+	target string // goal of the action: the created package or executable
+
+	// Execution state.
+	pending  int  // number of deps yet to complete
+	priority int  // relative execution priority
+	failed   bool // whether the action failed
 }
 
 // cacheKey is the key for the action cache.
@@ -154,10 +194,14 @@ func (b *builder) init(aflag, nflag, xflag bool) {
 	b.nflag = nflag
 	b.xflag = xflag
 	b.actionCache = make(map[cacheKey]*action)
+	b.mkdirCache = make(map[string]bool)
 	b.goarch = build.DefaultContext.GOARCH
 	b.goos = build.DefaultContext.GOOS
 	b.goroot = build.Path[0].Path
 	b.gobin = build.Path[0].BinDir()
+	if b.goos == "windows" {
+		b.exe = ".exe"
+	}
 
 	b.arch, err = build.ArchChar(b.goarch)
 	if err != nil {
@@ -183,6 +227,13 @@ func (b *builder) init(aflag, nflag, xflag bool) {
 // target is target.  Otherwise, the target is named p.a for
 // package p or named after the first Go file for package main.
 func goFilesPackage(gofiles []string, target string) *Package {
+	// TODO: Remove this restriction.
+	for _, f := range gofiles {
+		if !strings.HasSuffix(f, ".go") || strings.Contains(f, "/") || strings.Contains(f, string(filepath.Separator)) {
+			fatalf("named files must be in current directory and .go files")
+		}
+	}
+
 	// Synthesize fake "directory" that only shows those two files,
 	// to make it look like this is a standard package or
 	// command directory.
@@ -205,13 +256,13 @@ func goFilesPackage(gofiles []string, target string) *Package {
 		fatalf("%s", err)
 	}
 	if target != "" {
-		pkg.targ = target
+		pkg.target = target
 	} else if pkg.Name == "main" {
-		pkg.targ = gofiles[0][:len(gofiles[0])-len(".go")]
+		pkg.target = gofiles[0][:len(gofiles[0])-len(".go")]
 	} else {
-		pkg.targ = pkg.Name + ".a"
+		pkg.target = pkg.Name + ".a"
 	}
-	pkg.ImportPath = "_/" + pkg.targ
+	pkg.ImportPath = "_/" + pkg.target
 	return pkg
 }
 
@@ -231,94 +282,116 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 
 	b.actionCache[key] = a
 
+	for _, p1 := range p.imports {
+		a.deps = append(a.deps, b.action(depMode, depMode, p1))
+	}
+
+	if len(p.CgoFiles) > 0 {
+		p1, err := loadPackage("cmd/cgo")
+		if err != nil {
+			fatalf("load cmd/cgo: %v", err)
+		}
+		a.cgo = b.action(depMode, depMode, p1)
+		a.deps = append(a.deps, a.cgo)
+	}
+
+	if p.Standard {
+		switch p.ImportPath {
+		case "builtin", "unsafe":
+			// Fake packages - nothing to build.
+			return a
+		}
+	}
+
+	if !p.Stale && !b.aflag && p.target != "" {
+		// p.Stale==false implies that p.target is up-to-date.
+		// Record target name for use by actions depending on this one.
+		a.target = p.target
+		return a
+	}
+
+	a.objdir = filepath.Join(b.work, filepath.FromSlash(a.p.ImportPath+"/_obj")) + string(filepath.Separator)
+	a.objpkg = filepath.Join(b.work, filepath.FromSlash(a.p.ImportPath+".a"))
+	a.link = p.Name == "main"
+
 	switch mode {
-	case modeBuild, modeInstall:
-		for _, p1 := range p.imports {
-			a.deps = append(a.deps, b.action(depMode, depMode, p1))
-		}
-
-		if !needInstall(p) && !b.aflag && allNop(a.deps) {
-			return a
-		}
-		if p.Standard {
-			switch p.ImportPath {
-			case "builtin", "unsafe":
-				// Fake packages - nothing to build.
-				return a
-			}
-		}
-
-		if mode == modeInstall {
-			a.f = (*builder).install
-			a.deps = []*action{b.action(modeBuild, depMode, p)}
-			return a
-		}
-
+	case modeInstall:
+		a.f = (*builder).install
+		a.deps = []*action{b.action(modeBuild, depMode, p)}
+		a.target = a.p.target
+	case modeBuild:
 		a.f = (*builder).build
+		a.target = a.objpkg
+		if a.link {
+			// An executable file.
+			// Have to use something other than .a for the suffix.
+			// It is easier on Windows if we use .exe, so use .exe everywhere.
+			// (This is the name of a temporary file.)
+			a.target = a.objdir + "a.out" + b.exe
+		}
 	}
 
 	return a
 }
 
-func allNop(actions []*action) bool {
-	for _, a := range actions {
-		if a.f != nil {
-			return false
+// do runs the action graph rooted at root.
+func (b *builder) do(root *action) {
+	// Build list of all actions, assigning depth-first post-order priority.
+	// The original implementation here was a true queue
+	// (using a channel) but it had the effect of getting
+	// distracted by low-level leaf actions to the detriment
+	// of completing higher-level actions.  The order of
+	// work does not matter much to overall execution time,
+	// but when running "go test std" it is nice to see each test
+	// results as soon as possible.  The priorities assigned
+	// ensure that, all else being equal, the execution prefers
+	// to do what it would have done first in a simple depth-first
+	// dependency order traversal.
+	all := map[*action]bool{}
+	priority := 0
+	var walk func(*action)
+	walk = func(a *action) {
+		if all[a] {
+			return
+		}
+		all[a] = true
+		priority++
+		for _, a1 := range a.deps {
+			walk(a1)
+		}
+		a.priority = priority
+	}
+	walk(root)
+
+	b.readySema = make(chan bool, len(all))
+	done := make(chan bool)
+
+	// Initialize per-action execution state.
+	for a := range all {
+		for _, a1 := range a.deps {
+			a1.triggers = append(a1.triggers, a)
+		}
+		a.pending = len(a.deps)
+		if a.pending == 0 {
+			b.ready.push(a)
+			b.readySema <- true
 		}
 	}
-	return true
-}
 
-// needInstall reports whether p needs to be built and installed.
-// That is only true if some source file is newer than the installed package binary.
-func needInstall(p *Package) bool {
-	if p.targ == "" {
-		return true
-	}
-	fi, err := os.Stat(p.targ)
-	if err != nil {
-		return true
-	}
-	t := fi.ModTime()
-
-	srcss := [][]string{
-		p.GoFiles,
-		p.CFiles,
-		p.SFiles,
-		p.CgoFiles,
-	}
-	for _, srcs := range srcss {
-		for _, src := range srcs {
-			fi, err := os.Stat(filepath.Join(p.Dir, src))
-			if err != nil {
-				return true
-			}
-			if fi.ModTime().After(t) {
-				return true
-			}
+	// Handle runs a single action and takes care of triggering
+	// any actions that are runnable as a result.
+	handle := func(a *action) {
+		var err error
+		if a.f != nil && (!a.failed || a.ignoreFail) {
+			err = a.f(b, a)
 		}
-	}
 
-	return false
-}
+		// The actions run in parallel but all the updates to the
+		// shared work state are serialized through b.exec.
+		b.exec.Lock()
+		defer b.exec.Unlock()
 
-// do runs the action graph rooted at a.
-func (b *builder) do(a *action) {
-	if a.done {
-		return
-	}
-	for _, a1 := range a.deps {
-		b.do(a1)
-		if a1.failed {
-			a.failed = true
-			if !a.ignoreFail {
-				a.done = true
-				return
-			}
-		}
-	}
-	if a.f != nil {
-		if err := a.f(b, a); err != nil {
+		if err != nil {
 			if err == errPrintedOutput {
 				exitStatus = 2
 			} else {
@@ -326,8 +399,38 @@ func (b *builder) do(a *action) {
 			}
 			a.failed = true
 		}
+
+		for _, a0 := range a.triggers {
+			if a.failed {
+				a0.failed = true
+			}
+			if a0.pending--; a0.pending == 0 {
+				b.ready.push(a0)
+				b.readySema <- true
+			}
+		}
+
+		if a == root {
+			close(b.readySema)
+			done <- true
+		}
 	}
-	a.done = true
+
+	// TODO: Turn this knob for parallelism.
+	for i := 0; i < 1; i++ {
+		go func() {
+			for _ = range b.readySema {
+				// Receiving a value from b.sema entitles
+				// us to take from the ready queue.
+				b.exec.Lock()
+				a := b.ready.pop()
+				b.exec.Unlock()
+				handle(a)
+			}
+		}()
+	}
+
+	<-done
 }
 
 // build is the action for building a single package or command.
@@ -340,12 +443,9 @@ func (b *builder) build(a *action) error {
 		// to use to find its context.
 		fmt.Printf("\n#\n# %s\n#\n\n", a.p.ImportPath)
 	}
-	obj := filepath.Join(b.work, filepath.FromSlash(a.p.ImportPath+"/_obj")) + string(filepath.Separator)
-	if a.pkgobj == "" {
-		a.pkgobj = filepath.Join(b.work, filepath.FromSlash(a.p.ImportPath+".a"))
-	}
 
 	// make build directory
+	obj := a.objdir
 	if err := b.mkdir(obj); err != nil {
 		return err
 	}
@@ -381,7 +481,7 @@ func (b *builder) build(a *action) error {
 			sfiles = nil
 		}
 
-		outGo, outObj, err := b.cgo(a.p, obj, gccfiles)
+		outGo, outObj, err := b.cgo(a.p, a.cgo.target, obj, gccfiles)
 		if err != nil {
 			return err
 		}
@@ -393,19 +493,20 @@ func (b *builder) build(a *action) error {
 	inc := []string{}
 	incMap := map[string]bool{}
 
-	// work directory first
-	inc = append(inc, "-I", b.work)
-	incMap[b.work] = true
+	incMap[b.work] = true                 // handled later
 	incMap[build.Path[0].PkgDir()] = true // goroot
 	incMap[""] = true                     // ignore empty strings
 
-	// then build package directories of dependencies
+	// build package directories of dependencies
 	for _, a1 := range a.deps {
 		if pkgdir := a1.pkgdir; !incMap[pkgdir] {
 			incMap[pkgdir] = true
 			inc = append(inc, "-I", pkgdir)
 		}
 	}
+
+	// work directory
+	inc = append(inc, "-I", b.work)
 
 	// then installed package directories of dependencies
 	for _, a1 := range a.deps {
@@ -417,7 +518,7 @@ func (b *builder) build(a *action) error {
 
 	// compile Go
 	if len(gofiles) > 0 {
-		out := "_go_.6"
+		out := "_go_." + b.arch
 		gcargs := []string{"-p", a.p.ImportPath}
 		if a.p.Standard && a.p.ImportPath == "runtime" {
 			// runtime compiles with a special 6g flag to emit
@@ -473,20 +574,20 @@ func (b *builder) build(a *action) error {
 		objects = append(objects, out)
 	}
 
-	// pack into archive
-	if err := b.gopack(a.p, obj, a.pkgobj, objects); err != nil {
+	// pack into archive in obj directory
+	if err := b.gopack(a.p, obj, a.objpkg, objects); err != nil {
 		return err
 	}
 
-	if a.p.Name == "main" {
+	// link if needed.
+	if a.link {
 		// command.
 		// import paths for compiler are introduced by -I.
 		// for linker, they are introduced by -L.
 		for i := 0; i < len(inc); i += 2 {
 			inc[i] = "-L"
 		}
-		a.pkgbin = obj + "a.out"
-		if err := b.ld(a.p, a.pkgbin, inc, a.pkgobj); err != nil {
+		if err := b.ld(a.p, a.target, inc, a.objpkg); err != nil {
 			return err
 		}
 	}
@@ -494,29 +595,23 @@ func (b *builder) build(a *action) error {
 	return nil
 }
 
-// install is the action for installing a single package.
+// install is the action for installing a single package or executable.
 func (b *builder) install(a *action) error {
 	a1 := a.deps[0]
-	var src string
-	var perm uint32
-	if a1.pkgbin != "" {
-		src = a1.pkgbin
+	perm := uint32(0666)
+	if a1.link {
 		perm = 0777
-	} else {
-		src = a1.pkgobj
-		perm = 0666
 	}
 
 	// make target directory
-	dst := a.p.targ
-	dir, _ := filepath.Split(dst)
+	dir, _ := filepath.Split(a.target)
 	if dir != "" {
 		if err := b.mkdir(dir); err != nil {
 			return err
 		}
 	}
 
-	return b.copyFile(dst, src, perm)
+	return b.copyFile(a.target, a1.target, perm)
 }
 
 // removeByRenaming removes file name by moving it to a tmp
@@ -604,7 +699,7 @@ func (b *builder) fmtcmd(dir string, format string, args ...interface{}) string 
 		cmd = strings.Replace(" "+cmd, " "+dir, " .", -1)[1:]
 		if b.scriptDir != dir {
 			b.scriptDir = dir
-			cmd = " cd " + dir + "\n" + cmd
+			cmd = "cd " + dir + "\n" + cmd
 		}
 	}
 	cmd = strings.Replace(cmd, b.work, "$WORK", -1)
@@ -624,8 +719,8 @@ func (b *builder) showcmd(dir string, format string, args ...interface{}) {
 // showOutput prints "# desc" followed by the given output.
 // The output is expected to contain references to 'dir', usually
 // the source directory for the package that has failed to build.
-// showOutput rewrites mentions of dir with a relative path to dir.
-// This is usually shorter and more pleasant than the absolute path.
+// showOutput rewrites mentions of dir with a relative path to dir
+// when the relative path is shorter.  This is usually more pleasant.
 // For example, if fmt doesn't compile and we are in src/pkg/html,
 // the output is
 //
@@ -647,7 +742,7 @@ func (b *builder) showOutput(dir, desc, out string) {
 	prefix := "# " + desc
 	suffix := "\n" + out
 	pwd, _ := os.Getwd()
-	if reldir, err := filepath.Rel(pwd, dir); err == nil {
+	if reldir, err := filepath.Rel(pwd, dir); err == nil && len(reldir) < len(dir) {
 		suffix = strings.Replace(suffix, " "+dir, " "+reldir, -1)
 		suffix = strings.Replace(suffix, "\n"+dir, "\n"+reldir, -1)
 	}
@@ -701,6 +796,13 @@ func (b *builder) run(dir string, desc string, cmdline ...string) error {
 
 // mkdir makes the named directory.
 func (b *builder) mkdir(dir string) error {
+	// We can be a little aggressive about being
+	// sure directories exist.  Skip repeated calls.
+	if b.mkdirCache[dir] {
+		return nil
+	}
+	b.mkdirCache[dir] = true
+
 	if b.nflag || b.xflag {
 		b.showcmd("", "mkdir -p %s", dir)
 		if b.nflag {
@@ -801,7 +903,11 @@ func (b *builder) gccCmd(objdir string, flags []string, args ...string) []string
 
 var cgoRe = regexp.MustCompile(`[/\\:]`)
 
-func (b *builder) cgo(p *Package, obj string, gccfiles []string) (outGo, outObj []string, err error) {
+func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo, outObj []string, err error) {
+	if b.goos != runtime.GOOS {
+		return nil, nil, errors.New("cannot use cgo when compiling for a different operating system")
+	}
+
 	// cgo
 	// TODO: CGOPKGPATH, CGO_FLAGS?
 	gofiles := []string{obj + "_cgo_gotypes.go"}
@@ -814,7 +920,7 @@ func (b *builder) cgo(p *Package, obj string, gccfiles []string) (outGo, outObj 
 	defunC := obj + "_cgo_defun.c"
 	// TODO: make cgo not depend on $GOARCH?
 	// TODO: make cgo write to obj
-	cgoArgs := []string{"cgo", "-objdir", obj}
+	cgoArgs := []string{cgoExe, "-objdir", obj}
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoArgs = append(cgoArgs, "-import_runtime_cgo=false")
 	}
@@ -859,7 +965,7 @@ func (b *builder) cgo(p *Package, obj string, gccfiles []string) (outGo, outObj 
 
 	// cgo -dynimport
 	importC := obj + "_cgo_import.c"
-	if err := b.run(p.Dir, p.ImportPath, "cgo", "-objdir", obj, "-dynimport", dynobj, "-dynout", importC); err != nil {
+	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC); err != nil {
 		return nil, nil, err
 	}
 
@@ -871,4 +977,27 @@ func (b *builder) cgo(p *Package, obj string, gccfiles []string) (outGo, outObj 
 	outObj = append(outObj, importObj)
 
 	return outGo, outObj, nil
+}
+
+// An actionQueue is a priority queue of actions.
+type actionQueue []*action
+
+// Implement heap.Interface
+func (q *actionQueue) Len() int           { return len(*q) }
+func (q *actionQueue) Swap(i, j int)      { (*q)[i], (*q)[j] = (*q)[j], (*q)[i] }
+func (q *actionQueue) Less(i, j int) bool { return (*q)[i].priority < (*q)[j].priority }
+func (q *actionQueue) Push(x interface{}) { *q = append(*q, x.(*action)) }
+func (q *actionQueue) Pop() interface{} {
+	n := len(*q) - 1
+	x := (*q)[n]
+	*q = (*q)[:n]
+	return x
+}
+
+func (q *actionQueue) push(a *action) {
+	heap.Push(q, a)
+}
+
+func (q *actionQueue) pop() *action {
+	return heap.Pop(q).(*action)
 }
