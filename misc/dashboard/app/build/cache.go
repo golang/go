@@ -32,8 +32,8 @@ func invalidateCache(c appengine.Context) {
 
 // cachedTodo gets the specified todo cache entry (if it exists) from the
 // shared todo cache.
-func cachedTodo(c appengine.Context, todoKey string) (todo *Todo, hit bool) {
-	t, _ := todoCache(c)
+func cachedTodo(c appengine.Context, todoKey string) (todo *Todo, ok bool) {
+	t := todoCache(c)
 	if t == nil {
 		return nil, false
 	}
@@ -41,7 +41,7 @@ func cachedTodo(c appengine.Context, todoKey string) (todo *Todo, hit bool) {
 	if todos == nil {
 		return nil, false
 	}
-	todo, hit = todos[todoKey]
+	todo, ok = todos[todoKey]
 	return
 }
 
@@ -50,16 +50,13 @@ func cachedTodo(c appengine.Context, todoKey string) (todo *Todo, hit bool) {
 func cacheTodo(c appengine.Context, todoKey string, todo *Todo) {
 	// Get the todo cache record (or create a new one).
 	newItem := false
-	t, miss := todoCache(c)
-	if miss {
+	t := todoCache(c)
+	if t == nil {
 		newItem = true
 		t = &memcache.Item{
 			Key:   todoCacheKey,
 			Value: []byte("{}"), // default is an empty JSON object
 		}
-	}
-	if t == nil {
-		return
 	}
 
 	// Unmarshal the JSON value.
@@ -98,15 +95,15 @@ func cacheTodo(c appengine.Context, todoKey string, todo *Todo) {
 }
 
 // todoCache gets the todo cache record from memcache (if it exists).
-func todoCache(c appengine.Context) (item *memcache.Item, miss bool) {
+func todoCache(c appengine.Context) *memcache.Item {
 	t, err := memcache.Get(c, todoCacheKey)
-	if err == memcache.ErrCacheMiss {
-		return nil, true
-	} else if err != nil {
-		c.Errorf("get todo cache: %v", err)
-		return nil, false
+	if err != nil {
+		if err != memcache.ErrCacheMiss {
+			c.Errorf("get todo cache: %v", err)
+		}
+		return nil
 	}
-	return t, false
+	return t
 }
 
 // unmarshalTodo decodes the given item's memcache value into a map.
