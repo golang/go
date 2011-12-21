@@ -142,7 +142,7 @@ sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
 		sa.sa_flags |= SA_RESTART;
 	sa.sa_mask = ~0U;
 	sa.sa_tramp = (void*)runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
-	*(uintptr*)&sa.__sigaction_u = (uintptr)fn;
+	*(uintptr*)sa.__sigaction_u = (uintptr)fn;
 	runtime·sigaction(i, &sa, nil);
 }
 
