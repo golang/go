@@ -1,5 +1,5 @@
-application: godashboard
-version: go
+application: go-build
+version: 1
 runtime: go
 api_version: 3
 
@@ -10,6 +10,6 @@ handlers:
   script: _go_app
 - url: /(|commit|packages|result|tag|todo)
   script: _go_app
-- url: /(init|buildtest)
+- url: /(init|buildtest|_ah/queue/go/delay)
   script: _go_app
   login: admin

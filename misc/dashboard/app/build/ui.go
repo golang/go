@@ -145,16 +145,17 @@ type uiTemplateData struct {
 }
 
 var uiTemplate = template.Must(
-	template.New("ui").
-		Funcs(template.FuncMap{
-			"builderTitle": builderTitle,
-			"shortDesc":    shortDesc,
-			"shortHash":    shortHash,
-			"shortUser":    shortUser,
-			"repoURL":      repoURL,
-		}).
-		ParseFile("build/ui.html"),
+	template.New("ui").Funcs(tmplFuncs).ParseFile("build/ui.html"),
 )
+
+var tmplFuncs = template.FuncMap{
+	"builderTitle": builderTitle,
+	"repoURL":      repoURL,
+	"shortDesc":    shortDesc,
+	"shortHash":    shortHash,
+	"shortUser":    shortUser,
+	"tail":         tail,
+}
 
 // builderTitle formats "linux-amd64-foo" as "linux amd64 foo".
 func builderTitle(s string) string {
@@ -205,4 +206,13 @@ func repoURL(hash, packagePath string) (string, os.Error) {
 		url += "&repo=" + m[2][1:]
 	}
 	return url, nil
+}
+
+// tail returns the trailing n lines of s.
+func tail(n int, s string) string {
+	lines := strings.Split(s, "\n")
+	if len(lines) < n {
+		return s
+	}
+	return strings.Join(lines[len(lines)-n:], "\n")
 }
