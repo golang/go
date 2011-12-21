@@ -28,6 +28,9 @@ func NewCertPool() *CertPool {
 // given certificate. If no such certificate can be found or the signature
 // doesn't match, it returns nil.
 func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int) {
+	if s == nil {
+		return
+	}
 	var candidates []int
 
 	if len(cert.AuthorityKeyId) > 0 {
