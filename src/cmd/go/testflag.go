@@ -80,10 +80,9 @@ var testFlagDefn = []*testFlagSpec{
 // test.out's arguments.
 func testFlags(args []string) (passToTest []string) {
 	for i := 0; i < len(args); i++ {
-		arg := args[i]
 		f, value, extraWord := testFlag(args, i)
 		if f == nil {
-			args = append(args, arg)
+			passToTest = append(passToTest, args[i])
 			continue
 		}
 		switch f.name {
