@@ -256,13 +256,6 @@ func TestHelperProcess(*testing.T) {
 			fmt.Printf("ReadAll from fd 3: %v", err)
 			os.Exit(1)
 		}
-		// TODO(bradfitz): remove this block once the builders are restarted
-		// with a new binary including be47ea17bea0 (set CLOEXEC on epoll/kqueue fds)
-		// and 5500053 (don't trust O_CLOEXEC on OS X).
-		{
-			os.Stderr.Write(bs)
-			os.Exit(0)
-		}
 		// Now verify that there are no other open fds.
 		var files []*os.File
 		for wantfd := os.Stderr.Fd() + 2; wantfd <= 100; wantfd++ {
