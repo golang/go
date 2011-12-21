@@ -9,6 +9,7 @@ import (
 	"appengine/datastore"
 	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
 	"crypto/sha1"
 	"fmt"
 	"http"
@@ -18,7 +19,14 @@ import (
 	"strings"
 )
 
-const commitsPerPage = 20
+var defaultPackages = []*Package{
+	&Package{Name: "Go"},
+}
+
+const (
+	commitsPerPage        = 30
+	maxDatastoreStringLen = 500
+)
 
 // A Package describes a package that is listed on the dashboard.
 type Package struct {
@@ -111,11 +119,13 @@ func (c *Commit) Valid() os.Error {
 // It must be called from inside a datastore transaction.
 func (com *Commit) AddResult(c appengine.Context, r *Result) os.Error {
 	if err := datastore.Get(c, com.Key(c), com); err != nil {
-		return err
+		return fmt.Errorf("getting Commit: %v", err)
 	}
 	com.ResultData = append(com.ResultData, r.Data())
-	_, err := datastore.Put(c, com.Key(c), com)
-	return err
+	if _, err := datastore.Put(c, com.Key(c), com); err != nil {
+		return fmt.Errorf("putting Commit: %v", err)
+	}
+	return nil
 }
 
 // Result returns the build Result for this Commit for the given builder/goHash.
@@ -267,7 +277,7 @@ func commitHandler(r *http.Request) (interface{}, os.Error) {
 		com.PackagePath = r.FormValue("packagePath")
 		com.Hash = r.FormValue("hash")
 		if err := datastore.Get(c, com.Key(c), com); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("getting Commit: %v", err)
 		}
 		return com, nil
 	}
@@ -278,10 +288,13 @@ func commitHandler(r *http.Request) (interface{}, os.Error) {
 	// POST request
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(com); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decoding Body: %v", err)
+	}
+	if len(com.Desc) > maxDatastoreStringLen {
+		com.Desc = com.Desc[:maxDatastoreStringLen]
 	}
 	if err := com.Valid(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("validating Commit: %v", err)
 	}
 	tx := func(c appengine.Context) os.Error {
 		return addCommit(c, com)
@@ -292,21 +305,24 @@ func commitHandler(r *http.Request) (interface{}, os.Error) {
 // addCommit adds the Commit entity to the datastore and updates the tip Tag.
 // It must be run inside a datastore transaction.
 func addCommit(c appengine.Context, com *Commit) os.Error {
-	// if this commit is already in the datastore, do nothing
 	var tc Commit // temp value so we don't clobber com
 	err := datastore.Get(c, com.Key(c), &tc)
 	if err != datastore.ErrNoSuchEntity {
-		return err
+		// if this commit is already in the datastore, do nothing
+		if err == nil {
+			return nil
+		}
+		return fmt.Errorf("getting Commit: %v", err)
 	}
 	// get the next commit number
 	p, err := GetPackage(c, com.PackagePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("GetPackage: %v", err)
 	}
 	com.Num = p.NextNum
 	p.NextNum++
 	if _, err := datastore.Put(c, p.Key(c), p); err != nil {
-		return err
+		return fmt.Errorf("putting Package: %v", err)
 	}
 	// if this isn't the first Commit test the parent commit exists
 	if com.Num > 0 {
@@ -315,7 +331,7 @@ func addCommit(c appengine.Context, com *Commit) os.Error {
 			Ancestor(p.Key(c)).
 			Count(c)
 		if err != nil {
-			return err
+			return fmt.Errorf("testing for parent Commit: %v", err)
 		}
 		if n == 0 {
 			return os.NewError("parent commit not found")
@@ -325,12 +341,14 @@ func addCommit(c appengine.Context, com *Commit) os.Error {
 	if p.Path == "" {
 		t := &Tag{Kind: "tip", Hash: com.Hash}
 		if _, err = datastore.Put(c, t.Key(c), t); err != nil {
-			return err
+			return fmt.Errorf("putting Tag: %v", err)
 		}
 	}
 	// put the Commit
-	_, err = datastore.Put(c, com.Key(c), com)
-	return err
+	if _, err = datastore.Put(c, com.Key(c), com); err != nil {
+		return fmt.Errorf("putting Commit: %v", err)
+	}
+	return nil
 }
 
 // tagHandler records a new tag. It reads a JSON-encoded Tag value from the
@@ -458,31 +476,34 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
 	res := new(Result)
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(res); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decoding Body: %v", err)
 	}
 	if err := res.Valid(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("validating Result: %v", err)
 	}
 	// store the Log text if supplied
 	if len(res.Log) > 0 {
 		hash, err := PutLog(c, res.Log)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("putting Log: %v", err)
 		}
 		res.LogHash = hash
 	}
 	tx := func(c appengine.Context) os.Error {
 		// check Package exists
 		if _, err := GetPackage(c, res.PackagePath); err != nil {
-			return err
+			return fmt.Errorf("GetPackage: %v", err)
 		}
 		// put Result
 		if _, err := datastore.Put(c, res.Key(c), res); err != nil {
-			return err
+			return fmt.Errorf("putting Result: %v", err)
 		}
 		// add Result to Commit
 		com := &Commit{PackagePath: res.PackagePath, Hash: res.Hash}
-		return com.AddResult(c, res)
+		if err := com.AddResult(c, res); err != nil {
+			return fmt.Errorf("AddResult: %v", err)
+		}
+		return nil
 	}
 	return nil, datastore.RunInTransaction(c, tx, nil)
 }
@@ -527,47 +548,54 @@ func (e errBadMethod) String() string {
 // supplied key and builder query parameters.
 func AuthHandler(h dashHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		c := appengine.NewContext(r)
+
 		// Put the URL Query values into r.Form to avoid parsing the
 		// request body when calling r.FormValue.
 		r.Form = r.URL.Query()
 
+		var err os.Error
+		var resp interface{}
+
 		// Validate key query parameter for POST requests only.
 		key := r.FormValue("key")
-		if r.Method == "POST" && key != secretKey &&
-			!appengine.IsDevAppServer() {
-			h := sha1.New()
-			h.Write([]byte(r.FormValue("builder") + secretKey))
+		if r.Method == "POST" && key != secretKey && !appengine.IsDevAppServer() {
+			h := hmac.NewMD5([]byte(secretKey))
+			h.Write([]byte(r.FormValue("builder")))
 			if key != fmt.Sprintf("%x", h.Sum()) {
-				logErr(w, r, os.NewError("invalid key"))
-				return
+				err = os.NewError("invalid key: " + key)
 			}
 		}
 
 		// Call the original HandlerFunc and return the response.
-		c := appengine.NewContext(r)
-		resp, err := h(r)
-		dashResp := dashResponse{Response: resp}
+		if err == nil {
+			resp, err = h(r)
+		}
+
+		// Write JSON response.
+		dashResp := &dashResponse{Response: resp}
 		if err != nil {
 			c.Errorf("%v", err)
 			dashResp.Error = err.String()
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if err = json.NewEncoder(w).Encode(dashResp); err != nil {
-			c.Criticalf("%v", err)
+			c.Criticalf("encoding response: %v", err)
 		}
 	}
 }
 
 func initHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO(adg): devise a better way of bootstrapping new packages
-	var pkgs = []*Package{
-		&Package{Name: "Go"},
-		&Package{Name: "Test", Path: "code.google.com/p/go.test"},
-	}
 	c := appengine.NewContext(r)
-	for _, p := range pkgs {
-		_, err := datastore.Put(c, p.Key(c), p)
-		if err != nil {
+	for _, p := range defaultPackages {
+		if err := datastore.Get(c, p.Key(c), new(Package)); err == nil {
+			continue
+		} else if err != datastore.ErrNoSuchEntity {
+			logErr(w, r, err)
+			return
+		}
+		if _, err := datastore.Put(c, p.Key(c), p); err != nil {
 			logErr(w, r, err)
 			return
 		}
