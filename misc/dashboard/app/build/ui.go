@@ -22,11 +22,6 @@ import (
 	"template"
 )
 
-const (
-	uiCacheKey    = "build-ui"
-	uiCacheExpiry = 10 * 60 // 10 minutes in seconds
-)
-
 func init() {
 	http.HandleFunc("/", uiHandler)
 	html.Escape(uiTemplate)
