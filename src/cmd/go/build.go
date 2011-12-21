@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -518,6 +519,33 @@ func (b *builder) install(a *action) error {
 	return b.copyFile(dst, src, perm)
 }
 
+// removeByRenaming removes file name by moving it to a tmp
+// directory and deleting the target if possible.
+func removeByRenaming(name string) error {
+	f, err := ioutil.TempFile("", "")
+	if err != nil {
+		return err
+	}
+	tmpname := f.Name()
+	f.Close()
+	err = os.Remove(tmpname)
+	if err != nil {
+		return err
+	}
+	err = os.Rename(name, tmpname)
+	if err != nil {
+		// assume name file does not exists,
+		// otherwise later code will fail.
+		return nil
+	}
+	err = os.Remove(tmpname)
+	if err != nil {
+		// TODO(brainman): file is locked and can't be deleted.
+		// We need to come up with a better way of doing it. 
+	}
+	return nil
+}
+
 // copyFile is like 'cp src dst'.
 func (b *builder) copyFile(dst, src string, perm uint32) error {
 	if b.nflag || b.xflag {
@@ -535,7 +563,19 @@ func (b *builder) copyFile(dst, src string, perm uint32) error {
 	os.Remove(dst)
 	df, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
-		return err
+		if runtime.GOOS != "windows" {
+			return err
+		}
+		// Windows does not allow to replace binary file
+		// while it is executing. We will cheat.
+		err = removeByRenaming(dst)
+		if err != nil {
+			return err
+		}
+		df, err = os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+		if err != nil {
+			return err
+		}
 	}
 	_, err = io.Copy(df, sf)
 	df.Close()
