@@ -14,7 +14,7 @@ package cgo
 #cgo linux LDFLAGS: -lpthread
 #cgo netbsd LDFLAGS: -lpthread
 #cgo openbsd LDFLAGS: -lpthread
-#cgo windows LDFLAGS: -lm -lmthreads
+#cgo windows LDFLAGS: -lm -mthreads
 
 */
 import "C"

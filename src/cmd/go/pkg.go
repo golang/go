@@ -113,6 +113,9 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 	if info.Package == "main" {
 		_, elem := filepath.Split(importPath)
 		targ = filepath.Join(t.BinDir(), elem)
+		if ctxt.GOOS == "windows" {
+			targ += ".exe"
+		}
 	} else {
 		targ = filepath.Join(t.PkgDir(), filepath.FromSlash(importPath)+".a")
 	}

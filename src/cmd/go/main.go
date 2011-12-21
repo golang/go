@@ -285,7 +285,7 @@ func allPackages() []string {
 			if err != nil {
 				return nil
 			}
-			name := path[len(src):]
+			name := filepath.ToSlash(path[len(src):])
 			if !have[name] {
 				pkgs = append(pkgs, name)
 				have[name] = true

@@ -544,4 +544,4 @@ mkdir -p $WORK/cmd/go/_obj/
 gopack grc $WORK/cmd/go.a $WORK/cmd/go/_obj/_go_.6
 6l -o $WORK/cmd/go/_obj/a.out -L $WORK $WORK/cmd/go.a
 mkdir -p $GOBIN/
-cp $WORK/cmd/go/_obj/a.out $GOBIN/go
+cp $WORK/cmd/go/_obj/a.out $GOBIN/go.exe
