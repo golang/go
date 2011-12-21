@@ -13,7 +13,7 @@ SigTab runtime·sigtab[] = {
 	/* 1 */	Q+R, "SIGHUP: terminal line hangup",
 	/* 2 */	Q+R, "SIGINT: interrupt",
 	/* 3 */	C, "SIGQUIT: quit",
-	/* 4 */	C+P, "SIGILL: illegal instruction",
+	/* 4 */	C, "SIGILL: illegal instruction",
 	/* 5 */	C, "SIGTRAP: trace trap",
 	/* 6 */	C, "SIGABRT: abort",
 	/* 7 */	C+P, "SIGBUS: bus error",
