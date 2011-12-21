@@ -89,7 +89,7 @@ echo; echo; echo %%%% making runtime generated files %%%%; echo
 (
 	cd "$GOROOT"/src/pkg/runtime
 	./autogen.sh
-	make install  # copy runtime.h to pkg directory
+	gomake install  # copy runtime.h to pkg directory
 ) || exit 1
 
 if $USE_GO_TOOL; then
