@@ -1,3 +1,5 @@
+// +build ignore
+
 TEXT linefrompc(SB),7,$0	// Each byte stores its line delta
 BYTE $2;
 BYTE $1;

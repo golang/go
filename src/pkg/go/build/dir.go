@@ -26,9 +26,9 @@ import (
 
 // A Context specifies the supporting context for a build.
 type Context struct {
-	GOARCH string // target architecture
-	GOOS   string // target operating system
-	// TODO(rsc,adg): GOPATH
+	GOARCH     string // target architecture
+	GOOS       string // target operating system
+	CgoEnabled bool   // whether cgo can be used
 
 	// By default, ScanDir uses the operating system's
 	// file system calls to read directories and files.
@@ -75,9 +75,34 @@ func (ctxt *Context) readFile(dir, file string) (string, []byte, error) {
 // The DefaultContext is the default Context for builds.
 // It uses the GOARCH and GOOS environment variables
 // if set, or else the compiled code's GOARCH and GOOS.
-var DefaultContext = Context{
-	GOARCH: envOr("GOARCH", runtime.GOARCH),
-	GOOS:   envOr("GOOS", runtime.GOOS),
+var DefaultContext = defaultContext()
+
+var cgoEnabled = map[string]bool{
+	"darwin/386":    true,
+	"darwin/amd64":  true,
+	"linux/386":     true,
+	"linux/amd64":   true,
+	"freebsd/386":   true,
+	"freebsd/amd64": true,
+}
+
+func defaultContext() Context {
+	var c Context
+
+	c.GOARCH = envOr("GOARCH", runtime.GOARCH)
+	c.GOOS = envOr("GOOS", runtime.GOOS)
+
+	s := os.Getenv("CGO_ENABLED")
+	switch s {
+	case "1":
+		c.CgoEnabled = true
+	case "0":
+		c.CgoEnabled = false
+	default:
+		c.CgoEnabled = cgoEnabled[c.GOOS+"/"+c.GOARCH]
+	}
+
+	return c
 }
 
 func envOr(name, def string) string {
@@ -264,7 +289,9 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 			}
 		}
 		if isCgo {
-			di.CgoFiles = append(di.CgoFiles, name)
+			if ctxt.CgoEnabled {
+				di.CgoFiles = append(di.CgoFiles, name)
+			}
 		} else if isTest {
 			if pkg == string(pf.Name.Name) {
 				di.TestGoFiles = append(di.TestGoFiles, name)
@@ -306,7 +333,6 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 }
 
 var slashslash = []byte("//")
-var plusBuild = []byte("+build")
 
 // shouldBuild reports whether it is okay to use this file,
 // The rule is that in the file's leading run of // comments
@@ -527,14 +553,22 @@ func splitQuoted(s string) (r []string, err error) {
 //
 //	$GOOS
 //	$GOARCH
-//	$GOOS/$GOARCH
+//	cgo (if cgo is enabled)
+//	nocgo (if cgo is disabled)
+//	a slash-separated list of any of these
 //
 func (ctxt *Context) matchOSArch(name string) bool {
+	if ctxt.CgoEnabled && name == "cgo" {
+		return true
+	}
+	if !ctxt.CgoEnabled && name == "nocgo" {
+		return true
+	}
 	if name == ctxt.GOOS || name == ctxt.GOARCH {
 		return true
 	}
 	i := strings.Index(name, "/")
-	return i >= 0 && name[:i] == ctxt.GOOS && name[i+1:] == ctxt.GOARCH
+	return i >= 0 && ctxt.matchOSArch(name[:i]) && ctxt.matchOSArch(name[i+1:])
 }
 
 // goodOSArchFile returns false if the name contains a $GOOS or $GOARCH
