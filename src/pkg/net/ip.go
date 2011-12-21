@@ -450,6 +450,9 @@ func (n *IPNet) String() string {
 	return nn.String() + "/" + itod(uint(l))
 }
 
+// Network returns the address's network name, "ip+net".
+func (n *IPNet) Network() string { return "ip+net" }
+
 // Parse IPv4 address (d.d.d.d).
 func parseIPv4(s string) IP {
 	var p [IPv4len]byte

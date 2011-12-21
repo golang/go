@@ -85,8 +85,8 @@ func (m *RouteMessage) sockaddr() []Sockaddr {
 		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
 		switch i {
 		case RTAX_DST, RTAX_GATEWAY:
-			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
-			if e != nil {
+			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+			if err != nil {
 				return nil
 			}
 			if i == RTAX_DST {
@@ -128,8 +128,8 @@ func (m *InterfaceMessage) sockaddr() (sas []Sockaddr) {
 	if m.Header.Addrs&RTA_IFP == 0 {
 		return nil
 	}
-	sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(&m.Data[0])))
-	if e != nil {
+	sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(&m.Data[0])))
+	if err != nil {
 		return nil
 	}
 	return append(sas, sa)
@@ -157,12 +157,21 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
 		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
 		switch i {
 		case RTAX_IFA:
-			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
-			if e != nil {
+			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+			if err != nil {
 				return nil
 			}
 			sas = append(sas, sa)
-		case RTAX_NETMASK, RTAX_BRD:
+		case RTAX_NETMASK:
+			if rsa.Family == AF_UNSPEC {
+				rsa.Family = AF_INET // an old fasion, AF_UNSPEC means AF_INET
+			}
+			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+			if err != nil {
+				return nil
+			}
+			sas = append(sas, sa)
+		case RTAX_BRD:
 			// nothing to do
 		}
 		buf = buf[rsaAlignOf(int(rsa.Len)):]
