@@ -19,6 +19,7 @@ type verifyTest struct {
 	roots         []string
 	currentTime   int64
 	dnsName       string
+	nilRoots      bool
 
 	errorCallback  func(*testing.T, int, error) bool
 	expectedChains [][]string
@@ -44,6 +45,14 @@ var verifyTests = []verifyTest{
 		dnsName:       "www.example.com",
 
 		errorCallback: expectHostnameError,
+	},
+	{
+		leaf:          googleLeaf,
+		intermediates: []string{thawteIntermediate},
+		nilRoots:      true, // verifies that we don't crash
+		currentTime:   1302726541,
+		dnsName:       "www.google.com",
+		errorCallback: expectAuthorityUnknown,
 	},
 	{
 		leaf:          googleLeaf,
@@ -135,6 +144,9 @@ func TestVerify(t *testing.T) {
 			Intermediates: NewCertPool(),
 			DNSName:       test.dnsName,
 			CurrentTime:   time.Unix(test.currentTime, 0),
+		}
+		if test.nilRoots {
+			opts.Roots = nil
 		}
 
 		for j, root := range test.roots {
