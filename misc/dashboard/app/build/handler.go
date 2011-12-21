@@ -321,12 +321,9 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
 
 		// Validate key query parameter for POST requests only.
 		key := r.FormValue("key")
-		if r.Method == "POST" && key != secretKey && !appengine.IsDevAppServer() {
-			h := hmac.NewMD5([]byte(secretKey))
-			h.Write([]byte(r.FormValue("builder")))
-			if key != fmt.Sprintf("%x", h.Sum()) {
-				err = os.NewError("invalid key: " + key)
-			}
+		builder := r.FormValue("builder")
+		if r.Method == "POST" && !validKey(key, builder) {
+			err = os.NewError("invalid key: " + key)
 		}
 
 		// Call the original HandlerFunc and return the response.
@@ -365,9 +362,19 @@ func initHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "OK")
 }
 
+func keyHandler(w http.ResponseWriter, r *http.Request) {
+	builder := r.FormValue("builder")
+	if builder == "" {
+		logErr(w, r, os.NewError("must supply builder in query string"))
+		return
+	}
+	fmt.Fprint(w, builderKey(builder))
+}
+
 func init() {
 	// admin handlers
 	http.HandleFunc("/init", initHandler)
+	http.HandleFunc("/key", keyHandler)
 
 	// authenticated handlers
 	http.HandleFunc("/commit", AuthHandler(commitHandler))
@@ -383,6 +390,22 @@ func init() {
 func validHash(hash string) bool {
 	// TODO(adg): correctly validate a hash
 	return hash != ""
+}
+
+func validKey(key, builder string) bool {
+	if appengine.IsDevAppServer() {
+		return true
+	}
+	if key == secretKey {
+		return true
+	}
+	return key == builderKey(builder)
+}
+
+func builderKey(builder string) string {
+	h := hmac.NewMD5([]byte(secretKey))
+	h.Write([]byte(builder))
+	return fmt.Sprintf("%x", h.Sum())
 }
 
 func logErr(w http.ResponseWriter, r *http.Request, err os.Error) {
