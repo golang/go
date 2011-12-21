@@ -90,7 +90,7 @@ var testRequests = []struct {
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, &Todo{Kind: "build-go-commit", Data: &Commit{Hash: "0003"}}},
 
 	// logs
-	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: []byte("test")}, nil},
+	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: "test"}, nil},
 	{"/log/a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", nil, nil, "test"},
 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, nil},
 
@@ -106,7 +106,7 @@ var testRequests = []struct {
 	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0001", OK: true}, nil},
 	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0001"}}, nil, nil},
 	{"/todo", url.Values{"kind": {"build-package"}, "builder": {"linux-386"}, "packagePath": {testPkg}, "goHash": {"0002"}}, nil, &Todo{Kind: "build-package", Data: &Commit{Hash: "1003"}}},
-	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0005", OK: false, Log: []byte("boo")}, nil},
+	{"/result", nil, &Result{PackagePath: testPkg, Builder: "linux-386", Hash: "1001", GoHash: "0005", OK: false, Log: "boo"}, nil},
 }
 
 func testHandler(w http.ResponseWriter, r *http.Request) {
