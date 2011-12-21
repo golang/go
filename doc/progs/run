@@ -117,6 +117,6 @@ testit server1 "" ""
 testit eff_bytesize "" "1.00YB 9.09TB"
 testit eff_sequence "" "[-1 2 6 16 44]"
 
-testit go1 "" ""
+testit go1 "" "Christmas is a holiday: true"
 
 rm -f $O.out $O.out.exe *.$O "$TMPFILE"
