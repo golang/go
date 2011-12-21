@@ -150,7 +150,7 @@ func todoHandler(r *http.Request) (interface{}, os.Error) {
 	c := appengine.NewContext(r)
 
 	todoKey := r.Form.Encode()
-	if t, hit := cachedTodo(c, todoKey); hit {
+	if t, ok := cachedTodo(c, todoKey); ok {
 		c.Debugf("cache hit")
 		return t, nil
 	}
