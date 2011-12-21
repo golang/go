@@ -258,7 +258,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 					case *ast.InterfaceType:
 						fields = typ.Methods
 					}
-					if fields == nil {
+					if fields != nil {
 						for _, field := range fields.List {
 							if len(field.Names) == 0 {
 								// anonymous field
