@@ -10,6 +10,8 @@ package build
 import (
 	"appengine"
 	"appengine/datastore"
+	"appengine/memcache"
+	"bytes"
 	"exp/template/html"
 	"http"
 	"os"
@@ -20,6 +22,11 @@ import (
 	"template"
 )
 
+const (
+	uiCacheKey    = "build-ui"
+	uiCacheExpiry = 10 * 60 // 10 minutes in seconds
+)
+
 func init() {
 	http.HandleFunc("/", uiHandler)
 	html.Escape(uiTemplate)
@@ -27,12 +34,23 @@ func init() {
 
 // uiHandler draws the build status page.
 func uiHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO(adg): put the HTML in memcache and invalidate on updates
 	c := appengine.NewContext(r)
 
 	page, _ := strconv.Atoi(r.FormValue("page"))
 	if page < 0 {
 		page = 0
+	}
+
+	// Used cached version of front page, if available.
+	if page == 0 {
+		t, err := memcache.Get(c, uiCacheKey)
+		if err == nil {
+			w.Write(t.Value)
+			return
+		}
+		if err != memcache.ErrCacheMiss {
+			c.Errorf("get ui cache: %v", err)
+		}
 	}
 
 	commits, err := goCommits(c, page)
@@ -57,9 +75,26 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 		p.HasPrev = true
 	}
 	data := &uiTemplateData{commits, builders, tipState, p}
-	if err := uiTemplate.Execute(w, data); err != nil {
+
+	var buf bytes.Buffer
+	if err := uiTemplate.Execute(&buf, data); err != nil {
 		logErr(w, r, err)
+		return
 	}
+
+	// Cache the front page.
+	if page == 0 {
+		t := &memcache.Item{
+			Key:        uiCacheKey,
+			Value:      buf.Bytes(),
+			Expiration: uiCacheExpiry,
+		}
+		if err := memcache.Set(c, t); err != nil {
+			c.Errorf("set ui cache: %v", err)
+		}
+	}
+
+	buf.WriteTo(w)
 }
 
 type Pagination struct {

@@ -7,6 +7,7 @@ package build
 import (
 	"appengine"
 	"appengine/datastore"
+	"appengine/memcache"
 	"crypto/hmac"
 	"fmt"
 	"http"
@@ -58,6 +59,7 @@ func commitHandler(r *http.Request) (interface{}, os.Error) {
 	if err := com.Valid(); err != nil {
 		return nil, fmt.Errorf("validating Commit: %v", err)
 	}
+	defer invalidateCache(c)
 	tx := func(c appengine.Context) os.Error {
 		return addCommit(c, com)
 	}
@@ -131,6 +133,7 @@ func tagHandler(r *http.Request) (interface{}, os.Error) {
 		return nil, err
 	}
 	c := appengine.NewContext(r)
+	defer invalidateCache(c)
 	_, err := datastore.Put(c, t.Key(c), t)
 	return nil, err
 }
@@ -226,6 +229,7 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
 	if err := res.Valid(); err != nil {
 		return nil, fmt.Errorf("validating Result: %v", err)
 	}
+	defer invalidateCache(c)
 	// store the Log text if supplied
 	if len(res.Log) > 0 {
 		hash, err := PutLog(c, res.Log)
@@ -374,4 +378,12 @@ func logErr(w http.ResponseWriter, r *http.Request, err os.Error) {
 	appengine.NewContext(r).Errorf("Error: %v", err)
 	w.WriteHeader(http.StatusInternalServerError)
 	fmt.Fprint(w, "Error: ", err)
+}
+
+// invalidateCache deletes the ui cache record from memcache.
+func invalidateCache(c appengine.Context) {
+	err := memcache.Delete(c, uiCacheKey)
+	if err != nil && err != memcache.ErrCacheMiss {
+		c.Errorf("memcache.Delete(%q): %v", uiCacheKey, err)
+	}
 }
