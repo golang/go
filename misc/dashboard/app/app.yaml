@@ -10,6 +10,6 @@ handlers:
   script: _go_app
 - url: /(|commit|packages|result|tag|todo)
   script: _go_app
-- url: /(init|buildtest|_ah/queue/go/delay)
+- url: /(init|buildtest|key|_ah/queue/go/delay)
   script: _go_app
   login: admin
