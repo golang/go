@@ -116,3 +116,14 @@ div.paginate a.inactive {
 td.time {
 	font-family: monospace;
 }
+.notice {
+	padding: 10px;
+	margin: 10px;
+	border: 2px solid #FF6;
+	background: #900;
+	color: white;
+	text-align: center;
+}
+.notice a {
+	color: #FF6;
+}
