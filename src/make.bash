@@ -71,6 +71,7 @@ do
 	fi
 done
 
+$USE_GO_TOOL ||
 (
 	cd "$GOROOT"/src/pkg;
 	bash deps.bash	# do this here so clean.bash will work in the pkg directory
