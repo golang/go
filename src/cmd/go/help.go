@@ -169,10 +169,10 @@ Here's an example directory layout:
                     y.go
         bin/
             quux                   (installed command)
-		pkg/
-		    linux_amd64/
-		        foo/
-		            bar.a          (installed package object)
+        pkg/
+            linux_amd64/
+                foo/
+                    bar.a          (installed package object)
 
 Go searches each directory listed in GOPATH to find source code,
 but new packages are always downloaded into the first directory 
