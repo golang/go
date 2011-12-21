@@ -242,9 +242,11 @@ func allPackages(what string) []string {
 	have := map[string]bool{
 		"builtin": true, // ignore pseudo-package that exists only for documentation
 	}
-	if !build.DefaultContext.CgoEnabled {
-		have["runtime/cgo"] = true // ignore during walk
-	}
+	/*
+		if !build.DefaultContext.CgoEnabled {
+			have["runtime/cgo"] = true // ignore during walk
+		}
+	*/
 	var pkgs []string
 
 	// Commands
