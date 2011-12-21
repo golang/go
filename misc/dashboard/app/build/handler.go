@@ -7,7 +7,6 @@ package build
 import (
 	"appengine"
 	"appengine/datastore"
-	"appengine/memcache"
 	"crypto/hmac"
 	"fmt"
 	"http"
@@ -147,8 +146,18 @@ type Todo struct {
 // todoHandler returns the next action to be performed by a builder.
 // It expects "builder" and "kind" query parameters and returns a *Todo value.
 // Multiple "kind" parameters may be specified.
-func todoHandler(r *http.Request) (todo interface{}, err os.Error) {
+func todoHandler(r *http.Request) (interface{}, os.Error) {
 	c := appengine.NewContext(r)
+
+	todoKey := r.Form.Encode()
+	if t, hit := cachedTodo(c, todoKey); hit {
+		c.Debugf("cache hit")
+		return t, nil
+	}
+	c.Debugf("cache miss")
+
+	var todo *Todo
+	var err os.Error
 	builder := r.FormValue("builder")
 	for _, kind := range r.Form["kind"] {
 		var data interface{}
@@ -156,17 +165,19 @@ func todoHandler(r *http.Request) (todo interface{}, err os.Error) {
 		case "build-go-commit":
 			data, err = buildTodo(c, builder, "", "")
 		case "build-package":
-			data, err = buildTodo(
-				c, builder,
-				r.FormValue("packagePath"),
-				r.FormValue("goHash"),
-			)
+			packagePath := r.FormValue("packagePath")
+			goHash := r.FormValue("goHash")
+			data, err = buildTodo(c, builder, packagePath, goHash)
 		}
 		if data != nil || err != nil {
-			return &Todo{Kind: kind, Data: data}, err
+			todo = &Todo{Kind: kind, Data: data}
+			break
 		}
 	}
-	return nil, nil
+	if err == nil {
+		cacheTodo(c, todoKey, todo)
+	}
+	return todo, err
 }
 
 // buildTodo returns the next Commit to be built (or nil if none available).
@@ -378,12 +389,4 @@ func logErr(w http.ResponseWriter, r *http.Request, err os.Error) {
 	appengine.NewContext(r).Errorf("Error: %v", err)
 	w.WriteHeader(http.StatusInternalServerError)
 	fmt.Fprint(w, "Error: ", err)
-}
-
-// invalidateCache deletes the ui cache record from memcache.
-func invalidateCache(c appengine.Context) {
-	err := memcache.Delete(c, uiCacheKey)
-	if err != nil && err != memcache.ErrCacheMiss {
-		c.Errorf("memcache.Delete(%q): %v", uiCacheKey, err)
-	}
 }
