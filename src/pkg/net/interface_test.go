@@ -24,7 +24,7 @@ func sameInterface(i, j *Interface) bool {
 func TestInterfaces(t *testing.T) {
 	ift, err := Interfaces()
 	if err != nil {
-		t.Fatalf("Interfaces() failed: %v", err)
+		t.Fatalf("Interfaces failed: %v", err)
 	}
 	t.Logf("table: len/cap = %v/%v\n", len(ift), cap(ift))
 
@@ -43,34 +43,57 @@ func TestInterfaces(t *testing.T) {
 		if !sameInterface(ifxn, &ifi) {
 			t.Fatalf("InterfaceByName(%#q) = %v, want %v", ifi.Name, *ifxn, ifi)
 		}
-		ifat, err := ifi.Addrs()
-		if err != nil {
-			t.Fatalf("Interface.Addrs() failed: %v", err)
-		}
-		ifmat, err := ifi.MulticastAddrs()
-		if err != nil {
-			t.Fatalf("Interface.MulticastAddrs() failed: %v", err)
-		}
 		t.Logf("%q: flags %q, ifindex %v, mtu %v\n", ifi.Name, ifi.Flags.String(), ifi.Index, ifi.MTU)
-		for _, ifa := range ifat {
-			t.Logf("\tinterface address %q\n", ifa.String())
-		}
-		for _, ifma := range ifmat {
-			t.Logf("\tjoined group address %q\n", ifma.String())
-		}
 		t.Logf("\thardware address %q", ifi.HardwareAddr.String())
+		testInterfaceAddrs(t, &ifi)
+		testInterfaceMulticastAddrs(t, &ifi)
 	}
 }
 
 func TestInterfaceAddrs(t *testing.T) {
 	ifat, err := InterfaceAddrs()
 	if err != nil {
-		t.Fatalf("InterfaceAddrs() failed: %v", err)
+		t.Fatalf("InterfaceAddrs failed: %v", err)
 	}
 	t.Logf("table: len/cap = %v/%v\n", len(ifat), cap(ifat))
+	testAddrs(t, ifat)
+}
 
+func testInterfaceAddrs(t *testing.T, ifi *Interface) {
+	ifat, err := ifi.Addrs()
+	if err != nil {
+		t.Fatalf("Interface.Addrs failed: %v", err)
+	}
+	testAddrs(t, ifat)
+}
+
+func testInterfaceMulticastAddrs(t *testing.T, ifi *Interface) {
+	ifmat, err := ifi.MulticastAddrs()
+	if err != nil {
+		t.Fatalf("Interface.MulticastAddrs failed: %v", err)
+	}
+	testMulticastAddrs(t, ifmat)
+}
+
+func testAddrs(t *testing.T, ifat []Addr) {
 	for _, ifa := range ifat {
-		t.Logf("interface address %q\n", ifa.String())
+		switch ifa.(type) {
+		case *IPAddr, *IPNet:
+			t.Logf("\tinterface address %q\n", ifa.String())
+		default:
+			t.Errorf("\tunexpected type: %T", ifa)
+		}
+	}
+}
+
+func testMulticastAddrs(t *testing.T, ifmat []Addr) {
+	for _, ifma := range ifmat {
+		switch ifma.(type) {
+		case *IPAddr:
+			t.Logf("\tjoined group address %q\n", ifma.String())
+		default:
+			t.Errorf("\tunexpected type: %T", ifma)
+		}
 	}
 }
 
