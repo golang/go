@@ -17,11 +17,11 @@ import (
 // embeddedType describes the type of an anonymous field.
 //
 type embeddedType struct {
-	typ *typeDoc // the corresponding base type
-	ptr bool     // if set, the anonymous field type is a pointer
+	typ *typeInfo // the corresponding base type
+	ptr bool      // if set, the anonymous field type is a pointer
 }
 
-type typeDoc struct {
+type typeInfo struct {
 	// len(decl.Specs) == 1, and the element type is *ast.TypeSpec
 	// if the type declaration hasn't been seen yet, decl is nil
 	decl     *ast.GenDecl
@@ -45,16 +45,16 @@ type docReader struct {
 	doc      *ast.CommentGroup // package documentation, if any
 	pkgName  string
 	values   []*ast.GenDecl // consts and vars
-	types    map[string]*typeDoc
-	embedded map[string]*typeDoc // embedded types, possibly not exported
+	types    map[string]*typeInfo
+	embedded map[string]*typeInfo // embedded types, possibly not exported
 	funcs    map[string]*ast.FuncDecl
 	bugs     []*ast.CommentGroup
 }
 
 func (doc *docReader) init(pkgName string) {
 	doc.pkgName = pkgName
-	doc.types = make(map[string]*typeDoc)
-	doc.embedded = make(map[string]*typeDoc)
+	doc.types = make(map[string]*typeInfo)
+	doc.embedded = make(map[string]*typeInfo)
 	doc.funcs = make(map[string]*ast.FuncDecl)
 }
 
@@ -72,20 +72,20 @@ func (doc *docReader) addDoc(comments *ast.CommentGroup) {
 	doc.doc.List = append(list, comments.List...)
 }
 
-func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
+func (doc *docReader) lookupTypeInfo(name string) *typeInfo {
 	if name == "" || name == "_" {
 		return nil // no type docs for anonymous types
 	}
-	if tdoc, found := doc.types[name]; found {
-		return tdoc
+	if info, found := doc.types[name]; found {
+		return info
 	}
 	// type wasn't found - add one without declaration
-	tdoc := &typeDoc{
+	info := &typeInfo{
 		factories: make(map[string]*ast.FuncDecl),
 		methods:   make(map[string]*ast.FuncDecl),
 	}
-	doc.types[name] = tdoc
-	return tdoc
+	doc.types[name] = info
+	return info
 }
 
 func baseTypeName(typ ast.Expr, allTypes bool) string {
@@ -144,7 +144,7 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
 	values := &doc.values
 	if domName != "" && domFreq >= int(float64(len(decl.Specs))*threshold) {
 		// typed entries are sufficiently frequent
-		typ := doc.lookupTypeDoc(domName)
+		typ := doc.lookupTypeInfo(domName)
 		if typ != nil {
 			values = &typ.values // associate with that type
 		}
@@ -174,7 +174,7 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	// determine if it should be associated with a type
 	if fun.Recv != nil {
 		// method
-		typ := doc.lookupTypeDoc(baseTypeName(fun.Recv.List[0].Type, false))
+		typ := doc.lookupTypeInfo(baseTypeName(fun.Recv.List[0].Type, false))
 		if typ != nil {
 			// exported receiver type
 			setFunc(typ.methods, fun)
@@ -196,7 +196,7 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 			// with the first type in result signature (there may
 			// be more than one result)
 			tname := baseTypeName(res.Type, false)
-			typ := doc.lookupTypeDoc(tname)
+			typ := doc.lookupTypeInfo(tname)
 			if typ != nil {
 				// named and exported result type
 				setFunc(typ.factories, fun)
@@ -222,8 +222,8 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 				for _, spec := range d.Specs {
 					tspec := spec.(*ast.TypeSpec)
 					// add the type to the documentation
-					tdoc := doc.lookupTypeDoc(tspec.Name.Name)
-					if tdoc == nil {
+					info := doc.lookupTypeInfo(tspec.Name.Name)
+					if info == nil {
 						continue // no name - ignore the type
 					}
 					// Make a (fake) GenDecl node for this TypeSpec
@@ -240,9 +240,9 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 					// has documentation as well.
 					fake := &ast.GenDecl{d.Doc, d.Pos(), token.TYPE, token.NoPos,
 						[]ast.Spec{tspec}, token.NoPos}
-					// A type should be added at most once, so tdoc.decl
+					// A type should be added at most once, so info.decl
 					// should be nil - if it isn't, simply overwrite it.
-					tdoc.decl = fake
+					info.decl = fake
 					// Look for anonymous fields that might contribute methods.
 					var fields *ast.FieldList
 					switch typ := spec.(*ast.TypeSpec).Type.(type) {
@@ -255,12 +255,12 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 						for _, field := range fields.List {
 							if len(field.Names) == 0 {
 								// anonymous field - add corresponding type
-								// to the tdoc and collect it in doc
+								// to the info and collect it in doc
 								name := baseTypeName(field.Type, true)
-								edoc := doc.lookupTypeDoc(name)
+								edoc := doc.lookupTypeInfo(name)
 								if edoc != nil {
 									_, ptr := field.Type.(*ast.StarExpr)
-									tdoc.embedded = append(tdoc.embedded, embeddedType{edoc, ptr})
+									info.embedded = append(info.embedded, embeddedType{edoc, ptr})
 								}
 							}
 						}
@@ -478,7 +478,7 @@ func (p sortTypeDoc) Less(i, j int) bool {
 // NOTE(rsc): This would appear not to be correct for type ( )
 // blocks, but the doc extractor above has split them into
 // individual declarations.
-func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
+func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
 	// TODO(gri) Consider computing the embedded method information
 	//           before calling makeTypeDocs. Then this function can
 	//           be single-phased again. Also, it might simplify some
@@ -488,7 +488,7 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
 	list := make([]*TypeDoc, len(m))
 	i := 0
 	for _, old := range m {
-		// all typeDocs should have a declaration associated with
+		// all typeInfos should have a declaration associated with
 		// them after processing an entire package - be conservative
 		// and check
 		if decl := old.decl; decl != nil {
@@ -540,7 +540,7 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
 	}
 	list = list[0:i] // some types may have been ignored
 
-	// phase 2: collect embedded methods for each processed typeDoc
+	// phase 2: collect embedded methods for each processed typeInfo
 	for _, old := range m {
 		if t := old.forward; t != nil {
 			// old has been processed into t; collect embedded
@@ -585,13 +585,13 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
 }
 
 // collectEmbeddedMethods collects the embedded methods from all
-// processed embedded types found in tdoc in mset. It considers
+// processed embedded types found in info in mset. It considers
 // embedded types at the most shallow level first so that more
 // deeply nested embedded methods with conflicting names are
 // excluded.
 //
-func collectEmbeddedMethods(mset methodSet, tdoc *typeDoc, recvTypeName string) {
-	for _, e := range tdoc.embedded {
+func collectEmbeddedMethods(mset methodSet, info *typeInfo, recvTypeName string) {
+	for _, e := range info.embedded {
 		if e.typ.forward != nil { // == e was processed
 			for _, m := range e.typ.forward.methods {
 				mset.add(customizeRecv(m, e.ptr, recvTypeName))
