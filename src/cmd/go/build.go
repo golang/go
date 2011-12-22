@@ -917,7 +917,7 @@ func (b *builder) gccCmd(objdir string, flags []string, args ...string) []string
 	if build.DefaultContext.CgoEnabled {
 		switch b.goos {
 		case "windows":
-			a = append(a, "-mthread")
+			a = append(a, "-mthreads")
 		default:
 			a = append(a, "-pthread")
 		}
