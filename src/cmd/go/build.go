@@ -912,6 +912,16 @@ func (b *builder) gccCmd(objdir string, flags []string, args ...string) []string
 	case "6":
 		a = append(a, "-m64")
 	}
+	// gcc-4.5 and beyond require explicit "-pthread" flag
+	// for multithreading with pthread library.
+	if build.DefaultContext.CgoEnabled {
+		switch b.goos {
+		case "windows":
+			a = append(a, "-mthread")
+		default:
+			a = append(a, "-pthread")
+		}
+	}
 	a = append(a, flags...)
 	return append(a, args...)
 }
