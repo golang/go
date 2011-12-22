@@ -8,11 +8,11 @@ import (
 	"testing"
 )
 
-type CleanTest struct {
-	path, clean string
+type PathTest struct {
+	path, result string
 }
 
-var cleantests = []CleanTest{
+var cleantests = []PathTest{
 	// Already clean
 	{"", "."},
 	{"abc", "abc"},
@@ -64,8 +64,8 @@ var cleantests = []CleanTest{
 
 func TestClean(t *testing.T) {
 	for _, test := range cleantests {
-		if s := Clean(test.path); s != test.clean {
-			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.clean)
+		if s := Clean(test.path); s != test.result {
+			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)
 		}
 	}
 }
@@ -148,7 +148,7 @@ func TestExt(t *testing.T) {
 	}
 }
 
-var basetests = []CleanTest{
+var basetests = []PathTest{
 	// Already clean
 	{"", "."},
 	{".", "."},
@@ -165,8 +165,31 @@ var basetests = []CleanTest{
 
 func TestBase(t *testing.T) {
 	for _, test := range basetests {
-		if s := Base(test.path); s != test.clean {
-			t.Errorf("Base(%q) = %q, want %q", test.path, s, test.clean)
+		if s := Base(test.path); s != test.result {
+			t.Errorf("Base(%q) = %q, want %q", test.path, s, test.result)
+		}
+	}
+}
+
+var dirtests = []PathTest{
+	{"", "."},
+	{".", "."},
+	{"/.", "/"},
+	{"/", "/"},
+	{"////", "/"},
+	{"/foo", "/"},
+	{"x/", "x"},
+	{"abc", "."},
+	{"abc/def", "abc"},
+	{"a/b/.x", "a/b"},
+	{"a/b/c.", "a/b"},
+	{"a/b/c.x", "a/b"},
+}
+
+func TestDir(t *testing.T) {
+	for _, test := range dirtests {
+		if s := Dir(test.path); s != test.result {
+			t.Errorf("Dir(%q) = %q, want %q", test.path, s, test.result)
 		}
 	}
 }
