@@ -127,11 +127,11 @@ type Flock_t struct {
 }
 
 type Dirent struct {
-	Fileno uint32
+	Fileno uint64
 	Reclen uint16
+	Namlen uint16
 	Type   uint8
-	Namlen uint8
-	Name   [256]int8
+	Name   [512]int8
 }
 
 type Fsid struct {
