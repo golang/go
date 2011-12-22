@@ -19,7 +19,6 @@ mkdir -p "$WORK"/runtime/_obj/
 cd "$GOROOT"/src/pkg/runtime
 6g -o "$WORK"/runtime/_obj/_go_.6 -p runtime -+ -I "$WORK" ./debug.go ./error.go ./extern.go ./mem.go ./sig.go ./softfloat64.go ./type.go ./zgoarch_amd64.go ./zgoos_netbsd.go ./zruntime_defs_netbsd_amd64.go ./zversion.go
 cp "$GOROOT"/src/pkg/runtime/arch_amd64.h "$WORK"/runtime/_obj/arch_GOARCH.h
-cp "$GOROOT"/src/pkg/runtime/asm_amd64.h "$WORK"/runtime/_obj/asm_GOARCH.h
 cp "$GOROOT"/src/pkg/runtime/defs_netbsd_amd64.h "$WORK"/runtime/_obj/defs_GOOS_GOARCH.h
 cp "$GOROOT"/src/pkg/runtime/os_netbsd.h "$WORK"/runtime/_obj/os_GOOS.h
 cp "$GOROOT"/src/pkg/runtime/signals_netbsd.h "$WORK"/runtime/_obj/signals_GOOS.h
