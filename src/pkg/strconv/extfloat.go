@@ -291,7 +291,7 @@ func (f *extFloat) AssignDecimal(d *decimal) (ok bool) {
 	const denormalExp = -1023 - 63
 	flt := &float64info
 	var extrabits uint
-	if f.exp <= denormalExp || f.exp >= 1023-64 {
+	if f.exp <= denormalExp {
 		extrabits = uint(63 - flt.mantbits + 1 + uint(denormalExp-f.exp))
 	} else {
 		extrabits = uint(63 - flt.mantbits)

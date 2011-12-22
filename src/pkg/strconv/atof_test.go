@@ -114,6 +114,9 @@ var atoftests = []atofTest{
 	{"2.2250738585072012e-308", "2.2250738585072014e-308", nil},
 	// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
 	{"2.2250738585072011e-308", "2.225073858507201e-308", nil},
+
+	// A very large number (initially wrongly parsed by the fast algorithm).
+	{"4.630813248087435e+307", "4.630813248087435e+307", nil},
 }
 
 type atofSimpleTest struct {
@@ -200,7 +203,7 @@ func TestAtofRandom(t *testing.T) {
 		x, _ := ParseFloat(test.s, 64)
 		switch {
 		default:
-			t.Errorf("number %s badly parsed as %b (expected %b)", test.s, test.x, x)
+			t.Errorf("number %s badly parsed as %b (expected %b)", test.s, x, test.x)
 		case x == test.x:
 		case math.IsNaN(test.x) && math.IsNaN(x):
 		}
