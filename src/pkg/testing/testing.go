@@ -241,7 +241,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 		// We build a new channel tree for each run of the loop.
 		// collector merges in one channel all the upstream signals from parallel tests.
 		// If all tests pump to the same channel, a bug can occur where a test
-		// kicks off a gouroutine that Fails, yet the test still delivers a completion signal,
+		// kicks off a goroutine that Fails, yet the test still delivers a completion signal,
 		// which skews the counting.
 		var collector = make(chan interface{})
 
