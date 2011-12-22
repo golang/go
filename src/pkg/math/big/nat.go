@@ -1196,12 +1196,16 @@ func (x nat) powersOfTwoDecompose() (q nat, k int) {
 // random creates a random integer in [0..limit), using the space in z if
 // possible. n is the bit length of limit.
 func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
+	if alias(z, limit) {
+		z = nil // z is an alias for limit - cannot reuse
+	}
+	z = z.make(len(limit))
+
 	bitLengthOfMSW := uint(n % _W)
 	if bitLengthOfMSW == 0 {
 		bitLengthOfMSW = _W
 	}
 	mask := Word((1 << bitLengthOfMSW) - 1)
-	z = z.make(len(limit))
 
 	for {
 		for i := range z {
