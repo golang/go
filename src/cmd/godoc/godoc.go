@@ -961,16 +961,6 @@ func inList(name string, list []string) bool {
 	return false
 }
 
-func stripFunctionBodies(pkg *ast.Package) {
-	for _, f := range pkg.Files {
-		for _, d := range f.Decls {
-			if f, ok := d.(*ast.FuncDecl); ok {
-				f.Body = nil
-			}
-		}
-	}
-}
-
 // getPageInfo returns the PageInfo for a package directory abspath. If the
 // parameter genAST is set, an AST containing only the package exports is
 // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
@@ -1096,13 +1086,17 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 	var past *ast.File
 	var pdoc *doc.PackageDoc
 	if pkg != nil {
-		if mode&noFiltering == 0 {
-			ast.PackageExports(pkg)
-		}
+		exportsOnly := mode&noFiltering == 0
 		if mode&showSource == 0 {
-			stripFunctionBodies(pkg)
-			pdoc = doc.NewPackageDoc(pkg, path.Clean(relpath)) // no trailing '/' in importpath
+			// show extracted documentation
+			pdoc = doc.NewPackageDoc(pkg, path.Clean(relpath), exportsOnly) // no trailing '/' in importpath
 		} else {
+			// show source code
+			// TODO(gri) Consider eliminating export filtering in this mode,
+			//           or perhaps eliminating the mode altogether.
+			if exportsOnly {
+				ast.PackageExports(pkg)
+			}
 			past = ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments)
 		}
 	}
