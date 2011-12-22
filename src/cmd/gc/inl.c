@@ -28,6 +28,8 @@ static Node*	newlabel(void);
 static Node*	inlsubst(Node *n);
 static NodeList* inlsubstlist(NodeList *ll);
 
+static void	setlno(Node*, int);
+
 // Used during inlsubst[list]
 static Node *inlfn;		// function currently being inlined
 static Node *inlretlabel;	// target of the goto substituted in place of a return
@@ -496,8 +498,9 @@ mkinlcall(Node **np, Node *fn)
 	call->nbody = body;
 	call->rlist = inlretvars;
 	call->type = n->type;
-	call->lineno = n->lineno;
 	call->typecheck = 1;
+
+	setlno(call, n->lineno);
 
 	*np = call;
 
@@ -685,4 +688,33 @@ inlsubst(Node *n)
 		closuredepth--;
 
 	return m;
+}
+
+// Plaster over linenumbers
+static void
+setlnolist(NodeList *ll, int lno)
+{
+	for(;ll;ll=ll->next)
+		setlno(ll->n, lno);
+}
+
+static void
+setlno(Node *n, int lno)
+{
+	if(!n)
+		return;
+
+	// don't clobber names, unless they're freshly synthesized
+	if(n->op != ONAME || n->lineno == 0)
+		n->lineno = lno;
+	
+	setlno(n->left, lno);
+	setlno(n->right, lno);
+	setlnolist(n->list, lno);
+	setlnolist(n->rlist, lno);
+	setlnolist(n->ninit, lno);
+	setlno(n->ntest, lno);
+	setlno(n->nincr, lno);
+	setlnolist(n->nbody, lno);
+	setlnolist(n->nelse, lno);
 }
