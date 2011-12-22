@@ -98,7 +98,7 @@ func packageComment(pkg, pkgpath string) (info string, err error) {
 		if name == "main" {
 			continue
 		}
-		pdoc := doc.NewPackageDoc(pkgs[name], pkg)
+		pdoc := doc.NewPackageDoc(pkgs[name], pkg, false)
 		if pdoc.Doc == "" {
 			continue
 		}
