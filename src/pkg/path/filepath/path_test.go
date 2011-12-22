@@ -431,6 +431,29 @@ func TestBase(t *testing.T) {
 	}
 }
 
+var dirtests = []PathTest{
+	{"", "."},
+	{".", "."},
+	{"/.", "/"},
+	{"/", "/"},
+	{"////", "/"},
+	{"/foo", "/"},
+	{"x/", "x"},
+	{"abc", "."},
+	{"abc/def", "abc"},
+	{"a/b/.x", "a/b"},
+	{"a/b/c.", "a/b"},
+	{"a/b/c.x", "a/b"},
+}
+
+func TestDir(t *testing.T) {
+	for _, test := range dirtests {
+		if s := filepath.ToSlash(filepath.Dir(test.path)); s != test.result {
+			t.Errorf("Dir(%q) = %q, want %q", test.path, s, test.result)
+		}
+	}
+}
+
 type IsAbsTest struct {
 	path  string
 	isAbs bool
