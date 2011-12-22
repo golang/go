@@ -9,6 +9,8 @@ GOFILES=\
 	comment.go\
 	doc.go\
 	example.go\
+	exports.go\
+	filter.go\
 
 include ../../../Make.pkg
 

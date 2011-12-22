@@ -13,6 +13,7 @@ import (
 )
 
 // ----------------------------------------------------------------------------
+// Collection of documentation info
 
 // embeddedType describes the type of an anonymous field.
 //
@@ -32,6 +33,10 @@ type typeInfo struct {
 	values    []*ast.GenDecl // consts and vars
 	factories map[string]*ast.FuncDecl
 	methods   map[string]*ast.FuncDecl
+}
+
+func (info *typeInfo) addEmbeddedType(embedded *typeInfo, isPtr bool) {
+	info.embedded = append(info.embedded, embeddedType{embedded, isPtr})
 }
 
 // docReader accumulates documentation for a single package.
@@ -171,6 +176,9 @@ func setFunc(table map[string]*ast.FuncDecl, f *ast.FuncDecl) {
 }
 
 func (doc *docReader) addFunc(fun *ast.FuncDecl) {
+	// strip function body
+	fun.Body = nil
+
 	// determine if it should be associated with a type
 	if fun.Recv != nil {
 		// method
@@ -257,10 +265,9 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 								// anonymous field - add corresponding type
 								// to the info and collect it in doc
 								name := baseTypeName(field.Type, true)
-								edoc := doc.lookupTypeInfo(name)
-								if edoc != nil {
+								if embedded := doc.lookupTypeInfo(name); embedded != nil {
 									_, ptr := field.Type.(*ast.StarExpr)
-									info.embedded = append(info.embedded, embeddedType{edoc, ptr})
+									info.addEmbeddedType(embedded, ptr)
 								}
 							}
 						}
@@ -313,19 +320,15 @@ func (doc *docReader) addFile(src *ast.File) {
 	src.Comments = nil // consumed unassociated comments - remove from ast.File node
 }
 
-func NewFileDoc(file *ast.File) *PackageDoc {
-	var r docReader
-	r.init(file.Name.Name)
-	r.addFile(file)
-	return r.newDoc("", nil)
-}
-
-func NewPackageDoc(pkg *ast.Package, importpath string) *PackageDoc {
+func NewPackageDoc(pkg *ast.Package, importpath string, exportsOnly bool) *PackageDoc {
 	var r docReader
 	r.init(pkg.Name)
 	filenames := make([]string, len(pkg.Files))
 	i := 0
 	for filename, f := range pkg.Files {
+		if exportsOnly {
+			r.fileExports(f)
+		}
 		r.addFile(f)
 		filenames[i] = filename
 		i++
@@ -673,105 +676,4 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc 
 	p.Funcs = makeFuncDocs(doc.funcs)
 	p.Bugs = makeBugDocs(doc.bugs)
 	return p
-}
-
-// ----------------------------------------------------------------------------
-// Filtering by name
-
-type Filter func(string) bool
-
-func matchFields(fields *ast.FieldList, f Filter) bool {
-	if fields != nil {
-		for _, field := range fields.List {
-			for _, name := range field.Names {
-				if f(name.Name) {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-func matchDecl(d *ast.GenDecl, f Filter) bool {
-	for _, d := range d.Specs {
-		switch v := d.(type) {
-		case *ast.ValueSpec:
-			for _, name := range v.Names {
-				if f(name.Name) {
-					return true
-				}
-			}
-		case *ast.TypeSpec:
-			if f(v.Name.Name) {
-				return true
-			}
-			switch t := v.Type.(type) {
-			case *ast.StructType:
-				if matchFields(t.Fields, f) {
-					return true
-				}
-			case *ast.InterfaceType:
-				if matchFields(t.Methods, f) {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-func filterValueDocs(a []*ValueDoc, f Filter) []*ValueDoc {
-	w := 0
-	for _, vd := range a {
-		if matchDecl(vd.Decl, f) {
-			a[w] = vd
-			w++
-		}
-	}
-	return a[0:w]
-}
-
-func filterFuncDocs(a []*FuncDoc, f Filter) []*FuncDoc {
-	w := 0
-	for _, fd := range a {
-		if f(fd.Name) {
-			a[w] = fd
-			w++
-		}
-	}
-	return a[0:w]
-}
-
-func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
-	w := 0
-	for _, td := range a {
-		n := 0 // number of matches
-		if matchDecl(td.Decl, f) {
-			n = 1
-		} else {
-			// type name doesn't match, but we may have matching consts, vars, factories or methods
-			td.Consts = filterValueDocs(td.Consts, f)
-			td.Vars = filterValueDocs(td.Vars, f)
-			td.Factories = filterFuncDocs(td.Factories, f)
-			td.Methods = filterFuncDocs(td.Methods, f)
-			n += len(td.Consts) + len(td.Vars) + len(td.Factories) + len(td.Methods)
-		}
-		if n > 0 {
-			a[w] = td
-			w++
-		}
-	}
-	return a[0:w]
-}
-
-// Filter eliminates documentation for names that don't pass through the filter f.
-// TODO: Recognize "Type.Method" as a name.
-//
-func (p *PackageDoc) Filter(f Filter) {
-	p.Consts = filterValueDocs(p.Consts, f)
-	p.Vars = filterValueDocs(p.Vars, f)
-	p.Types = filterTypeDocs(p.Types, f)
-	p.Funcs = filterFuncDocs(p.Funcs, f)
-	p.Doc = "" // don't show top-level package doc
 }
