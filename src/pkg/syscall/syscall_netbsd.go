@@ -74,13 +74,13 @@ func Pipe(p []int) (err error) {
 	return
 }
 
-// TODO
-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
-	return -1, ENOSYS
+//sys getdents(fd int, buf []byte) (n int, err error)
+func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+	return getdents(fd, buf)
 }
 
 // TODO
-func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	return -1, ENOSYS
 }
 
@@ -176,7 +176,6 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 // __fhstatvfs140
 // __fstat30
 // __getcwd
-// __getdents30
 // __getfh30
 // __getlogin
 // __lstat30
