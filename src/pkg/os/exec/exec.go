@@ -67,6 +67,9 @@ type Cmd struct {
 	// ExtraFiles specifies additional open files to be inherited by the
 	// new process. It does not include standard input, standard output, or
 	// standard error. If non-nil, entry i becomes file descriptor 3+i.
+	//
+	// BUG: on OS X 10.6, child processes may sometimes inherit extra fds.
+	// http://golang.org/issue/2603
 	ExtraFiles []*os.File
 
 	// SysProcAttr holds optional, operating system-specific attributes.
