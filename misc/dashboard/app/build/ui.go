@@ -37,7 +37,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Used cached version of front page, if available.
-	if page == 0 {
+	if page == 0 && r.Host == "build.golang.org" {
 		t, err := memcache.Get(c, uiCacheKey)
 		if err == nil {
 			w.Write(t.Value)
@@ -78,7 +78,7 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Cache the front page.
-	if page == 0 {
+	if page == 0 && r.Host == "build.golang.org" {
 		t := &memcache.Item{
 			Key:        uiCacheKey,
 			Value:      buf.Bytes(),
@@ -179,12 +179,84 @@ var uiTemplate = template.Must(
 )
 
 var tmplFuncs = template.FuncMap{
-	"builderTitle": builderTitle,
-	"repoURL":      repoURL,
-	"shortDesc":    shortDesc,
-	"shortHash":    shortHash,
-	"shortUser":    shortUser,
-	"tail":         tail,
+	"builderOS":        builderOS,
+	"builderArch":      builderArch,
+	"builderArchShort": builderArchShort,
+	"builderArchChar":  builderArchChar,
+	"builderTitle":     builderTitle,
+	"builderSpans":     builderSpans,
+	"repoURL":          repoURL,
+	"shortDesc":        shortDesc,
+	"shortHash":        shortHash,
+	"shortUser":        shortUser,
+	"tail":             tail,
+}
+
+func splitDash(s string) (string, string) {
+	i := strings.Index(s, "-")
+	if i >= 0 {
+		return s[:i], s[i+1:]
+	}
+	return s, ""
+}
+
+// builderOS returns the os tag for a builder string
+func builderOS(s string) string {
+	os, _ := splitDash(s)
+	return os
+}
+
+// builderArch returns the arch tag for a builder string
+func builderArch(s string) string {
+	_, arch := splitDash(s)
+	arch, _ = splitDash(arch) // chop third part
+	return arch
+}
+
+// builderArchShort returns a short arch tag for a builder string
+func builderArchShort(s string) string {
+	arch := builderArch(s)
+	switch arch {
+	case "amd64":
+		return "x64"
+	}
+	return arch
+}
+
+// builderArchChar returns the architecture letter for a builder string
+func builderArchChar(s string) string {
+	arch := builderArch(s)
+	switch arch {
+	case "386":
+		return "8"
+	case "amd64":
+		return "6"
+	case "arm":
+		return "5"
+	}
+	return arch
+}
+
+type builderSpan struct {
+	N  int
+	OS string
+}
+
+// builderSpans creates a list of tags showing
+// the builder's operating system names, spanning
+// the appropriate number of columns.
+func builderSpans(s []string) []builderSpan {
+	var sp []builderSpan
+	for len(s) > 0 {
+		i := 1
+		os := builderOS(s[0])
+		for i < len(s) && builderOS(s[i]) == os {
+			i++
+		}
+		sp = append(sp, builderSpan{i, os})
+		s = s[i:]
+	}
+	return sp
 }
 
 // builderTitle formats "linux-amd64-foo" as "linux amd64 foo".
@@ -210,11 +282,11 @@ func shortHash(hash string) string {
 
 // shortUser returns a shortened version of a user string.
 func shortUser(user string) string {
-	if i, j := strings.Index(user, "<"), strings.Index(user, ">"); i != -1 && j > i {
+	if i, j := strings.Index(user, "<"), strings.Index(user, ">"); 0 <= i && i < j {
 		user = user[i+1 : j]
-		if k := strings.Index(user, "@golang.org"); k != -1 {
-			user = user[:k]
-		}
+	}
+	if i := strings.Index(user, "@"); i >= 0 {
+		return user[:i]
 	}
 	return user
 }
