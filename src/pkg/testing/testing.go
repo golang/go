@@ -147,7 +147,7 @@ func (c *common) log(s string) {
 	c.output = append(c.output, decorate(s, true)...)
 }
 
-// Log formats its arguments using default formatting, analogous to Print(),
+// Log formats its arguments using default formatting, analogous to Println(),
 // and records the text in the error log.
 func (c *common) Log(args ...interface{}) { c.log(fmt.Sprintln(args...)) }
 
