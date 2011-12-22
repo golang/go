@@ -14,15 +14,24 @@ import (
 
 // ----------------------------------------------------------------------------
 
+// embeddedType describes the type of an anonymous field.
+//
+type embeddedType struct {
+	typ *typeDoc // the corresponding base type
+	ptr bool     // if set, the anonymous field type is a pointer
+}
+
 type typeDoc struct {
 	// len(decl.Specs) == 1, and the element type is *ast.TypeSpec
 	// if the type declaration hasn't been seen yet, decl is nil
-	decl *ast.GenDecl
+	decl     *ast.GenDecl
+	embedded []embeddedType
+	forward  *TypeDoc // forward link to processed type documentation
+
 	// declarations associated with the type
 	values    []*ast.GenDecl // consts and vars
 	factories map[string]*ast.FuncDecl
 	methods   map[string]*ast.FuncDecl
-	embedded  []*typeDoc // list of embedded types
 }
 
 // docReader accumulates documentation for a single package.
@@ -63,43 +72,19 @@ func (doc *docReader) addDoc(comments *ast.CommentGroup) {
 	doc.doc.List = append(list, comments.List...)
 }
 
-func (doc *docReader) addType(decl *ast.GenDecl) *typeDoc {
-	spec := decl.Specs[0].(*ast.TypeSpec)
-	tdoc := doc.lookupTypeDoc(spec.Name.Name)
-	// tdoc should always be != nil since declared types
-	// are always named - be conservative and check
-	if tdoc != nil {
-		// a type should be added at most once, so tdoc.decl
-		// should be nil - if it isn't, simply overwrite it
-		tdoc.decl = decl
-	}
-	return tdoc
-}
-
 func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
-	if name == "" {
+	if name == "" || name == "_" {
 		return nil // no type docs for anonymous types
 	}
 	if tdoc, found := doc.types[name]; found {
 		return tdoc
 	}
 	// type wasn't found - add one without declaration
-	tdoc := &typeDoc{nil, nil, make(map[string]*ast.FuncDecl), make(map[string]*ast.FuncDecl), nil}
+	tdoc := &typeDoc{
+		factories: make(map[string]*ast.FuncDecl),
+		methods:   make(map[string]*ast.FuncDecl),
+	}
 	doc.types[name] = tdoc
-	return tdoc
-}
-
-func (doc *docReader) lookupEmbeddedDoc(name string) *typeDoc {
-	if name == "" {
-		return nil
-	}
-	if tdoc, found := doc.embedded[name]; found {
-		return tdoc
-	}
-	// type wasn't found - add one without declaration
-	// note: embedded types only have methods associated with them
-	tdoc := &typeDoc{nil, nil, make(map[string]*ast.FuncDecl), make(map[string]*ast.FuncDecl), nil}
-	doc.embedded[name] = tdoc
 	return tdoc
 }
 
@@ -235,10 +220,17 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 			case token.TYPE:
 				// types are handled individually
 				for _, spec := range d.Specs {
-					// make a (fake) GenDecl node for this TypeSpec
+					tspec := spec.(*ast.TypeSpec)
+					// add the type to the documentation
+					tdoc := doc.lookupTypeDoc(tspec.Name.Name)
+					if tdoc == nil {
+						continue // no name - ignore the type
+					}
+					// Make a (fake) GenDecl node for this TypeSpec
 					// (we need to do this here - as opposed to just
 					// for printing - so we don't lose the GenDecl
-					// documentation)
+					// documentation). Since a new GenDecl node is
+					// created, there's no need to nil out d.Doc.
 					//
 					// TODO(gri): Consider just collecting the TypeSpec
 					// node (and copy in the GenDecl.doc if there is no
@@ -246,11 +238,12 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 					// makeTypeDocs below). Simpler data structures, but
 					// would lose GenDecl documentation if the TypeSpec
 					// has documentation as well.
-					tdoc := doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, token.NoPos, []ast.Spec{spec}, token.NoPos})
-					// A new GenDecl node is created, no need to nil out d.Doc.
-					if tdoc == nil {
-						continue // some error happened; ignore
-					}
+					fake := &ast.GenDecl{d.Doc, d.Pos(), token.TYPE, token.NoPos,
+						[]ast.Spec{tspec}, token.NoPos}
+					// A type should be added at most once, so tdoc.decl
+					// should be nil - if it isn't, simply overwrite it.
+					tdoc.decl = fake
+					// Look for anonymous fields that might contribute methods.
 					var fields *ast.FieldList
 					switch typ := spec.(*ast.TypeSpec).Type.(type) {
 					case *ast.StructType:
@@ -261,11 +254,13 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 					if fields != nil {
 						for _, field := range fields.List {
 							if len(field.Names) == 0 {
-								// anonymous field
+								// anonymous field - add corresponding type
+								// to the tdoc and collect it in doc
 								name := baseTypeName(field.Type, true)
-								edoc := doc.lookupEmbeddedDoc(name)
+								edoc := doc.lookupTypeDoc(name)
 								if edoc != nil {
-									tdoc.embedded = append(tdoc.embedded, edoc)
+									_, ptr := field.Type.(*ast.StarExpr)
+									tdoc.embedded = append(tdoc.embedded, embeddedType{edoc, ptr})
 								}
 							}
 						}
@@ -430,6 +425,25 @@ func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
 	return d
 }
 
+type methodSet map[string]*FuncDoc
+
+func (mset methodSet) add(m *FuncDoc) {
+	if mset[m.Name] == nil {
+		mset[m.Name] = m
+	}
+}
+
+func (mset methodSet) sortedList() []*FuncDoc {
+	list := make([]*FuncDoc, len(mset))
+	i := 0
+	for _, m := range mset {
+		list[i] = m
+		i++
+	}
+	sort.Sort(sortFuncDoc(list))
+	return list
+}
+
 // TypeDoc is the documentation for a declared type.
 // Consts and Vars are sorted lists of constants and variables of (mostly) that type.
 // Factories is a sorted list of factory functions that return that type.
@@ -440,8 +454,9 @@ type TypeDoc struct {
 	Consts    []*ValueDoc
 	Vars      []*ValueDoc
 	Factories []*FuncDoc
-	Methods   []*FuncDoc
-	Embedded  []*FuncDoc
+	methods   []*FuncDoc // top-level methods only
+	embedded  methodSet  // embedded methods only
+	Methods   []*FuncDoc // all methods including embedded ones
 	Decl      *ast.GenDecl
 	order     int
 }
@@ -464,7 +479,13 @@ func (p sortTypeDoc) Less(i, j int) bool {
 // blocks, but the doc extractor above has split them into
 // individual declarations.
 func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
-	d := make([]*TypeDoc, len(m))
+	// TODO(gri) Consider computing the embedded method information
+	//           before calling makeTypeDocs. Then this function can
+	//           be single-phased again. Also, it might simplify some
+	//           of the logic.
+	//
+	// phase 1: associate collected declarations with TypeDocs
+	list := make([]*TypeDoc, len(m))
 	i := 0
 	for _, old := range m {
 		// all typeDocs should have a declaration associated with
@@ -485,11 +506,16 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
 			t.Consts = makeValueDocs(old.values, token.CONST)
 			t.Vars = makeValueDocs(old.values, token.VAR)
 			t.Factories = makeFuncDocs(old.factories)
-			t.Methods = makeFuncDocs(old.methods)
-			// TODO(gri) compute list of embedded methods 
+			t.methods = makeFuncDocs(old.methods)
+			// The list of embedded types' methods is computed from the list
+			// of embedded types, some of which may not have been processed
+			// yet (i.e., their forward link is nil) - do this in a 2nd phase.
+			// The final list of methods can only be computed after that -
+			// do this in a 3rd phase.
 			t.Decl = old.decl
 			t.order = i
-			d[i] = t
+			old.forward = t // old has been processed
+			list[i] = t
 			i++
 		} else {
 			// no corresponding type declaration found - move any associated
@@ -512,9 +538,99 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
 			}
 		}
 	}
-	d = d[0:i] // some types may have been ignored
-	sort.Sort(sortTypeDoc(d))
-	return d
+	list = list[0:i] // some types may have been ignored
+
+	// phase 2: collect embedded methods for each processed typeDoc
+	for _, old := range m {
+		if t := old.forward; t != nil {
+			// old has been processed into t; collect embedded
+			// methods for t from the list of processed embedded
+			// types in old (and thus for which the methods are known)
+			typ := t.Type
+			if _, ok := typ.Type.(*ast.StructType); ok {
+				// struct
+				t.embedded = make(methodSet)
+				collectEmbeddedMethods(t.embedded, old, typ.Name.Name)
+			} else {
+				// interface
+				// TODO(gri) fix this
+			}
+		}
+	}
+
+	// phase 3: compute final method set for each TypeDoc
+	for _, d := range list {
+		if len(d.embedded) > 0 {
+			// there are embedded methods - exclude
+			// the ones with names conflicting with
+			// non-embedded methods
+			mset := make(methodSet)
+			// top-level methods have priority
+			for _, m := range d.methods {
+				mset.add(m)
+			}
+			// add non-conflicting embedded methods
+			for _, m := range d.embedded {
+				mset.add(m)
+			}
+			d.Methods = mset.sortedList()
+		} else {
+			// no embedded methods
+			d.Methods = d.methods
+		}
+	}
+
+	sort.Sort(sortTypeDoc(list))
+	return list
+}
+
+// collectEmbeddedMethods collects the embedded methods from all
+// processed embedded types found in tdoc in mset. It considers
+// embedded types at the most shallow level first so that more
+// deeply nested embedded methods with conflicting names are
+// excluded.
+//
+func collectEmbeddedMethods(mset methodSet, tdoc *typeDoc, recvTypeName string) {
+	for _, e := range tdoc.embedded {
+		if e.typ.forward != nil { // == e was processed
+			for _, m := range e.typ.forward.methods {
+				mset.add(customizeRecv(m, e.ptr, recvTypeName))
+			}
+			collectEmbeddedMethods(mset, e.typ, recvTypeName)
+		}
+	}
+}
+
+func customizeRecv(m *FuncDoc, embeddedIsPtr bool, recvTypeName string) *FuncDoc {
+	if m == nil || m.Decl == nil || m.Decl.Recv == nil || len(m.Decl.Recv.List) != 1 {
+		return m // shouldn't happen, but be safe
+	}
+
+	// copy existing receiver field and set new type
+	// TODO(gri) is receiver type computation correct?
+	//           what about deeply nested embeddings?
+	newField := *m.Decl.Recv.List[0]
+	_, origRecvIsPtr := newField.Type.(*ast.StarExpr)
+	var typ ast.Expr = ast.NewIdent(recvTypeName)
+	if embeddedIsPtr || origRecvIsPtr {
+		typ = &ast.StarExpr{token.NoPos, typ}
+	}
+	newField.Type = typ
+
+	// copy existing receiver field list and set new receiver field
+	newFieldList := *m.Decl.Recv
+	newFieldList.List = []*ast.Field{&newField}
+
+	// copy existing function declaration and set new receiver field list
+	newFuncDecl := *m.Decl
+	newFuncDecl.Recv = &newFieldList
+
+	// copy existing function documentation and set new declaration
+	newM := *m
+	newM.Decl = &newFuncDecl
+	newM.Recv = typ
+
+	return &newM
 }
 
 func makeBugDocs(list []*ast.CommentGroup) []string {
