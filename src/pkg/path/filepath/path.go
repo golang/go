@@ -147,6 +147,7 @@ func SplitList(path string) []string {
 // separating it into a directory and file name component.
 // If there is no Separator in path, Split returns an empty dir
 // and file set to path.
+// The returned values have the property that path = dir+file.
 func Split(path string) (dir, file string) {
 	vol := VolumeName(path)
 	i := len(path) - 1
@@ -438,4 +439,22 @@ func Base(path string) string {
 		return string(Separator)
 	}
 	return path
+}
+
+// Dir returns the all but the last element of path, typically the path's directory.
+// Trailing path separators are removed before processing.
+// If the path is empty, Dir returns ".".
+// If the path consists entirely of separators, Dir returns a single separator.
+// The returned path does not end in a separator unless it is the root directory.
+func Dir(path string) string {
+	dir, _ := Split(path)
+	dir = Clean(dir)
+	last := len(dir) - 1
+	if last > 0 && os.IsPathSeparator(dir[last]) {
+		dir = dir[:last]
+	}
+	if dir == "" {
+		dir = "."
+	}
+	return dir
 }
