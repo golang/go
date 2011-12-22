@@ -322,7 +322,7 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
 		// Validate key query parameter for POST requests only.
 		key := r.FormValue("key")
 		builder := r.FormValue("builder")
-		if r.Method == "POST" && !validKey(key, builder) {
+		if r.Method == "POST" && !validKey(c, key, builder) {
 			err = os.NewError("invalid key: " + key)
 		}
 
@@ -368,7 +368,8 @@ func keyHandler(w http.ResponseWriter, r *http.Request) {
 		logErr(w, r, os.NewError("must supply builder in query string"))
 		return
 	}
-	fmt.Fprint(w, builderKey(builder))
+	c := appengine.NewContext(r)
+	fmt.Fprint(w, builderKey(c, builder))
 }
 
 func init() {
@@ -392,18 +393,18 @@ func validHash(hash string) bool {
 	return hash != ""
 }
 
-func validKey(key, builder string) bool {
+func validKey(c appengine.Context, key, builder string) bool {
 	if appengine.IsDevAppServer() {
 		return true
 	}
-	if key == secretKey {
+	if key == secretKey(c) {
 		return true
 	}
-	return key == builderKey(builder)
+	return key == builderKey(c, builder)
 }
 
-func builderKey(builder string) string {
-	h := hmac.NewMD5([]byte(secretKey))
+func builderKey(c appengine.Context, builder string) string {
+	h := hmac.NewMD5([]byte(secretKey(c)))
 	h.Write([]byte(builder))
 	return fmt.Sprintf("%x", h.Sum())
 }
