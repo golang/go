@@ -24,7 +24,7 @@ func (sig UnixSignal) String() string {
 // StartProcess starts a new process with the program, arguments and attributes
 // specified by name, argv and attr.
 //
-// StartProcess is a low-level interface. The exec package provides
+// StartProcess is a low-level interface. The os/exec package provides
 // higher-level interfaces.
 func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
 	sysattr := &syscall.ProcAttr{
@@ -56,7 +56,7 @@ func (p *Process) Kill() error {
 // If successful, Exec never returns.  If it fails, it returns an error.
 //
 // To run a child process, see StartProcess (for a low-level interface)
-// or the exec package (for higher-level interfaces).
+// or the os/exec package (for higher-level interfaces).
 func Exec(name string, argv []string, envv []string) error {
 	if envv == nil {
 		envv = Environ()
