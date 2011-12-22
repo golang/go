@@ -506,78 +506,42 @@ func BenchmarkSprintfFloat(b *testing.B) {
 	}
 }
 
+var mallocBuf bytes.Buffer
+
+var mallocTest = []struct {
+	count int
+	desc  string
+	fn    func()
+}{
+	{0, `Sprintf("")`, func() { Sprintf("") }},
+	{1, `Sprintf("xxx")`, func() { Sprintf("xxx") }},
+	{1, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
+	{2, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
+	{1, `Sprintf("%x %x")`, func() { Sprintf("%x", 7, 112) }},
+	{1, `Sprintf("%g")`, func() { Sprintf("%g", 3.14159) }},
+	{0, `Fprintf(buf, "%x %x %x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x %x %x", 7, 8, 9) }},
+	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
+}
+
+var _ bytes.Buffer
+
 func TestCountMallocs(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	const N = 100
-	runtime.UpdateMemStats()
-	mallocs := 0 - runtime.MemStats.Mallocs
-	for i := 0; i < N; i++ {
-		Sprintf("")
+	for _, mt := range mallocTest {
+		const N = 100
+		runtime.UpdateMemStats()
+		mallocs := 0 - runtime.MemStats.Mallocs
+		for i := 0; i < N; i++ {
+			mt.fn()
+		}
+		runtime.UpdateMemStats()
+		mallocs += runtime.MemStats.Mallocs
+		if mallocs/N != uint64(mt.count) {
+			t.Errorf("%s: expected %d mallocs, got %d", mt.desc, mt.count, mallocs/N)
+		}
 	}
-	runtime.UpdateMemStats()
-	mallocs += runtime.MemStats.Mallocs
-	Printf("mallocs per Sprintf(\"\"): %d\n", mallocs/N)
-	runtime.UpdateMemStats()
-	mallocs = 0 - runtime.MemStats.Mallocs
-	for i := 0; i < N; i++ {
-		Sprintf("xxx")
-	}
-	runtime.UpdateMemStats()
-	mallocs += runtime.MemStats.Mallocs
-	Printf("mallocs per Sprintf(\"xxx\"): %d\n", mallocs/N)
-	runtime.UpdateMemStats()
-	mallocs = 0 - runtime.MemStats.Mallocs
-	for i := 0; i < N; i++ {
-		Sprintf("%x", i)
-	}
-	runtime.UpdateMemStats()
-	mallocs += runtime.MemStats.Mallocs
-	Printf("mallocs per Sprintf(\"%%x\"): %d\n", mallocs/N)
-	runtime.UpdateMemStats()
-	mallocs = 0 - runtime.MemStats.Mallocs
-	for i := 0; i < N; i++ {
-		Sprintf("%s", "hello")
-	}
-	runtime.UpdateMemStats()
-	mallocs += runtime.MemStats.Mallocs
-	Printf("mallocs per Sprintf(\"%%s\"): %d\n", mallocs/N)
-	runtime.UpdateMemStats()
-	mallocs = 0 - runtime.MemStats.Mallocs
-	for i := 0; i < N; i++ {
-		Sprintf("%x %x", i, i)
-	}
-	runtime.UpdateMemStats()
-	mallocs += runtime.MemStats.Mallocs
-	Printf("mallocs per Sprintf(\"%%x %%x\"): %d\n", mallocs/N)
-	runtime.UpdateMemStats()
-	mallocs = 0 - runtime.MemStats.Mallocs
-	for i := 0; i < N; i++ {
-		Sprintf("%g", 3.14159)
-	}
-	runtime.UpdateMemStats()
-	mallocs += runtime.MemStats.Mallocs
-	Printf("mallocs per Sprintf(\"%%g\"): %d\n", mallocs/N)
-	buf := new(bytes.Buffer)
-	runtime.UpdateMemStats()
-	mallocs = 0 - runtime.MemStats.Mallocs
-	for i := 0; i < N; i++ {
-		buf.Reset()
-		Fprintf(buf, "%x %x %x", i, i, i)
-	}
-	runtime.UpdateMemStats()
-	mallocs += runtime.MemStats.Mallocs
-	Printf("mallocs per Fprintf(buf, \"%%x %%x %%x\"): %d\n", mallocs/N)
-	runtime.UpdateMemStats()
-	mallocs = 0 - runtime.MemStats.Mallocs
-	for i := 0; i < N; i++ {
-		buf.Reset()
-		Fprintf(buf, "%s", "hello")
-	}
-	runtime.UpdateMemStats()
-	mallocs += runtime.MemStats.Mallocs
-	Printf("mallocs per Fprintf(buf, \"%%s\"): %d\n", mallocs/N)
 }
 
 type flagPrinter struct{}
