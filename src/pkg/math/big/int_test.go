@@ -9,6 +9,7 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"testing"
 	"testing/quick"
 )
@@ -1404,4 +1405,10 @@ func TestIntGobEncoding(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestIssue2607(t *testing.T) {
+	// This code sequence used to hang.
+	n := NewInt(10)
+	n.Rand(rand.New(rand.NewSource(9)), n)
 }
