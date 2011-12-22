@@ -182,8 +182,8 @@ func (c *common) Fatalf(format string, args ...interface{}) {
 // Parallel signals that this test is to be run in parallel with (and only with) 
 // other parallel tests in this CPU group.
 func (t *T) Parallel() {
-	t.signal <- nil   // Release main testing loop
-	<-t.startParallel // Wait for serial tests to finish
+	t.signal <- (*T)(nil) // Release main testing loop
+	<-t.startParallel     // Wait for serial tests to finish
 }
 
 // An internal type but exported because it is cross-package; part of the implementation
@@ -236,11 +236,14 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
 		return
 	}
-	// TODO: each test should have its own channel, although that means
-	// keeping track of the channels when we're running parallel tests.
-	signal := make(chan interface{})
 	for _, procs := range cpuList {
 		runtime.GOMAXPROCS(procs)
+		// We build a new channel tree for each run of the loop.
+		// collector merges in one channel all the upstream signals from parallel tests.
+		// If all tests pump to the same channel, a bug can occur where a goroutine
+		// kicks off a test, fails, and still delivers a completion signal, which skews the
+		// counting.
+		var collector = make(chan interface{})
 
 		numParallel := 0
 		startParallel := make(chan bool)
@@ -260,7 +263,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			}
 			t := &T{
 				common: common{
-					signal: signal,
+					signal: make(chan interface{}),
 				},
 				name:          testName,
 				startParallel: startParallel,
@@ -272,6 +275,9 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			go tRunner(t, &tests[i])
 			out := (<-t.signal).(*T)
 			if out == nil { // Parallel run.
+				go func() {
+					collector <- <-t.signal
+				}()
 				numParallel++
 				continue
 			}
@@ -287,7 +293,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 				numParallel--
 				continue
 			}
-			t := (<-signal).(*T)
+			t := (<-collector).(*T)
 			t.report()
 			ok = ok && !t.failed
 			running--
