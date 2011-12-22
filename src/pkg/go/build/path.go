@@ -57,7 +57,7 @@ func (t *Tree) PkgDir() string {
 func (t *Tree) BinDir() string {
 	if t.Goroot {
 		if gobin := os.Getenv("GOBIN"); gobin != "" {
-			return gobin
+			return filepath.Clean(gobin)
 		}
 	}
 	return filepath.Join(t.Path, "bin")
