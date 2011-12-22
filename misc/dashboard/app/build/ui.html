@@ -35,10 +35,20 @@
       }
       .build .result {
         text-align: center;
-        width: 50px;
+        width: 2em;
+      }
+      .col-hash, .col-result {
+        border-right: solid 1px #ccc;
+      }
+      .build .arch {
+        font-size: 66%;
+        font-weight: normal;
       }
       .build .time {
         color: #666;
+      }
+      .build .ok {
+        font-size: 83%;
       }
       .build .desc, .build .time, .build .user {
         white-space: nowrap;
@@ -66,10 +76,29 @@
   {{if $.Commits}}
 
     <table class="build">
+      <colgroup class="col-hash"></colgroup>
+    {{range $.Builders | builderSpans}}
+      <colgroup class="col-result" span="{{.N}}"></colgroup>
+    {{end}}
+      <colgroup class="col-user"></colgroup>
+      <colgroup class="col-time"></colgroup>
+      <colgroup class="col-desc"></colgroup>
+      <tr>
+        <!-- extra row to make alternating colors use dark for first result -->
+      </tr>
+      <tr>
+        <th>&nbsp;</th>
+    {{range $.Builders | builderSpans}}
+        <th colspan="{{.N}}">{{.OS}}</th>
+    {{end}}
+        <th></th>
+        <th></th>
+        <th></th>
+      </tr>
       <tr>
         <th>&nbsp;</th>
     {{range $.Builders}}
-        <th class="result">{{builderTitle .}}</th>
+        <th class="result arch" title="{{.}}">{{builderArchShort .}}</th>
     {{end}}
       </tr>
     {{range $c := $.Commits}}
@@ -88,9 +117,9 @@
       {{end}}
       </td>
       {{end}}
-      <td class="user">{{shortUser .User}}</td>
+      <td class="user" title="{{.User}}">{{shortUser .User}}</td>
       <td class="time">{{.Time.Time.Format "Mon 02 Jan 15:04"}}</td>
-      <td class="desc">{{shortDesc .Desc}}</td>
+      <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
       </tr>
     {{end}}
     </table>
