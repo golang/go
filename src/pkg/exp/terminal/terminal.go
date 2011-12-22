@@ -6,11 +6,52 @@
 
 package terminal
 
-import "io"
+import (
+	"io"
+	"sync"
+)
+
+// EscapeCodes contains escape sequences that can be written to the terminal in
+// order to achieve different styles of text.
+type EscapeCodes struct {
+	// Foreground colors
+	Black, Red, Green, Yellow, Blue, Magenta, Cyan, White []byte
+
+	// Reset all attributes
+	Reset []byte
+}
+
+var vt100EscapeCodes = EscapeCodes{
+	Black:   []byte{keyEscape, '[', '3', '0', 'm'},
+	Red:     []byte{keyEscape, '[', '3', '1', 'm'},
+	Green:   []byte{keyEscape, '[', '3', '2', 'm'},
+	Yellow:  []byte{keyEscape, '[', '3', '3', 'm'},
+	Blue:    []byte{keyEscape, '[', '3', '4', 'm'},
+	Magenta: []byte{keyEscape, '[', '3', '5', 'm'},
+	Cyan:    []byte{keyEscape, '[', '3', '6', 'm'},
+	White:   []byte{keyEscape, '[', '3', '7', 'm'},
+
+	Reset: []byte{keyEscape, '[', '0', 'm'},
+}
 
 // Terminal contains the state for running a VT100 terminal that is capable of
 // reading lines of input.
 type Terminal struct {
+	// AutoCompleteCallback, if non-null, is called for each keypress
+	// with the full input line and the current position of the cursor.
+	// If it returns a nil newLine, the key press is processed normally.
+	// Otherwise it returns a replacement line and the new cursor position.
+	AutoCompleteCallback func(line []byte, pos, key int) (newLine []byte, newPos int)
+
+	// Escape contains a pointer to the escape codes for this terminal.
+	// It's always a valid pointer, although the escape codes themselves
+	// may be empty if the terminal doesn't support them.
+	Escape *EscapeCodes
+
+	// lock protects the terminal and the state in this object from
+	// concurrent processing of a key press and a Write() call.
+	lock sync.Mutex
+
 	c      io.ReadWriter
 	prompt string
 
@@ -18,6 +59,8 @@ type Terminal struct {
 	line []byte
 	// pos is the logical position of the cursor in line
 	pos int
+	// echo is true if local echo is enabled
+	echo bool
 
 	// cursorX contains the current X value of the cursor where the left
 	// edge is 0. cursorY contains the row number where the first row of
@@ -42,10 +85,12 @@ type Terminal struct {
 // "> ").
 func NewTerminal(c io.ReadWriter, prompt string) *Terminal {
 	return &Terminal{
+		Escape:     &vt100EscapeCodes,
 		c:          c,
 		prompt:     prompt,
 		termWidth:  80,
 		termHeight: 24,
+		echo:       true,
 	}
 }
 
@@ -111,18 +156,11 @@ func bytesToKey(b []byte) (int, []byte) {
 
 // queue appends data to the end of t.outBuf
 func (t *Terminal) queue(data []byte) {
-	if len(t.outBuf)+len(data) > cap(t.outBuf) {
-		newOutBuf := make([]byte, len(t.outBuf), 2*(len(t.outBuf)+len(data)))
-		copy(newOutBuf, t.outBuf)
-		t.outBuf = newOutBuf
-	}
-
-	oldLen := len(t.outBuf)
-	t.outBuf = t.outBuf[:len(t.outBuf)+len(data)]
-	copy(t.outBuf[oldLen:], data)
+	t.outBuf = append(t.outBuf, data...)
 }
 
 var eraseUnderCursor = []byte{' ', keyEscape, '[', 'D'}
+var space = []byte{' '}
 
 func isPrintable(key int) bool {
 	return key >= 32 && key < 127
@@ -131,6 +169,10 @@ func isPrintable(key int) bool {
 // moveCursorToPos appends data to t.outBuf which will move the cursor to the
 // given, logical position in the text.
 func (t *Terminal) moveCursorToPos(pos int) {
+	if !t.echo {
+		return
+	}
+
 	x := len(t.prompt) + pos
 	y := x / t.termWidth
 	x = x % t.termWidth
@@ -155,6 +197,12 @@ func (t *Terminal) moveCursorToPos(pos int) {
 		right = x - t.cursorX
 	}
 
+	t.cursorX = x
+	t.cursorY = y
+	t.move(up, down, left, right)
+}
+
+func (t *Terminal) move(up, down, left, right int) {
 	movement := make([]byte, 3*(up+down+left+right))
 	m := movement
 	for i := 0; i < up; i++ {
@@ -182,9 +230,12 @@ func (t *Terminal) moveCursorToPos(pos int) {
 		m = m[3:]
 	}
 
-	t.cursorX = x
-	t.cursorY = y
 	t.queue(movement)
+}
+
+func (t *Terminal) clearLineToRight() {
+	op := []byte{keyEscape, '[', 'K'}
+	t.queue(op)
 }
 
 const maxLineLength = 4096
@@ -198,12 +249,15 @@ func (t *Terminal) handleKey(key int) (line string, ok bool) {
 			return
 		}
 		t.pos--
+		t.moveCursorToPos(t.pos)
 
 		copy(t.line[t.pos:], t.line[1+t.pos:])
 		t.line = t.line[:len(t.line)-1]
-		t.writeLine(t.line[t.pos:])
-		t.moveCursorToPos(t.pos)
+		if t.echo {
+			t.writeLine(t.line[t.pos:])
+		}
 		t.queue(eraseUnderCursor)
+		t.moveCursorToPos(t.pos)
 	case keyAltLeft:
 		// move left by a word.
 		if t.pos == 0 {
@@ -262,6 +316,25 @@ func (t *Terminal) handleKey(key int) (line string, ok bool) {
 		t.cursorY = 0
 		t.maxLine = 0
 	default:
+		if t.AutoCompleteCallback != nil {
+			t.lock.Unlock()
+			newLine, newPos := t.AutoCompleteCallback(t.line, t.pos, key)
+			t.lock.Lock()
+
+			if newLine != nil {
+				if t.echo {
+					t.moveCursorToPos(0)
+					t.writeLine(newLine)
+					for i := len(newLine); i < len(t.line); i++ {
+						t.writeLine(space)
+					}
+					t.moveCursorToPos(newPos)
+				}
+				t.line = newLine
+				t.pos = newPos
+				return
+			}
+		}
 		if !isPrintable(key) {
 			return
 		}
@@ -276,7 +349,9 @@ func (t *Terminal) handleKey(key int) (line string, ok bool) {
 		t.line = t.line[:len(t.line)+1]
 		copy(t.line[t.pos+1:], t.line[t.pos:])
 		t.line[t.pos] = byte(key)
-		t.writeLine(t.line[t.pos:])
+		if t.echo {
+			t.writeLine(t.line[t.pos:])
+		}
 		t.pos++
 		t.moveCursorToPos(t.pos)
 	}
@@ -285,15 +360,6 @@ func (t *Terminal) handleKey(key int) (line string, ok bool) {
 
 func (t *Terminal) writeLine(line []byte) {
 	for len(line) != 0 {
-		if t.cursorX == t.termWidth {
-			t.queue([]byte("\r\n"))
-			t.cursorX = 0
-			t.cursorY++
-			if t.cursorY > t.maxLine {
-				t.maxLine = t.cursorY
-			}
-		}
-
 		remainingOnLine := t.termWidth - t.cursorX
 		todo := len(line)
 		if todo > remainingOnLine {
@@ -302,16 +368,95 @@ func (t *Terminal) writeLine(line []byte) {
 		t.queue(line[:todo])
 		t.cursorX += todo
 		line = line[todo:]
+
+		if t.cursorX == t.termWidth {
+			t.cursorX = 0
+			t.cursorY++
+			if t.cursorY > t.maxLine {
+				t.maxLine = t.cursorY
+			}
+		}
 	}
 }
 
 func (t *Terminal) Write(buf []byte) (n int, err error) {
-	return t.c.Write(buf)
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	if t.cursorX == 0 && t.cursorY == 0 {
+		// This is the easy case: there's nothing on the screen that we
+		// have to move out of the way.
+		return t.c.Write(buf)
+	}
+
+	// We have a prompt and possibly user input on the screen. We
+	// have to clear it first.
+	t.move(0, /* up */ 0, /* down */ t.cursorX, /* left */ 0 /* right */ )
+	t.cursorX = 0
+	t.clearLineToRight()
+
+	for t.cursorY > 0 {
+		t.move(1, /* up */ 0, 0, 0)
+		t.cursorY--
+		t.clearLineToRight()
+	}
+
+	if _, err = t.c.Write(t.outBuf); err != nil {
+		return
+	}
+	t.outBuf = t.outBuf[:0]
+
+	if n, err = t.c.Write(buf); err != nil {
+		return
+	}
+
+	t.queue([]byte(t.prompt))
+	chars := len(t.prompt)
+	if t.echo {
+		t.queue(t.line)
+		chars += len(t.line)
+	}
+	t.cursorX = chars % t.termWidth
+	t.cursorY = chars / t.termWidth
+	t.moveCursorToPos(t.pos)
+
+	if _, err = t.c.Write(t.outBuf); err != nil {
+		return
+	}
+	t.outBuf = t.outBuf[:0]
+	return
+}
+
+// ReadPassword temporarily changes the prompt and reads a password, without
+// echo, from the terminal.
+func (t *Terminal) ReadPassword(prompt string) (line string, err error) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	oldPrompt := t.prompt
+	t.prompt = prompt
+	t.echo = false
+
+	line, err = t.readLine()
+
+	t.prompt = oldPrompt
+	t.echo = true
+
+	return
 }
 
 // ReadLine returns a line of input from the terminal.
 func (t *Terminal) ReadLine() (line string, err error) {
-	if t.cursorX == 0 {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	return t.readLine()
+}
+
+func (t *Terminal) readLine() (line string, err error) {
+	// t.lock must be held at this point
+
+	if t.cursorX == 0 && t.cursorY == 0 {
 		t.writeLine([]byte(t.prompt))
 		t.c.Write(t.outBuf)
 		t.outBuf = t.outBuf[:0]
@@ -322,7 +467,11 @@ func (t *Terminal) ReadLine() (line string, err error) {
 		// containing a partial key sequence
 		readBuf := t.inBuf[len(t.remainder):]
 		var n int
+
+		t.lock.Unlock()
 		n, err = t.c.Read(readBuf)
+		t.lock.Lock()
+
 		if err != nil {
 			return
 		}
@@ -360,5 +509,8 @@ func (t *Terminal) ReadLine() (line string, err error) {
 }
 
 func (t *Terminal) SetSize(width, height int) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
 	t.termWidth, t.termHeight = width, height
 }

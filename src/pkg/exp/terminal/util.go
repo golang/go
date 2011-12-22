@@ -11,7 +11,7 @@
 //
 // 	oldState, err := terminal.MakeRaw(0)
 // 	if err != nil {
-// 	        panic(err.String())
+// 	        panic(err)
 // 	}
 // 	defer terminal.Restore(0, oldState)
 package terminal
@@ -58,6 +58,16 @@ func MakeRaw(fd int) (*State, error) {
 func Restore(fd int, state *State) error {
 	_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&state.termios)), 0, 0, 0)
 	return err
+}
+
+// GetSize returns the dimensions of the given terminal.
+func GetSize(fd int) (width, height int, err error) {
+	var dimensions [4]uint16
+
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), uintptr(syscall.TIOCGWINSZ), uintptr(unsafe.Pointer(&dimensions)), 0, 0, 0); err != 0 {
+		return -1, -1, err
+	}
+	return int(dimensions[1]), int(dimensions[0]), nil
 }
 
 // ReadPassword reads a line of input from a terminal without local echo.  This
