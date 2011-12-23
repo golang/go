@@ -18,9 +18,9 @@ List lists the packages named by the import paths, one per line.
 
 The default output shows the package name and file system location:
 
-    books /home/you/src/google-api-go-client.googlecode.com/hg/books/v1
-    oauth /home/you/src/goauth2.googlecode.com/hg/oauth
-    sqlite /home/you/src/gosqlite.googlecode.com/hg/sqlite
+    books /home/you/src/code.google.com/p/google-api-go-client/books/v1
+    oauth /home/you/src/code.google.com/p/goauth2/oauth
+    sqlite /home/you/src/code.google.com/p/sqlite
 
 The -f flag specifies an alternate format for the list,
 using the syntax of package template.  The default output
