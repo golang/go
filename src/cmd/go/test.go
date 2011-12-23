@@ -193,25 +193,28 @@ See the documentation of the testing package for more information.
 // For now just use the gotest code.
 
 var (
-	testC     bool     // -c flag
-	testX     bool     // -x flag
-	testFiles []string // -file flag(s)  TODO: not respected
-	testArgs  []string
+	testC        bool     // -c flag
+	testX        bool     // -x flag
+	testV        bool     // -v flag
+	testFiles    []string // -file flag(s)  TODO: not respected
+	testArgs     []string
+	testShowPass bool // whether to display passing output
 )
 
 func runTest(cmd *Command, args []string) {
-	// Determine which are the import paths
-	// (leading arguments not starting with -).
-	i := 0
-	for i < len(args) && !strings.HasPrefix(args[i], "-") {
-		i++
-	}
-	pkgs := packages(args[:i])
+	var pkgArgs []string
+	pkgArgs, testArgs = testFlags(args)
+
+	// show test PASS output when no packages
+	// are listed (implicitly current directory: "go test")
+	// or when the -v flag has been given.
+	testShowPass = len(pkgArgs) == 0 || testV
+
+	pkgs := packages(pkgArgs)
 	if len(pkgs) == 0 {
 		fatalf("no packages to test")
 	}
 
-	testArgs = testFlags(args[i:])
 	if testC && len(pkgs) != 1 {
 		fatalf("cannot use -c flag with multiple packages")
 	}
@@ -243,9 +246,31 @@ func runTest(cmd *Command, args []string) {
 			a.deps = append(a.deps, runs[i-1])
 		}
 	}
+	root := &action{deps: runs}
 
-	allRuns := &action{deps: runs}
-	b.do(allRuns)
+	// If we are building any out-of-date packages other
+	// than those under test, warn.
+	okBuild := map[*Package]bool{}
+	for _, p := range pkgs {
+		okBuild[p] = true
+	}
+
+	warned := false
+	for _, a := range actionList(root) {
+		if a.p != nil && a.f != nil && !okBuild[a.p] && !a.p.fake {
+			okBuild[a.p] = true // don't warn again
+			if !warned {
+				fmt.Fprintf(os.Stderr, "warning: building out-of-date packages:\n")
+				warned = true
+			}
+			fmt.Fprintf(os.Stderr, "\t%s\n", a.p.ImportPath)
+		}
+	}
+	if warned {
+		fmt.Fprintf(os.Stderr, "installing these packages with 'go install' will speed future tests.\n\n")
+	}
+
+	b.do(root)
 }
 
 func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
@@ -312,6 +337,7 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 		ptest.Imports = append(append([]string{}, p.info.Imports...), p.info.TestImports...)
 		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
 		ptest.pkgdir = testDir
+		ptest.fake = true
 		a := b.action(modeBuild, modeBuild, ptest)
 		a.objdir = testDir + string(filepath.Separator)
 		a.objpkg = ptestObj
@@ -333,6 +359,7 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 			info:       &build.DirInfo{},
 			imports:    imports,
 			pkgdir:     testDir,
+			fake:       true,
 		}
 		pxtest.imports = append(pxtest.imports, ptest)
 		a := b.action(modeBuild, modeBuild, pxtest)
@@ -349,6 +376,7 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 		t:       p.t,
 		info:    &build.DirInfo{},
 		imports: []*Package{ptest},
+		fake:    true,
 	}
 	if pxtest != nil {
 		pmain.imports = append(pmain.imports, pxtest)
@@ -407,6 +435,9 @@ func (b *builder) runTest(a *action) error {
 	out, err := cmd.CombinedOutput()
 	if err == nil && (bytes.Equal(out, pass[1:]) || bytes.HasSuffix(out, pass)) {
 		fmt.Printf("ok  \t%s\n", a.p.ImportPath)
+		if testShowPass {
+			os.Stdout.Write(out)
+		}
 		return nil
 	}
 

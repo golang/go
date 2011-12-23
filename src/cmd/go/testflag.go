@@ -78,10 +78,39 @@ var testFlagDefn = []*testFlagSpec{
 // Unfortunately for us, we need to do our own flag processing because go test
 // grabs some flags but otherwise its command line is just a holding place for
 // test.out's arguments.
-func testFlags(args []string) (passToTest []string) {
+// We allow known flags both before and after the package name list,
+// to allow both
+//	go test fmt -custom-flag-for-fmt-test
+//	go test -x math
+func testFlags(args []string) (packageNames, passToTest []string) {
+	inPkg := false
 	for i := 0; i < len(args); i++ {
+		if !strings.HasPrefix(args[i], "-") {
+			if !inPkg && packageNames == nil {
+				// First package name we've seen.
+				inPkg = true
+			}
+			if inPkg {
+				packageNames = append(packageNames, args[i])
+				continue
+			}
+		}
+
+		if inPkg {
+			// Found an argument beginning with "-"; end of package list.
+			inPkg = false
+		}
+
 		f, value, extraWord := testFlag(args, i)
 		if f == nil {
+			// This is a flag we do not know; we must assume
+			// that any args we see after this might be flag 
+			// arguments, not package names.
+			inPkg = false
+			if packageNames == nil {
+				// make non-nil: we have seen the empty package list
+				packageNames = []string{}
+			}
 			passToTest = append(passToTest, args[i])
 			continue
 		}
@@ -90,6 +119,8 @@ func testFlags(args []string) (passToTest []string) {
 			setBoolFlag(&testC, value)
 		case "x":
 			setBoolFlag(&testX, value)
+		case "v":
+			setBoolFlag(&testV, value)
 		case "file":
 			testFiles = append(testFiles, value)
 		}
