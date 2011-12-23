@@ -498,8 +498,7 @@ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
 	once.Do(startServer)
 	client, err := dial()
 	if err != nil {
-		fmt.Println("error dialing", err)
-		return
+		b.Fatal("error dialing:", err)
 	}
 
 	// Synchronous calls
@@ -534,7 +533,7 @@ func benchmarkEndToEndAsync(dial func() (*Client, error), b *testing.B) {
 	once.Do(startServer)
 	client, err := dial()
 	if err != nil {
-		b.Fatalf("error dialing:", err)
+		b.Fatal("error dialing:", err)
 	}
 
 	// Asynchronous calls
