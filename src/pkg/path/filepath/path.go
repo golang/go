@@ -426,6 +426,8 @@ func Base(path string) string {
 	for len(path) > 0 && os.IsPathSeparator(path[len(path)-1]) {
 		path = path[0 : len(path)-1]
 	}
+	// Throw away volume name
+	path = path[len(VolumeName(path)):]
 	// Find the last element
 	i := len(path) - 1
 	for i >= 0 && !os.IsPathSeparator(path[i]) {
@@ -447,8 +449,12 @@ func Base(path string) string {
 // If the path consists entirely of separators, Dir returns a single separator.
 // The returned path does not end in a separator unless it is the root directory.
 func Dir(path string) string {
-	dir, _ := Split(path)
-	dir = Clean(dir)
+	vol := VolumeName(path)
+	i := len(path) - 1
+	for i >= len(vol) && !os.IsPathSeparator(path[i]) {
+		i--
+	}
+	dir := Clean(path[len(vol) : i+1])
 	last := len(dir) - 1
 	if last > 0 && os.IsPathSeparator(dir[last]) {
 		dir = dir[:last]
@@ -456,5 +462,5 @@ func Dir(path string) string {
 	if dir == "" {
 		dir = "."
 	}
-	return dir
+	return vol + dir
 }
