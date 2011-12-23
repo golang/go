@@ -34,24 +34,28 @@ const (
 
 // Bytes returns f(b). May return b if f(b) = b.
 func (f Form) Bytes(b []byte) []byte {
-	n := f.QuickSpan(b)
+	rb := reorderBuffer{}
+	rb.init(f, b)
+	n := quickSpan(&rb, 0)
 	if n == len(b) {
 		return b
 	}
 	out := make([]byte, n, len(b))
 	copy(out, b[0:n])
-	return f.Append(out, b[n:]...)
+	return doAppend(&rb, out, n)
 }
 
 // String returns f(s).
 func (f Form) String(s string) string {
-	n := f.QuickSpanString(s)
+	rb := reorderBuffer{}
+	rb.initString(f, s)
+	n := quickSpan(&rb, 0)
 	if n == len(s) {
 		return s
 	}
-	out := make([]byte, 0, len(s))
+	out := make([]byte, n, len(s))
 	copy(out, s[0:n])
-	return string(f.AppendString(out, s[n:]))
+	return string(doAppend(&rb, out, n))
 }
 
 // IsNormal returns true if b == f(b).
@@ -122,23 +126,27 @@ func (f Form) IsNormalString(s string) bool {
 
 // patchTail fixes a case where a rune may be incorrectly normalized
 // if it is followed by illegal continuation bytes. It returns the
-// patched buffer and the number of trailing continuation bytes that
-// have been dropped.
-func patchTail(rb *reorderBuffer, buf []byte) ([]byte, int) {
+// patched buffer and whether there were trailing continuation bytes.
+func patchTail(rb *reorderBuffer, buf []byte) ([]byte, bool) {
 	info, p := lastRuneStart(&rb.f, buf)
 	if p == -1 || info.size == 0 {
-		return buf, 0
+		return buf, false
 	}
 	end := p + int(info.size)
 	extra := len(buf) - end
 	if extra > 0 {
+		// Potentially allocating memory. However, this only
+		// happens with ill-formed UTF-8.
+		x := make([]byte, 0)
+		x = append(x, buf[len(buf)-extra:]...)
 		buf = decomposeToLastBoundary(rb, buf[:end])
 		if rb.f.composing {
 			rb.compose()
 		}
-		return rb.flush(buf), extra
+		buf = rb.flush(buf)
+		return append(buf, x...), true
 	}
-	return buf, 0
+	return buf, false
 }
 
 func appendQuick(rb *reorderBuffer, dst []byte, i int) ([]byte, int) {
@@ -157,23 +165,23 @@ func (f Form) Append(out []byte, src ...byte) []byte {
 	}
 	rb := reorderBuffer{}
 	rb.init(f, src)
-	return doAppend(&rb, out)
+	return doAppend(&rb, out, 0)
 }
 
-func doAppend(rb *reorderBuffer, out []byte) []byte {
+func doAppend(rb *reorderBuffer, out []byte, p int) []byte {
 	src, n := rb.src, rb.nsrc
 	doMerge := len(out) > 0
-	p := 0
-	if p = src.skipNonStarter(); p > 0 {
+	if q := src.skipNonStarter(p); q > p {
 		// Move leading non-starters to destination.
-		out = src.appendSlice(out, 0, p)
-		buf, ndropped := patchTail(rb, out)
-		if ndropped > 0 {
-			out = src.appendSlice(buf, p-ndropped, p)
+		out = src.appendSlice(out, p, q)
+		buf, endsInError := patchTail(rb, out)
+		if endsInError {
+			out = buf
 			doMerge = false // no need to merge, ends with illegal UTF-8
 		} else {
 			out = decomposeToLastBoundary(rb, buf) // force decomposition
 		}
+		p = q
 	}
 	fd := &rb.f
 	if doMerge {
@@ -217,7 +225,7 @@ func (f Form) AppendString(out []byte, src string) []byte {
 	}
 	rb := reorderBuffer{}
 	rb.initString(f, src)
-	return doAppend(&rb, out)
+	return doAppend(&rb, out, 0)
 }
 
 // QuickSpan returns a boundary n such that b[0:n] == f(b[0:n]).
@@ -225,7 +233,8 @@ func (f Form) AppendString(out []byte, src string) []byte {
 func (f Form) QuickSpan(b []byte) int {
 	rb := reorderBuffer{}
 	rb.init(f, b)
-	return quickSpan(&rb, 0)
+	n := quickSpan(&rb, 0)
+	return n
 }
 
 func quickSpan(rb *reorderBuffer, i int) int {
@@ -301,7 +310,7 @@ func (f Form) FirstBoundary(b []byte) int {
 
 func firstBoundary(rb *reorderBuffer) int {
 	src, nsrc := rb.src, rb.nsrc
-	i := src.skipNonStarter()
+	i := src.skipNonStarter(0)
 	if i >= nsrc {
 		return -1
 	}

@@ -8,7 +8,7 @@ import "unicode/utf8"
 
 type input interface {
 	skipASCII(p int) int
-	skipNonStarter() int
+	skipNonStarter(p int) int
 	appendSlice(buf []byte, s, e int) []byte
 	copySlice(buf []byte, s, e int)
 	charinfo(p int) (uint16, int)
@@ -25,8 +25,7 @@ func (s inputString) skipASCII(p int) int {
 	return p
 }
 
-func (s inputString) skipNonStarter() int {
-	p := 0
+func (s inputString) skipNonStarter(p int) int {
 	for ; p < len(s) && !utf8.RuneStart(s[p]); p++ {
 	}
 	return p
@@ -71,8 +70,7 @@ func (s inputBytes) skipASCII(p int) int {
 	return p
 }
 
-func (s inputBytes) skipNonStarter() int {
-	p := 0
+func (s inputBytes) skipNonStarter(p int) int {
 	for ; p < len(s) && !utf8.RuneStart(s[p]); p++ {
 	}
 	return p
