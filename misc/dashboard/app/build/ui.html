@@ -26,7 +26,7 @@
         padding: 2px 4px;
         font-size: 10pt;
       }
-      .build tr:nth-child(2n) {
+      .build tr.commit:nth-child(2n) {
         background-color: #f0f0f0;
       }
       .build .hash {
@@ -102,7 +102,7 @@
     {{end}}
       </tr>
     {{range $c := $.Commits}}
-      <tr>
+      <tr class="commit">
       <td class="hash"><a href="{{repoURL .Hash ""}}">{{shortHash .Hash}}</a></td>
       {{range $.Builders}}
       <td class="result">
