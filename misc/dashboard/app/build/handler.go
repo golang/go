@@ -5,13 +5,15 @@
 package build
 
 import (
-	"appengine"
-	"appengine/datastore"
 	"crypto/hmac"
 	"fmt"
 	"http"
 	"json"
 	"os"
+
+	"appengine"
+	"appengine/datastore"
+	"cache"
 )
 
 const commitsPerPage = 30
@@ -58,7 +60,7 @@ func commitHandler(r *http.Request) (interface{}, os.Error) {
 	if err := com.Valid(); err != nil {
 		return nil, fmt.Errorf("validating Commit: %v", err)
 	}
-	defer invalidateCache(c)
+	defer cache.Tick(c)
 	tx := func(c appengine.Context) os.Error {
 		return addCommit(c, com)
 	}
@@ -132,7 +134,7 @@ func tagHandler(r *http.Request) (interface{}, os.Error) {
 		return nil, err
 	}
 	c := appengine.NewContext(r)
-	defer invalidateCache(c)
+	defer cache.Tick(c)
 	_, err := datastore.Put(c, t.Key(c), t)
 	return nil, err
 }
@@ -148,14 +150,12 @@ type Todo struct {
 // Multiple "kind" parameters may be specified.
 func todoHandler(r *http.Request) (interface{}, os.Error) {
 	c := appengine.NewContext(r)
-
-	todoKey := r.Form.Encode()
-	if t, ok := cachedTodo(c, todoKey); ok {
-		c.Debugf("cache hit")
-		return t, nil
+	now := cache.Now(c)
+	key := "build-todo-" + r.Form.Encode()
+	cachedTodo := new(Todo)
+	if cache.Get(r, now, key, cachedTodo) {
+		return cachedTodo, nil
 	}
-	c.Debugf("cache miss")
-
 	var todo *Todo
 	var err os.Error
 	builder := r.FormValue("builder")
@@ -175,7 +175,7 @@ func todoHandler(r *http.Request) (interface{}, os.Error) {
 		}
 	}
 	if err == nil {
-		cacheTodo(c, todoKey, todo)
+		cache.Set(r, now, key, todo)
 	}
 	return todo, err
 }
@@ -218,7 +218,19 @@ func buildTodo(c appengine.Context, builder, packagePath, goHash string) (interf
 // packagesHandler returns a list of the non-Go Packages monitored
 // by the dashboard.
 func packagesHandler(r *http.Request) (interface{}, os.Error) {
-	return Packages(appengine.NewContext(r))
+	c := appengine.NewContext(r)
+	now := cache.Now(c)
+	const key = "build-packages"
+	var p []*Package
+	if cache.Get(r, now, key, &p) {
+		return p, nil
+	}
+	p, err := Packages(c)
+	if err != nil {
+		return nil, err
+	}
+	cache.Set(r, now, key, p)
+	return p, nil
 }
 
 // resultHandler records a build result.
@@ -240,7 +252,7 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
 	if err := res.Valid(); err != nil {
 		return nil, fmt.Errorf("validating Result: %v", err)
 	}
-	defer invalidateCache(c)
+	defer cache.Tick(c)
 	// store the Log text if supplied
 	if len(res.Log) > 0 {
 		hash, err := PutLog(c, res.Log)
@@ -347,6 +359,7 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
 func initHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO(adg): devise a better way of bootstrapping new packages
 	c := appengine.NewContext(r)
+	defer cache.Tick(c)
 	for _, p := range defaultPackages {
 		if err := datastore.Get(c, p.Key(c), new(Package)); err == nil {
 			continue

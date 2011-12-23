@@ -5,8 +5,6 @@
 package build
 
 import (
-	"appengine"
-	"appengine/datastore"
 	"bytes"
 	"compress/gzip"
 	"crypto/sha1"
@@ -15,6 +13,9 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"appengine"
+	"appengine/datastore"
 )
 
 const maxDatastoreStringLen = 500
