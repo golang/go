@@ -137,7 +137,7 @@ $(pkgdir)/%.h: %.h
 clean: clean-local
 
 clean-local:
-	rm -f $(AUTOHFILES) runtime_defs.go version*.go
+	rm -f $(AUTOHFILES) runtime_defs.go version*.go asm_*.h
 
 arch_GOARCH.h: arch_$(GOARCH).h
 	cp $^ $@
