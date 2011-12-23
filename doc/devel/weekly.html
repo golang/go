@@ -14,10 +14,117 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2011-12-22">2011-12-22</h2>
+
+<pre>
+This snapshot includes changes to the images/ycbcr and testing packages, and
+changes to the build system.
+
+The types for managing Y'CbCr images in the image/ycbcr have been moved to the
+image and image/color packages. A gofix module will rewrite affected code.
+
+The testing package's B type (used when running benchmarks) now has the same
+methods as T (used in tests), such as Print, Error, and Fatal.
+
+This weekly adds a new command named 'go' for building and testing go programs.
+For Go 1, the go command will replace the makefile-based approach that we have
+been using. It is not yet ready for general use, but all.bash does use it to
+build the tree. If you have problems building the weekly, you can 'export
+USE_GO_TOOL=false' before running all.bash to fall back to the makefiles.
+
+Other changes:
+* archive/zip: add SetModTime method to FileHeader.
+* build: make use of env (thanks Mikio Hara),
+	fixes to make "go install" work on windows (thanks Alex Brainman).
+* bytes: add two Buffer examples.
+* cgo: support export for built-in types (thanks Maxim Pimenov).
+* cmd/go: avoid infinite loop with package specific flags (thanks Mikio Hara),
+	fixes to build standard library,
+	implement test command,
+	make sure use of pthread for gcc-4.5 and beyond (thanks Mikio Hara),
+	respect $GCFLAGS,
+	use spaces consistently in help message (thanks Roger Peppe),
+	many other improvements.
+* codereview: initialize "found" in codereview.py (thanks Miki Tebeka).
+* crypto/mime/net/time: add netbsd to +build tags (thanks Joel Sing).
+* crypto/tls: don't assume an RSA private key in the API.
+* crypto/x509: don't crash with nil receiver in accessor method.
+* doc/effective_go: discuss redeclaration.
+* doc: delete go course notes,
+	refer to http://build.golang.org/ where applicable (thanks Robert Hencke),
+	suggest code.google.com/p/go instead of go.googlecode.com/hg.
+* encoding/binary: add Write and Read examples,
+	add more benchmarks (thanks Roger Peppe).
+* encoding/gob: arrays are zero only if their elements are zero.
+* encoding/json: cleanup leftover variables in array decoding (thanks Rémy Oudompheng),
+	examples for Marshal and Unmarshal.
+* exp/ssh: rename ClientAuthPublicKey helper ClientAuthKeyring (thanks Dave Cheney),
+	simplify Stdin/out/errPipe methods (thanks Dave Cheney).
+* fmt: speed up floating point print, clean up some code,
+	make the malloc test check its counts.
+* gc: allow use of unsafe.Pointer in generated code,
+	avoid unsafe in defn of package runtime,
+	better linenumbers for inlined functions,
+	better loopdepth analysis for labels,
+	implement and test \r in raw strings,
+	inlining, allow empty bodies, fix _ arguments,
+	omit argument names from function types in error messages.
+* go/ast, parser: remember short variable decls. w/ correspoding ident objects.
+* go/build: add new +build tags 'cgo' and 'nocgo'.
+* go/doc, godoc: move export filtering into go/doc
+* go/printer, gofmt: fine tuning of line spacing.
+* go/scanner: strip CRs from raw literals.
+* gob: isZero for struct values.
+* godoc: allow examples for methods (thanks Volker Dobler),
+	show methods of anonymous fields.
+* goinstall: only suggest -fix for bad imports when appropriate.
+* govet: add checking for printf verbs,
+	divide the program into one file per vetting suite.
+* html: more parser improvements (thanks Andrew Balholm).
+* json: some tests to demonstrate bad error messages,
+	use strconv.Append variants to avoid allocations in encoding.
+* ld: add support for netbsd signature note section (thanks Joel Sing),
+	allow for IMAGE_REL_AMD64_ADDR32NB relocation type (thanks Alex Brainman).
+* math/big: Rand shouldn't hang if argument is also receiver.
+* misc/builder: set default builder host to build.golang.org.
+* misc/dashboard: delete old build dashboard code ,
+	improvements and fixes for the go implementation.
+* misc/vim: fix go filetype detection (thanks Paul Sbarra).
+* net, syscall, os: set CLOEXEC flag on epoll/kqueue descriptor.
+* net, syscall: interface address and mask (thanks Mikio Hara).
+* net/http: added interface for a cookie jar (thanks Volker Dobler),
+	test fixes (thanks Alex Brainman).
+* net: add DialTimeout,
+	sort Makefile entries (thanks Mikio Hara).
+* os, syscall: beginnings of NetBSD support (thanks Christopher Nielsen).
+* os/exec: add test to verify net package's epoll fd doesn't go to child,
+	disable the ExtraFiles test on darwin.
+* os: don't trust O_CLOEXEC on OS X,
+	make sure Remove returns correct error on windows (thanks Alex Brainman).
+* path, path/filepath: add Dir to complement Base.
+* path/filepath.Rel: document that the returned path is always relative.
+* runtime: don't panic on SIGILL, just crash.
+* spec: be precise about newlines.
+* sql: add Rows.Columns.
+* strconv: fix bug in extended-float based conversion,
+	implement faster parsing of decimal numbers, and
+	reduce buffer size for multi-precision decimals (thanks Rémy Oudompheng).
+* syscall: regenerate z-files for linux/arm (thanks Mikio Hara),
+	sort Makefile, mkall.sh and mkerrors.sh entries (thanks Mikio Hara).
+* test/bench/go1: first draft of Go 1 benchmark suite.
+* testing: compare Log to Println (thanks Robert Hencke),
+	make signalling safer for parallel tests.
+* text/template: better error message for empty templates,
+	fix handing of nil arguments to functions (thanks Gustavo Niemeyer).
+* time: add JSON marshaler for Time (thanks Robert Hencke),
+	new AddDate method (thanks Roger Peppe).
+* various: use $GCFLAGS and $GCIMPORTS like Make does (thanks Maxim Pimenov).
+</pre>
+
 <h2 id="2011-12-14">2011-12-14</h2>
 
 <pre>
-This release includes language changes and changes to goinstall and gofmt.
+This snapshot includes language changes and changes to goinstall and gofmt.
 
 Equality and inequality (== and !=) are now defined for struct and array
 values, respectively, provided the elements of the data structures can
@@ -324,7 +431,7 @@ Other changes:
 <h2 id="2011-11-18">2011-11-18</h2>
 
 <pre>
-This release includes some language changes.
+This snapshot includes some language changes.
 
 Map and function value comparisons are now disallowed (except for comparison
 with nil) as per the Go 1 plan. Function equality was problematic in some
@@ -1536,7 +1643,7 @@ Other changes:
 <h2 id="2011-06-23">2011-06-23</h2>
 
 <pre>
-This release includes a language change that restricts the use of goto.
+This snapshot includes a language change that restricts the use of goto.
 In essence, a "goto" statement outside a block cannot jump to a label inside
 that block. Your code may require changes if it uses goto.
 This changeset shows how the new rule affected the Go tree:
@@ -1597,7 +1704,7 @@ Other changes:
 <h2 id="2011-06-16">2011-06-16</h2>
 
 <pre>
-This release includes changes to the sort and image/draw packages that will
+This snapshot includes changes to the sort and image/draw packages that will
 require changes to client code.
 
 The sort.IntArray type has been renamed to IntSlice, and similarly for
@@ -1650,7 +1757,7 @@ Other changes:
 <h2 id="2011-06-09">2011-06-09 (<a href="release.html#r58">base for r58</a>)</h2>
 
 <pre>
-This release includes changes to the strconv, http, and exp/draw packages.
+This snapshot includes changes to the strconv, http, and exp/draw packages.
 Client code that uses the http or exp/draw packages will need to be changed,
 and code that uses strconv or fmt's "%q" formatting directive merits checking.
 
@@ -1708,7 +1815,7 @@ Other changes:
 <h2 id="2011-06-02">2011-06-02</h2>
 
 <pre>
-This release includes changes to the exec package that will require changes
+This snapshot includes changes to the exec package that will require changes
 to client code.
 
 The exec package has been re-designed with a more convenient and succinct API.
@@ -1829,7 +1936,7 @@ Other changes:
 <h2 id="2011-05-22">2011-05-22</h2>
 
 <pre>
-This release includes changes to the http package that will require changes to
+This snapshot includes changes to the http package that will require changes to
 client code.
 
 The finalURL return value of the Client.Get method has been removed.
@@ -1849,7 +1956,7 @@ should be rewritten as:
 Uses of http.Get that assign the finalURL value to _ can be rewritten
 automatically with gofix.
 
-This release also includes an optimization to the append function that makes it
+This snapshot also includes an optimization to the append function that makes it
 between 2 and 5 times faster in typical use cases.
 
 Other changes:
@@ -1983,7 +2090,7 @@ Other changes:
 <h2 id="2011-04-27">2011-04-27 (<a href="release.html#r57">base for r57</a>)</h2>
 
 <pre>
-This release includes revisions to the reflect package to make it more
+This snapshot includes revisions to the reflect package to make it more
 efficient, after the last weekly's major API update. If your code uses reflect
 it may require further changes, not all of which can be made automatically by
 gofix. For the full details of the change, see
@@ -2204,7 +2311,7 @@ Other changes:
 <h2 id="2011-04-04">2011-04-04</h2>
 
 <pre>
-This release includes changes to the net package. Your code will require
+This snapshot includes changes to the net package. Your code will require
 changes if it uses the Dial or LookupHost functions.
 
 The laddr argument has been removed from net.Dial, and the cname return value
