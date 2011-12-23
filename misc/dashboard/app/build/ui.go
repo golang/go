@@ -8,9 +8,6 @@
 package build
 
 import (
-	"appengine"
-	"appengine/datastore"
-	"appengine/memcache"
 	"bytes"
 	"exp/template/html"
 	"http"
@@ -20,6 +17,10 @@ import (
 	"strconv"
 	"strings"
 	"template"
+
+	"appengine"
+	"appengine/datastore"
+	"cache"
 )
 
 func init() {
@@ -30,6 +31,8 @@ func init() {
 // uiHandler draws the build status page.
 func uiHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
+	now := cache.Now(c)
+	const key = "build-ui"
 
 	page, _ := strconv.Atoi(r.FormValue("page"))
 	if page < 0 {
@@ -37,14 +40,11 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Used cached version of front page, if available.
-	if page == 0 && r.Host == "build.golang.org" {
-		t, err := memcache.Get(c, uiCacheKey)
-		if err == nil {
-			w.Write(t.Value)
+	if page == 0 {
+		var b []byte
+		if cache.Get(r, now, key, &b) {
+			w.Write(b)
 			return
-		}
-		if err != memcache.ErrCacheMiss {
-			c.Errorf("get ui cache: %v", err)
 		}
 	}
 
@@ -78,15 +78,8 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Cache the front page.
-	if page == 0 && r.Host == "build.golang.org" {
-		t := &memcache.Item{
-			Key:        uiCacheKey,
-			Value:      buf.Bytes(),
-			Expiration: uiCacheExpiry,
-		}
-		if err := memcache.Set(c, t); err != nil {
-			c.Errorf("set ui cache: %v", err)
-		}
+	if page == 0 {
+		cache.Set(r, now, key, buf.Bytes())
 	}
 
 	buf.WriteTo(w)
