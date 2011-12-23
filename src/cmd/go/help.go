@@ -38,7 +38,7 @@ By convention, this is arranged by starting each path with a
 unique prefix that belongs to you.  For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
-such as 'project.googlecode.com/'.
+such as 'code.google.com/p/project'.
 	`,
 }
 
@@ -66,14 +66,11 @@ A few common code hosting sites have special syntax:
 
 	Google Code Project Hosting (Git, Mercurial, Subversion)
 
-		import "project.googlecode.com/git"
-		import "project.googlecode.com/git/sub/directory"
+		import "code.google.com/p/project"
+		import "code.google.com/p/project/sub/directory"
 
-		import "project.googlecode.com/hg"
-		import "project.googlecode.com/hg/sub/directory"
-
-		import "project.googlecode.com/svn/trunk"
-		import "project.googlecode.com/svn/trunk/sub/directory"
+		import "code.google.com/p/project.subrepository"
+		import "code.google.com/p/project.subrepository/sub/directory"
 
 	Launchpad (Bazaar)
 
