@@ -253,7 +253,7 @@ var quickSpanNFDTests = []PositionTest{
 	{"\u0316\u0300cd", 6, ""},
 	{"\u043E\u0308b", 5, ""},
 	// incorrectly ordered combining characters
-	{"ab\u0300\u0316", 1, ""}, // TODO(mpvl): we could skip 'b' as well.
+	{"ab\u0300\u0316", 1, ""}, // TODO: we could skip 'b' as well.
 	{"ab\u0300\u0316cd", 1, ""},
 	// Hangul
 	{"같은", 0, ""},
@@ -465,6 +465,7 @@ var appendTests = []AppendTest{
 	{"\u0300", "\xFC\x80\x80\x80\x80\x80\u0300", "\u0300\xFC\x80\x80\x80\x80\x80\u0300"},
 	{"\xF8\x80\x80\x80\x80\u0300", "\u0300", "\xF8\x80\x80\x80\x80\u0300\u0300"},
 	{"\xFC\x80\x80\x80\x80\x80\u0300", "\u0300", "\xFC\x80\x80\x80\x80\x80\u0300\u0300"},
+	{"\xF8\x80\x80\x80", "\x80\u0300\u0300", "\xF8\x80\x80\x80\x80\u0300\u0300"},
 }
 
 func appendF(f Form, out []byte, s string) []byte {
@@ -475,9 +476,23 @@ func appendStringF(f Form, out []byte, s string) []byte {
 	return f.AppendString(out, s)
 }
 
+func bytesF(f Form, out []byte, s string) []byte {
+	buf := []byte{}
+	buf = append(buf, out...)
+	buf = append(buf, s...)
+	return f.Bytes(buf)
+}
+
+func stringF(f Form, out []byte, s string) []byte {
+	outs := string(out) + s
+	return []byte(f.String(outs))
+}
+
 func TestAppend(t *testing.T) {
 	runAppendTests(t, "TestAppend", NFKC, appendF, appendTests)
 	runAppendTests(t, "TestAppendString", NFKC, appendStringF, appendTests)
+	runAppendTests(t, "TestBytes", NFKC, bytesF, appendTests)
+	runAppendTests(t, "TestString", NFKC, stringF, appendTests)
 }
 
 func doFormBenchmark(b *testing.B, f Form, s string) {

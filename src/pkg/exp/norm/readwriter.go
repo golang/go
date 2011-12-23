@@ -27,7 +27,7 @@ func (w *normWriter) Write(data []byte) (n int, err error) {
 		}
 		w.rb.src = inputBytes(data[:m])
 		w.rb.nsrc = m
-		w.buf = doAppend(&w.rb, w.buf)
+		w.buf = doAppend(&w.rb, w.buf, 0)
 		data = data[m:]
 		n += m
 
@@ -101,7 +101,7 @@ func (r *normReader) Read(p []byte) (int, error) {
 		r.rb.src = inputBytes(r.inbuf[0:n])
 		r.rb.nsrc, r.err = n, err
 		if n > 0 {
-			r.outbuf = doAppend(&r.rb, r.outbuf)
+			r.outbuf = doAppend(&r.rb, r.outbuf, 0)
 		}
 		if err == io.EOF {
 			r.lastBoundary = len(r.outbuf)
