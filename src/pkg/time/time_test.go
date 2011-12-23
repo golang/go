@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
+	"math/rand"
 	"strconv"
 	"strings"
 	"testing"
@@ -812,6 +813,82 @@ func TestNotJSONEncodableTime(t *testing.T) {
 		_, err := tt.time.MarshalJSON()
 		if err == nil || err.Error() != tt.want {
 			t.Errorf("%v MarshalJSON error = %v, want %v", tt.time, err, tt.want)
+		}
+	}
+}
+
+var parseDurationTests = []struct {
+	in   string
+	ok   bool
+	want Duration
+}{
+	// simple
+	{"0", true, 0},
+	{"5s", true, 5 * Second},
+	{"30s", true, 30 * Second},
+	{"1478s", true, 1478 * Second},
+	// sign
+	{"-5s", true, -5 * Second},
+	{"+5s", true, 5 * Second},
+	{"-0", true, 0},
+	{"+0", true, 0},
+	// decimal
+	{"5.0s", true, 5 * Second},
+	{"5.6s", true, 5*Second + 600*Millisecond},
+	{"5.s", true, 5 * Second},
+	{".5s", true, 500 * Millisecond},
+	{"1.0s", true, 1 * Second},
+	{"1.00s", true, 1 * Second},
+	{"1.004s", true, 1*Second + 4*Millisecond},
+	{"1.0040s", true, 1*Second + 4*Millisecond},
+	{"100.00100s", true, 100*Second + 1*Millisecond},
+	// different units
+	{"10ns", true, 10 * Nanosecond},
+	{"11us", true, 11 * Microsecond},
+	{"12µs", true, 12 * Microsecond}, // U+00B5
+	{"12μs", true, 12 * Microsecond}, // U+03BC
+	{"13ms", true, 13 * Millisecond},
+	{"14s", true, 14 * Second},
+	{"15m", true, 15 * Minute},
+	{"16h", true, 16 * Hour},
+	// composite durations
+	{"3h30m", true, 3*Hour + 30*Minute},
+	{"10.5s4m", true, 4*Minute + 10*Second + 500*Millisecond},
+	{"-2m3.4s", true, -(2*Minute + 3*Second + 400*Millisecond)},
+	{"1h2m3s4ms5us6ns", true, 1*Hour + 2*Minute + 3*Second + 4*Millisecond + 5*Microsecond + 6*Nanosecond},
+	{"39h9m14.425s", true, 39*Hour + 9*Minute + 14*Second + 425*Millisecond},
+
+	// errors
+	{"", false, 0},
+	{"3", false, 0},
+	{"-", false, 0},
+	{"s", false, 0},
+	{".", false, 0},
+	{"-.", false, 0},
+	{".s", false, 0},
+	{"+.s", false, 0},
+}
+
+func TestParseDuration(t *testing.T) {
+	for _, tc := range parseDurationTests {
+		d, err := ParseDuration(tc.in)
+		if tc.ok && (err != nil || d != tc.want) {
+			t.Errorf("ParseDuration(%q) = %v, %v, want %v, nil", tc.in, d, err, tc.want)
+		} else if !tc.ok && err == nil {
+			t.Errorf("ParseDuration(%q) = _, nil, want _, non-nil", tc.in)
+		}
+	}
+}
+
+func TestParseDurationRoundTrip(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		// Resolutions finer than milliseconds will result in
+		// imprecise round-trips.
+		d0 := Duration(rand.Int31()) * Millisecond
+		s := d0.String()
+		d1, err := ParseDuration(s)
+		if err != nil || d0 != d1 {
+			t.Errorf("round-trip failed: %d => %q => %d, %v", d0, s, d1, err)
 		}
 	}
 }
