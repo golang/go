@@ -336,6 +336,26 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 	return a
 }
 
+// actionList returns the list of actions in the dag rooted at root
+// as visited in a depth-first post-order traversal.
+func actionList(root *action) []*action {
+	seen := map[*action]bool{}
+	all := []*action{}
+	var walk func(*action)
+	walk = func(a *action) {
+		if seen[a] {
+			return
+		}
+		seen[a] = true
+		for _, a1 := range a.deps {
+			walk(a1)
+		}
+		all = append(all, a)
+	}
+	walk(root)
+	return all
+}
+
 // do runs the action graph rooted at root.
 func (b *builder) do(root *action) {
 	// Build list of all actions, assigning depth-first post-order priority.
@@ -349,27 +369,16 @@ func (b *builder) do(root *action) {
 	// ensure that, all else being equal, the execution prefers
 	// to do what it would have done first in a simple depth-first
 	// dependency order traversal.
-	all := map[*action]bool{}
-	priority := 0
-	var walk func(*action)
-	walk = func(a *action) {
-		if all[a] {
-			return
-		}
-		all[a] = true
-		priority++
-		for _, a1 := range a.deps {
-			walk(a1)
-		}
-		a.priority = priority
+	all := actionList(root)
+	for i, a := range all {
+		a.priority = i
 	}
-	walk(root)
 
 	b.readySema = make(chan bool, len(all))
 	done := make(chan bool)
 
 	// Initialize per-action execution state.
-	for a := range all {
+	for _, a := range all {
 		for _, a1 := range a.deps {
 			a1.triggers = append(a1.triggers, a)
 		}

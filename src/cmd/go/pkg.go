@@ -48,6 +48,7 @@ type Package struct {
 	imports []*Package
 	gofiles []string // GoFiles+CgoFiles, absolute paths
 	target  string   // installed file for this package (may be executable)
+	fake    bool     // synthesized package
 }
 
 // packageCache is a lookup cache for loadPackage,
