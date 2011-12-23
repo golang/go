@@ -90,7 +90,7 @@ func Short() bool {
 // If addFileLine is true, it also prefixes the string with the file and line of the call site.
 func decorate(s string, addFileLine bool) string {
 	if addFileLine {
-		_, file, line, ok := runtime.Caller(3) // decorate + log + public function.
+		_, file, line, ok := runtime.Caller(4) // decorate + log + public function.
 		if ok {
 			// Truncate file name at last file name separator.
 			if index := strings.LastIndex(file, "/"); index >= 0 {
