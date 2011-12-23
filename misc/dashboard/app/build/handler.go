@@ -152,11 +152,10 @@ func todoHandler(r *http.Request) (interface{}, os.Error) {
 	c := appengine.NewContext(r)
 	now := cache.Now(c)
 	key := "build-todo-" + r.Form.Encode()
-	cachedTodo := new(Todo)
-	if cache.Get(r, now, key, cachedTodo) {
-		return cachedTodo, nil
-	}
 	var todo *Todo
+	if cache.Get(r, now, key, &todo) {
+		return todo, nil
+	}
 	var err os.Error
 	builder := r.FormValue("builder")
 	for _, kind := range r.Form["kind"] {
