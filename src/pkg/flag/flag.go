@@ -65,12 +65,13 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"time"
 )
 
 // ErrHelp is the error returned if the flag -help is invoked but no such flag is defined.
 var ErrHelp = errors.New("flag: help requested")
 
-// -- Bool Value
+// -- bool Value
 type boolValue bool
 
 func newBoolValue(val bool, p *bool) *boolValue {
@@ -86,7 +87,7 @@ func (b *boolValue) Set(s string) bool {
 
 func (b *boolValue) String() string { return fmt.Sprintf("%v", *b) }
 
-// -- Int Value
+// -- int Value
 type intValue int
 
 func newIntValue(val int, p *int) *intValue {
@@ -102,7 +103,7 @@ func (i *intValue) Set(s string) bool {
 
 func (i *intValue) String() string { return fmt.Sprintf("%v", *i) }
 
-// -- Int64 Value
+// -- int64 Value
 type int64Value int64
 
 func newInt64Value(val int64, p *int64) *int64Value {
@@ -118,7 +119,7 @@ func (i *int64Value) Set(s string) bool {
 
 func (i *int64Value) String() string { return fmt.Sprintf("%v", *i) }
 
-// -- Uint Value
+// -- uint Value
 type uintValue uint
 
 func newUintValue(val uint, p *uint) *uintValue {
@@ -165,7 +166,7 @@ func (s *stringValue) Set(val string) bool {
 
 func (s *stringValue) String() string { return fmt.Sprintf("%s", *s) }
 
-// -- Float64 Value
+// -- float64 Value
 type float64Value float64
 
 func newFloat64Value(val float64, p *float64) *float64Value {
@@ -180,6 +181,22 @@ func (f *float64Value) Set(s string) bool {
 }
 
 func (f *float64Value) String() string { return fmt.Sprintf("%v", *f) }
+
+// -- time.Duration Value
+type durationValue time.Duration
+
+func newDurationValue(val time.Duration, p *time.Duration) *durationValue {
+	*p = val
+	return (*durationValue)(p)
+}
+
+func (d *durationValue) Set(s string) bool {
+	v, err := time.ParseDuration(s)
+	*d = durationValue(v)
+	return err == nil
+}
+
+func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 
 // Value is the interface to the dynamic value stored in a flag.
 // (The default value is represented as a string.)
@@ -543,10 +560,36 @@ func (f *FlagSet) Float64(name string, value float64, usage string) *float64 {
 	return p
 }
 
-// Float64 defines an int flag with specified name, default value, and usage string.
+// Float64 defines a float64 flag with specified name, default value, and usage string.
 // The return value is the address of a float64 variable that stores the value of the flag.
 func Float64(name string, value float64, usage string) *float64 {
 	return commandLine.Float64(name, value, usage)
+}
+
+// DurationVar defines a time.Duration flag with specified name, default value, and usage string.
+// The argument p points to a time.Duration variable in which to store the value of the flag.
+func (f *FlagSet) DurationVar(p *time.Duration, name string, value time.Duration, usage string) {
+	f.Var(newDurationValue(value, p), name, usage)
+}
+
+// DurationVar defines a time.Duration flag with specified name, default value, and usage string.
+// The argument p points to a time.Duration variable in which to store the value of the flag.
+func DurationVar(p *time.Duration, name string, value time.Duration, usage string) {
+	commandLine.Var(newDurationValue(value, p), name, usage)
+}
+
+// Duration defines a time.Duration flag with specified name, default value, and usage string.
+// The return value is the address of a time.Duration variable that stores the value of the flag.
+func (f *FlagSet) Duration(name string, value time.Duration, usage string) *time.Duration {
+	p := new(time.Duration)
+	f.DurationVar(p, name, value, usage)
+	return p
+}
+
+// Duration defines a time.Duration flag with specified name, default value, and usage string.
+// The return value is the address of a time.Duration variable that stores the value of the flag.
+func Duration(name string, value time.Duration, usage string) *time.Duration {
+	return commandLine.Duration(name, value, usage)
 }
 
 // Var defines a flag with the specified name and usage string. The type and

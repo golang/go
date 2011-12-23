@@ -10,16 +10,18 @@ import (
 	"os"
 	"sort"
 	"testing"
+	"time"
 )
 
 var (
-	test_bool    = Bool("test_bool", false, "bool value")
-	test_int     = Int("test_int", 0, "int value")
-	test_int64   = Int64("test_int64", 0, "int64 value")
-	test_uint    = Uint("test_uint", 0, "uint value")
-	test_uint64  = Uint64("test_uint64", 0, "uint64 value")
-	test_string  = String("test_string", "0", "string value")
-	test_float64 = Float64("test_float64", 0, "float64 value")
+	test_bool     = Bool("test_bool", false, "bool value")
+	test_int      = Int("test_int", 0, "int value")
+	test_int64    = Int64("test_int64", 0, "int64 value")
+	test_uint     = Uint("test_uint", 0, "uint value")
+	test_uint64   = Uint64("test_uint64", 0, "uint64 value")
+	test_string   = String("test_string", "0", "string value")
+	test_float64  = Float64("test_float64", 0, "float64 value")
+	test_duration = Duration("test_duration", 0, "time.Duration value")
 )
 
 func boolString(s string) string {
@@ -41,6 +43,8 @@ func TestEverything(t *testing.T) {
 				ok = true
 			case f.Name == "test_bool" && f.Value.String() == boolString(desired):
 				ok = true
+			case f.Name == "test_duration" && f.Value.String() == desired+"s":
+				ok = true
 			}
 			if !ok {
 				t.Error("Visit: bad value", f.Value.String(), "for", f.Name)
@@ -48,7 +52,7 @@ func TestEverything(t *testing.T) {
 		}
 	}
 	VisitAll(visitor)
-	if len(m) != 7 {
+	if len(m) != 8 {
 		t.Error("VisitAll misses some flags")
 		for k, v := range m {
 			t.Log(k, *v)
@@ -70,9 +74,10 @@ func TestEverything(t *testing.T) {
 	Set("test_uint64", "1")
 	Set("test_string", "1")
 	Set("test_float64", "1")
+	Set("test_duration", "1s")
 	desired = "1"
 	Visit(visitor)
-	if len(m) != 7 {
+	if len(m) != 8 {
 		t.Error("Visit fails after set")
 		for k, v := range m {
 			t.Log(k, *v)
@@ -109,6 +114,7 @@ func testParse(f *FlagSet, t *testing.T) {
 	uint64Flag := f.Uint64("uint64", 0, "uint64 value")
 	stringFlag := f.String("string", "0", "string value")
 	float64Flag := f.Float64("float64", 0, "float64 value")
+	durationFlag := f.Duration("duration", 5*time.Second, "time.Duration value")
 	extra := "one-extra-argument"
 	args := []string{
 		"-bool",
@@ -119,6 +125,7 @@ func testParse(f *FlagSet, t *testing.T) {
 		"--uint64", "25",
 		"-string", "hello",
 		"-float64", "2718e28",
+		"-duration", "2m",
 		extra,
 	}
 	if err := f.Parse(args); err != nil {
@@ -150,6 +157,9 @@ func testParse(f *FlagSet, t *testing.T) {
 	}
 	if *float64Flag != 2718e28 {
 		t.Error("float64 flag should be 2718e28, is ", *float64Flag)
+	}
+	if *durationFlag != 2*time.Minute {
+		t.Error("duration flag should be 2m, is ", *durationFlag)
 	}
 	if len(f.Args()) != 1 {
 		t.Error("expected one argument, got", len(f.Args()))
