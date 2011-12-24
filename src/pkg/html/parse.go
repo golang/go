@@ -683,7 +683,6 @@ func inBodyIM(p *parser) bool {
 			p.reconstructActiveFormattingElements()
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.framesetOK = false
-			// TODO: detect <select> inside a table.
 			p.im = inSelectIM
 			return true
 		case "form":
@@ -1049,6 +1048,17 @@ func inTableIM(p *parser) bool {
 			p.addElement("colgroup", p.tok.Attr)
 			p.im = inColumnGroupIM
 			return false
+		case "select":
+			p.reconstructActiveFormattingElements()
+			switch p.top().Data {
+			case "table", "tbody", "tfoot", "thead", "tr":
+				p.fosterParenting = true
+			}
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.fosterParenting = false
+			p.framesetOK = false
+			p.im = inSelectInTableIM
+			return true
 		default:
 			// TODO.
 		}
@@ -1109,6 +1119,12 @@ func inCaptionIM(p *parser) bool {
 				// Ignore the token.
 				return true
 			}
+		case "select":
+			p.reconstructActiveFormattingElements()
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.framesetOK = false
+			p.im = inSelectInTableIM
+			return true
 		}
 	case EndTagToken:
 		switch p.tok.Data {
@@ -1311,6 +1327,12 @@ func inCellIM(p *parser) bool {
 		case "caption", "col", "colgroup", "tbody", "td", "tfoot", "th", "thead", "tr":
 			// TODO: check for "td" or "th" in table scope.
 			closeTheCellAndReprocess = true
+		case "select":
+			p.reconstructActiveFormattingElements()
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.framesetOK = false
+			p.im = inSelectInTableIM
+			return true
 		}
 	case EndTagToken:
 		switch p.tok.Data {
@@ -1405,21 +1427,40 @@ func inSelectIM(p *parser) bool {
 		})
 	}
 	if endSelect {
-		for i := len(p.oe) - 1; i >= 0; i-- {
-			switch p.oe[i].Data {
-			case "select":
-				p.oe = p.oe[:i]
-				p.resetInsertionMode()
-				return true
-			case "option", "optgroup":
-				continue
-			default:
+		p.endSelect()
+	}
+	return true
+}
+
+// Section 12.2.5.4.17.
+func inSelectInTableIM(p *parser) bool {
+	switch p.tok.Type {
+	case StartTagToken, EndTagToken:
+		switch p.tok.Data {
+		case "caption", "table", "tbody", "tfoot", "thead", "tr", "td", "th":
+			if p.tok.Type == StartTagToken || p.elementInScope(tableScopeStopTags, p.tok.Data) {
+				p.endSelect()
+				return false
+			} else {
 				// Ignore the token.
 				return true
 			}
 		}
 	}
-	return true
+	return inSelectIM(p)
+}
+
+func (p *parser) endSelect() {
+	for i := len(p.oe) - 1; i >= 0; i-- {
+		switch p.oe[i].Data {
+		case "option", "optgroup":
+			continue
+		case "select":
+			p.oe = p.oe[:i]
+			p.resetInsertionMode()
+		}
+		return
+	}
 }
 
 // Section 12.2.5.4.18.
