@@ -4,6 +4,25 @@
 
 package html
 
+import (
+	"strings"
+)
+
+func adjustForeignAttributes(aa []Attribute) {
+	for i, a := range aa {
+		if a.Key == "" || a.Key[0] != 'x' {
+			continue
+		}
+		switch a.Key {
+		case "xlink:actuate", "xlink:arcrole", "xlink:href", "xlink:role", "xlink:show",
+			"xlink:title", "xlink:type", "xml:base", "xml:lang", "xml:space", "xmlns:xlink":
+			j := strings.Index(a.Key, ":")
+			aa[i].Namespace = a.Key[:j]
+			aa[i].Key = a.Key[j+1:]
+		}
+	}
+}
+
 // Section 12.2.5.5.
 var breakout = map[string]bool{
 	"b":          true,

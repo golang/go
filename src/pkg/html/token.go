@@ -52,11 +52,14 @@ func (t TokenType) String() string {
 	return "Invalid(" + strconv.Itoa(int(t)) + ")"
 }
 
-// An Attribute is an attribute key-value pair. Key is alphabetic (and hence
+// An Attribute is an attribute namespace-key-value triple. Namespace is
+// non-empty for foreign attributes like xlink, Key is alphabetic (and hence
 // does not contain escapable characters like '&', '<' or '>'), and Val is
 // unescaped (it looks like "a<b" rather than "a&lt;b").
+//
+// Namespace is only used by the parser, not the tokenizer.
 type Attribute struct {
-	Key, Val string
+	Namespace, Key, Val string
 }
 
 // A Token consists of a TokenType and some Data (tag name for start and end
@@ -756,7 +759,7 @@ func (z *Tokenizer) Token() Token {
 		for moreAttr {
 			var key, val []byte
 			key, val, moreAttr = z.TagAttr()
-			attr = append(attr, Attribute{string(key), string(val)})
+			attr = append(attr, Attribute{"", string(key), string(val)})
 		}
 		t.Data = string(name)
 		t.Attr = attr
