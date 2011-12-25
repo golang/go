@@ -149,6 +149,14 @@ func render1(w writer, n *Node) error {
 		if err := w.WriteByte(' '); err != nil {
 			return err
 		}
+		if a.Namespace != "" {
+			if _, err := w.WriteString(a.Namespace); err != nil {
+				return err
+			}
+			if err := w.WriteByte(':'); err != nil {
+				return err
+			}
+		}
 		if _, err := w.WriteString(a.Key); err != nil {
 			return err
 		}

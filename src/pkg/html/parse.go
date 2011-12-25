@@ -807,7 +807,7 @@ func inBodyIM(p *parser) bool {
 				// TODO: adjust SVG attributes.
 				namespace = "svg"
 			}
-			// TODO: adjust foreign attributes.
+			adjustForeignAttributes(p.tok.Attr)
 			p.addElement(p.tok.Data, p.tok.Attr)
 			p.top().Namespace = namespace
 			return true
@@ -1678,7 +1678,7 @@ func parseForeignContent(p *parser) bool {
 		default:
 			panic("html: bad parser state: unexpected namespace")
 		}
-		// TODO: adjust foreign attributes.
+		adjustForeignAttributes(p.tok.Attr)
 		p.addElement(p.tok.Data, p.tok.Attr)
 	case EndTagToken:
 		for i := len(p.oe) - 1; i >= 0; i-- {
