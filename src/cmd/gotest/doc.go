@@ -75,7 +75,7 @@ Usage:
 		[-test.cpuprofile=cpu.out] \
 		[-test.memprofile=mem.out] [-test.memprofilerate=1] \
 		[-test.parallel=$GOMAXPROCS] \
-		[-test.timeout=10] [-test.short] \
+		[-test.timeout=10s] [-test.short] \
 		[-test.benchtime=3] [-test.cpu=1,2,3,4]
 
 The -test.v flag causes the tests to be logged as they run.  The
@@ -117,7 +117,7 @@ time.  It is off by default but set by all.bash so installations of
 the Go tree can do a sanity check but not spend time running
 exhaustive tests.
 
-The -test.timeout flag sets a timeout for the test in seconds.  If the
+The -test.timeout flag sets a timeout for the test.  If the
 test runs for longer than that, it will panic, dumping a stack trace
 of all existing goroutines.
 

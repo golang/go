@@ -118,8 +118,8 @@ The resulting test binary, called test.out, has its own flags:
 	    the Go tree can run a sanity check but not spend time running
 	    exhaustive tests.
 
-	-test.timeout n
-		If a test runs longer than n seconds, panic.
+	-test.timeout t
+		If a test runs longer than t, panic.
 
 	-test.benchtime n
 		Run enough iterations of each benchmark to take n seconds.
