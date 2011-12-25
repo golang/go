@@ -184,9 +184,9 @@ func (f *flagVar) String() string {
 	return fmt.Sprint([]string(*f))
 }
 
-func (f *flagVar) Set(value string) bool {
+func (f *flagVar) Set(value string) error {
 	*f = append(*f, value)
-	return true
+	return nil
 }
 
 func TestUserDefined(t *testing.T) {

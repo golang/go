@@ -79,10 +79,10 @@ func newBoolValue(val bool, p *bool) *boolValue {
 	return (*boolValue)(p)
 }
 
-func (b *boolValue) Set(s string) bool {
+func (b *boolValue) Set(s string) error {
 	v, err := strconv.ParseBool(s)
 	*b = boolValue(v)
-	return err == nil
+	return err
 }
 
 func (b *boolValue) String() string { return fmt.Sprintf("%v", *b) }
@@ -95,10 +95,10 @@ func newIntValue(val int, p *int) *intValue {
 	return (*intValue)(p)
 }
 
-func (i *intValue) Set(s string) bool {
+func (i *intValue) Set(s string) error {
 	v, err := strconv.ParseInt(s, 0, 64)
 	*i = intValue(v)
-	return err == nil
+	return err
 }
 
 func (i *intValue) String() string { return fmt.Sprintf("%v", *i) }
@@ -111,10 +111,10 @@ func newInt64Value(val int64, p *int64) *int64Value {
 	return (*int64Value)(p)
 }
 
-func (i *int64Value) Set(s string) bool {
+func (i *int64Value) Set(s string) error {
 	v, err := strconv.ParseInt(s, 0, 64)
 	*i = int64Value(v)
-	return err == nil
+	return err
 }
 
 func (i *int64Value) String() string { return fmt.Sprintf("%v", *i) }
@@ -127,10 +127,10 @@ func newUintValue(val uint, p *uint) *uintValue {
 	return (*uintValue)(p)
 }
 
-func (i *uintValue) Set(s string) bool {
+func (i *uintValue) Set(s string) error {
 	v, err := strconv.ParseUint(s, 0, 64)
 	*i = uintValue(v)
-	return err == nil
+	return err
 }
 
 func (i *uintValue) String() string { return fmt.Sprintf("%v", *i) }
@@ -143,10 +143,10 @@ func newUint64Value(val uint64, p *uint64) *uint64Value {
 	return (*uint64Value)(p)
 }
 
-func (i *uint64Value) Set(s string) bool {
+func (i *uint64Value) Set(s string) error {
 	v, err := strconv.ParseUint(s, 0, 64)
 	*i = uint64Value(v)
-	return err == nil
+	return err
 }
 
 func (i *uint64Value) String() string { return fmt.Sprintf("%v", *i) }
@@ -159,9 +159,9 @@ func newStringValue(val string, p *string) *stringValue {
 	return (*stringValue)(p)
 }
 
-func (s *stringValue) Set(val string) bool {
+func (s *stringValue) Set(val string) error {
 	*s = stringValue(val)
-	return true
+	return nil
 }
 
 func (s *stringValue) String() string { return fmt.Sprintf("%s", *s) }
@@ -174,10 +174,10 @@ func newFloat64Value(val float64, p *float64) *float64Value {
 	return (*float64Value)(p)
 }
 
-func (f *float64Value) Set(s string) bool {
+func (f *float64Value) Set(s string) error {
 	v, err := strconv.ParseFloat(s, 64)
 	*f = float64Value(v)
-	return err == nil
+	return err
 }
 
 func (f *float64Value) String() string { return fmt.Sprintf("%v", *f) }
@@ -190,10 +190,10 @@ func newDurationValue(val time.Duration, p *time.Duration) *durationValue {
 	return (*durationValue)(p)
 }
 
-func (d *durationValue) Set(s string) bool {
+func (d *durationValue) Set(s string) error {
 	v, err := time.ParseDuration(s)
 	*d = durationValue(v)
-	return err == nil
+	return err
 }
 
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
@@ -202,7 +202,7 @@ func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 // (The default value is represented as a string.)
 type Value interface {
 	String() string
-	Set(string) bool
+	Set(string) error
 }
 
 // ErrorHandling defines how to handle flag parsing errors.
@@ -293,27 +293,25 @@ func Lookup(name string) *Flag {
 	return commandLine.formal[name]
 }
 
-// Set sets the value of the named flag.  It returns true if the set succeeded; false if
-// there is no such flag defined.
-func (f *FlagSet) Set(name, value string) bool {
+// Set sets the value of the named flag.
+func (f *FlagSet) Set(name, value string) error {
 	flag, ok := f.formal[name]
 	if !ok {
-		return false
+		return fmt.Errorf("no such flag -%v", name)
 	}
-	ok = flag.Value.Set(value)
-	if !ok {
-		return false
+	err := flag.Value.Set(value)
+	if err != nil {
+		return err
 	}
 	if f.actual == nil {
 		f.actual = make(map[string]*Flag)
 	}
 	f.actual[name] = flag
-	return true
+	return nil
 }
 
-// Set sets the value of the named command-line flag. It returns true if the
-// set succeeded; false if there is no such flag defined.
-func Set(name, value string) bool {
+// Set sets the value of the named command-line flag.
+func Set(name, value string) error {
 	return commandLine.Set(name, value)
 }
 
@@ -688,8 +686,8 @@ func (f *FlagSet) parseOne() (bool, error) {
 	}
 	if fv, ok := flag.Value.(*boolValue); ok { // special case: doesn't need an arg
 		if has_value {
-			if !fv.Set(value) {
-				f.failf("invalid boolean value %q for flag: -%s", value, name)
+			if err := fv.Set(value); err != nil {
+				f.failf("invalid boolean value %q for  -%s: %v", value, name, err)
 			}
 		} else {
 			fv.Set("true")
@@ -704,9 +702,8 @@ func (f *FlagSet) parseOne() (bool, error) {
 		if !has_value {
 			return false, f.failf("flag needs an argument: -%s", name)
 		}
-		ok = flag.Value.Set(value)
-		if !ok {
-			return false, f.failf("invalid value %q for flag: -%s", value, name)
+		if err := flag.Value.Set(value); err != nil {
+			return false, f.failf("invalid value %q for flag -%s: %v", value, name, err)
 		}
 	}
 	if f.actual == nil {
