@@ -34,9 +34,12 @@ hg clone -r $(hg id -n | sed 's/+//') $(hg root) go
 
 rm -rf ./go/.hg ./go/.hgignore ./go/.hgtags
 
-echo "%%%%% Copying pkg and bin %%%%%" 1>&2
+echo "%%%%% Copying pkg, bin and src/pkg/runtime/z* %%%%%" 1>&2
 cp -a ../../pkg go/pkg
 cp -a ../../bin go/bin
+cp ../../src/pkg/runtime/z*.c go/src/pkg/runtime/
+cp ../../src/pkg/runtime/z*.go go/src/pkg/runtime/
+cp ../../src/pkg/runtime/z*.h go/src/pkg/runtime/
 
 echo "%%%%% Starting zip packaging %%%%%" 1>&2
 7za a -tzip -mx=9 gowin$GOARCH"_"$ver.zip "go/" >/dev/null
