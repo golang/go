@@ -93,13 +93,19 @@ func (w *Writer) Emerg(m string) (err error) {
 	return err
 }
 
+// Alert logs a message using the LOG_ALERT priority.
+func (w *Writer) Alert(m string) (err error) {
+	_, err = w.writeString(LOG_ALERT, m)
+	return err
+}
+
 // Crit logs a message using the LOG_CRIT priority.
 func (w *Writer) Crit(m string) (err error) {
 	_, err = w.writeString(LOG_CRIT, m)
 	return err
 }
 
-// ERR logs a message using the LOG_ERR priority.
+// Err logs a message using the LOG_ERR priority.
 func (w *Writer) Err(m string) (err error) {
 	_, err = w.writeString(LOG_ERR, m)
 	return err
