@@ -200,13 +200,16 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
 
 // Read reads the next len(p) bytes from the buffer or until the buffer
 // is drained.  The return value n is the number of bytes read.  If the
-// buffer has no data to return, err is io.EOF even if len(p) is zero;
+// buffer has no data to return, err is io.EOF (unless len(p) is zero);
 // otherwise it is nil.
 func (b *Buffer) Read(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
 	if b.off >= len(b.buf) {
 		// Buffer is empty, reset to recover space.
 		b.Truncate(0)
+		if len(p) == 0 {
+			return
+		}
 		return 0, io.EOF
 	}
 	n = copy(p, b.buf[b.off:])
