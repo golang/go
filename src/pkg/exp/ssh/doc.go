@@ -78,8 +78,26 @@ present a simple terminal interface.
 		return
 	}()
 
-An SSH client is represented with a ClientConn. Currently only the "password"
-authentication method is supported. 
+To authenticate with the remote server you must pass at least one implementation of 
+ClientAuth via the Auth field in ClientConfig.
+
+	// password implements the ClientPassword interface
+	type password string
+
+	func (p password) Password(user string) (string, error) {
+		return string(p), nil
+	}
+
+	config := &ssh.ClientConfig {
+		User: "username",
+		Auth: []ClientAuth {
+			// ClientAuthPassword wraps a ClientPassword implementation
+			// in a type that implements ClientAuth.
+			ClientAuthPassword(password("yourpassword")),
+		}
+	}
+
+An SSH client is represented with a ClientConn. 
 
 	config := &ClientConfig{
 		User: "username",
@@ -94,12 +112,12 @@ Each ClientConn can support multiple interactive sessions, represented by a Sess
 Once a Session is created, you can execute a single command on the remote side 
 using the Run method.
 
+	b := bytes.NewBuffer()
+	session.Stdin = b
 	if err := session.Run("/usr/bin/whoami"); err != nil {
 		panic("Failed to exec: " + err.String())
 	}
-	reader := bufio.NewReader(session.Stdin)
-	line, _, _ := reader.ReadLine()
-	fmt.Println(line)
+	fmt.Println(bytes.String())
 	session.Close()
 */
 package ssh

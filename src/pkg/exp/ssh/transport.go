@@ -117,9 +117,7 @@ func (r *reader) readOnePacket() ([]byte, error) {
 		return nil, err
 	}
 	mac := packet[length-1:]
-	if r.cipher != nil {
-		r.cipher.XORKeyStream(packet, packet[:length-1])
-	}
+	r.cipher.XORKeyStream(packet, packet[:length-1])
 
 	if r.mac != nil {
 		r.mac.Write(packet[:length-1])
