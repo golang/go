@@ -373,3 +373,16 @@ func TestReadBytes(t *testing.T) {
 		}
 	}
 }
+
+// Was a bug: used to give EOF reading empty slice at EOF.
+func TestReadEmptyAtEOF(t *testing.T) {
+	b := new(Buffer)
+	slice := make([]byte, 0)
+	n, err := b.Read(slice)
+	if err != nil {
+		t.Errorf("read error: %v", err)
+	}
+	if n != 0 {
+		t.Errorf("wrong count; got %d want 0", n)
+	}
+}
