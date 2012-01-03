@@ -749,6 +749,19 @@ func inBodyIM(p *parser) bool {
 					copyAttributes(body, p.tok)
 				}
 			}
+		case "frameset":
+			if !p.framesetOK || len(p.oe) < 2 || p.oe[1].Data != "body" {
+				// Ignore the token.
+				return true
+			}
+			body := p.oe[1]
+			if body.Parent != nil {
+				body.Parent.Remove(body)
+			}
+			p.oe = p.oe[:1]
+			p.addElement(p.tok.Data, p.tok.Attr)
+			p.im = inFramesetIM
+			return true
 		case "base", "basefont", "bgsound", "command", "link", "meta", "noframes", "script", "style", "title":
 			return inHeadIM(p)
 		case "image":
