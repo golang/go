@@ -12,6 +12,7 @@ package json
 import (
 	"bytes"
 	"encoding/base64"
+	"math"
 	"reflect"
 	"runtime"
 	"sort"
@@ -170,6 +171,15 @@ func (e *UnsupportedTypeError) Error() string {
 	return "json: unsupported type: " + e.Type.String()
 }
 
+type UnsupportedValueError struct {
+	Value reflect.Value
+	Str   string
+}
+
+func (e *UnsupportedValueError) Error() string {
+	return "json: unsupported value: " + e.Str
+}
+
 type InvalidUTF8Error struct {
 	S string
 }
@@ -290,7 +300,11 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
 			e.Write(b)
 		}
 	case reflect.Float32, reflect.Float64:
-		b := strconv.AppendFloat(e.scratch[:0], v.Float(), 'g', -1, v.Type().Bits())
+		f := v.Float()
+		if math.IsInf(f, 0) || math.IsNaN(f) {
+			e.error(&UnsupportedValueError{v, strconv.FormatFloat(f, 'g', -1, v.Type().Bits())})
+		}
+		b := strconv.AppendFloat(e.scratch[:0], f, 'g', -1, v.Type().Bits())
 		if quoted {
 			writeString(e, string(b))
 		} else {
