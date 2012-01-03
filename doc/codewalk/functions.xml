@@ -45,7 +45,7 @@
   turn.
 </step>
 
-<step title="Multiple return values" src="doc/codewalk/pig.go:/\/\/ roll returns/,/stay.*true\n}/">
+<step title="Multiple return values" src="doc/codewalk/pig.go:/\/\/ roll returns/,/true\n}/">
 	Go functions can return multiple values.  
 	<br/><br/>
 
@@ -80,16 +80,6 @@
   <code>score</code> until one player reaches 100 points.  Each
   <code>action</code> is selected by calling the <code>strategy</code> function
   associated with the current player.
-</step>
-
-<step title="Comparing functions" src="doc/codewalk/pig.go:/if action/,/currentPlayer\)\)\n\t\t}/">
-	Functions can be compared for equality in Go.  From the 
-	<a href="http://golang.org/doc/go_spec.html#Comparison_operators">language specification</a>:
-  Function values are equal if they refer to the same function or if both are <code>nil</code>.
-	<br/><br/>
-
-  We enforce that a <code>strategy</code> function can only return a legal
-  <code>action</code>: either <code>roll</code> or <code>stay</code>.
 </step>
 
 <step title="Simulating a tournament" src="doc/codewalk/pig.go:/\/\/ roundRobin/,/gamesPerStrategy\n}/">
