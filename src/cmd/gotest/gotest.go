@@ -401,7 +401,7 @@ func writeTestmainGo() {
 	fmt.Fprintln(b) // for gofmt
 
 	// Tests.
-	fmt.Fprintln(b, "var tests = []testing.InternalTest{")
+	fmt.Fprintln(b, "var tests = []testing.InternalTest{\n")
 	for _, f := range files {
 		for _, t := range f.tests {
 			fmt.Fprintf(b, "\t{\"%s.%s\", %s.%s},\n", f.pkg, t, renamedPackage(f.pkg), t)
@@ -411,7 +411,7 @@ func writeTestmainGo() {
 	fmt.Fprintln(b)
 
 	// Benchmarks.
-	fmt.Fprintf(b, "var benchmarks = []testing.InternalBenchmark{")
+	fmt.Fprintf(b, "var benchmarks = []testing.InternalBenchmark{\n")
 	for _, f := range files {
 		for _, bm := range f.benchmarks {
 			fmt.Fprintf(b, "\t{\"%s.%s\", %s.%s},\n", f.pkg, bm, renamedPackage(f.pkg), bm)
