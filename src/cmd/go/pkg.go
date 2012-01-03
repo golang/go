@@ -29,13 +29,14 @@ type Package struct {
 	Stale      bool   `json:",omitempty"` // would 'go install' do anything for this package?
 
 	// Source files
-	GoFiles    []string // .go source files (excluding CgoFiles)
-	CFiles     []string `json:",omitempty"` // .c source files
-	HFiles     []string `json:",omitempty"` // .h source files
-	SFiles     []string `json:",omitempty"` // .s source files
-	CgoFiles   []string `json:",omitempty"` // .go sources files that import "C"
-	CgoCFLAGS  []string `json:",omitempty"` // cgo: flags for C compiler
-	CgoLDFLAGS []string `json:",omitempty"` // cgo: flags for linker
+	GoFiles     []string // .go source files (excluding CgoFiles and TestGoFiles)
+	TestGoFiles []string `json:",omitempty"` // _test.go source files
+	CFiles      []string `json:",omitempty"` // .c source files
+	HFiles      []string `json:",omitempty"` // .h source files
+	SFiles      []string `json:",omitempty"` // .s source files
+	CgoFiles    []string `json:",omitempty"` // .go sources files that import "C"
+	CgoCFLAGS   []string `json:",omitempty"` // cgo: flags for C compiler
+	CgoLDFLAGS  []string `json:",omitempty"` // cgo: flags for linker
 
 	// Dependency information
 	Imports []string `json:",omitempty"` // import paths used by this package
@@ -46,7 +47,7 @@ type Package struct {
 	pkgdir  string
 	info    *build.DirInfo
 	imports []*Package
-	gofiles []string // GoFiles+CgoFiles, absolute paths
+	gofiles []string // GoFiles+CgoFiles+TestGoFiles files, absolute paths
 	target  string   // installed file for this package (may be executable)
 	fake    bool     // synthesized package
 }
@@ -126,22 +127,23 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 	}
 
 	p := &Package{
-		Name:       info.Package,
-		Doc:        doc.CommentText(info.PackageComment),
-		ImportPath: importPath,
-		Dir:        dir,
-		Imports:    info.Imports,
-		GoFiles:    info.GoFiles,
-		CFiles:     info.CFiles,
-		HFiles:     info.HFiles,
-		SFiles:     info.SFiles,
-		CgoFiles:   info.CgoFiles,
-		CgoCFLAGS:  info.CgoCFLAGS,
-		CgoLDFLAGS: info.CgoLDFLAGS,
-		Standard:   t.Goroot && !strings.Contains(importPath, "."),
-		target:     target,
-		t:          t,
-		info:       info,
+		Name:        info.Package,
+		Doc:         doc.CommentText(info.PackageComment),
+		ImportPath:  importPath,
+		Dir:         dir,
+		Imports:     info.Imports,
+		GoFiles:     info.GoFiles,
+		TestGoFiles: info.TestGoFiles,
+		CFiles:      info.CFiles,
+		HFiles:      info.HFiles,
+		SFiles:      info.SFiles,
+		CgoFiles:    info.CgoFiles,
+		CgoCFLAGS:   info.CgoCFLAGS,
+		CgoLDFLAGS:  info.CgoLDFLAGS,
+		Standard:    t.Goroot && !strings.Contains(importPath, "."),
+		target:      target,
+		t:           t,
+		info:        info,
 	}
 
 	var built time.Time
@@ -157,7 +159,12 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 	for _, f := range info.CgoFiles {
 		p.gofiles = append(p.gofiles, filepath.Join(dir, f))
 	}
+	for _, f := range info.TestGoFiles {
+		p.gofiles = append(p.gofiles, filepath.Join(dir, f))
+	}
+
 	sort.Strings(p.gofiles)
+
 	srcss := [][]string{
 		p.GoFiles,
 		p.CFiles,
