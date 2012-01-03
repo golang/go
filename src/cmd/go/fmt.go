@@ -41,7 +41,7 @@ import paths.
 For more about godoc, see 'godoc godoc'.
 For more about import paths, see 'go help importpath'.
 
-To run gofmt with specific options, run gofmt itself.
+To run godoc with specific options, run godoc itself.
 
 See also: go fix, go fmt, go vet.
 	`,
