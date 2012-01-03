@@ -61,9 +61,6 @@ func play(strategy0, strategy1 strategy) int {
 	currentPlayer := rand.Intn(2) // Randomly decide who plays first
 	for s.player+s.thisTurn < win {
 		action := strategies[currentPlayer](s)
-		if action != roll && action != stay {
-			panic(fmt.Sprintf("Player %d is cheating", currentPlayer))
-		}
 		s, turnIsOver = action(s)
 		if turnIsOver {
 			currentPlayer = (currentPlayer + 1) % 2
