@@ -4,7 +4,10 @@
 
 package xml
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 type C struct {
 	Name string
@@ -41,7 +44,7 @@ const _1a = `
 // Tests that embedded structs are marshalled.
 func TestEmbedded1(t *testing.T) {
 	var a A
-	if e := Unmarshal(StringReader(_1a), &a); e != nil {
+	if e := Unmarshal(strings.NewReader(_1a), &a); e != nil {
 		t.Fatalf("Unmarshal: %s", e)
 	}
 	if a.FieldA != "foo" {
@@ -80,7 +83,7 @@ const _2a = `
 // Tests that conflicting field names get excluded.
 func TestEmbedded2(t *testing.T) {
 	var a A2
-	if e := Unmarshal(StringReader(_2a), &a); e != nil {
+	if e := Unmarshal(strings.NewReader(_2a), &a); e != nil {
 		t.Fatalf("Unmarshal: %s", e)
 	}
 	if a.XY != "" {
@@ -99,7 +102,7 @@ type A3 struct {
 // Tests that private fields are not set.
 func TestEmbedded3(t *testing.T) {
 	var a A3
-	if e := Unmarshal(StringReader(_2a), &a); e != nil {
+	if e := Unmarshal(strings.NewReader(_2a), &a); e != nil {
 		t.Fatalf("Unmarshal: %s", e)
 	}
 	if a.xy != "" {
@@ -115,7 +118,7 @@ type A4 struct {
 // Tests that private fields are not set.
 func TestEmbedded4(t *testing.T) {
 	var a A4
-	if e := Unmarshal(StringReader(_2a), &a); e != nil {
+	if e := Unmarshal(strings.NewReader(_2a), &a); e != nil {
 		t.Fatalf("Unmarshal: %s", e)
 	}
 	if a.Any != "foo" {

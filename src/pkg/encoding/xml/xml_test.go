@@ -154,36 +154,8 @@ var xmlInput = []string{
 	"<t>cdata]]></t>",
 }
 
-type stringReader struct {
-	s   string
-	off int
-}
-
-func (r *stringReader) Read(b []byte) (n int, err error) {
-	if r.off >= len(r.s) {
-		return 0, io.EOF
-	}
-	for r.off < len(r.s) && n < len(b) {
-		b[n] = r.s[r.off]
-		n++
-		r.off++
-	}
-	return
-}
-
-func (r *stringReader) ReadByte() (b byte, err error) {
-	if r.off >= len(r.s) {
-		return 0, io.EOF
-	}
-	b = r.s[r.off]
-	r.off++
-	return
-}
-
-func StringReader(s string) io.Reader { return &stringReader{s, 0} }
-
 func TestRawToken(t *testing.T) {
-	p := NewParser(StringReader(testInput))
+	p := NewParser(strings.NewReader(testInput))
 	testRawToken(t, p, rawTokens)
 }
 
@@ -207,7 +179,7 @@ func (d *downCaser) Read(p []byte) (int, error) {
 
 func TestRawTokenAltEncoding(t *testing.T) {
 	sawEncoding := ""
-	p := NewParser(StringReader(testInputAltEncoding))
+	p := NewParser(strings.NewReader(testInputAltEncoding))
 	p.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
 		sawEncoding = charset
 		if charset != "x-testing-uppercase" {
@@ -219,7 +191,7 @@ func TestRawTokenAltEncoding(t *testing.T) {
 }
 
 func TestRawTokenAltEncodingNoConverter(t *testing.T) {
-	p := NewParser(StringReader(testInputAltEncoding))
+	p := NewParser(strings.NewReader(testInputAltEncoding))
 	token, err := p.RawToken()
 	if token == nil {
 		t.Fatalf("expected a token on first RawToken call")
@@ -286,7 +258,7 @@ var nestedDirectivesTokens = []Token{
 }
 
 func TestNestedDirectives(t *testing.T) {
-	p := NewParser(StringReader(nestedDirectivesInput))
+	p := NewParser(strings.NewReader(nestedDirectivesInput))
 
 	for i, want := range nestedDirectivesTokens {
 		have, err := p.Token()
@@ -300,7 +272,7 @@ func TestNestedDirectives(t *testing.T) {
 }
 
 func TestToken(t *testing.T) {
-	p := NewParser(StringReader(testInput))
+	p := NewParser(strings.NewReader(testInput))
 
 	for i, want := range cookedTokens {
 		have, err := p.Token()
@@ -315,7 +287,7 @@ func TestToken(t *testing.T) {
 
 func TestSyntax(t *testing.T) {
 	for i := range xmlInput {
-		p := NewParser(StringReader(xmlInput[i]))
+		p := NewParser(strings.NewReader(xmlInput[i]))
 		var err error
 		for _, err = p.Token(); err == nil; _, err = p.Token() {
 		}
@@ -424,7 +396,7 @@ func TestIssue569(t *testing.T) {
 
 func TestUnquotedAttrs(t *testing.T) {
 	data := "<tag attr=azAZ09:-_\t>"
-	p := NewParser(StringReader(data))
+	p := NewParser(strings.NewReader(data))
 	p.Strict = false
 	token, err := p.Token()
 	if _, ok := err.(*SyntaxError); ok {
@@ -450,7 +422,7 @@ func TestValuelessAttrs(t *testing.T) {
 		{"<input checked />", "input", "checked"},
 	}
 	for _, test := range tests {
-		p := NewParser(StringReader(test[0]))
+		p := NewParser(strings.NewReader(test[0]))
 		p.Strict = false
 		token, err := p.Token()
 		if _, ok := err.(*SyntaxError); ok {
@@ -500,7 +472,7 @@ func TestCopyTokenStartElement(t *testing.T) {
 
 func TestSyntaxErrorLineNum(t *testing.T) {
 	testInput := "<P>Foo<P>\n\n<P>Bar</>\n"
-	p := NewParser(StringReader(testInput))
+	p := NewParser(strings.NewReader(testInput))
 	var err error
 	for _, err = p.Token(); err == nil; _, err = p.Token() {
 	}
@@ -515,7 +487,7 @@ func TestSyntaxErrorLineNum(t *testing.T) {
 
 func TestTrailingRawToken(t *testing.T) {
 	input := `<FOO></FOO>  `
-	p := NewParser(StringReader(input))
+	p := NewParser(strings.NewReader(input))
 	var err error
 	for _, err = p.RawToken(); err == nil; _, err = p.RawToken() {
 	}
@@ -526,7 +498,7 @@ func TestTrailingRawToken(t *testing.T) {
 
 func TestTrailingToken(t *testing.T) {
 	input := `<FOO></FOO>  `
-	p := NewParser(StringReader(input))
+	p := NewParser(strings.NewReader(input))
 	var err error
 	for _, err = p.Token(); err == nil; _, err = p.Token() {
 	}
@@ -537,7 +509,7 @@ func TestTrailingToken(t *testing.T) {
 
 func TestEntityInsideCDATA(t *testing.T) {
 	input := `<test><![CDATA[ &val=foo ]]></test>`
-	p := NewParser(StringReader(input))
+	p := NewParser(strings.NewReader(input))
 	var err error
 	for _, err = p.Token(); err == nil; _, err = p.Token() {
 	}
@@ -569,7 +541,7 @@ var characterTests = []struct {
 func TestDisallowedCharacters(t *testing.T) {
 
 	for i, tt := range characterTests {
-		p := NewParser(StringReader(tt.in))
+		p := NewParser(strings.NewReader(tt.in))
 		var err error
 
 		for err == nil {
