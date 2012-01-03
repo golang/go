@@ -6,6 +6,7 @@ package json
 
 import (
 	"bytes"
+	"math"
 	"reflect"
 	"testing"
 )
@@ -105,5 +106,23 @@ func TestEncodeRenamedByteSlice(t *testing.T) {
 	}
 	if string(result) != expect {
 		t.Errorf(" got %s want %s", result, expect)
+	}
+}
+
+var unsupportedValues = []interface{}{
+	math.NaN(),
+	math.Inf(-1),
+	math.Inf(1),
+}
+
+func TestUnsupportedValues(t *testing.T) {
+	for _, v := range unsupportedValues {
+		if _, err := Marshal(v); err != nil {
+			if _, ok := err.(*UnsupportedValueError); !ok {
+				t.Errorf("for %v, got %T want UnsupportedValueError", v, err)
+			}
+		} else {
+			t.Errorf("for %v, expected error", v)
+		}
 	}
 }
