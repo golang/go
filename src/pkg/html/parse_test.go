@@ -183,7 +183,7 @@ func TestParser(t *testing.T) {
 		{"tests3.dat", -1},
 		{"tests4.dat", -1},
 		{"tests5.dat", -1},
-		{"tests6.dat", 47},
+		{"tests6.dat", -1},
 		{"tests10.dat", 30},
 	}
 	for _, tf := range testFiles {
