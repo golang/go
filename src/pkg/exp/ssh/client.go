@@ -420,27 +420,37 @@ type chanWriter struct {
 }
 
 // Write writes data to the remote process's standard input.
-func (w *chanWriter) Write(data []byte) (n int, err error) {
-	for {
-		if w.rwin == 0 {
+func (w *chanWriter) Write(data []byte) (written int, err error) {
+	for len(data) > 0 {
+		for w.rwin < 1 {
 			win, ok := <-w.win
 			if !ok {
 				return 0, io.EOF
 			}
 			w.rwin += win
-			continue
 		}
+		n := min(len(data), w.rwin)
 		peersId := w.clientChan.peersId
-		n = len(data)
-		packet := make([]byte, 0, 9+n)
-		packet = append(packet, msgChannelData,
-			byte(peersId>>24), byte(peersId>>16), byte(peersId>>8), byte(peersId),
-			byte(n>>24), byte(n>>16), byte(n>>8), byte(n))
-		err = w.clientChan.writePacket(append(packet, data...))
+		packet := []byte{
+			msgChannelData,
+			byte(peersId >> 24), byte(peersId >> 16), byte(peersId >> 8), byte(peersId),
+			byte(n >> 24), byte(n >> 16), byte(n >> 8), byte(n),
+		}
+		if err = w.clientChan.writePacket(append(packet, data[:n]...)); err != nil {
+			break
+		}
+		data = data[n:]
 		w.rwin -= n
-		return
+		written += n
 	}
-	panic("unreachable")
+	return
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (w *chanWriter) Close() error {
