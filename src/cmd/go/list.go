@@ -36,12 +36,13 @@ being passed to the template is:
         Stale      bool   // would 'go install' do anything for this package?
 
         // Source files
-        GoFiles     []string // .go source files (excluding CgoFiles and TestGoFiles)
-        TestGoFiles []string // _test.go source files
-        CFiles      []string // .c source files
-        HFiles      []string // .h source files
-        SFiles      []string // .s source files
-        CgoFiles    []string // .go sources files that import "C"
+        GoFiles      []string // .go source files (excluding CgoFiles, TestGoFiles, and XTestGoFiles)
+        TestGoFiles  []string // _test.go source files internal to the package they are testing
+        XTestGoFiles []string // _test.go source files external to the package they are testing
+        CFiles       []string // .c source files
+        HFiles       []string // .h source files
+        SFiles       []string // .s source files
+        CgoFiles     []string // .go sources files that import "C"
 
         // Dependency information
         Imports []string // import paths used by this package
