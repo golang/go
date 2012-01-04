@@ -52,7 +52,7 @@ func Unreflect(typ interface{}, addr Pointer) (ret interface{})
 
 // New allocates and returns a pointer to memory for a new value of the given type.
 // The typ is assumed to hold a pointer to a runtime type.
-// Callers should use reflect.MakeZero instead of invoking unsafe.New directly.
+// Callers should use reflect.New or reflect.Zero instead of invoking unsafe.New directly.
 func New(typ interface{}) Pointer
 
 // NewArray allocates and returns a pointer to an array of n elements of the given type.
