@@ -5,5 +5,5 @@ http://{{.Hostname}}/log/{{.Result.LogHash}}
 
 http://code.google.com/p/go/source/detail?r={{shortHash .Commit.Hash}}
 
-$ tail -100 < log
-{{printf "%s" .Log.Text | tail 100}}
+$ tail -200 < log
+{{printf "%s" .Log.Text | tail 200}}
