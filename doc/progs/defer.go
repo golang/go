@@ -18,6 +18,7 @@ func a() {
 	i++
 	return
 }
+
 // STOP OMIT
 
 func b() {
@@ -25,12 +26,14 @@ func b() {
 		defer fmt.Print(i)
 	}
 }
+
 // STOP OMIT
 
 func c() (i int) {
 	defer func() { i++ }()
 	return 1
 }
+
 // STOP OMIT
 
 // Intial version.
@@ -50,4 +53,12 @@ func CopyFile(dstName, srcName string) (written int64, err error) {
 	src.Close()
 	return
 }
+
 // STOP OMIT
+
+func main() {
+	a()
+	b()
+	fmt.Println()
+	fmt.Println(c())
+}
