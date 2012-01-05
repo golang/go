@@ -47,9 +47,6 @@ rm -f "$GOBIN"/gomake
 ) >"$GOBIN"/gomake
 chmod +x "$GOBIN"/gomake
 
-# TODO(brainman): delete this after 01/01/2012.
-rm -f "$GOBIN"/gotest	# remove old bash version of gotest on Windows
-
 # on Fedora 16 the selinux filesystem is mounted at /sys/fs/selinux,
 # so loop through the possible selinux mount points
 for se_mount in /selinux /sys/fs/selinux
