@@ -236,9 +236,13 @@ func (r *googleRepo) Repo(client *http.Client) (url, root string, vcs *vcs, err 
 	}
 
 	// Scrape result for vcs details.
-	m := googleRepoRe.FindSubmatch(b)
-	if len(m) == 2 {
-		if v := vcsMap[string(m[1])]; v != nil {
+	if m := googleRepoRe.FindSubmatch(b); len(m) == 2 {
+		s := string(m[1])
+		if v := vcsMap[s]; v != nil {
+			if s == "svn" {
+				// Subversion still uses the old-style URL.
+				r.url = fmt.Sprintf("http://%s.googlecode.com/svn", p[0])
+			}
 			r.vcs = v
 			return r.url, r.root, r.vcs, nil
 		}
