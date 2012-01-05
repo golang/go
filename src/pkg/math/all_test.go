@@ -2214,8 +2214,8 @@ func TestLogb(t *testing.T) {
 		}
 	}
 	for i := 0; i < len(vffrexpBC); i++ {
-		if e := Logb(vffrexpBC[i]); !alike(logbBC[i], e) {
-			t.Errorf("Ilogb(%g) = %g, want %g", vffrexpBC[i], e, logbBC[i])
+		if f := Logb(vffrexpBC[i]); !alike(logbBC[i], f) {
+			t.Errorf("Logb(%g) = %g, want %g", vffrexpBC[i], f, logbBC[i])
 		}
 	}
 }
