@@ -37,8 +37,7 @@ contents of one file to the other:
     dst.Close()
     src.Close()
     return
-}
-</pre>
+}</pre>
 
 <p>
 This works, but there is a bug. If the second call to os.Open fails, the
@@ -64,8 +63,7 @@ files are always closed:
     defer dst.Close()
 
     return io.Copy(dst, src)
-}
-</pre>
+}</pre>
 
 <p>
 Defer statements allow us to think about closing each file right after opening
@@ -94,8 +92,7 @@ deferred. The deferred call will print "0" after the function returns.
     defer fmt.Println(i)
     i++
     return
-}
-</pre>
+}</pre>
 
 <p>
 2. <i>Deferred function calls are executed in Last In First Out order
@@ -111,8 +108,7 @@ This function prints "3210":
     for i := 0; i &lt; 4; i++ {
         defer fmt.Print(i)
     }
-}
-</pre>
+}</pre>
  
 <p>
 3. <i>Deferred functions may read and assign to the returning function's named
@@ -128,8 +124,7 @@ the surrounding function returns. Thus, this function returns 2:
 -->func c() (i int) {
     defer func() { i++ }()
     return 1
-}
-</pre>
+}</pre>
  
 <p>
 This is convenient for modifying the error return value of a function; we will
@@ -188,8 +183,7 @@ func g(i int) {
     defer fmt.Println(&#34;Defer in g&#34;, i)
     fmt.Println(&#34;Printing in g&#34;, i)
     g(i + 1)
-}
-</pre>
+}</pre>
  
 <p>
 The function g takes the int i, and panics if i is greater than 3, or else it

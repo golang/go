@@ -12,8 +12,7 @@ returns a non-nil <code>error</code> value when it fails to open a file.
 </p>
 
 <pre><!--{{code "progs/error.go" `/func Open/`}}
--->func Open(name string) (file *File, err error)
-</pre>
+-->func Open(name string) (file *File, err error)</pre>
 
 <p>
 The following code uses <code>os.Open</code> to open a file. If an error
@@ -21,12 +20,11 @@ occurs it calls <code>log.Fatal</code> to print the error message and stop.
 </p>
 
 <pre><!--{{code "progs/error.go" `/func openFile/` `/STOP/`}}
--->    f, err := os.Open(&#34;filename.ext&#34;)
+-->f, err := os.Open(&#34;filename.ext&#34;)
     if err != nil {
         log.Fatal(err)
     }
-    // do something with the open *File f
-</pre>
+    // do something with the open *File f</pre>
 
 <p>
 You can get a lot done in Go knowing just this about the <code>error</code>
@@ -67,8 +65,7 @@ type errorString struct {
 
 func (e *errorString) Error() string {
     return e.s
-}
-</pre>
+}</pre>
 
 <p>
 You can construct one of these values with the <code>errors.New</code>
@@ -80,8 +77,7 @@ and returns as an <code>error</code> value.
 -->// New returns an error that formats as the given text.
 func New(text string) error {
     return &amp;errorString{text}
-}
-</pre>
+}</pre>
 
 <p>
 Here's how you might use <code>errors.New</code>:
@@ -93,8 +89,7 @@ Here's how you might use <code>errors.New</code>:
         return 0, errors.New(&#34;math: square root of negative number&#34;)
     }
     // implementation
-}
-</pre>
+}</pre>
 
 <p>
 A caller passing a negative argument to <code>Sqrt</code> receives a non-nil
@@ -105,11 +100,10 @@ A caller passing a negative argument to <code>Sqrt</code> receives a non-nil
 </p>
 
 <pre><!--{{code "progs/error.go" `/func printErr/` `/STOP/`}}
--->    f, err := Sqrt(-1)
+-->f, err := Sqrt(-1)
     if err != nil {
         fmt.Println(err)
-    }
-</pre>
+    }</pre>
 
 <p>
 The <a href="/pkg/fmt/">fmt</a> package formats an <code>error</code> value
@@ -131,10 +125,9 @@ rules and returns it as an <code>error</code> created by
 </p>
 
 <pre><!--{{code "progs/error.go" `/fmtError/` `/STOP/`}}
--->    if f &lt; 0 {
+-->if f &lt; 0 {
         return 0, fmt.Errorf(&#34;math: square root of negative number %g&#34;, f)
-    }
-</pre>
+    }</pre>
 
 <p>
 In many cases <code>fmt.Errorf</code> is good enough, but since
@@ -153,8 +146,7 @@ error implementation instead of using <code>errors.errorString</code>:
 
 func (f NegativeSqrtError) Error() string {
     return fmt.Sprintf(&#34;math: square root of negative number %g&#34;, float64(f))
-}
-</pre>
+}</pre>
 
 <p>
 A sophisticated caller can then use a
@@ -176,8 +168,7 @@ returns when it encounters a syntax error parsing a JSON blob.
     Offset int64  // error occurred after reading Offset bytes
 }
 
-func (e *SyntaxError) Error() string { return e.msg }
-</pre>
+func (e *SyntaxError) Error() string { return e.msg }</pre>
 
 <p>
 The <code>Offset</code> field isn't even shown in the default formatting of the
@@ -186,14 +177,13 @@ messages:
 </p>
 
 <pre><!--{{code "progs/error.go" `/func decodeError/` `/STOP/`}}
--->    if err := dec.Decode(&amp;val); err != nil {
+-->if err := dec.Decode(&amp;val); err != nil {
         if serr, ok := err.(*json.SyntaxError); ok {
             line, col := findLine(f, serr.Offset)
             return fmt.Errorf(&#34;%s:%d:%d: %v&#34;, f.Name(), line, col, err)
         }
         return err
-    }
-</pre>
+    }</pre>
 
 <p>
 (This is a slightly simplified version of some
@@ -226,14 +216,13 @@ up otherwise.
 </p>
 
 <pre><!--{{code "progs/error.go" `/func netError/` `/STOP/`}}
--->        if nerr, ok := err.(net.Error); ok &amp;&amp; nerr.Temporary() {
+-->if nerr, ok := err.(net.Error); ok &amp;&amp; nerr.Temporary() {
             time.Sleep(1e9)
             continue
         }
         if err != nil {
             log.Fatal(err)
-        }
-</pre>
+        }</pre>
 
 <p>
 <b>Simplifying repetitive error handling</b>
@@ -269,8 +258,7 @@ func viewRecord(w http.ResponseWriter, r *http.Request) {
     if err := viewTemplate.Execute(w, record); err != nil {
         http.Error(w, err.Error(), 500)
     }
-}
-</pre>
+}</pre>
 
 <p>
 This function handles errors returned by the <code>datastore.Get</code>
@@ -287,8 +275,7 @@ type that includes an <code>error</code> return value:
 </p>
 
 <pre><!--{{code "progs/error3.go" `/type appHandler/`}}
--->type appHandler func(http.ResponseWriter, *http.Request) error
-</pre>
+-->type appHandler func(http.ResponseWriter, *http.Request) error</pre>
 
 <p>
 Then we can change our <code>viewRecord</code> function to return errors:
@@ -303,8 +290,7 @@ Then we can change our <code>viewRecord</code> function to return errors:
         return err
     }
     return viewTemplate.Execute(w, record)
-}
-</pre>
+}</pre>
 
 <p>
 This is simpler than the original version, but the <a
@@ -319,8 +305,7 @@ To fix this we can implement the <code>http.Handler</code> interface's
     if err := fn(w, r); err != nil {
         http.Error(w, err.Error(), 500)
     }
-}
-</pre>
+}</pre>
 
 <p>
 The <code>ServeHTTP</code> method calls the <code>appHandler</code> function
@@ -339,8 +324,7 @@ Now when registering <code>viewRecord</code> with the http package we use the
 <pre><!--{{code "progs/error3.go" `/func init/` `/STOP/`}}
 -->func init() {
     http.Handle(&#34;/view&#34;, appHandler(viewRecord))
-}
-</pre>
+}</pre>
 
 <p>
 With this basic error handling infrastructure in place, we can make it more
@@ -360,16 +344,14 @@ To do this we create an <code>appError</code> struct containing an
     Error   error
     Message string
     Code    int
-}
-</pre>
+}</pre>
 
 <p>
 Next we modify the appHandler type to return <code>*appError</code> values:
 </p>
 
 <pre><!--{{code "progs/error4.go" `/type appHandler/`}}
--->type appHandler func(http.ResponseWriter, *http.Request) *appError
-</pre>
+-->type appHandler func(http.ResponseWriter, *http.Request) *appError</pre>
 
 <p>
 (It's usually a mistake to pass back the concrete type of an error rather than
@@ -392,8 +374,7 @@ console:
         c.Errorf(&#34;%v&#34;, e.Error)
         http.Error(w, e.Message, e.Code)
     }
-}
-</pre>
+}</pre>
 
 <p>
 Finally, we update <code>viewRecord</code> to the new function signature and
@@ -412,8 +393,7 @@ have it return more context when it encounters an error:
         return &amp;appError{err, &#34;Can&#39;t display record&#34;, 500}
     }
     return nil
-}
-</pre>
+}</pre>
 
 <p>
 This version of <code>viewRecord</code> is the same length as the original, but

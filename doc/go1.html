@@ -44,9 +44,8 @@ call.
 </p>
 
 <pre><!--{{code "progs/go1.go" `/greeting := ..byte/` `/append.*hello/`}}
--->    greeting := []byte{}
-    greeting = append(greeting, []byte(&#34;hello &#34;)...)
-</pre>
+-->greeting := []byte{}
+    greeting = append(greeting, []byte(&#34;hello &#34;)...)</pre>
 
 <p>
 By analogy with the similar property of <code>copy</code>, Go 1
@@ -55,8 +54,7 @@ slice; the conversion is no longer necessary:
 </p>
 
 <pre><!--{{code "progs/go1.go" `/append.*world/`}}
--->    greeting = append(greeting, &#34;world&#34;...)
-</pre>
+-->greeting = append(greeting, &#34;world&#34;...)</pre>
 
 <p>
 <em>Updating</em>:
@@ -97,7 +95,7 @@ All four of the initializations in this example are legal; the last one was ille
 </p>
 
 <pre><!--{{code "progs/go1.go" `/type Date struct/` `/STOP/`}}
--->    type Date struct {
+-->type Date struct {
         month string
         day   int
     }
@@ -124,8 +122,7 @@ All four of the initializations in this example are legal; the last one was ille
         {&#34;Feb&#34;, 14},
         {&#34;Nov&#34;, 11},
         {&#34;Dec&#34;, 25},
-    }
-</pre>
+    }</pre>
 
 <p>
 <em>Updating</em>:
@@ -152,8 +149,7 @@ func init() {
     c := make(chan int)
     go initializationFunction(c)
     PackageGlobal = &lt;-c
-}
-</pre>
+}</pre>
 
 <p>
 <em>Updating</em>:
@@ -186,14 +182,13 @@ relatives now take and return a <code>rune</code>.
 </p>
 
 <pre><!--{{code "progs/go1.go" `/STARTRUNE/` `/ENDRUNE/`}}
--->    delta := &#39;δ&#39; // delta has type rune.
+-->delta := &#39;δ&#39; // delta has type rune.
     var DELTA rune
     DELTA = unicode.ToUpper(delta)
     epsilon := unicode.ToLower(DELTA + 1)
     if epsilon != &#39;δ&#39;+1 {
         log.Fatal(&#34;inconsistent casing for Greek&#34;)
-    }
-</pre>
+    }</pre>
 
 <p>
 <em>Updating</em>:
@@ -236,8 +231,7 @@ function, <code>delete</code>.  The call
 </p>
 
 <pre><!--{{code "progs/go1.go" `/delete\(m, k\)/`}}
--->    delete(m, k)
-</pre>
+-->delete(m, k)</pre>
 
 <p>
 will delete the map entry retrieved by the expression <code>m[k]</code>.
@@ -264,12 +258,11 @@ Code should not assume that the elements are visited in any particular order.
 </p>
 
 <pre><!--{{code "progs/go1.go" `/Sunday/` `/^	}/`}}
--->    m := map[string]int{&#34;Sunday&#34;: 0, &#34;Monday&#34;: 1}
+-->m := map[string]int{&#34;Sunday&#34;: 0, &#34;Monday&#34;: 1}
     for name, value := range m {
         // This loop should not assume Sunday will be visited first.
         f(name, value)
-    }
-</pre>
+    }</pre>
 
 <p>
 <em>Updating</em>:
@@ -299,7 +292,7 @@ These examples illustrate the behavior.
 </p>
 
 <pre><!--{{code "progs/go1.go" `/sa :=/` `/then sc.0. = 2/`}}
--->    sa := []int{1, 2, 3}
+-->sa := []int{1, 2, 3}
     i := 0
     i, sa[i] = 1, 2 // sets i = 1, sa[0] = 2
 
@@ -308,8 +301,7 @@ These examples illustrate the behavior.
     sb[j], j = 2, 1 // sets sb[0] = 2, j = 1
 
     sc := []int{1, 2, 3}
-    sc[0], sc[0] = 1, 2 // sets sc[0] = 1, then sc[0] = 2 (so sc[0] = 2 at end)
-</pre>
+    sc[0], sc[0] = 1, 2 // sets sc[0] = 1, then sc[0] = 2 (so sc[0] = 2 at end)</pre>
 
 <p>
 <em>Updating</em>:
@@ -417,7 +409,7 @@ As a result, structs and arrays can now be used as map keys:
 </p>
 
 <pre><!--{{code "progs/go1.go" `/type Day struct/` `/Printf/`}}
--->    type Day struct {
+-->type Day struct {
         long  string
         short string
     }
@@ -427,8 +419,7 @@ As a result, structs and arrays can now be used as map keys:
         Christmas:    true,
         Thanksgiving: true,
     }
-    fmt.Printf(&#34;Christmas is a holiday: %t\n&#34;, holiday[Christmas])
-</pre>
+    fmt.Printf(&#34;Christmas is a holiday: %t\n&#34;, holiday[Christmas])</pre>
 
 <p>
 Note that equality is still undefined for slices, for which the
@@ -575,8 +566,7 @@ does for <code>String</code>, for easy printing of error values.
 
 func (se *SyntaxError) Error() string {
     return fmt.Sprintf(&#34;%s:%d: %s&#34;, se.File, se.Line, se.Message)
-}
-</pre>
+}</pre>
 
 <p>
 All standard packages have been updated to use the new interface; the old <code>os.Error</code> is gone.
@@ -595,8 +585,7 @@ to turn a string into an error. It replaces the old <code>os.NewError</code>.
 </p>
 
 <pre><!--{{code "progs/go1.go" `/ErrSyntax/`}}
--->    var ErrSyntax = errors.New(&#34;syntax error&#34;)
-</pre>
+-->var ErrSyntax = errors.New(&#34;syntax error&#34;)</pre>
 		
 <p>
 <em>Updating</em>:
@@ -677,8 +666,7 @@ func sleepUntil(wakeup time.Time) {
     delta := wakeup.Sub(now) // A Duration.
     log.Printf(&#34;Sleeping for %.3fs&#34;, delta.Seconds())
     time.Sleep(delta)
-}
-</pre>
+}</pre>
 
 <p>
 The new types, methods, and constants have been propagated through

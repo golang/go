@@ -113,6 +113,8 @@ func code(file string, arg ...interface{}) (string, error) {
 	default:
 		return "", fmt.Errorf("incorrect code invocation: code %q %q", file, arg)
 	}
+	// Trim spaces from output.
+	text = strings.TrimSpace(text)
 	// Replace tabs by spaces, which work better in HTML.
 	text = strings.Replace(text, "\t", "    ", -1)
 	// Escape the program text for HTML.

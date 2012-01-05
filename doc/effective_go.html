@@ -1690,8 +1690,7 @@ const (
     EB
     ZB
     YB
-)
-</pre>
+)</pre>
 <p>
 The ability to attach a method such as <code>String</code> to a
 type makes it possible for such values to format themselves
@@ -1718,8 +1717,7 @@ automatically for printing, even as part of a general type.
         return fmt.Sprintf(&#34;%.2fKB&#34;, float64(b/KB))
     }
     return fmt.Sprintf(&#34;%.2fB&#34;, float64(b))
-}
-</pre>
+}</pre>
 <p>
 (The <code>float64</code> conversions prevent <code>Sprintf</code> 
 from recurring back through the <code>String</code> method for 
@@ -1893,8 +1891,7 @@ func (s Sequence) String() string {
         str += fmt.Sprint(elem)
     }
     return str + &#34;]&#34;
-}
-</pre>
+}</pre>
 
 <h3 id="conversions">Conversions</h3>
 
@@ -3044,8 +3041,7 @@ value=&#34;Show QR&#34; name=qr&gt;
 &lt;/form&gt;
 &lt;/body&gt;
 &lt;/html&gt;
-`
-</pre>
+`</pre>
 <p>
 The pieces up to <code>main</code> should be easy to follow.
 The one flag sets a default HTTP port for our server.  The template
