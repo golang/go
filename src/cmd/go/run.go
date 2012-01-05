@@ -12,7 +12,7 @@ func init() {
 }
 
 var cmdRun = &Command{
-	UsageLine: "run [-a] [-n] [-x] gofiles...",
+	UsageLine: "run [-a] [-n] [-x] gofiles... [-- arguments...]",
 	Short:     "compile and run Go program",
 	Long: `
 Run compiles and runs the main package comprising the named Go source files.
@@ -32,16 +32,34 @@ var runX = cmdRun.Flag.Bool("x", false, "")
 func runRun(cmd *Command, args []string) {
 	var b builder
 	b.init(*runA, *runN, *runX)
-	p := goFilesPackage(args, "")
+	files, args := splitArgs(args)
+	p := goFilesPackage(files, "")
 	p.target = "" // must build - not up to date
 	a1 := b.action(modeBuild, modeBuild, p)
-	a := &action{f: (*builder).runProgram, deps: []*action{a1}}
+	a := &action{f: (*builder).runProgram, args: args, deps: []*action{a1}}
 	b.do(a)
 }
 
 // runProgram is the action for running a binary that has already
 // been compiled.  We ignore exit status.
 func (b *builder) runProgram(a *action) error {
-	run(a.deps[0].target)
+	args := append([]string{a.deps[0].target}, a.args...)
+	run(args...)
 	return nil
+}
+
+// Return the argument slices before and after the "--"
+func splitArgs(args []string) (before, after []string) {
+	dashes := len(args)
+	for i, arg := range args {
+		if arg == "--" {
+			dashes = i
+			break
+		}
+	}
+	before = args[:dashes]
+	if dashes < len(args) {
+		after = args[dashes+1:]
+	}
+	return
 }
