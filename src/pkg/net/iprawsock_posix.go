@@ -260,7 +260,7 @@ func ListenIP(netProto string, laddr *IPAddr) (c *IPConn, err error) {
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
+	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_RAW, proto, "listen", sockaddrToIP)
 	if e != nil {
 		return nil, e
 	}

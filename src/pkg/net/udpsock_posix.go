@@ -233,7 +233,7 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
 	if laddr == nil {
 		return nil, &OpError{"listen", "udp", nil, errMissingAddress}
 	}
-	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
+	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
 	if e != nil {
 		return nil, e
 	}
