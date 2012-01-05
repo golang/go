@@ -157,6 +157,7 @@ type action struct {
 	deps     []*action // actions that must happen before this one
 	triggers []*action // inverse of deps
 	cgo      *action   // action for cgo binary if needed
+	args     []string  // additional args for runProgram
 
 	f          func(*builder, *action) error // the action itself (nil = no-op)
 	ignoreFail bool                          // whether to run f even if dependencies fail
