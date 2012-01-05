@@ -111,6 +111,18 @@ type ConnectionState struct {
 	VerifiedChains [][]*x509.Certificate
 }
 
+// ClientAuthType declares the policy the server will follow for
+// TLS Client Authentication.
+type ClientAuthType int
+
+const (
+	NoClientCert ClientAuthType = iota
+	RequestClientCert
+	RequireAnyClientCert
+	VerifyClientCertIfGiven
+	RequireAndVerifyClientCert
+)
+
 // A Config structure is used to configure a TLS client or server. After one
 // has been passed to a TLS function it must not be modified.
 type Config struct {
@@ -120,7 +132,7 @@ type Config struct {
 	Rand io.Reader
 
 	// Time returns the current time as the number of seconds since the epoch.
-	// If Time is nil, TLS uses the system time.Seconds.
+	// If Time is nil, TLS uses time.Now.
 	Time func() time.Time
 
 	// Certificates contains one or more certificate chains
@@ -148,11 +160,14 @@ type Config struct {
 	// hosting.
 	ServerName string
 
-	// AuthenticateClient controls whether a server will request a certificate
-	// from the client. It does not require that the client send a
-	// certificate nor does it require that the certificate sent be
-	// anything more than self-signed.
-	AuthenticateClient bool
+	// ClientAuth determines the server's policy for
+	// TLS Client Authentication. The default is NoClientCert.
+	ClientAuth ClientAuthType
+
+	// ClientCAs defines the set of root certificate authorities
+	// that servers use if required to verify a client certificate
+	// by the policy in ClientAuth.
+	ClientCAs *x509.CertPool
 
 	// InsecureSkipVerify controls whether a client verifies the
 	// server's certificate chain and host name.
@@ -259,6 +274,11 @@ type Certificate struct {
 	// OCSPStaple contains an optional OCSP response which will be served
 	// to clients that request it.
 	OCSPStaple []byte
+	// Leaf is the parsed form of the leaf certificate, which may be
+	// initialized using x509.ParseCertificate to reduce per-handshake
+	// processing for TLS clients doing client authentication. If nil, the
+	// leaf certificate will be parsed as needed.
+	Leaf *x509.Certificate
 }
 
 // A TLS record.

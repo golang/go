@@ -881,9 +881,11 @@ func (m *certificateRequestMsg) marshal() (x []byte) {
 
 	// See http://tools.ietf.org/html/rfc4346#section-7.4.4
 	length := 1 + len(m.certificateTypes) + 2
+	casLength := 0
 	for _, ca := range m.certificateAuthorities {
-		length += 2 + len(ca)
+		casLength += 2 + len(ca)
 	}
+	length += casLength
 
 	x = make([]byte, 4+length)
 	x[0] = typeCertificateRequest
@@ -895,10 +897,8 @@ func (m *certificateRequestMsg) marshal() (x []byte) {
 
 	copy(x[5:], m.certificateTypes)
 	y := x[5+len(m.certificateTypes):]
-
-	numCA := len(m.certificateAuthorities)
-	y[0] = uint8(numCA >> 8)
-	y[1] = uint8(numCA)
+	y[0] = uint8(casLength >> 8)
+	y[1] = uint8(casLength)
 	y = y[2:]
 	for _, ca := range m.certificateAuthorities {
 		y[0] = uint8(len(ca) >> 8)
@@ -909,7 +909,6 @@ func (m *certificateRequestMsg) marshal() (x []byte) {
 	}
 
 	m.raw = x
-
 	return
 }
 
@@ -937,31 +936,34 @@ func (m *certificateRequestMsg) unmarshal(data []byte) bool {
 	}
 
 	data = data[numCertTypes:]
+
 	if len(data) < 2 {
 		return false
 	}
-
-	numCAs := uint16(data[0])<<16 | uint16(data[1])
+	casLength := uint16(data[0])<<8 | uint16(data[1])
 	data = data[2:]
-
-	m.certificateAuthorities = make([][]byte, numCAs)
-	for i := uint16(0); i < numCAs; i++ {
-		if len(data) < 2 {
-			return false
-		}
-		caLen := uint16(data[0])<<16 | uint16(data[1])
-
-		data = data[2:]
-		if len(data) < int(caLen) {
-			return false
-		}
-
-		ca := make([]byte, caLen)
-		copy(ca, data)
-		m.certificateAuthorities[i] = ca
-		data = data[caLen:]
+	if len(data) < int(casLength) {
+		return false
 	}
+	cas := make([]byte, casLength)
+	copy(cas, data)
+	data = data[casLength:]
 
+	m.certificateAuthorities = nil
+	for len(cas) > 0 {
+		if len(cas) < 2 {
+			return false
+		}
+		caLen := uint16(cas[0])<<8 | uint16(cas[1])
+		cas = cas[2:]
+
+		if len(cas) < int(caLen) {
+			return false
+		}
+
+		m.certificateAuthorities = append(m.certificateAuthorities, cas[:caLen])
+		cas = cas[caLen:]
+	}
 	if len(data) > 0 {
 		return false
 	}

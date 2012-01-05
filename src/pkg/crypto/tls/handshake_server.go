@@ -150,14 +150,19 @@ FindCipherSuite:
 		c.writeRecord(recordTypeHandshake, skx.marshal())
 	}
 
-	if config.AuthenticateClient {
+	if config.ClientAuth >= RequestClientCert {
 		// Request a client certificate
 		certReq := new(certificateRequestMsg)
 		certReq.certificateTypes = []byte{certTypeRSASign}
+
 		// An empty list of certificateAuthorities signals to
 		// the client that it may send any certificate in response
-		// to our request.
-
+		// to our request. When we know the CAs we trust, then
+		// we can send them down, so that the client can choose
+		// an appropriate certificate to give to us.
+		if config.ClientCAs != nil {
+			certReq.certificateAuthorities = config.ClientCAs.Subjects()
+		}
 		finishedHash.Write(certReq.marshal())
 		c.writeRecord(recordTypeHandshake, certReq.marshal())
 	}
@@ -166,52 +171,87 @@ FindCipherSuite:
 	finishedHash.Write(helloDone.marshal())
 	c.writeRecord(recordTypeHandshake, helloDone.marshal())
 
-	var pub *rsa.PublicKey
-	if config.AuthenticateClient {
-		// Get client certificate
-		msg, err = c.readHandshake()
-		if err != nil {
-			return err
-		}
-		certMsg, ok = msg.(*certificateMsg)
-		if !ok {
-			return c.sendAlert(alertUnexpectedMessage)
-		}
-		finishedHash.Write(certMsg.marshal())
+	var pub *rsa.PublicKey // public key for client auth, if any
 
-		certs := make([]*x509.Certificate, len(certMsg.certificates))
-		for i, asn1Data := range certMsg.certificates {
-			cert, err := x509.ParseCertificate(asn1Data)
-			if err != nil {
-				c.sendAlert(alertBadCertificate)
-				return errors.New("could not parse client's certificate: " + err.Error())
-			}
-			certs[i] = cert
-		}
-
-		// TODO(agl): do better validation of certs: max path length, name restrictions etc.
-		for i := 1; i < len(certs); i++ {
-			if err := certs[i-1].CheckSignatureFrom(certs[i]); err != nil {
-				c.sendAlert(alertBadCertificate)
-				return errors.New("could not validate certificate signature: " + err.Error())
-			}
-		}
-
-		if len(certs) > 0 {
-			key, ok := certs[0].PublicKey.(*rsa.PublicKey)
-			if !ok {
-				return c.sendAlert(alertUnsupportedCertificate)
-			}
-			pub = key
-			c.peerCertificates = certs
-		}
-	}
-
-	// Get client key exchange
 	msg, err = c.readHandshake()
 	if err != nil {
 		return err
 	}
+
+	// If we requested a client certificate, then the client must send a
+	// certificate message, even if it's empty.
+	if config.ClientAuth >= RequestClientCert {
+		if certMsg, ok = msg.(*certificateMsg); !ok {
+			return c.sendAlert(alertHandshakeFailure)
+		}
+		finishedHash.Write(certMsg.marshal())
+
+		if len(certMsg.certificates) == 0 {
+			// The client didn't actually send a certificate
+			switch config.ClientAuth {
+			case RequireAnyClientCert, RequireAndVerifyClientCert:
+				c.sendAlert(alertBadCertificate)
+				return errors.New("tls: client didn't provide a certificate")
+			}
+		}
+
+		certs := make([]*x509.Certificate, len(certMsg.certificates))
+		for i, asn1Data := range certMsg.certificates {
+			if certs[i], err = x509.ParseCertificate(asn1Data); err != nil {
+				c.sendAlert(alertBadCertificate)
+				return errors.New("tls: failed to parse client certificate: " + err.Error())
+			}
+		}
+
+		if c.config.ClientAuth >= VerifyClientCertIfGiven && len(certs) > 0 {
+			opts := x509.VerifyOptions{
+				Roots:         c.config.ClientCAs,
+				CurrentTime:   c.config.time(),
+				Intermediates: x509.NewCertPool(),
+			}
+
+			for i, cert := range certs {
+				if i == 0 {
+					continue
+				}
+				opts.Intermediates.AddCert(cert)
+			}
+
+			chains, err := certs[0].Verify(opts)
+			if err != nil {
+				c.sendAlert(alertBadCertificate)
+				return errors.New("tls: failed to verify client's certificate: " + err.Error())
+			}
+
+			ok := false
+			for _, ku := range certs[0].ExtKeyUsage {
+				if ku == x509.ExtKeyUsageClientAuth {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				c.sendAlert(alertHandshakeFailure)
+				return errors.New("tls: client's certificate's extended key usage doesn't permit it to be used for client authentication")
+			}
+
+			c.verifiedChains = chains
+		}
+
+		if len(certs) > 0 {
+			if pub, ok = certs[0].PublicKey.(*rsa.PublicKey); !ok {
+				return c.sendAlert(alertUnsupportedCertificate)
+			}
+			c.peerCertificates = certs
+		}
+
+		msg, err = c.readHandshake()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Get client key exchange
 	ckx, ok := msg.(*clientKeyExchangeMsg)
 	if !ok {
 		return c.sendAlert(alertUnexpectedMessage)
