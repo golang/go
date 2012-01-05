@@ -228,7 +228,7 @@ func runTest(cmd *Command, args []string) {
 	for _, p := range pkgs {
 		buildTest, runTest, err := b.test(p)
 		if err != nil {
-			errorf("%s: %s", p, err)
+			errorf("%s", err)
 			continue
 		}
 		builds = append(builds, buildTest)
