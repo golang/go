@@ -33,8 +33,7 @@ import fmt &#34;fmt&#34; // Package implementing formatted I/O.
 
 func main() {
     fmt.Printf(&#34;Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n&#34;)
-}
-</pre>
+}</pre>
 <p>
 Every Go source file declares, using a <code>package</code> statement, which package it's part of.
 It may also import other packages to use their facilities.
@@ -144,8 +143,7 @@ func main() {
         s += Newline
     }
     os.Stdout.WriteString(s)
-}
-</pre>
+}</pre>
 <p>
 This program is small but it's doing a number of new things.  In the last example,
 we saw <code>func</code> introduce a function.  The keywords <code>var</code>, <code>const</code>, and <code>type</code>
@@ -211,8 +209,7 @@ The <code>:=</code> operator is used a lot in Go to represent an initializing de
 There's one in the <code>for</code> clause on the next line:
 <p>
 <pre><!--{{code "progs/echo.go" `/for/`}}
--->    for i := 0; i &lt; flag.NArg(); i++ {
-</pre>
+-->for i := 0; i &lt; flag.NArg(); i++ {</pre>
 <p>
 The <code>flag</code> package has parsed the arguments and left the non-flag arguments
 in a list that can be iterated over in the obvious way.
@@ -261,14 +258,13 @@ of course you can change a string <i>variable</i> simply by
 reassigning it.  This snippet from <code>strings.go</code> is legal code:
 <p>
 <pre><!--{{code "progs/strings.go" `/hello/` `/ciao/`}}
--->    s := &#34;hello&#34;
+-->s := &#34;hello&#34;
     if s[1] != &#39;e&#39; {
         os.Exit(1)
     }
     s = &#34;good bye&#34;
     var p *string = &amp;s
-    *p = &#34;ciao&#34;
-</pre>
+    *p = &#34;ciao&#34;</pre>
 <p>
 However the following statements are illegal because they would modify
 a <code>string</code> value:
@@ -340,8 +336,7 @@ Using slices one can write this function (from <code>sum.go</code>):
         s += a[i]
     }
     return s
-}
-</pre>
+}</pre>
 <p>
 Note how the return type (<code>int</code>) is defined for <code>sum</code> by stating it
 after the parameter list.
@@ -493,8 +488,7 @@ import (
 type File struct {
     fd   int    // file descriptor number
     name string // file name at Open time
-}
-</pre>
+}</pre>
 <p>
 The first few lines declare the name of the
 package&mdash;<code>file</code>&mdash;and then import two packages.  The <code>os</code>
@@ -535,8 +529,7 @@ First, though, here is a factory to create a <code>File</code>:
         return nil
     }
     return &amp;File{fd, name}
-}
-</pre>
+}</pre>
 <p>
 This returns a pointer to a new <code>File</code> structure with the file descriptor and name
 filled in.  This code uses Go's notion of a ''composite literal'', analogous to
@@ -560,8 +553,7 @@ We can use the factory to construct some familiar, exported variables of type <c
     Stdin  = newFile(syscall.Stdin, &#34;/dev/stdin&#34;)
     Stdout = newFile(syscall.Stdout, &#34;/dev/stdout&#34;)
     Stderr = newFile(syscall.Stderr, &#34;/dev/stderr&#34;)
-)
-</pre>
+)</pre>
 <p>
 The <code>newFile</code> function was not exported because it's internal. The proper,
 exported factory to use is <code>OpenFile</code> (we'll explain that name in a moment):
@@ -570,8 +562,7 @@ exported factory to use is <code>OpenFile</code> (we'll explain that name in a m
 -->func OpenFile(name string, mode int, perm uint32) (file *File, err error) {
     r, err := syscall.Open(name, mode, perm)
     return newFile(r, name), err
-}
-</pre>
+}</pre>
 <p>
 There are a number of new things in these few lines.  First, <code>OpenFile</code> returns
 multiple values, a <code>File</code> and an error (more about errors in a moment).
@@ -613,14 +604,12 @@ the tricky standard arguments to open and, especially, to create a file:
 
 func Open(name string) (file *File, err error) {
     return OpenFile(name, O_RDONLY, 0)
-}
-</pre>
+}</pre>
 <p>
 <pre><!--{{code "progs/file.go" `/func.Create/` `/^}/`}}
 -->func Create(name string) (file *File, err error) {
     return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
-}
-</pre>
+}</pre>
 <p>
 Back to our main story.
 Now that we can build <code>Files</code>, we can write methods for them. To declare
@@ -657,8 +646,7 @@ func (file *File) Write(b []byte) (ret int, err error) {
 
 func (file *File) String() string {
     return file.name
-}
-</pre>
+}</pre>
 <p>
 There is no implicit <code>this</code> and the receiver variable must be used to access
 members of the structure.  Methods are not declared within
@@ -692,8 +680,7 @@ func main() {
         fmt.Printf(&#34;can&#39;t open file; err=%s\n&#34;, err.Error())
         os.Exit(1)
     }
-}
-</pre>
+}</pre>
 <p>
 The ''<code>./</code>'' in the import of ''<code>./file</code>'' tells the compiler
 to use our own package rather than
@@ -761,8 +748,7 @@ func main() {
         cat(f)
         f.Close()
     }
-}
-</pre>
+}</pre>
 <p>
 By now this should be easy to follow, but the <code>switch</code> statement introduces some
 new features.  Like a <code>for</code> loop, an <code>if</code> or <code>switch</code> can include an
@@ -794,8 +780,7 @@ Here is code from <code>progs/cat_rot13.go</code>:
 -->type reader interface {
     Read(b []byte) (ret int, err error)
     String() string
-}
-</pre>
+}</pre>
 <p>
 Any type that has the two methods of <code>reader</code>&mdash;regardless of whatever
 other methods the type may also have&mdash;is said to <i>implement</i> the
@@ -827,16 +812,14 @@ func (r13 *rotate13) Read(b []byte) (ret int, err error) {
 func (r13 *rotate13) String() string {
     return r13.source.String()
 }
-// end of rotate13 implementation
-</pre>
+// end of rotate13 implementation</pre>
 <p>
 (The <code>rot13</code> function called in <code>Read</code> is trivial and not worth reproducing here.)
 <p>
 To use the new feature, we define a flag:
 <p>
 <pre><!--{{code "progs/cat_rot13.go" `/rot13Flag/`}}
--->var rot13Flag = flag.Bool(&#34;rot13&#34;, false, &#34;rot13 the input&#34;)
-</pre>
+-->var rot13Flag = flag.Bool(&#34;rot13&#34;, false, &#34;rot13 the input&#34;)</pre>
 <p>
 and use it from within a mostly unchanged <code>cat</code> function:
 <p>
@@ -863,8 +846,7 @@ and use it from within a mostly unchanged <code>cat</code> function:
             }
         }
     }
-}
-</pre>
+}</pre>
 <p>
 (We could also do the wrapping in <code>main</code> and leave <code>cat</code> mostly alone, except
 for changing the type of the argument; consider that an exercise.)
@@ -918,8 +900,7 @@ As an example, consider this simple sort algorithm taken from <code>progs/sort.g
             data.Swap(j, j-1)
         }
     }
-}
-</pre>
+}</pre>
 <p>
 The code needs only three methods, which we wrap into sort's <code>Interface</code>:
 <p>
@@ -928,8 +909,7 @@ The code needs only three methods, which we wrap into sort's <code>Interface</co
     Len() int
     Less(i, j int) bool
     Swap(i, j int)
-}
-</pre>
+}</pre>
 <p>
 We can apply <code>Sort</code> to any type that implements <code>Len</code>, <code>Less</code>, and <code>Swap</code>.
 The <code>sort</code> package includes the necessary methods to allow sorting of
@@ -940,8 +920,7 @@ arrays of integers, strings, etc.; here's the code for arrays of <code>int</code
 
 func (p IntSlice) Len() int           { return len(p) }
 func (p IntSlice) Less(i, j int) bool { return p[i] &lt; p[j] }
-func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-</pre>
+func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }</pre>
 <p>
 Here we see methods defined for non-<code>struct</code> types.  You can define methods
 for any type you define and name in your package.
@@ -958,8 +937,7 @@ to test that the result is sorted.
     if !sort.IsSorted(a) {
         panic(&#34;fail&#34;)
     }
-}
-</pre>
+}</pre>
 <p>
 If we have a new type we want to be able to sort, all we need to do is
 to implement the three methods for that type, like this:
@@ -977,8 +955,7 @@ type dayArray struct {
 
 func (p *dayArray) Len() int           { return len(p.data) }
 func (p *dayArray) Less(i, j int) bool { return p.data[i].num &lt; p.data[j].num }
-func (p *dayArray) Swap(i, j int)      { p.data[i], p.data[j] = p.data[j], p.data[i] }
-</pre>
+func (p *dayArray) Swap(i, j int)      { p.data[i], p.data[j] = p.data[j], p.data[i] }</pre>
 <p>
 <p>
 <h2>Printing</h2>
@@ -1013,9 +990,8 @@ can just say <code>%d</code>; <code>Printf</code> knows the size and signedness 
 integer and can do the right thing for you.  The snippet
 <p>
 <pre><!--{{code "progs/print.go" 10 11}}
--->    var u64 uint64 = 1&lt;&lt;64 - 1
-    fmt.Printf(&#34;%d %d\n&#34;, u64, int64(u64))
-</pre>
+-->var u64 uint64 = 1&lt;&lt;64 - 1
+    fmt.Printf(&#34;%d %d\n&#34;, u64, int64(u64))</pre>
 <p>
 prints
 <p>
@@ -1027,14 +1003,13 @@ In fact, if you're lazy the format <code>%v</code> will print, in a simple
 appropriate style, any value, even an array or structure.  The output of
 <p>
 <pre><!--{{code "progs/print.go" 14 20}}
--->    type T struct {
+-->type T struct {
         a int
         b string
     }
     t := T{77, &#34;Sunset Strip&#34;}
     a := []int{1, 2, 3, 4}
-    fmt.Printf(&#34;%v %v %v\n&#34;, u64, t, a)
-</pre>
+    fmt.Printf(&#34;%v %v %v\n&#34;, u64, t, a)</pre>
 <p>
 is
 <p>
@@ -1050,9 +1025,8 @@ and adds a newline.  The output of each of these two lines is identical
 to that of the <code>Printf</code> call above.
 <p>
 <pre><!--{{code "progs/print.go" 21 22}}
--->    fmt.Print(u64, &#34; &#34;, t, &#34; &#34;, a, &#34;\n&#34;)
-    fmt.Println(u64, t, a)
-</pre>
+-->fmt.Print(u64, &#34; &#34;, t, &#34; &#34;, a, &#34;\n&#34;)
+    fmt.Println(u64, t, a)</pre>
 <p>
 If you have your own type you'd like <code>Printf</code> or <code>Print</code> to format,
 just give it a <code>String</code> method that returns a string.  The print
@@ -1073,8 +1047,7 @@ func (t *testType) String() string {
 func main() {
     t := &amp;testType{77, &#34;Sunset Strip&#34;}
     fmt.Println(t)
-}
-</pre>
+}</pre>
 <p>
 Since <code>*testType</code> has a <code>String</code> method, the
 default formatter for that type will use it and produce the output
@@ -1200,8 +1173,7 @@ func generate(ch chan int) {
     for i := 2; ; i++ {
         ch &lt;- i // Send &#39;i&#39; to channel &#39;ch&#39;.
     }
-}
-</pre>
+}</pre>
 <p>
 The <code>generate</code> function sends the sequence 2, 3, 4, 5, ... to its
 argument channel, <code>ch</code>, using the binary communications operator <code>&lt;-</code>.
@@ -1223,8 +1195,7 @@ func filter(in, out chan int, prime int) {
             out &lt;- i // Send &#39;i&#39; to channel &#39;out&#39;.
         }
     }
-}
-</pre>
+}</pre>
 <p>
 The generator and filters execute concurrently.  Go has
 its own model of process/threads/light-weight processes/coroutines,
@@ -1262,8 +1233,7 @@ together:
         go filter(ch, ch1, prime)
         ch = ch1
     }
-}
-</pre>
+}</pre>
 <p>
 The first line of <code>main</code> creates the initial channel to pass to <code>generate</code>, which it
 then starts up.  As each prime pops out of the channel, a new <code>filter</code>
@@ -1283,8 +1253,7 @@ of <code>generate</code>, from <code>progs/sieve1.go</code>:
         }
     }()
     return ch
-}
-</pre>
+}</pre>
 <p>
 This version does all the setup internally. It creates the output
 channel, launches a goroutine running a function literal, and
@@ -1309,8 +1278,7 @@ The same change can be made to <code>filter</code>:
         }
     }()
     return out
-}
-</pre>
+}</pre>
 <p>
 The <code>sieve</code> function's main loop becomes simpler and clearer as a
 result, and while we're at it let's turn it into a factory too:
@@ -1327,8 +1295,7 @@ result, and while we're at it let's turn it into a factory too:
         }
     }()
     return out
-}
-</pre>
+}</pre>
 <p>
 Now <code>main</code>'s interface to the prime sieve is a channel of primes:
 <p>
@@ -1338,8 +1305,7 @@ Now <code>main</code>'s interface to the prime sieve is a channel of primes:
     for i := 0; i &lt; 100; i++ { // Print the first hundred primes.
         fmt.Println(&lt;-primes)
     }
-}
-</pre>
+}</pre>
 <p>
 <h2>Multiplexing</h2>
 <p>
@@ -1354,8 +1320,7 @@ that will be used for the reply.
 -->type request struct {
     a, b   int
     replyc chan int
-}
-</pre>
+}</pre>
 <p>
 The server will be trivial: it will do simple binary operations on integers.  Here's the
 code that invokes the operation and responds to the request:
@@ -1366,8 +1331,7 @@ code that invokes the operation and responds to the request:
 func run(op binOp, req *request) {
     reply := op(req.a, req.b)
     req.replyc &lt;- reply
-}
-</pre>
+}</pre>
 <p>
 The type declaration makes <code>binOp</code> represent a function taking two integers and
 returning a third.
@@ -1381,8 +1345,7 @@ a long-running operation, starting a goroutine to do the actual work.
         req := &lt;-service
         go run(op, req) // don&#39;t wait for it
     }
-}
-</pre>
+}</pre>
 <p>
 There's a new feature in the signature of <code>server</code>: the type of the
 <code>service</code> channel specifies the direction of communication.
@@ -1403,8 +1366,7 @@ connected to it:
     req := make(chan *request)
     go server(op, req)
     return req
-}
-</pre>
+}</pre>
 <p>
 The returned channel is send only, even though the channel was created bidirectionally.
 The read end is passed to <code>server</code>, while the send end is returned
@@ -1441,8 +1403,7 @@ does it check the results.
         }
     }
     fmt.Println(&#34;done&#34;)
-}
-</pre>
+}</pre>
 <p>
 One annoyance with this program is that it doesn't shut down the server cleanly; when <code>main</code> returns
 there are a number of lingering goroutines blocked on communication.  To solve this,
@@ -1454,8 +1415,7 @@ we can provide a second, <code>quit</code> channel to the server:
     quit = make(chan bool)
     go server(op, service, quit)
     return service, quit
-}
-</pre>
+}</pre>
 <p>
 It passes the quit channel to the <code>server</code> function, which uses it like this:
 <p>
@@ -1469,8 +1429,7 @@ It passes the quit channel to the <code>server</code> function, which uses it li
             return
         }
     }
-}
-</pre>
+}</pre>
 <p>
 Inside <code>server</code>, the <code>select</code> statement chooses which of the multiple communications
 listed by its cases can proceed.  If all are blocked, it waits until one can proceed; if
@@ -1483,12 +1442,10 @@ All that's left is to strobe the <code>quit</code> channel
 at the end of main:
 <p>
 <pre><!--{{code "progs/server1.go" `/adder,.quit/`}}
--->    adder, quit := startServer(func(a, b int) int { return a + b })
-</pre>
+-->adder, quit := startServer(func(a, b int) int { return a + b })</pre>
 ...
 <pre><!--{{code "progs/server1.go" `/quit....true/`}}
--->    quit &lt;- true
-</pre>
+-->quit &lt;- true</pre>
 <p>
 There's a lot more to Go programming and concurrent programming in general but this
 quick tour should give you some of the basics.
