@@ -61,6 +61,7 @@ for i in \
 	$effective_go \
 	$error_handling \
 	$go_tutorial \
+	slices.go \
 	go1.go \
 ; do
 	$GC $i
