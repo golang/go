@@ -31,7 +31,7 @@ var FindPublicRepoTests = []struct {
 		"code.google.com/p/repo/path/foo",
 		"svn",
 		"code.google.com/p/repo",
-		"https://repo.googlecode.com/svn",
+		"http://repo.googlecode.com/svn",
 		&testTransport{
 			"https://code.google.com/p/repo/source/checkout",
 			`<tt id="checkoutcmd">svn checkout https://...`,
