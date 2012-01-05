@@ -1,0 +1,477 @@
+<!-- Slices: usage and internals -->
+<!--
+  DO NOT EDIT: created by
+    tmpltohtml articles/slices_usage_and_internals.tmpl
+-->
+
+
+<p>
+Go's slice type provides a convenient and efficient means of working with
+sequences of typed data. Slices are analogous to arrays in other languages, but
+have some unusual properties. This article will look at what slices are and how
+they are used.
+</p>
+
+<p>
+<b>Arrays</b>
+</p>
+
+<p>
+The slice type is an abstraction built on top of Go's array type, and so to
+understand slices we must first understand arrays.
+</p>
+
+<p>
+An array type definition specifies a length and an element type. For example,
+the type <code>[4]int</code> represents an array of four integers. An array's
+size is fixed; its length is part of its type (<code>[4]int</code> and
+<code>[5]int</code> are distinct, incompatible types). Arrays can be indexed in
+the usual way, so the expression <code>s[n]</code> accesses the <i>n</i>th
+element:
+</p>
+
+<pre>
+var a [4]int
+a[0] = 1
+i := a[0]
+// i == 1
+</pre>
+
+<p>
+Arrays do not need to be initialized explicitly; the zero value of an array is
+a ready-to-use array whose elements are themselves zeroed:
+</p>
+
+<pre>
+// a[2] == 0, the zero value of the int type
+</pre>
+
+<p>
+The in-memory representation of <code>[4]int</code> is just four integer values laid out sequentially:
+</p>
+
+<p>
+<img src="slice-array.png">
+</p>
+
+<p>
+Go's arrays are values. An array variable denotes the entire array; it is not a
+pointer to the first array element (as would be the case in C).  This means
+that when you assign or pass around an array value you will make a copy of its
+contents. (To avoid the copy you could pass a <i>pointer</i> to the array, but
+then that's a pointer to an array, not an array.) One way to think about arrays
+is as a sort of struct but with indexed rather than named fields: a fixed-size
+composite value.
+</p>
+
+<p>
+An array literal can be specified like so:
+</p>
+
+<pre>
+b := [2]string{"Penn", "Teller"}
+</pre>
+
+<p>
+Or, you can have the compiler count the array elements for you:
+</p>
+
+<pre>
+b := [...]string{"Penn", "Teller"}
+</pre>
+
+<p>
+In both cases, the type of <code>b</code> is <code>[2]string</code>.
+</p>
+
+<p>
+<b>Slices</b>
+</p>
+
+<p>
+Arrays have their place, but they're a bit inflexible, so you don't see them
+too often in Go code. Slices, though, are everywhere. They build on arrays to
+provide great power and convenience.
+</p>
+
+<p>
+The type specification for a slice is <code>[]T</code>, where <code>T</code> is
+the type of the elements of the slice. Unlike an array type, a slice type has
+no specified length.
+</p>
+
+<p>
+A slice literal is declared just like an array literal, except you leave out
+the element count:
+</p>
+
+<pre>
+letters := []string{"a", "b", "c", "d"}
+</pre>
+
+<p>
+A slice can be created with the built-in function called <code>make</code>,
+which has the signature,
+</p>
+
+<pre>
+func make([]T, len, cap) []T
+</pre>
+
+<p>
+where T stands for the element type of the slice to be created. The
+<code>make</code> function takes a type, a length, and an optional capacity.
+When called, <code>make</code> allocates an array and returns a slice that
+refers to that array.
+</p>
+
+<pre>
+var s []byte
+s = make([]byte, 5, 5)
+// s == []byte{0, 0, 0, 0, 0}
+</pre>
+
+<p>
+When the capacity argument is omitted, it defaults to the specified length.
+Here's a more succinct version of the same code:
+</p>
+
+<pre>
+s := make([]byte, 5)
+</pre>
+
+<p>
+The length and capacity of a slice can be inspected using the built-in
+<code>len</code> and <code>cap</code> functions.
+</p>
+
+<pre>
+len(s) == 5
+cap(s) == 5
+</pre>
+
+<p>
+The next two sections discuss the relationship between length and capacity.
+</p>
+
+<p>
+The zero value of a slice is <code>nil</code>. The <code>len</code> and
+<code>cap</code> functions will both return 0 for a nil slice.
+</p>
+
+<p>
+A slice can also be formed by "slicing" an existing slice or array. Slicing is
+done by specifying a half-open range with two indices separated by a colon. For
+example, the expression <code>b[1:4]</code> creates a slice including elements
+1 through 3 of <code>b</code> (the indices of the resulting slice will be 0
+through 2).
+</p>
+
+<pre>
+b := []byte{'g', 'o', 'l', 'a', 'n', 'g'}
+// b[1:4] == []byte{'o', 'l', 'a'}, sharing the same storage as b
+</pre>
+
+<p>
+The start and end indices of a slice expression are optional; they default to zero and the slice's length respectively:
+</p>
+
+<pre>
+// b[:2] == []byte{'g', 'o'}
+// b[2:] == []byte{'l', 'a', 'n', 'g'}
+// b[:] == b
+</pre>
+
+<p>
+This is also the syntax to create a slice given an array:
+</p>
+
+<pre>
+x := [3]string{"Лайка", "Белка", "Стрелка"}
+s := x[:] // a slice referencing the storage of x
+</pre>
+
+<p>
+<b>Slice internals</b>
+</p>
+
+<p>
+A slice is a descriptor of an array segment. It consists of a pointer to the
+array, the length of the segment, and its capacity (the maximum length of the
+segment).
+</p>
+
+<p>
+<img src="slice-struct.png">
+</p>
+
+<p>
+Our variable <code>s</code>, created earlier by <code>make([]byte, 5)</code>,
+is structured like this:
+</p>
+
+<p>
+<img src="slice-1.png">
+</p>
+
+<p>
+The length is the number of elements referred to by the slice. The capacity is
+the number of elements in the underlying array (beginning at the element
+referred to by the slice pointer). The distinction between length and capacity
+will be made clear as we walk through the next few examples.
+</p>
+
+<p>
+As we slice <code>s</code>, observe the changes in the slice data structure and
+their relation to the underlying array:
+</p>
+
+<pre>
+s = s[2:4]
+</pre>
+
+<p>
+<img src="slice-2.png">
+</p>
+
+<p>
+Slicing does not copy the slice's data. It creates a new slice value that
+points to the original array. This makes slice operations as efficient as
+manipulating array indices. Therefore, modifying the <i>elements</i> (not the
+slice itself) of a re-slice modifies the elements of the original slice:
+</p>
+
+<pre>
+d := []byte{'r', 'o', 'a', 'd'}
+e := d[2:] 
+// e == []byte{'a', 'd'}
+e[1] == 'm'
+// e == []byte{'a', 'm'}
+// d == []byte{'r', 'o', 'a', 'm'}
+</pre>
+
+<p>
+Earlier we sliced <code>s</code> to a length shorter than its capacity. We can
+grow s to its capacity by slicing it again:
+</p>
+
+<pre>
+s = s[:cap(s)]
+</pre>
+
+<p>
+<img src="slice-3.png">
+</p>
+
+<p>
+A slice cannot be grown beyond its capacity. Attempting to do so will cause a
+runtime panic, just as when indexing outside the bounds of a slice or array.
+Similarly, slices cannot be re-sliced below zero to access earlier elements in
+the array.
+</p>
+
+<p>
+<b>Growing slices (the copy and append functions)</b>
+</p>
+
+<p>
+To increase the capacity of a slice one must create a new, larger slice and
+copy the contents of the original slice into it. This technique is how dynamic
+array implementations from other languages work behind the scenes. The next
+example doubles the capacity of <code>s</code> by making a new slice,
+<code>t</code>, copying the contents of <code>s</code> into <code>t</code>, and
+then assigning the slice value <code>t</code> to <code>s</code>:
+</p>
+
+<pre>
+t := make([]byte, len(s), (cap(s)+1)*2) // +1 in case cap(s) == 0
+for i := range s {
+        t[i] = s[i]
+}
+s = t
+</pre>
+
+<p>
+The looping piece of this common operation is made easier by the built-in copy
+function. As the name suggests, copy copies data from a source slice to a
+destination slice. It returns the number of elements copied.
+</p>
+
+<pre>
+func copy(dst, src []T) int
+</pre>
+
+<p>
+The <code>copy</code> function supports copying between slices of different
+lengths (it will copy only up to the smaller number of elements). In addition,
+<code>copy</code> can handle source and destination slices that share the same
+underlying array, handling overlapping slices correctly.
+</p>
+
+<p>
+Using <code>copy</code>, we can simplify the code snippet above:
+</p>
+
+<pre>
+t := make([]byte, len(s), (cap(s)+1)*2)
+copy(t, s)
+s = t
+</pre>
+
+<p>
+A common operation is to append data to the end of a slice. This function
+appends byte elements to a slice of bytes, growing the slice if necessary, and
+returns the updated slice value:
+</p>
+
+<pre><!--{{code "progs/slices.go" `/AppendByte/` `/STOP/`}}
+-->func AppendByte(slice []byte, data ...byte) []byte {
+    m := len(slice)
+    n := m + len(data)
+    if n &gt; cap(slice) { // if necessary, reallocate
+        // allocate double what&#39;s needed, for future growth.
+        newSlice := make([]byte, (n+1)*2)
+        copy(newSlice, slice)
+        slice = newSlice
+    }
+    slice = slice[0:n]
+    copy(slice[m:n], data)
+    return slice
+}</pre>
+
+<p>
+One could use <code>AppendByte</code> like this:
+</p>
+
+<pre>
+p := []byte{2, 3, 5}
+p = AppendByte(p, 7, 11, 13)
+// p == []byte{2, 3, 5, 7, 11, 13}
+</pre>
+
+<p>
+Functions like <code>AppendByte</code> are useful because they offer complete
+control over the way the slice is grown. Depending on the characteristics of
+the program, it may be desirable to allocate in smaller or larger chunks, or to
+put a ceiling on the size of a reallocation.
+</p>
+
+<p>
+But most programs don't need complete control, so Go provides a built-in
+<code>append</code> function that's good for most purposes; it has the
+signature
+</p>
+
+<pre>
+func append(s []T, x ...T) []T 
+</pre>
+
+<p>
+The <code>append</code> function appends the elements <code>x</code> to the end
+of the slice <code>s</code>, and grows the slice if a greater capacity is
+needed.
+</p>
+
+<pre>
+a := make([]int, 1)
+// a == []int{0}
+a = append(a, 1, 2, 3)
+// a == []int{0, 1, 2, 3}
+</pre>
+
+<p>
+To append one slice to another, use <code>...</code> to expand the second
+argument to a list of arguments.
+</p>
+
+<pre>
+a := []string{"John", "Paul"}
+b := []string{"George", "Ringo", "Pete"}
+a = append(a, b...) // equivalent to "append(a, b[0], b[1], b[2])"
+// a == []string{"John", "Paul", "George", "Ringo", "Pete"}
+</pre>
+
+<p>
+Since the zero value of a slice (<code>nil</code>) acts like a zero-length
+slice, you can declare a slice variable and then append to it in a loop:
+</p>
+
+<pre><!--{{code "progs/slices.go" `/Filter/` `/STOP/`}}
+-->// Filter returns a new slice holding only
+// the elements of s that satisfy f()
+func Filter(s []int, fn func(int) bool) []int {
+    var p []int // == nil
+    for _, i := range s {
+        if fn(i) {
+            p = append(p, i)
+        }
+    }
+    return p
+}</pre>
+
+<p>
+<b>A possible "gotcha"</b>
+</p>
+
+<p>
+As mentioned earlier, re-slicing a slice doesn't make a copy of the underlying
+array. The full array will be kept in memory until it is no longer referenced.
+Occasionally this can cause the program to hold all the data in memory when
+only a small piece of it is needed.
+</p>
+
+<p>
+For example, this <code>FindDigits</code> function loads a file into memory and
+searches it for the first group of consecutive numeric digits, returning them
+as a new slice.
+</p>
+
+<pre><!--{{code "progs/slices.go" `/digit/` `/STOP/`}}
+-->var digitRegexp = regexp.MustCompile(&#34;[0-9]+&#34;)
+
+func FindDigits(filename string) []byte {
+    b, _ := ioutil.ReadFile(filename)
+    return digitRegexp.Find(b)
+}</pre>
+
+<p>
+This code behaves as advertised, but the returned <code>[]byte</code> points
+into an array containing the entire file. Since the slice references the
+original array, as long as the slice is kept around the garbage collector can't
+release the array; the few useful bytes of the file keep the entire contents in
+memory.
+</p>
+
+<p>
+To fix this problem one can copy the interesting data to a new slice before
+returning it:
+</p>
+
+<pre><!--{{code "progs/slices.go" `/CopyDigits/` `/STOP/`}}
+-->func CopyDigits(filename string) []byte {
+    b, _ := ioutil.ReadFile(filename)
+    b = digitRegexp.Find(b)
+    c := make([]byte, len(b))
+    copy(c, b)
+    return c
+}</pre>
+
+<p>
+A more concise version of this function could be constructed by using
+<code>append</code>. This is left as an exercise for the reader.
+</p>
+
+<p>
+<b>Further Reading</b>
+</p>
+
+<p>
+<a href="/doc/effective_go.html">Effective Go</a> contains an
+in-depth treatment of <a href="/doc/effective_go.html#slices">slices</a>
+and <a href="/doc/effective_go.html#arrays">arrays</a>, 
+and the Go <a href="/doc/go_spec.html">language specification</a>
+defines <a href="/doc/go_spec.html#Slice_types">slices</a> and their
+<a href="/doc/go_spec.html#Length_and_capacity">associated</a>
+<a href="/doc/go_spec.html#Making_slices_maps_and_channels">helper</a>
+<a href="/doc/go_spec.html#Appending_and_copying_slices">functions</a>.
+</p>
