@@ -517,7 +517,7 @@ var mallocTest = []struct {
 	{1, `Sprintf("xxx")`, func() { Sprintf("xxx") }},
 	{1, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
 	{2, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
-	{1, `Sprintf("%x %x")`, func() { Sprintf("%x", 7, 112) }},
+	{1, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
 	{1, `Sprintf("%g")`, func() { Sprintf("%g", 3.14159) }},
 	{0, `Fprintf(buf, "%x %x %x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x %x %x", 7, 8, 9) }},
 	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},

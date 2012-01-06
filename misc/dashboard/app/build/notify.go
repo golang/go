@@ -119,7 +119,7 @@ func sendFailMail(c appengine.Context, com *Commit, builder string) {
 	k := datastore.NewKey(c, "Log", r.LogHash, 0, nil)
 	l := new(Log)
 	if err := datastore.Get(c, k, l); err != nil {
-		c.Errorf("finding Log record %v: err", r.LogHash, err)
+		c.Errorf("finding Log record %v: %v", r.LogHash, err)
 		return
 	}
 

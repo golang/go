@@ -401,7 +401,7 @@ func writeTestmainGo() {
 	fmt.Fprintln(b) // for gofmt
 
 	// Tests.
-	fmt.Fprintln(b, "var tests = []testing.InternalTest{\n")
+	fmt.Fprintf(b, "var tests = []testing.InternalTest{\n")
 	for _, f := range files {
 		for _, t := range f.tests {
 			fmt.Fprintf(b, "\t{\"%s.%s\", %s.%s},\n", f.pkg, t, renamedPackage(f.pkg), t)
