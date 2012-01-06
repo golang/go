@@ -79,6 +79,7 @@ static char* _typekind[] = {
 	[TSTRING]	= "string",
 	[TPTR32]	= "pointer",
 	[TPTR64]	= "pointer",
+	[TUNSAFEPTR]	= "unsafe.Pointer",
 	[TSTRUCT]	= "struct",
 	[TINTER]	= "interface",
 	[TCHAN]		= "chan",
