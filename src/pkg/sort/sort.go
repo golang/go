@@ -191,7 +191,7 @@ func Sort(data Interface) {
 		maxDepth++
 	}
 	maxDepth *= 2
-	quickSort(data, 0, data.Len(), maxDepth)
+	quickSort(data, 0, n, maxDepth)
 }
 
 func IsSorted(data Interface) bool {
