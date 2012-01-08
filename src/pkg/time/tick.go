@@ -14,7 +14,7 @@ type Ticker struct {
 }
 
 // NewTicker returns a new Ticker containing a channel that will send the
-// time, in nanoseconds, with a period specified by the duration argument.
+// time with a period specified by the duration argument.
 // It adjusts the intervals or drops ticks to make up for slow receivers.
 // The duration d must be greater than zero; if not, NewTicker will panic.
 func NewTicker(d Duration) *Ticker {

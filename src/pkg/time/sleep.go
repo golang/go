@@ -41,7 +41,7 @@ func (t *Timer) Stop() (ok bool) {
 }
 
 // NewTimer creates a new Timer that will send
-// the current time on its channel after at least ns nanoseconds.
+// the current time on its channel after at least duration d.
 func NewTimer(d Duration) *Timer {
 	c := make(chan Time, 1)
 	t := &Timer{
@@ -70,7 +70,7 @@ func sendTime(now int64, c interface{}) {
 
 // After waits for the duration to elapse and then sends the current time
 // on the returned channel.
-// It is equivalent to NewTimer(ns).C.
+// It is equivalent to NewTimer(d).C.
 func After(d Duration) <-chan Time {
 	return NewTimer(d).C
 }
