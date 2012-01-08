@@ -7,6 +7,7 @@ package asn1
 import (
 	"bytes"
 	"encoding/hex"
+	"math/big"
 	"testing"
 	"time"
 )
@@ -18,6 +19,10 @@ type intStruct struct {
 type twoIntStruct struct {
 	A int
 	B int
+}
+
+type bigIntStruct struct {
+	A *big.Int
 }
 
 type nestedStruct struct {
@@ -65,6 +70,7 @@ var marshalTests = []marshalTest{
 	{-128, "020180"},
 	{-129, "0202ff7f"},
 	{intStruct{64}, "3003020140"},
+	{bigIntStruct{big.NewInt(0x123456)}, "30050203123456"},
 	{twoIntStruct{64, 65}, "3006020140020141"},
 	{nestedStruct{intStruct{127}}, "3005300302017f"},
 	{[]byte{1, 2, 3}, "0403010203"},

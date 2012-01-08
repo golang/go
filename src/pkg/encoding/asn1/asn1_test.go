@@ -6,6 +6,7 @@ package asn1
 
 import (
 	"bytes"
+	"math/big"
 	"reflect"
 	"testing"
 	"time"
@@ -351,6 +352,10 @@ type TestElementsAfterString struct {
 	A, B int
 }
 
+type TestBigInt struct {
+	X *big.Int
+}
+
 var unmarshalTestData = []struct {
 	in  []byte
 	out interface{}
@@ -369,6 +374,7 @@ var unmarshalTestData = []struct {
 	{[]byte{0x01, 0x01, 0x00}, newBool(false)},
 	{[]byte{0x01, 0x01, 0x01}, newBool(true)},
 	{[]byte{0x30, 0x0b, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33}, &TestElementsAfterString{"foo", 0x22, 0x33}},
+	{[]byte{0x30, 0x05, 0x02, 0x03, 0x12, 0x34, 0x56}, &TestBigInt{big.NewInt(0x123456)}},
 }
 
 func TestUnmarshal(t *testing.T) {
