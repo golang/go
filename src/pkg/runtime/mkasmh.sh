@@ -38,7 +38,7 @@ case "$GOARCH" in
 	#	../../libcgo/darwin_386.c:/^threadentry
 	case "$GOOS" in
 	windows)
-		echo '#define	get_tls(r)	MOVL 0x2c(FS), r'
+		echo '#define	get_tls(r)	MOVL 0x14(FS), r'
 		echo '#define	g(r)	0(r)'
 		echo '#define	m(r)	4(r)'
 		;;
@@ -82,7 +82,7 @@ case "$GOARCH" in
 amd64)
 	case "$GOOS" in
 	windows)
-		echo '#define	get_tls(r) MOVQ 0x58(GS), r'
+		echo '#define	get_tls(r) MOVQ 0x28(GS), r'
 		echo '#define	g(r) 0(r)'
 		echo '#define	m(r) 8(r)'
 		;;

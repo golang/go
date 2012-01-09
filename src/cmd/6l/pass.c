@@ -276,7 +276,7 @@ patch(void)
 			// Convert
 			//   op	  n(GS), reg
 			// to
-			//   MOVL 0x58(GS), reg
+			//   MOVL 0x28(GS), reg
 			//   op	  n(reg), reg
 			// The purpose of this patch is to fix some accesses
 			// to extern register variables (TLS) on Windows, as
@@ -291,7 +291,7 @@ patch(void)
 				q->as = p->as;
 				p->as = AMOVQ;
 				p->from.type = D_INDIR+D_GS;
-				p->from.offset = 0x58;
+				p->from.offset = 0x28;
 			}
 		}
 		if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd
@@ -428,11 +428,11 @@ dostkoff(void)
 			p->from.offset = tlsoffset+0;
 			p->to.type = D_CX;
 			if(HEADTYPE == Hwindows) {
-				// movq %gs:0x58, %rcx
+				// movq %gs:0x28, %rcx
 				// movq (%rcx), %rcx
 				p->as = AMOVQ;
 				p->from.type = D_INDIR+D_GS;
-				p->from.offset = 0x58;
+				p->from.offset = 0x28;
 				p->to.type = D_CX;
 
 			
