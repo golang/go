@@ -19,6 +19,7 @@ GOFILES=\
 GOFILES_darwin=\
 	bpf_bsd.go\
 	env_unix.go\
+	exec_bsd.go\
 	exec_unix.go\
 	route_bsd.go\
 	route_darwin.go\
@@ -29,6 +30,7 @@ GOFILES_darwin=\
 GOFILES_freebsd=\
 	bpf_bsd.go\
 	env_unix.go\
+	exec_bsd.go\
 	exec_unix.go\
 	route_bsd.go\
 	route_freebsd.go\
@@ -39,6 +41,7 @@ GOFILES_freebsd=\
 GOFILES_linux=\
 	env_unix.go\
 	exec_unix.go\
+	exec_linux.go\
 	lsf_linux.go\
 	netlink_linux.go\
 	sockcmsg_linux.go\
@@ -48,6 +51,7 @@ GOFILES_linux=\
 GOFILES_netbsd=\
 	bpf_bsd.go\
 	env_unix.go\
+	exec_bsd.go\
 	exec_unix.go\
 	route_bsd.go\
 	route_netbsd.go\
@@ -58,6 +62,7 @@ GOFILES_netbsd=\
 GOFILES_openbsd=\
 	bpf_bsd.go\
 	env_unix.go\
+	exec_bsd.go\
 	exec_unix.go\
 	route_bsd.go\
 	route_openbsd.go\

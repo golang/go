@@ -261,7 +261,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/linux_amd64/encoding/json.a
 
 mkdir -p "$WORK"/syscall/_obj/
 cd "$GOROOT"/src/pkg/syscall
-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./env_unix.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_linux.go ./syscall_linux_amd64.go ./syscall_unix.go ./zerrors_linux_amd64.go ./zsyscall_linux_amd64.go ./zsysnum_linux_amd64.go ./ztypes_linux_amd64.go
+6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./env_unix.go ./exec_linux.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_linux.go ./syscall_linux_amd64.go ./syscall_unix.go ./zerrors_linux_amd64.go ./zsyscall_linux_amd64.go ./zsysnum_linux_amd64.go ./ztypes_linux_amd64.go
 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_linux_amd64.6 -DGOOS_linux -DGOARCH_amd64 ./asm_linux_amd64.s
 gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_linux_amd64.6
 cp "$WORK"/syscall.a "$GOROOT"/pkg/linux_amd64/syscall.a
