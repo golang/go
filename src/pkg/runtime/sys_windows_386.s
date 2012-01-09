@@ -98,7 +98,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
 	PUSHL	BX
 	PUSHL	SI
 	PUSHL	DI
-	PUSHL	0x2c(FS)
+	PUSHL	0x14(FS)
 	MOVL	SP, DX
 
 	// setup dummy m, g
@@ -108,7 +108,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
 
 	LEAL	m_tls(SP), CX
-	MOVL	CX, 0x2c(FS)
+	MOVL	CX, 0x14(FS)
 	MOVL	SP, m(CX)
 	MOVL	SP, BX
 	SUBL	$g_end, SP		// space for G
@@ -129,7 +129,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
 	get_tls(CX)
 	MOVL	g(CX), CX
 	MOVL	g_stackbase(CX), SP
-	POPL	0x2c(FS)
+	POPL	0x14(FS)
 	POPL	DI
 	POPL	SI
 	POPL	BX
@@ -208,7 +208,7 @@ TEXT runtime·tstart(SB),7,$0
 
 	// Set up tls.
 	LEAL	m_tls(CX), SI
-	MOVL	SI, 0x2c(FS)
+	MOVL	SI, 0x14(FS)
 	MOVL	CX, m(SI)
 	MOVL	DX, g(SI)
 
@@ -246,5 +246,5 @@ TEXT runtime·tstart_stdcall(SB),7,$0
 // setldt(int entry, int address, int limit)
 TEXT runtime·setldt(SB),7,$0
 	MOVL	address+4(FP), CX
-	MOVL	CX, 0x2c(FS)
+	MOVL	CX, 0x14(FS)
 	RET

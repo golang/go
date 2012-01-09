@@ -45,8 +45,8 @@ threadentry(void *v)
 	 */
 	tls0 = (void*)LocalAlloc(LPTR, 32);
 	asm volatile (
-		"movl %0, %%fs:0x2c\n"	// MOVL tls0, 0x2c(FS)
-		"movl %%fs:0x2c, %%eax\n"	// MOVL 0x2c(FS), tmp
+		"movl %0, %%fs:0x14\n"	// MOVL tls0, 0x14(FS)
+		"movl %%fs:0x14, %%eax\n"	// MOVL 0x14(FS), tmp
 		"movl %1, 0(%%eax)\n"	// MOVL g, 0(FS)
 		"movl %2, 4(%%eax)\n"	// MOVL m, 4(FS)
 		:: "r"(tls0), "r"(ts.g), "r"(ts.m) : "%eax"

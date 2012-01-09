@@ -121,7 +121,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
 	PUSHQ	BX
 	PUSHQ	SI
 	PUSHQ	DI
-	PUSHQ	0x58(GS)
+	PUSHQ	0x28(GS)
 	MOVQ	SP, DX
 
 	// setup dummy m, g
@@ -131,7 +131,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
 
 	LEAQ	m_tls(SP), CX
-	MOVQ	CX, 0x58(GS)
+	MOVQ	CX, 0x28(GS)
 	MOVQ	SP, m(CX)
 	MOVQ	SP, BX
 	SUBQ	$g_end, SP		// space for G
@@ -152,7 +152,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
 	get_tls(CX)
 	MOVQ	g(CX), CX
 	MOVQ	g_stackbase(CX), SP
-	POPQ	0x58(GS)
+	POPQ	0x28(GS)
 	POPQ	DI
 	POPQ	SI
 	POPQ	BX
@@ -254,7 +254,7 @@ TEXT runtime·tstart_stdcall(SB),7,$0
 
 	// Set up tls.
 	LEAQ	m_tls(CX), SI
-	MOVQ	SI, 0x58(GS)
+	MOVQ	SI, 0x28(GS)
 	MOVQ	CX, m(SI)
 	MOVQ	DX, g(SI)
 
@@ -276,5 +276,5 @@ TEXT runtime·notok(SB),7,$0
 // set tls base to DI
 TEXT runtime·settls(SB),7,$0
 	CALL	runtime·setstacklimits(SB)
-	MOVQ	DI, 0x58(GS)
+	MOVQ	DI, 0x28(GS)
 	RET
