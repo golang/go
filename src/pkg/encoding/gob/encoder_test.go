@@ -678,3 +678,11 @@ func TestUnexportedChan(t *testing.T) {
 		t.Fatalf("error encoding unexported channel: %s", err)
 	}
 }
+
+func TestSliceIncompatibility(t *testing.T) {
+	var in = []byte{1, 2, 3}
+	var out []int
+	if err := encAndDec(in, &out); err == nil {
+		t.Error("expected compatibility error")
+	}
+}
