@@ -453,6 +453,11 @@ func (p *Package) guessKinds(f *File) []*Name {
 	for i, b := range isConst {
 		if b {
 			names[i].Kind = "const"
+			if toSniff[i] != nil && names[i].Const == "" {
+				j := len(needType)
+				needType = needType[0 : j+1]
+				needType[j] = names[i]
+			}
 		}
 	}
 	for _, n := range toSniff {
