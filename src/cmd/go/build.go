@@ -509,9 +509,9 @@ func (b *builder) build(a *action) error {
 	incMap[build.Path[0].PkgDir()] = true // goroot
 	incMap[""] = true                     // ignore empty strings
 
-	// build package directories of dependencies
+	// temporary build package directories of dependencies.
 	for _, a1 := range a.deps {
-		if pkgdir := a1.pkgdir; !incMap[pkgdir] {
+		if pkgdir := a1.pkgdir; pkgdir != a1.p.t.PkgDir() && !incMap[pkgdir] {
 			incMap[pkgdir] = true
 			inc = append(inc, "-I", pkgdir)
 		}
@@ -522,7 +522,7 @@ func (b *builder) build(a *action) error {
 
 	// then installed package directories of dependencies
 	for _, a1 := range a.deps {
-		if pkgdir := a1.p.t.PkgDir(); !incMap[pkgdir] {
+		if pkgdir := a1.p.t.PkgDir(); pkgdir == a1.pkgdir && !incMap[pkgdir] {
 			incMap[pkgdir] = true
 			inc = append(inc, "-I", pkgdir)
 		}
