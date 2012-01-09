@@ -47,7 +47,8 @@ func (r13 *rotate13) Read(b []byte) (ret int, err error) {
 func (r13 *rotate13) String() string {
 	return r13.source.String()
 }
-// end of rotate13 implementation
+
+// end of rotate13 implementation OMIT
 
 func cat(r reader) {
 	const NBUF = 512

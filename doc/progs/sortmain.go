@@ -5,8 +5,8 @@
 package main
 
 import (
-	"fmt"
 	"./sort"
+	"fmt"
 )
 
 func ints() {
@@ -60,7 +60,6 @@ func days() {
 	}
 	fmt.Printf("\n")
 }
-
 
 func main() {
 	ints()

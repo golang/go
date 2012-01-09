@@ -38,12 +38,14 @@ type errorString struct {
 func (e *errorString) Error() string {
 	return e.s
 }
+
 // STOP OMIT
 
 // New returns an error that formats as the given text.
 func New(text string) error {
 	return &errorString{text}
 }
+
 // STOP OMIT
 
 func Sqrt(f float64) (float64, error) {
@@ -53,6 +55,7 @@ func Sqrt(f float64) (float64, error) {
 	// implementation
 	return 0, nil // OMIT
 }
+
 // STOP OMIT
 
 func printErr() (int, error) { // OMIT
@@ -74,6 +77,7 @@ type NegativeSqrtError float64
 func (f NegativeSqrtError) Error() string {
 	return fmt.Sprintf("math: square root of negative number %g", float64(f))
 }
+
 // STOP OMIT
 
 type SyntaxError struct {
@@ -82,6 +86,7 @@ type SyntaxError struct {
 }
 
 func (e *SyntaxError) Error() string { return e.msg }
+
 // STOP OMIT
 
 func decodeError(dec *json.Decoder, val struct{}) error { // OMIT

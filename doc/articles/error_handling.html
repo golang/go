@@ -20,7 +20,7 @@ occurs it calls <code>log.Fatal</code> to print the error message and stop.
 </p>
 
 <pre><!--{{code "progs/error.go" `/func openFile/` `/STOP/`}}
--->f, err := os.Open(&#34;filename.ext&#34;)
+-->    f, err := os.Open(&#34;filename.ext&#34;)
     if err != nil {
         log.Fatal(err)
     }
@@ -100,7 +100,7 @@ A caller passing a negative argument to <code>Sqrt</code> receives a non-nil
 </p>
 
 <pre><!--{{code "progs/error.go" `/func printErr/` `/STOP/`}}
--->f, err := Sqrt(-1)
+-->    f, err := Sqrt(-1)
     if err != nil {
         fmt.Println(err)
     }</pre>
@@ -125,7 +125,7 @@ rules and returns it as an <code>error</code> created by
 </p>
 
 <pre><!--{{code "progs/error.go" `/fmtError/` `/STOP/`}}
--->if f &lt; 0 {
+-->    if f &lt; 0 {
         return 0, fmt.Errorf(&#34;math: square root of negative number %g&#34;, f)
     }</pre>
 
@@ -177,7 +177,7 @@ messages:
 </p>
 
 <pre><!--{{code "progs/error.go" `/func decodeError/` `/STOP/`}}
--->if err := dec.Decode(&amp;val); err != nil {
+-->    if err := dec.Decode(&amp;val); err != nil {
         if serr, ok := err.(*json.SyntaxError); ok {
             line, col := findLine(f, serr.Offset)
             return fmt.Errorf(&#34;%s:%d:%d: %v&#34;, f.Name(), line, col, err)
@@ -216,7 +216,7 @@ up otherwise.
 </p>
 
 <pre><!--{{code "progs/error.go" `/func netError/` `/STOP/`}}
--->if nerr, ok := err.(net.Error); ok &amp;&amp; nerr.Temporary() {
+-->        if nerr, ok := err.(net.Error); ok &amp;&amp; nerr.Temporary() {
             time.Sleep(1e9)
             continue
         }

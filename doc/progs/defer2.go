@@ -35,6 +35,7 @@ func g(i int) {
 	fmt.Println("Printing in g", i)
 	g(i + 1)
 }
+
 // STOP OMIT
 
 // Revised version.
@@ -53,4 +54,5 @@ func CopyFile(dstName, srcName string) (written int64, err error) {
 
 	return io.Copy(dst, src)
 }
+
 // STOP OMIT

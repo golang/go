@@ -5,8 +5,8 @@
 package main
 
 import (
-	"os"
 	"flag" // command line option parser
+	"os"
 )
 
 var omitNewline = flag.Bool("n", false, "don't print final newline")

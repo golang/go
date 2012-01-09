@@ -147,6 +147,7 @@ type SyntaxError struct {
 func (se *SyntaxError) Error() string {
 	return fmt.Sprintf("%s:%d: %s", se.File, se.Line, se.Message)
 }
+
 // END ERROR EXAMPLE OMIT
 
 func errorExample() {

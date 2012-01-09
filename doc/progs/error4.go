@@ -16,6 +16,7 @@ type appError struct {
 	Message string
 	Code    int
 }
+
 // STOP OMIT
 
 type appHandler func(http.ResponseWriter, *http.Request) *appError
@@ -27,6 +28,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, e.Message, e.Code)
 	}
 }
+
 // STOP OMIT
 
 func viewRecord(w http.ResponseWriter, r *http.Request) *appError {
@@ -41,6 +43,7 @@ func viewRecord(w http.ResponseWriter, r *http.Request) *appError {
 	}
 	return nil
 }
+
 // STOP OMIT
 
 func init() {
