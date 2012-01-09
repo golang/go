@@ -44,17 +44,11 @@
     (modify-syntax-entry ?<  "." st)
     (modify-syntax-entry ?>  "." st)
 
-    ;; Strings
-    (modify-syntax-entry ?\" "\"" st)
-    (modify-syntax-entry ?\' "\"" st)
-    (modify-syntax-entry ?`  "\"" st)
-    (modify-syntax-entry ?\\ "\\" st)
-
-    ;; Comments
-    (modify-syntax-entry ?/  ". 124b" st)
-    (modify-syntax-entry ?*  ". 23"   st)
-    (modify-syntax-entry ?\n "> b"    st)
-    (modify-syntax-entry ?\^m "> b"   st)
+    ;; Strings and comments are font-locked separately.
+    (modify-syntax-entry ?\" "." st)
+    (modify-syntax-entry ?\' "." st)
+    (modify-syntax-entry ?`  "." st)
+    (modify-syntax-entry ?\\ "." st)
 
     st)
   "Syntax table for Go mode.")
@@ -74,7 +68,9 @@ some syntax analysis.")
         (constants '("nil" "true" "false" "iota"))
         (type-name "\\s *\\(?:[*(]\\s *\\)*\\(?:\\w+\\s *\\.\\s *\\)?\\(\\w+\\)")
         )
-    `((,(regexp-opt go-mode-keywords 'words) . font-lock-keyword-face)
+    `((go-mode-font-lock-cs-comment 0 font-lock-comment-face t)
+      (go-mode-font-lock-cs-string 0 font-lock-string-face t)
+      (,(regexp-opt go-mode-keywords 'words) . font-lock-keyword-face)
       (,(regexp-opt builtins 'words) . font-lock-builtin-face)
       (,(regexp-opt constants 'words) . font-lock-constant-face)
       ;; Function names in declarations
@@ -165,27 +161,25 @@ will be marked from the beginning up to this point (that is, up
 to and including character (1- go-mode-mark-cs-end)).")
 (make-variable-buffer-local 'go-mode-mark-cs-end)
 
-(defvar go-mode-mark-cs-state nil
-  "The `parse-partial-sexp' state of the comment/string parser as
-of the point `go-mode-mark-cs-end'.")
-(make-variable-buffer-local 'go-mode-mark-cs-state)
-
 (defvar go-mode-mark-nesting-end 1
   "The point at which the nesting cache ends.  The buffer will be
 marked from the beginning up to this point.")
 (make-variable-buffer-local 'go-mode-mark-nesting-end)
 
-(defun go-mode-mark-clear-cache (b e l)
-  "An after-change-function that clears the comment/string and
+(defun go-mode-mark-clear-cache (b e)
+  "A before-change-function that clears the comment/string and
 nesting caches from the modified point on."
 
   (save-restriction
     (widen)
-    (when (< b go-mode-mark-cs-end)
-      (remove-text-properties b (min go-mode-mark-cs-end (point-max)) '(go-mode-cs nil))
-      (setq go-mode-mark-cs-end b
-            go-mode-mark-cs-state nil))
-
+    (when (<= b go-mode-mark-cs-end)
+      ;; Remove the property adjacent to the change position.
+      ;; It may contain positions pointing beyond the new end mark.
+      (let ((b (let ((cs (get-text-property (max 1 (1- b)) 'go-mode-cs)))
+		 (if cs (car cs) b))))
+	(remove-text-properties
+	 b (min go-mode-mark-cs-end (point-max)) '(go-mode-cs nil))
+	(setq go-mode-mark-cs-end b)))
     (when (< b go-mode-mark-nesting-end)
       (remove-text-properties b (min go-mode-mark-nesting-end (point-max)) '(go-mode-nesting nil))
       (setq go-mode-mark-nesting-end b))))
@@ -210,7 +204,7 @@ context-sensitive."
                (progn ,@body)
              (set-buffer-modified-p ,modified-var)))))))
 
-(defsubst go-mode-cs (&optional pos)
+(defun go-mode-cs (&optional pos)
   "Return the comment/string state at point POS.  If point is
 inside a comment or string (including the delimiters), this
 returns a pair (START . END) indicating the extents of the
@@ -218,45 +212,111 @@ comment or string."
 
   (unless pos
     (setq pos (point)))
-  (if (= pos 1)
-      nil
-    (when (> pos go-mode-mark-cs-end)
-      (go-mode-mark-cs pos))
-    (get-text-property (- pos 1) 'go-mode-cs)))
+  (when (> pos go-mode-mark-cs-end)
+    (go-mode-mark-cs pos))
+  (get-text-property pos 'go-mode-cs))
 
 (defun go-mode-mark-cs (end)
   "Mark comments and strings up to point END.  Don't call this
 directly; use `go-mode-cs'."
-
   (setq end (min end (point-max)))
   (go-mode-parser
-   (let* ((pos go-mode-mark-cs-end)
-          (state (or go-mode-mark-cs-state (syntax-ppss pos))))
-     ;; Mark comments and strings
-     (when (nth 8 state)
-       ;; Get to the beginning of the comment/string
-       (setq pos (nth 8 state)
-             state nil))
-     (while (> end pos)
-       ;; Find beginning of comment/string
-       (while (and (> end pos)
-                   (progn
-                     (setq state (parse-partial-sexp pos end nil nil state 'syntax-table)
-                           pos (point))
-                     (not (nth 8 state)))))
-       ;; Find end of comment/string
-       (let ((start (nth 8 state)))
-         (when start
-           (setq state (parse-partial-sexp pos (point-max) nil nil state 'syntax-table)
-                 pos (point))
-           ;; Mark comment
-           (put-text-property start (- pos 1) 'go-mode-cs (cons start pos))
-           (when nil
-             (put-text-property start (- pos 1) 'face
-                                `((:background "midnight blue")))))))
-     ;; Update state
-     (setq go-mode-mark-cs-end   pos
-           go-mode-mark-cs-state state))))
+   (save-match-data
+     (let ((pos
+	    ;; Back up to the last known state.
+	    (let ((last-cs
+		   (and (> go-mode-mark-cs-end 1)
+			(get-text-property (1- go-mode-mark-cs-end) 
+					   'go-mode-cs))))
+	      (if last-cs
+		  (car last-cs)
+		(max 1 (1- go-mode-mark-cs-end))))))
+       (while (< pos end)
+	 (goto-char pos)
+	 (let ((cs-end			; end of the text property
+		(cond
+		 ((looking-at "//")
+		  (end-of-line)
+		  (point))
+		 ((looking-at "/\\*")
+		  (goto-char (+ pos 2))
+		  (if (search-forward "*/" (1+ end) t)
+		      (point)
+		    end))
+		 ((looking-at "\"")
+		  (goto-char (1+ pos))
+		  (if (looking-at "[^\"\n\\\\]*\\(\\\\.[^\"\n\\\\]*\\)*\"")
+		      (match-end 0)
+		    (end-of-line)
+		    (point)))
+		 ((looking-at "'")
+		  (goto-char (1+ pos))
+		  (if (looking-at "[^'\n\\\\]*\\(\\\\.[^'\n\\\\]*\\)*'")
+		      (match-end 0)
+		    (end-of-line)
+		    (point)))
+		 ((looking-at "`")
+		  (goto-char (1+ pos))
+		  (while (if (search-forward "`" end t)
+			     (if (eq (char-after) ?`)
+				 (goto-char (1+ (point))))
+			   (goto-char end)
+			   nil))
+		  (point)))))
+	   (cond
+	    (cs-end
+	     (put-text-property pos cs-end 'go-mode-cs (cons pos cs-end))
+	     (setq pos cs-end))
+	    ((re-search-forward "[\"'`]\\|/[/*]" end t)
+	     (setq pos (match-beginning 0)))
+	    (t
+	     (setq pos end)))))
+       (setq go-mode-mark-cs-end pos)))))
+
+
+
+(defun go-mode-font-lock-cs (limit comment)
+  "Helper function for highlighting comment/strings.  If COMMENT is t,
+set match data to the next comment after point, and advance point
+after it.  If COMMENT is nil, use the next string.  Returns nil
+if no further tokens of the type exist."
+  ;; Ensures that `next-single-property-change' below will work properly.
+  (go-mode-cs limit)
+  (let (cs next (result 'scan))
+    (while (eq result 'scan)
+      (if (or (>= (point) limit) (eobp))
+	  (setq result nil)
+	(setq cs (go-mode-cs))
+	(if cs
+	    (if (eq (= (char-after (car cs)) ?/) comment)
+		;; If inside the expected comment/string, highlight it.
+		(progn
+		  ;; If the match includes a "\n", we have a
+		  ;; multi-line construct.  Mark it as such.
+		  (goto-char (car cs))
+		  (when (search-forward "\n" (cdr cs) t)
+		    (put-text-property
+		     (car cs) (cdr cs) 'font-lock-multline t))
+		  (set-match-data (list (car cs) (cdr cs) (current-buffer)))
+		  (goto-char (cdr cs))
+		  (setq result t))
+	      ;; Wrong type.  Look for next comment/string after this one.
+	      (goto-char (cdr cs)))
+	  ;; Not inside comment/string.  Search for next comment/string.
+	  (setq next (next-single-property-change
+		      (point) 'go-mode-cs nil limit))
+	  (if (and next (< next limit))
+	      (goto-char next)
+	    (setq result nil)))))
+    result))
+
+(defun go-mode-font-lock-cs-string (limit)
+  "Font-lock iterator for strings."
+  (go-mode-font-lock-cs limit nil))
+
+(defun go-mode-font-lock-cs-comment (limit)
+  "Font-lock iterator for comments."
+  (go-mode-font-lock-cs limit t))
 
 (defsubst go-mode-nesting (&optional pos)
   "Return the nesting at point POS.  The nesting is a list
@@ -470,9 +530,8 @@ functions, and some types.  It also provides indentation that is
 
   ;; Reset the syntax mark caches
   (setq go-mode-mark-cs-end      1
-        go-mode-mark-cs-state    nil
         go-mode-mark-nesting-end 1)
-  (add-hook 'after-change-functions #'go-mode-mark-clear-cache nil t)
+  (add-hook 'before-change-functions #'go-mode-mark-clear-cache nil t)
 
   ;; Indentation
   (set (make-local-variable 'indent-line-function)
