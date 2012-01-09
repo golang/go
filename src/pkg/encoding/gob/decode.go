@@ -1039,9 +1039,9 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
 		// Extract and compare element types.
 		var sw *sliceType
 		if tt, ok := builtinIdToType[fw]; ok {
-			sw = tt.(*sliceType)
-		} else {
-			sw = dec.wireType[fw].SliceT
+			sw, _ = tt.(*sliceType)
+		} else if wire != nil {
+			sw = wire.SliceT
 		}
 		elem := userType(t.Elem()).base
 		return sw != nil && dec.compatibleType(elem, sw.Elem, inProgress)
