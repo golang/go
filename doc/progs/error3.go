@@ -14,6 +14,7 @@ import (
 func init() {
 	http.Handle("/view", appHandler(viewRecord))
 }
+
 // STOP OMIT
 
 func viewRecord(w http.ResponseWriter, r *http.Request) error {
@@ -25,6 +26,7 @@ func viewRecord(w http.ResponseWriter, r *http.Request) error {
 	}
 	return viewTemplate.Execute(w, record)
 }
+
 // STOP OMIT
 
 type appHandler func(http.ResponseWriter, *http.Request) error
@@ -34,6 +36,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 	}
 }
+
 // STOP OMIT
 
 type ap struct{}

@@ -27,6 +27,7 @@ func viewRecord(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 	}
 }
+
 // STOP OMIT
 
 type ap struct{}

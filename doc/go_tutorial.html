@@ -119,8 +119,8 @@ Next up, here's a version of the Unix utility <code>echo(1)</code>:
 -->package main
 
 import (
-    &#34;os&#34;
     &#34;flag&#34; // command line option parser
+    &#34;os&#34;
 )
 
 var omitNewline = flag.Bool(&#34;n&#34;, false, &#34;don&#39;t print final newline&#34;)
@@ -209,7 +209,7 @@ The <code>:=</code> operator is used a lot in Go to represent an initializing de
 There's one in the <code>for</code> clause on the next line:
 <p>
 <pre><!--{{code "progs/echo.go" `/for/`}}
--->for i := 0; i &lt; flag.NArg(); i++ {</pre>
+-->    for i := 0; i &lt; flag.NArg(); i++ {</pre>
 <p>
 The <code>flag</code> package has parsed the arguments and left the non-flag arguments
 in a list that can be iterated over in the obvious way.
@@ -258,7 +258,7 @@ of course you can change a string <i>variable</i> simply by
 reassigning it.  This snippet from <code>strings.go</code> is legal code:
 <p>
 <pre><!--{{code "progs/strings.go" `/hello/` `/ciao/`}}
--->s := &#34;hello&#34;
+-->    s := &#34;hello&#34;
     if s[1] != &#39;e&#39; {
         os.Exit(1)
     }
@@ -811,8 +811,7 @@ func (r13 *rotate13) Read(b []byte) (ret int, err error) {
 
 func (r13 *rotate13) String() string {
     return r13.source.String()
-}
-// end of rotate13 implementation</pre>
+}</pre>
 <p>
 (The <code>rot13</code> function called in <code>Read</code> is trivial and not worth reproducing here.)
 <p>
@@ -990,7 +989,7 @@ can just say <code>%d</code>; <code>Printf</code> knows the size and signedness 
 integer and can do the right thing for you.  The snippet
 <p>
 <pre><!--{{code "progs/print.go" 10 11}}
--->var u64 uint64 = 1&lt;&lt;64 - 1
+-->    var u64 uint64 = 1&lt;&lt;64 - 1
     fmt.Printf(&#34;%d %d\n&#34;, u64, int64(u64))</pre>
 <p>
 prints
@@ -1003,7 +1002,7 @@ In fact, if you're lazy the format <code>%v</code> will print, in a simple
 appropriate style, any value, even an array or structure.  The output of
 <p>
 <pre><!--{{code "progs/print.go" 14 20}}
--->type T struct {
+-->    type T struct {
         a int
         b string
     }
@@ -1025,7 +1024,7 @@ and adds a newline.  The output of each of these two lines is identical
 to that of the <code>Printf</code> call above.
 <p>
 <pre><!--{{code "progs/print.go" 21 22}}
--->fmt.Print(u64, &#34; &#34;, t, &#34; &#34;, a, &#34;\n&#34;)
+-->    fmt.Print(u64, &#34; &#34;, t, &#34; &#34;, a, &#34;\n&#34;)
     fmt.Println(u64, t, a)</pre>
 <p>
 If you have your own type you'd like <code>Printf</code> or <code>Print</code> to format,
@@ -1442,10 +1441,10 @@ All that's left is to strobe the <code>quit</code> channel
 at the end of main:
 <p>
 <pre><!--{{code "progs/server1.go" `/adder,.quit/`}}
--->adder, quit := startServer(func(a, b int) int { return a + b })</pre>
+-->    adder, quit := startServer(func(a, b int) int { return a + b })</pre>
 ...
 <pre><!--{{code "progs/server1.go" `/quit....true/`}}
--->quit &lt;- true</pre>
+-->    quit &lt;- true</pre>
 <p>
 There's a lot more to Go programming and concurrent programming in general but this
 quick tour should give you some of the basics.
