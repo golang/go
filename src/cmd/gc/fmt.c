@@ -1450,7 +1450,7 @@ Tconv(Fmt *fp)
 	if(t == T)
 		return fmtstrcpy(fp, "<T>");
 
-	if(t->trecur > 4 || fp->nfmt > 1000)
+	if(t->trecur > 4)
 		return fmtstrcpy(fp, "<...>");
 
 	t->trecur++;
