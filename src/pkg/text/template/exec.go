@@ -78,10 +78,14 @@ func (s *state) error(err error) {
 func errRecover(errp *error) {
 	e := recover()
 	if e != nil {
-		if _, ok := e.(runtime.Error); ok {
+		switch err := e.(type) {
+		case runtime.Error:
+			panic(e)
+		case error:
+			*errp = err
+		default:
 			panic(e)
 		}
-		*errp = e.(error)
 	}
 }
 
