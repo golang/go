@@ -222,7 +222,7 @@ func TestEncryption(t *testing.T) {
 
 		if test.isSigned {
 			if md.SignatureError != nil {
-				t.Errorf("#%d: signature error: %s", i, err)
+				t.Errorf("#%d: signature error: %s", i, md.SignatureError)
 			}
 			if md.Signature == nil {
 				t.Error("signature missing")

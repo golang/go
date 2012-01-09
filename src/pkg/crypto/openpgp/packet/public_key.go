@@ -291,6 +291,11 @@ func (pk *PublicKey) VerifySignature(signed hash.Hash, sig *Signature) (err erro
 		return nil
 	case PubKeyAlgoDSA:
 		dsaPublicKey, _ := pk.PublicKey.(*dsa.PublicKey)
+		// Need to truncate hashBytes to match FIPS 186-3 section 4.6.
+		subgroupSize := (dsaPublicKey.Q.BitLen() + 7) / 8
+		if len(hashBytes) > subgroupSize {
+			hashBytes = hashBytes[:subgroupSize]
+		}
 		if !dsa.Verify(dsaPublicKey, hashBytes, new(big.Int).SetBytes(sig.DSASigR.bytes), new(big.Int).SetBytes(sig.DSASigS.bytes)) {
 			return error_.SignatureError("DSA verification failure")
 		}

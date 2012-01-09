@@ -7,6 +7,7 @@ package openpgp
 import (
 	"bytes"
 	error_ "crypto/openpgp/error"
+	_ "crypto/sha512"
 	"encoding/hex"
 	"io"
 	"io/ioutil"
@@ -74,6 +75,15 @@ func TestReadDSAKey(t *testing.T) {
 	}
 	if len(kring) != 1 || uint32(kring[0].PrimaryKey.KeyId) != 0x0CCC0360 {
 		t.Errorf("bad parse: %#v", kring)
+	}
+}
+
+func TestDSAHashTruncatation(t *testing.T) {
+	// dsaKeyWithSHA512 was generated with GnuPG and --cert-digest-algo
+	// SHA512 in order to require DSA hash truncation to verify correctly.
+	_, err := ReadKeyRing(readerFromHex(dsaKeyWithSHA512))
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -358,3 +368,5 @@ AHcVnXjtxrULkQFGbGvhKURLvS9WnzD/m1K2zzwxzkPTzT9/Yf06O6Mal5AdugPL
 VrM0m72/jnpKo04=
 =zNCn
 -----END PGP PRIVATE KEY BLOCK-----`
+
+const dsaKeyWithSHA512 = `9901a2044f04b07f110400db244efecc7316553ee08d179972aab87bb1214de7692593fcf5b6feb1c80fba268722dd464748539b85b81d574cd2d7ad0ca2444de4d849b8756bad7768c486c83a824f9bba4af773d11742bdfb4ac3b89ef8cc9452d4aad31a37e4b630d33927bff68e879284a1672659b8b298222fc68f370f3e24dccacc4a862442b9438b00a0ea444a24088dc23e26df7daf8f43cba3bffc4fe703fe3d6cd7fdca199d54ed8ae501c30e3ec7871ea9cdd4cf63cfe6fc82281d70a5b8bb493f922cd99fba5f088935596af087c8d818d5ec4d0b9afa7f070b3d7c1dd32a84fca08d8280b4890c8da1dde334de8e3cad8450eed2a4a4fcc2db7b8e5528b869a74a7f0189e11ef097ef1253582348de072bb07a9fa8ab838e993cef0ee203ff49298723e2d1f549b00559f886cd417a41692ce58d0ac1307dc71d85a8af21b0cf6eaa14baf2922d3a70389bedf17cc514ba0febbd107675a372fe84b90162a9e88b14d4b1c6be855b96b33fb198c46f058568817780435b6936167ebb3724b680f32bf27382ada2e37a879b3d9de2abe0c3f399350afd1ad438883f4791e2e3b4184453412068617368207472756e636174696f6e207465737488620413110a002205024f04b07f021b03060b090807030206150802090a0b0416020301021e01021780000a0910ef20e0cefca131581318009e2bf3bf047a44d75a9bacd00161ee04d435522397009a03a60d51bd8a568c6c021c8d7cf1be8d990d6417b0020003`

@@ -443,7 +443,14 @@ func (sig *Signature) Sign(h hash.Hash, priv *PrivateKey) (err error) {
 		sig.RSASignature.bytes, err = rsa.SignPKCS1v15(rand.Reader, priv.PrivateKey.(*rsa.PrivateKey), sig.Hash, digest)
 		sig.RSASignature.bitLength = uint16(8 * len(sig.RSASignature.bytes))
 	case PubKeyAlgoDSA:
-		r, s, err := dsa.Sign(rand.Reader, priv.PrivateKey.(*dsa.PrivateKey), digest)
+		dsaPriv := priv.PrivateKey.(*dsa.PrivateKey)
+
+		// Need to truncate hashBytes to match FIPS 186-3 section 4.6.
+		subgroupSize := (dsaPriv.Q.BitLen() + 7) / 8
+		if len(digest) > subgroupSize {
+			digest = digest[:subgroupSize]
+		}
+		r, s, err := dsa.Sign(rand.Reader, dsaPriv, digest)
 		if err == nil {
 			sig.DSASigR.bytes = r.Bytes()
 			sig.DSASigR.bitLength = uint16(8 * len(sig.DSASigR.bytes))
