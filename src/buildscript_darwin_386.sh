@@ -262,7 +262,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/darwin_386/encoding/json.a
 
 mkdir -p "$WORK"/syscall/_obj/
 cd "$GOROOT"/src/pkg/syscall
-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_unix.go ./route_bsd.go ./route_darwin.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_darwin.go ./syscall_darwin_386.go ./syscall_unix.go ./zerrors_darwin_386.go ./zsyscall_darwin_386.go ./zsysnum_darwin_386.go ./ztypes_darwin_386.go
+8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_darwin.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_darwin.go ./syscall_darwin_386.go ./syscall_unix.go ./zerrors_darwin_386.go ./zsyscall_darwin_386.go ./zsysnum_darwin_386.go ./ztypes_darwin_386.go
 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_darwin_386.8 -DGOOS_darwin -DGOARCH_386 ./asm_darwin_386.s
 gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_darwin_386.8
 cp "$WORK"/syscall.a "$GOROOT"/pkg/darwin_386/syscall.a

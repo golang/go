@@ -261,7 +261,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/netbsd_amd64/encoding/json.a
 
 mkdir -p "$WORK"/syscall/_obj/
 cd "$GOROOT"/src/pkg/syscall
-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_unix.go ./route_bsd.go ./route_netbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_netbsd.go ./syscall_netbsd_amd64.go ./syscall_unix.go ./zerrors_netbsd_amd64.go ./zsyscall_netbsd_amd64.go ./zsysnum_netbsd_amd64.go ./ztypes_netbsd_amd64.go
+6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_netbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_netbsd.go ./syscall_netbsd_amd64.go ./syscall_unix.go ./zerrors_netbsd_amd64.go ./zsyscall_netbsd_amd64.go ./zsysnum_netbsd_amd64.go ./ztypes_netbsd_amd64.go
 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_netbsd_amd64.6 -DGOOS_netbsd -DGOARCH_amd64 ./asm_netbsd_amd64.s
 gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_netbsd_amd64.6
 cp "$WORK"/syscall.a "$GOROOT"/pkg/netbsd_amd64/syscall.a
