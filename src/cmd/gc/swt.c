@@ -792,7 +792,6 @@ walkswitch(Node *sw)
 	 * cases have OGOTO into statements.
 	 * both have inserted OBREAK statements
 	 */
-	walkstmtlist(sw->ninit);
 	if(sw->ntest == N) {
 		sw->ntest = nodbool(1);
 		typecheck(&sw->ntest, Erv);
