@@ -1193,7 +1193,7 @@ stkof(Node *n)
  * NB: character copy assumed little endian architecture
  */
 void
-sgen(Node *n, Node *res, int32 w)
+sgen(Node *n, Node *res, int64 w)
 {
 	Node dst, src, tmp, nend;
 	int32 c, odst, osrc;
@@ -1201,14 +1201,17 @@ sgen(Node *n, Node *res, int32 w)
 	Prog *p, *ploop;
 
 	if(debug['g']) {
-		print("\nsgen w=%d\n", w);
+		print("\nsgen w=%lld\n", w);
 		dump("r", n);
 		dump("res", res);
 	}
-	if(w < 0)
-		fatal("sgen copy %d", w);
+
 	if(n->ullman >= UINF && res->ullman >= UINF)
 		fatal("sgen UINF");
+
+	if(w < 0 || (int32)w != w)
+		fatal("sgen copy %lld", w);
+
 	if(n->type == T)
 		fatal("sgen: missing type");
 
@@ -1240,7 +1243,7 @@ sgen(Node *n, Node *res, int32 w)
 		break;
 	}
 	if(w%align)
-		fatal("sgen: unaligned size %d (align=%d) for %T", w, align, n->type);
+		fatal("sgen: unaligned size %lld (align=%d) for %T", w, align, n->type);
 	c = w / align;
 
 	// offset on the stack
