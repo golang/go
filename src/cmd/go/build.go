@@ -449,9 +449,6 @@ func (b *builder) do(root *action) {
 	// drop the parallelism to 1, both to make the output
 	// deterministic and because there is no real work anyway.
 	par := buildP
-	if par == 0 {
-		par = 1
-	}
 	if buildN {
 		par = 1
 	}
