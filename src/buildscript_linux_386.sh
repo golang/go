@@ -460,7 +460,7 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_386/text/template.a
 
 mkdir -p "$WORK"/go/doc/_obj/
 cd "$GOROOT"/src/pkg/go/doc
-8g -o "$WORK"/go/doc/_obj/_go_.8 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go
+8g -o "$WORK"/go/doc/_obj/_go_.8 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
 gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.8
 cp "$WORK"/go/doc.a "$GOROOT"/pkg/linux_386/go/doc.a
 

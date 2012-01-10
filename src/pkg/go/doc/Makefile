@@ -11,6 +11,7 @@ GOFILES=\
 	example.go\
 	exports.go\
 	filter.go\
+	reader.go\
 
 include ../../../Make.pkg
 
