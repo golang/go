@@ -9,6 +9,30 @@
 extern SigTab runtime·sigtab[];
 extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
 
+// From FreeBSD's <sys/sysctl.h>
+#define	CTL_HW	6
+#define	HW_NCPU	3
+
+static int32
+getncpu(void)
+{
+	uint32 mib[2];
+	uint32 out;
+	int32 ret;
+	uintptr nout;
+
+	// Fetch hw.ncpu via sysctl.
+	mib[0] = CTL_HW;
+	mib[1] = HW_NCPU;
+	nout = sizeof out;
+	out = 0;
+	ret = runtime·sysctl(mib, 2, (byte*)&out, &nout, nil, 0);
+	if(ret >= 0)
+		return out;
+	else
+		return 1;
+}
+
 // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
 // thus the code is largely similar. See linux/thread.c and lock_futex.c for comments.
 
@@ -81,6 +105,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
 void
 runtime·osinit(void)
 {
+	runtime·ncpu = getncpu();
 }
 
 void
