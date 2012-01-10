@@ -87,7 +87,7 @@ void	agen(Node*, Node*);
 void	igen(Node*, Node*, Node*);
 vlong	fieldoffset(Type*, Node*);
 void	bgen(Node*, int, Prog*);
-void	sgen(Node*, Node*, int32);
+void	sgen(Node*, Node*, int64);
 void	gmove(Node*, Node*);
 Prog*	gins(int, Node*, Node*);
 int	samaddr(Node*, Node*);

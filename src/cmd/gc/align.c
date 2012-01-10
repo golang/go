@@ -285,6 +285,9 @@ dowidth(Type *t)
 		break;
 	}
 
+	if(widthptr == 4 && w != (int32)w)
+		yyerror("type %T too large", t);
+
 	t->width = w;
 	if(t->align == 0) {
 		if(w > 8 || (w&(w-1)) != 0)
