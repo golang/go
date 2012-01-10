@@ -270,8 +270,11 @@ runtime·sigpanic(void)
 {
 	switch(g->sig) {
 	case EXCEPTION_ACCESS_VIOLATION:
-		if(g->sigcode1 < 0x1000)
+		if(g->sigcode1 < 0x1000) {
+			if(g->sigpc == 0)
+				runtime·panicstring("call of nil func value");
 			runtime·panicstring("invalid memory address or nil pointer dereference");
+		}
 		runtime·printf("unexpected fault address %p\n", g->sigcode1);
 		runtime·throw("fault");
 	case EXCEPTION_INT_DIVIDE_BY_ZERO:
