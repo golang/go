@@ -31,7 +31,7 @@ var runX = cmdRun.Flag.Bool("x", false, "")
 
 func runRun(cmd *Command, args []string) {
 	var b builder
-	b.init(*runA, *runN, *runX)
+	b.init(*runA, *runN, false, *runX)
 	files, args := splitArgs(args)
 	p := goFilesPackage(files, "")
 	p.target = "" // must build - not up to date

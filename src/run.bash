@@ -34,7 +34,7 @@ if $rebuild; then
 	if $USE_GO_TOOL; then
 		echo
 		echo '# Package builds'
-		time go install -a std
+		time go install -a -v std
 	else
 		(xcd pkg
 			gomake clean

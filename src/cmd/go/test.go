@@ -220,7 +220,7 @@ func runTest(cmd *Command, args []string) {
 	}
 
 	var b builder
-	b.init(false, false, testX)
+	b.init(false, false, false, testX)
 
 	var builds, runs []*action
 
