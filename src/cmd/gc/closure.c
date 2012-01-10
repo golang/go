@@ -192,6 +192,10 @@ walkclosure(Node *func, NodeList **init)
 	Node *xtype, *xfunc, *call, *clos;
 	NodeList *l, *in;
 
+	// no closure vars, don't bother wrapping
+	if(func->cvars == nil)
+		return makeclosure(func, init, 1)->nname;
+
 	/*
 	 * wrap body in external function
 	 * with extra closure parameters.
