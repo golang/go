@@ -549,8 +549,8 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 // statement, a function to call to release the connection, and a
 // statement bound to that connection.
 func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(), si driver.Stmt, err error) {
-	if s.stickyErr != nil {
-		return nil, nil, nil, s.stickyErr
+	if err = s.stickyErr; err != nil {
+		return
 	}
 	s.mu.Lock()
 	if s.closed {
@@ -726,6 +726,9 @@ func (rs *Rows) Next() bool {
 		rs.lastcols = make([]interface{}, len(rs.rowsi.Columns()))
 	}
 	rs.lasterr = rs.rowsi.Next(rs.lastcols)
+	if rs.lasterr == io.EOF {
+		rs.Close()
+	}
 	return rs.lasterr == nil
 }
 
