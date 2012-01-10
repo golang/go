@@ -243,10 +243,9 @@ func (p *parser) addText(text string) {
 // addElement calls addChild with an element node.
 func (p *parser) addElement(tag string, attr []Attribute) {
 	p.addChild(&Node{
-		Type:      ElementNode,
-		Data:      tag,
-		Namespace: p.top().Namespace,
-		Attr:      attr,
+		Type: ElementNode,
+		Data: tag,
+		Attr: attr,
 	})
 }
 
@@ -1736,7 +1735,9 @@ func parseForeignContent(p *parser) bool {
 			panic("html: bad parser state: unexpected namespace")
 		}
 		adjustForeignAttributes(p.tok.Attr)
+		namespace := p.top().Namespace
 		p.addElement(p.tok.Data, p.tok.Attr)
+		p.top().Namespace = namespace
 	case EndTagToken:
 		for i := len(p.oe) - 1; i >= 0; i-- {
 			if p.oe[i].Namespace == "" {
