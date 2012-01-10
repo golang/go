@@ -337,20 +337,14 @@ main(int argc, char *argv[])
 		errorexit();
 
 	// Phase 4: Inlining
-	if (debug['l']) {  		// TODO only if debug['l'] > 1, otherwise lazily when used.
-		// Typecheck imported function bodies
-		for(l=importlist; l; l=l->next) {
-			if (l->n->inl == nil)
-				continue;
-			curfn = l->n;
-			saveerrors();
-			importpkg = l->n->sym->pkg;
-			if (debug['l']>2)
-				print("typecheck import [%S] %lN { %#H }\n", l->n->sym, l->n, l->n->inl);
-			typechecklist(l->n->inl, Etop);
-			importpkg = nil;
- 		}
-		curfn = nil;
+	if (debug['l'] > 1) {
+		// Typecheck imported function bodies if debug['l'] > 1,
+		// otherwise lazily when used or re-exported.
+		for(l=importlist; l; l=l->next)
+			if (l->n->inl) {
+				saveerrors();
+				typecheckinl(l->n);
+			}
 		
 		if(nsavederrors+nerrors)
 			errorexit();
@@ -384,8 +378,11 @@ main(int argc, char *argv[])
 	while(closures) {
 		l = closures;
 		closures = nil;
-		for(; l; l=l->next)
+		for(; l; l=l->next) {
+			if (debug['l'])
+				inlcalls(l->n);
 			funccompile(l->n, 1);
+		}
 	}
 
 	// Phase 7: check external declarations.

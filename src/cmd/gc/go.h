@@ -996,6 +996,7 @@ Sym*	renameinit(void);
  */
 void	caninl(Node *fn);
 void	inlcalls(Node *fn);
+void	typecheckinl(Node *fn);
 
 /*
  *	lex.c
