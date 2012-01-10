@@ -1013,7 +1013,7 @@ reswitch:
 			goto error;
 		}
 		if(!(t->chan & Csend)) {
-			yyerror("invalid operation: %#N (cannot close receive-only channel)", n);
+			yyerror("invalid operation: %N (cannot close receive-only channel)", n);
 			goto error;
 		}
 		ok |= Etop;
