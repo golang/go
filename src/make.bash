@@ -96,7 +96,7 @@ if $USE_GO_TOOL; then
 	./buildscript_${GOOS}_$GOARCH.sh
 
 	echo '# Building Go code.'
-	go install -a std
+	go install -a -v std
 else
 	echo; echo; echo %%%% making pkg %%%%; echo
 	gomake -C pkg install

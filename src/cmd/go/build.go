@@ -28,7 +28,7 @@ func init() {
 }
 
 var cmdBuild = &Command{
-	UsageLine: "build [-a] [-n] [-x] [-o output] [importpath... | gofiles...]",
+	UsageLine: "build [-a] [-n] [-v] [-x] [-o output] [importpath... | gofiles...]",
 	Short:     "compile packages and dependencies",
 	Long: `
 Build compiles the packages named by the import paths,
@@ -44,6 +44,7 @@ serving only as a check that the packages can be built.
 
 The -a flag forces rebuilding of packages that are already up-to-date.
 The -n flag prints the commands but does not run them.
+The -v flag prints the names of packages as they are compiled.
 The -x flag prints the commands.
 The -o flag specifies the output file name.
 It is an error to use -o when the command line specifies multiple packages.
@@ -56,12 +57,13 @@ See also: go install, go get, go clean.
 
 var buildA = cmdBuild.Flag.Bool("a", false, "")
 var buildN = cmdBuild.Flag.Bool("n", false, "")
+var buildV = cmdBuild.Flag.Bool("v", false, "")
 var buildX = cmdBuild.Flag.Bool("x", false, "")
 var buildO = cmdBuild.Flag.String("o", "", "output file")
 
 func runBuild(cmd *Command, args []string) {
 	var b builder
-	b.init(*buildA, *buildN, *buildX)
+	b.init(*buildA, *buildN, *buildV, *buildX)
 
 	var pkgs []*Package
 	if len(args) > 0 && strings.HasSuffix(args[0], ".go") {
@@ -95,7 +97,7 @@ func runBuild(cmd *Command, args []string) {
 }
 
 var cmdInstall = &Command{
-	UsageLine: "install [-a] [-n] [-x] [importpath...]",
+	UsageLine: "install [-a] [-n] [-v] [-x] [importpath...]",
 	Short:     "compile and install packages and dependencies",
 	Long: `
 Install compiles and installs the packages named by the import paths,
@@ -103,6 +105,7 @@ along with their dependencies.
 
 The -a flag forces reinstallation of packages that are already up-to-date.
 The -n flag prints the commands but does not run them.
+The -v flag prints the names of packages as they are compiled.
 The -x flag prints the commands.
 
 For more about import paths, see 'go help importpath'.
@@ -113,11 +116,12 @@ See also: go build, go get, go clean.
 
 var installA = cmdInstall.Flag.Bool("a", false, "")
 var installN = cmdInstall.Flag.Bool("n", false, "")
+var installV = cmdInstall.Flag.Bool("v", false, "")
 var installX = cmdInstall.Flag.Bool("x", false, "")
 
 func runInstall(cmd *Command, args []string) {
 	var b builder
-	b.init(*installA, *installN, *installX)
+	b.init(*installA, *installN, *installV, *installX)
 	a := &action{}
 	for _, p := range packages(args) {
 		a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
@@ -132,6 +136,7 @@ type builder struct {
 	work        string               // the temporary work directory (ends in filepath.Separator)
 	aflag       bool                 // the -a flag
 	nflag       bool                 // the -n flag
+	vflag       bool                 // the -v flag
 	xflag       bool                 // the -x flag
 	arch        string               // e.g., "6"
 	goroot      string               // the $GOROOT
@@ -190,10 +195,11 @@ const (
 	modeInstall
 )
 
-func (b *builder) init(aflag, nflag, xflag bool) {
+func (b *builder) init(aflag, nflag, vflag, xflag bool) {
 	var err error
 	b.aflag = aflag
 	b.nflag = nflag
+	b.vflag = vflag
 	b.xflag = xflag
 	b.actionCache = make(map[cacheKey]*action)
 	b.mkdirCache = make(map[string]bool)
@@ -454,6 +460,10 @@ func (b *builder) build(a *action) error {
 		// be merged, the banners give patch something
 		// to use to find its context.
 		fmt.Printf("\n#\n# %s\n#\n\n", a.p.ImportPath)
+	}
+
+	if b.vflag {
+		fmt.Fprintf(os.Stderr, "%s\n", a.p.ImportPath)
 	}
 
 	// make build directory
