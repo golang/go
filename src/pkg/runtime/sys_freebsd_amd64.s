@@ -199,3 +199,19 @@ TEXT runtime·settls(SB),7,$8
 	JCC	2(PC)
 	CALL	runtime·notok(SB)
 	RET
+
+TEXT runtime·sysctl(SB),7,$0
+	MOVQ	8(SP), DI		// arg 1 - name
+	MOVL	16(SP), SI		// arg 2 - namelen
+	MOVQ	24(SP), DX		// arg 3 - oldp
+	MOVQ	32(SP), R10		// arg 4 - oldlenp
+	MOVQ	40(SP), R8		// arg 5 - newp
+	MOVQ	48(SP), R9		// arg 6 - newlen
+	MOVQ	$202, AX		// sys___sysctl
+	SYSCALL
+	JCC 3(PC)
+	NEGL	AX
+	RET
+	MOVL	$0, AX
+	RET
+
