@@ -1,5 +1,5 @@
 <!-- title The Go Programming Language Specification -->
-<!-- subtitle Version of December 15, 2011 -->
+<!-- subtitle Version of January 9, 2012 -->
 
 <!--
 TODO
@@ -13,7 +13,6 @@ TODO
 [ ] should probably write something about evaluation order of statements even
 	though obvious
 [ ] review language on implicit dereferencing
-[ ] clarify what it means for two functions to be "the same" when comparing them
 -->
 
 
@@ -2957,7 +2956,8 @@ These terms and the result of the comparisons are defined as follows:
 	
 	<li>
 	Pointer values are comparable.
-	Two pointer values are equal if they point to the same location or if both have value <code>nil</code>.
+	Two pointer values are equal if they point to the same variable or if both have value <code>nil</code>.
+	Pointers to distinct <a href="#Size_and_alignment_guarantees">zero-size</a> variables may or may not be equal.
 	</li>
 	
 	<li>
@@ -5347,6 +5347,11 @@ The following minimal alignment properties are guaranteed:
    <code>unsafe.Alignof(x[0])</code>, but at least 1.
 </li>
 </ol>
+
+<p>
+A struct or array type has size zero if it contains no fields (or elements, respectively) that have a size greater than zero. Two distinct zero-size variables may have the same address in memory.
+</p>
+
 
 <span class="alert">
 <h2 id="Implementation_differences">Implementation differences - TODO</h2>
