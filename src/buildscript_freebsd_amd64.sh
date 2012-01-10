@@ -459,7 +459,7 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/freebsd_amd64/text/template.a
 
 mkdir -p "$WORK"/go/doc/_obj/
 cd "$GOROOT"/src/pkg/go/doc
-6g -o "$WORK"/go/doc/_obj/_go_.6 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go
+6g -o "$WORK"/go/doc/_obj/_go_.6 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
 gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.6
 cp "$WORK"/go/doc.a "$GOROOT"/pkg/freebsd_amd64/go/doc.a
 
