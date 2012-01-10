@@ -23,6 +23,23 @@ func adjustForeignAttributes(aa []Attribute) {
 	}
 }
 
+func htmlIntegrationPoint(n *Node) bool {
+	if n.Type != ElementNode {
+		return false
+	}
+	switch n.Namespace {
+	case "math":
+		// TODO: annotation-xml elements whose start tags have "text/html" or
+		// "application/xhtml+xml" encodings.
+	case "svg":
+		switch n.Data {
+		case "desc", "foreignObject", "title":
+			return true
+		}
+	}
+	return false
+}
+
 // Section 12.2.5.5.
 var breakout = map[string]bool{
 	"b":          true,
@@ -72,4 +89,44 @@ var breakout = map[string]bool{
 	"var":        true,
 }
 
-// TODO: add look-up tables for MathML and SVG adjustments.
+// Section 12.2.5.5.
+var svgTagNameAdjustments = map[string]string{
+	"altglyph":            "altGlyph",
+	"altglyphdef":         "altGlyphDef",
+	"altglyphitem":        "altGlyphItem",
+	"animatecolor":        "animateColor",
+	"animatemotion":       "animateMotion",
+	"animatetransform":    "animateTransform",
+	"clippath":            "clipPath",
+	"feblend":             "feBlend",
+	"fecolormatrix":       "feColorMatrix",
+	"fecomponenttransfer": "feComponentTransfer",
+	"fecomposite":         "feComposite",
+	"feconvolvematrix":    "feConvolveMatrix",
+	"fediffuselighting":   "feDiffuseLighting",
+	"fedisplacementmap":   "feDisplacementMap",
+	"fedistantlight":      "feDistantLight",
+	"feflood":             "feFlood",
+	"fefunca":             "feFuncA",
+	"fefuncb":             "feFuncB",
+	"fefuncg":             "feFuncG",
+	"fefuncr":             "feFuncR",
+	"fegaussianblur":      "feGaussianBlur",
+	"feimage":             "feImage",
+	"femerge":             "feMerge",
+	"femergenode":         "feMergeNode",
+	"femorphology":        "feMorphology",
+	"feoffset":            "feOffset",
+	"fepointlight":        "fePointLight",
+	"fespecularlighting":  "feSpecularLighting",
+	"fespotlight":         "feSpotLight",
+	"fetile":              "feTile",
+	"feturbulence":        "feTurbulence",
+	"foreignobject":       "foreignObject",
+	"glyphref":            "glyphRef",
+	"lineargradient":      "linearGradient",
+	"radialgradient":      "radialGradient",
+	"textpath":            "textPath",
+}
+
+// TODO: add look-up tables for MathML and SVG attribute adjustments.

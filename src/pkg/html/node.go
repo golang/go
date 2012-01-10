@@ -26,6 +26,10 @@ var scopeMarker = Node{Type: scopeMarkerNode}
 // content for text) and are part of a tree of Nodes. Element nodes may also
 // have a Namespace and contain a slice of Attributes. Data is unescaped, so
 // that it looks like "a<b" rather than "a&lt;b".
+//
+// An empty Namespace implies a "http://www.w3.org/1999/xhtml" namespace.
+// Similarly, "math" is short for "http://www.w3.org/1998/Math/MathML", and
+// "svg" is short for "http://www.w3.org/2000/svg".
 type Node struct {
 	Parent    *Node
 	Child     []*Node
