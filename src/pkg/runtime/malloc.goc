@@ -115,7 +115,7 @@ runtime·free(void *v)
 	if(v == nil)
 		return;
 	
-	// If you change this also change mgc0.c:/^sweepspan,
+	// If you change this also change mgc0.c:/^sweep,
 	// which has a copy of the guts of free.
 
 	if(m->mallocing)
