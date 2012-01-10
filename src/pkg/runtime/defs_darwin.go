@@ -7,8 +7,8 @@
 /*
 Input to cgo.
 
-GOARCH=amd64 cgo -cdefs defs.go >amd64/defs.h
-GOARCH=386 cgo -cdefs defs.go >386/defs.h
+GOARCH=amd64 cgo -cdefs defs_darwin.go >defs_darwin_amd64.h
+GOARCH=386 cgo -cdefs defs_darwin.go >defs_darwin_386.h
 */
 
 package runtime
@@ -55,7 +55,6 @@ const (
 
 	MACH_SEND_TIMEOUT   = C.MACH_SEND_TIMEOUT
 	MACH_SEND_INTERRUPT = C.MACH_SEND_INTERRUPT
-	MACH_SEND_CANCEL    = C.MACH_SEND_CANCEL
 	MACH_SEND_ALWAYS    = C.MACH_SEND_ALWAYS
 	MACH_SEND_TRAILER   = C.MACH_SEND_TRAILER
 	MACH_RCV_TIMEOUT    = C.MACH_RCV_TIMEOUT
