@@ -175,6 +175,11 @@ declare(Node *n, int ctxt)
 
 	n->lineno = parserline();
 	s = n->sym;
+
+	// kludgy: typecheckok means we're past parsing.  Eg genwrapper may declare out of package names later.
+	if(importpkg == nil && !typecheckok && s->pkg != localpkg)
+		yyerror("cannot declare name %S", s);
+
 	gen = 0;
 	if(ctxt == PEXTERN) {
 		externdcl = list(externdcl, n);
