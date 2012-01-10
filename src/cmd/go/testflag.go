@@ -20,6 +20,7 @@ var usageMessage = `Usage of go test:
   -c=false: compile but do not run the test binary
   -file=file_test.go: specify file to use for tests;
       use multiple times for multiple files
+  -p=n: build and test up to n packages in parallel
   -x=false: print command lines as they are executed
 
   // These flags can be passed with or without a "test." prefix: -v or -test.v.
@@ -57,6 +58,7 @@ var testFlagDefn = []*testFlagSpec{
 	// local.
 	{name: "c", isBool: true},
 	{name: "file", multiOK: true},
+	{name: "p"},
 	{name: "x", isBool: true},
 
 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
@@ -117,12 +119,17 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		switch f.name {
 		case "c":
 			setBoolFlag(&testC, value)
+		case "p":
+			setIntFlag(&testP, value)
 		case "x":
 			setBoolFlag(&testX, value)
 		case "v":
 			setBoolFlag(&testV, value)
 		case "file":
 			testFiles = append(testFiles, value)
+		case "bench":
+			// record that we saw the flag; don't care about the value
+			testBench = true
 		}
 		if extraWord {
 			i++
@@ -192,6 +199,16 @@ func setBoolFlag(flag *bool, value string) {
 	x, err := strconv.ParseBool(value)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go test: illegal bool flag value %s\n", value)
+		usage()
+	}
+	*flag = x
+}
+
+// setIntFlag sets the addressed integer to the value.
+func setIntFlag(flag *int, value string) {
+	x, err := strconv.Atoi(value)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "go test: illegal int flag value %s\n", value)
 		usage()
 	}
 	*flag = x

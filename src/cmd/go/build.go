@@ -21,14 +21,8 @@ import (
 	"sync"
 )
 
-// Break init cycles
-func init() {
-	cmdBuild.Run = runBuild
-	cmdInstall.Run = runInstall
-}
-
 var cmdBuild = &Command{
-	UsageLine: "build [-a] [-n] [-v] [-x] [-o output] [importpath... | gofiles...]",
+	UsageLine: "build [-a] [-n] [-v] [-x] [-o output] [-p n] [importpath... | gofiles...]",
 	Short:     "compile packages and dependencies",
 	Long: `
 Build compiles the packages named by the import paths,
@@ -46,8 +40,12 @@ The -a flag forces rebuilding of packages that are already up-to-date.
 The -n flag prints the commands but does not run them.
 The -v flag prints the names of packages as they are compiled.
 The -x flag prints the commands.
+
 The -o flag specifies the output file name.
 It is an error to use -o when the command line specifies multiple packages.
+
+The -p flag specifies the number of builds that can be run in parallel.
+The default is the number of CPUs available.
 
 For more about import paths, see 'go help importpath'.
 
@@ -55,15 +53,36 @@ See also: go install, go get, go clean.
 	`,
 }
 
-var buildA = cmdBuild.Flag.Bool("a", false, "")
-var buildN = cmdBuild.Flag.Bool("n", false, "")
-var buildV = cmdBuild.Flag.Bool("v", false, "")
-var buildX = cmdBuild.Flag.Bool("x", false, "")
+func init() {
+	// break init cycle
+	cmdBuild.Run = runBuild
+	cmdInstall.Run = runInstall
+
+	addBuildFlags(cmdBuild)
+	addBuildFlags(cmdInstall)
+}
+
+// Flags set by multiple commands.
+var buildA bool               // -a flag
+var buildN bool               // -n flag
+var buildP = runtime.NumCPU() // -p flag
+var buildV bool               // -v flag
+var buildX bool               // -x flag
+
 var buildO = cmdBuild.Flag.String("o", "", "output file")
+
+// addBuildFlags adds the flags common to the build and install commands.
+func addBuildFlags(cmd *Command) {
+	cmd.Flag.BoolVar(&buildA, "a", false, "")
+	cmd.Flag.BoolVar(&buildN, "n", false, "")
+	cmd.Flag.IntVar(&buildP, "p", buildP, "")
+	cmd.Flag.BoolVar(&buildV, "v", false, "")
+	cmd.Flag.BoolVar(&buildX, "x", false, "")
+}
 
 func runBuild(cmd *Command, args []string) {
 	var b builder
-	b.init(*buildA, *buildN, *buildV, *buildX)
+	b.init()
 
 	var pkgs []*Package
 	if len(args) > 0 && strings.HasSuffix(args[0], ".go") {
@@ -97,7 +116,7 @@ func runBuild(cmd *Command, args []string) {
 }
 
 var cmdInstall = &Command{
-	UsageLine: "install [-a] [-n] [-v] [-x] [importpath...]",
+	UsageLine: "install [-a] [-n] [-v] [-x] [-p n] [importpath...]",
 	Short:     "compile and install packages and dependencies",
 	Long: `
 Install compiles and installs the packages named by the import paths,
@@ -108,20 +127,18 @@ The -n flag prints the commands but does not run them.
 The -v flag prints the names of packages as they are compiled.
 The -x flag prints the commands.
 
+The -p flag specifies the number of builds that can be run in parallel.
+The default is the number of CPUs available.
+
 For more about import paths, see 'go help importpath'.
 
 See also: go build, go get, go clean.
 	`,
 }
 
-var installA = cmdInstall.Flag.Bool("a", false, "")
-var installN = cmdInstall.Flag.Bool("n", false, "")
-var installV = cmdInstall.Flag.Bool("v", false, "")
-var installX = cmdInstall.Flag.Bool("x", false, "")
-
 func runInstall(cmd *Command, args []string) {
 	var b builder
-	b.init(*installA, *installN, *installV, *installX)
+	b.init()
 	a := &action{}
 	for _, p := range packages(args) {
 		a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
@@ -134,10 +151,6 @@ func runInstall(cmd *Command, args []string) {
 // build packages in parallel, and the builder will be shared.
 type builder struct {
 	work        string               // the temporary work directory (ends in filepath.Separator)
-	aflag       bool                 // the -a flag
-	nflag       bool                 // the -n flag
-	vflag       bool                 // the -v flag
-	xflag       bool                 // the -x flag
 	arch        string               // e.g., "6"
 	goroot      string               // the $GOROOT
 	goarch      string               // the $GOARCH
@@ -158,11 +171,12 @@ type builder struct {
 
 // An action represents a single action in the action graph.
 type action struct {
-	p        *Package  // the package this action works on
-	deps     []*action // actions that must happen before this one
-	triggers []*action // inverse of deps
-	cgo      *action   // action for cgo binary if needed
-	args     []string  // additional args for runProgram
+	p          *Package      // the package this action works on
+	deps       []*action     // actions that must happen before this one
+	triggers   []*action     // inverse of deps
+	cgo        *action       // action for cgo binary if needed
+	args       []string      // additional args for runProgram
+	testOutput *bytes.Buffer // test output buffer
 
 	f          func(*builder, *action) error // the action itself (nil = no-op)
 	ignoreFail bool                          // whether to run f even if dependencies fail
@@ -195,12 +209,8 @@ const (
 	modeInstall
 )
 
-func (b *builder) init(aflag, nflag, vflag, xflag bool) {
+func (b *builder) init() {
 	var err error
-	b.aflag = aflag
-	b.nflag = nflag
-	b.vflag = vflag
-	b.xflag = xflag
 	b.actionCache = make(map[cacheKey]*action)
 	b.mkdirCache = make(map[string]bool)
 	b.goarch = build.DefaultContext.GOARCH
@@ -217,14 +227,14 @@ func (b *builder) init(aflag, nflag, vflag, xflag bool) {
 		fatalf("%s", err)
 	}
 
-	if nflag {
+	if buildN {
 		b.work = "$WORK"
 	} else {
 		b.work, err = ioutil.TempDir("", "go-build")
 		if err != nil {
 			fatalf("%s", err)
 		}
-		if b.xflag {
+		if buildX {
 			fmt.Printf("WORK=%s\n", b.work)
 		}
 		atexit(func() { os.RemoveAll(b.work) })
@@ -312,7 +322,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 		}
 	}
 
-	if !p.Stale && !b.aflag && p.target != "" {
+	if !p.Stale && !buildA && p.target != "" {
 		// p.Stale==false implies that p.target is up-to-date.
 		// Record target name for use by actions depending on this one.
 		a.target = p.target
@@ -434,8 +444,15 @@ func (b *builder) do(root *action) {
 		}
 	}
 
-	// TODO: Turn this knob for parallelism.
-	for i := 0; i < 1; i++ {
+	// Kick off goroutines according to parallelism.
+	// If we are using the -n flag (just printing commands)
+	// drop the parallelism to 1, both to make the output
+	// deterministic and because there is no real work anyway.
+	par := buildP
+	if buildN {
+		par = 1
+	}
+	for i := 0; i < par; i++ {
 		go func() {
 			for _ = range b.readySema {
 				// Receiving a value from b.sema entitles
@@ -453,7 +470,7 @@ func (b *builder) do(root *action) {
 
 // build is the action for building a single package or command.
 func (b *builder) build(a *action) error {
-	if b.nflag {
+	if buildN {
 		// In -n mode, print a banner between packages.
 		// The banner is five lines so that when changes to
 		// different sections of the bootstrap script have to
@@ -462,7 +479,7 @@ func (b *builder) build(a *action) error {
 		fmt.Printf("\n#\n# %s\n#\n\n", a.p.ImportPath)
 	}
 
-	if b.vflag {
+	if buildV {
 		fmt.Fprintf(os.Stderr, "%s\n", a.p.ImportPath)
 	}
 
@@ -671,9 +688,9 @@ func removeByRenaming(name string) error {
 
 // copyFile is like 'cp src dst'.
 func (b *builder) copyFile(dst, src string, perm uint32) error {
-	if b.nflag || b.xflag {
+	if buildN || buildX {
 		b.showcmd("", "cp %s %s", src, dst)
-		if b.nflag {
+		if buildN {
 			return nil
 		}
 	}
@@ -792,9 +809,9 @@ var errPrintedOutput = errors.New("already printed output - no need to show erro
 // If the commnd fails, run prints information about the failure
 // and returns a non-nil error.
 func (b *builder) run(dir string, desc string, cmdline ...string) error {
-	if b.nflag || b.xflag {
+	if buildN || buildX {
 		b.showcmd(dir, "%s", strings.Join(cmdline, " "))
-		if b.nflag {
+		if buildN {
 			return nil
 		}
 	}
@@ -831,9 +848,9 @@ func (b *builder) mkdir(dir string) error {
 	}
 	b.mkdirCache[dir] = true
 
-	if b.nflag || b.xflag {
+	if buildN || buildX {
 		b.showcmd("", "mkdir -p %s", dir)
-		if b.nflag {
+		if buildN {
 			return nil
 		}
 	}
