@@ -10,25 +10,39 @@ package syscall
 
 import "sync"
 
-var env map[string]string
-var envOnce sync.Once
-var envs []string // provided by runtime
+var (
+	// envOnce guards initialization by copyenv, which populates env.
+	envOnce sync.Once
 
+	// envLock guards env and envs.
+	envLock sync.RWMutex
+
+	// env maps from an environment variable to its first occurrence in envs.
+	env map[string]int
+
+	// envs is provided by the runtime. elements are expected to be
+	// of the form "key=value".
+	envs []string
+)
+
+// setenv_c is provided by the runtime, but is a no-op if cgo isn't
+// loaded.
 func setenv_c(k, v string)
 
 func copyenv() {
-	env = make(map[string]string)
-	for _, s := range envs {
+	env = make(map[string]int)
+	for i, s := range envs {
 		for j := 0; j < len(s); j++ {
 			if s[j] == '=' {
-				env[s[0:j]] = s[j+1:]
+				key := s[:j]
+				if _, ok := env[key]; !ok {
+					env[key] = i
+				}
 				break
 			}
 		}
 	}
 }
-
-var envLock sync.RWMutex
 
 func Getenv(key string) (value string, found bool) {
 	envOnce.Do(copyenv)
@@ -39,11 +53,17 @@ func Getenv(key string) (value string, found bool) {
 	envLock.RLock()
 	defer envLock.RUnlock()
 
-	v, ok := env[key]
+	i, ok := env[key]
 	if !ok {
 		return "", false
 	}
-	return v, true
+	s := envs[i]
+	for i := 0; i < len(s); i++ {
+		if s[i] == '=' {
+			return s[i+1:], true
+		}
+	}
+	return "", false
 }
 
 func Setenv(key, value string) error {
@@ -55,8 +75,16 @@ func Setenv(key, value string) error {
 	envLock.Lock()
 	defer envLock.Unlock()
 
-	env[key] = value
-	setenv_c(key, value) // is a no-op if cgo isn't loaded
+	i, ok := env[key]
+	kv := key + "=" + value
+	if ok {
+		envs[i] = kv
+	} else {
+		i = len(envs)
+		envs = append(envs, kv)
+	}
+	env[key] = i
+	setenv_c(key, value)
 	return nil
 }
 
@@ -66,8 +94,8 @@ func Clearenv() {
 	envLock.Lock()
 	defer envLock.Unlock()
 
-	env = make(map[string]string)
-
+	env = make(map[string]int)
+	envs = []string{}
 	// TODO(bradfitz): pass through to C
 }
 
@@ -75,11 +103,7 @@ func Environ() []string {
 	envOnce.Do(copyenv)
 	envLock.RLock()
 	defer envLock.RUnlock()
-	a := make([]string, len(env))
-	i := 0
-	for k, v := range env {
-		a[i] = k + "=" + v
-		i++
-	}
+	a := make([]string, len(envs))
+	copy(a, envs)
 	return a
 }
