@@ -12,7 +12,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 )
@@ -185,15 +187,22 @@ func help(args []string) {
 
 // importPaths returns the import paths to use for the given command line.
 func importPaths(args []string) []string {
-	if len(args) == 1 {
-		if args[0] == "all" || args[0] == "std" {
-			return allPackages(args[0])
-		}
-	}
 	if len(args) == 0 {
 		return []string{"."}
 	}
-	return args
+	var out []string
+	for _, a := range args {
+		if (strings.HasPrefix(a, "./") || strings.HasPrefix(a, "../")) && strings.Contains(a, "...") {
+			out = append(out, allPackagesInFS(a)...)
+			continue
+		}
+		if a == "all" || a == "std" || strings.Contains(a, "...") {
+			out = append(out, allPackages(a)...)
+			continue
+		}
+		out = append(out, a)
+	}
+	return out
 }
 
 var atexitFuncs []func()
@@ -236,9 +245,29 @@ func run(cmdline ...string) {
 	}
 }
 
+// matchPattern(pattern)(name) reports whether
+// name matches pattern.  Pattern is a limited glob
+// pattern in which '...' means 'any string' and there
+// is no other special syntax.
+func matchPattern(pattern string) func(name string) bool {
+	re := regexp.QuoteMeta(pattern)
+	re = strings.Replace(re, `\.\.\.`, `.*`, -1)
+	reg := regexp.MustCompile(`^` + re + `$`)
+	return func(name string) bool {
+		return reg.MatchString(name)
+	}
+}
+
 // allPackages returns all the packages that can be found
-// under the $GOPATH directories and $GOROOT.
-func allPackages(what string) []string {
+// under the $GOPATH directories and $GOROOT matching what.
+// The pattern is either "all" (all packages), "std" (standard packages)
+// or a path including "...".
+func allPackages(pattern string) []string {
+	match := func(string) bool { return true }
+	if pattern != "all" && pattern != "std" {
+		match = matchPattern(pattern)
+	}
+
 	have := map[string]bool{
 		"builtin": true, // ignore pseudo-package that exists only for documentation
 	}
@@ -269,13 +298,15 @@ func allPackages(what string) []string {
 		name = "cmd/" + name
 		if !have[name] {
 			have[name] = true
-			pkgs = append(pkgs, name)
+			if match(name) {
+				pkgs = append(pkgs, name)
+			}
 		}
 		return nil
 	})
 
 	for _, t := range build.Path {
-		if what == "std" && !t.Goroot {
+		if pattern == "std" && !t.Goroot {
 			continue
 		}
 		src := t.SrcDir() + string(filepath.Separator)
@@ -284,26 +315,29 @@ func allPackages(what string) []string {
 				return nil
 			}
 
-			// Avoid testdata directory trees.
-			if strings.HasSuffix(path, string(filepath.Separator)+"testdata") {
+			// Avoid .foo and testdata directory trees.
+			_, elem := filepath.Split(path)
+			if strings.HasPrefix(elem, ".") || elem == "testdata" {
 				return filepath.SkipDir
 			}
 
 			name := filepath.ToSlash(path[len(src):])
-			if what == "std" && strings.Contains(name, ".") {
+			if pattern == "std" && strings.Contains(name, ".") {
 				return filepath.SkipDir
 			}
 			if have[name] {
 				return nil
 			}
+			have[name] = true
 
 			_, err = build.ScanDir(path)
 			if err != nil {
 				return nil
 			}
 
-			pkgs = append(pkgs, name)
-			have[name] = true
+			if match(name) {
+				pkgs = append(pkgs, name)
+			}
 
 			// Avoid go/build test data.
 			// TODO: Move it into a testdata directory.
@@ -313,6 +347,60 @@ func allPackages(what string) []string {
 
 			return nil
 		})
+	}
+
+	if len(pkgs) == 0 {
+		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
+	}
+	return pkgs
+}
+
+// allPackagesInFS is like allPackages but is passed a pattern
+// beginning ./ or ../, meaning it should scan the tree rooted
+// at the given directory.  There are ... in the pattern too.
+func allPackagesInFS(pattern string) []string {
+	// Find directory to begin the scan.
+	// Could be smarter but this one optimization
+	// is enough for now, since ... is usually at the
+	// end of a path.
+	i := strings.Index(pattern, "...")
+	dir, _ := path.Split(pattern[:i])
+
+	// pattern begins with ./ or ../.
+	// path.Clean will discard the ./ but not the ../.
+	// We need to preserve the ./ for pattern matching
+	// and in the returned import paths.
+	prefix := ""
+	if strings.HasPrefix(pattern, "./") {
+		prefix = "./"
+	}
+	match := matchPattern(pattern)
+
+	var pkgs []string
+	filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
+		if err != nil || !fi.IsDir() {
+			return nil
+		}
+
+		// Avoid .foo and testdata directory trees.
+		_, elem := filepath.Split(path)
+		if strings.HasPrefix(elem, ".") || elem == "testdata" {
+			return filepath.SkipDir
+		}
+
+		name := prefix + filepath.ToSlash(path)
+		if !match(name) {
+			return nil
+		}
+		if _, err = build.ScanDir(path); err != nil {
+			return nil
+		}
+		pkgs = append(pkgs, name)
+		return nil
+	})
+
+	if len(pkgs) == 0 {
+		fmt.Fprintf(os.Stderr, "warning: %q matched no packages\n", pattern)
 	}
 	return pkgs
 }
