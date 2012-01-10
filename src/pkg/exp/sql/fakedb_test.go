@@ -110,25 +110,34 @@ func init() {
 
 // Supports dsn forms:
 //    <dbname>
-//    <dbname>;wipe
+//    <dbname>;<opts>  (no currently supported options)
 func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.openCount++
-	if d.dbs == nil {
-		d.dbs = make(map[string]*fakeDB)
-	}
 	parts := strings.Split(dsn, ";")
 	if len(parts) < 1 {
 		return nil, errors.New("fakedb: no database name")
 	}
 	name := parts[0]
+
+	db := d.getDB(name)
+
+	d.mu.Lock()
+	d.openCount++
+	d.mu.Unlock()
+	return &fakeConn{db: db}, nil
+}
+
+func (d *fakeDriver) getDB(name string) *fakeDB {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.dbs == nil {
+		d.dbs = make(map[string]*fakeDB)
+	}
 	db, ok := d.dbs[name]
 	if !ok {
 		db = &fakeDB{name: name}
 		d.dbs[name] = db
 	}
-	return &fakeConn{db: db}, nil
+	return db
 }
 
 func (db *fakeDB) wipe() {

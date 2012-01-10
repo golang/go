@@ -10,8 +10,10 @@ import (
 	"testing"
 )
 
+const fakeDBName = "foo"
+
 func newTestDB(t *testing.T, name string) *DB {
-	db, err := Open("test", "foo")
+	db, err := Open("test", fakeDBName)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -72,6 +74,12 @@ func TestQuery(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Logf(" got: %#v\nwant: %#v", got, want)
+	}
+
+	// And verify that the final rows.Next() call, which hit EOF,
+	// also closed the rows connection.
+	if n := len(db.freeConn); n != 1 {
+		t.Errorf("free conns after query hitting EOF = %d; want 1", n)
 	}
 }
 
