@@ -259,7 +259,7 @@ func matchPattern(pattern string) func(name string) bool {
 }
 
 // allPackages returns all the packages that can be found
-// under the $GOPATH directories and $GOROOT matching what.
+// under the $GOPATH directories and $GOROOT matching pattern.
 // The pattern is either "all" (all packages), "std" (standard packages)
 // or a path including "...".
 func allPackages(pattern string) []string {
