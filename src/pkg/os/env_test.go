@@ -6,6 +6,7 @@ package os_test
 
 import (
 	. "os"
+	"reflect"
 	"testing"
 )
 
@@ -54,6 +55,16 @@ func TestExpand(t *testing.T) {
 		result := Expand(test.in, testGetenv)
 		if result != test.out {
 			t.Errorf("Expand(%q)=%q; expected %q", test.in, result, test.out)
+		}
+	}
+}
+
+func TestConsistentEnviron(t *testing.T) {
+	e0 := Environ()
+	for i := 0; i < 10; i++ {
+		e1 := Environ()
+		if !reflect.DeepEqual(e0, e1) {
+			t.Fatalf("environment changed")
 		}
 	}
 }
