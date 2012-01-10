@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 	"unicode"
 	"unicode/utf8"
 )
@@ -28,7 +29,7 @@ func init() {
 
 var cmdTest = &Command{
 	CustomFlags: true,
-	UsageLine:   "test [importpath...] [-file a.go -file b.go ...] [-c] [-x] [flags for test binary]",
+	UsageLine:   "test [-c] [-x] [-file a.go -file b.go ...] [-p n] [importpath...] [flags for test binary]",
 	Short:       "test packages",
 	Long: `
 'Go test' automates testing the packages named by the import paths.
@@ -54,8 +55,8 @@ compiled.)
 The package is built in a temporary directory so it does not interfere with the
 non-test installation.
 
-See 'go help testflag' for details about flags
-handled by 'go test' and the test binary.
+See 'go help testflag' for details about flags handled by 'go test'
+and the test binary.
 
 See 'go help importpath' for more about import paths.
 
@@ -77,6 +78,10 @@ The flags handled by 'go test' are:
 	-file a.go
 	    Use only the tests in the source file a.go.
 	    Multiple -file flags may be provided.
+
+	-p n
+	    Compile and test up to n packages in parallel.
+	    The default value is the number of CPUs available.
 
 	-x  Print each subcommand gotest executes.
 
@@ -194,11 +199,13 @@ See the documentation of the testing package for more information.
 
 var (
 	testC        bool     // -c flag
+	testP        int      // -p flag
 	testX        bool     // -x flag
 	testV        bool     // -v flag
 	testFiles    []string // -file flag(s)  TODO: not respected
 	testArgs     []string
 	testShowPass bool // whether to display passing output
+	testBench    bool
 )
 
 func runTest(cmd *Command, args []string) {
@@ -219,34 +226,52 @@ func runTest(cmd *Command, args []string) {
 		fatalf("cannot use -c flag with multiple packages")
 	}
 
+	buildX = testX
+	if testP > 0 {
+		buildP = testP
+	}
+
 	var b builder
-	b.init(false, false, false, testX)
+	b.init()
 
-	var builds, runs []*action
+	var builds, runs, prints []*action
 
-	// Prepare build + run actions for all packages being tested.
+	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
-		buildTest, runTest, err := b.test(p)
+		buildTest, runTest, printTest, err := b.test(p)
 		if err != nil {
 			errorf("%s", err)
 			continue
 		}
 		builds = append(builds, buildTest)
 		runs = append(runs, runTest)
+		prints = append(prints, printTest)
 	}
 
-	// Build+run the tests one at a time in the order
-	// specified on the command line.
-	// May want to revisit when we parallelize things,
-	// although probably not for benchmark runs.
-	for i, a := range builds {
+	// Ultimately the goal is to print the output.
+	root := &action{deps: prints}
+
+	// Force the printing of results to happen in order,
+	// one at a time.
+	for i, a := range prints {
 		if i > 0 {
-			// Make build of test i depend on
-			// completing the run of test i-1.
-			a.deps = append(a.deps, runs[i-1])
+			a.deps = append(a.deps, prints[i-1])
 		}
 	}
-	root := &action{deps: runs}
+
+	// If we are benchmarking, force everything to
+	// happen in serial.  Could instead allow all the
+	// builds to run before any benchmarks start,
+	// but try this for now.
+	if testBench {
+		for i, a := range builds {
+			if i > 0 {
+				// Make build of test i depend on
+				// completing the run of test i-1.
+				a.deps = append(a.deps, runs[i-1])
+			}
+		}
+	}
 
 	// If we are building any out-of-date packages other
 	// than those under test, warn.
@@ -273,11 +298,12 @@ func runTest(cmd *Command, args []string) {
 	b.do(root)
 }
 
-func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
+func (b *builder) test(p *Package) (buildAction, runAction, printAction *action, err error) {
 	if len(p.info.TestGoFiles)+len(p.info.XTestGoFiles) == 0 {
 		build := &action{p: p}
-		run := &action{f: (*builder).notest, p: p, deps: []*action{build}}
-		return build, run, nil
+		run := &action{p: p}
+		print := &action{f: (*builder).notest, p: p, deps: []*action{build}}
+		return build, run, print, nil
 	}
 
 	// Build Package structs describing:
@@ -294,7 +320,7 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 	for _, path := range p.info.TestImports {
 		p1, err := loadPackage(path)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		imports = append(imports, p1)
 	}
@@ -320,10 +346,10 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 	// Create the directory for the .a files.
 	ptestDir, _ := filepath.Split(ptestObj)
 	if err := b.mkdir(ptestDir); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), p); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Test package.
@@ -395,6 +421,7 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 			p:      pmain,
 			target: "test.out" + b.exe,
 		}
+		printAction = &action{p: p, deps: []*action{runAction}} // nop
 	} else {
 		// run test
 		runAction = &action{
@@ -403,9 +430,14 @@ func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
 			p:          p,
 			ignoreFail: true,
 		}
+		printAction = &action{
+			f:    (*builder).printTest,
+			deps: []*action{runAction},
+			p:    p,
+		}
 	}
 
-	return pmainAction, runAction, nil
+	return pmainAction, runAction, printAction, nil
 }
 
 var pass = []byte("\nPASS\n")
@@ -414,10 +446,11 @@ var pass = []byte("\nPASS\n")
 func (b *builder) runTest(a *action) error {
 	args := []string{a.deps[0].target}
 	args = append(args, testArgs...)
+	a.testOutput = new(bytes.Buffer)
 
-	if b.nflag || b.xflag {
+	if buildN || buildX {
 		b.showcmd("", "%s", strings.Join(args, " "))
-		if b.nflag {
+		if buildN {
 			return nil
 		}
 	}
@@ -425,30 +458,41 @@ func (b *builder) runTest(a *action) error {
 	if a.failed {
 		// We were unable to build the binary.
 		a.failed = false
-		fmt.Printf("FAIL\t%s [build failed]\n", a.p.ImportPath)
+		fmt.Fprintf(a.testOutput, "FAIL\t%s [build failed]\n", a.p.ImportPath)
 		exitStatus = 1
 		return nil
 	}
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = a.p.Dir
+	t0 := time.Now()
 	out, err := cmd.CombinedOutput()
+	t1 := time.Now()
+	t := fmt.Sprintf("%.3fs", t1.Sub(t0).Seconds())
 	if err == nil && (bytes.Equal(out, pass[1:]) || bytes.HasSuffix(out, pass)) {
-		fmt.Printf("ok  \t%s\n", a.p.ImportPath)
+		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s\n", a.p.ImportPath, t)
 		if testShowPass {
-			os.Stdout.Write(out)
+			a.testOutput.Write(out)
 		}
 		return nil
 	}
 
-	fmt.Printf("FAIL\t%s\n", a.p.ImportPath)
+	fmt.Fprintf(a.testOutput, "FAIL\t%s\t%s\n", a.p.ImportPath, t)
 	exitStatus = 1
 	if len(out) > 0 {
-		os.Stdout.Write(out)
+		a.testOutput.Write(out)
 		// assume printing the test binary's exit status is superfluous
 	} else {
-		fmt.Printf("%s\n", err)
+		fmt.Fprintf(a.testOutput, "%s\n", err)
 	}
+	return nil
+}
+
+// printTest is the action for printing a test result.
+func (b *builder) printTest(a *action) error {
+	run := a.deps[0]
+	os.Stdout.Write(run.testOutput.Bytes())
+	run.testOutput = nil
 	return nil
 }
 

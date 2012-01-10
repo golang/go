@@ -6,11 +6,6 @@ package main
 
 import ()
 
-// Break init loop.
-func init() {
-	cmdRun.Run = runRun
-}
-
 var cmdRun = &Command{
 	UsageLine: "run [-a] [-n] [-x] gofiles... [-- arguments...]",
 	Short:     "compile and run Go program",
@@ -25,13 +20,17 @@ See also: go build.
 	`,
 }
 
-var runA = cmdRun.Flag.Bool("a", false, "")
-var runN = cmdRun.Flag.Bool("n", false, "")
-var runX = cmdRun.Flag.Bool("x", false, "")
+func init() {
+	cmdRun.Run = runRun // break init loop
+
+	cmdRun.Flag.BoolVar(&buildA, "a", false, "")
+	cmdRun.Flag.BoolVar(&buildN, "n", false, "")
+	cmdRun.Flag.BoolVar(&buildX, "x", false, "")
+}
 
 func runRun(cmd *Command, args []string) {
 	var b builder
-	b.init(*runA, *runN, false, *runX)
+	b.init()
 	files, args := splitArgs(args)
 	p := goFilesPackage(files, "")
 	p.target = "" // must build - not up to date
