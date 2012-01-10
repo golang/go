@@ -933,6 +933,7 @@ stmtfmt(Fmt *f, Node *n)
 static int opprec[] = {
 	[OAPPEND] = 8,
 	[OARRAYBYTESTR] = 8,
+	[OARRAYLIT] = 8,
 	[OCALLFUNC] = 8,
 	[OCALLINTER] = 8,
 	[OCALLMETH] = 8,
@@ -947,6 +948,7 @@ static int opprec[] = {
 	[OLITERAL] = 8,
 	[OMAKESLICE] = 8,
 	[OMAKE] = 8,
+	[OMAPLIT] = 8,
 	[ONAME] = 8,
 	[ONEW] = 8,
 	[ONONAME] = 8,
@@ -957,10 +959,14 @@ static int opprec[] = {
 	[OPRINT] = 8,
 	[ORECV] = 8,
 	[ORUNESTR] = 8,
-	[OTPAREN] = 8,
 	[OSTRUCTLIT] = 8,
-	[OMAPLIT] = 8,
-	[OARRAYLIT] = 8,
+	[OTARRAY] = 8,
+	[OTCHAN] = 8,
+	[OTFUNC] = 8,
+	[OTINTER] = 8,
+	[OTMAP] = 8,
+	[OTPAREN] = 8,
+	[OTSTRUCT] = 8,
 
 	[OINDEXMAP] = 8,
 	[OINDEX] = 8,
@@ -1291,7 +1297,13 @@ nodefmt(Fmt *f, Node *n)
 	Type *t;
 
 	t = n->type;
-	if(n->orig != N)
+	if(n->orig == N)
+		fatal("node with no orig %N", n);
+
+	// we almost always want the original, except in export mode for literals
+	// this saves the importer some work, and avoids us having to redo some
+	// special casing for package unsafe
+	if(fmtmode != FExp || n->op != OLITERAL)
 		n = n->orig;
 
 	if(f->flags&FmtLong && t != T) {

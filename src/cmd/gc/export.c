@@ -104,18 +104,34 @@ reexportdep(Node *n)
 	if(!n)
 		return;
 
+//	print("reexportdep %+hN\n", n);
 	switch(n->op) {
 	case ONAME:
 		switch(n->class&~PHEAP) {
 		case PFUNC:
+			// methods will be printed along with their type
+			if(!n->type || n->type->thistuple > 0)
+				break;
+			// fallthrough
 		case PEXTERN:
 			if (n->sym && n->sym->pkg != localpkg && n->sym->pkg != builtinpkg)
 				exportlist = list(exportlist, n);
 		}
 		break;
 
-	case OTYPE:
+
 	case OLITERAL:
+		t = n->type;
+		if(t != types[n->type->etype] && t != idealbool && t != idealstring) {
+			if(isptr[t->etype])
+				t = t->type;
+			if (t && t->sym && t->sym->def && t->sym->pkg != localpkg  && t->sym->pkg != builtinpkg) {
+//				print("reexport literal type %+hN\n", t->sym->def);
+				exportlist = list(exportlist, t->sym->def);
+			}
+		}
+		// fallthrough
+	case OTYPE:
 		if (n->sym && n->sym->pkg != localpkg && n->sym->pkg != builtinpkg)
 			exportlist = list(exportlist, n);
 		break;
@@ -176,7 +192,7 @@ dumpexportvar(Sym *s)
 	Type *t;
 
 	n = s->def;
-	typecheck(&n, Erv);
+	typecheck(&n, Erv|Ecall);
 	if(n == N || n->type == T) {
 		yyerror("variable exported but not defined: %S", s);
 		return;
@@ -187,6 +203,10 @@ dumpexportvar(Sym *s)
 
 	if(t->etype == TFUNC && n->class == PFUNC) {
 		if (n->inl) {
+			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
+			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
+			if(debug['l'] < 2)
+				typecheckinl(n);
 			Bprint(bout, "\tfunc %#S%#hT { %#H }\n", s, t, n->inl);
 			reexportdeplist(n->inl);
 		} else
@@ -243,6 +263,10 @@ dumpexporttype(Type *t)
 	for(i=0; i<n; i++) {
 		f = m[i];
 		if (f->type->nname && f->type->nname->inl) { // nname was set by caninl
+			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
+			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
+			if(debug['l'] < 2)
+				typecheckinl(f->type->nname);
 			Bprint(bout, "\tfunc (%#T) %#hhS%#hT { %#H }\n", getthisx(f->type)->type, f->sym, f->type, f->type->nname->inl);
 			reexportdeplist(f->type->nname->inl);
 		} else
@@ -261,7 +285,7 @@ dumpsym(Sym *s)
 		yyerror("unknown export symbol: %S", s);
 		return;
 	}
-	
+//	print("dumpsym %O %+S\n", s->def->op, s);
 	dumppkg(s->pkg);
 
 	switch(s->def->op) {
