@@ -8,3 +8,7 @@ package runtime
 func GOMAXPROCS(n int32) (ret int32) {
 	ret = runtime·gomaxprocsfunc(n);
 }
+
+func NumCPU() (ret int32) {
+	ret = runtime·ncpu;
+}
