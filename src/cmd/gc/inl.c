@@ -290,12 +290,13 @@ inlnode(Node **np)
 {
 	Node *n;
 	NodeList *l;
+	int lno;
 
 	if(*np == nil)
 		return;
 
 	n = *np;
-
+	
 	switch(n->op) {
 	case ODEFER:
 	case OPROC:
@@ -311,6 +312,8 @@ inlnode(Node **np)
 		// can avoid more heapmoves.
 		return;
 	}
+
+	lno = setlineno(n);
 
 	inlnodelist(n->ninit);
 	for(l=n->ninit; l; l=l->next)
@@ -431,6 +434,8 @@ inlnode(Node **np)
 
 		break;
 	}
+	
+	lineno = lno;
 }
 
 // if *np is a call, and fn is a function with an inlinable body, substitute *np with an OINLCALL.
@@ -495,20 +500,19 @@ mkinlcall(Node **np, Node *fn)
 	as = N;
 	if(fn->type->thistuple) {
 		t = getthisx(fn->type)->type;
-
-		if(t != T && t->nname != N && !t->nname->inlvar)
+		if(t != T && t->nname != N && !isblank(t->nname) && !t->nname->inlvar)
 			fatal("missing inlvar for %N\n", t->nname);
 
 		if(n->left->op == ODOTMETH) {
 			if (!n->left->left)
 				fatal("method call without receiver: %+N", n);
-			if(t != T && t->nname)
+			if(t != T && t->nname != N && !isblank(t->nname))
 				as = nod(OAS, t->nname->inlvar, n->left->left);
 			// else if !ONAME add to init anyway?
 		} else {  // non-method call to method
 			if (!n->list)
 				fatal("non-method call to method without first arg: %+N", n);
-			if(t != T && t->nname)
+			if(t != T && t->nname != N && !isblank(t->nname))
 				as = nod(OAS, t->nname->inlvar, n->list->n);
 		}
 
