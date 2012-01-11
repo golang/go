@@ -34,7 +34,7 @@
 #define SYS_gettid (SYS_BASE + 224)
 #define SYS_tkill (SYS_BASE + 238)
 #define SYS_sched_yield (SYS_BASE + 158)
-#define SYS_select (SYS_BASE + 82)
+#define SYS_select (SYS_BASE + 142) // newselect
 
 #define ARM_BASE (SYS_BASE + 0x0f0000)
 #define SYS_ARM_cacheflush (ARM_BASE + 2)
@@ -313,10 +313,10 @@ TEXT runtime·usleep(SB),7,$12
 	MOVW	usec+0(FP), R0
 	MOVW	R0, R1
 	MOVW	$1000000, R2
-	DIV	R1, R0
-	MOD	R2, R0
-	MOVW	R1, 4(SP)
-	MOVW	R2, 8(SP)
+	DIV	R2, R0
+	MOD	R2, R1
+	MOVW	R0, 4(SP)
+	MOVW	R1, 8(SP)
 	MOVW	$0, R0
 	MOVW	$0, R1
 	MOVW	$0, R2

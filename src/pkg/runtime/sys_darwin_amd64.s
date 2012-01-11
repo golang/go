@@ -175,7 +175,7 @@ TEXT runtime·usleep(SB),7,$16
 	MOVL	$0, DX
 	MOVL	$0, R10
 	MOVQ	SP, R8
-	MOVL	$(0x2000000+23), AX
+	MOVL	$(0x2000000+93), AX
 	SYSCALL
 	RET
 
