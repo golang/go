@@ -1078,7 +1078,9 @@ exprfmt(Fmt *f, Node *n, int prec)
 		if(n->val.ctype == CTNIL)
 			n = n->orig; // if this node was a nil decorated with at type, print the original naked nil
 		if(n->type != types[n->type->etype] && n->type != idealbool && n->type != idealstring) {
-			if(isptr[n->type->etype])
+			// Need parens when type begins with what might
+			// be misinterpreted as a unary operator: * or <-.
+			if(isptr[n->type->etype] || (n->type->etype == TCHAN && n->type->chan == Crecv))
 				return fmtprint(f, "(%T)(%V)", n->type, &n->val);
 			else 
 				return fmtprint(f, "%T(%V)", n->type, &n->val);
