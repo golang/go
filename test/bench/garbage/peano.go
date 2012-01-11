@@ -108,15 +108,14 @@ func verify() {
 // -------------------------------------
 // Factorial
 
-
 func main() {
-	t0 := time.Nanoseconds()
+	t0 := time.Now()
 	verify()
 	for i := 0; i <= 9; i++ {
 		print(i, "! = ", count(fact(gen(i))), "\n")
 	}
 	runtime.GC()
-	t1 := time.Nanoseconds()
+	t1 := time.Now()
 
-	gcstats("BenchmarkPeano", 1, t1-t0)
+	gcstats("BenchmarkPeano", 1, t1.Sub(t0))
 }

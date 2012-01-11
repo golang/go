@@ -123,10 +123,9 @@ enum
 
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
-	// on the hardware details of the machine.  The second
-	// proc is the one that helps the most (after the first),
-	// so start with just 2 for now.
-	MaxGcproc = 2,
+	// on the hardware details of the machine.  The garbage
+	// collector scales well to 4 cpus.
+	MaxGcproc = 4,
 };
 
 // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)

@@ -8,6 +8,7 @@ ALL=\
 	parser\
 	peano\
 	tree\
+	tree2\
 
 all: $(addsuffix .out, $(ALL))
 

@@ -68,7 +68,7 @@ const minDepth = 4
 func main() {
 	flag.Parse()
 
-	t0 := time.Nanoseconds()
+	t0 := time.Now()
 
 	maxDepth := *n
 	if minDepth+2 > *n {
@@ -93,8 +93,8 @@ func main() {
 	}
 	fmt.Printf("long lived tree of depth %d\t check: %d\n", maxDepth, longLivedTree.itemCheck())
 
-	t1 := time.Nanoseconds()
+	t1 := time.Now()
 
 	// Standard gotest benchmark output, collected by build dashboard.
-	gcstats("BenchmarkTree", *n, t1-t0)
+	gcstats("BenchmarkTree", *n, t1.Sub(t0))
 }
