@@ -20,6 +20,7 @@ GOFILES=\
 	httputil.go\
 	imagecolor.go\
 	imagenew.go\
+	imagetiled.go\
 	imageycbcr.go\
 	iocopyn.go\
 	main.go\
