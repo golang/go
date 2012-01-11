@@ -104,7 +104,7 @@ const (
 // Calls to Scan will use the error handler err if they encounter a
 // syntax error and err is not nil. Also, for each error encountered,
 // the Scanner field ErrorCount is incremented by one. The mode parameter
-// determines how comments, illegal characters, and semicolons are handled.
+// determines how comments and semicolons are handled.
 //
 // Note that Init may call err if there is an error in the first character
 // of the file.
