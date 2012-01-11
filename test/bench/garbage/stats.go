@@ -8,12 +8,13 @@ import (
 	"fmt"
 	"runtime"
 	"sort"
+	"time"
 )
 
-func gcstats(name string, n int, t int64) {
+func gcstats(name string, n int, t time.Duration) {
 	st := &runtime.MemStats
 	fmt.Printf("garbage.%sMem Alloc=%d/%d Heap=%d NextGC=%d Mallocs=%d\n", name, st.Alloc, st.TotalAlloc, st.Sys, st.NextGC, st.Mallocs)
-	fmt.Printf("garbage.%s %d %d ns/op\n", name, n, t/int64(n))
+	fmt.Printf("garbage.%s %d %d ns/op\n", name, n, t.Nanoseconds()/int64(n))
 	fmt.Printf("garbage.%sLastPause 1 %d ns/op\n", name, st.PauseNs[(st.NumGC-1)%uint32(len(st.PauseNs))])
 	fmt.Printf("garbage.%sPause %d %d ns/op\n", name, st.NumGC, int64(st.PauseTotalNs)/int64(st.NumGC))
 	nn := int(st.NumGC)
