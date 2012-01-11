@@ -177,6 +177,15 @@ var tokens = [...]elt{
 
 const whitespace = "  \t  \n\n\n" // to separate tokens
 
+var source = func() []byte {
+	var src []byte
+	for _, t := range tokens {
+		src = append(src, t.lit...)
+		src = append(src, whitespace...)
+	}
+	return src
+}()
+
 type testErrorHandler struct {
 	t *testing.T
 }
@@ -214,20 +223,20 @@ func checkPos(t *testing.T, lit string, p token.Pos, expected token.Position) {
 // Verify that calling Scan() provides the correct results.
 func TestScan(t *testing.T) {
 	// make source
-	var src string
-	for _, e := range tokens {
-		src += e.lit + whitespace
-	}
-	src_linecount := newlineCount(src)
+	src_linecount := newlineCount(string(source))
 	whitespace_linecount := newlineCount(whitespace)
 
 	// verify scan
 	var s Scanner
-	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), &testErrorHandler{t}, ScanComments|dontInsertSemis)
+	s.Init(fset.AddFile("", fset.Base(), len(source)), source, &testErrorHandler{t}, ScanComments|dontInsertSemis)
 	index := 0
 	epos := token.Position{"", 0, 1, 1} // expected position
 	for {
 		pos, tok, lit := s.Scan()
+		if lit == "" {
+			// no literal value for non-literal tokens
+			lit = tok.String()
+		}
 		e := elt{token.EOF, "", special}
 		if index < len(tokens) {
 			e = tokens[index]
@@ -657,5 +666,22 @@ var errors = []struct {
 func TestScanErrors(t *testing.T) {
 	for _, e := range errors {
 		checkError(t, e.src, e.tok, e.pos, e.err)
+	}
+}
+
+func BenchmarkScan(b *testing.B) {
+	b.StopTimer()
+	fset := token.NewFileSet()
+	file := fset.AddFile("", fset.Base(), len(source))
+	var s Scanner
+	b.StartTimer()
+	for i := b.N - 1; i >= 0; i-- {
+		s.Init(file, source, nil, ScanComments)
+		for {
+			_, tok, _ := s.Scan()
+			if tok == token.EOF {
+				break
+			}
+		}
 	}
 }

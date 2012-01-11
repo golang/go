@@ -283,10 +283,8 @@ func init() {
 
 // Lookup maps an identifier to its keyword token or IDENT (if not a keyword).
 //
-func Lookup(ident []byte) Token {
-	// TODO Maps with []byte key are illegal because []byte does not
-	//      support == . Should find a more efficient solution eventually.
-	if tok, is_keyword := keywords[string(ident)]; is_keyword {
+func Lookup(ident string) Token {
+	if tok, is_keyword := keywords[ident]; is_keyword {
 		return tok
 	}
 	return IDENT
@@ -295,16 +293,16 @@ func Lookup(ident []byte) Token {
 // Predicates
 
 // IsLiteral returns true for tokens corresponding to identifiers
-// and basic type literals; returns false otherwise.
+// and basic type literals; it returns false otherwise.
 //
 func (tok Token) IsLiteral() bool { return literal_beg < tok && tok < literal_end }
 
 // IsOperator returns true for tokens corresponding to operators and
-// delimiters; returns false otherwise.
+// delimiters; it returns false otherwise.
 //
 func (tok Token) IsOperator() bool { return operator_beg < tok && tok < operator_end }
 
 // IsKeyword returns true for tokens corresponding to keywords;
-// returns false otherwise.
+// it returns false otherwise.
 //
 func (tok Token) IsKeyword() bool { return keyword_beg < tok && tok < keyword_end }
