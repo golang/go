@@ -9,7 +9,6 @@
 package net
 
 import (
-	"bytes"
 	"os"
 	"syscall"
 )
@@ -272,66 +271,32 @@ func (c *UDPConn) LeaveGroup(ifi *Interface, addr IP) error {
 }
 
 func joinIPv4GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
-	mreq := &syscall.IPMreq{Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]}}
-	if err := setIPv4InterfaceToJoin(mreq, ifi); err != nil {
-		return &OpError{"joinipv4group", "udp", &IPAddr{ip}, err}
-	}
-	if err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq)); err != nil {
+	err := joinIPv4Group(c.fd, ifi, ip)
+	if err != nil {
 		return &OpError{"joinipv4group", "udp", &IPAddr{ip}, err}
 	}
 	return nil
 }
 
 func leaveIPv4GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
-	mreq := &syscall.IPMreq{Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]}}
-	if err := setIPv4InterfaceToJoin(mreq, ifi); err != nil {
-		return &OpError{"leaveipv4group", "udp", &IPAddr{ip}, err}
-	}
-	if err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq)); err != nil {
-		return &OpError{"leaveipv4group", "udp", &IPAddr{ip}, err}
-	}
-	return nil
-}
-
-func setIPv4InterfaceToJoin(mreq *syscall.IPMreq, ifi *Interface) error {
-	if ifi == nil {
-		return nil
-	}
-	ifat, err := ifi.Addrs()
+	err := leaveIPv4Group(c.fd, ifi, ip)
 	if err != nil {
-		return err
-	}
-	for _, ifa := range ifat {
-		if x := ifa.(*IPAddr).IP.To4(); x != nil {
-			copy(mreq.Interface[:], x)
-			break
-		}
-	}
-	if bytes.Equal(mreq.Multiaddr[:], IPv4zero) {
-		return os.EINVAL
+		return &OpError{"leaveipv4group", "udp", &IPAddr{ip}, err}
 	}
 	return nil
 }
 
 func joinIPv6GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
-	mreq := &syscall.IPv6Mreq{}
-	copy(mreq.Multiaddr[:], ip)
-	if ifi != nil {
-		mreq.Interface = uint32(ifi.Index)
-	}
-	if err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPv6Mreq(c.fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_JOIN_GROUP, mreq)); err != nil {
+	err := joinIPv6Group(c.fd, ifi, ip)
+	if err != nil {
 		return &OpError{"joinipv6group", "udp", &IPAddr{ip}, err}
 	}
 	return nil
 }
 
 func leaveIPv6GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
-	mreq := &syscall.IPv6Mreq{}
-	copy(mreq.Multiaddr[:], ip)
-	if ifi != nil {
-		mreq.Interface = uint32(ifi.Index)
-	}
-	if err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPv6Mreq(c.fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_LEAVE_GROUP, mreq)); err != nil {
+	err := leaveIPv6Group(c.fd, ifi, ip)
+	if err != nil {
 		return &OpError{"leaveipv6group", "udp", &IPAddr{ip}, err}
 	}
 	return nil

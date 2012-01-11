@@ -36,7 +36,11 @@ GOFILES_darwin=\
 	port.go\
 	sendfile_stub.go\
 	sock.go\
-	sock_bsd.go\
+	sockopt.go\
+	sockopt_bsd.go\
+	sockoptip.go\
+	sockoptip_bsd.go\
+	sockoptip_darwin.go\
 	tcpsock_posix.go\
 	udpsock_posix.go\
 	unixsock_posix.go\
@@ -64,7 +68,11 @@ GOFILES_freebsd=\
 	port.go\
 	sendfile_stub.go\
 	sock.go\
-	sock_bsd.go\
+	sockopt.go\
+	sockopt_bsd.go\
+	sockoptip.go\
+	sockoptip_bsd.go\
+	sockoptip_freebsd.go\
 	tcpsock_posix.go\
 	udpsock_posix.go\
 	unixsock_posix.go\
@@ -91,7 +99,10 @@ GOFILES_linux=\
 	port.go\
 	sendfile_linux.go\
 	sock.go\
-	sock_linux.go\
+	sockopt.go\
+	sockopt_linux.go\
+	sockoptip.go\
+	sockoptip_linux.go\
 	tcpsock_posix.go\
 	udpsock_posix.go\
 	unixsock_posix.go\
@@ -119,7 +130,11 @@ GOFILES_netbsd=\
 	port.go\
 	sendfile_stub.go\
 	sock.go\
-	sock_bsd.go\
+	sockopt.go\
+	sockopt_bsd.go\
+	sockoptip.go\
+	sockoptip_bsd.go\
+	sockoptip_netbsd.go\
 	tcpsock_posix.go\
 	udpsock_posix.go\
 	unixsock_posix.go\
@@ -140,7 +155,11 @@ GOFILES_openbsd=\
 	port.go\
 	sendfile_stub.go\
 	sock.go\
-	sock_bsd.go\
+	sockopt.go\
+	sockopt_bsd.go\
+	sockoptip.go\
+	sockoptip_bsd.go\
+	sockoptip_openbsd.go\
 	tcpsock_posix.go\
 	udpsock_posix.go\
 	unixsock_posix.go\
@@ -165,7 +184,10 @@ GOFILES_windows=\
 	lookup_windows.go\
 	sendfile_windows.go\
 	sock.go\
-	sock_windows.go\
+	sockopt.go\
+	sockopt_windows.go\
+	sockoptip.go\
+	sockoptip_windows.go\
 	tcpsock_posix.go\
 	udpsock_posix.go\
 	unixsock_posix.go\
