@@ -35,9 +35,9 @@ var cmdTest = &Command{
 'Go test' automates testing the packages named by the import paths.
 It prints a summary of the test results in the format:
 
-	test archive/tar
-	FAIL archive/zip
-	test compress/gzip
+	ok   archive/tar   0.011s
+	FAIL archive/zip   0.022s
+	ok   compress/gzip 0.033s
 	...
 
 followed by detailed output for each failed package.
@@ -60,7 +60,7 @@ and the test binary.
 
 See 'go help importpath' for more about import paths.
 
-See also: go build, go compile, go vet.
+See also: go build, go vet.
 	`,
 }
 
