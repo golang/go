@@ -10,7 +10,7 @@ import (
 	"crypto/aes"
 	"crypto/cast5"
 	"crypto/cipher"
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
 	"io"
 	"math/big"
 )
@@ -162,7 +162,7 @@ func readHeader(r io.Reader) (tag packetType, length int64, contents io.Reader, 
 		return
 	}
 	if buf[0]&0x80 == 0 {
-		err = error_.StructuralError("tag byte does not have MSB set")
+		err = errors.StructuralError("tag byte does not have MSB set")
 		return
 	}
 	if buf[0]&0x40 == 0 {
@@ -337,7 +337,7 @@ func Read(r io.Reader) (p Packet, err error) {
 		se.MDC = true
 		p = se
 	default:
-		err = error_.UnknownPacketTypeError(tag)
+		err = errors.UnknownPacketTypeError(tag)
 	}
 	if p != nil {
 		err = p.parse(contents)

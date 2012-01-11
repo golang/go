@@ -7,7 +7,7 @@ package packet
 import (
 	"bytes"
 	"crypto/cipher"
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
 	"crypto/openpgp/s2k"
 	"io"
 	"strconv"
@@ -37,12 +37,12 @@ func (ske *SymmetricKeyEncrypted) parse(r io.Reader) (err error) {
 		return
 	}
 	if buf[0] != symmetricKeyEncryptedVersion {
-		return error_.UnsupportedError("SymmetricKeyEncrypted version")
+		return errors.UnsupportedError("SymmetricKeyEncrypted version")
 	}
 	ske.CipherFunc = CipherFunction(buf[1])
 
 	if ske.CipherFunc.KeySize() == 0 {
-		return error_.UnsupportedError("unknown cipher: " + strconv.Itoa(int(buf[1])))
+		return errors.UnsupportedError("unknown cipher: " + strconv.Itoa(int(buf[1])))
 	}
 
 	ske.s2k, err = s2k.Parse(r)
@@ -60,7 +60,7 @@ func (ske *SymmetricKeyEncrypted) parse(r io.Reader) (err error) {
 	err = nil
 	if n != 0 {
 		if n == maxSessionKeySizeInBytes {
-			return error_.UnsupportedError("oversized encrypted session key")
+			return errors.UnsupportedError("oversized encrypted session key")
 		}
 		ske.encryptedKey = encryptedKey[:n]
 	}
@@ -89,13 +89,13 @@ func (ske *SymmetricKeyEncrypted) Decrypt(passphrase []byte) error {
 		c.XORKeyStream(ske.encryptedKey, ske.encryptedKey)
 		ske.CipherFunc = CipherFunction(ske.encryptedKey[0])
 		if ske.CipherFunc.blockSize() == 0 {
-			return error_.UnsupportedError("unknown cipher: " + strconv.Itoa(int(ske.CipherFunc)))
+			return errors.UnsupportedError("unknown cipher: " + strconv.Itoa(int(ske.CipherFunc)))
 		}
 		ske.CipherFunc = CipherFunction(ske.encryptedKey[0])
 		ske.Key = ske.encryptedKey[1:]
 		if len(ske.Key)%ske.CipherFunc.blockSize() != 0 {
 			ske.Key = nil
-			return error_.StructuralError("length of decrypted key not a multiple of block size")
+			return errors.StructuralError("length of decrypted key not a multiple of block size")
 		}
 	}
 
@@ -110,7 +110,7 @@ func (ske *SymmetricKeyEncrypted) Decrypt(passphrase []byte) error {
 func SerializeSymmetricKeyEncrypted(w io.Writer, rand io.Reader, passphrase []byte, cipherFunc CipherFunction) (key []byte, err error) {
 	keySize := cipherFunc.KeySize()
 	if keySize == 0 {
-		return nil, error_.UnsupportedError("unknown cipher: " + strconv.Itoa(int(cipherFunc)))
+		return nil, errors.UnsupportedError("unknown cipher: " + strconv.Itoa(int(cipherFunc)))
 	}
 
 	s2kBuf := new(bytes.Buffer)

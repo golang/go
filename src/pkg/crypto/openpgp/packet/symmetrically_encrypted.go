@@ -6,8 +6,7 @@ package packet
 
 import (
 	"crypto/cipher"
-	error_ "crypto/openpgp/error"
-	"crypto/rand"
+	"crypto/openpgp/errors"
 	"crypto/sha1"
 	"crypto/subtle"
 	"hash"
@@ -35,7 +34,7 @@ func (se *SymmetricallyEncrypted) parse(r io.Reader) error {
 			return err
 		}
 		if buf[0] != symmetricallyEncryptedVersion {
-			return error_.UnsupportedError("unknown SymmetricallyEncrypted version")
+			return errors.UnsupportedError("unknown SymmetricallyEncrypted version")
 		}
 	}
 	se.contents = r
@@ -48,10 +47,10 @@ func (se *SymmetricallyEncrypted) parse(r io.Reader) error {
 func (se *SymmetricallyEncrypted) Decrypt(c CipherFunction, key []byte) (io.ReadCloser, error) {
 	keySize := c.KeySize()
 	if keySize == 0 {
-		return nil, error_.UnsupportedError("unknown cipher: " + strconv.Itoa(int(c)))
+		return nil, errors.UnsupportedError("unknown cipher: " + strconv.Itoa(int(c)))
 	}
 	if len(key) != keySize {
-		return nil, error_.InvalidArgumentError("SymmetricallyEncrypted: incorrect key length")
+		return nil, errors.InvalidArgumentError("SymmetricallyEncrypted: incorrect key length")
 	}
 
 	if se.prefix == nil {
@@ -61,7 +60,7 @@ func (se *SymmetricallyEncrypted) Decrypt(c CipherFunction, key []byte) (io.Read
 			return nil, err
 		}
 	} else if len(se.prefix) != c.blockSize()+2 {
-		return nil, error_.InvalidArgumentError("can't try ciphers with different block lengths")
+		return nil, errors.InvalidArgumentError("can't try ciphers with different block lengths")
 	}
 
 	ocfbResync := cipher.OCFBResync
@@ -72,7 +71,7 @@ func (se *SymmetricallyEncrypted) Decrypt(c CipherFunction, key []byte) (io.Read
 
 	s := cipher.NewOCFBDecrypter(c.new(key), se.prefix, ocfbResync)
 	if s == nil {
-		return nil, error_.KeyIncorrectError
+		return nil, errors.KeyIncorrectError
 	}
 
 	plaintext := cipher.StreamReader{S: s, R: se.contents}
@@ -181,7 +180,7 @@ const mdcPacketTagByte = byte(0x80) | 0x40 | 19
 
 func (ser *seMDCReader) Close() error {
 	if ser.error {
-		return error_.SignatureError("error during reading")
+		return errors.SignatureError("error during reading")
 	}
 
 	for !ser.eof {
@@ -192,18 +191,18 @@ func (ser *seMDCReader) Close() error {
 			break
 		}
 		if err != nil {
-			return error_.SignatureError("error during reading")
+			return errors.SignatureError("error during reading")
 		}
 	}
 
 	if ser.trailer[0] != mdcPacketTagByte || ser.trailer[1] != sha1.Size {
-		return error_.SignatureError("MDC packet not found")
+		return errors.SignatureError("MDC packet not found")
 	}
 	ser.h.Write(ser.trailer[:2])
 
 	final := ser.h.Sum(nil)
 	if subtle.ConstantTimeCompare(final, ser.trailer[2:]) != 1 {
-		return error_.SignatureError("hash mismatch")
+		return errors.SignatureError("hash mismatch")
 	}
 	return nil
 }
@@ -253,9 +252,9 @@ func (c noOpCloser) Close() error {
 // SerializeSymmetricallyEncrypted serializes a symmetrically encrypted packet
 // to w and returns a WriteCloser to which the to-be-encrypted packets can be
 // written.
-func SerializeSymmetricallyEncrypted(w io.Writer, c CipherFunction, key []byte) (contents io.WriteCloser, err error) {
+func SerializeSymmetricallyEncrypted(w io.Writer, rand io.Reader, c CipherFunction, key []byte) (contents io.WriteCloser, err error) {
 	if c.KeySize() != len(key) {
-		return nil, error_.InvalidArgumentError("SymmetricallyEncrypted.Serialize: bad key length")
+		return nil, errors.InvalidArgumentError("SymmetricallyEncrypted.Serialize: bad key length")
 	}
 	writeCloser := noOpCloser{w}
 	ciphertext, err := serializeStreamHeader(writeCloser, packetTypeSymmetricallyEncryptedMDC)
@@ -271,7 +270,7 @@ func SerializeSymmetricallyEncrypted(w io.Writer, c CipherFunction, key []byte) 
 	block := c.new(key)
 	blockSize := block.BlockSize()
 	iv := make([]byte, blockSize)
-	_, err = rand.Reader.Read(iv)
+	_, err = rand.Read(iv)
 	if err != nil {
 		return
 	}

@@ -6,7 +6,8 @@ package packet
 
 import (
 	"bytes"
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
+	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
 	"io"
@@ -70,7 +71,7 @@ func testMDCReader(t *testing.T) {
 	err = mdcReader.Close()
 	if err == nil {
 		t.Error("corruption: no error")
-	} else if _, ok := err.(*error_.SignatureError); !ok {
+	} else if _, ok := err.(*errors.SignatureError); !ok {
 		t.Errorf("corruption: expected SignatureError, got: %s", err)
 	}
 }
@@ -82,7 +83,7 @@ func TestSerialize(t *testing.T) {
 	c := CipherAES128
 	key := make([]byte, c.KeySize())
 
-	w, err := SerializeSymmetricallyEncrypted(buf, c, key)
+	w, err := SerializeSymmetricallyEncrypted(buf, rand.Reader, c, key)
 	if err != nil {
 		t.Errorf("error from SerializeSymmetricallyEncrypted: %s", err)
 		return

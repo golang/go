@@ -7,7 +7,7 @@ package openpgp
 import (
 	"crypto"
 	"crypto/openpgp/armor"
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
 	"crypto/openpgp/packet"
 	"crypto/openpgp/s2k"
 	"crypto/rand"
@@ -58,10 +58,10 @@ func armoredDetachSign(w io.Writer, signer *Entity, message io.Reader, sigType p
 
 func detachSign(w io.Writer, signer *Entity, message io.Reader, sigType packet.SignatureType) (err error) {
 	if signer.PrivateKey == nil {
-		return error_.InvalidArgumentError("signing key doesn't have a private key")
+		return errors.InvalidArgumentError("signing key doesn't have a private key")
 	}
 	if signer.PrivateKey.Encrypted {
-		return error_.InvalidArgumentError("signing key is encrypted")
+		return errors.InvalidArgumentError("signing key is encrypted")
 	}
 
 	sig := new(packet.Signature)
@@ -77,7 +77,7 @@ func detachSign(w io.Writer, signer *Entity, message io.Reader, sigType packet.S
 	}
 	io.Copy(wrappedHash, message)
 
-	err = sig.Sign(h, signer.PrivateKey)
+	err = sig.Sign(rand.Reader, h, signer.PrivateKey)
 	if err != nil {
 		return
 	}
@@ -111,7 +111,7 @@ func SymmetricallyEncrypt(ciphertext io.Writer, passphrase []byte, hints *FileHi
 	if err != nil {
 		return
 	}
-	w, err := packet.SerializeSymmetricallyEncrypted(ciphertext, packet.CipherAES128, key)
+	w, err := packet.SerializeSymmetricallyEncrypted(ciphertext, rand.Reader, packet.CipherAES128, key)
 	if err != nil {
 		return
 	}
@@ -156,7 +156,7 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
 	if signed != nil {
 		signer = signed.signingKey().PrivateKey
 		if signer == nil || signer.Encrypted {
-			return nil, error_.InvalidArgumentError("signing key must be decrypted")
+			return nil, errors.InvalidArgumentError("signing key must be decrypted")
 		}
 	}
 
@@ -183,7 +183,7 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
 	for i := range to {
 		encryptKeys[i] = to[i].encryptionKey()
 		if encryptKeys[i].PublicKey == nil {
-			return nil, error_.InvalidArgumentError("cannot encrypt a message to key id " + strconv.FormatUint(to[i].PrimaryKey.KeyId, 16) + " because it has no encryption keys")
+			return nil, errors.InvalidArgumentError("cannot encrypt a message to key id " + strconv.FormatUint(to[i].PrimaryKey.KeyId, 16) + " because it has no encryption keys")
 		}
 
 		sig := to[i].primaryIdentity().SelfSignature
@@ -201,7 +201,7 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
 	}
 
 	if len(candidateCiphers) == 0 || len(candidateHashes) == 0 {
-		return nil, error_.InvalidArgumentError("cannot encrypt because recipient set shares no common algorithms")
+		return nil, errors.InvalidArgumentError("cannot encrypt because recipient set shares no common algorithms")
 	}
 
 	cipher := packet.CipherFunction(candidateCiphers[0])
@@ -217,7 +217,7 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
 		}
 	}
 
-	encryptedData, err := packet.SerializeSymmetricallyEncrypted(ciphertext, cipher, symKey)
+	encryptedData, err := packet.SerializeSymmetricallyEncrypted(ciphertext, rand.Reader, cipher, symKey)
 	if err != nil {
 		return
 	}
@@ -287,7 +287,7 @@ func (s signatureWriter) Close() error {
 		IssuerKeyId:  &s.signer.KeyId,
 	}
 
-	if err := sig.Sign(s.h, s.signer); err != nil {
+	if err := sig.Sign(rand.Reader, s.h, s.signer); err != nil {
 		return err
 	}
 	if err := s.literalData.Close(); err != nil {

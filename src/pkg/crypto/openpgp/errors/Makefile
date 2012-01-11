@@ -4,8 +4,8 @@
 
 include ../../../../Make.inc
 
-TARG=crypto/openpgp/error
+TARG=crypto/openpgp/errors
 GOFILES=\
-	error.go\
+	errors.go\
 
 include ../../../../Make.pkg

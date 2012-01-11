@@ -6,7 +6,7 @@ package packet
 
 import (
 	"crypto/openpgp/elgamal"
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/binary"
@@ -35,7 +35,7 @@ func (e *EncryptedKey) parse(r io.Reader) (err error) {
 		return
 	}
 	if buf[0] != encryptedKeyVersion {
-		return error_.UnsupportedError("unknown EncryptedKey version " + strconv.Itoa(int(buf[0])))
+		return errors.UnsupportedError("unknown EncryptedKey version " + strconv.Itoa(int(buf[0])))
 	}
 	e.KeyId = binary.BigEndian.Uint64(buf[1:9])
 	e.Algo = PublicKeyAlgorithm(buf[9])
@@ -77,7 +77,7 @@ func (e *EncryptedKey) Decrypt(priv *PrivateKey) error {
 		c2 := new(big.Int).SetBytes(e.encryptedMPI2)
 		b, err = elgamal.Decrypt(priv.PrivateKey.(*elgamal.PrivateKey), c1, c2)
 	default:
-		err = error_.InvalidArgumentError("cannot decrypted encrypted session key with private key of type " + strconv.Itoa(int(priv.PubKeyAlgo)))
+		err = errors.InvalidArgumentError("cannot decrypted encrypted session key with private key of type " + strconv.Itoa(int(priv.PubKeyAlgo)))
 	}
 
 	if err != nil {
@@ -89,7 +89,7 @@ func (e *EncryptedKey) Decrypt(priv *PrivateKey) error {
 	expectedChecksum := uint16(b[len(b)-2])<<8 | uint16(b[len(b)-1])
 	checksum := checksumKeyMaterial(e.Key)
 	if checksum != expectedChecksum {
-		return error_.StructuralError("EncryptedKey checksum incorrect")
+		return errors.StructuralError("EncryptedKey checksum incorrect")
 	}
 
 	return nil
@@ -116,16 +116,16 @@ func SerializeEncryptedKey(w io.Writer, rand io.Reader, pub *PublicKey, cipherFu
 	case PubKeyAlgoElGamal:
 		return serializeEncryptedKeyElGamal(w, rand, buf, pub.PublicKey.(*elgamal.PublicKey), keyBlock)
 	case PubKeyAlgoDSA, PubKeyAlgoRSASignOnly:
-		return error_.InvalidArgumentError("cannot encrypt to public key of type " + strconv.Itoa(int(pub.PubKeyAlgo)))
+		return errors.InvalidArgumentError("cannot encrypt to public key of type " + strconv.Itoa(int(pub.PubKeyAlgo)))
 	}
 
-	return error_.UnsupportedError("encrypting a key to public key of type " + strconv.Itoa(int(pub.PubKeyAlgo)))
+	return errors.UnsupportedError("encrypting a key to public key of type " + strconv.Itoa(int(pub.PubKeyAlgo)))
 }
 
 func serializeEncryptedKeyRSA(w io.Writer, rand io.Reader, header [10]byte, pub *rsa.PublicKey, keyBlock []byte) error {
 	cipherText, err := rsa.EncryptPKCS1v15(rand, pub, keyBlock)
 	if err != nil {
-		return error_.InvalidArgumentError("RSA encryption failed: " + err.Error())
+		return errors.InvalidArgumentError("RSA encryption failed: " + err.Error())
 	}
 
 	packetLen := 10 /* header length */ + 2 /* mpi size */ + len(cipherText)
@@ -144,7 +144,7 @@ func serializeEncryptedKeyRSA(w io.Writer, rand io.Reader, header [10]byte, pub 
 func serializeEncryptedKeyElGamal(w io.Writer, rand io.Reader, header [10]byte, pub *elgamal.PublicKey, keyBlock []byte) error {
 	c1, c2, err := elgamal.Encrypt(rand, pub, keyBlock)
 	if err != nil {
-		return error_.InvalidArgumentError("ElGamal encryption failed: " + err.Error())
+		return errors.InvalidArgumentError("ElGamal encryption failed: " + err.Error())
 	}
 
 	packetLen := 10 /* header length */

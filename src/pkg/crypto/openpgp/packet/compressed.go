@@ -7,7 +7,7 @@ package packet
 import (
 	"compress/flate"
 	"compress/zlib"
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
 	"io"
 	"strconv"
 )
@@ -31,7 +31,7 @@ func (c *Compressed) parse(r io.Reader) error {
 	case 2:
 		c.Body, err = zlib.NewReader(r)
 	default:
-		err = error_.UnsupportedError("unknown compression algorithm: " + strconv.Itoa(int(buf[0])))
+		err = errors.UnsupportedError("unknown compression algorithm: " + strconv.Itoa(int(buf[0])))
 	}
 
 	return err

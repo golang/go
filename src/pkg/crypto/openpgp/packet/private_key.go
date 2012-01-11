@@ -9,7 +9,7 @@ import (
 	"crypto/cipher"
 	"crypto/dsa"
 	"crypto/openpgp/elgamal"
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
 	"crypto/openpgp/s2k"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -28,14 +28,21 @@ type PrivateKey struct {
 	encryptedData []byte
 	cipher        CipherFunction
 	s2k           func(out, in []byte)
-	PrivateKey    interface{} // An *rsa.PrivateKey.
+	PrivateKey    interface{} // An *rsa.PrivateKey or *dsa.PrivateKey.
 	sha1Checksum  bool
 	iv            []byte
 }
 
-func NewRSAPrivateKey(currentTime time.Time, priv *rsa.PrivateKey, isSubkey bool) *PrivateKey {
+func NewRSAPrivateKey(currentTime time.Time, priv *rsa.PrivateKey) *PrivateKey {
 	pk := new(PrivateKey)
-	pk.PublicKey = *NewRSAPublicKey(currentTime, &priv.PublicKey, isSubkey)
+	pk.PublicKey = *NewRSAPublicKey(currentTime, &priv.PublicKey)
+	pk.PrivateKey = priv
+	return pk
+}
+
+func NewDSAPrivateKey(currentTime time.Time, priv *dsa.PrivateKey) *PrivateKey {
+	pk := new(PrivateKey)
+	pk.PublicKey = *NewDSAPublicKey(currentTime, &priv.PublicKey)
 	pk.PrivateKey = priv
 	return pk
 }
@@ -72,13 +79,13 @@ func (pk *PrivateKey) parse(r io.Reader) (err error) {
 			pk.sha1Checksum = true
 		}
 	default:
-		return error_.UnsupportedError("deprecated s2k function in private key")
+		return errors.UnsupportedError("deprecated s2k function in private key")
 	}
 
 	if pk.Encrypted {
 		blockSize := pk.cipher.blockSize()
 		if blockSize == 0 {
-			return error_.UnsupportedError("unsupported cipher in private key: " + strconv.Itoa(int(pk.cipher)))
+			return errors.UnsupportedError("unsupported cipher in private key: " + strconv.Itoa(int(pk.cipher)))
 		}
 		pk.iv = make([]byte, blockSize)
 		_, err = readFull(r, pk.iv)
@@ -121,8 +128,10 @@ func (pk *PrivateKey) Serialize(w io.Writer) (err error) {
 	switch priv := pk.PrivateKey.(type) {
 	case *rsa.PrivateKey:
 		err = serializeRSAPrivateKey(privateKeyBuf, priv)
+	case *dsa.PrivateKey:
+		err = serializeDSAPrivateKey(privateKeyBuf, priv)
 	default:
-		err = error_.InvalidArgumentError("non-RSA private key")
+		err = errors.InvalidArgumentError("unknown private key type")
 	}
 	if err != nil {
 		return
@@ -172,6 +181,10 @@ func serializeRSAPrivateKey(w io.Writer, priv *rsa.PrivateKey) error {
 	return writeBig(w, priv.Precomputed.Qinv)
 }
 
+func serializeDSAPrivateKey(w io.Writer, priv *dsa.PrivateKey) error {
+	return writeBig(w, priv.X)
+}
+
 // Decrypt decrypts an encrypted private key using a passphrase.
 func (pk *PrivateKey) Decrypt(passphrase []byte) error {
 	if !pk.Encrypted {
@@ -188,18 +201,18 @@ func (pk *PrivateKey) Decrypt(passphrase []byte) error {
 
 	if pk.sha1Checksum {
 		if len(data) < sha1.Size {
-			return error_.StructuralError("truncated private key data")
+			return errors.StructuralError("truncated private key data")
 		}
 		h := sha1.New()
 		h.Write(data[:len(data)-sha1.Size])
 		sum := h.Sum(nil)
 		if !bytes.Equal(sum, data[len(data)-sha1.Size:]) {
-			return error_.StructuralError("private key checksum failure")
+			return errors.StructuralError("private key checksum failure")
 		}
 		data = data[:len(data)-sha1.Size]
 	} else {
 		if len(data) < 2 {
-			return error_.StructuralError("truncated private key data")
+			return errors.StructuralError("truncated private key data")
 		}
 		var sum uint16
 		for i := 0; i < len(data)-2; i++ {
@@ -207,7 +220,7 @@ func (pk *PrivateKey) Decrypt(passphrase []byte) error {
 		}
 		if data[len(data)-2] != uint8(sum>>8) ||
 			data[len(data)-1] != uint8(sum) {
-			return error_.StructuralError("private key checksum failure")
+			return errors.StructuralError("private key checksum failure")
 		}
 		data = data[:len(data)-2]
 	}

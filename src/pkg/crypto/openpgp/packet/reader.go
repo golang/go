@@ -5,7 +5,7 @@
 package packet
 
 import (
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
 	"io"
 )
 
@@ -34,7 +34,7 @@ func (r *Reader) Next() (p Packet, err error) {
 			r.readers = r.readers[:len(r.readers)-1]
 			continue
 		}
-		if _, ok := err.(error_.UnknownPacketTypeError); !ok {
+		if _, ok := err.(errors.UnknownPacketTypeError); !ok {
 			return nil, err
 		}
 	}
