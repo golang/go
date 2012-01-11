@@ -67,7 +67,7 @@ type parser struct {
 
 // scannerMode returns the scanner mode bits given the parser's mode bits.
 func scannerMode(mode uint) uint {
-	var m uint = scanner.InsertSemis
+	var m uint
 	if mode&ParseComments != 0 {
 		m |= scanner.ScanComments
 	}

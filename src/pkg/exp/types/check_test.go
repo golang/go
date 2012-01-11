@@ -111,7 +111,7 @@ func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) m
 		// set otherwise the position information returned here will
 		// not match the position information collected by the parser
 		s.Init(getFile(filename), src, nil, scanner.ScanComments)
-		var prev token.Pos // position of last non-comment token
+		var prev token.Pos // position of last non-comment, non-semicolon token
 
 	scanFile:
 		for {
@@ -124,6 +124,12 @@ func expectedErrors(t *testing.T, testname string, files map[string]*ast.File) m
 				if len(s) == 2 {
 					errors[prev] = string(s[1])
 				}
+			case token.SEMICOLON:
+				// ignore automatically inserted semicolon
+				if lit == "\n" {
+					break
+				}
+				fallthrough
 			default:
 				prev = pos
 			}

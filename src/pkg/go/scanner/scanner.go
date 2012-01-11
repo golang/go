@@ -90,8 +90,8 @@ func (S *Scanner) next() {
 // They control scanner behavior.
 //
 const (
-	ScanComments = 1 << iota // return comments as COMMENT tokens
-	InsertSemis              // automatically insert semicolons
+	ScanComments    = 1 << iota // return comments as COMMENT tokens
+	dontInsertSemis             // do not automatically insert semicolons - for testing only
 )
 
 // Init prepares the scanner S to tokenize the text src by setting the
@@ -104,7 +104,7 @@ const (
 // Calls to Scan will use the error handler err if they encounter a
 // syntax error and err is not nil. Also, for each error encountered,
 // the Scanner field ErrorCount is incremented by one. The mode parameter
-// determines how comments and semicolons are handled.
+// determines how comments are handled.
 //
 // Note that Init may call err if there is an error in the first character
 // of the file.
@@ -673,7 +673,7 @@ scanAgain:
 		}
 	}
 
-	if S.mode&InsertSemis != 0 {
+	if S.mode&dontInsertSemis == 0 {
 		S.insertSemi = insertSemi
 	}
 
