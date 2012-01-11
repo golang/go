@@ -1072,9 +1072,11 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OREGISTER:
 		return fmtprint(f, "%R", n->val.u.reg);
 
-	case OLITERAL:  // this is still a bit of a mess
+	case OLITERAL:  // this is a bit of a mess
 		if(fmtmode == FErr && n->sym != S)
 			return fmtprint(f, "%S", n->sym);
+		if(n->val.ctype == CTNIL)
+			n = n->orig; // if this node was a nil decorated with at type, print the original naked nil
 		if(n->type != types[n->type->etype] && n->type != idealbool && n->type != idealstring) {
 			if(isptr[n->type->etype])
 				return fmtprint(f, "(%T)(%V)", n->type, &n->val);
