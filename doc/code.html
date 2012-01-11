@@ -45,120 +45,89 @@ that receives a message summarizing each checkin to the Go repository.
 
 <h2 id="New_package">Creating a new package</h2>
 
+<h3>Choosing an import path</h3>
+
 <p>
-The source code for the package with import path
-<code>x/y</code> is, by convention, kept in the
-directory <code>$GOROOT/src/pkg/x/y</code>.
+The standard packages are given short names like <code>fmt</code> and
+<code>net/http</code> for convenience.
+For your own projects, choose a name space that is unlikely
+to collide with future additions to the standard library or other
+external libraries.
 </p>
 
-<h3>Makefile</h3>
+<p>
+For instance, if your source repository is at <code>example.com</code> 
+or <code>code.google.com/p/example</code>, you should begin your package
+paths with that URL, as in "<code>example.com/foo/bar</code>" or
+"<code>code.google.com/p/example/foo/bar</code>".
+This way the <a href="/cmd/go/"><code>go</code> tool</a> can automatically
+check out and build the source code from its import path.
+</p>
 
 <p>
-It would be nice to have Go-specific tools that
-inspect the source files to determine what to build and in
-what order, but for now, Go uses GNU <code>make</code>.
-Thus, the first file to create in a new package directory is
-usually the <code>Makefile</code>.
-The basic form used in the Go source tree
-is illustrated by <a href="../src/pkg/container/vector/Makefile"><code>src/pkg/container/vector/Makefile</code></a>:
+If you don't intend your code to be installed in this way, you should at
+least use a unique prefix like "<code>widgets/</code>", as in
+"<code>widgets/foo/bar</code>". A good rule is to use a prefix such as your
+company or project name since it is unlikely to be used by another group.
+</p>
+
+
+<h3>The <code>go</code> tool and <code>GOPATH</code></h3>
+
+<p>
+The <a href="/cmd/go/"><code>go</code> tool</a> is the standard means of
+building and installing Go libraries and programs. It is a "zero configuration"
+tool; it determines how to build Go packages from their source code alone.
+</p>
+
+<p>
+To use the <code>go</code> tool effectively you must set the
+<code>GOPATH</code> variable.
+<code>GOPATH</code> specifies a list of paths that contain Go source code
+and package binaries. Source code, package objects, and command binaries are
+located inside the <code>GOPATH</code>s' <code>src</code>, <code>pkg</code>,
+and <code>bin</code> subdirectories respectively.
+</p>
+
+<p>
+You should set <code>GOPATH</code> in your shell profile
+(<code>$HOME/.bashrc</code>, <code>$HOME/.profile</code>, or equivalent).
+</p>
+
+<p>
+This shell session demonstrates setting <code>GOPATH</code>, creating a trivial
+<code>widgets/foo</code> package, and building and installing the package.
 </p>
 
 <pre>
-include ../../../Make.inc
-
-TARG=container/vector
-GOFILES=\
-	intvector.go\
-	stringvector.go\
-	vector.go\
-
-include ../../../Make.pkg
+$ export GOPATH=$HOME/gocode
+$ mkdir -p $GOPATH/src/widgets/foo
+$ cat &gt; $GOPATH/src/widgets/foo/foo.go
+package foo
+const String = "Go rules!"
+^D
+$ go install widgets/foo
+$ ls $GOPATH/pkg/*/example
+foo.a
 </pre>
 
-<p>
-Outside the Go source tree (for personal packages), the standard form is
-</p>
-
-<pre>
-include $(GOROOT)/src/Make.inc
-
-TARG=mypackage
-GOFILES=\
-	my1.go\
-	my2.go\
-
-include $(GOROOT)/src/Make.pkg
-</pre>
+<p>(<code>^D</code> means to type Control-D.)</p>
 
 <p>
-The first and last lines <code>include</code> standard definitions and rules.
-Packages maintained in the standard Go tree use a relative path (instead of
-<code>$(GOROOT)/src</code>) so that <code>make</code> will work correctly
-even if <code>$(GOROOT)</code> contains spaces.
-This makes it easy for programmers to try Go.
-</p>
-
-<p>
-If you have not set <code>$GOROOT</code> in your environment,
-you must run <code>gomake</code> to use this form of makefile.
-<code>Gomake</code> also takes care to invoke GNU Make
-even on systems where it is installed as <code>gmake</code>
-rather than <code>make</code>.
-</p>
-
-<p>
-<code>TARG</code> is the target install path for the package,
-the string that clients will use to import it.
-Inside the Go tree, this string should be the same as the directory
-in which the <code>Makefile</code> appears, with the
-<code>$GOROOT/src/pkg/</code> prefix removed.
-Outside the Go tree, you can use any <code>TARG</code> you
-want that doesn't conflict with the standard Go package names.
-A common convention is to use an identifying top-level name
-to group your packages: <code>myname/tree</code>, <code>myname/filter</code>, etc.
-Note that even if you keep your package source outside the
-Go tree, running <code>make install</code> installs your
-package binaries in the standard location&mdash;<code>$GOROOT/pkg</code>&mdash;to
-make it easy to find them.
-</p>
-
-<p>
-<code>GOFILES</code> is a list of source files to compile to
-create the package.  The trailing <code>\</code> characters
-allow the list to be split onto multiple lines
-for easy sorting.
-</p>
-
-<p>
-If you create a new package directory in the Go tree, add it to the list in
-<code>$GOROOT/src/pkg/Makefile</code> so that it
-is included in the standard build.  Then run:
-<pre>
-cd $GOROOT/src/pkg
-./deps.bash
-</pre>
-<p>
-to update the dependency file <code>Make.deps</code>.
-(This happens automatically each time you run <code>all.bash</code>
-or <code>make.bash</code>.)
-</p>
-
-<p>
-If you change the imports of an existing package,
-you do not need to edit <code>$GOROOT/src/pkg/Makefile</code>
-but you will still need to run <code>deps.bash</code> as above.
+Type <code>go help gopath</code> on the command line for more information
+about <code>GOPATH</code>.
 </p>
 
 
 <h3>Go source files</h3>
 
 <p>
-The first statement in each of the source files listed in the <code>Makefile</code>
-should be <code>package <i>name</i></code>, where <code><i>name</i></code>
-is the package's default name for imports.
+The first statement in a Go source file should be <code>package
+<i>name</i></code>, where <code><i>name</i></code> is the package's default
+name for imports.
 (All files in a package must use the same <code><i>name</i></code>.)
 Go's convention is that the package name is the last element of the
-import path: the package imported as <code>"crypto/rot13"</code>
+import path: the package imported as "<code>crypto/rot13</code>"
 should be named <code>rot13</code>.
 There is no requirement that package names be unique
 across all packages linked into a single binary,
@@ -178,63 +147,81 @@ that topic.
 </p>
 
 <h2 id="Building_programs">Building programs</h2>
-<p>To build a Go program with gomake, create a Makefile alongside your program's
-source files. It should be similar to the example above, but include
-<code>Make.cmd</code> instead of <code>Make.pkg</code>:
 
-<pre>
-include $(GOROOT)/src/Make.inc
-
-TARG=helloworld
-GOFILES=\
-	helloworld.go\
-
-include $(GOROOT)/src/Make.cmd
-</pre>
-
-<p>Running <code>gomake</code> will compile <code>helloworld.go</code>
-and produce an executable named <code>helloworld</code> in the current
-directory.
+<p>
+The <a href="/cmd/go/"><code>go</code> tool</a> treats code belonging to
+<code>package main</code> as an executable command, and installs the package
+binary to the <code>GOPATH</code>'s <code>bin</code> subdirectory.
 </p>
 
 <p>
-Running <code>gomake install</code> will build <code>helloworld</code> if
-necessary and copy it to the <code>$GOBIN</code> directory
-(<code>$GOROOT/bin/</code> is the default).
+Building executable commands is the same as building packages.
+Use "<code>go install</code>":
+</p>
+
+<pre>
+$ cat &gt; $GOPATH/src/widgets/bar/bar.go
+package main
+
+import (
+    "fmt"
+    "widgets/foo"
+)
+
+func main() {
+    fmt.Println(foo.String)
+}
+^D
+$ go install widgets/bar
+$ $GOPATH/bin/bar
+Go rules!
+</pre>
+
+<p>
+Run <code>go help build</code> and <code>go help install</code> for more
+about building and installing Go binaries.
 </p>
 
 <h2 id="Testing">Testing</h2>
 
 <p>
-Go has a lightweight test framework known as <code>gotest</code>.
+Go has a lightweight test framework composed of the <code>go</code> tool and
+the <code>testing</code> package.
 You write a test by creating a file with a name ending in <code>_test.go</code>
-that contains functions named <code>TestXXX</code> with signature <code>func (t *testing.T)</code>.
+that contains functions named <code>TestXXX</code> with signature
+<code>func (t *testing.T)</code>.
 The test framework runs each such function;
-if the function calls a failure function such as <code>t.Error</code> or <code>t.Fail</code>, the test is considered to have failed.
-The <a href="/cmd/gotest/">gotest command documentation</a>
-and the <a href="/pkg/testing/">testing package documentation</a> give more detail.
+if the function calls a failure function such as <code>t.Error</code> or
+<code>t.Fail</code>, the test is considered to have failed.
+Run <code>go help test</code> and see the
+<a href="/pkg/testing/">testing package documentation</a> for more detail.
 </p>
 
 <p>
-The <code>*_test.go</code> files should not be listed in the <code>Makefile</code>.
+To run the test, run "<code>go test</code>":
 </p>
 
-<p>
-To run the test, run either <code>make test</code> or <code>gotest</code>
-(they are equivalent).
-To run only the tests in a single test file, for instance <code>one_test.go</code>,
-run <code>gotest one_test.go</code>.
-</p>
+<pre>
+$ cat &gt; $GOPATH/src/widgets/foo/foo_test.go
+package foo
+
+import "testing"
+
+func TestString(t *testing.T) {
+    const expect = "Go rules!"
+    if String != expect {
+        t.Errorf("String == %q, want %q", String, expect)
+    }
+}
+^D
+$ go test widgets/foo
+ok  	widgets/foo
+</pre>
 
 <p>
 If your change affects performance, add a <code>Benchmark</code> function 
-(see the <a href="/cmd/gotest/">gotest command documentation</a>)
-and run it using <code>gotest -test.bench=.</code>.
-</p>
-
-<p>
-Once your new code is tested and working,
-it's time to get it <a href="contribute.html">reviewed and submitted</a>.
+(run <code>go help testfunc</code>) and run it using <code>go test
+-test.bench=.*</code>.
 </p>
 
 <h2 id="pkg_example">An example package with tests</h2>
@@ -242,7 +229,7 @@ it's time to get it <a href="contribute.html">reviewed and submitted</a>.
 <p>
 This example package, <code>numbers</code>, consists of the function
 <code>Double</code>, which takes an <code>int</code> and returns that value 
-multiplied by 2. It consists of three files.
+multiplied by 2. It consists of two files.
 </p>
 
 <p>
@@ -289,38 +276,24 @@ func TestDouble(t *testing.T) {
 </pre>
 
 <p>
-Finally, the <code>Makefile</code>:
-</p>
-
-<pre>
-include $(GOROOT)/src/Make.inc
-
-TARG=numbers
-GOFILES=\
-	numbers.go\
-
-include $(GOROOT)/src/Make.pkg
-</pre>
-
-<p>
-Running <code>gomake install</code> will build and install the package to
-the <code>$GOROOT/pkg/</code> directory (it can then be used by any
-program on the system).
+Running <code>go install</code> will build and install the package to
+the <code>GOPATH</code>'s <code>pkg</code> directory
+(it can then be imported by any other Go program).
 </p>
 
 <p>
-Running <code>gomake test</code> (or just running the command
-<code>gotest</code>) will rebuild the package, including the
+Running <code>go test</code> will rebuild the package, including the
 <code>numbers_test.go</code> file, and then run the <code>TestDouble</code>
-function. The output "<code>PASS</code>" indicates that all tests passed
+function. The output "<code>ok</code>" indicates that all tests passed
 successfully.  Breaking the implementation by changing the multiplier from
 <code>2</code> to <code>3</code> will allow you to see how failing tests are 
 reported.
 </p>
 
 <p>
-See the <a href="/cmd/gotest/">gotest documentation</a> and the 
-<a href="/pkg/testing/">testing package</a> for more detail.
+Run <code>go help test</code>, <code>go help testfunc</code>,
+and <code>go help testflag</code> and see the
+<a href="/pkg/testing/">testing package documentation</a> for more detail.
 </p>
 
 <h2 id="arch_os_specific">Architecture- and operating system-specific code</h2>
@@ -335,34 +308,34 @@ different operating systems.</p>
 
 <p>To compile such code, use the <code>$GOOS</code> and <code>$GOARCH</code>
 <a href="/doc/install.html#environment">environment variables</a> in your
-source file names and <code>Makefile</code>.</p>
+source file names.</p>
 
-<p>For example, this <code>Makefile</code> describes a package that builds on
+<p>For example, consider the package <code>foo</code> that consists of four
+files:</p>
+
+<pre>
+foo.go
+foo_386.go
+foo_amd64.go
+foo_arm.go
+</pre>
+
+describes a package that builds on
 different operating systems by parameterizing the file name with
 <code>$GOOS</code>.</p>
 
-<pre>
-include $(GOROOT)/src/Make.inc
+<p>The general code goes in <code>foo.go</code>, while architecture-specific
+code goes in <code>foo_386.go</code>, <code>foo_amd64.go</code>, and
+<code>foo_arm.go</code>.</p>
 
-TARG=mypackage
-GOFILES=\
-	my.go\
-	my_$(GOOS).go\
-
-include $(GOROOT)/src/Make.pkg
-</pre>
-
-<p>The OS-specific code goes in <code>my_linux.go</code>,
-<code>my_darwin.go</code>, and so on.</p>
-
-<p>If you follow these conventional parameterizations, tools such as
-<a href="/cmd/goinstall/">goinstall</a> will work seamlessly with your package:
-</p>
+<p>If you follow these conventional parameterizations, tools such as the <a
+href="/cmd/go/"><code>go</code> tool</a> will work seamlessly with your
+package:</p>
 
 <pre>
-my_$(GOOS).go
-my_$(GOARCH).go
-my_$(GOOS)_$(GOARCH).go
+foo_$GOOS.go
+foo_$GOARCH.go
+foo_$GOOS_$GOARCH.go
 </pre>
 
-<p>The same holds for <code>.s</code> (assembly) files.</p>
+<p>The same holds for <code>.s</code> (assembly) and <code>.c</code> files.</p>
