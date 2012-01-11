@@ -640,22 +640,6 @@ type Linger struct {
 	Linger int32
 }
 
-const (
-	IP_TOS             = 0x3
-	IP_TTL             = 0x4
-	IP_ADD_MEMBERSHIP  = 0xc
-	IP_DROP_MEMBERSHIP = 0xd
-)
-
-const (
-	IPV6_UNICAST_HOPS   = 0x4
-	IPV6_MULTICAST_IF   = 0x9
-	IPV6_MULTICAST_HOPS = 0xa
-	IPV6_MULTICAST_LOOP = 0xb
-	IPV6_JOIN_GROUP     = 0xc
-	IPV6_LEAVE_GROUP    = 0xd
-)
-
 type IPMreq struct {
 	Multiaddr [4]byte /* in_addr */
 	Interface [4]byte /* in_addr */
