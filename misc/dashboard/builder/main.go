@@ -33,12 +33,11 @@ const (
 // These variables are copied from the gobuilder's environment
 // to the envv of its subprocesses.
 var extraEnv = []string{
-	"GOHOSTOS",
-	"GOHOSTARCH",
-	"PATH",
-	"DISABLE_NET_TESTS",
-	"MAKEFLAGS",
 	"GOARM",
+	"GOHOSTARCH",
+	"GOHOSTOS",
+	"PATH",
+	"TMPDIR",
 }
 
 type Builder struct {
