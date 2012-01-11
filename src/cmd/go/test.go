@@ -469,7 +469,12 @@ func (b *builder) runTest(a *action) error {
 
 	t0 := time.Now()
 	err := cmd.Start()
-	const deadline = 1 * time.Minute
+
+	// This is a last-ditch deadline to detect and
+	// stop wedged test binaries, to keep the builders
+	// running.
+	const deadline = 10 * time.Minute
+
 	tick := time.NewTimer(deadline)
 	if err == nil {
 		done := make(chan error)
