@@ -145,7 +145,7 @@ func packages() (pkgs []string, err error) {
 	*/
 }
 
-// updatePackage sends package build results and info dashboard
+// updatePackage sends package build results and info to the dashboard
 func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) error {
 	return nil
 	/* TODO(adg): un-stub this once the new package builder design is done
