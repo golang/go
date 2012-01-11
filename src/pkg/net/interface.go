@@ -12,6 +12,14 @@ import (
 	"fmt"
 )
 
+var (
+	errInvalidInterface         = errors.New("net: invalid interface")
+	errInvalidInterfaceIndex    = errors.New("net: invalid interface index")
+	errInvalidInterfaceName     = errors.New("net: invalid interface name")
+	errNoSuchInterface          = errors.New("net: no such interface")
+	errNoSuchMulticastInterface = errors.New("net: no such multicast interface")
+)
+
 // A HardwareAddr represents a physical hardware address.
 type HardwareAddr []byte
 
@@ -131,7 +139,7 @@ func (f Flags) String() string {
 // Addrs returns interface addresses for a specific interface.
 func (ifi *Interface) Addrs() ([]Addr, error) {
 	if ifi == nil {
-		return nil, errors.New("net: invalid interface")
+		return nil, errInvalidInterface
 	}
 	return interfaceAddrTable(ifi.Index)
 }
@@ -140,7 +148,7 @@ func (ifi *Interface) Addrs() ([]Addr, error) {
 // a specific interface.
 func (ifi *Interface) MulticastAddrs() ([]Addr, error) {
 	if ifi == nil {
-		return nil, errors.New("net: invalid interface")
+		return nil, errInvalidInterface
 	}
 	return interfaceMulticastAddrTable(ifi.Index)
 }
@@ -159,7 +167,7 @@ func InterfaceAddrs() ([]Addr, error) {
 // InterfaceByIndex returns the interface specified by index.
 func InterfaceByIndex(index int) (*Interface, error) {
 	if index <= 0 {
-		return nil, errors.New("net: invalid interface index")
+		return nil, errInvalidInterfaceIndex
 	}
 	ift, err := interfaceTable(index)
 	if err != nil {
@@ -168,13 +176,13 @@ func InterfaceByIndex(index int) (*Interface, error) {
 	for _, ifi := range ift {
 		return &ifi, nil
 	}
-	return nil, errors.New("net: no such interface")
+	return nil, errNoSuchInterface
 }
 
 // InterfaceByName returns the interface specified by name.
 func InterfaceByName(name string) (*Interface, error) {
 	if name == "" {
-		return nil, errors.New("net: invalid interface name")
+		return nil, errInvalidInterfaceName
 	}
 	ift, err := interfaceTable(0)
 	if err != nil {
@@ -185,5 +193,5 @@ func InterfaceByName(name string) (*Interface, error) {
 			return &ifi, nil
 		}
 	}
-	return nil, errors.New("net: no such interface")
+	return nil, errNoSuchInterface
 }

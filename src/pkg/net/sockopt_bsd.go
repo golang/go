@@ -4,7 +4,7 @@
 
 // +build darwin freebsd netbsd openbsd
 
-// Sockets for BSD variants
+// Socket options for BSD variants
 
 package net
 

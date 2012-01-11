@@ -641,8 +641,19 @@ type Linger struct {
 }
 
 const (
+	IP_TOS             = 0x3
+	IP_TTL             = 0x4
 	IP_ADD_MEMBERSHIP  = 0xc
 	IP_DROP_MEMBERSHIP = 0xd
+)
+
+const (
+	IPV6_UNICAST_HOPS   = 0x4
+	IPV6_MULTICAST_IF   = 0x9
+	IPV6_MULTICAST_HOPS = 0xa
+	IPV6_MULTICAST_LOOP = 0xb
+	IPV6_JOIN_GROUP     = 0xc
+	IPV6_LEAVE_GROUP    = 0xd
 )
 
 type IPMreq struct {
@@ -655,6 +666,7 @@ type IPv6Mreq struct {
 	Interface uint32
 }
 
+func GetsockoptInt(fd Handle, level, opt int) (int, error)              { return -1, EWINDOWS }
 func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) { return EWINDOWS }
 func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))
