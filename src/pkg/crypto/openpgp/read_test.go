@@ -6,7 +6,7 @@ package openpgp
 
 import (
 	"bytes"
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
 	_ "crypto/sha512"
 	"encoding/hex"
 	"io"
@@ -161,18 +161,18 @@ func TestSignedEncryptedMessage(t *testing.T) {
 		prompt := func(keys []Key, symmetric bool) ([]byte, error) {
 			if symmetric {
 				t.Errorf("prompt: message was marked as symmetrically encrypted")
-				return nil, error_.KeyIncorrectError
+				return nil, errors.KeyIncorrectError
 			}
 
 			if len(keys) == 0 {
 				t.Error("prompt: no keys requested")
-				return nil, error_.KeyIncorrectError
+				return nil, errors.KeyIncorrectError
 			}
 
 			err := keys[0].PrivateKey.Decrypt([]byte("passphrase"))
 			if err != nil {
 				t.Errorf("prompt: error decrypting key: %s", err)
-				return nil, error_.KeyIncorrectError
+				return nil, errors.KeyIncorrectError
 			}
 
 			return nil, nil
@@ -296,7 +296,7 @@ func TestReadingArmoredPrivateKey(t *testing.T) {
 
 func TestNoArmoredData(t *testing.T) {
 	_, err := ReadArmoredKeyRing(bytes.NewBufferString("foo"))
-	if _, ok := err.(error_.InvalidArgumentError); !ok {
+	if _, ok := err.(errors.InvalidArgumentError); !ok {
 		t.Errorf("error was not an InvalidArgumentError: %s", err)
 	}
 }

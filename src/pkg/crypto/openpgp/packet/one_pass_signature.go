@@ -6,7 +6,7 @@ package packet
 
 import (
 	"crypto"
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
 	"crypto/openpgp/s2k"
 	"encoding/binary"
 	"io"
@@ -33,13 +33,13 @@ func (ops *OnePassSignature) parse(r io.Reader) (err error) {
 		return
 	}
 	if buf[0] != onePassSignatureVersion {
-		err = error_.UnsupportedError("one-pass-signature packet version " + strconv.Itoa(int(buf[0])))
+		err = errors.UnsupportedError("one-pass-signature packet version " + strconv.Itoa(int(buf[0])))
 	}
 
 	var ok bool
 	ops.Hash, ok = s2k.HashIdToHash(buf[2])
 	if !ok {
-		return error_.UnsupportedError("hash function: " + strconv.Itoa(int(buf[2])))
+		return errors.UnsupportedError("hash function: " + strconv.Itoa(int(buf[2])))
 	}
 
 	ops.SigType = SignatureType(buf[1])
@@ -57,7 +57,7 @@ func (ops *OnePassSignature) Serialize(w io.Writer) error {
 	var ok bool
 	buf[2], ok = s2k.HashToHashId(ops.Hash)
 	if !ok {
-		return error_.UnsupportedError("hash type: " + strconv.Itoa(int(ops.Hash)))
+		return errors.UnsupportedError("hash type: " + strconv.Itoa(int(ops.Hash)))
 	}
 	buf[3] = uint8(ops.PubKeyAlgo)
 	binary.BigEndian.PutUint64(buf[4:12], ops.KeyId)

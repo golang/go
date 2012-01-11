@@ -8,7 +8,7 @@ package s2k
 
 import (
 	"crypto"
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
 	"hash"
 	"io"
 	"strconv"
@@ -89,11 +89,11 @@ func Parse(r io.Reader) (f func(out, in []byte), err error) {
 
 	hash, ok := HashIdToHash(buf[1])
 	if !ok {
-		return nil, error_.UnsupportedError("hash for S2K function: " + strconv.Itoa(int(buf[1])))
+		return nil, errors.UnsupportedError("hash for S2K function: " + strconv.Itoa(int(buf[1])))
 	}
 	h := hash.New()
 	if h == nil {
-		return nil, error_.UnsupportedError("hash not available: " + strconv.Itoa(int(hash)))
+		return nil, errors.UnsupportedError("hash not available: " + strconv.Itoa(int(hash)))
 	}
 
 	switch buf[0] {
@@ -123,7 +123,7 @@ func Parse(r io.Reader) (f func(out, in []byte), err error) {
 		return f, nil
 	}
 
-	return nil, error_.UnsupportedError("S2K function")
+	return nil, errors.UnsupportedError("S2K function")
 }
 
 // Serialize salts and stretches the given passphrase and writes the resulting

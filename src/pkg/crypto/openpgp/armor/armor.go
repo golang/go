@@ -9,7 +9,7 @@ package armor
 import (
 	"bufio"
 	"bytes"
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
 	"encoding/base64"
 	"io"
 )
@@ -35,7 +35,7 @@ type Block struct {
 	oReader openpgpReader
 }
 
-var ArmorCorrupt error = error_.StructuralError("armor invalid")
+var ArmorCorrupt error = errors.StructuralError("armor invalid")
 
 const crc24Init = 0xb704ce
 const crc24Poly = 0x1864cfb

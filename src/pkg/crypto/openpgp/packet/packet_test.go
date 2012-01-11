@@ -6,7 +6,7 @@ package packet
 
 import (
 	"bytes"
-	error_ "crypto/openpgp/error"
+	"crypto/openpgp/errors"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -152,7 +152,7 @@ func TestReadHeader(t *testing.T) {
 	for i, test := range readHeaderTests {
 		tag, length, contents, err := readHeader(readerFromHex(test.hexInput))
 		if test.structuralError {
-			if _, ok := err.(error_.StructuralError); ok {
+			if _, ok := err.(errors.StructuralError); ok {
 				continue
 			}
 			t.Errorf("%d: expected StructuralError, got:%s", i, err)
