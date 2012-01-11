@@ -1374,7 +1374,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
 
 	if !*godefs && !*cdefs {
 		for cid, goid := range ident {
-			if token.Lookup([]byte(goid)).IsKeyword() {
+			if token.Lookup(goid).IsKeyword() {
 				// Avoid keyword
 				goid = "_" + goid
 

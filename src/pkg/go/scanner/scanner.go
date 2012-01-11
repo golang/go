@@ -157,7 +157,7 @@ func (S *Scanner) interpretLineComment(text []byte) {
 	}
 }
 
-func (S *Scanner) scanComment() {
+func (S *Scanner) scanComment() string {
 	// initial '/' already consumed; S.ch == '/' || S.ch == '*'
 	offs := S.offset - 1 // position of initial '/'
 
@@ -171,7 +171,7 @@ func (S *Scanner) scanComment() {
 			// comment starts at the beginning of the current line
 			S.interpretLineComment(S.src[offs:S.offset])
 		}
-		return
+		goto exit
 	}
 
 	/*-style comment */
@@ -181,11 +181,14 @@ func (S *Scanner) scanComment() {
 		S.next()
 		if ch == '*' && S.ch == '/' {
 			S.next()
-			return
+			goto exit
 		}
 	}
 
 	S.error(offs, "comment not terminated")
+
+exit:
+	return string(S.src[offs:S.offset])
 }
 
 func (S *Scanner) findLineEnd() bool {
@@ -240,12 +243,12 @@ func isDigit(ch rune) bool {
 	return '0' <= ch && ch <= '9' || ch >= 0x80 && unicode.IsDigit(ch)
 }
 
-func (S *Scanner) scanIdentifier() token.Token {
+func (S *Scanner) scanIdentifier() string {
 	offs := S.offset
 	for isLetter(S.ch) || isDigit(S.ch) {
 		S.next()
 	}
-	return token.Lookup(S.src[offs:S.offset])
+	return string(S.src[offs:S.offset])
 }
 
 func digitVal(ch rune) int {
@@ -266,11 +269,13 @@ func (S *Scanner) scanMantissa(base int) {
 	}
 }
 
-func (S *Scanner) scanNumber(seenDecimalPoint bool) token.Token {
+func (S *Scanner) scanNumber(seenDecimalPoint bool) (token.Token, string) {
 	// digitVal(S.ch) < 10
+	offs := S.offset
 	tok := token.INT
 
 	if seenDecimalPoint {
+		offs--
 		tok = token.FLOAT
 		S.scanMantissa(10)
 		goto exponent
@@ -334,7 +339,7 @@ exponent:
 	}
 
 exit:
-	return tok
+	return tok, string(S.src[offs:S.offset])
 }
 
 func (S *Scanner) scanEscape(quote rune) {
@@ -381,7 +386,7 @@ func (S *Scanner) scanEscape(quote rune) {
 	}
 }
 
-func (S *Scanner) scanChar() {
+func (S *Scanner) scanChar() string {
 	// '\'' opening already consumed
 	offs := S.offset - 1
 
@@ -405,9 +410,11 @@ func (S *Scanner) scanChar() {
 	if n != 1 {
 		S.error(offs, "illegal character literal")
 	}
+
+	return string(S.src[offs:S.offset])
 }
 
-func (S *Scanner) scanString() {
+func (S *Scanner) scanString() string {
 	// '"' opening already consumed
 	offs := S.offset - 1
 
@@ -424,12 +431,27 @@ func (S *Scanner) scanString() {
 	}
 
 	S.next()
+
+	return string(S.src[offs:S.offset])
 }
 
-func (S *Scanner) scanRawString() (hasCR bool) {
+func stripCR(b []byte) []byte {
+	c := make([]byte, len(b))
+	i := 0
+	for _, ch := range b {
+		if ch != '\r' {
+			c[i] = ch
+			i++
+		}
+	}
+	return c[:i]
+}
+
+func (S *Scanner) scanRawString() string {
 	// '`' opening already consumed
 	offs := S.offset - 1
 
+	hasCR := false
 	for S.ch != '`' {
 		ch := S.ch
 		S.next()
@@ -443,7 +465,13 @@ func (S *Scanner) scanRawString() (hasCR bool) {
 	}
 
 	S.next()
-	return
+
+	lit := S.src[offs:S.offset]
+	if hasCR {
+		lit = stripCR(lit)
+	}
+
+	return string(lit)
 }
 
 func (S *Scanner) skipWhitespace() {
@@ -494,26 +522,23 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 	return tok0
 }
 
-func stripCR(b []byte) []byte {
-	c := make([]byte, len(b))
-	i := 0
-	for _, ch := range b {
-		if ch != '\r' {
-			c[i] = ch
-			i++
-		}
-	}
-	return c[:i]
-}
-
-// Scan scans the next token and returns the token position,
-// the token, and the literal string corresponding to the
-// token. The source end is indicated by token.EOF.
+// Scan scans the next token and returns the token position, the token,
+// and its literal string if applicable. The source end is indicated by
+// token.EOF.
+//
+// If the returned token is a literal (token.IDENT, token.INT, token.FLOAT,
+// token.IMAG, token.CHAR, token.STRING) or token.COMMENT, the literal string
+// has the corresponding value.
 //
 // If the returned token is token.SEMICOLON, the corresponding
 // literal string is ";" if the semicolon was present in the source,
 // and "\n" if the semicolon was inserted because of a newline or
 // at EOF.
+//
+// If the returned token is token.ILLEGAL, the literal string is the
+// offending character.
+//
+// In all other cases, Scan returns an empty literal string.
 //
 // For more tolerant parsing, Scan will return a valid token if
 // possible even if a syntax error was encountered. Thus, even
@@ -526,34 +551,33 @@ func stripCR(b []byte) []byte {
 // set with Init. Token positions are relative to that file
 // and thus relative to the file set.
 //
-func (S *Scanner) Scan() (token.Pos, token.Token, string) {
+func (S *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 scanAgain:
 	S.skipWhitespace()
 
 	// current token start
-	insertSemi := false
-	offs := S.offset
-	tok := token.ILLEGAL
-	hasCR := false
+	pos = S.file.Pos(S.offset)
 
 	// determine token value
+	insertSemi := false
 	switch ch := S.ch; {
 	case isLetter(ch):
-		tok = S.scanIdentifier()
+		lit = S.scanIdentifier()
+		tok = token.Lookup(lit)
 		switch tok {
 		case token.IDENT, token.BREAK, token.CONTINUE, token.FALLTHROUGH, token.RETURN:
 			insertSemi = true
 		}
 	case digitVal(ch) < 10:
 		insertSemi = true
-		tok = S.scanNumber(false)
+		tok, lit = S.scanNumber(false)
 	default:
 		S.next() // always make progress
 		switch ch {
 		case -1:
 			if S.insertSemi {
 				S.insertSemi = false // EOF consumed
-				return S.file.Pos(offs), token.SEMICOLON, "\n"
+				return pos, token.SEMICOLON, "\n"
 			}
 			tok = token.EOF
 		case '\n':
@@ -561,25 +585,25 @@ scanAgain:
 			// set in the first place and exited early
 			// from S.skipWhitespace()
 			S.insertSemi = false // newline consumed
-			return S.file.Pos(offs), token.SEMICOLON, "\n"
+			return pos, token.SEMICOLON, "\n"
 		case '"':
 			insertSemi = true
 			tok = token.STRING
-			S.scanString()
+			lit = S.scanString()
 		case '\'':
 			insertSemi = true
 			tok = token.CHAR
-			S.scanChar()
+			lit = S.scanChar()
 		case '`':
 			insertSemi = true
 			tok = token.STRING
-			hasCR = S.scanRawString()
+			lit = S.scanRawString()
 		case ':':
 			tok = S.switch2(token.COLON, token.DEFINE)
 		case '.':
 			if digitVal(S.ch) < 10 {
 				insertSemi = true
-				tok = S.scanNumber(true)
+				tok, lit = S.scanNumber(true)
 			} else if S.ch == '.' {
 				S.next()
 				if S.ch == '.' {
@@ -593,6 +617,7 @@ scanAgain:
 			tok = token.COMMA
 		case ';':
 			tok = token.SEMICOLON
+			lit = ";"
 		case '(':
 			tok = token.LPAREN
 		case ')':
@@ -626,12 +651,12 @@ scanAgain:
 				if S.insertSemi && S.findLineEnd() {
 					// reset position to the beginning of the comment
 					S.ch = '/'
-					S.offset = offs
-					S.rdOffset = offs + 1
+					S.offset = S.file.Offset(pos)
+					S.rdOffset = S.offset + 1
 					S.insertSemi = false // newline consumed
-					return S.file.Pos(offs), token.SEMICOLON, "\n"
+					return pos, token.SEMICOLON, "\n"
 				}
-				S.scanComment()
+				lit = S.scanComment()
 				if S.mode&ScanComments == 0 {
 					// skip comment
 					S.insertSemi = false // newline consumed
@@ -668,21 +693,15 @@ scanAgain:
 		case '|':
 			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
 		default:
-			S.error(offs, fmt.Sprintf("illegal character %#U", ch))
+			S.error(S.file.Offset(pos), fmt.Sprintf("illegal character %#U", ch))
 			insertSemi = S.insertSemi // preserve insertSemi info
+			tok = token.ILLEGAL
+			lit = string(ch)
 		}
 	}
-
 	if S.mode&dontInsertSemis == 0 {
 		S.insertSemi = insertSemi
 	}
 
-	// TODO(gri): The scanner API should change such that the literal string
-	//            is only valid if an actual literal was scanned. This will
-	//            permit a more efficient implementation.
-	lit := S.src[offs:S.offset]
-	if hasCR {
-		lit = stripCR(lit)
-	}
-	return S.file.Pos(offs), tok, string(lit)
+	return
 }
