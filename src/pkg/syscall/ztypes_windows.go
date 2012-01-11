@@ -373,9 +373,10 @@ const (
 	SOCK_RAW       = 3
 	SOCK_SEQPACKET = 5
 
-	IPPROTO_IP  = 0
-	IPPROTO_TCP = 6
-	IPPROTO_UDP = 17
+	IPPROTO_IP   = 0
+	IPPROTO_IPV6 = 0x29
+	IPPROTO_TCP  = 6
+	IPPROTO_UDP  = 17
 
 	SOL_SOCKET               = 0xffff
 	SO_REUSEADDR             = 4
@@ -387,8 +388,18 @@ const (
 	SO_SNDBUF                = 0x1001
 	SO_UPDATE_ACCEPT_CONTEXT = 0x700b
 
-	IPPROTO_IPV6 = 0x29
-	IPV6_V6ONLY  = 0x1b
+	IP_TOS             = 0x3
+	IP_TTL             = 0x4
+	IP_ADD_MEMBERSHIP  = 0xc
+	IP_DROP_MEMBERSHIP = 0xd
+
+	IPV6_V6ONLY         = 0x1b
+	IPV6_UNICAST_HOPS   = 0x4
+	IPV6_MULTICAST_IF   = 0x9
+	IPV6_MULTICAST_HOPS = 0xa
+	IPV6_MULTICAST_LOOP = 0xb
+	IPV6_JOIN_GROUP     = 0xc
+	IPV6_LEAVE_GROUP    = 0xd
 
 	SOMAXCONN = 0x7fffffff
 
@@ -400,9 +411,6 @@ const (
 
 	WSADESCRIPTION_LEN = 256
 	WSASYS_STATUS_LEN  = 128
-
-	IPV6_JOIN_GROUP  = 12
-	IPV6_LEAVE_GROUP = 13
 )
 
 type WSABuf struct {
