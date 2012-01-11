@@ -7,55 +7,55 @@
 package net
 
 import (
-	"os"
+	"syscall"
 )
 
 func ipv4MulticastInterface(fd *netFD) (*Interface, error) {
 	// TODO: Implement this
-	return nil, os.EWINDOWS
+	return nil, syscall.EWINDOWS
 }
 
 func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
 	// TODO: Implement this
-	return os.EWINDOWS
+	return syscall.EWINDOWS
 }
 
 func ipv4MulticastTTL(fd *netFD) (int, error) {
 	// TODO: Implement this
-	return -1, os.EWINDOWS
+	return -1, syscall.EWINDOWS
 }
 
 func setIPv4MulticastTTL(fd *netFD, v int) error {
 	// TODO: Implement this
-	return os.EWINDOWS
+	return syscall.EWINDOWS
 }
 
-func ipv4MultiastLoopback(fd *netFD) (bool, error) {
+func ipv4MulticastLoopback(fd *netFD) (bool, error) {
 	// TODO: Implement this
-	return false, os.EWINDOWS
+	return false, syscall.EWINDOWS
 }
 
 func setIPv4MulticastLoopback(fd *netFD, v bool) error {
 	// TODO: Implement this
-	return os.EWINDOWS
+	return syscall.EWINDOWS
 }
 
 func ipv4ReceiveInterface(fd *netFD) (bool, error) {
 	// TODO: Implement this
-	return false, os.EWINDOWS
+	return false, syscall.EWINDOWS
 }
 
 func setIPv4ReceiveInterface(fd *netFD, v bool) error {
 	// TODO: Implement this
-	return os.EWINDOWS
+	return syscall.EWINDOWS
 }
 
 func ipv6TrafficClass(fd *netFD) (int, error) {
 	// TODO: Implement this
-	return os.EWINDOWS
+	return 0, syscall.EWINDOWS
 }
 
 func setIPv6TrafficClass(fd *netFD, v int) error {
 	// TODO: Implement this
-	return os.EWINDOWS
+	return syscall.EWINDOWS
 }
