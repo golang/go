@@ -51,25 +51,25 @@ func NewUniform(c color.Color) *Uniform {
 	return &Uniform{c}
 }
 
-// A Tiled is an infinite-sized Image that repeats another Image in both
-// directions. Tiled{i, p}.At(x, y) will equal i.At(x+p.X, y+p.Y) for all
+// Repeated is an infinite-sized Image that repeats another Image in both
+// directions. Repeated{i, p}.At(x, y) will equal i.At(x+p.X, y+p.Y) for all
 // points {x+p.X, y+p.Y} within i's Bounds.
-type Tiled struct {
+type Repeated struct {
 	I      Image
 	Offset Point
 }
 
-func (t *Tiled) ColorModel() color.Model {
-	return t.I.ColorModel()
+func (r *Repeated) ColorModel() color.Model {
+	return r.I.ColorModel()
 }
 
-func (t *Tiled) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
+func (r *Repeated) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
 
-func (t *Tiled) At(x, y int) color.Color {
-	p := Point{x, y}.Add(t.Offset).Mod(t.I.Bounds())
-	return t.I.At(p.X, p.Y)
+func (r *Repeated) At(x, y int) color.Color {
+	p := Point{x, y}.Add(r.Offset).Mod(r.I.Bounds())
+	return r.I.At(p.X, p.Y)
 }
 
-func NewTiled(i Image, offset Point) *Tiled {
-	return &Tiled{i, offset}
+func NewRepeated(i Image, offset Point) *Repeated {
+	return &Repeated{i, offset}
 }
