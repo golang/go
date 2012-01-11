@@ -234,6 +234,13 @@ main(int argc, char *argv[])
 		print("%cg version %s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
 		exits(0);
 	} ARGEND
+	
+	// enable inlining.  for now:
+	//	default: inlining on.  (debug['l'] == 1)
+	//	-l: inlining off  (debug['l'] == 0)
+	//	-ll, -lll: inlining on again, with extra debugging (debug['l'] > 1)
+	if(debug['l'] <= 1)
+		debug['l'] = 1 - debug['l'];
 
 	if(argc < 1)
 		usage();
