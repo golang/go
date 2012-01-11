@@ -463,8 +463,30 @@ func (b *builder) runTest(a *action) error {
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = a.p.Dir
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+
 	t0 := time.Now()
-	out, err := cmd.CombinedOutput()
+	err := cmd.Start()
+	const deadline = 1 * time.Minute
+	tick := time.NewTimer(deadline)
+	if err == nil {
+		done := make(chan error)
+		go func() {
+			done <- cmd.Wait()
+		}()
+		select {
+		case err = <-done:
+			// ok
+		case <-tick.C:
+			cmd.Process.Kill()
+			err = <-done
+			fmt.Fprintf(&buf, "*** Test killed: ran too long.\n")
+		}
+		tick.Stop()
+	}
+	out := buf.Bytes()
 	t1 := time.Now()
 	t := fmt.Sprintf("%.3fs", t1.Sub(t0).Seconds())
 	if err == nil {
