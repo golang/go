@@ -43,7 +43,7 @@ DIRS=\
 	crypto/openpgp\
 	crypto/openpgp/armor\
 	crypto/openpgp/elgamal\
-	crypto/openpgp/error\
+	crypto/openpgp/errors\
 	crypto/openpgp/packet\
 	crypto/openpgp/s2k\
 	crypto/rand\
@@ -198,7 +198,7 @@ endif
 
 NOTEST+=\
 	crypto\
-	crypto/openpgp/error\
+	crypto/openpgp/errors\
 	crypto/x509/pkix\
 	exp/ebnflint\
 	go/doc\
