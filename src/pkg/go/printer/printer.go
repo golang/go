@@ -773,8 +773,13 @@ func (p *printer) print(args ...interface{}) {
 				next = p.fset.Position(x) // accurate position of next item
 			}
 			tok = p.lastTok
+		case string:
+			// incorrect AST - print error message
+			data = x
+			isLit = true
+			tok = token.STRING
 		default:
-			fmt.Fprintf(os.Stderr, "print: unsupported argument type %T\n", f)
+			fmt.Fprintf(os.Stderr, "print: unsupported argument %v (%T)\n", f, f)
 			panic("go/printer type")
 		}
 		p.lastTok = tok
