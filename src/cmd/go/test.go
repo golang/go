@@ -440,8 +440,6 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	return pmainAction, runAction, printAction, nil
 }
 
-var pass = []byte("\nPASS\n")
-
 // runTest is the action for running a test binary.
 func (b *builder) runTest(a *action) error {
 	args := []string{a.deps[0].target}
@@ -469,7 +467,7 @@ func (b *builder) runTest(a *action) error {
 	out, err := cmd.CombinedOutput()
 	t1 := time.Now()
 	t := fmt.Sprintf("%.3fs", t1.Sub(t0).Seconds())
-	if err == nil && (bytes.Equal(out, pass[1:]) || bytes.HasSuffix(out, pass)) {
+	if err == nil {
 		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s\n", a.p.ImportPath, t)
 		if testShowPass {
 			a.testOutput.Write(out)
