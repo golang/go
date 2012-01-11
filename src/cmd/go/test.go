@@ -518,7 +518,7 @@ func (b *builder) printTest(a *action) error {
 
 // notest is the action for testing a package with no test files.
 func (b *builder) notest(a *action) error {
-	fmt.Printf("?   \t%s [no test files]\n", a.p.ImportPath)
+	fmt.Printf("?   \t%s\t[no test files]\n", a.p.ImportPath)
 	return nil
 }
 
