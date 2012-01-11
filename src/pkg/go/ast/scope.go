@@ -80,7 +80,7 @@ func (s *Scope) String() string {
 type Object struct {
 	Kind ObjKind
 	Name string      // declared name
-	Decl interface{} // corresponding Field, XxxSpec, FuncDecl, LabeledStmt, or AssignStmt; or nil
+	Decl interface{} // corresponding Field, XxxSpec, FuncDecl, LabeledStmt, AssignStmt, Scope; or nil
 	Data interface{} // object-specific data; or nil
 	Type interface{} // place holder for type information; may be nil
 }
@@ -131,6 +131,8 @@ func (obj *Object) Pos() token.Pos {
 				return ident.Pos()
 			}
 		}
+	case *Scope:
+		// predeclared object - nothing to do for now
 	}
 	return token.NoPos
 }

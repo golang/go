@@ -20,6 +20,7 @@ func define(kind ast.ObjKind, name string) *ast.Object {
 	if scope.Insert(obj) != nil {
 		panic("types internal error: double declaration")
 	}
+	obj.Decl = scope
 	return obj
 }
 
