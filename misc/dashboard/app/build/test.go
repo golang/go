@@ -146,7 +146,7 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 			body = new(bytes.Buffer)
 			json.NewEncoder(body).Encode(t.req)
 		}
-		url := "http://" + appengine.DefaultVersionHostname(c) + t.path
+		url := "http://" + domain + t.path
 		if t.vals != nil {
 			url += "?" + t.vals.Encode()
 		}
