@@ -21,10 +21,10 @@ func newTestDB(t *testing.T, name string) *DB {
 		t.Fatalf("exec wipe: %v", err)
 	}
 	if name == "people" {
-		exec(t, db, "CREATE|people|name=string,age=int32,dead=bool")
-		exec(t, db, "INSERT|people|name=Alice,age=?", 1)
-		exec(t, db, "INSERT|people|name=Bob,age=?", 2)
-		exec(t, db, "INSERT|people|name=Chris,age=?", 3)
+		exec(t, db, "CREATE|people|name=string,age=int32,photo=blob,dead=bool")
+		exec(t, db, "INSERT|people|name=Alice,age=?,photo=APHOTO", 1)
+		exec(t, db, "INSERT|people|name=Bob,age=?,photo=BPHOTO", 2)
+		exec(t, db, "INSERT|people|name=Chris,age=?,photo=CPHOTO", 3)
 	}
 	return db
 }
@@ -131,6 +131,16 @@ func TestQueryRow(t *testing.T) {
 	}
 	if age != 1 {
 		t.Errorf("expected age 1, got %d", age)
+	}
+
+	var photo []byte
+	err = db.QueryRow("SELECT|people|photo|name=?", "Alice").Scan(&photo)
+	if err != nil {
+		t.Fatalf("photo QueryRow+Scan: %v", err)
+	}
+	want := []byte("APHOTO")
+	if !reflect.DeepEqual(photo, want) {
+		t.Errorf("photo = %q; want %q", photo, want)
 	}
 }
 
