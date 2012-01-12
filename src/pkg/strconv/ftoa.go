@@ -178,14 +178,25 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 		return
 	}
 
-	// TODO(rsc): Unless exp == minexp, if the number of digits in d
-	// is less than 17, it seems likely that it would be
-	// the shortest possible number already.  So maybe we can
-	// bail out without doing the extra multiprecision math here.
-
 	// Compute upper and lower such that any decimal number
 	// between upper and lower (possibly inclusive)
 	// will round to the original floating point number.
+
+	// We may see at once that the number is already shortest.
+	//
+	// Suppose d is not denormal, so that 2^exp <= d < 10^dp.
+	// The closest shorter number is at least 10^(dp-nd) away.
+	// The lower/upper bounds computed below are at distance
+	// at most 2^(exp-mantbits).
+	//
+	// So the number is already shortest if 10^(dp-nd) > 2^(exp-mantbits),
+	// or equivalently log2(10)*(dp-nd) > exp-mantbits.
+	// It is true if 332/100*(dp-nd) >= exp-mantbits (log2(10) > 3.32).
+	minexp := flt.bias + 1 // minimum possible exponent
+	if exp > minexp && 332*(d.dp-d.nd) >= 100*(exp-int(flt.mantbits)) {
+		// The number is already shortest.
+		return
+	}
 
 	// d = mant << (exp - mantbits)
 	// Next highest floating point number is mant+1 << exp-mantbits.
@@ -200,7 +211,6 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	// in which case the next lowest is mant*2-1 << exp-mantbits-1.
 	// Either way, call it mantlo << explo-mantbits.
 	// Our lower bound is halfway inbetween, mantlo*2+1 << explo-mantbits-1.
-	minexp := flt.bias + 1 // minimum possible exponent
 	var mantlo uint64
 	var explo int
 	if mant > 1<<flt.mantbits || exp == minexp {
