@@ -79,7 +79,7 @@ func loadPackage(arg string) (*Package, error) {
 	t, importPath, err := build.FindTree(arg)
 	dir := ""
 	// Maybe it is a standard command.
-	if err != nil && !filepath.IsAbs(arg) && strings.HasPrefix(arg, "cmd/") {
+	if err != nil && strings.HasPrefix(arg, "cmd/") {
 		goroot := build.Path[0]
 		p := filepath.Join(goroot.Path, "src", arg)
 		if st, err1 := os.Stat(p); err1 == nil && st.IsDir() {
@@ -89,6 +89,19 @@ func loadPackage(arg string) (*Package, error) {
 			err = nil
 		}
 	}
+	// Maybe it is a path to a standard command.
+	if err != nil && (filepath.IsAbs(arg) || isLocalPath(arg)) {
+		arg, _ := filepath.Abs(arg)
+		goroot := build.Path[0]
+		cmd := filepath.Join(goroot.Path, "src", "cmd") + string(filepath.Separator)
+		if st, err1 := os.Stat(arg); err1 == nil && st.IsDir() && strings.HasPrefix(arg, cmd) {
+			t = goroot
+			importPath = filepath.FromSlash(arg[len(cmd):])
+			dir = arg
+			err = nil
+		}
+	}
+
 	if err != nil {
 		return nil, err
 	}

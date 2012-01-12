@@ -192,7 +192,7 @@ func importPaths(args []string) []string {
 	}
 	var out []string
 	for _, a := range args {
-		if (strings.HasPrefix(a, "./") || strings.HasPrefix(a, "../")) && strings.Contains(a, "...") {
+		if isLocalPath(a) && strings.Contains(a, "...") {
 			out = append(out, allPackagesInFS(a)...)
 			continue
 		}
@@ -244,6 +244,17 @@ func run(cmdargs ...interface{}) {
 	if err := cmd.Run(); err != nil {
 		errorf("%v", err)
 	}
+}
+
+func runOut(cmdargs ...interface{}) []byte {
+	cmdline := stringList(cmdargs...)
+	out, err := exec.Command(cmdline[0], cmdline[1:]...).CombinedOutput()
+	if err != nil {
+		os.Stderr.Write(out)
+		errorf("%v", err)
+		out = nil
+	}
+	return out
 }
 
 // matchPattern(pattern)(name) reports whether
@@ -421,4 +432,11 @@ func stringList(args ...interface{}) []string {
 		}
 	}
 	return x
+}
+
+// isLocalPath returns true if arg is an import path denoting
+// a local file system directory.  That is, it returns true if the
+// path begins with ./ or ../ .
+func isLocalPath(arg string) bool {
+	return arg == "." || arg == ".." || strings.HasPrefix(arg, "./") || strings.HasPrefix(arg, "../")
 }
