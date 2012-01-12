@@ -258,13 +258,10 @@ type wrongStringTest struct {
 	in, err string
 }
 
-// TODO(bradfitz): as part of Issue 2331, fix these tests' expected
-// error values to be helpful, rather than the confusing messages they
-// are now.
 var wrongStringTests = []wrongStringTest{
-	{`{"result":"x"}`, "JSON decoder out of sync - data changing underfoot?"},
-	{`{"result":"foo"}`, "json: cannot unmarshal bool into Go value of type string"},
-	{`{"result":"123"}`, "json: cannot unmarshal number into Go value of type string"},
+	{`{"result":"x"}`, `json: invalid use of ,string struct tag, trying to unmarshal "x" into string`},
+	{`{"result":"foo"}`, `json: invalid use of ,string struct tag, trying to unmarshal "foo" into string`},
+	{`{"result":"123"}`, `json: invalid use of ,string struct tag, trying to unmarshal "123" into string`},
 }
 
 // If people misuse the ,string modifier, the error message should be

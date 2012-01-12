@@ -226,36 +226,6 @@ mkdir -p "$GOROOT"/pkg/linux_amd64/encoding/
 cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/linux_amd64/encoding/base64.a
 
 #
-# reflect
-#
-
-mkdir -p "$WORK"/reflect/_obj/
-cd "$GOROOT"/src/pkg/reflect
-6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
-cp "$WORK"/reflect.a "$GOROOT"/pkg/linux_amd64/reflect.a
-
-#
-# unicode/utf16
-#
-
-mkdir -p "$WORK"/unicode/utf16/_obj/
-cd "$GOROOT"/src/pkg/unicode/utf16
-6g -o "$WORK"/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I "$WORK" ./utf16.go
-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/linux_amd64/unicode/utf16.a
-
-#
-# encoding/json
-#
-
-mkdir -p "$WORK"/encoding/json/_obj/
-cd "$GOROOT"/src/pkg/encoding/json
-6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/linux_amd64/encoding/json.a
-
-#
 # syscall
 #
 
@@ -287,6 +257,16 @@ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
 cp "$WORK"/os.a "$GOROOT"/pkg/linux_amd64/os.a
 
 #
+# reflect
+#
+
+mkdir -p "$WORK"/reflect/_obj/
+cd "$GOROOT"/src/pkg/reflect
+6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
+cp "$WORK"/reflect.a "$GOROOT"/pkg/linux_amd64/reflect.a
+
+#
 # fmt
 #
 
@@ -295,6 +275,26 @@ cd "$GOROOT"/src/pkg/fmt
 6g -o "$WORK"/fmt/_obj/_go_.6 -p fmt -I "$WORK" ./doc.go ./format.go ./print.go ./scan.go
 gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.6
 cp "$WORK"/fmt.a "$GOROOT"/pkg/linux_amd64/fmt.a
+
+#
+# unicode/utf16
+#
+
+mkdir -p "$WORK"/unicode/utf16/_obj/
+cd "$GOROOT"/src/pkg/unicode/utf16
+6g -o "$WORK"/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I "$WORK" ./utf16.go
+gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
+cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/linux_amd64/unicode/utf16.a
+
+#
+# encoding/json
+#
+
+mkdir -p "$WORK"/encoding/json/_obj/
+cd "$GOROOT"/src/pkg/encoding/json
+6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
+cp "$WORK"/encoding/json.a "$GOROOT"/pkg/linux_amd64/encoding/json.a
 
 #
 # flag
