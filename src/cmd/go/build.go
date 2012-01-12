@@ -483,7 +483,7 @@ func (b *builder) build(a *action) error {
 		fmt.Fprintf(os.Stderr, "%s\n", a.p.ImportPath)
 	}
 
-	// make build directory
+	// Make build directory.
 	obj := a.objdir
 	if err := b.mkdir(obj); err != nil {
 		return err
@@ -494,7 +494,7 @@ func (b *builder) build(a *action) error {
 	cfiles = append(cfiles, a.p.CFiles...)
 	sfiles = append(sfiles, a.p.SFiles...)
 
-	// run cgo
+	// Run cgo.
 	if len(a.p.CgoFiles) > 0 {
 		// In a package using cgo, cgo compiles the C and assembly files with gcc.  
 		// There is one exception: runtime/cgo's job is to bridge the
@@ -528,34 +528,10 @@ func (b *builder) build(a *action) error {
 		gofiles = append(gofiles, outGo...)
 	}
 
-	// prepare Go import path list
-	inc := []string{}
-	incMap := map[string]bool{}
+	// Prepare Go import path list.
+	inc := b.includeArgs("-I", a.deps)
 
-	incMap[b.work] = true                 // handled later
-	incMap[build.Path[0].PkgDir()] = true // goroot
-	incMap[""] = true                     // ignore empty strings
-
-	// temporary build package directories of dependencies.
-	for _, a1 := range a.deps {
-		if pkgdir := a1.pkgdir; pkgdir != a1.p.t.PkgDir() && !incMap[pkgdir] {
-			incMap[pkgdir] = true
-			inc = append(inc, "-I", pkgdir)
-		}
-	}
-
-	// work directory
-	inc = append(inc, "-I", b.work)
-
-	// then installed package directories of dependencies
-	for _, a1 := range a.deps {
-		if pkgdir := a1.p.t.PkgDir(); pkgdir == a1.pkgdir && !incMap[pkgdir] {
-			incMap[pkgdir] = true
-			inc = append(inc, "-I", pkgdir)
-		}
-	}
-
-	// compile Go
+	// Compile Go.
 	if len(gofiles) > 0 {
 		out := "_go_." + b.arch
 		gcargs := []string{"-p", a.p.ImportPath}
@@ -570,7 +546,7 @@ func (b *builder) build(a *action) error {
 		objects = append(objects, out)
 	}
 
-	// copy .h files named for goos or goarch or goos_goarch
+	// Copy .h files named for goos or goarch or goos_goarch
 	// to names using GOOS and GOARCH.
 	// For example, defs_linux_amd64.h becomes defs_GOOS_GOARCH.h.
 	_goos_goarch := "_" + b.goos + "_" + b.goarch + ".h"
@@ -604,7 +580,7 @@ func (b *builder) build(a *action) error {
 		objects = append(objects, out)
 	}
 
-	// assemble .s files
+	// Assemble .s files.
 	for _, file := range sfiles {
 		out := file[:len(file)-len(".s")] + "." + b.arch
 		if err := b.asm(a.p, obj, obj+out, file); err != nil {
@@ -619,19 +595,18 @@ func (b *builder) build(a *action) error {
 	// http://golang.org/issue/2601
 	objects = append(objects, cgoObjects...)
 
-	// pack into archive in obj directory
+	// Pack into archive in obj directory
 	if err := b.gopack(a.p, obj, a.objpkg, objects); err != nil {
 		return err
 	}
 
-	// link if needed.
+	// Link if needed.
 	if a.link {
-		// command.
-		// import paths for compiler are introduced by -I.
-		// for linker, they are introduced by -L.
-		for i := 0; i < len(inc); i += 2 {
-			inc[i] = "-L"
-		}
+		// The compiler only cares about direct imports, but the
+		// linker needs the whole dependency tree.
+		all := actionList(a)
+		all = all[:len(all)-1] // drop a
+		inc := b.includeArgs("-L", all)
 		if err := b.ld(a.p, a.target, inc, a.objpkg); err != nil {
 			return err
 		}
@@ -657,6 +632,41 @@ func (b *builder) install(a *action) error {
 	}
 
 	return b.copyFile(a.target, a1.target, perm)
+}
+
+// includeArgs returns the -I or -L directory list for access
+// to the results of the list of actions.
+func (b *builder) includeArgs(flag string, all []*action) []string {
+	inc := []string{}
+	incMap := map[string]bool{
+		b.work:                 true, // handled later
+		build.Path[0].PkgDir(): true, // goroot
+		"":                     true, // ignore empty strings
+	}
+
+	// Look in the temporary space for results of test-specific actions.
+	// This is the $WORK/my/package/_test directory for the
+	// package being built, so there are few of these.
+	for _, a1 := range all {
+		if dir := a1.pkgdir; dir != a1.p.t.PkgDir() && !incMap[dir] {
+			incMap[dir] = true
+			inc = append(inc, flag, dir)
+		}
+	}
+
+	// Also look in $WORK for any non-test packages that have
+	// been built but not installed.
+	inc = append(inc, flag, b.work)
+
+	// Finally, look in the installed package directories for each action.
+	for _, a1 := range all {
+		if dir := a1.pkgdir; dir == a1.p.t.PkgDir() && !incMap[dir] {
+			incMap[dir] = true
+			inc = append(inc, flag, dir)
+		}
+	}
+
+	return inc
 }
 
 // removeByRenaming removes file name by moving it to a tmp
