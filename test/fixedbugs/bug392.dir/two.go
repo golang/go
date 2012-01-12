@@ -12,9 +12,9 @@ import "./one"
 func use() {
 	one.F1(nil)
 	one.F2(nil)
+	one.F3()
 
 	var t *one.T
 	t.M()
 	t.MM()
 }
-

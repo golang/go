@@ -669,8 +669,10 @@ typefmt(Fmt *fp, Type *t)
 		case 0:
 			break;
 		case 1:
-			fmtprint(fp, " %T", getoutargx(t)->type->type);	 // struct->field->field's type
-			break;
+			if(fmtmode != FExp) {
+				fmtprint(fp, " %T", getoutargx(t)->type->type);	 // struct->field->field's type
+				break;
+			}
 		default:
 			fmtprint(fp, " %T", getoutargx(t));
 			break;
