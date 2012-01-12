@@ -381,6 +381,15 @@ runtime·funcline(Func *f, uintptr targetpc)
 	return line;
 }
 
+void
+runtime·funcline_go(Func *f, uintptr targetpc, String retfile, int32 retline)
+{
+	retfile = f->src;
+	retline = runtime·funcline(f, targetpc);
+	FLUSH(&retfile);
+	FLUSH(&retline);
+}
+
 static void
 buildfuncs(void)
 {
