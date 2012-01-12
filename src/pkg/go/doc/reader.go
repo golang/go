@@ -358,7 +358,7 @@ func makeValueDocs(list []*ast.GenDecl, tok token.Token) []*ValueDoc {
 	n := 0
 	for i, decl := range list {
 		if decl.Tok == tok {
-			d[n] = &ValueDoc{CommentText(decl.Doc), decl, i}
+			d[n] = &ValueDoc{decl.Doc.Text(), decl, i}
 			n++
 			decl.Doc = nil // doc consumed - removed from AST
 		}
@@ -379,7 +379,7 @@ func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
 	i := 0
 	for _, f := range m {
 		doc := new(FuncDoc)
-		doc.Doc = CommentText(f.Doc)
+		doc.Doc = f.Doc.Text()
 		f.Doc = nil // doc consumed - remove from ast.FuncDecl node
 		if f.Recv != nil {
 			doc.Recv = f.Recv.List[0].Type
@@ -452,7 +452,7 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
 				doc = decl.Doc
 			}
 			decl.Doc = nil // doc consumed - remove from ast.Decl node
-			t.Doc = CommentText(doc)
+			t.Doc = doc.Text()
 			t.Type = typespec
 			t.Consts = makeValueDocs(old.values, token.CONST)
 			t.Vars = makeValueDocs(old.values, token.VAR)
@@ -587,7 +587,7 @@ func customizeRecv(m *FuncDoc, embeddedIsPtr bool, recvTypeName string) *FuncDoc
 func makeBugDocs(list []*ast.CommentGroup) []string {
 	d := make([]string, len(list))
 	for i, g := range list {
-		d[i] = CommentText(g)
+		d[i] = g.Text()
 	}
 	return d
 }
@@ -600,7 +600,7 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc 
 	p.ImportPath = importpath
 	sort.Strings(filenames)
 	p.Filenames = filenames
-	p.Doc = CommentText(doc.doc)
+	p.Doc = doc.doc.Text()
 	// makeTypeDocs may extend the list of doc.values and
 	// doc.funcs and thus must be called before any other
 	// function consuming those lists

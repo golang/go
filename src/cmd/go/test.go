@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
-	"go/doc"
 	"go/parser"
 	"go/token"
 	"os"
@@ -612,7 +611,7 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, ""})
 			*seen = true
 		case isTest(name, "Example"):
-			output := doc.CommentText(n.Doc)
+			output := n.Doc.Text()
 			if output == "" {
 				// Don't run examples with no output.
 				continue

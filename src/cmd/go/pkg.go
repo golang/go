@@ -7,7 +7,6 @@ package main
 import (
 	"fmt"
 	"go/build"
-	"go/doc"
 	"os"
 	"path/filepath"
 	"sort"
@@ -130,7 +129,7 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 
 	p := &Package{
 		Name:         info.Package,
-		Doc:          doc.CommentText(info.PackageComment),
+		Doc:          info.PackageComment.Text(),
 		ImportPath:   importPath,
 		Dir:          dir,
 		Imports:      info.Imports,

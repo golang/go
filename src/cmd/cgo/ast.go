@@ -9,7 +9,6 @@ package main
 import (
 	"fmt"
 	"go/ast"
-	"go/doc"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -79,7 +78,7 @@ func (f *File) ReadGo(name string) {
 			}
 			if cg != nil {
 				f.Preamble += fmt.Sprintf("#line %d %q\n", sourceLine(cg), name)
-				f.Preamble += doc.CommentText(cg) + "\n"
+				f.Preamble += cg.Text() + "\n"
 			}
 		}
 	}
