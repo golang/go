@@ -396,8 +396,7 @@ func (b *build) cgo(cgofiles, cgocfiles []string) (outGo, outObj []string) {
 		Output: output,
 	})
 	outGo = append(outGo, gofiles...)
-	exportH := filepath.Join(b.path, "_cgo_export.h")
-	b.script.addIntermediate(defunC, exportH, b.obj+"_cgo_flags")
+	b.script.addIntermediate(defunC, b.obj+"_cgo_export.h", b.obj+"_cgo_flags")
 	b.script.addIntermediate(cfiles...)
 
 	// cc _cgo_defun.c

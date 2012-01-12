@@ -396,7 +396,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 // from Go so that they are callable from C.
 func (p *Package) writeExports(fgo2, fc, fm *os.File) {
 	fgcc := creat(*objDir + "_cgo_export.c")
-	fgcch := creat("_cgo_export.h")
+	fgcch := creat(*objDir + "_cgo_export.h")
 
 	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
 	fmt.Fprintf(fgcch, "%s\n", gccExportHeaderProlog)
