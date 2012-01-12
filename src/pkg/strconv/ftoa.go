@@ -241,7 +241,7 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 
 		// Okay to round up if upper has a different digit and
 		// either upper is inclusive or upper is bigger than the result of rounding up.
-		okup := m != u && (inclusive || i+1 < upper.nd)
+		okup := m != u && (inclusive || m+1 < u || i+1 < upper.nd)
 
 		// If it's okay to do either, then round to the nearest one.
 		// If it's okay to do only one, do it.
