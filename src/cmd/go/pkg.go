@@ -48,6 +48,7 @@ type Package struct {
 	pkgdir  string
 	info    *build.DirInfo
 	imports []*Package
+	deps    []*Package
 	gofiles []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
 	target  string   // installed file for this package (may be executable)
 	fake    bool     // synthesized package
@@ -244,6 +245,9 @@ Stale:
 		p.Deps = append(p.Deps, dep)
 	}
 	sort.Strings(p.Deps)
+	for _, dep := range p.Deps {
+		p.deps = append(p.deps, packageCache[dep])
+	}
 
 	// unsafe is a fake package and is never out-of-date.
 	if p.Standard && p.ImportPath == "unsafe" {
