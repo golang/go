@@ -2623,8 +2623,10 @@ is if you want CPU parallelism you must tell the run-time
 how many goroutines you want executing code simultaneously.  There
 are two related ways to do this.  Either run your job with environment
 variable <code>GOMAXPROCS</code> set to the number of cores to use
-(default 1); or import the <code>runtime</code> package and call
+or import the <code>runtime</code> package and call
 <code>runtime.GOMAXPROCS(NCPU)</code>.
+A helpful value might be <code>runtime.NumCPU()</code>, which reports the number
+of logical CPUs on the local machine.
 Again, this requirement is expected to be retired as the scheduling and run-time improve.
 </p>
 
