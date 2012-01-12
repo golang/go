@@ -794,18 +794,25 @@ func (b *builder) showcmd(dir string, format string, args ...interface{}) {
 // showOutput also replaces references to the work directory with $WORK.
 //
 func (b *builder) showOutput(dir, desc, out string) {
-	prefix := "# " + desc
-	suffix := "\n" + out
-	pwd, _ := os.Getwd()
-	if reldir, err := filepath.Rel(pwd, dir); err == nil && len(reldir) < len(dir) {
-		suffix = strings.Replace(suffix, " "+dir, " "+reldir, -1)
-		suffix = strings.Replace(suffix, "\n"+dir, "\n"+reldir, -1)
-	}
+	prefix := "# " + desc + "\n"
+	suffix := relPaths(dir, out)
 	suffix = strings.Replace(suffix, " "+b.work, " $WORK", -1)
 
 	b.output.Lock()
 	defer b.output.Unlock()
 	fmt.Print(prefix, suffix)
+}
+
+// relPaths returns a copy of out with references to dir
+// made relative to the current directory if that would be shorter.
+func relPaths(dir, out string) string {
+	x := "\n" + out
+	pwd, _ := os.Getwd()
+	if reldir, err := filepath.Rel(pwd, dir); err == nil && len(reldir) < len(dir) {
+		x = strings.Replace(x, " "+dir, " "+reldir, -1)
+		x = strings.Replace(x, "\n"+dir, "\n"+reldir, -1)
+	}
+	return x[1:]
 }
 
 // errPrintedOutput is a special error indicating that a command failed
@@ -819,11 +826,30 @@ var errPrintedOutput = errors.New("already printed output - no need to show erro
 // If the commnd fails, run prints information about the failure
 // and returns a non-nil error.
 func (b *builder) run(dir string, desc string, cmdargs ...interface{}) error {
+	out, err := b.runOut(dir, desc, cmdargs...)
+	if len(out) > 0 {
+		if out[len(out)-1] != '\n' {
+			out = append(out, '\n')
+		}
+		if desc == "" {
+			desc = b.fmtcmd(dir, "%s", strings.Join(stringList(cmdargs...), " "))
+		}
+		b.showOutput(dir, desc, string(out))
+		if err != nil {
+			err = errPrintedOutput
+		}
+	}
+	return err
+}
+
+// runOut runs the command given by cmdline in the directory dir.
+// It returns the command output and any errors that occurred.
+func (b *builder) runOut(dir string, desc string, cmdargs ...interface{}) ([]byte, error) {
 	cmdline := stringList(cmdargs...)
 	if buildN || buildX {
 		b.showcmd(dir, "%s", strings.Join(cmdline, " "))
 		if buildN {
-			return nil
+			return nil, nil
 		}
 	}
 
@@ -834,20 +860,7 @@ func (b *builder) run(dir string, desc string, cmdargs ...interface{}) error {
 	cmd.Dir = dir
 	// TODO: cmd.Env
 	err := cmd.Run()
-	if buf.Len() > 0 {
-		out := buf.Bytes()
-		if out[len(out)-1] != '\n' {
-			out = append(out, '\n')
-		}
-		if desc == "" {
-			desc = b.fmtcmd(dir, "%s", strings.Join(cmdline, " "))
-		}
-		b.showOutput(dir, desc, string(out))
-		if err != nil {
-			err = errPrintedOutput
-		}
-	}
-	return err
+	return buf.Bytes(), err
 }
 
 // mkdir makes the named directory.
@@ -980,6 +993,25 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 
 	outObj = append(outObj, "") // for importObj, at end of function
 
+	cgoCFLAGS := stringList(p.info.CgoCFLAGS)
+	cgoLDFLAGS := stringList(p.info.CgoLDFLAGS)
+	if pkgs := p.info.CgoPkgConfig; len(pkgs) > 0 {
+		out, err := b.runOut(p.Dir, p.ImportPath, "pkg-config", "--cflags", pkgs)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(out) > 0 {
+			cgoCFLAGS = append(cgoCFLAGS, strings.Fields(string(out))...)
+		}
+		out, err = b.runOut(p.Dir, p.ImportPath, "pkg-config", "--libs", pkgs)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(out) > 0 {
+			cgoLDFLAGS = append(cgoLDFLAGS, strings.Fields(string(out))...)
+		}
+	}
+
 	// cgo
 	// TODO: CGOPKGPATH, CGO_FLAGS?
 	gofiles := []string{obj + "_cgo_gotypes.go"}
@@ -991,7 +1023,6 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	}
 	defunC := obj + "_cgo_defun.c"
 	// TODO: make cgo not depend on $GOARCH?
-	// TODO: make cgo write to obj
 	var runtimeFlag []string
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		runtimeFlag = []string{"-import_runtime_cgo=false"}
@@ -1012,7 +1043,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	var linkobj []string
 	for _, cfile := range cfiles {
 		ofile := obj + cfile[:len(cfile)-1] + "o"
-		if err := b.gcc(p, ofile, p.info.CgoCFLAGS, obj+cfile); err != nil {
+		if err := b.gcc(p, ofile, cgoCFLAGS, obj+cfile); err != nil {
 			return nil, nil, err
 		}
 		linkobj = append(linkobj, ofile)
@@ -1022,14 +1053,14 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	}
 	for _, file := range gccfiles {
 		ofile := obj + cgoRe.ReplaceAllString(file[:len(file)-1], "_") + "o"
-		if err := b.gcc(p, ofile, p.info.CgoCFLAGS, file); err != nil {
+		if err := b.gcc(p, ofile, cgoCFLAGS, file); err != nil {
 			return nil, nil, err
 		}
 		linkobj = append(linkobj, ofile)
 		outObj = append(outObj, ofile)
 	}
 	dynobj := obj + "_cgo_.o"
-	if err := b.gccld(p, dynobj, p.info.CgoLDFLAGS, linkobj); err != nil {
+	if err := b.gccld(p, dynobj, cgoLDFLAGS, linkobj); err != nil {
 		return nil, nil, err
 	}
 
