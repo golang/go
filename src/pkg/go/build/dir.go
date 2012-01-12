@@ -476,7 +476,7 @@ func (ctxt *Context) saveCgo(filename string, di *DirInfo, cg *ast.CommentGroup)
 	return nil
 }
 
-var safeBytes = []byte("+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz")
+var safeBytes = []byte("+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:")
 
 func safeName(s string) bool {
 	if s == "" {
