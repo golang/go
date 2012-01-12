@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
-	"go/doc"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -222,7 +221,7 @@ func getTestNames() {
 			} else if isTest(name, "Benchmark") {
 				f.benchmarks = append(f.benchmarks, name)
 			} else if isTest(name, "Example") {
-				output := doc.CommentText(n.Doc)
+				output := n.Doc.Text()
 				if output == "" {
 					// Don't run examples with no output.
 					continue

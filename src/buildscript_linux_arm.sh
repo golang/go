@@ -373,48 +373,6 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.5
 cp "$WORK"/go/ast.a "$GOROOT"/pkg/linux_arm/go/ast.a
 
 #
-# text/tabwriter
-#
-
-mkdir -p "$WORK"/text/tabwriter/_obj/
-cd "$GOROOT"/src/pkg/text/tabwriter
-5g -o "$WORK"/text/tabwriter/_obj/_go_.5 -p text/tabwriter -I "$WORK" ./tabwriter.go
-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.5
-mkdir -p "$GOROOT"/pkg/linux_arm/text/
-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/linux_arm/text/tabwriter.a
-
-#
-# go/printer
-#
-
-mkdir -p "$WORK"/go/printer/_obj/
-cd "$GOROOT"/src/pkg/go/printer
-5g -o "$WORK"/go/printer/_obj/_go_.5 -p go/printer -I "$WORK" ./nodes.go ./printer.go
-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.5
-cp "$WORK"/go/printer.a "$GOROOT"/pkg/linux_arm/go/printer.a
-
-#
-# regexp/syntax
-#
-
-mkdir -p "$WORK"/regexp/syntax/_obj/
-cd "$GOROOT"/src/pkg/regexp/syntax
-5g -o "$WORK"/regexp/syntax/_obj/_go_.5 -p regexp/syntax -I "$WORK" ./compile.go ./parse.go ./perl_groups.go ./prog.go ./regexp.go ./simplify.go
-gopack grc "$WORK"/regexp/syntax.a "$WORK"/regexp/syntax/_obj/_go_.5
-mkdir -p "$GOROOT"/pkg/linux_arm/regexp/
-cp "$WORK"/regexp/syntax.a "$GOROOT"/pkg/linux_arm/regexp/syntax.a
-
-#
-# regexp
-#
-
-mkdir -p "$WORK"/regexp/_obj/
-cd "$GOROOT"/src/pkg/regexp
-5g -o "$WORK"/regexp/_obj/_go_.5 -p regexp -I "$WORK" ./exec.go ./regexp.go
-gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.5
-cp "$WORK"/regexp.a "$GOROOT"/pkg/linux_arm/regexp.a
-
-#
 # io/ioutil
 #
 
@@ -424,48 +382,6 @@ cd "$GOROOT"/src/pkg/io/ioutil
 gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.5
 mkdir -p "$GOROOT"/pkg/linux_arm/io/
 cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/linux_arm/io/ioutil.a
-
-#
-# net/url
-#
-
-mkdir -p "$WORK"/net/url/_obj/
-cd "$GOROOT"/src/pkg/net/url
-5g -o "$WORK"/net/url/_obj/_go_.5 -p net/url -I "$WORK" ./url.go
-gopack grc "$WORK"/net/url.a "$WORK"/net/url/_obj/_go_.5
-mkdir -p "$GOROOT"/pkg/linux_arm/net/
-cp "$WORK"/net/url.a "$GOROOT"/pkg/linux_arm/net/url.a
-
-#
-# text/template/parse
-#
-
-mkdir -p "$WORK"/text/template/parse/_obj/
-cd "$GOROOT"/src/pkg/text/template/parse
-5g -o "$WORK"/text/template/parse/_obj/_go_.5 -p text/template/parse -I "$WORK" ./lex.go ./node.go ./parse.go
-gopack grc "$WORK"/text/template/parse.a "$WORK"/text/template/parse/_obj/_go_.5
-mkdir -p "$GOROOT"/pkg/linux_arm/text/template/
-cp "$WORK"/text/template/parse.a "$GOROOT"/pkg/linux_arm/text/template/parse.a
-
-#
-# text/template
-#
-
-mkdir -p "$WORK"/text/template/_obj/
-cd "$GOROOT"/src/pkg/text/template
-5g -o "$WORK"/text/template/_obj/_go_.5 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
-gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.5
-cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_arm/text/template.a
-
-#
-# go/doc
-#
-
-mkdir -p "$WORK"/go/doc/_obj/
-cd "$GOROOT"/src/pkg/go/doc
-5g -o "$WORK"/go/doc/_obj/_go_.5 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.5
-cp "$WORK"/go/doc.a "$GOROOT"/pkg/linux_arm/go/doc.a
 
 #
 # go/parser
@@ -509,6 +425,27 @@ gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.5
 cp "$WORK"/path.a "$GOROOT"/pkg/linux_arm/path.a
 
 #
+# regexp/syntax
+#
+
+mkdir -p "$WORK"/regexp/syntax/_obj/
+cd "$GOROOT"/src/pkg/regexp/syntax
+5g -o "$WORK"/regexp/syntax/_obj/_go_.5 -p regexp/syntax -I "$WORK" ./compile.go ./parse.go ./perl_groups.go ./prog.go ./regexp.go ./simplify.go
+gopack grc "$WORK"/regexp/syntax.a "$WORK"/regexp/syntax/_obj/_go_.5
+mkdir -p "$GOROOT"/pkg/linux_arm/regexp/
+cp "$WORK"/regexp/syntax.a "$GOROOT"/pkg/linux_arm/regexp/syntax.a
+
+#
+# regexp
+#
+
+mkdir -p "$WORK"/regexp/_obj/
+cd "$GOROOT"/src/pkg/regexp
+5g -o "$WORK"/regexp/_obj/_go_.5 -p regexp -I "$WORK" ./exec.go ./regexp.go
+gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.5
+cp "$WORK"/regexp.a "$GOROOT"/pkg/linux_arm/regexp.a
+
+#
 # go/build
 #
 
@@ -517,6 +454,39 @@ cd "$GOROOT"/src/pkg/go/build
 5g -o "$WORK"/go/build/_obj/_go_.5 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
 gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.5
 cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_arm/go/build.a
+
+#
+# net/url
+#
+
+mkdir -p "$WORK"/net/url/_obj/
+cd "$GOROOT"/src/pkg/net/url
+5g -o "$WORK"/net/url/_obj/_go_.5 -p net/url -I "$WORK" ./url.go
+gopack grc "$WORK"/net/url.a "$WORK"/net/url/_obj/_go_.5
+mkdir -p "$GOROOT"/pkg/linux_arm/net/
+cp "$WORK"/net/url.a "$GOROOT"/pkg/linux_arm/net/url.a
+
+#
+# text/template/parse
+#
+
+mkdir -p "$WORK"/text/template/parse/_obj/
+cd "$GOROOT"/src/pkg/text/template/parse
+5g -o "$WORK"/text/template/parse/_obj/_go_.5 -p text/template/parse -I "$WORK" ./lex.go ./node.go ./parse.go
+gopack grc "$WORK"/text/template/parse.a "$WORK"/text/template/parse/_obj/_go_.5
+mkdir -p "$GOROOT"/pkg/linux_arm/text/template/
+cp "$WORK"/text/template/parse.a "$GOROOT"/pkg/linux_arm/text/template/parse.a
+
+#
+# text/template
+#
+
+mkdir -p "$WORK"/text/template/_obj/
+cd "$GOROOT"/src/pkg/text/template
+5g -o "$WORK"/text/template/_obj/_go_.5 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.5
+mkdir -p "$GOROOT"/pkg/linux_arm/text/
+cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_arm/text/template.a
 
 #
 # cmd/go

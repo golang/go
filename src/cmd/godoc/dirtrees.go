@@ -8,7 +8,6 @@ package main
 
 import (
 	"bytes"
-	"go/doc"
 	"go/parser"
 	"go/token"
 	"log"
@@ -136,7 +135,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 							i = 3 // none of the above
 						}
 						if 0 <= i && i < len(synopses) && synopses[i] == "" {
-							synopses[i] = firstSentence(doc.CommentText(file.Doc))
+							synopses[i] = firstSentence(file.Doc.Text())
 						}
 					}
 				}

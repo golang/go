@@ -35,7 +35,7 @@ func Examples(pkg *ast.Package) []*Example {
 			examples = append(examples, &Example{
 				Name:   name[len("Example"):],
 				Body:   &printer.CommentedNode{f.Body, src.Comments},
-				Output: CommentText(f.Doc),
+				Output: f.Doc.Text(),
 			})
 		}
 	}

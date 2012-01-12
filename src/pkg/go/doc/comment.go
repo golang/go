@@ -7,7 +7,6 @@
 package doc
 
 import (
-	"go/ast"
 	"io"
 	"regexp"
 	"strings"
@@ -15,74 +14,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 )
-
-func isWhitespace(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' }
-
-func stripTrailingWhitespace(s string) string {
-	i := len(s)
-	for i > 0 && isWhitespace(s[i-1]) {
-		i--
-	}
-	return s[0:i]
-}
-
-// CommentText returns the text of comment,
-// with the comment markers - //, /*, and */ - removed.
-func CommentText(comment *ast.CommentGroup) string {
-	if comment == nil {
-		return ""
-	}
-	comments := make([]string, len(comment.List))
-	for i, c := range comment.List {
-		comments[i] = string(c.Text)
-	}
-
-	lines := make([]string, 0, 10) // most comments are less than 10 lines
-	for _, c := range comments {
-		// Remove comment markers.
-		// The parser has given us exactly the comment text.
-		switch c[1] {
-		case '/':
-			//-style comment
-			c = c[2:]
-			// Remove leading space after //, if there is one.
-			// TODO(gri) This appears to be necessary in isolated
-			//           cases (bignum.RatFromString) - why?
-			if len(c) > 0 && c[0] == ' ' {
-				c = c[1:]
-			}
-		case '*':
-			/*-style comment */
-			c = c[2 : len(c)-2]
-		}
-
-		// Split on newlines.
-		cl := strings.Split(c, "\n")
-
-		// Walk lines, stripping trailing white space and adding to list.
-		for _, l := range cl {
-			lines = append(lines, stripTrailingWhitespace(l))
-		}
-	}
-
-	// Remove leading blank lines; convert runs of
-	// interior blank lines to a single blank line.
-	n := 0
-	for _, line := range lines {
-		if line != "" || n > 0 && lines[n-1] != "" {
-			lines[n] = line
-			n++
-		}
-	}
-	lines = lines[0:n]
-
-	// Add final "" entry to get trailing newline from Join.
-	if n > 0 && lines[n-1] != "" {
-		lines = append(lines, "")
-	}
-
-	return strings.Join(lines, "\n")
-}
 
 var (
 	ldquo = []byte("&ldquo;")

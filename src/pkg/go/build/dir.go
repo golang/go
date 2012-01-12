@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/doc"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -412,7 +411,7 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
 // TODO(rsc): This duplicates code in cgo.
 // Once the dust settles, remove this code from cgo.
 func (ctxt *Context) saveCgo(filename string, di *DirInfo, cg *ast.CommentGroup) error {
-	text := doc.CommentText(cg)
+	text := cg.Text()
 	for _, line := range strings.Split(text, "\n") {
 		orig := line
 
