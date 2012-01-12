@@ -14,7 +14,7 @@
 // units.y
 // example of a goyacc program
 // usage is
-//	goyacc units.y (produces y.go)
+//	goyacc -p "units_" units.y (produces y.go)
 //	6g y.go
 //	6l y.6
 //	./6.out $GOROOT/src/cmd/goyacc/units
@@ -33,7 +33,7 @@ import (
 	"os"
 	"math"
 	"strconv"
-	"utf8"
+	"unicode/utf8"
 )
 
 const (
@@ -58,7 +58,7 @@ var lineno int       // current input line number
 var linep int        // index to next rune in unput
 var nerrors int      // error count
 var one Node         // constant one
-var peekrune int     // backup runt from input
+var peekrune rune    // backup runt from input
 var retnode1 Node
 var retnode2 Node
 var retnode Node
@@ -212,7 +212,8 @@ expr0:
 type UnitsLex int
 
 func (UnitsLex) Lex(yylval *units_SymType) int {
-	var c, i int
+	var c rune
+	var i int
 
 	c = peekrune
 	peekrune = ' '
@@ -242,7 +243,7 @@ loop:
 		yylval.numb = 3
 		return SUP
 	}
-	return c
+	return int(c)
 
 alpha:
 	sym = ""
@@ -267,7 +268,7 @@ numb:
 		}
 	}
 	peekrune = c
-	f, err := strconv.Atof64(sym)
+	f, err := strconv.ParseFloat(sym, 64)
 	if err != nil {
 		fmt.Printf("error converting %v\n", sym)
 		f = 0
@@ -362,7 +363,7 @@ func main() {
  * all characters that have some
  * meaning. rest are usable as names
  */
-func ralpha(c int) bool {
+func ralpha(c rune) bool {
 	switch c {
 	case 0, '+', '-', '*', '/', '[', ']', '(', ')',
 		'^', ':', '?', ' ', '\t', '.', '|', '#',
@@ -375,7 +376,7 @@ func ralpha(c int) bool {
 /*
  * number forming character
  */
-func rdigit(c int) bool {
+func rdigit(c rune) bool {
 	switch c {
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 		'.', 'e', '+', '-':
@@ -577,8 +578,9 @@ func readline() bool {
 	return false
 }
 
-func getrune() int {
-	var c, n int
+func getrune() rune {
+	var c rune
+	var n int
 
 	if linep >= len(line) {
 		return 0
