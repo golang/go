@@ -136,9 +136,27 @@ func (c *common) Failed() bool { return c.failed }
 // FailNow marks the function as having failed and stops its execution.
 // Execution will continue at the next Test.
 func (c *common) FailNow() {
-	c.duration = time.Now().Sub(c.start)
 	c.Fail()
-	c.signal <- c.self
+
+	// Calling runtime.Goexit will exit the goroutine, which
+	// will run the deferred functions in this goroutine,
+	// which will eventually run the deferred lines in tRunner,
+	// which will signal to the test loop that this test is done.
+	//
+	// A previous version of this code said:
+	//
+	//	c.duration = ...
+	//	c.signal <- c.self
+	//	runtime.Goexit()
+	//
+	// This previous version duplicated code (those lines are in
+	// tRunner no matter what), but worse the goroutine teardown
+	// implicit in runtime.Goexit was not guaranteed to complete
+	// before the test exited.  If a test deferred an important cleanup
+	// function (like removing temporary files), there was no guarantee
+	// it would run on a test failure.  Because we send on c.signal during
+	// a top-of-stack deferred function now, we know that the send
+	// only happens after any other stacked defers have completed.
 	runtime.Goexit()
 }
 
@@ -195,9 +213,17 @@ type InternalTest struct {
 
 func tRunner(t *T, test *InternalTest) {
 	t.start = time.Now()
+
+	// When this goroutine is done, either because test.F(t)
+	// returned normally or because a test failure triggered 
+	// a call to runtime.Goexit, record the duration and send
+	// a signal saying that the test is done.
+	defer func() {
+		t.duration = time.Now().Sub(t.start)
+		t.signal <- t
+	}()
+
 	test.F(t)
-	t.duration = time.Now().Sub(t.start)
-	t.signal <- t
 }
 
 // An internal function but exported because it is cross-package; part of the implementation
