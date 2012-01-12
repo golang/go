@@ -68,7 +68,7 @@ func funcline_go(*Func, uintptr) (string, int)
 // mid returns the current os thread (m) id.
 func mid() uint32
 
-// NumCPU returns the number of CPUs on the local machine.
+// NumCPU returns the number of logical CPUs on the local machine.
 func NumCPU() int
 
 // Semacquire waits until *s > 0 and then atomically decrements it.
