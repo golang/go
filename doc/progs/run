@@ -68,7 +68,7 @@ for i in \
 done
 
 # Write to temporary file to avoid mingw bash bug.
-TMPFILE="/tmp/gotest3"
+TMPFILE="/tmp/gotest3.$USER"
 
 function testit {
 	$LD $1.$O
