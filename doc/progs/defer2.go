@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains the code snippets included in "Defer, Panic, an Recover."
+// This file contains the code snippets included in "Defer, Panic, and Recover."
 
 package main
 
