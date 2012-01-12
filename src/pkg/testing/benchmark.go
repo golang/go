@@ -142,6 +142,13 @@ func (b *B) run() BenchmarkResult {
 func (b *B) launch() {
 	// Run the benchmark for a single iteration in case it's expensive.
 	n := 1
+
+	// Signal that we're done whether we return normally
+	// or by FailNow's runtime.Goexit.
+	defer func() {
+		b.signal <- b
+	}()
+
 	b.runN(n)
 	// Run the benchmark for at least the specified amount of time.
 	d := time.Duration(*benchTime * float64(time.Second))
@@ -162,7 +169,6 @@ func (b *B) launch() {
 		b.runN(n)
 	}
 	b.result = BenchmarkResult{b.N, b.duration, b.bytes}
-	b.signal <- b
 }
 
 // The results of a benchmark run.
