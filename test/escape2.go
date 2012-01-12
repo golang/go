@@ -126,8 +126,34 @@ func (b *Bar) NoLeak() int { // ERROR "b does not escape"
 	return *(b.ii)
 }
 
+func (b *Bar) Leak() *int { // ERROR "leaking param: b"
+	return &b.i // ERROR "&b.i escapes to heap"
+}
+
 func (b *Bar) AlsoNoLeak() *int { // ERROR "b does not escape"
 	return b.ii
+}
+
+func (b Bar) AlsoLeak() *int { // ERROR "leaking param: b"
+	return b.ii
+}
+
+func (b Bar) LeaksToo() *int { // ERROR "leaking param: b"
+	v := 0	// ERROR "moved to heap: v"
+	b.ii = &v // ERROR "&v escapes"
+	return b.ii
+}
+
+func (b *Bar) LeaksABit() *int { // ERROR "b does not escape"
+	v := 0	// ERROR "moved to heap: v"
+	b.ii = &v // ERROR "&v escapes"
+	return b.ii
+}
+
+func (b Bar) StillNoLeak() int { // ERROR "b does not escape"
+	v := 0
+	b.ii = &v // ERROR "&v does not escape"
+	return b.i
 }
 
 func goLeak(b *Bar) { // ERROR "leaking param: b"
@@ -148,20 +174,24 @@ func (b *Bar2) NoLeak() int { // ERROR "b does not escape"
 }
 
 func (b *Bar2) Leak() []int { // ERROR "leaking param: b"
-	return b.i[:]  // ERROR "b.i escapes to heap"
+	return b.i[:] // ERROR "b.i escapes to heap"
 }
 
 func (b *Bar2) AlsoNoLeak() []int { // ERROR "b does not escape"
 	return b.ii[0:1]
 }
 
+func (b Bar2) AgainNoLeak() [12]int { // ERROR "b does not escape"
+	return b.i
+}
+
 func (b *Bar2) LeakSelf() { // ERROR "leaking param: b"
-	b.ii = b.i[0:4]  // ERROR "b.i escapes to heap"
+	b.ii = b.i[0:4] // ERROR "b.i escapes to heap"
 }
 
 func (b *Bar2) LeakSelf2() { // ERROR "leaking param: b"
 	var buf []int
-	buf = b.i[0:]  // ERROR "b.i escapes to heap"
+	buf = b.i[0:] // ERROR "b.i escapes to heap"
 	b.ii = buf
 }
 
@@ -1018,7 +1048,7 @@ func foo122() {
 
 	goto L1
 L1:
-	i = new(int)	// ERROR "does not escape"
+	i = new(int) // ERROR "does not escape"
 	_ = i
 }
 
@@ -1027,7 +1057,7 @@ func foo123() {
 	var i *int
 
 L1:
-	i = new(int)  // ERROR "escapes"
+	i = new(int) // ERROR "escapes"
 
 	goto L1
 	_ = i
