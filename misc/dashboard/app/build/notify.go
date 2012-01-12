@@ -19,6 +19,7 @@ import (
 const (
 	mailFrom   = "builder@golang.org" // use this for sending any mail
 	failMailTo = "golang-dev@googlegroups.com"
+	domain     = "build.golang.org"
 )
 
 // notifyOnFailure checks whether the supplied Commit or the subsequent
@@ -127,7 +128,7 @@ func sendFailMail(c appengine.Context, com *Commit, builder string) {
 	var body bytes.Buffer
 	err := sendFailMailTmpl.Execute(&body, map[string]interface{}{
 		"Builder": builder, "Commit": com, "Result": r, "Log": l,
-		"Hostname": appengine.DefaultVersionHostname(c),
+		"Hostname": domain,
 	})
 	if err != nil {
 		c.Errorf("rendering mail template: %v", err)
