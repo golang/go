@@ -42,8 +42,7 @@ func runRun(cmd *Command, args []string) {
 // runProgram is the action for running a binary that has already
 // been compiled.  We ignore exit status.
 func (b *builder) runProgram(a *action) error {
-	args := append([]string{a.deps[0].target}, a.args...)
-	run(args...)
+	run(a.deps[0].target, a.args)
 	return nil
 }
 
