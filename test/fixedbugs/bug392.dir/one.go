@@ -14,6 +14,9 @@ func F1(T *T) bool { return T == nil }
 // Issue 2682.
 func F2(c chan int) bool { return c == (<-chan int)(nil) }
 
+// Use of single named return value.
+func F3() (ret []int) { return append(ret, 1) }
+
 // Call of inlined method with blank receiver.
 func (_ *T) M() int { return 1 }
 func (t *T) MM() int { return t.M() }
