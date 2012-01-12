@@ -1,5 +1,10 @@
-application: go-build
-version: 1
+# Update with
+#	google_appengine/appcfg.py [-V test-build] update .
+#
+# Using -V test-build will run as test-build.golang.org.
+
+application: golang-org
+version: build
 runtime: go
 api_version: 3
 
