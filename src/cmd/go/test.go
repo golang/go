@@ -359,7 +359,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
 		ptest.GoFiles = append(ptest.GoFiles, p.info.TestGoFiles...)
 		ptest.target = ""
-		ptest.Imports = append(append([]string{}, p.info.Imports...), p.info.TestImports...)
+		ptest.Imports = stringList(p.info.Imports, p.info.TestImports)
 		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
 		ptest.pkgdir = testDir
 		ptest.fake = true
@@ -441,8 +441,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 
 // runTest is the action for running a test binary.
 func (b *builder) runTest(a *action) error {
-	args := []string{a.deps[0].target}
-	args = append(args, testArgs...)
+	args := stringList(a.deps[0].target, testArgs)
 	a.testOutput = new(bytes.Buffer)
 
 	if buildN || buildX {

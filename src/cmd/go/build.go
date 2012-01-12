@@ -818,7 +818,8 @@ var errPrintedOutput = errors.New("already printed output - no need to show erro
 // run runs the command given by cmdline in the directory dir.
 // If the commnd fails, run prints information about the failure
 // and returns a non-nil error.
-func (b *builder) run(dir string, desc string, cmdline ...string) error {
+func (b *builder) run(dir string, desc string, cmdargs ...interface{}) error {
+	cmdline := stringList(cmdargs...)
 	if buildN || buildX {
 		b.showcmd(dir, "%s", strings.Join(cmdline, " "))
 		if buildN {
@@ -890,14 +891,11 @@ func mkAbs(dir, f string) string {
 // gc runs the Go compiler in a specific directory on a set of files
 // to generate the named output file. 
 func (b *builder) gc(p *Package, ofile string, gcargs, importArgs []string, gofiles []string) error {
-	args := []string{b.arch + "g", "-o", ofile}
-	args = append(args, b.gcflags...)
-	args = append(args, gcargs...)
-	args = append(args, importArgs...)
+	args := stringList(b.arch+"g", "-o", ofile, b.gcflags, gcargs, importArgs)
 	for _, f := range gofiles {
 		args = append(args, mkAbs(p.Dir, f))
 	}
-	return b.run(p.Dir, p.ImportPath, args...)
+	return b.run(p.Dir, p.ImportPath, args)
 }
 
 // asm runs the assembler in a specific directory on a specific file
@@ -911,17 +909,16 @@ func (b *builder) asm(p *Package, obj, ofile, sfile string) error {
 // an archive from a set of object files.
 // typically it is run in the object directory.
 func (b *builder) gopack(p *Package, objDir, afile string, ofiles []string) error {
-	cmd := []string{"gopack", "grc"}
-	cmd = append(cmd, mkAbs(objDir, afile))
+	var absOfiles []string
 	for _, f := range ofiles {
-		cmd = append(cmd, mkAbs(objDir, f))
+		absOfiles = append(absOfiles, mkAbs(objDir, f))
 	}
-	return b.run(p.Dir, p.ImportPath, cmd...)
+	return b.run(p.Dir, p.ImportPath, "gopack", "grc", mkAbs(objDir, afile), absOfiles)
 }
 
 // ld runs the linker to create a package starting at mainpkg.
 func (b *builder) ld(p *Package, out string, importArgs []string, mainpkg string) error {
-	return b.run(p.Dir, p.ImportPath, append(append([]string{b.arch + "l", "-o", out}, importArgs...), mainpkg)...)
+	return b.run(p.Dir, p.ImportPath, b.arch+"l", "-o", out, importArgs, mainpkg)
 }
 
 // cc runs the gc-toolchain C compiler in a directory on a C file
@@ -929,22 +926,24 @@ func (b *builder) ld(p *Package, out string, importArgs []string, mainpkg string
 func (b *builder) cc(p *Package, objdir, ofile, cfile string) error {
 	inc := filepath.Join(b.goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
 	cfile = mkAbs(p.Dir, cfile)
-	return b.run(p.Dir, p.ImportPath, b.arch+"c", "-FVw", "-I", objdir, "-I", inc, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
+	return b.run(p.Dir, p.ImportPath, b.arch+"c", "-FVw",
+		"-I", objdir, "-I", inc, "-o", ofile,
+		"-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
 }
 
 // gcc runs the gcc C compiler to create an object from a single C file.
 func (b *builder) gcc(p *Package, out string, flags []string, cfile string) error {
 	cfile = mkAbs(p.Dir, cfile)
-	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir, flags, "-o", out, "-c", cfile)...)
+	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), flags, "-o", out, "-c", cfile)
 }
 
 // gccld runs the gcc linker to create an executable from a set of object files
 func (b *builder) gccld(p *Package, out string, flags []string, obj []string) error {
-	return b.run(p.Dir, p.ImportPath, append(b.gccCmd(p.Dir, flags, "-o", out), obj...)...)
+	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-o", out, obj, flags)
 }
 
-// gccCmd returns a gcc command line ending with args
-func (b *builder) gccCmd(objdir string, flags []string, args ...string) []string {
+// gccCmd returns a gcc command line prefix
+func (b *builder) gccCmd(objdir string) []string {
 	// TODO: HOST_CC?
 	a := []string{"gcc", "-I", objdir, "-g", "-O2"}
 
@@ -969,8 +968,7 @@ func (b *builder) gccCmd(objdir string, flags []string, args ...string) []string
 			a = append(a, "-pthread")
 		}
 	}
-	a = append(a, flags...)
-	return append(a, args...)
+	return a
 }
 
 var cgoRe = regexp.MustCompile(`[/\\:]`)
@@ -994,13 +992,11 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	defunC := obj + "_cgo_defun.c"
 	// TODO: make cgo not depend on $GOARCH?
 	// TODO: make cgo write to obj
-	cgoArgs := []string{cgoExe, "-objdir", obj}
+	var runtimeFlag []string
 	if p.Standard && p.ImportPath == "runtime/cgo" {
-		cgoArgs = append(cgoArgs, "-import_runtime_cgo=false")
+		runtimeFlag = []string{"-import_runtime_cgo=false"}
 	}
-	cgoArgs = append(cgoArgs, "--")
-	cgoArgs = append(cgoArgs, p.CgoFiles...)
-	if err := b.run(p.Dir, p.ImportPath, cgoArgs...); err != nil {
+	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, runtimeFlag, "--", p.CgoFiles); err != nil {
 		return nil, nil, err
 	}
 	outGo = append(outGo, gofiles...)

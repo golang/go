@@ -26,7 +26,7 @@ func runFmt(cmd *Command, args []string) {
 		// Use pkg.gofiles instead of pkg.Dir so that
 		// the command only applies to this package,
 		// not to packages in subdirectories.
-		run(append([]string{"gofmt", "-l", "-w"}, pkg.gofiles...)...)
+		run(stringList("gofmt", "-I", "w", pkg.gofiles))
 	}
 }
 
