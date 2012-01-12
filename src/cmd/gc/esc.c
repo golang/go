@@ -469,10 +469,14 @@ escassign(Node *dst, Node *src)
 		escflows(dst, src);
 		break;
 
+	case ODOT:
+		// A non-pointer escaping from a struct does not concern us.
+		if(src->type && !haspointers(src->type))
+			break;
+		// fallthrough
 	case OCONV:
 	case OCONVIFACE:
 	case OCONVNOP:
-	case ODOT:
 	case ODOTMETH:	// treat recv.meth as a value with recv in it, only happens in ODEFER and OPROC
 			// iface.method already leaks iface in esccall, no need to put in extra ODOTINTER edge here
 	case ODOTTYPE:
