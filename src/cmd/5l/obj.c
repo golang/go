@@ -136,6 +136,11 @@ main(int argc, char *argv[])
 	case 'V':
 		print("%cl version %s\n", thechar, getgoversion());
 		errorexit();
+	case 'X':
+		// TODO: golang.org/issue/2676
+		EARGF(usage());
+		EARGF(usage());
+		break;
 	} ARGEND
 
 	USED(argc);
