@@ -794,8 +794,13 @@ func (b *builder) showcmd(dir string, format string, args ...interface{}) {
 // showOutput also replaces references to the work directory with $WORK.
 //
 func (b *builder) showOutput(dir, desc, out string) {
-	prefix := "# " + desc + "\n"
-	suffix := relPaths(dir, out)
+	prefix := "# " + desc
+	suffix := "\n" + out
+	pwd, _ := os.Getwd()
+	if reldir, err := filepath.Rel(pwd, dir); err == nil && len(reldir) < len(dir) {
+		suffix = strings.Replace(suffix, " "+dir, " "+reldir, -1)
+		suffix = strings.Replace(suffix, "\n"+dir, "\n"+reldir, -1)
+	}
 	suffix = strings.Replace(suffix, " "+b.work, " $WORK", -1)
 
 	b.output.Lock()
@@ -803,16 +808,19 @@ func (b *builder) showOutput(dir, desc, out string) {
 	fmt.Print(prefix, suffix)
 }
 
-// relPaths returns a copy of out with references to dir
-// made relative to the current directory if that would be shorter.
-func relPaths(dir, out string) string {
-	x := "\n" + out
+// relPaths returns a copy of paths with absolute paths
+// made relative to the current directory if they would be shorter.
+func relPaths(paths []string) []string {
+	var out []string
 	pwd, _ := os.Getwd()
-	if reldir, err := filepath.Rel(pwd, dir); err == nil && len(reldir) < len(dir) {
-		x = strings.Replace(x, " "+dir, " "+reldir, -1)
-		x = strings.Replace(x, "\n"+dir, "\n"+reldir, -1)
+	for _, p := range paths {
+		rel, err := filepath.Rel(pwd, p)
+		if err == nil && len(rel) < len(p) {
+			p = rel
+		}
+		out = append(out, p)
 	}
-	return x[1:]
+	return out
 }
 
 // errPrintedOutput is a special error indicating that a command failed
