@@ -149,10 +149,10 @@ endif
 
 # Compile rules for gcc source files.
 %.o: %.c
-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $(_CGO_CFLAGS) $*.c
+	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c -I_obj $(CGO_CFLAGS) $(_CGO_CFLAGS) $*.c
 
 %.o: _obj/%.c
-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -I . -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $(_CGO_CFLAGS) $^
+	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -I . -g -fPIC -O2 -o $@ -c -I_obj $(CGO_CFLAGS) $(_CGO_CFLAGS) $^
 
 # To find out which symbols are needed from external libraries
 # and which libraries are needed, we build a simple a.out that
