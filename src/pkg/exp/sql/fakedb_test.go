@@ -306,6 +306,8 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (driver.Stmt, e
 			switch ctype {
 			case "string":
 				subsetVal = []byte(value)
+			case "blob":
+				subsetVal = []byte(value)
 			case "int32":
 				i, err := strconv.Atoi(value)
 				if err != nil {
@@ -510,9 +512,19 @@ type rowsCursor struct {
 	pos    int
 	rows   []*row
 	closed bool
+
+	// a clone of slices to give out to clients, indexed by the
+	// the original slice's first byte address.  we clone them
+	// just so we're able to corrupt them on close.
+	bytesClone map[*byte][]byte
 }
 
 func (rc *rowsCursor) Close() error {
+	if !rc.closed {
+		for _, bs := range rc.bytesClone {
+			bs[0] = 255 // first byte corrupted
+		}
+	}
 	rc.closed = true
 	return nil
 }
@@ -537,6 +549,19 @@ func (rc *rowsCursor) Next(dest []interface{}) error {
 		// for ease of drivers, and to prevent drivers from
 		// messing up conversions or doing them differently.
 		dest[i] = v
+
+		if bs, ok := v.([]byte); ok {
+			if rc.bytesClone == nil {
+				rc.bytesClone = make(map[*byte][]byte)
+			}
+			clone, ok := rc.bytesClone[&bs[0]]
+			if !ok {
+				clone = make([]byte, len(bs))
+				copy(clone, bs)
+				rc.bytesClone[&bs[0]] = clone
+			}
+			dest[i] = clone
+		}
 	}
 	return nil
 }
