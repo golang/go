@@ -368,8 +368,8 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 	if err != nil {
 		return err
 	}
-	bw.Flush()
-	return nil
+
+	return bw.Flush()
 }
 
 // Convert decimal at s[i:len(s)] to integer,
