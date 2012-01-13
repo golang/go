@@ -4,7 +4,10 @@
 
 package ast
 
-import "go/token"
+import (
+	"go/token"
+	"sort"
+)
 
 // ----------------------------------------------------------------------------
 // Export filtering
@@ -291,29 +294,35 @@ var separator = &Comment{noPos, "//"}
 //
 func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	// Count the number of package docs, comments and declarations across
-	// all package files.
+	// all package files. Also, compute sorted list of filenames, so that
+	// subsequent iterations can always iterate in the same order.
 	ndocs := 0
 	ncomments := 0
 	ndecls := 0
-	for _, f := range pkg.Files {
+	filenames := make([]string, len(pkg.Files))
+	i := 0
+	for filename, f := range pkg.Files {
+		filenames[i] = filename
+		i++
 		if f.Doc != nil {
 			ndocs += len(f.Doc.List) + 1 // +1 for separator
 		}
 		ncomments += len(f.Comments)
 		ndecls += len(f.Decls)
 	}
+	sort.Strings(filenames)
 
 	// Collect package comments from all package files into a single
-	// CommentGroup - the collected package documentation. The order
-	// is unspecified. In general there should be only one file with
-	// a package comment; but it's better to collect extra comments
-	// than drop them on the floor.
+	// CommentGroup - the collected package documentation. In general
+	// there should be only one file with a package comment; but it's
+	// better to collect extra comments than drop them on the floor.
 	var doc *CommentGroup
 	var pos token.Pos
 	if ndocs > 0 {
 		list := make([]*Comment, ndocs-1) // -1: no separator before first group
 		i := 0
-		for _, f := range pkg.Files {
+		for _, filename := range filenames {
+			f := pkg.Files[filename]
 			if f.Doc != nil {
 				if i > 0 {
 					// not the first group - add separator
@@ -342,7 +351,8 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 		funcs := make(map[string]int) // map of global function name -> decls index
 		i := 0                        // current index
 		n := 0                        // number of filtered entries
-		for _, f := range pkg.Files {
+		for _, filename := range filenames {
+			f := pkg.Files[filename]
 			for _, d := range f.Decls {
 				if mode&FilterFuncDuplicates != 0 {
 					// A language entity may be declared multiple
@@ -398,7 +408,8 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	var imports []*ImportSpec
 	if mode&FilterImportDuplicates != 0 {
 		seen := make(map[string]bool)
-		for _, f := range pkg.Files {
+		for _, filename := range filenames {
+			f := pkg.Files[filename]
 			for _, imp := range f.Imports {
 				if path := imp.Path.Value; !seen[path] {
 					// TODO: consider handling cases where:

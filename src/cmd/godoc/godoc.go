@@ -1086,18 +1086,18 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 	var past *ast.File
 	var pdoc *doc.Package
 	if pkg != nil {
-		var docMode doc.Mode
-		if mode&noFiltering != 0 {
-			docMode = doc.AllDecls
-		}
 		if mode&showSource == 0 {
 			// show extracted documentation
-			pdoc = doc.New(pkg, path.Clean(relpath), docMode) // no trailing '/' in importpath
+			var m doc.Mode
+			if mode&noFiltering != 0 {
+				m = doc.AllDecls
+			}
+			pdoc = doc.New(pkg, path.Clean(relpath), m) // no trailing '/' in importpath
 		} else {
 			// show source code
 			// TODO(gri) Consider eliminating export filtering in this mode,
 			//           or perhaps eliminating the mode altogether.
-			if docMode&doc.AllDecls == 0 {
+			if mode&noFiltering == 0 {
 				ast.PackageExports(pkg)
 			}
 			past = ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments)
