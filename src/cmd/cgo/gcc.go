@@ -344,8 +344,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 			if _, err := strconv.Atoi(n.Define); err == nil {
 				ok = true
 			} else if n.Define[0] == '"' || n.Define[0] == '\'' {
-				_, err := parser.ParseExpr(fset, "", n.Define)
-				if err == nil {
+				if _, err := parser.ParseExpr(n.Define); err == nil {
 					ok = true
 				}
 			}

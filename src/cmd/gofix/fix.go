@@ -746,7 +746,7 @@ func usesImport(f *ast.File, path string) (used bool) {
 }
 
 func expr(s string) ast.Expr {
-	x, err := parser.ParseExpr(fset, "", s)
+	x, err := parser.ParseExpr(s)
 	if err != nil {
 		panic("parsing " + s + ": " + err.Error())
 	}
