@@ -9,6 +9,7 @@ import (
 	"io"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"text/template/parse"
 )
@@ -234,7 +235,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		if val.Len() == 0 {
 			break
 		}
-		for _, key := range val.MapKeys() {
+		for _, key := range sortKeys(val.MapKeys()) {
 			oneIteration(key, val.MapIndex(key))
 		}
 		return
@@ -675,4 +676,45 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
 		}
 	}
 	fmt.Fprint(s.wr, v.Interface())
+}
+
+// Types to help sort the keys in a map for reproducible output.
+
+type rvs []reflect.Value
+
+func (x rvs) Len() int      { return len(x) }
+func (x rvs) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+
+type rvInts struct{ rvs }
+
+func (x rvInts) Less(i, j int) bool { return x.rvs[i].Int() < x.rvs[j].Int() }
+
+type rvUints struct{ rvs }
+
+func (x rvUints) Less(i, j int) bool { return x.rvs[i].Uint() < x.rvs[j].Uint() }
+
+type rvFloats struct{ rvs }
+
+func (x rvFloats) Less(i, j int) bool { return x.rvs[i].Float() < x.rvs[j].Float() }
+
+type rvStrings struct{ rvs }
+
+func (x rvStrings) Less(i, j int) bool { return x.rvs[i].String() < x.rvs[j].String() }
+
+// sortKeys sorts (if it can) the slice of reflect.Values, which is a slice of map keys.
+func sortKeys(v []reflect.Value) []reflect.Value {
+	if len(v) <= 1 {
+		return v
+	}
+	switch v[0].Kind() {
+	case reflect.Float32, reflect.Float64:
+		sort.Sort(rvFloats{v})
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		sort.Sort(rvInts{v})
+	case reflect.String:
+		sort.Sort(rvStrings{v})
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		sort.Sort(rvUints{v})
+	}
+	return v
 }
