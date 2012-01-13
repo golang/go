@@ -873,6 +873,8 @@ func (b *builder) runOut(dir string, desc string, cmdargs ...interface{}) ([]byt
 
 // mkdir makes the named directory.
 func (b *builder) mkdir(dir string) error {
+	b.exec.Lock()
+	defer b.exec.Unlock()
 	// We can be a little aggressive about being
 	// sure directories exist.  Skip repeated calls.
 	if b.mkdirCache[dir] {
