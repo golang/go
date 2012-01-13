@@ -25,8 +25,8 @@ func TestUnmarshalFeed(t *testing.T) {
 // hget http://codereview.appspot.com/rss/mine/rsc
 const atomFeedString = `
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en-us"><title>Code Review - My issues</title><link href="http://codereview.appspot.com/" rel="alternate"></link><li-nk href="http://codereview.appspot.com/rss/mine/rsc" rel="self"></li-nk><id>http://codereview.appspot.com/</id><updated>2009-10-04T01:35:58+00:00</updated><author><name>rietveld&lt;&gt;</name></author><entry><title>rietveld: an attempt at pubsubhubbub
-</title><link hre-f="http://codereview.appspot.com/126085" rel="alternate"></link><updated>2009-10-04T01:35:58+00:00</updated><author><name>email-address-removed</name></author><id>urn:md5:134d9179c41f806be79b3a5f7877d19a</id><summary type="html">
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en-us"><title>Code Review - My issues</title><link href="http://codereview.appspot.com/" rel="alternate"></link><link href="http://codereview.appspot.com/rss/mine/rsc" rel="self"></link><id>http://codereview.appspot.com/</id><updated>2009-10-04T01:35:58+00:00</updated><author><name>rietveld&lt;&gt;</name></author><entry><title>rietveld: an attempt at pubsubhubbub
+</title><link href="http://codereview.appspot.com/126085" rel="alternate"></link><updated>2009-10-04T01:35:58+00:00</updated><author><name>email-address-removed</name></author><id>urn:md5:134d9179c41f806be79b3a5f7877d19a</id><summary type="html">
   An attempt at adding pubsubhubbub support to Rietveld.
 http://code.google.com/p/pubsubhubbub
 http://code.google.com/p/rietveld/issues/detail?id=155
@@ -79,39 +79,39 @@ not being used from outside intra_region_diff.py.
 </summary></entry></feed> 	   `
 
 type Feed struct {
-	XMLName Name `xml:"http://www.w3.org/2005/Atom feed"`
-	Title   string
-	Id      string
-	Link    []Link
-	Updated Time
-	Author  Person
-	Entry   []Entry
+	XMLName Name    `xml:"http://www.w3.org/2005/Atom feed"`
+	Title   string  `xml:"title"`
+	Id      string  `xml:"id"`
+	Link    []Link  `xml:"link"`
+	Updated Time    `xml:"updated"`
+	Author  Person  `xml:"author"`
+	Entry   []Entry `xml:"entry"`
 }
 
 type Entry struct {
-	Title   string
-	Id      string
-	Link    []Link
-	Updated Time
-	Author  Person
-	Summary Text
+	Title   string `xml:"title"`
+	Id      string `xml:"id"`
+	Link    []Link `xml:"link"`
+	Updated Time   `xml:"updated"`
+	Author  Person `xml:"author"`
+	Summary Text   `xml:"summary"`
 }
 
 type Link struct {
-	Rel  string `xml:"attr"`
-	Href string `xml:"attr"`
+	Rel  string `xml:"rel,attr"`
+	Href string `xml:"href,attr"`
 }
 
 type Person struct {
-	Name     string
-	URI      string
-	Email    string
-	InnerXML string `xml:"innerxml"`
+	Name     string `xml:"name"`
+	URI      string `xml:"uri"`
+	Email    string `xml:"email"`
+	InnerXML string `xml:",innerxml"`
 }
 
 type Text struct {
-	Type string `xml:"attr"`
-	Body string `xml:"chardata"`
+	Type string `xml:"type,attr"`
+	Body string `xml:",chardata"`
 }
 
 type Time string
@@ -214,44 +214,26 @@ not being used from outside intra_region_diff.py.
 	},
 }
 
-type FieldNameTest struct {
-	in, out string
-}
-
-var FieldNameTests = []FieldNameTest{
-	{"Profile-Image", "profileimage"},
-	{"_score", "score"},
-}
-
-func TestFieldName(t *testing.T) {
-	for _, tt := range FieldNameTests {
-		a := fieldName(tt.in)
-		if a != tt.out {
-			t.Fatalf("have %#v\nwant %#v\n\n", a, tt.out)
-		}
-	}
-}
-
 const pathTestString = `
-<result>
-    <before>1</before>
-    <items>
-        <item1>
-            <value>A</value>
-        </item1>
-        <item2>
-            <value>B</value>
-        </item2>
+<Result>
+    <Before>1</Before>
+    <Items>
+        <Item1>
+            <Value>A</Value>
+        </Item1>
+        <Item2>
+            <Value>B</Value>
+        </Item2>
         <Item1>
             <Value>C</Value>
             <Value>D</Value>
         </Item1>
         <_>
-            <value>E</value>
+            <Value>E</Value>
         </_>
-    </items>
-    <after>2</after>
-</result>
+    </Items>
+    <After>2</After>
+</Result>
 `
 
 type PathTestItem struct {
@@ -259,18 +241,18 @@ type PathTestItem struct {
 }
 
 type PathTestA struct {
-	Items         []PathTestItem `xml:">item1"`
+	Items         []PathTestItem `xml:">Item1"`
 	Before, After string
 }
 
 type PathTestB struct {
-	Other         []PathTestItem `xml:"items>Item1"`
+	Other         []PathTestItem `xml:"Items>Item1"`
 	Before, After string
 }
 
 type PathTestC struct {
-	Values1       []string `xml:"items>item1>value"`
-	Values2       []string `xml:"items>item2>value"`
+	Values1       []string `xml:"Items>Item1>Value"`
+	Values2       []string `xml:"Items>Item2>Value"`
 	Before, After string
 }
 
@@ -279,12 +261,12 @@ type PathTestSet struct {
 }
 
 type PathTestD struct {
-	Other         PathTestSet `xml:"items>"`
+	Other         PathTestSet `xml:"Items"`
 	Before, After string
 }
 
 type PathTestE struct {
-	Underline     string `xml:"items>_>value"`
+	Underline     string `xml:"Items>_>Value"`
 	Before, After string
 }
 
@@ -311,7 +293,7 @@ func TestUnmarshalPaths(t *testing.T) {
 type BadPathTestA struct {
 	First  string `xml:"items>item1"`
 	Other  string `xml:"items>item2"`
-	Second string `xml:"items>"`
+	Second string `xml:"items"`
 }
 
 type BadPathTestB struct {
@@ -320,76 +302,50 @@ type BadPathTestB struct {
 	Second string `xml:"items>item1>value"`
 }
 
+type BadPathTestC struct {
+	First  string
+	Second string `xml:"First"`
+}
+
+type BadPathTestD struct {
+	BadPathEmbeddedA
+	BadPathEmbeddedB
+}
+
+type BadPathEmbeddedA struct {
+	First string
+}
+
+type BadPathEmbeddedB struct {
+	Second string `xml:"First"`
+}
+
 var badPathTests = []struct {
 	v, e interface{}
 }{
-	{&BadPathTestA{}, &TagPathError{reflect.TypeOf(BadPathTestA{}), "First", "items>item1", "Second", "items>"}},
+	{&BadPathTestA{}, &TagPathError{reflect.TypeOf(BadPathTestA{}), "First", "items>item1", "Second", "items"}},
 	{&BadPathTestB{}, &TagPathError{reflect.TypeOf(BadPathTestB{}), "First", "items>item1", "Second", "items>item1>value"}},
+	{&BadPathTestC{}, &TagPathError{reflect.TypeOf(BadPathTestC{}), "First", "", "Second", "First"}},
+	{&BadPathTestD{}, &TagPathError{reflect.TypeOf(BadPathTestD{}), "First", "", "Second", "First"}},
 }
 
 func TestUnmarshalBadPaths(t *testing.T) {
 	for _, tt := range badPathTests {
 		err := Unmarshal(strings.NewReader(pathTestString), tt.v)
 		if !reflect.DeepEqual(err, tt.e) {
-			t.Fatalf("Unmarshal with %#v didn't fail properly: %#v", tt.v, err)
+			t.Fatalf("Unmarshal with %#v didn't fail properly:\nhave %#v,\nwant %#v", tt.v, err, tt.e)
 		}
 	}
 }
 
-func TestUnmarshalAttrs(t *testing.T) {
-	var f AttrTest
-	if err := Unmarshal(strings.NewReader(attrString), &f); err != nil {
-		t.Fatalf("Unmarshal: %s", err)
-	}
-	if !reflect.DeepEqual(f, attrStruct) {
-		t.Fatalf("have %#v\nwant %#v", f, attrStruct)
-	}
-}
-
-type AttrTest struct {
-	Test1 Test1
-	Test2 Test2
-}
-
-type Test1 struct {
-	Int   int     `xml:"attr"`
-	Float float64 `xml:"attr"`
-	Uint8 uint8   `xml:"attr"`
-}
-
-type Test2 struct {
-	Bool bool `xml:"attr"`
-}
-
-const attrString = `
-<?xml version="1.0" charset="utf-8"?>
-<attrtest>
-  <test1 int="8" float="23.5" uint8="255"/>
-  <test2 bool="true"/>
-</attrtest>
-`
-
-var attrStruct = AttrTest{
-	Test1: Test1{
-		Int:   8,
-		Float: 23.5,
-		Uint8: 255,
-	},
-	Test2: Test2{
-		Bool: true,
-	},
-}
-
-// test data for TestUnmarshalWithoutNameType
-
 const OK = "OK"
 const withoutNameTypeData = `
 <?xml version="1.0" charset="utf-8"?>
-<Test3 attr="OK" />`
+<Test3 Attr="OK" />`
 
 type TestThree struct {
-	XMLName bool   `xml:"Test3"` // XMLName field without an xml.Name type 
-	Attr    string `xml:"attr"`
+	XMLName Name   `xml:"Test3"`
+	Attr    string `xml:",attr"`
 }
 
 func TestUnmarshalWithoutNameType(t *testing.T) {
