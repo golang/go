@@ -276,3 +276,21 @@ func TestIssue2542Deadlock(t *testing.T) {
 		}
 	}
 }
+
+func TestQueryRowClosingStmt(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+	var name string
+	var age int
+	err := db.QueryRow("SELECT|people|age,name|age=?", 3).Scan(&age, &name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(db.freeConn) != 1 {
+		t.Fatalf("expected 1 free conn")
+	}
+	fakeConn := db.freeConn[0].(*fakeConn)
+	if made, closed := fakeConn.stmtsMade, fakeConn.stmtsClosed; made != closed {
+		t.Logf("statement close mismatch: made %d, closed %d", made, closed)
+	}
+}

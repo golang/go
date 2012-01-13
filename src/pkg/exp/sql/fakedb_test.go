@@ -77,6 +77,17 @@ type fakeConn struct {
 	db *fakeDB // where to return ourselves to
 
 	currTx *fakeTx
+
+	// Stats for tests:
+	mu          sync.Mutex
+	stmtsMade   int
+	stmtsClosed int
+}
+
+func (c *fakeConn) incrStat(v *int) {
+	c.mu.Lock()
+	*v++
+	c.mu.Unlock()
 }
 
 type fakeTx struct {
@@ -338,6 +349,7 @@ func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 	cmd := parts[0]
 	parts = parts[1:]
 	stmt := &fakeStmt{q: query, c: c, cmd: cmd}
+	c.incrStat(&c.stmtsMade)
 	switch cmd {
 	case "WIPE":
 		// Nothing
@@ -358,7 +370,10 @@ func (s *fakeStmt) ColumnConverter(idx int) driver.ValueConverter {
 }
 
 func (s *fakeStmt) Close() error {
-	s.closed = true
+	if !s.closed {
+		s.c.incrStat(&s.c.stmtsClosed)
+		s.closed = true
+	}
 	return nil
 }
 
