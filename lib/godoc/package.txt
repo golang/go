@@ -4,7 +4,7 @@
 
 */}}{{with .PDoc}}{{if $.IsPkg}}PACKAGE
 
-package {{.PackageName}}
+package {{.Name}}
     import "{{.ImportPath}}"
 
 {{else}}COMMAND DOCUMENTATION
