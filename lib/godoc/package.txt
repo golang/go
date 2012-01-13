@@ -49,7 +49,7 @@ TYPES
 {{comment_text .Doc "    " "\t"}}
 {{end}}{{range .Vars}}{{node .Decl $.FSet}}
 {{comment_text .Doc "    " "\t"}}
-{{end}}{{range .Factories}}{{node .Decl $.FSet}}
+{{end}}{{range .Funcs}}{{node .Decl $.FSet}}
 {{comment_text .Doc "    " "\t"}}
 {{end}}{{range .Methods}}{{node .Decl $.FSet}}
 {{comment_text .Doc "    " "\t"}}

@@ -22,7 +22,7 @@
 		{{$tname := printf "%s" .Type.Name}}
 		{{$tname_html := node_html .Type.Name $.FSet}}
 		<dd><a href="#{{$tname_html}}">type {{$tname_html}}</a></dd>
-		{{range .Factories}}
+		{{range .Funcs}}
 			{{$name_html := html .Name}}
 			<dd>&nbsp; &nbsp; <a href="#{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
 		{{end}}
@@ -98,7 +98,7 @@
 			<pre>{{node_html .Decl $.FSet}}</pre>
 		{{end}}
 		{{example_html $tname $.Examples $.FSet}}
-		{{range .Factories}}
+		{{range .Funcs}}
 			{{$name_html := html .Name}}
 			<h3 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
 			<p><code>{{node_html .Decl $.FSet}}</code></p>
