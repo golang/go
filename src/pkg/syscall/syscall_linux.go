@@ -13,8 +13,6 @@ package syscall
 
 import "unsafe"
 
-const OS = "linux"
-
 /*
  * Wrapped
  */

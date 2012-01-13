@@ -235,7 +235,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/linux_arm/encoding/base64.a
 
 mkdir -p "$WORK"/syscall/_obj/
 cd "$GOROOT"/src/pkg/syscall
-5g -o "$WORK"/syscall/_obj/_go_.5 -p syscall -I "$WORK" ./env_unix.go ./exec_linux.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_arm.go ./syscall_linux.go ./syscall_linux_arm.go ./syscall_unix.go ./zerrors_linux_arm.go ./zsyscall_linux_arm.go ./zsysnum_linux_arm.go ./ztypes_linux_arm.go
+5g -o "$WORK"/syscall/_obj/_go_.5 -p syscall -I "$WORK" ./env_unix.go ./exec_linux.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_linux.go ./syscall_linux_arm.go ./syscall_unix.go ./zerrors_linux_arm.go ./zsyscall_linux_arm.go ./zsysnum_linux_arm.go ./ztypes_linux_arm.go
 5a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_linux_arm.5 -DGOOS_linux -DGOARCH_arm ./asm_linux_arm.s
 gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.5 "$WORK"/syscall/_obj/asm_linux_arm.5
 cp "$WORK"/syscall.a "$GOROOT"/pkg/linux_arm/syscall.a

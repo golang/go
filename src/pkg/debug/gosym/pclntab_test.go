@@ -7,14 +7,14 @@ package gosym
 import (
 	"debug/elf"
 	"os"
-	"syscall"
+	"runtime"
 	"testing"
 )
 
 func dotest() bool {
 	// For now, only works on ELF platforms.
 	// TODO: convert to work with new go tool
-	return false && syscall.OS == "linux" && os.Getenv("GOARCH") == "amd64"
+	return false && runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
 }
 
 func getTable(t *testing.T) *Table {

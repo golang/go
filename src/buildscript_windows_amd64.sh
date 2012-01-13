@@ -243,7 +243,7 @@ cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/windows_amd64/unicode/utf16.a
 
 mkdir -p "$WORK"/syscall/_obj/
 cd "$GOROOT"/src/pkg/syscall
-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./dll_windows.go ./env_windows.go ./exec_windows.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_windows.go ./syscall_windows_amd64.go ./zerrors_windows.go ./zerrors_windows_amd64.go ./zsyscall_windows_amd64.go ./zsysnum_windows_amd64.go ./ztypes_windows.go ./ztypes_windows_amd64.go
+6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./dll_windows.go ./env_windows.go ./exec_windows.go ./str.go ./syscall.go ./syscall_windows.go ./syscall_windows_amd64.go ./zerrors_windows.go ./zerrors_windows_amd64.go ./zsyscall_windows_amd64.go ./zsysnum_windows_amd64.go ./ztypes_windows.go ./ztypes_windows_amd64.go
 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_windows_amd64.6 -DGOOS_windows -DGOARCH_amd64 ./asm_windows_amd64.s
 gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_windows_amd64.6
 cp "$WORK"/syscall.a "$GOROOT"/pkg/windows_amd64/syscall.a

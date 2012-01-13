@@ -8,6 +8,7 @@ package os_test
 
 import (
 	. "os"
+	"runtime"
 	"syscall"
 	"testing"
 )
@@ -29,7 +30,7 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
 func TestChown(t *testing.T) {
 	// Chown is not supported under windows or Plan 9.
 	// Plan9 provides a native ChownPlan9 version instead.
-	if syscall.OS == "windows" || syscall.OS == "plan9" {
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
 		return
 	}
 	// Use TempDir() to make sure we're on a local file system,

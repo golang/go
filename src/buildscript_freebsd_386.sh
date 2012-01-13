@@ -232,7 +232,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/freebsd_386/encoding/base64.a
 
 mkdir -p "$WORK"/syscall/_obj/
 cd "$GOROOT"/src/pkg/syscall
-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_freebsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_freebsd.go ./syscall_freebsd_386.go ./syscall_unix.go ./zerrors_freebsd_386.go ./zsyscall_freebsd_386.go ./zsysnum_freebsd_386.go ./ztypes_freebsd_386.go
+8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_freebsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_bsd.go ./syscall_freebsd.go ./syscall_freebsd_386.go ./syscall_unix.go ./zerrors_freebsd_386.go ./zsyscall_freebsd_386.go ./zsysnum_freebsd_386.go ./ztypes_freebsd_386.go
 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_freebsd_386.8 -DGOOS_freebsd -DGOARCH_386 ./asm_freebsd_386.s
 gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_freebsd_386.8
 cp "$WORK"/syscall.a "$GOROOT"/pkg/freebsd_386/syscall.a

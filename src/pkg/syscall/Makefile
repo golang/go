@@ -8,7 +8,6 @@ TARG=syscall
 GOFILES=\
 	str.go\
 	syscall.go\
-	syscall_$(GOARCH).go\
 	syscall_$(GOOS).go\
 	syscall_$(GOOS)_$(GOARCH).go\
 	zerrors_$(GOOS)_$(GOARCH).go\

@@ -12,7 +12,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"runtime"
+	"unsafe"
+)
 
 /*
  * Pseudo-system calls
@@ -554,7 +557,7 @@ func Sysctl(name string) (value string, err error) {
 		// Work around a bug that was fixed after OpenBSD 5.0.
 		// The length for kern.hostname and kern.domainname is always
 		// returned as 0 when a nil value is passed for oldp.
-		if OS == "openbsd" && (name == "kern.hostname" || name == "kern.domainname") {
+		if runtime.GOOS == "openbsd" && (name == "kern.hostname" || name == "kern.domainname") {
 			// MAXHOSTNAMELEN
 			n = 256
 		} else {

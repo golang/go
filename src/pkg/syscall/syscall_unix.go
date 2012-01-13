@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -17,7 +18,7 @@ var (
 	Stderr = 2
 )
 
-const darwinAMD64 = OS == "darwin" && ARCH == "amd64"
+const darwinAMD64 = runtime.GOOS == "darwin" && runtime.GOARCH == "amd64"
 
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)

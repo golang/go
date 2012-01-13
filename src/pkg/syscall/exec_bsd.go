@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"runtime"
 	"unsafe"
 )
 
@@ -41,7 +42,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// guard against side effects of shuffling fds below.
 	fd := append([]int(nil), attr.Files...)
 
-	darwin := OS == "darwin"
+	darwin := runtime.GOOS == "darwin"
 
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
