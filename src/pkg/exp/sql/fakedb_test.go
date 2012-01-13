@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"exp/sql/driver"
 )
@@ -220,7 +221,7 @@ func (c *fakeConn) Close() error {
 func checkSubsetTypes(args []interface{}) error {
 	for n, arg := range args {
 		switch arg.(type) {
-		case int64, float64, bool, nil, []byte, string:
+		case int64, float64, bool, nil, []byte, string, time.Time:
 		default:
 			return fmt.Errorf("fakedb_test: invalid argument #%d: %v, type %T", n+1, arg, arg)
 		}
@@ -589,6 +590,8 @@ func converterForType(typ string) driver.ValueConverter {
 		return driver.Int32
 	case "string":
 		return driver.String
+	case "datetime":
+		return driver.DefaultParameterConverter
 	}
 	panic("invalid fakedb column type of " + typ)
 }

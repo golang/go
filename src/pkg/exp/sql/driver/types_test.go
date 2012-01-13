@@ -7,6 +7,7 @@ package driver
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 type valueConverterTest struct {
@@ -15,6 +16,8 @@ type valueConverterTest struct {
 	out interface{}
 	err string
 }
+
+var now = time.Now()
 
 var valueConverterTests = []valueConverterTest{
 	{Bool, "true", true, ""},
@@ -33,6 +36,7 @@ var valueConverterTests = []valueConverterTest{
 	{Bool, uint16(0), false, ""},
 	{c: Bool, in: "foo", err: "sql/driver: couldn't convert \"foo\" into type bool"},
 	{c: Bool, in: 2, err: "sql/driver: couldn't convert 2 into type bool"},
+	{DefaultParameterConverter, now, now, ""},
 }
 
 func TestValueConverters(t *testing.T) {
