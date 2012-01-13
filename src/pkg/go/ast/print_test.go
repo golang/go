@@ -66,7 +66,7 @@ func TestPrint(t *testing.T) {
 	var buf bytes.Buffer
 	for _, test := range tests {
 		buf.Reset()
-		if _, err := Fprint(&buf, nil, test.x, nil); err != nil {
+		if err := Fprint(&buf, nil, test.x, nil); err != nil {
 			t.Errorf("Fprint failed: %s", err)
 		}
 		if s, ts := trim(buf.String()), trim(test.s); s != ts {

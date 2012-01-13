@@ -36,7 +36,7 @@ func NotNilFilter(_ string, v reflect.Value) bool {
 // struct fields for which f(fieldname, fieldvalue) is true are
 // are printed; all others are filtered from the output.
 //
-func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (n int, err error) {
+func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (err error) {
 	// setup printer
 	p := printer{
 		output: w,
@@ -48,7 +48,6 @@ func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (n i
 
 	// install error handler
 	defer func() {
-		n = p.written
 		if e := recover(); e != nil {
 			err = e.(localError).err // re-panics if it's not a localError
 		}
@@ -67,19 +66,18 @@ func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (n i
 
 // Print prints x to standard output, skipping nil fields.
 // Print(fset, x) is the same as Fprint(os.Stdout, fset, x, NotNilFilter).
-func Print(fset *token.FileSet, x interface{}) (int, error) {
+func Print(fset *token.FileSet, x interface{}) error {
 	return Fprint(os.Stdout, fset, x, NotNilFilter)
 }
 
 type printer struct {
-	output  io.Writer
-	fset    *token.FileSet
-	filter  FieldFilter
-	ptrmap  map[interface{}]int // *T -> line number
-	written int                 // number of bytes written to output
-	indent  int                 // current indentation level
-	last    byte                // the last byte processed by Write
-	line    int                 // current line number
+	output io.Writer
+	fset   *token.FileSet
+	filter FieldFilter
+	ptrmap map[interface{}]int // *T -> line number
+	indent int                 // current indentation level
+	last   byte                // the last byte processed by Write
+	line   int                 // current line number
 }
 
 var indent = []byte(".  ")
@@ -122,9 +120,7 @@ type localError struct {
 
 // printf is a convenience wrapper that takes care of print errors.
 func (p *printer) printf(format string, args ...interface{}) {
-	n, err := fmt.Fprintf(p, format, args...)
-	p.written += n
-	if err != nil {
+	if _, err := fmt.Fprintf(p, format, args...); err != nil {
 		panic(localError{err})
 	}
 }
