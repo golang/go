@@ -98,29 +98,43 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 		return fmtB(dst, neg, mant, exp, flt)
 	}
 
-	// Create exact decimal representation.
-	// The shift is exp - flt.mantbits because mant is a 1-bit integer
-	// followed by a flt.mantbits fraction, and we are treating it as
-	// a 1+flt.mantbits-bit integer.
-	d := new(decimal)
-	d.Assign(mant)
-	d.Shift(exp - int(flt.mantbits))
-
-	// Round appropriately.
 	// Negative precision means "only as much as needed to be exact."
-	shortest := false
-	if prec < 0 {
-		shortest = true
-		roundShortest(d, mant, exp, flt)
-		switch fmt {
-		case 'e', 'E':
-			prec = d.nd - 1
-		case 'f':
-			prec = max(d.nd-d.dp, 0)
-		case 'g', 'G':
-			prec = d.nd
+	shortest := prec < 0
+
+	d := new(decimal)
+	if shortest {
+		ok := false
+		if optimize && bitSize == 64 {
+			// Try Grisu3 algorithm.
+			f := new(extFloat)
+			lower, upper := f.AssignComputeBounds(val)
+			ok = f.ShortestDecimal(d, &lower, &upper)
+		}
+		if !ok {
+			// Create exact decimal representation.
+			// The shift is exp - flt.mantbits because mant is a 1-bit integer
+			// followed by a flt.mantbits fraction, and we are treating it as
+			// a 1+flt.mantbits-bit integer.
+			d.Assign(mant)
+			d.Shift(exp - int(flt.mantbits))
+			roundShortest(d, mant, exp, flt)
+		}
+		// Precision for shortest representation mode.
+		if prec < 0 {
+			switch fmt {
+			case 'e', 'E':
+				prec = d.nd - 1
+			case 'f':
+				prec = max(d.nd-d.dp, 0)
+			case 'g', 'G':
+				prec = d.nd
+			}
 		}
 	} else {
+		// Create exact decimal representation.
+		d.Assign(mant)
+		d.Shift(exp - int(flt.mantbits))
+		// Round appropriately.
 		switch fmt {
 		case 'e', 'E':
 			d.Round(prec + 1)

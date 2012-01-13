@@ -191,6 +191,36 @@ func (f *extFloat) Assign(x float64) {
 	f.exp -= 64
 }
 
+// AssignComputeBounds sets f to the value of x and returns
+// lower, upper such that any number in the closed interval
+// [lower, upper] is converted back to x.
+func (f *extFloat) AssignComputeBounds(x float64) (lower, upper extFloat) {
+	// Special cases.
+	bits := math.Float64bits(x)
+	flt := &float64info
+	neg := bits>>(flt.expbits+flt.mantbits) != 0
+	expBiased := int(bits>>flt.mantbits) & (1<<flt.expbits - 1)
+	mant := bits & (uint64(1)<<flt.mantbits - 1)
+
+	if expBiased == 0 {
+		// denormalized.
+		f.mant = mant
+		f.exp = 1 + flt.bias - int(flt.mantbits)
+	} else {
+		f.mant = mant | 1<<flt.mantbits
+		f.exp = expBiased + flt.bias - int(flt.mantbits)
+	}
+	f.neg = neg
+
+	upper = extFloat{mant: 2*f.mant + 1, exp: f.exp - 1, neg: f.neg}
+	if mant != 0 || expBiased == 1 {
+		lower = extFloat{mant: 2*f.mant - 1, exp: f.exp - 1, neg: f.neg}
+	} else {
+		lower = extFloat{mant: 4*f.mant - 1, exp: f.exp - 2, neg: f.neg}
+	}
+	return
+}
+
 // Normalize normalizes f so that the highest bit of the mantissa is
 // set, and returns the number by which the mantissa was left-shifted.
 func (f *extFloat) Normalize() uint {
@@ -306,6 +336,166 @@ func (f *extFloat) AssignDecimal(d *decimal) (ok bool) {
 	if int64(halfway)-int64(errors) < int64(mant_extra) &&
 		int64(mant_extra) < int64(halfway)+int64(errors) {
 		return false
+	}
+	return true
+}
+
+// Frexp10 is an analogue of math.Frexp for decimal powers. It scales
+// f by an approximate power of ten 10^-exp, and returns exp10, so
+// that f*10^exp10 has the same value as the old f, up to an ulp,
+// as well as the index of 10^-exp in the powersOfTen table.
+// The arguments expMin and expMax constrain the final value of the
+// binary exponent of f.
+func (f *extFloat) frexp10(expMin, expMax int) (exp10, index int) {
+	// it is illegal to call this function with a too restrictive exponent range.
+	if expMax-expMin <= 25 {
+		panic("strconv: invalid exponent range")
+	}
+	// Find power of ten such that x * 10^n has a binary exponent
+	// between expMin and expMax
+	approxExp10 := -(f.exp + 100) * 28 / 93 // log(10)/log(2) is close to 93/28.
+	i := (approxExp10 - firstPowerOfTen) / stepPowerOfTen
+Loop:
+	for {
+		exp := f.exp + powersOfTen[i].exp + 64
+		switch {
+		case exp < expMin:
+			i++
+		case exp > expMax:
+			i--
+		default:
+			break Loop
+		}
+	}
+	// Apply the desired decimal shift on f. It will have exponent
+	// in the desired range. This is multiplication by 10^-exp10.
+	f.Multiply(powersOfTen[i])
+
+	return -(firstPowerOfTen + i*stepPowerOfTen), i
+}
+
+// frexp10Many applies a common shift by a power of ten to a, b, c.
+func frexp10Many(expMin, expMax int, a, b, c *extFloat) (exp10 int) {
+	exp10, i := c.frexp10(expMin, expMax)
+	a.Multiply(powersOfTen[i])
+	b.Multiply(powersOfTen[i])
+	return
+}
+
+// ShortestDecimal stores in d the shortest decimal representation of f
+// which belongs to the open interval (lower, upper), where f is supposed
+// to lie. It returns false whenever the result is unsure. The implementation
+// uses the Grisu3 algorithm.
+func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
+	if f.mant == 0 {
+		d.d[0] = '0'
+		d.nd = 1
+		d.dp = 0
+		d.neg = f.neg
+	}
+	const minExp = -60
+	const maxExp = -32
+	upper.Normalize()
+	// Uniformize exponents.
+	if f.exp > upper.exp {
+		f.mant <<= uint(f.exp - upper.exp)
+		f.exp = upper.exp
+	}
+	if lower.exp > upper.exp {
+		lower.mant <<= uint(lower.exp - upper.exp)
+		lower.exp = upper.exp
+	}
+
+	exp10 := frexp10Many(minExp, maxExp, lower, f, upper)
+	// Take a safety margin due to rounding in frexp10Many, but we lose precision.
+	upper.mant++
+	lower.mant--
+
+	// The shortest representation of f is either rounded up or down, but
+	// in any case, it is a truncation of upper.
+	shift := uint(-upper.exp)
+	integer := uint32(upper.mant >> shift)
+	fraction := upper.mant - (uint64(integer) << shift)
+
+	// How far we can go down from upper until the result is wrong.
+	allowance := upper.mant - lower.mant
+	// How far we should go to get a very precise result.
+	targetDiff := upper.mant - f.mant
+
+	// Count integral digits: there are at most 10.
+	var integerDigits int
+	for i, pow := range uint64pow10 {
+		if uint64(integer) >= pow {
+			integerDigits = i + 1
+		}
+	}
+	for i := 0; i < integerDigits; i++ {
+		pow := uint64pow10[integerDigits-i-1]
+		digit := integer / uint32(pow)
+		d.d[i] = byte(digit + '0')
+		integer -= digit * uint32(pow)
+		// evaluate whether we should stop.
+		if currentDiff := uint64(integer)<<shift + fraction; currentDiff < allowance {
+			d.nd = i + 1
+			d.dp = integerDigits + exp10
+			d.neg = f.neg
+			// Sometimes allowance is so large the last digit might need to be
+			// decremented to get closer to f.
+			return adjustLastDigit(d, currentDiff, targetDiff, allowance, pow<<shift, 2)
+		}
+	}
+	d.nd = integerDigits
+	d.dp = d.nd + exp10
+	d.neg = f.neg
+
+	// Compute digits of the fractional part. At each step fraction does not
+	// overflow. The choice of minExp implies that fraction is less than 2^60.
+	var digit int
+	multiplier := uint64(1)
+	for {
+		fraction *= 10
+		multiplier *= 10
+		digit = int(fraction >> shift)
+		d.d[d.nd] = byte(digit + '0')
+		d.nd++
+		fraction -= uint64(digit) << shift
+		if fraction < allowance*multiplier {
+			// We are in the admissible range. Note that if allowance is about to
+			// overflow, that is, allowance > 2^64/10, the condition is automatically
+			// true due to the limited range of fraction.
+			return adjustLastDigit(d,
+				fraction, targetDiff*multiplier, allowance*multiplier,
+				1<<shift, multiplier*2)
+		}
+	}
+	return false
+}
+
+// adjustLastDigit modifies d = x-currentDiff*ε, to get closest to 
+// d = x-targetDiff*ε, without becoming smaller than x-maxDiff*ε.
+// It assumes that a decimal digit is worth ulpDecimal*ε, and that
+// all data is known with a error estimate of ulpBinary*ε.
+func adjustLastDigit(d *decimal, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
+	if ulpDecimal < 2*ulpBinary {
+		// Appromixation is too wide.
+		return false
+	}
+	for currentDiff+ulpDecimal/2+ulpBinary < targetDiff {
+		d.d[d.nd-1]--
+		currentDiff += ulpDecimal
+	}
+	if currentDiff+ulpDecimal <= targetDiff+ulpDecimal/2+ulpBinary {
+		// we have two choices, and don't know what to do.
+		return false
+	}
+	if currentDiff < ulpBinary || currentDiff > maxDiff-ulpBinary {
+		// we went too far
+		return false
+	}
+	if d.nd == 1 && d.d[0] == '0' {
+		// the number has actually reached zero.
+		d.nd = 0
+		d.dp = 0
 	}
 	return true
 }
