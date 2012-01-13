@@ -335,10 +335,6 @@ func (b *buffer) WriteString(s string) {
 	*b = append(*b, s...)
 }
 
-func (b *buffer) WriteByte(c byte) {
-	*b = append(*b, c)
-}
-
 func (b *buffer) String() string {
 	return string([]byte(*b))
 }
