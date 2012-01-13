@@ -29,7 +29,7 @@ type typeInfo struct {
 	// if the type declaration hasn't been seen yet, decl is nil
 	decl     *ast.GenDecl
 	embedded []embeddedType
-	forward  *TypeDoc // forward link to processed type documentation
+	forward  *Type // forward link to processed type documentation
 
 	// declarations associated with the type
 	values    []*ast.GenDecl // consts and vars
@@ -53,19 +53,19 @@ func (info *typeInfo) addEmbeddedType(embedded *typeInfo, isPtr bool) {
 // printing the corresponding AST node).
 //
 type docReader struct {
-	doc         *ast.CommentGroup // package documentation, if any
-	pkgName     string
-	exportsOnly bool
-	values      []*ast.GenDecl // consts and vars
-	types       map[string]*typeInfo
-	embedded    map[string]*typeInfo // embedded types, possibly not exported
-	funcs       map[string]*ast.FuncDecl
-	bugs        []*ast.CommentGroup
+	doc      *ast.CommentGroup // package documentation, if any
+	pkgName  string
+	mode     Mode
+	values   []*ast.GenDecl // consts and vars
+	types    map[string]*typeInfo
+	embedded map[string]*typeInfo // embedded types, possibly not exported
+	funcs    map[string]*ast.FuncDecl
+	bugs     []*ast.CommentGroup
 }
 
-func (doc *docReader) init(pkgName string, exportsOnly bool) {
+func (doc *docReader) init(pkgName string, mode Mode) {
 	doc.pkgName = pkgName
-	doc.exportsOnly = exportsOnly
+	doc.mode = mode
 	doc.types = make(map[string]*typeInfo)
 	doc.embedded = make(map[string]*typeInfo)
 	doc.funcs = make(map[string]*ast.FuncDecl)
@@ -266,7 +266,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 					// TODO(gri): Consider just collecting the TypeSpec
 					// node (and copy in the GenDecl.doc if there is no
 					// doc in the TypeSpec - this is currently done in
-					// makeTypeDocs below). Simpler data structures, but
+					// makeTypes below). Simpler data structures, but
 					// would lose GenDecl documentation if the TypeSpec
 					// has documentation as well.
 					fake := &ast.GenDecl{d.Doc, d.Pos(), token.TYPE, token.NoPos,
@@ -347,10 +347,10 @@ func (doc *docReader) addFile(src *ast.File) {
 // ----------------------------------------------------------------------------
 // Conversion to external representation
 
-type sortValueDoc []*ValueDoc
+type sortValue []*Value
 
-func (p sortValueDoc) Len() int      { return len(p) }
-func (p sortValueDoc) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p sortValue) Len() int      { return len(p) }
+func (p sortValue) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 
 func declName(d *ast.GenDecl) string {
 	if len(d.Specs) != 1 {
@@ -367,7 +367,7 @@ func declName(d *ast.GenDecl) string {
 	return ""
 }
 
-func (p sortValueDoc) Less(i, j int) bool {
+func (p sortValue) Less(i, j int) bool {
 	// sort by name
 	// pull blocks (name = "") up to top
 	// in original order
@@ -377,32 +377,45 @@ func (p sortValueDoc) Less(i, j int) bool {
 	return p[i].order < p[j].order
 }
 
-func makeValueDocs(list []*ast.GenDecl, tok token.Token) []*ValueDoc {
-	d := make([]*ValueDoc, len(list)) // big enough in any case
+func specNames(specs []ast.Spec) []string {
+	names := make([]string, len(specs)) // reasonable estimate
+	for _, s := range specs {
+		// should always be an *ast.ValueSpec, but be careful
+		if s, ok := s.(*ast.ValueSpec); ok {
+			for _, ident := range s.Names {
+				names = append(names, ident.Name)
+			}
+		}
+	}
+	return names
+}
+
+func makeValues(list []*ast.GenDecl, tok token.Token) []*Value {
+	d := make([]*Value, len(list)) // big enough in any case
 	n := 0
 	for i, decl := range list {
 		if decl.Tok == tok {
-			d[n] = &ValueDoc{decl.Doc.Text(), decl, i}
+			d[n] = &Value{decl.Doc.Text(), specNames(decl.Specs), decl, i}
 			n++
 			decl.Doc = nil // doc consumed - removed from AST
 		}
 	}
 	d = d[0:n]
-	sort.Sort(sortValueDoc(d))
+	sort.Sort(sortValue(d))
 	return d
 }
 
-type sortFuncDoc []*FuncDoc
+type sortFunc []*Func
 
-func (p sortFuncDoc) Len() int           { return len(p) }
-func (p sortFuncDoc) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p sortFuncDoc) Less(i, j int) bool { return p[i].Name < p[j].Name }
+func (p sortFunc) Len() int           { return len(p) }
+func (p sortFunc) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p sortFunc) Less(i, j int) bool { return p[i].Name < p[j].Name }
 
-func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
-	d := make([]*FuncDoc, len(m))
+func makeFuncs(m map[string]*ast.FuncDecl) []*Func {
+	d := make([]*Func, len(m))
 	i := 0
 	for _, f := range m {
-		doc := new(FuncDoc)
+		doc := new(Func)
 		doc.Doc = f.Doc.Text()
 		f.Doc = nil // doc consumed - remove from ast.FuncDecl node
 		if f.Recv != nil {
@@ -413,34 +426,40 @@ func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
 		d[i] = doc
 		i++
 	}
-	sort.Sort(sortFuncDoc(d))
+	sort.Sort(sortFunc(d))
 	return d
 }
 
-type methodSet map[string]*FuncDoc
+type methodSet map[string]*Func
 
-func (mset methodSet) add(m *FuncDoc) {
+func (mset methodSet) add(m *Func) {
 	if mset[m.Name] == nil {
 		mset[m.Name] = m
 	}
 }
 
-func (mset methodSet) sortedList() []*FuncDoc {
-	list := make([]*FuncDoc, len(mset))
+type sortMethod []*Method
+
+func (p sortMethod) Len() int           { return len(p) }
+func (p sortMethod) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p sortMethod) Less(i, j int) bool { return p[i].Func.Name < p[j].Func.Name }
+
+func (mset methodSet) sortedList() []*Method {
+	list := make([]*Method, len(mset))
 	i := 0
 	for _, m := range mset {
-		list[i] = m
+		list[i] = &Method{Func: m}
 		i++
 	}
-	sort.Sort(sortFuncDoc(list))
+	sort.Sort(sortMethod(list))
 	return list
 }
 
-type sortTypeDoc []*TypeDoc
+type sortType []*Type
 
-func (p sortTypeDoc) Len() int      { return len(p) }
-func (p sortTypeDoc) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-func (p sortTypeDoc) Less(i, j int) bool {
+func (p sortType) Len() int      { return len(p) }
+func (p sortType) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p sortType) Less(i, j int) bool {
 	// sort by name
 	// pull blocks (name = "") up to top
 	// in original order
@@ -453,14 +472,14 @@ func (p sortTypeDoc) Less(i, j int) bool {
 // NOTE(rsc): This would appear not to be correct for type ( )
 // blocks, but the doc extractor above has split them into
 // individual declarations.
-func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
+func (doc *docReader) makeTypes(m map[string]*typeInfo) []*Type {
 	// TODO(gri) Consider computing the embedded method information
-	//           before calling makeTypeDocs. Then this function can
+	//           before calling makeTypes. Then this function can
 	//           be single-phased again. Also, it might simplify some
 	//           of the logic.
 	//
-	// phase 1: associate collected declarations with TypeDocs
-	list := make([]*TypeDoc, len(m))
+	// phase 1: associate collected declarations with Types
+	list := make([]*Type, len(m))
 	i := 0
 	for _, old := range m {
 		// old typeInfos may not have a declaration associated with them
@@ -469,7 +488,7 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
 		if decl := old.decl; decl != nil || !old.exported() {
 			// process the type even if not exported so that we have
 			// its methods in case they are embedded somewhere
-			t := new(TypeDoc)
+			t := new(Type)
 			if decl != nil {
 				typespec := decl.Specs[0].(*ast.TypeSpec)
 				doc := typespec.Doc
@@ -482,10 +501,10 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
 				t.Doc = doc.Text()
 				t.Type = typespec
 			}
-			t.Consts = makeValueDocs(old.values, token.CONST)
-			t.Vars = makeValueDocs(old.values, token.VAR)
-			t.Factories = makeFuncDocs(old.factories)
-			t.methods = makeFuncDocs(old.methods)
+			t.Consts = makeValues(old.values, token.CONST)
+			t.Vars = makeValues(old.values, token.VAR)
+			t.Funcs = makeFuncs(old.factories)
+			t.methods = makeFuncs(old.methods)
 			// The list of embedded types' methods is computed from the list
 			// of embedded types, some of which may not have been processed
 			// yet (i.e., their forward link is nil) - do this in a 2nd phase.
@@ -496,7 +515,7 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
 			old.forward = t // old has been processed
 			// only add the type to the final type list if it
 			// is exported or if we want to see all types
-			if old.exported() || !doc.exportsOnly {
+			if old.exported() || doc.mode&AllDecls != 0 {
 				list[i] = t
 				i++
 			}
@@ -540,7 +559,7 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
 		}
 	}
 
-	// phase 3: compute final method set for each TypeDoc
+	// phase 3: compute final method set for each Type
 	for _, d := range list {
 		if len(d.embedded) > 0 {
 			// there are embedded methods - exclude
@@ -557,12 +576,15 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
 			}
 			d.Methods = mset.sortedList()
 		} else {
-			// no embedded methods
-			d.Methods = d.methods
+			// no embedded methods - convert into a Method list
+			d.Methods = make([]*Method, len(d.methods))
+			for i, m := range d.methods {
+				d.Methods[i] = &Method{Func: m}
+			}
 		}
 	}
 
-	sort.Sort(sortTypeDoc(list))
+	sort.Sort(sortType(list))
 	return list
 }
 
@@ -589,7 +611,7 @@ func collectEmbeddedMethods(mset methodSet, info *typeInfo, recvTypeName string,
 	}
 }
 
-func customizeRecv(m *FuncDoc, embeddedIsPtr bool, recvTypeName string) *FuncDoc {
+func customizeRecv(m *Func, embeddedIsPtr bool, recvTypeName string) *Func {
 	if m == nil || m.Decl == nil || m.Decl.Recv == nil || len(m.Decl.Recv.List) != 1 {
 		return m // shouldn't happen, but be safe
 	}
@@ -619,7 +641,7 @@ func customizeRecv(m *FuncDoc, embeddedIsPtr bool, recvTypeName string) *FuncDoc
 	return &newM
 }
 
-func makeBugDocs(list []*ast.CommentGroup) []string {
+func makeBugs(list []*ast.CommentGroup) []string {
 	d := make([]string, len(list))
 	for i, g := range list {
 		d[i] = g.Text()
@@ -629,20 +651,20 @@ func makeBugDocs(list []*ast.CommentGroup) []string {
 
 // newDoc returns the accumulated documentation for the package.
 //
-func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc {
-	p := new(PackageDoc)
-	p.PackageName = doc.pkgName
+func (doc *docReader) newDoc(importpath string, filenames []string) *Package {
+	p := new(Package)
+	p.Name = doc.pkgName
 	p.ImportPath = importpath
 	sort.Strings(filenames)
 	p.Filenames = filenames
 	p.Doc = doc.doc.Text()
-	// makeTypeDocs may extend the list of doc.values and
+	// makeTypes may extend the list of doc.values and
 	// doc.funcs and thus must be called before any other
 	// function consuming those lists
-	p.Types = doc.makeTypeDocs(doc.types)
-	p.Consts = makeValueDocs(doc.values, token.CONST)
-	p.Vars = makeValueDocs(doc.values, token.VAR)
-	p.Funcs = makeFuncDocs(doc.funcs)
-	p.Bugs = makeBugDocs(doc.bugs)
+	p.Types = doc.makeTypes(doc.types)
+	p.Consts = makeValues(doc.values, token.CONST)
+	p.Vars = makeValues(doc.values, token.VAR)
+	p.Funcs = makeFuncs(doc.funcs)
+	p.Bugs = makeBugs(doc.bugs)
 	return p
 }

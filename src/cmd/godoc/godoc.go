@@ -917,17 +917,17 @@ func remoteSearchURL(query string, html bool) string {
 }
 
 type PageInfo struct {
-	Dirname  string          // directory containing the package
-	PList    []string        // list of package names found
-	FSet     *token.FileSet  // corresponding file set
-	PAst     *ast.File       // nil if no single AST with package exports
-	PDoc     *doc.PackageDoc // nil if no single package documentation
-	Examples []*doc.Example  // nil if no example code
-	Dirs     *DirList        // nil if no directory information
-	DirTime  time.Time       // directory time stamp
-	DirFlat  bool            // if set, show directory in a flat (non-indented) manner
-	IsPkg    bool            // false if this is not documenting a real package
-	Err      error           // I/O error or nil
+	Dirname  string         // directory containing the package
+	PList    []string       // list of package names found
+	FSet     *token.FileSet // corresponding file set
+	PAst     *ast.File      // nil if no single AST with package exports
+	PDoc     *doc.Package   // nil if no single package documentation
+	Examples []*doc.Example // nil if no example code
+	Dirs     *DirList       // nil if no directory information
+	DirTime  time.Time      // directory time stamp
+	DirFlat  bool           // if set, show directory in a flat (non-indented) manner
+	IsPkg    bool           // false if this is not documenting a real package
+	Err      error          // I/O error or nil
 }
 
 func (info *PageInfo) IsEmpty() bool {
@@ -1084,17 +1084,20 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 
 	// compute package documentation
 	var past *ast.File
-	var pdoc *doc.PackageDoc
+	var pdoc *doc.Package
 	if pkg != nil {
-		exportsOnly := mode&noFiltering == 0
+		var docMode doc.Mode
+		if mode&noFiltering != 0 {
+			docMode = doc.AllDecls
+		}
 		if mode&showSource == 0 {
 			// show extracted documentation
-			pdoc = doc.NewPackageDoc(pkg, path.Clean(relpath), exportsOnly) // no trailing '/' in importpath
+			pdoc = doc.New(pkg, path.Clean(relpath), docMode) // no trailing '/' in importpath
 		} else {
 			// show source code
 			// TODO(gri) Consider eliminating export filtering in this mode,
 			//           or perhaps eliminating the mode altogether.
-			if exportsOnly {
+			if docMode&doc.AllDecls == 0 {
 				ast.PackageExports(pkg)
 			}
 			past = ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments)
@@ -1189,13 +1192,13 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case info.PDoc != nil:
 		switch {
 		case info.IsPkg:
-			title = "Package " + info.PDoc.PackageName
-		case info.PDoc.PackageName == fakePkgName:
+			title = "Package " + info.PDoc.Name
+		case info.PDoc.Name == fakePkgName:
 			// assume that the directory name is the command name
 			_, pkgname := path.Split(relpath)
 			title = "Command " + pkgname
 		default:
-			title = "Command " + info.PDoc.PackageName
+			title = "Command " + info.PDoc.Name
 		}
 	default:
 		title = "Directory " + relativeURL(info.Dirname)

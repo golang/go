@@ -49,7 +49,7 @@ func matchDecl(d *ast.GenDecl, f Filter) bool {
 	return false
 }
 
-func filterValueDocs(a []*ValueDoc, f Filter) []*ValueDoc {
+func filterValues(a []*Value, f Filter) []*Value {
 	w := 0
 	for _, vd := range a {
 		if matchDecl(vd.Decl, f) {
@@ -60,7 +60,7 @@ func filterValueDocs(a []*ValueDoc, f Filter) []*ValueDoc {
 	return a[0:w]
 }
 
-func filterFuncDocs(a []*FuncDoc, f Filter) []*FuncDoc {
+func filterFuncs(a []*Func, f Filter) []*Func {
 	w := 0
 	for _, fd := range a {
 		if f(fd.Name) {
@@ -71,7 +71,18 @@ func filterFuncDocs(a []*FuncDoc, f Filter) []*FuncDoc {
 	return a[0:w]
 }
 
-func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
+func filterMethods(a []*Method, f Filter) []*Method {
+	w := 0
+	for _, md := range a {
+		if f(md.Name) {
+			a[w] = md
+			w++
+		}
+	}
+	return a[0:w]
+}
+
+func filterTypes(a []*Type, f Filter) []*Type {
 	w := 0
 	for _, td := range a {
 		n := 0 // number of matches
@@ -79,11 +90,11 @@ func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
 			n = 1
 		} else {
 			// type name doesn't match, but we may have matching consts, vars, factories or methods
-			td.Consts = filterValueDocs(td.Consts, f)
-			td.Vars = filterValueDocs(td.Vars, f)
-			td.Factories = filterFuncDocs(td.Factories, f)
-			td.Methods = filterFuncDocs(td.Methods, f)
-			n += len(td.Consts) + len(td.Vars) + len(td.Factories) + len(td.Methods)
+			td.Consts = filterValues(td.Consts, f)
+			td.Vars = filterValues(td.Vars, f)
+			td.Funcs = filterFuncs(td.Funcs, f)
+			td.Methods = filterMethods(td.Methods, f)
+			n += len(td.Consts) + len(td.Vars) + len(td.Funcs) + len(td.Methods)
 		}
 		if n > 0 {
 			a[w] = td
@@ -96,10 +107,10 @@ func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
 // Filter eliminates documentation for names that don't pass through the filter f.
 // TODO: Recognize "Type.Method" as a name.
 //
-func (p *PackageDoc) Filter(f Filter) {
-	p.Consts = filterValueDocs(p.Consts, f)
-	p.Vars = filterValueDocs(p.Vars, f)
-	p.Types = filterTypeDocs(p.Types, f)
-	p.Funcs = filterFuncDocs(p.Funcs, f)
+func (p *Package) Filter(f Filter) {
+	p.Consts = filterValues(p.Consts, f)
+	p.Vars = filterValues(p.Vars, f)
+	p.Types = filterTypes(p.Types, f)
+	p.Funcs = filterFuncs(p.Funcs, f)
 	p.Doc = "" // don't show top-level package doc
 }
