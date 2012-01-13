@@ -97,8 +97,7 @@ func (b *Buffer) grow(n int) int {
 func (b *Buffer) Write(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
 	m := b.grow(len(p))
-	copy(b.buf[m:], p)
-	return len(p), nil
+	return copy(b.buf[m:], p), nil
 }
 
 // WriteString appends the contents of s to the buffer.  The return
