@@ -33,7 +33,7 @@ func baseName(x ast.Expr) *ast.Ident {
 	return nil
 }
 
-func (doc *docReader) filterFieldList(fields *ast.FieldList) (removedFields bool) {
+func (doc *docReader) filterFieldList(tinfo *typeInfo, fields *ast.FieldList) (removedFields bool) {
 	if fields == nil {
 		return false
 	}
@@ -44,7 +44,18 @@ func (doc *docReader) filterFieldList(fields *ast.FieldList) (removedFields bool
 		if len(f.Names) == 0 {
 			// anonymous field
 			name := baseName(f.Type)
-			keepField = name != nil && name.IsExported()
+			if name != nil && name.IsExported() {
+				// we keep the field - in this case doc.addDecl
+				// will take care of adding the embedded type
+				keepField = true
+			} else if tinfo != nil {
+				// we don't keep the field - add it as an embedded
+				// type so we won't loose its methods, if any
+				if embedded := doc.lookupTypeInfo(name.Name); embedded != nil {
+					_, ptr := f.Type.(*ast.StarExpr)
+					tinfo.addEmbeddedType(embedded, ptr)
+				}
+			}
 		} else {
 			n := len(f.Names)
 			f.Names = filterIdentList(f.Names)
@@ -54,7 +65,7 @@ func (doc *docReader) filterFieldList(fields *ast.FieldList) (removedFields bool
 			keepField = len(f.Names) > 0
 		}
 		if keepField {
-			doc.filterType(f.Type)
+			doc.filterType(nil, f.Type)
 			list[j] = f
 			j++
 		}
@@ -72,23 +83,23 @@ func (doc *docReader) filterParamList(fields *ast.FieldList) bool {
 	}
 	var b bool
 	for _, f := range fields.List {
-		if doc.filterType(f.Type) {
+		if doc.filterType(nil, f.Type) {
 			b = true
 		}
 	}
 	return b
 }
 
-func (doc *docReader) filterType(typ ast.Expr) bool {
+func (doc *docReader) filterType(tinfo *typeInfo, typ ast.Expr) bool {
 	switch t := typ.(type) {
 	case *ast.Ident:
 		return ast.IsExported(t.Name)
 	case *ast.ParenExpr:
-		return doc.filterType(t.X)
+		return doc.filterType(nil, t.X)
 	case *ast.ArrayType:
-		return doc.filterType(t.Elt)
+		return doc.filterType(nil, t.Elt)
 	case *ast.StructType:
-		if doc.filterFieldList(t.Fields) {
+		if doc.filterFieldList(tinfo, t.Fields) {
 			t.Incomplete = true
 		}
 		return len(t.Fields.List) > 0
@@ -97,16 +108,16 @@ func (doc *docReader) filterType(typ ast.Expr) bool {
 		b2 := doc.filterParamList(t.Results)
 		return b1 || b2
 	case *ast.InterfaceType:
-		if doc.filterFieldList(t.Methods) {
+		if doc.filterFieldList(tinfo, t.Methods) {
 			t.Incomplete = true
 		}
 		return len(t.Methods.List) > 0
 	case *ast.MapType:
-		b1 := doc.filterType(t.Key)
-		b2 := doc.filterType(t.Value)
+		b1 := doc.filterType(nil, t.Key)
+		b2 := doc.filterType(nil, t.Value)
 		return b1 || b2
 	case *ast.ChanType:
-		return doc.filterType(t.Value)
+		return doc.filterType(nil, t.Value)
 	}
 	return false
 }
@@ -116,12 +127,12 @@ func (doc *docReader) filterSpec(spec ast.Spec) bool {
 	case *ast.ValueSpec:
 		s.Names = filterIdentList(s.Names)
 		if len(s.Names) > 0 {
-			doc.filterType(s.Type)
+			doc.filterType(nil, s.Type)
 			return true
 		}
 	case *ast.TypeSpec:
 		if ast.IsExported(s.Name.Name) {
-			doc.filterType(s.Type)
+			doc.filterType(doc.lookupTypeInfo(s.Name.Name), s.Type)
 			return true
 		}
 	}
