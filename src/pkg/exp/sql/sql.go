@@ -243,8 +243,13 @@ func (db *DB) Query(query string, args ...interface{}) (*Rows, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
-	return stmt.Query(args...)
+	rows, err := stmt.Query(args...)
+	if err != nil {
+		stmt.Close()
+		return nil, err
+	}
+	rows.closeStmt = stmt
+	return rows, nil
 }
 
 // QueryRow executes a query that is expected to return at most one row.
@@ -706,9 +711,10 @@ type Rows struct {
 	releaseConn func()
 	rowsi       driver.Rows
 
-	closed   bool
-	lastcols []interface{}
-	lasterr  error
+	closed    bool
+	lastcols  []interface{}
+	lasterr   error
+	closeStmt *Stmt // if non-nil, statement to Close on close
 }
 
 // Next prepares the next result row for reading with the Scan method.
@@ -789,6 +795,9 @@ func (rs *Rows) Close() error {
 	rs.closed = true
 	err := rs.rowsi.Close()
 	rs.releaseConn()
+	if rs.closeStmt != nil {
+		rs.closeStmt.Close()
+	}
 	return err
 }
 
