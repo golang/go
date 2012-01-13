@@ -8,7 +8,10 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 )
+
+var someTime = time.Unix(123, 0)
 
 type conversionTest struct {
 	s, d interface{} // source and destination
@@ -19,6 +22,7 @@ type conversionTest struct {
 	wantstr  string
 	wantf32  float32
 	wantf64  float64
+	wanttime time.Time
 	wantbool bool // used if d is of type *bool
 	wanterr  string
 }
@@ -35,12 +39,14 @@ var (
 	scanbool   bool
 	scanf32    float32
 	scanf64    float64
+	scantime   time.Time
 )
 
 var conversionTests = []conversionTest{
 	// Exact conversions (destination pointer type matches source type)
 	{s: "foo", d: &scanstr, wantstr: "foo"},
 	{s: 123, d: &scanint, wantint: 123},
+	{s: someTime, d: &scantime, wanttime: someTime},
 
 	// To strings
 	{s: []byte("byteslice"), d: &scanstr, wantstr: "byteslice"},
@@ -106,6 +112,10 @@ func float32Value(ptr interface{}) float32 {
 	return *(ptr.(*float32))
 }
 
+func timeValue(ptr interface{}) time.Time {
+	return *(ptr.(*time.Time))
+}
+
 func TestConversions(t *testing.T) {
 	for n, ct := range conversionTests {
 		err := convertAssign(ct.d, ct.s)
@@ -137,6 +147,9 @@ func TestConversions(t *testing.T) {
 		}
 		if bp, boolTest := ct.d.(*bool); boolTest && *bp != ct.wantbool && ct.wanterr == "" {
 			errf("want bool %v, got %v", ct.wantbool, *bp)
+		}
+		if !ct.wanttime.IsZero() && !ct.wanttime.Equal(timeValue(ct.d)) {
+			errf("want time %v, got %v", ct.wanttime, timeValue(ct.d))
 		}
 	}
 }

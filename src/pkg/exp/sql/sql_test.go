@@ -8,9 +8,12 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 const fakeDBName = "foo"
+
+var chrisBirthday = time.Unix(123456789, 0)
 
 func newTestDB(t *testing.T, name string) *DB {
 	db, err := Open("test", fakeDBName)
@@ -21,10 +24,10 @@ func newTestDB(t *testing.T, name string) *DB {
 		t.Fatalf("exec wipe: %v", err)
 	}
 	if name == "people" {
-		exec(t, db, "CREATE|people|name=string,age=int32,photo=blob,dead=bool")
+		exec(t, db, "CREATE|people|name=string,age=int32,photo=blob,dead=bool,bdate=datetime")
 		exec(t, db, "INSERT|people|name=Alice,age=?,photo=APHOTO", 1)
 		exec(t, db, "INSERT|people|name=Bob,age=?,photo=BPHOTO", 2)
-		exec(t, db, "INSERT|people|name=Chris,age=?,photo=CPHOTO", 3)
+		exec(t, db, "INSERT|people|name=Chris,age=?,photo=CPHOTO,bdate=?", 3, chrisBirthday)
 	}
 	return db
 }
@@ -105,10 +108,16 @@ func TestQueryRow(t *testing.T) {
 	defer closeDB(t, db)
 	var name string
 	var age int
+	var birthday time.Time
 
 	err := db.QueryRow("SELECT|people|age,name|age=?", 3).Scan(&age)
 	if err == nil || !strings.Contains(err.Error(), "expected 2 destination arguments") {
 		t.Errorf("expected error from wrong number of arguments; actually got: %v", err)
+	}
+
+	err = db.QueryRow("SELECT|people|bdate|age=?", 3).Scan(&birthday)
+	if err != nil || !birthday.Equal(chrisBirthday) {
+		t.Errorf("chris birthday = %v, err = %v; want %v", birthday, err, chrisBirthday)
 	}
 
 	err = db.QueryRow("SELECT|people|age,name|age=?", 2).Scan(&age, &name)

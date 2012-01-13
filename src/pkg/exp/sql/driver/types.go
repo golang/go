@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"time"
 )
 
 // ValueConverter is the interface providing the ConvertValue method.
@@ -143,9 +144,10 @@ func (stringType) ConvertValue(v interface{}) (interface{}, error) {
 //   bool
 //   nil
 //   []byte
+//   time.Time
 //   string
 //
-// This is the ame list as IsScanSubsetType, with the addition of
+// This is the same list as IsScanSubsetType, with the addition of
 // string.
 func IsParameterSubsetType(v interface{}) bool {
 	if IsScanSubsetType(v) {
@@ -165,6 +167,7 @@ func IsParameterSubsetType(v interface{}) bool {
 //   bool
 //   nil
 //   []byte
+//   time.Time
 //
 // This is the same list as IsParameterSubsetType, without string.
 func IsScanSubsetType(v interface{}) bool {
@@ -172,7 +175,7 @@ func IsScanSubsetType(v interface{}) bool {
 		return true
 	}
 	switch v.(type) {
-	case int64, float64, []byte, bool:
+	case int64, float64, []byte, bool, time.Time:
 		return true
 	}
 	return false

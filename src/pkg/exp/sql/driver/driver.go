@@ -16,6 +16,7 @@
 //   nil
 //   []byte
 //   string   [*] everywhere except from Rows.Next.
+//   time.Time
 //
 package driver
 
