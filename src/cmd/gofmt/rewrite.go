@@ -36,7 +36,7 @@ func initRewrite() {
 // but there are problems with preserving formatting and also
 // with what a wildcard for a statement looks like.
 func parseExpr(s string, what string) ast.Expr {
-	x, err := parser.ParseExpr(fset, "input", s)
+	x, err := parser.ParseExpr(s)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "parsing %s %s: %s\n", what, s, err)
 		os.Exit(2)

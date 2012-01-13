@@ -16,19 +16,6 @@ import (
 	"go/token"
 )
 
-// The mode parameter to the Parse* functions is a set of flags (or 0).
-// They control the amount of source code parsed and other optional
-// parser functionality.
-//
-const (
-	PackageClauseOnly uint = 1 << iota // parsing stops after package clause
-	ImportsOnly                        // parsing stops after import declarations
-	ParseComments                      // parse comments and add them to AST
-	Trace                              // print a trace of parsed productions
-	DeclarationErrors                  // report declaration errors
-	SpuriousErrors                     // report all (not just the first) errors per line
-)
-
 // The parser structure holds the parser's internal state.
 type parser struct {
 	file *token.File
@@ -65,18 +52,13 @@ type parser struct {
 	targetStack [][]*ast.Ident // stack of unresolved labels
 }
 
-// scannerMode returns the scanner mode bits given the parser's mode bits.
-func scannerMode(mode uint) uint {
-	var m uint
-	if mode&ParseComments != 0 {
-		m |= scanner.ScanComments
-	}
-	return m
-}
-
 func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode uint) {
 	p.file = fset.AddFile(filename, fset.Base(), len(src))
-	p.scanner.Init(p.file, src, p, scannerMode(mode))
+	var m uint
+	if mode&ParseComments != 0 {
+		m = scanner.ScanComments
+	}
+	p.scanner.Init(p.file, src, p, m)
 
 	p.mode = mode
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
@@ -90,6 +72,14 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode uin
 
 	// for the same reason, set up a label scope
 	p.openLabelScope()
+}
+
+func (p *parser) errors() error {
+	m := scanner.Sorted
+	if p.mode&SpuriousErrors == 0 {
+		m = scanner.NoMultiples
+	}
+	return p.GetError(m)
 }
 
 // ----------------------------------------------------------------------------
@@ -2107,18 +2097,6 @@ func (p *parser) parseDecl() ast.Decl {
 	}
 
 	return p.parseGenDecl(p.tok, f)
-}
-
-func (p *parser) parseDeclList() (list []ast.Decl) {
-	if p.trace {
-		defer un(trace(p, "DeclList"))
-	}
-
-	for p.tok != token.EOF {
-		list = append(list, p.parseDecl())
-	}
-
-	return
 }
 
 // ----------------------------------------------------------------------------

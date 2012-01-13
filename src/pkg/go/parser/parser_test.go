@@ -54,7 +54,7 @@ func TestParseIllegalInputs(t *testing.T) {
 	}
 }
 
-var validPrograms = []interface{}{
+var validPrograms = []string{
 	"package p\n",
 	`package p;`,
 	`package p; import "fmt"; func f() { fmt.Println("Hello, World!") };`,
@@ -133,6 +133,32 @@ func TestParse4(t *testing.T) {
 		if !nameFilter(filename) {
 			t.Errorf("unexpected package file: %s", filename)
 		}
+	}
+}
+
+func TestParseExpr(t *testing.T) {
+	// just kicking the tires:
+	// a valid expression
+	src := "a + b"
+	x, err := ParseExpr(src)
+	if err != nil {
+		t.Errorf("ParseExpr(%s): %v", src, err)
+	}
+	// sanity check
+	if _, ok := x.(*ast.BinaryExpr); !ok {
+		t.Errorf("ParseExpr(%s): got %T, expected *ast.BinaryExpr", src, x)
+	}
+
+	// an invalid expression
+	src = "a + *"
+	_, err = ParseExpr(src)
+	if err == nil {
+		t.Errorf("ParseExpr(%s): %v", src, err)
+	}
+
+	// it must not crash
+	for _, src := range validPrograms {
+		ParseExpr(src)
 	}
 }
 
