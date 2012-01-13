@@ -9,6 +9,7 @@ TARG=encoding/xml
 GOFILES=\
 	marshal.go\
 	read.go\
+	typeinfo.go\
 	xml.go\
 
 include ../../../Make.pkg

@@ -344,26 +344,26 @@ var all = allScalars{
 var sixteen = "16"
 
 const testScalarsInput = `<allscalars>
-	<true1>true</true1>
-	<true2>1</true2>
-	<false1>false</false1>
-	<false2>0</false2>
-	<int>1</int>
-	<int8>-2</int8>
-	<int16>3</int16>
-	<int32>-4</int32>
-	<int64>5</int64>
-	<uint>6</uint>
-	<uint8>7</uint8>
-	<uint16>8</uint16>
-	<uint32>9</uint32>
-	<uint64>10</uint64>
-	<uintptr>11</uintptr>
-	<float>12.0</float>
-	<float32>13.0</float32>
-	<float64>14.0</float64>
-	<string>15</string>
-	<ptrstring>16</ptrstring>
+	<True1>true</True1>
+	<True2>1</True2>
+	<False1>false</False1>
+	<False2>0</False2>
+	<Int>1</Int>
+	<Int8>-2</Int8>
+	<Int16>3</Int16>
+	<Int32>-4</Int32>
+	<Int64>5</Int64>
+	<Uint>6</Uint>
+	<Uint8>7</Uint8>
+	<Uint16>8</Uint16>
+	<Uint32>9</Uint32>
+	<Uint64>10</Uint64>
+	<Uintptr>11</Uintptr>
+	<Float>12.0</Float>
+	<Float32>13.0</Float32>
+	<Float64>14.0</Float64>
+	<String>15</String>
+	<PtrString>16</PtrString>
 </allscalars>`
 
 func TestAllScalars(t *testing.T) {
@@ -384,7 +384,7 @@ type item struct {
 }
 
 func TestIssue569(t *testing.T) {
-	data := `<item><field_a>abcd</field_a></item>`
+	data := `<item><Field_a>abcd</Field_a></item>`
 	var i item
 	buf := bytes.NewBufferString(data)
 	err := Unmarshal(buf, &i)
