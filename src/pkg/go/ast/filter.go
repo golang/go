@@ -23,7 +23,7 @@ func exportFilter(name string) bool {
 // body) are removed. Non-exported fields and methods of exported types are
 // stripped. The File.Comments list is not changed.
 //
-// FileExports returns true if there are exported declarationa;
+// FileExports returns true if there are exported declarations;
 // it returns false otherwise.
 //
 func FileExports(src *File) bool {
