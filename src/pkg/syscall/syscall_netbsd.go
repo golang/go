@@ -14,8 +14,6 @@ package syscall
 
 import "unsafe"
 
-const OS = "netbsd"
-
 type SockaddrDatalink struct {
 	Len    uint8
 	Family uint8

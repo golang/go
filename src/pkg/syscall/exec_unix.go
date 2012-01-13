@@ -9,6 +9,7 @@
 package syscall
 
 import (
+	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -131,7 +132,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	argvp := StringSlicePtr(argv)
 	envvp := StringSlicePtr(attr.Env)
 
-	if OS == "freebsd" && len(argv[0]) > len(argv0) {
+	if runtime.GOOS == "freebsd" && len(argv[0]) > len(argv0) {
 		argvp[0] = argv0p
 	}
 

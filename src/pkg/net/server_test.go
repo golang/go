@@ -10,7 +10,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 )
 
@@ -115,7 +114,7 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 }
 
 func TestTCPServer(t *testing.T) {
-	if syscall.OS != "openbsd" {
+	if runtime.GOOS != "openbsd" {
 		doTest(t, "tcp", "", "127.0.0.1")
 	}
 	doTest(t, "tcp", "0.0.0.0", "127.0.0.1")
@@ -155,7 +154,7 @@ func TestUnixServer(t *testing.T) {
 	os.Remove("/tmp/gotest.net")
 	doTest(t, "unix", "/tmp/gotest.net", "/tmp/gotest.net")
 	os.Remove("/tmp/gotest.net")
-	if syscall.OS == "linux" {
+	if runtime.GOOS == "linux" {
 		doTest(t, "unixpacket", "/tmp/gotest.net", "/tmp/gotest.net")
 		os.Remove("/tmp/gotest.net")
 		// Test abstract unix domain socket, a Linux-ism
@@ -237,7 +236,7 @@ func TestUnixDatagramServer(t *testing.T) {
 		doTestPacket(t, "unixgram", "/tmp/gotest1.net", "/tmp/gotest1.net", isEmpty)
 		os.Remove("/tmp/gotest1.net")
 		os.Remove("/tmp/gotest1.net.local")
-		if syscall.OS == "linux" {
+		if runtime.GOOS == "linux" {
 			// Test abstract unix domain socket, a Linux-ism
 			doTestPacket(t, "unixgram", "@gotest1/net", "@gotest1/net", isEmpty)
 		}

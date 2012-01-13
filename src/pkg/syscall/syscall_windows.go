@@ -11,8 +11,6 @@ import (
 	"unsafe"
 )
 
-const OS = "windows"
-
 type Handle uintptr
 
 const InvalidHandle = ^Handle(0)

@@ -13,8 +13,6 @@ package syscall
 
 import "unsafe"
 
-const OS = "plan9"
-
 const ImplementsGetwd = true
 
 // ErrorString implements Error's String method by returning itself.

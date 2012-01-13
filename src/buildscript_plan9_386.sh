@@ -232,7 +232,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/plan9_386/encoding/base64.a
 
 mkdir -p "$WORK"/syscall/_obj/
 cd "$GOROOT"/src/pkg/syscall
-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./env_plan9.go ./exec_plan9.go ./str.go ./syscall.go ./syscall_386.go ./syscall_plan9.go ./syscall_plan9_386.go ./zerrors_plan9_386.go ./zsyscall_plan9_386.go ./zsysnum_plan9_386.go ./ztypes_plan9_386.go
+8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./env_plan9.go ./exec_plan9.go ./str.go ./syscall.go ./syscall_plan9.go ./syscall_plan9_386.go ./zerrors_plan9_386.go ./zsyscall_plan9_386.go ./zsysnum_plan9_386.go ./ztypes_plan9_386.go
 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_plan9_386.8 -DGOOS_plan9 -DGOARCH_386 ./asm_plan9_386.s
 gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_plan9_386.8
 cp "$WORK"/syscall.a "$GOROOT"/pkg/plan9_386/syscall.a

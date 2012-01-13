@@ -14,8 +14,6 @@ package syscall
 
 import "unsafe"
 
-const OS = "freebsd"
-
 type SockaddrDatalink struct {
 	Len    uint8
 	Family uint8

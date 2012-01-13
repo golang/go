@@ -11,8 +11,8 @@ import (
 	"io/ioutil"
 	. "os"
 	"path/filepath"
+	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -35,7 +35,7 @@ type sysDir struct {
 }
 
 var sysdir = func() (sd *sysDir) {
-	switch syscall.OS {
+	switch runtime.GOOS {
 	case "windows":
 		sd = &sysDir{
 			Getenv("SystemRoot") + "\\system32\\drivers\\etc",
@@ -89,7 +89,7 @@ func size(name string, t *testing.T) int64 {
 }
 
 func equal(name1, name2 string) (r bool) {
-	switch syscall.OS {
+	switch runtime.GOOS {
 	case "windows":
 		r = strings.ToLower(name1) == strings.ToLower(name2)
 	default:
@@ -103,7 +103,7 @@ func newFile(testName string, t *testing.T) (f *File) {
 	// On Unix, override $TMPDIR in case the user
 	// has it set to an NFS-mounted directory.
 	dir := ""
-	if syscall.OS != "windows" {
+	if runtime.GOOS != "windows" {
 		dir = "/tmp"
 	}
 	f, err := ioutil.TempFile(dir, "_Go_"+testName)
@@ -278,7 +278,7 @@ func smallReaddirnames(file *File, length int, t *testing.T) []string {
 func TestReaddirnamesOneAtATime(t *testing.T) {
 	// big directory that doesn't change often.
 	dir := "/usr/bin"
-	switch syscall.OS {
+	switch runtime.GOOS {
 	case "windows":
 		dir = Getenv("SystemRoot") + "\\system32"
 	case "plan9":
@@ -382,7 +382,7 @@ func TestReaddirNValues(t *testing.T) {
 
 func TestHardLink(t *testing.T) {
 	// Hardlinks are not supported under windows or Plan 9.
-	if syscall.OS == "windows" || syscall.OS == "plan9" {
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
 		return
 	}
 	from, to := "hardlinktestfrom", "hardlinktestto"
@@ -415,7 +415,7 @@ func TestHardLink(t *testing.T) {
 
 func TestSymLink(t *testing.T) {
 	// Symlinks are not supported under windows or Plan 9.
-	if syscall.OS == "windows" || syscall.OS == "plan9" {
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
 		return
 	}
 	from, to := "symlinktestfrom", "symlinktestto"
@@ -477,7 +477,7 @@ func TestSymLink(t *testing.T) {
 
 func TestLongSymlink(t *testing.T) {
 	// Symlinks are not supported under windows or Plan 9.
-	if syscall.OS == "windows" || syscall.OS == "plan9" {
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
 		return
 	}
 	s := "0123456789abcdef"
@@ -547,7 +547,7 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
 func TestStartProcess(t *testing.T) {
 	var dir, cmd, le string
 	var args []string
-	if syscall.OS == "windows" {
+	if runtime.GOOS == "windows" {
 		le = "\r\n"
 		cmd = Getenv("COMSPEC")
 		dir = Getenv("SystemRoot")
@@ -578,7 +578,7 @@ func checkMode(t *testing.T, path string, mode FileMode) {
 
 func TestChmod(t *testing.T) {
 	// Chmod is not supported under windows.
-	if syscall.OS == "windows" {
+	if runtime.GOOS == "windows" {
 		return
 	}
 	f := newFile("TestChmod", t)
@@ -680,7 +680,7 @@ func TestChtimes(t *testing.T) {
 	*/
 	pat := Atime(postStat)
 	pmt := postStat.ModTime()
-	if !pat.Before(at) && syscall.OS != "plan9" {
+	if !pat.Before(at) && runtime.GOOS != "plan9" {
 		t.Errorf("AccessTime didn't go backwards; was=%d, after=%d", at, pat)
 	}
 
@@ -691,7 +691,7 @@ func TestChtimes(t *testing.T) {
 
 func TestChdirAndGetwd(t *testing.T) {
 	// TODO(brainman): file.Chdir() is not implemented on windows.
-	if syscall.OS == "windows" {
+	if runtime.GOOS == "windows" {
 		return
 	}
 	fd, err := Open(".")
@@ -702,7 +702,7 @@ func TestChdirAndGetwd(t *testing.T) {
 	// (unlike, say, /var, /etc, and /tmp).
 	dirs := []string{"/", "/usr/bin"}
 	// /usr/bin does not usually exist on Plan 9.
-	if syscall.OS == "plan9" {
+	if runtime.GOOS == "plan9" {
 		dirs = []string{"/", "/usr"}
 	}
 	for mode := 0; mode < 2; mode++ {
@@ -830,7 +830,7 @@ func TestOpenError(t *testing.T) {
 			t.Errorf("Open(%q, %d) returns error of %T type; want *PathError", tt.path, tt.mode, err)
 		}
 		if perr.Err != tt.error {
-			if syscall.OS == "plan9" {
+			if runtime.GOOS == "plan9" {
 				syscallErrStr := perr.Err.Error()
 				expectedErrStr := strings.Replace(tt.error.Error(), "file ", "", 1)
 				if !strings.HasSuffix(syscallErrStr, expectedErrStr) {
@@ -888,7 +888,7 @@ func run(t *testing.T, cmd []string) string {
 func TestHostname(t *testing.T) {
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it is can be taken from #c/sysname as Hostname() does.
-	if syscall.OS == "windows" || syscall.OS == "plan9" {
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
 		return
 	}
 
