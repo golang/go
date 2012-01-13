@@ -23,6 +23,8 @@ type embeddedType struct {
 }
 
 type typeInfo struct {
+	name     string // base type name
+	isStruct bool
 	// len(decl.Specs) == 1, and the element type is *ast.TypeSpec
 	// if the type declaration hasn't been seen yet, decl is nil
 	decl     *ast.GenDecl
@@ -33,6 +35,10 @@ type typeInfo struct {
 	values    []*ast.GenDecl // consts and vars
 	factories map[string]*ast.FuncDecl
 	methods   map[string]*ast.FuncDecl
+}
+
+func (info *typeInfo) exported() bool {
+	return ast.IsExported(info.name)
 }
 
 func (info *typeInfo) addEmbeddedType(embedded *typeInfo, isPtr bool) {
@@ -47,17 +53,19 @@ func (info *typeInfo) addEmbeddedType(embedded *typeInfo, isPtr bool) {
 // printing the corresponding AST node).
 //
 type docReader struct {
-	doc      *ast.CommentGroup // package documentation, if any
-	pkgName  string
-	values   []*ast.GenDecl // consts and vars
-	types    map[string]*typeInfo
-	embedded map[string]*typeInfo // embedded types, possibly not exported
-	funcs    map[string]*ast.FuncDecl
-	bugs     []*ast.CommentGroup
+	doc         *ast.CommentGroup // package documentation, if any
+	pkgName     string
+	exportsOnly bool
+	values      []*ast.GenDecl // consts and vars
+	types       map[string]*typeInfo
+	embedded    map[string]*typeInfo // embedded types, possibly not exported
+	funcs       map[string]*ast.FuncDecl
+	bugs        []*ast.CommentGroup
 }
 
-func (doc *docReader) init(pkgName string) {
+func (doc *docReader) init(pkgName string, exportsOnly bool) {
 	doc.pkgName = pkgName
+	doc.exportsOnly = exportsOnly
 	doc.types = make(map[string]*typeInfo)
 	doc.embedded = make(map[string]*typeInfo)
 	doc.funcs = make(map[string]*ast.FuncDecl)
@@ -86,6 +94,7 @@ func (doc *docReader) lookupTypeInfo(name string) *typeInfo {
 	}
 	// type wasn't found - add one without declaration
 	info := &typeInfo{
+		name:      name,
 		factories: make(map[string]*ast.FuncDecl),
 		methods:   make(map[string]*ast.FuncDecl),
 	}
@@ -182,9 +191,23 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	// determine if it should be associated with a type
 	if fun.Recv != nil {
 		// method
-		typ := doc.lookupTypeInfo(baseTypeName(fun.Recv.List[0].Type, false))
+		recvTypeName := baseTypeName(fun.Recv.List[0].Type, true /* exported or not */ )
+		var typ *typeInfo
+		if ast.IsExported(recvTypeName) {
+			// exported recv type: if not found, add it to doc.types
+			typ = doc.lookupTypeInfo(recvTypeName)
+		} else {
+			// unexported recv type: if not found, do not add it
+			// (unexported embedded types are added before this
+			// phase, so if the type doesn't exist yet, we don't
+			// care about this method)
+			typ = doc.types[recvTypeName]
+		}
 		if typ != nil {
 			// exported receiver type
+			// associate method with the type
+			// (if the type is not exported, it may be embedded
+			// somewhere so we need to collect the method anyway)
 			setFunc(typ.methods, fun)
 		}
 		// otherwise don't show the method
@@ -256,6 +279,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 					switch typ := spec.(*ast.TypeSpec).Type.(type) {
 					case *ast.StructType:
 						fields = typ.Fields
+						info.isStruct = true
 					case *ast.InterfaceType:
 						fields = typ.Methods
 					}
@@ -439,21 +463,25 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
 	list := make([]*TypeDoc, len(m))
 	i := 0
 	for _, old := range m {
-		// all typeInfos should have a declaration associated with
-		// them after processing an entire package - be conservative
-		// and check
-		if decl := old.decl; decl != nil {
-			typespec := decl.Specs[0].(*ast.TypeSpec)
+		// old typeInfos may not have a declaration associated with them
+		// if they are not exported but embedded, or because the package
+		// is incomplete.
+		if decl := old.decl; decl != nil || !old.exported() {
+			// process the type even if not exported so that we have
+			// its methods in case they are embedded somewhere
 			t := new(TypeDoc)
-			doc := typespec.Doc
-			typespec.Doc = nil // doc consumed - remove from ast.TypeSpec node
-			if doc == nil {
-				// no doc associated with the spec, use the declaration doc, if any
-				doc = decl.Doc
+			if decl != nil {
+				typespec := decl.Specs[0].(*ast.TypeSpec)
+				doc := typespec.Doc
+				typespec.Doc = nil // doc consumed - remove from ast.TypeSpec node
+				if doc == nil {
+					// no doc associated with the spec, use the declaration doc, if any
+					doc = decl.Doc
+				}
+				decl.Doc = nil // doc consumed - remove from ast.Decl node
+				t.Doc = doc.Text()
+				t.Type = typespec
 			}
-			decl.Doc = nil // doc consumed - remove from ast.Decl node
-			t.Doc = doc.Text()
-			t.Type = typespec
 			t.Consts = makeValueDocs(old.values, token.CONST)
 			t.Vars = makeValueDocs(old.values, token.VAR)
 			t.Factories = makeFuncDocs(old.factories)
@@ -466,8 +494,12 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
 			t.Decl = old.decl
 			t.order = i
 			old.forward = t // old has been processed
-			list[i] = t
-			i++
+			// only add the type to the final type list if it
+			// is exported or if we want to see all types
+			if old.exported() || !doc.exportsOnly {
+				list[i] = t
+				i++
+			}
 		} else {
 			// no corresponding type declaration found - move any associated
 			// values, factory functions, and methods back to the top-level
@@ -497,11 +529,10 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
 			// old has been processed into t; collect embedded
 			// methods for t from the list of processed embedded
 			// types in old (and thus for which the methods are known)
-			typ := t.Type
-			if _, ok := typ.Type.(*ast.StructType); ok {
+			if old.isStruct {
 				// struct
 				t.embedded = make(methodSet)
-				collectEmbeddedMethods(t.embedded, old, typ.Name.Name)
+				collectEmbeddedMethods(t.embedded, old, old.name, false)
 			} else {
 				// interface
 				// TODO(gri) fix this
@@ -541,13 +572,19 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
 // deeply nested embedded methods with conflicting names are
 // excluded.
 //
-func collectEmbeddedMethods(mset methodSet, info *typeInfo, recvTypeName string) {
+func collectEmbeddedMethods(mset methodSet, info *typeInfo, recvTypeName string, embeddedIsPtr bool) {
 	for _, e := range info.embedded {
 		if e.typ.forward != nil { // == e was processed
+			// Once an embedded type was embedded as a pointer type
+			// all embedded types in those types are treated like
+			// pointer types for the purpose of the receiver type
+			// computation; i.e., embeddedIsPtr is sticky for this
+			// embedding hierarchy.
+			thisEmbeddedIsPtr := embeddedIsPtr || e.ptr
 			for _, m := range e.typ.forward.methods {
-				mset.add(customizeRecv(m, e.ptr, recvTypeName))
+				mset.add(customizeRecv(m, thisEmbeddedIsPtr, recvTypeName))
 			}
-			collectEmbeddedMethods(mset, e.typ, recvTypeName)
+			collectEmbeddedMethods(mset, e.typ, recvTypeName, thisEmbeddedIsPtr)
 		}
 	}
 }
@@ -558,12 +595,10 @@ func customizeRecv(m *FuncDoc, embeddedIsPtr bool, recvTypeName string) *FuncDoc
 	}
 
 	// copy existing receiver field and set new type
-	// TODO(gri) is receiver type computation correct?
-	//           what about deeply nested embeddings?
 	newField := *m.Decl.Recv.List[0]
 	_, origRecvIsPtr := newField.Type.(*ast.StarExpr)
 	var typ ast.Expr = ast.NewIdent(recvTypeName)
-	if embeddedIsPtr || origRecvIsPtr {
+	if !embeddedIsPtr && origRecvIsPtr {
 		typ = &ast.StarExpr{token.NoPos, typ}
 	}
 	newField.Type = typ

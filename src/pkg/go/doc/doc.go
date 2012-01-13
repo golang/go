@@ -56,7 +56,7 @@ type FuncDoc struct {
 // included in the documentation.
 func NewPackageDoc(pkg *ast.Package, importpath string, exportsOnly bool) *PackageDoc {
 	var r docReader
-	r.init(pkg.Name)
+	r.init(pkg.Name, exportsOnly)
 	filenames := make([]string, len(pkg.Files))
 	i := 0
 	for filename, f := range pkg.Files {
