@@ -353,12 +353,10 @@ func ToText(w io.Writer, text string, indent, preIndent string, width int) {
 		width:  width,
 		indent: indent,
 	}
-	for i, b := range blocks(text) {
+	for _, b := range blocks(text) {
 		switch b.op {
 		case opPara:
-			if i > 0 {
-				w.Write(nl)
-			}
+			// l.write will add leading newline if required
 			for _, line := range b.lines {
 				l.write(line)
 			}
