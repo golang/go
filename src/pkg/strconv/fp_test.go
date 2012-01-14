@@ -26,8 +26,8 @@ func pow2(i int) float64 {
 	return pow2(i/2) * pow2(i-i/2)
 }
 
-// Wrapper around strconv.Atof64.  Handles dddddp+ddd (binary exponent)
-// itself, passes the rest on to strconv.Atof64.
+// Wrapper around strconv.ParseFloat(x, 64).  Handles dddddp+ddd (binary exponent)
+// itself, passes the rest on to strconv.ParseFloat.
 func myatof64(s string) (f float64, ok bool) {
 	a := strings.SplitN(s, "p", 2)
 	if len(a) == 2 {
@@ -70,8 +70,8 @@ func myatof64(s string) (f float64, ok bool) {
 	return f1, true
 }
 
-// Wrapper around strconv.Atof32.  Handles dddddp+ddd (binary exponent)
-// itself, passes the rest on to strconv.Atof32.
+// Wrapper around strconv.ParseFloat(x, 32).  Handles dddddp+ddd (binary exponent)
+// itself, passes the rest on to strconv.ParseFloat.
 func myatof32(s string) (f float32, ok bool) {
 	a := strings.SplitN(s, "p", 2)
 	if len(a) == 2 {

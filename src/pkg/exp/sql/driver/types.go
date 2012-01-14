@@ -40,7 +40,7 @@ type ValueConverter interface {
 //       1 is true
 //       0 is false,
 //       other integers are an error
-//  - for strings and []byte, same rules as strconv.Atob
+//  - for strings and []byte, same rules as strconv.ParseBool
 //  - all other types are an error
 var Bool boolType
 
