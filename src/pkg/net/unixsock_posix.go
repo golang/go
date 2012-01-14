@@ -315,7 +315,7 @@ type UnixListener struct {
 
 // ListenUnix announces on the Unix domain socket laddr and returns a Unix listener.
 // Net must be "unix" (stream sockets).
-func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err error) {
+func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 	if net != "unix" && net != "unixgram" && net != "unixpacket" {
 		return nil, UnknownNetworkError(net)
 	}
@@ -326,10 +326,10 @@ func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err error) {
 	if err != nil {
 		return nil, err
 	}
-	e1 := syscall.Listen(fd.sysfd, 8) // listenBacklog());
-	if e1 != nil {
+	err = syscall.Listen(fd.sysfd, listenerBacklog)
+	if err != nil {
 		closesocket(fd.sysfd)
-		return nil, &OpError{Op: "listen", Net: "unix", Addr: laddr, Err: e1}
+		return nil, &OpError{Op: "listen", Net: "unix", Addr: laddr, Err: err}
 	}
 	return &UnixListener{fd, laddr.Name}, nil
 }

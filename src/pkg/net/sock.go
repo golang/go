@@ -14,6 +14,8 @@ import (
 	"syscall"
 )
 
+var listenerBacklog = maxListenerBacklog()
+
 // Generic socket creation.
 func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	// See ../syscall/exec.go for description of ForkLock.

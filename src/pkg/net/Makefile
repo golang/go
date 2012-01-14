@@ -36,6 +36,7 @@ GOFILES_darwin=\
 	port.go\
 	sendfile_stub.go\
 	sock.go\
+	sock_bsd.go\
 	sockopt.go\
 	sockopt_bsd.go\
 	sockoptip.go\
@@ -68,6 +69,7 @@ GOFILES_freebsd=\
 	port.go\
 	sendfile_stub.go\
 	sock.go\
+	sock_bsd.go\
 	sockopt.go\
 	sockopt_bsd.go\
 	sockoptip.go\
@@ -99,6 +101,7 @@ GOFILES_linux=\
 	port.go\
 	sendfile_linux.go\
 	sock.go\
+	sock_linux.go\
 	sockopt.go\
 	sockopt_linux.go\
 	sockoptip.go\
@@ -130,6 +133,7 @@ GOFILES_netbsd=\
 	port.go\
 	sendfile_stub.go\
 	sock.go\
+	sock_bsd.go\
 	sockopt.go\
 	sockopt_bsd.go\
 	sockoptip.go\
@@ -155,6 +159,7 @@ GOFILES_openbsd=\
 	port.go\
 	sendfile_stub.go\
 	sock.go\
+	sock_bsd.go\
 	sockopt.go\
 	sockopt_bsd.go\
 	sockoptip.go\
@@ -184,6 +189,7 @@ GOFILES_windows=\
 	lookup_windows.go\
 	sendfile_windows.go\
 	sock.go\
+	sock_windows.go\
 	sockopt.go\
 	sockopt_windows.go\
 	sockoptip.go\
