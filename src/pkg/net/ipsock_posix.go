@@ -91,11 +91,6 @@ func favoriteAddrFamily(net string, raddr, laddr sockaddr, mode string) int {
 	return syscall.AF_INET6
 }
 
-// TODO(rsc): if syscall.OS == "linux", we're supposed to read
-// /proc/sys/net/core/somaxconn,
-// to take advantage of kernels that have raised the limit.
-func listenBacklog() int { return syscall.SOMAXCONN }
-
 // Internet sockets (TCP, UDP)
 
 // A sockaddr represents a TCP or UDP network address that can

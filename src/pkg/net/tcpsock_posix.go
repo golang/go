@@ -249,10 +249,10 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
 	if err != nil {
 		return nil, err
 	}
-	errno := syscall.Listen(fd.sysfd, listenBacklog())
-	if errno != nil {
+	err = syscall.Listen(fd.sysfd, listenerBacklog)
+	if err != nil {
 		closesocket(fd.sysfd)
-		return nil, &OpError{"listen", "tcp", laddr, errno}
+		return nil, &OpError{"listen", "tcp", laddr, err}
 	}
 	l = new(TCPListener)
 	l.fd = fd
