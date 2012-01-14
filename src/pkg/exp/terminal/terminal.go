@@ -463,6 +463,31 @@ func (t *Terminal) readLine() (line string, err error) {
 	}
 
 	for {
+		rest := t.remainder
+		lineOk := false
+		for !lineOk {
+			var key int
+			key, rest = bytesToKey(rest)
+			if key < 0 {
+				break
+			}
+			if key == keyCtrlD {
+				return "", io.EOF
+			}
+			line, lineOk = t.handleKey(key)
+		}
+		if len(rest) > 0 {
+			n := copy(t.inBuf[:], rest)
+			t.remainder = t.inBuf[:n]
+		} else {
+			t.remainder = nil
+		}
+		t.c.Write(t.outBuf)
+		t.outBuf = t.outBuf[:0]
+		if lineOk {
+			return
+		}
+
 		// t.remainder is a slice at the beginning of t.inBuf
 		// containing a partial key sequence
 		readBuf := t.inBuf[len(t.remainder):]
@@ -476,36 +501,17 @@ func (t *Terminal) readLine() (line string, err error) {
 			return
 		}
 
-		if err == nil {
-			t.remainder = t.inBuf[:n+len(t.remainder)]
-			rest := t.remainder
-			lineOk := false
-			for !lineOk {
-				var key int
-				key, rest = bytesToKey(rest)
-				if key < 0 {
-					break
-				}
-				if key == keyCtrlD {
-					return "", io.EOF
-				}
-				line, lineOk = t.handleKey(key)
-			}
-			if len(rest) > 0 {
-				n := copy(t.inBuf[:], rest)
-				t.remainder = t.inBuf[:n]
-			} else {
-				t.remainder = nil
-			}
-			t.c.Write(t.outBuf)
-			t.outBuf = t.outBuf[:0]
-			if lineOk {
-				return
-			}
-			continue
-		}
+		t.remainder = t.inBuf[:n+len(t.remainder)]
 	}
 	panic("unreachable")
+}
+
+// SetPrompt sets the prompt to be used when reading subsequent lines.
+func (t *Terminal) SetPrompt(prompt string) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	t.prompt = prompt
 }
 
 func (t *Terminal) SetSize(width, height int) {
