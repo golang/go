@@ -50,8 +50,8 @@ func (s *simplifier) Visit(node ast.Node) ast.Visitor {
 					if addr, ok := x.(*ast.UnaryExpr); ok && addr.Op == token.AND {
 						if inner, ok := addr.X.(*ast.CompositeLit); ok {
 							if match(nil, reflect.ValueOf(ptr.X), reflect.ValueOf(inner.Type)) {
-								inner.Type = nil  // drop T
-								*px = inner // drop &
+								inner.Type = nil // drop T
+								*px = inner      // drop &
 							}
 						}
 					}
