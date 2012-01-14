@@ -540,7 +540,7 @@ loop:
 	}
 
 	// deal with the variables one-at-a-time
-	if(c0->type != Texprconst) {
+	if(!okforcmp[t->etype] || c0->type != Texprconst) {
 		a = exprbsw(c0, 1, arg);
 		cas = list(cas, a);
 		c0 = c0->link;
