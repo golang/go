@@ -77,7 +77,7 @@ func main() {
 			return nil
 		}
 		for _, pkg := range pkgs {
-			d := doc.NewPackageDoc(pkg, path)
+			d := doc.New(pkg, path, doc.Mode(0))
 			list := appendHeadings(nil, d.Doc)
 			for _, d := range d.Consts {
 				list = appendHeadings(list, d.Doc)
