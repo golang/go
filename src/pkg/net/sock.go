@@ -28,7 +28,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 	syscall.CloseOnExec(s)
 	syscall.ForkLock.RUnlock()
 
-	setKernelSpecificSockopt(s, f)
+	setDefaultSockopts(s, f, p)
 
 	if la != nil {
 		e = syscall.Bind(s, la)
