@@ -13,7 +13,7 @@ GOFILES=\
 	common.go\
 	messages.go\
 	server.go\
-	server_shell.go\
+	server_terminal.go\
 	session.go\
 	tcpip.go\
 	transport.go\
