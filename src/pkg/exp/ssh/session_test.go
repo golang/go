@@ -8,6 +8,7 @@ package ssh
 
 import (
 	"bytes"
+	"exp/terminal"
 	"io"
 	"testing"
 )
@@ -290,24 +291,32 @@ type exitSignalMsg struct {
 	Lang       string
 }
 
+func newServerShell(ch *channel, prompt string) *ServerTerminal {
+	term := terminal.NewTerminal(ch, prompt)
+	return &ServerTerminal{
+		Term:    term,
+		Channel: ch,
+	}
+}
+
 func exitStatusZeroHandler(ch *channel) {
 	defer ch.Close()
 	// this string is returned to stdout
-	shell := NewServerShell(ch, "> ")
+	shell := newServerShell(ch, "> ")
 	shell.ReadLine()
 	sendStatus(0, ch)
 }
 
 func exitStatusNonZeroHandler(ch *channel) {
 	defer ch.Close()
-	shell := NewServerShell(ch, "> ")
+	shell := newServerShell(ch, "> ")
 	shell.ReadLine()
 	sendStatus(15, ch)
 }
 
 func exitSignalAndStatusHandler(ch *channel) {
 	defer ch.Close()
-	shell := NewServerShell(ch, "> ")
+	shell := newServerShell(ch, "> ")
 	shell.ReadLine()
 	sendStatus(15, ch)
 	sendSignal("TERM", ch)
@@ -315,28 +324,28 @@ func exitSignalAndStatusHandler(ch *channel) {
 
 func exitSignalHandler(ch *channel) {
 	defer ch.Close()
-	shell := NewServerShell(ch, "> ")
+	shell := newServerShell(ch, "> ")
 	shell.ReadLine()
 	sendSignal("TERM", ch)
 }
 
 func exitSignalUnknownHandler(ch *channel) {
 	defer ch.Close()
-	shell := NewServerShell(ch, "> ")
+	shell := newServerShell(ch, "> ")
 	shell.ReadLine()
 	sendSignal("SYS", ch)
 }
 
 func exitWithoutSignalOrStatus(ch *channel) {
 	defer ch.Close()
-	shell := NewServerShell(ch, "> ")
+	shell := newServerShell(ch, "> ")
 	shell.ReadLine()
 }
 
 func shellHandler(ch *channel) {
 	defer ch.Close()
 	// this string is returned to stdout
-	shell := NewServerShell(ch, "golang")
+	shell := newServerShell(ch, "golang")
 	shell.ReadLine()
 	sendStatus(0, ch)
 }
