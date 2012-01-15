@@ -81,10 +81,11 @@ DIRS=\
 	exp/ebnflint\
 	exp/gotype\
 	exp/norm\
-	exp/ssh\
 	exp/spdy\
 	exp/sql\
 	exp/sql/driver\
+	exp/ssh\
+	exp/terminal\
 	exp/types\
 	expvar\
 	flag\
