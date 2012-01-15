@@ -95,6 +95,49 @@ func TestMulticastUDP(t *testing.T) {
 	}
 }
 
+func TestSimpleMulticastUDP(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		return
+	}
+	if !*multicast {
+		t.Logf("test disabled; use --multicast to enable")
+		return
+	}
+
+	for _, tt := range multicastUDPTests {
+		var ifi *Interface
+		if tt.ipv6 {
+			continue
+		}
+		tt.flags = FlagUp | FlagMulticast
+		ift, err := Interfaces()
+		if err != nil {
+			t.Fatalf("Interfaces failed: %v", err)
+		}
+		for _, x := range ift {
+			if x.Flags&tt.flags == tt.flags {
+				ifi = &x
+				break
+			}
+		}
+		if ifi == nil {
+			t.Logf("an appropriate multicast interface not found")
+			return
+		}
+		c, err := ListenUDP(tt.net, &UDPAddr{IP: tt.laddr})
+		if err != nil {
+			t.Fatalf("ListenUDP failed: %v", err)
+		}
+		defer c.Close()
+		if err := c.JoinGroup(ifi, tt.gaddr); err != nil {
+			t.Fatalf("JoinGroup failed: %v", err)
+		}
+		if err := c.LeaveGroup(ifi, tt.gaddr); err != nil {
+			t.Fatalf("LeaveGroup failed: %v", err)
+		}
+	}
+}
+
 func testIPv4MulticastSocketOptions(t *testing.T, fd *netFD, ifi *Interface) {
 	ifmc, err := ipv4MulticastInterface(fd)
 	if err != nil {

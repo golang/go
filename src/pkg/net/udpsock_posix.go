@@ -251,6 +251,7 @@ func (c *UDPConn) JoinGroup(ifi *Interface, addr IP) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
+	setDefaultMulticastSockopts(c.fd)
 	ip := addr.To4()
 	if ip != nil {
 		return joinIPv4GroupUDP(c, ifi, ip)
