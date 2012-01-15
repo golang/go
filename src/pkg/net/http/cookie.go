@@ -96,7 +96,7 @@ func readSetCookies(h Header) []*Cookie {
 				continue
 			case "max-age":
 				secs, err := strconv.Atoi(val)
-				if err != nil || secs < 0 || secs != 0 && val[0] == '0' {
+				if err != nil || secs != 0 && val[0] == '0' {
 					break
 				}
 				if secs <= 0 {
