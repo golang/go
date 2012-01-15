@@ -14,6 +14,123 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2012-01-14">2012-01-15</h2>
+
+<pre>
+This weekly snapshot includes two package changes that may require changes to
+client code.
+
+The image package's Tiled type has been renamed to Repeated.
+
+The encoding/xml package has been changed to make more idiomatic use of struct
+tags, among other things. If you use the xml package please read the change
+description to see if your code is affected:
+	http://code.google.com/p/go/source/detail?r=70e914beb409
+
+Function inlining is now enabled by default in the gc compiler.
+
+Other changes:
+* bytes: Buffer read of 0 bytes at EOF shouldn't be an EOF.
+* cgo: if value for constant did not parse, get it from DWARF info,
+	write _cgo_export.h to object directory, not source dir.
+* cmd/go: add -p flag for parallelism (like make -j),
+	add -v flag to build and install,
+	add ... patterns in import path arguments,
+	fix data race during build,
+	fix import directory list for compilation,
+	fix linker arguments,
+	handle cgo pkg-config pragmas,
+	handle path to cmd directory,
+	include test files in fmt, vet, and fix (thanks Sanjay Menakuru),
+	kill test processes after 10 minutes,
+	pass arguments to command for run (thanks Eric Eisner),
+	rely on exit code to tell if test passed,
+	use relative paths in go fix, go fmt, go vet output.
+* cmd/gofmt: fix simplify.go by running gofmt on cmd/gofmt (thanks Olivier Duperray).
+* crypto/openpgp: assorted cleanups,
+	truncate hashes before checking DSA signatures.
+* crypto/tls: improve TLS Client Authentication (thanks Jeff R. Allen),
+	update generate_cert.go for new time package.
+* dashboard: better caching, bug fixes.
+* doc: update "How to Write Go Code" to use the go tool.
+	fix broken function codewalk examples.
+* encoding/asn1: document support for *big.Int (thanks Florian Weimer).
+* encoding/gob: fix panic when decoding []byte to incompatible slice types (thanks Alexey Borzenkov).
+* encoding/json: don't marshal special float values (thanks Evan Shaw).
+* encoding/xml: major Go 1 fixup (thanks Gustavo Niemeyer).
+* exp/proxy: new package.
+* exp/sql:  add time.Time support,
+	close Rows on EOF,
+	fix potential corruption in QueryRow.Scan into a *[]byte.
+* exp/ssh: various small fixes (thanks Dave Cheney).
+* exp/terminal: add SetPrompt and handle large pastes,
+	add to level Makefile for the (non-Linux?) systems that need it.
+* flag: add Duration flag type,
+	change Set method Value interface to return error instead of bool.
+* gc: better errors messages,
+	avoid false positives when using scalar struct fields (thanks Rémy Oudompheng),
+	closure code gen improvements,
+	disallow declaration of variables outside package,
+	fix switch on interface values (thanks Rémy Oudompheng),
+	inlining bug fixes,
+	improve unsafe.Pointer type-check error messages (thanks Ryan Hitchman),
+	put limit on size of exported recursive interface (thanks Lorenzo Stoakes),
+* go-mode.el: fix syntax highlighting of backticks (thanks Florian Weimer).
+* go/ast: remove unnecessary result value from ast.Fprint/Print.
+* go/build: allow colon in #cgo flags,
+	pass CgoLDFLAGS at end of link command.
+* go/doc: new API, don't ignore anonymous non-exported fields, initial testing support.
+* go/parser: remove unused Parse* functions. Simplified ParseExpr signature.
+* go/printer: don't crash if AST contains BadXXX nodes.
+* go/scanner: 17% faster scanning, remove InsertSemis mode.
+* goinstall: use correct checkout URL for Google Code svn repos.
+* gotest: make _testmain.go conform to gofmt rules (thanks Benny Siegert).
+* goyacc: fix units.y build breakage (thanks Shenghou Ma).
+* html/template: reenable testcases and fix mis-escaped sequences (thanks Mike Samuel).
+* html: "in select in table" insertion mode (thanks Andrew Balholm),
+	adjust foreign attributes,
+	foreign element HTML integration points, tag name adjustment,
+	parse <frameset> inside body (thanks Andrew Balholm),
+	propagate foreign namespaces only when adding foreign content.
+* json: better error messages when the ,string option is misused.
+* ld: parse but do not implement -X flag.
+* log/syslog: add Alert method (thanks Vadim Vygonets).
+* make.bash: remove old dregs (thanks Alex Brainman).
+* math/big: simplify fast string conversion.
+* math: fix typo in all_test.go (thanks Charles L. Dorian).
+* misc/windows: add src/pkg/runtime/z* files to installation script (thanks Alex Brainman).
+* net/http: don't ignore Request.Write's Flush error,
+	allow cookies with negative Max-Age attribute as these are (thanks Volker Dobler).
+* net/textproto: avoid corruption when reading a single header.
+* net: add IP-level socket option helpers for Unix variants (thanks Mikio Hara),
+	fix incorrect mode on ListenIP, ListenUDP (thanks Mikio Hara),
+	make use of the kernel state to listen on TCP, Unix (thanks Mikio Hara),
+	platform-dependent default socket options (thanks Mikio Hara).
+* os: add ModeCharDevice.
+* runtime: add NumCPU,
+	delete duplicate implementation of pcln walker,
+	distinct panic message for call of nil func value,
+	enable runtime.ncpu on FreeBSD (thanks Devon H. O'Dell),
+	make garbage collector faster by deleting code,
+	regenerate defs_darwin_{386,amd64}.h (thanks Dave Cheney),
+	runtime.usleep() bugfix on darwin/amd64 and linux/arm (thanks Shenghou Ma).
+* spec: pointer comparison for pointers to 0-sized variables,
+	change the wording regarding select statement choice.
+* strconv: fix round up corner case,
+	faster FormatFloat(x, *, -1, 64) using Grisu3 algorithm (thanks Rémy Oudompheng),
+	implement fast path for rounding already short numbers (thanks Rémy Oudompheng),
+	return ErrSyntax when unquoting illegal octal sequences.
+* syscall: linux-only support for parent death signal (thanks Albert Strasheim),
+	make Environ return original order.
+* testing: fix defer race,
+	use flag.Duration for -timeout flag.
+* text/template: handle panic values that are not errors (thanks Rémy Oudompheng),
+	for range on a map, sort the keys if feasible.
+* time: add ParseDuration,
+	fix docs for After and NewTicker.
+* windows: use ArbitraryUserPointer as TLS slot (thanks Wei Guangjing).
+</pre>
+
 <h2 id="2011-12-22">2011-12-22</h2>
 
 <pre>
