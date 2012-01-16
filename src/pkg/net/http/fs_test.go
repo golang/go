@@ -224,9 +224,9 @@ func TestEmptyDirOpenCWD(t *testing.T) {
 
 func TestServeFileContentType(t *testing.T) {
 	const ctype = "icecream/chocolate"
-	override := false
+	override := make(chan bool, 1)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		if override {
+		if <-override {
 			w.Header().Set("Content-Type", ctype)
 		}
 		ServeFile(w, r, "testdata/file")
@@ -241,8 +241,9 @@ func TestServeFileContentType(t *testing.T) {
 			t.Errorf("Content-Type mismatch: got %q, want %q", h, want)
 		}
 	}
+	override <- false
 	get("text/plain; charset=utf-8")
-	override = true
+	override <- true
 	get(ctype)
 }
 
