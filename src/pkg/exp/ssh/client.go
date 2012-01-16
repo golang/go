@@ -306,9 +306,8 @@ type clientChan struct {
 	stdout      *chanReader      // receives the payload of channelData messages
 	stderr      *chanReader      // receives the payload of channelExtendedData messages
 	msg         chan interface{} // incoming messages
-
-	theyClosed bool // indicates the close msg has been received from the remote side
-	weClosed   bool // incidates the close msg has been sent from our side
+	theyClosed  bool             // indicates the close msg has been received from the remote side
+	weClosed    bool             // incidates the close msg has been sent from our side
 }
 
 // newClientChan returns a partially constructed *clientChan
