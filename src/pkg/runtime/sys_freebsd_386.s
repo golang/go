@@ -199,8 +199,24 @@ TEXT runtime·sigaltstack(SB),7,$0
 	CALL	runtime·notok(SB)
 	RET
 
-// TODO: Implement usleep
-TEXT runtime·usleep(SB),7,$0
+TEXT runtime·usleep(SB),7,$20
+	MOVL	$0, DX
+	MOVL	usec+0(FP), AX
+	MOVL	$1000000, CX
+	DIVL	CX
+	MOVL	AX, 12(SP)		// tv_sec
+	MOVL	$1000, AX
+	MULL	DX
+	MOVL	AX, 16(SP)		// tv_nsec
+
+	MOVL	$0, 0(SP)
+	LEAL	12(SP), AX
+	MOVL	AX, 4(SP)		// arg 1 - rqtp
+	MOVL	$0, 8(SP)		// arg 2 - rmtp
+	MOVL	$240, AX		// sys_nanosleep
+	INT	$0x80
+	JAE	2(PC)
+	CALL	runtime·notok(SB)
 	RET
 
 /*

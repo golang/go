@@ -184,8 +184,22 @@ TEXT runtime·sigaltstack(SB),7,$-8
 	CALL	runtime·notok(SB)
 	RET
 
-// TODO: Implement usleep
-TEXT runtime·usleep(SB),7,$0
+TEXT runtime·usleep(SB),7,$16
+	MOVL	$0, DX
+	MOVL	usec+0(FP), AX
+	MOVL	$1000000, CX
+	DIVL	CX
+	MOVQ	AX, 0(SP)		// tv_sec
+	MOVL	$1000, AX
+	MULL	DX
+	MOVQ	AX, 8(SP)		// tv_nsec
+
+	MOVQ	SP, DI			// arg 1 - rqtp
+	MOVQ	$0, SI			// arg 2 - rmtp
+	MOVL	$240, AX		// sys_nanosleep
+	SYSCALL
+	JCC	2(PC)
+	CALL	runtime·notok(SB)
 	RET
 
 // set tls base to DI
