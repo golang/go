@@ -83,14 +83,15 @@ func TestInotifyClose(t *testing.T) {
 	watcher, _ := NewWatcher()
 	watcher.Close()
 
-	done := false
+	done := make(chan bool)
 	go func() {
 		watcher.Close()
-		done = true
+		done <- true
 	}()
 
-	time.Sleep(50 * time.Millisecond)
-	if !done {
+	select {
+	case <-done:
+	case <-time.After(50 * time.Millisecond):
 		t.Fatal("double Close() test failed: second Close() call didn't return")
 	}
 
