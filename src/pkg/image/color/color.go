@@ -152,26 +152,35 @@ func (m *modelFunc) Convert(c Color) Color {
 	return m.f(c)
 }
 
-// RGBAModel is the Model for RGBA colors.
-var RGBAModel Model = ModelFunc(func(c Color) Color {
+// Models for the standard color types.
+var (
+	RGBAModel    Model = ModelFunc(rgbaModel)
+	RGBA64Model  Model = ModelFunc(rgba64Model)
+	NRGBAModel   Model = ModelFunc(nrgbaModel)
+	NRGBA64Model Model = ModelFunc(nrgba64Model)
+	AlphaModel   Model = ModelFunc(alphaModel)
+	Alpha16Model Model = ModelFunc(alpha16Model)
+	GrayModel    Model = ModelFunc(grayModel)
+	Gray16Model  Model = ModelFunc(gray16Model)
+)
+
+func rgbaModel(c Color) Color {
 	if _, ok := c.(RGBA); ok {
 		return c
 	}
 	r, g, b, a := c.RGBA()
 	return RGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), uint8(a >> 8)}
-})
+}
 
-// RGBAModel is the Model for RGBA64 colors.
-var RGBA64Model Model = ModelFunc(func(c Color) Color {
+func rgba64Model(c Color) Color {
 	if _, ok := c.(RGBA64); ok {
 		return c
 	}
 	r, g, b, a := c.RGBA()
 	return RGBA64{uint16(r), uint16(g), uint16(b), uint16(a)}
-})
+}
 
-// NRGBAModel is the Model for NRGBA colors.
-var NRGBAModel Model = ModelFunc(func(c Color) Color {
+func nrgbaModel(c Color) Color {
 	if _, ok := c.(NRGBA); ok {
 		return c
 	}
@@ -187,10 +196,9 @@ var NRGBAModel Model = ModelFunc(func(c Color) Color {
 	g = (g * 0xffff) / a
 	b = (b * 0xffff) / a
 	return NRGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), uint8(a >> 8)}
-})
+}
 
-// NRGBAModel is the Model for NRGBA64 colors.
-var NRGBA64Model Model = ModelFunc(func(c Color) Color {
+func nrgba64Model(c Color) Color {
 	if _, ok := c.(NRGBA64); ok {
 		return c
 	}
@@ -206,45 +214,41 @@ var NRGBA64Model Model = ModelFunc(func(c Color) Color {
 	g = (g * 0xffff) / a
 	b = (b * 0xffff) / a
 	return NRGBA64{uint16(r), uint16(g), uint16(b), uint16(a)}
-})
+}
 
-// AlphaModel is the Model for Alpha colors.
-var AlphaModel Model = ModelFunc(func(c Color) Color {
+func alphaModel(c Color) Color {
 	if _, ok := c.(Alpha); ok {
 		return c
 	}
 	_, _, _, a := c.RGBA()
 	return Alpha{uint8(a >> 8)}
-})
+}
 
-// Alpha16Model is the Model for Alpha16 colors.
-var Alpha16Model Model = ModelFunc(func(c Color) Color {
+func alpha16Model(c Color) Color {
 	if _, ok := c.(Alpha16); ok {
 		return c
 	}
 	_, _, _, a := c.RGBA()
 	return Alpha16{uint16(a)}
-})
+}
 
-// GrayModel is the Model for Gray colors.
-var GrayModel Model = ModelFunc(func(c Color) Color {
+func grayModel(c Color) Color {
 	if _, ok := c.(Gray); ok {
 		return c
 	}
 	r, g, b, _ := c.RGBA()
 	y := (299*r + 587*g + 114*b + 500) / 1000
 	return Gray{uint8(y >> 8)}
-})
+}
 
-// Gray16Model is the Model for Gray16 colors.
-var Gray16Model Model = ModelFunc(func(c Color) Color {
+func gray16Model(c Color) Color {
 	if _, ok := c.(Gray16); ok {
 		return c
 	}
 	r, g, b, _ := c.RGBA()
 	y := (299*r + 587*g + 114*b + 500) / 1000
 	return Gray16{uint16(y)}
-})
+}
 
 // Palette is a palette of colors.
 type Palette []Color
@@ -290,13 +294,10 @@ func (p Palette) Index(c Color) int {
 	return ret
 }
 
+// Standard colors.
 var (
-	// Black is an opaque black Color.
-	Black = Gray16{0}
-	// White is an opaque white Color.
-	White = Gray16{0xffff}
-	// Transparent is a fully transparent Color.
+	Black       = Gray16{0}
+	White       = Gray16{0xffff}
 	Transparent = Alpha16{0}
-	// Opaque is a fully opaque Color.
-	Opaque = Alpha16{0xffff}
+	Opaque      = Alpha16{0xffff}
 )
