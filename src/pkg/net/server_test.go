@@ -91,7 +91,7 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
 }
 
 func doTest(t *testing.T, network, listenaddr, dialaddr string) {
-	t.Logf("Test %q %q %q\n", network, listenaddr, dialaddr)
+	t.Logf("Test %q %q %q", network, listenaddr, dialaddr)
 	switch listenaddr {
 	case "", "0.0.0.0", "[::]", "[::ffff:0.0.0.0]":
 		if testing.Short() || avoidMacFirewall {
@@ -194,7 +194,7 @@ Run:
 }
 
 func doTestPacket(t *testing.T, network, listenaddr, dialaddr string, isEmpty bool) {
-	t.Logf("TestPacket %s %s %s\n", network, listenaddr, dialaddr)
+	t.Logf("TestPacket %q %q %q", network, listenaddr, dialaddr)
 	listening := make(chan string)
 	done := make(chan int)
 	if network == "udp" {
