@@ -213,11 +213,11 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err error) {
 					break
 				}
 			}
-			for _, cookie := range jar.Cookies(req.URL) {
-				req.AddCookie(cookie)
-			}
 		}
 
+		for _, cookie := range jar.Cookies(req.URL) {
+			req.AddCookie(cookie)
+		}
 		urlStr = req.URL.String()
 		if r, err = send(req, c.Transport); err != nil {
 			break
