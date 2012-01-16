@@ -70,7 +70,7 @@ type Session struct {
 
 	started   bool // true once Start, Run or Shell is invoked.
 	copyFuncs []func() error
-	errch     chan error // one send per copyFunc
+	errors    chan error // one send per copyFunc
 
 	// true if pipe method is active
 	stdinpipe, stdoutpipe, stderrpipe bool
@@ -244,10 +244,10 @@ func (s *Session) start() error {
 		setupFd(s)
 	}
 
-	s.errch = make(chan error, len(s.copyFuncs))
+	s.errors = make(chan error, len(s.copyFuncs))
 	for _, fn := range s.copyFuncs {
 		go func(fn func() error) {
-			s.errch <- fn()
+			s.errors <- fn()
 		}(fn)
 	}
 	return nil
@@ -270,7 +270,7 @@ func (s *Session) Wait() error {
 
 	var copyError error
 	for _ = range s.copyFuncs {
-		if err := <-s.errch; err != nil && copyError == nil {
+		if err := <-s.errors; err != nil && copyError == nil {
 			copyError = err
 		}
 	}
