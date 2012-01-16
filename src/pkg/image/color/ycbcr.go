@@ -4,8 +4,7 @@
 
 package color
 
-// RGBToYCbCr converts an RGB triple to a Y'CbCr triple. All components lie
-// within the range [0, 255].
+// RGBToYCbCr converts an RGB triple to a Y'CbCr triple.
 func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
 	// The JFIF specification says:
 	//	Y' =  0.2990*R + 0.5870*G + 0.1140*B
@@ -36,8 +35,7 @@ func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
 	return uint8(yy), uint8(cb), uint8(cr)
 }
 
-// YCbCrToRGB converts a Y'CbCr triple to an RGB triple. All components lie
-// within the range [0, 255].
+// YCbCrToRGB converts a Y'CbCr triple to an RGB triple.
 func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
 	// The JFIF specification says:
 	//	R = Y' + 1.40200*(Cr-128)
@@ -89,11 +87,13 @@ func (c YCbCr) RGBA() (uint32, uint32, uint32, uint32) {
 }
 
 // YCbCrModel is the Model for Y'CbCr colors.
-var YCbCrModel Model = ModelFunc(func(c Color) Color {
+var YCbCrModel Model = ModelFunc(modelYCbCr)
+
+func modelYCbCr(c Color) Color {
 	if _, ok := c.(YCbCr); ok {
 		return c
 	}
 	r, g, b, _ := c.RGBA()
 	y, u, v := RGBToYCbCr(uint8(r>>8), uint8(g>>8), uint8(b>>8))
 	return YCbCr{y, u, v}
-})
+}
