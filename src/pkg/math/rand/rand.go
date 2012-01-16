@@ -107,7 +107,9 @@ func (r *Rand) Perm(n int) []int {
 
 var globalRand = New(&lockedSource{src: NewSource(1)})
 
-// Seed uses the provided seed value to initialize the generator to a deterministic state.
+// Seed uses the provided seed value to initialize the generator to a
+// deterministic state. If Seed is not called, the generator behaves as
+// if seeded by Seed(1).
 func Seed(seed int64) { globalRand.Seed(seed) }
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
