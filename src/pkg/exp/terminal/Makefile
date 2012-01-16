@@ -8,7 +8,7 @@ TARG=exp/terminal
 GOFILES=\
 	terminal.go\
 
-ifneq ($(GOOS),windows)
+ifeq ($(GOOS),linux)
 GOFILES+=\
 	util.go
 endif
