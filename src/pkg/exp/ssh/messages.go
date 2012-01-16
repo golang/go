@@ -484,6 +484,26 @@ func intLength(n *big.Int) int {
 	return length
 }
 
+func marshalUint32(to []byte, n uint32) []byte {
+	to[0] = byte(n >> 24)
+	to[1] = byte(n >> 16)
+	to[2] = byte(n >> 8)
+	to[3] = byte(n)
+	return to[4:]
+}
+
+func marshalUint64(to []byte, n uint64) []byte {
+	to[0] = byte(n >> 56)
+	to[1] = byte(n >> 48)
+	to[2] = byte(n >> 40)
+	to[3] = byte(n >> 32)
+	to[4] = byte(n >> 24)
+	to[5] = byte(n >> 16)
+	to[6] = byte(n >> 8)
+	to[7] = byte(n)
+	return to[8:]
+}
+
 func marshalInt(to []byte, n *big.Int) []byte {
 	lengthBytes := to
 	to = to[4:]
