@@ -27,7 +27,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool)
 
 // Callers fills the slice pc with the program counters of function invocations
 // on the calling goroutine's stack.  The argument skip is the number of stack frames
-// to skip before recording in pc, with 0 starting at the caller of Caller.
+// to skip before recording in pc, with 0 starting at the caller of Callers.
 // It returns the number of entries written to pc.
 func Callers(skip int, pc []uintptr) int
 
