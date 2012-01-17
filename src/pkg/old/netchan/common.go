@@ -165,9 +165,11 @@ func (cs *clientSet) sync(timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	// seq remembers the clients and their seqNum at point of entry.
 	seq := make(map[unackedCounter]int64)
+	cs.mu.Lock()
 	for client := range cs.clients {
 		seq[client] = client.seq()
 	}
+	cs.mu.Unlock()
 	for {
 		pending := false
 		cs.mu.Lock()
