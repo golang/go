@@ -93,7 +93,7 @@ echo; echo; echo %%%% making runtime generated files %%%%; echo
 if $USE_GO_TOOL; then
 	echo
 	echo '# Building go command from bootstrap script.'
-	./buildscript_${GOOS}_$GOARCH.sh
+	./buildscript/${GOOS}_$GOARCH.sh
 
 	echo '# Building Go code.'
 	go install -a -v std

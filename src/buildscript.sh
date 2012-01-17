@@ -9,7 +9,7 @@ for sys in $GOOSARCHES
 do
 	export GOOS=$(echo $sys | sed 's/_.*//')
 	export GOARCH=$(echo $sys | sed 's/.*_//')
-	targ=buildscript_${GOOS}_$GOARCH.sh
+	targ=buildscript/${GOOS}_$GOARCH.sh
 	rm -f $targ
 
 	(echo '#!/usr/bin/env bash
