@@ -1620,7 +1620,7 @@ non_dcl_stmt:
 		$$->list = $2;
 		if($$->list == nil && curfn != N) {
 			NodeList *l;
-			
+
 			for(l=curfn->dcl; l; l=l->next) {
 				if(l->n->class == PPARAM)
 					continue;
@@ -1952,6 +1952,10 @@ hidden_interfacedcl:
 	sym '(' ohidden_funarg_list ')' ohidden_funres
 	{
 		$$ = nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
+	}
+|	hidden_type
+	{
+		$$ = nod(ODCLFIELD, N, typenod($1));
 	}
 
 ohidden_funres:

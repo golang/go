@@ -460,29 +460,32 @@ func (p *gcParser) parseSignature() *Func {
 	return &Func{Params: params, Results: results, IsVariadic: isVariadic}
 }
 
-// MethodSpec = ( identifier | ExportedName )  Signature .
+// MethodOrEmbedSpec = Name [ Signature ] .
 //
-func (p *gcParser) parseMethodSpec() *ast.Object {
-	if p.tok == scanner.Ident {
-		p.expect(scanner.Ident)
-	} else {
-		p.parseExportedName()
+func (p *gcParser) parseMethodOrEmbedSpec() *ast.Object {
+	p.parseName()
+	if p.tok == '(' {
+		p.parseSignature()
+		// TODO(gri) compute method object
+		return ast.NewObj(ast.Fun, "_")
 	}
-	p.parseSignature()
-
-	// TODO(gri) compute method object
-	return ast.NewObj(ast.Fun, "_")
+	// TODO lookup name and return that type
+	return ast.NewObj(ast.Typ, "_")
 }
 
-// InterfaceType = "interface" "{" [ MethodList ] "}" .
-// MethodList    = MethodSpec { ";" MethodSpec } .
+// InterfaceType = "interface" "{" [ MethodOrEmbedList ] "}" .
+// MethodOrEmbedList = MethodOrEmbedSpec { ";" MethodOrEmbedSpec } .
 //
 func (p *gcParser) parseInterfaceType() Type {
 	var methods ObjList
 
 	parseMethod := func() {
-		meth := p.parseMethodSpec()
-		methods = append(methods, meth)
+		switch m := p.parseMethodOrEmbedSpec(); m.Kind {
+		case ast.Typ:
+			// TODO expand embedded methods
+		case ast.Fun:
+			methods = append(methods, m)
+		}
 	}
 
 	p.expectKeyword("interface")

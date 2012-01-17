@@ -195,6 +195,7 @@ goopnames[] =
 	[OCONTINUE]	= "continue",
 	[OCOPY]		= "copy",
 	[ODEC]		= "--",
+	[ODELETE]	= "delete",
 	[ODEFER]	= "defer",
 	[ODIV]		= "/",
 	[OEQ]		= "==",
@@ -639,9 +640,15 @@ typefmt(Fmt *fp, Type *t)
 		return fmtprint(fp, "map[%T]%T", t->down, t->type);
 
 	case TINTER:
+		t = t->orig;
 		fmtstrcpy(fp, "interface {");
 		for(t1=t->type; t1!=T; t1=t1->down)
-			if(exportname(t1->sym->name)) {
+			if(!t1->sym) {
+				if(t1->down)
+					fmtprint(fp, " %T;", t1->type);
+				else
+					fmtprint(fp, " %T ", t1->type);
+			} else if(exportname(t1->sym->name)) {
 				if(t1->down)
 					fmtprint(fp, " %hS%hT;", t1->sym, t1->type);
 				else
@@ -946,6 +953,7 @@ static int opprec[] = {
 	[OCONVNOP] = 8,
 	[OCONV] = 8,
 	[OCOPY] = 8,
+	[ODELETE] = 8,
 	[OLEN] = 8,
 	[OLITERAL] = 8,
 	[OMAKESLICE] = 8,
@@ -1010,6 +1018,7 @@ static int opprec[] = {
 	[OGT] = 4,
 	[ONE] = 4,
 	[OCMPSTR] = 4,
+	[OCMPIFACE] = 4,
 
 	[OSEND] = 3,
 	[OANDAND] = 2,
@@ -1218,6 +1227,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OAPPEND:
 	case OCAP:
 	case OCLOSE:
+	case ODELETE:
 	case OLEN:
 	case OMAKE:
 	case ONEW:
@@ -1288,6 +1298,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 		return 0;
 
 	case OCMPSTR:
+	case OCMPIFACE:
 		exprfmt(f, n->left, nprec);
 		fmtprint(f, " %#O ", n->etype);
 		exprfmt(f, n->right, nprec+1);
@@ -1303,8 +1314,10 @@ nodefmt(Fmt *f, Node *n)
 	Type *t;
 
 	t = n->type;
-	if(n->orig == N)
+	if(n->orig == N) {
+		n->orig = n;
 		fatal("node with no orig %N", n);
+	}
 
 	// we almost always want the original, except in export mode for literals
 	// this saves the importer some work, and avoids us having to redo some
@@ -1359,6 +1372,7 @@ nodedump(Fmt *fp, Node *n)
 			indent(fp);
 		}
 	}
+		fmtprint(fp, "[%p]", n);
 
 	switch(n->op) {
 	default:
