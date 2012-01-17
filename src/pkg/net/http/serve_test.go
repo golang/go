@@ -642,7 +642,7 @@ func TestServerExpect(t *testing.T) {
 		// Note using r.FormValue("readbody") because for POST
 		// requests that would read from r.Body, which we only
 		// conditionally want to do.
-		if strings.Contains(r.URL.RawPath, "readbody=true") {
+		if strings.Contains(r.URL.RawQuery, "readbody=true") {
 			ioutil.ReadAll(r.Body)
 			w.Write([]byte("Hi"))
 		} else {
