@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"strings"
 )
 
 // A Dialer is a means to establish a connection.
@@ -70,14 +69,11 @@ func RegisterDialerType(scheme string, f func(*url.URL, Dialer) (Dialer, error))
 // Dialer for it to make network requests.
 func FromURL(u *url.URL, forward Dialer) (Dialer, error) {
 	var auth *Auth
-	if len(u.RawUserinfo) > 0 {
+	if u.User != nil {
 		auth = new(Auth)
-		parts := strings.SplitN(u.RawUserinfo, ":", 1)
-		if len(parts) == 1 {
-			auth.User = parts[0]
-		} else if len(parts) >= 2 {
-			auth.User = parts[0]
-			auth.Password = parts[1]
+		auth.User = u.User.Username()
+		if p, ok := u.User.Password(); ok {
+			auth.Password = p
 		}
 	}
 
