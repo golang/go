@@ -62,21 +62,14 @@ func AddExtensionType(ext, typ string) error {
 }
 
 func setExtensionType(extension, mimeType string) error {
-	full, param, err := ParseMediaType(mimeType)
+	_, param, err := ParseMediaType(mimeType)
 	if err != nil {
 		return err
 	}
-	if split := strings.Index(full, "/"); split < 0 {
-		return fmt.Errorf(`mime: malformed MIME type "%s"`, mimeType)
-	} else {
-		main := full[:split]
-		sub := full[split+1:]
-		if main == "text" && param["charset"] == "" {
-			param["charset"] = "utf-8"
-		}
-		mimeType = FormatMediaType(main, sub, param)
+	if strings.HasPrefix(mimeType, "text/") && param["charset"] == "" {
+		param["charset"] = "utf-8"
+		mimeType = FormatMediaType(mimeType, param)
 	}
-
 	mimeLock.Lock()
 	mimeTypes[extension] = mimeType
 	mimeLock.Unlock()

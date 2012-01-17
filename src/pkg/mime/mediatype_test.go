@@ -253,3 +253,24 @@ func TestParseMediaTypeBogus(t *testing.T) {
 		t.Errorf("expected invalid media parameter; got error %q", err)
 	}
 }
+
+type formatTest struct {
+	typ    string
+	params map[string]string
+	want   string
+}
+
+var formatTests = []formatTest{
+	{"noslash", nil, ""},
+	{"foo/BAR", nil, "foo/bar"},
+	{"foo/BAR", map[string]string{"X": "Y"}, "foo/bar; x=Y"},
+}
+
+func TestFormatMediaType(t *testing.T) {
+	for i, tt := range formatTests {
+		got := FormatMediaType(tt.typ, tt.params)
+		if got != tt.want {
+			t.Errorf("%d. FormatMediaType(%q, %v) = %q; want %q", i, tt.typ, tt.params, got, tt.want)
+		}
+	}
+}
