@@ -30,6 +30,11 @@ func Register(name string, driver driver.Driver) {
 	drivers[name] = driver
 }
 
+// RawBytes is a byte slice that holds a reference to memory owned by
+// the database itself. After a Scan into a RawBytes, the slice is only
+// valid until the next call to Next, Scan, or Close.
+type RawBytes []byte
+
 // NullableString represents a string that may be null.
 // NullableString implements the ScannerInto interface so
 // it can be used as a scan destination:
@@ -760,9 +765,13 @@ func (rs *Rows) Columns() ([]string, error) {
 }
 
 // Scan copies the columns in the current row into the values pointed
-// at by dest. If dest contains pointers to []byte, the slices should
-// not be modified and should only be considered valid until the next
-// call to Next or Scan.
+// at by dest.
+//
+// If an argument has type *[]byte, Scan saves in that argument a copy
+// of the corresponding data. The copy is owned by the caller and can
+// be modified and held indefinitely. The copy can be avoided by using
+// an argument of type *RawBytes instead; see the documentation for
+// RawBytes for restrictions on its use.
 func (rs *Rows) Scan(dest ...interface{}) error {
 	if rs.closed {
 		return errors.New("sql: Rows closed")
@@ -781,6 +790,18 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 		if err != nil {
 			return fmt.Errorf("sql: Scan error on column index %d: %v", i, err)
 		}
+	}
+	for _, dp := range dest {
+		b, ok := dp.(*[]byte)
+		if !ok {
+			continue
+		}
+		if _, ok = dp.(*RawBytes); ok {
+			continue
+		}
+		clone := make([]byte, len(*b))
+		copy(clone, *b)
+		*b = clone
 	}
 	return nil
 }
@@ -838,6 +859,9 @@ func (r *Row) Scan(dest ...interface{}) error {
 	// they were obtained from the network anyway) But for now we
 	// don't care.
 	for _, dp := range dest {
+		if _, ok := dp.(*RawBytes); ok {
+			return errors.New("sql: RawBytes isn't allowed on Row.Scan")
+		}
 		b, ok := dp.(*[]byte)
 		if !ok {
 			continue
