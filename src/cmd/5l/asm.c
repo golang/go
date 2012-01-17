@@ -325,11 +325,6 @@ asmb(void)
 	cseek(segdata.fileoff);
 	datblk(segdata.vaddr, segdata.filelen);
 
-	/* output read-only data in text segment */
-	sect = segtext.sect->next;
-	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
-	datblk(sect->vaddr, sect->len);
-
 	if(iself) {
 		/* index of elf text section; needed by asmelfsym, double-checked below */
 		/* !debug['d'] causes extra sections before the .text section */
