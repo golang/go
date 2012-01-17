@@ -45,7 +45,7 @@ followed by detailed output for each failed package.
 the file pattern "*_test.go".  These additional files can contain test functions,
 benchmark functions, and example functions.  See 'go help testfunc' for more.
 
-By default, gotest needs no arguments.  It compiles and tests the package
+By default, go test needs no arguments.  It compiles and tests the package
 with source in the current directory, including tests, and runs the tests.
 If file names are given (with flag -file=test.go, one per extra test source file),
 only those test files are added to the package.  (The non-test files are always
@@ -82,7 +82,7 @@ The flags handled by 'go test' are:
 	    Compile and test up to n packages in parallel.
 	    The default value is the number of CPUs available.
 
-	-x  Print each subcommand gotest executes.
+	-x  Print each subcommand go test executes.
 
 The resulting test binary, called test.out, has its own flags:
 
