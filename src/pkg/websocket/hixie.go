@@ -343,7 +343,7 @@ func hixie76ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) 
 	}
 	// 4.1. Opening handshake.
 	// Step 5.  send a request line.
-	bw.WriteString("GET " + config.Location.RawPath + " HTTP/1.1\r\n")
+	bw.WriteString("GET " + config.Location.RequestURI() + " HTTP/1.1\r\n")
 
 	// Step 6-14. push request headers in fields.
 	fields := []string{
@@ -456,7 +456,7 @@ func hixie75ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) 
 	if config.Version != ProtocolVersionHixie75 {
 		panic("wrong protocol version.")
 	}
-	bw.WriteString("GET " + config.Location.RawPath + " HTTP/1.1\r\n")
+	bw.WriteString("GET " + config.Location.RequestURI() + " HTTP/1.1\r\n")
 	bw.WriteString("Upgrade: WebSocket\r\n")
 	bw.WriteString("Connection: Upgrade\r\n")
 	bw.WriteString("Host: " + config.Location.Host + "\r\n")
@@ -557,7 +557,7 @@ func (c *hixie76ServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Req
 	} else {
 		scheme = "ws"
 	}
-	c.Location, err = url.ParseRequest(scheme + "://" + req.Host + req.URL.RawPath)
+	c.Location, err = url.ParseRequest(scheme + "://" + req.Host + req.URL.RequestURI())
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
@@ -653,7 +653,7 @@ func (c *hixie75ServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Req
 	} else {
 		scheme = "ws"
 	}
-	c.Location, err = url.ParseRequest(scheme + "://" + req.Host + req.URL.RawPath)
+	c.Location, err = url.ParseRequest(scheme + "://" + req.Host + req.URL.RequestURI())
 	if err != nil {
 		return http.StatusBadRequest, err
 	}

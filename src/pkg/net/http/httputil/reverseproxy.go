@@ -59,11 +59,6 @@ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host
 		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
-		if q := req.URL.RawQuery; q != "" {
-			req.URL.RawPath = req.URL.Path + "?" + q
-		} else {
-			req.URL.RawPath = req.URL.Path
-		}
 		req.URL.RawQuery = target.RawQuery
 	}
 	return &ReverseProxy{Director: director}

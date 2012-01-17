@@ -124,16 +124,8 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
 
 	var b bytes.Buffer
 
-	urlStr := req.URL.Raw
-	if urlStr == "" {
-		urlStr = valueOrDefault(req.URL.EncodedPath(), "/")
-		if req.URL.RawQuery != "" {
-			urlStr += "?" + req.URL.RawQuery
-		}
-	}
-
-	fmt.Fprintf(&b, "%s %s HTTP/%d.%d\r\n", valueOrDefault(req.Method, "GET"), urlStr,
-		req.ProtoMajor, req.ProtoMinor)
+	fmt.Fprintf(&b, "%s %s HTTP/%d.%d\r\n", valueOrDefault(req.Method, "GET"),
+		req.URL.RequestURI(), req.ProtoMajor, req.ProtoMinor)
 
 	host := req.Host
 	if host == "" && req.URL != nil {

@@ -229,9 +229,8 @@ func (cm *connectMethod) proxyAuth() string {
 	if cm.proxyURL == nil {
 		return ""
 	}
-	proxyInfo := cm.proxyURL.RawUserinfo
-	if proxyInfo != "" {
-		return "Basic " + base64.URLEncoding.EncodeToString([]byte(proxyInfo))
+	if u := cm.proxyURL.User; u != nil {
+		return "Basic " + base64.URLEncoding.EncodeToString([]byte(u.String()))
 	}
 	return ""
 }
@@ -332,7 +331,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, error) {
 	case cm.targetScheme == "https":
 		connectReq := &Request{
 			Method: "CONNECT",
-			URL:    &url.URL{RawPath: cm.targetAddr},
+			URL:    &url.URL{Opaque: cm.targetAddr},
 			Host:   cm.targetAddr,
 			Header: make(Header),
 		}

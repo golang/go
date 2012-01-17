@@ -32,15 +32,9 @@ var reqWriteTests = []reqWriteTest{
 		Req: Request{
 			Method: "GET",
 			URL: &url.URL{
-				Raw:          "http://www.techcrunch.com/",
-				Scheme:       "http",
-				RawPath:      "http://www.techcrunch.com/",
-				RawAuthority: "www.techcrunch.com",
-				RawUserinfo:  "",
-				Host:         "www.techcrunch.com",
-				Path:         "/",
-				RawQuery:     "",
-				Fragment:     "",
+				Scheme: "http",
+				Host:   "www.techcrunch.com",
+				Path:   "/",
 			},
 			Proto:      "HTTP/1.1",
 			ProtoMajor: 1,
@@ -60,7 +54,7 @@ var reqWriteTests = []reqWriteTest{
 			Form:  map[string][]string{},
 		},
 
-		WantWrite: "GET http://www.techcrunch.com/ HTTP/1.1\r\n" +
+		WantWrite: "GET / HTTP/1.1\r\n" +
 			"Host: www.techcrunch.com\r\n" +
 			"User-Agent: Fake\r\n" +
 			"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n" +
@@ -198,7 +192,7 @@ var reqWriteTests = []reqWriteTest{
 			"\r\n" +
 			"abcdef",
 
-		WantProxy: "POST / HTTP/1.1\r\n" +
+		WantProxy: "POST http://example.com/ HTTP/1.1\r\n" +
 			"Host: example.com\r\n" +
 			"User-Agent: Go http package\r\n" +
 			"Content-Length: 6\r\n" +

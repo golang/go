@@ -44,15 +44,9 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "GET",
 			URL: &url.URL{
-				Raw:          "http://www.techcrunch.com/",
-				Scheme:       "http",
-				RawPath:      "/",
-				RawAuthority: "www.techcrunch.com",
-				RawUserinfo:  "",
-				Host:         "www.techcrunch.com",
-				Path:         "/",
-				RawQuery:     "",
-				Fragment:     "",
+				Scheme: "http",
+				Host:   "www.techcrunch.com",
+				Path:   "/",
 			},
 			Proto:      "HTTP/1.1",
 			ProtoMajor: 1,
@@ -86,9 +80,7 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "GET",
 			URL: &url.URL{
-				Raw:     "/",
-				Path:    "/",
-				RawPath: "/",
+				Path: "/",
 			},
 			Proto:         "HTTP/1.1",
 			ProtoMajor:    1,
@@ -113,15 +105,7 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "GET",
 			URL: &url.URL{
-				Raw:          "//user@host/is/actually/a/path/",
-				Scheme:       "",
-				RawPath:      "//user@host/is/actually/a/path/",
-				RawAuthority: "",
-				RawUserinfo:  "",
-				Host:         "",
-				Path:         "//user@host/is/actually/a/path/",
-				RawQuery:     "",
-				Fragment:     "",
+				Path: "//user@host/is/actually/a/path/",
 			},
 			Proto:         "HTTP/1.1",
 			ProtoMajor:    1,
@@ -170,9 +154,7 @@ var reqTests = []reqTest{
 		&Request{
 			Method: "POST",
 			URL: &url.URL{
-				Raw:     "/",
-				Path:    "/",
-				RawPath: "/",
+				Path: "/",
 			},
 			TransferEncoding: []string{"chunked"},
 			Proto:            "HTTP/1.1",

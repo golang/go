@@ -302,26 +302,14 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 		host = req.URL.Host
 	}
 
-	urlStr := req.URL.RawPath
-	if strings.HasPrefix(urlStr, "?") {
-		urlStr = "/" + urlStr // Issue 2344
+	ruri := req.URL.RequestURI()
+	if usingProxy && req.URL.Scheme != "" && req.URL.Opaque == "" {
+		ruri = req.URL.Scheme + "://" + host + ruri
 	}
-	if urlStr == "" {
-		urlStr = valueOrDefault(req.URL.RawPath, valueOrDefault(req.URL.EncodedPath(), "/"))
-		if req.URL.RawQuery != "" {
-			urlStr += "?" + req.URL.RawQuery
-		}
-		if usingProxy {
-			if urlStr == "" || urlStr[0] != '/' {
-				urlStr = "/" + urlStr
-			}
-			urlStr = req.URL.Scheme + "://" + host + urlStr
-		}
-	}
-	// TODO(bradfitz): escape at least newlines in urlStr?
+	// TODO(bradfitz): escape at least newlines in ruri?
 
 	bw := bufio.NewWriter(w)
-	fmt.Fprintf(bw, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), urlStr)
+	fmt.Fprintf(bw, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), ruri)
 
 	// Header lines
 	fmt.Fprintf(bw, "Host: %s\r\n", host)
