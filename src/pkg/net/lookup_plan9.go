@@ -69,9 +69,7 @@ func queryDNS(addr string, typ string) (res []string, err error) {
 	return query("/net/dns", addr+" "+typ, 1024)
 }
 
-// LookupHost looks up the given host using the local resolver.
-// It returns an array of that host's addresses.
-func LookupHost(host string) (addrs []string, err error) {
+func lookupHost(host string) (addrs []string, err error) {
 	// Use /net/cs insead of /net/dns because cs knows about
 	// host names in local network (e.g. from /lib/ndb/local)
 	lines, err := queryCS("tcp", host, "1")
@@ -95,9 +93,7 @@ func LookupHost(host string) (addrs []string, err error) {
 	return
 }
 
-// LookupIP looks up host using the local resolver.
-// It returns an array of that host's IPv4 and IPv6 addresses.
-func LookupIP(host string) (ips []IP, err error) {
+func lookupIP(host string) (ips []IP, err error) {
 	addrs, err := LookupHost(host)
 	if err != nil {
 		return
@@ -110,8 +106,7 @@ func LookupIP(host string) (ips []IP, err error) {
 	return
 }
 
-// LookupPort looks up the port for the given network and service.
-func LookupPort(network, service string) (port int, err error) {
+func lookupPort(network, service string) (port int, err error) {
 	switch network {
 	case "tcp4", "tcp6":
 		network = "tcp"
@@ -140,11 +135,7 @@ func LookupPort(network, service string) (port int, err error) {
 	return 0, unknownPortError
 }
 
-// LookupCNAME returns the canonical DNS host for the given name.
-// Callers that do not care about the canonical name can call
-// LookupHost or LookupIP directly; both take care of resolving
-// the canonical name as part of the lookup.
-func LookupCNAME(name string) (cname string, err error) {
+func lookupCNAME(name string) (cname string, err error) {
 	lines, err := queryDNS(name, "cname")
 	if err != nil {
 		return
@@ -157,16 +148,7 @@ func LookupCNAME(name string) (cname string, err error) {
 	return "", errors.New("net: bad response from ndb/dns")
 }
 
-// LookupSRV tries to resolve an SRV query of the given service,
-// protocol, and domain name.  The proto is "tcp" or "udp".
-// The returned records are sorted by priority and randomized
-// by weight within a priority.
-//
-// LookupSRV constructs the DNS name to look up following RFC 2782.
-// That is, it looks up _service._proto.name.  To accommodate services
-// publishing SRV records under non-standard names, if both service
-// and proto are empty strings, LookupSRV looks up name directly.
-func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
+func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
 	var target string
 	if service == "" && proto == "" {
 		target = name
@@ -195,8 +177,7 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 	return
 }
 
-// LookupMX returns the DNS MX records for the given domain name sorted by preference.
-func LookupMX(name string) (mx []*MX, err error) {
+func lookupMX(name string) (mx []*MX, err error) {
 	lines, err := queryDNS(name, "mx")
 	if err != nil {
 		return
@@ -214,8 +195,7 @@ func LookupMX(name string) (mx []*MX, err error) {
 	return
 }
 
-// LookupTXT returns the DNS TXT records for the given domain name.
-func LookupTXT(name string) (txt []string, err error) {
+func lookupTXT(name string) (txt []string, err error) {
 	lines, err := queryDNS(name, "txt")
 	if err != nil {
 		return
@@ -228,9 +208,7 @@ func LookupTXT(name string) (txt []string, err error) {
 	return
 }
 
-// LookupAddr performs a reverse lookup for the given address, returning a list
-// of names mapping to that address.
-func LookupAddr(addr string) (name []string, err error) {
+func lookupAddr(addr string) (name []string, err error) {
 	arpa, err := reverseaddr(addr)
 	if err != nil {
 		return

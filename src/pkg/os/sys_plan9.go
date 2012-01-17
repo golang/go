@@ -6,7 +6,7 @@
 
 package os
 
-func Hostname() (name string, err error) {
+func hostname() (name string, err error) {
 	f, err := Open("#c/sysname")
 	if err != nil {
 		return "", err

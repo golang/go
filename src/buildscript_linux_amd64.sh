@@ -252,7 +252,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/linux_amd64/time.a
 
 mkdir -p "$WORK"/os/_obj/
 cd "$GOROOT"/src/pkg/os
-6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_unix.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_linux.go ./sys_linux.go ./time.go ./types.go ./zsignal_linux_amd64.go
+6g -o "$WORK"/os/_obj/_go_.6 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_linux.go ./sys_linux.go ./time.go ./types.go ./zsignal_linux_amd64.go
 gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
 cp "$WORK"/os.a "$GOROOT"/pkg/linux_amd64/os.a
 

@@ -6,7 +6,7 @@ package os
 
 import "syscall"
 
-func Hostname() (name string, err error) {
+func hostname() (name string, err error) {
 	s, e := syscall.ComputerName()
 	if e != nil {
 		return "", NewSyscallError("ComputerName", e)
