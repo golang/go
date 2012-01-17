@@ -42,6 +42,11 @@ func findExecutable(file string, exts []string) (string, error) {
 	return ``, os.ENOENT
 }
 
+// LookPath searches for an executable binary named file
+// in the directories named by the PATH environment variable.
+// If file contains a slash, it is tried directly and the PATH is not consulted.
+// LookPath also uses PATHEXT environment variable to match
+// a suitable candidate.
 func LookPath(file string) (f string, err error) {
 	x := os.Getenv(`PATHEXT`)
 	if x == `` {

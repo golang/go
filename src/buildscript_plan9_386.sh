@@ -253,7 +253,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/plan9_386/time.a
 
 mkdir -p "$WORK"/os/_obj/
 cd "$GOROOT"/src/pkg/os
-8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_plan9.go ./env.go ./error.go ./error_plan9.go ./exec.go ./exec_plan9.go ./file.go ./file_plan9.go ./getwd.go ./path.go ./path_plan9.go ./proc.go ./stat_plan9.go ./str.go ./sys_plan9.go ./time.go ./types.go
+8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_plan9.go ./doc.go ./env.go ./error.go ./error_plan9.go ./exec.go ./exec_plan9.go ./file.go ./file_plan9.go ./getwd.go ./path.go ./path_plan9.go ./proc.go ./stat_plan9.go ./str.go ./sys_plan9.go ./time.go ./types.go
 gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
 cp "$WORK"/os.a "$GOROOT"/pkg/plan9_386/os.a
 

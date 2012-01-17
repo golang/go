@@ -11,6 +11,8 @@ import (
 	"unsafe"
 )
 
+// Wait waits for the Process to exit or stop, and then returns a
+// Waitmsg describing its status and an error, if any.
 func (p *Process) Wait(options int) (w *Waitmsg, err error) {
 	s, e := syscall.WaitForSingleObject(syscall.Handle(p.handle), syscall.INFINITE)
 	switch s {
@@ -43,6 +45,7 @@ func (p *Process) Signal(sig Signal) error {
 	return syscall.Errno(syscall.EWINDOWS)
 }
 
+// Release releases any resources associated with the Process.
 func (p *Process) Release() error {
 	if p.handle == -1 {
 		return EINVAL
@@ -57,7 +60,7 @@ func (p *Process) Release() error {
 	return nil
 }
 
-func FindProcess(pid int) (p *Process, err error) {
+func findProcess(pid int) (p *Process, err error) {
 	const da = syscall.STANDARD_RIGHTS_READ |
 		syscall.PROCESS_QUERY_INFORMATION | syscall.SYNCHRONIZE
 	h, e := syscall.OpenProcess(da, false, uint32(pid))

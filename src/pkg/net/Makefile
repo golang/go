@@ -9,6 +9,7 @@ GOFILES=\
 	dial.go\
 	dnsclient.go\
 	dnsmsg.go\
+	doc.go\
 	hosts.go\
 	interface.go\
 	ip.go\

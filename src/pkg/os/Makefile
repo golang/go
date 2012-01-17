@@ -6,6 +6,7 @@ include ../../Make.inc
 
 TARG=os
 GOFILES=\
+	doc.go\
 	error.go\
 	env.go\
 	exec.go\
