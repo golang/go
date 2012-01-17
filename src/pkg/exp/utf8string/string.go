@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package utf8
+// Package utf8string provides an efficient way to index strings by rune rather than by byte.
+package utf8string
 
-import "errors"
+import (
+	"errors"
+	"unicode/utf8"
+)
 
 // String wraps a regular string with a small structure that provides more
 // efficient indexing by code point index, as opposed to byte index.
@@ -37,10 +41,10 @@ func (s *String) Init(contents string) *String {
 	s.bytePos = 0
 	s.runePos = 0
 	for i := 0; i < len(contents); i++ {
-		if contents[i] >= RuneSelf {
+		if contents[i] >= utf8.RuneSelf {
 			// Not ASCII.
-			s.numRunes = RuneCountInString(contents)
-			_, s.width = DecodeRuneInString(contents)
+			s.numRunes = utf8.RuneCountInString(contents)
+			_, s.width = utf8.DecodeRuneInString(contents)
 			s.nonASCII = i
 			return s
 		}
@@ -121,7 +125,7 @@ func (s *String) At(i int) rune {
 	switch {
 
 	case i == s.runePos-1: // backing up one rune
-		r, s.width = DecodeLastRuneInString(s.str[0:s.bytePos])
+		r, s.width = utf8.DecodeLastRuneInString(s.str[0:s.bytePos])
 		s.runePos = i
 		s.bytePos -= s.width
 		return r
@@ -130,16 +134,16 @@ func (s *String) At(i int) rune {
 		s.bytePos += s.width
 		fallthrough
 	case i == s.runePos:
-		r, s.width = DecodeRuneInString(s.str[s.bytePos:])
+		r, s.width = utf8.DecodeRuneInString(s.str[s.bytePos:])
 		return r
 	case i == 0: // start of string
-		r, s.width = DecodeRuneInString(s.str)
+		r, s.width = utf8.DecodeRuneInString(s.str)
 		s.runePos = 0
 		s.bytePos = 0
 		return r
 
 	case i == s.numRunes-1: // last rune in string
-		r, s.width = DecodeLastRuneInString(s.str)
+		r, s.width = utf8.DecodeLastRuneInString(s.str)
 		s.runePos = i
 		s.bytePos = len(s.str) - s.width
 		return r
@@ -175,7 +179,7 @@ func (s *String) At(i int) rune {
 	if forward {
 		// TODO: Is it much faster to use a range loop for this scan?
 		for {
-			r, s.width = DecodeRuneInString(s.str[s.bytePos:])
+			r, s.width = utf8.DecodeRuneInString(s.str[s.bytePos:])
 			if s.runePos == i {
 				break
 			}
@@ -184,7 +188,7 @@ func (s *String) At(i int) rune {
 		}
 	} else {
 		for {
-			r, s.width = DecodeLastRuneInString(s.str[0:s.bytePos])
+			r, s.width = utf8.DecodeLastRuneInString(s.str[0:s.bytePos])
 			s.runePos--
 			s.bytePos -= s.width
 			if s.runePos == i {

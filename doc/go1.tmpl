@@ -827,6 +827,10 @@ Several packages have moved under <code>exp</code> at the time of Go 1's release
 </ul>
 
 <p>
+Also, the <code>utf8.String</code> type has been moved to its own package, <code>exp/utf8string</code>.
+</p>
+
+<p>
 All these packages are available under the same names, with <code>exp/</code> prefixed: <code>exp/ebnf</code> etc.
 </p>
 
@@ -839,7 +843,7 @@ Also, the <code>gotype</code> command now resides in <code>exp/gotype</code>, wh
 <em>Updating</em>:
 Code that uses packages in <code>exp</code> will need to be updated by hand,
 or else compiled from an installation that has <code>exp</code> available.
-Gofix will warn about such uses.
+Gofix or the compiler will complain about such uses.
 <br>
 <font color="red">TODO: gofix should warn about such uses.</font>
 </p>

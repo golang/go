@@ -126,7 +126,7 @@ cp "$WORK"/unicode.a "$GOROOT"/pkg/windows_amd64/unicode.a
 
 mkdir -p "$WORK"/unicode/utf8/_obj/
 cd "$GOROOT"/src/pkg/unicode/utf8
-6g -o "$WORK"/unicode/utf8/_obj/_go_.6 -p unicode/utf8 -I "$WORK" ./string.go ./utf8.go
+6g -o "$WORK"/unicode/utf8/_obj/_go_.6 -p unicode/utf8 -I "$WORK" ./utf8.go
 gopack grc "$WORK"/unicode/utf8.a "$WORK"/unicode/utf8/_obj/_go_.6
 mkdir -p "$GOROOT"/pkg/windows_amd64/unicode/
 cp "$WORK"/unicode/utf8.a "$GOROOT"/pkg/windows_amd64/unicode/utf8.a
