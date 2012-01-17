@@ -364,7 +364,7 @@ func TestCopyError(t *testing.T) {
 	conn.Close()
 
 	tries := 0
-	for tries < 15 && childRunning() {
+	for tries < 25 && childRunning() {
 		time.Sleep(50 * time.Millisecond * time.Duration(tries))
 		tries++
 	}
