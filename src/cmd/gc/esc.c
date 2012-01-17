@@ -64,6 +64,7 @@ escapes(void)
 	NodeList *l;
 
 	theSink.op = ONAME;
+	theSink.orig = &theSink;
 	theSink.class = PEXTERN;
 	theSink.sym = lookup(".sink");
 	theSink.escloopdepth = -1;
