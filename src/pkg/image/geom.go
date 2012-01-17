@@ -112,7 +112,7 @@ func (r Rectangle) Add(p Point) Rectangle {
 	}
 }
 
-// Add returns the rectangle r translated by -p.
+// Sub returns the rectangle r translated by -p.
 func (r Rectangle) Sub(p Point) Rectangle {
 	return Rectangle{
 		Point{r.Min.X - p.X, r.Min.Y - p.Y},
