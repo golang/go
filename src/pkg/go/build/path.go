@@ -105,14 +105,14 @@ func FindTree(path string) (tree *Tree, pkg string, err error) {
 				continue
 			}
 			tree = t
-			pkg = path[len(tpath):]
+			pkg = filepath.ToSlash(path[len(tpath):])
 			return
 		}
 		err = fmt.Errorf("path %q not inside a GOPATH", path)
 		return
 	}
 	tree = defaultTree
-	pkg = path
+	pkg = filepath.ToSlash(path)
 	for _, t := range Path {
 		if t.HasSrc(pkg) {
 			tree = t
