@@ -3,7 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // Package heap provides heap operations for any type that implements
-// heap.Interface.
+// heap.Interface. A heap is a tree with the property that each node is the
+// highest-valued node in its subtree.
+//
+// A heap is a common way to impement a priority queue. To build a priority
+// queue, implement the Heap interface with the (negative) priority as the
+// ordering for the Less method, so Push adds items while Pop removes the
+// highest-priority item from the queue.
 //
 package heap
 
