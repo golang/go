@@ -198,7 +198,7 @@ func (t *Template) associate(new *Template) error {
 	name := new.name
 	if old := t.tmpl[name]; old != nil {
 		oldIsEmpty := parse.IsEmptyTree(old.Root)
-		newIsEmpty := parse.IsEmptyTree(new.Root)
+		newIsEmpty := new.Tree != nil && parse.IsEmptyTree(new.Root)
 		if !oldIsEmpty && !newIsEmpty {
 			return fmt.Errorf("template: redefinition of template %q", name)
 		}
