@@ -129,7 +129,7 @@ cp "$WORK"/unicode.a "$GOROOT"/pkg/linux_arm/unicode.a
 
 mkdir -p "$WORK"/unicode/utf8/_obj/
 cd "$GOROOT"/src/pkg/unicode/utf8
-5g -o "$WORK"/unicode/utf8/_obj/_go_.5 -p unicode/utf8 -I "$WORK" ./string.go ./utf8.go
+5g -o "$WORK"/unicode/utf8/_obj/_go_.5 -p unicode/utf8 -I "$WORK" ./utf8.go
 gopack grc "$WORK"/unicode/utf8.a "$WORK"/unicode/utf8/_obj/_go_.5
 mkdir -p "$GOROOT"/pkg/linux_arm/unicode/
 cp "$WORK"/unicode/utf8.a "$GOROOT"/pkg/linux_arm/unicode/utf8.a

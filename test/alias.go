@@ -7,7 +7,7 @@
 package main
 
 // Test that error messages say what the source file says
-// (uint8 vs byte).
+// (uint8 vs byte, int32 vs. rune).
 
 import (
 	"fmt"
@@ -29,7 +29,4 @@ func main() {
 	ff.Format(fs, x) // ERROR "rune"
 
 	utf8.RuneStart(x) // ERROR "byte"
-
-	var s utf8.String
-	s.At(x) // ERROR "int"
 }

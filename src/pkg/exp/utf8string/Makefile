@@ -4,8 +4,8 @@
 
 include ../../../Make.inc
 
-TARG=unicode/utf8
+TARG=exp/utf8string
 GOFILES=\
-	utf8.go\
+	string.go\
 
 include ../../../Make.pkg

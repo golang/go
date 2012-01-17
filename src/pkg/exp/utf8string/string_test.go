@@ -2,13 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package utf8_test
+package utf8string
 
 import (
 	"math/rand"
 	"testing"
-	. "unicode/utf8"
+	"unicode/utf8"
 )
+
+var testStrings = []string{
+	"",
+	"abcd",
+	"☺☻☹",
+	"日a本b語ç日ð本Ê語þ日¥本¼語i日©",
+	"日a本b語ç日ð本Ê語þ日¥本¼語i日©日a本b語ç日ð本Ê語þ日¥本¼語i日©日a本b語ç日ð本Ê語þ日¥本¼語i日©",
+	"\x80\x80\x80\x80",
+}
 
 func TestScanForwards(t *testing.T) {
 	for _, s := range testStrings {
@@ -106,7 +115,7 @@ func TestLimitSliceAccess(t *testing.T) {
 		if str.Slice(0, 0) != "" {
 			t.Error("failure with empty slice at beginning")
 		}
-		nr := RuneCountInString(s)
+		nr := utf8.RuneCountInString(s)
 		if str.Slice(nr, nr) != "" {
 			t.Error("failure with empty slice at end")
 		}
