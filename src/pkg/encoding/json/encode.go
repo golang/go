@@ -39,6 +39,8 @@ import (
 //
 // String values encode as JSON strings, with each invalid UTF-8 sequence
 // replaced by the encoding of the Unicode replacement character U+FFFD.
+// The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
+// to keep some browsers from misinterpreting JSON output as HTML.
 //
 // Array and slice values encode as JSON arrays, except that
 // []byte encodes as a base64-encoded string.
