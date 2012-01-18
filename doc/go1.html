@@ -686,6 +686,21 @@ the correct function or method for the old functionality, but
 may have the wrong type or require further analysis.
 </p>
 
+<h3 id="hash">The hash package</h3>
+
+<p>
+In Go 1, the definition of <a href="/pkg/hash/#Hash"><code>hash.Hash</code></a> includes
+a new method, <code>BlockSize</code>.  This new method is used primarily in the 
+cryptographic libraries.
+</p>
+
+<p>
+<em>Updating</em>:
+Existing implementations of <code>hash.Hash</code> will need to add a
+<code>BlockSize</code> method.  Hashes that process the input one byte at
+a time can implement <code>BlockSize</code> to return 1.
+</p>
+
 <h3 id="html">The html package</h3>
 
 <p>
