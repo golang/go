@@ -167,12 +167,13 @@ func TestFiles(t *testing.T) {
 	for i, test := range tests {
 		fset.AddFile(test.filename, fset.Base(), test.size)
 		j := 0
-		for g := range fset.Files() {
-			if g.Name() != tests[j].filename {
-				t.Errorf("expected filename = %s; got %s", tests[j].filename, g.Name())
+		fset.Iterate(func(f *File) bool {
+			if f.Name() != tests[j].filename {
+				t.Errorf("expected filename = %s; got %s", tests[j].filename, f.Name())
 			}
 			j++
-		}
+			return true
+		})
 		if j != i+1 {
 			t.Errorf("expected %d files; got %d", i+1, j)
 		}

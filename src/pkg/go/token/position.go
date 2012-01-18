@@ -12,6 +12,9 @@ import (
 	"sync"
 )
 
+// -----------------------------------------------------------------------------
+// Positions
+
 // Position describes an arbitrary source position
 // including the file, line, and column location.
 // A Position is valid if the line number is > 0.
@@ -81,84 +84,8 @@ func (p Pos) IsValid() bool {
 	return p != NoPos
 }
 
-func searchFiles(a []*File, x int) int {
-	return sort.Search(len(a), func(i int) bool { return a[i].base > x }) - 1
-}
-
-func (s *FileSet) file(p Pos) *File {
-	// common case: p is in last file touched
-	if f := s.last; f != nil && f.base <= int(p) && int(p) <= f.base+f.size {
-		return f
-	}
-	// p is not in last file touched - search all files
-	if i := searchFiles(s.files, int(p)); i >= 0 {
-		f := s.files[i]
-		// f.base <= int(p) by definition of searchFiles
-		if int(p) <= f.base+f.size {
-			s.last = f
-			return f
-		}
-	}
-	return nil
-}
-
-// File returns the file which contains the position p.
-// If no such file is found (for instance for p == NoPos),
-// the result is nil.
-//
-func (s *FileSet) File(p Pos) (f *File) {
-	if p != NoPos {
-		s.mutex.RLock()
-		f = s.file(p)
-		s.mutex.RUnlock()
-	}
-	return
-}
-
-func (f *File) position(p Pos) (pos Position) {
-	offset := int(p) - f.base
-	pos.Offset = offset
-	pos.Filename, pos.Line, pos.Column = f.info(offset)
-	return
-}
-
-// Position converts a Pos in the fileset into a general Position.
-func (s *FileSet) Position(p Pos) (pos Position) {
-	if p != NoPos {
-		s.mutex.RLock()
-		if f := s.file(p); f != nil {
-			pos = f.position(p)
-		}
-		s.mutex.RUnlock()
-	}
-	return
-}
-
-// A lineInfo object describes alternative file and line number
-// information (such as provided via a //line comment in a .go
-// file) for a given file offset.
-type lineInfo struct {
-	// fields are exported to make them accessible to gob
-	Offset   int
-	Filename string
-	Line     int
-}
-
-// AddLineInfo adds alternative file and line number information for
-// a given file offset. The offset must be larger than the offset for
-// the previously added alternative line info and smaller than the
-// file size; otherwise the information is ignored.
-//
-// AddLineInfo is typically used to register alternative position
-// information for //line filename:line comments in source files.
-//
-func (f *File) AddLineInfo(offset int, filename string, line int) {
-	f.set.mutex.Lock()
-	if i := len(f.infos); i == 0 || f.infos[i-1].Offset < offset && offset < f.size {
-		f.infos = append(f.infos, lineInfo{offset, filename, line})
-	}
-	f.set.mutex.Unlock()
-}
+// -----------------------------------------------------------------------------
+// File
 
 // A File is a handle for a file belonging to a FileSet.
 // A File has a name, size, and line offset table.
@@ -253,6 +180,32 @@ func (f *File) SetLinesForContent(content []byte) {
 	f.set.mutex.Unlock()
 }
 
+// A lineInfo object describes alternative file and line number
+// information (such as provided via a //line comment in a .go
+// file) for a given file offset.
+type lineInfo struct {
+	// fields are exported to make them accessible to gob
+	Offset   int
+	Filename string
+	Line     int
+}
+
+// AddLineInfo adds alternative file and line number information for
+// a given file offset. The offset must be larger than the offset for
+// the previously added alternative line info and smaller than the
+// file size; otherwise the information is ignored.
+//
+// AddLineInfo is typically used to register alternative position
+// information for //line filename:line comments in source files.
+//
+func (f *File) AddLineInfo(offset int, filename string, line int) {
+	f.set.mutex.Lock()
+	if i := len(f.infos); i == 0 || f.infos[i-1].Offset < offset && offset < f.size {
+		f.infos = append(f.infos, lineInfo{offset, filename, line})
+	}
+	f.set.mutex.Unlock()
+}
+
 // Pos returns the Pos value for the given file offset;
 // the offset must be <= f.Size().
 // f.Pos(f.Offset(p)) == p.
@@ -283,41 +236,6 @@ func (f *File) Line(p Pos) int {
 	return f.Position(p).Line
 }
 
-// Position returns the Position value for the given file position p;
-// p must be a Pos value in that file or NoPos.
-//
-func (f *File) Position(p Pos) (pos Position) {
-	if p != NoPos {
-		if int(p) < f.base || int(p) > f.base+f.size {
-			panic("illegal Pos value")
-		}
-		pos = f.position(p)
-	}
-	return
-}
-
-func searchInts(a []int, x int) int {
-	// This function body is a manually inlined version of:
-	//
-	//   return sort.Search(len(a), func(i int) bool { return a[i] > x }) - 1
-	//
-	// With better compiler optimizations, this may not be needed in the
-	// future, but at the moment this change improves the go/printer
-	// benchmark performance by ~30%. This has a direct impact on the
-	// speed of gofmt and thus seems worthwhile (2011-04-29).
-	i, j := 0, len(a)
-	for i < j {
-		h := i + (j-i)/2 // avoid overflow when computing h
-		// i ≤ h < j
-		if a[h] <= x {
-			i = h + 1
-		} else {
-			j = h
-		}
-	}
-	return i - 1
-}
-
 func searchLineInfos(a []lineInfo, x int) int {
 	return sort.Search(len(a), func(i int) bool { return a[i].Offset > x }) - 1
 }
@@ -340,6 +258,29 @@ func (f *File) info(offset int) (filename string, line, column int) {
 	}
 	return
 }
+
+func (f *File) position(p Pos) (pos Position) {
+	offset := int(p) - f.base
+	pos.Offset = offset
+	pos.Filename, pos.Line, pos.Column = f.info(offset)
+	return
+}
+
+// Position returns the Position value for the given file position p;
+// p must be a Pos value in that file or NoPos.
+//
+func (f *File) Position(p Pos) (pos Position) {
+	if p != NoPos {
+		if int(p) < f.base || int(p) > f.base+f.size {
+			panic("illegal Pos value")
+		}
+		pos = f.position(p)
+	}
+	return
+}
+
+// -----------------------------------------------------------------------------
+// FileSet
 
 // A FileSet represents a set of source files.
 // Methods of file sets are synchronized; multiple goroutines
@@ -404,23 +345,91 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 	return f
 }
 
-// Files returns the files added to the file set.
-func (s *FileSet) Files() <-chan *File {
-	ch := make(chan *File)
-	go func() {
-		for i := 0; ; i++ {
-			var f *File
-			s.mutex.RLock()
-			if i < len(s.files) {
-				f = s.files[i]
-			}
-			s.mutex.RUnlock()
-			if f == nil {
-				break
-			}
-			ch <- f
+// Iterate calls f for the files in the file set in the order they were added
+// until f returns false.
+// 
+func (s *FileSet) Iterate(f func(*File) bool) {
+	for i := 0; ; i++ {
+		var file *File
+		s.mutex.RLock()
+		if i < len(s.files) {
+			file = s.files[i]
 		}
-		close(ch)
-	}()
-	return ch
+		s.mutex.RUnlock()
+		if file == nil || !f(file) {
+			break
+		}
+	}
+}
+
+func searchFiles(a []*File, x int) int {
+	return sort.Search(len(a), func(i int) bool { return a[i].base > x }) - 1
+}
+
+func (s *FileSet) file(p Pos) *File {
+	// common case: p is in last file
+	if f := s.last; f != nil && f.base <= int(p) && int(p) <= f.base+f.size {
+		return f
+	}
+	// p is not in last file - search all files
+	if i := searchFiles(s.files, int(p)); i >= 0 {
+		f := s.files[i]
+		// f.base <= int(p) by definition of searchFiles
+		if int(p) <= f.base+f.size {
+			s.last = f
+			return f
+		}
+	}
+	return nil
+}
+
+// File returns the file that contains the position p.
+// If no such file is found (for instance for p == NoPos),
+// the result is nil.
+//
+func (s *FileSet) File(p Pos) (f *File) {
+	if p != NoPos {
+		s.mutex.RLock()
+		f = s.file(p)
+		s.mutex.RUnlock()
+	}
+	return
+}
+
+// Position converts a Pos in the fileset into a general Position.
+func (s *FileSet) Position(p Pos) (pos Position) {
+	if p != NoPos {
+		s.mutex.RLock()
+		if f := s.file(p); f != nil {
+			pos = f.position(p)
+		}
+		s.mutex.RUnlock()
+	}
+	return
+}
+
+// -----------------------------------------------------------------------------
+// Helper functions
+
+func searchInts(a []int, x int) int {
+	// This function body is a manually inlined version of:
+	//
+	//   return sort.Search(len(a), func(i int) bool { return a[i] > x }) - 1
+	//
+	// With better compiler optimizations, this may not be needed in the
+	// future, but at the moment this change improves the go/printer
+	// benchmark performance by ~30%. This has a direct impact on the
+	// speed of gofmt and thus seems worthwhile (2011-04-29).
+	// TODO(gri): Remove this when compilers have caught up.
+	i, j := 0, len(a)
+	for i < j {
+		h := i + (j-i)/2 // avoid overflow when computing h
+		// i ≤ h < j
+		if a[h] <= x {
+			i = h + 1
+		} else {
+			j = h
+		}
+	}
+	return i - 1
 }
