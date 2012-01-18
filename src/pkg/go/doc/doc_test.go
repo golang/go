@@ -77,6 +77,11 @@ func Test(t *testing.T) {
 		importpath := dataDir + "/" + pkg.Name
 		doc := New(pkg, importpath, 0)
 
+		// golden files always use / in filenames - canonicalize them
+		for i, filename := range doc.Filenames {
+			doc.Filenames[i] = filepath.ToSlash(filename)
+		}
+
 		// print documentation
 		var buf bytes.Buffer
 		if err := templateTxt.Execute(&buf, bundle{doc, fset}); err != nil {
