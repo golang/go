@@ -7,61 +7,60 @@
 package main
 
 type Item interface {
-	Print();
+	Print()
 }
 
 type ListItem struct {
-	item    Item;
-	next    *ListItem;
+	item Item
+	next *ListItem
 }
 
 type List struct {
-	head    *ListItem;
+	head *ListItem
 }
 
 func (list *List) Init() {
-	list.head = nil;
+	list.head = nil
 }
 
 func (list *List) Insert(i Item) {
-	item := new(ListItem);
-	item.item = i;
-	item.next = list.head;
-	list.head = item;
+	item := new(ListItem)
+	item.item = i
+	item.next = list.head
+	list.head = item
 }
 
 func (list *List) Print() {
-	i := list.head;
+	i := list.head
 	for i != nil {
-		i.item.Print();
-		i = i.next;
+		i.item.Print()
+		i = i.next
 	}
 }
 
 // Something to put in a list
 type Integer struct {
-	val		int;
+	val int
 }
 
 func (this *Integer) Init(i int) *Integer {
-	this.val = i;
-	return this;
+	this.val = i
+	return this
 }
 
 func (this *Integer) Print() {
-	print(this.val);
+	print(this.val)
 }
 
-func
-main() {
-	list := new(List);
-	list.Init();
+func main() {
+	list := new(List)
+	list.Init()
 	for i := 0; i < 10; i = i + 1 {
-		integer := new(Integer);
-		integer.Init(i);
-		list.Insert(integer);
+		integer := new(Integer)
+		integer.Init(i)
+		list.Insert(integer)
 	}
 
-	list.Print();
-	print("\n");
+	list.Print()
+	print("\n")
 }
