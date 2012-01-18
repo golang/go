@@ -6,7 +6,7 @@
 // source which can then be tokenized through repeated calls to the Scan
 // function. Typical use:
 //
-//	var s Scanner
+//	var s scanner.Scanner
 //	fset := token.NewFileSet()  // position information is relative to fset
 //      file := fset.AddFile(filename, fset.Base(), len(src))  // register file
 //	s.Init(file, src, nil /* no error handler */, 0)
