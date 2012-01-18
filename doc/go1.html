@@ -918,6 +918,70 @@ and <code>os.FileMode</code> API.
 Code that needs system-specific file details will need to be updated by hand.
 </p>
 
+<h3 id="go">The package tree go</h3>
+
+<p>
+Several packages under <code>go</code> have slightly revised APIs.
+</p>
+
+<p>
+The modes <code>AllowIllegalChars</code> and <code>InsertSemis</code> have been removed
+from the <a href="/pkg/go/scanner/"><code>go/scanner</code></a> package. They were mostly
+useful for scanning text other then Go source files. Instead, the
+<a href="/pkg/text/scanner/"><code>text/scanner</code></a> package should be used
+for that purpose.
+</p>
+
+<p>
+The set of parse functions provided by the <a href="/pkg/go/parser/"><code>go/parser</code></a>
+package has been reduced to the primary parse function
+<a href="go/parser/#ParseFile"><code>ParseFile</code></a>, and a couple of
+convenience functions <a href="go/parser/#ParseDir"><code>ParseDir</code></a>
+and <a href="go/parser/#ParseExpr"><code>ParseExpr</code></a>.
+</p>
+
+<p>
+The type names of the <a href="go/doc/"><code>go/doc</code></a> package have been
+streamlined by removing the <code>Doc</code> suffix: <code>PackageDoc</code>
+is now <code>Package</code>, <code>ValueDoc</code> is <code>Value</code>, etc.
+Also, all types now consistently have a <code>Name</code> field (or <code>Names</code>,
+in the case of type <code>Value</code>), <code>Type.Factories</code> has become
+<code>Type.Funcs</code>, and there is a new type <code>Method</code> that describes
+methods in more detail.
+Instead of calling <code>doc.NewPackageDoc(pkg, importpath)</code>,
+documentation for a package is created with:
+</p>
+
+<pre>
+    doc.New(pkg, importpath, mode)
+</pre>
+
+<p>
+where the new <code>mode</mode> parameter specifies the operation mode:
+if set to <a href="go/doc/#AllDecls"><code>AllDecls</a>, all declarations
+(not just exported ones) are considered.
+The function <code>NewFileDoc</code> was removed, and the function
+<code>CommentText</code> has become the method
+<a href="go/ast/#Text"><code>Text</code></a> of
+<a href="go/ast/#CommentGroup"><code>ast.CommentGroup</code></a>.
+</p>
+
+<p>
+In package <a href="go/token/"><code>go/token</code></a>, the
+<a href="go/token/#FileSet"><code>token.FileSet</code></a> method <code>Files</code>
+(which originally returned a channel of <code>*token.File</code>s) has been replaced
+with the iterator <a href="go/token/#FileSet.Iterate"><code>Iterate</code></a> that
+accepts a function argument instead.
+</p>
+
+<p>
+<em>Updating</em>:
+Code that uses packages in <code>go</code> will have to be updated by hand; the
+compiler will reject incorrect uses. Templates used in conjuction with any of the
+<code>go/doc</code> types may need manual fixes; the renamed fields will lead
+to run-time errors.
+</p>
+
 <h3 id="exp">The package tree exp</h3>
 
 <p>
