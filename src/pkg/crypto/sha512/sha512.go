@@ -22,6 +22,9 @@ const Size = 64
 // The size of a SHA384 checksum in bytes.
 const Size384 = 48
 
+// The blocksize of SHA512 and SHA384 in bytes.
+const BlockSize = 128
+
 const (
 	_Chunk     = 128
 	_Init0     = 0x6a09e667f3bcc908
@@ -96,6 +99,8 @@ func (d *digest) Size() int {
 	}
 	return Size384
 }
+
+func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
 	nn = len(p)

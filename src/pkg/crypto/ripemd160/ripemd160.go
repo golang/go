@@ -55,6 +55,8 @@ func New() hash.Hash {
 
 func (d *digest) Size() int { return Size }
 
+func (d *digest) BlockSize() int { return BlockSize }
+
 func (d *digest) Write(p []byte) (nn int, err error) {
 	nn = len(p)
 	d.tc += uint64(nn)

@@ -53,3 +53,7 @@ func (cth *canonicalTextHash) Reset() {
 func (cth *canonicalTextHash) Size() int {
 	return cth.h.Size()
 }
+
+func (cth *canonicalTextHash) BlockSize() int {
+	return cth.h.BlockSize()
+}
