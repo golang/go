@@ -4,33 +4,31 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 package main
 
-func
-main() {
-	i := 0;
+func main() {
+	i := 0
 	if false {
-		goto gogoloop;
+		goto gogoloop
 	}
 	if false {
-		goto gogoloop;
+		goto gogoloop
 	}
 	if false {
-		goto gogoloop;
+		goto gogoloop
 	}
-	goto gogoloop;
+	goto gogoloop
 
-// backward declared
+	// backward declared
 loop:
-	i = i+1;
+	i = i + 1
 	if i < 100 {
-		goto loop;
+		goto loop
 	}
-	print(i);
-	print("\n");
-	return;
+	print(i)
+	print("\n")
+	return
 
 gogoloop:
-	goto loop;
+	goto loop
 }
