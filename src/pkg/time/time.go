@@ -130,7 +130,7 @@ var days = [...]string{
 func (d Weekday) String() string { return days[d] }
 
 // Computations on time.
-// 
+//
 // The zero value for a Time is defined to be
 //	January 1, year 1, 00:00:00.000000000 UTC
 // which (1) looks like a zero, or as close as you can get in a date
@@ -138,16 +138,16 @@ func (d Weekday) String() string { return days[d] }
 // be a suitable "not set" sentinel, unlike Jan 1 1970, and (3) has a
 // non-negative year even in time zones west of UTC, unlike 1-1-0
 // 00:00:00 UTC, which would be 12-31-(-1) 19:00:00 in New York.
-// 
+//
 // The zero Time value does not force a specific epoch for the time
 // representation.  For example, to use the Unix epoch internally, we
 // could define that to distinguish a zero value from Jan 1 1970, that
 // time would be represented by sec=-1, nsec=1e9.  However, it does
 // suggest a representation, namely using 1-1-1 00:00:00 UTC as the
 // epoch, and that's what we do.
-// 
+//
 // The Add and Sub computations are oblivious to the choice of epoch.
-// 
+//
 // The presentation computations - year, month, minute, and so on - all
 // rely heavily on division and modulus by positive constants.  For
 // calendrical calculations we want these divisions to round down, even
@@ -172,7 +172,7 @@ func (d Weekday) String() string { return days[d] }
 //	}
 //
 // everywhere.
-// 
+//
 // The calendar runs on an exact 400 year cycle: a 400-year calendar
 // printed for 1970-2469 will apply as well to 2470-2869.  Even the days
 // of the week match up.  It simplifies the computations to choose the
@@ -182,22 +182,22 @@ func (d Weekday) String() string { return days[d] }
 // is the 100th year, and the missed missed leap year is the 400th year.
 // So we'd prefer instead to print a calendar for 2001-2400 and reuse it
 // for 2401-2800.
-// 
+//
 // Finally, it's convenient if the delta between the Unix epoch and
 // long-ago epoch is representable by an int64 constant.
-// 
+//
 // These three considerations—choose an epoch as early as possible, that
 // uses a year equal to 1 mod 400, and that is no more than 2⁶³ seconds
 // earlier than 1970—bring us to the year -292277022399.  We refer to
 // this year as the absolute zero year, and to times measured as a uint64
 // seconds since this year as absolute times.
-// 
+//
 // Times measured as an int64 seconds since the year 1—the representation
 // used for Time's sec field—are called internal times.
-// 
+//
 // Times measured as an int64 seconds since the year 1970 are called Unix
 // times.
-// 
+//
 // It is tempting to just use the year 1 as the absolute epoch, defining
 // that the routines are only valid for years >= 1.  However, the
 // routines would then be invalid when displaying the epoch in time zones
@@ -205,7 +205,7 @@ func (d Weekday) String() string { return days[d] }
 // printing the zero time correctly isn't supported in half the time
 // zones.  By comparison, it's reasonable to mishandle some times in
 // the year -292277022399.
-// 
+//
 // All this is opaque to clients of the API and can be changed if a
 // better implementation presents itself.
 
@@ -288,8 +288,8 @@ func (t Time) Weekday() Weekday {
 }
 
 // ISOWeek returns the ISO 8601 year and week number in which t occurs.
-// Week ranges from 1 to 53. Jan 01 to Jan 03 of year n might belong to 
-// week 52 or 53 of year n-1, and Dec 29 to Dec 31 might belong to week 1 
+// Week ranges from 1 to 53. Jan 01 to Jan 03 of year n might belong to
+// week 52 or 53 of year n-1, and Dec 29 to Dec 31 might belong to week 1
 // of year n+1.
 func (t Time) ISOWeek() (year, week int) {
 	year, month, day, yday := t.date(true)
@@ -564,6 +564,12 @@ func (t Time) Add(d Duration) Time {
 // To compute t-d for a duration d, use t.Add(-d).
 func (t Time) Sub(u Time) Duration {
 	return Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
+}
+
+// Since returns the time elapsed since t.
+// It is shorthand for time.Now().Sub(t).
+func Since(t Time) Duration {
+	return Now().Sub(t)
 }
 
 // AddDate returns the time corresponding to adding the
