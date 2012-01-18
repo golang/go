@@ -7,17 +7,20 @@
 package main
 
 func main() {
+	r := ""
 	a := 3
 	for i := 0; i < 10; i = i + 1 {
 		switch i {
 		case 5:
-			print("five")
+			r += "five"
 		case a, 7:
-			print("a")
+			r += "a"
 		default:
-			print(i)
+			r += string(i + '0')
 		}
-		print("out", i)
+		r += "out" + string(i+'0')
 	}
-	print("\n")
+	if r != "0out01out12out2aout34out4fiveout56out6aout78out89out9" {
+		panic(r)
+	}
 }

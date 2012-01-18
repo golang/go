@@ -7,7 +7,7 @@
 package main
 
 type Item interface {
-	Print()
+	Print() string
 }
 
 type ListItem struct {
@@ -30,12 +30,14 @@ func (list *List) Insert(i Item) {
 	list.head = item
 }
 
-func (list *List) Print() {
+func (list *List) Print() string {
+	r := ""
 	i := list.head
 	for i != nil {
-		i.item.Print()
+		r += i.item.Print()
 		i = i.next
 	}
+	return r
 }
 
 // Something to put in a list
@@ -48,8 +50,8 @@ func (this *Integer) Init(i int) *Integer {
 	return this
 }
 
-func (this *Integer) Print() {
-	print(this.val)
+func (this *Integer) Print() string {
+	return string(this.val + '0')
 }
 
 func main() {
@@ -61,6 +63,8 @@ func main() {
 		list.Insert(integer)
 	}
 
-	list.Print()
-	print("\n")
+	r := list.Print()
+	if r != "9876543210" {
+		panic(r)
+	}
 }

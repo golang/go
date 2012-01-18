@@ -6,6 +6,8 @@
 
 package main
 
+import "fmt"
+
 const nilchar = 0
 
 type Atom struct {
@@ -80,40 +82,44 @@ func main() {
 		if list == nil {
 			break
 		}
-		list.Print()
+		r := list.Print()
 		list.Free()
+		if r != "(defn foo (add 12 34))" {
+			panic(r)
+		}
 		break
 	}
 }
 
-func (slist *Slist) PrintOne(doparen bool) {
+func (slist *Slist) PrintOne(doparen bool) string {
 	if slist == nil {
-		return
+		return ""
 	}
+	var r string
 	if slist.isatom {
 		if slist.isstring {
-			print(slist.String())
+			r = slist.String()
 		} else {
-			print(slist.Integer())
+			r = fmt.Sprintf("%v", slist.Integer())
 		}
 	} else {
 		if doparen {
-			print("(")
+			r += "("
 		}
-		slist.Car().PrintOne(true)
+		r += slist.Car().PrintOne(true)
 		if slist.Cdr() != nil {
-			print(" ")
-			slist.Cdr().PrintOne(false)
+			r += " "
+			r += slist.Cdr().PrintOne(false)
 		}
 		if doparen {
-			print(")")
+			r += ")"
 		}
 	}
+	return r
 }
 
-func (slist *Slist) Print() {
-	slist.PrintOne(true)
-	print("\n")
+func (slist *Slist) Print() string {
+	return slist.PrintOne(true)
 }
 
 func Get() int {

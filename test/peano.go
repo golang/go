@@ -107,8 +107,16 @@ func init() {
 // -------------------------------------
 // Factorial
 
+var results = [...]int{
+	1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800,
+	39916800, 479001600,
+}
+
 func main() {
 	for i := 0; i <= 9; i++ {
-		print(i, "! = ", count(fact(gen(i))), "\n")
+		if f := count(fact(gen(i))); f != results[i] {
+			println("FAIL:", i, "!:", f, "!=", results[i])
+			panic(0)
+		}
 	}
 }
