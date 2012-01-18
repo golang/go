@@ -17,6 +17,9 @@ func init() {
 // The size of a SHA1 checksum in bytes.
 const Size = 20
 
+// The blocksize of SHA1 in bytes.
+const BlockSize = 64
+
 const (
 	_Chunk = 64
 	_Init0 = 0x67452301
@@ -52,6 +55,8 @@ func New() hash.Hash {
 }
 
 func (d *digest) Size() int { return Size }
+
+func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
 	nn = len(p)

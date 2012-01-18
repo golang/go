@@ -38,6 +38,8 @@ func New() hash.Hash32 {
 
 func (d *digest) Size() int { return Size }
 
+func (d *digest) BlockSize() int { return 1 }
+
 // Add p to the running checksum a, b.
 func update(a, b uint32, p []byte) (aa, bb uint32) {
 	for _, pi := range p {

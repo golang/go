@@ -94,6 +94,8 @@ func NewIEEE() hash.Hash32 { return New(IEEETable) }
 
 func (d *digest) Size() int { return Size }
 
+func (d *digest) BlockSize() int { return 1 }
+
 func (d *digest) Reset() { d.crc = 0 }
 
 func update(crc uint32, tab *Table, p []byte) uint32 {

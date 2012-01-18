@@ -328,6 +328,8 @@ func (t truncatingMAC) Size() int {
 	return t.length
 }
 
+func (t truncatingMAC) BlockSize() int { return t.hmac.BlockSize() }
+
 // maxVersionStringBytes is the maximum number of bytes that we'll accept as a
 // version string. In the event that the client is talking a different protocol
 // we need to set a limit otherwise we will keep using more and more memory

@@ -53,6 +53,8 @@ func New(tab *Table) hash.Hash64 { return &digest{0, tab} }
 
 func (d *digest) Size() int { return Size }
 
+func (d *digest) BlockSize() int { return 1 }
+
 func (d *digest) Reset() { d.crc = 0 }
 
 func update(crc uint64, tab *Table, p []byte) uint64 {
