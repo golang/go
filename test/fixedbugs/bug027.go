@@ -6,6 +6,8 @@
 
 package main
 
+import "fmt"
+
 type Element interface {
 }
 
@@ -43,7 +45,7 @@ func main() {
 	i4 := new(I)
 	i4.val = 44444
 	v := New()
-	print("hi\n")
+	r := "hi\n"
 	v.Insert(i4)
 	v.Insert(i3)
 	v.Insert(i2)
@@ -52,10 +54,25 @@ func main() {
 	for i := 0; i < v.nelem; i++ {
 		var x *I
 		x = v.At(i).(*I)
-		print(i, " ", x.val, "\n") // prints correct list
+		r += fmt.Sprintln(i, x.val) // prints correct list
 	}
 	for i := 0; i < v.nelem; i++ {
-		print(i, " ", v.At(i).(*I).val, "\n")
+		r += fmt.Sprintln(i, v.At(i).(*I).val)
+	}
+	expect := `hi
+0 44444
+1 3333
+2 222
+3 11
+4 0
+0 44444
+1 3333
+2 222
+3 11
+4 0
+`
+	if r != expect {
+		panic(r)
 	}
 }
 

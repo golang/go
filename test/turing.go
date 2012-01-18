@@ -25,6 +25,7 @@ func scan(dir int) {
 }
 
 func main() {
+	r := ""
 	for {
 		switch prog[pc] {
 		case '>':
@@ -36,7 +37,7 @@ func main() {
 		case '-':
 			a[p]--
 		case '.':
-			print(string(a[p]))
+			r += string(a[p])
 		case '[':
 			if a[p] == 0 {
 				scan(1)
@@ -46,6 +47,9 @@ func main() {
 				scan(-1)
 			}
 		default:
+			if r != "Hello World!\n" {
+				panic(r)
+			}
 			return
 		}
 		pc++
