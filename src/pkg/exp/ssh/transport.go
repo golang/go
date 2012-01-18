@@ -339,7 +339,7 @@ const maxVersionStringBytes = 1024
 // Read version string as specified by RFC 4253, section 4.2.
 func readVersion(r io.Reader) ([]byte, error) {
 	versionString := make([]byte, 0, 64)
-	var ok, seenCR bool
+	var ok bool
 	var buf [1]byte
 forEachByte:
 	for len(versionString) < maxVersionStringBytes {
@@ -347,27 +347,22 @@ forEachByte:
 		if err != nil {
 			return nil, err
 		}
-		b := buf[0]
-
-		if !seenCR {
-			if b == '\r' {
-				seenCR = true
-			}
-		} else {
-			if b == '\n' {
-				ok = true
-				break forEachByte
-			} else {
-				seenCR = false
-			}
+		// The RFC says that the version should be terminated with \r\n
+		// but several SSH servers actually only send a \n.
+		if buf[0] == '\n' {
+			ok = true
+			break forEachByte
 		}
-		versionString = append(versionString, b)
+		versionString = append(versionString, buf[0])
 	}
 
 	if !ok {
-		return nil, errors.New("failed to read version string")
+		return nil, errors.New("ssh: failed to read version string")
 	}
 
-	// We need to remove the CR from versionString
-	return versionString[:len(versionString)-1], nil
+	// There might be a '\r' on the end which we should remove.
+	if len(versionString) > 0 && versionString[len(versionString)-1] == '\r' {
+		versionString = versionString[:len(versionString)-1]
+	}
+	return versionString, nil
 }
