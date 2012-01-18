@@ -22,7 +22,7 @@ func main() {
 	// main.go:27: cannot use &x (type *"io".SectionReader) as type *"/Users/rsc/g/go/test/fixedbugs/bug345.dir/io".SectionReader in function argument
 
 	var w io.Writer
-	bufio.NewWriter(w)  // ERROR "test/io"
+	bufio.NewWriter(w)  // ERROR "test/io|has incompatible type"
 	var x goio.SectionReader
-	io.SR(&x)  // ERROR "test/io"
+	io.SR(&x)  // ERROR "test/io|has incompatible type"
 }
