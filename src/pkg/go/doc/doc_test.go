@@ -6,132 +6,105 @@ package doc
 
 import (
 	"bytes"
-	"fmt"
-	"go/ast"
+	"flag"
 	"go/parser"
+	"go/printer"
 	"go/token"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"text/template"
 )
 
-type sources map[string]string // filename -> file contents
+var update = flag.Bool("update", false, "update golden (.out) files")
 
-type testCase struct {
-	name       string
-	importPath string
-	mode       Mode
-	srcs       sources
-	doc        string
+const dataDir = "testdata"
+
+var templateTxt = readTemplate("template.txt")
+
+func readTemplate(filename string) *template.Template {
+	t := template.New(filename)
+	t.Funcs(template.FuncMap{
+		"node":     nodeFmt,
+		"synopsis": synopsisFmt,
+	})
+	return template.Must(t.ParseFiles(filepath.Join(dataDir, filename)))
 }
 
-var tests = make(map[string]*testCase)
-
-// To register a new test case, use the pattern:
-//
-//	var _ = register(&testCase{ ... })
-//
-// (The result value of register is always 0 and only present to enable the pattern.)
-//
-func register(test *testCase) int {
-	if _, found := tests[test.name]; found {
-		panic(fmt.Sprintf("registration failed: test case %q already exists", test.name))
-	}
-	tests[test.name] = test
-	return 0
+func nodeFmt(node interface{}, fset *token.FileSet) string {
+	var buf bytes.Buffer
+	printer.Fprint(&buf, fset, node)
+	return strings.Replace(strings.TrimSpace(buf.String()), "\n", "\n\t", -1)
 }
 
-func runTest(t *testing.T, test *testCase) {
-	// create AST
-	fset := token.NewFileSet()
-	var pkg ast.Package
-	pkg.Files = make(map[string]*ast.File)
-	for filename, src := range test.srcs {
-		file, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
-		if err != nil {
-			t.Errorf("test %s: %v", test.name, err)
-			return
+func synopsisFmt(s string) string {
+	const n = 64
+	if len(s) > n {
+		// cut off excess text and go back to a word boundary
+		s = s[0:n]
+		if i := strings.LastIndexAny(s, "\t\n "); i >= 0 {
+			s = s[0:i]
 		}
-		switch {
-		case pkg.Name == "":
-			pkg.Name = file.Name.Name
-		case pkg.Name != file.Name.Name:
-			t.Errorf("test %s: different package names in test files", test.name)
-			return
-		}
-		pkg.Files[filename] = file
+		s = strings.TrimSpace(s) + " ..."
 	}
+	return "// " + strings.Replace(s, "\n", " ", -1)
+}
 
-	doc := New(&pkg, test.importPath, test.mode).String()
-	if doc != test.doc {
-		//TODO(gri) Enable this once the sorting issue of comments is fixed
-		//t.Errorf("test %s\n\tgot : %s\n\twant: %s", test.name, doc, test.doc)
-	}
+func isGoFile(fi os.FileInfo) bool {
+	name := fi.Name()
+	return !fi.IsDir() &&
+		len(name) > 0 && name[0] != '.' && // ignore .files
+		filepath.Ext(name) == ".go"
+}
+
+type bundle struct {
+	*Package
+	FSet *token.FileSet
 }
 
 func Test(t *testing.T) {
-	for _, test := range tests {
-		runTest(t, test)
+	// get all packages
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, dataDir, isGoFile, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// test all packages
+	for _, pkg := range pkgs {
+		importpath := dataDir + "/" + pkg.Name
+		doc := New(pkg, importpath, 0)
+
+		// print documentation
+		var buf bytes.Buffer
+		if err := templateTxt.Execute(&buf, bundle{doc, fset}); err != nil {
+			t.Error(err)
+			continue
+		}
+		got := buf.Bytes()
+
+		// update golden file if necessary
+		golden := filepath.Join(dataDir, pkg.Name+".out")
+		if *update {
+			err := ioutil.WriteFile(golden, got, 0644)
+			if err != nil {
+				t.Error(err)
+			}
+			continue
+		}
+
+		// get golden file
+		want, err := ioutil.ReadFile(golden)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		// compare
+		if bytes.Compare(got, want) != 0 {
+			t.Errorf("package %s\n\tgot:\n%s\n\twant:\n%s", pkg.Name, got, want)
+		}
 	}
 }
-
-// ----------------------------------------------------------------------------
-// Printing support
-
-func (pkg *Package) String() string {
-	var buf bytes.Buffer
-	docText.Execute(&buf, pkg) // ignore error - test will fail w/ incorrect output
-	return buf.String()
-}
-
-// TODO(gri) complete template
-var docText = template.Must(template.New("docText").Parse(
-	`
-PACKAGE {{.Name}}
-DOC {{printf "%q" .Doc}}
-IMPORTPATH {{.ImportPath}}
-FILENAMES {{.Filenames}}
-`))
-
-// ----------------------------------------------------------------------------
-// Test cases
-
-// Test that all package comments and bugs are collected,
-// and that the importPath is correctly set.
-//
-var _ = register(&testCase{
-	name:       "p",
-	importPath: "p",
-	srcs: sources{
-		"p1.go": "// comment 1\npackage p\n//BUG(uid): bug1",
-		"p0.go": "// comment 0\npackage p\n// BUG(uid): bug0",
-	},
-	doc: `
-PACKAGE p
-DOC "comment 0\n\ncomment 1\n"
-IMPORTPATH p
-FILENAMES [p0.go p1.go]
-`,
-})
-
-// Test basic functionality.
-//
-var _ = register(&testCase{
-	name:       "p1",
-	importPath: "p",
-	srcs: sources{
-		"p.go": `
-package p
-import "a"
-const pi = 3.14       // pi
-type T struct{}       // T
-var V T               // v
-func F(x int) int {}  // F
-`,
-	},
-	doc: `
-PACKAGE p
-DOC ""
-IMPORTPATH p
-FILENAMES [p.go]
-`,
-})
