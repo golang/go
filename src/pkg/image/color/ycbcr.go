@@ -87,9 +87,9 @@ func (c YCbCr) RGBA() (uint32, uint32, uint32, uint32) {
 }
 
 // YCbCrModel is the Model for Y'CbCr colors.
-var YCbCrModel Model = ModelFunc(modelYCbCr)
+var YCbCrModel Model = ModelFunc(yCbCrModel)
 
-func modelYCbCr(c Color) Color {
+func yCbCrModel(c Color) Color {
 	if _, ok := c.(YCbCr); ok {
 		return c
 	}
