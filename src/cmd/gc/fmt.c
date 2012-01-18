@@ -943,6 +943,7 @@ static int opprec[] = {
 	[OAPPEND] = 8,
 	[OARRAYBYTESTR] = 8,
 	[OARRAYLIT] = 8,
+	[OARRAYRUNESTR] = 8,
 	[OCALLFUNC] = 8,
 	[OCALLINTER] = 8,
 	[OCALLMETH] = 8,
@@ -969,6 +970,8 @@ static int opprec[] = {
 	[OPRINT] = 8,
 	[ORECV] = 8,
 	[ORUNESTR] = 8,
+	[OSTRARRAYBYTE] = 8,
+	[OSTRARRAYRUNE] = 8,
 	[OSTRUCTLIT] = 8,
 	[OTARRAY] = 8,
 	[OTCHAN] = 8,
@@ -1214,7 +1217,9 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OCONVIFACE:
 	case OCONVNOP:
 	case OARRAYBYTESTR:
+	case OARRAYRUNESTR:
 	case OSTRARRAYBYTE:
+	case OSTRARRAYRUNE:
 	case ORUNESTR:
 		if(n->type == T || n->type->sym == S)
 			return fmtprint(f, "(%T)(%N)", n->type, n->left);
@@ -1372,7 +1377,8 @@ nodedump(Fmt *fp, Node *n)
 			indent(fp);
 		}
 	}
-		fmtprint(fp, "[%p]", n);
+
+//	fmtprint(fp, "[%p]", n);
 
 	switch(n->op) {
 	default:
