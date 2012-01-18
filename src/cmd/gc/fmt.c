@@ -1062,6 +1062,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 {
 	int nprec;
 	NodeList *l;
+	Type *t;
 
 	while(n && n->implicit)
 		n = n->left;
@@ -1160,11 +1161,22 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OSTRUCTLIT:
 		if (fmtmode == FExp) {   // requires special handling of field names
 			fmtprint(f, "%T{", n->type);
-			for(l=n->list; l; l=l->next)
+			for(l=n->list; l; l=l->next) {
+				// another special case: if n->left is an embedded field of builtin type,
+				// it needs to be non-qualified.  Can't figure that out in %S, so do it here
+				if(l->n->left->type->embedded) {
+					t = l->n->left->type->type;
+					if(t->sym == S)
+						t = t->type;
+					fmtprint(f, " %T:%N", t, l->n->right);
+				} else
+					fmtprint(f, " %hhS:%N", l->n->left->sym, l->n->right);
+
 				if(l->next)
-					fmtprint(f, " %hhS:%N,", l->n->left->sym, l->n->right);
+					fmtstrcpy(f, ",");
 				else
-					fmtprint(f, " %hhS:%N ", l->n->left->sym, l->n->right);
+					fmtstrcpy(f, " ");
+			}
 			return fmtstrcpy(f, "}");
 		}
 		// fallthrough
