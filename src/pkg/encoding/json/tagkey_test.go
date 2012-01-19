@@ -9,7 +9,7 @@ import (
 )
 
 type basicLatin2xTag struct {
-	V string `json:"$-"`
+	V string `json:"$%-/"`
 }
 
 type basicLatin3xTag struct {
@@ -53,7 +53,7 @@ type badFormatTag struct {
 }
 
 type badCodeTag struct {
-	Z string `json:" !\"#%&'()*+,./"`
+	Z string `json:" !\"#&'()*+,."`
 }
 
 var structTagObjectKeyTests = []struct {
@@ -61,7 +61,7 @@ var structTagObjectKeyTests = []struct {
 	value string
 	key   string
 }{
-	{basicLatin2xTag{"2x"}, "2x", "$-"},
+	{basicLatin2xTag{"2x"}, "2x", "$%-/"},
 	{basicLatin3xTag{"3x"}, "3x", "0123456789"},
 	{basicLatin4xTag{"4x"}, "4x", "ABCDEFGHIJKLMO"},
 	{basicLatin5xTag{"5x"}, "5x", "PQRSTUVWXYZ_"},

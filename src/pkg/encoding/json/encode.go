@@ -79,7 +79,8 @@ import (
 //    Int64String int64 `json:",string"`
 //
 // The key name will be used if it's a non-empty string consisting of
-// only Unicode letters, digits, dollar signs, hyphens, and underscores.
+// only Unicode letters, digits, dollar signs, percent signs, hyphens,
+// underscores and slashes.
 //
 // Map values encode as JSON objects.
 // The map's key type must be string; the object keys are used directly
