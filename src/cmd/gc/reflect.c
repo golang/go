@@ -357,7 +357,7 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
 	s = sym;
 	if(t->sym) {
 		ot = dgostringptr(s, ot, t->sym->name);
-		if(t != types[t->etype])
+		if(t != types[t->etype] && t != errortype)
 			ot = dgopkgpath(s, ot, t->sym->pkg);
 		else
 			ot = dgostringptr(s, ot, nil);

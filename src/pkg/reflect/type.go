@@ -69,7 +69,7 @@ type Type interface {
 
 	// PkgPath returns the type's package path.
 	// The package path is a full package import path like "encoding/base64".
-	// PkgPath returns an empty string for unnamed types.
+	// PkgPath returns an empty string for unnamed or predeclared types.
 	PkgPath() string
 
 	// Size returns the number of bytes needed to store
