@@ -12,6 +12,7 @@ GOFILES=\
 	go1pkgrename.go\
 	googlecode.go\
 	hashsum.go\
+	hmacnew.go\
 	htmlerr.go\
 	httpfinalurl.go\
 	httpfs.go\

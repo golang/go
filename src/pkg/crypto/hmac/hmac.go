@@ -9,9 +9,6 @@
 package hmac
 
 import (
-	"crypto/md5"
-	"crypto/sha1"
-	"crypto/sha256"
 	"hash"
 )
 
@@ -63,7 +60,7 @@ func (h *hmac) Reset() {
 	h.inner.Write(h.tmp[0:h.blocksize])
 }
 
-// New returns a new HMAC hash using the given crypto.Hash type and key.
+// New returns a new HMAC hash using the given hash.Hash type and key.
 func New(h func() hash.Hash, key []byte) hash.Hash {
 	hm := new(hmac)
 	hm.outer = h()
@@ -81,12 +78,3 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
 	hm.Reset()
 	return hm
 }
-
-// NewMD5 returns a new HMAC-MD5 hash using the given key.
-func NewMD5(key []byte) hash.Hash { return New(md5.New, key) }
-
-// NewSHA1 returns a new HMAC-SHA1 hash using the given key.
-func NewSHA1(key []byte) hash.Hash { return New(sha1.New, key) }
-
-// NewSHA256 returns a new HMAC-SHA256 hash using the given key.
-func NewSHA256(key []byte) hash.Hash { return New(sha256.New, key) }

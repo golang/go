@@ -91,7 +91,7 @@ func macSHA1(version uint16, key []byte) macFunction {
 		copy(mac.key, key)
 		return mac
 	}
-	return tls10MAC{hmac.NewSHA1(key)}
+	return tls10MAC{hmac.New(sha1.New, key)}
 }
 
 type macFunction interface {
