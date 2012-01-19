@@ -899,7 +899,7 @@ func TestErrors(t *testing.T) {
 		},
 		{
 			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
-			"z:1: (action: [(command: [F=[H]])]) appears in an ambiguous URL context",
+			"z:1: {{.H}} appears in an ambiguous URL context",
 		},
 		{
 			`<a onclick="alert('Hello \`,
@@ -1490,62 +1490,62 @@ func TestEnsurePipelineContains(t *testing.T) {
 	}{
 		{
 			"{{.X}}",
-			"[(command: [F=[X]])]",
+			".X",
 			[]string{},
 		},
 		{
 			"{{.X | html}}",
-			"[(command: [F=[X]]) (command: [I=html])]",
+			".X | html",
 			[]string{},
 		},
 		{
 			"{{.X}}",
-			"[(command: [F=[X]]) (command: [I=html])]",
+			".X | html",
 			[]string{"html"},
 		},
 		{
 			"{{.X | html}}",
-			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
+			".X | html | urlquery",
 			[]string{"urlquery"},
 		},
 		{
 			"{{.X | html | urlquery}}",
-			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
+			".X | html | urlquery",
 			[]string{"urlquery"},
 		},
 		{
 			"{{.X | html | urlquery}}",
-			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
+			".X | html | urlquery",
 			[]string{"html", "urlquery"},
 		},
 		{
 			"{{.X | html | urlquery}}",
-			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
+			".X | html | urlquery",
 			[]string{"html"},
 		},
 		{
 			"{{.X | urlquery}}",
-			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
+			".X | html | urlquery",
 			[]string{"html", "urlquery"},
 		},
 		{
 			"{{.X | html | print}}",
-			"[(command: [F=[X]]) (command: [I=urlquery]) (command: [I=html]) (command: [I=print])]",
+			".X | urlquery | html | print",
 			[]string{"urlquery", "html"},
 		},
 	}
-	for _, test := range tests {
+	for i, test := range tests {
 		tmpl := template.Must(template.New("test").Parse(test.input))
 		action, ok := (tmpl.Tree.Root.Nodes[0].(*parse.ActionNode))
 		if !ok {
-			t.Errorf("First node is not an action: %s", test.input)
+			t.Errorf("#%d: First node is not an action: %s", i, test.input)
 			continue
 		}
 		pipe := action.Pipe
 		ensurePipelineContains(pipe, test.ids)
 		got := pipe.String()
 		if got != test.output {
-			t.Errorf("%s, %v: want\n\t%s\ngot\n\t%s", test.input, test.ids, test.output, got)
+			t.Errorf("#%d: %s, %v: want\n\t%s\ngot\n\t%s", i, test.input, test.ids, test.output, got)
 		}
 	}
 }
