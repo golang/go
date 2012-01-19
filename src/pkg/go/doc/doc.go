@@ -36,8 +36,8 @@ type Value struct {
 type Method struct {
 	*Func
 	// TODO(gri) The following fields are not set at the moment. 
-	Recv  *Type // original receiver base type
-	Level int   // embedding level; 0 means Func is not embedded
+	Origin *Type // original receiver base type
+	Level  int   // embedding level; 0 means Func is not embedded
 }
 
 // Type is the documentation for type declaration.
