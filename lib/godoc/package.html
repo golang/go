@@ -3,6 +3,7 @@
 	Use of this source code is governed by a BSD-style
 	license that can be found in the LICENSE file.
 -->
+{{if .IsPkg}}
 <!-- Table of contents; must be named manual-nav to turn off auto nav. -->
 <div id="manual-nav">
 {{with .PDoc}}
@@ -37,6 +38,7 @@
 	</dl>
 {{end}}
 </div>
+{{end}}
 
 <!-- Main page -->		
 {{with .PAst}}
