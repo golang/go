@@ -624,6 +624,13 @@ func (w WaitStatus) Signaled() bool { return false }
 
 func (w WaitStatus) TrapCause() int { return -1 }
 
+// Timespec is an invented structure on Windows, but here for
+// consistency with the syscall package for other operating systems.
+type Timespec struct {
+	Sec  int64
+	Nsec int64
+}
+
 // TODO(brainman): fix all needed for net
 
 func Accept(fd Handle) (nfd Handle, sa Sockaddr, err error) { return 0, nil, EWINDOWS }
