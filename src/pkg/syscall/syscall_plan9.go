@@ -268,6 +268,11 @@ func Fchdir(fd int) (err error) {
 	return Chdir(path)
 }
 
+type Timespec struct {
+	Sec  int32
+	Nsec int32
+}
+
 type Timeval struct {
 	Sec  int32
 	Usec int32
