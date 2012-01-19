@@ -85,6 +85,7 @@ type Regexp struct {
 	prefixRune     rune           // first rune in prefix
 	cond           syntax.EmptyOp // empty-width conditions required at start of match
 	numSubexp      int
+	subexpNames    []string
 	longest        bool
 
 	// cache of machines for running regexp
@@ -140,17 +141,20 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 		return nil, err
 	}
 	maxCap := re.MaxCap()
+	capNames := re.CapNames()
+
 	re = re.Simplify()
 	prog, err := syntax.Compile(re)
 	if err != nil {
 		return nil, err
 	}
 	regexp := &Regexp{
-		expr:      expr,
-		prog:      prog,
-		numSubexp: maxCap,
-		cond:      prog.StartCond(),
-		longest:   longest,
+		expr:        expr,
+		prog:        prog,
+		numSubexp:   maxCap,
+		subexpNames: capNames,
+		cond:        prog.StartCond(),
+		longest:     longest,
 	}
 	regexp.prefix, regexp.prefixComplete = prog.Prefix()
 	if regexp.prefix != "" {
@@ -221,6 +225,15 @@ func quote(s string) string {
 // NumSubexp returns the number of parenthesized subexpressions in this Regexp.
 func (re *Regexp) NumSubexp() int {
 	return re.numSubexp
+}
+
+// SubexpNames returns the names of the parenthesized subexpressions
+// in this Regexp.  The name for the first sub-expression is names[1],
+// so that if m is a match slice, the name for m[i] is SubexpNames()[i].
+// Since the Regexp as a whole cannot be named, names[0] is always
+// the empty string.  The slice should not be modified.
+func (re *Regexp) SubexpNames() []string {
+	return re.subexpNames
 }
 
 const endOfText rune = -1

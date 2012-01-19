@@ -303,3 +303,19 @@ func (re *Regexp) MaxCap() int {
 	}
 	return m
 }
+
+// CapNames walks the regexp to find the names of capturing groups.
+func (re *Regexp) CapNames() []string {
+	names := make([]string, re.MaxCap()+1)
+	re.capNames(names)
+	return names
+}
+
+func (re *Regexp) capNames(names []string) {
+	if re.Op == OpCapture {
+		names[re.Cap] = re.Name
+	}
+	for _, sub := range re.Sub {
+		sub.capNames(names)
+	}
+}
