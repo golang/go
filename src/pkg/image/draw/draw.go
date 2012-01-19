@@ -348,7 +348,6 @@ func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image
 func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) {
 	// An image.YCbCr is always fully opaque, and so if the mask is implicitly nil
 	// (i.e. fully opaque) then the op is effectively always Src.
-	var yy, cb, cr uint8
 	x0 := (r.Min.X - dst.Rect.Min.X) * 4
 	x1 := (r.Max.X - dst.Rect.Min.X) * 4
 	y0 := r.Min.Y - dst.Rect.Min.Y
@@ -357,12 +356,11 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 	case image.YCbCrSubsampleRatio422:
 		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
 			dpix := dst.Pix[y*dst.Stride:]
-			for x, sx := x0, sp.X; x != x1; x, sx = x+4, sx+1 {
-				i := sx / 2
-				yy = src.Y[sy*src.YStride+sx]
-				cb = src.Cb[sy*src.CStride+i]
-				cr = src.Cr[sy*src.CStride+i]
-				rr, gg, bb := color.YCbCrToRGB(yy, cb, cr)
+			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
+			ciBase := (sy-src.Rect.Min.Y)*src.CStride - src.Rect.Min.X/2
+			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
+				ci := ciBase + sx/2
+				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
 				dpix[x+0] = rr
 				dpix[x+1] = gg
 				dpix[x+2] = bb
@@ -372,12 +370,11 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 	case image.YCbCrSubsampleRatio420:
 		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
 			dpix := dst.Pix[y*dst.Stride:]
-			for x, sx := x0, sp.X; x != x1; x, sx = x+4, sx+1 {
-				i, j := sx/2, sy/2
-				yy = src.Y[sy*src.YStride+sx]
-				cb = src.Cb[j*src.CStride+i]
-				cr = src.Cr[j*src.CStride+i]
-				rr, gg, bb := color.YCbCrToRGB(yy, cb, cr)
+			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
+			ciBase := (sy/2-src.Rect.Min.Y/2)*src.CStride - src.Rect.Min.X/2
+			for x, sx := x0, sp.X; x != x1; x, sx, yi = x+4, sx+1, yi+1 {
+				ci := ciBase + sx/2
+				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
 				dpix[x+0] = rr
 				dpix[x+1] = gg
 				dpix[x+2] = bb
@@ -388,11 +385,10 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 		// Default to 4:4:4 subsampling.
 		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
 			dpix := dst.Pix[y*dst.Stride:]
-			for x, sx := x0, sp.X; x != x1; x, sx = x+4, sx+1 {
-				yy = src.Y[sy*src.YStride+sx]
-				cb = src.Cb[sy*src.CStride+sx]
-				cr = src.Cr[sy*src.CStride+sx]
-				rr, gg, bb := color.YCbCrToRGB(yy, cb, cr)
+			yi := (sy-src.Rect.Min.Y)*src.YStride + (sp.X - src.Rect.Min.X)
+			ci := (sy-src.Rect.Min.Y)*src.CStride + (sp.X - src.Rect.Min.X)
+			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
+				rr, gg, bb := color.YCbCrToRGB(src.Y[yi], src.Cb[ci], src.Cr[ci])
 				dpix[x+0] = rr
 				dpix[x+1] = gg
 				dpix[x+2] = bb

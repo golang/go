@@ -17,6 +17,18 @@ const (
 	YCbCrSubsampleRatio420
 )
 
+func (s YCbCrSubsampleRatio) String() string {
+	switch s {
+	case YCbCrSubsampleRatio444:
+		return "YCbCrSubsampleRatio444"
+	case YCbCrSubsampleRatio422:
+		return "YCbCrSubsampleRatio422"
+	case YCbCrSubsampleRatio420:
+		return "YCbCrSubsampleRatio420"
+	}
+	return "YCbCrSubsampleRatioUnknown"
+}
+
 // YCbCr is an in-memory image of Y'CbCr colors. There is one Y sample per
 // pixel, but each Cb and Cr sample can span one or more pixels.
 // YStride is the Y slice index delta between vertically adjacent pixels.
@@ -28,9 +40,7 @@ const (
 //	For 4:2:2, CStride == YStride/2 && len(Cb) == len(Cr) == len(Y)/2.
 //	For 4:2:0, CStride == YStride/2 && len(Cb) == len(Cr) == len(Y)/4.
 type YCbCr struct {
-	Y              []uint8
-	Cb             []uint8
-	Cr             []uint8
+	Y, Cb, Cr      []uint8
 	YStride        int
 	CStride        int
 	SubsampleRatio YCbCrSubsampleRatio
@@ -61,7 +71,7 @@ func (p *YCbCr) At(x, y int) color.Color {
 // YOffset returns the index of the first element of Y that corresponds to
 // the pixel at (x, y).
 func (p *YCbCr) YOffset(x, y int) int {
-	return y*p.YStride + x
+	return (y-p.Rect.Min.Y)*p.YStride + (x - p.Rect.Min.X)
 }
 
 // COffset returns the index of the first element of Cb or Cr that corresponds
@@ -69,23 +79,66 @@ func (p *YCbCr) YOffset(x, y int) int {
 func (p *YCbCr) COffset(x, y int) int {
 	switch p.SubsampleRatio {
 	case YCbCrSubsampleRatio422:
-		return y*p.CStride + (x / 2)
+		return (y-p.Rect.Min.Y)*p.CStride + (x/2 - p.Rect.Min.X/2)
 	case YCbCrSubsampleRatio420:
-		return (y/2)*p.CStride + (x / 2)
+		return (y/2-p.Rect.Min.Y/2)*p.CStride + (x/2 - p.Rect.Min.X/2)
 	}
 	// Default to 4:4:4 subsampling.
-	return y*p.CStride + x
+	return (y-p.Rect.Min.Y)*p.CStride + (x - p.Rect.Min.X)
 }
 
 // SubImage returns an image representing the portion of the image p visible
 // through r. The returned value shares pixels with the original image.
 func (p *YCbCr) SubImage(r Rectangle) Image {
-	q := new(YCbCr)
-	*q = *p
-	q.Rect = q.Rect.Intersect(r)
-	return q
+	r = r.Intersect(p.Rect)
+	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
+	// either r1 or r2 if the intersection is empty. Without explicitly checking for
+	// this, the Pix[i:] expression below can panic.
+	if r.Empty() {
+		return &YCbCr{
+			SubsampleRatio: p.SubsampleRatio,
+		}
+	}
+	yi := p.YOffset(r.Min.X, r.Min.Y)
+	ci := p.COffset(r.Min.X, r.Min.Y)
+	return &YCbCr{
+		Y:              p.Y[yi:],
+		Cb:             p.Cb[ci:],
+		Cr:             p.Cr[ci:],
+		SubsampleRatio: p.SubsampleRatio,
+		YStride:        p.YStride,
+		CStride:        p.CStride,
+		Rect:           r,
+	}
 }
 
 func (p *YCbCr) Opaque() bool {
 	return true
+}
+
+// NewYCbCr returns a new YCbCr with the given bounds and subsample ratio.
+func NewYCbCr(r Rectangle, subsampleRatio YCbCrSubsampleRatio) *YCbCr {
+	w, h, cw, ch := r.Dx(), r.Dy(), 0, 0
+	switch subsampleRatio {
+	case YCbCrSubsampleRatio422:
+		cw = (r.Max.X+1)/2 - r.Min.X/2
+		ch = h
+	case YCbCrSubsampleRatio420:
+		cw = (r.Max.X+1)/2 - r.Min.X/2
+		ch = (r.Max.Y+1)/2 - r.Min.Y/2
+	default:
+		// Default to 4:4:4 subsampling.
+		cw = w
+		ch = h
+	}
+	b := make([]byte, w*h+2*cw*ch)
+	return &YCbCr{
+		Y:              b[:w*h],
+		Cb:             b[w*h+0*cw*ch : w*h+1*cw*ch],
+		Cr:             b[w*h+1*cw*ch : w*h+2*cw*ch],
+		SubsampleRatio: subsampleRatio,
+		YStride:        w,
+		CStride:        cw,
+		Rect:           r,
+	}
 }

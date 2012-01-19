@@ -203,8 +203,7 @@ func (d *decoder) makeImg(h0, v0, mxx, myy int) {
 		return
 	}
 	var subsampleRatio image.YCbCrSubsampleRatio
-	n := h0 * v0
-	switch n {
+	switch h0 * v0 {
 	case 1:
 		subsampleRatio = image.YCbCrSubsampleRatio444
 	case 2:
@@ -214,16 +213,8 @@ func (d *decoder) makeImg(h0, v0, mxx, myy int) {
 	default:
 		panic("unreachable")
 	}
-	b := make([]byte, mxx*myy*(1*8*8*n+2*8*8))
-	d.img3 = &image.YCbCr{
-		Y:              b[mxx*myy*(0*8*8*n+0*8*8) : mxx*myy*(1*8*8*n+0*8*8)],
-		Cb:             b[mxx*myy*(1*8*8*n+0*8*8) : mxx*myy*(1*8*8*n+1*8*8)],
-		Cr:             b[mxx*myy*(1*8*8*n+1*8*8) : mxx*myy*(1*8*8*n+2*8*8)],
-		SubsampleRatio: subsampleRatio,
-		YStride:        mxx * 8 * h0,
-		CStride:        mxx * 8,
-		Rect:           image.Rect(0, 0, d.width, d.height),
-	}
+	m := image.NewYCbCr(image.Rect(0, 0, 8*h0*mxx, 8*v0*myy), subsampleRatio)
+	d.img3 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.YCbCr)
 }
 
 // Specified in section B.2.3.
