@@ -135,8 +135,10 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
 // 
 func ParseExpr(x string) (ast.Expr, error) {
 	// parse x within the context of a complete package for correct scopes;
-	// use //line directive for correct positions in error messages
-	file, err := ParseFile(token.NewFileSet(), "", "package p;func _(){_=\n//line :1\n"+x+";}", 0)
+	// use //line directive for correct positions in error messages and put
+	// x alone on a separate line (handles line comments), followed by a ';'
+	// to force an error if the expression is incomplete
+	file, err := ParseFile(token.NewFileSet(), "", "package p;func _(){_=\n//line :1\n"+x+"\n;}", 0)
 	if err != nil {
 		return nil, err
 	}
