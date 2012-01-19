@@ -338,7 +338,7 @@ TEXT runtime·setldt(SB),7,$32
 	 * To accommodate that rewrite, we translate the
 	 * address and limit here so that 0x468(GS) maps to 0(address).
 	 *
-	 * See ../../../../libcgo/darwin_386.c for the derivation
+	 * See cgo/gcc_darwin_386.c:/468 for the derivation
 	 * of the constant.
 	 */
 	SUBL	$0x468, BX

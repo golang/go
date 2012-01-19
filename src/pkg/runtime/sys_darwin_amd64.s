@@ -327,8 +327,8 @@ TEXT runtime·mach_semaphore_signal_all(SB),7,$0
 // set tls base to DI
 TEXT runtime·settls(SB),7,$32
 	/*
-	* Same as in ../386/sys.s:/ugliness, different constant.
-	* See ../../../../libcgo/darwin_amd64.c for the derivation
+	* Same as in sys_darwin_386.s:/ugliness, different constant.
+	* See cgo/gcc_darwin_amd64.c for the derivation
 	* of the constant.
 	*/
 	SUBQ $0x8a0, DI

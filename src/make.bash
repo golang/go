@@ -75,7 +75,7 @@ $USE_GO_TOOL ||
 ) || exit 1
 bash "$GOROOT"/src/clean.bash
 
-# pkg builds libcgo and the Go programs in cmd.
+# pkg builds runtime/cgo and the Go programs in cmd.
 for i in lib9 libbio libmach cmd
 do
 	echo; echo; echo %%%% making $i %%%%; echo

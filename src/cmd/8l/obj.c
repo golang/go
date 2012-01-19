@@ -218,7 +218,7 @@ main(int argc, char *argv[])
 	case Hdarwin:	/* apple MACH */
 		/*
 		 * OS X system constant - offset from %gs to our TLS.
-		 * Explained in ../../libcgo/darwin_386.c.
+		 * Explained in ../../pkg/runtime/cgo/gcc_darwin_386.c.
 		 */
 		tlsoffset = 0x468;
 		machoinit();
@@ -237,8 +237,8 @@ main(int argc, char *argv[])
 		/*
 		 * ELF uses TLS offsets negative from %gs.
 		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
-		 * Also known to ../../pkg/runtime/linux/386/sys.s
-		 * and ../../libcgo/linux_386.c.
+		 * Also known to ../../pkg/runtime/sys_linux_386.s
+		 * and ../../pkg/runtime/cgo/gcc_linux_386.c.
 		 */
 		tlsoffset = -8;
 		elfinit();
