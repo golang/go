@@ -10,7 +10,7 @@ import (
 	"syscall"
 )
 
-func setDefaultSockopts(s syscall.Handle, f, p int) {
+func setDefaultSockopts(s syscall.Handle, f, t int) {
 	switch f {
 	case syscall.AF_INET6:
 		// Allow both IP versions even if the OS default is otherwise.

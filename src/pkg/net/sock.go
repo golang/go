@@ -17,10 +17,10 @@ import (
 var listenerBacklog = maxListenerBacklog()
 
 // Generic socket creation.
-func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	// See ../syscall/exec.go for description of ForkLock.
 	syscall.ForkLock.RLock()
-	s, err := syscall.Socket(f, p, t)
+	s, err := syscall.Socket(f, t, p)
 	if err != nil {
 		syscall.ForkLock.RUnlock()
 		return nil, err
@@ -28,7 +28,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 	syscall.CloseOnExec(s)
 	syscall.ForkLock.RUnlock()
 
-	setDefaultSockopts(s, f, p)
+	setDefaultSockopts(s, f, t)
 
 	if la != nil {
 		err = syscall.Bind(s, la)
@@ -38,7 +38,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 		}
 	}
 
-	if fd, err = newFD(s, f, p, net); err != nil {
+	if fd, err = newFD(s, f, t, net); err != nil {
 		closesocket(s)
 		return nil, err
 	}

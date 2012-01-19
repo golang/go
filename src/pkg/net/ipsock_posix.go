@@ -101,7 +101,7 @@ type sockaddr interface {
 	family() int
 }
 
-func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+func internetSocket(net string, laddr, raddr sockaddr, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
 	var oserr error
 	var la, ra syscall.Sockaddr
 	family := favoriteAddrFamily(net, raddr, laddr, mode)
@@ -115,7 +115,7 @@ func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode
 			goto Error
 		}
 	}
-	fd, oserr = socket(net, family, socktype, proto, la, ra, toAddr)
+	fd, oserr = socket(net, family, sotype, proto, la, ra, toAddr)
 	if oserr != nil {
 		goto Error
 	}

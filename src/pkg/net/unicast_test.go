@@ -15,10 +15,12 @@ var unicastTests = []struct {
 	ipv6   bool
 	packet bool
 }{
-	{"tcp4", "127.0.0.1:0", false, false},
-	{"tcp6", "[::1]:0", true, false},
-	{"udp4", "127.0.0.1:0", false, true},
-	{"udp6", "[::1]:0", true, true},
+	{net: "tcp4", laddr: "127.0.0.1:0"},
+	{net: "tcp4", laddr: "previous"},
+	{net: "tcp6", laddr: "[::1]:0", ipv6: true},
+	{net: "tcp6", laddr: "previous", ipv6: true},
+	{net: "udp4", laddr: "127.0.0.1:0", packet: true},
+	{net: "udp6", laddr: "[::1]:0", ipv6: true, packet: true},
 }
 
 func TestUnicastTCPAndUDP(t *testing.T) {
@@ -26,16 +28,21 @@ func TestUnicastTCPAndUDP(t *testing.T) {
 		return
 	}
 
+	prevladdr := ""
 	for _, tt := range unicastTests {
 		if tt.ipv6 && !supportsIPv6 {
 			continue
 		}
 		var fd *netFD
 		if !tt.packet {
+			if tt.laddr == "previous" {
+				tt.laddr = prevladdr
+			}
 			c, err := Listen(tt.net, tt.laddr)
 			if err != nil {
 				t.Fatalf("Listen failed: %v", err)
 			}
+			prevladdr = c.Addr().String()
 			defer c.Close()
 			fd = c.(*TCPListener).fd
 		} else {
