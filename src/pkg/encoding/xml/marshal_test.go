@@ -150,6 +150,10 @@ type XMLNameWithoutTag struct {
 	Value   string ",chardata"
 }
 
+type NameInField struct {
+	Foo Name `xml:"ns foo"`
+}
+
 type AttrTest struct {
 	Int   int     `xml:",attr"`
 	Lower int     `xml:"int,attr"`
@@ -481,6 +485,19 @@ var marshalTests = []struct {
 			`<InFieldName>D</InFieldName>` +
 			`</Parent>`,
 		UnmarshalOnly: true,
+	},
+
+	// xml.Name works in a plain field as well.
+	{
+		Value:     &NameInField{Name{Space: "ns", Local: "foo"}},
+		ExpectXML: `<NameInField><foo xmlns="ns"></foo></NameInField>`,
+	},
+
+	// Marshaling zero xml.Name uses the tag or field name.
+	{
+		Value:       &NameInField{},
+		ExpectXML:   `<NameInField><foo xmlns="ns"></foo></NameInField>`,
+		MarshalOnly: true,
 	},
 
 	// Test attributes

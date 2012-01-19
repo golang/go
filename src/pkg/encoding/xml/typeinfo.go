@@ -46,6 +46,8 @@ const (
 var tinfoMap = make(map[reflect.Type]*typeInfo)
 var tinfoLock sync.RWMutex
 
+var nameType = reflect.TypeOf(Name{})
+
 // getTypeInfo returns the typeInfo structure with details necessary
 // for marshalling and unmarshalling typ.
 func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
@@ -56,7 +58,7 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 		return tinfo, nil
 	}
 	tinfo = &typeInfo{}
-	if typ.Kind() == reflect.Struct {
+	if typ.Kind() == reflect.Struct && typ != nameType {
 		n := typ.NumField()
 		for i := 0; i < n; i++ {
 			f := typ.Field(i)

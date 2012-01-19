@@ -271,6 +271,10 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) error {
 	case reflect.Struct:
 		sv = v
 		typ := sv.Type()
+		if typ == nameType {
+			v.Set(reflect.ValueOf(start.Name))
+			break
+		}
 		tinfo, err = getTypeInfo(typ)
 		if err != nil {
 			return err
