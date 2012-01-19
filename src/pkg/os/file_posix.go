@@ -81,18 +81,34 @@ func Rename(oldname, newname string) error {
 	return nil
 }
 
+// syscallMode returns the syscall-specific mode bits from Go's portable mode bits.
+func syscallMode(i FileMode) (o uint32) {
+	o |= uint32(i.Perm())
+	if i&ModeSetuid != 0 {
+		o |= syscall.S_ISUID
+	}
+	if i&ModeSetgid != 0 {
+		o |= syscall.S_ISGID
+	}
+	if i&ModeSticky != 0 {
+		o |= syscall.S_ISVTX
+	}
+	// No mapping for Go's ModeTemporary (plan9 only).
+	return
+}
+
 // Chmod changes the mode of the named file to mode.
 // If the file is a symbolic link, it changes the mode of the link's target.
-func Chmod(name string, mode uint32) error {
-	if e := syscall.Chmod(name, mode); e != nil {
+func Chmod(name string, mode FileMode) error {
+	if e := syscall.Chmod(name, syscallMode(mode)); e != nil {
 		return &PathError{"chmod", name, e}
 	}
 	return nil
 }
 
 // Chmod changes the mode of the file to mode.
-func (f *File) Chmod(mode uint32) error {
-	if e := syscall.Fchmod(f.fd, mode); e != nil {
+func (f *File) Chmod(mode FileMode) error {
+	if e := syscall.Fchmod(f.fd, syscallMode(mode)); e != nil {
 		return &PathError{"chmod", f.name, e}
 	}
 	return nil

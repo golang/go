@@ -151,7 +151,7 @@ func main() {
 			changed[o.Dst] = 1
 		}
 		if o.Mode != 0 {
-			chk(os.Chmod(o.Dst, uint32(o.Mode&0755)))
+			chk(os.Chmod(o.Dst, os.FileMode(o.Mode&0755)))
 			undoRevert(o.Dst)
 			changed[o.Dst] = 1
 		}
@@ -189,7 +189,7 @@ func makeParent(name string) {
 
 // Copy of os.MkdirAll but adds to undo log after
 // creating a directory.
-func mkdirAll(path string, perm uint32) error {
+func mkdirAll(path string, perm os.FileMode) error {
 	dir, err := os.Lstat(path)
 	if err == nil {
 		if dir.IsDir() {
