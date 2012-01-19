@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"os"
 	"syscall"
+	"time"
 )
 
 // Boolean to int.
@@ -115,21 +116,21 @@ func setWriteBuffer(fd *netFD, bytes int) error {
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes))
 }
 
-func setReadTimeout(fd *netFD, nsec int64) error {
-	fd.rdeadline_delta = nsec
+func setReadDeadline(fd *netFD, t time.Time) error {
+	fd.rdeadline = t.UnixNano()
 	return nil
 }
 
-func setWriteTimeout(fd *netFD, nsec int64) error {
-	fd.wdeadline_delta = nsec
+func setWriteDeadline(fd *netFD, t time.Time) error {
+	fd.wdeadline = t.UnixNano()
 	return nil
 }
 
-func setTimeout(fd *netFD, nsec int64) error {
-	if e := setReadTimeout(fd, nsec); e != nil {
+func setDeadline(fd *netFD, t time.Time) error {
+	if e := setReadDeadline(fd, t); e != nil {
 		return e
 	}
-	return setWriteTimeout(fd, nsec)
+	return setWriteDeadline(fd, t)
 }
 
 func setReuseAddr(fd *netFD, reuse bool) error {

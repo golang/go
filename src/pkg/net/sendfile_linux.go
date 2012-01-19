@@ -40,15 +40,6 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	defer c.wio.Unlock()
 	c.incref()
 	defer c.decref()
-	if c.wdeadline_delta > 0 {
-		// This is a little odd that we're setting the timeout
-		// for the entire file but Write has the same issue
-		// (if one slurps the whole file into memory and
-		// do one large Write). At least they're consistent.
-		c.wdeadline = pollserver.Now() + c.wdeadline_delta
-	} else {
-		c.wdeadline = 0
-	}
 
 	dst := c.sysfd
 	src := f.Fd()

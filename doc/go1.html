@@ -750,6 +750,17 @@ Gofix will update the few programs that are affected except for
 uses of <code>RawURL</code>, which must be fixed by hand.
 </p>
 
+<h3 id="net">The net package</h3>
+
+<p>In Go 1, the various <code>SetTimeout</code>,
+<code>SetReadTimeout</code>, and <code>SetWriteTimeout</code> methods
+have been replaced with <code>SetDeadline</code>,
+<code>SetReadDeadline</code>, and <code>SetWriteDeadline</code>,
+respectively.  Rather than taking a timeout value in nanoseconds that
+apply to any activity on the connection, the new methods set an
+absolute deadline (as a <code>time.Time</code> value) after which
+reads and writes will time out and no longer block.</p>
+
 <h3 id="strconv">The strconv package</h3>
 
 <p>
@@ -957,8 +968,8 @@ documentation for a package is created with:
 </pre>
 
 <p>
-where the new <code>mode</mode> parameter specifies the operation mode:
-if set to <a href="go/doc/#AllDecls"><code>AllDecls</a>, all declarations
+where the new <code>mode</code> parameter specifies the operation mode:
+if set to <a href="go/doc/#AllDecls"><code>AllDecls</code></a>, all declarations
 (not just exported ones) are considered.
 The function <code>NewFileDoc</code> was removed, and the function
 <code>CommentText</code> has become the method

@@ -11,6 +11,7 @@ package net
 import (
 	"os"
 	"syscall"
+	"time"
 )
 
 func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err error) {
@@ -164,28 +165,28 @@ func (c *UnixConn) RemoteAddr() Addr {
 	return c.fd.raddr
 }
 
-// SetTimeout implements the net.Conn SetTimeout method.
-func (c *UnixConn) SetTimeout(nsec int64) error {
+// SetDeadline implements the net.Conn SetDeadline method.
+func (c *UnixConn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
-	return setTimeout(c.fd, nsec)
+	return setDeadline(c.fd, t)
 }
 
-// SetReadTimeout implements the net.Conn SetReadTimeout method.
-func (c *UnixConn) SetReadTimeout(nsec int64) error {
+// SetReadDeadline implements the net.Conn SetReadDeadline method.
+func (c *UnixConn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
-	return setReadTimeout(c.fd, nsec)
+	return setReadDeadline(c.fd, t)
 }
 
-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
-func (c *UnixConn) SetWriteTimeout(nsec int64) error {
+// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+func (c *UnixConn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
-	return setWriteTimeout(c.fd, nsec)
+	return setWriteDeadline(c.fd, t)
 }
 
 // SetReadBuffer sets the size of the operating system's
@@ -212,7 +213,7 @@ func (c *UnixConn) SetWriteBuffer(bytes int) error {
 //
 // ReadFromUnix can be made to time out and return
 // an error with Timeout() == true after a fixed time limit;
-// see SetTimeout and SetReadTimeout.
+// see SetDeadline and SetReadDeadline.
 func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
@@ -238,7 +239,7 @@ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 //
 // WriteToUnix can be made to time out and return
 // an error with Timeout() == true after a fixed time limit;
-// see SetTimeout and SetWriteTimeout.
+// see SetDeadline and SetWriteDeadline.
 // On packet-oriented connections, write timeouts are rare.
 func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
 	if !c.ok() {
@@ -386,12 +387,13 @@ func (l *UnixListener) Close() error {
 // Addr returns the listener's network address.
 func (l *UnixListener) Addr() Addr { return l.fd.laddr }
 
-// SetTimeout sets the deadline associated wuth the listener
-func (l *UnixListener) SetTimeout(nsec int64) (err error) {
+// SetTimeout sets the deadline associated with the listener.
+// A zero time value disables the deadline.
+func (l *UnixListener) SetDeadline(t time.Time) (err error) {
 	if l == nil || l.fd == nil {
 		return os.EINVAL
 	}
-	return setTimeout(l.fd, nsec)
+	return setDeadline(l.fd, t)
 }
 
 // File returns a copy of the underlying os.File, set to blocking mode.

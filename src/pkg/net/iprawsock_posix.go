@@ -12,6 +12,7 @@ import (
 	"errors"
 	"os"
 	"syscall"
+	"time"
 )
 
 func sockaddrToIP(sa syscall.Sockaddr) Addr {
@@ -97,28 +98,28 @@ func (c *IPConn) RemoteAddr() Addr {
 	return c.fd.raddr
 }
 
-// SetTimeout implements the net.Conn SetTimeout method.
-func (c *IPConn) SetTimeout(nsec int64) error {
+// SetDeadline implements the net.Conn SetDeadline method.
+func (c *IPConn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
-	return setTimeout(c.fd, nsec)
+	return setDeadline(c.fd, t)
 }
 
-// SetReadTimeout implements the net.Conn SetReadTimeout method.
-func (c *IPConn) SetReadTimeout(nsec int64) error {
+// SetReadDeadline implements the net.Conn SetReadDeadline method.
+func (c *IPConn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
-	return setReadTimeout(c.fd, nsec)
+	return setReadDeadline(c.fd, t)
 }
 
-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
-func (c *IPConn) SetWriteTimeout(nsec int64) error {
+// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+func (c *IPConn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
-	return setWriteTimeout(c.fd, nsec)
+	return setWriteDeadline(c.fd, t)
 }
 
 // SetReadBuffer sets the size of the operating system's
@@ -146,8 +147,8 @@ func (c *IPConn) SetWriteBuffer(bytes int) error {
 // that was on the packet.
 //
 // ReadFromIP can be made to time out and return an error with
-// Timeout() == true after a fixed time limit; see SetTimeout and
-// SetReadTimeout.
+// Timeout() == true after a fixed time limit; see SetDeadline and
+// SetReadDeadline.
 func (c *IPConn) ReadFromIP(b []byte) (n int, addr *IPAddr, err error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
@@ -182,7 +183,7 @@ func (c *IPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 //
 // WriteToIP can be made to time out and return
 // an error with Timeout() == true after a fixed time limit;
-// see SetTimeout and SetWriteTimeout.
+// see SetDeadline and SetWriteDeadline.
 // On packet-oriented connections, write timeouts are rare.
 func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (n int, err error) {
 	if !c.ok() {

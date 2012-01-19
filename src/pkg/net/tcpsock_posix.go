@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"syscall"
+	"time"
 )
 
 // BUG(rsc): On OpenBSD, listening on the "tcp" network does not listen for
@@ -134,28 +135,28 @@ func (c *TCPConn) RemoteAddr() Addr {
 	return c.fd.raddr
 }
 
-// SetTimeout implements the net.Conn SetTimeout method.
-func (c *TCPConn) SetTimeout(nsec int64) error {
+// SetDeadline implements the net.Conn SetDeadline method.
+func (c *TCPConn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
-	return setTimeout(c.fd, nsec)
+	return setDeadline(c.fd, t)
 }
 
-// SetReadTimeout implements the net.Conn SetReadTimeout method.
-func (c *TCPConn) SetReadTimeout(nsec int64) error {
+// SetReadDeadline implements the net.Conn SetReadDeadline method.
+func (c *TCPConn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
-	return setReadTimeout(c.fd, nsec)
+	return setReadDeadline(c.fd, t)
 }
 
-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
-func (c *TCPConn) SetWriteTimeout(nsec int64) error {
+// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+func (c *TCPConn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
-	return setWriteTimeout(c.fd, nsec)
+	return setWriteDeadline(c.fd, t)
 }
 
 // SetReadBuffer sets the size of the operating system's
@@ -294,12 +295,13 @@ func (l *TCPListener) Close() error {
 // Addr returns the listener's network address, a *TCPAddr.
 func (l *TCPListener) Addr() Addr { return l.fd.laddr }
 
-// SetTimeout sets the deadline associated with the listener
-func (l *TCPListener) SetTimeout(nsec int64) error {
+// SetDeadline sets the deadline associated with the listener.
+// A zero time value disables the deadline.
+func (l *TCPListener) SetDeadline(t time.Time) error {
 	if l == nil || l.fd == nil {
 		return os.EINVAL
 	}
-	return setTimeout(l.fd, nsec)
+	return setDeadline(l.fd, t)
 }
 
 // File returns a copy of the underlying os.File, set to blocking mode.

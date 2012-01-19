@@ -33,12 +33,10 @@ type netFD struct {
 	raddr   Addr
 
 	// owned by client
-	rdeadline_delta int64
-	rdeadline       int64
-	rio             sync.Mutex
-	wdeadline_delta int64
-	wdeadline       int64
-	wio             sync.Mutex
+	rdeadline int64
+	rio       sync.Mutex
+	wdeadline int64
+	wio       sync.Mutex
 
 	// owned by fd wait server
 	ncr, ncw int
@@ -388,11 +386,6 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 	if fd.sysfile == nil {
 		return 0, os.EINVAL
 	}
-	if fd.rdeadline_delta > 0 {
-		fd.rdeadline = pollserver.Now() + fd.rdeadline_delta
-	} else {
-		fd.rdeadline = 0
-	}
 	for {
 		n, err = syscall.Read(fd.sysfile.Fd(), p)
 		if err == syscall.EAGAIN {
@@ -423,11 +416,6 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 	defer fd.rio.Unlock()
 	fd.incref()
 	defer fd.decref()
-	if fd.rdeadline_delta > 0 {
-		fd.rdeadline = pollserver.Now() + fd.rdeadline_delta
-	} else {
-		fd.rdeadline = 0
-	}
 	for {
 		n, sa, err = syscall.Recvfrom(fd.sysfd, p, 0)
 		if err == syscall.EAGAIN {
@@ -456,11 +444,6 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
 	defer fd.rio.Unlock()
 	fd.incref()
 	defer fd.decref()
-	if fd.rdeadline_delta > 0 {
-		fd.rdeadline = pollserver.Now() + fd.rdeadline_delta
-	} else {
-		fd.rdeadline = 0
-	}
 	for {
 		n, oobn, flags, sa, err = syscall.Recvmsg(fd.sysfd, p, oob, 0)
 		if err == syscall.EAGAIN {
@@ -492,11 +475,6 @@ func (fd *netFD) Write(p []byte) (n int, err error) {
 	defer fd.decref()
 	if fd.sysfile == nil {
 		return 0, os.EINVAL
-	}
-	if fd.wdeadline_delta > 0 {
-		fd.wdeadline = pollserver.Now() + fd.wdeadline_delta
-	} else {
-		fd.wdeadline = 0
 	}
 	nn := 0
 
@@ -539,11 +517,6 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
 	defer fd.wio.Unlock()
 	fd.incref()
 	defer fd.decref()
-	if fd.wdeadline_delta > 0 {
-		fd.wdeadline = pollserver.Now() + fd.wdeadline_delta
-	} else {
-		fd.wdeadline = 0
-	}
 	for {
 		err = syscall.Sendto(fd.sysfd, p, 0, sa)
 		if err == syscall.EAGAIN {
@@ -571,11 +544,6 @@ func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 	defer fd.wio.Unlock()
 	fd.incref()
 	defer fd.decref()
-	if fd.wdeadline_delta > 0 {
-		fd.wdeadline = pollserver.Now() + fd.wdeadline_delta
-	} else {
-		fd.wdeadline = 0
-	}
 	for {
 		err = syscall.Sendmsg(fd.sysfd, p, oob, sa, 0)
 		if err == syscall.EAGAIN {
@@ -603,11 +571,6 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err err
 
 	fd.incref()
 	defer fd.decref()
-	if fd.rdeadline_delta > 0 {
-		fd.rdeadline = pollserver.Now() + fd.rdeadline_delta
-	} else {
-		fd.rdeadline = 0
-	}
 
 	// See ../syscall/exec.go for description of ForkLock.
 	// It is okay to hold the lock across syscall.Accept

@@ -7,6 +7,7 @@ package net
 import (
 	"errors"
 	"io"
+	"time"
 )
 
 // Pipe creates a synchronous, in-memory, full duplex
@@ -53,14 +54,14 @@ func (p *pipe) RemoteAddr() Addr {
 	return pipeAddr(0)
 }
 
-func (p *pipe) SetTimeout(nsec int64) error {
-	return errors.New("net.Pipe does not support timeouts")
+func (p *pipe) SetDeadline(t time.Time) error {
+	return errors.New("net.Pipe does not support deadlines")
 }
 
-func (p *pipe) SetReadTimeout(nsec int64) error {
-	return errors.New("net.Pipe does not support timeouts")
+func (p *pipe) SetReadDeadline(t time.Time) error {
+	return errors.New("net.Pipe does not support deadlines")
 }
 
-func (p *pipe) SetWriteTimeout(nsec int64) error {
-	return errors.New("net.Pipe does not support timeouts")
+func (p *pipe) SetWriteDeadline(t time.Time) error {
+	return errors.New("net.Pipe does not support deadlines")
 }

@@ -45,7 +45,11 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error
 			return nil, err
 		}
 
-		c.SetReadTimeout(int64(cfg.timeout) * 1e9) // nanoseconds
+		if cfg.timeout == 0 {
+			c.SetReadDeadline(time.Time{})
+		} else {
+			c.SetReadDeadline(time.Now().Add(time.Duration(cfg.timeout) * time.Second))
+		}
 
 		buf := make([]byte, 2000) // More than enough.
 		n, err = c.Read(buf)
