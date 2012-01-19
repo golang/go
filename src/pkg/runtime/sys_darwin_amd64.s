@@ -55,6 +55,16 @@ TEXT runtime·setitimer(SB), 7, $0
 	SYSCALL
 	RET
 
+TEXT runtime·madvise(SB), 7, $0
+	MOVQ	8(SP), DI		// arg 1 addr
+	MOVQ	16(SP), SI		// arg 2 len
+	MOVL	24(SP), DX		// arg 3 advice
+	MOVL	$(0x2000000+75), AX	// syscall entry madvise
+	SYSCALL
+	JCC	2(PC)
+	CALL	runtime·notok(SB)
+	RET
+
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB), 7, $32
 	MOVQ	SP, DI	// must be non-nil, unused
