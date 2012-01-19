@@ -67,11 +67,9 @@ func (l *ListNode) append(n Node) {
 
 func (l *ListNode) String() string {
 	b := new(bytes.Buffer)
-	fmt.Fprint(b, "[")
 	for _, n := range l.Nodes {
 		fmt.Fprint(b, n)
 	}
-	fmt.Fprint(b, "]")
 	return b.String()
 }
 
@@ -86,7 +84,7 @@ func newText(text string) *TextNode {
 }
 
 func (t *TextNode) String() string {
-	return fmt.Sprintf("(text: %q)", t.Text)
+	return fmt.Sprintf("%q", t.Text)
 }
 
 // PipeNode holds a pipeline with optional declaration
@@ -106,10 +104,23 @@ func (p *PipeNode) append(command *CommandNode) {
 }
 
 func (p *PipeNode) String() string {
-	if p.Decl != nil {
-		return fmt.Sprintf("%v := %v", p.Decl, p.Cmds)
+	s := ""
+	if len(p.Decl) > 0 {
+		for i, v := range p.Decl {
+			if i > 0 {
+				s += ", "
+			}
+			s += v.String()
+		}
+		s += " := "
 	}
-	return fmt.Sprintf("%v", p.Cmds)
+	for i, c := range p.Cmds {
+		if i > 0 {
+			s += " | "
+		}
+		s += c.String()
+	}
+	return s
 }
 
 // ActionNode holds an action (something bounded by delimiters).
@@ -126,7 +137,8 @@ func newAction(line int, pipe *PipeNode) *ActionNode {
 }
 
 func (a *ActionNode) String() string {
-	return fmt.Sprintf("(action: %v)", a.Pipe)
+	return fmt.Sprintf("{{%s}}", a.Pipe)
+
 }
 
 // CommandNode holds a command (a pipeline inside an evaluating action).
@@ -144,7 +156,14 @@ func (c *CommandNode) append(arg Node) {
 }
 
 func (c *CommandNode) String() string {
-	return fmt.Sprintf("(command: %v)", c.Args)
+	s := ""
+	for i, arg := range c.Args {
+		if i > 0 {
+			s += " "
+		}
+		s += arg.String()
+	}
+	return s
 }
 
 // IdentifierNode holds an identifier.
@@ -159,7 +178,7 @@ func NewIdentifier(ident string) *IdentifierNode {
 }
 
 func (i *IdentifierNode) String() string {
-	return fmt.Sprintf("I=%s", i.Ident)
+	return i.Ident
 }
 
 // VariableNode holds a list of variable names. The dollar sign is
@@ -174,7 +193,14 @@ func newVariable(ident string) *VariableNode {
 }
 
 func (v *VariableNode) String() string {
-	return fmt.Sprintf("V=%s", v.Ident)
+	s := ""
+	for i, id := range v.Ident {
+		if i > 0 {
+			s += "."
+		}
+		s += id
+	}
+	return s
 }
 
 // DotNode holds the special identifier '.'. It is represented by a nil pointer.
@@ -189,7 +215,7 @@ func (d *DotNode) Type() NodeType {
 }
 
 func (d *DotNode) String() string {
-	return "{{<.>}}"
+	return "."
 }
 
 // FieldNode holds a field (identifier starting with '.').
@@ -205,7 +231,11 @@ func newField(ident string) *FieldNode {
 }
 
 func (f *FieldNode) String() string {
-	return fmt.Sprintf("F=%s", f.Ident)
+	s := ""
+	for _, id := range f.Ident {
+		s += "." + id
+	}
+	return s
 }
 
 // BoolNode holds a boolean constant.
@@ -219,7 +249,10 @@ func newBool(true bool) *BoolNode {
 }
 
 func (b *BoolNode) String() string {
-	return fmt.Sprintf("B=%t", b.True)
+	if b.True {
+		return "true"
+	}
+	return "false"
 }
 
 // NumberNode holds a number: signed or unsigned integer, float, or complex.
@@ -337,7 +370,7 @@ func (n *NumberNode) simplifyComplex() {
 }
 
 func (n *NumberNode) String() string {
-	return fmt.Sprintf("N=%s", n.Text)
+	return n.Text
 }
 
 // StringNode holds a string constant. The value has been "unquoted".
@@ -352,7 +385,7 @@ func newString(orig, text string) *StringNode {
 }
 
 func (s *StringNode) String() string {
-	return fmt.Sprintf("S=%#q", s.Text)
+	return s.Quoted
 }
 
 // endNode represents an {{end}} action. It is represented by a nil pointer.
@@ -411,9 +444,9 @@ func (b *BranchNode) String() string {
 		panic("unknown branch type")
 	}
 	if b.ElseList != nil {
-		return fmt.Sprintf("({{%s %s}} %s {{else}} %s)", name, b.Pipe, b.List, b.ElseList)
+		return fmt.Sprintf("{{%s %s}}%s{{else}}%s{{end}}", name, b.Pipe, b.List, b.ElseList)
 	}
-	return fmt.Sprintf("({{%s %s}} %s)", name, b.Pipe, b.List)
+	return fmt.Sprintf("{{%s %s}}%s{{end}}", name, b.Pipe, b.List)
 }
 
 // IfNode represents an {{if}} action and its commands.
