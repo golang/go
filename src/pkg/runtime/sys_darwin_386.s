@@ -48,6 +48,13 @@ TEXT runtime·mmap(SB),7,$0
 	INT	$0x80
 	RET
 
+TEXT runtime·madvise(SB),7,$0
+	MOVL	$75, AX
+	INT	$0x80
+	JAE	2(PC)
+	CALL	runtime·notok(SB)
+	RET
+
 TEXT runtime·munmap(SB),7,$0
 	MOVL	$73, AX
 	INT	$0x80
