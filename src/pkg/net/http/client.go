@@ -24,11 +24,13 @@ import (
 // The Client's Transport typically has internal state (cached
 // TCP connections), so Clients should be reused instead of created as
 // needed. Clients are safe for concurrent use by multiple goroutines.
-//
-// Client is not yet very configurable.
 type Client struct {
-	Transport RoundTripper // if nil, DefaultTransport is used
+	// Transport specifies the mechanism by which individual
+	// HTTP requests are made.
+	// If nil, DefaultTransport is used.
+	Transport RoundTripper
 
+	// CheckRedirect specifies the policy for handling redirects.
 	// If CheckRedirect is not nil, the client calls it before
 	// following an HTTP redirect. The arguments req and via
 	// are the upcoming request and the requests made already,
