@@ -179,11 +179,11 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline int64) (n int, err error) {
 		if dt < 1 {
 			dt = 1
 		}
-		ticker := time.NewTicker(time.Duration(dt) * time.Nanosecond)
-		defer ticker.Stop()
+		timer := time.NewTimer(time.Duration(dt) * time.Nanosecond)
+		defer timer.Stop()
 		select {
 		case r = <-o.resultc:
-		case <-ticker.C:
+		case <-timer.C:
 			s.canchan <- oi
 			<-o.errnoc
 			r = <-o.resultc
