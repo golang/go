@@ -31,8 +31,8 @@ Example
 
   import "text/template"
   ...
-  t, err := (&template.Set{}).Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
-  err = t.Execute(out, "T", "<script>alert('you have been pwned')</script>")
+  t, err := template.New("foo").Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
+  err = t.ExecuteTemplate(out, "T", "<script>alert('you have been pwned')</script>")
 
 produces
 
@@ -42,12 +42,12 @@ but with contextual autoescaping,
 
   import "html/template"
   ...
-  t, err := (&template.Set{}).Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
-  err = t.Execute(out, "T", "<script>alert('you have been pwned')</script>")
+  t, err := template.New("foo").Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
+  err = t.ExecuteTemplate(out, "T", "<script>alert('you have been pwned')</script>")
 
 produces safe, escaped HTML output
 
-  Hello, &lt;script&gt;alert('you have been pwned')&lt;/script&gt;!
+  Hello, &lt;script&gt;alert(&#39;you have been pwned&#39;)&lt;/script&gt;!
 
 
 Contexts
@@ -57,8 +57,8 @@ functions to each simple action pipeline, so given the excerpt
 
   <a href="/search?q={{.}}">{{.}}</a>
 
-At parse time each {{.}} is overwritten to add escaping functions as necessary,
-in this case,
+At parse time each {{.}} is overwritten to add escaping functions as necessary.
+In this case it becomes
 
   <a href="/search?q={{. | urlquery}}">{{. | html}}</a>
 
