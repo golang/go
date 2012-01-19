@@ -68,7 +68,8 @@ var (
 	html_endp   = []byte("</p>\n")
 	html_pre    = []byte("<pre>")
 	html_endpre = []byte("</pre>\n")
-	html_h      = []byte("<h3>")
+	html_h      = []byte(`<h3 id="`)
+	html_hq     = []byte(`">`)
 	html_endh   = []byte("</h3>\n")
 )
 
@@ -225,6 +226,12 @@ type block struct {
 	lines []string
 }
 
+var nonAlphaNumRx = regexp.MustCompile(`[^a-zA-Z0-9]`)
+
+func anchorID(line string) string {
+	return nonAlphaNumRx.ReplaceAllString(line, "_")
+}
+
 // ToHTML converts comment text to formatted HTML.
 // The comment was prepared by DocReader,
 // so it is known not to have leading, trailing blank lines
@@ -253,8 +260,17 @@ func ToHTML(w io.Writer, text string, words map[string]string) {
 			w.Write(html_endp)
 		case opHead:
 			w.Write(html_h)
+			id := ""
 			for _, line := range b.lines {
+				if id == "" {
+					id = anchorID(line)
+					w.Write([]byte(id))
+					w.Write(html_hq)
+				}
 				commentEscape(w, line, true)
+			}
+			if id == "" {
+				w.Write(html_hq)
 			}
 			w.Write(html_endh)
 		case opPre:
