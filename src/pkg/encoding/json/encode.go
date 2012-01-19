@@ -419,8 +419,13 @@ func isValidTag(s string) bool {
 		return false
 	}
 	for _, c := range s {
-		if c != '$' && c != '-' && c != '_' && !unicode.IsLetter(c) && !unicode.IsDigit(c) {
-			return false
+		switch c {
+		case '$', '-', '_', '/', '%':
+			// Acceptable
+		default:
+			if !unicode.IsLetter(c) && !unicode.IsDigit(c) {
+				return false
+			}
 		}
 	}
 	return true
