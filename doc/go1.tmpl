@@ -592,6 +592,25 @@ the correct function or method for the old functionality, but
 may have the wrong type or require further analysis.
 </p>
 
+<h3 id="hash">The crypto/elliptic package</h3>
+
+<p>
+In Go 1, <a href="/pkg/crypto/elliptic/#Curve"><code>elliptic.Curve</code></a>
+has been made an interface to permit alternative implementations. The curve
+parameters have been moved to the
+<a href="/pkg/crypto/elliptic/#CurveParams"><code>elliptic.CurveParams</code></a>
+structure.
+</p>
+
+<p>
+<em>Updating</em>:
+Existing users of <code>*elliptic.Curve</code> will need to change to
+simply <code>elliptic.Curve</code>. Calls to <code>Marshal</code>,
+<code>Unmarshal</code> and <code>GenerateKey</code> are now functions
+in <code>crypto.elliptic</code> that take an <code>elliptic.Curve</code>
+as their first argument.
+</p>
+
 <h3 id="hash">The hash package</h3>
 
 <p>
