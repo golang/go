@@ -15,16 +15,16 @@ import (
 )
 
 func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err error) {
-	var proto int
+	var sotype int
 	switch net {
 	default:
 		return nil, UnknownNetworkError(net)
 	case "unix":
-		proto = syscall.SOCK_STREAM
+		sotype = syscall.SOCK_STREAM
 	case "unixgram":
-		proto = syscall.SOCK_DGRAM
+		sotype = syscall.SOCK_DGRAM
 	case "unixpacket":
-		proto = syscall.SOCK_SEQPACKET
+		sotype = syscall.SOCK_SEQPACKET
 	}
 
 	var la, ra syscall.Sockaddr
@@ -38,7 +38,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
 		}
 		if raddr != nil {
 			ra = &syscall.SockaddrUnix{Name: raddr.Name}
-		} else if proto != syscall.SOCK_DGRAM || laddr == nil {
+		} else if sotype != syscall.SOCK_DGRAM || laddr == nil {
 			return nil, &OpError{Op: mode, Net: net, Err: errMissingAddress}
 		}
 
@@ -53,13 +53,13 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
 	}
 
 	f := sockaddrToUnix
-	if proto == syscall.SOCK_DGRAM {
+	if sotype == syscall.SOCK_DGRAM {
 		f = sockaddrToUnixgram
-	} else if proto == syscall.SOCK_SEQPACKET {
+	} else if sotype == syscall.SOCK_SEQPACKET {
 		f = sockaddrToUnixpacket
 	}
 
-	fd, oserr := socket(net, syscall.AF_UNIX, proto, 0, la, ra, f)
+	fd, oserr := socket(net, syscall.AF_UNIX, sotype, 0, la, ra, f)
 	if oserr != nil {
 		goto Error
 	}
@@ -94,8 +94,8 @@ func sockaddrToUnixpacket(sa syscall.Sockaddr) Addr {
 	return nil
 }
 
-func protoToNet(proto int) string {
-	switch proto {
+func sotypeToNet(sotype int) string {
+	switch sotype {
 	case syscall.SOCK_STREAM:
 		return "unix"
 	case syscall.SOCK_SEQPACKET:
@@ -103,7 +103,7 @@ func protoToNet(proto int) string {
 	case syscall.SOCK_DGRAM:
 		return "unixgram"
 	default:
-		panic("protoToNet unknown protocol")
+		panic("sotypeToNet unknown socket type")
 	}
 	return ""
 }
@@ -221,7 +221,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
 	n, sa, err := c.fd.ReadFrom(b)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrUnix:
-		addr = &UnixAddr{sa.Name, protoToNet(c.fd.proto)}
+		addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
 	}
 	return
 }
@@ -245,7 +245,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
 	if !c.ok() {
 		return 0, os.EINVAL
 	}
-	if addr.Net != protoToNet(c.fd.proto) {
+	if addr.Net != sotypeToNet(c.fd.sotype) {
 		return 0, os.EAFNOSUPPORT
 	}
 	sa := &syscall.SockaddrUnix{Name: addr.Name}
@@ -271,7 +271,7 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
 	n, oobn, flags, sa, err := c.fd.ReadMsg(b, oob)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrUnix:
-		addr = &UnixAddr{sa.Name, protoToNet(c.fd.proto)}
+		addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
 	}
 	return
 }
@@ -281,7 +281,7 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
 		return 0, 0, os.EINVAL
 	}
 	if addr != nil {
-		if addr.Net != protoToNet(c.fd.proto) {
+		if addr.Net != sotypeToNet(c.fd.sotype) {
 			return 0, 0, os.EAFNOSUPPORT
 		}
 		sa := &syscall.SockaddrUnix{Name: addr.Name}

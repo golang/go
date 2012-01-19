@@ -12,14 +12,15 @@ import (
 	"syscall"
 )
 
-func setDefaultSockopts(s, f, p int) {
+func setDefaultSockopts(s, f, t int) {
 	switch f {
 	case syscall.AF_INET6:
 		// Allow both IP versions even if the OS default is otherwise.
 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
 	}
 
-	if f == syscall.AF_UNIX || p == syscall.IPPROTO_TCP {
+	if f == syscall.AF_UNIX ||
+		(f == syscall.AF_INET || f == syscall.AF_INET6) && t == syscall.SOCK_STREAM {
 		// Allow reuse of recently-used addresses.
 		syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
 

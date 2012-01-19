@@ -24,7 +24,7 @@ type netFD struct {
 	// immutable until Close
 	sysfd   int
 	family  int
-	proto   int
+	sotype  int
 	sysfile *os.File
 	cr      chan bool
 	cw      chan bool
@@ -274,7 +274,7 @@ func startServer() {
 	pollserver = p
 }
 
-func newFD(fd, family, proto int, net string) (f *netFD, err error) {
+func newFD(fd, family, sotype int, net string) (f *netFD, err error) {
 	onceStartServer.Do(startServer)
 	if e := syscall.SetNonblock(fd, true); e != nil {
 		return nil, e
@@ -282,7 +282,7 @@ func newFD(fd, family, proto int, net string) (f *netFD, err error) {
 	f = &netFD{
 		sysfd:  fd,
 		family: family,
-		proto:  proto,
+		sotype: sotype,
 		net:    net,
 	}
 	f.cr = make(chan bool, 1)
@@ -397,7 +397,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 		}
 		if err != nil {
 			n = 0
-		} else if n == 0 && err == nil && fd.proto != syscall.SOCK_DGRAM {
+		} else if n == 0 && err == nil && fd.sotype != syscall.SOCK_DGRAM {
 			err = io.EOF
 		}
 		break
@@ -599,7 +599,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err err
 	syscall.CloseOnExec(s)
 	syscall.ForkLock.RUnlock()
 
-	if nfd, err = newFD(s, fd.family, fd.proto, fd.net); err != nil {
+	if nfd, err = newFD(s, fd.family, fd.sotype, fd.net); err != nil {
 		syscall.Close(s)
 		return nil, err
 	}
