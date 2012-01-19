@@ -6,6 +6,7 @@ package smtp
 
 import (
 	"crypto/hmac"
+	"crypto/md5"
 	"errors"
 	"fmt"
 )
@@ -88,7 +89,7 @@ func (a *cramMD5Auth) Start(server *ServerInfo) (string, []byte, error) {
 
 func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
 	if more {
-		d := hmac.NewMD5([]byte(a.secret))
+		d := hmac.New(md5.New, []byte(a.secret))
 		d.Write(fromServer)
 		s := make([]byte, 0, d.Size())
 		return []byte(fmt.Sprintf("%s %x", a.username, d.Sum(s))), nil

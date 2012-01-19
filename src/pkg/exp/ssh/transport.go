@@ -9,6 +9,7 @@ import (
 	"crypto"
 	"crypto/cipher"
 	"crypto/hmac"
+	"crypto/sha1"
 	"crypto/subtle"
 	"errors"
 	"hash"
@@ -266,7 +267,7 @@ func (c *common) setupKeys(d direction, K, H, sessionId []byte, hashFunc crypto.
 	generateKeyMaterial(key, d.keyTag, K, H, sessionId, h)
 	generateKeyMaterial(macKey, d.macKeyTag, K, H, sessionId, h)
 
-	c.mac = truncatingMAC{12, hmac.NewSHA1(macKey)}
+	c.mac = truncatingMAC{12, hmac.New(sha1.New, macKey)}
 
 	cipher, err := cipherMode.createCipher(key, iv)
 	if err != nil {
