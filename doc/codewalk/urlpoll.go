@@ -11,11 +11,10 @@ import (
 )
 
 const (
-	numPollers     = 2           // number of Poller goroutines to launch
-	second         = 1e9         // one second is 1e9 nanoseconds
-	pollInterval   = 60 * second // how often to poll each URL
-	statusInterval = 10 * second // how often to log status to stdout
-	errTimeout     = 10 * second // back-off timeout on error
+	numPollers     = 2                // number of Poller goroutines to launch
+	pollInterval   = 60 * time.Second // how often to poll each URL
+	statusInterval = 10 * time.Second // how often to log status to stdout
+	errTimeout     = 10 * time.Second // back-off timeout on error
 )
 
 var urls = []string{
@@ -33,7 +32,7 @@ type State struct {
 // StateMonitor maintains a map that stores the state of the URLs being
 // polled, and prints the current state every updateInterval nanoseconds.
 // It returns a chan State to which resource state should be sent.
-func StateMonitor(updateInterval int64) chan<- State {
+func StateMonitor(updateInterval time.Duration) chan<- State {
 	updates := make(chan State)
 	urlStatus := make(map[string]string)
 	ticker := time.NewTicker(updateInterval)
@@ -61,7 +60,7 @@ func logState(s map[string]string) {
 // Resource represents an HTTP URL to be polled by this program.
 type Resource struct {
 	url      string
-	errCount int64
+	errCount int
 }
 
 // Poll executes an HTTP HEAD request for url
@@ -79,8 +78,8 @@ func (r *Resource) Poll() string {
 
 // Sleep sleeps for an appropriate interval (dependant on error state)
 // before sending the Resource to done.
-func (r *Resource) Sleep(done chan *Resource) {
-	time.Sleep(pollInterval + errTimeout*r.errCount)
+func (r *Resource) Sleep(done chan<- *Resource) {
+	time.Sleep(pollInterval + errTimeout*time.Duration(r.errCount))
 	done <- r
 }
 
@@ -93,18 +92,18 @@ func Poller(in <-chan *Resource, out chan<- *Resource, status chan<- State) {
 }
 
 func main() {
-	// create our input and output channels
+	// Create our input and output channels.
 	pending, complete := make(chan *Resource), make(chan *Resource)
 
-	// launch the StateMonitor
+	// Launch the StateMonitor.
 	status := StateMonitor(statusInterval)
 
-	// launch some Poller goroutines
+	// Launch some Poller goroutines.
 	for i := 0; i < numPollers; i++ {
 		go Poller(pending, complete, status)
 	}
 
-	// send some Resources to the pending queue
+	// Send some Resources to the pending queue.
 	go func() {
 		for _, url := range urls {
 			pending <- &Resource{url: url}
