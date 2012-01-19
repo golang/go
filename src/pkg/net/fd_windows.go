@@ -230,7 +230,7 @@ type netFD struct {
 	// immutable until Close
 	sysfd   syscall.Handle
 	family  int
-	proto   int
+	sotype  int
 	net     string
 	laddr   Addr
 	raddr   Addr
@@ -244,11 +244,11 @@ type netFD struct {
 	wio       sync.Mutex
 }
 
-func allocFD(fd syscall.Handle, family, proto int, net string) (f *netFD) {
+func allocFD(fd syscall.Handle, family, sotype int, net string) (f *netFD) {
 	f = &netFD{
 		sysfd:  fd,
 		family: family,
-		proto:  proto,
+		sotype: sotype,
 		net:    net,
 	}
 	runtime.SetFinalizer(f, (*netFD).Close)
@@ -506,7 +506,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err err
 	// Get new socket.
 	// See ../syscall/exec.go for description of ForkLock.
 	syscall.ForkLock.RLock()
-	s, e := syscall.Socket(fd.family, fd.proto, 0)
+	s, e := syscall.Socket(fd.family, fd.sotype, 0)
 	if e != nil {
 		syscall.ForkLock.RUnlock()
 		return nil, e
@@ -546,7 +546,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err err
 	lsa, _ := lrsa.Sockaddr()
 	rsa, _ := rrsa.Sockaddr()
 
-	nfd = allocFD(s, fd.family, fd.proto, fd.net)
+	nfd = allocFD(s, fd.family, fd.sotype, fd.net)
 	nfd.setAddr(toAddr(lsa), toAddr(rsa))
 	return nfd, nil
 }
