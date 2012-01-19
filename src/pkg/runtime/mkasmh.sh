@@ -34,8 +34,8 @@ case "$GOARCH" in
 386)
 	# The offsets 0 and 4 are also known to:
 	#	../../cmd/8l/pass.c:/D_GS
-	#	../../libcgo/linux_386.c:/^threadentry
-	#	../../libcgo/darwin_386.c:/^threadentry
+	#	cgo/gcc_linux_386.c:/^threadentry
+	#	cgo/gcc_darwin_386.c:/^threadentry
 	case "$GOOS" in
 	windows)
 		echo '#define	get_tls(r)	MOVL 0x14(FS), r'
@@ -89,8 +89,8 @@ amd64)
 	*)
 		# The offsets 0 and 8 are known to:
 		#	../../cmd/6l/pass.c:/D_GS
-		#	../../libcgo/linux_amd64.c:/^threadentry
-		#	../../libcgo/darwin_amd64.c:/^threadentry
+		#	cgo/gcc_linux_amd64.c:/^threadentry
+		#	cgo/gcc_darwin_amd64.c:/^threadentry
 		#
 		echo '#define	get_tls(r)'
 		echo '#define	g(r) 0(GS)'

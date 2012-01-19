@@ -168,8 +168,8 @@ struct	Gobuf
 };
 struct	G
 {
-	byte*	stackguard;	// cannot move - also known to linker, libmach, libcgo
-	byte*	stackbase;	// cannot move - also known to libmach, libcgo
+	byte*	stackguard;	// cannot move - also known to linker, libmach, runtime/cgo
+	byte*	stackbase;	// cannot move - also known to libmach, runtime/cgo
 	Defer*	defer;
 	Panic*	panic;
 	Gobuf	sched;

@@ -39,8 +39,8 @@ inittls(void)
 	 *
 	 * The linker and runtime hard-code these constant offsets
 	 * from %gs where we expect to find m and g.
-	 * Known to ../cmd/8l/obj.c:/468
-	 * and to ../pkg/runtime/darwin/386/sys.s:/468
+	 * Known to ../../../cmd/8l/obj.c:/468
+	 * and to ../sys_darwin_386.s:/468
 	 *
 	 * This is truly disgusting and a bit fragile, but taking care
 	 * of it here protects the rest of the system from damage.
