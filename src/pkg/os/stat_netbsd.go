@@ -45,6 +45,9 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
 	if st.Mode&syscall.S_ISUID != 0 {
 		fs.mode |= ModeSetuid
 	}
+	if st.Mode&syscall.S_ISVTX != 0 {
+		fs.mode |= ModeSticky
+	}
 	return fs
 }
 
