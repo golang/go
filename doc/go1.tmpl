@@ -592,7 +592,7 @@ the correct function or method for the old functionality, but
 may have the wrong type or require further analysis.
 </p>
 
-<h3 id="hash">The crypto/elliptic package</h3>
+<h3 id="crypto/elliptic">The crypto/elliptic package</h3>
 
 <p>
 In Go 1, <a href="/pkg/crypto/elliptic/#Curve"><code>elliptic.Curve</code></a>
@@ -607,8 +607,26 @@ structure.
 Existing users of <code>*elliptic.Curve</code> will need to change to
 simply <code>elliptic.Curve</code>. Calls to <code>Marshal</code>,
 <code>Unmarshal</code> and <code>GenerateKey</code> are now functions
-in <code>crypto.elliptic</code> that take an <code>elliptic.Curve</code>
+in <code>crypto/elliptic</code> that take an <code>elliptic.Curve</code>
 as their first argument.
+</p>
+
+<h3 id="crypto/x509">The crypto/x509 package</h3>
+
+<p>
+In Go 1, the
+<a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+and
+<a href="/pkg/crypto/x509/#CreateCRL"><code>CreateCRL</code></a>
+functions in <code>crypto/x509</code> have been altered to take an
+<code>interface{}</code> where they previously took a <code>*rsa.PublicKey</code>
+or <code>*rsa.PrivateKey</code>. This will allow other public key algorithms
+to be implemented in the future.
+</p>
+
+<p>
+<em>Updating</em>:
+No changes will be needed.
 </p>
 
 <h3 id="hash">The hash package</h3>
