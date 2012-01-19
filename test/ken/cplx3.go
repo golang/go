@@ -19,10 +19,29 @@ const (
 func main() {
 	c0 := C1
 	c0 = (c0 + c0 + c0) / (c0 + c0 + 3i)
-	println(c0)
+	r, i := real(c0), imag(c0)
+	d := r - 1.292308
+	if d < 0 {
+		d = - d
+	}
+	if d > 1e-6 {
+		println(r, "!= 1.292308")
+		panic(0)
+	}
+	d = i + 0.1384615
+	if d < 0 {
+		d = - d
+	}
+	if d > 1e-6 {
+		println(i, "!= -0.1384615")
+		panic(0)
+	}
 
 	c := *(*complex128)(unsafe.Pointer(&c0))
-	println(c)
+	if c != c0 {
+		println(c, "!=", c)
+		panic(0)
+	}
 
 	var a interface{}
 	switch c := reflect.ValueOf(a); c.Kind() {
