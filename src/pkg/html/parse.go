@@ -1713,8 +1713,8 @@ func parseForeignContent(p *parser) bool {
 		}
 		if breakout[p.tok.Data] {
 			for i := len(p.oe) - 1; i >= 0; i-- {
-				// TODO: HTML, MathML integration points.
-				if p.oe[i].Namespace == "" {
+				// TODO: MathML integration points.
+				if p.oe[i].Namespace == "" || htmlIntegrationPoint(p.oe[i]) {
 					p.oe = p.oe[:i+1]
 					break
 				}

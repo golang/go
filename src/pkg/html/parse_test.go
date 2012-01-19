@@ -184,7 +184,7 @@ func TestParser(t *testing.T) {
 		{"tests4.dat", -1},
 		{"tests5.dat", -1},
 		{"tests6.dat", -1},
-		{"tests10.dat", 33},
+		{"tests10.dat", 35},
 	}
 	for _, tf := range testFiles {
 		f, err := os.Open("testdata/webkit/" + tf.filename)
