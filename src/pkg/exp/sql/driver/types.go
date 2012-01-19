@@ -32,6 +32,15 @@ type ValueConverter interface {
 	ConvertValue(v interface{}) (interface{}, error)
 }
 
+// SubsetValuer is the interface providing the SubsetValue method.
+//
+// Types implementing SubsetValuer interface are able to convert
+// themselves to one of the driver's allowed subset values.
+type SubsetValuer interface {
+	// SubsetValue returns a driver parameter subset value.
+	SubsetValue() (interface{}, error)
+}
+
 // Bool is a ValueConverter that converts input values to bools.
 //
 // The conversion rules are:
@@ -136,6 +145,32 @@ func (stringType) ConvertValue(v interface{}) (interface{}, error) {
 	return fmt.Sprintf("%v", v), nil
 }
 
+// Null is a type that implements ValueConverter by allowing nil
+// values but otherwise delegating to another ValueConverter.
+type Null struct {
+	Converter ValueConverter
+}
+
+func (n Null) ConvertValue(v interface{}) (interface{}, error) {
+	if v == nil {
+		return nil, nil
+	}
+	return n.Converter.ConvertValue(v)
+}
+
+// NotNull is a type that implements ValueConverter by disallowing nil
+// values but otherwise delegating to another ValueConverter.
+type NotNull struct {
+	Converter ValueConverter
+}
+
+func (n NotNull) ConvertValue(v interface{}) (interface{}, error) {
+	if v == nil {
+		return nil, fmt.Errorf("nil value not allowed")
+	}
+	return n.Converter.ConvertValue(v)
+}
+
 // IsParameterSubsetType reports whether v is of a valid type for a
 // parameter. These types are:
 //
@@ -200,6 +235,17 @@ func (defaultConverter) ConvertValue(v interface{}) (interface{}, error) {
 		return v, nil
 	}
 
+	if svi, ok := v.(SubsetValuer); ok {
+		sv, err := svi.SubsetValue()
+		if err != nil {
+			return nil, err
+		}
+		if !IsParameterSubsetType(sv) {
+			return nil, fmt.Errorf("non-subset type %T returned from SubsetValue", sv)
+		}
+		return sv, nil
+	}
+
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -215,5 +261,5 @@ func (defaultConverter) ConvertValue(v interface{}) (interface{}, error) {
 	case reflect.Float32, reflect.Float64:
 		return rv.Float(), nil
 	}
-	return nil, fmt.Errorf("unsupported type %s", rv.Kind())
+	return nil, fmt.Errorf("unsupported type %T, a %s", v, rv.Kind())
 }

@@ -5,6 +5,7 @@
 package sql
 
 import (
+	"exp/sql/driver"
 	"fmt"
 	"reflect"
 	"testing"
@@ -154,8 +155,8 @@ func TestConversions(t *testing.T) {
 	}
 }
 
-func TestNullableString(t *testing.T) {
-	var ns NullableString
+func TestNullString(t *testing.T) {
+	var ns NullString
 	convertAssign(&ns, []byte("foo"))
 	if !ns.Valid {
 		t.Errorf("expecting not null")
@@ -169,5 +170,37 @@ func TestNullableString(t *testing.T) {
 	}
 	if ns.String != "" {
 		t.Errorf("expecting blank on nil; got %q", ns.String)
+	}
+}
+
+type valueConverterTest struct {
+	c       driver.ValueConverter
+	in, out interface{}
+	err     string
+}
+
+var valueConverterTests = []valueConverterTest{
+	{driver.DefaultParameterConverter, NullString{"hi", true}, "hi", ""},
+	{driver.DefaultParameterConverter, NullString{"", false}, nil, ""},
+}
+
+func TestValueConverters(t *testing.T) {
+	for i, tt := range valueConverterTests {
+		out, err := tt.c.ConvertValue(tt.in)
+		goterr := ""
+		if err != nil {
+			goterr = err.Error()
+		}
+		if goterr != tt.err {
+			t.Errorf("test %d: %s(%T(%v)) error = %q; want error = %q",
+				i, tt.c, tt.in, tt.in, goterr, tt.err)
+		}
+		if tt.err != "" {
+			continue
+		}
+		if !reflect.DeepEqual(out, tt.out) {
+			t.Errorf("test %d: %s(%T(%v)) = %v (%T); want %v (%T)",
+				i, tt.c, tt.in, tt.in, out, out, tt.out, tt.out)
+		}
 	}
 }

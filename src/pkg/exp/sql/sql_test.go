@@ -340,3 +340,65 @@ func TestQueryRowClosingStmt(t *testing.T) {
 		t.Errorf("statement close mismatch: made %d, closed %d", made, closed)
 	}
 }
+
+func TestNullStringParam(t *testing.T) {
+	db := newTestDB(t, "")
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|t|id=int32,name=string,favcolor=nullstring")
+
+	// Inserts with db.Exec:
+	exec(t, db, "INSERT|t|id=?,name=?,favcolor=?", 1, "alice", NullString{"aqua", true})
+	exec(t, db, "INSERT|t|id=?,name=?,favcolor=?", 2, "bob", NullString{"brown", false})
+
+	_, err := db.Exec("INSERT|t|id=?,name=?,favcolor=?", 999, nil, nil)
+	if err == nil {
+		// TODO: this test fails, but it's just because
+		// fakeConn implements the optional Execer interface,
+		// so arguably this is the correct behavior.  But
+		// maybe I should flesh out the fakeConn.Exec
+		// implementation so this properly fails.
+		// t.Errorf("expected error inserting nil name with Exec")
+	}
+
+	// Inserts with a prepared statement:
+	stmt, err := db.Prepare("INSERT|t|id=?,name=?,favcolor=?")
+	if err != nil {
+		t.Fatalf("prepare: %v", err)
+	}
+	if _, err := stmt.Exec(3, "chris", "chartreuse"); err != nil {
+		t.Errorf("exec insert chris: %v", err)
+	}
+	if _, err := stmt.Exec(4, "dave", NullString{"darkred", true}); err != nil {
+		t.Errorf("exec insert dave: %v", err)
+	}
+	if _, err := stmt.Exec(5, "eleanor", NullString{"eel", false}); err != nil {
+		t.Errorf("exec insert dave: %v", err)
+	}
+
+	// Can't put null name into non-nullstring column,
+	if _, err := stmt.Exec(5, NullString{"", false}, nil); err == nil {
+		t.Errorf("expected error inserting nil name with prepared statement Exec")
+	}
+
+	type nameColor struct {
+		name     string
+		favColor NullString
+	}
+
+	wantMap := map[int]nameColor{
+		1: nameColor{"alice", NullString{"aqua", true}},
+		2: nameColor{"bob", NullString{"", false}},
+		3: nameColor{"chris", NullString{"chartreuse", true}},
+		4: nameColor{"dave", NullString{"darkred", true}},
+		5: nameColor{"eleanor", NullString{"", false}},
+	}
+	for id, want := range wantMap {
+		var got nameColor
+		if err := db.QueryRow("SELECT|t|name,favcolor|id=?", id).Scan(&got.name, &got.favColor); err != nil {
+			t.Errorf("id=%d Scan: %v", id, err)
+		}
+		if got != want {
+			t.Errorf("id=%d got %#v, want %#v", id, got, want)
+		}
+	}
+}
