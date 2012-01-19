@@ -337,6 +337,9 @@ func main() {
 			}()
 		}
 
+		// Periodically refresh metadata.
+		go refreshMetadataLoop()
+
 		// Initialize search index.
 		if *indexEnabled {
 			go indexer()
