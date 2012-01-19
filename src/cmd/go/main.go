@@ -327,9 +327,9 @@ func allPackages(pattern string) []string {
 				return nil
 			}
 
-			// Avoid .foo and testdata directory trees.
+			// Avoid .foo, _foo, and testdata directory trees.
 			_, elem := filepath.Split(path)
-			if strings.HasPrefix(elem, ".") || elem == "testdata" {
+			if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
 				return filepath.SkipDir
 			}
 
@@ -394,9 +394,9 @@ func allPackagesInFS(pattern string) []string {
 			return nil
 		}
 
-		// Avoid .foo and testdata directory trees.
+		// Avoid .foo, _foo, and testdata directory trees.
 		_, elem := filepath.Split(path)
-		if strings.HasPrefix(elem, ".") || elem == "testdata" {
+		if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
 			return filepath.SkipDir
 		}
 
