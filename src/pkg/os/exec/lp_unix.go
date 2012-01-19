@@ -47,8 +47,9 @@ func LookPath(file string) (string, error) {
 			// Unix shell semantics: path element "" means "."
 			dir = "."
 		}
-		if err := findExecutable(dir + "/" + file); err == nil {
-			return dir + "/" + file, nil
+		path := dir + "/" + file
+		if err := findExecutable(path); err == nil {
+			return path, nil
 		}
 	}
 	return "", &Error{file, ErrNotFound}
