@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // One of the copies, say from b to r2, could be avoided by using a more
@@ -36,12 +37,12 @@ type dumpConn struct {
 	io.Reader
 }
 
-func (c *dumpConn) Close() error                     { return nil }
-func (c *dumpConn) LocalAddr() net.Addr              { return nil }
-func (c *dumpConn) RemoteAddr() net.Addr             { return nil }
-func (c *dumpConn) SetTimeout(nsec int64) error      { return nil }
-func (c *dumpConn) SetReadTimeout(nsec int64) error  { return nil }
-func (c *dumpConn) SetWriteTimeout(nsec int64) error { return nil }
+func (c *dumpConn) Close() error                       { return nil }
+func (c *dumpConn) LocalAddr() net.Addr                { return nil }
+func (c *dumpConn) RemoteAddr() net.Addr               { return nil }
+func (c *dumpConn) SetDeadline(t time.Time) error      { return nil }
+func (c *dumpConn) SetReadDeadline(t time.Time) error  { return nil }
+func (c *dumpConn) SetWriteDeadline(t time.Time) error { return nil }
 
 // DumpRequestOut is like DumpRequest but includes
 // headers that the standard http.Transport adds,

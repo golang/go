@@ -11,6 +11,7 @@ package net
 import (
 	"os"
 	"syscall"
+	"time"
 )
 
 func sockaddrToUDP(sa syscall.Sockaddr) Addr {
@@ -98,28 +99,28 @@ func (c *UDPConn) RemoteAddr() Addr {
 	return c.fd.raddr
 }
 
-// SetTimeout implements the net.Conn SetTimeout method.
-func (c *UDPConn) SetTimeout(nsec int64) error {
+// SetDeadline implements the net.Conn SetDeadline method.
+func (c *UDPConn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
-	return setTimeout(c.fd, nsec)
+	return setDeadline(c.fd, t)
 }
 
-// SetReadTimeout implements the net.Conn SetReadTimeout method.
-func (c *UDPConn) SetReadTimeout(nsec int64) error {
+// SetReadDeadline implements the net.Conn SetReadDeadline method.
+func (c *UDPConn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
-	return setReadTimeout(c.fd, nsec)
+	return setReadDeadline(c.fd, t)
 }
 
-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
-func (c *UDPConn) SetWriteTimeout(nsec int64) error {
+// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+func (c *UDPConn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
 	}
-	return setWriteTimeout(c.fd, nsec)
+	return setWriteDeadline(c.fd, t)
 }
 
 // SetReadBuffer sets the size of the operating system's
@@ -147,7 +148,7 @@ func (c *UDPConn) SetWriteBuffer(bytes int) error {
 // that was on the packet.
 //
 // ReadFromUDP can be made to time out and return an error with Timeout() == true
-// after a fixed time limit; see SetTimeout and SetReadTimeout.
+// after a fixed time limit; see SetDeadline and SetReadDeadline.
 func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
@@ -175,7 +176,7 @@ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 //
 // WriteToUDP can be made to time out and return
 // an error with Timeout() == true after a fixed time limit;
-// see SetTimeout and SetWriteTimeout.
+// see SetDeadline and SetWriteDeadline.
 // On packet-oriented connections, write timeouts are rare.
 func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err error) {
 	if !c.ok() {

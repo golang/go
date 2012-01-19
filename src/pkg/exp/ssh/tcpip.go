@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 )
 
 // Dial initiates a connection to the addr from the remote host.
@@ -107,27 +108,25 @@ func (t *tcpchanconn) RemoteAddr() net.Addr {
 	return t.raddr
 }
 
-// SetTimeout sets the read and write deadlines associated
+// SetDeadline sets the read and write deadlines associated
 // with the connection.
-func (t *tcpchanconn) SetTimeout(nsec int64) error {
-	if err := t.SetReadTimeout(nsec); err != nil {
+func (t *tcpchanconn) SetDeadline(deadline time.Time) error {
+	if err := t.SetReadDeadline(deadline); err != nil {
 		return err
 	}
-	return t.SetWriteTimeout(nsec)
+	return t.SetWriteDeadline(deadline)
 }
 
-// SetReadTimeout sets the time (in nanoseconds) that
-// Read will wait for data before returning an error with Timeout() == true.
-// Setting nsec == 0 (the default) disables the deadline.
-func (t *tcpchanconn) SetReadTimeout(nsec int64) error {
-	return errors.New("ssh: tcpchan: timeout not supported")
+// SetReadDeadline sets the read deadline.
+// A zero value for t means Read will not time out.
+// After the deadline, the error from Read will implement net.Error
+// with Timeout() == true.
+func (t *tcpchanconn) SetReadDeadline(deadline time.Time) error {
+	return errors.New("ssh: tcpchan: deadline not supported")
 }
 
-// SetWriteTimeout sets the time (in nanoseconds) that
-// Write will wait to send its data before returning an error with Timeout() == true.
-// Setting nsec == 0 (the default) disables the deadline.
-// Even if write times out, it may return n > 0, indicating that
-// some of the data was successfully written.
-func (t *tcpchanconn) SetWriteTimeout(nsec int64) error {
-	return errors.New("ssh: tcpchan: timeout not supported")
+// SetWriteDeadline exists to satisfy the net.Conn interface
+// but is not implemented by this type.  It always returns an error.
+func (t *tcpchanconn) SetWriteDeadline(deadline time.Time) error {
+	return errors.New("ssh: tcpchan: deadline not supported")
 }

@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 )
 
 const (
@@ -243,30 +244,30 @@ func (ws *Conn) RemoteAddr() net.Addr {
 	return &Addr{ws.config.Origin}
 }
 
-var errSetTimeout = errors.New("websocket: cannot set timeout: not using a net.Conn")
+var errSetDeadline = errors.New("websocket: cannot set deadline: not using a net.Conn")
 
-// SetTimeout sets the connection's network timeout in nanoseconds.
-func (ws *Conn) SetTimeout(nsec int64) error {
+// SetDeadline sets the connection's network read & write deadlines.
+func (ws *Conn) SetDeadline(t time.Time) error {
 	if conn, ok := ws.rwc.(net.Conn); ok {
-		return conn.SetTimeout(nsec)
+		return conn.SetDeadline(t)
 	}
-	return errSetTimeout
+	return errSetDeadline
 }
 
-// SetReadTimeout sets the connection's network read timeout in nanoseconds.
-func (ws *Conn) SetReadTimeout(nsec int64) error {
+// SetReadDeadline sets the connection's network read deadline.
+func (ws *Conn) SetReadDeadline(t time.Time) error {
 	if conn, ok := ws.rwc.(net.Conn); ok {
-		return conn.SetReadTimeout(nsec)
+		return conn.SetReadDeadline(t)
 	}
-	return errSetTimeout
+	return errSetDeadline
 }
 
-// SetWriteTimeout sets the connection's network write timeout in nanoseconds.
-func (ws *Conn) SetWriteTimeout(nsec int64) error {
+// SetWriteDeadline sets the connection's network write deadline.
+func (ws *Conn) SetWriteDeadline(t time.Time) error {
 	if conn, ok := ws.rwc.(net.Conn); ok {
-		return conn.SetWriteTimeout(nsec)
+		return conn.SetWriteDeadline(t)
 	}
-	return errSetTimeout
+	return errSetDeadline
 }
 
 // Config returns the WebSocket config.
