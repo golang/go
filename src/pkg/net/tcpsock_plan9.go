@@ -8,12 +8,28 @@ package net
 
 import (
 	"os"
+	"time"
 )
 
 // TCPConn is an implementation of the Conn interface
 // for TCP network connections.
 type TCPConn struct {
 	plan9Conn
+}
+
+// SetDeadline implements the net.Conn SetDeadline method.
+func (c *TCPConn) SetDeadline(t time.Time) error {
+	return os.EPLAN9
+}
+
+// SetReadDeadline implements the net.Conn SetReadDeadline method.
+func (c *TCPConn) SetReadDeadline(t time.Time) error {
+	return os.EPLAN9
+}
+
+// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+func (c *TCPConn) SetWriteDeadline(t time.Time) error {
+	return os.EPLAN9
 }
 
 // CloseRead shuts down the reading side of the TCP connection.

@@ -8,11 +8,27 @@ package net
 
 import (
 	"os"
+	"time"
 )
 
 // IPConn is the implementation of the Conn and PacketConn
 // interfaces for IP network connections.
 type IPConn bool
+
+// SetDeadline implements the net.Conn SetDeadline method.
+func (c *IPConn) SetDeadline(t time.Time) error {
+	return os.EPLAN9
+}
+
+// SetReadDeadline implements the net.Conn SetReadDeadline method.
+func (c *IPConn) SetReadDeadline(t time.Time) error {
+	return os.EPLAN9
+}
+
+// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+func (c *IPConn) SetWriteDeadline(t time.Time) error {
+	return os.EPLAN9
+}
 
 // Implementation of the Conn interface - see Conn for documentation.
 
@@ -41,21 +57,6 @@ func (c *IPConn) RemoteAddr() Addr {
 	return nil
 }
 
-// SetTimeout implements the net.Conn SetTimeout method.
-func (c *IPConn) SetTimeout(nsec int64) error {
-	return os.EPLAN9
-}
-
-// SetReadTimeout implements the net.Conn SetReadTimeout method.
-func (c *IPConn) SetReadTimeout(nsec int64) error {
-	return os.EPLAN9
-}
-
-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
-func (c *IPConn) SetWriteTimeout(nsec int64) error {
-	return os.EPLAN9
-}
-
 // IP-specific methods.
 
 // ReadFrom implements the net.PacketConn ReadFrom method.
@@ -68,7 +69,7 @@ func (c *IPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 //
 // WriteToIP can be made to time out and return
 // an error with Timeout() == true after a fixed time limit;
-// see SetTimeout and SetWriteTimeout.
+// see SetDeadline and SetWriteDeadline.
 // On packet-oriented connections, write timeouts are rare.
 func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (n int, err error) {
 	return 0, os.EPLAN9

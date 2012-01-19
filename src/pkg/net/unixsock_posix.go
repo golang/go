@@ -387,7 +387,7 @@ func (l *UnixListener) Close() error {
 // Addr returns the listener's network address.
 func (l *UnixListener) Addr() Addr { return l.fd.laddr }
 
-// SetTimeout sets the deadline associated with the listener.
+// SetDeadline sets the deadline associated with the listener.
 // A zero time value disables the deadline.
 func (l *UnixListener) SetDeadline(t time.Time) (err error) {
 	if l == nil || l.fd == nil {

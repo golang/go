@@ -9,12 +9,28 @@ package net
 import (
 	"errors"
 	"os"
+	"time"
 )
 
 // UDPConn is the implementation of the Conn and PacketConn
 // interfaces for UDP network connections.
 type UDPConn struct {
 	plan9Conn
+}
+
+// SetDeadline implements the net.Conn SetDeadline method.
+func (c *UDPConn) SetDeadline(t time.Time) error {
+	return os.EPLAN9
+}
+
+// SetReadDeadline implements the net.Conn SetReadDeadline method.
+func (c *UDPConn) SetReadDeadline(t time.Time) error {
+	return os.EPLAN9
+}
+
+// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+func (c *UDPConn) SetWriteDeadline(t time.Time) error {
+	return os.EPLAN9
 }
 
 // UDP-specific methods.
@@ -24,7 +40,7 @@ type UDPConn struct {
 // that was on the packet.
 //
 // ReadFromUDP can be made to time out and return an error with Timeout() == true
-// after a fixed time limit; see SetTimeout and SetReadTimeout.
+// after a fixed time limit; see SetDeadline and SetReadDeadline.
 func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
@@ -62,7 +78,7 @@ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 //
 // WriteToUDP can be made to time out and return
 // an error with Timeout() == true after a fixed time limit;
-// see SetTimeout and SetWriteTimeout.
+// see SetDeadline and SetWriteDeadline.
 // On packet-oriented connections, write timeouts are rare.
 func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err error) {
 	if !c.ok() {
