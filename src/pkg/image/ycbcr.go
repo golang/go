@@ -49,28 +49,32 @@ func (p *YCbCr) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.YCbCr{}
 	}
+	yi := p.YOffset(x, y)
+	ci := p.COffset(x, y)
+	return color.YCbCr{
+		p.Y[yi],
+		p.Cb[ci],
+		p.Cr[ci],
+	}
+}
+
+// YOffset returns the index of the first element of Y that corresponds to
+// the pixel at (x, y).
+func (p *YCbCr) YOffset(x, y int) int {
+	return y*p.YStride + x
+}
+
+// COffset returns the index of the first element of Cb or Cr that corresponds
+// to the pixel at (x, y).
+func (p *YCbCr) COffset(x, y int) int {
 	switch p.SubsampleRatio {
 	case YCbCrSubsampleRatio422:
-		i := x / 2
-		return color.YCbCr{
-			p.Y[y*p.YStride+x],
-			p.Cb[y*p.CStride+i],
-			p.Cr[y*p.CStride+i],
-		}
+		return y*p.CStride + (x / 2)
 	case YCbCrSubsampleRatio420:
-		i, j := x/2, y/2
-		return color.YCbCr{
-			p.Y[y*p.YStride+x],
-			p.Cb[j*p.CStride+i],
-			p.Cr[j*p.CStride+i],
-		}
+		return (y/2)*p.CStride + (x / 2)
 	}
 	// Default to 4:4:4 subsampling.
-	return color.YCbCr{
-		p.Y[y*p.YStride+x],
-		p.Cb[y*p.CStride+x],
-		p.Cr[y*p.CStride+x],
-	}
+	return y*p.CStride + x
 }
 
 // SubImage returns an image representing the portion of the image p visible
