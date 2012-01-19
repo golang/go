@@ -36,6 +36,10 @@ type miscPlaneTag struct {
 	V string `json:"色は匂へど"`
 }
 
+type percentSlashTag struct {
+	V string `json:"text/html%"` // http://golang.org/issue/2718
+}
+
 type emptyTag struct {
 	W string
 }
@@ -68,6 +72,7 @@ var structTagObjectKeyTests = []struct {
 	{misnamedTag{"Animal Kingdom"}, "Animal Kingdom", "X"},
 	{badFormatTag{"Orfevre"}, "Orfevre", "Y"},
 	{badCodeTag{"Reliable Man"}, "Reliable Man", "Z"},
+	{percentSlashTag{"brut"}, "brut", "text/html%"},
 }
 
 func TestStructTagObjectKey(t *testing.T) {
@@ -88,7 +93,7 @@ func TestStructTagObjectKey(t *testing.T) {
 					t.Fatalf("Unexpected value: %#q, want %v", s, tt.value)
 				}
 			default:
-				t.Fatalf("Unexpected key: %#q", i)
+				t.Fatalf("Unexpected key: %#q, from %#q", i, b)
 			}
 		}
 	}
