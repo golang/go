@@ -223,8 +223,8 @@ func (d *decoder) decode(dst image.Image, ymin, ymax int) error {
 		}
 	case mRGB:
 		img := dst.(*image.RGBA)
-		min := (ymin-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*4
-		max := (ymax-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*4
+		min := img.PixOffset(0, ymin)
+		max := img.PixOffset(0, ymax)
 		var off int
 		for i := min; i < max; i += 4 {
 			img.Pix[i+0] = d.buf[off+0]
@@ -235,16 +235,16 @@ func (d *decoder) decode(dst image.Image, ymin, ymax int) error {
 		}
 	case mNRGBA:
 		img := dst.(*image.NRGBA)
-		min := (ymin-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*4
-		max := (ymax-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*4
+		min := img.PixOffset(0, ymin)
+		max := img.PixOffset(0, ymax)
 		if len(d.buf) != max-min {
 			return FormatError("short data strip")
 		}
 		copy(img.Pix[min:max], d.buf)
 	case mRGBA:
 		img := dst.(*image.RGBA)
-		min := (ymin-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*4
-		max := (ymax-img.Rect.Min.Y)*img.Stride - img.Rect.Min.X*4
+		min := img.PixOffset(0, ymin)
+		max := img.PixOffset(0, ymax)
 		if len(d.buf) != max-min {
 			return FormatError("short data strip")
 		}

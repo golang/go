@@ -171,7 +171,7 @@ func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform) {
 	sr, sg, sb, sa := src.RGBA()
 	// The 0x101 is here for the same reason as in drawRGBA.
 	a := (m - sa) * 0x101
-	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
+	i0 := dst.PixOffset(r.Min.X, r.Min.Y)
 	i1 := i0 + r.Dx()*4
 	for y := r.Min.Y; y != r.Max.Y; y++ {
 		for i := i0; i < i1; i += 4 {
@@ -195,7 +195,7 @@ func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.Uniform) {
 	// The built-in copy function is faster than a straightforward for loop to fill the destination with
 	// the color, but copy requires a slice source. We therefore use a for loop to fill the first row, and
 	// then use the first row as the slice source for the remaining rows.
-	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
+	i0 := dst.PixOffset(r.Min.X, r.Min.Y)
 	i1 := i0 + r.Dx()*4
 	for i := i0; i < i1; i += 4 {
 		dst.Pix[i+0] = uint8(sr >> 8)
@@ -213,8 +213,8 @@ func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.Uniform) {
 
 func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
 	dx, dy := r.Dx(), r.Dy()
-	d0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
-	s0 := (sp.Y-src.Rect.Min.Y)*src.Stride + (sp.X-src.Rect.Min.X)*4
+	d0 := dst.PixOffset(r.Min.X, r.Min.Y)
+	s0 := src.PixOffset(sp.X, sp.Y)
 	var (
 		ddelta, sdelta int
 		i0, i1, idelta int
@@ -261,8 +261,8 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
 
 func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
 	n, dy := 4*r.Dx(), r.Dy()
-	d0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
-	s0 := (sp.Y-src.Rect.Min.Y)*src.Stride + (sp.X-src.Rect.Min.X)*4
+	d0 := dst.PixOffset(r.Min.X, r.Min.Y)
+	s0 := src.PixOffset(sp.X, sp.Y)
 	var ddelta, sdelta int
 	if r.Min.Y <= sp.Y {
 		ddelta = dst.Stride
@@ -348,9 +348,7 @@ func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image
 func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) {
 	// An image.YCbCr is always fully opaque, and so if the mask is implicitly nil
 	// (i.e. fully opaque) then the op is effectively always Src.
-	var (
-		yy, cb, cr uint8
-	)
+	var yy, cb, cr uint8
 	x0 := (r.Min.X - dst.Rect.Min.X) * 4
 	x1 := (r.Max.X - dst.Rect.Min.X) * 4
 	y0 := r.Min.Y - dst.Rect.Min.Y
@@ -405,9 +403,9 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 }
 
 func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform, mask *image.Alpha, mp image.Point) {
-	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + (r.Min.X-dst.Rect.Min.X)*4
+	i0 := dst.PixOffset(r.Min.X, r.Min.Y)
 	i1 := i0 + r.Dx()*4
-	mi0 := (mp.Y-mask.Rect.Min.Y)*mask.Stride + mp.X - mask.Rect.Min.X
+	mi0 := mask.PixOffset(mp.X, mp.Y)
 	sr, sg, sb, sa := src.RGBA()
 	for y, my := r.Min.Y, mp.Y; y != r.Max.Y; y, my = y+1, my+1 {
 		for i, mi := i0, mi0; i < i1; i, mi = i+4, mi+1 {
@@ -451,7 +449,7 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 	sx0 := sp.X + x0 - r.Min.X
 	mx0 := mp.X + x0 - r.Min.X
 	sx1 := sx0 + (x1 - x0)
-	i0 := (y0-dst.Rect.Min.Y)*dst.Stride + (x0-dst.Rect.Min.X)*4
+	i0 := dst.PixOffset(x0, y0)
 	di := dx * 4
 	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
 		for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {

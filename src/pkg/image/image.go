@@ -61,15 +61,21 @@ func (p *RGBA) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.RGBA{}
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+	i := p.PixOffset(x, y)
 	return color.RGBA{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
+}
+
+// PixOffset returns the index of the first element of Pix that corresponds to
+// the pixel at (x, y).
+func (p *RGBA) PixOffset(x, y int) int {
+	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
 }
 
 func (p *RGBA) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+	i := p.PixOffset(x, y)
 	c1 := color.RGBAModel.Convert(c).(color.RGBA)
 	p.Pix[i+0] = c1.R
 	p.Pix[i+1] = c1.G
@@ -81,7 +87,7 @@ func (p *RGBA) SetRGBA(x, y int, c color.RGBA) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+	i := p.PixOffset(x, y)
 	p.Pix[i+0] = c.R
 	p.Pix[i+1] = c.G
 	p.Pix[i+2] = c.B
@@ -98,7 +104,7 @@ func (p *RGBA) SubImage(r Rectangle) Image {
 	if r.Empty() {
 		return &RGBA{}
 	}
-	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X-p.Rect.Min.X)*4
+	i := p.PixOffset(r.Min.X, r.Min.Y)
 	return &RGBA{
 		Pix:    p.Pix[i:],
 		Stride: p.Stride,
@@ -150,7 +156,7 @@ func (p *RGBA64) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.RGBA64{}
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
+	i := p.PixOffset(x, y)
 	return color.RGBA64{
 		uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1]),
 		uint16(p.Pix[i+2])<<8 | uint16(p.Pix[i+3]),
@@ -159,11 +165,17 @@ func (p *RGBA64) At(x, y int) color.Color {
 	}
 }
 
+// PixOffset returns the index of the first element of Pix that corresponds to
+// the pixel at (x, y).
+func (p *RGBA64) PixOffset(x, y int) int {
+	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
+}
+
 func (p *RGBA64) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
+	i := p.PixOffset(x, y)
 	c1 := color.RGBA64Model.Convert(c).(color.RGBA64)
 	p.Pix[i+0] = uint8(c1.R >> 8)
 	p.Pix[i+1] = uint8(c1.R)
@@ -179,7 +191,7 @@ func (p *RGBA64) SetRGBA64(x, y int, c color.RGBA64) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
+	i := p.PixOffset(x, y)
 	p.Pix[i+0] = uint8(c.R >> 8)
 	p.Pix[i+1] = uint8(c.R)
 	p.Pix[i+2] = uint8(c.G >> 8)
@@ -200,7 +212,7 @@ func (p *RGBA64) SubImage(r Rectangle) Image {
 	if r.Empty() {
 		return &RGBA64{}
 	}
-	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X-p.Rect.Min.X)*8
+	i := p.PixOffset(r.Min.X, r.Min.Y)
 	return &RGBA64{
 		Pix:    p.Pix[i:],
 		Stride: p.Stride,
@@ -252,15 +264,21 @@ func (p *NRGBA) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.NRGBA{}
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+	i := p.PixOffset(x, y)
 	return color.NRGBA{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
+}
+
+// PixOffset returns the index of the first element of Pix that corresponds to
+// the pixel at (x, y).
+func (p *NRGBA) PixOffset(x, y int) int {
+	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
 }
 
 func (p *NRGBA) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+	i := p.PixOffset(x, y)
 	c1 := color.NRGBAModel.Convert(c).(color.NRGBA)
 	p.Pix[i+0] = c1.R
 	p.Pix[i+1] = c1.G
@@ -272,7 +290,7 @@ func (p *NRGBA) SetNRGBA(x, y int, c color.NRGBA) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+	i := p.PixOffset(x, y)
 	p.Pix[i+0] = c.R
 	p.Pix[i+1] = c.G
 	p.Pix[i+2] = c.B
@@ -289,7 +307,7 @@ func (p *NRGBA) SubImage(r Rectangle) Image {
 	if r.Empty() {
 		return &NRGBA{}
 	}
-	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X-p.Rect.Min.X)*4
+	i := p.PixOffset(r.Min.X, r.Min.Y)
 	return &NRGBA{
 		Pix:    p.Pix[i:],
 		Stride: p.Stride,
@@ -341,7 +359,7 @@ func (p *NRGBA64) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.NRGBA64{}
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
+	i := p.PixOffset(x, y)
 	return color.NRGBA64{
 		uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1]),
 		uint16(p.Pix[i+2])<<8 | uint16(p.Pix[i+3]),
@@ -350,11 +368,17 @@ func (p *NRGBA64) At(x, y int) color.Color {
 	}
 }
 
+// PixOffset returns the index of the first element of Pix that corresponds to
+// the pixel at (x, y).
+func (p *NRGBA64) PixOffset(x, y int) int {
+	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
+}
+
 func (p *NRGBA64) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
+	i := p.PixOffset(x, y)
 	c1 := color.NRGBA64Model.Convert(c).(color.NRGBA64)
 	p.Pix[i+0] = uint8(c1.R >> 8)
 	p.Pix[i+1] = uint8(c1.R)
@@ -370,7 +394,7 @@ func (p *NRGBA64) SetNRGBA64(x, y int, c color.NRGBA64) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*8
+	i := p.PixOffset(x, y)
 	p.Pix[i+0] = uint8(c.R >> 8)
 	p.Pix[i+1] = uint8(c.R)
 	p.Pix[i+2] = uint8(c.G >> 8)
@@ -391,7 +415,7 @@ func (p *NRGBA64) SubImage(r Rectangle) Image {
 	if r.Empty() {
 		return &NRGBA64{}
 	}
-	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X-p.Rect.Min.X)*8
+	i := p.PixOffset(r.Min.X, r.Min.Y)
 	return &NRGBA64{
 		Pix:    p.Pix[i:],
 		Stride: p.Stride,
@@ -443,15 +467,21 @@ func (p *Alpha) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.Alpha{}
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	i := p.PixOffset(x, y)
 	return color.Alpha{p.Pix[i]}
+}
+
+// PixOffset returns the index of the first element of Pix that corresponds to
+// the pixel at (x, y).
+func (p *Alpha) PixOffset(x, y int) int {
+	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*1
 }
 
 func (p *Alpha) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	i := p.PixOffset(x, y)
 	p.Pix[i] = color.AlphaModel.Convert(c).(color.Alpha).A
 }
 
@@ -459,7 +489,7 @@ func (p *Alpha) SetAlpha(x, y int, c color.Alpha) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	i := p.PixOffset(x, y)
 	p.Pix[i] = c.A
 }
 
@@ -473,7 +503,7 @@ func (p *Alpha) SubImage(r Rectangle) Image {
 	if r.Empty() {
 		return &Alpha{}
 	}
-	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X-p.Rect.Min.X)*1
+	i := p.PixOffset(r.Min.X, r.Min.Y)
 	return &Alpha{
 		Pix:    p.Pix[i:],
 		Stride: p.Stride,
@@ -525,15 +555,21 @@ func (p *Alpha16) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.Alpha16{}
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
+	i := p.PixOffset(x, y)
 	return color.Alpha16{uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1])}
+}
+
+// PixOffset returns the index of the first element of Pix that corresponds to
+// the pixel at (x, y).
+func (p *Alpha16) PixOffset(x, y int) int {
+	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
 }
 
 func (p *Alpha16) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
+	i := p.PixOffset(x, y)
 	c1 := color.Alpha16Model.Convert(c).(color.Alpha16)
 	p.Pix[i+0] = uint8(c1.A >> 8)
 	p.Pix[i+1] = uint8(c1.A)
@@ -543,7 +579,7 @@ func (p *Alpha16) SetAlpha16(x, y int, c color.Alpha16) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
+	i := p.PixOffset(x, y)
 	p.Pix[i+0] = uint8(c.A >> 8)
 	p.Pix[i+1] = uint8(c.A)
 }
@@ -558,7 +594,7 @@ func (p *Alpha16) SubImage(r Rectangle) Image {
 	if r.Empty() {
 		return &Alpha16{}
 	}
-	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X-p.Rect.Min.X)*2
+	i := p.PixOffset(r.Min.X, r.Min.Y)
 	return &Alpha16{
 		Pix:    p.Pix[i:],
 		Stride: p.Stride,
@@ -610,15 +646,21 @@ func (p *Gray) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.Gray{}
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	i := p.PixOffset(x, y)
 	return color.Gray{p.Pix[i]}
+}
+
+// PixOffset returns the index of the first element of Pix that corresponds to
+// the pixel at (x, y).
+func (p *Gray) PixOffset(x, y int) int {
+	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*1
 }
 
 func (p *Gray) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	i := p.PixOffset(x, y)
 	p.Pix[i] = color.GrayModel.Convert(c).(color.Gray).Y
 }
 
@@ -626,7 +668,7 @@ func (p *Gray) SetGray(x, y int, c color.Gray) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	i := p.PixOffset(x, y)
 	p.Pix[i] = c.Y
 }
 
@@ -640,7 +682,7 @@ func (p *Gray) SubImage(r Rectangle) Image {
 	if r.Empty() {
 		return &Gray{}
 	}
-	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X-p.Rect.Min.X)*1
+	i := p.PixOffset(r.Min.X, r.Min.Y)
 	return &Gray{
 		Pix:    p.Pix[i:],
 		Stride: p.Stride,
@@ -679,15 +721,21 @@ func (p *Gray16) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.Gray16{}
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
+	i := p.PixOffset(x, y)
 	return color.Gray16{uint16(p.Pix[i+0])<<8 | uint16(p.Pix[i+1])}
+}
+
+// PixOffset returns the index of the first element of Pix that corresponds to
+// the pixel at (x, y).
+func (p *Gray16) PixOffset(x, y int) int {
+	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
 }
 
 func (p *Gray16) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
+	i := p.PixOffset(x, y)
 	c1 := color.Gray16Model.Convert(c).(color.Gray16)
 	p.Pix[i+0] = uint8(c1.Y >> 8)
 	p.Pix[i+1] = uint8(c1.Y)
@@ -697,7 +745,7 @@ func (p *Gray16) SetGray16(x, y int, c color.Gray16) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*2
+	i := p.PixOffset(x, y)
 	p.Pix[i+0] = uint8(c.Y >> 8)
 	p.Pix[i+1] = uint8(c.Y)
 }
@@ -712,7 +760,7 @@ func (p *Gray16) SubImage(r Rectangle) Image {
 	if r.Empty() {
 		return &Gray16{}
 	}
-	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X-p.Rect.Min.X)*2
+	i := p.PixOffset(r.Min.X, r.Min.Y)
 	return &Gray16{
 		Pix:    p.Pix[i:],
 		Stride: p.Stride,
@@ -756,15 +804,21 @@ func (p *Paletted) At(x, y int) color.Color {
 	if !(Point{x, y}.In(p.Rect)) {
 		return p.Palette[0]
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	i := p.PixOffset(x, y)
 	return p.Palette[p.Pix[i]]
+}
+
+// PixOffset returns the index of the first element of Pix that corresponds to
+// the pixel at (x, y).
+func (p *Paletted) PixOffset(x, y int) int {
+	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*1
 }
 
 func (p *Paletted) Set(x, y int, c color.Color) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	i := p.PixOffset(x, y)
 	p.Pix[i] = uint8(p.Palette.Index(c))
 }
 
@@ -772,7 +826,7 @@ func (p *Paletted) ColorIndexAt(x, y int) uint8 {
 	if !(Point{x, y}.In(p.Rect)) {
 		return 0
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	i := p.PixOffset(x, y)
 	return p.Pix[i]
 }
 
@@ -780,7 +834,7 @@ func (p *Paletted) SetColorIndex(x, y int, index uint8) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}
-	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
+	i := p.PixOffset(x, y)
 	p.Pix[i] = index
 }
 
@@ -796,7 +850,7 @@ func (p *Paletted) SubImage(r Rectangle) Image {
 			Palette: p.Palette,
 		}
 	}
-	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X-p.Rect.Min.X)*1
+	i := p.PixOffset(r.Min.X, r.Min.Y)
 	return &Paletted{
 		Pix:     p.Pix[i:],
 		Stride:  p.Stride,
