@@ -35,11 +35,11 @@ func Register(name string, driver driver.Driver) {
 // valid until the next call to Next, Scan, or Close.
 type RawBytes []byte
 
-// NullableString represents a string that may be null.
-// NullableString implements the ScannerInto interface so
+// NullString represents a string that may be null.
+// NullString implements the ScannerInto interface so
 // it can be used as a scan destination:
 //
-//  var s NullableString
+//  var s NullString
 //  err := db.QueryRow("SELECT name FROM foo WHERE id=?", id).Scan(&s)
 //  ...
 //  if s.Valid {
@@ -49,19 +49,27 @@ type RawBytes []byte
 //  }
 //
 // TODO(bradfitz): add other types.
-type NullableString struct {
+type NullString struct {
 	String string
 	Valid  bool // Valid is true if String is not NULL
 }
 
 // ScanInto implements the ScannerInto interface.
-func (ms *NullableString) ScanInto(value interface{}) error {
+func (ns *NullString) ScanInto(value interface{}) error {
 	if value == nil {
-		ms.String, ms.Valid = "", false
+		ns.String, ns.Valid = "", false
 		return nil
 	}
-	ms.Valid = true
-	return convertAssign(&ms.String, value)
+	ns.Valid = true
+	return convertAssign(&ns.String, value)
+}
+
+// SubsetValue implements the driver SubsetValuer interface.
+func (ns NullString) SubsetValue() (interface{}, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return ns.String, nil
 }
 
 // ScannerInto is an interface used by Scan.
@@ -530,6 +538,27 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 	// Convert args to subset types.
 	if cc, ok := si.(driver.ColumnConverter); ok {
 		for n, arg := range args {
+			// First, see if the value itself knows how to convert
+			// itself to a driver type.  For example, a NullString
+			// struct changing into a string or nil.
+			if svi, ok := arg.(driver.SubsetValuer); ok {
+				sv, err := svi.SubsetValue()
+				if err != nil {
+					return nil, fmt.Errorf("sql: argument index %d from SubsetValue: %v", n, err)
+				}
+				if !driver.IsParameterSubsetType(sv) {
+					return nil, fmt.Errorf("sql: argument index %d: non-subset type %T returned from SubsetValue", n, sv)
+				}
+				arg = sv
+			}
+
+			// Second, ask the column to sanity check itself. For
+			// example, drivers might use this to make sure that
+			// an int64 values being inserted into a 16-bit
+			// integer field is in range (before getting
+			// truncated), or that a nil can't go into a NOT NULL
+			// column before going across the network to get the
+			// same error.
 			args[n], err = cc.ColumnConverter(n).ConvertValue(arg)
 			if err != nil {
 				return nil, fmt.Errorf("sql: converting Exec argument #%d's type: %v", n, err)
