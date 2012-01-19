@@ -904,17 +904,13 @@ func testHandlerPanic(t *testing.T, withHijack bool) {
 		panic("intentional death for testing")
 	}))
 	defer ts.Close()
-	_, err := Get(ts.URL)
-	if err == nil {
-		t.Logf("expected an error")
-	}
 
 	// Do a blocking read on the log output pipe so its logging
 	// doesn't bleed into the next test.  But wait only 5 seconds
 	// for it.
-	done := make(chan bool)
+	done := make(chan bool, 1)
 	go func() {
-		buf := make([]byte, 1024)
+		buf := make([]byte, 4<<10)
 		_, err := pr.Read(buf)
 		pr.Close()
 		if err != nil {
@@ -922,6 +918,12 @@ func testHandlerPanic(t *testing.T, withHijack bool) {
 		}
 		done <- true
 	}()
+
+	_, err := Get(ts.URL)
+	if err == nil {
+		t.Logf("expected an error")
+	}
+
 	select {
 	case <-done:
 		return
