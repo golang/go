@@ -74,12 +74,13 @@ var (
 	indexThrottle = flag.Float64("index_throttle", 0.75, "index throttle value; 0.0 = no time allocated, 1.0 = full throttle")
 
 	// file system mapping
-	fs         FileSystem      // the underlying file system for godoc
-	fsHttp     http.FileSystem // the underlying file system for http
-	fsMap      Mapping         // user-defined mapping
-	fsTree     RWValue         // *Directory tree of packages, updated with each sync
-	pathFilter RWValue         // filter used when building fsMap directory trees
-	fsModified RWValue         // timestamp of last call to invalidateIndex
+	fs          FileSystem      // the underlying file system for godoc
+	fsHttp      http.FileSystem // the underlying file system for http
+	fsMap       Mapping         // user-defined mapping
+	fsTree      RWValue         // *Directory tree of packages, updated with each sync
+	pathFilter  RWValue         // filter used when building fsMap directory trees
+	fsModified  RWValue         // timestamp of last call to invalidateIndex
+	docMetadata RWValue         // mapping from paths to *Metadata
 
 	// http handlers
 	fileServer http.Handler // default file server
@@ -698,11 +699,6 @@ var (
 	jsonEnd   = []byte("}-->")
 )
 
-type Metadata struct {
-	Title    string
-	Subtitle string
-}
-
 func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
 	// get HTML body contents
 	src, err := ReadFile(fs, abspath)
@@ -720,15 +716,9 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 	}
 
 	// if it begins with a JSON blob, read in the metadata.
-	var meta Metadata
-	if bytes.HasPrefix(src, jsonStart) {
-		if end := bytes.Index(src, jsonEnd); end > -1 {
-			b := src[len(jsonStart)-1 : end+1] // drop leading <!-- and include trailing }
-			if err := json.Unmarshal(b, &meta); err != nil {
-				log.Printf("decoding metadata for %s: %v", relpath, err)
-			}
-			src = src[end+len(jsonEnd):]
-		}
+	meta, src, err := extractMetadata(src)
+	if err != nil {
+		log.Printf("decoding metadata %s: %v", relpath, err)
 	}
 
 	// if it's the language spec, add tags to EBNF productions
@@ -790,20 +780,21 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath str
 }
 
 func serveFile(w http.ResponseWriter, r *http.Request) {
-	relpath := r.URL.Path[1:] // serveFile URL paths start with '/'
-	abspath := absolutePath(relpath, *goroot)
+	relpath := r.URL.Path
 
-	// pick off special cases and hand the rest to the standard file server
-	switch r.URL.Path {
-	case "/":
-		serveHTMLDoc(w, r, filepath.Join(*goroot, "doc", "root.html"), "doc/root.html")
-		return
-
-	case "/doc/root.html":
-		// hide landing page from its real name
-		http.Redirect(w, r, "/", http.StatusMovedPermanently)
-		return
+	// Check to see if we need to redirect or serve another file.
+	if m := metadataFor(relpath); m != nil {
+		if m.Path != relpath {
+			// Redirect to canonical path.
+			http.Redirect(w, r, m.Path, http.StatusMovedPermanently)
+			return
+		}
+		// Serve from the actual filesystem path.
+		relpath = m.filePath
 	}
+
+	relpath = relpath[1:] // strip leading slash
+	abspath := absolutePath(relpath, *goroot)
 
 	switch path.Ext(relpath) {
 	case ".html":
@@ -1304,6 +1295,120 @@ func search(w http.ResponseWriter, r *http.Request) {
 }
 
 // ----------------------------------------------------------------------------
+// Documentation Metadata
+
+type Metadata struct {
+	Title    string
+	Subtitle string
+	Path     string // canonical path for this page
+	filePath string // filesystem path relative to goroot
+}
+
+// extractMetadata extracts the Metadata from a byte slice.
+// It returns the Metadata value and the remaining data.
+// If no metadata is present the original byte slice is returned.
+//
+func extractMetadata(b []byte) (meta Metadata, tail []byte, err error) {
+	tail = b
+	if !bytes.HasPrefix(b, jsonStart) {
+		return
+	}
+	end := bytes.Index(b, jsonEnd)
+	if end < 0 {
+		return
+	}
+	b = b[len(jsonStart)-1 : end+1] // drop leading <!-- and include trailing }
+	if err = json.Unmarshal(b, &meta); err != nil {
+		return
+	}
+	tail = tail[end+len(jsonEnd):]
+	return
+}
+
+// updateMetadata scans $GOROOT/doc for HTML files, reads their metadata,
+// and updates the docMetadata map.
+//
+func updateMetadata() {
+	metadata := make(map[string]*Metadata)
+	var scan func(string) // scan is recursive
+	scan = func(dir string) {
+		fis, err := fs.ReadDir(dir)
+		if err != nil {
+			log.Println("updateMetadata:", err)
+			return
+		}
+		for _, fi := range fis {
+			name := filepath.Join(dir, fi.Name())
+			if fi.IsDir() {
+				scan(name) // recurse
+				continue
+			}
+			if !strings.HasSuffix(name, ".html") {
+				continue
+			}
+			// Extract metadata from the file.
+			b, err := ReadFile(fs, name)
+			if err != nil {
+				log.Printf("updateMetadata %s: %v", name, err)
+				continue
+			}
+			meta, _, err := extractMetadata(b)
+			if err != nil {
+				log.Printf("updateMetadata: %s: %v", name, err)
+				continue
+			}
+			// Store relative filesystem path in Metadata.
+			meta.filePath = filepath.Join("/", name[len(*goroot):])
+			if meta.Path == "" {
+				// If no Path, canonical path is actual path.
+				meta.Path = meta.filePath
+			}
+			// Store under both paths.
+			metadata[meta.Path] = &meta
+			metadata[meta.filePath] = &meta
+		}
+	}
+	scan(filepath.Join(*goroot, "doc"))
+	docMetadata.set(metadata)
+}
+
+// Send a value on this channel to trigger a metadata refresh.
+// It is buffered so that if a signal is not lost if sent during a refresh.
+//
+var refreshMetadataSignal = make(chan bool, 1)
+
+// refreshMetadata sends a signal to update docMetadata. If a refresh is in
+// progress the metadata will be refreshed again afterward.
+//
+func refreshMetadata() {
+	select {
+	case refreshMetadataSignal <- true:
+	default:
+	}
+}
+
+// refreshMetadataLoop runs forever, updating docMetadata when the underlying
+// file system changes. It should be launched in a goroutine by main.
+//
+func refreshMetadataLoop() {
+	for {
+		<-refreshMetadataSignal
+		updateMetadata()
+		time.Sleep(10 * time.Second) // at most once every 10 seconds
+	}
+}
+
+// metadataFor returns the *Metadata for a given relative path or nil if none
+// exists.
+//
+func metadataFor(relpath string) *Metadata {
+	if m, _ := docMetadata.get(); m != nil {
+		return m.(map[string]*Metadata)[relpath]
+	}
+	return nil
+}
+
+// ----------------------------------------------------------------------------
 // Indexer
 
 // invalidateIndex should be called whenever any of the file systems
@@ -1311,6 +1416,7 @@ func search(w http.ResponseWriter, r *http.Request) {
 //
 func invalidateIndex() {
 	fsModified.set(nil)
+	refreshMetadata()
 }
 
 // indexUpToDate() returns true if the search index is not older
