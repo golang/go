@@ -10,6 +10,6 @@ var c chan int
 
 func main() {
 	c = make(chan int);
-	go func() { print("ok\n"); c <- 0 } ();
+	go func() { c <- 0 } ();
 	<-c
 }
