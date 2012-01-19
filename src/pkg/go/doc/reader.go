@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"regexp"
 	"sort"
+	"strconv"
 )
 
 // ----------------------------------------------------------------------------
@@ -55,6 +56,7 @@ type docReader struct {
 	doc      *ast.CommentGroup // package documentation, if any
 	pkgName  string
 	mode     Mode
+	imports  map[string]int
 	values   []*ast.GenDecl // consts and vars
 	types    map[string]*typeInfo
 	embedded map[string]*typeInfo // embedded types, possibly not exported
@@ -65,6 +67,7 @@ type docReader struct {
 func (doc *docReader) init(pkgName string, mode Mode) {
 	doc.pkgName = pkgName
 	doc.mode = mode
+	doc.imports = make(map[string]int)
 	doc.types = make(map[string]*typeInfo)
 	doc.embedded = make(map[string]*typeInfo)
 	doc.funcs = make(map[string]*ast.FuncDecl)
@@ -244,6 +247,13 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 	case *ast.GenDecl:
 		if len(d.Specs) > 0 {
 			switch d.Tok {
+			case token.IMPORT:
+				// imports are handled individually
+				for _, spec := range d.Specs {
+					if import_, err := strconv.Unquote(spec.(*ast.ImportSpec).Path.Value); err == nil {
+						doc.imports[import_] = 1
+					}
+				}
 			case token.CONST, token.VAR:
 				// constants and variables are always handled as a group
 				doc.addValue(d)
@@ -345,6 +355,17 @@ func (doc *docReader) addFile(src *ast.File) {
 
 // ----------------------------------------------------------------------------
 // Conversion to external representation
+
+func (doc *docReader) makeImports() []string {
+	list := make([]string, len(doc.imports))
+	i := 0
+	for import_ := range doc.imports {
+		list[i] = import_
+		i++
+	}
+	sort.Strings(list)
+	return list
+}
 
 type sortValue []*Value
 
@@ -661,6 +682,7 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *Package {
 	// doc.funcs and thus must be called before any other
 	// function consuming those lists
 	p.Types = doc.makeTypes(doc.types)
+	p.Imports = doc.makeImports()
 	p.Consts = makeValues(doc.values, token.CONST)
 	p.Vars = makeValues(doc.values, token.VAR)
 	p.Funcs = makeFuncs(doc.funcs)

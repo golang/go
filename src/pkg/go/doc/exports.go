@@ -124,6 +124,9 @@ func (doc *docReader) filterType(tinfo *typeInfo, typ ast.Expr) bool {
 
 func (doc *docReader) filterSpec(spec ast.Spec) bool {
 	switch s := spec.(type) {
+	case *ast.ImportSpec:
+		// always keep imports so we can collect them
+		return true
 	case *ast.ValueSpec:
 		s.Names = filterIdentList(s.Names)
 		if len(s.Names) > 0 {

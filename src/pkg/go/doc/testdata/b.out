@@ -4,6 +4,9 @@ PACKAGE b
 IMPORTPATH
 	testdata/b
 
+IMPORTS
+	a
+
 FILENAMES
 	testdata/b.go
 
