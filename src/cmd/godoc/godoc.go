@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -692,17 +693,14 @@ func serveText(w http.ResponseWriter, text []byte) {
 // Files
 
 var (
-	titleRx        = regexp.MustCompile(`<!-- title ([^\-]*)-->`)
-	subtitleRx     = regexp.MustCompile(`<!-- subtitle ([^\-]*)-->`)
-	firstCommentRx = regexp.MustCompile(`<!--([^\-]*)-->`)
+	doctype   = []byte("<!DOCTYPE ")
+	jsonStart = []byte("<!--{")
+	jsonEnd   = []byte("}-->")
 )
 
-func extractString(src []byte, rx *regexp.Regexp) (s string) {
-	m := rx.FindSubmatch(src)
-	if m != nil {
-		s = strings.TrimSpace(string(m[1]))
-	}
-	return
+type Metadata struct {
+	Title    string
+	Subtitle string
 }
 
 func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
@@ -716,9 +714,21 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 
 	// if it begins with "<!DOCTYPE " assume it is standalone
 	// html that doesn't need the template wrapping.
-	if bytes.HasPrefix(src, []byte("<!DOCTYPE ")) {
+	if bytes.HasPrefix(src, doctype) {
 		w.Write(src)
 		return
+	}
+
+	// if it begins with a JSON blob, read in the metadata.
+	var meta Metadata
+	if bytes.HasPrefix(src, jsonStart) {
+		if end := bytes.Index(src, jsonEnd); end > -1 {
+			b := src[len(jsonStart)-1 : end+1] // drop leading <!-- and include trailing }
+			if err := json.Unmarshal(b, &meta); err != nil {
+				log.Printf("decoding metadata for %s: %v", relpath, err)
+			}
+			src = src[end+len(jsonEnd):]
+		}
 	}
 
 	// if it's the language spec, add tags to EBNF productions
@@ -728,15 +738,7 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 		src = buf.Bytes()
 	}
 
-	// get title and subtitle, if any
-	title := extractString(src, titleRx)
-	if title == "" {
-		// no title found; try first comment for backward-compatibility
-		title = extractString(src, firstCommentRx)
-	}
-	subtitle := extractString(src, subtitleRx)
-
-	servePage(w, title, subtitle, "", src)
+	servePage(w, meta.Title, meta.Subtitle, "", src)
 }
 
 func applyTemplate(t *template.Template, name string, data interface{}) []byte {
