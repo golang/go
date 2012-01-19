@@ -15,7 +15,7 @@ type Package struct {
 	Doc        string
 	Name       string
 	ImportPath string
-	Imports    []string // TODO(gri) this field is not computed at the moment
+	Imports    []string
 	Filenames  []string
 	Consts     []*Value
 	Types      []*Type

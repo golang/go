@@ -4,6 +4,18 @@ PACKAGE testing
 IMPORTPATH
 	testdata/testing
 
+IMPORTS
+	bytes
+	flag
+	fmt
+	io
+	os
+	runtime
+	runtime/pprof
+	strconv
+	strings
+	time
+
 FILENAMES
 	testdata/benchmark.go
 	testdata/example.go

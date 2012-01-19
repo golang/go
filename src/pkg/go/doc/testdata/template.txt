@@ -4,10 +4,10 @@ PACKAGE {{.Name}}
 IMPORTPATH
 	{{.ImportPath}}
 
-{{with .Imports}}
-IMPORTS
+{{with .Imports}}IMPORTS
 {{range .}}	{{.}}
-{{end}}{{end}}{{/*
+{{end}}
+{{end}}{{/*
 
 */}}FILENAMES
 {{range .Filenames}}	{{.}}
