@@ -8,6 +8,7 @@ package net
 
 import (
 	"os"
+	"time"
 )
 
 // UnixConn is an implementation of the Conn interface
@@ -44,18 +45,18 @@ func (c *UnixConn) RemoteAddr() Addr {
 	return nil
 }
 
-// SetTimeout implements the net.Conn SetTimeout method.
-func (c *UnixConn) SetTimeout(nsec int64) error {
+// SetDeadline implements the net.Conn SetDeadline method.
+func (c *UnixConn) SetDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetReadTimeout implements the net.Conn SetReadTimeout method.
-func (c *UnixConn) SetReadTimeout(nsec int64) error {
+// SetReadDeadline implements the net.Conn SetReadDeadline method.
+func (c *UnixConn) SetReadDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
-func (c *UnixConn) SetWriteTimeout(nsec int64) error {
+// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+func (c *UnixConn) SetWriteDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 

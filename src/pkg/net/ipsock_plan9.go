@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"time"
 )
 
 // probeIPv6Stack returns two boolean values.  If the first boolean value is
@@ -156,27 +157,18 @@ func (c *plan9Conn) RemoteAddr() Addr {
 	return c.raddr
 }
 
-// SetTimeout implements the net.Conn SetTimeout method.
-func (c *plan9Conn) SetTimeout(nsec int64) error {
-	if !c.ok() {
-		return os.EINVAL
-	}
+// SetDeadline implements the net.Conn SetDeadline method.
+func (c *plan9Conn) SetDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetReadTimeout implements the net.Conn SetReadTimeout method.
-func (c *plan9Conn) SetReadTimeout(nsec int64) error {
-	if !c.ok() {
-		return os.EINVAL
-	}
+// SetReadDeadline implements the net.Conn SetReadDeadline method.
+func (c *plan9Conn) SetReadDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetWriteTimeout implements the net.Conn SetWriteTimeout method.
-func (c *plan9Conn) SetWriteTimeout(nsec int64) error {
-	if !c.ok() {
-		return os.EINVAL
-	}
+// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+func (c *plan9Conn) SetWriteDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
