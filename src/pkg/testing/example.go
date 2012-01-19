@@ -25,13 +25,6 @@ func RunExamples(examples []InternalExample) (ok bool) {
 	var eg InternalExample
 
 	stdout, stderr := os.Stdout, os.Stderr
-	defer func() {
-		os.Stdout, os.Stderr = stdout, stderr
-		if e := recover(); e != nil {
-			fmt.Printf("--- FAIL: %s\npanic: %v\n", eg.Name, e)
-			os.Exit(1)
-		}
-	}()
 
 	for _, eg = range examples {
 		if *chatty {
