@@ -20,7 +20,7 @@ import (
 
 // PublicKey represents an ECDSA public key.
 type PublicKey struct {
-	*elliptic.Curve
+	elliptic.Curve
 	X, Y *big.Int
 }
 
@@ -34,22 +34,23 @@ var one = new(big.Int).SetInt64(1)
 
 // randFieldElement returns a random element of the field underlying the given
 // curve using the procedure given in [NSA] A.2.1.
-func randFieldElement(c *elliptic.Curve, rand io.Reader) (k *big.Int, err error) {
-	b := make([]byte, c.BitSize/8+8)
+func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) {
+	params := c.Params()
+	b := make([]byte, params.BitSize/8+8)
 	_, err = io.ReadFull(rand, b)
 	if err != nil {
 		return
 	}
 
 	k = new(big.Int).SetBytes(b)
-	n := new(big.Int).Sub(c.N, one)
+	n := new(big.Int).Sub(params.N, one)
 	k.Mod(k, n)
 	k.Add(k, one)
 	return
 }
 
 // GenerateKey generates a public&private key pair.
-func GenerateKey(c *elliptic.Curve, rand io.Reader) (priv *PrivateKey, err error) {
+func GenerateKey(c elliptic.Curve, rand io.Reader) (priv *PrivateKey, err error) {
 	k, err := randFieldElement(c, rand)
 	if err != nil {
 		return
@@ -66,8 +67,8 @@ func GenerateKey(c *elliptic.Curve, rand io.Reader) (priv *PrivateKey, err error
 // about how this is done. [NSA] suggests that this is done in the obvious
 // manner, but [SECG] truncates the hash to the bit-length of the curve order
 // first. We follow [SECG] because that's what OpenSSL does.
-func hashToInt(hash []byte, c *elliptic.Curve) *big.Int {
-	orderBits := c.N.BitLen()
+func hashToInt(hash []byte, c elliptic.Curve) *big.Int {
+	orderBits := c.Params().N.BitLen()
 	orderBytes := (orderBits + 7) / 8
 	if len(hash) > orderBytes {
 		hash = hash[:orderBytes]
@@ -88,6 +89,7 @@ func hashToInt(hash []byte, c *elliptic.Curve) *big.Int {
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	// See [NSA] 3.4.1
 	c := priv.PublicKey.Curve
+	N := c.Params().N
 
 	var k, kInv *big.Int
 	for {
@@ -98,9 +100,9 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 				return
 			}
 
-			kInv = new(big.Int).ModInverse(k, c.N)
+			kInv = new(big.Int).ModInverse(k, N)
 			r, _ = priv.Curve.ScalarBaseMult(k.Bytes())
-			r.Mod(r, priv.Curve.N)
+			r.Mod(r, N)
 			if r.Sign() != 0 {
 				break
 			}
@@ -110,7 +112,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 		s = new(big.Int).Mul(priv.D, r)
 		s.Add(s, e)
 		s.Mul(s, kInv)
-		s.Mod(s, priv.PublicKey.Curve.N)
+		s.Mod(s, N)
 		if s.Sign() != 0 {
 			break
 		}
@@ -124,15 +126,16 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	// See [NSA] 3.4.2
 	c := pub.Curve
+	N := c.Params().N
 
 	if r.Sign() == 0 || s.Sign() == 0 {
 		return false
 	}
-	if r.Cmp(c.N) >= 0 || s.Cmp(c.N) >= 0 {
+	if r.Cmp(N) >= 0 || s.Cmp(N) >= 0 {
 		return false
 	}
 	e := hashToInt(hash, c)
-	w := new(big.Int).ModInverse(s, c.N)
+	w := new(big.Int).ModInverse(s, N)
 
 	u1 := e.Mul(e, w)
 	u2 := w.Mul(r, w)
@@ -143,6 +146,6 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 		return false
 	}
 	x, _ := c.Add(x1, y1, x2, y2)
-	x.Mod(x, c.N)
+	x.Mod(x, N)
 	return x.Cmp(r) == 0
 }

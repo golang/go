@@ -7,5 +7,6 @@ include ../../../Make.inc
 TARG=crypto/elliptic
 GOFILES=\
 	elliptic.go\
+	p224.go\
 
 include ../../../Make.pkg

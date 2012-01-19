@@ -105,7 +105,7 @@ func md5SHA1Hash(slices ...[]byte) []byte {
 // pre-master secret is then calculated using ECDH.
 type ecdheRSAKeyAgreement struct {
 	privateKey []byte
-	curve      *elliptic.Curve
+	curve      elliptic.Curve
 	x, y       *big.Int
 }
 
@@ -132,11 +132,11 @@ Curve:
 
 	var x, y *big.Int
 	var err error
-	ka.privateKey, x, y, err = ka.curve.GenerateKey(config.rand())
+	ka.privateKey, x, y, err = elliptic.GenerateKey(ka.curve, config.rand())
 	if err != nil {
 		return nil, err
 	}
-	ecdhePublic := ka.curve.Marshal(x, y)
+	ecdhePublic := elliptic.Marshal(ka.curve, x, y)
 
 	// http://tools.ietf.org/html/rfc4492#section-5.4
 	serverECDHParams := make([]byte, 1+2+1+len(ecdhePublic))
@@ -167,12 +167,12 @@ func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *cl
 	if len(ckx.ciphertext) == 0 || int(ckx.ciphertext[0]) != len(ckx.ciphertext)-1 {
 		return nil, errors.New("bad ClientKeyExchange")
 	}
-	x, y := ka.curve.Unmarshal(ckx.ciphertext[1:])
+	x, y := elliptic.Unmarshal(ka.curve, ckx.ciphertext[1:])
 	if x == nil {
 		return nil, errors.New("bad ClientKeyExchange")
 	}
 	x, _ = ka.curve.ScalarMult(x, y, ka.privateKey)
-	preMasterSecret := make([]byte, (ka.curve.BitSize+7)>>3)
+	preMasterSecret := make([]byte, (ka.curve.Params().BitSize+7)>>3)
 	xBytes := x.Bytes()
 	copy(preMasterSecret[len(preMasterSecret)-len(xBytes):], xBytes)
 
@@ -205,7 +205,7 @@ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientH
 	if publicLen+4 > len(skx.key) {
 		return errServerKeyExchange
 	}
-	ka.x, ka.y = ka.curve.Unmarshal(skx.key[4 : 4+publicLen])
+	ka.x, ka.y = elliptic.Unmarshal(ka.curve, skx.key[4:4+publicLen])
 	if ka.x == nil {
 		return errServerKeyExchange
 	}
@@ -229,16 +229,16 @@ func (ka *ecdheRSAKeyAgreement) generateClientKeyExchange(config *Config, client
 	if ka.curve == nil {
 		return nil, nil, errors.New("missing ServerKeyExchange message")
 	}
-	priv, mx, my, err := ka.curve.GenerateKey(config.rand())
+	priv, mx, my, err := elliptic.GenerateKey(ka.curve, config.rand())
 	if err != nil {
 		return nil, nil, err
 	}
 	x, _ := ka.curve.ScalarMult(ka.x, ka.y, priv)
-	preMasterSecret := make([]byte, (ka.curve.BitSize+7)>>3)
+	preMasterSecret := make([]byte, (ka.curve.Params().BitSize+7)>>3)
 	xBytes := x.Bytes()
 	copy(preMasterSecret[len(preMasterSecret)-len(xBytes):], xBytes)
 
-	serialized := ka.curve.Marshal(mx, my)
+	serialized := elliptic.Marshal(ka.curve, mx, my)
 
 	ckx := new(clientKeyExchangeMsg)
 	ckx.ciphertext = make([]byte, 1+len(serialized))

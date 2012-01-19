@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-func testKeyGeneration(t *testing.T, c *elliptic.Curve, tag string) {
+func testKeyGeneration(t *testing.T, c elliptic.Curve, tag string) {
 	priv, err := GenerateKey(c, rand.Reader)
 	if err != nil {
 		t.Errorf("%s: error: %s", tag, err)
@@ -34,7 +34,7 @@ func TestKeyGeneration(t *testing.T) {
 	testKeyGeneration(t, elliptic.P521(), "p521")
 }
 
-func testSignAndVerify(t *testing.T, c *elliptic.Curve, tag string) {
+func testSignAndVerify(t *testing.T, c elliptic.Curve, tag string) {
 	priv, _ := GenerateKey(c, rand.Reader)
 
 	hashed := []byte("testing")
