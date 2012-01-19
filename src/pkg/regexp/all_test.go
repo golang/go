@@ -289,30 +289,45 @@ func TestLiteralPrefix(t *testing.T) {
 	}
 }
 
-type numSubexpCase struct {
-	input    string
-	expected int
+type subexpCase struct {
+	input string
+	num   int
+	names []string
 }
 
-var numSubexpCases = []numSubexpCase{
-	{``, 0},
-	{`.*`, 0},
-	{`abba`, 0},
-	{`ab(b)a`, 1},
-	{`ab(.*)a`, 1},
-	{`(.*)ab(.*)a`, 2},
-	{`(.*)(ab)(.*)a`, 3},
-	{`(.*)((a)b)(.*)a`, 4},
-	{`(.*)(\(ab)(.*)a`, 3},
-	{`(.*)(\(a\)b)(.*)a`, 3},
+var subexpCases = []subexpCase{
+	{``, 0, nil},
+	{`.*`, 0, nil},
+	{`abba`, 0, nil},
+	{`ab(b)a`, 1, []string{"", ""}},
+	{`ab(.*)a`, 1, []string{"", ""}},
+	{`(.*)ab(.*)a`, 2, []string{"", "", ""}},
+	{`(.*)(ab)(.*)a`, 3, []string{"", "", "", ""}},
+	{`(.*)((a)b)(.*)a`, 4, []string{"", "", "", "", ""}},
+	{`(.*)(\(ab)(.*)a`, 3, []string{"", "", "", ""}},
+	{`(.*)(\(a\)b)(.*)a`, 3, []string{"", "", "", ""}},
+	{`(?P<foo>.*)(?P<bar>(a)b)(?P<foo>.*)a`, 4, []string{"", "foo", "bar", "", "foo"}},
 }
 
-func TestNumSubexp(t *testing.T) {
-	for _, c := range numSubexpCases {
+func TestSubexp(t *testing.T) {
+	for _, c := range subexpCases {
 		re := MustCompile(c.input)
 		n := re.NumSubexp()
-		if n != c.expected {
-			t.Errorf("NumSubexp for %q returned %d, expected %d", c.input, n, c.expected)
+		if n != c.num {
+			t.Errorf("%q: NumSubexp = %d, want %d", c.input, n, c.num)
+			continue
+		}
+		names := re.SubexpNames()
+		if len(names) != 1+n {
+			t.Errorf("%q: len(SubexpNames) = %d, want %d", c.input, len(names), n)
+			continue
+		}
+		if c.names != nil {
+			for i := 0; i < 1+n; i++ {
+				if names[i] != c.names[i] {
+					t.Errorf("%q: SubexpNames[%d] = %q, want %q", c.input, i, names[i], c.names[i])
+				}
+			}
 		}
 	}
 }
