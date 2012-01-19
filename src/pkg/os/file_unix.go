@@ -61,8 +61,8 @@ const DevNull = "/dev/null"
 // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
 // methods on the returned File can be used for I/O.
 // It returns the File and an error, if any.
-func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
-	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
+func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
 	if e != nil {
 		return nil, &PathError{"open", name, e}
 	}

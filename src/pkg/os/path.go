@@ -13,7 +13,7 @@ import "io"
 // directories that MkdirAll creates.
 // If path is already a directory, MkdirAll does nothing
 // and returns nil.
-func MkdirAll(path string, perm uint32) error {
+func MkdirAll(path string, perm FileMode) error {
 	// If path exists, stop with success or error.
 	dir, err := Stat(path)
 	if err == nil {

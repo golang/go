@@ -618,7 +618,7 @@ func (b *builder) build(a *action) error {
 // install is the action for installing a single package or executable.
 func (b *builder) install(a *action) error {
 	a1 := a.deps[0]
-	perm := uint32(0666)
+	perm := os.FileMode(0666)
 	if a1.link {
 		perm = 0777
 	}
@@ -697,7 +697,7 @@ func removeByRenaming(name string) error {
 }
 
 // copyFile is like 'cp src dst'.
-func (b *builder) copyFile(dst, src string, perm uint32) error {
+func (b *builder) copyFile(dst, src string, perm os.FileMode) error {
 	if buildN || buildX {
 		b.showcmd("", "cp %s %s", src, dst)
 		if buildN {
