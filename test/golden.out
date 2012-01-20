@@ -14,3 +14,6 @@
 == fixedbugs/
 
 == bugs/
+
+=========== bugs/bug395.go
+bug395 is broken

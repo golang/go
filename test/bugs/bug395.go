@@ -1,4 +1,5 @@
-// $G $D/$F.go || echo "Bug395"
+// echo bug395 is broken  # takes 90+ seconds to break
+// # $G $D/$F.go || echo bug395
 
 // Copyright 2011 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -9,7 +10,13 @@
 package test
 
 type Foo interface {
-       Bar() interface{Foo}
-       Baz() interface{Foo}
-       Bug() interface{Foo}
+	Bar() interface {
+		Foo
+	}
+	Baz() interface {
+		Foo
+	}
+	Bug() interface {
+		Foo
+	}
 }

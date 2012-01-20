@@ -940,19 +940,13 @@ interfacefield(Node *n)
 Type*
 tointerface(NodeList *l)
 {
-	Type *t, *f, **tp, **otp, *t1;
+	Type *t, *f, **tp, *t1;
 
 	t = typ(TINTER);
-	t->orig = typ(TINTER);
 
 	tp = &t->type;
-	otp = &t->orig->type;
-
 	for(; l; l=l->next) {
 		f = interfacefield(l->n);
-		*otp = typ(TFIELD);
-		**otp = *f;
-		otp = &(*otp)->down;
 
 		if (l->n->left == N && f->type->etype == TINTER) {
 			// embedded interface, inline methods
@@ -961,7 +955,6 @@ tointerface(NodeList *l)
 				f->type = t1->type;
 				f->broke = t1->broke;
 				f->sym = t1->sym;
-				f->embedded = 1;
 				if(f->sym)
 					f->nname = newname(f->sym);
 				*tp = f;
