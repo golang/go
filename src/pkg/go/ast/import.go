@@ -67,12 +67,7 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) {
 	// Record positions for specs.
 	pos := make([]posSpan, len(specs))
 	for i, s := range specs {
-		// Cannot use s.End(), because it looks at len(s.Path.Value),
-		// and that string might have gotten longer or shorter.
-		// Instead, use s.Pos()+1, which is guaranteed to be > s.Pos()
-		// and still before the original end of the string, since any
-		// string literal must be at least 2 characters ("" or ``).
-		pos[i] = posSpan{s.Pos(), s.Pos() + 1}
+		pos[i] = posSpan{s.Pos(), s.End()}
 	}
 
 	// Identify comments in this range.
