@@ -8,13 +8,16 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"log"
+	"testing"
 	"time"
 	"unicode"
 )
 
 func main() {
+	flag.Parse()
 	stringAppend()
 	mapDelete()
 	mapIteration()
@@ -25,6 +28,8 @@ func main() {
 	errorExample()
 	timePackage()
 }
+
+var timeout = flag.Duration("timeout", 30*time.Second, "how long to wait for completion")
 
 func mapDelete() {
 	m := map[string]int{"7": 7, "23": 23}
@@ -186,4 +191,18 @@ func init() {
 	c := make(chan int)
 	go initializationFunction(c)
 	PackageGlobal = <-c
+}
+
+func BenchmarkSprintf(b *testing.B) {
+	// Verify correctness before running benchmark.
+	b.StopTimer()
+	got := fmt.Sprintf("%x", 23)
+	const expect = "17"
+	if expect != got {
+		b.Fatalf("expected %q; got %q", expect, got)
+	}
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		fmt.Sprintf("%x", 23)
+	}
 }
