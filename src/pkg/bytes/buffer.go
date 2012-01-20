@@ -139,21 +139,19 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 		b.Truncate(0)
 	}
 	for {
-		if cap(b.buf)-len(b.buf) < MinRead {
-			var newBuf []byte
-			// can we get space without allocation?
-			if b.off+cap(b.buf)-len(b.buf) >= MinRead {
-				// reuse beginning of buffer
-				newBuf = b.buf[0 : len(b.buf)-b.off]
-			} else {
-				// not enough space at end; put space on end
-				newBuf = makeSlice(2*(cap(b.buf)-b.off) + MinRead)[:len(b.buf)-b.off]
+		if free := cap(b.buf) - len(b.buf); free < MinRead {
+			// not enough space at end
+			newBuf := b.buf
+			if b.off+free < MinRead {
+				// not enough space using beginning of buffer;
+				// double buffer capacity
+				newBuf = makeSlice(2*cap(b.buf) + MinRead)
 				if newBuf == nil {
 					return n, ErrTooLarge
 				}
 			}
 			copy(newBuf, b.buf[b.off:])
-			b.buf = newBuf
+			b.buf = newBuf[:len(b.buf)-b.off]
 			b.off = 0
 		}
 		m, e := r.Read(b.buf[len(b.buf):cap(b.buf)])
