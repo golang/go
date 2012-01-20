@@ -5,6 +5,7 @@
 package net
 
 import (
+	"io"
 	"runtime"
 	"testing"
 )
@@ -33,24 +34,27 @@ func TestUnicastTCPAndUDP(t *testing.T) {
 		if tt.ipv6 && !supportsIPv6 {
 			continue
 		}
-		var fd *netFD
+		var (
+			fd     *netFD
+			closer io.Closer
+		)
 		if !tt.packet {
 			if tt.laddr == "previous" {
 				tt.laddr = prevladdr
 			}
-			c, err := Listen(tt.net, tt.laddr)
+			l, err := Listen(tt.net, tt.laddr)
 			if err != nil {
 				t.Fatalf("Listen failed: %v", err)
 			}
-			prevladdr = c.Addr().String()
-			defer c.Close()
-			fd = c.(*TCPListener).fd
+			prevladdr = l.Addr().String()
+			closer = l
+			fd = l.(*TCPListener).fd
 		} else {
 			c, err := ListenPacket(tt.net, tt.laddr)
 			if err != nil {
 				t.Fatalf("ListenPacket failed: %v", err)
 			}
-			defer c.Close()
+			closer = c
 			fd = c.(*UDPConn).fd
 		}
 		if !tt.ipv6 {
@@ -58,6 +62,7 @@ func TestUnicastTCPAndUDP(t *testing.T) {
 		} else {
 			testIPv6UnicastSocketOptions(t, fd)
 		}
+		closer.Close()
 	}
 }
 
