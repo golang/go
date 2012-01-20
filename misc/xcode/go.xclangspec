@@ -273,8 +273,8 @@
 			StartChars = "BMTF!?";
 			Match = (
 				// Go-specific markers
-				"^\(BUG.*$\)$",			// inlude "BUG" in the markers list
-				"^\(TODO.*$\)$",		// inlude "TODO" in the markers list
+				"^\(BUG.*$\)$",			// include "BUG" in the markers list
+				"^\(TODO.*$\)$",		// include "TODO" in the markers list
 				// inherited markers
 				"^MARK:[ \t]+\(.*\)$",
 				"^\(TODO:[ \t]+.*\)$",		// include "TODO: " in the markers list
