@@ -2130,7 +2130,8 @@ typecheckcomplit(Node **np)
 			typecheck(&l->left, Erv);
 			defaultlit(&l->left, t->down);
 			l->left = assignconv(l->left, t->down, "map key");
-			keydup(l->left, hash, nhash);
+			if (l->left->op != OCONV)
+				keydup(l->left, hash, nhash);
 
 			r = l->right;
 			pushtype(r, t->type);
