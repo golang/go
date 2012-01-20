@@ -59,6 +59,8 @@ DIRS=\
 	crypto/x509\
 	crypto/x509/pkix\
 	crypto/xtea\
+	database/sql\
+	database/sql/driver\
 	debug/dwarf\
 	debug/macho\
 	debug/elf\
@@ -82,8 +84,6 @@ DIRS=\
 	exp/gotype\
 	exp/norm\
 	exp/spdy\
-	exp/sql\
-	exp/sql/driver\
 	exp/ssh\
 	exp/terminal\
 	exp/types\

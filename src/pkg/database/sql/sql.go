@@ -7,12 +7,11 @@
 package sql
 
 import (
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"io"
 	"sync"
-
-	"exp/sql/driver"
 )
 
 var drivers = make(map[string]driver.Driver)
