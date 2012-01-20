@@ -97,7 +97,6 @@ gomake clean
 ) || exit $?
 
 [ "$CGO_ENABLED" != 1 ] ||
-[ "$GOHOSTOS" == windows ] ||
 (xcd ../misc/cgo/test
 gomake clean
 gotest
