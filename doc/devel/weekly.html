@@ -14,6 +14,108 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2012-01-20">2012-01-20</h2>
+
+<pre>
+This weekly snapshot renamed the exp/sql package to database/sql, and moved
+utf8.String from unicode/utf8 to exp/utf8string.
+
+Package net's SetTimeout methods were changed to SetDeadline.
+
+Many functions in package os now take a os.FileMode argument instead of a
+plain uint32. An os.ModeSticky constant is also now defined.
+
+The meaning of the first buffer element for image.YCbCr has changed to match
+the semantics of the other image types like image.RGBA.
+
+The NewMD5, NewSHA1 and NewSHA256 functions in crypto/hmac have been
+deprecated. Use New instead, explicitly passing the hash function.
+
+Other changes:
+* buildscripts: move to buildscript directory (thanks Shenghou Ma).
+* bytes: add the usual copyright notice to example_test.go (thanks Olivier Duperray).
+* cmd/go: remove mentions of 'gotest' from the documentation,
+	skip _obj directories in package scans.
+* container/heap: better package documentation.
+* crypto/elliptic: add constant-time P224.
+* crypto/hmac: Add HMAC-SHA224 and HMAC-SHA384/512 (thanks Luit van Drongelen),
+* crypto/tls: add FreeBSD root certificate location (thanks Shenghou Ma).
+* crypto/x509: remove explicit uses of rsa.
+* doc: various updates (thanks Jongmin Kim, Scott Lawrence, Shenghou Ma, Stefan Nilsson).
+* encoding/json: allow / and % in tag names,
+	document angle bracket escaping,
+	fix comments, tweak tests for tag names (thanks Mikio Hara).
+* encoding/xml: marshal/unmarshal xml.Name in field (thanks Gustavo Niemeyer).
+* exp/inotify: fix data race in linux tests.
+* exp/proxy: fix build after URL changes (thanks Gustavo Niemeyer).
+* exp/sql: copy when scanning into []byte by default,
+	rename NullableString to NullString and allow its use as a parameter.
+* exp/ssh: add marshal functions for uint32 and uint64 types,
+	handle versions with just '\n',
+	rename (some) fields (thanks Christopher Wedgwood).
+* exp/terminal: fix build on non-Linux using Makefiles.
+* fmt: enable and fix malloc test,
+* gc: don't emit pkgpath for error type,
+	don't fault on return outside function (thanks Scott Lawrence),
+	fieldnames in structliterals in exported inlines should not be qualified if they're embedded builtin types,
+	fix infinite recursion for embedded interfaces,
+	give esc.c's sink an orig so -mm diagnostics work again,
+	handle printing of string/arrayrune conversions.
+	remove redundant code (thanks Shenghou Ma).
+* go/build: no back slash in FindTree returned pkg name (thanks Alex Brainman).
+* go/doc: collect imports,
+	don't shadow receiver.
+	rewrote and completed test framework.
+	print only one newline between paragraphs
+* go/parser: expressions may have comments.
+* go/scanner: fix example (thanks Olivier Duperray).
+* go/token: replaced Files() with Iterate().
+* godoc: add anchors to cmd documentation headings,
+	remove "need more packages?" link,
+	specify HTML page metadata with a JSON blob,
+	support canonical Paths in HTML metadata.
+* html/template: fix docs after API changes (thanks Gustavo Niemeyer).
+* html: in foreign content, check for HTML integration points in breakout.
+* image/color: rename modelYCbCr to yCbCrModel (thanks Benny Siegert),
+	simplify documentation (thanks David Crawshaw).
+* image: add PixOffset methods.
+* math/rand: decrease test duration in short mode,
+	document default initial seed for global generator (thanks Scott Lawrence).
+* mime: make FormatMediaType take full type for consistency.
+* misc/cgo/test: make tests run on windows (thanks Alex Brainman).
+* net/http/cgi: increase a flaky test timeout.
+* net/http: change test to use override param instead of chan,
+	log handler panic before closing HTTP connection,
+	send cookies in jar on redirect (thanks Jeff Hodges),
+	the documentation should call NewRequest with the right signature (thanks Christoph Hack),
+	update the Client docs a bit.
+* net/url: cleaned up URL interface (v2) (thanks Gustavo Niemeyer).
+* net: consistent log format in test (thanks Mikio Hara),
+	various build fixes (thanks Mikio Hara),
+	use NewTimer, not NewTicker, in fd_windows.go.
+* old/netchan: fix data race on client hashmap.
+* os/exec: trivial allocation removal in LookPath (thanks Gustavo Niemeyer).
+* os: remove old note about NewSyscallError being special (thanks Alex Brainman),
+* path: added examples (thanks Sanjay Menakuru).
+* pkg: Add and fix Copyright of "hand generated" files (thanks Olivier Duperray),
+	add missing godoc comments to windows versions (thanks Alex Brainman).
+* regexp: add SubexpNames.
+* runtime: implement runtime.usleep for FreeBSD/386 and amd64 (thanks Shenghou Ma),
+	madvise and SysUnused for Darwin (thanks Dave Cheney).
+* sync/atomic: fix data race in tests.
+* syscall: add Unix method to TimeSpec, TimeVal,
+	fix plan9 build (thanks Mikio Hara).
+* test: change several tests to not print,
+	fix bug364 to actually run,
+	match gccgo error messages for bug345,
+	split golden.out into expected output per test.
+* testing: do not recover example's panic (thanks Shenghou Ma),
+	document examples.
+* text/template/parse: use human error prints.
+* text/template: fix nil error on redefinition.
+* time: add Since, which returns the time elapsed since some past time t.
+</pre>
+
 <h2 id="2012-01-15">2012-01-15</h2>
 
 <pre>
