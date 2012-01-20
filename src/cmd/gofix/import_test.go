@@ -351,7 +351,7 @@ var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18
 `,
 	},
 	{
-		Name: "import.3",
+		Name: "import.17",
 		Fn:   addImportFn("x/y/z", "x/a/c"),
 		In: `package main
 
@@ -384,6 +384,26 @@ import (
 )
 `,
 	},
+	{
+		Name: "import.18",
+		Fn:   addDelImportFn("e", "o"),
+		In: `package main
+
+import (
+	"f"
+	"o"
+	"z"
+)
+`,
+		Out: `package main
+
+import (
+	"e"
+	"f"
+	"z"
+)
+`,
+	},
 }
 
 func addImportFn(path ...string) func(*ast.File) bool {
@@ -406,6 +426,21 @@ func deleteImportFn(path string) func(*ast.File) bool {
 			return true
 		}
 		return false
+	}
+}
+
+func addDelImportFn(p1 string, p2 string) func(*ast.File) bool {
+	return func(f *ast.File) bool {
+		fixed := false
+		if !imports(f, p1) {
+			addImport(f, p1)
+			fixed = true
+		}
+		if imports(f, p2) {
+			deleteImport(f, p2)
+			fixed = true
+		}
+		return fixed
 	}
 }
 
