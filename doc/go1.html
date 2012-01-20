@@ -450,7 +450,13 @@ Few programs will be affected, but the fix may require some
 redesign.
 </p>
 
-<h2 id="library">Changes to the library</h2>
+<h2 id="packages">The package hierarchy</h2>
+
+<p>
+This section describes how the packages have been rearranged in Go 1.
+Some have moved, some have been renamed, some have been deleted.
+New packages are described in later sections.
+</p>
 
 <h3 id="hierarchy">The package hierarchy</h3>
 
@@ -536,6 +542,116 @@ by hand.
 <font color="red">TODO: gofix should warn about deletions.</font>
 <br>
 <font color="red">TODO: gofix should also handle packages that move to subrepos.</font>
+</p>
+
+<h3 id="exp">The package tree exp</h3>
+
+<p>
+Because they are not standardized, the packages under the <code>exp</code> directory will not be available in the
+standard Go 1 release distributions, although they will be available in source code form
+in <a href="http://code.google.com/p/go/">the repository</a> for
+developers who wish to use them.
+</p>
+
+<p>
+Several packages have moved under <code>exp</code> at the time of Go 1's release:
+</p>
+
+<ul>
+<li><code>ebnf</code></li>
+<li><code>go/types</code></li>
+<li><code>http/spdy</code></li>
+</ul>
+
+<p>
+Also, the <code>utf8.String</code> type has been moved to its own package, <code>exp/utf8string</code>.
+</p>
+
+<p>
+All these packages are available under the same names, with <code>exp/</code> prefixed: <code>exp/ebnf</code> etc.
+</p>
+
+<p>
+Also, the <code>gotype</code> command now resides in <code>exp/gotype</code>, while
+<code>ebnflint</code> is now in <code>exp/ebnflint</code>
+</p>
+
+<p>
+<em>Updating</em>:
+Code that uses packages in <code>exp</code> will need to be updated by hand,
+or else compiled from an installation that has <code>exp</code> available.
+Gofix or the compiler will complain about such uses.
+<br>
+<font color="red">TODO: gofix should warn about such uses.</font>
+</p>
+
+<h3 id="old">The package tree old</h3>
+
+<p>
+Because they are deprecated, the packages under the <code>old</code> directory will not be available in the
+standard Go 1 release distributions, although they will be available in source code form for
+developers who wish to use them.
+</p>
+
+<p>
+The packages in their new locations are:
+</p>
+
+<ul>
+<li><code>old/netchan</code></li>
+<li><code>old/regexp</code></li>
+<li><code>old/template</code></li>
+</ul>
+
+<p>
+<em>Updating</em>:
+Code that uses packages now in <code>old</code> will need to be updated by hand,
+or else compiled from an installation that has <code>old</code> available.
+Gofix will warn about such uses.
+<br>
+<font color="red">TODO: gofix should warn about such uses.</font>
+</p>
+
+<h3 id="deleted">Deleted packages</h3>
+
+<p>
+Go 1 deletes several packages outright:
+</p>
+
+<ul>
+<li><code>container/vector</code></li>
+<li><code>exp/datafmt</code></li>
+<li><code>go/typechecker</code></li>
+<li><code>try</code></li>
+</ul>
+
+<p>
+and also the command <code>gotry</code>.
+</p>
+
+<p>
+<em>Updating</em>:
+Code that uses <code>container/vector</code> should be updated to use
+slices directly.  See
+<a href="http://code.google.com/p/go-wiki/wiki/SliceTricks">the Go
+Language Community Wiki</a> for some suggestions.
+Code that uses the other packages (there should be almost zero) will need to be rethought.
+<br>
+<font color="red">TODO: gofix should warn such uses.</font>
+</p>
+
+<h3 id="subrepo">Packages moving to subrepositories</h3>
+
+<!-- 
+crypto/openpgp to XXX
+maybe exp/ssh?
+-->
+
+<h2 id="major">Major changes to the library</h2>
+
+<p>
+This section describes significant changes to the core libraries, the ones that
+affect the most programs.
 </p>
 
 <h3 id="errors">The error type and errors package</h3>
@@ -688,6 +804,117 @@ the correct function or method for the old functionality, but
 may have the wrong type or require further analysis.
 </p>
 
+<h2 id="minor">Minor changes to the library</h2>
+
+<p>
+This section describes smaller changes, such as those to less commonly
+used packages or that affect
+few programs beyond the need to run gofix.
+This category includes packages that are new in Go 1.
+</p>
+
+<h3 id="crypto_elliptic">The crypto/elliptic package</h3>
+
+<p>
+In Go 1, <a href="/pkg/crypto/elliptic/#Curve"><code>elliptic.Curve</code></a>
+has been made an interface to permit alternative implementations. The curve
+parameters have been moved to the
+<a href="/pkg/crypto/elliptic/#CurveParams"><code>elliptic.CurveParams</code></a>
+structure.
+</p>
+
+<p>
+<em>Updating</em>:
+Existing users of <code>*elliptic.Curve</code> will need to change to
+simply <code>elliptic.Curve</code>. Calls to <code>Marshal</code>,
+<code>Unmarshal</code> and <code>GenerateKey</code> are now functions
+in <code>crypto/elliptic</code> that take an <code>elliptic.Curve</code>
+as their first argument.
+</p>
+
+<h3 id="crypto_x509">The crypto/x509 package</h3>
+
+<p>
+In Go 1, the
+<a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+and
+<a href="/pkg/crypto/x509/#CreateCRL"><code>CreateCRL</code></a>
+functions in <code>crypto/x509</code> have been altered to take an
+<code>interface{}</code> where they previously took a <code>*rsa.PublicKey</code>
+or <code>*rsa.PrivateKey</code>. This will allow other public key algorithms
+to be implemented in the future.
+</p>
+
+<p>
+<em>Updating</em>:
+No changes will be needed.
+</p>
+
+<h3 id="go">The go/* packages</h3>
+
+<p>
+Several packages under <code>go</code> have slightly revised APIs.
+</p>
+
+<p>
+The modes <code>AllowIllegalChars</code> and <code>InsertSemis</code> have been removed
+from the <a href="/pkg/go/scanner/"><code>go/scanner</code></a> package. They were mostly
+useful for scanning text other then Go source files. Instead, the
+<a href="/pkg/text/scanner/"><code>text/scanner</code></a> package should be used
+for that purpose.
+</p>
+
+<p>
+The set of parse functions provided by the <a href="/pkg/go/parser/"><code>go/parser</code></a>
+package has been reduced to the primary parse function
+<a href="go/parser/#ParseFile"><code>ParseFile</code></a>, and a couple of
+convenience functions <a href="go/parser/#ParseDir"><code>ParseDir</code></a>
+and <a href="go/parser/#ParseExpr"><code>ParseExpr</code></a>.
+</p>
+
+<p>
+The type names of the <a href="go/doc/"><code>go/doc</code></a> package have been
+streamlined by removing the <code>Doc</code> suffix: <code>PackageDoc</code>
+is now <code>Package</code>, <code>ValueDoc</code> is <code>Value</code>, etc.
+Also, all types now consistently have a <code>Name</code> field (or <code>Names</code>,
+in the case of type <code>Value</code>), <code>Type.Factories</code> has become
+<code>Type.Funcs</code>, and there is a new type <code>Method</code> that describes
+methods in more detail.
+Instead of calling <code>doc.NewPackageDoc(pkg, importpath)</code>,
+documentation for a package is created with:
+</p>
+
+<pre>
+    doc.New(pkg, importpath, mode)
+</pre>
+
+<p>
+where the new <code>mode</code> parameter specifies the operation mode:
+if set to <a href="go/doc/#AllDecls"><code>AllDecls</code></a>, all declarations
+(not just exported ones) are considered.
+The function <code>NewFileDoc</code> was removed, and the function
+<code>CommentText</code> has become the method
+<a href="go/ast/#Text"><code>Text</code></a> of
+<a href="go/ast/#CommentGroup"><code>ast.CommentGroup</code></a>.
+</p>
+
+<p>
+In package <a href="go/token/"><code>go/token</code></a>, the
+<a href="go/token/#FileSet"><code>token.FileSet</code></a> method <code>Files</code>
+(which originally returned a channel of <code>*token.File</code>s) has been replaced
+with the iterator <a href="go/token/#FileSet.Iterate"><code>Iterate</code></a> that
+accepts a function argument instead.
+</p>
+
+<p>
+<em>Updating</em>:
+Code that uses packages in <code>go</code> will have to be updated by hand; the
+compiler will reject incorrect uses. Templates used in conjuction with any of the
+<code>go/doc</code> types may need manual fixes; the renamed fields will lead
+to run-time errors.
+</p>
+
+
 <h3 id="hash">The hash package</h3>
 
 <p>
@@ -762,6 +989,80 @@ respectively.  Rather than taking a timeout value in nanoseconds that
 apply to any activity on the connection, the new methods set an
 absolute deadline (as a <code>time.Time</code> value) after which
 reads and writes will time out and no longer block.</p>
+
+<h3 id="os_fileinfo">The os.FileInfo type</h3>
+
+<p>
+Go 1 redefines the <a href="/pkg/os/#FileInfo"><code>os.FileInfo</code></a> type,
+changing it from a struct to an interface:
+</p>
+
+<pre>
+    type FileInfo interface {
+        Name() string       // base name of the file
+        Size() int64        // length in bytes
+        Mode() FileMode     // file mode bits
+        ModTime() time.Time // modification time
+        IsDir() bool        // abbreviation for Mode().IsDir()
+    }
+</pre>
+
+<p>
+The file mode information has been moved into a subtype called
+<a href="/pkg/os/#FileMode"><code>os.FileMode</code></a>,
+a simple integer type with <code>IsDir</code>, <code>Perm</code>, and <code>String</code>
+methods.
+</p>
+
+<p>
+The system-specific details of file modes and properties such as (on Unix)
+i-number have been removed from <code>FileInfo</code> altogether.
+Instead, each operating system's <code>os</code> package provides an
+implementation of the <code>FileInfo</code> interface, <code>*os.FileStat</code>,
+which in turn contains a <code>Sys</code> field that stores the
+system-specific representation of file metadata.
+For instance, to discover the i-number of a file on a Unix system, unpack
+the <code>FileInfo</code> like this:
+</p>
+
+<pre>
+    fi, err := os.Stat("hello.go")
+    if err != nil {
+        log.Fatal(err)
+    }
+    // Make sure it's an implementation known to package os.
+    fileStat, ok := fi.(*os.FileStat)
+    if !ok {
+        log.Fatal("hello.go: not an os File")
+    }
+    // Now check that it's a Unix file.
+    unixStat, ok := fileStat.Sys.(*syscall.Stat_t)
+    if !ok {
+        log.Fatal("hello.go: not a Unix file")
+    }
+    fmt.Printf("file i-number: %d\n", unixStat.Ino)
+</pre>
+
+<p>
+Assuming (which is unwise) that <code>"hello.go"</code> is a Unix file,
+the i-number expression could be contracted to
+</p>
+
+<pre>
+    fi.(*os.FileStat).Sys.(*syscall.Stat_t).Ino
+</pre>
+
+<p>
+The vast majority of uses of <code>FileInfo</code> need only the methods
+of the standard interface.
+</p>
+	
+<p>
+<em>Updating</em>:
+Gofix will update code that uses the old equivalent of the current <code>os.FileInfo</code>
+and <code>os.FileMode</code> API.
+Code that needs system-specific file details will need to be updated by hand.
+</p>
 
 <h3 id="strconv">The strconv package</h3>
 
@@ -857,248 +1158,6 @@ they may require
 a cast that must be added by hand; gofix will warn about it.
 </p>
 
-<h3 id="os_fileinfo">The os.FileInfo type</h3>
-
-<p>
-Go 1 redefines the <a href="/pkg/os/#FileInfo"><code>os.FileInfo</code></a> type,
-changing it from a struct to an interface:
-</p>
-
-<pre>
-    type FileInfo interface {
-        Name() string       // base name of the file
-        Size() int64        // length in bytes
-        Mode() FileMode     // file mode bits
-        ModTime() time.Time // modification time
-        IsDir() bool        // abbreviation for Mode().IsDir()
-    }
-</pre>
-
-<p>
-The file mode information has been moved into a subtype called
-<a href="/pkg/os/#FileMode"><code>os.FileMode</code></a>,
-a simple integer type with <code>IsDir</code>, <code>Perm</code>, and <code>String</code>
-methods.
-</p>
-
-<p>
-The system-specific details of file modes and properties such as (on Unix)
-i-number have been removed from <code>FileInfo</code> altogether.
-Instead, each operating system's <code>os</code> package provides an
-implementation of the <code>FileInfo</code> interface, <code>*os.FileStat</code>,
-which in turn contains a <code>Sys</code> field that stores the
-system-specific representation of file metadata.
-For instance, to discover the i-number of a file on a Unix system, unpack
-the <code>FileInfo</code> like this:
-</p>
-
-<pre>
-    fi, err := os.Stat("hello.go")
-    if err != nil {
-        log.Fatal(err)
-    }
-    // Make sure it's an implementation known to package os.
-    fileStat, ok := fi.(*os.FileStat)
-    if !ok {
-        log.Fatal("hello.go: not an os File")
-    }
-    // Now check that it's a Unix file.
-    unixStat, ok := fileStat.Sys.(*syscall.Stat_t)
-    if !ok {
-        log.Fatal("hello.go: not a Unix file")
-    }
-    fmt.Printf("file i-number: %d\n", unixStat.Ino)
-</pre>
-
-<p>
-Assuming (which is unwise) that <code>"hello.go"</code> is a Unix file,
-the i-number expression could be contracted to
-</p>
-
-<pre>
-    fi.(*os.FileStat).Sys.(*syscall.Stat_t).Ino
-</pre>
-
-<p>
-The vast majority of uses of <code>FileInfo</code> need only the methods
-of the standard interface.
-</p>
-	
-<p>
-<em>Updating</em>:
-Gofix will update code that uses the old equivalent of the current <code>os.FileInfo</code>
-and <code>os.FileMode</code> API.
-Code that needs system-specific file details will need to be updated by hand.
-</p>
-
-<h3 id="go">The package tree go</h3>
-
-<p>
-Several packages under <code>go</code> have slightly revised APIs.
-</p>
-
-<p>
-The modes <code>AllowIllegalChars</code> and <code>InsertSemis</code> have been removed
-from the <a href="/pkg/go/scanner/"><code>go/scanner</code></a> package. They were mostly
-useful for scanning text other then Go source files. Instead, the
-<a href="/pkg/text/scanner/"><code>text/scanner</code></a> package should be used
-for that purpose.
-</p>
-
-<p>
-The set of parse functions provided by the <a href="/pkg/go/parser/"><code>go/parser</code></a>
-package has been reduced to the primary parse function
-<a href="/pkg/go/parser/#ParseFile"><code>ParseFile</code></a>, and a couple of
-convenience functions <a href="/pkg/go/parser/#ParseDir"><code>ParseDir</code></a>
-and <a href="/pkg/go/parser/#ParseExpr"><code>ParseExpr</code></a>.
-</p>
-
-<p>
-The type names of the <a href="/pkg/go/doc/"><code>go/doc</code></a> package have been
-streamlined by removing the <code>Doc</code> suffix: <code>PackageDoc</code>
-is now <a href="/pkg/go/doc/#Package"><code>Package</code></a>, <code>ValueDoc</code>
-is <a href="/pkg/go/doc/#Value"><code>Value</code></a>, etc.
-Also, all types now consistently have a <code>Name</code> field (or <code>Names</code>,
-in the case of type <code>Value</code>), <code>Type.Factories</code> has become
-<code>Type.Funcs</code>, and there is a new type
-<a href="/pkg/go/doc/#Method"><code>Method</code></a> that describes methods in
-more detail.
-Instead of calling <code>doc.NewPackageDoc(pkg, importpath)</code>,
-documentation for a package is created with:
-</p>
-
-<pre>
-    doc.New(pkg, importpath, mode)
-</pre>
-
-<p>
-where the new <code>mode</code> parameter specifies the operation
-<a href="/pkg/go/doc/#Mode"><code>Mode</code></a>: if set to
-<code>AllDecls</code>, all declarations (not just exported ones) are considered.
-The function <code>NewFileDoc</code> was removed, and the function
-<code>CommentText</code> has become the method
-<a href="/pkg/go/ast/#CommentGroup.Text"><code>Text</code></a> of
-<a href="/pkg/go/ast/#CommentGroup"><code>ast.CommentGroup</code></a>.
-</p>
-
-<p>
-In package <a href="/pkg/go/token/"><code>go/token</code></a>, the
-<a href="/pkg/go/token/#FileSet"><code>token.FileSet</code></a> method <code>Files</code>
-(which originally returned a channel of <code>*token.File</code>s) has been replaced
-with the iterator <a href="/pkg/go/token/#FileSet.Iterate"><code>Iterate</code></a> that
-accepts a function argument instead.
-</p>
-
-<p>
-<em>Updating</em>:
-Code that uses these packages in <a href="/pkg/go/">go</a> will have to be updated by hand;
-the compiler will reject incorrect uses. Templates used in conjuction with any of the
-<a href="/pkg/go/doc/"><code>go/doc</code></a> types may need manual fixes; the renamed
-fields will lead to run-time errors.
-</p>
-
-<h3 id="exp">The package tree exp</h3>
-
-<p>
-Because they are not standardized, the packages under the <code>exp</code> directory will not be available in the
-standard Go 1 release distributions, although they will be available in source code form
-in <a href="http://code.google.com/p/go/">the repository</a> for
-developers who wish to use them.
-</p>
-
-<p>
-Several packages have moved under <code>exp</code> at the time of Go 1's release:
-</p>
-
-<ul>
-<li><code>ebnf</code></li>
-<li><code>go/types</code></li>
-<li><code>http/spdy</code></li>
-</ul>
-
-<p>
-Also, the <code>utf8.String</code> type has been moved to its own package, <code>exp/utf8string</code>.
-</p>
-
-<p>
-All these packages are available under the same names, with <code>exp/</code> prefixed: <code>exp/ebnf</code> etc.
-</p>
-
-<p>
-Also, the <code>gotype</code> command now resides in <code>exp/gotype</code>, while
-<code>ebnflint</code> is now in <code>exp/ebnflint</code>
-</p>
-
-<p>
-<em>Updating</em>:
-Code that uses packages in <code>exp</code> will need to be updated by hand,
-or else compiled from an installation that has <code>exp</code> available.
-Gofix or the compiler will complain about such uses.
-<br>
-<font color="red">TODO: gofix should warn about such uses.</font>
-</p>
-
-<h3 id="old">The package tree old</h3>
-
-<p>
-Because they are deprecated, the packages under the <code>old</code> directory will not be available in the
-standard Go 1 release distributions, although they will be available in source code form for
-developers who wish to use them.
-</p>
-
-<p>
-The packages in their new locations are:
-</p>
-
-<ul>
-<li><code>old/netchan</code></li>
-<li><code>old/regexp</code></li>
-<li><code>old/template</code></li>
-</ul>
-
-<p>
-<em>Updating</em>:
-Code that uses packages now in <code>old</code> will need to be updated by hand,
-or else compiled from an installation that has <code>old</code> available.
-Gofix will warn about such uses.
-<br>
-<font color="red">TODO: gofix should warn about such uses.</font>
-</p>
-
-<h3 id="deleted">Deleted packages</h3>
-
-<p>
-Go 1 deletes several packages outright:
-</p>
-
-<ul>
-<li><code>container/vector</code></li>
-<li><code>exp/datafmt</code></li>
-<li><code>go/typechecker</code></li>
-<li><code>try</code></li>
-</ul>
-
-<p>
-and also the command <code>gotry</code>.
-</p>
-
-<p>
-<em>Updating</em>:
-Code that uses <code>container/vector</code> should be updated to use
-slices directly.  See
-<a href="http://code.google.com/p/go-wiki/wiki/SliceTricks">the Go
-Language Community Wiki</a> for some suggestions.
-Code that uses the other packages (there should be almost zero) will need to be rethought.
-<br>
-<font color="red">TODO: gofix should warn such uses.</font>
-</p>
-
-<h3 id="subrepo">Packages moving to subrepositories</h3>
-
-<!-- 
-crypto/openpgp to XXX
-maybe exp/ssh?
--->
 
 <h2 id="go_command">The go command</h2>
 
