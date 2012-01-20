@@ -3,6 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // comment 1
-package a
+package alpha
 
 //BUG(uid): bug1
