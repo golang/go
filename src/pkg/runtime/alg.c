@@ -89,6 +89,23 @@ runtime·memcopy(uintptr s, void *a, void *b)
 }
 
 void
+runtime·memequal0(bool *eq, uintptr s, void *a, void *b)
+{
+	USED(s);
+	USED(a);
+	USED(b);
+	*eq = true;
+}
+
+void
+runtime·memcopy0(uintptr s, void *a, void *b)
+{
+	USED(s);
+	USED(a);
+	USED(b);
+}
+
+void
 runtime·memequal8(bool *eq, uintptr s, void *a, void *b)
 {
 	USED(s);
@@ -332,11 +349,13 @@ runtime·algarray[] =
 [AINTER]	{ runtime·interhash, runtime·interequal, runtime·interprint, runtime·intercopy },
 [ANILINTER]	{ runtime·nilinterhash, runtime·nilinterequal, runtime·nilinterprint, runtime·nilintercopy },
 [ASLICE]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·slicecopy },
+[AMEM0]		{ runtime·memhash, runtime·memequal0, runtime·memprint, runtime·memcopy0 },
 [AMEM8]		{ runtime·memhash, runtime·memequal8, runtime·memprint, runtime·memcopy8 },
 [AMEM16]	{ runtime·memhash, runtime·memequal16, runtime·memprint, runtime·memcopy16 },
 [AMEM32]	{ runtime·memhash, runtime·memequal32, runtime·memprint, runtime·memcopy32 },
 [AMEM64]	{ runtime·memhash, runtime·memequal64, runtime·memprint, runtime·memcopy64 },
 [AMEM128]	{ runtime·memhash, runtime·memequal128, runtime·memprint, runtime·memcopy128 },
+[ANOEQ0]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy0 },
 [ANOEQ8]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy8 },
 [ANOEQ16]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy16 },
 [ANOEQ32]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy32 },
