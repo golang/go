@@ -386,3 +386,19 @@ func TestReadEmptyAtEOF(t *testing.T) {
 		t.Errorf("wrong count; got %d want 0", n)
 	}
 }
+
+func TestHuge(t *testing.T) {
+	// About to use tons of memory, so avoid for simple installation testing.
+	if testing.Short() {
+		return
+	}
+	b := new(Buffer)
+	big := make([]byte, 500e6)
+	for i := 0; i < 1000; i++ {
+		if _, err := b.Write(big); err != nil {
+			// Got error as expected. Stop
+			return
+		}
+	}
+	t.Error("error expected")
+}
