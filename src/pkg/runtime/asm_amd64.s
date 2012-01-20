@@ -16,7 +16,7 @@ TEXT _rt0_amd64(SB),7,$-8
 	// create istack out of the given (operating system) stack.
 	// initcgo may update stackguard.
 	MOVQ	$runtime·g0(SB), DI
-	LEAQ	(-8192+104)(SP), BX
+	LEAQ	(-64*1024+104)(SP), BX
 	MOVQ	BX, g_stackguard(DI)
 	MOVQ	SP, g_stackbase(DI)
 
@@ -24,7 +24,9 @@ TEXT _rt0_amd64(SB),7,$-8
 	MOVQ	initcgo(SB), AX
 	TESTQ	AX, AX
 	JZ	needtls
-	CALL	AX  // g0 already in DI
+	// g0 already in DI
+	MOVQ	DI, CX	// Win64 uses CX for first parameter
+	CALL	AX
 	CMPL	runtime·iswindows(SB), $0
 	JEQ ok
 

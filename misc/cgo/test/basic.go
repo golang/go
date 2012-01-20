@@ -69,17 +69,6 @@ func uuidgen() {
 	C.uuid_generate(&uuid[0])
 }
 
-func Size(name string) (int64, error) {
-	var st C.struct_stat
-	p := C.CString(name)
-	_, err := C.stat(p, &st)
-	C.free(unsafe.Pointer(p))
-	if err != nil {
-		return 0, err
-	}
-	return int64(C.ulong(st.st_size)), nil
-}
-
 func Strtol(s string, base int) (int, error) {
 	p := C.CString(s)
 	n, err := C.strtol(p, nil, C.int(base))
@@ -112,9 +101,17 @@ func testAtol(t *testing.T) {
 }
 
 func testErrno(t *testing.T) {
-	n, err := Strtol("asdf", 123)
-	if n != 0 || err != os.EINVAL {
-		t.Error("Strtol: ", n, err)
+	p := C.CString("no-such-file")
+	m := C.CString("r")
+	f, err := C.fopen(p, m)
+	C.free(unsafe.Pointer(p))
+	C.free(unsafe.Pointer(m))
+	if err == nil {
+		C.fclose(f)
+		t.Fatalf("C.fopen: should fail")
+	}
+	if err != os.ENOENT {
+		t.Fatalf("C.fopen: unexpected error: ", err)
 	}
 }
 
