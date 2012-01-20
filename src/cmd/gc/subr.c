@@ -586,6 +586,8 @@ algtype(Type *t)
 		if(isslice(t))
 			return ASLICE;
 		switch(t->width) {
+		case 0:
+			return a + AMEM0 - AMEM;
 		case 1:
 			return a + AMEM8 - AMEM;
 		case 2:

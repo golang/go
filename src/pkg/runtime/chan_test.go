@@ -371,3 +371,12 @@ func BenchmarkChanCreation(b *testing.B) {
 		<-c
 	}
 }
+
+func BenchmarkChanSem(b *testing.B) {
+	type Empty struct{}
+	c := make(chan Empty, 1)
+	for i := 0; i < b.N; i++ {
+		c <- Empty{}
+		<-c
+	}
+}
