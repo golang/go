@@ -3271,10 +3271,9 @@ $$default:
 					}
 				}
 
-				/* the current p has no shift onn "error", pop stack */
+				/* the current p has no shift on "error", pop stack */
 				if $$Debug >= 2 {
-					fmt.Printf("error recovery pops state %d, uncovers %d\n",
-						$$S[$$p].yys, $$S[$$p-1].yys)
+					fmt.Printf("error recovery pops state %d\n", $$S[$$p].yys)
 				}
 				$$p--
 			}
