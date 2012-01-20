@@ -241,13 +241,6 @@ dumpexporttype(Type *t)
 	if(t->sym != S && t->etype != TFIELD)
 		dumppkg(t->sym->pkg);
 
-	// fmt will print the ->orig of an interface, which has the original embedded interfaces.
-	// be sure to dump them here
-	if(t->etype == TINTER)
-		for(f=t->orig->type; f; f=f->down)
-			if(f->sym == S)
-				dumpexporttype(f->type);
-
 	dumpexporttype(t->type);
 	dumpexporttype(t->down);
 
@@ -477,7 +470,7 @@ importtype(Type *pt, Type *t)
 		pt->sym->lastlineno = parserline();
 		declare(n, PEXTERN);
 		checkwidth(pt);
-	} else if(!eqtype(pt->orig, t->orig))
+	} else if(!eqtype(pt->orig, t))
 		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt, t);
 
 	if(debug['E'])

@@ -640,15 +640,9 @@ typefmt(Fmt *fp, Type *t)
 		return fmtprint(fp, "map[%T]%T", t->down, t->type);
 
 	case TINTER:
-		t = t->orig;
 		fmtstrcpy(fp, "interface {");
 		for(t1=t->type; t1!=T; t1=t1->down)
-			if(!t1->sym) {
-				if(t1->down)
-					fmtprint(fp, " %T;", t1->type);
-				else
-					fmtprint(fp, " %T ", t1->type);
-			} else if(exportname(t1->sym->name)) {
+			if(exportname(t1->sym->name)) {
 				if(t1->down)
 					fmtprint(fp, " %hS%hT;", t1->sym, t1->type);
 				else
