@@ -2,11 +2,11 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include ../../../Make.inc
+include ../../../../Make.inc
 
-TARG=exp/sql
+TARG=database/sql/driver
 GOFILES=\
-	convert.go\
-	sql.go\
+	driver.go\
+	types.go\
 
-include ../../../Make.pkg
+include ../../../../Make.pkg

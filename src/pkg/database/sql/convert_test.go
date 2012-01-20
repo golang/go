@@ -5,7 +5,7 @@
 package sql
 
 import (
-	"exp/sql/driver"
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"testing"

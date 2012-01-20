@@ -7,8 +7,8 @@
 package sql
 
 import (
+	"database/sql/driver"
 	"errors"
-	"exp/sql/driver"
 	"fmt"
 	"reflect"
 	"strconv"

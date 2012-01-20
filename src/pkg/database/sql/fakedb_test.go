@@ -5,6 +5,7 @@
 package sql
 
 import (
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"io"
@@ -13,8 +14,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"exp/sql/driver"
 )
 
 var _ = log.Printf
