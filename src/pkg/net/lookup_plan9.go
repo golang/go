@@ -69,6 +69,11 @@ func queryDNS(addr string, typ string) (res []string, err error) {
 	return query("/net/dns", addr+" "+typ, 1024)
 }
 
+func lookupProtocol(name string) (proto int, err error) {
+	// TODO: Implement this
+	return 0, os.EPLAN9
+}
+
 func lookupHost(host string) (addrs []string, err error) {
 	// Use /net/cs insead of /net/dns because cs knows about
 	// host names in local network (e.g. from /lib/ndb/local)
