@@ -56,12 +56,27 @@ func epipecheck(file *File, e error) {
 // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
 const DevNull = "/dev/null"
 
+// syscallMode returns the syscall-specific mode bits from Go's portable mode bits.
+func syscallMode(i FileMode) (o uint32) {
+	o |= uint32(i.Perm())
+	if i&ModeAppend != 0 {
+		o |= syscall.DMAPPEND
+	}
+	if i&ModeExclusive != 0 {
+		o |= syscall.DMEXCL
+	}
+	if i&ModeTemporary != 0 {
+		o |= syscall.DMTMP
+	}
+	return
+}
+
 // OpenFile is the generalized open call; most users will use Open
 // or Create instead.  It opens the named file with specified flag
 // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
 // methods on the returned File can be used for I/O.
 // It returns the File and an error, if any.
-func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
+func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 	var (
 		fd     int
 		e      error
@@ -89,12 +104,12 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
 
 	syscall.ForkLock.RLock()
 	if (create && trunc) || excl {
-		fd, e = syscall.Create(name, flag, perm)
+		fd, e = syscall.Create(name, flag, syscallMode(perm))
 	} else {
 		fd, e = syscall.Open(name, flag)
 		if e != nil && create {
 			var e1 error
-			fd, e1 = syscall.Create(name, flag, perm)
+			fd, e1 = syscall.Create(name, flag, syscallMode(perm))
 			if e1 == nil {
 				e = nil
 			}
@@ -162,18 +177,18 @@ func (f *File) Truncate(size int64) error {
 	return nil
 }
 
-// Chmod changes the mode of the file to mode.
-func (f *File) Chmod(mode uint32) error {
-	var d Dir
-	var mask = ^uint32(0777)
+const chmodMask = uint32(syscall.DMAPPEND | syscall.DMEXCL | syscall.DMTMP | ModePerm)
 
-	d.Null()
+// Chmod changes the mode of the file to mode.
+func (f *File) Chmod(mode FileMode) error {
+	var d Dir
+
 	odir, e := dirstat(f)
 	if e != nil {
 		return &PathError{"chmod", f.name, e}
 	}
-
-	d.Mode = (odir.Mode & mask) | (mode &^ mask)
+	d.Null()
+	d.Mode = odir.Mode&^chmodMask | syscallMode(mode)&chmodMask
 	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); e != nil {
 		return &PathError{"chmod", f.name, e}
 	}
@@ -266,17 +281,15 @@ func Rename(oldname, newname string) error {
 }
 
 // Chmod changes the mode of the named file to mode.
-func Chmod(name string, mode uint32) error {
+func Chmod(name string, mode FileMode) error {
 	var d Dir
-	var mask = ^uint32(0777)
 
-	d.Null()
 	odir, e := dirstat(name)
 	if e != nil {
 		return &PathError{"chmod", name, e}
 	}
-
-	d.Mode = (odir.Mode & mask) | (mode &^ mask)
+	d.Null()
+	d.Mode = odir.Mode&^chmodMask | syscallMode(mode)&chmodMask
 	if e := syscall.Wstat(name, pdir(nil, &d)); e != nil {
 		return &PathError{"chmod", name, e}
 	}
