@@ -225,10 +225,17 @@ func testSync(t *testing.T, level int, input []byte, name string) {
 }
 
 func testToFromWithLevel(t *testing.T, level int, input []byte, name string) error {
+	return testToFromWithLevelAndLimit(t, level, input, name, -1)
+}
+
+func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name string, limit int) error {
 	buffer := bytes.NewBuffer(nil)
 	w := NewWriter(buffer, level)
 	w.Write(input)
 	w.Close()
+	if limit > 0 && buffer.Len() > limit {
+		t.Errorf("level: %d, len(compress(data)) = %d > limit = %d", level, buffer.Len(), limit)
+	}
 	r := NewReader(buffer)
 	out, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -244,10 +251,14 @@ func testToFromWithLevel(t *testing.T, level int, input []byte, name string) err
 	return nil
 }
 
-func testToFrom(t *testing.T, input []byte, name string) {
+func testToFromWithLimit(t *testing.T, input []byte, name string, limit [10]int) {
 	for i := 0; i < 10; i++ {
-		testToFromWithLevel(t, i, input, name)
+		testToFromWithLevelAndLimit(t, i, input, name, limit[i])
 	}
+}
+
+func testToFrom(t *testing.T, input []byte, name string) {
+	testToFromWithLimit(t, input, name, [10]int{})
 }
 
 func TestDeflateInflate(t *testing.T) {
@@ -265,12 +276,33 @@ func TestReverseBits(t *testing.T) {
 	}
 }
 
+type deflateInflateStringTest struct {
+	filename string
+	label    string
+	limit    [10]int
+}
+
+var deflateInflateStringTests = []deflateInflateStringTest{
+	{
+		"../testdata/e.txt",
+		"2.718281828...",
+		[...]int{10013, 5065, 5096, 5115, 5093, 5079, 5079, 5079, 5079, 5079},
+	},
+	{
+		"../testdata/Mark.Twain-Tom.Sawyer.txt",
+		"Mark.Twain-Tom.Sawyer",
+		[...]int{416188, 191483, 185232, 179560, 175233, 171263, 169908, 169758, 169712, 169712},
+	},
+}
+
 func TestDeflateInflateString(t *testing.T) {
-	gold, err := ioutil.ReadFile("../testdata/e.txt")
-	if err != nil {
-		t.Error(err)
+	for _, test := range deflateInflateStringTests {
+		gold, err := ioutil.ReadFile(test.filename)
+		if err != nil {
+			t.Error(err)
+		}
+		testToFromWithLimit(t, gold, test.label, test.limit)
 	}
-	testToFromWithLevel(t, 1, gold, "2.718281828...")
 }
 
 func TestReaderDict(t *testing.T) {
