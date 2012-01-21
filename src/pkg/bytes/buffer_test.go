@@ -392,13 +392,18 @@ func TestHuge(t *testing.T) {
 	if testing.Short() {
 		return
 	}
+	// We expect a panic.
+	defer func() {
+		if err, ok := recover().(error); ok && err == ErrTooLarge {
+			return
+		} else {
+			t.Error(`expected "too large" error; got`, err)
+		}
+	}()
 	b := new(Buffer)
 	big := make([]byte, 500e6)
 	for i := 0; i < 1000; i++ {
-		if _, err := b.Write(big); err != nil {
-			// Got error as expected. Stop
-			return
-		}
+		b.Write(big)
 	}
-	t.Error("error expected")
+	t.Error("panic expected")
 }
