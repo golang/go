@@ -31,6 +31,8 @@ const (
 	hashSize            = 1 << hashBits
 	hashMask            = (1 << hashBits) - 1
 	hashShift           = (hashBits + minMatchLength - 1) / minMatchLength
+
+	skipNever = math.MaxInt32
 )
 
 type compressionLevel struct {
@@ -45,12 +47,12 @@ var levels = []compressionLevel{
 	{3, 0, 32, 32, 6},
 	// Levels 4-9 use increasingly more lazy matching
 	// and increasingly stringent conditions for "good enough".
-	{4, 4, 16, 16, math.MaxInt32},
-	{8, 16, 32, 32, math.MaxInt32},
-	{8, 16, 128, 128, math.MaxInt32},
-	{8, 32, 128, 256, math.MaxInt32},
-	{32, 128, 258, 1024, math.MaxInt32},
-	{32, 258, 258, 4096, math.MaxInt32},
+	{4, 4, 16, 16, skipNever},
+	{8, 16, 32, 32, skipNever},
+	{8, 16, 128, 128, skipNever},
+	{8, 32, 128, 256, skipNever},
+	{32, 128, 258, 1024, skipNever},
+	{32, 258, 258, 4096, skipNever},
 }
 
 type compressor struct {
@@ -100,7 +102,7 @@ func (d *compressor) fillDeflate(b []byte) int {
 		if d.blockStart >= windowSize {
 			d.blockStart -= windowSize
 		} else {
-			d.blockStart = math.MaxInt32
+			d.blockStart = skipNever
 		}
 		for i, h := range d.hashHead {
 			v := h - windowSize
@@ -273,18 +275,18 @@ Loop:
 		}
 
 		if d.chainHead >= minIndex &&
-			(d.fastSkipHashing != 0 && lookahead > minMatchLength-1 ||
-				d.fastSkipHashing == 0 && lookahead > prevLength && prevLength < d.lazy) {
+			(d.fastSkipHashing != skipNever && lookahead > minMatchLength-1 ||
+				d.fastSkipHashing == skipNever && lookahead > prevLength && prevLength < d.lazy) {
 			if newLength, newOffset, ok := d.findMatch(d.index, d.chainHead, minMatchLength-1, lookahead); ok {
 				d.length = newLength
 				d.offset = newOffset
 			}
 		}
-		if d.fastSkipHashing != 0 && d.length >= minMatchLength ||
-			d.fastSkipHashing == 0 && prevLength >= minMatchLength && d.length <= prevLength {
+		if d.fastSkipHashing != skipNever && d.length >= minMatchLength ||
+			d.fastSkipHashing == skipNever && prevLength >= minMatchLength && d.length <= prevLength {
 			// There was a match at the previous step, and the current match is
 			// not better. Output the previous match.
-			if d.fastSkipHashing != 0 {
+			if d.fastSkipHashing != skipNever {
 				d.tokens[d.ti] = matchToken(uint32(d.length-minMatchLength), uint32(d.offset-minOffsetSize))
 			} else {
 				d.tokens[d.ti] = matchToken(uint32(prevLength-minMatchLength), uint32(prevOffset-minOffsetSize))
@@ -296,10 +298,10 @@ Loop:
 			// table.
 			if d.length <= d.fastSkipHashing {
 				var newIndex int
-				if d.fastSkipHashing != 0 {
+				if d.fastSkipHashing != skipNever {
 					newIndex = d.index + d.length
 				} else {
-					newIndex = prevLength - 1
+					newIndex = d.index + prevLength - 1
 				}
 				for d.index++; d.index < newIndex; d.index++ {
 					if d.index < d.maxInsertIndex {
@@ -311,7 +313,7 @@ Loop:
 						d.hashHead[d.hash] = d.index
 					}
 				}
-				if d.fastSkipHashing == 0 {
+				if d.fastSkipHashing == skipNever {
 					d.byteAvailable = false
 					d.length = minMatchLength - 1
 				}
@@ -331,9 +333,9 @@ Loop:
 				d.ti = 0
 			}
 		} else {
-			if d.fastSkipHashing != 0 || d.byteAvailable {
+			if d.fastSkipHashing != skipNever || d.byteAvailable {
 				i := d.index - 1
-				if d.fastSkipHashing != 0 {
+				if d.fastSkipHashing != skipNever {
 					i = d.index
 				}
 				d.tokens[d.ti] = literalToken(uint32(d.window[i]))
@@ -346,7 +348,7 @@ Loop:
 				}
 			}
 			d.index++
-			if d.fastSkipHashing == 0 {
+			if d.fastSkipHashing == skipNever {
 				d.byteAvailable = true
 			}
 		}
