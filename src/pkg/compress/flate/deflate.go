@@ -112,7 +112,7 @@ func (d *compressor) fillDeflate(b []byte) int {
 			d.hashHead[i] = v
 		}
 		for i, h := range d.hashPrev {
-			v := -h - windowSize
+			v := h - windowSize
 			if v < -1 {
 				v = -1
 			}
