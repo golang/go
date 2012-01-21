@@ -33,7 +33,7 @@ const (
 	opRead                   // Any other read operation.
 )
 
-// ErrTooLarge is returned if there is too much data to fit in a buffer.
+// ErrTooLarge is passed to panic if memory cannot be allocated to store data in a buffer.
 var ErrTooLarge = errors.New("bytes.Buffer: too large")
 
 // Bytes returns a slice of the contents of the unread portion of the buffer;
@@ -73,8 +73,7 @@ func (b *Buffer) Reset() { b.Truncate(0) }
 
 // grow grows the buffer to guarantee space for n more bytes.
 // It returns the index where bytes should be written.
-// If the buffer can't grow, it returns -1, which will
-// become ErrTooLarge in the caller.
+// If the buffer can't grow it will panic with ErrTooLarge.
 func (b *Buffer) grow(n int) int {
 	m := b.Len()
 	// If buffer is empty, reset to recover space.
@@ -88,9 +87,6 @@ func (b *Buffer) grow(n int) int {
 		} else {
 			// not enough space anywhere
 			buf = makeSlice(2*cap(b.buf) + n)
-			if buf == nil {
-				return -1
-			}
 			copy(buf, b.buf[b.off:])
 		}
 		b.buf = buf
@@ -102,6 +98,8 @@ func (b *Buffer) grow(n int) int {
 
 // Write appends the contents of p to the buffer.  The return
 // value n is the length of p; err is always nil.
+// If the buffer becomes too large, Write will panic with
+// ErrTooLarge.
 func (b *Buffer) Write(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
 	m := b.grow(len(p))
@@ -146,9 +144,6 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 				// not enough space using beginning of buffer;
 				// double buffer capacity
 				newBuf = makeSlice(2*cap(b.buf) + MinRead)
-				if newBuf == nil {
-					return n, ErrTooLarge
-				}
 			}
 			copy(newBuf, b.buf[b.off:])
 			b.buf = newBuf[:len(b.buf)-b.off]
@@ -167,14 +162,14 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 	return n, nil // err is EOF, so return nil explicitly
 }
 
-// makeSlice allocates a slice of size n, returning nil if the slice cannot be allocated.
+// makeSlice allocates a slice of size n. If the allocation fails, it panics
+// with ErrTooLarge.
 func makeSlice(n int) []byte {
-	if n < 0 {
-		return nil
-	}
-	// Catch out of memory panics.
+	// If the make fails, give a known error.
 	defer func() {
-		recover()
+		if recover() != nil {
+			panic(ErrTooLarge)
+		}
 	}()
 	return make([]byte, n)
 }
