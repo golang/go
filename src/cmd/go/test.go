@@ -406,6 +406,18 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	if pxtest != nil {
 		pmain.imports = append(pmain.imports, pxtest)
 	}
+
+	// The generated main also imports testing and regexp.
+	ptesting, err := loadPackage("testing")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	pregexp, err := loadPackage("regexp")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	pmain.imports = append(pmain.imports, ptesting, pregexp)
+
 	a := b.action(modeBuild, modeBuild, pmain)
 	a.objdir = testDir + string(filepath.Separator)
 	a.objpkg = filepath.Join(testDir, "main.a")
