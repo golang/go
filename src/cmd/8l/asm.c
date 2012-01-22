@@ -37,8 +37,6 @@
 #include	"../ld/macho.h"
 #include	"../ld/pe.h"
 
-#define	Dbufslop	100
-
 char linuxdynld[] = "/lib/ld-linux.so.2";
 char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
 char openbsddynld[] = "/usr/libexec/ld.so";
