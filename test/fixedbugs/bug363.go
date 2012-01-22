@@ -17,5 +17,5 @@ func main() {
 	println(b)
 
 	var c int64 = (1<<i) + 4.0  // ok - it's all int64
-	println(b)
+	println(c)
 }
