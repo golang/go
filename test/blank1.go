@@ -9,4 +9,5 @@ package _	// ERROR "invalid package name _"
 func main() {
 	_()	// ERROR "cannot use _ as value"
 	x := _+1	// ERROR "cannot use _ as value"
+	_ = x
 }
