@@ -37,8 +37,6 @@
 #include	"../ld/macho.h"
 #include	"../ld/pe.h"
 
-#define	Dbufslop	100
-
 #define PADDR(a)	((uint32)(a) & ~0x80000000)
 
 char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
