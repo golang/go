@@ -103,20 +103,16 @@ func (b *Buffer) grow(n int) int {
 func (b *Buffer) Write(p []byte) (n int, err error) {
 	b.lastRead = opInvalid
 	m := b.grow(len(p))
-	if m < 0 {
-		return 0, ErrTooLarge
-	}
 	return copy(b.buf[m:], p), nil
 }
 
 // WriteString appends the contents of s to the buffer.  The return
 // value n is the length of s; err is always nil.
+// If the buffer becomes too large, WriteString will panic with
+// ErrTooLarge.
 func (b *Buffer) WriteString(s string) (n int, err error) {
 	b.lastRead = opInvalid
 	m := b.grow(len(s))
-	if m < 0 {
-		return 0, ErrTooLarge
-	}
 	return copy(b.buf[m:], s), nil
 }
 
@@ -130,6 +126,8 @@ const MinRead = 512
 // The return value n is the number of bytes read.
 // Any error except io.EOF encountered during the read
 // is also returned.
+// If the buffer becomes too large, ReadFrom will panic with
+// ErrTooLarge.
 func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 	b.lastRead = opInvalid
 	// If buffer is empty, reset to recover space.
@@ -198,12 +196,11 @@ func (b *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 // WriteByte appends the byte c to the buffer.
 // The returned error is always nil, but is included
 // to match bufio.Writer's WriteByte.
+// If the buffer becomes too large, WriteByte will panic with
+// ErrTooLarge.
 func (b *Buffer) WriteByte(c byte) error {
 	b.lastRead = opInvalid
 	m := b.grow(1)
-	if m < 0 {
-		return ErrTooLarge
-	}
 	b.buf[m] = c
 	return nil
 }
@@ -212,6 +209,8 @@ func (b *Buffer) WriteByte(c byte) error {
 // code point r to the buffer, returning its length and
 // an error, which is always nil but is included
 // to match bufio.Writer's WriteRune.
+// If the buffer becomes too large, WriteRune will panic with
+// ErrTooLarge.
 func (b *Buffer) WriteRune(r rune) (n int, err error) {
 	if r < utf8.RuneSelf {
 		b.WriteByte(byte(r))
