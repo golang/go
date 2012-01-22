@@ -75,7 +75,9 @@ func (dec *Decoder) recvMessage() bool {
 		dec.err = err
 		return false
 	}
-	if nbytes >= 1<<31 {
+	// Upper limit of 1GB, allowing room to grow a little without overflow.
+	// TODO: We might want more control over this limit.
+	if nbytes >= 1<<30 {
 		dec.err = errBadCount
 		return false
 	}
