@@ -39,7 +39,7 @@ runtime·semacreate(void)
 void
 runtime·osinit(void)
 {
-	// Register our thread-creation callback (see {amd64,386}/sys.s)
+	// Register our thread-creation callback (see sys_darwin_{amd64,386}.s)
 	// but only if we're not using cgo.  If we are using cgo we need
 	// to let the C pthread libary install its own thread-creation callback.
 	if(!runtime·iscgo)
@@ -338,7 +338,7 @@ runtime·mach_semdestroy(uint32 sem)
 	}
 }
 
-// The other calls have simple system call traps in sys.s
+// The other calls have simple system call traps in sys_darwin_{amd64,386}.s
 int32 runtime·mach_semaphore_wait(uint32 sema);
 int32 runtime·mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
 int32 runtime·mach_semaphore_signal(uint32 sema);
