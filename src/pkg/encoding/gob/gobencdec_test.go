@@ -547,7 +547,6 @@ func (a isZeroBugArray) GobEncode() (b []byte, e error) {
 }
 
 func (a *isZeroBugArray) GobDecode(data []byte) error {
-	println("DECODE")
 	if len(data) != len(a) {
 		return io.EOF
 	}
