@@ -386,24 +386,3 @@ func TestReadEmptyAtEOF(t *testing.T) {
 		t.Errorf("wrong count; got %d want 0", n)
 	}
 }
-
-func TestHuge(t *testing.T) {
-	// About to use tons of memory, so avoid for simple installation testing.
-	if testing.Short() {
-		return
-	}
-	// We expect a panic.
-	defer func() {
-		if err, ok := recover().(error); ok && err == ErrTooLarge {
-			return
-		} else {
-			t.Error(`expected "too large" error; got`, err)
-		}
-	}()
-	b := new(Buffer)
-	big := make([]byte, 500e6)
-	for i := 0; i < 1000; i++ {
-		b.Write(big)
-	}
-	t.Error("panic expected")
-}
