@@ -277,7 +277,7 @@ TEXT runtime·abort(SB),7,$-4
 //	}else
 //		return 0;
 //
-// To implement runtime·cas in ../$GOOS/arm/sys.s
+// To implement runtime·cas in sys_$GOOS_arm.s
 // using the native instructions, use:
 //
 //	TEXT runtime·cas(SB),7,$0

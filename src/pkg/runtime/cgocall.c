@@ -17,7 +17,7 @@
 // so as not to block other goroutines or the garbage collector,
 // and then calls runtime.asmcgocall(_cgo_Cfunc_f, frame). 
 //
-// runtime.asmcgocall (in $GOARCH/asm.s) switches to the m->g0 stack
+// runtime.asmcgocall (in asm_$GOARCH.s) switches to the m->g0 stack
 // (assumed to be an operating system-allocated stack, so safe to run
 // gcc-compiled code on) and calls _cgo_Cfunc_f(frame).
 //
@@ -55,7 +55,7 @@
 // with 6c instead of gcc, can refer to dotted names like
 // runtime.cgocallback and p.GoF.)
 //
-// runtime.cgocallback (in $GOOS/asm.s) switches from m->g0's
+// runtime.cgocallback (in asm_$GOARCH.s) switches from m->g0's
 // stack to the original g (m->curg)'s stack, on which it calls
 // runtime.cgocallbackg(p.GoF, frame, framesize).
 // As part of the stack switch, runtime.cgocallback saves the current
