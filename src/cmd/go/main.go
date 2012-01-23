@@ -246,9 +246,11 @@ func run(cmdargs ...interface{}) {
 	}
 }
 
-func runOut(cmdargs ...interface{}) []byte {
+func runOut(dir string, cmdargs ...interface{}) []byte {
 	cmdline := stringList(cmdargs...)
-	out, err := exec.Command(cmdline[0], cmdline[1:]...).CombinedOutput()
+	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		os.Stderr.Write(out)
 		errorf("%v", err)
@@ -283,7 +285,7 @@ func allPackages(pattern string) []string {
 	have := map[string]bool{
 		"builtin": true, // ignore pseudo-package that exists only for documentation
 	}
-	if !build.DefaultContext.CgoEnabled {
+	if !buildContext.CgoEnabled {
 		have["runtime/cgo"] = true // ignore during walk
 	}
 	var pkgs []string

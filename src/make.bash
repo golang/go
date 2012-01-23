@@ -92,11 +92,21 @@ echo; echo; echo %%%% making runtime generated files %%%%; echo
 
 if $USE_GO_TOOL; then
 	echo
-	echo '# Building go command from bootstrap script.'
-	./buildscript/${GOOS}_$GOARCH.sh
+	echo '# Building go_bootstrap command from bootstrap script.'
+	if ! ./buildscript/${GOOS}_$GOARCH.sh; then
+		echo '# Bootstrap script failed.'
+		if [ ! -x "$GOBIN/go" ]; then
+			exit 1
+		fi
+		echo '# Regenerating bootstrap script using pre-existing go binary.'
+		./buildscript.sh
+		./buildscript/${GOOS}_$GOARCH.sh
+	fi
 
 	echo '# Building Go code.'
-	go install -a -v std
+	go_bootstrap install -a -v std
+	rm -f "$GOBIN/go_bootstrap"
+
 else
 	echo; echo; echo %%%% making pkg %%%%; echo
 	gomake -C pkg install

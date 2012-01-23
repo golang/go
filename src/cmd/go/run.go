@@ -4,12 +4,10 @@
 
 package main
 
-import (
-	"strings"
-)
+import "strings"
 
 var cmdRun = &Command{
-	UsageLine: "run [-a] [-n] [-x] gofiles... [-- arguments...]",
+	UsageLine: "run [-a] [-n] [-x] gofiles... [arguments...]",
 	Short:     "compile and run Go program",
 	Long: `
 Run compiles and runs the main package comprising the named Go source files.
@@ -33,11 +31,15 @@ func init() {
 func runRun(cmd *Command, args []string) {
 	var b builder
 	b.init()
-	files, args := splitArgs(args)
+	i := 0
+	for i < len(args) && strings.HasSuffix(args[i], ".go") {
+		i++
+	}
+	files, cmdArgs := args[:i], args[i:]
 	p := goFilesPackage(files, "")
 	p.target = "" // must build - not up to date
 	a1 := b.action(modeBuild, modeBuild, p)
-	a := &action{f: (*builder).runProgram, args: args, deps: []*action{a1}}
+	a := &action{f: (*builder).runProgram, args: cmdArgs, deps: []*action{a1}}
 	b.do(a)
 }
 
@@ -52,20 +54,4 @@ func (b *builder) runProgram(a *action) error {
 	}
 	run(a.deps[0].target, a.args)
 	return nil
-}
-
-// Return the argument slices before and after the "--"
-func splitArgs(args []string) (before, after []string) {
-	dashes := len(args)
-	for i, arg := range args {
-		if arg == "--" {
-			dashes = i
-			break
-		}
-	}
-	before = args[:dashes]
-	if dashes < len(args) {
-		after = args[dashes+1:]
-	}
-	return
 }

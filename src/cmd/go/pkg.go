@@ -5,7 +5,6 @@
 package main
 
 import (
-	"fmt"
 	"go/build"
 	"os"
 	"path/filepath"
@@ -19,16 +18,18 @@ type Package struct {
 	// Note: These fields are part of the go command's public API.
 	// See list.go.  It is okay to add fields, but not to change or
 	// remove existing ones.  Keep in sync with list.go
-	Name       string // package name
-	Doc        string `json:",omitempty"` // package documentation string
-	ImportPath string // import path of package in dir
-	Dir        string // directory containing package sources
-	Version    string `json:",omitempty"` // version of installed package (TODO)
-	Standard   bool   `json:",omitempty"` // is this package part of the standard Go library?
-	Stale      bool   `json:",omitempty"` // would 'go install' do anything for this package?
+	ImportPath string        // import path of package in dir
+	Name       string        `json:",omitempty"` // package name
+	Doc        string        `json:",omitempty"` // package documentation string
+	Dir        string        `json:",omitempty"` // directory containing package sources
+	Version    string        `json:",omitempty"` // version of installed package (TODO)
+	Standard   bool          `json:",omitempty"` // is this package part of the standard Go library?
+	Stale      bool          `json:",omitempty"` // would 'go install' do anything for this package?
+	Incomplete bool          `json:",omitempty"` // was there an error loading this package or dependencies?
+	Error      *PackageError `json:",omitempty"` // error loading this package (not dependencies)
 
 	// Source files
-	GoFiles      []string // .go source files (excluding CgoFiles, TestGoFiles and XTestGoFiles)
+	GoFiles      []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles and XTestGoFiles)
 	TestGoFiles  []string `json:",omitempty"` // _test.go source files internal to the package they are testing
 	XTestGoFiles []string `json:",omitempty"` //_test.go source files external to the package they are testing
 	CFiles       []string `json:",omitempty"` // .c source files
@@ -39,8 +40,9 @@ type Package struct {
 	CgoLDFLAGS   []string `json:",omitempty"` // cgo: flags for linker
 
 	// Dependency information
-	Imports []string `json:",omitempty"` // import paths used by this package
-	Deps    []string `json:",omitempty"` // all (recursively) imported dependencies
+	Imports    []string        `json:",omitempty"` // import paths used by this package
+	Deps       []string        `json:",omitempty"` // all (recursively) imported dependencies
+	DepsErrors []*PackageError `json:",omitempty"` // errors loading dependencies
 
 	// Unexported fields are not part of the public API.
 	t       *build.Tree
@@ -53,26 +55,76 @@ type Package struct {
 	fake    bool     // synthesized package
 }
 
+// A PackageError describes an error loading information about a package.
+type PackageError struct {
+	ImportStack []string // shortest path from package named on command line to this one
+	Err         string   // the error itself
+}
+
+func (p *PackageError) Error() string {
+	return strings.Join(p.ImportStack, "\n\timports ") + ": " + p.Err
+}
+
+// An importStack is a stack of import paths.
+type importStack []string
+
+func (s *importStack) push(p string) {
+	*s = append(*s, p)
+}
+
+func (s *importStack) pop() {
+	*s = (*s)[0 : len(*s)-1]
+}
+
+func (s *importStack) copy() []string {
+	return append([]string{}, *s...)
+}
+
+// shorterThan returns true if sp is shorter than t.
+// We use this to record the shortest import sequence
+// that leads to a particular package.
+func (sp *importStack) shorterThan(t []string) bool {
+	s := *sp
+	if len(s) != len(t) {
+		return len(s) < len(t)
+	}
+	// If they are the same length, settle ties using string ordering.
+	for i := range s {
+		if s[i] != t[i] {
+			return s[i] < t[i]
+		}
+	}
+	return false // they are equal
+}
+
 // packageCache is a lookup cache for loadPackage,
 // so that if we look up a package multiple times
 // we return the same pointer each time.
 var packageCache = map[string]*Package{}
+
+// reloadPackage is like loadPackage but makes sure
+// not to use the package cache.
+func reloadPackage(arg string, stk *importStack) *Package {
+	p := packageCache[arg]
+	if p != nil {
+		delete(packageCache, p.Dir)
+		delete(packageCache, p.ImportPath)
+	}
+	return loadPackage(arg, stk)
+}
 
 // loadPackage scans directory named by arg,
 // which is either an import path or a file system path
 // (if the latter, must be rooted or begin with . or ..),
 // and returns a *Package describing the package
 // found in that directory.
-func loadPackage(arg string) (*Package, error) {
+func loadPackage(arg string, stk *importStack) *Package {
+	stk.push(arg)
+	defer stk.pop()
+
 	// Check package cache.
 	if p := packageCache[arg]; p != nil {
-		// We use p.imports==nil to detect a package that
-		// is in the midst of its own loadPackage call
-		// (all the recursion below happens before p.imports gets set).
-		if p.imports == nil {
-			return nil, fmt.Errorf("import loop at %s", arg)
-		}
-		return p, nil
+		return reusePackage(p, stk)
 	}
 
 	// Find basic information about package path.
@@ -101,9 +153,17 @@ func loadPackage(arg string) (*Package, error) {
 			err = nil
 		}
 	}
-
 	if err != nil {
-		return nil, err
+		p := &Package{
+			ImportPath: arg,
+			Error: &PackageError{
+				ImportStack: stk.copy(),
+				Err:         err.Error(),
+			},
+			Incomplete: true,
+		}
+		packageCache[arg] = p
+		return p
 	}
 
 	if dir == "" {
@@ -112,57 +172,106 @@ func loadPackage(arg string) (*Package, error) {
 
 	// Maybe we know the package by its directory.
 	if p := packageCache[dir]; p != nil {
-		if p.imports == nil {
-			return nil, fmt.Errorf("import loop at %s", arg)
-		}
-		return p, nil
+		packageCache[importPath] = p
+		return reusePackage(p, stk)
 	}
 
-	return scanPackage(&build.DefaultContext, t, arg, importPath, dir)
+	return scanPackage(&buildContext, t, arg, importPath, dir, stk)
 }
 
-func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string) (*Package, error) {
+func reusePackage(p *Package, stk *importStack) *Package {
+	// We use p.imports==nil to detect a package that
+	// is in the midst of its own loadPackage call
+	// (all the recursion below happens before p.imports gets set).
+	if p.imports == nil {
+		if p.Error == nil {
+			p.Error = &PackageError{
+				ImportStack: stk.copy(),
+				Err:         "import loop",
+			}
+		}
+		p.Incomplete = true
+	}
+	if p.Error != nil && stk.shorterThan(p.Error.ImportStack) {
+		p.Error.ImportStack = stk.copy()
+	}
+	return p
+}
+
+// firstSentence returns the first sentence of the document text.
+// The sentence ends after the first period followed by a space.
+// The returned sentence will have no \n \r or \t characters and
+// will use only single spaces between words.
+func firstSentence(text string) string {
+	var b []byte
+	space := true
+Loop:
+	for i := 0; i < len(text); i++ {
+		switch c := text[i]; c {
+		case ' ', '\t', '\r', '\n':
+			if !space {
+				space = true
+				if len(b) > 0 && b[len(b)-1] == '.' {
+					break Loop
+				}
+				b = append(b, ' ')
+			}
+		default:
+			space = false
+			b = append(b, c)
+		}
+	}
+	return string(b)
+}
+
+func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string, stk *importStack) *Package {
 	// Read the files in the directory to learn the structure
 	// of the package.
+	p := &Package{
+		ImportPath: importPath,
+		Dir:        dir,
+		Standard:   t.Goroot && !strings.Contains(importPath, "."),
+		t:          t,
+	}
+	packageCache[dir] = p
+	packageCache[importPath] = p
+
 	info, err := ctxt.ScanDir(dir)
 	if err != nil {
-		return nil, err
+		p.Error = &PackageError{
+			ImportStack: stk.copy(),
+			Err:         err.Error(),
+		}
+		p.Incomplete = true
+		return p
 	}
 
-	var target string
+	p.info = info
+	p.Name = info.Package
+	p.Doc = firstSentence(info.PackageComment.Text())
+	p.Imports = info.Imports
+	p.GoFiles = info.GoFiles
+	p.TestGoFiles = info.TestGoFiles
+	p.XTestGoFiles = info.XTestGoFiles
+	p.CFiles = info.CFiles
+	p.HFiles = info.HFiles
+	p.SFiles = info.SFiles
+	p.CgoFiles = info.CgoFiles
+	p.CgoCFLAGS = info.CgoCFLAGS
+	p.CgoLDFLAGS = info.CgoLDFLAGS
+
 	if info.Package == "main" {
 		_, elem := filepath.Split(importPath)
-		target = filepath.Join(t.BinDir(), elem)
+		p.target = filepath.Join(t.BinDir(), elem)
 		if ctxt.GOOS == "windows" {
-			target += ".exe"
+			p.target += ".exe"
 		}
 	} else {
-		target = filepath.Join(t.PkgDir(), filepath.FromSlash(importPath)+".a")
-	}
-
-	p := &Package{
-		Name:         info.Package,
-		Doc:          info.PackageComment.Text(),
-		ImportPath:   importPath,
-		Dir:          dir,
-		Imports:      info.Imports,
-		GoFiles:      info.GoFiles,
-		TestGoFiles:  info.TestGoFiles,
-		XTestGoFiles: info.XTestGoFiles,
-		CFiles:       info.CFiles,
-		HFiles:       info.HFiles,
-		SFiles:       info.SFiles,
-		CgoFiles:     info.CgoFiles,
-		CgoCFLAGS:    info.CgoCFLAGS,
-		CgoLDFLAGS:   info.CgoLDFLAGS,
-		Standard:     t.Goroot && !strings.Contains(importPath, "."),
-		target:       target,
-		t:            t,
-		info:         info,
+		p.target = filepath.Join(t.PkgDir(), filepath.FromSlash(importPath)+".a")
 	}
 
 	var built time.Time
-	if fi, err := os.Stat(target); err == nil {
+	if fi, err := os.Stat(p.target); err == nil {
 		built = fi.ModTime()
 	}
 
@@ -220,24 +329,20 @@ Stale:
 	imports := make([]*Package, 0, len(p.Imports))
 	deps := make(map[string]bool)
 	for _, path := range importPaths {
-		deps[path] = true
 		if path == "C" {
 			continue
 		}
-		p1, err := loadPackage(path)
-		if err != nil {
-			delete(packageCache, dir)
-			delete(packageCache, importPath)
-			// Add extra error detail to show full import chain.
-			// Always useful, but especially useful in import loops.
-			return nil, fmt.Errorf("%s: import %s\n\t%v", arg, path, err)
-		}
+		deps[path] = true
+		p1 := loadPackage(path, stk)
 		imports = append(imports, p1)
 		for _, dep := range p1.Deps {
 			deps[dep] = true
 		}
 		if p1.Stale {
 			p.Stale = true
+		}
+		if p1.Incomplete {
+			p.Incomplete = true
 		}
 		// p1.target can be empty only if p1 is not a real package,
 		// such as package unsafe or the temporary packages
@@ -258,7 +363,14 @@ Stale:
 	}
 	sort.Strings(p.Deps)
 	for _, dep := range p.Deps {
-		p.deps = append(p.deps, packageCache[dep])
+		p1 := packageCache[dep]
+		if p1 == nil {
+			panic("impossible: missing entry in package cache for " + dep + " imported by " + p.ImportPath)
+		}
+		p.deps = append(p.deps, p1)
+		if p1.Error != nil {
+			p.DepsErrors = append(p.DepsErrors, p1.Error)
+		}
 	}
 
 	// unsafe is a fake package and is never out-of-date.
@@ -267,21 +379,67 @@ Stale:
 		p.target = ""
 	}
 
-	return p, nil
+	return p
 }
 
 // packages returns the packages named by the
-// command line arguments 'args'.
+// command line arguments 'args'.  If a named package
+// cannot be loaded at all (for example, if the directory does not exist),
+// then packages prints an error and does not include that
+// package in the results.  However, if errors occur trying
+// to load dependencies of a named package, the named
+// package is still returned, with p.Incomplete = true
+// and details in p.DepsErrors.
 func packages(args []string) []*Package {
 	args = importPaths(args)
 	var pkgs []*Package
+	var stk importStack
 	for _, arg := range args {
-		pkg, err := loadPackage(arg)
-		if err != nil {
-			errorf("%s", err)
+		pkg := loadPackage(arg, &stk)
+		if pkg.Error != nil {
+			errorf("%s", pkg.Error)
 			continue
 		}
 		pkgs = append(pkgs, pkg)
 	}
+	return pkgs
+}
+
+// packagesAndErrors is like 'packages' but returns a 
+// *Package for every argument, even the ones that
+// cannot be loaded at all.
+// The packages that fail to load will have p.Error != nil.
+func packagesAndErrors(args []string) []*Package {
+	args = importPaths(args)
+	var pkgs []*Package
+	var stk importStack
+	for _, arg := range args {
+		pkgs = append(pkgs, loadPackage(arg, &stk))
+	}
+	return pkgs
+}
+
+// packagesForBuild is like 'packages' but fails if any of
+// the packages or their dependencies have errors
+// (cannot be built).
+func packagesForBuild(args []string) []*Package {
+	pkgs := packagesAndErrors(args)
+	printed := map[*PackageError]bool{}
+	for _, pkg := range pkgs {
+		if pkg.Error != nil {
+			errorf("%s", pkg.Error)
+		}
+		for _, err := range pkg.DepsErrors {
+			// Since these are errors in dependencies,
+			// the same error might show up multiple times,
+			// once in each package that depends on it.
+			// Only print each once.
+			if !printed[err] {
+				printed[err] = true
+				errorf("%s", err)
+			}
+		}
+	}
+	exitIfErrors()
 	return pkgs
 }

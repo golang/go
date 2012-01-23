@@ -11,16 +11,16 @@ import (
 )
 
 var cmdList = &Command{
-	UsageLine: "list [-f format] [-json] [importpath...]",
+	UsageLine: "list [-e] [-f format] [-json] [importpath...]",
 	Short:     "list packages",
 	Long: `
 List lists the packages named by the import paths, one per line.
 
-The default output shows the package name and file system location:
+The default output shows the package import path:
 
-    books /home/you/src/code.google.com/p/google-api-go-client/books/v1
-    oauth /home/you/src/code.google.com/p/goauth2/oauth
-    sqlite /home/you/src/code.google.com/p/sqlite
+    code.google.com/p/google-api-go-client/books/v1
+    code.google.com/p/goauth2/oauth
+    code.google.com/p/sqlite
 
 The -f flag specifies an alternate format for the list,
 using the syntax of package template.  The default output
@@ -47,10 +47,25 @@ being passed to the template is:
         // Dependency information
         Imports []string // import paths used by this package
         Deps    []string // all (recursively) imported dependencies
+        
+        // Error information
+        Incomplete bool            // this package or a dependency has an error
+        Error *PackageError        // error loading package
+        DepsErrors []*PackageError // errors loading dependencies
     }
 
 The -json flag causes the package data to be printed in JSON format
 instead of using the template format.
+
+The -e flag changes the handling of erroneous packages, those that
+cannot be found or are malformed.  By default, the list command
+prints an error to standard error for each erroneous package and
+omits the packages from consideration during the usual printing.
+With the -e flag, the list command never prints errors to standard
+error and instead processes the erroneous packages with the usual
+printing.  Erroneous packages will have a non-empty ImportPath and
+a non-nil Error field; other information may or may not be missing
+(zeroed).
 
 For more about import paths, see 'go help importpath'.
 	`,
@@ -60,6 +75,7 @@ func init() {
 	cmdList.Run = runList // break init cycle
 }
 
+var listE = cmdList.Flag.Bool("e", false, "")
 var listFmt = cmdList.Flag.String("f", "{{.ImportPath}}", "")
 var listJson = cmdList.Flag.Bool("json", false, "")
 var nl = []byte{'\n'}
@@ -87,7 +103,12 @@ func runList(cmd *Command, args []string) {
 		}
 	}
 
-	for _, pkg := range packages(args) {
+	load := packages
+	if *listE {
+		load = packagesAndErrors
+	}
+
+	for _, pkg := range load(args) {
 		do(pkg)
 	}
 }
