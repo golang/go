@@ -268,6 +268,11 @@ func cdecl(name, typ string) string {
 		typ = typ[i:]
 	}
 	// X T -> T X
+	// Handle the special case: 'unsafe.Pointer' is 'void *'
+	if typ == "unsafe.Pointer" {
+		typ = "void"
+		name = "*" + name
+	}
 	return typ + "\t" + name
 }
 
