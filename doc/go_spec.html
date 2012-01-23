@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of January 13, 2012"
+	"Subtitle": "Version of January 21, 2012"
 }-->
 
 <!--
@@ -2108,7 +2108,7 @@ Within a composite literal of array, slice, or map type <code>T</code>,
 elements that are themselves composite literals may elide the respective
 literal type if it is identical to the element type of <code>T</code>.
 Similarly, elements that are addresses of composite literals may elide
-the <code>&T</code> when the the element type is <code>*T</code>.
+the <code>&amp;T</code> when the the element type is <code>*T</code>.
 </p>
 
 
@@ -2117,7 +2117,7 @@ the <code>&T</code> when the the element type is <code>*T</code>.
 [...]Point{{1.5, -3.5}, {0, 0}}   // same as [...]Point{Point{1.5, -3.5}, Point{0, 0}}
 [][]int{{1, 2, 3}, {4, 5}}        // same as [][]int{[]int{1, 2, 3}, []int{4, 5}}
 
-[...]*Point{{1.5, -3.5}, {0, 0}}  // same as [...]*Point{&Point{1.5, -3.5}, &Point{0, 0}}
+[...]*Point{{1.5, -3.5}, {0, 0}}  // same as [...]*Point{&amp;Point{1.5, -3.5}, &amp;Point{0, 0}}
 </pre>
 
 <p>
@@ -2571,6 +2571,20 @@ math.Atan2(x, y)  // function call
 var pt *Point
 pt.Scale(3.5)  // method call with receiver pt
 </pre>
+
+<p>
+In a function call, the function value and arguments are evaluated in
+<a href="#Order_of_evaluation">the usual order</a>.
+After they are evaluated, the parameters of the call are passed by value to the function
+and the called function begins execution.
+The return parameters of the function are passed by value
+back to the calling function when the function returns.
+</p>
+
+<p>
+Calling a <code>nil</code> function value 
+causes a <a href="#Run_time_panics">run-time panic</a>.
+</p>
 
 <p>
 As a special case, if the return parameters of a function or method
@@ -3042,6 +3056,8 @@ As an exception to the addressability requirement, <code>x</code> may also be a
 For an operand <code>x</code> of pointer type <code>*T</code>, the pointer
 indirection <code>*x</code> denotes the value of type <code>T</code> pointed
 to by <code>x</code>.
+If <code>x</code> is <code>nil</code>, an attempt to evaluate <code>*x</code>
+will cause a <a href="#Run_time_panics">run-time panic</a>.
 </p>
 
 <pre>
@@ -4189,9 +4205,17 @@ GoStmt = "go" Expression .
 </pre>
 
 <p>
-The expression must be a call, and
+The expression must be a call.
+The function value and parameters are
+<a href="#Calls">evaluated as usual</a>
+in the calling goroutine, but
 unlike with a regular call, program execution does not wait
 for the invoked function to complete.
+Instead, the function begins executing independently
+in a new goroutine.
+When the function terminates, its goroutine also terminates.
+If the function has any return values, they are discarded when the
+function completes.
 </p>
 
 <pre>
@@ -4359,8 +4383,6 @@ Regardless of how they are declared, all the result values are initialized to th
 <p>
 <span class="alert">
 TODO: Define when return is required.<br />
-TODO: Language about result parameters needs to go into a section on
-      function/method invocation<br />
 </span>
 </p>
 -->
@@ -4493,9 +4515,11 @@ DeferStmt = "defer" Expression .
 <p>
 The expression must be a function or method call.
 Each time the "defer" statement
-executes, the parameters to the function call are evaluated and saved anew but the
-function is not invoked.
-Deferred function calls are executed in LIFO order
+executes, the function value and parameters to the call are
+<a href="#Calls">evaluated as usual</a>
+and saved anew but the
+actual function is not invoked.
+Instead, deferred calls are executed in LIFO order
 immediately before the surrounding function returns,
 after the return values, if any, have been evaluated, but before they
 are returned to the caller. For instance, if the deferred function is
@@ -4503,6 +4527,8 @@ a <a href="#Function_literals">function literal</a> and the surrounding
 function has <a href="#Function_types">named result parameters</a> that
 are in scope within the literal, the deferred function may access and modify
 the result parameters before they are returned.
+If the deferred function has any return values, they are discarded when
+the function completes.
 </p>
 
 <pre>
@@ -5355,9 +5381,7 @@ A struct or array type has size zero if it contains no fields (or elements, resp
 </p>
 
 
-<span class="alert">
 <h2 id="Implementation_differences">Implementation differences - TODO</h2>
 <ul>
-	<li><code>len(a)</code> is only a constant if <code>a</code> is a (qualified) identifier denoting an array or pointer to an array.</li>
+	<li><span class="alert"><code>len(x)</code> is only a constant if <code>x</code> is a (qualified) identifier denoting an array or pointer to an array.</span></li>
 </ul>
-</span>
