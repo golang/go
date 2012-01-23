@@ -82,9 +82,8 @@ type compressor struct {
 	blockStart    int  // window index where current tokens start
 	byteAvailable bool // if true, still need to process window[index-1].
 
-	// queued output tokens: tokens[:ti]
+	// queued output tokens
 	tokens []token
-	ti     int
 
 	// deflate state
 	length         int
@@ -196,12 +195,11 @@ func (d *compressor) initDeflate() {
 	d.hashPrev = make([]int, windowSize)
 	d.window = make([]byte, 2*windowSize)
 	d.hashOffset = 1
-	d.tokens = make([]token, maxFlateBlockTokens, maxFlateBlockTokens+1)
+	d.tokens = make([]token, 0, maxFlateBlockTokens+1)
 	d.length = minMatchLength - 1
 	d.offset = 0
 	d.byteAvailable = false
 	d.index = 0
-	d.ti = 0
 	d.hash = 0
 	d.chainHead = -1
 }
@@ -233,15 +231,14 @@ Loop:
 				// Flush current output block if any.
 				if d.byteAvailable {
 					// There is still one pending token that needs to be flushed
-					d.tokens[d.ti] = literalToken(uint32(d.window[d.index-1]))
-					d.ti++
+					d.tokens = append(d.tokens, literalToken(uint32(d.window[d.index-1])))
 					d.byteAvailable = false
 				}
-				if d.ti > 0 {
-					if d.err = d.writeBlock(d.tokens[0:d.ti], d.index, false); d.err != nil {
+				if len(d.tokens) > 0 {
+					if d.err = d.writeBlock(d.tokens, d.index, false); d.err != nil {
 						return
 					}
-					d.ti = 0
+					d.tokens = d.tokens[:0]
 				}
 				break Loop
 			}
@@ -275,11 +272,10 @@ Loop:
 			// There was a match at the previous step, and the current match is
 			// not better. Output the previous match.
 			if d.fastSkipHashing != skipNever {
-				d.tokens[d.ti] = matchToken(uint32(d.length-minMatchLength), uint32(d.offset-minOffsetSize))
+				d.tokens = append(d.tokens, matchToken(uint32(d.length-minMatchLength), uint32(d.offset-minOffsetSize)))
 			} else {
-				d.tokens[d.ti] = matchToken(uint32(prevLength-minMatchLength), uint32(prevOffset-minOffsetSize))
+				d.tokens = append(d.tokens, matchToken(uint32(prevLength-minMatchLength), uint32(prevOffset-minOffsetSize)))
 			}
-			d.ti++
 			// Insert in the hash table all strings up to the end of the match.
 			// index and index-1 are already inserted. If there is not enough
 			// lookahead, the last two strings are not inserted into the hash
@@ -313,12 +309,12 @@ Loop:
 					d.hash = (int(d.window[d.index])<<hashShift + int(d.window[d.index+1]))
 				}
 			}
-			if d.ti == maxFlateBlockTokens {
+			if len(d.tokens) == maxFlateBlockTokens {
 				// The block includes the current character
 				if d.err = d.writeBlock(d.tokens, d.index, false); d.err != nil {
 					return
 				}
-				d.ti = 0
+				d.tokens = d.tokens[:0]
 			}
 		} else {
 			if d.fastSkipHashing != skipNever || d.byteAvailable {
@@ -326,13 +322,12 @@ Loop:
 				if d.fastSkipHashing != skipNever {
 					i = d.index
 				}
-				d.tokens[d.ti] = literalToken(uint32(d.window[i]))
-				d.ti++
-				if d.ti == maxFlateBlockTokens {
+				d.tokens = append(d.tokens, literalToken(uint32(d.window[i])))
+				if len(d.tokens) == maxFlateBlockTokens {
 					if d.err = d.writeBlock(d.tokens, i+1, false); d.err != nil {
 						return
 					}
-					d.ti = 0
+					d.tokens = d.tokens[:0]
 				}
 			}
 			d.index++
