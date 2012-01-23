@@ -483,7 +483,7 @@ func (p sortType) Less(i, j int) bool {
 	// sort by name
 	// pull blocks (name = "") up to top
 	// in original order
-	if ni, nj := p[i].Type.Name.Name, p[j].Type.Name.Name; ni != nj {
+	if ni, nj := p[i].Name, p[j].Name; ni != nj {
 		return ni < nj
 	}
 	return p[i].order < p[j].order
@@ -509,6 +509,7 @@ func (doc *docReader) makeTypes(m map[string]*typeInfo) []*Type {
 			// process the type even if not exported so that we have
 			// its methods in case they are embedded somewhere
 			t := new(Type)
+			t.Name = old.name
 			if decl != nil {
 				typespec := decl.Specs[0].(*ast.TypeSpec)
 				doc := typespec.Doc
