@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/scanner"
 	"go/token"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -76,34 +77,46 @@ func main() {
 	flag.Parse()
 
 	var (
-		filename string
-		src      []byte
-		err      error
+		name string
+		r    io.Reader
 	)
 	switch flag.NArg() {
 	case 0:
-		filename = "<stdin>"
-		src, err = ioutil.ReadAll(os.Stdin)
+		name, r = "<stdin>", os.Stdin
 	case 1:
-		filename = flag.Arg(0)
-		src, err = ioutil.ReadFile(filename)
+		name = flag.Arg(0)
 	default:
 		usage()
 	}
-	if err != nil {
+
+	if err := verify(name, *start, r); err != nil {
 		report(err)
 	}
+}
 
-	if filepath.Ext(filename) == ".html" || bytes.Index(src, open) >= 0 {
+func verify(name, start string, r io.Reader) error {
+	if r == nil {
+		f, err := os.Open(name)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		r = f
+	}
+
+	src, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	if filepath.Ext(name) == ".html" || bytes.Index(src, open) >= 0 {
 		src = extractEBNF(src)
 	}
 
-	grammar, err := ebnf.Parse(filename, bytes.NewBuffer(src))
+	grammar, err := ebnf.Parse(name, bytes.NewBuffer(src))
 	if err != nil {
-		report(err)
+		return err
 	}
 
-	if err = ebnf.Verify(grammar, *start); err != nil {
-		report(err)
-	}
+	return ebnf.Verify(grammar, start)
 }
