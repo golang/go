@@ -193,15 +193,17 @@ func (w *huffmanBitWriter) writeBytes(bytes []byte) {
 //  numLiterals      The number of literals in literalEncoding
 //  numOffsets       The number of offsets in offsetEncoding
 func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int) {
-	fillInt32s(w.codegenFreq, 0)
+	for i := range w.codegenFreq {
+		w.codegenFreq[i] = 0
+	}
 	// Note that we are using codegen both as a temporary variable for holding
 	// a copy of the frequencies, and as the place where we put the result.
 	// This is fine because the output is always shorter than the input used
 	// so far.
 	codegen := w.codegen // cache
 	// Copy the concatenated code sizes to codegen.  Put a marker at the end.
-	copyUint8s(codegen[0:numLiterals], w.literalEncoding.codeBits)
-	copyUint8s(codegen[numLiterals:numLiterals+numOffsets], w.offsetEncoding.codeBits)
+	copy(codegen[0:numLiterals], w.literalEncoding.codeBits)
+	copy(codegen[numLiterals:numLiterals+numOffsets], w.offsetEncoding.codeBits)
 	codegen[numLiterals+numOffsets] = badCode
 
 	size := codegen[0]
@@ -222,7 +224,10 @@ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int) {
 			w.codegenFreq[size]++
 			count--
 			for count >= 3 {
-				n := min(count, 6)
+				n := 6
+				if n > count {
+					n = count
+				}
 				codegen[outIndex] = 16
 				outIndex++
 				codegen[outIndex] = uint8(n - 3)
@@ -232,7 +237,10 @@ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int) {
 			}
 		} else {
 			for count >= 11 {
-				n := min(count, 138)
+				n := 138
+				if n > count {
+					n = count
+				}
 				codegen[outIndex] = 18
 				outIndex++
 				codegen[outIndex] = uint8(n - 11)
@@ -351,8 +359,12 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
 	if w.err != nil {
 		return
 	}
-	fillInt32s(w.literalFreq, 0)
-	fillInt32s(w.offsetFreq, 0)
+	for i := range w.literalFreq {
+		w.literalFreq[i] = 0
+	}
+	for i := range w.offsetFreq {
+		w.offsetFreq[i] = 0
+	}
 
 	n := len(tokens)
 	tokens = tokens[0 : n+1]

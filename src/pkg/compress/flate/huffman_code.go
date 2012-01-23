@@ -195,7 +195,9 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 
 	// The tree can't have greater depth than n - 1, no matter what.  This
 	// saves a little bit of work in some small cases
-	maxBits = minInt32(maxBits, n-1)
+	if maxBits > n-1 {
+		maxBits = n - 1
+	}
 
 	// Create information about each of the levels.
 	// A bogus "Level 0" whose sole purpose is so that

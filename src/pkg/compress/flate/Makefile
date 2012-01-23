@@ -12,6 +12,5 @@ GOFILES=\
 	inflate.go\
 	reverse_bits.go\
 	token.go\
-	util.go\
 
 include ../../../Make.pkg
