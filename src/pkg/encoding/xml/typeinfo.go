@@ -37,7 +37,6 @@ const (
 	fAny
 
 	// TODO:
-	//fIgnore
 	//fOmitEmpty
 
 	fMode = fElement | fAttr | fCharData | fInnerXml | fComment | fAny
@@ -62,7 +61,7 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 		n := typ.NumField()
 		for i := 0; i < n; i++ {
 			f := typ.Field(i)
-			if f.PkgPath != "" {
+			if f.PkgPath != "" || f.Tag.Get("xml") == "-" {
 				continue // Private field
 			}
 
