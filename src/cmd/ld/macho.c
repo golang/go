@@ -499,7 +499,24 @@ domacholink(void)
 	s3 = lookup(".linkedit.got", 0);
 	s4 = lookup(".dynstr", 0);
 
-	while(s4->size%4)
+	// Force the linkedit section to end on a 16-byte
+	// boundary.  This allows pure (non-cgo) Go binaries
+	// to be code signed correctly.
+	//
+	// Apple's codesign_allocate (a helper utility for
+	// the codesign utility) can do this fine itself if
+	// it is run on a dynamic Mach-O binary.  However,
+	// when it is run on a pure (non-cgo) Go binary, where
+	// the linkedit section is mostly empty, it fails to
+	// account for the extra padding that it itself adds
+	// when adding the LC_CODE_SIGNATURE load command
+	// (which must be aligned on a 16-byte boundary).
+	//
+	// By forcing the linkedit section to end on a 16-byte
+	// boundary, codesign_allocate will not need to apply
+	// any alignment padding itself, working around the
+	// issue.
+	while(s4->size%16)
 		adduint8(s4, 0);
 	
 	size = s1->size + s2->size + s3->size + s4->size;
