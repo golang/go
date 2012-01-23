@@ -1564,7 +1564,7 @@ lookdot1(Sym *s, Type *t, Type *f, int dostrcmp)
 		if(f->sym != s)
 			continue;
 		if(r != T) {
-			yyerror("ambiguous DOT reference %T.%S", t, s);
+			yyerror("ambiguous selector %T.%S", t, s);
 			break;
 		}
 		r = f;
@@ -1656,7 +1656,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
 
 	if(f1 != T) {
 		if(f2 != T)
-			yyerror("ambiguous DOT reference %S as both field and method",
+			yyerror("%S is both field and method",
 				n->right->sym);
 		if(f1->width == BADWIDTH)
 			fatal("lookdot badwidth %T %p", f1, f1);
