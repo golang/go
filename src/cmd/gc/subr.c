@@ -2156,7 +2156,7 @@ adddot(Node *n)
 
 out:
 	if(c > 1)
-		yyerror("ambiguous DOT reference %T.%S", t, s);
+		yyerror("ambiguous selector %T.%S", t, s);
 
 	// rebuild elided dots
 	for(c=d-1; c>=0; c--)
