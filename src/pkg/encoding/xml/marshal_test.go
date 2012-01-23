@@ -188,6 +188,10 @@ type PresenceTest struct {
 	Exists *struct{}
 }
 
+type IgnoreTest struct {
+	PublicSecret string `xml:"-"`
+}
+
 type MyBytes []byte
 
 type Data struct {
@@ -591,6 +595,22 @@ var marshalTests = []struct {
 			},
 		},
 		ExpectXML: `<RecurseA><A>a1</A><B><A><A>a2</A></A><B>b1</B></B></RecurseA>`,
+	},
+
+	// Test ignoring fields via "-" tag
+	{
+		ExpectXML: `<IgnoreTest></IgnoreTest>`,
+		Value:     &IgnoreTest{},
+	},
+	{
+		ExpectXML:   `<IgnoreTest></IgnoreTest>`,
+		Value:       &IgnoreTest{PublicSecret: "can't tell"},
+		MarshalOnly: true,
+	},
+	{
+		ExpectXML:     `<IgnoreTest><PublicSecret>ignore me</PublicSecret></IgnoreTest>`,
+		Value:         &IgnoreTest{},
+		UnmarshalOnly: true,
 	},
 }
 
