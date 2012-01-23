@@ -78,8 +78,9 @@ import (
 // field tag.
 //
 // Because Unmarshal uses the reflect package, it can only assign
-// to exported (upper case) fields.  Unmarshal uses a case-insensitive
-// comparison to match XML element names to struct field names.
+// to exported (upper case) fields.  Unmarshal uses a case-sensitive
+// comparison to match XML element names to tag values and struct
+// field names.
 //
 // Unmarshal maps an XML element to a struct using the following rules.
 // In the rules, the tag of a field refers to the value associated with the
