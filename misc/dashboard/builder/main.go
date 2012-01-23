@@ -533,13 +533,13 @@ var logByHash = map[string]*HgLog{}
 // xmlLogTemplate is a template to pass to Mercurial to make
 // hg log print the log in valid XML for parsing with xml.Unmarshal.
 const xmlLogTemplate = `
-	<log>
-	<hash>{node|escape}</hash>
-	<parent>{parent|escape}</parent>
-	<author>{author|escape}</author>
-	<date>{date|rfc3339date}</date>
-	<desc>{desc|escape}</desc>
-	</log>
+	<Log>
+	<Hash>{node|escape}</Hash>
+	<Parent>{parent|escape}</Parent>
+	<Author>{author|escape}</Author>
+	<Date>{date|rfc3339date}</Date>
+	<Desc>{desc|escape}</Desc>
+	</Log>
 `
 
 // commitPoll pulls any new revisions from the hg server
@@ -587,7 +587,7 @@ func commitPoll(key, pkg string) {
 	var logStruct struct {
 		Log []HgLog
 	}
-	err = xml.Unmarshal(strings.NewReader("<top>"+data+"</top>"), &logStruct)
+	err = xml.Unmarshal(strings.NewReader("<Top>"+data+"</Top>"), &logStruct)
 	if err != nil {
 		log.Printf("unmarshal hg log: %v", err)
 		return
