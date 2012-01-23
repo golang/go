@@ -190,10 +190,11 @@ easier to understand what happens when things combine.
 
 <p>
 Yes. There are now several Go programs deployed in 
-production inside Google.  For instance, the server behind
-<a href="http://golang.org">http://golang.org</a> is a Go program; 
-in fact it's just the <a href="/cmd/godoc"><code>godoc</code></a>
-document server running in a production configuration.
+production inside Google.  A public example is the server behind
+<a href="http://golang.org">http://golang.org</a>.
+It's just the <a href="/cmd/godoc"><code>godoc</code></a>
+document server running in a production configuration on
+<a href="http://code.google.com/appengine/">Google App Engine</a>.
 </p>
 
 <h3 id="Do_Go_programs_link_with_Cpp_programs">
@@ -362,7 +363,7 @@ because we feel it's sometimes worth trying a different approach.
 Why build concurrency on the ideas of CSP?</h3>
 <p>
 Concurrency and multi-threaded programming have a reputation
-for difficulty.  We believe the problem is due partly to complex
+for difficulty.  We believe this is due partly to complex
 designs such as pthreads and partly to overemphasis on low-level details
 such as mutexes, condition variables, and memory barriers.
 Higher-level interfaces enable much simpler code, even if there are still
@@ -433,7 +434,9 @@ we believe is easy to use and in some ways more general. There are
 also ways to embed types in other types to provide something
 analogous&mdash;but not identical&mdash;to subclassing.
 Moreover, methods in Go are more general than in C++ or Java:
-they can be defined for any sort of data, not just structs.
+they can be defined for any sort of data, even built-in types such
+as plain, &ldquo;unboxed&rdquo; integers.
+They are not restricted to structs (classes).
 </p>
 
 <p>
@@ -446,7 +449,7 @@ How do I get dynamic dispatch of methods?</h3>
 
 <p>
 The only way to have dynamically dispatched methods is through an
-interface. Methods on structs or other types are always resolved statically.
+interface. Methods on a struct or any other concrete type are always resolved statically.
 </p>
 
 <h3 id="inheritance">
@@ -541,7 +544,7 @@ interface <code>I</code> by attempting an assignment:
 
 <pre>
 type T struct{}
-var _ I = T{}
+var _ I = T{}   // Verify that T implements I.
 </pre>
 
 <p>
@@ -557,8 +560,8 @@ For example:
 
 <pre>
 type Fooer interface {
-	Foo()
-	ImplementsFooer()
+    Foo()
+    ImplementsFooer()
 }
 </pre>
 
@@ -590,7 +593,7 @@ itself with another value:
 
 <pre>
 type Equaler interface {
-	Equal(Equaler) bool
+    Equal(Equaler) bool
 }
 </pre>
 
@@ -673,7 +676,7 @@ slice. This example converts a slice of <code>int</code> to a slice of
 t := []int{1, 2, 3, 4}
 s := make([]interface{}, len(t))
 for i, v := range t {
-	s[i] = v
+    s[i] = v
 }
 </pre>
 
@@ -750,15 +753,20 @@ to write one but it will not be as convenient syntactically; this seems a reason
 </p>
 
 <h3 id="map_keys">
-Why don't maps allow structs and arrays as keys?</h3>
+Why don't maps allow slices as keys?</h3>
 <p>
-Map lookup requires an equality operator, which structs and arrays do not implement.
+Map lookup requires an equality operator, which slices do not implement.
 They don't implement equality because equality is not well defined on such types;
 there are multiple considerations involving shallow vs. deep comparison, pointer vs.
-value comparison, how to deal with recursive structures, and so on.
-We may revisit this issue&mdash;and implementing equality for structs and arrays
+value comparison, how to deal with recursive types, and so on.
+We may revisit this issue&mdash;and implementing equality for slices
 will not invalidate any existing programs&mdash;but without a clear idea of what
 equality of structs and arrays should mean, it was simpler to leave it out for now.
+</p>
+
+<p>
+In Go 1, equality is defined for structs and arrays, so such
+types can be used as map keys, but slices still do not have a definition of equality.
 </p>
 
 <h3 id="references">
@@ -833,7 +841,7 @@ value makes a copy of the pointer, but not the data it points to.
 </p>
 
 <p>
-Map and slice values behave like pointers; they are descriptors that
+Map and slice values behave like pointers: they are descriptors that
 contain pointers to the underlying map or slice data.  Copying a map or
 slice value doesn't copy the data it points to.  Copying an interface value
 makes a copy of the thing stored in the interface value.  If the interface
@@ -954,6 +962,8 @@ local to a function in that function's stack frame.  However, if the
 compiler cannot prove that the variable is not referenced after the
 function returns, then the compiler must allocate the variable on the
 garbage-collected heap to avoid dangling pointer errors.
+Also, if a local variable is very large, it might make more sense
+to store it on the heap rather than the stack.
 </p>
 
 <p>
@@ -993,10 +1003,8 @@ See the <a href="/doc/codewalk/sharemem/">Share Memory By Communicating</a> code
 Why doesn't my multi-goroutine program use multiple CPUs?</h3>
 
 <p>
-Under the gc compilers you must set <code>GOMAXPROCS</code> to allow the
-run-time support to utilise more than one OS thread. Under <code>gccgo</code> an OS
-thread will be created for each goroutine, and <code>GOMAXPROCS</code> is
-effectively equal to the number of running goroutines.  
+You must set <code>GOMAXPROCS</code> to allow the
+run-time support to utilize more than one OS thread. 
 </p>
 
 <p>
@@ -1009,10 +1017,6 @@ documentation</a>.)
 <h3 id="Why_GOMAXPROCS">
 Why does using <code>GOMAXPROCS</code> &gt; 1 sometimes make my program
 slower?</h3>
-
-<p>
-(This is specific to the gc compilers. See above.)
-</p>
 
 <p>
 It depends on the nature of your program. 
@@ -1067,7 +1071,7 @@ This is almost never the desired behavior.
 </p>
 
 <h3 id="closures_and_goroutines">
-Why am I confused by the way my closures behave as goroutines?</h3>
+What happens with closures running as goroutines?</h3>
 
 <p>
 Some confusion may arise when using closures with concurrency.
@@ -1076,29 +1080,30 @@ Consider the following program:
 
 <pre>
 func main() {
-	done := make(chan bool)
+    done := make(chan bool)
 
-	values := []string{ "a", "b", "c" }
-	for _, v := range values {
-		go func() {
-			fmt.Println(v)
-			done &lt;- true
-		}()
-	}
+    values := []string{ "a", "b", "c" }
+    for _, v := range values {
+        go func() {
+            fmt.Println(v)
+            done &lt;- true
+        }()
+    }
 
-	// wait for all goroutines to complete before exiting
-	for _ = range values {
-		&lt;-done 
-	}
+    // wait for all goroutines to complete before exiting
+    for _ = range values {
+        &lt;-done 
+    }
 }
 </pre>
 
 <p>
 One might mistakenly expect to see <code>a, b, c</code> as the output. 
 What you'll probably see instead is <code>c, c, c</code>.  This is because 
-each closure shares the same variable <code>v</code>. Each closure prints the 
-value of <code>v</code> at the time <code>fmt.Println</code> is executed, 
-rather than the value of <code>v</code> when the goroutine was launched. 
+each iteration of the loop uses the same instance of the variable <code>v</code>, so
+each closure shares that single variable. When the closure runs, it prints the 
+value of <code>v</code> at the time <code>fmt.Println</code> is executed,
+but <code>v</code> may have been modified since the goroutine was launched. 
 </p>
 
 <p>
@@ -1107,12 +1112,12 @@ could modify the inner loop to read:
 </p>
 
 <pre>
-	for _, v := range values {
-		go func(<b>u</b> string) {
-			fmt.Println(<b>u</b>)
-			done &lt;- true
-		}(<b>v</b>)
-	}
+    for _, v := range values {
+        go func(<b>u</b> string) {
+            fmt.Println(<b>u</b>)
+            done &lt;- true
+        }(<b>v</b>)
+    }
 </pre>
 
 <p>
@@ -1133,9 +1138,9 @@ result:
 
 <pre>
 if expr {
-	n = trueVal
+    n = trueVal
 } else {
-	n = falseVal
+    n = falseVal
 }
 </pre>
 
@@ -1327,9 +1332,9 @@ import "unused"
 var _ = unused.Item  // TODO: Delete before committing!
 
 func main() {
-	debugData := debug.Profile()
-	_ = debugData // Used only during debugging.
-	....
+    debugData := debug.Profile()
+    _ = debugData // Used only during debugging.
+    ....
 }
 </pre>
 
@@ -1343,10 +1348,12 @@ One of Go's design goals is to approach the performance of C for comparable
 programs, yet on some benchmarks it does quite poorly, including several 
 in <a href="/test/bench/">test/bench</a>. The slowest depend on libraries 
 for which versions of comparable performance are not available in Go. 
-For instance, pidigits depends on a multi-precision math package, and the C
+For instance, <a href="/test/bench/shootout/pidigits.go">pidigits.go</a>
+depends on a multi-precision math package, and the C
 versions, unlike Go's, use <a href="http://gmplib.org/">GMP</a> (which is
 written in optimized assembler). 
-Benchmarks that depend on regular expressions (regex-dna, for instance) are
+Benchmarks that depend on regular expressions
+(<a href="/test/bench/shootout/regex-dna.go">regex-dna.go</a>, for instance) are
 essentially comparing Go's native <a href="/pkg/regexp">regexp package</a> to
 mature, highly optimized regular expression libraries like PCRE.
 </p>
@@ -1354,7 +1361,8 @@ mature, highly optimized regular expression libraries like PCRE.
 <p>
 Benchmark games are won by extensive tuning and the Go versions of most
 of the benchmarks need attention.  If you measure comparable C
-and Go programs (reverse-complement is one example), you'll see the two
+and Go programs
+(<a href="/test/bench/shootout/reverse-complement.go">reverse-complement.go</a> is one example), you'll see the two
 languages are much closer in raw performance than this suite would
 indicate.
 </p>
@@ -1362,8 +1370,8 @@ indicate.
 <p>
 Still, there is room for improvement. The compilers are good but could be
 better, many libraries need major performance work, and the garbage collector
-isn't fast enough yet (even if it were, taking care not to generate unnecessary 
-garbage can have a huge effect).
+isn't fast enough yet. (Even if it were, taking care not to generate unnecessary 
+garbage can have a huge effect.)
 </p>
 
 <p>
@@ -1398,13 +1406,13 @@ prefix <code>*</code> for pointers is an exception that proves the rule).  In C,
 the declaration
 </p>
 <pre>
-	int* a, b;
+    int* a, b;
 </pre>
 <p>
 declares <code>a</code> to be a pointer but not <code>b</code>; in Go
 </p>
 <pre>
-	var a, b *int
+    var a, b *int
 </pre>
 <p>
 declares both to be pointers.  This is clearer and more regular.
@@ -1412,11 +1420,11 @@ Also, the <code>:=</code> short declaration form argues that a full variable
 declaration should present the same order as <code>:=</code> so
 </p>
 <pre>
-	var a uint64 = 1
+    var a uint64 = 1
 </pre>
 has the same effect as
 <pre>
-	a := uint64(1)
+    a := uint64(1)
 </pre>
 <p>
 Parsing is also simplified by having a distinct grammar for types that
@@ -1495,8 +1503,7 @@ memory management.  We feel it's critical to eliminate that
 programmer overhead, and advances in garbage collection
 technology in the last few years give us confidence that we can
 implement it with low enough overhead and no significant
-latency.  (The current implementation is a plain mark-and-sweep
-collector but a replacement is in the works.)
+latency.
 </p>
 
 <p>
@@ -1513,6 +1520,11 @@ program helps everyone.
 <p>
 Finally, concurrency aside, garbage collection makes interfaces
 simpler because they don't need to specify how memory is managed across them.
+</p>
+
+<p>
+The current implementation is a parallel mark-and-sweep
+collector but a future version might take a different approach.
 </p>
 
 <p>
