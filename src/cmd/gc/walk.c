@@ -876,6 +876,7 @@ walkexpr(Node **np, NodeList **init)
 				// delayed until now because "abc"[2] is not
 				// an ideal constant.
 				nodconst(n, n->type, n->left->val.u.sval->s[v]);
+				n->typecheck = 1;
 			}
 		}
 		goto ret;
