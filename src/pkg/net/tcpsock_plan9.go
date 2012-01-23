@@ -60,7 +60,7 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err error) {
 		return nil, UnknownNetworkError(net)
 	}
 	if raddr == nil {
-		return nil, &OpError{"dial", "tcp", nil, errMissingAddress}
+		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
 	c1, err := dialPlan9(net, laddr, raddr)
 	if err != nil {
@@ -87,7 +87,7 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
 		return nil, UnknownNetworkError(net)
 	}
 	if laddr == nil {
-		return nil, &OpError{"listen", "tcp", nil, errMissingAddress}
+		return nil, &OpError{"listen", net, nil, errMissingAddress}
 	}
 	l1, err := listenPlan9(net, laddr)
 	if err != nil {

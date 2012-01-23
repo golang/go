@@ -191,7 +191,7 @@ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
 	}
 	sa, err := addr.sockaddr(c.fd.family)
 	if err != nil {
-		return 0, &OpError{"writetoip", "ip", addr, err}
+		return 0, &OpError{"write", c.fd.net, addr, err}
 	}
 	return c.fd.WriteTo(b, sa)
 }
@@ -203,7 +203,7 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
 	}
 	a, ok := addr.(*IPAddr)
 	if !ok {
-		return 0, &OpError{"writeto", "ip", addr, os.EINVAL}
+		return 0, &OpError{"write", c.fd.net, addr, os.EINVAL}
 	}
 	return c.WriteToIP(b, a)
 }
@@ -221,7 +221,7 @@ func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
 		return nil, UnknownNetworkError(net)
 	}
 	if raddr == nil {
-		return nil, &OpError{"dialip", netProto, nil, errMissingAddress}
+		return nil, &OpError{"dial", netProto, nil, errMissingAddress}
 	}
 	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
 	if err != nil {

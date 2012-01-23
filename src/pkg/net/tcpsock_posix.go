@@ -225,7 +225,7 @@ func (c *TCPConn) File() (f *os.File, err error) { return c.fd.dup() }
 // as the local address for the connection.
 func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err error) {
 	if raddr == nil {
-		return nil, &OpError{"dial", "tcp", nil, errMissingAddress}
+		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
 	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
 	if e != nil {
@@ -253,7 +253,7 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
 	err = syscall.Listen(fd.sysfd, listenerBacklog)
 	if err != nil {
 		closesocket(fd.sysfd)
-		return nil, &OpError{"listen", "tcp", laddr, err}
+		return nil, &OpError{"listen", net, laddr, err}
 	}
 	l = new(TCPListener)
 	l.fd = fd
