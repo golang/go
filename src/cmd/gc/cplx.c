@@ -204,6 +204,8 @@ complexgen(Node *n, Node *res)
 	case OIND:
 	case ONAME:	// PHEAP or PPARAMREF var
 	case OCALLFUNC:
+	case OCALLMETH:
+	case OCALLINTER:
 		igen(n, &n1, res);
 		complexmove(&n1, res);
 		regfree(&n1);
