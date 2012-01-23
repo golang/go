@@ -110,7 +110,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 	}
 	a, ok := addr.(*UDPAddr)
 	if !ok {
-		return 0, &OpError{"writeto", "udp", addr, os.EINVAL}
+		return 0, &OpError{"write", c.dir, addr, os.EINVAL}
 	}
 	return c.WriteToUDP(b, a)
 }
@@ -125,7 +125,7 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err error) {
 		return nil, UnknownNetworkError(net)
 	}
 	if raddr == nil {
-		return nil, &OpError{"dial", "udp", nil, errMissingAddress}
+		return nil, &OpError{"dial", net, nil, errMissingAddress}
 	}
 	c1, err := dialPlan9(net, laddr, raddr)
 	if err != nil {
@@ -173,7 +173,7 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
 		return nil, UnknownNetworkError(net)
 	}
 	if laddr == nil {
-		return nil, &OpError{"listen", "udp", nil, errMissingAddress}
+		return nil, &OpError{"listen", net, nil, errMissingAddress}
 	}
 	l, err := listenPlan9(net, laddr)
 	if err != nil {

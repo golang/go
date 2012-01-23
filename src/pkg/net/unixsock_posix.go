@@ -259,7 +259,7 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 	}
 	a, ok := addr.(*UnixAddr)
 	if !ok {
-		return 0, &OpError{"writeto", "unix", addr, os.EINVAL}
+		return 0, &OpError{"write", c.fd.net, addr, os.EINVAL}
 	}
 	return c.WriteToUnix(b, a)
 }
@@ -330,7 +330,7 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 	err = syscall.Listen(fd.sysfd, listenerBacklog)
 	if err != nil {
 		closesocket(fd.sysfd)
-		return nil, &OpError{Op: "listen", Net: "unix", Addr: laddr, Err: err}
+		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
 	}
 	return &UnixListener{fd, laddr.Name}, nil
 }
@@ -412,7 +412,7 @@ func ListenUnixgram(net string, laddr *UnixAddr) (c *UDPConn, err error) {
 		return nil, UnknownNetworkError(net)
 	}
 	if laddr == nil {
-		return nil, &OpError{"listen", "unixgram", nil, errMissingAddress}
+		return nil, &OpError{"listen", net, nil, errMissingAddress}
 	}
 	fd, e := unixSocket(net, laddr, nil, "listen")
 	if e != nil {
