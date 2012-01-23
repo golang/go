@@ -25,9 +25,10 @@ import (
 
 // A Context specifies the supporting context for a build.
 type Context struct {
-	GOARCH     string // target architecture
-	GOOS       string // target operating system
-	CgoEnabled bool   // whether cgo can be used
+	GOARCH     string   // target architecture
+	GOOS       string   // target operating system
+	CgoEnabled bool     // whether cgo can be used
+	BuildTags  []string // additional tags to recognize in +build lines
 
 	// By default, ScanDir uses the operating system's
 	// file system calls to read directories and files.
@@ -74,7 +75,7 @@ func (ctxt *Context) readFile(dir, file string) (string, []byte, error) {
 // The DefaultContext is the default Context for builds.
 // It uses the GOARCH and GOOS environment variables
 // if set, or else the compiled code's GOARCH and GOOS.
-var DefaultContext = defaultContext()
+var DefaultContext Context = defaultContext()
 
 var cgoEnabled = map[string]bool{
 	"darwin/386":    true,
@@ -121,7 +122,7 @@ type DirInfo struct {
 	Imports        []string          // All packages imported by GoFiles
 
 	// Source files
-	GoFiles  []string // .go files in dir (excluding CgoFiles)
+	GoFiles  []string // .go files in dir (excluding CgoFiles, TestGoFiles, XTestGoFiles)
 	HFiles   []string // .h files in dir
 	CFiles   []string // .c files in dir
 	SFiles   []string // .s (and, when using cgo, .S files in dir)
@@ -148,13 +149,71 @@ func ScanDir(dir string) (info *DirInfo, err error) {
 	return DefaultContext.ScanDir(dir)
 }
 
-// ScanDir returns a structure with details about the Go content found
-// in the given directory. The file lists exclude:
+// TODO(rsc): Move this comment to a more appropriate place.
+
+// ScanDir returns a structure with details about the Go package
+// found in the given directory.
 //
-//	- files in package main (unless no other package is found)
-//	- files in package documentation
-//	- files ending in _test.go
+// Most .go, .c, .h, and .s files in the directory are considered part
+// of the package.  The exceptions are:
+//
+//	- .go files in package main (unless no other package is found)
+//	- .go files in package documentation
 //	- files starting with _ or .
+//	- files with build constraints not satisfied by the context
+//
+// Build Constraints
+//
+// A build constraint is a line comment beginning with the directive +build
+// that lists the conditions under which a file should be included in the package.
+// Constraints may appear in any kind of source file (not just Go), but
+// they must be appear near the top of the file, preceded
+// only by blank lines and other line comments.
+//
+// A build constraint is evaluated as the OR of space-separated options;
+// each option evaluates as the AND of ots comma-separated terms;
+// and each term is an alphanumeric word or, preceded by !, its negation.
+// That is, the build constraint:
+//
+//	// +build linux,386 darwin,!cgo
+//
+// corresponds to the boolean formula:
+//
+//	(linux AND 386) OR (darwin AND (NOT cgo))
+//
+// During a particular build, the following words are satisfied:
+//
+//	- the target operating system, as spelled by runtime.GOOS
+//	- the target architecture, as spelled by runtime.GOARCH
+//	- "cgo", if ctxt.CgoEnabled is true
+//	- any additional words listed in ctxt.BuildTags
+//
+// If a file's name, after stripping the extension and a possible _test suffix,
+// matches *_GOOS, *_GOARCH, or *_GOOS_GOARCH for any known operating
+// system and architecture values, then the file is considered to have an implicit
+// build constraint requiring those terms.
+//
+// Examples
+//
+// To keep a file from being considered for the build:
+//
+//	// +build ignore
+//
+// (any other unsatisfied word will work as well, but ``ignore'' is conventional.)
+//
+// To build a file only when using cgo, and only on Linux and OS X:
+//
+//	// +build linux,cgo darwin,cgo
+// 
+// Such a file is usually paired with another file implementing the
+// default functionality for other systems, which in this case would
+// carry the constraint:
+//
+//	// +build !linux !darwin !cgo
+//
+// Naming a file dns_windows.go will cause it to be included only when
+// building the package for Windows; similarly, math_386.s will be included
+// only when building the package for 32-bit x86.
 //
 func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
 	dirs, err := ctxt.readDir(dir)
@@ -389,7 +448,7 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
 				if f[0] == "+build" {
 					ok := false
 					for _, tok := range f[1:] {
-						if ctxt.matchOSArch(tok) {
+						if ctxt.match(tok) {
 							ok = true
 							break
 						}
@@ -441,7 +500,7 @@ func (ctxt *Context) saveCgo(filename string, di *DirInfo, cg *ast.CommentGroup)
 		if len(cond) > 0 {
 			ok := false
 			for _, c := range cond {
-				if ctxt.matchOSArch(c) {
+				if ctxt.match(c) {
 					ok = true
 					break
 				}
@@ -550,26 +609,55 @@ func splitQuoted(s string) (r []string, err error) {
 	return args, err
 }
 
-// matchOSArch returns true if the name is one of:
+// match returns true if the name is one of:
 //
 //	$GOOS
 //	$GOARCH
 //	cgo (if cgo is enabled)
-//	nocgo (if cgo is disabled)
+//	!cgo (if cgo is disabled)
+//	tag (if tag is listed in ctxt.BuildTags)
+//	!tag (if tag is not listed in ctxt.BuildTags)
 //	a slash-separated list of any of these
 //
-func (ctxt *Context) matchOSArch(name string) bool {
-	if ctxt.CgoEnabled && name == "cgo" {
-		return true
+func (ctxt *Context) match(name string) bool {
+	if name == "" {
+		return false
 	}
-	if !ctxt.CgoEnabled && name == "nocgo" {
+	if i := strings.Index(name, ","); i >= 0 {
+		// comma-separated list
+		return ctxt.match(name[:i]) && ctxt.match(name[i+1:])
+	}
+	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
+		return false
+	}
+	if strings.HasPrefix(name, "!") { // negation
+		return !ctxt.match(name[1:])
+	}
+
+	// Tags must be letters, digits, underscores.
+	// Unlike in Go identifiers, all digits is fine (e.g., "386").
+	for _, c := range name {
+		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' {
+			return false
+		}
+	}
+
+	// special tags
+	if ctxt.CgoEnabled && name == "cgo" {
 		return true
 	}
 	if name == ctxt.GOOS || name == ctxt.GOARCH {
 		return true
 	}
-	i := strings.Index(name, "/")
-	return i >= 0 && ctxt.matchOSArch(name[:i]) && ctxt.matchOSArch(name[i+1:])
+
+	// other tags
+	for _, tag := range ctxt.BuildTags {
+		if tag == name {
+			return true
+		}
+	}
+
+	return false
 }
 
 // goodOSArchFile returns false if the name contains a $GOOS or $GOARCH
