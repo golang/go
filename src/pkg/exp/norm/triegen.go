@@ -65,11 +65,13 @@ func (n trieNode) mostFrequentStride() int {
 				counts[stride]++
 			}
 			v = t.value
+		} else {
+			v = 0
 		}
 	}
 	var maxs, maxc int
 	for stride, cnt := range counts {
-		if cnt > maxc {
+		if cnt > maxc || (cnt == maxc && stride < maxs) {
 			maxs, maxc = stride, cnt
 		}
 	}
