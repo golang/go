@@ -134,7 +134,7 @@ import (
 //
 // Unmarshal maps an XML element to a string or []byte by saving the
 // concatenation of that element's character data in the string or
-// []byte.
+// []byte. The saved []byte is never nil.
 //
 // Unmarshal maps an attribute value to a string or []byte by saving
 // the value in the string or slice.
@@ -309,14 +309,12 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) error {
 			case fAttr:
 				strv := sv.FieldByIndex(finfo.idx)
 				// Look for attribute.
-				val := ""
 				for _, a := range start.Attr {
 					if a.Name.Local == finfo.name {
-						val = a.Value
+						copyValue(strv, []byte(a.Value))
 						break
 					}
 				}
-				copyValue(strv, []byte(val))
 
 			case fCharData:
 				if !saveData.IsValid() {
@@ -473,7 +471,11 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
 	case reflect.String:
 		t.SetString(string(src))
 	case reflect.Slice:
-		t.Set(reflect.ValueOf(src))
+		if len(src) == 0 {
+			// non-nil to flag presence
+			src = []byte{}
+		}
+		t.SetBytes(src)
 	}
 	return nil
 }
