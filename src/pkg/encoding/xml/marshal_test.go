@@ -184,6 +184,18 @@ type RecurseB struct {
 	B string
 }
 
+type PresenceTest struct {
+	Exists *struct{}
+}
+
+type MyBytes []byte
+
+type Data struct {
+	Bytes  []byte
+	Attr   []byte `xml:",attr"`
+	Custom MyBytes
+}
+
 type Plain struct {
 	V interface{}
 }
@@ -224,6 +236,44 @@ var marshalTests = []struct {
 	{Value: &Plain{NamedType("potato")}, ExpectXML: `<Plain><V>potato</V></Plain>`},
 	{Value: &Plain{[]int{1, 2, 3}}, ExpectXML: `<Plain><V>1</V><V>2</V><V>3</V></Plain>`},
 	{Value: &Plain{[3]int{1, 2, 3}}, ExpectXML: `<Plain><V>1</V><V>2</V><V>3</V></Plain>`},
+
+	// A pointer to struct{} may be used to test for an element's presence.
+	{
+		Value:     &PresenceTest{new(struct{})},
+		ExpectXML: `<PresenceTest><Exists></Exists></PresenceTest>`,
+	},
+	{
+		Value:     &PresenceTest{},
+		ExpectXML: `<PresenceTest></PresenceTest>`,
+	},
+
+	// A pointer to struct{} may be used to test for an element's presence.
+	{
+		Value:     &PresenceTest{new(struct{})},
+		ExpectXML: `<PresenceTest><Exists></Exists></PresenceTest>`,
+	},
+	{
+		Value:     &PresenceTest{},
+		ExpectXML: `<PresenceTest></PresenceTest>`,
+	},
+
+	// A []byte field is only nil if the element was not found.
+	{
+		Value:         &Data{},
+		ExpectXML:     `<Data></Data>`,
+		UnmarshalOnly: true,
+	},
+	{
+		Value:         &Data{Bytes: []byte{}, Custom: MyBytes{}, Attr: []byte{}},
+		ExpectXML:     `<Data Attr=""><Bytes></Bytes><Custom></Custom></Data>`,
+		UnmarshalOnly: true,
+	},
+
+	// Check that []byte works, including named []byte types.
+	{
+		Value:     &Data{Bytes: []byte("ab"), Custom: MyBytes("cd"), Attr: []byte{'v'}},
+		ExpectXML: `<Data Attr="v"><Bytes>ab</Bytes><Custom>cd</Custom></Data>`,
+	},
 
 	// Test innerxml
 	{

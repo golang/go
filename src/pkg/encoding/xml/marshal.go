@@ -181,23 +181,43 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 		if finfo.flags&fAttr == 0 {
 			continue
 		}
-		var str string
-		if fv := val.FieldByIndex(finfo.idx); fv.Kind() == reflect.String {
-			str = fv.String()
-		} else {
-			str = fmt.Sprint(fv.Interface())
+		fv := val.FieldByIndex(finfo.idx)
+		switch fv.Kind() {
+		case reflect.String, reflect.Array, reflect.Slice:
+			// TODO: Should we really do this once ,omitempty is in?
+			if fv.Len() == 0 {
+				continue
+			}
 		}
-		if str != "" {
-			p.WriteByte(' ')
-			p.WriteString(finfo.name)
-			p.WriteString(`="`)
-			Escape(p, []byte(str))
-			p.WriteByte('"')
+		p.WriteByte(' ')
+		p.WriteString(finfo.name)
+		p.WriteString(`="`)
+		if err := p.marshalSimple(fv.Type(), fv); err != nil {
+			return err
 		}
+		p.WriteByte('"')
 	}
 	p.WriteByte('>')
 
-	switch k := val.Kind(); k {
+	if val.Kind() == reflect.Struct {
+		err = p.marshalStruct(tinfo, val)
+	} else {
+		err = p.marshalSimple(typ, val)
+	}
+	if err != nil {
+		return err
+	}
+
+	p.WriteByte('<')
+	p.WriteByte('/')
+	p.WriteString(name)
+	p.WriteByte('>')
+
+	return nil
+}
+
+func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) error {
+	switch val.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		p.WriteString(strconv.FormatInt(val.Int(), 10))
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
@@ -205,6 +225,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 	case reflect.Float32, reflect.Float64:
 		p.WriteString(strconv.FormatFloat(val.Float(), 'g', -1, 64))
 	case reflect.String:
+		// TODO: Add EscapeString.
 		Escape(p, []byte(val.String()))
 	case reflect.Bool:
 		p.WriteString(strconv.FormatBool(val.Bool()))
@@ -217,21 +238,10 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 		Escape(p, bytes)
 	case reflect.Slice:
 		// will be []byte
-		bytes := val.Interface().([]byte)
-		Escape(p, bytes)
-	case reflect.Struct:
-		if err := p.marshalStruct(tinfo, val); err != nil {
-			return err
-		}
+		Escape(p, val.Bytes())
 	default:
 		return &UnsupportedTypeError{typ}
 	}
-
-	p.WriteByte('<')
-	p.WriteByte('/')
-	p.WriteString(name)
-	p.WriteByte('>')
-
 	return nil
 }
 
