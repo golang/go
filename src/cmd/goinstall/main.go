@@ -44,7 +44,7 @@ var (
 	doInstall         = flag.Bool("install", true, "build and install")
 	clean             = flag.Bool("clean", false, "clean the package directory before installing")
 	nuke              = flag.Bool("nuke", false, "clean the package directory and target before installing")
-	useMake           = flag.Bool("make", true, "use make to build and install")
+	useMake           = flag.Bool("make", true, "use make to build and install (obsolete, always true)")
 	verbose           = flag.Bool("v", false, "verbose")
 )
 
@@ -336,35 +336,10 @@ func installPackage(pkg, parent string, tree *build.Tree, retry bool) (installEr
 	}
 
 	// Install this package.
-	if *useMake {
-		err := domake(dir, pkg, tree, dirInfo.IsCommand())
-		if err != nil {
-			return &BuildError{pkg, err}
-		}
-		return nil
-	}
-	script, err := build.Build(tree, pkg, dirInfo)
+	err = domake(dir, pkg, tree, dirInfo.IsCommand())
 	if err != nil {
 		return &BuildError{pkg, err}
 	}
-	if *nuke {
-		printf("%s: nuke\n", pkg)
-		script.Nuke()
-	} else if *clean {
-		printf("%s: clean\n", pkg)
-		script.Clean()
-	}
-	if *doInstall {
-		if script.Stale() {
-			printf("%s: install\n", pkg)
-			if err := script.Run(); err != nil {
-				return &BuildError{pkg, err}
-			}
-		} else {
-			printf("%s: up-to-date\n", pkg)
-		}
-	}
-
 	return nil
 }
 
