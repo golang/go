@@ -80,10 +80,22 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 
 // Length of x in bits.
 func bitLen(x Word) (n int) {
-	for ; x >= 0x100; x >>= 8 {
+	for ; x >= 0x8000; x >>= 16 {
+		n += 16
+	}
+	if x >= 0x80 {
+		x >>= 8
 		n += 8
 	}
-	for ; x > 0; x >>= 1 {
+	if x >= 0x8 {
+		x >>= 4
+		n += 4
+	}
+	if x >= 0x2 {
+		x >>= 2
+		n += 2
+	}
+	if x >= 0x1 {
 		n++
 	}
 	return
