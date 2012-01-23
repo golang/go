@@ -29,10 +29,11 @@ set -e
 	# \ paths into / paths.  This avoids the \ being interpreted
 	# as a shell escape but also makes sure that we generate the
 	# same scripts on Unix and Windows systems.
-	go install -a -n cmd/go | sed '
-		s/$GOBIN/"$GOBIN"/g
-		s/$GOROOT/"$GOROOT"/g
-		s/$WORK/"$WORK"/g
+	go install -a -n -t cmd_go_bootstrap cmd/go | sed '
+		s/\$GOBIN/"$GOBIN"/g
+		s/\$GOROOT/"$GOROOT"/g
+		s/\$WORK/"$WORK"/g
+		s;"\$GOBIN"/go;&_bootstrap;g
 		s;\\;/;g
 	'
 	)>$targ

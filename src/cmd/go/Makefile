@@ -11,6 +11,7 @@ GOFILES=\
 	get.go\
 	fmt.go\
 	help.go\
+	http.go\
 	list.go\
 	main.go\
 	pkg.go\
@@ -19,5 +20,6 @@ GOFILES=\
 	testflag.go\
 	version.go\
 	vet.go\
+	vcs.go\
 
 include ../../Make.cmd

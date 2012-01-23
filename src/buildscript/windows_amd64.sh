@@ -324,7 +324,7 @@ cp "$WORK"/bufio.a "$GOROOT"/pkg/windows_amd64/bufio.a
 
 mkdir -p "$WORK"/encoding/gob/_obj/
 cd "$GOROOT"/src/pkg/encoding/gob
-6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./debug.go ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
+6g -o "$WORK"/encoding/gob/_obj/_go_.6 -p encoding/gob -I "$WORK" ./decode.go ./decoder.go ./doc.go ./encode.go ./encoder.go ./error.go ./type.go
 gopack grc "$WORK"/encoding/gob.a "$WORK"/encoding/gob/_obj/_go_.6
 cp "$WORK"/encoding/gob.a "$GOROOT"/pkg/windows_amd64/encoding/gob.a
 
@@ -402,6 +402,26 @@ gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
 cp "$WORK"/log.a "$GOROOT"/pkg/windows_amd64/log.a
 
 #
+# path
+#
+
+mkdir -p "$WORK"/path/_obj/
+cd "$GOROOT"/src/pkg/path
+6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+cp "$WORK"/path.a "$GOROOT"/pkg/windows_amd64/path.a
+
+#
+# go/build
+#
+
+mkdir -p "$WORK"/go/build/_obj/
+cd "$GOROOT"/src/pkg/go/build
+6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+cp "$WORK"/go/build.a "$GOROOT"/pkg/windows_amd64/go/build.a
+
+#
 # os/exec
 #
 
@@ -411,16 +431,6 @@ cd "$GOROOT"/src/pkg/os/exec
 gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
 mkdir -p "$GOROOT"/pkg/windows_amd64/os/
 cp "$WORK"/os/exec.a "$GOROOT"/pkg/windows_amd64/os/exec.a
-
-#
-# path
-#
-
-mkdir -p "$WORK"/path/_obj/
-cd "$GOROOT"/src/pkg/path
-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
-cp "$WORK"/path.a "$GOROOT"/pkg/windows_amd64/path.a
 
 #
 # regexp/syntax
@@ -442,16 +452,6 @@ cd "$GOROOT"/src/pkg/regexp
 6g -o "$WORK"/regexp/_obj/_go_.6 -p regexp -I "$WORK" ./exec.go ./regexp.go
 gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
 cp "$WORK"/regexp.a "$GOROOT"/pkg/windows_amd64/regexp.a
-
-#
-# go/build
-#
-
-mkdir -p "$WORK"/go/build/_obj/
-cd "$GOROOT"/src/pkg/go/build
-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
-cp "$WORK"/go/build.a "$GOROOT"/pkg/windows_amd64/go/build.a
 
 #
 # net/url
@@ -492,8 +492,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/windows_amd64/text/template.a
 
 mkdir -p "$WORK"/cmd/go/_obj/
 cd "$GOROOT"/src/cmd/go
-6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./version.go ./vet.go
+6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
 gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
 6l -o "$WORK"/cmd/go/_obj/a.out.exe -L "$WORK" "$WORK"/cmd/go.a
 mkdir -p "$GOBIN"/
-cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/go.exe
+cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/go_bootstrap.exe

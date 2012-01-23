@@ -28,7 +28,7 @@ func init() {
 
 var cmdTest = &Command{
 	CustomFlags: true,
-	UsageLine:   "test [-c] [-x] [-file a.go -file b.go ...] [-p n] [importpath...] [flags for test binary]",
+	UsageLine:   "test [-c] [-file a.go -file b.go ...] [-p n] [-x] [importpath...] [flags for test binary]",
 	Short:       "test packages",
 	Long: `
 'Go test' automates testing the packages named by the import paths.
@@ -184,18 +184,6 @@ See the documentation of the testing package for more information.
 		`,
 }
 
-// TODO(rsc): Rethink the flag handling.
-// It might be better to do
-//	go test [go-test-flags] [importpaths] [flags for test binary]
-// If there are no import paths then the two flag sections
-// run together, but we can deal with that.  Right now, 
-//	go test -x  (ok)
-//	go test -x math (NOT OK)
-//	go test math -x (ok)
-// which is weird, because the -x really does apply to go test, not to math.
-// It is also possible that -file can go away.
-// For now just use the gotest code.
-
 var (
 	testC        bool     // -c flag
 	testP        int      // -p flag
@@ -216,7 +204,7 @@ func runTest(cmd *Command, args []string) {
 	// or when the -v flag has been given.
 	testShowPass = len(pkgArgs) == 0 || testV
 
-	pkgs := packages(pkgArgs)
+	pkgs := packagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
 		fatalf("no packages to test")
 	}
@@ -316,13 +304,16 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	// XTestGoFiles, so we build one list and use it for both
 	// ptest and pxtest.  No harm done.
 	var imports []*Package
+	var stk importStack
+	stk.push(p.ImportPath + "_test")
 	for _, path := range p.info.TestImports {
-		p1, err := loadPackage(path)
-		if err != nil {
-			return nil, nil, nil, err
+		p1 := loadPackage(path, &stk)
+		if p1.Error != nil {
+			return nil, nil, nil, p1.Error
 		}
 		imports = append(imports, p1)
 	}
+	stk.pop()
 
 	// The ptest package needs to be importable under the
 	// same import path that p has, but we cannot put it in
@@ -408,13 +399,14 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	}
 
 	// The generated main also imports testing and regexp.
-	ptesting, err := loadPackage("testing")
-	if err != nil {
-		return nil, nil, nil, err
+	stk.push("testmain")
+	ptesting := loadPackage("testing", &stk)
+	if ptesting.Error != nil {
+		return nil, nil, nil, ptesting.Error
 	}
-	pregexp, err := loadPackage("regexp")
-	if err != nil {
-		return nil, nil, nil, err
+	pregexp := loadPackage("regexp", &stk)
+	if pregexp.Error != nil {
+		return nil, nil, nil, pregexp.Error
 	}
 	pmain.imports = append(pmain.imports, ptesting, pregexp)
 

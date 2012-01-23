@@ -22,7 +22,7 @@ import (
 )
 
 var cmdBuild = &Command{
-	UsageLine: "build [-a] [-n] [-v] [-x] [-o output] [-p n] [importpath... | gofiles...]",
+	UsageLine: "build [-a] [-n] [-o output] [-p n] [-v] [-x] [importpath... | gofiles...]",
 	Short:     "compile packages and dependencies",
 	Long: `
 Build compiles the packages named by the import paths,
@@ -68,8 +68,9 @@ var buildN bool               // -n flag
 var buildP = runtime.NumCPU() // -p flag
 var buildV bool               // -v flag
 var buildX bool               // -x flag
-
 var buildO = cmdBuild.Flag.String("o", "", "output file")
+
+var buildContext = build.DefaultContext
 
 // addBuildFlags adds the flags common to the build and install commands.
 func addBuildFlags(cmd *Command) {
@@ -78,6 +79,25 @@ func addBuildFlags(cmd *Command) {
 	cmd.Flag.IntVar(&buildP, "p", buildP, "")
 	cmd.Flag.BoolVar(&buildV, "v", false, "")
 	cmd.Flag.BoolVar(&buildX, "x", false, "")
+
+	// TODO(rsc): This -t flag is used by buildscript.sh but
+	// not documented.  Should be documented but the
+	// usage lines are getting too long.  Probably need to say
+	// that these flags are applicable to every command and
+	// document them in one help message instead of on every
+	// command's help message.
+	cmd.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "t", "")
+}
+
+type stringsFlag []string
+
+func (v *stringsFlag) Set(s string) error {
+	*v = append(*v, s)
+	return nil
+}
+
+func (v *stringsFlag) String() string {
+	return "<stringsFlag>"
 }
 
 func runBuild(cmd *Command, args []string) {
@@ -89,7 +109,7 @@ func runBuild(cmd *Command, args []string) {
 		pkg := goFilesPackage(args, "")
 		pkgs = append(pkgs, pkg)
 	} else {
-		pkgs = packages(args)
+		pkgs = packagesForBuild(args)
 	}
 
 	if len(pkgs) == 1 && pkgs[0].Name == "main" && *buildO == "" {
@@ -116,7 +136,7 @@ func runBuild(cmd *Command, args []string) {
 }
 
 var cmdInstall = &Command{
-	UsageLine: "install [-a] [-n] [-v] [-x] [-p n] [importpath...]",
+	UsageLine: "install [-a] [-n] [-p n] [-v] [-x] [importpath...]",
 	Short:     "compile and install packages and dependencies",
 	Long: `
 Install compiles and installs the packages named by the import paths,
@@ -137,10 +157,12 @@ See also: go build, go get, go clean.
 }
 
 func runInstall(cmd *Command, args []string) {
+	pkgs := packagesForBuild(args)
+
 	var b builder
 	b.init()
 	a := &action{}
-	for _, p := range packages(args) {
+	for _, p := range pkgs {
 		a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
 	}
 	b.do(a)
@@ -213,8 +235,8 @@ func (b *builder) init() {
 	var err error
 	b.actionCache = make(map[cacheKey]*action)
 	b.mkdirCache = make(map[string]bool)
-	b.goarch = build.DefaultContext.GOARCH
-	b.goos = build.DefaultContext.GOOS
+	b.goarch = buildContext.GOARCH
+	b.goos = buildContext.GOOS
 	b.goroot = build.Path[0].Path
 	b.gobin = build.Path[0].BinDir()
 	if b.goos == "windows" {
@@ -267,12 +289,13 @@ func goFilesPackage(gofiles []string, target string) *Package {
 		}
 		dir = append(dir, fi)
 	}
-	ctxt := build.DefaultContext
+	ctxt := buildContext
 	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dir, nil }
 	pwd, _ := os.Getwd()
-	pkg, err := scanPackage(&ctxt, &build.Tree{Path: "."}, "<command line>", "<command line>", pwd)
-	if err != nil {
-		fatalf("%s", err)
+	var stk importStack
+	pkg := scanPackage(&ctxt, &build.Tree{Path: "."}, "<command line>", "<command line>", pwd+"/.", &stk)
+	if pkg.Error != nil {
+		fatalf("%s", pkg.Error)
 	}
 	if target != "" {
 		pkg.target = target
@@ -306,9 +329,10 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action 
 	}
 
 	if len(p.CgoFiles) > 0 {
-		p1, err := loadPackage("cmd/cgo")
-		if err != nil {
-			fatalf("load cmd/cgo: %v", err)
+		var stk importStack
+		p1 := loadPackage("cmd/cgo", &stk)
+		if p1.Error != nil {
+			fatalf("load cmd/cgo: %v", p1.Error)
 		}
 		a.cgo = b.action(depMode, depMode, p1)
 		a.deps = append(a.deps, a.cgo)
@@ -983,7 +1007,7 @@ func (b *builder) gccCmd(objdir string) []string {
 	}
 	// gcc-4.5 and beyond require explicit "-pthread" flag
 	// for multithreading with pthread library.
-	if build.DefaultContext.CgoEnabled {
+	if buildContext.CgoEnabled {
 		switch b.goos {
 		case "windows":
 			a = append(a, "-mthreads")
