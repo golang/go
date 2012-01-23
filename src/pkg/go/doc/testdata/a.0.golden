@@ -1,8 +1,8 @@
 // comment 0  comment 1 
-PACKAGE alpha
+PACKAGE a
 
 IMPORTPATH
-	testdata/alpha
+	testdata/a
 
 FILENAMES
 	testdata/a0.go

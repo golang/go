@@ -1,0 +1,34 @@
+// 
+PACKAGE b
+
+IMPORTPATH
+	testdata/b
+
+IMPORTS
+	a
+
+FILENAMES
+	testdata/b.go
+
+CONSTANTS
+	// 
+	const Pi = 3.14	// Pi
+
+
+VARIABLES
+	// 
+	var MaxInt int	// MaxInt
+
+
+FUNCTIONS
+	// 
+	func F(x int) int
+
+
+TYPES
+	// 
+	type T struct{}	// T
+
+	// 
+	var V T	// v
+

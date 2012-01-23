@@ -7,6 +7,7 @@ package doc
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"go/parser"
 	"go/printer"
 	"go/token"
@@ -64,7 +65,7 @@ type bundle struct {
 	FSet *token.FileSet
 }
 
-func Test(t *testing.T) {
+func test(t *testing.T, mode Mode) {
 	// get all packages
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, dataDir, isGoFile, parser.ParseComments)
@@ -75,7 +76,7 @@ func Test(t *testing.T) {
 	// test all packages
 	for _, pkg := range pkgs {
 		importpath := dataDir + "/" + pkg.Name
-		doc := New(pkg, importpath, 0)
+		doc := New(pkg, importpath, mode)
 
 		// golden files always use / in filenames - canonicalize them
 		for i, filename := range doc.Filenames {
@@ -91,7 +92,7 @@ func Test(t *testing.T) {
 		got := buf.Bytes()
 
 		// update golden file if necessary
-		golden := filepath.Join(dataDir, pkg.Name+".out")
+		golden := filepath.Join(dataDir, fmt.Sprintf("%s.%d.golden", pkg.Name, mode))
 		if *update {
 			err := ioutil.WriteFile(golden, got, 0644)
 			if err != nil {
@@ -112,4 +113,9 @@ func Test(t *testing.T) {
 			t.Errorf("package %s\n\tgot:\n%s\n\twant:\n%s", pkg.Name, got, want)
 		}
 	}
+}
+
+func Test(t *testing.T) {
+	test(t, 0)
+	test(t, AllDecls)
 }
