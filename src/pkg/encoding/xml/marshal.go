@@ -15,14 +15,13 @@ import (
 )
 
 const (
-	// A generic XML header suitable for use with the output of Marshal and
-	// MarshalIndent.  This is not automatically added to any output of this
-	// package, it is provided as a convenience.
+	// A generic XML header suitable for use with the output of Marshal.
+	// This is not automatically added to any output of this package,
+	// it is provided as a convenience.
 	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
 )
 
 // A Marshaler can produce well-formatted XML representing its internal state.
-// It is used by both Marshal and MarshalIndent.
 type Marshaler interface {
 	MarshalXML() ([]byte, error)
 }
@@ -368,7 +367,7 @@ func (s *parentStack) push(parents []string) {
 	s.stack = append(s.stack, parents...)
 }
 
-// A MarshalXMLError is returned when Marshal or MarshalIndent encounter a type
+// A MarshalXMLError is returned when Marshal encounters a type
 // that cannot be converted into XML.
 type UnsupportedTypeError struct {
 	Type reflect.Type
