@@ -70,9 +70,10 @@ type compressor struct {
 	// If hashHead[hashValue] is within the current window, then
 	// hashPrev[hashHead[hashValue] & windowMask] contains the previous index
 	// with the same hash value.
-	chainHead int
-	hashHead  []int
-	hashPrev  []int
+	chainHead  int
+	hashHead   []int
+	hashPrev   []int
+	hashOffset int
 
 	// input window: unprocessed data is window[index:windowEnd]
 	index         int
@@ -104,20 +105,7 @@ func (d *compressor) fillDeflate(b []byte) int {
 		} else {
 			d.blockStart = skipNever
 		}
-		for i, h := range d.hashHead {
-			v := h - windowSize
-			if v < -1 {
-				v = -1
-			}
-			d.hashHead[i] = v
-		}
-		for i, h := range d.hashPrev {
-			v := h - windowSize
-			if v < -1 {
-				v = -1
-			}
-			d.hashPrev[i] = v
-		}
+		d.hashOffset += windowSize
 	}
 	n := copy(d.window[d.windowEnd:], b)
 	d.windowEnd += n
@@ -188,7 +176,7 @@ func (d *compressor) findMatch(pos int, prevHead int, prevLength int, lookahead 
 			// hashPrev[i & windowMask] has already been overwritten, so stop now.
 			break
 		}
-		if i = d.hashPrev[i&windowMask]; i < minIndex || i < 0 {
+		if i = d.hashPrev[i&windowMask] - d.hashOffset; i < minIndex || i < 0 {
 			break
 		}
 	}
@@ -207,7 +195,7 @@ func (d *compressor) initDeflate() {
 	d.hashHead = make([]int, hashSize)
 	d.hashPrev = make([]int, windowSize)
 	d.window = make([]byte, 2*windowSize)
-	fillInts(d.hashHead, -1)
+	d.hashOffset = 1
 	d.tokens = make([]token, maxFlateBlockTokens, maxFlateBlockTokens+1)
 	d.length = minMatchLength - 1
 	d.offset = 0
@@ -263,7 +251,7 @@ Loop:
 			d.hash = (d.hash<<hashShift + int(d.window[d.index+2])) & hashMask
 			d.chainHead = d.hashHead[d.hash]
 			d.hashPrev[d.index&windowMask] = d.chainHead
-			d.hashHead[d.hash] = d.index
+			d.hashHead[d.hash] = d.index + d.hashOffset
 		}
 		prevLength := d.length
 		prevOffset := d.offset
@@ -274,10 +262,10 @@ Loop:
 			minIndex = 0
 		}
 
-		if d.chainHead >= minIndex &&
+		if d.chainHead-d.hashOffset >= minIndex &&
 			(d.fastSkipHashing != skipNever && lookahead > minMatchLength-1 ||
 				d.fastSkipHashing == skipNever && lookahead > prevLength && prevLength < d.lazy) {
-			if newLength, newOffset, ok := d.findMatch(d.index, d.chainHead, minMatchLength-1, lookahead); ok {
+			if newLength, newOffset, ok := d.findMatch(d.index, d.chainHead-d.hashOffset, minMatchLength-1, lookahead); ok {
 				d.length = newLength
 				d.offset = newOffset
 			}
@@ -310,7 +298,7 @@ Loop:
 						// Our chain should point to the previous value.
 						d.hashPrev[d.index&windowMask] = d.hashHead[d.hash]
 						// Set the head of the hash chain to us.
-						d.hashHead[d.hash] = d.index
+						d.hashHead[d.hash] = d.index + d.hashOffset
 					}
 				}
 				if d.fastSkipHashing == skipNever {
