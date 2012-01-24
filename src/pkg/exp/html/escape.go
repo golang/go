@@ -10,10 +10,6 @@ import (
 	"unicode/utf8"
 )
 
-type writer interface {
-	WriteString(string) (int, error)
-}
-
 // These replacements permit compatibility with old numeric entities that 
 // assumed Windows-1252 encoding.
 // http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference

@@ -82,6 +82,7 @@ DIRS=\
 	exp/ebnf\
 	exp/ebnflint\
 	exp/gotype\
+	exp/html\
 	exp/norm\
 	exp/spdy\
 	exp/ssh\
