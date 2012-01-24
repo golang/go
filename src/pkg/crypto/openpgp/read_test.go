@@ -161,18 +161,18 @@ func TestSignedEncryptedMessage(t *testing.T) {
 		prompt := func(keys []Key, symmetric bool) ([]byte, error) {
 			if symmetric {
 				t.Errorf("prompt: message was marked as symmetrically encrypted")
-				return nil, errors.KeyIncorrectError
+				return nil, errors.ErrKeyIncorrect
 			}
 
 			if len(keys) == 0 {
 				t.Error("prompt: no keys requested")
-				return nil, errors.KeyIncorrectError
+				return nil, errors.ErrKeyIncorrect
 			}
 
 			err := keys[0].PrivateKey.Decrypt([]byte("passphrase"))
 			if err != nil {
 				t.Errorf("prompt: error decrypting key: %s", err)
-				return nil, errors.KeyIncorrectError
+				return nil, errors.ErrKeyIncorrect
 			}
 
 			return nil, nil

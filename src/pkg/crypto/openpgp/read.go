@@ -161,7 +161,7 @@ FindKey:
 					continue
 				}
 				decrypted, err = se.Decrypt(pk.encryptedKey.CipherFunc, pk.encryptedKey.Key)
-				if err != nil && err != errors.KeyIncorrectError {
+				if err != nil && err != errors.ErrKeyIncorrect {
 					return nil, err
 				}
 				if decrypted != nil {
@@ -179,11 +179,11 @@ FindKey:
 		}
 
 		if len(candidates) == 0 && len(symKeys) == 0 {
-			return nil, errors.KeyIncorrectError
+			return nil, errors.ErrKeyIncorrect
 		}
 
 		if prompt == nil {
-			return nil, errors.KeyIncorrectError
+			return nil, errors.ErrKeyIncorrect
 		}
 
 		passphrase, err := prompt(candidates, len(symKeys) != 0)
@@ -197,7 +197,7 @@ FindKey:
 				err = s.Decrypt(passphrase)
 				if err == nil && !s.Encrypted {
 					decrypted, err = se.Decrypt(s.CipherFunc, s.Key)
-					if err != nil && err != errors.KeyIncorrectError {
+					if err != nil && err != errors.ErrKeyIncorrect {
 						return nil, err
 					}
 					if decrypted != nil {
@@ -353,8 +353,8 @@ func (scr *signatureCheckReader) Read(buf []byte) (n int, err error) {
 }
 
 // CheckDetachedSignature takes a signed file and a detached signature and
-// returns the signer if the signature is valid. If the signer isn't know,
-// UnknownIssuerError is returned.
+// returns the signer if the signature is valid. If the signer isn't known,
+// ErrUnknownIssuer is returned.
 func CheckDetachedSignature(keyring KeyRing, signed, signature io.Reader) (signer *Entity, err error) {
 	p, err := packet.Read(signature)
 	if err != nil {
@@ -372,7 +372,7 @@ func CheckDetachedSignature(keyring KeyRing, signed, signature io.Reader) (signe
 
 	keys := keyring.KeysById(*sig.IssuerKeyId)
 	if len(keys) == 0 {
-		return nil, errors.UnknownIssuerError
+		return nil, errors.ErrUnknownIssuer
 	}
 
 	h, wrappedHash, err := hashForSignature(sig.Hash, sig.SigType)
@@ -399,7 +399,7 @@ func CheckDetachedSignature(keyring KeyRing, signed, signature io.Reader) (signe
 		return
 	}
 
-	return nil, errors.UnknownIssuerError
+	return nil, errors.ErrUnknownIssuer
 }
 
 // CheckArmoredDetachedSignature performs the same actions as

@@ -71,7 +71,7 @@ func (se *SymmetricallyEncrypted) Decrypt(c CipherFunction, key []byte) (io.Read
 
 	s := cipher.NewOCFBDecrypter(c.new(key), se.prefix, ocfbResync)
 	if s == nil {
-		return nil, errors.KeyIncorrectError
+		return nil, errors.ErrKeyIncorrect
 	}
 
 	plaintext := cipher.StreamReader{S: s, R: se.contents}
