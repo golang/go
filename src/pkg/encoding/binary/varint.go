@@ -37,6 +37,7 @@ const (
 )
 
 // PutUvarint encodes a uint64 into buf and returns the number of bytes written.
+// If the buffer is too small, PutUvarint will panic.
 func PutUvarint(buf []byte, x uint64) int {
 	i := 0
 	for x >= 0x80 {
@@ -73,6 +74,7 @@ func Uvarint(buf []byte) (uint64, int) {
 }
 
 // PutVarint encodes an int64 into buf and returns the number of bytes written.
+// If the buffer is too small, PutVarint will panic.
 func PutVarint(buf []byte, x int64) int {
 	ux := uint64(x) << 1
 	if x < 0 {
