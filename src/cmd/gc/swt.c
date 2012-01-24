@@ -889,7 +889,7 @@ typecheckswitch(Node *n)
 						yyerror("%lN is not a type", ll->n);
 						// reset to original type
 						ll->n = n->ntest->right;
-					} else if(!implements(ll->n->type, t, &missing, &have, &ptr)) {
+					} else if(ll->n->type->etype != TINTER && !implements(ll->n->type, t, &missing, &have, &ptr)) {
 						if(have && !missing->broke && !have->broke)
 							yyerror("impossible type switch case: %lN cannot have dynamic type %T"
 								" (wrong type for %S method)\n\thave %S%hT\n\twant %S%hT",

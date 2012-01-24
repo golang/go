@@ -6,15 +6,30 @@
 
 package main
 
+import (
+	"io"
+)
 
 type I interface {
-       M()
+	M()
 }
 
 func main(){
-       var x I
-       switch x.(type) {
-       case string:	// ERROR "impossible"
-               println("FAIL")
-       }
+	var x I
+	switch x.(type) {
+	case string:	// ERROR "impossible"
+		println("FAIL")
+	}
+	
+	// Issue 2700: if the case type is an interface, nothing is impossible
+	
+	var r io.Reader
+	
+	_, _ = r.(io.Writer)
+	
+	switch r.(type) {
+	case io.Writer:
+	}
 }
+
+
