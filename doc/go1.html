@@ -1004,6 +1004,124 @@ Gofix will update the few programs that are affected except for
 uses of <code>RawURL</code>, which must be fixed by hand.
 </p>
 
+<h3 id="image">The image package</h3>
+
+<p>
+The <a href="/pkg/image/"><code>image</code></a> package has had a number of
+minor changes, rearrangements and renamings.
+</p>
+
+<p>
+Most of the color handling code has been moved into its own package,
+<a href="/pkg/image/color/"><code>image/color</code></a>.
+For the elements that moved, a symmetry arises; for instance,
+each pixel of an
+<a href="/pkg/image/#RGBA"><code>image.RGBA</code></a>
+is a
+<a href="/pkg/image/color/#RGBA"><code>color.RGBA</code></a>.
+</p>
+
+<p>
+The old <code>image/ycbcr</code> package has been folded, with some
+renamings, into the
+<a href="/pkg/image/"><code>image</code></a>
+and
+<a href="/pkg/image/color/"><code>image/color</code></a>
+packages.
+</p>
+
+<p>
+The old <code>image.ColorImage</code> type is still in the <code>image</code>
+package but has been renamed
+<a href="/pkg/image/#Uniform"><code>image.Uniform</code></a>,
+while <code>image.Tiled</code>
+has been renamed
+<a href="/pkg/image/#Repeated"><code>image.Repeated</code></a>.
+</p>
+
+<p>
+This table lists the renamings.
+</p>
+
+<table class="codetable" frame="border" summary="image renames">
+<colgroup align="left" width="50%"></colgroup>
+<colgroup align="left" width="50%"></colgroup>
+<tr>
+<th align="left">Old</th>
+<th align="left">New</th>
+</tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>image.Color</td> <td>color.Color</td></tr>
+<tr><td>image.ColorModel</td> <td>color.Model</td></tr>
+<tr><td>image.ColorModelFunc</td> <td>color.ModelFunc</td></tr>
+<tr><td>image.PalettedColorModel</td> <td>color.Palette</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>image.RGBAColor</td> <td>color.RGBA</td></tr>
+<tr><td>image.RGBA64Color</td> <td>color.RGBA64</td></tr>
+<tr><td>image.NRGBAColor</td> <td>color.NRGBA</td></tr>
+<tr><td>image.NRGBA64Color</td> <td>color.NRGBA64</td></tr>
+<tr><td>image.AlphaColor</td> <td>color.Alpha</td></tr>
+<tr><td>image.Alpha16Color</td> <td>color.Alpha16</td></tr>
+<tr><td>image.GrayColor</td> <td>color.Gray</td></tr>
+<tr><td>image.Gray16Color</td> <td>color.Gray16</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>image.RGBAColorModel</td> <td>color.RGBAModel</td></tr>
+<tr><td>image.RGBA64ColorModel</td> <td>color.RGBA64Model</td></tr>
+<tr><td>image.NRGBAColorModel</td> <td>color.NRGBAModel</td></tr>
+<tr><td>image.NRGBA64ColorModel</td> <td>color.NRGBA64Model</td></tr>
+<tr><td>image.AlphaColorModel</td> <td>color.AlphaModel</td></tr>
+<tr><td>image.Alpha16ColorModel</td> <td>color.Alpha16Model</td></tr>
+<tr><td>image.GrayColorModel</td> <td>color.GrayModel</td></tr>
+<tr><td>image.Gray16ColorModel</td> <td>color.Gray16Model</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>ycbcr.RGBToYCbCr</td> <td>color.RGBToYCbCr</td></tr>
+<tr><td>ycbcr.YCbCrToRGB</td> <td>color.YCbCrToRGB</td></tr>
+<tr><td>ycbcr.YCbCrColorModel</td> <td>color.YCbCrModel</td></tr>
+<tr><td>ycbcr.YCbCrColor</td> <td>color.YCbCr</td></tr>
+<tr><td>ycbcr.YCbCr</td> <td>image.YCbCr</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>ycbcr.SubsampleRatio444</td> <td>image.YCbCrSubsampleRatio444</td></tr>
+<tr><td>ycbcr.SubsampleRatio422</td> <td>image.YCbCrSubsampleRatio422</td></tr>
+<tr><td>ycbcr.SubsampleRatio420</td> <td>image.YCbCrSubsampleRatio420</td></tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>image.ColorImage</td> <td>image.Uniform</td></tr>
+<tr><td>image.Tiled</td> <td>image.Repeated</td></tr>
+</table>
+
+<p>
+The image package's <code>New</code> functions
+(<a href="/pkg/image/#NewRGBA"><code>NewRGBA</code></a>,
+<a href="/pkg/image/#NewRGBA64"><code>NewRGBA64</code></a>, etc.)
+take an <a href="/pkg/image/#Rectangle"><code>image.Rectangle</code></a> as an argument
+instead of four integers.
+</p>
+
+<p>
+Finally, there are new predefined <code>color.Color</code> variables
+<a href="/pkg/image/color/#Black"><code>color.Black</code></a>,
+<a href="/pkg/image/color/#White"><code>color.White</code></a>,
+<a href="/pkg/image/color/#Opaque"><code>color.Opaque</code></a>
+and
+<a href="/pkg/image/color/#Transparent"><code>color.Transparent</code></a>.
+</p>
+
+<p>
+<em>Updating</em>:
+Gofix will update almost all code affected by the change.
+</p>
+
 <h3 id="net">The net package</h3>
 
 <p>In Go 1, the various <code>SetTimeout</code>,
@@ -1224,7 +1342,7 @@ logging and failure reporting.
 <p>
 <em>Updating</em>:
 Existing code is unaffected, although benchmarks that use <code>println</code>
-or <code>panic</code> should be updated to the new interface.
+or <code>panic</code> should be updated to use the new methods.
 </p>
 
 <h2 id="go_command">The go command</h2>
