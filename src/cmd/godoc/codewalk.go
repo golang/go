@@ -115,9 +115,9 @@ func loadCodewalk(filename string) (*Codewalk, error) {
 	}
 	defer f.Close()
 	cw := new(Codewalk)
-	p := xml.NewParser(f)
-	p.Entity = xml.HTMLEntity
-	err = p.Unmarshal(cw, nil)
+	d := xml.NewDecoder(f)
+	d.Entity = xml.HTMLEntity
+	err = d.Decode(cw)
 	if err != nil {
 		return nil, &os.PathError{"parsing", filename, err}
 	}

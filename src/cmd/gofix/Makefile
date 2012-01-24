@@ -42,6 +42,7 @@ GOFILES=\
 	timefileinfo.go\
 	typecheck.go\
 	url.go\
+	xmlapi.go\
 
 include ../../Make.cmd
 
