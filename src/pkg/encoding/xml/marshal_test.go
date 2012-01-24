@@ -34,12 +34,6 @@ type Ship struct {
 	secret    string
 }
 
-type RawXML string
-
-func (rx RawXML) MarshalXML() ([]byte, error) {
-	return []byte(rx), nil
-}
-
 type NamedType string
 
 type Port struct {
@@ -296,13 +290,6 @@ var marshalTests = []struct {
 		},
 		ExpectXML:     `<agent handle="007"><Identity>James Bond</Identity><redacted/></agent>`,
 		UnmarshalOnly: true,
-	},
-
-	// Test marshaller interface
-	{
-		Value:       RawXML("</>"),
-		ExpectXML:   `</>`,
-		MarshalOnly: true,
 	},
 
 	// Test structs

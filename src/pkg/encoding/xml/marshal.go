@@ -21,15 +21,7 @@ const (
 	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
 )
 
-// A Marshaler can produce well-formatted XML representing its internal state.
-type Marshaler interface {
-	MarshalXML() ([]byte, error)
-}
-
 // Marshal returns the XML encoding of v.
-//
-// If v implements Marshaler, then Marshal calls its MarshalXML method.
-// Otherwise, Marshal uses the following procedure to create the XML.
 //
 // Marshal handles an array or slice by marshalling each of the elements.
 // Marshal handles a pointer by marshalling the value it points at or, if the
@@ -127,18 +119,6 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
 
 	kind := val.Kind()
 	typ := val.Type()
-
-	// Try Marshaler
-	if typ.NumMethod() > 0 {
-		if marshaler, ok := val.Interface().(Marshaler); ok {
-			bytes, err := marshaler.MarshalXML()
-			if err != nil {
-				return err
-			}
-			p.Write(bytes)
-			return nil
-		}
-	}
 
 	// Drill into pointers/interfaces
 	if kind == reflect.Ptr || kind == reflect.Interface {
