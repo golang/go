@@ -587,7 +587,7 @@ func commitPoll(key, pkg string) {
 	var logStruct struct {
 		Log []HgLog
 	}
-	err = xml.Unmarshal(strings.NewReader("<Top>"+data+"</Top>"), &logStruct)
+	err = xml.Unmarshal([]byte("<Top>"+data+"</Top>"), &logStruct)
 	if err != nil {
 		log.Printf("unmarshal hg log: %v", err)
 		return

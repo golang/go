@@ -36,7 +36,7 @@ func (e *SyntaxError) Error() string {
 
 // A Name represents an XML name (Local) annotated
 // with a name space identifier (Space).
-// In tokens returned by Parser.Token, the Space identifier
+// In tokens returned by Decoder.Token, the Space identifier
 // is given as a canonical URL, not the short prefix used
 // in the document being parsed.
 type Name struct {
@@ -124,9 +124,9 @@ func CopyToken(t Token) Token {
 	return t
 }
 
-// A Parser represents an XML parser reading a particular input stream.
+// A Decoder represents an XML parser reading a particular input stream.
 // The parser assumes that its input is encoded in UTF-8.
-type Parser struct {
+type Decoder struct {
 	// Strict defaults to true, enforcing the requirements
 	// of the XML specification.
 	// If set to false, the parser allows input containing common
@@ -139,9 +139,9 @@ type Parser struct {
 	//
 	// Setting:
 	//
-	//	p.Strict = false;
-	//	p.AutoClose = HTMLAutoClose;
-	//	p.Entity = HTMLEntity
+	//	d.Strict = false;
+	//	d.AutoClose = HTMLAutoClose;
+	//	d.Entity = HTMLEntity
 	//
 	// creates a parser that can handle typical HTML.
 	Strict bool
@@ -184,16 +184,16 @@ type Parser struct {
 	tmp       [32]byte
 }
 
-// NewParser creates a new XML parser reading from r.
-func NewParser(r io.Reader) *Parser {
-	p := &Parser{
+// NewDecoder creates a new XML parser reading from r.
+func NewDecoder(r io.Reader) *Decoder {
+	d := &Decoder{
 		ns:       make(map[string]string),
 		nextByte: -1,
 		line:     1,
 		Strict:   true,
 	}
-	p.switchToReader(r)
-	return p
+	d.switchToReader(r)
+	return d
 }
 
 // Token returns the next XML token in the input stream.
@@ -218,17 +218,17 @@ func NewParser(r io.Reader) *Parser {
 // set to the URL identifying its name space when known.
 // If Token encounters an unrecognized name space prefix,
 // it uses the prefix as the Space rather than report an error.
-func (p *Parser) Token() (t Token, err error) {
-	if p.nextToken != nil {
-		t = p.nextToken
-		p.nextToken = nil
-	} else if t, err = p.RawToken(); err != nil {
+func (d *Decoder) Token() (t Token, err error) {
+	if d.nextToken != nil {
+		t = d.nextToken
+		d.nextToken = nil
+	} else if t, err = d.RawToken(); err != nil {
 		return
 	}
 
-	if !p.Strict {
-		if t1, ok := p.autoClose(t); ok {
-			p.nextToken = t
+	if !d.Strict {
+		if t1, ok := d.autoClose(t); ok {
+			d.nextToken = t
 			t = t1
 		}
 	}
@@ -240,29 +240,29 @@ func (p *Parser) Token() (t Token, err error) {
 		// the translations first.
 		for _, a := range t1.Attr {
 			if a.Name.Space == "xmlns" {
-				v, ok := p.ns[a.Name.Local]
-				p.pushNs(a.Name.Local, v, ok)
-				p.ns[a.Name.Local] = a.Value
+				v, ok := d.ns[a.Name.Local]
+				d.pushNs(a.Name.Local, v, ok)
+				d.ns[a.Name.Local] = a.Value
 			}
 			if a.Name.Space == "" && a.Name.Local == "xmlns" {
 				// Default space for untagged names
-				v, ok := p.ns[""]
-				p.pushNs("", v, ok)
-				p.ns[""] = a.Value
+				v, ok := d.ns[""]
+				d.pushNs("", v, ok)
+				d.ns[""] = a.Value
 			}
 		}
 
-		p.translate(&t1.Name, true)
+		d.translate(&t1.Name, true)
 		for i := range t1.Attr {
-			p.translate(&t1.Attr[i].Name, false)
+			d.translate(&t1.Attr[i].Name, false)
 		}
-		p.pushElement(t1.Name)
+		d.pushElement(t1.Name)
 		t = t1
 
 	case EndElement:
-		p.translate(&t1.Name, true)
-		if !p.popElement(&t1) {
-			return nil, p.err
+		d.translate(&t1.Name, true)
+		if !d.popElement(&t1) {
+			return nil, d.err
 		}
 		t = t1
 	}
@@ -272,7 +272,7 @@ func (p *Parser) Token() (t Token, err error) {
 // Apply name space translation to name n.
 // The default name space (for Space=="")
 // applies only to element names, not to attribute names.
-func (p *Parser) translate(n *Name, isElementName bool) {
+func (d *Decoder) translate(n *Name, isElementName bool) {
 	switch {
 	case n.Space == "xmlns":
 		return
@@ -281,20 +281,20 @@ func (p *Parser) translate(n *Name, isElementName bool) {
 	case n.Space == "" && n.Local == "xmlns":
 		return
 	}
-	if v, ok := p.ns[n.Space]; ok {
+	if v, ok := d.ns[n.Space]; ok {
 		n.Space = v
 	}
 }
 
-func (p *Parser) switchToReader(r io.Reader) {
+func (d *Decoder) switchToReader(r io.Reader) {
 	// Get efficient byte at a time reader.
 	// Assume that if reader has its own
 	// ReadByte, it's efficient enough.
 	// Otherwise, use bufio.
 	if rb, ok := r.(io.ByteReader); ok {
-		p.r = rb
+		d.r = rb
 	} else {
-		p.r = bufio.NewReader(r)
+		d.r = bufio.NewReader(r)
 	}
 }
 
@@ -314,47 +314,47 @@ const (
 	stkNs
 )
 
-func (p *Parser) push(kind int) *stack {
-	s := p.free
+func (d *Decoder) push(kind int) *stack {
+	s := d.free
 	if s != nil {
-		p.free = s.next
+		d.free = s.next
 	} else {
 		s = new(stack)
 	}
-	s.next = p.stk
+	s.next = d.stk
 	s.kind = kind
-	p.stk = s
+	d.stk = s
 	return s
 }
 
-func (p *Parser) pop() *stack {
-	s := p.stk
+func (d *Decoder) pop() *stack {
+	s := d.stk
 	if s != nil {
-		p.stk = s.next
-		s.next = p.free
-		p.free = s
+		d.stk = s.next
+		s.next = d.free
+		d.free = s
 	}
 	return s
 }
 
 // Record that we are starting an element with the given name.
-func (p *Parser) pushElement(name Name) {
-	s := p.push(stkStart)
+func (d *Decoder) pushElement(name Name) {
+	s := d.push(stkStart)
 	s.name = name
 }
 
 // Record that we are changing the value of ns[local].
 // The old value is url, ok.
-func (p *Parser) pushNs(local string, url string, ok bool) {
-	s := p.push(stkNs)
+func (d *Decoder) pushNs(local string, url string, ok bool) {
+	s := d.push(stkNs)
 	s.name.Local = local
 	s.name.Space = url
 	s.ok = ok
 }
 
 // Creates a SyntaxError with the current line number.
-func (p *Parser) syntaxError(msg string) error {
-	return &SyntaxError{Msg: msg, Line: p.line}
+func (d *Decoder) syntaxError(msg string) error {
+	return &SyntaxError{Msg: msg, Line: d.line}
 }
 
 // Record that we are ending an element with the given name.
@@ -363,36 +363,36 @@ func (p *Parser) syntaxError(msg string) error {
 // After popping the element, apply any undo records from
 // the stack to restore the name translations that existed
 // before we saw this element.
-func (p *Parser) popElement(t *EndElement) bool {
-	s := p.pop()
+func (d *Decoder) popElement(t *EndElement) bool {
+	s := d.pop()
 	name := t.Name
 	switch {
 	case s == nil || s.kind != stkStart:
-		p.err = p.syntaxError("unexpected end element </" + name.Local + ">")
+		d.err = d.syntaxError("unexpected end element </" + name.Local + ">")
 		return false
 	case s.name.Local != name.Local:
-		if !p.Strict {
-			p.needClose = true
-			p.toClose = t.Name
+		if !d.Strict {
+			d.needClose = true
+			d.toClose = t.Name
 			t.Name = s.name
 			return true
 		}
-		p.err = p.syntaxError("element <" + s.name.Local + "> closed by </" + name.Local + ">")
+		d.err = d.syntaxError("element <" + s.name.Local + "> closed by </" + name.Local + ">")
 		return false
 	case s.name.Space != name.Space:
-		p.err = p.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
+		d.err = d.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
 			"closed by </" + name.Local + "> in space " + name.Space)
 		return false
 	}
 
 	// Pop stack until a Start is on the top, undoing the
 	// translations that were associated with the element we just closed.
-	for p.stk != nil && p.stk.kind != stkStart {
-		s := p.pop()
+	for d.stk != nil && d.stk.kind != stkStart {
+		s := d.pop()
 		if s.ok {
-			p.ns[s.name.Local] = s.name.Space
+			d.ns[s.name.Local] = s.name.Space
 		} else {
-			delete(p.ns, s.name.Local)
+			delete(d.ns, s.name.Local)
 		}
 	}
 
@@ -401,17 +401,17 @@ func (p *Parser) popElement(t *EndElement) bool {
 
 // If the top element on the stack is autoclosing and
 // t is not the end tag, invent the end tag.
-func (p *Parser) autoClose(t Token) (Token, bool) {
-	if p.stk == nil || p.stk.kind != stkStart {
+func (d *Decoder) autoClose(t Token) (Token, bool) {
+	if d.stk == nil || d.stk.kind != stkStart {
 		return nil, false
 	}
-	name := strings.ToLower(p.stk.name.Local)
-	for _, s := range p.AutoClose {
+	name := strings.ToLower(d.stk.name.Local)
+	for _, s := range d.AutoClose {
 		if strings.ToLower(s) == name {
 			// This one should be auto closed if t doesn't close it.
 			et, ok := t.(EndElement)
 			if !ok || et.Name.Local != name {
-				return EndElement{p.stk.name}, true
+				return EndElement{d.stk.name}, true
 			}
 			break
 		}
@@ -422,53 +422,53 @@ func (p *Parser) autoClose(t Token) (Token, bool) {
 // RawToken is like Token but does not verify that
 // start and end elements match and does not translate
 // name space prefixes to their corresponding URLs.
-func (p *Parser) RawToken() (Token, error) {
-	if p.err != nil {
-		return nil, p.err
+func (d *Decoder) RawToken() (Token, error) {
+	if d.err != nil {
+		return nil, d.err
 	}
-	if p.needClose {
+	if d.needClose {
 		// The last element we read was self-closing and
 		// we returned just the StartElement half.
 		// Return the EndElement half now.
-		p.needClose = false
-		return EndElement{p.toClose}, nil
+		d.needClose = false
+		return EndElement{d.toClose}, nil
 	}
 
-	b, ok := p.getc()
+	b, ok := d.getc()
 	if !ok {
-		return nil, p.err
+		return nil, d.err
 	}
 
 	if b != '<' {
 		// Text section.
-		p.ungetc(b)
-		data := p.text(-1, false)
+		d.ungetc(b)
+		data := d.text(-1, false)
 		if data == nil {
-			return nil, p.err
+			return nil, d.err
 		}
 		return CharData(data), nil
 	}
 
-	if b, ok = p.mustgetc(); !ok {
-		return nil, p.err
+	if b, ok = d.mustgetc(); !ok {
+		return nil, d.err
 	}
 	switch b {
 	case '/':
 		// </: End element
 		var name Name
-		if name, ok = p.nsname(); !ok {
-			if p.err == nil {
-				p.err = p.syntaxError("expected element name after </")
+		if name, ok = d.nsname(); !ok {
+			if d.err == nil {
+				d.err = d.syntaxError("expected element name after </")
 			}
-			return nil, p.err
+			return nil, d.err
 		}
-		p.space()
-		if b, ok = p.mustgetc(); !ok {
-			return nil, p.err
+		d.space()
+		if b, ok = d.mustgetc(); !ok {
+			return nil, d.err
 		}
 		if b != '>' {
-			p.err = p.syntaxError("invalid characters between </" + name.Local + " and >")
-			return nil, p.err
+			d.err = d.syntaxError("invalid characters between </" + name.Local + " and >")
+			return nil, d.err
 		}
 		return EndElement{name}, nil
 
@@ -477,95 +477,95 @@ func (p *Parser) RawToken() (Token, error) {
 		// TODO(rsc): Should parse the <?xml declaration to make sure
 		// the version is 1.0 and the encoding is UTF-8.
 		var target string
-		if target, ok = p.name(); !ok {
-			if p.err == nil {
-				p.err = p.syntaxError("expected target name after <?")
+		if target, ok = d.name(); !ok {
+			if d.err == nil {
+				d.err = d.syntaxError("expected target name after <?")
 			}
-			return nil, p.err
+			return nil, d.err
 		}
-		p.space()
-		p.buf.Reset()
+		d.space()
+		d.buf.Reset()
 		var b0 byte
 		for {
-			if b, ok = p.mustgetc(); !ok {
-				return nil, p.err
+			if b, ok = d.mustgetc(); !ok {
+				return nil, d.err
 			}
-			p.buf.WriteByte(b)
+			d.buf.WriteByte(b)
 			if b0 == '?' && b == '>' {
 				break
 			}
 			b0 = b
 		}
-		data := p.buf.Bytes()
+		data := d.buf.Bytes()
 		data = data[0 : len(data)-2] // chop ?>
 
 		if target == "xml" {
 			enc := procInstEncoding(string(data))
 			if enc != "" && enc != "utf-8" && enc != "UTF-8" {
-				if p.CharsetReader == nil {
-					p.err = fmt.Errorf("xml: encoding %q declared but Parser.CharsetReader is nil", enc)
-					return nil, p.err
+				if d.CharsetReader == nil {
+					d.err = fmt.Errorf("xml: encoding %q declared but Decoder.CharsetReader is nil", enc)
+					return nil, d.err
 				}
-				newr, err := p.CharsetReader(enc, p.r.(io.Reader))
+				newr, err := d.CharsetReader(enc, d.r.(io.Reader))
 				if err != nil {
-					p.err = fmt.Errorf("xml: opening charset %q: %v", enc, err)
-					return nil, p.err
+					d.err = fmt.Errorf("xml: opening charset %q: %v", enc, err)
+					return nil, d.err
 				}
 				if newr == nil {
 					panic("CharsetReader returned a nil Reader for charset " + enc)
 				}
-				p.switchToReader(newr)
+				d.switchToReader(newr)
 			}
 		}
 		return ProcInst{target, data}, nil
 
 	case '!':
 		// <!: Maybe comment, maybe CDATA.
-		if b, ok = p.mustgetc(); !ok {
-			return nil, p.err
+		if b, ok = d.mustgetc(); !ok {
+			return nil, d.err
 		}
 		switch b {
 		case '-': // <!-
 			// Probably <!-- for a comment.
-			if b, ok = p.mustgetc(); !ok {
-				return nil, p.err
+			if b, ok = d.mustgetc(); !ok {
+				return nil, d.err
 			}
 			if b != '-' {
-				p.err = p.syntaxError("invalid sequence <!- not part of <!--")
-				return nil, p.err
+				d.err = d.syntaxError("invalid sequence <!- not part of <!--")
+				return nil, d.err
 			}
 			// Look for terminator.
-			p.buf.Reset()
+			d.buf.Reset()
 			var b0, b1 byte
 			for {
-				if b, ok = p.mustgetc(); !ok {
-					return nil, p.err
+				if b, ok = d.mustgetc(); !ok {
+					return nil, d.err
 				}
-				p.buf.WriteByte(b)
+				d.buf.WriteByte(b)
 				if b0 == '-' && b1 == '-' && b == '>' {
 					break
 				}
 				b0, b1 = b1, b
 			}
-			data := p.buf.Bytes()
+			data := d.buf.Bytes()
 			data = data[0 : len(data)-3] // chop -->
 			return Comment(data), nil
 
 		case '[': // <![
 			// Probably <![CDATA[.
 			for i := 0; i < 6; i++ {
-				if b, ok = p.mustgetc(); !ok {
-					return nil, p.err
+				if b, ok = d.mustgetc(); !ok {
+					return nil, d.err
 				}
 				if b != "CDATA["[i] {
-					p.err = p.syntaxError("invalid <![ sequence")
-					return nil, p.err
+					d.err = d.syntaxError("invalid <![ sequence")
+					return nil, d.err
 				}
 			}
 			// Have <![CDATA[.  Read text until ]]>.
-			data := p.text(-1, true)
+			data := d.text(-1, true)
 			if data == nil {
-				return nil, p.err
+				return nil, d.err
 			}
 			return CharData(data), nil
 		}
@@ -573,18 +573,18 @@ func (p *Parser) RawToken() (Token, error) {
 		// Probably a directive: <!DOCTYPE ...>, <!ENTITY ...>, etc.
 		// We don't care, but accumulate for caller. Quoted angle
 		// brackets do not count for nesting.
-		p.buf.Reset()
-		p.buf.WriteByte(b)
+		d.buf.Reset()
+		d.buf.WriteByte(b)
 		inquote := uint8(0)
 		depth := 0
 		for {
-			if b, ok = p.mustgetc(); !ok {
-				return nil, p.err
+			if b, ok = d.mustgetc(); !ok {
+				return nil, d.err
 			}
 			if inquote == 0 && b == '>' && depth == 0 {
 				break
 			}
-			p.buf.WriteByte(b)
+			d.buf.WriteByte(b)
 			switch {
 			case b == inquote:
 				inquote = 0
@@ -602,45 +602,45 @@ func (p *Parser) RawToken() (Token, error) {
 				depth++
 			}
 		}
-		return Directive(p.buf.Bytes()), nil
+		return Directive(d.buf.Bytes()), nil
 	}
 
 	// Must be an open element like <a href="foo">
-	p.ungetc(b)
+	d.ungetc(b)
 
 	var (
 		name  Name
 		empty bool
 		attr  []Attr
 	)
-	if name, ok = p.nsname(); !ok {
-		if p.err == nil {
-			p.err = p.syntaxError("expected element name after <")
+	if name, ok = d.nsname(); !ok {
+		if d.err == nil {
+			d.err = d.syntaxError("expected element name after <")
 		}
-		return nil, p.err
+		return nil, d.err
 	}
 
 	attr = make([]Attr, 0, 4)
 	for {
-		p.space()
-		if b, ok = p.mustgetc(); !ok {
-			return nil, p.err
+		d.space()
+		if b, ok = d.mustgetc(); !ok {
+			return nil, d.err
 		}
 		if b == '/' {
 			empty = true
-			if b, ok = p.mustgetc(); !ok {
-				return nil, p.err
+			if b, ok = d.mustgetc(); !ok {
+				return nil, d.err
 			}
 			if b != '>' {
-				p.err = p.syntaxError("expected /> in element")
-				return nil, p.err
+				d.err = d.syntaxError("expected /> in element")
+				return nil, d.err
 			}
 			break
 		}
 		if b == '>' {
 			break
 		}
-		p.ungetc(b)
+		d.ungetc(b)
 
 		n := len(attr)
 		if n >= cap(attr) {
@@ -650,85 +650,85 @@ func (p *Parser) RawToken() (Token, error) {
 		}
 		attr = attr[0 : n+1]
 		a := &attr[n]
-		if a.Name, ok = p.nsname(); !ok {
-			if p.err == nil {
-				p.err = p.syntaxError("expected attribute name in element")
+		if a.Name, ok = d.nsname(); !ok {
+			if d.err == nil {
+				d.err = d.syntaxError("expected attribute name in element")
 			}
-			return nil, p.err
+			return nil, d.err
 		}
-		p.space()
-		if b, ok = p.mustgetc(); !ok {
-			return nil, p.err
+		d.space()
+		if b, ok = d.mustgetc(); !ok {
+			return nil, d.err
 		}
 		if b != '=' {
-			if p.Strict {
-				p.err = p.syntaxError("attribute name without = in element")
-				return nil, p.err
+			if d.Strict {
+				d.err = d.syntaxError("attribute name without = in element")
+				return nil, d.err
 			} else {
-				p.ungetc(b)
+				d.ungetc(b)
 				a.Value = a.Name.Local
 			}
 		} else {
-			p.space()
-			data := p.attrval()
+			d.space()
+			data := d.attrval()
 			if data == nil {
-				return nil, p.err
+				return nil, d.err
 			}
 			a.Value = string(data)
 		}
 	}
 	if empty {
-		p.needClose = true
-		p.toClose = name
+		d.needClose = true
+		d.toClose = name
 	}
 	return StartElement{name, attr}, nil
 }
 
-func (p *Parser) attrval() []byte {
-	b, ok := p.mustgetc()
+func (d *Decoder) attrval() []byte {
+	b, ok := d.mustgetc()
 	if !ok {
 		return nil
 	}
 	// Handle quoted attribute values
 	if b == '"' || b == '\'' {
-		return p.text(int(b), false)
+		return d.text(int(b), false)
 	}
 	// Handle unquoted attribute values for strict parsers
-	if p.Strict {
-		p.err = p.syntaxError("unquoted or missing attribute value in element")
+	if d.Strict {
+		d.err = d.syntaxError("unquoted or missing attribute value in element")
 		return nil
 	}
 	// Handle unquoted attribute values for unstrict parsers
-	p.ungetc(b)
-	p.buf.Reset()
+	d.ungetc(b)
+	d.buf.Reset()
 	for {
-		b, ok = p.mustgetc()
+		b, ok = d.mustgetc()
 		if !ok {
 			return nil
 		}
 		// http://www.w3.org/TR/REC-html40/intro/sgmltut.html#h-3.2.2
 		if 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z' ||
 			'0' <= b && b <= '9' || b == '_' || b == ':' || b == '-' {
-			p.buf.WriteByte(b)
+			d.buf.WriteByte(b)
 		} else {
-			p.ungetc(b)
+			d.ungetc(b)
 			break
 		}
 	}
-	return p.buf.Bytes()
+	return d.buf.Bytes()
 }
 
 // Skip spaces if any
-func (p *Parser) space() {
+func (d *Decoder) space() {
 	for {
-		b, ok := p.getc()
+		b, ok := d.getc()
 		if !ok {
 			return
 		}
 		switch b {
 		case ' ', '\r', '\n', '\t':
 		default:
-			p.ungetc(b)
+			d.ungetc(b)
 			return
 		}
 	}
@@ -736,35 +736,35 @@ func (p *Parser) space() {
 
 // Read a single byte.
 // If there is no byte to read, return ok==false
-// and leave the error in p.err.
+// and leave the error in d.err.
 // Maintain line number.
-func (p *Parser) getc() (b byte, ok bool) {
-	if p.err != nil {
+func (d *Decoder) getc() (b byte, ok bool) {
+	if d.err != nil {
 		return 0, false
 	}
-	if p.nextByte >= 0 {
-		b = byte(p.nextByte)
-		p.nextByte = -1
+	if d.nextByte >= 0 {
+		b = byte(d.nextByte)
+		d.nextByte = -1
 	} else {
-		b, p.err = p.r.ReadByte()
-		if p.err != nil {
+		b, d.err = d.r.ReadByte()
+		if d.err != nil {
 			return 0, false
 		}
-		if p.saved != nil {
-			p.saved.WriteByte(b)
+		if d.saved != nil {
+			d.saved.WriteByte(b)
 		}
 	}
 	if b == '\n' {
-		p.line++
+		d.line++
 	}
 	return b, true
 }
 
 // Return saved offset.
 // If we did ungetc (nextByte >= 0), have to back up one.
-func (p *Parser) savedOffset() int {
-	n := p.saved.Len()
-	if p.nextByte >= 0 {
+func (d *Decoder) savedOffset() int {
+	n := d.saved.Len()
+	if d.nextByte >= 0 {
 		n--
 	}
 	return n
@@ -772,23 +772,23 @@ func (p *Parser) savedOffset() int {
 
 // Must read a single byte.
 // If there is no byte to read,
-// set p.err to SyntaxError("unexpected EOF")
+// set d.err to SyntaxError("unexpected EOF")
 // and return ok==false
-func (p *Parser) mustgetc() (b byte, ok bool) {
-	if b, ok = p.getc(); !ok {
-		if p.err == io.EOF {
-			p.err = p.syntaxError("unexpected EOF")
+func (d *Decoder) mustgetc() (b byte, ok bool) {
+	if b, ok = d.getc(); !ok {
+		if d.err == io.EOF {
+			d.err = d.syntaxError("unexpected EOF")
 		}
 	}
 	return
 }
 
 // Unread a single byte.
-func (p *Parser) ungetc(b byte) {
+func (d *Decoder) ungetc(b byte) {
 	if b == '\n' {
-		p.line--
+		d.line--
 	}
-	p.nextByte = int(b)
+	d.nextByte = int(b)
 }
 
 var entity = map[string]int{
@@ -802,18 +802,18 @@ var entity = map[string]int{
 // Read plain text section (XML calls it character data).
 // If quote >= 0, we are in a quoted string and need to find the matching quote.
 // If cdata == true, we are in a <![CDATA[ section and need to find ]]>.
-// On failure return nil and leave the error in p.err.
-func (p *Parser) text(quote int, cdata bool) []byte {
+// On failure return nil and leave the error in d.err.
+func (d *Decoder) text(quote int, cdata bool) []byte {
 	var b0, b1 byte
 	var trunc int
-	p.buf.Reset()
+	d.buf.Reset()
 Input:
 	for {
-		b, ok := p.getc()
+		b, ok := d.getc()
 		if !ok {
 			if cdata {
-				if p.err == io.EOF {
-					p.err = p.syntaxError("unexpected EOF in CDATA section")
+				if d.err == io.EOF {
+					d.err = d.syntaxError("unexpected EOF in CDATA section")
 				}
 				return nil
 			}
@@ -827,17 +827,17 @@ Input:
 				trunc = 2
 				break Input
 			}
-			p.err = p.syntaxError("unescaped ]]> not in CDATA section")
+			d.err = d.syntaxError("unescaped ]]> not in CDATA section")
 			return nil
 		}
 
 		// Stop reading text if we see a <.
 		if b == '<' && !cdata {
 			if quote >= 0 {
-				p.err = p.syntaxError("unescaped < inside quoted string")
+				d.err = d.syntaxError("unescaped < inside quoted string")
 				return nil
 			}
-			p.ungetc('<')
+			d.ungetc('<')
 			break Input
 		}
 		if quote >= 0 && b == byte(quote) {
@@ -850,16 +850,16 @@ Input:
 			// Parsers are required to recognize lt, gt, amp, apos, and quot
 			// even if they have not been declared.  That's all we allow.
 			var i int
-			for i = 0; i < len(p.tmp); i++ {
+			for i = 0; i < len(d.tmp); i++ {
 				var ok bool
-				p.tmp[i], ok = p.getc()
+				d.tmp[i], ok = d.getc()
 				if !ok {
-					if p.err == io.EOF {
-						p.err = p.syntaxError("unexpected EOF")
+					if d.err == io.EOF {
+						d.err = d.syntaxError("unexpected EOF")
 					}
 					return nil
 				}
-				c := p.tmp[i]
+				c := d.tmp[i]
 				if c == ';' {
 					break
 				}
@@ -869,18 +869,18 @@ Input:
 					c == '_' || c == '#' {
 					continue
 				}
-				p.ungetc(c)
+				d.ungetc(c)
 				break
 			}
-			s := string(p.tmp[0:i])
-			if i >= len(p.tmp) {
-				if !p.Strict {
+			s := string(d.tmp[0:i])
+			if i >= len(d.tmp) {
+				if !d.Strict {
 					b0, b1 = 0, 0
-					p.buf.WriteByte('&')
-					p.buf.Write(p.tmp[0:i])
+					d.buf.WriteByte('&')
+					d.buf.Write(d.tmp[0:i])
 					continue Input
 				}
-				p.err = p.syntaxError("character entity expression &" + s + "... too long")
+				d.err = d.syntaxError("character entity expression &" + s + "... too long")
 				return nil
 			}
 			var haveText bool
@@ -901,28 +901,28 @@ Input:
 				if r, ok := entity[s]; ok {
 					text = string(r)
 					haveText = true
-				} else if p.Entity != nil {
-					text, haveText = p.Entity[s]
+				} else if d.Entity != nil {
+					text, haveText = d.Entity[s]
 				}
 			}
 			if !haveText {
-				if !p.Strict {
+				if !d.Strict {
 					b0, b1 = 0, 0
-					p.buf.WriteByte('&')
-					p.buf.Write(p.tmp[0:i])
+					d.buf.WriteByte('&')
+					d.buf.Write(d.tmp[0:i])
 					continue Input
 				}
-				p.err = p.syntaxError("invalid character entity &" + s + ";")
+				d.err = d.syntaxError("invalid character entity &" + s + ";")
 				return nil
 			}
-			p.buf.Write([]byte(text))
+			d.buf.Write([]byte(text))
 			b0, b1 = 0, 0
 			continue Input
 		}
-		p.buf.WriteByte(b)
+		d.buf.WriteByte(b)
 		b0, b1 = b1, b
 	}
-	data := p.buf.Bytes()
+	data := d.buf.Bytes()
 	data = data[0 : len(data)-trunc]
 
 	// Inspect each rune for being a disallowed character.
@@ -930,12 +930,12 @@ Input:
 	for len(buf) > 0 {
 		r, size := utf8.DecodeRune(buf)
 		if r == utf8.RuneError && size == 1 {
-			p.err = p.syntaxError("invalid UTF-8")
+			d.err = d.syntaxError("invalid UTF-8")
 			return nil
 		}
 		buf = buf[size:]
 		if !isInCharacterRange(r) {
-			p.err = p.syntaxError(fmt.Sprintf("illegal character code %U", r))
+			d.err = d.syntaxError(fmt.Sprintf("illegal character code %U", r))
 			return nil
 		}
 	}
@@ -970,8 +970,8 @@ func isInCharacterRange(r rune) (inrange bool) {
 
 // Get name space name: name with a : stuck in the middle.
 // The part before the : is the name space identifier.
-func (p *Parser) nsname() (name Name, ok bool) {
-	s, ok := p.name()
+func (d *Decoder) nsname() (name Name, ok bool) {
+	s, ok := d.name()
 	if !ok {
 		return
 	}
@@ -986,37 +986,37 @@ func (p *Parser) nsname() (name Name, ok bool) {
 }
 
 // Get name: /first(first|second)*/
-// Do not set p.err if the name is missing (unless unexpected EOF is received):
+// Do not set d.err if the name is missing (unless unexpected EOF is received):
 // let the caller provide better context.
-func (p *Parser) name() (s string, ok bool) {
+func (d *Decoder) name() (s string, ok bool) {
 	var b byte
-	if b, ok = p.mustgetc(); !ok {
+	if b, ok = d.mustgetc(); !ok {
 		return
 	}
 
 	// As a first approximation, we gather the bytes [A-Za-z_:.-\x80-\xFF]*
 	if b < utf8.RuneSelf && !isNameByte(b) {
-		p.ungetc(b)
+		d.ungetc(b)
 		return "", false
 	}
-	p.buf.Reset()
-	p.buf.WriteByte(b)
+	d.buf.Reset()
+	d.buf.WriteByte(b)
 	for {
-		if b, ok = p.mustgetc(); !ok {
+		if b, ok = d.mustgetc(); !ok {
 			return
 		}
 		if b < utf8.RuneSelf && !isNameByte(b) {
-			p.ungetc(b)
+			d.ungetc(b)
 			break
 		}
-		p.buf.WriteByte(b)
+		d.buf.WriteByte(b)
 	}
 
 	// Then we check the characters.
-	s = p.buf.String()
+	s = d.buf.String()
 	for i, c := range s {
 		if !unicode.Is(first, c) && (i == 0 || !unicode.Is(second, c)) {
-			p.err = p.syntaxError("invalid XML name: " + s)
+			d.err = d.syntaxError("invalid XML name: " + s)
 			return "", false
 		}
 	}

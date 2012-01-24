@@ -6,7 +6,6 @@ package xml
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -14,7 +13,7 @@ import (
 
 func TestUnmarshalFeed(t *testing.T) {
 	var f Feed
-	if err := Unmarshal(strings.NewReader(atomFeedString), &f); err != nil {
+	if err := Unmarshal([]byte(atomFeedString), &f); err != nil {
 		t.Fatalf("Unmarshal: %s", err)
 	}
 	if !reflect.DeepEqual(f, atomFeed) {
@@ -281,7 +280,7 @@ var pathTests = []interface{}{
 func TestUnmarshalPaths(t *testing.T) {
 	for _, pt := range pathTests {
 		v := reflect.New(reflect.TypeOf(pt).Elem()).Interface()
-		if err := Unmarshal(strings.NewReader(pathTestString), v); err != nil {
+		if err := Unmarshal([]byte(pathTestString), v); err != nil {
 			t.Fatalf("Unmarshal: %s", err)
 		}
 		if !reflect.DeepEqual(v, pt) {
@@ -331,7 +330,7 @@ var badPathTests = []struct {
 
 func TestUnmarshalBadPaths(t *testing.T) {
 	for _, tt := range badPathTests {
-		err := Unmarshal(strings.NewReader(pathTestString), tt.v)
+		err := Unmarshal([]byte(pathTestString), tt.v)
 		if !reflect.DeepEqual(err, tt.e) {
 			t.Fatalf("Unmarshal with %#v didn't fail properly:\nhave %#v,\nwant %#v", tt.v, err, tt.e)
 		}
@@ -350,7 +349,7 @@ type TestThree struct {
 
 func TestUnmarshalWithoutNameType(t *testing.T) {
 	var x TestThree
-	if err := Unmarshal(strings.NewReader(withoutNameTypeData), &x); err != nil {
+	if err := Unmarshal([]byte(withoutNameTypeData), &x); err != nil {
 		t.Fatalf("Unmarshal: %s", err)
 	}
 	if x.Attr != OK {

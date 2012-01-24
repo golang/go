@@ -26,11 +26,7 @@ type Marshaler interface {
 	MarshalXML() ([]byte, error)
 }
 
-type printer struct {
-	*bufio.Writer
-}
-
-// Marshal writes an XML-formatted representation of v to w.
+// Marshal returns the XML encoding of v.
 //
 // If v implements Marshaler, then Marshal calls its MarshalXML method.
 // Otherwise, Marshal uses the following procedure to create the XML.
@@ -76,7 +72,7 @@ type printer struct {
 //		Age       int      `xml:"person>age"`
 //	}
 //
-//	xml.Marshal(w, &Result{Id: 13, FirstName: "John", LastName: "Doe", Age: 42})
+//	xml.Marshal(&Result{Id: 13, FirstName: "John", LastName: "Doe", Age: 42})
 //
 // would be marshalled as:
 //
@@ -91,11 +87,36 @@ type printer struct {
 //	</result>
 //
 // Marshal will return an error if asked to marshal a channel, function, or map.
-func Marshal(w io.Writer, v interface{}) (err error) {
-	p := &printer{bufio.NewWriter(w)}
-	err = p.marshalValue(reflect.ValueOf(v), nil)
-	p.Flush()
+func Marshal(v interface{}) ([]byte, error) {
+	var b bytes.Buffer
+	if err := NewEncoder(&b).Encode(v); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+// An Encoder writes XML data to an output stream.
+type Encoder struct {
+	printer
+}
+
+// NewEncoder returns a new encoder that writes to w.
+func NewEncoder(w io.Writer) *Encoder {
+	return &Encoder{printer{bufio.NewWriter(w)}}
+}
+
+// Encode writes the XML encoding of v to the stream.
+//
+// See the documentation for Marshal for details about the conversion
+// of Go values to XML.
+func (enc *Encoder) Encode(v interface{}) error {
+	err := enc.marshalValue(reflect.ValueOf(v), nil)
+	enc.Flush()
 	return err
+}
+
+type printer struct {
+	*bufio.Writer
 }
 
 func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {

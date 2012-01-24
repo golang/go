@@ -5,7 +5,6 @@
 package xml
 
 import (
-	"bytes"
 	"reflect"
 	"strconv"
 	"strings"
@@ -619,13 +618,12 @@ func TestMarshal(t *testing.T) {
 		if test.UnmarshalOnly {
 			continue
 		}
-		buf := bytes.NewBuffer(nil)
-		err := Marshal(buf, test.Value)
+		data, err := Marshal(test.Value)
 		if err != nil {
 			t.Errorf("#%d: Error: %s", idx, err)
 			continue
 		}
-		if got, want := buf.String(), test.ExpectXML; got != want {
+		if got, want := string(data), test.ExpectXML; got != want {
 			if strings.Contains(want, "\n") {
 				t.Errorf("#%d: marshal(%#v):\nHAVE:\n%s\nWANT:\n%s", idx, test.Value, got, want)
 			} else {
@@ -666,8 +664,7 @@ var marshalErrorTests = []struct {
 
 func TestMarshalErrors(t *testing.T) {
 	for idx, test := range marshalErrorTests {
-		buf := bytes.NewBuffer(nil)
-		err := Marshal(buf, test.Value)
+		_, err := Marshal(test.Value)
 		if err == nil || err.Error() != test.Err {
 			t.Errorf("#%d: marshal(%#v) = [error] %v, want %v", idx, test.Value, err, test.Err)
 		}
@@ -691,8 +688,7 @@ func TestUnmarshal(t *testing.T) {
 
 		vt := reflect.TypeOf(test.Value)
 		dest := reflect.New(vt.Elem()).Interface()
-		buffer := bytes.NewBufferString(test.ExpectXML)
-		err := Unmarshal(buffer, dest)
+		err := Unmarshal([]byte(test.ExpectXML), dest)
 
 		switch fix := dest.(type) {
 		case *Feed:
@@ -711,17 +707,14 @@ func TestUnmarshal(t *testing.T) {
 }
 
 func BenchmarkMarshal(b *testing.B) {
-	buf := bytes.NewBuffer(nil)
 	for i := 0; i < b.N; i++ {
-		Marshal(buf, atomValue)
-		buf.Truncate(0)
+		Marshal(atomValue)
 	}
 }
 
 func BenchmarkUnmarshal(b *testing.B) {
 	xml := []byte(atomXml)
 	for i := 0; i < b.N; i++ {
-		buffer := bytes.NewBuffer(xml)
-		Unmarshal(buffer, &Feed{})
+		Unmarshal(xml, &Feed{})
 	}
 }
