@@ -20,8 +20,7 @@
 		<dd><a href="#{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
 	{{end}}
 	{{range .Types}}
-		{{$tname := printf "%s" .Type.Name}}
-		{{$tname_html := node_html .Type.Name $.FSet}}
+		{{$tname_html := html .Name}}
 		<dd><a href="#{{$tname_html}}">type {{$tname_html}}</a></dd>
 		{{range .Funcs}}
 			{{$name_html := html .Name}}
@@ -86,8 +85,8 @@
 		{{example_html .Name $.Examples $.FSet}}
 	{{end}}
 	{{range .Types}}
-		{{$tname := printf "%s" .Type.Name}}
-		{{$tname_html := node_html .Type.Name $.FSet}}
+		{{$tname := .Name}}
+		{{$tname_html := html .Name}}
 		<h2 id="{{$tname_html}}">type <a href="/{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
 		{{comment_html .Doc}}
 		<pre>{{node_html .Decl $.FSet}}</pre>
