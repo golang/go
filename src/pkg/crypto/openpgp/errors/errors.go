@@ -47,7 +47,7 @@ func (ki keyIncorrectError) Error() string {
 	return "the given key was incorrect"
 }
 
-var KeyIncorrectError = keyIncorrectError(0)
+var ErrKeyIncorrect error = keyIncorrectError(0)
 
 type unknownIssuerError int
 
@@ -55,7 +55,7 @@ func (unknownIssuerError) Error() string {
 	return "signature make by unknown entity"
 }
 
-var UnknownIssuerError = unknownIssuerError(0)
+var ErrUnknownIssuer error = unknownIssuerError(0)
 
 type UnknownPacketTypeError uint8
 
