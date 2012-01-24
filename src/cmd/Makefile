@@ -8,12 +8,9 @@ all: install
 
 # Only build tools for current architecture, and only tools written in C.
 # The tools written in Go are managed by ../pkg/Makefile.
-# We need all the C compilers for rebuilding generated files in runtime.
 DIRS=\
 	$(O)a\
-	5c\
-	6c\
-	8c\
+	$(O)c\
 	$(O)g\
 	$(O)l\
 	cc\
