@@ -77,3 +77,30 @@ func TestTimeoutTCP(t *testing.T) {
 	testTimeout(t, "tcp", addr, false)
 	<-done
 }
+
+func TestDeadlineReset(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		return
+	}
+	ln, err := Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	tl := ln.(*TCPListener)
+	tl.SetDeadline(time.Now().Add(1 * time.Minute))
+	tl.SetDeadline(time.Time{}) // reset it
+	errc := make(chan error, 1)
+	go func() {
+		_, err := ln.Accept()
+		errc <- err
+	}()
+	select {
+	case <-time.After(50 * time.Millisecond):
+		// Pass.
+	case err := <-errc:
+		// Accept should never return; we never
+		// connected to it.
+		t.Errorf("unexpected return from Accept; err=%v", err)
+	}
+}
