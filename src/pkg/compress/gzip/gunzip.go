@@ -37,8 +37,8 @@ func makeReader(r io.Reader) flate.Reader {
 	return bufio.NewReader(r)
 }
 
-var HeaderError = errors.New("invalid gzip header")
-var ChecksumError = errors.New("gzip checksum error")
+var ErrHeader = errors.New("invalid gzip header")
+var ErrChecksum = errors.New("gzip checksum error")
 
 // The gzip file stores a header giving metadata about the compressed file.
 // That header is exposed as the fields of the Compressor and Decompressor structs.
@@ -59,7 +59,7 @@ type Header struct {
 // Only the first header is recorded in the Decompressor fields.
 //
 // Gzip files store a length and checksum of the uncompressed data.
-// The Decompressor will return a ChecksumError when Read
+// The Decompressor will return a ErrChecksum when Read
 // reaches the end of the uncompressed data if it does not
 // have the expected length or checksum.  Clients should treat data
 // returned by Read as tentative until they receive the successful
@@ -99,7 +99,7 @@ func (z *Decompressor) readString() (string, error) {
 	needconv := false
 	for i := 0; ; i++ {
 		if i >= len(z.buf) {
-			return "", HeaderError
+			return "", ErrHeader
 		}
 		z.buf[i], err = z.r.ReadByte()
 		if err != nil {
@@ -137,7 +137,7 @@ func (z *Decompressor) readHeader(save bool) error {
 		return err
 	}
 	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
-		return HeaderError
+		return ErrHeader
 	}
 	z.flg = z.buf[3]
 	if save {
@@ -188,7 +188,7 @@ func (z *Decompressor) readHeader(save bool) error {
 		}
 		sum := z.digest.Sum32() & 0xFFFF
 		if n != sum {
-			return HeaderError
+			return ErrHeader
 		}
 	}
 
@@ -221,7 +221,7 @@ func (z *Decompressor) Read(p []byte) (n int, err error) {
 	crc32, isize := get4(z.buf[0:4]), get4(z.buf[4:8])
 	sum := z.digest.Sum32()
 	if sum != crc32 || isize != z.size {
-		z.err = ChecksumError
+		z.err = ErrChecksum
 		return 0, z.err
 	}
 

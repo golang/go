@@ -45,14 +45,14 @@ var zlibTests = []zlibTest{
 		"",
 		[]byte{0x78, 0x9f, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01},
 		nil,
-		HeaderError,
+		ErrHeader,
 	},
 	{
 		"bad checksum",
 		"",
 		[]byte{0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0xff},
 		nil,
-		ChecksumError,
+		ErrChecksum,
 	},
 	{
 		"not enough data",
@@ -95,7 +95,7 @@ var zlibTests = []zlibTest{
 		[]byte{
 			0x48, 0x65, 0x6c, 0x6c,
 		},
-		DictionaryError,
+		ErrDictionary,
 	},
 }
 

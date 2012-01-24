@@ -129,7 +129,7 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	case Deflate:
 		fw.comp = flate.NewWriter(fw.compCount, 5)
 	default:
-		return nil, UnsupportedMethod
+		return nil, ErrAlgorithm
 	}
 	fw.rawCount = &countWriter{w: fw.comp}
 
