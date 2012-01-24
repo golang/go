@@ -27,7 +27,7 @@ const (
 	// stop things from getting too large.
 	maxFlateBlockTokens = 1 << 14
 	maxStoreBlockSize   = 65535
-	hashBits            = 15
+	hashBits            = 17
 	hashSize            = 1 << hashBits
 	hashMask            = (1 << hashBits) - 1
 	hashShift           = (hashBits + minMatchLength - 1) / minMatchLength
