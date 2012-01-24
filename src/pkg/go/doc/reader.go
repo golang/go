@@ -520,7 +520,6 @@ func (doc *docReader) makeTypes(m map[string]*typeInfo) []*Type {
 				}
 				decl.Doc = nil // doc consumed - remove from ast.Decl node
 				t.Doc = doc.Text()
-				t.Type = typespec
 			}
 			t.Consts = makeValues(old.values, token.CONST)
 			t.Vars = makeValues(old.values, token.VAR)

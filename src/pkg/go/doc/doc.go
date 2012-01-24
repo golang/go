@@ -17,11 +17,13 @@ type Package struct {
 	ImportPath string
 	Imports    []string
 	Filenames  []string
-	Consts     []*Value
-	Types      []*Type
-	Vars       []*Value
-	Funcs      []*Func
 	Bugs       []string
+
+	// declarations
+	Consts []*Value
+	Types  []*Type
+	Vars   []*Value
+	Funcs  []*Func
 }
 
 // Value is the documentation for a (possibly grouped) var or const declaration.
@@ -42,10 +44,11 @@ type Method struct {
 
 // Type is the documentation for type declaration.
 type Type struct {
-	Doc     string
-	Name    string
-	Type    *ast.TypeSpec
-	Decl    *ast.GenDecl
+	Doc  string
+	Name string
+	Decl *ast.GenDecl
+
+	// associated declarations
 	Consts  []*Value  // sorted list of constants of (mostly) this type
 	Vars    []*Value  // sorted list of variables of (mostly) this type
 	Funcs   []*Func   // sorted list of functions returning this type
