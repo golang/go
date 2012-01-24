@@ -132,6 +132,8 @@ import (
 //      of the above rules and the struct has a field with tag ",any",
 //      unmarshal maps the sub-element to that struct field.
 //
+//   * A struct field with tag "-" is never unmarshalled into.
+//
 // Unmarshal maps an XML element to a string or []byte by saving the
 // concatenation of that element's character data in the string or
 // []byte. The saved []byte is never nil.

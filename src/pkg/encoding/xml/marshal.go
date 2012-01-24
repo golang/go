@@ -48,6 +48,7 @@ type Marshaler interface {
 // The XML element for a struct contains marshalled elements for each of the
 // exported fields of the struct, with these exceptions:
 //     - the XMLName field, described above, is omitted.
+//     - a field with tag "-" is omitted.
 //     - a field with tag "name,attr" becomes an attribute with
 //       the given name in the XML element.
 //     - a field with tag ",attr" becomes an attribute with the
