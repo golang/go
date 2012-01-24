@@ -17,9 +17,9 @@ import (
 )
 
 var (
-	FormatError       = errors.New("zip: not a valid zip file")
-	UnsupportedMethod = errors.New("zip: unsupported compression algorithm")
-	ChecksumError     = errors.New("zip: checksum error")
+	ErrFormat    = errors.New("zip: not a valid zip file")
+	ErrAlgorithm = errors.New("zip: unsupported compression algorithm")
+	ErrChecksum  = errors.New("zip: checksum error")
 )
 
 type Reader struct {
@@ -90,12 +90,12 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 
 	// The count of files inside a zip is truncated to fit in a uint16.
 	// Gloss over this by reading headers until we encounter
-	// a bad one, and then only report a FormatError or UnexpectedEOF if
+	// a bad one, and then only report a ErrFormat or UnexpectedEOF if
 	// the file count modulo 65536 is incorrect.
 	for {
 		f := &File{zipr: r, zipsize: size}
 		err = readDirectoryHeader(f, buf)
-		if err == FormatError || err == io.ErrUnexpectedEOF {
+		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
 		}
 		if err != nil {
@@ -135,7 +135,7 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
 	case Deflate:
 		rc = flate.NewReader(r)
 	default:
-		err = UnsupportedMethod
+		err = ErrAlgorithm
 	}
 	if rc != nil {
 		rc = &checksumReader{rc, crc32.NewIEEE(), f, r}
@@ -162,7 +162,7 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
 		}
 	}
 	if r.hash.Sum32() != r.f.CRC32 {
-		err = ChecksumError
+		err = ErrChecksum
 	}
 	return
 }
@@ -176,7 +176,7 @@ func readFileHeader(f *File, r io.Reader) error {
 	}
 	c := binary.LittleEndian
 	if sig := c.Uint32(b[:4]); sig != fileHeaderSignature {
-		return FormatError
+		return ErrFormat
 	}
 	f.ReaderVersion = c.Uint16(b[4:6])
 	f.Flags = c.Uint16(b[6:8])
@@ -207,7 +207,7 @@ func (f *File) findBodyOffset() (int64, error) {
 	}
 	c := binary.LittleEndian
 	if sig := c.Uint32(b[:4]); sig != fileHeaderSignature {
-		return 0, FormatError
+		return 0, ErrFormat
 	}
 	filenameLen := int(c.Uint16(b[26:28]))
 	extraLen := int(c.Uint16(b[28:30]))
@@ -216,7 +216,7 @@ func (f *File) findBodyOffset() (int64, error) {
 
 // readDirectoryHeader attempts to read a directory header from r.
 // It returns io.ErrUnexpectedEOF if it cannot read a complete header,
-// and FormatError if it doesn't find a valid header signature.
+// and ErrFormat if it doesn't find a valid header signature.
 func readDirectoryHeader(f *File, r io.Reader) error {
 	var b [directoryHeaderLen]byte
 	if _, err := io.ReadFull(r, b[:]); err != nil {
@@ -224,7 +224,7 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 	}
 	c := binary.LittleEndian
 	if sig := c.Uint32(b[:4]); sig != directoryHeaderSignature {
-		return FormatError
+		return ErrFormat
 	}
 	f.CreatorVersion = c.Uint16(b[4:6])
 	f.ReaderVersion = c.Uint16(b[6:8])
@@ -280,7 +280,7 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) 
 			break
 		}
 		if i == 1 || bLen == size {
-			return nil, FormatError
+			return nil, ErrFormat
 		}
 	}
 

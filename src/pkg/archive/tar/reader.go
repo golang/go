@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	HeaderError = errors.New("invalid tar header")
+	ErrHeader = errors.New("invalid tar header")
 )
 
 // A Reader provides sequential access to the contents of a tar archive.
@@ -123,13 +123,13 @@ func (tr *Reader) readHeader() *Header {
 		if bytes.Equal(header, zeroBlock[0:blockSize]) {
 			tr.err = io.EOF
 		} else {
-			tr.err = HeaderError // zero block and then non-zero block
+			tr.err = ErrHeader // zero block and then non-zero block
 		}
 		return nil
 	}
 
 	if !tr.verifyChecksum(header) {
-		tr.err = HeaderError
+		tr.err = ErrHeader
 		return nil
 	}
 
@@ -188,7 +188,7 @@ func (tr *Reader) readHeader() *Header {
 	}
 
 	if tr.err != nil {
-		tr.err = HeaderError
+		tr.err = ErrHeader
 		return nil
 	}
 

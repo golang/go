@@ -34,9 +34,9 @@ import (
 
 const zlibDeflate = 8
 
-var ChecksumError = errors.New("zlib checksum error")
-var HeaderError = errors.New("invalid zlib header")
-var DictionaryError = errors.New("invalid zlib dictionary")
+var ErrChecksum = errors.New("zlib checksum error")
+var ErrHeader = errors.New("invalid zlib header")
+var ErrDictionary = errors.New("invalid zlib dictionary")
 
 type reader struct {
 	r            flate.Reader
@@ -68,7 +68,7 @@ func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, error) {
 	}
 	h := uint(z.scratch[0])<<8 | uint(z.scratch[1])
 	if (z.scratch[0]&0x0f != zlibDeflate) || (h%31 != 0) {
-		return nil, HeaderError
+		return nil, ErrHeader
 	}
 	if z.scratch[1]&0x20 != 0 {
 		_, err = io.ReadFull(z.r, z.scratch[0:4])
@@ -77,7 +77,7 @@ func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, error) {
 		}
 		checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
 		if checksum != adler32.Checksum(dict) {
-			return nil, DictionaryError
+			return nil, ErrDictionary
 		}
 		z.decompressor = flate.NewReaderDict(z.r, dict)
 	} else {
@@ -110,7 +110,7 @@ func (z *reader) Read(p []byte) (n int, err error) {
 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
 	checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
 	if checksum != z.digest.Sum32() {
-		z.err = ChecksumError
+		z.err = ErrChecksum
 		return 0, z.err
 	}
 	return

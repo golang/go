@@ -22,7 +22,7 @@ func TestBcryptingIsEasy(t *testing.T) {
 
 	notPass := "notthepass"
 	err = CompareHashAndPassword(hp, []byte(notPass))
-	if err != MismatchedHashAndPasswordError {
+	if err != ErrMismatchedHashAndPassword {
 		t.Errorf("%v and %s should be mismatched", hp, notPass)
 	}
 }
@@ -72,8 +72,8 @@ type InvalidHashTest struct {
 }
 
 var invalidTests = []InvalidHashTest{
-	{HashTooShortError, []byte("$2a$10$fooo")},
-	{HashTooShortError, []byte("$2a")},
+	{ErrHashTooShort, []byte("$2a$10$fooo")},
+	{ErrHashTooShort, []byte("$2a")},
 	{HashVersionTooNewError('3'), []byte("$3a$10$sssssssssssssssssssssshhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh")},
 	{InvalidHashPrefixError('%'), []byte("%2a$10$sssssssssssssssssssssshhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh")},
 	{InvalidCostError(32), []byte("$2a$32$sssssssssssssssssssssshhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh")},

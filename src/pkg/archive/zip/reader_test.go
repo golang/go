@@ -70,7 +70,7 @@ var tests = []ZipTest{
 		},
 	},
 	{Name: "readme.zip"},
-	{Name: "readme.notzip", Error: FormatError},
+	{Name: "readme.notzip", Error: ErrFormat},
 	{
 		Name: "dd.zip",
 		File: []ZipTestFile{
@@ -131,7 +131,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
 	}
 
 	// bail if file is not zip
-	if err == FormatError {
+	if err == ErrFormat {
 		return
 	}
 	defer func() {
@@ -184,8 +184,8 @@ func readTestZip(t *testing.T, zt ZipTest) {
 		}
 		var b bytes.Buffer
 		_, err = io.Copy(&b, r)
-		if err != ChecksumError {
-			t.Errorf("%s: copy error=%v, want %v", z.File[0].Name, err, ChecksumError)
+		if err != ErrChecksum {
+			t.Errorf("%s: copy error=%v, want %v", z.File[0].Name, err, ErrChecksum)
 		}
 	}
 }
@@ -268,8 +268,8 @@ func TestInvalidFiles(t *testing.T) {
 
 	// zeroes
 	_, err := NewReader(sliceReaderAt(b), size)
-	if err != FormatError {
-		t.Errorf("zeroes: error=%v, want %v", err, FormatError)
+	if err != ErrFormat {
+		t.Errorf("zeroes: error=%v, want %v", err, ErrFormat)
 	}
 
 	// repeated directoryEndSignatures
@@ -279,8 +279,8 @@ func TestInvalidFiles(t *testing.T) {
 		copy(b[i:i+4], sig)
 	}
 	_, err = NewReader(sliceReaderAt(b), size)
-	if err != FormatError {
-		t.Errorf("sigs: error=%v, want %v", err, FormatError)
+	if err != ErrFormat {
+		t.Errorf("sigs: error=%v, want %v", err, ErrFormat)
 	}
 }
 
