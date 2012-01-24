@@ -171,7 +171,7 @@ func ScanDir(dir string) (info *DirInfo, err error) {
 // only by blank lines and other line comments.
 //
 // A build constraint is evaluated as the OR of space-separated options;
-// each option evaluates as the AND of ots comma-separated terms;
+// each option evaluates as the AND of its comma-separated terms;
 // and each term is an alphanumeric word or, preceded by !, its negation.
 // That is, the build constraint:
 //
