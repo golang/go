@@ -1957,7 +1957,7 @@ safeexpr(Node *n, NodeList **init)
 	return cheapexpr(n, init);
 }
 
-static Node*
+Node*
 copyexpr(Node *n, Type *t, NodeList **init)
 {
 	Node *a, *l;
@@ -3521,4 +3521,27 @@ strlit(char *s)
 	strcpy(t->s, s);
 	t->len = strlen(s);
 	return t;
+}
+
+void
+addinit(Node **np, NodeList *init)
+{
+	Node *n;
+	
+	if(init == nil)
+		return;
+
+	n = *np;
+	switch(n->op) {
+	case ONAME:
+	case OLITERAL:
+		// There may be multiple refs to this node;
+		// introduce OCONVNOP to hold init list.
+		n = nod(OCONVNOP, n, N);
+		n->type = n->left->type;
+		n->typecheck = 1;
+		*np = n;
+		break;
+	}
+	n->ninit = concat(init, n->ninit);
 }

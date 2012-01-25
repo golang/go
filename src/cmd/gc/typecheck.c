@@ -1161,6 +1161,7 @@ reswitch:
 			yyerror("missing argument to make");
 			goto error;
 		}
+		n->list = nil;
 		l = args->n;
 		args = args->next;
 		typecheck(&l, Etype);
