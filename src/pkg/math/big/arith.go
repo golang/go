@@ -79,7 +79,7 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 }
 
 // Length of x in bits.
-func bitLen(x Word) (n int) {
+func bitLen_g(x Word) (n int) {
 	for ; x >= 0x8000; x >>= 16 {
 		n += 16
 	}
