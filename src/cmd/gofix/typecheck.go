@@ -493,7 +493,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			// &x for x of type T has type *T.
 			t := typeof[n.X]
 			if t != "" && n.Op == token.AND {
-				typeof[n] = "&" + t
+				typeof[n] = "*" + t
 			}
 
 		case *ast.CompositeLit:

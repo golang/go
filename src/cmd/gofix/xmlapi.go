@@ -25,8 +25,22 @@ http://codereview.appspot.com/5574053
 
 var xmlapiTypeConfig = &TypeConfig{
 	Func: map[string]string{
-		"xml.NewParser": "xml.Parser",
+		"xml.NewParser":         "*xml.Parser",
+		"os.Open":               "*os.File",
+		"os.OpenFile":           "*os.File",
+		"bytes.NewBuffer":       "*bytes.Buffer",
+		"bytes.NewBufferString": "*bytes.Buffer",
+		"bufio.NewReader":       "*bufio.Reader",
+		"bufio.NewReadWriter":   "*bufio.ReadWriter",
 	},
+}
+
+var isReader = map[string]bool{
+	"*os.File":          true,
+	"*bytes.Buffer":     true,
+	"*bufio.Reader":     true,
+	"*bufio.ReadWriter": true,
+	"io.Reader":         true,
 }
 
 func xmlapi(f *ast.File) bool {
@@ -39,7 +53,7 @@ func xmlapi(f *ast.File) bool {
 	fixed := false
 	walk(f, func(n interface{}) {
 		s, ok := n.(*ast.SelectorExpr)
-		if ok && typeof[s.X] == "xml.Parser" && s.Sel.Name == "Unmarshal" {
+		if ok && typeof[s.X] == "*xml.Parser" && s.Sel.Name == "Unmarshal" {
 			s.Sel.Name = "DecodeElement"
 			fixed = true
 			return
@@ -58,10 +72,11 @@ func xmlapi(f *ast.File) bool {
 		case len(call.Args) == 2 && isPkgDot(call.Fun, "xml", "Marshal"):
 			*call = xmlMarshal(call.Args)
 			fixed = true
-		// Can't fix without further diving into the type of call.Args[0].
-		//case len(call.Args) == 2 && isPkgDot(call.Fun, "xml", "Unmarshal"):
-		//	*call = xmlUnmarshal(call.Args)
-		//	fixed = true
+		case len(call.Args) == 2 && isPkgDot(call.Fun, "xml", "Unmarshal"):
+			if isReader[typeof[call.Args[0]]] {
+				*call = xmlUnmarshal(call.Args)
+				fixed = true
+			}
 		case len(call.Args) == 1 && isPkgDot(call.Fun, "xml", "NewParser"):
 			sel := call.Fun.(*ast.SelectorExpr).Sel
 			sel.Name = "NewDecoder"
