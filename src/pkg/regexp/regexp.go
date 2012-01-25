@@ -66,13 +66,6 @@ import (
 
 var debug = false
 
-// Error is the local type for a parsing error.
-type Error string
-
-func (e Error) Error() string {
-	return string(e)
-}
-
 // Regexp is the representation of a compiled regular expression.
 // The public interface is entirely through methods.
 // A Regexp is safe for concurrent use by multiple goroutines.
