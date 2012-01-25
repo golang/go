@@ -171,6 +171,75 @@ var reqTests = []reqTest{
 		},
 		noError,
 	},
+
+	// CONNECT request with domain name:
+	{
+		"CONNECT www.google.com:443 HTTP/1.1\r\n\r\n",
+
+		&Request{
+			Method: "CONNECT",
+			URL: &url.URL{
+				Host: "www.google.com:443",
+			},
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			Header:        Header{},
+			Close:         false,
+			ContentLength: 0,
+			Host:          "www.google.com:443",
+		},
+
+		noBody,
+		noTrailer,
+		noError,
+	},
+
+	// CONNECT request with IP address:
+	{
+		"CONNECT 127.0.0.1:6060 HTTP/1.1\r\n\r\n",
+
+		&Request{
+			Method: "CONNECT",
+			URL: &url.URL{
+				Host: "127.0.0.1:6060",
+			},
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			Header:        Header{},
+			Close:         false,
+			ContentLength: 0,
+			Host:          "127.0.0.1:6060",
+		},
+
+		noBody,
+		noTrailer,
+		noError,
+	},
+
+	// CONNECT request for RPC:
+	{
+		"CONNECT /_goRPC_ HTTP/1.1\r\n\r\n",
+
+		&Request{
+			Method: "CONNECT",
+			URL: &url.URL{
+				Path: "/_goRPC_",
+			},
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			Header:        Header{},
+			Close:         false,
+			ContentLength: 0,
+			Host:          "",
+		},
+
+		noBody,
+		noTrailer,
+		noError,
+	},
 }
 
 func TestReadRequest(t *testing.T) {

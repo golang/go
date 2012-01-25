@@ -305,6 +305,9 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 	ruri := req.URL.RequestURI()
 	if usingProxy && req.URL.Scheme != "" && req.URL.Opaque == "" {
 		ruri = req.URL.Scheme + "://" + host + ruri
+	} else if req.Method == "CONNECT" && req.URL.Path == "" {
+		// CONNECT requests normally give just the host and port, not a full URL.
+		ruri = host
 	}
 	// TODO(bradfitz): escape at least newlines in ruri?
 
@@ -463,8 +466,27 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 		return nil, &badStringError{"malformed HTTP version", req.Proto}
 	}
 
+	// CONNECT requests are used two different ways, and neither uses a full URL:
+	// The standard use is to tunnel HTTPS through an HTTP proxy.
+	// It looks like "CONNECT www.google.com:443 HTTP/1.1", and the parameter is
+	// just the authority section of a URL. This information should go in req.URL.Host.
+	//
+	// The net/rpc package also uses CONNECT, but there the parameter is a path
+	// that starts with a slash. It can be parsed with the regular URL parser,
+	// and the path will end up in req.URL.Path, where it needs to be in order for
+	// RPC to work.
+	justAuthority := req.Method == "CONNECT" && !strings.HasPrefix(rawurl, "/")
+	if justAuthority {
+		rawurl = "http://" + rawurl
+	}
+
 	if req.URL, err = url.ParseRequest(rawurl); err != nil {
 		return nil, err
+	}
+
+	if justAuthority {
+		// Strip the bogus "http://" back off.
+		req.URL.Scheme = ""
 	}
 
 	// Subsequent lines: Key: value.
