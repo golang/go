@@ -41,6 +41,8 @@ import (
 	"utf16"
 	"utf8"
 	"xml"
+
+	"crypto/bcrypt"
 )
 `,
 		Out: `package main
@@ -73,6 +75,8 @@ import (
 	"text/template/parse"
 	"unicode/utf16"
 	"unicode/utf8"
+
+	"code.google.com/p/go.crypto/bcrypt"
 )
 `,
 	},
