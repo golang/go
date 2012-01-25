@@ -1,0 +1,31 @@
+// 
+PACKAGE e
+
+IMPORTPATH
+	testdata/e
+
+FILENAMES
+	testdata/e.go
+
+TYPES
+	// T1 has no (top-level) M method due to conflict. 
+	type T1 struct {
+		// contains filtered or unexported fields
+	}
+
+	// T2 has only M as top-level method. 
+	type T2 struct {
+		// contains filtered or unexported fields
+	}
+
+	// T2.M should appear as method of T2. 
+	func (T2) M()
+
+	// T3 has only M as top-level method. 
+	type T3 struct {
+		// contains filtered or unexported fields
+	}
+
+	// T3.M should appear as method of T3. 
+	func (T3) M()
+

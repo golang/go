@@ -7,7 +7,7 @@ package doc
 
 import (
 	"go/ast"
-	"sort"
+	"go/token"
 )
 
 // Package is the documentation for an entire package.
@@ -35,11 +35,12 @@ type Value struct {
 	order int
 }
 
+// Method is the documentation for a method declaration.
 type Method struct {
 	*Func
 	// TODO(gri) The following fields are not set at the moment. 
 	Origin *Type // original receiver base type
-	Level  int   // embedding level; 0 means Func is not embedded
+	Level  int   // embedding level; 0 means Method is not embedded
 }
 
 // Type is the documentation for type declaration.
@@ -54,9 +55,7 @@ type Type struct {
 	Funcs   []*Func   // sorted list of functions returning this type
 	Methods []*Method // sorted list of methods (including embedded ones) of this type
 
-	methods  []*Func   // top-level methods only
-	embedded methodSet // embedded methods only
-	order    int
+	order int
 }
 
 // Func is the documentation for a func declaration.
@@ -77,27 +76,22 @@ const (
 	AllDecls Mode = 1 << iota
 )
 
-// New computes the package documentation for the given package.
-func New(pkg *ast.Package, importpath string, mode Mode) *Package {
-	var r docReader
-	r.init(pkg.Name, mode)
-	filenames := make([]string, len(pkg.Files))
-	// sort package files before reading them so that the
-	// result is the same on different machines (32/64bit)
-	i := 0
-	for filename := range pkg.Files {
-		filenames[i] = filename
-		i++
+// New computes the package documentation for the given package AST.
+func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+	var r reader
+	r.readPackage(pkg, mode)
+	r.computeMethodSets()
+	r.cleanupTypes()
+	return &Package{
+		Doc:        r.doc,
+		Name:       pkg.Name,
+		ImportPath: importPath,
+		Imports:    sortedKeys(r.imports),
+		Filenames:  r.filenames,
+		Bugs:       r.bugs,
+		Consts:     sortedValues(r.values, token.CONST),
+		Types:      sortedTypes(r.types),
+		Vars:       sortedValues(r.values, token.VAR),
+		Funcs:      r.funcs.sortedFuncs(),
 	}
-	sort.Strings(filenames)
-
-	// process files in sorted order
-	for _, filename := range filenames {
-		f := pkg.Files[filename]
-		if mode&AllDecls == 0 {
-			r.fileExports(f)
-		}
-		r.addFile(f)
-	}
-	return r.newDoc(importpath, filenames)
 }

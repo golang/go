@@ -13,112 +13,235 @@ import (
 )
 
 // ----------------------------------------------------------------------------
-// Collection of documentation info
+// function/method sets
+//
+// Internally, we treat functions like methods and collect them in method sets.
+// TODO(gri): Consider eliminating the external distinction. Doesn't really buy
+//            much and would simplify code and API.
+
+// methodSet describes a set of methods. Entries where Func == nil are conflict
+// entries (more then one method with the same name at the same embedding level).
+//
+type methodSet map[string]*Method
+
+// set adds the function f to mset. If there are multiple f's with
+// the same name, set keeps the first one with documentation.
+//
+func (mset methodSet) set(f *ast.FuncDecl) {
+	name := f.Name.Name
+	if g, found := mset[name]; found && g.Doc != "" {
+		// A function with the same name has already been registered;
+		// since it has documentation, assume f is simply another
+		// implementation and ignore it. This does not happen if the
+		// caller is using build.ScanDir to determine the list of files
+		// implementing a package. 
+		// TODO(gri) consider collecting all functions, or at least
+		//           all comments
+		return
+	}
+	// function doesn't exist or has no documentation; use f
+	var recv ast.Expr
+	if f.Recv != nil {
+		// be careful in case of incorrect ASTs
+		if list := f.Recv.List; len(list) == 1 {
+			recv = list[0].Type
+		}
+	}
+	mset[name] = &Method{
+		Func: &Func{
+			Doc:  f.Doc.Text(),
+			Name: name,
+			Decl: f,
+			Recv: recv,
+		},
+	}
+	f.Doc = nil // doc consumed - remove from AST
+}
+
+// add adds method m to the method set; m is ignored if the method set
+// already contains a method with the same name at the same or a higher
+// level then m.
+//
+func (mset methodSet) add(m *Method) {
+	old := mset[m.Name]
+	if old == nil || m.Level < old.Level {
+		mset[m.Name] = m
+		return
+	}
+	if old != nil && m.Level == old.Level {
+		// conflict - mark it using a method with nil Func
+		mset[m.Name] = &Method{Level: m.Level}
+	}
+}
+
+func (mset methodSet) sortedFuncs() []*Func {
+	list := make([]*Func, len(mset))
+	i := 0
+	for _, m := range mset {
+		// exclude conflict entries
+		// (this should never happen for functions, but this code
+		// and the code in sortedMethods may be merged eventually,
+		// so leave it for symmetry).
+		if m.Func != nil {
+			list[i] = m.Func
+			i++
+		}
+	}
+	list = list[0:i]
+	sortBy(
+		func(i, j int) bool { return list[i].Name < list[j].Name },
+		func(i, j int) { list[i], list[j] = list[j], list[i] },
+		len(list),
+	)
+	return list
+}
+
+func (mset methodSet) sortedMethods() []*Method {
+	list := make([]*Method, len(mset))
+	i := 0
+	for _, m := range mset {
+		// exclude conflict entries
+		if m.Func != nil {
+			list[i] = m
+			i++
+		}
+	}
+	list = list[0:i]
+	sortBy(
+		func(i, j int) bool { return list[i].Name < list[j].Name },
+		func(i, j int) { list[i], list[j] = list[j], list[i] },
+		len(list),
+	)
+	return list
+}
+
+// ----------------------------------------------------------------------------
+// Base types
+
+// baseTypeName returns the name of the base type of x (or "")
+// and whether the type is imported or not.
+//
+func baseTypeName(x ast.Expr) (name string, imported bool) {
+	switch t := x.(type) {
+	case *ast.Ident:
+		return t.Name, false
+	case *ast.SelectorExpr:
+		if _, ok := t.X.(*ast.Ident); ok {
+			// only possible for qualified type names;
+			// assume type is imported
+			return t.Sel.Name, true
+		}
+	case *ast.StarExpr:
+		return baseTypeName(t.X)
+	}
+	return
+}
 
 // embeddedType describes the type of an anonymous field.
 //
 type embeddedType struct {
-	typ *typeInfo // the corresponding base type
+	typ *baseType // the corresponding base type
 	ptr bool      // if set, the anonymous field type is a pointer
 }
 
-type typeInfo struct {
-	name     string // base type name
-	isStruct bool
-	// len(decl.Specs) == 1, and the element type is *ast.TypeSpec
-	// if the type declaration hasn't been seen yet, decl is nil
-	decl     *ast.GenDecl
-	embedded []embeddedType
-	forward  *Type // forward link to processed type documentation
+type baseType struct {
+	doc  string       // doc comment for type
+	name string       // local type name (excluding package qualifier)
+	decl *ast.GenDecl // nil if declaration hasn't been seen yet
 
-	// declarations associated with the type
-	values    []*ast.GenDecl // consts and vars
-	factories map[string]*ast.FuncDecl
-	methods   map[string]*ast.FuncDecl
+	// associated declarations
+	values  []*Value // consts and vars
+	funcs   methodSet
+	methods methodSet
+
+	isEmbedded bool           // true if this type is embedded
+	isStruct   bool           // true if this type is a struct
+	embedded   []embeddedType // list of embedded types
 }
 
-func (info *typeInfo) exported() bool {
-	return ast.IsExported(info.name)
+func (typ *baseType) addEmbeddedType(e *baseType, isPtr bool) {
+	e.isEmbedded = true
+	typ.embedded = append(typ.embedded, embeddedType{e, isPtr})
 }
 
-func (info *typeInfo) addEmbeddedType(embedded *typeInfo, isPtr bool) {
-	info.embedded = append(info.embedded, embeddedType{embedded, isPtr})
-}
+// ----------------------------------------------------------------------------
+// AST reader
 
-// docReader accumulates documentation for a single package.
+// reader accumulates documentation for a single package.
 // It modifies the AST: Comments (declaration documentation)
-// that have been collected by the DocReader are set to nil
+// that have been collected by the reader are set to nil
 // in the respective AST nodes so that they are not printed
 // twice (once when printing the documentation and once when
 // printing the corresponding AST node).
 //
-type docReader struct {
-	doc      *ast.CommentGroup // package documentation, if any
-	pkgName  string
-	mode     Mode
-	imports  map[string]int
-	values   []*ast.GenDecl // consts and vars
-	types    map[string]*typeInfo
-	embedded map[string]*typeInfo // embedded types, possibly not exported
-	funcs    map[string]*ast.FuncDecl
-	bugs     []*ast.CommentGroup
+type reader struct {
+	mode Mode
+
+	// package properties
+	doc       string // package documentation, if any
+	filenames []string
+	bugs      []string
+
+	// declarations
+	imports map[string]int
+	values  []*Value // consts and vars
+	types   map[string]*baseType
+	funcs   methodSet
 }
 
-func (doc *docReader) init(pkgName string, mode Mode) {
-	doc.pkgName = pkgName
-	doc.mode = mode
-	doc.imports = make(map[string]int)
-	doc.types = make(map[string]*typeInfo)
-	doc.embedded = make(map[string]*typeInfo)
-	doc.funcs = make(map[string]*ast.FuncDecl)
+// isVisible reports whether name is visible in the documentation.
+//
+func (r *reader) isVisible(name string) bool {
+	return r.mode&AllDecls != 0 || ast.IsExported(name)
 }
 
-func (doc *docReader) addDoc(comments *ast.CommentGroup) {
-	if doc.doc == nil {
-		// common case: just one package comment
-		doc.doc = comments
-		return
-	}
-	// More than one package comment: Usually there will be only
-	// one file with a package comment, but it's better to collect
-	// all comments than drop them on the floor.
-	blankComment := &ast.Comment{token.NoPos, "//"}
-	list := append(doc.doc.List, blankComment)
-	doc.doc.List = append(list, comments.List...)
-}
-
-func (doc *docReader) lookupTypeInfo(name string) *typeInfo {
+// lookupType returns the base type with the given name.
+// If the base type has not been encountered yet, a new
+// type with the given name but no associated declaration
+// is added to the type map.
+//
+func (r *reader) lookupType(name string) *baseType {
 	if name == "" || name == "_" {
 		return nil // no type docs for anonymous types
 	}
-	if info, found := doc.types[name]; found {
-		return info
+	if typ, found := r.types[name]; found {
+		return typ
 	}
-	// type wasn't found - add one without declaration
-	info := &typeInfo{
-		name:      name,
-		factories: make(map[string]*ast.FuncDecl),
-		methods:   make(map[string]*ast.FuncDecl),
+	// type not found - add one without declaration
+	typ := &baseType{
+		name:    name,
+		funcs:   make(methodSet),
+		methods: make(methodSet),
 	}
-	doc.types[name] = info
-	return info
+	r.types[name] = typ
+	return typ
 }
 
-func baseTypeName(typ ast.Expr, allTypes bool) string {
-	switch t := typ.(type) {
-	case *ast.Ident:
-		// if the type is not exported, the effect to
-		// a client is as if there were no type name
-		if t.IsExported() || allTypes {
-			return t.Name
+func (r *reader) readDoc(comment *ast.CommentGroup) {
+	// By convention there should be only one package comment
+	// but collect all of them if there are more then one.
+	text := comment.Text()
+	if r.doc == "" {
+		r.doc = text
+		return
+	}
+	r.doc += "\n" + text
+}
+
+func specNames(specs []ast.Spec) []string {
+	names := make([]string, 0, len(specs)) // reasonable estimate
+	for _, s := range specs {
+		// s guaranteed to be an *ast.ValueSpec by readValue
+		for _, ident := range s.(*ast.ValueSpec).Names {
+			names = append(names, ident.Name)
 		}
-	case *ast.StarExpr:
-		return baseTypeName(t.X, allTypes)
 	}
-	return ""
+	return names
 }
 
-func (doc *docReader) addValue(decl *ast.GenDecl) {
+// readValue processes a const or var declaration.
+//
+func (r *reader) readValue(decl *ast.GenDecl) {
 	// determine if decl should be associated with a type
 	// Heuristic: For each typed entry, determine the type name, if any.
 	//            If there is exactly one type name that is sufficiently
@@ -126,91 +249,156 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
 	domName := ""
 	domFreq := 0
 	prev := ""
-	for _, s := range decl.Specs {
-		if v, ok := s.(*ast.ValueSpec); ok {
-			name := ""
-			switch {
-			case v.Type != nil:
-				// a type is present; determine its name
-				name = baseTypeName(v.Type, false)
-			case decl.Tok == token.CONST:
-				// no type is present but we have a constant declaration;
-				// use the previous type name (w/o more type information
-				// we cannot handle the case of unnamed variables with
-				// initializer expressions except for some trivial cases)
-				name = prev
-			}
-			if name != "" {
-				// entry has a named type
-				if domName != "" && domName != name {
-					// more than one type name - do not associate
-					// with any type
-					domName = ""
-					break
-				}
-				domName = name
-				domFreq++
-			}
-			prev = name
+	n := 0
+	for _, spec := range decl.Specs {
+		s, ok := spec.(*ast.ValueSpec)
+		if !ok {
+			continue // should not happen, but be conservative
 		}
+		name := ""
+		switch {
+		case s.Type != nil:
+			// a type is present; determine its name
+			if n, imp := baseTypeName(s.Type); !imp && r.isVisible(n) {
+				name = n
+			}
+		case decl.Tok == token.CONST:
+			// no type is present but we have a constant declaration;
+			// use the previous type name (w/o more type information
+			// we cannot handle the case of unnamed variables with
+			// initializer expressions except for some trivial cases)
+			name = prev
+		}
+		if name != "" {
+			// entry has a named type
+			if domName != "" && domName != name {
+				// more than one type name - do not associate
+				// with any type
+				domName = ""
+				break
+			}
+			domName = name
+			domFreq++
+		}
+		prev = name
+		n++
 	}
 
-	// determine values list
+	// nothing to do w/o a legal declaration
+	if n == 0 {
+		return
+	}
+
+	// determine values list with which to associate the Value for this decl
+	values := &r.values
 	const threshold = 0.75
-	values := &doc.values
 	if domName != "" && domFreq >= int(float64(len(decl.Specs))*threshold) {
 		// typed entries are sufficiently frequent
-		typ := doc.lookupTypeInfo(domName)
+		typ := r.lookupType(domName)
 		if typ != nil {
 			values = &typ.values // associate with that type
 		}
 	}
 
-	*values = append(*values, decl)
+	*values = append(*values, &Value{
+		Doc:   decl.Doc.Text(),
+		Names: specNames(decl.Specs),
+		Decl:  decl,
+		order: len(*values),
+	})
+	decl.Doc = nil // doc consumed - remove from AST
 }
 
-// Helper function to set the table entry for function f. Makes sure that
-// at least one f with associated documentation is stored in table, if there
-// are multiple f's with the same name.
-func setFunc(table map[string]*ast.FuncDecl, f *ast.FuncDecl) {
-	name := f.Name.Name
-	if g, exists := table[name]; exists && g.Doc != nil {
-		// a function with the same name has already been registered;
-		// since it has documentation, assume f is simply another
-		// implementation and ignore it
-		// TODO(gri) consider collecting all functions, or at least
-		//           all comments
-		return
+// fields returns a struct's fields or an interface's methods.
+//
+func fields(typ ast.Expr) (list []*ast.Field, isStruct bool) {
+	var fields *ast.FieldList
+	switch t := typ.(type) {
+	case *ast.StructType:
+		fields = t.Fields
+		isStruct = true
+	case *ast.InterfaceType:
+		fields = t.Methods
 	}
-	// function doesn't exist or has no documentation; use f
-	table[name] = f
+	if fields != nil {
+		list = fields.List
+	}
+	return
 }
 
-func (doc *docReader) addFunc(fun *ast.FuncDecl) {
+// readType processes a type declaration.
+//
+func (r *reader) readType(decl *ast.GenDecl, spec *ast.TypeSpec) {
+	typ := r.lookupType(spec.Name.Name)
+	if typ == nil {
+		return // no name or blank name - ignore the type
+	}
+
+	// A type should be added at most once, so info.decl
+	// should be nil - if it is not, simply overwrite it.
+	typ.decl = decl
+
+	// compute documentation
+	doc := spec.Doc
+	spec.Doc = nil // doc consumed - remove from AST
+	if doc == nil {
+		// no doc associated with the spec, use the declaration doc, if any
+		doc = decl.Doc
+	}
+	decl.Doc = nil // doc consumed - remove from AST
+	typ.doc = doc.Text()
+
+	// look for anonymous fields that might contribute methods
+	var list []*ast.Field
+	list, typ.isStruct = fields(spec.Type)
+	for _, field := range list {
+		if len(field.Names) == 0 {
+			// anonymous field - add corresponding field type to typ
+			n, imp := baseTypeName(field.Type)
+			if imp {
+				// imported type - we don't handle this case
+				// at the moment
+				return
+			}
+			if embedded := r.lookupType(n); embedded != nil {
+				_, ptr := field.Type.(*ast.StarExpr)
+				typ.addEmbeddedType(embedded, ptr)
+			}
+		}
+	}
+}
+
+// readFunc processes a func or method declaration.
+//
+func (r *reader) readFunc(fun *ast.FuncDecl) {
 	// strip function body
 	fun.Body = nil
 
 	// determine if it should be associated with a type
 	if fun.Recv != nil {
 		// method
-		recvTypeName := baseTypeName(fun.Recv.List[0].Type, true /* exported or not */ )
-		var typ *typeInfo
-		if ast.IsExported(recvTypeName) {
-			// exported recv type: if not found, add it to doc.types
-			typ = doc.lookupTypeInfo(recvTypeName)
+		recvTypeName, imp := baseTypeName(fun.Recv.List[0].Type)
+		if imp {
+			// should not happen (incorrect AST);
+			// don't show this method
+			return
+		}
+		var typ *baseType
+		if r.isVisible(recvTypeName) {
+			// visible recv type: if not found, add it to r.types
+			typ = r.lookupType(recvTypeName)
 		} else {
-			// unexported recv type: if not found, do not add it
-			// (unexported embedded types are added before this
+			// invisible recv type: if not found, do not add it
+			// (invisible embedded types are added before this
 			// phase, so if the type doesn't exist yet, we don't
 			// care about this method)
-			typ = doc.types[recvTypeName]
+			typ = r.types[recvTypeName]
 		}
 		if typ != nil {
-			// exported receiver type
 			// associate method with the type
 			// (if the type is not exported, it may be embedded
 			// somewhere so we need to collect the method anyway)
-			setFunc(typ.methods, fun)
+			typ.methods.set(fun)
 		}
 		// otherwise don't show the method
 		// TODO(gri): There may be exported methods of non-exported types
@@ -220,6 +408,9 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 		return
 	}
 
+	// determine funcs map with which to associate the Func for this declaration
+	funcs := r.funcs
+
 	// perhaps a factory function
 	// determine result type, if any
 	if fun.Type.Results.NumFields() >= 1 {
@@ -228,93 +419,18 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 			// exactly one (named or anonymous) result associated
 			// with the first type in result signature (there may
 			// be more than one result)
-			tname := baseTypeName(res.Type, false)
-			typ := doc.lookupTypeInfo(tname)
-			if typ != nil {
-				// named and exported result type
-				setFunc(typ.factories, fun)
-				return
+			if n, imp := baseTypeName(res.Type); !imp && r.isVisible(n) {
+				if typ := r.lookupType(n); typ != nil {
+					// associate Func with typ
+					funcs = typ.funcs
+				}
 			}
 		}
 	}
 
-	// ordinary function
-	setFunc(doc.funcs, fun)
-}
-
-func (doc *docReader) addDecl(decl ast.Decl) {
-	switch d := decl.(type) {
-	case *ast.GenDecl:
-		if len(d.Specs) > 0 {
-			switch d.Tok {
-			case token.IMPORT:
-				// imports are handled individually
-				for _, spec := range d.Specs {
-					if import_, err := strconv.Unquote(spec.(*ast.ImportSpec).Path.Value); err == nil {
-						doc.imports[import_] = 1
-					}
-				}
-			case token.CONST, token.VAR:
-				// constants and variables are always handled as a group
-				doc.addValue(d)
-			case token.TYPE:
-				// types are handled individually
-				for _, spec := range d.Specs {
-					tspec := spec.(*ast.TypeSpec)
-					// add the type to the documentation
-					info := doc.lookupTypeInfo(tspec.Name.Name)
-					if info == nil {
-						continue // no name - ignore the type
-					}
-					// Make a (fake) GenDecl node for this TypeSpec
-					// (we need to do this here - as opposed to just
-					// for printing - so we don't lose the GenDecl
-					// documentation). Since a new GenDecl node is
-					// created, there's no need to nil out d.Doc.
-					//
-					// TODO(gri): Consider just collecting the TypeSpec
-					// node (and copy in the GenDecl.doc if there is no
-					// doc in the TypeSpec - this is currently done in
-					// makeTypes below). Simpler data structures, but
-					// would lose GenDecl documentation if the TypeSpec
-					// has documentation as well.
-					fake := &ast.GenDecl{d.Doc, d.Pos(), token.TYPE, token.NoPos,
-						[]ast.Spec{tspec}, token.NoPos}
-					// A type should be added at most once, so info.decl
-					// should be nil - if it isn't, simply overwrite it.
-					info.decl = fake
-					// Look for anonymous fields that might contribute methods.
-					var fields *ast.FieldList
-					switch typ := spec.(*ast.TypeSpec).Type.(type) {
-					case *ast.StructType:
-						fields = typ.Fields
-						info.isStruct = true
-					case *ast.InterfaceType:
-						fields = typ.Methods
-					}
-					if fields != nil {
-						for _, field := range fields.List {
-							if len(field.Names) == 0 {
-								// anonymous field - add corresponding type
-								// to the info and collect it in doc
-								name := baseTypeName(field.Type, true)
-								if embedded := doc.lookupTypeInfo(name); embedded != nil {
-									_, ptr := field.Type.(*ast.StarExpr)
-									info.addEmbeddedType(embedded, ptr)
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	case *ast.FuncDecl:
-		doc.addFunc(d)
-	}
-}
-
-func copyCommentList(list []*ast.Comment) []*ast.Comment {
-	return append([]*ast.Comment(nil), list...)
+	// associate the Func
+	funcs.set(fun)
+	fun.Doc = nil // doc consumed - remove from AST
 }
 
 var (
@@ -322,19 +438,51 @@ var (
 	bug_content = regexp.MustCompile("[^ \n\r\t]+")                    // at least one non-whitespace char
 )
 
-// addFile adds the AST for a source file to the docReader.
-// Adding the same AST multiple times is a no-op.
+// readFile adds the AST for a source file to the reader.
 //
-func (doc *docReader) addFile(src *ast.File) {
+func (r *reader) readFile(src *ast.File) {
 	// add package documentation
 	if src.Doc != nil {
-		doc.addDoc(src.Doc)
-		src.Doc = nil // doc consumed - remove from ast.File node
+		r.readDoc(src.Doc)
+		src.Doc = nil // doc consumed - remove from AST
 	}
 
 	// add all declarations
 	for _, decl := range src.Decls {
-		doc.addDecl(decl)
+		switch d := decl.(type) {
+		case *ast.GenDecl:
+			switch d.Tok {
+			case token.IMPORT:
+				// imports are handled individually
+				for _, spec := range d.Specs {
+					if s, ok := spec.(*ast.ImportSpec); ok {
+						if import_, err := strconv.Unquote(s.Path.Value); err == nil {
+							r.imports[import_] = 1
+						}
+					}
+				}
+			case token.CONST, token.VAR:
+				// constants and variables are always handled as a group
+				r.readValue(d)
+			case token.TYPE:
+				// types are handled individually
+				for _, spec := range d.Specs {
+					if s, ok := spec.(*ast.TypeSpec); ok {
+						// use an individual (possibly fake) declaration
+						// for each type; this also ensures that each type
+						// gets to (re-)use the declaration documentation
+						// if there's none associated with the spec itself
+						fake := &ast.GenDecl{
+							d.Doc, d.Pos(), token.TYPE, token.NoPos,
+							[]ast.Spec{s}, token.NoPos,
+						}
+						r.readType(fake, s)
+					}
+				}
+			}
+		case *ast.FuncDecl:
+			r.readFunc(d)
+		}
 	}
 
 	// collect BUG(...) comments
@@ -344,300 +492,75 @@ func (doc *docReader) addFile(src *ast.File) {
 			// found a BUG comment; maybe empty
 			if btxt := text[m[1]:]; bug_content.MatchString(btxt) {
 				// non-empty BUG comment; collect comment without BUG prefix
-				list := copyCommentList(c.List)
+				list := append([]*ast.Comment(nil), c.List...) // make a copy
 				list[0].Text = text[m[1]:]
-				doc.bugs = append(doc.bugs, &ast.CommentGroup{list})
+				r.bugs = append(r.bugs, (&ast.CommentGroup{list}).Text())
 			}
 		}
 	}
-	src.Comments = nil // consumed unassociated comments - remove from ast.File node
+	src.Comments = nil // consumed unassociated comments - remove from AST
+}
+
+func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
+	// initialize reader
+	r.filenames = make([]string, len(pkg.Files))
+	r.imports = make(map[string]int)
+	r.mode = mode
+	r.types = make(map[string]*baseType)
+	r.funcs = make(methodSet)
+
+	// sort package files before reading them so that the
+	// result result does not depend on map iteration order
+	i := 0
+	for filename := range pkg.Files {
+		r.filenames[i] = filename
+		i++
+	}
+	sort.Strings(r.filenames)
+
+	// process files in sorted order
+	for _, filename := range r.filenames {
+		f := pkg.Files[filename]
+		if mode&AllDecls == 0 {
+			r.fileExports(f)
+		}
+		r.readFile(f)
+	}
 }
 
 // ----------------------------------------------------------------------------
-// Conversion to external representation
+// Types
 
-func (doc *docReader) makeImports() []string {
-	list := make([]string, len(doc.imports))
-	i := 0
-	for import_ := range doc.imports {
-		list[i] = import_
-		i++
-	}
-	sort.Strings(list)
-	return list
+var predeclaredTypes = map[string]bool{
+	"bool":       true,
+	"byte":       true,
+	"complex64":  true,
+	"complex128": true,
+	"float32":    true,
+	"float64":    true,
+	"int":        true,
+	"int8":       true,
+	"int16":      true,
+	"int32":      true,
+	"int64":      true,
+	"string":     true,
+	"uint":       true,
+	"uint8":      true,
+	"uint16":     true,
+	"uint32":     true,
+	"uint64":     true,
+	"uintptr":    true,
 }
 
-type sortValue []*Value
+func customizeRecv(m *Method, recvTypeName string, embeddedIsPtr bool, level int) *Method {
+	f := m.Func
 
-func (p sortValue) Len() int      { return len(p) }
-func (p sortValue) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-
-func declName(d *ast.GenDecl) string {
-	if len(d.Specs) != 1 {
-		return ""
-	}
-
-	switch v := d.Specs[0].(type) {
-	case *ast.ValueSpec:
-		return v.Names[0].Name
-	case *ast.TypeSpec:
-		return v.Name.Name
-	}
-
-	return ""
-}
-
-func (p sortValue) Less(i, j int) bool {
-	// sort by name
-	// pull blocks (name = "") up to top
-	// in original order
-	if ni, nj := declName(p[i].Decl), declName(p[j].Decl); ni != nj {
-		return ni < nj
-	}
-	return p[i].order < p[j].order
-}
-
-func specNames(specs []ast.Spec) []string {
-	names := make([]string, len(specs)) // reasonable estimate
-	for _, s := range specs {
-		// should always be an *ast.ValueSpec, but be careful
-		if s, ok := s.(*ast.ValueSpec); ok {
-			for _, ident := range s.Names {
-				names = append(names, ident.Name)
-			}
-		}
-	}
-	return names
-}
-
-func makeValues(list []*ast.GenDecl, tok token.Token) []*Value {
-	d := make([]*Value, len(list)) // big enough in any case
-	n := 0
-	for i, decl := range list {
-		if decl.Tok == tok {
-			d[n] = &Value{decl.Doc.Text(), specNames(decl.Specs), decl, i}
-			n++
-			decl.Doc = nil // doc consumed - removed from AST
-		}
-	}
-	d = d[0:n]
-	sort.Sort(sortValue(d))
-	return d
-}
-
-type sortFunc []*Func
-
-func (p sortFunc) Len() int           { return len(p) }
-func (p sortFunc) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p sortFunc) Less(i, j int) bool { return p[i].Name < p[j].Name }
-
-func makeFuncs(m map[string]*ast.FuncDecl) []*Func {
-	d := make([]*Func, len(m))
-	i := 0
-	for _, f := range m {
-		doc := new(Func)
-		doc.Doc = f.Doc.Text()
-		f.Doc = nil // doc consumed - remove from ast.FuncDecl node
-		if f.Recv != nil {
-			doc.Recv = f.Recv.List[0].Type
-		}
-		doc.Name = f.Name.Name
-		doc.Decl = f
-		d[i] = doc
-		i++
-	}
-	sort.Sort(sortFunc(d))
-	return d
-}
-
-type methodSet map[string]*Func
-
-func (mset methodSet) add(m *Func) {
-	if mset[m.Name] == nil {
-		mset[m.Name] = m
-	}
-}
-
-type sortMethod []*Method
-
-func (p sortMethod) Len() int           { return len(p) }
-func (p sortMethod) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p sortMethod) Less(i, j int) bool { return p[i].Func.Name < p[j].Func.Name }
-
-func (mset methodSet) sortedList() []*Method {
-	list := make([]*Method, len(mset))
-	i := 0
-	for _, m := range mset {
-		list[i] = &Method{Func: m}
-		i++
-	}
-	sort.Sort(sortMethod(list))
-	return list
-}
-
-type sortType []*Type
-
-func (p sortType) Len() int      { return len(p) }
-func (p sortType) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-func (p sortType) Less(i, j int) bool {
-	// sort by name
-	// pull blocks (name = "") up to top
-	// in original order
-	if ni, nj := p[i].Name, p[j].Name; ni != nj {
-		return ni < nj
-	}
-	return p[i].order < p[j].order
-}
-
-// NOTE(rsc): This would appear not to be correct for type ( )
-// blocks, but the doc extractor above has split them into
-// individual declarations.
-func (doc *docReader) makeTypes(m map[string]*typeInfo) []*Type {
-	// TODO(gri) Consider computing the embedded method information
-	//           before calling makeTypes. Then this function can
-	//           be single-phased again. Also, it might simplify some
-	//           of the logic.
-	//
-	// phase 1: associate collected declarations with Types
-	list := make([]*Type, len(m))
-	i := 0
-	for _, old := range m {
-		// old typeInfos may not have a declaration associated with them
-		// if they are not exported but embedded, or because the package
-		// is incomplete.
-		if decl := old.decl; decl != nil || !old.exported() {
-			// process the type even if not exported so that we have
-			// its methods in case they are embedded somewhere
-			t := new(Type)
-			t.Name = old.name
-			if decl != nil {
-				typespec := decl.Specs[0].(*ast.TypeSpec)
-				doc := typespec.Doc
-				typespec.Doc = nil // doc consumed - remove from ast.TypeSpec node
-				if doc == nil {
-					// no doc associated with the spec, use the declaration doc, if any
-					doc = decl.Doc
-				}
-				decl.Doc = nil // doc consumed - remove from ast.Decl node
-				t.Doc = doc.Text()
-			}
-			t.Consts = makeValues(old.values, token.CONST)
-			t.Vars = makeValues(old.values, token.VAR)
-			t.Funcs = makeFuncs(old.factories)
-			t.methods = makeFuncs(old.methods)
-			// The list of embedded types' methods is computed from the list
-			// of embedded types, some of which may not have been processed
-			// yet (i.e., their forward link is nil) - do this in a 2nd phase.
-			// The final list of methods can only be computed after that -
-			// do this in a 3rd phase.
-			t.Decl = old.decl
-			t.order = i
-			old.forward = t // old has been processed
-			// only add the type to the final type list if it
-			// is exported or if we want to see all types
-			if old.exported() || doc.mode&AllDecls != 0 {
-				list[i] = t
-				i++
-			}
-		} else {
-			// no corresponding type declaration found - move any associated
-			// values, factory functions, and methods back to the top-level
-			// so that they are not lost (this should only happen if a package
-			// file containing the explicit type declaration is missing or if
-			// an unqualified type name was used after a "." import)
-			// 1) move values
-			doc.values = append(doc.values, old.values...)
-			// 2) move factory functions
-			for name, f := range old.factories {
-				doc.funcs[name] = f
-			}
-			// 3) move methods
-			for name, f := range old.methods {
-				// don't overwrite functions with the same name
-				if _, found := doc.funcs[name]; !found {
-					doc.funcs[name] = f
-				}
-			}
-		}
-	}
-	list = list[0:i] // some types may have been ignored
-
-	// phase 2: collect embedded methods for each processed typeInfo
-	for _, old := range m {
-		if t := old.forward; t != nil {
-			// old has been processed into t; collect embedded
-			// methods for t from the list of processed embedded
-			// types in old (and thus for which the methods are known)
-			if old.isStruct {
-				// struct
-				t.embedded = make(methodSet)
-				collectEmbeddedMethods(t.embedded, old, old.name, false)
-			} else {
-				// interface
-				// TODO(gri) fix this
-			}
-		}
-	}
-
-	// phase 3: compute final method set for each Type
-	for _, d := range list {
-		if len(d.embedded) > 0 {
-			// there are embedded methods - exclude
-			// the ones with names conflicting with
-			// non-embedded methods
-			mset := make(methodSet)
-			// top-level methods have priority
-			for _, m := range d.methods {
-				mset.add(m)
-			}
-			// add non-conflicting embedded methods
-			for _, m := range d.embedded {
-				mset.add(m)
-			}
-			d.Methods = mset.sortedList()
-		} else {
-			// no embedded methods - convert into a Method list
-			d.Methods = make([]*Method, len(d.methods))
-			for i, m := range d.methods {
-				d.Methods[i] = &Method{Func: m}
-			}
-		}
-	}
-
-	sort.Sort(sortType(list))
-	return list
-}
-
-// collectEmbeddedMethods collects the embedded methods from all
-// processed embedded types found in info in mset. It considers
-// embedded types at the most shallow level first so that more
-// deeply nested embedded methods with conflicting names are
-// excluded.
-//
-func collectEmbeddedMethods(mset methodSet, info *typeInfo, recvTypeName string, embeddedIsPtr bool) {
-	for _, e := range info.embedded {
-		if e.typ.forward != nil { // == e was processed
-			// Once an embedded type was embedded as a pointer type
-			// all embedded types in those types are treated like
-			// pointer types for the purpose of the receiver type
-			// computation; i.e., embeddedIsPtr is sticky for this
-			// embedding hierarchy.
-			thisEmbeddedIsPtr := embeddedIsPtr || e.ptr
-			for _, m := range e.typ.forward.methods {
-				mset.add(customizeRecv(m, thisEmbeddedIsPtr, recvTypeName))
-			}
-			collectEmbeddedMethods(mset, e.typ, recvTypeName, thisEmbeddedIsPtr)
-		}
-	}
-}
-
-func customizeRecv(m *Func, embeddedIsPtr bool, recvTypeName string) *Func {
-	if m == nil || m.Decl == nil || m.Decl.Recv == nil || len(m.Decl.Recv.List) != 1 {
+	if f == nil || f.Decl == nil || f.Decl.Recv == nil || len(f.Decl.Recv.List) != 1 {
 		return m // shouldn't happen, but be safe
 	}
 
 	// copy existing receiver field and set new type
-	newField := *m.Decl.Recv.List[0]
+	newField := *f.Decl.Recv.List[0]
 	_, origRecvIsPtr := newField.Type.(*ast.StarExpr)
 	var typ ast.Expr = ast.NewIdent(recvTypeName)
 	if !embeddedIsPtr && origRecvIsPtr {
@@ -646,46 +569,192 @@ func customizeRecv(m *Func, embeddedIsPtr bool, recvTypeName string) *Func {
 	newField.Type = typ
 
 	// copy existing receiver field list and set new receiver field
-	newFieldList := *m.Decl.Recv
+	newFieldList := *f.Decl.Recv
 	newFieldList.List = []*ast.Field{&newField}
 
 	// copy existing function declaration and set new receiver field list
-	newFuncDecl := *m.Decl
+	newFuncDecl := *f.Decl
 	newFuncDecl.Recv = &newFieldList
 
 	// copy existing function documentation and set new declaration
-	newM := *m
-	newM.Decl = &newFuncDecl
-	newM.Recv = typ
+	newF := *f
+	newF.Decl = &newFuncDecl
+	newF.Recv = typ
 
-	return &newM
-}
-
-func makeBugs(list []*ast.CommentGroup) []string {
-	d := make([]string, len(list))
-	for i, g := range list {
-		d[i] = g.Text()
+	return &Method{
+		Func:   &newF,
+		Origin: nil, // TODO(gri) set this
+		Level:  level,
 	}
-	return d
 }
 
-// newDoc returns the accumulated documentation for the package.
+// collectEmbeddedMethods collects the embedded methods from
+// all processed embedded types found in info in mset.
 //
-func (doc *docReader) newDoc(importpath string, filenames []string) *Package {
-	p := new(Package)
-	p.Name = doc.pkgName
-	p.ImportPath = importpath
-	sort.Strings(filenames)
-	p.Filenames = filenames
-	p.Doc = doc.doc.Text()
-	// makeTypes may extend the list of doc.values and
-	// doc.funcs and thus must be called before any other
-	// function consuming those lists
-	p.Types = doc.makeTypes(doc.types)
-	p.Imports = doc.makeImports()
-	p.Consts = makeValues(doc.values, token.CONST)
-	p.Vars = makeValues(doc.values, token.VAR)
-	p.Funcs = makeFuncs(doc.funcs)
-	p.Bugs = makeBugs(doc.bugs)
-	return p
+func collectEmbeddedMethods(mset methodSet, typ *baseType, recvTypeName string, embeddedIsPtr bool, level int) {
+	for _, e := range typ.embedded {
+		// Once an embedded type is embedded as a pointer type
+		// all embedded types in those types are treated like
+		// pointer types for the purpose of the receiver type
+		// computation; i.e., embeddedIsPtr is sticky for this
+		// embedding hierarchy.
+		thisEmbeddedIsPtr := embeddedIsPtr || e.ptr
+		for _, m := range e.typ.methods {
+			// only top-level methods are embedded
+			if m.Level == 0 {
+				mset.add(customizeRecv(m, recvTypeName, thisEmbeddedIsPtr, level))
+			}
+		}
+		collectEmbeddedMethods(mset, e.typ, recvTypeName, thisEmbeddedIsPtr, level+1)
+	}
+}
+
+// computeMethodSets determines the actual method sets for each type encountered.
+//
+func (r *reader) computeMethodSets() {
+	for _, t := range r.types {
+		// collect embedded methods for t
+		if t.isStruct {
+			// struct
+			collectEmbeddedMethods(t.methods, t, t.name, false, 1)
+		} else {
+			// interface
+			// TODO(gri) fix this
+		}
+	}
+}
+
+// cleanupTypes removes the association of functions and methods with
+// types that have no declaration. Instead, these functions and methods
+// are shown at the package level. It also removes types with missing
+// declarations or which are not visible.
+// 
+func (r *reader) cleanupTypes() {
+	for _, t := range r.types {
+		visible := r.isVisible(t.name)
+		if t.decl == nil && (predeclaredTypes[t.name] || t.isEmbedded && visible) {
+			// t.name is a predeclared type (and was not redeclared in this package),
+			// or it was embedded somewhere but its declaration is missing (because
+			// the AST is incomplete): move any associated values, funcs, and methods
+			// back to the top-level so that they are not lost.
+			// 1) move values
+			r.values = append(r.values, t.values...)
+			// 2) move factory functions
+			for name, f := range t.funcs {
+				r.funcs[name] = f
+			}
+			// 3) move methods
+			for name, m := range t.methods {
+				// don't overwrite functions with the same name - drop them
+				if _, found := r.funcs[name]; !found {
+					r.funcs[name] = m
+				}
+			}
+		}
+		// remove types w/o declaration or which are not visible
+		if t.decl == nil || !visible {
+			delete(r.types, t.name)
+		}
+	}
+}
+
+// ----------------------------------------------------------------------------
+// Sorting
+
+type data struct {
+	n    int
+	swap func(i, j int)
+	less func(i, j int) bool
+}
+
+func (d *data) Len() int           { return d.n }
+func (d *data) Swap(i, j int)      { d.swap(i, j) }
+func (d *data) Less(i, j int) bool { return d.less(i, j) }
+
+// sortBy is a helper function for sorting
+func sortBy(less func(i, j int) bool, swap func(i, j int), n int) {
+	sort.Sort(&data{n, swap, less})
+}
+
+func sortedKeys(m map[string]int) []string {
+	list := make([]string, len(m))
+	i := 0
+	for key := range m {
+		list[i] = key
+		i++
+	}
+	sort.Strings(list)
+	return list
+}
+
+// sortingName returns the name to use when sorting d into place.
+//
+func sortingName(d *ast.GenDecl) string {
+	// TODO(gri): Should actual grouping (presence of ()'s) rather
+	//            then the number of specs determine sort criteria?
+	//            (as is, a group w/ one element is sorted alphabetically)
+	if len(d.Specs) == 1 {
+		switch s := d.Specs[0].(type) {
+		case *ast.ValueSpec:
+			return s.Names[0].Name
+		case *ast.TypeSpec:
+			return s.Name.Name
+		}
+	}
+	return ""
+}
+
+func sortedValues(m []*Value, tok token.Token) []*Value {
+	list := make([]*Value, len(m)) // big enough in any case
+	i := 0
+	for _, val := range m {
+		if val.Decl.Tok == tok {
+			list[i] = val
+			i++
+		}
+	}
+	list = list[0:i]
+
+	sortBy(
+		func(i, j int) bool {
+			if ni, nj := sortingName(list[i].Decl), sortingName(list[j].Decl); ni != nj {
+				return ni < nj
+			}
+			return list[i].order < list[j].order
+		},
+		func(i, j int) { list[i], list[j] = list[j], list[i] },
+		len(list),
+	)
+
+	return list
+}
+
+func sortedTypes(m map[string]*baseType) []*Type {
+	list := make([]*Type, len(m))
+	i := 0
+	for _, t := range m {
+		list[i] = &Type{
+			Doc:     t.doc,
+			Name:    t.name,
+			Decl:    t.decl,
+			Consts:  sortedValues(t.values, token.CONST),
+			Vars:    sortedValues(t.values, token.VAR),
+			Funcs:   t.funcs.sortedFuncs(),
+			Methods: t.methods.sortedMethods(),
+		}
+		i++
+	}
+
+	sortBy(
+		func(i, j int) bool {
+			if ni, nj := sortingName(list[i].Decl), sortingName(list[j].Decl); ni != nj {
+				return ni < nj
+			}
+			return list[i].order < list[j].order
+		},
+		func(i, j int) { list[i], list[j] = list[j], list[i] },
+		len(list),
+	)
+
+	return list
 }
