@@ -23,6 +23,9 @@ func UnlockOSThread()
 // This call will go away when the scheduler improves.
 func GOMAXPROCS(n int) int
 
+// NumCPU returns the number of logical CPUs on the local machine.
+func NumCPU() int
+
 // Cgocalls returns the number of cgo calls made by the current process.
 func Cgocalls() int64
 
