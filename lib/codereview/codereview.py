@@ -974,6 +974,7 @@ def ReadContributors(ui, repo):
 		ui.write("warning: cannot open %s: %s\n" % (opening, ExceptionDetail()))
 		return
 
+	contributors = {}
 	for line in f:
 		# CONTRIBUTORS is a list of lines like:
 		#	Person <email>
@@ -1106,9 +1107,7 @@ def hg_matchPattern(ui, repo, *pats, **opts):
 
 def hg_heads(ui, repo):
 	w = uiwrap(ui)
-	ret = hg_commands.heads(ui, repo)
-	if ret:
-		raise hg_util.Abort(ret)
+	hg_commands.heads(ui, repo)
 	return w.output()
 
 noise = [
@@ -1928,7 +1927,7 @@ def submit(ui, repo, *pats, **opts):
 	# push to remote; if it fails for any reason, roll back
 	try:
 		new_heads = len(hg_heads(ui, repo).split())
-		if old_heads != new_heads:
+		if old_heads != new_heads and not (old_heads == 0 and new_heads == 1):
 			# Created new head, so we weren't up to date.
 			need_sync()
 
