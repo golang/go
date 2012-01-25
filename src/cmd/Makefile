@@ -43,7 +43,6 @@ CLEANDIRS=\
 	goinstall\
 	gotest\
 	goyacc\
-	hgpatch\
 
 install: $(patsubst %,%.install,$(DIRS))
 clean: $(patsubst %,%.clean,$(CLEANDIRS))
