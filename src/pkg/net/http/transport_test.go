@@ -304,6 +304,66 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 	}
 }
 
+// Test for http://golang.org/issue/2616 (appropriate issue number)
+// This fails pretty reliably with GOMAXPROCS=100 or something high.
+func TestStressSurpriseServerCloses(t *testing.T) {
+	if true {
+		t.Logf("known broken test; fix coming. Issue 2616")
+		return
+	}
+	if testing.Short() {
+		t.Logf("skipping test in short mode")
+		return
+	}
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Length", "5")
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte("Hello"))
+		w.(Flusher).Flush()
+		conn, buf, _ := w.(Hijacker).Hijack()
+		buf.Flush()
+		conn.Close()
+	}))
+	defer ts.Close()
+
+	tr := &Transport{DisableKeepAlives: false}
+	c := &Client{Transport: tr}
+
+	// Do a bunch of traffic from different goroutines. Send to activityc
+	// after each request completes, regardless of whether it failed.
+	const (
+		numClients    = 50
+		reqsPerClient = 250
+	)
+	activityc := make(chan bool)
+	for i := 0; i < numClients; i++ {
+		go func() {
+			for i := 0; i < reqsPerClient; i++ {
+				res, err := c.Get(ts.URL)
+				if err == nil {
+					// We expect errors since the server is
+					// hanging up on us after telling us to
+					// send more requests, so we don't
+					// actually care what the error is.
+					// But we want to close the body in cases
+					// where we won the race.
+					res.Body.Close()
+				}
+				activityc <- true
+			}
+		}()
+	}
+
+	// Make sure all the request come back, one way or another.
+	for i := 0; i < numClients*reqsPerClient; i++ {
+		select {
+		case <-activityc:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("presumed deadlock; no HTTP client activity seen in awhile")
+		}
+	}
+}
+
 // TestTransportHeadResponses verifies that we deal with Content-Lengths
 // with no bodies properly
 func TestTransportHeadResponses(t *testing.T) {
