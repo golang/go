@@ -75,6 +75,10 @@ type printer struct {
 
 	// Cache of already computed node sizes.
 	nodeSizes map[ast.Node]int
+
+	// Cache of most recently computed line position.
+	cachedPos  token.Pos
+	cachedLine int // line corresponding to cachedPos
 }
 
 func (p *printer) init(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]int) {
@@ -82,6 +86,7 @@ func (p *printer) init(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]
 	p.fset = fset
 	p.wsbuf = make([]whiteSpace, 0, 16) // whitespace sequences are short
 	p.nodeSizes = nodeSizes
+	p.cachedPos = -1
 }
 
 func (p *printer) internalError(msg ...interface{}) {
@@ -90,6 +95,19 @@ func (p *printer) internalError(msg ...interface{}) {
 		fmt.Println(msg...)
 		panic("go/printer")
 	}
+}
+
+func (p *printer) posFor(pos token.Pos) token.Position {
+	// not used frequently enough to cache entire token.Position
+	return p.fset.Position(pos)
+}
+
+func (p *printer) lineFor(pos token.Pos) int {
+	if pos != p.cachedPos {
+		p.cachedPos = pos
+		p.cachedLine = p.fset.Position(pos).Line
+	}
+	return p.cachedLine
 }
 
 // writeByte writes ch to p.output and updates p.pos.
@@ -529,7 +547,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 
 	// shortcut common case of //-style comments
 	if text[1] == '/' {
-		p.writeItem(p.fset.Position(comment.Pos()), text, true)
+		p.writeItem(p.posFor(comment.Pos()), text, true)
 		return
 	}
 
@@ -540,7 +558,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 
 	// write comment lines, separated by formfeed,
 	// without a line break after the last line
-	pos := p.fset.Position(comment.Pos())
+	pos := p.posFor(comment.Pos())
 	for i, line := range lines {
 		if i > 0 {
 			p.writeByte('\f')
@@ -602,14 +620,14 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
 	var last *ast.Comment
 	for ; p.commentBefore(next); p.cindex++ {
 		for _, c := range p.comments[p.cindex].List {
-			p.writeCommentPrefix(p.fset.Position(c.Pos()), next, last, c, tok.IsKeyword())
+			p.writeCommentPrefix(p.posFor(c.Pos()), next, last, c, tok.IsKeyword())
 			p.writeComment(c)
 			last = c
 		}
 	}
 
 	if last != nil {
-		if last.Text[1] == '*' && p.fset.Position(last.Pos()).Line == next.Line {
+		if last.Text[1] == '*' && p.lineFor(last.Pos()) == next.Line {
 			// the last comment is a /*-style comment and the next item
 			// follows on the same line: separate with an extra blank
 			p.writeByte(' ')
@@ -770,7 +788,7 @@ func (p *printer) print(args ...interface{}) {
 			tok = x
 		case token.Pos:
 			if x.IsValid() {
-				next = p.fset.Position(x) // accurate position of next item
+				next = p.posFor(x) // accurate position of next item
 			}
 			tok = p.lastTok
 		case string:
@@ -813,7 +831,7 @@ func (p *printer) print(args ...interface{}) {
 // before the next position in the source code.
 //
 func (p *printer) commentBefore(next token.Position) bool {
-	return p.cindex < len(p.comments) && p.fset.Position(p.comments[p.cindex].List[0].Pos()).Offset < next.Offset
+	return p.cindex < len(p.comments) && p.posFor(p.comments[p.cindex].List[0].Pos()).Offset < next.Offset
 }
 
 // Flush prints any pending comments and whitespace occurring textually
