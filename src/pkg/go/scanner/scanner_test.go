@@ -281,7 +281,7 @@ func TestScan(t *testing.T) {
 	}
 }
 
-func checkSemi(t *testing.T, line string, mode uint) {
+func checkSemi(t *testing.T, line string, mode Mode) {
 	var S Scanner
 	file := fset.AddFile("TestSemis", fset.Base(), len(line))
 	S.Init(file, []byte(line), nil, mode)

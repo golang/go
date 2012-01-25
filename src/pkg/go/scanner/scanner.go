@@ -40,7 +40,7 @@ type Scanner struct {
 	dir  string       // directory portion of file.Name()
 	src  []byte       // source
 	err  ErrorHandler // error reporting; or nil
-	mode uint         // scanning mode
+	mode Mode         // scanning mode
 
 	// scanning state
 	ch         rune // current character
@@ -86,12 +86,14 @@ func (S *Scanner) next() {
 	}
 }
 
-// The mode parameter to the Init function is a set of flags (or 0).
+// A mode value is set of flags (or 0).
 // They control scanner behavior.
 //
+type Mode uint
+
 const (
-	ScanComments    = 1 << iota // return comments as COMMENT tokens
-	dontInsertSemis             // do not automatically insert semicolons - for testing only
+	ScanComments    Mode = 1 << iota // return comments as COMMENT tokens
+	dontInsertSemis                  // do not automatically insert semicolons - for testing only
 )
 
 // Init prepares the scanner S to tokenize the text src by setting the
@@ -109,7 +111,7 @@ const (
 // Note that Init may call err if there is an error in the first character
 // of the file.
 //
-func (S *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode uint) {
+func (S *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode) {
 	// Explicitly initialize all fields since a scanner may be reused.
 	if file.Size() != len(src) {
 		panic("file size does not match src len")
