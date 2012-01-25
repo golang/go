@@ -955,14 +955,23 @@ def CheckTabfmt(ui, repo, files, just_warn):
 #######################################################################
 # CONTRIBUTORS file parsing
 
-contributors = {}
+contributorsCache = None
+contributorsURL = None
 
 def ReadContributors(ui, repo):
-	global contributors
+	global contributorsCache
+	if contributorsCache is not None:
+		return contributorsCache
+
 	try:
-		f = open(repo.root + '/CONTRIBUTORS', 'r')
+		if contributorsURL is not None:
+			opening = contributorsURL
+			f = urllib2.urlopen(contributorsURL)
+		else:
+			opening = repo.root + '/CONTRIBUTORS'
+			f = open(repo.root + '/CONTRIBUTORS', 'r')
 	except:
-		ui.write("warning: cannot open %s: %s\n" % (repo.root+'/CONTRIBUTORS', ExceptionDetail()))
+		ui.write("warning: cannot open %s: %s\n" % (opening, ExceptionDetail()))
 		return
 
 	for line in f:
@@ -979,6 +988,9 @@ def ReadContributors(ui, repo):
 			contributors[email.lower()] = (name, email)
 			for extra in m.group(3).split():
 				contributors[extra[1:-1].lower()] = (name, email)
+
+	contributorsCache = contributors
+	return contributors
 
 def CheckContributor(ui, repo, user=None):
 	set_status("checking CONTRIBUTORS file")
@@ -997,6 +1009,7 @@ def FindContributor(ui, repo, user=None, warn=True):
 	if m:
 		user = m.group(1)
 
+	contributors = ReadContributors(ui, repo)
 	if user not in contributors:
 		if warn:
 			ui.warn("warning: cannot find %s in CONTRIBUTORS\n" % (user,))
@@ -2163,27 +2176,35 @@ def reposetup(ui, repo):
 	global codereview_disabled
 	global defaultcc
 	
-	repo_config_path = ''
-	# Read repository-specific options from lib/codereview/codereview.cfg
+	# Read repository-specific options from lib/codereview/codereview.cfg or codereview.cfg.
+	root = ''
 	try:
-		repo_config_path = repo.root + '/lib/codereview/codereview.cfg'
+		root = repo.root
+	except:
+		# Yes, repo might not have root; see issue 959.
+		codereview_disabled = 'codereview disabled: repository has no root'
+		return
+
+	repo_config_path = ''
+	p1 = root + '/lib/codereview/codereview.cfg'
+	p2 = root + '/codereview.cfg'
+	if os.access(p1, os.F_OK):
+		repo_config_path = p1
+	else:
+		repo_config_path = p2
+	try:
 		f = open(repo_config_path)
 		for line in f:
-			if line.startswith('defaultcc: '):
-				defaultcc = SplitCommaSpace(line[10:])
+			if line.startswith('defaultcc:'):
+				defaultcc = SplitCommaSpace(line[len('defaultcc:'):])
+			if line.startswith('contributors:'):
+				global contributorsURL
+				contributorsURL = line[len('contributors:'):].strip()
 	except:
-		# If there are no options, chances are good this is not
-		# a code review repository; stop now before we foul
-		# things up even worse.  Might also be that repo doesn't
-		# even have a root.  See issue 959.
-		if repo_config_path == '':
-			codereview_disabled = 'codereview disabled: repository has no root'
-		else:
-			codereview_disabled = 'codereview disabled: cannot open ' + repo_config_path
+		codereview_disabled = 'codereview disabled: cannot open ' + repo_config_path
 		return
 
 	InstallMatch(ui, repo)
-	ReadContributors(ui, repo)
 	RietveldSetup(ui, repo)
 
 	# Disable the Mercurial commands that might change the repository.
@@ -3298,7 +3319,11 @@ class MercurialVCS(VersionControlSystem):
 			if not err and mqparent != "":
 				self.base_rev = mqparent
 			else:
-				self.base_rev = RunShell(["hg", "parents", "-q"]).split(':')[1].strip()
+				out = RunShell(["hg", "parents", "-q"], silent_ok=True).strip()
+				if not out:
+					# No revisions; use 0 to mean a repository with nothing.
+					out = "0:0"
+				self.base_rev = out.split(':')[1].strip()
 	def _GetRelPath(self, filename):
 		"""Get relative path of a file according to the current directory,
 		given its logical path in the repo."""
