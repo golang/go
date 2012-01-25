@@ -1,0 +1,16 @@
+This is an empty Go subrepository.  To create a new subrepository,
+visit http://code.google.com/p/go/adminSource and under repositories,
+type the new name, check [x] Clone contents and select [empty] as
+the one you want to clone.
+
+Then execute:
+	go get code.google.com/p/go.newrepo
+	cd $(go list -e -f '{{.Dir}}' code.google.com/p/go.newrepo)
+
+The go get will complain about not finding source code, but it will
+successfully check out the repository.
+
+Edit the README (this file) to describe the new subrepository, and then
+use the usual hg change, mail, submit to send in the change.
+You will need to follow http://golang.org/doc/contribute.html#Code_review
+to enable the Code Review extension (pointing into your Go root).
