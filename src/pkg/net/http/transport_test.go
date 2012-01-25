@@ -307,10 +307,6 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 // Test for http://golang.org/issue/2616 (appropriate issue number)
 // This fails pretty reliably with GOMAXPROCS=100 or something high.
 func TestStressSurpriseServerCloses(t *testing.T) {
-	if true {
-		t.Logf("known broken test; fix coming. Issue 2616")
-		return
-	}
 	if testing.Short() {
 		t.Logf("skipping test in short mode")
 		return
