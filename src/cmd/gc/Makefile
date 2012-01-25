@@ -34,6 +34,7 @@ OFILES=\
 	mparith2.$O\
 	mparith3.$O\
 	obj.$O\
+	order.$O\
 	range.$O\
 	reflect.$O\
 	select.$O\

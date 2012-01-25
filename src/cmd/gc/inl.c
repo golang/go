@@ -225,6 +225,7 @@ static void
 inlconv2stmt(Node *n)
 {
 	n->op = OBLOCK;
+	// n->ninit stays
 	n->list = n->nbody;
 	n->nbody = nil;
 	n->rlist = nil;
@@ -232,13 +233,14 @@ inlconv2stmt(Node *n)
 
 // Turn an OINLCALL into a single valued expression.
 static void
-inlconv2expr(Node *n)
+inlconv2expr(Node **np)
 {
-	n->op = OCONVNOP;
-	n->left = n->rlist->n;
-	n->rlist = nil;
-	n->ninit = concat(n->ninit, n->nbody);
-	n->nbody = nil;
+	Node *n, *r;
+	
+	n = *np;
+	r = n->rlist->n;
+	addinit(&r, concat(n->ninit, n->nbody));
+	*np = r;
 }
 
 // Turn the OINLCALL in n->list into an expression list on n.
@@ -248,7 +250,7 @@ inlgluelist(Node *n)
 {
 	Node *c;
 
-	c = n->list->n;
+	c = n->list->n;  // this is the OINLCALL
 	n->ninit = concat(n->ninit, c->ninit);
 	n->ninit = concat(n->ninit, c->nbody);
 	n->list  = c->rlist;
@@ -261,7 +263,7 @@ inlgluerlist(Node *n)
 {
 	Node *c;
 
-	c = n->rlist->n;
+	c = n->rlist->n;  // this is the OINLCALL
 	n->ninit = concat(n->ninit, c->ninit);
 	n->ninit = concat(n->ninit, c->nbody);
 	n->rlist = c->rlist;
@@ -322,11 +324,11 @@ inlnode(Node **np)
 
 	inlnode(&n->left);
 	if(n->left && n->left->op == OINLCALL)
-		inlconv2expr(n->left);
+		inlconv2expr(&n->left);
 
 	inlnode(&n->right);
 	if(n->right && n->right->op == OINLCALL)
-		inlconv2expr(n->right);
+		inlconv2expr(&n->right);
 
 	inlnodelist(n->list);
 	switch(n->op) {
@@ -359,7 +361,7 @@ inlnode(Node **np)
 	list_dflt:
 		for(l=n->list; l; l=l->next)
 			if(l->n->op == OINLCALL)
-				inlconv2expr(l->n);
+				inlconv2expr(&l->n);
 	}
 
 	inlnodelist(n->rlist);
@@ -377,13 +379,13 @@ inlnode(Node **np)
 	default:
 		for(l=n->rlist; l; l=l->next)
 			if(l->n->op == OINLCALL)
-				inlconv2expr(l->n);
+				inlconv2expr(&l->n);
 
 	}
 
 	inlnode(&n->ntest);
 	if(n->ntest && n->ntest->op == OINLCALL)
-		inlconv2expr(n->ntest);
+		inlconv2expr(&n->ntest);
 
 	inlnode(&n->nincr);
 	if(n->nincr && n->nincr->op == OINLCALL)
@@ -504,11 +506,14 @@ mkinlcall(Node **np, Node *fn)
 			fatal("missing inlvar for %N\n", t->nname);
 
 		if(n->left->op == ODOTMETH) {
-			if (!n->left->left)
+			if(!n->left->left)
 				fatal("method call without receiver: %+N", n);
-			if(t != T && t->nname != N && !isblank(t->nname))
+			if(t == T)
+				fatal("method call unknown receiver type: %+N", n);
+			if(t->nname != N && !isblank(t->nname))
 				as = nod(OAS, t->nname->inlvar, n->left->left);
-			// else if !ONAME add to init anyway?
+			else
+				as = nod(OAS, temp(t->type), n->left->left);
 		} else {  // non-method call to method
 			if (!n->list)
 				fatal("non-method call to method without first arg: %+N", n);

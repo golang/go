@@ -154,6 +154,10 @@ init2(Node *n, NodeList **out)
 {
 	if(n == N || n->initorder == InitDone)
 		return;
+
+	if(n->op == ONAME && n->ninit)
+		fatal("name %S with ninit: %+N\n", n->sym, n);
+
 	init1(n, out);
 	init2(n->left, out);
 	init2(n->right, out);

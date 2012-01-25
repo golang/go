@@ -826,5 +826,6 @@ temp(Type *t)
 	
 	n = nod(OXXX, N, N);
 	tempname(n, t);
+	n->sym->def->used = 1;
 	return n;
 }

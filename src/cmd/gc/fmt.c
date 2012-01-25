@@ -1263,8 +1263,12 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OMAKEMAP:
 	case OMAKECHAN:
 	case OMAKESLICE:
-		if(n->list->next)
-			return fmtprint(f, "make(%T, %,H)", n->type, n->list->next);
+		if(n->list) // pre-typecheck
+			return fmtprint(f, "make(%T, %,H)", n->type, n->list);
+		if(n->right)
+			return fmtprint(f, "make(%T, %N, %N)", n->type, n->left, n->right);
+		if(n->left)
+			return fmtprint(f, "make(%T, %N)", n->type, n->left);
 		return fmtprint(f, "make(%T)", n->type);
 
 	// Unary

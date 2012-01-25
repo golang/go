@@ -54,7 +54,11 @@ compile(Node *fn)
 			t = structnext(&save);
 		}
 	}
-
+	
+	order(curfn);
+	if(nerrors != 0)
+		goto ret;
+	
 	hasdefer = 0;
 	walk(curfn);
 	if(nerrors != 0)

@@ -199,14 +199,12 @@ walkstmt(Node **np)
 	case OPANIC:
 	case OEMPTY:
 	case ORECOVER:
-		if(n->typecheck == 0) {
-			dump("missing typecheck:", n);
-			fatal("missing typecheck");
-		}
+		if(n->typecheck == 0)
+			fatal("missing typecheck: %+N", n);
 		init = n->ninit;
 		n->ninit = nil;
 		walkexpr(&n, &init);
-		n->ninit = concat(init, n->ninit);
+		addinit(&n, init);
 		break;
 
 	case OBREAK:
@@ -250,7 +248,7 @@ walkstmt(Node **np)
 			init = n->ntest->ninit;
 			n->ntest->ninit = nil;
 			walkexpr(&n->ntest, &init);
-			n->ntest->ninit = concat(init, n->ntest->ninit);
+			addinit(&n->ntest, init);
 		}
 		walkstmt(&n->nincr);
 		walkstmtlist(n->nbody);
@@ -332,6 +330,9 @@ walkstmt(Node **np)
 		break;
 	}
 
+	if(n->op == ONAME)
+		fatal("walkstmt ended up with name: %+N", n);
+	
 	*np = n;
 }
 
@@ -402,10 +403,8 @@ walkexpr(Node **np, NodeList **init)
 	if(debug['w'] > 1)
 		dump("walk-before", n);
 
-	if(n->typecheck != 1) {
-		dump("missed typecheck", n);
-		fatal("missed typecheck");
-	}
+	if(n->typecheck != 1)
+		fatal("missed typecheck: %+N\n", n);
 
 	switch(n->op) {
 	default:
@@ -481,7 +480,7 @@ walkexpr(Node **np, NodeList **init)
 		// save elsewhere and store on the eventual n->right.
 		ll = nil;
 		walkexpr(&n->right, &ll);
-		n->right->ninit = concat(n->right->ninit, ll);
+		addinit(&n->right, ll);
 		goto ret;
 
 	case OPRINT:
@@ -994,8 +993,10 @@ walkexpr(Node **np, NodeList **init)
 	case ONEW:
 		if(n->esc == EscNone && n->type->type->width < (1<<16)) {
 			r = temp(n->type->type);
-			*init = list(*init, nod(OAS, r, N));  // zero temp
-			r = nod(OADDR, r, N);
+			r = nod(OAS, r, N);  // zero temp
+			typecheck(&r, Etop);
+			*init = list(*init, r);
+			r = nod(OADDR, r->left, N);
 			typecheck(&r, Erv);
 			n = r;
 		} else {
@@ -1878,7 +1879,7 @@ reorder3save(Node **np, NodeList *all, NodeList *stop, NodeList **early)
 	
 	q = temp(n->type);
 	q = nod(OAS, q, n);
-	q->typecheck = 1;
+	typecheck(&q, Etop);
 	*early = list(*early, q);
 	*np = q->left;
 }
