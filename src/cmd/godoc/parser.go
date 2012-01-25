@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 )
 
-func parseFile(fset *token.FileSet, filename string, mode uint) (*ast.File, error) {
+func parseFile(fset *token.FileSet, filename string, mode parser.Mode) (*ast.File, error) {
 	src, err := ReadFile(fs, filename)
 	if err != nil {
 		return nil, err

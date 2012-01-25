@@ -44,7 +44,7 @@ var (
 	fset        = token.NewFileSet()
 	exitCode    = 0
 	rewrite     func(*ast.File) *ast.File
-	parserMode  uint
+	parserMode  parser.Mode
 	printerMode uint
 )
 
@@ -60,7 +60,7 @@ func usage() {
 }
 
 func initParserMode() {
-	parserMode = uint(0)
+	parserMode = parser.Mode(0)
 	if *comments {
 		parserMode |= parser.ParseComments
 	}
