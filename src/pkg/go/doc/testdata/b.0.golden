@@ -24,6 +24,12 @@ FUNCTIONS
 	// 
 	func F(x int) int
 
+	// Always under the package functions list. 
+	func NotAFactory() int
+
+	// Associated with uint type if AllDecls is set. 
+	func UintFactory() uint
+
 
 TYPES
 	// 
@@ -31,4 +37,7 @@ TYPES
 
 	// 
 	var V T	// v
+
+	// 
+	func (x *T) M()
 
