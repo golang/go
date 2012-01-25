@@ -1124,6 +1124,21 @@ and
 Gofix will update almost all code affected by the change.
 </p>
 
+<h3 id="mime">The mime package</h3>
+
+<p>
+In Go 1, the <a href="/pkg/mime/#FormatMediaType"><code>FormatMediaType</code></a> function
+of the <code>mime</code> package has  been simplified to make it
+consistent with
+<a href="/pkg/mime/#ParseMediaType"><code>ParseMediaType</code></a>. 
+It now takes <code>"text/html"</code> rather than <code>"text"</code> and <code>"html"</code>.
+</p>
+
+<p>
+<em>Updating</em>:
+What little code is affected will be caught by the compiler and must be updated by hand.
+</p>
+
 <h3 id="net">The net package</h3>
 
 <p>
@@ -1140,7 +1155,7 @@ reads and writes will time out and no longer block.
 </p>
 
 <p>
-There is also a new <a href="/pkg/net/#DialTimeout">net.DialTimeout</code></a> method to simplify
+There is also a new <a href="/pkg/net/#DialTimeout"><code>net.DialTimeout</code></a> method to simplify
 timing out dialing a network address.
 </p>
 
@@ -1222,6 +1237,39 @@ of the standard interface.
 Gofix will update code that uses the old equivalent of the current <code>os.FileInfo</code>
 and <code>os.FileMode</code> API.
 Code that needs system-specific file details will need to be updated by hand.
+</p>
+
+<h3 id="path_filepath">The path/filepath package</h3>
+
+<p>
+In Go 1, the <a href="/pkg/path/filepath/#Walk"><code>Walk</code></a> function of the
+<code>path/filepath</code> package
+has been changed to take a function value of type
+<a href="/pkg/path/filepath/#WalkFunc"><code>WalkFunc</code></a>
+instead of a <code>Visitor</code> interface value.
+<code>WalkFunc</code> unifies the handling of both files and directories.
+</p>
+
+<pre>
+    type WalkFunc func(path string, info *os.FileInfo, err os.Error) os.Error
+</pre>
+
+<p>
+The <code>WalkFunc</code> function will be called even for files or directories that could not be opened;
+in such cases the error argument will describe the failure.
+If a directory's contents are to be skipped,
+the function should return the value <code>SkipDir</code>.
+</p>
+
+<p>
+<font color="red">TODO: add an example?</font>
+</p>
+
+<p>
+<em>Updating</em>:
+The change simplifies most code but has subtle consequences, so affected programs
+will need to be updated by hand.
+The compiler will catch code using the old interface.
 </p>
 
 <h3 id="runtime">The runtime package</h3>
