@@ -949,17 +949,19 @@ cryptographic libraries.
 </p>
 
 <p>
+The <code>Sum</code> method of the
+<a href="/pkg/hash/#Hash"><code>hash.Hash</code></a> interface now takes a
+<code>[]byte</code> argument, to which the hash value will be appended.
+The previous behavior can be recreated by adding a <code>nil</code> argument to the call.
+</p>
+
+<p>
 <em>Updating</em>:
 Existing implementations of <code>hash.Hash</code> will need to add a
 <code>BlockSize</code> method.  Hashes that process the input one byte at
 a time can implement <code>BlockSize</code> to return 1.
-</p>
-
-<h3 id="html">The html package</h3>
-
-<p>
-The <a href="/pkg/html/"><code>html</code></a> package in Go 1 provides
-a full parser for HTML5.
+Gofix will update calls to the <code>Sum</code> methods of the various
+implementations of <code>hash.Hash</code>.
 </p>
 
 <p>
@@ -1124,14 +1126,29 @@ Gofix will update almost all code affected by the change.
 
 <h3 id="net">The net package</h3>
 
-<p>In Go 1, the various <code>SetTimeout</code>,
+<p>
+In Go 1, the various <code>SetTimeout</code>,
 <code>SetReadTimeout</code>, and <code>SetWriteTimeout</code> methods
-have been replaced with <code>SetDeadline</code>,
-<code>SetReadDeadline</code>, and <code>SetWriteDeadline</code>,
+have been replaced with 
+<a href="/pkg/net/#IPConn.SetDeadline"><code>SetDeadline</code></a>,
+<a href="/pkg/net/#IPConn.SetReadDeadline"><code>SetReadDeadline</code></a>, and 
+<a href="/pkg/net/#IPConn.SetWriteDeadline"><code>SetWriteDeadline</code></a>,
 respectively.  Rather than taking a timeout value in nanoseconds that
 apply to any activity on the connection, the new methods set an
 absolute deadline (as a <code>time.Time</code> value) after which
-reads and writes will time out and no longer block.</p>
+reads and writes will time out and no longer block.
+</p>
+
+<p>
+There is also a new <a href="/pkg/net/#DialTimeout">net.DialTimeout</code></a> method to simplify
+timing out dialing a network address.
+</p>
+
+<p>
+<em>Updating</em>:
+Code that uses the old methods will fail to compile and must be updated by hand.
+The semantic change makes it difficult for gofix to update automatically.
+</p>
 
 <h3 id="os_fileinfo">The os.FileInfo type</h3>
 
