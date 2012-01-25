@@ -240,30 +240,19 @@ func TestNonSeekable(t *testing.T) {
 	}
 	defer f.Close()
 
-	// pipe the data in
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("Unexpected error %s", err)
+	type readerOnly struct {
+		io.Reader
 	}
-	go func() {
-		rdbuf := make([]uint8, 1<<16)
-		for {
-			nr, err := f.Read(rdbuf)
-			w.Write(rdbuf[0:nr])
-			if err == io.EOF {
-				break
-			}
-		}
-		w.Close()
-	}()
-
-	tr := NewReader(r)
+	tr := NewReader(readerOnly{f})
 	nread := 0
 
 	for ; ; nread++ {
-		hdr, err := tr.Next()
-		if hdr == nil || err == io.EOF {
+		_, err := tr.Next()
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
 		}
 	}
 
