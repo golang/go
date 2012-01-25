@@ -290,7 +290,7 @@ E9:
 	RET
 
 
-// divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
+// func divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
 TEXT ·divWVW(SB),7,$0
 	// ARM has no multiword division, so use portable code.
 	B ·divWVW_g(SB)
@@ -309,4 +309,13 @@ TEXT ·mulWW(SB),7,$0
 	MULLU	R1, R2, (R4, R3)
 	MOVW	R4, z1+8(FP)
 	MOVW	R3, z0+12(FP)
+	RET
+
+// func bitLen(x Word) (n int)
+TEXT ·bitLen(SB),7,$0
+	MOVW	x+0(FP), R0
+	WORD	$0xe16f0f10 // CLZ R0, R0  (count leading zeros)
+	MOVW	$32, R1
+	SUB.S	R0, R1
+	MOVW	R1, n+4(FP)
 	RET

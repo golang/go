@@ -243,7 +243,7 @@ E6:	CMPQ BX, R11		// i < n
 	RET
 
 
-// divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+// func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
 TEXT ·divWVW(SB),7,$0
 	MOVQ z+0(FP), R10
 	MOVQ xn+16(FP), DX	// r = xn
@@ -260,4 +260,15 @@ E7:	SUBL $1, BX		// i--
 	JGE L7			// i >= 0
 
 	MOVQ DX, r+48(FP)
+	RET
+
+// func bitLen(x Word) (n int)
+TEXT ·bitLen(SB),7,$0
+	BSRQ x+0(FP), AX
+	JZ Z1
+	INCQ AX
+	MOVQ AX, n+8(FP)
+	RET
+
+Z1:	MOVQ $0, n+8(FP)
 	RET

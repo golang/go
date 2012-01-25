@@ -334,6 +334,29 @@ func TestMulAddWWW(t *testing.T) {
 	}
 }
 
+func TestWordBitLen(t *testing.T) {
+	// Test every possible output of bitLen with the high bit set
+	// and then with all bits below max set
+	z := bitLen(0)
+	if z != 0 {
+		t.Errorf("0 got %d want 0", z)
+	}
+	x := Word(1) // Will be ...00010000...
+	y := Word(1) // Will be ...00011111...
+	for i := 1; i <= _W; i++ {
+		z = bitLen(x)
+		if z != i {
+			t.Errorf("%x got %d want %d", x, z, i)
+		}
+		z = bitLen(y)
+		if z != i {
+			t.Errorf("%x got %d want %d", y, z, i)
+		}
+		x <<= 1
+		y = (y << 1) | 0x1
+	}
+}
+
 // runs b.N iterations of bitLen called on a Word containing (1 << nbits)-1.
 func benchmarkBitLenN(b *testing.B, nbits uint) {
 	testword := Word((uint64(1) << nbits) - 1)
