@@ -272,23 +272,32 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
 	p.print(fields.Opening, token.LPAREN)
 	if len(fields.List) > 0 {
+		prevLine := p.fset.Position(fields.Opening).Line
 		ws := indent
-		var prevLine, line int
 		for i, par := range fields.List {
+			// determine par begin and end line (may be different
+			// if there are multiple parameter names for this par
+			// or the type is on a separate line)
+			var parLineBeg int
+			var parLineEnd = p.fset.Position(par.Type.Pos()).Line
+			if len(par.Names) > 0 {
+				parLineBeg = p.fset.Position(par.Names[0].Pos()).Line
+			} else {
+				parLineBeg = parLineEnd
+			}
+			// separating "," if needed
 			if i > 0 {
 				p.print(token.COMMA)
-				if len(par.Names) > 0 {
-					line = p.fset.Position(par.Names[0].Pos()).Line
-				} else {
-					line = p.fset.Position(par.Type.Pos()).Line
-				}
-				if 0 < prevLine && prevLine < line && p.linebreak(line, 0, ws, true) {
-					ws = ignore
-					*multiLine = true
-				} else {
-					p.print(blank)
-				}
 			}
+			// separator if needed (linebreak or blank)
+			if 0 < prevLine && prevLine < parLineBeg && p.linebreak(parLineBeg, 0, ws, true) {
+				// break line if the opening "(" or previous parameter ended on a different line
+				ws = ignore
+				*multiLine = true
+			} else if i > 0 {
+				p.print(blank)
+			}
+			// parameter names
 			if len(par.Names) > 0 {
 				// Very subtle: If we indented before (ws == ignore), identList
 				// won't indent again. If we didn't (ws == indent), identList will
@@ -299,11 +308,18 @@ func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
 				p.identList(par.Names, ws == indent, multiLine)
 				p.print(blank)
 			}
+			// parameter type
 			p.expr(par.Type, multiLine)
-			prevLine = p.fset.Position(par.Type.Pos()).Line
+			prevLine = parLineEnd
 		}
+		// if the closing ")" is on a separate line from the last parameter,
+		// print an additional "," and line break
+		if closing := p.fset.Position(fields.Closing).Line; 0 < prevLine && prevLine < closing {
+			p.print(",")
+			p.linebreak(closing, 0, ignore, true)
+		}
+		// unindent if we indented
 		if ws == ignore {
-			// unindent if we indented
 			p.print(unindent)
 		}
 	}

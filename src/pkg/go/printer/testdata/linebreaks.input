@@ -220,4 +220,52 @@ testLoop:
 	}
 }
 
+// Respect line breaks in function calls.
+func _() {
+	f(x)
+	f(x,
+	  x)
+	f(x,
+	  x,
+	)
+	f(
+	  x,
+	  x)
+	f(
+	  x,
+	  x,
+	)
+}
+
+// Respect line breaks in function declarations.
+func _(x T) {}
+func _(x T,
+       y T) {}
+func _(x T,
+       y T,
+) {}
+func _(
+       x T,
+       y T) {}
+func _(
+       x T,
+       y T,
+) {}
+
+// Example from issue 2597.
+func ManageStatus0(
+	in <-chan *Status,
+	req <-chan Request,
+	stat chan<- *TargetInfo,
+	TargetHistorySize int) {
+}
+    
+func ManageStatus1(
+	in <-chan *Status,
+	req <-chan Request,
+	stat chan<- *TargetInfo,
+	TargetHistorySize int,
+) {
+}
+    
 // There should be exactly one linebreak after this comment.
