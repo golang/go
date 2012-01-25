@@ -7,6 +7,7 @@ package os
 import (
 	"runtime"
 	"syscall"
+	"time"
 )
 
 // File represents an open file descriptor.
@@ -299,15 +300,14 @@ func Chmod(name string, mode FileMode) error {
 // Chtimes changes the access and modification times of the named
 // file, similar to the Unix utime() or utimes() functions.
 //
-// The argument times are in nanoseconds, although the underlying
-// filesystem may truncate or round the values to a more
-// coarse time unit.
-func Chtimes(name string, atimeNs int64, mtimeNs int64) error {
+// The underlying filesystem may truncate or round the values to a
+// less precise time unit.
+func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	var d Dir
 	d.Null()
 
-	d.Atime = uint32(atimeNs / 1e9)
-	d.Mtime = uint32(mtimeNs / 1e9)
+	d.Atime = uint32(atime.Unix())
+	d.Mtime = uint32(mtime.Unix())
 
 	if e := syscall.Wstat(name, pdir(nil, &d)); e != nil {
 		return &PathError{"chtimes", name, e}

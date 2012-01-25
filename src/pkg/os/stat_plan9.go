@@ -97,3 +97,8 @@ func Stat(name string) (FileInfo, error) {
 func Lstat(name string) (FileInfo, error) {
 	return Stat(name)
 }
+
+// For testing.
+func atime(fi FileInfo) time.Time {
+	return time.Unix(int64(fi.(*FileStat).Sys.(*Dir).Atime), 0)
+}
