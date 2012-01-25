@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-func parse(name string, flags uint) *ast.File {
+func parse(name string, flags parser.Mode) *ast.File {
 	ast1, err := parser.ParseFile(fset, name, nil, flags)
 	if err != nil {
 		if list, ok := err.(scanner.ErrorList); ok {
