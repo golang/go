@@ -337,6 +337,8 @@ func main() {
 			}()
 		}
 
+		// Immediately update metadata.
+		updateMetadata()
 		// Periodically refresh metadata.
 		go refreshMetadataLoop()
 
