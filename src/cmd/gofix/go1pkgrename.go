@@ -50,6 +50,32 @@ var go1PackageRenames = []struct{ old, new string }{
 	{"utf16", "unicode/utf16"},
 	{"utf8", "unicode/utf8"},
 	{"xml", "encoding/xml"},
+
+	// go.crypto sub-repository
+	{"crypto/bcrypt", "code.google.com/p/go.crypto/bcrypt"},
+	{"crypto/blowfish", "code.google.com/p/go.crypto/blowfish"},
+	{"crypto/cast5", "code.google.com/p/go.crypto/cast5"},
+	{"crypto/md4", "code.google.com/p/go.crypto/md4"},
+	{"crypto/ocsp", "code.google.com/p/go.crypto/ocsp"},
+	{"crypto/openpgp", "code.google.com/p/go.crypto/openpgp"},
+	{"crypto/openpgp/armor", "code.google.com/p/go.crypto/openpgp/armor"},
+	{"crypto/openpgp/elgamal", "code.google.com/p/go.crypto/openpgp/elgamal"},
+	{"crypto/openpgp/errors", "code.google.com/p/go.crypto/openpgp/errors"},
+	{"crypto/openpgp/packet", "code.google.com/p/go.crypto/openpgp/packet"},
+	{"crypto/openpgp/s2k", "code.google.com/p/go.crypto/openpgp/s2k"},
+	{"crypto/ripemd160", "code.google.com/p/go.crypto/ripemd160"},
+	{"crypto/twofish", "code.google.com/p/go.crypto/twofish"},
+	{"crypto/xtea", "code.google.com/p/go.crypto/xtea"},
+	{"exp/ssh", "code.google.com/p/go.crypto/ssh"},
+
+	// go.net sub-repository
+	{"net/dict", "code.google.com/p/go.net/dict"},
+	{"net/websocket", "code.google.com/p/go.net/websocket"},
+	{"exp/spdy", "code.google.com/p/go.net/spdy"},
+
+	// go.codereview sub-repository
+	{"encoding/git85", "code.google.com/p/go.codereview/git85"},
+	{"patch", "code.google.com/p/go.codereview/patch"},
 }
 
 var go1PackageNameRenames = []struct{ newPath, old, new string }{
