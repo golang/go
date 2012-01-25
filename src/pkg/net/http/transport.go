@@ -494,12 +494,6 @@ func (pc *persistConn) isBroken() bool {
 	return pc.broken
 }
 
-func (pc *persistConn) expectingResponse() bool {
-	pc.lk.Lock()
-	defer pc.lk.Unlock()
-	return pc.numExpectedResponses > 0
-}
-
 var remoteSideClosedFunc func(error) bool // or nil to use default
 
 func remoteSideClosed(err error) bool {
@@ -518,14 +512,18 @@ func (pc *persistConn) readLoop() {
 
 	for alive {
 		pb, err := pc.br.Peek(1)
-		if !pc.expectingResponse() {
+
+		pc.lk.Lock()
+		if pc.numExpectedResponses == 0 {
+			pc.closeLocked()
+			pc.lk.Unlock()
 			if len(pb) > 0 {
 				log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v",
 					string(pb), err)
 			}
-			pc.close()
 			return
 		}
+		pc.lk.Unlock()
 
 		rc := <-pc.reqch
 
@@ -649,6 +647,10 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 func (pc *persistConn) close() {
 	pc.lk.Lock()
 	defer pc.lk.Unlock()
+	pc.closeLocked()
+}
+
+func (pc *persistConn) closeLocked() {
 	pc.broken = true
 	pc.conn.Close()
 	pc.mutateHeaderFunc = nil
