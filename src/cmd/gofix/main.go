@@ -36,6 +36,9 @@ var allowed, force map[string]bool
 
 var doDiff = flag.Bool("diff", false, "display diffs instead of rewriting files")
 
+// enable for debugging gofix failures
+const debug = false // display incorrectly reformatted source and exit
+
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: gofix [-diff] [-r fixname,...] [-force fixname,...] [path ...]\n")
 	flag.PrintDefaults()
@@ -161,6 +164,11 @@ func processFile(filename string, useStdin bool) error {
 			}
 			newFile, err = parser.ParseFile(fset, filename, newSrc, parserMode)
 			if err != nil {
+				if debug {
+					fmt.Printf("%s", newSrc)
+					report(err)
+					os.Exit(exitCode)
+				}
 				return err
 			}
 		}
