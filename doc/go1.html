@@ -540,8 +540,6 @@ that are no longer in the standard repository will need to be edited
 by hand.
 <br>
 <font color="red">TODO: gofix should warn about deletions.</font>
-<br>
-<font color="red">TODO: gofix should also handle packages that move to subrepos.</font>
 </p>
 
 <h3 id="exp">The package tree exp</h3>
@@ -642,10 +640,55 @@ Code that uses the other packages (there should be almost zero) will need to be 
 
 <h3 id="subrepo">Packages moving to subrepositories</h3>
 
-<!-- 
-crypto/openpgp to XXX
-maybe exp/ssh?
--->
+<p>
+Go 1 has moved a number of packages into sub-repositories of
+<a href="http://code.google.com/p/go/">the main Go repository</a>.
+This table lists the old and new import paths:
+
+<table class="codetable" frame="border" summary="Sub-repositories">
+<colgroup align="left" width="40%"></colgroup>
+<colgroup align="left" width="60%"></colgroup>
+<tr>
+<th align="left">Old</th>
+<th align="left">New</th>
+</tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>crypto/bcrypt</td> <td>code.google.com/p/go.crypto/bcrypt</tr>
+<tr><td>crypto/blowfish</td> <td>code.google.com/p/go.crypto/blowfish</tr>
+<tr><td>crypto/cast5</td> <td>code.google.com/p/go.crypto/cast5</tr>
+<tr><td>crypto/md4</td> <td>code.google.com/p/go.crypto/md4</tr>
+<tr><td>crypto/ocsp</td> <td>code.google.com/p/go.crypto/ocsp</tr>
+<tr><td>crypto/openpgp</td> <td>code.google.com/p/go.crypto/openpgp</tr>
+<tr><td>crypto/openpgp/armor</td> <td>code.google.com/p/go.crypto/openpgp/armor</tr>
+<tr><td>crypto/openpgp/elgamal</td> <td>code.google.com/p/go.crypto/openpgp/elgamal</tr>
+<tr><td>crypto/openpgp/errors</td> <td>code.google.com/p/go.crypto/openpgp/errors</tr>
+<tr><td>crypto/openpgp/packet</td> <td>code.google.com/p/go.crypto/openpgp/packet</tr>
+<tr><td>crypto/openpgp/s2k</td> <td>code.google.com/p/go.crypto/openpgp/s2k</tr>
+<tr><td>crypto/ripemd160</td> <td>code.google.com/p/go.crypto/ripemd160</tr>
+<tr><td>crypto/twofish</td> <td>code.google.com/p/go.crypto/twofish</tr>
+<tr><td>crypto/xtea</td> <td>code.google.com/p/go.crypto/xtea</tr>
+<tr><td>exp/ssh</td> <td>code.google.com/p/go.crypto/ssh</tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>net/dict</td> <td>code.google.com/p/go.net/dict</tr>
+<tr><td>net/websocket</td> <td>code.google.com/p/go.net/websocket</tr>
+<tr><td>exp/spdy</td> <td>code.google.com/p/go.net/spdy</tr>
+<tr>
+<td colspan="2"><hr></td>
+</tr>
+<tr><td>encoding/git85</td> <td>code.google.com/p/go.codereview/git85</tr>
+<tr><td>patch</td> <td>code.google.com/p/go.codereview/patch</tr>
+</table>
+
+<p>
+<em>Updating</em>:
+Gofix will update imports of these packages to use the new import paths.
+Installations that depend on these packages will need to install them using
+a <code>go install</code> command.
+</p>
 
 <h2 id="major">Major changes to the library</h2>
 
