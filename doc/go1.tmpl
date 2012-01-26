@@ -1345,12 +1345,12 @@ or <code>panic</code> should be updated to use the new methods.
 <h3 id="url">The url package</h3>
 
 <p>
-In Go 1 several fields from the <a href="/pkg/net/url#URL"><code>url.URL</code></a> type
+In Go 1 several fields from the <a href="/pkg/net/url/#URL"><code>url.URL</code></a> type
 were removed or replaced.
 </p>
 
 <p>
-The <a href="/pkg/net/url#URL.String"><code>String</code></a> method now
+The <a href="/pkg/net/url/#URL.String"><code>String</code></a> method now
 predictably rebuilds an encoded URL string using all of <code>URL</code>'s
 fields as necessary. The resulting string will also no longer have
 passwords escaped.
@@ -1363,9 +1363,9 @@ method may be used in its place.
 
 <p>
 The old <code>RawUserinfo</code> field is replaced by the <code>User</code>
-field, of type <a href="/pkg/net/url#Userinfo"><code>*net.Userinfo</code></a>.
-Values of this type may be created using the new <a href="/pkg/net/url#User"><code>net.User</code></a>
-and <a href="/pkg/net/url#UserPassword"><code>net.UserPassword</code></a>
+field, of type <a href="/pkg/net/url/#Userinfo"><code>*net.Userinfo</code></a>.
+Values of this type may be created using the new <a href="/pkg/net/url/#User"><code>net.User</code></a>
+and <a href="/pkg/net/url/#UserPassword"><code>net.UserPassword</code></a>
 functions. The <code>EscapeUserinfo</code> and <code>UnescapeUserinfo</code>
 functions are also gone.
 </p>
@@ -1400,7 +1400,7 @@ path for such URLs. In Go 1, the cited URL parses as:
 </pre>
 
 <p>
-A new <a href="/pkg/net/url#URL.RequestURI"><code>RequestURI</code></a> method was
+A new <a href="/pkg/net/url/#URL.RequestURI"><code>RequestURI</code></a> method was
 added to <code>URL</code>.
 </p>
 
@@ -1408,6 +1408,50 @@ added to <code>URL</code>.
 <em>Updating</em>:
 Code that uses the old fields will fail to compile and must be updated by hand.
 The semantic changes make it difficult for gofix to update automatically.
+</p>
+
+<h3 id="xml">The xml package</h3>
+
+<p>
+In Go 1, the <a href="/pkg/encoding/xml/"><code>xml</code></a> package
+has been brought closer in design to the other marshaling packages such
+as <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>.
+</p>
+
+<p>
+The old <code>Parser</code> type is renamed
+<a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> and has a new
+<a href="/pkg/encoding/xml/#Decoder.Decode"><code>Decode</code></a> method. An
+<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also
+introduced.
+</p>
+
+<p>
+The functions <a href="/pkg/encoding/xml/#Marshal"><code>Marshal</code></a>
+and <a href="/pkg/encoding/xml/#Unmarshal"><code>Unmarshal</code></a>
+work with <code>[]byte</code> values now. To work with streams,
+use the new <a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a>
+and <a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> types.
+</p>
+
+<p>
+When marshaling or unmarshaling values, the format of supported flags in
+field tags has changed to be closer to the
+<a href="/pkg/encoding/json"><code>json</code></a> package
+(<code>`xml:"name,flag"`</code>). The matching done between field tags, field
+names, and the XML attribute and element names is now case-sensitive.
+The <code>XMLName</code> field tag, if present, must also match the name
+of the XML element being marshaled.
+</p>
+
+<p>
+<em>Updating</em>:
+Gofix will update most uses of the package except for some calls to
+<code>Unmarshal</code>. Special care must be taken with field tags,
+since gofix will not update them and if not fixed by hand they will
+misbehave silently in some cases. For example, the old
+<code>"attr"</code> is now written <code>",attr"</code> while plain
+<code>"attr"</code> remains valid but with a different meaning.
 </p>
 
 <h2 id="go_command">The go command</h2>
