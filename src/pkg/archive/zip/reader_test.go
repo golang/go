@@ -250,13 +250,9 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
 }
 
 func testFileMode(t *testing.T, f *File, want os.FileMode) {
-	mode, err := f.Mode()
+	mode := f.Mode()
 	if want == 0 {
-		if err == nil {
-			t.Errorf("%s mode: got %v, want none", f.Name, mode)
-		}
-	} else if err != nil {
-		t.Errorf("%s mode: %s", f.Name, err)
+		t.Errorf("%s mode: got %v, want none", f.Name, mode)
 	} else if mode != want {
 		t.Errorf("%s mode: want %v, got %v", f.Name, want, mode)
 	}

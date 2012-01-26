@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -64,5 +65,24 @@ func TestModTime(t *testing.T) {
 	outTime := fh.ModTime()
 	if !outTime.Equal(testTime) {
 		t.Errorf("times don't match: got %s, want %s", outTime, testTime)
+	}
+}
+
+func TestFileHeaderRoundTrip(t *testing.T) {
+	fh := &FileHeader{
+		Name:             "foo.txt",
+		UncompressedSize: 987654321,
+		ModifiedTime:     1234,
+		ModifiedDate:     5678,
+	}
+	fi := fh.FileInfo()
+	fh2, err := FileInfoHeader(fi)
+
+	// Ignore these fields:
+	fh2.CreatorVersion = 0
+	fh2.ExternalAttrs = 0
+
+	if !reflect.DeepEqual(fh, fh2) {
+		t.Errorf("mismatch\n input=%#v\noutput=%#v\nerr=%v", fh, fh2, err)
 	}
 }

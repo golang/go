@@ -12,6 +12,7 @@ This package does not support ZIP64 or disk spanning.
 package zip
 
 import (
+	"errors"
 	"os"
 	"time"
 )
@@ -53,6 +54,38 @@ type FileHeader struct {
 	Extra            []byte
 	ExternalAttrs    uint32 // Meaning depends on CreatorVersion
 	Comment          string
+}
+
+// FileInfo returns an os.FileInfo for the FileHeader.
+func (fh *FileHeader) FileInfo() os.FileInfo {
+	return headerFileInfo{fh}
+}
+
+// headerFileInfo implements os.FileInfo.
+type headerFileInfo struct {
+	fh *FileHeader
+}
+
+func (fi headerFileInfo) Name() string       { return fi.fh.Name }
+func (fi headerFileInfo) Size() int64        { return int64(fi.fh.UncompressedSize) }
+func (fi headerFileInfo) IsDir() bool        { return fi.Mode().IsDir() }
+func (fi headerFileInfo) ModTime() time.Time { return fi.fh.ModTime() }
+func (fi headerFileInfo) Mode() os.FileMode  { return fi.fh.Mode() }
+
+// FileInfoHeader creates a partially-populated FileHeader from an
+// os.FileInfo.
+func FileInfoHeader(fi os.FileInfo) (*FileHeader, error) {
+	size := fi.Size()
+	if size > (1<<32 - 1) {
+		return nil, errors.New("zip: file over 4GB")
+	}
+	fh := &FileHeader{
+		Name:             fi.Name(),
+		UncompressedSize: uint32(size),
+	}
+	fh.SetModTime(fi.ModTime())
+	fh.SetMode(fi.Mode())
+	return fh, nil
 }
 
 type directoryEnd struct {
@@ -131,8 +164,7 @@ const (
 )
 
 // Mode returns the permission and mode bits for the FileHeader.
-// An error is returned in case the information is not available.
-func (h *FileHeader) Mode() (mode os.FileMode, err error) {
+func (h *FileHeader) Mode() (mode os.FileMode) {
 	switch h.CreatorVersion >> 8 {
 	case creatorUnix, creatorMacOSX:
 		mode = unixModeToFileMode(h.ExternalAttrs >> 16)
@@ -142,7 +174,7 @@ func (h *FileHeader) Mode() (mode os.FileMode, err error) {
 	if len(h.Name) > 0 && h.Name[len(h.Name)-1] == '/' {
 		mode |= os.ModeDir
 	}
-	return mode, nil
+	return mode
 }
 
 // SetMode changes the permission and mode bits for the FileHeader.
