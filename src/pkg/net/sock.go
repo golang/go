@@ -49,6 +49,7 @@ func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscal
 			fd.Close()
 			return nil, err
 		}
+		fd.isConnected = true
 	}
 
 	sa, _ := syscall.Getsockname(s)

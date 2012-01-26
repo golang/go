@@ -22,15 +22,16 @@ type netFD struct {
 	closing bool
 
 	// immutable until Close
-	sysfd   int
-	family  int
-	sotype  int
-	sysfile *os.File
-	cr      chan bool
-	cw      chan bool
-	net     string
-	laddr   Addr
-	raddr   Addr
+	sysfd       int
+	family      int
+	sotype      int
+	isConnected bool
+	sysfile     *os.File
+	cr          chan bool
+	cw          chan bool
+	net         string
+	laddr       Addr
+	raddr       Addr
 
 	// owned by client
 	rdeadline int64

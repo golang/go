@@ -9,10 +9,13 @@
 package net
 
 import (
+	"errors"
 	"os"
 	"syscall"
 	"time"
 )
+
+var ErrWriteToConnected = errors.New("use of WriteTo with pre-connected UDP")
 
 func sockaddrToUDP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {
@@ -181,6 +184,9 @@ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	if !c.ok() {
 		return 0, os.EINVAL
+	}
+	if c.fd.isConnected {
+		return 0, &OpError{"write", c.fd.net, addr, ErrWriteToConnected}
 	}
 	sa, err := addr.sockaddr(c.fd.family)
 	if err != nil {

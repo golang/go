@@ -228,14 +228,15 @@ type netFD struct {
 	closing bool
 
 	// immutable until Close
-	sysfd   syscall.Handle
-	family  int
-	sotype  int
-	net     string
-	laddr   Addr
-	raddr   Addr
-	resultc [2]chan ioResult // read/write completion results
-	errnoc  [2]chan error    // read/write submit or cancel operation errors
+	sysfd       syscall.Handle
+	family      int
+	sotype      int
+	isConnected bool
+	net         string
+	laddr       Addr
+	raddr       Addr
+	resultc     [2]chan ioResult // read/write completion results
+	errnoc      [2]chan error    // read/write submit or cancel operation errors
 
 	// owned by client
 	rdeadline int64
