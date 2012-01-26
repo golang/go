@@ -936,13 +936,13 @@ for that purpose.
 <p>
 The set of parse functions provided by the <a href="/pkg/go/parser/"><code>go/parser</code></a>
 package has been reduced to the primary parse function
-<a href="go/parser/#ParseFile"><code>ParseFile</code></a>, and a couple of
-convenience functions <a href="go/parser/#ParseDir"><code>ParseDir</code></a>
-and <a href="go/parser/#ParseExpr"><code>ParseExpr</code></a>.
+<a href="/pkg/go/parser/#ParseFile"><code>ParseFile</code></a>, and a couple of
+convenience functions <a href="/pkg/go/parser/#ParseDir"><code>ParseDir</code></a>
+and <a href="/pkg/go/parser/#ParseExpr"><code>ParseExpr</code></a>.
 </p>
 
 <p>
-The type names of the <a href="go/doc/"><code>go/doc</code></a> package have been
+The type names of the <a href="/pkg/go/doc/"><code>go/doc</code></a> package have been
 streamlined by removing the <code>Doc</code> suffix: <code>PackageDoc</code>
 is now <code>Package</code>, <code>ValueDoc</code> is <code>Value</code>, etc.
 Also, all types now consistently have a <code>Name</code> field (or <code>Names</code>,
@@ -958,19 +958,19 @@ documentation for a package is created with:
 
 <p>
 where the new <code>mode</code> parameter specifies the operation mode:
-if set to <a href="go/doc/#AllDecls"><code>AllDecls</code></a>, all declarations
+if set to <a href="/pkg/go/doc/#AllDecls"><code>AllDecls</code></a>, all declarations
 (not just exported ones) are considered.
 The function <code>NewFileDoc</code> was removed, and the function
 <code>CommentText</code> has become the method
-<a href="go/ast/#Text"><code>Text</code></a> of
-<a href="go/ast/#CommentGroup"><code>ast.CommentGroup</code></a>.
+<a href="/pkg/go/ast/#Text"><code>Text</code></a> of
+<a href="/pkg/go/ast/#CommentGroup"><code>ast.CommentGroup</code></a>.
 </p>
 
 <p>
-In package <a href="go/token/"><code>go/token</code></a>, the
-<a href="go/token/#FileSet"><code>token.FileSet</code></a> method <code>Files</code>
+In package <a href="/pkg/go/token/"><code>go/token</code></a>, the
+<a href="/pkg/go/token/#FileSet"><code>token.FileSet</code></a> method <code>Files</code>
 (which originally returned a channel of <code>*token.File</code>s) has been replaced
-with the iterator <a href="go/token/#FileSet.Iterate"><code>Iterate</code></a> that
+with the iterator <a href="/pkg/go/token/#FileSet.Iterate"><code>Iterate</code></a> that
 accepts a function argument instead.
 </p>
 
