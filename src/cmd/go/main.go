@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"go/build"
@@ -17,6 +18,8 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+	"unicode"
+	"unicode/utf8"
 )
 
 // A Command is an implementation of a go command
@@ -118,9 +121,9 @@ func main() {
 	usage()
 }
 
-var usageTemplate = `usage: go command [arguments]
+var usageTemplate = `Go is a tool for managing Go source code.
 
-go manages Go source code.
+Usage: go command [arguments]
 
 The commands are:
 {{range .}}{{if .Run}}
@@ -141,14 +144,42 @@ var helpTemplate = `{{if .Run}}usage: go {{.UsageLine}}
 {{end}}{{.Long | trim}}
 `
 
+var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+/*
+{{range .}}{{if .Short}}{{.Short | capitalize}}
+
+{{end}}{{if .Run}}Usage:
+
+	go {{.UsageLine}}
+
+{{end}}{{.Long | trim}}
+
+
+{{end}}*/
+package documentation
+
+// NOTE: cmdDoc is in fmt.go.
+`
+
 // tmpl executes the given template text on data, writing the result to w.
 func tmpl(w io.Writer, text string, data interface{}) {
 	t := template.New("top")
-	t.Funcs(template.FuncMap{"trim": strings.TrimSpace})
+	t.Funcs(template.FuncMap{"trim": strings.TrimSpace, "capitalize": capitalize})
 	template.Must(t.Parse(text))
 	if err := t.Execute(w, data); err != nil {
 		panic(err)
 	}
+}
+
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	r, n := utf8.DecodeRuneInString(s)
+	return string(unicode.ToTitle(r)) + s[n:]
 }
 
 func printUsage(w io.Writer) {
@@ -173,6 +204,16 @@ func help(args []string) {
 	}
 
 	arg := args[0]
+
+	// 'go help documentation' generates doc.go.
+	if arg == "documentation" {
+		buf := new(bytes.Buffer)
+		printUsage(buf)
+		usage := &Command{Long: buf.String()}
+		tmpl(os.Stdout, documentationTemplate, append([]*Command{usage}, commands...))
+		return
+	}
+
 	for _, cmd := range commands {
 		if cmd.Name() == arg {
 			tmpl(os.Stdout, helpTemplate, cmd)
