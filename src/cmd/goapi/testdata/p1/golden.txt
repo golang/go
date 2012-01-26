@@ -1,0 +1,57 @@
+pkg p1, const A ideal-int
+pkg p1, const A64 int64
+pkg p1, const B ideal-int
+pkg p1, const ConversionConst MyInt
+pkg p1, const FloatConst ideal-float
+pkg p1, const StrConst ideal-string
+pkg p1, func Bar(int8, int16, int64)
+pkg p1, func Bar1(int8, int16, int64) uint64
+pkg p1, func Bar2(int8, int16, int64) (uint8, uint64)
+pkg p1, func TakesFunc(func(int) int)
+pkg p1, method (*B) JustOnB()
+pkg p1, method (*B) OnBothTandBPtr()
+pkg p1, method (*Embedded) OnEmbedded()
+pkg p1, method (*S2) SMethod(int8, int16, int64)
+pkg p1, method (*T) JustOnT()
+pkg p1, method (*T) OnBothTandBPtr()
+pkg p1, method (B) OnBothTandBVal()
+pkg p1, method (S) StructValueMethod()
+pkg p1, method (S) StructValueMethodNamedRecv()
+pkg p1, method (S2) StructValueMethod()
+pkg p1, method (S2) StructValueMethodNamedRecv()
+pkg p1, method (T) OnBothTandBVal()
+pkg p1, method (TPtrExported) OnEmbedded()
+pkg p1, method (TPtrUnexported) OnBothTandBPtr()
+pkg p1, method (TPtrUnexported) OnBothTandBVal()
+pkg p1, type B struct
+pkg p1, type Codec struct
+pkg p1, type Codec struct, Func func(int, int) int
+pkg p1, type EmbedSelector struct
+pkg p1, type EmbedSelector struct, embedded time.Time
+pkg p1, type EmbedURLPtr struct
+pkg p1, type EmbedURLPtr struct, embedded *url.URL
+pkg p1, type Embedded struct
+pkg p1, type I interface { Get, GetNamed, Set }
+pkg p1, type I interface, Get(string) int64
+pkg p1, type I interface, GetNamed(string) int64
+pkg p1, type I interface, Set(string, int64)
+pkg p1, type MyInt int
+pkg p1, type S struct
+pkg p1, type S struct, Public *int
+pkg p1, type S struct, PublicTime time.Time
+pkg p1, type S2 struct
+pkg p1, type S2 struct, Extra bool
+pkg p1, type S2 struct, embedded S
+pkg p1, type SI struct
+pkg p1, type SI struct, I int
+pkg p1, type T struct
+pkg p1, type TPtrExported struct
+pkg p1, type TPtrExported struct, embedded *Embedded
+pkg p1, type TPtrUnexported struct
+pkg p1, var ChecksumError error
+pkg p1, var SIPtr *SI
+pkg p1, var SIPtr2 *SI
+pkg p1, var SIVal SI
+pkg p1, var X I
+pkg p1, var X int64
+pkg p1, var Y int
