@@ -3,118 +3,121 @@
 	Use of this source code is governed by a BSD-style
 	license that can be found in the LICENSE file.
 -->
-{{if .IsPkg}}
-<!-- Table of contents; must be named manual-nav to turn off auto nav. -->
-<div id="manual-nav">
 {{with .PDoc}}
-	<dl>
-	<dd><a href="#Overview">Overview</a></dd>
-	{{if .Consts}}
-		<dd><a href="#Constants">Constants</a></dd>
-	{{end}}
-	{{if .Vars}}
-		<dd><a href="#Variables">Variables</a></dd>
-	{{end}}
-	{{range .Funcs}}
-		{{$name_html := html .Name}}
-		<dd><a href="#{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
-	{{end}}
-	{{range .Types}}
-		{{$tname_html := html .Name}}
-		<dd><a href="#{{$tname_html}}">type {{$tname_html}}</a></dd>
-		{{range .Funcs}}
-			{{$name_html := html .Name}}
-			<dd>&nbsp; &nbsp; <a href="#{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
-		{{end}}
-		{{range .Methods}}
-			{{$name_html := html .Name}}
-			<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
-		{{end}}
-	{{end}}
-	{{if .Bugs}}
-		<dd><a href="#Bugs">Bugs</a></dd>
-	{{end}}
-	</dl>
-{{end}}
-</div>
-{{end}}
-
-<!-- Main page -->		
-{{with .PAst}}
-	<pre>{{node_html . $.FSet}}</pre>
-{{end}}
-{{with .PDoc}}
-	<h2 id="Overview">Overview</h2>
-	<!-- The package's Name is printed as title by the top-level template -->
 	{{if $.IsPkg}}
-		<p><code>import "{{html .ImportPath}}"</code></p>
-	{{end}}
-	{{comment_html .Doc}}
-	{{if $.IsPkg}}
-		{{with .Filenames}}
-			<h4>Package files</h4>
-			<p>
-			<span style="font-size:90%">
-			{{range .}}
-				<a href="/{{.|srcLink}}">{{.|filename|html}}</a>
+		<div id="short-nav">
+			<dl>
+			<dd><code>import "{{html .ImportPath}}"</code></dd>
+			</dl>
+			<dl>
+			<dd><a href="#Overview">Overview</a></dd>
+			<dd><a href="#Index">Index</a></dd>
+			</dl>
+		</div>
+		<h2 id="Overview">Overview</h2>
+		<!-- The package's Name is printed as title by the top-level template -->
+		{{comment_html .Doc}}
+	
+		<h2 id="Index">Index</h2>
+		<!-- Table of contents for API; must be named manual-nav to turn off auto nav. -->
+		<div id="manual-nav">
+			<dl>
+			{{if .Consts}}
+				<dd><a href="#Constants">Constants</a></dd>
 			{{end}}
-			</span>
-			</p>
+			{{if .Vars}}
+				<dd><a href="#Variables">Variables</a></dd>
+			{{end}}
+			{{range .Funcs}}
+				{{$name_html := html .Name}}
+				<dd><a href="#{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
+			{{end}}
+			{{range .Types}}
+				{{$tname_html := html .Name}}
+				<dd><a href="#{{$tname_html}}">type {{$tname_html}}</a></dd>
+				{{range .Funcs}}
+					{{$name_html := html .Name}}
+					<dd>&nbsp; &nbsp; <a href="#{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
+				{{end}}
+				{{range .Methods}}
+					{{$name_html := html .Name}}
+					<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
+				{{end}}
+			{{end}}
+			{{if .Bugs}}
+				<dd><a href="#Bugs">Bugs</a></dd>
+			{{end}}
+			<dd>
+			{{with .Filenames}}
+				<h4>Package files</h4>
+				<p>
+				<span style="font-size:90%">
+				{{range .}}
+					<a href="/{{.|srcLink}}">{{.|filename|html}}</a>
+				{{end}}
+				</span>
+				</p>
+			{{end}}
+			</dd>
+		</dl>
+	
+		{{with .Consts}}
+			<h2 id="Constants">Constants</h2>
+			{{range .}}
+				{{comment_html .Doc}}
+				<pre>{{node_html .Decl $.FSet}}</pre>
+			{{end}}
 		{{end}}
-	{{end}}
-	{{with .Consts}}
-		<h2 id="Constants">Constants</h2>
-		{{range .}}
-			{{comment_html .Doc}}
-			<pre>{{node_html .Decl $.FSet}}</pre>
+		{{with .Vars}}
+			<h2 id="Variables">Variables</h2>
+			{{range .}}
+				{{comment_html .Doc}}
+				<pre>{{node_html .Decl $.FSet}}</pre>
+			{{end}}
 		{{end}}
-	{{end}}
-	{{with .Vars}}
-		<h2 id="Variables">Variables</h2>
-		{{range .}}
-			{{comment_html .Doc}}
-			<pre>{{node_html .Decl $.FSet}}</pre>
-		{{end}}
-	{{end}}
-	{{range .Funcs}}
-		{{/* Name is a string - no need for FSet */}}
-		{{$name_html := html .Name}}
-		<h2 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h2>
-		<p><code>{{node_html .Decl $.FSet}}</code></p>
-		{{comment_html .Doc}}
-		{{example_html .Name $.Examples $.FSet}}
-	{{end}}
-	{{range .Types}}
-		{{$tname := .Name}}
-		{{$tname_html := html .Name}}
-		<h2 id="{{$tname_html}}">type <a href="/{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
-		{{comment_html .Doc}}
-		<pre>{{node_html .Decl $.FSet}}</pre>
-		{{range .Consts}}
-			{{comment_html .Doc}}
-			<pre>{{node_html .Decl $.FSet}}</pre>
-		{{end}}
-		{{range .Vars}}
-			{{comment_html .Doc}}
-			<pre>{{node_html .Decl $.FSet}}</pre>
-		{{end}}
-		{{example_html $tname $.Examples $.FSet}}
 		{{range .Funcs}}
+			{{/* Name is a string - no need for FSet */}}
 			{{$name_html := html .Name}}
-			<h3 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+			<h2 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h2>
 			<p><code>{{node_html .Decl $.FSet}}</code></p>
 			{{comment_html .Doc}}
 			{{example_html .Name $.Examples $.FSet}}
 		{{end}}
-		{{range .Methods}}
-			{{$name_html := html .Name}}
-			<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
-			<p><code>{{node_html .Decl $.FSet}}</code></p>
+		{{range .Types}}
+			{{$tname := .Name}}
+			{{$tname_html := html .Name}}
+			<h2 id="{{$tname_html}}">type <a href="/{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
 			{{comment_html .Doc}}
-			{{$name := printf "%s_%s" $tname .Name}}
-			{{example_html $name $.Examples $.FSet}}
+			<pre>{{node_html .Decl $.FSet}}</pre>
+			{{range .Consts}}
+				{{comment_html .Doc}}
+				<pre>{{node_html .Decl $.FSet}}</pre>
+			{{end}}
+			{{range .Vars}}
+				{{comment_html .Doc}}
+				<pre>{{node_html .Decl $.FSet}}</pre>
+			{{end}}
+			{{example_html $tname $.Examples $.FSet}}
+			{{range .Funcs}}
+				{{$name_html := html .Name}}
+				<h3 id="{{$name_html}}">func <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+				<p><code>{{node_html .Decl $.FSet}}</code></p>
+				{{comment_html .Doc}}
+				{{example_html .Name $.Examples $.FSet}}
+			{{end}}
+			{{range .Methods}}
+				{{$name_html := html .Name}}
+				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+				<p><code>{{node_html .Decl $.FSet}}</code></p>
+				{{comment_html .Doc}}
+				{{$name := printf "%s_%s" $tname .Name}}
+				{{example_html $name $.Examples $.FSet}}
+			{{end}}
 		{{end}}
+	{{else}}  {{/* not a package; is a command */}}
+		{{comment_html .Doc}}
 	{{end}}
+
 	{{with .Bugs}}
 		<h2 id="Bugs">Bugs</h2>
 		{{range .}}
@@ -122,6 +125,11 @@
 		{{end}}
 	{{end}}
 {{end}}
+
+{{with .PAst}}
+	<pre>{{node_html . $.FSet}}</pre>
+{{end}}
+
 {{with .PList}}
 	<h2>Other packages</h2>
 	<p>
@@ -131,6 +139,7 @@
 	{{end}}
 	</p>
 {{end}}
+
 {{with .Dirs}}
 	{{/* DirList entries are numbers and strings - no need for FSet */}}
 	<h2 id="Subdirectories">Subdirectories</h2>
