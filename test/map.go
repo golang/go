@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 )
 
@@ -487,5 +488,161 @@ func main() {
 	var mnil map[string]int
 	for _, _ = range mnil {
 		panic("range mnil")
+	}
+
+	testfloat()
+}
+
+func testfloat() {
+	// Test floating point numbers in maps.
+	// Two map keys refer to the same entry if the keys are ==.
+	// The special cases, then, are that +0 == -0 and that NaN != NaN.
+
+	{
+		var (
+			pz   = float32(0)
+			nz   = math.Float32frombits(1 << 31)
+			nana = float32(math.NaN())
+			nanb = math.Float32frombits(math.Float32bits(nana) ^ 2)
+		)
+
+		m := map[float32]string{
+			pz:   "+0",
+			nana: "NaN",
+			nanb: "NaN",
+		}
+		if m[pz] != "+0" {
+			fmt.Println("float32 map cannot read back m[+0]:", m[pz])
+		}
+		if m[nz] != "+0" {
+			fmt.Println("float32 map does not treat", pz, "and", nz, "as equal for read")
+			fmt.Println("float32 map does not treat -0 and +0 as equal for read")
+		}
+		m[nz] = "-0"
+		if m[pz] != "-0" {
+			fmt.Println("float32 map does not treat -0 and +0 as equal for write")
+		}
+		if _, ok := m[nana]; ok {
+			fmt.Println("float32 map allows NaN lookup (a)")
+		}
+		if _, ok := m[nanb]; ok {
+			fmt.Println("float32 map allows NaN lookup (b)")
+		}
+		if len(m) != 3 {
+			fmt.Println("float32 map should have 3 entries:", m)
+		}
+		m[nana] = "NaN"
+		m[nanb] = "NaN"
+		if len(m) != 5 {
+			fmt.Println("float32 map should have 5 entries:", m)
+		}
+	}
+
+	{
+		var (
+			pz   = float64(0)
+			nz   = math.Float64frombits(1 << 63)
+			nana = float64(math.NaN())
+			nanb = math.Float64frombits(math.Float64bits(nana) ^ 2)
+		)
+
+		m := map[float64]string{
+			pz:   "+0",
+			nana: "NaN",
+			nanb: "NaN",
+		}
+		if m[nz] != "+0" {
+			fmt.Println("float64 map does not treat -0 and +0 as equal for read")
+		}
+		m[nz] = "-0"
+		if m[pz] != "-0" {
+			fmt.Println("float64 map does not treat -0 and +0 as equal for write")
+		}
+		if _, ok := m[nana]; ok {
+			fmt.Println("float64 map allows NaN lookup (a)")
+		}
+		if _, ok := m[nanb]; ok {
+			fmt.Println("float64 map allows NaN lookup (b)")
+		}
+		if len(m) != 3 {
+			fmt.Println("float64 map should have 3 entries:", m)
+		}
+		m[nana] = "NaN"
+		m[nanb] = "NaN"
+		if len(m) != 5 {
+			fmt.Println("float64 map should have 5 entries:", m)
+		}
+	}
+
+	{
+		var (
+			pz   = complex64(0)
+			nz   = complex(0, math.Float32frombits(1<<31))
+			nana = complex(5, float32(math.NaN()))
+			nanb = complex(5, math.Float32frombits(math.Float32bits(float32(math.NaN()))^2))
+		)
+
+		m := map[complex64]string{
+			pz:   "+0",
+			nana: "NaN",
+			nanb: "NaN",
+		}
+		if m[nz] != "+0" {
+			fmt.Println("complex64 map does not treat -0 and +0 as equal for read")
+		}
+		m[nz] = "-0"
+		if m[pz] != "-0" {
+			fmt.Println("complex64 map does not treat -0 and +0 as equal for write")
+		}
+		if _, ok := m[nana]; ok {
+			fmt.Println("complex64 map allows NaN lookup (a)")
+		}
+		if _, ok := m[nanb]; ok {
+			fmt.Println("complex64 map allows NaN lookup (b)")
+		}
+		if len(m) != 3 {
+			fmt.Println("complex64 map should have 3 entries:", m)
+		}
+		m[nana] = "NaN"
+		m[nanb] = "NaN"
+		if len(m) != 5 {
+			fmt.Println("complex64 map should have 5 entries:", m)
+		}
+	}
+
+	{
+		var (
+			pz   = complex128(0)
+			nz   = complex(0, math.Float64frombits(1<<63))
+			nana = complex(5, float64(math.NaN()))
+			nanb = complex(5, math.Float64frombits(math.Float64bits(float64(math.NaN()))^2))
+		)
+
+		m := map[complex128]string{
+			pz:   "+0",
+			nana: "NaN",
+			nanb: "NaN",
+		}
+		if m[nz] != "+0" {
+			fmt.Println("complex128 map does not treat -0 and +0 as equal for read")
+		}
+		m[nz] = "-0"
+		if m[pz] != "-0" {
+			fmt.Println("complex128 map does not treat -0 and +0 as equal for write")
+		}
+		if _, ok := m[nana]; ok {
+			fmt.Println("complex128 map allows NaN lookup (a)")
+		}
+		if _, ok := m[nanb]; ok {
+			fmt.Println("complex128 map allows NaN lookup (b)")
+		}
+		if len(m) != 3 {
+			fmt.Println("complex128 map should have 3 entries:", m)
+		}
+		m[nana] = "NaN"
+		m[nanb] = "NaN"
+		if len(m) != 5 {
+			fmt.Println("complex128 map should have 5 entries:", m)
+		}
 	}
 }
