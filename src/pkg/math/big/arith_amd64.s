@@ -266,9 +266,9 @@ E7:	SUBL $1, BX		// i--
 TEXT ·bitLen(SB),7,$0
 	BSRQ x+0(FP), AX
 	JZ Z1
-	INCQ AX
-	MOVQ AX, n+8(FP)
+	INCL AX
+	MOVL AX, n+8(FP)
 	RET
 
-Z1:	MOVQ $0, n+8(FP)
+Z1:	MOVL $0, n+8(FP)
 	RET
