@@ -296,6 +296,7 @@ func makeTree(t *testing.T) {
 			fd, err := os.Create(path)
 			if err != nil {
 				t.Errorf("makeTree: %v", err)
+				return
 			}
 			fd.Close()
 		} else {
@@ -345,10 +346,10 @@ func TestWalk(t *testing.T) {
 	// Expect no errors.
 	err := filepath.Walk(tree.name, markFn)
 	if err != nil {
-		t.Errorf("no error expected, found: %s", err)
+		t.Fatalf("no error expected, found: %s", err)
 	}
 	if len(errors) != 0 {
-		t.Errorf("unexpected errors: %s", errors)
+		t.Fatalf("unexpected errors: %s", errors)
 	}
 	checkMarks(t, true)
 	errors = errors[0:0]
@@ -370,7 +371,7 @@ func TestWalk(t *testing.T) {
 		tree.entries[3].mark--
 		err := filepath.Walk(tree.name, markFn)
 		if err != nil {
-			t.Errorf("expected no error return from Walk, %s", err)
+			t.Fatalf("expected no error return from Walk, got %s", err)
 		}
 		if len(errors) != 2 {
 			t.Errorf("expected 2 errors, got %d: %s", len(errors), errors)
@@ -389,7 +390,7 @@ func TestWalk(t *testing.T) {
 		clear = false // error will stop processing
 		err = filepath.Walk(tree.name, markFn)
 		if err == nil {
-			t.Errorf("expected error return from Walk")
+			t.Fatalf("expected error return from Walk")
 		}
 		if len(errors) != 1 {
 			t.Errorf("expected 1 error, got %d: %s", len(errors), errors)
@@ -657,11 +658,13 @@ func TestAbs(t *testing.T) {
 		info, err := os.Stat(path)
 		if err != nil {
 			t.Errorf("%s: %s", path, err)
+			continue
 		}
 
 		abspath, err := filepath.Abs(path)
 		if err != nil {
 			t.Errorf("Abs(%q) error: %v", path, err)
+			continue
 		}
 		absinfo, err := os.Stat(abspath)
 		if err != nil || !absinfo.(*os.FileStat).SameFile(info.(*os.FileStat)) {
