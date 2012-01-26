@@ -585,12 +585,26 @@ func converterForType(typ string) driver.ValueConverter {
 	switch typ {
 	case "bool":
 		return driver.Bool
+	case "nullbool":
+		return driver.Null{driver.Bool}
 	case "int32":
 		return driver.Int32
 	case "string":
 		return driver.NotNull{driver.String}
 	case "nullstring":
 		return driver.Null{driver.String}
+	case "int64":
+		// TODO(coopernurse): add type-specific converter
+		return driver.NotNull{driver.DefaultParameterConverter}
+	case "nullint64":
+		// TODO(coopernurse): add type-specific converter
+		return driver.Null{driver.DefaultParameterConverter}
+	case "float64":
+		// TODO(coopernurse): add type-specific converter
+		return driver.NotNull{driver.DefaultParameterConverter}
+	case "nullfloat64":
+		// TODO(coopernurse): add type-specific converter
+		return driver.Null{driver.DefaultParameterConverter}
 	case "datetime":
 		return driver.DefaultParameterConverter
 	}

@@ -47,7 +47,6 @@ type RawBytes []byte
 //     // NULL value
 //  }
 //
-// TODO(bradfitz): add other types.
 type NullString struct {
 	String string
 	Valid  bool // Valid is true if String is not NULL
@@ -69,6 +68,84 @@ func (ns NullString) SubsetValue() (interface{}, error) {
 		return nil, nil
 	}
 	return ns.String, nil
+}
+
+// NullInt64 represents an int64 that may be null.
+// NullInt64 implements the ScannerInto interface so
+// it can be used as a scan destination, similar to NullString.
+type NullInt64 struct {
+	Int64 int64
+	Valid bool // Valid is true if Int64 is not NULL
+}
+
+// ScanInto implements the ScannerInto interface.
+func (n *NullInt64) ScanInto(value interface{}) error {
+	if value == nil {
+		n.Int64, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	return convertAssign(&n.Int64, value)
+}
+
+// SubsetValue implements the driver SubsetValuer interface.
+func (n NullInt64) SubsetValue() (interface{}, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.Int64, nil
+}
+
+// NullFloat64 represents a float64 that may be null.
+// NullFloat64 implements the ScannerInto interface so
+// it can be used as a scan destination, similar to NullString.
+type NullFloat64 struct {
+	Float64 float64
+	Valid   bool // Valid is true if Float64 is not NULL
+}
+
+// ScanInto implements the ScannerInto interface.
+func (n *NullFloat64) ScanInto(value interface{}) error {
+	if value == nil {
+		n.Float64, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	return convertAssign(&n.Float64, value)
+}
+
+// SubsetValue implements the driver SubsetValuer interface.
+func (n NullFloat64) SubsetValue() (interface{}, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.Float64, nil
+}
+
+// NullBool represents a bool that may be null.
+// NullBool implements the ScannerInto interface so
+// it can be used as a scan destination, similar to NullString.
+type NullBool struct {
+	Bool  bool
+	Valid bool // Valid is true if Bool is not NULL
+}
+
+// ScanInto implements the ScannerInto interface.
+func (n *NullBool) ScanInto(value interface{}) error {
+	if value == nil {
+		n.Bool, n.Valid = false, false
+		return nil
+	}
+	n.Valid = true
+	return convertAssign(&n.Bool, value)
+}
+
+// SubsetValue implements the driver SubsetValuer interface.
+func (n NullBool) SubsetValue() (interface{}, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.Bool, nil
 }
 
 // ScannerInto is an interface used by Scan.
