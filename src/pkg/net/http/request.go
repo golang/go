@@ -606,7 +606,7 @@ func (r *Request) ParseForm() (err error) {
 			return errors.New("missing form body")
 		}
 		ct := r.Header.Get("Content-Type")
-		ct, _, err := mime.ParseMediaType(ct)
+		ct, _, err = mime.ParseMediaType(ct)
 		switch {
 		case ct == "application/x-www-form-urlencoded":
 			var reader io.Reader = r.Body
@@ -646,8 +646,6 @@ func (r *Request) ParseForm() (err error) {
 			// Clean this up and write more tests.
 			// request_test.go contains the start of this,
 			// in TestRequestMultipartCallOrder.
-		default:
-			return &badStringError{"unknown Content-Type", ct}
 		}
 	}
 	return err

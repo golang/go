@@ -46,19 +46,19 @@ func TestPostQuery(t *testing.T) {
 
 type stringMap map[string][]string
 type parseContentTypeTest struct {
+	shouldError bool
 	contentType stringMap
 }
 
 var parseContentTypeTests = []parseContentTypeTest{
-	{contentType: stringMap{"Content-Type": {"text/plain"}}},
-	{contentType: stringMap{}}, // Non-existent keys are not placed. The value nil is illegal.
-	{contentType: stringMap{"Content-Type": {"text/plain; boundary="}}},
-	{
-		contentType: stringMap{"Content-Type": {"application/unknown"}},
-	},
+	{false, stringMap{"Content-Type": {"text/plain"}}},
+	// Non-existent keys are not placed. The value nil is illegal.
+	{true, stringMap{}},
+	{true, stringMap{"Content-Type": {"text/plain; boundary="}}},
+	{false, stringMap{"Content-Type": {"application/unknown"}}},
 }
 
-func TestParseFormBadContentType(t *testing.T) {
+func TestParseFormUnknownContentType(t *testing.T) {
 	for i, test := range parseContentTypeTests {
 		req := &Request{
 			Method: "POST",
@@ -66,8 +66,11 @@ func TestParseFormBadContentType(t *testing.T) {
 			Body:   ioutil.NopCloser(bytes.NewBufferString("body")),
 		}
 		err := req.ParseForm()
-		if err == nil {
+		switch {
+		case err == nil && test.shouldError:
 			t.Errorf("test %d should have returned error", i)
+		case err != nil && !test.shouldError:
+			t.Errorf("test %d should not have returned error, got %v", i, err)
 		}
 	}
 }
