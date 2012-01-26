@@ -556,8 +556,11 @@ func (tx *Tx) Query(query string, args ...interface{}) (*Rows, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
-	return stmt.Query(args...)
+	rows, err := stmt.Query(args...)
+	if err == nil {
+		rows.closeStmt = stmt
+	}
+	return rows, err
 }
 
 // QueryRow executes a query that is expected to return at most one row.

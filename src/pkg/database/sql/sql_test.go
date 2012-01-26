@@ -311,6 +311,40 @@ func TestTxStmt(t *testing.T) {
 	}
 }
 
+// Issue: http://golang.org/issue/2784
+// This test didn't fail before because we got luckly with the fakedb driver.
+// It was failing, and now not, in github.com/bradfitz/go-sql-test
+func TestTxQuery(t *testing.T) {
+	db := newTestDB(t, "")
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
+	exec(t, db, "INSERT|t1|name=Alice")
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	r, err := tx.Query("SELECT|t1|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !r.Next() {
+		if r.Err() != nil {
+			t.Fatal(r.Err())
+		}
+		t.Fatal("expected one row")
+	}
+
+	var x string
+	err = r.Scan(&x)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Tests fix for issue 2542, that we release a lock when querying on
 // a closed connection.
 func TestIssue2542Deadlock(t *testing.T) {
