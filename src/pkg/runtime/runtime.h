@@ -375,6 +375,10 @@ enum
 	AINTER,
 	ANILINTER,
 	ASLICE,
+	AFLOAT32,
+	AFLOAT64,
+	ACPLX64,
+	ACPLX128,
 	Amax
 };
 typedef	struct	Alg		Alg;

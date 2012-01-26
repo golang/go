@@ -515,22 +515,30 @@ algtype1(Type *t, Type **bad)
 	case TINT:
 	case TUINT:
 	case TUINTPTR:
-	case TCOMPLEX64:
-	case TCOMPLEX128:
-	case TFLOAT32:
-	case TFLOAT64:
 	case TBOOL:
 	case TPTR32:
 	case TPTR64:
 	case TCHAN:
 	case TUNSAFEPTR:
 		return AMEM;
-	
+
 	case TFUNC:
 	case TMAP:
 		if(bad)
 			*bad = t;
 		return ANOEQ;
+
+	case TFLOAT32:
+		return AFLOAT32;
+
+	case TFLOAT64:
+		return AFLOAT64;
+
+	case TCOMPLEX64:
+		return ACPLX64;
+
+	case TCOMPLEX128:
+		return ACPLX128;
 
 	case TSTRING:
 		return ASTRING;
@@ -2511,6 +2519,18 @@ hashfor(Type *t)
 	case ASTRING:
 		sym = pkglookup("strhash", runtimepkg);
 		break;
+	case AFLOAT32:
+		sym = pkglookup("f32hash", runtimepkg);
+		break;
+	case AFLOAT64:
+		sym = pkglookup("f64hash", runtimepkg);
+		break;
+	case ACPLX64:
+		sym = pkglookup("c64hash", runtimepkg);
+		break;
+	case ACPLX128:
+		sym = pkglookup("c128hash", runtimepkg);
+		break;
 	default:
 		sym = typesymprefix(".hash", t);
 		break;
@@ -2537,7 +2557,7 @@ genhash(Sym *sym, Type *t)
 	Node *hashel;
 	Type *first, *t1;
 	int old_safemode;
-	int64 size;
+	int64 size, mul;
 
 	if(debug['r'])
 		print("genhash %S %T\n", sym, t);
@@ -2593,6 +2613,17 @@ genhash(Sym *sym, Type *t)
 				nod(OOR,
 					nod(OLSH, nod(OIND, nh, N), nodintconst(3)),
 					nod(ORSH, nod(OIND, nh, N), nodintconst(widthptr*8-3)))));
+
+		// *h *= mul
+		// Same multipliers as in runtime.memhash.
+		if(widthptr == 4)
+			mul = 3267000013LL;
+		else
+			mul = 23344194077549503LL;
+		n->nbody = list(n->nbody,
+			nod(OAS,
+				nod(OIND, nh, N),
+				nod(OMUL, nod(OIND, nh, N), nodintconst(mul))));
 
 		// hashel(h, sizeof(p[i]), &p[i])
 		call = nod(OCALL, hashel, N);

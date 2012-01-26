@@ -278,8 +278,8 @@ runtime·check(void)
 	uint32 f;
 	int64 g;
 	uint64 h;
-	float32 i;
-	float64 j;
+	float32 i, i1;
+	float64 j, j1;
 	void* k;
 	uint16* l;
 	struct x1 {
@@ -318,6 +318,30 @@ runtime·check(void)
 		runtime·throw("cas3");
 	if(z != 4)
 		runtime·throw("cas4");
+
+	*(uint64*)&j = ~0ULL;
+	if(j == j)
+		runtime·throw("float64nan");
+	if(!(j != j))
+		runtime·throw("float64nan1");
+
+	*(uint64*)&j1 = ~1ULL;
+	if(j == j1)
+		runtime·throw("float64nan2");
+	if(!(j != j1))
+		runtime·throw("float64nan3");
+
+	*(uint32*)&i = ~0UL;
+	if(i == i)
+		runtime·throw("float32nan");
+	if(!(i != i))
+		runtime·throw("float32nan1");
+
+	*(uint32*)&i1 = ~1UL;
+	if(i == i1)
+		runtime·throw("float32nan2");
+	if(!(i != i1))
+		runtime·throw("float32nan3");
 
 	runtime·initsig(0);
 }

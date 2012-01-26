@@ -198,6 +198,106 @@ runtime·memcopy128(uintptr s, void *a, void *b)
 }
 
 void
+runtime·f32equal(bool *eq, uintptr s, void *a, void *b)
+{
+	USED(s);
+	*eq = *(float32*)a == *(float32*)b;
+}
+
+void
+runtime·f64equal(bool *eq, uintptr s, void *a, void *b)
+{
+	USED(s);
+	*eq = *(float64*)a == *(float64*)b;
+}
+
+void
+runtime·c64equal(bool *eq, uintptr s, void *a, void *b)
+{	
+	Complex64 *ca, *cb;
+	
+	USED(s);
+	ca = a;
+	cb = b;
+	*eq = ca->real == cb->real && ca->imag == cb->imag;
+}
+
+void
+runtime·c128equal(bool *eq, uintptr s, void *a, void *b)
+{	
+	Complex128 *ca, *cb;
+	
+	USED(s);
+	ca = a;
+	cb = b;
+	*eq = ca->real == cb->real && ca->imag == cb->imag;
+}
+
+// NOTE: Because NaN != NaN, a map can contain any
+// number of (mostly useless) entries keyed with NaNs.
+// To avoid long hash chains, we assign a random number
+// as the hash value for a NaN.
+
+void
+runtime·f32hash(uintptr *h, uintptr s, void *a)
+{
+	uintptr hash;
+	float32 f;
+
+	USED(s);
+	f = *(float32*)a;
+	if(f == 0)
+		hash = 0;  // +0, -0
+	else if(f != f)
+		hash = runtime·fastrand1();  // any kind of NaN
+	else
+		hash = *(uint32*)a;
+	*h ^= (*h ^ hash ^ 2860486313U) * 3267000013U;
+}
+
+void
+runtime·f64hash(uintptr *h, uintptr s, void *a)
+{
+	uintptr hash;
+	float64 f;
+	uint64 u;
+
+	USED(s);
+	f = *(float32*)a;
+	if(f == 0)
+		hash = 0;	// +0, -0
+	else if(f != f)
+		hash = runtime·fastrand1();  // any kind of NaN
+	else {
+		u = *(uint64*)a;
+		if(sizeof(uintptr) == 4)
+			hash = ((uint32)(u>>32) ^ 2860486313) * (uint32)u;
+		else
+			hash = u;
+	}
+	if(sizeof(uintptr) == 4)
+		*h = (*h ^ hash ^ 2860486313U) * 3267000013U;
+	else
+		*h = (*h ^ hash ^ 33054211828000289ULL) * 23344194077549503ULL;
+}
+
+void
+runtime·c64hash(uintptr *h, uintptr s, void *a)
+{
+	USED(s);
+	runtime·f32hash(h, 0, a);
+	runtime·f32hash(h, 0, (float32*)a+1);
+}
+
+void
+runtime·c128hash(uintptr *h, uintptr s, void *a)
+{
+	USED(s);
+	runtime·f64hash(h, 0, a);
+	runtime·f64hash(h, 0, (float64*)a+1);
+}
+
+void
 runtime·slicecopy(uintptr s, void *a, void *b)
 {
 	USED(s);
@@ -349,6 +449,10 @@ runtime·algarray[] =
 [AINTER]	{ runtime·interhash, runtime·interequal, runtime·interprint, runtime·intercopy },
 [ANILINTER]	{ runtime·nilinterhash, runtime·nilinterequal, runtime·nilinterprint, runtime·nilintercopy },
 [ASLICE]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·slicecopy },
+[AFLOAT32]	{ runtime·f32hash, runtime·f32equal, runtime·memprint, runtime·memcopy },
+[AFLOAT64]	{ runtime·f64hash, runtime·f64equal, runtime·memprint, runtime·memcopy },
+[ACPLX64]	{ runtime·c64hash, runtime·c64equal, runtime·memprint, runtime·memcopy },
+[ACPLX128]	{ runtime·c128hash, runtime·c128equal, runtime·memprint, runtime·memcopy },
 [AMEM0]		{ runtime·memhash, runtime·memequal0, runtime·memprint, runtime·memcopy0 },
 [AMEM8]		{ runtime·memhash, runtime·memequal8, runtime·memprint, runtime·memcopy8 },
 [AMEM16]	{ runtime·memhash, runtime·memequal16, runtime·memprint, runtime·memcopy16 },
