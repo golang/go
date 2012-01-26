@@ -467,13 +467,16 @@ func TestCountMallocsOverHTTP(t *testing.T) {
 	fmt.Printf("mallocs per HTTP rpc round trip: %d\n", countMallocs(dialHTTP, t))
 }
 
-type writeCrasher struct{}
+type writeCrasher struct {
+	done chan bool
+}
 
 func (writeCrasher) Close() error {
 	return nil
 }
 
-func (writeCrasher) Read(p []byte) (int, error) {
+func (w *writeCrasher) Read(p []byte) (int, error) {
+	<-w.done
 	return 0, io.EOF
 }
 
@@ -482,7 +485,8 @@ func (writeCrasher) Write(p []byte) (int, error) {
 }
 
 func TestClientWriteError(t *testing.T) {
-	c := NewClient(writeCrasher{})
+	w := &writeCrasher{done: make(chan bool)}
+	c := NewClient(w)
 	res := false
 	err := c.Call("foo", 1, &res)
 	if err == nil {
@@ -491,6 +495,7 @@ func TestClientWriteError(t *testing.T) {
 	if err.Error() != "fake write failure" {
 		t.Error("unexpected value of error:", err)
 	}
+	w.done <- true
 }
 
 func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
