@@ -518,7 +518,7 @@ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
 		go func() {
 			reply := new(Reply)
 			for atomic.AddInt32(&N, -1) >= 0 {
-				err = client.Call("Arith.Add", args, reply)
+				err := client.Call("Arith.Add", args, reply)
 				if err != nil {
 					b.Fatalf("rpc error: Add: expected no error but got string %q", err.Error())
 				}
