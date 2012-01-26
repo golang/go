@@ -67,8 +67,8 @@ to call <code>close</code> on a receive-only channel:
 
 <pre>
     var c chan int
-    var csend chan<- int = c
-    var crecv <-chan int = c
+    var csend chan&lt;- int = c
+    var crecv &lt;-chan int = c
     close(c)     // legal
     close(csend) // legal
     close(crecv) // illegal
@@ -263,8 +263,8 @@ This function implicitly returns a shadowed return value and will be rejected by
 
 <pre>
     func Bug() (i, j, k int) {
-        for i = 0; i < 5; i++ {
-            for j := 0; j < 5; j++ { // Redeclares j.
+        for i = 0; i &lt; 5; i++ {
+            for j := 0; j &lt; 5; j++ { // Redeclares j.
                 k += i*j
                 if k > 100 {
                     return // Rejected: j is shadowed here.
