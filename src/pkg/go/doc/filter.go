@@ -71,17 +71,6 @@ func filterFuncs(a []*Func, f Filter) []*Func {
 	return a[0:w]
 }
 
-func filterMethods(a []*Method, f Filter) []*Method {
-	w := 0
-	for _, md := range a {
-		if f(md.Name) {
-			a[w] = md
-			w++
-		}
-	}
-	return a[0:w]
-}
-
 func filterTypes(a []*Type, f Filter) []*Type {
 	w := 0
 	for _, td := range a {
@@ -93,7 +82,7 @@ func filterTypes(a []*Type, f Filter) []*Type {
 			td.Consts = filterValues(td.Consts, f)
 			td.Vars = filterValues(td.Vars, f)
 			td.Funcs = filterFuncs(td.Funcs, f)
-			td.Methods = filterMethods(td.Methods, f)
+			td.Methods = filterFuncs(td.Methods, f)
 			n += len(td.Consts) + len(td.Vars) + len(td.Funcs) + len(td.Methods)
 		}
 		if n > 0 {
