@@ -16,44 +16,55 @@ import (
 // function/method sets
 //
 // Internally, we treat functions like methods and collect them in method sets.
-// TODO(gri): Consider eliminating the external distinction. Doesn't really buy
-//            much and would simplify code and API.
 
-// methodSet describes a set of methods. Entries where Func == nil are conflict
+// methodSet describes a set of methods. Entries where Decl == nil are conflict
 // entries (more then one method with the same name at the same embedding level).
 //
-type methodSet map[string]*Method
+type methodSet map[string]*Func
 
-// set adds the function f to mset. If there are multiple f's with
-// the same name, set keeps the first one with documentation.
+// recvString returns a string representation of recv of the
+// form "T", "*T", or "BADRECV" (if not a proper receiver type).
+//
+func recvString(recv ast.Expr) string {
+	switch t := recv.(type) {
+	case *ast.Ident:
+		return t.Name
+	case *ast.StarExpr:
+		return "*" + recvString(t.X)
+	}
+	return "BADRECV"
+}
+
+// set creates the corresponding Func for f and adds it to mset.
+// If there are multiple f's with the same name, set keeps the first
+// one with documentation; conflicts are ignored.
 //
 func (mset methodSet) set(f *ast.FuncDecl) {
 	name := f.Name.Name
-	if g, found := mset[name]; found && g.Doc != "" {
+	if g := mset[name]; g != nil && g.Doc != "" {
 		// A function with the same name has already been registered;
 		// since it has documentation, assume f is simply another
 		// implementation and ignore it. This does not happen if the
-		// caller is using build.ScanDir to determine the list of files
-		// implementing a package. 
-		// TODO(gri) consider collecting all functions, or at least
-		//           all comments
+		// caller is using go/build.ScanDir to determine the list of
+		// files implementing a package. 
 		return
 	}
 	// function doesn't exist or has no documentation; use f
-	var recv ast.Expr
+	recv := ""
 	if f.Recv != nil {
+		var typ ast.Expr
 		// be careful in case of incorrect ASTs
 		if list := f.Recv.List; len(list) == 1 {
-			recv = list[0].Type
+			typ = list[0].Type
 		}
+		recv = recvString(typ)
 	}
-	mset[name] = &Method{
-		Func: &Func{
-			Doc:  f.Doc.Text(),
-			Name: name,
-			Decl: f,
-			Recv: recv,
-		},
+	mset[name] = &Func{
+		Doc:  f.Doc.Text(),
+		Name: name,
+		Decl: f,
+		Recv: recv,
+		Orig: recv,
 	}
 	f.Doc = nil // doc consumed - remove from AST
 }
@@ -62,57 +73,19 @@ func (mset methodSet) set(f *ast.FuncDecl) {
 // already contains a method with the same name at the same or a higher
 // level then m.
 //
-func (mset methodSet) add(m *Method) {
+func (mset methodSet) add(m *Func) {
 	old := mset[m.Name]
 	if old == nil || m.Level < old.Level {
 		mset[m.Name] = m
 		return
 	}
 	if old != nil && m.Level == old.Level {
-		// conflict - mark it using a method with nil Func
-		mset[m.Name] = &Method{Level: m.Level}
-	}
-}
-
-func (mset methodSet) sortedFuncs() []*Func {
-	list := make([]*Func, len(mset))
-	i := 0
-	for _, m := range mset {
-		// exclude conflict entries
-		// (this should never happen for functions, but this code
-		// and the code in sortedMethods may be merged eventually,
-		// so leave it for symmetry).
-		if m.Func != nil {
-			list[i] = m.Func
-			i++
+		// conflict - mark it using a method with nil Decl
+		mset[m.Name] = &Func{
+			Name:  m.Name,
+			Level: m.Level,
 		}
 	}
-	list = list[0:i]
-	sortBy(
-		func(i, j int) bool { return list[i].Name < list[j].Name },
-		func(i, j int) { list[i], list[j] = list[j], list[i] },
-		len(list),
-	)
-	return list
-}
-
-func (mset methodSet) sortedMethods() []*Method {
-	list := make([]*Method, len(mset))
-	i := 0
-	for _, m := range mset {
-		// exclude conflict entries
-		if m.Func != nil {
-			list[i] = m
-			i++
-		}
-	}
-	list = list[0:i]
-	sortBy(
-		func(i, j int) bool { return list[i].Name < list[j].Name },
-		func(i, j int) { list[i], list[j] = list[j], list[i] },
-		len(list),
-	)
-	return list
 }
 
 // ----------------------------------------------------------------------------
@@ -408,9 +381,6 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 		return
 	}
 
-	// determine funcs map with which to associate the Func for this declaration
-	funcs := r.funcs
-
 	// perhaps a factory function
 	// determine result type, if any
 	if fun.Type.Results.NumFields() >= 1 {
@@ -422,15 +392,15 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 			if n, imp := baseTypeName(res.Type); !imp && r.isVisible(n) {
 				if typ := r.lookupType(n); typ != nil {
 					// associate Func with typ
-					funcs = typ.funcs
+					typ.funcs.set(fun)
+					return
 				}
 			}
 		}
 	}
 
-	// associate the Func
-	funcs.set(fun)
-	fun.Doc = nil // doc consumed - remove from AST
+	// just an ordinary function
+	r.funcs.set(fun)
 }
 
 var (
@@ -552,11 +522,9 @@ var predeclaredTypes = map[string]bool{
 	"uintptr":    true,
 }
 
-func customizeRecv(m *Method, recvTypeName string, embeddedIsPtr bool, level int) *Method {
-	f := m.Func
-
+func customizeRecv(f *Func, recvTypeName string, embeddedIsPtr bool, level int) *Func {
 	if f == nil || f.Decl == nil || f.Decl.Recv == nil || len(f.Decl.Recv.List) != 1 {
-		return m // shouldn't happen, but be safe
+		return f // shouldn't happen, but be safe
 	}
 
 	// copy existing receiver field and set new type
@@ -579,13 +547,11 @@ func customizeRecv(m *Method, recvTypeName string, embeddedIsPtr bool, level int
 	// copy existing function documentation and set new declaration
 	newF := *f
 	newF.Decl = &newFuncDecl
-	newF.Recv = typ
+	newF.Recv = recvString(typ)
+	// the Orig field never changes
+	newF.Level = level
 
-	return &Method{
-		Func:   &newF,
-		Origin: nil, // TODO(gri) set this
-		Level:  level,
-	}
+	return &newF
 }
 
 // collectEmbeddedMethods collects the embedded methods from
@@ -690,15 +656,9 @@ func sortedKeys(m map[string]int) []string {
 // sortingName returns the name to use when sorting d into place.
 //
 func sortingName(d *ast.GenDecl) string {
-	// TODO(gri): Should actual grouping (presence of ()'s) rather
-	//            then the number of specs determine sort criteria?
-	//            (as is, a group w/ one element is sorted alphabetically)
 	if len(d.Specs) == 1 {
-		switch s := d.Specs[0].(type) {
-		case *ast.ValueSpec:
+		if s, ok := d.Specs[0].(*ast.ValueSpec); ok {
 			return s.Names[0].Name
-		case *ast.TypeSpec:
-			return s.Name.Name
 		}
 	}
 	return ""
@@ -739,22 +699,36 @@ func sortedTypes(m map[string]*baseType) []*Type {
 			Decl:    t.decl,
 			Consts:  sortedValues(t.values, token.CONST),
 			Vars:    sortedValues(t.values, token.VAR),
-			Funcs:   t.funcs.sortedFuncs(),
-			Methods: t.methods.sortedMethods(),
+			Funcs:   sortedFuncs(t.funcs),
+			Methods: sortedFuncs(t.methods),
 		}
 		i++
 	}
 
 	sortBy(
-		func(i, j int) bool {
-			if ni, nj := sortingName(list[i].Decl), sortingName(list[j].Decl); ni != nj {
-				return ni < nj
-			}
-			return list[i].order < list[j].order
-		},
+		func(i, j int) bool { return list[i].Name < list[j].Name },
 		func(i, j int) { list[i], list[j] = list[j], list[i] },
 		len(list),
 	)
 
+	return list
+}
+
+func sortedFuncs(m methodSet) []*Func {
+	list := make([]*Func, len(m))
+	i := 0
+	for _, m := range m {
+		// exclude conflict entries
+		if m.Decl != nil {
+			list[i] = m
+			i++
+		}
+	}
+	list = list[0:i]
+	sortBy(
+		func(i, j int) bool { return list[i].Name < list[j].Name },
+		func(i, j int) { list[i], list[j] = list[j], list[i] },
+		len(list),
+	)
 	return list
 }

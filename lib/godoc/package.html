@@ -108,7 +108,7 @@
 		{{end}}
 		{{range .Methods}}
 			{{$name_html := html .Name}}
-			<h3 id="{{$tname_html}}.{{$name_html}}">func ({{node_html .Recv $.FSet}}) <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+			<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="/{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
 			<p><code>{{node_html .Decl $.FSet}}</code></p>
 			{{comment_html .Doc}}
 			{{$name := printf "%s_%s" $tname .Name}}

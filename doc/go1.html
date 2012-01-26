@@ -946,9 +946,8 @@ The type names of the <a href="go/doc/"><code>go/doc</code></a> package have bee
 streamlined by removing the <code>Doc</code> suffix: <code>PackageDoc</code>
 is now <code>Package</code>, <code>ValueDoc</code> is <code>Value</code>, etc.
 Also, all types now consistently have a <code>Name</code> field (or <code>Names</code>,
-in the case of type <code>Value</code>), <code>Type.Factories</code> has become
-<code>Type.Funcs</code>, and there is a new type <code>Method</code> that describes
-methods in more detail.
+in the case of type <code>Value</code>) and <code>Type.Factories</code> has become
+<code>Type.Funcs</code>.
 Instead of calling <code>doc.NewPackageDoc(pkg, importpath)</code>,
 documentation for a package is created with:
 </p>
