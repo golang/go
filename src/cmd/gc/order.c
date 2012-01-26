@@ -12,17 +12,14 @@
 
 static void	orderstmt(Node*, NodeList**);
 static void	orderstmtlist(NodeList*, NodeList**);
+static void	orderblock(NodeList **l);
 static void	orderexpr(Node**, NodeList**);
 static void	orderexprlist(NodeList*, NodeList**);
 
 void
 order(Node *fn)
 {
-	NodeList *out;
-	
-	out = nil;
-	orderstmtlist(fn->nbody, &out);
-	fn->nbody = out;
+	orderblock(&fn->nbody);
 }
 
 static void
@@ -76,7 +73,7 @@ orderstmtinplace(Node **np)
 static void
 orderinit(Node *n, NodeList **out)
 {
-	*out = concat(*out, n->ninit);
+	orderstmtlist(n->ninit, out);
 	n->ninit = nil;
 }
 
@@ -164,6 +161,9 @@ orderstmt(Node *n, NodeList **out)
 		return;
 
 	lno = setlineno(n);
+
+	orderinit(n, out);
+
 	switch(n->op) {
 	default:
 		fatal("orderstmt %O", n->op);
@@ -182,7 +182,6 @@ orderstmt(Node *n, NodeList **out)
 	case ORECOVER:
 	case ORECV:
 	case OSEND:
-		orderinit(n, out);
 		orderexpr(&n->left, out);
 		orderexpr(&n->right, out);
 		orderexprlist(n->list, out);
@@ -192,7 +191,6 @@ orderstmt(Node *n, NodeList **out)
 	
 	case OAS2FUNC:
 		// Special: avoid copy of func call n->rlist->n.
-		orderinit(n, out);
 		orderexprlist(n->list, out);
 		ordercall(n->rlist->n, out);
 		*out = list(*out, n);
@@ -200,7 +198,6 @@ orderstmt(Node *n, NodeList **out)
 
 	case OAS2RECV:
 		// Special: avoid copy of receive.
-		orderinit(n, out);
 		orderexprlist(n->list, out);
 		orderexpr(&n->rlist->n->left, out);  // arg to recv
 		*out = list(*out, n);
@@ -209,7 +206,6 @@ orderstmt(Node *n, NodeList **out)
 	case OBLOCK:
 	case OEMPTY:
 		// Special: does not save n onto out.
-		orderinit(n, out);
 		orderstmtlist(n->list, out);
 		break;
 
@@ -223,7 +219,6 @@ orderstmt(Node *n, NodeList **out)
 	case OGOTO:
 	case OLABEL:
 		// Special: n->left is not an expression; save as is.
-		orderinit(n, out);
 		*out = list(*out, n);
 		break;
 
@@ -231,7 +226,6 @@ orderstmt(Node *n, NodeList **out)
 	case OCALLINTER:
 	case OCALLMETH:
 		// Special: handle call arguments.
-		orderinit(n, out);
 		ordercall(n, out);
 		*out = list(*out, n);
 		break;
@@ -239,13 +233,11 @@ orderstmt(Node *n, NodeList **out)
 	case ODEFER:
 	case OPROC:
 		// Special: order arguments to inner call but not call itself.
-		orderinit(n, out);
 		ordercall(n->left, out);
 		*out = list(*out, n);
 		break;
 
 	case OFOR:
-		orderinit(n, out);
 		orderexprinplace(&n->ntest);
 		orderstmtinplace(&n->nincr);
 		orderblock(&n->nbody);
@@ -253,7 +245,6 @@ orderstmt(Node *n, NodeList **out)
 		break;
 		
 	case OIF:
-		orderinit(n, out);
 		orderexprinplace(&n->ntest);
 		orderblock(&n->nbody);
 		orderblock(&n->nelse);
@@ -261,7 +252,6 @@ orderstmt(Node *n, NodeList **out)
 		break;
 
 	case ORANGE:
-		orderinit(n, out);
 		orderexpr(&n->right, out);
 		for(l=n->list; l; l=l->next)
 			orderexprinplace(&l->n);
@@ -275,7 +265,6 @@ orderstmt(Node *n, NodeList **out)
 		break;
 		
 	case OSELECT:
-		orderinit(n, out);
 		for(l=n->list; l; l=l->next) {
 			if(l->n->op != OXCASE)
 				fatal("order select case %O", l->n->op);
@@ -299,7 +288,6 @@ orderstmt(Node *n, NodeList **out)
 		break;
 
 	case OSWITCH:
-		orderinit(n, out);
 		orderexpr(&n->ntest, out);
 		for(l=n->list; l; l=l->next) {
 			if(l->n->op != OXCASE)
