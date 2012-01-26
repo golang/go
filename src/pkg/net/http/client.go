@@ -116,6 +116,10 @@ func send(req *Request, t RoundTripper) (resp *Response, err error) {
 		return nil, errors.New("http: nil Request.URL")
 	}
 
+	if req.RequestURI != "" {
+		return nil, errors.New("http: Request.RequestURI can't be set in client requests.")
+	}
+
 	// Most the callers of send (Get, Post, et al) don't need
 	// Headers, leaving it uninitialized.  We guarantee to the
 	// Transport that this has been initialized, though.

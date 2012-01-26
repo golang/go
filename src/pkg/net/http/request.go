@@ -153,6 +153,12 @@ type Request struct {
 	// This field is ignored by the HTTP client.
 	RemoteAddr string
 
+	// RequestURI is the unmodified Request-URI of the
+	// Request-Line (RFC 2616, Section 5.1) as sent by the client
+	// to a server. Usually the URL field should be used instead.
+	// It is an error to set this field in an HTTP client request.
+	RequestURI string
+
 	// TLS allows HTTP servers and other software to record
 	// information about the TLS connection on which the request
 	// was received. This field is not filled in by ReadRequest.
@@ -459,8 +465,8 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 	if f = strings.SplitN(s, " ", 3); len(f) < 3 {
 		return nil, &badStringError{"malformed HTTP request", s}
 	}
-	var rawurl string
-	req.Method, rawurl, req.Proto = f[0], f[1], f[2]
+	req.Method, req.RequestURI, req.Proto = f[0], f[1], f[2]
+	rawurl := req.RequestURI
 	var ok bool
 	if req.ProtoMajor, req.ProtoMinor, ok = ParseHTTPVersion(req.Proto); !ok {
 		return nil, &badStringError{"malformed HTTP version", req.Proto}

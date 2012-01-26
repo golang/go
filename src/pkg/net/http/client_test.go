@@ -428,3 +428,15 @@ func TestClientInsecureTransport(t *testing.T) {
 		}
 	}
 }
+
+func TestClientErrorWithRequestURI(t *testing.T) {
+	req, _ := NewRequest("GET", "http://localhost:1234/", nil)
+	req.RequestURI = "/this/field/is/illegal/and/should/error/"
+	_, err := DefaultClient.Do(req)
+	if err == nil {
+		t.Fatalf("expected an error")
+	}
+	if !strings.Contains(err.Error(), "RequestURI") {
+		t.Errorf("wanted error mentioning RequestURI; got error: %v", err)
+	}
+}

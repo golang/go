@@ -64,6 +64,7 @@ var reqTests = []reqTest{
 			Close:         false,
 			ContentLength: 7,
 			Host:          "www.techcrunch.com",
+			RequestURI:    "http://www.techcrunch.com/",
 		},
 
 		"abcdef\n",
@@ -89,6 +90,7 @@ var reqTests = []reqTest{
 			Close:         false,
 			ContentLength: 0,
 			Host:          "foo.com",
+			RequestURI:    "/",
 		},
 
 		noBody,
@@ -114,6 +116,7 @@ var reqTests = []reqTest{
 			Close:         false,
 			ContentLength: 0,
 			Host:          "test",
+			RequestURI:    "//user@host/is/actually/a/path/",
 		},
 
 		noBody,
@@ -163,6 +166,7 @@ var reqTests = []reqTest{
 			Header:           Header{},
 			ContentLength:    -1,
 			Host:             "foo.com",
+			RequestURI:       "/",
 		},
 
 		"foobar",
@@ -188,6 +192,7 @@ var reqTests = []reqTest{
 			Close:         false,
 			ContentLength: 0,
 			Host:          "www.google.com:443",
+			RequestURI:    "www.google.com:443",
 		},
 
 		noBody,
@@ -211,6 +216,7 @@ var reqTests = []reqTest{
 			Close:         false,
 			ContentLength: 0,
 			Host:          "127.0.0.1:6060",
+			RequestURI:    "127.0.0.1:6060",
 		},
 
 		noBody,
@@ -234,6 +240,7 @@ var reqTests = []reqTest{
 			Close:         false,
 			ContentLength: 0,
 			Host:          "",
+			RequestURI:    "/_goRPC_",
 		},
 
 		noBody,
