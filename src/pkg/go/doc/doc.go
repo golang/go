@@ -35,7 +35,7 @@ type Value struct {
 	order int
 }
 
-// Type is the documentation for type declaration.
+// Type is the documentation for a type declaration.
 type Type struct {
 	Doc  string
 	Name string
