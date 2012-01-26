@@ -1452,6 +1452,74 @@ Existing code is unaffected, although benchmarks that use <code>println</code>
 or <code>panic</code> should be updated to use the new methods.
 </p>
 
+<h3 id="url">The url package</h3>
+
+<p>
+In Go 1 several fields from the <a href="/pkg/net/url#URL"><code>url.URL</code></a> type
+were removed or replaced.
+</p>
+
+<p>
+The <a href="/pkg/net/url#URL.String"><code>String</code></a> method now
+predictably rebuilds an encoded URL string using all of <code>URL</code>'s
+fields as necessary. The resulting string will also no longer have
+passwords escaped.
+</p>
+
+<p>
+The <code>Raw</code> field has been removed. In most cases the <code>String</code>
+method may be used in its place.
+</p>
+
+<p>
+The old <code>RawUserinfo</code> field is replaced by the <code>User</code>
+field, of type <a href="/pkg/net/url#Userinfo"><code>*net.Userinfo</code></a>.
+Values of this type may be created using the new <a href="/pkg/net/url#User"><code>net.User</code></a>
+and <a href="/pkg/net/url#UserPassword"><code>net.UserPassword</code></a>
+functions. The <code>EscapeUserinfo</code> and <code>UnescapeUserinfo</code>
+functions are also gone.
+</p>
+
+<p>
+The <code>RawAuthority</code> field has been removed. The same information is
+available in the <code>Host</code> and <code>User</code> fields.
+</p>
+
+<p>
+The <code>RawPath</code> field and the <code>EncodedPath</code> method have
+been removed. The path information in rooted URLs (with a slash following the
+schema) is now available only in decoded form in the <code>Path</code> field.
+Occasionally, the encoded data may be required to obtain information that
+was lost in the decoding process. These cases must be handled by accessing
+the data the URL was built from.
+</p>
+
+<p>
+URLs with non-rooted paths, such as <code>"mailto:dev@golang.org?subject=Hi"</code>,
+are also handled differently. The <code>OpaquePath</code> boolean field has been
+removed and a new <code>Opaque</code> string field introduced to hold the encoded
+path for such URLs. In Go 1, the cited URL parses as:
+</p>
+
+<pre>
+    URL{
+        Scheme: "mailto",
+        Opaque: "dev@golang.org",
+        RawQuery: "subject=Hi",
+    }
+</pre>
+
+<p>
+A new <a href="/pkg/net/url#URL.RequestURI"><code>RequestURI</code></a> method was
+added to <code>URL</code>.
+</p>
+
+<p>
+<em>Updating</em>:
+Code that uses the old fields will fail to compile and must be updated by hand.
+The semantic changes make it difficult for gofix to update automatically.
+</p>
+
 <h2 id="go_command">The go command</h2>
 
 <h2 id="releases">Packaged releases</h2>
