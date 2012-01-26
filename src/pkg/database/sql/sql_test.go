@@ -358,6 +358,34 @@ func TestIssue2542Deadlock(t *testing.T) {
 	}
 }
 
+// Tests fix for issue 2788, that we bind nil to a []byte if the
+// value in the column is sql null
+func TestNullByteSlice(t *testing.T) {
+	db := newTestDB(t, "")
+	defer closeDB(t, db)
+	exec(t, db, "CREATE|t|id=int32,name=nullstring")
+	exec(t, db, "INSERT|t|id=10,name=?", nil)
+
+	var name []byte
+
+	err := db.QueryRow("SELECT|t|name|id=?", 10).Scan(&name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if name != nil {
+		t.Fatalf("name []byte should be nil for null column value, got: %#v", name)
+	}
+
+	exec(t, db, "INSERT|t|id=11,name=?", "bob")
+	err = db.QueryRow("SELECT|t|name|id=?", 11).Scan(&name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(name) != "bob" {
+		t.Fatalf("name []byte should be bob, got: %q", string(name))
+	}
+}
+
 func TestQueryRowClosingStmt(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)

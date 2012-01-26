@@ -40,6 +40,9 @@ func convertAssign(dest, src interface{}) error {
 		case *string:
 			*d = s
 			return nil
+		case *[]byte:
+			*d = []byte(s)
+			return nil
 		}
 	case []byte:
 		switch d := dest.(type) {
@@ -48,6 +51,12 @@ func convertAssign(dest, src interface{}) error {
 			return nil
 		case *[]byte:
 			*d = s
+			return nil
+		}
+	case nil:
+		switch d := dest.(type) {
+		case *[]byte:
+			*d = nil
 			return nil
 		}
 	}

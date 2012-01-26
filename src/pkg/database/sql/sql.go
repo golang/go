@@ -904,6 +904,12 @@ func (rs *Rows) Scan(dest ...interface{}) error {
 		if !ok {
 			continue
 		}
+		if *b == nil {
+			// If the []byte is now nil (for a NULL value),
+			// don't fall through to below which would
+			// turn it into a non-nil 0-length byte slice
+			continue
+		}
 		if _, ok = dp.(*RawBytes); ok {
 			continue
 		}
@@ -945,17 +951,10 @@ func (r *Row) Scan(dest ...interface{}) error {
 	if r.err != nil {
 		return r.err
 	}
-	defer r.rows.Close()
-	if !r.rows.Next() {
-		return ErrNoRows
-	}
-	err := r.rows.Scan(dest...)
-	if err != nil {
-		return err
-	}
 
 	// TODO(bradfitz): for now we need to defensively clone all
-	// []byte that the driver returned, since we're about to close
+	// []byte that the driver returned (not permitting 
+	// *RawBytes in Rows.Scan), since we're about to close
 	// the Rows in our defer, when we return from this function.
 	// the contract with the driver.Next(...) interface is that it
 	// can return slices into read-only temporary memory that's
@@ -970,14 +969,17 @@ func (r *Row) Scan(dest ...interface{}) error {
 		if _, ok := dp.(*RawBytes); ok {
 			return errors.New("sql: RawBytes isn't allowed on Row.Scan")
 		}
-		b, ok := dp.(*[]byte)
-		if !ok {
-			continue
-		}
-		clone := make([]byte, len(*b))
-		copy(clone, *b)
-		*b = clone
 	}
+
+	defer r.rows.Close()
+	if !r.rows.Next() {
+		return ErrNoRows
+	}
+	err := r.rows.Scan(dest...)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
