@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Embedding tests.
-// TODO(gri): This should be comprehensive.
-
+// The package e is a go/doc test for embedded methods.
 package e
 
 // ----------------------------------------------------------------------------
@@ -20,7 +18,7 @@ type t2 struct{}
 // t2.M should not appear as method in a Tx type.
 func (t2) M() {}
 
-// T1 has no (top-level) M method due to conflict.
+// T1 has no embedded (level 1) M method due to conflict.
 type T1 struct {
 	t1
 	t2
@@ -56,3 +54,13 @@ type T3 struct {
 
 // T3.M should appear as method of T3.
 func (T3) M() {}
+
+// ----------------------------------------------------------------------------
+// Don't show conflicting methods M embedded via an exported and non-exported
+// type.
+
+// T1 has no embedded (level 1) M method due to conflict.
+type T4 struct {
+	t2
+	T2
+}

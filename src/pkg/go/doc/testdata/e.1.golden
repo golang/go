@@ -1,4 +1,4 @@
-// 
+// The package e is a go/doc test for embedded methods. 
 PACKAGE e
 
 IMPORTPATH
@@ -8,7 +8,7 @@ FILENAMES
 	testdata/e.go
 
 TYPES
-	// T1 has no (top-level) M method due to conflict. 
+	// T1 has no embedded (level 1) M method due to conflict. 
 	type T1 struct {
 		t1
 		t2
@@ -30,6 +30,12 @@ TYPES
 
 	// T3.M should appear as method of T3. 
 	func (T3) M()
+
+	// T1 has no embedded (level 1) M method due to conflict. 
+	type T4 struct {
+		t2
+		T2
+	}
 
 	// 
 	type t1 struct{}
