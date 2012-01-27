@@ -89,7 +89,7 @@ func (mset methodSet) add(m *Func) {
 }
 
 // ----------------------------------------------------------------------------
-// Base types
+// Named types
 
 // baseTypeName returns the name of the base type of x (or "")
 // and whether the type is imported or not.
@@ -110,31 +110,23 @@ func baseTypeName(x ast.Expr) (name string, imported bool) {
 	return
 }
 
-// embeddedType describes the type of an anonymous field.
+// A namedType represents a named unqualified (package local, or possibly
+// predeclared) type. The namedType for a type name is always found via
+// reader.lookupType.
 //
-type embeddedType struct {
-	typ *baseType // the corresponding base type
-	ptr bool      // if set, the anonymous field type is a pointer
-}
-
-type baseType struct {
+type namedType struct {
 	doc  string       // doc comment for type
-	name string       // local type name (excluding package qualifier)
+	name string       // type name
 	decl *ast.GenDecl // nil if declaration hasn't been seen yet
+
+	isEmbedded bool                // true if this type is embedded
+	isStruct   bool                // true if this type is a struct
+	embedded   map[*namedType]bool // true if the embedded type is a pointer
 
 	// associated declarations
 	values  []*Value // consts and vars
 	funcs   methodSet
 	methods methodSet
-
-	isEmbedded bool           // true if this type is embedded
-	isStruct   bool           // true if this type is a struct
-	embedded   []embeddedType // list of embedded types
-}
-
-func (typ *baseType) addEmbeddedType(e *baseType, isPtr bool) {
-	e.isEmbedded = true
-	typ.embedded = append(typ.embedded, embeddedType{e, isPtr})
 }
 
 // ----------------------------------------------------------------------------
@@ -158,14 +150,8 @@ type reader struct {
 	// declarations
 	imports map[string]int
 	values  []*Value // consts and vars
-	types   map[string]*baseType
+	types   map[string]*namedType
 	funcs   methodSet
-}
-
-// isVisible reports whether name is visible in the documentation.
-//
-func (r *reader) isVisible(name string) bool {
-	return r.mode&AllDecls != 0 || ast.IsExported(name)
 }
 
 // lookupType returns the base type with the given name.
@@ -173,7 +159,7 @@ func (r *reader) isVisible(name string) bool {
 // type with the given name but no associated declaration
 // is added to the type map.
 //
-func (r *reader) lookupType(name string) *baseType {
+func (r *reader) lookupType(name string) *namedType {
 	if name == "" || name == "_" {
 		return nil // no type docs for anonymous types
 	}
@@ -181,13 +167,32 @@ func (r *reader) lookupType(name string) *baseType {
 		return typ
 	}
 	// type not found - add one without declaration
-	typ := &baseType{
-		name:    name,
-		funcs:   make(methodSet),
-		methods: make(methodSet),
+	typ := &namedType{
+		name:     name,
+		embedded: make(map[*namedType]bool),
+		funcs:    make(methodSet),
+		methods:  make(methodSet),
 	}
 	r.types[name] = typ
 	return typ
+}
+
+// recordAnonymousField registers fieldType as the type of an
+// anonymous field in the parent type. If the field is imported
+// (qualified name) or the parent is nil, the field is ignored.
+// The function returns the field name.
+//
+func (r *reader) recordAnonymousField(parent *namedType, fieldType ast.Expr) (fname string) {
+	fname, imp := baseTypeName(fieldType)
+	if parent == nil || imp {
+		return
+	}
+	if ftype := r.lookupType(fname); ftype != nil {
+		ftype.isEmbedded = true
+		_, ptr := fieldType.(*ast.StarExpr)
+		parent.embedded[ftype] = ptr
+	}
+	return
 }
 
 func (r *reader) readDoc(comment *ast.CommentGroup) {
@@ -232,7 +237,7 @@ func (r *reader) readValue(decl *ast.GenDecl) {
 		switch {
 		case s.Type != nil:
 			// a type is present; determine its name
-			if n, imp := baseTypeName(s.Type); !imp && r.isVisible(n) {
+			if n, imp := baseTypeName(s.Type); !imp {
 				name = n
 			}
 		case decl.Tok == token.CONST:
@@ -267,8 +272,7 @@ func (r *reader) readValue(decl *ast.GenDecl) {
 	const threshold = 0.75
 	if domName != "" && domFreq >= int(float64(len(decl.Specs))*threshold) {
 		// typed entries are sufficiently frequent
-		typ := r.lookupType(domName)
-		if typ != nil {
+		if typ := r.lookupType(domName); typ != nil {
 			values = &typ.values // associate with that type
 		}
 	}
@@ -321,22 +325,14 @@ func (r *reader) readType(decl *ast.GenDecl, spec *ast.TypeSpec) {
 	decl.Doc = nil // doc consumed - remove from AST
 	typ.doc = doc.Text()
 
-	// look for anonymous fields that might contribute methods
+	// record anonymous fields (they may contribute methods)
+	// (some fields may have been recorded already when filtering
+	// exports, but that's ok)
 	var list []*ast.Field
 	list, typ.isStruct = fields(spec.Type)
 	for _, field := range list {
 		if len(field.Names) == 0 {
-			// anonymous field - add corresponding field type to typ
-			n, imp := baseTypeName(field.Type)
-			if imp {
-				// imported type - we don't handle this case
-				// at the moment
-				return
-			}
-			if embedded := r.lookupType(n); embedded != nil {
-				_, ptr := field.Type.(*ast.StarExpr)
-				typ.addEmbeddedType(embedded, ptr)
-			}
+			r.recordAnonymousField(typ, field.Type)
 		}
 	}
 }
@@ -356,24 +352,10 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 			// don't show this method
 			return
 		}
-		var typ *baseType
-		if r.isVisible(recvTypeName) {
-			// visible recv type: if not found, add it to r.types
-			typ = r.lookupType(recvTypeName)
-		} else {
-			// invisible recv type: if not found, do not add it
-			// (invisible embedded types are added before this
-			// phase, so if the type doesn't exist yet, we don't
-			// care about this method)
-			typ = r.types[recvTypeName]
-		}
-		if typ != nil {
-			// associate method with the type
-			// (if the type is not exported, it may be embedded
-			// somewhere so we need to collect the method anyway)
+		if typ := r.lookupType(recvTypeName); typ != nil {
 			typ.methods.set(fun)
 		}
-		// otherwise don't show the method
+		// otherwise ignore the method
 		// TODO(gri): There may be exported methods of non-exported types
 		// that can be called because of exported values (consts, vars, or
 		// function results) of that type. Could determine if that is the
@@ -389,7 +371,7 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 			// exactly one (named or anonymous) result associated
 			// with the first type in result signature (there may
 			// be more than one result)
-			if n, imp := baseTypeName(res.Type); !imp && r.isVisible(n) {
+			if n, imp := baseTypeName(res.Type); !imp {
 				if typ := r.lookupType(n); typ != nil {
 					// associate Func with typ
 					typ.funcs.set(fun)
@@ -476,7 +458,7 @@ func (r *reader) readPackage(pkg *ast.Package, mode Mode) {
 	r.filenames = make([]string, len(pkg.Files))
 	r.imports = make(map[string]int)
 	r.mode = mode
-	r.types = make(map[string]*baseType)
+	r.types = make(map[string]*namedType)
 	r.funcs = make(methodSet)
 
 	// sort package files before reading them so that the
@@ -554,24 +536,23 @@ func customizeRecv(f *Func, recvTypeName string, embeddedIsPtr bool, level int) 
 	return &newF
 }
 
-// collectEmbeddedMethods collects the embedded methods from
-// all processed embedded types found in info in mset.
+// collectEmbeddedMethods collects the embedded methods of typ in mset.
 //
-func collectEmbeddedMethods(mset methodSet, typ *baseType, recvTypeName string, embeddedIsPtr bool, level int) {
-	for _, e := range typ.embedded {
+func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvTypeName string, embeddedIsPtr bool, level int) {
+	for embedded, isPtr := range typ.embedded {
 		// Once an embedded type is embedded as a pointer type
 		// all embedded types in those types are treated like
 		// pointer types for the purpose of the receiver type
 		// computation; i.e., embeddedIsPtr is sticky for this
 		// embedding hierarchy.
-		thisEmbeddedIsPtr := embeddedIsPtr || e.ptr
-		for _, m := range e.typ.methods {
+		thisEmbeddedIsPtr := embeddedIsPtr || isPtr
+		for _, m := range embedded.methods {
 			// only top-level methods are embedded
 			if m.Level == 0 {
 				mset.add(customizeRecv(m, recvTypeName, thisEmbeddedIsPtr, level))
 			}
 		}
-		collectEmbeddedMethods(mset, e.typ, recvTypeName, thisEmbeddedIsPtr, level+1)
+		r.collectEmbeddedMethods(mset, embedded, recvTypeName, thisEmbeddedIsPtr, level+1)
 	}
 }
 
@@ -582,7 +563,7 @@ func (r *reader) computeMethodSets() {
 		// collect embedded methods for t
 		if t.isStruct {
 			// struct
-			collectEmbeddedMethods(t.methods, t, t.name, false, 1)
+			r.collectEmbeddedMethods(t.methods, t, t.name, false, 1)
 		} else {
 			// interface
 			// TODO(gri) fix this
@@ -597,7 +578,7 @@ func (r *reader) computeMethodSets() {
 // 
 func (r *reader) cleanupTypes() {
 	for _, t := range r.types {
-		visible := r.isVisible(t.name)
+		visible := r.mode&AllDecls != 0 || ast.IsExported(t.name)
 		if t.decl == nil && (predeclaredTypes[t.name] || t.isEmbedded && visible) {
 			// t.name is a predeclared type (and was not redeclared in this package),
 			// or it was embedded somewhere but its declaration is missing (because
@@ -607,6 +588,8 @@ func (r *reader) cleanupTypes() {
 			r.values = append(r.values, t.values...)
 			// 2) move factory functions
 			for name, f := range t.funcs {
+				// in a correct AST, package-level function names
+				// are all different - no need to check for conflicts
 				r.funcs[name] = f
 			}
 			// 3) move methods
@@ -689,7 +672,7 @@ func sortedValues(m []*Value, tok token.Token) []*Value {
 	return list
 }
 
-func sortedTypes(m map[string]*baseType) []*Type {
+func sortedTypes(m map[string]*namedType, allMethods bool) []*Type {
 	list := make([]*Type, len(m))
 	i := 0
 	for _, t := range m {
@@ -699,8 +682,8 @@ func sortedTypes(m map[string]*baseType) []*Type {
 			Decl:    t.decl,
 			Consts:  sortedValues(t.values, token.CONST),
 			Vars:    sortedValues(t.values, token.VAR),
-			Funcs:   sortedFuncs(t.funcs),
-			Methods: sortedFuncs(t.methods),
+			Funcs:   sortedFuncs(t.funcs, true),
+			Methods: sortedFuncs(t.methods, allMethods),
 		}
 		i++
 	}
@@ -714,12 +697,19 @@ func sortedTypes(m map[string]*baseType) []*Type {
 	return list
 }
 
-func sortedFuncs(m methodSet) []*Func {
+func removeStar(s string) string {
+	if len(s) > 0 && s[0] == '*' {
+		return s[1:]
+	}
+	return s
+}
+
+func sortedFuncs(m methodSet, allMethods bool) []*Func {
 	list := make([]*Func, len(m))
 	i := 0
 	for _, m := range m {
 		// exclude conflict entries
-		if m.Decl != nil {
+		if m.Decl != nil && (allMethods || ast.IsExported(removeStar(m.Orig))) {
 			list[i] = m
 			i++
 		}

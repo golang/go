@@ -68,12 +68,17 @@ const (
 	// extract documentation for all package-level declarations,
 	// not just exported ones
 	AllDecls Mode = 1 << iota
+
+	// show all embedded methods, not just the ones of
+	// invisible (unexported) anonymous fields
+	AllMethods
 )
 
 // New computes the package documentation for the given package AST.
 // New takes ownership of the AST pkg and may edit or overwrite it.
 //
 func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+	mode |= AllMethods // TODO(gri) remove this to enable flag
 	var r reader
 	r.readPackage(pkg, mode)
 	r.computeMethodSets()
@@ -86,8 +91,8 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
 		Filenames:  r.filenames,
 		Bugs:       r.bugs,
 		Consts:     sortedValues(r.values, token.CONST),
-		Types:      sortedTypes(r.types),
+		Types:      sortedTypes(r.types, mode&AllMethods != 0),
 		Vars:       sortedValues(r.values, token.VAR),
-		Funcs:      sortedFuncs(r.funcs),
+		Funcs:      sortedFuncs(r.funcs, true),
 	}
 }

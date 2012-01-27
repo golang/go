@@ -23,11 +23,11 @@ func filterIdentList(list []*ast.Ident) []*ast.Ident {
 }
 
 // filterFieldList removes unexported fields (field names) from the field list
-// in place and returns true if fields were removed. Removed fields that are
-// anonymous (embedded) fields are added as embedded types to base. filterType
-// is called with the types of all remaining fields.
+// in place and returns true if fields were removed. Anonymous fields are
+// recorded with the parent type. filterType is called with the types of
+// all remaining fields.
 //
-func (r *reader) filterFieldList(base *baseType, fields *ast.FieldList) (removedFields bool) {
+func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList) (removedFields bool) {
 	if fields == nil {
 		return
 	}
@@ -37,18 +37,9 @@ func (r *reader) filterFieldList(base *baseType, fields *ast.FieldList) (removed
 		keepField := false
 		if n := len(field.Names); n == 0 {
 			// anonymous field
-			name, imp := baseTypeName(field.Type)
+			name := r.recordAnonymousField(parent, field.Type)
 			if ast.IsExported(name) {
-				// we keep the field - in this case r.readDecl
-				// will take care of adding the embedded type
 				keepField = true
-			} else if base != nil && !imp {
-				// we don't keep the field - add it as an embedded
-				// type so we won't loose its methods, if any
-				if embedded := r.lookupType(name); embedded != nil {
-					_, ptr := field.Type.(*ast.StarExpr)
-					base.addEmbeddedType(embedded, ptr)
-				}
 			}
 		} else {
 			field.Names = filterIdentList(field.Names)
@@ -86,7 +77,7 @@ func (r *reader) filterParamList(fields *ast.FieldList) {
 // in place. If fields (or methods) have been removed, the corresponding
 // struct or interface type has the Incomplete field set to true. 
 //
-func (r *reader) filterType(base *baseType, typ ast.Expr) {
+func (r *reader) filterType(parent *namedType, typ ast.Expr) {
 	switch t := typ.(type) {
 	case *ast.Ident:
 		// nothing to do
@@ -95,14 +86,14 @@ func (r *reader) filterType(base *baseType, typ ast.Expr) {
 	case *ast.ArrayType:
 		r.filterType(nil, t.Elt)
 	case *ast.StructType:
-		if r.filterFieldList(base, t.Fields) {
+		if r.filterFieldList(parent, t.Fields) {
 			t.Incomplete = true
 		}
 	case *ast.FuncType:
 		r.filterParamList(t.Params)
 		r.filterParamList(t.Results)
 	case *ast.InterfaceType:
-		if r.filterFieldList(base, t.Methods) {
+		if r.filterFieldList(parent, t.Methods) {
 			t.Incomplete = true
 		}
 	case *ast.MapType:
