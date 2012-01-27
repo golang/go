@@ -37,8 +37,7 @@ func (p *Process) Signal(sig Signal) error {
 	if p.done {
 		return errors.New("os: process already finished")
 	}
-	switch sig.(UnixSignal) {
-	case SIGKILL:
+	if us, ok := sig.(UnixSignal); ok && us == syscall.SIGKILL {
 		e := syscall.TerminateProcess(syscall.Handle(p.handle), 1)
 		return NewSyscallError("TerminateProcess", e)
 	}

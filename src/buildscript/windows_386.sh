@@ -265,7 +265,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/windows_386/time.a
 
 mkdir -p "$WORK"/os/_obj/
 cd "$GOROOT"/src/pkg/os
-8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_windows.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_windows.go ./file.go ./file_posix.go ./file_windows.go ./getwd.go ./path.go ./path_windows.go ./proc.go ./stat_windows.go ./sys_windows.go ./time.go ./types.go ./zsignal_windows_386.go
+8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_windows.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_windows.go ./file.go ./file_posix.go ./file_windows.go ./getwd.go ./path.go ./path_windows.go ./proc.go ./stat_windows.go ./sys_windows.go ./time.go ./types.go
 gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
 cp "$WORK"/os.a "$GOROOT"/pkg/windows_386/os.a
 

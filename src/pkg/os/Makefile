@@ -27,7 +27,6 @@ GOFILES_freebsd=\
 	sys_bsd.go\
 	exec_posix.go\
 	exec_unix.go\
-	zsignal_$(GOOS)_$(GOARCH).go\
 
 GOFILES_darwin=\
 	dir_unix.go\
@@ -38,7 +37,6 @@ GOFILES_darwin=\
 	sys_bsd.go\
 	exec_posix.go\
 	exec_unix.go\
-	zsignal_$(GOOS)_$(GOARCH).go\
 
 GOFILES_linux=\
 	dir_unix.go\
@@ -49,7 +47,6 @@ GOFILES_linux=\
 	sys_linux.go\
 	exec_posix.go\
 	exec_unix.go\
-	zsignal_$(GOOS)_$(GOARCH).go\
 
 GOFILES_netbsd=\
 	dir_unix.go\
@@ -60,7 +57,6 @@ GOFILES_netbsd=\
 	sys_bsd.go\
 	exec_posix.go\
 	exec_unix.go\
-	zsignal_$(GOOS)_$(GOARCH).go\
 
 GOFILES_openbsd=\
 	dir_unix.go\
@@ -71,7 +67,6 @@ GOFILES_openbsd=\
 	sys_bsd.go\
 	exec_posix.go\
 	exec_unix.go\
-	zsignal_$(GOOS)_$(GOARCH).go\
 
 GOFILES_windows=\
 	dir_windows.go\
@@ -82,7 +77,6 @@ GOFILES_windows=\
 	sys_windows.go\
 	exec_posix.go\
 	exec_windows.go\
-	zsignal_$(GOOS)_$(GOARCH).go\
 
 GOFILES_plan9=\
 	dir_plan9.go\

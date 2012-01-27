@@ -253,7 +253,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/openbsd_386/time.a
 
 mkdir -p "$WORK"/os/_obj/
 cd "$GOROOT"/src/pkg/os
-8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_openbsd.go ./sys_bsd.go ./time.go ./types.go ./zsignal_openbsd_386.go
+8g -o "$WORK"/os/_obj/_go_.8 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_openbsd.go ./sys_bsd.go ./time.go ./types.go
 gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
 cp "$WORK"/os.a "$GOROOT"/pkg/openbsd_386/os.a
 

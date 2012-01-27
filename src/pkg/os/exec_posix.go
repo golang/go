@@ -48,7 +48,7 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 
 // Kill causes the Process to exit immediately.
 func (p *Process) Kill() error {
-	return p.Signal(SIGKILL)
+	return p.Signal(UnixSignal(syscall.SIGKILL))
 }
 
 // Exec replaces the current process with an execution of the

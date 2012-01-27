@@ -256,7 +256,7 @@ cp "$WORK"/time.a "$GOROOT"/pkg/linux_arm/time.a
 
 mkdir -p "$WORK"/os/_obj/
 cd "$GOROOT"/src/pkg/os
-5g -o "$WORK"/os/_obj/_go_.5 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_linux.go ./sys_linux.go ./time.go ./types.go ./zsignal_linux_arm.go
+5g -o "$WORK"/os/_obj/_go_.5 -p os -I "$WORK" ./dir_unix.go ./doc.go ./env.go ./error.go ./error_posix.go ./exec.go ./exec_posix.go ./exec_unix.go ./file.go ./file_posix.go ./file_unix.go ./getwd.go ./path.go ./path_unix.go ./proc.go ./stat_linux.go ./sys_linux.go ./time.go ./types.go
 gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.5
 cp "$WORK"/os.a "$GOROOT"/pkg/linux_arm/os.a
 
