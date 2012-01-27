@@ -93,8 +93,11 @@ var vcsBzr = &vcsCmd{
 	name: "Bazaar",
 	cmd:  "bzr",
 
-	createCmd:   "branch {repo} {dir}",
-	downloadCmd: "pull --overwrite", // TODO: REALLY?
+	createCmd: "branch {repo} {dir}",
+
+	// Without --overwrite bzr will not pull tags that changed.
+	// Replace by --overwrite-tags after http://pad.lv/681792 goes in.
+	downloadCmd: "pull --overwrite",
 
 	tagCmd:     []tagCmd{{"tags", `^(\S+)`}},
 	tagDefault: "revno:-1",
@@ -198,7 +201,7 @@ func (v *vcsCmd) tagSync(dir, tag string) error {
 	return v.run(dir, v.tagSyncCmd, "tag", tag)
 }
 
-// A vcsPath is describes how to convert an import path into a
+// A vcsPath describes how to convert an import path into a
 // version control system and repository name.
 type vcsPath struct {
 	prefix string                              // prefix this description applies to
@@ -302,9 +305,10 @@ var vcsPaths = []*vcsPath{
 	// Launchpad
 	{
 		prefix: "launchpad.net/",
-		re:     `^(?P<root>launchpad\.net/([A-Za-z0-9_.\-]+(/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
+		re:     `^(?P<root>launchpad\.net/((?P<project>[A-Za-z0-9_.\-]+)(?P<series>/[A-Za-z0-9_.\-]+)?|~[A-Za-z0-9_.\-]+/(\+junk|[A-Za-z0-9_.\-]+)/[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "bzr",
 		repo:   "https://{root}",
+		check:  launchpadVCS,
 	},
 
 	// General syntax for any server.
@@ -402,4 +406,20 @@ func bitbucketVCS(match map[string]string) error {
 	}
 
 	return fmt.Errorf("unable to detect version control system for bitbucket.org/ path")
+}
+
+// launchpadVCS solves the ambiguity for "lp.net/project/foo". In this case,
+// "foo" could be a series name registered in Launchpad with its own branch,
+// and it could also be the name of a directory within the main project
+// branch one level up.
+func launchpadVCS(match map[string]string) error {
+	if match["project"] == "" || match["series"] == "" {
+		return nil
+	}
+	_, err := httpGET(expand(match, "https://code.launchpad.net/{project}{series}/.bzr/branch-format"))
+	if err != nil {
+		match["root"] = expand(match, "launchpad.net/{project}")
+		match["repo"] = expand(match, "https://{root}")
+	}
+	return nil
 }
