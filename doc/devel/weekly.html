@@ -14,6 +14,113 @@ hg pull
 hg update weekly.<i>YYYY-MM-DD</i>
 </pre>
 
+<h2 id="2012-01-27">2012-01-27</h2>
+
+<pre>
+This weekly snapshot renamed the html package to exp/html. The package will not
+be present in the Go 1 distribution, but will be installable from source.
+
+Error variables in the archive/tar, archive/zip, compress/gzip, compress/zlib,
+and crypto/bcrypt packages have been renamed from FooError to ErrFoo. 
+There is no gofix, but the compiler will flag code that needs updating.
+
+Other changes:
+* 6c, 8c: make floating point code NaN-safe.
+* 6l, 8l: remove unused macro definition (thanks Shenghou Ma).
+* archive/tar: fix race in TestNonSeekable.
+* archive/zip: add functions to convert between os.FileInfo & FileHeader.
+* build: do not build all C compilers (thanks Shenghou Ma),
+	remove code now in subrepositories.
+* bytes: remove dead code, complete documentation,
+	restore panic on out-of-memory,
+	turn buffer size overflows into errors.
+* cgo: -cdefs should translate unsafe.Pointer to void * (thanks Shenghou Ma).
+* cmd/gc: forgotten recursion on ninit itself in order.c.
+* cmd/go: bug fixes, implement go get,
+	correctly handle -n and -x flags for 'go run' (thanks Shenghou Ma),
+	solve ambiguity of get lp.net/project/foo (thanks Gustavo Niemeyer),
+	update doc.go with text generated from the usage strings.
+* cmd/goapi: new tool for tracking exported API over time.
+* codereview: support for subrepositories.
+* compress/flate: fix a typo, improve compression rate by 3-4%,
+	increase the length of hash table from 1<<15 to 1<<17. 0%-16% speedup,
+	make lazy matching work,
+	reduce memory pressure at cost of additional arithmetic operation,
+	use append instead of slice+counter.
+* crypto: rename some FooError to ErrFoo.
+* dashboard: fix -commit for new xml package.
+* database/sql: add NullInt64, NullFloat64, NullBool (thanks James P. Cooper),
+	convert SQL null values to []byte as nil (thanks James P. Cooper),
+	fix Tx.Query (thanks Blake Mizerany).
+* doc: expand FAQ on GOMAXPROCS, update to Go 1.
+* doc/go1: add encoding/xml and net/url changes (thanks Gustavo Niemeyer),
+	add more info about hash and net changes, delete reference to html,
+	add flag, runtime, testing, image , mime, filepath.Walk,
+	document sub-repositories.
+* encoding/binary: document that PutVarint, PutUvarint may panic.
+* encoding/varint: deleted WriteXvarint.
+* encoding/xml: add docs for ignoring tag (thanks Gustavo Niemeyer),
+	bring API closer to other packages (thanks Gustavo Niemeyer),
+	improve []byte handling (thanks Gustavo Niemeyer),
+	remove Marshaler support (thanks Gustavo Niemeyer),
+	support ignoring fields with "-" (thanks Gustavo Niemeyer).
+* exp/ebnflint: test spec during 'go test'.
+* exp/norm: fixes a subtle bug introduced by change 10087: random offset.
+* gc, runtime: handle floating point map keys.
+* gc: avoid DOT in error messages,
+	do not try to add a key with incorrect type to a hash (thanks Jeff R. Allen),
+	fix order of evaluation,
+	fix recursion loop in interface comparison,
+	handle function calls in arguments to builtin complex operations,
+	missed typecheck in subscripting a const string,
+	permit unsafe.Pointer for inlined functions,
+	softer criteria for inlinability,
+	static implements check on typeswitches only applies to concrete case types,
+	test case for recursive interface bug.
+* go/ast: respect ImportSpec.EndPos (thanks Scott Lawrence).
+* go/build: add BuildTags to Context, allow !tag.
+* go/doc: rewrite and add lots of tests.
+* go/parser: use explicit parser.Mode type.
+* go/printer, gofmt: respect line breaks in signatures.
+* go/scanner: use explicit scanner.Mode type.
+* gob: annotate debug.go so it's not normally built,
+	reduce the maximum message size.
+* godoc: log node printing error,
+	move overview before API TOC,
+	update metadata upon launch.
+* gofix: add -debug flag for quicker diagnosis of internal errors,
+	handle xml.Unmarshal in xmlapi fix (thanks Gustavo Niemeyer),
+	update go1pkgrename for subrepositories.
+* goyacc: fix indexing bug when yydebug >= 2.
+* ld: fix Mach-O code signing for non-cgo binaries (thanks Mikkel Krautz).
+* libmach: cross compiling support (thanks Shenghou Ma).
+* math/big: assembly versions of bitLen for x86-64, 386, and ARM (thanks David G. Andersen),
+	return type of bitLen is an int; use MOVL on amd64 (thanks David G. Andersen),
+	add examples for Rat and Int's SetString and Scan methods,
+	slight improvement to algorithm used for internal bitLen function (thanks David G. Andersen),
+	test both bitLen and bitLen_g.
+* net/http: add Request.RequestURI field,
+	disabled test for Transport race / deadlock bug,
+	fix Transport deadlock (thanks Yoshiyuki Kanno),
+	make ParseForm ignore unknown content types (thanks Roger Peppe),
+	parse CONNECT requests (thanks Andrew Balholm).
+* net/rpc: fix data race in benchmark,
+	fix race in TestClientWriteError test,
+	log Call reply discard.
+* net: Dial, ListenPacket with "ip:protocol" network for raw IP sockets (thanks Mikio Hara),
+	actually reset deadline when time is zero,
+	consistent OpError message (thanks Mikio Hara),
+	fix dialing google test (thanks Mikio Hara),
+	make WriteTo fail when UDPConn is already connected (thanks Mikio Hara).
+* regexp: remove vestigial Error type.
+* runtime: add type algorithms for zero-sized types,
+	move NumCPU declaration into debug.go.
+* spec: function invocation, panic on *nil.
+* syscall: add NOTE_* constants on OS X (thanks Robert Figueiredo).
+* test: explicitly use variables to avoid gccgo "not used" error.
+* text/template: add example for Template.
+</pre>
+
 <h2 id="2012-01-20">2012-01-20</h2>
 
 <pre>
