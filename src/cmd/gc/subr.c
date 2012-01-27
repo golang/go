@@ -1149,7 +1149,9 @@ assignop(Type *src, Type *dst, char **why)
 	if(why != nil)
 		*why = "";
 
-	if(safemode && (importpkg == nil || importpkg == localpkg) && src != T && src->etype == TUNSAFEPTR) {
+	// TODO(rsc,lvd): This behaves poorly in the presence of inlining.
+	// https://code.google.com/p/go/issues/detail?id=2795
+	if(safemode && importpkg == nil && src != T && src->etype == TUNSAFEPTR) {
 		yyerror("cannot use unsafe.Pointer");
 		errorexit();
 	}
