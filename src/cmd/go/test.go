@@ -330,8 +330,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	// We write the external test package archive to
 	// $WORK/unicode/utf8/_test/unicode/utf8_test.a.
 	testDir := filepath.Join(b.work, filepath.FromSlash(p.ImportPath+"/_test"))
-	ptestObj := filepath.Join(testDir, filepath.FromSlash(p.ImportPath+".a"))
-	pxtestObj := filepath.Join(testDir, filepath.FromSlash(p.ImportPath+"_test.a"))
+	ptestObj := buildToolchain.pkgpath(testDir, p)
 
 	// Create the directory for the .a files.
 	ptestDir, _ := filepath.Split(ptestObj)
@@ -380,8 +379,8 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		pxtest.imports = append(pxtest.imports, ptest)
 		a := b.action(modeBuild, modeBuild, pxtest)
 		a.objdir = testDir + string(filepath.Separator)
-		a.objpkg = pxtestObj
-		a.target = pxtestObj
+		a.objpkg = buildToolchain.pkgpath(testDir, pxtest)
+		a.target = a.objpkg
 	}
 
 	// Action for building test.out.

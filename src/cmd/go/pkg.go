@@ -270,6 +270,16 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 		p.target = filepath.Join(t.PkgDir(), filepath.FromSlash(importPath)+".a")
 	}
 
+	// For gccgo, rewrite p.target with the expected library name. We won't do
+	// that for the standard library for the moment.
+	if !p.Standard {
+		dir := t.PkgDir()
+		if _, ok := buildToolchain.(gccgoToolchain); ok {
+			dir = filepath.Join(filepath.Dir(dir), "gccgo", filepath.Base(dir))
+		}
+		p.target = buildToolchain.pkgpath(dir, p)
+	}
+
 	var built time.Time
 	if fi, err := os.Stat(p.target); err == nil {
 		built = fi.ModTime()
