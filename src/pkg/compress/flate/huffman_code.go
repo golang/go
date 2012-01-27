@@ -121,61 +121,6 @@ func (h *huffmanEncoder) bitLength(freq []int32) int64 {
 	return total
 }
 
-// Generate elements in the chain using an iterative algorithm.
-func (h *huffmanEncoder) generateChains(top *levelInfo, list []literalNode) {
-	n := len(list)
-	list = list[0 : n+1]
-	list[n] = maxNode()
-
-	l := top
-	for {
-		if l.nextPairFreq == math.MaxInt32 && l.nextCharFreq == math.MaxInt32 {
-			// We've run out of both leafs and pairs.
-			// End all calculations for this level.
-			// To m sure we never come back to this level or any lower level,
-			// set nextPairFreq impossibly large.
-			l.lastChain = nil
-			l.needed = 0
-			l = l.up
-			l.nextPairFreq = math.MaxInt32
-			continue
-		}
-
-		prevFreq := l.lastChain.freq
-		if l.nextCharFreq < l.nextPairFreq {
-			// The next item on this row is a leaf node.
-			n := l.lastChain.leafCount + 1
-			l.lastChain = &chain{l.nextCharFreq, n, l.lastChain.up}
-			l.nextCharFreq = list[n].freq
-		} else {
-			// The next item on this row is a pair from the previous row.
-			// nextPairFreq isn't valid until we generate two
-			// more values in the level below
-			l.lastChain = &chain{l.nextPairFreq, l.lastChain.leafCount, l.down.lastChain}
-			l.down.needed = 2
-		}
-
-		if l.needed--; l.needed == 0 {
-			// We've done everything we need to do for this level.
-			// Continue calculating one level up.  Fill in nextPairFreq
-			// of that level with the sum of the two nodes we've just calculated on
-			// this level.
-			up := l.up
-			if up == nil {
-				// All done!
-				return
-			}
-			up.nextPairFreq = prevFreq + l.lastChain.freq
-			l = up
-		} else {
-			// If we stole from below, move down temporarily to replenish it.
-			for l.down.needed > 0 {
-				l = l.down
-			}
-		}
-	}
-}
-
 // Return the number of literals assigned to each bit size in the Huffman encoding
 //
 // This method is only called when list.length >= 3
