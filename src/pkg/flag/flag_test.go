@@ -5,10 +5,12 @@
 package flag_test
 
 import (
+	"bytes"
 	. "flag"
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 )
@@ -203,6 +205,17 @@ func TestUserDefined(t *testing.T) {
 	expect := "[1 2 3]"
 	if v.String() != expect {
 		t.Errorf("expected value %q got %q", expect, v.String())
+	}
+}
+
+func TestSetOutput(t *testing.T) {
+	var flags FlagSet
+	var buf bytes.Buffer
+	flags.SetOutput(&buf)
+	flags.Init("test", ContinueOnError)
+	flags.Parse([]string{"-unknown"})
+	if out := buf.String(); !strings.Contains(out, "-unknown") {
+		t.Logf("expected output mentioning unknown; got %q", out)
 	}
 }
 
