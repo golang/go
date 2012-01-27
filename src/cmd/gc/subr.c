@@ -1149,7 +1149,7 @@ assignop(Type *src, Type *dst, char **why)
 	if(why != nil)
 		*why = "";
 
-	if(safemode && src != T && src->etype == TUNSAFEPTR) {
+	if(safemode && (importpkg == nil || importpkg == localpkg) && src != T && src->etype == TUNSAFEPTR) {
 		yyerror("cannot use unsafe.Pointer");
 		errorexit();
 	}
