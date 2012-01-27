@@ -23,5 +23,5 @@ type I5 interface {
 }
 
 type I6 interface {
-	I5	// GC_ERROR "interface"
+	I5	// ERROR "interface"
 }

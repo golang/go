@@ -8,6 +8,6 @@
 
 package main
 func main() {
-	if 2e9 { }      // ERROR "2e.09"
-	if 3.14+1i { }  // ERROR "3.14 . 1i"
+	if 2e9 { }      // ERROR "2e.09|expected bool"
+	if 3.14+1i { }  // ERROR "3.14 . 1i|expected bool"
 }
