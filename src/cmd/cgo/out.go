@@ -786,7 +786,8 @@ const char *CString(struct __go_string s) {
 }
 
 struct __go_string GoString(char *p) {
-	return __go_byte_array_to_string(p, strlen(p));
+	int len = (p != NULL) ? strlen(p) : 0;
+	return __go_byte_array_to_string(p, len);
 }
 
 struct __go_string GoStringN(char *p, int n) {
