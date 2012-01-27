@@ -12,5 +12,5 @@ import "unsafe"
 
 func main() {
 	var x *int
-	_ = unsafe.Pointer(x) - unsafe.Pointer(x) // ERROR "operator - not defined on unsafe.Pointer"
+	_ = unsafe.Pointer(x) - unsafe.Pointer(x) // ERROR "operator - not defined on unsafe.Pointer|expected integer, floating, or complex type"
 }
