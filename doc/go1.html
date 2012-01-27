@@ -875,6 +875,19 @@ in <code>crypto/elliptic</code> that take an <code>elliptic.Curve</code>
 as their first argument.
 </p>
 
+<h3 id="crypto/hmac">The crypto/hmac package</h3>
+
+<p>
+In Go 1, the hash-specific functions, such as <code>hmac.NewMD5</code>, have
+been removed from <code>crypto/hmac</code>. Instead, <code>hmac.New</code> takes
+a function that returns a <code>hash.Hash</code>, such as <code>md5.New</code>.
+</p>
+
+<p>
+<em>Updating</em>:
+Gofix will perform the needed changes.
+</p>
+
 <h3 id="crypto_x509">The crypto/x509 package</h3>
 
 <p>
