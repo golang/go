@@ -157,8 +157,8 @@ func (v *vcsCmd) run1(dir string, output bool, cmdline string, keyval []string) 
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
-	out := buf.Bytes()
 	err := cmd.Run()
+	out := buf.Bytes()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "# cd %s; %s %s\n", dir, v.cmd, strings.Join(args, " "))
 		os.Stderr.Write(out)
