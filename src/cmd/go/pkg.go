@@ -224,6 +224,14 @@ Loop:
 	return string(b)
 }
 
+// isGoTool is the list of directories for Go programs that are installed in
+// $GOROOT/bin/go-tool.
+var isGoTool = map[string]bool{
+	"cmd/fix":  true,
+	"cmd/vet":  true,
+	"cmd/yacc": true,
+}
+
 func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string, stk *importStack) *Package {
 	// Read the files in the directory to learn the structure
 	// of the package.
@@ -262,7 +270,11 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
 
 	if info.Package == "main" {
 		_, elem := filepath.Split(importPath)
-		p.target = filepath.Join(t.BinDir(), elem)
+		if t.Goroot && isGoTool[p.ImportPath] {
+			p.target = filepath.Join(t.Path, "bin/go-tool", elem)
+		} else {
+			p.target = filepath.Join(t.BinDir(), elem)
+		}
 		if ctxt.GOOS == "windows" {
 			p.target += ".exe"
 		}

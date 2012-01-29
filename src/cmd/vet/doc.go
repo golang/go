@@ -4,7 +4,7 @@
 
 /*
 
-Govet does simple checking of Go source code.
+Vet does simple checking of Go source code.
 
 It checks for simple errors in calls to functions named
 	Print Printf Println
@@ -13,13 +13,13 @@ It checks for simple errors in calls to functions named
 	Error Errorf
 	Fatal Fatalf
 If the function name ends with an 'f', the function is assumed to take
-a format descriptor string in the manner of fmt.Printf. If not, govet
+a format descriptor string in the manner of fmt.Printf. If not, vet
 complains about arguments that look like format descriptor strings.
 
 Usage:
 
-	govet [flag] [file.go ...]
-	govet [flag] [directory ...] # Scan all .go files under directory, recursively
+	go tool vet [flag] [file.go ...]
+	go tool vet [flag] [directory ...] # Scan all .go files under directory, recursively
 
 The flags are:
 	-v

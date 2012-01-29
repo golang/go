@@ -38,10 +38,11 @@ CLEANDIRS=\
 	8l\
 	cgo\
 	godoc\
-	gofix\
+	fix\
 	gofmt\
 	goinstall\
 	gotest\
+	vet\
 	yacc\
 
 install: $(patsubst %,%.install,$(DIRS))

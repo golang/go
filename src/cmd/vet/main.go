@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Govet is a simple checker for static errors in Go source code.
+// Vet is a simple checker for static errors in Go source code.
 // See doc.go for more information.
 package main
 
@@ -120,7 +120,7 @@ func walkDir(root string) {
 // error formats the error to standard error, adding program
 // identification and a newline
 func errorf(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "govet: "+format+"\n", args...)
+	fmt.Fprintf(os.Stderr, "vet: "+format+"\n", args...)
 	setExit(2)
 }
 

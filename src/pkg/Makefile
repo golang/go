@@ -156,11 +156,11 @@ DIRS=\
 	unicode/utf8\
 	../cmd/cgo\
 	../cmd/godoc\
-	../cmd/gofix\
+	../cmd/fix\
 	../cmd/gofmt\
 	../cmd/goinstall\
 	../cmd/gotest\
-	../cmd/govet\
+	../cmd/vet\
 	../cmd/yacc\
 
 ifeq ($(GOOS),linux)
