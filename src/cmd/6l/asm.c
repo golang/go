@@ -112,6 +112,7 @@ needlib(char *name)
 	/* reuse hash code in symbol table */
 	p = smprint(".elfload.%s", name);
 	s = lookup(p, 0);
+	free(p);
 	if(s->type == 0) {
 		s->type = 100;	// avoid SDATA, etc.
 		return 1;

@@ -482,6 +482,7 @@ loaddynimport(char *file, char *pkg, char *p, int n)
 		if(q)
 			*q++ = '\0';
 		s = lookup(name, 0);
+		free(name);
 		if(s->type == 0 || s->type == SXREF) {
 			s->dynimplib = lib;
 			s->dynimpname = def;
