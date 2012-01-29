@@ -8,8 +8,8 @@ O:=$(HOST_O)
 # The directory is nm because the source is portable and general.
 # We call the binary 6nm to avoid confusion with the host nm.
 
-TARG=6nm
+TARG=nm
 OFILES=\
 	nm.$O\
 
-include ../../Make.ccmd
+include ../../Make.ctool

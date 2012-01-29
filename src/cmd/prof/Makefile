@@ -5,16 +5,14 @@
 include ../../Make.inc
 O:=$(HOST_O)
 
-# The directory is prof because the source is portable and general.
-# We call the binary 6prof to avoid confusion and because this binary
-# is linked only with amd64 and x86 support.
+# This binary is linked only with amd64 and x86 support.
 
-TARG=6prof
+TARG=prof
 OFILES=\
 	main.$O\
 
 NOINSTALL=1
-include ../../Make.ccmd
+include ../../Make.ctool
 
 ifeq ($(GOOS),windows)
 NAME=windows
@@ -34,7 +32,7 @@ install-darwin: $(TARG)
 	@true
 
 install-default: $(TARG)
-	cp $(TARG) "$(GOBIN)"/$(TARG)
+	cp $(TARG) "$(GOBIN)"/go-tool/$(TARG)
 
-install-pprof: gopprof
-	cp gopprof "$(GOBIN)"/gopprof
+install-pprof: pprof
+	cp pprof "$(GOBIN)"/go-tool/pprof

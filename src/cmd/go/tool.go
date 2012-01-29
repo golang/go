@@ -87,7 +87,7 @@ func listTools() {
 		exitStatus = 2
 		return
 	}
-	sort.StringSlice(names).Sort()
+	sort.Strings(names)
 	for _, name := range names {
 		// Unify presentation by going to lower case.
 		name = strings.ToLower(name)
