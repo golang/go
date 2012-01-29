@@ -7,14 +7,25 @@
 // Issue 2276.
 
 // Check that the error messages says 
-//	bug378.go:19: unsafe.Alignof(0) not used
+//	bug381.go:29: unsafe.Alignof(0) not used
 // and not
-//	bug378.go:19: 4 not used
+//	bug381.go:29: 4 not used
+
+// Issue 2768: previously got
+//    bug381.go:30: cannot use 3 (type time.Weekday) as type int in function argument
+// want
+//    bug381.go:30: cannot use time.Wednesday (type time.Weekday) as type int in function argument
 
 package main
 
-import "unsafe"
+import (
+	"time"
+	"unsafe"
+)
+
+func f(int)
 
 func main() {
 	unsafe.Alignof(0) // ERROR "unsafe\.Alignof|value computed is not used"
+	f(time.Wednesday) // ERROR "time.Wednesday|incompatible type"
 }

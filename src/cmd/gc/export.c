@@ -423,6 +423,7 @@ importconst(Sym *s, Type *t, Node *n)
 		*n1 = *n;
 		n = n1;
 	}
+	n->orig = newname(s);
 	n->sym = s;
 	declare(n, PEXTERN);
 
