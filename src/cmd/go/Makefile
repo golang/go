@@ -18,6 +18,7 @@ GOFILES=\
 	run.go\
 	test.go\
 	testflag.go\
+	tool.go\
 	version.go\
 	vet.go\
 	vcs.go\

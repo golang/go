@@ -75,6 +75,7 @@ var commands = []*Command{
 	cmdList,
 	cmdRun,
 	cmdTest,
+	cmdTool,
 	cmdVersion,
 	cmdVet,
 

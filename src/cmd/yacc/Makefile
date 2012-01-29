@@ -4,14 +4,14 @@
 
 include ../../Make.inc
 
-TARG=goyacc
+TARG=yacc
 GOFILES=\
-	goyacc.go\
+	yacc.go\
 
-include ../../Make.cmd
+include ../../Make.tool
 
-units: goyacc units.y
-	./goyacc -p units_ units.y
+units: yacc units.y
+	./yacc -p units_ units.y
 	$(GC) $(GCFLAGS) $(GCIMPORTS) y.go
 	$(LD) -o units y.$O
 

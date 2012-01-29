@@ -2933,7 +2933,7 @@ func chcopy(q string) string {
 }
 
 func usage() {
-	fmt.Fprintf(stderr, "usage: goyacc [-o output] [-v parsetable] input\n")
+	fmt.Fprintf(stderr, "usage: yacc [-o output] [-v parsetable] input\n")
 	exit(1)
 }
 

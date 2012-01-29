@@ -22,10 +22,20 @@ if ld --version 2>&1 | grep 'gold.* 2\.20' >/dev/null; then
 fi
 
 # Create target directories
-if [ "$GOBIN" = "$GOROOT/bin" ]; then
-	mkdir -p "$GOROOT/bin"
-fi
+mkdir -p "$GOROOT/bin/go-tool"
 mkdir -p "$GOROOT/pkg"
+
+# Remove old, pre-go-tool binaries.
+rm -f "$GOROOT"/bin/[568][acgl]
+rm -f "$GOROOT"/bin/{6cov,6nm,cgo,ebnflint,goapi,gofix,goinstall,gomake,gopack,gopprof,gotest,gotype,govet,goyacc,hgpatch,quietgcc}
+
+# If GOBIN is set and it has a Go compiler, it must also be cleaned.
+if [ -n "GOBIN" ]; then
+	if [ -x "$GOBIN"/5g -o -x "$GOBIN"/6g -o -x "$GOBIN"/8g ]; then
+		rm -f "$GOBIN"/[568][acgl]
+		rm -f "$GOBIN"/{6cov,6nm,cgo,ebnflint,goapi,gofix,goinstall,gomake,gopack,gopprof,gotest,gotype,govet,goyacc,hgpatch,quietgcc}
+	fi
+fi
 
 GOROOT_FINAL=${GOROOT_FINAL:-$GOROOT}
 
