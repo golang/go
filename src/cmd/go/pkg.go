@@ -407,7 +407,7 @@ func packages(args []string) []*Package {
 	for _, arg := range args {
 		pkg := loadPackage(arg, &stk)
 		if pkg.Error != nil {
-			errorf("%s", pkg.Error)
+			errorf("can't load package: %s", pkg.Error)
 			continue
 		}
 		pkgs = append(pkgs, pkg)
@@ -437,7 +437,7 @@ func packagesForBuild(args []string) []*Package {
 	printed := map[*PackageError]bool{}
 	for _, pkg := range pkgs {
 		if pkg.Error != nil {
-			errorf("%s", pkg.Error)
+			errorf("can't load package: %s", pkg.Error)
 		}
 		for _, err := range pkg.DepsErrors {
 			// Since these are errors in dependencies,
