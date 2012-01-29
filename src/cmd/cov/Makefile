@@ -9,7 +9,7 @@ O:=$(HOST_O)
 # We call the binary 6cov to avoid confusion and because this binary
 # is linked only with amd64 and x86 support.
 
-TARG=6cov
+TARG=cov
 OFILES=\
 	main.$O\
 	tree.$O\
@@ -18,7 +18,7 @@ HFILES=\
 	tree.h\
 
 NOINSTALL=1
-include ../../Make.ccmd
+include ../../Make.ctool
 
 ifeq ($(GOOS),windows)
 NAME=windows
@@ -38,4 +38,4 @@ install-darwin: $(TARG)
 	@true
 
 install-default: $(TARG)
-	cp $(TARG) "$(GOBIN)"/$(TARG)
+	cp $(TARG) "$(GOBIN)"/go-tool/$(TARG)

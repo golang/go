@@ -20,7 +20,10 @@ fi
 
 for i in prof cov
 do
-	sudo cp "$GOROOT"/src/cmd/$i/6$i /usr/local/bin/6$i
-	sudo chgrp procmod /usr/local/bin/6$i
-	sudo chmod g+s /usr/local/bin/6$i
+	# Remove old binaries if present
+	sudo rm -f /usr/local/bin/6$i
+	# Install new binaries
+	sudo cp "$GOROOT"/src/cmd/$i/$i /usr/local/bin/go$i
+	sudo chgrp procmod /usr/local/bin/go$i
+	sudo chmod g+s /usr/local/bin/go$i
 done
