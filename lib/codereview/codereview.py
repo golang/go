@@ -2177,9 +2177,12 @@ def reposetup(ui, repo):
 	global codereview_disabled
 	global defaultcc
 	
+	# reposetup gets called both for the local repository
+	# and also for any repository we are pulling or pushing to.
+	# Only initialize the first time.
 	global codereview_init
 	if codereview_init:
-		raise hg_util.Abort("codereview extension initialized twice")
+		return
 	codereview_init = True
 	
 	remote = ui.config("paths", "default", "")
