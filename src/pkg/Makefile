@@ -158,7 +158,6 @@ DIRS=\
 	../cmd/godoc\
 	../cmd/fix\
 	../cmd/gofmt\
-	../cmd/goinstall\
 	../cmd/gotest\
 	../cmd/vet\
 	../cmd/yacc\
