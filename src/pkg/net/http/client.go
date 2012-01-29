@@ -274,7 +274,11 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response,
 		return nil, err
 	}
 	req.Header.Set("Content-Type", bodyType)
-	return send(req, c.Transport)
+	r, err = send(req, c.Transport)
+	if c.Jar != nil {
+		c.Jar.SetCookies(req.URL, r.Cookies())
+	}
+	return r, err
 }
 
 // PostForm issues a POST to the specified URL, 
