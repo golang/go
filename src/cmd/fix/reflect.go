@@ -87,8 +87,8 @@ http://codereview.appspot.com/4433066
 // x.(*reflect.MapValue).Elem(v) becomes x.MapIndex(v).
 // In general, reflectFn needs to know the type of the receiver expression.
 // In most cases (and in all the cases in the Go source tree), the toy
-// type checker in typecheck.go provides enough information for gofix
-// to make the rewrite.  If gofix misses a rewrite, the code that is left over
+// type checker in typecheck.go provides enough information for fix
+// to make the rewrite.  If fix misses a rewrite, the code that is left over
 // will not compile, so it will be noticed immediately.
 
 func reflectFn(f *ast.File) bool {

@@ -23,7 +23,7 @@ type MethodSig struct {
 // checks are dynamic, such methods would not cause a compile error
 // if they have the wrong signature: instead the dynamic check would
 // fail, sometimes mysteriously.  If a method is found with a name listed
-// here but not the input/output types listed here, govet complains.
+// here but not the input/output types listed here, vet complains.
 //
 // A few of the canonical methods have very common names.
 // For example, a type might implement a Scan method that

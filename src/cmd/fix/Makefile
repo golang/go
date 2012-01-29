@@ -44,7 +44,7 @@ GOFILES=\
 	url.go\
 	xmlapi.go\
 
-include ../../Make.cmd
+include ../../Make.tool
 
 test:
 	gotest

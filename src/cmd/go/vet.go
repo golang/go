@@ -9,12 +9,12 @@ var cmdVet = &Command{
 	UsageLine: "vet [importpath...]",
 	Short:     "run govet on packages",
 	Long: `
-Vet runs the govet command on the packages named by the import paths.
+Vet runs the Go vet command on the packages named by the import paths.
 
-For more about govet, see 'godoc govet'.
+For more about vet, see 'godoc vet'.
 For more about import paths, see 'go help importpath'.
 
-To run govet with specific options, run govet itself.
+To run govet with specific options, run 'go tool vet'.
 
 See also: go fmt, go fix.
 	`,

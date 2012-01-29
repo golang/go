@@ -36,11 +36,11 @@ var allowed, force map[string]bool
 
 var doDiff = flag.Bool("diff", false, "display diffs instead of rewriting files")
 
-// enable for debugging gofix failures
+// enable for debugging fix failures
 const debug = false // display incorrectly reformatted source and exit
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: gofix [-diff] [-r fixname,...] [-force fixname,...] [path ...]\n")
+	fmt.Fprintf(os.Stderr, "usage: go tool fix [-diff] [-r fixname,...] [-force fixname,...] [path ...]\n")
 	flag.PrintDefaults()
 	fmt.Fprintf(os.Stderr, "\nAvailable rewrites are:\n")
 	sort.Sort(byName(fixes))
@@ -244,14 +244,14 @@ func isGoFile(f os.FileInfo) bool {
 }
 
 func diff(b1, b2 []byte) (data []byte, err error) {
-	f1, err := ioutil.TempFile("", "gofix")
+	f1, err := ioutil.TempFile("", "go-fix")
 	if err != nil {
 		return nil, err
 	}
 	defer os.Remove(f1.Name())
 	defer f1.Close()
 
-	f2, err := ioutil.TempFile("", "gofix")
+	f2, err := ioutil.TempFile("", "go-fix")
 	if err != nil {
 		return nil, err
 	}

@@ -4,14 +4,14 @@
 
 include ../../Make.inc
 
-TARG=govet
+TARG=vet
 GOFILES=\
-	govet.go\
+	main.go\
 	method.go\
 	print.go\
 	structtag.go\
 
-include ../../Make.cmd
+include ../../Make.tool
 
 test testshort: $(TARG)
 	../../../test/errchk $(TARG) -printfuncs='Warn:1,Warnf:1' print.go
