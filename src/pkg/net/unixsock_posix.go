@@ -120,7 +120,7 @@ func (c *UnixConn) ok() bool { return c != nil && c.fd != nil }
 
 // Implementation of the Conn interface - see Conn for documentation.
 
-// Read implements the net.Conn Read method.
+// Read implements the Conn Read method.
 func (c *UnixConn) Read(b []byte) (n int, err error) {
 	if !c.ok() {
 		return 0, os.EINVAL
@@ -128,7 +128,7 @@ func (c *UnixConn) Read(b []byte) (n int, err error) {
 	return c.fd.Read(b)
 }
 
-// Write implements the net.Conn Write method.
+// Write implements the Conn Write method.
 func (c *UnixConn) Write(b []byte) (n int, err error) {
 	if !c.ok() {
 		return 0, os.EINVAL
@@ -165,7 +165,7 @@ func (c *UnixConn) RemoteAddr() Addr {
 	return c.fd.raddr
 }
 
-// SetDeadline implements the net.Conn SetDeadline method.
+// SetDeadline implements the Conn SetDeadline method.
 func (c *UnixConn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
@@ -173,7 +173,7 @@ func (c *UnixConn) SetDeadline(t time.Time) error {
 	return setDeadline(c.fd, t)
 }
 
-// SetReadDeadline implements the net.Conn SetReadDeadline method.
+// SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *UnixConn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
@@ -181,7 +181,7 @@ func (c *UnixConn) SetReadDeadline(t time.Time) error {
 	return setReadDeadline(c.fd, t)
 }
 
-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+// SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *UnixConn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
@@ -226,7 +226,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
 	return
 }
 
-// ReadFrom implements the net.PacketConn ReadFrom method.
+// ReadFrom implements the PacketConn ReadFrom method.
 func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
@@ -252,7 +252,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
 	return c.fd.WriteTo(b, sa)
 }
 
-// WriteTo implements the net.PacketConn WriteTo method.
+// WriteTo implements the PacketConn WriteTo method.
 func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 	if !c.ok() {
 		return 0, os.EINVAL

@@ -23,12 +23,12 @@ type Addr interface {
 // Conn is a generic stream-oriented network connection.
 type Conn interface {
 	// Read reads data from the connection.
-	// Read can be made to time out and return a net.Error with Timeout() == true
+	// Read can be made to time out and return a Error with Timeout() == true
 	// after a fixed time limit; see SetDeadline and SetReadDeadline.
 	Read(b []byte) (n int, err error)
 
 	// Write writes data to the connection.
-	// Write can be made to time out and return a net.Error with Timeout() == true
+	// Write can be made to time out and return a Error with Timeout() == true
 	// after a fixed time limit; see SetDeadline and SetWriteDeadline.
 	Write(b []byte) (n int, err error)
 

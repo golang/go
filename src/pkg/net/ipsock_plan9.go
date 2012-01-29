@@ -91,7 +91,7 @@ func (c *plan9Conn) ok() bool { return c != nil && c.ctl != nil }
 
 // Implementation of the Conn interface - see Conn for documentation.
 
-// Read implements the net.Conn Read method.
+// Read implements the Conn Read method.
 func (c *plan9Conn) Read(b []byte) (n int, err error) {
 	if !c.ok() {
 		return 0, os.EINVAL
@@ -110,7 +110,7 @@ func (c *plan9Conn) Read(b []byte) (n int, err error) {
 	return
 }
 
-// Write implements the net.Conn Write method.
+// Write implements the Conn Write method.
 func (c *plan9Conn) Write(b []byte) (n int, err error) {
 	if !c.ok() {
 		return 0, os.EINVAL
@@ -157,17 +157,17 @@ func (c *plan9Conn) RemoteAddr() Addr {
 	return c.raddr
 }
 
-// SetDeadline implements the net.Conn SetDeadline method.
+// SetDeadline implements the Conn SetDeadline method.
 func (c *plan9Conn) SetDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetReadDeadline implements the net.Conn SetReadDeadline method.
+// SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *plan9Conn) SetReadDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+// SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *plan9Conn) SetWriteDeadline(t time.Time) error {
 	return os.EPLAN9
 }

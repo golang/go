@@ -67,7 +67,7 @@ func (c *TCPConn) ok() bool { return c != nil && c.fd != nil }
 
 // Implementation of the Conn interface - see Conn for documentation.
 
-// Read implements the net.Conn Read method.
+// Read implements the Conn Read method.
 func (c *TCPConn) Read(b []byte) (n int, err error) {
 	if !c.ok() {
 		return 0, os.EINVAL
@@ -83,7 +83,7 @@ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
 	return genericReadFrom(c, r)
 }
 
-// Write implements the net.Conn Write method.
+// Write implements the Conn Write method.
 func (c *TCPConn) Write(b []byte) (n int, err error) {
 	if !c.ok() {
 		return 0, os.EINVAL
@@ -135,7 +135,7 @@ func (c *TCPConn) RemoteAddr() Addr {
 	return c.fd.raddr
 }
 
-// SetDeadline implements the net.Conn SetDeadline method.
+// SetDeadline implements the Conn SetDeadline method.
 func (c *TCPConn) SetDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
@@ -143,7 +143,7 @@ func (c *TCPConn) SetDeadline(t time.Time) error {
 	return setDeadline(c.fd, t)
 }
 
-// SetReadDeadline implements the net.Conn SetReadDeadline method.
+// SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *TCPConn) SetReadDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL
@@ -151,7 +151,7 @@ func (c *TCPConn) SetReadDeadline(t time.Time) error {
 	return setReadDeadline(c.fd, t)
 }
 
-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+// SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *TCPConn) SetWriteDeadline(t time.Time) error {
 	if !c.ok() {
 		return os.EINVAL

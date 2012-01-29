@@ -15,17 +15,17 @@ import (
 // interfaces for IP network connections.
 type IPConn bool
 
-// SetDeadline implements the net.Conn SetDeadline method.
+// SetDeadline implements the Conn SetDeadline method.
 func (c *IPConn) SetDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetReadDeadline implements the net.Conn SetReadDeadline method.
+// SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *IPConn) SetReadDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+// SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *IPConn) SetWriteDeadline(t time.Time) error {
 	return os.EPLAN9
 }

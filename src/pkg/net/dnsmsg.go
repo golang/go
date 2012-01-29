@@ -4,7 +4,7 @@
 
 // DNS packet assembly.  See RFC 1035.
 //
-// This is intended to support name resolution during net.Dial.
+// This is intended to support name resolution during Dial.
 // It doesn't have to be blazing fast.
 //
 // Rather than write the usual handful of routines to pack and
