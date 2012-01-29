@@ -491,7 +491,7 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/plan9_386/text/template.a
 
 mkdir -p "$WORK"/cmd/go/_obj/
 cd "$GOROOT"/src/cmd/go
-8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./vcs.go ./version.go ./vet.go
+8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
 gopack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
 8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
 mkdir -p "$GOBIN"/

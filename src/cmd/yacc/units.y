@@ -7,17 +7,17 @@
 // See http://plan9.bell-labs.com/plan9/license.html
 
 // Generate parser with prefix "units_":
-//	goyacc -p "units_"
+//	go tool yacc -p "units_"
 
 %{
 
 // units.y
-// example of a goyacc program
+// example of a Go yacc program
 // usage is
-//	goyacc -p "units_" units.y (produces y.go)
+//	go tool yacc -p "units_" units.y (produces y.go)
 //	6g y.go
 //	6l y.6
-//	./6.out $GOROOT/src/cmd/goyacc/units
+//	./6.out $GOROOT/src/cmd/yacc/units
 //	you have: c
 //	you want: furlongs/fortnight
 //		* 1.8026178e+12
@@ -288,7 +288,7 @@ func main() {
 
 	flag.Parse()
 
-	file = os.Getenv("GOROOT") + "/src/cmd/goyacc/units.txt"
+	file = os.Getenv("GOROOT") + "/src/cmd/yacc/units.txt"
 	if flag.NArg() > 0 {
 		file = flag.Arg(0)
 	}

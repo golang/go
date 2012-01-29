@@ -161,7 +161,7 @@ DIRS=\
 	../cmd/goinstall\
 	../cmd/gotest\
 	../cmd/govet\
-	../cmd/goyacc\
+	../cmd/yacc\
 
 ifeq ($(GOOS),linux)
 DIRS+=\
@@ -194,7 +194,7 @@ NOTEST+=\
 	../cmd/cgo\
 	../cmd/godoc\
 	../cmd/gotest\
-	../cmd/goyacc\
+	../cmd/yacc\
 
 NOBENCH+=\
 

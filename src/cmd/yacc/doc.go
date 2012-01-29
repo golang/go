@@ -4,7 +4,8 @@
 
 /*
 
-Goyacc is a version of yacc for Go.
+Yacc is a version of yacc for Go. It is run with the command
+	go tool yacc args...
 It is written in Go and generates parsers written in Go.
 
 It is largely transliterated from the Inferno version written in Limbo
@@ -13,7 +14,8 @@ written in C and documented at
 
 	http://plan9.bell-labs.com/magic/man2html/1/yacc
 
-Yacc adepts will have no trouble adapting to this form of the tool.
+Adepts of the original yacc will have no trouble adapting to this
+form of the tool.
 
 The file units.y in this directory is a yacc grammar for a version of
 the Unix tool units, also written in Go and largely transliterated
@@ -37,9 +39,9 @@ which holds the yyLexer passed to Parse.
 
 Multiple grammars compiled into a single program should be placed in
 distinct packages.  If that is impossible, the "-p prefix" flag to
-goyacc sets the prefix, by default yy, that begins the names of
+yacc sets the prefix, by default yy, that begins the names of
 symbols, including types, the parser, and the lexer, generated and
-referenced by goyacc's generated code.  Setting it to distinct values
+referenced by yacc's generated code.  Setting it to distinct values
 allows multiple grammars to be placed in a single package.
 
 */

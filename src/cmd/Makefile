@@ -42,7 +42,7 @@ CLEANDIRS=\
 	gofmt\
 	goinstall\
 	gotest\
-	goyacc\
+	yacc\
 
 install: $(patsubst %,%.install,$(DIRS))
 clean: $(patsubst %,%.clean,$(CLEANDIRS))
