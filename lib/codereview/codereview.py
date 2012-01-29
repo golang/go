@@ -2171,10 +2171,21 @@ def norollback(*pats, **opts):
 	"""(disabled when using this extension)"""
 	raise hg_util.Abort("codereview extension enabled; use undo instead of rollback")
 
+codereview_init = False
+
 def reposetup(ui, repo):
 	global codereview_disabled
 	global defaultcc
 	
+	global codereview_init
+	if codereview_init:
+		raise hg_util.Abort("codereview extension initialized twice")
+	codereview_init = True
+	
+	remote = ui.config("paths", "default", "")
+	if remote.find("://") < 0:
+		raise hg_util.Abort("codereview: default path '%s' is not a URL" % (remote,))
+
 	# Read repository-specific options from lib/codereview/codereview.cfg or codereview.cfg.
 	root = ''
 	try:
