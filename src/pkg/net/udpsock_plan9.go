@@ -18,17 +18,17 @@ type UDPConn struct {
 	plan9Conn
 }
 
-// SetDeadline implements the net.Conn SetDeadline method.
+// SetDeadline implements the Conn SetDeadline method.
 func (c *UDPConn) SetDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetReadDeadline implements the net.Conn SetReadDeadline method.
+// SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *UDPConn) SetReadDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+// SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *UDPConn) SetWriteDeadline(t time.Time) error {
 	return os.EPLAN9
 }
@@ -66,7 +66,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
 	return n, &UDPAddr{h.raddr, int(h.rport)}, nil
 }
 
-// ReadFrom implements the net.PacketConn ReadFrom method.
+// ReadFrom implements the PacketConn ReadFrom method.
 func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
@@ -103,7 +103,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err error) {
 	return c.data.Write(buf)
 }
 
-// WriteTo implements the net.PacketConn WriteTo method.
+// WriteTo implements the PacketConn WriteTo method.
 func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 	if !c.ok() {
 		return 0, os.EINVAL

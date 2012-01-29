@@ -17,17 +17,17 @@ type TCPConn struct {
 	plan9Conn
 }
 
-// SetDeadline implements the net.Conn SetDeadline method.
+// SetDeadline implements the Conn SetDeadline method.
 func (c *TCPConn) SetDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetReadDeadline implements the net.Conn SetReadDeadline method.
+// SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *TCPConn) SetReadDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+// SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *TCPConn) SetWriteDeadline(t time.Time) error {
 	return os.EPLAN9
 }

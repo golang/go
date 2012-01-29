@@ -45,7 +45,7 @@ type netFD struct {
 
 type InvalidConnError struct{}
 
-func (e *InvalidConnError) Error() string   { return "invalid net.Conn" }
+func (e *InvalidConnError) Error() string   { return "invalid Conn" }
 func (e *InvalidConnError) Temporary() bool { return false }
 func (e *InvalidConnError) Timeout() bool   { return false }
 

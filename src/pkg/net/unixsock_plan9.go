@@ -17,12 +17,12 @@ type UnixConn bool
 
 // Implementation of the Conn interface - see Conn for documentation.
 
-// Read implements the net.Conn Read method.
+// Read implements the Conn Read method.
 func (c *UnixConn) Read(b []byte) (n int, err error) {
 	return 0, os.EPLAN9
 }
 
-// Write implements the net.Conn Write method.
+// Write implements the Conn Write method.
 func (c *UnixConn) Write(b []byte) (n int, err error) {
 	return 0, os.EPLAN9
 }
@@ -45,28 +45,28 @@ func (c *UnixConn) RemoteAddr() Addr {
 	return nil
 }
 
-// SetDeadline implements the net.Conn SetDeadline method.
+// SetDeadline implements the Conn SetDeadline method.
 func (c *UnixConn) SetDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetReadDeadline implements the net.Conn SetReadDeadline method.
+// SetReadDeadline implements the Conn SetReadDeadline method.
 func (c *UnixConn) SetReadDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
+// SetWriteDeadline implements the Conn SetWriteDeadline method.
 func (c *UnixConn) SetWriteDeadline(t time.Time) error {
 	return os.EPLAN9
 }
 
-// ReadFrom implements the net.PacketConn ReadFrom method.
+// ReadFrom implements the PacketConn ReadFrom method.
 func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
 	err = os.EPLAN9
 	return
 }
 
-// WriteTo implements the net.PacketConn WriteTo method.
+// WriteTo implements the PacketConn WriteTo method.
 func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
 	err = os.EPLAN9
 	return
