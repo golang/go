@@ -230,12 +230,6 @@ func (b *Builder) buildExternal() {
 // and builds it if one is found. 
 // It returns true if a build was attempted.
 func (b *Builder) build() bool {
-	defer func() {
-		err := recover()
-		if err != nil {
-			log.Println(b.name, "build:", err)
-		}
-	}()
 	hash, err := b.todo("build-go-commit", "", "")
 	if err != nil {
 		log.Println(err)
@@ -245,7 +239,6 @@ func (b *Builder) build() bool {
 		return false
 	}
 	// Look for hash locally before running hg pull.
-
 	if _, err := fullHash(goroot, hash[:12]); err != nil {
 		// Don't have hash, so run hg pull.
 		if err := run(nil, goroot, "hg", "pull"); err != nil {
@@ -260,33 +253,24 @@ func (b *Builder) build() bool {
 	return true
 }
 
-func (b *Builder) buildHash(hash string) (err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("%s build: %s: %s", b.name, hash, err)
-		}
-	}()
-
+func (b *Builder) buildHash(hash string) error {
 	log.Println(b.name, "building", hash)
 
 	// create place in which to do work
 	workpath := path.Join(*buildroot, b.name+"-"+hash[:12])
-	err = os.Mkdir(workpath, mkdirPerm)
-	if err != nil {
-		return
+	if err := os.Mkdir(workpath, mkdirPerm); err != nil {
+		return err
 	}
 	defer os.RemoveAll(workpath)
 
 	// clone repo
-	err = run(nil, workpath, "hg", "clone", goroot, "go")
-	if err != nil {
-		return
+	if err := run(nil, workpath, "hg", "clone", goroot, "go"); err != nil {
+		return err
 	}
 
 	// update to specified revision
-	err = run(nil, path.Join(workpath, "go"), "hg", "update", hash)
-	if err != nil {
-		return
+	if err := run(nil, path.Join(workpath, "go"), "hg", "update", hash); err != nil {
+		return err
 	}
 
 	srcDir := path.Join(workpath, "go", "src")
@@ -323,24 +307,22 @@ func (b *Builder) buildHash(hash string) (err error) {
 
 	// finish here if codeUsername and codePassword aren't set
 	if b.codeUsername == "" || b.codePassword == "" || !*buildRelease {
-		return
+		return nil
 	}
 
 	// if this is a release, create tgz and upload to google code
 	releaseHash, release, err := firstTag(binaryTagRe)
 	if hash == releaseHash {
 		// clean out build state
-		err = run(b.envv(), srcDir, "./clean.bash", "--nopkg")
-		if err != nil {
+		if err := run(b.envv(), srcDir, "./clean.bash", "--nopkg"); err != nil {
 			return fmt.Errorf("clean.bash: %s", err)
 		}
 		// upload binary release
 		fn := fmt.Sprintf("go.%s.%s-%s.tar.gz", release, b.goos, b.goarch)
-		err = run(nil, workpath, "tar", "czf", fn, "go")
-		if err != nil {
+		if err := run(nil, workpath, "tar", "czf", fn, "go"); err != nil {
 			return fmt.Errorf("tar: %s", err)
 		}
-		err = run(nil, workpath, path.Join(goroot, codePyScript),
+		err := run(nil, workpath, path.Join(goroot, codePyScript),
 			"-s", release,
 			"-p", codeProject,
 			"-u", b.codeUsername,
@@ -352,7 +334,7 @@ func (b *Builder) buildHash(hash string) (err error) {
 		}
 	}
 
-	return
+	return nil
 }
 
 func (b *Builder) buildSubrepos(goRoot, goHash string) {
@@ -571,13 +553,6 @@ const xmlLogTemplate = `
 // commitPoll pulls any new revisions from the hg server
 // and tells the server about them.
 func commitPoll(key, pkg string) {
-	// Catch unexpected panics.
-	defer func() {
-		if err := recover(); err != nil {
-			log.Printf("commitPoll panic: %s", err)
-		}
-	}()
-
 	pkgRoot := goroot
 
 	if pkg != "" {
@@ -687,12 +662,7 @@ func addCommit(pkg, hash, key string) bool {
 }
 
 // fullHash returns the full hash for the given Mercurial revision.
-func fullHash(root, rev string) (hash string, err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("fullHash: %s: %s", rev, err)
-		}
-	}()
+func fullHash(root, rev string) (string, error) {
 	s, _, err := runLog(nil, "", root,
 		"hg", "log",
 		"--encoding=utf-8",
@@ -701,7 +671,7 @@ func fullHash(root, rev string) (hash string, err error) {
 		"--template={node}",
 	)
 	if err != nil {
-		return
+		return "", nil
 	}
 	s = strings.TrimSpace(s)
 	if s == "" {
