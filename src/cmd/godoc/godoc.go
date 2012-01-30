@@ -1065,6 +1065,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
 			}
 		}
 		plist = plist[0:i]
+		sort.Strings(plist)
 	}
 
 	// get examples from *_test.go files
